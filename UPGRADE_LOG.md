@@ -1,0 +1,661 @@
+# Horosa Upgrade Log
+
+This file tracks every code/config change made in this workspace.
+Append new entries; do not rewrite history.
+
+## Entry Format
+- Date: YYYY-MM-DD
+- Scope: what was changed
+- Files: key files touched
+- Details: short bullets
+- Verification: tests/build/manual checks
+
+---
+
+## 2026-02-19
+
+### 11:44 - 三式合一接入 kintaiyi 太乙核心并完成盘面/标签展示
+- Scope: integrate `kintaiyi-master` 太乙算法到三式合一，并把核心逻辑沉淀到独立 core 文件夹，同时补全盘面与右侧标签可视化。
+- Files:
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/components/sanshi/core/TaiYiCore.js`
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/utils/aiExport.js`
+- Details:
+  - 新增 `sanshi/core/TaiYiCore.js`，封装太乙关键计算（积数、局式、太乙/文昌/始击/定目、主客定算、君臣民基、十精相关宫位等）并输出结构化结果。
+  - 在三式合一计算链中接入太乙结果（state 增加 `taiyi`、保存 payload 增加 `taiyi`、快照增加 `太乙` 与 `太乙十六宫` 分区）。
+  - 右侧参数区新增太乙盘式/积年法选项；右侧信息面板新增“太乙”标签页，完整展示核心结果与十六宫标记。
+  - 盘面外圈新增“太乙”宫位标注文本（按地支宫显示），并补充样式类 `outerTaiyi`。
+  - AI 导出预设章节补充 `太乙` 与 `太乙十六宫`，保证导出内容与界面一致。
+- Verification:
+  - `npm run build --silent`
+
+### 11:15 - 404 fallback + local route recovery
+- Scope: prevent app from getting stuck on the 404 page in local file mode.
+- Files:
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/pages/404.js`
+- Details:
+  - Added auto-redirect logic for `file://` + hash routes.
+  - If route is invalid, fallback to `index.html#/` and then `/`.
+  - Updated 404 text to show automatic recovery status.
+- Verification:
+  - `npm test -- --runInBand`
+  - `npm run build:file`
+
+### 11:12 - 三式合一中心四课/三传布局调整为 85%
+- Scope: reduce overlap in center area under zoom/resize.
+- Files:
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- Details:
+  - Changed center text target occupancy from 95% to 85%.
+  - Keeps same-row scaling behavior, but adds more vertical breathing room.
+- Verification:
+  - `npm test -- --runInBand`
+
+### 11:10 - 三式合一导出格式优化（神煞置底 + 星盘全名）
+- Scope: adjust export text order and remove star abbreviations in export output.
+- Files:
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- Details:
+  - Moved `【神煞】` section to the end of exported content.
+  - Added full-name star output for export (with degree + minutes + `R` for retrograde).
+  - Kept UI short labels unchanged; export uses full labels.
+- Verification:
+  - `npm test -- --runInBand`
+  - `npm run build`
+
+### 11:04 - 三式合一/遁甲起盘性能链路去重与静默化
+- Scope: reduce repeated recomputation and improve click-to-plot responsiveness.
+- Files:
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c/astrostudyui/src/components/dunjia/DunJiaMain.js`
+- Details:
+  - Added field-only sync path to avoid expensive fetch on every confirm.
+  - Added `nohook` support for silent fetch to prevent duplicate refresh chains.
+  - Reused pending same-key refresh/request promises to avoid duplicated requests.
+  - Click-plot now decides `force` based on key change instead of always forcing.
+- Verification:
+  - `npm test -- --runInBand`
+  - `npm run build`
+  - Local API latency spot-check script (nongli/jieqi endpoints)
+
+### 11:50 - 工程目录重命名为 Horosa-Web 并修正启动路径
+- Scope: rename project folder from `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c` to `Horosa-Web` and update hardcoded path references to avoid startup/runtime breaks.
+- Files:
+  - `Horosa_Local.command`
+  - `Prepare_Runtime_Mac.command`
+  - `Horosa_Local_Windows.ps1`
+  - `README.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - Renamed folder: `Horosa-Web-55c75c5b088252fbd718afeffa6d5bcb59254a0c` -> `Horosa-Web`.
+  - Updated Mac launcher `PROJECT_DIR` to `${ROOT}/Horosa-Web`.
+  - Updated Windows launcher `ProjectDir` to `Join-Path $Root 'Horosa-Web'`.
+  - Updated documentation paths to new folder name for consistency.
+  - Kept historical references in old log entries unchanged to preserve audit history.
+- Verification:
+  - `ls -la "/Users/horacedong/Desktop/Horosa-Web+App (Mac)"`
+  - Confirmed `Horosa-Web/` exists and old folder no longer exists.
+  - `rg -n "Horosa-Web(-55c75c5b088252fbd718afeffa6d5bcb59254a0c)?" Horosa_Local.command Prepare_Runtime_Mac.command Horosa_Local_Windows.ps1 README.md PROJECT_STRUCTURE.md`
+
+### 11:54 - 移除根目录 kintaiyi-master 并验证太乙可用
+- Scope: fully remove root folder `kintaiyi-master` and verify 三式合一太乙核心 does not depend on that folder at runtime/build time.
+- Files:
+  - `UPGRADE_LOG.md`
+- Details:
+  - Deleted `/Users/horacedong/Desktop/Horosa-Web+App (Mac)/kintaiyi-master`.
+  - Kept integrated Taiyi core in `Horosa-Web/astrostudyui/src/components/sanshi/core/TaiYiCore.js` as the active implementation.
+  - Confirmed `SanShiUnitedMain.js` imports Taiyi logic from local `./core/TaiYiCore` only.
+- Verification:
+  - `ls -la "/Users/horacedong/Desktop/Horosa-Web+App (Mac)"` (confirmed `kintaiyi-master` removed)
+  - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully after deletion)
+  - `rg -n "kintaiyi-master|kintaiyi" Horosa-Web/astrostudyui/src Horosa-Web/astrostudysrv Horosa-Web/astropy Horosa_Local.command Prepare_Runtime_Mac.command Horosa_Local_Windows.ps1`
+
+### 12:00 - 太乙核心迁移到太乙模块 + 三式合一左盘移除太乙文案
+- Scope: move kintaiyi-based Taiyi core into `易与三式/太乙`模块核心目录 and keep 三式合一中的太乙信息只在右侧标签显示，不再覆盖左侧方盘外圈。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/taiyi/core/TaiYiCore.js`
+  - `Horosa-Web/astrostudyui/src/components/taiyi/TaiYiCalc.js`
+  - `Horosa-Web/astrostudyui/src/components/taiyi/TaiYiMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/core/TaiYiCore.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增 `taiyi/core/TaiYiCore.js` 作为太乙核心算法文件（包含 kintaiyi 口径计算与结构化输出）。
+  - `taiyi/TaiYiCalc.js` 改为基于 `taiyi/core/TaiYiCore.js` 的适配层，统一太乙盘计算、快照文本与盘面宫位数据。
+  - `sanshi/core/TaiYiCore.js` 改为转发导出，三式合一与太乙模块共享同一套核心算法来源。
+  - 三式合一左侧方盘外圈移除“太乙:...”叠加文字，仅保留右侧“太乙”标签页详细信息。
+  - 太乙主模块右侧信息面板补充定目、三基、将参、十精相关宫位等核心计算结果展示。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully)
+  - `rg -n "renderOuterMarks\\(|outerTaiyi|calcTaiyiPanFromKintaiyi" Horosa-Web/astrostudyui/src/components/sanshi Horosa-Web/astrostudyui/src/components/taiyi`
+
+### 12:04 - 三式合一中心盘对齐：四课上对齐、三传下对齐
+- Scope: adjust center block layout in 三式合一 square board so 四课 anchors to the top edge and 三传 anchors to the bottom edge.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+  - `UPGRADE_LOG.md`
+- Details:
+  - Removed center vertical balancing padding in `renderCenterBlock`; 四课 `top` and 三传 `bottom` now pin to edge padding directly.
+  - Kept unified dynamic font/line-height scaling logic unchanged to preserve readability under zoom.
+  - Added explicit layout intents in CSS: `.centerKe` uses `justify-content: flex-start`; `.centerChuan` uses `justify-content: flex-end`.
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully)
+
+### 12:07 - 太乙页面信息换位：右侧减载，盘面左上/右下承载关键信息
+- Scope: reduce info overflow in `易与三式-太乙` right panel by moving the last metadata segment onto the chart, and relocate original top-left chart summary to bottom-right.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/taiyi/TaiYiMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - Left chart top-left now shows: `农历 / 真太阳时 / 干支(紧凑格式) / 节气`。
+  - Original top-left summary (`积数/命式/局/主客定算/太乙数`) moved to left chart bottom-right.
+  - Removed the final right-panel block (`农历/真太阳时/干支/节气段`) to shrink right-side content height and avoid overflow.
+  - Tuned chart corner text font/line spacing for readability near ring edges.
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully)
+
+### 12:09 - 太乙右侧标签去重：左盘已展示内容不再重复
+- Scope: remove duplicate fields from the right info panel when the same values are already rendered on the left Taiyi chart.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/taiyi/TaiYiMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - Removed duplicated right-panel items already shown in left chart corners: `命式`、`局式`、`太乙积数`、`主算`、`客算`、`定算`。
+  - Kept right-panel items that are not shown in left chart (e.g. 太乙宫位、文昌/始击/太岁/合神/计神、定目、将参与十精类信息)。
+  - Preserved panel section divider structure for readability after pruning.
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully)
+
+### 12:14 - 太乙盘可读性增强：角标与盘中文字整体放大
+- Scope: increase readability of `易与三式-太乙` by enlarging top-left/bottom-right corner metadata and inner chart text.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/taiyi/TaiYiMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - Enlarged corner metadata text from `11` to `13`, and increased line spacing from `16` to `18`.
+  - Slightly adjusted corner anchors to keep enlarged text within safe margins.
+  - Enlarged center and ring text (`五/中宫`、二层数字、三层宫位、四层神名、外层标记) to improve legibility.
+  - Increased outer-most label line spacing to avoid overlap after font enlargement.
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully)
+
+### 12:16 - 太乙盘字体风格调整：取消加粗 + 角标再次放大
+- Scope: remove bold weight in Taiyi chart text and further increase left-top/right-bottom corner metadata size.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/taiyi/TaiYiMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - Changed Taiyi chart text `fontWeight` from bold to normal (`700 -> 400`) for center, rings, and corner metadata.
+  - Increased corner metadata font size from `13` to `15`.
+  - Increased corner metadata line spacing from `18` to `20`, and adjusted anchors to keep text within chart bounds.
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully)
+
+## 2026-02-20
+
+### 22:59 - 大六壬三传与旬干算法修复（重复课去重 + 旬序映射）
+- Scope: fix Da Liu Ren core calculation issues reported in production cases, including duplicate-ke handling for 初传 selection and branch->stem mapping for 三传干支.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.test.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouPanChart.js`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/model/LiuReng.java`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 修复九法判课中的“重复课”问题：在 `isJinKe0/isJinKe1/isYaoKe0/isYaoKe1/getSeHais` 中先去重再比用/涉害，落实“同课只计一次”，避免把同一上神重复当成多课，修正了“巳时四课初传应卯”类误判。
+  - 修复三传干支天干推导：将原“相对索引差”算法改为“旬序地支->天干映射（xunGanMap）”，确保甲辰旬中未位对应 `丁未`，不再误算 `己未`。
+  - 旬日字段兼容升级：后端新增 `遁丁`（地支）并保留原 `旬丁`；前端六壬/金口诀旬日面板优先展示 `遁丁`，旧数据自动从 `旬丁` 提取地支。
+  - 新增回归测试覆盖两类问题：重复贼课初传落卯、甲辰旬未位映射丁未。
+- Verification:
+  - `npm test -- ChuangChart.test.js --runInBand`
+  - `npm test -- JinKouCalc.test.js --runInBand`
+
+### 23:04 - 六壬改为手动起课：仅点击“起课”后再计算与校验出生时间
+- Scope: stop automatic recalculation and repeated birth-time validation popups in `易与三式 -> 六壬`; run liureng/running-year logic only when user explicitly clicks the action button.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增“起课”按钮，并将六壬计算入口绑定到按钮点击事件（`clickStartPaiPan` -> `requestGods`）。
+  - 取消 tab hook 自动触发 `requestGods`，避免调整时间/切换字段时反复重算。
+  - 取消出生信息变更时自动触发 `requestRunYear`，避免反复弹出“卜卦人出生时间必须早于起课时间”提示。
+  - 取消 `componentDidMount` 自动起课，页面初始进入保持静默，等待手动点击“起课”。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully)
+
+### 23:09 - 修复“代码已改但盘面仍旧值”：dist-file 重建 + 启动脚本自动检测前端变更
+- Scope: ensure the latest 六壬三传算法（初传卯、遁丁丁未）真正进入本地运行包，避免 `dist-file` 旧包导致六壬/金口诀/三式合一仍显示旧结果。
+- Files:
+  - `Horosa-Web/start_horosa_local.sh`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 问题根因是运行入口优先读取 `astrostudyui/dist-file/index.html`，而此前只构建了 `dist`，导致页面继续加载旧 `dist-file` 资源，出现“初传仍申、未干仍己”的假象。
+  - 重新执行 `npm run build:file`，已生成新 `dist-file/umi.*.js`，并确认产物包含新逻辑标识（`uniqueZiList`、`clickStartPaiPan`）。
+  - 升级 `start_horosa_local.sh`：启动前自动检查 `astrostudyui/src/public/package/.umirc` 相对 `dist-file/index.html` 的新旧；若有变更则自动 `npm run build:file`，防止再次加载陈旧包。
+  - 启动脚本增加前端兜底：当 `dist-file` 不存在时回退 `dist`；若二者都不存在则直接报错退出，避免静默失败。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `npm test -- ChuangChart.test.js --runInBand`
+  - `npm test -- JinKouCalc.test.js --runInBand`
+  - `bash -n Horosa-Web/start_horosa_local.sh`
+
+### 23:15 - 六壬改为“点起课后才更新盘面”：时间调整不再触发自动重算
+- Scope: stop `易与三式 -> 六壬` chart recalculation during time edits by freezing the displayed chart context until user clicks `起课`.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增 `calcFields/calcChart` 状态，作为“已确认起课上下文”；六壬盘面改为只渲染这组上下文，不再直接跟随输入框实时变化。
+  - `clickStartPaiPan` 中先锁定当前 `fields/chart`，再调用 `requestGods`；因此调整时间只会改输入，不会改盘，直到再次点击 `起课`。
+  - `requestRunYear`、`saveLiuRengAISnapshot`、`clickSaveCase` 统一改为优先使用 `calcFields`，避免“改了时间但未起课”时出现年龄/保存内容与盘面不一致。
+  - 保留原输入联动（更新天文底盘字段）但六壬计算与显示绑定到手动起课动作。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `npm test -- ChuangChart.test.js --runInBand`
+
+### 23:17 - 修复六壬下方信息区空白：行年缺失不再导致整块隐藏
+- Scope: keep lower info panels visible in 六壬 chart even when `runyear` is temporarily unavailable (e.g. birth year check fails or user尚未有效起行年).
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 调整 `drawGua3/drawGua4` 的显示条件：仅依赖 `liureng`，不再因为 `runyear` 为空直接 `return`，避免整块“旬日/旺衰/神煞/年煞/十二长生”一起消失。
+  - `getRunYear` 增加空值兜底，`runyear` 缺失时显示 `—`，不再触发隐藏。
+  - `getYearGods` 增加空值兜底，年煞缺失时各项显示 `—`。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 23:24 - 三式合一改为“仅起盘计算”：禁止时间调节实时重算与联动报错
+- Scope: stop real-time recalculation in `三式合一` while editing right-panel time/options; recalculate only on explicit `起盘` click.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 去除时间编辑过程中的自动预计算触发：`onTimeChanged` 不再在未确认输入时预取精确历法，也不再在“确定”后立刻重算盘面。
+  - 去除 `hook/componentDidUpdate/onOptionChange` 的自动重算路径，避免右侧时间输入过程触发左盘实时刷新。
+  - `clickPlot` 改为唯一计算入口：点击后强制 `refreshAll(..., true)`，确保即使仅改右侧选项也会重新起盘。
+  - 新增 `plottedFields`，左盘顶部时间与保存内容改为绑定“上次起盘字段”，避免右侧草稿时间变动时左盘文本漂移。
+  - 新增 `awaitingChartSync`：起盘时若触发图表字段同步，待图表回写后仅做一次补算，避免旧图数据混入。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 23:26 - 三式合一年份调节卡顿优化：时间草稿改为非渲染态缓存
+- Scope: reduce UI freeze when continuously adjusting year in `三式合一` right panel.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增 `pendingTimeFields`（实例缓存）保存时间草稿；未点击“确定/起盘”前不再 `setState(localFields)`，避免每次年份变动触发整页重渲染。
+  - `clickPlot` 优先读取 `pendingTimeFields + timeHook.getValue()` 作为最终起盘参数，确保不丢草稿时间。
+  - 点击“起盘”完成后清空 `pendingTimeFields`，保持状态一致。
+  - 该优化与“仅起盘计算”组合后，可避免右侧年份滚动时左盘重绘抖动与长时间卡死。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 23:31 - 六壬时间调节去掉“未确认即请求”：消除每次改时的全局加载闪烁
+- Scope: stop global loading flash in `六壬` when user adjusts time but has not clicked `确定`.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengInput.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `LiuRengInput.onTimeChanged` 新增确认门禁：当 `value.confirmed === false` 时直接返回，不再向上层派发字段更新。
+  - 结果是右侧时间控件在编辑阶段仅保留本地草稿，只有点击时间控件内“确定”后才同步字段并触发底层天文请求；因此不会再出现你截图里的“加载中...”闪一下。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 23:35 - 修复六壬“起课仅首次有效”回归：恢复时间编辑同步并保持静默请求
+- Scope: ensure `六壬` can repeatedly re-plot after each time adjustment, while still avoiding visible global loading flash.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengInput.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 回退 `LiuRengInput` 的“confirmed=false 直接return”门禁（该门禁会导致时间草稿不进入字段，从而出现你反馈的“首次起课后再次起课无反应”）。
+  - 在 `LiuRengMain.onFieldsChange` 中将字段同步请求改为静默模式：`astro/fetchByFields + __requestOptions.silent + nohook=true`。
+  - 这样调整时间仍会更新底层星盘字段（保证后续起课可重复生效），但不再出现明显“加载中...”遮罩闪烁。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 23:46 - 三式合一起盘提速：首帧限时返回 + 后台精化，目标 5 秒内出盘
+- Scope: reduce worst-case plotting latency for large year jumps in `三式合一` (especially `置润 + 直润`) from tens of seconds to a bounded first response.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 增加首帧时限 `SANSHI_FAST_BUDGET_MS=4500`：`refreshAll` 对 `fetchPreciseNongli` 采用 `Promise.race`，超过预算先用回退数据出盘，不再阻塞 30s+。
+  - 回退策略：优先使用当前星盘 `chart.nongli`，其次使用上次已算 `state.nongli`；若精确结果晚到，再后台二次重算精化（不阻塞首帧）。
+  - `直润` 年种子改为“后台补齐后再重算”，首帧不再等待 `year-1/year` 两个 seed 完成。
+  - `clickPlot` 避免双重重算竞争：当字段有变化时先同步 chart（`awaitingChartSync`），图表回写后再触发一次 `refreshAll`；并加入 1.2s watchdog 兜底，防止等待同步挂死。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:00 - 三式合一新增换日选项：子初换日 / 子正换日（影响日柱算法）
+- Scope: add day-boundary switch to `三式合一` and apply it to real-solar-time day pillar calculation for 奇门/六壬联动。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 在右侧参数区新增换日下拉（放在“时家奇门”和“天禽值符”之间）：`子初换日` / `子正换日`。
+  - `子初换日` 对应 `after23NewDay=1`：真太阳时到当日 `23:00` 即按次日干支起日柱。
+  - `子正换日` 对应 `after23NewDay=0`：真太阳时到次日 `00:00` 才换次日日柱（23:59 仍按当天）。
+  - `三式合一` 请求精确农历参数改为携带该选项（不再固定 `after23NewDay=0`），并写入缓存 key/起盘签名，防止不同换日规则串缓存。
+  - `DunJiaCalc` 增加 `after23NewDay` 算法分支：`buildGanzhiForQimen` 与 `qimenJuNameZhirun` 的 23 点跨日逻辑由该参数控制；默认保持旧行为（未传参时按子初换日）。
+  - 概览与快照新增换日规则展示，便于复盘/保存后回放一致。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:02 - 三式合一换日默认值改为“子初换日”
+- Scope: set the new day-boundary selector default to `子初换日` in `三式合一`.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 将 `SanShiUnitedMain` 的初始选项 `after23NewDay` 默认值由 `0` 调整为 `1`。
+  - 新开三式合一页面时，换日下拉默认即为“子初换日”；算法按 23:00 跨日处理日柱。
+  - 已保留手动切换能力，用户仍可改成“子正换日”用于对照起盘。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:05 - 遁甲页新增换日选项，并替换“经纬度选择”位置布局
+- Scope: add `子初换日/子正换日` selector to `易与三式-遁甲` and move original `经纬度选择` button below it at the same location.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 遁甲右侧控制区新增换日下拉，位置放在原“经纬度选择”处；原“经纬度选择”按钮下移至该下拉正下方。
+  - 新增选项值 `after23NewDay`，默认 `1`（子初换日），并接入保存/回放选项恢复链路。
+  - `genParams` 不再固定 `after23NewDay=0`，改为按当前下拉值传给精确历法接口，确保农历与日柱口径一致。
+  - `onOptionChange('after23NewDay')` 时，已起盘状态下会强制重新请求农历并重算，避免仅重绘旧农历导致口径不一致。
+  - 细化缓存键：遁甲盘缓存键与农历请求键都纳入 `after23NewDay`，防止“子初/子正”切换时串缓存。
+  - 概览面板与快照文本新增“换日”显示项，便于复盘确认当前算法口径。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:13 - 遁甲/三式合一盘面时间改为同排双显示：钟表时间 + 真太阳时
+- Scope: show both `钟表时间` and `真太阳时` on the board header line to remove ambiguity while preserving direct time comparison.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 遁甲盘顶部时间区改为双时间并排：`钟表时间：XX:XX  真太阳时：XX:XX`；日期优先显示真太阳时日期。
+  - 三式合一顶部信息区改为三行：`农历`、`日期`、`时间`，其中“时间”行为双时间并排显示（钟表 + 真太阳时）。
+  - 三式合一真太阳时来源优先使用 `dunjia.realSunTime`（回退 `nongli.birth`），确保展示与起盘算法一致。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:18 - 时间展示微调：三式合一并入“日期行”，遁甲接在年月日后并留双 Tab 间距
+- Scope: adjust board time typography/layout per latest UX request: no extra time row in 三式合一, and inline date+times in 遁甲 with clearer spacing.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 三式合一顶部日期区取消独立“时间”行，改为在“日期”后同一行显示：`钟表时间：XX:XX  真太阳时：XX:XX`。
+  - 三式合一该段时间字体降为小号（12px），以弱化次级信息视觉权重并减少拥挤感。
+  - 遁甲盘标题区改为同一行展示：`公历年月日 +（双 Tab 视觉间距）+ 钟表时间/真太阳时`。
+  - 遁甲在日期与时间段之间增加固定左间距（约 4em），对应“两个 tab”可读间隔。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:24 - 紫微斗数新增“真太阳时/直接时间”选项（男右侧、四化盘左侧）并接入底层算法
+- Scope: add time-basis selector in 紫微斗数 and make backend calculation switch between real-solar-time mode and direct-clock-time mode.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/ziwei/ZiWeiInput.js`
+  - `Horosa-Web/astrostudyui/src/components/ziwei/ZiWeiMain.js`
+  - `Horosa-Web/astrostudyui/src/components/ziwei/ZWCenterHouse.js`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ZiWeiController.java`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/model/ZiWeiChart.java`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/model/OnlyFourColumns.java`
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/NongliHelper.java`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 紫微输入区新增下拉：`真太阳时 / 直接时间`，位置放在“男/女”右侧、“四化盘”左侧（按你的指定顺序）。
+  - 前端参数新增 `timeAlg`（0=真太阳时，1=直接时间）并透传至 `/ziwei/birth`。
+  - 后端 `ZiWeiController` 增加 `timeAlg` 解析并传入 `ZiWeiChart`；仅允许 RealSun/DirectTime 两档。
+  - `ZiWeiChart` 与 `OnlyFourColumns` 构造链路增加 `timeAlg` 支持：真太阳时保持现有算法；直接时间走不做经纬度时间修正的分支。
+  - `NongliHelper` 增加带 `directTime` 开关的重载；`directTime=true` 时不再执行真太阳时偏移。
+  - 紫微盘中心信息标签改为动态：`真太阳时：...` 或 `直接时间：...`，避免显示文案和算法不一致。
+- Verification:
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `mvn -DskipTests install` in `Horosa-Web/astrostudysrv/astrostudy`
+  - `mvn -DskipTests install` in `Horosa-Web/astrostudysrv/astrostudycn`
+
+### 10:46 - 三式合一新增“真太阳时/直接时间”选项并打通前后端计算口径
+- Scope: add time algorithm switch to `三式合一`（位置：命局右侧、男左侧），并让“直接时间”按时间组件计算、不受经纬度真太阳时修正影响。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/utils/preciseCalcBridge.js`
+  - `Horosa-Web/astrostudyui/src/utils/localCalcCache.js`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/NongliController.java`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 三式合一右侧首行参数扩展为四列：`命局/事局`、`真太阳时/直接时间`、`男/女`、`贵人体系`。
+  - 新增 `timeAlg` 状态、保存/恢复链路、起盘参数、概览显示与快照文案；顶部时间展示按选项动态显示“真太阳时”或“直接时间”。
+  - “直接时间”模式下，三式合一请求精确农历/节气时使用时区标准经线（`zone*15°`）与零纬度，不再按当前经纬度做真太阳时偏移。
+  - 农历/节气前端缓存 key 增加 `timeAlg`，避免真太阳时与直接时间结果串缓存。
+  - 后端 `/nongli/time` 增加 `timeAlg` 参数解析并支持 DirectTime：直接时间时返回不经真太阳时偏移的农历基础字段，同时保留四柱/方向等结构字段。
+- Verification:
+  - `npm --prefix Horosa-Web/astrostudyui run test -- --runInBand --passWithNoTests astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `mvn -f Horosa-Web/astrostudysrv/astrostudycn/pom.xml -DskipTests compile`
+
+### 10:52 - 六壬四课文案修正：`干支` 更名 `地盘`，去除四课冗余注释展开
+- Scope: align 六壬四课输出术语，去掉无用的“(一课/二课/三课/四课)”扩展标记。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 六壬四课行文从 `干支=...` 调整为 `地盘=...`（仍保留 `天盘`、`贵神`）。
+  - AI 导出规范中移除 `四课 -> 四课(一课/二课/三课/四课)` 的替换规则，标题保持为简洁 `四课`。
+- Verification:
+  - `npm --prefix Horosa-Web/astrostudyui run test -- --runInBand --passWithNoTests astrostudyui/src/components/lrzhan/LiuRengMain.js`
+
+### 11:12 - 星盘组件新增“星曜附带后天宫信息”并全页面/AI 导出同步
+- Scope: add a global chart option in `星盘组件` to append each star/object label with natal-house placement and rulership info, and make it effective across all chart-calculation pages and AI exports.
+- Files:
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js`
+  - `Horosa-Web/astrostudyui/src/utils/planetHouseInfo.js`
+  - `Horosa-Web/astrostudyui/src/pages/index.js`
+  - `Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js`
+  - `Horosa-Web/astrostudyui/src/utils/predictiveAiSnapshot.js`
+  - `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroAspect.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPlanet.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPredictPlanetSign.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/AspectInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/MidpointInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/AntisciaInfo.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增全局开关 `showPlanetHouseInfo`（持久化），在“星盘组件”面板中可直接开启/关闭。
+  - 新增工具 `planetHouseInfo`，统一格式输出：`X (1th; 2R6R)`。
+  - 将该开关从首页路由层透传到星盘、推运、关系盘、节气盘、三式合一、希腊星术、印度盘等含星盘计算页面的右侧星曜文本区域。
+  - AI 导出（常规与推运）同步使用相同标签增强逻辑，确保导出文本与右侧显示一致。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `rg -n "showPlanetHouseInfo|appendPlanetHouseInfoById" Horosa-Web/astrostudyui/src`
+
+### 11:47 - 三式合一切页卡顿优化：重算延迟合并 + 快照异步 + 太乙缓存
+- Scope: improve UX freeze when entering `三式合一` by removing heavy synchronous work from immediate tab switch.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `recalcByNongli` 改为短延迟合并执行（同批多次触发只计算最后一次），降低主线程阻塞峰值。
+  - 拆分 `performRecalcByNongli`，并为太乙结果加入 `taiyiCache`，减少重复计算。
+  - AI 快照文本构建/写入改为延后执行，不阻塞首帧起盘显示。
+  - `refreshAll` 改为等待首轮重算后再关 loading，并限制 seed 完成后的重复补算触发。
+  - 右侧 Tabs 启用 `destroyInactiveTabPane` + `animated={false}`，减少初次渲染负载。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+
+### 12:10 - 修复开启“星曜附带后天宫信息”后符号乱码
+- Scope: fix unreadable garbled text when the house-info suffix is appended to symbol-font planet labels.
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/planetHouseInfo.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增标签归一化逻辑：当检测到标签来自 `AstroMsg` 符号字形（如 `A/B/C...`）时，自动切换为 `AstroMsgCN` 可读中文名再拼接后天宫信息。
+  - 保持未开启开关时的旧显示逻辑不变，避免影响原有符号盘视觉。
+  - 解决症状：右侧“盲点/反盲点、接纳、互容”等模块在开关开启时不再出现乱码。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+
+### 12:15 - 三式合一起盘再提速（保持精度）：精确结果预取 + 同参缓存优先 + 回退仅兜底
+- Scope: further reduce `三式合一` wait time while preserving calculation precision (no algorithm simplification).
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `refreshAll` 优先读取“同参数精确农历缓存”（`getNongliLocalCache`），命中时立即使用精确结果起盘。
+  - 仅当同参缓存未命中时才等待精确接口；回退到 `chart/state nongli` 仅作为“精确服务未及时返回”的兜底显示，不改变最终精化结果。
+  - 将首帧预算时间下调到 `2200ms`，缩短无缓存场景下的等待窗口。
+  - 在时间确认、时间算法切换、关键起局参数切换、点击起盘前新增精确农历/节气预取，尽量在用户点击前把精确数据准备到缓存。
+  - 保留后续精确结果自动覆盖逻辑：回退盘仅临时显示，精确结果到达后会自动重算替换。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+
+### 12:17 - 再修“星曜附带后天宫信息”乱码：后缀改为全中文安全格式
+- Scope: eliminate remaining Astro symbol-font garbling when house-info suffix is rendered inside right-panel lines that use `AstroFont`.
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/planetHouseInfo.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 将后缀格式从 ASCII 版（如 `1th; 2R6R`）改为全中文安全格式（如 `一宫；主二、六宫`），并使用全角括号。
+  - 保留原语义不变：仍表示“所在后天宫位 + 所主宰后天宫位”，但避免 `AstroFont` 对英文字母/数字映射导致乱码。
+  - 继续保留符号标签自动转中文名逻辑，确保右侧长文本模块统一可读。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+
+### 12:28 - 星曜后天信息迁移到 AI 导出设置 + 导出卡顿优化 + 移除星盘组件示例文案
+- Scope: move “星曜宫位/主宰宫位”控制到各星盘相关页面的 AI 导出设置，移除星盘组件中 `X (1th; 2R6R)` 入口，并降低 AI 导出触发时页面卡死风险。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/homepage/PageHeader.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/utils/planetHouseInfo.js`
+  - `Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js`
+  - `Horosa-Web/astrostudyui/src/utils/predictiveAiSnapshot.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js`
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - AI 导出设置新增两项（按技法独立保存）：`显示星曜宫位`、`显示星曜主宰宫`，覆盖星盘/关系盘/推运/希腊/印度/节气/三式合一/七政四余/量化盘等星盘相关页面。
+  - `planetHouseInfo` 改为“显式参数驱动”，不再从全局 `showPlanetHouseInfo` 自动读取；并统一后缀标记为 `（后天：...）` 以便导出阶段按设置裁剪。
+  - AI 导出链路新增后缀裁剪：可输出“仅宫位 / 仅主宰宫 / 两者都显示 / 两者都不显示”。
+  - 导出性能优化：为字体解码增加快速检测门禁、超长文本跳过重排美化，降低主线程阻塞概率。
+  - 从“星盘组件”移除“星曜附带后天宫信息（X (1th; 2R6R)）”控制项，避免与 AI 导出设置重复、并杜绝该入口导致的界面符号字体乱码。
+  - 兼容旧用户本地配置：启动后强制 `showPlanetHouseInfo=0`，防止历史缓存残留继续影响页面右侧显示。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 12:37 - 按反馈修正：保留星盘组件开关 + 恢复 Astro 字体主显示
+- Scope: keep the UI option `星曜附带后天宫信息` in `星盘组件` (without example suffix text), and restore symbol-first Astro-font display style (no forced Chinese replacement for planet labels).
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js`
+  - `Horosa-Web/astrostudyui/src/utils/planetHouseInfo.js`
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 在“星盘组件”恢复复选项入口：`星曜附带后天宫信息`；删除示例文案 `（X (1th; 2R6R)）`。
+  - 取消星曜标签的“符号->中文”强制替换，恢复 Astro 字体符号主显示风格。
+  - 撤销对 `showPlanetHouseInfo` 的强制清零逻辑，恢复该开关可用并持久化。
+  - 保留已新增的 AI 导出设置能力（按技法控制“宫位/主宰宫”），与星盘组件开关并行可用。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 13:50 - 后天宫位后缀改为英文数字格式 + AI 导出裁剪兼容 ASCII/CN 双格式
+- Scope: follow latest display rule: house/ruler info uses `1th` / `3R6R` style, and ensure AI 导出设置在历史中文后缀与新英文后缀下都能正确裁剪。
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/planetHouseInfo.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `planetHouseInfo` 输出统一为 ASCII 样式：`(1th; 3R6R)`，并保留“仅宫位 / 仅主宰宫 / 两者都显示”三种组合能力。
+  - AI 导出 `trimPlanetInfoBySetting` 增强为双格式解析：
+    - 兼容旧中文后缀（如“后天：一宫；主二、六宫”）
+    - 兼容新 ASCII 后缀（如 `1th; 2R6R`）
+  - AI 导出缓存读取不再依赖旧中文后缀标记，已有快照可直接复用，减少重复构建快照导致的主线程阻塞。
+  - 继续保留“星盘组件”中的 `星曜附带后天宫信息` 选项文案（无示例后缀样例文本）。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 13:54 - 星曜标签括号统一为半角英文 `()`
+- Scope: reduce visual width in星曜标签 by replacing full-width Chinese brackets with half-width English brackets.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/PlanetSelector.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroLots.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPlanet.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPredictPlanetSign.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 将 `AstroMsg + （AstroTxtMsg）` 统一替换为 `AstroMsg + (AstroTxtMsg)`，避免全角括号占用过宽。
+  - 不改变任何计算逻辑，仅调整显示字符样式。
+
+### 13:58 - 主/界限法 + 法达星限表格同步改为半角括号显示
+- Scope: apply the same compact `()` style in `主/界限法` and `法达星限` tables, with symbol + readable name in one cell.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroFirdaria.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增统一星曜渲染函数，表格内显示从“纯符号”升级为 `符号(中文名)`，括号采用半角英文 `()`.
+  - `主/界限法`：迫星/应星筛选项与表格文本（映点/反映点/相位处等）统一使用该显示方式。
+  - `法达星限`：主限/子限两列统一使用该显示方式。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 14:09 - 修复后天信息开启后乱码 + 主/界限法与法达星限改为宫位/主宰宫信息
+- Scope: eliminate AstroFont garbling after enabling `星曜附带后天宫信息`, and make `主/界限法` + `法达星限` display house/ruler suffix instead of Chinese-name suffix.
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/planetHouseInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroAspect.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/AspectInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/MidpointInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/AntisciaInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroGivenYear.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroLunarReturn.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroProfection.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroSolarArc.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroSolarReturn.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPlanet.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPredictPlanetSign.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroFirdaria.js`
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增 `splitPlanetHouseInfoText`，并在 UI 里统一“符号(后天信息)”分字体渲染：符号保持 `AstroFont`，后缀改用 `NormalFont`，解决 `1th/3R6R` 在 AstroFont 下的乱码问题。
+  - `appendPlanetHouseInfoById` 在找不到对象时不再输出 `(-; -)`，直接回退原标签，避免非星曜 token 被错误附加后缀。
+  - `主/界限法`、`法达星限` 改为读取当前盘对象并显示 `(1th; 3R6R)` 后缀；不再显示中文名括号。
+  - `AstroDirectMain` 已透传 `showPlanetHouseInfo` 到 `AstroPrimaryDirection` 与 `AstroFirdaria`。
+  - AI 快照中的 `主/界限法`、`法达星限`表格也同步写入后天宫位/主宰宫位信息，并继续由 AI 导出设置做按技法裁剪。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`

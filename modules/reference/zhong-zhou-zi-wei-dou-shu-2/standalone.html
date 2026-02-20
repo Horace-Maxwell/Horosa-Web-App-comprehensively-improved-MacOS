@@ -1,0 +1,1090 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>紫微斗数 (离线单文件版)</title>
+    
+    <!-- 核心库 -->
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 农历库 -->
+    <script src="https://unpkg.com/lunar-javascript@1.6.11/lunar.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ziwei: {
+                bg: '#ffffff',
+                panel: '#ffffff',
+                grid: '#9ca3af',
+                red: '#FF3B30',
+                green: '#34C759',
+                blue: '#007AFF',
+                purple: '#AF52DE',
+                text: '#1f2937',
+                subtext: '#6b7280',
+                gold: '#f59e0b',
+                highlight: '#e5e7eb'
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <style>
+      body {
+        background-color: #f3f4f6;
+        color: #1f2937;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        overscroll-behavior: none;
+      }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+      .toggle-checkbox:checked { right: 0; border-color: #34C759; }
+      .toggle-checkbox:checked + .toggle-label { background-color: #34C759; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback } = React;
+
+        // --- 图标组件 (内联 SVG) ---
+        const IconBase = ({ children, size = 16, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const Plus = (p) => <IconBase {...p}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>;
+        const Trash2 = (p) => <IconBase {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
+        const Edit = (p) => <IconBase {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></IconBase>;
+        const Play = (p) => <IconBase {...p}><polygon points="5 3 19 12 5 21 5 3"/></IconBase>;
+        const Search = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></IconBase>;
+        const XIcon = (p) => <IconBase {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const Check = (p) => <IconBase {...p}><path d="M20 6 9 17l-5-5"/></IconBase>;
+        const ChevronDown = (p) => <IconBase {...p}><path d="m6 9 6 6 6-6"/></IconBase>;
+        const ChevronLeft = (p) => <IconBase {...p}><path d="m15 18-6-6 6-6"/></IconBase>;
+        const ChevronRight = (p) => <IconBase {...p}><path d="m9 18 6-6-6-6"/></IconBase>;
+        const SettingsIcon = (p) => <IconBase {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.35a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconBase>;
+        const RotateCcw = (p) => <IconBase {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconBase>;
+        const LayoutGrid = (p) => <IconBase {...p}><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></IconBase>;
+        const StarIcon = (p) => <IconBase {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></IconBase>;
+
+
+        // --- 类型定义与常量 ---
+        const Gender = { MALE: '男', FEMALE: '女' };
+
+        const DEFAULT_SETTINGS = {
+          leapMonth: 'current',
+          earlyLateZi: true,
+          trueSolarTime: false,
+          anXing: {
+            tianMa: 'year',
+            tianKong: 'year',
+            jieKong: 'dual',
+            tianShiShang: 'regular',
+            kuiYue: 'xin_hu_ma', 
+            mingZhu: 'quan',
+            changSheng: 'water_earth',
+            brightness: 'zhongzhou',
+          },
+          siHua: {
+            geng: 'yang_wu_yin_tong',
+            wu: 'tan_yin_you_ji',
+            ren: 'liang_zi_zuo_wu',
+            gui: 'po_ju_yin_tan',
+          },
+          display: {
+            showLiuNian: false,
+            showXiaoXian: true,
+            showLiuYue: false,
+            showArrows: true,
+            compactMode: false,
+            showFlowStars: true,
+            showFlowMa: true,
+            showFlowHuoLing: true,
+            showFlowHongXi: true,
+            showFlowChangQu: true,
+          }
+        };
+
+        const EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+        const HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+        const PALACE_NAMES = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄', '迁移', '交友', '官禄', '田宅', '福德', '父母'];
+        const PALACE_ABBR = {'命宫': '命', '兄弟': '兄', '夫妻': '夫', '子女': '子', '财帛': '财', '疾厄': '疾', '迁移': '迁', '交友': '友', '官禄': '官', '田宅': '田', '福德': '福', '父母': '父'};
+
+
+        // --- 核心服务 (农历与数学计算) ---
+
+        // 农历计算包装器
+        const getLunarDetails = (date, timeIndex) => {
+          const hours = timeIndex * 2;
+          const solar = Solar.fromYmdHms(date.getFullYear(), date.getMonth() + 1, date.getDate(), hours, 0, 0);
+          const lunar = solar.getLunar();
+          return {
+            lunarYear: lunar.getYear(),
+            lunarMonth: lunar.getMonth(),
+            lunarDay: lunar.getDay(),
+            isLeap: lunar.toString().indexOf('闰') >= 0, 
+            ganZhiYear: lunar.getYearInGanZhi(),
+            ganZhiMonth: lunar.getMonthInGanZhi(),
+            ganZhiDay: lunar.getDayInGanZhi(),
+            timeGanZhi: lunar.getTimeInGanZhi(),
+            lunarMonthChinese: lunar.getMonthInChinese(),
+            lunarDayChinese: lunar.getDayInChinese(),
+            eightChar: lunar.getEightChar(),
+          };
+        };
+
+        const getLunarDateObj = (date, timeIndex = 0) => {
+           const hours = timeIndex * 2;
+           const solar = Solar.fromYmdHms(date.getFullYear(), date.getMonth() + 1, date.getDate(), hours, 0, 0);
+           return solar.getLunar();
+        }
+
+        const getZodiacYearStemIndex = (year) => { const i = (year - 4) % 10; return i < 0 ? i + 10 : i; };
+        const getZodiacYearBranchIndex = (year) => { const i = (year - 4) % 12; return i < 0 ? i + 12 : i; };
+        
+        // 真太阳时计算 (仅经度校正)
+        const getTrueSolarTime = (date, longitude) => {
+            const offsetMinutes = (longitude - 120) * 4;
+            const totalOffsetMs = offsetMinutes * 60 * 1000;
+            return new Date(date.getTime() + totalOffsetMs);
+        };
+
+        // 辅助函数
+        const fix = (i) => { const r = i % 12; return r < 0 ? r + 12 : r; };
+        
+        const getLuPos = (stemIdx) => {
+            const luCunMap = { 0: 2, 1: 3, 2: 5, 3: 6, 4: 5, 5: 6, 6: 8, 7: 9, 8: 11, 9: 0 };
+            return luCunMap[stemIdx];
+        }
+
+        const getKuiYuePos = (stemIdx, settings) => {
+            if ([0, 4, 6].includes(stemIdx)) return [1, 7];
+            else if ([1, 5].includes(stemIdx)) return [0, 8];
+            else if ([2, 3].includes(stemIdx)) return [11, 9];
+            else if ([8, 9].includes(stemIdx)) return [3, 5];
+            else if (stemIdx === 7) return [6, 2];
+            return [0, 0];
+        }
+
+        const getTianMaPos = (branchIdx) => {
+            const maMap = { 2: 8, 6: 8, 10: 8, 8: 2, 0: 2, 4: 2, 5: 11, 9: 11, 1: 11, 11: 5, 3: 5, 7: 5 };
+            return maMap[branchIdx];
+        }
+
+        const getHongXiPos = (branchIdx) => {
+            const hong = fix(3 - branchIdx);
+            const xi = fix(hong + 6);
+            return [hong, xi];
+        }
+
+        const getHuoLingPos = (branchIdx, hourIdx) => {
+            let huoStart = 0; let lingStart = 0;
+            if ([2, 6, 10].includes(branchIdx)) { huoStart = 1; lingStart = 3; } 
+            else if ([8, 0, 4].includes(branchIdx)) { huoStart = 2; lingStart = 10; } 
+            else if ([5, 9, 1].includes(branchIdx)) { huoStart = 3; lingStart = 10; } 
+            else { huoStart = 9; lingStart = 10; }
+            return [fix(huoStart + hourIdx), fix(lingStart + hourIdx)];
+        }
+        
+        const NON_GRAVE_SEQ = [0, 2, 3, 5, 6, 8, 9, 11];
+        const getFlowChangQuPos = (stemIdx) => {
+            const seqLen = NON_GRAVE_SEQ.length;
+            const changStartIdx = 3; 
+            const changTargetIdx = (changStartIdx + stemIdx) % seqLen;
+            const changPos = NON_GRAVE_SEQ[changTargetIdx];
+            const quStartIdx = 6; 
+            const quTargetIdx = ((quStartIdx - stemIdx) % seqLen + seqLen) % seqLen;
+            const quPos = NON_GRAVE_SEQ[quTargetIdx];
+            return [changPos, quPos];
+        }
+
+        const MING_ZHU_MAP = ['贪狼', '巨门', '禄存', '文曲', '廉贞', '武曲', '破军', '武曲', '廉贞', '文曲', '禄存', '巨门'];
+        const SHEN_ZHU_MAP = ['火星', '天相', '天梁', '天同', '文昌', '天机', '火星', '天相', '天梁', '天同', '文昌', '天机'];
+        const CHANG_SHENG_12 = ['长生', '沐浴', '冠带', '临官', '帝旺', '衰', '病', '死', '墓', '绝', '胎', '养'];
+        const SUI_JIAN_12 = ['太岁', '晦气', '丧门', '贯索', '官符', '小耗', '大耗', '龙德', '白虎', '天德', '吊客', '病符'];
+        const BO_SHI_12 = ['博士', '力士', '青龙', '小耗', '将军', '奏书', '飞廉', '喜神', '病符', '大耗', '伏兵', '官府'];
+        const JIANG_QIAN_12 = ['将星', '攀鞍', '岁驿', '息神', '华盖', '劫煞', '灾煞', '天煞', '指背', '咸池', '月煞', '亡神'];
+
+        const BRIGHTNESS_ZHONG_ZHOU = {
+            '紫微': ['平', '庙', '旺', '旺', '得', '旺', '庙', '庙', '旺', '旺', '得', '旺'],
+            '天机': ['庙', '陷', '得', '旺', '利', '平', '庙', '陷', '得', '旺', '利', '平'],
+            '太阳': ['陷', '不', '旺', '庙', '旺', '旺', '旺', '得', '得', '陷', '不', '陷'],
+            '武曲': ['旺', '庙', '得', '利', '庙', '平', '旺', '庙', '得', '利', '庙', '平'],
+            '天同': ['旺', '不', '利', '平', '平', '庙', '陷', '不', '旺', '平', '平', '庙'],
+            '廉贞': ['平', '利', '庙', '平', '利', '陷', '平', '利', '庙', '平', '利', '陷'],
+            '天府': ['庙', '庙', '庙', '得', '庙', '得', '旺', '庙', '得', '旺', '庙', '得'],
+            '太阴': ['庙', '庙', '旺', '陷', '陷', '陷', '不', '不', '利', '不', '旺', '庙'],
+            '贪狼': ['旺', '庙', '平', '利', '庙', '陷', '旺', '庙', '平', '利', '庙', '陷'],
+            '巨门': ['旺', '不', '庙', '庙', '陷', '旺', '旺', '不', '庙', '庙', '陷', '旺'],
+            '天相': ['庙', '庙', '庙', '陷', '得', '得', '庙', '得', '庙', '陷', '得', '得'],
+            '天梁': ['庙', '旺', '庙', '庙', '庙', '陷', '庙', '旺', '陷', '得', '庙', '陷'],
+            '七杀': ['旺', '庙', '庙', '旺', '庙', '平', '旺', '庙', '庙', '庙', '庙', '平'],
+            '破军': ['庙', '旺', '得', '陷', '旺', '平', '庙', '旺', '得', '陷', '旺', '平'],
+            '文昌': ['陷', '利', '陷', '利', '得', '庙', '陷', '利', '得', '庙', '陷', '利'],
+            '文曲': ['得', '庙', '平', '旺', '得', '庙', '陷', '旺', '得', '庙', '陷', '旺'],
+            '火星': ['陷', '得', '庙', '利', '陷', '得', '庙', '利', '陷', '得', '庙', '利'],
+            '铃星': ['陷', '得', '庙', '利', '陷', '得', '庙', '利', '陷', '得', '庙', '利'],
+            '擎羊': ['平', '陷', '庙', '平', '陷', '庙', '平', '陷', '庙', '平', '陷', '庙'],
+            '陀罗': ['陷', '平', '庙', '陷', '平', '庙', '陷', '平', '庙', '陷', '平', '庙'],
+        };
+        const BRIGHTNESS_QUAN_SHU = { ...BRIGHTNESS_ZHONG_ZHOU };
+
+        const getElementColor = (char) => {
+            const map = {
+                '甲': 'text-green-600', '乙': 'text-green-600', '寅': 'text-green-600', '卯': 'text-green-600',
+                '丙': 'text-ziwei-red', '丁': 'text-ziwei-red', '巳': 'text-ziwei-red', '午': 'text-ziwei-red',
+                '戊': 'text-amber-700', '己': 'text-amber-700', '辰': 'text-amber-700', '戌': 'text-amber-700', '丑': 'text-amber-700', '未': 'text-amber-700',
+                '庚': 'text-blue-600', '辛': 'text-blue-600', '申': 'text-blue-600', '酉': 'text-blue-600',
+                '壬': 'text-gray-900', '癸': 'text-gray-900', '亥': 'text-gray-900', '子': 'text-gray-900'
+            };
+            return map[char] || 'text-gray-800';
+        };
+
+        const getNayinBureau = (stemIdx, branchIdx) => {
+          const stemPair = Math.floor(stemIdx / 2);
+          const branchPair = Math.floor(branchIdx / 2);
+          const matrix = [
+            [4, 2, 6, 4, 2, 6],
+            [2, 6, 5, 2, 6, 5],
+            [6, 5, 3, 6, 5, 3],
+            [5, 3, 4, 5, 3, 4],
+            [3, 4, 2, 3, 4, 2],
+          ];
+          const val = matrix[stemPair][branchPair];
+          const names = { 2: "水二局", 3: "木三局", 4: "金四局", 5: "土五局", 6: "火六局" };
+          return { name: names[val], num: val };
+        };
+
+        const getSiHua = (stemIndex, settings) => {
+          let lu = '', quan = '', ke = '', ji = '';
+          switch(stemIndex) {
+              case 0: [lu, quan, ke, ji] = ['廉贞', '破军', '武曲', '太阳']; break;
+              case 1: [lu, quan, ke, ji] = ['天机', '天梁', '紫微', '太阴']; break;
+              case 2: [lu, quan, ke, ji] = ['天同', '天机', '文昌', '廉贞']; break;
+              case 3: [lu, quan, ke, ji] = ['太阴', '天同', '天机', '巨门']; break;
+              case 4: 
+                if (settings.siHua.wu === 'tan_yin_yang_ji') [lu, quan, ke, ji] = ['贪狼', '太阴', '太阳', '天机'];
+                else [lu, quan, ke, ji] = ['贪狼', '太阴', '右弼', '天机'];
+                break;
+              case 5: [lu, quan, ke, ji] = ['武曲', '贪狼', '天梁', '文曲']; break;
+              case 6: 
+                if (settings.siHua.geng === 'yang_wu_tong_yin') [lu, quan, ke, ji] = ['太阳', '武曲', '太阴', '天同'];
+                else if (settings.siHua.geng === 'yang_wu_yin_tong') [lu, quan, ke, ji] = ['太阳', '武曲', '天同', '太阴'];
+                else [lu, quan, ke, ji] = ['太阳', '武曲', '天同', '天相'];
+                break;
+              case 7: [lu, quan, ke, ji] = ['巨门', '太阳', '文曲', '文昌']; break;
+              case 8: 
+                if (settings.siHua.ren === 'liang_zi_zuo_wu') [lu, quan, ke, ji] = ['天梁', '紫微', '左辅', '武曲'];
+                else [lu, quan, ke, ji] = ['天梁', '紫微', '天府', '武曲'];
+                break;
+              case 9: 
+                if (settings.siHua.gui === 'po_ju_yin_tan') [lu, quan, ke, ji] = ['破军', '巨门', '太阴', '贪狼'];
+                else [lu, quan, ke, ji] = ['破军', '巨门', '太阳', '贪狼']; 
+                break;
+          }
+          const result = {};
+          if (lu) result[lu] = '禄';
+          if (quan) result[quan] = '权';
+          if (ke) result[ke] = '科';
+          if (ji) result[ji] = '忌';
+          return result;
+        };
+
+        const getMonthStem = (yearStemIdx, monthIdx) => {
+          const startStemMap = { 0: 2, 5: 2, 1: 4, 6: 4, 2: 6, 7: 6, 3: 8, 8: 8, 4: 0, 9: 0 };
+          const startStem = startStemMap[yearStemIdx % 5];
+          return (startStem + (monthIdx - 1)) % 10;
+        };
+
+        const calculateFlowStars = (chart, flowState, settings, activeLevel) => {
+            const flowMap = {};
+            const addStar = (idx, star) => {
+                const i = fix(idx);
+                if (!flowMap[i]) flowMap[i] = [];
+                flowMap[i].push(star);
+            };
+            const levels = ['daxian', 'year', 'month', 'day', 'hour'];
+            const activeIdx = levels.indexOf(activeLevel === 'birth' ? 'none' : activeLevel);
+            const layers = [
+                { key: 'daxian', stem: flowState.stems.daxian, branch: chart.palaces.find(p=>p.index===flowState.daXianIndex)?.earthlyBranch ? EARTHLY_BRANCHES.indexOf(chart.palaces.find(p=>p.index===flowState.daXianIndex).earthlyBranch) : 0, label: '大', active: activeIdx >= 0 },
+                { key: 'liunian', stem: flowState.stems.liunian, branch: flowState.liuNianIndex, label: '年', active: activeIdx >= 1 },
+                { key: 'liuyue', stem: flowState.stems.liuyue, branch: flowState.liuYueIndex, label: '月', active: activeIdx >= 2 },
+                { key: 'liuri', stem: flowState.stems.liuri, branch: flowState.liuRiIndex, label: '日', active: activeIdx >= 3 },
+                { key: 'liushi', stem: flowState.stems.liushi, branch: flowState.liuShiIndex, label: '时', active: activeIdx >= 4 },
+            ];
+            layers.forEach(layer => {
+                if (!layer.active) return;
+                const { stem, branch, label, key } = layer;
+                const luPos = getLuPos(stem);
+                addStar(luPos, { name: `${label}禄`, type: 'flow', layer: key });
+                addStar(luPos + 1, { name: `${label}羊`, type: 'flow', layer: key });
+                addStar(luPos - 1, { name: `${label}陀`, type: 'flow', layer: key });
+                const [kui, yue] = getKuiYuePos(stem, settings);
+                addStar(kui, { name: `${label}魁`, type: 'flow', layer: key });
+                addStar(yue, { name: `${label}钺`, type: 'flow', layer: key });
+                if (settings.display.showFlowChangQu) {
+                    const [chang, qu] = getFlowChangQuPos(stem);
+                    addStar(chang, { name: `${label}昌`, type: 'flow', layer: key });
+                    addStar(qu, { name: `${label}曲`, type: 'flow', layer: key });
+                }
+                if (settings.display.showFlowMa) {
+                    const maPos = getTianMaPos(branch);
+                    addStar(maPos, { name: `${label}马`, type: 'flow', layer: key });
+                }
+                if (settings.display.showFlowHongXi) {
+                    const [hong, xi] = getHongXiPos(branch);
+                    addStar(hong, { name: `${label}鸾`, type: 'flow', layer: key });
+                    addStar(xi, { name: `${label}喜`, type: 'flow', layer: key });
+                }
+            });
+            return flowMap;
+        }
+
+        const calculateChart = (name, date, timeIndex, gender, settings, longitude) => {
+          let effectiveDate = date;
+          let trueSolarDateStr;
+          if (longitude !== undefined && !isNaN(longitude)) {
+              effectiveDate = getTrueSolarTime(date, longitude);
+              const hStr = effectiveDate.getHours().toString().padStart(2, '0');
+              const mStr = effectiveDate.getMinutes().toString().padStart(2, '0');
+              trueSolarDateStr = `真太阳时 ${hStr}:${mStr}`;
+              timeIndex = Math.floor((effectiveDate.getHours() + 1) / 2) % 12;
+          }
+          const lunarData = getLunarDetails(effectiveDate, timeIndex);
+          const monthIdx = Math.abs(lunarData.lunarMonth); 
+          const hourIdx = timeIndex; 
+          const dayIdx = lunarData.lunarDay; 
+          const mingPos = fix(2 + (monthIdx - 1) - hourIdx);
+          const shenPos = fix(2 + (monthIdx - 1) + hourIdx);
+          const palaces = Array.from({ length: 12 }).map((_, i) => ({
+            index: i, earthlyBranch: EARTHLY_BRANCHES[i], heavenlyStem: '', name: '', isBodyPalace: i === shenPos,
+            majorStars: [], minorStars: [], auxStars: [], badStars: [], godsStars: [], flowStars: [], ageRange: [0, 0], smallRange: [],
+          }));
+          PALACE_NAMES.forEach((n, i) => { const idx = fix(mingPos - i); palaces[idx].name = n; });
+          const lunarYearStemIdx = Math.floor(getZodiacYearStemIndex(lunarData.lunarYear)); 
+          const startStemMap = { 0: 2, 5: 2, 1: 4, 6: 4, 2: 6, 7: 6, 3: 8, 8: 8, 4: 0, 9: 0 };
+          const yinStemStart = startStemMap[lunarYearStemIdx % 5];
+          for (let i = 0; i < 12; i++) {
+            const stemAtYin = yinStemStart;
+            const currentStem = (stemAtYin + fix(i - 2)) % 10;
+            palaces[i].heavenlyStem = HEAVENLY_STEMS[currentStem];
+          }
+          const mingStemName = palaces[mingPos].heavenlyStem;
+          const mingStemIdx = HEAVENLY_STEMS.indexOf(mingStemName);
+          const mingBranchIdx = mingPos;
+          const bureau = getNayinBureau(mingStemIdx, mingBranchIdx);
+          const isYangYear = (lunarYearStemIdx % 2) === 0;
+          const isMale = gender === Gender.MALE;
+          const isClockwise = (isYangYear && isMale) || (!isYangYear && !isMale);
+          let maxAge = 0;
+          for (let i = 0; i < 12; i++) {
+            const steps = i;
+            const pIdx = isClockwise ? fix(mingPos + steps) : fix(mingPos - steps);
+            const startAge = bureau.num + (i * 10);
+            palaces[pIdx].ageRange = [startAge, startAge + 9];
+            if (startAge + 9 > maxAge) maxAge = startAge + 9;
+          }
+          const yearBranch = getZodiacYearBranchIndex(lunarData.lunarYear);
+          let xiaoXianStartIdx = 0;
+          if ([2, 6, 10].includes(yearBranch)) xiaoXianStartIdx = 4;
+          else if ([8, 0, 4].includes(yearBranch)) xiaoXianStartIdx = 10;
+          else if ([5, 9, 1].includes(yearBranch)) xiaoXianStartIdx = 7;
+          else xiaoXianStartIdx = 1;
+          const xxDirection = isMale ? 1 : -1;
+          for (let age = 1; age <= maxAge; age++) {
+              const steps = age - 1;
+              const idx = fix(xiaoXianStartIdx + (steps * xxDirection));
+              palaces[idx].smallRange.push(age);
+          }
+          const getZiWeiIndex = (day, b) => {
+             const remainder = day % b;
+             const quotient = Math.floor(day / b);
+             let pos = 0; let direction = 1;
+             if (remainder === 0) { pos = quotient; direction = 1; } 
+             else {
+                const x = b - remainder; const y = (day + x) / b;
+                if (x % 2 === 0) { pos = x + y; direction = 1; } 
+                else {
+                   if (y > x) { pos = y - x; direction = 1; } 
+                   else if (x > y) { pos = x - y; direction = -1; } 
+                   else return 1;
+                }
+             }
+             return direction === 1 ? fix(2 + (pos - 1)) : fix(2 - (pos - 1));
+          };
+          const ziWeiPos = getZiWeiIndex(dayIdx, bureau.num);
+          const tianFuPos = fix(4 - ziWeiPos); 
+          const placeMajor = (base, offset, name) => palaces[fix(base + offset)].majorStars.push({ name, type: 'major' });
+          placeMajor(ziWeiPos, 0, '紫微'); placeMajor(ziWeiPos, -1, '天机'); placeMajor(ziWeiPos, -3, '太阳');
+          placeMajor(ziWeiPos, -4, '武曲'); placeMajor(ziWeiPos, -5, '天同'); placeMajor(ziWeiPos, -8, '廉贞');
+          placeMajor(tianFuPos, 0, '天府'); placeMajor(tianFuPos, 1, '太阴'); placeMajor(tianFuPos, 2, '贪狼');
+          placeMajor(tianFuPos, 3, '巨门'); placeMajor(tianFuPos, 4, '天相'); placeMajor(tianFuPos, 5, '天梁');
+          placeMajor(tianFuPos, 6, '七杀'); placeMajor(tianFuPos, 10, '破军');
+          const wenChangPos = fix(10 - hourIdx); const wenQuPos = fix(4 + hourIdx);
+          palaces[wenChangPos].auxStars.push({ name: '文昌', type: 'aux' }); palaces[wenQuPos].auxStars.push({ name: '文曲', type: 'aux' });
+          const zuoFuPos = fix(4 + (monthIdx - 1)); const youBiPos = fix(10 - (monthIdx - 1));
+          palaces[zuoFuPos].auxStars.push({ name: '左辅', type: 'aux' }); palaces[youBiPos].auxStars.push({ name: '右弼', type: 'aux' });
+          const [huoPos, lingPos] = getHuoLingPos(yearBranch, hourIdx);
+          palaces[huoPos].badStars.push({ name: '火星', type: 'bad' }); palaces[lingPos].badStars.push({ name: '铃星', type: 'bad' });
+          const luPos = getLuPos(lunarYearStemIdx);
+          palaces[luPos].auxStars.push({ name: '禄存', type: 'aux' }); palaces[fix(luPos + 1)].badStars.push({ name: '擎羊', type: 'bad' }); palaces[fix(luPos - 1)].badStars.push({ name: '陀罗', type: 'bad' });
+          const [kui, yue] = getKuiYuePos(lunarYearStemIdx, settings);
+          palaces[kui].auxStars.push({ name: '天魁', type: 'aux' }); palaces[yue].auxStars.push({ name: '天钺', type: 'aux' });
+          const placeMinor = (idx, name, type = 'minor') => palaces[fix(idx)].minorStars.push({ name, type });
+          const maBase = settings.anXing.tianMa === 'month' ? (monthIdx - 1) : yearBranch; 
+          const maPos = getTianMaPos(maBase % 12) || getTianMaPos(yearBranch);
+          palaces[maPos].auxStars.push({ name: '天马', type: 'aux' });
+          const jiePos = fix(11 + hourIdx); const kongPos = fix(11 - hourIdx);
+          palaces[jiePos].badStars.push({ name: '地劫', type: 'bad' }); palaces[kongPos].badStars.push({ name: '地空', type: 'bad' });
+          const tianKongPos = fix(yearBranch + 1); placeMinor(tianKongPos, '天空', 'bad');
+          const distToGui = (9 - lunarYearStemIdx + 10) % 10; const guiBranch = (yearBranch + distToGui) % 12;
+          placeMinor(guiBranch + 1, '旬空', 'bad'); placeMinor(guiBranch + 2, '旬空', 'bad');
+          const jieKongCorrect = { 0: [8, 9], 1: [7, 6], 2: [4, 5], 3: [3, 2], 4: [0, 1], 5: [9, 8], 6: [6, 7], 7: [5, 4], 8: [2, 3], 9: [1, 0] };
+          const [jkZheng, jkFu] = jieKongCorrect[lunarYearStemIdx];
+          placeMinor(jkZheng, '截空', 'bad'); if (settings.anXing.jieKong !== 'single') placeMinor(jkFu, '截空', 'bad');
+          placeMinor(6 + hourIdx, '台辅', 'good'); placeMinor(2 + hourIdx, '封诰', 'good');
+          placeMinor(9 + (monthIdx - 1), '天刑', 'bad'); placeMinor(1 + (monthIdx - 1), '天姚', 'bad');
+          const jieShenPos = fix(8 + (Math.floor((monthIdx - 1) / 2) * 2)); placeMinor(jieShenPos, '解神', 'good');
+          placeMinor(10 - yearBranch, '年解', 'good');
+          const tianWuMap = { 1:5, 5:5, 9:5, 2:8, 6:8, 10:8, 3:11, 7:11, 11:11, 4:2, 8:2, 12:2 }; placeMinor(tianWuMap[monthIdx], '天巫', 'good');
+          const tianYueStarMap = { 1:10, 2:5, 3:4, 4:2, 5:7, 6:3, 7:11, 8:7, 9:2, 10:6, 11:10, 12:2 }; placeMinor(tianYueStarMap[monthIdx], '天月', 'bad');
+          const yinShaMap = { 1:2, 7:2, 2:0, 8:0, 3:10, 9:10, 4:8, 10:8, 5:6, 11:6, 6:4, 12:4 }; placeMinor(yinShaMap[monthIdx], '阴煞', 'bad');
+          const tianGuanMap = { 0:7, 1:4, 2:5, 3:2, 4:3, 5:9, 6:11, 7:9, 8:10, 9:6 }; const tianFuMap = { 0:9, 1:8, 2:0, 3:11, 4:3, 5:2, 6:6, 7:5, 8:6, 9:5 };
+          placeMinor(tianGuanMap[lunarYearStemIdx], '天官', 'good'); placeMinor(tianFuMap[lunarYearStemIdx], '天福', 'good');
+          placeMinor(6 - yearBranch, '天哭', 'bad'); placeMinor(6 + yearBranch, '天虚', 'bad');
+          placeMinor(4 + yearBranch, '龙池', 'good'); placeMinor(10 - yearBranch, '凤阁', 'good');
+          const [hongLuan, tianXi] = getHongXiPos(yearBranch); placeMinor(hongLuan, '红鸾', 'good'); placeMinor(tianXi, '天喜', 'good');
+          const guMap = { 2:5, 3:5, 4:5, 5:8, 6:8, 7:8, 8:11, 9:11, 10:11, 11:2, 0:2, 1:2 }; const guaMap = { 2:1, 3:1, 4:1, 5:4, 6:4, 7:4, 8:7, 9:7, 10:7, 11:10, 0:10, 1:10 };
+          placeMinor(guMap[yearBranch], '孤辰', 'bad'); placeMinor(guaMap[yearBranch], '寡宿', 'bad');
+          placeMinor(yearBranch + 8, '蜚廉', 'bad');
+          let poSuiPos = 0; if ([0,6,3,9].includes(yearBranch)) poSuiPos = 5; else if ([4,10,1,7].includes(yearBranch)) poSuiPos = 1; else poSuiPos = 9; placeMinor(poSuiPos, '破碎', 'bad');
+          let huaGaiPos = 0; if ([0,4,8].includes(yearBranch)) huaGaiPos = 4; else if ([5,9,1].includes(yearBranch)) huaGaiPos = 1; else if ([2,6,10].includes(yearBranch)) huaGaiPos = 10; else huaGaiPos = 7; placeMinor(huaGaiPos, '华盖', 'good');
+          let xianChiPos = 0; if ([0,4,8].includes(yearBranch)) xianChiPos = 9; else if ([5,9,1].includes(yearBranch)) xianChiPos = 6; else if ([2,6,10].includes(yearBranch)) xianChiPos = 3; else xianChiPos = 0; placeMinor(xianChiPos, '咸池', 'bad');
+          placeMinor(9 + yearBranch, '天德', 'good');
+          placeMinor(mingPos + yearBranch, '天才', 'good'); placeMinor(shenPos + yearBranch, '天寿', 'good');
+          placeMinor(zuoFuPos + dayIdx - 1, '三台', 'good'); placeMinor(youBiPos - (dayIdx - 1), '八座', 'good');
+          placeMinor(wenChangPos + dayIdx - 2, '恩光', 'good'); placeMinor(wenQuPos + dayIdx - 2, '天贵', 'good');
+          const tianChuMap = { 0:5, 3:5, 1:6, 4:6, 7:6, 2:0, 5:8, 6:2, 8:9, 9:11 }; placeMinor(tianChuMap[lunarYearStemIdx], '天厨', 'good');
+          placeMinor(fix(mingPos - 7), '天伤', 'bad'); placeMinor(fix(mingPos - 5), '天使', 'bad');
+          const oppYearPos = fix(yearBranch + 6); const isYangBranch = [0,2,4,6,8,10].includes(yearBranch); const daHaoPos = isYangBranch ? fix(oppYearPos + 1) : fix(oppYearPos - 1); placeMinor(daHaoPos, '大耗', 'bad');
+          let jieShaPos = 0; if ([8,0,4].includes(yearBranch)) jieShaPos = 5; else if ([2,6,10].includes(yearBranch)) jieShaPos = 11; else if ([5,9,1].includes(yearBranch)) jieShaPos = 2; else jieShaPos = 8; placeMinor(jieShaPos, '劫煞', 'bad');
+
+          let csStart = 0; if (bureau.num === 5) { csStart = 8; } else { const changShengStartMap = { 2: 8, 3: 11, 4: 5, 6: 2 }; csStart = changShengStartMap[bureau.num]; }
+          const csClockwise = (isMale && isYangYear) || (!isMale && !isYangYear);
+          for (let i = 0; i < 12; i++) { const idx = csClockwise ? fix(csStart + i) : fix(csStart - i); palaces[idx].godsStars.push({ name: CHANG_SHENG_12[i], type: 'chang' }); }
+          for (let i = 0; i < 12; i++) { const idx = fix(yearBranch + i); palaces[idx].godsStars.push({ name: SUI_JIAN_12[i], type: 'sui' }); }
+          for (let i = 0; i < 12; i++) { const idx = csClockwise ? fix(luPos + i) : fix(luPos - i); palaces[idx].godsStars.push({ name: BO_SHI_12[i], type: 'bo' }); }
+          let jiangStart = 0; if ([2,6,10].includes(yearBranch)) jiangStart = 6; else if ([8,0,4].includes(yearBranch)) jiangStart = 0; else if ([5,9,1].includes(yearBranch)) jiangStart = 9; else jiangStart = 3;
+          for (let i = 0; i < 12; i++) { const idx = fix(jiangStart + i); palaces[idx].godsStars.push({ name: JIANG_QIAN_12[i], type: 'jiang' }); }
+
+          const brightnessMap = settings.anXing.brightness === 'quan' ? BRIGHTNESS_QUAN_SHU : BRIGHTNESS_ZHONG_ZHOU;
+          palaces.forEach(p => { [...p.majorStars, ...p.auxStars, ...p.badStars, ...p.minorStars].forEach(s => { if (brightnessMap[s.name]) s.brightness = brightnessMap[s.name][p.index]; }); });
+          const trans = getSiHua(lunarYearStemIdx, settings);
+          palaces.forEach(p => { [...p.majorStars, ...p.auxStars, ...p.badStars].forEach(s => { if (trans[s.name]) s.modifier = trans[s.name]; }); });
+
+          const mingZhu = MING_ZHU_MAP[mingPos]; const shenZhu = SHEN_ZHU_MAP[yearBranch]; 
+          const ziDouIdx = fix(0 - (monthIdx - 1) + hourIdx); const ziDou = EARTHLY_BRANCHES[ziDouIdx] + '宫';
+          const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+          return {
+            lunarDateStr: `农历 ${lunarData.lunarYear}年 ${lunarData.lunarMonthChinese} ${lunarData.lunarDayChinese} ${lunarData.timeGanZhi}时`,
+            solarDateStr: `阳历 ${date.getFullYear()}年${date.getMonth()+1}月${date.getDate()}日 ${timeStr}`,
+            trueSolarDateStr, bureau: bureau.name, mingPalaceIndex: mingPos, shenPalaceIndex: shenPos, gender, yinYang: isYangYear ? '阳' : '阴',
+            palaces, name, baZi: { year: lunarData.ganZhiYear, month: lunarData.ganZhiMonth, day: lunarData.ganZhiDay, time: lunarData.timeGanZhi },
+            mingZhu, shenZhu, ziDou, yearStemIndex: lunarYearStemIdx, birthMonthIndex: monthIdx, birthHourIndex: hourIdx,
+          };
+        };
+
+        const getFlowState = (chart, flowDate, birthDate, flowTimeIdx, settings) => {
+            const birthYear = birthDate.getFullYear(); const flowYear = flowDate.getFullYear(); const age = flowYear - birthYear + 1;
+            const lunar = getLunarDateObj(flowDate, flowTimeIdx);
+            const flowYearStem = getZodiacYearStemIndex(lunar.getYear()); const flowYearBranch = getZodiacYearBranchIndex(lunar.getYear());
+            const flowMonth = lunar.getMonth(); const flowDay = lunar.getDay(); const flowHour = flowTimeIdx;
+            const dayGanZhi = lunar.getDayInGanZhi(); const timeGanZhi = lunar.getTimeInGanZhi();
+            const liuRiStem = HEAVENLY_STEMS.indexOf(dayGanZhi.charAt(0)); const liuShiStem = HEAVENLY_STEMS.indexOf(timeGanZhi.charAt(0));
+            const daXianPalace = chart.palaces.find(p => age >= p.ageRange[0] && age <= p.ageRange[1]);
+            const daXianIndex = daXianPalace ? daXianPalace.index : 0;
+            const liuNianDouJun = fix(flowYearBranch - (chart.birthMonthIndex - 1) + chart.birthHourIndex);
+            const liuYueIndex = fix(liuNianDouJun + (Math.abs(flowMonth) - 1));
+            const liuNianIndex = fix(flowYearBranch); const liuRiIndex = fix(liuYueIndex + (flowDay - 1)); const liuShiIndex = fix(liuRiIndex + (flowHour));
+            const daXianStem = daXianPalace ? HEAVENLY_STEMS.indexOf(daXianPalace.heavenlyStem) : 0;
+            const liuNianStem = flowYearStem; const liuYueStem = getMonthStem(flowYearStem, Math.abs(flowMonth));
+            return {
+                daXianIndex, liuNianIndex, liuYueIndex, liuRiIndex, liuShiIndex,
+                stems: { daxian: daXianStem, liunian: liuNianStem, liuyue: liuYueStem, liuri: liuRiStem, liushi: liuShiStem },
+                labels: {
+                    daxian: daXianPalace ? `${daXianPalace.ageRange[0]}~${daXianPalace.ageRange[1]} ${daXianPalace.heavenlyStem}${daXianPalace.earthlyBranch}限` : '大限',
+                    year: `${lunar.getYear()} ${lunar.getYearInGanZhi()} ${age}岁`,
+                    month: `${lunar.getMonthInChinese()}月 ${lunar.getMonthInGanZhi()}`,
+                    day: `${lunar.getDayInChinese()} ${lunar.getDayInGanZhi()}`,
+                    hour: `${lunar.getTimeInGanZhi()}时`
+                }
+            };
+        }
+
+        // --- 组件 ---
+        
+        // 自定义滚动选择器 (Wheel Picker)
+        const WheelPicker = ({ isOpen, initialDate, onConfirm, onCancel }) => {
+          if (!isOpen) return null;
+
+          const [year, setYear] = useState(initialDate.getFullYear());
+          const [month, setMonth] = useState(initialDate.getMonth() + 1);
+          const [day, setDay] = useState(initialDate.getDate());
+          const [hour, setHour] = useState(initialDate.getHours());
+          const [minute, setMinute] = useState(initialDate.getMinutes());
+          
+          const [quickInput, setQuickInput] = useState('');
+          const [quickInputError, setQuickInputError] = useState(false);
+          const [isLunar, setIsLunar] = useState(false); 
+          const [isLeap, setIsLeap] = useState(false);
+
+          useEffect(() => {
+              if (isOpen) {
+                  setYear(initialDate.getFullYear());
+                  setMonth(initialDate.getMonth() + 1);
+                  setDay(initialDate.getDate());
+                  setHour(initialDate.getHours());
+                  setMinute(initialDate.getMinutes());
+              }
+          }, [isOpen, initialDate]);
+
+          const years = Array.from({ length: 150 }, (_, i) => 1900 + i);
+          const months = Array.from({ length: 12 }, (_, i) => i + 1);
+          const days = Array.from({ length: 31 }, (_, i) => i + 1); 
+          const hours = Array.from({ length: 24 }, (_, i) => i);
+          const minutes = Array.from({ length: 60 }, (_, i) => i);
+          const TIME_LABELS = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+          const getTimeIndex = (h) => Math.floor((h + 1) / 2) % 12;
+
+          const handleQuickInput = () => {
+              const regex = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/;
+              const match = quickInput.match(regex);
+              if (match) {
+                  const y = parseInt(match[1]); const m = parseInt(match[2]); const d = parseInt(match[3]);
+                  const h = parseInt(match[4]); const min = parseInt(match[5]);
+                  if (m < 1 || m > 12 || d < 1 || d > 31 || h < 0 || h > 23 || min < 0 || min > 59) {
+                      setQuickInputError(true); return;
+                  }
+                  setYear(y); setMonth(m); setDay(d); setHour(h); setMinute(min);
+                  setQuickInputError(false); setQuickInput(''); 
+              } else {
+                  setQuickInputError(true);
+              }
+          };
+
+          const handleConfirm = () => {
+              const newDate = new Date(year, month - 1, day, hour, minute);
+              onConfirm(newDate);
+          };
+
+          const SelectGroup = ({ label, value, options, onChange, format }) => (
+              <div className="flex-1 flex flex-col gap-1">
+                  <label className="text-xs font-bold text-gray-500 text-center">{label}</label>
+                  <div className="relative">
+                      <select value={value} onChange={(e) => onChange(parseInt(e.target.value))} className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 font-bold py-2.5 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center shadow-sm text-lg">
+                          {options.map(opt => <option key={opt} value={opt}>{format ? format(opt) : opt}</option>)}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center px-2 text-gray-400"><ChevronDown size={14} /></div>
+                  </div>
+              </div>
+          );
+
+          return (
+            <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="bg-white w-full max-w-[500px] rounded-xl overflow-hidden shadow-2xl animate-slide-up flex flex-col font-sans">
+                    <div className="bg-white p-3 flex gap-2 items-center">
+                         <input className={`flex-1 bg-gray-50 border ${quickInputError ? 'border-red-500' : 'border-red-400'} rounded px-3 py-2 text-sm text-gray-600 outline-none focus:bg-white transition-colors`} placeholder="快捷录入 (格式: 201806180408)" value={quickInput} onChange={(e) => { setQuickInput(e.target.value); setQuickInputError(false); }} onKeyDown={(e) => e.key === 'Enter' && handleQuickInput()} maxLength={12}/>
+                         <button onClick={handleQuickInput} className="bg-gray-200 hover:bg-gray-300 text-gray-600 rounded px-3 py-2 transition-colors"><Check size={18} /></button>
+                    </div>
+                    <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-b border-gray-100">
+                        <div className="flex items-center gap-3"><span className="text-gray-900 font-bold text-sm">纪年方式:</span><div className="flex bg-gray-200 rounded-lg p-0.5"><button onClick={() => setIsLunar(false)} className={`px-4 py-1 text-xs font-medium rounded-md transition-all ${!isLunar ? 'bg-[#007AFF] text-white shadow-sm' : 'text-gray-500'}`}>西元</button><button onClick={() => setIsLunar(true)} className={`px-4 py-1 text-xs font-medium rounded-md transition-all ${isLunar ? 'bg-[#007AFF] text-white shadow-sm' : 'text-gray-500'}`}>干支</button></div></div>
+                        <div className="flex items-center gap-3"><span className="text-gray-900 font-bold text-sm">是否闰月:</span><div className="flex bg-gray-200 rounded-lg p-0.5"><button onClick={() => setIsLeap(true)} className={`px-4 py-1 text-xs font-medium rounded-md transition-all ${isLeap ? 'bg-[#007AFF] text-white shadow-sm' : 'text-gray-500'}`}>是</button><button onClick={() => setIsLeap(false)} className={`px-4 py-1 text-xs font-medium rounded-md transition-all ${!isLeap ? 'bg-[#007AFF] text-white shadow-sm' : 'text-gray-500'}`}>否</button></div></div>
+                    </div>
+                    <div className="bg-white p-6 flex gap-2 justify-between items-end min-h-[160px]">
+                        <SelectGroup label="年" value={year} options={years} onChange={setYear} format={v => `${v}年`} />
+                        <SelectGroup label="月" value={month} options={months} onChange={setMonth} format={v => `${v}月`} />
+                        <SelectGroup label="日" value={day} options={days} onChange={setDay} format={v => `${v}日`} />
+                        <SelectGroup label="时" value={hour} options={hours} onChange={setHour} format={v => `${v.toString().padStart(2, '0')}时`} />
+                        <SelectGroup label="分" value={minute} options={minutes} onChange={setMinute} format={v => `${v.toString().padStart(2, '0')}分`} />
+                    </div>
+                    <div className="bg-white border-t border-gray-100 py-3 text-center shadow-[0_-2px_10px_rgba(0,0,0,0.02)] relative z-30">
+                         <p className="text-sm text-gray-500 font-medium">{year}年{month}月{day}日 {hour.toString().padStart(2, '0')}:{minute.toString().padStart(2, '0')} <span className="ml-2 font-bold text-[#007AFF]">({(TIME_LABELS[getTimeIndex(hour)] || '')}时)</span></p>
+                    </div>
+                    <div className="flex border-t border-gray-200 bg-white relative z-30"><button onClick={onCancel} className="flex-1 py-4 text-gray-500 font-bold hover:bg-gray-50 transition-colors text-base">取消</button><div className="w-px bg-gray-200"></div><button onClick={handleConfirm} className="flex-1 py-4 text-[#007AFF] font-bold hover:bg-blue-50 transition-colors text-base">确定</button></div>
+                </div>
+            </div>
+          );
+        };
+
+        const PalaceCard = ({ data, viewMode, flowMarkers, siHuaLayers, mingSiHua, flowIndices, onClick, isSelected, highlightedSiHua, activeLevel, displaySettings, flyingArrows, layoutType = 'bottom' }) => {
+            let starsToRender = [];
+            if (viewMode === 'feixing') starsToRender = [...data.majorStars, ...data.auxStars, ...data.badStars];
+            else starsToRender = [...data.majorStars, ...data.auxStars, ...data.badStars, ...data.minorStars];
+
+            const changShengGod = viewMode === 'sanhe' ? data.godsStars.find(s => s.type === 'chang') : null;
+            const boShiGod = viewMode === 'sanhe' ? data.godsStars.find(s => s.type === 'bo') : null;
+            const suiJianGod = viewMode === 'sanhe' ? data.godsStars.find(s => s.type === 'sui') : null;
+            const jiangQianGod = viewMode === 'sanhe' ? data.godsStars.find(s => s.type === 'jiang') : null;
+
+            const LEVELS = ['birth', 'daxian', 'year', 'month', 'day', 'hour'];
+            const levelIdx = LEVELS.indexOf(activeLevel);
+            const showDaXian = levelIdx >= 1; const showYear = levelIdx >= 2; const showMonth = levelIdx >= 3; const showDay = levelIdx >= 4; const showHour = levelIdx >= 5;
+
+            const getSiHuaBg = (mod) => {
+                switch(mod) { case '禄': return 'bg-ziwei-green'; case '权': return 'bg-ziwei-purple'; case '科': return 'bg-ziwei-blue'; case '忌': return 'bg-ziwei-red'; default: return 'bg-gray-500'; }
+            };
+            const getSiHuaColor = (mod) => {
+                 switch(mod) { case '禄': return 'ziwei-green'; case '权': return 'ziwei-purple'; case '科': return 'ziwei-blue'; case '忌': return 'ziwei-red'; default: return 'gray-500'; }
+            };
+
+            const renderFlyingArrow = (type, mods) => {
+                if (mods.length === 0) return null;
+                const getColor = (m) => ({ '禄':'#34C759', '权':'#AF52DE', '科':'#007AFF', '忌':'#FF3B30' }[m] || '#999');
+                let rotation = 0; let posClass = '';
+                switch (layoutType) {
+                    case 'corner-tl': if(type==='ziHua'){posClass='-top-[6px] -left-[6px] flex-row'; rotation=315;} else {posClass='-bottom-[6px] -right-[6px] flex-row'; rotation=135;} break;
+                    case 'top': if(type==='ziHua'){posClass='-top-[8px] left-1/2 -translate-x-1/2 flex-row'; rotation=0;} else {posClass='-bottom-[8px] left-1/2 -translate-x-1/2 flex-row'; rotation=180;} break;
+                    case 'corner-tr': if(type==='ziHua'){posClass='-top-[6px] -right-[6px] flex-row'; rotation=45;} else {posClass='-bottom-[6px] -left-[6px] flex-row'; rotation=225;} break;
+                    case 'right': if(type==='ziHua'){posClass='-right-[8px] top-1/2 -translate-y-1/2 flex-col'; rotation=90;} else {posClass='-left-[8px] top-1/2 -translate-y-1/2 flex-col'; rotation=270;} break;
+                    case 'corner-br': if(type==='ziHua'){posClass='-bottom-[6px] -right-[6px] flex-row'; rotation=135;} else {posClass='-top-[6px] -left-[6px] flex-row'; rotation=315;} break;
+                    case 'bottom': if(type==='ziHua'){posClass='-bottom-[8px] left-1/2 -translate-x-1/2 flex-row'; rotation=180;} else {posClass='-top-[8px] left-1/2 -translate-x-1/2 flex-row'; rotation=0;} break;
+                    case 'corner-bl': if(type==='ziHua'){posClass='-bottom-[6px] -left-[6px] flex-row'; rotation=225;} else {posClass='-top-[6px] -right-[6px] flex-row'; rotation=45;} break;
+                    case 'left': if(type==='ziHua'){posClass='-left-[8px] top-1/2 -translate-y-1/2 flex-col'; rotation=270;} else {posClass='-right-[8px] top-1/2 -translate-y-1/2 flex-col'; rotation=90;} break;
+                }
+                return (
+                    <div className={`absolute z-30 flex gap-[2px] pointer-events-none ${posClass}`}>
+                        {mods.map((mod, i) => (
+                            <svg key={i} width="12" height="12" viewBox="0 0 12 12" style={{ transform: `rotate(${rotation}deg)` }}>
+                                <path d="M6 0 L12 8 L9 8 L9 12 L3 12 L3 8 L0 8 Z" fill={getColor(mod)} stroke="white" strokeWidth="0.5" />
+                            </svg>
+                        ))}
+                    </div>
+                );
+            };
+
+            const renderStar = (star, index) => {
+                const flyMod = highlightedSiHua?.[star.name];
+                const birthMod = siHuaLayers.birth[star.name];
+                const mingMod = mingSiHua[star.name];
+                const daxianMod = siHuaLayers.daxian[star.name];
+                const liunianMod = siHuaLayers.liunian[star.name];
+                const liuyueMod = siHuaLayers.liuyue[star.name];
+                const liuriMod = siHuaLayers.liuri[star.name];
+                const liushiMod = siHuaLayers.liushi[star.name];
+
+                let nameClasses = 'text-gray-800'; 
+                let containerClasses = 'rounded-[2px] py-[1px]'; 
+                const PURPLE_STARS = ['天魁', '天钺', '左辅', '右弼', '文曲', '文昌'];
+                const BLACK_STARS = ['擎羊', '陀罗', '火星', '铃星', '地空', '地劫'];
+
+                if (viewMode === 'feixing') {
+                    if (star.type === 'major') nameClasses = 'text-ziwei-red'; else nameClasses = 'text-ziwei-purple';
+                    if (flyMod) { nameClasses = 'text-white'; containerClasses += ` ${getSiHuaBg(flyMod)} shadow-sm -mx-[1px]`; }
+                } else {
+                    if (flyMod) { nameClasses = 'text-white'; containerClasses += ` ${getSiHuaBg(flyMod)} shadow-sm -mx-[1px]`; }
+                    else {
+                        if (star.type === 'major') nameClasses = 'text-ziwei-red';
+                        else if (PURPLE_STARS.includes(star.name)) nameClasses = 'text-ziwei-purple';
+                        else if (BLACK_STARS.includes(star.name)) nameClasses = 'text-gray-900';
+                        else nameClasses = 'text-blue-600';
+                    }
+                }
+
+                const renderBadges = () => {
+                    if (viewMode === 'feixing') {
+                        return (
+                            <div className="flex flex-col mt-0.5 gap-[2px] items-center">
+                                <div className="w-[14px] h-[14px]">{birthMod && <div className={`w-full h-full flex items-center justify-center ${getSiHuaBg(birthMod)} rounded-[2px]`}><span className="text-white text-[10px] font-bold leading-none">{birthMod}</span></div>}</div>
+                                <div className="w-[14px] h-[14px]">{mingMod && <div className={`w-full h-full flex items-center justify-center border border-${getSiHuaColor(mingMod)} bg-transparent rounded-[2px]`}><span className={`text-${getSiHuaColor(mingMod)} text-[10px] font-bold leading-none`}>{mingMod}</span></div>}</div>
+                            </div>
+                        );
+                    } else {
+                         const slots = [{ show: true, mod: birthMod || star.modifier, color: 'bg-ziwei-red' }, { show: showDaXian, mod: daxianMod, color: 'bg-green-600' }, { show: showYear, mod: liunianMod, color: 'bg-blue-500' }, { show: showMonth, mod: liuyueMod, color: 'bg-amber-500' }, { show: showDay, mod: liuriMod, color: 'bg-purple-500' }, { show: showHour, mod: liushiMod, color: 'bg-red-500' }];
+                        const visibleSlots = slots.filter(s => s.show);
+                        if (visibleSlots.every(s => !s.mod)) return <div className="mt-0.5 h-[12px]"></div>;
+                        return (<div className="flex flex-col mt-0.5 gap-[1px] items-center">{visibleSlots.map((slot, idx) => (<div key={idx} className="w-[12px] h-[12px]">{slot.mod ? (<span className={`flex items-center justify-center w-full h-full ${slot.color} text-white text-[10px] rounded-[2px] leading-none`}>{slot.mod}</span>) : null}</div>))}</div>);
+                    }
+                };
+
+                return (
+                  <div key={`${star.name}-${index}`} className={`flex flex-col items-center mr-0.5 mb-1 w-4 ${flyMod ? 'z-10' : ''}`}>
+                    <div className={`flex flex-col items-center text-[13px] font-bold leading-none tracking-tighter transition-colors duration-200 ${nameClasses} ${containerClasses}`}>
+                         {star.name.split('').map((char, i) => <span key={i}>{char}</span>)}
+                         {viewMode === 'sanhe' && star.brightness && (<span className={`text-[9px] mt-[1px] scale-90 ${flyMod ? 'text-white/90' : 'text-gray-400'}`}>{star.brightness}</span>)}
+                    </div>
+                    {renderBadges()}
+                  </div>
+                );
+            };
+
+            const renderFlowStars = () => {
+                if (!displaySettings.showFlowStars || !data.flowStars || data.flowStars.length === 0 || viewMode === 'feixing') return null;
+                const getLayerColor = (layer) => { switch(layer) { case 'daxian': return 'text-green-600'; case 'liunian': return 'text-blue-600'; case 'liuyue': return 'text-amber-600'; case 'liuri': return 'text-purple-600'; case 'liushi': return 'text-red-600'; default: return 'text-gray-500'; } };
+                return (<div className="flex flex-row-reverse items-end gap-x-0.5">{data.flowStars.map((s, i) => (<div key={i} className={`flex flex-col items-center leading-none ${getLayerColor(s.layer)}`}>{s.name.split('').map((char, idx) => (<span key={idx} className="text-[10px] font-medium leading-none scale-90">{char}</span>))}</div>))}</div>);
+            }
+
+            const getAbbrName = (currentIdx, refMingIdx) => { const relIdx = (currentIdx - refMingIdx + 12) % 12; const fullName = PALACE_NAMES[relIdx]; return PALACE_ABBR[fullName] || fullName.substring(0,1); }
+            const starsContainerClass = viewMode === 'feixing' ? 'flex-row-reverse gap-x-[2px] justify-start' : 'flex-row gap-x-[1px] content-start items-start';
+
+            return (
+                <div onClick={onClick} className={`bg-white relative h-full transition-all duration-200 border-r border-b border-ziwei-grid overflow-visible cursor-pointer hover:bg-gray-50 ${isSelected ? 'ring-2 ring-ziwei-gold ring-inset bg-yellow-50/30' : ''}`}>
+                  {flyingArrows && (<>{renderFlyingArrow('ziHua', flyingArrows.ziHua)}{renderFlyingArrow('xiangXin', flyingArrows.xiangXin)}</>)}
+                  <div className={`absolute inset-0 p-1 flex flex-wrap ${starsContainerClass} ${displaySettings.compactMode ? 'gap-y-0' : ''}`}>
+                      {starsToRender.map((s, i) => renderStar(s, i))}
+                  </div>
+                  {displaySettings.showXiaoXian && data.smallRange.length > 0 && (<div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0"><div className="flex flex-col items-center justify-center opacity-70"><span className="text-[9px] text-gray-400 font-medium leading-none mb-0.5">小限</span><div className="text-[9px] text-gray-400 text-center leading-none">{(Math.ceil(data.smallRange.length/2) && <><div className="whitespace-nowrap">{data.smallRange.slice(0, Math.ceil(data.smallRange.length/2)).join(',')}</div><div className="whitespace-nowrap mt-[1px]">{data.smallRange.slice(Math.ceil(data.smallRange.length/2)).join(',')}</div></>)}</div></div></div>)}
+                  {viewMode === 'sanhe' && (<div className="absolute bottom-1 left-1 flex flex-col items-start gap-0.5 z-10">{[boShiGod, suiJianGod, jiangQianGod].map((god, i) => god && (<span key={i} className="text-[9px] text-gray-500 leading-none scale-95 origin-left">{god.name}</span>))}</div>)}
+                  <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center gap-0 w-24">
+                     <div className="flex items-center gap-0.5">
+                         {data.isBodyPalace && (<span className="text-[9px] bg-ziwei-gold text-white px-[2px] rounded-[2px] leading-none shadow-sm">身</span>)}
+                         <span className="text-[10px] text-gray-800 font-bold bg-white/80 px-1 rounded shadow-sm border border-gray-100 whitespace-nowrap">{data.ageRange[0]}-{data.ageRange[1]}</span>
+                     </div>
+                  </div>
+                  <div className="absolute bottom-1 right-1 flex items-end">
+                      <div className="flex flex-col items-end mr-1 space-y-[1px]">
+                           {flowIndices && (<>{showHour && viewMode === 'sanhe' && (<span className="text-[12px] font-bold text-red-500 leading-none">时{getAbbrName(data.index, flowIndices.liuShiMingIdx)}</span>)}{showDay && viewMode === 'sanhe' && (<span className="text-[12px] font-bold text-purple-600 leading-none">日{getAbbrName(data.index, flowIndices.liuRiMingIdx)}</span>)}{(showMonth || displaySettings.showLiuYue) && viewMode === 'sanhe' && (<span className="text-[12px] font-bold text-amber-500 leading-none">月{getAbbrName(data.index, flowIndices.liuYueMingIdx)}</span>)}</>)}
+                      </div>
+                      <div className="flex flex-col items-end mr-1 space-y-[1px]">
+                           {flowIndices && (<>{(showYear || displaySettings.showLiuNian) && (<span className="text-[12px] font-bold text-blue-600 leading-none">年{getAbbrName(data.index, flowIndices.liuNianMingIdx)}</span>)}{showDaXian && (<span className="text-[12px] font-bold text-green-600 leading-none">大{getAbbrName(data.index, flowIndices.daXianMingIdx)}</span>)}</>)}
+                           <div className="flex items-center"><span className={`text-[12px] font-bold leading-none ${data.name === '命宫' ? 'bg-ziwei-red text-white px-1 py-[1px] rounded' : 'text-ziwei-red'}`}>{data.name}</span></div>
+                      </div>
+                      <div className="flex flex-col items-center justify-end leading-none ml-1 relative">
+                           {viewMode === 'sanhe' && (<div className="absolute bottom-full right-0 mb-3.5 pointer-events-none whitespace-nowrap">{renderFlowStars()}</div>)}
+                           {changShengGod && (<span className="text-[10px] text-gray-400 mb-1 flex flex-col items-center leading-tight scale-90">{changShengGod.name.split('').map((c,i) => <span key={i}>{c}</span>)}</span>)}
+                           <div className="flex flex-col items-center text-sm font-serif font-bold leading-tight"><span className="text-gray-500">{data.heavenlyStem}</span><span className="text-gray-500">{data.earthlyBranch}</span></div>
+                      </div>
+                  </div>
+                </div>
+            );
+        };
+
+        const InputForm = ({ onGenerate }) => {
+            const [profiles, setProfiles] = useState(() => { const saved = localStorage.getItem('ziwei_profiles'); return saved ? JSON.parse(saved) : []; });
+            const [activeTab, setActiveTab] = useState('家人');
+            const [search, setSearch] = useState('');
+            const [selectedProfileId, setSelectedProfileId] = useState(null);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [modalMode, setModalMode] = useState('create');
+            const [isPickerOpen, setIsPickerOpen] = useState(false);
+            const [formData, setFormData] = useState({ name: '', gender: Gender.MALE, birthDate: new Date().toISOString(), birthTimeIndex: 0, category: '家人', notes: '', longitude: 120 });
+            
+            useEffect(() => localStorage.setItem('ziwei_profiles', JSON.stringify(profiles)), [profiles]);
+            
+            // 初始化时间 (修复新建时时间索引不正确的问题)
+            useEffect(() => {
+                const now = new Date();
+                const idx = getTimeIndex(now.getHours());
+                setFormData(prev => ({
+                    ...prev,
+                    birthDate: now.toISOString(),
+                    birthTimeIndex: idx
+                }));
+            }, []);
+
+            const handleSave = () => {
+                if (!formData.name || !formData.birthDate) return;
+                const dateObj = new Date(formData.birthDate);
+                const tIdx = Math.floor((dateObj.getHours() + 1) / 2) % 12;
+                const newProfile = { id: modalMode === 'create' ? Date.now().toString() : formData.id, name: formData.name, gender: formData.gender, birthDate: formData.birthDate, birthTimeIndex: tIdx, category: formData.category, notes: formData.notes, longitude: formData.longitude };
+                setProfiles(prev => modalMode === 'create' ? [...prev, newProfile] : prev.map(p => p.id === newProfile.id ? newProfile : p));
+                setIsModalOpen(false);
+            };
+
+            const getTimeIndex = (hour) => Math.floor((hour + 1) / 2) % 12;
+            const TIME_LABELS = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+            
+            const openCreate = () => {
+                const now = new Date();
+                setFormData({ name: '', gender: Gender.MALE, birthDate: now.toISOString(), birthTimeIndex: getTimeIndex(now.getHours()), category: activeTab, notes: '', longitude: 120 });
+                setModalMode('create'); setIsModalOpen(true);
+            };
+
+            const handleArrange = () => {
+                if (!selectedProfileId) return;
+                const p = profiles.find(x => x.id === selectedProfileId);
+                if (p) onGenerate(p.name, new Date(p.birthDate), getTimeIndex(new Date(p.birthDate).getHours()), p.gender, p.longitude);
+            };
+
+            const getDisplayDate = () => { if (!formData.birthDate) return ''; const d = new Date(formData.birthDate); return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`; };
+            const getDisplayTime = () => { if (!formData.birthDate) return '00:00'; const d = new Date(formData.birthDate); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`; }
+
+            const displayProfiles = profiles.filter(p => (activeTab === '分组' || p.category === activeTab) && p.name.includes(search));
+            const CATEGORIES = ['家人', '朋友', '同学', '同事', '客户', '名人', '其他', '分组'];
+
+            return (
+                <div className="w-full max-w-4xl h-[600px] bg-white rounded-lg shadow-2xl flex flex-col overflow-hidden font-sans border border-gray-300">
+                    <div className="p-2 border-b border-gray-200 flex items-center bg-gray-50"><Search size={18} className="text-gray-500 ml-2" /><input className="bg-transparent border-none outline-none ml-2 w-full text-sm text-gray-800 placeholder-gray-400" placeholder="搜索姓名..." value={search} onChange={e => setSearch(e.target.value)} /></div>
+                    <div className="flex bg-[#3b5998] text-white overflow-x-auto scrollbar-hide">{CATEGORIES.map(cat => (<button key={cat} onClick={() => setActiveTab(cat)} className={`flex-1 py-2.5 text-sm font-medium whitespace-nowrap px-4 hover:bg-white/10 transition-colors border-b-2 ${activeTab === cat ? 'bg-white/10 border-white' : 'border-transparent'}`}>{cat}</button>))}</div>
+                    <div className="grid grid-cols-12 bg-[#2563eb] text-white text-xs py-1.5 px-3 font-bold"><div className="col-span-3">姓名</div><div className="col-span-1 text-center">性别</div><div className="col-span-4">生辰</div><div className="col-span-4">备注</div></div>
+                    <div className="flex-1 overflow-y-auto bg-gray-100">
+                        {displayProfiles.map((p, idx) => {
+                            const d = new Date(p.birthDate);
+                            return (
+                                <div key={p.id} onClick={() => setSelectedProfileId(p.id)} className={`grid grid-cols-12 text-sm py-2.5 px-3 border-b border-gray-200 cursor-pointer items-center ${selectedProfileId === p.id ? 'bg-[#dbeafe] text-blue-900 font-medium' : idx % 2 === 0 ? 'bg-white text-gray-700' : 'bg-gray-50 text-gray-700'} hover:bg-blue-50 transition-colors`}>
+                                    <div className="col-span-3 font-bold">{p.name}</div><div className="col-span-1 text-center">{p.gender}</div><div className="col-span-4 text-xs font-mono">{d.getFullYear()}/{(d.getMonth()+1).toString().padStart(2,'0')}/{d.getDate().toString().padStart(2,'0')} {d.getHours().toString().padStart(2,'0')}:{d.getMinutes().toString().padStart(2,'0')}</div><div className="col-span-4 text-xs truncate text-gray-500">{p.notes || '无'}</div>
+                                </div>
+                            )})}
+                    </div>
+                    <div className="p-3 border-t border-gray-200 bg-gray-100 flex justify-between items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-10">
+                        <div className="flex gap-2">
+                            <button onClick={openCreate} className="flex items-center gap-1 px-4 py-2 bg-white border border-gray-300 rounded shadow-sm text-sm text-blue-600 font-medium hover:bg-blue-50"><Plus size={16}/> 新增</button>
+                            <button onClick={() => { const p = profiles.find(x => x.id === selectedProfileId); if(p) { setFormData({...p, longitude: p.longitude??120}); setModalMode('edit'); setIsModalOpen(true); } }} disabled={!selectedProfileId} className="flex items-center gap-1 px-4 py-2 bg-white border border-gray-300 rounded shadow-sm text-sm text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"><Edit size={16}/> 修改</button>
+                            <button onClick={() => { if(confirm('确定删除?')) { setProfiles(profiles.filter(p => p.id !== selectedProfileId)); setSelectedProfileId(null); } }} disabled={!selectedProfileId} className="flex items-center gap-1 px-4 py-2 bg-white border border-gray-300 rounded shadow-sm text-sm text-red-600 font-medium hover:bg-red-50 disabled:opacity-50"><Trash2 size={16}/> 删除</button>
+                        </div>
+                        <button onClick={handleArrange} disabled={!selectedProfileId} className="flex items-center gap-2 px-8 py-2 bg-[#4f46e5] text-white rounded shadow-md text-sm font-bold hover:bg-[#4338ca] disabled:opacity-50"><Play size={16} fill="currentColor"/> 排盘</button>
+                    </div>
+
+                    {isModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                            <div className="bg-white rounded-lg shadow-2xl w-full max-w-[500px] overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"><h3 className="text-lg font-bold text-gray-800">{modalMode==='create'?'新增':'修改'}档案</h3><button onClick={()=>setIsModalOpen(false)}><XIcon size={20}/></button></div>
+                                <div className="p-6 space-y-5">
+                                    <div className="flex gap-5">
+                                       <div className="flex-[1.5]"><label className="block text-xs font-bold text-gray-500 mb-1.5">姓名</label><input className="w-full bg-gray-800 text-white rounded px-3 py-2.5 text-sm" value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} placeholder="输入姓名"/></div>
+                                       <div className="flex-1"><label className="block text-xs font-bold text-gray-500 mb-1.5">性别</label><div className="flex rounded border border-gray-300 overflow-hidden h-[42px]"><button onClick={()=>setFormData({...formData, gender: Gender.MALE})} className={`flex-1 text-sm font-bold ${formData.gender===Gender.MALE?'bg-[#6366f1] text-white':'bg-white text-gray-500'}`}>男</button><div className="w-px bg-gray-300"></div><button onClick={()=>setFormData({...formData, gender: Gender.FEMALE})} className={`flex-1 text-sm font-bold ${formData.gender===Gender.FEMALE?'bg-pink-500 text-white':'bg-white text-gray-500'}`}>女</button></div></div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1.5">生辰 (西历)</label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-[2] bg-gray-800 text-white rounded px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-700 transition-colors flex items-center justify-between" onClick={() => setIsPickerOpen(true)}>
+                                                <span>{getDisplayDate()}</span><span className="text-gray-400 font-mono pl-2 border-l border-gray-600 ml-2">{getDisplayTime()}</span>
+                                            </div>
+                                            <div className="flex rounded border border-gray-300 overflow-hidden bg-white"><button className="px-3 py-1 bg-[#6366f1] text-white text-xs font-bold shadow-sm">西历</button><button className="px-3 py-1 bg-white text-gray-500 text-xs border-l hover:bg-gray-50">农历</button></div>
+                                        </div>
+                                        <div className="mt-2 text-xs text-gray-500 flex items-center gap-1"><span>对应时辰:</span><span className="font-bold text-[#6366f1]">{TIME_LABELS[getTimeIndex(new Date(formData.birthDate || Date.now()).getHours())]}时</span></div>
+                                    </div>
+                                    <div><label className="block text-xs font-bold text-gray-500 mb-1.5">出生地经度 (120为北京时间标准)</label><input type="number" step="0.01" className="w-full border border-gray-300 rounded px-3 py-2.5 text-sm" value={formData.longitude} onChange={e=>setFormData({...formData, longitude: parseFloat(e.target.value)})} placeholder="120"/></div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1.5">分类</label>
+                                        <div className="flex flex-wrap gap-2">{CATEGORIES.filter(c => c !== '分组').map(cat => (<button key={cat} onClick={() => setFormData({...formData, category: cat})} className={`text-xs px-3 py-1.5 rounded-full border transition-all ${formData.category === cat ? 'bg-[#6366f1] text-white border-[#6366f1] shadow-sm scale-105' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>{cat}</button>))}</div>
+                                    </div>
+                                    <div><label className="block text-xs font-bold text-gray-500 mb-1.5">备注</label><textarea className="w-full bg-gray-800 text-white rounded px-3 py-2 text-sm h-24 outline-none resize-none placeholder-gray-500" placeholder="限50字以内" maxLength={50} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})}/></div>
+                                    <div className="flex border-t border-gray-200 mt-4 pt-4"><button onClick={()=>setIsModalOpen(false)} className="flex-1 py-2 text-gray-500">取消</button><button onClick={handleSave} className="flex-1 py-2 text-blue-600 font-bold">确定</button></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <WheelPicker isOpen={isPickerOpen} initialDate={formData.birthDate ? new Date(formData.birthDate) : new Date()} onCancel={() => setIsPickerOpen(false)} onConfirm={(d) => { const tIdx = getTimeIndex(d.getHours()); setFormData({ ...formData, birthDate: d.toISOString(), birthTimeIndex: tIdx }); setIsPickerOpen(false); }} />
+                </div>
+            );
+        };
+
+        const SettingsModal = ({ isOpen, onClose, settings, onUpdate }) => {
+            if (!isOpen) return null;
+            const [activeTab, setActiveTab] = useState('basic');
+            
+            // 修复设置更新逻辑：使用深拷贝确保 React 状态正确更新
+            const updateSetting = (path, value) => {
+                const newSettings = JSON.parse(JSON.stringify(settings)); // Deep copy
+                let curr = newSettings;
+                for (let i = 0; i < path.length - 1; i++) {
+                    curr = curr[path[i]];
+                }
+                curr[path[path.length - 1]] = value;
+                onUpdate(newSettings);
+            };
+
+            const ToggleItem = ({ label, checked, onChange }) => (
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"><span className="text-gray-700 text-sm font-medium">{label}</span><div className="relative inline-block w-10 mr-2 align-middle select-none"><input type="checkbox" className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 left-0" style={{ top: '2px', left: checked ? '20px' : '2px', borderColor: checked ? 'transparent' : '#e5e7eb' }} checked={checked} onChange={(e) => onChange(e.target.checked)}/><label className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-300 ${checked ? 'bg-ziwei-green' : 'bg-gray-300'}`}></label></div></div>
+            );
+            
+            const SelectItem = ({ label, value, options, onChange }) => (
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-700 text-sm font-medium">{label}</span>
+                  <select value={value} onChange={(e) => onChange(e.target.value)} className="text-sm border border-gray-300 rounded p-1 bg-white text-gray-700 outline-none focus:border-ziwei-blue max-w-[150px]">
+                     {options.map(opt => <option key={opt.val} value={opt.val}>{opt.txt}</option>)}
+                  </select>
+                </div>
+            );
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+                        <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50"><h2 className="text-lg font-bold text-gray-800">设定</h2><button onClick={onClose}><XIcon size={20} className="text-gray-500" /></button></div>
+                        <div className="flex border-b border-gray-200">{['basic', 'anxing', 'sihua', 'display'].map(tab => (<button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === tab ? 'text-ziwei-blue border-b-2 border-ziwei-blue bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}>{tab === 'basic' && '基础'}{tab === 'anxing' && '安星'}{tab === 'sihua' && '四化'}{tab === 'display' && '显示'}</button>))}</div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+                            {activeTab === 'basic' && <div className="bg-white rounded-lg border border-gray-200 px-4 py-2"><ToggleItem label="区分早晚子时" checked={settings.earlyLateZi} onChange={(v) => updateSetting(['earlyLateZi'], v)} /><ToggleItem label="真太阳时 (需经纬度)" checked={settings.trueSolarTime} onChange={(v) => updateSetting(['trueSolarTime'], v)} /><SelectItem label="闰月处理" value={settings.leapMonth} options={[{val: 'current', txt: '随本月'}, {val: 'next', txt: '作下月'}, {val: 'split', txt: '月中分界'}]} onChange={(v) => updateSetting(['leapMonth'], v)} /></div>}
+                            {activeTab === 'anxing' && (<div className="space-y-3"><div className="bg-white rounded-lg border border-gray-200 px-4 py-2"><h4 className="text-xs font-bold text-gray-400 uppercase mb-2 mt-1">基本规则</h4><SelectItem label="安天马" value={settings.anXing.tianMa} options={[{val: 'year', txt: '依据年支'}, {val: 'month', txt: '依据月支'}]} onChange={(v) => updateSetting(['anXing', 'tianMa'], v)} /><SelectItem label="安天空" value={settings.anXing.tianKong} options={[{val: 'year', txt: '常规排法(年支)'}, {val: 'seq', txt: '顺加生时'}]} onChange={(v) => updateSetting(['anXing', 'tianKong'], v)} /><SelectItem label="安截空旬空" value={settings.anXing.jieKong} options={[{val: 'dual', txt: '正副双星法'}, {val: 'single', txt: '常规单星法'}]} onChange={(v) => updateSetting(['anXing', 'jieKong'], v)} /><SelectItem label="安魁钺 (庚/辛)" value={settings.anXing.kuiYue} options={[{val: 'xin_hu_ma', txt: '六辛逢虎马 (预设)'}, {val: 'xin_ma_hu', txt: '六辛逢马虎'}, {val: 'geng_ma_hu', txt: '庚辛逢马虎'}, {val: 'geng_hu_ma', txt: '庚辛逢虎马'}]} onChange={(v) => updateSetting(['anXing', 'kuiYue'], v)} /></div><div className="bg-white rounded-lg border border-gray-200 px-4 py-2"><h4 className="text-xs font-bold text-gray-400 uppercase mb-2 mt-1">其他规则</h4><SelectItem label="星曜亮度" value={settings.anXing.brightness} options={[{val: 'zhongzhou', txt: '中州派理论'}, {val: 'quan', txt: '斗数全书'}]} onChange={(v) => updateSetting(['anXing', 'brightness'], v)} /><SelectItem label="安命主" value={settings.anXing.mingZhu} options={[{val: 'quan', txt: '斗数全书'}, {val: 'zhongzhou', txt: '中州派理论'}]} onChange={(v) => updateSetting(['anXing', 'mingZhu'], v)} /><SelectItem label="长生十二神" value={settings.anXing.changSheng} options={[{val: 'water_earth', txt: '水土共长生'}, {val: 'fire_earth', txt: '火土共长生'}]} onChange={(v) => updateSetting(['anXing', 'changSheng'], v)} /></div></div>)}
+                            {activeTab === 'sihua' && <div className="bg-white rounded-lg border border-gray-200 px-4 py-2"><SelectItem label="戊干 (贪阴右机)" value={settings.siHua.wu} options={[{val: 'tan_yin_you_ji', txt: '贪阴右机 (预设)'}, {val: 'tan_yin_yang_ji', txt: '贪阴阳机'}]} onChange={(v) => updateSetting(['siHua', 'wu'], v)} /><SelectItem label="庚干 (阳武阴同)" value={settings.siHua.geng} options={[{val: 'yang_wu_yin_tong', txt: '阳武阴同 (预设)'}, {val: 'yang_wu_tong_yin', txt: '阳武同阴'}, {val: 'yang_wu_fu_tong', txt: '阳武府同'}, {val: 'yang_wu_fu_xiang', txt: '阳武府相'}, {val: 'yang_wu_tong_xiang', txt: '阳武同相'}]} onChange={(v) => updateSetting(['siHua', 'geng'], v)} /><SelectItem label="壬干 (梁紫左武)" value={settings.siHua.ren} options={[{val: 'liang_zi_zuo_wu', txt: '梁紫左武 (预设)'}, {val: 'liang_zi_fu_wu', txt: '梁紫府武'}, {val: 'liang_zi_xiang_wu', txt: '梁紫相武'}]} onChange={(v) => updateSetting(['siHua', 'ren'], v)} /><SelectItem label="癸干 (破巨阴贪)" value={settings.siHua.gui} options={[{val: 'po_ju_yin_tan', txt: '破巨阴贪 (预设)'}, {val: 'po_ju_yang_tan', txt: '破巨阳贪'}]} onChange={(v) => updateSetting(['siHua', 'gui'], v)} /></div>}
+                            {activeTab === 'display' && <div className="space-y-3"><div className="bg-white rounded-lg border border-gray-200 px-4 py-2"><h4 className="text-xs font-bold text-gray-400 uppercase mb-2 mt-1">界面布局</h4><ToggleItem label="显示流年" checked={settings.display.showLiuNian} onChange={(v) => updateSetting(['display', 'showLiuNian'], v)} /><ToggleItem label="显示小限" checked={settings.display.showXiaoXian} onChange={(v) => updateSetting(['display', 'showXiaoXian'], v)} /><ToggleItem label="显示流月" checked={settings.display.showLiuYue} onChange={(v) => updateSetting(['display', 'showLiuYue'], v)} /><ToggleItem label="显示三方飞星箭头" checked={settings.display.showArrows} onChange={(v) => updateSetting(['display', 'showArrows'], v)} /><ToggleItem label="紧凑模式" checked={settings.display.compactMode} onChange={(v) => updateSetting(['display', 'compactMode'], v)} /></div><div className="bg-white rounded-lg border border-gray-200 px-4 py-2"><h4 className="text-xs font-bold text-gray-400 uppercase mb-2 mt-1">流耀显示</h4><ToggleItem label="显示流耀 (总开关)" checked={settings.display.showFlowStars} onChange={(v) => updateSetting(['display', 'showFlowStars'], v)} />{settings.display.showFlowStars && (<div className="pl-4 border-l-2 border-gray-100 ml-1"><ToggleItem label="显示流天马" checked={settings.display.showFlowMa} onChange={(v) => updateSetting(['display', 'showFlowMa'], v)} /><ToggleItem label="显示流火铃" checked={settings.display.showFlowHuoLing} onChange={(v) => updateSetting(['display', 'showFlowHuoLing'], v)} /><ToggleItem label="显示流红喜" checked={settings.display.showFlowHongXi} onChange={(v) => updateSetting(['display', 'showFlowHongXi'], v)} /><ToggleItem label="显示流昌曲" checked={settings.display.showFlowChangQu} onChange={(v) => updateSetting(['display', 'showFlowChangQu'], v)} /></div>)}</div></div>}
+                        </div>
+                        <div className="p-4 border-t border-gray-200 bg-gray-50 text-center"><button onClick={onClose} className="w-full bg-ziwei-blue text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition-colors shadow-lg">保存设置</button></div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Astrolabe = ({ data, onReset, onTimeTravel, onOpenSettings, settings }) => {
+            const [viewMode, setViewMode] = useState('sanhe');
+            const [flowDate, setFlowDate] = useState(new Date());
+            const [flowTimeIdx, setFlowTimeIdx] = useState(0); 
+            const [focusedPalaceIndex, setFocusedPalaceIndex] = useState(null);
+            const [activeLevel, setActiveLevel] = useState('birth');
+            const birthYear = parseInt(data.solarDateStr.match(/\d{4}/)?.[0] || new Date().getFullYear().toString());
+            const birthDate = new Date(birthYear, 0, 1); 
+            
+            useEffect(() => {
+                if (viewMode === 'feixing') {
+                    if (['month', 'day', 'hour'].includes(activeLevel)) {
+                        setActiveLevel('year'); 
+                    }
+                }
+            }, [viewMode, activeLevel]);
+
+            const flowState = useMemo(() => getFlowState(data, flowDate, birthDate, flowTimeIdx, settings), [data, flowDate, flowTimeIdx, birthYear, settings]);
+            const flowStarsMap = useMemo(() => calculateFlowStars(data, flowState, settings, activeLevel), [data, flowState, settings, activeLevel]);
+            const siHuaLayers = useMemo(() => ({ birth: getSiHua(data.yearStemIndex, settings), daxian: getSiHua(flowState.stems.daxian, settings), liunian: getSiHua(flowState.stems.liunian, settings), liuyue: getSiHua(flowState.stems.liuyue, settings), liuri: getSiHua(flowState.stems.liuri, settings), liushi: getSiHua(flowState.stems.liushi, settings) }), [data.yearStemIndex, flowState.stems, settings]);
+            const mingSiHua = useMemo(() => { const p = data.palaces.find(p => p.index === data.mingPalaceIndex); return p ? getSiHua(HEAVENLY_STEMS.indexOf(p.heavenlyStem), settings) : {}; }, [data.palaces, data.mingPalaceIndex, settings]);
+            const flyingSiHua = useMemo(() => { if (focusedPalaceIndex === null) return undefined; const p = data.palaces.find(x => x.index === focusedPalaceIndex); return p ? getSiHua(HEAVENLY_STEMS.indexOf(p.heavenlyStem), settings) : undefined; }, [focusedPalaceIndex, data.palaces, settings]);
+            
+            const handleLevelSelect = (level) => {
+                const LEVELS = ['birth', 'daxian', 'year', 'month', 'day', 'hour'];
+                const currentLevelIdx = LEVELS.indexOf(activeLevel);
+                const idx = LEVELS.indexOf(level);
+                if (idx > currentLevelIdx + 1) return;
+                setActiveLevel(level);
+            };
+
+            const handleArrowClick = (delta) => {
+                if (activeLevel === 'birth') return;
+                const newDate = new Date(flowDate);
+                if (activeLevel === 'daxian') newDate.setFullYear(newDate.getFullYear() + (delta * 10));
+                else if (activeLevel === 'year') newDate.setFullYear(newDate.getFullYear() + delta);
+                else if (activeLevel === 'month') newDate.setMonth(newDate.getMonth() + delta);
+                else if (activeLevel === 'day') newDate.setDate(newDate.getDate() + delta);
+                else if (activeLevel === 'hour') { let t = flowTimeIdx + delta; if(t>11){t=0;newDate.setDate(newDate.getDate()+1);}else if(t<0){t=11;newDate.setDate(newDate.getDate()-1);} setFlowTimeIdx(t); setFlowDate(newDate); return; }
+                setFlowDate(newDate);
+            };
+            const getLayoutType = (idx) => { if(idx===5)return 'corner-tl';if([6,7].includes(idx))return 'top';if(idx===8)return 'corner-tr';if([9,10].includes(idx))return 'right';if(idx===11)return 'corner-br';if([0,1].includes(idx))return 'bottom';if(idx===2)return 'corner-bl';return 'left'; };
+            const getFlyingArrows = (idx) => {
+                const p = data.palaces.find(x=>x.index===idx); const stemIdx = HEAVENLY_STEMS.indexOf(p.heavenlyStem); const siHua = getSiHua(stemIdx, settings);
+                const ziHua = []; const xiangXin = [];
+                [...p.majorStars,...p.auxStars,...p.badStars].forEach(s=>{if(siHua[s.name])ziHua.push(siHua[s.name])});
+                const opp = data.palaces.find(x=>x.index===(idx+6)%12); [...opp.majorStars,...opp.auxStars,...opp.badStars].forEach(s=>{if(siHua[s.name])xiangXin.push(siHua[s.name])});
+                const order={'禄':1,'权':2,'科':3,'忌':4}; ziHua.sort((a,b)=>order[a]-order[b]); xiangXin.sort((a,b)=>order[a]-order[b]);
+                return {ziHua, xiangXin};
+            };
+            const renderPalace = (i) => {
+                const p = data.palaces.find(x=>x.index===i);
+                return (<PalaceCard key={i} data={{...p, flowStars: flowStarsMap[p.index]||[]}} viewMode={viewMode} flowMarkers={{isDaXian:p.index===flowState.daXianIndex, isLiuNian:p.index===flowState.liuNianIndex, isLiuYue:p.index===flowState.liuYueIndex, isLiuRi:p.index===flowState.liuRiIndex, isLiuShi:p.index===flowState.liuShiIndex}} siHuaLayers={siHuaLayers} mingSiHua={mingSiHua} flowIndices={{daXianMingIdx:flowState.daXianIndex,liuNianMingIdx:flowState.liuNianIndex,liuYueMingIdx:flowState.liuYueIndex,liuRiMingIdx:flowState.liuRiIndex,liuShiMingIdx:flowState.liuShiIndex,flowYearStem:flowState.stems.liunian}} isSelected={focusedPalaceIndex===p.index} onClick={()=>setFocusedPalaceIndex(prev=>prev===p.index?null:p.index)} highlightedSiHua={flyingSiHua} activeLevel={activeLevel} displaySettings={settings.display} flyingArrows={getFlyingArrows(p.index)} layoutType={getLayoutType(p.index)} />);
+            };
+            
+            const controlItems = [
+               { id: 'daxian', label: flowState.labels.daxian, show: true }, { id: 'year', label: flowState.labels.year, show: true }, { id: 'month', label: flowState.labels.month, show: viewMode === 'sanhe' },
+               { id: 'day', label: flowState.labels.day, show: viewMode === 'sanhe' }, { id: 'hour', label: flowState.labels.hour, show: viewMode === 'sanhe' },
+            ];
+
+            const renderLines = () => {
+                if (focusedPalaceIndex === null || !settings.display.showArrows || viewMode === 'feixing') return null;
+                const selfIdx = focusedPalaceIndex; const oppIdx = (selfIdx + 6) % 12; const triIdx1 = (selfIdx + 4) % 12; const triIdx2 = (selfIdx + 8) % 12;
+                const getInnerAnchor = (idx) => {
+                    const anchors = { 5: "25% 25%", 6: "37.5% 25%", 7: "62.5% 25%", 8: "75% 25%", 9: "75% 37.5%", 10: "75% 62.5%", 11: "75% 75%", 0: "62.5% 75%", 1: "37.5% 75%", 2: "25% 75%", 3: "25% 62.5%", 4: "25% 37.5%" };
+                    return anchors[idx];
+                };
+                const parse = (s) => { const [x, y] = s.split(' ').map(v => v.replace('%', '')); return { x: `${x}%`, y: `${y}%` }; }
+                const c1 = parse(getInnerAnchor(selfIdx)); const cOpp = parse(getInnerAnchor(oppIdx)); const c2 = parse(getInnerAnchor(triIdx1)); const c3 = parse(getInnerAnchor(triIdx2));
+                return (<svg className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-visible"><defs><marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af" /></marker></defs><line x1={c1.x} y1={c1.y} x2={cOpp.x} y2={cOpp.y} stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="4 4" strokeOpacity="0.8" markerEnd="url(#arrow)" /><line x1={c1.x} y1={c1.y} x2={c2.x} y2={c2.y} stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="4 4" strokeOpacity="0.8" markerEnd="url(#arrow)" /><line x1={c1.x} y1={c1.y} x2={c3.x} y2={c3.y} stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="4 4" strokeOpacity="0.8" markerEnd="url(#arrow)" /></svg>);
+            };
+            
+            const renderBaZi = (label, value) => { const stem = value.split('')[0]; const branch = value.split('')[1]; return (<div className="flex flex-col items-center"><span className="text-[10px] text-gray-400">{label}</span><span className={`text-lg font-bold font-serif leading-none mt-1 ${getElementColor(stem)}`}>{stem}</span><span className={`text-lg font-bold font-serif leading-none ${getElementColor(branch)}`}>{branch}</span></div>); };
+
+            const LEVELS = ['birth', 'daxian', 'year', 'month', 'day', 'hour'];
+            const currentLevelIdx = LEVELS.indexOf(activeLevel);
+
+            return (
+                <div className="w-full h-screen flex flex-col bg-gray-50 overflow-hidden">
+                    <div className="flex justify-between items-center px-4 py-2 bg-white shadow-sm shrink-0 border-b border-gray-200">
+                        <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200"><button onClick={()=>setViewMode('sanhe')} className={`px-3 py-1 text-xs font-bold rounded ${viewMode==='sanhe'?'bg-white text-ziwei-blue':'text-gray-500'}`}><LayoutGrid size={14} className="inline mr-1"/>三合</button><button onClick={()=>setViewMode('feixing')} className={`px-3 py-1 text-xs font-bold rounded ${viewMode==='feixing'?'bg-white text-ziwei-purple':'text-gray-500'}`}><StarIcon size={14} className="inline mr-1"/>飞星</button></div>
+                        <h2 className="text-lg text-ziwei-text font-bold tracking-widest">紫微斗数</h2>
+                        <button onClick={onOpenSettings} className="flex items-center gap-1 text-sm text-ziwei-blue"><SettingsIcon size={16}/> 设定</button>
+                    </div>
+                    <div className="flex-1 grid grid-cols-4 grid-rows-4 gap-0 p-0.5 bg-ziwei-grid m-5 sm:m-8 rounded-sm border border-ziwei-grid relative shadow-lg">
+                        {renderLines()}
+                        {renderPalace(5)}{renderPalace(6)}{renderPalace(7)}{renderPalace(8)}{renderPalace(4)}
+                        <div className="col-span-2 row-span-2 bg-white flex flex-col relative p-2 overflow-hidden border-r border-b border-ziwei-grid">
+                            <div className="text-center pt-2"><h1 className="text-2xl font-bold text-gray-800 tracking-[0.2em]">{data.name}</h1><div className="flex justify-center gap-4 text-sm mt-2 font-medium text-ziwei-gold"><span>{data.yinYang}{data.gender}</span><span>{data.bureau}</span><span>命主: {data.mingZhu}</span><span>身主: {data.shenZhu}</span><span>子斗: {data.ziDou}</span></div></div>
+                            <div className="text-center space-y-1 mt-2"><p className="text-sm font-medium text-ziwei-purple font-serif">{data.lunarDateStr}</p><p className="text-sm font-medium text-gray-600 font-mono">{data.solarDateStr}</p>{data.trueSolarDateStr && (<p className="text-xs font-bold text-amber-600 font-mono">{data.trueSolarDateStr}</p>)}</div>
+                            {viewMode === 'feixing' && (<div className="flex justify-center gap-4 text-[11px] font-bold mt-2"><div className="flex items-center gap-1"><span className="text-ziwei-green">禄</span> <span className="text-ziwei-red">忌</span> <span className="text-ziwei-blue">科</span> <span className="text-ziwei-purple">权</span></div></div>)}
+                            <div className="flex-1"></div>
+                            <div className="flex justify-around items-center border-y border-gray-100 py-2 bg-gray-50 mx-4 rounded mb-6">{renderBaZi('年柱', data.baZi.year)}{renderBaZi('月柱', data.baZi.month)}{renderBaZi('日柱', data.baZi.day)}{renderBaZi('时柱', data.baZi.time)}</div>
+                            <div className="absolute top-1 left-2 text-[10px] text-gray-300">东南</div><div className="absolute bottom-1 right-2 text-[10px] text-gray-300">西北</div>
+                        </div>
+                        {renderPalace(9)}{renderPalace(3)}{renderPalace(10)}{renderPalace(2)}{renderPalace(1)}{renderPalace(0)}{renderPalace(11)}
+                    </div>
+                    <div className="bg-gray-200 border-t border-gray-300 flex divide-x divide-gray-300 h-12 shrink-0">
+                         {controlItems.filter(i=>i.show).map((item, idx) => {
+                             const levelKey = item.id;
+                             const hierarchyIdx = idx + 1;
+                             const isDisabled = hierarchyIdx > currentLevelIdx + 1;
+                             const isActive = activeLevel === levelKey;
+                             return (
+                             <div key={item.id} onClick={()=>!isDisabled && handleLevelSelect(levelKey)} className={`flex-1 flex items-center justify-between px-1 relative ${isActive ? 'bg-white shadow-inner' : isDisabled ? 'opacity-40 cursor-not-allowed bg-gray-200' : 'bg-[#e5e7eb] hover:bg-gray-100 cursor-pointer'}`}>
+                                <button disabled={!isActive} onClick={(e)=>{e.stopPropagation();handleArrowClick(-1)}} className={`p-1 ${isActive ? 'text-gray-500 hover:text-ziwei-blue active:scale-90' : 'text-gray-300 cursor-default'}`}><ChevronLeft size={14}/></button>
+                                <div className="flex flex-col items-center"><span className={`text-[10px] leading-tight font-bold ${isActive?'text-ziwei-blue':'text-gray-700'}`}>{item.label.split(' ')[0]}</span>{item.label.split(' ')[1] && (<span className="text-[9px] text-gray-500 leading-tight">{item.label.split(' ').slice(1).join(' ')}</span>)}</div>
+                                <button disabled={!isActive} onClick={(e)=>{e.stopPropagation();handleArrowClick(1)}} className={`p-1 ${isActive ? 'text-gray-500 hover:text-ziwei-blue active:scale-90' : 'text-gray-300 cursor-default'}`}><ChevronRight size={14}/></button>
+                             </div>
+                         )})}
+                         <button onClick={()=> { setFocusedPalaceIndex(null); setActiveLevel('birth'); onReset(); }} className="w-12 bg-gray-300 flex items-center justify-center hover:bg-ziwei-blue hover:text-white"><RotateCcw size={18}/></button>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [chartData, setChartData] = useState(null);
+            const [inputState, setInputState] = useState(null);
+            const [settings, setSettings] = useState(() => { const saved = localStorage.getItem('ziwei_settings'); return saved ? JSON.parse(saved) : DEFAULT_SETTINGS; });
+            const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+            
+            useEffect(() => { localStorage.setItem('ziwei_settings', JSON.stringify(settings)); if(inputState) regenerateChart(inputState.date, inputState.timeIndex); }, [settings]);
+            
+            const regenerateChart = useCallback((date, timeIdx) => {
+                if (!inputState) return;
+                try { const data = calculateChart(inputState.name, date, timeIdx, inputState.gender, settings, inputState.longitude); setChartData(data); } catch(e){ console.error(e); }
+            }, [inputState, settings]);
+
+            const handleGenerate = (name, date, timeIndex, gender, longitude) => {
+                setInputState({name, date, timeIndex, gender, longitude});
+                try {
+                   const data = calculateChart(name, date, timeIndex, gender, settings, longitude);
+                   setChartData(data);
+                } catch (e) {
+                   console.error(e);
+                   alert("排盘发生错误，请检查输入。");
+                }
+            };
+
+            const handleTimeTravel = (dDelta, hDelta) => {
+                if(!inputState) return;
+                const newDate = new Date(inputState.date); newDate.setDate(newDate.getDate()+dDelta);
+                let newTimeIdx = inputState.timeIndex + hDelta;
+                if(newTimeIdx>11){newTimeIdx=0;newDate.setDate(newDate.getDate()+1);} else if(newTimeIdx<0){newTimeIdx=11;newDate.setDate(newDate.getDate()-1);}
+                setInputState(prev=>({...prev, date: newDate, timeIndex: newTimeIdx})); regenerateChart(newDate, newTimeIdx);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-gray-100 text-gray-900 font-sans">
+                  {!chartData ? (<div className="w-full flex justify-center items-center h-screen bg-gray-200"><InputForm onGenerate={handleGenerate}/></div>) : (<div className="w-full max-w-5xl mx-auto shadow-2xl bg-white h-screen flex flex-col"><Astrolabe data={chartData} onReset={()=>{setChartData(null);setInputState(null);}} onTimeTravel={handleTimeTravel} onOpenSettings={()=>setIsSettingsOpen(true)} settings={settings} /></div>)}
+                  <SettingsModal isOpen={isSettingsOpen} onClose={()=>setIsSettingsOpen(false)} settings={settings} onUpdate={setSettings} />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

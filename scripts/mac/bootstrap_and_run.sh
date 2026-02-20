@@ -1,0 +1,408 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+PROJECT_DIR="${ROOT}/Horosa-Web"
+UI_DIR="${PROJECT_DIR}/astrostudyui"
+SERVER_DIR="${PROJECT_DIR}/astrostudysrv"
+VENV_DIR="${ROOT}/.runtime/mac/venv"
+REQ_FILE="${ROOT}/scripts/requirements/mac-python.txt"
+BACKEND_JAR="${SERVER_DIR}/astrostudyboot/target/astrostudyboot.jar"
+FRONTEND_INDEX="${UI_DIR}/dist-file/index.html"
+
+SKIP_TOOLCHAIN_INSTALL="${HOROSA_SKIP_TOOLCHAIN_INSTALL:-0}"
+SKIP_DB_SETUP="${HOROSA_SKIP_DB_SETUP:-0}"
+SKIP_BUILD="${HOROSA_SKIP_BUILD:-0}"
+SKIP_LAUNCH="${HOROSA_SKIP_LAUNCH:-0}"
+
+say() {
+  echo "[Horosa mac] $*"
+}
+
+fail() {
+  echo "[Horosa mac] ERROR: $*" >&2
+  exit 1
+}
+
+have_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+port_listening() {
+  local port="$1"
+  lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+require_macos() {
+  if [ "$(uname -s)" != "Darwin" ]; then
+    fail "this script only supports macOS."
+  fi
+}
+
+load_brew_env() {
+  if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+}
+
+ensure_homebrew() {
+  load_brew_env
+  if have_cmd brew; then
+    return
+  fi
+
+  say "installing Homebrew (first run only)..."
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  load_brew_env
+  have_cmd brew || fail "failed to install Homebrew."
+}
+
+ensure_formula() {
+  local formula="$1"
+  if brew list --formula "${formula}" >/dev/null 2>&1; then
+    return
+  fi
+  say "installing ${formula} ..."
+  brew install "${formula}"
+}
+
+java_major_version() {
+  java -version 2>&1 | awk -F'"' '/version/ {print $2}' | awk -F. '{if ($1 == 1) print $2; else print $1}'
+}
+
+ensure_java17() {
+  load_brew_env
+  local major="0"
+  if have_cmd java; then
+    major="$(java_major_version || echo 0)"
+  fi
+
+  if [ "${major}" -lt 17 ]; then
+    if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
+      fail "java 17+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install java 17 manually."
+    fi
+    ensure_formula openjdk@17
+  fi
+
+  local jh=""
+  if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    jh="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+  fi
+  if [ -z "${jh}" ] && brew list --formula openjdk@17 >/dev/null 2>&1; then
+    local brew_java_home
+    brew_java_home="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
+    if [ -x "${brew_java_home}/bin/java" ]; then
+      jh="${brew_java_home}"
+    fi
+  fi
+  if [ -n "${jh}" ]; then
+    export JAVA_HOME="${jh}"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+  fi
+
+  have_cmd java || fail "java command not found."
+  major="$(java_major_version || echo 0)"
+  [ "${major}" -ge 17 ] || fail "java 17+ is required (current: ${major})."
+}
+
+ensure_maven() {
+  load_brew_env
+  if ! have_cmd mvn; then
+    if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
+      fail "maven is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install maven manually."
+    fi
+    ensure_formula maven
+  fi
+}
+
+ensure_node() {
+  load_brew_env
+  local node_major="0"
+  if have_cmd node; then
+    node_major="$(node -v | sed 's/^v//' | cut -d. -f1)"
+  fi
+
+  if [ "${node_major}" -lt 18 ]; then
+    if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
+      fail "node 18+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install node manually."
+    fi
+    if brew info node@18 >/dev/null 2>&1; then
+      ensure_formula node@18
+      export PATH="$(brew --prefix node@18)/bin:${PATH}"
+    else
+      ensure_formula node
+    fi
+  fi
+
+  have_cmd node || fail "node command not found."
+  have_cmd npm || fail "npm command not found."
+}
+
+detect_python_bin() {
+  local candidate=""
+  if have_cmd python3; then
+    candidate="$(command -v python3)"
+    if "${candidate}" - <<'PY' >/dev/null 2>&1
+import sys
+sys.exit(0 if (sys.version_info.major, sys.version_info.minor) >= (3, 10) else 1)
+PY
+    then
+      echo "${candidate}"
+      return 0
+    fi
+  fi
+
+  if have_cmd brew; then
+    local brew_py=""
+    if brew info python@3.11 >/dev/null 2>&1; then
+      brew_py="$(brew --prefix python@3.11)/bin/python3.11"
+      if [ -x "${brew_py}" ]; then
+        echo "${brew_py}"
+        return 0
+      fi
+    fi
+  fi
+  return 1
+}
+
+ensure_python() {
+  load_brew_env
+  local py_bin=""
+  py_bin="$(detect_python_bin || true)"
+  if [ -z "${py_bin}" ]; then
+    if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
+      fail "python 3.10+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install python manually."
+    fi
+
+    if brew info python@3.11 >/dev/null 2>&1; then
+      ensure_formula python@3.11
+      export PATH="$(brew --prefix python@3.11)/bin:${PATH}"
+    else
+      ensure_formula python
+    fi
+    py_bin="$(detect_python_bin || true)"
+  fi
+
+  [ -n "${py_bin}" ] || fail "python 3.10+ not found."
+  export HOROSA_BOOTSTRAP_PYTHON="${py_bin}"
+}
+
+venv_has_runtime_deps() {
+  "${VENV_DIR}/bin/python3" - <<'PY' >/dev/null 2>&1
+import importlib.util as iu
+mods = ("cherrypy", "jsonpickle", "swisseph")
+missing = [m for m in mods if iu.find_spec(m) is None]
+raise SystemExit(1 if missing else 0)
+PY
+}
+
+ensure_python_venv() {
+  mkdir -p "$(dirname "${VENV_DIR}")"
+
+  if [ ! -x "${VENV_DIR}/bin/python3" ]; then
+    say "creating python virtualenv at ${VENV_DIR} ..."
+    "${HOROSA_BOOTSTRAP_PYTHON}" -m venv "${VENV_DIR}"
+  fi
+
+  local needs_pip_install="0"
+  if [ ! -f "${VENV_DIR}/.requirements.stamp" ]; then
+    needs_pip_install="1"
+  elif [ "${REQ_FILE}" -nt "${VENV_DIR}/.requirements.stamp" ]; then
+    needs_pip_install="1"
+  elif ! venv_has_runtime_deps; then
+    needs_pip_install="1"
+  fi
+
+  if [ "${needs_pip_install}" = "1" ]; then
+    say "installing python dependencies ..."
+    "${VENV_DIR}/bin/pip" install --upgrade pip setuptools wheel
+    "${VENV_DIR}/bin/pip" install -r "${REQ_FILE}"
+    touch "${VENV_DIR}/.requirements.stamp"
+  fi
+}
+
+frontend_needs_build() {
+  if [ ! -f "${FRONTEND_INDEX}" ]; then
+    return 0
+  fi
+  if [ -n "$(find "${UI_DIR}/src" -type f -newer "${FRONTEND_INDEX}" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  if [ -n "$(find "${UI_DIR}/public" -type f -newer "${FRONTEND_INDEX}" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  if [ "${UI_DIR}/package.json" -nt "${FRONTEND_INDEX}" ]; then
+    return 0
+  fi
+  if [ -f "${UI_DIR}/.umirc.js" ] && [ "${UI_DIR}/.umirc.js" -nt "${FRONTEND_INDEX}" ]; then
+    return 0
+  fi
+  if [ -f "${UI_DIR}/.umirc.ts" ] && [ "${UI_DIR}/.umirc.ts" -nt "${FRONTEND_INDEX}" ]; then
+    return 0
+  fi
+  return 1
+}
+
+build_frontend_if_needed() {
+  if [ ! -d "${UI_DIR}" ]; then
+    fail "frontend directory not found: ${UI_DIR}"
+  fi
+
+  if [ ! -d "${UI_DIR}/node_modules" ]; then
+    say "installing frontend dependencies ..."
+    (cd "${UI_DIR}" && npm install --legacy-peer-deps)
+  fi
+
+  if frontend_needs_build; then
+    say "building frontend dist-file ..."
+    (cd "${UI_DIR}" && npm run build:file)
+  else
+    say "frontend dist-file is up to date."
+  fi
+}
+
+backend_needs_build() {
+  if [ ! -f "${BACKEND_JAR}" ]; then
+    return 0
+  fi
+  if [ -n "$(find "${SERVER_DIR}" -path '*/src/*' -type f -newer "${BACKEND_JAR}" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  if [ -n "$(find "${SERVER_DIR}" -name 'pom.xml' -type f -newer "${BACKEND_JAR}" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  return 1
+}
+
+build_backend_if_needed() {
+  if ! backend_needs_build; then
+    say "backend jar is up to date."
+    return
+  fi
+
+  local modules=(
+    "boundless"
+    "basecomm"
+    "image"
+    "astrostudy"
+    "astrostudycn"
+    "astroreader"
+    "astrodeeplearn"
+    "astroesp"
+    "astrostudyboot"
+  )
+
+  say "building backend modules with Maven ..."
+  local module
+  for module in "${modules[@]}"; do
+    if [ ! -d "${SERVER_DIR}/${module}" ]; then
+      fail "missing backend module directory: ${module}"
+    fi
+    if [ "${module}" = "astrostudyboot" ]; then
+      (cd "${SERVER_DIR}/${module}" && mvn -DskipTests clean install)
+    else
+      (cd "${SERVER_DIR}/${module}" && mvn -DskipTests install)
+    fi
+  done
+}
+
+installed_mongo_formula() {
+  local candidates=(
+    "mongodb-community"
+    "mongodb-community@8.0"
+    "mongodb-community@7.0"
+    "mongodb-community@6.0"
+  )
+  local item
+  for item in "${candidates[@]}"; do
+    if brew list --formula "${item}" >/dev/null 2>&1; then
+      echo "${item}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+ensure_redis_and_mongo() {
+  load_brew_env
+  if ! have_cmd brew; then
+    return
+  fi
+
+  ensure_formula redis
+  if ! port_listening 6379; then
+    say "starting redis service ..."
+    brew services start redis >/dev/null 2>&1 || say "warning: failed to start redis service automatically."
+  fi
+
+  local mongo_formula=""
+  mongo_formula="$(installed_mongo_formula || true)"
+  if [ -z "${mongo_formula}" ]; then
+    brew tap mongodb/brew >/dev/null 2>&1 || true
+    local candidates=(
+      "mongodb-community"
+      "mongodb-community@8.0"
+      "mongodb-community@7.0"
+      "mongodb-community@6.0"
+    )
+    local candidate
+    for candidate in "${candidates[@]}"; do
+      if brew info "${candidate}" >/dev/null 2>&1; then
+        say "installing ${candidate} ..."
+        brew install "${candidate}"
+        mongo_formula="${candidate}"
+        break
+      fi
+    done
+  fi
+
+  if [ -n "${mongo_formula}" ] && ! port_listening 27017; then
+    say "starting ${mongo_formula} service ..."
+    brew services start "${mongo_formula}" >/dev/null 2>&1 || say "warning: failed to start mongodb service automatically."
+  fi
+}
+
+main() {
+  require_macos
+
+  if [ ! -d "${PROJECT_DIR}" ]; then
+    fail "project directory not found: ${PROJECT_DIR}"
+  fi
+
+  if [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ]; then
+    ensure_homebrew
+  else
+    load_brew_env
+  fi
+
+  ensure_java17
+  ensure_python
+
+  if [ "${SKIP_BUILD}" != "1" ]; then
+    ensure_maven
+    ensure_node
+    ensure_python_venv
+    build_frontend_if_needed
+    build_backend_if_needed
+  else
+    ensure_python_venv
+    say "HOROSA_SKIP_BUILD=1, skipped frontend/backend build."
+  fi
+
+  if [ "${SKIP_DB_SETUP}" != "1" ] && [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ]; then
+    ensure_redis_and_mongo
+  fi
+
+  if [ "${SKIP_LAUNCH}" = "1" ]; then
+    say "HOROSA_SKIP_LAUNCH=1, bootstrap completed without launching app."
+    exit 0
+  fi
+
+  export HOROSA_PYTHON="${VENV_DIR}/bin/python3"
+  say "starting local app ..."
+  exec "${ROOT}/Horosa_Local.command" "$@"
+}
+
+main "$@"

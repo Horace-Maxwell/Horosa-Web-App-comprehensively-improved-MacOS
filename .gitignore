@@ -1,0 +1,54 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Common logs and temp
+*.log
+*.pid
+*.pid.lock
+*.out
+*.err
+*.tmp
+.tmp_*
+
+# Local Horosa runtime state (must not upload)
+Horosa-Web/.horosa-local-logs/
+Horosa-Web/.horosa-local-logs-win/
+Horosa-Web/.horosa-browser-profile/
+Horosa-Web/.horosa-browser-profile*/
+Horosa-Web/.horosa_java.pid
+Horosa-Web/.horosa_py.pid
+Horosa-Web/${sys:user.home}/
+
+# mac one-click generated runtime
+.runtime/
+
+# Optional offline runtime bundles are intentionally excluded from GitHub
+runtime/*
+!runtime/README.md
+
+# Frontend generated files
+**/node_modules/
+**/.umi/
+**/.umi-production/
+Horosa-Web/astrostudyui/dist/
+Horosa-Web/astrostudyui/dist-file/
+**/.cache/
+**/.next/
+**/coverage/
+
+# Java / Maven build output
+**/target/
+**/.mvn/
+**/*.class
+
+# Python cache / venv
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/*.pyc
+**/.venv/
+
+# IDE
+.vscode/
+.idea/
