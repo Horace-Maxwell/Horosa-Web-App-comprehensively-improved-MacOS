@@ -253,7 +253,7 @@ function hooking(hook, currentTab, fields, chartObj){
 		|| currentTab === 'cntradition' || currentTab === 'cnyibu' || currentTab === 'otherbu'
 		|| currentTab === 'fengshui' || currentTab === 'sanshiunited'){
 		if(hook[currentTab].fun){
-			hook[currentTab].fun(fields)
+			hook[currentTab].fun(fields, chartObj)
 		}
 	}else if(currentTab === 'direction'){
 		if(hook[currentTab].fun){

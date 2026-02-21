@@ -10,6 +10,7 @@ import java.util.Set;
 import boundless.io.FileUtility;
 import boundless.utility.ConvertUtility;
 import boundless.utility.JsonUtility;
+import boundless.utility.StringUtility;
 import spacex.astrostudy.constants.StemBranch;
 import spacex.astrostudy.model.FourColumns;
 
@@ -218,14 +219,68 @@ public class LiuRengHelper {
 		return xun;
 	}
 	
+	private static String normalizeGanZi(String text) {
+		if(StringUtility.isNullOrEmpty(text)) {
+			return "";
+		}
+		String raw = text.trim();
+		if(raw.length() < 2) {
+			return "";
+		}
+		for(int i=0; i<raw.length()-1; i++) {
+			String gan = raw.substring(i, i+1);
+			String zi = raw.substring(i+1, i+2);
+			if(StemBranch.StemIndex.containsKey(gan) && StemBranch.BranchIndex.containsKey(zi)) {
+				return gan + zi;
+			}
+		}
+		return "";
+	}
+
+	private static int resolveCycleYear(String ganzi, int approxYear) {
+		Integer idx = StemBranch.JiaZiIndex.get(ganzi);
+		if(idx == null) {
+			return approxYear;
+		}
+		int base = 1984 + idx; // 1984为甲子年
+		int k = (int)Math.floor((approxYear - base) / 60.0);
+		int cand1 = base + k * 60;
+		int cand2 = cand1 + 60;
+		if(Math.abs(cand2 - approxYear) < Math.abs(cand1 - approxYear)) {
+			return cand2;
+		}
+		return cand1;
+	}
+
+	public static boolean isValidGanZi(String text) {
+		return !StringUtility.isNullOrEmpty(normalizeGanZi(text));
+	}
+	
 	
 	public static Map<String, Object> runYear(FourColumns fourcols, boolean male, String yearGanZi) {
-		String birthYear = fourcols.year.ganzi;
-		int birthIdx = StemBranch.JiaZiIndex.get(birthYear);
-		int guaIdx = StemBranch.JiaZiIndex.get(yearGanZi);
+		return runYear(fourcols, male, yearGanZi, null, null);
+	}
+
+	public static Map<String, Object> runYear(FourColumns fourcols, boolean male, String yearGanZi, Integer birthSolarYear, Integer guaSolarYear) {
+		String birthYear = normalizeGanZi(fourcols.year.ganzi);
+		String guaYear = normalizeGanZi(yearGanZi);
+		Integer birthIdxObj = StemBranch.JiaZiIndex.get(birthYear);
+		Integer guaIdxObj = StemBranch.JiaZiIndex.get(guaYear);
+		int birthIdx = birthIdxObj == null ? 0 : birthIdxObj;
+		int guaIdx = guaIdxObj == null ? 0 : guaIdxObj;
 		int idx = (guaIdx - birthIdx + 60) % 60;
+		int age = idx;
+		if(birthSolarYear != null && guaSolarYear != null && birthIdxObj != null && guaIdxObj != null) {
+			int birthCycleYear = resolveCycleYear(birthYear, birthSolarYear.intValue());
+			int guaCycleYear = resolveCycleYear(guaYear, guaSolarYear.intValue());
+			int liChunAge = guaCycleYear - birthCycleYear;
+			if(liChunAge >= 0) {
+				age = liChunAge;
+			}
+		}
 		Map<String, Object> map = new HashMap<String, Object>();
-		map.put("age", idx);
+		map.put("age", age);
+		map.put("ageCycle", idx);
 		if(male) {
 			map.put("year", MaleRunYear[idx]) ;
 		}else {

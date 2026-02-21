@@ -335,6 +335,7 @@ class JinKouPanChart {
 
 	drawMiddleSection(x, y, w, h){
 		const rows = this.jinkouData && this.jinkouData.rows ? this.jinkouData.rows : [];
+		const yongLabel = this.jinkouData && this.jinkouData.yongYao ? this.jinkouData.yongYao.label : '';
 		const cleanVal = (val)=>{
 			const txt = safeText(val, '');
 			if(txt === '-' || txt === '—' || txt === '无'){
@@ -411,6 +412,20 @@ class JinKouPanChart {
 					align: data[j].align,
 					allowEmpty: true,
 				});
+			}
+			if(yongLabel && row.label === yongLabel){
+				const contentX = xs[2];
+				const contentW = xs[3] - xs[2];
+				const lineW = Math.max(22, contentW * 0.56);
+				const lineX = contentX + (contentW - lineW) / 2;
+				const lineY = y + rowH * i + rowH * 0.76;
+				this.svgTopgroup.append('line')
+					.attr('x1', lineX)
+					.attr('y1', lineY)
+					.attr('x2', lineX + lineW)
+					.attr('y2', lineY)
+					.attr('stroke', '#1f1f1f')
+					.attr('stroke-width', 2);
 			}
 		}
 		for(let i=1; i<rows.length; i++){

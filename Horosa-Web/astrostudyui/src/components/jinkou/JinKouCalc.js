@@ -54,6 +54,62 @@ const JinKouGuiShenZi = {
 	'太阴': '酉',
 	'天后': '亥',
 };
+const JinKouYueJiangByMonthBranch = {
+	'寅': '亥',
+	'卯': '戌',
+	'辰': '酉',
+	'巳': '申',
+	'午': '未',
+	'未': '午',
+	'申': '巳',
+	'酉': '辰',
+	'戌': '卯',
+	'亥': '寅',
+	'子': '丑',
+	'丑': '子',
+};
+const JinKouGuiRuleLiuReng = {
+	'甲': {
+		day: { start: '丑', reverse: false },
+		night: { start: '未', reverse: true },
+	},
+	'乙': {
+		day: { start: '子', reverse: false },
+		night: { start: '申', reverse: true },
+	},
+	'丙': {
+		day: { start: '亥', reverse: false },
+		night: { start: '酉', reverse: true },
+	},
+	'丁': {
+		day: { start: '亥', reverse: false },
+		night: { start: '酉', reverse: true },
+	},
+	'戊': {
+		day: { start: '丑', reverse: false },
+		night: { start: '未', reverse: true },
+	},
+	'己': {
+		day: { start: '子', reverse: false },
+		night: { start: '申', reverse: true },
+	},
+	'庚': {
+		day: { start: '丑', reverse: false },
+		night: { start: '未', reverse: true },
+	},
+	'辛': {
+		day: { start: '午', reverse: true },
+		night: { start: '寅', reverse: false },
+	},
+	'壬': {
+		day: { start: '巳', reverse: true },
+		night: { start: '卯', reverse: false },
+	},
+	'癸': {
+		day: { start: '巳', reverse: true },
+		night: { start: '卯', reverse: false },
+	},
+};
 const WuZiDunStart = {
 	'甲': '甲',
 	'己': '甲',
@@ -207,11 +263,31 @@ function getStemByWuZiDun(dayGan, zi){
 	return LRConst.GanList[(gIdx + zIdx) % LRConst.GanList.length];
 }
 
-function getGuiShenAtDiFen(dayGan, timeZi, diFen, guirengType){
+function resolveIsDay(timeZi, isDiurnal){
+	if(isDiurnal === true){
+		return true;
+	}
+	if(isDiurnal === false){
+		return false;
+	}
+	return containsVal(DayTimeZi, timeZi);
+}
+
+function getGuiShenAtDiFen(dayGan, timeZi, diFen, guirengType, isDiurnal){
 	const idx = guirengType === undefined || guirengType === null ? 0 : parseInt(guirengType + '', 10);
-	const guireng = LRConst.GuiRengs[idx] ? LRConst.GuiRengs[idx] : LRConst.GuiRengs[0];
-	const isDay = containsVal(DayTimeZi, timeZi);
-	const startZi = isDay ? guireng.day[dayGan] : guireng.night[dayGan];
+	const isDay = resolveIsDay(timeZi, isDiurnal);
+	let startZi = '';
+	let reverse = false;
+	if(idx === 0 && JinKouGuiRuleLiuReng[dayGan]){
+		const mode = isDay ? 'day' : 'night';
+		const cfg = JinKouGuiRuleLiuReng[dayGan][mode];
+		startZi = cfg ? cfg.start : '';
+		reverse = cfg ? !!cfg.reverse : false;
+	}else{
+		const guireng = LRConst.GuiRengs[idx] ? LRConst.GuiRengs[idx] : LRConst.GuiRengs[0];
+		startZi = isDay ? guireng.day[dayGan] : guireng.night[dayGan];
+		reverse = containsVal(GuiReverseStartZi, startZi);
+	}
 	if(!startZi){
 		return {
 			name: '',
@@ -220,7 +296,6 @@ function getGuiShenAtDiFen(dayGan, timeZi, diFen, guirengType){
 			isDay: isDay,
 		};
 	}
-	const reverse = containsVal(GuiReverseStartZi, startZi);
 	const startIdx = LRConst.ZiList.indexOf(startZi);
 	const map = {};
 	for(let i=0; i<JinKouGuiShenSeq.length; i++){
@@ -238,7 +313,7 @@ function getGuiShenAtDiFen(dayGan, timeZi, diFen, guirengType){
 }
 
 function getJiangZiAtDiFen(monthZi, timeZi, diFen){
-	const yuejiang = LRConst.ZiHe[monthZi];
+	const yuejiang = JinKouYueJiangByMonthBranch[monthZi] ? JinKouYueJiangByMonthBranch[monthZi] : LRConst.ZiHe[monthZi];
 	if(!yuejiang){
 		return {
 			yuejiang: '',
@@ -338,6 +413,73 @@ function getYinYangSign(val){
 		return '-';
 	}
 	return '';
+}
+
+function resolveYongYao(lineSigns){
+	const lines = lineSigns instanceof Array ? lineSigns : [];
+	let yangCount = 0;
+	let yinCount = 0;
+	let yangLine = null;
+	let yinLine = null;
+	for(let i=0; i<lines.length; i++){
+		const one = lines[i];
+		if(one.sign === '+'){
+			yangCount += 1;
+			yangLine = one;
+		}else if(one.sign === '-'){
+			yinCount += 1;
+			yinLine = one;
+		}
+	}
+
+	if(yangCount === 1 && yinCount === 3){
+		return {
+			label: yangLine ? yangLine.label : '',
+			sign: '+',
+			reason: '三阴一阳，以阳为用',
+			theme: '男子',
+		};
+	}
+	if(yangCount === 3 && yinCount === 1){
+		return {
+			label: yinLine ? yinLine.label : '',
+			sign: '-',
+			reason: '三阳一阴，以阴为用',
+			theme: '女子',
+		};
+	}
+	if(yangCount === 2 && yinCount === 2){
+		const jiang = lines.find((item)=>item.label === '将神');
+		return {
+			label: jiang ? jiang.label : '将神',
+			sign: jiang ? jiang.sign : '',
+			reason: '二阴二阳，以将为用',
+			theme: jiang && jiang.sign === '+' ? '男子' : '女子',
+		};
+	}
+	if(yangCount === 0 && yinCount === 4){
+		return {
+			label: '人元',
+			sign: '+',
+			reason: '纯阴反阳，以阳为用',
+			theme: '男子',
+		};
+	}
+	if(yangCount === 4 && yinCount === 0){
+		return {
+			label: '贵神',
+			sign: '-',
+			reason: '纯阳反阴，以星为用',
+			theme: '女子',
+		};
+	}
+	const fallback = lines.find((item)=>item.label === '将神');
+	return {
+		label: fallback ? fallback.label : '',
+		sign: fallback ? fallback.sign : '',
+		reason: '按将神为用',
+		theme: '',
+	};
 }
 
 function getSeason(liureng, elem){
@@ -998,7 +1140,7 @@ export function buildJinKouData(liureng, options){
 	const timeZi = getTimeZi(liureng);
 	const diFen = normalizeDiFen(opt.diFen, timeZi);
 	const renYuanGan = getStemByWuZiDun(dayGan, diFen);
-	const guiShen = getGuiShenAtDiFen(dayGan, timeZi, diFen, opt.guirengType);
+	const guiShen = getGuiShenAtDiFen(dayGan, timeZi, diFen, opt.guirengType, opt.isDiurnal);
 	const guiZi = guiShen.zi;
 	const guiGan = getStemByWuZiDun(dayGan, guiZi);
 	const jiang = getJiangZiAtDiFen(monthZi, timeZi, diFen);
@@ -1017,6 +1159,20 @@ export function buildJinKouData(liureng, options){
 	const guiSign = getYinYangSign(guiZi);
 	const jiangSign = getYinYangSign(jiangZi);
 	const diSign = getYinYangSign(diFen);
+	const lineSigns = [{
+		label: '人元',
+		sign: renSign,
+	}, {
+		label: '贵神',
+		sign: guiSign,
+	}, {
+		label: '将神',
+		sign: jiangSign,
+	}, {
+		label: '地分',
+		sign: diSign,
+	}];
+	const yongYao = resolveYongYao(lineSigns);
 
 	const wangElem = calcJinKouWangElem([renElem, guiElem, jiangElem, diElem]);
 	const wangShuaiMap = buildJinKouWangShuaiMap(wangElem);
@@ -1099,6 +1255,7 @@ export function buildJinKouData(liureng, options){
 		guiZi: guiZi,
 		guiGan: guiGan,
 		guiStartZi: guiShen.startZi,
+		isDay: guiShen.isDay,
 		jiangZi: jiangZi,
 		jiangName: jiang.name,
 		jiangGan: jiangGan,
@@ -1107,6 +1264,8 @@ export function buildJinKouData(liureng, options){
 		siDaKong: siDaKong,
 		wangElem: wangElem,
 		wangShuai: wangShuaiMap,
+		lineSigns: lineSigns,
+		yongYao: yongYao,
 		rows: rows,
 		shenshaRows: shenshaRows,
 		topInfo: {

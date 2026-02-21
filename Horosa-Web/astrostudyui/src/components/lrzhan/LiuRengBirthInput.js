@@ -34,8 +34,7 @@ class LiuRengBirthInput extends Component{
 	onTimeChanged(value){
 		if(this.props.onFieldsChange){
 			let dt = value.time;
-
-			this.props.onFieldsChange({
+			const payload = {
 				date: {
 					value: dt.clone(),
 				},
@@ -49,7 +48,11 @@ class LiuRengBirthInput extends Component{
 					value: dt.zone,
 				},
 
-			});
+			};
+			if(this.props.requireConfirm){
+				payload.__confirmed = !!value.confirmed;
+			}
+			this.props.onFieldsChange(payload);
 		}
 	}
 
@@ -96,6 +99,7 @@ class LiuRengBirthInput extends Component{
 	render(){
 		let fields = this.props.fields ? this.props.fields : {};
 		let datetm = new DateTime();
+		const requireConfirm = this.props.requireConfirm === true;
 		if(fields.date && fields.time){
 			let str = fields.date.value.format('YYYY-MM-DD') + ' ' + 
 						fields.time.value.format('HH:mm');
@@ -109,7 +113,7 @@ class LiuRengBirthInput extends Component{
 			<div>
 			<Row>
 				<Col span={24}>
-					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} showAdjust={false} />
+					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} showAdjust={requireConfirm} />
 				</Col>	
 			</Row>
 			<Row>

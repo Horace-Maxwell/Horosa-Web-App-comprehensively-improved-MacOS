@@ -1955,6 +1955,8 @@ class SanShiUnitedMain extends Component{
 		const dunjia = this.getCachedDunJia(flds, nongli, qimenOptions, year, isDiurnal);
 		const astroChart = chartWrap && chartWrap.chart ? chartWrap.chart : null;
 		const lrNongli = buildLrNongli(nongli, dunjia);
+		const nianMing = safe(lrNongli && lrNongli.runyear, '')
+			|| ((dunjia && dunjia.ganzhi && dunjia.ganzhi.year) ? dunjia.ganzhi.year.substring(1, 2) : '');
 		const chartForLr = astroChart ? {
 			...astroChart,
 			nongli: lrNongli,
@@ -1986,6 +1988,7 @@ class SanShiUnitedMain extends Component{
 		}
 		const liureng = {
 			nongli: lrNongli,
+			nianMing: nianMing,
 			yue: lrBundle.yue,
 			timezi: lrBundle.timezi,
 			guizi: lrBundle.guizi,

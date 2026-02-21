@@ -484,6 +484,7 @@ Append new entries; do not rewrite history.
   - AI 导出（常规与推运）同步使用相同标签增强逻辑，确保导出文本与右侧显示一致。
 - Verification:
   - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
   - `rg -n "showPlanetHouseInfo|appendPlanetHouseInfoById" Horosa-Web/astrostudyui/src`
 
 ### 11:47 - 三式合一切页卡顿优化：重算延迟合并 + 快照异步 + 太乙缓存
@@ -566,6 +567,82 @@ Append new entries; do not rewrite history.
   - `npm run build --silent` in `Horosa-Web/astrostudyui`
   - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
   - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 14:24 - 修复六壬“确定无法排盘”与金口诀“二次起盘失效”
+- Scope: restore predictable re-plot behavior in `易与三式 -> 六壬/金口诀`; after changing time, clicking `确定` or `排盘` should reliably trigger a new盘面.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengInput.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/cnyibu/CnYiBuMain.js`
+  - `Horosa-Web/astrostudyui/src/models/astro.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `LiuRengInput` 时间回调增加 `__confirmed` 标记，区分“编辑中”与“已点击确定”。
+  - `LiuRengMain` 在 `__confirmed=true` 时允许 hook 触发，并新增 `startPaiPanByFields` 统一锁定 `calcFields/calcChart` + 请求六壬数据；这样点时间控件“确定”即可直接起课，不再只能依赖右侧“起课”按钮。
+  - `JinKouMain` 字段同步改为 `astro/fetchByFields`（静默请求），并按 `__confirmed` 控制是否触发 hook 重算，修复首次后时间变更再起盘不生效的问题。
+  - `JinKouMain` 新增 `calcFields` 作为本次起盘上下文，`runyear` 校验、年龄计算、保存快照统一使用该上下文，避免重复起盘时读取旧字段。
+  - `cnyibu` hook 链路与 `astro` model 的 `hooking` 增加 `chartObj` 透传，确保子模块在 hook 中可拿到本次排盘结果对应的图表上下文。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:27 - 金口诀按课本规则校准：四位起法/昼夜贵神/用爻判定
+- Scope: align `金口诀` core model with the rule set you provided (立地分、月将加时方上传、甲戊庚牛羊等贵神口诀、时干起人元、用爻判定) and reduce mismatch with external software.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouCalc.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouCalc.test.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 在 `JinKouCalc` 新增并显式使用“月将映射表（寅月亥将…丑月子将）”，不再隐式依赖其他模块常量，确保“月将加时方上传”路径可读、可核验。
+  - 贵神（星座）起法改为显式口诀配置（甲戊庚牛羊、乙己鼠猴、丙丁猪鸡、壬癸蛇兔、辛午虎），并保留原有 `guirengType` 兼容。
+  - 增加 `isDiurnal` 覆盖能力：优先使用盘面昼夜（太阳在地平线上下）判定贵神顺逆；未提供时仍回退到时支昼夜。
+  - 新增“用爻判定”模型输出：根据四位阴阳自动给出 `yongYao`（三阴一阳、三阳一阴、二阴二阳、纯阴反阳、纯阳反阴规则），并写入 AI 快照文本。
+  - `JinKouMain` 打通 `chart.isDiurnal` 到 `buildJinKouData`；并在请求后缓存本次起盘昼夜状态，避免重绘时昼夜规则漂移。
+  - 地分保留“自动随时支”与“手动指定”两种行为：默认自动；一旦用户手动改地分则锁定为手动值，不再被后续时间变更覆盖。
+- Verification:
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:35 - 金口诀用爻增加盘面下划线标识
+- Scope: make 用爻 visually explicit on the 金口诀主盘，符合“取用处下划一横”习惯。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouPanChart.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 在四位中表渲染阶段读取 `jinkouData.yongYao.label`，对对应行的“内容列”绘制下划线。
+  - 下划线采用黑色 2px，宽度按单元格自适应（约 56%），避免不同分辨率下过短或过长。
+  - 仅在有有效用爻标签时显示，不影响无数据态或其他行。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+
+### 00:40 - 金口诀时间编辑改为“仅点确定后更新左盘”
+- Scope: stop `金口诀` left-panel 六壬盘 auto-refresh during time drafting; refresh only after clicking 时间控件“确定”, while keeping repeated re-calc available.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `onFieldsChange` 针对 `__confirmed` 增加门禁：当 `__confirmed=false`（时间仍在编辑态）直接返回，不发起 `astro/fetchByFields`。
+  - 因此右侧调时间时左上六壬盘不再实时跳动；点击“确定”后（`__confirmed=true`）才同步字段并触发重算。
+  - 保留确认后的 hook 链路，支持再次调时并再次点击“确定”重复更新时间计算。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+
+### 00:46 - 金口诀出生时间输入改为确认后再算行年，消除编辑卡顿
+- Scope: avoid lag when editing `卜卦人出生时间` in 金口诀 by deferring runyear recompute until explicit confirm.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengBirthInput.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `LiuRengBirthInput` 新增 `requireConfirm` 模式：在该模式下时间控件显示“确定”按钮，并回传 `__confirmed` 标记。
+  - `JinKouMain` 在出生时间回调中对 `__confirmed=false` 直接忽略，不再在编辑过程触发 `requestRunYear`。
+  - 仅当点击“确定”（`__confirmed=true`）后才更新 `birth` 并重算行年，因此连续调节出生年月日时不再每步卡顿。
+  - 保持可重复计算：每次再次调整后点击“确定”都会重新计算最新结果。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
 
 ### 12:37 - 按反馈修正：保留星盘组件开关 + 恢复 Astro 字体主显示
 - Scope: keep the UI option `星曜附带后天宫信息` in `星盘组件` (without example suffix text), and restore symbol-first Astro-font display style (no forced Chinese replacement for planet labels).
@@ -659,3 +736,189 @@ Append new entries; do not rewrite history.
   - `npm run build --silent` in `Horosa-Web/astrostudyui`
   - `npm run test --silent -- --watch=false` in `Horosa-Web/astrostudyui`
   - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+
+### 00:56 - 行年算法按立春边界修正（六壬 / 金口诀 / 三式合一）
+- Scope: fix `行年` mismatch after changing birth time and align with your rule set: use节气年干支（立春为界）、男顺女逆行年序列、确认后可重复重算。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/helper/LiuRengHelper.java`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/LiuRengController.java`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 前端行年参数不再取 `nongli.year`，改为优先取四柱年干支（`fourColumns.year.ganzi`），并提供 `yearGanZi/yearJieqi/year` 多级回退，避免“农历年 vs 立春年”混用导致的错盘。
+  - 六壬与金口诀请求 `/liureng/runyear` 时新增卜卦时刻参数（`guaDate/guaTime/guaAd/guaZone/guaLon/guaLat/guaAfter23NewDay`），让后端可在缺失干支时自动反算节气年柱。
+  - 后端 `runyear` 增加干支规范化与合法性校验；当 `guaYearGanZi` 缺失或不规范时，自动按卜卦时刻重建四柱并取年柱干支。
+  - 后端年龄由“仅60甲子余数”扩展为“立春年序差值”：新增 `ageCycle`（0-59循环位）并返回 `age`（按立春年差推得的实际年龄步数），行年干支仍严格按男丙寅顺行、女壬申逆行表取值。
+  - 移除前端用公历年份二次拼接年龄的旧逻辑，避免覆盖后端立春算法结果；出生时间确认后会按新规则实时刷新左侧行年。
+  - 三式合一补充 `liureng.nianMing` 优先读取 `nongli.runyear`，与六壬/金口诀年命展示口径保持一致。
+- Verification:
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `mvn -DskipTests install` in `Horosa-Web/astrostudysrv/astrostudycn`
+
+### 01:03 - 继续修复“点击确定后行年不更新”：前端增加独立行年兜底计算
+- Scope: address remaining case where `runyear` endpoint may still返回旧值（如始终0岁）导致界面不刷新；金口诀/六壬在“确认出生时间”后强制按四柱干支本地重算行年并覆盖显示。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 在前端加入完整60甲子序列与男女行年序列生成（男：丙寅起顺行；女：壬申起逆行），不再依赖后端返回年龄显示正确与否。
+  - `requestRunYear` 在请求后新增本地覆盖逻辑：读取“出生四柱年干支”（通过静默 `/liureng/gods` 获取）+“卜卦年干支”，按立春年柱序差计算 `age`，并写入 `ageCycle` 与 `year`。
+  - 加入 `birthYearGanZi` 缓存，避免同一出生参数重复请求带来额外卡顿。
+  - 即使后端仍是旧实现或未重启，点击“确定”后行年也会按当前规则更新，不再停留在0岁/丙寅。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+
+### 01:08 - 再次加固行年兜底：无干支时按出生/卜卦年份差强制刷新
+- Scope: fix your screenshot scenario where `行年` still stayed `丙寅/0岁`; when干支链路任一环节取不到值时，仍保证点击“确定”后行年变化可见。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `requestRunYear` 里把本地重算改为三层兜底：
+    1) 先用“出生年柱干支 + 卜卦年柱干支”计算；
+    2) 若干支缺失，则按出生年与卜卦年的公历年差计算年龄并映射男女行年序列；
+    3) 若仍失败，则用后端返回 `age` 反推 `ageCycle/year`。
+  - 因此即便接口返回旧值或干支未取到，2019→2026 这类修改也会把显示从 `0岁` 推进到对应年龄，并同步行年干支。
+  - 保留前一版的缓存与静默请求，不增加输入时的明显卡顿。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+
+### 01:13 - 修复请求失败导致行年不落盘：runyear请求改为try/catch并保证兜底写回
+- Scope: when `/liureng/runyear` 请求异常或返回不完整时，之前会提前中断导致界面继续显示 `丙寅/0岁`；现在无论接口是否成功都保证把前端兜底结果写入盘面。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `requestRunYear` 改为“先算前端fallback，再尝试接口覆盖，再统一落盘”：
+    - 即使接口抛错，也会使用 `出生年-卜卦年` 的兜底年龄+男女行年序列更新显示；
+    - 仅当“干支缺失且fallback也不可得”才提示并终止。
+  - 去除“先判 `guaYearGanZi` 再直接return”的硬阻断，避免本地可算时被提前中止。
+  - 对 `year/age/ageCycle` 增加最终缺省兜底赋值，确保不会留下旧状态。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `node` 本地脚本校验：`2017->2026 男 => 9岁 / 乙亥`
+
+### 01:18 - 前端显示层强制兜底：即使state.runyear未刷新也按出生年差显示
+- Scope: fix stubborn UI case where backend/state链路未及时更新但盘面仍显示旧值（`丙寅/0岁`）；在渲染与保存阶段增加显示层兜底，保证画面不再卡旧值。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增 `resolveDisplayRunYear`：按当前“出生年 vs 卜卦年”生成 fallback 行年，并在以下情况覆盖展示：
+    - `runyear` 缺失；
+    - `age` 非数值；
+    - `age=0` 但出生年差>0；
+    - `year` 为空或异常停留在 `丙寅`。
+  - `JinKouChart` / `LiuRengChart` 传入的 `runyear` 改为 `displayRunYear`，避免 UI 继续绑定陈旧 state。
+  - 保存案例时也改为写入 `displayRunYear`，避免导出内容与界面不一致。
+- Verification:
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+
+### 01:28 - 再修“点确定后行年不变”：出生时间确认时先本地落盘，再请求校正
+- Scope: ensure `金口诀/六壬` 在点击“卜卦人出生时间”的“确定”后，左侧行年立即可见变化，不再依赖异步接口先返回。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `JinKouMain.onBirthChange` 改为“先计算 `displayRunYear` 写入 `state.runyear`，再异步 `requestRunYear` 校正”，避免接口慢/失败时盘面保持旧值。
+  - `LiuRengMain.onBirthChange` 同步改为确认门禁逻辑（`__confirmed`）：未确认不重算，确认后先本地更新行年再请求后端校正。
+  - `LiuRengMain` 的 `LiuRengBirthInput` 打开 `requireConfirm={true}`，与金口诀一致：编辑时不触发重算，仅点“确定”才刷新。
+  - 两处都保留后续 `requestRunYear()`，因此“再次调整 -> 再点确定”可重复更新时间并继续得到正确行年。
+- Verification:
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `/bin/zsh -lc 'cd "Horosa-Web"; ./start_horosa_local.sh; ./verify_horosa_local.sh; ./stop_horosa_local.sh'`
+
+### 01:33 - 修复“出生时间看起来已改但行年仍用旧值”判定漏洞
+- Scope: fix case shown in latest screenshot where出生时间面板已改到早年，但行年仍停留在旧年龄（本质是旧 `runyear` 非0时未触发fallback覆盖）。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 强化 `resolveDisplayRunYear` 覆盖条件：新增“硬不一致”判定。
+    - `|currAge - fallbackAge| >= 2` 时，强制用当前出生年差fallback覆盖；
+    - `ageCycle` 与 fallback 差距 >= 2（按60循环最短距离）时也覆盖；
+    - 年龄相同但行年干支不同（常见于性别切换或旧状态残留）时覆盖。
+  - 保留“边界容忍”策略：仅差 1 岁（立春边界附近）不强制覆盖，避免误伤节气边界场景。
+  - 这样可修复“UI里出生时间改了，但runyear沿用历史值”的场景，不会再被旧 `2岁/戊辰` 卡住。
+- Verification:
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `/bin/zsh -lc 'cd "Horosa-Web"; ./stop_horosa_local.sh; ./start_horosa_local.sh; ./verify_horosa_local.sh; ./stop_horosa_local.sh'`
+
+### 01:38 - 修复“出生时间控件显示已改，但内部birth state未同步”导致行年仍按旧出生年
+- Scope: fix latest screenshot scenario where birth selector显示为2020，但行年仍是 `丙寅/0岁`（原因是未确认编辑时父组件birth state不更新，后续判定仍读旧年）。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 调整 `onBirthChange` 行为：即使 `__confirmed=false`，也先同步 `birth` 到父组件 `state`，并同步一次 `displayRunYear`（纯前端fallback，不走接口）。
+  - 只有在 `__confirmed=true` 时才触发 `requestRunYear()` 请求校正，保持“编辑不卡顿、确认后精算”的交互目标。
+  - 这样可避免“控件内部时间已变，但父状态还停在旧年”造成的行年错误。
+  - 对你截图场景（卜卦2026、出生2020、男）fallback会稳定得到 `6岁 / 壬申`，不会再落到 `0岁 / 丙寅`。
+- Verification:
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `/bin/zsh -lc 'cd "Horosa-Web"; ./stop_horosa_local.sh; ./start_horosa_local.sh; ./verify_horosa_local.sh; ./stop_horosa_local.sh'`
+
+### 01:46 - 交互回归修正：左盘仅在点击计算确认后更新（出生时间编辑不再实时改盘）
+- Scope: follow latest UX requirement: when editing `卜卦人出生时间`, left chart must stay unchanged until user clicks the calculation confirm button (`确定`) on that birth-time panel.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 引入“草稿出生时间 vs 已应用出生时间”分离：
+    - `birth` 保持输入框草稿值（可随编辑变化）；
+    - `calcBirth` 仅在确认计算时更新（作为行年与左盘使用值）。
+  - `onBirthChange` 逻辑改为：
+    - `__confirmed=false`：只同步 `birth`，不触发 `requestRunYear`，不更新左盘行年；
+    - `__confirmed=true`：同步 `birth + calcBirth`，再触发重算并刷新左盘。
+  - 行年相关计算与显示（`genRunYearParams/requestBirthYearGanZi/requestRunYear/render/case save`）统一改为读取 `calcBirth`，彻底杜绝“编辑过程实时改盘”。
+  - 保留确认后兜底校正链路，仍可反复“调整 -> 确定 -> 更新”。
+- Verification:
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `/bin/zsh -lc 'cd "Horosa-Web"; ./stop_horosa_local.sh; ./start_horosa_local.sh; ./verify_horosa_local.sh; ./stop_horosa_local.sh'`
+
+### 01:52 - 最终修正：按“页面计算按钮”应用出生时间（非编辑态实时应用）
+- Scope: fix latest regression where after stopping realtime updates, runyear could stay on old birth year (`丙寅/0岁`) if user expected page-level calculate action to apply new birth input.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 明确“草稿输入”和“计算使用值”职责：
+    - `birth`：仅作为右侧出生时间输入框草稿；
+    - `calcBirth`：仅在页面实际计算入口触发时更新（`requestGods` 被调用时，从当前 `birth` 克隆应用）。
+  - `onBirthChange` 改为只更新 `birth`，不再改 `runyear/calcBirth`，彻底避免编辑过程影响左盘。
+  - 在 `requestGods` 内统一执行 `calcBirth = clone(birth)`，确保你点击页面计算按钮后，本次计算一定使用你当前输入的出生时间。
+  - `requestRunYear/genRunYearParams/requestBirthYearGanZi/render/save` 全部继续使用 `calcBirth`，实现“未计算不生效、计算后必生效”。
+- Verification:
+  - `npm test -- JinKouCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build --silent` in `Horosa-Web/astrostudyui`
+  - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
+  - `/bin/zsh -lc 'cd "Horosa-Web"; ./stop_horosa_local.sh; ./start_horosa_local.sh; ./verify_horosa_local.sh; ./stop_horosa_local.sh'`

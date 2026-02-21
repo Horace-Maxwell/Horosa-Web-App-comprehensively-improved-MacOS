@@ -119,19 +119,36 @@ public class LiuRengController {
 		
 		return map;
 	}
+
+	private Integer parseSolarYear(String date) {
+		if(StringUtility.isNullOrEmpty(date)) {
+			return null;
+		}
+		String dt = date.trim();
+		boolean neg = false;
+		if(dt.startsWith("-")) {
+			neg = true;
+			dt = dt.substring(1);
+		}
+		String[] parts = dt.split("-");
+		if(parts.length == 0) {
+			return null;
+		}
+		int y = ConvertUtility.getValueAsInt(parts[0], Integer.MIN_VALUE);
+		if(y == Integer.MIN_VALUE) {
+			return null;
+		}
+		return neg ? -y : y;
+	}
 	
 	@ResponseBody
 	@RequestMapping("/runyear")
 	public void runyear() {
 		String guaYearGanZi = TransData.getValueAsString("guaYearGanZi");
-		if(StringUtility.isNullOrEmpty(guaYearGanZi)) {
-			throw new ErrorCodeException(800006, "miss.gua.yearganzi");
-		}
 		boolean male = TransData.getValueAsBool("gender", true);
 		
 		Map<String, Object> params = checkParams();
 		params.put("gender", male);
-		params.put("guaYearGanZi", guaYearGanZi);
 		
 		String zone = TransData.getValueAsString("zone");
 		String lat = TransData.getValueAsString("lat");
@@ -143,13 +160,76 @@ public class LiuRengController {
 		boolean after23NewDay = (boolean) params.get("after23NewDay");
 		String godKeyPos = (String) params.get("godKeyPos");
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
+
+		String guaDate = TransData.getValueAsString("guaDate");
+		String guaTime = TransData.getValueAsString("guaTime");
+		String guaZone = TransData.getValueAsString("guaZone");
+		String guaLon = TransData.getValueAsString("guaLon");
+		String guaLat = TransData.getValueAsString("guaLat");
+		int guaAd = TransData.getValueAsInt("guaAd", ad);
+		boolean guaAfter23NewDay = TransData.getValueAsBool("guaAfter23NewDay", after23NewDay);
+
+		if(!StringUtility.isNullOrEmpty(guaDate)) {
+			if(guaAd != 1 && guaDate.indexOf('-') != 0) {
+				guaDate = "-" + guaDate;
+			}else if(guaAd == 1 && guaDate.indexOf('-') == 0) {
+				guaDate = guaDate.substring(1);
+			}
+		}
+		if(StringUtility.isNullOrEmpty(guaTime)) {
+			guaTime = TransData.getValueAsString("time");
+		}
+		if(StringUtility.isNullOrEmpty(guaZone)) {
+			guaZone = zone;
+		}
+		if(StringUtility.isNullOrEmpty(guaLon)) {
+			guaLon = lon;
+		}
+		if(StringUtility.isNullOrEmpty(guaLat)) {
+			guaLat = lat;
+		}
+
+		final String reqGuaYearGanZi = guaYearGanZi;
+		final String reqGuaDate = guaDate;
+		final String reqGuaTime = guaTime;
+		final String reqGuaZone = guaZone;
+		final String reqGuaLon = guaLon;
+		final String reqGuaLat = guaLat;
+		final int reqGuaAd = guaAd;
+		final boolean reqGuaAfter23NewDay = guaAfter23NewDay;
+
+		params.put("guaYearGanZi", reqGuaYearGanZi);
+		params.put("guaDate", reqGuaDate);
+		params.put("guaTime", reqGuaTime);
+		params.put("guaZone", reqGuaZone);
+		params.put("guaLon", reqGuaLon);
+		params.put("guaLat", reqGuaLat);
+		params.put("guaAd", reqGuaAd);
+		params.put("guaAfter23NewDay", reqGuaAfter23NewDay);
 		
 		Object obj = CacheHelper.get("/liureng/runyear", params, (args)->{
 			BaZi bz = new BaZi(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay);
 			bz.calculateFourColumn(phaseType);
 			FourColumns fourcols = bz.getFourColums();
 			
-			Map<String, Object> res = LiuRengHelper.runYear(fourcols, male, guaYearGanZi);
+			String useGuaYearGanZi = reqGuaYearGanZi;
+			if(!LiuRengHelper.isValidGanZi(useGuaYearGanZi)
+				&& !StringUtility.isNullOrEmpty(reqGuaDate)
+				&& !StringUtility.isNullOrEmpty(reqGuaTime)) {
+				String guaDtStr = String.format("%s %s", reqGuaDate, reqGuaTime);
+				BaZi guaBz = new BaZi(reqGuaAd, guaDtStr, reqGuaZone, reqGuaLon, reqGuaLat, timealg, zodiacalLon, godKeyPos, reqGuaAfter23NewDay);
+				guaBz.calculateFourColumn(phaseType);
+				FourColumns guaCols = guaBz.getFourColums();
+				if(guaCols != null && guaCols.year != null) {
+					useGuaYearGanZi = guaCols.year.ganzi;
+				}
+			}
+			if(!LiuRengHelper.isValidGanZi(useGuaYearGanZi)) {
+				throw new ErrorCodeException(800006, "miss.gua.yearganzi");
+			}
+			Integer birthYear = parseSolarYear((String) params.get("date"));
+			Integer guaYear = parseSolarYear(reqGuaDate);
+			Map<String, Object> res = LiuRengHelper.runYear(fourcols, male, useGuaYearGanZi, birthYear, guaYear);
 			return res;
 		});
 		

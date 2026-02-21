@@ -47,10 +47,10 @@ class CnYiBuMain extends Component{
 		this.changeTab = this.changeTab.bind(this);
 
 		if(this.props.hook){
-			this.props.hook.fun = (fields)=>{
+			this.props.hook.fun = (fields, chartObj)=>{
 				let hook = this.state.hook;
 				if(hook[this.state.currentTab].fun){
-					hook[this.state.currentTab].fun(fields);
+					hook[this.state.currentTab].fun(fields, chartObj);
 				}
 			};
 		}
@@ -63,7 +63,7 @@ class CnYiBuMain extends Component{
 			currentTab: key,
 		}, ()=>{
 			if(hook[key].fun){
-				hook[key].fun(this.props.fields);
+				hook[key].fun(this.props.fields, this.props.chart);
 			}
 			if(this.props.dispatch){
 				this.props.dispatch({

@@ -58,6 +58,75 @@ describe('JinKouCalc', ()=>{
 		expect(data.jiangZi).toBe('酉');
 	});
 
+	it('matches manual sample for 戊戌日未时午位', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			nongli: {
+				dayGanZi: '戊戌',
+				time: '未时',
+				monthGanZi: '丁卯',
+			},
+			fourColumns: {
+				month: { ganzi: '丁卯' },
+			},
+		}), {
+			diFen: '午',
+			guirengType: 0,
+		});
+		expect(data.renYuanGan).toBe('戊');
+		expect(data.guiZi).toBe('寅');
+		expect(data.jiangZi).toBe('酉');
+		expect(data.yongYao.label).toBe('将神');
+	});
+
+	it('matches app case for 丙寅日丑时丑位', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			nongli: {
+				dayGanZi: '丙寅',
+				time: '丑时',
+				monthGanZi: '庚寅',
+			},
+			fourColumns: {
+				month: { ganzi: '庚寅' },
+			},
+		}), {
+			diFen: '丑',
+			guirengType: 0,
+		});
+		expect(data.renYuanGan).toBe('己');
+		expect(data.guiZi).toBe('未');
+		expect(data.guiName).toBe('太常');
+		expect(data.jiangZi).toBe('亥');
+		expect(data.jiangGan).toBe('己');
+		expect(data.yongYao.label).toBe('人元');
+	});
+
+	it('uses explicit diurnal flag to determine day/night branch', ()=>{
+		const base = mockLiuReng({
+			nongli: {
+				dayGanZi: '丙寅',
+				time: '丑时',
+				monthGanZi: '庚寅',
+			},
+			fourColumns: {
+				month: { ganzi: '庚寅' },
+			},
+		});
+		const dayData = buildJinKouData(base, {
+			diFen: '丑',
+			guirengType: 0,
+			isDiurnal: true,
+		});
+		const nightData = buildJinKouData(base, {
+			diFen: '丑',
+			guirengType: 0,
+			isDiurnal: false,
+		});
+		expect(dayData.guiName).toBe('朱雀');
+		expect(dayData.guiZi).toBe('午');
+		expect(nightData.guiName).toBe('太常');
+		expect(nightData.guiZi).toBe('未');
+	});
+
 	it('calculates 四大空亡 from 旬首', ()=>{
 		const dataZi = buildJinKouData(mockLiuReng({
 			xun: {
