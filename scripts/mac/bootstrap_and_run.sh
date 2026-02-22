@@ -7,10 +7,15 @@ UI_DIR="${PROJECT_DIR}/astrostudyui"
 SERVER_DIR="${PROJECT_DIR}/astrostudysrv"
 VENV_DIR="${ROOT}/.runtime/mac/venv"
 LOCAL_JAVA_HOME="${ROOT}/.runtime/mac/java"
+LOCAL_MAVEN_HOME="${ROOT}/.runtime/mac/maven"
+LOCAL_MAVEN_BIN="${LOCAL_MAVEN_HOME}/bin/mvn"
+MAVEN_LOCAL_REPO="${ROOT}/.runtime/mac/m2"
 RUNTIME_PYTHON_BIN="${ROOT}/runtime/mac/python/bin/python3"
 REQ_FILE="${ROOT}/scripts/requirements/mac-python.txt"
 BACKEND_JAR="${SERVER_DIR}/astrostudyboot/target/astrostudyboot.jar"
 FRONTEND_INDEX="${UI_DIR}/dist-file/index.html"
+
+MAVEN_CMD=()
 
 SKIP_TOOLCHAIN_INSTALL="${HOROSA_SKIP_TOOLCHAIN_INSTALL:-0}"
 SKIP_DB_SETUP="${HOROSA_SKIP_DB_SETUP:-0}"
@@ -202,6 +207,45 @@ install_local_java17() {
   java_home_ready "${LOCAL_JAVA_HOME}"
 }
 
+install_local_maven() {
+  local maven_ver=""
+  local download_url=""
+  local tmp_root=""
+  local archive_path=""
+  local extract_dir=""
+  local extracted_home=""
+
+  maven_ver="${HOROSA_MAVEN_VERSION:-3.9.9}"
+  download_url="${HOROSA_MAVEN_URL:-https://archive.apache.org/dist/maven/maven-3/${maven_ver}/binaries/apache-maven-${maven_ver}-bin.tar.gz}"
+  tmp_root="$(mktemp -d "${TMPDIR:-/tmp}/horosa-maven.XXXXXX")"
+  archive_path="${tmp_root}/maven.tar.gz"
+  extract_dir="${tmp_root}/extract"
+  mkdir -p "${extract_dir}"
+
+  say "downloading apache maven ${maven_ver} ..."
+  if ! curl -fL --retry 2 --connect-timeout 15 -o "${archive_path}" "${download_url}"; then
+    rm -rf "${tmp_root}"
+    return 1
+  fi
+  if ! tar -xzf "${archive_path}" -C "${extract_dir}"; then
+    rm -rf "${tmp_root}"
+    return 1
+  fi
+
+  extracted_home="$(find "${extract_dir}" -maxdepth 1 -type d -name 'apache-maven-*' -print -quit 2>/dev/null || true)"
+  if [ -z "${extracted_home}" ] || [ ! -x "${extracted_home}/bin/mvn" ]; then
+    rm -rf "${tmp_root}"
+    return 1
+  fi
+
+  mkdir -p "$(dirname "${LOCAL_MAVEN_HOME}")"
+  rm -rf "${LOCAL_MAVEN_HOME}"
+  rsync -a "${extracted_home}/" "${LOCAL_MAVEN_HOME}/"
+  rm -rf "${tmp_root}"
+
+  [ -x "${LOCAL_MAVEN_BIN}" ]
+}
+
 ensure_java17() {
   load_brew_env
   local java_home=""
@@ -264,14 +308,45 @@ ensure_java17() {
 
 ensure_maven() {
   load_brew_env
-  if ! have_cmd mvn; then
+  local maven_bin=""
+
+  if have_cmd mvn; then
+    maven_bin="$(command -v mvn)"
+  elif [ -x "${LOCAL_MAVEN_BIN}" ]; then
+    maven_bin="${LOCAL_MAVEN_BIN}"
+  fi
+
+  if [ -z "${maven_bin}" ] && [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ] && have_cmd brew; then
+    if ensure_formula maven; then
+      if have_cmd mvn; then
+        maven_bin="$(command -v mvn)"
+      fi
+    fi
+  fi
+
+  if [ -z "${maven_bin}" ] && [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ]; then
+    say "Homebrew Maven unavailable, trying direct Maven download ..."
+    if install_local_maven; then
+      maven_bin="${LOCAL_MAVEN_BIN}"
+    fi
+  fi
+
+  if [ -z "${maven_bin}" ]; then
     if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
       fail "maven is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install maven manually."
     fi
-    if ! ensure_formula maven; then
-      fail "maven is required but Homebrew is unavailable. install maven manually or set HOROSA_SKIP_BUILD=1."
-    fi
+    fail "maven is required but auto-install failed. install maven manually or set HOROSA_SKIP_BUILD=1."
   fi
+
+  mkdir -p "${MAVEN_LOCAL_REPO}"
+  MAVEN_CMD=("${maven_bin}" "-Dmaven.repo.local=${MAVEN_LOCAL_REPO}")
+}
+
+run_maven() {
+  if [ "${#MAVEN_CMD[@]}" -eq 0 ]; then
+    fail "internal error: MAVEN_CMD is empty."
+  fi
+  "${MAVEN_CMD[@]}" "$@"
 }
 
 ensure_node() {
@@ -506,9 +581,9 @@ build_backend_if_needed() {
       fail "missing backend module directory: ${module}"
     fi
     if [ "${module}" = "astrostudyboot" ]; then
-      (cd "${SERVER_DIR}/${module}" && mvn -DskipTests clean install)
+      (cd "${SERVER_DIR}/${module}" && run_maven -DskipTests clean install)
     else
-      (cd "${SERVER_DIR}/${module}" && mvn -DskipTests install)
+      (cd "${SERVER_DIR}/${module}" && run_maven -DskipTests install)
     fi
   done
 }

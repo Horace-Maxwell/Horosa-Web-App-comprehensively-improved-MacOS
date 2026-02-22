@@ -209,6 +209,12 @@ prepare_frontend_bundle() {
 }
 
 prepare_backend_bundle() {
+  if [ -f "${JAR_PATH}" ]; then
+    cp -f "${JAR_PATH}" "${BUNDLE_DIR}/astrostudyboot.jar"
+    echo "[后端] 已打包 jar 到 ${BUNDLE_DIR}/astrostudyboot.jar"
+    return 0
+  fi
+
   if [ -d "${IMAGE_DIR}" ] && [ -d "${BOOT_DIR}" ] && command -v mvn >/dev/null 2>&1; then
     echo "[后端] 使用 Maven 构建 jar..."
     (
@@ -216,14 +222,24 @@ prepare_backend_bundle() {
       mvn -DskipTests install
       cd "${BOOT_DIR}"
       mvn -DskipTests clean install
-    )
+    ) || true
   else
-    echo "[后端] 未检测到 mvn 或目录不完整，跳过构建，尝试复用现有 jar。"
+    echo "[后端] 未检测到 mvn 或目录不完整，尝试自动补齐后端构建能力..."
+  fi
+
+  if [ ! -f "${JAR_PATH}" ] && [ -x "${BOOTSTRAP_SH}" ]; then
+    echo "[后端] 目标 jar 缺失，自动执行一键部署脚本构建后端..."
+    HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 HOROSA_SKIP_BUILD=0 HOROSA_SKIP_TOOLCHAIN_INSTALL="${HOROSA_SKIP_TOOLCHAIN_INSTALL:-0}" "${BOOTSTRAP_SH}" || true
   fi
 
   if [ -f "${JAR_PATH}" ]; then
     cp -f "${JAR_PATH}" "${BUNDLE_DIR}/astrostudyboot.jar"
     echo "[后端] 已打包 jar 到 ${BUNDLE_DIR}/astrostudyboot.jar"
+    return 0
+  fi
+
+  if [ -f "${BUNDLE_DIR}/astrostudyboot.jar" ]; then
+    echo "[后端] 复用已有 bundle jar: ${BUNDLE_DIR}/astrostudyboot.jar"
     return 0
   fi
 

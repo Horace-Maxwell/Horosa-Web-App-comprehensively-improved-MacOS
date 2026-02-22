@@ -983,3 +983,27 @@ Append new entries; do not rewrite history.
   - `python3 -m py_compile Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py Horosa-Web/astropy/astrostudy/jieqi/NongLi.py`（PASS）
   - `mvn -DskipTests compile` in `Horosa-Web/astrostudysrv/astrostudycn`（BUILD SUCCESS）
   - `PYTHONPATH='Horosa-Web/flatlib-ctrad2:Horosa-Web/astropy' python3 <对比脚本>`（结果：`ALL_MATCH=True`）
+
+### 20:07 - 修复“无 Homebrew / 无 Maven 导致后端 jar 缺失无法启动”
+- Scope: resolve startup failure on clean mac machines where `Prepare_Runtime_Mac.command` can build frontend but fails backend with `未检测到 mvn` and then `Horosa_Local.command` reports missing `astrostudyboot.jar`.
+- Files:
+  - `scripts/mac/bootstrap_and_run.sh`
+  - `Prepare_Runtime_Mac.command`
+  - `Horosa_Local.command`
+  - `Horosa-Web/start_horosa_local.sh`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `bootstrap_and_run.sh` 增加 Maven 本地兜底：
+    - 无 brew/mvn 时自动下载 Apache Maven 到 `.runtime/mac/maven`（可用 `HOROSA_MAVEN_URL` / `HOROSA_MAVEN_VERSION` 覆盖）；
+    - Maven 构建统一走本地仓库 `.runtime/mac/m2`，降低对用户家目录写权限与环境差异依赖。
+  - `Prepare_Runtime_Mac.command` 的后端阶段增强：
+    - 目标 jar 缺失时，自动调用 `bootstrap_and_run.sh` 执行后端构建补齐；
+    - 若已存在 `runtime/mac/bundle/astrostudyboot.jar`，可复用不再直接失败。
+  - `Horosa_Local.command` 增强后端自愈：
+    - `target` 与 `bundle` 均缺失时，自动触发一键部署脚本补齐后端 jar；
+    - 补齐后自动回填，仍失败才给出明确提示。
+  - `start_horosa_local.sh` 增加 bundle jar 回填逻辑（直接运行脚本时也能自愈）。
+- Verification:
+  - `bash -n Horosa_Local.command Prepare_Runtime_Mac.command Horosa-Web/start_horosa_local.sh scripts/mac/bootstrap_and_run.sh`
+  - `HOROSA_SKIP_BUILD=1 HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 HOROSA_SKIP_TOOLCHAIN_INSTALL=1 ./scripts/mac/bootstrap_and_run.sh`
+  - 模拟 `target jar` 缺失并执行 `Horosa-Web/start_horosa_local.sh`：确认输出 `using bundled jar fallback` 且自动回填成功。

@@ -253,7 +253,35 @@ ensure_backend_artifact() {
     echo "[预检] 目标 jar 缺失，使用仓库内预打包 jar 回填。"
     mkdir -p "$(dirname "${TARGET_JAR}")"
     cp -f "${BUNDLE_JAR}" "${TARGET_JAR}"
+    return
   fi
+
+  if [ "${HOROSA_BOOTSTRAP_ON_MISSING_BACKEND:-0}" = "1" ]; then
+    return
+  fi
+
+  if [ -x "${BOOTSTRAP_SH}" ]; then
+    echo "[预检] 后端 jar 缺失，自动执行一键部署脚本构建后端..."
+    export HOROSA_BOOTSTRAP_ON_MISSING_BACKEND=1
+    HOROSA_SKIP_DB_SETUP="${HOROSA_SKIP_DB_SETUP:-1}" \
+      HOROSA_SKIP_LAUNCH=1 \
+      HOROSA_SKIP_BUILD=0 \
+      HOROSA_SKIP_TOOLCHAIN_INSTALL="${HOROSA_SKIP_TOOLCHAIN_INSTALL:-0}" \
+      "${BOOTSTRAP_SH}" || true
+  fi
+
+  if [ -f "${TARGET_JAR}" ]; then
+    return
+  fi
+  if [ -f "${BUNDLE_JAR}" ]; then
+    echo "[预检] 使用一键部署产出的 bundle jar 回填后端。"
+    mkdir -p "$(dirname "${TARGET_JAR}")"
+    cp -f "${BUNDLE_JAR}" "${TARGET_JAR}"
+    return
+  fi
+
+  echo "[预检] 后端 jar 仍不可用，请先执行 Horosa_OneClick_Mac.command。"
+  exit 1
 }
 
 ensure_frontend_artifact() {

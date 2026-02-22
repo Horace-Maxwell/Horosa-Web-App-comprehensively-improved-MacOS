@@ -290,9 +290,17 @@ fi
 ensure_frontend_build
 
 JAR="${ROOT}/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
+BUNDLE_JAR="${ROOT}/../runtime/mac/bundle/astrostudyboot.jar"
+if [ ! -f "${JAR}" ] && [ -f "${BUNDLE_JAR}" ]; then
+  echo "backend target jar missing, using bundled jar fallback."
+  mkdir -p "$(dirname "${JAR}")"
+  cp -f "${BUNDLE_JAR}" "${JAR}"
+fi
 if [ ! -f "${JAR}" ]; then
   echo "missing ${JAR}"
   echo "build first:"
+  echo "  ../Prepare_Runtime_Mac.command"
+  echo "or"
   echo "  ../Horosa_OneClick_Mac.command"
   exit 1
 fi
