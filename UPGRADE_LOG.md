@@ -1146,6 +1146,9 @@ Append new entries; do not rewrite history.
   - `PYTHONPATH='Horosa-Web/astropy:Horosa-Web/flatlib-ctrad2:$HOME/Library/Python/3.12/lib/python/site-packages' runtime/mac/python/bin/python3` 运行 YearJieQi 自检：
     - `needChart=True -> jieqi24 len = 24, charts len = 4`
     - `seedOnly=True -> jieqi24 len = 4`（仅返回请求项）
+  - 端到端 chart service 自检（`/jieqi/year`，经 `start_horosa_local.sh` 启停）：
+    - `full(jieqis=四季) -> 481ms, jieqi24=24, charts=4`
+    - `seedOnly(jieqis=大雪/芒种) -> 4ms, jieqi24=2`
   - 性能采样（同机本地函数级）：
     - `seedOnly` 平均约 `2.87ms`（p95 `2.93ms`），满足三式快路径预算；
     - `needChart=True` 平均约 `245ms`，远低于“打开节气盘 5 秒内”阈值。
