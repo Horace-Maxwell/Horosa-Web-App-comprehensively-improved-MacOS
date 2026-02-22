@@ -16,6 +16,7 @@ JAVA_BIN="${HOROSA_JAVA_BIN:-java}"
 PYTHONPATH_ASTRO="${ROOT}/astropy"
 EXTRA_PY_SITE=""
 STARTUP_TIMEOUT="${HOROSA_STARTUP_TIMEOUT:-180}"
+SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
 
 if [ ! -f "${HTML_PATH}" ]; then
   HTML_PATH="${UI_DIR}/dist/index.html"
@@ -257,6 +258,20 @@ ensure_frontend_build() {
   local dist_file_index="${UI_DIR}/dist-file/index.html"
   local dist_index="${UI_DIR}/dist/index.html"
 
+  if [ "${SKIP_UI_BUILD}" = "1" ]; then
+    if [ -f "${dist_file_index}" ]; then
+      HTML_PATH="${dist_file_index}"
+      return
+    fi
+    if [ -f "${dist_index}" ]; then
+      HTML_PATH="${dist_index}"
+      return
+    fi
+    echo "missing frontend index.html under ${UI_DIR}/dist-file or ${UI_DIR}/dist."
+    echo "HOROSA_SKIP_UI_BUILD=1 is set, but no prebuilt frontend bundle is available."
+    exit 1
+  fi
+
   if frontend_needs_build; then
     if ! command -v npm >/dev/null 2>&1; then
       if [ -f "${dist_file_index}" ] || [ -f "${dist_index}" ]; then
@@ -391,6 +406,9 @@ for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
       ready=1
       break
     fi
+  fi
+  if [ $((_ % 10)) -eq 0 ]; then
+    echo "waiting services... ${_}/${STARTUP_TIMEOUT}s (8899:$(port_listening 8899 && echo up || echo down), 9999:$(port_listening 9999 && echo up || echo down))"
   fi
   sleep 1
 done

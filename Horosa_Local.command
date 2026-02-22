@@ -435,6 +435,7 @@ fi
 ensure_frontend_build
 
 echo "[1/4] 启动本地后端服务..."
+export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-1}"
 "${START_SH}"
 BACKEND_STARTED=1
 
