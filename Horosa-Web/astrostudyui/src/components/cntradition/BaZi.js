@@ -232,17 +232,26 @@ class BaZi extends Component{
 
 	onFieldsChange(field){
 		if(this.props.dispatch && this.props.fields){
+			const patch = {
+				...field,
+			};
+			const confirmed = !!patch.__confirmed;
+			if(Object.prototype.hasOwnProperty.call(patch, '__confirmed')){
+				delete patch.__confirmed;
+			}
 			let flds = {
 				fields: {
 					...this.props.fields,
-					...field,
+					...patch,
 				}
 			};
 			this.props.dispatch({
 				type: 'astro/save',
 				payload: flds
 			});
-			this.requestBazi(flds.fields);
+			if(confirmed || !Object.prototype.hasOwnProperty.call(field || {}, '__confirmed')){
+				this.requestBazi(flds.fields);
+			}
 		}
 	}
 	
