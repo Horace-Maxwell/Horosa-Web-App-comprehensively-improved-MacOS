@@ -12,6 +12,7 @@ const JIE_QI_SEED_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon'
 const JIE_QI_YEAR_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'hsys', 'zodiacal', 'doubingSu28', 'jieqis', 'seedOnly'];
 const MAX_CACHE_SIZE = 192;
 const DEFAULT_SEED_TERMS = ['大雪', '芒种'];
+const PRECISE_REQ_TIMEOUT_MS = 45000;
 
 const nongliMem = new Map();
 const nongliInflight = new Map();
@@ -122,6 +123,7 @@ export async function fetchPreciseNongli(params){
 			const rsp = await request(`${ServerRoot}/nongli/time`, {
 				body: JSON.stringify(params),
 				silent: true,
+				timeoutMs: PRECISE_REQ_TIMEOUT_MS,
 			});
 			const result = rsp && rsp[ResultKey] ? rsp[ResultKey] : null;
 			if(result){
@@ -156,6 +158,7 @@ export async function fetchPreciseJieqiYear(params){
 			const rsp = await request(`${ServerRoot}/jieqi/year`, {
 				body: JSON.stringify(params),
 				silent: true,
+				timeoutMs: PRECISE_REQ_TIMEOUT_MS,
 			});
 			const result = rsp && rsp[ResultKey] ? rsp[ResultKey] : null;
 			if(result){

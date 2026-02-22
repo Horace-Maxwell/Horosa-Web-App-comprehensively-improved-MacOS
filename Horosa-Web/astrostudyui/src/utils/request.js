@@ -236,6 +236,82 @@ function decrpyt(str, response){
     return str;
 }
 
+function normalizeTimeoutMs(val){
+	if(val === undefined || val === null || val === ''){
+		return null;
+	}
+	const n = Number(val);
+	if(!Number.isFinite(n) || n <= 0){
+		return null;
+	}
+	return Math.max(500, Math.floor(n));
+}
+
+function isTimeoutLikeError(err){
+	if(!err){
+		return false;
+	}
+	if(err.name === 'TimeoutError'){
+		return true;
+	}
+	const msg = `${err.message || ''}`.toLowerCase();
+	if(msg.indexOf('request.timeout') >= 0){
+		return true;
+	}
+	if(err.name === 'AbortError'){
+		return true;
+	}
+	return false;
+}
+
+function buildTimeoutError(){
+	const err = new Error('request.timeout');
+	err[Constants.ResultCodeKey] = 999;
+	err[Constants.ResultMessageKey] = 'request.timeout';
+	err.headers = {};
+	return err;
+}
+
+function fetchWithTimeout(url, opts, timeoutMs){
+	const timeout = normalizeTimeoutMs(timeoutMs);
+	if(!timeout){
+		return fetch(url, opts);
+	}
+	const reqOpts = {
+		...opts,
+	};
+	let controller = null;
+	if(typeof AbortController !== 'undefined'){
+		controller = new AbortController();
+		reqOpts.signal = controller.signal;
+	}
+	return new Promise((resolve, reject)=>{
+		let settled = false;
+		let timer = null;
+		const done = (handler, payload)=>{
+			if(settled){
+				return;
+			}
+			settled = true;
+			if(timer){
+				clearTimeout(timer);
+			}
+			handler(payload);
+		};
+		timer = setTimeout(()=>{
+			if(controller){
+				controller.abort();
+			}
+			const timeoutErr = new Error('request.timeout');
+			timeoutErr.name = 'TimeoutError';
+			done(reject, timeoutErr);
+		}, timeout);
+		fetch(url, reqOpts)
+			.then((resp)=>done(resolve, resp))
+			.catch((err)=>done(reject, err));
+	});
+}
+
 /**
  * Requests a URL, returning a promise.
  *
@@ -269,6 +345,11 @@ export default async function request(url, options) {
         if(opts && opts.disableLoading !== undefined){
             delete opts.disableLoading;
         }
+		let timeoutMs = null;
+		if(opts && opts.timeoutMs !== undefined){
+			timeoutMs = opts.timeoutMs;
+			delete opts.timeoutMs;
+		}
         let headers = opts.headers;
         if(headers === undefined || headers === null){
             headers = {};
@@ -292,7 +373,7 @@ export default async function request(url, options) {
         opts.body = encrypt(opts.body);
     
         const st = new Date().getTime();
-        const response = await fetch(url, opts);
+        const response = await fetchWithTimeout(url, opts, timeoutMs);
         const endt = new Date().getTime();
         const delta = endt - st;
         if(delta > 1000){
@@ -350,7 +431,13 @@ export default async function request(url, options) {
             return data;
         }    
     }catch(e){
-        innerHandleError(e);
+		if(isTimeoutLikeError(e)){
+			if(!silent){
+				innerHandleError(buildTimeoutError());
+			}
+		}else{
+			innerHandleError(e);
+		}
     }finally{
         if(dispatch && !silent){
             dispatch({
@@ -391,6 +478,11 @@ export async function requestRaw(url, options) {
         if(opts && opts.disableLoading !== undefined){
             delete opts.disableLoading;
         }
+		let timeoutMs = null;
+		if(opts && opts.timeoutMs !== undefined){
+			timeoutMs = opts.timeoutMs;
+			delete opts.timeoutMs;
+		}
         let headers = opts.headers;
         if(headers === undefined || headers === null){
             headers = {};
@@ -414,7 +506,7 @@ export async function requestRaw(url, options) {
         opts.body = encrypt(opts.body);
     
         const st = new Date().getTime();
-        const response = await fetch(url, opts);
+        const response = await fetchWithTimeout(url, opts, timeoutMs);
         const endt = new Date().getTime();
         const delta = endt - st;
         if(delta > 1000){
@@ -443,7 +535,13 @@ export async function requestRaw(url, options) {
         }
 
     }catch(e){
-        innerHandleError(e);
+		if(isTimeoutLikeError(e)){
+			if(!silent){
+				innerHandleError(buildTimeoutError());
+			}
+		}else{
+			innerHandleError(e);
+		}
     }finally{
         if(dispatch && !silent){
             dispatch({

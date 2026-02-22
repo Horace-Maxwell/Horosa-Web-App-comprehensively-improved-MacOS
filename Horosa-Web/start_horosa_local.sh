@@ -43,6 +43,19 @@ port_listening() {
   lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
 }
 
+http_responding() {
+  local url="$1"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 0
+  fi
+  local code
+  code="$(curl -s -o /dev/null -m 2 -w '%{http_code}' "${url}" || true)"
+  if [ -z "${code}" ] || [ "${code}" = "000" ]; then
+    return 1
+  fi
+  return 0
+}
+
 load_brew_env() {
   if [ -x /opt/homebrew/bin/brew ]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -374,8 +387,10 @@ for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
   fi
 
   if port_listening 8899 && port_listening 9999; then
-    ready=1
-    break
+    if http_responding "http://127.0.0.1:8899/" && http_responding "http://127.0.0.1:9999/common/time"; then
+      ready=1
+      break
+    fi
   fi
   sleep 1
 done

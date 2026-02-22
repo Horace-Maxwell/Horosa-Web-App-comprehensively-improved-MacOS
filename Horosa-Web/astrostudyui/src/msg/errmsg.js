@@ -12,6 +12,9 @@ const ErrMsg = {
     'imgtoken.error.-2': '图片验证码为空',
     'imgtoken.error.-1': '图片验证码超时',
     'imgtoken.error.0': '图片验证码未创建',
+    'request.timeout': '请求超时，请稍后重试',
+    'read timed out': '请求超时，请稍后重试',
+    'connect timed out': '连接超时，请稍后重试',
     'pwd.error': '密码错误',
     'signature.error': '签名错误',
     'loginid.is.null': '登陆名为空',
@@ -19,5 +22,14 @@ const ErrMsg = {
 
 export function getErrMsg(key){
     const msg = ErrMsg[key];
-    return msg ? msg : key;
+    if(msg){
+        return msg;
+    }
+    if(typeof key === 'string'){
+        const lower = key.toLowerCase();
+        if(lower.indexOf('timed out') >= 0 || lower.indexOf('timeout') >= 0){
+            return '请求超时，请稍后重试';
+        }
+    }
+    return key;
 }
