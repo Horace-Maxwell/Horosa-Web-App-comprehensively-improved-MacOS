@@ -1213,3 +1213,30 @@ Append new entries; do not rewrite history.
   - 该改动仅是渲染层容错，不改动任一节气/星盘算法精度。
 - Verification:
   - `npm run build:file` in `Horosa-Web/astrostudyui`
+
+
+### 01:53 - 星盘/希腊/六壬/金口诀提速 + AI“逆行误判”修复
+- Scope: reduce repeated slow requests on tab-enter/time-adjust and fix AI export where `主宰宫 R` 被误识别成“逆行”。
+- Files:
+  - `Horosa-Web/astrostudyui/src/services/astro.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartMain.js`
+  - `Horosa-Web/astrostudyui/src/components/astro3d/AstroChartMain3D.js`
+  - `Horosa-Web/astrostudyui/src/components/hellenastro/AstroChart13.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - **星盘请求去重与缓存**：`fetchChart` 增加内存缓存 + in-flight 去重，避免同参数重复触发 `/chart`。
+  - **切页不再强制重排**：`AstroChartMain` / `AstroChartMain3D` 的页签 hook 改为 no-op，避免“仅切回页签就重复请求”。
+  - **希腊十三分盘优化**：`AstroChart13` 增加缓存 + in-flight 去重；时间未确认(`confirmed=false`)仅静默预取，不打断界面；确认后优先命中缓存。
+  - **六壬优化**：
+    - 时间未确认时不再触发 `astro/fetchByFields`，避免拖动时间时频繁后台重排；
+    - `/liureng/gods` 与 `/liureng/runyear` 增加前端缓存 + in-flight 去重。
+  - **金口诀优化**：`/liureng/gods` 与 `/liureng/runyear` 增加前端缓存 + in-flight 去重，减少重复进入页签/重复参数时的等待。
+  - **AI逆行误判修复**：
+    - 去掉“数字+R”的宽匹配逆行替换，改为仅对“度数/度分格式+R”执行逆行转换；
+    - 括号信息里 `1R8R` 仅按主宰宫信息识别，不再误判为逆行标记。
+- Verification:
+  - `npm run build:file` in `Horosa-Web/astrostudyui`
+  - `./verify_horosa_local.sh` (services started by `start_horosa_local.sh`) -> `verify ok`

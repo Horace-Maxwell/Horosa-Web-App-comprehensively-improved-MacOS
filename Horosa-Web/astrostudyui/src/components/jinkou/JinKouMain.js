@@ -452,6 +452,41 @@ function getAppliedBirth(state){
 	return state ? state.birth : null;
 }
 
+function clonePlain(obj){
+	if(obj === undefined || obj === null){
+		return obj;
+	}
+	try{
+		return JSON.parse(JSON.stringify(obj));
+	}catch(e){
+		return obj;
+	}
+}
+
+function buildCacheKey(obj){
+	try{
+		return JSON.stringify(obj || {});
+	}catch(e){
+		return '';
+	}
+}
+
+function pushCache(map, key, val, max = 96){
+	if(!map || !key || val === undefined || val === null){
+		return;
+	}
+	if(map.has(key)){
+		map.delete(key);
+	}
+	map.set(key, val);
+	if(map.size > max){
+		const first = map.keys().next().value;
+		if(first){
+			map.delete(first);
+		}
+	}
+}
+
 class JinKouMain extends Component{
 	constructor(props) {
 		super(props);
@@ -474,6 +509,10 @@ class JinKouMain extends Component{
 
 		this.unmounted = false;
 		this.birthYearGanZiCache = {};
+		this.godsCache = new Map();
+		this.godsInflight = new Map();
+		this.runYearServerCache = new Map();
+		this.runYearServerInflight = new Map();
 
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.onBirthChange = this.onBirthChange.bind(this);
@@ -728,10 +767,33 @@ class JinKouMain extends Component{
 			return;
 		}
 		const params = this.genGodsParams(fields);
-		const data = await request(`${Constants.ServerRoot}/liureng/gods`, {
-			body: JSON.stringify(params),
-		});
-		const result = data[Constants.ResultKey];
+		const godsKey = buildCacheKey(params);
+		let result = null;
+		if(godsKey && this.godsCache.has(godsKey)){
+			result = clonePlain(this.godsCache.get(godsKey));
+		}else if(godsKey && this.godsInflight.has(godsKey)){
+			result = clonePlain(await this.godsInflight.get(godsKey));
+		}else{
+			const req = request(`${Constants.ServerRoot}/liureng/gods`, {
+				body: JSON.stringify(params),
+			}).then((data)=>{
+				return data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
+			}).finally(()=>{
+				if(godsKey){
+					this.godsInflight.delete(godsKey);
+				}
+			});
+			if(godsKey){
+				this.godsInflight.set(godsKey, req);
+			}
+			result = await req;
+			if(godsKey && result){
+				pushCache(this.godsCache, godsKey, clonePlain(result), 72);
+			}
+		}
+		if(!result || !result.liureng){
+			return;
+		}
 
 		const dayGanZi = result.liureng.nongli.dayGanZi;
 		const dayGan = dayGanZi.substr(0, 1);
@@ -797,11 +859,31 @@ class JinKouMain extends Component{
 		}
 
 		let result = fallbackRunYear ? { ...fallbackRunYear } : {};
+		const runyearKey = buildCacheKey(params);
 		try{
-			const data = await request(`${Constants.ServerRoot}/liureng/runyear`, {
-				body: JSON.stringify(params),
-			});
-			const serverRes = data[Constants.ResultKey] ? { ...data[Constants.ResultKey] } : {};
+			let serverRes = {};
+			if(runyearKey && this.runYearServerCache.has(runyearKey)){
+				serverRes = clonePlain(this.runYearServerCache.get(runyearKey)) || {};
+			}else if(runyearKey && this.runYearServerInflight.has(runyearKey)){
+				serverRes = clonePlain(await this.runYearServerInflight.get(runyearKey)) || {};
+			}else{
+				const req = request(`${Constants.ServerRoot}/liureng/runyear`, {
+					body: JSON.stringify(params),
+				}).then((data)=>{
+					return data && data[Constants.ResultKey] ? { ...data[Constants.ResultKey] } : {};
+				}).finally(()=>{
+					if(runyearKey){
+						this.runYearServerInflight.delete(runyearKey);
+					}
+				});
+				if(runyearKey){
+					this.runYearServerInflight.set(runyearKey, req);
+				}
+				serverRes = await req;
+				if(runyearKey){
+					pushCache(this.runYearServerCache, runyearKey, clonePlain(serverRes), 96);
+				}
+			}
 			result = {
 				...serverRes,
 				...result,

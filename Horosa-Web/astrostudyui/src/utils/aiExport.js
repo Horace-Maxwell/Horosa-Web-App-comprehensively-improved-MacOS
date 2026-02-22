@@ -611,7 +611,7 @@ function trimPlanetInfoBySetting(content, setting){
 				rulerPart = seg.toUpperCase();
 				return;
 			}
-			if(!rulerPart && (/^主/.test(seg) || /R/i.test(seg))){
+			if(!rulerPart && (/^主/.test(seg) || /\b\d{1,2}R(?:\d{1,2}R)*\b/i.test(seg))){
 				rulerPart = seg;
 				return;
 			}
@@ -1884,7 +1884,9 @@ function replaceKnownSymbols(text, domain){
 		.replace(/\u00A0/g, ' ')
 		.replace(/[ ]{2,}/g, ' ');
 	if(domain !== 'sanshiunited'){
-		output = output.replace(/([0-9˚分秒]+)\s*R\b/g, '$1 逆行');
+		output = output
+			.replace(/([+-]?\d+(?:\.\d+)?)\s*度\s*R\b/g, '$1度 逆行')
+			.replace(/(\d{1,2}\s*˚\s*(?:[^\s，,；;]{0,6})\s*\d{1,2}\s*分)\s*R\b/g, '$1 逆行');
 	}
 
 	return output;

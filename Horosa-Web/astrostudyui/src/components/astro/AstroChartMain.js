@@ -34,12 +34,8 @@ class AstroChartMain extends Component{
 		this.changeSouthChart = this.changeSouthChart.bind(this);
 
 		if(this.props.hook){
-			this.props.hook.fun = (fields)=>{
-				if(this.props.onChange){
-					this.props.onChange({
-						nohook: true,
-					});
-				}
+			this.props.hook.fun = ()=>{
+				return;
 			};
 		}
 

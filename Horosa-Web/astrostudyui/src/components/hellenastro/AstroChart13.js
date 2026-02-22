@@ -30,6 +30,75 @@ function fieldsToParams(fields){
 	return params;
 }
 
+const CHART13_CACHE_MAX = 64;
+const chart13Mem = new Map();
+const chart13Inflight = new Map();
+
+function clonePlain(obj){
+	if(obj === undefined || obj === null){
+		return obj;
+	}
+	try{
+		return JSON.parse(JSON.stringify(obj));
+	}catch(e){
+		return obj;
+	}
+}
+
+function pushCache(map, key, val){
+	if(!key || val === undefined || val === null){
+		return;
+	}
+	if(map.has(key)){
+		map.delete(key);
+	}
+	map.set(key, val);
+	if(map.size > CHART13_CACHE_MAX){
+		const first = map.keys().next().value;
+		if(first){
+			map.delete(first);
+		}
+	}
+}
+
+function buildChart13Key(params){
+	try{
+		return JSON.stringify(params || {});
+	}catch(e){
+		return '';
+	}
+}
+
+async function fetchChart13Cached(params, silent){
+	const key = buildChart13Key(params);
+	if(key && chart13Mem.has(key)){
+		return clonePlain(chart13Mem.get(key));
+	}
+	if(key && chart13Inflight.has(key)){
+		const inflight = await chart13Inflight.get(key);
+		return clonePlain(inflight);
+	}
+	const req = request(`${Constants.ServerRoot}/chart13`, {
+		body: JSON.stringify(params),
+		silent: !!silent,
+	}).then((data)=>{
+		const result = data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
+		if(key && result){
+			pushCache(chart13Mem, key, clonePlain(result));
+		}
+		return result;
+	}).finally(()=>{
+		if(key){
+			chart13Inflight.delete(key);
+		}
+	});
+	if(key){
+		chart13Inflight.set(key, req);
+	}
+	const result = await req;
+	return clonePlain(result);
+}
+
 class AstroChart13 extends Component{
 	constructor(props) {
 		super(props);
@@ -38,6 +107,8 @@ class AstroChart13 extends Component{
 		};
 
 		this.unmounted = false;
+		this.chartReqSeq = 0;
+		this.prefetchTimer = null;
 
 		this.requestChart = this.requestChart.bind(this);
 		this.genParams = this.genParams.bind(this);
@@ -56,10 +127,17 @@ class AstroChart13 extends Component{
 	}
 
 	async requestChart(params){
-		const data = await request(`${Constants.ServerRoot}/chart13`, {
-			body: JSON.stringify(params),
-		});
-		const result = data[Constants.ResultKey]
+		if(!params){
+			return;
+		}
+		const seq = ++this.chartReqSeq;
+		const result = await fetchChart13Cached(params, false);
+		if(this.unmounted || seq !== this.chartReqSeq){
+			return;
+		}
+		if(!result){
+			return;
+		}
 
 		const st = {
 			chartObj: result,
@@ -77,7 +155,29 @@ class AstroChart13 extends Component{
 	onFieldsChange(values){
 		if(this.props.onChange){
 			let flds = this.props.onChange(values);
+			if(!flds){
+				return;
+			}
 			let params = fieldsToParams(flds);
+			const unconfirmed = values && Object.prototype.hasOwnProperty.call(values, 'confirmed') && values.confirmed === false;
+			if(unconfirmed){
+				if(this.prefetchTimer){
+					clearTimeout(this.prefetchTimer);
+				}
+				this.prefetchTimer = setTimeout(()=>{
+					if(this.unmounted){
+						return;
+					}
+					fetchChart13Cached(params, true).catch(()=>{
+						return null;
+					});
+				}, 240);
+				return;
+			}
+			if(this.prefetchTimer){
+				clearTimeout(this.prefetchTimer);
+				this.prefetchTimer = null;
+			}
 			this.requestChart(params);
 		}		
 	}
@@ -91,6 +191,10 @@ class AstroChart13 extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(this.prefetchTimer){
+			clearTimeout(this.prefetchTimer);
+			this.prefetchTimer = null;
+		}
 	}
 
 	render(){
