@@ -1,4 +1,84 @@
 const LocalCasesKey = 'horosa.localCases.v1';
+const AstroAiSnapshotKey = 'horosa.ai.snapshot.astro.v1';
+const ModuleAiSnapshotPrefix = 'horosa.ai.snapshot.module.v1.';
+let fallbackToMemoryStore = false;
+let fallbackWarned = false;
+let memoryCases = [];
+
+function getLocalStorage(){
+	try{
+		if(typeof window !== 'undefined' && window.localStorage){
+			return window.localStorage;
+		}
+		if(typeof localStorage !== 'undefined'){
+			return localStorage;
+		}
+	}catch(e){
+		return null;
+	}
+	return null;
+}
+
+function warnMemoryFallback(){
+	if(fallbackWarned){
+		return;
+	}
+	fallbackWarned = true;
+	if(typeof console !== 'undefined' && console && typeof console.warn === 'function'){
+		console.warn('[horosa] localStorage unavailable, case data falls back to memory for this session.');
+	}
+}
+
+function enableMemoryFallback(){
+	fallbackToMemoryStore = true;
+	warnMemoryFallback();
+}
+
+function isQuotaError(err){
+	if(!err){
+		return false;
+	}
+	const name = `${err.name || ''}`;
+	const code = Number(err.code || 0);
+	const message = `${err.message || ''}`.toLowerCase();
+	if(code === 22 || code === 1014){
+		return true;
+	}
+	if(name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED'){
+		return true;
+	}
+	return message.indexOf('quota') >= 0;
+}
+
+function purgeHeavyLocalCache(){
+	const storage = getLocalStorage();
+	if(!storage){
+		return;
+	}
+	try{
+		storage.removeItem(AstroAiSnapshotKey);
+	}catch(e){
+		// ignore
+	}
+	const keys = [];
+	try{
+		for(let i=0; i<storage.length; i++){
+			const key = storage.key(i);
+			if(key && key.indexOf(ModuleAiSnapshotPrefix) === 0){
+				keys.push(key);
+			}
+		}
+	}catch(e){
+		return;
+	}
+	keys.forEach((key)=>{
+		try{
+			storage.removeItem(key);
+		}catch(e){
+			// ignore
+		}
+	});
+}
 
 export const CASE_TYPE_OPTIONS = [
 	{ value: 'liuyao', label: '六爻', subTab: 'guazhan', module: 'guazhan' },
@@ -93,25 +173,56 @@ function sortByUpdateTimeDesc(list){
 }
 
 function readRawCases(){
+	if(fallbackToMemoryStore){
+		return memoryCases.slice();
+	}
+	const storage = getLocalStorage();
+	if(!storage){
+		enableMemoryFallback();
+		return memoryCases.slice();
+	}
 	let raw = null;
 	try{
-		raw = localStorage.getItem(LocalCasesKey);
+		raw = storage.getItem(LocalCasesKey);
 	}catch(e){
-		return [];
+		enableMemoryFallback();
+		return memoryCases.slice();
 	}
 	const ary = safeParseJson(raw, []);
 	if(!(ary instanceof Array)){
 		return [];
 	}
+	memoryCases = ary.slice();
 	return ary;
 }
 
 function writeRawCases(list){
+	const next = list instanceof Array ? list.slice() : [];
+	memoryCases = next;
+	if(fallbackToMemoryStore){
+		return true;
+	}
+	const storage = getLocalStorage();
+	if(!storage){
+		enableMemoryFallback();
+		return true;
+	}
+	const text = JSON.stringify(next);
 	try{
-		localStorage.setItem(LocalCasesKey, JSON.stringify(list));
+		storage.setItem(LocalCasesKey, text);
 		return true;
 	}catch(e){
-		return false;
+		if(isQuotaError(e)){
+			purgeHeavyLocalCache();
+			try{
+				storage.setItem(LocalCasesKey, text);
+				return true;
+			}catch(e2){
+				// ignore and fallback below
+			}
+		}
+		enableMemoryFallback();
+		return true;
 	}
 }
 

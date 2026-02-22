@@ -1,4 +1,84 @@
 const LocalChartsKey = 'horosa.localCharts.v1';
+const AstroAiSnapshotKey = 'horosa.ai.snapshot.astro.v1';
+const ModuleAiSnapshotPrefix = 'horosa.ai.snapshot.module.v1.';
+let fallbackToMemoryStore = false;
+let fallbackWarned = false;
+let memoryCharts = [];
+
+function getLocalStorage(){
+	try{
+		if(typeof window !== 'undefined' && window.localStorage){
+			return window.localStorage;
+		}
+		if(typeof localStorage !== 'undefined'){
+			return localStorage;
+		}
+	}catch(e){
+		return null;
+	}
+	return null;
+}
+
+function warnMemoryFallback(){
+	if(fallbackWarned){
+		return;
+	}
+	fallbackWarned = true;
+	if(typeof console !== 'undefined' && console && typeof console.warn === 'function'){
+		console.warn('[horosa] localStorage unavailable, chart data falls back to memory for this session.');
+	}
+}
+
+function enableMemoryFallback(){
+	fallbackToMemoryStore = true;
+	warnMemoryFallback();
+}
+
+function isQuotaError(err){
+	if(!err){
+		return false;
+	}
+	const name = `${err.name || ''}`;
+	const code = Number(err.code || 0);
+	const message = `${err.message || ''}`.toLowerCase();
+	if(code === 22 || code === 1014){
+		return true;
+	}
+	if(name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED'){
+		return true;
+	}
+	return message.indexOf('quota') >= 0;
+}
+
+function purgeHeavyLocalCache(){
+	const storage = getLocalStorage();
+	if(!storage){
+		return;
+	}
+	try{
+		storage.removeItem(AstroAiSnapshotKey);
+	}catch(e){
+		// ignore
+	}
+	const keys = [];
+	try{
+		for(let i=0; i<storage.length; i++){
+			const key = storage.key(i);
+			if(key && key.indexOf(ModuleAiSnapshotPrefix) === 0){
+				keys.push(key);
+			}
+		}
+	}catch(e){
+		return;
+	}
+	keys.forEach((key)=>{
+		try{
+			storage.removeItem(key);
+		}catch(e){
+			// ignore
+		}
+	});
+}
 
 function safeParseJson(txt, defVal){
 	if(!txt){
@@ -48,25 +128,56 @@ function sortByUpdateTimeDesc(list){
 }
 
 function readRawCharts(){
+	if(fallbackToMemoryStore){
+		return memoryCharts.slice();
+	}
+	const storage = getLocalStorage();
+	if(!storage){
+		enableMemoryFallback();
+		return memoryCharts.slice();
+	}
 	let raw = null;
 	try{
-		raw = localStorage.getItem(LocalChartsKey);
+		raw = storage.getItem(LocalChartsKey);
 	}catch(e){
-		return [];
+		enableMemoryFallback();
+		return memoryCharts.slice();
 	}
 	const ary = safeParseJson(raw, []);
 	if(!(ary instanceof Array)){
 		return [];
 	}
+	memoryCharts = ary.slice();
 	return ary;
 }
 
 function writeRawCharts(list){
+	const next = list instanceof Array ? list.slice() : [];
+	memoryCharts = next;
+	if(fallbackToMemoryStore){
+		return true;
+	}
+	const storage = getLocalStorage();
+	if(!storage){
+		enableMemoryFallback();
+		return true;
+	}
+	const text = JSON.stringify(next);
 	try{
-		localStorage.setItem(LocalChartsKey, JSON.stringify(list));
+		storage.setItem(LocalChartsKey, text);
 		return true;
 	}catch(e){
-		return false;
+		if(isQuotaError(e)){
+			purgeHeavyLocalCache();
+			try{
+				storage.setItem(LocalChartsKey, text);
+				return true;
+			}catch(e2){
+				// ignore and fallback below
+			}
+		}
+		enableMemoryFallback();
+		return true;
 	}
 }
 
