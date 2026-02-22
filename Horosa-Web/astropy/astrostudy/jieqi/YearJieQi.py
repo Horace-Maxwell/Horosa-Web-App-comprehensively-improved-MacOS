@@ -104,11 +104,15 @@ class YearJieQi:
     def computeJieQi(self, needChart):
         jieqicharts = {}
         jieqi24 = []
-        tmpjieqi24 = {} if needChart and len(self.jieqis) > 0 else None
+        chartTerms = list(jieqiconst.JieQiLon.keys())
+        if len(self.jieqis) > 0:
+            chartTerms = [key for key in chartTerms if key in self.jieqis]
+        chartTermSet = set(chartTerms)
+        tmpjieqi24 = {} if needChart and len(chartTerms) > 0 else None
         res = {}
 
         terms = list(jieqiconst.JieQiLon.keys())
-        if len(self.jieqis) > 0:
+        if not needChart and len(self.jieqis) > 0:
             terms = [key for key in terms if key in self.jieqis]
 
         for key in terms:
@@ -129,7 +133,7 @@ class YearJieQi:
             }
             jieqi24.append(obj)
 
-            if tmpjieqi24 is not None:
+            if tmpjieqi24 is not None and key in chartTermSet:
                 parts = dtstr.split(' ')
                 tmpjieqi24[key] = {
                     'date': parts[0],
@@ -147,7 +151,7 @@ class YearJieQi:
             res['jieqi24'] = jieqi24
 
             if tmpjieqi24 is not None:
-                for key in self.jieqis:
+                for key in chartTerms:
                     if key in tmpjieqi24.keys():
                         self.params['date'] = tmpjieqi24[key]['date']
                         self.params['time'] = tmpjieqi24[key]['time']

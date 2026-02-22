@@ -1128,3 +1128,27 @@ Append new entries; do not rewrite history.
   - 与 Safari 兼容修复并存，不影响本地存储兜底能力。
 - Verification:
   - `bash -n Horosa_Local.command`
+
+### 00:58 - 修复节气盘仅返回二分二至：年视图恢复完整二十四节气（保留三式快路径）
+- Scope: fix JieQi year panel returning only the 4 seasonal terms when frontend passes `jieqis` subset for chart tabs.
+- Files:
+  - `Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 根因是 `computeJieQi(True)` 直接复用了 `self.jieqis` 过滤 `jieqi24`，导致年视图被裁剪成 4 项。
+  - 调整为“结果列表”和“起盘列表”分离：
+    - `needChart=True` 时，`jieqi24` 始终计算并返回完整 24 节气；
+    - 仅 `charts` 使用传入 `jieqis`（例如春分/夏至/秋分/冬至）做季节盘起盘；
+    - `seedOnly` / `needChart=False` 仍保留按 `jieqis` 过滤（不影响遁甲/金口诀/三式合一快路径）。
+  - 保持原有 `approach` 数值迭代流程不变，未改变任何节气时刻算法精度逻辑。
+- Verification:
+  - `python3 -m py_compile Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py`
+  - `PYTHONPATH='Horosa-Web/astropy:Horosa-Web/flatlib-ctrad2:$HOME/Library/Python/3.12/lib/python/site-packages' runtime/mac/python/bin/python3` 运行 YearJieQi 自检：
+    - `needChart=True -> jieqi24 len = 24, charts len = 4`
+    - `seedOnly=True -> jieqi24 len = 4`（仅返回请求项）
+  - 性能采样（同机本地函数级）：
+    - `seedOnly` 平均约 `2.87ms`（p95 `2.93ms`），满足三式快路径预算；
+    - `needChart=True` 平均约 `245ms`，远低于“打开节气盘 5 秒内”阈值。
+  - 前端回归：
+    - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+    - `npm run build:file` in `Horosa-Web/astrostudyui`
