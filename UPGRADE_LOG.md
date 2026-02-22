@@ -1240,3 +1240,21 @@ Append new entries; do not rewrite history.
 - Verification:
   - `npm run build:file` in `Horosa-Web/astrostudyui`
   - `./verify_horosa_local.sh` (services started by `start_horosa_local.sh`) -> `verify ok`
+
+
+### 01:59 - 恢复节气卡片“时间+四柱+纳音”结构（双阶段加载，不拖慢首屏）
+- Scope: restore the original 24-term card structure (time + 四柱 + 纳音) without lowering precision and without regressing first-screen latency.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 根因：节气页首请求为 `needBazi=false`（用于首屏提速），导致 `jieqi24` 只有时间无四柱/纳音。
+  - 修复为双阶段：
+    - **阶段1（首屏快）**：继续 `needBazi=false`，优先显示24节气时间；
+    - **阶段2（后台补全）**：同参数自动发起 `needBazi=true, needCharts=false` 的精确请求，回填每个节气卡片的四柱与纳音。
+  - 加入 seq/缓存键保护，避免旧请求回填新年份造成错位。
+  - 在回填完成前显示“八字与纳音加载中...”，避免误判为功能被删除。
+  - 算法精度保持不变：八字/纳音仍来自原后端 `setupBazi` 计算链路。
+- Verification:
+  - `npm run build:file` in `Horosa-Web/astrostudyui`
+  - `./verify_horosa_local.sh` (services started by `start_horosa_local.sh`) -> `verify ok`

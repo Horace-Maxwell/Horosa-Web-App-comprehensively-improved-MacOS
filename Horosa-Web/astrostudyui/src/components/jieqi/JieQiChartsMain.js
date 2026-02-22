@@ -694,10 +694,12 @@ class JieQiChartsMain extends Component{
 		this.requestSeq = 0;
 		this.pendingRequest = null;
 		this.lastResultKey = '';
+		this.lastBaziEnrichKey = '';
 
 		this.changeTab = this.changeTab.bind(this);
 		this.requestJieQi = this.requestJieQi.bind(this);
 		this.genParams = this.genParams.bind(this);
+		this.enrichJieQiBazi = this.enrichJieQiBazi.bind(this);
 
 		this.onLatChanged = this.onLatChanged.bind(this);
 		this.onLonChanged = this.onLonChanged.bind(this);
@@ -814,6 +816,7 @@ class JieQiChartsMain extends Component{
 			this.setState(st, ()=>{
 				this.saveCurrentJieQiSnapshot(this.state.currentTab, result, flds);
 			});
+			this.enrichJieQiBazi(params, seq);
 			this.preloadJieqiCharts(params);
 			if(this.snapshotTimer){
 				if(typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function'){
@@ -873,6 +876,82 @@ class JieQiChartsMain extends Component{
 			needCharts: true,
 		};
 		fetchPreciseJieqiYear(preloadParams).catch(()=>{
+			return null;
+		});
+	}
+
+	enrichJieQiBazi(params, seq){
+		if(!params || params.needBazi){
+			return;
+		}
+		const baziParams = {
+			...params,
+			needBazi: true,
+			needCharts: false,
+		};
+		const enrichKey = this.getRequestKey(baziParams);
+		if(this.lastBaziEnrichKey === enrichKey){
+			const list = this.state && this.state.result && Array.isArray(this.state.result.jieqi24)
+				? this.state.result.jieqi24
+				: [];
+			const allReady = list.length > 0 && list.every((item)=>{
+				return !!(item && item.bazi && item.bazi.fourColumns && item.bazi.fourColumns.year);
+			});
+			if(allReady){
+				return;
+			}
+		}
+		this.lastBaziEnrichKey = enrichKey;
+		fetchPreciseJieqiYear(baziParams).then((fullResult)=>{
+			if(this.unmounted || seq !== this.requestSeq){
+				return null;
+			}
+			if(!fullResult || !Array.isArray(fullResult.jieqi24)){
+				return null;
+			}
+			const current = this.state && this.state.result ? this.state.result : {};
+			const currentList = Array.isArray(current.jieqi24) ? current.jieqi24 : [];
+			if(currentList.length === 0){
+				return null;
+			}
+			const baziMap = {};
+			fullResult.jieqi24.forEach((item)=>{
+				if(item && item.jieqi && item.bazi){
+					baziMap[item.jieqi] = item.bazi;
+				}
+			});
+			let changed = false;
+			const mergedList = currentList.map((item)=>{
+				if(!item || !item.jieqi){
+					return item;
+				}
+				if(item.bazi && item.bazi.fourColumns && item.bazi.fourColumns.year){
+					return item;
+				}
+				const bazi = baziMap[item.jieqi];
+				if(!bazi){
+					return item;
+				}
+				changed = true;
+				return {
+					...item,
+					bazi,
+				};
+			});
+			if(!changed){
+				return null;
+			}
+			const merged = {
+				...current,
+				jieqi24: mergedList,
+			};
+			this.setState({
+				result: merged,
+			}, ()=>{
+				this.saveCurrentJieQiSnapshot(this.state.currentTab, merged, this.state.fields);
+			});
+			return null;
+		}).catch(()=>{
 			return null;
 		});
 	}
@@ -1036,13 +1115,14 @@ class JieQiChartsMain extends Component{
 
 		let cols = this.state.result.jieqi24.map((item, idx)=>{
 			const fourCols = item && item.bazi && item.bazi.fourColumns ? item.bazi.fourColumns : null;
+			const hasFourCols = !!(fourCols && fourCols.year && fourCols.month && fourCols.day && fourCols.time);
 			return (
 				<Col key={item.jieqi} span={6}>
 					<Card title={item.jieqi} bordered={false}>
 						<Row>
 							<Col span={24}>{item.time}</Col>
 							{
-								fourCols && fourCols.year && (
+								hasFourCols && (
 									<Col span={24} style={{textAlign:'center'}}>
 										<Row gutter={6}>
 											<Col span={6}>
@@ -1062,7 +1142,7 @@ class JieQiChartsMain extends Component{
 								)
 							}
 							{
-								fourCols && fourCols.year && (
+								hasFourCols && (
 									<Col span={24} style={{textAlign:'center'}}>
 										<Row gutter={6}>
 											<Col span={6}>
@@ -1079,6 +1159,13 @@ class JieQiChartsMain extends Component{
 											</Col>
 										</Row>
 									</Col>	
+								)
+							}
+							{
+								!hasFourCols && (
+									<Col span={24} style={{color:'#8c8c8c', marginTop:4}}>
+										八字与纳音加载中...
+									</Col>
 								)
 							}
 						</Row>					
