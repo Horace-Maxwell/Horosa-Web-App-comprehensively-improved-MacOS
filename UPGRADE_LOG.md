@@ -1007,3 +1007,19 @@ Append new entries; do not rewrite history.
   - `bash -n Horosa_Local.command Prepare_Runtime_Mac.command Horosa-Web/start_horosa_local.sh scripts/mac/bootstrap_and_run.sh`
   - `HOROSA_SKIP_BUILD=1 HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 HOROSA_SKIP_TOOLCHAIN_INSTALL=1 ./scripts/mac/bootstrap_and_run.sh`
   - 模拟 `target jar` 缺失并执行 `Horosa-Web/start_horosa_local.sh`：确认输出 `using bundled jar fallback` 且自动回填成功。
+
+### 20:18 - 启动超时容错增强：默认等待 180s，可环境变量扩展
+- Scope: fix false timeout on slower machines (e.g., first run on Mac mini) where services are healthy but startup takes longer than 60s.
+- Files:
+  - `Horosa-Web/start_horosa_local.sh`
+  - `README.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `start_horosa_local.sh` 启动等待从固定 60 秒改为可配置：
+    - 默认 `HOROSA_STARTUP_TIMEOUT=180`；
+    - 小于 30 或非法值会自动回退到 180；
+    - 超时时输出明确提示可设置 `HOROSA_STARTUP_TIMEOUT=300`。
+  - README 增加 `HOROSA_STARTUP_TIMEOUT` 与 Maven 直连参数说明，便于无 Homebrew 环境排障。
+- Verification:
+  - `bash -n Horosa-Web/start_horosa_local.sh`
+  - `bash -n Horosa_Local.command Prepare_Runtime_Mac.command scripts/mac/bootstrap_and_run.sh`

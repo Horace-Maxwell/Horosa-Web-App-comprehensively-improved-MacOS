@@ -1,6 +1,6 @@
 # Horosa Web + App（GitHub 可上传版）
 
-更新时间：2026-02-20
+更新时间：2026-02-21
 
 目标：这个仓库上传到 GitHub 后，在任意一台 Mac 上都可以通过一次点击完成依赖准备、构建并启动当前功能。
 
@@ -33,6 +33,8 @@
 - `HOROSA_SKIP_TOOLCHAIN_INSTALL=1`：跳过 Homebrew/工具链安装
 - `HOROSA_SKIP_LAUNCH=1`：只做预检和构建，不自动启动页面
 - `HOROSA_JDK17_URL=<url>`：自定义 Java17 下载地址（默认使用 Adoptium API）
+- `HOROSA_MAVEN_VERSION=<version>` / `HOROSA_MAVEN_URL=<url>`：自定义 Maven 直连下载版本/地址
+- `HOROSA_STARTUP_TIMEOUT=300`：启动等待时长（秒，默认 180；慢机器首启可调大）
 
 ## 上传 GitHub 前建议流程
 
@@ -69,5 +71,6 @@
   - 运行 `Horosa_OneClick_Mac.command` 自动安装；若 Homebrew 不可用会改为直连下载 JDK 17。
 - `python runtime cannot import cherrypy`：
   - 重新运行 `Horosa_OneClick_Mac.command`，会重建 venv 并补依赖。
-- `services did not become ready in time (need both 8899 and 9999)`：
+- `services did not become ready in ... (need both 8899 and 9999)`：
   - 检查 8899/9999 是否被占用；查看 `Horosa-Web/.horosa-local-logs/` 日志。
+  - 机器首启较慢可设置 `HOROSA_STARTUP_TIMEOUT=300` 后重试。

@@ -15,6 +15,7 @@ PYTHON_BIN="${HOROSA_PYTHON:-python3}"
 JAVA_BIN="${HOROSA_JAVA_BIN:-java}"
 PYTHONPATH_ASTRO="${ROOT}/astropy"
 EXTRA_PY_SITE=""
+STARTUP_TIMEOUT="${HOROSA_STARTUP_TIMEOUT:-180}"
 
 if [ ! -f "${HTML_PATH}" ]; then
   HTML_PATH="${UI_DIR}/dist/index.html"
@@ -278,6 +279,10 @@ if [ -f "${PY_PID_FILE}" ] || [ -f "${JAVA_PID_FILE}" ]; then
   exit 1
 fi
 
+if ! [[ "${STARTUP_TIMEOUT}" =~ ^[0-9]+$ ]] || [ "${STARTUP_TIMEOUT}" -lt 30 ]; then
+  STARTUP_TIMEOUT=180
+fi
+
 if port_listening 8899; then
   echo "port 8899 is already in use."
   exit 1
@@ -358,7 +363,7 @@ echo $! > "${PY_PID_FILE}"
 echo $! > "${JAVA_PID_FILE}"
 
 ready=0
-for _ in $(seq 1 60); do
+for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
   if ! kill -0 "$(cat "${PY_PID_FILE}")" >/dev/null 2>&1; then
     echo "astropy process exited during startup."
     break
@@ -376,7 +381,8 @@ for _ in $(seq 1 60); do
 done
 
 if [ "${ready}" -ne 1 ]; then
-  echo "services did not become ready in time (need both 8899 and 9999)."
+  echo "services did not become ready in ${STARTUP_TIMEOUT}s (need both 8899 and 9999)."
+  echo "tip: increase timeout by setting HOROSA_STARTUP_TIMEOUT=300 if this machine is slow on first run."
   echo "--- python log tail ---"
   tail -n 40 "${PY_LOG}" || true
   echo "--- java log tail ---"
