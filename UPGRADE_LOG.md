@@ -1197,3 +1197,19 @@ Append new entries; do not rewrite history.
 - Verification:
   - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
   - `npm run build:file` in `Horosa-Web/astrostudyui`
+
+
+### 01:43 - 修复节气盘白屏卡死：无 charts 返回时改为安全占位渲染
+- Scope: fix immediate white-screen when opening 节气盘 after list-only response (`needCharts=false`) returns no seasonal chart payload.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 根因：`genTabsDom` 在 `charts={}` 时仍直接访问 `chart.params`，导致 `TypeError` 触发整页白屏。
+  - 修复为全量空值防护：
+    - 对 `chart` 增加判空后再读 `chart.params`；
+    - 三类子页（星盘/宿盘/3D盘）在对应节气 `chart` 未返回前显示“正在计算...”占位，而不是渲染空对象组件；
+    - 保留右侧节气子标签，用户可直接切换触发 `needCharts=true` 懒加载。
+  - 该改动仅是渲染层容错，不改动任一节气/星盘算法精度。
+- Verification:
+  - `npm run build:file` in `Horosa-Web/astrostudyui`

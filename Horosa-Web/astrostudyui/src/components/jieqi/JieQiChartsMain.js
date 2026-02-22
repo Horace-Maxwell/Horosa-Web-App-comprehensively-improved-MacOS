@@ -1096,83 +1096,95 @@ class JieQiChartsMain extends Component{
 	}
 
 	genTabsDom(height){
-		let tabs = [];
-		const charts = this.state.result.charts;
-		if(charts){
-			for(let i=0; i<this.state.jieqis.length; i++){
-				let title = this.state.jieqis[i];
-				let chart = charts[title];
-				let flds = {
-					...(this.props.fields || {}),
-					...(this.state.fields || {}),
-				};
-				if(chart.params){
-					flds = paramsToFields(chart.params, flds);
-				}
-				const starKey = title;
-				const suKey = '宿盘'+title;
-				const d3Key = '3D盘'+title;
-				const renderStar = this.state.currentTab === starKey;
-				const renderSu = this.state.currentTab === suKey;
-				const render3d = this.state.currentTab === d3Key;
-				let tab = (
-					<TabPane tab={title+'星盘'} key={starKey}>
-						{renderStar ? (
-						<AstroChartMain
-							hidehsys={1}
-							hidezodiacal={1}
-							hidedateselector={true}
-							height={height}
-							fields={flds}
-							value={chart}
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}	
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>) : null}
-					</TabPane>
-
-				);
-				tabs.push(tab);
-
-				let sztab = (
-					<TabPane tab={title+'宿盘'} key={suKey}>
-						{renderSu ? (
-						<SuZhanMain
-							value={chart}
-							height={height}
-							fields={flds}
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							hook={this.state.hook.suzhan}
-							onFieldsChange={this.onSuZhanFieldsChange}
-							dispatch={this.props.dispatch}
-						/>) : null}
-					</TabPane>
-				);
-				tabs.push(sztab);
-
-				let tab3d = (
-					<TabPane tab={title+'3D盘'} key={d3Key}>
-						{render3d ? (
-						<AstroChartMain3D
-							hidehsys={1}
-							hidezodiacal={1}
-							hidedateselector={true}
-							needChart3D={true}
-							value={chart}
-							height={height}
-							fields={flds}
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}	
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>) : null}
-					</TabPane>
-				);
-				tabs.push(tab3d);
-
+		const tabs = [];
+		const charts = (this.state.result && this.state.result.charts) ? this.state.result.charts : {};
+		const loadingDom = (title, type)=>(
+			<div style={{ padding: 18 }}>
+				{`正在计算${title}${type}，请稍候...`}
+			</div>
+		);
+		for(let i=0; i<this.state.jieqis.length; i++){
+			const title = this.state.jieqis[i];
+			const chart = charts ? charts[title] : null;
+			let flds = {
+				...(this.props.fields || {}),
+				...(this.state.fields || {}),
+			};
+			if(chart && chart.params){
+				flds = paramsToFields(chart.params, flds);
 			}
+			const starKey = title;
+			const suKey = '宿盘'+title;
+			const d3Key = '3D盘'+title;
+			const renderStar = this.state.currentTab === starKey;
+			const renderSu = this.state.currentTab === suKey;
+			const render3d = this.state.currentTab === d3Key;
+			let tab = (
+				<TabPane tab={title+'星盘'} key={starKey}>
+					{renderStar ? (
+						chart ? (
+							<AstroChartMain
+								hidehsys={1}
+								hidezodiacal={1}
+								hidedateselector={true}
+								height={height}
+								fields={flds}
+								value={chart}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}	
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+							/>
+						) : loadingDom(title, '星盘')
+					) : null}
+				</TabPane>
+
+			);
+			tabs.push(tab);
+
+			let sztab = (
+				<TabPane tab={title+'宿盘'} key={suKey}>
+					{renderSu ? (
+						chart ? (
+							<SuZhanMain
+								value={chart}
+								height={height}
+								fields={flds}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								hook={this.state.hook.suzhan}
+								onFieldsChange={this.onSuZhanFieldsChange}
+								dispatch={this.props.dispatch}
+							/>
+						) : loadingDom(title, '宿盘')
+					) : null}
+				</TabPane>
+			);
+			tabs.push(sztab);
+
+			let tab3d = (
+				<TabPane tab={title+'3D盘'} key={d3Key}>
+					{render3d ? (
+						chart ? (
+							<AstroChartMain3D
+								hidehsys={1}
+								hidezodiacal={1}
+								hidedateselector={true}
+								needChart3D={true}
+								value={chart}
+								height={height}
+								fields={flds}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}	
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+							/>
+						) : loadingDom(title, '3D盘')
+					) : null}
+				</TabPane>
+			);
+			tabs.push(tab3d);
+
 		}
 
 		return tabs;
