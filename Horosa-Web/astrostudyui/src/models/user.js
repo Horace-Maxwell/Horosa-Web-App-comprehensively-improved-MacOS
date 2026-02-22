@@ -705,11 +705,11 @@ export default {
 			const param = {
 				...values,
 			};
-			if(values.divTime){
-				param.divTime = values.divTime.format('YYYY-MM-DD HH:mm:ss');
-				param.zone = values.divTime.zone;
-			}
 			try{
+				if(values.divTime){
+					param.divTime = values.divTime.format('YYYY-MM-DD HH:mm:ss');
+					param.zone = values.divTime.zone;
+				}
 				const rec = upsertLocalCase(param);
 				yield put({
 					type: 'setCurrentCase',
@@ -733,11 +733,11 @@ export default {
 			const param = {
 				...values,
 			};
-			if(values.divTime){
-				param.divTime = values.divTime.format('YYYY-MM-DD HH:mm:ss');
-				param.zone = values.divTime.zone;
-			}
 			try{
+				if(values.divTime){
+					param.divTime = values.divTime.format('YYYY-MM-DD HH:mm:ss');
+					param.zone = values.divTime.zone;
+				}
 				const rec = upsertLocalCase(param);
 				yield put({
 					type: 'setCurrentCase',
@@ -890,11 +890,11 @@ export default {
 			const param = {
 				...values,
 			};
-			if(values.birth){
-				param.birth = values.birth.format('YYYY-MM-DD HH:mm:ss');
-				param.zone = values.birth.zone;
-			}
 			try{
+				if(values.birth){
+					param.birth = values.birth.format('YYYY-MM-DD HH:mm:ss');
+					param.zone = values.birth.zone;
+				}
 				const rec = upsertLocalChart(param);
 				yield put({
 		                type: 'setCurrentChart',
@@ -921,11 +921,11 @@ export default {
 			const param = {
 				...values,
 			};
-			if(values.birth){
-				param.birth = values.birth.format('YYYY-MM-DD HH:mm:ss');
-				param.zone = values.birth.zone;
-			}
 			try{
+				if(values.birth){
+					param.birth = values.birth.format('YYYY-MM-DD HH:mm:ss');
+					param.zone = values.birth.zone;
+				}
 				const rec = upsertLocalChart(param);
 				yield put({
 		                type: 'setCurrentChart',
