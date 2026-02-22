@@ -1,7 +1,5 @@
 import { Component } from 'react';
 import { Checkbox, Row, Col, Tabs, Divider } from 'antd';
-import {randomStr} from '../../utils/helper';
-import * as AstroHelper from './AstroHelper';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 
@@ -15,6 +13,15 @@ class PlanetSelector extends Component{
 
 		this.onChange = this.onChange.bind(this);
 		this.onLotsChange = this.onLotsChange.bind(this);
+	}
+
+	renderLabel(item){
+		return (
+			<span>
+				<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[item]}</span>
+				<span>&nbsp;({AstroText.AstroTxtMsg[item]})</span>
+			</span>
+		);
 	}
 
 	onChange(checkedValues){
@@ -42,11 +49,11 @@ class PlanetSelector extends Component{
 	}
 
 	render(){
-		let allobjs = AstroConst.LIST_POINTS.map((item, idx)=>{
+		let allobjs = AstroConst.LIST_POINTS.map((item)=>{
 			return (
 				<Col span={24} key={item}>
-					<Checkbox value={item} style={{fontFamily: AstroConst.AstroFont}}>
-						{AstroText.AstroMsg[item] + '(' + AstroText.AstroTxtMsg[item] + ')'}
+					<Checkbox value={item}>
+						{this.renderLabel(item)}
 					</Checkbox>
 				</Col>
 			);
@@ -55,8 +62,8 @@ class PlanetSelector extends Component{
 		let lots = AstroConst.LOTS.map((item, idx)=>{
 			let col = (
 				<Col span={24} key={item}>
-					<Checkbox value={item} style={{fontFamily: AstroConst.AstroFont}}>
-						{AstroText.AstroMsg[item] + '(' + AstroText.AstroTxtMsg[item] + ')'}
+					<Checkbox value={item}>
+						{this.renderLabel(item)}
 					</Checkbox>
 				</Col>
 			);
@@ -64,16 +71,16 @@ class PlanetSelector extends Component{
 				col = (
 					<Col span={24} key={item}>
 						<Divider>希腊点</Divider>
-						<Checkbox value={item} style={{fontFamily: AstroConst.AstroFont}}>
-							{AstroText.AstroMsg[item] + '(' + AstroText.AstroTxtMsg[item] + ')'}
+						<Checkbox value={item}>
+							{this.renderLabel(item)}
 						</Checkbox>
 					</Col>
 				);
 			}else if(idx === 5){
 				col = (
 					<Col span={24} key={item}>
-						<Checkbox value={item} style={{fontFamily: AstroConst.AstroFont}}>
-							{AstroText.AstroMsg[item] + '(' + AstroText.AstroTxtMsg[item] + ')'}
+						<Checkbox value={item}>
+							{this.renderLabel(item)}
 						</Checkbox>
 						<Divider>阿拉伯点</Divider>
 					</Col>

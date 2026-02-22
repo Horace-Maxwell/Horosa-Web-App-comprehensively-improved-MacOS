@@ -922,3 +922,16 @@ Append new entries; do not rewrite history.
   - `npm run build --silent` in `Horosa-Web/astrostudyui`
   - `npm run build:file --silent` in `Horosa-Web/astrostudyui`
   - `/bin/zsh -lc 'cd "Horosa-Web"; ./stop_horosa_local.sh; ./start_horosa_local.sh; ./verify_horosa_local.sh; ./stop_horosa_local.sh'`
+
+### 17:33 - 修复“行星选择”面板乱码，恢复符号+中文原样式
+- Scope: fix garbled labels in `行星选择` drawer where Chinese text was rendered with the astrology glyph font.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/PlanetSelector.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增 `renderLabel(item)`，将标签拆分为“符号”和“中文说明”两段渲染。
+  - 仅对符号段应用 `AstroConst.AstroFont`，中文与括号使用默认字体，避免 `☉灵点?` 这类乱码。
+  - 去掉 `Checkbox` 整体 `fontFamily` 设置，避免把非符号字符也强制走占星字体。
+  - 清理 `PlanetSelector` 中未使用的导入与未使用参数，保持组件干净。
+- Verification:
+  - `npm run build` in `Horosa-Web/astrostudyui`
