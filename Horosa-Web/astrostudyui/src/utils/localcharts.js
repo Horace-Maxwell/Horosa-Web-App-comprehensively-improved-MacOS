@@ -48,7 +48,13 @@ function sortByUpdateTimeDesc(list){
 }
 
 function readRawCharts(){
-	const ary = safeParseJson(localStorage.getItem(LocalChartsKey), []);
+	let raw = null;
+	try{
+		raw = localStorage.getItem(LocalChartsKey);
+	}catch(e){
+		return [];
+	}
+	const ary = safeParseJson(raw, []);
 	if(!(ary instanceof Array)){
 		return [];
 	}
@@ -56,7 +62,12 @@ function readRawCharts(){
 }
 
 function writeRawCharts(list){
-	localStorage.setItem(LocalChartsKey, JSON.stringify(list));
+	try{
+		localStorage.setItem(LocalChartsKey, JSON.stringify(list));
+		return true;
+	}catch(e){
+		return false;
+	}
 }
 
 export function listLocalCharts(filter){
@@ -142,14 +153,20 @@ export function upsertLocalChart(values){
 	}else{
 		list.push(next);
 	}
-	writeRawCharts(sortByUpdateTimeDesc(list));
+	const saved = writeRawCharts(sortByUpdateTimeDesc(list));
+	if(!saved){
+		throw new Error('local.chart.save.failed');
+	}
 	return next;
 }
 
 export function removeLocalChart(cid){
 	const list = readRawCharts();
 	const next = list.filter((item)=> item.cid !== cid);
-	writeRawCharts(next);
+	const saved = writeRawCharts(next);
+	if(!saved){
+		throw new Error('local.chart.delete.failed');
+	}
 }
 
 export function exportLocalChartsBackup(){

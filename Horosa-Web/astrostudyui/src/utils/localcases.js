@@ -93,7 +93,13 @@ function sortByUpdateTimeDesc(list){
 }
 
 function readRawCases(){
-	const ary = safeParseJson(localStorage.getItem(LocalCasesKey), []);
+	let raw = null;
+	try{
+		raw = localStorage.getItem(LocalCasesKey);
+	}catch(e){
+		return [];
+	}
+	const ary = safeParseJson(raw, []);
 	if(!(ary instanceof Array)){
 		return [];
 	}
@@ -101,7 +107,12 @@ function readRawCases(){
 }
 
 function writeRawCases(list){
-	localStorage.setItem(LocalCasesKey, JSON.stringify(list));
+	try{
+		localStorage.setItem(LocalCasesKey, JSON.stringify(list));
+		return true;
+	}catch(e){
+		return false;
+	}
 }
 
 export function listLocalCases(filter){
@@ -194,14 +205,20 @@ export function upsertLocalCase(values){
 	}else{
 		list.push(next);
 	}
-	writeRawCases(sortByUpdateTimeDesc(list));
+	const saved = writeRawCases(sortByUpdateTimeDesc(list));
+	if(!saved){
+		throw new Error('local.case.save.failed');
+	}
 	return next;
 }
 
 export function removeLocalCase(cid){
 	const list = readRawCases();
 	const next = list.filter((item)=> item.cid !== cid);
-	writeRawCases(next);
+	const saved = writeRawCases(next);
+	if(!saved){
+		throw new Error('local.case.delete.failed');
+	}
 }
 
 export function exportLocalCasesBackup(){

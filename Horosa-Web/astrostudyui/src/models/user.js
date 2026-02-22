@@ -709,17 +709,24 @@ export default {
 				param.divTime = values.divTime.format('YYYY-MM-DD HH:mm:ss');
 				param.zone = values.divTime.zone;
 			}
-			const rec = upsertLocalCase(param);
-			yield put({
-				type: 'setCurrentCase',
-				payload: rec,
-			});
-			yield put({
-				type: 'astro/openDrawer',
-				payload: {
-					key: 'caselist',
-				},
-			});
+			try{
+				const rec = upsertLocalCase(param);
+				yield put({
+					type: 'setCurrentCase',
+					payload: rec,
+				});
+				yield put({
+					type: 'astro/openDrawer',
+					payload: {
+						key: 'caselist',
+					},
+				});
+			}catch(e){
+				Modal.error({
+					title: '事盘保存失败',
+					content: '本地存储不可用或空间不足，请导出清理后重试。',
+				});
+			}
 		},
 
 		*updateCase({ payload: values }, { call, put }){
@@ -730,27 +737,41 @@ export default {
 				param.divTime = values.divTime.format('YYYY-MM-DD HH:mm:ss');
 				param.zone = values.divTime.zone;
 			}
-			const rec = upsertLocalCase(param);
-			yield put({
-				type: 'setCurrentCase',
-				payload: rec,
-			});
-			yield put({
-				type: 'astro/openDrawer',
-				payload: {
-					key: 'caselist',
-				},
-			});
+			try{
+				const rec = upsertLocalCase(param);
+				yield put({
+					type: 'setCurrentCase',
+					payload: rec,
+				});
+				yield put({
+					type: 'astro/openDrawer',
+					payload: {
+						key: 'caselist',
+					},
+				});
+			}catch(e){
+				Modal.error({
+					title: '事盘更新失败',
+					content: '本地存储不可用或空间不足，请导出清理后重试。',
+				});
+			}
 		},
 
 		*deleteCase({ payload: values }, { call, put }){
-			removeLocalCase(values.cid);
-			yield put({
-				type: 'astro/openDrawer',
-				payload: {
-					key: 'caselist',
-				},
-			});
+			try{
+				removeLocalCase(values.cid);
+				yield put({
+					type: 'astro/openDrawer',
+					payload: {
+						key: 'caselist',
+					},
+				});
+			}catch(e){
+				Modal.error({
+					title: '事盘删除失败',
+					content: '本地存储不可用，请稍后重试。',
+				});
+			}
 		},
 
 		*applyCase({ payload: values }, { call, put }){
@@ -873,18 +894,25 @@ export default {
 				param.birth = values.birth.format('YYYY-MM-DD HH:mm:ss');
 				param.zone = values.birth.zone;
 			}
-			const rec = upsertLocalChart(param);
-			yield put({
-	                type: 'setCurrentChart',
-	                payload: rec,
-	            });
+			try{
+				const rec = upsertLocalChart(param);
+				yield put({
+		                type: 'setCurrentChart',
+		                payload: rec,
+		            });
 
-            yield put({
-                type: 'astro/openDrawer',
-                payload: {
-					key: 'chartlist'
-				},
-            });
+	            yield put({
+	                type: 'astro/openDrawer',
+	                payload: {
+						key: 'chartlist'
+					},
+	            });
+			}catch(e){
+				Modal.error({
+					title: '命盘保存失败',
+					content: '本地存储不可用或空间不足，请导出清理后重试。',
+				});
+			}
 			return;
 			
 		},
@@ -897,26 +925,33 @@ export default {
 				param.birth = values.birth.format('YYYY-MM-DD HH:mm:ss');
 				param.zone = values.birth.zone;
 			}
-			const rec = upsertLocalChart(param);
-			yield put({
-	                type: 'setCurrentChart',
-	                payload: rec,
-	            });
-			yield put({
-	                type: 'astro/openDrawer',
+			try{
+				const rec = upsertLocalChart(param);
+				yield put({
+		                type: 'setCurrentChart',
+		                payload: rec,
+		            });
+				yield put({
+		                type: 'astro/openDrawer',
+		                payload: {
+							key: 'chartlist'
+						},
+					});
+
+	            yield put({
+	                type: 'astro/fetchByChartData',
 	                payload: {
-						key: 'chartlist'
+						...values,
+						birth: param.birth,
+						zone: param.zone,
 					},
 				});
-
-            yield put({
-                type: 'astro/fetchByChartData',
-                payload: {
-					...values,
-					birth: param.birth,
-					zone: param.zone,
-				},
-			});
+			}catch(e){
+				Modal.error({
+					title: '命盘更新失败',
+					content: '本地存储不可用或空间不足，请导出清理后重试。',
+				});
+			}
 			return;
 
 		},
@@ -942,30 +977,38 @@ export default {
 			}else if(type === 7){
 				currentChart.memoSuZhan.value = values.orgMemo;
 			}
-			upsertLocalChart({
-				cid: values.cid,
-				memoAstro: currentChart.memoAstro.value,
-				memoBaZi: currentChart.memoBaZi.value,
-				memoZiWei: currentChart.memoZiWei.value,
-				memo74: currentChart.memo74.value,
-				memoGua: currentChart.memoGua.value,
-				memoLiuReng: currentChart.memoLiuReng.value,
-				memoQiMeng: currentChart.memoQiMeng.value,
-				memoSuZhan: currentChart.memoSuZhan.value,
-				name: currentChart.name.value,
-				birth: currentChart.birth.value.format('YYYY-MM-DD HH:mm:ss'),
-				zone: currentChart.zone.value,
-				lat: currentChart.lat.value,
-				lon: currentChart.lon.value,
-				gpsLat: currentChart.gpsLat.value,
-				gpsLon: currentChart.gpsLon.value,
-				pos: currentChart.pos.value,
-				gender: currentChart.gender.value,
-				isPub: currentChart.isPub.value,
-				group: currentChart.group.value,
-				doubingSu28: currentChart.doubingSu28.value,
-				creator: currentChart.creator.value,
-			});
+			try{
+				upsertLocalChart({
+					cid: values.cid,
+					memoAstro: currentChart.memoAstro.value,
+					memoBaZi: currentChart.memoBaZi.value,
+					memoZiWei: currentChart.memoZiWei.value,
+					memo74: currentChart.memo74.value,
+					memoGua: currentChart.memoGua.value,
+					memoLiuReng: currentChart.memoLiuReng.value,
+					memoQiMeng: currentChart.memoQiMeng.value,
+					memoSuZhan: currentChart.memoSuZhan.value,
+					name: currentChart.name.value,
+					birth: currentChart.birth.value.format('YYYY-MM-DD HH:mm:ss'),
+					zone: currentChart.zone.value,
+					lat: currentChart.lat.value,
+					lon: currentChart.lon.value,
+					gpsLat: currentChart.gpsLat.value,
+					gpsLon: currentChart.gpsLon.value,
+					pos: currentChart.pos.value,
+					gender: currentChart.gender.value,
+					isPub: currentChart.isPub.value,
+					group: currentChart.group.value,
+					doubingSu28: currentChart.doubingSu28.value,
+					creator: currentChart.creator.value,
+				});
+			}catch(e){
+				Modal.error({
+					title: '批注保存失败',
+					content: '本地存储不可用或空间不足，请导出清理后重试。',
+				});
+				return;
+			}
 			Modal.info({
 				title: '批注已保存到本地。'
 			});
