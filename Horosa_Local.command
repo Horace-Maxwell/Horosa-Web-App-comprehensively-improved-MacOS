@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="${ROOT}/Horosa-Web"
 START_SH="${PROJECT_DIR}/start_horosa_local.sh"
 STOP_SH="${PROJECT_DIR}/stop_horosa_local.sh"
+BOOTSTRAP_SH="${ROOT}/scripts/mac/bootstrap_and_run.sh"
 PY_PID_FILE="${PROJECT_DIR}/.horosa_py.pid"
 JAVA_PID_FILE="${PROJECT_DIR}/.horosa_java.pid"
 UI_DIR="${PROJECT_DIR}/astrostudyui"
@@ -18,6 +19,10 @@ BUNDLE_JAR="${BUNDLE_DIR}/astrostudyboot.jar"
 TARGET_JAR="${PROJECT_DIR}/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
 BUNDLE_DIST_FILE="${BUNDLE_DIR}/dist-file"
 BUNDLE_DIST="${BUNDLE_DIR}/dist"
+BUNDLED_JAVA_CANDIDATES=(
+  "${BUNDLED_JAVA_HOME}"
+  "${ROOT}/.runtime/mac/java"
+)
 
 DIST_DIR="${PROJECT_DIR}/astrostudyui/dist-file"
 
@@ -29,25 +34,214 @@ resolve_dist_dir() {
   DIST_DIR="${PROJECT_DIR}/astrostudyui/dist"
 }
 
-use_bundled_runtime() {
-  if [ -x "${BUNDLED_JAVA_HOME}/bin/java" ]; then
-    export JAVA_HOME="${BUNDLED_JAVA_HOME}"
-    export PATH="${JAVA_HOME}/bin:${PATH}"
-    echo "[预检] 使用项目内 Java runtime: ${JAVA_HOME}"
-  else
-    echo "[预检] 未检测到项目内 Java runtime，回退系统 Java。"
+load_brew_env() {
+  if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+}
+
+set_java_runtime() {
+  local java_home="$1"
+  local source_label="$2"
+  if [ ! -x "${java_home}/bin/java" ]; then
+    return 1
+  fi
+  if ! "${java_home}/bin/java" -version >/dev/null 2>&1; then
+    return 1
+  fi
+  export JAVA_HOME="${java_home}"
+  export PATH="${JAVA_HOME}/bin:${PATH}"
+  export HOROSA_JAVA_BIN="${JAVA_HOME}/bin/java"
+  echo "[预检] ${source_label}: ${JAVA_HOME}"
+  return 0
+}
+
+detect_brew_java_home() {
+  local formula=""
+  local prefix=""
+  local candidate=""
+
+  load_brew_env
+  if command -v brew >/dev/null 2>&1; then
+    for formula in openjdk@17 openjdk; do
+      if brew list --formula "${formula}" >/dev/null 2>&1; then
+        prefix="$(brew --prefix "${formula}" 2>/dev/null || true)"
+        candidate="${prefix}/libexec/openjdk.jdk/Contents/Home"
+        if [ -x "${candidate}/bin/java" ]; then
+          echo "${candidate}"
+          return 0
+        fi
+      fi
+    done
   fi
 
-  if [ -n "${HOROSA_PYTHON:-}" ] && [ -x "${HOROSA_PYTHON}" ]; then
-    echo "[预检] 使用外部指定 Python runtime: ${HOROSA_PYTHON}"
-  elif [ -x "${BOOTSTRAP_VENV_PY}" ]; then
-    export HOROSA_PYTHON="${BOOTSTRAP_VENV_PY}"
-    echo "[预检] 使用一键脚本生成 Python runtime: ${HOROSA_PYTHON}"
-  elif [ -x "${BUNDLED_PYTHON_BIN}" ]; then
-    export HOROSA_PYTHON="${BUNDLED_PYTHON_BIN}"
-    echo "[预检] 使用项目内 Python runtime: ${HOROSA_PYTHON}"
-  else
-    echo "[预检] 未检测到项目内 Python runtime，回退系统 Python。"
+  for candidate in \
+    /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home; do
+    if [ -x "${candidate}/bin/java" ]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+detect_system_java_home() {
+  local java_home=""
+
+  if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/java" ]; then
+    echo "${JAVA_HOME}"
+    return 0
+  fi
+
+  if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    java_home="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+    if [ -n "${java_home}" ] && [ -x "${java_home}/bin/java" ]; then
+      echo "${java_home}"
+      return 0
+    fi
+  fi
+
+  java_home="$(detect_brew_java_home 2>/dev/null || true)"
+  if [ -n "${java_home}" ] && [ -x "${java_home}/bin/java" ]; then
+    echo "${java_home}"
+    return 0
+  fi
+
+  return 1
+}
+
+python_runtime_ready() {
+  local py_bin="$1"
+  if [ ! -x "${py_bin}" ]; then
+    return 1
+  fi
+  "${py_bin}" - <<'PY' >/dev/null 2>&1
+import importlib.util as iu
+mods = ("cherrypy", "jsonpickle", "swisseph")
+missing = [m for m in mods if iu.find_spec(m) is None]
+raise SystemExit(1 if missing else 0)
+PY
+}
+
+set_python_runtime() {
+  local py_bin="$1"
+  local source_label="$2"
+  if ! python_runtime_ready "${py_bin}"; then
+    return 1
+  fi
+  export HOROSA_PYTHON="${py_bin}"
+  echo "[预检] ${source_label}: ${HOROSA_PYTHON}"
+  return 0
+}
+
+detect_system_python_bin() {
+  local candidate=""
+  for candidate in python3 python; do
+    if command -v "${candidate}" >/dev/null 2>&1; then
+      command -v "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+bootstrap_missing_runtime() {
+  local reason="${1:-运行时依赖不可用}"
+  if [ "${HOROSA_BOOTSTRAP_ON_MISSING_RUNTIME:-0}" = "1" ]; then
+    return 1
+  fi
+  if [ ! -x "${BOOTSTRAP_SH}" ]; then
+    return 1
+  fi
+
+  echo "[预检] ${reason}，自动执行一键部署脚本补齐依赖..."
+  export HOROSA_BOOTSTRAP_ON_MISSING_RUNTIME=1
+  export HOROSA_SKIP_TOOLCHAIN_INSTALL="${HOROSA_SKIP_TOOLCHAIN_INSTALL:-0}"
+  export HOROSA_SKIP_DB_SETUP="${HOROSA_SKIP_DB_SETUP:-1}"
+  export HOROSA_SKIP_BUILD="${HOROSA_SKIP_BUILD:-1}"
+  exec "${BOOTSTRAP_SH}"
+}
+
+use_bundled_runtime() {
+  local java_home=""
+  local candidate=""
+
+  for candidate in "${BUNDLED_JAVA_CANDIDATES[@]}"; do
+    if set_java_runtime "${candidate}" "使用项目内 Java runtime"; then
+      break
+    fi
+  done
+
+  if [ -z "${HOROSA_JAVA_BIN:-}" ]; then
+    java_home="$(detect_system_java_home 2>/dev/null || true)"
+    if [ -n "${java_home}" ]; then
+      set_java_runtime "${java_home}" "使用系统 Java runtime"
+    fi
+  fi
+
+  if [ -z "${HOROSA_JAVA_BIN:-}" ] && command -v java >/dev/null 2>&1; then
+    local fallback_java
+    fallback_java="$(command -v java)"
+    if "${fallback_java}" -version >/dev/null 2>&1; then
+      export HOROSA_JAVA_BIN="${fallback_java}"
+      echo "[预检] 未检测到项目内 Java runtime，回退系统 Java: ${HOROSA_JAVA_BIN}"
+    fi
+  fi
+
+  if [ -z "${HOROSA_JAVA_BIN:-}" ]; then
+    echo "[预检] 未检测到项目内 Java runtime，且系统 Java 不可用。"
+    bootstrap_missing_runtime "未检测到可用 Java runtime" || true
+  fi
+
+  if [ -z "${HOROSA_JAVA_BIN:-}" ]; then
+    echo "[预检] Java 仍不可用，请先双击 Horosa_OneClick_Mac.command 完成初始化。"
+    exit 1
+  fi
+
+  local requested_python="${HOROSA_PYTHON:-}"
+  local system_python=""
+  unset HOROSA_PYTHON || true
+
+  if [ -n "${requested_python}" ]; then
+    if ! set_python_runtime "${requested_python}" "使用外部指定 Python runtime"; then
+      echo "[预检] 外部指定 Python runtime 缺少依赖，继续探测: ${requested_python}"
+    fi
+  fi
+
+  if [ -z "${HOROSA_PYTHON:-}" ] && [ -x "${BOOTSTRAP_VENV_PY}" ]; then
+    if ! set_python_runtime "${BOOTSTRAP_VENV_PY}" "使用一键脚本生成 Python runtime"; then
+      echo "[预检] 一键脚本生成 Python runtime 缺少依赖，继续探测。"
+    fi
+  fi
+
+  if [ -z "${HOROSA_PYTHON:-}" ] && [ -x "${BUNDLED_PYTHON_BIN}" ]; then
+    if ! set_python_runtime "${BUNDLED_PYTHON_BIN}" "使用项目内 Python runtime"; then
+      echo "[预检] 项目内 Python runtime 缺少依赖，继续探测系统 Python。"
+    fi
+  fi
+
+  if [ -z "${HOROSA_PYTHON:-}" ]; then
+    system_python="$(detect_system_python_bin 2>/dev/null || true)"
+    if [ -n "${system_python}" ]; then
+      if ! set_python_runtime "${system_python}" "使用系统 Python runtime"; then
+        echo "[预检] 系统 Python 缺少依赖: ${system_python}"
+      fi
+    fi
+  fi
+
+  if [ -z "${HOROSA_PYTHON:-}" ]; then
+    bootstrap_missing_runtime "未检测到可用 Python runtime 或缺少依赖(cherrypy/jsonpickle/swisseph)" || true
+  fi
+
+  if [ -z "${HOROSA_PYTHON:-}" ] || ! python_runtime_ready "${HOROSA_PYTHON}"; then
+    echo "[预检] Python 仍不可用，请先双击 Horosa_OneClick_Mac.command 完成初始化。"
+    exit 1
   fi
 }
 

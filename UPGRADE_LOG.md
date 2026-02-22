@@ -935,3 +935,29 @@ Append new entries; do not rewrite history.
   - 清理 `PlanetSelector` 中未使用的导入与未使用参数，保持组件干净。
 - Verification:
   - `npm run build` in `Horosa-Web/astrostudyui`
+
+## 2026-02-22
+
+### 00:18 - Mac 一键部署容错增强：先装 Homebrew，失败自动直连 JDK17；并修复 Local 启动链路
+- Scope: make Mac deployment/startup resilient on clean machines without Java/Homebrew, and remove runtime bootstrap crashes.
+- Files:
+  - `scripts/mac/bootstrap_and_run.sh`
+  - `Horosa_Local.command`
+  - `Horosa-Web/start_horosa_local.sh`
+  - `Prepare_Runtime_Mac.command`
+  - `README.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `bootstrap_and_run.sh` 调整为“优先安装/使用 Homebrew + openjdk@17，失败时自动直连下载 JDK17 到 `.runtime/mac/java`（可用 `HOROSA_JDK17_URL` 覆盖）”。
+  - `ensure_java17` 增加多级探测与版本校验（项目内 runtime、`.runtime/mac/java`、系统 `JAVA_HOME`、`/usr/libexec/java_home`、brew Java、PATH Java），并强制校验 `>=17`。
+  - `Horosa_Local.command` 修复 runtime 兜底崩溃：移除 `SCRIPT_ARGS[@]` 的 `set -u` 未绑定变量触发点；缺依赖回退 bootstrap 时默认先尝试 Homebrew（同时保留直连 JDK fallback）。
+  - `Horosa_Local.command` / `start_horosa_local.sh` 均增加 `java -version` 可执行性校验，避免把 `/usr/bin/java` 误判为可用 JDK。
+  - Python 运行时选择改为“依赖就绪优先”（必须含 `cherrypy/jsonpickle/swisseph`），项目内 Python 不满足时自动换到可用解释器或回退一键补齐。
+  - `Prepare_Runtime_Mac.command` 增强：找不到 Java 时自动调 bootstrap 补齐；Python runtime 复制后自动补装依赖并过滤 `_CodeSignature` 复制噪声；最终“下一步”提示按实际准备结果给出。
+  - README 更新了“无 Homebrew 的 JDK17 直连兜底”与 `HOROSA_JDK17_URL` 说明。
+- Verification:
+  - `bash -n Horosa_Local.command Prepare_Runtime_Mac.command Horosa-Web/start_horosa_local.sh scripts/mac/bootstrap_and_run.sh`
+  - `HOROSA_SKIP_BUILD=1 HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 HOROSA_SKIP_TOOLCHAIN_INSTALL=0 ./scripts/mac/bootstrap_and_run.sh`
+  - `HOROSA_SKIP_BUILD=1 HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 HOROSA_SKIP_TOOLCHAIN_INSTALL=1 ./scripts/mac/bootstrap_and_run.sh`
+  - `printf '\n' | ./Prepare_Runtime_Mac.command`（结果：Java/Python/Frontend/Backend 均为 OK；沙箱下 Maven install 写 `~/.m2` 受限但产物回填成功）
+  - `HOROSA_NO_BROWSER=1 ./Horosa_Local.command`（沙箱环境限制本地端口绑定，启动探测阶段失败；非脚本逻辑错误）

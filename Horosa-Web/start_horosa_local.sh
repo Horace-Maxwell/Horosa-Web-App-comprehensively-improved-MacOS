@@ -42,6 +42,180 @@ port_listening() {
   lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
 }
 
+load_brew_env() {
+  if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+}
+
+detect_brew_java_home() {
+  local formula=""
+  local prefix=""
+  local candidate=""
+
+  load_brew_env
+  if command -v brew >/dev/null 2>&1; then
+    for formula in openjdk@17 openjdk; do
+      if brew list --formula "${formula}" >/dev/null 2>&1; then
+        prefix="$(brew --prefix "${formula}" 2>/dev/null || true)"
+        candidate="${prefix}/libexec/openjdk.jdk/Contents/Home"
+        if [ -x "${candidate}/bin/java" ]; then
+          echo "${candidate}"
+          return 0
+        fi
+      fi
+    done
+  fi
+
+  for candidate in \
+    /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home; do
+    if [ -x "${candidate}/bin/java" ]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+java_bin_ready() {
+  local java_bin="$1"
+  if [ ! -x "${java_bin}" ]; then
+    return 1
+  fi
+  "${java_bin}" -version >/dev/null 2>&1
+}
+
+resolve_java_bin() {
+  local java_home=""
+  local resolved_bin=""
+
+  if java_bin_ready "${JAVA_BIN}"; then
+    return 0
+  fi
+
+  if command -v "${JAVA_BIN}" >/dev/null 2>&1; then
+    resolved_bin="$(command -v "${JAVA_BIN}")"
+    if java_bin_ready "${resolved_bin}"; then
+      JAVA_BIN="${resolved_bin}"
+      return 0
+    fi
+  fi
+
+  if [ -n "${JAVA_HOME:-}" ] && java_bin_ready "${JAVA_HOME}/bin/java"; then
+    JAVA_BIN="${JAVA_HOME}/bin/java"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+    return 0
+  fi
+
+  if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    java_home="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+    if [ -n "${java_home}" ] && java_bin_ready "${java_home}/bin/java"; then
+      export JAVA_HOME="${java_home}"
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+      JAVA_BIN="${JAVA_HOME}/bin/java"
+      return 0
+    fi
+  fi
+
+  java_home="$(detect_brew_java_home 2>/dev/null || true)"
+  if [ -n "${java_home}" ] && java_bin_ready "${java_home}/bin/java"; then
+    export JAVA_HOME="${java_home}"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+    JAVA_BIN="${JAVA_HOME}/bin/java"
+    return 0
+  fi
+
+  if command -v java >/dev/null 2>&1; then
+    resolved_bin="$(command -v java)"
+    if java_bin_ready "${resolved_bin}"; then
+      JAVA_BIN="${resolved_bin}"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+python_runtime_ready() {
+  local py_bin="$1"
+  local py_minor=""
+  local extra_site=""
+  local py_path="${PYTHONPATH_ASTRO}"
+
+  if [ ! -x "${py_bin}" ]; then
+    return 1
+  fi
+
+  py_minor="$("${py_bin}" - <<'PY'
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)" || return 1
+
+  extra_site="${HOME}/Library/Python/${py_minor}/lib/python/site-packages"
+  if [ -d "${extra_site}" ]; then
+    py_path="${py_path}:${extra_site}"
+  fi
+  if [ -n "${PYTHONPATH:-}" ]; then
+    py_path="${py_path}:${PYTHONPATH}"
+  fi
+
+  PYTHONPATH="${py_path}" "${py_bin}" - <<'PY' >/dev/null 2>&1
+import importlib.util as iu
+mods = ("cherrypy", "jsonpickle", "swisseph")
+missing = [m for m in mods if iu.find_spec(m) is None]
+raise SystemExit(1 if missing else 0)
+PY
+}
+
+resolve_python_bin() {
+  local root_parent=""
+  local candidate=""
+  local resolved=""
+
+  root_parent="$(cd "${ROOT}/.." && pwd)"
+  local candidates=(
+    "${PYTHON_BIN}"
+    "${root_parent}/.runtime/mac/venv/bin/python3"
+    "${root_parent}/runtime/mac/python/bin/python3"
+  )
+
+  if command -v python3 >/dev/null 2>&1; then
+    candidates+=("$(command -v python3)")
+  fi
+  if command -v python >/dev/null 2>&1; then
+    candidates+=("$(command -v python)")
+  fi
+
+  for candidate in "${candidates[@]}"; do
+    if [ -z "${candidate}" ]; then
+      continue
+    fi
+
+    resolved="${candidate}"
+    if [ ! -x "${resolved}" ]; then
+      if command -v "${resolved}" >/dev/null 2>&1; then
+        resolved="$(command -v "${resolved}")"
+      else
+        continue
+      fi
+    fi
+
+    if python_runtime_ready "${resolved}"; then
+      PYTHON_BIN="${resolved}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 frontend_needs_build() {
   local dist_index="${UI_DIR}/dist-file/index.html"
   if [ ! -f "${dist_index}" ]; then
@@ -123,22 +297,15 @@ if [ ! -f "${JAR}" ]; then
   exit 1
 fi
 
-if ! command -v "${JAVA_BIN}" >/dev/null 2>&1; then
+if ! resolve_java_bin; then
   echo "java runtime not found: ${JAVA_BIN}"
   echo "install java 17+ or run ../Horosa_OneClick_Mac.command"
   exit 1
 fi
 
-if [ -d "${EXTRA_PY_SITE}" ]; then
-  PYTHONPATH_ASTRO="${PYTHONPATH_ASTRO}:${EXTRA_PY_SITE}"
-fi
-if [ -n "${PYTHONPATH:-}" ]; then
-  PYTHONPATH_ASTRO="${PYTHONPATH_ASTRO}:${PYTHONPATH}"
-fi
-
-if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
-  echo "python runtime not found: ${PYTHON_BIN}"
-  echo "set HOROSA_PYTHON to a valid interpreter if needed."
+if ! resolve_python_bin; then
+  echo "python runtime not ready: ${PYTHON_BIN}"
+  echo "install runtime deps or run ../Horosa_OneClick_Mac.command"
   exit 1
 fi
 
@@ -149,14 +316,11 @@ PY
 )"
 EXTRA_PY_SITE="${HOME}/Library/Python/${PY_MINOR}/lib/python/site-packages"
 
-if ! PYTHONPATH="${PYTHONPATH_ASTRO}" "${PYTHON_BIN}" - <<'PY' >/dev/null 2>&1
-import cherrypy
-PY
-then
-  echo "python runtime cannot import cherrypy: ${PYTHON_BIN}"
-  echo "checked extra site-packages: ${EXTRA_PY_SITE}"
-  echo "set HOROSA_PYTHON to an interpreter with cherrypy installed."
-  exit 1
+if [ -d "${EXTRA_PY_SITE}" ]; then
+  PYTHONPATH_ASTRO="${PYTHONPATH_ASTRO}:${EXTRA_PY_SITE}"
+fi
+if [ -n "${PYTHONPATH:-}" ]; then
+  PYTHONPATH_ASTRO="${PYTHONPATH_ASTRO}:${PYTHONPATH}"
 fi
 
 cleanup_on_fail() {

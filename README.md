@@ -10,6 +10,7 @@
    - `Horosa_OneClick_Mac.command`
 2. 首次运行会自动完成：
    - 安装或检测 Homebrew
+   - 若 Homebrew 不可用，会自动直连下载 Java 17 runtime 到 `.runtime/mac/java`
    - 安装运行依赖（Java 17、Maven、Node、Python）
    - 创建 Python 虚拟环境并安装 `cherrypy/jsonpickle/pyswisseph`
    - 构建前端 `dist-file`
@@ -22,8 +23,8 @@
 ## 常用脚本
 
 - `Horosa_OneClick_Mac.command`：Mac 首次部署 + 启动（推荐）
-- `Horosa_Local.command`：直接启动（适合依赖已准备完成后）
-- `Prepare_Runtime_Mac.command`：打离线 runtime 包（不建议提交 GitHub）
+- `Horosa_Local.command`：直接启动（适合依赖已准备完成后；若本机缺 Java，或 Python 缺少 `cherrypy/jsonpickle/swisseph`，会自动回退到一键部署脚本，先尝试装 Homebrew，再走直连 JDK17 兜底）
+- `Prepare_Runtime_Mac.command`：打离线 runtime 包（会自动补齐缺失的 Java/Python 运行依赖，不建议提交 GitHub）
 - `scripts/repo/clean_for_github.sh`：清理本地生成物，准备上传 GitHub
 
 可选环境变量（调试用）：
@@ -31,6 +32,7 @@
 - `HOROSA_SKIP_BUILD=1`：跳过前后端构建（需已有构建产物）
 - `HOROSA_SKIP_TOOLCHAIN_INSTALL=1`：跳过 Homebrew/工具链安装
 - `HOROSA_SKIP_LAUNCH=1`：只做预检和构建，不自动启动页面
+- `HOROSA_JDK17_URL=<url>`：自定义 Java17 下载地址（默认使用 Adoptium API）
 
 ## 上传 GitHub 前建议流程
 
@@ -64,7 +66,7 @@
 ## 常见问题
 
 - `java 17+ is required`：
-  - 运行 `Horosa_OneClick_Mac.command` 自动安装，或手动安装 JDK 17+。
+  - 运行 `Horosa_OneClick_Mac.command` 自动安装；若 Homebrew 不可用会改为直连下载 JDK 17。
 - `python runtime cannot import cherrypy`：
   - 重新运行 `Horosa_OneClick_Mac.command`，会重建 venv 并补依赖。
 - `services did not become ready in time (need both 8899 and 9999)`：

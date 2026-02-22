@@ -7,6 +7,8 @@ RUNTIME_DIR="${ROOT}/runtime/mac"
 JAVA_DST="${RUNTIME_DIR}/java"
 PY_DST="${RUNTIME_DIR}/python"
 BUNDLE_DIR="${RUNTIME_DIR}/bundle"
+BOOTSTRAP_SH="${ROOT}/scripts/mac/bootstrap_and_run.sh"
+REQ_FILE="${ROOT}/scripts/requirements/mac-python.txt"
 
 UI_DIR="${PROJECT_DIR}/astrostudyui"
 IMAGE_DIR="${PROJECT_DIR}/astrostudysrv/image"
@@ -36,6 +38,10 @@ detect_java_src() {
     fi
   fi
   for cand in \
+    "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home" \
+    "/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home" \
+    "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home" \
+    "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home" \
     "/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home" \
     "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home" \
     "/Library/Java/JavaVirtualMachines/jdk-22.jdk/Contents/Home"; do
@@ -48,7 +54,7 @@ detect_java_src() {
 }
 
 prepare_java_runtime() {
-  if [ -x "${JAVA_DST}/bin/java" ]; then
+  if [ -x "${JAVA_DST}/bin/java" ] && "${JAVA_DST}/bin/java" -version >/dev/null 2>&1; then
     echo "[Java] 已存在：${JAVA_DST}"
     return 0
   fi
@@ -61,15 +67,57 @@ prepare_java_runtime() {
     return 0
   fi
 
+  if [ -x "${BOOTSTRAP_SH}" ]; then
+    echo "[Java] 未找到可复制 Java，尝试自动执行一键部署补齐..."
+    HOROSA_SKIP_TOOLCHAIN_INSTALL=0 HOROSA_SKIP_BUILD=1 HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 "${BOOTSTRAP_SH}" || true
+    if java_src="$(detect_java_src 2>/dev/null)"; then
+      echo "[Java] 补齐后复制 runtime: ${java_src} -> ${JAVA_DST}"
+      rm -rf "${JAVA_DST}"
+      rsync -a "${java_src}/" "${JAVA_DST}/"
+      return 0
+    fi
+  fi
+
   echo "[Java] 未找到可复制的 Java 运行时。"
   echo "[Java] 请先安装 JDK（建议 17）或设置 HOROSA_JAVA_HOME 后重试。"
   return 1
 }
 
+python_runtime_ready() {
+  local py_bin="$1"
+  if [ ! -x "${py_bin}" ]; then
+    return 1
+  fi
+  "${py_bin}" - <<'PY' >/dev/null 2>&1
+import importlib.util as iu
+mods = ("cherrypy", "jsonpickle", "swisseph")
+missing = [m for m in mods if iu.find_spec(m) is None]
+raise SystemExit(1 if missing else 0)
+PY
+}
+
+ensure_python_runtime_deps() {
+  if python_runtime_ready "${PY_DST}/bin/python3"; then
+    return 0
+  fi
+
+  if [ -f "${REQ_FILE}" ]; then
+    echo "[Python] 缺少依赖，尝试安装: $(basename "${REQ_FILE}")"
+    "${PY_DST}/bin/python3" -m ensurepip --upgrade >/dev/null 2>&1 || true
+    "${PY_DST}/bin/python3" -m pip install --upgrade pip setuptools wheel >/dev/null 2>&1 || true
+    "${PY_DST}/bin/python3" -m pip install -r "${REQ_FILE}" || true
+  fi
+
+  python_runtime_ready "${PY_DST}/bin/python3"
+}
+
 prepare_python_runtime() {
   if [ -x "${PY_DST}/bin/python3" ]; then
-    echo "[Python] 已存在：${PY_DST}"
-    return 0
+    if ensure_python_runtime_deps; then
+      echo "[Python] 已存在：${PY_DST}"
+      return 0
+    fi
+    echo "[Python] 已存在但缺少运行依赖，将重新复制。"
   fi
 
   local py_exe="${HOROSA_PYTHON:-python3}"
@@ -104,6 +152,8 @@ PY
     --exclude 'conda-bld' \
     --exclude '.conda' \
     --exclude 'share/jupyter' \
+    --exclude '_CodeSignature' \
+    --exclude '*/_CodeSignature' \
     "${py_prefix}/" "${PY_DST}/"
 
   local extra_site="$HOME/Library/Python/${py_minor}/lib/python/site-packages"
@@ -113,12 +163,9 @@ PY
     rsync -a "${extra_site}/" "${PY_DST}/lib/python${py_minor}/site-packages/"
   fi
 
-  if ! "${PY_DST}/bin/python3" - <<'PY' >/dev/null 2>&1
-import cherrypy
-PY
-  then
+  if ! ensure_python_runtime_deps; then
     echo "[Python] 警告：runtime 中未检测到 cherrypy。"
-    echo "[Python] 启动时若报错，请在可联网环境执行：${PY_DST}/bin/pip3 install cherrypy"
+    echo "[Python] 启动时若报错，请在可联网环境执行：${PY_DST}/bin/python3 -m pip install -r ${REQ_FILE}"
   fi
 
   return 0
@@ -207,5 +254,9 @@ echo "runtime 目录体积："
 du -sh "${ROOT}/runtime" || true
 
 echo ""
-echo "下一步：双击 Horosa_Local.command 直接启动。"
+if [ ${JAVA_RC} -eq 0 ] && [ ${PY_RC} -eq 0 ]; then
+  echo "下一步：双击 Horosa_Local.command 直接启动。"
+else
+  echo "下一步：双击 Horosa_OneClick_Mac.command 自动补齐缺失依赖后再启动。"
+fi
 read -r -p "按回车退出..." _

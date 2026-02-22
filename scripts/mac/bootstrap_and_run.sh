@@ -6,6 +6,8 @@ PROJECT_DIR="${ROOT}/Horosa-Web"
 UI_DIR="${PROJECT_DIR}/astrostudyui"
 SERVER_DIR="${PROJECT_DIR}/astrostudysrv"
 VENV_DIR="${ROOT}/.runtime/mac/venv"
+LOCAL_JAVA_HOME="${ROOT}/.runtime/mac/java"
+RUNTIME_PYTHON_BIN="${ROOT}/runtime/mac/python/bin/python3"
 REQ_FILE="${ROOT}/scripts/requirements/mac-python.txt"
 BACKEND_JAR="${SERVER_DIR}/astrostudyboot/target/astrostudyboot.jar"
 FRONTEND_INDEX="${UI_DIR}/dist-file/index.html"
@@ -50,61 +52,214 @@ load_brew_env() {
 ensure_homebrew() {
   load_brew_env
   if have_cmd brew; then
-    return
+    return 0
   fi
 
   say "installing Homebrew (first run only)..."
-  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if ! NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+    say "warning: failed to install Homebrew automatically."
+    return 1
+  fi
   load_brew_env
-  have_cmd brew || fail "failed to install Homebrew."
+  if ! have_cmd brew; then
+    say "warning: Homebrew install command finished but brew is still unavailable."
+    return 1
+  fi
+  return 0
 }
 
 ensure_formula() {
   local formula="$1"
+  if ! have_cmd brew; then
+    say "warning: Homebrew unavailable, cannot install ${formula}."
+    return 1
+  fi
   if brew list --formula "${formula}" >/dev/null 2>&1; then
-    return
+    return 0
   fi
   say "installing ${formula} ..."
   brew install "${formula}"
 }
 
-java_major_version() {
-  java -version 2>&1 | awk -F'"' '/version/ {print $2}' | awk -F. '{if ($1 == 1) print $2; else print $1}'
+java_major_version_of() {
+  local java_bin="$1"
+  local major="0"
+  if [ ! -x "${java_bin}" ]; then
+    echo "0"
+    return 0
+  fi
+  major="$("${java_bin}" -version 2>&1 | awk -F'"' '/version/ {print $2; exit}' | awk -F. '{if ($1 == 1) print $2; else print $1}' || true)"
+  if [[ "${major}" =~ ^[0-9]+$ ]]; then
+    echo "${major}"
+  else
+    echo "0"
+  fi
+}
+
+java_home_ready() {
+  local java_home="$1"
+  local major="0"
+  if [ -z "${java_home}" ] || [ ! -x "${java_home}/bin/java" ]; then
+    return 1
+  fi
+  major="$(java_major_version_of "${java_home}/bin/java")"
+  [ "${major}" -ge 17 ]
+}
+
+set_java_home() {
+  local java_home="$1"
+  export JAVA_HOME="${java_home}"
+  export PATH="${JAVA_HOME}/bin:${PATH}"
+}
+
+detect_brew_java_home() {
+  local formula=""
+  local candidate=""
+  if have_cmd brew; then
+    for formula in openjdk@17 openjdk; do
+      if brew list --formula "${formula}" >/dev/null 2>&1; then
+        candidate="$(brew --prefix "${formula}")/libexec/openjdk.jdk/Contents/Home"
+        if java_home_ready "${candidate}"; then
+          echo "${candidate}"
+          return 0
+        fi
+      fi
+    done
+  fi
+
+  for candidate in \
+    /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home; do
+    if java_home_ready "${candidate}"; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+detect_mac_arch() {
+  case "$(uname -m)" in
+    arm64|aarch64)
+      echo "aarch64"
+      ;;
+    x86_64|amd64)
+      echo "x64"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+install_local_java17() {
+  local arch=""
+  local download_url=""
+  local tmp_root=""
+  local archive_path=""
+  local extract_dir=""
+  local jdk_home=""
+
+  arch="$(detect_mac_arch || true)"
+  if [ -z "${arch}" ]; then
+    say "warning: unsupported mac architecture, skip direct java download."
+    return 1
+  fi
+
+  download_url="${HOROSA_JDK17_URL:-https://api.adoptium.net/v3/binary/latest/17/ga/mac/${arch}/jdk/hotspot/normal/eclipse?project=jdk}"
+  tmp_root="$(mktemp -d "${TMPDIR:-/tmp}/horosa-jdk.XXXXXX")"
+  archive_path="${tmp_root}/jdk17.tar.gz"
+  extract_dir="${tmp_root}/extract"
+  mkdir -p "${extract_dir}"
+
+  say "downloading java 17 runtime (${arch}) ..."
+  if ! curl -fL --retry 2 --connect-timeout 15 -o "${archive_path}" "${download_url}"; then
+    rm -rf "${tmp_root}"
+    return 1
+  fi
+  if ! tar -xzf "${archive_path}" -C "${extract_dir}"; then
+    rm -rf "${tmp_root}"
+    return 1
+  fi
+
+  jdk_home="$(find "${extract_dir}" -type d -path '*/Contents/Home' -print -quit 2>/dev/null || true)"
+  if [ -z "${jdk_home}" ] && [ -x "${extract_dir}/bin/java" ]; then
+    jdk_home="${extract_dir}"
+  fi
+  if [ -z "${jdk_home}" ] || ! java_home_ready "${jdk_home}"; then
+    rm -rf "${tmp_root}"
+    return 1
+  fi
+
+  mkdir -p "$(dirname "${LOCAL_JAVA_HOME}")"
+  rm -rf "${LOCAL_JAVA_HOME}"
+  rsync -a "${jdk_home}/" "${LOCAL_JAVA_HOME}/"
+  rm -rf "${tmp_root}"
+
+  java_home_ready "${LOCAL_JAVA_HOME}"
 }
 
 ensure_java17() {
   load_brew_env
+  local java_home=""
+  local java_bin=""
   local major="0"
-  if have_cmd java; then
-    major="$(java_major_version || echo 0)"
+
+  if java_home_ready "${JAVA_HOME:-}"; then
+    set_java_home "${JAVA_HOME}"
+    return 0
   fi
 
-  if [ "${major}" -lt 17 ]; then
-    if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
-      fail "java 17+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install java 17 manually."
-    fi
-    ensure_formula openjdk@17
-  fi
-
-  local jh=""
   if command -v /usr/libexec/java_home >/dev/null 2>&1; then
-    jh="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
-  fi
-  if [ -z "${jh}" ] && brew list --formula openjdk@17 >/dev/null 2>&1; then
-    local brew_java_home
-    brew_java_home="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
-    if [ -x "${brew_java_home}/bin/java" ]; then
-      jh="${brew_java_home}"
+    java_home="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+    if java_home_ready "${java_home}"; then
+      set_java_home "${java_home}"
+      return 0
     fi
   fi
-  if [ -n "${jh}" ]; then
-    export JAVA_HOME="${jh}"
-    export PATH="${JAVA_HOME}/bin:${PATH}"
+
+  for java_home in "${ROOT}/runtime/mac/java" "${LOCAL_JAVA_HOME}"; do
+    if java_home_ready "${java_home}"; then
+      set_java_home "${java_home}"
+      return 0
+    fi
+  done
+
+  java_home="$(detect_brew_java_home || true)"
+  if java_home_ready "${java_home}"; then
+    set_java_home "${java_home}"
+    return 0
   fi
 
-  have_cmd java || fail "java command not found."
-  major="$(java_major_version || echo 0)"
-  [ "${major}" -ge 17 ] || fail "java 17+ is required (current: ${major})."
+  if have_cmd java; then
+    java_bin="$(command -v java)"
+    major="$(java_major_version_of "${java_bin}")"
+    if [ "${major}" -ge 17 ]; then
+      export PATH="$(dirname "${java_bin}"):${PATH}"
+      return 0
+    fi
+  fi
+
+  if [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ] && have_cmd brew; then
+    if ensure_formula openjdk@17; then
+      java_home="$(detect_brew_java_home || true)"
+      if java_home_ready "${java_home}"; then
+        set_java_home "${java_home}"
+        return 0
+      fi
+    fi
+  fi
+
+  say "Homebrew 不可用或 openjdk 安装失败，尝试直接下载 Java 17 ..."
+  if install_local_java17; then
+    set_java_home "${LOCAL_JAVA_HOME}"
+    return 0
+  fi
+
+  fail "java 17+ is required. automatic install failed (Homebrew unavailable and direct download failed)."
 }
 
 ensure_maven() {
@@ -113,7 +268,9 @@ ensure_maven() {
     if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
       fail "maven is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install maven manually."
     fi
-    ensure_formula maven
+    if ! ensure_formula maven; then
+      fail "maven is required but Homebrew is unavailable. install maven manually or set HOROSA_SKIP_BUILD=1."
+    fi
   fi
 }
 
@@ -128,11 +285,15 @@ ensure_node() {
     if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
       fail "node 18+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install node manually."
     fi
-    if brew info node@18 >/dev/null 2>&1; then
-      ensure_formula node@18
+    if have_cmd brew && brew info node@18 >/dev/null 2>&1; then
+      if ! ensure_formula node@18; then
+        fail "node 18+ is required but Homebrew is unavailable."
+      fi
       export PATH="$(brew --prefix node@18)/bin:${PATH}"
     else
-      ensure_formula node
+      if ! ensure_formula node; then
+        fail "node 18+ is required but Homebrew is unavailable."
+      fi
     fi
   fi
 
@@ -142,11 +303,22 @@ ensure_node() {
 
 detect_python_bin() {
   local candidate=""
+  for candidate in "${VENV_DIR}/bin/python3" "${RUNTIME_PYTHON_BIN}"; do
+    if [ -x "${candidate}" ] && "${candidate}" - <<'PY' >/dev/null 2>&1
+import sys
+sys.exit(0 if (sys.version_info.major, sys.version_info.minor) >= (3, 9) else 1)
+PY
+    then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
   if have_cmd python3; then
     candidate="$(command -v python3)"
     if "${candidate}" - <<'PY' >/dev/null 2>&1
 import sys
-sys.exit(0 if (sys.version_info.major, sys.version_info.minor) >= (3, 10) else 1)
+sys.exit(0 if (sys.version_info.major, sys.version_info.minor) >= (3, 9) else 1)
 PY
     then
       echo "${candidate}"
@@ -173,29 +345,41 @@ ensure_python() {
   py_bin="$(detect_python_bin || true)"
   if [ -z "${py_bin}" ]; then
     if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
-      fail "python 3.10+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install python manually."
+      fail "python 3.9+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or install python manually."
     fi
 
-    if brew info python@3.11 >/dev/null 2>&1; then
-      ensure_formula python@3.11
+    if have_cmd brew && brew info python@3.11 >/dev/null 2>&1; then
+      if ! ensure_formula python@3.11; then
+        fail "python 3.9+ is required but Homebrew is unavailable."
+      fi
       export PATH="$(brew --prefix python@3.11)/bin:${PATH}"
     else
-      ensure_formula python
+      if ! ensure_formula python; then
+        fail "python 3.9+ is required but Homebrew is unavailable."
+      fi
     fi
     py_bin="$(detect_python_bin || true)"
   fi
 
-  [ -n "${py_bin}" ] || fail "python 3.10+ not found."
+  [ -n "${py_bin}" ] || fail "python 3.9+ not found."
   export HOROSA_BOOTSTRAP_PYTHON="${py_bin}"
 }
 
-venv_has_runtime_deps() {
-  "${VENV_DIR}/bin/python3" - <<'PY' >/dev/null 2>&1
+python_has_runtime_deps() {
+  local py_bin="$1"
+  if [ ! -x "${py_bin}" ]; then
+    return 1
+  fi
+  "${py_bin}" - <<'PY' >/dev/null 2>&1
 import importlib.util as iu
 mods = ("cherrypy", "jsonpickle", "swisseph")
 missing = [m for m in mods if iu.find_spec(m) is None]
 raise SystemExit(1 if missing else 0)
 PY
+}
+
+venv_has_runtime_deps() {
+  python_has_runtime_deps "${VENV_DIR}/bin/python3"
 }
 
 ensure_python_venv() {
@@ -221,6 +405,27 @@ ensure_python_venv() {
     "${VENV_DIR}/bin/pip" install -r "${REQ_FILE}"
     touch "${VENV_DIR}/.requirements.stamp"
   fi
+}
+
+pick_existing_runtime_python() {
+  local candidate=""
+  local candidates=(
+    "${RUNTIME_PYTHON_BIN}"
+    "${VENV_DIR}/bin/python3"
+    "${HOROSA_BOOTSTRAP_PYTHON:-}"
+  )
+
+  for candidate in "${candidates[@]}"; do
+    if [ -z "${candidate}" ]; then
+      continue
+    fi
+    if python_has_runtime_deps "${candidate}"; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 frontend_needs_build() {
@@ -372,7 +577,9 @@ main() {
   fi
 
   if [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ]; then
-    ensure_homebrew
+    if ! ensure_homebrew; then
+      say "warning: Homebrew unavailable, continue with direct fallback installers."
+    fi
   else
     load_brew_env
   fi
@@ -384,11 +591,20 @@ main() {
     ensure_maven
     ensure_node
     ensure_python_venv
+    export HOROSA_PYTHON="${VENV_DIR}/bin/python3"
     build_frontend_if_needed
     build_backend_if_needed
   else
-    ensure_python_venv
-    say "HOROSA_SKIP_BUILD=1, skipped frontend/backend build."
+    local runtime_py=""
+    runtime_py="$(pick_existing_runtime_python || true)"
+    if [ -n "${runtime_py}" ]; then
+      export HOROSA_PYTHON="${runtime_py}"
+      say "HOROSA_SKIP_BUILD=1, using existing python runtime: ${HOROSA_PYTHON}"
+    else
+      ensure_python_venv
+      export HOROSA_PYTHON="${VENV_DIR}/bin/python3"
+      say "HOROSA_SKIP_BUILD=1, skipped frontend/backend build."
+    fi
   fi
 
   if [ "${SKIP_DB_SETUP}" != "1" ] && [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ]; then
@@ -400,7 +616,9 @@ main() {
     exit 0
   fi
 
-  export HOROSA_PYTHON="${VENV_DIR}/bin/python3"
+  if [ -z "${HOROSA_PYTHON:-}" ]; then
+    export HOROSA_PYTHON="${VENV_DIR}/bin/python3"
+  fi
   say "starting local app ..."
   exec "${ROOT}/Horosa_Local.command" "$@"
 }
