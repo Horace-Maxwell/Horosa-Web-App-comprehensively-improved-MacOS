@@ -18,6 +18,7 @@ Horosa-Web/.horosa-browser-profile/
 Horosa-Web/.horosa-browser-profile*/
 Horosa-Web/.horosa_java.pid
 Horosa-Web/.horosa_py.pid
+Horosa-Web/.horosa-run-issues.log
 Horosa-Web/${sys:user.home}/
 
 # mac one-click generated runtime

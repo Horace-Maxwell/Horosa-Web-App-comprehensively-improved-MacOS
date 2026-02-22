@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="${ROOT}/Horosa-Web"
@@ -25,6 +25,43 @@ BUNDLED_JAVA_CANDIDATES=(
 )
 
 DIST_DIR="${PROJECT_DIR}/astrostudyui/dist-file"
+DIAG_FILE="${HOROSA_DIAG_FILE:-${PROJECT_DIR}/.horosa-run-issues.log}"
+RUN_OK=0
+
+mkdir -p "$(dirname "${DIAG_FILE}")"
+touch "${DIAG_FILE}" >/dev/null 2>&1 || true
+
+diag_log() {
+  local msg="$1"
+  printf '[%s] [Horosa_Local] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${msg}" >>"${DIAG_FILE}" 2>/dev/null || true
+}
+
+diag_tail() {
+  local file="$1"
+  local lines="${2:-80}"
+  if [ ! -f "${file}" ]; then
+    return
+  fi
+  diag_log "tail ${lines} lines: ${file}"
+  while IFS= read -r line; do
+    printf '[%s] [tail] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${line}" >>"${DIAG_FILE}" 2>/dev/null || true
+  done < <(tail -n "${lines}" "${file}" 2>/dev/null || true)
+}
+
+latest_service_log_dir() {
+  ls -td "${PROJECT_DIR}/.horosa-local-logs"/* 2>/dev/null | head -n 1 || true
+}
+
+dump_runtime_diagnostics() {
+  local latest_dir
+  latest_dir="$(latest_service_log_dir)"
+  if [ -n "${latest_dir}" ]; then
+    diag_log "latest service log dir: ${latest_dir}"
+    diag_tail "${latest_dir}/astrostudyboot.log" 120
+    diag_tail "${latest_dir}/astropy.log" 120
+  fi
+  diag_tail "/tmp/horosa_local_web.log" 120
+}
 
 resolve_dist_dir() {
   if [ -f "${PROJECT_DIR}/astrostudyui/dist-file/index.html" ]; then
@@ -400,7 +437,15 @@ pick_browser_bin() {
 }
 
 cleanup() {
+  local code=$?
   set +e
+
+  if [ "${RUN_OK}" != "1" ]; then
+    diag_log "run failed or interrupted, exit_code=${code}"
+    dump_runtime_diagnostics
+    diag_log "===== run end (failed) ====="
+    echo "[诊断] 已记录到：${DIAG_FILE}"
+  fi
 
   if [ -n "${WEB_PID}" ] && kill -0 "${WEB_PID}" >/dev/null 2>&1; then
     kill "${WEB_PID}" >/dev/null 2>&1 || true
@@ -411,8 +456,14 @@ cleanup() {
   if [ "${BACKEND_STARTED}" = "1" ]; then
     "${STOP_SH}" >/dev/null 2>&1 || true
   fi
+
+  return "${code}"
 }
 trap cleanup EXIT INT TERM
+
+echo "[诊断] 运行问题会记录到：${DIAG_FILE}"
+diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
+diag_log "env HOROSA_STARTUP_TIMEOUT=${HOROSA_STARTUP_TIMEOUT:-} HOROSA_FORCE_UI_BUILD=${HOROSA_FORCE_UI_BUILD:-0} HOROSA_SKIP_UI_BUILD=${HOROSA_SKIP_UI_BUILD:-1}"
 
 if [ -f "${PY_PID_FILE}" ] || [ -f "${JAVA_PID_FILE}" ]; then
   echo "检测到旧服务记录，先执行一次停止..."
@@ -436,7 +487,11 @@ ensure_frontend_build
 
 echo "[1/4] 启动本地后端服务..."
 export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-1}"
-"${START_SH}"
+export HOROSA_DIAG_FILE="${DIAG_FILE}"
+if ! "${START_SH}"; then
+  diag_log "start_horosa_local failed"
+  exit 1
+fi
 BACKEND_STARTED=1
 
 echo "[2/4] 启动本地网页服务 (127.0.0.1:${WEB_PORT})..."
@@ -494,3 +549,6 @@ else
 fi
 
 echo "网页已关闭，正在停止本地服务..."
+RUN_OK=1
+diag_log "run success, web_url=${URL}"
+diag_log "===== run end (success) ====="

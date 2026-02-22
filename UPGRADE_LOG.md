@@ -1023,3 +1023,22 @@ Append new entries; do not rewrite history.
 - Verification:
   - `bash -n Horosa-Web/start_horosa_local.sh`
   - `bash -n Horosa_Local.command Prepare_Runtime_Mac.command scripts/mac/bootstrap_and_run.sh`
+
+### 22:00 - 新增统一故障诊断日志：每次运行自动记录前后端问题
+- Scope: add a persistent run diagnostics file so each startup/run failure (frontend/backend/web) is automatically recorded for troubleshooting on other Macs.
+- Files:
+  - `Horosa_Local.command`
+  - `Horosa-Web/start_horosa_local.sh`
+  - `.gitignore`
+  - `README.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增默认诊断文件：`Horosa-Web/.horosa-run-issues.log`（支持 `HOROSA_DIAG_FILE` 自定义）。
+  - `Horosa_Local.command` 每次运行都会写入起止信息、关键环境变量；失败或中断时自动追加最近 `astrostudyboot.log` / `astropy.log` / `horosa_local_web.log` 的 tail。
+  - `start_horosa_local.sh` 也会记录启动阶段信息（runtime 解析、端口就绪、超时失败等），并在失败时附加 Python/Java 日志 tail。
+  - `Horosa_Local.command` 会把 `HOROSA_DIAG_FILE` 透传给 `start_horosa_local.sh`，保证同一次运行落到同一个诊断文件。
+  - `.gitignore` 增加 `Horosa-Web/.horosa-run-issues.log`，避免把本地故障日志提交到 GitHub。
+- Verification:
+  - `bash -n Horosa_Local.command Horosa-Web/start_horosa_local.sh`
+  - `printf '\n' | HOROSA_NO_BROWSER=1 HOROSA_FORCE_UI_BUILD=0 HOROSA_STARTUP_TIMEOUT=300 ./Horosa_Local.command`
+  - 失败路径验证：`HOROSA_WEB_PORT=9999 ./Horosa_Local.command`（确认自动记录失败上下文与日志 tail）

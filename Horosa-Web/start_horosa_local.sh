@@ -17,12 +17,34 @@ PYTHONPATH_ASTRO="${ROOT}/astropy"
 EXTRA_PY_SITE=""
 STARTUP_TIMEOUT="${HOROSA_STARTUP_TIMEOUT:-180}"
 SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
+DIAG_FILE="${HOROSA_DIAG_FILE:-${ROOT}/.horosa-run-issues.log}"
 
 if [ ! -f "${HTML_PATH}" ]; then
   HTML_PATH="${UI_DIR}/dist/index.html"
 fi
 
 mkdir -p "${LOG_DIR}"
+mkdir -p "$(dirname "${DIAG_FILE}")"
+
+diag_log() {
+  local msg="$1"
+  printf '[%s] [start_horosa_local] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${msg}" >>"${DIAG_FILE}" 2>/dev/null || true
+}
+
+diag_tail() {
+  local file="$1"
+  local lines="${2:-80}"
+  if [ ! -f "${file}" ]; then
+    return
+  fi
+  diag_log "tail ${lines} lines: ${file}"
+  while IFS= read -r line; do
+    printf '[%s] [tail] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${line}" >>"${DIAG_FILE}" 2>/dev/null || true
+  done < <(tail -n "${lines}" "${file}" 2>/dev/null || true)
+}
+
+diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
+diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} log_dir=${LOG_DIR}"
 
 cleanup_stale_pid_file() {
   local pid_file="$1"
@@ -303,6 +325,7 @@ ensure_frontend_build() {
 }
 
 if [ -f "${PY_PID_FILE}" ] || [ -f "${JAVA_PID_FILE}" ]; then
+  diag_log "blocked: pid files already exist"
   echo "pid files already exist with running processes. run ./stop_horosa_local.sh first."
   exit 1
 fi
@@ -312,10 +335,12 @@ if ! [[ "${STARTUP_TIMEOUT}" =~ ^[0-9]+$ ]] || [ "${STARTUP_TIMEOUT}" -lt 30 ]; 
 fi
 
 if port_listening 8899; then
+  diag_log "blocked: port 8899 already in use"
   echo "port 8899 is already in use."
   exit 1
 fi
 if port_listening 9999; then
+  diag_log "blocked: port 9999 already in use"
   echo "port 9999 is already in use."
   exit 1
 fi
@@ -325,11 +350,13 @@ ensure_frontend_build
 JAR="${ROOT}/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
 BUNDLE_JAR="${ROOT}/../runtime/mac/bundle/astrostudyboot.jar"
 if [ ! -f "${JAR}" ] && [ -f "${BUNDLE_JAR}" ]; then
+  diag_log "target jar missing, fallback to bundled jar: ${BUNDLE_JAR}"
   echo "backend target jar missing, using bundled jar fallback."
   mkdir -p "$(dirname "${JAR}")"
   cp -f "${BUNDLE_JAR}" "${JAR}"
 fi
 if [ ! -f "${JAR}" ]; then
+  diag_log "missing jar after fallback: ${JAR}"
   echo "missing ${JAR}"
   echo "build first:"
   echo "  ../Prepare_Runtime_Mac.command"
@@ -339,16 +366,20 @@ if [ ! -f "${JAR}" ]; then
 fi
 
 if ! resolve_java_bin; then
+  diag_log "java resolve failed: ${JAVA_BIN}"
   echo "java runtime not found: ${JAVA_BIN}"
   echo "install java 17+ or run ../Horosa_OneClick_Mac.command"
   exit 1
 fi
+diag_log "java resolved: ${JAVA_BIN}"
 
 if ! resolve_python_bin; then
+  diag_log "python resolve failed: ${PYTHON_BIN}"
   echo "python runtime not ready: ${PYTHON_BIN}"
   echo "install runtime deps or run ../Horosa_OneClick_Mac.command"
   exit 1
 fi
+diag_log "python resolved: ${PYTHON_BIN}"
 
 PY_MINOR="$("${PYTHON_BIN}" - <<'PY'
 import sys
@@ -414,16 +445,23 @@ for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
 done
 
 if [ "${ready}" -ne 1 ]; then
+  diag_log "startup timeout after ${STARTUP_TIMEOUT}s"
   echo "services did not become ready in ${STARTUP_TIMEOUT}s (need both 8899 and 9999)."
   echo "tip: increase timeout by setting HOROSA_STARTUP_TIMEOUT=300 if this machine is slow on first run."
   echo "--- python log tail ---"
   tail -n 40 "${PY_LOG}" || true
   echo "--- java log tail ---"
   tail -n 40 "${JAVA_LOG}" || true
+  diag_tail "${PY_LOG}" 120
+  diag_tail "${JAVA_LOG}" 120
+  diag_log "===== run end (failed) ====="
   exit 1
 fi
 
 trap - EXIT
+
+diag_log "services ready: backend=9999 chartpy=8899"
+diag_log "===== run end (success) ====="
 
 echo "services are ready."
 echo "backend:  http://127.0.0.1:9999"
