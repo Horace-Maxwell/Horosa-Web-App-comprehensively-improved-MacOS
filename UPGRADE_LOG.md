@@ -1043,3 +1043,88 @@ Append new entries; do not rewrite history.
   - `bash -n Horosa_Local.command Horosa-Web/start_horosa_local.sh`
   - `printf '\n' | HOROSA_NO_BROWSER=1 HOROSA_FORCE_UI_BUILD=0 HOROSA_STARTUP_TIMEOUT=300 ./Horosa_Local.command`
   - 失败路径验证：`HOROSA_WEB_PORT=9999 ./Horosa_Local.command`（确认自动记录失败上下文与日志 tail）
+
+### 23:31 - 修复“命盘/事盘点击提交无反应”：本地存储异常显式提示
+- Scope: fix silent failure when saving chart/case on machines where localStorage write/read is blocked or quota-limited.
+- Files:
+  - `Horosa-Web/astrostudyui/src/models/user.js`
+  - `Horosa-Web/astrostudyui/src/utils/localcharts.js`
+  - `Horosa-Web/astrostudyui/src/utils/localcases.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `localcharts/localcases` 的读写加入异常捕获，写入失败时返回可判断状态，并在 `upsert/remove` 抛出明确错误码。
+  - `user.js` 的 `addCase/updateCase/deleteCase/addChart/updateChart/saveMemo` 统一 `try/catch`，失败时弹窗提示“本地存储不可用或空间不足”。
+  - 避免之前“点击提交后没有任何反馈”的黑洞体验。
+- Verification:
+  - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build:file` in `Horosa-Web/astrostudyui`
+
+### 23:38 - 提交流程容错补强：日期格式化异常也进入可视错误提示
+- Scope: prevent pre-save date formatting exceptions (`values.birth.format / values.divTime.format`) from bypassing save error handling.
+- Files:
+  - `Horosa-Web/astrostudyui/src/models/user.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 将 `values.birth/divTime` 格式化逻辑移入 `try/catch` 内，确保异常会进入统一错误提示，而不是中断后无反馈。
+  - 进一步减少“提交按钮点了没反应”的边界问题。
+- Verification:
+  - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build:file` in `Horosa-Web/astrostudyui`
+
+### 23:45 - Safari/隐私模式存储兼容：自动清理 AI 快照并回退会话内存
+- Scope: keep chart/case save usable under Safari strict privacy or quota pressure.
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/localcharts.js`
+  - `Horosa-Web/astrostudyui/src/utils/localcases.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增安全 `localStorage` 获取与配额异常识别（`QuotaExceededError` 等）。
+  - 写入超限时自动清理体积较大的 AI 快照缓存：
+    - `horosa.ai.snapshot.astro.v1`
+    - `horosa.ai.snapshot.module.v1.*`
+  - 若存储仍不可用，自动回退到会话内存存储（本次运行可继续增删改查，刷新后可能丢失）。
+  - 通过 `console.warn` 给出一次性降级提示，便于排障。
+- Verification:
+  - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build:file` in `Horosa-Web/astrostudyui`
+
+### 23:49 - 八字/紫微交互优化：时间调整后仅“点确定”才重算
+- Scope: improve UX by stopping immediate recalculation on every time tweak in Bazi/Ziwei.
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/cntradition/CnTraditionInput.js`
+  - `Horosa-Web/astrostudyui/src/components/cntradition/BaZi.js`
+  - `Horosa-Web/astrostudyui/src/components/ziwei/ZiWeiInput.js`
+  - `Horosa-Web/astrostudyui/src/components/ziwei/ZiWeiMain.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `PlusMinusTime -> onFieldsChange` 透传 `__confirmed`。
+  - `BaZi/ZiWeiMain` 收到 `__confirmed=false` 时仅更新字段，不发排盘请求。
+  - 只有 `__confirmed=true`（点击时间选择器里的“确定”）才触发重算，减少频繁等待和卡顿感。
+- Verification:
+  - `npm run build:file` in `Horosa-Web/astrostudyui`
+  - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+
+### 23:58 - Safari 本地存储禁用场景修复：请求层全链路安全读写
+- Scope: eliminate request-layer crashes when Safari blocks localStorage access.
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/request.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增 `safeGetLocalItem/safeSetLocalItem/safeRemoveLocalItem`。
+  - 替换请求层关键路径中的直接 `localStorage` 访问（token 读取、`forceChange` 写入、need-login 判断）。
+  - 防止 Safari 存储访问异常向上冒泡导致误判“命盘保存失败”。
+- Verification:
+  - `npm run build:file` in `Horosa-Web/astrostudyui`
+  - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+
+### 00:03 - 启动行为调整：恢复 Safari 为默认打开浏览器
+- Scope: keep user-required startup behavior (open Safari by default) while retaining Safari compatibility fixes.
+- Files:
+  - `Horosa_Local.command`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `Horosa_Local.command` 的浏览器优先级恢复为：
+    - Safari -> Chromium family app window -> system default browser.
+  - 与 Safari 兼容修复并存，不影响本地存储兜底能力。
+- Verification:
+  - `bash -n Horosa_Local.command`
