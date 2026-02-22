@@ -712,6 +712,7 @@ class JieQiChartsMain extends Component{
 		this.gen24JieqiDom = this.gen24JieqiDom.bind(this);
 		this.genTabsDom = this.genTabsDom.bind(this);
 		this.saveCurrentJieQiSnapshot = this.saveCurrentJieQiSnapshot.bind(this);
+		this.preloadJieqiCharts = this.preloadJieqiCharts.bind(this);
 
 		let params = this.genParams();
 		this.state.fields = paramsToFields(params);
@@ -738,6 +739,7 @@ class JieQiChartsMain extends Component{
 	}
 
 	genParams(){
+		const needCharts = this.state.currentTab !== '二十四节气';
 		const params = {
 			year: this.state.time.format('YYYY'),
 			ad: this.state.ad,
@@ -750,6 +752,8 @@ class JieQiChartsMain extends Component{
 			gpsLat: this.state.gpsLat,
 			gpsLon: this.state.gpsLon,
 			doubingSu28: this.state.doubingSu28,
+			needBazi: false,
+			needCharts: needCharts,
 		}
 		return params;
 	}
@@ -761,6 +765,7 @@ class JieQiChartsMain extends Component{
 			p && p.hsys,
 			p && p.zodiacal,
 			p && p.doubingSu28,
+			p && p.needCharts ? 1 : 0,
 			p && Array.isArray(p.jieqis) ? p.jieqis.join(',') : '',
 		].join('|');
 	}
@@ -809,6 +814,7 @@ class JieQiChartsMain extends Component{
 			this.setState(st, ()=>{
 				this.saveCurrentJieQiSnapshot(this.state.currentTab, result, flds);
 			});
+			this.preloadJieqiCharts(params);
 			if(this.snapshotTimer){
 				if(typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function'){
 					window.cancelIdleCallback(this.snapshotTimer);
@@ -858,10 +864,24 @@ class JieQiChartsMain extends Component{
 		return reqPromise;
 	}
 
+	preloadJieqiCharts(params){
+		if(!params || params.needCharts){
+			return;
+		}
+		const preloadParams = {
+			...params,
+			needCharts: true,
+		};
+		fetchPreciseJieqiYear(preloadParams).catch(()=>{
+			return null;
+		});
+	}
+
 	changeTab(key){
 		this.setState({
 			currentTab: key,
 		}, ()=>{
+			this.requestJieQi();
 			this.saveCurrentJieQiSnapshot(key);
 			if(this.props.dispatch){
 				this.props.dispatch({
@@ -1015,7 +1035,7 @@ class JieQiChartsMain extends Component{
 		}
 
 		let cols = this.state.result.jieqi24.map((item, idx)=>{
-			let fourCols = item.bazi.fourColumns
+			const fourCols = item && item.bazi && item.bazi.fourColumns ? item.bazi.fourColumns : null;
 			return (
 				<Col key={item.jieqi} span={6}>
 					<Card title={item.jieqi} bordered={false}>

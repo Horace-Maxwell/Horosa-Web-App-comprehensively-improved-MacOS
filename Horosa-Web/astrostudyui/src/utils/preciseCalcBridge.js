@@ -9,7 +9,7 @@ import {
 
 const NONG_LI_KEYS = ['date', 'time', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'ad', 'gender', 'after23NewDay', 'timeAlg'];
 const JIE_QI_SEED_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'jieqis', 'seedOnly'];
-const JIE_QI_YEAR_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'hsys', 'zodiacal', 'doubingSu28', 'jieqis', 'seedOnly'];
+const JIE_QI_YEAR_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'hsys', 'zodiacal', 'doubingSu28', 'jieqis', 'seedOnly', 'needBazi', 'needCharts'];
 const MAX_CACHE_SIZE = 192;
 const DEFAULT_SEED_TERMS = ['大雪', '芒种'];
 const PRECISE_REQ_TIMEOUT_MS = 45000;

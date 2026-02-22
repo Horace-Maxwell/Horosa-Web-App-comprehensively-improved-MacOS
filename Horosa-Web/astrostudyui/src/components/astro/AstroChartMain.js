@@ -51,6 +51,7 @@ class AstroChartMain extends Component{
 				tm: tm.time,
 				ad: tm.ad,
 				zone: tm.time.zone,
+				confirmed: tm.confirmed,
 			});
 		}
 	}

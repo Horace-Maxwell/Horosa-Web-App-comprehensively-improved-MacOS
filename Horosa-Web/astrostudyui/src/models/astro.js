@@ -247,8 +247,8 @@ function closeAllDrawer(msg){
 }
 
 function hooking(hook, currentTab, fields, chartObj){
-	if(currentTab === 'indiachart' || currentTab === 'locastro' || currentTab === 'astrochart'
-		|| currentTab === 'hellenastro' || currentTab === 'guolao'  || currentTab === 'astrochart3D'
+	if(currentTab === 'indiachart' || currentTab === 'locastro'
+		|| currentTab === 'hellenastro' || currentTab === 'guolao'
 		|| currentTab === 'germanytech' || currentTab === 'jieqichart'
 		|| currentTab === 'cntradition' || currentTab === 'cnyibu' || currentTab === 'otherbu'
 		|| currentTab === 'fengshui' || currentTab === 'sanshiunited'){

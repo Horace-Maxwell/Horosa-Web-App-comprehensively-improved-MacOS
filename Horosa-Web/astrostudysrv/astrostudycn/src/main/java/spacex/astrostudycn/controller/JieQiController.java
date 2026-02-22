@@ -29,6 +29,7 @@ public class JieQiController {
 		Map<String, Object> params = getYearParams();
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
 		boolean seedOnly = ConvertUtility.getValueAsBool(params.get("seedOnly"), false);
+		boolean needBazi = ConvertUtility.getValueAsBool(params.get("needBazi"), true);
 		
 		Map<String, Object> keyparams = new HashMap<String, Object>();
 		keyparams.putAll(params);
@@ -37,7 +38,9 @@ public class JieQiController {
 		Object obj = CacheHelper.get("/jieqi/year", keyparams, (args)->{
 			Map<String, Object> res = AstroHelper.getJieQiYear(params);
 			if(!seedOnly) {
-				setupBazi(res, params);
+				if(needBazi) {
+					setupBazi(res, params);
+				}
 				Map<String, Object> reqparams = (Map<String, Object>) res.get("params");
 				if(reqparams != null) {
 					reqparams.put("gpsLat", TransData.get("gpsLat"));
@@ -107,6 +110,8 @@ public class JieQiController {
 		params.put("doubingSu28", TransData.getValueAsBool("doubingSu28", false));
 		params.put("southchart", TransData.getValueAsBool("southchart", false));
 		params.put("seedOnly", TransData.getValueAsBool("seedOnly", false));
+		params.put("needBazi", TransData.getValueAsBool("needBazi", true));
+		params.put("needCharts", TransData.getValueAsBool("needCharts", true));
 		if(TransData.containsParam("zodiacal")) {
 			params.put("zodiacal", TransData.get("zodiacal"));
 		}else {

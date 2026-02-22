@@ -1155,3 +1155,45 @@ Append new entries; do not rewrite history.
   - 前端回归：
     - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
     - `npm run build:file` in `Horosa-Web/astrostudyui`
+
+### 01:34 - 节气盘空白/超时修复：拆分“节气列表”与“季节盘起盘”请求
+- Scope: fix blank JieQi panel caused by `/jieqi/year` timeout after 24项+四季盘同请求，and keep first-open latency under 5s.
+- Files:
+  - `Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/JieQiController.java`
+  - `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+  - `Horosa-Web/astrostudyui/src/utils/preciseCalcBridge.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `YearJieQi` 新增 `needCharts` 参数：允许“返回24节气列表”与“生成季节盘 charts”解耦。
+  - 前端节气盘默认页（`二十四节气`）请求改为 `needCharts=false`、`needBazi=false`，避免首次进入时阻塞。
+  - 切换到四季盘标签时再请求 `needCharts=true`，并在后台预热该请求缓存，减少后续等待。
+  - `JieQiController` 透传 `needCharts`，并保留 `needBazi` 兼容控制。
+  - `JieQiChartsMain` 对 `item.bazi` 做空值保护，避免服务端未附带 bazi 时前端渲染异常。
+- Verification:
+  - `python3 -m py_compile Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py`
+  - `mvn -f Horosa-Web/astrostudysrv/astrostudycn/pom.xml -DskipTests install`
+  - `mvn -f Horosa-Web/astrostudysrv/astrostudyboot/pom.xml -DskipTests clean package`
+  - 端到端加密接口实测（本机）：
+    - `needCharts=false`：`771ms`，`jieqi24=24`，`charts=0`
+    - `needCharts=true`：`8009ms`，`jieqi24=24`，`charts=4`
+  - 前端回归：
+    - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+    - `npm run build:file` in `Horosa-Web/astrostudyui`
+
+### 01:35 - 星盘切时间卡顿优化：去除重复排盘请求 + 非确认变更节流
+- Scope: reduce stutter when adjusting time in Astro chart without reducing calculation precision.
+- Files:
+  - `Horosa-Web/astrostudyui/src/pages/index.js`
+  - `Horosa-Web/astrostudyui/src/models/astro.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartMain.js`
+  - `Horosa-Web/astrostudyui/src/components/astro3d/AstroChartMain3D.js`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `DateTimeSelector` 的 `confirmed` 状态透传到星盘主流程。
+  - 对 `confirmed=false` 的时间微调请求加入 180ms 节流并静默请求，避免高频调整时全局 loading 闪烁阻塞。
+  - 移除 `astro` 页签自身的 `doHook -> nohook` 重复排盘链路，避免每次变更触发双请求。
+  - 保留最终排盘算法与后端计算路径，不改动计算精度。
+- Verification:
+  - `npm test -- DunJiaCalc.test.js --runInBand` in `Horosa-Web/astrostudyui`
+  - `npm run build:file` in `Horosa-Web/astrostudyui`

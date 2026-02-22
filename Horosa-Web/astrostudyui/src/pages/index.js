@@ -44,6 +44,7 @@ import * as AstroConst from '../constants/AstroConst';
 import {convertToArray} from '../utils/helper';
 
 const TabPane = Tabs.TabPane;
+let fetchByFieldsTimer = null;
 
 function AstroIndex({dispatch, astro, app, user, rules, }){
     const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, aspects, planetDisplay, lotsDisplay, colorTheme, showPdBounds, showPlanetHouseInfo} = app;
@@ -136,11 +137,36 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             }
         }
 
-        console.log("changeCond");
+        const isUnconfirmedTime = values && values.tm !== undefined && values.tm !== null && values.confirmed === false;
+        if(isUnconfirmedTime){
+            if(fetchByFieldsTimer){
+                clearTimeout(fetchByFieldsTimer);
+            }
+            const queuedPayload = {
+                ...flds,
+                __requestOptions: {
+                    silent: true,
+                },
+            };
+            fetchByFieldsTimer = setTimeout(()=>{
+                dispatch({
+                    type: 'astro/fetchByFields',
+                    payload: queuedPayload,
+                });
+                fetchByFieldsTimer = null;
+            }, 180);
+            return flds;
+        }
+
+        if(fetchByFieldsTimer){
+            clearTimeout(fetchByFieldsTimer);
+            fetchByFieldsTimer = null;
+        }
+
         dispatch({
             type: 'astro/fetchByFields',
             payload: flds,
-        });    
+        });
 
         return flds;
     }
