@@ -17,13 +17,16 @@ PYTHONPATH_ASTRO="${ROOT}/astropy"
 EXTRA_PY_SITE=""
 STARTUP_TIMEOUT="${HOROSA_STARTUP_TIMEOUT:-180}"
 SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
-DIAG_FILE="${HOROSA_DIAG_FILE:-${ROOT}/.horosa-run-issues.log}"
+ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
+DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
+DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
 
 if [ ! -f "${HTML_PATH}" ]; then
   HTML_PATH="${UI_DIR}/dist/index.html"
 fi
 
 mkdir -p "${LOG_DIR}"
+mkdir -p "${DIAG_DIR}"
 mkdir -p "$(dirname "${DIAG_FILE}")"
 
 diag_log() {

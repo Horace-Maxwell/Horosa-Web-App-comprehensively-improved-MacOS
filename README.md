@@ -35,11 +35,12 @@
 - `HOROSA_JDK17_URL=<url>`：自定义 Java17 下载地址（默认使用 Adoptium API）
 - `HOROSA_MAVEN_VERSION=<version>` / `HOROSA_MAVEN_URL=<url>`：自定义 Maven 直连下载版本/地址
 - `HOROSA_STARTUP_TIMEOUT=300`：启动等待时长（秒，默认 180；慢机器首启可调大）
-- `HOROSA_DIAG_FILE=<path>`：自定义故障诊断日志文件路径（默认 `Horosa-Web/.horosa-run-issues.log`）
+- `HOROSA_DIAG_FILE=<path>`：自定义故障诊断日志文件路径（默认 `diagnostics/horosa-run-issues.log`）
+- `HOROSA_DIAG_DIR=<path>`：自定义故障诊断目录（默认 `diagnostics`）
 
 运行诊断日志：
 - 每次运行 `Horosa_Local.command` / `start_horosa_local.sh`，都会把关键阶段状态写入：
-  - `Horosa-Web/.horosa-run-issues.log`
+  - `diagnostics/horosa-run-issues.log`
 - 启动失败时会自动附加最近的后端/前端日志 tail，便于定位“卡住/超时/端口占用”等问题。
 
 ## 上传 GitHub 前建议流程

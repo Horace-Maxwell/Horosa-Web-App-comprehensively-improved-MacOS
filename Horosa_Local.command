@@ -26,8 +26,13 @@ BUNDLED_JAVA_CANDIDATES=(
 
 DIST_DIR="${PROJECT_DIR}/astrostudyui/dist-file"
 DIAG_FILE="${HOROSA_DIAG_FILE:-${PROJECT_DIR}/.horosa-run-issues.log}"
+DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT}/diagnostics}"
+if [ -z "${HOROSA_DIAG_FILE:-}" ]; then
+  DIAG_FILE="${DIAG_DIR}/horosa-run-issues.log"
+fi
 RUN_OK=0
 
+mkdir -p "${DIAG_DIR}"
 mkdir -p "$(dirname "${DIAG_FILE}")"
 touch "${DIAG_FILE}" >/dev/null 2>&1 || true
 
@@ -488,6 +493,7 @@ ensure_frontend_build
 echo "[1/4] 启动本地后端服务..."
 export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-1}"
 export HOROSA_DIAG_FILE="${DIAG_FILE}"
+export HOROSA_DIAG_DIR="${DIAG_DIR}"
 if ! "${START_SH}"; then
   diag_log "start_horosa_local failed"
   exit 1
