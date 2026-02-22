@@ -20,6 +20,59 @@ let lastErrorToast = {
 	ts: 0,
 };
 
+function getLocalStorageSafe(){
+	try{
+		if(typeof window !== 'undefined' && window.localStorage){
+			return window.localStorage;
+		}
+		if(typeof localStorage !== 'undefined'){
+			return localStorage;
+		}
+	}catch(e){
+		return null;
+	}
+	return null;
+}
+
+function safeGetLocalItem(key, defVal = null){
+	const storage = getLocalStorageSafe();
+	if(!storage){
+		return defVal;
+	}
+	try{
+		const val = storage.getItem(key);
+		return val === undefined || val === null ? defVal : val;
+	}catch(e){
+		return defVal;
+	}
+}
+
+function safeSetLocalItem(key, value){
+	const storage = getLocalStorageSafe();
+	if(!storage){
+		return false;
+	}
+	try{
+		storage.setItem(key, value);
+		return true;
+	}catch(e){
+		return false;
+	}
+}
+
+function safeRemoveLocalItem(key){
+	const storage = getLocalStorageSafe();
+	if(!storage){
+		return false;
+	}
+	try{
+		storage.removeItem(key);
+		return true;
+	}catch(e){
+		return false;
+	}
+}
+
 function safeErrorToast(text, cooldownMs){
 	const msg = (text || '').trim();
 	if(!msg){
@@ -74,7 +127,7 @@ export function innerHandleError(err) {
         const rawCode = err ? err[Constants.ResultCodeKey] : null;
         const needLoginByBody = isNeedLoginLikeValue(rawMsg) || isNeedLoginLikeValue(rawCode);
         if(needLoginByHeader || needLoginByBody){
-            const hasToken = !!localStorage.getItem(Constants.TokenKey);
+            const hasToken = !!safeGetLocalItem(Constants.TokenKey, '');
             const now = new Date().getTime();
             if(hasToken && now - lastNeedLoginTs > 8000){
                 lastNeedLoginTs = now;
@@ -157,7 +210,7 @@ function sign(token, headers, body){
 }
 
 export function signRequest(body){
-    const usrtoken = localStorage.getItem(Constants.TokenKey);
+    const usrtoken = safeGetLocalItem(Constants.TokenKey, '');
     const headers = {
         ClientChannel: Constants.ClientChannel,
         ClientApp: Constants.ClientApp,
@@ -359,7 +412,7 @@ export default async function request(url, options) {
             opts.method = 'POST'
         }
     
-        const usrtoken = localStorage.getItem(Constants.TokenKey);
+        const usrtoken = safeGetLocalItem(Constants.TokenKey, '');
         opts.headers = {
             ...headers,
             Token: usrtoken ? usrtoken : '', 
@@ -446,7 +499,7 @@ export default async function request(url, options) {
                     loading: false,
                 }
             });  
-            localStorage.setItem('forceChange', '1');
+            safeSetLocalItem('forceChange', '1');
         }
     }
 
@@ -492,7 +545,7 @@ export async function requestRaw(url, options) {
             opts.method = 'POST'
         }
     
-        const usrtoken = localStorage.getItem(Constants.TokenKey);
+        const usrtoken = safeGetLocalItem(Constants.TokenKey, '');
         opts.headers = {
             ...headers,
             Token: usrtoken, 
@@ -550,7 +603,7 @@ export async function requestRaw(url, options) {
                     loading: false,
                 }
             });  
-            localStorage.setItem('forceChange', '1');
+            safeSetLocalItem('forceChange', '1');
         }
     }
 
@@ -613,7 +666,7 @@ export function downloadUrl(url, options, ignoreTM){
             opts.method = 'POST'
         }
     
-        const usrtoken = localStorage.getItem(Constants.TokenKey);
+        const usrtoken = safeGetLocalItem(Constants.TokenKey, '');
         opts.headers = {
             ...headers,
             Token: usrtoken, 
@@ -656,7 +709,7 @@ export function encodeUrl(url, params, notimestamp){
             });
         }
     
-        const usrtoken = localStorage.getItem(Constants.TokenKey);
+        const usrtoken = safeGetLocalItem(Constants.TokenKey, '');
         let opts = {
             headers: {
                 Token: usrtoken, 
