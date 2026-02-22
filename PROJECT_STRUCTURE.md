@@ -1,11 +1,11 @@
 # Horosa Web 项目结构（GitHub 上传版）
 
-更新时间：2026-02-20
+更新时间：2026-02-22
 
 ## 1) 根目录（入口）
 
 - `Horosa_OneClick_Mac.command`：Mac 一键部署+启动主入口
-- `Horosa_Local.command`：已安装依赖后的快速启动入口
+- `Horosa_Local.command`：已安装依赖后的快速启动入口（含 `/static/umi.*` 白屏兼容补丁）
 - `Horosa_Local_Windows.bat` / `Horosa_Local_Windows.ps1`：Windows 启动入口
 - `Prepare_Runtime_Mac.command` / `Prepare_Runtime_Windows.*`：离线 runtime 打包脚本
 - `README.md`：部署和上传说明
@@ -69,3 +69,14 @@
 - 改后端接口：`Horosa-Web/astrostudysrv/astrostudyboot/`
 - 改 Python 服务：`Horosa-Web/astropy/websrv/`
 - 排查启动日志：`Horosa-Web/.horosa-local-logs/`
+
+## 7) 本次性能修复说明（结构层）
+
+- 未新增第三方依赖包；一键部署脚本与依赖清单无需额外安装步骤。
+- 节气计算性能关键路径位于：
+  - `Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/JieQiController.java`
+- 节气页面展示链路（前端拆分“全24节气卡片”与“图盘子集异步加载”）位于：
+  - `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+- 统一参数哈希缓存层位于：
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java`

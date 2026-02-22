@@ -10,6 +10,7 @@ const DEFAULT_PLANET_INFO_EXPORT = {
 	showHouse: 1,
 	showRuler: 1,
 };
+const PLANET_HOUSE_INFO_NOTE = '说明：行星名后括号中的 nR 为宫主宫位标记；逆行会明确写为“逆行”。';
 
 function msg(id){
 	if(id === undefined || id === null){
@@ -22,6 +23,10 @@ function msg(id){
 		return `${AstroText.AstroMsg[id]}`;
 	}
 	return `${id}`;
+}
+
+function normalizeAiPlanetLabel(text){
+	return `${text || ''}`.replace(/(\d+)R\s*\(宫主\)/g, '$1R');
 }
 
 function normalizeDateTime(value){
@@ -68,6 +73,7 @@ function buildStarInfoLines(natalChartObj){
 	if(chart.isDiurnal !== undefined && chart.isDiurnal !== null){
 		lines.push(`盘型：${chart.isDiurnal ? '日生盘' : '夜生盘'}`);
 	}
+	lines.push(PLANET_HOUSE_INFO_NOTE);
 
 	const houseLines = buildHouseCuspLines(natalChartObj);
 	if(houseLines.length){
@@ -167,6 +173,7 @@ function buildAspectLines(result, natalChartObj){
 			directId,
 			DEFAULT_PLANET_INFO_EXPORT
 		);
+		const directTxt = normalizeAiPlanetLabel(direct);
 		const objs = Array.isArray(item.objects) ? item.objects : [];
 		objs.forEach((o)=>{
 			const natalId = o.natalId || o.id;
@@ -176,8 +183,9 @@ function buildAspectLines(result, natalChartObj){
 				natalId,
 				DEFAULT_PLANET_INFO_EXPORT
 			);
+			const natalTxt = normalizeAiPlanetLabel(natal);
 			const asp = AstroText.AstroTxtMsg[`Asp${o.aspect}`] || `${o.aspect}º`;
-			lines.push(`行运${direct} 与 本命${natal} 成 ${asp} 相位，误差${round3(o.delta)}`);
+			lines.push(`行运${directTxt} 与 本命${natalTxt} 成 ${asp} 相位，误差${round3(o.delta)}`);
 		});
 	});
 	return lines;

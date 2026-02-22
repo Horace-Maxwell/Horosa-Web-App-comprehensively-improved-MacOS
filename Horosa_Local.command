@@ -344,6 +344,26 @@ ensure_frontend_artifact() {
   resolve_dist_dir
 }
 
+repair_frontend_entry_assets() {
+  local index_file="$1/index.html"
+  local static_dir="$1/static"
+  if [ ! -f "${index_file}" ]; then
+    return
+  fi
+  if ! grep -qE '"/static/umi\.[^"]+\.(js|css)"' "${index_file}"; then
+    return
+  fi
+  if ls "${static_dir}"/umi.*.js >/dev/null 2>&1 && ls "${static_dir}"/umi.*.css >/dev/null 2>&1; then
+    return
+  fi
+  if ! ls "$1"/umi.*.js >/dev/null 2>&1 && ! ls "$1"/umi.*.css >/dev/null 2>&1; then
+    return
+  fi
+  mkdir -p "${static_dir}"
+  cp -f "$1"/umi.*.js "${static_dir}/" 2>/dev/null || true
+  cp -f "$1"/umi.*.css "${static_dir}/" 2>/dev/null || true
+}
+
 if [ ! -x "${START_SH}" ] || [ ! -x "${STOP_SH}" ]; then
   echo "缺少可执行脚本：${START_SH} 或 ${STOP_SH}"
   read -r -p "按回车退出..." _
@@ -479,6 +499,7 @@ fi
 use_bundled_runtime
 ensure_backend_artifact
 ensure_frontend_artifact
+repair_frontend_entry_assets "${DIST_DIR}"
 
 resolve_dist_dir
 if [ ! -d "${DIST_DIR}" ] || [ ! -f "${DIST_DIR}/index.html" ]; then
@@ -489,6 +510,8 @@ if [ ! -d "${DIST_DIR}" ] || [ ! -f "${DIST_DIR}/index.html" ]; then
 fi
 
 ensure_frontend_build
+resolve_dist_dir
+repair_frontend_entry_assets "${DIST_DIR}"
 
 echo "[1/4] 启动本地后端服务..."
 export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-1}"

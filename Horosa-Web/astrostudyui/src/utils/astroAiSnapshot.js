@@ -7,6 +7,7 @@ const DEFAULT_PLANET_INFO_EXPORT = {
 	showHouse: 1,
 	showRuler: 1,
 };
+const PLANET_HOUSE_INFO_NOTE = '说明：行星名后括号中的 nR 为宫主宫位标记；逆行会明确写为“逆行”。';
 
 function isEncodedToken(text){
 	return /^[A-Za-z0-9${}]$/.test((text || '').trim());
@@ -29,8 +30,17 @@ function msg(id){
 	return `${id}`;
 }
 
+function normalizeAiPlanetLabel(text){
+	return `${text || ''}`.replace(/(\d+)R\s*\(宫主\)/g, '$1R');
+}
+
+function normalizeAiExportText(text){
+	return `${text || ''}`.replace(/(\d+)R\s*\(宫主\)/g, '$1R');
+}
+
 function msgWithHouse(id, chartObj, enabled = DEFAULT_PLANET_INFO_EXPORT){
-	return appendPlanetHouseInfoById(msg(id), chartObj, id, enabled);
+	const text = appendPlanetHouseInfoById(msg(id), chartObj, id, enabled);
+	return normalizeAiPlanetLabel(text);
 }
 
 function round3(val){
@@ -82,6 +92,17 @@ function formatSignDegree(sign, signlon){
 	const minute = Math.abs(sd[1]);
 	const term = whichTerm(sign, deg);
 	return `${deg}˚${msg(sign)}${minute}分；位于 ${term} 界`;
+}
+
+function formatRetrogradeText(obj){
+	if(!obj || obj.lonspeed === undefined || obj.lonspeed === null){
+		return '';
+	}
+	const speed = Number(obj.lonspeed);
+	if(Number.isNaN(speed) || speed >= 0){
+		return '';
+	}
+	return '；逆行';
 }
 
 function lonToSignDegree(lon){
@@ -231,6 +252,7 @@ function buildBaseInfoLines(chartObj, fields){
 	if(zodiacal || hsys){
 		lines.push(`${msg(zodiacal)}，${msg(hsys)}`);
 	}
+	lines.push(PLANET_HOUSE_INFO_NOTE);
 
 	if(chart.dayerStar){
 		lines.push(`日主星：${msg(chart.dayerStar)}`);
@@ -263,7 +285,7 @@ export function buildStarAndLotPositionLines(chartObj){
 		if(!obj || obj.sign === undefined || obj.signlon === undefined){
 			return;
 		}
-		lines.push(`${msgWithHouse(id, chartObj)}：${formatSignDegree(obj.sign, obj.signlon)}`);
+		lines.push(`${msgWithHouse(id, chartObj)}：${formatSignDegree(obj.sign, obj.signlon)}${formatRetrogradeText(obj)}`);
 	};
 
 	AstroConst.LIST_OBJECTS.forEach((id)=>pushOne(id));
@@ -298,11 +320,11 @@ export function buildInfoSection(chartObj, fields){
 		lines.push('接纳');
 		lines.push('正接纳：');
 		(receptions.normal || []).forEach((item)=>{
-			lines.push(`${msg(item.beneficiary)} 被 ${msg(item.supplier)} 接纳 (${ruleshipText(item.supplierRulerShip)})`);
+			lines.push(`${msgWithHouse(item.beneficiary, chartObj)} 被 ${msgWithHouse(item.supplier, chartObj)} 接纳 (${ruleshipText(item.supplierRulerShip)})`);
 		});
 		lines.push('邪接纳：');
 		(receptions.abnormal || []).forEach((item)=>{
-			lines.push(`${msg(item.beneficiary)} (${ruleshipText(item.beneficiaryDignity)}) 被 ${msg(item.supplier)} 接纳 (${ruleshipText(item.supplierRulerShip)})`);
+			lines.push(`${msgWithHouse(item.beneficiary, chartObj)} (${ruleshipText(item.beneficiaryDignity)}) 被 ${msgWithHouse(item.supplier, chartObj)} 接纳 (${ruleshipText(item.supplierRulerShip)})`);
 		});
 	}
 
@@ -311,11 +333,11 @@ export function buildInfoSection(chartObj, fields){
 		lines.push('互容');
 		lines.push('正互容：');
 		(mutuals.normal || []).forEach((item)=>{
-			lines.push(`${msg(item.planetA.id)} (${ruleshipText(item.planetA.rulerShip)}) 与 ${msg(item.planetB.id)} (${ruleshipText(item.planetB.rulerShip)}) 互容`);
+			lines.push(`${msgWithHouse(item.planetA.id, chartObj)} (${ruleshipText(item.planetA.rulerShip)}) 与 ${msgWithHouse(item.planetB.id, chartObj)} (${ruleshipText(item.planetB.rulerShip)}) 互容`);
 		});
 		lines.push('邪互容：');
 		(mutuals.abnormal || []).forEach((item)=>{
-			lines.push(`${msg(item.planetA.id)} (${ruleshipText(item.planetA.rulerShip)}) 与 ${msg(item.planetB.id)} (${ruleshipText(item.planetB.rulerShip)}) 互容`);
+			lines.push(`${msgWithHouse(item.planetA.id, chartObj)} (${ruleshipText(item.planetA.rulerShip)}) 与 ${msgWithHouse(item.planetB.id, chartObj)} (${ruleshipText(item.planetB.rulerShip)}) 互容`);
 		});
 	}
 
@@ -339,7 +361,7 @@ export function buildInfoSection(chartObj, fields){
 		}
 		candidates.forEach((pair)=>{
 			attackLines.push(
-				`${msg(key)} 被 ${msg(pair[0].id)} (通过${aspectText(pair[0].aspect)}相位) 与 ${msg(pair[1].id)} (通过${aspectText(pair[1].aspect)}相位) 围攻`
+				`${msgWithHouse(key, chartObj)} 被 ${msgWithHouse(pair[0].id, chartObj)} (通过${aspectText(pair[0].aspect)}相位) 与 ${msgWithHouse(pair[1].id, chartObj)} (通过${aspectText(pair[1].aspect)}相位) 围攻`
 			);
 		});
 	});
@@ -353,7 +375,7 @@ export function buildInfoSection(chartObj, fields){
 	Object.keys(houses).forEach((key)=>{
 		const pair = houses[key];
 		if(pair && pair.length === 2){
-			houseLines.push(`${msg(pair[0].id)} 与 ${msg(pair[1].id)} 夹 ${msg(key)}`);
+			houseLines.push(`${msgWithHouse(pair[0].id, chartObj)} 与 ${msgWithHouse(pair[1].id, chartObj)} 夹 ${msg(key)}`);
 		}
 	});
 	if(houseLines.length){
@@ -366,15 +388,15 @@ export function buildInfoSection(chartObj, fields){
 	Object.keys(planets).forEach((key)=>{
 		const pair = planets[key];
 		if(key === 'BySunMoon' && pair && pair.id){
-			planetLines.push(`${msg(AstroConst.MOON)} 与 ${msg(AstroConst.SUN)} 夹 ${msg(pair.id)}`);
+			planetLines.push(`${msgWithHouse(AstroConst.MOON, chartObj)} 与 ${msgWithHouse(AstroConst.SUN, chartObj)} 夹 ${msgWithHouse(pair.id, chartObj)}`);
 			return;
 		}
 		if(pair && pair.SunMoon && pair.SunMoon.length === 2){
-			planetLines.push(`${msg(pair.SunMoon[0].id)} 与 ${msg(pair.SunMoon[1].id)} 夹 ${msg(key)}`);
+			planetLines.push(`${msgWithHouse(pair.SunMoon[0].id, chartObj)} 与 ${msgWithHouse(pair.SunMoon[1].id, chartObj)} 夹 ${msgWithHouse(key, chartObj)}`);
 			return;
 		}
 		if(pair && pair.length === 2){
-			planetLines.push(`${msg(pair[0].id)} 与 ${msg(pair[1].id)} 夹 ${msg(key)}`);
+			planetLines.push(`${msgWithHouse(pair[0].id, chartObj)} 与 ${msgWithHouse(pair[1].id, chartObj)} 夹 ${msgWithHouse(key, chartObj)}`);
 		}
 	});
 	if(planetLines.length){
@@ -645,7 +667,7 @@ export function saveAstroAISnapshot(chartObj, fields){
 			createdAt: new Date().toISOString(),
 			signature: createAstroSnapshotSignature(chartObj, fields),
 			chartId: chartObj && chartObj.chartId ? chartObj.chartId : null,
-			content: content,
+			content: normalizeAiExportText(content),
 		};
 		window.localStorage.setItem(ASTRO_AI_SNAPSHOT_KEY, JSON.stringify(payload));
 		return payload;
@@ -667,6 +689,7 @@ export function loadAstroAISnapshot(){
 		if(!obj || !obj.content){
 			return null;
 		}
+		obj.content = normalizeAiExportText(obj.content);
 		return obj;
 	}catch(e){
 		return null;
