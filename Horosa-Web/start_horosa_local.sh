@@ -21,6 +21,13 @@ ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
 DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
 DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
 
+if [ -z "${HOROSA_PYTHON:-}" ] && [ -x "${ROOT_PARENT}/.runtime/mac/venv/bin/python3" ]; then
+  PYTHON_BIN="${ROOT_PARENT}/.runtime/mac/venv/bin/python3"
+fi
+if [ -z "${HOROSA_JAVA_BIN:-}" ] && [ -x "${ROOT_PARENT}/runtime/mac/java/bin/java" ]; then
+  JAVA_BIN="${ROOT_PARENT}/runtime/mac/java/bin/java"
+fi
+
 if [ ! -f "${HTML_PATH}" ]; then
   HTML_PATH="${UI_DIR}/dist/index.html"
 fi

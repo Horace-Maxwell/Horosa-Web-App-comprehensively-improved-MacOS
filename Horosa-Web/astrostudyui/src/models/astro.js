@@ -946,7 +946,7 @@ export default {
 		*fetchByFields({ payload: values }, { call, put }){
 			const requestOptions = values && values.__requestOptions && typeof values.__requestOptions === 'object'
 				? values.__requestOptions
-				: null;
+				: { silent: true };
 			const fieldValues = {
 				...(values || {}),
 			};

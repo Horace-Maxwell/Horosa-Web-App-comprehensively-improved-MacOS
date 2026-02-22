@@ -12,7 +12,7 @@ import boundless.spring.help.interceptor.TransData;
 import boundless.utility.ConvertUtility;
 import boundless.utility.StringUtility;
 import spacex.astrostudy.constants.PhaseType;
-import spacex.astrostudy.helper.CacheHelper;
+import spacex.astrostudy.helper.ParamHashCacheHelper;
 import spacex.astrostudy.model.FourColumns;
 import spacex.astrostudy.model.godrule.GodRule;
 import spacex.astrostudycn.constants.TimeZiAlg;
@@ -43,7 +43,7 @@ public class LiuRengController {
 		Boolean isDiurnal = (Boolean) params.get("isDiurnal");
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
 		
-		Object obj = CacheHelper.get("/liureng/gods", params, (args)->{
+		Object obj = ParamHashCacheHelper.get("/liureng/gods", params, (args)->{
 			LiuReng bz = new LiuReng(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay);
 			if(!StringUtility.isNullOrEmpty(yue) && isDiurnal != null) {
 				bz = new LiuReng(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, yue, isDiurnal);
@@ -207,7 +207,7 @@ public class LiuRengController {
 		params.put("guaAd", reqGuaAd);
 		params.put("guaAfter23NewDay", reqGuaAfter23NewDay);
 		
-		Object obj = CacheHelper.get("/liureng/runyear", params, (args)->{
+		Object obj = ParamHashCacheHelper.get("/liureng/runyear", params, (args)->{
 			BaZi bz = new BaZi(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay);
 			bz.calculateFourColumn(phaseType);
 			FourColumns fourcols = bz.getFourColums();

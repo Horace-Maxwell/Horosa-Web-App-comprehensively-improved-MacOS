@@ -91,6 +91,7 @@ class GuoLaoInput extends Component{
 			let dt = value.time;
 
 			this.props.onFieldsChange({
+				__confirmed: !!value.confirmed,
 				date: {
 					value: dt.clone(),
 				},

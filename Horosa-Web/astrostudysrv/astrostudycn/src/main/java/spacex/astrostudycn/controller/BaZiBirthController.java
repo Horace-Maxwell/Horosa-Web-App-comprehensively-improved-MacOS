@@ -11,7 +11,7 @@ import boundless.exception.ErrorCodeException;
 import boundless.spring.help.interceptor.TransData;
 import boundless.utility.ConvertUtility;
 import spacex.astrostudy.constants.PhaseType;
-import spacex.astrostudy.helper.CacheHelper;
+import spacex.astrostudy.helper.ParamHashCacheHelper;
 import spacex.astrostudy.model.godrule.GodRule;
 import spacex.astrostudycn.constants.TimeZiAlg;
 import spacex.astrostudycn.model.BaZi;
@@ -36,7 +36,7 @@ public class BaZiBirthController {
 		String godKeyPos = (String) params.get("godKeyPos");
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
 		
-		Object obj = CacheHelper.get("/bazi/birth", params, (args)->{
+		Object obj = ParamHashCacheHelper.get("/bazi/birth", params, (args)->{
 			BaZi bz = new BaZi(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay);
 			bz.calculate(phaseType);
 			Map<String, Object> res = new HashMap<String, Object>();

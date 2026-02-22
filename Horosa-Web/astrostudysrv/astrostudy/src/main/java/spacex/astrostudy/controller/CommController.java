@@ -16,6 +16,7 @@ import spacex.astrostudy.helper.BaZiHelper;
 import spacex.astrostudy.helper.BaZiPithyHelper;
 import spacex.astrostudy.helper.CacheHelper;
 import spacex.astrostudy.helper.Gong12Helper;
+import spacex.astrostudy.helper.ParamHashCacheHelper;
 
 @Controller
 @RequestMapping("/common")
@@ -30,6 +31,11 @@ public class CommController {
 		cnt += CacheHelper.deleteCacheKey(jieqi);
 		cnt += CacheHelper.deleteCacheKey(bazi);
 		cnt += AstroCacheHelper.deleteCacheKey();
+		cnt += ParamHashCacheHelper.clearByScope("_bazi_");
+		cnt += ParamHashCacheHelper.clearByScope("_liureng_");
+		cnt += ParamHashCacheHelper.clearByScope("_jieqi_");
+		cnt += ParamHashCacheHelper.clearByScope("_chart");
+		cnt += ParamHashCacheHelper.clearByScope("_india_chart");
 		TransData.set("total", cnt);
 	}
 	

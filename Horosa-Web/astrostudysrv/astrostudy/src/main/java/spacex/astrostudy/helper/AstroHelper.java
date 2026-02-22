@@ -1,20 +1,17 @@
 package spacex.astrostudy.helper;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
 import boundless.exception.ErrorCodeException;
 import boundless.net.http.HttpClientUtility;
-import boundless.security.MD5Utility;
 import boundless.spring.help.PropertyPlaceholder;
-import boundless.utility.CalculatePool;
-import boundless.utility.ConvertUtility;
 import boundless.utility.JsonUtility;
-import boundless.utility.StringUtility;
 
 public class AstroHelper {
-	private static final boolean Debug = PropertyPlaceholder.getPropertyAsBool("devmode", true);
+	private static final boolean Debug = PropertyPlaceholder.getPropertyAsBool("devmode", false);
+	private static final boolean DisableRequestCache = PropertyPlaceholder.getPropertyAsBool("astrohelper.disable.request.cache", false);
+	private static final int RequestCacheExpInSec = PropertyPlaceholder.getPropertyAsInt("astrohelper.request.cache.expireinsecond", 86400);
 
 	public static final String AstroSrvUrl = PropertyPlaceholder.getProperty("astrosrv", "http://127.0.0.1:8899");
 	public static final String SolarReturn = PropertyPlaceholder.getProperty("solarreturn", "/predict/solarreturn");
@@ -37,53 +34,14 @@ public class AstroHelper {
 	public static final String Azimuth = PropertyPlaceholder.getProperty("azimuth", "/calc/azimuth");
 	public static final String Cotrans = PropertyPlaceholder.getProperty("cotrans", "/calc/cotrans");
 	
-	private static String getPredictiveKey(String path, Map<String, Object> params) {
-		StringBuilder sb = new StringBuilder(path);
-		sb.append("_");
-		for(Object obj : params.values()) {
-			if(obj instanceof Collection) {
-				String str = StringUtility.joinWithSeperator(",", obj);
-				sb.append(str);
-			}if(obj instanceof Map) {
-				String str = JsonUtility.encode(obj);
-				sb.append(str);
-			}else {
-				if(obj == null) {
-					sb.append("null");
-				}else {
-					sb.append(obj.toString());					
-				}
-			}
-		}
-		String txt = sb.toString();
-		return MD5Utility.encryptAsString(txt);
-	}
-	
 	private static Map<String, Object> request(String path, Map<String, Object> params){
-		if(Debug) {
+		if(Debug || DisableRequestCache) {
 			return requestNoCache(path, params);
 		}
-		String key = getPredictiveKey(path, params);
-		Map<String, Object> res = AstroCacheHelper.getPredictive(key);
-		if(res != null) {
-			return res;
-		}
-		
-		String url = String.format("%s%s", AstroSrvUrl, path);
-		String jsonData = JsonUtility.encode(params);
-		Map<String, String> headers = new HashMap<String, String>();
-		Map<String, String> respHeadMap = new HashMap<String, String>();
-		String str = HttpClientUtility.uploadString(url, headers, "application/json; charset=UTF-8", jsonData, respHeadMap);
-		Map<String, Object> jsonres = JsonUtility.toDictionary(str);
-		if(jsonres.containsKey("err")) {
-			throw new ErrorCodeException(200001, jsonres.get("err").toString());
-		}
-		
-		CalculatePool.queueUserWorkItem(()->{
-			AstroCacheHelper.setPredictive(key, jsonres);
-		});
-		
-		return jsonres;		
+		Object obj = ParamHashCacheHelper.get(path, params, (args)->{
+			return requestNoCache(path, args);
+		}, RequestCacheExpInSec);
+		return (Map<String, Object>)obj;
 	}
 	
 	public static Map<String, Object> requestNoCache(String path, Map<String, Object> params){

@@ -12,6 +12,7 @@ import boundless.exception.ErrorCodeException;
 import boundless.spring.help.interceptor.TransData;
 import boundless.utility.JsonUtility;
 import spacex.astrostudy.helper.AstroHelper;
+import spacex.astrostudy.helper.ParamHashCacheHelper;
 
 @Controller
 @RequestMapping("/india")
@@ -21,8 +22,16 @@ public class IndiaChartController {
 	@RequestMapping("/chart")
 	public void chart(){
 		Map<String, Object> params = getParams();
-		
-		Map<String, Object> res = AstroHelper.getIndiaChart(params);
+		Map<String, Object> keyparams = new HashMap<String, Object>();
+		keyparams.putAll(params);
+		keyparams.remove("gpsLat");
+		keyparams.remove("gpsLon");
+		Object obj = ParamHashCacheHelper.get("/india/chart", keyparams, (args)->{
+			Map<String, Object> res = AstroHelper.getIndiaChart(args);
+			return res;
+		});
+
+		Map<String, Object> res = (Map<String, Object>)obj;
 		Map<String, Object> reqparams = (Map<String, Object>) res.get("params");
 		if(reqparams != null) {
 			reqparams.put("gpsLat", TransData.get("gpsLat"));

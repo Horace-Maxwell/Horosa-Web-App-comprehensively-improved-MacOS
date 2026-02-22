@@ -194,6 +194,77 @@ function buildBaziSnapshotText(params, result){
 	return lines.join('\n');
 }
 
+const BAZI_CACHE_MAX = 96;
+const baziMem = new Map();
+const baziInflight = new Map();
+
+function clonePlain(obj){
+	if(obj === undefined || obj === null){
+		return obj;
+	}
+	try{
+		return JSON.parse(JSON.stringify(obj));
+	}catch(e){
+		return obj;
+	}
+}
+
+function pushCache(map, key, val, max = BAZI_CACHE_MAX){
+	if(!map || !key || val === undefined || val === null){
+		return;
+	}
+	if(map.has(key)){
+		map.delete(key);
+	}
+	map.set(key, val);
+	if(map.size > max){
+		const first = map.keys().next().value;
+		if(first){
+			map.delete(first);
+		}
+	}
+}
+
+function buildBaziKey(params){
+	try{
+		return JSON.stringify(params || {});
+	}catch(e){
+		return '';
+	}
+}
+
+async function fetchBaziCached(params, options){
+	const opt = options || {};
+	const disableCache = opt.cache === false;
+	const key = disableCache ? '' : buildBaziKey(params);
+	if(key && baziMem.has(key)){
+		return clonePlain(baziMem.get(key));
+	}
+	if(key && baziInflight.has(key)){
+		const inflight = await baziInflight.get(key);
+		return clonePlain(inflight);
+	}
+	const req = request(`${Constants.ServerRoot}/bazi/direct`, {
+		body: JSON.stringify(params),
+		silent: opt.silent !== false,
+	}).then((data)=>{
+		const result = data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
+		if(key && result){
+			pushCache(baziMem, key, clonePlain(result));
+		}
+		return result;
+	}).finally(()=>{
+		if(key){
+			baziInflight.delete(key);
+		}
+	});
+	if(key){
+		baziInflight.set(key, req);
+	}
+	const result = await req;
+	return clonePlain(result);
+}
+
 class BaZi extends Component{
 	constructor(props) {
 		super(props);
@@ -213,8 +284,11 @@ class BaZi extends Component{
 		};
 
 		this.unmounted = false;
+		this.baziReqSeq = 0;
+		this.prefetchTimer = null;
 
 		this.requestBazi = this.requestBazi.bind(this);
+		this.prefetchBazi = this.prefetchBazi.bind(this);
 		this.genParams = this.genParams.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.onBaziOptChange = this.onBaziOptChange.bind(this);
@@ -235,8 +309,9 @@ class BaZi extends Component{
 			const patch = {
 				...field,
 			};
-			const confirmed = !!patch.__confirmed;
-			if(Object.prototype.hasOwnProperty.call(patch, '__confirmed')){
+			const hasConfirmedFlag = Object.prototype.hasOwnProperty.call(patch, '__confirmed');
+			const confirmed = hasConfirmedFlag ? !!patch.__confirmed : true;
+			if(hasConfirmedFlag){
 				delete patch.__confirmed;
 			}
 			let flds = {
@@ -249,9 +324,28 @@ class BaZi extends Component{
 				type: 'astro/save',
 				payload: flds
 			});
-			if(confirmed || !Object.prototype.hasOwnProperty.call(field || {}, '__confirmed')){
-				this.requestBazi(flds.fields);
+			if(!confirmed){
+				if(this.prefetchTimer){
+					clearTimeout(this.prefetchTimer);
+				}
+				this.prefetchTimer = setTimeout(()=>{
+					this.prefetchTimer = null;
+					if(this.unmounted){
+						return;
+					}
+					this.prefetchBazi(flds.fields).catch(()=>{
+						return null;
+					});
+				}, 240);
+				return;
 			}
+			if(this.prefetchTimer){
+				clearTimeout(this.prefetchTimer);
+				this.prefetchTimer = null;
+			}
+			this.requestBazi(flds.fields, {
+				silent: true,
+			});
 		}
 	}
 	
@@ -283,16 +377,29 @@ class BaZi extends Component{
 		return params;
 	}
 
-	async requestBazi(fields){
+	async prefetchBazi(fields){
 		if(fields === undefined || fields === null){
 			return;
 		}
 		const params = this.genParams(fields);
-
-		const data = await request(`${Constants.ServerRoot}/bazi/direct`, {
-			body: JSON.stringify(params),
+		await fetchBaziCached(params, {
+			silent: true,
 		});
-		const result = data[Constants.ResultKey]
+	}
+
+	async requestBazi(fields, options){
+		if(fields === undefined || fields === null){
+			return;
+		}
+		const params = this.genParams(fields);
+		const opt = options || {};
+		const seq = ++this.baziReqSeq;
+		const result = await fetchBaziCached(params, {
+			silent: opt.silent !== false,
+		});
+		if(!result || this.unmounted || seq !== this.baziReqSeq){
+			return;
+		}
 
 		const st = {
 			result: result,
@@ -312,12 +419,18 @@ class BaZi extends Component{
 	componentDidMount(){
 		this.unmounted = false;
 		if(this.props.fields){
-			this.requestBazi(this.props.fields);
+			this.requestBazi(this.props.fields, {
+				silent: true,
+			});
 		}
 	}
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(this.prefetchTimer){
+			clearTimeout(this.prefetchTimer);
+			this.prefetchTimer = null;
+		}
 	}
 
 	render(){

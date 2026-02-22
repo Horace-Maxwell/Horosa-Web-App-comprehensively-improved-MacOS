@@ -131,7 +131,7 @@ class AstroChart13 extends Component{
 			return;
 		}
 		const seq = ++this.chartReqSeq;
-		const result = await fetchChart13Cached(params, false);
+		const result = await fetchChart13Cached(params, true);
 		if(this.unmounted || seq !== this.chartReqSeq){
 			return;
 		}

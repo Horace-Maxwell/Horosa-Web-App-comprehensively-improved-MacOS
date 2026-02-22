@@ -776,6 +776,7 @@ class JinKouMain extends Component{
 		}else{
 			const req = request(`${Constants.ServerRoot}/liureng/gods`, {
 				body: JSON.stringify(params),
+				silent: true,
 			}).then((data)=>{
 				return data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
 			}).finally(()=>{
@@ -869,6 +870,7 @@ class JinKouMain extends Component{
 			}else{
 				const req = request(`${Constants.ServerRoot}/liureng/runyear`, {
 					body: JSON.stringify(params),
+					silent: true,
 				}).then((data)=>{
 					return data && data[Constants.ResultKey] ? { ...data[Constants.ResultKey] } : {};
 				}).finally(()=>{

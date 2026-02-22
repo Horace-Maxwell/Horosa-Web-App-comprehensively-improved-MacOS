@@ -55,6 +55,10 @@ const SIMPLE_TOKEN_MAP = {
 	8: '人龙星',
 };
 
+const GUOLAO_CACHE_MAX = 96;
+const guolaoMem = new Map();
+const guolaoInflight = new Map();
+
 function splitDegree(degree){
 	let d = Number(degree);
 	if(Number.isNaN(d)){
@@ -90,6 +94,145 @@ function msg(id){
 		return SIMPLE_TOKEN_MAP[one];
 	}
 	return `${id}`;
+}
+
+function clonePlain(obj){
+	if(obj === undefined || obj === null){
+		return obj;
+	}
+	try{
+		return JSON.parse(JSON.stringify(obj));
+	}catch(e){
+		return obj;
+	}
+}
+
+function pushCache(map, key, val, max = GUOLAO_CACHE_MAX){
+	if(!map || !key || val === undefined || val === null){
+		return;
+	}
+	if(map.has(key)){
+		map.delete(key);
+	}
+	map.set(key, val);
+	if(map.size > max){
+		const first = map.keys().next().value;
+		if(first){
+			map.delete(first);
+		}
+	}
+}
+
+function normalizeDateText(val){
+	const raw = `${val || ''}`.trim();
+	if(!raw){
+		return '';
+	}
+	const one = raw.indexOf(' ') >= 0 ? raw.split(' ')[0] : raw;
+	return one.replace(/-/g, '/');
+}
+
+function normalizeTimeText(val){
+	const raw = `${val || ''}`.trim();
+	if(!raw){
+		return '';
+	}
+	const one = raw.indexOf(' ') >= 0 ? raw.split(' ')[1] : raw;
+	if(/^\d{2}:\d{2}$/.test(one)){
+		return `${one}:00`;
+	}
+	return one;
+}
+
+function normalizeNumText(val, defVal = 0){
+	const num = Number(val);
+	if(!Number.isFinite(num)){
+		return `${defVal}`;
+	}
+	return `${num}`;
+}
+
+function normalizeGpsText(val){
+	const num = Number(val);
+	if(!Number.isFinite(num)){
+		return '';
+	}
+	return `${Math.round(num * 1000000) / 1000000}`;
+}
+
+function normalizeChartParams(input){
+	const src = input || {};
+	const birth = `${src.birth || ''}`.trim();
+	const birthParts = birth ? birth.split(' ') : [];
+	const birthDate = birthParts[0] || '';
+	const birthTime = birthParts[1] || '';
+	return {
+		date: normalizeDateText(src.date || birthDate),
+		time: normalizeTimeText(src.time || birthTime || '00:00:00'),
+		ad: normalizeNumText(src.ad, 1),
+		zone: `${src.zone || ''}`,
+		lon: `${src.lon || ''}`,
+		lat: `${src.lat || ''}`,
+		gpsLon: normalizeGpsText(src.gpsLon),
+		gpsLat: normalizeGpsText(src.gpsLat),
+		hsys: normalizeNumText(src.hsys, 0),
+		zodiacal: normalizeNumText(src.zodiacal, 0),
+		tradition: normalizeNumText(src.tradition, 0),
+		doubingSu28: normalizeNumText(src.doubingSu28, 0),
+		strongRecption: normalizeNumText(src.strongRecption, 0),
+		simpleAsp: normalizeNumText(src.simpleAsp, 0),
+		virtualPointReceiveAsp: normalizeNumText(src.virtualPointReceiveAsp, 0),
+		predictive: normalizeNumText(src.predictive, 0),
+	};
+}
+
+function buildGuolaoKey(input){
+	try{
+		return JSON.stringify(normalizeChartParams(input));
+	}catch(e){
+		return '';
+	}
+}
+
+function isChartObjMatchParams(chartObj, params){
+	if(!chartObj || !chartObj.params || !params){
+		return false;
+	}
+	const chartKey = buildGuolaoKey(chartObj.params);
+	const paramKey = buildGuolaoKey(params);
+	return !!chartKey && chartKey === paramKey;
+}
+
+async function fetchGuolaoChartCached(params, options){
+	const opt = options || {};
+	const key = buildGuolaoKey(params);
+	const disableCache = opt.cache === false;
+	if(!disableCache && key && guolaoMem.has(key)){
+		return clonePlain(guolaoMem.get(key));
+	}
+	if(!disableCache && key && guolaoInflight.has(key)){
+		const inflight = await guolaoInflight.get(key);
+		return clonePlain(inflight);
+	}
+	const req = request(`${Constants.ServerRoot}/chart`, {
+		body: JSON.stringify(params),
+		silent: opt.silent !== false,
+	}).then((data)=>{
+		const result = data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
+		if(!disableCache && key && result){
+			pushCache(guolaoMem, key, clonePlain(result));
+		}
+		return result;
+	}).finally(()=>{
+		if(!disableCache && key){
+			guolaoInflight.delete(key);
+		}
+	});
+	if(!disableCache && key){
+		guolaoInflight.set(key, req);
+	}
+	const result = await req;
+	return clonePlain(result);
 }
 
 function buildGuolaoSnapshotText(params, result){
@@ -441,6 +584,8 @@ class GuoLaoChartMain extends Component{
 		};
 
 		this.unmounted = false;
+		this.chartReqSeq = 0;
+		this.prefetchTimer = null;
 
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.requestChart = this.requestChart.bind(this);
@@ -448,29 +593,60 @@ class GuoLaoChartMain extends Component{
 		this.genParams = this.genParams.bind(this);
 		this.onTipClick = this.onTipClick.bind(this);
 		this.saveGuolaoAISnapshot = this.saveGuolaoAISnapshot.bind(this);
+		this.applyChartObj = this.applyChartObj.bind(this);
+		this.prefetchChart = this.prefetchChart.bind(this);
 
 		if(this.props.hook){
-			this.props.hook.fun = (fields)=>{
+			this.props.hook.fun = (fields, chartObj)=>{
 				if(this.unmounted){
 					return;
 				}
-				this.requestChartObj(fields);
+				this.requestChartObj(fields, chartObj);
 			};
 		}
 	}
 
-	async requestChart(params){
-		const data = await request(`${Constants.ServerRoot}/chart`, {
-			body: JSON.stringify(params),
+	applyChartObj(params, chartObj){
+		if(!params || !chartObj || this.unmounted){
+			return;
+		}
+		const key = buildGuolaoKey(params);
+		if(key){
+			pushCache(guolaoMem, key, clonePlain(chartObj));
+		}
+		this.setState({
+			chartObj: clonePlain(chartObj),
 		});
-		const result = data[Constants.ResultKey]
+		this.saveGuolaoAISnapshot(params, chartObj);
+	}
 
-		const st = {
-			chartObj: result,
-		};
+	async prefetchChart(params){
+		if(!params){
+			return null;
+		}
+		return fetchGuolaoChartCached(params, {
+			silent: true,
+		});
+	}
 
-		this.setState(st);
-		this.saveGuolaoAISnapshot(params, result);
+	async requestChart(params, options){
+		if(!params){
+			return null;
+		}
+		const opt = options || {};
+		const applyResult = opt.applyResult !== false;
+		if(!applyResult){
+			return this.prefetchChart(params);
+		}
+		const seq = ++this.chartReqSeq;
+		const result = await fetchGuolaoChartCached(params, {
+			silent: opt.silent !== false,
+		});
+		if(!result || this.unmounted || seq !== this.chartReqSeq){
+			return result;
+		}
+		this.applyChartObj(params, result);
+		return result;
 	}
 
 	saveGuolaoAISnapshot(params, result){
@@ -488,14 +664,29 @@ class GuoLaoChartMain extends Component{
 		});
 	}
 
-	requestChartObj(fields){
+	requestChartObj(fields, chartObj){
 		let params = null;
 		if(fields){
 			params = fieldsToParams(fields);
 		}else{
 			params = this.genParams();
 		}
-		this.requestChart(params);
+		if(!params){
+			return;
+		}
+		const srcChart = chartObj || this.props.value;
+		if(srcChart && isChartObjMatchParams(srcChart, params)){
+			this.applyChartObj(params, srcChart);
+			return;
+		}
+		if(srcChart && !this.state.chartObj){
+			this.setState({
+				chartObj: clonePlain(srcChart),
+			});
+		}
+		this.requestChart(params, {
+			silent: true,
+		});
 	}
 
 	genParams(){
@@ -506,16 +697,58 @@ class GuoLaoChartMain extends Component{
 
 	onFieldsChange(field){
 		if(this.props.dispatch && this.props.fields){
+			const patch = {
+				...(field || {}),
+			};
+			const hasConfirmedFlag = Object.prototype.hasOwnProperty.call(patch, '__confirmed');
+			const confirmed = hasConfirmedFlag ? !!patch.__confirmed : true;
+			if(hasConfirmedFlag){
+				delete patch.__confirmed;
+			}
 			let flds = {
 				fields: {
 					...this.props.fields,
-					...field,
+					...patch,
 					nohook: false,
 				}
 			};
+			if(!confirmed){
+				this.props.dispatch({
+					type: 'astro/fetchByFields',
+					payload: {
+						...flds.fields,
+						nohook: true,
+						__requestOptions: {
+							silent: true,
+						},
+					},
+				});
+				if(this.prefetchTimer){
+					clearTimeout(this.prefetchTimer);
+				}
+				this.prefetchTimer = setTimeout(()=>{
+					this.prefetchTimer = null;
+					if(this.unmounted){
+						return;
+					}
+					this.prefetchChart(fieldsToParams(flds.fields)).catch(()=>{
+						return null;
+					});
+				}, 220);
+				return;
+			}
+			if(this.prefetchTimer){
+				clearTimeout(this.prefetchTimer);
+				this.prefetchTimer = null;
+			}
 			this.props.dispatch({
 				type: 'astro/fetchByFields',
-				payload: flds.fields
+				payload: {
+					...flds.fields,
+					__requestOptions: {
+						silent: true,
+					},
+				},
 			});
 		}
 	}
@@ -537,10 +770,20 @@ class GuoLaoChartMain extends Component{
 		if(prevProps.planetDisplay !== this.props.planetDisplay){
 			this.saveGuolaoAISnapshot(null, this.state.chartObj);
 		}
+		if(prevProps.value !== this.props.value && this.props.value){
+			const params = this.genParams();
+			if(isChartObjMatchParams(this.props.value, params)){
+				this.applyChartObj(params, this.props.value);
+			}
+		}
 	}
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(this.prefetchTimer){
+			clearTimeout(this.prefetchTimer);
+			this.prefetchTimer = null;
+		}
 	}
 
 	render(){
