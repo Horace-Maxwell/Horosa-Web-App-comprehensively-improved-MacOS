@@ -28,6 +28,7 @@ public class JieQiController {
 	public void year(){
 		Map<String, Object> params = getYearParams();
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
+		boolean seedOnly = ConvertUtility.getValueAsBool(params.get("seedOnly"), false);
 		
 		Map<String, Object> keyparams = new HashMap<String, Object>();
 		keyparams.putAll(params);
@@ -35,24 +36,26 @@ public class JieQiController {
 		keyparams.remove("gpsLon");
 		Object obj = CacheHelper.get("/jieqi/year", keyparams, (args)->{
 			Map<String, Object> res = AstroHelper.getJieQiYear(params);
-			setupBazi(res, params);
-			Map<String, Object> reqparams = (Map<String, Object>) res.get("params");
-			if(reqparams != null) {
-				reqparams.put("gpsLat", TransData.get("gpsLat"));
-				reqparams.put("gpsLon", TransData.get("gpsLon"));	
-			}
-			Map<String, Map<String, Object>> charts = (Map<String, Map<String, Object>>) res.get("charts");
-			for(Map<String, Object> val : charts.values()) {
-				Map<String, Object> chart = (Map<String, Object>) val.get("chart");
-				Map<String, Object> chartparams = (Map<String, Object>) val.get("params");
-				String tm = (String) chartparams.get("birth");
-				String zone = (String) chartparams.get("zone");
-				String lat = (String) chartparams.get("lat");
-				String lon = (String) chartparams.get("lon");
-				boolean after23NewDay = false;
-				OnlyFourColumns bz = new OnlyFourColumns(ad, tm, zone, lon, lat, after23NewDay);
-				Map<String, Object> map = bz.getNongli();
-				chart.put("nongli", map);				
+			if(!seedOnly) {
+				setupBazi(res, params);
+				Map<String, Object> reqparams = (Map<String, Object>) res.get("params");
+				if(reqparams != null) {
+					reqparams.put("gpsLat", TransData.get("gpsLat"));
+					reqparams.put("gpsLon", TransData.get("gpsLon"));	
+				}
+				Map<String, Map<String, Object>> charts = (Map<String, Map<String, Object>>) res.get("charts");
+				for(Map<String, Object> val : charts.values()) {
+					Map<String, Object> chart = (Map<String, Object>) val.get("chart");
+					Map<String, Object> chartparams = (Map<String, Object>) val.get("params");
+					String tm = (String) chartparams.get("birth");
+					String zone = (String) chartparams.get("zone");
+					String lat = (String) chartparams.get("lat");
+					String lon = (String) chartparams.get("lon");
+					boolean after23NewDay = false;
+					OnlyFourColumns bz = new OnlyFourColumns(ad, tm, zone, lon, lat, after23NewDay);
+					Map<String, Object> map = bz.getNongli();
+					chart.put("nongli", map);				
+				}
 			}
 
 			return res;
@@ -103,6 +106,7 @@ public class JieQiController {
 		params.put("hsys", TransData.getValueAsInt("hsys", 0));
 		params.put("doubingSu28", TransData.getValueAsBool("doubingSu28", false));
 		params.put("southchart", TransData.getValueAsBool("southchart", false));
+		params.put("seedOnly", TransData.getValueAsBool("seedOnly", false));
 		if(TransData.containsParam("zodiacal")) {
 			params.put("zodiacal", TransData.get("zodiacal"));
 		}else {

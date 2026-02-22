@@ -22,9 +22,24 @@ class YearJieQi:
         self.ad = -1 if int(self.year) < 0 else 1
 
         if 'jieqis' in data.keys():
-            self.jieqis = set(data['jieqis'])
+            jieqis = data['jieqis']
+            if isinstance(jieqis, (list, tuple, set)):
+                self.jieqis = set(jieqis)
+            elif isinstance(jieqis, str):
+                self.jieqis = set([jieqis]) if jieqis != '' else set()
+            else:
+                self.jieqis = set()
         else:
             self.jieqis = set()
+
+        if 'seedOnly' in data.keys():
+            raw = data['seedOnly']
+            if isinstance(raw, str):
+                self.seedOnly = raw.lower() in ('1', 'true', 'yes', 'on')
+            else:
+                self.seedOnly = bool(raw)
+        else:
+            self.seedOnly = False
 
         if 'hsys' in data.keys():
             self.hsys = data['hsys']
@@ -51,9 +66,16 @@ class YearJieQi:
         self.params['predictive'] = False
 
     def compute(self):
+        if self.seedOnly:
+            return {
+                'jieqi24': self.computeJieQi(False),
+                'charts': {}
+            }
         return self.computeJieQi(True)
 
     def filterJieqi24(self, jieqi24):
+        if jieqi24 is None or len(jieqi24) < 24:
+            return jieqi24
         res = []
         if jieqi24[23]['jieqi'] == '小寒':
             res.append(jieqi24[23])
@@ -82,10 +104,14 @@ class YearJieQi:
     def computeJieQi(self, needChart):
         jieqicharts = {}
         jieqi24 = []
-        tmpjieqi24 = {}
+        tmpjieqi24 = {} if needChart and len(self.jieqis) > 0 else None
         res = {}
 
-        for key in jieqiconst.JieQiLon.keys():
+        terms = list(jieqiconst.JieQiLon.keys())
+        if len(self.jieqis) > 0:
+            terms = [key for key in terms if key in self.jieqis]
+
+        for key in terms:
             jieqi = jieqiconst.JieQiLon[key]
             date = '{0}/{1}'.format(self.year, jieqi['start'])
             dateTime = Datetime(date, '00:00', self.zone)
@@ -103,11 +129,12 @@ class YearJieQi:
             }
             jieqi24.append(obj)
 
-            parts = dtstr.split(' ')
-            tmpjieqi24[key] = {
-                'date': parts[0],
-                'time': parts[1]
-            }
+            if tmpjieqi24 is not None:
+                parts = dtstr.split(' ')
+                tmpjieqi24[key] = {
+                    'date': parts[0],
+                    'time': parts[1]
+                }
 
         jieqi24.sort(key=takeTime)
         jieqi24 = self.filterJieqi24(jieqi24)
@@ -119,14 +146,15 @@ class YearJieQi:
         if needChart == True:
             res['jieqi24'] = jieqi24
 
-            for key in self.jieqis:
-                if key in tmpjieqi24.keys():
-                    self.params['date'] = tmpjieqi24[key]['date']
-                    self.params['time'] = tmpjieqi24[key]['time']
-                    self.params['name'] = key
-                    from astrostudy.perchart import PerChart
-                    perchart = PerChart(self.params)
-                    jieqicharts[key] = getChartObj(self.params, perchart)
+            if tmpjieqi24 is not None:
+                for key in self.jieqis:
+                    if key in tmpjieqi24.keys():
+                        self.params['date'] = tmpjieqi24[key]['date']
+                        self.params['time'] = tmpjieqi24[key]['time']
+                        self.params['name'] = key
+                        from astrostudy.perchart import PerChart
+                        perchart = PerChart(self.params)
+                        jieqicharts[key] = getChartObj(self.params, perchart)
 
             res['charts'] = jieqicharts
             return res

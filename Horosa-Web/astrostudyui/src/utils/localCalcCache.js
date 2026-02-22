@@ -1,5 +1,5 @@
 const NONG_LI_NS = 'horosa.localcalc.nongli.v1';
-const JIE_QI_NS = 'horosa.localcalc.jieqi.v1';
+const JIE_QI_NS = 'horosa.localcalc.jieqi.v2';
 const MAX_NONG_LI = 512;
 const MAX_JIE_QI = 256;
 
@@ -15,8 +15,18 @@ function toStr(v){
 	return v === undefined || v === null ? '' : `${v}`;
 }
 
+function toKeyPart(key, value){
+	if(key === 'jieqis'){
+		if(Array.isArray(value)){
+			return value.map((item)=>toStr(item)).filter((item)=>item).join(',');
+		}
+		return toStr(value);
+	}
+	return toStr(value);
+}
+
 function buildKey(params, keys){
-	return keys.map((k)=>toStr(params && params[k])).join('|');
+	return keys.map((k)=>toKeyPart(k, params && params[k])).join('|');
 }
 
 function loadIfNeeded(){
@@ -65,7 +75,7 @@ function trimByCount(mapObj, maxCount){
 }
 
 const NONG_LI_KEYS = ['date', 'time', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'ad', 'gender', 'after23NewDay', 'timeAlg'];
-const JIE_QI_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg'];
+const JIE_QI_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'jieqis', 'seedOnly'];
 
 export function getNongliLocalCache(params){
 	loadIfNeeded();

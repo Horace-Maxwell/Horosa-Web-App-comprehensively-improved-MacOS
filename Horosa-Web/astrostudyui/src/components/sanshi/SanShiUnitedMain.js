@@ -24,7 +24,6 @@ import { getHousesOption } from '../comp/CompHelper';
 import {
 	getNongliLocalCache,
 	setNongliLocalCache,
-	setJieqiSeedLocalCache,
 } from '../../utils/localCalcCache';
 import {
 	fetchPreciseNongli,
@@ -2085,7 +2084,6 @@ class SanShiUnitedMain extends Component{
 			const seed = await fetchPreciseJieqiSeed(params);
 			if(seed){
 				this.jieqiYearSeeds[year] = seed;
-				setJieqiSeedLocalCache(params, seed);
 			}
 			return seed;
 		}).finally(()=>{

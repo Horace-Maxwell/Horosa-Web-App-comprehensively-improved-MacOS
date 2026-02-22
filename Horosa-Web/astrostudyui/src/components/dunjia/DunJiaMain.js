@@ -3,7 +3,6 @@ import { Row, Col, Card, Select, Button, Divider, Spin, Tag, Tabs, message } fro
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import {
 	setNongliLocalCache,
-	setJieqiSeedLocalCache,
 } from '../../utils/localCalcCache';
 import {
 } from '../../utils/localNongliAdapter';
@@ -670,7 +669,6 @@ class DunJiaMain extends Component {
 			let seed = await fetchPreciseJieqiSeed(params);
 			if(seed){
 				this.jieqiYearSeeds[year] = seed;
-				setJieqiSeedLocalCache(params, seed);
 			}
 			return seed;
 		}).finally(()=>{

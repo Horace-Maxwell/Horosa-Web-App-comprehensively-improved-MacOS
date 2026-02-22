@@ -9,6 +9,7 @@ from astrostudy.jieqi.YearJieQi import YearJieQi
 
 
 MonthNames = ['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月']
+QiTerms = [key for key, val in jieqiconst.JieQiLon.items() if val['jie'] == False]
 
 def takeTime(obj):
     return obj['jdn']
@@ -41,9 +42,17 @@ class NongLi:
         jieqistr = jieqiconst.JieQi[jieqiconst.DongZhiIdx]
         dongzi = jieqiconst.JieQiLon[jieqistr]
 
-        yearjieqi = YearJieQi(data)
+        yearjieqidata = dict(data)
+        yearjieqidata['jieqis'] = QiTerms
+        yearjieqi = YearJieQi(yearjieqidata)
         self.jieqi24 = yearjieqi.computeJieQi(False)
-        self.dongZi = self.jieqi24[23]
+        self.dongZi = None
+        for item in self.jieqi24:
+            if item['jieqi'] == jieqistr:
+                self.dongZi = item
+                break
+        if self.dongZi is None:
+            self.dongZi = yearjieqi.computeOneJieQi(dongzi)
 
         prevdata = {}
         prevdata['year'] = str(lasty)

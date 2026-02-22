@@ -961,3 +961,25 @@ Append new entries; do not rewrite history.
   - `HOROSA_SKIP_BUILD=1 HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 HOROSA_SKIP_TOOLCHAIN_INSTALL=1 ./scripts/mac/bootstrap_and_run.sh`
   - `printf '\n' | ./Prepare_Runtime_Mac.command`（结果：Java/Python/Frontend/Backend 均为 OK；沙箱下 Maven install 写 `~/.m2` 受限但产物回填成功）
   - `HOROSA_NO_BROWSER=1 ./Horosa_Local.command`（沙箱环境限制本地端口绑定，启动探测阶段失败；非脚本逻辑错误）
+
+### 19:46 - 奇门遁甲起盘性能优化（保持算法精度）并完成回归自检
+- Scope: reduce Qimen startup latency caused by heavyweight jieqi/nongli pre-calculation, without changing core astrological algorithm or precision.
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/localCalcCache.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py`
+  - `Horosa-Web/astropy/astrostudy/jieqi/NongLi.py`
+- Details:
+  - 节气 seed 缓存键补全 `jieqis/seedOnly`，避免“奇门两节气 seed”与“节气模块全年/多节气结果”互相污染，提升缓存命中稳定性。
+  - `DunJiaMain` / `SanShiUnitedMain` 移除重复、非标准参数的 `setJieqiSeedLocalCache` 写入，统一走 `fetchPreciseJieqiSeed` 内部规范化缓存路径。
+  - `YearJieQi` 强化参数解析（`seedOnly` 字符串布尔、`jieqis` 类型兼容），并在非图表场景减少不必要中间结构构建。
+  - `NongLi` 计算节气时改为仅请求 `中气` 集合（含冬至），并通过“按名称定位冬至”替代固定下标访问，减少大量不参与农历月建判断的节气求解开销。
+  - 精度校验：通过同一输入对比“旧路径（24节气） vs 新路径（中气子集）”的 `months/prevDongzi/dongzi` 结果，样本年份 `1901/1949/1984/2000/2024/2026/2050` 全量一致。
+- Verification:
+  - `npm test -- DunJiaCalc.test.js --runInBand`（PASS）
+  - `npm run build --silent`（PASS）
+  - `npm run build:file --silent`（PASS）
+  - `python3 -m py_compile Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py Horosa-Web/astropy/astrostudy/jieqi/NongLi.py`（PASS）
+  - `mvn -DskipTests compile` in `Horosa-Web/astrostudysrv/astrostudycn`（BUILD SUCCESS）
+  - `PYTHONPATH='Horosa-Web/flatlib-ctrad2:Horosa-Web/astropy' python3 <对比脚本>`（结果：`ALL_MATCH=True`）

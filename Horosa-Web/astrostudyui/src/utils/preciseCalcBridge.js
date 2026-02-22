@@ -8,9 +8,10 @@ import {
 } from './localCalcCache';
 
 const NONG_LI_KEYS = ['date', 'time', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'ad', 'gender', 'after23NewDay', 'timeAlg'];
-const JIE_QI_SEED_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg'];
-const JIE_QI_YEAR_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'hsys', 'zodiacal', 'doubingSu28', 'jieqis'];
+const JIE_QI_SEED_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'jieqis', 'seedOnly'];
+const JIE_QI_YEAR_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'hsys', 'zodiacal', 'doubingSu28', 'jieqis', 'seedOnly'];
 const MAX_CACHE_SIZE = 192;
+const DEFAULT_SEED_TERMS = ['大雪', '芒种'];
 
 const nongliMem = new Map();
 const nongliInflight = new Map();
@@ -63,6 +64,42 @@ function normalizeDayGanzhi(entry){
 	const four = bazi && bazi.fourColumns ? bazi.fourColumns : null;
 	const day = four && four.day ? four.day : null;
 	return safe(day && day.ganzi);
+}
+
+function normalizeSeedTerms(params){
+	const terms = params && Array.isArray(params.jieqis) ? params.jieqis : DEFAULT_SEED_TERMS;
+	const uniq = [];
+	terms.forEach((term)=>{
+		const t = safe(term);
+		if(t && uniq.indexOf(t) < 0){
+			uniq.push(t);
+		}
+	});
+	if(!uniq.length){
+		return [...DEFAULT_SEED_TERMS];
+	}
+	return uniq;
+}
+
+function buildJieqiSeedRequestParams(params){
+	const terms = normalizeSeedTerms(params);
+	return {
+		...(params || {}),
+		jieqis: terms,
+		seedOnly: true,
+	};
+}
+
+function hasSeedTerms(seed, terms){
+	if(!seed || !Array.isArray(terms) || !terms.length){
+		return false;
+	}
+	for(let i=0; i<terms.length; i++){
+		if(!seed[terms[i]]){
+			return false;
+		}
+	}
+	return true;
 }
 
 export async function fetchPreciseNongli(params){
@@ -140,12 +177,17 @@ export async function fetchPreciseJieqiYear(params){
 }
 
 export async function fetchPreciseJieqiSeed(params){
-	const key = buildKey(params, JIE_QI_SEED_KEYS);
+	const reqParams = buildJieqiSeedRequestParams(params);
+	const requiredTerms = reqParams.jieqis;
+	const key = buildKey(reqParams, JIE_QI_SEED_KEYS);
 	if(key && jieqiSeedMem.has(key)){
-		return jieqiSeedMem.get(key);
+		const memHit = jieqiSeedMem.get(key);
+		if(hasSeedTerms(memHit, requiredTerms)){
+			return memHit;
+		}
 	}
-	const localHit = getJieqiSeedLocalCache(params);
-	if(localHit){
+	const localHit = getJieqiSeedLocalCache(reqParams);
+	if(hasSeedTerms(localHit, requiredTerms)){
 		if(key){
 			pushCache(jieqiSeedMem, key, localHit);
 		}
@@ -155,7 +197,7 @@ export async function fetchPreciseJieqiSeed(params){
 		return jieqiSeedInflight.get(key);
 	}
 	const req = (async()=>{
-		const yearRes = await fetchPreciseJieqiYear(params);
+		const yearRes = await fetchPreciseJieqiYear(reqParams);
 		if(!yearRes || !Array.isArray(yearRes.jieqi24)){
 			return null;
 		}
@@ -174,11 +216,12 @@ export async function fetchPreciseJieqiSeed(params){
 			};
 		});
 		const result = Object.keys(seed).length ? seed : null;
-		if(result){
+		if(result && hasSeedTerms(result, requiredTerms)){
 			pushCache(jieqiSeedMem, key, result);
-			setJieqiSeedLocalCache(params, result);
+			setJieqiSeedLocalCache(reqParams, result);
+			return result;
 		}
-		return result;
+		return null;
 	})().finally(()=>{
 		if(key){
 			jieqiSeedInflight.delete(key);
