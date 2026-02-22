@@ -531,6 +531,10 @@ if [ "${NO_BROWSER}" = "1" ]; then
   echo "访问地址：${URL}"
   echo "按回车后停止本地服务。"
   read -r _
+elif command -v open >/dev/null 2>&1 && open -a "Safari" "${URL}" >/dev/null 2>&1; then
+  echo "[4/4] 已使用 Safari 打开：${URL}"
+  echo "关闭网页后按回车，将自动停止本地服务。"
+  read -r _
 elif BROWSER_BIN="$(pick_browser_bin)"; then
   "${BROWSER_BIN}" \
     --user-data-dir="${BROWSER_PROFILE_DIR}" \
@@ -543,10 +547,6 @@ elif BROWSER_BIN="$(pick_browser_bin)"; then
   echo "[4/4] 已启动：${URL}"
   echo "关闭这个独立窗口后，将自动停止本地服务。"
   wait "${BROWSER_PID}" || true
-elif command -v open >/dev/null 2>&1 && open -a "Safari" "${URL}" >/dev/null 2>&1; then
-  echo "[4/4] 已使用 Safari 打开：${URL}"
-  echo "关闭网页后按回车，将自动停止本地服务。"
-  read -r _
 else
   echo "未检测到 Chrome/Edge/Brave/Chromium，改用系统默认浏览器打开。"
   open "${URL}" || true
