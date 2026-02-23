@@ -1,0 +1,89 @@
+# Horosa Web + App（GitHub 可上传版）
+
+更新时间：2026-02-23
+
+目标：这个仓库上传到 GitHub 后，在任意一台 Mac 上都可以通过一次点击完成依赖准备、构建并启动当前功能。
+
+## Mac 一键部署（推荐入口）
+
+1. 下载/克隆仓库后，双击：
+   - `Horosa_OneClick_Mac.command`
+2. 首次运行会自动完成：
+   - 安装或检测 Homebrew
+   - 若 Homebrew 不可用，会自动直连下载 Java 17 runtime 到 `.runtime/mac/java`
+   - 若 Homebrew 无法安装 Node，会自动直连下载 Node runtime 到 `.runtime/mac/node`
+   - 若 Homebrew 无法安装 Python，会自动直连下载 Miniconda Python runtime 到 `.runtime/mac/python`
+   - 安装运行依赖（Java 17、Maven、Node、Python）
+   - 创建 Python 虚拟环境并安装 `cherrypy/jsonpickle/pyswisseph`
+   - 构建前端 `dist-file`
+   - 构建 Java 后端 `astrostudyboot.jar`（含依赖模块）
+   - 尝试启动本地 Redis / MongoDB（用于完整功能）
+   - 自动调用 `Horosa_Local.command` 打开本地页面
+3. 首次构建时间可能较长（与网络和机器性能相关），后续启动会快很多。
+4. 首次运行需要联网下载依赖（Homebrew / npm / Maven / pip）。
+
+## 常用脚本
+
+- `Horosa_OneClick_Mac.command`：Mac 首次部署 + 启动（推荐）
+- `Horosa_Local.command`：直接启动（适合依赖已准备完成后；若本机缺关键依赖会自动回退到一键部署脚本，先尝试 Homebrew，再按 Java/Node/Python 的直连方案兜底）
+- `Prepare_Runtime_Mac.command`：打离线 runtime 包（会自动补齐缺失的 Java/Python 运行依赖，不建议提交 GitHub）
+- `scripts/repo/clean_for_github.sh`：清理本地生成物，准备上传 GitHub
+
+可选环境变量（调试用）：
+- `HOROSA_SKIP_DB_SETUP=1`：跳过 Redis/MongoDB 自动安装与启动
+- `HOROSA_SKIP_BUILD=1`：跳过前后端构建（需已有构建产物）
+- `HOROSA_SKIP_TOOLCHAIN_INSTALL=1`：跳过 Homebrew/工具链安装
+- `HOROSA_SKIP_LAUNCH=1`：只做预检和构建，不自动启动页面
+- `HOROSA_JDK17_URL=<url>`：自定义 Java17 下载地址（默认使用 Adoptium API）
+- `HOROSA_NODE_VERSION=<version>` / `HOROSA_NODE_URL=<url>`：自定义 Node 直连版本/下载地址（默认 `v20.11.1`）
+- `HOROSA_PYTHON_URL=<url>`：自定义 Python 直连下载地址（默认 Miniconda installer）
+- `HOROSA_MAVEN_VERSION=<version>` / `HOROSA_MAVEN_URL=<url>`：自定义 Maven 直连下载版本/地址
+- `HOROSA_STARTUP_TIMEOUT=300`：启动等待时长（秒，默认 180；慢机器首启可调大）
+- `HOROSA_DIAG_FILE=<path>`：自定义故障诊断日志文件路径（默认 `diagnostics/horosa-run-issues.log`）
+- `HOROSA_DIAG_DIR=<path>`：自定义故障诊断目录（默认 `diagnostics`）
+
+运行诊断日志：
+- 每次运行 `Horosa_Local.command` / `start_horosa_local.sh`，都会把关键阶段状态写入：
+  - `diagnostics/horosa-run-issues.log`
+- 启动失败时会自动附加最近的后端/前端日志 tail，便于定位“卡住/超时/端口占用”等问题。
+
+## 上传 GitHub 前建议流程
+
+1. 执行清理脚本：
+   - `./scripts/repo/clean_for_github.sh`
+2. 检查以下目录没有被提交：
+   - `Horosa-Web/astrostudyui/node_modules`
+   - `Horosa-Web/**/target`
+   - `runtime/mac/java`、`runtime/mac/python`
+   - `Horosa-Web/.horosa-local-logs`
+3. 再执行 `git add .` / `git commit` / `git push`
+
+> 已通过 `.gitignore` 默认屏蔽本地运行时和构建产物，避免把数 GB 临时文件推到 GitHub。
+
+## 端口与服务
+
+- 前端静态页：`8000`（可用 `HOROSA_WEB_PORT` 覆盖）
+- Java 后端：`9999`
+- Python 图表服务：`8899`
+- Redis（可选/推荐）：`6379`
+- MongoDB（可选/推荐）：`27017`
+
+## 目录定位
+
+- 前端源码：`Horosa-Web/astrostudyui/src/`
+- Java 后端源码：`Horosa-Web/astrostudysrv/`
+- Python 图表服务：`Horosa-Web/astropy/websrv/webchartsrv.py`
+- 一键脚本：`scripts/mac/bootstrap_and_run.sh`
+- Python 依赖清单：`scripts/requirements/mac-python.txt`
+
+## 常见问题
+
+- `java 17+ is required`：
+  - 运行 `Horosa_OneClick_Mac.command` 自动安装；若 Homebrew 不可用会改为直连下载 JDK 17。
+- `python runtime cannot import cherrypy`：
+  - 重新运行 `Horosa_OneClick_Mac.command`，会重建 venv 并补依赖。
+- `node 18+ is required`：
+  - 重新运行 `Horosa_OneClick_Mac.command`，脚本会先尝试 Homebrew，失败后自动直连下载 Node runtime。
+- `services did not become ready in ... (need both 8899 and 9999)`：
+  - 检查 8899/9999 是否被占用；查看 `Horosa-Web/.horosa-local-logs/` 日志。
+  - 机器首启较慢可设置 `HOROSA_STARTUP_TIMEOUT=300` 后重试。
