@@ -711,7 +711,7 @@ function formatBaguaLabel(bagua){
 
 function buildHexSnapshotSection(title, leftHex, rightHex){
 	const lines = [];
-	lines.push(`[${title}]`);
+	lines.push(`【${title}】`);
 	lines.push('');
 	lines.push(`左卦（${formatHexName(leftHex)}）：`);
 	lines.push(`上卦（太阴·本体）：${formatBaguaLabel(leftHex ? leftHex.upper : null)}`);
@@ -750,7 +750,7 @@ function buildTongSheFaSnapshot(model){
 	const parts = [];
 	parts.push(...buildHexSnapshotSection('本卦', model.baseLeft, model.baseRight));
 	parts.push('');
-	parts.push('[六爻]');
+	parts.push('【六爻】');
 	parts.push('');
 	parts.push(...buildSixYaoMainSection(
 		`左卦（${safeText(model.leftElem)}；思想；${safeText(model.leftHouseLabel)}）为主`,
@@ -1445,5 +1445,10 @@ class TongSheFaMain extends Component{
 		);
 	}
 }
+
+export {
+	buildTongSheFaModel,
+	buildTongSheFaSnapshot,
+};
 
 export default TongSheFaMain;
