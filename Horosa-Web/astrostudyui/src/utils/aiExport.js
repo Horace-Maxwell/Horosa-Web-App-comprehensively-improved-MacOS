@@ -1,6 +1,7 @@
 import { getStore, } from './storageutil';
 import { getAstroAISnapshotForCurrent, saveAstroAISnapshot, } from './astroAiSnapshot';
 import { loadModuleAISnapshot, } from './moduleAiSnapshot';
+import { buildTongSheFaModel, buildTongSheFaSnapshot } from '../components/tongshefa/TongSheFaMain';
 
 const CHART_TAB_LABELS = ['信息', '相位', '行星', '希腊点', '可能性'];
 const SIXYAO_TAB_LABELS = ['起卦方式', '卦辞'];
@@ -1029,6 +1030,21 @@ function resolveActiveContext(){
 		context.displayName = subLabel ? `推运盘-${subLabel}` : '推运盘';
 		return context;
 	}
+	const directCnYiBuMap = [
+		{ label: '统摄法', key: 'tongshefa', domain: 'tongshefa', name: '统摄法' },
+		{ label: '易卦', key: 'sixyao', domain: 'sixyao', name: '易卦' },
+		{ label: '六壬', key: 'liureng', domain: 'liureng', name: '大六壬' },
+		{ label: '金口诀', key: 'jinkou', domain: 'jinkou', name: '金口诀' },
+		{ label: '遁甲', key: 'qimen', domain: 'qimen', name: '奇门遁甲' },
+		{ label: '太乙', key: 'taiyi', domain: null, name: '太乙' },
+	];
+	const directCnYiBu = directCnYiBuMap.find((item)=>topLabel && topLabel.includes(item.label));
+	if(directCnYiBu){
+		context.key = directCnYiBu.key;
+		context.domain = directCnYiBu.domain;
+		context.displayName = directCnYiBu.name;
+		return context;
+	}
 	if(topLabel.includes('星盘') || topLabel.includes('三维盘')){
 		context.key = 'astrochart';
 		return context;
@@ -1632,7 +1648,122 @@ async function extractSanShiUnitedContent(context){
 	return extractGenericContent(context);
 }
 
+const TONGSHEFA_LABEL_TO_KEY = {
+	'太阴·本体': 'taiyin',
+	'太阳·方法': 'taiyang',
+	'少阳·认识': 'shaoyang',
+	'少阴·宇宙': 'shaoyin',
+};
+const TONGSHEFA_SELECT_KEYS = ['taiyin', 'taiyang', 'shaoyang', 'shaoyin'];
+
+function parseTongSheFaBaguaKey(text){
+	const val = `${text || ''}`.replace(/\s+/g, '');
+	if(!val){
+		return '';
+	}
+	let m = val.match(/[（(]([乾兑离震巽坎艮坤])[）)]/);
+	if(m && m[1]){
+		return m[1];
+	}
+	m = val.match(/([乾兑离震巽坎艮坤])卦/);
+	if(m && m[1]){
+		return m[1];
+	}
+	m = val.match(/[乾兑离震巽坎艮坤]/);
+	return m && m[0] ? m[0] : '';
+}
+
+function hasTongSheFaSelection(selection){
+	if(!selection || typeof selection !== 'object'){
+		return false;
+	}
+	return TONGSHEFA_SELECT_KEYS.every((key)=>!!selection[key]);
+}
+
+function extractTongSheFaSelection(scopeRoot){
+	if(!scopeRoot || !scopeRoot.querySelectorAll){
+		return null;
+	}
+	const out = {};
+	const cols = Array.from(scopeRoot.querySelectorAll('.ant-col'));
+	cols.forEach((col)=>{
+		const labelNode = Array.from(col.children || []).find((node)=>{
+			if(!node || node.nodeType !== 1){
+				return false;
+			}
+			const label = `${textOf(node)}`.trim();
+			return Object.prototype.hasOwnProperty.call(TONGSHEFA_LABEL_TO_KEY, label);
+		});
+		if(!labelNode){
+			return;
+		}
+		const label = `${textOf(labelNode)}`.trim();
+		const key = TONGSHEFA_LABEL_TO_KEY[label];
+		if(!key || out[key]){
+			return;
+		}
+		const select = col.querySelector('.ant-select');
+		if(!select){
+			return;
+		}
+		const selectedText = textOf(select.querySelector('.ant-select-selection-item')) || textOf(select);
+		const baguaKey = parseTongSheFaBaguaKey(selectedText);
+		if(baguaKey){
+			out[key] = baguaKey;
+		}
+	});
+
+	if(hasTongSheFaSelection(out)){
+		return out;
+	}
+
+	const selects = Array.from(scopeRoot.querySelectorAll('.ant-select'));
+	selects.forEach((select)=>{
+		if(hasTongSheFaSelection(out)){
+			return;
+		}
+		let label = '';
+		const prev = select.previousElementSibling;
+		const prevLabel = prev ? `${textOf(prev)}`.trim() : '';
+		if(Object.prototype.hasOwnProperty.call(TONGSHEFA_LABEL_TO_KEY, prevLabel)){
+			label = prevLabel;
+		}
+		if(!label){
+			const holder = select.closest('.ant-col') || select.parentElement;
+			if(holder){
+				const allDivs = Array.from(holder.querySelectorAll('div'));
+				const found = allDivs.map((node)=>`${textOf(node)}`.trim())
+					.find((txt)=>Object.prototype.hasOwnProperty.call(TONGSHEFA_LABEL_TO_KEY, txt));
+				if(found){
+					label = found;
+				}
+			}
+		}
+		if(!label){
+			return;
+		}
+		const key = TONGSHEFA_LABEL_TO_KEY[label];
+		if(!key || out[key]){
+			return;
+		}
+		const selectedText = textOf(select.querySelector('.ant-select-selection-item')) || textOf(select);
+		const baguaKey = parseTongSheFaBaguaKey(selectedText);
+		if(baguaKey){
+			out[key] = baguaKey;
+		}
+	});
+
+	return hasTongSheFaSelection(out) ? out : null;
+}
+
 async function extractTongSheFaContent(context){
+	const selection = extractTongSheFaSelection(context.scopeRoot);
+	if(selection){
+		try{
+			return buildTongSheFaSnapshot(buildTongSheFaModel(selection));
+		}catch(e){
+		}
+	}
 	const cached = getModuleCachedContent('tongshefa');
 	if(cached){
 		return cached;
@@ -1942,7 +2073,7 @@ function normalizeText(text, domain){
 			.map((line)=>line.replace(/[ \t]+$/g, ''))
 			.join('\n');
 	output = output.replace(/\n{3,}/g, '\n\n');
-	if(domain === 'predictive_raw'){
+	if(domain === 'predictive_raw' || domain === 'tongshefa'){
 		return output.trim();
 	}
 	if(output.length > 120000){
