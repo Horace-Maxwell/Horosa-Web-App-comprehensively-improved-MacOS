@@ -375,6 +375,12 @@ function getBaguaByLines(lines){
 
 function shortGuaName(name){
 	const txt = `${name || ''}`.trim();
+	for(let i=0; i<BAGUA_LIST.length; i++){
+		const item = BAGUA_LIST[i];
+		if(txt === `${item.name}为${item.cname}`){
+			return item.name;
+		}
+	}
 	if(txt.length <= 2){
 		return txt || '—';
 	}
@@ -1056,10 +1062,10 @@ class TongSheFaMain extends Component{
 							<td style={sideTd}></td>
 						</tr>
 						<tr>
-							<td style={sideTd}>{leftHex.upper ? leftHex.upper.name : '—'}</td>
+							<td style={sideTd}>{formatBaguaLabel(leftHex.upper)}</td>
 							<td style={colTd}>{this.renderMatrixYaoBlock(leftHex.upper, `${title}_left_up`)}</td>
 							<td style={colTd}>{this.renderMatrixYaoBlock(rightHex.upper, `${title}_right_up`)}</td>
-							<td style={sideTd}>{rightHex.upper ? rightHex.upper.name : '—'}</td>
+							<td style={sideTd}>{formatBaguaLabel(rightHex.upper)}</td>
 						</tr>
 						<tr>
 							<td style={sideTd}></td>
@@ -1074,10 +1080,10 @@ class TongSheFaMain extends Component{
 							<td style={sideTd}></td>
 						</tr>
 						<tr>
-							<td style={sideTd}>{leftHex.lower ? leftHex.lower.name : '—'}</td>
+							<td style={sideTd}>{formatBaguaLabel(leftHex.lower)}</td>
 							<td style={colTd}>{this.renderMatrixYaoBlock(leftHex.lower, `${title}_left_down`)}</td>
 							<td style={colTd}>{this.renderMatrixYaoBlock(rightHex.lower, `${title}_right_down`)}</td>
-							<td style={sideTd}>{rightHex.lower ? rightHex.lower.name : '—'}</td>
+							<td style={sideTd}>{formatBaguaLabel(rightHex.lower)}</td>
 						</tr>
 						<tr>
 							<td style={sideTd}></td>
