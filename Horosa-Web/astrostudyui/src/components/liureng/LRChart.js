@@ -20,7 +20,11 @@ class LRChart extends LRCommChart {
 			y: this.y + this.innerChartOffsetY,
 			width: this.width - this.innerChartOffsetX * 2,
 			height: this.height - this.innerChartOffsetY * 2,
-			timezi: this.nongli.time.substr(1),			
+			timezi: this.nongli.time.substr(1),
+			panStyleName: option.panStyleName || '',
+			onHouse: (group, idx, branch)=>{
+				this.bindShenTooltip(group, branch);
+			},
 		}
 
 		this.innerChart = new LRInnerChart(this.innerOptions);
@@ -29,6 +33,11 @@ class LRChart extends LRCommChart {
 
 	set cuangName(name){
 		this.innerChart.cuangName = name;
+		this.innerChart.draw();
+	}
+
+	set panStyleName(name){
+		this.innerChart.panStyleName = name || '';
 		this.innerChart.draw();
 	}
 
@@ -85,6 +94,28 @@ class LRChart extends LRCommChart {
 		this.drawHouse11(ords[11]);
 	}
 
+	drawHouseShenText(g, data, x, y, w, h){
+		let titleSvg = null;
+		let color = LRConst.LRColor.time.color;
+		let bgColor = LRConst.LRColor.time.bg;
+		if(data[0] === this.yue){
+			titleSvg = drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
+		}else{
+			titleSvg = drawTextH(g, data, x, y, w, h, 2, this.color);
+		}
+		this.bindShenTooltip(titleSvg, data[0]);
+	}
+
+	drawHouseJiangTextH(g, houseIdx, data, x, y, w, h){
+		let titleSvg = drawTextH(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.bindHouseTooltip(titleSvg, houseIdx);
+	}
+
+	drawHouseJiangTextV(g, houseIdx, data, x, y, w, h){
+		let titleSvg = drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.bindHouseTooltip(titleSvg, houseIdx);
+	}
+
 
 	drawHouse0(ord){
 		let g = this.svg.append('g');
@@ -101,25 +132,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[0];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + ord.w/2 - w/2;
 		let y = ord.y + ord.h - h - 2;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + 2;
 		y = ord.y + 2;
 		w = ord.w - 4;
 		h = ord.h/2-6;
 		data = this.houseTianJiang[0].split('');
-		drawTextH(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextH(g, 0, data, x, y, w, h);
 
 	}
 
@@ -138,25 +163,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[1];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + ord.w/2 - w/2;
 		let y = ord.y + ord.h - h - 2;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + 2;
 		y = ord.y + 2;
 		w = ord.w - 4;
 		h = ord.h/2-6;
 		data = this.houseTianJiang[1].split('');
-		drawTextH(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextH(g, 1, data, x, y, w, h);
 
 	}
 
@@ -179,25 +198,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[2];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + 2;
 		let y = ord.y + ord.h*2 - h - 2;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + ord.w/2 + 4;
 		y = ord.y + 2;
 		w = ord.w/2 - 6;
 		h = ord.h-4;
 		data = this.houseTianJiang[2].split('');
-		drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextV(g, 2, data, x, y, w, h);
 
 	}
 
@@ -216,25 +229,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[3];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + 2;
 		let y = ord.y + ord.h/2 - h/2 + 1;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + ord.w/2 + 4;
 		y = ord.y + 2;
 		w = ord.w/2 - 6;
 		h = ord.h-4;
 		data = this.houseTianJiang[3].split('');
-		drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextV(g, 3, data, x, y, w, h);
 
 	}
 
@@ -253,25 +260,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[4];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + 2;
 		let y = ord.y + ord.h/2 - h/2 + 1;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + ord.w/2 + 4;
 		y = ord.y + 2;
 		w = ord.w/2 - 6;
 		h = ord.h-4;
 		data = this.houseTianJiang[4].split('');
-		drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextV(g, 4, data, x, y, w, h);
 
 	}
 
@@ -294,25 +295,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[5];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + 2;
 		let y = ord.y + 2;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + ord.w/2 + 4;
 		y = ord.y + ord.h + 2;
 		w = ord.w/2 - 6;
 		h = ord.h-4;
 		data = this.houseTianJiang[5].split('');
-		drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextV(g, 5, data, x, y, w, h);
 
 	}
 
@@ -331,25 +326,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[6];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + ord.w/2 - w/2;
 		let y = ord.y + 2;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + 2;
 		y = ord.y + ord.h/2 + 6;
 		w = ord.w - 4;
 		h = ord.h/2-6;
 		data = this.houseTianJiang[6].split('');
-		drawTextH(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextH(g, 6, data, x, y, w, h);
 
 	}
 
@@ -368,25 +357,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[7];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + ord.w/2 - w/2;
 		let y = ord.y + 2;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + 2;
 		y = ord.y + ord.h/2 + 6;
 		w = ord.w - 4;
 		h = ord.h/2-6;
 		data = this.houseTianJiang[7].split('');
-		drawTextH(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextH(g, 7, data, x, y, w, h);
 
 
 	}
@@ -410,25 +393,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[8];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + ord.w*2 - w - 2;
 		let y = ord.y + 2;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + ord.w + 2;
 		y = ord.y + ord.h + 2;
 		w = ord.w/2 - 6;
 		h = ord.h-4;
 		data = this.houseTianJiang[8].split('');
-		drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextV(g, 8, data, x, y, w, h);
 
 	}
 
@@ -447,25 +424,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[9];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + ord.w - w - 2;
 		let y = ord.y + ord.h/2 - h/2 + 1;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + 2;
 		y = ord.y + 2;
 		w = ord.w/2 - 6;
 		h = ord.h-4;
 		data = this.houseTianJiang[9].split('');
-		drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextV(g, 9, data, x, y, w, h);
 
 
 	}
@@ -485,25 +456,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[10];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + ord.w - w - 2;
 		let y = ord.y + ord.h/2 - h/2 + 1;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + 2;
 		y = ord.y + 2;
 		w = ord.w/2 - 6;
 		h = ord.h-4;
 		data = this.houseTianJiang[10].split('');
-		drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextV(g, 10, data, x, y, w, h);
 
 
 	}
@@ -527,25 +492,19 @@ class LRChart extends LRCommChart {
 
 		let jiangIdx = this.yueIndexs[11];
 		let data = [LRConst.ZiList[jiangIdx]];
-		let color = LRConst.LRColor.time.color;
-		let bgColor = LRConst.LRColor.time.bg;
 
 		let w = ord.w/2;
 		let h = ord.h/2;
 		let x = ord.x + ord.w - w - 2;
 		let y = ord.y + ord.h*2 - h - 2;
-		if(data[0] === this.yue){
-			drawTextH(g, data, x, y, w, h, 2, color, null, bgColor, color);
-		}else{
-			drawTextH(g, data, x, y, w, h, 2, this.color);
-		}
+		this.drawHouseShenText(g, data, x, y, w, h);
 
 		x = ord.x + 2;
 		y = ord.y + 2;
 		w = ord.w/2 - 6;
 		h = ord.h-4;
 		data = this.houseTianJiang[11].split('');
-		drawTextV(g, data, x, y, w, h, 2, this.tianJiangColor);
+		this.drawHouseJiangTextV(g, 11, data, x, y, w, h);
 
 	}
 

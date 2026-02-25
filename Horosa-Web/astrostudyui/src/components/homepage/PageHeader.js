@@ -10,6 +10,7 @@ import {
 	saveAIExportSettings,
 	listAIExportTechniqueSettings,
 	getCurrentAIExportContext,
+	AI_EXPORT_SETTINGS_VERSION,
 } from '../../utils/aiExport';
 import styles from './PageHeader.less';
 
@@ -114,7 +115,7 @@ function PageHeader(props){
 			};
 			return {
 				...(prev || {}),
-				version: 1,
+				version: AI_EXPORT_SETTINGS_VERSION,
 				sections,
 			};
 		});
@@ -140,7 +141,7 @@ function PageHeader(props){
 			delete planetInfo[aiSettingKey];
 			return {
 				...(prev || {}),
-				version: 1,
+				version: AI_EXPORT_SETTINGS_VERSION,
 				sections,
 				planetInfo,
 			};
@@ -159,7 +160,7 @@ function PageHeader(props){
 			nextOne[field] = checked ? 1 : 0;
 			return {
 				...(prev || {}),
-				version: 1,
+				version: AI_EXPORT_SETTINGS_VERSION,
 				sections: {
 					...(prev && prev.sections ? prev.sections : {}),
 				},

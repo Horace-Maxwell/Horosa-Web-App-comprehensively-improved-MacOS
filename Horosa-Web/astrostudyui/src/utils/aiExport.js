@@ -101,6 +101,9 @@ const DOMAIN_REPLACERS = {
 
 const ENABLE_SVG_TEXT_EXPORT = false;
 const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
+export const AI_EXPORT_SETTINGS_VERSION = 4;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 4;
+const AI_EXPORT_SECTION_MIGRATION_KEYS = ['liureng', 'qimen'];
 const AI_EXPORT_PLANET_INFO_DEFAULT = {
 	showHouse: 1,
 	showRuler: 1,
@@ -193,10 +196,29 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	suzhan: ['起盘信息'],
 	sixyao: ['起盘信息', '起卦方式', '卦辞'],
 	tongshefa: ['本卦', '六爻', '潜藏', '亲和'],
-	liureng: ['起盘信息'],
+	liureng: [
+		'起盘信息',
+		'十二盘式',
+		'十二地盘/十二天盘/十二贵神对应',
+		'四课',
+		'三传',
+		'行年',
+		'旬日',
+		'旺衰',
+		'基础神煞',
+		'干煞',
+		'月煞',
+		'支煞',
+		'岁煞',
+		'十二长生',
+		'大格',
+		'小局',
+		'参考',
+		'概览',
+	],
 	jinkou: ['起盘信息', '金口诀速览', '金口诀四位', '四位神煞'],
 	taiyi: ['起盘信息', '太乙盘', '十六宫标记'],
-	qimen: ['起盘信息', '盘型', '右侧栏目', '九宫方盘'],
+	qimen: ['起盘信息', '盘型', '盘面要素', '奇门演卦', '八宫详解', '九宫方盘'],
 	sanshiunited: ['起盘信息', '概览', '状态', '太乙', '太乙十六宫', '神煞', '大六壬', '正北坎宫', '东北艮宫', '正东震宫', '东南巽宫', '正南离宫', '西南坤宫', '正西兑宫', '西北乾宫'],
 	guolao: ['起盘信息', '七政四余宫位与二十八宿星曜', '神煞'],
 	germany: ['起盘信息'],
@@ -205,6 +227,12 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	otherbu: ['起盘信息'],
 	fengshui: ['起盘信息', '标记判定', '冲突清单', '建议汇总', '纳气建议'],
 	generic: ['起盘信息'],
+};
+
+const AI_EXPORT_FORBIDDEN_SECTIONS = {
+	liureng: ['右侧栏目'],
+	qimen: ['右侧栏目'],
+	sanshiunited: ['右侧栏目'],
 };
 
 // ywastr* 字体把术语编码到单字符里，复制后只剩字母，需要反解码。
@@ -382,8 +410,11 @@ function extractSectionTitles(content){
 }
 
 function normalizeAIExportSettings(settings){
+	const sourceVersion = settings && typeof settings === 'object'
+		? parseInt(`${settings.version || 0}`, 10) || 0
+		: 0;
 	const normalized = {
-		version: 1,
+		version: AI_EXPORT_SETTINGS_VERSION,
 		sections: {},
 		planetInfo: {},
 	};
@@ -395,6 +426,19 @@ function normalizeAIExportSettings(settings){
 		const arr = Array.isArray(sections[key]) ? sections[key] : [];
 		normalized.sections[key] = uniqueArray(arr.map((item)=>normalizeSectionTitle(item)).filter(Boolean));
 	});
+	if(sourceVersion < AI_EXPORT_SECTION_MIGRATION_VERSION){
+		AI_EXPORT_SECTION_MIGRATION_KEYS.forEach((key)=>{
+			if(!Object.prototype.hasOwnProperty.call(sections, key)){
+				return;
+			}
+			const preset = Array.isArray(AI_EXPORT_PRESET_SECTIONS[key]) ? AI_EXPORT_PRESET_SECTIONS[key] : [];
+			const merged = uniqueArray([
+				...(normalized.sections[key] || []),
+				...preset.map((item)=>normalizeSectionTitle(item)).filter(Boolean),
+			]);
+			normalized.sections[key] = merged;
+		});
+	}
 	const planetInfo = settings.planetInfo && typeof settings.planetInfo === 'object' ? settings.planetInfo : {};
 	Object.keys(planetInfo).forEach((key)=>{
 		if(!isPlanetInfoTechnique(key)){
@@ -422,6 +466,27 @@ function getJieQiCachedContent(){
 	return [current, whole].filter(Boolean).join('\n\n');
 }
 
+async function requestModuleSnapshotRefresh(moduleName){
+	if(!moduleName || typeof window === 'undefined'){
+		return '';
+	}
+	const detail = {
+		module: moduleName,
+		snapshotText: '',
+	};
+	try{
+		window.dispatchEvent(new CustomEvent('horosa:refresh-module-snapshot', {
+			detail,
+		}));
+	}catch(e){
+		return '';
+	}
+	await new Promise((resolve)=>setTimeout(resolve, 80));
+	return typeof detail.snapshotText === 'string'
+		? `${detail.snapshotText}`.trim()
+		: '';
+}
+
 function getCachedContentForTechnique(key){
 	if(key === 'astrochart' || key === 'astrochart_like'){
 		return getAstroCachedContent();
@@ -441,15 +506,17 @@ function getCachedContentForTechnique(key){
 
 function getOptionsForTechniqueKey(key){
 	const preset = AI_EXPORT_PRESET_SECTIONS[key] || [];
+	const forbidden = getForbiddenSectionSet(key);
 	const cachedTitles = extractSectionTitles(getCachedContentForTechnique(key))
 		.map((item)=>mapLegacySectionTitle(key, item))
-		.filter(Boolean);
+		.filter(Boolean)
+		.filter((item)=>!forbidden || !forbidden.has(normalizeSectionTitle(item)));
 	if(isJieQiSplitSettingKey(key)){
 		const wanted = new Set(preset.map((item)=>normalizeSectionTitle(item)));
 		const filtered = cachedTitles.filter((item)=>wanted.has(normalizeSectionTitle(item)));
 		return uniqueArray([...preset, ...filtered]);
 	}
-	return uniqueArray([...preset, ...cachedTitles]);
+	return uniqueArray([...preset, ...cachedTitles].filter((item)=>!forbidden || !forbidden.has(normalizeSectionTitle(item))));
 }
 
 function splitContentSections(content){
@@ -517,33 +584,101 @@ function filterContentByWantedSections(content, wanted){
 
 function mapLegacySectionTitle(key, title){
 	const normalized = normalizeSectionTitle(title);
-	if(key !== 'tongshefa'){
+	if(key === 'tongshefa'){
+		if(normalized === '互潜'){
+			return '潜藏';
+		}
+		if(normalized === '错亲'){
+			return '亲和';
+		}
+		if(normalized === '统摄法起盘'){
+			return '本卦';
+		}
 		return normalized;
 	}
-	if(normalized === '互潜'){
-		return '潜藏';
+	if(key === 'qimen'){
+		if(normalized === '八宫'){
+			return '八宫详解';
+		}
+		if(normalized === '演卦'){
+			return '奇门演卦';
+		}
+		if(normalized === '九宫'){
+			return '九宫方盘';
+		}
+		if(normalized === '右侧栏目' || normalized === '概览'){
+			return '盘面要素';
+		}
 	}
-	if(normalized === '错亲'){
-		return '亲和';
-	}
-	if(normalized === '统摄法起盘'){
-		return '本卦';
+	if(key === 'liureng'){
+		if(normalized.startsWith('三传(')){
+			return '三传';
+		}
 	}
 	return normalized;
+}
+
+function getForbiddenSectionSet(key){
+	const list = AI_EXPORT_FORBIDDEN_SECTIONS[key];
+	if(!list || !list.length){
+		return null;
+	}
+	return new Set(list.map((item)=>normalizeSectionTitle(item)).filter(Boolean));
+}
+
+function stripForbiddenSections(content, key){
+	const forbidden = getForbiddenSectionSet(key);
+	if(!forbidden || !content){
+		return content;
+	}
+	const sections = splitContentSections(content);
+	if(!sections.length){
+		return content;
+	}
+	const kept = sections.filter((sec)=>{
+		if(!sec.title){
+			return true;
+		}
+		const title = normalizeSectionTitle(sec.title);
+		return !forbidden.has(title);
+	});
+	if(!kept.length){
+		return '';
+	}
+	const out = [];
+	kept.forEach((sec)=>{
+		if(out.length && out[out.length - 1] !== ''){
+			out.push('');
+		}
+		out.push(...sec.lines);
+	});
+	return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function applyUserSectionFilter(content, key){
 	const settings = loadAIExportSettings();
 	const selected = settings.sections[key];
 	if(!selected){
-		return content;
+		return stripForbiddenSections(content, key);
 	}
 	const picked = selected.slice(0);
 	if(key === 'jinkou'){
 		picked.push('金口诀速览');
+	}else if(key === 'liureng'){
+		// 格局参考为六壬导出的核心内容，避免被旧设置误过滤掉。
+		picked.push('大格', '小局', '参考', '概览');
+	}else if(key === 'qimen'){
+		// 新增分段可能被旧配置遗漏，默认保留遁甲关键输出。
+		picked.push('盘面要素', '奇门演卦', '八宫详解');
 	}
-	const wanted = new Set(uniqueArray(picked.map((item)=>mapLegacySectionTitle(key, item)).filter(Boolean)));
-	return filterContentByWantedSections(content, wanted);
+	const forbidden = getForbiddenSectionSet(key);
+	const normalizedPicked = picked
+		.map((item)=>mapLegacySectionTitle(key, item))
+		.filter(Boolean)
+		.filter((item)=>!forbidden || !forbidden.has(normalizeSectionTitle(item)));
+	const wanted = new Set(uniqueArray(normalizedPicked));
+	const filtered = filterContentByWantedSections(content, wanted);
+	return stripForbiddenSections(filtered, key);
 }
 
 function getJieQiWantedSections(settings){
@@ -1424,6 +1559,31 @@ function getModuleCachedContent(moduleName){
 	if(snapshot && snapshot.content){
 		return snapshot.content;
 	}
+	// 兜底：读取当前案例中保存的模块快照（同样来自计算阶段，不依赖右侧DOM采集）。
+	try{
+		const store = getStore();
+		const userState = store && store.user ? store.user : null;
+		const currentCase = userState && userState.currentCase ? userState.currentCase : null;
+		const sourceModule = currentCase && currentCase.sourceModule ? currentCase.sourceModule.value : '';
+		const caseType = currentCase && currentCase.caseType ? currentCase.caseType.value : '';
+		if(sourceModule !== moduleName && caseType !== moduleName){
+			return '';
+		}
+		const payloadRaw = currentCase && currentCase.payload ? currentCase.payload.value : null;
+		let payload = payloadRaw;
+		if(typeof payloadRaw === 'string'){
+			payload = JSON.parse(payloadRaw);
+		}
+		const caseSnapshot = payload && payload.snapshot ? payload.snapshot : null;
+		if(caseSnapshot && typeof caseSnapshot === 'object' && caseSnapshot.content){
+			return `${caseSnapshot.content}`.trim();
+		}
+		if(typeof caseSnapshot === 'string'){
+			return caseSnapshot.trim();
+		}
+	}catch(e){
+		return '';
+	}
 	return '';
 }
 
@@ -1567,34 +1727,38 @@ async function extractSixYaoContent(context){
 }
 
 async function extractLiuRengContent(context){
+	void context;
+	const refreshedSnapshot = await requestModuleSnapshotRefresh('liureng');
+	if(refreshedSnapshot){
+		const hasGeJuRef = /\[(大格|小局|参考|概览)\]/.test(refreshedSnapshot);
+		if(hasGeJuRef){
+			return refreshedSnapshot;
+		}
+	}
 	const cached = getModuleCachedContent('liureng');
+	if(cached){
+		const hasGeJuRef = /\[(大格|小局|参考|概览)\]/.test(cached);
+		if(hasGeJuRef){
+			return cached;
+		}
+	}
+	const liveSnapshot = (typeof window !== 'undefined' && typeof window.__horosa_liureng_snapshot_text === 'string')
+		? `${window.__horosa_liureng_snapshot_text}`.trim()
+		: '';
+	if(liveSnapshot){
+		const hasGeJuRef = /\[(大格|小局|参考|概览)\]/.test(liveSnapshot);
+		if(hasGeJuRef){
+			return liveSnapshot;
+		}
+	}
+	if(refreshedSnapshot){
+		return refreshedSnapshot;
+	}
 	if(cached){
 		return cached;
 	}
-
-	const scopeRoot = context.scopeRoot;
-	const keywords = [
-		'卜卦', '出生时间', '经度', '纬度', '时区', '真太阳时',
-		'六壬', '三传', '四课', '旬空', '贵人', '天盘', '地盘', '神将'
-	];
-	const summary = getSummaryLines(scopeRoot, keywords);
-	const rightText = extractRightColumnText(scopeRoot);
-
-	const parts = [];
-	if(summary.length){
-		parts.push('[起盘信息]');
-		parts.push(summary.join('\n'));
-	}
-	if(rightText){
-		parts.push('[右侧栏目]');
-		parts.push(rightText);
-	}
-	if(parts.length === 0){
-		parts.push('[起盘信息]');
-		parts.push(normalizeWhitespace(textOf(scopeRoot)));
-	}
-	appendSvgSection(parts, scopeRoot);
-	return parts.join('\n\n').trim();
+	// 六壬导出仅使用计算快照，不从右侧DOM复制。
+	return '';
 }
 
 async function extractJinKouContent(context){
@@ -1606,38 +1770,44 @@ async function extractJinKouContent(context){
 }
 
 async function extractQiMenContent(context){
+	void context;
+	const refreshedSnapshot = await requestModuleSnapshotRefresh('qimen');
+	if(refreshedSnapshot){
+		const hasYiGua = /\[奇门演卦\]/.test(refreshedSnapshot);
+		const hasBaGong = /\[八宫详解\]/.test(refreshedSnapshot);
+		if(hasYiGua && hasBaGong){
+			return refreshedSnapshot;
+		}
+	}
 	const cached = getModuleCachedContent('qimen');
+	if(cached){
+		const hasYiGua = /\[奇门演卦\]/.test(cached);
+		const hasBaGong = /\[八宫详解\]/.test(cached);
+		if(hasYiGua && hasBaGong){
+			return cached;
+		}
+	}
+	const liveSnapshot = (typeof window !== 'undefined' && typeof window.__horosa_qimen_snapshot_text === 'string')
+		? `${window.__horosa_qimen_snapshot_text}`.trim()
+		: '';
+	if(liveSnapshot){
+		const hasYiGua = /\[奇门演卦\]/.test(liveSnapshot);
+		const hasBaGong = /\[八宫详解\]/.test(liveSnapshot);
+		if(hasYiGua && hasBaGong){
+			return liveSnapshot;
+		}
+	}
+	if(refreshedSnapshot){
+		return refreshedSnapshot;
+	}
+	if(liveSnapshot){
+		return liveSnapshot;
+	}
 	if(cached){
 		return cached;
 	}
-
-	const scopeRoot = context.scopeRoot;
-	const keywords = [
-		'遁甲', '奇门', '外盘', '值符', '值使', '九星', '八门', '八神',
-		'经度', '纬度', '时区', '真太阳时', '年命', '男女', '斗柄定房法', '现实距星法'
-	];
-	const summary = getSummaryLines(scopeRoot, keywords);
-	const rightText = extractRightColumnText(scopeRoot);
-
-	const parts = [];
-	if(summary.length){
-		parts.push('[起盘信息]');
-		parts.push(summary.join('\n'));
-	}
-	if(context.chartType){
-		parts.push('[盘型]');
-		parts.push(context.chartType);
-	}
-	if(rightText){
-		parts.push('[右侧栏目]');
-		parts.push(rightText);
-	}
-	if(parts.length === 0){
-		parts.push('[起盘信息]');
-		parts.push(normalizeWhitespace(textOf(scopeRoot)));
-	}
-	appendSvgSection(parts, scopeRoot);
-	return parts.join('\n\n').trim();
+	// 遁甲导出仅使用计算快照，不从右侧DOM复制。
+	return '';
 }
 
 async function extractSanShiUnitedContent(context){
@@ -2073,7 +2243,11 @@ function normalizeText(text, domain){
 			.map((line)=>line.replace(/[ \t]+$/g, ''))
 			.join('\n');
 	output = output.replace(/\n{3,}/g, '\n\n');
-	if(domain === 'predictive_raw' || domain === 'tongshefa'){
+	if(domain === 'predictive_raw'
+		|| domain === 'tongshefa'
+		|| domain === 'liureng'
+		|| domain === 'qimen'
+		|| domain === 'sanshiunited'){
 		return output.trim();
 	}
 	if(output.length > 120000){
@@ -2249,6 +2423,7 @@ async function buildPayload(){
 		content = await extractGenericContent(context);
 	}
 
+	content = stripForbiddenSections(content, context.key);
 	content = applyUserSectionFilterByContext(content, context.key);
 	let planetSettingKey = context.key;
 	if(context.key === 'jieqi'){

@@ -21,10 +21,16 @@ class LRCircleChart extends LRCommChart {
 
 		this.circles = [];
 		this.cuangTitle = null;
+		this.panStyleTitle = option.panStyleName || '';
 	}
 
 	set cuangName(name){ 
 		this.cuangTitle = name;
+		this.drawTitle();
+	}
+
+	set panStyleName(name){
+		this.panStyleTitle = name || '';
 		this.drawTitle();
 	}
 
@@ -49,6 +55,9 @@ class LRCircleChart extends LRCommChart {
 			highLightData: [this.nongli.time.substr(1)],
 			highLightColor: LRConst.LRColor.time.color,
 			highLightBgColor: LRConst.LRColor.time.bg,
+			onSegment: (group, idx)=>{
+				this.bindShenTooltip(group, this.downZi && this.downZi[idx] ? this.downZi[idx] : '');
+			},
 		};
 
 		let downChart = new D3Circle(options);
@@ -69,6 +78,9 @@ class LRCircleChart extends LRCommChart {
 			highLightData: [this.yue],
 			highLightColor: LRConst.LRColor.time.color,
 			highLightBgColor: LRConst.LRColor.time.bg,
+			onSegment: (group, idx)=>{
+				this.bindShenTooltip(group, this.upZi && this.upZi[idx] ? this.upZi[idx] : '');
+			},
 		};
 
 		let downChart = new D3Circle(options);
@@ -86,6 +98,9 @@ class LRCircleChart extends LRCommChart {
 			color: this.tianJiangColor,
 			bgColor: AstroConst.AstroColor.NoColor,
 			data: this.houseTianJiang,
+			onSegment: (group, idx)=>{
+				this.bindHouseTooltip(group, idx);
+			},
 		};
 
 		let downChart = new D3Circle(options);
@@ -113,6 +128,11 @@ class LRCircleChart extends LRCommChart {
 		data = this.cuangTitle.split('');
 		y = y + h + 5;
 		drawTextH(house, data, x, y, w, h, 2, this.color);
+		if(this.panStyleTitle){
+			data = this.panStyleTitle.split('');
+			y = y + h + 5;
+			drawTextH(house, data, x, y, w, h, 2, this.color);
+		}
 	}
 
 }
