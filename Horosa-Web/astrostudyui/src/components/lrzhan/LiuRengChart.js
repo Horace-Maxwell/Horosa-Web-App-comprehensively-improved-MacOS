@@ -28,11 +28,13 @@ class LiuRengChart extends Component{
 			gender: this.props.gender,
 			zhangshengElem: this.props.zhangshengElem,
 			guireng: this.props.guireng,
+			panStyleName: this.props.panStyleName,
 		};
 		this.rengchart = new RengChart(opt);
 
 		this.drawChart = this.drawChart.bind(this);
 		this.handleResize = this.handleResize.bind(this);
+		this.setupToolTip = this.setupToolTip.bind(this);
 	}
 
 	handleResize(){
@@ -70,6 +72,7 @@ class LiuRengChart extends Component{
 		this.rengchart.runyear = this.props.runyear;
 		this.rengchart.zhangshengElem = this.props.zhangshengElem;
 		this.rengchart.guireng = this.props.guireng;
+		this.rengchart.panStyleName = this.props.panStyleName || '';
 
 		this.rengchart.draw();
 	}
@@ -77,12 +80,30 @@ class LiuRengChart extends Component{
 	componentDidMount(){
 		window.addEventListener('resize', this.handleResize)
 		d3.select('body').append('div').attr('id', this.state.tooltipId);
+		const tip = d3.select('#' + this.state.tooltipId);
+		this.setupToolTip(tip);
 		this.drawChart();
 	}
 
 	componentWillUnmount() {
 		window.removeEventListener('resize', this.handleResize)
 		d3.select('#' + this.state.tooltipId).remove();
+	}
+
+	setupToolTip(divTooltip){
+		if(divTooltip){
+			divTooltip.style('opacity', 0)
+				.style('position', 'absolute')
+				.style('text-align', 'left')
+				.style('vertical-align', 'middle')
+				.style('width', '560px')
+				.style('padding', '2px')
+				.style('font', '13px sans-serif')
+				.style('background', 'lightsteelblue')
+				.style('border', '0px')
+				.style('border-radius', '8px')
+				.style('pointer-events', 'none');
+		}
 	}
 
 	render(){
@@ -106,4 +127,3 @@ class LiuRengChart extends Component{
 }
 
 export default LiuRengChart;
-

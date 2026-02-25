@@ -25,6 +25,125 @@ function safe(v, d = ''){
 	return v === undefined || v === null ? d : `${v}`;
 }
 
+function parseZoneHour(zone){
+	const text = safe(zone).trim();
+	if(!text){
+		return null;
+	}
+	const mStd = text.match(/^([+-])(\d{1,2})(?::?(\d{2}))?$/);
+	if(mStd){
+		const sign = mStd[1] === '-' ? -1 : 1;
+		const hh = parseInt(mStd[2], 10);
+		const mm = parseInt(mStd[3] || '0', 10);
+		if(!Number.isNaN(hh) && !Number.isNaN(mm)){
+			return sign * (hh + mm / 60);
+		}
+	}
+	const mUtc = text.match(/^(?:UTC|GMT)\s*([+-])(\d{1,2})(?::?(\d{2}))?$/i);
+	if(mUtc){
+		const sign = mUtc[1] === '-' ? -1 : 1;
+		const hh = parseInt(mUtc[2], 10);
+		const mm = parseInt(mUtc[3] || '0', 10);
+		if(!Number.isNaN(hh) && !Number.isNaN(mm)){
+			return sign * (hh + mm / 60);
+		}
+	}
+	const mCn = text.match(/^([东西])\s*(\d{1,2})(?:[:：]?(\d{1,2}))?\s*区?$/);
+	if(mCn){
+		const sign = mCn[1] === '西' ? -1 : 1;
+		const hh = parseInt(mCn[2], 10);
+		const mm = parseInt(mCn[3] || '0', 10);
+		if(!Number.isNaN(hh) && !Number.isNaN(mm)){
+			return sign * (hh + mm / 60);
+		}
+	}
+	const numeric = Number(text);
+	if(Number.isFinite(numeric)){
+		return numeric;
+	}
+	return null;
+}
+
+function formatZoneHour(hour){
+	if(hour === null || hour === undefined || Number.isNaN(hour)){
+		return '+08:00';
+	}
+	const sign = hour < 0 ? '-' : '+';
+	const abs = Math.abs(hour);
+	let hh = Math.floor(abs);
+	let mm = Math.round((abs - hh) * 60);
+	if(mm >= 60){
+		hh += 1;
+		mm -= 60;
+	}
+	return `${sign}${`${hh}`.padStart(2, '0')}:${`${mm}`.padStart(2, '0')}`;
+}
+
+function normalizeZone(zone, fallback = '+08:00'){
+	const parsed = parseZoneHour(zone);
+	if(parsed !== null && !Number.isNaN(parsed)){
+		return formatZoneHour(parsed);
+	}
+	const fb = parseZoneHour(fallback);
+	return formatZoneHour((fb !== null && !Number.isNaN(fb)) ? fb : 8);
+}
+
+function normalizeAd(ad, date){
+	const text = safe(ad).trim().toUpperCase();
+	if(text === 'BC' || text === 'BCE'){
+		return -1;
+	}
+	if(text === 'AD' || text === 'CE'){
+		return 1;
+	}
+	if(text){
+		const n = parseInt(text, 10);
+		if(!Number.isNaN(n) && n !== 0){
+			return n > 0 ? 1 : -1;
+		}
+	}
+	const dateText = safe(date).trim();
+	return dateText.startsWith('-') ? -1 : 1;
+}
+
+function normalizeBit(value, def = 0){
+	if(value === undefined || value === null || value === ''){
+		return def === 1 ? 1 : 0;
+	}
+	if(value === true){
+		return 1;
+	}
+	if(value === false){
+		return 0;
+	}
+	const text = safe(value).trim().toLowerCase();
+	if(text === '1' || text === 'true' || text === 'yes'){
+		return 1;
+	}
+	return 0;
+}
+
+function normalizeNongliParams(params){
+	const src = params || {};
+	return {
+		...src,
+		zone: normalizeZone(src.zone, '+08:00'),
+		ad: normalizeAd(src.ad, src.date),
+		timeAlg: normalizeBit(src.timeAlg, 0),
+		after23NewDay: normalizeBit(src.after23NewDay, 0),
+	};
+}
+
+function normalizeJieqiParams(params){
+	const src = params || {};
+	return {
+		...src,
+		zone: normalizeZone(src.zone, '+08:00'),
+		ad: normalizeAd(src.ad),
+		timeAlg: normalizeBit(src.timeAlg, 0),
+	};
+}
+
 function pushCache(cacheMap, key, val){
 	if(!key || val === undefined || val === null){
 		return;
@@ -104,11 +223,12 @@ function hasSeedTerms(seed, terms){
 }
 
 export async function fetchPreciseNongli(params){
-	const key = buildKey(params, NONG_LI_KEYS);
+	const reqParams = normalizeNongliParams(params);
+	const key = buildKey(reqParams, NONG_LI_KEYS);
 	if(key && nongliMem.has(key)){
 		return nongliMem.get(key);
 	}
-	const localHit = getNongliLocalCache(params);
+	const localHit = getNongliLocalCache(reqParams);
 	if(localHit){
 		if(key){
 			pushCache(nongliMem, key, localHit);
@@ -121,14 +241,14 @@ export async function fetchPreciseNongli(params){
 	const req = (async()=>{
 		try{
 			const rsp = await request(`${ServerRoot}/nongli/time`, {
-				body: JSON.stringify(params),
+				body: JSON.stringify(reqParams),
 				silent: true,
 				timeoutMs: PRECISE_REQ_TIMEOUT_MS,
 			});
 			const result = rsp && rsp[ResultKey] ? rsp[ResultKey] : null;
 			if(result){
 				pushCache(nongliMem, key, result);
-				setNongliLocalCache(params, result);
+				setNongliLocalCache(reqParams, result);
 			}
 			return result;
 		}catch(e){
@@ -146,7 +266,8 @@ export async function fetchPreciseNongli(params){
 }
 
 export async function fetchPreciseJieqiYear(params){
-	const key = buildKey(params, JIE_QI_YEAR_KEYS);
+	const reqParams = normalizeJieqiParams(params);
+	const key = buildKey(reqParams, JIE_QI_YEAR_KEYS);
 	if(key && jieqiYearMem.has(key)){
 		return jieqiYearMem.get(key);
 	}
@@ -156,7 +277,7 @@ export async function fetchPreciseJieqiYear(params){
 	const req = (async()=>{
 		try{
 			const rsp = await request(`${ServerRoot}/jieqi/year`, {
-				body: JSON.stringify(params),
+				body: JSON.stringify(reqParams),
 				silent: true,
 				timeoutMs: PRECISE_REQ_TIMEOUT_MS,
 			});
@@ -180,7 +301,7 @@ export async function fetchPreciseJieqiYear(params){
 }
 
 export async function fetchPreciseJieqiSeed(params){
-	const reqParams = buildJieqiSeedRequestParams(params);
+	const reqParams = buildJieqiSeedRequestParams(normalizeJieqiParams(params));
 	const requiredTerms = reqParams.jieqis;
 	const key = buildKey(reqParams, JIE_QI_SEED_KEYS);
 	if(key && jieqiSeedMem.has(key)){

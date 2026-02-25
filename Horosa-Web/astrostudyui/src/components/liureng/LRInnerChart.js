@@ -13,6 +13,8 @@ class LRInnerChart {
 		this.timezi = option.timezi;
 		this.nongli = option.nongli;
 		this.cuangName = null;
+		this.panStyleName = option.panStyleName || '';
+		this.onHouse = option.onHouse;
 
 
 		this.x = option.x;
@@ -93,7 +95,7 @@ class LRInnerChart {
 		return aryXY;
 	}
 
-	drawHouse(ord){
+	drawHouse(ord, idx, branch){
 		let g = this.svg.append('g');
 		let x1 = ord.x;
 		let y1 = ord.y;
@@ -105,6 +107,9 @@ class LRInnerChart {
 		let y4 = y3;
 		let points = [[x1, y1], [x2, y2], [x3, y3], [x4, y4]];
 		drawPath(g, points, this.color, this.bgColor);
+		if(this.onHouse){
+			this.onHouse(g, idx, branch);
+		}
 		return g;
 	}
 
@@ -124,84 +129,84 @@ class LRInnerChart {
 	}
 
 	drawHouse0(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 0, LRConst.ZiList[0]);
 		let data = [LRConst.ZiList[0]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[0] = house;
 	}
 
 	drawHouse1(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 1, LRConst.ZiList[1]);
 		let data = [LRConst.ZiList[1]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[1] = house;
 	}
 
 	drawHouse2(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 2, LRConst.ZiList[2]);
 		let data = [LRConst.ZiList[2]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[2] = house;
 	}
 
 	drawHouse3(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 3, LRConst.ZiList[3]);
 		let data = [LRConst.ZiList[3]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[3] = house;
 	}
 
 	drawHouse4(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 4, LRConst.ZiList[4]);
 		let data = [LRConst.ZiList[4]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[4] = house;
 	}
 
 	drawHouse5(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 5, LRConst.ZiList[5]);
 		let data = [LRConst.ZiList[5]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[5] = house;
 	}
 
 	drawHouse6(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 6, LRConst.ZiList[6]);
 		let data = [LRConst.ZiList[6]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[6] = house;
 	}
 
 	drawHouse7(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 7, LRConst.ZiList[7]);
 		let data = [LRConst.ZiList[7]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[7] = house;
 	}
 
 	drawHouse8(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 8, LRConst.ZiList[8]);
 		let data = [LRConst.ZiList[8]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[8] = house;
 	}
 
 	drawHouse9(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 9, LRConst.ZiList[9]);
 		let data = [LRConst.ZiList[9]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[9] = house;
 	}
 
 	drawHouse10(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 10, LRConst.ZiList[10]);
 		let data = [LRConst.ZiList[10]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[10] = house;
 	}
 
 	drawHouse11(ord){
-		let house = this.drawHouse(ord);
+		let house = this.drawHouse(ord, 11, LRConst.ZiList[11]);
 		let data = [LRConst.ZiList[11]];
 		this.drawHouseTitle(ord, house, data);
 		this.houses[11] = house;		
@@ -226,6 +231,11 @@ class LRInnerChart {
 		data = this.cuangName.split('');
 		y = y + h + 5;
 		drawTextH(house, data, x, y, w, h, 2, this.color);
+		if(this.panStyleName){
+			data = this.panStyleName.split('');
+			y = y + h + 5;
+			drawTextH(house, data, x, y, w, h, 2, this.color);
+		}
 
 	}
 
