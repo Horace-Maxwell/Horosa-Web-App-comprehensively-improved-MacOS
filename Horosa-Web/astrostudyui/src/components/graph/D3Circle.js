@@ -16,6 +16,7 @@ class D3Circle {
 		this.highLightData = option.highLightData ? option.highLightData : [];
 		this.highLightColor = option.highLightColor ? option.highLightColor : '#ffffff';
 		this.highLightBgColor = option.highLightBgColor ? option.highLightBgColor : '#CC9900';
+		this.onSegment = option.onSegment;
 
 		this.id = 'circle' + randomStr(8);
 		this.svg = null;
@@ -89,6 +90,9 @@ class D3Circle {
 					return trans;	
 				})
 				.text(function(d){return d});
+			if(this.onSegment){
+				this.onSegment(g, i, txt);
+			}
 
 			endDeg = startdeg;
 			edangle = stangle;

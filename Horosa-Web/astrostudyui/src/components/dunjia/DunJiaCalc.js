@@ -1,4 +1,5 @@
 import * as LRConst from '../liureng/LRConst';
+import { buildQimenBaGongSnapshotLines, buildQimenFuShiYiGua } from './DunJiaBaGongRules';
 
 export const SEX_OPTIONS = [
 	{ value: 1, label: '男' },
@@ -77,6 +78,11 @@ export const KONG_MODE_OPTIONS = [
 export const MA_MODE_OPTIONS = [
 	{ value: 'day', label: '日马' },
 	{ value: 'time', label: '时马' },
+];
+
+export const TIME_ALG_OPTIONS = [
+	{ value: 0, label: '真太阳时' },
+	{ value: 1, label: '直接时间' },
 ];
 
 export const YIXING_OPTIONS = [
@@ -370,6 +376,14 @@ function normalizeShiftPalace(v){
 	return n;
 }
 
+function normalizeTimeAlg(value){
+	return value === 1 ? 1 : 0;
+}
+
+function getTimeAlgLabel(value){
+	return normalizeTimeAlg(value) === 1 ? '直接时间' : '真太阳时';
+}
+
 function normalizeText(s){
 	if(!s){
 		return '';
@@ -442,6 +456,41 @@ function parseDateTime(fields){
 		dateStr,
 		timeStr,
 	};
+}
+
+function parseDateTimeText(rawText){
+	const text = normalizeText(rawText);
+	if(!text){
+		return null;
+	}
+	const normalized = text.replace('T', ' ').replace('Z', ' ').trim();
+	const m = normalized.match(/([-+]?\d{1,6})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+	if(!m){
+		return null;
+	}
+	return {
+		year: normalizeNum(m[1], 0),
+		month: normalizeNum(m[2], 1),
+		day: normalizeNum(m[3], 1),
+		hour: normalizeNum(m[4], 0),
+		minute: normalizeNum(m[5], 0),
+		second: normalizeNum(m[6], 0),
+	};
+}
+
+function resolveCalcDateTime(dateParts, nongli, opts, context){
+	if(normalizeTimeAlg(opts && opts.timeAlg) === 0){
+		const solarParsed = parseDateTimeText(
+			(nongli && nongli.birth) || (context && context.displaySolarTime) || ''
+		);
+		if(solarParsed){
+			return {
+				...dateParts,
+				...solarParsed,
+			};
+		}
+	}
+	return dateParts;
 }
 
 function newList(list, start){
@@ -717,15 +766,33 @@ function parseQmju(qmju){
 	return { text, yy, kook, yuan };
 }
 
-function buildGanzhiForQimen(nongli, dateParts, after23NewDay){
-	let day = normalizeGanZhi(nongli ? nongli.dayGanZi : '甲子');
-	if(dateParts.hour === 23 && !!after23NewDay){
+function buildGanzhiForQimen(nongli, dateParts, opts, context){
+	const bazi = nongli && nongli.bazi && nongli.bazi.fourColumns ? nongli.bazi.fourColumns : null;
+	const calcDateTime = resolveCalcDateTime(dateParts, nongli, opts, context);
+	let day = normalizeGanZhi(
+		(bazi && bazi.day && bazi.day.ganzi)
+		|| (nongli ? nongli.dayGanZi : '甲子')
+	);
+	if(calcDateTime.hour === 23 && !!(opts && opts.after23NewDay)){
 		day = nextGanZhi(day);
 	}
-	const time = getHourGanZhi(day, dateParts.hour);
+	const preciseTime = normalizeGanZhi(
+		(bazi && bazi.time && bazi.time.ganzi)
+		|| (nongli ? nongli.time : '')
+	);
+	const computedTime = getHourGanZhi(day, calcDateTime.hour);
+	const time = normalizeTimeAlg(opts && opts.timeAlg) === 0
+		? (computedTime || preciseTime)
+		: (preciseTime || computedTime);
 	return {
-		year: normalizeGanZhi(nongli ? (nongli.yearJieqi || nongli.year) : ''),
-		month: normalizeGanZhi(nongli ? nongli.monthGanZi : ''),
+		year: normalizeGanZhi(
+			(bazi && bazi.year && bazi.year.ganzi)
+			|| (nongli ? (nongli.yearJieqi || nongli.year) : '')
+		),
+		month: normalizeGanZhi(
+			(bazi && bazi.month && bazi.month.ganzi)
+			|| (nongli ? nongli.monthGanZi : '')
+		),
 		day,
 		time,
 	};
@@ -1396,15 +1463,17 @@ export function calcDunJia(fields, nongli, options, context){
 		qijuMethod: 'zhirun',
 		kongMode: 'day',
 		yimaMode: 'day',
+		timeAlg: 0,
 		shiftPalace: 0,
 		after23NewDay: 1,
 		fengJu: false,
 		...(options || {}),
 	};
 	opts.qijuMethod = normalizeQijuMethod(opts.qijuMethod);
+	opts.timeAlg = normalizeTimeAlg(opts.timeAlg);
 	const shiftPalace = normalizeShiftPalace(opts.shiftPalace);
 
-	const ganzhi = buildGanzhiForQimen(nongli || {}, dateParts, opts.after23NewDay);
+	const ganzhi = buildGanzhiForQimen(nongli || {}, dateParts, opts, context || {});
 	const jieqi = getCurrentJieqi(nongli || {});
 	const paiPanMeta = resolvePaiPanMeta(opts, ganzhi, jieqi, dateParts, context || {});
 	const qmju = paiPanMeta.qmju || buildQmjuByMeta(paiPanMeta.yinYangDun, paiPanMeta.juShu, paiPanMeta.sanYuan);
@@ -1461,7 +1530,7 @@ export function calcDunJia(fields, nongli, options, context){
 	return {
 		dateStr: dateParts.dateStr,
 		timeStr: dateParts.timeStr,
-		realSunTime: nongli ? (nongli.birth || '') : '',
+		realSunTime: (context && context.displaySolarTime) || (nongli ? (nongli.birth || '') : ''),
 		lunarText: nongli ? `${nongli.year || ''}年${nongli.leap ? '闰' : ''}${nongli.month || ''}${nongli.day || ''}` : '',
 		jiedelta: nongli ? (nongli.jiedelta || '') : '',
 		ganzhi,
@@ -1515,6 +1584,7 @@ export function calcDunJia(fields, nongli, options, context){
 			qijuMethodLabel: getOptionLabel(QIJU_METHOD_OPTIONS, opts.qijuMethod),
 			kongModeLabel: getOptionLabel(KONG_MODE_OPTIONS, opts.kongMode),
 			yimaModeLabel: getOptionLabel(MA_MODE_OPTIONS, opts.yimaMode),
+			timeAlgLabel: getTimeAlgLabel(opts.timeAlg),
 			shiftLabel: getOptionLabel(YIXING_OPTIONS, shiftPalace),
 			fengJuLabel: opts.fengJu ? '已封局' : '未封局',
 		},
@@ -1525,12 +1595,14 @@ export function buildDunJiaSnapshotText(pan){
 	if(!pan){
 		return '';
 	}
+	const timeAlgLabel = pan.options && pan.options.timeAlgLabel ? pan.options.timeAlgLabel : '真太阳时';
+	const directDateTime = `${pan.dateStr || ''} ${pan.timeStr || ''}`.trim();
 	const lines = [];
 	lines.push('[起盘信息]');
-	lines.push(`日期：${pan.dateStr} ${pan.timeStr}`);
-	if(pan.realSunTime){
-		lines.push(`真太阳时：${pan.realSunTime}`);
-	}
+	lines.push(`日期：${directDateTime}`);
+	lines.push(`直接时间：${directDateTime || '—'}`);
+	lines.push(`真太阳时：${pan.realSunTime || '—'}`);
+	lines.push(`计算基准：${timeAlgLabel}`);
 	if(pan.lunarText){
 		lines.push(`农历：${pan.lunarText}`);
 	}
@@ -1548,6 +1620,7 @@ export function buildDunJiaSnapshotText(pan){
 	lines.push(`移星：${pan.options.shiftLabel || '原宫'}`);
 	lines.push(`奇门封局：${pan.options.fengJuLabel || (pan.fengJu ? '已封局' : '未封局')}`);
 	lines.push(`换日：${pan.options.daySwitchLabel || '子初换日'}`);
+	lines.push(`时间算法：${timeAlgLabel}`);
 	lines.push(`节气：${pan.jieqiText}`);
 	lines.push(`局数：${pan.juText}`);
 	lines.push(`起局法：${pan.options.qijuMethodLabel}`);
@@ -1557,7 +1630,7 @@ export function buildDunJiaSnapshotText(pan){
 	lines.push(`值使：${pan.zhiShi}`);
 	lines.push('');
 
-	lines.push('[右侧栏目]');
+	lines.push('[盘面要素]');
 	lines.push(`符头：${pan.fuTou}`);
 	lines.push(`地盘：${pan.diPanList.join(' ')}`);
 	lines.push(`天盘：${pan.tianPanList.join(' ')}`);
@@ -1572,6 +1645,18 @@ export function buildDunJiaSnapshotText(pan){
 		lines.push(`神煞概览：${pan.shenSha.summary.map((item)=>`${item.name}-${item.value}`).join('  ')}`);
 	}
 	lines.push('');
+
+	const fushiYiGua = buildQimenFuShiYiGua(pan);
+	lines.push('[奇门演卦]');
+	lines.push(`值符值使演卦：${fushiYiGua.text || '无'}`);
+	lines.push('门方演卦：见[八宫详解]各宫“奇门演卦（门方）”。');
+	lines.push('');
+
+	const bagongLines = buildQimenBaGongSnapshotLines(pan);
+	if(bagongLines && bagongLines.length){
+		lines.push(...bagongLines);
+		lines.push('');
+	}
 
 	lines.push('[九宫方盘]');
 	pan.cells.forEach((cell)=>{

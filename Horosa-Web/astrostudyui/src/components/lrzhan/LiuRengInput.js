@@ -118,7 +118,7 @@ class LiuRengInput extends Component{
 			<div>
 			<Row>
 				<Col span={24}>
-					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} />
+					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.props.timeHook} />
 				</Col>	
 			</Row>
 			<Row>

@@ -9,6 +9,7 @@ import ChuangChart from '../liureng/ChuangChart';
 import GodChart from '../liureng/GodChart';
 import { getSignZi, LRChartType, LRChart_Circle, LRChart_Square, TaiSui} from '../liureng/LRConst';
 import { ZSList, ZhangSheng, } from '../liureng/LRZhangSheng';
+import { resolveLiuRengTwelvePanStyle } from '../liureng/LRPanStyle';
 import { HourZi, } from '../gua/GuaConst';
 
 function extractBranch(value){
@@ -32,6 +33,7 @@ class RengChart {
 		this.gender = options.gender;
 		this.zhangshengElem = options.zhangshengElem;
 		this.guireng = options.guireng;
+		this.panStyleName = options.panStyleName || '';
 
 		this.margin = 20;
 		this.svgTopgroup = null;
@@ -135,9 +137,11 @@ class RengChart {
 			width: w,
 			height: h,
 			owner: this.svgTopgroup,
+			divTooltip: this.tooltipId ? d3.select(`#${this.tooltipId}`) : null,
 			yue: this.yue,
 			nongli: this.nongli,
 			guireng: this.guireng,
+			panStyleName: this.panStyleName || this.getPanStyleName(),
 		};
 
 		let chartsvg = null;
@@ -148,9 +152,19 @@ class RengChart {
 		}
 		this.rengs[0] = chartsvg;	
 		this.rengs[0].draw();
+		const panStyleName = this.panStyleName || this.getPanStyleName();
+		if(this.rengs[0] && panStyleName){
+			this.rengs[0].panStyleName = panStyleName;
+		}
 
 		this.ke = this.rengs[0].getKe();
 
+	}
+
+	getPanStyleName(){
+		const timeBranch = this.nongli && this.nongli.time ? extractBranch(this.nongli.time) : '';
+		const panStyle = resolveLiuRengTwelvePanStyle(this.yue, timeBranch);
+		return panStyle && panStyle.name ? panStyle.name : '';
 	}
 
 	drawGua2(cord){

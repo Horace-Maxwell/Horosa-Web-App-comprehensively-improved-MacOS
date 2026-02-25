@@ -1,6 +1,6 @@
 # Horosa Web 项目结构（GitHub 上传版）
 
-更新时间：2026-02-23
+更新时间：2026-02-25
 
 ## 1) 根目录（入口）
 
@@ -100,3 +100,664 @@
 - AI 导出链路：
   - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
   - 已支持：技术识别 `tongshefa`、导出分段 `本卦/六爻/潜藏/亲和`、旧分段名兼容映射（互潜->潜藏，错亲->亲和，统摄法起盘->本卦）。
+
+## 9) 本次六壬格局参考新增结构（2026-02-25）
+
+- 六壬页面主实现：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - 新增：右栏底部 `大格/小局` 双标签、六壬格局匹配引擎、匹配结果卡片展示、AI 快照同步分区。
+  - 修复：`起课` 时可读取未确认时间草稿并同步排盘，不再依赖先点“确定”。
+  - 二次加严：`三交/游子/解离/乱首/孤寡/龙战/赘婿` 等小局触发条件改为强约束组合匹配，降低宽松误命中。
+  - 文案升级：改为文献原文块（诗诀 + 荀注 + 要点/依据），去除“主象/判词/风险/建议”模板文案。
+  - 文案对齐（续）：`大格/小局` 其余条目荀注已按 `12. 大格.md` 与 `13. 小局.md` 逐字回填；`局式/局义/局注` 与荀注合并同块展示，保持右栏与 AI 导出一致。
+  - 小局全收录：匹配条目由 15 条提升至 62 条（含 `旺孕/德孕/二烦/天祸/天寇/天狱/死奇/魄化/三阴/富贵/天合局/宫时局/北斗局` 全部缺口），并保持 `泆女+狡童` 双项可判。
+  - 规则口径加严：新增日月支、节气、昨日干支、旬内天干映射、宫时孟仲季叠合、斗罡落位等上下文字段；小局匹配改为按 `13. 小局.md` 局式计算，不再停留在 41 条简化版。
+  - 自检覆盖：`XIAO_JU_META`、`XIAO_JU_REFERENCE_TEXT`、`matchXiaoJuReferences` 三处键集合已对齐（62/62/62）。
+- 六壬输入组件：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengInput.js`
+  - 新增 `timeHook` 透传，供父组件在点击 `起课` 时读取当前时间编辑值。
+- AI 导出链路：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - 六壬 AI 导出设置预设分区：`起盘信息`、`大格`、`小局`（已移除 `分类占`）。
+
+## 10) 本次遁甲八宫新增结构（2026-02-25）
+
+- 遁甲页面主实现：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - 右侧标签改为：`概览`、`神煞`、`八宫`（已移除原 `状态` 与 `历法` 标签，内容并入 `概览`）。
+  - `八宫` 标签新增宫位按钮顺序：`乾/坎/艮/震/巽/离/坤/兑`，点击宫位后显示五段内容：
+    - 奇门吉格（名称）
+    - 奇门凶格（名称）
+    - 十干克应（天盘干 + 地盘干）
+    - 八门克应与奇仪主应（人盘门 + 地盘本位门；人盘门 + 天盘干）
+    - 八神加八门（当前宫八神 + 当前宫八门）
+- 遁甲八宫规则模块：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
+  - 统一承载八宫规则映射与判定逻辑，供界面展示与 AI 快照导出复用。
+- 遁甲 AI 快照导出：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+  - 快照新增 `[八宫详解]` 分区，并按八宫输出对应计算结果。
+- AI 导出设置：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - 遁甲预设分区新增 `八宫详解`，与新增快照分区保持同步。
+
+## 11) 本次六壬宫时局算法修正（2026-02-25）
+
+- 六壬页面主实现：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - 宫时局匹配口径从“孟仲季全盘轮转泛化”改为用户指定直判：
+    - `绛宫时`：登明（亥）加四仲（子午卯酉）；
+    - `明堂时`：神后（子）加四仲（子午卯酉）；
+    - `玉堂时`：大吉（丑）加四仲（子午卯酉）。
+  - 右栏命中证据文案改为“X加四仲”表达，减少误触发歧义。
+  - `绛宫时/明堂时/玉堂时` 的 `局式/局义/局注` 已按用户给定原文更新，保持详情展示与 AI 快照一致。
+- 一致性校验：
+  - 小局三处键集合（`XIAO_JU_META`、`XIAO_JU_REFERENCE_TEXT`、`matchXiaoJuReferences`）仍保持 `62/62/62` 对齐，无新增缺口。
+
+## 12) 本次遁甲八宫展示优化（2026-02-25）
+
+- 遁甲页面主实现：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - 八宫右栏由连续文本改为板块卡片式布局（风格对齐六壬大格/小局）：
+    - `奇门吉格`
+    - `奇门凶格`
+    - `十干克应`
+    - `八门克应和奇仪主应`
+    - `八神加八门`
+  - 删除“第一部分/第二部分…”等编号文案。
+  - 删除“当前宫位：X9宫”行，避免无依据宫位数字在右栏出现。
+  - 删除八宫顶部冗余说明卡文案，仅保留核心结果板块。
+- 八宫规则快照输出：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
+  - 八宫快照标题从 `X9宫` 调整为 `X宫`，与页面展示口径统一。
+
+## 13) 六壬宫时局命中修复（2026-02-25）
+
+- 六壬小局匹配实现：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - 宫时局条件修正为“天盘加临地盘”直判（使用 `upDownMap` 逆查）：
+    - `绛宫时`：天盘 `亥` 加临地盘四仲；
+    - `明堂时`：天盘 `子` 加临地盘四仲；
+    - `玉堂时`：天盘 `丑` 加临地盘四仲。
+  - 移除此前“月将+时支”临时判定，恢复宫时局在小局栏的正常命中展示。
+
+## 14) 六壬小局展示分栏优化（2026-02-25）
+
+- 六壬页面主实现：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - 在“格局参考”Tabs 中新增 `参考` 标签页（位于 `小局` 右侧）。
+  - 将 `始终/迍福/刑德`（键：`shizhong`/`tunfu`/`xingde`）从 `小局` 视图分流到 `参考` 视图。
+  - 两个标签页沿用同一张卡片样式与命中依据展示，保证视觉一致。
+
+## 15) 遁甲八宫吉凶格释义展示（2026-02-25）
+
+- 八宫规则与展示实现：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
+  - 新增吉凶格释义映射：
+    - `QIMEN_JIGE_INTERPRETATION`
+    - `QIMEN_XIONGGE_INTERPRETATION`
+  - `buildQimenBaGongPanelData` 返回新增字段：
+    - `jiPatternDetails`（`格名：释义`）
+    - `xiongPatternDetails`（`格名：释义`）
+  - 八宫快照 `[八宫详解]` 的吉凶格输出改为多行 `- 格名：释义`。
+- 遁甲页面 UI：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - 八宫页 `奇门吉格/奇门凶格` 改为逐条展示“格名：释义”，不再仅显示格名。
+
+## 16) 遁甲八宫释义显示开关（2026-02-25）
+
+- 遁甲页面 UI：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - 新增 `showPatternInterpretation` 展示状态（默认开启）。
+  - 在“换日/经纬度选择”区域中，新增按钮 `释义：是/否`，位于“经纬度选择”左侧。
+  - 八宫 `奇门吉格/奇门凶格` 根据开关切换显示模式：
+    - 开：`格名：释义`
+    - 关：仅格名
+
+## 17) 遁甲释义开关本地持久化（2026-02-25）
+
+- 遁甲页面 UI：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - 新增本地持久化键：`qimenShowPatternInterpretation`。
+  - 页面加载时读取本地值作为 `showPatternInterpretation` 初始状态；无值默认开启。
+  - 点击“释义：是/否”时同步写入本地存储，刷新后保持上次选择。
+
+## 18) 遁甲奇门演卦（2026-02-25）
+
+- 八宫规则模块：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
+  - 新增门卦映射与六十四卦名映射。
+  - 新增 `buildQimenFuShiYiGua(pan)`：
+    - 值符值使演卦：地盘值符宫为内卦、天盘值使宫为外卦。
+  - `buildQimenBaGongPanelData` 新增：
+    - `menFangYiGua`
+    - `menFangYiGuaText`
+    - 用于八宫“门方演卦例”展示。
+- 遁甲页面展示：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - 概览新增：`奇门演卦`（符使演卦）。
+  - 八宫每个宫位最下方新增板块：`奇门演卦`（门方演卦）。
+- 快照导出：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+  - `buildDunJiaSnapshotText` 增加概览演卦行；`[八宫详解]` 增加每宫“奇门演卦（门方）”。
+
+## 19) AI导出分区同步补齐（2026-02-25）
+
+- 六壬快照与导出：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - 快照分区改为：
+    - `[大格]`
+    - `[小局]`（主小局）
+    - `[参考]`（始终/迍福/刑德分流）
+- 遁甲快照与导出：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+  - 新增独立分区 `[奇门演卦]`（值符值使演卦）；门方演卦继续在 `[八宫详解]` 分宫输出。
+- AI 导出设置预设：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `liureng` 预设分区新增 `参考`。
+  - `qimen` 预设分区新增 `奇门演卦`。
+
+## 20) 六壬参考常驻条目（2026-02-25）
+
+- 六壬小局匹配与分栏：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `参考` 分流键新增：`wuqi`（物气）、`xingu`（新故）。
+  - 常驻参考键集合为：`wuqi`、`xingu`、`tunfu`、`shizhong`、`xingde`。
+  - 对上述五键启用“未命中也补入”机制，确保在“参考”标签始终可见；其余小局维持盘式条件命中。
+
+## 21) 六壬“入课传”严判边界修正（2026-02-25）
+
+- 六壬小局匹配实现：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `courseBranches` 边界收紧为“四课上下神 + 三传地支”，移除此前混入的扩展位（如行年/贵人）。
+  - 所有依赖“入课传”语义的条目随之统一严判（含 `三奇/六仪/游子/孤寡/官爵` 等），避免出现“左盘无此局式仍命中”的误报。
+
+## 22) 遁甲吉凶格算法二次严判（2026-02-25）
+
+- 八宫规则实现：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
+  - 按上传术文对吉格/凶格判定做二次收紧，重点包括：
+    - `天遁/地遁/人遁/鬼遁/云遁/龙遁/虎遁` 的门、神、宫位与干组合条件；
+    - `三奇得使` 收紧为“日干映射三奇 + 地盘值使门宫 + 对应地干组合”；
+    - `玉女守门` 使用“值使门加丁奇 + 时干映射 + 指定时辰补例”联合判定；
+    - `三奇入墓` 收紧为 `乙坤、丙乾、丁艮`。
+- 格名补齐：
+  - 吉格新增：`青龙回首`、`飞鸟跌穴`。
+  - 凶格新增：`青龙逃走`、`白虎猖狂`、`螣蛇夭矫`、`朱雀投江`、`太白火荧`、`荧入太白`、`飞宫格`、`伏宫格`、`大格`、`小格`、`天网四张格`、`地罗遮格`。
+  - `伏吟/返吟` 格名与文献口径统一（替代旧命名 `门伏吟/门反吟`）。
+- 释义联动：
+  - 新增与重命名格名均补齐 `QIMEN_JIGE_INTERPRETATION` / `QIMEN_XIONGGE_INTERPRETATION`，确保“格名：释义”与算法输出一致。
+
+## 23) 六壬三光与天合局严判修正（2026-02-25）
+
+- 小局匹配实现：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `三光` 从“偏宽松”改为“硬条件”：
+    - 日干、日支、初传三者均需旺相；
+    - 三传神将需全为吉神（贵人、六合、青龙、太常、太阴、天后）；
+    - 保留日辰与发用无硬克约束。
+  - `XIAO_JU_META.sanguang.condition` 同步更新为上述判定口径。
+- 天合局判定扩展：
+  - 新增天合规则集（甲己、乙庚、丙辛、丁壬、戊癸）统一驱动匹配。
+  - 命中源由扩展到原文强调的三类显位：
+    - 同课上下相合；
+    - 三传有合；
+    - 日干与日支上神有合，或日支与日干上神有合。
+  - 新增上下课天干对、日支旬干、天合天干池等上下文字段用于证据回溯与界面展示。
+
+## 24) 六壬十二盘式判定接入（2026-02-25）
+
+- 新增盘式算法模块：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRPanStyle.js`
+  - 提供统一方法 `resolveLiuRengTwelvePanStyle(yueBranch, timeBranch)`。
+  - 基于 `distance = (月将序 - 占时序 + 12) % 12` 映射十二式：
+    - 伏吟、进连茹、进间传、生胎、顺三合、四墓覆生、反吟、四绝体、逆三合、病胎、退间传、退连茹。
+- 六壬盘中心展示链路：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRInnerChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCircleChart.js`
+  - 在天地盘中心区 `XX课` 下新增第三行盘式文案（`XX式`），圆盘/方盘均一致。
+- AI 导出与设置同步：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+    - 快照新增独立分区 `[十二盘式]`；
+    - `[起盘信息]` 增加 `十二盘式` 摘要行。
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+    - `liureng` 预设分区新增 `十二盘式`，导出设置可单独勾选。
+
+## 25) 六壬神将悬浮窗与“概览”条目（2026-02-25）
+
+- 神将文档模块化：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+  - 汇总《神》《将》两章核心数据：
+    - 12神神义摘要；
+    - 12将“临十二神”判词；
+    - 将名归一（如 `贵人→天乙`、`玄武→元武`）。
+  - 导出 `buildLiuRengHouseTipObj`，统一生成“天盘神 + 地盘神”双层悬浮窗内容。
+- 六壬盘悬浮窗接入：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCircleChart.js`
+  - `Horosa-Web/astrostudyui/src/components/graph/D3Circle.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
+  - 方盘/圆盘的神将区块均可 hover 出现文档浮窗，内容明确区分天盘神、地盘神。
+- 六壬右栏“概览”：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - 在 `参考` 右侧新增 `概览` Tab，展示：
+    - `天将发用来意诀`
+    - `天将杂主吉凶`
+  - 匹配基于当前盘的 `发用` 与 `日干上神`，并附命中依据。
+- AI 导出同步：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+    - 快照新增 `[概览]` 分区。
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+    - `liureng` 预设分区新增 `概览`。
+
+## 26) 六壬/遁甲格局算法严检收口（2026-02-25）
+
+- 六壬小局收紧：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `三阳` 按局式收紧为：贵人顺治 + 日干/日支在贵人前 + 日干/日支/初传皆旺相。
+  - `富贵` 收紧为：贵人所乘旺相 + 贵人临核心位 + 三传皆生旺。
+
+- 遁甲八宫收紧：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
+  - `三奇得使` 与 `玉女守门` 去除非原文扩展条件，按上传术文主条件判定。
+  - `伏吟/返吟` 由“门单判”改为“门+星联合判定”。
+  - `时干入墓` 改为固定五个时干支硬触发（戊戌、壬辰、丙戌、癸未、丁丑）。
+  - `门迫/门受制` 使用五行克制硬判（门克宫 / 宫克门）。
+  - `星门入墓` 改为“星+门+宫位”联合匹配；`三奇受制` 改为奇墓/击刑/迫制联合判定。
+
+## 27) 六壬原文荀注回填与依据口径修正（2026-02-25）
+
+- 六壬主实现：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `XIAO_JU_REFERENCE_TEXT` 大规模回填为长版原文（含 `增注`），不再使用摘要化短注。
+  - 回填覆盖面：
+    - 淫泆局、新孕局、隐匿局、乖别局、凶否局、吉泰局、五行局、天合局、宫时局、北斗局相关条目。
+
+- 依据展示与命中逻辑：
+  - **罗网**：
+    - 命中口径由“同位”扩展为“同位 + 上神加临”双通道；
+    - 依据拆分为“命中地位 / 命中上神”两行输出。
+  - **概览**：
+    - 按 `group + name` 合并同名条目，避免重复卡片；
+    - 合并后依据并集去重，确保多条依据完整保留。
+  - **乱首/赘婿依据文案**：
+    - 修正法一/法二“临”方向描述，统一为与盘面上下神关系一致的表述。
+
+- 变更登记：
+  - `UPGRADE_LOG.md` 已同步新增对应记录，便于后续追溯“原文回填 + 判定修正 + 展示修正”。
+
+## 28) 六壬神/将浮窗文案升级（2026-02-25）
+
+- 资料与渲染：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+  - 十二神条目升级为文档化结构字段：`title/month/verse1/verse2/desc/symbol`（对应《神》章）。
+  - 标题改为优先文档标题（如 `登明亥神`、`河魁戌神`）。
+- 十二将浮窗口径：
+  - 保留：`天盘神`、`地盘神`、两盘对应判词。
+  - 移除：`天盘神义/地盘神义` 展示行，避免与需求冲突。
+
+## 29) 遁甲时间显示与快照导出同步（2026-02-25）
+
+- 遁甲主界面：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - 左盘顶部与右侧概览统一显示：
+    - `直接时间`
+    - `真太阳时`
+  - 增强 `parseDisplayDateHm` 兼容多种时间格式，减少空值显示。
+- 快照导出：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+  - `[起盘信息]` 新增：
+    - `直接时间`
+    - `真太阳时`
+    - `计算基准`
+
+## 30) AI 导出缺段补齐机制（遁甲/六壬）（2026-02-25）
+
+- 导出实现：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+- 遁甲：
+  - 旧缓存缺段时，自动从当前页面补齐：
+    - `奇门演卦`
+    - `八宫详解`
+  - 过滤兜底新增保留项：`奇门演卦`、`八宫详解`。
+- 六壬：
+  - 旧缓存缺段时，自动从右侧四个标签补齐：
+    - `大格`
+    - `小局`
+    - `参考`
+    - `概览`
+- 通用：
+  - 新增分段存在性检测与内容合并函数，避免“缓存优先导致新分段导不出”。
+
+## 31) timeAlg 与真太阳时显示解耦（2026-02-25）
+
+- 遁甲与三式合一：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 修正内容：
+  - 删除“选直接时间时改用时区中央经线”的地理参数替换逻辑。
+  - `timeAlg` 仅用于计算基准切换；
+  - 左侧显示用 `真太阳时` 始终基于真实经纬度计算，不随该选项被改写。
+
+## 32) 三式合一参数区布局调整（2026-02-25）
+
+- 右侧参数布局：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 调整：
+  - 将原先分两行的参数合并到同一行四列：
+    - `时计太乙`
+    - `太乙统宗`
+    - `回归黄道`
+    - `整宫制`
+
+## 33) 六壬/遁甲导出源切换为计算快照（2026-02-25）
+
+- 导出实现：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+- 调整要点：
+  - `extractLiuRengContent` 与 `extractQiMenContent` 不再从右侧DOM采集文本。
+  - 导出仅使用“计算阶段快照”：
+    - 本地模块快照：`loadModuleAISnapshot(module)`；
+    - 当前案例快照兜底：`currentCase.payload.snapshot`。
+  - 无快照时不再DOM拼装补齐，避免“右侧展示态”影响导出原文排版。
+
+## 34) AI导出去“右侧栏目”与原始段落排版（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+- 结构调整：
+  - 新增 `AI_EXPORT_FORBIDDEN_SECTIONS`：
+    - 当前对 `liureng/qimen/sanshiunited` 禁止导出 `[右侧栏目]`。
+  - 新增导出净化函数：
+    - `getForbiddenSectionSet(key)`
+    - `stripForbiddenSections(content, key)`
+  - 导出流水更新：
+    - `buildPayload` 在分段过滤前先执行 `stripForbiddenSections`；
+    - `applyUserSectionFilter` 在“无用户设置”及“有设置”两条路径都执行禁用分段剔除。
+  - 导出设置选项源更新：
+    - `getOptionsForTechniqueKey` 会过滤禁用分段，避免设置面板再次出现“右侧栏目”。
+  - 奇门分段映射兼容：
+    - 旧分段名 `概览/右侧栏目` 映射到 `盘面要素`；
+    - 预设分段改为 `起盘信息/盘型/盘面要素/奇门演卦/八宫详解/九宫方盘`。
+  - 文本整形策略：
+    - `normalizeText` 对 `liureng/qimen/sanshiunited` 走“保留原始段落”分支，避免统一转`-`列表。
+  - 快照分段命名：
+    - `buildDunJiaSnapshotText` 将 `[右侧栏目]` 改为 `[盘面要素]`。
+
+## 35) 真太阳时显示与时间算法彻底解耦（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+- 结构调整：
+  - 遁甲与三式合一新增显示用参数构造函数：
+    - `buildDisplaySolarParams(params)`：固定 `timeAlg=0`。
+  - 新增显示真太阳时解析链路：
+    - `resolveDisplaySolarTime(params, primaryResult)`。
+    - 当用户选择`直接时间`时，额外获取`timeAlg=0`对应的`birth`作为显示值。
+  - 状态与缓存签名新增字段：
+    - `displaySolarTime`进入组件状态；
+    - 遁甲盘缓存键 / 重算签名纳入该字段，避免缓存命中导致旧显示残留。
+  - 盘面写入口径变更：
+    - `calcDunJia`的`realSunTime`优先取`context.displaySolarTime`，其次才回退`nongli.birth`。
+- 行为结果：
+  - `timeAlg`仍仅决定盘面计算基准；
+  - 左盘与概览里的“真太阳时”不再被“直接时间”按钮覆盖。
+
+## 36) 导出前模块快照强制刷新（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+- 结构调整：
+  - AI导出新增导出前刷新函数：
+    - `requestModuleSnapshotRefresh(moduleName)`；
+    - 在`extractLiuRengContent`、`extractQiMenContent`中先触发刷新事件再读取模块快照。
+  - 六壬组件新增事件监听：
+    - 监听`horosa:refresh-module-snapshot`；
+    - 当`detail.module==='liureng'`时调用`saveLiuRengAISnapshot`即时重写快照。
+  - 遁甲组件新增事件监听：
+    - 当`detail.module==='qimen'`时重写当前`pan`快照。
+  - 分段兼容：
+    - `aiExport.mapLegacySectionTitle`中补充六壬旧分段名`三传(初传/中传/末传) -> 三传`。
+- 行为结果：
+  - 六壬导出优先使用当前盘即时快照，降低读取旧案例快照导致“格局参考缺失”的概率。
+
+## 37) 三式合一重算容错兜底（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 结构调整：
+  - `recalcByNongli` 调度回调加入异常捕获：
+    - 任一子步骤报错时，重算 Promise 仍可正常结束，不阻塞后续刷新。
+  - `performRecalcByNongli` 中太乙计算改为可降级：
+    - `calcTaiyiPanFromKintaiyi` 异常时返回 `taiyi=null`，其余盘继续渲染。
+  - `refreshAll` 增加“空盘兜底二次重算”：
+    - 当异步重算未产生变更且当前 `dunjia` 为空时，立即执行一次同步重算。
+- 行为结果：
+  - 三式合一不会因单一子模块异常直接落入“暂无三式合一数据”空态。
+
+## 38) AI导出实时快照回传链路（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+- 结构调整：
+  - `aiExport.requestModuleSnapshotRefresh(moduleName)` 从“仅派发通知”升级为“派发+回收实时文本”：
+    - 事件 `detail` 新增 `snapshotText` 回传槽。
+  - `extractQiMenContent`/`extractLiuRengContent` 数据源优先级更新：
+    - 实时回传快照（刷新后） > 模块缓存快照 > `window.__horosa_*_snapshot_text` > 旧缓存兜底。
+    - 核心分段缺失时不再直接信任旧缓存（遁甲看`[奇门演卦]/[八宫详解]`，六壬看`[大格]/[小局]/[参考]/[概览]`）。
+  - 遁甲组件新增回传能力：
+    - `saveQimenLiveSnapshot` 返回快照文本并记录 `window.__horosa_qimen_snapshot_at`；
+    - 在 `horosa:refresh-module-snapshot` 中回填 `evt.detail.snapshotText` 并重写模块快照。
+  - 六壬组件新增回传能力：
+    - `saveLiuRengAISnapshot` 改为返回快照文本；
+    - 在刷新事件中回填 `evt.detail.snapshotText`。
+- 行为结果：
+  - 导出触发时优先拿当前盘实时文本，降低“八宫详解/格局参考偶发缺失”风险。
+- 本地运行包同步：
+  - `runtime/mac/bundle/dist-file/` 已与 `Horosa-Web/astrostudyui/dist-file/` 同步；
+  - 运行时入口脚本更新为 `umi.3fc83e7f.js`。
+
+## 39) 真太阳时显示二次请求容错（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+- 结构调整：
+  - 两处 `resolveDisplaySolarTime` 统一改为：
+    - 先读 `getNongliLocalCache(timeAlg=0)`（缓存命中直接返回）；
+    - 缓存未命中再请求 `fetchPreciseNongli(timeAlg=0)`；
+    - 请求异常时回退主请求时间，不抛错。
+- 行为结果：
+  - “显示真太阳时”的辅助请求不再影响主盘计算成功与否；
+  - 三式合一不会再因该辅助请求失败而出现“暂无三式合一数据”空白；
+  - 在缓存命中场景减少一次额外接口调用，避免不必要时延。
+- 本地运行包同步：
+  - `runtime/mac/bundle/dist-file/` 已同步为最新构建，入口脚本更新为 `umi.c3707dd4.js`。
+
+## 40) 修复后自检流程（2026-02-25）
+
+- 自检入口与脚本：
+  - `Horosa-Web/verify_horosa_local.sh`
+  - `Horosa-Web/astrostudyui/.tmp_horosa_perf_check.js`
+- 自检范围：
+  - 本地服务端口（8899/9999）可用性；
+  - 关键接口链路（`/nongli/time`、`/jieqi/year`、`/liureng/gods`）；
+  - 前端单元测试（`umi-test`）；
+  - 前端构建产物与运行目录一致性（`dist-file` -> `runtime/mac/bundle/dist-file`）。
+- 当前基线结果：
+  - 单测 `3/3` 套件通过，`16/16` 用例通过；
+  - 接口 smoke/perf 检查通过；
+  - 运行端页面脚本版本：`umi.c3707dd4.js`。
+
+## 41) 三式合一时区标准化修复（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 结构调整（仅三式合一）：
+  - 新增时区标准化链路：
+    - `parseZoneOffsetHour`：兼容 `+08:00`、纯数字、`UTC/GMT`、`东/西X区`；
+    - `normalizeZoneOffset`：统一输出 `±HH:mm`。
+  - 请求参数入口改造：
+    - `onTimeChanged`
+    - `getTimeFieldsFromSelector`
+    - `genParams`
+    - `genJieqiParams`
+  - 以上路径全部保证发送到精确历法服务的 `zone` 为合法格式。
+- 行为结果：
+  - 修复三式合一“精确历法服务不可用”假阳性；
+  - 避免因 `zone=8/东8区` 导致 `/nongli/time` 失败；
+  - 遁甲模块逻辑保持不变（按要求未改）。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.6bdb560e.js`。
+
+## 42) 精确历法桥接层参数归一（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/preciseCalcBridge.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 结构调整：
+  - 在桥接层新增统一归一化方法：
+    - `normalizeZone`：兼容 `+08:00` / `8` / `UTC+8` / `东8区`，统一输出 `±HH:mm`；
+    - `normalizeAd`：兼容 `AD/BC/1/-1`，并按日期符号兜底；
+    - `normalizeBit`：统一布尔/数值开关到 `0/1`。
+  - 请求参数入口统一：
+    - `fetchPreciseNongli`、`fetchPreciseJieqiYear`、`fetchPreciseJieqiSeed`
+      都在“缓存键构建、缓存读写、网络请求”前三步先做归一化。
+  - 三式合一参数口径补齐：
+    - `SanShiUnitedMain.genParams` 新增 `ad` 字段透传。
+- 行为结果：
+  - 彻底避免 `zone` 被透传为单字符导致 `/nongli/time` 抛出
+    `StringIndexOutOfBounds(begin 1, end 3, length 1)`；
+  - 即使上层模块传入历史格式时区，也能稳定拿到精确历法结果。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.88aa4eb2.js`。
+
+## 43) 三式合一 displaySolarTime 与排盘解耦（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 结构调整：
+  - `getCachedDunJia` 恢复旧稳定口径：
+    - 移除 `displaySolarTime` 参数；
+    - 缓存键不再包含显示时间；
+    - 调用 `calcDunJia` 时不再把显示时间写入上下文。
+  - `performRecalcByNongli` 改为“两段式”：
+    - 先得到 `panRaw`（纯计算结果）；
+    - 再覆盖 `realSunTime` 为 `displaySolarTime`（纯展示字段）。
+  - 新增 `normalizeCalcFieldsForDunJia`：
+    - 在三式合一调用遁甲计算前统一 `date/time/zone/ad` 输入格式；
+    - 降低 `DateTime` 类型漂移导致的重算异常。
+- 行为结果：
+  - 修复“显示真太阳时”改动影响三式合一排盘的问题；
+  - 三式合一继续支持“直接时间/真太阳时”双时间显示，同时计算路径保持稳定。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.9107fbb7.js`。
+
+## 44) 三式合一失败提示可观测性增强（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 结构调整：
+  - `refreshAll` catch 分支对非精确历法异常输出具体 `error.message`：
+    - 从固定文案“请重试”改为带原因提示，便于定位真实失败点。
+- 行为结果：
+  - 用户端可直接看到导致三式合一失败的具体错误文本；
+  - 减少“无法复现/无法定位”的来回排查成本。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.8191667a.js`。
+
+## 45) 三式合一稳定回退：撤销 displaySolarTime 主链路（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 结构调整：
+  - `refreshAll` 不再在主流程中额外请求/注入 `displaySolarTime`；
+  - `recalcByNongli`、`performRecalcByNongli` 恢复为稳定签名（不携带显示时间参数）；
+  - 三式合一内部对 `this.state.options` 统一增加空值兜底；
+  - 修正 `overrideOptions` 为空时的读取路径，避免 `taiyiStyle` 空对象异常。
+- 行为结果：
+  - 修复三式合一报错：`null is not an object (evaluating 'n.taiyiStyle')`；
+  - 三式合一起盘链路回到稳定计算路径，不再因显示时间分支中断。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.62edd81c.js`。
+
+## 46) 遁甲左盘日期渲染兼容短年份（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+- 结构调整：
+  - `parseDisplayDateHm` 的年份解析改为可变位数（非固定4位）；
+  - `getBoardTimeInfo` 统一通过解析函数生成日期/时间，不再使用固定下标切片。
+- 行为结果：
+  - 输入 `100`、`999` 等短年份时，左侧盘头日期不再显示 `日期--`；
+  - 保持 `直接时间/真太阳时` 展示逻辑不变。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.25ee3d4c.js`。
+
+## 47) 三式合一顶部日期行统一与双时间显示解耦（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+- 结构调整：
+  - 顶部“日期”行改为同一文本节点输出，统一字号；
+  - 直接时间显示改为 `HH:mm:ss`，真太阳时显示改为 `HH:mm:ss`；
+  - 新增 `displaySolarTime` 显示状态与 `resolveDisplaySolarTime`（仅用于显示层）；
+  - `displaySolarTime` 不参与三式合一主排盘重算签名与计算上下文。
+- 行为结果：
+  - 左盘日期行固定输出：`年-月-日 真太阳时：XX:XX:XX 直接时间：XX:XX:XX`；
+  - 右侧时间算法选择仍决定实际排盘计算基准；
+  - 页面稳定性保持，不回引此前 `n.taiyiStyle` 崩溃问题。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.34a10371.js`，样式为 `umi.b7659491.css`。
+
+## 48) 遁甲/三式合一时间算法对齐八字紫微口径（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- 结构调整：
+  - `DunJiaCalc.buildGanzhiForQimen` 升级为 `buildGanzhiForQimen(nongli, dateParts, opts, context)`：
+    - 引入 `parseDateTimeText / resolveCalcDateTime`；
+    - 当 `timeAlg=0` 时按真太阳时文本解析小时用于时柱计算；
+    - 当 `timeAlg=1` 时按直接时间口径（并保留精确历法时柱优先兜底）；
+    - 年/月/日/时支持从 `nongli.bazi.fourColumns` 读取兜底。
+  - `SanShiUnitedMain.getQimenOptions` 增加 `timeAlg` 透传：
+    - 三式合一右侧“真太阳时/直接时间”选择可直接影响遁甲子模块计算。
+  - `DunJiaMain` 的盘头时间解析增强：
+    - `parseDisplayDateHm` 支持可变位数年份；
+    - `getBoardTimeInfo` 使用解析兜底，避免短年份出现 `日期--`。
+- 行为结果：
+  - 遁甲与三式合一的时间算法行为与八字/紫微一致：右侧选项直接影响实际计算口径；
+  - 真太阳时与直接时间可同时显示，且在小时跨界时可驱动时柱变化；
+  - 短年份（<4位）盘头日期显示恢复稳定。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.01433c13.js`，样式为 `umi.b7659491.css`。
+
+## 49) 三式合一顶部神煞列宽调整（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+- 结构调整：
+  - `.topBox` 两列布局由 `1fr 174px` 改为 `minmax(0, 1fr) 148px`；
+  - 固定收窄右侧“神煞双列”区域，释放左侧“日期/真太阳时/直接时间”行的可用宽度。
+- 行为结果：
+  - 三式合一盘左上“日期行”更易完整显示；
+  - 不影响排盘计算、数据结构与右侧参数面板逻辑。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.01433c13.js`，样式为 `umi.4fac2da6.css`。

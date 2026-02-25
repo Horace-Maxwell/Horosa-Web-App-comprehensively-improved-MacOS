@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { Row, Col, Card, Select, Button, Divider, Spin, Tag, Tabs, message } from 'antd';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import {
+	getNongliLocalCache,
 	setNongliLocalCache,
 } from '../../utils/localCalcCache';
 import {
@@ -24,11 +25,18 @@ import {
 	QIJU_METHOD_OPTIONS,
 	KONG_MODE_OPTIONS,
 	MA_MODE_OPTIONS,
+	TIME_ALG_OPTIONS,
 	YIXING_OPTIONS,
 	DAY_SWITCH_OPTIONS,
 	calcDunJia,
 	buildDunJiaSnapshotText,
 } from './DunJiaCalc';
+import {
+	BAGONG_PALACE_ORDER,
+	BAGONG_PALACE_NAME,
+	buildQimenBaGongPanelData,
+	buildQimenFuShiYiGua,
+} from './DunJiaBaGongRules';
 
 const { Option } = Select;
 const TabPane = Tabs.TabPane;
@@ -51,6 +59,7 @@ const DEFAULT_OPTIONS = {
 	qijuMethod: 'zhirun',
 	kongMode: 'day',
 	yimaMode: 'day',
+	timeAlg: 0,
 	shiftPalace: 0,
 	after23NewDay: 1,
 	fengJu: false,
@@ -60,6 +69,7 @@ const DUNJIA_BOARD_BASE_WIDTH = 662;
 const DUNJIA_BOARD_BASE_HEIGHT = 870;
 const DUNJIA_SCALE_MIN = 0.64;
 const DUNJIA_SCALE_MAX = 1.22;
+const QIMEN_PATTERN_INTERPRETATION_STORAGE_KEY = 'qimenShowPatternInterpretation';
 
 function clamp(val, min, max){
 	return Math.max(min, Math.min(max, val));
@@ -79,44 +89,135 @@ function safe(v, d = ''){
 	return v === undefined || v === null ? d : v;
 }
 
+function normalizeTimeAlg(value){
+	return value === 1 ? 1 : 0;
+}
+
+function getTimeAlgLabel(value){
+	return normalizeTimeAlg(value) === 1 ? '直接时间' : '真太阳时';
+}
+
+function parseZoneOffsetHour(zone){
+	if(zone === undefined || zone === null || zone === ''){
+		return null;
+	}
+	const raw = `${zone}`.trim();
+	if(!raw){
+		return null;
+	}
+	const numeric = Number(raw);
+	if(Number.isFinite(numeric)){
+		return numeric;
+	}
+	const m = raw.match(/^([+-])(\d{1,2})(?::?(\d{2}))?$/);
+	if(!m){
+		return null;
+	}
+	const sign = m[1] === '-' ? -1 : 1;
+	const hh = parseInt(m[2], 10);
+	const mm = parseInt(m[3] || '0', 10);
+	if(Number.isNaN(hh) || Number.isNaN(mm)){
+		return null;
+	}
+	return sign * (hh + mm / 60);
+}
+
+function resolveCalcGeo(fields, options){
+	const lon = safe(fields && fields.lon && fields.lon.value, '');
+	const lat = safe(fields && fields.lat && fields.lat.value, '');
+	const gpsLon = safe(fields && fields.gpsLon && fields.gpsLon.value, '');
+	const gpsLat = safe(fields && fields.gpsLat && fields.gpsLat.value, '');
+	// timeAlg 仅用于“计算基准”切换，不应改写显示真太阳时所依赖的地理位置。
+	return { lon, lat, gpsLon, gpsLat };
+}
+
+function buildDisplaySolarParams(params){
+	if(!params){
+		return null;
+	}
+	return {
+		...params,
+		timeAlg: 0,
+	};
+}
+
+function loadPatternInterpretationPreference(){
+	try{
+		if(typeof window === 'undefined' || !window.localStorage){
+			return true;
+		}
+		const val = window.localStorage.getItem(QIMEN_PATTERN_INTERPRETATION_STORAGE_KEY);
+		if(val === null || val === undefined || val === ''){
+			return true;
+		}
+		return val !== '0' && val !== 'false';
+	}catch(e){
+		return true;
+	}
+}
+
+function savePatternInterpretationPreference(value){
+	try{
+		if(typeof window !== 'undefined' && window.localStorage){
+			window.localStorage.setItem(QIMEN_PATTERN_INTERPRETATION_STORAGE_KEY, value ? '1' : '0');
+		}
+	}catch(e){
+	}
+}
+
+function saveQimenLiveSnapshot(pan){
+	if(!pan || typeof window === 'undefined'){
+		return '';
+	}
+	let snapshotText = '';
+	try{
+		snapshotText = buildDunJiaSnapshotText(pan);
+	}catch(e){
+		snapshotText = '';
+	}
+	if(snapshotText){
+		window.__horosa_qimen_snapshot_text = snapshotText;
+		window.__horosa_qimen_snapshot_at = Date.now();
+	}
+	return snapshotText;
+}
+
 function parseDisplayDateHm(rawText){
 	const text = `${safe(rawText, '')}`.trim();
 	if(!text){
 		return null;
 	}
-	const normalized = text.replace('T', ' ').replace('Z', '').trim();
-	const m = normalized.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})/);
-	if(!m){
+	const normalized = text.replace('T', ' ').replace('Z', ' ').trim();
+	const dateMatch = normalized.match(/([-+]?\d{1,6})[/-](\d{1,2})[/-](\d{1,2})/);
+	const timeMatch = normalized.match(/(\d{1,2}):(\d{2})/);
+	if(!dateMatch && !timeMatch){
 		return null;
 	}
-	const yyyy = m[1];
-	const mm = `${m[2]}`.padStart(2, '0');
-	const dd = `${m[3]}`.padStart(2, '0');
-	const hh = `${m[4]}`.padStart(2, '0');
+	const yyyy = dateMatch ? `${dateMatch[1]}` : '';
+	const mm = dateMatch ? `${dateMatch[2]}`.padStart(2, '0') : '';
+	const dd = dateMatch ? `${dateMatch[3]}`.padStart(2, '0') : '';
+	const hh = timeMatch ? `${timeMatch[1]}`.padStart(2, '0') : '';
 	return {
-		date: `${yyyy}年${mm}月${dd}日`,
-		hm: `${hh}:${m[5]}`,
+		date: yyyy ? `${yyyy}年${mm}月${dd}日` : '',
+		hm: timeMatch ? `${hh}:${timeMatch[2]}` : '',
 	};
 }
 
 function getBoardTimeInfo(pan){
 	const solar = parseDisplayDateHm(pan && pan.realSunTime);
-	const dateStr = safe(pan && pan.dateStr, '');
-	const timeStr = safe(pan && pan.timeStr, '');
-	const clockDate = (dateStr && dateStr.length >= 10)
-		? `${dateStr.substr(0, 4)}年${dateStr.substr(5, 2)}月${dateStr.substr(8, 2)}日`
-		: '日期--';
-	const clockHm = (timeStr && timeStr.length >= 5) ? timeStr.substr(0, 5) : '--:--';
-	if(solar){
+	const direct = parseDisplayDateHm(`${safe(pan && pan.dateStr, '')} ${safe(pan && pan.timeStr, '')}`);
+	const clockDate = safe(direct && direct.date, '');
+	const clockHm = safe(direct && direct.hm, '') || (safe(pan && pan.timeStr, '').length >= 5 ? safe(pan && pan.timeStr, '').substr(0, 5) : '--:--');
+	if(solar && (solar.date || solar.hm)){
 		return {
-			dateText: solar.date,
+			dateText: solar.date || clockDate || '日期--',
 			clockHm,
 			solarHm: solar.hm || '--:--',
 		};
 	}
-	if(dateStr && timeStr){
+	if(clockDate || clockHm){
 		return {
-			dateText: clockDate,
+			dateText: clockDate || '日期--',
 			clockHm,
 			solarHm: clockHm,
 		};
@@ -147,8 +248,12 @@ function getAfter23NewDayValue(options){
 	return options && options.after23NewDay === 0 ? 0 : 1;
 }
 
+function getTimeAlgValue(options){
+	return normalizeTimeAlg(options && options.timeAlg);
+}
+
 function getNongliRequestKey(fields, options){
-	return `${getFieldKey(fields)}|after23NewDay=${getAfter23NewDayValue(options)}`;
+	return `${getFieldKey(fields)}|after23NewDay=${getAfter23NewDayValue(options)}|timeAlg=${getTimeAlgValue(options)}`;
 }
 
 function getNongliKey(nongli){
@@ -186,6 +291,7 @@ function getQimenOptionsKey(options){
 		safe(options.yimaMode),
 		safe(options.shiftPalace),
 		getAfter23NewDayValue(options),
+		getTimeAlgValue(options),
 		options.fengJu ? 1 : 0,
 	].join('|');
 }
@@ -213,10 +319,13 @@ class DunJiaMain extends Component {
 		this.state = {
 			loading: false,
 			nongli: null,
+			displaySolarTime: '',
 			pan: null,
 			localFields: null,
 			hasPlotted: false,
 			rightPanelTab: 'overview',
+			bagongPalace: BAGONG_PALACE_ORDER[0],
+			showPatternInterpretation: loadPatternInterpretationPreference(),
 			leftBoardWidth: 0,
 			viewportHeight: getViewportHeight(),
 			options: {
@@ -245,6 +354,7 @@ class DunJiaMain extends Component {
 		this.ensureJieqiSeed = this.ensureJieqiSeed.bind(this);
 		this.prefetchJieqiSeedForFields = this.prefetchJieqiSeedForFields.bind(this);
 		this.prefetchNongliForFields = this.prefetchNongliForFields.bind(this);
+		this.resolveDisplaySolarTime = this.resolveDisplaySolarTime.bind(this);
 		this.getContext = this.getContext.bind(this);
 		this.requestNongli = this.requestNongli.bind(this);
 		this.genParams = this.genParams.bind(this);
@@ -256,6 +366,7 @@ class DunJiaMain extends Component {
 		this.parseCasePayload = this.parseCasePayload.bind(this);
 		this.captureLeftBoardHost = this.captureLeftBoardHost.bind(this);
 		this.handleWindowResize = this.handleWindowResize.bind(this);
+		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields)=>{
@@ -274,13 +385,14 @@ class DunJiaMain extends Component {
 		}
 	}
 
-	getCachedPan(fields, nongli, options){
-		const ctx = this.getContext(fields);
+	getCachedPan(fields, nongli, options, displaySolarTime){
+		const ctx = this.getContext(fields, displaySolarTime);
 		const key = [
 			getFieldKey(fields),
 			getNongliKey(nongli),
 			getQimenOptionsKey(options),
 			safe(ctx && ctx.isDiurnal, ''),
+			safe(ctx && ctx.displaySolarTime, ''),
 		].join('|');
 		if(this.panCache.has(key)){
 			return this.panCache.get(key);
@@ -298,6 +410,9 @@ class DunJiaMain extends Component {
 
 	componentDidMount(){
 		this.unmounted = false;
+		if(typeof window !== 'undefined'){
+			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
 		this.restoreOptionsFromCurrentCase(true);
 		window.addEventListener('resize', this.handleWindowResize);
 		this.handleWindowResize();
@@ -311,6 +426,9 @@ class DunJiaMain extends Component {
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(typeof window !== 'undefined'){
+			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
 		window.removeEventListener('resize', this.handleWindowResize);
 		if(this.prefetchSeedTimer){
 			clearTimeout(this.prefetchSeedTimer);
@@ -319,6 +437,22 @@ class DunJiaMain extends Component {
 		if(this.resizeObserver){
 			this.resizeObserver.disconnect();
 			this.resizeObserver = null;
+		}
+	}
+
+	handleSnapshotRefreshRequest(evt){
+		const moduleName = evt && evt.detail ? evt.detail.module : '';
+		if(moduleName !== 'qimen'){
+			return;
+		}
+		if(this.state.pan){
+			const snapshotText = saveQimenLiveSnapshot(this.state.pan);
+			if(snapshotText){
+				saveModuleAISnapshot('qimen', snapshotText);
+				if(evt && evt.detail && typeof evt.detail === 'object'){
+					evt.detail.snapshotText = snapshotText;
+				}
+			}
 		}
 	}
 
@@ -444,7 +578,7 @@ class DunJiaMain extends Component {
 				&& nongliKey === this.lastNongliKey;
 			if(this.state.hasPlotted){
 				if(canRecalc){
-					this.recalc(this.state.localFields || this.props.fields, this.state.nongli, nextOptions);
+					this.recalc(this.state.localFields || this.props.fields, this.state.nongli, nextOptions, this.state.displaySolarTime);
 				}else{
 					this.requestNongli(calcFields, true);
 				}
@@ -566,34 +700,38 @@ class DunJiaMain extends Component {
 		if(!flds){
 			return null;
 		}
+		const options = this.state.options || DEFAULT_OPTIONS;
 		const genderValue = (flds.gender && flds.gender.value !== undefined && flds.gender.value !== null)
 			? flds.gender.value
-			: this.state.options.sex;
+			: options.sex;
 		const zoneValue = flds.zone && flds.zone.value !== undefined && flds.zone.value !== null
 			? flds.zone.value
 			: 8;
 		const adValue = flds.ad && flds.ad.value !== undefined && flds.ad.value !== null
 			? flds.ad.value
 			: 1;
+		const calcGeo = resolveCalcGeo(flds, options);
 		return {
 			date: flds.date.value.format('YYYY-MM-DD'),
 			time: flds.time.value.format('HH:mm:ss'),
 			zone: zoneValue,
-			lon: flds.lon ? flds.lon.value : '',
-			lat: flds.lat ? flds.lat.value : '',
-			gpsLat: flds.gpsLat ? flds.gpsLat.value : '',
-			gpsLon: flds.gpsLon ? flds.gpsLon.value : '',
+			lon: calcGeo.lon,
+			lat: calcGeo.lat,
+			gpsLat: calcGeo.gpsLat,
+			gpsLon: calcGeo.gpsLon,
 			ad: adValue,
 			gender: genderValue,
-			after23NewDay: getAfter23NewDayValue(this.state.options),
+			timeAlg: normalizeTimeAlg(options.timeAlg),
+			after23NewDay: getAfter23NewDayValue(options),
 		};
 	}
 
-	recalc(fields, nongli, options){
+	recalc(fields, nongli, options, displaySolarTime){
 		const flds = fields || this.state.localFields || this.props.fields;
 		if(!flds || !nongli){
 			return;
 		}
+		const displaySolar = safe(displaySolarTime, this.state.displaySolarTime);
 		const fixedOptions = {
 			...(options || this.state.options),
 			jieQiType: 1,
@@ -601,20 +739,24 @@ class DunJiaMain extends Component {
 			monthGanZhiType: 1,
 			dayGanZhiType: 1,
 		};
-		const panSignature = [
-			getFieldKey(flds),
-			getNongliKey(nongli || this.state.nongli),
-			getQimenOptionsKey(fixedOptions),
-			safe(this.getContext(flds).isDiurnal, ''),
-		].join('|');
+			const panSignature = [
+				getFieldKey(flds),
+				getNongliKey(nongli || this.state.nongli),
+				getQimenOptionsKey(fixedOptions),
+				safe(this.getContext(flds, displaySolar).isDiurnal, ''),
+				displaySolar,
+			].join('|');
 		if(this.state.pan && panSignature === this.lastPanSignature){
 			return;
 		}
-		const pan = this.getCachedPan(flds, nongli || this.state.nongli, fixedOptions);
+		const pan = this.getCachedPan(flds, nongli || this.state.nongli, fixedOptions, displaySolar);
 		this.lastPanSignature = panSignature;
-		this.setState({ pan }, ()=>{
+		this.setState({ pan, displaySolarTime: displaySolar }, ()=>{
 			if(pan){
-				saveModuleAISnapshot('qimen', buildDunJiaSnapshotText(pan));
+				const snapshotText = saveQimenLiveSnapshot(pan);
+				if(snapshotText){
+					saveModuleAISnapshot('qimen', snapshotText);
+				}
 			}
 		});
 	}
@@ -624,21 +766,49 @@ class DunJiaMain extends Component {
 		if(!flds){
 			return null;
 		}
+		const options = this.state.options || DEFAULT_OPTIONS;
+		const calcGeo = resolveCalcGeo(flds, options);
 		return {
 			year: `${year}`,
 			ad: flds.ad ? flds.ad.value : 1,
 			zone: flds.zone.value,
-			lon: flds.lon.value,
-			lat: flds.lat.value,
-			gpsLat: flds.gpsLat.value,
-			gpsLon: flds.gpsLon.value,
+			lon: calcGeo.lon,
+			lat: calcGeo.lat,
+			gpsLat: calcGeo.gpsLat,
+			gpsLon: calcGeo.gpsLon,
+			timeAlg: normalizeTimeAlg(options.timeAlg),
 			hsys: 0,
 			zodiacal: 0,
 			doubingSu28: false,
 		};
 	}
 
-	getContext(fields){
+	async resolveDisplaySolarTime(params, primaryResult){
+		if(!params){
+			return safe(primaryResult && primaryResult.birth, '');
+		}
+		const current = safe(primaryResult && primaryResult.birth, '');
+		if(normalizeTimeAlg(params.timeAlg) === 0){
+			return current;
+		}
+		const solarParams = buildDisplaySolarParams(params);
+		const cachedSolar = getNongliLocalCache(solarParams);
+		if(cachedSolar && cachedSolar.birth){
+			return safe(cachedSolar.birth, current);
+		}
+		try{
+			const solarResult = await fetchPreciseNongli(solarParams);
+			if(solarResult){
+				setNongliLocalCache(solarParams, solarResult);
+			}
+			return safe(solarResult && solarResult.birth, current);
+		}catch(e){
+			// 显示用真太阳时请求失败时，回退主请求时间，不中断排盘。
+			return current;
+		}
+	}
+
+	getContext(fields, displaySolarTime){
 		const flds = fields || this.state.localFields || this.props.fields;
 		let year = null;
 		if(flds && flds.date && flds.date.value){
@@ -648,6 +818,7 @@ class DunJiaMain extends Component {
 			year,
 			jieqiYearSeeds: this.jieqiYearSeeds,
 			isDiurnal: extractIsDiurnalFromChartProp(this.props.value),
+			displaySolarTime: safe(displaySolarTime, this.state.displaySolarTime),
 		};
 	}
 
@@ -737,7 +908,7 @@ class DunJiaMain extends Component {
 		}
 		const requestKey = getNongliRequestKey(fldsToUse, this.state.options);
 		if(!force && this.state.nongli && requestKey && requestKey === this.lastNongliKey){
-			this.recalc(fldsToUse, this.state.nongli);
+			this.recalc(fldsToUse, this.state.nongli, this.state.options, this.state.displaySolarTime);
 			return;
 		}
 		if(this.pendingNongli && this.pendingNongli.key === requestKey){
@@ -771,15 +942,16 @@ class DunJiaMain extends Component {
 			if(missingSeed && !this.state.loading){
 				this.setState({ loading: true });
 			}
-			try{
-				const result = await fetchPreciseNongli(params);
-				if(!result){
-					throw new Error('precise.nongli.unavailable');
-				}
-				setNongliLocalCache(params, result);
-				if(this.unmounted || seq !== this.requestSeq){
-					return;
-				}
+				try{
+					const result = await fetchPreciseNongli(params);
+					if(!result){
+						throw new Error('precise.nongli.unavailable');
+					}
+					setNongliLocalCache(params, result);
+					const displaySolarTime = await this.resolveDisplaySolarTime(params, result);
+					if(this.unmounted || seq !== this.requestSeq){
+						return;
+					}
 				if(waitSeed){
 					const seeds = await seedPromise;
 					if(!seeds[0] || !seeds[1]){
@@ -789,24 +961,29 @@ class DunJiaMain extends Component {
 				if(this.unmounted || seq !== this.requestSeq){
 					return;
 				}
-				const panSignature = [
-					getFieldKey(flds),
-					getNongliKey(result),
-					getQimenOptionsKey(fixedOptions),
-					safe(this.getContext(flds).isDiurnal, ''),
-				].join('|');
-				const pan = this.getCachedPan(flds, result, fixedOptions);
-				this.lastNongliKey = requestKey;
-				this.lastPanSignature = panSignature;
-				this.setState({
-					nongli: result,
-					pan,
-					loading: false,
-				}, ()=>{
-					if(pan){
-						saveModuleAISnapshot('qimen', buildDunJiaSnapshotText(pan));
-					}
-				});
+					const panSignature = [
+						getFieldKey(flds),
+						getNongliKey(result),
+						getQimenOptionsKey(fixedOptions),
+						safe(this.getContext(flds, displaySolarTime).isDiurnal, ''),
+						displaySolarTime,
+					].join('|');
+					const pan = this.getCachedPan(flds, result, fixedOptions, displaySolarTime);
+					this.lastNongliKey = requestKey;
+					this.lastPanSignature = panSignature;
+						this.setState({
+							nongli: result,
+							displaySolarTime,
+							pan,
+							loading: false,
+						}, ()=>{
+						if(pan){
+							const snapshotText = saveQimenLiveSnapshot(pan);
+							if(snapshotText){
+								saveModuleAISnapshot('qimen', snapshotText);
+							}
+						}
+					});
 			}catch(e){
 				if(!this.unmounted && seq === this.requestSeq){
 					this.setState({ loading: false });
@@ -826,18 +1003,36 @@ class DunJiaMain extends Component {
 	}
 
 	onOptionChange(key, value){
+		const nextVal = key === 'timeAlg' ? normalizeTimeAlg(value) : value;
 		const options = {
 			...this.state.options,
-			[key]: value,
+			[key]: nextVal,
 		};
-		this.setState({ options }, ()=>{
+		const nextState = { options };
+		if(key === 'timeAlg'){
+			nextState.localFields = {
+				...(this.state.localFields || this.props.fields || {}),
+				timeAlg: { value: nextVal },
+			};
+		}
+		this.setState(nextState, ()=>{
+			if(key === 'timeAlg'){
+				this.jieqiSeedPromises = {};
+				this.jieqiYearSeeds = {};
+				this.panCache.clear();
+				this.lastPanSignature = '';
+				this.lastNongliKey = '';
+				this.onFieldsChange({
+					timeAlg: { value: nextVal },
+				}, true);
+			}
 			const calcFields = this.state.localFields || this.props.fields;
 			const calcFieldKey = getFieldKey(calcFields);
 			this.prefetchJieqiSeedForFields(calcFields);
 			const canRecalc = this.state.nongli
 				&& calcFieldKey
 				&& getNongliRequestKey(calcFields, options) === this.lastNongliKey;
-			if(key === 'after23NewDay'){
+			if(key === 'after23NewDay' || key === 'timeAlg'){
 				this.prefetchNongliForFields(calcFields);
 				if(this.state.hasPlotted){
 					this.requestNongli(calcFields, true);
@@ -845,7 +1040,7 @@ class DunJiaMain extends Component {
 				return;
 			}
 			if(this.state.hasPlotted && canRecalc){
-				this.recalc(this.state.localFields || this.props.fields, this.state.nongli, options);
+				this.recalc(this.state.localFields || this.props.fields, this.state.nongli, options, this.state.displaySolarTime);
 			}
 		});
 	}
@@ -1112,6 +1307,7 @@ class DunJiaMain extends Component {
 		const timeInfo = getBoardTimeInfo(pan);
 		const dateTitle = timeInfo.dateText;
 		const shiftTitle = pan && pan.shiftPalace > 0 ? `（顺转${pan.shiftPalace}宫）` : '';
+		const timeLine = `直接时间：${timeInfo.clockHm}  真太阳时：${timeInfo.solarHm}`;
 		const pillars = [
 			{
 				key: 'year',
@@ -1162,21 +1358,21 @@ class DunJiaMain extends Component {
 							}}
 						>
 							<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-								<div style={{ display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
-									<span style={{ fontSize: 18, lineHeight: '22px', fontWeight: 700, color: '#222' }}>
-										{dateTitle}
-									</span>
-									<span
-										style={{
-											marginLeft: '4em',
-											fontSize: 13,
-											lineHeight: '18px',
-											fontWeight: 500,
-											color: '#595959',
-											whiteSpace: 'nowrap',
-										}}
-									>
-										钟表时间：{timeInfo.clockHm}  真太阳时：{timeInfo.solarHm}
+									<div style={{ display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
+										<span style={{ fontSize: 18, lineHeight: '22px', fontWeight: 700, color: '#222' }}>
+											{dateTitle}
+										</span>
+										<span
+											style={{
+												marginLeft: '1.2em',
+												fontSize: 18,
+												lineHeight: '22px',
+												fontWeight: 700,
+												color: '#222',
+												whiteSpace: 'nowrap',
+											}}
+										>
+										{timeLine}
 									</span>
 								</div>
 								{shiftTitle ? (
@@ -1269,6 +1465,11 @@ class DunJiaMain extends Component {
 		const pan = this.state.pan;
 		const opt = this.state.options;
 		const panelTab = this.state.rightPanelTab;
+		const bagongPalace = BAGONG_PALACE_NAME[this.state.bagongPalace] ? this.state.bagongPalace : BAGONG_PALACE_ORDER[0];
+		const bagongData = buildQimenBaGongPanelData(pan, bagongPalace);
+		const fushiYiGua = buildQimenFuShiYiGua(pan);
+		const timeInfo = getBoardTimeInfo(pan);
+		const showPatternInterpretation = this.state.showPatternInterpretation !== false;
 		const fields = this.state.localFields || this.props.fields || {};
 		let datetm = new DateTime();
 		if(fields.date && fields.time){
@@ -1337,9 +1538,30 @@ class DunJiaMain extends Component {
 								<Select size="small" value={opt.after23NewDay} onChange={(v)=>this.onOptionChange('after23NewDay', v)} style={{ width: '100%' }}>
 									{DAY_SWITCH_OPTIONS.map((item)=><Option key={`day_switch_${item.value}`} value={item.value}>{item.label}</Option>)}
 								</Select>
-								<GeoCoordModal onOk={this.changeGeo} lat={fields.gpsLat && fields.gpsLat.value} lng={fields.gpsLon && fields.gpsLon.value}>
-									<Button size="small" style={{ width: '100%' }}>经纬度选择</Button>
-								</GeoCoordModal>
+								<div style={{ display: 'flex', gap: 4 }}>
+									<Button
+										size="small"
+										type={showPatternInterpretation ? 'primary' : 'default'}
+										style={{ flex: 1 }}
+										onClick={()=>{
+											const next = !showPatternInterpretation;
+											this.setState({ showPatternInterpretation: next });
+											savePatternInterpretationPreference(next);
+										}}
+									>
+										释义：{showPatternInterpretation ? '是' : '否'}
+									</Button>
+									<div style={{ flex: 1 }}>
+										<Select size="small" value={normalizeTimeAlg(opt.timeAlg)} onChange={(v)=>this.onOptionChange('timeAlg', v)} style={{ width: '100%' }}>
+											{TIME_ALG_OPTIONS.map((item)=><Option key={`time_alg_${item.value}`} value={item.value}>{item.label}</Option>)}
+										</Select>
+									</div>
+									<div style={{ flex: 1 }}>
+										<GeoCoordModal onOk={this.changeGeo} lat={fields.gpsLat && fields.gpsLat.value} lng={fields.gpsLon && fields.gpsLon.value}>
+											<Button size="small" style={{ width: '100%' }}>经纬度选择</Button>
+										</GeoCoordModal>
+									</div>
+								</div>
 							</div>
 							<div style={{ flex: 1 }}>
 								<Select size="small" value={opt.fengJu ? 1 : 0} onChange={(v)=>this.onOptionChange('fengJu', v === 1)} style={{ width: '100%' }}>
@@ -1384,20 +1606,21 @@ class DunJiaMain extends Component {
 								<div>{pan ? pan.options.kongModeLabel : '空亡'}：{pan ? pan.kongWang : '—'}</div>
 								<div>值符：{pan ? pan.zhiFu : '—'}</div>
 								<div>值使：{pan ? pan.zhiShi : '—'}</div>
+								<div>奇门演卦：{pan ? (fushiYiGua.text || '无') : '—'}</div>
 								<div>移星：{pan ? (pan.options.shiftLabel || '原宫') : '原宫'}</div>
 								<div>换日：{pan ? (pan.options.daySwitchLabel || '子初换日') : (opt.after23NewDay === 1 ? '子初换日' : '子正换日')}</div>
+								<div>时间算法：{pan ? (pan.options.timeAlgLabel || getTimeAlgLabel(opt.timeAlg)) : getTimeAlgLabel(opt.timeAlg)}</div>
 								<div>奇门封局：{pan ? (pan.options.fengJuLabel || '未封局') : (opt.fengJu ? '已封局' : '未封局')}</div>
-							</div>
-						</Card>
-					</TabPane>
-					<TabPane tab="状态" key="status">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: 'calc(100vh - 420px)', overflowY: 'auto' }}>
-							<div style={{ lineHeight: '26px' }}>
 								<div>六仪击刑：{pan && pan.liuYiJiXing.length ? pan.liuYiJiXing.join('；') : '无'}</div>
 								<div>奇仪入墓：{pan && pan.qiYiRuMu.length ? pan.qiYiRuMu.join('；') : '无'}</div>
 								<div>门迫：{pan && pan.menPo && pan.menPo.list.length ? pan.menPo.list.join('；') : '无'}</div>
 								<div>空亡宫：{pan && pan.kongWangDesc && pan.kongWangDesc.length ? pan.kongWangDesc.join('；') : '无'}</div>
 								<div>{pan && pan.yiMa ? pan.yiMa.text : '日马：无'}</div>
+								<div>农历：{pan ? pan.lunarText : '—'}</div>
+								<div>直接时间：{timeInfo.clockHm}</div>
+								<div>真太阳时：{timeInfo.solarHm}</div>
+								<div>干支：{pan ? `年${pan.ganzhi.year} 月${pan.ganzhi.month} 日${pan.ganzhi.day} 时${pan.ganzhi.time}` : '—'}</div>
+								<div>节气段：{pan ? (pan.jiedelta || '—') : '—'}</div>
 							</div>
 						</Card>
 					</TabPane>
@@ -1410,14 +1633,93 @@ class DunJiaMain extends Component {
 							</div>
 						</Card>
 					</TabPane>
-					<TabPane tab="历法" key="calendar">
+					<TabPane tab="八宫" key="bagong">
 						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: 'calc(100vh - 420px)', overflowY: 'auto' }}>
-							<div style={{ lineHeight: '26px' }}>
-								<div>农历：{pan ? pan.lunarText : '—'}</div>
-								<div>真太阳时：{pan ? (pan.realSunTime || '—') : '—'}</div>
-								<div>干支：{pan ? `年${pan.ganzhi.year} 月${pan.ganzhi.month} 日${pan.ganzhi.day} 时${pan.ganzhi.time}` : '—'}</div>
-								<div>节气段：{pan ? (pan.jiedelta || '—') : '—'}</div>
+							<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+								{BAGONG_PALACE_ORDER.map((num)=>(
+									<Button
+										key={`bagong_btn_${num}`}
+										size="small"
+										shape="round"
+										type={bagongPalace === num ? 'primary' : 'default'}
+										style={bagongPalace === num ? { minWidth: 42 } : { minWidth: 42, background: '#fafafa' }}
+										onClick={()=>this.setState({ bagongPalace: num })}
+									>
+										{BAGONG_PALACE_NAME[num]}
+									</Button>
+								))}
 							</div>
+							{pan ? (
+								<div>
+									<Card size='small' style={{ marginBottom: 8 }}>
+										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+											<span style={{ fontWeight: 600 }}>奇门吉格</span>
+											<Tag color='green'>{bagongData.jiPatterns.length}项</Tag>
+										</div>
+										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											{showPatternInterpretation
+												? (bagongData.jiPatternDetails && bagongData.jiPatternDetails.length
+													? bagongData.jiPatternDetails.map((text)=>`• ${text}`).join('\n')
+													: '未命中')
+												: (bagongData.jiPatterns.length ? bagongData.jiPatterns.join('、') : '未命中')}
+										</div>
+									</Card>
+									<Card size='small' style={{ marginBottom: 8 }}>
+										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+											<span style={{ fontWeight: 600 }}>奇门凶格</span>
+											<Tag color='volcano'>{bagongData.xiongPatterns.length}项</Tag>
+										</div>
+										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											{showPatternInterpretation
+												? (bagongData.xiongPatternDetails && bagongData.xiongPatternDetails.length
+													? bagongData.xiongPatternDetails.map((text)=>`• ${text}`).join('\n')
+													: '未命中')
+												: (bagongData.xiongPatterns.length ? bagongData.xiongPatterns.join('、') : '未命中')}
+										</div>
+									</Card>
+									<Card size='small' style={{ marginBottom: 8 }}>
+										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+											<span style={{ fontWeight: 600 }}>十干克应</span>
+											<Tag color='blue'>天{bagongData.tianGan || '—'} / 地{bagongData.diGan || '—'}</Tag>
+										</div>
+										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											天{bagongData.tianGan || '—'}加地{bagongData.diGan || '—'}：{bagongData.tenGanText}
+										</div>
+									</Card>
+									<Card size='small' style={{ marginBottom: 8 }}>
+										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+											<span style={{ fontWeight: 600 }}>八门克应和奇仪主应</span>
+											<Tag color='purple'>人{bagongData.renDoor || '—'}</Tag>
+										</div>
+										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div>人{bagongData.renDoor || '—'}加地{bagongData.baseDoor || '—'}：{bagongData.doorBaseText}</div>
+											<div style={{ marginTop: 4 }}>人{bagongData.renDoor || '—'}加天{bagongData.tianGan || '—'}：{bagongData.doorTianText}</div>
+										</div>
+									</Card>
+									<Card size='small'>
+										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+											<span style={{ fontWeight: 600 }}>八神加八门</span>
+											<Tag color='geekblue'>{bagongData.godFull || '—'}</Tag>
+										</div>
+										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											{bagongData.godFull || '—'}加{bagongData.renDoor || '—'}门：{bagongData.godDoorText}
+										</div>
+									</Card>
+									<Card size='small' style={{ marginTop: 8 }}>
+										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+											<span style={{ fontWeight: 600 }}>奇门演卦</span>
+											<Tag color='cyan'>{bagongData.menFangYiGua || '无'}</Tag>
+										</div>
+										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											{bagongData.menFangYiGuaText || '无'}
+										</div>
+									</Card>
+								</div>
+							) : (
+								<Card size='small'>
+									<div style={{ color: '#8c8c8c' }}>请先起盘后查看八宫信息。</div>
+								</Card>
+							)}
 						</Card>
 					</TabPane>
 				</Tabs>

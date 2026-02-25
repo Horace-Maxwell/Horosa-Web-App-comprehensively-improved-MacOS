@@ -9,7 +9,7 @@
   background: transparent;
   padding: 4px 6px;
   display: grid;
-  grid-template-columns: 1fr 174px;
+  grid-template-columns: minmax(0, 1fr) 148px;
   gap: 6px;
 }
 
@@ -57,7 +57,9 @@
 
 .dateValueInline {
   justify-content: flex-start;
-  gap: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dateTime {

@@ -228,17 +228,80 @@ function getTimeAlgLabel(value){
 
 function parseZoneOffsetHour(zone){
 	const text = `${safe(zone, '')}`.trim();
-	const m = text.match(/^([+-])(\d{1,2})(?::?(\d{2}))?$/);
-	if(!m){
+	if(!text){
 		return null;
 	}
-	const sign = m[1] === '-' ? -1 : 1;
-	const hh = parseInt(m[2], 10);
-	const mm = parseInt(m[3] || '0', 10);
-	if(Number.isNaN(hh) || Number.isNaN(mm)){
-		return null;
+	const mStd = text.match(/^([+-])(\d{1,2})(?::?(\d{2}))?$/);
+	if(mStd){
+		const sign = mStd[1] === '-' ? -1 : 1;
+		const hh = parseInt(mStd[2], 10);
+		const mm = parseInt(mStd[3] || '0', 10);
+		if(!Number.isNaN(hh) && !Number.isNaN(mm)){
+			return sign * (hh + mm / 60);
+		}
 	}
-	return sign * (hh + mm / 60);
+	const mUtc = text.match(/^(?:UTC|GMT)\s*([+-])(\d{1,2})(?::?(\d{2}))?$/i);
+	if(mUtc){
+		const sign = mUtc[1] === '-' ? -1 : 1;
+		const hh = parseInt(mUtc[2], 10);
+		const mm = parseInt(mUtc[3] || '0', 10);
+		if(!Number.isNaN(hh) && !Number.isNaN(mm)){
+			return sign * (hh + mm / 60);
+		}
+	}
+	const mCn = text.match(/^([东西])\s*(\d{1,2})(?:[:：]?(\d{1,2}))?\s*区?$/);
+	if(mCn){
+		const sign = mCn[1] === '西' ? -1 : 1;
+		const hh = parseInt(mCn[2], 10);
+		const mm = parseInt(mCn[3] || '0', 10);
+		if(!Number.isNaN(hh) && !Number.isNaN(mm)){
+			return sign * (hh + mm / 60);
+		}
+	}
+	const numeric = Number(text);
+	if(Number.isFinite(numeric)){
+		return numeric;
+	}
+	return null;
+}
+
+function formatZoneOffset(zoneHour){
+	if(zoneHour === undefined || zoneHour === null || Number.isNaN(zoneHour)){
+		return '+08:00';
+	}
+	const sign = zoneHour < 0 ? '-' : '+';
+	const abs = Math.abs(zoneHour);
+	let hh = Math.floor(abs);
+	let mm = Math.round((abs - hh) * 60);
+	if(mm >= 60){
+		hh += 1;
+		mm -= 60;
+	}
+	return `${sign}${`${hh}`.padStart(2, '0')}:${`${mm}`.padStart(2, '0')}`;
+}
+
+function normalizeZoneOffset(zone, fallback = '+08:00'){
+	const parsed = parseZoneOffsetHour(zone);
+	if(parsed === null || Number.isNaN(parsed)){
+		const fbParsed = parseZoneOffsetHour(fallback);
+		return formatZoneOffset(fbParsed === null || Number.isNaN(fbParsed) ? 8 : fbParsed);
+	}
+	return formatZoneOffset(parsed);
+}
+
+function normalizeAdValue(ad, fallback = 1){
+	const text = `${safe(ad, '')}`.trim().toUpperCase();
+	if(text === 'BC' || text === 'BCE'){
+		return -1;
+	}
+	if(text === 'AD' || text === 'CE'){
+		return 1;
+	}
+	const n = parseInt(text, 10);
+	if(!Number.isNaN(n) && n !== 0){
+		return n > 0 ? 1 : -1;
+	}
+	return fallback === -1 ? -1 : 1;
 }
 
 function resolveCalcGeo(fields, options){
@@ -246,17 +309,17 @@ function resolveCalcGeo(fields, options){
 	const lat = safe(fields && fields.lat && fields.lat.value, '');
 	const gpsLon = safe(fields && fields.gpsLon && fields.gpsLon.value, '');
 	const gpsLat = safe(fields && fields.gpsLat && fields.gpsLat.value, '');
-	if(normalizeTimeAlg(options && options.timeAlg) !== 1){
-		return { lon, lat, gpsLon, gpsLat };
+	// timeAlg 仅用于“计算基准”切换，不应改写显示真太阳时所依赖的地理位置。
+	return { lon, lat, gpsLon, gpsLat };
+}
+
+function buildDisplaySolarParams(params){
+	if(!params){
+		return null;
 	}
-	const zone = safe(fields && fields.zone && fields.zone.value, '');
-	const offsetHour = parseZoneOffsetHour(zone);
-	const stdLonDeg = offsetHour === null ? 0 : offsetHour * 15;
 	return {
-		lon: convertLonToStr(stdLonDeg),
-		lat: convertLatToStr(0),
-		gpsLon: stdLonDeg,
-		gpsLat: 0,
+		...params,
+		timeAlg: 0,
 	};
 }
 
@@ -327,11 +390,12 @@ function parseSolarDateTime(rawText){
 		return null;
 	}
 	const normalized = text.replace('T', ' ').replace('Z', '').trim();
-	const m = normalized.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})/);
+	const m = normalized.match(/([-+]?\d{1,6})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
 	if(!m){
 		return {
 			date: text,
 			hm: '',
+			hms: '',
 			raw: text,
 			isSolar: true,
 		};
@@ -340,38 +404,39 @@ function parseSolarDateTime(rawText){
 	const mm = `${m[2]}`.padStart(2, '0');
 	const dd = `${m[3]}`.padStart(2, '0');
 	const hh = `${m[4]}`.padStart(2, '0');
+	const ss = `${m[6] || '00'}`.padStart(2, '0');
 	return {
 		date: `${yyyy}-${mm}-${dd}`,
 		hm: `${hh}:${m[5]}`,
+		hms: `${hh}:${m[5]}:${ss}`,
 		raw: text,
 		isSolar: true,
 	};
 }
 
-function fmtSolar(fields, pan, nongli, timeAlg){
-	if(normalizeTimeAlg(timeAlg) === 1){
-		if(!fields || !fields.date || !fields.time){
-			return { date: '', hm: '', raw: '', isSolar: false };
-		}
-		return {
-			date: fields.date.value.format('YYYY-MM-DD'),
-			hm: fields.time.value.format('HH:mm'),
-			raw: '',
-			isSolar: false,
-		};
-	}
-	const solarParsed = parseSolarDateTime(
-		safe(pan && pan.realSunTime, '') || safe(nongli && nongli.birth, '')
-	);
-	if(solarParsed){
-		return solarParsed;
-	}
+function fmtDirect(fields){
 	if(!fields || !fields.date || !fields.time){
-		return { date: '', hm: '', raw: '', isSolar: false };
+		return { date: '', hm: '', hms: '' };
 	}
 	return {
 		date: fields.date.value.format('YYYY-MM-DD'),
 		hm: fields.time.value.format('HH:mm'),
+		hms: fields.time.value.format('HH:mm:ss'),
+	};
+}
+
+function fmtSolar(fields, pan, nongli, displaySolarTime){
+	const solarParsed = parseSolarDateTime(
+		safe(displaySolarTime, '') || safe(pan && pan.realSunTime, '') || safe(nongli && nongli.birth, '')
+	);
+	if(solarParsed){
+		return solarParsed;
+	}
+	const direct = fmtDirect(fields);
+	return {
+		date: direct.date,
+		hm: direct.hm,
+		hms: direct.hms,
 		raw: '',
 		isSolar: false,
 	};
@@ -807,6 +872,7 @@ function buildSanShiUnitedSnapshotText(data){
 		fields,
 		options,
 		nongli,
+		displaySolarTime,
 		liureng,
 		dunjia,
 		taiyi,
@@ -821,7 +887,10 @@ function buildSanShiUnitedSnapshotText(data){
 	const lines = [];
 	const timeAlg = normalizeTimeAlg(options && options.timeAlg);
 	const timeAlgLabel = getTimeAlgLabel(timeAlg);
-	const solar = fmtSolar(fields, dunjia, nongli, timeAlg);
+	const direct = fmtDirect(fields);
+	const solar = fmtSolar(fields, dunjia, nongli, displaySolarTime);
+	const directText = `${safe(direct.date, '—')} ${safe(direct.hm, '—')}`.trim();
+	const solarText = `${safe(solar.date, '—')} ${safe(solar.hm, '—')}`.trim();
 	const lunarText = safe(dunjia.lunarText, fmtLunar(nongli) || '—');
 	const pillars = dunjia.ganzhi || {};
 	const yuejiang = safe((liureng && liureng.yue) || (lrLayout && lrLayout.yue), '—');
@@ -832,7 +901,8 @@ function buildSanShiUnitedSnapshotText(data){
 	const daySwitchLabel = options && options.after23NewDay === 1 ? '子初换日' : '子正换日';
 	appendSection(lines, '起盘信息', [
 		`农历：${lunarText || '—'}`,
-		`${timeAlgLabel}：${safe(solar.date, '—')} ${safe(solar.hm, '—')}`,
+		`直接时间：${directText || '—'}`,
+		`真太阳时：${solarText || '—'}`,
 		`四柱：${safe(pillars.year, '—')}年/${safe(pillars.month, '—')}月/${safe(pillars.day, '—')}日/${safe(pillars.time, '—')}时`,
 		`时间算法：${timeAlgLabel}`,
 		`换日：${daySwitchLabel}`,
@@ -1092,6 +1162,7 @@ class SanShiUnitedMain extends Component{
 		this.state = {
 			loading: false,
 			nongli: null,
+			displaySolarTime: '',
 			liureng: null,
 			dunjia: null,
 			taiyi: null,
@@ -1132,6 +1203,7 @@ class SanShiUnitedMain extends Component{
 		this.jieqiYearSeeds = {};
 		this.timeHook = {};
 		this.lastRecalcSignature = '';
+		this.lastRecalcError = null;
 		this.refreshSeq = 0;
 		this.pendingRefresh = null;
 		this.panCache = new Map();
@@ -1154,6 +1226,7 @@ class SanShiUnitedMain extends Component{
 		this.ensureJieqiSeed = this.ensureJieqiSeed.bind(this);
 		this.prefetchJieqiSeedForFields = this.prefetchJieqiSeedForFields.bind(this);
 		this.prefetchNongliForFields = this.prefetchNongliForFields.bind(this);
+		this.resolveDisplaySolarTime = this.resolveDisplaySolarTime.bind(this);
 		this.genJieqiParams = this.genJieqiParams.bind(this);
 		this.getQimenOptions = this.getQimenOptions.bind(this);
 		this.recalcByNongli = this.recalcByNongli.bind(this);
@@ -1192,6 +1265,30 @@ class SanShiUnitedMain extends Component{
 					}
 				}
 			};
+		}
+	}
+
+	async resolveDisplaySolarTime(params, primaryNongli){
+		if(!params){
+			return safe(primaryNongli && primaryNongli.birth, '');
+		}
+		const current = safe(primaryNongli && primaryNongli.birth, '');
+		if(normalizeTimeAlg(params.timeAlg) === 0){
+			return current;
+		}
+		const solarParams = buildDisplaySolarParams(params);
+		const cachedSolar = getNongliLocalCache(solarParams);
+		if(cachedSolar && cachedSolar.birth){
+			return safe(cachedSolar.birth, current);
+		}
+		try{
+			const solarNongli = await fetchPreciseNongli(solarParams);
+			if(solarNongli){
+				setNongliLocalCache(solarParams, solarNongli);
+			}
+			return safe(solarNongli && solarNongli.birth, current);
+		}catch(e){
+			return current;
 		}
 	}
 
@@ -1383,9 +1480,9 @@ class SanShiUnitedMain extends Component{
 		if(!payload){
 			return;
 		}
-		const options = {
-			...this.state.options,
-		};
+			const options = {
+				...(this.state.options || {}),
+			};
 			if(payload.options && typeof payload.options === 'object'){
 				if(payload.options.mode === 'ming' || payload.options.mode === 'shi'){
 					options.mode = payload.options.mode;
@@ -1519,12 +1616,13 @@ class SanShiUnitedMain extends Component{
 		const dt = value.time;
 		const confirmed = !!value.confirmed;
 		const base = this.props.fields || {};
+		const zoneValue = normalizeZoneOffset(dt.zone, safe(base.zone && base.zone.value, '+08:00'));
 		const localFields = {
 			...base,
 			date: { value: dt.clone() },
 			time: { value: dt.clone() },
 			ad: { value: dt.ad },
-			zone: { value: dt.zone },
+			zone: { value: zoneValue },
 		};
 		this.pendingTimeFields = localFields;
 		if(confirmed){
@@ -1533,7 +1631,7 @@ class SanShiUnitedMain extends Component{
 				date: { value: dt.clone() },
 				time: { value: dt.clone() },
 				ad: { value: dt.ad },
-				zone: { value: dt.zone },
+				zone: { value: zoneValue },
 			};
 			this.syncFields(syncedFields);
 			this.onFieldsChange(syncedFields, {
@@ -1574,11 +1672,11 @@ class SanShiUnitedMain extends Component{
 		}, true);
 	}
 
-	onOptionChange(key, value){
-		const options = {
-			...this.state.options,
-			[key]: value,
-		};
+		onOptionChange(key, value){
+			const options = {
+				...(this.state.options || {}),
+				[key]: value,
+			};
 		this.setState({ options }, ()=>{
 			if(key === 'after23NewDay' || key === 'paiPanType' || key === 'qijuMethod'){
 				const flds = this.getActiveFields();
@@ -1609,12 +1707,13 @@ class SanShiUnitedMain extends Component{
 			return null;
 		}
 		const dt = draft.value;
+		const fallbackZone = safe(baseFields && baseFields.zone && baseFields.zone.value, '+08:00');
 		return {
 			...(baseFields || this.state.localFields || this.props.fields || {}),
 			date: { value: dt.clone() },
 			time: { value: dt.clone() },
 			ad: { value: dt.ad },
-			zone: { value: dt.zone },
+			zone: { value: normalizeZoneOffset(dt.zone, fallbackZone) },
 		};
 	}
 
@@ -1725,7 +1824,7 @@ class SanShiUnitedMain extends Component{
 		if(!flds){
 			return;
 		}
-		if(this.state.options.mode === 'ming'){
+		if((this.state.options || {}).mode === 'ming'){
 			if(this.props.dispatch){
 				this.props.dispatch({
 					type: 'astro/openDrawer',
@@ -1737,11 +1836,11 @@ class SanShiUnitedMain extends Component{
 			return;
 		}
 		const divTime = `${flds.date.value.format('YYYY-MM-DD')} ${flds.time.value.format('HH:mm:ss')}`;
-		const payload = {
-			module: 'sanshiunited',
-			options: {
-				...this.state.options,
-			},
+			const payload = {
+				module: 'sanshiunited',
+				options: {
+					...(this.state.options || {}),
+				},
 			result: {
 				nongli: this.state.nongli,
 				liureng: this.state.liureng,
@@ -1780,18 +1879,24 @@ class SanShiUnitedMain extends Component{
 			return null;
 		}
 		const opt = {
-			...this.state.options,
+			...(this.state.options || {}),
 			...(overrideOptions || {}),
 		};
 		const calcGeo = resolveCalcGeo(flds, opt);
+		const zoneValue = normalizeZoneOffset(safe(flds.zone && flds.zone.value, ''), '+08:00');
+		const adRaw = (flds.ad && flds.ad.value !== undefined && flds.ad.value !== null)
+			? flds.ad.value
+			: 1;
+		const adValue = normalizeAdValue(adRaw, 1);
 		return {
 			date: flds.date.value.format('YYYY-MM-DD'),
 			time: flds.time.value.format('HH:mm:ss'),
-			zone: flds.zone.value,
+			zone: zoneValue,
 			lon: calcGeo.lon,
 			lat: calcGeo.lat,
 			gpsLat: calcGeo.gpsLat,
 			gpsLon: calcGeo.gpsLon,
+			ad: adValue,
 			gender: opt.sex,
 			timeAlg: normalizeTimeAlg(opt.timeAlg),
 			after23NewDay: opt.after23NewDay === 1 ? 1 : 0,
@@ -1804,14 +1909,18 @@ class SanShiUnitedMain extends Component{
 			return null;
 		}
 		const opt = {
-			...this.state.options,
+			...(this.state.options || {}),
 			...(overrideOptions || {}),
 		};
 		const calcGeo = resolveCalcGeo(flds, opt);
+		const zoneValue = normalizeZoneOffset(safe(flds.zone && flds.zone.value, ''), '+08:00');
+		const adRaw = (flds.ad && flds.ad.value !== undefined && flds.ad.value !== null)
+			? flds.ad.value
+			: 1;
 		return {
 			year: `${year}`,
-			ad: flds.ad ? flds.ad.value : 1,
-			zone: flds.zone.value,
+			ad: normalizeAdValue(adRaw, 1),
+			zone: zoneValue,
 			lon: calcGeo.lon,
 			lat: calcGeo.lat,
 			gpsLat: calcGeo.gpsLat,
@@ -1825,12 +1934,13 @@ class SanShiUnitedMain extends Component{
 
 	getQimenOptions(overrideOptions){
 		const opt = {
-			...this.state.options,
+			...(this.state.options || {}),
 			...(overrideOptions || {}),
 		};
 		return {
 			...QIMEN_OPTIONS,
 			sex: opt.sex,
+			timeAlg: normalizeTimeAlg(opt.timeAlg),
 			paiPanType: opt.paiPanType,
 			zhiShiType: opt.zhiShiType,
 			yueJiaQiJuType: opt.yueJiaQiJuType,
@@ -1913,22 +2023,33 @@ class SanShiUnitedMain extends Component{
 				}
 				const payload = this.pendingRecalcPayload;
 				this.pendingRecalcPayload = null;
-				if(!payload){
-					this.resolvePendingRecalc(false);
-					return;
-				}
-				const changed = this.performRecalcByNongli(payload.fields, payload.nongli, payload.overrideOptions);
-				this.resolvePendingRecalc(changed);
-			}, SANSHI_RECALC_DEFER_MS);
-		});
-	}
+					if(!payload){
+						this.resolvePendingRecalc(false);
+						return;
+					}
+					try{
+						this.lastRecalcError = null;
+						const changed = this.performRecalcByNongli(payload.fields, payload.nongli, payload.overrideOptions);
+						this.resolvePendingRecalc(changed);
+					}catch(e){
+						this.lastRecalcError = e;
+						if(!this.unmounted){
+							this.setState({ loading: false });
+							console.error('[SanShiUnited] performRecalcByNongli failed', e);
+						}
+						this.resolvePendingRecalc(false);
+					}
+				}, SANSHI_RECALC_DEFER_MS);
+			});
+		}
 
 	performRecalcByNongli(fields, nongli, overrideOptions){
 		const flds = fields || this.state.localFields || this.props.fields;
 		if(!flds || !nongli){
 			return false;
 		}
-		const guirengType = overrideOptions && overrideOptions.guireng !== undefined ? overrideOptions.guireng : this.state.options.guireng;
+		const stateOptions = this.state.options || {};
+		const guirengType = overrideOptions && overrideOptions.guireng !== undefined ? overrideOptions.guireng : stateOptions.guireng;
 		const qimenOptions = this.getQimenOptions(overrideOptions);
 		const chartWrap = this.props.chartObj || this.props.chart || null;
 		const outerChartKey = getOuterChartKey(chartWrap);
@@ -1937,10 +2058,10 @@ class SanShiUnitedMain extends Component{
 			getNongliKey(nongli),
 			getQimenOptionsKey(qimenOptions),
 			`${guirengType}`,
-			`${safe((overrideOptions && overrideOptions.taiyiStyle) !== undefined ? overrideOptions.taiyiStyle : this.state.options.taiyiStyle)}`,
-			`${safe((overrideOptions && overrideOptions.taiyiAccum) !== undefined ? overrideOptions.taiyiAccum : this.state.options.taiyiAccum)}`,
-			`${safe((overrideOptions && overrideOptions.after23NewDay) !== undefined ? overrideOptions.after23NewDay : this.state.options.after23NewDay)}`,
-			`${safe(normalizeTimeAlg((overrideOptions && overrideOptions.timeAlg) !== undefined ? overrideOptions.timeAlg : this.state.options.timeAlg))}`,
+			`${safe(overrideOptions && overrideOptions.taiyiStyle !== undefined ? overrideOptions.taiyiStyle : stateOptions.taiyiStyle)}`,
+			`${safe(overrideOptions && overrideOptions.taiyiAccum !== undefined ? overrideOptions.taiyiAccum : stateOptions.taiyiAccum)}`,
+			`${safe(overrideOptions && overrideOptions.after23NewDay !== undefined ? overrideOptions.after23NewDay : stateOptions.after23NewDay)}`,
+			`${safe(normalizeTimeAlg(overrideOptions && overrideOptions.timeAlg !== undefined ? overrideOptions.timeAlg : stateOptions.timeAlg))}`,
 			safe(flds && flds.zodiacal && flds.zodiacal.value),
 			safe(flds && flds.hsys && flds.hsys.value),
 			`${safe(extractIsDiurnalFromChartWrap(this.props.chartObj || this.props.chart || null), '')}`,
@@ -1999,7 +2120,7 @@ class SanShiUnitedMain extends Component{
 			},
 		};
 		const mergedOptions = {
-			...this.state.options,
+			...stateOptions,
 			...(overrideOptions || {}),
 		};
 		const taiyiCacheKey = [
@@ -2011,17 +2132,21 @@ class SanShiUnitedMain extends Component{
 		].join('|');
 		let taiyi = this.taiyiCache.get(taiyiCacheKey);
 		if(!taiyi){
-			taiyi = calcTaiyiPanFromKintaiyi(flds, nongli, {
-				style: mergedOptions.taiyiStyle,
-				tn: mergedOptions.taiyiAccum,
-				sex: mergedOptions.sex,
-			});
-			this.taiyiCache.set(taiyiCacheKey, taiyi);
-			if(this.taiyiCache.size > 48){
-				const firstKey = this.taiyiCache.keys().next().value;
-				if(firstKey){
-					this.taiyiCache.delete(firstKey);
+			try{
+				taiyi = calcTaiyiPanFromKintaiyi(flds, nongli, {
+					style: mergedOptions.taiyiStyle,
+					tn: mergedOptions.taiyiAccum,
+					sex: mergedOptions.sex,
+				});
+				this.taiyiCache.set(taiyiCacheKey, taiyi);
+				if(this.taiyiCache.size > 48){
+					const firstKey = this.taiyiCache.keys().next().value;
+					if(firstKey){
+						this.taiyiCache.delete(firstKey);
+					}
 				}
+			}catch(e){
+				taiyi = null;
 			}
 		}
 		let outerData = this.outerDataCache.data;
@@ -2032,13 +2157,14 @@ class SanShiUnitedMain extends Component{
 				data: outerData,
 			};
 		}
-		const snapshotPayload = {
-			fields: flds,
-			options: mergedOptions,
-			nongli,
-			liureng,
-			dunjia,
-			taiyi,
+			const snapshotPayload = {
+				fields: flds,
+				options: mergedOptions,
+				nongli,
+				displaySolarTime: this.state.displaySolarTime,
+				liureng,
+				dunjia,
+				taiyi,
 			keData: lrBundle.keData,
 			sanChuan: lrBundle.sanChuan,
 			lrLayout: lrBundle.lrLayout,
@@ -2131,7 +2257,8 @@ class SanShiUnitedMain extends Component{
 		if(!fields){
 			return;
 		}
-		const key = `${getFieldKey(fields)}|${this.state.options.sex}|${this.state.options.after23NewDay}|${normalizeTimeAlg(this.state.options.timeAlg)}`;
+		const stateOptions = this.state.options || {};
+		const key = `${getFieldKey(fields)}|${safe(stateOptions.sex)}|${safe(stateOptions.after23NewDay)}|${normalizeTimeAlg(stateOptions.timeAlg)}`;
 		if(this.pendingRefresh && this.pendingRefresh.key === key){
 			return this.pendingRefresh.promise;
 		}
@@ -2194,44 +2321,72 @@ class SanShiUnitedMain extends Component{
 						setNongliLocalCache(params, nongli);
 					}
 				}
-				if(this.unmounted || seq !== this.refreshSeq){
-					return;
-				}
-				await this.recalcByNongli(fields, nongli);
-				if(!this.unmounted && seq === this.refreshSeq && this.state.loading){
-					this.setState({
-						loading: false,
-					});
-				}
-				const baseNongliKey = getNongliKey(nongli);
-				precisePromise.then((refinedNongli)=>{
-					if(!refinedNongli || this.unmounted || seq !== this.refreshSeq){
-						return;
-					}
-					setNongliLocalCache(params, refinedNongli);
-					if(!usedFallback && getNongliKey(refinedNongli) === baseNongliKey){
-						return;
-					}
-					this.recalcByNongli(fields, refinedNongli);
-				}).catch(()=>null);
-				if(waitSeed && missingSeed && seedPromise){
-					seedPromise.then(()=>{
+					const displaySolarTime = await this.resolveDisplaySolarTime(params, nongli);
 						if(this.unmounted || seq !== this.refreshSeq){
 							return;
 						}
-						const latestNongli = this.state.nongli || nongli;
-						if(!latestNongli){
+						const changed = await this.recalcByNongli(fields, nongli);
+						if(!changed && !this.state.dunjia && this.lastRecalcError){
+							throw this.lastRecalcError;
+						}
+						if(!this.unmounted && seq === this.refreshSeq){
+							const patch = {};
+							if(this.state.loading){
+								patch.loading = false;
+							}
+							if(displaySolarTime !== this.state.displaySolarTime){
+								patch.displaySolarTime = displaySolarTime;
+							}
+							if(Object.keys(patch).length > 0){
+								this.setState(patch);
+							}
+					}
+					const baseNongliKey = getNongliKey(nongli);
+					precisePromise.then((refinedNongli)=>{
+						if(!refinedNongli || this.unmounted || seq !== this.refreshSeq){
 							return;
 						}
-						this.recalcByNongli(fields, latestNongli);
+							setNongliLocalCache(params, refinedNongli);
+							this.resolveDisplaySolarTime(params, refinedNongli).then((nextDisplaySolarTime)=>{
+								if(this.unmounted || seq !== this.refreshSeq){
+									return;
+								}
+								if(nextDisplaySolarTime !== this.state.displaySolarTime){
+									this.setState({ displaySolarTime: nextDisplaySolarTime });
+								}
+							}).catch(()=>null);
+							if(!usedFallback && getNongliKey(refinedNongli) === baseNongliKey){
+								return;
+							}
+						this.recalcByNongli(fields, refinedNongli);
 					}).catch(()=>null);
-				}
-			}catch(e){
-				if(!this.unmounted && seq === this.refreshSeq){
-					this.setState({ loading: false });
-					message.error('三式合一计算失败：精确历法服务不可用');
-				}
-			}finally{
+					if(waitSeed && missingSeed && seedPromise){
+						seedPromise.then(()=>{
+						if(this.unmounted || seq !== this.refreshSeq){
+							return;
+						}
+							const latestNongli = this.state.nongli || nongli;
+							if(!latestNongli){
+								return;
+							}
+							this.recalcByNongli(fields, latestNongli);
+						}).catch(()=>null);
+						}
+				}catch(e){
+					if(!this.unmounted && seq === this.refreshSeq){
+						this.setState({ loading: false });
+						const errText = `${safe(e && e.message, '')}`.toLowerCase();
+						if(errText.indexOf('precise.nongli.unavailable') >= 0){
+							message.error('三式合一计算失败：精确历法服务不可用');
+						}else{
+							const detail = safe(e && e.message, '').trim();
+							message.error(detail ? `三式合一计算异常：${detail}` : '三式合一计算异常，请重试');
+						}
+						if(e){
+							console.error('[SanShiUnited] refreshAll failed', e);
+						}
+					}
+				}finally{
 				if(this.pendingRefresh && this.pendingRefresh.seq === seq){
 					this.pendingRefresh = null;
 				}
@@ -2259,13 +2414,12 @@ class SanShiUnitedMain extends Component{
 	}
 
 	renderTop(boardSize){
-		const { nongli, liureng, dunjia } = this.state;
-		const opt = this.state.options || {};
+		const { nongli, liureng, dunjia, displaySolarTime } = this.state;
 		const fields = this.state.hasPlotted
 			? (this.state.plottedFields || this.state.localFields || this.props.fields)
 			: this.getActiveFields();
-		const timeAlgLabel = getTimeAlgLabel(opt.timeAlg);
-		const solar = fmtSolar(fields, dunjia, nongli, opt.timeAlg);
+		const solar = fmtSolar(fields, dunjia, nongli, displaySolarTime);
+		const direct = fmtDirect(fields);
 		const pillars = [
 			{ label: '年', gz: buildPillarFromPan(dunjia, 'year') },
 			{ label: '月', gz: buildPillarFromPan(dunjia, 'month') },
@@ -2286,10 +2440,10 @@ class SanShiUnitedMain extends Component{
 			safe(shenShaMap['天马'], '—'),
 			safe(shenShaMap['破碎'], '—'),
 		];
-		const clockDate = fields && fields.date ? fields.date.value.format('YYYY-MM-DD') : '---- -- --';
-		const clockHm = fields && fields.time ? fields.time.value.format('HH:mm') : '--:--';
-		const solarDate = solar.date || clockDate;
+		const dateText = direct.date || solar.date || '---- -- --';
+		const directHm = direct.hm || '--:--';
 		const solarHm = solar.hm || '--:--';
+		const timeLineText = `${dateText} 真太阳时：${solarHm} 直接时间：${directHm}`;
 		return (
 			<div className={styles.topBox} style={{ width: boardSize, maxWidth: '100%' }}>
 				<div className={styles.topLeft}>
@@ -2301,8 +2455,7 @@ class SanShiUnitedMain extends Component{
 						<div className={styles.dateRow}>
 							<div className={styles.dateLabel}>日期</div>
 							<div className={`${styles.dateValue} ${styles.dateValueInline}`}>
-								<span>{solarDate}</span>
-								<span className={styles.dateInlineTime}>钟表时间：{clockHm}  {timeAlgLabel}：{solarHm}</span>
+								<span>{timeLineText}</span>
 							</div>
 						</div>
 					</div>
@@ -2796,10 +2949,10 @@ class SanShiUnitedMain extends Component{
 		);
 	}
 
-	renderRight(){
-		const fields = this.getActiveFields();
-		const pan = this.state.dunjia;
-		const opt = this.state.options;
+		renderRight(){
+			const fields = this.getActiveFields();
+			const pan = this.state.dunjia;
+			const opt = this.state.options || {};
 		const panelHeight = this.state.rightPanelHeight || Math.max(420, (this.state.viewportHeight || 900) - 120);
 		const topHeight = this.state.rightTopHeight || 360;
 		const tabBodyHeight = Math.max(0, panelHeight - topHeight - 74);
@@ -2892,7 +3045,7 @@ class SanShiUnitedMain extends Component{
 								</Select>
 							</div>
 						</div>
-						<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 4 }}>
+						<div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 4 }}>
 							<div>
 								<Select size="small" value={opt.taiyiStyle} onChange={(v)=>this.onOptionChange('taiyiStyle', v)} style={{ width: '100%' }}>
 									{TAIYI_STYLE_OPTIONS.map((item)=><Option key={`ty_style_${item.value}`} value={item.value}>{item.label}</Option>)}
@@ -2903,8 +3056,6 @@ class SanShiUnitedMain extends Component{
 									{TAIYI_ACCUM_OPTIONS.map((item)=><Option key={`ty_acc_${item.value}`} value={item.value}>{item.label}</Option>)}
 								</Select>
 							</div>
-						</div>
-						<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 4 }}>
 							<div>
 								<Select size="small" value={opt.zodiacal} onChange={(v)=>this.onAstroFieldOptionChange('zodiacal', v)} style={{ width: '100%' }}>
 									<Option value={0}>回归黄道</Option>

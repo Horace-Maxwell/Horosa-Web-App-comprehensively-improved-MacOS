@@ -3,6 +3,8 @@ import LRInnerChart from './LRInnerChart';
 import * as LRConst from './LRConst';
 import {randomStr,} from '../../utils/helper';
 import { drawPath, drawTextH, drawTextV} from '../graph/GraphHelper';
+import { creatTooltip } from '../../utils/helper';
+import { buildLiuRengHouseTipObj, buildLiuRengShenTipObj } from './LRShenJiangDoc';
 
 
 class LRCommChart {
@@ -45,9 +47,51 @@ class LRCommChart {
 		this.houseTianJiang = LRConst.TianJiang.slice(0);
 		this.upZi = LRConst.ZiList.slice(0);
 		this.downZi = LRConst.ZiList.slice(0);
+		this._panStyleName = option.panStyleName || '';
 	}
 
 	set cuangName(name){ }
+	set panStyleName(name){ this._panStyleName = name || ''; }
+
+	buildHouseTipObj(houseIndex){
+		if(houseIndex === undefined || houseIndex === null){
+			return null;
+		}
+		const idx = Number(houseIndex);
+		if(!Number.isFinite(idx) || idx < 0 || idx >= 12){
+			return null;
+		}
+		const tianBranch = this.upZi && this.upZi[idx] ? this.upZi[idx] : '';
+		const diBranch = this.downZi && this.downZi[idx] ? this.downZi[idx] : '';
+		const jiang = this.houseTianJiang && this.houseTianJiang[idx] ? this.houseTianJiang[idx] : '';
+		return buildLiuRengHouseTipObj(jiang, tianBranch, diBranch);
+	}
+
+	buildShenTipObj(branch){
+		return buildLiuRengShenTipObj(branch);
+	}
+
+	bindHouseTooltip(target, houseIndex){
+		if(!this.divTooltip || !target){
+			return;
+		}
+		const tipObj = this.buildHouseTipObj(houseIndex);
+		if(!tipObj){
+			return;
+		}
+		creatTooltip(this.divTooltip, target, tipObj, null, true);
+	}
+
+	bindShenTooltip(target, branch){
+		if(!this.divTooltip || !target){
+			return;
+		}
+		const tipObj = this.buildShenTipObj(branch);
+		if(!tipObj){
+			return;
+		}
+		creatTooltip(this.divTooltip, target, tipObj, null, true);
+	}
 
 	draw(){
 		this.owner.select('#' + this.id).remove();
