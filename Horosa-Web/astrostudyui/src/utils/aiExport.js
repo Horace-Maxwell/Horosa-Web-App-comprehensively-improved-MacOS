@@ -1,5 +1,5 @@
 import { getStore, } from './storageutil';
-import { getAstroAISnapshotForCurrent, saveAstroAISnapshot, } from './astroAiSnapshot';
+import { getAstroAISnapshotForCurrent, saveAstroAISnapshot, loadAstroAISnapshot, } from './astroAiSnapshot';
 import { loadModuleAISnapshot, } from './moduleAiSnapshot';
 import * as AstroConst from '../constants/AstroConst';
 import * as AstroText from '../constants/AstroText';
@@ -1472,6 +1472,102 @@ function resolveActiveContext(){
 	return context;
 }
 
+function resolveContextByAstroState(){
+	try{
+		const store = getStore();
+		const astro = store && store.astro ? store.astro : null;
+		if(!astro){
+			return null;
+		}
+		const topTab = `${astro.currentTab || ''}`;
+		const subTab = `${astro.currentSubTab || ''}`;
+		if(!topTab){
+			return null;
+		}
+		const predictiveMap = {
+			primarydirect: { key: 'primarydirect', displayName: '推运盘-主/界限法', domain: 'predictive_raw' },
+			zodialrelease: { key: 'zodialrelease', displayName: '推运盘-黄道星释', domain: 'predictive_raw' },
+			firdaria: { key: 'firdaria', displayName: '推运盘-法达星限', domain: 'predictive_raw' },
+			profection: { key: 'profection', displayName: '推运盘-小限法', domain: 'predictive_raw' },
+			solararc: { key: 'solararc', displayName: '推运盘-太阳弧', domain: 'predictive_raw' },
+			solarreturn: { key: 'solarreturn', displayName: '推运盘-太阳返照', domain: 'predictive_raw' },
+			lunarreturn: { key: 'lunarreturn', displayName: '推运盘-月亮返照', domain: 'predictive_raw' },
+			givenyear: { key: 'givenyear', displayName: '推运盘-流年法', domain: 'predictive_raw' },
+		};
+		const cnyibuMap = {
+			suzhan: { key: 'suzhan', displayName: '宿盘' },
+			guazhan: { key: 'sixyao', displayName: '易卦', domain: 'sixyao' },
+			liureng: { key: 'liureng', displayName: '大六壬', domain: 'liureng' },
+			jinkou: { key: 'jinkou', displayName: '金口诀', domain: 'jinkou' },
+			dunjia: { key: 'qimen', displayName: '奇门遁甲', domain: 'qimen' },
+			taiyi: { key: 'taiyi', displayName: '太乙' },
+			tongshefa: { key: 'tongshefa', displayName: '统摄法', domain: 'tongshefa' },
+		};
+		switch(topTab){
+		case 'astrochart':
+			return { key: 'astrochart', displayName: '星盘' };
+		case 'astrochart3D':
+			return { key: 'astrochart', displayName: '三维盘' };
+		case 'direction':
+			return predictiveMap[subTab] || predictiveMap.primarydirect;
+		case 'germanytech':
+			return { key: 'germany', displayName: '量化盘' };
+		case 'relativechart':
+			return { key: 'relative', displayName: '关系盘' };
+		case 'jieqichart':
+			return { key: 'jieqi', displayName: '节气盘' };
+		case 'locastro':
+			return { key: 'astrochart_like', displayName: '星体地图' };
+		case 'hellenastro':
+			return { key: 'astrochart_like', displayName: '希腊星术' };
+		case 'indiachart':
+			return { key: 'indiachart', displayName: '印度律盘' };
+		case 'cntradition':
+			if(subTab === 'bazi'){
+				return { key: 'bazi', displayName: '八字' };
+			}
+			if(subTab === 'ziwei'){
+				return { key: 'ziwei', displayName: '紫微斗数' };
+			}
+			return { key: 'cntradition', displayName: '八字紫微' };
+		case 'cnyibu':
+			return cnyibuMap[subTab] || cnyibuMap.suzhan;
+		case 'guolao':
+			return { key: 'guolao', displayName: '七政四余' };
+		case 'otherbu':
+			return { key: 'otherbu', displayName: '西洋游戏' };
+		case 'fengshui':
+			return { key: 'fengshui', displayName: '风水' };
+		case 'sanshiunited':
+			return { key: 'sanshiunited', displayName: '三式合一', domain: 'sanshiunited' };
+		case 'astroreader':
+			return { key: 'generic', displayName: '书籍阅读' };
+		default:
+			return null;
+		}
+	}catch(e){
+		return null;
+	}
+}
+
+function withStoreContextFallback(context){
+	const base = context && typeof context === 'object'
+		? { ...context }
+		: { key: 'generic', displayName: '当前技术', domain: null, scopeRoot: null };
+	const needsFallback = !base.key || base.key === 'generic' || base.key === 'cnyibu' || base.key === 'cntradition' || base.key === 'direction';
+	if(!needsFallback){
+		return base;
+	}
+	const fallback = resolveContextByAstroState();
+	if(!fallback || !fallback.key){
+		return base;
+	}
+	return {
+		...base,
+		...fallback,
+	};
+}
+
 function detectJieQiSettingKeyByCurrentSnapshot(){
 	const current = `${getModuleCachedContent('jieqi_current') || ''}`;
 	return detectJieQiSettingKeyByLabel(current) || 'jieqi_meta';
@@ -1505,7 +1601,7 @@ function detectJieQiSettingKeyByScope(scopeRoot){
 
 export function getCurrentAIExportContext(){
 	try{
-		const context = resolveActiveContext();
+		const context = withStoreContextFallback(resolveActiveContext());
 		if(context.key === 'jieqi'){
 			const byScope = detectJieQiSettingKeyByScope(context.scopeRoot);
 			return {
@@ -1584,7 +1680,8 @@ function getAstroCachedContent(){
 	try{
 		const store = getStore();
 		if(!store || !store.astro){
-			return '';
+			const snap = loadAstroAISnapshot();
+			return snap && snap.content ? snap.content : '';
 		}
 		const chartObj = store.astro.chartObj;
 		const fields = store.astro.fields;
@@ -1598,8 +1695,13 @@ function getAstroCachedContent(){
 				return saved.content;
 			}
 		}
+		const snap = loadAstroAISnapshot();
+		if(snap && snap.content){
+			return snap.content;
+		}
 	}catch(e){
-		return '';
+		const snap = loadAstroAISnapshot();
+		return snap && snap.content ? snap.content : '';
 	}
 	return '';
 }
@@ -3178,7 +3280,7 @@ function exportWord(payload){
 }
 
 async function buildPayload(){
-	const context = resolveActiveContext();
+	const context = withStoreContextFallback(resolveActiveContext());
 	const now = new Date();
 
 	let content = '';
