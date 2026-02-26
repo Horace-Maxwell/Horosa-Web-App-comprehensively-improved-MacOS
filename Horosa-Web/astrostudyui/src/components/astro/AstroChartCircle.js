@@ -4,6 +4,7 @@ import * as AstroText from '../../constants/AstroText';
 import {splitDegree, whichTerm, convertLatToStr, convertLonToStr, getDignityText, getObjectsText} from './AstroHelper';
 import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip} from '../../utils/helper';
 import {drawTextV, drawTextH} from '../graph/GraphHelper';
+import { appendAstroMeaningTips, buildSignMeaningTip, buildAspectMeaningTip } from './AstroMeaningData';
 
 
 export default class AstroChartCircle {
@@ -20,8 +21,13 @@ export default class AstroChartCircle {
 
 		this.divTooltip = option.divTooltip;
 		this.onTipClick = option.onTipClick;
+		this.showAstroMeaning = option.showAstroMeaning ? true : false;
 
 		this.setupToolTip();
+	}
+
+	setShowAstroMeaning(flag){
+		this.showAstroMeaning = flag ? true : false;
 	}
 
 	setupToolTip(){
@@ -30,13 +36,19 @@ export default class AstroChartCircle {
 				.style('position', 'absolute')
 				.style('text-align', 'left')
 				.style('vertical-align', 'middle')
-				.style('width', '200px')
-				.style('padding', '2px')
-				.style('padding-left', '10px')
+				.style('width', '560px')
+				.style('max-width', '72vw')
+				.style('max-height', '60vh')
+				.style('overflow-y', 'auto')
+				.style('white-space', 'normal')
+				.style('line-height', '1.4')
+				.style('padding', '8px 10px')
 				.style('font', '13px sans-serif')
-				.style('background', 'lightsteelblue')
-				.style('border', '0px')
+				.style('background', '#ffffff')
+				.style('color', '#262626')
+				.style('border', '1px solid #e8e8e8')
 				.style('border-radius', '8px')
+				.style('box-shadow', '0 6px 18px rgba(0,0,0,0.16)')
 				.style('pointer-events', 'none');
 		}
 	}
@@ -79,6 +91,13 @@ export default class AstroChartCircle {
 			title: lbl,
 			tips: ['黄经：' +  degs[0] + 'º' + degs[1] + "'； " + Math.round(infoObj.lon*10000)/10000+ 'º'],
 		};
+		if(this.showAstroMeaning){
+			if(infoObj && infoObj.type && (infoObj.type === 'Planet' || infoObj.type === 'Generic' || infoObj.type === 'GenericCN')){
+				tipobj = appendAstroMeaningTips(tipobj, 'planet', infoObj.id);
+			}else if(infoObj && infoObj.id && infoObj.id.indexOf('House') === 0){
+				tipobj = appendAstroMeaningTips(tipobj, 'house', infoObj.id);
+			}
+		}
 
 		return tipobj;
 	}
@@ -288,6 +307,13 @@ export default class AstroChartCircle {
 					return trans;	
 				})
 				.text(function(d){return AstroText.AstroMsg[d]});
+
+			if(this.showAstroMeaning){
+				const signTip = buildSignMeaningTip(sig);
+				if(signTip){
+					creatTooltip(this.divTooltip, siggroup, signTip, this.onTipClick, true);
+				}
+			}
 		}
 		
 		return signs;
@@ -748,18 +774,25 @@ export default class AstroChartCircle {
 				let LineGen = d3.line();
 				let linedata = [[x1,y1], [x2, y2]];
 				let pathStr = LineGen(linedata);
-				let path = apsgroup.append('path')
+				let aspitemgrp = apsgroup.append('g');
+				let path = aspitemgrp.append('path')
 					.attr('stroke', color)
 					.attr('stroke-width', 1)
 					.attr('fill', 'none');
 				path.attr('d', pathStr);	
 				let txt = AstroText.AstroMsg['Asp' + item.asp];
-				apsgroup.append('text')
+				aspitemgrp.append('text')
 				.attr("dominant-baseline","middle")
 				.attr("text-anchor", "middle").attr('stroke', color)
 				.attr('font-size', 10).attr('font-family', AstroConst.AstroChartFont)
 				.text(txt).attr('transform', 'translate(' + (x1+x2)/2 + ',' + (y1+y2)/2 + ')');	;
-	
+				if(this.showAstroMeaning){
+					let asptip = buildAspectMeaningTip(item.asp, objA, objB);
+					if(asptip){
+						creatTooltip(this.divTooltip, aspitemgrp, asptip, this.onTipClick, true);
+					}
+				}
+
 			}
 		}
 	
@@ -1408,4 +1441,3 @@ export default class AstroChartCircle {
 	}
 		
 }
-

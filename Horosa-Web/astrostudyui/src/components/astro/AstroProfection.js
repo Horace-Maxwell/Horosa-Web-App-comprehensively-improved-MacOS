@@ -358,12 +358,13 @@ class AstroProfection extends Component{
 			<div>
 				<Row gutter={6}>
 					<Col span={17}>
-						<AstroDoubleChart value={chartObj} 
-							height={height}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							chartDisplay={this.props.chartDisplay}
-						/>
+							<AstroDoubleChart value={chartObj} 
+								height={height}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								chartDisplay={this.props.chartDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
 					</Col>
 					<Col span={7}>
 						<div className={styles.scrollbar} style={style}>

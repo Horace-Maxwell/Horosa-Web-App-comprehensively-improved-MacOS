@@ -251,15 +251,16 @@ class AstroMidpoint extends Component{
 
 		return (
 			<div>
-				<MidpointMain 
-					value={chartObj} 
-					onChange={this.onFieldsChange}
-					fields={fields} 
-					height={height} 
-					chartDisplay={this.props.chartDisplay}
-					planetDisplay={this.props.planetDisplay}
-					lotsDisplay={this.props.lotsDisplay}
-				/>
+					<MidpointMain 
+						value={chartObj} 
+						onChange={this.onFieldsChange}
+						fields={fields} 
+						height={height} 
+						chartDisplay={this.props.chartDisplay}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						showAstroMeaning={this.props.showAstroMeaning}
+					/>
 			</div>
 		);
 	}

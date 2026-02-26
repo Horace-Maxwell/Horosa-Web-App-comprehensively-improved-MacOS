@@ -535,12 +535,13 @@ class AstroZR extends Component{
 			<div>
 				<Row gutter={6}>
 					<Col span={14}>
-						<AstroChart value={this.props.value}
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							backgroundColor='aliceblue' height={height}
-						/>
+							<AstroChart value={this.props.value}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								backgroundColor='aliceblue' height={height}
+							/>
 
 					</Col>
 					<Col span={6}>

@@ -5,6 +5,8 @@ import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
 import { randomStr} from '../../utils/helper'
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, buildAspectMeaningTip, } from './AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 let pars = new Set()
@@ -22,6 +24,23 @@ class AstroAspect extends Component{
 		this.genImmediateAspDom = this.genImmediateAspDom.bind(this);
 		this.genSignAspDom = this.genSignAspDom.bind(this);
 		this.genOneSignAspDom = this.genOneSignAspDom.bind(this);
+		this.showMeaning = this.showMeaning.bind(this);
+		this.aspectNode = this.aspectNode.bind(this);
+	}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
+	}
+
+	aspectNode(aspDeg, objAId, objBId){
+		const base = (
+			<span>{AstroText.AstroMsg['Asp' + aspDeg]}&nbsp;</span>
+		);
+		return wrapWithMeaning(
+			base,
+			this.showMeaning(),
+			buildAspectMeaningTip(aspDeg, {id: objAId}, {id: objBId})
+		);
 	}
 
 	planetLabel(id){
@@ -32,12 +51,13 @@ class AstroAspect extends Component{
 			this.props.showPlanetHouseInfo
 		);
 		const one = splitPlanetHouseInfoText(text);
-		return (
+		const labelNode = (
 			<span>
 				<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
 				{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
 			</span>
 		);
+		return wrapWithMeaning(labelNode, this.showMeaning(), buildMeaningTipByCategory('planet', id));
 	}
 
 	genNormalAspDom(aspects){
@@ -67,12 +87,12 @@ class AstroAspect extends Component{
 				if((!planets.has(asp.id))){
 					continue;
 				}
-				let dom = (
-					<div key={key + asp.id} style={{fontFamily: AstroConst.AstroFont}}>
-						<span>&emsp;{AstroText.AstroMsg['Asp' + asp.asp]}&nbsp;</span>
-						<span>{this.planetLabel(asp.id)}&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>
-							入相&nbsp;误差{Math.round(asp.orb * 1000)/1000}
+					let dom = (
+						<div key={key + asp.id} style={{fontFamily: AstroConst.AstroFont}}>
+							<span>&emsp;{this.aspectNode(asp.asp, key, asp.id)}</span>
+							<span>{this.planetLabel(asp.id)}&nbsp;</span>
+							<span style={{fontFamily: AstroConst.NormalFont}}>
+								入相&nbsp;误差{Math.round(asp.orb * 1000)/1000}
 						</span>
 					</div>
 				);
@@ -93,12 +113,12 @@ class AstroAspect extends Component{
 				if((!planets.has(asp.id))){
 					continue;
 				}
-				let dom = (
-					<div key={key + asp.id} style={{fontFamily: AstroConst.AstroFont}}>
-						<span>&emsp;{AstroText.AstroMsg['Asp' + asp.asp]}&nbsp;</span>
-						<span>{this.planetLabel(asp.id)}&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>
-							离相&nbsp;误差{Math.round(asp.orb * 1000)/1000}
+					let dom = (
+						<div key={key + asp.id} style={{fontFamily: AstroConst.AstroFont}}>
+							<span>&emsp;{this.aspectNode(asp.asp, key, asp.id)}</span>
+							<span>{this.planetLabel(asp.id)}&nbsp;</span>
+							<span style={{fontFamily: AstroConst.NormalFont}}>
+								离相&nbsp;误差{Math.round(asp.orb * 1000)/1000}
 						</span>
 					</div>
 				);
@@ -113,12 +133,12 @@ class AstroAspect extends Component{
 				if((!planets.has(asp.id))){
 					continue;
 				}
-				let dom = (
-					<div key={key + asp.id} style={{fontFamily: AstroConst.AstroFont}}>
-						<span>&emsp;{AstroText.AstroMsg['Asp' + asp.asp]}&nbsp;</span>
-						<span>{this.planetLabel(asp.id)}&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>误差{Math.round(asp.orb * 1000)/1000}</span>
-					</div>
+					let dom = (
+						<div key={key + asp.id} style={{fontFamily: AstroConst.AstroFont}}>
+							<span>&emsp;{this.aspectNode(asp.asp, key, asp.id)}</span>
+							<span>{this.planetLabel(asp.id)}&nbsp;</span>
+							<span style={{fontFamily: AstroConst.NormalFont}}>误差{Math.round(asp.orb * 1000)/1000}</span>
+						</div>
 				);
 				divs.push(dom);
 			}
@@ -156,20 +176,20 @@ class AstroAspect extends Component{
 				continue;
 			}
 
-			let dom = (
-				<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
-					<span>{this.planetLabel(key)}&nbsp;</span>
-					<span>{AstroText.AstroMsg['Asp' + obj[0].asp]}&nbsp;</span>
-					<span>{this.planetLabel(obj[0].id)}</span>&nbsp;
-					<span style={{fontFamily: AstroConst.NormalFont}}>
-						<Popover content={'误差' + Math.round(obj[0].orb * 1000)/1000} >
-							离相；&nbsp;
-						</Popover>
-					</span>
-					<span>{AstroText.AstroMsg['Asp' + obj[1].asp]}&nbsp;</span>
-					<span>{this.planetLabel(obj[1].id)}</span>&nbsp;
-					<span style={{fontFamily: AstroConst.NormalFont}}>
-						<Popover content={'误差' + Math.round(obj[1].orb * 1000)/1000} >
+				let dom = (
+					<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+						<span>{this.planetLabel(key)}&nbsp;</span>
+						<span>{this.aspectNode(obj[0].asp, key, obj[0].id)}</span>
+						<span>{this.planetLabel(obj[0].id)}</span>&nbsp;
+						<span style={{fontFamily: AstroConst.NormalFont}}>
+							<Popover content={'误差' + Math.round(obj[0].orb * 1000)/1000} >
+								离相；&nbsp;
+							</Popover>
+						</span>
+						<span>{this.aspectNode(obj[1].asp, key, obj[1].id)}</span>
+						<span>{this.planetLabel(obj[1].id)}</span>&nbsp;
+						<span style={{fontFamily: AstroConst.NormalFont}}>
+							<Popover content={'误差' + Math.round(obj[1].orb * 1000)/1000} >
 							入相
 						</Popover>
 					</span>
@@ -205,12 +225,12 @@ class AstroAspect extends Component{
 			if(!planets.has(asp.id)){
 				continue;
 			}
-			let dom = (
-				<div key={key + asp.id} style={{fontFamily: AstroConst.AstroFont}}>
-					<span>&emsp;{AstroText.AstroMsg['Asp' + asp.asp]}&nbsp;</span>
-					<span>{this.planetLabel(asp.id)}</span>
-				</div>
-			);
+				let dom = (
+					<div key={key + asp.id} style={{fontFamily: AstroConst.AstroFont}}>
+						<span>&emsp;{this.aspectNode(asp.asp, key, asp.id)}</span>
+						<span>{this.planetLabel(asp.id)}</span>
+					</div>
+				);
 			divs.push(dom);
 		}
 		return divs;

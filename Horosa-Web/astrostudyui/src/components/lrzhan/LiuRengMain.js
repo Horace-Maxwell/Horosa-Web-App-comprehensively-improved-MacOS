@@ -4777,4 +4777,11 @@ class LiuRengMain extends Component{
 	}
 }
 
+export {
+	buildLiuRengReferenceBundle,
+	buildReferenceDocumentText,
+	buildOverviewReferenceText,
+	XIAO_JU_REFERENCE_TAB_KEYS,
+};
+
 export default LiuRengMain;

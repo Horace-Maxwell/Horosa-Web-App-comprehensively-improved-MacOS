@@ -26,6 +26,13 @@ function PageHeader(props){
 	const currentSettingTech = aiSettingTechs.find((item)=>item.key === aiSettingKey) || null;
 	const currentSettingOptions = currentSettingTech && currentSettingTech.options ? currentSettingTech.options : [];
 	const currentSettingSupportsPlanetInfo = !!(currentSettingTech && currentSettingTech.supportsPlanetInfo);
+	const currentSettingSupportsAstroMeaning = !!(currentSettingTech && currentSettingTech.supportsAstroMeaning);
+	const currentSettingMeaningTitle = currentSettingTech && currentSettingTech.astroMeaningTitle
+		? currentSettingTech.astroMeaningTitle
+		: '占星注释（仅AI导出）：';
+	const currentSettingMeaningCheckbox = currentSettingTech && currentSettingTech.astroMeaningCheckbox
+		? currentSettingTech.astroMeaningCheckbox
+		: '在对应分段输出星/宫/座/相/希腊点释义';
 	const currentSettingSelected = (()=>{
 		const sections = aiSettingData && aiSettingData.sections ? aiSettingData.sections : {};
 		if(Array.isArray(sections[aiSettingKey])){
@@ -39,6 +46,13 @@ function PageHeader(props){
 		return {
 			showHouse: one && (one.showHouse === 1 || one.showHouse === true) ? 1 : 0,
 			showRuler: one && (one.showRuler === 1 || one.showRuler === true) ? 1 : 0,
+		};
+	})();
+	const currentSettingAstroMeaning = (()=>{
+		const map = aiSettingData && aiSettingData.astroMeaning ? aiSettingData.astroMeaning : {};
+		const one = map && map[aiSettingKey] ? map[aiSettingKey] : null;
+		return {
+			enabled: one && (one.enabled === 1 || one.enabled === true) ? 1 : 0,
 		};
 	})();
 
@@ -137,13 +151,18 @@ function PageHeader(props){
 			const planetInfo = {
 				...(prev && prev.planetInfo ? prev.planetInfo : {}),
 			};
+			const astroMeaning = {
+				...(prev && prev.astroMeaning ? prev.astroMeaning : {}),
+			};
 			delete sections[aiSettingKey];
 			delete planetInfo[aiSettingKey];
+			delete astroMeaning[aiSettingKey];
 			return {
 				...(prev || {}),
 				version: AI_EXPORT_SETTINGS_VERSION,
 				sections,
 				planetInfo,
+				astroMeaning,
 			};
 		});
 	}
@@ -167,6 +186,30 @@ function PageHeader(props){
 				planetInfo: {
 					...(prev && prev.planetInfo ? prev.planetInfo : {}),
 					[aiSettingKey]: nextOne,
+				},
+				astroMeaning: {
+					...(prev && prev.astroMeaning ? prev.astroMeaning : {}),
+				},
+			};
+		});
+	}
+
+	function onAISettingAstroMeaningChange(checked){
+		setAiSettingData((prev)=>{
+			return {
+				...(prev || {}),
+				version: AI_EXPORT_SETTINGS_VERSION,
+				sections: {
+					...(prev && prev.sections ? prev.sections : {}),
+				},
+				planetInfo: {
+					...(prev && prev.planetInfo ? prev.planetInfo : {}),
+				},
+				astroMeaning: {
+					...(prev && prev.astroMeaning ? prev.astroMeaning : {}),
+					[aiSettingKey]: {
+						enabled: checked ? 1 : 0,
+					},
 				},
 			};
 		});
@@ -411,6 +454,17 @@ function PageHeader(props){
 							onChange={(e)=>onAISettingPlanetInfoChange('showRuler', !!(e && e.target && e.target.checked))}
 						>
 							显示星曜主宰宫
+						</Checkbox>
+					</div>
+				) : null}
+				{currentSettingSupportsAstroMeaning ? (
+					<div style={{marginTop: 14}}>
+						<div style={{marginBottom: 8}}>{currentSettingMeaningTitle}</div>
+						<Checkbox
+							checked={currentSettingAstroMeaning.enabled === 1}
+							onChange={(e)=>onAISettingAstroMeaningChange(!!(e && e.target && e.target.checked))}
+						>
+							{currentSettingMeaningCheckbox}
 						</Checkbox>
 					</div>
 				) : null}

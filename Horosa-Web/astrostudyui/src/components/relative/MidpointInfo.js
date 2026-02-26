@@ -5,6 +5,8 @@ import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from '../astro/AstroHelper';
 import { randomStr} from '../../utils/helper'
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, buildAspectMeaningTip, } from '../astro/AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 const LIST_POINTS = [
@@ -27,19 +29,25 @@ class MidpointInfo extends Component{
 			 
 		}
 
-		this.genAspectDom = this.genAspectDom.bind(this);
-		this.renderLabel = this.renderLabel.bind(this);
+			this.genAspectDom = this.genAspectDom.bind(this);
+			this.renderLabel = this.renderLabel.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
+		}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
-	renderLabel(text){
-		const one = splitPlanetHouseInfoText(text);
-		return (
-			<span>
-				<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
-				{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
-			</span>
-		);
-	}
+		renderLabel(text, id){
+			const one = splitPlanetHouseInfoText(text);
+			const labelNode = (
+				<span>
+					<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
+					{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
+				</span>
+			);
+			return wrapWithMeaning(labelNode, this.showMeaning(), buildMeaningTipByCategory('planet', id));
+		}
 
 	genAspectDom(aspects, title){
 		if(aspects === undefined || aspects === null){
@@ -55,43 +63,52 @@ class MidpointInfo extends Component{
 			}
 			let domtitle = (
 				<div key={randomStr(8)}>
-					<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
-					{this.renderLabel(
-						appendPlanetHouseInfoById(
+						<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
+						{this.renderLabel(
+							appendPlanetHouseInfoById(
 							AstroText.AstroMsg[key],
-							this.props.dirChart,
-							key,
-							this.props.showPlanetHouseInfo
-						)
-					)}
-				</div>
-			);
+								this.props.dirChart,
+								key,
+								this.props.showPlanetHouseInfo
+							),
+							key
+						)}
+					</div>
+				);
 			divs.push(domtitle);
 
 			for(let idx=0; idx<obj.length; idx++){
 				let asp = obj[idx];
 
 				let dom = (
-					<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
-						<span>&emsp;{AstroText.AstroMsg['Asp' + asp.aspect]}&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>(</span>
-						{this.renderLabel(
-							appendPlanetHouseInfoById(
+						<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+							<span>&emsp;{
+								wrapWithMeaning(
+									<span>{AstroText.AstroMsg['Asp' + asp.aspect]}&nbsp;</span>,
+									this.showMeaning(),
+									buildAspectMeaningTip(asp.aspect, {id: key}, {id: asp.midpoint ? asp.midpoint.idA : null})
+								)
+							}</span>
+							<span style={{fontFamily: AstroConst.NormalFont}}>(</span>
+							{this.renderLabel(
+								appendPlanetHouseInfoById(
 								AstroText.AstroMsg[asp.midpoint.idA],
-								this.props.natualChart,
-								asp.midpoint.idA,
-								this.props.showPlanetHouseInfo
-							)
-						)}
-						<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;|&nbsp;</span>
-						{this.renderLabel(
+									this.props.natualChart,
+									asp.midpoint.idA,
+									this.props.showPlanetHouseInfo
+								),
+								asp.midpoint.idA
+							)}
+							<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;|&nbsp;</span>
+							{this.renderLabel(
 							appendPlanetHouseInfoById(
 								AstroText.AstroMsg[asp.midpoint.idB],
-								this.props.natualChart,
-								asp.midpoint.idB,
-								this.props.showPlanetHouseInfo
-							)
-						)}
+									this.props.natualChart,
+									asp.midpoint.idB,
+									this.props.showPlanetHouseInfo
+								),
+								asp.midpoint.idB
+							)}
 						<span style={{fontFamily: AstroConst.NormalFont}}>)&nbsp;</span>
 						<span style={{fontFamily: AstroConst.NormalFont}}>
 							误差{Math.round(asp.delta * 1000)/1000}

@@ -4,6 +4,8 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from '../astro/AstroHelper';
 import { randomStr} from '../../utils/helper'
+import { buildMeaningTipByCategory, buildAspectMeaningTip, } from '../astro/AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 const LIST_POINTS = [
@@ -25,7 +27,12 @@ class AspectToMidpoint extends Component{
 			 
 		}
 
-		this.genAspDom = this.genAspDom.bind(this);
+			this.genAspDom = this.genAspDom.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
+		}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
 	genAspDom(aspects){
@@ -40,26 +47,44 @@ class AspectToMidpoint extends Component{
 			if(obj === undefined || obj === null || !planets.has(key)){
 				continue;
 			}
-			let domtitle = (
-				<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
-					<span>{AstroText.AstroMsg[key]}</span>
-				</div>
-			);
+				let domtitle = (
+					<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+						{wrapWithMeaning(
+							<span>{AstroText.AstroMsg[key]}</span>,
+							this.showMeaning(),
+							buildMeaningTipByCategory('planet', key)
+						)}
+					</div>
+				);
 			divs.push(domtitle);
 
 			for(let idx=0; idx<obj.length; idx++){
 				let asp = obj[idx];
 
-				let dom = (
-					<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
-						<span>&emsp;{AstroText.AstroMsg['Asp' + asp.aspect]}&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>（</span>
-						<span>{AstroText.AstroMsg[asp.idA]}</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;|&nbsp;</span>
-						<span>{AstroText.AstroMsg[asp.idB]}</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>）&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>
-							误差{Math.round(asp.delta * 1000)/1000}
+					let dom = (
+						<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+							<span>&emsp;{
+								wrapWithMeaning(
+									<span>{AstroText.AstroMsg['Asp' + asp.aspect]}&nbsp;</span>,
+									this.showMeaning(),
+									buildAspectMeaningTip(asp.aspect, {id: key}, {id: asp.idA})
+								)
+							}</span>
+							<span style={{fontFamily: AstroConst.NormalFont}}>（</span>
+							{wrapWithMeaning(
+								<span>{AstroText.AstroMsg[asp.idA]}</span>,
+								this.showMeaning(),
+								buildMeaningTipByCategory('planet', asp.idA)
+							)}
+							<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;|&nbsp;</span>
+							{wrapWithMeaning(
+								<span>{AstroText.AstroMsg[asp.idB]}</span>,
+								this.showMeaning(),
+								buildMeaningTipByCategory('planet', asp.idB)
+							)}
+							<span style={{fontFamily: AstroConst.NormalFont}}>）&nbsp;</span>
+							<span style={{fontFamily: AstroConst.NormalFont}}>
+								误差{Math.round(asp.delta * 1000)/1000}
 						</span>
 					</div>
 				);

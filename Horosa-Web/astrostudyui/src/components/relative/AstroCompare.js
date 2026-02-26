@@ -80,28 +80,30 @@ class AstroCompare extends Component{
 					style={{ height: height }}
 				>
 					<TabPane tab={chartATitle} key="chartA">
-						<AstroDoubleChartMain 
-							value={chartAobj} 
+							<AstroDoubleChartMain 
+								value={chartAobj} 
 							height={height - 40} 
 							title={chartATitle}
 							innerTitle={chartBTitle}
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>					
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>					
 					</TabPane>
 					<TabPane tab={chartBTitle} key="chartB">
-						<AstroDoubleChartMain 
-							value={chartBobj} 
+							<AstroDoubleChartMain 
+								value={chartBobj} 
 							height={height - 40} 
 							title={chartBTitle}
 							innerTitle={chartATitle}
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>					
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>					
 					</TabPane>
 				</Tabs>
 			</div>

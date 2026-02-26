@@ -208,19 +208,20 @@ class IndiaChart extends Component{
 
 		return (
 			<div>
-				<AstroChartMain 
-					value={chartObj} 
+					<AstroChartMain 
+						value={chartObj} 
 					onChange={this.onFieldsChange}
 					fields={fields} 
 					hidezodiacal={1}
 					hidehsys={1}
 					indiahsys={1}
 					height={height} 
-					chartDisplay={this.props.chartDisplay}
-					planetDisplay={this.props.planetDisplay}
-					lotsDisplay={this.props.lotsDisplay}
-					showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-				/>
+						chartDisplay={this.props.chartDisplay}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+						showAstroMeaning={this.props.showAstroMeaning}
+					/>
 			</div>
 		);
 	}

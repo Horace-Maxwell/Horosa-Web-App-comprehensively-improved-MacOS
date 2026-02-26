@@ -198,17 +198,18 @@ class IndiaChartMain extends Component{
 						)} 
 					key={key}
 				>
-					<IndiaChart 
-						chartnum={hook.fractal} 
+						<IndiaChart 
+							chartnum={hook.fractal} 
 						onChange={this.onFieldsChange}
 						fields={fields} 
 						height={height} 
 						chartDisplay={this.props.chartDisplay}
-						planetDisplay={this.props.planetDisplay}
-						lotsDisplay={this.props.lotsDisplay}
-						showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						hook={hook}
-					/>						
+							planetDisplay={this.props.planetDisplay}
+							lotsDisplay={this.props.lotsDisplay}
+							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+							showAstroMeaning={this.props.showAstroMeaning}
+							hook={hook}
+						/>						
 				</TabPane>
 			);
 			panes.push(pane);
@@ -225,17 +226,18 @@ class IndiaChartMain extends Component{
 						tab={this.state.hook.Natal.txt} 
 						key="Natal"
 					>
-						<IndiaChart 
-							chartnum={this.state.hook.Natal.fractal} 
+							<IndiaChart 
+								chartnum={this.state.hook.Natal.fractal} 
 							onChange={this.onFieldsChange}
 							fields={fields} 
 							height={height} 
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-							hook={this.state.hook.Natal}
-						/>						
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.Natal}
+							/>						
 					</TabPane>
 
 					{panes}

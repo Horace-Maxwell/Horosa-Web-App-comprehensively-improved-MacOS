@@ -5,6 +5,8 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, } from './AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
 
@@ -43,9 +45,14 @@ class AstroFirdaria extends Component{
 			columns: columns,
 		}
 
-		this.convertToDataSource = this.convertToDataSource.bind(this);
-		this.genFirdariaDom = this.genFirdariaDom.bind(this);
-		this.planetText = this.planetText.bind(this);
+			this.convertToDataSource = this.convertToDataSource.bind(this);
+			this.genFirdariaDom = this.genFirdariaDom.bind(this);
+			this.planetText = this.planetText.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
+		}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
 	planetText(id){
@@ -57,12 +64,13 @@ class AstroFirdaria extends Component{
 			this.props.showPlanetHouseInfo
 		);
 		const one = splitPlanetHouseInfoText(text);
-		return (
+		const labelNode = (
 			<span>
 				<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
 				{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
 			</span>
 		);
+		return wrapWithMeaning(labelNode, this.showMeaning(), buildMeaningTipByCategory('planet', id));
 	}
 
 	convertToDataSource(firdaria){

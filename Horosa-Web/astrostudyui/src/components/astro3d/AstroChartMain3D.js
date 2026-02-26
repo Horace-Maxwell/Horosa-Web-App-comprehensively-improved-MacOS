@@ -230,35 +230,38 @@ class AstroChartMain3D extends Component{
 							}
 						</Row>
 						<Tabs defaultActiveKey="1" tabPosition='top'>
-							<TabPane tab="信息" key="1">
-								<AstroInfo height={tabHeight}
-									value={chartObj} fields={fields}
-									planetDisplay={this.props.planetDisplay}
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-								/>
-							</TabPane>
-							<TabPane tab="相位" key="2">
-								<AstroAspect 
-									value={chartObj} height={tabHeight}
-									lotsDisplay={this.props.lotsDisplay}
-									planetDisplay={this.props.planetDisplay}
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-								/>
-							</TabPane>
-							<TabPane tab="行星" key="3">
-								<AstroPlanet
-									value={chartObj}
-									height={tabHeight}
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-								/>
-							</TabPane>
-							{
-								showlots && (
-									<TabPane tab="希腊点" key="4">
-										<AstroLots value={chartObj} height={tabHeight}/>
-									</TabPane>	
-								)
-							}
+								<TabPane tab="信息" key="1">
+									<AstroInfo height={tabHeight}
+										value={chartObj} fields={fields}
+										planetDisplay={this.props.planetDisplay}
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
+								</TabPane>
+								<TabPane tab="相位" key="2">
+									<AstroAspect 
+										value={chartObj} height={tabHeight}
+										lotsDisplay={this.props.lotsDisplay}
+										planetDisplay={this.props.planetDisplay}
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
+								</TabPane>
+								<TabPane tab="行星" key="3">
+									<AstroPlanet
+										value={chartObj}
+										height={tabHeight}
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
+								</TabPane>
+								{
+									showlots && (
+										<TabPane tab="希腊点" key="4">
+											<AstroLots value={chartObj} height={tabHeight} showAstroMeaning={this.props.showAstroMeaning}/>
+										</TabPane>	
+									)
+								}
 						</Tabs>
 					</Col>
 				</Row>

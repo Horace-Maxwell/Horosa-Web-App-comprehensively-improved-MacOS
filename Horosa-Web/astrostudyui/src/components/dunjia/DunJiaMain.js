@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Card, Select, Button, Divider, Spin, Tag, Tabs, message } from 'antd';
+import { Row, Col, Card, Select, Button, Divider, Spin, Tag, Tabs, message, Popover } from 'antd';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import {
 	getNongliLocalCache,
@@ -37,6 +37,11 @@ import {
 	buildQimenBaGongPanelData,
 	buildQimenFuShiYiGua,
 } from './DunJiaBaGongRules';
+import {
+	buildQimenXiangTipObj,
+	formatQimenDocLineToHtml,
+} from './QimenXiangDoc';
+import { BaZiColor, ZhiColor } from '../../msg/bazimsg';
 
 const { Option } = Select;
 const TabPane = Tabs.TabPane;
@@ -87,6 +92,27 @@ function getViewportHeight(){
 
 function safe(v, d = ''){
 	return v === undefined || v === null ? d : v;
+}
+
+const GAN_COLOR_MAP = {
+	甲: BaZiColor.PositiveWood,
+	乙: BaZiColor.NegativeWood,
+	丙: BaZiColor.PositiveFire,
+	丁: BaZiColor.NegativeFire,
+	戊: BaZiColor.PositiveEarth,
+	己: BaZiColor.NegativeEarth,
+	庚: BaZiColor.PositiveMetal,
+	辛: BaZiColor.NegativeMetal,
+	壬: BaZiColor.PositiveWater,
+	癸: BaZiColor.NegativeWater,
+};
+
+function getBaZiStemColor(stem){
+	return GAN_COLOR_MAP[safe(stem, '')] || '#333333';
+}
+
+function getBaZiBranchColor(branch){
+	return ZhiColor[safe(branch, '')] || '#333333';
 }
 
 function normalizeTimeAlg(value){
@@ -1089,6 +1115,72 @@ class DunJiaMain extends Component {
 		}
 	}
 
+	renderQimenDocPopover(tipObj){
+		if(!tipObj){
+			return null;
+		}
+		const blocks = Array.isArray(tipObj.blocks) ? tipObj.blocks : [];
+		return (
+			<div style={{ maxWidth: 560, maxHeight: 460, overflowY: 'auto', paddingRight: 4 }}>
+				<div style={{ fontSize: 17, lineHeight: '24px', fontWeight: 700, color: '#1f1f1f' }}>
+					{tipObj.title}
+				</div>
+				<div style={{ borderTop: '1px solid #d9d9d9', margin: '6px 0 8px' }} />
+				{blocks.map((block, idx)=>{
+					if(!block){
+						return null;
+					}
+					if(block.type === 'blank'){
+						return <div key={`qimen_doc_blank_${idx}`} style={{ height: 6 }} />;
+					}
+					if(block.type === 'divider'){
+						return <div key={`qimen_doc_divider_${idx}`} style={{ borderTop: '1px solid #e8e8e8', margin: '6px 0' }} />;
+					}
+					if(block.type === 'subTitle'){
+						return (
+							<div key={`qimen_doc_subtitle_${idx}`} style={{ margin: '4px 0 6px' }}>
+								<div style={{ fontSize: 14, lineHeight: '20px', fontWeight: 700, color: '#262626' }}>{block.text}</div>
+								<div style={{ borderTop: '1px solid #efefef', marginTop: 4 }} />
+							</div>
+						);
+					}
+					const html = formatQimenDocLineToHtml(block.text || '');
+					return (
+						<div
+							key={`qimen_doc_text_${idx}`}
+							style={{ fontSize: 13, lineHeight: '21px', color: '#262626', whiteSpace: 'pre-wrap' }}
+							dangerouslySetInnerHTML={{ __html: html }}
+						/>
+					);
+				})}
+			</div>
+		);
+	}
+
+	renderQimenHoverNode(type, text, style, key){
+		const raw = `${text || ''}`.trim();
+		const tipObj = buildQimenXiangTipObj(type, raw);
+		const node = (
+			<div key={key} style={{ ...style, cursor: tipObj ? 'help' : 'default' }}>
+				{text || ' '}
+			</div>
+		);
+		if(!tipObj){
+			return node;
+		}
+		return (
+			<Popover
+				key={`${key}_popover`}
+				trigger="hover"
+				placement="bottomLeft"
+				content={this.renderQimenDocPopover(tipObj)}
+				overlayStyle={{ maxWidth: 600 }}
+			>
+				{node}
+			</Popover>
+		);
+	}
+
 	renderCell(cell){
 		const titleColor = cell.hasKongWang ? '#2f54eb' : (cell.isCenter ? '#c7c7c7' : '#5f5f5f');
 		let tianGanColor = '#262626';
@@ -1206,60 +1298,66 @@ class DunJiaMain extends Component {
 						<div style={yiMaStyle}>🐎</div>
 					)}
 
-				<div
-					style={{
-							position: 'absolute',
-								left: insetX,
-								top: insetY,
-							fontSize: unifiedFont,
-							lineHeight: `${unifiedFont}px`,
-							color: tianGanColor,
-							fontWeight: 700,
-						}}
-					>
-						{cell.tianGan || ' '}
-				</div>
-				<div
-					style={{
-							position: 'absolute',
-								left: insetX,
-								bottom: insetY,
-							fontSize: unifiedFont,
-							lineHeight: `${unifiedFont}px`,
-							color: diGanColor,
-							fontWeight: 700,
-						}}
-					>
-						{cell.diGan || ' '}
-				</div>
-				<div
-					style={{
-							position: 'absolute',
-								right: insetX,
-								top: insetY,
-							fontSize: unifiedFont,
-							lineHeight: `${unifiedFont}px`,
-							color: godColor,
-							fontWeight: 700,
-						}}
-					>
-						{cell.god || ' '}
-				</div>
-				<div
-					style={{
+				{this.renderQimenHoverNode(
+					'stem',
+					cell.tianGan || ' ',
+					{
 						position: 'absolute',
-							right: insetX,
-							bottom: insetY,
+						left: insetX,
+						top: insetY,
+						fontSize: unifiedFont,
+						lineHeight: `${unifiedFont}px`,
+						color: tianGanColor,
+						fontWeight: 700,
+					},
+					`qimen_tiangan_${cell.palaceNum}`
+				)}
+				{this.renderQimenHoverNode(
+					'stem',
+					cell.diGan || ' ',
+					{
+						position: 'absolute',
+						left: insetX,
+						bottom: insetY,
+						fontSize: unifiedFont,
+						lineHeight: `${unifiedFont}px`,
+						color: diGanColor,
+						fontWeight: 700,
+					},
+					`qimen_digan_${cell.palaceNum}`
+				)}
+				{this.renderQimenHoverNode(
+					'god',
+					cell.god || ' ',
+					{
+						position: 'absolute',
+						right: insetX,
+						top: insetY,
+						fontSize: unifiedFont,
+						lineHeight: `${unifiedFont}px`,
+						color: godColor,
+						fontWeight: 700,
+					},
+					`qimen_god_${cell.palaceNum}`
+				)}
+				{this.renderQimenHoverNode(
+					'star',
+					cell.tianXing || ' ',
+					{
+						position: 'absolute',
+						right: insetX,
+						bottom: insetY,
 						fontSize: unifiedFont,
 						lineHeight: `${unifiedFont}px`,
 						color: line3Color,
 						fontWeight: 700,
-					}}
-				>
-					{cell.tianXing || ' '}
-				</div>
-				<div
-					style={{
+					},
+					`qimen_star_${cell.palaceNum}`
+				)}
+				{this.renderQimenHoverNode(
+					'door',
+					cell.door || ' ',
+					{
 						position: 'absolute',
 						left: '50%',
 						top: '50%',
@@ -1268,10 +1366,9 @@ class DunJiaMain extends Component {
 						lineHeight: `${unifiedFont}px`,
 						color: line2Color,
 						fontWeight: 700,
-					}}
-				>
-					{cell.door || ' '}
-				</div>
+					},
+					`qimen_door_${cell.palaceNum}`
+				)}
 
 				{!!palaceStyle && (
 					<div
@@ -1314,34 +1411,30 @@ class DunJiaMain extends Component {
 				label: '年',
 				gan: (pan.ganzhi.year || '').substr(0, 1),
 				zhi: (pan.ganzhi.year || '').substr(1, 1),
-				ganColor: '#cf1322',
-				zhiColor: '#cf1322',
 			},
 			{
 				key: 'month',
 				label: '月',
 				gan: (pan.ganzhi.month || '').substr(0, 1),
 				zhi: (pan.ganzhi.month || '').substr(1, 1),
-				ganColor: '#d48806',
-				zhiColor: '#5aa469',
 			},
 			{
 				key: 'day',
 				label: '日',
 				gan: (pan.ganzhi.day || '').substr(0, 1),
 				zhi: (pan.ganzhi.day || '').substr(1, 1),
-				ganColor: '#2f54eb',
-				zhiColor: '#9c6b30',
 			},
 			{
 				key: 'time',
 				label: '时',
 				gan: (pan.ganzhi.time || '').substr(0, 1),
 				zhi: (pan.ganzhi.time || '').substr(1, 1),
-				ganColor: '#9c6b30',
-				zhiColor: '#d48806',
 			},
-		];
+		].map((item)=>({
+			...item,
+			ganColor: getBaZiStemColor(item.gan),
+			zhiColor: getBaZiBranchColor(item.zhi),
+		}));
 		return (
 			<Card bordered={false}>
 				<div style={{ width: scaledWidth, maxWidth: '100%' }}>

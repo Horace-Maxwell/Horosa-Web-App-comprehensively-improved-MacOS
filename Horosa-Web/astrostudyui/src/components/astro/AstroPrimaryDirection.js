@@ -5,6 +5,8 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, } from './AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
 
@@ -31,14 +33,19 @@ class AstroPrimaryDirection extends Component{
 
 		this.genDateFilterDropdownDom = this.genDateFilterDropdownDom.bind(this);
 		this.genDateColFilter = this.genDateColFilter.bind(this);
-		this.genStarColFilter = this.genStarColFilter.bind(this);
-		this.handleSearch = this.handleSearch.bind(this);
-		this.handleReset = this.handleReset.bind(this);
+			this.genStarColFilter = this.genStarColFilter.bind(this);
+			this.handleSearch = this.handleSearch.bind(this);
+			this.handleReset = this.handleReset.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
 
-		this.objs = AstroConst.LIST_OBJECTS.slice(0);
-		this.objs.push(AstroConst.ASC);
-		this.objs.push(AstroConst.MC);
+			this.objs = AstroConst.LIST_OBJECTS.slice(0);
+			this.objs.push(AstroConst.ASC);
+			this.objs.push(AstroConst.MC);
 
+		}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
 	planetText(id){
@@ -50,12 +57,13 @@ class AstroPrimaryDirection extends Component{
 			this.props.showPlanetHouseInfo
 		);
 		const one = splitPlanetHouseInfoText(text);
-		return (
+		const labelNode = (
 			<span>
 				<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
 				{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
 			</span>
 		);
+		return wrapWithMeaning(labelNode, this.showMeaning(), buildMeaningTipByCategory('planet', id));
 	}
 
 	isBoundRow(pd){

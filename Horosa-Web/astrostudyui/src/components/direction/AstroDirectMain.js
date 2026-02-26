@@ -318,11 +318,12 @@ class AstroDirectMain extends Component{
 					style={{ height: height }}
 				>
 					<TabPane tab="主/界限法" key="primarydirect">
-						<AstroPrimaryDirection  
-							value={this.props.chartObj} height={height}
-							showPdBounds={this.props.fields && this.props.fields.showPdBounds ? this.props.fields.showPdBounds.value : 1}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>
+							<AstroPrimaryDirection  
+								value={this.props.chartObj} height={height}
+								showPdBounds={this.props.fields && this.props.fields.showPdBounds ? this.props.fields.showPdBounds.value : 1}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
 					</TabPane>
 
 					<TabPane tab="黄道星释" key="zodialrelease">
@@ -330,19 +331,21 @@ class AstroDirectMain extends Component{
 							value={this.props.chartObj} 
 							height={this.props.height} 
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-							hook={this.state.hook.zodialrelease}
-						/>
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.zodialrelease}
+							/>
 					</TabPane>
 
 					<TabPane tab="法达星限" key="firdaria">
 						<AstroFirdaria 
-							value={this.props.chartObj} 
-							height={height}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>
+								value={this.props.chartObj} 
+								height={height}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
 					</TabPane>
 
 					<TabPane tab="小限法" key="profection">
@@ -350,11 +353,12 @@ class AstroDirectMain extends Component{
 							value={this.props.chartObj} 
 							height={height} 
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-							hook={this.state.hook.profection} 
-						/>
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.profection} 
+							/>
 
 					</TabPane>
 
@@ -363,11 +367,12 @@ class AstroDirectMain extends Component{
 							value={this.props.chartObj} 
 							height={height} 
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-							hook={this.state.hook.solararc} 
-						/>
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.solararc} 
+							/>
 
 					</TabPane>
 
@@ -376,11 +381,12 @@ class AstroDirectMain extends Component{
 							value={this.props.chartObj} 
 							height={height} 
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-							hook={this.state.hook.solarreturn} 
-						/>
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.solarreturn} 
+							/>
 					</TabPane>
 
 					<TabPane tab="月亮返照" key="lunarreturn">
@@ -388,11 +394,12 @@ class AstroDirectMain extends Component{
 							value={this.props.chartObj} 
 							height={height} 
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-							hook={this.state.hook.lunarreturn} 
-						/>
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.lunarreturn} 
+							/>
 					</TabPane>
 
 					<TabPane tab="流年法" key="givenyear">
@@ -400,11 +407,12 @@ class AstroDirectMain extends Component{
 							value={this.props.chartObj} 
 							height={height} 
 							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-							hook={this.state.hook.givenyear} 
-						/>
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.givenyear} 
+							/>
 					</TabPane>
 
 				</Tabs>

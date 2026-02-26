@@ -111,18 +111,19 @@ class JieQiMain extends Component{
 
 		return (
 			<div>
-				<AstroChartMain 
-					value={this.state.chart} 
+					<AstroChartMain 
+						value={this.state.chart} 
 					hidehsys={1}
 					hidezodiacal={1}
 					hidedateselector={1}
 					fields={fields} 
 					height={height} 
-					chartDisplay={this.props.chartDisplay}
-					planetDisplay={this.props.planetDisplay}
-					lotsDisplay={this.props.lotsDisplay}
-					showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-				/>
+						chartDisplay={this.props.chartDisplay}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+						showAstroMeaning={this.props.showAstroMeaning}
+					/>
 			</div>
 		);
 	}

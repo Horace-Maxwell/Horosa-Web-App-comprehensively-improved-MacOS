@@ -10,6 +10,8 @@ import * as AstroText from '../../constants/AstroText';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import { randomStr, randomNum, gcj02ToGps,} from '../../utils/helper';
+import { buildMeaningTipByCategory, } from '../astro/AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import styles from '../../css/styles.less';
 import DateTime from '../comp/DateTime';
@@ -127,9 +129,10 @@ class DiceMain extends Component{
 		this.changeGeo = this.changeGeo.bind(this);
 		this.changeLat = this.changeLat.bind(this);
 		this.changeLon = this.changeLon.bind(this);
-		this.genResultDom = this.genResultDom.bind(this);
-		this.getChartDisplay = this.getChartDisplay.bind(this);
-		this.getPlanetsDisplay = this.getPlanetsDisplay.bind(this);
+			this.genResultDom = this.genResultDom.bind(this);
+			this.getChartDisplay = this.getChartDisplay.bind(this);
+			this.getPlanetsDisplay = this.getPlanetsDisplay.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
 
 		let fld = this.props.fields;
 		this.state = {
@@ -170,6 +173,10 @@ class DiceMain extends Component{
 			};
 
 		}
+	}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
 	genParams(){
@@ -395,17 +402,29 @@ class DiceMain extends Component{
 						<span>{this.state.txt}</span>
 					</Col>									
 				</Row>
-				<Row>
-					<Col span={6} style={resstyle}>
-						<span>{AstroText.AstroMsg[this.state.planet]}</span>
-					</Col>
-					<Col span={6} style={resstyle}>
-						<span>{AstroText.AstroMsg[this.state.sign]}</span>
-					</Col>
-					<Col span={12} style={housestyle}>
-						<span>{AstroText.AstroMsg[house]}</span>
-					</Col>
-				</Row>
+					<Row>
+						<Col span={6} style={resstyle}>
+							{wrapWithMeaning(
+								<span>{AstroText.AstroMsg[this.state.planet]}</span>,
+								this.showMeaning(),
+								buildMeaningTipByCategory('planet', this.state.planet)
+							)}
+						</Col>
+						<Col span={6} style={resstyle}>
+							{wrapWithMeaning(
+								<span>{AstroText.AstroMsg[this.state.sign]}</span>,
+								this.showMeaning(),
+								buildMeaningTipByCategory('sign', this.state.sign)
+							)}
+						</Col>
+						<Col span={12} style={housestyle}>
+							{wrapWithMeaning(
+								<span>{AstroText.AstroMsg[house]}</span>,
+								this.showMeaning(),
+								buildMeaningTipByCategory('house', house)
+							)}
+						</Col>
+					</Row>
 			</div>
 		);
 		return dom;
@@ -490,23 +509,25 @@ class DiceMain extends Component{
 							defaultActiveKey='touzichart' tabPosition='bottom'
 							style={{ height: height }}						
 						>
-							<TabPane tab="骰子盘" key="touzichart">
-								<AstroChart value={this.state.diceChart} 
-									keyPlanets={keyPlanets}
-									chartDisplay={chartDisp}
-									planetDisplay={planetDisp}
-									lotsDisplay={this.props.lotsDisplay}
-									height={chartHeight}
-								/>
-							</TabPane>
-							<TabPane tab="天象盘" key="chart">
-								<AstroChart value={this.state.chart} 
-									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									height={chartHeight}
-								/>
-							</TabPane>
+								<TabPane tab="骰子盘" key="touzichart">
+									<AstroChart value={this.state.diceChart} 
+										keyPlanets={keyPlanets}
+										chartDisplay={chartDisp}
+										planetDisplay={planetDisp}
+										lotsDisplay={this.props.lotsDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+										height={chartHeight}
+									/>
+								</TabPane>
+								<TabPane tab="天象盘" key="chart">
+									<AstroChart value={this.state.chart} 
+										chartDisplay={this.props.chartDisplay}
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+										height={chartHeight}
+									/>
+								</TabPane>
 						</Tabs>
 					</Col>
 					<Col span={7}>

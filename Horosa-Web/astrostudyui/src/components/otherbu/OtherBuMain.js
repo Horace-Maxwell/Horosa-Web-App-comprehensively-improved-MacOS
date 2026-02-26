@@ -66,14 +66,16 @@ class OtherBuMain extends Component{
 					style={{ height: height }}
 				>
 					<TabPane tab="星盘骰子" key="touzi">
-						<DiceMain 
-							height={height}
-							fields={this.props.fields}
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							hook={this.state.hook.touzi}
-							dispatch={this.props.dispatch}
-						/>
+							<DiceMain 
+								height={height}
+								fields={this.props.fields}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.touzi}
+								dispatch={this.props.dispatch}
+							/>
 					</TabPane>
 
 				</Tabs>

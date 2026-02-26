@@ -100,8 +100,8 @@ class AstroSynastry extends Component{
 					<TabPane tab={chartATitle} key="chartA">
 						{
 							canRenderA ? (
-								<AstroChartMain 
-									value={chartAobj} 
+									<AstroChartMain 
+										value={chartAobj} 
 									fields={fieldsA} 
 									hidezodiacal={1}
 									hidehsys={1}
@@ -109,10 +109,11 @@ class AstroSynastry extends Component{
 									hidelots={1}
 									height={height - 40} 
 									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-								/>
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
 							) : (
 								<div style={{padding: 16}}>请先选择星盘A和星盘B，再查看影响盘。</div>
 							)
@@ -122,8 +123,8 @@ class AstroSynastry extends Component{
 					<TabPane tab={chartBTitle} key="chartB">
 						{
 							canRenderB ? (
-								<AstroChartMain 
-									value={chartBobj} 
+									<AstroChartMain 
+										value={chartBobj} 
 									fields={fieldsB} 
 									hidezodiacal={1}
 									hidehsys={1}
@@ -131,10 +132,11 @@ class AstroSynastry extends Component{
 									hidelots={1}
 									height={height - 40} 
 									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-								/>
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
 							) : (
 								<div style={{padding: 16}}>请先选择星盘A和星盘B，再查看影响盘。</div>
 							)

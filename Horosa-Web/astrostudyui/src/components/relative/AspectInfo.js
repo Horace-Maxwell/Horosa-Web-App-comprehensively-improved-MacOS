@@ -5,6 +5,8 @@ import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from '../astro/AstroHelper';
 import { randomStr} from '../../utils/helper'
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, buildAspectMeaningTip, } from '../astro/AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 let pars = new Set()
@@ -18,19 +20,25 @@ class AspectInfo extends Component{
 			 
 		}
 
-		this.genAspectDom = this.genAspectDom.bind(this);
-		this.renderLabel = this.renderLabel.bind(this);
+			this.genAspectDom = this.genAspectDom.bind(this);
+			this.renderLabel = this.renderLabel.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
+		}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
-	renderLabel(text){
-		const one = splitPlanetHouseInfoText(text);
-		return (
-			<span>
-				<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
-				{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
-			</span>
-		);
-	}
+		renderLabel(text, id){
+			const one = splitPlanetHouseInfoText(text);
+			const labelNode = (
+				<span>
+					<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
+					{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
+				</span>
+			);
+			return wrapWithMeaning(labelNode, this.showMeaning(), buildMeaningTipByCategory('planet', id));
+		}
 
 	genAspectDom(title){
 		let resobj = this.props.value ? this.props.value : {};
@@ -57,13 +65,21 @@ class AspectInfo extends Component{
 					natalId,
 					this.props.showPlanetHouseInfo
 				);
-				let dom = (
-					<div key={randomStr(8)}>
-						<span style={{fontFamily: AstroConst.AstroFont}}>&emsp;{AstroText.AstroMsg['Asp' + asp]}&nbsp;</span>
-						<span>{this.renderLabel(natalLabel)}&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>
-							误差{Math.round(natalObj.delta * 1000)/1000}
-						</span>
+					let dom = (
+						<div key={randomStr(8)}>
+							<span style={{fontFamily: AstroConst.AstroFont}}>
+								&emsp;{
+									wrapWithMeaning(
+										<span>{AstroText.AstroMsg['Asp' + asp]}&nbsp;</span>,
+										this.showMeaning(),
+										buildAspectMeaningTip(asp, {id: objId}, {id: natalId})
+									)
+								}
+							</span>
+							<span>{this.renderLabel(natalLabel, natalId)}&nbsp;</span>
+							<span style={{fontFamily: AstroConst.NormalFont}}>
+								误差{Math.round(natalObj.delta * 1000)/1000}
+							</span>
 					</div>
 				);
 				coldivs.push(dom);
@@ -74,14 +90,14 @@ class AspectInfo extends Component{
 				objId,
 				this.props.showPlanetHouseInfo
 			);
-			let domtitle = (
-				<Col key={i} span={12}>
-					<div>
-						<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
-						<span>{this.renderLabel(directLabel)}</span>
-					</div>
-					{coldivs}
-				</Col>
+				let domtitle = (
+					<Col key={i} span={12}>
+						<div>
+							<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
+							<span>{this.renderLabel(directLabel, objId)}</span>
+						</div>
+						{coldivs}
+					</Col>
 			);
 			divs.push(domtitle);
 		}

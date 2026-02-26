@@ -1394,18 +1394,19 @@ class JieQiChartsMain extends Component{
 				let tab = (
 					<TabPane tab={title+'星盘'} key={starKey}>
 						{renderStar ? (
-						<AstroChartMain
-							hidehsys={1}
+							<AstroChartMain
+								hidehsys={1}
 							hidezodiacal={1}
 							hidedateselector={true}
 							height={height}
 							fields={flds}
 							value={chart}
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}	
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>) : null}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}	
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>) : null}
 					</TabPane>
 
 				);
@@ -1431,19 +1432,20 @@ class JieQiChartsMain extends Component{
 				let tab3d = (
 					<TabPane tab={title+'3D盘'} key={d3Key}>
 						{render3d ? (
-						<AstroChartMain3D
-							hidehsys={1}
+							<AstroChartMain3D
+								hidehsys={1}
 							hidezodiacal={1}
 							hidedateselector={true}
 							needChart3D={true}
 							value={chart}
 							height={height}
 							fields={flds}
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}	
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>) : null}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}	
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>) : null}
 					</TabPane>
 				);
 				tabs.push(tab3d);

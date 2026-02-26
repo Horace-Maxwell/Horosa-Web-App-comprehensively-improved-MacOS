@@ -47,7 +47,7 @@ const TabPane = Tabs.TabPane;
 let fetchByFieldsTimer = null;
 
 function AstroIndex({dispatch, astro, app, user, rules, }){
-    const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, aspects, planetDisplay, lotsDisplay, colorTheme, showPdBounds, showPlanetHouseInfo} = app;
+    const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, aspects, planetDisplay, lotsDisplay, colorTheme, showPdBounds, showPlanetHouseInfo, showAstroMeaning} = app;
     const {
         pwdFields,
         userInfo,
@@ -212,25 +212,26 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 style={{ height: height }}
             >
                 <TabPane tab="星盘" key="astrochart">
-                    <AstroChartMain 
-                        value={chartObj} 
+	                    <AstroChartMain 
+	                        value={chartObj} 
                         onChange={changeCond}
                         fields={fields} 
                         fieldsAry={aryfields}
                         height={height} 
                         chartDisplay={chartDisplay}
                         planetDisplay={planetDisplay}
-                        lotsDisplay={lotsDisplay}
-                        showPlanetHouseInfo={showPlanetHouseInfo}
-                        dispatch={dispatch}
-                        hook={predictHook.astrochart}
-                    />
+	                        lotsDisplay={lotsDisplay}
+	                        showPlanetHouseInfo={showPlanetHouseInfo}
+	                        showAstroMeaning={showAstroMeaning}
+	                        dispatch={dispatch}
+	                        hook={predictHook.astrochart}
+	                    />
                 </TabPane>
 
                 {
                     true && (
                     <TabPane tab="三维盘" key="astrochart3D">
-                        <AstroChartMain3D 
+	                        <AstroChartMain3D 
                             value={chartObj} 
                             onChange={changeCond}
                             fields={fields} 
@@ -239,73 +240,78 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                             currentTab={currentTab}
                             chartDisplay={chartDisplay}
                             planetDisplay={planetDisplay}
-                            lotsDisplay={lotsDisplay}
-                            showPlanetHouseInfo={showPlanetHouseInfo}
-                            dispatch={dispatch}
-                            hook={predictHook.astrochart3D}
-                        />
+	                            lotsDisplay={lotsDisplay}
+	                            showPlanetHouseInfo={showPlanetHouseInfo}
+	                            showAstroMeaning={showAstroMeaning}
+	                            dispatch={dispatch}
+	                            hook={predictHook.astrochart3D}
+	                        />
                     </TabPane>   
                     )
                 }
 
                 <TabPane tab="推运盘" key="direction">
-                    <AstroDirectMain
+	                    <AstroDirectMain
                         height={height} 
                         fields={fields}
                         fieldsAry={aryfields}
                         chartObj={chartObj}
                         chartDisplay={chartDisplay}
                         planetDisplay={planetDisplay}
-                        lotsDisplay={lotsDisplay}
-                        showPlanetHouseInfo={showPlanetHouseInfo}
-                        hook={predictHook.direction}
-                        dispatch={dispatch}
-                        currentSubTab={currentSubTab}
+	                        lotsDisplay={lotsDisplay}
+	                        showPlanetHouseInfo={showPlanetHouseInfo}
+	                        showAstroMeaning={showAstroMeaning}
+	                        hook={predictHook.direction}
+	                        dispatch={dispatch}
+	                        currentSubTab={currentSubTab}
                     />
                 </TabPane>
 
                 <TabPane tab="量化盘" key="germanytech">
-                    <AstroGermany
+	                    <AstroGermany
                         onChange={changeCond}
                         fields={fields} 
                         fieldsAry={aryfields}
                         height={height} 
                         chart={chartObj}
-                        chartDisplay={chartDisplay}
-                        planetDisplay={planetDisplay}
-                        lotsDisplay={lotsDisplay}
-                        hook={predictHook.germanytech}
-                        dispatch={dispatch}
-                    />
+	                        chartDisplay={chartDisplay}
+	                        planetDisplay={planetDisplay}
+	                        lotsDisplay={lotsDisplay}
+	                        showAstroMeaning={showAstroMeaning}
+	                        hook={predictHook.germanytech}
+	                        dispatch={dispatch}
+	                    />
                 </TabPane>
 
                 <TabPane tab="关系盘" key="relativechart">
-                    <AstroRelative
+	                    <AstroRelative
                         fields={fields} 
                         fieldsAry={aryfields}
                         height={height} 
                         chartDisplay={chartDisplay}
                         planetDisplay={planetDisplay}
-                        lotsDisplay={lotsDisplay}
-                        showPlanetHouseInfo={showPlanetHouseInfo}
-                        hook={predictHook.relativechart}
-                        dispatch={dispatch}
-                        currentSubTab={currentSubTab}
+	                        lotsDisplay={lotsDisplay}
+	                        showPlanetHouseInfo={showPlanetHouseInfo}
+	                        showAstroMeaning={showAstroMeaning}
+	                        hook={predictHook.relativechart}
+	                        dispatch={dispatch}
+	                        currentSubTab={currentSubTab}
                     />
                 </TabPane>
 
                 <TabPane tab="节气盘" key="jieqichart">
-                    <JieQiChartsMain
+	                    <JieQiChartsMain
                         height={height} 
                         fields={fields}
                         fieldsAry={aryfields}
                         chartDisplay={chartDisplay}
                         planetDisplay={planetDisplay}
-                        lotsDisplay={lotsDisplay}
-                        showPlanetHouseInfo={showPlanetHouseInfo}
-                        hook={predictHook.jieqichart}
-                        dispatch={dispatch}
-                    />
+	                        lotsDisplay={lotsDisplay}
+	                        showPlanetHouseInfo={showPlanetHouseInfo}
+	                        showAstroMeaning={showAstroMeaning}
+	                        hook={predictHook.jieqichart}
+	                        dispatch={dispatch}
+	                    />
                 </TabPane>
 
                 <TabPane tab="星体地图" key="locastro">
@@ -339,7 +345,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 </TabPane>
 
                 <TabPane tab="希腊星术" key="hellenastro">
-                    <HellenAstroMain 
+	                    <HellenAstroMain 
                         value={chartObj} 
                         onChange={changeCond}
                         fields={fields} 
@@ -347,26 +353,28 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         height={height} 
                         chartDisplay={chartDisplay}
                         planetDisplay={planetDisplay}
-                        lotsDisplay={lotsDisplay}
-                        showPlanetHouseInfo={showPlanetHouseInfo}
-                        hook={predictHook.hellenastro}
-                        dispatch={dispatch}
-                    />
+	                        lotsDisplay={lotsDisplay}
+	                        showPlanetHouseInfo={showPlanetHouseInfo}
+	                        showAstroMeaning={showAstroMeaning}
+	                        hook={predictHook.hellenastro}
+	                        dispatch={dispatch}
+	                    />
                 </TabPane>
 
                 <TabPane tab="印度律盘" key="indiachart">
-                    <IndiaChartMain
+	                    <IndiaChartMain
                         onChange={changeCond}
                         fields={fields} 
                         fieldsAry={aryfields}
                         height={height} 
                         chartDisplay={chartDisplay}
                         planetDisplay={planetDisplay}
-                        lotsDisplay={lotsDisplay}
-                        showPlanetHouseInfo={showPlanetHouseInfo}
-                        hook={predictHook.indiachart}
-                        dispatch={dispatch}
-                    />
+	                        lotsDisplay={lotsDisplay}
+	                        showPlanetHouseInfo={showPlanetHouseInfo}
+	                        showAstroMeaning={showAstroMeaning}
+	                        hook={predictHook.indiachart}
+	                        dispatch={dispatch}
+	                    />
                 </TabPane>
 
                 <TabPane tab="八字紫微" key="cntradition">
@@ -408,15 +416,17 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 </TabPane>
 
                 <TabPane tab="西洋游戏" key="otherbu">
-                    <OtherBuMain
+	                    <OtherBuMain
                         height={height} 
                         fields={fields}
                         fieldsAry={aryfields}
-                        chartDisplay={chartDisplay}
-                        planetDisplay={planetDisplay}
-                        hook={predictHook.otherbu}
-                        dispatch={dispatch}
-                    />
+	                        chartDisplay={chartDisplay}
+	                        planetDisplay={planetDisplay}
+	                        lotsDisplay={lotsDisplay}
+	                        showAstroMeaning={showAstroMeaning}
+	                        hook={predictHook.otherbu}
+	                        dispatch={dispatch}
+	                    />
                 </TabPane>
 
                 {
@@ -464,15 +474,16 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 </TabPane>
 
                 <TabPane tab="三式合一" key="sanshiunited">
-                    <SanShiUnitedMain
-                        height={height}
+	                    <SanShiUnitedMain
+	                        height={height}
                         fields={fields}
                         fieldsAry={aryfields}
-                        chartObj={chartObj}
-                        showPlanetHouseInfo={showPlanetHouseInfo}
-                        dispatch={dispatch}
-                        hook={predictHook.sanshiunited}
-                    />
+	                        chartObj={chartObj}
+	                        showPlanetHouseInfo={showPlanetHouseInfo}
+	                        showAstroMeaning={showAstroMeaning}
+	                        dispatch={dispatch}
+	                        hook={predictHook.sanshiunited}
+	                    />
                 </TabPane>
 
             </Tabs>
@@ -823,6 +834,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     value={chartDisplay}
                     showPdBounds={fields && fields.showPdBounds ? fields.showPdBounds.value : showPdBounds}
                     showPlanetHouseInfo={showPlanetHouseInfo}
+                    showAstroMeaning={showAstroMeaning}
                     fields={fields}
                     dispatch={dispatch}
                 />

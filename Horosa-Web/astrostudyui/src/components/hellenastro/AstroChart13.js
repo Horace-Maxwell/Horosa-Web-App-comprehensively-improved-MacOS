@@ -204,18 +204,19 @@ class AstroChart13 extends Component{
 
 		return (
 			<div>
-				<AstroChartMain 
-					value={chartObj} 
+					<AstroChartMain 
+						value={chartObj} 
 					onChange={this.onFieldsChange}
 					hidehsys={1}
 					hidezodiacal={1}
 					fields={fields} 
 					height={height} 
-					chartDisplay={this.props.chartDisplay}
-					planetDisplay={this.props.planetDisplay}
-					lotsDisplay={this.props.lotsDisplay}
-					showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-				/>
+						chartDisplay={this.props.chartDisplay}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+						showAstroMeaning={this.props.showAstroMeaning}
+					/>
 			</div>
 		);
 	}

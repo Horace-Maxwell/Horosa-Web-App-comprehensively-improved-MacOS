@@ -46,6 +46,7 @@ export default {
         aspects: AstroConst.DEFAULT_ASPECTS,
         showPdBounds: 1,
         showPlanetHouseInfo: 0,
+        showAstroMeaning: 0,
 
         loginFields:{
             loginId: {
@@ -84,6 +85,7 @@ export default {
                 colorTheme: st.colorTheme,
                 showPdBounds: st.showPdBounds,
                 showPlanetHouseInfo: st.showPlanetHouseInfo,
+                showAstroMeaning: st.showAstroMeaning,
             };
             let json = JSON.stringify(globalSetup);
             localStorage.setItem(Constants.GlobalSetupKey, json);
