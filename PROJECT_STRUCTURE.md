@@ -1215,3 +1215,24 @@
   - 所有方法页面 AI 导出在设置误配时不会被清空；
   - 保持“计算快照优先”的导出来源，不回退右侧栏目复制；
   - AI导出设置仍按所选分段生效，且具备空白保护。
+
+## 71) AI导出上下文 store 兜底识别（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+
+- 结构变化：
+  - 新增 `resolveContextByAstroState()`：
+    - 读取 `store.astro.currentTab/currentSubTab`，映射当前技法导出 key；
+    - 覆盖 `astrochart / direction / germanytech / relativechart / jieqichart / locastro / hellenastro / indiachart / cntradition / cnyibu / guolao / otherbu / fengshui / sanshiunited`。
+  - 新增 `withStoreContextFallback(context)`：
+    - 当 DOM 上下文识别为 `generic` 或处于 `direction/cntradition/cnyibu` 时，改用 store 结果兜底。
+  - `buildPayload()` 与 `getCurrentAIExportContext()`：
+    - 统一调用 `withStoreContextFallback(resolveActiveContext())`，确保 AI导出与 AI导出设置读取同一技法上下文。
+  - `getAstroCachedContent()`：
+    - 增加 `loadAstroAISnapshot()` 回退链，在签名不匹配或保存失败时仍可导出现存快照。
+
+- 行为结果：
+  - 修复“当前页面没有可导出文本”误报（由 DOM 技法识别失败触发）；
+  - 星盘、推运盘、量化盘、关系盘、节气盘、希腊星术、统摄法等页面导出链路更稳；
+  - 保持“计算快照优先”，不依赖右侧栏目复制。

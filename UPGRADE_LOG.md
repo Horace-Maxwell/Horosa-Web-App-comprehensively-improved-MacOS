@@ -3002,3 +3002,19 @@ Append new entries; do not rewrite history.
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
   - `cd Horosa-Web && ./verify_horosa_local.sh` ✅
   - `node /tmp/ai_export_consistency_audit.js` ✅
+
+### 20:52 - AI导出上下文识别兜底（修复“无可导出文本”）
+- Scope: 修复页面结构变化导致 AI 导出误判 `generic` 的问题；当 DOM 识别失败时，改为按全局 `store.astro.currentTab/currentSubTab` 判定当前技法。
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+- Details:
+  - 新增 `resolveContextByAstroState()` 与 `withStoreContextFallback()`：
+    - 兜底识别 `星盘/推运盘/量化盘/关系盘/节气盘/希腊星术/印度律盘/易与三式(含统摄法)/七政四余/三式合一`；
+    - 覆盖 `direction`、`cntradition`、`cnyibu` 的子页映射，避免误落入 `generic`。
+  - `buildPayload()` 与 `getCurrentAIExportContext()` 统一接入 store 兜底识别。
+  - 星盘快照新增二级兜底：
+    - `getAstroCachedContent()` 在签名不匹配或保存失败时，回退 `loadAstroAISnapshot()` 现存快照，避免空导出。
+- Verification (local):
+  - `node --check Horosa-Web/astrostudyui/src/utils/aiExport.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+  - `cd Horosa-Web && ./verify_horosa_local.sh` ✅
