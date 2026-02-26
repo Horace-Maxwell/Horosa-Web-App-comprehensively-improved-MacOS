@@ -79,16 +79,17 @@ class AstroGermany extends Component{
 					style={{ height: height }}
 				>
 					<TabPane tab="行星中点" key="Midpoint">
-						<AstroMidpoint 
-							onChange={this.onFieldsChange}
-							height={height}
-							fields={this.props.fields}
-							chart={this.props.chart}
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}	
-							hook={hook.Midpoint}	
-						/>
+							<AstroMidpoint 
+								onChange={this.onFieldsChange}
+								height={height}
+								fields={this.props.fields}
+								chart={this.props.chart}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}	
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={hook.Midpoint}	
+							/>
 					</TabPane>
 
 				</Tabs>

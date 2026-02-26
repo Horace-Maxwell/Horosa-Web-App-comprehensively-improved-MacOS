@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Card, Spin, Row, Col, Select, Button, Divider, Tabs, message } from 'antd';
+import { Card, Spin, Row, Col, Select, Button, Divider, Tabs, Tag, message } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { splitDegree, convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
@@ -36,6 +36,21 @@ import {
 	buildTaiyiSnapshotLines,
 } from './core/TaiYiCore';
 import { appendPlanetHouseInfo, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, } from '../astro/AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
+import { buildLiuRengHouseTipObj, buildLiuRengShenTipObj, } from '../liureng/LRShenJiangDoc';
+import { buildQimenXiangTipObj, } from '../dunjia/QimenXiangDoc';
+import {
+	buildLiuRengReferenceBundle,
+	buildReferenceDocumentText,
+	buildOverviewReferenceText,
+	XIAO_JU_REFERENCE_TAB_KEYS,
+} from '../lrzhan/LiuRengMain';
+import {
+	BAGONG_PALACE_ORDER,
+	BAGONG_PALACE_NAME,
+	buildQimenBaGongPanelData,
+} from '../dunjia/DunJiaBaGongRules';
 import styles from './SanShiUnitedMain.less';
 
 const { Option } = Select;
@@ -54,6 +69,20 @@ const BRANCH_ZODIAC_MAP = {
 	酉: '金牛座',
 	戌: '白羊座',
 	亥: '双鱼座',
+};
+const BRANCH_SIGN_ID_MAP = {
+	子: AstroConst.AQUARIUS,
+	丑: AstroConst.CAPRICORN,
+	寅: AstroConst.SAGITTARIUS,
+	卯: AstroConst.SCORPIO,
+	辰: AstroConst.LIBRA,
+	巳: AstroConst.VIRGO,
+	午: AstroConst.LEO,
+	未: AstroConst.CANCER,
+	申: AstroConst.GEMINI,
+	酉: AstroConst.TAURUS,
+	戌: AstroConst.ARIES,
+	亥: AstroConst.PISCES,
 };
 const SANSHI_PALACE_EXPORT_ORDER = [
 	{ title: '正北坎宫', palaceNum: 8, branches: ['子'] },
@@ -758,13 +787,15 @@ function buildOuterData(chartObj){
 	const housesByBranch = {};
 	const starsByBranch = {};
 	const starsByBranchFull = {};
+	const starsByBranchMeta = {};
 	BRANCH_ORDER.forEach((b)=>{
 		housesByBranch[b] = [];
 		starsByBranch[b] = [];
 		starsByBranchFull[b] = [];
+		starsByBranchMeta[b] = [];
 	});
 	if(!chartObj){
-		return { housesByBranch, starsByBranch, starsByBranchFull };
+		return { housesByBranch, starsByBranch, starsByBranchFull, starsByBranchMeta };
 	}
 	const objs = chartObj.objects || [];
 	let ascBranch = '';
@@ -817,14 +848,20 @@ function buildOuterData(chartObj){
 			shortTxt,
 			fullTxt,
 			deg: Number(safe(deg[0], 0)),
+			objId: obj.id,
 		});
 	});
 	BRANCH_ORDER.forEach((b)=>{
 		const sorted = starsByBranchRaw[b].sort((a, c)=>a.deg - c.deg);
 		starsByBranch[b] = sorted.map((item)=>item.shortTxt);
 		starsByBranchFull[b] = sorted.map((item)=>item.fullTxt);
+		starsByBranchMeta[b] = sorted.map((item)=>({
+			shortTxt: item.shortTxt,
+			fullTxt: item.fullTxt,
+			objId: item.objId,
+		}));
 	});
-	return { housesByBranch, starsByBranch, starsByBranchFull };
+	return { housesByBranch, starsByBranch, starsByBranchFull, starsByBranchMeta };
 }
 
 function buildShenShaMap(dunjia){
@@ -879,6 +916,7 @@ function buildSanShiUnitedSnapshotText(data){
 		keData,
 		sanChuan,
 		lrLayout,
+		liurengRefBundle,
 		outerData,
 	} = data || {};
 	if(!dunjia || !keData || !sanChuan || !lrLayout){
@@ -915,14 +953,12 @@ function buildSanShiUnitedSnapshotText(data){
 		`旬仪：${safe(dunjia.fuTou, '—')}`,
 		`值符：${safe(dunjia.zhiFu, '—')}`,
 		`值使：${safe(dunjia.zhiShi, '—')}`,
-		`月将：${yuejiang}`,
-	]);
-	appendSection(lines, '状态', [
 		`本旬：${safe(dunjia.xunShou, '—')}`,
 		`旬空：${safe(dunjia.xunkong && dunjia.xunkong.日空, '—')}`,
 		`时空：${safe(dunjia.xunkong && dunjia.xunkong.时空, '—')}`,
 		`日马：${dunjia.yiMa && dunjia.yiMa.text ? dunjia.yiMa.text : '无'}`,
 		`阴阳遁：${safe(dunjia.yinYangDun, '—')}`,
+		`月将：${yuejiang}`,
 	]);
 	if(taiyi){
 		appendSection(lines, '太乙', buildTaiyiSnapshotLines(taiyi));
@@ -951,6 +987,38 @@ function buildSanShiUnitedSnapshotText(data){
 		`中传：${formatChuan(1)}`,
 		`末传：${formatChuan(2)}`,
 	]);
+	const refBundle = liurengRefBundle || {};
+	const xiaojuAllItems = Array.isArray(refBundle.xiaoju) ? refBundle.xiaoju : [];
+	const xiaojuMainItems = xiaojuAllItems.filter((item)=>!XIAO_JU_REFERENCE_TAB_KEYS.has(item.key));
+	const xiaojuReferenceItems = xiaojuAllItems.filter((item)=>XIAO_JU_REFERENCE_TAB_KEYS.has(item.key));
+	const appendRefSection = (title, items, type)=>{
+		if(!items || !items.length){
+			appendSection(lines, title, ['无']);
+			return;
+		}
+		const body = [];
+		items.forEach((item, idx)=>{
+			body.push(`${idx + 1}. ${safe(item.name, '未命名')}`);
+			const docText = type === 'overview'
+				? buildOverviewReferenceText(item)
+				: buildReferenceDocumentText(item, type);
+			if(docText){
+				docText.split('\n').forEach((line)=>body.push(line));
+			}
+			if(item.evidence && item.evidence.length){
+				body.push(`依据：${item.evidence.join('；')}`);
+			}
+			body.push('');
+		});
+		if(body.length && body[body.length - 1] === ''){
+			body.pop();
+		}
+		appendSection(lines, title, body);
+	};
+	appendRefSection('六壬大格', refBundle.dage || [], 'dage');
+	appendRefSection('六壬小局', xiaojuMainItems, 'xiaoju');
+	appendRefSection('六壬参考', xiaojuReferenceItems, 'xiaoju');
+	appendRefSection('六壬概览', refBundle.overview || [], 'overview');
 	const qimenMap = {};
 	if(Array.isArray(dunjia.cells)){
 		dunjia.cells.forEach((cell)=>{
@@ -982,6 +1050,34 @@ function buildSanShiUnitedSnapshotText(data){
 	appendSection(lines, '神煞', shenshaItems.length
 		? shenshaItems.map((item)=>`${item.name}：${item.value}`)
 		: ['暂无神煞']);
+	const bagongLines = [];
+	BAGONG_PALACE_ORDER.forEach((palaceNum)=>{
+		const item = buildQimenBaGongPanelData(dunjia, palaceNum);
+		const palaceName = item.palaceName || BAGONG_PALACE_NAME[palaceNum] || '';
+		bagongLines.push(`${palaceName}宫：`);
+		if(item.jiPatternDetails && item.jiPatternDetails.length){
+			bagongLines.push('奇门吉格：');
+			item.jiPatternDetails.forEach((txt)=>bagongLines.push(`- ${txt}`));
+		}else{
+			bagongLines.push('奇门吉格：无');
+		}
+		if(item.xiongPatternDetails && item.xiongPatternDetails.length){
+			bagongLines.push('奇门凶格：');
+			item.xiongPatternDetails.forEach((txt)=>bagongLines.push(`- ${txt}`));
+		}else{
+			bagongLines.push('奇门凶格：无');
+		}
+		bagongLines.push(`十干克应（天${item.tianGan || '—'}加地${item.diGan || '—'}）：${item.tenGanText}`);
+		bagongLines.push(`八门克应（人${item.renDoor || '—'}加地${item.baseDoor || '—'}）：${item.doorBaseText}`);
+		bagongLines.push(`奇仪主应（人${item.renDoor || '—'}加天${item.tianGan || '—'}）：${item.doorTianText}`);
+		bagongLines.push(`八神加八门（${item.godFull || '—'}加${item.renDoor || '—'}门）：${item.godDoorText}`);
+		bagongLines.push(`奇门演卦（门方）：${item.menFangYiGuaText || '无'}`);
+		bagongLines.push('');
+	});
+	if(bagongLines.length && bagongLines[bagongLines.length - 1] === ''){
+		bagongLines.pop();
+	}
+	appendSection(lines, '八宫详解', bagongLines);
 	return lines.join('\n').trim();
 }
 
@@ -1150,6 +1246,38 @@ function buildPillarFromPan(pan, key){
 	return pan.ganzhi[key] || '';
 }
 
+function toQimenMeaningTip(tipObj){
+	if(!tipObj){
+		return null;
+	}
+	const blocks = Array.isArray(tipObj.blocks) ? tipObj.blocks : [];
+	const tips = [];
+	blocks.forEach((block)=>{
+		if(!block){
+			return;
+		}
+		if(block.type === 'blank'){
+			tips.push('');
+			return;
+		}
+		if(block.type === 'divider'){
+			tips.push('==');
+			return;
+		}
+		if(block.type === 'subTitle'){
+			tips.push(`### ${safe(block.text, '')}`);
+			return;
+		}
+		const raw = safe(block.text, '');
+		const plain = raw.replace(/<[^>]+>/g, '');
+		tips.push(plain);
+	});
+	return {
+		title: safe(tipObj.title, ''),
+		tips,
+	};
+}
+
 class SanShiUnitedMain extends Component{
 	constructor(props){
 		super(props);
@@ -1173,6 +1301,9 @@ class SanShiUnitedMain extends Component{
 			plottedFields: null,
 			hasPlotted: false,
 			rightPanelTab: 'overview',
+			liurengRefTab: 'dage',
+			bagongPalace: BAGONG_PALACE_ORDER[0],
+			liurengRefBundle: null,
 			options: {
 				mode: 'ming',
 				timeAlg: defaultTimeAlg,
@@ -1234,6 +1365,7 @@ class SanShiUnitedMain extends Component{
 		this.resolvePendingRecalc = this.resolvePendingRecalc.bind(this);
 		this.cancelPendingRecalc = this.cancelPendingRecalc.bind(this);
 		this.scheduleSnapshotSave = this.scheduleSnapshotSave.bind(this);
+		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 		this.syncFields = this.syncFields.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.onTimeChanged = this.onTimeChanged.bind(this);
@@ -1322,6 +1454,7 @@ class SanShiUnitedMain extends Component{
 		this.unmounted = false;
 		this.restoreOptionsFromCurrentCase(true);
 		window.addEventListener('resize', this.handleWindowResize);
+		window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		this.handleWindowResize();
 		const activeFields = this.state.localFields || this.props.fields;
 		this.prefetchJieqiSeedForFields(activeFields);
@@ -1345,6 +1478,7 @@ class SanShiUnitedMain extends Component{
 	componentWillUnmount(){
 		this.unmounted = true;
 		window.removeEventListener('resize', this.handleWindowResize);
+		window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		if(this.prefetchSeedTimer){
 			clearTimeout(this.prefetchSeedTimer);
 			this.prefetchSeedTimer = null;
@@ -1999,6 +2133,48 @@ class SanShiUnitedMain extends Component{
 		}, SANSHI_SNAPSHOT_DEFER_MS);
 	}
 
+	handleSnapshotRefreshRequest(evt){
+		const moduleName = evt && evt.detail ? evt.detail.module : '';
+		if(moduleName !== 'sanshiunited'){
+			return;
+		}
+		const fields = this.getActiveFields();
+		const chartWrap = this.props.chartObj || this.props.chart || null;
+		const astroChart = chartWrap && chartWrap.chart ? chartWrap.chart : null;
+		const outerData = this.outerDataCache && this.outerDataCache.data
+			? this.outerDataCache.data
+			: buildOuterData(astroChart);
+		const snapshotPayload = {
+			fields,
+			options: this.state.options || {},
+			nongli: this.state.nongli,
+			displaySolarTime: this.state.displaySolarTime,
+			liureng: this.state.liureng,
+			dunjia: this.state.dunjia,
+			taiyi: this.state.taiyi,
+			keData: this.state.keData,
+			sanChuan: this.state.sanChuan,
+			lrLayout: this.state.lrLayout,
+			liurengRefBundle: this.state.liurengRefBundle,
+			outerData,
+		};
+		const snapshotText = buildSanShiUnitedSnapshotText(snapshotPayload);
+		if(!snapshotText){
+			return;
+		}
+		const snapshotMeta = {
+			date: fields && fields.date ? fields.date.value.format('YYYY-MM-DD') : '',
+			time: fields && fields.time ? fields.time.value.format('HH:mm:ss') : '',
+			zone: fields && fields.zone ? fields.zone.value : '',
+			lon: fields && fields.lon ? fields.lon.value : '',
+			lat: fields && fields.lat ? fields.lat.value : '',
+		};
+		saveModuleAISnapshot('sanshiunited', snapshotText, snapshotMeta);
+		if(evt && evt.detail && typeof evt.detail === 'object'){
+			evt.detail.snapshotText = snapshotText;
+		}
+	}
+
 	recalcByNongli(fields, nongli, overrideOptions){
 		const flds = fields || this.state.localFields || this.props.fields;
 		if(!flds || !nongli){
@@ -2119,6 +2295,13 @@ class SanShiUnitedMain extends Component{
 				time: dunjia && dunjia.ganzhi ? (dunjia.ganzhi.time || '') : '',
 			},
 		};
+		let liurengRefBundle = null;
+		try{
+			const runYearRef = lrNongli && lrNongli.runyear ? { year: lrNongli.runyear } : null;
+			liurengRefBundle = buildLiuRengReferenceBundle(liureng, chartForLr, guirengType, runYearRef);
+		}catch(e){
+			liurengRefBundle = null;
+		}
 		const mergedOptions = {
 			...stateOptions,
 			...(overrideOptions || {}),
@@ -2165,6 +2348,7 @@ class SanShiUnitedMain extends Component{
 				liureng,
 				dunjia,
 				taiyi,
+				liurengRefBundle,
 			keData: lrBundle.keData,
 			sanChuan: lrBundle.sanChuan,
 			lrLayout: lrBundle.lrLayout,
@@ -2183,6 +2367,7 @@ class SanShiUnitedMain extends Component{
 			liureng,
 			dunjia,
 			taiyi,
+			liurengRefBundle,
 			lrLayout: lrBundle.lrLayout,
 			keData: lrBundle.keData,
 			sanChuan: lrBundle.sanChuan,
@@ -2513,18 +2698,43 @@ class SanShiUnitedMain extends Component{
 		const houseFont = clamp(Math.round(18 * scale), 10, 34);
 		const branchFont = clamp(Math.round(17 * scale), 9, 32);
 		const starFont = clamp(Math.round(16 * scale), 9, 30);
+		const showMeaning = isMeaningEnabled(this.props.showAstroMeaning);
 		return OUTER_RING_LAYOUT.map((item)=>{
 			const houses = outerData.housesByBranch[item.branch] || [];
 			const stars = outerData.starsByBranch[item.branch] || [];
+			const starsFull = outerData.starsByBranchFull && outerData.starsByBranchFull[item.branch]
+				? outerData.starsByBranchFull[item.branch]
+				: [];
+			const starsMeta = outerData.starsByBranchMeta && Array.isArray(outerData.starsByBranchMeta[item.branch]) && outerData.starsByBranchMeta[item.branch].length
+				? outerData.starsByBranchMeta[item.branch]
+				: stars.map((txt, idx)=>({
+					shortTxt: txt,
+					fullTxt: starsFull[idx] || txt,
+					objId: null,
+				}));
 			const starsLayout = getOuterStarsLayout(item.branch, starFont);
 			const starRows = [];
-			for(let i=0; i<stars.length; i += starsLayout.perRow){
-				const row = stars.slice(i, i + starsLayout.perRow);
+			for(let i=0; i<starsMeta.length; i += starsLayout.perRow){
+				const row = starsMeta.slice(i, i + starsLayout.perRow);
 				const paddedRow = padOuterStarsRow(row, starsLayout.perRow, starsLayout.rowJustify);
 				starRows.push(paddedRow);
 			}
 			const houseTxt = houses.length ? houses.join('/') : '';
+			const houseMeaning = houses.map((txt)=>{
+				const num = parseInt(`${txt}`, 10);
+				if(Number.isNaN(num) || num < 1 || num > 12){
+					return '';
+				}
+				const houseId = AstroConst[`HOUSE${num}`];
+				const tip = houseId ? buildMeaningTipByCategory('house', houseId) : '';
+				return tip ? `${num}宫\n${tip}` : '';
+			}).filter((txt)=>!!txt).join('\n==\n');
 			const labelLayout = getOuterLabelLayout(item.branch, houseFont);
+			const signId = BRANCH_SIGN_ID_MAP[item.branch];
+			const signMeaning = signId ? buildMeaningTipByCategory('sign', signId) : '';
+			const branchMeaning = signMeaning
+				? `「${item.branch}-${safe(BRANCH_ZODIAC_MAP[item.branch], '未知星座')}」\n==\n${signMeaning}`
+				: '';
 			return (
 				<div
 					key={`outer_${item.branch}`}
@@ -2536,27 +2746,35 @@ class SanShiUnitedMain extends Component{
 						height: `${item.y1 - item.y0}%`,
 					}}
 				>
-					<span
-						className={`${styles.outerLabel} ${styles.outerHouse}`}
-						style={{
-							fontSize: houseFont,
-							lineHeight: `${houseFont}px`,
-							...labelLayout.house,
-						}}
-					>
-						{houseTxt}
-					</span>
-					<span
-						className={`${styles.outerLabel} ${styles.outerBranch}`}
-						style={{
-							fontSize: branchFont,
-							lineHeight: `${branchFont}px`,
-							...labelLayout.branch,
-						}}
-					>
-						{item.branch}
-					</span>
-						{stars.length ? (
+					{wrapWithMeaning(
+						<span
+							className={`${styles.outerLabel} ${styles.outerHouse}`}
+							style={{
+								fontSize: houseFont,
+								lineHeight: `${houseFont}px`,
+								...labelLayout.house,
+							}}
+						>
+							{houseTxt}
+						</span>,
+						showMeaning,
+						houseMeaning
+					)}
+					{wrapWithMeaning(
+						<span
+							className={`${styles.outerLabel} ${styles.outerBranch}`}
+							style={{
+								fontSize: branchFont,
+								lineHeight: `${branchFont}px`,
+								...labelLayout.branch,
+							}}
+						>
+							{item.branch}
+						</span>,
+						showMeaning,
+						branchMeaning
+					)}
+						{starsMeta.length ? (
 							<div
 								className={styles.outerStars}
 								style={{
@@ -2571,15 +2789,27 @@ class SanShiUnitedMain extends Component{
 										className={styles.outerStarsRow}
 										style={{ justifyContent: starsLayout.rowJustify }}
 									>
-											{row.map((txt, rowIdx)=>(
-												txt
+											{row.map((star, rowIdx)=>(
+												star
 													? (
-														<span
-															key={`outer_star_${item.branch}_${idx}_${rowIdx}`}
-															className={styles.outerStarItem}
-															style={{ fontSize: starFont, lineHeight: `${Math.round(starFont * 1.12)}px` }}
-														>
-															{txt}
+														<span key={`outer_star_wrap_${item.branch}_${idx}_${rowIdx}`}>
+															{wrapWithMeaning(
+																<span
+																	className={styles.outerStarItem}
+																	style={{ fontSize: starFont, lineHeight: `${Math.round(starFont * 1.12)}px` }}
+																>
+																	{safe(star.shortTxt, '')}
+																</span>,
+																showMeaning,
+																(()=>{
+																	const ptip = star.objId ? buildMeaningTipByCategory('planet', star.objId) : '';
+																	const base = safe(star.fullTxt, safe(star.shortTxt, ''));
+																	if(base && ptip){
+																		return `${base}\n==\n${ptip}`;
+																	}
+																	return base;
+																})()
+															)}
 														</span>
 													)
 													: (
@@ -2605,6 +2835,7 @@ class SanShiUnitedMain extends Component{
 		if(!layout || !layout.downZi || !layout.upZi || !layout.houseTianJiang){
 			return null;
 		}
+		const showMeaning = isMeaningEnabled(this.props.showAstroMeaning);
 		const scale = clamp((boardSize || 600) / 600, 0.62, 1.35);
 		return layout.downZi.map((branch, idx)=>{
 			const pos = LIURENG_RING_LAYOUT[branch];
@@ -2612,7 +2843,10 @@ class SanShiUnitedMain extends Component{
 				return null;
 			}
 			const up = layout.upZi[idx] || '';
+			const jiang = layout.houseTianJiang[idx] || '';
 			const god = shortTianJiang(layout.houseTianJiang[idx] || '');
+			const shenTip = buildLiuRengShenTipObj(up);
+			const jiangTip = buildLiuRengHouseTipObj(jiang, up, branch);
 			const isCardinal = pos.kind === 'cardinal';
 			// 六壬圈字体随盘面连续缩放：四正位略大于角位。
 			const font = isCardinal
@@ -2633,36 +2867,44 @@ class SanShiUnitedMain extends Component{
 				const ziTop = `${topNum + (uy * outerShift)}%`;
 				const godLeft = `${leftNum - (ux * innerShift)}%`;
 				const godTop = `${topNum - (uy * innerShift)}%`;
-				return (
-					<>
-						<div
-							key={`lr_zi_${branch}_${idx}`}
-							className={`${styles.lrMark} ${styles.lrMarkZiItem}`}
-							style={{
-								left: ziLeft,
-								top: ziTop,
-								fontSize: font,
-								lineHeight: `${font}px`,
-								transform: 'translate(-50%, -50%)',
-							}}
-						>
-							{up}
-						</div>
-						<div
-							key={`lr_god_${branch}_${idx}`}
-							className={`${styles.lrMark} ${styles.lrMarkGodItem}`}
-							style={{
-								left: godLeft,
-								top: godTop,
-								fontSize: font,
-								lineHeight: `${font}px`,
-								transform: 'translate(-50%, -50%)',
-							}}
-						>
-							{god}
-						</div>
-					</>
-				);
+				return [
+					<span key={`lr_zi_wrap_${branch}_${idx}`}>
+						{wrapWithMeaning(
+							<div
+								className={`${styles.lrMark} ${styles.lrMarkZiItem}`}
+								style={{
+									left: ziLeft,
+									top: ziTop,
+									fontSize: font,
+									lineHeight: `${font}px`,
+									transform: 'translate(-50%, -50%)',
+								}}
+							>
+								{up}
+							</div>,
+							showMeaning,
+							shenTip
+						)}
+					</span>,
+					<span key={`lr_god_wrap_${branch}_${idx}`}>
+						{wrapWithMeaning(
+							<div
+								className={`${styles.lrMark} ${styles.lrMarkGodItem}`}
+								style={{
+									left: godLeft,
+									top: godTop,
+									fontSize: font,
+									lineHeight: `${font}px`,
+									transform: 'translate(-50%, -50%)',
+								}}
+							>
+								{god}
+							</div>,
+							showMeaning,
+							jiangTip
+						)}
+					</span>,
+				];
 			}
 			const leftNum = parseFloat(`${pos.left}`) || 50;
 			const topNum = parseFloat(`${pos.top}`) || 50;
@@ -2687,36 +2929,44 @@ class SanShiUnitedMain extends Component{
 			const godShiftY = Math.round((-uy * innerShift) - (ty * tangentShift));
 			const ziTransform = `translate(calc(-50% + ${ziShiftX}px), calc(-50% + ${ziShiftY}px))`;
 			const godTransform = `translate(calc(-50% + ${godShiftX}px), calc(-50% + ${godShiftY}px))`;
-			return (
-				<>
-					<div
-						key={`lr_zi_${branch}_${idx}`}
-						className={`${styles.lrMark} ${styles.lrMarkZiItem}`}
-						style={{
-							left: pos.left,
-							top: pos.top,
-							fontSize: font,
-							lineHeight: `${font}px`,
-							transform: ziTransform,
-						}}
-					>
-						{up}
-					</div>
-					<div
-						key={`lr_god_${branch}_${idx}`}
-						className={`${styles.lrMark} ${styles.lrMarkGodItem}`}
-						style={{
-							left: pos.left,
-							top: pos.top,
-							fontSize: font,
-							lineHeight: `${font}px`,
-							transform: godTransform,
-						}}
-					>
-						{god}
-					</div>
-				</>
-			);
+			return [
+				<span key={`lr_zi_wrap_${branch}_${idx}`}>
+					{wrapWithMeaning(
+						<div
+							className={`${styles.lrMark} ${styles.lrMarkZiItem}`}
+							style={{
+								left: pos.left,
+								top: pos.top,
+								fontSize: font,
+								lineHeight: `${font}px`,
+								transform: ziTransform,
+							}}
+						>
+							{up}
+						</div>,
+						showMeaning,
+						shenTip
+					)}
+				</span>,
+				<span key={`lr_god_wrap_${branch}_${idx}`}>
+					{wrapWithMeaning(
+						<div
+							className={`${styles.lrMark} ${styles.lrMarkGodItem}`}
+							style={{
+								left: pos.left,
+								top: pos.top,
+								fontSize: font,
+								lineHeight: `${font}px`,
+								transform: godTransform,
+							}}
+						>
+							{god}
+						</div>,
+						showMeaning,
+						jiangTip
+					)}
+				</span>,
+			];
 		});
 	}
 
@@ -2736,6 +2986,12 @@ class SanShiUnitedMain extends Component{
 		const doorFont = clamp(Math.round(doorSize * 0.68), 8, Math.max(8, doorSize - 4));
 		const doorBorder = clamp(Math.round(1.1 * qScale * 10) / 10, 0.8, 1.6);
 		const isCorner = QIMEN_CORNER_PALACES.has(palaceNum);
+		const showMeaning = isMeaningEnabled(this.props.showAstroMeaning);
+		const tianGanTip = toQimenMeaningTip(buildQimenXiangTipObj('stem', safe(cell.tianGan, '')));
+		const godTip = toQimenMeaningTip(buildQimenXiangTipObj('god', safe(cell.god, '')));
+		const diGanTip = toQimenMeaningTip(buildQimenXiangTipObj('stem', safe(cell.diGan, '')));
+		const starTip = toQimenMeaningTip(buildQimenXiangTipObj('star', safe(cell.tianXing, '')));
+		const doorTip = toQimenMeaningTip(buildQimenXiangTipObj('door', safe(cell.door, '')));
 		return (
 			<div
 				key={`qm_${palaceNum}`}
@@ -2743,12 +2999,32 @@ class SanShiUnitedMain extends Component{
 				style={{ left: pos.left, top: pos.top }}
 			>
 				<div className={styles.qmRingCell} />
-				<div className={styles.qmTianGan} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.tianGan, ' ')}</div>
-				<div className={styles.qmGod} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.god, ' ')}</div>
-				<div className={styles.qmDiGan} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.diGan, ' ')}</div>
-				<div className={styles.qmStar} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.tianXing, ' ')}</div>
+				{wrapWithMeaning(
+					<div className={styles.qmTianGan} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.tianGan, ' ')}</div>,
+					showMeaning,
+					tianGanTip
+				)}
+				{wrapWithMeaning(
+					<div className={styles.qmGod} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.god, ' ')}</div>,
+					showMeaning,
+					godTip
+				)}
+				{wrapWithMeaning(
+					<div className={styles.qmDiGan} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.diGan, ' ')}</div>,
+					showMeaning,
+					diGanTip
+				)}
+				{wrapWithMeaning(
+					<div className={styles.qmStar} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.tianXing, ' ')}</div>,
+					showMeaning,
+					starTip
+				)}
 				<div className={styles.qmDoorBox} style={{ width: doorSize, height: doorSize, borderWidth: doorBorder }}>
-					<div className={styles.qmDoor} style={{ fontSize: doorFont, lineHeight: `${doorFont}px` }}>{safe(cell.door, ' ')}</div>
+					{wrapWithMeaning(
+						<div className={styles.qmDoor} style={{ fontSize: doorFont, lineHeight: `${doorFont}px` }}>{safe(cell.door, ' ')}</div>,
+						showMeaning,
+						doorTip
+					)}
 				</div>
 			</div>
 		);
@@ -2953,9 +3229,24 @@ class SanShiUnitedMain extends Component{
 			const fields = this.getActiveFields();
 			const pan = this.state.dunjia;
 			const opt = this.state.options || {};
+		const rightPanelTab = this.state.rightPanelTab === 'status' ? 'overview' : this.state.rightPanelTab;
+		const refBundle = this.state.liurengRefBundle || {};
+		const refContext = refBundle.context || {};
+		const xiaojuAllItems = Array.isArray(refBundle.xiaoju) ? refBundle.xiaoju : [];
+		const xiaojuMainItems = xiaojuAllItems.filter((item)=>!XIAO_JU_REFERENCE_TAB_KEYS.has(item.key));
+		const xiaojuReferenceItems = xiaojuAllItems.filter((item)=>XIAO_JU_REFERENCE_TAB_KEYS.has(item.key));
+		const overviewItems = Array.isArray(refBundle.overview) ? refBundle.overview : [];
+		const refSummary = [
+			refContext.courseName ? `课式：${refContext.courseName}` : '',
+			refContext.sanChuanText ? `三传：${refContext.sanChuanText}` : '',
+			refContext.dayGanZi ? `日干支：${refContext.dayGanZi}` : '',
+		].filter(Boolean).join('；');
+		const bagongPalace = BAGONG_PALACE_NAME[this.state.bagongPalace] ? this.state.bagongPalace : BAGONG_PALACE_ORDER[0];
+		const bagongData = buildQimenBaGongPanelData(pan, bagongPalace);
 		const panelHeight = this.state.rightPanelHeight || Math.max(420, (this.state.viewportHeight || 900) - 120);
 		const topHeight = this.state.rightTopHeight || 360;
 		const tabBodyHeight = Math.max(0, panelHeight - topHeight - 74);
+		const nestedTabBodyHeight = Math.max(140, tabBodyHeight - 110);
 		let datetm = new DateTime();
 		if(fields.date && fields.time){
 			const str = `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}`;
@@ -3097,7 +3388,7 @@ class SanShiUnitedMain extends Component{
 				</div>
 
 				<Tabs
-					activeKey={this.state.rightPanelTab}
+					activeKey={rightPanelTab}
 					onChange={(key)=>this.setState({ rightPanelTab: key })}
 					destroyInactiveTabPane
 					animated={false}
@@ -3111,20 +3402,14 @@ class SanShiUnitedMain extends Component{
 								<div>旬仪：{pan ? pan.fuTou : '—'}</div>
 								<div>值符：{pan ? pan.zhiFu : '—'}</div>
 								<div>值使：{pan ? pan.zhiShi : '—'}</div>
-								<div>时间算法：{getTimeAlgLabel(opt.timeAlg)}</div>
-								<div>换日：{opt.after23NewDay === 1 ? '子初换日' : '子正换日'}</div>
-								<div>月将：{this.state.lrLayout ? this.state.lrLayout.yue : '—'}</div>
-							</div>
-						</Card>
-					</TabPane>
-					<TabPane tab="状态" key="status">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
-							<div style={{ lineHeight: '26px' }}>
 								<div>本旬：{pan ? pan.xunShou : '—'}</div>
 								<div>旬空：{pan && pan.xunkong ? pan.xunkong.日空 : '—'}</div>
 								<div>时空：{pan && pan.xunkong ? pan.xunkong.时空 : '—'}</div>
 								<div>{pan && pan.yiMa ? pan.yiMa.text : '日马：无'}</div>
 								<div>阴阳遁：{pan ? pan.yinYangDun : '—'}</div>
+								<div>时间算法：{getTimeAlgLabel(opt.timeAlg)}</div>
+								<div>换日：{opt.after23NewDay === 1 ? '子初换日' : '子正换日'}</div>
+								<div>月将：{this.state.lrLayout ? this.state.lrLayout.yue : '—'}</div>
 							</div>
 						</Card>
 					</TabPane>
@@ -3171,6 +3456,189 @@ class SanShiUnitedMain extends Component{
 								{pan && pan.shenSha && pan.shenSha.allItems && pan.shenSha.allItems.length
 									? pan.shenSha.allItems.map((item)=>(<div key={`ss_item_${item.name}`}><span style={{ color: '#262626' }}>{item.name}-</span><span style={{ color: '#8c8c8c' }}>{item.value}</span></div>))
 									: <div>暂无神煞</div>}
+							</div>
+						</Card>
+					</TabPane>
+					<TabPane tab="六壬" key="liureng">
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
+							<Tabs
+								activeKey={this.state.liurengRefTab}
+								onChange={(key)=>this.setState({ liurengRefTab: key })}
+								destroyInactiveTabPane
+								animated={false}
+							>
+								<TabPane tab="大格" key="dage">
+									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+										{refSummary ? (
+											<Card size='small' style={{ marginBottom: 8 }}>
+												<div style={{ color: '#595959' }}>{refSummary}</div>
+											</Card>
+										) : null}
+										{refBundle.dage && refBundle.dage.length ? refBundle.dage.map((item)=>(
+											<Card key={`ssu_lr_dage_${item.key}`} size='small' style={{ marginBottom: 8 }}>
+												<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+													<span style={{ fontWeight: 600 }}>{item.name}</span>
+													<Tag color='blue'>{item.categoryName || '大格'}</Tag>
+												</div>
+												<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+													{buildReferenceDocumentText(item, 'dage')}
+												</div>
+												{item.evidence && item.evidence.length ? (
+													<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+												) : null}
+											</Card>
+										)) : (
+											<Card size='small'><div style={{ color: '#8c8c8c' }}>当前盘未命中已收录的大格条件。</div></Card>
+										)}
+									</div>
+								</TabPane>
+								<TabPane tab="小局" key="xiaoju">
+									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+										{xiaojuMainItems.length ? xiaojuMainItems.map((item)=>(
+											<Card key={`ssu_lr_xiaoju_${item.key}`} size='small' style={{ marginBottom: 8 }}>
+												<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+													<span style={{ fontWeight: 600 }}>{item.name}</span>
+													<Tag color='purple'>{item.categoryName || '小局'}</Tag>
+												</div>
+												<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+													{buildReferenceDocumentText(item, 'xiaoju')}
+												</div>
+												{item.evidence && item.evidence.length ? (
+													<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+												) : null}
+											</Card>
+										)) : (
+											<Card size='small'><div style={{ color: '#8c8c8c' }}>当前盘暂未命中已收录的小局条件。</div></Card>
+										)}
+									</div>
+								</TabPane>
+								<TabPane tab="参考" key="reference">
+									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+										{xiaojuReferenceItems.length ? xiaojuReferenceItems.map((item)=>(
+											<Card key={`ssu_lr_ref_${item.key}`} size='small' style={{ marginBottom: 8 }}>
+												<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+													<span style={{ fontWeight: 600 }}>{item.name}</span>
+													<Tag color='gold'>参考</Tag>
+												</div>
+												<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+													{buildReferenceDocumentText(item, 'xiaoju')}
+												</div>
+												{item.evidence && item.evidence.length ? (
+													<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+												) : null}
+											</Card>
+										)) : (
+											<Card size='small'><div style={{ color: '#8c8c8c' }}>当前盘暂无可展示的参考条目。</div></Card>
+										)}
+									</div>
+								</TabPane>
+								<TabPane tab="概览" key="overview">
+									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+										{overviewItems.length ? overviewItems.map((item, idx)=>(
+											<Card key={`ssu_lr_overview_${item.key}_${idx}`} size='small' style={{ marginBottom: 8 }}>
+												<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+													<span style={{ fontWeight: 600 }}>{item.name}</span>
+													<Tag color={item.group === 'laiyi' ? 'cyan' : 'magenta'}>
+														{item.group === 'laiyi' ? '天将发用来意诀' : '天将杂主吉凶'}
+													</Tag>
+												</div>
+												<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+													{buildOverviewReferenceText(item)}
+												</div>
+												{item.evidence && item.evidence.length ? (
+													<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+												) : null}
+											</Card>
+										)) : (
+											<Card size='small'><div style={{ color: '#8c8c8c' }}>当前盘未命中“天将发用来意诀/天将杂主吉凶”条目。</div></Card>
+										)}
+									</div>
+								</TabPane>
+							</Tabs>
+						</Card>
+					</TabPane>
+					<TabPane tab="八宫" key="bagong">
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
+							<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+								<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+									{BAGONG_PALACE_ORDER.map((num)=>(
+										<Button
+											key={`ssu_bagong_btn_${num}`}
+											size="small"
+											shape="round"
+											type={bagongPalace === num ? 'primary' : 'default'}
+											style={bagongPalace === num ? { minWidth: 42 } : { minWidth: 42, background: '#fafafa' }}
+											onClick={()=>this.setState({ bagongPalace: num })}
+										>
+											{BAGONG_PALACE_NAME[num]}
+										</Button>
+									))}
+								</div>
+								{pan ? (
+									<>
+										<Card size='small' style={{ marginBottom: 8 }}>
+											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+												<span style={{ fontWeight: 600 }}>奇门吉格</span>
+												<Tag color='green'>{bagongData.jiPatterns.length}项</Tag>
+											</div>
+											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												{bagongData.jiPatternDetails && bagongData.jiPatternDetails.length
+													? bagongData.jiPatternDetails.map((text)=>`• ${text}`).join('\n')
+													: '未命中'}
+											</div>
+										</Card>
+										<Card size='small' style={{ marginBottom: 8 }}>
+											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+												<span style={{ fontWeight: 600 }}>奇门凶格</span>
+												<Tag color='volcano'>{bagongData.xiongPatterns.length}项</Tag>
+											</div>
+											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												{bagongData.xiongPatternDetails && bagongData.xiongPatternDetails.length
+													? bagongData.xiongPatternDetails.map((text)=>`• ${text}`).join('\n')
+													: '未命中'}
+											</div>
+										</Card>
+										<Card size='small' style={{ marginBottom: 8 }}>
+											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+												<span style={{ fontWeight: 600 }}>十干克应</span>
+												<Tag color='blue'>天{bagongData.tianGan || '—'} / 地{bagongData.diGan || '—'}</Tag>
+											</div>
+											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												天{bagongData.tianGan || '—'}加地{bagongData.diGan || '—'}：{bagongData.tenGanText}
+											</div>
+										</Card>
+										<Card size='small' style={{ marginBottom: 8 }}>
+											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+												<span style={{ fontWeight: 600 }}>八门克应和奇仪主应</span>
+												<Tag color='purple'>人{bagongData.renDoor || '—'}</Tag>
+											</div>
+											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												<div>人{bagongData.renDoor || '—'}加地{bagongData.baseDoor || '—'}：{bagongData.doorBaseText}</div>
+												<div style={{ marginTop: 4 }}>人{bagongData.renDoor || '—'}加天{bagongData.tianGan || '—'}：{bagongData.doorTianText}</div>
+											</div>
+										</Card>
+										<Card size='small' style={{ marginBottom: 8 }}>
+											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+												<span style={{ fontWeight: 600 }}>八神加八门</span>
+												<Tag color='geekblue'>{bagongData.godFull || '—'}</Tag>
+											</div>
+											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												{bagongData.godFull || '—'}加{bagongData.renDoor || '—'}门：{bagongData.godDoorText}
+											</div>
+										</Card>
+										<Card size='small'>
+											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+												<span style={{ fontWeight: 600 }}>奇门演卦</span>
+												<Tag color='cyan'>{bagongData.menFangYiGua || '无'}</Tag>
+											</div>
+											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												{bagongData.menFangYiGuaText || '无'}
+											</div>
+										</Card>
+									</>
+								) : (
+									<Card size='small'><div style={{ color: '#8c8c8c' }}>请先起盘后查看八宫信息。</div></Card>
+								)}
 							</div>
 						</Card>
 					</TabPane>

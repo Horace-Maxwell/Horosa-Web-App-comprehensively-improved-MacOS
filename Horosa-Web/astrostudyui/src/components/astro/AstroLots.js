@@ -3,6 +3,8 @@ import { Row, Col, Divider, Popover, Card, } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
+import { buildMeaningTipByCategory, } from './AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 class AstroLots extends Component{
@@ -13,6 +15,45 @@ class AstroLots extends Component{
 
 		}
 		this.genLotsDom = this.genLotsDom.bind(this);
+		this.renderTitle = this.renderTitle.bind(this);
+		this.showMeaning = this.showMeaning.bind(this);
+		this.withLotMeaning = this.withLotMeaning.bind(this);
+		this.withPlanetMeaning = this.withPlanetMeaning.bind(this);
+		this.withSignMeaning = this.withSignMeaning.bind(this);
+		this.withHouseMeaning = this.withHouseMeaning.bind(this);
+	}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
+	}
+
+	withPlanetMeaning(node, objid){
+		return wrapWithMeaning(node, this.showMeaning(), buildMeaningTipByCategory('planet', objid));
+	}
+
+	withLotMeaning(node, objid){
+		return wrapWithMeaning(node, this.showMeaning(), buildMeaningTipByCategory('lot', objid));
+	}
+
+	withSignMeaning(node, signid){
+		return wrapWithMeaning(node, this.showMeaning(), buildMeaningTipByCategory('sign', signid));
+	}
+
+	withHouseMeaning(node, houseid){
+		return wrapWithMeaning(node, this.showMeaning(), buildMeaningTipByCategory('house', houseid));
+	}
+
+	renderTitle(objid){
+		const symbol = AstroText.AstroMsg[objid];
+		const hasSymbol = !!symbol && symbol !== '{';
+		const label = AstroText.AstroTxtMsg[objid] || AstroText.AstroMsgCN[objid] || objid;
+		const titleNode = (
+			<span>
+				{hasSymbol ? <span style={{fontFamily: AstroConst.AstroFont}}>{symbol}</span> : null}
+				<span style={{fontFamily: AstroConst.NormalFont}}>{`(${label})`}</span>
+			</span>
+		);
+		return this.withLotMeaning(titleNode, objid);
 	}
 
 
@@ -50,29 +91,34 @@ class AstroLots extends Component{
 			let dom = (
 				<Row key={objid}>
 					<Col span={24}>
-						<Card title={AstroText.AstroMsg[objid] + '(' + AstroText.AstroTxtMsg[objid] + ')'} 
+						<Card title={this.renderTitle(objid)} 
 							bordered={true} 
 							style={{
-								fontFamily: AstroConst.AstroFont,
 								background: AstroConst.AstroColor.Backgroud
 							}}>
 							<Row gutter={12}>
 								<Col span={titleSpan}>落座</Col>
 								<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>
-									<div>
-										<span>{signdeg[0] + 'º'}</span>
-										<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.sign]}</span>
-										<span>{signdeg[1]+"'；"}</span>
-										<span style={{fontFamily: AstroConst.AstroFont}}>位于&nbsp;{AstroHelper.whichTerm(obj.sign, signdeg[0])}&nbsp;界</span>
-									</div>
-								</Col>
-							</Row>
-							<Row gutter={12}>
-								<Col span={titleSpan}>落宫</Col>
-								<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>
-									{AstroText.AstroMsg[obj.house]}
-								</Col>
-							</Row>
+										<div>
+											<span>{signdeg[0] + 'º'}</span>
+											{this.withSignMeaning((
+												<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.sign]}</span>
+											), obj.sign)}
+											<span>{signdeg[1]+"'；"}</span>
+											{this.withSignMeaning((
+												<span style={{fontFamily: AstroConst.AstroFont}}>位于&nbsp;{AstroHelper.whichTerm(obj.sign, signdeg[0])}&nbsp;界</span>
+											), obj.sign)}
+										</div>
+									</Col>
+								</Row>
+								<Row gutter={12}>
+									<Col span={titleSpan}>落宫</Col>
+									<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>
+										{this.withHouseMeaning((
+											<span>{AstroText.AstroMsg[obj.house]}</span>
+										), obj.house)}
+									</Col>
+								</Row>
 							{
 								stars && (
 									<Row gutter={12}>

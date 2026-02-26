@@ -108,12 +108,13 @@ class MidpointMain extends Component{
 			<div>
 				<Row gutter={6}>
 					<Col span={18}>
-						<AstroChart value={chartObj} 
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							lotsDisplay={this.props.lotsDisplay}
-							height={height}
-						/>
+							<AstroChart value={chartObj} 
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								height={height}
+							/>
 					</Col>
 					<Col span={6}>
 						<Row>
@@ -179,17 +180,19 @@ class MidpointMain extends Component{
 						</Row>
 						<Tabs defaultActiveKey="1" tabPosition='top'>
 							<TabPane tab="中点" key="1">
-								<Midpoint height={height}
-									value={midpoints} fields={fields}
-									planetDisplay={this.props.planetDisplay}
-								/>
-							</TabPane>
-							<TabPane tab="相位" key="2">
-								<AspectToMidpoint 
-									value={aspects} height={height}
-									planetDisplay={this.props.planetDisplay}
-								/>
-							</TabPane>
+									<Midpoint height={height}
+										value={midpoints} fields={fields}
+										planetDisplay={this.props.planetDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
+								</TabPane>
+								<TabPane tab="相位" key="2">
+									<AspectToMidpoint 
+										value={aspects} height={height}
+										planetDisplay={this.props.planetDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
+								</TabPane>
 						</Tabs>
 					</Col>
 				</Row>

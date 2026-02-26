@@ -13,6 +13,7 @@ class ChartDisplaySelector extends Component{
 		this.onChange = this.onChange.bind(this);
 		this.changeShowPdBounds = this.changeShowPdBounds.bind(this);
 		this.changeShowPlanetHouseInfo = this.changeShowPlanetHouseInfo.bind(this);
+		this.changeShowAstroMeaning = this.changeShowAstroMeaning.bind(this);
 	}
 
 	onChange(checkedValues){
@@ -70,6 +71,19 @@ class ChartDisplaySelector extends Component{
 		});
 	}
 
+	changeShowAstroMeaning(e){
+		if(!this.props.dispatch){
+			return;
+		}
+		const checked = e && e.target && e.target.checked ? 1 : 0;
+		this.props.dispatch({
+			type: 'app/save',
+			payload: {
+				showAstroMeaning: checked,
+			},
+		});
+	}
+
 	render(){
 		let allobjs = AstroConst.CHART_OPTIONS.map((opt, idx)=>{
 			return (
@@ -112,6 +126,16 @@ class ChartDisplaySelector extends Component{
 							onChange={this.changeShowPlanetHouseInfo}
 						>
 							星曜附带后天宫信息
+						</Checkbox>
+					</Col>
+				</Row>
+				<Row gutter={12} style={{marginTop: 14}}>
+					<Col span={24}>
+						<Checkbox
+							checked={this.props.showAstroMeaning === 1 || this.props.showAstroMeaning === true}
+							onChange={this.changeShowAstroMeaning}
+						>
+							是否显示星/宫/座/相释义
 						</Checkbox>
 					</Col>
 				</Row>

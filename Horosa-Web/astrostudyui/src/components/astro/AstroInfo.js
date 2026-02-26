@@ -4,6 +4,8 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { randomStr} from '../../utils/helper'
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, } from './AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 
@@ -27,8 +29,13 @@ class AstroInfo extends Component{
 		this.genAntisciasDom = this.genAntisciasDom.bind(this);
 		this.canDisplayPlanet = this.canDisplayPlanet.bind(this);
 		this.genDeclParallelDom = this.genDeclParallelDom.bind(this);
-		this.initPlanets = this.initPlanets.bind(this);
-		this.planetLabel = this.planetLabel.bind(this);
+			this.initPlanets = this.initPlanets.bind(this);
+			this.planetLabel = this.planetLabel.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
+		}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
 	planetLabel(id, chartWrap){
@@ -39,12 +46,13 @@ class AstroInfo extends Component{
 			this.props.showPlanetHouseInfo
 		);
 		const one = splitPlanetHouseInfoText(text);
-		return (
+		const labelNode = (
 			<span>
 				<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
 				{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
 			</span>
 		);
+		return wrapWithMeaning(labelNode, this.showMeaning(), buildMeaningTipByCategory('planet', id));
 	}
 
 	fieldsToParams(){

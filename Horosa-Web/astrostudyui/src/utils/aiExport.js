@@ -1,10 +1,11 @@
 import { getStore, } from './storageutil';
 import { getAstroAISnapshotForCurrent, saveAstroAISnapshot, } from './astroAiSnapshot';
 import { loadModuleAISnapshot, } from './moduleAiSnapshot';
-import { buildTongSheFaModel, buildTongSheFaSnapshot } from '../components/tongshefa/TongSheFaMain';
-
-const CHART_TAB_LABELS = ['信息', '相位', '行星', '希腊点', '可能性'];
-const SIXYAO_TAB_LABELS = ['起卦方式', '卦辞'];
+import * as AstroConst from '../constants/AstroConst';
+import * as AstroText from '../constants/AstroText';
+import { buildMeaningTipByCategory, buildAspectMeaningTip, } from '../components/astro/AstroMeaningData';
+import { buildQimenXiangTipObj, } from '../components/dunjia/QimenXiangDoc';
+import { buildLiuRengShenTipObj, buildLiuRengHouseTipObj, } from '../components/liureng/LRShenJiangDoc';
 
 const SYMBOL_MAP = {
 	'☉': '日',
@@ -101,12 +102,15 @@ const DOMAIN_REPLACERS = {
 
 const ENABLE_SVG_TEXT_EXPORT = false;
 const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
-export const AI_EXPORT_SETTINGS_VERSION = 4;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 4;
-const AI_EXPORT_SECTION_MIGRATION_KEYS = ['liureng', 'qimen'];
+export const AI_EXPORT_SETTINGS_VERSION = 6;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 6;
+const AI_EXPORT_SECTION_MIGRATION_KEYS = ['liureng', 'qimen', 'sanshiunited'];
 const AI_EXPORT_PLANET_INFO_DEFAULT = {
 	showHouse: 1,
 	showRuler: 1,
+};
+const AI_EXPORT_ASTRO_MEANING_DEFAULT = {
+	enabled: 0,
 };
 const AI_EXPORT_PLANET_INFO_TECHNIQUES = new Set([
 	'astrochart',
@@ -130,6 +134,17 @@ const AI_EXPORT_PLANET_INFO_TECHNIQUES = new Set([
 	'sanshiunited',
 	'guolao',
 	'germany',
+]);
+const AI_EXPORT_ASTRO_MEANING_TECHNIQUES = new Set([
+	...Array.from(AI_EXPORT_PLANET_INFO_TECHNIQUES),
+	'otherbu',
+	'qimen',
+	'liureng',
+]);
+const AI_EXPORT_HOVER_MEANING_TECHNIQUES = new Set([
+	'qimen',
+	'liureng',
+	'sanshiunited',
 ]);
 const JIEQI_SETTING_PRESETS = {
 	jieqi_meta: ['节气盘参数'],
@@ -194,7 +209,7 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	bazi: ['起盘信息', '四柱与三元', '流年行运概略', '神煞（四柱与三元）'],
 	ziwei: ['起盘信息'],
 	suzhan: ['起盘信息'],
-	sixyao: ['起盘信息', '起卦方式', '卦辞'],
+	sixyao: ['起盘信息', '卦象', '六爻与动爻', '卦辞与断语'],
 	tongshefa: ['本卦', '六爻', '潜藏', '亲和'],
 	liureng: [
 		'起盘信息',
@@ -219,7 +234,27 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	jinkou: ['起盘信息', '金口诀速览', '金口诀四位', '四位神煞'],
 	taiyi: ['起盘信息', '太乙盘', '十六宫标记'],
 	qimen: ['起盘信息', '盘型', '盘面要素', '奇门演卦', '八宫详解', '九宫方盘'],
-	sanshiunited: ['起盘信息', '概览', '状态', '太乙', '太乙十六宫', '神煞', '大六壬', '正北坎宫', '东北艮宫', '正东震宫', '东南巽宫', '正南离宫', '西南坤宫', '正西兑宫', '西北乾宫'],
+	sanshiunited: [
+		'起盘信息',
+		'概览',
+		'太乙',
+		'太乙十六宫',
+		'神煞',
+		'大六壬',
+		'六壬大格',
+		'六壬小局',
+		'六壬参考',
+		'六壬概览',
+		'八宫详解',
+		'正北坎宫',
+		'东北艮宫',
+		'正东震宫',
+		'东南巽宫',
+		'正南离宫',
+		'西南坤宫',
+		'正西兑宫',
+		'西北乾宫',
+	],
 	guolao: ['起盘信息', '七政四余宫位与二十八宿星曜', '神煞'],
 	germany: ['起盘信息'],
 	jieqi: ['节气盘参数', '春分星盘', '春分宿盘', '夏至星盘', '夏至宿盘', '秋分星盘', '秋分宿盘', '冬至星盘', '冬至宿盘'],
@@ -353,6 +388,40 @@ function isPlanetInfoTechnique(key){
 	return AI_EXPORT_PLANET_INFO_TECHNIQUES.has(`${key || ''}`);
 }
 
+function normalizeAstroMeaningSetting(raw){
+	const val = raw && typeof raw === 'object' ? raw : {};
+	return {
+		enabled: val.enabled === 1 || val.enabled === true ? 1 : 0,
+	};
+}
+
+function isAstroMeaningTechnique(key){
+	return AI_EXPORT_ASTRO_MEANING_TECHNIQUES.has(`${key || ''}`);
+}
+
+function isHoverMeaningTechnique(key){
+	return AI_EXPORT_HOVER_MEANING_TECHNIQUES.has(`${key || ''}`);
+}
+
+function getMeaningSettingMetaByTechnique(key){
+	if(isHoverMeaningTechnique(key)){
+		return {
+			title: '悬浮注释（仅AI导出）：',
+			checkbox: '在对应分段输出六壬/遁甲/占星悬浮注释',
+		};
+	}
+	if(isAstroMeaningTechnique(key)){
+		return {
+			title: '占星注释（仅AI导出）：',
+			checkbox: '在对应分段输出星/宫/座/相/希腊点释义',
+		};
+	}
+	return {
+		title: '',
+		checkbox: '',
+	};
+}
+
 function getPlanetInfoSettingByTechnique(settings, key){
 	if(!isPlanetInfoTechnique(key)){
 		return {
@@ -369,6 +438,23 @@ function getPlanetInfoSettingByTechnique(settings, key){
 		};
 	}
 	return normalizePlanetInfoSetting(source);
+}
+
+function getAstroMeaningSettingByTechnique(settings, key){
+	if(!isAstroMeaningTechnique(key)){
+		return {
+			enabled: 0,
+		};
+	}
+	const source = settings && settings.astroMeaning && typeof settings.astroMeaning === 'object'
+		? settings.astroMeaning[key]
+		: null;
+	if(!source){
+		return {
+			...AI_EXPORT_ASTRO_MEANING_DEFAULT,
+		};
+	}
+	return normalizeAstroMeaningSetting(source);
 }
 
 function normalizeSectionTitle(title){
@@ -417,6 +503,7 @@ function normalizeAIExportSettings(settings){
 		version: AI_EXPORT_SETTINGS_VERSION,
 		sections: {},
 		planetInfo: {},
+		astroMeaning: {},
 	};
 	if(!settings || typeof settings !== 'object'){
 		return normalized;
@@ -445,6 +532,13 @@ function normalizeAIExportSettings(settings){
 			return;
 		}
 		normalized.planetInfo[key] = normalizePlanetInfoSetting(planetInfo[key]);
+	});
+	const astroMeaning = settings.astroMeaning && typeof settings.astroMeaning === 'object' ? settings.astroMeaning : {};
+	Object.keys(astroMeaning).forEach((key)=>{
+		if(!isAstroMeaningTechnique(key)){
+			return;
+		}
+		normalized.astroMeaning[key] = normalizeAstroMeaningSetting(astroMeaning[key]);
 	});
 	return normalized;
 }
@@ -615,6 +709,34 @@ function mapLegacySectionTitle(key, title){
 			return '三传';
 		}
 	}
+	if(key === 'sanshiunited'){
+		if(normalized === '状态'){
+			return '概览';
+		}
+		if(normalized === '八宫'){
+			return '八宫详解';
+		}
+		if(normalized === '大格'){
+			return '六壬大格';
+		}
+		if(normalized === '小局'){
+			return '六壬小局';
+		}
+		if(normalized === '参考'){
+			return '六壬参考';
+		}
+		if(normalized === '六壬格局概览'){
+			return '六壬概览';
+		}
+	}
+	if(key === 'sixyao'){
+		if(normalized === '起卦方式'){
+			return '卦象';
+		}
+		if(normalized === '卦辞'){
+			return '卦辞与断语';
+		}
+	}
 	return normalized;
 }
 
@@ -658,10 +780,11 @@ function stripForbiddenSections(content, key){
 function applyUserSectionFilter(content, key){
 	const settings = loadAIExportSettings();
 	const selected = settings.sections[key];
-	if(!selected){
+	if(!Array.isArray(selected)){
 		return stripForbiddenSections(content, key);
 	}
-	const picked = selected.slice(0);
+	const preset = Array.isArray(AI_EXPORT_PRESET_SECTIONS[key]) ? AI_EXPORT_PRESET_SECTIONS[key] : [];
+	const picked = selected.length ? selected.slice(0) : preset.slice(0);
 	if(key === 'jinkou'){
 		picked.push('金口诀速览');
 	}else if(key === 'liureng'){
@@ -670,6 +793,9 @@ function applyUserSectionFilter(content, key){
 	}else if(key === 'qimen'){
 		// 新增分段可能被旧配置遗漏，默认保留遁甲关键输出。
 		picked.push('盘面要素', '奇门演卦', '八宫详解');
+	}else if(key === 'sanshiunited'){
+		// 新增三式合一分段：六壬格局参考与八宫详解。
+		picked.push('六壬大格', '六壬小局', '六壬参考', '六壬概览', '八宫详解');
 	}
 	const forbidden = getForbiddenSectionSet(key);
 	const normalizedPicked = picked
@@ -677,7 +803,14 @@ function applyUserSectionFilter(content, key){
 		.filter(Boolean)
 		.filter((item)=>!forbidden || !forbidden.has(normalizeSectionTitle(item)));
 	const wanted = new Set(uniqueArray(normalizedPicked));
+	if(wanted.size === 0){
+		return stripForbiddenSections(content, key);
+	}
 	const filtered = filterContentByWantedSections(content, wanted);
+	if(!`${filtered || ''}`.trim()){
+		// 用户设置与实际分段不一致时回退原文，避免导出空白。
+		return stripForbiddenSections(content, key);
+	}
 	return stripForbiddenSections(filtered, key);
 }
 
@@ -718,7 +851,11 @@ function applyUserSectionFilterByContext(content, key){
 	if(wanted === null){
 		return content;
 	}
-	return filterContentByWantedSections(content, wanted);
+	const filtered = filterContentByWantedSections(content, wanted);
+	if(!`${filtered || ''}`.trim()){
+		return content;
+	}
+	return filtered;
 }
 
 function trimPlanetInfoBySetting(content, setting){
@@ -1417,103 +1554,19 @@ export function saveAIExportSettings(settings){
 export function listAIExportTechniqueSettings(){
 	const settings = loadAIExportSettings();
 	return AI_EXPORT_TECHNIQUES.map((item)=>{
+		const meaningMeta = getMeaningSettingMetaByTechnique(item.key);
 		return {
 			key: item.key,
 			label: item.label,
 			options: getOptionsForTechniqueKey(item.key),
 			supportsPlanetInfo: isPlanetInfoTechnique(item.key),
 			planetInfo: getPlanetInfoSettingByTechnique(settings, item.key),
+			supportsAstroMeaning: isAstroMeaningTechnique(item.key) || isHoverMeaningTechnique(item.key),
+			astroMeaning: getAstroMeaningSettingByTechnique(settings, item.key),
+			astroMeaningTitle: meaningMeta.title,
+			astroMeaningCheckbox: meaningMeta.checkbox,
 		};
 	});
-}
-
-async function captureTabsContentByLabels(scopeRoot, labels){
-	const container = findTabsContainerByLabels(scopeRoot, labels, true);
-	if(!container){
-		return null;
-	}
-
-	const tabNodes = getTabsNavItems(container);
-	if(tabNodes.length === 0){
-		return null;
-	}
-
-	const activeBefore = textOf(tabNodes.find((n)=>n.classList.contains('ant-tabs-tab-active')));
-	const out = {};
-
-	for(let i=0; i<labels.length; i++){
-		const label = labels[i];
-		const node = tabNodes.find((n)=>textOf(n).includes(label));
-		if(!node){
-			continue;
-		}
-		const clickNode = node.querySelector('.ant-tabs-tab-btn') || node;
-		clickNode.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-		await sleep(120);
-		const pane = getDirectActivePane(container);
-		out[label] = normalizeWhitespace(textOf(pane));
-	}
-
-	if(activeBefore){
-		const restore = tabNodes.find((n)=>textOf(n).includes(activeBefore));
-		if(restore){
-			const clickNode = restore.querySelector('.ant-tabs-tab-btn') || restore;
-			clickNode.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-			await sleep(60);
-		}
-	}
-
-	return out;
-}
-
-function getSummaryLines(scopeRoot, keywords){
-	const lines = normalizeWhitespace(textOf(scopeRoot))
-		.split('\n')
-		.map((s)=>s.trim())
-		.filter(Boolean);
-	const all = uniqueArray(lines);
-
-	const dtRegex = /\d{4}[-\/]\d{1,2}[-\/]\d{1,2}\s+\d{1,2}:\d{2}:\d{2}/;
-	const picked = [];
-	all.forEach((line)=>{
-		if(/^(经纬度选择|打印星盘|确定|此刻|回归黄道|整宫制)$/.test(line)){
-			return;
-		}
-		if(dtRegex.test(line)){
-			picked.push(line);
-			return;
-		}
-		if(keywords.some((k)=>line.includes(k))){
-			picked.push(line);
-		}
-	});
-	const unique = uniqueArray(picked);
-	return unique.filter((line, idx)=>{
-		return !unique.some((other, j)=>{
-			if(j === idx){
-				return false;
-			}
-			return other.length > line.length && other.includes(line);
-		});
-	});
-}
-
-function extractRightColumnText(scopeRoot){
-	if(!scopeRoot){
-		return '';
-	}
-	const cols = Array.from(scopeRoot.querySelectorAll('.ant-col-8'));
-	if(cols.length === 0){
-		return '';
-	}
-	let best = '';
-	cols.forEach((col)=>{
-		const t = normalizeWhitespace(textOf(col));
-		if(t.length > best.length){
-			best = t;
-		}
-	});
-	return best;
 }
 
 function appendSvgSection(parts, scopeRoot){
@@ -1628,60 +1681,15 @@ async function extractAstroContent(context){
 	const isAstroLike = context && context.key === 'astrochart_like';
 	const topLabel = context && context.topLabel ? context.topLabel : '';
 	const isIndia = (context && context.key === 'indiachart') || topLabel.includes('印度律盘');
-	if(!isAstroLike && !isIndia){
+	if(!isIndia){
+		// 星盘系导出固定走计算快照，不读取右侧栏目DOM。
 		const cached = getAstroCachedContent();
-		if(cached){
-			return cached;
-		}
+		return cached || '';
 	}
-
-	let scopeRoot = context.scopeRoot;
-	const extraLines = [];
-	let indiaActive = null;
-	if(isAstroLike || isIndia){
-		indiaActive = findIndiaActivePane(scopeRoot);
-		if(indiaActive && indiaActive.pane){
-			scopeRoot = indiaActive.pane;
-		}
-		if(indiaActive && indiaActive.label){
-			extraLines.push(`当前律盘：${indiaActive.label}`);
-		}
-		if(isIndia){
-			const indiaCached = getIndiaCachedContent(indiaActive ? indiaActive.label : '');
-			if(indiaCached){
-				return indiaCached;
-			}
-		}
-	}
-	const keywords = [
-		'经度', '纬度', '时区', '真太阳时', '回归黄道', '整宫制',
-		'日主星', '时主星', '日生盘', '夜生盘',
-		'周一', '周二', '周三', '周四', '周五', '周六', '周日'
-	];
-	const summary = uniqueArray([...extraLines, ...getSummaryLines(scopeRoot, keywords)]);
-	const tabs = await captureTabsContentByLabels(scopeRoot, CHART_TAB_LABELS);
-
-	const parts = [];
-	if(summary.length){
-		parts.push('[起盘信息]');
-		parts.push(summary.join('\n'));
-	}
-	if(tabs){
-		CHART_TAB_LABELS.forEach((label)=>{
-			const txt = normalizeWhitespace(tabs[label] || '');
-			if(txt){
-				parts.push(`[${label}]`);
-				parts.push(txt);
-			}
-		});
-	}
-
-	if(parts.length === 0){
-		parts.push('[起盘信息]');
-		parts.push(normalizeWhitespace(textOf(scopeRoot)));
-	}
-	appendSvgSection(parts, scopeRoot);
-	return parts.join('\n\n').trim();
+	const scopeRoot = context ? context.scopeRoot : null;
+	const indiaActive = findIndiaActivePane(scopeRoot);
+	const indiaCached = getIndiaCachedContent(indiaActive ? indiaActive.label : '');
+	return indiaCached || '';
 }
 
 async function extractSixYaoContent(context){
@@ -1689,41 +1697,8 @@ async function extractSixYaoContent(context){
 	if(cached){
 		return cached;
 	}
-
-	const scopeRoot = context.scopeRoot;
-	const keywords = [
-		'起卦', '时间起卦', '数字起卦', '自定义起卦', '动爻', '上卦', '下卦',
-		'旬空', '卦辞', '经度', '纬度', '时区', '真太阳时', '六神', '世', '应'
-	];
-	const summary = getSummaryLines(scopeRoot, keywords);
-	const rightText = extractRightColumnText(scopeRoot);
-	const tabs = await captureTabsContentByLabels(scopeRoot, SIXYAO_TAB_LABELS);
-
-	const parts = [];
-	if(summary.length){
-		parts.push('[起盘信息]');
-		parts.push(summary.join('\n'));
-	}
-	if(rightText){
-		parts.push('[右侧栏目]');
-		parts.push(rightText);
-	}
-	if(tabs){
-		SIXYAO_TAB_LABELS.forEach((label)=>{
-			const txt = normalizeWhitespace(tabs[label] || '');
-			if(txt){
-				parts.push(`[${label}]`);
-				parts.push(txt);
-			}
-		});
-	}
-
-	if(parts.length === 0){
-		parts.push('[起盘信息]');
-		parts.push(normalizeWhitespace(textOf(scopeRoot)));
-	}
-	appendSvgSection(parts, scopeRoot);
-	return parts.join('\n\n').trim();
+	// 易卦导出仅使用计算快照，不从右侧DOM复制。
+	return '';
 }
 
 async function extractLiuRengContent(context){
@@ -1811,11 +1786,28 @@ async function extractQiMenContent(context){
 }
 
 async function extractSanShiUnitedContent(context){
+	void context;
+	const refreshedSnapshot = await requestModuleSnapshotRefresh('sanshiunited');
+	if(refreshedSnapshot){
+		const hasLiuRengRef = /\[(六壬大格|六壬小局|六壬参考|六壬概览)\]/.test(refreshedSnapshot);
+		const hasBaGong = /\[八宫详解\]/.test(refreshedSnapshot);
+		if(hasLiuRengRef && hasBaGong){
+			return refreshedSnapshot;
+		}
+	}
 	const cached = getModuleCachedContent('sanshiunited');
 	if(cached){
+		const hasLiuRengRef = /\[(六壬大格|六壬小局|六壬参考|六壬概览)\]/.test(cached);
+		const hasBaGong = /\[八宫详解\]/.test(cached);
+		if(hasLiuRengRef && hasBaGong){
+			return cached;
+		}
 		return cached;
 	}
-	return extractGenericContent(context);
+	if(refreshedSnapshot){
+		return refreshedSnapshot;
+	}
+	return '';
 }
 
 const TONGSHEFA_LABEL_TO_KEY = {
@@ -1927,53 +1919,38 @@ function extractTongSheFaSelection(scopeRoot){
 }
 
 async function extractTongSheFaContent(context){
-	const selection = extractTongSheFaSelection(context.scopeRoot);
-	if(selection){
-		try{
-			return buildTongSheFaSnapshot(buildTongSheFaModel(selection));
-		}catch(e){
-		}
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('tongshefa');
+	if(refreshed){
+		return refreshed;
 	}
 	const cached = getModuleCachedContent('tongshefa');
 	if(cached){
 		return cached;
 	}
-	return extractGenericContent(context);
+	return '';
 }
 
 async function extractTaiYiContent(context){
+	void context;
 	const cached = getModuleCachedContent('taiyi');
 	if(cached){
 		return cached;
 	}
-	const scopeRoot = context.scopeRoot;
-	const keywords = [
-		'太乙', '局式', '太乙积数', '文昌', '始击', '太岁', '合神', '计神',
-		'乾造', '坤造', '农历', '真太阳时', '节气'
-	];
-	const summary = getSummaryLines(scopeRoot, keywords);
-	const parts = [];
-	if(summary.length){
-		parts.push('[起盘信息]');
-		parts.push(summary.join('\n'));
-	}
-	if(parts.length === 0){
-		parts.push('[起盘信息]');
-		parts.push(normalizeWhitespace(textOf(scopeRoot)));
-	}
-	appendSvgSection(parts, scopeRoot);
-	return parts.join('\n\n').trim();
+	return '';
 }
 
 async function extractGermanyContent(context){
+	void context;
 	const cached = getModuleCachedContent('germany');
 	if(cached){
 		return cached;
 	}
-	return extractAstroContent(context);
+	return '';
 }
 
 async function extractJieQiContent(context){
+	void context;
 	const cachedCurrent = getModuleCachedContent('jieqi_current');
 	if(cachedCurrent){
 		return cachedCurrent;
@@ -1982,7 +1959,7 @@ async function extractJieQiContent(context){
 	if(cached){
 		return cached;
 	}
-	return extractAstroContent(context);
+	return '';
 }
 
 async function extractPrimaryDirectContent(context){
@@ -2050,39 +2027,34 @@ async function extractGivenYearContent(context){
 }
 
 async function extractRelativeContent(context){
+	void context;
 	const cached = getModuleCachedContent('relative');
 	if(cached){
 		return cached;
 	}
-	return extractGenericContent(context);
+	return '';
 }
 
 async function extractOtherBuContent(context){
+	void context;
 	const cached = getModuleCachedContent('otherbu');
 	if(cached){
 		return cached;
 	}
-	return extractGenericContent(context);
+	return '';
 }
 
 async function extractFengShuiContent(context){
-	const holder = context && context.scopeRoot ? context.scopeRoot : document;
-	const iframe = holder ? holder.querySelector('iframe[src*="/fengshui/index.html"]') : null;
-	if(iframe && iframe.contentWindow && iframe.contentWindow.document){
-		try{
-			const doc = iframe.contentWindow.document;
-			const txt = normalizeWhitespace(textOf(doc.body));
-			if(txt){
-				const lines = [
-					'[起盘信息]',
-					txt,
-				];
-				return lines.join('\n\n');
-			}
-		}catch(e){
-		}
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('fengshui');
+	if(refreshed){
+		return refreshed;
 	}
-	return extractGenericContent(context);
+	const cached = getModuleCachedContent('fengshui');
+	if(cached){
+		return cached;
+	}
+	return '';
 }
 
 async function extractGenericContent(context){
@@ -2175,14 +2147,8 @@ async function extractGenericContent(context){
 		}
 	}
 
-	const txt = normalizeWhitespace(textOf(context.scopeRoot));
-	const parts = [];
-	if(txt){
-		parts.push('[起盘信息]');
-		parts.push(txt);
-	}
-	appendSvgSection(parts, context.scopeRoot);
-	return parts.join('\n\n').trim();
+	void context;
+	return '';
 }
 
 function applyReplacers(text, replacers){
@@ -2255,6 +2221,845 @@ function normalizeText(text, domain){
 	}
 	output = beautifyForAI(output);
 	return output.trim();
+}
+
+const ASTRO_MEANING_PLANET_IDS = [
+	AstroConst.SUN, AstroConst.MOON, AstroConst.MERCURY, AstroConst.VENUS, AstroConst.MARS, AstroConst.JUPITER,
+	AstroConst.SATURN, AstroConst.URANUS, AstroConst.NEPTUNE, AstroConst.PLUTO, AstroConst.NORTH_NODE, AstroConst.SOUTH_NODE,
+];
+const ASTRO_MEANING_LOT_IDS = [
+	AstroConst.PARS_FORTUNA, AstroConst.PARS_SPIRIT, AstroConst.PARS_VENUS, AstroConst.PARS_MERCURY, AstroConst.PARS_MARS,
+	AstroConst.PARS_JUPITER, AstroConst.PARS_SATURN, AstroConst.PARS_FATHER, AstroConst.PARS_MOTHER, AstroConst.PARS_BROTHERS,
+	AstroConst.PARS_WEDDING_MALE, AstroConst.PARS_WEDDING_FEMALE, AstroConst.PARS_SONS, AstroConst.PARS_DISEASES,
+	AstroConst.PARS_LIFE, AstroConst.PARS_RADIX,
+];
+
+function escapeRegExp(text){
+	return `${text || ''}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function astroMeaningDisplayName(id){
+	return AstroText.AstroMsgCN[id] || AstroText.AstroTxtMsg[id] || `${id || ''}`;
+}
+
+function buildAliasMap(entries){
+	const aliasMap = new Map();
+	entries.forEach((entry)=>{
+		const id = entry.id;
+		(entry.aliases || []).forEach((alias)=>{
+			const a = `${alias || ''}`.trim();
+			if(!a){
+				return;
+			}
+			if(!aliasMap.has(a)){
+				aliasMap.set(a, []);
+			}
+			const arr = aliasMap.get(a);
+			if(!arr.includes(id)){
+				arr.push(id);
+			}
+		});
+	});
+	return aliasMap;
+}
+
+const EXTRA_LOT_ALIASES = {
+	[AstroConst.PARS_FORTUNA]: ['幸运点', 'Lot of Fortune'],
+	[AstroConst.PARS_SPIRIT]: ['精神点', 'Lot of Spirit'],
+	[AstroConst.PARS_VENUS]: ['爱情点', 'Lot of Eros'],
+	[AstroConst.PARS_MERCURY]: ['必要点', 'Lot of Necessity'],
+	[AstroConst.PARS_MARS]: ['勇气点', 'Lot of Courage'],
+	[AstroConst.PARS_JUPITER]: ['胜利点', 'Lot of Victory'],
+	[AstroConst.PARS_SATURN]: ['复仇点', 'Lot of Nemesis'],
+	[AstroConst.PARS_FATHER]: ['父亲点', 'Lot of The Father'],
+	[AstroConst.PARS_MOTHER]: ['母亲点', 'Lot of The Mother'],
+	[AstroConst.PARS_BROTHERS]: ['手足点', 'Lot of Siblings'],
+	[AstroConst.PARS_WEDDING_MALE]: ['婚姻点', 'Lot of Marriage'],
+	[AstroConst.PARS_WEDDING_FEMALE]: ['婚姻点', 'Lot of Marriage'],
+	[AstroConst.PARS_SONS]: ['孩童点', 'Lot of Children'],
+	[AstroConst.PARS_DISEASES]: ['疾病点', 'Lot of Illness'],
+	[AstroConst.PARS_LIFE]: ['旺点', 'Lot of Exaltation'],
+	[AstroConst.PARS_RADIX]: ['基础点', 'Lot of Foundation'],
+};
+
+const PLANET_ALIAS_MAP = buildAliasMap(ASTRO_MEANING_PLANET_IDS.map((id)=>({
+	id,
+	aliases: uniqueArray([
+		AstroText.AstroMsgCN[id],
+		AstroText.AstroTxtMsg[id],
+		`${id}`,
+	]),
+})));
+
+const LOT_ALIAS_MAP = buildAliasMap(ASTRO_MEANING_LOT_IDS.map((id)=>({
+	id,
+	aliases: uniqueArray([
+		AstroText.AstroMsgCN[id],
+		AstroText.AstroTxtMsg[id],
+		...(EXTRA_LOT_ALIASES[id] || []),
+		`${id}`,
+	]),
+})));
+
+const SIGN_ALIAS_MAP = buildAliasMap((AstroConst.LIST_SIGNS || []).map((id)=>({
+	id,
+	aliases: uniqueArray([
+		AstroText.AstroMsgCN[id],
+		AstroText.AstroTxtMsg[id],
+		`${id}`,
+	]),
+})));
+
+const HOUSE_ALIAS_MAP = buildAliasMap((AstroConst.LIST_HOUSES || []).map((id)=>({
+	id,
+	aliases: uniqueArray([
+		AstroText.AstroMsg[id],
+		AstroText.AstroMsgCN[id],
+		AstroText.AstroTxtMsg[id],
+		`${id}`,
+	]),
+})));
+
+function lineContainsAlias(line, alias){
+	const txt = `${line || ''}`;
+	if(!txt || !alias){
+		return false;
+	}
+	if(alias.length === 1){
+		const escaped = escapeRegExp(alias);
+		const pattern = new RegExp(`(^|[\\s,，;；:：()（）\\[\\]{}\\/\\\\|\\-])${escaped}(?=$|[\\s,，;；:：()（）\\[\\]{}\\/\\\\|\\-])`);
+		return pattern.test(txt);
+	}
+	return txt.includes(alias);
+}
+
+function detectIdsByAliasMap(lines, aliasMap){
+	const out = new Set();
+	const src = Array.isArray(lines) ? lines : [];
+	if(!src.length){
+		return out;
+	}
+	aliasMap.forEach((ids, alias)=>{
+		for(let i=0; i<src.length; i++){
+			if(lineContainsAlias(src[i], alias)){
+				ids.forEach((id)=>out.add(id));
+				break;
+			}
+		}
+	});
+	return out;
+}
+
+function detectAspectDegreesFromLines(lines){
+	const found = new Set();
+	(lines || []).forEach((line)=>{
+		const txt = `${line || ''}`;
+		if(!txt){
+			return;
+		}
+		const regex = /(^|[^\d])(0|30|45|60|90|120|135|150|180)\s*˚/g;
+		let matched = regex.exec(txt);
+		while(matched){
+			const deg = parseInt(matched[2], 10);
+			if(!Number.isNaN(deg)){
+				found.add(deg);
+			}
+			matched = regex.exec(txt);
+		}
+	});
+	return found;
+}
+
+function buildMeaningLinesForIds(category, ids, title){
+	const lines = [];
+	const arr = Array.from(ids || []);
+	if(!arr.length){
+		return lines;
+	}
+	lines.push(`【${title}】`);
+	arr.forEach((id)=>{
+		const tip = buildMeaningTipByCategory(category, id);
+		if(!tip){
+			return;
+		}
+		lines.push(`### ${astroMeaningDisplayName(id)}`);
+		if(tip.title){
+			lines.push(`${tip.title}`);
+		}
+		(tip.tips || []).forEach((one)=>{
+			lines.push(`${one}`);
+		});
+		lines.push('');
+	});
+	while(lines.length && lines[lines.length - 1] === ''){
+		lines.pop();
+	}
+	return lines;
+}
+
+function buildMeaningLinesForAspects(degrees){
+	const lines = [];
+	const arr = Array.from(degrees || []).sort((a, b)=>a - b);
+	if(!arr.length){
+		return lines;
+	}
+	lines.push('【相位释义】');
+	arr.forEach((deg)=>{
+		const tip = buildAspectMeaningTip(deg, null, null);
+		if(!tip){
+			return;
+		}
+		lines.push(`### ${deg}˚`);
+		if(tip.title){
+			lines.push(`${tip.title}`);
+		}
+		(tip.tips || []).forEach((one)=>{
+			lines.push(`${one}`);
+		});
+		lines.push('');
+	});
+	while(lines.length && lines[lines.length - 1] === ''){
+		lines.pop();
+	}
+	return lines;
+}
+
+function joinSectionBlocks(sections){
+	if(!Array.isArray(sections) || sections.length === 0){
+		return '';
+	}
+	const out = [];
+	sections.forEach((sec)=>{
+		if(!sec || !Array.isArray(sec.lines) || !sec.lines.length){
+			return;
+		}
+		if(out.length && out[out.length - 1] !== ''){
+			out.push('');
+		}
+		out.push(...sec.lines);
+	});
+	return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function getSectionMeaningMode(title){
+	const t = `${title || ''}`;
+	if(!t || t.includes('释义')){
+		return {
+			skip: true,
+			explicit: false,
+			forceAllPlanets: false,
+			forceAllLots: false,
+		};
+	}
+	const explicit = t.includes('行星')
+		|| t.includes('希腊点')
+		|| t.includes('相位')
+		|| t.includes('宫位')
+		|| t.includes('星与虚点')
+		|| t === '信息'
+		|| t === '星盘信息'
+		|| t === '可能性'
+		|| t.includes('推运');
+	return {
+		skip: false,
+		explicit,
+		forceAllPlanets: t.includes('行星'),
+		forceAllLots: t.includes('希腊点'),
+	};
+}
+
+function appendAstroMeaningSections(content){
+	const sections = splitContentSections(content);
+	if(!sections || sections.length === 0){
+		return content;
+	}
+
+	const outSections = [];
+	sections.forEach((sec)=>{
+		outSections.push(sec);
+		const mode = getSectionMeaningMode(sec && sec.title);
+		if(mode.skip){
+			return;
+		}
+		const lines = (sec.lines || []).slice(1);
+		let planets = detectIdsByAliasMap(lines, PLANET_ALIAS_MAP);
+		let lots = detectIdsByAliasMap(lines, LOT_ALIAS_MAP);
+		const signs = detectIdsByAliasMap(lines, SIGN_ALIAS_MAP);
+		const houses = detectIdsByAliasMap(lines, HOUSE_ALIAS_MAP);
+		const aspects = detectAspectDegreesFromLines(lines);
+
+		if(mode.forceAllPlanets && planets.size === 0){
+			planets = new Set(ASTRO_MEANING_PLANET_IDS);
+		}
+		if(mode.forceAllLots && lots.size === 0){
+			lots = new Set(ASTRO_MEANING_LOT_IDS);
+		}
+		const hasDetected = planets.size > 0
+			|| lots.size > 0
+			|| signs.size > 0
+			|| houses.size > 0
+			|| aspects.size > 0;
+		if(!mode.explicit && !hasDetected){
+			return;
+		}
+
+		const meaningLines = []
+			.concat(buildMeaningLinesForIds('planet', planets, '星释义'))
+			.concat(buildMeaningLinesForIds('lot', lots, '希腊点释义'))
+			.concat(buildMeaningLinesForIds('sign', signs, '星座释义'))
+			.concat(buildMeaningLinesForIds('house', houses, '宫位释义'))
+			.concat(buildMeaningLinesForAspects(aspects));
+
+		if(!meaningLines.length){
+			return;
+		}
+		outSections.push({
+			title: `${sec.title}释义`,
+			lines: [
+				`[${sec.title}释义]`,
+				...meaningLines,
+			],
+		});
+	});
+
+	const appended = joinSectionBlocks(outSections);
+	return appended || content;
+}
+
+const LIURENG_BRANCH_ORDER = '子丑寅卯辰巳午未申酉戌亥'.split('');
+const QIMEN_STEM_ORDER = '甲乙丙丁戊己庚辛壬癸'.split('');
+const QIMEN_DOOR_ORDER = ['休门', '生门', '伤门', '杜门', '景门', '死门', '惊门', '开门'];
+const QIMEN_STAR_ORDER = ['天蓬', '天任', '天冲', '天辅', '天英', '天芮', '天禽', '天柱', '天心'];
+const QIMEN_GOD_ORDER = ['值符', '螣蛇', '太阴', '六合', '白虎', '玄武', '九地', '九天'];
+
+const QIMEN_DOOR_MAP = {
+	休: '休门',
+	生: '生门',
+	伤: '伤门',
+	杜: '杜门',
+	景: '景门',
+	死: '死门',
+	惊: '惊门',
+	開: '开门',
+	开: '开门',
+	休门: '休门',
+	生门: '生门',
+	伤门: '伤门',
+	杜门: '杜门',
+	景门: '景门',
+	死门: '死门',
+	惊门: '惊门',
+	开门: '开门',
+};
+const QIMEN_STAR_MAP = {
+	蓬: '天蓬',
+	任: '天任',
+	冲: '天冲',
+	沖: '天冲',
+	辅: '天辅',
+	輔: '天辅',
+	英: '天英',
+	芮: '天芮',
+	禽: '天禽',
+	柱: '天柱',
+	心: '天心',
+	天蓬: '天蓬',
+	天任: '天任',
+	天冲: '天冲',
+	天輔: '天辅',
+	天辅: '天辅',
+	天英: '天英',
+	天芮: '天芮',
+	天禽: '天禽',
+	天柱: '天柱',
+	天心: '天心',
+};
+const QIMEN_GOD_MAP = {
+	符: '值符',
+	值符: '值符',
+	蛇: '螣蛇',
+	腾蛇: '螣蛇',
+	螣蛇: '螣蛇',
+	阴: '太阴',
+	太陰: '太阴',
+	太阴: '太阴',
+	合: '六合',
+	六合: '六合',
+	虎: '白虎',
+	白虎: '白虎',
+	玄: '玄武',
+	玄武: '玄武',
+	地: '九地',
+	九地: '九地',
+	天: '九天',
+	九天: '九天',
+};
+
+function sortByOrderSet(values, order){
+	const arr = Array.from(values || []);
+	if(!arr.length){
+		return arr;
+	}
+	const idxMap = new Map();
+	(order || []).forEach((txt, idx)=>idxMap.set(txt, idx));
+	return arr.sort((a, b)=>{
+		const ai = idxMap.has(a) ? idxMap.get(a) : 999;
+		const bi = idxMap.has(b) ? idxMap.get(b) : 999;
+		if(ai !== bi){
+			return ai - bi;
+		}
+		return `${a}`.localeCompare(`${b}`);
+	});
+}
+
+function normalizeQimenStem(raw){
+	const txt = `${raw || ''}`.trim();
+	if(!txt){
+		return '';
+	}
+	const match = txt.match(/[甲乙丙丁戊己庚辛壬癸]/);
+	return match ? match[0] : '';
+}
+
+function normalizeQimenDoor(raw){
+	const txt = `${raw || ''}`.trim();
+	if(!txt){
+		return '';
+	}
+	const key = txt.replace(/門/g, '门');
+	return QIMEN_DOOR_MAP[key] || QIMEN_DOOR_MAP[key.substring(0, 1)] || '';
+}
+
+function normalizeQimenStar(raw){
+	const txt = `${raw || ''}`.trim();
+	if(!txt){
+		return '';
+	}
+	return QIMEN_STAR_MAP[txt] || QIMEN_STAR_MAP[txt.substring(0, 1)] || '';
+}
+
+function normalizeQimenGod(raw){
+	const txt = `${raw || ''}`.trim();
+	if(!txt){
+		return '';
+	}
+	return QIMEN_GOD_MAP[txt] || QIMEN_GOD_MAP[txt.substring(0, 1)] || '';
+}
+
+function collectQimenTokensFromSectionLines(lines){
+	const stems = new Set();
+	const doors = new Set();
+	const stars = new Set();
+	const gods = new Set();
+	const src = Array.isArray(lines) ? lines : [];
+
+	const addByList = (list, type)=>{
+		(list || []).forEach((one)=>{
+			const txt = `${one || ''}`.trim();
+			if(!txt){
+				return;
+			}
+			if(type === 'stem'){
+				const v = normalizeQimenStem(txt);
+				if(v){
+					stems.add(v);
+				}
+				return;
+			}
+			if(type === 'door'){
+				const v = normalizeQimenDoor(txt);
+				if(v){
+					doors.add(v);
+				}
+				return;
+			}
+			if(type === 'star'){
+				const v = normalizeQimenStar(txt);
+				if(v){
+					stars.add(v);
+				}
+				return;
+			}
+			if(type === 'god'){
+				const v = normalizeQimenGod(txt);
+				if(v){
+					gods.add(v);
+				}
+			}
+		});
+	};
+
+	src.forEach((line)=>{
+		const txt = `${line || ''}`.trim();
+		if(!txt){
+			return;
+		}
+		const detailMatch = txt.match(/天盘干[：:]\s*([甲乙丙丁戊己庚辛壬癸]).*?八神[：:]\s*([^\s；;，,]+).*?九星[：:]\s*([^\s；;，,]+).*?地盘干[：:]\s*([甲乙丙丁戊己庚辛壬癸])/);
+		if(detailMatch){
+			addByList([detailMatch[1], detailMatch[4]], 'stem');
+			addByList([detailMatch[2]], 'god');
+			addByList([detailMatch[3]], 'star');
+		}
+		const lineMap = [
+			{ prefix: '地盘', type: 'stem' },
+			{ prefix: '天盘', type: 'stem' },
+			{ prefix: '人盘', type: 'door' },
+			{ prefix: '神盘', type: 'god' },
+		];
+		lineMap.forEach((item)=>{
+			const m = txt.match(new RegExp(`^${item.prefix}\\s*[：:]\\s*(.+)$`));
+			if(!m || !m[1]){
+				return;
+			}
+			const list = `${m[1]}`.split(/[\s、,，;；/]+/).filter(Boolean);
+			addByList(list, item.type);
+		});
+		if(!txt.includes('宫')){
+			return;
+		}
+		const m = txt.match(/^[^：:]+[：:]\s*(.+)$/);
+		if(!m || !m[1]){
+			return;
+		}
+		const list = `${m[1]}`.split(/[\s、,，;；/]+/).filter(Boolean);
+		if(list.length >= 5){
+			addByList([list[0], list[4]], 'stem');
+			addByList([list[1]], 'god');
+			addByList([list[2]], 'door');
+			addByList([list[3]], 'star');
+			return;
+		}
+		addByList(list, 'stem');
+		addByList(list, 'god');
+		addByList(list, 'door');
+		addByList(list, 'star');
+	});
+
+	return {
+		stems,
+		doors,
+		stars,
+		gods,
+	};
+}
+
+function buildQimenTipLines(type, key){
+	const tipObj = buildQimenXiangTipObj(type, key);
+	if(!tipObj){
+		return [];
+	}
+	const lines = [];
+	lines.push(`### ${safe(tipObj.title, key)}`);
+	const blocks = Array.isArray(tipObj.blocks) ? tipObj.blocks : [];
+	blocks.forEach((block)=>{
+		if(!block){
+			return;
+		}
+		if(block.type === 'blank'){
+			lines.push('');
+			return;
+		}
+		if(block.type === 'divider'){
+			lines.push('==');
+			return;
+		}
+		if(block.type === 'subTitle'){
+			lines.push(`### ${safe(block.text, '')}`);
+			return;
+		}
+		const plain = safe(block.text, '').replace(/<[^>]+>/g, '');
+		lines.push(plain);
+	});
+	lines.push('');
+	return lines;
+}
+
+function buildQimenMeaningLinesByTokens(tokens){
+	const lines = [];
+	const stems = sortByOrderSet(tokens && tokens.stems, QIMEN_STEM_ORDER);
+	const doors = sortByOrderSet(tokens && tokens.doors, QIMEN_DOOR_ORDER);
+	const stars = sortByOrderSet(tokens && tokens.stars, QIMEN_STAR_ORDER);
+	const gods = sortByOrderSet(tokens && tokens.gods, QIMEN_GOD_ORDER);
+
+	if(stems.length){
+		lines.push('【十天干释义】');
+		stems.forEach((one)=>{
+			lines.push(...buildQimenTipLines('stem', one));
+		});
+	}
+	if(doors.length){
+		lines.push('【八门释义】');
+		doors.forEach((one)=>{
+			lines.push(...buildQimenTipLines('door', one));
+		});
+	}
+	if(stars.length){
+		lines.push('【九星释义】');
+		stars.forEach((one)=>{
+			lines.push(...buildQimenTipLines('star', one));
+		});
+	}
+	if(gods.length){
+		lines.push('【八神释义】');
+		gods.forEach((one)=>{
+			lines.push(...buildQimenTipLines('god', one));
+		});
+	}
+	while(lines.length && lines[lines.length - 1] === ''){
+		lines.pop();
+	}
+	return lines;
+}
+
+function normalizeLiurengBranch(raw){
+	const match = `${raw || ''}`.match(/[子丑寅卯辰巳午未申酉戌亥]/);
+	return match ? match[0] : '';
+}
+
+function normalizeLiurengJiang(raw){
+	const txt = `${raw || ''}`
+		.replace(/（[^）]*）/g, '')
+		.replace(/\([^)]*\)/g, '')
+		.replace(/^贵神/, '')
+		.replace(/^神将/, '')
+		.trim();
+	return txt;
+}
+
+function collectLiurengEntriesFromSectionLines(lines){
+	const entries = [];
+	const src = Array.isArray(lines) ? lines : [];
+	let currentBranch = '';
+	src.forEach((line)=>{
+		const txt = `${line || ''}`.trim();
+		if(!txt){
+			return;
+		}
+		const branchMark = txt.match(/「([子丑寅卯辰巳午未申酉戌亥])\s*[-－]/);
+		if(branchMark && branchMark[1]){
+			currentBranch = branchMark[1];
+		}
+		const m = txt.match(/地盘\s*([子丑寅卯辰巳午未申酉戌亥]).*?天盘\s*([子丑寅卯辰巳午未申酉戌亥]).*?贵神[:：]?\s*([^\s；;，,]+)/);
+		if(m && m[1] && m[2] && m[3]){
+			entries.push({
+				di: m[1],
+				tian: m[2],
+				jiang: normalizeLiurengJiang(m[3]),
+			});
+			return;
+		}
+		const s = txt.match(/六壬[:：].*?天盘[:：]\s*([子丑寅卯辰巳午未申酉戌亥]).*?神将[:：]\s*([^\s；;，,]+)/);
+		if(s && s[1] && s[2] && currentBranch){
+			entries.push({
+				di: currentBranch,
+				tian: s[1],
+				jiang: normalizeLiurengJiang(s[2]),
+			});
+		}
+	});
+	const uniq = [];
+	const seen = new Set();
+	entries.forEach((one)=>{
+		if(!one || !one.di || !one.tian || !one.jiang){
+			return;
+		}
+		const key = `${one.di}|${one.tian}|${one.jiang}`;
+		if(seen.has(key)){
+			return;
+		}
+		seen.add(key);
+		uniq.push(one);
+	});
+	return uniq;
+}
+
+function buildLiurengTipLines(tipObj){
+	if(!tipObj){
+		return [];
+	}
+	const lines = [];
+	lines.push(`### ${safe(tipObj.title, '')}`);
+	(tipObj.tips || []).forEach((one)=>{
+		lines.push(`${one}`);
+	});
+	lines.push('');
+	return lines;
+}
+
+function buildLiurengMeaningLinesByEntries(entries){
+	const lines = [];
+	const branchSet = new Set();
+	(entries || []).forEach((one)=>{
+		if(one && one.tian){
+			branchSet.add(one.tian);
+		}
+	});
+	const branches = sortByOrderSet(branchSet, LIURENG_BRANCH_ORDER);
+	if(branches.length){
+		lines.push('【十二神释义】');
+		branches.forEach((branch)=>{
+			lines.push(...buildLiurengTipLines(buildLiuRengShenTipObj(branch)));
+		});
+	}
+	const houseTips = [];
+	const seenHouse = new Set();
+	(entries || []).forEach((one)=>{
+		if(!one){
+			return;
+		}
+		const key = `${one.di}|${one.tian}|${one.jiang}`;
+		if(seenHouse.has(key)){
+			return;
+		}
+		seenHouse.add(key);
+		const tip = buildLiuRengHouseTipObj(one.jiang, one.tian, one.di);
+		if(tip){
+			houseTips.push(tip);
+		}
+	});
+	if(houseTips.length){
+		lines.push('【天将释义】');
+		houseTips.forEach((tip)=>{
+			lines.push(...buildLiurengTipLines(tip));
+		});
+	}
+	while(lines.length && lines[lines.length - 1] === ''){
+		lines.pop();
+	}
+	return lines;
+}
+
+function appendQimenMeaningSections(content){
+	const sections = splitContentSections(content);
+	if(!sections || !sections.length){
+		return content;
+	}
+	const relevantTitles = new Set(['盘型', '盘面要素', '九宫方盘', '八宫详解']);
+	const outSections = [];
+	sections.forEach((sec)=>{
+		outSections.push(sec);
+		const title = `${sec && sec.title ? sec.title : ''}`.trim();
+		if(!title || title.includes('注释') || title.includes('释义')){
+			return;
+		}
+		if(!relevantTitles.has(title)){
+			return;
+		}
+		const tokens = collectQimenTokensFromSectionLines((sec.lines || []).slice(1));
+		const meaningLines = buildQimenMeaningLinesByTokens(tokens);
+		if(!meaningLines.length){
+			return;
+		}
+		outSections.push({
+			title: `${title}注释`,
+			lines: [
+				`[${title}注释]`,
+				...meaningLines,
+			],
+		});
+	});
+	return joinSectionBlocks(outSections) || content;
+}
+
+function appendLiurengMeaningSections(content){
+	const sections = splitContentSections(content);
+	if(!sections || !sections.length){
+		return content;
+	}
+	const outSections = [];
+	sections.forEach((sec)=>{
+		outSections.push(sec);
+		const title = `${sec && sec.title ? sec.title : ''}`.trim();
+		if(!title || title.includes('注释') || title.includes('释义')){
+			return;
+		}
+		if(title !== '十二地盘/十二天盘/十二贵神对应' && title !== '大六壬'){
+			return;
+		}
+		const entries = collectLiurengEntriesFromSectionLines((sec.lines || []).slice(1));
+		const meaningLines = buildLiurengMeaningLinesByEntries(entries);
+		if(!meaningLines.length){
+			return;
+		}
+		outSections.push({
+			title: `${title}注释`,
+			lines: [
+				`[${title}注释]`,
+				...meaningLines,
+			],
+		});
+	});
+	return joinSectionBlocks(outSections) || content;
+}
+
+function appendSanShiUnitedMeaningSections(content){
+	const sections = splitContentSections(content);
+	if(!sections || !sections.length){
+		return content;
+	}
+	const outSections = [];
+	sections.forEach((sec)=>{
+		outSections.push(sec);
+		const title = `${sec && sec.title ? sec.title : ''}`.trim();
+		if(!title || title.includes('注释') || title.includes('释义')){
+			return;
+		}
+		const isPalaceSection = title.includes('宫');
+		const isLiuRengRefSection = title.indexOf('六壬') === 0;
+		if(!isPalaceSection && title !== '大六壬' && !isLiuRengRefSection){
+			return;
+		}
+		const lines = (sec.lines || []).slice(1);
+		const qimenTokens = collectQimenTokensFromSectionLines(lines);
+		const liurengEntries = collectLiurengEntriesFromSectionLines(lines);
+		const planets = detectIdsByAliasMap(lines, PLANET_ALIAS_MAP);
+		const lots = detectIdsByAliasMap(lines, LOT_ALIAS_MAP);
+		const signs = detectIdsByAliasMap(lines, SIGN_ALIAS_MAP);
+		const houses = detectIdsByAliasMap(lines, HOUSE_ALIAS_MAP);
+		const aspects = detectAspectDegreesFromLines(lines);
+
+		const meaningLines = []
+			.concat(buildQimenMeaningLinesByTokens(qimenTokens))
+			.concat(buildLiurengMeaningLinesByEntries(liurengEntries))
+			.concat(buildMeaningLinesForIds('planet', planets, '星释义'))
+			.concat(buildMeaningLinesForIds('lot', lots, '希腊点释义'))
+			.concat(buildMeaningLinesForIds('sign', signs, '星座释义'))
+			.concat(buildMeaningLinesForIds('house', houses, '宫位释义'))
+			.concat(buildMeaningLinesForAspects(aspects));
+		if(!meaningLines.length){
+			return;
+		}
+		outSections.push({
+			title: `${title}注释`,
+			lines: [
+				`[${title}注释]`,
+				...meaningLines,
+			],
+		});
+	});
+	return joinSectionBlocks(outSections) || content;
+}
+
+function applyAstroMeaningFilterByContext(content, key){
+	const support = isAstroMeaningTechnique(key) || isHoverMeaningTechnique(key);
+	if(!support){
+		return content;
+	}
+	const settings = loadAIExportSettings();
+	const mode = getAstroMeaningSettingByTechnique(settings, key);
+	if(mode.enabled !== 1){
+		return content;
+	}
+	if(key === 'qimen'){
+		return appendQimenMeaningSections(content);
+	}
+	if(key === 'liureng'){
+		return appendLiurengMeaningSections(content);
+	}
+	if(key === 'sanshiunited'){
+		return appendSanShiUnitedMeaningSections(content);
+	}
+	return appendAstroMeaningSections(content);
 }
 
 function safeFileName(name){
@@ -2423,14 +3228,23 @@ async function buildPayload(){
 		content = await extractGenericContent(context);
 	}
 
-	content = stripForbiddenSections(content, context.key);
-	content = applyUserSectionFilterByContext(content, context.key);
+	const rawSnapshotContent = stripForbiddenSections(content, context.key);
+	content = applyUserSectionFilterByContext(rawSnapshotContent, context.key);
 	let planetSettingKey = context.key;
 	if(context.key === 'jieqi'){
 		planetSettingKey = detectJieQiSettingKeyByScope(context.scopeRoot) || detectJieQiSettingKeyByCurrentSnapshot() || 'jieqi';
 	}
 	content = applyPlanetInfoFilterByContext(content, planetSettingKey);
 	content = normalizeText(content, context.domain);
+	content = applyAstroMeaningFilterByContext(content, planetSettingKey)
+		.replace(/\n{3,}/g, '\n\n')
+		.trim();
+	if(!content && rawSnapshotContent){
+		// 兜底：设置过滤链条异常时，回退到计算快照原文，避免“无可导出文本”误报。
+		content = applyAstroMeaningFilterByContext(normalizeText(rawSnapshotContent, context.domain), planetSettingKey)
+			.replace(/\n{3,}/g, '\n\n')
+			.trim();
+	}
 	const stamp = formatStamp(now);
 	const time = formatDateTime(now);
 	const filenameBase = `horosa_${safeFileName(context.displayName)}_${stamp}`;

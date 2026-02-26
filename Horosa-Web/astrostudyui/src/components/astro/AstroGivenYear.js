@@ -409,28 +409,31 @@ class AstroGivenYear extends Component{
 							style={{ height: height }}						
 						>
 							<TabPane tab="天象盘" key="singlechart">
-								<AstroChart value={rChart} 
-									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									height={chartHeight}
-								/>
+									<AstroChart value={rChart} 
+										chartDisplay={this.props.chartDisplay}
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+										height={chartHeight}
+									/>
 							</TabPane>
 							<TabPane tab="原命盘" key="nautalchart">
-								<AstroChart value={chartObj.natualChart} 
-									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									height={chartHeight}
-								/>
+									<AstroChart value={chartObj.natualChart} 
+										chartDisplay={this.props.chartDisplay}
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+										height={chartHeight}
+									/>
 							</TabPane>
 							<TabPane tab="对比盘" key="doublechart">
-								<AstroDoubleChart value={chartObj} 
-									height={chartHeight}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									chartDisplay={this.props.chartDisplay}
-								/>
+									<AstroDoubleChart value={chartObj} 
+										height={chartHeight}
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										chartDisplay={this.props.chartDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
 							</TabPane>
 						</Tabs>
 

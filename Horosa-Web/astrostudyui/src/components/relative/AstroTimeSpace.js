@@ -77,8 +77,8 @@ class AstroTimeSpace extends Component{
 
 		return (
 			<div>
-				<AstroChartMain 
-					value={resobj} 
+					<AstroChartMain 
+						value={resobj} 
 					fields={fields} 
 					hidezodiacal={1}
 					hidehsys={1}
@@ -86,10 +86,11 @@ class AstroTimeSpace extends Component{
 					hidelots={1}
 					height={height} 
 					chartDisplay={this.props.chartDisplay}
-					planetDisplay={this.props.planetDisplay}
-					lotsDisplay={this.props.lotsDisplay}
-					showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-				/>
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+						showAstroMeaning={this.props.showAstroMeaning}
+					/>
 			</div>
 		);
 	}

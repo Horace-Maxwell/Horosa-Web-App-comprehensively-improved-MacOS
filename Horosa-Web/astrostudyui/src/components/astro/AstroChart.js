@@ -2,6 +2,7 @@ import * as d3 from 'd3';
 import { Component } from 'react';
 import {randomStr} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
+import * as Constants from '../../utils/constants';
 import AstroChartCircle from './AstroChartCircle';
 
 class AstroChart extends Component{
@@ -27,6 +28,7 @@ class AstroChart extends Component{
 		this.handleResize = this.handleResize.bind(this);
 		this.onTipClick = this.onTipClick.bind(this);
 		this.scheduleDrawRetry = this.scheduleDrawRetry.bind(this);
+		this.getShowAstroMeaning = this.getShowAstroMeaning.bind(this);
 	}
 
 	onTipClick(tipobj){
@@ -88,6 +90,7 @@ class AstroChart extends Component{
 		}
 
 		if(this.chartCircle){
+			this.chartCircle.setShowAstroMeaning(this.getShowAstroMeaning());
 			try{
 				this.chartCircle.drawChart(this.state.chartid, chartobj, this.state.rStep, disp, planetDisp, keyplanets);
 			}catch(err){
@@ -98,6 +101,22 @@ class AstroChart extends Component{
 		let svgdom = document.getElementById(this.state.chartid);
 		if(svgdom && (svgdom.clientWidth === 0 || svgdom.clientHeight === 0)){
 			this.scheduleDrawRetry();
+		}
+	}
+
+	getShowAstroMeaning(){
+		if(this.props.showAstroMeaning !== undefined && this.props.showAstroMeaning !== null){
+			return this.props.showAstroMeaning === 1 || this.props.showAstroMeaning === true;
+		}
+		try{
+			const json = localStorage.getItem(Constants.GlobalSetupKey);
+			if(!json){
+				return false;
+			}
+			const cfg = JSON.parse(json);
+			return cfg && (cfg.showAstroMeaning === 1 || cfg.showAstroMeaning === true);
+		}catch(e){
+			return false;
 		}
 	}
 
@@ -119,6 +138,7 @@ class AstroChart extends Component{
 			onTipClick: this.onTipClick,
 		};
 		this.chartCircle = new AstroChartCircle(option);
+		this.chartCircle.setShowAstroMeaning(this.getShowAstroMeaning());
 
 		this.drawChart();
 		this.scheduleDrawRetry();

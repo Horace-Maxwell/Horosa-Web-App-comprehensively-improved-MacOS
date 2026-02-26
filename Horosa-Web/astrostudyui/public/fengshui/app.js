@@ -1158,11 +1158,129 @@ function getMarkerStats() {
   };
 }
 
+function buildAiSnapshotData() {
+  const tips = Array.from(document.querySelectorAll(".tips li"))
+    .map((li) => li.textContent.trim())
+    .filter(Boolean);
+  const advice =
+    "气位建议放置：门、窗、灶台、沙发、床、书桌、神龛、宠物床等。水位建议放置：水槽、洗手池、马桶、下水管、洗衣机、厕所等。";
+  const periodLabel = periodMode === "current" ? "1964-2044" : "2044-2124";
+  const headerLines = [
+    `生成时间：${new Date().toLocaleString()}`,
+    `单元门角度：${formatAngle(unitAzimuth)}   入户门角度：${formatAngle(doorImageAngle)}   盘旋转：${formatAngle(
+      getDiskRotation()
+    )}   运期：${periodLabel}`
+  ];
+
+  const markerLines = markers.length
+    ? markers.map((marker, idx) => {
+        const result = evaluateMarker(marker);
+        const position = result.sector
+          ? `${result.sector.num}·${result.sector.name}·${result.actual === "wind" ? "气位" : "水位"}`
+          : "未定位";
+        const statusText =
+          marker.category === "neutral" ? "观察" : result.ok ? "位置合适" : "位置冲突";
+        return `${idx + 1}. ${marker.label}：${position}（${statusText}）`;
+      })
+    : ["暂无标记"];
+
+  const markerDetails = markers.map((marker) => {
+    const result = evaluateMarker(marker);
+    const position = result.sector
+      ? `${result.sector.num}·${result.sector.name}·${result.actual === "wind" ? "气位" : "水位"}`
+      : "未定位";
+    return { marker, result, position };
+  });
+  const conflictLines = markerDetails.filter((item) => {
+    return item.marker.category !== "neutral" && item.result.sector && !item.result.ok;
+  }).map((item) => {
+    return `${item.marker.label}：${item.position}（期望 ${item.result.expected === "wind" ? "气位" : "水位"}）`;
+  });
+  const unknownLines = markerDetails
+    .filter((item) => !item.result.sector)
+    .map((item) => `${item.marker.label}：未定位`);
+
+  const stats = getMarkerStats();
+  markers.forEach((marker) => {
+    const result = evaluateMarker(marker);
+    if (!result.sector) {
+      stats.unknown += 1;
+    } else if (marker.category === "wind") {
+      result.ok ? (stats.windOk += 1) : (stats.windBad += 1);
+    } else if (marker.category === "water") {
+      result.ok ? (stats.waterOk += 1) : (stats.waterBad += 1);
+    }
+  });
+  const statsLine = `气位正确 ${stats.windOk} 项，气位冲突 ${stats.windBad} 项；水位正确 ${stats.waterOk} 项，水位冲突 ${stats.waterBad} 项；未定位 ${stats.unknown} 项。`;
+
+  const suggestionLines = [];
+  if (!markers.length) {
+    suggestionLines.push("当前没有标注，可先放置门、窗、床、灶、沙发等关键点。");
+  } else {
+    if (stats.windBad > 0) {
+      suggestionLines.push("存在气位冲突，建议将气位类标注调整到气位扇区。");
+    }
+    if (stats.waterBad > 0) {
+      suggestionLines.push("存在水位冲突，建议将水位类标注调整到水位扇区。");
+    }
+    if (stats.unknown > 0) {
+      suggestionLines.push("有未定位标注，请确认盘心、房屋框或角度输入。");
+    }
+    if (stats.windBad === 0 && stats.waterBad === 0 && stats.unknown === 0) {
+      suggestionLines.push("当前标注均在合适位置，可继续完善细节。");
+    }
+  }
+
+  return {
+    tips,
+    advice,
+    headerLines,
+    markerLines,
+    conflictLines,
+    unknownLines,
+    suggestionLines,
+    statsLine
+  };
+}
+
+function buildAiSnapshotText() {
+  const data = buildAiSnapshotData();
+  const out = [];
+  const pushSection = (title, rows) => {
+    out.push(`[${title}]`);
+    (rows || []).forEach((line) => {
+      out.push(`${line}`);
+    });
+    out.push("");
+  };
+  pushSection("起盘信息", data.headerLines);
+  pushSection("标记判定", [data.statsLine, ...data.markerLines]);
+  pushSection("冲突清单", data.conflictLines.length ? data.conflictLines : ["暂无冲突标记"]);
+  if (data.unknownLines.length) {
+    pushSection("未定位标注", data.unknownLines);
+  }
+  if (data.tips.length) {
+    pushSection("使用要点", data.tips);
+  }
+  pushSection("建议汇总", data.suggestionLines);
+  pushSection("纳气建议", [data.advice]);
+  while (out.length && !out[out.length - 1]) out.pop();
+  return out.join("\n");
+}
+
+function syncAiSnapshotText() {
+  try {
+    window.__horosa_fengshui_snapshot_text = buildAiSnapshotText();
+    window.__horosa_fengshui_snapshot_at = Date.now();
+  } catch (e) {}
+}
+
 function updateMarkerList() {
   markerList.innerHTML = "";
   if (markers.length === 0) {
     markerList.innerHTML = "<div class=\"helper\">暂无标记，请先放置。</div>";
     summary.textContent = "";
+    syncAiSnapshotText();
     return;
   }
 
@@ -1258,6 +1376,7 @@ function updateMarkerList() {
   });
 
   summary.textContent = `气位正确 ${stats.windOk} 项，气位冲突 ${stats.windBad} 项；水位正确 ${stats.waterOk} 项，水位冲突 ${stats.waterBad} 项；未定位 ${stats.unknown} 项。`;
+  syncAiSnapshotText();
 }
 
 function resetRect() {

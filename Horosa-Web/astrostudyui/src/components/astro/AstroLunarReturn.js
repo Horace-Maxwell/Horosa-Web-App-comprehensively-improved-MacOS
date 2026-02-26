@@ -426,38 +426,42 @@ class AstroLunarReturn extends Component{
 							style={{ height: height }}						
 						>
 							<TabPane tab="返照盘" key="singlechart">
-								<AstroChart value={rChart} 
-									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									height={chartHeight}
-								/>
+									<AstroChart value={rChart} 
+										chartDisplay={this.props.chartDisplay}
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+										height={chartHeight}
+									/>
 							</TabPane>
 							<TabPane tab="原命盘" key="nautalchart">
-								<AstroChart value={chartObj.natualChart} 
-									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									height={chartHeight}
-								/>
+									<AstroChart value={chartObj.natualChart} 
+										chartDisplay={this.props.chartDisplay}
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+										height={chartHeight}
+									/>
 							</TabPane>
 							<TabPane tab="对比盘" key="doublechart">
-								<AstroDoubleChart value={chartObj} 
-									height={chartHeight}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									chartDisplay={this.props.chartDisplay}
-								/>
+									<AstroDoubleChart value={chartObj} 
+										height={chartHeight}
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										chartDisplay={this.props.chartDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
 							</TabPane>
 							{
 								secRChart && (
 									<TabPane tab="第二返照盘" key="secsinglechart">
-										<AstroChart value={secRChart} 
-											chartDisplay={this.props.chartDisplay}
-											planetDisplay={this.props.planetDisplay}
-											lotsDisplay={this.props.lotsDisplay}
-											height={chartHeight}
-										/>
+											<AstroChart value={secRChart} 
+												chartDisplay={this.props.chartDisplay}
+												planetDisplay={this.props.planetDisplay}
+												lotsDisplay={this.props.lotsDisplay}
+												showAstroMeaning={this.props.showAstroMeaning}
+												height={chartHeight}
+											/>
 									</TabPane>
 	
 								)
@@ -465,12 +469,13 @@ class AstroLunarReturn extends Component{
 							{
 								secChartObj && (
 									<TabPane tab="第二返照对比盘" key="secdoublechart">
-										<AstroDoubleChart value={secChartObj} 
-											height={chartHeight}
-											planetDisplay={this.props.planetDisplay}
-											lotsDisplay={this.props.lotsDisplay}
-											chartDisplay={this.props.chartDisplay}
-										/>
+											<AstroDoubleChart value={secChartObj} 
+												height={chartHeight}
+												planetDisplay={this.props.planetDisplay}
+												lotsDisplay={this.props.lotsDisplay}
+												chartDisplay={this.props.chartDisplay}
+												showAstroMeaning={this.props.showAstroMeaning}
+											/>
 									</TabPane>	
 								)
 							}

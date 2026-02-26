@@ -4,6 +4,8 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from '../astro/AstroHelper';
 import { randomStr} from '../../utils/helper'
+import { buildMeaningTipByCategory, } from '../astro/AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 class Midpoint extends Component{
@@ -14,27 +16,48 @@ class Midpoint extends Component{
 			 
 		}
 
-		this.genOneMidDom = this.genOneMidDom.bind(this);
-		this.genMidsDom = this.genMidsDom.bind(this);
+			this.genOneMidDom = this.genOneMidDom.bind(this);
+			this.genMidsDom = this.genMidsDom.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
+		}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
 	genOneMidDom(obj){
 		let degs = AstroHelper.splitDegree(obj.signlon);
 		let term = AstroHelper.whichTerm(obj.sign, obj.signlon);
-		let dom = (
-			<div key={randomStr(8)} style={{marginTop:3}}>
-				<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.idA]}</span>
-				<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;|&nbsp;</span>
-				<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.idB]}</span>
-				<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;=&nbsp;</span>
-				<span style={{fontFamily: AstroConst.NormalFont}}>{degs[0] + 'º'}&nbsp;</span>
-				<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.sign]}&nbsp;</span>
-				<span style={{fontFamily: AstroConst.NormalFont}}>{degs[1] + "'；"}</span>
-				<span style={{fontFamily: AstroConst.NormalFont}}>位于&nbsp;</span>
-				<span style={{fontFamily: AstroConst.AstroFont}}>{term}</span>
-				<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;界</span>
-			</div>
-		);
+			let dom = (
+				<div key={randomStr(8)} style={{marginTop:3}}>
+					{wrapWithMeaning(
+						<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.idA]}</span>,
+						this.showMeaning(),
+						buildMeaningTipByCategory('planet', obj.idA)
+					)}
+					<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;|&nbsp;</span>
+					{wrapWithMeaning(
+						<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.idB]}</span>,
+						this.showMeaning(),
+						buildMeaningTipByCategory('planet', obj.idB)
+					)}
+					<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;=&nbsp;</span>
+					<span style={{fontFamily: AstroConst.NormalFont}}>{degs[0] + 'º'}&nbsp;</span>
+					{wrapWithMeaning(
+						<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.sign]}&nbsp;</span>,
+						this.showMeaning(),
+						buildMeaningTipByCategory('sign', obj.sign)
+					)}
+					<span style={{fontFamily: AstroConst.NormalFont}}>{degs[1] + "'；"}</span>
+					<span style={{fontFamily: AstroConst.NormalFont}}>位于&nbsp;</span>
+					{wrapWithMeaning(
+						<span style={{fontFamily: AstroConst.AstroFont}}>{term}</span>,
+						this.showMeaning(),
+						buildMeaningTipByCategory('sign', obj.sign)
+					)}
+					<span style={{fontFamily: AstroConst.NormalFont}}>&nbsp;界</span>
+				</div>
+			);
 
 		return dom;
 	}

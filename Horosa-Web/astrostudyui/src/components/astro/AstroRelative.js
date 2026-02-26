@@ -420,74 +420,79 @@ class AstroRelative extends Component{
 							style={{ height: height }}
 						>
 							<TabPane tab="比较盘" key="Comp">
-								<AstroCompare
-									value={hook.Comp.result}
+									<AstroCompare
+										value={hook.Comp.result}
 									height={height}
 									fields={this.props.fields}
 									chartA={this.state.chartA}
 									chartB={this.state.chartB}
 									chartDisplay={this.props.chartDisplay}
 									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}	
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-									hook={hook.Comp}	
-								/>
+										lotsDisplay={this.props.lotsDisplay}	
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+										hook={hook.Comp}	
+									/>
 							</TabPane>
 							<TabPane tab="组合盘" key="Composite">
-								<AstroComposite 
-									value={hook.Composite.result}
+									<AstroComposite 
+										value={hook.Composite.result}
 									height={height}
 									fields={this.props.fields}
 									chartA={this.state.chartA}
 									chartB={this.state.chartB}
 									chartDisplay={this.props.chartDisplay}
 									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}	
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-									hook={hook.Composite}	
-								/>
+										lotsDisplay={this.props.lotsDisplay}	
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+										hook={hook.Composite}	
+									/>
 							</TabPane>
 							<TabPane tab="影响盘" key="Synastry">
-								<AstroSynastry 
-									value={hook.Synastry.result}
+									<AstroSynastry 
+										value={hook.Synastry.result}
 									height={height}
 									fields={this.props.fields}
 									chartA={this.state.chartA}
 									chartB={this.state.chartB}
 									chartDisplay={this.props.chartDisplay}
 									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}	
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-									hook={hook.Synastry}	
-								/>
+										lotsDisplay={this.props.lotsDisplay}	
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+										hook={hook.Synastry}	
+									/>
 							</TabPane>
 							<TabPane tab="时空中点盘" key="TimeSpace">
-								<AstroTimeSpace 
-									value={hook.TimeSpace.result}
+									<AstroTimeSpace 
+										value={hook.TimeSpace.result}
 									height={height}
 									fields={this.props.fields}
 									chartA={this.state.chartA}
 									chartB={this.state.chartB}
 									chartDisplay={this.props.chartDisplay}
 									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}	
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-									hook={hook.TimeSpace}	
-								/>
+										lotsDisplay={this.props.lotsDisplay}	
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+										hook={hook.TimeSpace}	
+									/>
 							</TabPane>
 							<TabPane tab="马克斯盘" key="Marks">
-								<AstroMarks 
-									value={hook.Marks.result}
+									<AstroMarks 
+										value={hook.Marks.result}
 									height={height}
 									fields={this.props.fields}
 									chartA={this.state.chartA}
 									chartB={this.state.chartB}
 									chartDisplay={this.props.chartDisplay}
 									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}	
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-									hook={hook.Marks}	
-								/>
+										lotsDisplay={this.props.lotsDisplay}	
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+										hook={hook.Marks}	
+									/>
 							</TabPane>
 
 						</Tabs>

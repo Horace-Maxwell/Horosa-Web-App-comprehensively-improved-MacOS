@@ -620,11 +620,81 @@ export function getScriptPromise(url) {
 	return p;
 }
 
-export function genHtml(tipobj, needpadding){
-	if(tipobj === undefined || tipobj === null 
-		|| tipobj.tips === undefined || tipobj.tips === null){
-		return '';
+function escapeTooltipHtml(text){
+	return `${text === undefined || text === null ? '' : text}`
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+function stripTooltipHeadingText(line){
+	return `${line || ''}`
+		.replace(/^#+\s*/, '')
+		.replace(/^\*\*(.*)\*\*$/, '$1')
+		.trim();
+}
+
+function isTooltipHeadingLine(line){
+	return /^#+\s+/.test(`${line || ''}`.trim());
+}
+
+function renderTooltipInlineBoldHtml(text){
+	const str = `${text || ''}`;
+	const parts = str.split(/(\*\*[^*]+\*\*)/g).filter((item)=>item !== '');
+	return parts.map((part)=>{
+		if(/^\*\*[^*]+\*\*$/.test(part)){
+			return `<strong>${escapeTooltipHtml(part.substring(2, part.length - 2))}</strong>`;
+		}
+		return escapeTooltipHtml(part);
+	}).join('');
+}
+
+function renderTooltipRichLineHtml(line){
+	const oneLine = `${line || ''}`;
+	const trimmed = oneLine.trim();
+	if(trimmed === '=='){
+		return '<div style="border-top:1px solid #e8e8e8;margin:6px 0;"></div>';
 	}
+	if(trimmed === ''){
+		return '<div style="height:4px;"></div>';
+	}
+	if(isTooltipHeadingLine(trimmed)){
+		const heading = renderTooltipInlineBoldHtml(stripTooltipHeadingText(trimmed));
+		return `<div style="margin-top:4px;margin-bottom:6px;">
+			<div style="font-size:14px;line-height:20px;font-weight:700;color:#262626;">${heading}</div>
+			<div style="border-top:1px solid #efefef;margin-top:4px;"></div>
+		</div>`;
+	}
+	return `<div style="margin-bottom:3px;font-size:13px;line-height:21px;color:#262626;white-space:pre-wrap;">${renderTooltipInlineBoldHtml(oneLine)}</div>`;
+}
+
+function hasTooltipRichFormat(tips){
+	if(tips instanceof Array){
+		for(let i=0; i<tips.length; i++){
+			let item = tips[i];
+			if(item instanceof Array){
+				for(let j=0; j<item.length; j++){
+					let sub = `${item[j] || ''}`;
+					if(isTooltipHeadingLine(sub) || /\*\*[^*]+\*\*/.test(sub)){
+						return true;
+					}
+				}
+				continue;
+			}
+			let one = `${item || ''}`;
+			if(isTooltipHeadingLine(one) || /\*\*[^*]+\*\*/.test(one)){
+				return true;
+			}
+		}
+		return false;
+	}
+	let single = `${tips || ''}`;
+	return isTooltipHeadingLine(single) || /\*\*[^*]+\*\*/.test(single);
+}
+
+function genHtmlLegacy(tipobj, needpadding){
 	let tips = tipobj.tips;
 	let parts = [`<h4 style='margin: 10px;'>${tipobj.title}</h4><hr />`];
 	let ul = '<ul style="margin-right: 10px; overflow-x:hidden; overflow-y:auto;">';
@@ -656,6 +726,41 @@ export function genHtml(tipobj, needpadding){
 	parts.push('</ul>');
 	let html = parts.join('');
 	return html;
+}
+
+export function genHtml(tipobj, needpadding){
+	if(tipobj === undefined || tipobj === null 
+		|| tipobj.tips === undefined || tipobj.tips === null){
+		return '';
+	}
+	let tips = tipobj.tips;
+	if(!hasTooltipRichFormat(tips)){
+		return genHtmlLegacy(tipobj, needpadding);
+	}
+	let parts = ['<div style="max-width:560px;max-height:62vh;overflow-y:auto;white-space:normal;">'];
+	if(tipobj.title){
+		parts.push(`<div style="font-size:17px;line-height:24px;font-weight:700;color:#1f1f1f;">${renderTooltipInlineBoldHtml(tipobj.title)}</div>`);
+		parts.push('<div style="border-top:1px solid #d9d9d9;margin:6px 0 8px;"></div>');
+	}
+	if(tips instanceof Array){
+		for(let i=0; i<tips.length; i++){
+			let item = tips[i];
+			if(item instanceof Array){
+				parts.push('<div style="margin:4px 0 6px 12px;">');
+				for(let j=0; j<item.length; j++){
+					let sitem = item[j];
+					parts.push(`<div style="margin-bottom:2px;font-size:13px;line-height:21px;color:#262626;white-space:pre-wrap;">• ${renderTooltipInlineBoldHtml(sitem)}</div>`);
+				}
+				parts.push('</div>');
+			}else{
+				parts.push(renderTooltipRichLineHtml(item));
+			}
+		}
+	}else{
+		parts.push(renderTooltipRichLineHtml(tips));
+	}
+	parts.push('</div>');
+	return parts.join('');
 }
 
 export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpadding){

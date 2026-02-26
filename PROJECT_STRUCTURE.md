@@ -761,3 +761,457 @@
   - 不影响排盘计算、数据结构与右侧参数面板逻辑。
 - 运行包同步：
   - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.01433c13.js`，样式为 `umi.4fac2da6.css`。
+
+## 50) 奇门遁甲取象悬浮窗（干/门/星/神）接入（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/QimenXiangDoc.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+- 结构调整：
+  - 新增 `QimenXiangDoc.js`：
+    - 内置并解析 `4.取象 1.md` 全文（十天干/八门/九星/八神）；
+    - 解析规则支持 `#` 标题、`####` 子标题、空行、分割线；
+    - 子标题在渲染层按“标题 + 分割线”展示；
+    - 提供 `buildQimenXiangTipObj` 与 `formatQimenDocLineToHtml`（保留 `<font>` 与 `**加粗**`）。
+  - `DunJiaMain.js`：
+    - 引入 `Popover`；
+    - 新增 `renderQimenDocPopover` / `renderQimenHoverNode`；
+    - 在宫格中将天盘干、地盘干、八神、九星、八门节点统一接入 hover 悬浮窗口。
+- 行为结果：
+  - 奇门遁甲盘实现与六壬/紫微一致的“鼠标悬停看释义”交互；
+  - 支持干、门、星、神四类取象；原文条目不删减并可滚动查看。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.e9018768.js`，样式为 `umi.4fac2da6.css`。
+
+## 51) 奇门悬浮窗繁体安全转简（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/QimenXiangDoc.js`
+- 结构调整：
+  - 新增 `SAFE_TRAD_TO_SIMP_MAP` + `toSafeSimplified`，以白名单方式做繁体转简体；
+  - `normalizeText`（索引匹配）与 `formatQimenDocLineToHtml`（悬浮窗正文渲染）统一复用该转换链路；
+  - 规避语义误转：不引入 `乾 -> 干` 这类破坏术数语义的替换。
+- 行为结果：
+  - 奇门干/门/星/神悬浮窗显示为更一致的简体文本；
+  - 术数关键字保持原义，避免误读。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.c042ba38.js`，样式为 `umi.4fac2da6.css`。
+
+## 52) 占星“行星”白屏与希腊点标题排版修复（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPlanet.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroLots.js`
+- 结构调整：
+  - `AstroPlanet` 修正实例方法绑定：`genPlanetsDom.bind(this)`，防止 Tab 懒加载时进入“行星”页触发 `this` 为空。
+  - `AstroLots` 新增 `renderTitle`：
+    - 符号（`AstroMsg`）用 `AstroFont`；
+    - 名称（`AstroTxtMsg/AstroMsgCN`）用 `NormalFont`；
+    - 占位符符号 `{` 不再显示。
+  - 移除 `AstroLots` Card 根级 `AstroFont`，避免希腊点标题与正文挤压重叠。
+- 行为结果：
+  - 占星页点击“行星”不再白屏；
+  - 希腊点列表标题恢复可读，不再全部挤成一团。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.21875f3f.js`，样式为 `umi.4fac2da6.css`。
+
+## 53) 占星图释义悬浮开关（星/宫/座/相）接入（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js`
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `Horosa-Web/astrostudyui/src/pages/index.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroChart.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroDoubleChart.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartCircle.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
+- 结构调整：
+  - 新增 app 级别配置项 `showAstroMeaning`，并纳入 `GlobalSetup` 持久化。
+  - 星盘组件抽屉新增勾选项：`是否显示星/宫/座/相释义`（最下方）。
+  - `AstroChartCircle` 新增 `setShowAstroMeaning(flag)`：
+    - 开启时为行星/宫位 tooltip 追加释义正文；
+    - 开启时给星座环与相位线附加 tooltip；
+    - tooltip 样式扩展为宽版可滚动容器，支持长文本。
+  - `AstroDoubleChart` 由 `AstroHelper.drawDoubleChart` 迁移为 `AstroChartCircle.drawDoubleChart`，统一单盘/双盘的 tooltip 行为。
+  - `AstroMeaningData.js` 更新为完整释义数据集：
+    - 行星（太阳、月亮、水星、金星、火星、木星、土星、天王、海王、冥王、北交、南交）；
+    - 星座（白羊至双鱼）；
+    - 宫位（1th~12th）；
+    - 相位（0/30/45/60/90/120/135/150/180）。
+- 行为结果：
+  - 关闭开关：保持当前基础显示（中文名 + 黄经信息）；
+  - 开启开关：鼠标悬停星/宫位/星座/相位可见完整释义悬浮窗，覆盖占星单盘与双盘页面。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.cc6e307f.js`，样式为 `umi.4fac2da6.css`。
+
+## 54) 占星释义原文直存解析（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
+- 结构调整：
+  - 引入 `RAW_ASTRO_REFERENCE` 保存用户提供的星/星座/宫位释义原文；
+  - 通过 `extractBetween + blockToMeaning` 按起止标记切块，构建行星/星座/宫位释义映射；
+  - 不再对原文进行简写改写或内容压缩。
+- 行为结果：
+  - Tooltip 展示数据来源于原文文本本体；
+  - 保留原文层级与措辞，减少“参考文本被改动”的风险。
+- 运行包同步：
+  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.caedc923.js`，样式为 `umi.4fac2da6.css`。
+
+## 55) 占星释义开关全模块同步（含推运/量化表格，2026-02-25）
+
+- 目标文件（核心）：
+  - `Horosa-Web/astrostudyui/src/pages/index.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`（新增）
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartMain.js`
+  - `Horosa-Web/astrostudyui/src/components/astro3d/AstroChartMain3D.js`
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroFirdaria.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroAspect.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPlanet.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroLots.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroDoubleChartMain.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/AspectInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/MidpointInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/relative/AntisciaInfo.js`
+  - `Horosa-Web/astrostudyui/src/components/germany/Midpoint.js`
+  - `Horosa-Web/astrostudyui/src/components/germany/AspectToMidpoint.js`
+  - `Horosa-Web/astrostudyui/src/components/germany/MidpointMain.js`
+  - `Horosa-Web/astrostudyui/src/components/germany/AstroMidpoint.js`
+  - `Horosa-Web/astrostudyui/src/components/germany/AstroGermany.js`
+  - `Horosa-Web/astrostudyui/src/components/dice/DiceMain.js`
+  - `Horosa-Web/astrostudyui/src/components/otherbu/OtherBuMain.js`
+  - 及相关包装组件：`IndiaChartMain/IndiaChart`、`HellenAstroMain/AstroChart13`、`JieQiChartsMain/JieQiChart`、`AstroSolarReturn/AstroLunarReturn/AstroGivenYear/AstroProfection/AstroSolarArc/AstroZR`、`AstroRelative` 与其子组件。
+
+- 结构变化：
+  - 新增占星释义渲染工具：
+    - `AstroMeaningPopover.js`
+      - `isMeaningEnabled(flag)`：统一判断开关；
+      - `renderMeaningContent(tip)`：统一生成可滚动 tooltip 内容；
+      - `wrapWithMeaning(node, enabled, tip)`：为任意节点挂载释义悬浮层。
+  - `showAstroMeaning` 从 `pages/index.js` 透传至推运盘、量化盘、关系盘、节气盘、希腊星术、星盘、西洋游戏、印度律盘与相关内部组件。
+  - 推运与量化相关表格组件统一接入悬浮释义：
+    - 推运：`AstroPrimaryDirection`、`AstroFirdaria`
+    - 关系盘：`AspectInfo`、`MidpointInfo`、`AntisciaInfo`
+    - 量化盘：`Midpoint`、`AspectToMidpoint`
+  - 星盘右侧页签统一接入悬浮释义：
+    - `AstroAspect`（相位）
+    - `AstroPlanet`（行星）
+    - `AstroLots`（希腊点）
+    - `AstroInfo`（行星标签）
+  - 西洋游戏 `DiceMain` 的骰子结果（行星/星座/宫位）及两类图盘也同步接入。
+
+- 行为结果：
+  - 同一个开关可跨页面控制释义显示，避免“主盘有、子页无”的割裂。
+  - 推运盘“表格也是”已生效：悬停行星/相位文本可显示释义。
+  - 七政四余未改动，保持默认 RA 显示行为不变。
+
+## 56) 三式合一外圈释义同步补齐（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - 三式合一页面接入占星释义工具：
+    - `buildMeaningTipByCategory`
+    - `isMeaningEnabled`
+    - `wrapWithMeaning`
+  - `buildOuterData` 增加 `starsByBranchMeta`（包含 `shortTxt/fullTxt/objId`），用于在外圈星曜短标上挂载准确释义。
+  - 外圈渲染 `renderOuterMarks` 新增三类悬浮释义：
+    - 地支：显示对应星座释义（按 `BRANCH_SIGN_ID_MAP` 映射）；
+    - 宫位：显示对应宫位释义（1~12宫）；
+    - 星曜：显示完整星曜文本 + 行星释义。
+
+- 计算与兼容性：
+  - 仅改渲染层；不改起盘算法、时间算法、参数签名与缓存逻辑。
+  - 七政四余（`guolao/*`）未触及，默认 `RA/赤经` 显示保持原行为。
+
+## 57) 占星释义悬浮窗层级化排版（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`
+
+- 结构变化：
+  - 悬浮窗渲染器新增 Markdown 风格语义解析：
+    - `#`/`##`/`####` 开头行识别为“标题行”；
+    - 标题行以下自动绘制分隔线；
+    - 行内 `**...**` 解析为加粗片段；
+    - `==` 保持为分割线；空行渲染为间距行。
+  - 视觉层级调整为接近遁甲浮窗：
+    - 顶部标题更大更粗；
+    - 小节标题加粗并与正文分离；
+    - 正文行高、颜色、间距统一。
+
+- 行为结果：
+  - 占星相关释义浮窗（星/宫/座/相及其扩展表格）主次更清晰；
+  - 用户提供文本中的 `#` 与 `**` 标记可以直接体现在悬浮窗中。
+
+## 58) 希腊点释义专用数据源（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroLots.js`
+
+- 结构变化：
+  - `AstroMeaningData.js` 新增 `RAW_ASTRO_LOTS_REFERENCE`（希腊点原文全文）；
+  - 新增 `LOT_BLOCK_MARKERS` 与 `LOT_MEANINGS`，支持 `buildMeaningTipByCategory('lot', key)`；
+  - `resolveMeaning('planet', key)` 增加希腊点兜底（兼容旧调用路径）；
+  - `AstroLots` 的标题释义入口从 `planet` 改为 `lot` 分类。
+
+- 行为结果：
+  - 希腊点悬浮释义优先显示用户提供的专用文本，不再混入行星释义；
+  - 其他占星页面若以旧路径请求希腊点释义，仍能显示同一套文案，避免模块间不一致。
+
+## 59) AI导出占星释义开关与注释注入（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/components/homepage/PageHeader.js`
+
+- 结构变化：
+  - `AI_EXPORT_SETTINGS_VERSION` 升级为 `5`；
+  - 新增 `astroMeaning` 配置块（按技法独立）；
+  - 在 `listAIExportTechniqueSettings()` 中新增：
+    - `supportsAstroMeaning`
+    - `astroMeaning`
+  - `PageHeader` 的 “AI导出设置” 弹窗新增占星注释复选项：
+    - `在对应分段输出星/宫/座/相/希腊点释义`
+  - 导出流程新增 `applyAstroMeaningFilterByContext()`：
+    - 仅在占星相关技法且开关开启时生效；
+    - 按分段识别并在对应位置追加 `[...]释义` 分段；
+    - 注释来源统一调用 `AstroMeaningData`（行星/星座/宫位/相位/希腊点）。
+
+- 行为结果：
+  - AI导出与前端释义能力同步；
+  - 用户在 AI导出设置中勾选后，导出文本会在对应分段输出完整注释内容；
+  - 不勾选时保持原有导出格式与体量。
+
+## 60) AI导出占星注释全分段覆盖与对应位置输出（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+
+- 结构变化：
+  - 注释注入策略从“标题白名单触发”升级为“标题显式触发 + 内容识别触发”：
+    - 显式标题（行星/希腊点/相位/宫位/信息/推运等）持续触发注释；
+    - 其它占星分段只要检测到星/宫/座/相/希腊点关键词也触发注释。
+  - `appendAstroMeaningSections` 去掉跨分段全局去重，改为每个分段独立注释块。
+
+- 行为结果：
+  - AI导出在所有占星相关页面更稳定地输出注释；
+  - 注释会跟随原分段出现在“对应位置”，不会因前文重复而被省略；
+  - 仍受 AI导出设置里的“占星注释”开关控制。
+
+## 61) 左侧星盘 tooltip 富文本渲染与遁甲风格化（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartCircle.js`
+
+- 结构变化：
+  - `helper.js`：
+    - 新增 tooltip 富文本解析器：
+      - `# / ## / ### / ####` 标题识别；
+      - `**...**` 行内加粗渲染；
+      - `==` 分割线保留；
+      - 仅在检测到富文本标记时启用新渲染，否则走 `genHtmlLegacy`。
+    - 新增 `escapeTooltipHtml`、`renderTooltipInlineBoldHtml` 等工具函数。
+  - `AstroChartCircle.js`：
+    - tooltip 容器样式改为白底卡片（560px + max-width），增加边框与阴影，提升层次可读性。
+
+- 行为结果：
+  - 左侧星盘（含推运等基于 `AstroChartCircle` 的图盘）悬浮释义不再显示原始 markdown；
+  - 标题/分割线/加粗层级与遁甲风格趋同；
+  - 非占星普通 tooltip 渲染保持兼容。
+
+## 62) 遁甲顶部四柱配色对齐八字紫微（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
+
+- 结构变化：
+  - 引入八字配色数据源：
+    - `BaZiColor`（天干五行色）
+    - `ZhiColor`（地支色）
+  - 新增映射函数：
+    - `GAN_COLOR_MAP`
+    - `getBaZiStemColor(stem)`
+    - `getBaZiBranchColor(branch)`
+  - `renderBoard` 顶部四柱 `pillars` 颜色来源改为按干支字符动态映射。
+
+- 行为结果：
+  - 遁甲左上角“年/月/日/时”显示配色与八字紫微方案一致；
+  - 修改仅作用于顶部四柱文本，不影响下方九宫方盘与宫格内容显示。
+
+## 63) 三式合一左盘同步六壬/遁甲/占星悬浮释义（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - 引入六壬释义数据源：
+    - `buildLiuRengShenTipObj`
+    - `buildLiuRengHouseTipObj`
+  - 引入遁甲释义数据源：
+    - `buildQimenXiangTipObj`
+  - 新增 `toQimenMeaningTip()`：
+    - 将遁甲文档块（blank/divider/subTitle/text）转换为统一 tooltip 行结构（兼容 `wrapWithMeaning`）。
+  - `renderLiuRengMarks()`：
+    - 给“天盘支”挂载十二神悬浮释义；
+    - 给“天将”挂载将神/天地盘对应悬浮释义。
+  - `renderQimenBlock()`：
+    - 给天盘干、八神、地盘干、九星、八门挂载遁甲悬浮释义。
+
+- 行为结果：
+  - 三式合一左盘悬浮能力与单盘保持一致：
+    - 占星（星/宫/座）可悬浮；
+    - 六壬（神/将）可悬浮；
+    - 遁甲（干/门/星/神）可悬浮。
+  - 全部受 `showAstroMeaning` 开关统一控制，关闭释义时不显示 tooltip。
+
+## 64) 三式合一悬浮无响应修复（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`
+
+- 结构变化：
+  - `SanShiUnitedMain.less`：
+    - `.outerCell`、`.qmBlock`、`.lrMark` 改为 `pointer-events: auto`，允许悬浮命中。
+  - `AstroMeaningPopover.js`：
+    - `wrapWithMeaning` 从“外包 span 触发”改为“优先直接 clone 原节点触发”；
+    - 解决绝对定位节点悬浮时触发区域丢失的问题。
+
+- 行为结果：
+  - 三式合一左盘鼠标悬停可稳定弹出释义；
+  - 同时提升其他使用 `wrapWithMeaning` 的绝对定位节点兼容性。
+
+## 65) AI导出同步三式悬浮注释（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/components/homepage/PageHeader.js`
+
+- 结构变化：
+  - `aiExport.js`：
+    - 新增技法集合 `AI_EXPORT_HOVER_MEANING_TECHNIQUES`（`qimen/liureng/sanshiunited`）；
+    - 扩展注释开关覆盖：`AI_EXPORT_ASTRO_MEANING_TECHNIQUES` 加入 `qimen/liureng`；
+    - 新增技法文案元信息 `getMeaningSettingMetaByTechnique`；
+    - 新增三类注释构建器：
+      - `appendQimenMeaningSections`（干/门/星/神注释）
+      - `appendLiurengMeaningSections`（十二神/天将注释）
+      - `appendSanShiUnitedMeaningSections`（六壬/遁甲/占星合并注释）
+    - `applyAstroMeaningFilterByContext` 改为按技法分流注释注入。
+  - `PageHeader.js`：
+    - AI导出设置弹窗中“注释开关”标题与描述改为按技法动态显示（占星类/三式类不同文案）。
+
+- 行为结果：
+  - 六壬、遁甲、三式合一在 AI 导出设置中可独立勾选“悬浮注释输出”；
+  - 勾选后导出文本在对应分段追加与悬浮窗口一致的注释内容；
+  - 不勾选保持原始导出正文不变。
+
+## 66) AI导出统一改为计算快照通道（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+
+- 结构变化：
+  - 导出提取函数去 DOM 右栏化：
+    - `extractAstroContent` 仅走 `astroAiSnapshot`（星盘/希腊）与 `indiachart` 快照；
+    - `extractSixYaoContent` 仅走 `guazhan` 快照；
+    - `extractSanShiUnitedContent` 仅走 `sanshiunited` 快照；
+    - `extractTaiYiContent`、`extractGermanyContent`、`extractJieQiContent`、`extractRelativeContent`、`extractOtherBuContent` 统一仅走对应模块快照。
+    - `extractTongSheFaContent` 与 `extractFengShuiContent` 移除 `extractGenericContent` 回退。
+  - `extractGenericContent` 删除最终 DOM 文本兜底，避免误采右侧栏目文本。
+  - 六爻分段设置与快照标题对齐：
+    - 预设改为 `起盘信息/卦象/六爻与动爻/卦辞与断语`；
+    - 兼容映射：`起卦方式 -> 卦象`，`卦辞 -> 卦辞与断语`。
+
+- 行为结果：
+  - AI导出默认不再从右侧栏目复制文本，改为计算阶段快照输出；
+  - 占星盘导出恢复为稳定分段文本来源（避免Tab抓取导致的缺段/串段）；
+  - 六爻旧配置用户无需重配，过滤项仍有效。
+
+## 67) 三式合一占星悬浮兼容修复（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`
+
+- 结构变化：
+  - 新增 `normalizeTip()`：
+    - 统一将 `string / array / object` 三种tip输入规范为 `{ title, tips }`；
+    - 保留对象型tip的标题与细节结构。
+  - `renderMeaningContent()`：
+    - 改为基于 `normalizeTip` 后的数据渲染，避免字符串tip被判空。
+
+- 行为结果：
+  - 三式合一左盘占星元素（外圈星/宫/座）在开启释义时可正常弹出悬浮；
+  - 六壬/遁甲悬浮逻辑与显示不受影响。
+
+## 68) AI导出风水快照化与全模块快照链路收口（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/components/fengshui/FengShuiMain.js`
+  - `Horosa-Web/astrostudyui/public/fengshui/app.js`
+
+- 结构变化：
+  - `aiExport.js`：
+    - `extractTongSheFaContent` 改为仅使用模块快照（支持 `horosa:refresh-module-snapshot` 主动刷新）；
+    - `extractFengShuiContent` 改为仅使用模块快照（先刷新，再读缓存）。
+  - `FengShuiMain.js`：
+    - 新增 iframe 引用与轮询快照同步；
+    - 新增 `horosa:refresh-module-snapshot` 监听，支持导出时即时拉取风水快照；
+    - 将快照保存到 `moduleAiSnapshot('fengshui')`。
+  - `public/fengshui/app.js`：
+    - 新增 AI 快照文本生成器（分段模板）：
+      - `[起盘信息]`
+      - `[标记判定]`
+      - `[冲突清单]`
+      - `[建议汇总]`
+      - `[纳气建议]`
+    - 在标记列表更新时实时同步 `window.__horosa_fengshui_snapshot_text`。
+
+- 行为结果：
+  - AI导出链路进一步统一到“计算/模块快照”来源；
+  - 导出过程不再依赖页面右栏/DOM文本拼接；
+  - 风水页面也具备与其它术法一致的快照导出能力与导出设置过滤能力。
+
+## 69) AI导出分段过滤容错（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+
+- 结构变化：
+  - `applyUserSectionFilter(content, key)`：
+    - 配置值非数组时：直接走正文（仅剔除禁用分段）；
+    - 分段数组为空时：回退到 `AI_EXPORT_PRESET_SECTIONS[key]`；
+    - 过滤后为空时：回退原始正文，避免导出空白。
+  - `applyUserSectionFilterByContext(content, 'jieqi')`：
+    - 若节气盘分段过滤结果为空，回退原始正文。
+
+- 行为结果：
+  - 星盘、推运盘、量化盘、关系盘、节气盘、希腊星术、统摄法等页面，不会再因设置分段为空/失配而出现“当前页面没有可导出文本”误报；
+  - AI导出设置仍然有效，但加入了防误清空保护。
+
+## 70) AI导出 payload 级回退与全技法自检（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+
+- 结构变化：
+  - `buildPayload()`：
+    - 新增 `rawSnapshotContent` 保存计算快照原文；
+    - 在“分段过滤 + 后天信息过滤 + 释义注入”之后，若内容为空则回退至 `rawSnapshotContent` 再生成导出文本。
+  - 一致性校验：
+    - 校验导出分发链路覆盖（`context.key -> extract*Content`）；
+    - 校验禁导出分段（`右侧栏目`）剔除规则；
+    - 校验分段过滤与 payload 兜底开关已启用。
+
+- 行为结果：
+  - 所有方法页面 AI 导出在设置误配时不会被清空；
+  - 保持“计算快照优先”的导出来源，不回退右侧栏目复制；
+  - AI导出设置仍按所选分段生效，且具备空白保护。

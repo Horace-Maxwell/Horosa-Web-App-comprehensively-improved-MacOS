@@ -1,7 +1,9 @@
+import * as d3 from 'd3';
 import { Component } from 'react';
 import {randomStr} from '../../utils/helper';
-import * as AstroHelper from './AstroHelper';
 import * as AstroConst from '../../constants/AstroConst';
+import * as Constants from '../../utils/constants';
+import AstroChartCircle from './AstroChartCircle';
 
 class AstroDoubleChart extends Component{
 
@@ -15,11 +17,23 @@ class AstroDoubleChart extends Component{
 			ox: 0,
 			oy: 0,
 			radius: 0,
-		}
+			tooltipId: 'div' + randomStr(8),
+			tips: null,
+		};
+
+		this.chartCircle = null;
 
 		this.drawChart = this.drawChart.bind(this);
 		this.handleResize = this.handleResize.bind(this);
+		this.onTipClick = this.onTipClick.bind(this);
+		this.getShowAstroMeaning = this.getShowAstroMeaning.bind(this);
 
+	}
+
+	onTipClick(tipobj){
+		this.setState({
+			tips: tipobj,
+		});
 	}
 
 	handleResize(){
@@ -43,6 +57,22 @@ class AstroDoubleChart extends Component{
 			oy: orgy,
 			radius: chartR,
 		});
+	}
+
+	getShowAstroMeaning(){
+		if(this.props.showAstroMeaning !== undefined && this.props.showAstroMeaning !== null){
+			return this.props.showAstroMeaning === 1 || this.props.showAstroMeaning === true;
+		}
+		try{
+			const json = localStorage.getItem(Constants.GlobalSetupKey);
+			if(!json){
+				return false;
+			}
+			const cfg = JSON.parse(json);
+			return cfg && (cfg.showAstroMeaning === 1 || cfg.showAstroMeaning === true);
+		}catch(e){
+			return false;
+		}
 	}
 
 	drawChart(){
@@ -71,11 +101,21 @@ class AstroDoubleChart extends Component{
 		if(chartDisplay === undefined || chartDisplay === null){
 			chartDisplay = AstroConst.CHART_DEFAULTOPTS;
 		}
-		AstroHelper.drawDoubleChart(this.state.chartid, chartobj, this.state.rStep, chartDisplay, planetDisp);
+		if(this.chartCircle){
+			this.chartCircle.setShowAstroMeaning(this.getShowAstroMeaning());
+			this.chartCircle.drawDoubleChart(this.state.chartid, chartobj, this.state.rStep, chartDisplay, planetDisp);
+		}
 	}
 
 	componentDidMount(){
 		window.addEventListener('resize', this.handleResize);
+		d3.select('body').append('div').attr('id', this.state.tooltipId);
+		let option = {
+			divTooltip: d3.select('#' + this.state.tooltipId),
+			onTipClick: this.onTipClick,
+		};
+		this.chartCircle = new AstroChartCircle(option);
+		this.chartCircle.setShowAstroMeaning(this.getShowAstroMeaning());
 		this.drawChart();
 	}
 

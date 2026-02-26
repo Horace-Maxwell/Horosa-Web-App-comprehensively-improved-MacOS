@@ -5,6 +5,8 @@ import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
 import {getAzimuthStr} from '../../utils/helper';
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, } from './AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 class AstroPlanet extends Component{
@@ -15,8 +17,28 @@ class AstroPlanet extends Component{
 
 		}
 
-		this.genPlanetsDom = this.genPlanetsDom.bind();
+		this.genPlanetsDom = this.genPlanetsDom.bind(this);
 		this.renderTitle = this.renderTitle.bind(this);
+		this.showMeaning = this.showMeaning.bind(this);
+		this.withPlanetMeaning = this.withPlanetMeaning.bind(this);
+		this.withSignMeaning = this.withSignMeaning.bind(this);
+		this.withHouseMeaning = this.withHouseMeaning.bind(this);
+	}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
+	}
+
+	withPlanetMeaning(node, objid){
+		return wrapWithMeaning(node, this.showMeaning(), buildMeaningTipByCategory('planet', objid));
+	}
+
+	withSignMeaning(node, signid){
+		return wrapWithMeaning(node, this.showMeaning(), buildMeaningTipByCategory('sign', signid));
+	}
+
+	withHouseMeaning(node, houseid){
+		return wrapWithMeaning(node, this.showMeaning(), buildMeaningTipByCategory('house', houseid));
 	}
 
 	renderTitle(objid, chartObj){
@@ -27,13 +49,14 @@ class AstroPlanet extends Component{
 			this.props.showPlanetHouseInfo
 		);
 		const one = splitPlanetHouseInfoText(text);
-		return (
+		const titleNode = (
 			<span>
 				<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
 				{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
 				<span style={{fontFamily: AstroConst.NormalFont}}>{`(${AstroText.AstroTxtMsg[objid] || objid})`}</span>
 			</span>
 		);
+		return this.withPlanetMeaning(titleNode, objid);
 	}
 
 
@@ -137,12 +160,16 @@ class AstroPlanet extends Component{
 							<Row gutter={12}>
 								<Col span={titleSpan}>落座</Col>
 								<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>
-									<div>
-										<span>{signdeg[0] + 'º'}</span>
-										<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.sign]}</span>
-										<span>{signdeg[1]+"'；"}</span>
-										<span style={{fontFamily: AstroConst.AstroFont}}>位于&nbsp;{AstroHelper.whichTerm(obj.sign, signdeg[0])}&nbsp;界</span>
-										<span>{signdeg[0] === 29 ? '；位于歧度。' : null}</span>
+										<div>
+											<span>{signdeg[0] + 'º'}</span>
+											{this.withSignMeaning((
+												<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.sign]}</span>
+											), obj.sign)}
+											<span>{signdeg[1]+"'；"}</span>
+											{this.withSignMeaning((
+												<span style={{fontFamily: AstroConst.AstroFont}}>位于&nbsp;{AstroHelper.whichTerm(obj.sign, signdeg[0])}&nbsp;界</span>
+											), obj.sign)}
+											<span>{signdeg[0] === 29 ? '；位于歧度。' : null}</span>
 										{
 											obj.isViaCombust && (<span>位于燃烧之路</span>)
 										}
@@ -152,34 +179,44 @@ class AstroPlanet extends Component{
 									</div>
 								</Col>
 							</Row>
-							<Row gutter={12}>
-								<Col span={titleSpan}>落宫</Col>
-								<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>
-									{AstroText.AstroMsg[obj.house]}
-								</Col>
-							</Row>
+								<Row gutter={12}>
+									<Col span={titleSpan}>落宫</Col>
+									<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>
+										{this.withHouseMeaning((
+											<span>{AstroText.AstroMsg[obj.house]}</span>
+										), obj.house)}
+									</Col>
+								</Row>
 							<Row gutter={12}>
 								<Col span={titleSpan}>映点</Col>
 								<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>
-									<div>
-										<span>{antisigndeg[0] + 'º'}</span>
-										<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.antisciaPoint.sign]}</span>
-										<span>{antisigndeg[1]+"'；"}</span>
-										<span style={{fontFamily: AstroConst.AstroFont}}>位于&nbsp;{AstroHelper.whichTerm(obj.antisciaPoint.sign, antisigndeg[0])}&nbsp;界</span>
-									</div>
-								</Col>
-							</Row>
+										<div>
+											<span>{antisigndeg[0] + 'º'}</span>
+											{this.withSignMeaning((
+												<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.antisciaPoint.sign]}</span>
+											), obj.antisciaPoint.sign)}
+											<span>{antisigndeg[1]+"'；"}</span>
+											{this.withSignMeaning((
+												<span style={{fontFamily: AstroConst.AstroFont}}>位于&nbsp;{AstroHelper.whichTerm(obj.antisciaPoint.sign, antisigndeg[0])}&nbsp;界</span>
+											), obj.antisciaPoint.sign)}
+										</div>
+									</Col>
+								</Row>
 							<Row gutter={12}>
 								<Col span={titleSpan}>反映点</Col>
 								<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>
-									<div>
-										<span>{cantisigndeg[0] + 'º'}</span>
-										<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.cantisciaPoint.sign]}</span>
-										<span>{cantisigndeg[1]+"'；"}</span>
-										<span style={{fontFamily: AstroConst.AstroFont}}>位于&nbsp;{AstroHelper.whichTerm(obj.cantisciaPoint.sign, cantisigndeg[0])}&nbsp;界</span>
-									</div>
-								</Col>
-							</Row>
+										<div>
+											<span>{cantisigndeg[0] + 'º'}</span>
+											{this.withSignMeaning((
+												<span style={{fontFamily: AstroConst.AstroFont}}>{AstroText.AstroMsg[obj.cantisciaPoint.sign]}</span>
+											), obj.cantisciaPoint.sign)}
+											<span>{cantisigndeg[1]+"'；"}</span>
+											{this.withSignMeaning((
+												<span style={{fontFamily: AstroConst.AstroFont}}>位于&nbsp;{AstroHelper.whichTerm(obj.cantisciaPoint.sign, cantisigndeg[0])}&nbsp;界</span>
+											), obj.cantisciaPoint.sign)}
+										</div>
+									</Col>
+								</Row>
 							<Row gutter={12}>
 								<Col span={titleSpan}>平均速度</Col>
 								<Col span={ctSpan} style={{fontFamily: AstroConst.NormalFont}}>

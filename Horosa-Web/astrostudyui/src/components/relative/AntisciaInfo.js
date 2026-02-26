@@ -5,6 +5,8 @@ import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from '../astro/AstroHelper';
 import { randomStr} from '../../utils/helper'
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
+import { buildMeaningTipByCategory, } from '../astro/AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
 import styles from '../../css/styles.less';
 
 const LIST_POINTS = [
@@ -27,19 +29,25 @@ class AntisciaInfo extends Component{
 			 
 		}
 
-		this.genAntisciasDom = this.genAntisciasDom.bind(this);
-		this.renderLabel = this.renderLabel.bind(this);
+			this.genAntisciasDom = this.genAntisciasDom.bind(this);
+			this.renderLabel = this.renderLabel.bind(this);
+			this.showMeaning = this.showMeaning.bind(this);
+		}
+
+	showMeaning(){
+		return isMeaningEnabled(this.props.showAstroMeaning);
 	}
 
-	renderLabel(text){
-		const one = splitPlanetHouseInfoText(text);
-		return (
-			<span>
-				<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
-				{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
-			</span>
-		);
-	}
+		renderLabel(text, id){
+			const one = splitPlanetHouseInfoText(text);
+			const labelNode = (
+				<span>
+					<span style={{fontFamily: AstroConst.AstroFont}}>{one.label}</span>
+					{one.info ? <span style={{fontFamily: AstroConst.NormalFont}}>{`(${one.info})`}</span> : null}
+				</span>
+			);
+			return wrapWithMeaning(labelNode, this.showMeaning(), buildMeaningTipByCategory('planet', id));
+		}
 
 
 	genAntisciasDom(chart, title, innerTitle){
@@ -65,15 +73,15 @@ class AntisciaInfo extends Component{
 				obj.idB,
 				this.props.showPlanetHouseInfo
 			);
-			let dom = (
-				<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
-					<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
-					{this.renderLabel(labelA)}&nbsp;与&nbsp;
-					<span style={{fontFamily: AstroConst.NormalFont}}>{innerTitle}&nbsp;</span>
-					{this.renderLabel(labelB)}&nbsp;成映点&nbsp;
-					<span style={{fontFamily: AstroConst.NormalFont}}>误差{Math.round(obj.delta * 1000) / 1000}</span>
-				</div>
-			);
+				let dom = (
+					<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+						<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
+						{this.renderLabel(labelA, obj.idA)}&nbsp;与&nbsp;
+						<span style={{fontFamily: AstroConst.NormalFont}}>{innerTitle}&nbsp;</span>
+						{this.renderLabel(labelB, obj.idB)}&nbsp;成映点&nbsp;
+						<span style={{fontFamily: AstroConst.NormalFont}}>误差{Math.round(obj.delta * 1000) / 1000}</span>
+					</div>
+				);
 			divs.push(dom);
 		}
 
@@ -94,15 +102,15 @@ class AntisciaInfo extends Component{
 				obj.idB,
 				this.props.showPlanetHouseInfo
 			);
-			let dom = (
-				<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
-					<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
-					{this.renderLabel(labelA)}&nbsp;与&nbsp;
-					<span style={{fontFamily: AstroConst.NormalFont}}>{innerTitle}&nbsp;</span>
-					{this.renderLabel(labelB)}&nbsp;成反映点&nbsp;
-					<span style={{fontFamily: AstroConst.NormalFont}}>误差{Math.round(obj.delta * 1000) / 1000}</span>
-				</div>
-			);
+				let dom = (
+					<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+						<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
+						{this.renderLabel(labelA, obj.idA)}&nbsp;与&nbsp;
+						<span style={{fontFamily: AstroConst.NormalFont}}>{innerTitle}&nbsp;</span>
+						{this.renderLabel(labelB, obj.idB)}&nbsp;成反映点&nbsp;
+						<span style={{fontFamily: AstroConst.NormalFont}}>误差{Math.round(obj.delta * 1000) / 1000}</span>
+					</div>
+				);
 			divs.push(dom);
 		}
 

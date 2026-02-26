@@ -50,6 +50,7 @@ class AstroCompare extends Component{
 							planetDisplay={this.props.planetDisplay}
 							lotsDisplay={this.props.lotsDisplay}
 							chartDisplay={this.props.chartDisplay}
+							showAstroMeaning={this.props.showAstroMeaning}
 						/>
 					</Col>
 					<Col span={7}>
@@ -63,10 +64,11 @@ class AstroCompare extends Component{
 									planetDisplay={this.props.planetDisplay}
 									lotsDisplay={this.props.lotsDisplay}
 									dirChart={resobj.dir}
-									natualChart={resobj.natual}
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-								/>
-							</TabPane>
+										natualChart={resobj.natual}
+										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+										showAstroMeaning={this.props.showAstroMeaning}
+									/>
+								</TabPane>
 							{
 								showAntiscia && (
 									<TabPane tab="映点" key="2">
@@ -80,6 +82,7 @@ class AstroCompare extends Component{
 											dirChart={resobj.dir}
 											natualChart={resobj.natual}
 											showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+											showAstroMeaning={this.props.showAstroMeaning}
 										/>
 									</TabPane>
 								)
@@ -97,6 +100,7 @@ class AstroCompare extends Component{
 											dirChart={resobj.dir}
 											natualChart={resobj.natual}
 											showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+											showAstroMeaning={this.props.showAstroMeaning}
 										/>
 									</TabPane>
 								)
