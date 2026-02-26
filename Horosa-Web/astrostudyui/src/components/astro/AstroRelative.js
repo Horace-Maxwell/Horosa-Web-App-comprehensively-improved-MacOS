@@ -222,6 +222,8 @@ class AstroRelative extends Component{
 		this.clickDoChart = this.clickDoChart.bind(this);
 		this.doChart = this.doChart.bind(this);
 		this.genParams = this.genParams.bind(this);
+		this.saveRelativeSnapshot = this.saveRelativeSnapshot.bind(this);
+		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields)=>{
@@ -233,6 +235,72 @@ class AstroRelative extends Component{
 			};
 		}
 
+	}
+
+	componentDidMount(){
+		if(typeof window !== 'undefined' && window.addEventListener){
+			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
+	}
+
+	componentWillUnmount(){
+		if(typeof window !== 'undefined' && window.removeEventListener){
+			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
+	}
+
+	componentDidUpdate(prevProps, prevState){
+		if(
+			prevState.currentTab !== this.state.currentTab
+			|| prevState.currentRelative !== this.state.currentRelative
+			|| prevState.chartA !== this.state.chartA
+			|| prevState.chartB !== this.state.chartB
+			|| prevState.hook !== this.state.hook
+		){
+			this.saveRelativeSnapshot();
+		}
+	}
+
+	saveRelativeSnapshot(){
+		try{
+			const currentHook = this.state.hook && this.state.hook[this.state.currentTab]
+				? this.state.hook[this.state.currentTab]
+				: null;
+			const result = currentHook ? currentHook.result : null;
+			if(!result){
+				return '';
+			}
+			const params = this.genParams() || {};
+			const snapshotText = buildRelativeSnapshotText({
+				currentTab: this.state.currentTab,
+				currentRelative: this.state.currentRelative,
+				chartA: this.state.chartA,
+				chartB: this.state.chartB,
+				params,
+				result,
+			});
+			if(!snapshotText){
+				return '';
+			}
+			saveModuleAISnapshot('relative', snapshotText, {
+				relation: this.state.currentTab,
+				chartA: this.state.chartA && this.state.chartA.record ? this.state.chartA.record.name : null,
+				chartB: this.state.chartB && this.state.chartB.record ? this.state.chartB.record.name : null,
+			});
+			return snapshotText;
+		}catch(e){
+			return '';
+		}
+	}
+
+	handleSnapshotRefreshRequest(evt){
+		if(!evt || !evt.detail || evt.detail.module !== 'relative'){
+			return;
+		}
+		const snapshotText = this.saveRelativeSnapshot();
+		if(snapshotText && evt.detail && typeof evt.detail === 'object'){
+			evt.detail.snapshotText = snapshotText;
+		}
 	}
 
 	genParams(){
@@ -299,18 +367,7 @@ class AstroRelative extends Component{
 			if(hook && hook.fun){
 				hook.fun(res);
 			}
-			saveModuleAISnapshot('relative', buildRelativeSnapshotText({
-				currentTab: this.state.currentTab,
-				currentRelative: this.state.currentRelative,
-				chartA: this.state.chartA,
-				chartB: this.state.chartB,
-				params: params,
-				result: res,
-			}), {
-				relation: this.state.currentTab,
-				chartA: this.state.chartA && this.state.chartA.record ? this.state.chartA.record.name : null,
-				chartB: this.state.chartB && this.state.chartB.record ? this.state.chartB.record.name : null,
-			});
+			this.saveRelativeSnapshot();
 		});
 
 	}

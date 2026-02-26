@@ -1236,3 +1236,93 @@
   - 修复“当前页面没有可导出文本”误报（由 DOM 技法识别失败触发）；
   - 星盘、推运盘、量化盘、关系盘、节气盘、希腊星术、统摄法等页面导出链路更稳；
   - 保持“计算快照优先”，不依赖右侧栏目复制。
+
+## 72) 三式合一占星悬浮提示结构化对齐（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - 新增释义对象处理函数：
+    - `normalizeMeaningTip`
+    - `mergeMeaningTips`
+    - `buildOuterHouseMeaningTip`
+    - `buildOuterBranchMeaningTip`
+    - `buildOuterStarMeaningTip`
+  - `renderOuterMarks`：
+    - `宫位`、`地支-星座`、`星曜` 悬浮说明全部改为结构化 `title + tips`，不再拼接对象到字符串。
+
+- 行为结果：
+  - 修复三式合一占星悬浮出现 `[object Object]`；
+  - 悬浮内容样式与星盘统一（标题、分段、加粗/分隔线风格一致）。
+
+## 73) 星座释义补齐四尊贵状态（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
+
+- 结构变化：
+  - 新增 `SIGN_DIGNITY_LINES` 常量：
+    - 为 12 星座增加 `入庙 / 擢升 / 入落 / 入陷` 文案映射。
+  - 新增 `enrichSignMeaningWithDignity(signKey, meaning)`：
+    - 在星座释义 tips 中插入四尊贵状态；
+    - 默认插入在“宫位属性”后；
+    - 若已存在“入庙”行则跳过，避免重复。
+  - 调整 `resolveMeaning('sign', key)`：
+    - 返回补齐后的星座释义对象，而非原始 `SIGN_MEANINGS`。
+
+- 行为结果：
+  - 星盘相关页面与三式合一中，星座悬浮释义统一新增四尊贵状态；
+  - AI导出“星座释义”分段自动携带四尊贵状态；
+  - AI导出设置中的占星注释开关仍按原逻辑控制输出，仅内容被增强。
+
+## 74) 量化盘 AI 导出快照刷新链路补齐（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/germany/AstroMidpoint.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+
+- 结构变化：
+  - `AstroMidpoint.js`：
+    - 新增 `saveGermanySnapshot(paramsOverride, resultOverride)`，统一生成并保存 `[起盘信息]/[中点]/[中点相位]` 快照；
+    - 新增 `handleSnapshotRefreshRequest(evt)`，响应 `horosa:refresh-module-snapshot` 且 `module === 'germany'`；
+    - `componentDidMount` 注册监听并主动尝试写入快照；
+    - `componentDidUpdate` 在 `midpoints/chart/fields` 变化时自动刷新快照；
+    - `componentWillUnmount` 注销监听；
+    - `requestChart` 改为通过 `saveGermanySnapshot` 落库，确保导出与页面同源。
+  - `aiExport.js`：
+    - `extractGermanyContent` 改为“先刷新再读缓存”：
+      - 先 `requestModuleSnapshotRefresh('germany')`；
+      - 刷新失败再回退 `getModuleCachedContent('germany')`。
+
+- 行为结果：
+  - 量化盘页面点击 AI导出时，不再因本地快照未及时落库而提示“当前页面没有可导出文本”；
+  - 保持“计算阶段快照导出”的实现方式，不依赖右侧栏复制。
+
+## 75) AI导出稳态增强（2026-02-25）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/utils/moduleAiSnapshot.js`
+  - `Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js`
+
+- 结构变化：
+  - `moduleAiSnapshot.js`：
+    - 新增 `MODULE_SNAPSHOT_MEMORY` 内存快照池；
+    - `saveModuleAISnapshot/loadModuleAISnapshot` 改为“localStorage + 内存双通道”。
+  - `astroAiSnapshot.js`：
+    - 新增 `ASTRO_AI_SNAPSHOT_MEMORY`；
+    - `saveAstroAISnapshot/loadAstroAISnapshot` 支持 localStorage 失败时内存兜底。
+  - `aiExport.js`：
+    - `withStoreContextFallback` 增强：当 DOM 上下文与 store 上下文冲突或不完整时，优先采用 store 当前术法；
+    - `getCurrentAIExportContext` 对 `direction` 返回 `primarydirect`；
+    - 新增 `normalizeExportKey/getTechniqueLabelByKey/getCandidateExportKeys/extractContentByKey`；
+    - `buildPayload` 改为候选键兜底提取，并按 `usedExportKey` 执行分段过滤/注释开关；
+    - 推运子模块导出增加 refresh 优先（法达/太阳弧/返照/流年等）；
+    - `requestModuleSnapshotRefresh` 等待窗口从 `80ms` 调整为 `220ms`；
+    - `getModuleCachedContent` 增加跨模块别名识别，减少 case 快照读取误判。
+
+- 行为结果：
+  - 修复多个术法点击 AI导出“无反应/无可导出文本”；
+  - 修复上下文误判导致的导出串台；
+  - 在 localStorage 异常情况下，仍可通过内存快照稳定导出。

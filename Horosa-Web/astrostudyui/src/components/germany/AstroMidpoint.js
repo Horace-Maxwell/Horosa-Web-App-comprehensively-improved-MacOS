@@ -168,11 +168,14 @@ class AstroMidpoint extends Component{
 		};
 
 		this.unmounted = false;
+		this.lastSnapshotParams = null;
 
 		this.requestChart = this.requestChart.bind(this);
 		this.genParams = this.genParams.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.requestChartObj = this.requestChartObj.bind(this);
+		this.saveGermanySnapshot = this.saveGermanySnapshot.bind(this);
+		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = ()=>{
@@ -196,13 +199,42 @@ class AstroMidpoint extends Component{
 		};
 
 		this.setState(st);
-		saveModuleAISnapshot('germany', buildGermanySnapshotText(params, this.props.chart, result, this.props.fields), {
-			date: params.date,
-			time: params.time,
-			zone: params.zone,
-			lon: params.lon,
-			lat: params.lat,
-		});
+		this.lastSnapshotParams = params;
+		this.saveGermanySnapshot(params, result);
+	}
+
+	saveGermanySnapshot(paramsOverride, resultOverride){
+		try{
+			const params = paramsOverride || this.lastSnapshotParams || this.genParams();
+			if(!params){
+				return '';
+			}
+			const result = resultOverride === undefined ? this.state.midpoints : resultOverride;
+			const snapshotText = buildGermanySnapshotText(params, this.props.chart, result || {}, this.props.fields);
+			if(!snapshotText){
+				return '';
+			}
+			saveModuleAISnapshot('germany', snapshotText, {
+				date: params.date,
+				time: params.time,
+				zone: params.zone,
+				lon: params.lon,
+				lat: params.lat,
+			});
+			return snapshotText;
+		}catch(e){
+			return '';
+		}
+	}
+
+	handleSnapshotRefreshRequest(evt){
+		if(!evt || !evt.detail || evt.detail.module !== 'germany'){
+			return;
+		}
+		const snapshotText = this.saveGermanySnapshot();
+		if(snapshotText && evt.detail && typeof evt.detail === 'object'){
+			evt.detail.snapshotText = snapshotText;
+		}
 	}
 
 	requestChartObj(fields){
@@ -235,10 +267,27 @@ class AstroMidpoint extends Component{
 
 	componentDidMount(){
 		this.unmounted = false;
+		if(typeof window !== 'undefined' && window.addEventListener){
+			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
+		this.saveGermanySnapshot();
+	}
+
+	componentDidUpdate(prevProps, prevState){
+		if(
+			prevState.midpoints !== this.state.midpoints
+			|| prevProps.chart !== this.props.chart
+			|| prevProps.fields !== this.props.fields
+		){
+			this.saveGermanySnapshot();
+		}
 	}
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(typeof window !== 'undefined' && window.removeEventListener){
+			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
 	}
 
 	render(){
