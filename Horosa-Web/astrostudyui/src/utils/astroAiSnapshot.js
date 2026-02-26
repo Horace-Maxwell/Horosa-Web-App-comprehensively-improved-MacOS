@@ -3,6 +3,8 @@ import * as AstroText from '../constants/AstroText';
 import { appendPlanetHouseInfoById, } from './planetHouseInfo';
 
 export const ASTRO_AI_SNAPSHOT_KEY = 'horosa.ai.snapshot.astro.v1';
+let ASTRO_AI_SNAPSHOT_MEMORY = null;
+const ASTRO_AI_SNAPSHOT_GLOBAL_KEY = '__horosa_astro_ai_snapshot';
 const DEFAULT_PLANET_INFO_EXPORT = {
 	showHouse: 1,
 	showRuler: 1,
@@ -36,6 +38,34 @@ function normalizeAiPlanetLabel(text){
 
 function normalizeAiExportText(text){
 	return `${text || ''}`.replace(/(\d+)R\s*\(宫主\)/g, '$1R');
+}
+
+function saveAstroSnapshotToGlobal(payload){
+	try{
+		if(typeof window !== 'undefined'){
+			window[ASTRO_AI_SNAPSHOT_GLOBAL_KEY] = payload || null;
+		}
+	}catch(e){
+		// ignore
+	}
+}
+
+function loadAstroSnapshotFromGlobal(){
+	try{
+		if(typeof window === 'undefined'){
+			return null;
+		}
+		const obj = window[ASTRO_AI_SNAPSHOT_GLOBAL_KEY];
+		if(obj && obj.content){
+			return {
+				...obj,
+				content: normalizeAiExportText(obj.content),
+			};
+		}
+		return null;
+	}catch(e){
+		return null;
+	}
 }
 
 function msgWithHouse(id, chartObj, enabled = DEFAULT_PLANET_INFO_EXPORT){
@@ -655,9 +685,6 @@ export function buildAstroSnapshotContent(chartObj, fields){
 
 export function saveAstroAISnapshot(chartObj, fields){
 	try{
-		if(typeof window === 'undefined' || !window.localStorage){
-			return null;
-		}
 		const content = buildAstroSnapshotContent(chartObj, fields);
 		if(!content){
 			return null;
@@ -669,29 +696,91 @@ export function saveAstroAISnapshot(chartObj, fields){
 			chartId: chartObj && chartObj.chartId ? chartObj.chartId : null,
 			content: normalizeAiExportText(content),
 		};
-		window.localStorage.setItem(ASTRO_AI_SNAPSHOT_KEY, JSON.stringify(payload));
+		ASTRO_AI_SNAPSHOT_MEMORY = payload;
+		saveAstroSnapshotToGlobal(payload);
+		if(typeof window !== 'undefined' && window.localStorage){
+			window.localStorage.setItem(ASTRO_AI_SNAPSHOT_KEY, JSON.stringify(payload));
+		}
 		return payload;
 	}catch(e){
+		// localStorage 写入异常时，仍保留内存快照，避免导出链路整体失效。
+		try{
+			const content = buildAstroSnapshotContent(chartObj, fields);
+			if(!content){
+				return null;
+			}
+			ASTRO_AI_SNAPSHOT_MEMORY = {
+				version: 1,
+				createdAt: new Date().toISOString(),
+				signature: createAstroSnapshotSignature(chartObj, fields),
+				chartId: chartObj && chartObj.chartId ? chartObj.chartId : null,
+				content: normalizeAiExportText(content),
+			};
+			saveAstroSnapshotToGlobal(ASTRO_AI_SNAPSHOT_MEMORY);
+			return ASTRO_AI_SNAPSHOT_MEMORY;
+		}catch(inner){
+			// ignore
+		}
 		return null;
 	}
 }
 
 export function loadAstroAISnapshot(){
 	try{
-		if(typeof window === 'undefined' || !window.localStorage){
-			return null;
+		if(typeof window !== 'undefined' && window.localStorage){
+			const raw = window.localStorage.getItem(ASTRO_AI_SNAPSHOT_KEY);
+			if(raw){
+				try{
+					const obj = JSON.parse(raw);
+					if(obj && obj.content){
+						obj.content = normalizeAiExportText(obj.content);
+						ASTRO_AI_SNAPSHOT_MEMORY = obj;
+						saveAstroSnapshotToGlobal(obj);
+						return obj;
+					}
+				}catch(parseErr){
+					// 兼容旧版本：astro 快照可能是纯文本直接存储。
+					const txt = normalizeAiExportText(`${raw}`.trim());
+					if(txt){
+						const legacy = {
+							version: 1,
+							createdAt: '',
+							signature: '',
+							chartId: null,
+							content: txt,
+						};
+						ASTRO_AI_SNAPSHOT_MEMORY = legacy;
+						saveAstroSnapshotToGlobal(legacy);
+						return legacy;
+					}
+				}
+			}
 		}
-		const raw = window.localStorage.getItem(ASTRO_AI_SNAPSHOT_KEY);
-		if(!raw){
-			return null;
+		const global = loadAstroSnapshotFromGlobal();
+		if(global){
+			ASTRO_AI_SNAPSHOT_MEMORY = global;
+			return global;
 		}
-		const obj = JSON.parse(raw);
-		if(!obj || !obj.content){
-			return null;
+		if(ASTRO_AI_SNAPSHOT_MEMORY && ASTRO_AI_SNAPSHOT_MEMORY.content){
+			const mem = {
+				...ASTRO_AI_SNAPSHOT_MEMORY,
+				content: normalizeAiExportText(ASTRO_AI_SNAPSHOT_MEMORY.content),
+			};
+			return mem;
 		}
-		obj.content = normalizeAiExportText(obj.content);
-		return obj;
+		return null;
 	}catch(e){
+		const global = loadAstroSnapshotFromGlobal();
+		if(global){
+			ASTRO_AI_SNAPSHOT_MEMORY = global;
+			return global;
+		}
+		if(ASTRO_AI_SNAPSHOT_MEMORY && ASTRO_AI_SNAPSHOT_MEMORY.content){
+			return {
+				...ASTRO_AI_SNAPSHOT_MEMORY,
+				content: normalizeAiExportText(ASTRO_AI_SNAPSHOT_MEMORY.content),
+			};
+		}
 		return null;
 	}
 }

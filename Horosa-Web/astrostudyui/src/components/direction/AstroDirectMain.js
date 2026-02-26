@@ -234,6 +234,9 @@ class AstroDirectMain extends Component{
 
 		this.changeTab = this.changeTab.bind(this);
 		this.saveDirectionSnapshot = this.saveDirectionSnapshot.bind(this);
+		this.savePrimaryDirectSnapshot = this.savePrimaryDirectSnapshot.bind(this);
+		this.saveFirdariaSnapshot = this.saveFirdariaSnapshot.bind(this);
+		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (chartobj)=>{
@@ -246,7 +249,7 @@ class AstroDirectMain extends Component{
 
 	}
 
-	saveDirectionSnapshot(){
+	savePrimaryDirectSnapshot(){
 		const chartObj = this.props.chartObj || {};
 		const fields = this.props.fields || {};
 		const showPdBounds = fields.showPdBounds ? fields.showPdBounds.value : 1;
@@ -257,21 +260,67 @@ class AstroDirectMain extends Component{
 				showPdBounds,
 			},
 		};
-		saveModuleAISnapshot('primarydirect', buildPrimaryDirectSnapshotText(snapshotChartObj), {
+		const txt = buildPrimaryDirectSnapshotText(snapshotChartObj);
+		if(!txt){
+			return '';
+		}
+		saveModuleAISnapshot('primarydirect', txt, {
 			tab: 'primarydirect',
 		});
+		return txt;
+	}
+
+	saveFirdariaSnapshot(){
+		const txt = buildFirdariaSnapshotText(this.props.chartObj);
+		if(!txt){
+			return '';
+		}
+		saveModuleAISnapshot('firdaria', txt, {
+			tab: 'firdaria',
+		});
+		return txt;
+	}
+
+	saveDirectionSnapshot(){
+		this.savePrimaryDirectSnapshot();
 		if(this.state.currentTab === 'primarydirect'){
 			return;
 		}
 		if(this.state.currentTab === 'firdaria'){
-			saveModuleAISnapshot('firdaria', buildFirdariaSnapshotText(this.props.chartObj), {
-				tab: 'firdaria',
-			});
+			this.saveFirdariaSnapshot();
+		}
+	}
+
+	handleSnapshotRefreshRequest(evt){
+		if(!evt || !evt.detail || typeof evt.detail !== 'object'){
+			return;
+		}
+		if(evt.detail.module === 'primarydirect'){
+			const txt = this.savePrimaryDirectSnapshot();
+			if(txt){
+				evt.detail.snapshotText = txt;
+			}
+			return;
+		}
+		if(evt.detail.module === 'firdaria'){
+			const txt = this.saveFirdariaSnapshot();
+			if(txt){
+				evt.detail.snapshotText = txt;
+			}
 		}
 	}
 
 	componentDidMount(){
+		if(typeof window !== 'undefined' && window.addEventListener){
+			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
 		this.saveDirectionSnapshot();
+	}
+
+	componentWillUnmount(){
+		if(typeof window !== 'undefined' && window.removeEventListener){
+			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
 	}
 
 	componentDidUpdate(prevProps, prevState){

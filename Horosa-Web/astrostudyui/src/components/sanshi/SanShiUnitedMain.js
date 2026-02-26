@@ -1278,6 +1278,115 @@ function toQimenMeaningTip(tipObj){
 	};
 }
 
+function normalizeMeaningTip(tip){
+	if(!tip){
+		return null;
+	}
+	if(typeof tip === 'string'){
+		return {
+			title: '',
+			tips: [`${tip}`],
+		};
+	}
+	if(Array.isArray(tip)){
+		return {
+			title: '',
+			tips: tip.map((item)=>safe(item, '')),
+		};
+	}
+	if(typeof tip === 'object'){
+		return {
+			title: safe(tip.title, ''),
+			tips: Array.isArray(tip.tips)
+				? tip.tips.map((item)=>safe(item, ''))
+				: (tip.tips ? [safe(tip.tips, '')] : []),
+		};
+	}
+	return null;
+}
+
+function mergeMeaningTips(title, parts){
+	const tips = [];
+	(parts || []).forEach((part, idx)=>{
+		const one = normalizeMeaningTip(part);
+		if(!one){
+			return;
+		}
+		if(one.title){
+			tips.push(`### ${one.title}`);
+		}
+		(one.tips || []).forEach((line)=>{
+			tips.push(safe(line, ''));
+		});
+		if(idx < (parts.length - 1)){
+			tips.push('==');
+		}
+	});
+	while(tips.length && (tips[tips.length - 1] === '==' || tips[tips.length - 1] === '')){
+		tips.pop();
+	}
+	return {
+		title: safe(title, ''),
+		tips,
+	};
+}
+
+function buildOuterHouseMeaningTip(houses){
+	const entries = (houses || []).map((txt)=>{
+		const num = parseInt(`${txt}`, 10);
+		if(Number.isNaN(num) || num < 1 || num > 12){
+			return null;
+		}
+		const houseId = AstroConst[`HOUSE${num}`];
+		const tip = houseId ? buildMeaningTipByCategory('house', houseId) : null;
+		if(!tip){
+			return null;
+		}
+		return {
+			num,
+			tip,
+		};
+	}).filter(Boolean);
+	if(!entries.length){
+		return null;
+	}
+	return mergeMeaningTips(
+		entries.length === 1 ? `${entries[0].num}宫` : entries.map((one)=>`${one.num}宫`).join('/'),
+		entries.map((one)=>({
+			title: `${one.num}宫`,
+			tips: normalizeMeaningTip(one.tip) ? normalizeMeaningTip(one.tip).tips : [],
+		}))
+	);
+}
+
+function buildOuterBranchMeaningTip(branch){
+	const signName = safe(BRANCH_ZODIAC_MAP[branch], '未知星座');
+	const signId = BRANCH_SIGN_ID_MAP[branch];
+	const signMeaning = signId ? buildMeaningTipByCategory('sign', signId) : null;
+	if(!signMeaning){
+		return null;
+	}
+	const normalized = normalizeMeaningTip(signMeaning);
+	if(!normalized){
+		return null;
+	}
+	return {
+		title: `「${branch}-${signName}」`,
+		tips: normalized.title
+			? [normalized.title, ...(normalized.tips || [])]
+			: (normalized.tips || []),
+	};
+}
+
+function buildOuterStarMeaningTip(star){
+	const base = safe(star && star.fullTxt, safe(star && star.shortTxt, ''));
+	const ptip = star && star.objId ? buildMeaningTipByCategory('planet', star.objId) : null;
+	if(!ptip){
+		return base || '';
+	}
+	return mergeMeaningTips(base, [ptip]);
+}
+
 class SanShiUnitedMain extends Component{
 	constructor(props){
 		super(props);
@@ -2720,21 +2829,9 @@ class SanShiUnitedMain extends Component{
 				starRows.push(paddedRow);
 			}
 			const houseTxt = houses.length ? houses.join('/') : '';
-			const houseMeaning = houses.map((txt)=>{
-				const num = parseInt(`${txt}`, 10);
-				if(Number.isNaN(num) || num < 1 || num > 12){
-					return '';
-				}
-				const houseId = AstroConst[`HOUSE${num}`];
-				const tip = houseId ? buildMeaningTipByCategory('house', houseId) : '';
-				return tip ? `${num}宫\n${tip}` : '';
-			}).filter((txt)=>!!txt).join('\n==\n');
+			const houseMeaning = buildOuterHouseMeaningTip(houses);
 			const labelLayout = getOuterLabelLayout(item.branch, houseFont);
-			const signId = BRANCH_SIGN_ID_MAP[item.branch];
-			const signMeaning = signId ? buildMeaningTipByCategory('sign', signId) : '';
-			const branchMeaning = signMeaning
-				? `「${item.branch}-${safe(BRANCH_ZODIAC_MAP[item.branch], '未知星座')}」\n==\n${signMeaning}`
-				: '';
+			const branchMeaning = buildOuterBranchMeaningTip(item.branch);
 			return (
 				<div
 					key={`outer_${item.branch}`}
@@ -2801,14 +2898,7 @@ class SanShiUnitedMain extends Component{
 																	{safe(star.shortTxt, '')}
 																</span>,
 																showMeaning,
-																(()=>{
-																	const ptip = star.objId ? buildMeaningTipByCategory('planet', star.objId) : '';
-																	const base = safe(star.fullTxt, safe(star.shortTxt, ''));
-																	if(base && ptip){
-																		return `${base}\n==\n${ptip}`;
-																	}
-																	return base;
-																})()
+																buildOuterStarMeaningTip(star)
 															)}
 														</span>
 													)

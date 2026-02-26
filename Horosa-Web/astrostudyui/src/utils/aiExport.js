@@ -269,6 +269,7 @@ const AI_EXPORT_FORBIDDEN_SECTIONS = {
 	qimen: ['右侧栏目'],
 	sanshiunited: ['右侧栏目'],
 };
+const MODULE_SNAPSHOT_PREFIX = 'horosa.ai.snapshot.module.v1.';
 
 // ywastr* 字体把术语编码到单字符里，复制后只剩字母，需要反解码。
 const STANDALONE_TOKEN_MAP = {
@@ -376,6 +377,14 @@ function uniqueArray(arr){
 	return out;
 }
 
+function safe(text, fallback = ''){
+	const val = text === undefined || text === null ? '' : `${text}`.trim();
+	if(val){
+		return val;
+	}
+	return `${fallback || ''}`;
+}
+
 function normalizePlanetInfoSetting(raw){
 	const val = raw && typeof raw === 'object' ? raw : {};
 	return {
@@ -441,7 +450,7 @@ function getPlanetInfoSettingByTechnique(settings, key){
 }
 
 function getAstroMeaningSettingByTechnique(settings, key){
-	if(!isAstroMeaningTechnique(key)){
+	if(!isAstroMeaningTechnique(key) && !isHoverMeaningTechnique(key)){
 		return {
 			enabled: 0,
 		};
@@ -535,7 +544,7 @@ function normalizeAIExportSettings(settings){
 	});
 	const astroMeaning = settings.astroMeaning && typeof settings.astroMeaning === 'object' ? settings.astroMeaning : {};
 	Object.keys(astroMeaning).forEach((key)=>{
-		if(!isAstroMeaningTechnique(key)){
+		if(!isAstroMeaningTechnique(key) && !isHoverMeaningTechnique(key)){
 			return;
 		}
 		normalized.astroMeaning[key] = normalizeAstroMeaningSetting(astroMeaning[key]);
@@ -564,6 +573,7 @@ async function requestModuleSnapshotRefresh(moduleName){
 	if(!moduleName || typeof window === 'undefined'){
 		return '';
 	}
+	const before = `${getModuleCachedContent(moduleName) || ''}`.trim();
 	const detail = {
 		module: moduleName,
 		snapshotText: '',
@@ -575,10 +585,34 @@ async function requestModuleSnapshotRefresh(moduleName){
 	}catch(e){
 		return '';
 	}
-	await new Promise((resolve)=>setTimeout(resolve, 80));
-	return typeof detail.snapshotText === 'string'
+	// 某些模块会在事件回调里触发异步重算后才写快照；轮询一小段时间。
+	const stepMs = 120;
+	const maxWaitMs = 1800;
+	let waited = 0;
+	while(waited <= maxWaitMs){
+		const direct = typeof detail.snapshotText === 'string'
+			? `${detail.snapshotText}`.trim()
+			: '';
+		if(direct){
+			return direct;
+		}
+		const cached = `${getModuleCachedContent(moduleName) || ''}`.trim();
+		if(cached && (cached !== before || waited >= 480)){
+			return cached;
+		}
+		// 等待下一个轮询周期
+		// eslint-disable-next-line no-await-in-loop
+		await sleep(stepMs);
+		waited += stepMs;
+	}
+	const direct = typeof detail.snapshotText === 'string'
 		? `${detail.snapshotText}`.trim()
 		: '';
+	if(direct){
+		return direct;
+	}
+	const cached = `${getModuleCachedContent(moduleName) || ''}`.trim();
+	return cached || before || '';
 }
 
 function getCachedContentForTechnique(key){
@@ -1188,14 +1222,57 @@ function findTopTabsContainer(root){
 	if(!root){
 		return null;
 	}
+	const topLabelHints = [
+		'星盘',
+		'三维盘',
+		'推运盘',
+		'量化盘',
+		'关系盘',
+		'节气盘',
+		'希腊星术',
+		'印度律盘',
+		'八字紫微',
+		'易与三式',
+		'七政四余',
+		'风水',
+		'三式合一',
+	];
 	const tabs = Array.from(root.querySelectorAll('.ant-tabs'));
+	let best = null;
+	let bestScore = -1;
+	let bestNavCount = -1;
 	for(let i=0; i<tabs.length; i++){
 		const names = getTabsNavItems(tabs[i]).map((n)=>textOf(n));
 		if(names.includes('星盘') && names.includes('易与三式')){
 			return tabs[i];
 		}
+		if(!names.length){
+			continue;
+		}
+		let score = 0;
+		topLabelHints.forEach((hint)=>{
+			if(names.some((txt)=>txt && txt.includes(hint))){
+				score += 1;
+			}
+		});
+		const navCount = names.filter(Boolean).length;
+		if(score > bestScore || (score === bestScore && navCount > bestNavCount)){
+			bestScore = score;
+			best = tabs[i];
+			bestNavCount = navCount;
+		}
 	}
-	return root.querySelector('.ant-tabs-left') || tabs[0] || null;
+	if(best && bestScore > 0){
+		return best;
+	}
+	const leftTabs = root.querySelector('.ant-tabs-left');
+	if(leftTabs){
+		return leftTabs;
+	}
+	if(best){
+		return best;
+	}
+	return tabs[0] || null;
 }
 
 function detectChartTypeInPane(scopeRoot){
@@ -1284,6 +1361,41 @@ function resolveActiveContext(){
 		context.displayName = predictiveByTop.name;
 		return context;
 	}
+	// 右侧子标签直接激活时，顶层标题可能不是“推运盘/量化盘/关系盘/印度律盘”等；
+	// 这里优先按可见标签做直达识别，避免落入 generic 导致导出误判为空。
+	if(topLabel.includes('行星中点')){
+		context.key = 'germany';
+		context.displayName = '量化盘';
+		return context;
+	}
+	if(topLabel.includes('比较盘') || topLabel.includes('组合盘')
+		|| topLabel.includes('影响盘') || topLabel.includes('时空中点盘')
+		|| topLabel.includes('马克斯盘')){
+		context.key = 'relative';
+		context.displayName = `关系盘-${topLabel}`;
+		return context;
+	}
+	if(topLabel.includes('命盘') || /(^|\s)\d+\s*律盘$/.test(topLabel)){
+		context.key = 'indiachart';
+		context.displayName = '印度律盘';
+		return context;
+	}
+	if(topLabel.includes('节气') || topLabel.includes('春分') || topLabel.includes('夏至')
+		|| topLabel.includes('秋分') || topLabel.includes('冬至')){
+		context.key = 'jieqi';
+		context.displayName = '节气盘';
+		return context;
+	}
+	if(topLabel === '八字' || topLabel.includes('八字')){
+		context.key = 'bazi';
+		context.displayName = '八字';
+		return context;
+	}
+	if(topLabel.includes('紫微')){
+		context.key = 'ziwei';
+		context.displayName = '紫微斗数';
+		return context;
+	}
 
 	if(topLabel.includes('推运盘')){
 		const subTabs = findTabsContainerByLabels(topPane, ['主/界限法', '黄道星释', '法达星限', '小限法', '太阳弧', '太阳返照', '月亮返照', '流年法'], false);
@@ -1298,7 +1410,10 @@ function resolveActiveContext(){
 			context.displayName = predictiveBySub.name;
 			return context;
 		}
-		context.key = 'astrochart';
+		// 子标签识别失败时不要回落到星盘；保留 direction 触发 store 回退，
+		// 否则会误读 astrochart 快照并造成“当前页面没有可导出文本”。
+		context.key = 'direction';
+		context.domain = 'predictive_raw';
 		context.displayName = subLabel ? `推运盘-${subLabel}` : '推运盘';
 		return context;
 	}
@@ -1373,7 +1488,7 @@ function resolveActiveContext(){
 	}
 
 	if(topLabel.includes('易与三式')){
-		const subTabs = findTabsContainerByLabels(topPane, ['宿盘', '易卦', '六壬', '金口诀'], true);
+		const subTabs = findTabsContainerByLabels(topPane, ['宿盘', '易卦', '六壬', '金口诀', '遁甲', '太乙', '统摄法'], false);
 		if(!subTabs){
 			context.key = 'cnyibu';
 			return context;
@@ -1554,12 +1669,23 @@ function withStoreContextFallback(context){
 	const base = context && typeof context === 'object'
 		? { ...context }
 		: { key: 'generic', displayName: '当前技术', domain: null, scopeRoot: null };
-	const needsFallback = !base.key || base.key === 'generic' || base.key === 'cnyibu' || base.key === 'cntradition' || base.key === 'direction';
-	if(!needsFallback){
-		return base;
-	}
 	const fallback = resolveContextByAstroState();
 	if(!fallback || !fallback.key){
+		return base;
+	}
+	const baseKey = `${base.key || ''}`;
+	const fallbackKey = `${fallback.key || ''}`;
+	const baseKnown = AI_EXPORT_TECHNIQUES.some((item)=>item.key === baseKey);
+	const fallbackSpecific = !!fallbackKey && fallbackKey !== 'generic';
+	const isBaseUmbrella = baseKey === 'generic'
+		|| baseKey === 'cntradition'
+		|| baseKey === 'cnyibu'
+		|| baseKey === 'direction';
+	const shouldUseFallback = !baseKey
+		|| !baseKnown
+		|| isBaseUmbrella
+		|| (baseKey === fallbackKey && fallbackSpecific);
+	if(!shouldUseFallback){
 		return base;
 	}
 	return {
@@ -1602,6 +1728,12 @@ function detectJieQiSettingKeyByScope(scopeRoot){
 export function getCurrentAIExportContext(){
 	try{
 		const context = withStoreContextFallback(resolveActiveContext());
+		if(context.key === 'direction'){
+			return {
+				key: 'primarydirect',
+				displayName: context.displayName || '推运盘-主/界限法',
+			};
+		}
 		if(context.key === 'jieqi'){
 			const byScope = detectJieQiSettingKeyByScope(context.scopeRoot);
 			return {
@@ -1706,38 +1838,363 @@ function getAstroCachedContent(){
 	return '';
 }
 
+function tryParseJSON(raw){
+	if(raw === undefined || raw === null){
+		return null;
+	}
+	if(typeof raw !== 'string'){
+		return null;
+	}
+	const txt = raw.trim();
+	if(!txt){
+		return null;
+	}
+	if((txt[0] !== '{' || txt[txt.length - 1] !== '}')
+		&& (txt[0] !== '[' || txt[txt.length - 1] !== ']')){
+		return null;
+	}
+	try{
+		return JSON.parse(txt);
+	}catch(e){
+		return null;
+	}
+}
+
+function extractSnapshotText(raw){
+	if(raw === undefined || raw === null){
+		return '';
+	}
+	if(typeof raw === 'string'){
+		const txt = raw.trim();
+		if(!txt){
+			return '';
+		}
+		const parsed = tryParseJSON(txt);
+		if(parsed !== null){
+			return extractSnapshotText(parsed);
+		}
+		return txt;
+	}
+	if(Array.isArray(raw)){
+		for(let i=0; i<raw.length; i++){
+			const txt = extractSnapshotText(raw[i]);
+			if(txt){
+				return txt;
+			}
+		}
+		return '';
+	}
+	if(typeof raw !== 'object'){
+		return '';
+	}
+	if(typeof raw.content === 'string' && raw.content.trim()){
+		return raw.content.trim();
+	}
+	if(typeof raw.text === 'string' && raw.text.trim()){
+		return raw.text.trim();
+	}
+	if(raw.value !== undefined){
+		const txt = extractSnapshotText(raw.value);
+		if(txt){
+			return txt;
+		}
+	}
+	if(raw.snapshot !== undefined){
+		const txt = extractSnapshotText(raw.snapshot);
+		if(txt){
+			return txt;
+		}
+	}
+	if(raw.payload !== undefined){
+		const txt = extractSnapshotText(raw.payload);
+		if(txt){
+			return txt;
+		}
+	}
+	const likelyKeys = ['data', 'result', 'snapshotText', 'moduleSnapshots', 'snapshots', 'modules'];
+	for(let i=0; i<likelyKeys.length; i++){
+		const key = likelyKeys[i];
+		if(raw[key] === undefined){
+			continue;
+		}
+		const txt = extractSnapshotText(raw[key]);
+		if(txt){
+			return txt;
+		}
+	}
+	const keys = Object.keys(raw);
+	for(let i=0; i<keys.length; i++){
+		const key = keys[i];
+		if(key === 'meta' || key === 'createdAt' || key === 'version' || key === 'module'){
+			continue;
+		}
+		const txt = extractSnapshotText(raw[key]);
+		if(txt){
+			return txt;
+		}
+	}
+	return '';
+}
+
+function getModuleAliasList(moduleName){
+	const name = `${moduleName || ''}`.trim();
+	if(!name){
+		return [];
+	}
+	const set = new Set([name]);
+	if(name === 'guazhan' || name === 'sixyao' || name === 'liuyao'){
+		set.add('guazhan');
+		set.add('sixyao');
+		set.add('liuyao');
+	}
+	if(name === 'qimen' || name === 'dunjia'){
+		set.add('qimen');
+		set.add('dunjia');
+	}
+	if(name === 'primarydirect' || name === 'direction'){
+		set.add('primarydirect');
+		set.add('direction');
+	}
+	if(name === 'zodialrelease' || name === 'zodiacrelease'){
+		set.add('zodialrelease');
+		set.add('zodiacrelease');
+	}
+	if(name === 'germany' || name === 'germanytech'){
+		set.add('germany');
+		set.add('germanytech');
+	}
+	if(name === 'relative' || name === 'relativechart'){
+		set.add('relative');
+		set.add('relativechart');
+	}
+	if(name === 'indiachart' || name === 'indiachart_current' || name.indexOf('indiachart_') === 0){
+		set.add('indiachart');
+		set.add('indiachart_current');
+	}
+	if(name === 'jieqi' || name === 'jieqi_current' || name.indexOf('jieqi_') === 0){
+		set.add('jieqi');
+		set.add('jieqi_current');
+	}
+	return Array.from(set).filter(Boolean);
+}
+
+function getSnapshotFromPayload(payload, aliases){
+	if(!payload || typeof payload !== 'object'){
+		return '';
+	}
+	const aliasSet = new Set((aliases || []).map((item)=>`${item || ''}`).filter(Boolean));
+	const candidates = [];
+	const pushCandidate = (txt, score)=>{
+		const val = `${txt || ''}`.trim();
+		if(!val){
+			return;
+		}
+		candidates.push({
+			text: val,
+			score: Number.isNaN(Number(score)) ? 0 : Number(score),
+			len: val.length,
+		});
+	};
+	pushCandidate(extractSnapshotText(payload.snapshot), 70);
+	if(payload.module && aliasSet.has(`${payload.module}`)){
+		pushCandidate(extractSnapshotText(payload.snapshot), 95);
+	}
+	(aliases || []).forEach((alias)=>{
+		if(!alias){
+			return;
+		}
+		pushCandidate(extractSnapshotText(payload[alias]), 96);
+		const moduleSnapshots = payload.moduleSnapshots && typeof payload.moduleSnapshots === 'object'
+			? payload.moduleSnapshots
+			: null;
+		if(moduleSnapshots){
+			pushCandidate(extractSnapshotText(moduleSnapshots[alias]), 94);
+		}
+		const modules = payload.modules && typeof payload.modules === 'object'
+			? payload.modules
+			: null;
+		if(modules){
+			pushCandidate(extractSnapshotText(modules[alias]), 92);
+		}
+	});
+	const snapshots = payload.snapshots && typeof payload.snapshots === 'object'
+		? payload.snapshots
+		: null;
+	if(snapshots){
+		Object.keys(snapshots).forEach((rawKey)=>{
+			const key = `${rawKey || ''}`.trim();
+			if(!key){
+				return;
+			}
+			let matched = false;
+			if(aliasSet.has(key)){
+				matched = true;
+			}
+			if(key.indexOf(MODULE_SNAPSHOT_PREFIX) === 0){
+				const suffix = key.substring(MODULE_SNAPSHOT_PREFIX.length);
+				if(aliasSet.has(suffix)){
+					matched = true;
+				}
+			}
+			if(!matched){
+				return;
+			}
+			pushCandidate(extractSnapshotText(snapshots[rawKey]), 93);
+		});
+	}
+	const seen = new Set();
+	const walk = (node, depth)=>{
+		if(!node || depth > 4){
+			return;
+		}
+		if(Array.isArray(node)){
+			node.forEach((item)=>walk(item, depth + 1));
+			return;
+		}
+		if(typeof node !== 'object'){
+			return;
+		}
+		if(seen.has(node)){
+			return;
+		}
+		seen.add(node);
+		Object.keys(node).forEach((rawKey)=>{
+			const key = `${rawKey || ''}`.trim();
+			if(!key){
+				return;
+			}
+			let matched = false;
+			if(aliasSet.has(key)){
+				matched = true;
+			}
+			if(key.indexOf(MODULE_SNAPSHOT_PREFIX) === 0){
+				const suffix = key.substring(MODULE_SNAPSHOT_PREFIX.length);
+				if(aliasSet.has(suffix)){
+					matched = true;
+				}
+			}
+			if(key.indexOf('snapshot') >= 0 || key.indexOf('module') >= 0){
+				matched = true;
+			}
+			if(matched){
+				pushCandidate(extractSnapshotText(node[rawKey]), 68 - depth);
+			}
+			if(depth < 4){
+				walk(node[rawKey], depth + 1);
+			}
+		});
+	};
+	walk(payload, 0);
+	if(!candidates.length){
+		return '';
+	}
+	candidates.sort((a, b)=>{
+		if(a.score !== b.score){
+			return b.score - a.score;
+		}
+		return b.len - a.len;
+	});
+	return candidates[0].text || '';
+}
+
+function getSnapshotFromLocalStorageByAliases(aliases){
+	try{
+		if(typeof window === 'undefined' || !window.localStorage){
+			return '';
+		}
+		const aliasSet = new Set((aliases || []).map((item)=>`${item || ''}`).filter(Boolean));
+		if(!aliasSet.size){
+			return '';
+		}
+		const candidates = [];
+		for(let i=0; i<window.localStorage.length; i++){
+			const key = `${window.localStorage.key(i) || ''}`.trim();
+			if(!key || key.indexOf(MODULE_SNAPSHOT_PREFIX) !== 0){
+				continue;
+			}
+			const suffix = key.substring(MODULE_SNAPSHOT_PREFIX.length);
+			if(!aliasSet.has(suffix)){
+				continue;
+			}
+			const raw = window.localStorage.getItem(key);
+			if(!raw){
+				continue;
+			}
+			const parsed = tryParseJSON(raw);
+			const txt = extractSnapshotText(parsed || raw);
+			if(!txt){
+				continue;
+			}
+			const createdAt = parsed && parsed.createdAt ? `${parsed.createdAt}` : '';
+			candidates.push({
+				text: txt,
+				createdAt,
+				len: txt.length,
+			});
+		}
+		if(!candidates.length){
+			return '';
+		}
+		candidates.sort((a, b)=>{
+			if(a.createdAt && b.createdAt && a.createdAt !== b.createdAt){
+				return a.createdAt > b.createdAt ? -1 : 1;
+			}
+			return b.len - a.len;
+		});
+		return candidates[0].text || '';
+	}catch(e){
+		return '';
+	}
+}
+
 function getModuleCachedContent(moduleName){
 	if(!moduleName){
 		return '';
 	}
-	const snapshot = loadModuleAISnapshot(moduleName);
-	if(snapshot && snapshot.content){
-		return snapshot.content;
+	const aliases = getModuleAliasList(moduleName);
+	for(let i=0; i<aliases.length; i++){
+		const snapshot = loadModuleAISnapshot(aliases[i]);
+		if(snapshot && snapshot.content){
+			return snapshot.content;
+		}
 	}
 	// 兜底：读取当前案例中保存的模块快照（同样来自计算阶段，不依赖右侧DOM采集）。
 	try{
 		const store = getStore();
+		const payloadCandidates = [];
+		const pushPayloadCandidate = (one)=>{
+			if(one === undefined || one === null){
+				return;
+			}
+			let val = one;
+			if(typeof one === 'object' && one.value !== undefined){
+				val = one.value;
+			}
+			if(typeof val === 'string'){
+				const parsed = tryParseJSON(val);
+				val = parsed !== null ? parsed : val;
+			}
+			payloadCandidates.push(val);
+		};
 		const userState = store && store.user ? store.user : null;
-		const currentCase = userState && userState.currentCase ? userState.currentCase : null;
-		const sourceModule = currentCase && currentCase.sourceModule ? currentCase.sourceModule.value : '';
-		const caseType = currentCase && currentCase.caseType ? currentCase.caseType.value : '';
-		if(sourceModule !== moduleName && caseType !== moduleName){
-			return '';
-		}
-		const payloadRaw = currentCase && currentCase.payload ? currentCase.payload.value : null;
-		let payload = payloadRaw;
-		if(typeof payloadRaw === 'string'){
-			payload = JSON.parse(payloadRaw);
-		}
-		const caseSnapshot = payload && payload.snapshot ? payload.snapshot : null;
-		if(caseSnapshot && typeof caseSnapshot === 'object' && caseSnapshot.content){
-			return `${caseSnapshot.content}`.trim();
-		}
-		if(typeof caseSnapshot === 'string'){
-			return caseSnapshot.trim();
+		const astroState = store && store.astro ? store.astro : null;
+		const appState = store && store.app ? store.app : null;
+		pushPayloadCandidate(userState && userState.currentCase ? userState.currentCase.payload : null);
+		pushPayloadCandidate(userState && userState.currentChart ? userState.currentChart.payload : null);
+		pushPayloadCandidate(astroState && astroState.currentCase ? astroState.currentCase.payload : null);
+		pushPayloadCandidate(appState && appState.currentCase ? appState.currentCase.payload : null);
+		for(let i=0; i<payloadCandidates.length; i++){
+			const fromPayload = getSnapshotFromPayload(payloadCandidates[i], aliases);
+			if(fromPayload){
+				return fromPayload;
+			}
 		}
 	}catch(e){
-		return '';
+		// ignore
+	}
+	const byStorageScan = getSnapshotFromLocalStorageByAliases(aliases);
+	if(byStorageScan){
+		return byStorageScan;
 	}
 	return '';
 }
@@ -1795,7 +2252,16 @@ async function extractAstroContent(context){
 }
 
 async function extractSixYaoContent(context){
-	const cached = getModuleCachedContent('guazhan');
+	void context;
+	const refreshedGuazhan = await requestModuleSnapshotRefresh('guazhan');
+	if(refreshedGuazhan){
+		return refreshedGuazhan;
+	}
+	const refreshedSixyao = await requestModuleSnapshotRefresh('sixyao');
+	if(refreshedSixyao){
+		return refreshedSixyao;
+	}
+	const cached = getModuleCachedContent('guazhan') || getModuleCachedContent('sixyao');
 	if(cached){
 		return cached;
 	}
@@ -1839,11 +2305,17 @@ async function extractLiuRengContent(context){
 }
 
 async function extractJinKouContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('jinkou');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('jinkou');
 	if(cached){
 		return cached;
 	}
-	return extractLiuRengContent(context);
+	// 金口诀导出不能回退到六壬，避免内容串台。
+	return '';
 }
 
 async function extractQiMenContent(context){
@@ -2035,6 +2507,10 @@ async function extractTongSheFaContent(context){
 
 async function extractTaiYiContent(context){
 	void context;
+	const refreshed = await requestModuleSnapshotRefresh('taiyi');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('taiyi');
 	if(cached){
 		return cached;
@@ -2044,6 +2520,10 @@ async function extractTaiYiContent(context){
 
 async function extractGermanyContent(context){
 	void context;
+	const refreshed = await requestModuleSnapshotRefresh('germany');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('germany');
 	if(cached){
 		return cached;
@@ -2053,6 +2533,14 @@ async function extractGermanyContent(context){
 
 async function extractJieQiContent(context){
 	void context;
+	const refreshedCurrent = await requestModuleSnapshotRefresh('jieqi_current');
+	if(refreshedCurrent){
+		return refreshedCurrent;
+	}
+	const refreshed = await requestModuleSnapshotRefresh('jieqi');
+	if(refreshed){
+		return refreshed;
+	}
 	const cachedCurrent = getModuleCachedContent('jieqi_current');
 	if(cachedCurrent){
 		return cachedCurrent;
@@ -2065,6 +2553,11 @@ async function extractJieQiContent(context){
 }
 
 async function extractPrimaryDirectContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('primarydirect');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('primarydirect');
 	if(cached){
 		return cached;
@@ -2073,6 +2566,11 @@ async function extractPrimaryDirectContent(context){
 }
 
 async function extractZodialReleaseContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('zodialrelease');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('zodialrelease');
 	if(cached){
 		return cached;
@@ -2081,6 +2579,11 @@ async function extractZodialReleaseContent(context){
 }
 
 async function extractFirdariaContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('firdaria');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('firdaria');
 	if(cached){
 		return cached;
@@ -2089,6 +2592,11 @@ async function extractFirdariaContent(context){
 }
 
 async function extractProfectionContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('profection');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('profection');
 	if(cached){
 		return cached;
@@ -2097,6 +2605,11 @@ async function extractProfectionContent(context){
 }
 
 async function extractSolarArcContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('solararc');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('solararc');
 	if(cached){
 		return cached;
@@ -2105,6 +2618,11 @@ async function extractSolarArcContent(context){
 }
 
 async function extractSolarReturnContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('solarreturn');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('solarreturn');
 	if(cached){
 		return cached;
@@ -2113,6 +2631,11 @@ async function extractSolarReturnContent(context){
 }
 
 async function extractLunarReturnContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('lunarreturn');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('lunarreturn');
 	if(cached){
 		return cached;
@@ -2121,6 +2644,11 @@ async function extractLunarReturnContent(context){
 }
 
 async function extractGivenYearContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('givenyear');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('givenyear');
 	if(cached){
 		return cached;
@@ -2130,7 +2658,23 @@ async function extractGivenYearContent(context){
 
 async function extractRelativeContent(context){
 	void context;
+	const refreshed = await requestModuleSnapshotRefresh('relative');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('relative');
+	if(cached){
+		return cached;
+	}
+	return '';
+}
+
+async function extractSimpleModuleContent(moduleName){
+	const refreshed = await requestModuleSnapshotRefresh(moduleName);
+	if(refreshed){
+		return refreshed;
+	}
+	const cached = getModuleCachedContent(moduleName);
 	if(cached){
 		return cached;
 	}
@@ -2139,6 +2683,10 @@ async function extractRelativeContent(context){
 
 async function extractOtherBuContent(context){
 	void context;
+	const refreshed = await requestModuleSnapshotRefresh('otherbu');
+	if(refreshed){
+		return refreshed;
+	}
 	const cached = getModuleCachedContent('otherbu');
 	if(cached){
 		return cached;
@@ -2422,20 +2970,34 @@ const HOUSE_ALIAS_MAP = buildAliasMap((AstroConst.LIST_HOUSES || []).map((id)=>(
 	]),
 })));
 
-function lineContainsAlias(line, alias){
+function lineContainsAlias(line, alias, options = {}){
 	const txt = `${line || ''}`;
 	if(!txt || !alias){
 		return false;
 	}
 	if(alias.length === 1){
 		const escaped = escapeRegExp(alias);
-		const pattern = new RegExp(`(^|[\\s,，;；:：()（）\\[\\]{}\\/\\\\|\\-])${escaped}(?=$|[\\s,，;；:：()（）\\[\\]{}\\/\\\\|\\-])`);
-		return pattern.test(txt);
+		const pattern = new RegExp(`(^|[\\s,，;；:：()（）\\[\\]{}\\/\\\\|\\-])(${escaped})(?=$|[\\s,，;；:：()（）\\[\\]{}\\/\\\\|\\-])`, 'g');
+		const weakPlanetAlias = options.category === 'planet'
+			&& ['日', '月', '水', '金', '火', '木', '土'].includes(alias);
+		let matched = pattern.exec(txt);
+		while(matched){
+			const prefix = matched[1] || '';
+			const start = (matched.index || 0) + prefix.length;
+			const tail = txt.slice(start + alias.length).replace(/^\s+/, '');
+			// 避免把“五行界”的“木/火/土/金/水”误判为行星简称。
+			if(weakPlanetAlias && /^界/.test(tail)){
+				matched = pattern.exec(txt);
+				continue;
+			}
+			return true;
+		}
+		return false;
 	}
 	return txt.includes(alias);
 }
 
-function detectIdsByAliasMap(lines, aliasMap){
+function detectIdsByAliasMap(lines, aliasMap, options = {}){
 	const out = new Set();
 	const src = Array.isArray(lines) ? lines : [];
 	if(!src.length){
@@ -2443,7 +3005,7 @@ function detectIdsByAliasMap(lines, aliasMap){
 	}
 	aliasMap.forEach((ids, alias)=>{
 		for(let i=0; i<src.length; i++){
-			if(lineContainsAlias(src[i], alias)){
+			if(lineContainsAlias(src[i], alias, options)){
 				ids.forEach((id)=>out.add(id));
 				break;
 			}
@@ -2577,6 +3139,13 @@ function appendAstroMeaningSections(content){
 	}
 
 	const outSections = [];
+	const seen = {
+		planets: new Set(),
+		lots: new Set(),
+		signs: new Set(),
+		houses: new Set(),
+		aspects: new Set(),
+	};
 	sections.forEach((sec)=>{
 		outSections.push(sec);
 		const mode = getSectionMeaningMode(sec && sec.title);
@@ -2584,10 +3153,10 @@ function appendAstroMeaningSections(content){
 			return;
 		}
 		const lines = (sec.lines || []).slice(1);
-		let planets = detectIdsByAliasMap(lines, PLANET_ALIAS_MAP);
-		let lots = detectIdsByAliasMap(lines, LOT_ALIAS_MAP);
-		const signs = detectIdsByAliasMap(lines, SIGN_ALIAS_MAP);
-		const houses = detectIdsByAliasMap(lines, HOUSE_ALIAS_MAP);
+		let planets = detectIdsByAliasMap(lines, PLANET_ALIAS_MAP, { category: 'planet' });
+		let lots = detectIdsByAliasMap(lines, LOT_ALIAS_MAP, { category: 'lot' });
+		const signs = detectIdsByAliasMap(lines, SIGN_ALIAS_MAP, { category: 'sign' });
+		const houses = detectIdsByAliasMap(lines, HOUSE_ALIAS_MAP, { category: 'house' });
 		const aspects = detectAspectDegreesFromLines(lines);
 
 		if(mode.forceAllPlanets && planets.size === 0){
@@ -2605,16 +3174,27 @@ function appendAstroMeaningSections(content){
 			return;
 		}
 
+		const uniquePlanets = new Set(Array.from(planets).filter((id)=>!seen.planets.has(id)));
+		const uniqueLots = new Set(Array.from(lots).filter((id)=>!seen.lots.has(id)));
+		const uniqueSigns = new Set(Array.from(signs).filter((id)=>!seen.signs.has(id)));
+		const uniqueHouses = new Set(Array.from(houses).filter((id)=>!seen.houses.has(id)));
+		const uniqueAspects = new Set(Array.from(aspects).filter((deg)=>!seen.aspects.has(deg)));
+
 		const meaningLines = []
-			.concat(buildMeaningLinesForIds('planet', planets, '星释义'))
-			.concat(buildMeaningLinesForIds('lot', lots, '希腊点释义'))
-			.concat(buildMeaningLinesForIds('sign', signs, '星座释义'))
-			.concat(buildMeaningLinesForIds('house', houses, '宫位释义'))
-			.concat(buildMeaningLinesForAspects(aspects));
+			.concat(buildMeaningLinesForIds('planet', uniquePlanets, '星释义'))
+			.concat(buildMeaningLinesForIds('lot', uniqueLots, '希腊点释义'))
+			.concat(buildMeaningLinesForIds('sign', uniqueSigns, '星座释义'))
+			.concat(buildMeaningLinesForIds('house', uniqueHouses, '宫位释义'))
+			.concat(buildMeaningLinesForAspects(uniqueAspects));
 
 		if(!meaningLines.length){
 			return;
 		}
+		uniquePlanets.forEach((id)=>seen.planets.add(id));
+		uniqueLots.forEach((id)=>seen.lots.add(id));
+		uniqueSigns.forEach((id)=>seen.signs.add(id));
+		uniqueHouses.forEach((id)=>seen.houses.add(id));
+		uniqueAspects.forEach((deg)=>seen.aspects.add(deg));
 		outSections.push({
 			title: `${sec.title}释义`,
 			lines: [
@@ -3209,8 +3789,12 @@ function downloadBlob(filename, content, mime){
 
 async function copyText(text){
 	if(navigator.clipboard && window.isSecureContext){
-		await navigator.clipboard.writeText(text);
-		return true;
+		try{
+			await navigator.clipboard.writeText(text);
+			return true;
+		}catch(e){
+			// 继续回退到 execCommand，避免权限异常导致无提示。
+		}
 	}
 	const ta = document.createElement('textarea');
 	ta.value = text;
@@ -3279,61 +3863,381 @@ function exportWord(payload){
 	downloadBlob(`${payload.filenameBase}.doc`, html, 'application/msword;charset=utf-8');
 }
 
+function normalizeExportKey(key){
+	return `${key || ''}` === 'direction' ? 'primarydirect' : `${key || ''}`;
+}
+
+function isStrictSpecificExportKey(key){
+	const val = normalizeExportKey(key);
+	if(!val){
+		return false;
+	}
+	if(val === 'generic' || val === 'cntradition' || val === 'cnyibu'){
+		return false;
+	}
+	return AI_EXPORT_TECHNIQUES.some((item)=>item.key === val);
+}
+
+function isPredictiveExportKey(key){
+	const val = normalizeExportKey(key);
+	return val === 'primarydirect'
+		|| val === 'zodialrelease'
+		|| val === 'firdaria'
+		|| val === 'profection'
+		|| val === 'solararc'
+		|| val === 'solarreturn'
+		|| val === 'lunarreturn'
+		|| val === 'givenyear';
+}
+
+function isAstroFamilyExportKey(key){
+	const val = normalizeExportKey(key);
+	if(!val){
+		return false;
+	}
+	if(isPredictiveExportKey(val)){
+		return true;
+	}
+	return val === 'astrochart'
+		|| val === 'astrochart_like'
+		|| val === 'indiachart'
+		|| val === 'relative'
+		|| val === 'germany'
+		|| val === 'jieqi'
+		|| val === 'guolao';
+}
+
+function getTechniqueLabelByKey(key){
+	const found = AI_EXPORT_TECHNIQUES.find((item)=>item.key === `${key || ''}`);
+	return found ? found.label : '';
+}
+
+function getCandidateExportKeys(context){
+	const keys = [];
+	const primary = normalizeExportKey(context && context.key ? context.key : '');
+	if(primary){
+		keys.push(primary);
+	}
+	const hasPrimarySpecific = !!primary && primary !== 'generic';
+	const stateContext = resolveContextByAstroState();
+	const stateKey = normalizeExportKey(stateContext && stateContext.key ? stateContext.key : '');
+	const sameAstroFamily = !!primary && !!stateKey && isAstroFamilyExportKey(primary) && isAstroFamilyExportKey(stateKey);
+	const samePredictiveFamily = !!primary && !!stateKey && isPredictiveExportKey(primary) && isPredictiveExportKey(stateKey);
+	const shouldAppendStateKey = !!stateKey && (
+		!hasPrimarySpecific
+		|| stateKey === primary
+		|| !isStrictSpecificExportKey(primary)
+		|| sameAstroFamily
+		|| samePredictiveFamily
+	);
+	if(shouldAppendStateKey){
+		keys.push(stateKey);
+	}
+
+	const topInfo = [
+		context && context.topLabel ? context.topLabel : '',
+		context && context.displayName ? context.displayName : '',
+		stateContext && stateContext.displayName ? stateContext.displayName : '',
+	].join(' ');
+	const predictiveKeys = ['primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear'];
+	const primaryIsPredictive = isPredictiveExportKey(primary);
+	const stateIsPredictive = isPredictiveExportKey(stateKey);
+	// 仅在上下文无法定位具体推运子模块时，才展开推运候选全量兜底；
+	// 避免“太阳弧导出成主限法”这类串台。
+	if((topInfo.includes('推运盘') || stateIsPredictive) && !primaryIsPredictive){
+		keys.push(...predictiveKeys);
+	}
+	if(topInfo.includes('三式合一') && !hasPrimarySpecific){
+		keys.push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi');
+	}
+	if(topInfo.includes('易与三式') && !hasPrimarySpecific){
+		keys.push('suzhan', 'sixyao', 'jinkou', 'liureng', 'qimen', 'taiyi', 'tongshefa');
+	}
+	if((topInfo.includes('八字紫微') || topInfo.includes('八字') || topInfo.includes('紫微')) && !hasPrimarySpecific){
+		keys.push('bazi', 'ziwei');
+	}
+	if(topInfo.includes('量化盘') && !hasPrimarySpecific){
+		keys.push('germany');
+	}
+	if(topInfo.includes('关系盘') && !hasPrimarySpecific){
+		keys.push('relative');
+	}
+	if(topInfo.includes('七政四余') && !hasPrimarySpecific){
+		keys.push('guolao');
+	}
+	if(topInfo.includes('节气盘') && !hasPrimarySpecific){
+		keys.push('jieqi');
+	}
+	if(topInfo.includes('印度律盘') && !hasPrimarySpecific){
+		keys.push('indiachart');
+	}
+	if((topInfo.includes('星盘') || topInfo.includes('三维盘') || topInfo.includes('希腊星术') || topInfo.includes('星体地图')) && !hasPrimarySpecific){
+		keys.push('astrochart', 'astrochart_like');
+	}
+
+	// 兜底候选：确保上下文误判时仍能从计算快照抓到内容。
+	if(!hasPrimarySpecific){
+		keys.push('astrochart', 'astrochart_like', 'indiachart', 'relative', 'germany', 'jieqi', 'guolao', 'bazi', 'ziwei', 'qimen', 'liureng', 'jinkou', 'sanshiunited', 'tongshefa', 'sixyao', 'taiyi', 'otherbu', 'fengshui');
+	}
+
+	return uniqueArray(keys.map((key)=>normalizeExportKey(key)).filter(Boolean));
+}
+
+function getRescueExportKeys(context, fallbackStateContext, triedKeys){
+	const tried = triedKeys instanceof Set ? triedKeys : new Set();
+	const keys = [];
+	const push = (...arr)=>{
+		arr.forEach((item)=>{
+			const key = normalizeExportKey(item);
+			if(!key || key === 'generic'){
+				return;
+			}
+			if(tried.has(key)){
+				return;
+			}
+			if(keys.includes(key)){
+				return;
+			}
+			keys.push(key);
+		});
+	};
+
+	const contextKey = normalizeExportKey(context && context.key ? context.key : '');
+	const stateKey = normalizeExportKey(fallbackStateContext && fallbackStateContext.key ? fallbackStateContext.key : '');
+	const hasContextSpecific = isStrictSpecificExportKey(contextKey);
+	const topInfo = [
+		context && context.topLabel ? context.topLabel : '',
+		context && context.displayName ? context.displayName : '',
+		fallbackStateContext && fallbackStateContext.displayName ? fallbackStateContext.displayName : '',
+	].join(' ');
+
+	push(contextKey);
+	if(!hasContextSpecific){
+		push(stateKey);
+	}
+	if(hasContextSpecific){
+		const predictiveKeys = ['primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear'];
+		if(isPredictiveExportKey(contextKey)){
+			push(...predictiveKeys);
+			return keys;
+		}
+		if(contextKey === 'relative'){
+			push(stateKey, 'relative', 'astrochart', 'astrochart_like');
+			return keys;
+		}
+		if(contextKey === 'indiachart'){
+			push(stateKey, 'indiachart', 'astrochart', 'astrochart_like');
+			return keys;
+		}
+		if(contextKey === 'germany'){
+			push(stateKey, 'germany', 'astrochart', 'astrochart_like');
+			return keys;
+		}
+		if(contextKey === 'jieqi'){
+			push('jieqi', 'jieqi_current');
+			return keys;
+		}
+		if(contextKey === 'guolao'){
+			push(stateKey, 'guolao', 'astrochart_like', 'astrochart');
+			return keys;
+		}
+		if(contextKey === 'qimen' || contextKey === 'liureng' || contextKey === 'jinkou'
+			|| contextKey === 'sanshiunited' || contextKey === 'sixyao'
+			|| contextKey === 'tongshefa' || contextKey === 'taiyi'){
+			push(contextKey);
+			return keys;
+		}
+		if(contextKey === 'bazi' || contextKey === 'ziwei'){
+			push(contextKey);
+			return keys;
+		}
+		if(contextKey === 'suzhan' || contextKey === 'guolao' || contextKey === 'otherbu' || contextKey === 'fengshui'){
+			push(contextKey);
+			return keys;
+		}
+		if(contextKey === 'astrochart' || contextKey === 'astrochart_like'){
+			const hasAstroTopHint = topInfo.includes('星盘')
+				|| topInfo.includes('三维盘')
+				|| topInfo.includes('希腊星术')
+				|| topInfo.includes('星体地图');
+			push('astrochart', 'astrochart_like', stateKey);
+			if(!hasAstroTopHint){
+				push('germany', 'relative', 'indiachart', 'guolao', 'jieqi');
+				push(...predictiveKeys);
+			}
+			return keys;
+		}
+	}
+	if(topInfo.includes('推运盘') || topInfo.includes('主/界限法') || topInfo.includes('法达星限')
+		|| topInfo.includes('太阳弧') || topInfo.includes('太阳返照') || topInfo.includes('月亮返照')){
+		push('primarydirect', 'firdaria', 'zodialrelease', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear');
+	}
+	if(topInfo.includes('三式合一')){
+		push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi', 'astrochart');
+	}
+	if(topInfo.includes('易与三式') || topInfo.includes('六壬') || topInfo.includes('金口诀') || topInfo.includes('遁甲')){
+		push('jinkou', 'liureng', 'qimen', 'sixyao', 'tongshefa', 'taiyi', 'suzhan');
+	}
+	if(topInfo.includes('八字') || topInfo.includes('紫微')){
+		push('bazi', 'ziwei');
+	}
+	if(topInfo.includes('关系盘')){
+		push('relative');
+	}
+	if(topInfo.includes('量化盘')){
+		push('germany');
+	}
+	if(topInfo.includes('节气盘')){
+		push('jieqi');
+	}
+	if(topInfo.includes('印度律盘')){
+		push('indiachart', 'astrochart');
+	}
+	if(topInfo.includes('七政四余')){
+		push('guolao', 'astrochart_like', 'astrochart');
+	}
+	if(topInfo.includes('星盘') || topInfo.includes('希腊星术') || topInfo.includes('星体地图') || topInfo.includes('三维盘')){
+		push('astrochart', 'astrochart_like', 'indiachart');
+	}
+	// 终极兜底：按术法族群补全，避免误报“无可导出文本”。
+	push(
+		'astrochart', 'astrochart_like', 'indiachart',
+		'relative', 'germany', 'jieqi',
+		'primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear',
+		'sanshiunited', 'qimen', 'liureng', 'jinkou', 'sixyao', 'tongshefa', 'taiyi', 'suzhan',
+		'guolao', 'otherbu', 'fengshui',
+		'bazi', 'ziwei',
+	);
+	return keys;
+}
+
+async function extractContentByKey(exportKey, context){
+	if(exportKey === 'astrochart' || exportKey === 'astrochart_like' || exportKey === 'indiachart'){
+		return extractAstroContent(context);
+	}
+	if(exportKey === 'germany'){
+		return extractGermanyContent(context);
+	}
+	if(exportKey === 'jieqi'){
+		return extractJieQiContent(context);
+	}
+	if(exportKey === 'primarydirect'){
+		return extractPrimaryDirectContent(context);
+	}
+	if(exportKey === 'zodialrelease'){
+		return extractZodialReleaseContent(context);
+	}
+	if(exportKey === 'firdaria'){
+		return extractFirdariaContent(context);
+	}
+	if(exportKey === 'profection'){
+		return extractProfectionContent(context);
+	}
+	if(exportKey === 'solararc'){
+		return extractSolarArcContent(context);
+	}
+	if(exportKey === 'solarreturn'){
+		return extractSolarReturnContent(context);
+	}
+	if(exportKey === 'lunarreturn'){
+		return extractLunarReturnContent(context);
+	}
+	if(exportKey === 'givenyear'){
+		return extractGivenYearContent(context);
+	}
+	if(exportKey === 'sixyao'){
+		return extractSixYaoContent(context);
+	}
+	if(exportKey === 'liureng'){
+		return extractLiuRengContent(context);
+	}
+	if(exportKey === 'jinkou'){
+		return extractJinKouContent(context);
+	}
+	if(exportKey === 'qimen'){
+		return extractQiMenContent(context);
+	}
+	if(exportKey === 'sanshiunited'){
+		return extractSanShiUnitedContent(context);
+	}
+	if(exportKey === 'tongshefa'){
+		return extractTongSheFaContent(context);
+	}
+	if(exportKey === 'taiyi'){
+		return extractTaiYiContent(context);
+	}
+	if(exportKey === 'relative'){
+		return extractRelativeContent(context);
+	}
+	if(exportKey === 'guolao'){
+		return extractSimpleModuleContent('guolao');
+	}
+	if(exportKey === 'suzhan'){
+		return extractSimpleModuleContent('suzhan');
+	}
+	if(exportKey === 'bazi'){
+		return extractSimpleModuleContent('bazi');
+	}
+	if(exportKey === 'ziwei'){
+		return extractSimpleModuleContent('ziwei');
+	}
+	if(exportKey === 'otherbu'){
+		return extractOtherBuContent(context);
+	}
+	if(exportKey === 'fengshui'){
+		return extractFengShuiContent(context);
+	}
+	return extractGenericContent(context);
+}
+
 async function buildPayload(){
 	const context = withStoreContextFallback(resolveActiveContext());
+	const exportKey = normalizeExportKey(context.key);
 	const now = new Date();
 
 	let content = '';
-	if(context.key === 'astrochart' || context.key === 'astrochart_like' || context.key === 'indiachart'){
-		content = await extractAstroContent(context);
-	}else if(context.key === 'germany'){
-		content = await extractGermanyContent(context);
-	}else if(context.key === 'jieqi'){
-		content = await extractJieQiContent(context);
-	}else if(context.key === 'primarydirect'){
-		content = await extractPrimaryDirectContent(context);
-	}else if(context.key === 'zodialrelease'){
-		content = await extractZodialReleaseContent(context);
-	}else if(context.key === 'firdaria'){
-		content = await extractFirdariaContent(context);
-	}else if(context.key === 'profection'){
-		content = await extractProfectionContent(context);
-	}else if(context.key === 'solararc'){
-		content = await extractSolarArcContent(context);
-	}else if(context.key === 'solarreturn'){
-		content = await extractSolarReturnContent(context);
-	}else if(context.key === 'lunarreturn'){
-		content = await extractLunarReturnContent(context);
-	}else if(context.key === 'givenyear'){
-		content = await extractGivenYearContent(context);
-	}else if(context.key === 'sixyao'){
-		content = await extractSixYaoContent(context);
-	}else if(context.key === 'liureng'){
-		content = await extractLiuRengContent(context);
-	}else if(context.key === 'jinkou'){
-		content = await extractJinKouContent(context);
-	}else if(context.key === 'qimen'){
-		content = await extractQiMenContent(context);
-	}else if(context.key === 'sanshiunited'){
-		content = await extractSanShiUnitedContent(context);
-	}else if(context.key === 'tongshefa'){
-		content = await extractTongSheFaContent(context);
-	}else if(context.key === 'taiyi'){
-		content = await extractTaiYiContent(context);
-	}else if(context.key === 'relative'){
-		content = await extractRelativeContent(context);
-	}else if(context.key === 'otherbu'){
-		content = await extractOtherBuContent(context);
-	}else if(context.key === 'fengshui'){
-		content = await extractFengShuiContent(context);
-	}else{
-		content = await extractGenericContent(context);
+	let usedExportKey = exportKey;
+	const fallbackStateContext = resolveContextByAstroState();
+	const fallbackStateKey = normalizeExportKey(fallbackStateContext && fallbackStateContext.key ? fallbackStateContext.key : '');
+	const candidateKeys = getCandidateExportKeys(context);
+
+	for(let i=0; i<candidateKeys.length; i++){
+		const key = candidateKeys[i];
+		const candidateContext = (fallbackStateKey && key === fallbackStateKey)
+			? { ...context, ...fallbackStateContext }
+			: context;
+		const txt = await extractContentByKey(key, candidateContext);
+		if(txt && `${txt}`.trim()){
+			content = txt;
+			usedExportKey = key;
+			break;
+		}
+	}
+	if(!content){
+		content = await extractContentByKey(usedExportKey, context);
+	}
+	if(!`${content || ''}`.trim()){
+		const tried = new Set(candidateKeys.map((key)=>normalizeExportKey(key)).filter(Boolean));
+		const rescueKeys = getRescueExportKeys(context, fallbackStateContext, tried);
+		for(let i=0; i<rescueKeys.length; i++){
+			const key = rescueKeys[i];
+			const candidateContext = (fallbackStateKey && key === fallbackStateKey)
+				? { ...context, ...fallbackStateContext }
+				: context;
+			// eslint-disable-next-line no-await-in-loop
+			const txt = await extractContentByKey(key, candidateContext);
+			if(txt && `${txt}`.trim()){
+				content = txt;
+				usedExportKey = key;
+				break;
+			}
+		}
 	}
 
-	const rawSnapshotContent = stripForbiddenSections(content, context.key);
-	content = applyUserSectionFilterByContext(rawSnapshotContent, context.key);
-	let planetSettingKey = context.key;
-	if(context.key === 'jieqi'){
+	const rawSnapshotContent = stripForbiddenSections(content, usedExportKey);
+	content = applyUserSectionFilterByContext(rawSnapshotContent, usedExportKey);
+	let planetSettingKey = usedExportKey;
+	if(usedExportKey === 'jieqi'){
 		planetSettingKey = detectJieQiSettingKeyByScope(context.scopeRoot) || detectJieQiSettingKeyByCurrentSnapshot() || 'jieqi';
 	}
 	content = applyPlanetInfoFilterByContext(content, planetSettingKey);
@@ -3347,11 +4251,12 @@ async function buildPayload(){
 			.replace(/\n{3,}/g, '\n\n')
 			.trim();
 	}
+	const displayName = getTechniqueLabelByKey(usedExportKey) || context.displayName || '当前技术';
 	const stamp = formatStamp(now);
 	const time = formatDateTime(now);
-	const filenameBase = `horosa_${safeFileName(context.displayName)}_${stamp}`;
+	const filenameBase = `horosa_${safeFileName(displayName)}_${stamp}`;
 	const header = [
-		`技术: ${context.displayName}`,
+		`技术: ${displayName}`,
 		`导出时间: ${time}`,
 		`页面: ${window.location.href}`,
 		'说明: 当前激活技术面板专属导出；符号已转为AI可识别文本。',
@@ -3361,7 +4266,7 @@ async function buildPayload(){
 	const text = `${header}\n${content}\n========== 内容结束 ==========`;
 
 	return {
-		tech: context.displayName,
+		tech: displayName,
 		content,
 		text,
 		filenameBase,
@@ -3369,39 +4274,44 @@ async function buildPayload(){
 }
 
 export async function runAIExport(action){
-	const payload = await buildPayload();
-	const pure = (payload.content || '').replace(/\s/g, '');
-	if(!pure){
-		return { ok: false, message: '当前页面没有可导出文本。' };
-	}
+	try{
+		const payload = await buildPayload();
+		const pure = (payload.content || '').replace(/\s/g, '');
+		if(!pure){
+			return { ok: false, message: '当前页面没有可导出文本。' };
+		}
 
-	if(action === 'copy'){
-		const ok = await copyText(payload.text);
-		return { ok: ok, message: ok ? 'AI纯文字已复制。' : '复制失败，请手动导出TXT。' };
+		if(action === 'copy'){
+			const ok = await copyText(payload.text);
+			return { ok: ok, message: ok ? 'AI纯文字已复制。' : '复制失败，请手动导出TXT。' };
+		}
+		if(action === 'txt'){
+			exportTxt(payload);
+			return { ok: true, message: 'TXT 已导出。' };
+		}
+		if(action === 'word'){
+			exportWord(payload);
+			return { ok: true, message: 'Word 已导出。' };
+		}
+		if(action === 'pdf'){
+			const ok = printAsPdf(payload.tech, payload.text);
+			return { ok: ok, message: ok ? 'PDF 打印窗口已打开。' : 'PDF 窗口被浏览器拦截。' };
+		}
+		if(action === 'all'){
+			const copied = await copyText(payload.text);
+			exportTxt(payload);
+			exportWord(payload);
+			const pdfOk = printAsPdf(payload.tech, payload.text);
+			return {
+				ok: true,
+				message: copied
+					? (pdfOk ? '已完成复制 + TXT/Word/PDF。' : '已完成复制 + TXT/Word，PDF窗口被拦截。')
+					: (pdfOk ? '已导出TXT/Word/PDF（复制失败）。' : '已导出TXT/Word（复制失败，PDF窗口被拦截）。')
+			};
+		}
+		return { ok: false, message: '未知导出动作。' };
+	}catch(e){
+		const msg = e && e.message ? e.message : 'AI导出异常，请重试。';
+		return { ok: false, message: msg };
 	}
-	if(action === 'txt'){
-		exportTxt(payload);
-		return { ok: true, message: 'TXT 已导出。' };
-	}
-	if(action === 'word'){
-		exportWord(payload);
-		return { ok: true, message: 'Word 已导出。' };
-	}
-	if(action === 'pdf'){
-		const ok = printAsPdf(payload.tech, payload.text);
-		return { ok: ok, message: ok ? 'PDF 打印窗口已打开。' : 'PDF 窗口被浏览器拦截。' };
-	}
-	if(action === 'all'){
-		const copied = await copyText(payload.text);
-		exportTxt(payload);
-		exportWord(payload);
-		const pdfOk = printAsPdf(payload.tech, payload.text);
-		return {
-			ok: true,
-			message: copied
-				? (pdfOk ? '已完成复制 + TXT/Word/PDF。' : '已完成复制 + TXT/Word，PDF窗口被拦截。')
-				: (pdfOk ? '已导出TXT/Word/PDF（复制失败）。' : '已导出TXT/Word（复制失败，PDF窗口被拦截）。')
-		};
-	}
-	return { ok: false, message: '未知导出动作。' };
 }

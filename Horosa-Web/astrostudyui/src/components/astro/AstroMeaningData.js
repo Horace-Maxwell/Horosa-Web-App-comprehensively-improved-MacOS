@@ -540,6 +540,43 @@ const SIGN_MEANINGS = buildMeaningMap(SIGN_BLOCK_MARKERS);
 const HOUSE_MEANINGS = buildMeaningMap(HOUSE_BLOCK_MARKERS);
 const LOT_MEANINGS = buildMeaningMap(LOT_BLOCK_MARKERS, RAW_ASTRO_LOTS_REFERENCE);
 
+const SIGN_DIGNITY_LINES = {
+	[AstroConst.ARIES]: '**入庙**：火星；**擢升**：太阳；**入落**：金星；**入陷**：土星',
+	[AstroConst.TAURUS]: '**入庙**：金星；**擢升**：月亮；**入落**：火星；**入陷**：无（传统占星中通常不设）',
+	[AstroConst.GEMINI]: '**入庙**：水星；**擢升**：北交点（部分古占观点）；**入落**：木星；**入陷**：南交点（部分古占观点）',
+	[AstroConst.CANCER]: '**入庙**：月亮；**擢升**：木星；**入落**：土星；**入陷**：火星',
+	[AstroConst.LEO]: '**入庙**：太阳；**擢升**：无（传统占星中通常不设）；**入落**：土星；**入陷**：无',
+	[AstroConst.VIRGO]: '**入庙**：水星；**擢升**：水星；**入落**：木星；**入陷**：金星',
+	[AstroConst.LIBRA]: '**入庙**：金星；**擢升**：土星；**入落**：火星；**入陷**：太阳',
+	[AstroConst.SCORPIO]: '**入庙**：火星；**擢升**：无（传统占星中通常不设）；**入落**：金星；**入陷**：月亮',
+	[AstroConst.SAGITTARIUS]: '**入庙**：木星；**擢升**：南交点（部分古占观点）；**入落**：水星；**入陷**：北交点（部分古占观点）',
+	[AstroConst.CAPRICORN]: '**入庙**：土星；**擢升**：火星；**入落**：月亮；**入陷**：木星',
+	[AstroConst.AQUARIUS]: '**入庙**：土星；**擢升**：无（传统占星中通常不设）；**入落**：太阳；**入陷**：无',
+	[AstroConst.PISCES]: '**入庙**：木星；**擢升**：金星；**入落**：水星；**入陷**：水星',
+};
+
+function enrichSignMeaningWithDignity(signKey, meaning){
+	const line = SIGN_DIGNITY_LINES[signKey];
+	if(!line || !meaning){
+		return meaning;
+	}
+	const tips = toTipsArray(meaning.tips);
+	if(tips.some((one)=>`${one}`.includes('**入庙**') || `${one}`.includes('入庙：'))){
+		return meaning;
+	}
+	const idx = tips.findIndex((one)=>`${one}`.includes('宫位属性'));
+	const nextTips = tips.slice(0);
+	if(idx >= 0){
+		nextTips.splice(idx + 1, 0, line);
+	}else{
+		nextTips.unshift(line);
+	}
+	return {
+		...meaning,
+		tips: nextTips,
+	};
+}
+
 const ASPECT_MEANINGS = {
 	0: {
 		name: '合相（0°）',
@@ -607,7 +644,7 @@ function resolveMeaning(category, key){
 		return PLANET_MEANINGS[key] || LOT_MEANINGS[key] || null;
 	}
 	if(category === 'sign'){
-		return SIGN_MEANINGS[key] || null;
+		return enrichSignMeaningWithDignity(key, SIGN_MEANINGS[key] || null);
 	}
 	if(category === 'house'){
 		return HOUSE_MEANINGS[key] || null;

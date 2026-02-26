@@ -20,6 +20,7 @@ function PageHeader(props){
 	const currentColorTheme = AstroConst.normalizeColorThemeIndex(props.colorTheme);
 	const [aiSettingVisible, setAiSettingVisible] = React.useState(false);
 	const [aiSettingData, setAiSettingData] = React.useState(loadAIExportSettings());
+	const aiSettingDataRef = React.useRef(aiSettingData);
 	const [aiSettingTechs, setAiSettingTechs] = React.useState(listAIExportTechniqueSettings());
 	const [aiSettingKey, setAiSettingKey] = React.useState('astrochart');
 
@@ -43,6 +44,12 @@ function PageHeader(props){
 	const currentSettingPlanetInfo = (()=>{
 		const map = aiSettingData && aiSettingData.planetInfo ? aiSettingData.planetInfo : {};
 		const one = map && map[aiSettingKey] ? map[aiSettingKey] : null;
+		if(!one){
+			return {
+				showHouse: 1,
+				showRuler: 1,
+			};
+		}
 		return {
 			showHouse: one && (one.showHouse === 1 || one.showHouse === true) ? 1 : 0,
 			showRuler: one && (one.showRuler === 1 || one.showRuler === true) ? 1 : 0,
@@ -88,11 +95,16 @@ function PageHeader(props){
 	}
 
 	async function onAIExportClick({key}){
-		const ret = await runAIExport(key);
-		if(ret.ok){
-			message.success(ret.message);
-		}else{
-			message.error(ret.message);
+		try{
+			const ret = await runAIExport(key);
+			if(ret && ret.ok){
+				message.success(ret.message);
+			}else{
+				message.error(ret && ret.message ? ret.message : 'AI导出失败，请重试。');
+			}
+		}catch(e){
+			const msg = e && e.message ? e.message : 'AI导出异常';
+			message.error(msg);
 		}
 	}
 
@@ -114,7 +126,8 @@ function PageHeader(props){
 	}
 
 	function onAISettingSave(){
-		const saved = saveAIExportSettings(aiSettingData);
+		const saved = saveAIExportSettings(aiSettingDataRef.current);
+		aiSettingDataRef.current = saved;
 		setAiSettingData(saved);
 		setAiSettingVisible(false);
 		message.success('AI导出设置已保存');
@@ -127,11 +140,13 @@ function PageHeader(props){
 				...(prev && prev.sections ? prev.sections : {}),
 				[aiSettingKey]: arr,
 			};
-			return {
+			const next = {
 				...(prev || {}),
 				version: AI_EXPORT_SETTINGS_VERSION,
 				sections,
 			};
+			aiSettingDataRef.current = next;
+			return next;
 		});
 	}
 
@@ -157,13 +172,15 @@ function PageHeader(props){
 			delete sections[aiSettingKey];
 			delete planetInfo[aiSettingKey];
 			delete astroMeaning[aiSettingKey];
-			return {
+			const next = {
 				...(prev || {}),
 				version: AI_EXPORT_SETTINGS_VERSION,
 				sections,
 				planetInfo,
 				astroMeaning,
 			};
+			aiSettingDataRef.current = next;
+			return next;
 		});
 	}
 
@@ -177,7 +194,7 @@ function PageHeader(props){
 				showRuler: current.showRuler === 1 || current.showRuler === true ? 1 : 0,
 			};
 			nextOne[field] = checked ? 1 : 0;
-			return {
+			const next = {
 				...(prev || {}),
 				version: AI_EXPORT_SETTINGS_VERSION,
 				sections: {
@@ -191,12 +208,14 @@ function PageHeader(props){
 					...(prev && prev.astroMeaning ? prev.astroMeaning : {}),
 				},
 			};
+			aiSettingDataRef.current = next;
+			return next;
 		});
 	}
 
 	function onAISettingAstroMeaningChange(checked){
 		setAiSettingData((prev)=>{
-			return {
+			const next = {
 				...(prev || {}),
 				version: AI_EXPORT_SETTINGS_VERSION,
 				sections: {
@@ -212,8 +231,21 @@ function PageHeader(props){
 					},
 				},
 			};
+			aiSettingDataRef.current = next;
+			return next;
 		});
 	}
+
+	React.useEffect(()=>{
+		aiSettingDataRef.current = aiSettingData;
+	}, [aiSettingData]);
+
+	React.useEffect(()=>{
+		if(!aiSettingVisible){
+			return;
+		}
+		saveAIExportSettings(aiSettingData);
+	}, [aiSettingData, aiSettingVisible]);
 
 	function hasDesktopBridge(){
 		return typeof window !== 'undefined'
@@ -444,6 +476,7 @@ function PageHeader(props){
 						<div style={{marginBottom: 8}}>星曜后天信息（仅AI导出）：</div>
 						<Checkbox
 							checked={currentSettingPlanetInfo.showHouse === 1}
+							disabled={false}
 							onChange={(e)=>onAISettingPlanetInfoChange('showHouse', !!(e && e.target && e.target.checked))}
 							style={{marginRight: 16}}
 						>
@@ -451,6 +484,7 @@ function PageHeader(props){
 						</Checkbox>
 						<Checkbox
 							checked={currentSettingPlanetInfo.showRuler === 1}
+							disabled={false}
 							onChange={(e)=>onAISettingPlanetInfoChange('showRuler', !!(e && e.target && e.target.checked))}
 						>
 							显示星曜主宰宫
@@ -462,6 +496,7 @@ function PageHeader(props){
 						<div style={{marginBottom: 8}}>{currentSettingMeaningTitle}</div>
 						<Checkbox
 							checked={currentSettingAstroMeaning.enabled === 1}
+							disabled={false}
 							onChange={(e)=>onAISettingAstroMeaningChange(!!(e && e.target && e.target.checked))}
 						>
 							{currentSettingMeaningCheckbox}
