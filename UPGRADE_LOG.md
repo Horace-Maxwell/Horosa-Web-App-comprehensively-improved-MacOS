@@ -3018,3 +3018,90 @@ Append new entries; do not rewrite history.
   - `node --check Horosa-Web/astrostudyui/src/utils/aiExport.js` ✅
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
   - `cd Horosa-Web && ./verify_horosa_local.sh` ✅
+
+### 20:59 - 三式合一占星悬浮格式对齐星盘（修复 `[object Object]`）
+- Scope: 修复三式合一外圈占星悬浮将释义对象拼成字符串，导致显示 `[object Object]` 与星盘样式不一致的问题。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- Details:
+  - 新增占星释义对象归一/合并函数：
+    - `normalizeMeaningTip`
+    - `mergeMeaningTips`
+    - `buildOuterHouseMeaningTip`
+    - `buildOuterBranchMeaningTip`
+    - `buildOuterStarMeaningTip`
+  - 三式合一外圈 `宫位/地支星座/星曜` 悬浮提示改为传入结构化 `title + tips`，与星盘同一套渲染器一致。
+- Verification (local):
+  - `node --check Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 21:37 - 星座释义补齐四尊贵状态（入庙/擢升/入落/入陷）
+- Scope: 按要求为所有星座悬浮释义补充四尊贵状态，并同步覆盖星盘相关页面、三式合一、AI导出与AI导出设置对应的释义输出链路。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
+- Details:
+  - 新增 `SIGN_DIGNITY_LINES`：
+    - 按 12 星座补齐 `入庙 / 擢升 / 入落 / 入陷` 文案（含“无（传统占星中通常不设）”与“部分古占观点”标注）。
+  - 新增 `enrichSignMeaningWithDignity(signKey, meaning)`：
+    - 在星座释义中自动插入四尊贵状态行；
+    - 优先插入到“宫位属性”后；
+    - 含幂等保护：若已有“入庙”行则不重复追加。
+  - `resolveMeaning('sign', key)` 改为返回补齐后的星座释义，统一复用到：
+    - 星盘及占星相关页面悬浮；
+    - 三式合一占星悬浮；
+    - AI导出中的“星座释义”分段；
+    - AI导出设置中“占星注释”开关开启后的释义输出。
+- Verification (local):
+  - `node --check Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 22:05 - 量化盘 AI 导出空白修复（强制刷新 germany 快照）
+- Scope: 修复量化盘页面偶发“当前页面没有可导出文本”。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/germany/AstroMidpoint.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+- Details:
+  - `AstroMidpoint` 新增 `saveGermanySnapshot` 与 `handleSnapshotRefreshRequest`：
+    - 监听 `horosa:refresh-module-snapshot`；
+    - 当导出请求 `module=germany` 时，立即按当前计算结果重建并回填 `evt.detail.snapshotText`。
+  - `AstroMidpoint` 生命周期增强：
+    - `componentDidMount` 注册监听并主动尝试写入一次快照；
+    - `componentDidUpdate` 在中点/星盘字段变化后自动刷新快照；
+    - `componentWillUnmount` 注销监听。
+  - `extractGermanyContent` 调整为“先刷新后读缓存”：
+    - 先 `requestModuleSnapshotRefresh('germany')`；
+    - 刷新失败再回落到 `getModuleCachedContent('germany')`。
+- Verification (local):
+  - `node --check Horosa-Web/astrostudyui/src/components/germany/AstroMidpoint.js` ✅
+  - `node --check Horosa-Web/astrostudyui/src/utils/aiExport.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 22:56 - AI导出全链路稳态修复（跨模块空白/误判/串台）
+- Scope: 解决多术法“点AI导出无反应/提示无可导出文本”、上下文误判导致抓错模块、以及本地存储异常时快照丢失的问题。
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `Horosa-Web/astrostudyui/src/utils/moduleAiSnapshot.js`
+  - `Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js`
+- Details:
+  - 快照存取兜底：
+    - `moduleAiSnapshot` 新增会话级内存快照 `MODULE_SNAPSHOT_MEMORY`；
+    - `astroAiSnapshot` 新增会话级内存快照 `ASTRO_AI_SNAPSHOT_MEMORY`；
+    - `localStorage` 读写失败时自动回退内存快照，避免整页导出变空。
+  - 上下文判定修复：
+    - `withStoreContextFallback` 改为更积极地采用 `astro.currentTab/currentSubTab` 回退；
+    - `getCurrentAIExportContext` 对 `direction` 明确映射 `primarydirect`，避免落入空键。
+  - 导出提取链路增强：
+    - 抽出 `extractContentByKey`；
+    - 新增 `getCandidateExportKeys`，在首选模块无内容时按当前术法做候选兜底（并避免推运子模块串台）；
+    - `buildPayload` 改为按候选顺序提取并使用 `usedExportKey` 进行过滤与注释开关匹配。
+  - 模块快照刷新增强：
+    - `zodialrelease/firdaria/profection/solararc/solarreturn/lunarreturn/givenyear` 导出前先尝试 `requestModuleSnapshotRefresh`；
+    - `requestModuleSnapshotRefresh` 等待时长 80ms -> 220ms，兼容异步重算后写快照。
+  - 避免模块串台：
+    - 金口诀导出不再回退六壬；
+    - `getModuleCachedContent` 增加别名匹配（如 `guazhan<->sixyao`、`qimen<->dunjia`、`indiachart_*`、`jieqi_*`）。
+- Verification (local):
+  - `node --check Horosa-Web/astrostudyui/src/utils/aiExport.js` ✅
+  - `node --check Horosa-Web/astrostudyui/src/utils/moduleAiSnapshot.js` ✅
+  - `node --check Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
