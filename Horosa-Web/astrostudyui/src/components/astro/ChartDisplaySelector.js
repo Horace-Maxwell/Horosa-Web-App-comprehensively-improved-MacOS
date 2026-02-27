@@ -1,37 +1,46 @@
 import { Component } from 'react';
-import { Checkbox, Row, Col, Select } from 'antd';
+import { Checkbox, Row, Col } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
-
-const Option = Select.Option;
 
 class ChartDisplaySelector extends Component{
 
 	constructor(props) {
 		super(props);
 
-		this.onChange = this.onChange.bind(this);
+		this.changeChartOption = this.changeChartOption.bind(this);
 		this.changeShowPdBounds = this.changeShowPdBounds.bind(this);
 		this.changeShowPlanetHouseInfo = this.changeShowPlanetHouseInfo.bind(this);
 		this.changeShowAstroMeaning = this.changeShowAstroMeaning.bind(this);
+		this.changeOnlyRulerExaltReception = this.changeOnlyRulerExaltReception.bind(this);
 	}
 
-	onChange(checkedValues){
-		if(this.props.dispatch){
-			this.props.dispatch({
-				type: 'app/save',
-				payload:{ 
-					chartDisplay: checkedValues,
-				},
-			});		
-
-		}
-	}
-
-	changeShowPdBounds(val){
+	changeChartOption(opt, e){
 		if(!this.props.dispatch){
 			return;
 		}
+		const checked = !!(e && e.target && e.target.checked);
+		const current = Array.isArray(this.props.value) ? [...this.props.value] : [];
+		const idx = current.indexOf(opt);
+		if(checked && idx < 0){
+			current.push(opt);
+		}
+		if(!checked && idx >= 0){
+			current.splice(idx, 1);
+		}
+		this.props.dispatch({
+			type: 'app/save',
+			payload:{
+				chartDisplay: current,
+			},
+		});
+	}
+
+	changeShowPdBounds(e){
+		if(!this.props.dispatch){
+			return;
+		}
+		const val = e && e.target && e.target.checked ? 1 : 0;
 		this.props.dispatch({
 			type: 'app/save',
 			payload:{
@@ -84,11 +93,33 @@ class ChartDisplaySelector extends Component{
 		});
 	}
 
+	changeOnlyRulerExaltReception(e){
+		if(!this.props.dispatch){
+			return;
+		}
+		const checked = e && e.target && e.target.checked ? 1 : 0;
+		this.props.dispatch({
+			type: 'app/save',
+			payload: {
+				showOnlyRulExaltReception: checked,
+			},
+		});
+	}
+
 	render(){
-		let allobjs = AstroConst.CHART_OPTIONS.map((opt, idx)=>{
+		const labelStyle = {
+			fontFamily: AstroConst.AstroFont,
+		};
+		const currentDisplay = Array.isArray(this.props.value) ? this.props.value : [];
+
+		let allobjs = AstroConst.CHART_OPTIONS.map((opt)=>{
 			return (
 				<Col span={24} key={opt}>
-					<Checkbox value={opt} style={{fontFamily: AstroConst.AstroFont}}>
+					<Checkbox
+						style={labelStyle}
+						checked={currentDisplay.includes(opt)}
+						onChange={(e)=>this.changeChartOption(opt, e)}
+					>
 						{AstroText.ChartOptionText[opt+'']}
 					</Checkbox>
 				</Col>
@@ -97,45 +128,42 @@ class ChartDisplaySelector extends Component{
 
 		return (
 			<div>
-				<Checkbox.Group 
-					style={{ width: '100%' }} 
-					onChange={this.onChange}
-					value={this.props.value}
-				>
-					<Row gutter={12}>
-						{allobjs}
-					</Row>
-				</Checkbox.Group>
-				<Row gutter={12} style={{marginTop: 14}}>
-					<Col span={24}>主/界限法显示界限法：</Col>
-					<Col span={24}>
-						<Select
-							value={this.props.showPdBounds === 0 ? 0 : 1}
-							onChange={this.changeShowPdBounds}
-							style={{width: '100%'}}
-						>
-							<Option value={1}>是</Option>
-							<Option value={0}>否</Option>
-						</Select>
-					</Col>
-				</Row>
-				<Row gutter={12} style={{marginTop: 14}}>
+				<Row gutter={12}>
+					{allobjs}
 					<Col span={24}>
 						<Checkbox
+							style={labelStyle}
+							checked={this.props.showPdBounds !== 0}
+							onChange={this.changeShowPdBounds}
+						>
+							主/界限法显示界限法
+						</Checkbox>
+					</Col>
+					<Col span={24}>
+						<Checkbox
+							style={labelStyle}
 							checked={this.props.showPlanetHouseInfo === 1 || this.props.showPlanetHouseInfo === true}
 							onChange={this.changeShowPlanetHouseInfo}
 						>
 							星曜附带后天宫信息
 						</Checkbox>
 					</Col>
-				</Row>
-				<Row gutter={12} style={{marginTop: 14}}>
 					<Col span={24}>
 						<Checkbox
+							style={labelStyle}
 							checked={this.props.showAstroMeaning === 1 || this.props.showAstroMeaning === true}
 							onChange={this.changeShowAstroMeaning}
 						>
 							是否显示星/宫/座/相释义
+						</Checkbox>
+					</Col>
+					<Col span={24}>
+						<Checkbox
+							style={labelStyle}
+							checked={this.props.showOnlyRulExaltReception === 1 || this.props.showOnlyRulExaltReception === true}
+							onChange={this.changeOnlyRulerExaltReception}
+						>
+							仅按照本垣擢升计算互容接纳
 						</Checkbox>
 					</Col>
 				</Row>

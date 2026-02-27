@@ -1326,3 +1326,48 @@
   - 修复多个术法点击 AI导出“无反应/无可导出文本”；
   - 修复上下文误判导致的导出串台；
   - 在 localStorage 异常情况下，仍可通过内存快照稳定导出。
+
+## 76) 星盘组件底部选项统一复选框（2026-02-27）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js`
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `Horosa-Web/astrostudyui/src/pages/index.js`
+
+- 结构变化：
+  - `ChartDisplaySelector`：
+    - 移除 `Checkbox.Group + Select` 混合结构，改为统一单项 `Checkbox` 渲染；
+    - `主/界限法显示界限法` 改为纯复选框（布尔勾选映射 `showPdBounds: 1/0`）；
+    - 新增底部开关：`仅按照本垣擢升计算互容接纳`。
+  - `app` 模型新增 `showOnlyRulExaltReception` 状态并纳入 `GlobalSetup` 持久化。
+  - `index` 页面补充 `showOnlyRulExaltReception` 下发，保证显示链路可读该配置。
+
+- 行为结果：
+  - 星盘组件底部选项风格统一，不再出现“下拉+复选框”混合断层；
+  - “主/界限法显示界限法”交互与其它选项一致；
+  - 新增“仅按照本垣擢升计算互容接纳”全局开关进入状态与持久化链路。
+
+## 77) 接纳/互容本垣擢升过滤同步到信息面板与AI快照（2026-02-27）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js`
+  - `Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js`
+
+- 结构变化：
+  - `AstroInfo` 新增：
+    - `getOnlyRulerExaltReceptionEnabled`
+    - `hasRulerOrExalt`
+    - `keepReceptionLine`
+    - `keepMutualLine`
+  - `receptions/mutuals` 渲染前先按本垣/擢升规则过滤：
+    - 正接纳：`supplierRulerShip` 必含 `ruler/exalt`；
+    - 邪接纳：`supplierRulerShip` 或 `beneficiaryDignity` 任一含 `ruler/exalt`；
+    - 互容：双方 `rulerShip` 均含 `ruler/exalt`。
+  - `astroAiSnapshot` 新增同名过滤辅助并应用到 `buildInfoSection`；
+  - `createAstroSnapshotSignature` 纳入该开关位（`...|onlyRulerExaltReception`）；
+  - `build/save/get` 快照函数签名新增 `options`，支持导出链路传入该开关并保持一致。
+
+- 行为结果：
+  - 页面右侧“接纳/互容”与 AI导出“信息”分段使用同一过滤规则；
+  - 切换开关后不会误命中旧快照，导出内容与当前显示保持对齐；
+  - 当过滤后为空时，不再输出空“接纳/互容”标题分节。

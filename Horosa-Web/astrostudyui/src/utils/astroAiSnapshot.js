@@ -1,6 +1,7 @@
 import * as AstroConst from '../constants/AstroConst';
 import * as AstroText from '../constants/AstroText';
 import { appendPlanetHouseInfoById, } from './planetHouseInfo';
+import * as Constants from './constants';
 
 export const ASTRO_AI_SNAPSHOT_KEY = 'horosa.ai.snapshot.astro.v1';
 let ASTRO_AI_SNAPSHOT_MEMORY = null;
@@ -158,6 +159,62 @@ function fieldValue(fields, key){
 		return f.value;
 	}
 	return f !== undefined ? f : null;
+}
+
+function resolveOnlyRulerExaltReception(options = {}){
+	if(options.onlyRulerExaltReception !== undefined && options.onlyRulerExaltReception !== null){
+		return !!options.onlyRulerExaltReception;
+	}
+	try{
+		if(typeof window === 'undefined' || !window.localStorage){
+			return false;
+		}
+		const raw = window.localStorage.getItem(Constants.GlobalSetupKey);
+		if(!raw){
+			return false;
+		}
+		const setup = JSON.parse(raw);
+		return !!(setup && (setup.showOnlyRulExaltReception === 1 || setup.showOnlyRulExaltReception === true));
+	}catch(e){
+		return false;
+	}
+}
+
+function hasRulerOrExalt(ary){
+	if(!ary || !Array.isArray(ary) || ary.length === 0){
+		return false;
+	}
+	for(let i=0; i<ary.length; i++){
+		if(ary[i] === 'ruler' || ary[i] === 'exalt'){
+			return true;
+		}
+	}
+	return false;
+}
+
+function keepReceptionLine(item, abnormal = false, onlyRulerExaltReception = false){
+	if(!onlyRulerExaltReception){
+		return true;
+	}
+	if(!item){
+		return false;
+	}
+	const supplierOk = hasRulerOrExalt(item.supplierRulerShip);
+	if(!abnormal){
+		return supplierOk;
+	}
+	const beneficiaryOk = hasRulerOrExalt(item.beneficiaryDignity);
+	return supplierOk || beneficiaryOk;
+}
+
+function keepMutualLine(item, onlyRulerExaltReception = false){
+	if(!onlyRulerExaltReception){
+		return true;
+	}
+	if(!item || !item.planetA || !item.planetB){
+		return false;
+	}
+	return hasRulerOrExalt(item.planetA.rulerShip) && hasRulerOrExalt(item.planetB.rulerShip);
 }
 
 function asNameList(ids){
@@ -324,11 +381,12 @@ export function buildStarAndLotPositionLines(chartObj){
 	return lines;
 }
 
-export function buildInfoSection(chartObj, fields){
+export function buildInfoSection(chartObj, fields, options = {}){
 	const lines = [];
 	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
 	const chartData = chartObj || {};
 	const planetMap = getObjectsMap(chartObj);
+	const onlyRulerExaltReception = resolveOnlyRulerExaltReception(options);
 
 	lines.push(...buildBaseInfoLines(chartObj, fields));
 
@@ -346,27 +404,31 @@ export function buildInfoSection(chartObj, fields){
 	}
 
 	const receptions = chartData.receptions || {};
-	if((receptions.normal || []).length || (receptions.abnormal || []).length){
+	const normalReceptions = (receptions.normal || []).filter((item)=>keepReceptionLine(item, false, onlyRulerExaltReception));
+	const abnormalReceptions = (receptions.abnormal || []).filter((item)=>keepReceptionLine(item, true, onlyRulerExaltReception));
+	if(normalReceptions.length || abnormalReceptions.length){
 		lines.push('接纳');
 		lines.push('正接纳：');
-		(receptions.normal || []).forEach((item)=>{
+		normalReceptions.forEach((item)=>{
 			lines.push(`${msgWithHouse(item.beneficiary, chartObj)} 被 ${msgWithHouse(item.supplier, chartObj)} 接纳 (${ruleshipText(item.supplierRulerShip)})`);
 		});
 		lines.push('邪接纳：');
-		(receptions.abnormal || []).forEach((item)=>{
+		abnormalReceptions.forEach((item)=>{
 			lines.push(`${msgWithHouse(item.beneficiary, chartObj)} (${ruleshipText(item.beneficiaryDignity)}) 被 ${msgWithHouse(item.supplier, chartObj)} 接纳 (${ruleshipText(item.supplierRulerShip)})`);
 		});
 	}
 
 	const mutuals = chartData.mutuals || {};
-	if((mutuals.normal || []).length || (mutuals.abnormal || []).length){
+	const normalMutuals = (mutuals.normal || []).filter((item)=>keepMutualLine(item, onlyRulerExaltReception));
+	const abnormalMutuals = (mutuals.abnormal || []).filter((item)=>keepMutualLine(item, onlyRulerExaltReception));
+	if(normalMutuals.length || abnormalMutuals.length){
 		lines.push('互容');
 		lines.push('正互容：');
-		(mutuals.normal || []).forEach((item)=>{
+		normalMutuals.forEach((item)=>{
 			lines.push(`${msgWithHouse(item.planetA.id, chartObj)} (${ruleshipText(item.planetA.rulerShip)}) 与 ${msgWithHouse(item.planetB.id, chartObj)} (${ruleshipText(item.planetB.rulerShip)}) 互容`);
 		});
 		lines.push('邪互容：');
-		(mutuals.abnormal || []).forEach((item)=>{
+		abnormalMutuals.forEach((item)=>{
 			lines.push(`${msgWithHouse(item.planetA.id, chartObj)} (${ruleshipText(item.planetA.rulerShip)}) 与 ${msgWithHouse(item.planetB.id, chartObj)} (${ruleshipText(item.planetB.rulerShip)}) 互容`);
 		});
 	}
@@ -654,7 +716,7 @@ function buildSectionText(title, lines){
 	return `[${title}]\n${clean.join('\n')}`;
 }
 
-export function createAstroSnapshotSignature(chartObj, fields){
+export function createAstroSnapshotSignature(chartObj, fields, options = {}){
 	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
 	const params = chartObj && chartObj.params ? chartObj.params : {};
 	const lon = fieldValue(fields, 'lon') || params.lon || '';
@@ -664,10 +726,11 @@ export function createAstroSnapshotSignature(chartObj, fields){
 	const zodiacal = chart.zodiacal || AstroConst.ZODIACAL[fieldValue(fields, 'zodiacal')] || '';
 	const hsys = chart.hsys || AstroConst.HouseSys[fieldValue(fields, 'hsys')] || '';
 	const chartId = chartObj && chartObj.chartId ? chartObj.chartId : '';
-	return [chartId, birth, zone, lon, lat, zodiacal, hsys, chart.isDiurnal ? '1' : '0'].join('|');
+	const onlyRulerExaltReception = resolveOnlyRulerExaltReception(options);
+	return [chartId, birth, zone, lon, lat, zodiacal, hsys, chart.isDiurnal ? '1' : '0', onlyRulerExaltReception ? '1' : '0'].join('|');
 }
 
-export function buildAstroSnapshotContent(chartObj, fields){
+export function buildAstroSnapshotContent(chartObj, fields, options = {}){
 	if(!chartObj || !chartObj.chart){
 		return '';
 	}
@@ -675,7 +738,7 @@ export function buildAstroSnapshotContent(chartObj, fields){
 	sections.push(buildSectionText('起盘信息', buildBaseInfoLines(chartObj, fields)));
 	sections.push(buildSectionText('宫位宫头', buildHouseCuspLines(chartObj)));
 	sections.push(buildSectionText('星与虚点', buildStarAndLotPositionLines(chartObj)));
-	sections.push(buildSectionText('信息', buildInfoSection(chartObj, fields)));
+	sections.push(buildSectionText('信息', buildInfoSection(chartObj, fields, options)));
 	sections.push(buildSectionText('相位', buildAspectSection(chartObj)));
 	sections.push(buildSectionText('行星', buildPlanetSection(chartObj)));
 	sections.push(buildSectionText('希腊点', buildLotsSection(chartObj)));
@@ -683,16 +746,16 @@ export function buildAstroSnapshotContent(chartObj, fields){
 	return sections.filter(Boolean).join('\n\n').trim();
 }
 
-export function saveAstroAISnapshot(chartObj, fields){
+export function saveAstroAISnapshot(chartObj, fields, options = {}){
 	try{
-		const content = buildAstroSnapshotContent(chartObj, fields);
+		const content = buildAstroSnapshotContent(chartObj, fields, options);
 		if(!content){
 			return null;
 		}
 		const payload = {
 			version: 1,
 			createdAt: new Date().toISOString(),
-			signature: createAstroSnapshotSignature(chartObj, fields),
+			signature: createAstroSnapshotSignature(chartObj, fields, options),
 			chartId: chartObj && chartObj.chartId ? chartObj.chartId : null,
 			content: normalizeAiExportText(content),
 		};
@@ -705,14 +768,14 @@ export function saveAstroAISnapshot(chartObj, fields){
 	}catch(e){
 		// localStorage 写入异常时，仍保留内存快照，避免导出链路整体失效。
 		try{
-			const content = buildAstroSnapshotContent(chartObj, fields);
+			const content = buildAstroSnapshotContent(chartObj, fields, options);
 			if(!content){
 				return null;
 			}
 			ASTRO_AI_SNAPSHOT_MEMORY = {
 				version: 1,
 				createdAt: new Date().toISOString(),
-				signature: createAstroSnapshotSignature(chartObj, fields),
+				signature: createAstroSnapshotSignature(chartObj, fields, options),
 				chartId: chartObj && chartObj.chartId ? chartObj.chartId : null,
 				content: normalizeAiExportText(content),
 			};
@@ -785,7 +848,7 @@ export function loadAstroAISnapshot(){
 	}
 }
 
-export function getAstroAISnapshotForCurrent(chartObj, fields){
+export function getAstroAISnapshotForCurrent(chartObj, fields, options = {}){
 	const snap = loadAstroAISnapshot();
 	if(!snap){
 		return null;
@@ -793,7 +856,7 @@ export function getAstroAISnapshotForCurrent(chartObj, fields){
 	if(!chartObj){
 		return snap;
 	}
-	const sig = createAstroSnapshotSignature(chartObj, fields);
+	const sig = createAstroSnapshotSignature(chartObj, fields, options);
 	if(snap.signature !== sig){
 		return null;
 	}

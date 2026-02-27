@@ -47,6 +47,7 @@ export default {
         showPdBounds: 1,
         showPlanetHouseInfo: 0,
         showAstroMeaning: 0,
+        showOnlyRulExaltReception: 0,
 
         loginFields:{
             loginId: {
@@ -86,6 +87,7 @@ export default {
                 showPdBounds: st.showPdBounds,
                 showPlanetHouseInfo: st.showPlanetHouseInfo,
                 showAstroMeaning: st.showAstroMeaning,
+                showOnlyRulExaltReception: st.showOnlyRulExaltReception,
             };
             let json = JSON.stringify(globalSetup);
             localStorage.setItem(Constants.GlobalSetupKey, json);

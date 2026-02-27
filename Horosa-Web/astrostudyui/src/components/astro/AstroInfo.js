@@ -6,6 +6,7 @@ import { randomStr} from '../../utils/helper'
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
 import { buildMeaningTipByCategory, } from './AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
+import * as Constants from '../../utils/constants';
 import styles from '../../css/styles.less';
 
 
@@ -32,6 +33,10 @@ class AstroInfo extends Component{
 			this.initPlanets = this.initPlanets.bind(this);
 			this.planetLabel = this.planetLabel.bind(this);
 			this.showMeaning = this.showMeaning.bind(this);
+			this.getOnlyRulerExaltReceptionEnabled = this.getOnlyRulerExaltReceptionEnabled.bind(this);
+			this.hasRulerOrExalt = this.hasRulerOrExalt.bind(this);
+			this.keepReceptionLine = this.keepReceptionLine.bind(this);
+			this.keepMutualLine = this.keepMutualLine.bind(this);
 		}
 
 	showMeaning(){
@@ -93,6 +98,62 @@ class AstroInfo extends Component{
 			return true;
 		}
 		return this.planetSet.has(planteId);
+	}
+
+	getOnlyRulerExaltReceptionEnabled(){
+		if(this.props.showOnlyRulExaltReception !== undefined && this.props.showOnlyRulExaltReception !== null){
+			return this.props.showOnlyRulExaltReception === 1 || this.props.showOnlyRulExaltReception === true;
+		}
+		try{
+			if(typeof window === 'undefined' || !window.localStorage){
+				return false;
+			}
+			const raw = window.localStorage.getItem(Constants.GlobalSetupKey);
+			if(!raw){
+				return false;
+			}
+			const setup = JSON.parse(raw);
+			return !!(setup && (setup.showOnlyRulExaltReception === 1 || setup.showOnlyRulExaltReception === true));
+		}catch(e){
+			return false;
+		}
+	}
+
+	hasRulerOrExalt(ary){
+		if(!ary || !Array.isArray(ary) || ary.length === 0){
+			return false;
+		}
+		for(let i=0; i<ary.length; i++){
+			if(ary[i] === 'ruler' || ary[i] === 'exalt'){
+				return true;
+			}
+		}
+		return false;
+	}
+
+	keepReceptionLine(item, abnormal = false){
+		if(!this.getOnlyRulerExaltReceptionEnabled()){
+			return true;
+		}
+		if(!item){
+			return false;
+		}
+		const supplierOk = this.hasRulerOrExalt(item.supplierRulerShip);
+		if(!abnormal){
+			return supplierOk;
+		}
+		const beneficiaryOk = this.hasRulerOrExalt(item.beneficiaryDignity);
+		return supplierOk || beneficiaryOk;
+	}
+
+	keepMutualLine(item){
+		if(!this.getOnlyRulerExaltReceptionEnabled()){
+			return true;
+		}
+		if(!item || !item.planetA || !item.planetB){
+			return false;
+		}
+		return this.hasRulerOrExalt(item.planetA.rulerShip) && this.hasRulerOrExalt(item.planetB.rulerShip);
 	}
 
 	getRuleShipText(ary){
@@ -246,7 +307,12 @@ class AstroInfo extends Component{
 		if(receptions === undefined || receptions === null){
 			return null;
 		}
-		let normaldom = receptions.normal.map((item, idx)=>{
+		const normal = (receptions.normal || []).filter((item)=>this.keepReceptionLine(item, false));
+		const abnormal = (receptions.abnormal || []).filter((item)=>this.keepReceptionLine(item, true));
+		if(normal.length === 0 && abnormal.length === 0){
+			return null;
+		}
+		let normaldom = normal.map((item, idx)=>{
 			let ruleship = this.getRuleShipText(item.supplierRulerShip);
 			if((!this.canDisplayPlanet(item.beneficiary)) || (!this.canDisplayPlanet(item.supplier))){
 				return null;
@@ -272,7 +338,7 @@ class AstroInfo extends Component{
 			);
 			return dom;
 		});
-		let abnormaldom = receptions.abnormal.map((item, idx)=>{
+		let abnormaldom = abnormal.map((item, idx)=>{
 			if((!this.canDisplayPlanet(item.beneficiary)) || (!this.canDisplayPlanet(item.supplier))){
 				return null;
 			}
@@ -320,7 +386,12 @@ class AstroInfo extends Component{
 		if(mutual === undefined || mutual === null){
 			return null;
 		}
-		let normaldom = mutual.normal.map((item, idx)=>{
+		const normal = (mutual.normal || []).filter((item)=>this.keepMutualLine(item));
+		const abnormal = (mutual.abnormal || []).filter((item)=>this.keepMutualLine(item));
+		if(normal.length === 0 && abnormal.length === 0){
+			return null;
+		}
+		let normaldom = normal.map((item, idx)=>{
 			let objA = item.planetA;
 			let objB = item.planetB;
 			if((!this.canDisplayPlanet(objA.id)) || (!this.canDisplayPlanet(objB.id))){
@@ -337,7 +408,7 @@ class AstroInfo extends Component{
 			return dom;
 
 		});
-		let abnormaldom = mutual.abnormal.map((item, idx)=>{
+		let abnormaldom = abnormal.map((item, idx)=>{
 			let objA = item.planetA;
 			let objB = item.planetB;
 			if((!this.canDisplayPlanet(objA.id)) || (!this.canDisplayPlanet(objB.id))){
@@ -636,9 +707,9 @@ class AstroInfo extends Component{
 					</Col>
 				</Row>
 				{antiDom}
-				<Divider orientation="left">接纳</Divider>
+				{recpDom ? <Divider orientation="left">接纳</Divider> : null}
 				{recpDom}
-				<Divider orientation="left">互容</Divider>
+				{mutDom ? <Divider orientation="left">互容</Divider> : null}
 				{mutDom}
 				<Divider orientation="left">光线围攻</Divider>
 				{surattacks}
