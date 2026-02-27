@@ -1869,7 +1869,10 @@ class SanShiUnitedMain extends Component{
 		};
 		this.pendingTimeFields = localFields;
 		if(confirmed){
-			this.setState({ localFields });
+			this.setState({ localFields }, ()=>{
+				// 与“起盘”按钮保持一致：点击“确定”后直接按最新时间起盘。
+				this.clickPlot();
+			});
 			const syncedFields = {
 				date: { value: dt.clone() },
 				time: { value: dt.clone() },
@@ -2247,7 +2250,10 @@ class SanShiUnitedMain extends Component{
 		if(moduleName !== 'sanshiunited'){
 			return;
 		}
-		const fields = this.getActiveFields();
+		// 导出刷新必须与左侧当前“已起盘”展示保持一致，优先使用 plottedFields。
+		const fields = this.state.hasPlotted
+			? (this.state.plottedFields || this.state.localFields || this.props.fields)
+			: this.getActiveFields();
 		const chartWrap = this.props.chartObj || this.props.chart || null;
 		const astroChart = chartWrap && chartWrap.chart ? chartWrap.chart : null;
 		const outerData = this.outerDataCache && this.outerDataCache.data

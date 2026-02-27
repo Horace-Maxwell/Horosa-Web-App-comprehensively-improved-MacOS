@@ -187,6 +187,7 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'taiyi', label: '太乙' },
 	{ key: 'guolao', label: '七政四余' },
 	{ key: 'germany', label: '量化盘' },
+	{ key: 'jieqi', label: '节气盘' },
 	...JIEQI_SPLIT_TECHNIQUES,
 	{ key: 'otherbu', label: '西洋游戏' },
 	{ key: 'fengshui', label: '风水' },
@@ -2199,6 +2200,169 @@ function getModuleCachedContent(moduleName){
 	return '';
 }
 
+function getModuleSnapshotPayload(moduleName){
+	if(!moduleName){
+		return null;
+	}
+	const aliases = getModuleAliasList(moduleName);
+	const candidates = [];
+	aliases.forEach((alias)=>{
+		const snapshot = loadModuleAISnapshot(alias);
+		if(!snapshot || !snapshot.content){
+			return;
+		}
+		candidates.push(snapshot);
+	});
+	if(!candidates.length){
+		return null;
+	}
+	candidates.sort((a, b)=>{
+		const aCreated = safe(a && a.createdAt, '');
+		const bCreated = safe(b && b.createdAt, '');
+		if(aCreated && bCreated && aCreated !== bCreated){
+			return aCreated > bCreated ? -1 : 1;
+		}
+		const aLen = safe(a && a.content, '').length;
+		const bLen = safe(b && b.content, '').length;
+		return bLen - aLen;
+	});
+	return candidates[0] || null;
+}
+
+function getCurrentStoreFieldSignature(){
+	try{
+		const store = getStore();
+		const astro = store && store.astro ? store.astro : null;
+		const fields = astro && astro.fields ? astro.fields : null;
+		if(!fields){
+			return {
+				date: '',
+				time: '',
+				zone: '',
+				lon: '',
+				lat: '',
+			};
+		}
+		const fmt = (val, pattern)=>{
+			if(!val || typeof val.format !== 'function'){
+				return '';
+			}
+			try{
+				return `${val.format(pattern)}`;
+			}catch(e){
+				return '';
+			}
+		};
+		return {
+			date: fmt(fields.date && fields.date.value, 'YYYY-MM-DD'),
+			time: fmt(fields.time && fields.time.value, 'HH:mm:ss'),
+			zone: safe(fields.zone && fields.zone.value, ''),
+			lon: safe(fields.lon && fields.lon.value, ''),
+			lat: safe(fields.lat && fields.lat.value, ''),
+		};
+	}catch(e){
+		return {
+			date: '',
+			time: '',
+			zone: '',
+			lon: '',
+			lat: '',
+		};
+	}
+}
+
+function getSanshiDisplayFieldSignature(scopeRoot){
+	const fallback = getCurrentStoreFieldSignature();
+	const sig = {
+		...fallback,
+	};
+	if(!scopeRoot){
+		return sig;
+	}
+	const rawText = `${textOf(scopeRoot) || ''}`.replace(/\s+/g, ' ');
+	if(!rawText){
+		return sig;
+	}
+	const dateMatched = rawText.match(/(\d{4}[/-]\d{2}[/-]\d{2})/);
+	if(dateMatched && dateMatched[1]){
+		sig.date = `${dateMatched[1]}`.replace(/\//g, '-');
+	}
+	// 三式合一左盘固定同时展示“真太阳时/直接时间”，用于导出匹配优先使用直接时间。
+	const directMatched = rawText.match(/直接时间[：:]\s*(\d{2}:\d{2}(?::\d{2})?)/);
+	if(directMatched && directMatched[1]){
+		sig.time = `${directMatched[1]}`;
+		return sig;
+	}
+	const solarMatched = rawText.match(/真太阳时[：:]\s*(\d{2}:\d{2}(?::\d{2})?)/);
+	if(solarMatched && solarMatched[1]){
+		sig.time = `${solarMatched[1]}`;
+	}
+	return sig;
+}
+
+function normalizeMinuteTime(val){
+	const matched = `${val || ''}`.match(/(\d{2}):(\d{2})/);
+	if(!matched){
+		return '';
+	}
+	return `${matched[1]}:${matched[2]}`;
+}
+
+function parseSanshiDirectStamp(content){
+	const txt = `${content || ''}`;
+	if(!txt){
+		return null;
+	}
+	const matched = txt.match(/直接时间[：:]\s*([0-9]{4}[/-][0-9]{2}[/-][0-9]{2})\s*([0-9]{2}:[0-9]{2}(?::[0-9]{2})?)/);
+	if(!matched){
+		return null;
+	}
+	return {
+		date: `${matched[1] || ''}`.replace(/\//g, '-'),
+		time: `${matched[2] || ''}`,
+	};
+}
+
+function isSanshiSnapshotMatchedCurrent(content, snapshotMeta, currentSig){
+	const current = currentSig || {};
+	if(!current.date || !current.time){
+		return true;
+	}
+	let snapDate = safe(snapshotMeta && snapshotMeta.date, '');
+	let snapTime = safe(snapshotMeta && snapshotMeta.time, '');
+	const parsedDirect = parseSanshiDirectStamp(content);
+	if(!snapDate && parsedDirect && parsedDirect.date){
+		snapDate = parsedDirect.date;
+	}
+	if(!snapTime && parsedDirect && parsedDirect.time){
+		snapTime = parsedDirect.time;
+	}
+	if(!snapDate || !snapTime){
+		return false;
+	}
+	if(snapDate !== current.date){
+		return false;
+	}
+	const curMinute = normalizeMinuteTime(current.time);
+	const snapMinute = normalizeMinuteTime(snapTime);
+	if(curMinute && snapMinute && curMinute !== snapMinute){
+		return false;
+	}
+	const snapZone = safe(snapshotMeta && snapshotMeta.zone, '');
+	if(current.zone && snapZone && current.zone !== snapZone){
+		return false;
+	}
+	const snapLon = safe(snapshotMeta && snapshotMeta.lon, '');
+	if(current.lon && snapLon && current.lon !== snapLon){
+		return false;
+	}
+	const snapLat = safe(snapshotMeta && snapshotMeta.lat, '');
+	if(current.lat && snapLat && current.lat !== snapLat){
+		return false;
+	}
+	return true;
+}
+
 function parseIndiaFractalByLabel(label){
 	const txt = `${label || ''}`.trim();
 	if(!txt){
@@ -2269,18 +2433,34 @@ async function extractSixYaoContent(context){
 	return '';
 }
 
+function hasSectionTitle(content, title){
+	const src = `${content || ''}`;
+	const target = `${title || ''}`.trim();
+	if(!src || !target){
+		return false;
+	}
+	const escaped = escapeRegExp(target);
+	const headingPattern = new RegExp(`(?:\\[|【)\\s*${escaped}\\s*(?:\\]|】)`);
+	return headingPattern.test(src);
+}
+
+function hasAnySectionTitle(content, titles){
+	const arr = Array.isArray(titles) ? titles : [titles];
+	return arr.some((title)=>hasSectionTitle(content, title));
+}
+
 async function extractLiuRengContent(context){
 	void context;
 	const refreshedSnapshot = await requestModuleSnapshotRefresh('liureng');
 	if(refreshedSnapshot){
-		const hasGeJuRef = /\[(大格|小局|参考|概览)\]/.test(refreshedSnapshot);
+		const hasGeJuRef = hasAnySectionTitle(refreshedSnapshot, ['大格', '小局', '参考', '概览']);
 		if(hasGeJuRef){
 			return refreshedSnapshot;
 		}
 	}
 	const cached = getModuleCachedContent('liureng');
 	if(cached){
-		const hasGeJuRef = /\[(大格|小局|参考|概览)\]/.test(cached);
+		const hasGeJuRef = hasAnySectionTitle(cached, ['大格', '小局', '参考', '概览']);
 		if(hasGeJuRef){
 			return cached;
 		}
@@ -2289,7 +2469,7 @@ async function extractLiuRengContent(context){
 		? `${window.__horosa_liureng_snapshot_text}`.trim()
 		: '';
 	if(liveSnapshot){
-		const hasGeJuRef = /\[(大格|小局|参考|概览)\]/.test(liveSnapshot);
+		const hasGeJuRef = hasAnySectionTitle(liveSnapshot, ['大格', '小局', '参考', '概览']);
 		if(hasGeJuRef){
 			return liveSnapshot;
 		}
@@ -2322,16 +2502,16 @@ async function extractQiMenContent(context){
 	void context;
 	const refreshedSnapshot = await requestModuleSnapshotRefresh('qimen');
 	if(refreshedSnapshot){
-		const hasYiGua = /\[奇门演卦\]/.test(refreshedSnapshot);
-		const hasBaGong = /\[八宫详解\]/.test(refreshedSnapshot);
+		const hasYiGua = hasSectionTitle(refreshedSnapshot, '奇门演卦');
+		const hasBaGong = hasSectionTitle(refreshedSnapshot, '八宫详解');
 		if(hasYiGua && hasBaGong){
 			return refreshedSnapshot;
 		}
 	}
 	const cached = getModuleCachedContent('qimen');
 	if(cached){
-		const hasYiGua = /\[奇门演卦\]/.test(cached);
-		const hasBaGong = /\[八宫详解\]/.test(cached);
+		const hasYiGua = hasSectionTitle(cached, '奇门演卦');
+		const hasBaGong = hasSectionTitle(cached, '八宫详解');
 		if(hasYiGua && hasBaGong){
 			return cached;
 		}
@@ -2340,8 +2520,8 @@ async function extractQiMenContent(context){
 		? `${window.__horosa_qimen_snapshot_text}`.trim()
 		: '';
 	if(liveSnapshot){
-		const hasYiGua = /\[奇门演卦\]/.test(liveSnapshot);
-		const hasBaGong = /\[八宫详解\]/.test(liveSnapshot);
+		const hasYiGua = hasSectionTitle(liveSnapshot, '奇门演卦');
+		const hasBaGong = hasSectionTitle(liveSnapshot, '八宫详解');
 		if(hasYiGua && hasBaGong){
 			return liveSnapshot;
 		}
@@ -2361,24 +2541,84 @@ async function extractQiMenContent(context){
 
 async function extractSanShiUnitedContent(context){
 	void context;
+	const isCompleteSnapshot = (txt)=>{
+		const src = `${txt || ''}`;
+		if(!src){
+			return false;
+		}
+		const hasLiuRengRef = hasAnySectionTitle(src, ['六壬大格', '六壬小局', '六壬参考', '六壬概览']);
+		const hasBaGong = hasSectionTitle(src, '八宫详解');
+		return hasLiuRengRef && hasBaGong;
+	};
+	const getSanshiSnapshotMeta = ()=>{
+		const payload = getModuleSnapshotPayload('sanshiunited');
+		if(payload && payload.meta && typeof payload.meta === 'object'){
+			return payload.meta;
+		}
+		return null;
+	};
+	const canUseSnapshot = (txt, meta, preferComplete = false)=>{
+		const src = `${txt || ''}`.trim();
+		if(!src){
+			return false;
+		}
+		const complete = isCompleteSnapshot(src);
+		const matched = isSanshiSnapshotMatchedCurrent(src, meta, currentSig);
+		if(strictMatch){
+			// 严格模式下以当前盘签名匹配为准，命中即可导出，避免误报“无可导出文本”。
+			return matched;
+		}
+		if(preferComplete){
+			return complete;
+		}
+		return true;
+	};
+	const currentSig = getSanshiDisplayFieldSignature(context && context.scopeRoot ? context.scopeRoot : null);
+	const strictMatch = !!(currentSig.date && currentSig.time);
+
 	const refreshedSnapshot = await requestModuleSnapshotRefresh('sanshiunited');
-	if(refreshedSnapshot){
-		const hasLiuRengRef = /\[(六壬大格|六壬小局|六壬参考|六壬概览)\]/.test(refreshedSnapshot);
-		const hasBaGong = /\[八宫详解\]/.test(refreshedSnapshot);
-		if(hasLiuRengRef && hasBaGong){
-			return refreshedSnapshot;
-		}
+	const refreshedMeta = getSanshiSnapshotMeta();
+	if(canUseSnapshot(refreshedSnapshot, refreshedMeta, true)){
+		// 优先信任“本次刷新”结果：由三式合一组件当场生成，最贴近当前盘面。
+		return refreshedSnapshot;
 	}
+
 	const cached = getModuleCachedContent('sanshiunited');
-	if(cached){
-		const hasLiuRengRef = /\[(六壬大格|六壬小局|六壬参考|六壬概览)\]/.test(cached);
-		const hasBaGong = /\[八宫详解\]/.test(cached);
-		if(hasLiuRengRef && hasBaGong){
-			return cached;
-		}
+	const cachedPayload = getModuleSnapshotPayload('sanshiunited');
+	if(canUseSnapshot(cached, cachedPayload && cachedPayload.meta, true)){
 		return cached;
 	}
-	if(refreshedSnapshot){
+
+	if(strictMatch){
+		const retrySnapshot = await requestModuleSnapshotRefresh('sanshiunited');
+		const retryMeta = getSanshiSnapshotMeta();
+		if(canUseSnapshot(retrySnapshot, retryMeta, false)){
+			return retrySnapshot;
+		}
+		// 最后再尝试一次已取到的快照，避免“刷新回调无新文本”导致误空。
+		if(canUseSnapshot(refreshedSnapshot, refreshedMeta, false)){
+			return refreshedSnapshot;
+		}
+		if(canUseSnapshot(cached, cachedPayload && cachedPayload.meta, false)){
+			return cached;
+		}
+		// 最后兜底：即便签名不匹配，也优先导出当前可见盘面的最新快照，避免误报空导出。
+		if(`${retrySnapshot || ''}`.trim()){
+			return retrySnapshot;
+		}
+		if(`${refreshedSnapshot || ''}`.trim()){
+			return refreshedSnapshot;
+		}
+		if(`${cached || ''}`.trim()){
+			return cached;
+		}
+		return '';
+	}
+
+	if(canUseSnapshot(cached, cachedPayload && cachedPayload.meta, false)){
+		return cached;
+	}
+	if(canUseSnapshot(refreshedSnapshot, refreshedMeta, false)){
 		return refreshedSnapshot;
 	}
 	return '';
@@ -3921,14 +4161,10 @@ function getCandidateExportKeys(context){
 	const hasPrimarySpecific = !!primary && primary !== 'generic';
 	const stateContext = resolveContextByAstroState();
 	const stateKey = normalizeExportKey(stateContext && stateContext.key ? stateContext.key : '');
-	const sameAstroFamily = !!primary && !!stateKey && isAstroFamilyExportKey(primary) && isAstroFamilyExportKey(stateKey);
-	const samePredictiveFamily = !!primary && !!stateKey && isPredictiveExportKey(primary) && isPredictiveExportKey(stateKey);
 	const shouldAppendStateKey = !!stateKey && (
 		!hasPrimarySpecific
 		|| stateKey === primary
 		|| !isStrictSpecificExportKey(primary)
-		|| sameAstroFamily
-		|| samePredictiveFamily
 	);
 	if(shouldAppendStateKey){
 		keys.push(stateKey);
@@ -4016,57 +4252,12 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 		push(stateKey);
 	}
 	if(hasContextSpecific){
-		const predictiveKeys = ['primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear'];
-		if(isPredictiveExportKey(contextKey)){
-			push(...predictiveKeys);
-			return keys;
-		}
-		if(contextKey === 'relative'){
-			push(stateKey, 'relative', 'astrochart', 'astrochart_like');
-			return keys;
-		}
-		if(contextKey === 'indiachart'){
-			push(stateKey, 'indiachart', 'astrochart', 'astrochart_like');
-			return keys;
-		}
-		if(contextKey === 'germany'){
-			push(stateKey, 'germany', 'astrochart', 'astrochart_like');
-			return keys;
-		}
 		if(contextKey === 'jieqi'){
 			push('jieqi', 'jieqi_current');
 			return keys;
 		}
-		if(contextKey === 'guolao'){
-			push(stateKey, 'guolao', 'astrochart_like', 'astrochart');
-			return keys;
-		}
-		if(contextKey === 'qimen' || contextKey === 'liureng' || contextKey === 'jinkou'
-			|| contextKey === 'sanshiunited' || contextKey === 'sixyao'
-			|| contextKey === 'tongshefa' || contextKey === 'taiyi'){
-			push(contextKey);
-			return keys;
-		}
-		if(contextKey === 'bazi' || contextKey === 'ziwei'){
-			push(contextKey);
-			return keys;
-		}
-		if(contextKey === 'suzhan' || contextKey === 'guolao' || contextKey === 'otherbu' || contextKey === 'fengshui'){
-			push(contextKey);
-			return keys;
-		}
-		if(contextKey === 'astrochart' || contextKey === 'astrochart_like'){
-			const hasAstroTopHint = topInfo.includes('星盘')
-				|| topInfo.includes('三维盘')
-				|| topInfo.includes('希腊星术')
-				|| topInfo.includes('星体地图');
-			push('astrochart', 'astrochart_like', stateKey);
-			if(!hasAstroTopHint){
-				push('germany', 'relative', 'indiachart', 'guolao', 'jieqi');
-				push(...predictiveKeys);
-			}
-			return keys;
-		}
+		push(contextKey);
+		return keys;
 	}
 	if(topInfo.includes('推运盘') || topInfo.includes('主/界限法') || topInfo.includes('法达星限')
 		|| topInfo.includes('太阳弧') || topInfo.includes('太阳返照') || topInfo.includes('月亮返照')){
