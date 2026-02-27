@@ -3105,3 +3105,45 @@ Append new entries; do not rewrite history.
   - `node --check Horosa-Web/astrostudyui/src/utils/moduleAiSnapshot.js` ✅
   - `node --check Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js` ✅
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 19:42 - 星盘组件底部选项统一为复选框（含主/界限法开关）
+- Scope: 统一星盘组件底部控制项样式与交互，修复“下拉+复选框混排”和底部选项区风格不一致问题。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js`
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `Horosa-Web/astrostudyui/src/pages/index.js`
+- Details:
+  - `ChartDisplaySelector`：
+    - 移除 `Checkbox.Group + Select` 混合写法，改为统一单行复选框列表；
+    - `主/界限法显示界限法` 从下拉改为纯复选框（勾选=1，未勾选=0）；
+    - 新增复选项：`仅按照本垣擢升计算互容接纳`。
+  - 新增 `changeChartOption`，按单项勾选增删 `chartDisplay`，避免 Group 与自定义项布局冲突。
+  - `app` 全局状态新增 `showOnlyRulExaltReception`（默认 `0`），并写入 `GlobalSetup` 持久化。
+  - `index` 页面透传 `showOnlyRulExaltReception` 到图盘组件链路。
+- Verification (local):
+  - `node --check Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js` ✅
+  - `node --check Horosa-Web/astrostudyui/src/models/app.js` ✅
+  - `node --check Horosa-Web/astrostudyui/src/pages/index.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 19:46 - 接纳/互容“仅本垣擢升”过滤同步到右侧信息与AI快照
+- Scope: 让“仅按照本垣擢升计算互容接纳”在页面显示与AI导出中同规则生效，避免显示与导出不一致。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js`
+  - `Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js`
+- Details:
+  - `AstroInfo` 新增过滤链路：
+    - `normal reception`：仅保留 `supplierRulerShip` 含 `ruler/exalt`；
+    - `abnormal reception`：`supplierRulerShip` 或 `beneficiaryDignity` 任一含 `ruler/exalt` 即保留；
+    - `mutual reception`：双方 `rulerShip` 都含 `ruler/exalt` 才保留；
+    - 当过滤后为空时，不再渲染“接纳/互容”分段标题，避免空分节。
+  - `astroAiSnapshot` 同步接入同一过滤规则：
+    - `buildInfoSection` 过滤接纳/互容导出条目；
+    - 快照签名加入 `onlyRulerExaltReception` 标记，切换开关后不会复用旧快照；
+    - `build/save/get snapshot` 链路支持 `options` 透传该开关。
+  - 配置读取兜底：
+    - 当未显式传入时，从 `GlobalSetup.showOnlyRulExaltReception` 读取，保持页面与导出一致。
+- Verification (local):
+  - `node --check Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js` ✅
+  - `node --check Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅

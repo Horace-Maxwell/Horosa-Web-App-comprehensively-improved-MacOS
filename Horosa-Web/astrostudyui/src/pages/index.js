@@ -47,7 +47,7 @@ const TabPane = Tabs.TabPane;
 let fetchByFieldsTimer = null;
 
 function AstroIndex({dispatch, astro, app, user, rules, }){
-    const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, aspects, planetDisplay, lotsDisplay, colorTheme, showPdBounds, showPlanetHouseInfo, showAstroMeaning} = app;
+    const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, aspects, planetDisplay, lotsDisplay, colorTheme, showPdBounds, showPlanetHouseInfo, showAstroMeaning, showOnlyRulExaltReception} = app;
     const {
         pwdFields,
         userInfo,
@@ -835,6 +835,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     showPdBounds={fields && fields.showPdBounds ? fields.showPdBounds.value : showPdBounds}
                     showPlanetHouseInfo={showPlanetHouseInfo}
                     showAstroMeaning={showAstroMeaning}
+                    showOnlyRulExaltReception={showOnlyRulExaltReception}
                     fields={fields}
                     dispatch={dispatch}
                 />
