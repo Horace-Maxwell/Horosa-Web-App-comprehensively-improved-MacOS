@@ -1,6 +1,6 @@
 # Horosa Web 项目结构（GitHub 上传版）
 
-更新时间：2026-02-25
+更新时间：2026-02-27
 
 ## 1) 根目录（入口）
 
@@ -1371,3 +1371,57 @@
   - 页面右侧“接纳/互容”与 AI导出“信息”分段使用同一过滤规则；
   - 切换开关后不会误命中旧快照，导出内容与当前显示保持对齐；
   - 当过滤后为空时，不再输出空“接纳/互容”标题分节。
+
+## 78) 本地启动脚本服务生命周期修复（2026-02-27）
+
+- 目标文件：
+  - `Horosa_Local.command`
+  - `Horosa-Web/stop_horosa_local.sh`
+  - `README.md`
+
+- 结构变化：
+  - `Horosa_Local.command`：
+    - 新增 `WEB_PID_FILE`（`.horosa_web.pid`）管理前端静态服务进程；
+    - `cleanup` 改为统一调用 `stop_horosa_local.sh` 做 py/java/web 全量回收；
+    - 启动前 stale 检查从 `py/java` 扩展为 `py/java/web`；
+    - `HOROSA_KEEP_SERVICES_RUNNING` 默认从 `1` 调整为 `0`（默认关窗停服）。
+  - `stop_horosa_local.sh`：
+    - 新增 web 进程 `stop_by_pid_file "web" "${WEB_PID_FILE}"`。
+  - `README.md`：
+    - 增补 `HOROSA_KEEP_SERVICES_RUNNING=1` 说明（默认 `0`）。
+
+- 行为结果：
+  - 默认关闭窗口后会自动停止本地服务，不再出现后台残留常驻；
+  - 需要常驻时可显式设置环境变量开启；
+  - pid 文件与 stop 脚本职责对齐，清理链路更稳定。
+
+## 79) 本地启动浏览器优先级调整为 Safari（2026-02-27）
+
+- 目标文件：
+  - `Horosa_Local.command`
+
+- 结构变化：
+  - 新增 Safari 跟踪函数：
+    - `launch_safari_window`
+    - `safari_window_exists`
+    - `wait_for_safari_window_close`
+  - 自动停止模式的打开顺序改为：
+    - Safari（可跟踪关闭） -> Chromium app window -> `open -a Safari` -> 系统默认浏览器。
+
+- 行为结果：
+  - 软件默认优先以 Safari 打开；
+  - 在默认“自动停服”模式下，关闭 Safari 窗口即可触发停服，无需手动回车。
+
+## 80) 三式合一外圈星曜简称去歧义（2026-02-27）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - `shortMainStarLabel(name)` 新增天顶/中天特判：
+    - `天顶` -> `顶`
+    - `中天` -> `顶`
+
+- 行为结果：
+  - 外圈短标签不再出现“天顶=天”与“天王星=天”冲突；
+  - 悬浮全称保持不变，短标签识别更清晰。
