@@ -8,6 +8,7 @@ STOP_SH="${PROJECT_DIR}/stop_horosa_local.sh"
 BOOTSTRAP_SH="${ROOT}/scripts/mac/bootstrap_and_run.sh"
 PY_PID_FILE="${PROJECT_DIR}/.horosa_py.pid"
 JAVA_PID_FILE="${PROJECT_DIR}/.horosa_java.pid"
+WEB_PID_FILE="${PROJECT_DIR}/.horosa_web.pid"
 UI_DIR="${PROJECT_DIR}/astrostudyui"
 
 BUNDLED_RUNTIME_DIR="${ROOT}/runtime/mac"
@@ -434,9 +435,11 @@ ensure_frontend_build() {
 WEB_PORT="${HOROSA_WEB_PORT:-8000}"
 WEB_PID=""
 BROWSER_PID=""
+SAFARI_WINDOW_ID=""
 BACKEND_STARTED=0
 BROWSER_PROFILE_DIR="${PROJECT_DIR}/.horosa-browser-profile"
 NO_BROWSER="${HOROSA_NO_BROWSER:-0}"
+KEEP_SERVICES_RUNNING="${HOROSA_KEEP_SERVICES_RUNNING:-0}"
 mkdir -p "${BROWSER_PROFILE_DIR}"
 
 port_listening() {
@@ -461,9 +464,92 @@ pick_browser_bin() {
   return 1
 }
 
+launch_chromium_app_window() {
+  local url="$1"
+  local bin=""
+  bin="$(pick_browser_bin)" || return 1
+
+  "${bin}" \
+    --user-data-dir="${BROWSER_PROFILE_DIR}" \
+    --app="${url}" \
+    --no-first-run \
+    --no-default-browser-check \
+    --disable-features=DialMediaRouteProvider >/dev/null 2>&1 &
+  BROWSER_PID="$!"
+  BROWSER_BIN="${bin}"
+  return 0
+}
+
+launch_safari_window() {
+  local url="$1"
+  local window_id=""
+
+  if ! command -v osascript >/dev/null 2>&1; then
+    return 1
+  fi
+
+  window_id="$(
+    osascript - "${url}" 2>/dev/null <<'OSA'
+on run argv
+  set targetUrl to item 1 of argv
+  tell application "Safari"
+    activate
+    make new document with properties {URL:targetUrl}
+    delay 0.2
+    try
+      return (id of front window) as text
+    on error
+      return ""
+    end try
+  end tell
+end run
+OSA
+  )"
+
+  if [[ "${window_id}" =~ ^[0-9]+$ ]]; then
+    echo "${window_id}"
+    return 0
+  fi
+  return 1
+}
+
+safari_window_exists() {
+  local window_id="$1"
+  local exists=""
+
+  exists="$(
+    osascript - "${window_id}" 2>/dev/null <<'OSA'
+on run argv
+  set targetId to item 1 of argv as integer
+  tell application "Safari"
+    if (exists window id targetId) then
+      return "1"
+    else
+      return "0"
+    end if
+  end tell
+end run
+OSA
+  )" || return 1
+
+  [ "${exists}" = "1" ]
+}
+
+wait_for_safari_window_close() {
+  local window_id="$1"
+  while safari_window_exists "${window_id}"; do
+    sleep 1
+  done
+}
+
 cleanup() {
   local code=$?
   set +e
+  local should_stop=1
+
+  if [ "${RUN_OK}" = "1" ] && [ "${KEEP_SERVICES_RUNNING}" = "1" ]; then
+    should_stop=0
+  fi
 
   if [ "${RUN_OK}" != "1" ]; then
     diag_log "run failed or interrupted, exit_code=${code}"
@@ -472,13 +558,7 @@ cleanup() {
     echo "[诊断] 已记录到：${DIAG_FILE}"
   fi
 
-  if [ -n "${WEB_PID}" ] && kill -0 "${WEB_PID}" >/dev/null 2>&1; then
-    kill "${WEB_PID}" >/dev/null 2>&1 || true
-    sleep 1
-    kill -9 "${WEB_PID}" >/dev/null 2>&1 || true
-  fi
-
-  if [ "${BACKEND_STARTED}" = "1" ]; then
+  if [ "${should_stop}" = "1" ] && { [ "${BACKEND_STARTED}" = "1" ] || [ -n "${WEB_PID}" ]; }; then
     "${STOP_SH}" >/dev/null 2>&1 || true
   fi
 
@@ -490,7 +570,7 @@ echo "[诊断] 运行问题会记录到：${DIAG_FILE}"
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
 diag_log "env HOROSA_STARTUP_TIMEOUT=${HOROSA_STARTUP_TIMEOUT:-} HOROSA_FORCE_UI_BUILD=${HOROSA_FORCE_UI_BUILD:-0} HOROSA_SKIP_UI_BUILD=${HOROSA_SKIP_UI_BUILD:-1}"
 
-if [ -f "${PY_PID_FILE}" ] || [ -f "${JAVA_PID_FILE}" ]; then
+if [ -f "${PY_PID_FILE}" ] || [ -f "${JAVA_PID_FILE}" ] || [ -f "${WEB_PID_FILE}" ]; then
   echo "检测到旧服务记录，先执行一次停止..."
   "${STOP_SH}" >/dev/null 2>&1 || true
   sleep 1
@@ -530,8 +610,9 @@ if port_listening "${WEB_PORT}"; then
 fi
 
 WEB_PY="${HOROSA_PYTHON:-python3}"
-"${WEB_PY}" -m http.server "${WEB_PORT}" --bind 127.0.0.1 --directory "${DIST_DIR}" >/tmp/horosa_local_web.log 2>&1 &
+nohup "${WEB_PY}" -m http.server "${WEB_PORT}" --bind 127.0.0.1 --directory "${DIST_DIR}" >/tmp/horosa_local_web.log 2>&1 &
 WEB_PID="$!"
+printf '%s\n' "${WEB_PID}" >"${WEB_PID_FILE}"
 
 for _ in $(seq 1 20); do
   if port_listening "${WEB_PORT}"; then
@@ -542,6 +623,7 @@ done
 
 if ! port_listening "${WEB_PORT}"; then
   echo "本地网页服务启动失败，日志：/tmp/horosa_local_web.log"
+  rm -f "${WEB_PID_FILE}"
   exit 1
 fi
 
@@ -552,29 +634,53 @@ BROWSER_BIN=""
 if [ "${NO_BROWSER}" = "1" ]; then
   echo "HOROSA_NO_BROWSER=1，跳过打开浏览器（仅用于命令行自检）。"
   echo "访问地址：${URL}"
-  echo "按回车后停止本地服务。"
-  read -r _
-elif command -v open >/dev/null 2>&1 && open -a "Safari" "${URL}" >/dev/null 2>&1; then
+  if [ "${KEEP_SERVICES_RUNNING}" = "1" ]; then
+    echo "本地服务已常驻。手动停止：${STOP_SH}"
+  else
+    echo "按回车后停止本地服务。"
+    read -r _
+  fi
+elif [ "${KEEP_SERVICES_RUNNING}" != "1" ] && SAFARI_WINDOW_ID="$(launch_safari_window "${URL}")"; then
   echo "[4/4] 已使用 Safari 打开：${URL}"
-  echo "关闭网页后按回车，将自动停止本地服务。"
-  read -r _
-elif BROWSER_BIN="$(pick_browser_bin)"; then
-  "${BROWSER_BIN}" \
-    --user-data-dir="${BROWSER_PROFILE_DIR}" \
-    --app="${URL}" \
-    --no-first-run \
-    --no-default-browser-check \
-    --disable-features=DialMediaRouteProvider >/dev/null 2>&1 &
-  BROWSER_PID="$!"
-
-  echo "[4/4] 已启动：${URL}"
+  echo "关闭该 Safari 窗口后，将自动停止本地服务。"
+  wait_for_safari_window_close "${SAFARI_WINDOW_ID}"
+elif [ "${KEEP_SERVICES_RUNNING}" != "1" ] && launch_chromium_app_window "${URL}"; then
+  echo "[4/4] 已启动可跟踪窗口：${URL}"
   echo "关闭这个独立窗口后，将自动停止本地服务。"
   wait "${BROWSER_PID}" || true
+elif command -v open >/dev/null 2>&1 && open -a "Safari" "${URL}" >/dev/null 2>&1; then
+  echo "[4/4] 已使用 Safari 打开：${URL}"
+  if [ "${KEEP_SERVICES_RUNNING}" = "1" ]; then
+    echo "本地服务已常驻。手动停止：${STOP_SH}"
+  else
+    echo "关闭网页后按回车，将自动停止本地服务。"
+    read -r _
+  fi
+elif launch_chromium_app_window "${URL}"; then
+
+  echo "[4/4] 已启动：${URL}"
+  if [ "${KEEP_SERVICES_RUNNING}" = "1" ]; then
+    echo "本地服务已常驻。手动停止：${STOP_SH}"
+  else
+    echo "关闭这个独立窗口后，将自动停止本地服务。"
+    wait "${BROWSER_PID}" || true
+  fi
 else
   echo "未检测到 Chrome/Edge/Brave/Chromium，改用系统默认浏览器打开。"
   open "${URL}" || true
-  echo "关闭网页后按回车，将自动停止本地服务。"
-  read -r _
+  if [ "${KEEP_SERVICES_RUNNING}" = "1" ]; then
+    echo "本地服务已常驻。手动停止：${STOP_SH}"
+  else
+    echo "关闭网页后按回车，将自动停止本地服务。"
+    read -r _
+  fi
+fi
+
+if [ "${KEEP_SERVICES_RUNNING}" = "1" ]; then
+  RUN_OK=1
+  diag_log "run success, keep_running=1, web_url=${URL}"
+  diag_log "===== run end (success) ====="
+  exit 0
 fi
 
 echo "网页已关闭，正在停止本地服务..."

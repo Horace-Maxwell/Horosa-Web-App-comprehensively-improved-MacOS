@@ -39,6 +39,7 @@
 - `HOROSA_PYTHON_URL=<url>`：自定义 Python 直连下载地址（默认 Miniconda installer）
 - `HOROSA_MAVEN_VERSION=<version>` / `HOROSA_MAVEN_URL=<url>`：自定义 Maven 直连下载版本/地址
 - `HOROSA_STARTUP_TIMEOUT=300`：启动等待时长（秒，默认 180；慢机器首启可调大）
+- `HOROSA_KEEP_SERVICES_RUNNING=1`：关闭窗口后不自动停后端（默认 `0`，即关闭窗口后自动停止）
 - `HOROSA_DIAG_FILE=<path>`：自定义故障诊断日志文件路径（默认 `diagnostics/horosa-run-issues.log`）
 - `HOROSA_DIAG_DIR=<path>`：自定义故障诊断目录（默认 `diagnostics`）
 
