@@ -728,13 +728,14 @@ function genHtmlLegacy(tipobj, needpadding){
 	return html;
 }
 
-export function genHtml(tipobj, needpadding){
+export function genHtml(tipobj, needpadding, forceRich){
 	if(tipobj === undefined || tipobj === null 
 		|| tipobj.tips === undefined || tipobj.tips === null){
 		return '';
 	}
 	let tips = tipobj.tips;
-	if(!hasTooltipRichFormat(tips)){
+	const useRich = forceRich === true || hasTooltipRichFormat(tips);
+	if(!useRich){
 		return genHtmlLegacy(tipobj, needpadding);
 	}
 	let parts = ['<div style="max-width:560px;max-height:62vh;overflow-y:auto;white-space:normal;">'];
@@ -763,16 +764,17 @@ export function genHtml(tipobj, needpadding){
 	return parts.join('');
 }
 
-export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpadding){
+export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpadding, forceRich){
 	if(divTooltip === undefined || divTooltip === null){
 		return;
 	}
+	const hoverOpacity = forceRich === true ? 1 : 0.9;
 
 	titleSvg.on('mouseover', (evt)=>{
-		let str = genHtml(tipobj, needpadding) ;
+		let str = genHtml(tipobj, needpadding, forceRich) ;
 		divTooltip.transition()		
 			.duration(200)		
-			.style("opacity", .9);
+			.style("opacity", hoverOpacity);
 		divTooltip.html(str)
 			.style("left", (evt.pageX) + "px")
 			.style("top", (evt.pageY - 28) + "px");
