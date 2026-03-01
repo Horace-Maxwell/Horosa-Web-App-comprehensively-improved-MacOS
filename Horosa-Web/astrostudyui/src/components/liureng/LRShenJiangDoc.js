@@ -493,14 +493,25 @@ function normalizeBranch(branch){
 	return match ? match[0] : '';
 }
 
+function formatJiangIntroLine(line){
+	const txt = `${line || ''}`;
+	if(txt.startsWith('其吉：') || txt.startsWith('其吉:')){
+		return txt.replace(/^其吉[:：]/, '**其吉：**');
+	}
+	if(txt.startsWith('其戾：') || txt.startsWith('其戾:')){
+		return txt.replace(/^其戾[:：]/, '**其戾：**');
+	}
+	return txt;
+}
+
 function buildJiangDocTips(jiang){
 	const name = normalizeLiuRengJiangName(jiang);
 	if(!name){
 		return [];
 	}
 	const info = JIANG_INFO[name] || { intros: [], verses: [], extra: [] };
-	const tips = [`### **${name}**`];
-	(info.intros || []).forEach((line)=>tips.push(line));
+	const tips = [];
+	(info.intros || []).forEach((line)=>tips.push(formatJiangIntroLine(line)));
 	(info.verses || []).forEach((line)=>tips.push(`**${line}**`));
 	(info.extra || []).forEach((line)=>tips.push(line));
 	return tips;
@@ -517,16 +528,16 @@ export function buildLiuRengShenTipObj(branch){
 		tips.push(info.month);
 	}
 	if(info && info.verse1){
-		tips.push(info.verse1);
+		tips.push(`**${info.verse1}**`);
 	}
 	if(info && info.verse2){
-		tips.push(info.verse2);
+		tips.push(`**${info.verse2}**`);
 	}
 	if(info && info.desc){
 		tips.push(info.desc);
 	}
 	if(info && info.symbol){
-		tips.push(`类象：${info.symbol}`);
+		tips.push(`**类象：**${info.symbol}`);
 	}
 	return {
 		title: getShenTitle(shenBranch),
@@ -549,10 +560,10 @@ export function buildLiuRengHouseTipObj(jiangName, tianBranch, diBranch){
 		tips: [
 			...buildJiangDocTips(jiang),
 			'==',
-			`天盘神：${getShenTitle(tianBranch)}`,
+			`**天盘神：**${getShenTitle(tianBranch)}`,
 			`${tianBranch}——${tianLine}。`,
 			'==',
-			`地盘神：${getShenTitle(diBranch)}`,
+			`**地盘神：**${getShenTitle(diBranch)}`,
 			`${diBranch}——${diLine}。`,
 		],
 	};

@@ -1,7 +1,8 @@
 import * as AstroConst from '../../constants/AstroConst';
 import * as LRConst from './LRConst';
-import {randomStr,} from '../../utils/helper';
+import {randomStr, creatTooltip,} from '../../utils/helper';
 import { drawPath, drawTextH, drawTextV} from '../graph/GraphHelper';
+import { buildLiuRengHouseTipObj, buildLiuRengShenTipObj, } from './LRShenJiangDoc';
 
 
 class KeChart {
@@ -10,6 +11,7 @@ class KeChart {
 		this.chartObj = option.chartObj;
 		this.nongli = option.nongli;
 		this.ke = option.ke;
+		this.liuRengChart = option.liuRengChart || null;
 
 		this.x = option.x;
 		this.y = option.y;
@@ -24,6 +26,29 @@ class KeChart {
 		this.color = AstroConst.AstroColor.Stroke;
 		this.bgColor = LRConst.getHouseColor(0);
 
+	}
+
+	getDiBranchByUp(upBranch){
+		if(!this.liuRengChart || !Array.isArray(this.liuRengChart.upZi) || !Array.isArray(this.liuRengChart.downZi)){
+			return '';
+		}
+		const idx = this.liuRengChart.upZi.indexOf(`${upBranch || ''}`);
+		if(idx < 0){
+			return '';
+		}
+		return this.liuRengChart.downZi[idx] || '';
+	}
+
+	buildKeBranchTipObj(data){
+		const zhi = data && data[1] ? `${data[1]}` : '';
+		return buildLiuRengShenTipObj(zhi);
+	}
+
+	buildKeJiangTipObj(data){
+		const zhi = data && data[1] ? `${data[1]}` : '';
+		const jiang = data && data[0] ? `${data[0]}` : '';
+		const di = this.getDiBranchByUp(zhi);
+		return buildLiuRengHouseTipObj(jiang, zhi, di || zhi);
 	}
 
 	draw(){
@@ -85,12 +110,28 @@ class KeChart {
 		y1 = ord.y + ord.h/4;
 		h = (ord.h - ord.h/4) / 2;
 		txtdata = data[0].split('');
-		drawTextV(this.svg, txtdata, x1, y1, w, h, 5, LRConst.LRColor.tianJiangColor);
+		const jiangSvg = drawTextV(this.svg, txtdata, x1, y1, w, h, 5, LRConst.LRColor.tianJiangColor);
+		const jiangTip = this.buildKeJiangTipObj(data);
+		if(this.divTooltip && jiangTip){
+			creatTooltip(this.divTooltip, jiangSvg, jiangTip, null, true, true);
+		}
 
 		y1 = y1 + h;
 		h = h;
 		txtdata = [data[1], data[2]];
 		drawTextV(this.svg, txtdata, x1, y1, w, h, 5, this.color);
+		const zhiTip = this.buildKeBranchTipObj(data);
+		if(this.divTooltip && zhiTip){
+			const zhiHot = this.svg.append('g');
+			zhiHot.append('rect')
+				.attr('x', x1)
+				.attr('y', y1)
+				.attr('width', w)
+				.attr('height', h / 2)
+				.attr('fill', 'rgba(0,0,0,0.001)')
+				.style('pointer-events', 'all');
+			creatTooltip(this.divTooltip, zhiHot, zhiTip, null, true, true);
+		}
 
 	}
 

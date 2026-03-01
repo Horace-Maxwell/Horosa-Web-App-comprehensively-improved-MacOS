@@ -186,7 +186,9 @@ class RengChart {
 			owner: this.svgTopgroup,
 			ke: this.ke,
 			nongli: this.nongli,	
-			guireng: this.guireng,		
+			guireng: this.guireng,
+			liuRengChart: this.rengs[0],
+			divTooltip: this.tooltipId ? d3.select(`#${this.tooltipId}`) : null,
 		};
 		let kesvg = new KeChart(opt);
 		this.rengs[1] = kesvg;
@@ -206,7 +208,8 @@ class RengChart {
 			ke: this.ke,
 			nongli: this.nongli,
 			guireng: this.guireng,
-			liuRengChart: this.rengs[0],			
+			liuRengChart: this.rengs[0],
+			divTooltip: this.tooltipId ? d3.select(`#${this.tooltipId}`) : null,
 		};
 		let csvg = new ChuangChart(opt1);
 		this.rengs[2] = csvg;
