@@ -3375,3 +3375,20 @@ Append new entries; do not rewrite history.
     - `.attr('stroke-width', 0)`
 - Verification (local):
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 22:03 - Horosa_Local 启动前自动清理旧网页监听进程（端口8000占用兜底）
+- Scope: 修复“关闭窗口后偶发残留 http.server 占用 8000，导致下次启动失败”的问题。
+- Files:
+  - `Horosa_Local.command`
+- Details:
+  - 新增监听进程识别/清理函数：
+    - `get_listener_pids(port)`
+    - `is_horosa_web_listener(pid)`
+    - `cleanup_stale_horosa_web_listener(port)`
+  - 启动网页服务前若检测到端口被占用：
+    - 先自动识别是否为旧 Horosa `python -m http.server` 进程（命令行或 cwd 指向项目 `astrostudyui/dist*`）；
+    - 命中则自动 `kill/kill -9` 清理；
+    - 仍被占用则按非 Horosa 进程处理并终止启动。
+  - 失败时将占用详情写入诊断日志 `horosa-run-issues.log` 便于定位。
+- Verification (local):
+  - `bash -n Horosa_Local.command` ✅

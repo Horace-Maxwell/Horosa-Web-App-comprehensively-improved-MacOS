@@ -1640,3 +1640,21 @@
 - 行为结果：
   - 去除四课地支区与三传干支区中部意外横线；
   - 保留元素级悬浮触发行为不变。
+
+## 93) Horosa_Local 端口占用自动清理兜底（2026-02-28）
+
+- 目标文件：
+  - `Horosa_Local.command`
+
+- 结构变化：
+  - 新增函数：
+    - `get_listener_pids(port)`：读取端口监听 PID 列表。
+    - `is_horosa_web_listener(pid)`：识别是否为 Horosa 遗留 `http.server`（按命令行/工作目录判断）。
+    - `cleanup_stale_horosa_web_listener(port)`：在启动前自动清理旧网页监听进程。
+  - 启动 `[2/4]` 网页服务前流程调整：
+    - 若端口已占用，先尝试清理可识别的 Horosa 残留进程；
+    - 清理后仍占用则中止，并写入占用信息到诊断日志。
+
+- 行为结果：
+  - 关闭窗口后遗留的旧 `python -m http.server` 不再阻塞下次启动；
+  - 对非 Horosa 进程保持保守，不误杀其他服务。

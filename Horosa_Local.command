@@ -447,6 +447,69 @@ port_listening() {
   lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
 }
 
+get_listener_pids() {
+  local port="$1"
+  lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null | sort -u || true
+}
+
+is_horosa_web_listener() {
+  local pid="$1"
+  local cmdline=""
+  local cwd=""
+
+  cmdline="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
+  if [[ "${cmdline}" != *"http.server"* ]]; then
+    return 1
+  fi
+
+  if [[ "${cmdline}" == *"${PROJECT_DIR}/astrostudyui/dist"* ]]; then
+    return 0
+  fi
+
+  cwd="$(
+    lsof -a -p "${pid}" -d cwd -Fn 2>/dev/null \
+      | sed -n 's/^n//p' \
+      | head -n 1
+  )"
+  if [[ "${cwd}" == "${PROJECT_DIR}/astrostudyui/dist"* ]]; then
+    return 0
+  fi
+
+  return 1
+}
+
+cleanup_stale_horosa_web_listener() {
+  local port="$1"
+  local pids=""
+  local pid=""
+  local cleaned=0
+
+  pids="$(get_listener_pids "${port}")"
+  if [ -z "${pids}" ]; then
+    return 0
+  fi
+
+  for pid in ${pids}; do
+    if ! is_horosa_web_listener "${pid}"; then
+      continue
+    fi
+    echo "[2/4] 检测到旧的 Horosa 网页进程占用端口 ${port} (pid ${pid})，自动清理..."
+    diag_log "cleanup stale web listener pid=${pid} on port=${port}"
+    kill "${pid}" >/dev/null 2>&1 || true
+    sleep 0.6
+    if kill -0 "${pid}" >/dev/null 2>&1; then
+      kill -9 "${pid}" >/dev/null 2>&1 || true
+    fi
+    cleaned=1
+  done
+
+  if [ "${cleaned}" = "1" ]; then
+    sleep 0.2
+  fi
+
+  return 0
+}
+
 pick_browser_bin() {
   local candidates=(
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -605,7 +668,13 @@ BACKEND_STARTED=1
 
 echo "[2/4] 启动本地网页服务 (127.0.0.1:${WEB_PORT})..."
 if port_listening "${WEB_PORT}"; then
+  cleanup_stale_horosa_web_listener "${WEB_PORT}" || true
+fi
+
+if port_listening "${WEB_PORT}"; then
   echo "端口 ${WEB_PORT} 已被占用，请先释放后重试。"
+  diag_log "port ${WEB_PORT} is occupied by non-horosa process, startup aborted"
+  lsof -nP -iTCP:"${WEB_PORT}" -sTCP:LISTEN >>"${DIAG_FILE}" 2>/dev/null || true
   exit 1
 fi
 
