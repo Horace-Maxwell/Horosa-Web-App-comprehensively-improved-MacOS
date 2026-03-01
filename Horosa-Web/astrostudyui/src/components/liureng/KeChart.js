@@ -129,6 +129,8 @@ class KeChart {
 				.attr('width', w)
 				.attr('height', h / 2)
 				.attr('fill', 'rgba(0,0,0,0.001)')
+				.attr('stroke', 'none')
+				.attr('stroke-width', 0)
 				.style('pointer-events', 'all');
 			creatTooltip(this.divTooltip, zhiHot, zhiTip, null, true, true);
 		}

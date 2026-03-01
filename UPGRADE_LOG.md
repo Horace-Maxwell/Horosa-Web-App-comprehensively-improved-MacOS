@@ -3350,3 +3350,28 @@ Append new entries; do not rewrite history.
   - 保留 tooltip 顶部 `title`（单宫或多宫组合）作为唯一宫名展示。
 - Verification (local):
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 21:49 - 三式合一外圈上升点简称改为“升”
+- Scope: 按用户要求，将三式合一外圈星盘中的上升点简称从“上”调整为“升”。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+- Details:
+  - `shortMainStarLabel(name)` 新增特判：
+    - `上升` -> `升`
+  - 保持既有特判不变：`太阳` -> `日`，`天顶/中天` -> `顶`。
+- Verification (local):
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 21:52 - 修复四课/三传中间横线（热区继承描边）
+- Scope: 修复六壬四课地支区与三传干支区出现意外横线的问题。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/liureng/KeChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js`
+- Root cause:
+  - 为悬浮触发新增的透明热区 `rect` 未显式关闭描边，在父 SVG 的 `stroke` 继承下显示出边框线。
+- Details:
+  - 两处热区 `rect` 统一补充：
+    - `.attr('stroke', 'none')`
+    - `.attr('stroke-width', 0)`
+- Verification (local):
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
