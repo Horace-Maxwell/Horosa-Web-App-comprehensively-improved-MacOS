@@ -1425,3 +1425,77 @@
 - 行为结果：
   - 外圈短标签不再出现“天顶=天”与“天王星=天”冲突；
   - 悬浮全称保持不变，短标签识别更清晰。
+
+## 81) 六壬/三式合一天将悬浮正文按将拆分补全（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+
+- 结构变化：
+  - 新增 `JIANG_INFO`：
+    - 收录十二天将的 `intros / verses / extra` 文案结构；
+    - `天乙` 专门承载“主清御…天乙持魁钺…”加粗段落；
+    - 其余十一将仅使用本将对应文案。
+  - 新增 `buildJiangDocTips(jiang)`：
+    - 按当前天将动态生成悬浮正文；
+    - 统一插入将名标题（`### **将名**`）与该将诗诀（加粗）。
+  - `buildLiuRengHouseTipObj`：
+    - 在原“天盘神/地盘神命中信息”前追加当前天将正文；
+    - 保留命中位说明用于格位定位。
+  - 去重调整：
+    - 移除正文内“XX临十二神”整段，避免与当前盘面命中位信息重复。
+
+- 行为结果：
+  - 六壬与三式合一中的天将悬浮，不再出现“把天乙内容灌到所有将”的错误；
+  - 每个天将显示对应原文段落与诗诀；
+  - 悬浮内容更完整，同时避免重复段落堆叠。
+
+## 82) 六壬悬浮样式对齐三式合一富文本风格（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
+
+- 结构变化：
+  - `helper.js`：
+    - `genHtml(tipobj, needpadding, forceRich)`：新增 `forceRich`，可强制富文本渲染路径；
+    - `creatTooltip(..., needpadding, forceRich)`：新增参数透传。
+  - `LRCommChart.js`：
+    - 六壬宫位将神悬浮、神义悬浮统一传入 `forceRich=true`。
+
+- 行为结果：
+  - 六壬相关悬浮窗统一使用与三式合一相同的富文本视觉层级；
+  - 不再因文本缺少 `#/**` 标记而回退到旧版列表风格。
+
+## 83) 六壬盘悬浮容器样式卡片化（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+
+- 结构变化：
+  - `LiuRengChart.setupToolTip` 从旧版蓝底定宽提示框升级为白底卡片样式：
+    - `width:auto + max-width/min-width`
+    - `max-height + overflow-y`
+    - `background/border/shadow/z-index` 对齐统一悬浮风格。
+  - `helper.creatTooltip` 增加 `forceRich=true` 时的不透明显示策略（`opacity=1`）。
+
+- 行为结果：
+  - 六壬盘悬浮不再出现“半透明蓝底整条覆盖”的旧观感；
+  - 视觉层级、可读性、滚动行为与三式合一悬浮更一致。
+
+## 84) 文档同步确认：六壬悬浮窗调整（2026-02-28）
+
+- 同步范围：
+  - 六壬天将文案补全与去重；
+  - 六壬悬浮富文本强制渲染；
+  - 六壬提示容器样式卡片化（白底、边框、阴影、自动宽高）。
+
+- 已登记文件：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+
+- 结果：
+  - 变更已在 `UPGRADE_LOG.md` 与 `PROJECT_STRUCTURE.md` 双处落档，可追踪。

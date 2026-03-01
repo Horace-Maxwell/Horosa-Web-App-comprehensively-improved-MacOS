@@ -79,7 +79,7 @@ class LRCommChart {
 		if(!tipObj){
 			return;
 		}
-		creatTooltip(this.divTooltip, target, tipObj, null, true);
+		creatTooltip(this.divTooltip, target, tipObj, null, true, true);
 	}
 
 	bindShenTooltip(target, branch){
@@ -90,7 +90,7 @@ class LRCommChart {
 		if(!tipObj){
 			return;
 		}
-		creatTooltip(this.divTooltip, target, tipObj, null, true);
+		creatTooltip(this.divTooltip, target, tipObj, null, true, true);
 	}
 
 	draw(){
