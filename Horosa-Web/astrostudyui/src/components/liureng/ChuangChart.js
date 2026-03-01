@@ -1,7 +1,14 @@
 import * as AstroConst from '../../constants/AstroConst';
 import * as LRConst from './LRConst';
-import {randomStr,} from '../../utils/helper';
+import {randomStr, creatTooltip,} from '../../utils/helper';
 import { drawPath, drawTextH, drawTextV} from '../graph/GraphHelper';
+import { buildLiuRengHouseTipObj, buildLiuRengShenTipObj, } from './LRShenJiangDoc';
+
+function extractBranch(value){
+	const txt = `${value || ''}`;
+	const match = txt.match(/[子丑寅卯辰巳午未申酉戌亥]/);
+	return match ? match[0] : '';
+}
 
 class ChuangChart {
 	constructor(option){
@@ -27,6 +34,21 @@ class ChuangChart {
 		this.color = AstroConst.AstroColor.Stroke;
 		this.bgColor = LRConst.getHouseColor(0);
 
+	}
+
+	buildChuanBranchTipObj(data){
+		const gz = data && data[2] ? `${data[2]}` : '';
+		const zhi = extractBranch(gz);
+		return buildLiuRengShenTipObj(zhi);
+	}
+
+	buildChuanJiangTipObj(data){
+		const gz = data && data[2] ? `${data[2]}` : '';
+		const zhi = extractBranch(gz);
+		const jiang = data && data[0] ? `${data[0]}` : '';
+		const idx = this.upZi.indexOf(zhi);
+		const di = idx >= 0 ? (this.downZi[idx] || '') : '';
+		return buildLiuRengHouseTipObj(jiang, zhi, di || zhi);
 	}
 
 	draw(){
@@ -97,11 +119,27 @@ class ChuangChart {
 		h = (ord.h - ord.h/4) / 2;
 		txtdata = data[2].split('');
 		drawTextV(this.svg, txtdata, x1, y1, w, h, 5, this.color);
+		const zhiTip = this.buildChuanBranchTipObj(data);
+		if(this.divTooltip && zhiTip){
+			const zhiHot = this.svg.append('g');
+			zhiHot.append('rect')
+				.attr('x', x1)
+				.attr('y', y1 + h / 2)
+				.attr('width', w)
+				.attr('height', h / 2)
+				.attr('fill', 'rgba(0,0,0,0.001)')
+				.style('pointer-events', 'all');
+			creatTooltip(this.divTooltip, zhiHot, zhiTip, null, true, true);
+		}
 
 		y1 = y1 + h;
 		h = h / 2;
 		txtdata = data[0].split('');
-		drawTextH(this.svg, txtdata, x, y1, tw, h, 2, LRConst.LRColor.tianJiangColor);
+		const jiangSvg = drawTextH(this.svg, txtdata, x, y1, tw, h, 2, LRConst.LRColor.tianJiangColor);
+		const jiangTip = this.buildChuanJiangTipObj(data);
+		if(this.divTooltip && jiangTip){
+			creatTooltip(this.divTooltip, jiangSvg, jiangTip, null, true, true);
+		}
 
 		y1 = y1 + h;
 		txtdata = data[1].split('');

@@ -1499,3 +1499,117 @@
 
 - 结果：
   - 变更已在 `UPGRADE_LOG.md` 与 `PROJECT_STRUCTURE.md` 双处落档，可追踪。
+
+## 85) 六壬悬浮标题去重（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+
+- 结构变化：
+  - `buildJiangDocTips(jiang)`：移除正文开头的 `### **将名**` 注入。
+
+- 行为结果：
+  - 六壬与三式合一中的六壬悬浮，仅保留卡片最上方标题显示一次名称；
+  - 正文不再重复同名标题。
+
+## 86) 六壬悬浮加粗语义补齐（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+
+- 结构变化：
+  - 新增 `formatJiangIntroLine(line)`：
+    - 识别 `其吉：/其吉:` 与 `其戾：/其戾:` 前缀并转成加粗输出。
+  - `buildLiuRengHouseTipObj`：
+    - `天盘神`、`地盘神` 标签改为 markdown 加粗。
+  - `buildLiuRengShenTipObj`：
+    - 两句诗 (`verse1`/`verse2`) 改为整句加粗；
+    - `类象` 标签改为加粗前缀（`**类象：**`）。
+
+- 行为结果：
+  - 六壬与三式合一的六壬悬浮，重点语义标签层级更清晰；
+  - 天将/地支两类悬浮在排版强调上保持一致。
+
+## 87) 六壬悬浮追加四课/三传上下文（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - `LRShenJiangDoc.js`：
+    - 新增 `appendKeAndChuanTips(tips, tipContext)`，输出四课/三传的“地支+天将”段落；
+    - `buildLiuRengShenTipObj(branch, tipContext)` 与 `buildLiuRengHouseTipObj(..., tipContext)` 支持可选上下文参数。
+  - `LRCommChart.js`：
+    - 新增 `sanChuanData` 状态与 `setSanChuanData`；
+    - 新增 `buildTooltipContext()`，聚合 `getKe()` 与 `sanChuanData` 供悬浮使用。
+  - `RengChart.js`：
+    - 三传图计算后将 `cuangs` 回写到主六壬盘实例，保证悬浮读取到最新三传。
+  - `SanShiUnitedMain.js`：
+    - 六壬环悬浮调用增加 `liurengTipContext`（`keData.raw + sanChuan`）。
+
+- 行为结果：
+  - 六壬与三式合一中的六壬悬浮，均可直接看到四课与三传的地支/天将上下文，判断链更完整。
+
+## 88) 四课/三传元素级悬浮提示（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/liureng/KeChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - `KeChart`：新增 `buildKeTipObj`，每课列绑定元素级 tooltip（地支/天将）。
+  - `ChuangChart`：新增 `buildChuanTipObj` 与支提取逻辑，每传列绑定元素级 tooltip（地支/天将）。
+  - `RengChart`：`drawGua2` 将 `divTooltip` 下发至 `KeChart/ChuangChart`。
+  - `SanShiUnitedMain`：中宫四课列与三传行包裹 `wrapWithMeaning`，显示对应地支/天将信息。
+
+- 行为结果：
+  - 用户将鼠标放到四课/三传对应元素上时，弹出对应“地支+天将”提示；
+  - 不再把该信息混入其他悬浮正文段落。
+
+## 89) 四课/三传元素悬浮精细化映射（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/liureng/KeChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - `KeChart`：
+    - 新增按元素映射的 tooltip 逻辑：
+      - 天将 -> `buildLiuRengHouseTipObj`
+      - 地支 -> `buildLiuRengShenTipObj`
+    - 去掉整列统一提示，避免一个悬浮覆盖多个语义。
+  - `ChuangChart`：
+    - 三传上半区仅“地支位”挂接十二神释义；
+    - 天将行挂接天将释义；
+    - 六亲行保持无悬浮。
+  - `RengChart`：
+    - `drawGua2` 下发 `liuRengChart` 到 `KeChart` 供天将释义定位使用。
+  - `SanShiUnitedMain`：
+    - 中宫四课/三传从整列包裹改为单字符包裹：
+      - 地支与天将字符可悬浮；
+      - 天干与六亲字符不悬浮。
+
+- 行为结果：
+  - 鼠标停在“哪个元素”就显示“哪个元素”对应释义；
+  - 不再出现整列同一提示或非目标元素弹出提示。
+
+## 90) 三式合一后天十二宫悬浮标题去重（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - `buildOuterHouseMeaningTip`：
+    - 合并分段时不再注入正文内 `N宫` 子标题（`title: ''`）；
+    - 保留 tooltip 顶部标题作为唯一宫名显示。
+
+- 行为结果：
+  - 后天十二宫悬浮不再出现“宫名重复两次”；
+  - 视觉上与用户期望一致（仅顶部显示宫名）。

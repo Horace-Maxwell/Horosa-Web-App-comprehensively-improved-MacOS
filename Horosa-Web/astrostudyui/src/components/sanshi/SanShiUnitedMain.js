@@ -1356,7 +1356,8 @@ function buildOuterHouseMeaningTip(houses){
 	return mergeMeaningTips(
 		entries.length === 1 ? `${entries[0].num}宫` : entries.map((one)=>`${one.num}宫`).join('/'),
 		entries.map((one)=>({
-			title: `${one.num}宫`,
+			// 宫名保留在 tooltip 顶部 title，正文不重复显示同名标题。
+			title: '',
 			tips: normalizeMeaningTip(one.tip) ? normalizeMeaningTip(one.tip).tips : [],
 		}))
 	);
@@ -3131,26 +3132,55 @@ class SanShiUnitedMain extends Component{
 
 	renderCenterBlock(midFont, boardSize){
 		const keRaw = this.state.keData && Array.isArray(this.state.keData.raw) ? this.state.keData.raw : [];
+		const lrLayout = this.state.lrLayout || {};
+		const upZi = Array.isArray(lrLayout.upZi) ? lrLayout.upZi : [];
+		const downZi = Array.isArray(lrLayout.downZi) ? lrLayout.downZi : [];
+		const getDiByUp = (up)=>{
+			const idx = upZi.indexOf(`${up || ''}`);
+			if(idx < 0){
+				return '';
+			}
+			return downZi[idx] || '';
+		};
 		// 中宫四课按用户习惯固定为：从左到右 四、三、二、一。
-		const keCols = [3, 2, 1, 0].map((idx)=>{
-			const item = keRaw[idx] || [];
+		const keOrder = [
+			{ idx: 3, label: '四课' },
+			{ idx: 2, label: '三课' },
+			{ idx: 1, label: '二课' },
+			{ idx: 0, label: '一课' },
+		];
+		const keCols = keOrder.map((one)=>{
+			const item = keRaw[one.idx] || [];
+			const zhi = safe(item[1], '—');
+			const godRaw = safe(item[0], '');
+			const di = getDiByUp(zhi);
 			return {
+				label: one.label,
 				// 两层天干上下位置互换（上层取 item[1]，下层取 item[2]）。
-				main1: safe(item[1], '—'),
+				main1: zhi,
 				main2: safe(item[2], '—'),
-				god: shortTianJiang(item[0]),
+				god: shortTianJiang(godRaw),
+				shenTip: buildLiuRengShenTipObj(zhi),
+				jiangTip: buildLiuRengHouseTipObj(godRaw, zhi, di || zhi),
 			};
 		});
 		const chuan = this.state.sanChuan;
+		const chuanLabels = ['初传', '中传', '末传'];
 		const chuanRows = [0, 1, 2].map((idx)=>{
 			const gz = chuan && chuan.cuang ? safe(chuan.cuang[idx], '') : '';
 			const parsed = splitGanZhi(gz);
+			const godRaw = chuan && chuan.tianJiang ? safe(chuan.tianJiang[idx], '') : '';
+			const di = getDiByUp(parsed.zhi);
 			return {
+				label: chuanLabels[idx],
 				gan: parsed.gan,
 				zhi: parsed.zhi,
-				god: shortTianJiang(chuan && chuan.tianJiang ? chuan.tianJiang[idx] : ''),
+				god: shortTianJiang(godRaw),
+				shenTip: buildLiuRengShenTipObj(parsed.zhi),
+				jiangTip: buildLiuRengHouseTipObj(godRaw, parsed.zhi, di || parsed.zhi),
 			};
 		});
+		const showMeaning = isMeaningEnabled(this.props.showAstroMeaning);
 		const edgePad = 2;
 		const centerPx = Math.max(140, Math.round((boardSize || 500) * 0.334));
 		const availableH = Math.max(90, centerPx - edgePad * 2);
@@ -3173,8 +3203,16 @@ class SanShiUnitedMain extends Component{
 				>
 					{keCols.map((col, idx)=>(
 						<div key={`ke_col_${idx}`} className={styles.centerKeCol} style={{ height: sectionH }}>
-							<div className={styles.centerKeGray}>{col.god}</div>
-							<div className={styles.centerKeMain}>{col.main1}</div>
+							{wrapWithMeaning(
+								<div className={styles.centerKeGray}>{col.god}</div>,
+								showMeaning,
+								col.jiangTip
+							)}
+							{wrapWithMeaning(
+								<div className={styles.centerKeMain}>{col.main1}</div>,
+								showMeaning,
+								col.shenTip
+							)}
 							<div className={styles.centerKeMain}>{col.main2}</div>
 						</div>
 					))}
@@ -3191,8 +3229,16 @@ class SanShiUnitedMain extends Component{
 					{chuanRows.map((row, idx)=>(
 						<div key={`chuan_row_${idx}`} className={styles.centerChuanRow}>
 							<span className={styles.centerChuanGray}>{row.gan || ''}</span>
-							<span className={styles.centerChuanMain}>{row.zhi}</span>
-							<span className={styles.centerChuanGray}>{row.god}</span>
+							{wrapWithMeaning(
+								<span className={styles.centerChuanMain}>{row.zhi}</span>,
+								showMeaning,
+								row.shenTip
+							)}
+							{wrapWithMeaning(
+								<span className={styles.centerChuanGray}>{row.god}</span>,
+								showMeaning,
+								row.jiangTip
+							)}
 						</div>
 					))}
 				</div>
