@@ -3194,3 +3194,56 @@ Append new entries; do not rewrite history.
   - `node --check Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js` ✅
   - `node --check Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js` ✅
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 17:11 - 六壬/三式合一天将悬浮文案补全（按将分别显示，不混入“临十二神”总段）
+- Scope: 按用户要求补齐十二天将悬浮正文，且仅 `天乙` 显示“主清御/天乙持魁钺”段落；其它天将显示各自对应正文，不再误复用天乙段落；并移除正文内重复的“XX临十二神”整段。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+- Details:
+  - 新增 `JIANG_INFO`（十二天将）详细文案数据：
+    - 每将包含 `intros / verses / extra`；
+    - `天乙` 使用加粗段落与诗诀（“主清御…天乙持魁钺…”）；
+    - 其余十一将使用各自独立正文与诗诀，不再混入天乙文本。
+  - `buildJiangDocTips` 改为按当前天将输出“专属正文+诗诀+附注”。
+  - 保留宫位上下文判定信息（天盘神/地盘神命中），用于当前格位定位；
+  - 删除正文中的“XX临十二神”大段，避免与已显示的命中位信息重复。
+- Verification (local):
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 17:14 - 六壬悬浮窗样式统一为三式合一风格
+- Scope: 按用户要求，将六壬相关悬浮窗显示风格统一为三式合一盘的富文本样式（标题分层、加粗、分隔线、统一排版），不再走旧版列表样式。
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
+- Details:
+  - `helper.genHtml` 新增 `forceRich` 参数；当 `forceRich=true` 时，即使文本不含 `#/**` 标记，也强制使用富文本渲染器（与三式合一样式一致）。
+  - `helper.creatTooltip` 新增透传 `forceRich` 参数。
+  - 六壬通用图盘 `LRCommChart` 的神将/神义悬浮调用统一传 `forceRich=true`，确保六壬悬浮全部按三式合一风格显示。
+- Verification (local):
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 17:22 - 六壬盘悬浮容器样式对齐三式合一（修复蓝底整条遮挡）
+- Scope: 修复六壬盘悬浮仍显示旧版 `lightsteelblue` 大宽条的问题，使其视觉与三式合一悬浮一致（白底卡片、阴影、边框、自动宽度）。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+- Details:
+  - `LiuRengChart.setupToolTip`：
+    - 旧样式 `width:560px + lightsteelblue` 改为卡片式样式：
+      - `width:auto`、`max-width:560px`、`min-width:220px`
+      - `max-height:62vh` + `overflow-y:auto`
+      - `background:#fff`、`border:#e8e8e8`、`box-shadow`
+      - `padding:8px 10px`、`z-index:2100`
+  - `creatTooltip`：当 `forceRich=true` 时，悬浮不再用 `0.9` 透明度，改为 `1`，避免文本和背景发灰。
+- Verification (local):
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 17:25 - 文档同步确认（六壬悬浮窗对齐）
+- Scope: 按用户确认，将本轮六壬悬浮窗风格与文案调整结果同步登记到变更日志与结构文档。
+- Synced:
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
