@@ -1613,3 +1613,30 @@
 - 行为结果：
   - 后天十二宫悬浮不再出现“宫名重复两次”；
   - 视觉上与用户期望一致（仅顶部显示宫名）。
+
+## 91) 三式合一上升点简称调整（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+
+- 结构变化：
+  - `shortMainStarLabel` 新增上升点简称映射：
+    - `上升` -> `升`
+
+- 行为结果：
+  - 三式合一外圈星盘不再显示“上”，统一显示“升”。
+
+## 92) 修复六壬四课/三传横线伪影（2026-02-28）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/liureng/KeChart.js`
+  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js`
+
+- 结构变化：
+  - 元素级悬浮热区 `rect` 显式关闭描边：
+    - `stroke: none`
+    - `stroke-width: 0`
+
+- 行为结果：
+  - 去除四课地支区与三传干支区中部意外横线；
+  - 保留元素级悬浮触发行为不变。
