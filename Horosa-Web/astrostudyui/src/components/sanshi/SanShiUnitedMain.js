@@ -490,6 +490,9 @@ function shortMainStarLabel(name){
 	if(text === '太阳'){
 		return '日';
 	}
+	if(text === '上升'){
+		return '升';
+	}
 	if(text === '天顶' || text === '中天'){
 		return '顶';
 	}
