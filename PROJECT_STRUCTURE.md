@@ -1658,3 +1658,175 @@
 - 行为结果：
   - 关闭窗口后遗留的旧 `python -m http.server` 不再阻塞下次启动；
   - 对非 Horosa 进程保持保守，不误杀其他服务。
+
+## 94) 稳定性回归修复（全页面冒烟后收敛）（2026-03-03）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/graph/D3Arrow.js`
+  - `Horosa-Web/astrostudyui/src/components/graph/__tests__/D3Arrow.test.js`
+  - `Horosa-Web/astrostudyui/src/components/astro3d/Astro3D.js`
+  - `Horosa-Web/astrostudyui/src/components/amap/MapV2.js`
+  - `Horosa-Web/astrostudyui/src/pages/document.ejs`
+
+- 结构变化：
+  - `D3Arrow`：
+    - `marker.viewBox` 改为模板串 `0 0 ${width} ${height}`，修复此前字符串拼接少空格问题。
+  - `graph/__tests__/D3Arrow.test.js`（新增）：
+    - 新增 `viewBox` 格式校验，防止回归到非法 SVG 参数。
+  - `Astro3D`：
+    - 引入 `preferRemote` 源选择策略；
+    - 在 `file://`、`localhost`、`127.0.0.1` 场景下，3D 资源优先使用远端模型地址，避免本地缺失模型的 404 噪音。
+  - `MapV2`：
+    - 为 `AMapLoader.load(...)` 增加 `catch` 兜底；
+    - 新增可选 `onLoadError` 回调，地图 SDK 不可用时维持页面可交互。
+  - `document.ejs`：
+    - 新增内联 favicon，避免浏览器默认请求 `/favicon.ico` 造成额外报错。
+
+- 行为结果：
+  - 六壬/三式合一等图形页面中由 SVG marker 引起的批量 console error 被消除；
+  - 本地部署环境的 3D 资源加载噪音显著减少（不再先打本地 404）；
+  - 前端主框架在地图 SDK 不可达时维持稳定，不因未处理异常中断主要流程；
+  - 全页面冒烟（16 顶层 tab + 嵌套 tab）后，错误量从大量内部错误收敛到外部依赖超时类告警。
+
+## 95) 地图 AMapUI 本地降级 + 全页面零错误冒烟（2026-03-03）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/amap/amapUIHelper.js`（新增）
+  - `Horosa-Web/astrostudyui/src/components/amap/MapV2.js`
+  - `Horosa-Web/astrostudyui/src/components/amap/ACG.js`
+  - `Horosa-Web/astrostudyui/src/components/amap/GeoCoord.js`
+  - `Horosa-Web/astrostudyui/src/components/amap/GeoCoordSelector.js`
+  - `Horosa-Web/astrostudyui/src/components/amap/PointsCluster.js`
+
+- 结构变化：
+  - `amapUIHelper.js`：
+    - 新增 `canUseAMapUI()`：统一判定是否允许加载 AMapUI（本地 `file/localhost/127.0.0.1` 关闭）；
+    - 新增 `safeLoadAMapUI(modules, onLoaded, onFallback)`：集中封装 AMapUI 安全加载与兜底。
+  - `MapV2.js`：
+    - `AMapLoader.load` 采用动态 `loadOpts`；
+    - 仅在 `canUseAMapUI()` 且存在 `uiplugin` 时注入 `AMapUI` 配置。
+  - `ACG/GeoCoord/GeoCoordSelector/PointsCluster`：
+    - 原 `window.AMapUI.loadUI(...)` 全部替换为 `safeLoadAMapUI(...)`；
+    - `GeoCoord` 增加 `setupFallbackMarker`，`SimpleMarker` 不可用时回退普通 marker。
+
+- 行为结果：
+  - 本地全页面冒烟不再出现 `Load timeout for modules: ui/control/BasicControl` 异常；
+  - 地图类页面在本地离线/弱网环境不会因 AMapUI 依赖阻塞或报错；
+  - 全站主流程保持可交互，避免白屏。
+
+## 96) 再次全量稳定性自检（页面/技法/AI导出/算法）（2026-03-03）
+
+- 目标范围：
+  - 所有主页面与主技法可用性；
+  - AI 导出与 AI 导出设置一致性；
+  - 核心算法与本地运行链路稳定性。
+
+- 本轮结构化检查链路：
+  - 基础构建与单测：
+    - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false`
+    - `npm --prefix Horosa-Web/astrostudyui run build:file`
+  - 本地服务链路：
+    - `Horosa-Web/start_horosa_local.sh`
+    - `Horosa-Web/verify_horosa_local.sh`
+    - `Horosa-Web/stop_horosa_local.sh`
+  - 算法/API 快速体检：
+    - `Horosa-Web/astrostudyui/.tmp_horosa_verify.js`
+    - `Horosa-Web/astrostudyui/.tmp_horosa_perf_check.js`
+  - AI 导出配置矩阵校验：
+    - `Horosa-Web/astrostudyui/.tmp_ai_export_matrix_check.js`
+  - 页面级巡检（Playwright 分批短会话）：
+    - 覆盖 16 主页面：`星盘`、`三维盘`、`推运盘`、`量化盘`、`关系盘`、`节气盘`、`星体地图`、`七政四余`、`希腊星术`、`印度律盘`、`八字紫微`、`易与三式`、`万年历`、`西洋游戏`、`风水`、`三式合一`。
+
+- 输出判定口径（本轮统一）：
+  - 页面元素可点击（`clicked=true`）；
+  - 页面根节点存在（`#root`）；
+  - 无错误边界（`hasErrorBoundary=false`）；
+  - 页面文本非空（`textLen>0`）；
+  - 控制台 `error` 为 0（允许 3D fallback warning）。
+
+- 结果摘要：
+  - 16 主页面均满足上述可用性判定；
+  - AI 导出矩阵检查全部 PASS；
+  - 核心算法接口与本地链路检查通过；
+  - 未发现新的白屏回归。
+
+## 97) 3D fallback 稳定性收敛 + 本地窗口关闭回收修复（2026-03-03）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/astro3d/Astro3D.js`
+  - `Horosa_Local.command`
+
+- 结构变化：
+  - `Astro3D.js`
+    - 新增模型不可用状态缓存：
+      - `ModelUnavailableAtKey = 'horosa3dModelUnavailableAt'`
+      - `ModelUnavailableCooldown = 10 * 60 * 1000`
+      - `getModelUnavailableAt / markModelUnavailableNow / clearModelUnavailableMark / shouldSkipModelLoad`
+    - `init()` 加载流程新增短路逻辑：
+      - 若 `shouldSkipModelLoad()` 命中，直接 `initMesh + initGUI`，跳过 GLTF 请求。
+    - 失败/成功状态联动：
+      - timeout 或所有来源失败时：`markModelUnavailableNow()`
+      - 成功加载模型后：`clearModelUnavailableMark()`
+    - fallback 日志等级下调：
+      - timeout fallback、source fail、unavailable fallback 从 `console.warn` 调整为 `console.info`。
+  - `Horosa_Local.command`
+    - 退出信号捕获扩展为：
+      - `trap cleanup EXIT INT TERM HUP`
+    - 覆盖直接关闭终端窗口触发的 `SIGHUP`，确保进入 cleanup。
+
+- 行为结果：
+  - 三维盘在模型暂不可用时不再反复尝试加载，减少卡顿与噪音；
+  - fallback 保持可用（简化模式）但不再占用 warning 通道；
+  - 关闭启动终端窗口时，Horosa 本地服务可自动执行停止回收流程，减少残留进程与端口占用。
+
+- 本轮验证结果：
+  - 单测与构建：
+    - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false` 通过；
+    - `npm --prefix Horosa-Web/astrostudyui run build:file` 通过。
+  - 本地服务链路：
+    - `start_horosa_local.sh + verify_horosa_local.sh + stop_horosa_local.sh` 通过。
+  - 算法/导出检查：
+    - `.tmp_horosa_verify.js` 通过；
+    - `.tmp_ai_export_matrix_check.js` 全部 PASS；
+    - `.tmp_horosa_perf_check.js` 返回有效结果。
+  - 页面巡检（Playwright）：
+    - 顶层 16 tab 自动点击均可渲染（无错误边界）；
+    - 三维盘重复切换后，console warning/error 均为 0。
+
+## 98) 最终全量终检（内容/页面/技法设置/AI导出）（2026-03-03）
+
+- 目标范围：
+  - 所有主内容页面；
+  - 所有主技法入口及其设置入口；
+  - AI 导出与 AI 导出设置；
+  - 本地服务链路与核心算法脚本。
+
+- 本轮结构化检查链路：
+  - 构建与单测：
+    - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false`
+    - `npm --prefix Horosa-Web/astrostudyui run build:file`
+  - 服务与算法：
+    - `Horosa-Web/start_horosa_local.sh`
+    - `Horosa-Web/verify_horosa_local.sh`
+    - `Horosa-Web/stop_horosa_local.sh`
+    - `Horosa-Web/astrostudyui/.tmp_horosa_verify.js`
+    - `Horosa-Web/astrostudyui/.tmp_ai_export_matrix_check.js`
+    - `Horosa-Web/astrostudyui/.tmp_horosa_perf_check.js`
+  - 页面与交互（Playwright）：
+    - 顶层 16 页面全量点击可达性与渲染性检查；
+    - 星盘子页签检查（信息/相位/行星/希腊点/可能性）；
+    - 抽屉设置入口检查（小工具/星盘组件/行星选择/相位选择/批注）；
+    - AI 导出设置与 5 个导出动作全链路执行。
+
+- 结果摘要：
+  - 16 顶层页面全部可进入、可渲染、无白屏；
+  - 主技法设置入口均可打开/关闭，控件切换可执行；
+  - AI 导出设置可保存，AI 导出五项动作可执行并返回正确提示；
+  - 控制台 `error=0`，未出现错误边界；
+  - 仅观测到 1 条外部地图 SDK Canvas 性能 warning（非功能故障）。
+
+- 产物记录：
+  - `/tmp/horosa_final_fullcheck_20260303.txt`
+  - `/tmp/hf1_ui_scan_result.txt`
+  - `/tmp/hf2_ai_actions_result.txt`
+  - `/tmp/hf3_settings_result.txt`

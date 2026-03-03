@@ -4,6 +4,7 @@ import MapV2 from './MapV2';
 import {randomStr, gcj02ToGps, gpsToGcj02} from '../../utils/helper';
 import { Sex, } from '../../msg/types';
 import { convertLatStrToDegree, convertLonStrToDegree, } from '../astro/AstroHelper';
+import { safeLoadAMapUI, } from './amapUIHelper';
 
 class PointsCluster extends Component{
 
@@ -25,7 +26,7 @@ class PointsCluster extends Component{
 		this.setState({
 			map: map,
 		}, ()=>{
-			window.AMapUI.loadUI(['control/BasicControl'], (BasicControl)=>{
+			safeLoadAMapUI(['control/BasicControl'], (BasicControl)=>{
 				map.addControl(new BasicControl.Zoom({
 					position: 'lt',
 					showZoomNum: true
