@@ -3,6 +3,7 @@ import { Row, Col, Tag, } from 'antd';
 import MapV2 from './MapV2';
 import PropTypes from 'prop-types';
 import {randomStr} from '../../utils/helper';
+import { safeLoadAMapUI, } from './amapUIHelper';
 
 
 class GeoCoord extends Component{
@@ -26,22 +27,35 @@ class GeoCoord extends Component{
 		this.handleMapClick = this.handleMapClick.bind(this);
 
 		this.handleCenter = this.handleCenter.bind(this);
+		this.setupFallbackMarker = this.setupFallbackMarker.bind(this);
 	}
 
 	handleMapCreated(map){
 		this.setState({
 			map: map,
 		}, ()=>{
-			window.AMapUI.loadUI(['control/BasicControl'], (BasicControl)=>{
+			safeLoadAMapUI(['control/BasicControl'], (BasicControl)=>{
 				map.addControl(new BasicControl.Zoom({
 					position: 'lt',
 					showZoomNum: false
 				}));
-			})
-	
-			window.AMapUI.loadUI(['overlay/SimpleMarker'], this.handleLoadUIComplete);
+			});
+			safeLoadAMapUI(['overlay/SimpleMarker'], this.handleLoadUIComplete, this.setupFallbackMarker);
 		});	
 
+	}
+
+	setupFallbackMarker(){
+		if(!this.state.map){
+			return;
+		}
+		const marker = new window.AMap.Marker({
+			position: this.state.map.getCenter(),
+		});
+		this.state.map.add(marker);
+		this.setState({
+			marker,
+		});
 	}
 
 	handleLoadUIComplete(SimpleMarker){
