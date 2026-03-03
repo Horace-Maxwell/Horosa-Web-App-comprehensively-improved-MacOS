@@ -627,7 +627,7 @@ cleanup() {
 
   return "${code}"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT INT TERM HUP
 
 echo "[诊断] 运行问题会记录到：${DIAG_FILE}"
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="

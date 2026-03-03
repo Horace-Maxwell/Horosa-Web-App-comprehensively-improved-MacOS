@@ -1,10 +1,10 @@
 import { Component } from 'react';
 import { Row, Col, Tag, } from 'antd';
 import MapV2 from './MapV2';
-import { AMapKey, AMapVer, AMapUIVer } from '../../utils/constants';
 import {randomStr, gcj02ToGps, getScriptPromise} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
+import { safeLoadAMapUI, } from './amapUIHelper';
 
 let AstroColor = {};
 AstroColor[AstroConst.MERCURY] = '#1E90FF';
@@ -70,7 +70,7 @@ class ACG extends Component{
 		this.setState({
 			map: map,
 		}, ()=>{
-			window.AMapUI.loadUI(['control/BasicControl'], (BasicControl)=>{
+			safeLoadAMapUI(['control/BasicControl'], (BasicControl)=>{
 				map.addControl(new BasicControl.Zoom({
 					position: 'lt',
 					showZoomNum: true
@@ -78,7 +78,7 @@ class ACG extends Component{
 				map.addControl(new BasicControl.LayerSwitcher({
 					position: 'rt'
 				}));
-			})
+			});
 
 			let infowin = new window.AMap.InfoWindow({
 				isCustom: true,  //使用自定义窗体

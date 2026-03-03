@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 import { uuid } from '../../utils/helper';
 import {randomStr} from '../../utils/helper';
 import { gcj02ToGps } from '../../utils/helper';
+import { safeLoadAMapUI, } from './amapUIHelper';
 
 
 class GeoCoordSelector extends Component{
@@ -49,12 +50,12 @@ class GeoCoordSelector extends Component{
 		});
 		map.add(marker);
 
-		window.AMapUI.loadUI(['control/BasicControl'], (BasicControl)=>{
+		safeLoadAMapUI(['control/BasicControl'], (BasicControl)=>{
 			map.addControl(new BasicControl.Zoom({
 				position: 'lt',
 				showZoomNum: false
 			}));
-		})
+		});
 
 		map.plugin(['AMap.AutoComplete'], ()=>{
 			const auto = new window.AMap.AutoComplete({

@@ -99,6 +99,49 @@ function traverseMaterials (object, callback) {
 
 
 const ChartOptKey = 'chart3dOpt';
+const ModelUnavailableAtKey = 'horosa3dModelUnavailableAt';
+const ModelUnavailableCooldown = 10 * 60 * 1000;
+
+function getModelUnavailableAt(){
+	if(typeof window === 'undefined' || !window.sessionStorage){
+		return 0;
+	}
+	try{
+		return Number(window.sessionStorage.getItem(ModelUnavailableAtKey) || 0);
+	}catch(err){
+		return 0;
+	}
+}
+
+function markModelUnavailableNow(){
+	if(typeof window === 'undefined' || !window.sessionStorage){
+		return;
+	}
+	try{
+		window.sessionStorage.setItem(ModelUnavailableAtKey, `${Date.now()}`);
+	}catch(err){
+		// ignore storage exceptions
+	}
+}
+
+function clearModelUnavailableMark(){
+	if(typeof window === 'undefined' || !window.sessionStorage){
+		return;
+	}
+	try{
+		window.sessionStorage.removeItem(ModelUnavailableAtKey);
+	}catch(err){
+		// ignore storage exceptions
+	}
+}
+
+function shouldSkipModelLoad(){
+	const unavailableAt = getModelUnavailableAt();
+	if(!unavailableAt){
+		return false;
+	}
+	return (Date.now() - unavailableAt) < ModelUnavailableCooldown;
+}
   
 class Astro3D {
 	constructor(option){
@@ -468,23 +511,38 @@ class Astro3D {
 		this.disposed = false;
 		this.animate();		
 
+		if(shouldSkipModelLoad()){
+			this.initMesh();
+			this.initGUI();
+			setLoadingText(null);
+			setLoading(false);
+			return;
+		}
+
 		const manager = new THREE.LoadingManager();
 		let loader = new GLTFLoader(manager);
 		loader.setCrossOrigin('*');
 		const dracoLoader = new DRACOLoader();
 		loader.setDRACOLoader( dracoLoader );
-		const modelSources = [
-			{
-				name: 'local',
-				modelUrl: './gltf/planets4k.glb',
-				decoderPath: './gltf/draco/',
-			},
-			{
-				name: 'remote',
-				modelUrl: `${Chart3DServer}/gltf/planets4k.glb`,
-				decoderPath: `${Chart3DServer}/gltf/draco/`,
-			},
-		];
+		const localSource = {
+			name: 'local',
+			modelUrl: './gltf/planets4k.glb',
+			decoderPath: './gltf/draco/',
+		};
+		const remoteSource = {
+			name: 'remote',
+			modelUrl: `${Chart3DServer}/gltf/planets4k.glb`,
+			decoderPath: `${Chart3DServer}/gltf/draco/`,
+		};
+		const preferRemote = typeof window !== 'undefined'
+			&& (
+				window.location.protocol === 'file:'
+				|| window.location.hostname === '127.0.0.1'
+				|| window.location.hostname === 'localhost'
+			);
+		const modelSources = preferRemote
+			? [remoteSource, localSource]
+			: [localSource, remoteSource];
 		let sourceIdx = 0;
 		let settled = false;
 		let timeoutId = setTimeout(()=>{
@@ -492,9 +550,10 @@ class Astro3D {
 				return;
 			}
 			settled = true;
+			markModelUnavailableNow();
 			this.initMesh();
 			this.initGUI();
-			console.warn('3D model loading timeout, fallback to simplified mode.');
+			console.info('3D model loading timeout, fallback to simplified mode.');
 			setLoadingText(null);
 			setLoading(false);
 		}, 8000);
@@ -512,6 +571,7 @@ class Astro3D {
 					}
 					settled = true;
 					clearTimeout(timeoutId);
+					clearModelUnavailableMark();
 					let scene = gltf.scene || gltf.scenes[0];
 					scene.children.map((item, idx)=>{
 						let name = item.name;
@@ -554,7 +614,7 @@ class Astro3D {
 					if(settled){
 						return;
 					}
-					console.warn(`[Astro3D] load from ${source.name} failed`, err);
+					console.info(`[Astro3D] load from ${source.name} failed`, err);
 					sourceIdx += 1;
 					if(sourceIdx < modelSources.length){
 						loadModel();
@@ -562,9 +622,10 @@ class Astro3D {
 					}
 					settled = true;
 					clearTimeout(timeoutId);
+					markModelUnavailableNow();
 					this.initMesh();
 					this.initGUI();
-					console.warn('3D model unavailable, fallback to simplified mode.');
+					console.info('3D model unavailable, fallback to simplified mode.');
 					setLoadingText(null);
 					setLoading(false);
 				}
