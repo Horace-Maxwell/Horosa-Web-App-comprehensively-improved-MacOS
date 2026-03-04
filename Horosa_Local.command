@@ -621,7 +621,7 @@ cleanup() {
     echo "[诊断] 已记录到：${DIAG_FILE}"
   fi
 
-  if [ "${should_stop}" = "1" ] && { [ "${BACKEND_STARTED}" = "1" ] || [ -n "${WEB_PID}" ]; }; then
+  if [ "${should_stop}" = "1" ]; then
     "${STOP_SH}" >/dev/null 2>&1 || true
   fi
 
@@ -633,11 +633,9 @@ echo "[诊断] 运行问题会记录到：${DIAG_FILE}"
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
 diag_log "env HOROSA_STARTUP_TIMEOUT=${HOROSA_STARTUP_TIMEOUT:-} HOROSA_FORCE_UI_BUILD=${HOROSA_FORCE_UI_BUILD:-0} HOROSA_SKIP_UI_BUILD=${HOROSA_SKIP_UI_BUILD:-1}"
 
-if [ -f "${PY_PID_FILE}" ] || [ -f "${JAVA_PID_FILE}" ] || [ -f "${WEB_PID_FILE}" ]; then
-  echo "检测到旧服务记录，先执行一次停止..."
-  "${STOP_SH}" >/dev/null 2>&1 || true
-  sleep 1
-fi
+echo "[预检] 执行启动前残留清理..."
+"${STOP_SH}" >/dev/null 2>&1 || true
+sleep 1
 
 use_bundled_runtime
 ensure_backend_artifact
@@ -661,8 +659,19 @@ export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-1}"
 export HOROSA_DIAG_FILE="${DIAG_FILE}"
 export HOROSA_DIAG_DIR="${DIAG_DIR}"
 if ! "${START_SH}"; then
-  diag_log "start_horosa_local failed"
-  exit 1
+  if port_listening 8899 || port_listening 9999; then
+    echo "[1/4] 检测到端口占用，尝试回收残留后重试一次..."
+    diag_log "start_horosa_local failed with occupied port, retry after stop"
+    "${STOP_SH}" >/dev/null 2>&1 || true
+    sleep 1
+    if ! "${START_SH}"; then
+      diag_log "start_horosa_local retry failed"
+      exit 1
+    fi
+  else
+    diag_log "start_horosa_local failed"
+    exit 1
+  fi
 fi
 BACKEND_STARTED=1
 

@@ -22,7 +22,13 @@ const SAFE_TRAD_TO_SIMP_MAP = {
 	還: '还',
 	顆: '颗',
 	鎮: '镇',
+	宮: '宫',
+	於: '于',
 	為: '为',
+	強: '强',
+	進: '进',
+	麗: '丽',
+	洩: '泄',
 	綠: '绿',
 	藍: '蓝',
 	紅: '红',
@@ -229,7 +235,7 @@ function parseQimenDoc(rawText){
 		}
 		currentEntry.blocks.push({
 			type: 'text',
-			text: line,
+			text: toSafeSimplified(line),
 		});
 	}
 	return doc;

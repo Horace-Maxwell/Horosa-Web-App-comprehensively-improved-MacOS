@@ -3546,3 +3546,43 @@ Append new entries; do not rewrite history.
   - `/tmp/hf1_ui_scan_result.txt`
   - `/tmp/hf2_ai_actions_result.txt`
   - `/tmp/hf3_settings_result.txt`
+
+### 18:36 - 三式合一遁甲悬浮文案繁转简补全（2026-03-03）
+- Scope: 修复“三式合一盘中遁甲相关元素悬浮窗口仍有繁体字”的问题，补全安全繁转简，不做语义字符误改（如 `乾` 保留不转 `干`）。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/dunjia/QimenXiangDoc.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/__tests__/QimenXiangDoc.test.js`
+- Details:
+  - `QimenXiangDoc.js`
+    - 扩充 `SAFE_TRAD_TO_SIMP_MAP`，新增：`宮→宫`、`於→于`、`強→强`、`進→进`、`麗→丽`、`洩→泄`；
+    - 在 `parseQimenDoc` 入库阶段把 `text` block 统一走 `toSafeSimplified`，确保 `buildQimenXiangTipObj` 返回给三式合一悬浮层的正文也是简体；
+    - 保持定向映射策略，不引入 `乾→干` 之类误转换。
+  - 新增单测 `QimenXiangDoc.test.js`
+    - 验证门类正文繁转简（`亮麗→亮丽`）；
+    - 验证星类正文繁转简（`早洩→早泄`）；
+    - 验证 `乾` 不被误改为 `干`。
+- Verification (local):
+  - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false src/components/dunjia/__tests__/QimenXiangDoc.test.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false src/components/dunjia/__tests__/DunJiaCalc.test.js src/components/dunjia/__tests__/QimenXiangDoc.test.js` ✅
+
+### 18:54 - 本地窗口关闭后后台残留回收增强（2026-03-03）
+- Scope: 修复“关闭终端窗口后，后台偶发未停止，下一次启动报 `port 9999 is already in use`”问题。
+- Files:
+  - `Horosa_Local.command`
+  - `Horosa-Web/stop_horosa_local.sh`
+- Details:
+  - `Horosa_Local.command`
+    - `cleanup()` 从“仅在本次成功启动过后端/网页时才 stop”改为“非常驻模式下退出一律执行 stop”，覆盖启动失败/中断场景；
+    - 启动前新增统一残留清理：每次运行先执行一次 `stop_horosa_local.sh`；
+    - 当 `start_horosa_local.sh` 首次失败且检测到 `8899/9999` 端口占用时，自动回收并重试一次，提升自愈能力。
+  - `stop_horosa_local.sh`
+    - 新增 `kill_pid_gracefully()`，统一温和停止 + 超时强杀；
+    - 增加“无 pid 文件兜底回收”：按端口+进程特征清理残留监听进程：
+      - `8899 + webchartsrv.py`
+      - `9999 + astrostudyboot.jar`
+      - `8000 + http.server.*astrostudyui/(dist|dist-file)`
+- Verification (local):
+  - `bash -n Horosa_Local.command` ✅
+  - `bash -n Horosa-Web/stop_horosa_local.sh` ✅
+  - `Horosa-Web/stop_horosa_local.sh`：可识别并清理无 pid 文件残留 `9999/8000` 监听进程 ✅
+  - `cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh && ./stop_horosa_local.sh` ✅
