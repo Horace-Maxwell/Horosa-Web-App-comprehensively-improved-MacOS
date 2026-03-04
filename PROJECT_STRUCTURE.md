@@ -1830,3 +1830,57 @@
   - `/tmp/hf1_ui_scan_result.txt`
   - `/tmp/hf2_ai_actions_result.txt`
   - `/tmp/hf3_settings_result.txt`
+
+## 99) 三式合一遁甲悬浮文案繁转简补全（2026-03-03）
+
+- 目标文件：
+  - `Horosa-Web/astrostudyui/src/components/dunjia/QimenXiangDoc.js`
+  - `Horosa-Web/astrostudyui/src/components/dunjia/__tests__/QimenXiangDoc.test.js`
+
+- 结构变化：
+  - `QimenXiangDoc.js`
+    - 安全繁转简映射补充：
+      - `宮→宫`、`於→于`、`強→强`、`進→进`、`麗→丽`、`洩→泄`。
+    - `parseQimenDoc()` 中 `text` block 入库改为统一 `toSafeSimplified(line)`：
+      - 使 `buildQimenXiangTipObj` 返回给三式合一悬浮窗口的正文文本均为简体；
+      - 复用同一数据源时，遁甲主盘与三式合一盘展示一致。
+    - 保留精确字符策略：
+      - 未加入 `乾→干` 映射，保证宫位干支中的 `乾` 不被误改。
+  - 新增测试 `QimenXiangDoc.test.js`
+    - 覆盖“门/星条目繁转简”与“乾字不误改”。
+
+- 行为结果：
+  - 三式合一盘遁甲悬浮正文中的剩余繁体被补齐为简体；
+  - 文案转换更稳定，且不影响关键术语字形（如 `乾`）。
+
+- 本轮验证结果：
+  - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false src/components/dunjia/__tests__/QimenXiangDoc.test.js` 通过；
+  - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false src/components/dunjia/__tests__/DunJiaCalc.test.js src/components/dunjia/__tests__/QimenXiangDoc.test.js` 通过。
+
+## 100) 本地窗口关闭后后台残留回收增强（2026-03-03）
+
+- 目标文件：
+  - `Horosa_Local.command`
+  - `Horosa-Web/stop_horosa_local.sh`
+
+- 结构变化：
+  - `Horosa_Local.command`
+    - `cleanup()` 调整为：非常驻模式下（`HOROSA_KEEP_SERVICES_RUNNING!=1`）退出必执行 `stop_horosa_local.sh`；
+    - 启动前固定执行一次残留清理，减少“上次异常退出”影响；
+    - 后端启动失败时，若检测到 `8899/9999` 端口占用，自动回收残留并重试一次。
+  - `stop_horosa_local.sh`
+    - 新增 `kill_pid_gracefully()`，统一停止逻辑；
+    - 在 pid 文件回收之外，新增端口监听兜底回收（按进程特征匹配）：
+      - `8899`：`webchartsrv.py`
+      - `9999`：`astrostudyboot.jar`
+      - `8000`：`http.server.*astrostudyui/(dist|dist-file)`
+
+- 行为结果：
+  - 用户直接关闭终端窗口后，即便 pid 文件丢失，下一次运行也可自动回收典型残留进程；
+  - 对应 `port 9999 is already in use` 的常见场景可自动自愈。
+
+- 本轮验证结果：
+  - `bash -n Horosa_Local.command` 通过；
+  - `bash -n Horosa-Web/stop_horosa_local.sh` 通过；
+  - `Horosa-Web/stop_horosa_local.sh` 实测可回收无 pid 文件残留监听进程；
+  - `cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh && ./stop_horosa_local.sh` 通过。
