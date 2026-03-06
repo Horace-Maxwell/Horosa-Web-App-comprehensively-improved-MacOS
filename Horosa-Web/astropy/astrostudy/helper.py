@@ -137,6 +137,8 @@ def getChartObj(data, perchart):
             'tradition': perchart.tradition,
             'zodiacal': perchart.zodiacal,
             'doubingSu28': perchart.isDoubingSu28,
+            'pdMethod': perchart.pdMethod,
+            'pdTimeKey': perchart.pdTimeKey,
         },
         'chart': perchart.getChartObj(),
         'receptions': perchart.getReceptions(),
@@ -260,5 +262,4 @@ def getSignLon(sign):
     idx = const.LIST_SIGNS.index(sign)
     lon = idx * 30
     return lon
-
 

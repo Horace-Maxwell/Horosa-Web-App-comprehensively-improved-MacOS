@@ -49,6 +49,9 @@ class PlanetSelector extends Component{
 	}
 
 	render(){
+		const planetValues = Array.isArray(this.props.value) ? this.props.value : [];
+		const lotValues = Array.isArray(this.props.lots) ? this.props.lots : [];
+
 		let allobjs = AstroConst.LIST_POINTS.map((item)=>{
 			return (
 				<Col span={24} key={item}>
@@ -97,7 +100,7 @@ class PlanetSelector extends Component{
 						<Checkbox.Group 
 							style={{ width: '100%' }} 
 							onChange={this.onChange}
-							value={this.props.value}
+							value={planetValues}
 						>
 							<Row gutter={12}>
 								{allobjs}
@@ -108,7 +111,7 @@ class PlanetSelector extends Component{
 						<Checkbox.Group 
 							style={{ width: '100%' }} 
 							onChange={this.onLotsChange}
-							value={this.props.lots}
+							value={lotValues}
 						>
 							<Row gutter={12}>
 								{lots}

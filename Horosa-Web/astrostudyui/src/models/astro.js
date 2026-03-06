@@ -96,10 +96,18 @@ function newEmptyFields(){
 					value: 1,
 					name: ['showPdBounds'],
 				},
-				pdtype: {
-					value: 1,
-					name: ['pdtype'],
-				},
+		pdtype: {
+			value: 1,
+			name: ['pdtype'],
+		},
+		pdMethod: {
+			value: 'astroapp_alchabitius',
+			name: ['pdMethod'],
+		},
+		pdTimeKey: {
+			value: 'Ptolemy',
+			name: ['pdTimeKey'],
+		},
 		pdaspects: {
 			value: [0, 60, 90, 120, 180],
 			name: ['pdaspects'],
@@ -195,6 +203,8 @@ function fieldsToParams(fields){
 		virtualPointReceiveAsp: fields.virtualPointReceiveAsp.value,
 		predictive: fields.predictive.value,
 		showPdBounds: fields.showPdBounds ? fields.showPdBounds.value : 1,
+		pdMethod: fields.pdMethod ? fields.pdMethod.value : 'astroapp_alchabitius',
+		pdTimeKey: fields.pdTimeKey ? fields.pdTimeKey.value : 'Ptolemy',
 		pdaspects: fields.pdaspects.value,
 		name: fields.name.value,
 		pos: fields.pos.value,
@@ -441,6 +451,14 @@ export default {
 			pdtype: {
 				value: 1,
 				name: ['pdtype'],
+			},
+			pdMethod: {
+				value: 'astroapp_alchabitius',
+				name: ['pdMethod'],
+			},
+			pdTimeKey: {
+				value: 'Ptolemy',
+				name: ['pdTimeKey'],
 			},
 			pdaspects: {
 				value: [0, 60, 90, 120, 180],

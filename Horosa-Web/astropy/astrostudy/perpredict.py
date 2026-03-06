@@ -15,6 +15,20 @@ from astrostudy import firdaria
 from astrostudy import zreleasing
 
 MAX_ERROR = 0.0003
+ASTROAPP_PD_DISPLAY_EPS = 3.0
+ASTROAPP_PD_DISPLAY_WINDOW = 107.5
+ASTROAPP_PD_PLANET_IDS = {
+    const.SUN,
+    const.MOON,
+    const.MERCURY,
+    const.VENUS,
+    const.MARS,
+    const.JUPITER,
+    const.SATURN,
+    const.URANUS,
+    const.NEPTUNE,
+    const.PLUTO,
+}
 
 def takeLon(obj):
     return obj.lon
@@ -139,13 +153,110 @@ class PerPredict:
         return pdlist
 
     def getPrimaryDirectionByZ(self):
-        chart = self.perchart.getChart()
-        pdlist = []
-        pd = PrimaryDirections(chart)
-        for item in pd.getList(self.perchart.pdaspects):
-            if item[3] == 'Z':
-                pdlist.append(item)
+        if getattr(self.perchart, 'pdMethod', 'astroapp_alchabitius') == 'horosa_legacy':
+            pdlist = self.getPrimaryDirectionByZLegacy()
+        else:
+            pdlist = self.getPrimaryDirectionByZAstroAppKernel()
         self.appendDateStr(pdlist)
+        return pdlist
+
+    def getPrimaryDirectionByZLegacy(self):
+        chart = self.perchart.getChart()
+        pd = PrimaryDirections(chart)
+        pdlist = []
+        for item in pd.getList(self.perchart.pdaspects):
+            if len(item) > 3 and item[3] == 'Z':
+                pdlist.append(item)
+        return pdlist
+
+    def _isNodeDirectionId(self, ID):
+        txt = '{0}'.format(ID if ID is not None else '')
+        return ('North Node' in txt) or ('South Node' in txt)
+
+    def _baseDirectionObjectId(self, ID):
+        parts = '{0}'.format(ID if ID is not None else '').split('_')
+        if len(parts) < 3:
+            return '{0}'.format(ID if ID is not None else '')
+        return '_'.join(parts[1:-1]).strip()
+
+    def _norm180(self, deg):
+        return (float(deg) + 180.0) % 360.0 - 180.0
+
+    def _isAstroAppPlanetPair(self, prom_id, sig_id):
+        return (
+            self._baseDirectionObjectId(prom_id) in ASTROAPP_PD_PLANET_IDS
+            and self._baseDirectionObjectId(sig_id) in ASTROAPP_PD_PLANET_IDS
+        )
+
+    def _passesAstroAppDisplayWindow(self, prom, sig, arc):
+        raw_delta = float(sig.get('lon')) - float(prom.get('lon'))
+        if abs(raw_delta) <= ASTROAPP_PD_DISPLAY_EPS:
+            return True
+        if arc > 0:
+            return ASTROAPP_PD_DISPLAY_EPS < raw_delta < ASTROAPP_PD_DISPLAY_WINDOW
+        if arc < 0:
+            return -ASTROAPP_PD_DISPLAY_WINDOW < raw_delta < -ASTROAPP_PD_DISPLAY_EPS
+        return False
+
+    def getPrimaryDirectionByZAstroAppKernel(self):
+        """
+        AstroApp-aligned In Zodiaco kernel:
+            arc = norm180(RA(sig, true_lat) - RA(promissor_aspected, zero_lat))
+
+        Notes:
+        - keeps direct + converse (positive/negative arc)
+        - keeps original promissor/significator ID encoding for UI compatibility
+        - keeps |arc| <= 100 to match existing age horizon
+        """
+        chart = self.perchart.getChart()
+        pd = PrimaryDirections(chart)
+        aspList = self.perchart.pdaspects
+
+        # Significators
+        sig_objs = pd._elements(pd.SIG_OBJECTS, pd.N, [0])
+        sig_houses = pd._elements(pd.SIG_HOUSES, pd.N, [0])
+        sig_angles = pd._elements(pd.SIG_ANGLES, pd.N, [0])
+        significators = sig_objs + sig_houses + sig_angles
+
+        # Promissors
+        prom_objs = pd._elements(pd.SIG_OBJECTS, pd.N, aspList)
+        prom_terms = pd._terms()
+        promissors = prom_objs + prom_terms
+
+        # Node rows are excluded in this kernel branch because AstroApp node handling
+        # follows a different branch and is less stable under this single kernel.
+        significators = [obj for obj in significators if not self._isNodeDirectionId(obj.get('id'))]
+        promissors = [obj for obj in promissors if not self._isNodeDirectionId(obj.get('id'))]
+
+        max_arc = 100.0
+        eps = 1e-12
+        pdlist = []
+        for prom in promissors:
+            prom_id = prom.get('id')
+            prom_ra_z = prom.get('raZ')
+            if prom_id is None or prom_ra_z is None:
+                continue
+            for sig in significators:
+                sig_id = sig.get('id')
+                if prom_id == sig_id:
+                    continue
+                if self._baseDirectionObjectId(prom_id) == self._baseDirectionObjectId(sig_id):
+                    continue
+                sig_ra = sig.get('ra')
+                if sig_id is None or sig_ra is None:
+                    continue
+
+                arc = self._norm180(sig_ra - prom_ra_z)
+                if abs(arc) <= eps:
+                    continue
+                if abs(arc) > max_arc:
+                    continue
+                if self._isAstroAppPlanetPair(prom_id, sig_id):
+                    if not self._passesAstroAppDisplayWindow(prom, sig, arc):
+                        continue
+                pdlist.append([arc, prom_id, sig_id, 'Z'])
+
+        pdlist.sort(key=lambda item: (abs(item[0]), item[0], item[1], item[2]))
         return pdlist
 
     def getPrimaryDirectionByM(self):
@@ -506,5 +617,3 @@ class PerPredict:
 
         perchart.reinit()
         return perchart
-
-

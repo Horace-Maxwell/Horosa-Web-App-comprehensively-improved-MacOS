@@ -10,6 +10,7 @@ import AstroSolarArc from '../astro/AstroSolarArc';
 import AstroProfection from '../astro/AstroProfection';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
+import * as AstroHelper from '../astro/AstroHelper';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import { appendPlanetHouseInfoById, } from '../../utils/planetHouseInfo';
 
@@ -41,7 +42,11 @@ function msgWithHouse(chartObj, id){
 	);
 }
 
-function degreeText(value){
+function degreeText(value, pdMethod){
+	if(pdMethod === 'horosa_legacy'){
+		const deg = AstroHelper.splitDegree(value);
+		return `${deg[0]}度${deg[1]}分`;
+	}
 	const num = Number(value);
 	if(Number.isNaN(num)){
 		return `${value || ''}`.trim();
@@ -54,6 +59,20 @@ function degreeText(value){
 		m = 0;
 	}
 	return `${neg}${d}度${m}分`;
+}
+
+function primaryDirectionMethodText(val){
+	if(val === 'horosa_legacy'){
+		return 'Horosa原方法';
+	}
+	return 'AstroAPP-Alchabitius';
+}
+
+function primaryDirectionTimeKeyText(val){
+	if(val === 'Ptolemy'){
+		return 'Ptolemy';
+	}
+	return `${val || 'Ptolemy'}`;
 }
 
 function directionObjText(text, chartObj){
@@ -138,19 +157,28 @@ function buildPrimaryDirectSnapshotText(chartObj){
 	const obj = chartObj || {};
 	const allPds = obj.predictives && Array.isArray(obj.predictives.primaryDirection) ? obj.predictives.primaryDirection : [];
 	const showPdBounds = !(obj.params && (obj.params.showPdBounds === 0 || obj.params.showPdBounds === false));
+	const pdMethod = obj.params && obj.params.pdMethod ? obj.params.pdMethod : 'astroapp_alchabitius';
+	const pdTimeKey = obj.params && obj.params.pdTimeKey ? obj.params.pdTimeKey : 'Ptolemy';
+	const degreeLabel = pdMethod === 'horosa_legacy' ? '赤经' : 'Arc';
 	const pds = showPdBounds ? allPds : allPds.filter((pd)=>!isBoundDirectionRow(pd));
 
 	appendBirthAndChartInfo(lines, obj);
 
 	lines.push('');
+	lines.push('[主/界限法设置]');
+	lines.push(`推运方法：${primaryDirectionMethodText(pdMethod)}`);
+	lines.push(`度数换算：${primaryDirectionTimeKeyText(pdTimeKey)}`);
+	lines.push(`显示界限法：${showPdBounds ? '是' : '否'}`);
+
+	lines.push('');
 	lines.push('[主/界限法表格]');
-	lines.push('| 赤经 | 迫星 | 应星 | 日期 |');
+	lines.push(`| ${degreeLabel} | 迫星 | 应星 | 日期 |`);
 	lines.push('| --- | --- | --- | --- |');
 	if(pds.length === 0){
 		lines.push('| 无 | 无 | 无 | 无 |');
 	}else{
 		pds.forEach((pd)=>{
-			const degree = degreeText(pd && pd[0]);
+			const degree = degreeText(pd && pd[0], pdMethod);
 			const promittor = directionObjText(pd && pd[1], obj);
 			const significator = directionObjText(pd && pd[2], obj);
 			const date = pd && pd[4] ? `${pd[4]}` : '';
@@ -233,6 +261,7 @@ class AstroDirectMain extends Component{
 		};
 
 		this.changeTab = this.changeTab.bind(this);
+		this.applyPrimaryDirectionConfig = this.applyPrimaryDirectionConfig.bind(this);
 		this.saveDirectionSnapshot = this.saveDirectionSnapshot.bind(this);
 		this.savePrimaryDirectSnapshot = this.savePrimaryDirectSnapshot.bind(this);
 		this.saveFirdariaSnapshot = this.saveFirdariaSnapshot.bind(this);
@@ -253,11 +282,15 @@ class AstroDirectMain extends Component{
 		const chartObj = this.props.chartObj || {};
 		const fields = this.props.fields || {};
 		const showPdBounds = fields.showPdBounds ? fields.showPdBounds.value : 1;
+		const pdMethod = fields.pdMethod ? fields.pdMethod.value : (chartObj.params && chartObj.params.pdMethod ? chartObj.params.pdMethod : 'astroapp_alchabitius');
+		const pdTimeKey = fields.pdTimeKey ? fields.pdTimeKey.value : (chartObj.params && chartObj.params.pdTimeKey ? chartObj.params.pdTimeKey : 'Ptolemy');
 		const snapshotChartObj = {
 			...chartObj,
 			params: {
 				...(chartObj.params || {}),
 				showPdBounds,
+				pdMethod,
+				pdTimeKey,
 			},
 		};
 		const txt = buildPrimaryDirectSnapshotText(snapshotChartObj);
@@ -266,6 +299,9 @@ class AstroDirectMain extends Component{
 		}
 		saveModuleAISnapshot('primarydirect', txt, {
 			tab: 'primarydirect',
+			pdMethod,
+			pdTimeKey,
+			showPdBounds,
 		});
 		return txt;
 	}
@@ -355,9 +391,55 @@ class AstroDirectMain extends Component{
 		});
 	}
 
+	applyPrimaryDirectionConfig(pdMethod, pdTimeKey){
+		if(!this.props.dispatch || !this.props.fields){
+			return;
+		}
+		const chartParams = this.props.chartObj && this.props.chartObj.params ? this.props.chartObj.params : {};
+		const currentMethod = chartParams.pdMethod ? chartParams.pdMethod : (this.props.fields.pdMethod ? this.props.fields.pdMethod.value : 'astroapp_alchabitius');
+		const currentTimeKey = chartParams.pdTimeKey ? chartParams.pdTimeKey : (this.props.fields.pdTimeKey ? this.props.fields.pdTimeKey.value : 'Ptolemy');
+		if(currentMethod === pdMethod && currentTimeKey === pdTimeKey){
+			return;
+		}
+		this.props.dispatch({
+			type: 'app/save',
+			payload: {
+				pdMethod,
+				pdTimeKey,
+			},
+		});
+		const nextFields = {
+			...this.props.fields,
+			pdMethod: {
+				...(this.props.fields.pdMethod || { name: ['pdMethod'] }),
+				value: pdMethod,
+			},
+			pdTimeKey: {
+				...(this.props.fields.pdTimeKey || { name: ['pdTimeKey'] }),
+				value: pdTimeKey,
+			},
+		};
+		this.props.dispatch({
+			type: 'astro/fetchByFields',
+			payload: {
+				...nextFields,
+				__requestOptions: {
+					silent: true,
+				},
+			},
+		});
+	}
+
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		height = height - 20;
+		const chartParams = this.props.chartObj && this.props.chartObj.params ? this.props.chartObj.params : {};
+		const appliedPdMethod = chartParams.pdMethod
+			? chartParams.pdMethod
+			: (this.props.fields && this.props.fields.pdMethod ? this.props.fields.pdMethod.value : 'astroapp_alchabitius');
+		const appliedPdTimeKey = chartParams.pdTimeKey
+			? chartParams.pdTimeKey
+			: (this.props.fields && this.props.fields.pdTimeKey ? this.props.fields.pdTimeKey.value : 'Ptolemy');
 
 		return (
 			<div>
@@ -370,6 +452,9 @@ class AstroDirectMain extends Component{
 							<AstroPrimaryDirection  
 								value={this.props.chartObj} height={height}
 								showPdBounds={this.props.fields && this.props.fields.showPdBounds ? this.props.fields.showPdBounds.value : 1}
+								pdMethod={appliedPdMethod}
+								pdTimeKey={appliedPdTimeKey}
+								onPdConfigApply={this.applyPrimaryDirectionConfig}
 								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 								showAstroMeaning={this.props.showAstroMeaning}
 							/>

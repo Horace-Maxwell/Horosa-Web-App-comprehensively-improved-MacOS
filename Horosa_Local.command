@@ -631,7 +631,7 @@ trap cleanup EXIT INT TERM HUP
 
 echo "[诊断] 运行问题会记录到：${DIAG_FILE}"
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
-diag_log "env HOROSA_STARTUP_TIMEOUT=${HOROSA_STARTUP_TIMEOUT:-} HOROSA_FORCE_UI_BUILD=${HOROSA_FORCE_UI_BUILD:-0} HOROSA_SKIP_UI_BUILD=${HOROSA_SKIP_UI_BUILD:-1}"
+diag_log "env HOROSA_STARTUP_TIMEOUT=${HOROSA_STARTUP_TIMEOUT:-} HOROSA_FORCE_UI_BUILD=${HOROSA_FORCE_UI_BUILD:-0} HOROSA_SKIP_UI_BUILD=${HOROSA_SKIP_UI_BUILD:-0}"
 
 echo "[预检] 执行启动前残留清理..."
 "${STOP_SH}" >/dev/null 2>&1 || true
@@ -655,7 +655,7 @@ resolve_dist_dir
 repair_frontend_entry_assets "${DIST_DIR}"
 
 echo "[1/4] 启动本地后端服务..."
-export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-1}"
+export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
 export HOROSA_DIAG_FILE="${DIAG_FILE}"
 export HOROSA_DIAG_DIR="${DIAG_DIR}"
 if ! "${START_SH}"; then

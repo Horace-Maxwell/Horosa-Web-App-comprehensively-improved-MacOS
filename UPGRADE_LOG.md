@@ -3586,3 +3586,103 @@ Append new entries; do not rewrite history.
   - `bash -n Horosa-Web/stop_horosa_local.sh` ✅
   - `Horosa-Web/stop_horosa_local.sh`：可识别并清理无 pid 文件残留 `9999/8000` 监听进程 ✅
   - `cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh && ./stop_horosa_local.sh` ✅
+
+### 19:40 - 主限法双内核落地、AstroApp-Alchabitius 文档化、UI 同步修复（2026-03-05）
+- Scope: 把主限法做成 `Horosa原方法 / AstroAPP-Alchabitius` 双内核；同步页面、设置、AI 导出；并把 AstroApp 复刻算法写成可独立照抄的本地文档。
+- Files:
+  - `Horosa-Web/astropy/astrostudy/perpredict.py`
+  - `Horosa-Web/astropy/astrostudy/perchart.py`
+  - `Horosa-Web/astropy/astrostudy/helper.py`
+  - `Horosa-Web/astropy/astrostudy/signasctime.py`
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `Horosa-Web/astrostudyui/src/models/astro.js`
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 后端主限法双分流：
+    - `horosa_legacy`：恢复原版 Horosa `PrimaryDirections(chart).getList(...)` + `item[3] == 'Z'`；
+    - `astroapp_alchabitius`：使用当前 AstroApp 对齐内核：
+      - `arc = norm180(sig.ra - prom.raZ)`
+      - 过滤 `|arc| <= 100`
+      - 普通行星对追加 AstroApp 显示窗过滤：
+        - `|raw_delta| <= 3`
+        - 或 `arc > 0 and 3 < raw_delta < 107.5`
+        - 或 `arc < 0 and -107.5 < raw_delta < -3`
+      - 排序为 `(|arc|, arc, prom_id, sig_id)`。
+  - 日期换算统一走 `SignAscTime.getJDFromPDArc()`：
+    - 改为“周年日 + 下一周年跨度插值”写法；
+    - converse 也按 `abs(arc)` 换算；
+    - 最终显示按 UTC 风格输出日期字符串。
+  - 页面功能：
+    - 主限法页新增 `推运方法 / 度数换算 / 计算` 三个控件；
+    - `Horosa原方法` 显示 `赤经`；
+    - `AstroAPP-Alchabitius` 显示 `Arc`；
+    - AI 导出和全局设置同步记住 `pdMethod / pdTimeKey`。
+  - UI 同步修复：
+    - 修复“切换方法后看起来只有最左列变化”的问题；
+    - 根因是左列曾按下拉框待应用值渲染，右侧列按当前 `chartObj` 渲染；
+    - 现统一改为按 `chartObj.params.pdMethod / pdTimeKey` 渲染整张表，避免未重算前的假切换。
+  - 文档落地：
+    - 新增 `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`，完整写明：
+      - 行结构
+      - Significator / Promissor 构造
+      - Arc 核公式
+      - 显示过滤
+      - 排序
+      - 日期换算
+      - 复现脚本与验证指标
+    - 新增 `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_MATH_FLOW.md`，单独给出：
+      - 纯数学定义
+      - `ra / raZ` 坐标层
+      - 各类 promissor / significator 的公式
+      - `dirJD` 换算公式
+      - mermaid 流程图
+- Verification (local):
+  - `./runtime/mac/python/bin/python3 -m py_compile Horosa-Web/astropy/astrostudy/perpredict.py Horosa-Web/astropy/astrostudy/perchart.py Horosa-Web/astropy/astrostudy/helper.py Horosa-Web/astropy/astrostudy/signasctime.py` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+  - `runtime/pd_reverse/selfcheck_astroapp60_summary.json`：
+    - `rows_matched=20196`
+    - `arc_mae=0.0006809858679562894`
+    - `date_mae_days=0.36691450927855057`
+  - `runtime/pd_reverse/uicheck_rows_120_summary.json`：
+    - `rows_matched=39981`
+    - `arc_mae=0.0006701327243638771`
+    - `date_mae_days=0.36411480203960234`
+  - `runtime/pd_reverse/local_backend_vs_astroapp_rows_all300_after_displayfilter_summary.json`：
+    - `rows_matched=102032`
+    - `arc_mae=0.0006788783645654379`
+    - `date_mae_days=0.37174043900477144`
+
+### 20:18 - AstroApp 主限法分支移除映点/反映点（2026-03-05）
+- Scope: 按页面需求，`AstroAPP-Alchabitius` 方法在“计算 + 显示”时都不再包含所有星和虚点的映点 / 反映点（`A_ / C_`）。
+- Files:
+  - `Horosa-Web/astropy/astrostudy/perpredict.py`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_MATH_FLOW.md`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 后端：
+    - `getPrimaryDirectionByZAstroAppKernel()` 的 promissor 集从：
+      - `N(SIG_OBJECTS, aspects) + TERMS + A + C`
+      改为：
+      - `N(SIG_OBJECTS, aspects) + TERMS`
+    - 即 AstroApp 分支不再计算映点 / 反映点行。
+  - 前端：
+    - `AstroPrimaryDirection.convertToDataSource()` 对 `astroapp_alchabitius` 再加一道显示保险：
+      - 过滤所有 `A_` / `C_` 开头的 promittor / significator 行；
+    - 这样即使旧 `chartObj` 尚未重算，页面也不会继续显示映点 / 反映点。
+  - 文档：
+    - 两份主限法复刻文档同步改为：
+      - AstroApp 分支 Promissors 仅包含 `N(...) + TERMS`
+      - 不再声明 `A / C` 参与该分支。
+- Verification (local):
+  - `./runtime/mac/python/bin/python3 -m py_compile Horosa-Web/astropy/astrostudy/perpredict.py` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+  - 盘面样本 `runtime/pd_auto/run_guangde_times31/case_0016` 本地重算后：
+    - AstroApp 分支结果中不再生成 `A_` / `C_` 行 ✅

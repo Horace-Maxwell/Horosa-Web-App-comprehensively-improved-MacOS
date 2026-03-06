@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Table, Input, Button,  } from 'antd';
+import { Row, Col, Table, Input, Button, Select,  } from 'antd';
 import { SearchOutlined, } from '@ant-design/icons';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
@@ -10,6 +10,8 @@ import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
 
+const Option = Select.Option;
+
 class AstroPrimaryDirection extends Component{
 
 	constructor(props) {
@@ -17,6 +19,8 @@ class AstroPrimaryDirection extends Component{
 
 		this.state = {
 			searchYear: '',
+			pdMethodValue: props.pdMethod ? props.pdMethod : 'astroapp_alchabitius',
+			pdTimeKeyValue: props.pdTimeKey ? props.pdTimeKey : 'Ptolemy',
 		}
 
 		this.searchInput = null;
@@ -37,12 +41,26 @@ class AstroPrimaryDirection extends Component{
 			this.handleSearch = this.handleSearch.bind(this);
 			this.handleReset = this.handleReset.bind(this);
 			this.showMeaning = this.showMeaning.bind(this);
+			this.handlePdMethodChange = this.handlePdMethodChange.bind(this);
+			this.handlePdTimeKeyChange = this.handlePdTimeKeyChange.bind(this);
+			this.handlePdCalculate = this.handlePdCalculate.bind(this);
 
 			this.objs = AstroConst.LIST_OBJECTS.slice(0);
 			this.objs.push(AstroConst.ASC);
 			this.objs.push(AstroConst.MC);
 
 		}
+
+	componentDidUpdate(prevProps){
+		const nextMethod = this.props.pdMethod ? this.props.pdMethod : 'astroapp_alchabitius';
+		const nextTimeKey = this.props.pdTimeKey ? this.props.pdTimeKey : 'Ptolemy';
+		if(prevProps.pdMethod !== nextMethod || prevProps.pdTimeKey !== nextTimeKey){
+			this.setState({
+				pdMethodValue: nextMethod,
+				pdTimeKeyValue: nextTimeKey,
+			});
+		}
+	}
 
 	showMeaning(){
 		return isMeaningEnabled(this.props.showAstroMeaning);
@@ -73,6 +91,18 @@ class AstroPrimaryDirection extends Component{
 		const promittor = pd[1] ? `${pd[1]}` : '';
 		const significator = pd[2] ? `${pd[2]}` : '';
 		return promittor.indexOf('T_') === 0 || significator.indexOf('T_') === 0;
+	}
+
+	isAntisciaRow(pd){
+		if(!pd || !pd.length){
+			return false;
+		}
+		const promittor = pd[1] ? `${pd[1]}` : '';
+		const significator = pd[2] ? `${pd[2]}` : '';
+		return (
+			promittor.indexOf('A_') === 0 || promittor.indexOf('C_') === 0 ||
+			significator.indexOf('A_') === 0 || significator.indexOf('C_') === 0
+		);
 	}
 
 	genStarColFilter(dataIndex, filterKeys){
@@ -173,10 +203,33 @@ class AstroPrimaryDirection extends Component{
     	this.setState({ searchYear: '' });
 	}
 
+	handlePdMethodChange(value){
+		this.setState({
+			pdMethodValue: value,
+		});
+	}
+
+	handlePdTimeKeyChange(value){
+		this.setState({
+			pdTimeKeyValue: value,
+		});
+	}
+
+	handlePdCalculate(){
+		if(this.props.onPdConfigApply){
+			this.props.onPdConfigApply(
+				this.state.pdMethodValue,
+				this.state.pdTimeKeyValue
+			);
+		}
+	}
+
 
 	convertToDataSource(pds){
 		let filterKeys = new Set();
 		const showPdBounds = !(this.props.showPdBounds === 0 || this.props.showPdBounds === false);
+		const appliedPdMethod = this.props.pdMethod ? this.props.pdMethod : 'astroapp_alchabitius';
+		const hideAntisciaRows = appliedPdMethod === 'astroapp_alchabitius';
 		if(pds === undefined || pds === null){
 			return {
 				ds: [],
@@ -187,6 +240,9 @@ class AstroPrimaryDirection extends Component{
 		for(let i=0; i<pds.length; i++){
 			let pd = pds[i];
 			if(!showPdBounds && this.isBoundRow(pd)){
+				continue;
+			}
+			if(hideAntisciaRows && this.isAntisciaRow(pd)){
 				continue;
 			}
 
@@ -295,29 +351,75 @@ class AstroPrimaryDirection extends Component{
 		let chart = this.props.value ? this.props.value : {};
 		let predictives = chart.predictives ? chart.predictives : {};
 		let pds = predictives.primaryDirection ? predictives.primaryDirection : [];
+		const appliedPdMethod = this.props.pdMethod ? this.props.pdMethod : 'astroapp_alchabitius';
+		const isHorosaLegacy = appliedPdMethod === 'horosa_legacy';
 
 		let height = this.props.height ? this.props.height : document.documentElement.clientHeight - 50;
-		let tblY = height - 100;
+		const controlHeight = 54;
+		const controlBottom = 10;
+		const tableReserve = controlHeight + controlBottom + 126;
+		let tblY = height - tableReserve;
+		if(tblY < 200){
+			tblY = 200;
+		}
 
 		let style = {
 			height: height,
-			overflowY:'auto', 
-			overflowX:'hidden',
+			overflow: 'hidden',
+			display: 'flex',
+			flexDirection: 'column',
+		};
+		let tableWrapStyle = {
+			flex: '1 1 auto',
+			minHeight: 0,
 		};
 
 		let dsres = this.convertToDataSource(pds);
 		let ds = dsres.ds;
 		let filterKeys = dsres.filterKeys;
+		const isPdConfigDirty = (
+			(this.state.pdMethodValue ? this.state.pdMethodValue : 'astroapp_alchabitius') !== (this.props.pdMethod ? this.props.pdMethod : 'astroapp_alchabitius')
+			|| (this.state.pdTimeKeyValue ? this.state.pdTimeKeyValue : 'Ptolemy') !== (this.props.pdTimeKey ? this.props.pdTimeKey : 'Ptolemy')
+		);
+		const controlBoxStyle = {
+			border: '1px solid #d9d9d9',
+			borderRadius: 4,
+			backgroundColor: '#fff',
+			padding: '6px 10px',
+			height: controlHeight,
+			display: 'flex',
+			alignItems: 'center',
+			gap: 8,
+		};
+		const labelStyle = {
+			whiteSpace: 'nowrap',
+			color: '#333',
+		};
 		
 		let columns = [{
-			title: '赤经',
+			title: isHorosaLegacy ? '赤经' : 'Arc',
 			dataIndex: 'Degree',
 			key: 'Degree',
 			width: '25%',
 			render: (text, record)=>{
+				if(isHorosaLegacy){
+					let deg = AstroHelper.splitDegree(text);
+					return deg[0] + '度' + deg[1] + '分';
+				}
+				const num = Number(text);
+				if(!Number.isNaN(num)){
+					const sign = num < 0 ? '-' : '';
+					const abs = Math.abs(num);
+					let deg = Math.floor(abs);
+					let min = Math.round((abs - deg) * 60);
+					if(min >= 60){
+						deg += 1;
+						min = 0;
+					}
+					return `${sign}${deg}度${min}分`;
+				}
 				let deg = AstroHelper.splitDegree(text);
-				let txt = deg[0] + '度' + deg[1] + '分';
-				return txt;
+				return deg[0] + '度' + deg[1] + '分';
 			},
 		},{
 			title: '迫星',
@@ -352,24 +454,66 @@ class AstroPrimaryDirection extends Component{
 		
 		return (
 			<div className={styles.scrollbar} style={style}>
-				<Table
-					dataSource={ds} columns={columns} 
-					rowKey='Seq'  
-					pagination={{pageSize: 50}}
-					bordered size='small'
-					scroll={{x: '100%', y: tblY }}
-					onRow={(record, index)=>{
-						let rowstyle = {};
-						if(index % 2 === 1){
-							rowstyle = {
-								style: { backgroundColor: TableOddRowBgColor, },
-							};
-						}
-						return {
-							...rowstyle,
-						}
-					}}
-				/>		
+				<Row gutter={8} style={{marginBottom: controlBottom, flex: '0 0 auto'}}>
+					<Col span={8}>
+						<div style={controlBoxStyle}>
+							<span style={labelStyle}>推运方法</span>
+							<Select
+								size='small'
+								style={{flex: 1}}
+								value={this.state.pdMethodValue ? this.state.pdMethodValue : 'astroapp_alchabitius'}
+								onChange={this.handlePdMethodChange}
+							>
+								<Option value='horosa_legacy'>Horosa原方法</Option>
+								<Option value='astroapp_alchabitius'>AstroAPP-Alchabitius</Option>
+							</Select>
+						</div>
+					</Col>
+					<Col span={6}>
+						<div style={controlBoxStyle}>
+							<span style={labelStyle}>度数换算</span>
+							<Select
+								size='small'
+								style={{flex: 1}}
+								value={this.state.pdTimeKeyValue ? this.state.pdTimeKeyValue : 'Ptolemy'}
+								onChange={this.handlePdTimeKeyChange}
+							>
+								<Option value='Ptolemy'>Ptolemy</Option>
+							</Select>
+						</div>
+					</Col>
+					<Col span={10} style={{textAlign: 'right'}}>
+						<Button
+							type='primary'
+							size='small'
+							style={{minWidth: 96, marginTop: 11}}
+							onClick={this.handlePdCalculate}
+							disabled={!isPdConfigDirty}
+						>
+							计算
+						</Button>
+					</Col>
+				</Row>
+				<div style={tableWrapStyle}>
+					<Table
+						dataSource={ds} columns={columns} 
+						rowKey='Seq'  
+						pagination={{pageSize: 50}}
+						bordered size='small'
+						scroll={{x: '100%', y: tblY }}
+						onRow={(record, index)=>{
+							let rowstyle = {};
+							if(index % 2 === 1){
+								rowstyle = {
+									style: { backgroundColor: TableOddRowBgColor, },
+								};
+							}
+							return {
+								...rowstyle,
+							}
+						}}
+					/>		
+				</div>
 			</div>
 		);
 	}

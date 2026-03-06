@@ -1884,3 +1884,123 @@
   - `bash -n Horosa-Web/stop_horosa_local.sh` 通过；
   - `Horosa-Web/stop_horosa_local.sh` 实测可回收无 pid 文件残留监听进程；
   - `cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh && ./stop_horosa_local.sh` 通过。
+
+## 101) 主限法双内核结构（2026-03-05）
+
+- 后端入口：
+  - `Horosa-Web/astropy/astrostudy/perchart.py`
+    - 新增并承载：
+      - `pdMethod`
+      - `pdTimeKey`
+    - 默认值：
+      - `pdMethod='astroapp_alchabitius'`
+      - `pdTimeKey='Ptolemy'`
+  - `Horosa-Web/astropy/astrostudy/perpredict.py`
+    - `getPrimaryDirectionByZ()` 改为双分流：
+      - `horosa_legacy`
+      - `astroapp_alchabitius`
+
+- 双分流定义：
+  - `horosa_legacy`
+    - 结构上等同原版 Horosa `zodiaco主限法`：
+      - `PrimaryDirections(chart).getList(self.perchart.pdaspects)`
+      - 仅保留 `item[3] == 'Z'`
+  - `astroapp_alchabitius`
+    - 结构上为 AstroApp 对齐内核：
+      - Significators：
+        - `SIG_OBJECTS + SIG_HOUSES + SIG_ANGLES`
+      - Promissors：
+        - `SIG_OBJECTS(aspects)`
+        - `terms`
+      - 不包含：
+        - `antiscia`
+        - `contra-antiscia`
+        - 即不包含页面所称“映点 / 反映点”
+      - Arc：
+        - `norm180(sig.ra - prom.raZ)`
+      - 行过滤：
+        - 去掉 Node
+        - 去掉同对象
+        - 去掉 `|arc| > 100`
+        - 普通行星对额外套 AstroApp 显示窗
+      - 排序：
+        - `(|arc|, arc, prom_id, sig_id)`
+
+- 日期换算：
+  - `Horosa-Web/astropy/astrostudy/signasctime.py`
+    - `getJDFromPDArc()`
+      - 使用“周年日 + 年跨度插值”而不是固定回归年常数直乘；
+      - converse 使用 `abs(arc)`；
+    - `getDateFromPDArc()`
+      - 使用 UTC 风格输出字符串，贴近 AstroApp `dirDate`。
+
+- 输出结构：
+  - 主限法行仍维持 5 元组：
+    - `arc`
+    - `promittor_id`
+    - `significator_id`
+    - `'Z'`
+    - `date_str`
+  - `Horosa-Web/astropy/astrostudy/helper.py`
+    - `chartObj.params` 现明确返回：
+      - `pdMethod`
+      - `pdTimeKey`
+
+## 102) 主限法前端与导出链路（2026-03-05）
+
+- 设置与状态：
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+    - 全局设置持久化新增：
+      - `pdMethod`
+      - `pdTimeKey`
+    - 登录态与无登录态都会恢复到 `astro.fields`
+  - `Horosa-Web/astrostudyui/src/models/astro.js`
+    - `fieldsToParams()` 会把：
+      - `pdMethod`
+      - `pdTimeKey`
+      发给后端排盘
+
+- 主限法页面：
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+    - 新增 `applyPrimaryDirectionConfig(pdMethod, pdTimeKey)`；
+    - 页面提供：
+      - `推运方法`
+      - `度数换算`
+      - `计算`
+    - 子组件渲染使用 `chartObj.params.pdMethod / pdTimeKey` 作为“已应用方法”；
+    - 避免出现“左列按待应用值、右侧三列按旧结果”导致的假切换。
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+    - `Horosa原方法`：
+      - 第一列标题 `赤经`
+    - `AstroAPP-Alchabitius`：
+      - 第一列标题 `Arc`
+    - 页面底部高度受控，表格在自身容器内滚动，不外溢窗口。
+
+- AI 导出：
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - 主限法快照新增 `[主/界限法设置]`，导出：
+    - `推运方法`
+    - `度数换算`
+    - `显示界限法`
+  - 表格第一列标题随方法切换：
+    - `赤经`
+    - `Arc`
+
+- 文档入口：
+  - 新增根目录文档：
+    - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`
+    - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_MATH_FLOW.md`
+  - 该文档用于完整描述 AstroApp 复刻核：
+    - 行结构
+    - Arc 公式
+    - 显示过滤
+    - 日期换算
+    - 最小复刻伪代码
+    - 回归脚本与统计结果
+  - 数学版文档补充：
+    - 纯数学符号定义
+    - `ra / raZ` 的坐标含义
+    - 各类对象构造公式
+    - `dirJD` 推导
+    - 流程图

@@ -8,6 +8,46 @@ import {detectPlatform} from '../utils/helper';
 import * as AstroConst from '../constants/AstroConst';
 import { setTmDelta } from '../utils/request';
 
+function normalizeDisplayList(raw, fallback, allowSet, allowEmpty = false){
+    const fallbackArr = Array.isArray(fallback) ? fallback.slice(0) : [];
+    const allow = new Set(Array.isArray(allowSet) ? allowSet : []);
+
+    let arr = raw;
+    let fromExplicitArray = Array.isArray(arr);
+    if(!Array.isArray(arr)){
+        if(typeof arr === 'string' && arr){
+            arr = [arr];
+        }else{
+            arr = fallbackArr;
+            fromExplicitArray = false;
+        }
+    }
+
+    const uniq = [];
+    const seen = new Set();
+    for(let i=0; i<arr.length; i++){
+        const id = arr[i];
+        if(typeof id !== 'string'){
+            continue;
+        }
+        if(allow.size > 0 && !allow.has(id)){
+            continue;
+        }
+        if(seen.has(id)){
+            continue;
+        }
+        seen.add(id);
+        uniq.push(id);
+    }
+    if(uniq.length > 0){
+        return uniq;
+    }
+    if(allowEmpty && fromExplicitArray){
+        return [];
+    }
+    return fallbackArr;
+}
+
 function userInfoToFields(flds, userInfo){
     flds.doubingSu28.value = userInfo.doubingSu28;
     flds.simpleAsp.value = userInfo.simpleAsp;
@@ -23,6 +63,21 @@ function userInfoToFields(flds, userInfo){
     flds.lon.value = userInfo.lon;    
     if(userInfo.pdaspects){
         flds.pdaspects.value = userInfo.pdaspects;
+    }
+}
+
+function applyPredictiveSetupToFields(flds, appst){
+    if(!flds || !appst){
+        return;
+    }
+    if(flds.showPdBounds){
+        flds.showPdBounds.value = appst.showPdBounds === 0 ? 0 : 1;
+    }
+    if(flds.pdMethod){
+        flds.pdMethod.value = appst.pdMethod || 'astroapp_alchabitius';
+    }
+    if(flds.pdTimeKey){
+        flds.pdTimeKey.value = appst.pdTimeKey || 'Ptolemy';
     }
 }
 
@@ -45,6 +100,8 @@ export default {
         colorTheme: AstroConst.DefaultColorTheme,
         aspects: AstroConst.DEFAULT_ASPECTS,
         showPdBounds: 1,
+        pdMethod: 'astroapp_alchabitius',
+        pdTimeKey: 'Ptolemy',
         showPlanetHouseInfo: 0,
         showAstroMeaning: 0,
         showOnlyRulExaltReception: 0,
@@ -78,13 +135,33 @@ export default {
 
     reducers: {
         save(state, {payload: values}) {
-            let st = { ...state, ...values };
+            const payload = { ...(values || {}) };
+            if(Object.prototype.hasOwnProperty.call(payload, 'planetDisplay')){
+                payload.planetDisplay = normalizeDisplayList(
+                    payload.planetDisplay,
+                    state.planetDisplay,
+                    AstroConst.LIST_POINTS,
+                    true
+                );
+            }
+            if(Object.prototype.hasOwnProperty.call(payload, 'lotsDisplay')){
+                payload.lotsDisplay = normalizeDisplayList(
+                    payload.lotsDisplay,
+                    state.lotsDisplay,
+                    AstroConst.LOTS,
+                    true
+                );
+            }
+
+            let st = { ...state, ...payload };
             let globalSetup = {
                 chartDisplay: st.chartDisplay,
                 planetDisplay: st.planetDisplay,
                 lotsDisplay: st.lotsDisplay,
                 colorTheme: st.colorTheme,
                 showPdBounds: st.showPdBounds,
+                pdMethod: st.pdMethod,
+                pdTimeKey: st.pdTimeKey,
                 showPlanetHouseInfo: st.showPlanetHouseInfo,
                 showAstroMeaning: st.showAstroMeaning,
                 showOnlyRulExaltReception: st.showOnlyRulExaltReception,
@@ -141,9 +218,7 @@ export default {
                 ...astrost.fields,                
             }
             userInfoToFields(fld, Result.User);
-            if(fld.showPdBounds){
-                fld.showPdBounds.value = appst.showPdBounds === 0 ? 0 : 1;
-            }
+            applyPredictiveSetupToFields(fld, appst);
             
             yield put({
                 type: 'astro/save',
@@ -268,6 +343,13 @@ export default {
             const rsp = yield call(appService.checkUser, param);
             if(!rsp || !rsp.Result){
                 localStorage.removeItem(Constants.TokenKey);
+                const store = getStore();
+                const astrost = store.astro;
+                const appst = store.app;
+                const fld = {
+                    ...astrost.fields,
+                };
+                applyPredictiveSetupToFields(fld, appst);
                 yield put({
                     type: 'user/save',
                     payload: {
@@ -279,16 +361,27 @@ export default {
                 });
                 yield put({
                     type: 'astro/nowChart',
-                    payload: {},
+                    payload: {
+                        fields: fld,
+                    },
                 });
                 return;
             }
             const Result = rsp.Result;
 
             if(Result.Token === undefined || Result.Token === null){
+                const store = getStore();
+                const astrost = store.astro;
+                const appst = store.app;
+                const fld = {
+                    ...astrost.fields,
+                };
+                applyPredictiveSetupToFields(fld, appst);
                 yield put({
                     type: 'astro/nowChart',
-                    payload: {},
+                    payload: {
+                        fields: fld,
+                    },
                 });    
                 return;
             }
@@ -311,9 +404,7 @@ export default {
                 ...astrost.fields,                
             }
             userInfoToFields(fld, Result.User);
-            if(fld.showPdBounds){
-                fld.showPdBounds.value = appst.showPdBounds === 0 ? 0 : 1;
-            }
+            applyPredictiveSetupToFields(fld, appst);
             
             yield put({
                 type: 'user/save',
@@ -389,9 +480,7 @@ export default {
                 ...astrost.fields,                
             }
             userInfoToFields(fld, Result.User);
-            if(fld.showPdBounds){
-                fld.showPdBounds.value = appst.showPdBounds === 0 ? 0 : 1;
-            }
+            applyPredictiveSetupToFields(fld, appst);
             
             yield put({
                 type: 'astro/save',
