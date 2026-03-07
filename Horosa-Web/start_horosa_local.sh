@@ -17,6 +17,8 @@ PYTHONPATH_ASTRO="${ROOT}/astropy"
 EXTRA_PY_SITE=""
 STARTUP_TIMEOUT="${HOROSA_STARTUP_TIMEOUT:-180}"
 SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
+CHART_PORT="${HOROSA_CHART_PORT:-8899}"
+BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
 ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
 DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
 DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
@@ -54,7 +56,7 @@ diag_tail() {
 }
 
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
-diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} log_dir=${LOG_DIR}"
+diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR}"
 
 cleanup_stale_pid_file() {
   local pid_file="$1"
@@ -344,14 +346,14 @@ if ! [[ "${STARTUP_TIMEOUT}" =~ ^[0-9]+$ ]] || [ "${STARTUP_TIMEOUT}" -lt 30 ]; 
   STARTUP_TIMEOUT=180
 fi
 
-if port_listening 8899; then
-  diag_log "blocked: port 8899 already in use"
-  echo "port 8899 is already in use."
+if port_listening "${CHART_PORT}"; then
+  diag_log "blocked: port ${CHART_PORT} already in use"
+  echo "port ${CHART_PORT} is already in use."
   exit 1
 fi
-if port_listening 9999; then
-  diag_log "blocked: port 9999 already in use"
-  echo "port 9999 is already in use."
+if port_listening "${BACKEND_PORT}"; then
+  diag_log "blocked: port ${BACKEND_PORT} already in use"
+  echo "port ${BACKEND_PORT} is already in use."
   exit 1
 fi
 
@@ -421,15 +423,27 @@ cleanup_on_fail() {
 }
 trap cleanup_on_fail EXIT
 
-cd "${ROOT}"
-PYTHONPATH="${PYTHONPATH_ASTRO}" "${PYTHON_BIN}" "${ROOT}/astropy/websrv/webchartsrv.py" >"${PY_LOG}" 2>&1 &
-echo $! > "${PY_PID_FILE}"
+launch_detached() {
+  local log_file="$1"
+  shift
+  if command -v setsid >/dev/null 2>&1; then
+    nohup setsid "$@" </dev/null >"${log_file}" 2>&1 &
+  else
+    nohup "$@" </dev/null >"${log_file}" 2>&1 &
+  fi
+  local pid="$!"
+  disown "${pid}" >/dev/null 2>&1 || true
+  printf '%s\n' "${pid}"
+}
 
-"${JAVA_BIN}" -jar "${JAR}" \
-  --astrosrv=http://127.0.0.1:8899 \
+cd "${ROOT}"
+launch_detached "${PY_LOG}" env PYTHONPATH="${PYTHONPATH_ASTRO}" HOROSA_CHART_PORT="${CHART_PORT}" "${PYTHON_BIN}" "${ROOT}/astropy/websrv/webchartsrv.py" >"${PY_PID_FILE}"
+
+launch_detached "${JAVA_LOG}" "${JAVA_BIN}" -jar "${JAR}" \
+  --server.port="${BACKEND_PORT}" \
+  --astrosrv=http://127.0.0.1:${CHART_PORT} \
   --mongodb.ip=127.0.0.1 \
-  --redis.ip=127.0.0.1 >"${JAVA_LOG}" 2>&1 &
-echo $! > "${JAVA_PID_FILE}"
+  --redis.ip=127.0.0.1 >"${JAVA_PID_FILE}"
 
 ready=0
 for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
@@ -442,21 +456,21 @@ for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
     break
   fi
 
-  if port_listening 8899 && port_listening 9999; then
-    if http_responding "http://127.0.0.1:8899/" && http_responding "http://127.0.0.1:9999/common/time"; then
+  if port_listening "${CHART_PORT}" && port_listening "${BACKEND_PORT}"; then
+    if http_responding "http://127.0.0.1:${CHART_PORT}/" && http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
       ready=1
       break
     fi
   fi
   if [ $((_ % 10)) -eq 0 ]; then
-    echo "waiting services... ${_}/${STARTUP_TIMEOUT}s (8899:$(port_listening 8899 && echo up || echo down), 9999:$(port_listening 9999 && echo up || echo down))"
+    echo "waiting services... ${_}/${STARTUP_TIMEOUT}s (${CHART_PORT}:$(port_listening "${CHART_PORT}" && echo up || echo down), ${BACKEND_PORT}:$(port_listening "${BACKEND_PORT}" && echo up || echo down))"
   fi
   sleep 1
 done
 
 if [ "${ready}" -ne 1 ]; then
   diag_log "startup timeout after ${STARTUP_TIMEOUT}s"
-  echo "services did not become ready in ${STARTUP_TIMEOUT}s (need both 8899 and 9999)."
+  echo "services did not become ready in ${STARTUP_TIMEOUT}s (need both ${CHART_PORT} and ${BACKEND_PORT})."
   echo "tip: increase timeout by setting HOROSA_STARTUP_TIMEOUT=300 if this machine is slow on first run."
   echo "--- python log tail ---"
   tail -n 40 "${PY_LOG}" || true
@@ -470,12 +484,12 @@ fi
 
 trap - EXIT
 
-diag_log "services ready: backend=9999 chartpy=8899"
+diag_log "services ready: backend=${BACKEND_PORT} chartpy=${CHART_PORT}"
 diag_log "===== run end (success) ====="
 
 echo "services are ready."
-echo "backend:  http://127.0.0.1:9999"
-echo "chartpy:  http://127.0.0.1:8899"
+echo "backend:  http://127.0.0.1:${BACKEND_PORT}"
+echo "chartpy:  http://127.0.0.1:${CHART_PORT}"
 echo "html:     ${HTML_PATH}"
 echo "logs:     ${LOG_DIR}"
 echo ""

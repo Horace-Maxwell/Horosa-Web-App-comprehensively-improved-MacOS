@@ -5,6 +5,9 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 PY_PID_FILE="${ROOT}/.horosa_py.pid"
 JAVA_PID_FILE="${ROOT}/.horosa_java.pid"
 WEB_PID_FILE="${ROOT}/.horosa_web.pid"
+CHART_PORT="${HOROSA_CHART_PORT:-8899}"
+BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
+WEB_PORT="${HOROSA_WEB_PORT:-8000}"
 
 kill_pid_gracefully() {
   local pid="$1"
@@ -67,6 +70,13 @@ stop_by_port_pattern() {
     if [ -z "${cmd}" ]; then
       continue
     fi
+    # Only reap listeners that belong to this workspace copy. Without this
+    # guard, a second Horosa checkout on the same Mac can stop the wrong
+    # services because the fallback matcher only knows the generic process
+    # role (webchartsrv.py / astrostudyboot.jar / http.server).
+    if ! printf '%s\n' "${cmd}" | grep -Fq "${ROOT}"; then
+      continue
+    fi
     if ! printf '%s\n' "${cmd}" | grep -Eq "${pattern}"; then
       continue
     fi
@@ -85,6 +95,6 @@ stop_by_pid_file "astrostudyboot" "${JAVA_PID_FILE}"
 stop_by_pid_file "web" "${WEB_PID_FILE}"
 
 # 兜底：即使 pid 文件丢失，也尝试按端口+进程特征回收 Horosa 残留进程
-stop_by_port_pattern "astropy" "8899" 'webchartsrv\.py' "${PY_PID_FILE}"
-stop_by_port_pattern "astrostudyboot" "9999" 'astrostudyboot\.jar' "${JAVA_PID_FILE}"
-stop_by_port_pattern "web" "8000" 'http\.server.*astrostudyui/(dist|dist-file)' "${WEB_PID_FILE}"
+stop_by_port_pattern "astropy" "${CHART_PORT}" 'webchartsrv\.py' "${PY_PID_FILE}"
+stop_by_port_pattern "astrostudyboot" "${BACKEND_PORT}" 'astrostudyboot\.jar' "${JAVA_PID_FILE}"
+stop_by_port_pattern "web" "${WEB_PORT}" 'http\.server.*astrostudyui/(dist|dist-file)' "${WEB_PID_FILE}"

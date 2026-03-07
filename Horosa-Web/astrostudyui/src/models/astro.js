@@ -96,10 +96,18 @@ function newEmptyFields(){
 					value: 1,
 					name: ['showPdBounds'],
 				},
-				pdtype: {
-					value: 1,
-					name: ['pdtype'],
-				},
+		pdtype: {
+			value: 1,
+			name: ['pdtype'],
+		},
+		pdMethod: {
+			value: 'astroapp_alchabitius',
+			name: ['pdMethod'],
+		},
+		pdTimeKey: {
+			value: 'Ptolemy',
+			name: ['pdTimeKey'],
+		},
 		pdaspects: {
 			value: [0, 60, 90, 120, 180],
 			name: ['pdaspects'],
@@ -195,6 +203,9 @@ function fieldsToParams(fields){
 		virtualPointReceiveAsp: fields.virtualPointReceiveAsp.value,
 		predictive: fields.predictive.value,
 		showPdBounds: fields.showPdBounds ? fields.showPdBounds.value : 1,
+		pdtype: fields.pdtype ? fields.pdtype.value : 0,
+		pdMethod: fields.pdMethod ? fields.pdMethod.value : 'astroapp_alchabitius',
+		pdTimeKey: fields.pdTimeKey ? fields.pdTimeKey.value : 'Ptolemy',
 		pdaspects: fields.pdaspects.value,
 		name: fields.name.value,
 		pos: fields.pos.value,
@@ -214,7 +225,7 @@ function isValidChartResponse(rsp){
 
 function showChartServiceError(){
 	Modal.error({
-		title: '排盘失败：本地排盘服务未就绪（127.0.0.1:8899）。请先启动本地服务后重试。',
+		title: '排盘失败：本地排盘服务未就绪。请确认 Horosa 本地服务仍在运行后重试。',
 	});
 }
 
@@ -441,6 +452,14 @@ export default {
 			pdtype: {
 				value: 1,
 				name: ['pdtype'],
+			},
+			pdMethod: {
+				value: 'astroapp_alchabitius',
+				name: ['pdMethod'],
+			},
+			pdTimeKey: {
+				value: 'Ptolemy',
+				name: ['pdTimeKey'],
 			},
 			pdaspects: {
 				value: [0, 60, 90, 120, 180],

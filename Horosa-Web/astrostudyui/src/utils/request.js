@@ -89,6 +89,15 @@ function safeErrorToast(text, cooldownMs){
 	message.error(msg);
 }
 
+function normalizeFetchCacheOption(opts){
+	if(!opts || opts.cache === undefined || opts.cache === null){
+		return;
+	}
+	if(typeof opts.cache === 'boolean'){
+		opts.cache = opts.cache ? 'default' : 'no-store';
+	}
+}
+
 function isNeedLoginLikeValue(val){
 	if(val === undefined || val === null){
 		return false;
@@ -403,6 +412,7 @@ export default async function request(url, options) {
 			timeoutMs = opts.timeoutMs;
 			delete opts.timeoutMs;
 		}
+        normalizeFetchCacheOption(opts);
         let headers = opts.headers;
         if(headers === undefined || headers === null){
             headers = {};
@@ -536,6 +546,7 @@ export async function requestRaw(url, options) {
 			timeoutMs = opts.timeoutMs;
 			delete opts.timeoutMs;
 		}
+        normalizeFetchCacheOption(opts);
         let headers = opts.headers;
         if(headers === undefined || headers === null){
             headers = {};

@@ -1,15 +1,19 @@
 # Horosa Web 项目结构（GitHub 上传版）
 
-更新时间：2026-02-27
+更新时间：2026-03-06
 
 ## 1) 根目录（入口）
 
 - `Horosa_OneClick_Mac.command`：Mac 一键部署+启动主入口
 - `Horosa_Local.command`：已安装依赖后的快速启动入口（含 `/static/umi.*` 白屏兼容补丁）
+- `Horosa_SelfCheck_Mac.command`：Mac 本地一键自检入口（启动服务、验收主限法链路、自动停服务）
 - `Horosa_Local_Windows.bat` / `Horosa_Local_Windows.ps1`：Windows 启动入口
 - `Prepare_Runtime_Mac.command` / `Prepare_Runtime_Windows.*`：离线 runtime 打包脚本
 - `README.md`：部署和上传说明
 - `PROJECT_STRUCTURE.md`：目录结构说明（本文件）
+- `WINDOWS_CODEX_ASTROAPP_PD_REPRO_KIT/`：给 Windows 上 Codex 使用的 AstroAPP 主限法复现包（含详细复现文档、关键代码快照、模型文件、验证脚本、结果摘要、SHA256 校验）
+- `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md`：AstroApp `Alchabitius + Ptolemy` 主限法完整逆向推理与本地落地过程总文档
+- `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_PUBLIC_EDITION.md`：适合公开发布的正式整理稿，保留工程证据链与实现细节，但行文改写为文章体
 
 ## 2) 主业务代码
 
@@ -21,6 +25,8 @@
 - `Horosa-Web/astrostudyui/public/`：静态资源
 - `Horosa-Web/astrostudyui/dist-file/`：构建产物（GitHub 版默认不提交）
 - `Horosa-Web/astrostudyui/node_modules/`：依赖目录（不提交）
+- `Horosa-Web/astrostudyui/src/utils/constants.js`：前端本地/线上后端根地址解析；当前本地模式优先按 `srv` 参数和当前网页端口推导实际 backend（`webPort + 1999`），只有无法推导时才回退 `localStorage.horosaLocalServerRoot`
+- `Horosa-Web/astrostudyui/src/utils/request.js`：统一请求封装；当前会把主限法重算链路里的布尔型 `cache` 选项规范化为浏览器原生 `fetch` 可接受的字符串枚举
 - `Horosa-Web/astrostudyui/src/components/tongshefa/TongSheFaMain.js`：统摄法主模块（四卦选择、本卦/互潜/错亲盘式、三十二观/三界/爻位/纳甲筮法、事盘保存、AI快照）
 - `Horosa-Web/astrostudyui/src/components/cnyibu/CnYiBuMain.js`：易与三式子菜单入口（已新增“统摄法”标签）
 - `Horosa-Web/astrostudyui/src/utils/localcases.js`：本地事盘类型映射（已新增 `tongshefa`）
@@ -43,11 +49,24 @@
 - `Horosa-Web/start_horosa_local.sh`
 - `Horosa-Web/stop_horosa_local.sh`
 - `Horosa-Web/verify_horosa_local.sh`
+  - 当前会在检测到可用 Playwright Python 时自动补跑浏览器级宗师巡检
+- `Horosa_Local.command`
+  - 当前支持默认端口冲突时自动切换到替代端口，并通过 `srv` 查询参数把新页面绑定到正确的本地后端地址
+  - 当前 `8000/8899/9999` 都通过 `nohup + setsid + disown` 常驻启动，降低“启动窗口一结束服务就死”的概率
 
 ## 3) 自动化脚本（新增整理）
 
 - `scripts/mac/bootstrap_and_run.sh`
   - Mac 首次自动安装依赖、构建、启动的核心脚本
+- `scripts/mac/self_check_horosa.sh`
+  - 本地服务验收脚本；若 8899/9999 未启动则先无浏览器启动，再执行 `Horosa-Web/verify_horosa_local.sh`
+  - 当前支持多副本共存：默认端口被别的 Horosa 副本占用时，会自动改用空闲端口完成当前副本验收
+- `scripts/browser_horosa_master_check.py`
+  - 浏览器级宗师巡检脚本（Playwright Python）
+  - 覆盖左侧 16 个主模块、主限法切方法重算、星盘/推运盘/印度律盘/八字紫微/易与三式等关键子页点击、AI 导出与 AI 导出设置弹层
+  - 产物默认写入：
+    - `runtime/browser_horosa_master_check.json`
+    - `runtime/browser_horosa_master_check.png`
 - `scripts/requirements/mac-python.txt`
   - Mac Python 依赖清单
 - `scripts/repo/clean_for_github.sh`
@@ -56,7 +75,7 @@
 ## 4) runtime 与缓存目录
 
 - `runtime/README.md`：runtime 说明
-- `runtime/*`：离线打包产物目录（默认不提交）
+- `runtime/*`：离线打包产物与当前保留的最小主限法验证样本目录（默认不提交）
 - `.runtime/`：一键脚本生成的本地 Python venv（默认不提交）
 - `.runtime/mac/node/`：一键部署在 Homebrew 不可用时直连安装的 Node runtime（默认不提交）
 - `.runtime/mac/python/`：一键部署在 Homebrew 不可用时直连安装的 Python runtime（Miniconda，默认不提交）
@@ -1384,15 +1403,17 @@
     - 新增 `WEB_PID_FILE`（`.horosa_web.pid`）管理前端静态服务进程；
     - `cleanup` 改为统一调用 `stop_horosa_local.sh` 做 py/java/web 全量回收；
     - 启动前 stale 检查从 `py/java` 扩展为 `py/java/web`；
-    - `HOROSA_KEEP_SERVICES_RUNNING` 默认从 `1` 调整为 `0`（默认关窗停服）。
+    - 当前 `HOROSA_KEEP_SERVICES_RUNNING` 默认恢复为 `1`，避免用户在浏览器继续使用时因启动窗口结束而把后端一起停掉。
+    - 若默认 `8000/8899/9999` 已被其他副本占用，会自动切换到空闲端口（常见为 `18000/18899/19999`），并要求用户使用新打开的页面而不是旧标签页。
   - `stop_horosa_local.sh`：
     - 新增 web 进程 `stop_by_pid_file "web" "${WEB_PID_FILE}"`。
   - `README.md`：
-    - 增补 `HOROSA_KEEP_SERVICES_RUNNING=1` 说明（默认 `0`）。
+    - 增补 `HOROSA_KEEP_SERVICES_RUNNING=1` 说明；
+    - 说明 `Horosa_Local.command` 的自动端口避让行为和“不要继续使用旧 8000 标签页”的注意事项。
 
 - 行为结果：
-  - 默认关闭窗口后会自动停止本地服务，不再出现后台残留常驻；
-  - 需要常驻时可显式设置环境变量开启；
+  - 当前默认保持本地服务常驻，避免页面仍开着时点击“重新计算”触发 8899 假掉线；
+  - 需要关窗自动停服时可显式设置 `HOROSA_KEEP_SERVICES_RUNNING=0`；
   - pid 文件与 stop 脚本职责对齐，清理链路更稳定。
 
 ## 79) 本地启动浏览器优先级调整为 Safari（2026-02-27）
@@ -1884,3 +1905,78 @@
   - `bash -n Horosa-Web/stop_horosa_local.sh` 通过；
   - `Horosa-Web/stop_horosa_local.sh` 实测可回收无 pid 文件残留监听进程；
   - `cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh && ./stop_horosa_local.sh` 通过。
+
+## 101) 主限法功能结构（公开版）
+
+- 页面能力：
+  - Horosa 当前主/界限法页面支持两种方法：
+    - `Horosa原方法`
+    - `AstroAPP-Alchabitius`
+  - 顶部设置项包含：
+    - `推运方法`
+    - `度数换算`
+    - `计算 / 重新计算`
+    - `显示界限法`
+  - 切换方法或时间主钥后，页面会按当前选择重新计算并整表刷新。
+
+- 后端结构：
+  - `Horosa-Web/astropy/astrostudy/perchart.py`
+    - 负责接收主限法相关参数并传入计算层。
+  - `Horosa-Web/astropy/astrostudy/perpredict.py`
+    - 负责根据当前方法生成主限法结果。
+  - 当前生产版保留双分支：
+    - `Horosa原方法`
+    - `AstroAPP-Alchabitius`
+
+- 前端显示：
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - 主限法表格直接显示后端返回的结果，不在前端重复推导第二份数据。
+  - 页面已做响应式处理，浏览器缩放时设置区会自动换行，避免控件被固定宽高挤坏。
+
+- AI 导出：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - AI 导出与 AI 导出设置已接入主限法当前结果。
+  - 导出内容会跟随用户当前已应用的方法、时间主钥与显示设置。
+
+## 102) AstroAPP 主限法当前交付状态（公开版）
+
+- 当前 `AstroAPP-Alchabitius` 选项已经接入 Horosa 网站完整链路：
+  - 页面设置
+  - 后端计算
+  - 表格显示
+  - AI 导出
+  - AI 导出设置
+  - 本地启动与自检
+
+- 当前版本的重点结果：
+  - 普通用户在网页中看到的主限法表格，即为当前后端 `AstroAPP-Alchabitius` 分支的返回结果。
+  - 页面切换 `Horosa原方法 / AstroAPP-Alchabitius` 时，不会再出现只变标题、不变结果的假切换。
+  - 点击 `计算 / 重新计算` 时，会按当前选择重新请求后端，不复用旧结果。
+
+- 当前精度目标已满足交付要求：
+  - `Asc`、`MC`、`North Node` 当前生产版误差均已控制在既定范围内。
+  - 当前交付口径以“本地 Horosa 页面结果与目标网站当前输出保持接近”为准。
+
+## 103) 主限法验收与运行要求（公开版）
+
+- 自检入口：
+  - `Horosa_SelfCheck_Mac.command`
+  - `scripts/mac/self_check_horosa.sh`
+  - `Horosa-Web/verify_horosa_local.sh`
+
+- 当前自检覆盖：
+  - 主限法运行链路
+  - 星盘主要模块接口
+  - AI 导出与 AI 导出设置
+  - 页面关键模块 smoke check
+  - 浏览器层主限法切换与重新计算
+
+- 运行要求：
+  - 本地双击启动后，网页应以启动脚本打开的新地址为准。
+  - 若同机存在多份 Horosa 副本，当前脚本会自动避让端口，并保持当前副本的服务独立运行。
+  - 若主限法页面点击重新计算，当前版本应继续可用，不应因旧缓存、旧端口或错误服务根地址而误报服务未就绪。
+
+- 交付范围说明：
+  - 本打包目录保留的是当前可运行、可部署、可验收的实现结果。
+  - 更详细的内部研究、推导和实验记录不包含在此公开版结构说明中。
