@@ -125,6 +125,7 @@ const AI_EXPORT_PLANET_INFO_TECHNIQUES = new Set([
 	'solarreturn',
 	'lunarreturn',
 	'givenyear',
+	'decennials',
 	'jieqi',
 	'jieqi_meta',
 	'jieqi_chunfen',
@@ -175,6 +176,7 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'solarreturn', label: '推运盘-太阳返照' },
 	{ key: 'lunarreturn', label: '推运盘-月亮返照' },
 	{ key: 'givenyear', label: '推运盘-流年法' },
+	{ key: 'decennials', label: '推运盘-十年大运' },
 	{ key: 'bazi', label: '八字' },
 	{ key: 'ziwei', label: '紫微斗数' },
 	{ key: 'suzhan', label: '宿占' },
@@ -207,6 +209,7 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	solarreturn: ['星盘信息', '起盘信息', '相位'],
 	lunarreturn: ['星盘信息', '起盘信息', '相位'],
 	givenyear: ['星盘信息', '起盘信息', '相位'],
+	decennials: ['起盘信息', '星盘信息', '十年大运设置', '基于X起运'],
 	bazi: ['起盘信息', '四柱与三元', '流年行运概略', '神煞（四柱与三元）'],
 	ziwei: ['起盘信息'],
 	suzhan: ['起盘信息'],
@@ -474,6 +477,9 @@ function normalizeSectionTitle(title){
 	}
 	if(/^基于.+推运$/.test(t)){
 		return '基于X点推运';
+	}
+	if(/^基于.+起运$/.test(t)){
+		return '基于X起运';
 	}
 	return t;
 }
@@ -1354,6 +1360,7 @@ function resolveActiveContext(){
 		{ label: '太阳返照', key: 'solarreturn', name: '推运盘-太阳返照' },
 		{ label: '月亮返照', key: 'lunarreturn', name: '推运盘-月亮返照' },
 		{ label: '流年法', key: 'givenyear', name: '推运盘-流年法' },
+		{ label: '十年大运', key: 'decennials', name: '推运盘-十年大运' },
 	];
 	const predictiveByTop = predictiveLabelMap.find((item)=>topLabel && topLabel.includes(item.label));
 	if(predictiveByTop){
@@ -1399,7 +1406,7 @@ function resolveActiveContext(){
 	}
 
 	if(topLabel.includes('推运盘')){
-		const subTabs = findTabsContainerByLabels(topPane, ['主/界限法', '黄道星释', '法达星限', '小限法', '太阳弧', '太阳返照', '月亮返照', '流年法'], false);
+		const subTabs = findTabsContainerByLabels(topPane, ['主/界限法', '黄道星释', '法达星限', '小限法', '太阳弧', '太阳返照', '月亮返照', '流年法', '十年大运'], false);
 		const subActiveTab = subTabs ? getTabsNavItems(subTabs).find((n)=>n.classList.contains('ant-tabs-tab-active')) : null;
 		const subLabel = textOf(subActiveTab);
 		context.subLabel = subLabel || '';
@@ -1609,6 +1616,7 @@ function resolveContextByAstroState(){
 			solarreturn: { key: 'solarreturn', displayName: '推运盘-太阳返照', domain: 'predictive_raw' },
 			lunarreturn: { key: 'lunarreturn', displayName: '推运盘-月亮返照', domain: 'predictive_raw' },
 			givenyear: { key: 'givenyear', displayName: '推运盘-流年法', domain: 'predictive_raw' },
+			decennials: { key: 'decennials', displayName: '推运盘-十年大运', domain: 'predictive_raw' },
 		};
 		const cnyibuMap = {
 			suzhan: { key: 'suzhan', displayName: '宿盘' },
@@ -1955,6 +1963,10 @@ function getModuleAliasList(moduleName){
 	if(name === 'primarydirect' || name === 'direction'){
 		set.add('primarydirect');
 		set.add('direction');
+	}
+	if(name === 'decennials' || name === 'decennial'){
+		set.add('decennials');
+		set.add('decennial');
 	}
 	if(name === 'zodialrelease' || name === 'zodiacrelease'){
 		set.add('zodialrelease');
@@ -2896,6 +2908,19 @@ async function extractGivenYearContent(context){
 	return '';
 }
 
+async function extractDecennialsContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('decennials');
+	if(refreshed){
+		return refreshed;
+	}
+	const cached = getModuleCachedContent('decennials');
+	if(cached){
+		return cached;
+	}
+	return '';
+}
+
 async function extractRelativeContent(context){
 	void context;
 	const refreshed = await requestModuleSnapshotRefresh('relative');
@@ -2990,6 +3015,12 @@ async function extractGenericContent(context){
 	}
 	if(context.key === 'zodialrelease'){
 		const cached = getModuleCachedContent('zodialrelease');
+		if(cached){
+			return cached;
+		}
+	}
+	if(context.key === 'decennials'){
+		const cached = getModuleCachedContent('decennials');
 		if(cached){
 			return cached;
 		}
@@ -4127,7 +4158,8 @@ function isPredictiveExportKey(key){
 		|| val === 'solararc'
 		|| val === 'solarreturn'
 		|| val === 'lunarreturn'
-		|| val === 'givenyear';
+		|| val === 'givenyear'
+		|| val === 'decennials';
 }
 
 function isAstroFamilyExportKey(key){
@@ -4175,7 +4207,7 @@ function getCandidateExportKeys(context){
 		context && context.displayName ? context.displayName : '',
 		stateContext && stateContext.displayName ? stateContext.displayName : '',
 	].join(' ');
-	const predictiveKeys = ['primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear'];
+	const predictiveKeys = ['primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials'];
 	const primaryIsPredictive = isPredictiveExportKey(primary);
 	const stateIsPredictive = isPredictiveExportKey(stateKey);
 	// 仅在上下文无法定位具体推运子模块时，才展开推运候选全量兜底；
@@ -4261,7 +4293,7 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 	}
 	if(topInfo.includes('推运盘') || topInfo.includes('主/界限法') || topInfo.includes('法达星限')
 		|| topInfo.includes('太阳弧') || topInfo.includes('太阳返照') || topInfo.includes('月亮返照')){
-		push('primarydirect', 'firdaria', 'zodialrelease', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear');
+		push('primarydirect', 'firdaria', 'zodialrelease', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials');
 	}
 	if(topInfo.includes('三式合一')){
 		push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi', 'astrochart');
@@ -4294,7 +4326,7 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 	push(
 		'astrochart', 'astrochart_like', 'indiachart',
 		'relative', 'germany', 'jieqi',
-		'primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear',
+		'primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials',
 		'sanshiunited', 'qimen', 'liureng', 'jinkou', 'sixyao', 'tongshefa', 'taiyi', 'suzhan',
 		'guolao', 'otherbu', 'fengshui',
 		'bazi', 'ziwei',
@@ -4335,6 +4367,9 @@ async function extractContentByKey(exportKey, context){
 	}
 	if(exportKey === 'givenyear'){
 		return extractGivenYearContent(context);
+	}
+	if(exportKey === 'decennials'){
+		return extractDecennialsContent(context);
 	}
 	if(exportKey === 'sixyao'){
 		return extractSixYaoContent(context);

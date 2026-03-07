@@ -1,6 +1,6 @@
 # Horosa Web 项目结构（GitHub 上传版）
 
-更新时间：2026-03-06
+更新时间：2026-03-07
 
 ## 1) 根目录（入口）
 
@@ -27,6 +27,9 @@
 - `Horosa-Web/astrostudyui/node_modules/`：依赖目录（不提交）
 - `Horosa-Web/astrostudyui/src/utils/constants.js`：前端本地/线上后端根地址解析；当前本地模式优先按 `srv` 参数和当前网页端口推导实际 backend（`webPort + 1999`），只有无法推导时才回退 `localStorage.horosaLocalServerRoot`
 - `Horosa-Web/astrostudyui/src/utils/request.js`：统一请求封装；当前会把主限法重算链路里的布尔型 `cache` 选项规范化为浏览器原生 `fetch` 可接受的字符串枚举
+- `Horosa-Web/astrostudyui/src/components/astro/AstroDecennials.js`：推运盘“十年大运”页面实现；三栏布局、设置面板、L1-L4 层级树、AI 快照与导出入口都在这里
+- `Horosa-Web/astrostudyui/src/utils/decennials.js`：十年大运计算核心；包含起运主星、黄道/迦勒底次序、Valens 精确分配、Hephaistio 原表日数、L4 小时级细分
+- `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`：十年大运专项自动测试；覆盖文档原表值、昼夜起运、两套次序、两套日限、层级时长一致性与 `L4 HH:MM`
 - `Horosa-Web/astrostudyui/src/components/tongshefa/TongSheFaMain.js`：统摄法主模块（四卦选择、本卦/互潜/错亲盘式、三十二观/三界/爻位/纳甲筮法、事盘保存、AI快照）
 - `Horosa-Web/astrostudyui/src/components/cnyibu/CnYiBuMain.js`：易与三式子菜单入口（已新增“统摄法”标签）
 - `Horosa-Web/astrostudyui/src/utils/localcases.js`：本地事盘类型映射（已新增 `tongshefa`）
@@ -2538,3 +2541,55 @@
     - `-0度48分 / 2007-07-23 11:01:34`
     - `0度57分 / 2007-09-14 13:37:20`
     - `1度33分 / 2008-04-21 15:49:15`
+
+### 103.15) 推运盘十年大运新增结构（2026-03-07）
+
+- 页面入口：
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - 推运盘右栏页签新增：
+    - `TabPane tab="十年大运" key="decennials"`
+- 十年大运主实现：
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroDecennials.js`
+  - 页面结构参考 `黄道星释`：
+    - 左侧：本命星盘；
+    - 中间：`L1-L4` 层级树，标题 `基于X起运`；
+    - 右侧：`设置` + `AI输出选择`。
+  - 设置项：
+    - `起运主星`
+    - `分配次序`
+    - `日限体系`
+  - 展示规则：
+    - 中间层级使用行星符号，不再显示星座符号；
+    - `L1/L2/L3` 显示日期范围；
+    - `L4` 显示到 `YYYY-MM-DD HH:mm`。
+- 十年大运计算核心：
+  - `Horosa-Web/astrostudyui/src/utils/decennials.js`
+  - 负责：
+    - 七曜基数（月）：土 `30`、木 `12`、火 `15`、日 `19`、金 `8`、水 `20`、月 `25`
+    - 总周期：`129个月 = 3870天`
+    - 起运主星解析：默认得时光体，也支持手选七曜
+    - 分配次序：实际黄道次序 / 迦勒底星序
+    - 日限体系：
+      - `Valens`：按比例精确到分钟
+      - `Hephaistio`：按文档原表日数
+    - 层级输出：`L1 年主星 / L2 月主星 / L3 日主星 / L4 时主星`
+- AI 导出接线：
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+  - 已新增：
+    - 技法键：`decennials`
+    - 技法名：`推运盘-十年大运`
+    - 预设分区：
+      - `起盘信息`
+      - `星盘信息`
+      - `十年大运设置`
+      - `基于X起运`
+  - 已兼容 `基于...起运` 的分段标题标准化，避免 AI 导出设置筛分不到十年大运快照。
+- 自检与巡检接线：
+  - `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`
+    - 专项校验十年大运核心算法与 `L4 HH:MM` 显示。
+  - `scripts/browser_horosa_master_check.py`
+    - 推运盘子页巡检新增 `十年大运`。
+  - `scripts/check_horosa_full_integration.py`
+    - 静态接线检查新增 `十年大运` 页签断言。
+  - 当前说明：
+    - 该静态脚本仍会卡在主限法旧字符串断言，不代表十年大运模块异常。

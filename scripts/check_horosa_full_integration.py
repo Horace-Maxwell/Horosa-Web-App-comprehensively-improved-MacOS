@@ -244,6 +244,7 @@ def main() -> None:
         "<TabPane tab=\"太阳返照\" key=\"solarreturn\">",
         "<TabPane tab=\"月亮返照\" key=\"lunarreturn\">",
         "<TabPane tab=\"流年法\" key=\"givenyear\">",
+        "<TabPane tab=\"十年大运\" key=\"decennials\">",
     ]:
         _assert_contains(direct_main, needle)
 

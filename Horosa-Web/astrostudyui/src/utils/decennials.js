@@ -1,0 +1,459 @@
+import moment from 'moment';
+import * as AstroConst from '../constants/AstroConst';
+import * as AstroText from '../constants/AstroText';
+
+export const DECENNIAL_START_MODE_SECT_LIGHT = 'sect_light';
+export const DECENNIAL_ORDER_ZODIACAL = 'zodiacal';
+export const DECENNIAL_ORDER_CHALDEAN = 'chaldean';
+export const DECENNIAL_DAY_METHOD_VALENS = 'valens';
+export const DECENNIAL_DAY_METHOD_HEPHAISTIO = 'hephaistio';
+
+export const DECENNIAL_TRADITIONAL_PLANETS = [
+	AstroConst.SATURN,
+	AstroConst.JUPITER,
+	AstroConst.MARS,
+	AstroConst.SUN,
+	AstroConst.VENUS,
+	AstroConst.MERCURY,
+	AstroConst.MOON,
+];
+
+export const DECENNIAL_PLANET_BASE_MONTHS = {
+	[AstroConst.SATURN]: 30,
+	[AstroConst.JUPITER]: 12,
+	[AstroConst.MARS]: 15,
+	[AstroConst.SUN]: 19,
+	[AstroConst.VENUS]: 8,
+	[AstroConst.MERCURY]: 20,
+	[AstroConst.MOON]: 25,
+};
+
+// Hephaistio's day allocations are given as fixed tables in the source material.
+// These do not always sum back to the parent month-lord period, so we keep them verbatim.
+export const DECENNIAL_HEPHAISTIO_DAY_TABLE = {
+	[AstroConst.SATURN]: {
+		[AstroConst.SATURN]: 210,
+		[AstroConst.JUPITER]: 84,
+		[AstroConst.MARS]: 105,
+		[AstroConst.SUN]: 133,
+		[AstroConst.VENUS]: 56,
+		[AstroConst.MERCURY]: 150,
+		[AstroConst.MOON]: 175,
+	},
+	[AstroConst.JUPITER]: {
+		[AstroConst.JUPITER]: 34,
+		[AstroConst.SATURN]: 85,
+		[AstroConst.MARS]: 42,
+		[AstroConst.SUN]: 54,
+		[AstroConst.VENUS]: 22,
+		[AstroConst.MERCURY]: 57,
+		[AstroConst.MOON]: 71,
+	},
+	[AstroConst.MARS]: {
+		[AstroConst.MARS]: 52,
+		[AstroConst.SUN]: 66,
+		[AstroConst.VENUS]: 28,
+		[AstroConst.MERCURY]: 70,
+		[AstroConst.MOON]: 87,
+		[AstroConst.SATURN]: 105,
+		[AstroConst.JUPITER]: 42,
+	},
+	[AstroConst.SUN]: {
+		[AstroConst.SUN]: 83,
+		[AstroConst.MOON]: 118,
+		[AstroConst.SATURN]: 130,
+		[AstroConst.JUPITER]: 52,
+		[AstroConst.MARS]: 64,
+		[AstroConst.VENUS]: 35,
+		[AstroConst.MERCURY]: 87,
+	},
+	[AstroConst.VENUS]: {
+		[AstroConst.VENUS]: 15,
+		[AstroConst.SUN]: 36,
+		[AstroConst.MOON]: 47,
+		[AstroConst.SATURN]: 57,
+		[AstroConst.JUPITER]: 22,
+		[AstroConst.MARS]: 28,
+		[AstroConst.MERCURY]: 38,
+	},
+	[AstroConst.MERCURY]: {
+		[AstroConst.MERCURY]: 96,
+		[AstroConst.SUN]: 90,
+		[AstroConst.MOON]: 117,
+		[AstroConst.SATURN]: 141,
+		[AstroConst.JUPITER]: 56,
+		[AstroConst.MARS]: 70,
+		[AstroConst.VENUS]: 36,
+	},
+	[AstroConst.MOON]: {
+		[AstroConst.MOON]: 148,
+		[AstroConst.SUN]: 115,
+		[AstroConst.SATURN]: 177,
+		[AstroConst.JUPITER]: 71,
+		[AstroConst.MARS]: 87,
+		[AstroConst.VENUS]: 47,
+		[AstroConst.MERCURY]: 119,
+	},
+};
+
+const TOTAL_BASE_MONTHS = 129;
+const TOTAL_L1_DAYS = TOTAL_BASE_MONTHS * 30;
+const FIVE_MINUTES = 5;
+
+function normalizeDateInput(dateText){
+	return `${dateText || ''}`.trim().replace(/\//g, '-');
+}
+
+function normalizeTimeInput(timeText){
+	const text = `${timeText || ''}`.trim();
+	if(!text){
+		return '00:00:00';
+	}
+	if(text.length === 5){
+		return `${text}:00`;
+	}
+	return text;
+}
+
+function parseBirthMoment(chartObj){
+	const params = chartObj && chartObj.params ? chartObj.params : {};
+	let dateText = '';
+	let timeText = '';
+	if(params.birth){
+		const parts = `${params.birth}`.trim().split(/\s+/);
+		dateText = parts[0] || '';
+		timeText = parts[1] || '';
+	}else{
+		dateText = params.date || '';
+		timeText = params.time || '';
+	}
+	const zone = `${params.zone || '+08:00'}`.trim();
+	const raw = `${normalizeDateInput(dateText)} ${normalizeTimeInput(timeText)} ${zone}`;
+	const parsed = moment.parseZone(raw, [
+		'YYYY-MM-DD HH:mm:ss Z',
+		'YYYY-M-D HH:mm:ss Z',
+		'YYYY-MM-DD HH:mm Z',
+		'YYYY-M-D HH:mm Z',
+	], true);
+	if(parsed.isValid()){
+		return parsed;
+	}
+	return moment.parseZone(raw);
+}
+
+function getChartObject(chartObj, objId){
+	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
+	const objects = Array.isArray(chart.objects) ? chart.objects : [];
+	for(let i=0; i<objects.length; i++){
+		if(objects[i] && objects[i].id === objId){
+			return objects[i];
+		}
+	}
+	return null;
+}
+
+function safeLon(val){
+	const num = Number(val);
+	if(Number.isNaN(num)){
+		return null;
+	}
+	let normalized = num % 360;
+	if(normalized < 0){
+		normalized += 360;
+	}
+	return normalized;
+}
+
+function rotateList(list, startValue){
+	const ary = Array.isArray(list) ? list.slice() : [];
+	if(!startValue || ary.length === 0){
+		return ary;
+	}
+	const idx = ary.indexOf(startValue);
+	if(idx <= 0){
+		return ary;
+	}
+	return ary.slice(idx).concat(ary.slice(0, idx));
+}
+
+function buildZodiacalOrder(chartObj){
+	const ranked = DECENNIAL_TRADITIONAL_PLANETS.map((planet, idx)=>{
+		const obj = getChartObject(chartObj, planet);
+		return {
+			planet,
+			idx,
+			lon: obj ? safeLon(obj.lon) : null,
+		};
+	}).filter((item)=>item.lon !== null);
+	if(ranked.length !== DECENNIAL_TRADITIONAL_PLANETS.length){
+		return DECENNIAL_TRADITIONAL_PLANETS.slice();
+	}
+	ranked.sort((a, b)=>{
+		if(a.lon !== b.lon){
+			return a.lon - b.lon;
+		}
+		return a.idx - b.idx;
+	});
+	return ranked.map((item)=>item.planet);
+}
+
+export function resolveDecennialStartPlanet(chartObj, startMode){
+	if(startMode && startMode !== DECENNIAL_START_MODE_SECT_LIGHT){
+		return startMode;
+	}
+	const isDiurnal = !!(chartObj && chartObj.chart && chartObj.chart.isDiurnal);
+	return isDiurnal ? AstroConst.SUN : AstroConst.MOON;
+}
+
+export function getDecennialOrder(chartObj, startPlanet, orderType){
+	const baseOrder = orderType === DECENNIAL_ORDER_CHALDEAN
+		? DECENNIAL_TRADITIONAL_PLANETS.slice()
+		: buildZodiacalOrder(chartObj);
+	return rotateList(baseOrder, startPlanet);
+}
+
+function getRoundedDistribution(totalValue, order, roundUnit, preserveLast = true){
+	const segments = [];
+	let consumed = 0;
+	for(let i=0; i<order.length; i++){
+		const planet = order[i];
+		const exact = totalValue * DECENNIAL_PLANET_BASE_MONTHS[planet] / TOTAL_BASE_MONTHS;
+		let value = exact;
+		if(i === order.length - 1 && preserveLast){
+			value = totalValue - consumed;
+		}else if(roundUnit > 0){
+			value = Math.round(exact / roundUnit) * roundUnit;
+		}
+		if(value < 0){
+			value = 0;
+		}
+		consumed += value;
+		segments.push({
+			planet,
+			value,
+		});
+	}
+	return segments;
+}
+
+function minutesFromLevelThree(totalDays, dayMethod, monthLord, order){
+	if(dayMethod === DECENNIAL_DAY_METHOD_HEPHAISTIO){
+		const table = DECENNIAL_HEPHAISTIO_DAY_TABLE[monthLord];
+		if(table){
+			return order.map((planet)=>({
+				planet,
+				value: (table[planet] || 0) * 24 * 60,
+			}));
+		}
+		return getRoundedDistribution(totalDays, order, 1).map((item)=>({
+			planet: item.planet,
+			value: item.value * 24 * 60,
+		}));
+	}
+	const totalMinutes = totalDays * 24 * 60;
+	return getRoundedDistribution(totalMinutes, order, FIVE_MINUTES);
+}
+
+function minutesFromLevelFour(totalMinutes, order){
+	return getRoundedDistribution(totalMinutes, order, 1);
+}
+
+function formatRange(startMoment, endMoment, withTime){
+	const fmt = withTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD';
+	return `${startMoment.format(fmt)} - ${endMoment.format(fmt)}`;
+}
+
+function buildNode(level, key, planet, startMoment, endMoment, nowMoment, sublevel){
+	const withTime = level >= 4;
+	const active = !!nowMoment
+		&& nowMoment.valueOf() >= startMoment.valueOf()
+		&& nowMoment.valueOf() < endMoment.valueOf();
+	return {
+		key,
+		level,
+		planet,
+		date: formatRange(startMoment, endMoment, withTime),
+		startText: startMoment.format(withTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'),
+		endText: endMoment.format(withTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'),
+		active,
+		sublevel: Array.isArray(sublevel) ? sublevel : [],
+	};
+}
+
+function buildLevelFour(levelThreeNode, baseOrder, nowMoment){
+	const order = rotateList(baseOrder, levelThreeNode.planet);
+	const totalMinutes = Math.max(
+		0,
+		levelThreeNode.endMoment.diff(levelThreeNode.startMoment, 'minutes')
+	);
+	const segments = minutesFromLevelFour(totalMinutes, order);
+	const list = [];
+	let cursor = levelThreeNode.startMoment.clone();
+	for(let i=0; i<segments.length; i++){
+		const item = segments[i];
+		const next = cursor.clone().add(item.value, 'minutes');
+		list.push(buildNode(
+			4,
+			`${levelThreeNode.key}_l4_${i}`,
+			item.planet,
+			cursor,
+			next,
+			nowMoment,
+			[]
+		));
+		cursor = next;
+	}
+	return list;
+}
+
+function buildLevelThree(levelTwoNode, baseOrder, dayMethod, nowMoment){
+	const order = rotateList(baseOrder, levelTwoNode.planet);
+	const totalDays = levelTwoNode.days;
+	const segments = minutesFromLevelThree(totalDays, dayMethod, levelTwoNode.planet, order);
+	const list = [];
+	let cursor = levelTwoNode.startMoment.clone();
+	for(let i=0; i<segments.length; i++){
+		const item = segments[i];
+		const next = cursor.clone().add(item.value, 'minutes');
+		const meta = {
+			key: `${levelTwoNode.key}_l3_${i}`,
+			planet: item.planet,
+			startMoment: cursor,
+			endMoment: next,
+		};
+		const sublevel = buildLevelFour(meta, baseOrder, nowMoment);
+		list.push(buildNode(
+			3,
+			meta.key,
+			meta.planet,
+			meta.startMoment,
+			meta.endMoment,
+			nowMoment,
+			sublevel
+		));
+		cursor = next;
+	}
+	return list;
+}
+
+function buildLevelTwo(levelOneNode, baseOrder, dayMethod, nowMoment){
+	const order = rotateList(baseOrder, levelOneNode.planet);
+	const list = [];
+	let cursor = levelOneNode.startMoment.clone();
+	for(let i=0; i<order.length; i++){
+		const planet = order[i];
+		const days = DECENNIAL_PLANET_BASE_MONTHS[planet] * 30;
+		const next = cursor.clone().add(days, 'days');
+		const meta = {
+			key: `${levelOneNode.key}_l2_${i}`,
+			planet,
+			days,
+			startMoment: cursor,
+			endMoment: next,
+		};
+		const sublevel = buildLevelThree(meta, baseOrder, dayMethod, nowMoment);
+		list.push(buildNode(
+			2,
+			meta.key,
+			meta.planet,
+			meta.startMoment,
+			meta.endMoment,
+			nowMoment,
+			sublevel
+		));
+		cursor = next;
+	}
+	return list;
+}
+
+function resolveL1Count(birthMoment, nowMoment){
+	if(!birthMoment || !birthMoment.isValid()){
+		return 7;
+	}
+	const ageDays = Math.max(0, nowMoment.diff(birthMoment, 'days', true));
+	return Math.max(7, Math.ceil(ageDays / TOTAL_L1_DAYS) + 2);
+}
+
+export function buildDecennialTimeline(chartObj, settings = {}){
+	const birthMoment = parseBirthMoment(chartObj);
+	if(!birthMoment.isValid()){
+		return {
+			list: [],
+			baseOrder: [],
+			resolvedStartPlanet: resolveDecennialStartPlanet(chartObj, settings.startMode),
+			orderType: settings.orderType || DECENNIAL_ORDER_ZODIACAL,
+			dayMethod: settings.dayMethod || DECENNIAL_DAY_METHOD_VALENS,
+			birthMoment,
+		};
+	}
+	const nowMoment = moment().utcOffset(birthMoment.utcOffset());
+	const resolvedStartPlanet = resolveDecennialStartPlanet(chartObj, settings.startMode);
+	const orderType = settings.orderType || DECENNIAL_ORDER_ZODIACAL;
+	const dayMethod = settings.dayMethod || DECENNIAL_DAY_METHOD_VALENS;
+	const baseOrder = getDecennialOrder(chartObj, resolvedStartPlanet, orderType);
+	const count = resolveL1Count(birthMoment, nowMoment);
+	const list = [];
+
+	for(let i=0; i<count; i++){
+		const planet = baseOrder[i % baseOrder.length];
+		const startMoment = birthMoment.clone().add(TOTAL_L1_DAYS * i, 'days');
+		const endMoment = startMoment.clone().add(TOTAL_L1_DAYS, 'days');
+		const meta = {
+			key: `l1_${i}`,
+			planet,
+			startMoment,
+			endMoment,
+		};
+		const sublevel = buildLevelTwo(meta, baseOrder, dayMethod, nowMoment);
+		list.push(buildNode(
+			1,
+			meta.key,
+			meta.planet,
+			meta.startMoment,
+			meta.endMoment,
+			nowMoment,
+			sublevel
+		));
+	}
+
+	return {
+		list,
+		baseOrder,
+		resolvedStartPlanet,
+		orderType,
+		dayMethod,
+		birthMoment,
+	};
+}
+
+export function getDecennialPlanetShortName(planet){
+	return AstroText.AstroTxtMsg[planet] || planet;
+}
+
+export function getDecennialPlanetLongName(planet){
+	return AstroText.AstroMsgCN && AstroText.AstroMsgCN[planet]
+		? AstroText.AstroMsgCN[planet]
+		: (AstroText.AstroTxtMsg[planet] || planet);
+}
+
+export function getDecennialStartLabel(chartObj, startMode){
+	if(startMode === DECENNIAL_START_MODE_SECT_LIGHT || !startMode){
+		const resolved = resolveDecennialStartPlanet(chartObj, startMode);
+		return `得时光体（${getDecennialPlanetShortName(resolved)}）`;
+	}
+	return getDecennialPlanetLongName(startMode);
+}
+
+export function getDecennialOrderLabel(orderType){
+	if(orderType === DECENNIAL_ORDER_CHALDEAN){
+		return '迦勒底星序';
+	}
+	return '实际黄道次序';
+}
+
+export function getDecennialDayMethodLabel(dayMethod){
+	if(dayMethod === DECENNIAL_DAY_METHOD_HEPHAISTIO){
+		return 'Hephaistio（原表日数）';
+	}
+	return 'Valens（精确）';
+}
