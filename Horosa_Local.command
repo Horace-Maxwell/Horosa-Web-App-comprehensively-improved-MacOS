@@ -433,13 +433,15 @@ ensure_frontend_build() {
 }
 
 WEB_PORT="${HOROSA_WEB_PORT:-8000}"
+CHART_PORT="${HOROSA_CHART_PORT:-8899}"
+BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
 WEB_PID=""
 BROWSER_PID=""
 SAFARI_WINDOW_ID=""
 BACKEND_STARTED=0
 BROWSER_PROFILE_DIR="${PROJECT_DIR}/.horosa-browser-profile"
 NO_BROWSER="${HOROSA_NO_BROWSER:-0}"
-KEEP_SERVICES_RUNNING="${HOROSA_KEEP_SERVICES_RUNNING:-0}"
+KEEP_SERVICES_RUNNING="${HOROSA_KEEP_SERVICES_RUNNING:-1}"
 mkdir -p "${BROWSER_PROFILE_DIR}"
 
 port_listening() {
@@ -447,9 +449,67 @@ port_listening() {
   lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
 }
 
-get_listener_pids() {
+port_listener_pids() {
   local port="$1"
   lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null | sort -u || true
+}
+
+process_command() {
+  local pid="$1"
+  ps -p "${pid}" -o command= 2>/dev/null || true
+}
+
+port_owned_by_project() {
+  local port="$1"
+  local pid=""
+  local cmd=""
+  local pids
+  pids="$(port_listener_pids "${port}")"
+  if [ -z "${pids}" ]; then
+    return 1
+  fi
+  for pid in ${pids}; do
+    cmd="$(process_command "${pid}")"
+    if [ -n "${cmd}" ] && printf '%s\n' "${cmd}" | grep -Fq "${ROOT}"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+find_free_port() {
+  local port="$1"
+  while port_listening "${port}"; do
+    port=$((port + 1))
+  done
+  echo "${port}"
+}
+
+prepare_ports() {
+  local auto_alt=0
+
+  if port_listening "${CHART_PORT}" && ! port_owned_by_project "${CHART_PORT}"; then
+    CHART_PORT="$(find_free_port 18899)"
+    auto_alt=1
+  fi
+  if port_listening "${BACKEND_PORT}" && ! port_owned_by_project "${BACKEND_PORT}"; then
+    BACKEND_PORT="$(find_free_port 19999)"
+    auto_alt=1
+  fi
+  if port_listening "${WEB_PORT}" && ! port_owned_by_project "${WEB_PORT}"; then
+    WEB_PORT="$(find_free_port 18000)"
+    auto_alt=1
+  fi
+
+  export HOROSA_CHART_PORT="${CHART_PORT}"
+  export HOROSA_SERVER_PORT="${BACKEND_PORT}"
+  export HOROSA_WEB_PORT="${WEB_PORT}"
+  export HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}"
+
+  if [ "${auto_alt}" = "1" ]; then
+    echo "[预检] 默认端口被其他副本占用，自动切换到 chart=${CHART_PORT} backend=${BACKEND_PORT} web=${WEB_PORT}"
+    diag_log "selected alternate ports: chart=${CHART_PORT} backend=${BACKEND_PORT} web=${WEB_PORT}"
+  fi
 }
 
 is_horosa_web_listener() {
@@ -508,6 +568,19 @@ cleanup_stale_horosa_web_listener() {
   fi
 
   return 0
+}
+
+launch_detached() {
+  local log_file="$1"
+  shift
+  if command -v setsid >/dev/null 2>&1; then
+    nohup setsid "$@" </dev/null >"${log_file}" 2>&1 &
+  else
+    nohup "$@" </dev/null >"${log_file}" 2>&1 &
+  fi
+  local pid="$!"
+  disown "${pid}" >/dev/null 2>&1 || true
+  printf '%s\n' "${pid}"
 }
 
 pick_browser_bin() {
@@ -631,11 +704,13 @@ trap cleanup EXIT INT TERM HUP
 
 echo "[诊断] 运行问题会记录到：${DIAG_FILE}"
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
-diag_log "env HOROSA_STARTUP_TIMEOUT=${HOROSA_STARTUP_TIMEOUT:-} HOROSA_FORCE_UI_BUILD=${HOROSA_FORCE_UI_BUILD:-0} HOROSA_SKIP_UI_BUILD=${HOROSA_SKIP_UI_BUILD:-1}"
+diag_log "env HOROSA_STARTUP_TIMEOUT=${HOROSA_STARTUP_TIMEOUT:-} HOROSA_FORCE_UI_BUILD=${HOROSA_FORCE_UI_BUILD:-0} HOROSA_SKIP_UI_BUILD=${HOROSA_SKIP_UI_BUILD:-0}"
 
 echo "[预检] 执行启动前残留清理..."
 "${STOP_SH}" >/dev/null 2>&1 || true
 sleep 1
+
+prepare_ports
 
 use_bundled_runtime
 ensure_backend_artifact
@@ -655,11 +730,11 @@ resolve_dist_dir
 repair_frontend_entry_assets "${DIST_DIR}"
 
 echo "[1/4] 启动本地后端服务..."
-export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-1}"
+export HOROSA_SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
 export HOROSA_DIAG_FILE="${DIAG_FILE}"
 export HOROSA_DIAG_DIR="${DIAG_DIR}"
 if ! "${START_SH}"; then
-  if port_listening 8899 || port_listening 9999; then
+  if port_listening "${CHART_PORT}" || port_listening "${BACKEND_PORT}"; then
     echo "[1/4] 检测到端口占用，尝试回收残留后重试一次..."
     diag_log "start_horosa_local failed with occupied port, retry after stop"
     "${STOP_SH}" >/dev/null 2>&1 || true
@@ -688,8 +763,7 @@ if port_listening "${WEB_PORT}"; then
 fi
 
 WEB_PY="${HOROSA_PYTHON:-python3}"
-nohup "${WEB_PY}" -m http.server "${WEB_PORT}" --bind 127.0.0.1 --directory "${DIST_DIR}" >/tmp/horosa_local_web.log 2>&1 &
-WEB_PID="$!"
+WEB_PID="$(launch_detached /tmp/horosa_local_web.log "${WEB_PY}" -m http.server "${WEB_PORT}" --bind 127.0.0.1 --directory "${DIST_DIR}")"
 printf '%s\n' "${WEB_PID}" >"${WEB_PID_FILE}"
 
 for _ in $(seq 1 20); do
@@ -705,7 +779,12 @@ if ! port_listening "${WEB_PORT}"; then
   exit 1
 fi
 
-URL="http://127.0.0.1:${WEB_PORT}/index.html?v=$(date +%s)"
+SERVER_ROOT_ENCODED="$("${HOROSA_PYTHON:-python3}" - <<PY
+import urllib.parse
+print(urllib.parse.quote("http://127.0.0.1:${BACKEND_PORT}", safe=''))
+PY
+)"
+URL="http://127.0.0.1:${WEB_PORT}/index.html?srv=${SERVER_ROOT_ENCODED}&v=$(date +%s)"
 
 echo "[3/4] 打开网页..."
 BROWSER_BIN=""

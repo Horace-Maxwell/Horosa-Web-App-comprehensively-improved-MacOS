@@ -12,6 +12,7 @@
 """
 
 import math
+import os
 import swisseph
 from flatlib import angle
 from flatlib import const
@@ -41,7 +42,29 @@ SEFLG_DPSIDEPS_1980 = 256 * 1024 # reproduce JPL Horizons * 1962 - today to 0.00
 SEFLG_JPLHOR = SEFLG_DPSIDEPS_1980
 SEFLG_JPLHOR_APPROX = 512 * 1024 # approximate JPL Horizons 1962 - today
 
-SEDEFAULT_FLAG = swisseph.FLG_SWIEPH + swisseph.FLG_SPEED
+_EPHE_MODE_FLAGS = {
+    'JPL': swisseph.FLG_JPLEPH,
+    'JPLEPH': swisseph.FLG_JPLEPH,
+    'SWIEPH': swisseph.FLG_SWIEPH,
+    'SWISS': swisseph.FLG_SWIEPH,
+    'MOSEPH': swisseph.FLG_MOSEPH,
+    'MOSHIER': swisseph.FLG_MOSEPH,
+}
+
+
+def _defaultModeFlag():
+    mode = os.environ.get('HOROSA_SWISSEPH_MODE', 'SWIEPH').strip().upper()
+    return _EPHE_MODE_FLAGS.get(mode, swisseph.FLG_SWIEPH)
+
+
+def _defaultFlags():
+    return _defaultModeFlag() + swisseph.FLG_SPEED
+
+
+SEDEFAULT_FLAG = _defaultFlags()
+SEACTIVE_PATH = None
+SEACTIVE_MODE = None
+SEACTIVE_JPL_FILE = None
 
 SE_SIDM_LAHIRI = 1
 SE_SIDM_J2000 = 18
@@ -98,7 +121,34 @@ SWE_HOUSESYS = {
 
 def setPath(path):
     """ Sets the path for the swe files. """
+    global SEDEFAULT_FLAG, SEACTIVE_PATH, SEACTIVE_MODE, SEACTIVE_JPL_FILE
     swisseph.set_ephe_path(path)
+    SEACTIVE_PATH = path
+
+    mode = os.environ.get('HOROSA_SWISSEPH_MODE', 'SWIEPH').strip().upper()
+    SEACTIVE_MODE = mode if mode in _EPHE_MODE_FLAGS else 'SWIEPH'
+    SEDEFAULT_FLAG = _defaultFlags()
+    SEACTIVE_JPL_FILE = None
+
+    jpl_file = os.environ.get('HOROSA_SWISSEPH_JPL_FILE', '').strip()
+    if not jpl_file:
+        return
+
+    if not os.path.isabs(jpl_file):
+        jpl_file = os.path.join(path, jpl_file)
+
+    if os.path.exists(jpl_file):
+        swisseph.set_jpl_file(jpl_file)
+        SEACTIVE_JPL_FILE = jpl_file
+
+
+def getRuntimeConfig():
+    return {
+        'path': SEACTIVE_PATH,
+        'mode': SEACTIVE_MODE,
+        'default_flag': SEDEFAULT_FLAG,
+        'jpl_file': SEACTIVE_JPL_FILE,
+    }
 
 
 # === Object functions === #

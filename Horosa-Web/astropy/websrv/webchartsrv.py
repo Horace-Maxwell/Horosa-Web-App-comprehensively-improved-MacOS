@@ -66,6 +66,8 @@ class WebChartSrv:
                     'tradition': perchart.tradition,
                     'zodiacal': perchart.zodiacal,
                     'doubingSu28': perchart.isDoubingSu28,
+                    'pdMethod': perchart.pdMethod,
+                    'pdTimeKey': perchart.pdTimeKey,
                 },
                 'chart': perchart.getChartObj(),
                 'receptions': perchart.getReceptions(),
@@ -129,7 +131,9 @@ class WebChartSrv:
                     'hsys': data['hsys'],
                     'zone': data['zone'],
                     'tradition': perchart.tradition,
-                    'zodiacal': perchart.zodiacal
+                    'zodiacal': perchart.zodiacal,
+                    'pdMethod': perchart.pdMethod,
+                    'pdTimeKey': perchart.pdTimeKey,
                 },
                 'chart': perchart.getChartObj(),
                 'receptions': perchart.getReceptions(),
@@ -183,8 +187,9 @@ def CORS():
 
 
 if __name__ == '__main__':
+    chart_port = int(os.environ.get('HOROSA_CHART_PORT', '8899'))
     cherrypy.config.update({'server.socket_host': '127.0.0.1',
-                            'server.socket_port': 8899,
+                            'server.socket_port': chart_port,
                             'server.thread_pool': 30,
                             })
 
