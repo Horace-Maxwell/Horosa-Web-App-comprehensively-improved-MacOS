@@ -419,7 +419,7 @@ def main() -> None:
     for java_path in [java_chart, java_query_chart, java_india_chart, java_predict]:
         _assert_contains(java_path, 'TransData.containsParam("pdMethod")')
         _assert_contains(java_path, 'TransData.containsParam("pdTimeKey")')
-        _assert_contains(java_path, 'pd_method_sync_v2')
+        _assert_contains(java_path, 'pd_method_sync_v4')
     for model_name in [
         "astroapp_pd_virtual_body_corr_sun_v1.joblib",
         "astroapp_pd_virtual_body_corr_moon_v1.joblib",

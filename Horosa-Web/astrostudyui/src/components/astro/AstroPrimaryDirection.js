@@ -11,6 +11,10 @@ import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
 
 const Option = Select.Option;
+const PD_SYNC_REV = 'pd_method_sync_v4';
+const DEFAULT_PD_METHOD = 'astroapp_alchabitius';
+const DEFAULT_PD_TIME_KEY = 'Ptolemy';
+const DEFAULT_PD_TYPE = 0;
 const ASTROAPP_PD_SUPPORTED_BASE_IDS = new Set([
 	AstroConst.SUN,
 	AstroConst.MOON,
@@ -58,9 +62,15 @@ class AstroPrimaryDirection extends Component{
 			this.handleSearch = this.handleSearch.bind(this);
 			this.handleReset = this.handleReset.bind(this);
 			this.showMeaning = this.showMeaning.bind(this);
-			this.handlePdMethodChange = this.handlePdMethodChange.bind(this);
-			this.handlePdTimeKeyChange = this.handlePdTimeKeyChange.bind(this);
-			this.handlePdCalculate = this.handlePdCalculate.bind(this);
+		this.handlePdMethodChange = this.handlePdMethodChange.bind(this);
+		this.handlePdTimeKeyChange = this.handlePdTimeKeyChange.bind(this);
+		this.handlePdCalculate = this.handlePdCalculate.bind(this);
+		this.normalizePdMethod = this.normalizePdMethod.bind(this);
+		this.normalizePdTimeKey = this.normalizePdTimeKey.bind(this);
+		this.normalizePdType = this.normalizePdType.bind(this);
+		this.getSelectedPdMethod = this.getSelectedPdMethod.bind(this);
+		this.getSelectedPdTimeKey = this.getSelectedPdTimeKey.bind(this);
+		this.getAppliedPdState = this.getAppliedPdState.bind(this);
 
 			this.objs = AstroConst.LIST_OBJECTS.slice(0);
 			this.objs.push(AstroConst.ASC);
@@ -69,8 +79,8 @@ class AstroPrimaryDirection extends Component{
 		}
 
 	componentDidUpdate(prevProps){
-		const nextMethod = this.props.pdMethod ? this.props.pdMethod : 'astroapp_alchabitius';
-		const nextTimeKey = this.props.pdTimeKey ? this.props.pdTimeKey : 'Ptolemy';
+		const nextMethod = this.normalizePdMethod(this.props.pdMethod);
+		const nextTimeKey = this.normalizePdTimeKey(this.props.pdTimeKey);
 		if(prevProps.pdMethod !== nextMethod || prevProps.pdTimeKey !== nextTimeKey){
 			this.setState({
 				pdMethodValue: nextMethod,
@@ -264,19 +274,69 @@ class AstroPrimaryDirection extends Component{
 		}
 	}
 
+	normalizePdMethod(value){
+		if(value === 'horosa_legacy' || value === 'astroapp_alchabitius'){
+			return value;
+		}
+		return DEFAULT_PD_METHOD;
+	}
+
+	normalizePdTimeKey(value){
+		if(value === 'Ptolemy'){
+			return value;
+		}
+		return DEFAULT_PD_TIME_KEY;
+	}
+
+	normalizePdType(value){
+		const num = Number(value);
+		if(Number.isNaN(num)){
+			return DEFAULT_PD_TYPE;
+		}
+		return num;
+	}
+
+	getSelectedPdMethod(){
+		return this.normalizePdMethod(this.state.pdMethodValue);
+	}
+
+	getSelectedPdTimeKey(){
+		return this.normalizePdTimeKey(this.state.pdTimeKeyValue);
+	}
+
+	getAppliedPdState(){
+		const chart = this.props.value ? this.props.value : {};
+		const params = chart && chart.params ? chart.params : {};
+		const hasMethod = params.pdMethod !== undefined && params.pdMethod !== null && `${params.pdMethod}` !== '';
+		const hasTimeKey = params.pdTimeKey !== undefined && params.pdTimeKey !== null && `${params.pdTimeKey}` !== '';
+		const hasPdType = params.pdtype !== undefined && params.pdtype !== null && `${params.pdtype}` !== '';
+		const syncRev = params.pdSyncRev ? `${params.pdSyncRev}` : '';
+		const hasCompleteParams = hasMethod && hasTimeKey && hasPdType && syncRev === PD_SYNC_REV;
+		return {
+			hasCompleteParams,
+			pdMethod: this.normalizePdMethod(hasMethod ? params.pdMethod : this.props.pdMethod),
+			pdTimeKey: this.normalizePdTimeKey(hasTimeKey ? params.pdTimeKey : this.props.pdTimeKey),
+			pdtype: this.normalizePdType(hasPdType ? params.pdtype : DEFAULT_PD_TYPE),
+			syncRev,
+		};
+	}
+
 	needsPdRecompute(){
 		let chart = this.props.value ? this.props.value : {};
 		let predictives = chart.predictives ? chart.predictives : {};
 		let pds = predictives.primaryDirection ? predictives.primaryDirection : [];
-		const appliedPdType = Number(chart && chart.params && chart.params.pdtype !== undefined ? chart.params.pdtype : 0);
-		const selectedPdMethod = this.state.pdMethodValue ? this.state.pdMethodValue : 'astroapp_alchabitius';
-		const selectedPdTimeKey = this.state.pdTimeKeyValue ? this.state.pdTimeKeyValue : 'Ptolemy';
-		const appliedPdMethod = this.props.pdMethod ? this.props.pdMethod : 'astroapp_alchabitius';
-		const appliedPdTimeKey = this.props.pdTimeKey ? this.props.pdTimeKey : 'Ptolemy';
+		const appliedPdState = this.getAppliedPdState();
+		const selectedPdMethod = this.getSelectedPdMethod();
+		const selectedPdTimeKey = this.getSelectedPdTimeKey();
+		const appliedPdMethod = appliedPdState.pdMethod;
+		const appliedPdTimeKey = appliedPdState.pdTimeKey;
 		if(selectedPdMethod !== appliedPdMethod || selectedPdTimeKey !== appliedPdTimeKey){
 			return true;
 		}
-		if(appliedPdType !== 0){
+		if(!appliedPdState.hasCompleteParams){
+			return true;
+		}
+		if(appliedPdState.pdtype !== DEFAULT_PD_TYPE){
 			return true;
 		}
 		return !(Array.isArray(pds) && pds.length > 0);
@@ -448,14 +508,15 @@ class AstroPrimaryDirection extends Component{
 		let dsres = this.convertToDataSource(pds);
 		let ds = dsres.ds;
 		let filterKeys = dsres.filterKeys;
-		const appliedPdTimeKey = this.props.pdTimeKey ? this.props.pdTimeKey : 'Ptolemy';
-		const tableKey = `${chart.chartId ? chart.chartId : 'pd'}:${appliedPdMethod}:${appliedPdTimeKey}:${this.props.showPdBounds === 0 || this.props.showPdBounds === false ? 0 : 1}`;
-		const appliedPdType = Number(chart && chart.params && chart.params.pdtype !== undefined ? chart.params.pdtype : 0);
-		const pdTypeOutOfSync = appliedPdType !== 0;
+		const appliedPdState = this.getAppliedPdState();
+		const appliedPdTimeKey = appliedPdState.pdTimeKey;
+		const tableKey = `${chart.chartId ? chart.chartId : 'pd'}:${appliedPdMethod}:${appliedPdTimeKey}:${this.props.showPdBounds === 0 || this.props.showPdBounds === false ? 0 : 1}:${appliedPdState.syncRev || 'nosync'}`;
+		const pdTypeOutOfSync = appliedPdState.pdtype !== DEFAULT_PD_TYPE;
 		const isPdConfigDirty = (
-			(this.state.pdMethodValue ? this.state.pdMethodValue : 'astroapp_alchabitius') !== (this.props.pdMethod ? this.props.pdMethod : 'astroapp_alchabitius')
-			|| (this.state.pdTimeKeyValue ? this.state.pdTimeKeyValue : 'Ptolemy') !== (this.props.pdTimeKey ? this.props.pdTimeKey : 'Ptolemy')
+			this.getSelectedPdMethod() !== appliedPdState.pdMethod
+			|| this.getSelectedPdTimeKey() !== appliedPdState.pdTimeKey
 			|| pdTypeOutOfSync
+			|| !appliedPdState.hasCompleteParams
 		);
 		const needsPdRecompute = this.needsPdRecompute();
 		const controlBoxStyle = {
@@ -556,7 +617,7 @@ class AstroPrimaryDirection extends Component{
 							<Select
 								size='small'
 								style={selectStyle}
-								value={this.state.pdMethodValue ? this.state.pdMethodValue : 'astroapp_alchabitius'}
+								value={this.getSelectedPdMethod()}
 								onChange={this.handlePdMethodChange}
 							>
 								<Option value='horosa_legacy'>Horosa原方法</Option>
@@ -570,7 +631,7 @@ class AstroPrimaryDirection extends Component{
 							<Select
 								size='small'
 								style={selectStyle}
-								value={this.state.pdTimeKeyValue ? this.state.pdTimeKeyValue : 'Ptolemy'}
+								value={this.getSelectedPdTimeKey()}
 								onChange={this.handlePdTimeKeyChange}
 							>
 								<Option value='Ptolemy'>Ptolemy</Option>

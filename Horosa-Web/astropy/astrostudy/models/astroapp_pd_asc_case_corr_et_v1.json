@@ -5,12 +5,12 @@
   "train_case_mae": 2.5555588493899467e-13,
   "sources": [
     {
-      "rows_csv": "runtime/pd_reverse/virtual_kernel_run200_login_v6_rows.csv",
-      "cases_root": "runtime/pd_auto/run200_login"
+      "rows_csv": "/Users/horacedong/Desktop/Horosa-Primary Direction Trial/runtime/pd_reverse/virtual_kernel_run200_login_v6_rows.csv",
+      "cases_root": "/Users/horacedong/Desktop/Horosa-Primary Direction Trial/runtime/pd_auto/run200_login"
     },
     {
-      "rows_csv": "runtime/pd_reverse/virtual_kernel_geo300_full_v8_rows.csv",
-      "cases_root": "runtime/pd_auto/run_geo300"
+      "rows_csv": "/Users/horacedong/Desktop/Horosa-Primary Direction Trial/runtime/pd_reverse/virtual_kernel_geo300_full_v8_rows.csv",
+      "cases_root": "/Users/horacedong/Desktop/Horosa-Primary Direction Trial/runtime/pd_auto/run_geo300"
     }
   ],
   "params": {
