@@ -65,11 +65,11 @@ Append new entries; do not rewrite history.
 - Verification:
   - 浏览器实测（Playwright + Chrome，故意预写 `localStorage.horosaLocalServerRoot = http://127.0.0.1:19999`）：
     - 直接打开 `http://127.0.0.1:8000/index.html?v=...`
-    - 注入广德盘：`2006-10-04 09:58 +08 / 30N53 / 119E25 / guangde`
+    - 注入一组本地测试盘并执行主限法切换回归
     - 先切 `Horosa原方法` 点击 `重新计算`，再切回 `AstroAPP-Alchabitius` 点击 `重新计算`
     - 4 次 `/chart` 请求全部命中 `http://127.0.0.1:9999/chart`，状态均为 `200`
     - 无 modal 错误、无 pageerror、无 console error
-    - 浏览器表格首行与后端 `predictives.primaryDirection` rows 一致，截图保存在 `runtime/guangde_recalc_verified_8000.png`
+    - 浏览器表格首行与后端 `predictives.primaryDirection` rows 一致
 
 ### 14:45 - 修复主限法页“重新计算”在替代端口下仍报本地服务未就绪
 - Scope: 解决用户通过 `Horosa_Local.command` 自动避让到 `18000/18899/19999` 后，主限法页点击 `重新计算` 仍然弹“本地排盘服务未就绪”的问题。这个问题只会在主限法页最明显，因为它会显式强制重算 `/chart`。
@@ -202,11 +202,11 @@ Append new entries; do not rewrite history.
   - `Horosa-Web/astrostudyui/src/models/astro.js`
   - `scripts/check_primary_direction_astroapp_integration.py`
   - `scripts/check_horosa_full_integration.py`
-  - `/Users/horacedong/Desktop/Horosa-Web+App (Mac)/Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
-  - `/Users/horacedong/Desktop/Horosa-Web+App (Mac)/Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
-  - `/Users/horacedong/Desktop/Horosa-Web+App (Mac)/Horosa-Web/astrostudyui/src/models/astro.js`
-  - `/Users/horacedong/Desktop/Horosa-Web+App (Mac)/scripts/check_primary_direction_astroapp_integration.py`
-  - `/Users/horacedong/Desktop/Horosa-Web+App (Mac)/scripts/check_horosa_full_integration.py`
+  - `Horosa-Web+App (Mac)/Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - `Horosa-Web+App (Mac)/Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web+App (Mac)/Horosa-Web/astrostudyui/src/models/astro.js`
+  - `Horosa-Web+App (Mac)/scripts/check_primary_direction_astroapp_integration.py`
+  - `Horosa-Web+App (Mac)/scripts/check_horosa_full_integration.py`
 - Details:
   - `AstroPrimaryDirection` 现在会把 `chart.params.pdtype !== 0` 视为未同步状态，避免“页面看起来在主限法页，但实际 rows 不是当前主限法结果”。
   - 主限法页的 `计算` 按钮不再因 `pdMethod/pdTimeKey` 未变化而被禁用；当检测到未同步状态时会显示 `重新计算`。
@@ -645,7 +645,7 @@ Append new entries; do not rewrite history.
   - Updated documentation paths to new folder name for consistency.
   - Kept historical references in old log entries unchanged to preserve audit history.
 - Verification:
-  - `ls -la "/Users/horacedong/Desktop/Horosa-Web+App (Mac)"`
+  - `ls -la "Horosa-Web+App (Mac)"`
   - Confirmed `Horosa-Web/` exists and old folder no longer exists.
   - `rg -n "Horosa-Web(-55c75c5b088252fbd718afeffa6d5bcb59254a0c)?" Horosa_Local.command Prepare_Runtime_Mac.command Horosa_Local_Windows.ps1 README.md PROJECT_STRUCTURE.md`
 
@@ -654,11 +654,11 @@ Append new entries; do not rewrite history.
 - Files:
   - `UPGRADE_LOG.md`
 - Details:
-  - Deleted `/Users/horacedong/Desktop/Horosa-Web+App (Mac)/kintaiyi-master`.
+  - Deleted `Horosa-Web+App (Mac)/kintaiyi-master`.
   - Kept integrated Taiyi core in `Horosa-Web/astrostudyui/src/components/sanshi/core/TaiYiCore.js` as the active implementation.
   - Confirmed `SanShiUnitedMain.js` imports Taiyi logic from local `./core/TaiYiCore` only.
 - Verification:
-  - `ls -la "/Users/horacedong/Desktop/Horosa-Web+App (Mac)"` (confirmed `kintaiyi-master` removed)
+  - `ls -la "Horosa-Web+App (Mac)"` (confirmed `kintaiyi-master` removed)
   - `npm run build --silent` in `Horosa-Web/astrostudyui` (compiled successfully after deletion)
   - `rg -n "kintaiyi-master|kintaiyi" Horosa-Web/astrostudyui/src Horosa-Web/astrostudysrv Horosa-Web/astropy Horosa_Local.command Prepare_Runtime_Mac.command Horosa_Local_Windows.ps1`
 
