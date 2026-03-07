@@ -1,97 +1,206 @@
 # Horosa Web + App（GitHub 可上传版）
 
-更新时间：2026-03-06
+更新时间：2026-03-07
 
-目标：这个仓库上传到 GitHub 后，在任意一台 Mac 上都可以通过一次点击完成依赖准备、构建并启动当前功能。
+这个仓库的目标很简单：把它放到任意一台 Mac 上后，用户可以尽量少折腾，直接完成依赖准备、构建和本地启动。
 
-## Mac 一键部署（推荐入口）
+## 最简单的用法
 
-1. 下载/克隆仓库后，双击：
-   - `Horosa_OneClick_Mac.command`
-2. 首次运行会自动完成：
-   - 安装或检测 Homebrew
-   - 若 Homebrew 不可用，会自动直连下载 Java 17 runtime 到 `.runtime/mac/java`
-   - 若 Homebrew 无法安装 Node，会自动直连下载 Node runtime 到 `.runtime/mac/node`
-   - 若 Homebrew 无法安装 Python，会自动直连下载 Miniconda Python runtime 到 `.runtime/mac/python`
-   - 安装运行依赖（Java 17、Maven、Node、Python）
-   - 创建 Python 虚拟环境并安装 `cherrypy/jsonpickle/pyswisseph`
-   - 构建前端 `dist-file`
-   - 构建 Java 后端 `astrostudyboot.jar`（含依赖模块）
-   - 尝试启动本地 Redis / MongoDB（用于完整功能）
-   - 自动调用 `Horosa_Local.command` 打开本地页面
-3. 首次构建时间可能较长（与网络和机器性能相关），后续启动会快很多。
-4. 首次运行需要联网下载依赖（Homebrew / npm / Maven / pip）。
+如果你只是想把项目跑起来，只看这一段就够了：
 
-## 常用脚本
+1. 下载或克隆这个仓库。
+2. 双击 `Horosa_OneClick_Mac.command`。
+3. 等待脚本完成安装、构建和启动。
+4. 浏览器会自动打开本地页面。
 
-- `Horosa_OneClick_Mac.command`：Mac 首次部署 + 启动（推荐）
-- `Horosa_Local.command`：直接启动（适合依赖已准备完成后；若本机缺关键依赖会自动回退到一键部署脚本，先尝试 Homebrew，再按 Java/Node/Python 的直连方案兜底）
-- `Horosa_SelfCheck_Mac.command`：启动后自动验收本地服务、主限法运行链路与关键页面接口；若它自己拉起服务，默认会把服务保持运行，便于验收后直接继续使用网页
-- 当前若本机存在带 Playwright 的 Python，`Horosa_SelfCheck_Mac.command` 还会自动补做一轮浏览器级宗师巡检：左侧主模块、关键子页、AI 导出入口、主限法切方法并重新计算
-- `Prepare_Runtime_Mac.command`：打离线 runtime 包（会自动补齐缺失的 Java/Python 运行依赖，不建议提交 GitHub）
-- `scripts/repo/clean_for_github.sh`：清理本地生成物，准备上传 GitHub
+说明：
+- 第一次运行需要联网下载依赖。
+- 第一次会比较慢，后面再启动会快很多。
+- 如果你只想正常使用，优先用这个入口，不用先看别的说明。
 
-可选环境变量（调试用）：
-- `HOROSA_SKIP_DB_SETUP=1`：跳过 Redis/MongoDB 自动安装与启动
-- `HOROSA_SKIP_BUILD=1`：跳过前后端构建（需已有构建产物）
-- `HOROSA_SKIP_TOOLCHAIN_INSTALL=1`：跳过 Homebrew/工具链安装
-- `HOROSA_SKIP_LAUNCH=1`：只做预检和构建，不自动启动页面
-- `HOROSA_JDK17_URL=<url>`：自定义 Java17 下载地址（默认使用 Adoptium API）
-- `HOROSA_NODE_VERSION=<version>` / `HOROSA_NODE_URL=<url>`：自定义 Node 直连版本/下载地址（默认 `v20.11.1`）
-- `HOROSA_PYTHON_URL=<url>`：自定义 Python 直连下载地址（默认 Miniconda installer）
-- `HOROSA_MAVEN_VERSION=<version>` / `HOROSA_MAVEN_URL=<url>`：自定义 Maven 直连下载版本/地址
-- `HOROSA_STARTUP_TIMEOUT=300`：启动等待时长（秒，默认 180；慢机器首启可调大）
-- `HOROSA_KEEP_SERVICES_RUNNING=0`：仅在你明确希望“关掉启动窗口后自动停服务”时使用；当前默认即使关闭启动脚本也保持服务常驻，需手动执行 `Horosa-Web/stop_horosa_local.sh`
-- `HOROSA_SELF_CHECK_STOP_AT_END=1`：仅在运行 `Horosa_SelfCheck_Mac.command` 时生效；设为 `1` 才会在验收结束后自动停掉本次自检拉起的服务
-- `HOROSA_BROWSER_CHECK_PYTHON=/path/to/python`：指定用于浏览器级巡检的 Python（需已安装 `playwright`）
-- `HOROSA_DIAG_FILE=<path>`：自定义故障诊断日志文件路径（默认 `diagnostics/horosa-run-issues.log`）
-- `HOROSA_DIAG_DIR=<path>`：自定义故障诊断目录（默认 `diagnostics`）
+## 根目录现在只保留一个入口
 
-启动入口的当前行为：
-- `Horosa_Local.command` 会优先尝试默认端口 `8000/8899/9999`。
-- 如果这些端口已被另一份 Horosa 副本或其他程序占用，它会自动切到空闲端口（通常从 `18000/18899/19999` 往上找）。
-- 新打开的页面 URL 会显式附带当前副本的后端地址参数 `srv=...`，前端会据此改用正确的本地 `ServerRoot`，而不是继续写死连接 `127.0.0.1:9999`。
-- 即使 URL 没带 `srv`，前端现在也会优先根据当前网页端口自动推导本地 backend：
-  - `8000 -> 9999`
-  - `18000 -> 19999`
-  - `18001 -> 20000`
-- 只有在无法从当前页面端口推导时，才会回退到旧的 `localStorage.horosaLocalServerRoot`。
-- 这种情况下必须使用启动脚本新打开的页面地址，不要继续使用旧的 `127.0.0.1:8000` 标签页；旧标签页可能连着另一份副本，最容易在 `主/界限法 -> 重新计算` 时表现成“本地排盘服务未就绪”。
+为了避免误操作，根目录现在只保留：
 
-运行诊断日志：
-- 每次运行 `Horosa_Local.command` / `start_horosa_local.sh`，都会把关键阶段状态写入：
-  - `diagnostics/horosa-run-issues.log`
-- 启动失败时会自动附加最近的后端/前端日志 tail，便于定位“卡住/超时/端口占用”等问题。
+- `Horosa_OneClick_Mac.command`
+  - 这是唯一推荐双击的文件。
+  - 如果之前已经准备过依赖和构建产物，它会直接启动。
+  - 如果当前机器还没准备好，它会自动补齐依赖、构建并启动。
 
-部署后建议验收：
-- 双击 `Horosa_SelfCheck_Mac.command`
-- 脚本会自动：
-  - 启动本地服务（若尚未启动）
-  - 校验 `9999/8899` 服务可用
-  - 校验主限法 `AstroAPP-Alchabitius / Horosa原方法` 在 `/chart` 与 `/predict/pd` 两条链路都能产出并且结果不串台
-  - 断言主限法前端表格直接显示后端 `predictives.primaryDirection` 的 `pd[0]/pd[1]/pd[2]/pd[4]`
-  - 默认保留本次自检拉起的服务，便于验收后直接继续使用网页；如需自动关闭可设置 `HOROSA_SELF_CHECK_STOP_AT_END=1`
+其余 Mac 工具已经移动到：
 
-## 上传 GitHub 前建议流程
+- `tools/mac/`
 
-1. 执行清理脚本：
-   - `./scripts/repo/clean_for_github.sh`
-2. 检查以下目录没有被提交：
-   - `Horosa-Web/astrostudyui/node_modules`
-   - `Horosa-Web/**/target`
-   - `runtime/mac/java`、`runtime/mac/python`
-   - `Horosa-Web/.horosa-local-logs`
-3. 再执行 `git add .` / `git commit` / `git push`
+## 按场景操作
 
-> 已通过 `.gitignore` 默认屏蔽本地运行时和构建产物，避免把数 GB 临时文件推到 GitHub。
+### 1. 第一次在这台 Mac 上运行
 
-## 端口与服务
+双击：
 
-- 前端静态页：`8000`（可用 `HOROSA_WEB_PORT` 覆盖）
-- Java 后端：`9999`
-- Python 图表服务：`8899`
-- Redis（可选/推荐）：`6379`
-- MongoDB（可选/推荐）：`27017`
+- `Horosa_OneClick_Mac.command`
+
+它会尽量自动完成这些事：
+
+- 检测或安装 Homebrew
+- 准备 Java 17、Node、Python
+- 安装 Python 依赖
+- 构建前端 `dist-file`
+- 构建后端 `astrostudyboot.jar`
+- 尝试启动 Redis / MongoDB（完整功能需要）
+- 自动打开本地页面
+
+### 2. 之前已经跑过，现在只想再打开
+
+还是双击：
+
+- `Horosa_OneClick_Mac.command`
+
+当前版本会先检查本地是否已经准备好；如果已经准备好，就直接打开，不再重复走完整部署。
+
+### 3. 启动后，想确认项目是不是正常
+
+双击：
+
+- `tools/mac/Horosa_SelfCheck_Mac.command`
+
+它会自动检查：
+
+- 页面和接口是否能打开
+- `8899` 和 `9999` 是否正常工作
+- 主限法相关接口和前端展示是否一致
+
+### 4. 准备上传 GitHub
+
+先执行：
+
+```bash
+./scripts/repo/clean_for_github.sh
+```
+
+然后再做 `git add`、`git commit`、`git push`。
+
+这个清理步骤的目的是避免把本地运行时、构建产物和日志一起传上去。
+
+## 先记住这几个事实
+
+- 默认端口：
+  - 前端 `8000`
+  - Python 服务 `8899`
+  - Java 后端 `9999`
+- 如果默认端口被占用，脚本会自动换到空闲端口。
+- 一旦脚本为你打开了新页面，请优先使用那个新页面，不要继续用旧标签页。
+- 运行日志默认会写到 `diagnostics/horosa-run-issues.log`。
+
+## 常见问题
+
+### `java 17+ is required`
+
+重新运行：
+
+- `Horosa_OneClick_Mac.command`
+
+脚本会优先尝试自动安装；如果 Homebrew 不可用，也会尝试项目内直连方案。
+
+### `python runtime cannot import cherrypy`
+
+重新运行：
+
+- `Horosa_OneClick_Mac.command`
+
+它会重新补齐 Python 依赖和虚拟环境。
+
+### `node 18+ is required`
+
+重新运行：
+
+- `Horosa_OneClick_Mac.command`
+
+### 页面提示 `127.0.0.1:8899` 或本地服务未就绪
+
+通常先做这两步：
+
+1. 关闭旧的 Horosa 页面标签页。
+2. 重新双击 `Horosa_OneClick_Mac.command`。
+
+原因通常不是“功能本身坏了”，而是页面还连着旧端口、旧副本，或者服务已经停止。
+
+### 启动很慢，提示服务超时
+
+可以重试，并在终端环境里加大等待时间：
+
+```bash
+HOROSA_STARTUP_TIMEOUT=300 ./Horosa_OneClick_Mac.command
+```
+
+如果还是失败，再看：
+
+- `diagnostics/horosa-run-issues.log`
+- `Horosa-Web/.horosa-local-logs/`
+
+### 同一台机器开了多个 Horosa 副本
+
+当前版本会尽量自动避开已占用端口。  
+但你仍然应该使用启动脚本刚刚打开的那个页面，因为它会带上当前副本对应的后端地址。
+
+## 高级指令
+
+下面这些内容是给需要调试、打包或特殊部署的人看的。普通使用可以跳过。
+
+### 高级脚本
+
+- `tools/mac/Horosa_Local.command`
+  - 高级手动启动入口。
+  - 更适合开发或排查问题时单独使用。
+- `tools/mac/Horosa_SelfCheck_Mac.command`
+  - 本地一键自检入口。
+- `tools/mac/Prepare_Runtime_Mac.command`
+  - 用来准备离线 runtime 包。
+  - 更适合打包或迁移，不建议日常使用，也不建议直接提交到 GitHub。
+
+### 常用环境变量
+
+- `HOROSA_SKIP_DB_SETUP=1`
+  - 跳过 Redis / MongoDB 自动安装与启动。
+- `HOROSA_SKIP_BUILD=1`
+  - 跳过前后端构建，前提是你已经有现成构建产物。
+- `HOROSA_SKIP_TOOLCHAIN_INSTALL=1`
+  - 跳过 Homebrew 和工具链安装。
+- `HOROSA_SKIP_LAUNCH=1`
+  - 只做预检和构建，不自动打开页面。
+- `HOROSA_STARTUP_TIMEOUT=300`
+  - 把启动等待时间改成 300 秒，适合慢机器首启。
+- `HOROSA_SELF_CHECK_STOP_AT_END=1`
+  - 让 `tools/mac/Horosa_SelfCheck_Mac.command` 在检查结束后自动关闭本次拉起的服务。
+- `HOROSA_KEEP_SERVICES_RUNNING=0`
+  - 只有在你明确希望关闭启动窗口后自动停服务时才使用。
+- `HOROSA_DIAG_FILE=<path>`
+  - 自定义诊断日志文件路径。
+- `HOROSA_DIAG_DIR=<path>`
+  - 自定义诊断目录。
+
+### 自定义下载源或版本
+
+如果你的网络环境特殊，也可以手动指定下载地址或版本：
+
+- `HOROSA_JDK17_URL=<url>`
+- `HOROSA_NODE_VERSION=<version>`
+- `HOROSA_NODE_URL=<url>`
+- `HOROSA_PYTHON_URL=<url>`
+- `HOROSA_MAVEN_VERSION=<version>`
+- `HOROSA_MAVEN_URL=<url>`
+
+### 浏览器级巡检
+
+如果你的机器上已经有带 Playwright 的 Python，`tools/mac/Horosa_SelfCheck_Mac.command` 还会继续做一轮浏览器级检查。  
+也可以手动指定 Python：
+
+```bash
+HOROSA_BROWSER_CHECK_PYTHON=/path/to/python ./tools/mac/Horosa_SelfCheck_Mac.command
+```
+
+检查结果会写到：
+
+- `runtime/browser_horosa_master_check.json`
 
 ## 目录定位
 
@@ -101,29 +210,3 @@
 - 一键脚本：`scripts/mac/bootstrap_and_run.sh`
 - 自检脚本：`scripts/mac/self_check_horosa.sh`
 - Python 依赖清单：`scripts/requirements/mac-python.txt`
-
-## 常见问题
-
-- `java 17+ is required`：
-  - 运行 `Horosa_OneClick_Mac.command` 自动安装；若 Homebrew 不可用会改为直连下载 JDK 17。
-- `python runtime cannot import cherrypy`：
-  - 重新运行 `Horosa_OneClick_Mac.command`，会重建 venv 并补依赖。
-- `node 18+ is required`：
-  - 重新运行 `Horosa_OneClick_Mac.command`，脚本会先尝试 Homebrew，失败后自动直连下载 Node runtime。
-- `services did not become ready in ... (need both 8899 and 9999)`：
-  - 检查 8899/9999 是否被占用；查看 `Horosa-Web/.horosa-local-logs/` 日志。
-  - 机器首启较慢可设置 `HOROSA_STARTUP_TIMEOUT=300` 后重试。
-- 页面点击“计算”提示 `127.0.0.1:8899` 未就绪：
-  - 说明前端页面还在，但本地排盘服务已经没在跑。
-  - 先重新执行 `Horosa_Local.command` 或 `Horosa_OneClick_Mac.command`。
-  - 当前版本的 `Horosa_SelfCheck_Mac.command` 默认不会在验收结束后自动停服务；如果你显式设置了 `HOROSA_SELF_CHECK_STOP_AT_END=1`，则验收结束后服务会被自动关闭。
-- 只有主限法页点击“重新计算”时报本地服务未就绪：
-  - 这通常不是主限法数学本身有问题，而是页面没有连到当前副本的后端，或者浏览器把 `cache: false` 错当成非法原生 `fetch` 参数。
-  - 当前版本已经通过 `srv` 查询参数动态绑定本地 `ServerRoot`，并把主限法重算链路里的 `cache: false` 规范化为浏览器接受的 `cache: 'no-store'`。
-  - 如果仍然出现，先完全关闭旧标签页，再从 `Horosa_Local.command` 新打开的页面里重试。
-- 启动后页面能打开，但过一会儿点“计算/重新计算”才报本地服务未就绪：
-  - 当前版本已经把 `Horosa_Local.command` 与 `start_horosa_local.sh` 的后台启动统一改成 `nohup + setsid + disown`，降低父 shell 结束后服务被带死的概率。
-  - 如果仍碰到，先跑一次 `Horosa_SelfCheck_Mac.command`；它会把接口级和浏览器级检查一起跑完，并把最近结果写到 `runtime/browser_horosa_master_check.json`。
-- 同机运行多个 Horosa 副本时：
-  - 当前版本的 `stop_horosa_local.sh` 只会回收属于当前工作区路径的服务，不会再按通用进程名误停别的副本。
-  - 当前版本的 `scripts/mac/self_check_horosa.sh` 也会在默认 `8899/9999/8000` 已被占用时自动切到空闲端口完成验收。

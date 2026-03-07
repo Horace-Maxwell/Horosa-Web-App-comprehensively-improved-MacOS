@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PROJECT_DIR="${ROOT}/Horosa-Web"
 START_SH="${PROJECT_DIR}/start_horosa_local.sh"
 STOP_SH="${PROJECT_DIR}/stop_horosa_local.sh"

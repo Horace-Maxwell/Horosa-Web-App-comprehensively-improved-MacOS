@@ -4,11 +4,11 @@
 
 ## 1) 根目录（入口）
 
-- `Horosa_OneClick_Mac.command`：Mac 一键部署+启动主入口
-- `Horosa_Local.command`：已安装依赖后的快速启动入口（含 `/static/umi.*` 白屏兼容补丁）
-- `Horosa_SelfCheck_Mac.command`：Mac 本地一键自检入口（启动服务、验收主限法链路、自动停服务）
+- `Horosa_OneClick_Mac.command`：Mac 唯一保留在根目录的一键入口；已准备好时直接启动，未准备好时自动部署+启动
 - `Horosa_Local_Windows.bat` / `Horosa_Local_Windows.ps1`：Windows 启动入口
-- `Prepare_Runtime_Mac.command` / `Prepare_Runtime_Windows.*`：离线 runtime 打包脚本
+- `tools/mac/Horosa_Local.command`：Mac 高级快速启动入口（含 `/static/umi.*` 白屏兼容补丁）
+- `tools/mac/Horosa_SelfCheck_Mac.command`：Mac 本地一键自检入口（启动服务、验收主限法链路）
+- `tools/mac/Prepare_Runtime_Mac.command` / `Prepare_Runtime_Windows.*`：离线 runtime 打包脚本
 - `README.md`：部署和上传说明
 - `PROJECT_STRUCTURE.md`：目录结构说明（本文件）
 - `WINDOWS_CODEX_ASTROAPP_PD_REPRO_KIT/`：给 Windows 上 Codex 使用的 AstroAPP 主限法复现包（含详细复现文档、关键代码快照、模型文件、验证脚本、结果摘要、SHA256 校验）
@@ -50,7 +50,7 @@
 - `Horosa-Web/stop_horosa_local.sh`
 - `Horosa-Web/verify_horosa_local.sh`
   - 当前会在检测到可用 Playwright Python 时自动补跑浏览器级宗师巡检
-- `Horosa_Local.command`
+- `tools/mac/Horosa_Local.command`
   - 当前支持默认端口冲突时自动切换到替代端口，并通过 `srv` 查询参数把新页面绑定到正确的本地后端地址
   - 当前 `8000/8899/9999` 都通过 `nohup + setsid + disown` 常驻启动，降低“启动窗口一结束服务就死”的概率
 
@@ -1906,91 +1906,635 @@
   - `Horosa-Web/stop_horosa_local.sh` 实测可回收无 pid 文件残留监听进程；
   - `cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh && ./stop_horosa_local.sh` 通过。
 
-## 101) 主限法功能结构（公开版）
+## 101) 主限法双内核结构（2026-03-05）
 
-- 页面能力：
-  - Horosa 当前主/界限法页面支持两种方法：
-    - `Horosa原方法`
-    - `AstroAPP-Alchabitius`
-  - 顶部设置项包含：
-    - `推运方法`
-    - `度数换算`
-    - `计算 / 重新计算`
-    - `显示界限法`
-  - 切换方法或时间主钥后，页面会按当前选择重新计算并整表刷新。
-
-- 后端结构：
+- 后端入口：
   - `Horosa-Web/astropy/astrostudy/perchart.py`
-    - 负责接收主限法相关参数并传入计算层。
+    - 新增并承载：
+      - `pdMethod`
+      - `pdTimeKey`
+    - 默认值：
+      - `pdMethod='astroapp_alchabitius'`
+      - `pdTimeKey='Ptolemy'`
   - `Horosa-Web/astropy/astrostudy/perpredict.py`
-    - 负责根据当前方法生成主限法结果。
-  - 当前生产版保留双分支：
-    - `Horosa原方法`
-    - `AstroAPP-Alchabitius`
+    - `getPrimaryDirectionByZ()` 改为双分流：
+      - `horosa_legacy`
+      - `astroapp_alchabitius`
 
-- 前端显示：
+- 双分流定义：
+  - `horosa_legacy`
+    - 结构上等同原版 Horosa `zodiaco主限法`：
+      - `PrimaryDirections(chart).getList(self.perchart.pdaspects)`
+      - 仅保留 `item[3] == 'Z'`
+  - `astroapp_alchabitius`
+    - 结构上为 AstroApp 对齐内核：
+      - Significators：
+        - `SIG_OBJECTS + SIG_HOUSES + SIG_ANGLES`
+      - Promissors：
+        - `SIG_OBJECTS(aspects)`
+        - `terms`
+      - 不包含：
+        - `antiscia`
+        - `contra-antiscia`
+        - 即不包含页面所称“映点 / 反映点”
+      - Arc：
+        - 普通应星：
+          - `norm180(sig.ra - prom.raZ)`
+        - `Asc`：
+          - `norm180(OA_zero(prom, true_obliquity - 0.0014°) - OA_zero(Asc, true_obliquity) - asc_case_bias(chart))`
+        - `MC`：
+          - `norm180(prom.raZ - MC.raZ)`
+        - `Pars Fortuna`：
+          - 当前仍先走普通应星分支，专用分支继续逆向中
+      - 行过滤：
+        - 去掉 Node
+        - 去掉同对象
+        - 去掉 `|arc| > 100`
+        - 普通行星对额外套 AstroApp 显示窗
+      - 排序：
+        - `(|arc|, arc, prom_id, sig_id)`
+
+- 日期换算：
+  - `Horosa-Web/astropy/astrostudy/signasctime.py`
+    - `getJDFromPDArc()`
+      - 使用“周年日 + 年跨度插值”而不是固定回归年常数直乘；
+      - converse 使用 `abs(arc)`；
+    - `getDateFromPDArc()`
+      - 使用 UTC 风格输出字符串，贴近 AstroApp `dirDate`。
+
+- 输出结构：
+  - 主限法行仍维持 5 元组：
+    - `arc`
+    - `promittor_id`
+    - `significator_id`
+    - `'Z'`
+    - `date_str`
+  - `Horosa-Web/astropy/astrostudy/helper.py`
+    - `chartObj.params` 现明确返回：
+      - `pdMethod`
+      - `pdTimeKey`
+  - 逆向现状：
+    - `Asc / MC` 已从普通通用核中拆成角点专用分支；
+    - `Pars Fortuna` 仍是当前未完全闭合的剩余对象；
+    - PF 的昼夜判定后续统一按“太阳在地平线以上/以下”定义。
+
+## 102) 主限法前端与导出链路（2026-03-05）
+
+- 设置与状态：
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+    - 全局设置持久化新增：
+      - `pdMethod`
+      - `pdTimeKey`
+    - 登录态与无登录态都会恢复到 `astro.fields`
+  - `Horosa-Web/astrostudyui/src/models/astro.js`
+    - `fieldsToParams()` 会把：
+      - `pdMethod`
+      - `pdTimeKey`
+      发给后端排盘
+
+- 主限法页面：
   - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+    - 新增 `applyPrimaryDirectionConfig(pdMethod, pdTimeKey)`；
+    - 页面提供：
+      - `推运方法`
+      - `度数换算`
+      - `计算`
+    - 子组件渲染使用 `chartObj.params.pdMethod / pdTimeKey` 作为“已应用方法”；
+    - 避免出现“左列按待应用值、右侧三列按旧结果”导致的假切换。
   - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
-  - 主限法表格直接显示后端返回的结果，不在前端重复推导第二份数据。
-  - 页面已做响应式处理，浏览器缩放时设置区会自动换行，避免控件被固定宽高挤坏。
+    - `Horosa原方法`：
+      - 第一列标题 `赤经`
+    - `AstroAPP-Alchabitius`：
+      - 第一列标题 `Arc`
+    - 主限法表格 remount key 现包含：
+      - `chartId`
+      - `pdMethod`
+      - `pdTimeKey`
+      - `showPdBounds`
+    - 避免切换 `度数换算` 后继续复用旧表格行缓存
+    - 顶部设置条改为响应式布局：
+      - 窄宽度或浏览器缩放后可自动换行
+      - `Select` 不再被固定宽高挤坏
+      - `计算` 按钮会跟随容器宽度伸缩，而不是保持僵硬固定尺寸
+    - 页面底部高度受控，表格在自身容器内滚动，不外溢窗口。
 
 - AI 导出：
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
   - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - AI 导出与 AI 导出设置已接入主限法当前结果。
-  - 导出内容会跟随用户当前已应用的方法、时间主钥与显示设置。
+  - 主限法快照新增 `[主/界限法设置]`，导出：
+    - `推运方法`
+    - `度数换算`
+    - `显示界限法`
+  - AI 导出设置 `primarydirect` 预设分段：
+    - `出生时间`
+    - `星盘信息`
+    - `主/界限法设置`
+    - `主/界限法表格`
+  - 导出时优先触发：
+    - `requestModuleSnapshotRefresh('primarydirect')`
+  - 所以导出的主限法文本默认跟随当前已应用的：
+    - `pdMethod`
+    - `pdTimeKey`
+    - `showPdBounds`
+  - 表格第一列标题随方法切换：
+    - `赤经`
+    - `Arc`
 
-## 102) AstroAPP 主限法当前交付状态（公开版）
+- 文档入口：
+  - 新增根目录文档：
+    - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`
+    - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_MATH_FLOW.md`
+  - 该文档用于完整描述 AstroApp 复刻核：
+    - 行结构
+    - Arc 公式
+    - 显示过滤
+    - 日期换算
+    - 最小复刻伪代码
+    - 回归脚本与统计结果
+  - 数学版文档补充：
+    - 纯数学符号定义
+    - `ra / raZ` 的坐标含义
+    - 各类对象构造公式
+    - `dirJD` 推导
+    - 流程图
 
-- 当前 `AstroAPP-Alchabitius` 选项已经接入 Horosa 网站完整链路：
-  - 页面设置
-  - 后端计算
-  - 表格显示
-  - AI 导出
-  - AI 导出设置
-  - 本地启动与自检
+## 103) AstroAPP-Alchabitius shared-core 对齐现状（2026-03-05 晚）
 
-- 当前版本的重点结果：
-  - 普通用户在网页中看到的主限法表格，即为当前后端 `AstroAPP-Alchabitius` 分支的返回结果。
-  - 页面切换 `Horosa原方法 / AstroAPP-Alchabitius` 时，不会再出现只变标题、不变结果的假切换。
-  - 点击 `计算 / 重新计算` 时，会按当前选择重新请求后端，不复用旧结果。
+- 仅影响 AstroApp 选项：
+  - `Horosa-Web/astropy/astrostudy/perchart.py`
+  - `Horosa-Web/astropy/astrostudy/perpredict.py`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `Horosa-Web/astrostudyui/src/models/astro.js`
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+- 当前 AstroApp kernel 的 shared-core 对象集：
+  - promissor：`Sun..Pluto + North Node`
+  - significator：`Sun..Pluto + North Node + Asc + MC`
+- 当前 AstroApp kernel 明确排除：
+  - `界 / Terms / Bounds / T_*`
+  - `Pars Fortuna`
+  - `Dark Moon`
+  - `Purple Clouds`
+  - `South Node`
+  - 其它 AstroApp 不支持的扩展虚点
+- 当前关键数学口径：
+  - `North Node` 使用 `TRUE_NODE`
+  - 普通对象与 `MC` 使用日期 `mean obliquity`
+  - `Asc` 的 significator zero-lat OA 分支使用日期 `true obliquity`
+  - `Asc` 的 promissor zero-lat OA 额外使用 `true obliquity - 0.0014°`
+  - `Asc` 另有 chart-level `asc_case_bias(chart)` 修正，只对 `AstroAPP-Alchabitius` 的 `Asc` 行生效
+  - 验证口径使用 `utc_sourcejd_exact`
+- 前端主/界限法页：
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - 当前 `推运方法` 切换会强制按 `pdtype=0` 重算，并在结果返回后整表 remount，避免出现“只更新左列标题、右侧三列仍是旧结果”的假切换
+- 本地验证与产物：
+  - `scripts/compare_pd_backend_rows.py`
+  - `scripts/compare_pd_backend_random.py`
+  - `runtime/pd_reverse/shared_core_kernel100_exact_summary.json`
+  - `runtime/pd_reverse/shared_core_hard200_exact_summary.json`
+  - `runtime/pd_reverse/shared_core_geo300_exact_summary.json`
+  - `runtime/pd_reverse/virtual_points_geo300_chart_summary.json`
+- 配套实现文档：
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_MATH_FLOW.md`
 
-- 当前精度目标已满足交付要求：
-  - `Asc`、`MC`、`North Node` 当前生产版误差均已控制在既定范围内。
-  - 当前交付口径以“本地 Horosa 页面结果与目标网站当前输出保持接近”为准。
+### 103.1) 虚点残差的最新诊断与稳定修正（2026-03-06）
 
-## 103) 主限法验收与运行要求（公开版）
+- 新增实验脚本：
+  - `scripts/eval_virtual_point_kernels.py`
+- 该脚本沿用 duplicate-safe 配对逻辑，专门评估：
+  - `Asc`
+  - `MC`
+  - `North Node`
+- 诊断结论：
+  - 当前虚点残差的主要来源，不是 `Asc / MC / Node` 的主限弧公式主体跑偏；
+  - 更像是 promissor 本体坐标与 AstroApp `chartSubmit` 本体坐标之间仍有细小差异；
+  - 其中 `Moon` 的本体黄经差异最大，因此 `Moon -> Asc / MC / North Node` 是最差桶。
+- 现已落地的稳定修正：
+  - `Horosa-Web/astropy/astrostudy/perpredict.py`
+  - 当前 production 已收窄为只对 `Moon -> Asc` 生效：
+    - promissor 月亮本体改用 Swiss `FLG_TRUEPOS` 重建，再构造相位点
+  - `Moon -> MC` 与 `Moon -> North Node` 都没有启用该修正：
+    - 因为它在 `runtime/pd_auto/run_geo_wide240_v7` 上出现轻微回退
+- 现有验证产物：
+  - `runtime/pd_reverse/virtual_kernel_geo300_summary.json`
+  - `runtime/pd_reverse/virtual_kernel_wide240_summary.json`
+  - `runtime/pd_reverse/virtual_kernel_run200_login_v1_summary.json`
+  - `runtime/pd_reverse/shared_core_geo300_exact_summary_vmoon2.json`
+  - `runtime/pd_reverse/shared_core_geo_wide240_v7_exact_summary_vmoon2.json`
+- 当前稳定收益：
+  - `geo300`
+    - `Asc`: `0.0010408782 -> 0.0010258268`
+    - `North Node`: `0.0003763461 -> 0.0003560969`
+  - `wide240_v7`
+    - `Asc`: `0.0016621602 -> 0.0016548058`
+    - `North Node`: `0.0005635118 -> 0.0005610257`
+- 上界诊断也已确认：
+  - 若 promissor 本体位置直接替换为 AstroApp `chartSubmit` 返回的本体位置，
+    `Asc / MC / North Node` 都还能继续大幅下降；
+  - 所以后续如果要逼近 `0.0001°`，重点应转向 AstroApp 本体星历口径，而不是继续大改虚点方向公式。
 
-- 自检入口：
+### 103.4) Asc promissor-side OA 微调（2026-03-06）
+
+- 在 `Horosa-Web/astropy/astrostudy/perpredict.py` 新增：
+  - `ASTROAPP_PD_ASC_PROM_TRUE_OBLIQUITY_OFFSET = -0.0014`
+  - `ASTROAPP_PD_ASC_CASE_CORR_MODEL`
+- 当前 `Asc` 生产口径：
+  - promissor side 的 zero-lat OA 使用 `true obliquity - 0.0014°`
+  - significator side 仍使用原始 `true obliquity`
+  - 在此基础上，再减去一个只与 natal chart 几何有关的 `asc_case_bias(chart)` 小修正
+- `asc_case_bias(chart)` 资源与训练入口：
+  - 模型文件：`Horosa-Web/astropy/astrostudy/models/astroapp_pd_asc_case_corr_et_v1.joblib`
+  - 元数据：`Horosa-Web/astropy/astrostudy/models/astroapp_pd_asc_case_corr_et_v1.json`
+  - 训练脚本：`scripts/train_astroapp_asc_case_correction.py`
+- 这层修正只作用于 `Asc`：
+  - 不改 `MC`
+  - 不改 `North Node`
+  - 不改已稳定的 planet-to-planet
+- 新验证产物：
+  - `runtime/pd_reverse/shared_core_run200_login_exact_summary_v5.json`
+  - `runtime/pd_reverse/shared_core_geo300_exact_summary_v11.json`
+  - `runtime/pd_reverse/shared_core_run200_login_exact_rows_v5.csv`
+  - `runtime/pd_reverse/shared_core_geo300_exact_rows_v11.csv`
+- 当前稳定收益：
+  - `run200_login`
+    - `shared_core arc_mae: 0.0002465703 -> 0.0002213291`
+    - `Asc arc_mae: 0.0006206678 -> 0.0003325791`
+    - `North Node arc_mae: 0.0000998902 -> 0.0000988982`
+  - `geo300`
+    - `shared_core arc_mae: 0.0002415835 -> 0.0002217847`
+    - `Asc arc_mae: 0.0006037416 -> 0.0003879265`
+    - `North Node arc_mae: 0.0001004009 -> 0.0000994236`
+  - `MC ≈ 3.06e-05°`
+  - `North Node < 1.00e-04°`
+
+### 103.3) 当前 AstroApp 口径再确认（run200_login，2026-03-06）
+
+- 新验证产物：
+  - `runtime/pd_auto/run200_login`
+  - `runtime/pd_reverse/virtual_kernel_run200_login_v1_summary.json`
+- 结论更新：
+  - 当前 AstroApp 登录态样本的行为更接近 `geo300`，而不是 `wide240_v7`
+  - `run200_login` 中本地图盘 `Asc / MC` 角度本体与 AstroApp `chartSubmit` 本体几乎重合：
+    - `Asc mae ≈ 0.0000257°`
+    - `MC mae ≈ 0.0000261°`
+  - 因此 `wide240_v7` 体现出的整张图盘角度偏移，更像旧批次或异常批次，不应继续主导当前生产实现
+- 当前 AstroApp 口径下的虚点行结果：
+  - `Asc`: `arc_mae ≈ 0.0009593°`
+  - `MC`: `arc_mae ≈ 0.0001460°`
+  - `North Node`: `arc_mae ≈ 0.0001624°`
+- 进一步拆解：
+  - `Asc` 的剩余误差来自 promissor 本体经度，不来自 promissor 黄纬
+  - 默认 Swiss `apparent` 已是 `Sun..Pluto` 最接近 AstroApp 的口径
+  - `Moon` 仍然是唯一 `TRUEPOS` 比默认 `apparent` 更接近 AstroApp 的对象
+- 因此后续方向应收敛为：
+  - 不再围绕 `wide240_v7` 调整生产口径
+  - 若继续压低 `Asc`，优先追 promissor apparent longitude 口径
+
+### 103.2) 本地星历精度排查与可选 JPL 入口（2026-03-06）
+
+- 当前本地星历现状：
+  - `Horosa-Web/flatlib-ctrad2/flatlib/ephem/__init__.py`
+  - `Horosa-Web/flatlib-ctrad2/flatlib/ephem/swe.py`
+  - 默认星历路径指向 `Horosa-Web/flatlib-ctrad2/flatlib/resources/swefiles`
+  - 默认 flag 为 `FLG_SWIEPH | FLG_SPEED`
+  - 因此当前并非 Moshier，而是 Swiss Ephemeris `.se1`
+- 新增运行时切换入口：
+  - `Horosa-Web/flatlib-ctrad2/flatlib/ephem/swe.py`
+  - 现支持：
+    - `HOROSA_SWISSEPH_MODE=SWIEPH|JPL|MOSEPH`
+    - `HOROSA_SWISSEPH_JPL_FILE=/abs/path/to/de440.eph` 或相对 `swefiles/` 路径
+  - 现可通过 `getRuntimeConfig()` 读取当前 active path / mode / default flag / JPL file
+- 新增本地自检脚本：
+  - `scripts/check_local_ephemeris_precision.py`
+  - 用途：
+    - 输出当前 runtime ephemeris 配置
+    - 采样 `SWIEPH / MOSEPH / JPL(若可用)` 的 `lon / lat / ra / decl`
+    - 供后续拿到 JPL `.eph` 后直接复跑本地主限法误差对比
+- 当前结论：
+  - 机器本地未发现 `de406 / de431 / de440 / de441` 等 JPL 文件；
+  - 所以“提升本地星历精度”的下一步，不是继续改 arc 公式，而是补入 JPL `.eph` 后再用同一批 case 复测。
+
+### 103.4) current540 对象级 body correction（2026-03-06）
+
+- 新增训练脚本：
+  - `scripts/train_astroapp_virtual_body_corrections.py`
+- 新增运行时模型：
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_sun_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_moon_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_mercury_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_venus_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_mars_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_jupiter_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_saturn_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_uranus_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_neptune_v1.joblib`
+  - `Horosa-Web/astropy/astrostudy/models/astroapp_pd_virtual_body_corr_pluto_v1.joblib`
+- 运行时接入点：
+  - `Horosa-Web/astropy/astrostudy/perpredict.py`
+  - 新增：
+    - `ASTROAPP_PD_VIRTUAL_BODY_CORR_MODELS`
+    - `_astroappLoadVirtualBodyCorrectionModel()`
+    - `_astroappVirtualBodyCorrectionFeatures()`
+    - `_applyAstroAppPromissorBodyModelCorrection()`
+- 当前用途：
+  - 只作用于 `AstroAPP-Alchabitius` 的虚点 significator 行：
+    - `Asc`
+    - `MC`
+    - `North Node`
+  - `North Node` 仍保留 true-node 本体逻辑，不走单独 node body model。
+- current540 full-fit 虚点专项结果：
+  - `Asc arc_mae = 0.0009919653`
+  - `MC arc_mae = 0.0004144498`
+  - `North Node arc_mae = 0.0001155451`
+  - 三者都满足 `< 0.001°`
+
+### 103.5) 主限法服务层传参与本地一键自检（2026-03-06）
+
+- Java 控制器补齐 `pdMethod / pdTimeKey` 透传：
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/IndiaChartController.java`
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/PredictiveController.java`
+- 同一轮还补了内部 `_wireRev=pd_method_sync_v2` 请求版本号：
+  - 作用是让 `/chart`、`/qry/chart`、`/india/chart`、`/predict/pd` 相关缓存整体失效一次
+  - 避免升级后还命中旧缓存，导致运行态 `/chart.params` 里看不到 `pdMethod / pdTimeKey`
+- 作用：
+  - 之前 `pdMethod / pdTimeKey` 主要只在 Python 内核层和前端状态层存在；
+  - 现在通过 Java `/chart` 和 `/predict/pd` 控制器也会继续向下透传；
+  - 因此 Horosa 网站里切换 `AstroAPP-Alchabitius / Horosa原方法` 时，整站真正换的是后端算法，不是只改前端显示或 AI 导出标签。
+- 新增运行时主限法验收脚本：
+  - `Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js`
+  - 直接请求本地 `http://127.0.0.1:9999`
+  - 同时验证：
+    - `/chart`
+    - `/predict/pd`
+    - `astroapp_alchabitius`
+    - `horosa_legacy`
+  - 并断言：
+    - `params.pdMethod / params.pdTimeKey` 返回值正确
+    - 两条方法链各自有结果
+    - `/chart` 与 `/predict/pd` 同方法输出一致
+    - 新旧两种方法的前导 rows 不相同
+- `Horosa-Web/verify_horosa_local.sh` 现已扩展为：
+  - 先跑原有 UI 代码静态校验
+  - 再跑主限法 runtime 验收脚本
+- 新增根目录自检入口：
   - `Horosa_SelfCheck_Mac.command`
-  - `scripts/mac/self_check_horosa.sh`
-  - `Horosa-Web/verify_horosa_local.sh`
+  - 对应实现：`scripts/mac/self_check_horosa.sh`
+  - 用于“别人 Mac 一键部署后”的本地验收：
+    - 若服务没启动则用 `HOROSA_NO_BROWSER=1 + HOROSA_KEEP_SERVICES_RUNNING=1` 拉起
+    - 执行 `Horosa-Web/verify_horosa_local.sh`
+    - 自检结束后自动停止本次启动的服务
+    - 若默认端口已被其他副本占用，则自动改用空闲端口
 
-- 当前自检覆盖：
-  - 主限法运行链路
-  - 星盘主要模块接口
-  - AI 导出与 AI 导出设置
-  - 页面关键模块 smoke check
-  - 浏览器层主限法切换与重新计算
+### 103.6) Horosa 整站静态接线 + 运行时 smoke check（2026-03-06）
 
-- 运行要求：
-  - 本地双击启动后，网页应以启动脚本打开的新地址为准。
-  - 若同机存在多份 Horosa 副本，当前脚本会自动避让端口，并保持当前副本的服务独立运行。
-  - 若主限法页面点击重新计算，当前版本应继续可用，不应因旧缓存、旧端口或错误服务根地址而误报服务未就绪。
+- 静态断言脚本：
+  - `scripts/check_horosa_full_integration.py`
+  - 用途：
+    - 检查首页顶层 tabs 与 `predictHook` 接线
+    - 检查 `八字紫微 / 易与三式` 子 tabs
+    - 检查模块级 AI snapshot 保存/读取
+    - 检查 `AI_EXPORT_TECHNIQUES / AI_EXPORT_PRESET_SECTIONS / requestModuleSnapshotRefresh`
+- 运行时 smoke 脚本：
+  - `Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js`
+  - 用途：
+    - 直接调用本地 `127.0.0.1:9999`
+    - 对整站核心模块做接口级形状断言
+    - 当前覆盖：
+      - `/chart`
+      - `/chart13`
+      - `/india/chart`
+      - `/location/acg`
+      - `/modern/relative`
+      - `/germany/midpoint`
+      - `/predict/pd`
+      - `/predict/profection`
+      - `/predict/solararc`
+      - `/predict/solarreturn`
+      - `/predict/lunarreturn`
+      - `/predict/givenyear`
+      - `/predict/zr`
+      - `/nongli/time`
+      - `/jieqi/year`
+      - `/bazi/direct`
+      - `/ziwei/birth`
+      - `/ziwei/rules`
+      - `/liureng/gods`
+      - `/liureng/runyear`
+      - `/gua/desc`
+      - `/common/pithy`
+      - `/common/gong12`
+      - `/calendar/month`
+- `Horosa-Web/verify_horosa_local.sh`
+  - 已升级为整合：
+    - 旧 UI 校验
+    - 主限法 runtime 校验
+    - 整站 runtime smoke
+    - 主限法 Python 校验
+    - 整站静态 Python 校验
 
-- 交付范围说明：
-  - 本打包目录保留的是当前可运行、可部署、可验收的实现结果。
-  - 更详细的内部研究、推导和实验记录不包含在此公开版结构说明中。
+### 103.7) AstroAPP-Alchabitius 主限法生产实现记录（2026-03-06）
 
-- 当前主限法浏览器一致性要求：
-  - 页面显示 `AstroAPP-Alchabitius` 时，浏览器表格应直接反映当前后端返回结果。
-  - 广德样本 `2006-10-04 09:58 / 30n53 / 119e25` 已作为公开打包版的重点校验样本之一。
-  - 若浏览器重新计算后，第一页不能回到与目标网站接近的同批结果，则应优先检查当前包是否已重新部署到最新源码。
+- 实现说明文档：
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`
+  - 用途：
+    - 记录 Horosa 当前生产版 `AstroAPP-Alchabitius` 的完整工程实现
+    - 明确区分：
+      - 主公式
+      - True Node 重建
+      - 动态 obliquity
+      - 虚点 promissor 修正层
+      - 前端 / AI 导出 / 服务层透传
+- 数学版文档：
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_MATH_FLOW.md`
+  - 用途：
+    - 单独记录当前生产版数学骨架与流程图
+    - 明确当前结果不是“纯公式版”，而是“公式 + 工程修正层”
+- 训练与验证脚本：
+  - `scripts/train_astroapp_virtual_body_corrections.py`
+  - `scripts/train_astroapp_asc_case_correction.py`
+  - `scripts/check_primary_direction_astroapp_integration.py`
+  - `scripts/compare_pd_backend_rows.py`
+  - `scripts/check_horosa_full_integration.py`
+    - 额外覆盖：
+      - 普通星盘右栏 `信息/相位/行星/希腊点/可能性`
+      - 3D盘右栏 `信息/相位/行星/希腊点`
+      - 希腊星术 `十三分盘`
+      - 印度律盘 `命盘 + 多律盘`
+      - 节气盘 `二十四节气 + 各节气星盘/宿盘/3D盘`
+      - 星体地图 `行星地图`
+      - 推运盘右栏全部技术页签
+- 生产模型目录：
+  - `Horosa-Web/astropy/astrostudy/models/`
+  - 当前包含：
+    - `astroapp_pd_virtual_body_corr_*.joblib`
+    - `astroapp_pd_asc_case_corr_et_v1.joblib`
+    - `astroapp_pd_asc_case_corr_et_v1.json`
+- 说明：
+  - 要在别人的 Mac 上“原模原样”复刻当前 Horosa 的 AstroApp 近似主限法，不能只复制 `perpredict.py`；
+  - 还必须同时带上：
+    - `models/` 目录
+    - 前端主限法接线
+    - Java 服务层透传
+    - AI 导出链路
+    - 自检脚本
+  - 2026-03-06 下午又补了一层运行态同步要求：
+    - `fieldsToParams()` 必须显式透传 `pdtype`
+    - `AstroDirectMain.applyPrimaryDirectionConfig()` 必须用 `cache: false` 强制重算
+    - `AstroPrimaryDirection` 必须把 `chart.params.pdtype !== 0` 视为未同步状态
+    - `verifyPrimaryDirectionRuntime.js` / `check_primary_direction_astroapp_integration.py` 必须断言表格直接显示后端 `pd[0]/pd[1]/pd[2]/pd[4]`
+    - 否则会出现“后端是对的，但页面还在显示旧 rows”的假偏差
+  - 同一天又补了服务常驻要求：
+    - `start_horosa_local.sh` 必须保证 `8899/9999` 在外层脚本退出后仍继续运行
+    - `self_check_horosa.sh` 默认不能在验收结束后自动把它自己拉起的服务停掉
+    - 否则用户页面还在，但主限法一点击 `计算` 就会报 `127.0.0.1:8899` 未就绪
+  - 同一天又补了多副本隔离要求：
+    - `stop_horosa_local.sh` 的兜底端口回收必须校验进程命令行属于当前工作区 `ROOT`
+    - 否则另一份 Horosa 副本在同机执行清理时，会把当前副本的 8000/8899/9999 服务误停
+  - 随后又补了多副本验收要求：
+    - `self_check_horosa.sh` 不能再写死 `8899/9999/8000`
+    - 若这些端口正被另一份副本占用，自检必须自动切到空闲端口而不是直接失败
 
-- 当前主限法设置匹配要求：
-  - 页面只有在收到完整的主限法确认参数后才允许显示“已同步”。
-  - 若参数不完整或版本不匹配，必须继续要求重新计算，防止旧结果伪装成当前结果。
+### 103.8) Windows Codex 主限法复现包（2026-03-06）
 
-- 当前打包版与主仓库的一致性要求：
-  - `AstroAPP-Alchabitius` 选项必须与主仓库当前生产实现保持一致。
-  - 广德样本 `2006-10-04 09:58 / 30n53 / 119e25` 仍作为公开打包版重点校验样本。
-  - 当前打包版浏览器复测已确认：用户在页面第一页看到的表格，就是当前打包版后端返回的主限法结果。
+- 根目录新目录：
+  - `WINDOWS_CODEX_ASTROAPP_PD_REPRO_KIT/`
+- 目标：
+  - 让 Windows 上的 Codex 不需要重新研究算法，只依赖这个文件夹就能把当前 Mac 生产版 `AstroAPP-Alchabitius` 主限法准确搬到 Windows 仓库。
+- 包内结构：
+  - `README_FIRST.md`
+    - 给人看的超详细复现说明
+  - `WINDOWS_CODEX_TASK_PROMPT.md`
+    - 直接交给 Windows Codex 的任务提示
+  - `FILE_MANIFEST.md`
+    - 文件清单与用途
+  - `SHA256SUMS.txt`
+    - 包内文件哈希校验
+  - `reference_docs/`
+    - 当前生产版主限法实现记录、数学版、结构说明、升级日志
+  - `expected_results/`
+    - 当前生产版关键结果摘要 JSON
+  - `snapshot/`
+    - 当前生产版关键代码快照、模型文件、Java/前端/验证脚本
+- 关键意义：
+  - `snapshot/` 下不仅有 Python 主限法算法文件，还包含：
+    - `models/` 二进制模型
+    - 前端主限法与 AI 导出接线
+    - Java 控制器透传
+    - 本地主限法/整站验证脚本
+  - 因此 Windows Codex 可直接按相对路径复刻，而不是根据文档二次猜测实现。
+
+### 103.9) AstroApp 主限法完整逆向推理总文档（2026-03-06）
+
+- 根目录文档：
+  - `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md`
+- 目标：
+  - 把本地如何一步步推理 AstroApp 当前网站 `Alchabitius + Ptolemy` 主限法的全过程单独写成一份长文档
+  - 不只写最终公式，还写：
+    - 抓数对象
+    - 对比策略
+    - 每轮误差如何指向下一步
+    - 早期错误方向为什么被排除
+    - `TRUE_NODE / dynamic obliquity / Asc OA / body correction / display window / sourceJD exact` 各自是怎么被确认的
+    - 最终 Horosa 如何接到前端、Java 透传、AI 导出和验证脚本
+- 配套关系：
+  - 它是顶层“全过程总文档”
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md` 更偏生产实现说明
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_MATH_FLOW.md` 更偏数学骨架与流程图
+
+### 103.10) runtime 精简为主限法最小可运行/可验收集合（2026-03-06）
+
+- 当前 `runtime/` 不再保留早期逆向阶段的全部大样本与中间 CSV。
+- 现仅保留：
+  - `runtime/mac/`
+  - `runtime/pd_auto/run_geo_current540_v1`
+  - `runtime/pd_auto/plan_geo_current540_v1.csv`
+  - `runtime/pd_reverse/shared_core_geo_current540_s100_exact_rows_bodycorr.csv`
+  - `runtime/pd_reverse/shared_core_geo_current540_s100_exact_summary_bodycorr.json`
+  - `runtime/pd_reverse/stability_production_summary.json`
+  - `runtime/pd_reverse/virtual_only_geo_current540_fullfit_summary.json`
+  - `runtime/pd_reverse/shared_core_geo_current120_v2_exact_summary.json`
+- 目的：
+  - 让本地网站运行、主限法自检、整站自检仍然可用
+  - 同时把逆向阶段产生的 20G+ 中间产物清理掉
+
+### 103.11) AstroApp 主限法公开整理稿（2026-03-06）
+
+- 根目录文档：
+  - `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_PUBLIC_EDITION.md`
+- 定位：
+  - 这是在完整逆向记录文档基础上整理出来的公开发布版
+  - 保留工程推理、证据层、关键常量、实现接线与验证结果
+  - 但把原本偏实验笔记的写法改写为“摘要 - 问题定义 - 证据 - 推理 - 实现 - 验证 - 结语”的正式文章结构
+- 与其它文档的关系：
+  - `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md` 保留原始全过程痕迹，更适合内部研究和追索
+  - `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_PUBLIC_EDITION.md` 更适合对外公开发布
+  - `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md` 仍是最贴近生产代码的实现说明
+
+### 103.12) AstroAPP 主限法浏览器一致性修复（2026-03-06）
+
+- 这轮修复不是改主限法数学，而是改浏览器运行态一致性：
+  - `astrostudyui/src/models/astro.js`
+    - `pdtype` 默认值统一为 `0`
+  - `astropy/websrv/webchartsrv.py`
+  - `astropy/astrostudy/helper.py`
+    - `/chart` 返回的 `params` 补齐 `pdtype` 和 `showPdBounds`
+  - `astrostudysrv/astrostudy/.../AstroUser.java`
+  - `astrostudysrv/astrostudy/.../UserInfoController.java`
+    - Java 侧主限法类型默认值统一为 `0`
+- 目的：
+  - 避免页面标题显示 `AstroAPP-Alchabitius`，但实际请求还是 `mundo主限法(pdtype=1)`。
+- 当前浏览器验收基准样本：
+  - 广德盘 `2006-10-04 09:58 +08 / 30n53 / 119e25`
+- 浏览器取证文件：
+  - `runtime/guangde_after_select_browser.json`
+  - `runtime/guangde_after_select_browser.png`
+- 这组取证用于证明：
+  - 用户浏览器第一页看到的主限法表格，已经重新和 AstroApp 当前网页的广德样本保持同一批结果。
+
+### 103.13) AstroAPP 主限法同步判定加固（2026-03-06）
+
+- `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - 主限法页面顶部“已同步 / 重新计算”的最终判定逻辑
+  - 当前要求后端返回 `pdMethod / pdTimeKey / pdtype / pdSyncRev` 四项齐全，前端才允许进入 `已同步`
+- `Horosa-Web/astropy/websrv/webchartsrv.py`
+  - `/chart` 返回 `params.pdSyncRev = 'pd_method_sync_v4'`
+- `Horosa-Web/astropy/astrostudy/helper.py`
+  - helper 生成的 chart object 同步返回 `pdSyncRev`
+- `runtime/guangde_main_repo_browser_check.png`
+- `runtime/guangde_main_repo_browser_check.json`
+  - 这轮加固后再次用广德盘做浏览器实测的证据文件
+
+### 103.14) 桌面打包版主限法与主仓库重新对齐（2026-03-06）
+
+- 目标：
+  - 确保桌面打包目录 `Horosa-Web+App (Mac)` 里的 `AstroAPP-Alchabitius` 主限法，与主仓库当前生产实现完全一致。
+  - 重点验证样本：
+    - 广德盘 `2006-10-04 09:58 +08 / 30n53 / 119e25 / guangde`
+- 本轮同步的关键文件：
+  - `Horosa-Web/astropy/astrostudy/helper.py`
+  - `Horosa-Web/astropy/websrv/webchartsrv.py`
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/PredictiveController.java`
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/IndiaChartController.java`
+- 关键约束：
+  - 主限法同步修订号统一为 `pd_method_sync_v4`
+  - 桌面包 Java `/chart` 也必须跟着升级 `_wireRev`，否则会继续命中旧版主限法缓存/旧编译产物
+- 桌面包取证文件：
+  - `runtime/guangde_pkg_browser_check.png`
+  - `runtime/guangde_pkg_browser_check.json`
+- 这两份取证证明：
+  - 桌面包浏览器页面实际打的是桌面包自己的 `/chart`
+  - 用户看到的第一页表格已经重新和桌面包后端 `AstroAPP-Alchabitius` 结果一致
+  - 广德盘前几行重新对回：
+    - `-0度4分 / 2006-10-25 10:54:14`
+    - `0度21分 / 2007-02-11 16:06:12`
+    - `-0度48分 / 2007-07-23 11:01:34`
+    - `0度57分 / 2007-09-14 13:37:20`
+    - `1度33分 / 2008-04-21 15:49:15`
