@@ -855,7 +855,7 @@ main() {
     export HOROSA_PYTHON="${VENV_DIR}/bin/python3"
   fi
   say "starting local app ..."
-  exec "${ROOT}/Horosa_Local.command" "$@"
+  exec "${ROOT}/tools/mac/Horosa_Local.command" "$@"
 }
 
 main "$@"
