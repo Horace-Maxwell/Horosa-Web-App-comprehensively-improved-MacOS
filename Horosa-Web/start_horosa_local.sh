@@ -370,10 +370,10 @@ fi
 if [ ! -f "${JAR}" ]; then
   diag_log "missing jar after fallback: ${JAR}"
   echo "missing ${JAR}"
-  echo "build first:"
-  echo "  ../Prepare_Runtime_Mac.command"
-  echo "or"
+  echo "请先回到仓库根目录执行："
   echo "  ../Horosa_OneClick_Mac.command"
+  echo "高级离线打包工具："
+  echo "  ../tools/mac/Prepare_Runtime_Mac.command"
   exit 1
 fi
 

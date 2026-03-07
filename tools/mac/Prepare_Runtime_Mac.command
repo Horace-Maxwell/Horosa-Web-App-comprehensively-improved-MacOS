@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PROJECT_DIR="${ROOT}/Horosa-Web"
 RUNTIME_DIR="${ROOT}/runtime/mac"
 JAVA_DST="${RUNTIME_DIR}/java"
@@ -270,9 +270,5 @@ echo "runtime 目录体积："
 du -sh "${ROOT}/runtime" || true
 
 echo ""
-if [ ${JAVA_RC} -eq 0 ] && [ ${PY_RC} -eq 0 ]; then
-  echo "下一步：双击 Horosa_Local.command 直接启动。"
-else
-  echo "下一步：双击 Horosa_OneClick_Mac.command 自动补齐缺失依赖后再启动。"
-fi
+echo "下一步：回到根目录双击 Horosa_OneClick_Mac.command。"
 read -r -p "按回车退出..." _

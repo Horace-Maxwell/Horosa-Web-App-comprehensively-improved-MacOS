@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-START_CMD="${ROOT}/Horosa_Local.command"
+START_CMD="${ROOT}/tools/mac/Horosa_Local.command"
 VERIFY_SH="${ROOT}/Horosa-Web/verify_horosa_local.sh"
 STOP_SH="${ROOT}/Horosa-Web/stop_horosa_local.sh"
 
