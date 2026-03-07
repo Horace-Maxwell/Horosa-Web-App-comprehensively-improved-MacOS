@@ -606,7 +606,7 @@ python_has_runtime_deps() {
   fi
   "${py_bin}" - <<'PY' >/dev/null 2>&1
 import importlib.util as iu
-mods = ("cherrypy", "jsonpickle", "swisseph")
+mods = ("cherrypy", "jsonpickle", "swisseph", "joblib", "numpy", "scipy", "sklearn")
 missing = [m for m in mods if iu.find_spec(m) is None]
 raise SystemExit(1 if missing else 0)
 PY

@@ -166,7 +166,7 @@ python_runtime_ready() {
   fi
   "${py_bin}" - <<'PY' >/dev/null 2>&1
 import importlib.util as iu
-mods = ("cherrypy", "jsonpickle", "swisseph")
+mods = ("cherrypy", "jsonpickle", "swisseph", "joblib", "numpy", "scipy", "sklearn")
 missing = [m for m in mods if iu.find_spec(m) is None]
 raise SystemExit(1 if missing else 0)
 PY
@@ -214,6 +214,7 @@ bootstrap_missing_runtime() {
 use_bundled_runtime() {
   local java_home=""
   local candidate=""
+  local allow_system_python="${HOROSA_ALLOW_SYSTEM_PYTHON:-0}"
 
   for candidate in "${BUNDLED_JAVA_CANDIDATES[@]}"; do
     if set_java_runtime "${candidate}" "使用项目内 Java runtime"; then
@@ -269,7 +270,7 @@ use_bundled_runtime() {
     fi
   fi
 
-  if [ -z "${HOROSA_PYTHON:-}" ]; then
+  if [ "${allow_system_python}" = "1" ] && [ -z "${HOROSA_PYTHON:-}" ]; then
     system_python="$(detect_system_python_bin 2>/dev/null || true)"
     if [ -n "${system_python}" ]; then
       if ! set_python_runtime "${system_python}" "使用系统 Python runtime"; then
@@ -279,11 +280,15 @@ use_bundled_runtime() {
   fi
 
   if [ -z "${HOROSA_PYTHON:-}" ]; then
-    bootstrap_missing_runtime "未检测到可用 Python runtime 或缺少依赖(cherrypy/jsonpickle/swisseph)" || true
+    bootstrap_missing_runtime "未检测到项目内 Python runtime，自动补齐一致运行环境" || true
   fi
 
   if [ -z "${HOROSA_PYTHON:-}" ] || ! python_runtime_ready "${HOROSA_PYTHON}"; then
-    echo "[预检] Python 仍不可用，请先双击 Horosa_OneClick_Mac.command 完成初始化。"
+    if [ "${allow_system_python}" != "1" ]; then
+      echo "[预检] 未启用系统 Python 回退。为保证主限法与桌面包/主仓库一致，请先双击 Horosa_OneClick_Mac.command 完成初始化。"
+    else
+      echo "[预检] Python 仍不可用，请先双击 Horosa_OneClick_Mac.command 完成初始化。"
+    fi
     exit 1
   fi
 }
@@ -837,6 +842,7 @@ if [ "${KEEP_SERVICES_RUNNING}" = "1" ]; then
   RUN_OK=1
   diag_log "run success, keep_running=1, web_url=${URL}"
   diag_log "===== run end (success) ====="
+  trap - EXIT INT TERM HUP
   exit 0
 fi
 

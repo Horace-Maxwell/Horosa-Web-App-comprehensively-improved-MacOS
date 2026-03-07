@@ -55,7 +55,7 @@ public class PredictiveController {
 		params.put("lat", TransData.get("lat"));
 		params.put("lon", TransData.get("lon"));
 		// Bust legacy local/runtime cache entries after PD method/time-key response wiring changes.
-		params.put("_wireRev", "pd_method_sync_v2");
+		params.put("_wireRev", "pd_method_sync_v4");
 		params.put("hsys", TransData.getValueAsInt("hsys", 0));
 		params.put("tradition", TransData.getValueAsBool("tradition", false));
 		params.put("predictive", TransData.getValueAsBool("predictive", false));

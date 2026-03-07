@@ -42,6 +42,7 @@ from websrv.webacgsrv import AcgSrv
 
 class WebChartSrv:
     exposed = True
+    PD_SYNC_REV = 'pd_method_sync_v4'
 
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
@@ -66,8 +67,11 @@ class WebChartSrv:
                     'tradition': perchart.tradition,
                     'zodiacal': perchart.zodiacal,
                     'doubingSu28': perchart.isDoubingSu28,
+                    'showPdBounds': data.get('showPdBounds', 1),
+                    'pdtype': perchart.pdtype,
                     'pdMethod': perchart.pdMethod,
                     'pdTimeKey': perchart.pdTimeKey,
+                    'pdSyncRev': self.PD_SYNC_REV,
                 },
                 'chart': perchart.getChartObj(),
                 'receptions': perchart.getReceptions(),
@@ -132,8 +136,11 @@ class WebChartSrv:
                     'zone': data['zone'],
                     'tradition': perchart.tradition,
                     'zodiacal': perchart.zodiacal,
+                    'showPdBounds': data.get('showPdBounds', 1),
+                    'pdtype': perchart.pdtype,
                     'pdMethod': perchart.pdMethod,
                     'pdTimeKey': perchart.pdTimeKey,
+                    'pdSyncRev': self.PD_SYNC_REV,
                 },
                 'chart': perchart.getChartObj(),
                 'receptions': perchart.getReceptions(),

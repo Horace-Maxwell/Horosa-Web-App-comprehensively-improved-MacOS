@@ -97,7 +97,7 @@ function newEmptyFields(){
 					name: ['showPdBounds'],
 				},
 		pdtype: {
-			value: 1,
+			value: 0,
 			name: ['pdtype'],
 		},
 		pdMethod: {
@@ -450,7 +450,7 @@ export default {
 				name: ['showPdBounds'],
 			},
 			pdtype: {
-				value: 1,
+				value: 0,
 				name: ['pdtype'],
 			},
 			pdMethod: {
