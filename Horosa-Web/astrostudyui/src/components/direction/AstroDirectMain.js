@@ -81,7 +81,7 @@ function primaryDirectionMethodText(val){
 	if(val === 'horosa_legacy'){
 		return 'Horosa原方法';
 	}
-	return 'Core-Alchabitius';
+	return 'Alchabitius';
 }
 
 function primaryDirectionTimeKeyText(val){

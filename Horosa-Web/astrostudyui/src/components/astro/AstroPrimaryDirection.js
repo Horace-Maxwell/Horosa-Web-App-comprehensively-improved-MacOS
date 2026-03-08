@@ -621,7 +621,7 @@ class AstroPrimaryDirection extends Component{
 								onChange={this.handlePdMethodChange}
 							>
 								<Option value='horosa_legacy'>Horosa原方法</Option>
-								<Option value='core_alchabitius'>Core-Alchabitius</Option>
+								<Option value='core_alchabitius'>Alchabitius</Option>
 							</Select>
 						</div>
 					</Col>
