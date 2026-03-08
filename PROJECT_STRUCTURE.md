@@ -2558,9 +2558,13 @@
     - `起运主星`
     - `分配次序`
     - `日限体系`
+    - `时间口径`
+      - `360天/年（名义区间）`
+      - `365.25天/年（实际日期）`
   - 展示规则：
     - 中间层级使用行星符号，不再显示星座符号；
-    - `L1/L2/L3` 显示日期范围；
+    - `360天/年` 模式下，`L1-L4` 显示文档口径的名义区间；
+    - `365.25天/年` 模式下，`L1/L2/L3` 显示实际日期范围；
     - `L4` 显示到 `YYYY-MM-DD HH:mm`。
 - 十年大运计算核心：
   - `Horosa-Web/astrostudyui/src/utils/decennials.js`
@@ -2572,6 +2576,9 @@
     - 日限体系：
       - `Valens`：按比例精确到分钟
       - `Hephaistio`：按文档原表日数
+    - 时间口径字段：
+      - `nominal`：按 `360天/年、30天/月` 换算的名义区间
+      - `date`：按 `3870天` 迭代得到的实际日期区间
     - 层级输出：`L1 年主星 / L2 月主星 / L3 日主星 / L4 时主星`
 - AI 导出接线：
   - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
@@ -2586,7 +2593,7 @@
   - 已兼容 `基于...起运` 的分段标题标准化，避免 AI 导出设置筛分不到十年大运快照。
 - 自检与巡检接线：
   - `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`
-    - 专项校验十年大运核心算法与 `L4 HH:MM` 显示。
+    - 专项校验十年大运核心算法、名义/实际时间口径切换与 `L4 HH:MM` 显示。
   - `scripts/browser_horosa_master_check.py`
     - 推运盘子页巡检新增 `十年大运`。
   - `scripts/check_horosa_full_integration.py`
