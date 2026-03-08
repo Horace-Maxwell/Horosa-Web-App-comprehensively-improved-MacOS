@@ -9,8 +9,12 @@ import {
 	DECENNIAL_ORDER_CHALDEAN,
 	DECENNIAL_DAY_METHOD_VALENS,
 	DECENNIAL_DAY_METHOD_HEPHAISTIO,
+	DECENNIAL_CALENDAR_TRADITIONAL,
+	DECENNIAL_CALENDAR_ACTUAL,
 	DECENNIAL_TRADITIONAL_PLANETS,
 	buildDecennialTimeline,
+	getDecennialCalendarLabel,
+	getDecennialDisplayText,
 	getDecennialDayMethodLabel,
 	getDecennialOrderLabel,
 	getDecennialPlanetLongName,
@@ -70,12 +74,12 @@ function modeLabel(mode){
 	return target ? target.label : AI_MODE_ITEMS[0].label;
 }
 
-function nodeLine(item){
+function nodeLine(item, calendarType){
 	if(!item){
 		return '无';
 	}
 	const label = getDecennialPlanetLongName(item.planet);
-	return `${label}-${item.date}${item.active ? '-当前' : ''}`;
+	return `${label}-${getDecennialDisplayText(item, calendarType)}${item.active ? '-当前' : ''}`;
 }
 
 function resolveSelectedNodes(list, aiState){
@@ -145,6 +149,7 @@ function buildDecennialAISnapshot(chartObj, params, settings, timelineMeta, list
 	lines.push(`实际起运：${getDecennialPlanetLongName(timelineMeta.resolvedStartPlanet)}`);
 	lines.push(`分配次序：${getDecennialOrderLabel(settings.orderType)}`);
 	lines.push(`日限体系：${getDecennialDayMethodLabel(settings.dayMethod)}`);
+	lines.push(`时间口径：${getDecennialCalendarLabel(settings.calendarType)}`);
 
 	lines.push('');
 	lines.push(`[基于${getDecennialPlanetLongName(timelineMeta.resolvedStartPlanet)}起运]`);
@@ -158,7 +163,7 @@ function buildDecennialAISnapshot(chartObj, params, settings, timelineMeta, list
 
 	if(aiState.aiMode === AI_MODE_L1_ALL){
 		selected.l1List.forEach((item, idx)=>{
-			lines.push(`L1-${idx + 1}：${nodeLine(item)}`);
+			lines.push(`L1-${idx + 1}：${nodeLine(item, settings.calendarType)}`);
 		});
 		return lines.join('\n');
 	}
@@ -167,14 +172,14 @@ function buildDecennialAISnapshot(chartObj, params, settings, timelineMeta, list
 		lines.push('未找到L1数据');
 		return lines.join('\n');
 	}
-	lines.push(`L1-${selected.l1Idx + 1}：${nodeLine(selected.l1)}`);
+	lines.push(`L1-${selected.l1Idx + 1}：${nodeLine(selected.l1, settings.calendarType)}`);
 
 	if(aiState.aiMode === AI_MODE_L2_IN_L1){
 		if(selected.l2List.length === 0){
 			lines.push('无L2数据');
 		}else{
 			selected.l2List.forEach((item, idx)=>{
-				lines.push(`L2-${idx + 1}：${nodeLine(item)}`);
+				lines.push(`L2-${idx + 1}：${nodeLine(item, settings.calendarType)}`);
 			});
 		}
 		return lines.join('\n');
@@ -184,14 +189,14 @@ function buildDecennialAISnapshot(chartObj, params, settings, timelineMeta, list
 		lines.push('未找到L2数据');
 		return lines.join('\n');
 	}
-	lines.push(`L2-${selected.l2Idx + 1}：${nodeLine(selected.l2)}`);
+	lines.push(`L2-${selected.l2Idx + 1}：${nodeLine(selected.l2, settings.calendarType)}`);
 
 	if(aiState.aiMode === AI_MODE_L3_IN_L2){
 		if(selected.l3List.length === 0){
 			lines.push('无L3数据');
 		}else{
 			selected.l3List.forEach((item, idx)=>{
-				lines.push(`L3-${idx + 1}：${nodeLine(item)}`);
+				lines.push(`L3-${idx + 1}：${nodeLine(item, settings.calendarType)}`);
 			});
 		}
 		return lines.join('\n');
@@ -201,14 +206,14 @@ function buildDecennialAISnapshot(chartObj, params, settings, timelineMeta, list
 		lines.push('未找到L3数据');
 		return lines.join('\n');
 	}
-	lines.push(`L3-${selected.l3Idx + 1}：${nodeLine(selected.l3)}`);
+	lines.push(`L3-${selected.l3Idx + 1}：${nodeLine(selected.l3, settings.calendarType)}`);
 
 	const l4List = selected.l3 && Array.isArray(selected.l3.sublevel) ? selected.l3.sublevel : [];
 	if(l4List.length === 0){
 		lines.push('无L4数据');
 	}else{
 		l4List.forEach((item, idx)=>{
-			lines.push(`L4-${idx + 1}：${nodeLine(item)}`);
+			lines.push(`L4-${idx + 1}：${nodeLine(item, settings.calendarType)}`);
 		});
 	}
 	return lines.join('\n');
@@ -223,6 +228,7 @@ class AstroDecennials extends Component{
 		this.changeStartMode = this.changeStartMode.bind(this);
 		this.changeOrderType = this.changeOrderType.bind(this);
 		this.changeDayMethod = this.changeDayMethod.bind(this);
+		this.changeCalendarType = this.changeCalendarType.bind(this);
 		this.changeAIMode = this.changeAIMode.bind(this);
 		this.changeAIL1 = this.changeAIL1.bind(this);
 		this.changeAIL2 = this.changeAIL2.bind(this);
@@ -244,6 +250,7 @@ class AstroDecennials extends Component{
 				startMode: DECENNIAL_START_MODE_SECT_LIGHT,
 				orderType: DECENNIAL_ORDER_ZODIACAL,
 				dayMethod: DECENNIAL_DAY_METHOD_VALENS,
+				calendarType: DECENNIAL_CALENDAR_TRADITIONAL,
 			},
 			list: [],
 			timelineMeta: {
@@ -349,6 +356,7 @@ class AstroDecennials extends Component{
 			startMode: this.state.settings.startMode,
 			orderType: this.state.settings.orderType,
 			dayMethod: this.state.settings.dayMethod,
+			calendarType: this.state.settings.calendarType,
 			l1: this.state.aiL1Idx,
 			l2: this.state.aiL2Idx,
 			l3: this.state.aiL3Idx,
@@ -393,6 +401,17 @@ class AstroDecennials extends Component{
 			aiL1Idx: 0,
 			aiL2Idx: 0,
 			aiL3Idx: 0,
+		}, ()=>{
+			this.rebuildTimeline();
+		});
+	}
+
+	changeCalendarType(value){
+		this.setState({
+			settings: {
+				...this.state.settings,
+				calendarType: value,
+			},
 		}, ()=>{
 			this.rebuildTimeline();
 		});
@@ -446,6 +465,7 @@ class AstroDecennials extends Component{
 
 	genTreeNodes(list){
 		return (Array.isArray(list) ? list : []).map((item)=>{
+			const displayText = getDecennialDisplayText(item, this.state.settings.calendarType);
 			const titleStyle = {
 				color: LEVEL_COLORS[item.level - 1] || LEVEL_COLORS[0],
 				padding: '2px 6px',
@@ -461,7 +481,7 @@ class AstroDecennials extends Component{
 						{this.renderPlanetToken(item.planet)}
 						{item.active ? <span style={{ fontFamily: AstroConst.NormalFont }}>{' 当前'}</span> : null}
 					</span>
-					<span style={{ fontFamily: AstroConst.NormalFont }}>{` ${item.date}`}</span>
+					<span style={{ fontFamily: AstroConst.NormalFont }}>{` ${displayText}`}</span>
 				</div>
 			);
 			return (
@@ -491,7 +511,7 @@ class AstroDecennials extends Component{
 						<div style={{ marginBottom: 4 }}>L1选择</div>
 						<Select size='small' value={`${selected.l1Idx}`} style={{ width: '100%' }} onChange={this.changeAIL1}>
 							{selected.l1List.map((item, idx)=>(
-								<Option value={`${idx}`} key={`l1_${idx}`}>{`L1-${idx + 1} ${nodeLine(item)}`}</Option>
+								<Option value={`${idx}`} key={`l1_${idx}`}>{`L1-${idx + 1} ${nodeLine(item, this.state.settings.calendarType)}`}</Option>
 							))}
 						</Select>
 					</div>
@@ -502,7 +522,7 @@ class AstroDecennials extends Component{
 						<div style={{ marginBottom: 4 }}>L2选择</div>
 						<Select size='small' value={`${selected.l2Idx}`} style={{ width: '100%' }} onChange={this.changeAIL2}>
 							{selected.l2List.map((item, idx)=>(
-								<Option value={`${idx}`} key={`l2_${idx}`}>{`L2-${idx + 1} ${nodeLine(item)}`}</Option>
+								<Option value={`${idx}`} key={`l2_${idx}`}>{`L2-${idx + 1} ${nodeLine(item, this.state.settings.calendarType)}`}</Option>
 							))}
 						</Select>
 					</div>
@@ -513,7 +533,7 @@ class AstroDecennials extends Component{
 						<div style={{ marginBottom: 4 }}>L3选择</div>
 						<Select size='small' value={`${selected.l3Idx}`} style={{ width: '100%' }} onChange={this.changeAIL3}>
 							{selected.l3List.map((item, idx)=>(
-								<Option value={`${idx}`} key={`l3_${idx}`}>{`L3-${idx + 1} ${nodeLine(item)}`}</Option>
+								<Option value={`${idx}`} key={`l3_${idx}`}>{`L3-${idx + 1} ${nodeLine(item, this.state.settings.calendarType)}`}</Option>
 							))}
 						</Select>
 					</div>
@@ -560,6 +580,17 @@ class AstroDecennials extends Component{
 						<Option value={DECENNIAL_DAY_METHOD_VALENS}>Valens（精确）</Option>
 						<Option value={DECENNIAL_DAY_METHOD_HEPHAISTIO}>Hephaistio（原表日数）</Option>
 					</Select>
+				</div>
+
+				<div style={{ marginBottom: 8 }}>
+					<div style={{ marginBottom: 4 }}>时间口径</div>
+					<Select size='small' value={this.state.settings.calendarType} style={{ width: '100%' }} onChange={this.changeCalendarType}>
+						<Option value={DECENNIAL_CALENDAR_TRADITIONAL}>360天/年（名义区间）</Option>
+						<Option value={DECENNIAL_CALENDAR_ACTUAL}>365.25天/年（实际日期）</Option>
+					</Select>
+					<div style={{ marginTop: 4, color: '#666', fontSize: 12 }}>
+						{`当前显示：${getDecennialCalendarLabel(this.state.settings.calendarType)}`}
+					</div>
 				</div>
 			</div>
 		);
