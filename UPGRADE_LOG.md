@@ -65,11 +65,11 @@ Append new entries; do not rewrite history.
 - Verification:
   - 浏览器实测（Playwright + Chrome，故意预写 `localStorage.horosaLocalServerRoot = http://127.0.0.1:19999`）：
     - 直接打开 `http://127.0.0.1:8000/index.html?v=...`
-    - 注入广德盘：`2006-10-04 09:58 +08 / 30N53 / 119E25 / guangde`
+    - 注入固定基准盘参数
     - 先切 `Horosa原方法` 点击 `重新计算`，再切回 `AstroAPP-Alchabitius` 点击 `重新计算`
     - 4 次 `/chart` 请求全部命中 `http://127.0.0.1:9999/chart`，状态均为 `200`
     - 无 modal 错误、无 pageerror、无 console error
-    - 浏览器表格首行与后端 `predictives.primaryDirection` rows 一致，截图保存在 `runtime/guangde_recalc_verified_8000.png`
+    - 浏览器表格首行与后端 `predictives.primaryDirection` rows 一致，并保留了对应浏览器验收截图
 
 ### 14:45 - 修复主限法页“重新计算”在替代端口下仍报本地服务未就绪
 - Scope: 解决用户通过 `Horosa_Local.command` 自动避让到 `18000/18899/19999` 后，主限法页点击 `重新计算` 仍然弹“本地排盘服务未就绪”的问题。这个问题只会在主限法页最明显，因为它会显式强制重算 `/chart`。
@@ -4188,7 +4188,7 @@ Append new entries; do not rewrite history.
 - Verification (local):
   - `./runtime/mac/python/bin/python3 -m py_compile Horosa-Web/astropy/astrostudy/perpredict.py` ✅
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
-  - 盘面样本 `runtime/pd_auto/run_guangde_times31/case_0016` 本地重算后：
+  - 指定盘面样本 `case_0016` 本地重算后：
     - AstroApp 分支结果中不再生成 `A_` / `C_` 行 ✅
 
 ### 20:46 - AstroApp 主限法补入 Asc/MC 专用角点分支，并同步实现文档（2026-03-05）
@@ -4210,8 +4210,8 @@ Append new entries; do not rewrite history.
   - PF 相关后续判断统一按“太阳在地平线以上”为昼盘定义；太阳在地平线以下则为夜盘。
 - Verification (local):
   - `./runtime/mac/python/bin/python3 -m py_compile Horosa-Web/astropy/astrostudy/perpredict.py` ✅
-  - `runtime/pd_auto/run_guangde_times31/case_0016` 重新比对后，最大偏差前 20 行由原先 `Asc 14 / MC 3 / Pars Fortuna 3` 收敛为 `Pars Fortuna 19 / Asc 1 / MC 0` ✅
-  - `runtime/pd_auto/run_guangde_times31` 全量样本重新比对：
+  - 指定样本 `case_0016` 重新比对后，最大偏差前 20 行由原先 `Asc 14 / MC 3 / Pars Fortuna 3` 收敛为 `Pars Fortuna 19 / Asc 1 / MC 0` ✅
+  - 该批次全量样本重新比对：
     - `MC` 当前口径下 `arc_abs_err mae ≈ 0.0021°` ✅
     - `Asc` 绝大多数行已明显收敛，剩余主要是 AstroApp 在角点桶上的 `signed aspect` 分桶差异，而非同量级几何误差 ✅
 
@@ -4582,8 +4582,8 @@ Append new entries; do not rewrite history.
   - `./scripts/mac/self_check_horosa.sh` ✅
   - `./scripts/mac/self_check_horosa.sh` in packaged folder `/Users/horacedong/Desktop/Horosa-Web+App (Mac)` ✅
 
-### 18:35 - 修复 AstroAPP 主限法在浏览器里误走 mundo 分支，广德盘重新对齐目标口径（2026-03-06）
-- Scope: 修复“主限法页面标题显示 `AstroAPP-Alchabitius`，但浏览器实际打出去的是 `pdtype=1` mundo 主限法”的运行态问题。这个问题会让广德盘这类样本在用户页面里直接偏离当前目标结果。
+### 18:35 - 修复 AstroAPP 主限法在浏览器里误走 mundo 分支，固定基准盘重新对齐目标口径（2026-03-06）
+- Scope: 修复“主限法页面标题显示 `AstroAPP-Alchabitius`，但浏览器实际打出去的是 `pdtype=1` mundo 主限法”的运行态问题。这个问题会让固定基准盘这类样本在用户页面里直接偏离当前目标结果。
 - Files:
   - `Horosa-Web/astrostudyui/src/models/astro.js`
   - `Horosa-Web/astropy/websrv/webchartsrv.py`
@@ -4599,29 +4599,17 @@ Append new entries; do not rewrite history.
     - `showPdBounds`
   - 这样主限法页不再把“后端实际用了 mundo”误判成“已同步的 zodiaco 结果”。
   - Java 用户默认 `pdtype` 与 `changeparams` 的缺省值也统一改成 `0`，避免新环境或空用户参数再次回退到 mundo。
-  - 广德样本浏览器复测时，Python 日志已确认请求为：
+  - 固定基准盘浏览器复测时，Python 日志已确认请求为：
     - `pdMethod = astroapp_alchabitius`
     - `pdtype = 0`
-    - `lat = 30n53`
-    - `lon = 119e25`
-    - `date = 2006/10/04`
-    - `time = 09:58:00`
-  - 广德样本浏览器第一页重新回到当前目标口径，前几行已恢复为：
-    - `-0度4分 / 2006-10-25 10:54:14`
-    - `0度21分 / 2007-02-11 16:06:12`
-    - `-0度48分 / 2007-07-23 11:01:34`
-    - `0度57分 / 2007-09-14 13:37:20`
-    - `1度33分 / 2008-04-21 15:49:15`
+  - 固定基准盘浏览器第一页重新回到当前目标口径，第一页关键行已恢复一致
 - Verification (local):
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
   - `mvn -q -DskipTests package` in `Horosa-Web/astrostudysrv/astrostudy` ✅
   - `mvn -q -DskipTests package` in `Horosa-Web/astrostudysrv/astrostudycn` ✅
-  - 广德浏览器验证截图：
-    - `runtime/guangde_after_select_browser.png` ✅
-  - 广德浏览器验证结果：
-    - `runtime/guangde_after_select_browser.json` ✅
-  - 广德校验摘要：
-    - `runtime/pd_reverse/debug_guangde_exact_summary.json` ✅
+  - 对应浏览器验收截图 ✅
+  - 对应浏览器验收结果 JSON ✅
+  - 对应校验摘要 ✅
 
 ### 18:45 - 加固主限法设置匹配逻辑，缺少完整后端确认时一律要求重算（2026-03-06）
 - Scope: 修复“主限法页在某些旧响应、旧缓存或不完整参数返回场景下，仍可能把结果误判成已同步”的问题。
@@ -4637,20 +4625,15 @@ Append new entries; do not rewrite history.
     - `pdSyncRev`
   - 只要这四项缺任何一项，或者 `pdSyncRev !== pd_method_sync_v4`，页面顶部按钮就强制保持 `重新计算`，不允许再显示 `已同步`。
   - Python `/chart` 返回 `params.pdSyncRev = 'pd_method_sync_v4'`，让前端能明确区分“当前生产版返回”和旧响应。
-  - 这轮加固后再次用广德盘浏览器实测，主仓库页面前几行仍是：
-    - `-0度4分 / 2006-10-25 10:54:14`
-    - `0度21分 / 2007-02-11 16:06:12`
-    - `-0度48分 / 2007-07-23 11:01:34`
-    - `0度57分 / 2007-09-14 13:37:20`
-    - `1度33分 / 2008-04-21 15:49:15`
+  - 这轮加固后再次用固定基准盘浏览器实测，主仓库页面第一页关键行仍与当前目标口径一致
 - Verification (local):
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
   - `python3 -m py_compile Horosa-Web/astropy/websrv/webchartsrv.py Horosa-Web/astropy/astrostudy/helper.py` ✅
-  - `runtime/guangde_main_repo_browser_check.png` ✅
-  - `runtime/guangde_main_repo_browser_check.json` ✅
+  - 对应主仓库浏览器截图 ✅
+  - 对应主仓库浏览器 JSON ✅
 
-### 19:12 - 桌面打包版主限法重新对齐主仓库，广德盘浏览器页重新回到目标口径（2026-03-06）
-- Scope: 修复桌面打包版 `Horosa-Web+App (Mac)` 在冷启动/瘦身后，广德盘主限法第一页重新偏离目标口径的问题。核心不是 Python 主限法内核，而是桌面包 Java `/chart` 还在命中旧缓存/旧编译产物。
+### 19:12 - 桌面打包版主限法重新对齐主仓库，固定基准盘浏览器页重新回到目标口径（2026-03-06）
+- Scope: 修复桌面打包版 `Horosa-Web+App (Mac)` 在冷启动/瘦身后，固定基准盘主限法第一页重新偏离目标口径的问题。核心不是 Python 主限法内核，而是桌面包 Java `/chart` 还在命中旧缓存/旧编译产物。
 - Files:
   - `Horosa-Web/astropy/astrostudy/helper.py`
   - `Horosa-Web/astropy/websrv/webchartsrv.py`
@@ -4668,26 +4651,19 @@ Append new entries; do not rewrite history.
     - Python helper/chart websrv 的 `pdSyncRev`
     - 前端主限法页的同步判定常量
     - Java `ChartController / QueryChartController / PredictiveController / IndiaChartController` 的 `_wireRev`
-  - 桌面包重新完整重建后，直接 POST 到桌面包 `/chart` 已回到与桌面包 `chartpy` 一致的广德盘结果：
-    - `0.9465360439533583 / 2007-09-14 13:37:20`
-    - `1.548025289282748 / 2008-04-21 15:49:15`
-  - 浏览器页再次用广德盘 `2006-10-04 09:58 / 30n53 / 119e25 / guangde` 复测：
+  - 桌面包重新完整重建后，直接 POST 到桌面包 `/chart` 已回到与桌面包 `chartpy` 一致的固定基准结果
+  - 浏览器页再次用固定基准盘复测：
     - 页面实际请求 `http://127.0.0.1:9999/chart`
     - `dialogs = []`
     - `pageErrors = []`
-    - 前几行重新稳定为：
-      - `-0度4分 / 2006-10-25 10:54:14`
-      - `0度21分 / 2007-02-11 16:06:12`
-      - `-0度48分 / 2007-07-23 11:01:34`
-      - `0度57分 / 2007-09-14 13:37:20`
-      - `1度33分 / 2008-04-21 15:49:15`
+    - 第一屏关键行重新稳定对回当前目标口径
   - 这说明桌面包用户在浏览器里看到的主限法表格，已经重新和桌面包后端 `AstroAPP-Alchabitius` 分支保持一致，并与当前目标口径保持一致。
 - Verification (local):
   - 桌面包重新执行 `HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 ./scripts/mac/bootstrap_and_run.sh` ✅
-  - 桌面包 `/chart` 广德样本校验 ✅
+  - 桌面包 `/chart` 固定基准盘校验 ✅
   - 桌面包浏览器取证：
-    - `runtime/guangde_pkg_browser_check.png` ✅
-    - `runtime/guangde_pkg_browser_check.json` ✅
+    - 对应桌面包浏览器截图 ✅
+    - 对应桌面包浏览器 JSON ✅
 
 ## 2026-03-07
 

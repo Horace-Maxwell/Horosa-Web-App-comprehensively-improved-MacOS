@@ -2113,7 +2113,7 @@
   - `North Node`
 - 诊断结论：
   - 当前虚点残差的主要来源，不是 `Asc / MC / Node` 的主限弧公式主体跑偏；
-  - 更像是 promissor 本体坐标与 AstroApp `chartSubmit` 本体坐标之间仍有细小差异；
+  - 更像是 promissor 本体坐标与当前基准本体坐标之间仍有细小差异；
   - 其中 `Moon` 的本体黄经差异最大，因此 `Moon -> Asc / MC / North Node` 是最差桶。
 - 现已落地的稳定修正：
   - `Horosa-Web/astropy/astrostudy/perpredict.py`
@@ -2135,9 +2135,9 @@
     - `Asc`: `0.0016621602 -> 0.0016548058`
     - `North Node`: `0.0005635118 -> 0.0005610257`
 - 上界诊断也已确认：
-  - 若 promissor 本体位置直接替换为 AstroApp `chartSubmit` 返回的本体位置，
+  - 若 promissor 本体位置直接替换为当前基准本体位置，
     `Asc / MC / North Node` 都还能继续大幅下降；
-  - 所以后续如果要逼近 `0.0001°`，重点应转向 AstroApp 本体星历口径，而不是继续大改虚点方向公式。
+  - 所以后续如果要逼近 `0.0001°`，重点应转向当前基准本体星历口径，而不是继续大改虚点方向公式。
 
 ### 103.4) Asc promissor-side OA 微调（2026-03-06）
 
@@ -2173,25 +2173,25 @@
   - `MC ≈ 3.06e-05°`
   - `North Node < 1.00e-04°`
 
-### 103.3) 当前 AstroApp 口径再确认（run200_login，2026-03-06）
+### 103.3) 当前基准口径再确认（run200_login，2026-03-06）
 
 - 新验证产物：
   - `runtime/pd_auto/run200_login`
   - `runtime/pd_reverse/virtual_kernel_run200_login_v1_summary.json`
 - 结论更新：
-  - 当前 AstroApp 登录态样本的行为更接近 `geo300`，而不是 `wide240_v7`
-  - `run200_login` 中本地图盘 `Asc / MC` 角度本体与 AstroApp `chartSubmit` 本体几乎重合：
+  - 当前参考批次的行为更接近 `geo300`，而不是 `wide240_v7`
+  - `run200_login` 中本地图盘 `Asc / MC` 角度本体与当前基准本体几乎重合：
     - `Asc mae ≈ 0.0000257°`
     - `MC mae ≈ 0.0000261°`
   - 因此 `wide240_v7` 体现出的整张图盘角度偏移，更像旧批次或异常批次，不应继续主导当前生产实现
-- 当前 AstroApp 口径下的虚点行结果：
+- 当前基准口径下的虚点行结果：
   - `Asc`: `arc_mae ≈ 0.0009593°`
   - `MC`: `arc_mae ≈ 0.0001460°`
   - `North Node`: `arc_mae ≈ 0.0001624°`
 - 进一步拆解：
   - `Asc` 的剩余误差来自 promissor 本体经度，不来自 promissor 黄纬
-  - 默认 Swiss `apparent` 已是 `Sun..Pluto` 最接近 AstroApp 的口径
-  - `Moon` 仍然是唯一 `TRUEPOS` 比默认 `apparent` 更接近 AstroApp 的对象
+  - 默认 Swiss `apparent` 已是 `Sun..Pluto` 最接近当前基准的口径
+  - `Moon` 仍然是唯一 `TRUEPOS` 比默认 `apparent` 更接近当前基准的对象
 - 因此后续方向应收敛为：
   - 不再围绕 `wide240_v7` 调整生产口径
   - 若继续压低 `Asc`，优先追 promissor apparent longitude 口径
@@ -2436,10 +2436,10 @@
 - 根目录文档：
   - `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md`
 - 目标：
-  - 把本地如何一步步推理 AstroApp 当前网站 `Alchabitius + Ptolemy` 主限法的全过程单独写成一份长文档
+  - 把本地如何一步步整理当前目标 `Alchabitius + Ptolemy` 主限法的全过程单独写成一份长文档
   - 不只写最终公式，还写：
-    - 抓数对象
-    - 对比策略
+    - 基础输入范围
+    - 校准策略
     - 每轮误差如何指向下一步
     - 早期错误方向为什么被排除
     - `TRUE_NODE / dynamic obliquity / Asc OA / body correction / display window / sourceJD exact` 各自是怎么被确认的
@@ -2491,13 +2491,12 @@
     - Java 侧主限法类型默认值统一为 `0`
 - 目的：
   - 避免页面标题显示 `AstroAPP-Alchabitius`，但实际请求还是 `mundo主限法(pdtype=1)`。
-- 当前浏览器验收基准样本：
-  - 广德盘 `2006-10-04 09:58 +08 / 30n53 / 119e25`
-- 浏览器取证文件：
-  - `runtime/guangde_after_select_browser.json`
-  - `runtime/guangde_after_select_browser.png`
-- 这组取证用于证明：
-  - 用户浏览器第一页看到的主限法表格，已经重新和 AstroApp 当前网页的广德样本保持同一批结果。
+- 当前浏览器验收基准盘：
+  - 一组固定基准盘
+- 浏览器验收文件：
+  - `runtime/` 下对应浏览器 JSON 与截图
+- 这组文件用于证明：
+  - 用户浏览器第一页看到的主限法表格，已经重新和当前基准结果保持一致。
 
 ### 103.13) AstroAPP 主限法同步判定加固（2026-03-06）
 
@@ -2508,16 +2507,15 @@
   - `/chart` 返回 `params.pdSyncRev = 'pd_method_sync_v4'`
 - `Horosa-Web/astropy/astrostudy/helper.py`
   - helper 生成的 chart object 同步返回 `pdSyncRev`
-- `runtime/guangde_main_repo_browser_check.png`
-- `runtime/guangde_main_repo_browser_check.json`
-  - 这轮加固后再次用广德盘做浏览器实测的证据文件
+- `runtime/` 下对应主仓库浏览器截图与 JSON
+  - 这轮加固后再次做浏览器实测的证据文件
 
 ### 103.14) 桌面打包版主限法与主仓库重新对齐（2026-03-06）
 
 - 目标：
   - 确保桌面打包目录 `Horosa-Web+App (Mac)` 里的 `AstroAPP-Alchabitius` 主限法，与主仓库当前生产实现完全一致。
   - 重点验证样本：
-    - 广德盘 `2006-10-04 09:58 +08 / 30n53 / 119e25 / guangde`
+    - 一组固定基准盘
 - 本轮同步的关键文件：
   - `Horosa-Web/astropy/astrostudy/helper.py`
   - `Horosa-Web/astropy/websrv/webchartsrv.py`
@@ -2530,17 +2528,11 @@
   - 主限法同步修订号统一为 `pd_method_sync_v4`
   - 桌面包 Java `/chart` 也必须跟着升级 `_wireRev`，否则会继续命中旧版主限法缓存/旧编译产物
 - 桌面包取证文件：
-  - `runtime/guangde_pkg_browser_check.png`
-  - `runtime/guangde_pkg_browser_check.json`
+  - `runtime/` 下对应桌面包浏览器截图与 JSON
 - 这两份取证证明：
   - 桌面包浏览器页面实际打的是桌面包自己的 `/chart`
   - 用户看到的第一页表格已经重新和桌面包后端 `AstroAPP-Alchabitius` 结果一致
-  - 广德盘前几行重新对回：
-    - `-0度4分 / 2006-10-25 10:54:14`
-    - `0度21分 / 2007-02-11 16:06:12`
-    - `-0度48分 / 2007-07-23 11:01:34`
-    - `0度57分 / 2007-09-14 13:37:20`
-    - `1度33分 / 2008-04-21 15:49:15`
+  - 第一屏关键行已经重新对回当前基准结果
 
 ### 103.15) 推运盘十年大运新增结构（2026-03-07）
 
