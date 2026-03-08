@@ -4768,3 +4768,23 @@ Append new entries; do not rewrite history.
   - `npm --prefix Horosa-Web/astrostudyui test -- --runInBand` ✅
   - `npm --prefix Horosa-Web/astrostudyui run build` ✅
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 16:14 - 十年大运时间口径改为“具体日期主显示 + 名义区间辅助说明”
+- Scope: 修正上一版 `360天/年` 仅显示 `0个月-10年9个月` 这类抽象区间、不便于用户直接查看的问题。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroDecennials.js`
+  - `Horosa-Web/astrostudyui/src/utils/decennials.js`
+  - `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`
+- Details:
+  - 两种时间口径现在都以“具体日期”作为主显示：
+    - `360天/年（按30天/月换算）`
+    - `365.25天/年（按回归年换算）`
+  - `360天/年` 不再只显示抽象年龄段，而是按传统 `30天/月、360天/年` 折算后直接输出起止日期；同时在每个节点下方保留文档口径的 `名义：0个月 - 10年9个月` 作为辅助说明。
+  - `365.25天/年` 则按回归年比例把同一套名义时段拉伸为更长的实际日期区间，因此它与 `360天/年` 现在不只是文案区别，而是实际日期边界也会不同。
+  - AI 输出下拉、模块快照文本也同步改为“日期主显示，传统口径附带名义区间”。
+  - `L4` 在两套口径下仍然保留 `HH:MM`。
+- Verification (local):
+  - `npm --prefix Horosa-Web/astrostudyui test -- --runInBand src/utils/__tests__/decennials.test.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui test -- --runInBand` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅

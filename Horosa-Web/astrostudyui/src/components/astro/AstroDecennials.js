@@ -15,6 +15,7 @@ import {
 	buildDecennialTimeline,
 	getDecennialCalendarLabel,
 	getDecennialDisplayText,
+	getDecennialNominalHint,
 	getDecennialDayMethodLabel,
 	getDecennialOrderLabel,
 	getDecennialPlanetLongName,
@@ -79,7 +80,9 @@ function nodeLine(item, calendarType){
 		return '无';
 	}
 	const label = getDecennialPlanetLongName(item.planet);
-	return `${label}-${getDecennialDisplayText(item, calendarType)}${item.active ? '-当前' : ''}`;
+	const nominalHint = getDecennialNominalHint(item, calendarType);
+	const suffix = nominalHint ? `（名义：${nominalHint}）` : '';
+	return `${label}-${item.date || getDecennialDisplayText(item, calendarType)}${suffix}${item.active ? '-当前' : ''}`;
 }
 
 function resolveSelectedNodes(list, aiState){
@@ -466,6 +469,7 @@ class AstroDecennials extends Component{
 	genTreeNodes(list){
 		return (Array.isArray(list) ? list : []).map((item)=>{
 			const displayText = getDecennialDisplayText(item, this.state.settings.calendarType);
+			const nominalHint = getDecennialNominalHint(item, this.state.settings.calendarType);
 			const titleStyle = {
 				color: LEVEL_COLORS[item.level - 1] || LEVEL_COLORS[0],
 				padding: '2px 6px',
@@ -481,7 +485,12 @@ class AstroDecennials extends Component{
 						{this.renderPlanetToken(item.planet)}
 						{item.active ? <span style={{ fontFamily: AstroConst.NormalFont }}>{' 当前'}</span> : null}
 					</span>
-					<span style={{ fontFamily: AstroConst.NormalFont }}>{` ${displayText}`}</span>
+					<span style={{ fontFamily: AstroConst.NormalFont }}>{` ${item.date || displayText}`}</span>
+					{nominalHint ? (
+						<div style={{ fontFamily: AstroConst.NormalFont, fontSize: 12, color: '#666', marginTop: 2 }}>
+							{`名义：${nominalHint}`}
+						</div>
+					) : null}
 				</div>
 			);
 			return (
@@ -585,11 +594,13 @@ class AstroDecennials extends Component{
 				<div style={{ marginBottom: 8 }}>
 					<div style={{ marginBottom: 4 }}>时间口径</div>
 					<Select size='small' value={this.state.settings.calendarType} style={{ width: '100%' }} onChange={this.changeCalendarType}>
-						<Option value={DECENNIAL_CALENDAR_TRADITIONAL}>360天/年（名义区间）</Option>
-						<Option value={DECENNIAL_CALENDAR_ACTUAL}>365.25天/年（实际日期）</Option>
+						<Option value={DECENNIAL_CALENDAR_TRADITIONAL}>360天/年（按30天/月换算）</Option>
+						<Option value={DECENNIAL_CALENDAR_ACTUAL}>365.25天/年（按回归年换算）</Option>
 					</Select>
 					<div style={{ marginTop: 4, color: '#666', fontSize: 12 }}>
-						{`当前显示：${getDecennialCalendarLabel(this.state.settings.calendarType)}`}
+						{this.state.settings.calendarType === DECENNIAL_CALENDAR_TRADITIONAL
+							? '当前显示：具体日期；下方附带文档名义区间'
+							: `当前显示：${getDecennialCalendarLabel(this.state.settings.calendarType)}`}
 					</div>
 				</div>
 			</div>
