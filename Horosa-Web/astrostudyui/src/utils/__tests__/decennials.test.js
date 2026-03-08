@@ -83,7 +83,8 @@ describe('decennials timing', ()=>{
 		expect(timeline.list[0].planet).toBe(AstroConst.SUN);
 		expect(timeline.list[0].date).toBe('1984-01-23 - 1994-08-28');
 		expect(timeline.list[0].nominal).toBe('0个月 - 10年9个月');
-		expect(getDecennialDisplayText(timeline.list[0], DECENNIAL_CALENDAR_TRADITIONAL)).toBe('0个月 - 10年9个月');
+		expect(getDecennialDisplayText(timeline.list[0], DECENNIAL_CALENDAR_TRADITIONAL))
+			.toBe('1984-01-23 - 1994-08-28（名义：0个月 - 10年9个月）');
 		expect(getDecennialDisplayText(timeline.list[0], DECENNIAL_CALENDAR_ACTUAL)).toBe('1984-01-23 - 1994-08-28');
 		expect(timeline.list[0].sublevel.map((item)=>item.planet)).toEqual([
 			AstroConst.SUN,
@@ -99,6 +100,40 @@ describe('decennials timing', ()=>{
 			.toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} - \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
 		expect(timeline.list[0].sublevel[0].sublevel[0].sublevel[0].nominal)
 			.toMatch(/^\d+天 \d{2}:\d{2} - \d+天 \d{2}:\d{2}$/);
+	});
+
+	test('uses concrete dates for both calendar modes and stretches the actual-year mode', ()=>{
+		const chartObj = buildChart([
+			AstroConst.SUN,
+			AstroConst.MERCURY,
+			AstroConst.SATURN,
+			AstroConst.VENUS,
+			AstroConst.MARS,
+			AstroConst.JUPITER,
+			AstroConst.MOON,
+		]);
+		const traditionalTimeline = buildDecennialTimeline(chartObj, {
+			startMode: DECENNIAL_START_MODE_SECT_LIGHT,
+			orderType: DECENNIAL_ORDER_ZODIACAL,
+			dayMethod: DECENNIAL_DAY_METHOD_VALENS,
+			calendarType: DECENNIAL_CALENDAR_TRADITIONAL,
+		});
+		const actualTimeline = buildDecennialTimeline(chartObj, {
+			startMode: DECENNIAL_START_MODE_SECT_LIGHT,
+			orderType: DECENNIAL_ORDER_ZODIACAL,
+			dayMethod: DECENNIAL_DAY_METHOD_VALENS,
+			calendarType: DECENNIAL_CALENDAR_ACTUAL,
+		});
+		const birth = moment.parseZone('1984-01-23 00:00:00 +00:00', 'YYYY-MM-DD HH:mm:ss Z', true);
+		const actualEnd = birth.clone().add(3870 * 1461, 'minutes');
+
+		expect(traditionalTimeline.list[0].date).toBe('1984-01-23 - 1994-08-28');
+		expect(actualTimeline.list[0].date).toBe(
+			`1984-01-23 - ${actualEnd.format('YYYY-MM-DD')}`
+		);
+		expect(actualTimeline.list[0].date).not.toBe(traditionalTimeline.list[0].date);
+		expect(actualTimeline.list[0].sublevel[0].sublevel[0].sublevel[0].date)
+			.toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} - \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
 	});
 
 	test('uses the Hephaistio source table for Saturn month-lord days', ()=>{
@@ -208,8 +243,8 @@ describe('decennials timing', ()=>{
 	});
 
 	test('exports calendar labels for nominal and actual timing modes', ()=>{
-		expect(getDecennialCalendarLabel(DECENNIAL_CALENDAR_TRADITIONAL)).toBe('360天/年（名义区间）');
-		expect(getDecennialCalendarLabel(DECENNIAL_CALENDAR_ACTUAL)).toBe('365.25天/年（实际日期）');
+		expect(getDecennialCalendarLabel(DECENNIAL_CALENDAR_TRADITIONAL)).toBe('360天/年（按30天/月换算）');
+		expect(getDecennialCalendarLabel(DECENNIAL_CALENDAR_ACTUAL)).toBe('365.25天/年（按回归年换算）');
 	});
 
 	test('uses moon as the sect light for nocturnal charts and rotates chaldean order correctly', ()=>{
