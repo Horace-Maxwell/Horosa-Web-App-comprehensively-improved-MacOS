@@ -4,12 +4,16 @@ import {
 	DECENNIAL_HEPHAISTIO_DAY_TABLE,
 	DECENNIAL_DAY_METHOD_HEPHAISTIO,
 	DECENNIAL_DAY_METHOD_VALENS,
+	DECENNIAL_CALENDAR_TRADITIONAL,
+	DECENNIAL_CALENDAR_ACTUAL,
 	DECENNIAL_PLANET_BASE_MONTHS,
 	DECENNIAL_ORDER_CHALDEAN,
 	DECENNIAL_ORDER_ZODIACAL,
 	DECENNIAL_START_MODE_SECT_LIGHT,
 	DECENNIAL_TRADITIONAL_PLANETS,
 	buildDecennialTimeline,
+	getDecennialCalendarLabel,
+	getDecennialDisplayText,
 } from '../decennials';
 
 function buildChart(order, extra = {}){
@@ -78,6 +82,9 @@ describe('decennials timing', ()=>{
 		expect(timeline.resolvedStartPlanet).toBe(AstroConst.SUN);
 		expect(timeline.list[0].planet).toBe(AstroConst.SUN);
 		expect(timeline.list[0].date).toBe('1984-01-23 - 1994-08-28');
+		expect(timeline.list[0].nominal).toBe('0个月 - 10年9个月');
+		expect(getDecennialDisplayText(timeline.list[0], DECENNIAL_CALENDAR_TRADITIONAL)).toBe('0个月 - 10年9个月');
+		expect(getDecennialDisplayText(timeline.list[0], DECENNIAL_CALENDAR_ACTUAL)).toBe('1984-01-23 - 1994-08-28');
 		expect(timeline.list[0].sublevel.map((item)=>item.planet)).toEqual([
 			AstroConst.SUN,
 			AstroConst.MERCURY,
@@ -87,8 +94,11 @@ describe('decennials timing', ()=>{
 			AstroConst.JUPITER,
 			AstroConst.MOON,
 		]);
+		expect(timeline.list[0].sublevel[0].nominal).toBe('0个月 - 1年7个月');
 		expect(timeline.list[0].sublevel[0].sublevel[0].sublevel[0].date)
 			.toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} - \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+		expect(timeline.list[0].sublevel[0].sublevel[0].sublevel[0].nominal)
+			.toMatch(/^\d+天 \d{2}:\d{2} - \d+天 \d{2}:\d{2}$/);
 	});
 
 	test('uses the Hephaistio source table for Saturn month-lord days', ()=>{
@@ -195,6 +205,11 @@ describe('decennials timing', ()=>{
 				[AstroConst.MERCURY]: 119,
 			},
 		});
+	});
+
+	test('exports calendar labels for nominal and actual timing modes', ()=>{
+		expect(getDecennialCalendarLabel(DECENNIAL_CALENDAR_TRADITIONAL)).toBe('360天/年（名义区间）');
+		expect(getDecennialCalendarLabel(DECENNIAL_CALENDAR_ACTUAL)).toBe('365.25天/年（实际日期）');
 	});
 
 	test('uses moon as the sect light for nocturnal charts and rotates chaldean order correctly', ()=>{

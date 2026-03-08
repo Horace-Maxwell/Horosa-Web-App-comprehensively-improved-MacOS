@@ -4739,3 +4739,32 @@ Append new entries; do not rewrite history.
     - 仍失败，但失败点仍是与本次改动无关的旧断言：
       - `AstroPrimaryDirection.js missing expected text: const pdTypeOutOfSync = appliedPdType !== 0;`
     - 该脚本对 `十年大运` 页签本身的新增断言已接入；当前失败属于主限法旧检查字符串未同步，不属于十年大运模块故障。
+
+### 16:08 - 十年大运补入“360天/年 vs 365.25天/年”时间口径设置
+- Scope: 修正十年大运时间显示与文档表格不一致的问题，在右侧 `设置` 中新增时间口径切换，并把名义区间/实际日期同步接入树节点与 AI 快照。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroDecennials.js`
+  - `Horosa-Web/astrostudyui/src/utils/decennials.js`
+  - `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`
+- Details:
+  - 十年大运右侧 `设置` 新增 `时间口径`：
+    - `360天/年（名义区间）`
+    - `365.25天/年（实际日期）`
+  - 默认显示切回 `360天/年（名义区间）`，使 `L1` 等一级时间直接对应文档里的：
+    - `0个月 - 10年9个月`
+    - `10年9个月 - 21年6个月`
+    - 依此类推
+  - 底层 `decennials.js` 现在同时保留两套时间字段：
+    - `date`：按 `3870天` 累加后的实际日期区间
+    - `nominal`：按 `360天/年、30天/月` 展开的名义区间
+  - 页面树节点、AI 输出选择下拉、模块 AI 快照，现统一根据 `时间口径` 显示对应字段，避免页面与导出显示不一致。
+  - `L4` 在两套口径下都继续保留到 `HH:MM`；其中名义区间格式也补到了小时分钟。
+  - 专项测试新增校验：
+    - `L1` 名义区间首段固定为 `0个月 - 10年9个月`
+    - 名义/实际两套显示标签正确切换
+    - `L4` 名义区间保留 `HH:MM`
+- Verification (local):
+  - `npm --prefix Horosa-Web/astrostudyui test -- --runInBand src/utils/__tests__/decennials.test.js` ✅
+  - `npm --prefix Horosa-Web/astrostudyui test -- --runInBand` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build` ✅
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅

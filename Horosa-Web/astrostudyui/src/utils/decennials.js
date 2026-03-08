@@ -7,6 +7,8 @@ export const DECENNIAL_ORDER_ZODIACAL = 'zodiacal';
 export const DECENNIAL_ORDER_CHALDEAN = 'chaldean';
 export const DECENNIAL_DAY_METHOD_VALENS = 'valens';
 export const DECENNIAL_DAY_METHOD_HEPHAISTIO = 'hephaistio';
+export const DECENNIAL_CALENDAR_TRADITIONAL = 'calendar_360';
+export const DECENNIAL_CALENDAR_ACTUAL = 'calendar_365_25';
 
 export const DECENNIAL_TRADITIONAL_PLANETS = [
 	AstroConst.SATURN,
@@ -99,6 +101,9 @@ export const DECENNIAL_HEPHAISTIO_DAY_TABLE = {
 const TOTAL_BASE_MONTHS = 129;
 const TOTAL_L1_DAYS = TOTAL_BASE_MONTHS * 30;
 const FIVE_MINUTES = 5;
+const MINUTES_PER_DAY = 24 * 60;
+const MINUTES_PER_MONTH = 30 * MINUTES_PER_DAY;
+const MINUTES_PER_YEAR = 12 * MINUTES_PER_MONTH;
 
 function normalizeDateInput(dateText){
 	return `${dateText || ''}`.trim().replace(/\//g, '-');
@@ -263,7 +268,61 @@ function formatRange(startMoment, endMoment, withTime){
 	return `${startMoment.format(fmt)} - ${endMoment.format(fmt)}`;
 }
 
-function buildNode(level, key, planet, startMoment, endMoment, nowMoment, sublevel){
+function formatNominalOffset(totalMinutes, level){
+	let minutes = Math.max(0, Math.round(Number(totalMinutes) || 0));
+	const years = Math.floor(minutes / MINUTES_PER_YEAR);
+	minutes -= years * MINUTES_PER_YEAR;
+	const months = Math.floor(minutes / MINUTES_PER_MONTH);
+	minutes -= months * MINUTES_PER_MONTH;
+	const days = Math.floor(minutes / MINUTES_PER_DAY);
+	minutes -= days * MINUTES_PER_DAY;
+	const hours = Math.floor(minutes / 60);
+	minutes -= hours * 60;
+
+	if(level >= 4){
+		const dayParts = [];
+		if(years > 0){
+			dayParts.push(`${years}年`);
+		}
+		if(months > 0){
+			dayParts.push(`${months}个月`);
+		}
+		if(days > 0){
+			dayParts.push(`${days}天`);
+		}
+		const prefix = dayParts.length > 0 ? dayParts.join('') : '0天';
+		return `${prefix} ${`${hours}`.padStart(2, '0')}:${`${minutes}`.padStart(2, '0')}`;
+	}
+
+	if(level === 3){
+		const parts = [];
+		if(years > 0){
+			parts.push(`${years}年`);
+		}
+		if(months > 0){
+			parts.push(`${months}个月`);
+		}
+		if(days > 0 || parts.length === 0){
+			parts.push(`${days}天`);
+		}
+		return parts.join('');
+	}
+
+	const parts = [];
+	if(years > 0){
+		parts.push(`${years}年`);
+	}
+	if(months > 0 || parts.length === 0){
+		parts.push(`${months}个月`);
+	}
+	return parts.join('');
+}
+
+function formatNominalRange(startOffsetMinutes, endOffsetMinutes, level){
+	return `${formatNominalOffset(startOffsetMinutes, level)} - ${formatNominalOffset(endOffsetMinutes, level)}`;
+}
+
+function buildNode(level, key, planet, startMoment, endMoment, nowMoment, sublevel, startOffsetMinutes, endOffsetMinutes){
 	const withTime = level >= 4;
 	const active = !!nowMoment
 		&& nowMoment.valueOf() >= startMoment.valueOf()
@@ -273,9 +332,12 @@ function buildNode(level, key, planet, startMoment, endMoment, nowMoment, sublev
 		level,
 		planet,
 		date: formatRange(startMoment, endMoment, withTime),
+		nominal: formatNominalRange(startOffsetMinutes, endOffsetMinutes, level),
 		startText: startMoment.format(withTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'),
 		endText: endMoment.format(withTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'),
 		active,
+		startOffsetMinutes,
+		endOffsetMinutes,
 		sublevel: Array.isArray(sublevel) ? sublevel : [],
 	};
 }
@@ -289,9 +351,11 @@ function buildLevelFour(levelThreeNode, baseOrder, nowMoment){
 	const segments = minutesFromLevelFour(totalMinutes, order);
 	const list = [];
 	let cursor = levelThreeNode.startMoment.clone();
+	let cursorOffset = levelThreeNode.startOffsetMinutes;
 	for(let i=0; i<segments.length; i++){
 		const item = segments[i];
 		const next = cursor.clone().add(item.value, 'minutes');
+		const nextOffset = cursorOffset + item.value;
 		list.push(buildNode(
 			4,
 			`${levelThreeNode.key}_l4_${i}`,
@@ -299,9 +363,12 @@ function buildLevelFour(levelThreeNode, baseOrder, nowMoment){
 			cursor,
 			next,
 			nowMoment,
-			[]
+			[],
+			cursorOffset,
+			nextOffset
 		));
 		cursor = next;
+		cursorOffset = nextOffset;
 	}
 	return list;
 }
@@ -312,6 +379,7 @@ function buildLevelThree(levelTwoNode, baseOrder, dayMethod, nowMoment){
 	const segments = minutesFromLevelThree(totalDays, dayMethod, levelTwoNode.planet, order);
 	const list = [];
 	let cursor = levelTwoNode.startMoment.clone();
+	let cursorOffset = levelTwoNode.startOffsetMinutes;
 	for(let i=0; i<segments.length; i++){
 		const item = segments[i];
 		const next = cursor.clone().add(item.value, 'minutes');
@@ -320,6 +388,8 @@ function buildLevelThree(levelTwoNode, baseOrder, dayMethod, nowMoment){
 			planet: item.planet,
 			startMoment: cursor,
 			endMoment: next,
+			startOffsetMinutes: cursorOffset,
+			endOffsetMinutes: cursorOffset + item.value,
 		};
 		const sublevel = buildLevelFour(meta, baseOrder, nowMoment);
 		list.push(buildNode(
@@ -329,9 +399,12 @@ function buildLevelThree(levelTwoNode, baseOrder, dayMethod, nowMoment){
 			meta.startMoment,
 			meta.endMoment,
 			nowMoment,
-			sublevel
+			sublevel,
+			meta.startOffsetMinutes,
+			meta.endOffsetMinutes
 		));
 		cursor = next;
+		cursorOffset = meta.endOffsetMinutes;
 	}
 	return list;
 }
@@ -340,6 +413,7 @@ function buildLevelTwo(levelOneNode, baseOrder, dayMethod, nowMoment){
 	const order = rotateList(baseOrder, levelOneNode.planet);
 	const list = [];
 	let cursor = levelOneNode.startMoment.clone();
+	let cursorOffset = levelOneNode.startOffsetMinutes;
 	for(let i=0; i<order.length; i++){
 		const planet = order[i];
 		const days = DECENNIAL_PLANET_BASE_MONTHS[planet] * 30;
@@ -350,6 +424,8 @@ function buildLevelTwo(levelOneNode, baseOrder, dayMethod, nowMoment){
 			days,
 			startMoment: cursor,
 			endMoment: next,
+			startOffsetMinutes: cursorOffset,
+			endOffsetMinutes: cursorOffset + days * MINUTES_PER_DAY,
 		};
 		const sublevel = buildLevelThree(meta, baseOrder, dayMethod, nowMoment);
 		list.push(buildNode(
@@ -359,9 +435,12 @@ function buildLevelTwo(levelOneNode, baseOrder, dayMethod, nowMoment){
 			meta.startMoment,
 			meta.endMoment,
 			nowMoment,
-			sublevel
+			sublevel,
+			meta.startOffsetMinutes,
+			meta.endOffsetMinutes
 		));
 		cursor = next;
+		cursorOffset = meta.endOffsetMinutes;
 	}
 	return list;
 }
@@ -375,6 +454,7 @@ function resolveL1Count(birthMoment, nowMoment){
 }
 
 export function buildDecennialTimeline(chartObj, settings = {}){
+	const calendarType = settings.calendarType || DECENNIAL_CALENDAR_TRADITIONAL;
 	const birthMoment = parseBirthMoment(chartObj);
 	if(!birthMoment.isValid()){
 		return {
@@ -383,6 +463,7 @@ export function buildDecennialTimeline(chartObj, settings = {}){
 			resolvedStartPlanet: resolveDecennialStartPlanet(chartObj, settings.startMode),
 			orderType: settings.orderType || DECENNIAL_ORDER_ZODIACAL,
 			dayMethod: settings.dayMethod || DECENNIAL_DAY_METHOD_VALENS,
+			calendarType,
 			birthMoment,
 		};
 	}
@@ -398,11 +479,15 @@ export function buildDecennialTimeline(chartObj, settings = {}){
 		const planet = baseOrder[i % baseOrder.length];
 		const startMoment = birthMoment.clone().add(TOTAL_L1_DAYS * i, 'days');
 		const endMoment = startMoment.clone().add(TOTAL_L1_DAYS, 'days');
+		const startOffsetMinutes = TOTAL_L1_DAYS * MINUTES_PER_DAY * i;
+		const endOffsetMinutes = startOffsetMinutes + TOTAL_L1_DAYS * MINUTES_PER_DAY;
 		const meta = {
 			key: `l1_${i}`,
 			planet,
 			startMoment,
 			endMoment,
+			startOffsetMinutes,
+			endOffsetMinutes,
 		};
 		const sublevel = buildLevelTwo(meta, baseOrder, dayMethod, nowMoment);
 		list.push(buildNode(
@@ -412,7 +497,9 @@ export function buildDecennialTimeline(chartObj, settings = {}){
 			meta.startMoment,
 			meta.endMoment,
 			nowMoment,
-			sublevel
+			sublevel,
+			meta.startOffsetMinutes,
+			meta.endOffsetMinutes
 		));
 	}
 
@@ -422,6 +509,7 @@ export function buildDecennialTimeline(chartObj, settings = {}){
 		resolvedStartPlanet,
 		orderType,
 		dayMethod,
+		calendarType,
 		birthMoment,
 	};
 }
@@ -456,4 +544,21 @@ export function getDecennialDayMethodLabel(dayMethod){
 		return 'Hephaistio（原表日数）';
 	}
 	return 'Valens（精确）';
+}
+
+export function getDecennialCalendarLabel(calendarType){
+	if(calendarType === DECENNIAL_CALENDAR_ACTUAL){
+		return '365.25天/年（实际日期）';
+	}
+	return '360天/年（名义区间）';
+}
+
+export function getDecennialDisplayText(item, calendarType){
+	if(!item){
+		return '';
+	}
+	if(calendarType === DECENNIAL_CALENDAR_ACTUAL){
+		return item.date || '';
+	}
+	return item.nominal || item.date || '';
 }
