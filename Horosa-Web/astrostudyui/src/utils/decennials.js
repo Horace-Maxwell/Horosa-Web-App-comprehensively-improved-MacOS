@@ -104,6 +104,8 @@ const FIVE_MINUTES = 5;
 const MINUTES_PER_DAY = 24 * 60;
 const MINUTES_PER_MONTH = 30 * MINUTES_PER_DAY;
 const MINUTES_PER_YEAR = 12 * MINUTES_PER_MONTH;
+const ACTUAL_YEAR_SCALE_NUMERATOR = 1461;
+const ACTUAL_YEAR_SCALE_DENOMINATOR = 1440;
 
 function normalizeDateInput(dateText){
 	return `${dateText || ''}`.trim().replace(/\//g, '-');
@@ -263,6 +265,50 @@ function minutesFromLevelFour(totalMinutes, order){
 	return getRoundedDistribution(totalMinutes, order, 1);
 }
 
+function scaleNominalMinutes(totalMinutes, calendarType){
+	const normalized = Math.max(0, Math.round(Number(totalMinutes) || 0));
+	if(calendarType !== DECENNIAL_CALENDAR_ACTUAL){
+		return normalized;
+	}
+	return Math.round(normalized * ACTUAL_YEAR_SCALE_NUMERATOR / ACTUAL_YEAR_SCALE_DENOMINATOR);
+}
+
+function scaleNominalSegments(segments, calendarType, roundUnit = 1){
+	const list = Array.isArray(segments) ? segments : [];
+	if(calendarType !== DECENNIAL_CALENDAR_ACTUAL){
+		return list.map((item)=>({
+			planet: item.planet,
+			value: Math.max(0, Math.round(Number(item.value) || 0)),
+		}));
+	}
+	const unit = roundUnit > 0 ? roundUnit : 1;
+	const totalNominal = list.reduce((sum, item)=>sum + Math.max(0, Number(item.value) || 0), 0);
+	const totalScaled = Math.round(scaleNominalMinutes(totalNominal, calendarType) / unit) * unit;
+	const scaled = [];
+	let consumed = 0;
+	let cumulativeExact = 0;
+	for(let i=0; i<list.length; i++){
+		const item = list[i];
+		const nominalValue = Math.max(0, Number(item.value) || 0);
+		let value = 0;
+		cumulativeExact += nominalValue * ACTUAL_YEAR_SCALE_NUMERATOR / ACTUAL_YEAR_SCALE_DENOMINATOR;
+		if(i === list.length - 1){
+			value = totalScaled - consumed;
+		}else{
+			value = Math.round(cumulativeExact / unit) * unit - consumed;
+		}
+		if(value < 0){
+			value = 0;
+		}
+		consumed += value;
+		scaled.push({
+			planet: item.planet,
+			value,
+		});
+	}
+	return scaled;
+}
+
 function formatRange(startMoment, endMoment, withTime){
 	const fmt = withTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD';
 	return `${startMoment.format(fmt)} - ${endMoment.format(fmt)}`;
@@ -342,24 +388,22 @@ function buildNode(level, key, planet, startMoment, endMoment, nowMoment, sublev
 	};
 }
 
-function buildLevelFour(levelThreeNode, baseOrder, nowMoment){
+function buildLevelFour(levelThreeNode, baseOrder, nowMoment, calendarType){
 	const order = rotateList(baseOrder, levelThreeNode.planet);
-	const totalMinutes = Math.max(
-		0,
-		levelThreeNode.endMoment.diff(levelThreeNode.startMoment, 'minutes')
-	);
-	const segments = minutesFromLevelFour(totalMinutes, order);
+	const nominalSegments = minutesFromLevelFour(levelThreeNode.nominalMinutes, order);
+	const actualSegments = scaleNominalSegments(nominalSegments, calendarType, 1);
 	const list = [];
 	let cursor = levelThreeNode.startMoment.clone();
 	let cursorOffset = levelThreeNode.startOffsetMinutes;
-	for(let i=0; i<segments.length; i++){
-		const item = segments[i];
-		const next = cursor.clone().add(item.value, 'minutes');
-		const nextOffset = cursorOffset + item.value;
+	for(let i=0; i<nominalSegments.length; i++){
+		const nominalItem = nominalSegments[i];
+		const actualItem = actualSegments[i];
+		const next = cursor.clone().add(actualItem.value, 'minutes');
+		const nextOffset = cursorOffset + nominalItem.value;
 		list.push(buildNode(
 			4,
 			`${levelThreeNode.key}_l4_${i}`,
-			item.planet,
+			actualItem.planet,
 			cursor,
 			next,
 			nowMoment,
@@ -373,25 +417,27 @@ function buildLevelFour(levelThreeNode, baseOrder, nowMoment){
 	return list;
 }
 
-function buildLevelThree(levelTwoNode, baseOrder, dayMethod, nowMoment){
+function buildLevelThree(levelTwoNode, baseOrder, dayMethod, nowMoment, calendarType){
 	const order = rotateList(baseOrder, levelTwoNode.planet);
-	const totalDays = levelTwoNode.days;
-	const segments = minutesFromLevelThree(totalDays, dayMethod, levelTwoNode.planet, order);
+	const nominalSegments = minutesFromLevelThree(levelTwoNode.nominalDays, dayMethod, levelTwoNode.planet, order);
+	const actualSegments = scaleNominalSegments(nominalSegments, calendarType, 1);
 	const list = [];
 	let cursor = levelTwoNode.startMoment.clone();
 	let cursorOffset = levelTwoNode.startOffsetMinutes;
-	for(let i=0; i<segments.length; i++){
-		const item = segments[i];
-		const next = cursor.clone().add(item.value, 'minutes');
+	for(let i=0; i<nominalSegments.length; i++){
+		const nominalItem = nominalSegments[i];
+		const actualItem = actualSegments[i];
+		const next = cursor.clone().add(actualItem.value, 'minutes');
 		const meta = {
 			key: `${levelTwoNode.key}_l3_${i}`,
-			planet: item.planet,
+			planet: actualItem.planet,
 			startMoment: cursor,
 			endMoment: next,
+			nominalMinutes: nominalItem.value,
 			startOffsetMinutes: cursorOffset,
-			endOffsetMinutes: cursorOffset + item.value,
+			endOffsetMinutes: cursorOffset + nominalItem.value,
 		};
-		const sublevel = buildLevelFour(meta, baseOrder, nowMoment);
+		const sublevel = buildLevelFour(meta, baseOrder, nowMoment, calendarType);
 		list.push(buildNode(
 			3,
 			meta.key,
@@ -409,25 +455,31 @@ function buildLevelThree(levelTwoNode, baseOrder, dayMethod, nowMoment){
 	return list;
 }
 
-function buildLevelTwo(levelOneNode, baseOrder, dayMethod, nowMoment){
+function buildLevelTwo(levelOneNode, baseOrder, dayMethod, nowMoment, calendarType){
 	const order = rotateList(baseOrder, levelOneNode.planet);
+	const nominalSegments = order.map((planet)=>({
+		planet,
+		value: DECENNIAL_PLANET_BASE_MONTHS[planet] * MINUTES_PER_MONTH,
+	}));
+	const actualSegments = scaleNominalSegments(nominalSegments, calendarType, 1);
 	const list = [];
 	let cursor = levelOneNode.startMoment.clone();
 	let cursorOffset = levelOneNode.startOffsetMinutes;
 	for(let i=0; i<order.length; i++){
-		const planet = order[i];
-		const days = DECENNIAL_PLANET_BASE_MONTHS[planet] * 30;
-		const next = cursor.clone().add(days, 'days');
+		const planet = nominalSegments[i].planet;
+		const nominalMinutes = nominalSegments[i].value;
+		const actualMinutes = actualSegments[i].value;
+		const next = cursor.clone().add(actualMinutes, 'minutes');
 		const meta = {
 			key: `${levelOneNode.key}_l2_${i}`,
 			planet,
-			days,
+			nominalDays: nominalMinutes / MINUTES_PER_DAY,
 			startMoment: cursor,
 			endMoment: next,
 			startOffsetMinutes: cursorOffset,
-			endOffsetMinutes: cursorOffset + days * MINUTES_PER_DAY,
+			endOffsetMinutes: cursorOffset + nominalMinutes,
 		};
-		const sublevel = buildLevelThree(meta, baseOrder, dayMethod, nowMoment);
+		const sublevel = buildLevelThree(meta, baseOrder, dayMethod, nowMoment, calendarType);
 		list.push(buildNode(
 			2,
 			meta.key,
@@ -445,12 +497,13 @@ function buildLevelTwo(levelOneNode, baseOrder, dayMethod, nowMoment){
 	return list;
 }
 
-function resolveL1Count(birthMoment, nowMoment){
+function resolveL1Count(birthMoment, nowMoment, calendarType){
 	if(!birthMoment || !birthMoment.isValid()){
 		return 7;
 	}
-	const ageDays = Math.max(0, nowMoment.diff(birthMoment, 'days', true));
-	return Math.max(7, Math.ceil(ageDays / TOTAL_L1_DAYS) + 2);
+	const ageMinutes = Math.max(0, nowMoment.diff(birthMoment, 'minutes', true));
+	const l1Minutes = scaleNominalMinutes(TOTAL_L1_DAYS * MINUTES_PER_DAY, calendarType);
+	return Math.max(7, Math.ceil(ageMinutes / l1Minutes) + 2);
 }
 
 export function buildDecennialTimeline(chartObj, settings = {}){
@@ -472,15 +525,18 @@ export function buildDecennialTimeline(chartObj, settings = {}){
 	const orderType = settings.orderType || DECENNIAL_ORDER_ZODIACAL;
 	const dayMethod = settings.dayMethod || DECENNIAL_DAY_METHOD_VALENS;
 	const baseOrder = getDecennialOrder(chartObj, resolvedStartPlanet, orderType);
-	const count = resolveL1Count(birthMoment, nowMoment);
+	const count = resolveL1Count(birthMoment, nowMoment, calendarType);
 	const list = [];
+	const l1NominalMinutes = TOTAL_L1_DAYS * MINUTES_PER_DAY;
+	const l1ActualMinutes = scaleNominalMinutes(l1NominalMinutes, calendarType);
+	let cursor = birthMoment.clone();
 
 	for(let i=0; i<count; i++){
 		const planet = baseOrder[i % baseOrder.length];
-		const startMoment = birthMoment.clone().add(TOTAL_L1_DAYS * i, 'days');
-		const endMoment = startMoment.clone().add(TOTAL_L1_DAYS, 'days');
-		const startOffsetMinutes = TOTAL_L1_DAYS * MINUTES_PER_DAY * i;
-		const endOffsetMinutes = startOffsetMinutes + TOTAL_L1_DAYS * MINUTES_PER_DAY;
+		const startMoment = cursor.clone();
+		const endMoment = startMoment.clone().add(l1ActualMinutes, 'minutes');
+		const startOffsetMinutes = l1NominalMinutes * i;
+		const endOffsetMinutes = startOffsetMinutes + l1NominalMinutes;
 		const meta = {
 			key: `l1_${i}`,
 			planet,
@@ -489,7 +545,7 @@ export function buildDecennialTimeline(chartObj, settings = {}){
 			startOffsetMinutes,
 			endOffsetMinutes,
 		};
-		const sublevel = buildLevelTwo(meta, baseOrder, dayMethod, nowMoment);
+		const sublevel = buildLevelTwo(meta, baseOrder, dayMethod, nowMoment, calendarType);
 		list.push(buildNode(
 			1,
 			meta.key,
@@ -501,6 +557,7 @@ export function buildDecennialTimeline(chartObj, settings = {}){
 			meta.startOffsetMinutes,
 			meta.endOffsetMinutes
 		));
+		cursor = endMoment;
 	}
 
 	return {
@@ -548,17 +605,24 @@ export function getDecennialDayMethodLabel(dayMethod){
 
 export function getDecennialCalendarLabel(calendarType){
 	if(calendarType === DECENNIAL_CALENDAR_ACTUAL){
-		return '365.25天/年（实际日期）';
+		return '365.25天/年（按回归年换算）';
 	}
-	return '360天/年（名义区间）';
+	return '360天/年（按30天/月换算）';
 }
 
 export function getDecennialDisplayText(item, calendarType){
 	if(!item){
 		return '';
 	}
-	if(calendarType === DECENNIAL_CALENDAR_ACTUAL){
-		return item.date || '';
+	if(calendarType === DECENNIAL_CALENDAR_TRADITIONAL){
+		return item.date && item.nominal ? `${item.date}（名义：${item.nominal}）` : (item.date || '');
 	}
-	return item.nominal || item.date || '';
+	return item.date || '';
+}
+
+export function getDecennialNominalHint(item, calendarType){
+	if(!item || calendarType !== DECENNIAL_CALENDAR_TRADITIONAL){
+		return '';
+	}
+	return item.nominal || '';
 }
