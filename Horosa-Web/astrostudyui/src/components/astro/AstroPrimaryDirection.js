@@ -11,7 +11,7 @@ import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
 
 const Option = Select.Option;
-const PD_SYNC_REV = 'pd_method_sync_v4';
+const PD_SYNC_REV = 'pd_method_sync_v6';
 const DEFAULT_PD_METHOD = 'core_alchabitius';
 const DEFAULT_PD_TIME_KEY = 'Ptolemy';
 const DEFAULT_PD_TYPE = 0;
@@ -621,7 +621,7 @@ class AstroPrimaryDirection extends Component{
 								onChange={this.handlePdMethodChange}
 							>
 								<Option value='horosa_legacy'>Horosa原方法</Option>
-								<Option value='core_alchabitius'>Alchabitius</Option>
+								<Option value='core_alchabitius'>Core-Alchabitius</Option>
 							</Select>
 						</div>
 					</Col>

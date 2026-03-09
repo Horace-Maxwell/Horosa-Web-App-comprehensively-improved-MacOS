@@ -369,7 +369,7 @@ def main() -> None:
     _assert_contains(hellen_main, "this.props.hook.fun = (fields)=>")
     _assert_contains(loc_main, "this.props.hook.fun = (fields)=>")
     _assert_contains(direct_main, "applyPrimaryDirectionConfig(pdMethod, pdTimeKey)")
-    _assert_contains(pd_table, "const pdTypeOutOfSync = appliedPdType !== 0;")
+    _assert_contains(pd_table, "const pdTypeOutOfSync = appliedPdState.pdtype !== DEFAULT_PD_TYPE;")
     _assert_contains(pd_table, "needsPdRecompute(){")
     _assert_contains(pd_table, "if(!this.needsPdRecompute())")
     _assert_contains(pd_table, "disabled={!needsPdRecompute}")

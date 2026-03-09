@@ -616,10 +616,31 @@ venv_has_runtime_deps() {
   python_has_runtime_deps "${VENV_DIR}/bin/python3"
 }
 
+venv_python_ready() {
+  local py_bin="${VENV_DIR}/bin/python3"
+  if [ ! -x "${py_bin}" ]; then
+    return 1
+  fi
+  "${py_bin}" - <<'PY' >/dev/null 2>&1
+import sys
+raise SystemExit(0 if sys.executable else 1)
+PY
+}
+
 ensure_python_venv() {
   mkdir -p "$(dirname "${VENV_DIR}")"
 
-  if [ ! -x "${VENV_DIR}/bin/python3" ]; then
+  if ! venv_python_ready; then
+    if [ -d "${VENV_DIR}" ]; then
+      say "recreating broken python virtualenv at ${VENV_DIR} ..."
+      rm -rf "${VENV_DIR}"
+    else
+      say "creating python virtualenv at ${VENV_DIR} ..."
+    fi
+    "${HOROSA_BOOTSTRAP_PYTHON}" -m venv "${VENV_DIR}"
+  fi
+
+  if ! venv_python_ready; then
     say "creating python virtualenv at ${VENV_DIR} ..."
     "${HOROSA_BOOTSTRAP_PYTHON}" -m venv "${VENV_DIR}"
   fi
@@ -635,8 +656,8 @@ ensure_python_venv() {
 
   if [ "${needs_pip_install}" = "1" ]; then
     say "installing python dependencies ..."
-    "${VENV_DIR}/bin/pip" install --upgrade pip setuptools wheel
-    "${VENV_DIR}/bin/pip" install -r "${REQ_FILE}"
+    "${VENV_DIR}/bin/python3" -m pip install --upgrade pip setuptools wheel
+    "${VENV_DIR}/bin/python3" -m pip install -r "${REQ_FILE}"
     touch "${VENV_DIR}/.requirements.stamp"
   fi
 }

@@ -1,6 +1,8 @@
 import { Component } from 'react';
 import { Row, Col, Tabs, Input, Button, } from 'antd';
+import DateTime from '../comp/DateTime';
 import AstroPrimaryDirection from '../astro/AstroPrimaryDirection';
+import AstroPrimaryDirectionChart from '../astro/AstroPrimaryDirectionChart';
 import AstroZR from '../astro/AstroZR';
 import AstroFirdaria from '../astro/AstroFirdaria';
 import AstroSolarReturn from '../astro/AstroSolarReturn';
@@ -268,6 +270,131 @@ function buildFirdariaSnapshotText(chartObj){
 	return lines.join('\n');
 }
 
+function buildPrimaryDirectionFetchFields(baseFields, chartObj, pdMethod, pdTimeKey){
+	const fields = {
+		...(baseFields || {}),
+	};
+	const params = chartObj && chartObj.params ? chartObj.params : {};
+	const birth = `${params.birth || ''}`.trim();
+	if(birth){
+		const birthDt = new DateTime();
+		try{
+			birthDt.parse(birth, 'YYYY-MM-DD HH:mm:ss');
+			if(params.zone){
+				birthDt.zone = params.zone;
+				birthDt.calcJdn();
+			}
+			fields.date = {
+				...(fields.date || { name: ['date'] }),
+				value: birthDt.clone(),
+			};
+			fields.time = {
+				...(fields.time || { name: ['time'] }),
+				value: birthDt.clone(),
+			};
+			fields.ad = {
+				...(fields.ad || { name: ['ad'] }),
+				value: birthDt.ad,
+			};
+			fields.zone = {
+				...(fields.zone || { name: ['zone'] }),
+				value: birthDt.zone,
+			};
+		}catch(e){
+			// fall back to current field values when birth parsing fails
+		}
+	}
+	if(params.lat !== undefined){
+		fields.lat = {
+			...(fields.lat || { name: ['lat'] }),
+			value: params.lat,
+		};
+	}
+	if(params.lon !== undefined){
+		fields.lon = {
+			...(fields.lon || { name: ['lon'] }),
+			value: params.lon,
+		};
+	}
+	fields.gpsLat = {
+		...(fields.gpsLat || { name: ['gpsLat'] }),
+		value: params.gpsLat !== undefined && params.gpsLat !== null ? params.gpsLat : params.lat,
+	};
+	fields.gpsLon = {
+		...(fields.gpsLon || { name: ['gpsLon'] }),
+		value: params.gpsLon !== undefined && params.gpsLon !== null ? params.gpsLon : params.lon,
+	};
+	fields.hsys = {
+		...(fields.hsys || { name: ['hsys'] }),
+		value: params.hsys !== undefined && params.hsys !== null ? params.hsys : 0,
+	};
+	fields.zodiacal = {
+		...(fields.zodiacal || { name: ['zodiacal'] }),
+		value: params.zodiacal !== undefined && params.zodiacal !== null ? params.zodiacal : 0,
+	};
+	fields.tradition = {
+		...(fields.tradition || { name: ['tradition'] }),
+		value: params.tradition !== undefined && params.tradition !== null ? params.tradition : 0,
+	};
+	fields.strongRecption = {
+		...(fields.strongRecption || { name: ['strongRecption'] }),
+		value: params.strongRecption !== undefined && params.strongRecption !== null ? params.strongRecption : (fields.strongRecption ? fields.strongRecption.value : 0),
+	};
+	fields.simpleAsp = {
+		...(fields.simpleAsp || { name: ['simpleAsp'] }),
+		value: params.simpleAsp !== undefined && params.simpleAsp !== null ? params.simpleAsp : (fields.simpleAsp ? fields.simpleAsp.value : 0),
+	};
+	fields.virtualPointReceiveAsp = {
+		...(fields.virtualPointReceiveAsp || { name: ['virtualPointReceiveAsp'] }),
+		value: params.virtualPointReceiveAsp !== undefined && params.virtualPointReceiveAsp !== null ? params.virtualPointReceiveAsp : (fields.virtualPointReceiveAsp ? fields.virtualPointReceiveAsp.value : 0),
+	};
+	fields.doubingSu28 = {
+		...(fields.doubingSu28 || { name: ['doubingSu28'] }),
+		value: params.doubingSu28 !== undefined && params.doubingSu28 !== null ? params.doubingSu28 : (fields.doubingSu28 ? fields.doubingSu28.value : 0),
+	};
+	fields.predictive = {
+		...(fields.predictive || { name: ['predictive'] }),
+		value: 1,
+	};
+	fields.showPdBounds = {
+		...(fields.showPdBounds || { name: ['showPdBounds'] }),
+		value: params.showPdBounds === 0 ? 0 : 1,
+	};
+	fields.pdtype = {
+		...(fields.pdtype || { name: ['pdtype'] }),
+		value: 0,
+	};
+	fields.pdMethod = {
+		...(fields.pdMethod || { name: ['pdMethod'] }),
+		value: pdMethod,
+	};
+	fields.pdTimeKey = {
+		...(fields.pdTimeKey || { name: ['pdTimeKey'] }),
+		value: pdTimeKey,
+	};
+	fields.pdaspects = {
+		...(fields.pdaspects || { name: ['pdaspects'] }),
+		value: params.pdaspects !== undefined && params.pdaspects !== null ? params.pdaspects : (fields.pdaspects ? fields.pdaspects.value : [0, 60, 90, 120, 180]),
+	};
+	fields.name = {
+		...(fields.name || { name: ['name'] }),
+		value: params.name !== undefined ? params.name : (fields.name ? fields.name.value : null),
+	};
+	fields.pos = {
+		...(fields.pos || { name: ['pos'] }),
+		value: params.pos !== undefined ? params.pos : (fields.pos ? fields.pos.value : null),
+	};
+	fields.southchart = {
+		...(fields.southchart || { name: ['southchart'] }),
+		value: params.southchart !== undefined && params.southchart !== null ? params.southchart : (fields.southchart ? fields.southchart.value : 0),
+	};
+	fields.cid = {
+		...(fields.cid || { name: ['cid'] }),
+		value: null,
+	};
+	return fields;
+}
+
 class AstroDirectMain extends Component{
 
 	constructor(props) {
@@ -277,6 +404,9 @@ class AstroDirectMain extends Component{
 			currentTab: 'primarydirect',
 			hook:{
 				primarydirect:{
+					fun: null
+				},
+				primarydirchart:{
 					fun: null
 				},
 				firdaria:{
@@ -456,21 +586,12 @@ class AstroDirectMain extends Component{
 				pdTimeKey,
 			},
 		});
-		const nextFields = {
-			...this.props.fields,
-			pdtype: {
-				...(this.props.fields.pdtype || { name: ['pdtype'] }),
-				value: 0,
-			},
-			pdMethod: {
-				...(this.props.fields.pdMethod || { name: ['pdMethod'] }),
-				value: pdMethod,
-			},
-			pdTimeKey: {
-				...(this.props.fields.pdTimeKey || { name: ['pdTimeKey'] }),
-				value: pdTimeKey,
-			},
-		};
+		const nextFields = buildPrimaryDirectionFetchFields(
+			this.props.fields,
+			this.props.chartObj,
+			pdMethod,
+			pdTimeKey
+		);
 		this.props.dispatch({
 			type: 'astro/save',
 			payload: {
@@ -516,6 +637,25 @@ class AstroDirectMain extends Component{
 								onPdConfigApply={this.applyPrimaryDirectionConfig}
 								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+					</TabPane>
+
+					<TabPane tab="主限法盘" key="primarydirchart">
+							<AstroPrimaryDirectionChart
+								value={this.props.chartObj}
+								height={height}
+								showPdBounds={this.props.fields && this.props.fields.showPdBounds ? this.props.fields.showPdBounds.value : 1}
+								pdMethod={appliedPdMethod}
+								pdTimeKey={appliedPdTimeKey}
+								fields={this.props.fields}
+								dispatch={this.props.dispatch}
+								onPdConfigApply={this.applyPrimaryDirectionConfig}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								hook={this.state.hook.primarydirchart}
 							/>
 					</TabPane>
 

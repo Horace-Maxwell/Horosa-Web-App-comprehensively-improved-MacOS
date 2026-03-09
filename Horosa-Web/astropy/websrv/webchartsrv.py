@@ -42,7 +42,7 @@ from websrv.webacgsrv import AcgSrv
 
 class WebChartSrv:
     exposed = True
-    PD_SYNC_REV = 'pd_method_sync_v4'
+    PD_SYNC_REV = 'pd_method_sync_v6'
 
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
