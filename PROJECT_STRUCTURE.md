@@ -2876,3 +2876,102 @@
   - `万年历`: `89.511ms`
   - `八字紫微`: `387.166ms`
   - 全部强制阈值页：`<= 1000ms`
+
+### 103.23) 宗师级收尾自检与运行报告归档（2026-03-09）
+
+- 自检入口：
+  - `scripts/mac/self_check_horosa.sh`
+    - 会自动串起运行态校验、Python 集成校验与浏览器总冒烟。
+  - `scripts/browser_primary_direction_chart_guangde_check.py`
+    - 单独覆盖主限法表格/主限法盘/方法切换/外圈时间联动。
+  - `scripts/check_local_ephemeris_precision.py`
+    - 单独检查本地 Swiss Ephemeris 运行时路径与采样精度状态。
+- 本轮关键产物：
+  - `runtime/horosa_runtime_perf_check.json`
+    - 当前全站主页面运行态性能报告；最新状态 `ok`。
+  - `runtime/browser_horosa_master_check.json`
+    - 浏览器层主模块冒烟结果；最新状态 `ok`。
+  - `runtime/browser_horosa_master_check.png`
+    - 浏览器总冒烟截图留档。
+  - `runtime/guangde_primarydirchart_browser_check.json`
+    - 主限法盘专项浏览器报告；最新状态 `ok`。
+- 本轮确认的运行态结果：
+  - `节气盘 /jieqi/year 二十四节气首屏`: `104.163ms`
+  - `节气单盘 /chart`（与星盘、3D盘共底层）: `311.352ms`
+  - `万年历 /calendar/month`: `76.123ms`
+  - 最慢强制项仍为 `八字紫微 /bazi/direct`: `361.181ms`
+- 风险说明：
+  - 浏览器总冒烟里若出现高德瓦片远端超时，会记录在 `warnings`，但不视作本地回归。
+  - 这类自检能把当前仓库与本地运行环境下的大多数高风险路径扫到，但仍不等于对未来一切输入组合做形式化证明。
+
+### 103.24) 主限法盘 ASC Term 高亮补完与专项浏览器验收（2026-03-09）
+
+- `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`
+  - `buildAscTermHighlight(...)` 继续基于主限法外圈盘的 `ASC -> sign/signlon` 精确结果匹配 `EGYPTIAN_TERMS`，并补充下游渲染所需的：
+    - `markerId: AstroConst.ASC`
+    - `markerLabel: 'ASC'`
+  - 右侧状态栏仍显示 `当前ASC所在界：...`，因此这份对象现在同时承担“状态文本”和“图面高亮”的统一数据源。
+- `Horosa-Web/astrostudyui/src/components/astro/AstroChartCircle.js`
+  - 新增 `resolveTermHighlightColor(...)`
+    - 当主题里界主星颜色与普通描边太接近时，自动回退到星座颜色，确保高亮在古老主题/浅色主题下仍然可辨识。
+  - 新增 `appendTermHighlightMarker(...)`
+    - 在命中的 `Term` 上叠加一条径向标记线与圆点，精确落在当前 `ASC` 度数位置。
+  - `termBand(...)`
+    - 命中的 `Term` 现在除了原有扇区外，还会有：
+      - 更粗的高对比描边；
+      - 一层内缩强调扇区；
+      - `astro-term-highlight` 类名；
+      - `data-term-sign / data-term-owner / data-highlight-marker / data-highlight-owner` 属性。
+    - 这样既让用户肉眼可见，也让浏览器验收脚本能稳定抓到当前高亮段。
+- `scripts/browser_primary_direction_chart_guangde_check.py`
+  - 新增 `read_term_highlight(page)`：
+    - 直接读取 `g.astro-term-highlight[data-highlight-marker="Asc"]`
+    - 校验其包含 `sign / owner / lineCount / markerCount`
+  - `read_state_lines(page)` 现会额外抓取 `当前ASC所在界：`
+  - 主限法盘专项浏览器报告现在会把
+    - `initial_pd_chart_term_highlight`
+    - `arbitrary_pd_chart_term_highlight`
+    一并写入 `runtime/guangde_primarydirchart_browser_check.json`
+- 当前本地验证结果：
+  - `Horosa-Web/verify_horosa_local.sh`: `ok`
+  - `scripts/browser_primary_direction_chart_guangde_check.py`: `ok`
+  - 当前运行态上限仍保持在 `1s` 内，最新关键值约为：
+    - `推运盘`: `262.717ms`
+    - `节气盘 /jieqi/year 二十四节气首屏`: `108.779ms`
+    - `万年历 /calendar/month`: `77.373ms`
+
+### 103.25) 桌面比例回归修复 + 节气盘四季入口恢复 + 最终复核（2026-03-09）
+
+- `Horosa-Web/astrostudyui/src/models/app.js`
+  - 新增：
+    - `MinWorkspaceHeight = 660`
+    - `MaxWorkspaceHeight = 760`
+    - `normalizeWorkspaceHeight(viewportHeight)`
+  - 初始化时的 `astro.height` 现在不再随着超高屏幕无限增长，而是固定回桌面端旧比例上限。
+  - 结果是 2K/4K 视口下主盘区域仍保持约 `760px` 高度，避免用户反馈的“屏幕比例怪掉、图面被拉得过大”。
+- `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+  - `genTabsDom(height)` 现在始终按四季 `jieqis` 渲染：
+    - `春分/夏至/秋分/冬至` 的 `星盘 / 宿盘 / 3D盘` 入口 tab
+  - 只有具体 tab 内容继续按需懒加载，不再把“入口是否存在”绑定到 `result.charts` 是否已有缓存。
+  - 这修复了此前节气盘停在 `二十四节气` 首屏时，右侧四季入口整体消失的问题。
+- `scripts/browser_horosa_master_check.py`
+  - `TOP_MODULES` 里的 `节气盘` 浏览器巡检已扩展为 13 个页签：
+    - `二十四节气`
+    - 四季 `星盘 / 宿盘 / 3D盘`
+  - 因而后续只要这些入口再丢一次，浏览器冒烟就会直接 fail。
+- 最新自检证据：
+  - `runtime/browser_horosa_master_check.json`
+    - `status: ok`
+    - `节气盘` 下 13 个页签全部 `clicked=true`
+  - `runtime/guangde_primarydirchart_browser_check.json`
+    - `status: ok`
+    - `initial_pd_chart_term_highlight / arbitrary_pd_chart_term_highlight` 均存在
+  - 2048×1179 视口实测：
+    - 最大主盘 SVG `1274.3125 × 760`
+    - 说明桌面比例已回到固定高度，不再无限拉高
+- 最新运行态上限：
+  - `星盘 / 3D盘 / 节气单盘 /chart`: `283.94ms`
+  - `推运盘`: `257.602ms`
+  - `节气盘 /jieqi/year 二十四节气首屏`: `96.56ms`
+  - `万年历 /calendar/month`: `76.435ms`
+  - 最慢强制项 `八字紫微 /bazi/direct`: `341.895ms`
