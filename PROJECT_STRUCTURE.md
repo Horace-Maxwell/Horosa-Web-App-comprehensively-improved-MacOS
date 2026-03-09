@@ -3119,3 +3119,44 @@
   - `节气盘 /jieqi/year 二十四节气首屏`: `112.866ms`
   - `万年历 /calendar/month`: `83.276ms`
   - 最慢强制项 `八字紫微 /bazi/direct`: `376.863ms`
+
+### 103.30) 宗师级终检留档：最后几项桌面端问题全部复核（2026-03-09）
+
+- 最终总检产物：
+  - `runtime/final_layout_master_check.json`
+  - `runtime/mastercheck_global_shell.png`
+  - `runtime/mastercheck_jieqi_entries.png`
+  - `runtime/mastercheck_solararc_std.png`
+  - `runtime/mastercheck_solararc_compact.png`
+  - `runtime/mastercheck_suzhan_compact.png`
+  - `runtime/mastercheck_guolao_compact.png`
+  - `runtime/mastercheck_sanshi_std.png`
+  - `runtime/mastercheck_sanshi_compact.png`
+- 这组总检专门覆盖用户最后几次指出的问题：
+  - 窗口缩放后比例异常
+  - 节气盘右侧四季 `星盘 / 宿盘 / 3D盘` 入口是否存在
+  - 双层盘是否压住右侧信息栏
+  - `宿盘 / 七政四余` 方盘底边是否贴住 footer
+  - `三式合一` 的 `直接时间 / 真太阳时` 在标准与紧凑宽度下是否还能完整显示
+  - 底部备案图标、`996` 徽标、左侧 `...` 折叠菜单是否再次出现
+- `final_layout_master_check.json` 关键字段现可直接用来验收：
+  - `global_shell.navOpsDisplay = "none"`
+  - `global_shell.footerHasImg = false`
+  - `global_shell.footerHas996 = false`
+  - `global_shell.bodyHas996 = false`
+  - `jieqi_entries` 下 13 个节气入口全部为 `true`
+  - `solararc.compact`
+    - 主盘 `right = 885.21875`
+    - 右栏标记 `x = 1223.40625`
+    - 说明双层盘和右侧信息栏之间仍有明显安全距离
+  - `suzhan.footerGap = 137`
+  - `guolao.footerGap = 62`
+  - `sanshi.std.hasDirectTime = true`
+  - `sanshi.std.hasTrueSolar = true`
+  - `sanshi.compact.hasDirectTime = true`
+  - `sanshi.compact.hasTrueSolar = true`
+- 联动结论：
+  - `runtime/resize_layout_audit_postfix.json` 继续证明关键页 `compact -> compact2` 回缩后无旧高度残留
+  - `runtime/browser_horosa_master_check.json` 继续为 `ok`
+  - `runtime/guangde_primarydirchart_browser_check.json` 继续为 `ok`
+  - 当前所有强制性能页依旧保持 `< 1s`
