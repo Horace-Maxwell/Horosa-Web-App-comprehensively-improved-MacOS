@@ -24,7 +24,7 @@ public class TransUrlUtility {
 		String commonpart = PropertyPlaceholder.getProperty(CommonPartKey, "");
 		if(StringUtility.isNullOrEmpty(commonpart) || commonpart.equals(CommonPartKey)){
 			COMMONPASSPART = new String[]{
-				"/common/", "/ctrls/", "/filtererror/", "/errorpage/", "/error/", "/login"
+				"/common/", "/ctrls/", "/filtererror/", "/errorpage/", "/error/", "/login", "/predict/"
 			};
 		}else{
 			COMMONPASSPART = StringUtility.splitString(commonpart, ',');

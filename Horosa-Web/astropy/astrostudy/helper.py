@@ -4,7 +4,7 @@ from flatlib import const
 
 from astrostudy.guostarsect.guostarsect import GuoStarSect
 
-PD_SYNC_REV = 'pd_method_sync_v4'
+PD_SYNC_REV = 'pd_method_sync_v6'
 
 
 def getChartDate(date):

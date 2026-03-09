@@ -20,6 +20,7 @@ public class AstroHelper {
 	public static final String SolarArc = PropertyPlaceholder.getProperty("solararc", "/predict/solararc");
 	public static final String Profection = PropertyPlaceholder.getProperty("profection", "/predict/profection");
 	public static final String PrimaryDirection = PropertyPlaceholder.getProperty("pd", "/predict/pd");
+	public static final String PrimaryDirectionChart = PropertyPlaceholder.getProperty("pdchart", "/predict/pdchart");
 	public static final String ZodiacalRelease = PropertyPlaceholder.getProperty("zr", "/predict/zr");
 	public static final String Dice = PropertyPlaceholder.getProperty("dice", "/predict/dice");
 	public static final String Chart13 = PropertyPlaceholder.getProperty("chart13", "/chart13");
@@ -85,6 +86,10 @@ public class AstroHelper {
 	
 	public static Map<String, Object> getPrimaryDirection(Map<String, Object> params){
 		return request(PrimaryDirection, params);
+	}
+
+	public static Map<String, Object> getPrimaryDirectionChart(Map<String, Object> params){
+		return request(PrimaryDirectionChart, params);
 	}
 	
 	public static Map<String, Object> getZodiacalRelease(Map<String, Object> params){

@@ -56,6 +56,7 @@
 - `Horosa_OneClick_Mac.command`
 
 当前版本会先检查本地是否已经准备好；如果已经准备好，就直接打开，不再重复走完整部署。
+如果源码比现有 `dist-file` 或 `astrostudyboot.jar` 更新，它会自动切回重建流程，不会继续偷用旧构建产物。
 
 ### 3. 启动后，想确认项目是不是正常
 
@@ -68,6 +69,7 @@
 - 页面和接口是否能打开
 - `8899` 和 `9999` 是否正常工作
 - 主限法相关接口和前端展示是否一致
+- `主限法盘` 是否能在浏览器里按当前时间正确更新外圈双盘
 
 ### 4. 准备上传 GitHub
 
@@ -107,7 +109,8 @@
 
 - `Horosa_OneClick_Mac.command`
 
-它会重新补齐 Python 依赖和虚拟环境。
+它会重新补齐 Python 依赖和虚拟环境。  
+当前版本如果检测到 `.runtime/mac/venv` 已损坏、迁移后 shebang 失效，或者旧 `pip` 指向了错误路径，也会自动删除后重建，不需要手工修 venv。
 
 ### `node 18+ is required`
 
@@ -123,6 +126,16 @@
 2. 重新双击 `Horosa_OneClick_Mac.command`。
 
 原因通常不是“功能本身坏了”，而是页面还连着旧端口、旧副本，或者服务已经停止。
+
+### 主限法表格看起来不像当前方法
+
+如果你刚切换了：
+
+- `AstroAPP-Alchabitius`
+- `Horosa原方法`
+
+但浏览器里表格仍像旧结果，当前版本会在 `重新计算` 时自动把 `/chart` 的主限法 rows 与 `/predict/pd` 强制对齐。  
+也就是说，只要重新计算成功，用户看到的主限法表格就应当和当前后端分支一致，不再允许出现“页面显示一种方法、后端实际跑另一种方法”的情况。
 
 ### 启动很慢，提示服务超时
 
@@ -210,3 +223,4 @@ HOROSA_BROWSER_CHECK_PYTHON=/path/to/python ./tools/mac/Horosa_SelfCheck_Mac.com
 - 一键脚本：`scripts/mac/bootstrap_and_run.sh`
 - 自检脚本：`scripts/mac/self_check_horosa.sh`
 - Python 依赖清单：`scripts/requirements/mac-python.txt`
+- Windows Codex 主限法盘复现包：`WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/`

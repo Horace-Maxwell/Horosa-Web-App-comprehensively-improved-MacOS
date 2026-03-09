@@ -21,6 +21,7 @@ Horosa-Web/.horosa_java.pid
 Horosa-Web/.horosa_py.pid
 Horosa-Web/.horosa-run-issues.log
 Horosa-Web/${sys:user.home}/
+Horosa-Web/${env:HOME}/
 diagnostics/*
 !diagnostics/.gitkeep
 !diagnostics/README.md
@@ -57,3 +58,6 @@ Horosa-Web/astrostudyui/dist-file/
 # IDE
 .vscode/
 .idea/
+
+# Local private research docs
+.private_astroapp_docs/

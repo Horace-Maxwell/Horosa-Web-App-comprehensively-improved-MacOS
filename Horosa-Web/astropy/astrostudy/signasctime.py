@@ -256,6 +256,35 @@ class SignAscTime:
         span_days = (next_local.astimezone(timezone.utc) - current_local.astimezone(timezone.utc)).total_seconds() / 86400.0
         return self.birth.jd + whole_days + fraction * span_days
 
+    def getPDArcFromDate(self, date_or_jd):
+        if isinstance(date_or_jd, (int, float)):
+            target_jd = float(date_or_jd)
+        elif hasattr(date_or_jd, 'jd'):
+            target_jd = float(date_or_jd.jd)
+        else:
+            return 0.0
+
+        birth_jd = float(self.birth.jd)
+        if not math.isfinite(target_jd) or target_jd <= birth_jd:
+            return 0.0
+
+        low = 0.0
+        high = max(1.0, math.ceil((target_jd - birth_jd) / 365.0) + 2.0)
+        for _ in range(16):
+            if self.getJDFromPDArc(high) >= target_jd:
+                break
+            high *= 2.0
+
+        for _ in range(64):
+            mid = (low + high) / 2.0
+            mid_jd = self.getJDFromPDArc(mid)
+            if mid_jd < target_jd:
+                low = mid
+            else:
+                high = mid
+
+        return (low + high) / 2.0
+
     def getDateFromPDArc(self, arc):
         jd = self.getJDFromPDArc(arc)
         # AstroApp dirs.csv exports dirDate in UTC-like display, not local chart time.

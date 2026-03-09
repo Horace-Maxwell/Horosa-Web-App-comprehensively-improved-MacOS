@@ -28,6 +28,7 @@
 - `Horosa-Web/astrostudyui/src/utils/constants.js`：前端本地/线上后端根地址解析；当前本地模式优先按 `srv` 参数和当前网页端口推导实际 backend（`webPort + 1999`），只有无法推导时才回退 `localStorage.horosaLocalServerRoot`
 - `Horosa-Web/astrostudyui/src/utils/request.js`：统一请求封装；当前会把主限法重算链路里的布尔型 `cache` 选项规范化为浏览器原生 `fetch` 可接受的字符串枚举
 - `Horosa-Web/astrostudyui/src/components/astro/AstroDecennials.js`：推运盘“十年大运”页面实现；三栏布局、设置面板、L1-L4 层级树、AI 快照与导出入口都在这里
+- `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`：推运盘“主限法盘”页面实现；左侧双盘（内圈本命、外圈主限法盘），右侧时间选择 + `推运方法 / 度数换算` 设置，并根据当前时间把主限法结果投影到外圈黄道位置
 - `Horosa-Web/astrostudyui/src/utils/decennials.js`：十年大运计算核心；包含起运主星、黄道/迦勒底次序、Valens 精确分配、Hephaistio 原表日数、L4 小时级细分
 - `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`：十年大运专项自动测试；覆盖文档原表值、昼夜起运、两套次序、两套日限、层级时长一致性与 `L4 HH:MM`
 - `Horosa-Web/astrostudyui/src/components/tongshefa/TongSheFaMain.js`：统摄法主模块（四卦选择、本卦/互潜/错亲盘式、三十二观/三界/爻位/纳甲筮法、事盘保存、AI快照）
@@ -70,6 +71,17 @@
   - 产物默认写入：
     - `runtime/browser_horosa_master_check.json`
     - `runtime/browser_horosa_master_check.png`
+- `scripts/browser_primary_direction_chart_guangde_check.py`
+  - Guangde 浏览器专项验收脚本
+  - 固定测试盘：`2006-10-04 09:58 / 30N53 / 119E25 / guangde`
+  - 验证三件事：
+    - `主/界限法` 浏览器表格 = 当前后端 `predictives.primaryDirection`
+    - 当前后端结果 ≈ AstroApp 参考输出
+    - `主限法盘` 在表格时间与任意时间下都能正确更新外圈时间、Arc 状态和盘面 SVG
+  - 产物默认写入：
+    - `runtime/guangde_primarydirchart_browser_check.json`
+    - `runtime/guangde_primarydirect_browser_table.png`
+    - `runtime/guangde_primarydirchart_browser.png`
 - `scripts/requirements/mac-python.txt`
   - Mac Python 依赖清单
 - `scripts/repo/clean_for_github.sh`
@@ -2504,7 +2516,7 @@
   - 主限法页面顶部“已同步 / 重新计算”的最终判定逻辑
   - 当前要求后端返回 `pdMethod / pdTimeKey / pdtype / pdSyncRev` 四项齐全，前端才允许进入 `已同步`
 - `Horosa-Web/astropy/websrv/webchartsrv.py`
-  - `/chart` 返回 `params.pdSyncRev = 'pd_method_sync_v4'`
+  - `/chart` 返回 `params.pdSyncRev = 'pd_method_sync_v6'`
 - `Horosa-Web/astropy/astrostudy/helper.py`
   - helper 生成的 chart object 同步返回 `pdSyncRev`
 - `runtime/` 下对应主仓库浏览器截图与 JSON
@@ -2525,7 +2537,7 @@
   - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/PredictiveController.java`
   - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/IndiaChartController.java`
 - 关键约束：
-  - 主限法同步修订号统一为 `pd_method_sync_v4`
+  - 主限法同步修订号统一为 `pd_method_sync_v6`
   - 桌面包 Java `/chart` 也必须跟着升级 `_wireRev`，否则会继续命中旧版主限法缓存/旧编译产物
 - 桌面包取证文件：
   - `runtime/` 下对应桌面包浏览器截图与 JSON
@@ -2593,3 +2605,125 @@
     - 静态接线检查新增 `十年大运` 页签断言。
   - 当前说明：
     - 该静态脚本仍会卡在主限法旧字符串断言，不代表十年大运模块异常。
+
+### 103.16) Windows Codex 主限法盘复现包（2026-03-08）
+
+- 根目录新增：
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/`
+- 目标：
+  - 给 Windows 上的 Codex 一套完整、可离线阅读、可直接对位替换的复现资料，覆盖：
+    - 新增的 `主限法盘` 页面；
+    - 现有 `AstroAPP-Alchabitius` 主限法实现；
+    - 广德盘浏览器级验收；
+    - 整站浏览器巡检与主限法阈值摘要。
+- 顶层文档：
+  - `README_FIRST.md`
+    - 先读说明，定义目标、范围、最低验收标准与执行顺序。
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_FULL_REPLICATION_GUIDE.md`
+    - 极其详细的复现指南，逐段说明应复制哪些源码、模型与脚本，以及为什么必须保留 `pd_method_sync_v6`、为什么要清 `Horosa-Web/.horosa-cache`。
+  - `WINDOWS_CODEX_TASK_PROMPT.md`
+    - 可直接喂给 Windows Codex 的任务提示词，要求它严格按快照文件对位复刻并完成验收。
+  - `FILE_MANIFEST.md`
+    - 包内文件清单与用途说明。
+  - `SHA256SUMS.txt`
+    - 整包哈希清单，用于先校验资料完整性。
+- `reference_docs/`
+  - 当前主仓库说明文档副本：
+    - `README.md`
+    - `UPGRADE_LOG.md`
+    - `PROJECT_STRUCTURE.md`
+  - `主限法推演/`
+    - 主限法实现记录、数学流、全过程档案与公开整理稿副本。
+- `snapshot/`
+  - `Horosa-Web/astrostudyui/`
+    - `AstroPrimaryDirection.js`
+    - `AstroPrimaryDirectionChart.js`
+    - `AstroDirectMain.js`
+    - `aiExport.js`
+    - `constants.js`
+    - `request.js`
+    - `scripts/verifyPrimaryDirectionRuntime.js`
+  - `Horosa-Web/astropy/`
+    - `helper.py`
+    - `perpredict.py`
+    - `perchart.py`
+    - `webchartsrv.py`
+    - `webpredictsrv.py`
+    - `astrostudy/models/` 全部模型文件
+  - `Horosa-Web/astrostudysrv/`
+    - 四个关键 Java controller 快照
+  - 顶层脚本：
+    - `Horosa-Web/start_horosa_local.sh`
+    - `Horosa-Web/verify_horosa_local.sh`
+    - `scripts/check_primary_direction_astroapp_integration.py`
+    - `scripts/check_horosa_full_integration.py`
+    - `scripts/browser_primary_direction_chart_guangde_check.py`
+    - `scripts/browser_horosa_master_check.py`
+- `expected_results/`
+  - `runtime/guangde_*`
+    - 广德盘浏览器截图、表格截图、JSON 取证。
+  - `runtime/browser_horosa_master_check.*`
+    - 整站浏览器巡检结果。
+  - `runtime/pd_auto/debug_guangde_case/`
+    - AstroApp 当前抓取样本。
+  - `runtime/pd_reverse/`
+    - 广德盘 exact 摘要、全局 shared-core 摘要、稳定性摘要、虚点专项摘要。
+- 使用原则：
+  - Windows 侧要按 `snapshot/` 中的文件逐个覆盖目标仓库，而不是自行猜测实现。
+  - 完成后必须先跑广德盘，再跑整站巡检，再跑主限法阈值摘要校验。
+
+### 103.17) 主限法盘同步收口与一键入口重建判定（2026-03-08）
+
+- `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`
+  - `主限法盘` 的表格回写链路
+  - 当前策略：重算时直接调用 `/predict/pd`，把返回 rows 写回 `chartObj.predictives.primaryDirection`，保证 `主限法盘` 与 `主/界限法` 表格同源。
+- `Horosa_OneClick_Mac.command`
+  - 根目录唯一推荐入口
+  - 不再只看“有没有 `dist-file / jar`”，而是会判断源码是否比构建产物更新；一旦源码更新，就自动重建。
+- `Horosa-Web/verify_horosa_local.sh`
+  - 整站验收总入口
+  - 浏览器 smoke 前若 `8000` 不在，会自动临时起一个静态页服务，避免验收被网页端口生命周期误伤。
+- 验收证据：
+  - `runtime/guangde_primarydirchart_browser_check.json`
+  - `runtime/guangde_primarydirchart_browser.png`
+  - `runtime/guangde_primarydirect_browser_table.png`
+  - 桌面打包版同名 `runtime/` 取证文件
+
+### 103.18) `/chart` 主限法回写与 venv 自愈重建（2026-03-08）
+
+- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
+  - 新增 `syncPredictiveMetaAndRows(...)`
+  - `/chart`、`/chart13` 返回前统一把 `params.pdMethod / pdTimeKey / pdtype / showPdBounds / pdSyncRev` 与当前请求对齐
+  - 若 `predictive=true`，直接调用 `AstroHelper.getPrimaryDirection(args)` 并覆盖 `predictives.primaryDirection`
+- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
+  - `/qry/chart` 复用同一套 `syncPredictiveMetaAndRows(...)`
+  - 保证查询接口不再回放旧主限法 rows
+- `scripts/mac/bootstrap_and_run.sh`
+  - `ensure_python_venv()` 改为先做可执行探测
+  - 若 `.runtime/mac/venv` 已损坏或迁移后 shebang 失效，自动删除并重建
+  - 安装依赖统一改为 `python -m pip`，避免旧 `bin/pip` 指向失效路径
+- 目的：
+  - 让 `/chart` 与 `/predict/pd` 在 `AstroAPP-Alchabitius / Horosa原方法` 双分支上完全一致
+  - 让 `Horosa_OneClick_Mac.command` 在瘦身包、迁移包和重下载包中都能自愈式重建运行环境
+- 对应验证：
+  - `node Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js`
+  - `scripts/mac/self_check_horosa.sh`
+  - `scripts/browser_primary_direction_chart_guangde_check.py`
+
+### 103.19) 主限法盘底层原理文档（2026-03-08）
+
+- `主限法推演/主限法盘实现原理与算法说明.md`
+  - 新增的实现层总说明文档，专门解释 Horosa 里“主限法盘”的底层计算与显示逻辑。
+  - 覆盖内容：
+    - 为什么不能用“主/界限法”表格做事件插值
+    - 正确链路：`时间 -> 主限弧 -> 赤道层推进 -> 投影回黄道`
+    - 四轴/宫头为什么必须按 `ARMC + arc` 重建
+    - `AstroAPP-Alchabitius` 分支为何仍要先做基础点修正，再进入主限盘推进
+    - 为什么表格命中后，黄道盘面不一定还能看成完美黄道相位
+    - 当前主限法盘如何支持对 `directing by terms` 的观察与手工使用
+  - 适用对象：
+    - 后续维护者
+    - 需要理解“主限法盘”与“主/界限法表格”关系的研究者
+    - 未来要继续扩展 `terms overlay` 或主限辅助标记层的人
+  - 配套索引：
+    - `主限法推演/README.md` 现已补充该文档入口说明

@@ -118,6 +118,7 @@ const AI_EXPORT_PLANET_INFO_TECHNIQUES = new Set([
 	'astrochart_like',
 	'relative',
 	'primarydirect',
+	'primarydirchart',
 	'zodialrelease',
 	'firdaria',
 	'profection',
@@ -169,6 +170,7 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'astrochart_like', label: '希腊/星体地图' },
 	{ key: 'relative', label: '关系盘' },
 	{ key: 'primarydirect', label: '推运盘-主/界限法' },
+	{ key: 'primarydirchart', label: '推运盘-主限法盘' },
 	{ key: 'zodialrelease', label: '推运盘-黄道星释' },
 	{ key: 'firdaria', label: '推运盘-法达星限' },
 	{ key: 'profection', label: '推运盘-小限法' },
@@ -202,6 +204,7 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	astrochart_like: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '可能性'],
 	relative: ['关系起盘信息', 'A对B相位', 'B对A相位', 'A对B中点相位', 'B对A中点相位', 'A对B映点', 'A对B反映点', 'B对A映点', 'B对A反映点', '合成图盘', '影响图盘-星盘A', '影响图盘-星盘B'],
 	primarydirect: ['出生时间', '星盘信息', '主/界限法设置', '主/界限法表格'],
+	primarydirchart: ['出生时间', '星盘信息', '主限法盘设置', '主限法盘说明'],
 	zodialrelease: ['起盘信息', '星盘信息', '基于X点推运'],
 	firdaria: ['出生时间', '星盘信息', '法达星限表格'],
 	profection: ['星盘信息', '起盘信息', '相位'],
@@ -1353,6 +1356,7 @@ function resolveActiveContext(){
 
 	const predictiveLabelMap = [
 		{ label: '主/界限法', key: 'primarydirect', name: '推运盘-主/界限法' },
+		{ label: '主限法盘', key: 'primarydirchart', name: '推运盘-主限法盘' },
 		{ label: '黄道星释', key: 'zodialrelease', name: '推运盘-黄道星释' },
 		{ label: '法达星限', key: 'firdaria', name: '推运盘-法达星限' },
 		{ label: '小限法', key: 'profection', name: '推运盘-小限法' },
@@ -1609,6 +1613,7 @@ function resolveContextByAstroState(){
 		}
 		const predictiveMap = {
 			primarydirect: { key: 'primarydirect', displayName: '推运盘-主/界限法', domain: 'predictive_raw' },
+			primarydirchart: { key: 'primarydirchart', displayName: '推运盘-主限法盘', domain: 'predictive_raw' },
 			zodialrelease: { key: 'zodialrelease', displayName: '推运盘-黄道星释', domain: 'predictive_raw' },
 			firdaria: { key: 'firdaria', displayName: '推运盘-法达星限', domain: 'predictive_raw' },
 			profection: { key: 'profection', displayName: '推运盘-小限法', domain: 'predictive_raw' },
@@ -1960,8 +1965,9 @@ function getModuleAliasList(moduleName){
 		set.add('qimen');
 		set.add('dunjia');
 	}
-	if(name === 'primarydirect' || name === 'direction'){
+	if(name === 'primarydirect' || name === 'primarydirchart' || name === 'direction'){
 		set.add('primarydirect');
+		set.add('primarydirchart');
 		set.add('direction');
 	}
 	if(name === 'decennials' || name === 'decennial'){
@@ -2811,6 +2817,19 @@ async function extractPrimaryDirectContent(context){
 		return refreshed;
 	}
 	const cached = getModuleCachedContent('primarydirect');
+	if(cached){
+		return cached;
+	}
+	return '';
+}
+
+async function extractPrimaryDirChartContent(context){
+	void context;
+	const refreshed = await requestModuleSnapshotRefresh('primarydirchart');
+	if(refreshed){
+		return refreshed;
+	}
+	const cached = getModuleCachedContent('primarydirchart');
 	if(cached){
 		return cached;
 	}
@@ -4135,7 +4154,11 @@ function exportWord(payload){
 }
 
 function normalizeExportKey(key){
-	return `${key || ''}` === 'direction' ? 'primarydirect' : `${key || ''}`;
+	const val = `${key || ''}`;
+	if(val === 'direction'){
+		return 'primarydirect';
+	}
+	return val;
 }
 
 function isStrictSpecificExportKey(key){
@@ -4152,6 +4175,7 @@ function isStrictSpecificExportKey(key){
 function isPredictiveExportKey(key){
 	const val = normalizeExportKey(key);
 	return val === 'primarydirect'
+		|| val === 'primarydirchart'
 		|| val === 'zodialrelease'
 		|| val === 'firdaria'
 		|| val === 'profection'
@@ -4207,7 +4231,7 @@ function getCandidateExportKeys(context){
 		context && context.displayName ? context.displayName : '',
 		stateContext && stateContext.displayName ? stateContext.displayName : '',
 	].join(' ');
-	const predictiveKeys = ['primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials'];
+	const predictiveKeys = ['primarydirect', 'primarydirchart', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials'];
 	const primaryIsPredictive = isPredictiveExportKey(primary);
 	const stateIsPredictive = isPredictiveExportKey(stateKey);
 	// 仅在上下文无法定位具体推运子模块时，才展开推运候选全量兜底；
@@ -4293,7 +4317,7 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 	}
 	if(topInfo.includes('推运盘') || topInfo.includes('主/界限法') || topInfo.includes('法达星限')
 		|| topInfo.includes('太阳弧') || topInfo.includes('太阳返照') || topInfo.includes('月亮返照')){
-		push('primarydirect', 'firdaria', 'zodialrelease', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials');
+		push('primarydirect', 'primarydirchart', 'firdaria', 'zodialrelease', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials');
 	}
 	if(topInfo.includes('三式合一')){
 		push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi', 'astrochart');
@@ -4326,7 +4350,7 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 	push(
 		'astrochart', 'astrochart_like', 'indiachart',
 		'relative', 'germany', 'jieqi',
-		'primarydirect', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials',
+		'primarydirect', 'primarydirchart', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials',
 		'sanshiunited', 'qimen', 'liureng', 'jinkou', 'sixyao', 'tongshefa', 'taiyi', 'suzhan',
 		'guolao', 'otherbu', 'fengshui',
 		'bazi', 'ziwei',
@@ -4346,6 +4370,9 @@ async function extractContentByKey(exportKey, context){
 	}
 	if(exportKey === 'primarydirect'){
 		return extractPrimaryDirectContent(context);
+	}
+	if(exportKey === 'primarydirchart'){
+		return extractPrimaryDirChartContent(context);
 	}
 	if(exportKey === 'zodialrelease'){
 		return extractZodialReleaseContent(context);

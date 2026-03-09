@@ -68,6 +68,8 @@ ASTROAPP_PD_SUPPORTED_BASE_IDS = {
     const.MC,
 }
 
+EXPECTED_PD_SYNC_REV = "pd_method_sync_v6"
+
 
 def _assert_contains(path: Path, needle: str) -> None:
     text = path.read_text(encoding="utf-8")
@@ -395,7 +397,7 @@ def main() -> None:
     _assert_contains(app_model, "pdTimeKey: 'Ptolemy'")
     _assert_contains(pd_table, "<Option value='astroapp_alchabitius'>AstroAPP-Alchabitius</Option>")
     _assert_regex(pd_table, r"tableKey\s*=.*appliedPdMethod.*appliedPdTimeKey")
-    _assert_contains(pd_table, "const pdTypeOutOfSync = appliedPdType !== 0;")
+    _assert_contains(pd_table, "const pdTypeOutOfSync = appliedPdState.pdtype !== DEFAULT_PD_TYPE;")
     _assert_contains(pd_table, "isPdConfigDirty ? '重新计算' : '计算'")
     _assert_contains(pd_table, "let pds = predictives.primaryDirection ? predictives.primaryDirection : [];")
     _assert_contains(pd_table, "Degree: pd[0],")
@@ -419,7 +421,7 @@ def main() -> None:
     for java_path in [java_chart, java_query_chart, java_india_chart, java_predict]:
         _assert_contains(java_path, 'TransData.containsParam("pdMethod")')
         _assert_contains(java_path, 'TransData.containsParam("pdTimeKey")')
-        _assert_contains(java_path, 'pd_method_sync_v4')
+        _assert_contains(java_path, EXPECTED_PD_SYNC_REV)
     for model_name in [
         "astroapp_pd_virtual_body_corr_sun_v1.joblib",
         "astroapp_pd_virtual_body_corr_moon_v1.joblib",

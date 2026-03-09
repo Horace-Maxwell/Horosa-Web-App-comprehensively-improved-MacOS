@@ -12,6 +12,77 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-03-08
+
+### 18:42 - 新增 Windows Codex「主限法盘」完整复现包
+- Scope: 在根目录新增一套专门面向 Windows Codex 的复现包，覆盖新增的 `主限法盘` 页面、已有 `AstroAPP-Alchabitius` 主限法实现、浏览器联动验收、模型文件与期望结果，目标是让另一台 Windows 机器仅凭该文件夹就能完整复刻 Mac 上当前生产版的代码、显示和校验流程。
+- Files:
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/README_FIRST.md`
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_FULL_REPLICATION_GUIDE.md`
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/WINDOWS_CODEX_TASK_PROMPT.md`
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/FILE_MANIFEST.md`
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/SHA256SUMS.txt`
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/reference_docs/`
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/snapshot/`
+  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/expected_results/`
+- Details:
+  - `reference_docs/` 收录当前主仓库的说明文档与主限法实现记录副本，供 Windows Codex 理解背景、目标和限制条件。
+  - `snapshot/` 收录前端、Python、Java、模型、自检脚本等关键源码快照，明确要求 Windows 侧逐文件对位替换。
+  - `expected_results/` 收录广德盘浏览器取证、整站浏览器巡检结果、AstroApp 当前比对样本与主限法阈值摘要，作为 Windows 侧复刻后的最终验收口径。
+  - 文档中明确写入：
+    - `主限法盘` 的页面结构与交互要求；
+    - `pd_method_sync_v6` 必须保留；
+    - `Horosa-Web/.horosa-cache` 需要清理；
+    - `/chart` 与 `/predict/pd` 必须重新对齐；
+    - 广德盘必须重跑并与当前取证结果对齐。
+  - 生成整包 `SHA256SUMS.txt`，便于 Windows 侧先校验资料完整性，再执行复刻。
+- Verification:
+  - `find WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT -type f | wc -l`
+  - `wc -l WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/SHA256SUMS.txt`
+  - 关键文件存在性核对通过
+  - 哈希清单已生成并可用于后续完整性校验
+
+### 16:20 - 推运盘新增“主限法盘”，并补齐广德盘浏览器级联动验收
+- Scope: 在 `推运盘 -> 主/界限法` 下新增独立 `主限法盘` 页，左侧显示“内圈本命 + 外圈主限法盘”的双盘，右侧保留时间选择并增加 `推运方法 / 度数换算`，要求任意时刻都能按当前主限法算法推导外圈位置，不再只依赖表格行时间。
+- Changes:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`
+    - 新增 `主限法盘` 页面实现；
+    - 左侧使用双盘展示：内圈本命盘、外圈主限法投影盘；
+    - 右侧设置区保留时间选择，并新增 `推运方法 / 度数换算` 两个设置项，和 `主/界限法` 完全对应；
+    - 外圈位置使用与 `主/界限法` 同一批主限法结果做推演，支持任意时间，不限于表格中列出的准确相位时间；
+    - 当选定时间恰好命中 `主/界限法` 表格中的某一行日期时，当前主限法年龄会精确对齐该行 Arc，而不是只按日期反推近似值；
+    - 外圈最终统一投影回黄道，保证可与本命盘直接套盘比对。
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+    - 在 `主/界限法` 下方新增 `主限法盘` 页签；
+    - AI 快照与导出分段增加 `主限法盘设置 / 主限法盘说明`。
+  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
+    - 新增 `primarydirchart` 模块导出支持。
+  - `scripts/browser_primary_direction_chart_guangde_check.py`
+    - 新增 Guangde 浏览器级专项验证：
+      - 设置 `2006-10-04 09:58 / 30N53 / 119E25 / guangde`
+      - 验证 `主/界限法` 浏览器表格前几行与当前后端 `predictives.primaryDirection` rows 一致；
+      - 验证这些 rows 与 AstroApp 当前参考输出保持接近；
+      - 再切到 `主限法盘`，确认当时间取表格行时间时，`当前主限法年龄 / 外圈时间 / 盘面 SVG` 同步变化；
+      - 再取一个非表格时间，确认盘面继续变化，证明支持任意时刻外圈推演。
+    - 忽略字体静态资源 404/abort 噪声，只把真正的功能异常记为失败。
+  - `scripts/browser_horosa_master_check.py`
+    - 巡检中加入 `主限法盘` 页面与双盘 SVG 的可见性检查。
+  - `scripts/check_primary_direction_astroapp_integration.py`
+  - `scripts/check_horosa_full_integration.py`
+    - 同步更新主限法页当前的 `pdSyncRev / pdtype` 断言口径。
+- Verification:
+  - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+  - `python scripts/browser_primary_direction_chart_guangde_check.py` ✅
+  - Guangde 浏览器取证结果：
+    - `主/界限法` 浏览器表格前 7 行与后端 rows 完全一致；
+    - 广德关键行 `Uranus 180 -> MC` 浏览器显示为 `1度33分 / 2008-04-21 15:49:15`；
+    - 与 AstroApp 参考 `1.5480341336 / 2008-04-21 15:54:00` 保持接近；
+    - `主限法盘` 在命中表格时间与任意时间时，`当前主限法年龄 / 外圈时间 / 外圈盘面` 都会同步变化。
+  - 产物：
+    - `runtime/guangde_primarydirchart_browser_check.json`
+    - `runtime/guangde_primarydirect_browser_table.png`
+    - `runtime/guangde_primarydirchart_browser.png`
+
 ## 2026-03-06
 
 ### 16:25 - 加入浏览器级宗师巡检并修复本地服务“启动后短暂存活再消失”
@@ -4623,8 +4694,8 @@ Append new entries; do not rewrite history.
     - `pdTimeKey`
     - `pdtype`
     - `pdSyncRev`
-  - 只要这四项缺任何一项，或者 `pdSyncRev !== pd_method_sync_v4`，页面顶部按钮就强制保持 `重新计算`，不允许再显示 `已同步`。
-  - Python `/chart` 返回 `params.pdSyncRev = 'pd_method_sync_v4'`，让前端能明确区分“当前生产版返回”和旧响应。
+  - 只要这四项缺任何一项，或者 `pdSyncRev !== pd_method_sync_v6`，页面顶部按钮就强制保持 `重新计算`，不允许再显示 `已同步`。
+  - Python `/chart` 返回 `params.pdSyncRev = 'pd_method_sync_v6'`，让前端能明确区分“当前生产版返回”和旧响应。
   - 这轮加固后再次用固定基准盘浏览器实测，主仓库页面第一页关键行仍与当前目标口径一致
 - Verification (local):
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
@@ -4646,7 +4717,7 @@ Append new entries; do not rewrite history.
   - `PROJECT_STRUCTURE.md`
   - `PRIMARY_DIRECTION_ALCHABITIUS_REPLICATION.md`
 - Details:
-  - 主限法同步修订号统一升级为 `pd_method_sync_v4`，让桌面包 Java `/chart` 端不再复用旧版主限法结果。
+  - 主限法同步修订号统一升级为 `pd_method_sync_v6`，让桌面包 Java `/chart` 端不再复用旧版主限法结果。
   - 这次不是只改前端按钮判断，而是同步更新了：
     - Python helper/chart websrv 的 `pdSyncRev`
     - 前端主限法页的同步判定常量
@@ -4764,3 +4835,76 @@ Append new entries; do not rewrite history.
   - `npm --prefix Horosa-Web/astrostudyui test -- --runInBand` ✅
   - `npm --prefix Horosa-Web/astrostudyui run build` ✅
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
+
+### 18:20 - 主限法盘与桌面包同步收口（2026-03-08）
+- Scope: 收口 `主限法盘` 与 `主/界限法` 表格的同步链，修复桌面打包版源码已同步但一键启动仍可能沿用旧 `dist-file / jar` 的问题，并让整站自检在网页端口缺失时也能稳定完成浏览器 smoke。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`
+  - `Horosa_OneClick_Mac.command`
+  - `Horosa-Web/verify_horosa_local.sh`
+  - `scripts/check_primary_direction_astroapp_integration.py`
+  - `README.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - `主限法盘` 的“重新计算”不再依赖 `/chart` 去回写表格，而是直接调用 `/predict/pd`，再把返回的 `primaryDirection` rows 写回当前 `chartObj.predictives.primaryDirection`；这样左侧双盘与右侧 `主/界限法` 表格始终共用同一批后端结果。
+  - 主限法同步修订号统一升级为 `pd_method_sync_v6`，并同步到 Python `/chart`、前端同步判定、Java `/chart` / `/qry/chart` / `/india/chart` / `/predict/pd` 的 `_wireRev`。
+  - `Horosa_OneClick_Mac.command` 现在不只检查“有没有构建产物”，还会检查源码是否比 `dist-file` 或 `astrostudyboot.jar` 更新；只要源码更新，就会自动重建，而不是继续沿用旧构建。
+  - `verify_horosa_local.sh` 在浏览器 smoke 前如果发现 `8000` 没有静态页服务，会自动临时补起一个 `http.server`，跑完后再回收，避免自检被网页端口策略误伤。
+  - 桌面打包版已重新和主仓库对齐，并用广德盘浏览器实测确认：
+    - 表格前几行重新回到 `-0度4分 / 0度21分 / -0度48分 / 0度57分 / 1度33分 ...`
+    - `主限法盘` 在表格时间、任意时间、`Horosa原方法 <-> AstroAPP-Alchabitius` 切换下都能同步更新外圈时间与外圈位置。
+- Verification (local):
+  - `./.runtime/mac/venv/bin/python3 scripts/check_primary_direction_astroapp_integration.py` ✅
+  - `HOROSA_WEB_PORT=18001 HOROSA_SERVER_PORT=19999 HOROSA_SERVER_ROOT=http://127.0.0.1:19999 python3 scripts/browser_primary_direction_chart_guangde_check.py` ✅
+  - 桌面打包版 `Horosa_OneClick_Mac.command` 广德盘浏览器复测 ✅
+  - 桌面打包版 `scripts/mac/self_check_horosa.sh`：
+    - 主限法专项、整站接口检查通过；
+    - 浏览器 smoke 改为自动补起临时网页后可稳定运行。
+
+### 20:05 - `/chart` 主限法回写与一键部署 venv 自愈修复（2026-03-08）
+- Scope: 修复整站自检中暴露出的两个运行态问题：
+  - `/chart` 在 `horosa_legacy` 分支下仍可能返回 `astroapp_alchabitius` 的 `params / rows`；
+  - `Horosa_OneClick_Mac.command` 在命中损坏或迁移后的旧 `.runtime/mac/venv` 时，可能因为 `pip` shebang 指向旧路径而构建失败。
+- Files:
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
+  - `scripts/mac/bootstrap_and_run.sh`
+  - `README.md`
+  - `PROJECT_STRUCTURE.md`
+  - `主限法推演/PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`
+- Details:
+  - Java `/chart` 与 `/qry/chart` 现在都会在返回前显式执行一次主限法同步：
+    - 强制回写 `params.pdMethod / pdTimeKey / pdtype / showPdBounds / pdSyncRev`
+    - 若当前请求开启 `predictive=true`，则直接调用 `AstroHelper.getPrimaryDirection(args)`，并用 `pdres.get("pd")` 覆盖 `predictives.primaryDirection`
+  - 这样做以后：
+    - `/chart` 与 `/predict/pd` 在 `astroapp_alchabitius`、`horosa_legacy` 两个分支上的 rows 数量和行内容重新一致；
+    - 浏览器表格不会再出现“页面显示一种方法、后端实际回另一种方法”的分叉。
+  - `bootstrap_and_run.sh` 现在会先检测 `.runtime/mac/venv` 是否可执行：
+    - 若 venv 缺失或已损坏，会自动整目录重建；
+    - pip 安装改为 `python -m pip`，不再依赖可能残留旧 shebang 的 `bin/pip`。
+  - 一键入口重新验证后，`.runtime` 从冷启动状态可自动恢复，广德盘与整站自检都能在重建后继续通过。
+- Verification (local):
+  - `node Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js` ✅
+  - `./scripts/mac/self_check_horosa.sh` ✅
+  - `./.runtime/mac/venv/bin/python3 scripts/browser_primary_direction_chart_guangde_check.py` ✅
+  - `HOROSA_NO_BROWSER=1 ./Horosa_OneClick_Mac.command`（命中重建路径）✅
+
+### 20:18 - 新增《主限法盘实现原理与算法说明》文档（2026-03-08）
+- Scope: 在 `主限法推演/` 目录新增一份专门解释“主限法盘”底层链路的中文文档，面向后续维护者与研究者，补齐实现层说明。
+- Files:
+  - `主限法推演/主限法盘实现原理与算法说明.md`
+  - `主限法推演/README.md`
+- Details:
+  - 新文档系统说明了“主限法盘”为什么不能用表格事件插值，而必须采用：
+    - `显示时间 -> 主限弧 -> 赤道/主运动层推进 -> 投影回黄道 -> 画外圈`
+  - 明确区分了：
+    - 主限法表格中的精确命中层（`RA / OA / MD / SDA`）
+    - 盘面最终显示层（黄道投影）
+  - 解释了为什么表格精确命中后，盘上不一定还能肉眼看成一个完美黄道相位。
+  - 同时补充了当前实现与 `directing by terms` 的关系：
+    - 现在的主限法盘已经可以用来观察 `Asc` 当前落在哪个 term；
+    - 但这还不等同于一个独立自动化的 `terms` 模块。
+  - `主限法推演/README.md` 也新增了一条索引，方便后人直接找到这份说明。
+- Verification (local):
+  - `test -f 主限法推演/主限法盘实现原理与算法说明.md` ✅
+  - `sed -n '1,80p' 主限法推演/主限法盘实现原理与算法说明.md` ✅

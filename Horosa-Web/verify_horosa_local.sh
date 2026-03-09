@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 UI_DIR="${ROOT}/astrostudyui"
+DIST_DIR="${UI_DIR}/dist-file"
 SMOKE_IN="/private/tmp/horosa_endpoint_smoke.tsv"
 SMOKE_OUT="/private/tmp/horosa_endpoint_smoke_after.tsv"
 PD_VERIFY_JS="${UI_DIR}/scripts/verifyPrimaryDirectionRuntime.js"
@@ -13,7 +14,19 @@ FULL_VERIFY_PY="${PROJECT_ROOT}/scripts/check_horosa_full_integration.py"
 BROWSER_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_master_check.py"
 CHART_PORT="${HOROSA_CHART_PORT:-8899}"
 BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
+WEB_PORT="${HOROSA_WEB_PORT:-8000}"
+TEMP_WEB_PID=""
 export HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT:-http://127.0.0.1:${BACKEND_PORT}}"
+
+cleanup() {
+  local code=$?
+  if [ -n "${TEMP_WEB_PID}" ] && kill -0 "${TEMP_WEB_PID}" >/dev/null 2>&1; then
+    kill "${TEMP_WEB_PID}" >/dev/null 2>&1 || true
+    wait "${TEMP_WEB_PID}" >/dev/null 2>&1 || true
+  fi
+  exit "${code}"
+}
+trap cleanup EXIT INT TERM HUP
 
 resolve_python_bin() {
   if [ -x "${PROJECT_ROOT}/.runtime/mac/venv/bin/python3" ]; then
@@ -72,6 +85,41 @@ port_listening() {
   lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
 }
 
+resolve_dist_dir() {
+  if [ -f "${UI_DIR}/dist-file/index.html" ]; then
+    DIST_DIR="${UI_DIR}/dist-file"
+  else
+    DIST_DIR="${UI_DIR}/dist"
+  fi
+}
+
+ensure_browser_web_port() {
+  local py_bin="$1"
+
+  if port_listening "${WEB_PORT}"; then
+    return 0
+  fi
+
+  resolve_dist_dir
+  if [ ! -f "${DIST_DIR}/index.html" ]; then
+    echo "browser smoke skipped: missing frontend entry ${DIST_DIR}/index.html."
+    return 1
+  fi
+
+  echo "browser smoke: web ${WEB_PORT} not listening, starting temporary static server ..."
+  nohup "${py_bin}" -m http.server "${WEB_PORT}" --bind 127.0.0.1 --directory "${DIST_DIR}" >/tmp/horosa_verify_web.log 2>&1 &
+  TEMP_WEB_PID="$!"
+  for _ in $(seq 1 20); do
+    if port_listening "${WEB_PORT}"; then
+      return 0
+    fi
+    sleep 0.2
+  done
+
+  echo "browser smoke skipped: failed to start temporary web ${WEB_PORT}."
+  return 1
+}
+
 if ! port_listening "${CHART_PORT}"; then
   echo "chart service ${CHART_PORT} is not reachable. start services first."
   exit 1
@@ -93,12 +141,14 @@ PYTHON_BIN="$(resolve_python_bin)"
 
 if [ -f "${BROWSER_VERIFY_PY}" ]; then
   if BROWSER_PYTHON_BIN="$(resolve_browser_python_bin 2>/dev/null)"; then
-    echo ""
-    echo "browser smoke: ${BROWSER_VERIFY_PY}"
-    HOROSA_WEB_PORT="${HOROSA_WEB_PORT:-8000}" \
-    HOROSA_SERVER_PORT="${BACKEND_PORT}" \
-    HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT}" \
-    "${BROWSER_PYTHON_BIN}" "${BROWSER_VERIFY_PY}"
+    if ensure_browser_web_port "${BROWSER_PYTHON_BIN}"; then
+      echo ""
+      echo "browser smoke: ${BROWSER_VERIFY_PY}"
+      HOROSA_WEB_PORT="${WEB_PORT}" \
+      HOROSA_SERVER_PORT="${BACKEND_PORT}" \
+      HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT}" \
+      "${BROWSER_PYTHON_BIN}" "${BROWSER_VERIFY_PY}"
+    fi
   else
     echo ""
     echo "browser smoke skipped: playwright-capable python not found."

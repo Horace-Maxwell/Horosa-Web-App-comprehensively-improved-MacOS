@@ -426,14 +426,25 @@ trap cleanup_on_fail EXIT
 launch_detached() {
   local log_file="$1"
   shift
-  if command -v setsid >/dev/null 2>&1; then
-    nohup setsid "$@" </dev/null >"${log_file}" 2>&1 &
-  else
-    nohup "$@" </dev/null >"${log_file}" 2>&1 &
-  fi
-  local pid="$!"
-  disown "${pid}" >/dev/null 2>&1 || true
-  printf '%s\n' "${pid}"
+  "${PYTHON_BIN}" - "${log_file}" "$@" <<'PY'
+import subprocess
+import sys
+
+log_path = sys.argv[1]
+cmd = sys.argv[2:]
+
+with open(log_path, "ab", buffering=0) as fh:
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=fh,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        close_fds=True,
+    )
+
+print(proc.pid)
+PY
 }
 
 cd "${ROOT}"
