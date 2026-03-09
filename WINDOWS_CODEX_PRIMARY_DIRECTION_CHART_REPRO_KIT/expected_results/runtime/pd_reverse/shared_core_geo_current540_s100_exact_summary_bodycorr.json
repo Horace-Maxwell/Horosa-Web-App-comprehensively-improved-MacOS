@@ -1,0 +1,15 @@
+{
+  "cases": 100,
+  "rows_astro": 47995,
+  "rows_local": 51138,
+  "rows_matched": 47736,
+  "arc_mae": 0.0005540233967390748,
+  "arc_median": 9.911071583701414e-05,
+  "arc_p95": 0.0025201506095200443,
+  "arc_max": 0.0166930153787348,
+  "date_mae_days": 0.3486373659201135,
+  "date_median_days": 0.0971616874448955,
+  "date_p95_days": 1.0517775593325496,
+  "date_max_days": 6.931898502632976,
+  "scope": "shared_core"
+}

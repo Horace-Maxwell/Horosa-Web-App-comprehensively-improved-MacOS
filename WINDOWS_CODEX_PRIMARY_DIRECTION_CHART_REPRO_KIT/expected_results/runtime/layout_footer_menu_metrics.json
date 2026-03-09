@@ -1,0 +1,126 @@
+{
+  "home": {
+    "viewport": {
+      "width": 2048,
+      "height": 1184
+    },
+    "footerTop": 1200,
+    "footerBottom": 1248,
+    "chartTop": 104,
+    "chartBottom": 1200,
+    "bottomGapToFooter": 0,
+    "bottomGapToViewport": -16,
+    "navOpsDisplay": "none",
+    "topTabs": [
+      "星盘",
+      "三维盘",
+      "推运盘",
+      "量化盘",
+      "关系盘",
+      "节气盘",
+      "星体地图",
+      "七政四余",
+      "希腊星术",
+      "印度律盘",
+      "八字紫微",
+      "易与三式",
+      "万年历",
+      "西洋游戏",
+      "风水",
+      "三式合一"
+    ]
+  },
+  "direction_flowyear": {
+    "viewport": {
+      "width": 2048,
+      "height": 1184
+    },
+    "footerTop": 1200,
+    "footerBottom": 1248,
+    "chartTop": 104,
+    "chartBottom": 1130,
+    "bottomGapToFooter": 70,
+    "bottomGapToViewport": 54,
+    "navOpsDisplay": "none",
+    "topTabs": [
+      "星盘",
+      "三维盘",
+      "推运盘",
+      "量化盘",
+      "关系盘",
+      "节气盘",
+      "星体地图",
+      "七政四余",
+      "希腊星术",
+      "印度律盘",
+      "八字紫微",
+      "易与三式",
+      "万年历",
+      "西洋游戏",
+      "风水",
+      "三式合一"
+    ]
+  },
+  "cnyibu_suzhan": {
+    "viewport": {
+      "width": 2048,
+      "height": 1184
+    },
+    "footerTop": 1200,
+    "footerBottom": 1248,
+    "chartTop": 104,
+    "chartBottom": 1084,
+    "bottomGapToFooter": 116,
+    "bottomGapToViewport": 100,
+    "navOpsDisplay": "none",
+    "topTabs": [
+      "星盘",
+      "三维盘",
+      "推运盘",
+      "量化盘",
+      "关系盘",
+      "节气盘",
+      "星体地图",
+      "七政四余",
+      "希腊星术",
+      "印度律盘",
+      "八字紫微",
+      "易与三式",
+      "万年历",
+      "西洋游戏",
+      "风水",
+      "三式合一"
+    ]
+  },
+  "guolao": {
+    "viewport": {
+      "width": 2048,
+      "height": 1184
+    },
+    "footerTop": 1200,
+    "footerBottom": 1248,
+    "chartTop": 104,
+    "chartBottom": 1084,
+    "bottomGapToFooter": 116,
+    "bottomGapToViewport": 100,
+    "navOpsDisplay": "none",
+    "topTabs": [
+      "星盘",
+      "三维盘",
+      "推运盘",
+      "量化盘",
+      "关系盘",
+      "节气盘",
+      "星体地图",
+      "七政四余",
+      "希腊星术",
+      "印度律盘",
+      "八字紫微",
+      "易与三式",
+      "万年历",
+      "西洋游戏",
+      "风水",
+      "三式合一"
+    ]
+  }
+}
