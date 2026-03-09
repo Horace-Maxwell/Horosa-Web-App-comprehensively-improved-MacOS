@@ -9,7 +9,7 @@ import * as SZConst from '../suzhan/SZConst';
 const SQUARE_SIDE_MIN = 620;
 const SQUARE_SIDE_MAX = 980;
 const SQUARE_SIDE_FALLBACK = 740;
-const VIEWPORT_BOTTOM_GAP = 20;
+const VIEWPORT_BOTTOM_GAP = 28;
 
 function clamp(val, min, max){
 	return Math.max(min, Math.min(max, val));
@@ -95,7 +95,15 @@ class GuoLaoChart extends Component{
 			const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
 			if(viewportH > 0){
 				const rect = svgdom.getBoundingClientRect();
-				viewportRemainH = viewportH - rect.top - VIEWPORT_BOTTOM_GAP;
+				let bottomLimit = viewportH;
+				const footer = document.getElementById('globalFooter');
+				if(footer){
+					const footerRect = footer.getBoundingClientRect();
+					if(footerRect.top > rect.top && footerRect.top < bottomLimit){
+						bottomLimit = footerRect.top;
+					}
+				}
+				viewportRemainH = bottomLimit - rect.top - VIEWPORT_BOTTOM_GAP;
 			}
 		}
 
