@@ -3069,3 +3069,53 @@
     - `runtime/layout_direction_flowyear_footer_check.png`
     - `runtime/layout_cnyibu_suzhan_footer_check.png`
     - `runtime/layout_guolao_footer_check.png`
+
+### 103.29) 窗口缩放高度实时同步修复与全站排版复核（2026-03-09）
+
+- `Horosa-Web/astrostudyui/src/models/app.js`
+  - `normalizeWorkspaceHeight(viewportHeight)` 继续作为唯一工作区高度入口；
+  - `subscriptions.setup(...)` 新增 `syncWorkspaceHeight(...)` 与带 `80ms` 防抖的 `window.resize` 监听；
+  - 页面启动后和窗口动态缩放后，都会把最新 `document.documentElement.clientHeight` 重新同步回 `astro.height`；
+  - 监听器在 model 订阅卸载时会主动 `removeEventListener + clearTimeout`，避免重复绑定。
+- 修复目的：
+  - 解决“初次打开正常，但浏览器缩放过一次后盘面和右栏比例突然怪掉”的全局桌面端回归；
+  - 根因是旧逻辑只在启动时计算一次工作区高度，后续 live resize 不会刷新。
+- 当前动态缩放专项产物：
+  - `runtime/resize_layout_audit_postfix.json`
+    - 覆盖：
+      - `astrochart`
+      - `direction_solararc`
+      - `jieqi_spring`
+      - `cnyibu_suzhan`
+      - `guolao`
+      - `sanshiunited`
+      - `calendar`
+    - 测试序列：
+      - `1720x1184 -> 1366x900 -> 2048x1280 -> 1366x900`
+    - 关键结果：
+      - 各页面 `compact` 与二次回缩 `compact2` 的主图高度差都为 `0`
+      - 说明 live resize 后已不再保留旧高度残影
+  - 对应截图：
+    - `runtime/resize_astrochart_compact2.png`
+    - `runtime/resize_direction_solararc_compact2.png`
+    - `runtime/resize_jieqi_spring_compact2.png`
+    - `runtime/resize_cnyibu_suzhan_compact2.png`
+    - `runtime/resize_guolao_compact2.png`
+    - `runtime/resize_calendar_compact2.png`
+    - `runtime/sanshi_time_header_current.png`
+    - `runtime/sanshi_time_header_current_compact.png`
+- 联动自检结果：
+  - `HOROSA_WEB_PORT=18013 ./Horosa-Web/verify_horosa_local.sh`：`ok`
+  - `HOROSA_WEB_PORT=18013 python3 scripts/browser_primary_direction_chart_guangde_check.py`：`ok`
+  - `python3 scripts/check_local_ephemeris_precision.py --json`：`ok`
+  - 浏览器总冒烟继续确认：
+    - 节气盘 13 个入口全部可点
+    - 主限法切方法与主限法盘外圈更新时间正常
+    - ASC 所在 Term 高亮仍存在
+    - 三式合一当前头部里 `直接时间 / 真太阳时` 在标准与紧凑宽度下都可见
+- 最新性能上限仍保持亚秒：
+  - `星盘 / 3D盘 / 节气单盘 /chart`: `373.65ms`
+  - `推运盘`: `264.434ms`
+  - `节气盘 /jieqi/year 二十四节气首屏`: `112.866ms`
+  - `万年历 /calendar/month`: `83.276ms`
+  - 最慢强制项 `八字紫微 /bazi/direct`: `376.863ms`
