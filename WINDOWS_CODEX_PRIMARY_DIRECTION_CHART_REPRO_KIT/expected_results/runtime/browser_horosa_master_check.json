@@ -1,0 +1,445 @@
+{
+  "status": "ok",
+  "base_url": "http://127.0.0.1:18013/index.html?srv=http%3A%2F%2F127.0.0.1%3A9999&v=1773073372",
+  "server_root": "http://127.0.0.1:9999",
+  "modules": [
+    {
+      "module": "星盘",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "信息",
+          "clicked": true
+        },
+        {
+          "label": "相位",
+          "clicked": true
+        },
+        {
+          "label": "行星",
+          "clicked": true
+        },
+        {
+          "label": "希腊点",
+          "clicked": true
+        },
+        {
+          "label": "可能性",
+          "clicked": true
+        }
+      ],
+      "seconds": 8.24,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n0º\na\n0'\n0º\nb\n0'\n0º\nc\n0'\n0º\nd\n0'\n0º\ne\n0'\n0º\nf\n0'\n0º\ng\n0'\n0º\nh\n0'\n0º\ni\n0'\n0º\nj\n0'\n0º\nk\n0'\n0º\nl\n0'\nE\na\nA\nD\nb\nB\nC\nc\nB\nd\nF\nA\ne\nC\nf\nC\nD\ng\nG\nE\nh\nF\ni\nG\nj\nE\nG\nk\nF\nl\nD\nF\nD\nC\nE\nG\nD\nC\nF\nG\nE\nC\nF\nD\nE\nG\nE\nD\nC\nF\nG\nF\nD\nG\nC\nE\nC\nD\nF\nE\nG\nG\nC\nF\nD\nE\nE\nD\nC\nF\nG\nF\nD\nC\nG\nE\nC\nF\nD\nG\nE\nC\nD\nF\nE\nG\nD\nF\nC\nE\nG\n12\n1"
+    },
+    {
+      "module": "三维盘",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "信息",
+          "clicked": true
+        },
+        {
+          "label": "相位",
+          "clicked": true
+        },
+        {
+          "label": "行星",
+          "clicked": true
+        },
+        {
+          "label": "希腊点",
+          "clicked": true
+        }
+      ],
+      "seconds": 13.985,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n摄像机\n摄像机旋转\n摄像机视野\n摄像机天球经度\n摄像机天球纬度\n摄像机与球心距离\n地球\n纹理编码\nsRGB\nLinear\n地球半径\n有云地球\n隐藏地球\n地球自转轴\n隐藏地球附近星体\n颜色\n星盘背景\n太阳光颜色\n太阳光强度\n环境光颜色\n环境光强度\n文本颜色\n恒星\n恒星距离行星圈\n恒星半径\n使用虚拟28宿\n隐藏28宿距星\n隐藏北极和北斗\n隐藏其它恒星\n显示斗柄连线\nOpen Controls\nAD\n3月\n9\n东8区\n9点\n22分\n52秒\n四分钟\n此 刻\n确 定\n回归黄道\n整宫制\n天文星座\n经纬度选择\n119e19 26n04\n信息\n相位\n行星\n希腊点\no(灵点)"
+    },
+    {
+      "module": "推运盘",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "主/界限法",
+          "clicked": true
+        },
+        {
+          "label": "主限法盘",
+          "clicked": true
+        },
+        {
+          "label": "黄道星释",
+          "clicked": true
+        },
+        {
+          "label": "法达星限",
+          "clicked": true
+        },
+        {
+          "label": "小限法",
+          "clicked": true
+        },
+        {
+          "label": "太阳弧",
+          "clicked": true
+        },
+        {
+          "label": "太阳返照",
+          "clicked": true
+        },
+        {
+          "label": "月亮返照",
+          "clicked": true
+        },
+        {
+          "label": "流年法",
+          "clicked": true
+        },
+        {
+          "label": "十年大运",
+          "clicked": true
+        }
+      ],
+      "seconds": 28.13,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n主/界限法\n主限法盘\n黄道星释\n法达星限\n小限法\n太阳弧\n太阳返照\n月亮返照\n流年法\n十年大运\n0º\na\n0'\n0º\nb\n0'\n0º\nc\n0'\n0º\nd\n0'\n0º\ne\n0'\n0º\nf\n0'\n0º\ng\n0'\n0º\nh\n0'\n0º\ni\n0'\n0º\nj\n0'\n0º\nk\n0'\n0º\nl\n0'\nE\na\nA\nD\nb\nB\nC\nc\nB\nd\nF\nA\ne\nC\nf\nC\nD\ng\nG\nE\nh\nF\ni\nG\nj\nE\nG\nk\nF\nl\nD\nF\nD\nC\nE\nG\nD\nC\nF\nG\nE\nC\nF\nD\nE\nG\nE\nD\nC\nF\nG\nF\nD\nG\nC\nE\nC\nD\nF\nE\nG\nG\nC\nF\nD\nE\nE\nD\nC\n"
+    },
+    {
+      "module": "量化盘",
+      "clicked": true,
+      "subtabs": [],
+      "seconds": 2.288,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n行星中点\n0º\na\n0'\n0º\nb\n0'\n0º\nc\n0'\n0º\nd\n0'\n0º\ne\n0'\n0º\nf\n0'\n0º\ng\n0'\n0º\nh\n0'\n0º\ni\n0'\n0º\nj\n0'\n0º\nk\n0'\n0º\nl\n0'\nE\na\nA\nD\nb\nB\nC\nc\nB\nd\nF\nA\ne\nC\nf\nC\nD\ng\nG\nE\nh\nF\ni\nG\nj\nE\nG\nk\nF\nl\nD\nF\nD\nC\nE\nG\nD\nC\nF\nG\nE\nC\nF\nD\nE\nG\nE\nD\nC\nF\nG\nF\nD\nG\nC\nE\nC\nD\nF\nE\nG\nG\nC\nF\nD\nE\nE\nD\nC\nF\nG\nF\nD\nC\nG\nE\nC\nF\nD\nG\nE\nC\nD\nF\nE\nG\nD\nF\nC\nE\nG"
+    },
+    {
+      "module": "关系盘",
+      "clicked": true,
+      "subtabs": [],
+      "seconds": 2.089,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n排 盘\n比较盘\n组合盘\n影响盘\n时空中点盘\n马克斯盘\n星盘A\n星盘B\n相位\n©2019 星阙TM & astrostudy·渝公网安备 50019002501591号·渝ICP备19003118号-1"
+    },
+    {
+      "module": "节气盘",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "二十四节气",
+          "clicked": true
+        },
+        {
+          "label": "春分星盘",
+          "clicked": true
+        },
+        {
+          "label": "春分宿盘",
+          "clicked": true
+        },
+        {
+          "label": "春分3D盘",
+          "clicked": true
+        },
+        {
+          "label": "夏至星盘",
+          "clicked": true
+        },
+        {
+          "label": "夏至宿盘",
+          "clicked": true
+        },
+        {
+          "label": "夏至3D盘",
+          "clicked": true
+        },
+        {
+          "label": "秋分星盘",
+          "clicked": true
+        },
+        {
+          "label": "秋分宿盘",
+          "clicked": true
+        },
+        {
+          "label": "秋分3D盘",
+          "clicked": true
+        },
+        {
+          "label": "冬至星盘",
+          "clicked": true
+        },
+        {
+          "label": "冬至宿盘",
+          "clicked": true
+        },
+        {
+          "label": "冬至3D盘",
+          "clicked": true
+        }
+      ],
+      "seconds": 29.103,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\nAD\nTropical\n整宫制\n经纬度选择\n119e19 26n04\n二十四节气\n春分星盘\n春分宿盘\n春分3D盘\n夏至星盘\n夏至宿盘\n夏至3D盘\n秋分星盘\n秋分宿盘\n秋分3D盘\n冬至星盘\n冬至宿盘\n冬至3D盘\n摄像机\n摄像机旋转\n摄像机视野\n摄像机天球经度\n摄像机天球纬度\n摄像机与球心距离\n地球\n纹理编码\nsRGB\nLinear\n地球半径\n有云地球\n隐藏地球\n地球自转轴\n隐藏地球附近星体\n颜色\n星盘背景\n太阳光颜色\n太阳光强度\n环境光颜色\n环境光强度\n文本颜色\n恒星\n恒星距离行星圈\n恒星半径\n使用虚拟28宿\n隐藏28宿距星\n隐藏北极和北斗\n隐藏其它恒星\n显示"
+    },
+    {
+      "module": "星体地图",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "行星地图",
+          "clicked": true
+        }
+      ],
+      "seconds": 3.857,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n行星地图\n2026-03-09 09:22:52\n行星线选择\n© 2026 AutoNavi - GS(2025)5996号\n©2019 星阙TM & astrostudy·渝公网安备 50019002501591号·渝ICP备19003118号-1"
+    },
+    {
+      "module": "七政四余",
+      "clicked": true,
+      "subtabs": [],
+      "seconds": 2.247,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n降\n娄\n|\n戌\na\n12\n冠\n带\n官\n符\n五\n鬼\n飞\n符\n斗\n杓\n华\n盖\n地\n解\n干\n墓\n披\n头\n大\n梁\n|\n酉\nb\n1\n沐\n浴\n贯\n索\n钩\n神\n红\n鸾\n天\n乙\n实\n沉\n|\n申\nc\n2\n长\n生\n丧\n门\n地\n雌\n孝\n服\n文\n昌\n岁\n殿\n驿\n马\n孤\n辰\n鹑\n首\n--\n未\nd\n3\n养\n天\n空\n黄\n幡\n鹑\n火\n--\n午\ne\n4\n胎\n岁\n驾\n剑\n锋\n伏\n尸\n支\n将\n三\n刑\n阳\n刃\n鹑\n尾\n--\n巳\nf\n5\n绝\n病\n符\n蓦\n越\n禄\n勋\n日\n德\n亡\n神\n金\n神\n寿\n星\n|\n辰\ng\n6\n墓\n吊\n客\n天\n狗\n血\n刃\n豹\n尾\n寡\n宿\n大\n火\n|\n卯\nh\n7\n死\n天\n德\n绞\n杀\n"
+    },
+    {
+      "module": "希腊星术",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "十三分盘",
+          "clicked": true
+        }
+      ],
+      "seconds": 3.63,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n十三分盘\n0º\na\n0'\n0º\nb\n0'\n0º\nc\n0'\n0º\nd\n0'\n0º\ne\n0'\n0º\nf\n0'\n0º\ng\n0'\n0º\nh\n0'\n0º\ni\n0'\n0º\nj\n0'\n0º\nk\n0'\n0º\nl\n0'\nE\na\nA\nD\nb\nB\nC\nc\nB\nd\nF\nA\ne\nC\nf\nC\nD\ng\nG\nE\nh\nF\ni\nG\nj\nE\nG\nk\nF\nl\nD\nF\nD\nC\nE\nG\nD\nC\nF\nG\nE\nC\nF\nD\nE\nG\nE\nD\nC\nF\nG\nF\nD\nG\nC\nE\nC\nD\nF\nE\nG\nG\nC\nF\nD\nE\nE\nD\nC\nF\nG\nF\nD\nC\nG\nE\nC\nF\nD\nG\nE\nC\nD\nF\nE\nG\nD\nF\nC\nE\nG"
+    },
+    {
+      "module": "印度律盘",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "命盘",
+          "clicked": true
+        },
+        {
+          "label": "2律盘",
+          "clicked": true
+        },
+        {
+          "label": "3律盘",
+          "clicked": true
+        },
+        {
+          "label": "4律盘",
+          "clicked": true
+        },
+        {
+          "label": "7律盘",
+          "clicked": true
+        },
+        {
+          "label": "9律盘",
+          "clicked": true
+        },
+        {
+          "label": "10律盘",
+          "clicked": true
+        },
+        {
+          "label": "12律盘",
+          "clicked": true
+        },
+        {
+          "label": "16律盘",
+          "clicked": true
+        },
+        {
+          "label": "20律盘",
+          "clicked": true
+        },
+        {
+          "label": "24律盘",
+          "clicked": true
+        },
+        {
+          "label": "27律盘",
+          "clicked": true
+        },
+        {
+          "label": "40律盘",
+          "clicked": true
+        },
+        {
+          "label": "45律盘",
+          "clicked": true
+        }
+      ],
+      "seconds": 33.636,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n命盘\n2律盘\n3律盘\n4律盘\n7律盘\n9律盘\n10律盘\n12律盘\n16律盘\n20律盘\n24律盘\n27律盘\n40律盘\n45律盘\nAD\n3月\n9\n东8区\n9点\n25分\n7秒\n四分钟\n此 刻\n确 定\n整宫制\n经纬度选择\n119e19 26n04\n信息\n相位\n行星\n希腊点\n可能性\n夜生盘 \n \n经度：119e19 纬度：26n04\n，整宫制 \n光线围攻\n夹宫\n夹星\n纬照\n©2019 星阙TM & astrostudy·渝公网安备 50019002501591号·渝ICP备19003118号-1\n父系"
+    },
+    {
+      "module": "八字紫微",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "八字",
+          "clicked": true
+        },
+        {
+          "label": "紫微斗数",
+          "clicked": true
+        },
+        {
+          "label": "八卦类象",
+          "clicked": true
+        },
+        {
+          "label": "十二串宫",
+          "clicked": true
+        },
+        {
+          "label": "八字规则",
+          "clicked": true
+        }
+      ],
+      "seconds": 13.984,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n八字\n紫微斗数\n八卦类象\n十二串宫\n八字规则\n四柱加三垣\n三甲天上贵，孤独守空房。\n三乙多阴私，又是败祖业。\n三丙人孤老，母在产中亡。\n三丁多恶疾，手足也自伤。\n三戊子随出，离祖别家乡。\n三己别父母，兄弟各一人。\n三庚是财郎，万里置田庄。\n三辛寿数长，财滞多灾郎。\n三壬家业盛，有富不久长。\n三癸一亥全，烈火烧居屋。\n四柱加三垣\n三子婚事重\n三丑四夫妻\n三寅守孤寡\n三卯凶恶多\n三辰好斗伤\n三巳遭邢害\n三午克夫妻\n三未守空房\n三申人不足\n三酉独居房\n三戌讼事多\n三亥孤苦怜\n四柱加三垣\n四甲少夫妻\n四乙命早亡\n四丙子息空\n四丁寿不长\n四戊人孤刑\n四己人忠良\n四庚他"
+    },
+    {
+      "module": "易与三式",
+      "clicked": true,
+      "subtabs": [
+        {
+          "label": "宿盘",
+          "clicked": true
+        },
+        {
+          "label": "易卦",
+          "clicked": true
+        },
+        {
+          "label": "六壬",
+          "clicked": true
+        },
+        {
+          "label": "金口诀",
+          "clicked": true
+        },
+        {
+          "label": "遁甲",
+          "clicked": true
+        },
+        {
+          "label": "太乙",
+          "clicked": true
+        },
+        {
+          "label": "统摄法",
+          "clicked": true
+        }
+      ],
+      "seconds": 20.801,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n宿盘\n易卦\n六壬\n金口诀\n遁甲\n太乙\n统摄法\n本卦\n（益 · 复）\n\t太阴\t太阳\t\n风\t\n\t\n\t地\n\t本体\t方法\t\n\t少阳\t少阴\t\n雷\t\n\t\n\t雷\n\t认识\t宇宙\t\n错亲\n（恒 · 姤）\n\t太阴\t太阳\t\n雷\t\n\t\n\t天\n\t本体\t方法\t\n\t少阳\t少阴\t\n风\t\n\t\n\t风\n\t认识\t宇宙\t\n互潜\n（剥 · 坤）\n\t太阴\t太阳\t\n山\t\n\t\n\t地\n\t本体\t方法\t\n\t少阳\t少阴\t\n地\t\n\t\n\t地\n\t认识\t宇宙\t\n是否显示边框\n显示\n保存为事盘\n太阴·本体\n☴风（巽）\n太阳·方法\n☷地（坤）\n少阳·认识\n☳雷（震）\n少阴·宇宙\n☳雷（震）\n三十二观\n三界\n爻位\n纳甲筮法\n太阴"
+    },
+    {
+      "module": "万年历",
+      "clicked": true,
+      "subtabs": [],
+      "seconds": 2.784,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n农历\n2026-03\n周日\n周一\n周二\n周三\n周四\n周五\n周六\n1\n十三\n2\n十四\n3\n十五\n4\n十六\n5\n惊蛰\n6\n十八\n7\n十九\n8\n二十\n9\n廿一\n10\n廿二\n11\n廿三\n12\n廿四\n13\n廿五\n14\n廿六\n15\n廿七\n16\n廿八\n17\n廿九\n18\n三十\n19\n二月\n20\n春分\n21\n初三\n22\n初四\n23\n初五\n24\n初六\n25\n初七\n26\n初八\n27\n初九\n28\n初十\n29\n十一\n30\n十二\n31\n十三\n1\n十四\n2\n十五\n3\n十六\n4\n十七\nAD\n3月\n9\n月\n此 刻\n确 定\n©2019 星阙TM & astrostudy·渝公网安备 50019"
+    },
+    {
+      "module": "西洋游戏",
+      "clicked": true,
+      "subtabs": [],
+      "seconds": 2.375,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n星盘骰子\n骰子盘\n天象盘\n北纬\n度  \n04\n分\n东经\n度  \n19\n分\n经纬度选择\n东8区\n见证奇迹\n骰子结果\n©2019 星阙TM & astrostudy·渝公网安备 50019002501591号·渝ICP备19003118号-1"
+    },
+    {
+      "module": "风水",
+      "clicked": true,
+      "subtabs": [],
+      "seconds": 2.472,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n©2019 星阙TM & astrostudy·渝公网安备 50019002501591号·渝ICP备19003118号-1"
+    },
+    {
+      "module": "三式合一",
+      "clicked": true,
+      "subtabs": [],
+      "seconds": 2.414,
+      "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n点击右侧“起盘”后显示三式合一盘\nAD\n3月\n9\n东8区\n9点\n22分\n52秒\n四分钟\n此 刻\n确 定\n命局\n真太阳时\n男\n星占法贵人\n时家奇门\n子初换日\n天禽值符-死门\n月家起局-符头地支\n原宫\n置润\n日空\n日马\n時計太乙\n太乙統宗\n回归黄道\n整宫制\n经纬度选择\n起 盘\n保 存\n119e19 26n04\n概览\n太乙\n神煞\n六壬\n八宫\n局数：—\n旬首：—\n旬仪：—\n值符：—\n值使：—\n本旬：—\n旬空：—\n时空：—\n日马：无\n阴阳遁：—\n时间算法：真太阳时\n换日：子初换日\n月将：—\n©2019 星阙TM & astrostudy·渝公网安备 500190025"
+    }
+  ],
+  "dialogs": [],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "requestFailures": [],
+  "warnings": [
+    {
+      "type": "remote_request_failures",
+      "count": 99,
+      "samples": [
+        {
+          "url": "https://chart3d.horosa.com/gltf/planets4k.glb",
+          "failure": "net::ERR_CONNECTION_TIMED_OUT"
+        },
+        {
+          "url": "https://jsapi-data5.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/210_71_8?auth_key=1773084269-398523-0-928aea1eac8be7e6f4e57fdbc25fd963",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://jsapi-data1.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/210_70_8?auth_key=1773084269-524951-0-f7cd076e92bb34ff72e6a993cfa2f359",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://jsapi-data2.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/211_71_8?auth_key=1773084269-181128-0-09ae8a529b2cc3c3c2bc89a5cff5a2bb",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://jsapi-data3.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/211_70_8?auth_key=1773084269-62267-0-bead3400b905aa666af08f40c0be4b3b",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://jsapi-data4.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/209_71_8?auth_key=1773084269-981638-0-960ab9f6ab5b55e7e5a1fb716de5d7d5",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://jsapi-data5.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/209_70_8?auth_key=1773084269-902404-0-f3e31652ad90737fb336c34181850fd9",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://jsapi-data1.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/210_72_8?auth_key=1773084269-889322-0-e7bc0257f61e7d539a55ad987dd4b55f",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://jsapi-data2.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/210_69_8?auth_key=1773084269-813917-0-76f0b81c52634de538ee1cedd4aeb4f0",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "url": "https://jsapi-data3.amap.com/tile/25_12_29_00/v2/building_region_road_transit/pbf/0/211_72_8?auth_key=1773084269-117192-0-cf44547fda893f946aecd8268a2e4157",
+          "failure": "net::ERR_ABORTED"
+        }
+      ]
+    },
+    {
+      "type": "remote_console_errors",
+      "count": 1,
+      "samples": [
+        "Failed to load resource: net::ERR_CONNECTION_TIMED_OUT"
+      ]
+    }
+  ],
+  "initial_load_seconds": 5.6,
+  "ai_export_settings": {
+    "clicked": true,
+    "visible_modals": 1
+  },
+  "ai_export": {
+    "clicked": true,
+    "visible_modals": 0
+  },
+  "primary_direction_switch": {
+    "before": "-0度8分 C 的 120 度左相位处 F 2026-04-27 21:39:31",
+    "legacy_first_row": "0度6分 w 的 180 度相位处 C 2026-04-17 14:37:06",
+    "astroapp_first_row": "-0度8分 C 的 120 度左相位处 F 2026-04-27 21:39:31"
+  },
+  "primary_direction_chart": {
+    "svg_length": 203428,
+    "body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n主/界限法\n主限法盘\n黄道星释\n法达星限\n小限法\n太阳弧\n太阳返照\n月亮返照\n流年法\n十年大运\n0º\na\n0'\n0º\nb\n0'\n0º\nc\n0'\n0º\nd\n0'\n0º\ne\n0'\n0º\nf\n0'\n0º\ng\n0'\n0º\nh\n0'\n0º\ni\n0'\n0º\nj\n0'\n0º\nk\n0'\n0º\nl\n0'\nE\na\nA\nD\nb\nB\nC\nc\nB\nd\nF\nA\ne\nC\nf\nC\nD\ng\nG\nE\nh\nF\ni\nG\nj\nE\nG\nk\nF\nl\nD\nF\nD\nC\nE\nG\nD\nC\nF\nG\nE\nC\nF\nD\nE\nG\nE\nD\nC\nF\nG\nF\nD\nG\nC\nE\nC\nD\nF\nE\nG\nG\nC\nF\nD\nE\nE\nD\nC\n"
+  }
+}

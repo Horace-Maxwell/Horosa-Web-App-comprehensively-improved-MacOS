@@ -1,0 +1,332 @@
+{
+  "status": "ok",
+  "base_url": "http://127.0.0.1:18013/index.html?srv=http%3A%2F%2F127.0.0.1%3A9999&v=1773052390",
+  "server_root": "http://127.0.0.1:9999",
+  "dialogs": [],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "requestFailures": [],
+  "chart_body_excerpt": "公众号\n首 页批 注\n主题古老\n小工具星盘组件行星选择相位选择新命盘AI导出AI导出设置\n管理\n星盘\n三维盘\n推运盘\n量化盘\n关系盘\n节气盘\n星体地图\n七政四余\n希腊星术\n印度律盘\n八字紫微\n易与三式\n万年历\n西洋游戏\n风水\n三式合一\n0º\na\n0'\n0º\nb\n0'\n0º\nc\n0'\n0º\nd\n0'\n0º\ne\n0'\n0º\nf\n0'\n0º\ng\n0'\n0º\nh\n0'\n0º\ni\n0'\n0º\nj\n0'\n0º\nk\n0'\n0º\nl\n0'\nE\na\nA\nD\nb\nB\nC\nc\nB\nd\nF\nA\ne\nC\nf\nC\nD\ng\nG\nE\nh\nF\ni\nG\nj\nE\nG\nk\nF\nl\nD\nF\nD\nC\nE\nG\nD\nC\nF\nG\nE\nC\nF\nD\nE\nG\nE\nD\nC\nF\nG\nF\nD\nG\nC\nE\nC\nD\nF\nE\nG\nG\nC\nF\nD\nE\nE\nD\nC\nF\nG\nF\nD\nC\nG\nE\nC\nF\nD\nG\nE\nC\nD\nF\nE\nG\nD\nF\nC\nE\nG\n5\n6\n7\n8\n9\n10\n11\n12\n1\n2\n3\n4\np\n17º\na\n58'\n3\n0º\nc\n52'\nG\n21º\ne\n40'\n1\n10º\nf\n0'\nL\n24º\nf\n22'\nZ\nv\n28º\nf\n14'\nD\n4º\ng\n34'\nA\n10º\ng\n42'\nE\n16º\ng\n54'\nC\n2º\nh\n35'\nF\n19º\nh\n5'\n0\n0º\ni\n52'\nw\n5º\nj\n36'\nB\n27º\nk\n48'\n2\n10º\nl\n0'\nK\n24º\nl\n22'\nZ\nM\nP\nS\nR\nW\nS\nM\nP\nR\n经度：119e25， 纬度：30n53\n2006-10-04 09:58:00 周三\n时区：+08:00 ，日生盘\n真太阳时：2006-10-04 10:05:45\n回归黄道，整宫制\n日主星：水星\n时主星：火星\n打印星盘\nAD\n10月\n4\n东8区\n9点\n58分\n0秒\n四分钟\n此 刻\n确 定\n回归黄道\n整宫制\n天文星座\n经纬度选择\n119e25 30n53\n信息\n相位\n行星\n希腊点\n可能性\n日生盘 \n2006-10-04 09:58:00 \n经度：119e25 纬度：30n53\n回归黄道，整宫制 \n映点/反映点\nB 与 C 成映点 误差0.402\n接纳\n正接纳：\nB 被 G 接纳 (本垣+日三分+界)\n邪接纳：\nA (落) 被 D 接纳 (本垣)\nA (落) 被 G 接纳 (擢升+日三分+十度)\nE (陷) 被 G 接纳 (擢升+日三",
+  "browser_table_first_rows": [
+    {
+      "arc_text": "-0度4分",
+      "promittor_text": "I 的 120 度右相位处",
+      "significator_text": "E",
+      "date_text": "2006-10-25 10:54:14"
+    },
+    {
+      "arc_text": "0度21分",
+      "promittor_text": "E 的 120 度左相位处",
+      "significator_text": "I",
+      "date_text": "2007-02-11 16:06:12"
+    },
+    {
+      "arc_text": "-0度48分",
+      "promittor_text": "K 的 90 度右相位处",
+      "significator_text": "J",
+      "date_text": "2007-07-23 11:01:34"
+    },
+    {
+      "arc_text": "0度57分",
+      "promittor_text": "J 的 90 度左相位处",
+      "significator_text": "K",
+      "date_text": "2007-09-14 13:37:20"
+    },
+    {
+      "arc_text": "1度33分",
+      "promittor_text": "H 的 180 度相位处",
+      "significator_text": "1",
+      "date_text": "2008-04-21 15:49:15"
+    },
+    {
+      "arc_text": "-1度48分",
+      "promittor_text": "F 的 90 度左相位处",
+      "significator_text": "I",
+      "date_text": "2008-07-21 15:24:41"
+    },
+    {
+      "arc_text": "2度8分",
+      "promittor_text": "I 的 90 度右相位处",
+      "significator_text": "F",
+      "date_text": "2008-11-20 17:10:15"
+    }
+  ],
+  "backend_first_rows": [
+    {
+      "arc_value": -0.05855449463484774,
+      "arc_text": "-0度4分",
+      "promittor": "D_Neptune_120",
+      "significator": "N_Mars_0",
+      "date": "2006-10-25 10:54:14"
+    },
+    {
+      "arc_value": 0.35777818129520256,
+      "arc_text": "0度21分",
+      "promittor": "S_Mars_120",
+      "significator": "N_Neptune_0",
+      "date": "2007-02-11 16:06:12"
+    },
+    {
+      "arc_value": -0.8010341961396534,
+      "arc_text": "-0度48分",
+      "promittor": "D_North Node_90",
+      "significator": "N_Pluto_0",
+      "date": "2007-07-23 11:01:34"
+    },
+    {
+      "arc_value": 0.9465360439533583,
+      "arc_text": "0度57分",
+      "promittor": "S_Pluto_90",
+      "significator": "N_North Node_0",
+      "date": "2007-09-14 13:37:20"
+    },
+    {
+      "arc_value": 1.548025289282748,
+      "arc_text": "1度33分",
+      "promittor": "N_Uranus_180",
+      "significator": "N_MC_0",
+      "date": "2008-04-21 15:49:15"
+    },
+    {
+      "arc_value": -1.7966125686302803,
+      "arc_text": "-1度48分",
+      "promittor": "S_Jupiter_90",
+      "significator": "N_Neptune_0",
+      "date": "2008-07-21 15:24:41"
+    },
+    {
+      "arc_value": 2.130502770611713,
+      "arc_text": "2度8分",
+      "promittor": "D_Neptune_90",
+      "significator": "N_Jupiter_0",
+      "date": "2008-11-20 17:10:15"
+    }
+  ],
+  "astroapp_first_rows": [
+    {
+      "arc_value": -0.058554803895447094,
+      "arc_text": "-0度4分",
+      "date_text": "10/25/2006 10:54:0"
+    },
+    {
+      "arc_value": 0.35777418923305504,
+      "arc_text": "0度21分",
+      "date_text": "2/11/2007 16:4:0"
+    },
+    {
+      "arc_value": -0.8010060153764584,
+      "arc_text": "-0度48分",
+      "date_text": "7/23/2007 10:47:0"
+    },
+    {
+      "arc_value": 0.9465659173321797,
+      "arc_text": "0度57分",
+      "date_text": "9/14/2007 13:53:0"
+    },
+    {
+      "arc_value": 1.5480341335674268,
+      "arc_text": "1度33分",
+      "date_text": "4/21/2008 15:54:0"
+    },
+    {
+      "arc_value": -1.796619872266774,
+      "arc_text": "-1度48分",
+      "date_text": "7/21/2008 15:29:0"
+    },
+    {
+      "arc_value": 2.1305049101389955,
+      "arc_text": "2度8分",
+      "date_text": "11/20/2008 17:11:0"
+    }
+  ],
+  "initial_pd_chart_state": {
+    "当前已应用方法：": "当前盘面方法：AstroAPP-Alchabitius当前盘面度数换算：Ptolemy当前主限法年龄：0度4分外圈时间：2006-10-25 10:54:14当前ASC所在界：木星界（射手 0度0分 - 12度0分）",
+    "当前度数换算：": "当前盘面度数换算：Ptolemy",
+    "当前主限法年龄：": "当前主限法年龄：0度4分",
+    "外圈时间：": "外圈时间：2006-10-25 10:54:14",
+    "当前ASC所在界：": "当前ASC所在界：木星界（射手 0度0分 - 12度0分）"
+  },
+  "initial_pd_chart_term_highlight": {
+    "sign": "Sagittarius",
+    "owner": "Jupiter",
+    "marker": "Asc",
+    "stroke": "#a01306",
+    "strokeWidth": "2.25",
+    "markerCount": 1,
+    "lineCount": 1
+  },
+  "row_time_pd_chart_state": {
+    "当前已应用方法：": "当前盘面方法：AstroAPP-Alchabitius当前盘面度数换算：Ptolemy当前主限法年龄：1度33分外圈时间：2008-04-21 15:49:15当前ASC所在界：木星界（射手 0度0分 - 12度0分）",
+    "当前度数换算：": "当前盘面度数换算：Ptolemy",
+    "当前主限法年龄：": "当前主限法年龄：1度33分",
+    "外圈时间：": "外圈时间：2008-04-21 15:49:15",
+    "当前ASC所在界：": "当前ASC所在界：木星界（射手 0度0分 - 12度0分）"
+  },
+  "arbitrary_pd_chart_state": {
+    "当前已应用方法：": "当前盘面方法：AstroAPP-Alchabitius当前盘面度数换算：Ptolemy当前主限法年龄：1度15分外圈时间：2008-01-01 00:00:00当前ASC所在界：木星界（射手 0度0分 - 12度0分）",
+    "当前度数换算：": "当前盘面度数换算：Ptolemy",
+    "当前主限法年龄：": "当前主限法年龄：1度15分",
+    "外圈时间：": "外圈时间：2008-01-01 00:00:00",
+    "当前ASC所在界：": "当前ASC所在界：木星界（射手 0度0分 - 12度0分）"
+  },
+  "arbitrary_pd_chart_term_highlight": {
+    "sign": "Sagittarius",
+    "owner": "Jupiter",
+    "marker": "Asc",
+    "stroke": "#a01306",
+    "strokeWidth": "2.25",
+    "markerCount": 1,
+    "lineCount": 1
+  },
+  "preview_legacy_pd_chart_state": {
+    "当前已应用方法：": "当前盘面方法：Horosa原方法当前盘面度数换算：Ptolemy主/界限法表格已应用方法：AstroAPP-Alchabitius / Ptolemy当前主限法年龄：1度15分外圈时间：2008-01-01 00:00:00当前ASC所在界：木星界（射手 0度0分 - 12度0分）",
+    "当前度数换算：": "当前盘面度数换算：Ptolemy",
+    "当前主限法年龄：": "当前主限法年龄：1度15分",
+    "外圈时间：": "外圈时间：2008-01-01 00:00:00",
+    "当前ASC所在界：": "当前ASC所在界：木星界（射手 0度0分 - 12度0分）"
+  },
+  "legacy_pd_chart_state": {
+    "当前已应用方法：": "当前盘面方法：Horosa原方法当前盘面度数换算：Ptolemy当前主限法年龄：0度5分外圈时间：2006-11-03 12:50:45当前ASC所在界：木星界（射手 0度0分 - 12度0分）",
+    "当前度数换算：": "当前盘面度数换算：Ptolemy",
+    "当前主限法年龄：": "当前主限法年龄：0度5分",
+    "外圈时间：": "外圈时间：2006-11-03 12:50:45",
+    "当前ASC所在界：": "当前ASC所在界：木星界（射手 0度0分 - 12度0分）"
+  },
+  "preview_restored_pd_chart_state": {
+    "当前已应用方法：": "当前盘面方法：AstroAPP-Alchabitius当前盘面度数换算：Ptolemy主/界限法表格已应用方法：Horosa原方法 / Ptolemy当前主限法年龄：0度5分外圈时间：2006-11-03 12:50:45当前ASC所在界：木星界（射手 0度0分 - 12度0分）",
+    "当前度数换算：": "当前盘面度数换算：Ptolemy",
+    "当前主限法年龄：": "当前主限法年龄：0度5分",
+    "外圈时间：": "外圈时间：2006-11-03 12:50:45",
+    "当前ASC所在界：": "当前ASC所在界：木星界（射手 0度0分 - 12度0分）"
+  },
+  "restored_pd_chart_state": {
+    "当前已应用方法：": "当前盘面方法：AstroAPP-Alchabitius当前盘面度数换算：Ptolemy当前主限法年龄：0度4分外圈时间：2006-10-25 10:54:14当前ASC所在界：木星界（射手 0度0分 - 12度0分）",
+    "当前度数换算：": "当前盘面度数换算：Ptolemy",
+    "当前主限法年龄：": "当前主限法年龄：0度4分",
+    "外圈时间：": "外圈时间：2006-10-25 10:54:14",
+    "当前ASC所在界：": "当前ASC所在界：木星界（射手 0度0分 - 12度0分）"
+  },
+  "visible_selects_initial": [
+    "主题古老",
+    "AD",
+    "10月",
+    "25",
+    "东0区",
+    "10点巳",
+    "54分",
+    "14秒",
+    "四分钟",
+    "AstroAPP-Alchabitius",
+    "Ptolemy"
+  ],
+  "legacy_backend_first_rows": [
+    {
+      "arc_value": 0.08343371080514814,
+      "arc_text": "0度5分",
+      "promittor": "D_North Node_90",
+      "significator": "N_Pluto_0",
+      "date": "2006-11-03 12:50:45"
+    },
+    {
+      "arc_value": 0.08343371080514814,
+      "arc_text": "0度5分",
+      "promittor": "S_South Node_90",
+      "significator": "N_Pluto_0",
+      "date": "2006-11-03 12:50:45"
+    },
+    {
+      "arc_value": 0.10251255265225497,
+      "arc_text": "0度6分",
+      "promittor": "A_Pluto",
+      "significator": "N_Purple Clouds_0",
+      "date": "2006-11-10 11:58:35"
+    },
+    {
+      "arc_value": 0.10817038503865212,
+      "arc_text": "0度6分",
+      "promittor": "A_Purple Clouds",
+      "significator": "N_Pluto_0",
+      "date": "2006-11-12 13:32:21"
+    },
+    {
+      "arc_value": 0.2742855932756523,
+      "arc_text": "0度16分",
+      "promittor": "D_Neptune_120",
+      "significator": "N_Mars_0",
+      "date": "2007-01-12 04:42:30"
+    },
+    {
+      "arc_value": 0.28508322300290484,
+      "arc_text": "0度17分",
+      "promittor": "T_Jupiter_Pisces",
+      "significator": "N_Uranus_0",
+      "date": "2007-01-16 03:17:44"
+    },
+    {
+      "arc_value": 0.3105865004067674,
+      "arc_text": "0度19分",
+      "promittor": "C_Pars Fortuna",
+      "significator": "N_Uranus_0",
+      "date": "2007-01-25 10:42:15"
+    }
+  ],
+  "restored_backend_first_rows": [
+    {
+      "arc_value": -0.05855449463484774,
+      "arc_text": "-0度4分",
+      "promittor": "D_Neptune_120",
+      "significator": "N_Mars_0",
+      "date": "2006-10-25 10:54:14"
+    },
+    {
+      "arc_value": 0.35777818129520256,
+      "arc_text": "0度21分",
+      "promittor": "S_Mars_120",
+      "significator": "N_Neptune_0",
+      "date": "2007-02-11 16:06:12"
+    },
+    {
+      "arc_value": -0.8010341961396534,
+      "arc_text": "-0度48分",
+      "promittor": "D_North Node_90",
+      "significator": "N_Pluto_0",
+      "date": "2007-07-23 11:01:34"
+    },
+    {
+      "arc_value": 0.9465360439533583,
+      "arc_text": "0度57分",
+      "promittor": "S_Pluto_90",
+      "significator": "N_North Node_0",
+      "date": "2007-09-14 13:37:20"
+    },
+    {
+      "arc_value": 1.548025289282748,
+      "arc_text": "1度33分",
+      "promittor": "N_Uranus_180",
+      "significator": "N_MC_0",
+      "date": "2008-04-21 15:49:15"
+    },
+    {
+      "arc_value": -1.7966125686302803,
+      "arc_text": "-1度48分",
+      "promittor": "S_Jupiter_90",
+      "significator": "N_Neptune_0",
+      "date": "2008-07-21 15:24:41"
+    },
+    {
+      "arc_value": 2.130502770611713,
+      "arc_text": "2度8分",
+      "promittor": "D_Neptune_90",
+      "significator": "N_Jupiter_0",
+      "date": "2008-11-20 17:10:15"
+    }
+  ],
+  "svg_hashes": {
+    "initial": "314ef6d7b8cc7ad5ba412fa7d170f1ed365d163144a5369ee7c57cfa45307de1",
+    "row_time": "5c31d6f90e875cc8914fcc89588d626c09d241ac3afe3d04c0f2df2a5c01d6d1",
+    "arbitrary": "6b3c071da14df125d4b6100ba5730470c84529a567ec20ca54e57c8f86f3a3c3",
+    "preview_legacy": "a6b52220ddc4f31b1c1fdff776ad4fcbf261785e810798d81f888bc869bcf3c4",
+    "legacy": "de2efaa5689788e14da576d103ec5b165922ab8e4ccd2b04f0f8281c701e09cb",
+    "preview_restored": "bd9d1081e1767c20626d2863733720c573dd7a0a91c1a3fdb3dceb496843d857"
+  }
+}

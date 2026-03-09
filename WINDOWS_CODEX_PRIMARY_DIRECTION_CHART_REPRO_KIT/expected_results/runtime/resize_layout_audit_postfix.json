@@ -1,0 +1,1220 @@
+{
+  "astrochart": [
+    {
+      "size": "std",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "metrics": {
+        "chart": {
+          "width": 1041.984375,
+          "height": 1096,
+          "x": 186.484375,
+          "y": 104,
+          "right": 1228.46875,
+          "bottom": 1200
+        },
+        "right": {
+          "width": 431.515625,
+          "height": 1102,
+          "x": 1231.46875,
+          "y": 104,
+          "right": 1662.984375,
+          "bottom": 1206
+        },
+        "footer": {
+          "width": 1720,
+          "height": 48,
+          "x": 0,
+          "y": 1200,
+          "right": 1720,
+          "bottom": 1248
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1720,
+          "height": 1184
+        }
+      }
+    },
+    {
+      "size": "compact",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 791.234375,
+          "height": 812,
+          "x": 186.484375,
+          "y": 104,
+          "right": 977.71875,
+          "bottom": 916
+        },
+        "right": {
+          "width": 328.265625,
+          "height": 818,
+          "x": 980.71875,
+          "y": 104,
+          "right": 1308.984375,
+          "bottom": 922
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    },
+    {
+      "size": "wide",
+      "viewport": {
+        "width": 2048,
+        "height": 1280
+      },
+      "metrics": {
+        "chart": {
+          "width": 1274.3125,
+          "height": 1192,
+          "x": 186.484375,
+          "y": 104,
+          "right": 1460.796875,
+          "bottom": 1296
+        },
+        "right": {
+          "width": 527.1875,
+          "height": 1198,
+          "x": 1463.796875,
+          "y": 104,
+          "right": 1990.984375,
+          "bottom": 1302
+        },
+        "footer": {
+          "width": 2048,
+          "height": 48,
+          "x": 0,
+          "y": 1296,
+          "right": 2048,
+          "bottom": 1344
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 2048,
+          "height": 1280
+        }
+      }
+    },
+    {
+      "size": "compact2",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 791.234375,
+          "height": 812,
+          "x": 186.484375,
+          "y": 104,
+          "right": 977.71875,
+          "bottom": 916
+        },
+        "right": {
+          "width": 328.265625,
+          "height": 818,
+          "x": 980.71875,
+          "y": 104,
+          "right": 1308.984375,
+          "bottom": 922
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    }
+  ],
+  "direction_solararc": [
+    {
+      "size": "std",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "metrics": {
+        "chart": {
+          "width": 949.484375,
+          "height": 1076,
+          "x": 186.484375,
+          "y": 104,
+          "right": 1135.96875,
+          "bottom": 1180
+        },
+        "right": {
+          "width": 387.421875,
+          "height": 2483,
+          "x": 1141.96875,
+          "y": 411.140625,
+          "right": 1529.390625,
+          "bottom": 2894.140625
+        },
+        "footer": {
+          "width": 1720,
+          "height": 48,
+          "x": 0,
+          "y": 1200,
+          "right": 1720,
+          "bottom": 1248
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1720,
+          "height": 1184
+        }
+      }
+    },
+    {
+      "size": "compact",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 698.734375,
+          "height": 792,
+          "x": 186.484375,
+          "y": 104,
+          "right": 885.21875,
+          "bottom": 896
+        },
+        "right": {
+          "width": 284.171875,
+          "height": 2483,
+          "x": 891.21875,
+          "y": 411.140625,
+          "right": 1175.390625,
+          "bottom": 2894.140625
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    },
+    {
+      "size": "wide",
+      "viewport": {
+        "width": 2048,
+        "height": 1280
+      },
+      "metrics": {
+        "chart": {
+          "width": 1181.8125,
+          "height": 1172,
+          "x": 186.484375,
+          "y": 104,
+          "right": 1368.296875,
+          "bottom": 1276
+        },
+        "right": {
+          "width": 483.09375,
+          "height": 2483,
+          "x": 1374.296875,
+          "y": 411.140625,
+          "right": 1857.390625,
+          "bottom": 2894.140625
+        },
+        "footer": {
+          "width": 2048,
+          "height": 48,
+          "x": 0,
+          "y": 1296,
+          "right": 2048,
+          "bottom": 1344
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 2048,
+          "height": 1280
+        }
+      }
+    },
+    {
+      "size": "compact2",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 698.734375,
+          "height": 792,
+          "x": 186.484375,
+          "y": 104,
+          "right": 885.21875,
+          "bottom": 896
+        },
+        "right": {
+          "width": 284.171875,
+          "height": 2483,
+          "x": 891.21875,
+          "y": 411.140625,
+          "right": 1175.390625,
+          "bottom": 2894.140625
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    }
+  ],
+  "jieqi_spring": [
+    {
+      "size": "std",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "metrics": {
+        "chart": {
+          "width": 942.75,
+          "height": 1046,
+          "x": 186.484375,
+          "y": 128,
+          "right": 1129.234375,
+          "bottom": 1174
+        },
+        "right": {
+          "width": 390.65625,
+          "height": 1052,
+          "x": 1132.234375,
+          "y": 128,
+          "right": 1522.890625,
+          "bottom": 1180
+        },
+        "footer": {
+          "width": 1720,
+          "height": 48,
+          "x": 0,
+          "y": 1200,
+          "right": 1720,
+          "bottom": 1248
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": true,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1720,
+          "height": 1184
+        }
+      }
+    },
+    {
+      "size": "compact",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 692,
+          "height": 762,
+          "x": 186.484375,
+          "y": 128,
+          "right": 878.484375,
+          "bottom": 890
+        },
+        "right": {
+          "width": 287.40625,
+          "height": 768,
+          "x": 881.484375,
+          "y": 128,
+          "right": 1168.890625,
+          "bottom": 896
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": true,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    },
+    {
+      "size": "wide",
+      "viewport": {
+        "width": 2048,
+        "height": 1280
+      },
+      "metrics": {
+        "chart": {
+          "width": 1175.078125,
+          "height": 1142,
+          "x": 186.484375,
+          "y": 128,
+          "right": 1361.5625,
+          "bottom": 1270
+        },
+        "right": {
+          "width": 486.328125,
+          "height": 1148,
+          "x": 1364.5625,
+          "y": 128,
+          "right": 1850.890625,
+          "bottom": 1276
+        },
+        "footer": {
+          "width": 2048,
+          "height": 48,
+          "x": 0,
+          "y": 1296,
+          "right": 2048,
+          "bottom": 1344
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": true,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 2048,
+          "height": 1280
+        }
+      }
+    },
+    {
+      "size": "compact2",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 692,
+          "height": 762,
+          "x": 186.484375,
+          "y": 128,
+          "right": 878.484375,
+          "bottom": 890
+        },
+        "right": {
+          "width": 287.40625,
+          "height": 768,
+          "x": 881.484375,
+          "y": 128,
+          "right": 1168.890625,
+          "bottom": 896
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": true,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    }
+  ],
+  "cnyibu_suzhan": [
+    {
+      "size": "std",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "metrics": {
+        "chart": {
+          "width": 908,
+          "height": 908,
+          "x": 186.484375,
+          "y": 104,
+          "right": 1094.484375,
+          "bottom": 1012
+        },
+        "right": {
+          "width": 455.546875,
+          "height": 914,
+          "x": 1094.578125,
+          "y": 104,
+          "right": 1550.125,
+          "bottom": 1018
+        },
+        "footer": {
+          "width": 1720,
+          "height": 48,
+          "x": 0,
+          "y": 1200,
+          "right": 1720,
+          "bottom": 1248
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1720,
+          "height": 1184
+        }
+      }
+    },
+    {
+      "size": "compact",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 675,
+          "height": 675,
+          "x": 186.484375,
+          "y": 104,
+          "right": 861.484375,
+          "bottom": 779
+        },
+        "right": {
+          "width": 337.546875,
+          "height": 681,
+          "x": 858.578125,
+          "y": 104,
+          "right": 1196.125,
+          "bottom": 785
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": true,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    },
+    {
+      "size": "wide",
+      "viewport": {
+        "width": 2048,
+        "height": 1280
+      },
+      "metrics": {
+        "chart": {
+          "width": 980,
+          "height": 980,
+          "x": 186.484375,
+          "y": 104,
+          "right": 1166.484375,
+          "bottom": 1084
+        },
+        "right": {
+          "width": 564.875,
+          "height": 986,
+          "x": 1313.25,
+          "y": 104,
+          "right": 1878.125,
+          "bottom": 1090
+        },
+        "footer": {
+          "width": 2048,
+          "height": 48,
+          "x": 0,
+          "y": 1296,
+          "right": 2048,
+          "bottom": 1344
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 2048,
+          "height": 1280
+        }
+      }
+    },
+    {
+      "size": "compact2",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 675,
+          "height": 675,
+          "x": 186.484375,
+          "y": 104,
+          "right": 861.484375,
+          "bottom": 779
+        },
+        "right": {
+          "width": 337.546875,
+          "height": 681,
+          "x": 858.578125,
+          "y": 104,
+          "right": 1196.125,
+          "bottom": 785
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": true,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    }
+  ],
+  "guolao": [
+    {
+      "size": "std",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "metrics": {
+        "chart": {
+          "width": 980,
+          "height": 980,
+          "x": 186.65625,
+          "y": 104,
+          "right": 1166.65625,
+          "bottom": 1084
+        },
+        "right": {
+          "width": 493.171875,
+          "height": 980,
+          "x": 1169.828125,
+          "y": 104,
+          "right": 1663,
+          "bottom": 1084
+        },
+        "footer": {
+          "width": 1720,
+          "height": 48,
+          "x": 0,
+          "y": 1200,
+          "right": 1720,
+          "bottom": 1248
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1720,
+          "height": 1184
+        }
+      }
+    },
+    {
+      "size": "compact",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 750,
+          "height": 750,
+          "x": 186.484375,
+          "y": 104,
+          "right": 936.484375,
+          "bottom": 854
+        },
+        "right": {
+          "width": 375.171875,
+          "height": 750,
+          "x": 933.828125,
+          "y": 104,
+          "right": 1309,
+          "bottom": 854
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": true,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    },
+    {
+      "size": "wide",
+      "viewport": {
+        "width": 2048,
+        "height": 1280
+      },
+      "metrics": {
+        "chart": {
+          "width": 980,
+          "height": 980,
+          "x": 295.984375,
+          "y": 104,
+          "right": 1275.984375,
+          "bottom": 1084
+        },
+        "right": {
+          "width": 602.5,
+          "height": 980,
+          "x": 1388.484375,
+          "y": 104,
+          "right": 1990.984375,
+          "bottom": 1084
+        },
+        "footer": {
+          "width": 2048,
+          "height": 48,
+          "x": 0,
+          "y": 1296,
+          "right": 2048,
+          "bottom": 1344
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 2048,
+          "height": 1280
+        }
+      }
+    },
+    {
+      "size": "compact2",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 750,
+          "height": 750,
+          "x": 186.484375,
+          "y": 104,
+          "right": 936.484375,
+          "bottom": 854
+        },
+        "right": {
+          "width": 375.171875,
+          "height": 750,
+          "x": 933.828125,
+          "y": 104,
+          "right": 1309,
+          "bottom": 854
+        },
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": true,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    }
+  ],
+  "sanshiunited": [
+    {
+      "size": "std",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "metrics": {
+        "chart": {
+          "width": 14,
+          "height": 14,
+          "x": 889.28125,
+          "y": 26,
+          "right": 903.28125,
+          "bottom": 40
+        },
+        "right": null,
+        "footer": {
+          "width": 1720,
+          "height": 48,
+          "x": 0,
+          "y": 1200,
+          "right": 1720,
+          "bottom": 1248
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1720,
+          "height": 1184
+        }
+      }
+    },
+    {
+      "size": "compact",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 14,
+          "height": 14,
+          "x": 535.28125,
+          "y": 26,
+          "right": 549.28125,
+          "bottom": 40
+        },
+        "right": null,
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    },
+    {
+      "size": "wide",
+      "viewport": {
+        "width": 2048,
+        "height": 1280
+      },
+      "metrics": {
+        "chart": {
+          "width": 14,
+          "height": 14,
+          "x": 1217.28125,
+          "y": 26,
+          "right": 1231.28125,
+          "bottom": 40
+        },
+        "right": null,
+        "footer": {
+          "width": 2048,
+          "height": 48,
+          "x": 0,
+          "y": 1296,
+          "right": 2048,
+          "bottom": 1344
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 2048,
+          "height": 1280
+        }
+      }
+    },
+    {
+      "size": "compact2",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 14,
+          "height": 14,
+          "x": 535.28125,
+          "y": 26,
+          "right": 549.28125,
+          "bottom": 40
+        },
+        "right": null,
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": true,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    }
+  ],
+  "calendar": [
+    {
+      "size": "std",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "metrics": {
+        "chart": {
+          "width": 14,
+          "height": 14,
+          "x": 889.28125,
+          "y": 26,
+          "right": 903.28125,
+          "bottom": 40
+        },
+        "right": null,
+        "footer": {
+          "width": 1720,
+          "height": 48,
+          "x": 0,
+          "y": 1200,
+          "right": 1720,
+          "bottom": 1248
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": false,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1720,
+          "height": 1184
+        }
+      }
+    },
+    {
+      "size": "compact",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 14,
+          "height": 14,
+          "x": 535.28125,
+          "y": 26,
+          "right": 549.28125,
+          "bottom": 40
+        },
+        "right": null,
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": false,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    },
+    {
+      "size": "wide",
+      "viewport": {
+        "width": 2048,
+        "height": 1280
+      },
+      "metrics": {
+        "chart": {
+          "width": 14,
+          "height": 14,
+          "x": 1217.28125,
+          "y": 26,
+          "right": 1231.28125,
+          "bottom": 40
+        },
+        "right": null,
+        "footer": {
+          "width": 2048,
+          "height": 48,
+          "x": 0,
+          "y": 1296,
+          "right": 2048,
+          "bottom": 1344
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": false,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 2048,
+          "height": 1280
+        }
+      }
+    },
+    {
+      "size": "compact2",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "metrics": {
+        "chart": {
+          "width": 14,
+          "height": 14,
+          "x": 535.28125,
+          "y": 26,
+          "right": 549.28125,
+          "bottom": 40
+        },
+        "right": null,
+        "footer": {
+          "width": 1366,
+          "height": 48,
+          "x": 0,
+          "y": 916,
+          "right": 1366,
+          "bottom": 964
+        },
+        "navOpsDisplay": "none",
+        "hasSpringEntries": false,
+        "sanshiHeader": {
+          "hasTrueSolar": false,
+          "hasDirectTime": false
+        },
+        "overlapRight": false,
+        "overlapFooter": false,
+        "viewport": {
+          "width": 1366,
+          "height": 900
+        }
+      }
+    }
+  ]
+}

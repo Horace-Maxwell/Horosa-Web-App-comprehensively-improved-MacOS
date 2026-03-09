@@ -1,0 +1,122 @@
+{
+  "starchart": {
+    "viewport": {
+      "width": 2048,
+      "height": 1280
+    },
+    "svg": {
+      "x": 186.484375,
+      "y": 104,
+      "width": 1274.3125,
+      "height": 1180,
+      "right": 1460.796875,
+      "bottom": 1284
+    },
+    "left": {
+      "x": 183.484375,
+      "y": 104,
+      "width": 1280.3125,
+      "height": 1186,
+      "right": 1463.796875,
+      "bottom": 1290
+    },
+    "right": {
+      "x": 1463.796875,
+      "y": 104,
+      "width": 527.1875,
+      "height": 1186,
+      "right": 1990.984375,
+      "bottom": 1290
+    },
+    "footer": {
+      "x": 0,
+      "y": 1234,
+      "width": 2048,
+      "height": 118.375,
+      "right": 2048,
+      "bottom": 1352.375
+    },
+    "bodyHeight": 1352,
+    "overlapX": false
+  },
+  "solararc": {
+    "viewport": {
+      "width": 2048,
+      "height": 1280
+    },
+    "svg": {
+      "x": 186.484375,
+      "y": 104,
+      "width": 1181.8125,
+      "height": 1160,
+      "right": 1368.296875,
+      "bottom": 1264
+    },
+    "left": {
+      "x": 183.484375,
+      "y": 104,
+      "width": 1187.8125,
+      "height": 1166,
+      "right": 1371.296875,
+      "bottom": 1270
+    },
+    "right": {
+      "x": 1371.296875,
+      "y": 104,
+      "width": 489.09375,
+      "height": 1166,
+      "right": 1860.390625,
+      "bottom": 1270
+    },
+    "footer": {
+      "x": 0,
+      "y": 1234,
+      "width": 2048,
+      "height": 118.375,
+      "right": 2048,
+      "bottom": 1352.375
+    },
+    "bodyHeight": 1352,
+    "overlapX": false
+  },
+  "relation": {
+    "viewport": {
+      "width": 2048,
+      "height": 1280
+    },
+    "svg": {
+      "x": 186.484375,
+      "y": 208,
+      "width": 1175.078125,
+      "height": 1090,
+      "right": 1361.5625,
+      "bottom": 1298
+    },
+    "left": {
+      "x": 183.484375,
+      "y": 208,
+      "width": 1181.078125,
+      "height": 1096,
+      "right": 1364.5625,
+      "bottom": 1304
+    },
+    "right": {
+      "x": 1364.5625,
+      "y": 208,
+      "width": 486.328125,
+      "height": 1096,
+      "right": 1850.890625,
+      "bottom": 1304
+    },
+    "footer": {
+      "x": 0,
+      "y": 1234,
+      "width": 2048,
+      "height": 118.375,
+      "right": 2048,
+      "bottom": 1352.375
+    },
+    "bodyHeight": 1352,
+    "overlapX": false
+  }
+}

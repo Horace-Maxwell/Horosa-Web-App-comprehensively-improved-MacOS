@@ -1,0 +1,244 @@
+{
+  "status": "ok",
+  "base_url": "http://127.0.0.1:18013/index.html?srv=http%3A%2F%2F127.0.0.1%3A9999&v=1773073554",
+  "server_root": "http://127.0.0.1:9999",
+  "global_shell": {
+    "chart": {
+      "x": 186.484375,
+      "y": 104,
+      "right": 1228.46875,
+      "bottom": 1200,
+      "width": 1041.984375,
+      "height": 1096
+    },
+    "footer": {
+      "x": 0,
+      "y": 1200,
+      "right": 1720,
+      "bottom": 1248,
+      "width": 1720,
+      "height": 48
+    },
+    "footerGap": 0,
+    "footerHasImg": false,
+    "footerHas996": false,
+    "bodyHas996": false,
+    "navOpsDisplay": "none",
+    "viewport": {
+      "width": 1720,
+      "height": 1184
+    }
+  },
+  "jieqi_entries": {
+    "二十四节气": true,
+    "春分星盘": true,
+    "春分宿盘": true,
+    "春分3D盘": true,
+    "夏至星盘": true,
+    "夏至宿盘": true,
+    "夏至3D盘": true,
+    "秋分星盘": true,
+    "秋分宿盘": true,
+    "秋分3D盘": true,
+    "冬至星盘": true,
+    "冬至宿盘": true,
+    "冬至3D盘": true
+  },
+  "solararc": {
+    "std": {
+      "chart": {
+        "x": 186.484375,
+        "y": 104,
+        "right": 1135.96875,
+        "bottom": 1180,
+        "width": 949.484375,
+        "height": 1076
+      },
+      "footer": {
+        "x": 0,
+        "y": 1200,
+        "right": 1720,
+        "bottom": 1248,
+        "width": 1720,
+        "height": 48
+      },
+      "footerGap": 20,
+      "footerHasImg": false,
+      "footerHas996": false,
+      "bodyHas996": false,
+      "navOpsDisplay": "none",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "rightMarker": {
+        "text": "主/界限法",
+        "x": 1577.40625,
+        "y": 112,
+        "width": 58.59375,
+        "height": 22,
+        "right": 1636,
+        "bottom": 134
+      }
+    },
+    "compact": {
+      "chart": {
+        "x": 186.484375,
+        "y": 104,
+        "right": 885.21875,
+        "bottom": 896,
+        "width": 698.734375,
+        "height": 792
+      },
+      "footer": {
+        "x": 0,
+        "y": 916,
+        "right": 1366,
+        "bottom": 964,
+        "width": 1366,
+        "height": 48
+      },
+      "footerGap": 20,
+      "footerHasImg": false,
+      "footerHas996": false,
+      "bodyHas996": false,
+      "navOpsDisplay": "none",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "rightMarker": {
+        "text": "主/界限法",
+        "x": 1223.40625,
+        "y": 112,
+        "width": 58.59375,
+        "height": 22,
+        "right": 1282,
+        "bottom": 134
+      }
+    }
+  },
+  "suzhan": {
+    "chart": {
+      "x": 186.484375,
+      "y": 104,
+      "right": 861.484375,
+      "bottom": 779,
+      "width": 675,
+      "height": 675
+    },
+    "footer": {
+      "x": 0,
+      "y": 916,
+      "right": 1366,
+      "bottom": 964,
+      "width": 1366,
+      "height": 48
+    },
+    "footerGap": 137,
+    "footerHasImg": false,
+    "footerHas996": false,
+    "bodyHas996": false,
+    "navOpsDisplay": "none",
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "rightMarker": {
+      "text": "易卦",
+      "x": 1241.140625,
+      "y": 166,
+      "width": 27.25,
+      "height": 22,
+      "right": 1268.390625,
+      "bottom": 188
+    }
+  },
+  "guolao": {
+    "chart": {
+      "x": 186.484375,
+      "y": 104,
+      "right": 936.484375,
+      "bottom": 854,
+      "width": 750,
+      "height": 750
+    },
+    "footer": {
+      "x": 0,
+      "y": 916,
+      "right": 1366,
+      "bottom": 964,
+      "width": 1366,
+      "height": 48
+    },
+    "footerGap": 62,
+    "footerHasImg": false,
+    "footerHas996": false,
+    "bodyHas996": false,
+    "navOpsDisplay": "none",
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    }
+  },
+  "sanshi": {
+    "std": {
+      "chart": {
+        "x": 289.65625,
+        "y": 303,
+        "right": 1063.65625,
+        "bottom": 1077,
+        "width": 774,
+        "height": 774
+      },
+      "footer": {
+        "x": 0,
+        "y": 1200,
+        "right": 1720,
+        "bottom": 1248,
+        "width": 1720,
+        "height": 48
+      },
+      "footerGap": 123,
+      "footerHasImg": false,
+      "footerHas996": false,
+      "bodyHas996": false,
+      "navOpsDisplay": "none",
+      "viewport": {
+        "width": 1720,
+        "height": 1184
+      },
+      "hasDirectTime": true,
+      "hasTrueSolar": true
+    },
+    "compact": {
+      "chart": {
+        "x": 313.65625,
+        "y": 297,
+        "right": 803.65625,
+        "bottom": 787,
+        "width": 490,
+        "height": 490
+      },
+      "footer": {
+        "x": 0,
+        "y": 916,
+        "right": 1366,
+        "bottom": 964,
+        "width": 1366,
+        "height": 48
+      },
+      "footerGap": 129,
+      "footerHasImg": false,
+      "footerHas996": false,
+      "bodyHas996": false,
+      "navOpsDisplay": "none",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "hasDirectTime": true,
+      "hasTrueSolar": true
+    }
+  }
+}
