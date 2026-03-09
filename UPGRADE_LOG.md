@@ -4988,3 +4988,41 @@ Append new entries; do not rewrite history.
 - Notes:
   - 本轮运行态性能报告已不再存在 `auxiliaryModules / auxiliaryScenarios`。
   - 到这一步，当前被纳入性能验收的所有主页面都已经回到 `<= 1s`。
+
+### 01:18 - 节气盘二十四节气首屏继续提速，节气图盘改为按标签单盘懒加载（2026-03-09）
+- Scope: 继续压缩 `节气盘` 里“刚点进去的二十四节气首屏”与节气图盘切换耗时，且不降低任何节气/四柱/真太阳时/农历算法精度，不减少任何展示信息。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/JieQiController.java`
+  - `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
+  - `Horosa-Web/astrostudyui/scripts/warmHorosaRuntime.js`
+  - `Horosa-Web/start_horosa_local.sh`
+- Details:
+  - `JieQiChartsMain.js`
+    - `二十四节气` 首屏不再并发发起一条 `seedOnly` 和一条完整 `bazi` 请求，现在直接只走一次完整四柱请求。
+    - 节气图盘不再通过 `/jieqi/year` 一次性把 `春分/夏至/秋分/冬至` 四张盘整包拉回；现在改为按当前标签只懒加载当前那一张，真正做到“点哪张算哪张”。
+    - 前端沿用现有 `loadJieqiChart(...)` 单盘缓存，切换回已打开过的节气盘时直接命中内存缓存。
+  - `JieQiController.java`
+    - 修复 `/jieqi/year` 年缓存序列化后丢失 `bazi.fourColumns` 的问题：四柱数据在写入参数哈希缓存前先转成 plain map，避免缓存命中后结构被吃掉。
+    - 对 `/jieqi/year` 的缓存版本号做了新的失效切换，确保旧缓存不会继续污染二十四节气首屏。
+  - `verifyHorosaPerformanceRuntime.js`
+    - 新增并保留 `节气盘 /jieqi/year 二十四节气首屏` 强制阈值校验，明确要求 `24` 条节气都带 `bazi.fourColumns`。
+    - 将旧的 `/jieqi/year` 四季批量图接口降为 `auxiliary` 兼容观察项，因为节气页图盘现在已改成真正的按标签单盘 `/chart` 懒加载，用户实际首屏/切标签路径不再依赖旧批量接口。
+    - `星盘/3D盘` 的 `/chart` 路径同时计入 `节气盘` 模块阈值，代表节气单盘切换的真实底层耗时。
+  - `warmHorosaRuntime.js` + `start_horosa_local.sh`
+    - 本地启动完成后自动预热 `/chart` 与 `二十四节气` 首屏请求，解决服务冷启动后第一次进入相关页面的重型初始化抖动。
+    - 可通过环境变量 `HOROSA_SKIP_RUNTIME_WARMUP=1` 跳过预热。
+- Verification (local):
+  - `node Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js` ✅
+  - `node Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js` ✅
+  - `node Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js` ✅
+  - 前端重新 `umi build`，本地服务重启并完成启动预热 ✅
+- Runtime performance (local, current enforced pages):
+  - `节气盘`：首屏 `二十四节气 /jieqi/year` 约 `92.118ms`；单盘切换底层 `/chart` 约 `311.991ms`
+  - `万年历`：`/calendar/month` 约 `89.511ms`
+  - `星盘 / 3D盘`：`/chart` 约 `311.991ms`
+  - `推运盘`：最慢为 `黄道星释 /predict/zr`，约 `262.887ms`
+  - `八字紫微`：最慢为 `/bazi/direct`，约 `387.166ms`
+- Notes:
+  - 当前强制阈值页全部通过 `<= 1000ms`。
+  - `legacy /jieqi/year` 四季批量图仍保留兼容校验，当前本地约 `131.783ms`，但已不再作为节气页实际交互路径。

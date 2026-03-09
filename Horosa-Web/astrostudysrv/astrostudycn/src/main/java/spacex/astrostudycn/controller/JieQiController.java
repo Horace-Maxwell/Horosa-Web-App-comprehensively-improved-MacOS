@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import boundless.exception.ErrorCodeException;
 import boundless.spring.help.interceptor.TransData;
 import boundless.utility.ConvertUtility;
+import boundless.utility.ObjectUtility;
 import spacex.astrostudy.constants.PhaseType;
 import spacex.astrostudy.helper.AstroHelper;
 import spacex.astrostudy.helper.ParamHashCacheHelper;
@@ -22,6 +23,7 @@ import spacex.astrostudycn.model.OnlyFourColumns;
 @Controller
 @RequestMapping("/jieqi")
 public class JieQiController {
+	private static final String JieQiYearCacheRev = "jieqi_year_bazi_v5";
 
 	@ResponseBody
 	@RequestMapping("/year")
@@ -34,6 +36,8 @@ public class JieQiController {
 		keyparams.putAll(params);
 		keyparams.remove("gpsLat");
 		keyparams.remove("gpsLon");
+		// 这轮调整了二十四节气首屏的数据生成链路，旧年缓存需要失效以免继续返回旧结构。
+		keyparams.put("_wireRev", JieQiYearCacheRev);
 
 		Object obj;
 		if(seedOnly) {
@@ -60,7 +64,7 @@ public class JieQiController {
 						boolean after23NewDay = false;
 						OnlyFourColumns bz = new OnlyFourColumns(ad, tm, zone, lon, lat, after23NewDay);
 						Map<String, Object> map = bz.getNongli();
-						chart.put("nongli", map);
+						chart.put("nongli", ObjectUtility.toMap(map));
 					}
 				}
 				return res;
@@ -73,6 +77,7 @@ public class JieQiController {
 		if(reqparams != null) {
 			reqparams.put("gpsLat", TransData.get("gpsLat"));
 			reqparams.put("gpsLon", TransData.get("gpsLon"));
+			reqparams.put("wireRev", JieQiYearCacheRev);
 		}
 
 		TransData.set(res);
@@ -94,9 +99,10 @@ public class JieQiController {
 		for(Map<String, Object> map : jieqi24) {
 			String tmstr = (String) map.get("time");
 			BaZi bz = new BaZi(ad, tmstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, false);
-			bz.calculate(phaseType);
+			// 二十四节气页这里只需要四柱，不需要额外的神煞/预测链路。
+			bz.calculateFourColumn(phaseType);
 			Map<String, Object> bazi = new HashMap<String, Object>();
-			bazi.put("fourColumns", bz.getFourColums());
+			bazi.put("fourColumns", ObjectUtility.toMap(bz.getFourColums()));
 			map.put("bazi", bazi);
 		}
 	}
