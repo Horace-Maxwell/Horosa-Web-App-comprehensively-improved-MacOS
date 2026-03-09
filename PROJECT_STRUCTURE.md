@@ -2838,3 +2838,41 @@
 - 直接结果：
   - `万年历 /calendar/month` 已从约 `3.1s` 降到约 `80ms`；
   - 本轮纳入验收的整站主页面现已全部进入 `1s` 内。
+
+### 103.22) 节气盘二十四节气首屏与图盘标签懒加载（2026-03-09）
+
+- `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
+  - `requestJieQi()` 现已改成：
+    - `二十四节气` 首屏只走一次完整 `/jieqi/year` 四柱请求；
+    - 节气图盘标签切换时按当前标签单独拉取 `/chart`；
+    - 不再把四季节气图盘整包一次性并发拉回。
+  - `requestJieQiCharts(...)` 现在会：
+    - 先从当前 `jieqi24` 结果中取对应节气时间；
+    - 再调用已有的 `loadJieqiChart(...)` 单盘缓存链路；
+    - 只把当前标签那一张盘写回 `result.charts[term]`。
+  - 新增 `cacheJieqiSeedRows(...) / findJieqiRow(...)`，用于：
+    - 复用节气时间种子；
+    - 让单盘懒加载不再依赖旧的四季批量图接口。
+- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/JieQiController.java`
+  - `/jieqi/year` 里写入缓存前，`bazi.fourColumns` 会先转成 plain map，避免缓存命中后丢字段。
+  - `JieQiYearCacheRev` 已继续推进，用于主动失效旧结构缓存。
+  - 节气图盘里的 `chart.nongli` 仍保持原有结构，但现在同样先做 plain-map 化，保证缓存命中时不会丢 `bazi`。
+- `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
+  - `jieqi_year_24` 现在是节气页首屏的正式强制阈值项。
+  - 旧的 `/jieqi/year` 四季批量图接口改为 `auxiliaryScenarios`，只做兼容观察，不再代表当前实际前端路径。
+  - `/chart` 场景现在同时覆盖 `节气盘`，用于度量节气单盘标签切换的真实底层耗时。
+- `Horosa-Web/astrostudyui/scripts/warmHorosaRuntime.js`
+  - 新增启动预热脚本，专门预热：
+    - `/chart`
+    - `/jieqi/year` 二十四节气首屏
+- `Horosa-Web/start_horosa_local.sh`
+  - 新增 `warm_runtime_routes()`：
+    - 服务就绪后自动跑 `warmHorosaRuntime.js`
+    - 预热失败只记日志，不阻塞启动
+    - 可用 `HOROSA_SKIP_RUNTIME_WARMUP=1` 跳过
+- 当前本地实测上限（启动预热后、运行态）：
+  - `节气盘`: `311.991ms`
+  - `星盘 / 3D盘`: `311.991ms`
+  - `万年历`: `89.511ms`
+  - `八字紫微`: `387.166ms`
+  - 全部强制阈值页：`<= 1000ms`

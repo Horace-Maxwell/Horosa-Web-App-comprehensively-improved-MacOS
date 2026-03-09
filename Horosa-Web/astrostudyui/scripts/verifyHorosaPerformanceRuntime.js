@@ -182,11 +182,26 @@ function buildPdChartPayload() {
   };
 }
 
+function buildJieqi24Payload() {
+  return {
+    year: '2032',
+    ad: BASE_PAYLOAD.ad,
+    zone: BASE_PAYLOAD.zone,
+    lon: BASE_PAYLOAD.lon,
+    lat: BASE_PAYLOAD.lat,
+    gpsLat: BASE_PAYLOAD.gpsLat,
+    gpsLon: BASE_PAYLOAD.gpsLon,
+    hsys: BASE_PAYLOAD.hsys,
+    zodiacal: BASE_PAYLOAD.zodiacal,
+    doubingSu28: false,
+  };
+}
+
 const SCENARIOS = [
   {
     key: 'astro_chart',
-    label: '星盘/3D盘共用 /chart',
-    covers: ['星盘', '3D盘'],
+    label: '星盘/3D盘/节气单盘共用 /chart',
+    covers: ['星盘', '3D盘', '节气盘'],
     path: '/chart',
     payload: () => ({
       ...BASE_PAYLOAD,
@@ -439,8 +454,29 @@ const SCENARIOS = [
     }),
   },
   {
+    key: 'jieqi_year_24',
+    label: '节气盘 /jieqi/year 二十四节气首屏',
+    covers: ['节气盘'],
+    path: '/jieqi/year',
+    payload: () => buildJieqi24Payload(),
+    validate: (result) => {
+      ensureNonEmptyArray(result.jieqi24, '/jieqi/year 24 jieqi24');
+      assert(result.jieqi24.length === 24, '/jieqi/year 24 should return 24 terms');
+      assert(result.jieqi24.every((item) => item && item.jieqi && item.time), '/jieqi/year 24 has incomplete rows');
+      assert(
+        result.jieqi24.every((item) => item && item.bazi && item.bazi.fourColumns),
+        '/jieqi/year 24 missing bazi four columns'
+      );
+    },
+    summarize: (result) => ({
+      jieqi24: result.jieqi24.length,
+      firstTerm: result.jieqi24[0] && result.jieqi24[0].jieqi,
+      lastTerm: result.jieqi24[result.jieqi24.length - 1] && result.jieqi24[result.jieqi24.length - 1].jieqi,
+    }),
+  },
+  {
     key: 'jieqi_year',
-    label: '节气盘 /jieqi/year',
+    label: '节气盘 /jieqi/year legacy批量图',
     covers: ['节气盘'],
     path: '/jieqi/year',
     payload: () => ({
@@ -465,6 +501,8 @@ const SCENARIOS = [
       jieqi24: result.jieqi24.length,
       charts: Object.keys(result.charts).length,
     }),
+    // 节气页图盘现已改为按标签懒加载单盘 /chart；legacy 批量接口仅保留为兼容性观察项。
+    enforceThreshold: false,
   },
   {
     key: 'relative_chart',

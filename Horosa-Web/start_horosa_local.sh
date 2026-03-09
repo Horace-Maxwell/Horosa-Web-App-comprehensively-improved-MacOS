@@ -17,6 +17,7 @@ PYTHONPATH_ASTRO="${ROOT}/astropy"
 EXTRA_PY_SITE=""
 STARTUP_TIMEOUT="${HOROSA_STARTUP_TIMEOUT:-180}"
 SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
+SKIP_RUNTIME_WARMUP="${HOROSA_SKIP_RUNTIME_WARMUP:-0}"
 CHART_PORT="${HOROSA_CHART_PORT:-8899}"
 BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
 ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
@@ -89,6 +90,32 @@ http_responding() {
     return 1
   fi
   return 0
+}
+
+warm_runtime_routes() {
+  local warmup_js="${UI_DIR}/scripts/warmHorosaRuntime.js"
+  local warmup_log="${LOG_DIR}/runtime-warmup.log"
+
+  if [ "${SKIP_RUNTIME_WARMUP}" = "1" ]; then
+    diag_log "runtime warmup skipped by env"
+    return 0
+  fi
+  if [ ! -f "${warmup_js}" ]; then
+    diag_log "runtime warmup script missing: ${warmup_js}"
+    return 0
+  fi
+  if ! command -v node >/dev/null 2>&1; then
+    diag_log "runtime warmup skipped: node missing"
+    return 0
+  fi
+
+  diag_log "runtime warmup begin"
+  if HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${warmup_js}" >"${warmup_log}" 2>&1; then
+    diag_log "runtime warmup done"
+  else
+    diag_log "runtime warmup failed"
+    diag_tail "${warmup_log}" 120
+  fi
 }
 
 load_brew_env() {
@@ -494,6 +521,7 @@ if [ "${ready}" -ne 1 ]; then
 fi
 
 trap - EXIT
+warm_runtime_routes
 
 diag_log "services ready: backend=${BACKEND_PORT} chartpy=${CHART_PORT}"
 diag_log "===== run end (success) ====="
