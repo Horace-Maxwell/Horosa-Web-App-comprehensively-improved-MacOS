@@ -5160,3 +5160,29 @@ Append new entries; do not rewrite history.
 - Notes:
   - 浏览器总冒烟仍为 `ok`，节气盘 13 个入口全部 `clicked=true`，主限法盘切换与 Guangde 专项仍正常。
   - 最终结论：这次桌面比例问题的真正回归源头就是全局高度钳制；现已恢复为“桌面视口自适应 + 最小安全高度兜底”的最终方案。
+
+### 02:43 - 三式合一头部时间区排版修正：直接时间右移、真太阳时缩小（2026-03-09）
+- Scope: 修复 `三式合一` 头部时间区里“直接时间”被和日期/真太阳时挤在同一行后显示不全的问题；同时把 `真太阳时 / 直接时间` 的字体缩小到与旁边信息一致，避免头部视觉过重。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - `SanShiUnitedMain.js`
+    - 头部日期面板不再把 `日期 + 真太阳时 + 直接时间` 串成一条容易被截断的长文本。
+    - 现改为：
+      - `农历` 行右侧显示 `直接时间`
+      - `日期` 行右侧显示 `真太阳时`
+    - 同时把农历主值改为紧凑展示 `月 + 日`，避免再出现 `农历 农历二月初十` 这种重复前缀。
+  - `SanShiUnitedMain.less`
+    - 为头部日期区新增主文本/辅文本分栏样式；
+    - `真太阳时 / 直接时间` 改为更小字号，并保持单独右对齐展示。
+- Verification (local):
+  - `npm run build:file`（`Horosa-Web/astrostudyui`）✅
+  - 定向截图：
+    - `runtime/sanshi_time_header_check.png`
+  - 页面文本摘录确认：
+    - `农历 / 正月廿一 / 直接时间 / 02:43 / 日期 / 2026-03-09 / 真太阳时 / 02:29` ✅
+- Notes:
+  - 这是纯排版与信息分布修正，不改三式合一任何起盘算法、真太阳时计算逻辑或显示精度。
