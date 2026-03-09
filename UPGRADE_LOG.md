@@ -5272,3 +5272,46 @@ Append new entries; do not rewrite history.
 - Notes:
   - 本轮只修工作区高度同步与排版稳定性，不改任何排盘、节气、农历、真太阳时、主限法或星历精度。
   - 浏览器总冒烟与 Guangde 主限法盘专项都继续为 `ok`，ASC Term 高亮、节气盘 13 个入口、三式合一头部时间区都未回归。
+
+### 03:36 - 宗师级终检补跑，重点复核最后几项桌面端问题（2026-03-09）
+- Scope: 按最终上线前标准再补做一轮高覆盖自检，重点盯住用户最后几次反馈的几个问题：窗口缩放后比例异常、节气盘四季入口、双层盘与右栏间距、宿盘/七政四余底边留白、三式合一 `直接时间 / 真太阳时`、底部备案图标与左侧 `...` 折叠菜单。
+- Files:
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Verification (local):
+  - `HOROSA_WEB_PORT=18013 ./Horosa-Web/verify_horosa_local.sh` ✅
+  - `HOROSA_WEB_PORT=18013 python3 scripts/browser_primary_direction_chart_guangde_check.py` ✅
+  - `python3 scripts/check_local_ephemeris_precision.py --json` ✅
+  - 新增最终布局总检：
+    - `runtime/final_layout_master_check.json`
+    - `runtime/mastercheck_global_shell.png`
+    - `runtime/mastercheck_jieqi_entries.png`
+    - `runtime/mastercheck_solararc_std.png`
+    - `runtime/mastercheck_solararc_compact.png`
+    - `runtime/mastercheck_suzhan_compact.png`
+    - `runtime/mastercheck_guolao_compact.png`
+    - `runtime/mastercheck_sanshi_std.png`
+    - `runtime/mastercheck_sanshi_compact.png`
+- Result:
+  - `final_layout_master_check.json` 关键结论：
+    - `navOpsDisplay = none`
+    - `footerHasImg = false`
+    - `footerHas996 = false`
+    - `bodyHas996 = false`
+    - 节气盘 13 个入口全部 `true`
+    - `太阳弧` 紧凑宽度下主盘右边界 `885.21875`，右侧入口标记 `x = 1223.40625`，未压右栏
+    - `宿盘` 紧凑宽度下 footer 留白 `137px`
+    - `七政四余` 紧凑宽度下 footer 留白 `62px`
+    - `三式合一` 标准/紧凑宽度下 `hasDirectTime = true` 且 `hasTrueSolar = true`
+  - 动态缩放专项 `resize_layout_audit_postfix.json` 继续显示关键页 `compact` 与 `compact2` 主图高度差都为 `0`
+  - 浏览器总冒烟 `runtime/browser_horosa_master_check.json` 继续为 `ok`
+  - Guangde 主限法盘专项 `runtime/guangde_primarydirchart_browser_check.json` 继续为 `ok`
+- Runtime snapshot (latest local run):
+  - 最慢强制项：`八字紫微 /bazi/direct` 约 `513.304ms`
+  - `星盘 / 3D盘 / 节气单盘` 共底层 `/chart`：约 `375.433ms`
+  - `推运盘`：最慢为 `黄道星释 /predict/zr`，约 `283.34ms`
+  - `节气盘 /jieqi/year 二十四节气首屏`：约 `121.845ms`
+  - `万年历 /calendar/month`：约 `102.445ms`
+- Notes:
+  - 这一轮没有发现新的本地功能回归；
+  - 唯一仍出现的是远端资源告警（高德瓦片 / `chart3d.horosa.com` 超时或中止），属于外部网络资源波动，不计入本地功能失败。
