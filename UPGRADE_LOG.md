@@ -5186,3 +5186,45 @@ Append new entries; do not rewrite history.
     - `农历 / 正月廿一 / 直接时间 / 02:43 / 日期 / 2026-03-09 / 真太阳时 / 02:29` ✅
 - Notes:
   - 这是纯排版与信息分布修正，不改三式合一任何起盘算法、真太阳时计算逻辑或显示精度。
+
+### 02:59 - 底部备案遮挡/左侧三点折叠/宿盘与七政四余方盘底边留白联修（2026-03-09）
+- Scope: 修复这轮新的三个桌面端布局问题：底部备案图标和 `996` 徽标压到盘面、左侧总导航出现 `...` 折叠按钮、以及 `易与三式 -> 宿盘` 与 `七政四余` 方形盘底边过低贴到窗口末端。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/homepage/PageFooter.js`
+  - `Horosa-Web/astrostudyui/src/components/homepage/PageFooter.less`
+  - `Horosa-Web/astrostudyui/src/layouts/app.js`
+  - `Horosa-Web/astrostudyui/src/layouts/app.less`
+  - `Horosa-Web/astrostudyui/src/pages/index.js`
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `Horosa-Web/astrostudyui/src/components/suzhan/SuZhanChart.js`
+  - `Horosa-Web/astrostudyui/src/components/guolao/GuoLaoChart.js`
+- Details:
+  - `PageFooter`
+    - 删除底部备案图片图标与 `996.icu` 徽标，只保留一行纯文字备案链接；
+    - footer 上边距和字号一并收紧，避免底部视觉噪音压到盘面。
+  - 主布局
+    - `Footer` 增加 `id='globalFooter'`，供方形盘在运行时精确感知 footer 顶边；
+    - 顶层工作区高度从 `viewport - 100` 放宽到 `viewport - 88`；
+    - 首页主容器 `idxstyle.height` 不再额外再减 `50`，让可见窗口底边回落到更接近真实视口位置。
+  - 左侧总导航
+    - 顶层左侧 tabs 增加 `mainRootTabs` class；
+    - 隐藏 Ant Tabs 的 `nav-operations` 三点折叠菜单；
+    - 改成左侧导航本体直接滚动，默认始终显示完整按钮列表。
+  - `SuZhanChart` / `GuoLaoChart`
+    - 方盘尺寸现在不只看父容器和视口底，还会优先参考 `globalFooter` 的顶部位置；
+    - 保持正方形不变，但底边会自动停在 footer 上方，并额外留出一小段安全空隙。
+- Verification (local):
+  - `npm run build:file`（`Horosa-Web/astrostudyui`）✅
+  - 定向截图：
+    - `runtime/layout_top_tabs_footer_check.png`
+    - `runtime/layout_direction_flowyear_footer_check.png`
+    - `runtime/layout_cnyibu_suzhan_footer_check.png`
+    - `runtime/layout_guolao_footer_check.png`
+  - 定向指标：
+    - `runtime/layout_footer_menu_metrics.json`
+    - 左侧总导航 `navOpsDisplay = none`
+    - 顶层 16 个按钮全部直接可见，无 `...` 折叠入口
+    - `流年法` 圆盘到底部备案区域留白约 `70px`
+    - `宿盘` / `七政四余` 方盘到底部备案区域留白约 `116px`
+- Notes:
+  - 本轮只修布局和显示窗口边界，不动任何宿占、七政四余、推运或星盘算法精度。

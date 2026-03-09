@@ -8,6 +8,7 @@ import SZChart from './SZChart';
 
 const SQUARE_SIDE_MIN = 620;
 const SQUARE_SIDE_MAX = 980;
+const VIEWPORT_BOTTOM_GAP = 28;
 
 function clamp(val, min, max){
 	return Math.max(min, Math.min(max, val));
@@ -68,10 +69,27 @@ class SuZhanChart extends Component{
 			const parent = svgdom.parentElement;
 			const parentW = parent ? parent.clientWidth : 0;
 			const parentH = parent ? parent.clientHeight : 0;
+			let viewportRemainH = 0;
+			const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+			if(viewportH > 0){
+				const rect = svgdom.getBoundingClientRect();
+				let bottomLimit = viewportH;
+				const footer = document.getElementById('globalFooter');
+				if(footer){
+					const footerRect = footer.getBoundingClientRect();
+					if(footerRect.top > rect.top && footerRect.top < bottomLimit){
+						bottomLimit = footerRect.top;
+					}
+				}
+				viewportRemainH = bottomLimit - rect.top - VIEWPORT_BOTTOM_GAP;
+			}
 			if(parentW > 0 && parentH > 0){
-				sideByContainer = Math.min(parentW, parentH);
+				sideByContainer = Math.min(parentW, parentH, viewportRemainH > 0 ? viewportRemainH : parentH);
 			}else if(parentW > 0){
-				sideByContainer = parentW;
+				sideByContainer = viewportRemainH > 0 ? Math.min(parentW, viewportRemainH) : parentW;
+			}
+			if((sideByContainer === null || sideByContainer <= 0) && viewportRemainH > 0){
+				sideByContainer = viewportRemainH;
 			}
 		}
 

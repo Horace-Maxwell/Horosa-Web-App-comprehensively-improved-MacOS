@@ -9,9 +9,10 @@ import * as AstroConst from '../constants/AstroConst';
 import { setTmDelta } from '../utils/request';
 
 const MinWorkspaceHeight = 660;
+const WorkspaceReservedHeight = 88;
 
 function normalizeWorkspaceHeight(viewportHeight){
-    const raw = Number(viewportHeight) - 100;
+    const raw = Number(viewportHeight) - WorkspaceReservedHeight;
     if(!Number.isFinite(raw)){
         return MinWorkspaceHeight;
     }
