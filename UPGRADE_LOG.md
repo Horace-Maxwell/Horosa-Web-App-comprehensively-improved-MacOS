@@ -5315,3 +5315,37 @@ Append new entries; do not rewrite history.
 - Notes:
   - 这一轮没有发现新的本地功能回归；
   - 唯一仍出现的是远端资源告警（高德瓦片 / `chart3d.horosa.com` 超时或中止），属于外部网络资源波动，不计入本地功能失败。
+
+### 03:44 - 把最终桌面排版总检正式接入一键自检链路（2026-03-09）
+- Scope: 不再把“最后几个桌面端问题”的复核停留在临时脚本层，而是正式并入 `verify_horosa_local.sh -> self_check_horosa.sh` 主自检链路，后续每次收尾都能一键重跑。
+- Files:
+  - `scripts/browser_horosa_final_layout_check.py`
+  - `Horosa-Web/verify_horosa_local.sh`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - 新增 `scripts/browser_horosa_final_layout_check.py`
+    - 固化这轮最终桌面端排版总检；
+    - 默认产物：
+      - `runtime/final_layout_master_check.json`
+      - `runtime/mastercheck_global_shell.png`
+      - `runtime/mastercheck_jieqi_entries.png`
+      - `runtime/mastercheck_solararc_std.png`
+      - `runtime/mastercheck_solararc_compact.png`
+      - `runtime/mastercheck_suzhan_compact.png`
+      - `runtime/mastercheck_guolao_compact.png`
+      - `runtime/mastercheck_sanshi_std.png`
+      - `runtime/mastercheck_sanshi_compact.png`
+  - `Horosa-Web/verify_horosa_local.sh`
+    - 在已有 `browser_horosa_master_check.py` 之后，继续自动串行执行 `browser_horosa_final_layout_check.py`
+    - 共用同一套 Playwright Python 与临时静态页端口补起逻辑，不额外引入新的启动路径
+  - 结果：
+    - `scripts/mac/self_check_horosa.sh` 现在会通过 `verify_horosa_local.sh` 自动拿到“接口 + 性能 + 浏览器总冒烟 + 最终桌面排版总检”四层验收
+- Verification:
+  - `HOROSA_WEB_PORT=18013 ./Horosa-Web/verify_horosa_local.sh` 将在浏览器总冒烟后继续输出：
+    - `browser final layout: scripts/browser_horosa_final_layout_check.py`
+  - 预期留档文件：
+    - `runtime/final_layout_master_check.json`
+    - `runtime/mastercheck_*.png`
+- Notes:
+  - 这一步是把已有验收经验正式产品化，不改任何算法精度或页面业务逻辑。

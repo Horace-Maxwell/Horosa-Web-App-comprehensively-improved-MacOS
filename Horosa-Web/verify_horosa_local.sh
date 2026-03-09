@@ -13,6 +13,7 @@ PROJECT_ROOT="$(cd "${ROOT}/.." && pwd)"
 PD_VERIFY_PY="${PROJECT_ROOT}/scripts/check_primary_direction_astroapp_integration.py"
 FULL_VERIFY_PY="${PROJECT_ROOT}/scripts/check_horosa_full_integration.py"
 BROWSER_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_master_check.py"
+FINAL_LAYOUT_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_final_layout_check.py"
 CHART_PORT="${HOROSA_CHART_PORT:-8899}"
 BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
 WEB_PORT="${HOROSA_WEB_PORT:-8000}"
@@ -141,15 +142,26 @@ PYTHON_BIN="$(resolve_python_bin)"
 "${PYTHON_BIN}" "${PD_VERIFY_PY}"
 "${PYTHON_BIN}" "${FULL_VERIFY_PY}"
 
-if [ -f "${BROWSER_VERIFY_PY}" ]; then
+if [ -f "${BROWSER_VERIFY_PY}" ] || [ -f "${FINAL_LAYOUT_VERIFY_PY}" ]; then
   if BROWSER_PYTHON_BIN="$(resolve_browser_python_bin 2>/dev/null)"; then
     if ensure_browser_web_port "${BROWSER_PYTHON_BIN}"; then
-      echo ""
-      echo "browser smoke: ${BROWSER_VERIFY_PY}"
-      HOROSA_WEB_PORT="${WEB_PORT}" \
-      HOROSA_SERVER_PORT="${BACKEND_PORT}" \
-      HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT}" \
-      "${BROWSER_PYTHON_BIN}" "${BROWSER_VERIFY_PY}"
+      if [ -f "${BROWSER_VERIFY_PY}" ]; then
+        echo ""
+        echo "browser smoke: ${BROWSER_VERIFY_PY}"
+        HOROSA_WEB_PORT="${WEB_PORT}" \
+        HOROSA_SERVER_PORT="${BACKEND_PORT}" \
+        HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT}" \
+        "${BROWSER_PYTHON_BIN}" "${BROWSER_VERIFY_PY}"
+      fi
+
+      if [ -f "${FINAL_LAYOUT_VERIFY_PY}" ]; then
+        echo ""
+        echo "browser final layout: ${FINAL_LAYOUT_VERIFY_PY}"
+        HOROSA_WEB_PORT="${WEB_PORT}" \
+        HOROSA_SERVER_PORT="${BACKEND_PORT}" \
+        HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT}" \
+        "${BROWSER_PYTHON_BIN}" "${FINAL_LAYOUT_VERIFY_PY}"
+      fi
     fi
   else
     echo ""

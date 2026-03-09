@@ -53,7 +53,9 @@
 - `Horosa-Web/start_horosa_local.sh`
 - `Horosa-Web/stop_horosa_local.sh`
 - `Horosa-Web/verify_horosa_local.sh`
-  - 当前会在检测到可用 Playwright Python 时自动补跑浏览器级宗师巡检
+  - 当前会在检测到可用 Playwright Python 时自动补跑：
+    - 浏览器级宗师巡检 `scripts/browser_horosa_master_check.py`
+    - 桌面端最终排版总检 `scripts/browser_horosa_final_layout_check.py`
 - `tools/mac/Horosa_Local.command`
   - 当前支持默认端口冲突时自动切换到替代端口，并通过 `srv` 查询参数把新页面绑定到正确的本地后端地址
   - 当前 `8000/8899/9999` 都通过 `nohup + setsid + disown` 常驻启动，降低“启动窗口一结束服务就死”的概率
@@ -71,6 +73,18 @@
   - 产物默认写入：
     - `runtime/browser_horosa_master_check.json`
     - `runtime/browser_horosa_master_check.png`
+- `scripts/browser_horosa_final_layout_check.py`
+  - 桌面端最终排版总检脚本（Playwright Python）
+  - 专门覆盖最后一轮桌面端回归点：
+    - 窗口缩放后比例是否异常
+    - 节气盘四季 `星盘 / 宿盘 / 3D盘` 入口是否存在
+    - 双层盘是否压住右侧信息栏
+    - `宿盘 / 七政四余 / 三式合一` 是否和 footer 重叠
+    - `三式合一` 的 `直接时间 / 真太阳时` 是否仍完整可见
+    - footer 备案图标 / `996` / 左侧 `...` 是否再次出现
+  - 产物默认写入：
+    - `runtime/final_layout_master_check.json`
+    - `runtime/mastercheck_*.png`
 - `scripts/browser_primary_direction_chart_guangde_check.py`
   - Guangde 浏览器专项验收脚本
   - 固定测试盘：`2006-10-04 09:58 / 30N53 / 119E25 / guangde`
