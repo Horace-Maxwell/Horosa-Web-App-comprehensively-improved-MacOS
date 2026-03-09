@@ -3030,3 +3030,42 @@
       - `农历 | 正月廿一 | 直接时间 | 02:43`
       - `日期 | 2026-03-09 | 真太阳时 | 02:29`
   - 这次调整只改排版与文案摆放，不改三式合一的起盘算法、历法精度或真太阳时计算链路。
+
+### 103.28) 底部备案遮挡、左侧三点折叠与方盘底边留白联修（2026-03-09）
+
+- `Horosa-Web/astrostudyui/src/components/homepage/PageFooter.js`
+  - 底部 footer 改成单行纯文字备案信息。
+  - 已删除底部备案图片图标与 `996.icu` 徽标，避免压到盘面底边。
+- `Horosa-Web/astrostudyui/src/components/homepage/PageFooter.less`
+  - footer 字号与上边距收紧到更轻量的桌面样式。
+- `Horosa-Web/astrostudyui/src/layouts/app.js`
+  - `Footer` 增加 `id='globalFooter'`，供宿盘/七政四余方盘按 footer 顶部动态限高。
+  - footer padding 同步缩小。
+- `Horosa-Web/astrostudyui/src/layouts/app.less`
+  - 为顶层左侧总导航 `mainRootTabs` 增加全局样式：
+    - 隐藏 Ant Tabs 的 `nav-operations` 三点折叠按钮
+    - 左侧标签栏本体改为直接滚动
+    - 不再默认把最后几个顶层按钮塞进 `...`
+- `Horosa-Web/astrostudyui/src/pages/index.js`
+  - 顶层 tabs 增加 `className='mainRootTabs'`
+  - 首页主工作区容器高度不再额外减去 `50px`
+- `Horosa-Web/astrostudyui/src/models/app.js`
+  - 工作区保留高度从 `viewport - 100` 微调为 `viewport - 88`
+  - 因而默认“显示窗口”底边略微下放，但仍保留安全留白
+- `Horosa-Web/astrostudyui/src/components/suzhan/SuZhanChart.js`
+  - 方盘尺寸计算增加 footer 顶边感知；
+  - 宿盘仍始终保持正方形，但不会再贴到窗口最下端。
+- `Horosa-Web/astrostudyui/src/components/guolao/GuoLaoChart.js`
+  - 七政四余方盘同样改为按 footer 顶边动态限高；
+  - `VIEWPORT_BOTTOM_GAP` 也同步加大，底边更稳。
+- 当前验证结果：
+  - `runtime/layout_footer_menu_metrics.json`
+    - `navOpsDisplay = none`
+    - 顶层主按钮共 16 个，全部直接可见
+    - `流年法` 底部到 footer 留白约 `70px`
+    - `宿盘` / `七政四余` 方盘底部到 footer 留白约 `116px`
+  - 对应截图：
+    - `runtime/layout_top_tabs_footer_check.png`
+    - `runtime/layout_direction_flowyear_footer_check.png`
+    - `runtime/layout_cnyibu_suzhan_footer_check.png`
+    - `runtime/layout_guolao_footer_check.png`

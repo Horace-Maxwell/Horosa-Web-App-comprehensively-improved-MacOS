@@ -185,7 +185,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
     
     let idxstyle = {
         backgroundColor: AstroConst.AstroColor.Backgroud,
-        height: height-50,
+        height: height,
     };
 
     if(refresh){
@@ -209,6 +209,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             <Tabs 
                 defaultActiveKey="astrochart" tabPosition='left' onChange={changeTab}
                 activeKey={currentTab}
+                className='mainRootTabs'
                 style={{ height: height }}
             >
                 <TabPane tab="星盘" key="astrochart">
