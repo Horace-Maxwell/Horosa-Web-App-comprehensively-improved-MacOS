@@ -632,16 +632,42 @@ export default {
             }else{
                 aspects = JSON.parse(aspects);
             }
-            let h = normalizeWorkspaceHeight(doch);
-            if(h >= MinWorkspaceHeight){
+            const syncWorkspaceHeight = (extraPayload = {})=>{
+                const nextViewportHeight = document.documentElement.clientHeight;
+                const h = normalizeWorkspaceHeight(nextViewportHeight);
+                if(h < MinWorkspaceHeight){
+                    return;
+                }
+                const store = getStore();
+                const currentHeight = store && store.astro ? store.astro.height : null;
+                const hasExtraPayload = extraPayload && Object.keys(extraPayload).length > 0;
+                if(!hasExtraPayload && currentHeight === h){
+                    return;
+                }
                 dispatch({
                     type: 'astro/save',
                     payload:{
                         height: h,
-                        aspects: aspects,
+                        ...extraPayload,
                     },
-                });                               
-            }
+                });
+            };
+
+            let resizeTimer = null;
+            const handleResize = ()=>{
+                if(resizeTimer){
+                    clearTimeout(resizeTimer);
+                }
+                resizeTimer = setTimeout(()=>{
+                    resizeTimer = null;
+                    syncWorkspaceHeight();
+                }, 80);
+            };
+            window.addEventListener('resize', handleResize);
+
+            syncWorkspaceHeight({
+                aspects: aspects,
+            });
 
             dispatch({
                 type: 'getSysTime',
@@ -653,6 +679,13 @@ export default {
                 payload:{},
             });                           
 
+            return ()=>{
+                window.removeEventListener('resize', handleResize);
+                if(resizeTimer){
+                    clearTimeout(resizeTimer);
+                    resizeTimer = null;
+                }
+            };
         },
 
     },

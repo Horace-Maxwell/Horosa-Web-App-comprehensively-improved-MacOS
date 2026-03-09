@@ -5228,3 +5228,47 @@ Append new entries; do not rewrite history.
     - `宿盘` / `七政四余` 方盘到底部备案区域留白约 `116px`
 - Notes:
   - 本轮只修布局和显示窗口边界，不动任何宿占、七政四余、推运或星盘算法精度。
+
+### 03:26 - 窗口缩放后工作区高度实时同步修复，并完成全站排版复核（2026-03-09）
+- Scope: 修复桌面端“页面初次打开正常，但浏览器窗口缩放后盘面/右栏/底部比例失真”的全局回归；同时再做一次覆盖星盘、推运盘、节气盘、易与三式、七政四余、三式合一、万年历的排版与缩放复核。
+- Files:
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - `app.js`
+    - `subscriptions.setup(...)` 里新增带 `80ms` 防抖的 `window.resize` 监听，并在卸载时清理 timer / listener。
+    - 每次窗口尺寸变化都会重新走 `normalizeWorkspaceHeight(document.documentElement.clientHeight)`，把最新工作区高度实时写回 `astro.height`。
+    - 初次加载时的 `aspects` 初始化也改为共用同一个 `syncWorkspaceHeight(...)` 路径，避免“首屏一套逻辑、缩放后一套逻辑”再次分叉。
+  - 根因确认：
+    - 这次异常不是某个单页算法或 SVG 自身比例错了，而是 `astro.height` 过去只在启动时算一次；
+    - 当窗口从 `1720x1184` 动态缩到 `1366x900` 后，多个页面仍沿用旧高度，导致图盘、右侧信息栏和 footer 的相对位置看起来突然怪掉。
+  - 修复结果：
+    - 动态缩放链路现在和 fresh load 一样会立即跟随新视口刷新；
+    - `星盘 / 太阳弧 / 春分星盘 / 宿盘 / 七政四余 / 三式合一 / 万年历` 在 `std -> compact -> wide -> compact` 往返缩放后都能回到和 fresh compact 一致的布局状态。
+- Verification (local):
+  - `npm run build:file`（`Horosa-Web/astrostudyui`）✅
+  - `HOROSA_WEB_PORT=18013 ./Horosa-Web/verify_horosa_local.sh` ✅
+  - `HOROSA_WEB_PORT=18013 python3 scripts/browser_primary_direction_chart_guangde_check.py` ✅
+  - `python3 scripts/check_local_ephemeris_precision.py --json` ✅
+  - 动态缩放专项：
+    - `runtime/resize_layout_audit_postfix.json`
+    - 关键页 `compact` 与 `compact2` 的主图高度差均为 `0`
+    - 关键截图：
+      - `runtime/resize_astrochart_compact2.png`
+      - `runtime/resize_direction_solararc_compact2.png`
+      - `runtime/resize_jieqi_spring_compact2.png`
+      - `runtime/resize_cnyibu_suzhan_compact2.png`
+      - `runtime/resize_guolao_compact2.png`
+      - `runtime/resize_calendar_compact2.png`
+      - `runtime/sanshi_time_header_current.png`
+      - `runtime/sanshi_time_header_current_compact.png`
+- Runtime snapshot (latest local run):
+  - 最慢强制项：`八字紫微 /bazi/direct` 约 `376.863ms`
+  - `星盘 / 3D盘 / 节气单盘` 共底层 `/chart`：约 `373.65ms`
+  - `推运盘`：最慢为 `黄道星释 /predict/zr`，约 `264.434ms`
+  - `节气盘 /jieqi/year 二十四节气首屏`：约 `112.866ms`
+  - `万年历 /calendar/month`：约 `83.276ms`
+- Notes:
+  - 本轮只修工作区高度同步与排版稳定性，不改任何排盘、节气、农历、真太阳时、主限法或星历精度。
+  - 浏览器总冒烟与 Guangde 主限法盘专项都继续为 `ok`，ASC Term 高亮、节气盘 13 个入口、三式合一头部时间区都未回归。
