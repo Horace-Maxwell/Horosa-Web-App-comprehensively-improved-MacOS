@@ -2750,19 +2750,29 @@ class SanShiUnitedMain extends Component{
 		const dateText = direct.date || solar.date || '---- -- --';
 		const directHm = direct.hm || '--:--';
 		const solarHm = solar.hm || '--:--';
-		const timeLineText = `${dateText} 真太阳时：${solarHm} 直接时间：${directHm}`;
+		const lunarText = (safe(nongli && nongli.month) + safe(nongli && nongli.day)) || fmtLunar(nongli) || '农历--';
 		return (
 			<div className={styles.topBox} style={{ width: boardSize, maxWidth: '100%' }}>
 				<div className={styles.topLeft}>
 					<div className={styles.datePanel}>
 						<div className={styles.dateRow}>
 							<div className={styles.dateLabel}>农历</div>
-							<div className={styles.dateValue}>{fmtLunar(nongli) || '农历--'}</div>
+							<div className={styles.dateValue}>
+								<span className={styles.dateMainText}>{lunarText}</span>
+								<span className={styles.dateMetaText}>
+									<span className={styles.dateMetaLabel}>直接时间</span>
+									<span className={styles.dateMetaValue}>{directHm}</span>
+								</span>
+							</div>
 						</div>
 						<div className={styles.dateRow}>
 							<div className={styles.dateLabel}>日期</div>
-							<div className={`${styles.dateValue} ${styles.dateValueInline}`}>
-								<span>{timeLineText}</span>
+							<div className={styles.dateValue}>
+								<span className={styles.dateMainText}>{dateText}</span>
+								<span className={styles.dateMetaText}>
+									<span className={styles.dateMetaLabel}>真太阳时</span>
+									<span className={styles.dateMetaValue}>{solarHm}</span>
+								</span>
 							</div>
 						</div>
 					</div>
