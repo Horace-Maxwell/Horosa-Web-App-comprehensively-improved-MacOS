@@ -2975,3 +2975,37 @@
   - `节气盘 /jieqi/year 二十四节气首屏`: `96.56ms`
   - `万年历 /calendar/month`: `76.435ms`
   - 最慢强制项 `八字紫微 /bazi/direct`: `341.895ms`
+
+### 103.26) 桌面比例最终修正：撤销全局固定高度，恢复视口自适应（2026-03-09）
+
+- `Horosa-Web/astrostudyui/src/models/app.js`
+  - `normalizeWorkspaceHeight(viewportHeight)` 最终策略改为：
+    - 正常桌面视口：直接使用 `viewportHeight - 100`
+    - 过小/非法值：仅回落到 `MinWorkspaceHeight = 660`
+  - 不再保留 `MaxWorkspaceHeight` 这样的全局桌面高度上限。
+  - 这意味着 `astro.height` 重新回到“按当前窗口真实高度工作”，不再把星盘、推运盘、关系盘、节气盘等所有页面统一压成固定高度。
+- 根因结论：
+  - 本轮“窗口比例突然变坏”的直接根因，就是之前为修桌面比例临时加入的全局高度钳制。
+  - 它虽然短暂抑制了超高屏下的纵向放大，但也把双层盘和整站页面的原始比例一起改坏了。
+  - 最终方案因此不是继续微调 `760/800` 之类中间值，而是完全撤销全局上限，只保留最小安全高度兜底。
+- 当前布局验证证据：
+  - `runtime/layout_revert_metrics.json`
+    - `星盘`：主 SVG `1274.3125 × 1180`，`overlapX=false`
+    - `太阳弧`：主 SVG `1181.8125 × 1160`，`overlapX=false`
+    - `关系盘`：主 SVG `1175.078125 × 1090`，`overlapX=false`
+  - 对应截图：
+    - `runtime/layout_starchart_after_revert.png`
+    - `runtime/layout_solararc_after_revert.png`
+    - `runtime/layout_relation_after_revert.png`
+- 联动自检结果：
+  - `HOROSA_WEB_PORT=18009 ./Horosa-Web/verify_horosa_local.sh`：`ok`
+  - 浏览器总冒烟：
+    - 节气盘 13 个入口全部 `clicked=true`
+    - 主限法 `Horosa原方法 <-> AstroAPP-Alchabitius` 切换正常
+    - `主限法盘` SVG 与 ASC Term 高亮仍正常
+- 最新性能上限仍保持亚秒：
+  - `星盘 / 3D盘 / 节气单盘 /chart`: `336.58ms`
+  - `推运盘`: `264.141ms`
+  - `节气盘 /jieqi/year 二十四节气首屏`: `105.313ms`
+  - `万年历 /calendar/month`: `80.51ms`
+  - 最慢强制项 `八字紫微 /bazi/direct`: `369.496ms`
