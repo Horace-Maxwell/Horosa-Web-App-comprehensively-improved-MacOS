@@ -103,7 +103,14 @@ class AstroDoubleChart extends Component{
 		}
 		if(this.chartCircle){
 			this.chartCircle.setShowAstroMeaning(this.getShowAstroMeaning());
-			this.chartCircle.drawDoubleChart(this.state.chartid, chartobj, this.state.rStep, chartDisplay, planetDisp);
+			this.chartCircle.drawDoubleChart(
+				this.state.chartid,
+				chartobj,
+				this.state.rStep,
+				chartDisplay,
+				planetDisp,
+				this.props.termHighlight
+			);
 		}
 	}
 

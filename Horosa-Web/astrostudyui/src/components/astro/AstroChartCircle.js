@@ -318,11 +318,64 @@ export default class AstroChartCircle {
 		
 		return signs;
 	}
+
+	resolveTermHighlightColor(sig, termOwner, matchedHighlight){
+		let owner = matchedHighlight && matchedHighlight.owner ? matchedHighlight.owner : termOwner;
+		let ownerColor = AstroConst.AstroColor[owner];
+		if(ownerColor && ownerColor !== AstroConst.AstroColor.Stroke){
+			return ownerColor;
+		}
+		return AstroConst.AstroColor[sig] || ownerColor || AstroConst.AstroColor.Stroke;
+	}
+
+	appendTermHighlightMarker(termgroup, sigstart, degree, innerR, outerR, accentColor){
+		let normalizedDegree = Number(degree);
+		if(!Number.isFinite(normalizedDegree)){
+			return;
+		}
+		let angle = (sigstart + normalizedDegree) * Math.PI / 180;
+		let markerStartR = innerR + 1.5;
+		let markerEndR = outerR - 1.5;
+		let startX = -markerStartR * Math.sin(angle);
+		let startY = -markerStartR * Math.cos(angle);
+		let endX = -markerEndR * Math.sin(angle);
+		let endY = -markerEndR * Math.cos(angle);
+		let markerDotR = outerR - 4.5;
+		let dotX = -markerDotR * Math.sin(angle);
+		let dotY = -markerDotR * Math.cos(angle);
+		let markerStroke = accentColor || AstroConst.AstroColor.Stroke;
+		let markerFill = d3.color(markerStroke);
+		if(markerFill){
+			markerFill.opacity = 0.92;
+		}
+		termgroup.append('line')
+			.attr('x1', startX)
+			.attr('y1', startY)
+			.attr('x2', endX)
+			.attr('y2', endY)
+			.attr('stroke', markerStroke)
+			.attr('stroke-width', 2.5)
+			.attr('stroke-linecap', 'round')
+			.attr('opacity', 0.96);
+		termgroup.append('circle')
+			.attr('cx', dotX)
+			.attr('cy', dotY)
+			.attr('r', 4.5)
+			.attr('stroke', '#ffffff')
+			.attr('stroke-width', 1.4)
+			.attr('fill', markerFill ? `${markerFill}` : markerStroke);
+	}
 	
-	termBand(svg, r, rStep, flags){
+	termBand(svg, r, rStep, flags, termHighlight){
 		let samecolorwithsign = (flags & AstroConst.CHART_PLANETCOLORWITHSIGN) === 0 ? false : true;
 		let innerR = r - rStep;
 		let txtPosR = r - rStep / 2 - this.TxtOffsetTop;
+		let highlights = [];
+		if(Array.isArray(termHighlight)){
+			highlights = termHighlight.filter(Boolean);
+		}else if(termHighlight){
+			highlights = [termHighlight];
+		}
 	
 		let terms = svg.append('g');
 		const signStep = 30;
@@ -339,10 +392,76 @@ export default class AstroChartCircle {
 							.innerRadius(innerR).outerRadius(r)
 							.startAngle(-stangle).endAngle(-(stangle + edangle));
 				let arcd = arc();
-				let termgroup = terms.append('g');
+				let matchedHighlight = null;
+				for(let k=0; k<highlights.length; k++){
+					let item = highlights[k];
+					if(!item || item.sign !== sig){
+						continue;
+					}
+					let sameRange = Number.isFinite(Number(item.start)) && Number.isFinite(Number(item.end))
+						? Math.abs(Number(item.start) - term[1]) < 1e-9 && Math.abs(Number(item.end) - term[2]) < 1e-9
+						: false;
+					if(sameRange){
+						matchedHighlight = item;
+						break;
+					}
+					let degree = Number(item.degree);
+					if(Number.isFinite(degree) && term[1] <= degree && degree < term[2]){
+						matchedHighlight = item;
+						break;
+					}
+				}
+				let strokeColor = AstroConst.AstroColor.Stroke;
+				let fillColor = AstroConst.AstroColor['NoColor'];
+				let labelColor = samecolorwithsign ? AstroConst.AstroColor[sig] : AstroConst.AstroColor[term[0]];
+				let fontWeight = 100;
+				let fontSize = 13;
+				let accentColor = null;
+				if(matchedHighlight){
+					accentColor = this.resolveTermHighlightColor(sig, term[0], matchedHighlight);
+					let fill = d3.color(accentColor);
+					if(fill){
+						fill.opacity = 0.26;
+						fillColor = `${fill}`;
+					}
+					strokeColor = accentColor;
+					labelColor = accentColor;
+					fontWeight = 700;
+					fontSize = 15;
+				}
+				let termgroup = terms.append('g')
+					.attr('class', matchedHighlight ? 'astro-term astro-term-highlight' : 'astro-term')
+					.attr('data-term-sign', sig)
+					.attr('data-term-owner', term[0]);
+				if(matchedHighlight){
+					termgroup
+						.attr('data-highlight-marker', matchedHighlight.markerId || matchedHighlight.markerLabel || 'term')
+						.attr('data-highlight-owner', matchedHighlight.owner || term[0]);
+				}
 				termgroup.append('path')
-					.attr('d', arcd).attr('stroke', AstroConst.AstroColor.Stroke)
-					.attr('fill', AstroConst.AstroColor['NoColor']);
+					.attr('d', arcd)
+					.attr('stroke', strokeColor)
+					.attr('stroke-width', matchedHighlight ? 2.25 : 1)
+					.attr('fill', fillColor);
+				if(matchedHighlight){
+					let overlayFill = d3.color(accentColor);
+					if(overlayFill){
+						overlayFill.opacity = 0.12;
+					}
+					let overlayArc = d3.arc()
+						.innerRadius(innerR + 1.5)
+						.outerRadius(r - 1.5)
+						.startAngle(-stangle)
+						.endAngle(-(stangle + edangle));
+					termgroup.append('path')
+						.attr('d', overlayArc())
+						.attr('fill', overlayFill ? `${overlayFill}` : AstroConst.AstroColor['NoColor'])
+						.attr('stroke', accentColor)
+						.attr('stroke-width', 3.5)
+						.attr('stroke-linejoin', 'round')
+						.attr('fill-opacity', 1);
+					this.appendTermHighlightMarker(termgroup, sigstart, matchedHighlight.degree, innerR, r, accentColor);
+				}
 	
 				let demiStep = (delta / 2) * Math.PI / 180;
 				let lblgroup = termgroup.append('g').attr("text-anchor", "middle");
@@ -351,15 +470,11 @@ export default class AstroChartCircle {
 				let transtr = 'translate(' + posx + ',' + posy +  ')';
 				lblgroup.attr('transform', transtr);
 				let termtxt = AstroText.AstroMsg[term[0]];
-				let color = AstroConst.AstroColor[term[0]];
-				if(samecolorwithsign){
-					color = AstroConst.AstroColor[sig];
-				}
 				let lbl = lblgroup.append('text')
 						.attr("dominant-baseline","middle")
 						.attr("text-anchor", "middle")
 						.attr('font-family', AstroConst.AstroChartFont)
-						.attr('font-size', 13).attr('font-weight', 100).attr('stroke', color)
+						.attr('font-size', fontSize).attr('font-weight', fontWeight).attr('stroke', labelColor)
 						.text(termtxt);
 				let txtang = -(term[1] + delta) - 30*i;
 				let txtrot = 'rotate(' + txtang + ')';
@@ -1160,7 +1275,7 @@ export default class AstroChartCircle {
 		return resobj;
 	}
 	
-	drawOuterSigns(chartObj, topgroup, radius, rStep, flags, isDiurnal){
+	drawOuterSigns(chartObj, topgroup, radius, rStep, flags, isDiurnal, termHighlight){
 		let needOutDeg = (flags & AstroConst.CHART_OUTERDEG) === AstroConst.CHART_OUTERDEG ? true : false;
 		if(needOutDeg){
 			let outerDegLines = this.degreeOuterLines(topgroup, radius);
@@ -1177,7 +1292,7 @@ export default class AstroChartCircle {
 		if(needTerm){
 			let termR = radius - rStep;
 			let termStep = 20;
-			let terms = this.termBand(topgroup, termR, termStep, flags);
+			let terms = this.termBand(topgroup, termR, termStep, flags, termHighlight);
 		
 			let houseR = termR - termStep;
 			return houseR;	
@@ -1356,7 +1471,7 @@ export default class AstroChartCircle {
 	
 	}
 	
-	drawDoubleChart(chartid, chartObj, rStep, chartDisplay, planetDisplay){
+	drawDoubleChart(chartid, chartObj, rStep, chartDisplay, planetDisplay, termHighlight){
 		if(chartObj === undefined || chartObj === null || chartObj.err ||
 			chartObj.natualChart === undefined || chartObj.natualChart === null ||
 			chartObj.dirChart === undefined || chartObj.dirChart === null){
@@ -1404,7 +1519,7 @@ export default class AstroChartCircle {
 			let lblHousedegR = signsR + 20;
 			this.labelHousesDeg(topgroup, lblHousedegR, 70, innerChart.chart.houses, flags);	
 		}
-		let restR = this.drawOuterSigns(null, topgroup, signsR, rStep, flags, innerChart.chart.isDiurnal);
+		let restR = this.drawOuterSigns(null, topgroup, signsR, rStep, flags, innerChart.chart.isDiurnal, termHighlight);
 		let housesAry = innerChart.chart.houses;
 		let objectsAry = [];
 		for(let i=0; i<outerChart.chart.objects.length; i++){

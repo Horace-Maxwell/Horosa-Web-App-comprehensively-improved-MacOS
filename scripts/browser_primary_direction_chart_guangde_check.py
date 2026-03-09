@@ -338,6 +338,36 @@ def first_svg_hash(page) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
+def read_term_highlight(page) -> dict:
+    data = page.evaluate(
+        """
+        () => {
+          const target = document.querySelector('g.astro-term-highlight[data-highlight-marker="Asc"], g.astro-term-highlight[data-highlight-marker="ASC"]');
+          if (!target) {
+            return null;
+          }
+          const path = target.querySelector('path');
+          return {
+            sign: target.getAttribute('data-term-sign') || '',
+            owner: target.getAttribute('data-highlight-owner') || target.getAttribute('data-term-owner') || '',
+            marker: target.getAttribute('data-highlight-marker') || '',
+            stroke: path ? (path.getAttribute('stroke') || '') : '',
+            strokeWidth: path ? (path.getAttribute('stroke-width') || '') : '',
+            markerCount: target.querySelectorAll('circle').length,
+            lineCount: target.querySelectorAll('line').length,
+          };
+        }
+        """
+    )
+    if not data:
+        raise AssertionError("主限法盘未渲染 ASC 所在 Term 高亮")
+    if not data.get("sign") or not data.get("owner"):
+        raise AssertionError(f"ASC Term 高亮数据不完整: {data}")
+    if data.get("markerCount", 0) < 1 or data.get("lineCount", 0) < 1:
+        raise AssertionError(f"ASC Term 高亮缺少标记元素: {data}")
+    return data
+
+
 def set_geo_to_guangde(page) -> None:
     if not click_visible_text(page, "经纬度选择"):
         raise AssertionError("无法打开经纬度选择弹窗")
@@ -396,6 +426,7 @@ def read_state_lines(page) -> dict[str, str]:
             "当前度数换算：": ["当前度数换算：", "当前盘面度数换算："],
             "当前主限法年龄：": ["当前主限法年龄："],
             "外圈时间：": ["外圈时间："],
+            "当前ASC所在界：": ["当前ASC所在界："],
           };
           const result = {};
           const nodes = Array.from(document.querySelectorAll('div,span,p'));
@@ -531,6 +562,9 @@ def main() -> None:
         initial_state = read_state_lines(page)
         if "当前已应用方法：" not in initial_state or "AstroAPP-Alchabitius" not in initial_state["当前已应用方法："]:
             raise AssertionError("主限法盘未显示 AstroAPP-Alchabitius 当前盘面状态")
+        if "当前ASC所在界：" not in initial_state:
+            raise AssertionError("主限法盘未显示当前 ASC 所在界文本")
+        initial_term_highlight = read_term_highlight(page)
         initial_svg_hash = first_svg_hash(page)
         visible_selects_initial = visible_select_texts(page)
         method_select_index = find_visible_select_index(page, "AstroAPP-Alchabitius")
@@ -557,6 +591,7 @@ def main() -> None:
             raise AssertionError("主限法盘未能显示任意时间")
         if arbitrary_svg_hash == svg_hash_at_row:
             raise AssertionError("主限法盘切换任意时间后外圈图形未变化")
+        arbitrary_term_highlight = read_term_highlight(page)
 
         select_visible_dropdown(page, method_select_index, "Horosa原方法")
         page.wait_for_timeout(900)
@@ -621,8 +656,10 @@ def main() -> None:
     result["backend_first_rows"] = backend_rows
     result["astroapp_first_rows"] = astroapp_rows
     result["initial_pd_chart_state"] = initial_state
+    result["initial_pd_chart_term_highlight"] = initial_term_highlight
     result["row_time_pd_chart_state"] = state_at_row
     result["arbitrary_pd_chart_state"] = arbitrary_state
+    result["arbitrary_pd_chart_term_highlight"] = arbitrary_term_highlight
     result["preview_legacy_pd_chart_state"] = preview_legacy_state
     result["legacy_pd_chart_state"] = legacy_state
     result["preview_restored_pd_chart_state"] = preview_restored_state

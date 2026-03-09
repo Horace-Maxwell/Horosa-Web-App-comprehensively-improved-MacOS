@@ -8,6 +8,20 @@ import {detectPlatform} from '../utils/helper';
 import * as AstroConst from '../constants/AstroConst';
 import { setTmDelta } from '../utils/request';
 
+const MinWorkspaceHeight = 660;
+const MaxWorkspaceHeight = 760;
+
+function normalizeWorkspaceHeight(viewportHeight){
+    const raw = Number(viewportHeight) - 100;
+    if(!Number.isFinite(raw)){
+        return MinWorkspaceHeight;
+    }
+    if(raw <= MinWorkspaceHeight){
+        return MinWorkspaceHeight;
+    }
+    return Math.min(raw, MaxWorkspaceHeight);
+}
+
 function normalizeDisplayList(raw, fallback, allowSet, allowEmpty = false){
     const fallbackArr = Array.isArray(fallback) ? fallback.slice(0) : [];
     const allow = new Set(Array.isArray(allowSet) ? allowSet : []);
@@ -621,9 +635,8 @@ export default {
             }else{
                 aspects = JSON.parse(aspects);
             }
-            let h = doch - 100;
-            h = doch - 100;
-            if(h > 660){
+            let h = normalizeWorkspaceHeight(doch);
+            if(h >= MinWorkspaceHeight){
                 dispatch({
                     type: 'astro/save',
                     payload:{

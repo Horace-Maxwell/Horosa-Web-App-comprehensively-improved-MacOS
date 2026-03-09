@@ -3,6 +3,7 @@ import { Row, Col, Button, Select, Divider } from 'antd';
 import AstroDoubleChart from './AstroDoubleChart';
 import PlusMinusTime from './PlusMinusTime';
 import * as AstroConst from '../../constants/AstroConst';
+import * as AstroText from '../../constants/AstroText';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import { saveAstroAISnapshot, } from '../../utils/astroAiSnapshot';
 import request from '../../utils/request';
@@ -237,6 +238,67 @@ function buildDisplayRows(chartObj, pdMethod, showPdBounds){
 		});
 	});
 	return rows;
+}
+
+function normalizeSignDegree(value){
+	const num = Number(value);
+	if(!Number.isFinite(num)){
+		return null;
+	}
+	let degree = num % 30;
+	if(degree < 0){
+		degree += 30;
+	}
+	return degree;
+}
+
+function buildAscTermHighlight(dirChart){
+	const chart = dirChart && dirChart.chart ? dirChart.chart : null;
+	if(!chart){
+		return null;
+	}
+	const objects = Array.isArray(chart.objects) ? chart.objects : [];
+	let asc = null;
+	for(let i=0; i<objects.length; i++){
+		if(objects[i] && objects[i].id === AstroConst.ASC){
+			asc = objects[i];
+			break;
+		}
+	}
+	const houses = Array.isArray(chart.houses) ? chart.houses : [];
+	const house1 = houses.length > 0 ? houses[0] : null;
+	const sign = asc && asc.sign ? asc.sign : house1 && house1.sign ? house1.sign : null;
+	const degree = normalizeSignDegree(
+		asc && asc.signlon !== undefined && asc.signlon !== null
+			? asc.signlon
+			: house1 && house1.signlon !== undefined && house1.signlon !== null
+				? house1.signlon
+				: null
+	);
+	if(!sign || degree === null){
+		return null;
+	}
+	const terms = AstroConst.EGYPTIAN_TERMS[sign];
+	if(!Array.isArray(terms) || terms.length === 0){
+		return null;
+	}
+	for(let i=0; i<terms.length; i++){
+		const term = terms[i];
+		if(term[1] <= degree && degree < term[2]){
+			return {
+				sign,
+				signLabel: AstroText.AstroMsgCN[sign] || sign,
+				degree,
+				start: term[1],
+				end: term[2],
+				owner: term[0],
+				ownerLabel: AstroText.AstroMsgCN[term[0]] || term[0],
+				markerId: AstroConst.ASC,
+				markerLabel: 'ASC',
+			};
+		}
+	}
+	return null;
 }
 
 function buildSnapshotText(chartObj, currentDt, currentArc){
@@ -821,6 +883,7 @@ class AstroPrimaryDirectionChart extends Component{
 		const buttonText = dirty ? (applied.hasCompleteParams ? '重新计算' : '计算') : '已同步';
 		const selectedPdMethod = this.getSelectedPdMethod();
 		const selectedPdTimeKey = this.getSelectedPdTimeKey();
+		const ascTermHighlight = buildAscTermHighlight(derived.dirChart);
 		const pdMethodLabel = selectedPdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'AstroAPP-Alchabitius';
 		const appliedMethodLabel = applied.pdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'AstroAPP-Alchabitius';
 		const sectionGapStyle = {marginTop: 6};
@@ -839,6 +902,7 @@ class AstroPrimaryDirectionChart extends Component{
 							planetDisplay={this.props.planetDisplay}
 							lotsDisplay={this.props.lotsDisplay}
 							chartDisplay={this.props.chartDisplay}
+							termHighlight={ascTermHighlight}
 							showAstroMeaning={this.props.showAstroMeaning}
 						/>
 					</Col>
@@ -888,6 +952,11 @@ class AstroPrimaryDirectionChart extends Component{
 								{dirty ? <div>主/界限法表格已应用方法：{appliedMethodLabel} / {applied.pdTimeKey}</div> : null}
 								<div>当前主限法年龄：{splitDegreeText(derived.currentArc)}</div>
 								<div>外圈时间：{derived.currentDt ? derived.currentDt.format('YYYY-MM-DD HH:mm:ss') : '无'}</div>
+								{ascTermHighlight ? (
+									<div>
+										当前ASC所在界：{ascTermHighlight.ownerLabel}界（{ascTermHighlight.signLabel} {splitDegreeText(ascTermHighlight.start)} - {splitDegreeText(ascTermHighlight.end)}）
+									</div>
+								) : null}
 							</div>
 							<Divider orientation='left'>说明</Divider>
 							<div style={hintStyle}>
