@@ -248,6 +248,25 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    def pdchart(self):
+        enable_crossdomain()
+        try:
+            data = cherrypy.request.json
+            perchart = PerChart(data)
+            predict = perchart.getPredict()
+            zone = data['dirZone'] if 'dirZone' in data.keys() and data['dirZone'] else perchart.zone
+            res = predict.getPrimaryDirectionChartByDate(data.get('datetime'), zone)
+            return jsonpickle.encode(res, unpicklable=False)
+        except:
+            traceback.print_exc()
+            obj = {
+                'err': 'param error'
+            }
+            return jsonpickle.encode(obj, unpicklable=False)
+
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
     def td(self):
         enable_crossdomain()
         try:
