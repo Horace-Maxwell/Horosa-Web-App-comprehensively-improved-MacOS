@@ -165,10 +165,21 @@ async function run() {
   });
   ensureObject(chart.params, '/chart params');
   ensureObject(chart.chart, '/chart chart');
-  ensureNonEmptyArray(chart.predictives && chart.predictives.primaryDirection, '/chart predictives.primaryDirection');
+  ensureNonEmptyArray(chart.predictives && chart.predictives.firdaria, '/chart predictives.firdaria');
+  assert(!(chart.predictives && Array.isArray(chart.predictives.primaryDirection)), '/chart unexpectedly returned primaryDirection without includePrimaryDirection');
+  const chartWithPd = await call('/chart', {
+    ...BASE_PAYLOAD,
+    pdtype: 0,
+    pdMethod: 'astroapp_alchabitius',
+    pdTimeKey: 'Ptolemy',
+    pdaspects: [0, 60, 90, 120, 180],
+    includePrimaryDirection: true,
+  });
+  ensureNonEmptyArray(chartWithPd.predictives && chartWithPd.predictives.primaryDirection, '/chart includePrimaryDirection predictives.primaryDirection');
   summary.chart = {
     birth: chart.params.birth,
-    primaryDirectionRows: chart.predictives.primaryDirection.length,
+    firdariaRows: chart.predictives.firdaria.length,
+    primaryDirectionRows: chartWithPd.predictives.primaryDirection.length,
   };
 
   const chart13 = await call('/chart13', {

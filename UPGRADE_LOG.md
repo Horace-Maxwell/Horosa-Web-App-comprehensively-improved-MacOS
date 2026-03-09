@@ -4908,3 +4908,83 @@ Append new entries; do not rewrite history.
 - Verification (local):
   - `test -f 主限法推演/主限法盘实现原理与算法说明.md` ✅
   - `sed -n '1,80p' 主限法推演/主限法盘实现原理与算法说明.md` ✅
+
+### 21:05 - `/chart` 改为主限法按需加载，右侧改时间恢复亚秒级（2026-03-08）
+- Scope: 解决“星盘等右侧改时间后明显变慢”的回归。根因是加入主限法后，普通 `/chart` 刷新在 `predictive=true` 时会无条件额外计算一次 `primaryDirection`，导致所有非主限法页面也为主限法付费。
+- Files:
+  - `Horosa-Web/astropy/astrostudy/helper.py`
+  - `Horosa-Web/astropy/websrv/webchartsrv.py`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/IndiaChartController.java`
+  - `Horosa-Web/astrostudyui/src/models/astro.js`
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js`
+  - `Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js`
+  - `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
+  - `Horosa-Web/verify_horosa_local.sh`
+- Details:
+  - Python `/chart` / `/chart13` 现在只默认返回 `firdaria`；只有显式带 `includePrimaryDirection=true` 时才附带 `primaryDirection`。
+  - Java `/chart`、`/qry/chart`、`/india/chart` 同步透传 `includePrimaryDirection / pdMethod / pdTimeKey / pdtype`，并只在显式要求主限法时回写 `predictives.primaryDirection`。
+  - 前端 `astro` model 现在只会在 `推运盘 -> 主/界限法` 与 `推运盘 -> 主限法盘` 两个子页把 `includePrimaryDirection=true` 带给 `/chart`；其它星盘、3D 盘、节气盘、七政四余、印度律盘、希腊星术等刷新不再顺带算一遍主限法。
+  - `AstroDirectMain.js` 增加主限法懒加载链路：若当前子页是 `primarydirect / primarydirchart` 且现有 `chartObj` 缺少当前方法的主限法 rows，则单独请求 `/predict/pd` 回填，不再拖慢其它页面。
+  - `webchartsrv.py` 增加启动时的主限法热身样本，把模型和重型修正先加载一次，降低第一次进入主限法页的冷启动时间。
+  - 新增 `verifyHorosaPerformanceRuntime.js`，把本轮用户点名的主要技法做运行态计时；`verify_horosa_local.sh` 现已串入该脚本。
+- Verification (local):
+  - `node Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js` ✅
+  - `node Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js` ✅
+  - `.runtime/mac/venv/bin/python3 scripts/check_primary_direction_astroapp_integration.py` ✅
+  - `python3 scripts/check_horosa_full_integration.py` ✅
+  - `node Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js` ✅
+- Runtime performance (local, main techniques):
+  - `星盘 / 3D盘`：`/chart` 最慢约 `439.782ms`
+  - `推运盘`：最慢为 `黄道星释 /predict/zr`，约 `262.993ms`
+  - `三式合一 / 易与三式`：最慢为 `/liureng/gods`，约 `375.227ms`
+  - `节气盘`：`/jieqi/year` 约 `127.450ms`
+  - `七政四余`：`/chart` 约 `328.750ms`
+  - `印度律盘`：`/india/chart` 约 `91.008ms`
+  - `希腊星术`：`/chart13` 约 `95.922ms`
+  - `关系盘`：`/modern/relative` 约 `110.518ms`
+  - `量化盘`：`/germany/midpoint` 约 `82.903ms`
+  - `八字紫微`：最慢为 `/bazi/direct`，约 `443.465ms`
+- Notes:
+  - 新性能自检把用户点名的“技法页”全部纳入 `<= 1s` 阈值。
+  - `万年历 /calendar/month` 目前仍约 `3.1s`，已被单独记为辅助页，不计入本轮“技法页”阈值验收。
+
+### 23:24 - `万年历 /calendar/month` 批量化复用，正式纳入全站亚秒阈值（2026-03-08）
+- Scope: 把 `万年历 /calendar/month` 从约 `3s` 压到 `< 1s`，并且不改任何农历、节气、月将、干支、真太阳时相关算法精度。
+- Files:
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/NongliHelper.java`
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/helper/CalendarHelper.java`
+  - `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
+- Details:
+  - 根因不是算法公式慢，而是 `CalendarHelper.getMonthDays(...)` 会对月视图里的 `38 + 6` 个日期逐日调用 `NongliHelper.getNongLi(...)`：
+    - 每天都会重复做一次日期级 `nongli` 缓存查找/写回；
+    - 同月内反复重取农历月表、节气年表；
+    - 导致一个月视图请求里堆了大量重复 IO 和重复查找。
+  - 现在新增 `NongliHelper.getNongLiSeries(...)` 批量路径：
+    - 在单次月视图请求内共享 `dayCache / monthCache / jieqiYearCache`；
+    - 同一请求中复用当前年/次年农历月表与节气年数据；
+    - 跳过对 `44` 个连续日期的逐日持久缓存读写，只保留内存内复用；
+    - 但实际计算仍走原来的农历、节气、干支、真太阳时、朔望判定链路，没有改公式。
+  - `verifyHorosaPerformanceRuntime.js` 现已把 `万年历 /calendar/month` 从辅助页提升为正式阈值页，和其它主页面一起强制校验 `<= 1000ms`。
+- Verification (local):
+  - `node Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js` ✅
+  - 临时对比校验：`getNongLiSeries(...)` 与逐日 `getNongLi(...)` 在 `2028-04-01` 至 `2028-04-08` 八个样本日 `toMap()` 完全一致 ✅
+  - `runtime/browser_horosa_master_check.json` 状态 `ok` ✅
+  - `runtime/guangde_primarydirchart_browser_check.json` 状态 `ok` ✅
+- Runtime performance (local, all enforced pages):
+  - `星盘 / 3D盘`：`/chart` 最慢约 `328.676ms`
+  - `推运盘`：最慢为 `黄道星释 /predict/zr`，约 `277.669ms`
+  - `三式合一 / 易与三式`：最慢为 `/liureng/gods`，约 `245.169ms`
+  - `节气盘`：`/jieqi/year` 约 `122.764ms`
+  - `七政四余`：`/chart` 约 `257.437ms`
+  - `印度律盘`：`/india/chart` 约 `88.949ms`
+  - `希腊星术`：`/chart13` 约 `87.656ms`
+  - `关系盘`：`/modern/relative` 约 `102.668ms`
+  - `量化盘`：`/germany/midpoint` 约 `77.050ms`
+  - `八字紫微`：最慢为 `/bazi/direct`，约 `363.275ms`
+  - `万年历`：`/calendar/month` 约 `80.193ms`
+- Notes:
+  - 本轮运行态性能报告已不再存在 `auxiliaryModules / auxiliaryScenarios`。
+  - 到这一步，当前被纳入性能验收的所有主页面都已经回到 `<= 1s`。

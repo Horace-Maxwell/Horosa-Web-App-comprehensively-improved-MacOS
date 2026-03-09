@@ -7,6 +7,7 @@ DIST_DIR="${UI_DIR}/dist-file"
 SMOKE_IN="/private/tmp/horosa_endpoint_smoke.tsv"
 SMOKE_OUT="/private/tmp/horosa_endpoint_smoke_after.tsv"
 PD_VERIFY_JS="${UI_DIR}/scripts/verifyPrimaryDirectionRuntime.js"
+PERF_VERIFY_JS="${UI_DIR}/scripts/verifyHorosaPerformanceRuntime.js"
 FULL_VERIFY_JS="${UI_DIR}/scripts/verifyHorosaRuntimeFull.js"
 PROJECT_ROOT="$(cd "${ROOT}/.." && pwd)"
 PD_VERIFY_PY="${PROJECT_ROOT}/scripts/check_primary_direction_astroapp_integration.py"
@@ -133,6 +134,7 @@ fi
 cd "${UI_DIR}"
 node .tmp_horosa_verify.js
 node "${PD_VERIFY_JS}"
+node "${PERF_VERIFY_JS}"
 node "${FULL_VERIFY_JS}"
 
 PYTHON_BIN="$(resolve_python_bin)"

@@ -108,6 +108,9 @@ public class ChartController {
 		if(!ConvertUtility.getValueAsBool(args.get("predictive"), false)) {
 			return;
 		}
+		if(!ConvertUtility.getValueAsBool(args.get("includePrimaryDirection"), false)) {
+			return;
+		}
 		Map<String, Object> pdres = AstroHelper.getPrimaryDirection(args);
 		if(pdres == null || !pdres.containsKey("pd")) {
 			return;
@@ -166,6 +169,7 @@ public class ChartController {
 		params.put("virtualPointReceiveAsp", TransData.getValueAsBool("virtualPointReceiveAsp", false));
 		params.put("simpleAsp", TransData.getValueAsBool("simpleAsp", false));
 		params.put("predictive", TransData.getValueAsBool("predictive", true));
+		params.put("includePrimaryDirection", TransData.getValueAsBool("includePrimaryDirection", false));
 		params.put("southchart", TransData.getValueAsBool("southchart", false));
 		if(TransData.containsParam("pdaspects")) {
 			Object aspobj = TransData.get("pdaspects");

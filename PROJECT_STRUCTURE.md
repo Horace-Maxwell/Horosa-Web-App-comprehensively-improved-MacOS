@@ -2724,6 +2724,117 @@
   - 适用对象：
     - 后续维护者
     - 需要理解“主限法盘”与“主/界限法表格”关系的研究者
-    - 未来要继续扩展 `terms overlay` 或主限辅助标记层的人
+  - 未来要继续扩展 `terms overlay` 或主限辅助标记层的人
   - 配套索引：
     - `主限法推演/README.md` 现已补充该文档入口说明
+
+### 103.20) 主限法按需加载与技法页性能自检（2026-03-08）
+
+- `Horosa-Web/astropy/astrostudy/helper.py`
+  - 新增 `includePrimaryDirection(data)` 与 `getPredictivesObj(data, perchart)`。
+  - `/chart` 层现在默认只回 `firdaria`；只有显式 `includePrimaryDirection=true` 才回 `primaryDirection`。
+- `Horosa-Web/astropy/websrv/webchartsrv.py`
+  - `/chart`、`/chart13` 改用 `getPredictivesObj(...)`，不再在普通 predictive 刷新时无条件算主限法。
+  - 进程启动时新增一组主限法 warmup 样本，先把 `AstroAPP-Alchabitius` 的模型和修正链热起来，降低首次进入主限法页的冷启动时间。
+- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
+- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
+- `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/IndiaChartController.java`
+  - Java 包装层统一新增/透传：
+    - `includePrimaryDirection`
+    - `pdMethod`
+    - `pdTimeKey`
+    - `pdtype`
+  - 只有在显式要求主限法时才回写 `predictives.primaryDirection`，避免普通 `/chart` 响应重新变重。
+- `Horosa-Web/astrostudyui/src/models/astro.js`
+  - 新增 `shouldIncludePrimaryDirection(state)`。
+  - 只有当顶层在 `推运盘`，且右侧子页是 `primarydirect / primarydirchart` 时，`fetch / fetchByChartData / fetchByFields / nowChart` 才给 `/chart` 带 `includePrimaryDirection=true`。
+  - 因此星盘、3D 盘、节气盘、七政四余、印度律盘、希腊星术等右侧改时间时，不再被主限法额外拖慢。
+- `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - 增加主限法懒加载链路：
+    - 当前页若是 `primarydirect / primarydirchart`
+    - 且当前 `chartObj` 还没有与 `pdMethod / pdTimeKey / pdSyncRev` 对齐的主限法 rows
+    - 就单独请求 `/predict/pd` 回填
+  - 这样 `主/界限法` 和 `主限法盘` 仍共用同一批 rows，但非主限法页面不再重复算它。
+- `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
+  - 新增运行态性能自检脚本，当前覆盖：
+    - `星盘 / 3D盘`
+    - `推运盘`
+    - `三式合一`
+    - `易与三式`
+    - `节气盘`
+    - `七政四余`
+    - `印度律盘`
+    - `希腊星术`
+    - `关系盘`
+    - `量化盘`
+    - `八字紫微`
+  - 输出：
+    - `runtime/horosa_runtime_perf_check.json`
+  - 当前阈值：
+    - 技法页 `<= 1000ms`
+    - `万年历` 作为辅助页单列记录，不参与本轮技法阈值判定
+- `Horosa-Web/verify_horosa_local.sh`
+  - 现在会额外执行 `verifyHorosaPerformanceRuntime.js`，让本地一键自检能同时检查：
+    - 主限法按需加载行为
+    - 整站主要运行时返回结构
+    - 用户点名技法页的性能阈值
+- 当前本地实测上限（同机运行态）：
+  - `星盘 / 3D盘`: `439.782ms`
+  - `推运盘`: `262.993ms`
+  - `三式合一 / 易与三式`: `375.227ms`
+  - `节气盘`: `127.450ms`
+  - `七政四余`: `328.750ms`
+  - `印度律盘`: `91.008ms`
+  - `希腊星术`: `95.922ms`
+  - `关系盘`: `110.518ms`
+  - `量化盘`: `82.903ms`
+  - `八字紫微`: `443.465ms`
+- 直接结果：
+  - 用户点名的主技法页已全部回到 `1s` 内；
+  - 星盘相关页右侧时间变更不再因为主限法而被整站性拖慢。
+
+### 103.21) 万年历月视图批量农历计算（2026-03-08）
+
+- `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/NongliHelper.java`
+  - 新增 `getNongLiSeries(...)` 批量入口，专门给连续日期场景复用同一份月视图上下文。
+  - 新增三层请求内复用：
+    - `dayCache`
+    - `monthCache`
+    - `jieqiYearCache`
+  - 目的不是改算法，而是避免月视图里 `44` 个日期重复做：
+    - 日期级 `nongli` 持久缓存读写
+    - 农历月表重取
+    - 节气年表重取
+  - 计算链路仍保持原样：
+    - 真太阳时修正
+    - 农历月定位
+    - 节气命中
+    - 月干支/日干支/时干支
+    - 月将与用事
+    - 朔望时间判断
+  - 已额外做过批量结果与逐日原路径的逐项一致性核对，未发现结果漂移。
+- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/helper/CalendarHelper.java`
+  - `getMonthDays(...)` 不再逐日单独调用 `getNongLi(...)`。
+  - 现在先生成整个月视图所需的连续日期字符串，再一次性走 `getNongLiSeries(...)`。
+  - 这样 `days` 与 `prevDays` 结构保持不变，但后端耗时从秒级降到亚 `100ms`。
+- `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
+  - `万年历 /calendar/month` 已从辅助项改为正式阈值项。
+  - 现在 `runtime/horosa_runtime_perf_check.json` 中：
+    - `万年历` 进入 `modules`
+    - 不再进入 `auxiliaryModules`
+    - 和其它主页面一起强制执行 `<= 1000ms`
+- 当前本地实测上限（同机运行态）：
+  - `星盘 / 3D盘`: `328.676ms`
+  - `推运盘`: `277.669ms`
+  - `三式合一 / 易与三式`: `245.169ms`
+  - `节气盘`: `122.764ms`
+  - `七政四余`: `257.437ms`
+  - `印度律盘`: `88.949ms`
+  - `希腊星术`: `87.656ms`
+  - `关系盘`: `102.668ms`
+  - `量化盘`: `77.050ms`
+  - `八字紫微`: `363.275ms`
+  - `万年历`: `80.193ms`
+- 直接结果：
+  - `万年历 /calendar/month` 已从约 `3.1s` 降到约 `80ms`；
+  - 本轮纳入验收的整站主页面现已全部进入 `1s` 内。
