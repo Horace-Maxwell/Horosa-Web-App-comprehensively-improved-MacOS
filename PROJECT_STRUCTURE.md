@@ -3009,3 +3009,24 @@
   - `节气盘 /jieqi/year 二十四节气首屏`: `105.313ms`
   - `万年历 /calendar/month`: `80.51ms`
   - 最慢强制项 `八字紫微 /bazi/direct`: `369.496ms`
+
+### 103.27) 三式合一头部时间区排版修正（2026-03-09）
+
+- `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
+  - `renderTop(boardSize)` 的日期区头部改为两行双信息布局：
+    - `农历` 行：左侧主值显示紧凑农历文本，右侧显示 `直接时间`
+    - `日期` 行：左侧主值显示公历日期，右侧显示 `真太阳时`
+  - 不再把 `日期 + 真太阳时 + 直接时间` 直接拼成一条长文本，避免在固定宽度头部里被截断。
+- `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
+  - 新增日期区主文本/辅文本样式：
+    - `.dateMainText`
+    - `.dateMetaText`
+    - `.dateMetaLabel`
+    - `.dateMetaValue`
+  - 辅助时间标签字号下调到和周边说明文字更接近，头部信息层级更统一。
+- 当前确认结果：
+  - `runtime/sanshi_time_header_check.png`
+    - 头部已显示：
+      - `农历 | 正月廿一 | 直接时间 | 02:43`
+      - `日期 | 2026-03-09 | 真太阳时 | 02:29`
+  - 这次调整只改排版与文案摆放，不改三式合一的起盘算法、历法精度或真太阳时计算链路。
