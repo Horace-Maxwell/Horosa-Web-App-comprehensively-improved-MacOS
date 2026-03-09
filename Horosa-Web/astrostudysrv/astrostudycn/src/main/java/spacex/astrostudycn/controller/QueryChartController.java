@@ -67,6 +67,12 @@ public class QueryChartController {
 				reqparams.put("pdTimeKey", args.get("pdTimeKey"));
 			}
 		}
+		if(!ConvertUtility.getValueAsBool(args.get("predictive"), false)) {
+			return;
+		}
+		if(!ConvertUtility.getValueAsBool(args.get("includePrimaryDirection"), false)) {
+			return;
+		}
 		Map<String, Object> pdres = AstroHelper.getPrimaryDirection(args);
 		if(pdres == null || !pdres.containsKey("pd")) {
 			return;
@@ -95,6 +101,8 @@ public class QueryChartController {
 		chart.put("_wireRev", "pd_method_sync_v6");
 		chart.put("hsys", TransData.getValueAsInt("hsys", 0));
 		chart.put("zodiacal", TransData.getValueAsInt("zodiacal", 0));
+		chart.put("predictive", TransData.getValueAsBool("predictive", false));
+		chart.put("includePrimaryDirection", TransData.getValueAsBool("includePrimaryDirection", false));
 		if(TransData.containsParam("pdtype")) {
 			chart.put("pdtype", TransData.get("pdtype"));
 		}

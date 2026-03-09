@@ -86,6 +86,7 @@ public class IndiaChartController {
 		params.put("virtualPointReceiveAsp", TransData.getValueAsBool("virtualPointReceiveAsp", false));
 		params.put("simpleAsp", TransData.getValueAsBool("simpleAsp", false));
 		params.put("predictive", TransData.getValueAsBool("predictive", false));
+		params.put("includePrimaryDirection", TransData.getValueAsBool("includePrimaryDirection", false));
 		params.put("southchart", TransData.getValueAsBool("southchart", false));
 		params.put("zodiacal", 1);
 		params.put("chartnum", TransData.getValueAsInt("chartnum", 0));
