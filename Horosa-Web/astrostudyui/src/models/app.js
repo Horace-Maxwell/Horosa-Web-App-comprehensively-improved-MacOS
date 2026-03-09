@@ -9,17 +9,13 @@ import * as AstroConst from '../constants/AstroConst';
 import { setTmDelta } from '../utils/request';
 
 const MinWorkspaceHeight = 660;
-const MaxWorkspaceHeight = 760;
 
 function normalizeWorkspaceHeight(viewportHeight){
     const raw = Number(viewportHeight) - 100;
     if(!Number.isFinite(raw)){
         return MinWorkspaceHeight;
     }
-    if(raw <= MinWorkspaceHeight){
-        return MinWorkspaceHeight;
-    }
-    return Math.min(raw, MaxWorkspaceHeight);
+    return raw <= MinWorkspaceHeight ? MinWorkspaceHeight : raw;
 }
 
 function normalizeDisplayList(raw, fallback, allowSet, allowEmpty = false){

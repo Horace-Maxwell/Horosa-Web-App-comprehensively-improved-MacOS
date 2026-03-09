@@ -5115,3 +5115,48 @@ Append new entries; do not rewrite history.
 - Notes:
   - 最新浏览器总冒烟报告 `runtime/browser_horosa_master_check.json` 为 `ok`，其中节气盘 13 个入口全部 `clicked=true`。
   - 最新主限法盘 Guangde 专项报告 `runtime/guangde_primarydirchart_browser_check.json` 仍为 `ok`，ASC Term 高亮、方法切换、任意时间外圈推演均正常。
+
+### 02:16 - 桌面比例再微调到中间值，双层盘放大但不压右侧信息栏（2026-03-09）
+- Scope: 根据实机反馈，`760px` 虽然解决了“过大失真”，但关系盘/推运盘等双层盘又显得偏挤；因此继续把桌面工作区高度往上微调一个中间值，同时确保不与右侧信息栏重叠。
+- Files:
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+- Details:
+  - `MaxWorkspaceHeight` 由 `760` 微调到 `800`。
+  - 这个值仍然保留固定桌面上限，不会再像最初那样跟随超高视口无限放大；但比 `760` 多出一档空间，双层盘的内外圈可读性会更平衡。
+- Verification (local):
+  - `npm run build:file`（`Horosa-Web/astrostudyui`）✅
+  - 2048×1179 视口下定向截图复核 `太阳弧` 双层盘，左侧图盘与右侧信息栏未发生重叠 ✅
+- Notes:
+  - 这次只做桌面比例细调，不改任何排盘算法、缓存逻辑或性能路径。
+
+### 02:24 - 撤销全局固定高度钳制，恢复桌面端原始自适应比例（2026-03-09）
+- Scope: 用户继续反馈“这个窗口比例问题之前是好的，后来突然被改坏”，复盘后确认根因不是算法页本身，而是这轮新增的全局 `MaxWorkspaceHeight` 把整个站点工作区统一压扁了；最终改为撤销全局上限，只保留最小安全高度，让桌面端重新按真实视口高度自适应。
+- Files:
+  - `Horosa-Web/astrostudyui/src/models/app.js`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - `app.js`
+    - 移除桌面端全局 `MaxWorkspaceHeight` 上限，不再把 `astro.height` 固定钳在 `760/800` 一档。
+    - `normalizeWorkspaceHeight(...)` 现在只做最小安全高度保护：`viewportHeight - 100` 若过小或非法，则回落到 `660`；正常桌面视口则恢复原本的自适应高度。
+    - 这样修掉的是“整个站点突然变成统一固定高度”的回归，而不是再对单个星盘页面做二次过度修补。
+- Verification (local):
+  - `npm run build:file`（`Horosa-Web/astrostudyui`）✅
+  - 2048×1280 定向截图复核：
+    - `runtime/layout_starchart_after_revert.png`
+    - `runtime/layout_solararc_after_revert.png`
+    - `runtime/layout_relation_after_revert.png`
+  - 定向布局指标 `runtime/layout_revert_metrics.json`：
+    - `星盘` 主 SVG：`1274.3125 × 1180`，`overlapX=false`
+    - `太阳弧` 主 SVG：`1181.8125 × 1160`，`overlapX=false`
+    - `关系盘` 主 SVG：`1175.078125 × 1090`，`overlapX=false`
+  - `HOROSA_WEB_PORT=18009 ./Horosa-Web/verify_horosa_local.sh` ✅
+- Runtime snapshot (latest local run):
+  - 最慢强制项：`八字紫微 /bazi/direct` 约 `369.496ms`
+  - `星盘 / 3D盘 / 节气单盘` 共底层 `/chart`：约 `336.58ms`
+  - `推运盘`：最慢为 `黄道星释 /predict/zr`，约 `264.141ms`
+  - `节气盘 /jieqi/year 二十四节气首屏`：约 `105.313ms`
+  - `万年历 /calendar/month`：约 `80.51ms`
+- Notes:
+  - 浏览器总冒烟仍为 `ok`，节气盘 13 个入口全部 `clicked=true`，主限法盘切换与 Guangde 专项仍正常。
+  - 最终结论：这次桌面比例问题的真正回归源头就是全局高度钳制；现已恢复为“桌面视口自适应 + 最小安全高度兜底”的最终方案。
