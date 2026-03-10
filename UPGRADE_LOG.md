@@ -5541,3 +5541,41 @@ Append new entries; do not rewrite history.
 - GitHub sync:
   - `main` 已推到 `ddb244ce1946f8ad7ee4192f85e7a97c23e3f72c`
   - Release `v1.0.2` 已更新为修正后的资产集合
+
+### 21:45 - 补回桌面壳缩放能力：支持 Zoom In / Zoom Out / Actual Size；桌面壳升到 1.0.3 / v1.0.3（2026-03-09）
+- Scope: 处理“窗口默认比例很好，但软件内无法 zoom in / zoom out，快捷键也没反应”的问题。根因是桌面壳的 `视图` 菜单只保留了 `全屏 / 最大化`，没有接入任何 webview 缩放菜单项或快捷键，所以系统级缩放快捷键没有落点。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `视图` 菜单新增：
+    - `放大`
+    - `缩小`
+    - `实际大小`
+  - 快捷键新增：
+    - `CmdOrCtrl+=`
+    - `CmdOrCtrl+-`
+    - `CmdOrCtrl+0`
+  - 缩放实现改为直接调用 Tauri `WebviewWindow::set_zoom(...)`；
+  - 新增桌面壳内存态 `zoom_level`，保证缩放增减和重置都走同一套状态；
+  - 默认窗口尺寸与当前首屏比例保持不变，这次只补 webview 缩放能力；
+  - 桌面壳版本提升到 `1.0.3 / v1.0.3`，runtime 版本继续保持 `1.0.1`。
+- Verification (local):
+  - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml --check` ✅
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
+  - `bash -n Horosa_Desktop_Installer/scripts/build_desktop_release.sh Horosa_Desktop_Installer/scripts/publish_github_release.sh` ✅
+  - `./Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh` ✅
+    - 新 app / pkg 版本为 `1.0.3`
+    - manifest `version/tag = 1.0.3 / v1.0.3`
+    - manifest `runtimeVersion = 1.0.1`
+    - expanded pkg 仍保持 `relocatable="false"`
+    - installer flow 与 shared runtime 启动链路继续通过
+- Notes:
+  - 这轮本地验收重点确认了缩放改动没有破坏现有安装、runtime 下载和启动链路；
+  - GitHub Release 发布与远端 e2e 复验待本轮推送后继续补跑。
