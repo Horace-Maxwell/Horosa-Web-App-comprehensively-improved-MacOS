@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>星阙 安装器</title>
+    <title>星阙 启动中</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
@@ -12,29 +12,29 @@
         <div class="brand-lockup">
           <div class="brand-badge">星阙</div>
           <div>
-            <div class="brand-title">星阙 Installer</div>
-            <div class="brand-subtitle">macOS Desktop Setup Assistant</div>
+            <div class="brand-title">星阙 Launcher</div>
+            <div class="brand-subtitle">macOS Desktop Runtime Bridge</div>
           </div>
         </div>
 
         <section class="summary-card">
-          <div class="summary-title">安装摘要</div>
+          <div class="summary-title">本次会话</div>
           <div class="summary-grid">
             <div>
-              <div class="summary-label">产品</div>
-              <div class="summary-value">星阙 for macOS</div>
+              <div class="summary-label">会话类型</div>
+              <div class="summary-value" id="summarySessionType">日常启动</div>
             </div>
             <div>
-              <div class="summary-label">交付方式</div>
-              <div class="summary-value">`.pkg` 安装后首启初始化</div>
+              <div class="summary-label">Runtime 策略</div>
+              <div class="summary-value" id="summaryRuntimeStrategy">优先复用现有 Runtime</div>
             </div>
             <div>
               <div class="summary-label">后台方式</div>
-              <div class="summary-value">隐藏式 Python / Java 服务</div>
+              <div class="summary-value" id="summaryBackendMode">隐藏式 Python / Java 服务</div>
             </div>
             <div>
-              <div class="summary-label">数据策略</div>
-              <div class="summary-value">更新不删除用户数据</div>
+              <div class="summary-label">完成后</div>
+              <div class="summary-value" id="summaryOutcome">自动切换到星阙主界面</div>
             </div>
           </div>
         </section>
@@ -44,14 +44,14 @@
             <span class="step-no">1</span>
             <div>
               <div class="step-name">验证安装环境</div>
-              <div class="step-desc">检查应用包、运行目录与写入权限</div>
+              <div class="step-desc">检查应用包、运行目录、Runtime 可用性与写入权限</div>
             </div>
           </li>
           <li class="step-item" data-step="2">
             <span class="step-no">2</span>
             <div>
-              <div class="step-name">部署 星阙 Runtime</div>
-              <div class="step-desc">下载、校验并切换运行环境 payload</div>
+              <div class="step-name">处理 星阙 Runtime</div>
+              <div class="step-desc">仅在首次安装、修复或更新时下载并切换 Runtime payload</div>
             </div>
           </li>
           <li class="step-item" data-step="3">
@@ -71,30 +71,48 @@
         </ol>
 
         <div class="trust-card">
-          <div class="trust-title">更新保障</div>
+          <div class="trust-title">启动与更新保障</div>
           <ul class="trust-list">
-            <li>固定 `horosa-latest.json` 更新清单</li>
-            <li>下载后执行 SHA-256 完整性校验</li>
-            <li>替换失败自动回滚并保留原应用</li>
-            <li>更新完成后自动重开到原安装位置</li>
+            <li>日常启动优先复用现有 Runtime，不重复做首次安装流程</li>
+            <li>需要下载时始终执行 SHA-256 完整性校验</li>
+            <li>Runtime 切换前先准备新包，失败可保留旧环境</li>
+            <li>应用更新后自动重开到原安装位置</li>
           </ul>
         </div>
       </aside>
 
       <section class="main-panel">
         <header class="hero-card">
-          <div class="hero-meta">
-            <span class="hero-tag">星阙 Setup</span>
-            <span class="hero-tag hero-tag--soft">Commercial Installer Flow</span>
-          </div>
-          <h1>正在完成 星阙 安装与初始化</h1>
-          <p class="hero-copy">
-            当前窗口用于展示星阙首次启动初始化、运行环境修复与自动更新进度。所有服务均在后台启动，不会额外弹出 Terminal。
-          </p>
-          <div class="hero-badges">
-            <span class="hero-badge">内置浏览窗口</span>
-            <span class="hero-badge">自动替换并重开</span>
-            <span class="hero-badge">用户数据保留</span>
+          <div class="hero-layout">
+            <div>
+              <div class="hero-meta">
+                <span class="hero-tag" id="heroModeTag">日常启动</span>
+                <span class="hero-tag hero-tag--soft" id="heroModeHint">Runtime 快速自检</span>
+              </div>
+              <h1 id="heroTitle">正在启动 星阙</h1>
+              <p class="hero-copy" id="heroCopy">
+                当前窗口只会短暂停留，用于检查现有 Runtime、后台拉起 Python / Java 服务，并在准备完成后自动进入星阙主界面。
+              </p>
+              <div class="hero-badges">
+                <span class="hero-badge">默认日常启动</span>
+                <span class="hero-badge">仅在需要时部署 Runtime</span>
+                <span class="hero-badge">启动完成后自动切入主界面</span>
+              </div>
+            </div>
+
+            <div class="hero-scene" aria-hidden="true">
+              <div class="hero-orbit hero-orbit--outer"></div>
+              <div class="hero-orbit hero-orbit--mid"></div>
+              <div class="hero-orbit hero-orbit--inner"></div>
+              <div class="hero-core"></div>
+              <div class="hero-scene-card">
+                <div class="hero-scene-label">当前会话</div>
+                <div class="hero-scene-title" id="sceneTitle">日常启动</div>
+                <div class="hero-scene-copy" id="sceneCopy">
+                  复用已安装 Runtime，只做快速校验与后台服务启动。
+                </div>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -108,22 +126,22 @@
             <div class="metric-value metric-value--small" id="progressText">等待初始化…</div>
           </article>
           <article class="metric-card metric-card--wide">
-            <div class="metric-label">安装状态</div>
+            <div class="metric-label">当前会话</div>
             <div class="metric-inline">
               <div class="status-dot"></div>
-              <div class="metric-value metric-value--small" id="progressInline">准备中</div>
+              <div class="metric-value metric-value--small" id="sessionInline">日常启动</div>
             </div>
           </article>
         </section>
 
         <section class="progress-card">
           <div class="panel-head">
-            <div>
-              <div class="panel-title">部署进度</div>
-              <div class="panel-subtitle">下载、校验、切换运行环境与启动服务</div>
+              <div>
+                <div class="panel-title">部署进度</div>
+                <div class="panel-subtitle">日常启动只做快速检查；首次安装、修复或更新时才进入部署路径</div>
+              </div>
+              <div class="panel-chip" id="phaseLabel">准备阶段</div>
             </div>
-            <div class="panel-chip" id="phaseLabel">准备阶段</div>
-          </div>
           <div class="progress-track">
             <span id="progressFill"></span>
           </div>
@@ -178,8 +196,8 @@
         <section id="errorBox" class="error-panel hidden"></section>
 
         <footer class="footer-note">
-          <div>首次安装由 `.pkg` 负责应用落盘；当前窗口负责首启初始化、修复与更新事务展示。</div>
-          <div>更新策略采用固定清单 + GitHub Release 资产 + 完整性校验 + 自动替换并重开。</div>
+          <div>这个窗口现在统一承担日常启动、首次准备、Runtime 修复与应用更新的状态展示，但默认视觉以“启动页”为主。</div>
+          <div>只有真正需要下载或替换 Runtime 时，界面才会切到安装/修复态；否则会直接快速进入星阙主界面。</div>
         </footer>
       </section>
     </main>

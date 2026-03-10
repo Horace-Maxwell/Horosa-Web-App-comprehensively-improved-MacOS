@@ -3217,7 +3217,7 @@
   - 仅支持 `Apple Silicon Mac + macOS 12+`
   - 仅定位于开发者自用 / 少量熟人机器
   - 遇到 Gatekeeper 拦截时，优先运行 `Open-XingQue-Unsigned.command`
-- 当前更新弹窗能力：
+  - 当前更新弹窗能力：
   - 每次“检查更新”后都会显示结构化更新结果；
   - 字段包括：`检查结果 / 当前版本 / 新版本号 / 运行环境 / 更新来源 / 更新摘要 / 完整 Changelog / GitHub 仓库 / Release 页面 / 是否立即更新`；
   - `src-tauri/src/main.rs` 中的更新计划对象当前会同时保存：
@@ -3225,13 +3225,18 @@
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
   - 当前版本口径：
-    - 内部构建版本使用 `1.0.1`
-    - 用户可见显示版本使用 `1.0.1`
-    - GitHub Release / manifest tag 使用 `v1.0.1`
+    - 桌面壳内部构建版本使用 `1.0.2`
+    - 用户可见桌面壳版本使用 `1.0.2`
+    - 当前 runtime 版本保持 `1.0.1`
+    - GitHub Release / manifest tag 使用 `v1.0.2`
   - 当前 runtime 自愈策略：
     - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
     - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；
     - 打包 runtime payload 时也会显式排除这类 AppleDouble 垃圾文件，避免坏文件重新进包。
+  - 当前启动页表现：
+    - 默认首屏已从“安装器界面”改成“通用启动页”，日常打开时会显示 `日常启动 / Runtime 快速自检`；
+    - 只有真正进入 Runtime 下载、修复或应用更新时，界面才会切到 `首次准备 / 运行时修复 / 版本更新` 等模式；
+    - 启动画面包含动态会话摘要、模式标签和更偏应用启动页的视觉，而不是每次都模拟首次安装。
 - 当前忽略规则（避免仓库混入安装器生成物）：
   - `Horosa_Desktop_Installer/build/`
   - `Horosa_Desktop_Installer/dist/`
