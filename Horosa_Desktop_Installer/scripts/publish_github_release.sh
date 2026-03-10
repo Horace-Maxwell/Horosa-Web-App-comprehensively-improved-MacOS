@@ -170,25 +170,20 @@ PY
 fi
 
 assets_json="$(api_json "${API_ROOT}/releases/${RELEASE_ID}/assets?per_page=100")"
-python3 - <<'PY' "${assets_json}" "${API_ROOT}" "${GITHUB_TOKEN}" "${DESKTOP_PKG_ZIP}" "${DESKTOP_PKG}" "${DESKTOP_ASSET}" "${RUNTIME_ASSET}" "${UPDATE_MANIFEST_NAME}"
-import json, sys, urllib.request
-assets = json.loads(sys.argv[1])
-api_root = sys.argv[2]
-token = sys.argv[3]
-targets = set(sys.argv[4:])
-for asset in assets:
-    if asset.get('name') in targets:
-        req = urllib.request.Request(
-            f"{api_root}/releases/assets/{asset['id']}",
-            method='DELETE',
-            headers={
-                'Authorization': f'Bearer {token}',
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-            },
-        )
-        urllib.request.urlopen(req).read()
+while IFS=$'\t' read -r asset_id asset_name; do
+  [ -n "${asset_id}" ] || continue
+  case "${asset_name}" in
+    "${DESKTOP_PKG_ZIP}"|"${DESKTOP_PKG}"|"${DESKTOP_ASSET}"|"${RUNTIME_ASSET}"|"${UPDATE_MANIFEST_NAME}")
+      curl -fsSL -X DELETE "${auth_header[@]}" "${API_ROOT}/releases/assets/${asset_id}" >/dev/null
+      ;;
+  esac
+done < <(
+  python3 - <<'PY' "${assets_json}"
+import json, sys
+for asset in json.loads(sys.argv[1]):
+    print(f"{asset.get('id', '')}\t{asset.get('name', '')}")
 PY
+)
 
 for asset in "${ASSETS[@]}"; do
   asset_name="$(basename "${asset}")"
