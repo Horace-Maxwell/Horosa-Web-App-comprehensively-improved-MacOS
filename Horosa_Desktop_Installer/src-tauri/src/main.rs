@@ -303,7 +303,7 @@ fn shared_runtime_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("/Users/Shared/Horosa/runtime/current"))
 }
 
-fn runtime_dir_is_usable(runtime_dir: &Path) -> bool {
+fn runtime_dir_has_required_files(runtime_dir: &Path) -> bool {
     runtime_dir.join("runtime-manifest.json").exists()
         && runtime_dir
             .join("Horosa-Web/start_horosa_local.sh")
@@ -311,6 +311,76 @@ fn runtime_dir_is_usable(runtime_dir: &Path) -> bool {
         && runtime_dir
             .join("Horosa-Web/astrostudyui/dist-file/index.html")
             .exists()
+}
+
+fn runtime_python_bin(runtime_dir: &Path) -> PathBuf {
+    runtime_dir.join("runtime/mac/python/bin/python3")
+}
+
+fn is_runtime_metadata_junk(name: &str) -> bool {
+    name == ".DS_Store" || name.starts_with("._")
+}
+
+fn cleanup_runtime_metadata(root: &Path) -> Result<u64> {
+    if !root.exists() {
+        return Ok(0);
+    }
+    let mut removed = 0u64;
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let entries = fs::read_dir(&dir).with_context(|| format!("read_dir {}", dir.display()))?;
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+            let file_type = entry.file_type()?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if is_runtime_metadata_junk(&name) {
+                if file_type.is_dir() {
+                    fs::remove_dir_all(&path)?;
+                } else {
+                    fs::remove_file(&path)?;
+                }
+                removed += 1;
+                continue;
+            }
+            if file_type.is_dir() {
+                stack.push(path);
+            }
+        }
+    }
+    Ok(removed)
+}
+
+fn runtime_python_ready(runtime_dir: &Path) -> bool {
+    let python_bin = runtime_python_bin(runtime_dir);
+    if !python_bin.exists() {
+        return false;
+    }
+    Command::new(&python_bin)
+        .arg("-c")
+        .arg(
+            "import importlib.util as iu; mods=('cherrypy','jsonpickle','swisseph'); missing=[m for m in mods if iu.find_spec(m) is None]; raise SystemExit(1 if missing else 0)",
+        )
+        .env("PYTHONNOUSERSITE", "1")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+fn prepare_runtime_dir(runtime_dir: &Path) -> Result<()> {
+    prune_runtime_extras(runtime_dir)?;
+    let _ = cleanup_runtime_metadata(runtime_dir)?;
+    Ok(())
+}
+
+fn runtime_dir_is_usable(runtime_dir: &Path) -> bool {
+    if !runtime_dir_has_required_files(runtime_dir) {
+        return false;
+    }
+    prepare_runtime_dir(runtime_dir).is_ok() && runtime_python_ready(runtime_dir)
 }
 
 fn resolve_runtime_paths(app: &AppHandle) -> Result<RuntimePaths> {
@@ -604,7 +674,7 @@ fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> 
         }
         return Err(err.into());
     }
-    prune_runtime_extras(&final_runtime)?;
+    prepare_runtime_dir(&final_runtime)?;
     remove_dir_if_exists(&backup_runtime)?;
     remove_dir_if_exists(&extract_root)?;
     Ok(())
@@ -625,8 +695,7 @@ fn ensure_runtime_installed(
         .as_ref()
         .map(|m| m.version == config.runtime_version)
         .unwrap_or(false)
-        && paths.start_script.exists()
-        && paths.frontend_dir.join("index.html").exists();
+        && runtime_dir_is_usable(&paths.runtime_dir);
 
     if already_ok && !force {
         emit_progress(
@@ -729,11 +798,12 @@ fn start_runtime(
     chart_port: u16,
 ) -> Result<()> {
     ensure_dir(&paths.logs_dir)?;
+    prepare_runtime_dir(&paths.runtime_dir)?;
     stop_runtime(paths);
     emit_status(window, "正在后台启动 星阙 Python / Java 服务…");
     emit_progress(window, 82, "启动本地服务");
 
-    let python_bin = paths.runtime_dir.join("runtime/mac/python/bin/python3");
+    let python_bin = runtime_python_bin(&paths.runtime_dir);
     let java_bin = paths.runtime_dir.join("runtime/mac/java/bin/java");
     let output = Command::new("/bin/bash")
         .arg(&paths.start_script)

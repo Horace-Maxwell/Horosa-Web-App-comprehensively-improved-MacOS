@@ -59,6 +59,20 @@ diag_tail() {
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
 diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR}"
 
+cleanup_metadata_files() {
+  local root="$1"
+  local cleaned="0"
+  if [ ! -d "${root}" ]; then
+    return 0
+  fi
+  cleaned="$(find "${root}" \( -name '._*' -o -name '.DS_Store' \) -print 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "${cleaned}" = "0" ]; then
+    return 0
+  fi
+  find "${root}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
+  diag_log "removed ${cleaned} metadata junk entries under ${root}"
+}
+
 cleanup_stale_pid_file() {
   local pid_file="$1"
   if [ ! -f "${pid_file}" ]; then
@@ -73,6 +87,7 @@ cleanup_stale_pid_file() {
 
 cleanup_stale_pid_file "${PY_PID_FILE}"
 cleanup_stale_pid_file "${JAVA_PID_FILE}"
+cleanup_metadata_files "${ROOT_PARENT}"
 
 port_listening() {
   local port="$1"
