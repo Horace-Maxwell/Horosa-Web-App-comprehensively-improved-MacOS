@@ -5576,6 +5576,18 @@ Append new entries; do not rewrite history.
     - manifest `runtimeVersion = 1.0.1`
     - expanded pkg 仍保持 `relocatable="false"`
     - installer flow 与 shared runtime 启动链路继续通过
+- Verification (GitHub):
+  - Release `v1.0.3` 资产已发布并复验 ✅
+  - `./Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh` ✅
+    - latest release = `v1.0.3`
+    - latest manifest `version/tag = 1.0.3 / v1.0.3`
+    - latest manifest `runtimeVersion = 1.0.1`
+    - 远端下载回来的 pkg / app / runtime 资产校验通过
+    - 远端模拟 pkg 安装、runtime 下载、shared runtime 启动链路通过
+    - `app_version = 1.0.3`
+- GitHub sync:
+  - `main` 已推到 `aa4ba49411f53f64fbc53bff8df58264d09fa02a`
+  - Release `v1.0.3` 已更新为最新资产集合
 - Notes:
-  - 这轮本地验收重点确认了缩放改动没有破坏现有安装、runtime 下载和启动链路；
-  - GitHub Release 发布与远端 e2e 复验待本轮推送后继续补跑。
+  - 这轮确认了缩放改动没有破坏现有安装、runtime 下载和启动链路；
+  - 旧的 `/common/time -> 500` 仍然存在，但和这次缩放修复无关，不影响当前发布链路与应用进入主界面。
