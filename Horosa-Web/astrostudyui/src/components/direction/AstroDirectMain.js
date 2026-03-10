@@ -401,6 +401,16 @@ function buildPrimaryDirectionFetchFields(baseFields, chartObj, pdMethod, pdTime
 	return fields;
 }
 
+function unwrapPredictiveResponse(data){
+	if(!data || typeof data !== 'object'){
+		return null;
+	}
+	if(data[Constants.ResultKey] && typeof data[Constants.ResultKey] === 'object'){
+		return data[Constants.ResultKey];
+	}
+	return data;
+}
+
 function isPrimaryDirectionTabKey(key){
 	return key === 'primarydirect' || key === 'primarydirchart';
 }
@@ -610,7 +620,7 @@ class AstroDirectMain extends Component{
 				body: JSON.stringify(req),
 				cache: 'no-store',
 			});
-			result = data ? data[Constants.ResultKey] : null;
+			result = unwrapPredictiveResponse(data);
 		}catch(e){
 			result = null;
 		}

@@ -3,6 +3,7 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
+RELEASE_NOTES_FILE="${INSTALLER_ROOT}/config/release_notes.md"
 
 read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
@@ -68,46 +69,37 @@ fi
 
 auth_header=( -H "Authorization: Bearer ${GITHUB_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' )
 
+RELEASE_NOTES_SECTION=""
+if [ -f "${RELEASE_NOTES_FILE}" ]; then
+  RELEASE_NOTES_SECTION="$(python3 - <<'PY' "${RELEASE_NOTES_FILE}"
+from pathlib import Path
+import sys
+text = Path(sys.argv[1]).read_text().strip()
+print(f"\n\n## 本次更新 / What's New\n\n{text}" if text else "", end="")
+PY
+)"
+fi
+
 RELEASE_BODY="$(cat <<EOF
-## 主下载 / Main Download
-
-普通用户只需要下载这一个文件：
-
-Ordinary users only need to download this file:
-
-- [${PRIMARY_DOWNLOAD}](https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${TAG_NAME}/${PRIMARY_DOWNLOAD})
-
-## 使用范围 / Intended Use
-
-这是一套未签名分发方案，仅适合开发者自用或少量熟人机器。
-
-This is an unsigned distribution flow intended only for developer self-use or a small circle of trusted users.
-
-- 仅支持 Apple Silicon Mac
-- 需要 macOS 12 或更高版本
-- 首次安装或打开时，可能需要右键打开、移除 quarantine，或在“系统设置 -> 隐私与安全性”里允许本次打开
-
-- Apple Silicon Macs only
-- Requires macOS 12 or later
-- On first install/open, you may need to right-click Open, remove quarantine, or allow the blocked item in System Settings -> Privacy & Security
-
 ## 安装步骤（中文）
 
-1. 解压 zip
-2. 先双击里面的 Open-XingQue-Unsigned.command
-3. 如果系统仍拦截，再对 .pkg 安装包点右键 -> 打开
-4. 完成安装
-5. 如果 /Applications/星阙.app 第一次被拦截，再次运行同一个 .command，或对 app 点右键 -> 打开
+1. 下载 `${PRIMARY_DOWNLOAD}`
+2. 解压 zip
+3. 先双击里面的 `Open-XingQue-Unsigned.command`
+4. 如果系统仍拦截，再对 `.pkg` 安装包点右键 -> 打开
+5. 完成安装
+6. 如果 `/Applications/星阙.app` 第一次被拦截，再次运行同一个 `.command`，或对 app 点右键 -> 打开
+
+普通用户不需要手动下载任何其他文件。
 
 ## Install Steps (English)
 
-1. Unzip it
-2. Run Open-XingQue-Unsigned.command first
-3. If macOS still blocks it, right-click the .pkg installer and choose Open
-4. Finish installation
-5. If /Applications/星阙.app is blocked on first launch, run the same .command again, or right-click the app and choose Open
-
-普通用户不需要手动下载任何其他文件。
+1. Download `${PRIMARY_DOWNLOAD}`
+2. Unzip it
+3. Run `Open-XingQue-Unsigned.command` first
+4. If macOS still blocks it, right-click the `.pkg` installer and choose Open
+5. Finish installation
+6. If `/Applications/星阙.app` is blocked on first launch, run the same `.command` again, or right-click the app and choose Open
 
 No one else needs to manually download any other file.
 
@@ -115,7 +107,7 @@ No one else needs to manually download any other file.
 
 此 Release 中其余资产是安装器与自动更新器使用的内部支持文件，普通用户可以忽略。
 
-The remaining assets in this release are internal support files for the installer and auto-updater. Ordinary users should ignore them.
+The remaining assets in this release are internal support files for the installer and auto-updater. Ordinary users should ignore them.${RELEASE_NOTES_SECTION}
 EOF
 )"
 export RELEASE_BODY

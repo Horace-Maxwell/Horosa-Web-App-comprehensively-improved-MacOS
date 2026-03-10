@@ -387,6 +387,16 @@ function buildFieldsFromChartObj(baseFields, chartObj, pdMethod, pdTimeKey){
 	return fields;
 }
 
+function unwrapPredictiveResponse(data){
+	if(!data || typeof data !== 'object'){
+		return null;
+	}
+	if(data[Constants.ResultKey] && typeof data[Constants.ResultKey] === 'object'){
+		return data[Constants.ResultKey];
+	}
+	return data;
+}
+
 class AstroPrimaryDirectionChart extends Component{
 
 	constructor(props) {
@@ -699,7 +709,7 @@ class AstroPrimaryDirectionChart extends Component{
 				body: JSON.stringify(req),
 				cache: 'no-store',
 			});
-			const result = data ? data[Constants.ResultKey] : null;
+			const result = unwrapPredictiveResponse(data);
 			pdRows = result && Array.isArray(result.pd) ? result.pd : null;
 		}catch(e){
 			pdRows = null;
@@ -790,7 +800,7 @@ class AstroPrimaryDirectionChart extends Component{
 				body: JSON.stringify(params),
 				cache: 'no-store',
 			});
-			result = data[Constants.ResultKey];
+			result = unwrapPredictiveResponse(data);
 		}catch(e){
 			result = null;
 		}

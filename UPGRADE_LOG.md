@@ -5723,3 +5723,28 @@ Append new entries; do not rewrite history.
   - 启动页 JS 加载完成后会主动回放这些 pending 状态；
   - `emit_ready(...)` 还加了一层硬兜底：即使 `window.__horosaReady` 尚未注册，也会直接执行 `window.location.replace(url)`，保证“后台已就绪 -> 自动进入主界面”这条动作不再依赖前端时序；
   - 桌面壳版本提升到 `1.0.7 / v1.0.7`，runtime 版本继续保持 `1.0.1`。
+
+### 15:18 - 修复主限法盘空白与金口诀将神被地分自动逻辑锁死；桌面壳升到 1.0.8 / v1.0.8（2026-03-10）
+- Scope: 处理两类真实前端故障。其一是 `推运盘 -> 主限法盘` 在部分本地响应格式下左侧双盘完全空白；其二是 `金口诀` 默认“地分自动随时支持续覆盖”导致将神里的 `时支` 与 `地分` 被错误抵消，看起来长期固定在月将（例如 `河魁戌`）。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`
+  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouState.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.test.js`
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 主限法盘请求 `/predict/pd` 与 `/predict/pdchart` 时，前端现在兼容两种响应结构：既支持原先的 `Result` 包装，也支持直接返回原始对象，避免图盘明明算出来却因为解包失败被当成空值丢掉；
+  - 金口诀页面的“自动地分”现在只在首次起盘时用当前时支做一次初始化，后续改时间不会持续覆写地分，因此将神里的时间变量不再被自动地分抵消；
+  - 如果用户手动改过地分，后续起盘会继续保持手动值，不会被新时间偷偷改回；
+  - 新增 `JinKouMain.test.js`，把“首次自动取时支 / 手动地分保持不变”两条规则钉成回归测试；
+  - GitHub Release 正文模板已收口为三段：`安装步骤（中文）`、`Install Steps (English)`、`技术资产 / Technical Assets`，并在其后追加 `本次更新 / What's New`；
+  - 桌面壳版本提升到 `1.0.8 / v1.0.8`，runtime 版本继续保持 `1.0.1`。

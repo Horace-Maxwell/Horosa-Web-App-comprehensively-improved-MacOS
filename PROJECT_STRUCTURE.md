@@ -29,6 +29,9 @@
 - `Horosa-Web/astrostudyui/src/utils/request.js`：统一请求封装；当前会把主限法重算链路里的布尔型 `cache` 选项规范化为浏览器原生 `fetch` 可接受的字符串枚举
 - `Horosa-Web/astrostudyui/src/components/astro/AstroDecennials.js`：推运盘“十年大运”页面实现；三栏布局、设置面板、L1-L4 层级树、AI 快照与导出入口都在这里
 - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`：推运盘“主限法盘”页面实现；左侧双盘（内圈本命、外圈主限法盘），右侧时间选择 + `推运方法 / 度数换算` 设置，并根据当前时间把主限法结果投影到外圈黄道位置
+- `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`：金口诀页面主实现；当前“地分自动”只在首次起盘时用时支初始化一次，后续改时间不再持续覆盖地分，避免将神被错误锁死为月将
+- `Horosa-Web/astrostudyui/src/components/jinkou/JinKouState.js`：金口诀页面轻量状态辅助；承载“自动/手动地分”决策，便于脱离请求与 RSA 初始化副作用做回归测试
+- `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.test.js`：金口诀页面状态回归测试；覆盖“首次自动取时支”和“手动地分保持不变”两条核心行为
 - `Horosa-Web/astrostudyui/src/utils/decennials.js`：十年大运计算核心；包含起运主星、黄道/迦勒底次序、Valens 精确分配、Hephaistio 原表日数、L4 小时级细分
 - `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`：十年大运专项自动测试；覆盖文档原表值、昼夜起运、两套次序、两套日限、层级时长一致性与 `L4 HH:MM`
 - `Horosa-Web/astrostudyui/src/models/user.js`：命盘/事盘管理与当前 chart/case 选择逻辑；当前 `applyCase` 会在切换课例前先显式关闭抽屉，降低“管理事盘选中后抽屉残留”的概率
@@ -3210,6 +3213,11 @@
       - `verify_github_release_end_to_end.sh`
       - `publish_github_release.sh`
       - `verify_public_distribution_readiness.sh`
+    - 当前 `publish_github_release.sh` 生成的 Release 正文只保留：
+      - `安装步骤（中文）`
+      - `Install Steps (English)`
+      - `技术资产 / Technical Assets`
+      - 然后再追加 `本次更新 / What's New`
   - `Horosa_Desktop_Installer/distribution-support/`
     - unsigned 自用/熟人分发支持模板：
       - `unsigned_install_helper.template`
@@ -3221,6 +3229,8 @@
     - 当前启动页会在脚本加载后主动回放 `window.__horosaPendingMode / Progress / Status / Error / ReadyUrl`，用于兜住“Rust 已就绪但前端桥接函数尚未注册”这类时序竞态，避免卡在默认 `0% / 等待初始化…`。
   - `Horosa_Desktop_Installer/config/release_config.json`
     - GitHub Release 资产名、repo、appName 等发布配置。
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+    - 当前 release 正文里的“本次更新 / What's New”来源文件；发布脚本会把它追加在 `技术资产 / Technical Assets` 之后。
 - 当前 Release 交付结构：
   - 主推下载文件：`Horosa-Installer-macos-universal-pkg.zip`
   - zip 解压后默认包含：
