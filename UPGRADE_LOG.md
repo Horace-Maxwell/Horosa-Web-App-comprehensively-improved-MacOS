@@ -5459,8 +5459,23 @@ Append new entries; do not rewrite history.
   - runtime payload 打包脚本新增 `rsync` 排除规则，并在 stage 目录二次清理，避免把这类文件再次带进 release 资产；
   - 桌面壳版本、runtime 版本、manifest/release tag 一并提升为 `1.0.1 / v1.0.1`。
 - Verification (local):
-  - 待本轮重新执行：
-    - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml --check`
-    - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml`
-    - `./Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
-    - `./Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+  - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml --check` ✅
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
+  - `bash -n Horosa-Web/start_horosa_local.sh Horosa_Desktop_Installer/scripts/package_runtime_payload.sh Horosa_Desktop_Installer/scripts/build_desktop_release.sh Horosa_Desktop_Installer/scripts/publish_github_release.sh` ✅
+  - “污染 runtime 自愈”专项：
+    - 以当前用户目录坏 runtime 为样本复制到临时目录，启动前确认 bundled Python 直接崩溃；
+    - 新脚本启动后 `pre_junk=13821 -> post_junk=0`，bundled Python 恢复可执行；
+    - 临时服务成功拉起，`chartpy` 返回 `200`，backend `/common/time` 仍为既有 `500` 但不影响 ready 判定。✅
+  - `./Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh` ✅
+    - 产物版本为 `1.0.1`
+    - expanded pkg 中 `relocatable="false"` 仍正确
+    - 本地 installer flow 跑通
+  - runtime 资产净化检查：`tar -tzf Horosa_Desktop_Installer/dist/horosa-runtime-macos-universal.tar.gz | rg '(^|/)(\\._[^/]+|\\.DS_Store)$'` 无命中 ✅
+  - `./Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh` ✅
+    - GitHub latest release = `v1.0.1`
+    - latest manifest version/tag = `1.0.1 / v1.0.1`
+    - 远端下载回来的 pkg/app/runtime 资产校验通过
+    - 远端 shared runtime 启动通过，`app_version=1.0.1`
+- GitHub sync:
+  - `main` 已推到 `750ab01f6593bf278dd63d6632b9041745a8b701`
+  - Release `v1.0.1` 资产已发布并通过远端 e2e 复验
