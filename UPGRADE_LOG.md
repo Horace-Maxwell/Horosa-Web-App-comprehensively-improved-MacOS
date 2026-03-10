@@ -5642,6 +5642,21 @@ Append new entries; do not rewrite history.
   - 目标是让 GitHub 上已经可下载的 `v1.0.4` 成为“旧版已安装 app”，然后实测其应用内更新到 `v1.0.5`；
   - runtime 版本继续保持 `1.0.1`，避免为了验证更新链路而强制重下 runtime。
 
+### 00:32 - 将宗师级自检与管理事盘抽屉修复打包发布为 1.0.6 / v1.0.6（2026-03-10）
+- Scope: 这轮代码已经先推到 `main`，但 GitHub Release 仍停在 `v1.0.5`；为确保别人下载到的桌面安装包真正包含最新的深巡检修复与 `管理事盘` 抽屉收口修复，这次把桌面壳正式升到 `1.0.6 / v1.0.6` 并发布。
+- Files:
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 桌面壳版本从 `1.0.5` 升到 `1.0.6`；
+  - GitHub Release tag 对应提升到 `v1.0.6`；
+  - runtime 版本继续维持 `1.0.1`，避免仅因为前端/管理修复而触发用户重下 runtime；
+  - 这次 release 的目标是让 GitHub 下载包与 `main` 上当前最新代码保持一致，而不是再引入新的桌面功能分支。
+
 ## 2026-03-10
 
 ### 00:12 - 宗师级按钮/菜单/管理深巡检补齐，并修复“管理事盘”选中后的抽屉收口链路
