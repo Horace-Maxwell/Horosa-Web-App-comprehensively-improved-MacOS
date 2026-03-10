@@ -5626,3 +5626,18 @@ Append new entries; do not rewrite history.
     - `defaults read '/Applications/星阙.app/Contents/Info' CFBundleShortVersionString` -> `1.0.2`
     - `mv '/Applications/星阙.app' '/Applications/星阙.app.test'` -> `Permission denied`
     - 证明旧的普通用户态自替换路径无法覆盖 `.pkg` 安装出来的 `/Applications` app
+
+### 23:05 - 发布 1.0.5 作为应用内更新链路实机验证目标（2026-03-09）
+- Scope: 为了验证“别人从 GitHub 下载最新安装包后，后续软件内检查更新是否真的能工作”，追加一个不改功能的桌面壳版本 `1.0.5 / v1.0.5`，专门作为从 `1.0.4` 升级的真实目标版本。
+- Files:
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 这次不引入新的桌面功能修改，只提升桌面壳发布版本；
+  - 目标是让 GitHub 上已经可下载的 `v1.0.4` 成为“旧版已安装 app”，然后实测其应用内更新到 `v1.0.5`；
+  - runtime 版本继续保持 `1.0.1`，避免为了验证更新链路而强制重下 runtime。
