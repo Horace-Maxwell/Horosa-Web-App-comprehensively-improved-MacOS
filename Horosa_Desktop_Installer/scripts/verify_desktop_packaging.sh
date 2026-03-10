@@ -175,6 +175,9 @@ if tauri['app']['windows'][0]['title'] != config['appName']:
 manifest = json.loads(manifest_path.read_text())
 if manifest['version'] != package['version']:
     raise SystemExit('manifest version mismatch')
+expected_tag = f"{config['releaseTagPrefix']}{package['version']}"
+if manifest.get('tag') != expected_tag:
+    raise SystemExit(f"manifest tag mismatch: {manifest.get('tag')} != {expected_tag}")
 
 arch = platform.machine().lower()
 platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
