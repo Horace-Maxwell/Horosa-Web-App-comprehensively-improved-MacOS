@@ -326,7 +326,9 @@ def main() -> None:
 
     json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    raise SystemExit(1 if result["status"] != "ok" else 0)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(1 if result["status"] != "ok" else 0)
 
 
 if __name__ == "__main__":

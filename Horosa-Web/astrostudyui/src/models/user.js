@@ -779,6 +779,11 @@ export default {
 				type: 'setCurrentCase',
 				payload: values,
 			});
+			// Close management drawers immediately so case selection always exits back to the target technique view.
+			yield put({
+				type: 'astro/closeDrawer',
+				payload: {},
+			});
 			const store = getStore();
 			const astrostate = store.astro;
 			const flds = {
@@ -824,10 +829,6 @@ export default {
 			yield put({
 				type: 'astro/fetchByFields',
 				payload: flds,
-			});
-			yield put({
-				type: 'astro/closeDrawer',
-				payload: {},
 			});
 		},
 
