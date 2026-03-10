@@ -5705,3 +5705,21 @@ Append new entries; do not rewrite history.
     - `HOROSA_WEB_PORT=8000 HOROSA_SERVER_PORT=9999 HOROSA_SERVER_ROOT=http://127.0.0.1:9999 /Users/horacedong/miniconda3/bin/python scripts/browser_horosa_final_layout_check.py` ✅
     - `runtime/final_layout_master_check.json` 状态 `ok`
     - 重点确认：节气盘四季入口、双层盘比例、footer 留白、`三式合一` 时间区与 `宿盘/七政四余` 底边留白都正常
+
+### 01:05 - 修复启动页与后台就绪事件竞态，避免安装后卡在 Launcher；桌面壳升到 1.0.7 / v1.0.7（2026-03-10）
+- Scope: 处理“安装后打开软件会一直停在 Launcher，界面只显示默认 0% 和‘等待初始化…’”的问题。根因不是后台没起来，而是启动页 JS 还没把 `__horosaStatus / __horosaProgress / __horosaReady` 挂到 `window` 上时，Rust 已经把关键事件发出去了，导致就绪事件丢失。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/web/app.js`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+- Details:
+  - Rust 侧现在不会再直接假定启动页桥接函数已经存在，而是会先把 `mode / progress / status / error / readyUrl` 写到 `window.__horosaPending*`；
+  - 如果启动页桥接函数此时已经可用，会即时调用；如果还没可用，状态也不会丢；
+  - 启动页 JS 加载完成后会主动回放这些 pending 状态；
+  - `emit_ready(...)` 还加了一层硬兜底：即使 `window.__horosaReady` 尚未注册，也会直接执行 `window.location.replace(url)`，保证“后台已就绪 -> 自动进入主界面”这条动作不再依赖前端时序；
+  - 桌面壳版本提升到 `1.0.7 / v1.0.7`，runtime 版本继续保持 `1.0.1`。

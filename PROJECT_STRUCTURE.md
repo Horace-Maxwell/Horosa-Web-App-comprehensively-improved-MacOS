@@ -3217,7 +3217,8 @@
   - `Horosa_Desktop_Installer/installer-scripts/`
     - `.pkg` 顶层 `postinstall` 模板。
   - `Horosa_Desktop_Installer/web/`
-    - 安装器/初始化阶段 UI。
+    - 安装器/初始化阶段 UI；
+    - 当前启动页会在脚本加载后主动回放 `window.__horosaPendingMode / Progress / Status / Error / ReadyUrl`，用于兜住“Rust 已就绪但前端桥接函数尚未注册”这类时序竞态，避免卡在默认 `0% / 等待初始化…`。
   - `Horosa_Desktop_Installer/config/release_config.json`
     - GitHub Release 资产名、repo、appName 等发布配置。
 - 当前 Release 交付结构：

@@ -170,27 +170,45 @@ fn escape_js(text: &str) -> String {
 }
 
 fn emit_status(window: &WebviewWindow, message: &str) {
-    let _ = window.eval(&format!("window.__horosaStatus({});", escape_js(message)));
+    let message = escape_js(message);
+    let _ = window.eval(&format!(
+        "window.__horosaPendingStatusLines = window.__horosaPendingStatusLines || []; \
+window.__horosaPendingStatusLines.push({message}); \
+if (window.__horosaStatus) {{ window.__horosaStatus({message}); }}",
+    ));
 }
 
 fn emit_progress(window: &WebviewWindow, pct: u8, message: &str) {
+    let message = escape_js(message);
     let _ = window.eval(&format!(
-        "window.__horosaProgress({}, {});",
-        pct,
-        escape_js(message)
+        "window.__horosaPendingProgress = {{ pct: {}, message: {} }}; \
+if (window.__horosaProgress) {{ window.__horosaProgress({}, {}); }}",
+        pct, message, pct, message
     ));
 }
 
 fn emit_error(window: &WebviewWindow, message: &str) {
-    let _ = window.eval(&format!("window.__horosaError({});", escape_js(message)));
+    let message = escape_js(message);
+    let _ = window.eval(&format!(
+        "window.__horosaPendingError = {message}; \
+if (window.__horosaError) {{ window.__horosaError({message}); }}",
+    ));
 }
 
 fn emit_mode(window: &WebviewWindow, mode: &str) {
-    let _ = window.eval(&format!("window.__horosaMode({});", escape_js(mode)));
+    let mode = escape_js(mode);
+    let _ = window.eval(&format!(
+        "window.__horosaPendingMode = {mode}; \
+if (window.__horosaMode) {{ window.__horosaMode({mode}); }}",
+    ));
 }
 
 fn emit_ready(window: &WebviewWindow, url: &str) {
-    let _ = window.eval(&format!("window.__horosaReady({});", escape_js(url)));
+    let url = escape_js(url);
+    let _ = window.eval(&format!(
+        "window.__horosaPendingReadyUrl = {url}; \
+if (window.__horosaReady) {{ window.__horosaReady({url}); }} else {{ window.location.replace({url}); }}",
+    ));
 }
 
 fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
