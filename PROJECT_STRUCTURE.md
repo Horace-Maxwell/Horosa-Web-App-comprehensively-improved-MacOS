@@ -3225,10 +3225,10 @@
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
   - 当前版本口径：
-    - 桌面壳内部构建版本使用 `1.0.2`
-    - 用户可见桌面壳版本使用 `1.0.2`
+    - 桌面壳内部构建版本使用 `1.0.3`
+    - 用户可见桌面壳版本使用 `1.0.3`
     - 当前 runtime 版本保持 `1.0.1`
-    - GitHub Release / manifest tag 使用 `v1.0.2`
+    - GitHub Release / manifest tag 使用 `v1.0.3`
   - 当前 runtime 自愈策略：
     - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
     - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；
@@ -3237,6 +3237,10 @@
     - 默认首屏已从“安装器界面”改成“通用启动页”，日常打开时会显示 `日常启动 / Runtime 快速自检`；
     - 只有真正进入 Runtime 下载、修复或应用更新时，界面才会切到 `首次准备 / 运行时修复 / 版本更新` 等模式；
     - 启动画面包含动态会话摘要、模式标签和更偏应用启动页的视觉，而不是每次都模拟首次安装。
+  - 当前缩放能力：
+    - 桌面壳 `视图` 菜单现已显式提供 `放大 / 缩小 / 实际大小`；
+    - 快捷键分别为 `CmdOrCtrl+=`、`CmdOrCtrl+-`、`CmdOrCtrl+0`；
+    - 缩放直接作用于 Tauri webview，不改默认窗口尺寸与初始比例。
 - 当前忽略规则（避免仓库混入安装器生成物）：
   - `Horosa_Desktop_Installer/build/`
   - `Horosa_Desktop_Installer/dist/`

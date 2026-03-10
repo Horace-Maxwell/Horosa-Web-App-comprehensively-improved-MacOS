@@ -29,6 +29,13 @@ const MENU_CHECK_UPDATES: &str = "check_updates";
 const MENU_REINSTALL_RUNTIME: &str = "reinstall_runtime";
 const MENU_OPEN_LOGS: &str = "open_logs";
 const MENU_OPEN_DATA: &str = "open_data";
+const MENU_ZOOM_IN: &str = "zoom_in";
+const MENU_ZOOM_OUT: &str = "zoom_out";
+const MENU_ZOOM_RESET: &str = "zoom_reset";
+const DEFAULT_ZOOM: f64 = 1.0;
+const MIN_ZOOM: f64 = 0.7;
+const MAX_ZOOM: f64 = 1.8;
+const ZOOM_STEP: f64 = 0.1;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -142,10 +149,20 @@ struct RuntimeSession {
     web_port: u16,
 }
 
-#[derive(Default)]
 struct AppState {
     session: Mutex<Option<RuntimeSession>>,
     web_shutdown: Mutex<Option<Arc<AtomicBool>>>,
+    zoom_level: Mutex<f64>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            session: Mutex::new(None),
+            web_shutdown: Mutex::new(None),
+            zoom_level: Mutex::new(DEFAULT_ZOOM),
+        }
+    }
 }
 
 fn escape_js(text: &str) -> String {
@@ -193,6 +210,10 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
     )?;
     let open_logs = MenuItem::with_id(app, MENU_OPEN_LOGS, "打开日志目录", true, None::<&str>)?;
     let open_data = MenuItem::with_id(app, MENU_OPEN_DATA, "打开运行目录", true, None::<&str>)?;
+    let zoom_in = MenuItem::with_id(app, MENU_ZOOM_IN, "放大", true, Some("CmdOrCtrl+="))?;
+    let zoom_out = MenuItem::with_id(app, MENU_ZOOM_OUT, "缩小", true, Some("CmdOrCtrl+-"))?;
+    let zoom_reset =
+        MenuItem::with_id(app, MENU_ZOOM_RESET, "实际大小", true, Some("CmdOrCtrl+0"))?;
 
     let app_menu = Submenu::with_items(
         app,
@@ -246,6 +267,10 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
         "视图",
         true,
         &[
+            &zoom_in,
+            &zoom_out,
+            &zoom_reset,
+            &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::fullscreen(app, None)?,
             &PredefinedMenuItem::maximize(app, None)?,
         ],
@@ -862,6 +887,37 @@ fn open_path(path: &Path) {
     let _ = Command::new("open").arg(path).spawn();
 }
 
+fn clamp_zoom_level(value: f64) -> f64 {
+    value.clamp(MIN_ZOOM, MAX_ZOOM)
+}
+
+fn set_window_zoom(app: &AppHandle, zoom: f64) -> Result<()> {
+    let clamped = clamp_zoom_level(zoom);
+    let window = app
+        .get_webview_window("main")
+        .context("main window missing for zoom")?;
+    window.set_zoom(clamped)?;
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(mut slot) = state.zoom_level.lock() {
+            *slot = clamped;
+        }
+    }
+    Ok(())
+}
+
+fn adjust_window_zoom(app: &AppHandle, delta: f64) -> Result<()> {
+    let current = if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(slot) = state.zoom_level.lock() {
+            *slot
+        } else {
+            DEFAULT_ZOOM
+        }
+    } else {
+        DEFAULT_ZOOM
+    };
+    set_window_zoom(app, current + delta)
+}
+
 fn shell_quote(path: &Path) -> String {
     let txt = path.to_string_lossy().replace('"', "\\\"");
     format!("\"{}\"", txt)
@@ -1304,6 +1360,7 @@ fn main() {
                 .get_webview_window("main")
                 .context("main window missing")?
                 .clone();
+            set_window_zoom(&app_handle, DEFAULT_ZOOM)?;
             thread::spawn(move || {
                 match runtime_bootstrap(app_handle.clone(), window.clone(), false) {
                     Ok(session) => {
@@ -1348,6 +1405,12 @@ fn main() {
                     let _ = ensure_dir(&paths.app_data_dir);
                     open_path(&paths.app_data_dir);
                 }
+            } else if id == MENU_ZOOM_IN {
+                let _ = adjust_window_zoom(app, ZOOM_STEP);
+            } else if id == MENU_ZOOM_OUT {
+                let _ = adjust_window_zoom(app, -ZOOM_STEP);
+            } else if id == MENU_ZOOM_RESET {
+                let _ = set_window_zoom(app, DEFAULT_ZOOM);
             }
         })
         .build(tauri::generate_context!())
