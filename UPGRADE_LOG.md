@@ -5641,3 +5641,52 @@ Append new entries; do not rewrite history.
   - 这次不引入新的桌面功能修改，只提升桌面壳发布版本；
   - 目标是让 GitHub 上已经可下载的 `v1.0.4` 成为“旧版已安装 app”，然后实测其应用内更新到 `v1.0.5`；
   - runtime 版本继续保持 `1.0.1`，避免为了验证更新链路而强制重下 runtime。
+
+## 2026-03-10
+
+### 00:12 - 宗师级按钮/菜单/管理深巡检补齐，并修复“管理事盘”选中后的抽屉收口链路
+- Scope: 补上此前浏览器总冒烟没有完全深挖的区域，把顶部菜单栏、图盘显示选择器、命盘/事盘管理、批注、关系盘和小工具的可操作项再往下压一层；同时修复 `管理事盘` 选中课例后抽屉关闭链路不够稳的问题，并把这轮深巡检正式并入本地总自检能力。
+- Files:
+  - `scripts/browser_horosa_master_check.py`
+  - `scripts/browser_horosa_final_layout_check.py`
+  - `scripts/browser_horosa_toolbar_management_check.py`
+  - `Horosa-Web/verify_horosa_local.sh`
+  - `Horosa-Web/astrostudyui/src/models/user.js`
+  - `Horosa-Web/astrostudyui/src/components/user/CaseList.js`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增 `scripts/browser_horosa_toolbar_management_check.py`，把此前用户点名但总巡检覆盖还不够深的入口单独做成浏览器级脚本，覆盖：
+    - 顶部菜单栏与抽屉：`查询/配置`、主题切换、`AI导出`、`AI导出设置`、`新命盘`
+    - 图盘显示控制：`星盘组件`、`行星选择`、`相位选择`，并用 SVG 指标变化断言“点了以后真的影响盘面”
+    - 管理能力：`管理命盘`、`管理事盘` 的新增/编辑/选择链路
+    - 右栏相关模块：批注、小工具、关系盘 `比较盘/组合盘/影响盘/时空中点盘/马克思盘`
+  - `verify_horosa_local.sh` 新增浏览器脚本包装层：
+    - 加入 `TOOLBAR_VERIFY_PY=scripts/browser_horosa_toolbar_management_check.py`
+    - 新增 `file_mtime / kill_tree / run_browser_python_check`，不再只看 Playwright 进程退出码，而是要求对应 JSON 报告确实刷新成功
+    - 对卡住的浏览器子进程做树状回收，降低本地一键自检被僵尸进程拖死的概率
+  - `scripts/browser_horosa_master_check.py` 与 `scripts/browser_horosa_final_layout_check.py` 在写出报告后改为 `os._exit(...)` 收口，规避 Playwright teardown 偶发卡死
+  - 真实产品修复：
+    - `Horosa-Web/astrostudyui/src/models/user.js` 中 `applyCase` 在切页和取数前先显式派发 `astro/closeDrawer`
+    - `Horosa-Web/astrostudyui/src/components/user/CaseList.js` 的点击链路再加一层组件侧 `closeDrawer` 兜底
+    - 这样 `管理事盘` 里选择课例后，左侧内容会切到对应页面，同时抽屉关闭动作更稳定，不再依赖后续异步链路是否完整跑完
+  - 这轮深巡检的实际结论：
+    - 顶部菜单、左侧 16 个主模块、推运盘/节气盘/印度律盘/八字紫微/易与三式等右侧技术页，当前都能完成点击、切换和图面更新
+    - 盘面显示选择器点击后 SVG 指标确实变化，不是“能点但没生效”
+    - 命盘/事盘管理新增、编辑、选择链路可用
+    - 当前残留 warning 主要还是第三方资源与浏览器废弃事件监听提示，不属于 Horosa 业务逻辑报错
+- Verification:
+  - 运行态与性能：
+    - `./Horosa-Web/verify_horosa_local.sh` 中的接口/性能/主限法集成链路复验通过
+    - 主要技法运行时计时仍维持在舒适范围，当前样本中最慢场景约 `377.544ms`
+  - 浏览器级宗师巡检：
+    - `HOROSA_WEB_PORT=8000 HOROSA_SERVER_PORT=9999 HOROSA_SERVER_ROOT=http://127.0.0.1:9999 /Users/horacedong/miniconda3/bin/python scripts/browser_horosa_master_check.py` ✅
+    - `runtime/browser_horosa_master_check.json` 状态 `ok`
+  - 顶部菜单/管理专项：
+    - `HOROSA_WEB_PORT=8000 HOROSA_SERVER_PORT=9999 HOROSA_SERVER_ROOT=http://127.0.0.1:9999 /Users/horacedong/miniconda3/bin/python scripts/browser_horosa_toolbar_management_check.py` ✅
+    - `runtime/browser_horosa_toolbar_management_check.json` 状态 `ok`
+    - 核验通过项包括：主题切换、AI 导出/设置、命盘管理、事盘管理、批注、小工具、关系盘五种技术、星盘组件/行星/相位选择器
+  - 最终排版总检：
+    - `HOROSA_WEB_PORT=8000 HOROSA_SERVER_PORT=9999 HOROSA_SERVER_ROOT=http://127.0.0.1:9999 /Users/horacedong/miniconda3/bin/python scripts/browser_horosa_final_layout_check.py` ✅
+    - `runtime/final_layout_master_check.json` 状态 `ok`
+    - 重点确认：节气盘四季入口、双层盘比例、footer 留白、`三式合一` 时间区与 `宿盘/七政四余` 底边留白都正常

@@ -13,6 +13,7 @@ PROJECT_ROOT="$(cd "${ROOT}/.." && pwd)"
 PD_VERIFY_PY="${PROJECT_ROOT}/scripts/check_primary_direction_astroapp_integration.py"
 FULL_VERIFY_PY="${PROJECT_ROOT}/scripts/check_horosa_full_integration.py"
 BROWSER_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_master_check.py"
+TOOLBAR_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_toolbar_management_check.py"
 FINAL_LAYOUT_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_final_layout_check.py"
 CHART_PORT="${HOROSA_CHART_PORT:-8899}"
 BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
@@ -87,6 +88,90 @@ port_listening() {
   lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
 }
 
+file_mtime() {
+  local path="$1"
+  if [ -f "${path}" ]; then
+    stat -f "%m" "${path}" 2>/dev/null || echo 0
+  else
+    echo 0
+  fi
+}
+
+kill_tree() {
+  local pid="$1"
+  local child=""
+  for child in $(pgrep -P "${pid}" 2>/dev/null || true); do
+    kill_tree "${child}"
+  done
+  kill "${pid}" >/dev/null 2>&1 || true
+}
+
+run_browser_python_check() {
+  local label="$1"
+  local script_path="$2"
+  local json_path="$3"
+  local log_path="/tmp/$(basename "${script_path}").log"
+  local before_mtime=""
+  local after_mtime=""
+  local pid=""
+  local saw_output=0
+  local status=""
+
+  before_mtime="$(file_mtime "${json_path}")"
+  rm -f "${log_path}"
+
+  HOROSA_WEB_PORT="${WEB_PORT}" \
+  HOROSA_SERVER_PORT="${BACKEND_PORT}" \
+  HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT}" \
+  "${BROWSER_PYTHON_BIN}" "${script_path}" >"${log_path}" 2>&1 &
+  pid="$!"
+
+  for _ in $(seq 1 240); do
+    after_mtime="$(file_mtime "${json_path}")"
+    if [ "${after_mtime}" -gt "${before_mtime}" ]; then
+      saw_output=1
+      break
+    fi
+    if ! kill -0 "${pid}" >/dev/null 2>&1; then
+      wait "${pid}"
+      return $?
+    fi
+    sleep 1
+  done
+
+  if [ "${saw_output}" != "1" ]; then
+    echo "${label} failed: no fresh JSON output from ${script_path}."
+    tail -n 80 "${log_path}" 2>/dev/null || true
+    if kill -0 "${pid}" >/dev/null 2>&1; then
+      kill_tree "${pid}"
+      wait "${pid}" >/dev/null 2>&1 || true
+    fi
+    return 1
+  fi
+
+  if kill -0 "${pid}" >/dev/null 2>&1; then
+    kill_tree "${pid}"
+    wait "${pid}" >/dev/null 2>&1 || true
+  fi
+
+  status="$("${PYTHON_BIN}" - <<'PY' "${json_path}"
+import json, sys
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as fh:
+    data = json.load(fh)
+print(data.get('status', 'missing'))
+raise SystemExit(0 if data.get('status') == 'ok' else 1)
+PY
+)"
+  local status_rc=$?
+  echo "${label}: ${status} (${json_path})"
+  if [ "${status_rc}" -ne 0 ]; then
+    tail -n 80 "${log_path}" 2>/dev/null || true
+    return "${status_rc}"
+  fi
+  return 0
+}
+
 resolve_dist_dir() {
   if [ -f "${UI_DIR}/dist-file/index.html" ]; then
     DIST_DIR="${UI_DIR}/dist-file"
@@ -142,25 +227,25 @@ PYTHON_BIN="$(resolve_python_bin)"
 "${PYTHON_BIN}" "${PD_VERIFY_PY}"
 "${PYTHON_BIN}" "${FULL_VERIFY_PY}"
 
-if [ -f "${BROWSER_VERIFY_PY}" ] || [ -f "${FINAL_LAYOUT_VERIFY_PY}" ]; then
+if [ -f "${BROWSER_VERIFY_PY}" ] || [ -f "${TOOLBAR_VERIFY_PY}" ] || [ -f "${FINAL_LAYOUT_VERIFY_PY}" ]; then
   if BROWSER_PYTHON_BIN="$(resolve_browser_python_bin 2>/dev/null)"; then
     if ensure_browser_web_port "${BROWSER_PYTHON_BIN}"; then
       if [ -f "${BROWSER_VERIFY_PY}" ]; then
         echo ""
         echo "browser smoke: ${BROWSER_VERIFY_PY}"
-        HOROSA_WEB_PORT="${WEB_PORT}" \
-        HOROSA_SERVER_PORT="${BACKEND_PORT}" \
-        HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT}" \
-        "${BROWSER_PYTHON_BIN}" "${BROWSER_VERIFY_PY}"
+        run_browser_python_check "browser smoke" "${BROWSER_VERIFY_PY}" "${PROJECT_ROOT}/runtime/browser_horosa_master_check.json"
+      fi
+
+      if [ -f "${TOOLBAR_VERIFY_PY}" ]; then
+        echo ""
+        echo "browser toolbar/management: ${TOOLBAR_VERIFY_PY}"
+        run_browser_python_check "browser toolbar/management" "${TOOLBAR_VERIFY_PY}" "${PROJECT_ROOT}/runtime/browser_horosa_toolbar_management_check.json"
       fi
 
       if [ -f "${FINAL_LAYOUT_VERIFY_PY}" ]; then
         echo ""
         echo "browser final layout: ${FINAL_LAYOUT_VERIFY_PY}"
-        HOROSA_WEB_PORT="${WEB_PORT}" \
-        HOROSA_SERVER_PORT="${BACKEND_PORT}" \
-        HOROSA_SERVER_ROOT="${HOROSA_SERVER_ROOT}" \
-        "${BROWSER_PYTHON_BIN}" "${FINAL_LAYOUT_VERIFY_PY}"
+        run_browser_python_check "browser final layout" "${FINAL_LAYOUT_VERIFY_PY}" "${PROJECT_ROOT}/runtime/final_layout_master_check.json"
       fi
     fi
   else

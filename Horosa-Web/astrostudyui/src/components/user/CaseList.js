@@ -122,6 +122,10 @@ class CaseList extends Component{
 				type: 'user/applyCase',
 				payload: rec,
 			});
+			this.props.dispatch({
+				type: 'astro/closeDrawer',
+				payload: {},
+			});
 		}
 	}
 
