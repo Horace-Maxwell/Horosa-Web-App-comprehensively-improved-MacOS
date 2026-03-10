@@ -183,15 +183,16 @@ echo "installer package ready: ${INSTALLER_PKG}"
 echo "installer delivery zip ready: ${INSTALLER_PKG_ZIP}"
 echo "component plist ready: ${COMPONENT_PLIST}"
 
-INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYMANIFEST'
+INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" RELEASE_TAG_ENV="${RELEASE_TAG}" python3 - <<'PYMANIFEST'
 import hashlib, json, os, pathlib, platform
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
+release_tag = os.environ['RELEASE_TAG_ENV']
 config = json.loads((root / 'config/release_config.json').read_text())
 dist = root / 'dist'
 arch = platform.machine().lower()
 platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
 version = json.loads((root / 'package.json').read_text())['version']
-tag = "${RELEASE_TAG}"
+tag = release_tag
 base = f"https://github.com/{config['repoOwner']}/{config['repoName']}/releases/download/{tag}"
 manifest = {
   'version': version,
