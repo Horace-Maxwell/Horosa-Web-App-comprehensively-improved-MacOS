@@ -5438,3 +5438,29 @@ Append new entries; do not rewrite history.
   - 更新弹窗会直接显示 `1.0.0`；
   - 最新 GitHub Release 与 manifest tag 统一为 `v1.0.0`；
   - Release 标题也改为直接使用 tag 名，即 `v1.0.0`。
+
+### 20:55 - 修复 1.0.0 runtime 被 AppleDouble 垃圾文件污染后无法启动，并升补丁版到 1.0.1 / v1.0.1（2026-03-09）
+- Scope: 处理 `星阙 backend start failed` 根因。用户目录 runtime 内若混入 macOS AppleDouble 元数据文件（如 `._distutils-precedence.pth`），内置 Python 在导入 `site` 时会因读取 `.pth` 失败而崩溃；这次同时把桌面安装器与 runtime 发布链升到 `1.0.1 / v1.0.1`，确保已装用户能拿到补丁更新。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa-Web/start_horosa_local.sh`
+  - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `Horosa_Desktop_Installer/config/release_config.json`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - Rust 侧 runtime 选择逻辑现在会先执行 runtime 清理，再验证内置 Python 是否能正常启动并解析关键依赖，不再把“文件存在但 Python 已坏”的 runtime 误判为可用；
+  - runtime 解压完成后会立即清理 `._*` 与 `.DS_Store`，避免坏文件进入最终 `current`；
+  - `start_horosa_local.sh` 启动前会递归删除 runtime 根目录下的 AppleDouble 垃圾文件，因此即使用户本地 `1.0.0` 已被污染，也会先尝试自愈再起服务；
+  - runtime payload 打包脚本新增 `rsync` 排除规则，并在 stage 目录二次清理，避免把这类文件再次带进 release 资产；
+  - 桌面壳版本、runtime 版本、manifest/release tag 一并提升为 `1.0.1 / v1.0.1`。
+- Verification (local):
+  - 待本轮重新执行：
+    - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml --check`
+    - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+    - `./Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+    - `./Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
