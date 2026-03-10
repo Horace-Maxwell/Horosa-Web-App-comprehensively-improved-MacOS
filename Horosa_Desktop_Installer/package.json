@@ -1,7 +1,7 @@
 {
   "name": "horosa-desktop-installer",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "scripts": {
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
