@@ -168,6 +168,10 @@ fn emit_error(window: &WebviewWindow, message: &str) {
     let _ = window.eval(&format!("window.__horosaError({});", escape_js(message)));
 }
 
+fn emit_mode(window: &WebviewWindow, mode: &str) {
+    let _ = window.eval(&format!("window.__horosaMode({});", escape_js(mode)));
+}
+
 fn emit_ready(window: &WebviewWindow, url: &str) {
     let _ = window.eval(&format!("window.__horosaReady({});", escape_js(url)));
 }
@@ -698,6 +702,7 @@ fn ensure_runtime_installed(
         && runtime_dir_is_usable(&paths.runtime_dir);
 
     if already_ok && !force {
+        emit_mode(window, "launch");
         emit_progress(
             window,
             36,
@@ -712,6 +717,13 @@ fn ensure_runtime_installed(
         return Ok(paths);
     }
 
+    if force {
+        emit_mode(window, "repair");
+    } else if current.is_some() || runtime_dir_has_required_files(&paths.runtime_dir) {
+        emit_mode(window, "repair");
+    } else {
+        emit_mode(window, "install");
+    }
     emit_status(window, "开始下载 星阙 运行环境…");
     emit_progress(window, 6, "准备安装运行环境");
     let archive_path = tmp_download_path(&config.app_name, "runtime.tar.gz");
@@ -1250,6 +1262,14 @@ fn runtime_bootstrap(
     window: WebviewWindow,
     force_runtime_install: bool,
 ) -> Result<RuntimeSession> {
+    emit_mode(
+        &window,
+        if force_runtime_install {
+            "repair"
+        } else {
+            "launch"
+        },
+    );
     emit_status(&window, "正在检查安装配置…");
     let paths = ensure_runtime_installed(&app, &window, force_runtime_install)?;
     let web_port = choose_free_port()?;

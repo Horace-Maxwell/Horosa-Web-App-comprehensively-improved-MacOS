@@ -5479,3 +5479,51 @@ Append new entries; do not rewrite history.
 - GitHub sync:
   - `main` 已推到 `750ab01f6593bf278dd63d6632b9041745a8b701`
   - Release `v1.0.1` 资产已发布并通过远端 e2e 复验
+
+### 21:15 - 启动页改成通用启动模式，避免每次打开都像首次安装；桌面壳升到 1.0.2 / v1.0.2（2026-03-09）
+- Scope: 处理“每次打开后的加载画面都和首次安装一致”的体验问题。根因不是启动逻辑错误，而是当前首屏把日常启动、首次安装、Runtime 修复、应用更新全套在一个“安装器模板”里；这次改为默认展示更像 app launcher 的通用启动页，只在真正下载/修复/更新时切到对应事务态。
+- Files:
+  - `Horosa_Desktop_Installer/web/index.html`
+  - `Horosa_Desktop_Installer/web/style.css`
+  - `Horosa_Desktop_Installer/web/app.js`
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 启动页默认文案从“安装器 / 安装与初始化”调整为“Launcher / 启动中”，使日常打开时不再像首次安装；
+  - 新增会话模式层：
+    - `launch`
+    - `install`
+    - `repair`
+    - `update`
+    - `error`
+  - Rust 侧新增 `emit_mode(...)`，在正常启动、Runtime 修复或首次部署场景下显式通知前端切模式；
+  - 前端启动页会随模式自动切换：
+    - hero 标题
+    - 会话摘要
+    - 侧栏说明
+    - 阶段标签
+    - 色彩主题
+  - 默认视觉改成更偏 app 启动页的样式：增加右侧轨道场景卡、当前会话摘要与模式配色，不再每次都强调“安装”；
+  - 这次只提升桌面壳版本到 `1.0.2 / v1.0.2`，runtime 版本保持 `1.0.1`，避免用户因为纯启动页体验调整被强制重下 runtime。
+- Verification (local):
+  - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml --check` ✅
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
+  - `bash -n Horosa_Desktop_Installer/scripts/build_desktop_release.sh Horosa_Desktop_Installer/scripts/publish_github_release.sh Horosa-Web/start_horosa_local.sh` ✅
+  - 前端启动页 JS 冒烟：
+    - 用 Node + 最小 DOM stub 加载 `Horosa_Desktop_Installer/web/app.js`
+    - 覆盖 `launch / repair / update / error` 四种模式切换与文案落点
+    - 结果 `startup ui mode smoke passed` ✅
+  - `./Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh` ✅
+    - 新 app / pkg 版本为 `1.0.2`
+    - manifest `version/tag = 1.0.2 / v1.0.2`
+    - manifest `runtimeVersion = 1.0.1`
+    - expanded pkg 仍保持 `relocatable="false"`
+    - installer flow 与 shared runtime 启动链路继续通过
+- Notes:
+  - GitHub Release 发布与远端 e2e 复验待本轮推送后继续补跑。

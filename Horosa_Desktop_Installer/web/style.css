@@ -13,12 +13,57 @@
   --accent-warm: #c97a18;
   --accent-warm-soft: rgba(201, 122, 24, 0.12);
   --danger: #b64826;
+  --mode-accent: #0e5bd8;
+  --mode-accent-2: #67a0ff;
+  --mode-soft: rgba(14, 91, 216, 0.1);
+  --mode-tint: rgba(14, 91, 216, 0.2);
+  --mode-glow: rgba(14, 91, 216, 0.14);
   --shadow: 0 30px 80px rgba(29, 44, 64, 0.14);
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 18px;
   --radius-sm: 14px;
   --font-ui: "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+}
+
+body[data-mode="launch"] {
+  --mode-accent: #0e5bd8;
+  --mode-accent-2: #67a0ff;
+  --mode-soft: rgba(14, 91, 216, 0.1);
+  --mode-tint: rgba(14, 91, 216, 0.2);
+  --mode-glow: rgba(14, 91, 216, 0.14);
+}
+
+body[data-mode="install"] {
+  --mode-accent: #b36912;
+  --mode-accent-2: #f0b34d;
+  --mode-soft: rgba(179, 105, 18, 0.12);
+  --mode-tint: rgba(179, 105, 18, 0.2);
+  --mode-glow: rgba(179, 105, 18, 0.14);
+}
+
+body[data-mode="repair"] {
+  --mode-accent: #9b5a12;
+  --mode-accent-2: #df9f4a;
+  --mode-soft: rgba(155, 90, 18, 0.12);
+  --mode-tint: rgba(155, 90, 18, 0.2);
+  --mode-glow: rgba(155, 90, 18, 0.14);
+}
+
+body[data-mode="update"] {
+  --mode-accent: #0e7f63;
+  --mode-accent-2: #5bd5ad;
+  --mode-soft: rgba(14, 127, 99, 0.12);
+  --mode-tint: rgba(14, 127, 99, 0.2);
+  --mode-glow: rgba(14, 127, 99, 0.14);
+}
+
+body[data-mode="error"] {
+  --mode-accent: #b64826;
+  --mode-accent-2: #ea8a66;
+  --mode-soft: rgba(182, 72, 38, 0.12);
+  --mode-tint: rgba(182, 72, 38, 0.2);
+  --mode-glow: rgba(182, 72, 38, 0.14);
 }
 
 html,
@@ -158,8 +203,8 @@ body {
 
 .step-item.is-active {
   transform: translateX(6px);
-  border-color: rgba(14, 91, 216, 0.24);
-  box-shadow: 0 22px 45px rgba(14, 91, 216, 0.12);
+  border-color: var(--mode-tint);
+  box-shadow: 0 22px 45px var(--mode-glow);
 }
 
 .step-item.is-complete {
@@ -178,7 +223,7 @@ body {
 }
 
 .step-item.is-active .step-no {
-  background: linear-gradient(135deg, #1666e1 0%, #4590ff 100%);
+  background: linear-gradient(135deg, var(--mode-accent) 0%, var(--mode-accent-2) 100%);
   color: #ffffff;
 }
 
@@ -232,7 +277,14 @@ body {
 .hero-card {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.86)),
-    radial-gradient(circle at top right, rgba(17, 102, 221, 0.12), rgba(255, 255, 255, 0) 42%);
+    radial-gradient(circle at top right, var(--mode-soft), rgba(255, 255, 255, 0) 42%);
+}
+
+.hero-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 24px;
+  align-items: stretch;
 }
 
 .hero-meta,
@@ -259,15 +311,15 @@ body {
 
 .hero-tag {
   padding: 8px 13px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--mode-soft);
+  color: var(--mode-accent);
   text-transform: uppercase;
   font-weight: 700;
 }
 
 .hero-tag--soft {
-  background: var(--accent-warm-soft);
-  color: var(--accent-warm);
+  background: rgba(23, 32, 43, 0.06);
+  color: var(--text-soft);
 }
 
 .hero-card h1 {
@@ -294,6 +346,86 @@ body {
   background: rgba(23, 32, 43, 0.04);
   color: var(--text-soft);
   border: 1px solid rgba(23, 32, 43, 0.06);
+}
+
+.hero-scene {
+  position: relative;
+  min-height: 240px;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid var(--mode-tint);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0) 34%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.1)),
+    linear-gradient(135deg, rgba(23, 32, 43, 0.02), var(--mode-soft));
+}
+
+.hero-orbit {
+  position: absolute;
+  border: 1px solid var(--mode-tint);
+  border-radius: 999px;
+}
+
+.hero-orbit--outer {
+  inset: 18px;
+}
+
+.hero-orbit--mid {
+  inset: 52px;
+}
+
+.hero-orbit--inner {
+  inset: 92px;
+}
+
+.hero-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 110px;
+  height: 110px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.2) 32%, rgba(255, 255, 255, 0) 68%),
+    linear-gradient(135deg, var(--mode-accent) 0%, var(--mode-accent-2) 100%);
+  box-shadow:
+    0 0 0 16px rgba(255, 255, 255, 0.12),
+    0 28px 60px var(--mode-glow);
+}
+
+.hero-scene-card {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(14px);
+}
+
+.hero-scene-label {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-scene-title {
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.hero-scene-copy {
+  margin-top: 6px;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .status-grid {
@@ -335,8 +467,8 @@ body {
   width: 11px;
   height: 11px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #2ea36a 0%, #79d39d 100%);
-  box-shadow: 0 0 0 6px rgba(46, 163, 106, 0.12);
+  background: linear-gradient(135deg, var(--mode-accent) 0%, var(--mode-accent-2) 100%);
+  box-shadow: 0 0 0 6px var(--mode-soft);
 }
 
 .panel-head {
@@ -358,8 +490,8 @@ body {
 .panel-chip {
   min-height: 32px;
   padding: 0 12px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--mode-soft);
+  color: var(--mode-accent);
   font-weight: 700;
 }
 
@@ -382,7 +514,7 @@ body {
   width: 0%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #0f61df 0%, #6ca8ff 48%, #f1b24e 100%);
+  background: linear-gradient(90deg, var(--mode-accent) 0%, var(--mode-accent-2) 58%, #f3d7a6 100%);
   transition: width 180ms ease;
 }
 
@@ -431,14 +563,14 @@ body {
 .guard-item {
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(14, 91, 216, 0.04);
-  border: 1px solid rgba(14, 91, 216, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.88));
+  border: 1px solid var(--mode-tint);
 }
 
 .guard-key {
   font-size: 12px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--mode-accent);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -483,6 +615,10 @@ body {
     padding: 26px;
   }
 
+  .hero-layout {
+    grid-template-columns: 1fr;
+  }
+
   .status-grid,
   .detail-grid {
     grid-template-columns: 1fr;
@@ -505,5 +641,9 @@ body {
 
   .brand-lockup {
     align-items: flex-start;
+  }
+
+  .hero-scene {
+    min-height: 220px;
   }
 }
