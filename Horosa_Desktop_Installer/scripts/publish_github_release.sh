@@ -4,7 +4,7 @@ set -euo pipefail
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 
-read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
+read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -15,6 +15,7 @@ print(
     config['repoName'],
     config['releaseTagPrefix'],
     version,
+    f"{config['releaseTagPrefix']}{version}",
     config['runtimeAssetName'],
     config['desktopAssetName'],
     config['desktopPkgName'],
@@ -25,8 +26,7 @@ PY
 )
 EOF
 
-TAG_NAME="${TAG_PREFIX}${VERSION}"
-RELEASE_NAME="Horosa ${TAG_NAME}"
+RELEASE_NAME="${TAG_NAME}"
 API_ROOT="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 PRIMARY_DOWNLOAD="${DESKTOP_PKG_ZIP}"
 ASSETS=(
