@@ -197,7 +197,33 @@
     }, 500);
   };
 
+  function replayPendingState() {
+    if (window.__horosaPendingMode) {
+      window.__horosaMode(window.__horosaPendingMode);
+    }
+    if (window.__horosaPendingProgress) {
+      window.__horosaProgress(
+        window.__horosaPendingProgress.pct,
+        window.__horosaPendingProgress.message
+      );
+    }
+    if (Array.isArray(window.__horosaPendingStatusLines)) {
+      window.__horosaPendingStatusLines.forEach((line) => {
+        window.__horosaStatus(line);
+      });
+      window.__horosaPendingStatusLines = [];
+    }
+    if (window.__horosaPendingError) {
+      window.__horosaError(window.__horosaPendingError);
+      return;
+    }
+    if (window.__horosaPendingReadyUrl) {
+      window.__horosaReady(window.__horosaPendingReadyUrl);
+    }
+  }
+
   applyMode('launch');
   setProgress(0, '等待初始化…');
   pushLine('星阙启动页已加载。');
+  replayPendingState();
 })();
