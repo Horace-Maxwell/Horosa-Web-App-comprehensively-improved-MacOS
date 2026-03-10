@@ -5511,6 +5511,10 @@ Append new entries; do not rewrite history.
     - 色彩主题
   - 默认视觉改成更偏 app 启动页的样式：增加右侧轨道场景卡、当前会话摘要与模式配色，不再每次都强调“安装”；
   - 这次只提升桌面壳版本到 `1.0.2 / v1.0.2`，runtime 版本保持 `1.0.1`，避免用户因为纯启动页体验调整被强制重下 runtime。
+  - 在远端 e2e 里额外发现并修复了一条真实发布链问题：
+    - `.pkg` 的 `postinstall` 原先按 `runtimeVersion` 去拼 runtime 下载 tag；
+    - 当桌面壳升到 `1.0.2`、runtime 仍保持 `1.0.1` 时，会错误回源到旧的 `v1.0.1` 资产，导致 SHA 校验与当前包不一致；
+    - 现已改为始终从当前桌面壳 release tag 下载 runtime 资产，同时仍校验 runtime manifest 版本为 `1.0.1`。
 - Verification (local):
   - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml --check` ✅
   - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
@@ -5525,5 +5529,15 @@ Append new entries; do not rewrite history.
     - manifest `runtimeVersion = 1.0.1`
     - expanded pkg 仍保持 `relocatable="false"`
     - installer flow 与 shared runtime 启动链路继续通过
-- Notes:
-  - GitHub Release 发布与远端 e2e 复验待本轮推送后继续补跑。
+- Verification (GitHub):
+  - Release `v1.0.2` 已重发资产并复验 ✅
+  - `./Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh` ✅
+    - latest release = `v1.0.2`
+    - latest manifest `version/tag = 1.0.2 / v1.0.2`
+    - latest manifest `runtimeVersion = 1.0.1`
+    - 远端下载回来的 pkg / app / runtime 资产校验通过
+    - 远端模拟 pkg 安装、runtime 下载、shared runtime 启动链路通过
+    - `app_version = 1.0.2`
+- GitHub sync:
+  - `main` 已推到 `ddb244ce1946f8ad7ee4192f85e7a97c23e3f72c`
+  - Release `v1.0.2` 已更新为修正后的资产集合
