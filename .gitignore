@@ -61,3 +61,10 @@ Horosa-Web/astrostudyui/dist-file/
 
 # Local private research docs
 .private_astroapp_docs/
+
+# Horosa desktop installer generated artifacts
+Horosa_Desktop_Installer/build/
+Horosa_Desktop_Installer/dist/
+Horosa_Desktop_Installer/src-tauri/target-user/
+Horosa_Desktop_Installer/src-tauri/icons/Horosa.iconset/
+Horosa_Desktop_Installer/assets/icon-base.png
