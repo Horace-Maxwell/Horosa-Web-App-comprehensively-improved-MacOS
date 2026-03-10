@@ -1,12 +1,53 @@
 # Horosa Web + App（GitHub 可上传版）
 
-更新时间：2026-03-07
+更新时间：2026-03-09
 
-这个仓库的目标很简单：把它放到任意一台 Mac 上后，用户可以尽量少折腾，直接完成依赖准备、构建和本地启动。
+这个仓库现在同时承担两件事：
+
+- 普通用户下载并安装 `星阙`
+- 开发者查看源码、构建、调试和发布
+
+如果你只是想安装使用，请先看最前面的“下载安装”部分，后面的源码和构建说明都可以先跳过。
+
+## 下载一键安装包
+
+普通用户不要先克隆仓库，也不用自己找脚本。
+
+请直接去这里下载：
+
+- Release 页面：
+  [https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
+- 一键安装包直链：
+  [Horosa-Installer-macos-universal-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-universal-pkg.zip)
+
+普通用户只需要下载这一个文件：
+
+- `Horosa-Installer-macos-universal-pkg.zip`
+
+其他 `.pkg`、`.zip`、`runtime`、`manifest` 文件都是安装器或自动更新器内部使用的支持资产，普通用户不用单独处理。
+
+## 安装步骤
+
+下载 `Horosa-Installer-macos-universal-pkg.zip` 后：
+
+1. 解压 zip
+2. 先双击里面的 `Open-XingQue-Unsigned.command`
+3. 如果 macOS 仍拦截，再对 `Horosa-Installer-macos-universal.pkg` 点右键 -> 打开
+4. 按安装器步骤完成安装
+5. 安装完成后，从 `/Applications/星阙.app` 打开
+
+说明：
+
+- 当前主分发口径是 unsigned 安装包，所以第一次安装或第一次打开时，系统可能会要求你确认放行
+- `Open-XingQue-Unsigned.command` 的作用，就是尽量把这一步做简单
+- 正常用户不需要打开 Terminal，也不需要自己安装 Python、Java、Node
+- 安装器会在首次安装/首次启动时自动准备运行所需组件
+
+## 只有在你想看源码时，才继续往下看
 
 ## 最简单的用法
 
-如果你只是想把项目跑起来，只看这一段就够了：
+如果你是开发者，想把源码仓库直接跑起来，只看这一段就够了：
 
 1. 下载或克隆这个仓库。
 2. 双击 `Horosa_OneClick_Mac.command`。
@@ -16,7 +57,7 @@
 说明：
 - 第一次运行需要联网下载依赖。
 - 第一次会比较慢，后面再启动会快很多。
-- 如果你只想正常使用，优先用这个入口，不用先看别的说明。
+- 如果你只是普通用户，不要走这个源码入口，优先去上面的 Release 下载一键安装包。
 
 ## 根目录现在只保留一个入口
 

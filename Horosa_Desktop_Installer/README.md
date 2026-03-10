@@ -2,6 +2,28 @@
 
 这是 Horosa 的独立 macOS 桌面安装器工程，和主业务代码隔离。
 
+## 普通用户下载入口
+
+如果你要告诉别人“去哪里下载一键安装包”，优先给这两个地址：
+
+- Release 页面：
+  [https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
+- 一键安装包直链：
+  [Horosa-Installer-macos-universal-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-universal-pkg.zip)
+
+普通用户只需要下载：
+
+- `Horosa-Installer-macos-universal-pkg.zip`
+
+下载后步骤要说明清楚：
+
+1. 解压 zip
+2. 先运行 `Open-XingQue-Unsigned.command`
+3. 如仍被拦截，再右键打开 `Horosa-Installer-macos-universal.pkg`
+4. 安装完成后，从 `/Applications/星阙.app` 启动
+
+其他 release 资产都不是给普通用户手动挑选的，应该放在说明后面，不要放在最前面干扰他们。
+
 目标：
 
 - 交付真实 `.pkg` 安装器，而不是“解压即运行”的半安装态。
@@ -69,7 +91,7 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户只下
 这套方案依赖固定 manifest，而不是只靠“最新 release 的某个随机资产名”。发布时必须保持以下规则：
 
 1. 三个版本号始终一致：`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`
-2. Git tag 使用严格递增的 semver，例如 `v0.1.1`
+2. Git tag 使用严格递增的 semver，例如 `v1.0.0`
 3. 对外下载安装只主推 `Horosa-Installer-macos-universal-pkg.zip`
 4. 发布资产必须同时上传五个文件：
    - `Horosa-Installer-macos-universal-pkg.zip`
