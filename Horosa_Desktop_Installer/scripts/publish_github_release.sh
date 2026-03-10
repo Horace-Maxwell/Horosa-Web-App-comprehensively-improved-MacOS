@@ -83,23 +83,23 @@ fi
 RELEASE_BODY="$(cat <<EOF
 ## 安装步骤（中文）
 
-1. 下载 `${PRIMARY_DOWNLOAD}`
+1. 下载 ${PRIMARY_DOWNLOAD}
 2. 解压 zip
-3. 先双击里面的 `Open-XingQue-Unsigned.command`
-4. 如果系统仍拦截，再对 `.pkg` 安装包点右键 -> 打开
+3. 先双击里面的 Open-XingQue-Unsigned.command
+4. 如果系统仍拦截，再对 .pkg 安装包点右键 -> 打开
 5. 完成安装
-6. 如果 `/Applications/星阙.app` 第一次被拦截，再次运行同一个 `.command`，或对 app 点右键 -> 打开
+6. 如果 /Applications/星阙.app 第一次被拦截，再次运行同一个 .command，或对 app 点右键 -> 打开
 
 普通用户不需要手动下载任何其他文件。
 
 ## Install Steps (English)
 
-1. Download `${PRIMARY_DOWNLOAD}`
+1. Download ${PRIMARY_DOWNLOAD}
 2. Unzip it
-3. Run `Open-XingQue-Unsigned.command` first
-4. If macOS still blocks it, right-click the `.pkg` installer and choose Open
+3. Run Open-XingQue-Unsigned.command first
+4. If macOS still blocks it, right-click the .pkg installer and choose Open
 5. Finish installation
-6. If `/Applications/星阙.app` is blocked on first launch, run the same `.command` again, or right-click the app and choose Open
+6. If /Applications/星阙.app is blocked on first launch, run the same .command again, or right-click the app and choose Open
 
 No one else needs to manually download any other file.
 
