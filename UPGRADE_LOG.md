@@ -5591,3 +5591,38 @@ Append new entries; do not rewrite history.
 - Notes:
   - 这轮确认了缩放改动没有破坏现有安装、runtime 下载和启动链路；
   - 旧的 `/common/time -> 500` 仍然存在，但和这次缩放修复无关，不影响当前发布链路与应用进入主界面。
+
+### 22:40 - 修复 `/Applications/星阙.app` 在软件内点更新却不实际替换；桌面壳升到 1.0.4 / v1.0.4（2026-03-09）
+- Scope: 处理“本机已安装到 `/Applications` 的 `星阙.app` 能点击更新，但下载后没有真正升级”的问题。根因是 `.pkg` 安装后的 app 位于系统应用目录，原更新 helper 仍按普通用户态执行 `mv + ditto`，同时 stdout/stderr 被吞掉，结果就是已安装 app 的自更新失败但界面上看不到明确错误。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `Horosa_Desktop_Installer/README.md`
+  - `README.md`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 本机复现确认：
+    - 已安装 `/Applications/星阙.app` 当时仍停在 `1.0.2`
+    - 直接执行旧 helper 的核心替换动作时，`mv /Applications/星阙.app -> .previous` 会报 `Permission denied`
+    - 即使 app 已退出，普通用户态也不能直接替换该 bundle，所以旧实现对 `.pkg` 安装用户先天不成立
+  - 更新器改动：
+    - 当当前 app 位于 `/Applications` 时，更新确认文案会明确提示“macOS 接下来会要求管理员密码”
+    - 更新 helper 改为写持久化日志：`~/Library/Application Support/com.horacedong.horosa/logs/update-installer.log`
+    - 需要提权时，改为通过 `osascript -> do shell script ... with administrator privileges` 执行替换 helper
+    - helper 现在会以当前 GUI 用户身份重新 `open` 新 app，避免 root 态 `open` 把应用拉起到错误上下文
+    - `.app` 替换加入 45 次重试、失败回滚与附加日志，避免“应用退出稍慢 + 一次性替换”造成静默失败
+  - 版本口径：
+    - 桌面壳版本提升到 `1.0.4 / v1.0.4`
+    - runtime 版本继续保持 `1.0.1`
+- Verification (local):
+  - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml --check` ✅
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
+  - 本机权限复现：
+    - `defaults read '/Applications/星阙.app/Contents/Info' CFBundleShortVersionString` -> `1.0.2`
+    - `mv '/Applications/星阙.app' '/Applications/星阙.app.test'` -> `Permission denied`
+    - 证明旧的普通用户态自替换路径无法覆盖 `.pkg` 安装出来的 `/Applications` app

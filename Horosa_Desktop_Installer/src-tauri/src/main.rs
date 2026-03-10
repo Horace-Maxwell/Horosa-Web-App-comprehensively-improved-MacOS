@@ -927,6 +927,64 @@ fn shell_quote_text(text: &str) -> String {
     format!("\"{}\"", text.replace('"', "\\\""))
 }
 
+fn applescript_quote_text(text: &str) -> String {
+    format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+fn current_uid_string() -> String {
+    std::env::var("UID")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| {
+            Command::new("/usr/bin/id")
+                .arg("-u")
+                .output()
+                .ok()
+                .and_then(|output| String::from_utf8(output.stdout).ok())
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| "0".to_string())
+        })
+}
+
+fn current_user_string() -> String {
+    std::env::var("USER")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| {
+            Command::new("/usr/bin/id")
+                .arg("-un")
+                .output()
+                .ok()
+                .and_then(|output| String::from_utf8(output.stdout).ok())
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| "unknown".to_string())
+        })
+}
+
+fn update_helper_log_path(app: &AppHandle, extract_root: &Path) -> PathBuf {
+    let logs_dir = app
+        .path()
+        .app_data_dir()
+        .map(|path| path.join("logs"))
+        .unwrap_or_else(|_| extract_root.to_path_buf());
+    let _ = ensure_dir(&logs_dir);
+    logs_dir.join("update-installer.log")
+}
+
+fn target_requires_admin_update(target_app: &Path) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        target_app.starts_with(Path::new("/Applications"))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = target_app;
+        false
+    }
+}
+
 fn app_bundle_path() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     for ancestor in exe.ancestors() {
@@ -960,7 +1018,11 @@ fn install_downloaded_app(
     }
     let app_src = app_src.context("updated app bundle not found in zip")?;
     let target_app = app_bundle_path().context("current app bundle path not found")?;
+    let update_log = update_helper_log_path(&app, &extract_root);
     let helper = extract_root.join("install_update.sh");
+    let current_uid = current_uid_string();
+    let current_user = current_user_string();
+    let requires_admin = target_requires_admin_update(&target_app);
     let shared_runtime_root = shared_runtime_dir()
         .parent()
         .map(Path::to_path_buf)
@@ -976,10 +1038,13 @@ fn install_downloaded_app(
         String::new()
     };
     let script = format!(
-        "#!/bin/bash\nset -e\nsleep 2\n{runtime_cmd}install_app() {{\nTARGET={target}\nSRC={src}\nBACKUP_TARGET=\"${{TARGET}}.previous\"\nrm -rf \"${{BACKUP_TARGET}}\"\nHAD_TARGET=0\nif [ -d \"${{TARGET}}\" ]; then\n  mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"\n  HAD_TARGET=1\nfi\nif /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n  rm -rf \"${{BACKUP_TARGET}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{TARGET}}\"\n  if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n    mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\"\n  fi\n  exit 1\nfi\n}}\ninstall_app\nopen {target}\n",
+        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target={target}\"\necho \"src={src}\"\nsleep 2\n{runtime_cmd}open_app() {{\nTARGET={target}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nif [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n  /usr/bin/open \"${{TARGET}}\"\n  return 0\nfi\nif /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open \"${{TARGET}}\"; then\n  return 0\nfi\nif /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open \"${{TARGET}}\"; then\n  return 0\nfi\n/usr/bin/open \"${{TARGET}}\"\n}}\ninstall_app() {{\nTARGET={target}\nSRC={src}\nBACKUP_TARGET=\"${{TARGET}}.previous\"\nfor attempt in $(/usr/bin/seq 1 45); do\n  echo \"[app] attempt ${{attempt}}\"\n  rm -rf \"${{BACKUP_TARGET}}\"\n  HAD_TARGET=0\n  if [ -d \"${{TARGET}}\" ]; then\n    if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n      HAD_TARGET=1\n    else\n      echo \"[app] mv failed on attempt ${{attempt}}\"\n      /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n      sleep 1\n      continue\n    fi\n  fi\n  if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n    rm -rf \"${{BACKUP_TARGET}}\"\n    /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n    echo \"[app] install succeeded\"\n    return 0\n  fi\n  echo \"[app] ditto failed on attempt ${{attempt}}\"\n  rm -rf \"${{TARGET}}\"\n  if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n    mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n  fi\n  sleep 1\ndone\necho \"[app] install failed after retries\"\nreturn 1\n}}\ninstall_app\nopen_app\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
+        log = shell_quote(&update_log),
         runtime_cmd = runtime_cmd,
         target = shell_quote(&target_app),
-        src = shell_quote(&app_src)
+        src = shell_quote(&app_src),
+        user_uid = shell_quote_text(&current_uid),
+        user_name = shell_quote_text(&current_user)
     );
     fs::write(&helper, script)?;
     #[cfg(unix)]
@@ -989,11 +1054,24 @@ fn install_downloaded_app(
         perms.set_mode(0o755);
         fs::set_permissions(&helper, perms)?;
     }
-    Command::new("/bin/bash")
-        .arg(helper)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()?;
+    if requires_admin {
+        let command = format!("/bin/bash {}", shell_quote(&helper));
+        Command::new("/usr/bin/osascript")
+            .arg("-e")
+            .arg(format!(
+                "do shell script {} with administrator privileges",
+                applescript_quote_text(&command)
+            ))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+    } else {
+        Command::new("/bin/bash")
+            .arg(&helper)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+    }
     app.exit(0);
     Ok(())
 }
@@ -1154,6 +1232,13 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         (Some(_), None) => true,
         _ => false,
     };
+    let admin_update_notice = app_bundle_path()
+        .filter(|path| target_requires_admin_update(path))
+        .map(|_| {
+            "\n\n由于当前应用安装在 /Applications，macOS 接下来会要求管理员密码来完成应用替换。"
+                .to_string()
+        })
+        .unwrap_or_default();
     let summary = format_update_check_dialog(
         &current,
         &plan.latest_version,
@@ -1210,12 +1295,12 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         .set_level(MessageLevel::Info)
         .set_title("更新检查结果")
         .set_description(format!(
-            "{}{}
+            "{}{}{}
 
 是否立即更新
 是：下载并在退出后自动替换、更新运行环境并重开
 否：先关闭本窗口，稍后再更新",
-            summary, runtime_msg
+            summary, runtime_msg, admin_update_notice
         ))
         .set_buttons(MessageButtons::YesNo)
         .show();
