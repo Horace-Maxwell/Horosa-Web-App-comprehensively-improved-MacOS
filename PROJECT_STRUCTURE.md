@@ -3225,10 +3225,10 @@
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
   - 当前版本口径：
-    - 桌面壳内部构建版本使用 `1.0.3`
-    - 用户可见桌面壳版本使用 `1.0.3`
+    - 桌面壳内部构建版本使用 `1.0.4`
+    - 用户可见桌面壳版本使用 `1.0.4`
     - 当前 runtime 版本保持 `1.0.1`
-    - GitHub Release / manifest tag 使用 `v1.0.3`
+    - GitHub Release / manifest tag 使用 `v1.0.4`
   - 当前 runtime 自愈策略：
     - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
     - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；
@@ -3241,6 +3241,10 @@
     - 桌面壳 `视图` 菜单现已显式提供 `放大 / 缩小 / 实际大小`；
     - 快捷键分别为 `CmdOrCtrl+=`、`CmdOrCtrl+-`、`CmdOrCtrl+0`；
     - 缩放直接作用于 Tauri webview，不改默认窗口尺寸与初始比例。
+  - 当前应用内更新替换策略：
+    - 当目标 app 位于 `/Applications` 时，更新器会显式走 macOS 管理员授权，而不是继续用普通用户态硬拷贝；
+    - 更新 helper 会把替换过程写入 `~/Library/Application Support/com.horacedong.horosa/logs/update-installer.log`；
+    - `.app` 替换增加重试与回滚，避免应用退出稍慢时直接静默失败。
 - 当前忽略规则（避免仓库混入安装器生成物）：
   - `Horosa_Desktop_Installer/build/`
   - `Horosa_Desktop_Installer/dist/`
