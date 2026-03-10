@@ -1,6 +1,6 @@
 # Horosa Web 项目结构（GitHub 上传版）
 
-更新时间：2026-03-07
+更新时间：2026-03-10
 
 ## 1) 根目录（入口）
 
@@ -31,6 +31,8 @@
 - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`：推运盘“主限法盘”页面实现；左侧双盘（内圈本命、外圈主限法盘），右侧时间选择 + `推运方法 / 度数换算` 设置，并根据当前时间把主限法结果投影到外圈黄道位置
 - `Horosa-Web/astrostudyui/src/utils/decennials.js`：十年大运计算核心；包含起运主星、黄道/迦勒底次序、Valens 精确分配、Hephaistio 原表日数、L4 小时级细分
 - `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`：十年大运专项自动测试；覆盖文档原表值、昼夜起运、两套次序、两套日限、层级时长一致性与 `L4 HH:MM`
+- `Horosa-Web/astrostudyui/src/models/user.js`：命盘/事盘管理与当前 chart/case 选择逻辑；当前 `applyCase` 会在切换课例前先显式关闭抽屉，降低“管理事盘选中后抽屉残留”的概率
+- `Horosa-Web/astrostudyui/src/components/user/CaseList.js`：事盘列表抽屉；当前点击课例时除派发 `user/applyCase` 外，还会追加一层 `astro/closeDrawer` 兜底
 - `Horosa-Web/astrostudyui/src/components/tongshefa/TongSheFaMain.js`：统摄法主模块（四卦选择、本卦/互潜/错亲盘式、三十二观/三界/爻位/纳甲筮法、事盘保存、AI快照）
 - `Horosa-Web/astrostudyui/src/components/cnyibu/CnYiBuMain.js`：易与三式子菜单入口（已新增“统摄法”标签）
 - `Horosa-Web/astrostudyui/src/utils/localcases.js`：本地事盘类型映射（已新增 `tongshefa`）
@@ -55,7 +57,9 @@
 - `Horosa-Web/verify_horosa_local.sh`
   - 当前会在检测到可用 Playwright Python 时自动补跑：
     - 浏览器级宗师巡检 `scripts/browser_horosa_master_check.py`
+    - 顶部菜单/管理/选择器深巡检 `scripts/browser_horosa_toolbar_management_check.py`
     - 桌面端最终排版总检 `scripts/browser_horosa_final_layout_check.py`
+  - 当前会按“脚本退出 + 对应 JSON 报告确实刷新”双条件判定浏览器自检成功，并在失败时回收整棵浏览器子进程
 - `tools/mac/Horosa_Local.command`
   - 当前支持默认端口冲突时自动切换到替代端口，并通过 `srv` 查询参数把新页面绑定到正确的本地后端地址
   - 当前 `8000/8899/9999` 都通过 `nohup + setsid + disown` 常驻启动，降低“启动窗口一结束服务就死”的概率
@@ -73,6 +77,15 @@
   - 产物默认写入：
     - `runtime/browser_horosa_master_check.json`
     - `runtime/browser_horosa_master_check.png`
+- `scripts/browser_horosa_toolbar_management_check.py`
+  - 顶部菜单/管理/选择器深巡检脚本（Playwright Python）
+  - 专门覆盖此前普通总冒烟不够细的交互层：
+    - `查询/配置` 抽屉、主题切换、`AI导出`、`AI导出设置`、`新命盘`
+    - `星盘组件`、`行星选择`、`相位选择` 对图面 SVG 的真实影响
+    - `管理命盘`、`管理事盘` 的新增/编辑/选择链路
+    - 批注、小工具、关系盘 `比较盘/组合盘/影响盘/时空中点盘/马克思盘`
+  - 产物默认写入：
+    - `runtime/browser_horosa_toolbar_management_check.json`
 - `scripts/browser_horosa_final_layout_check.py`
   - 桌面端最终排版总检脚本（Playwright Python）
   - 专门覆盖最后一轮桌面端回归点：
