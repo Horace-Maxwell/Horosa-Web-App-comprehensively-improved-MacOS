@@ -3174,3 +3174,59 @@
   - `runtime/browser_horosa_master_check.json` 继续为 `ok`
   - `runtime/guangde_primarydirchart_browser_check.json` 继续为 `ok`
   - 当前所有强制性能页依旧保持 `< 1s`
+
+## 103.31) 星阙桌面安装器工程与 GitHub 分发链路（2026-03-09）
+
+- 独立桌面安装器工程：
+  - `Horosa_Desktop_Installer/`
+  - 这是和主业务代码隔离的 macOS 桌面壳与安装器工程，当前职责包括：
+    - 首次安装后拉起本地 Python / Java runtime
+    - 内置浏览窗口承载 Horosa 前端
+    - GitHub Release 单文件分发
+    - app 内检查更新、下载替换、重开
+- 核心目录：
+  - `Horosa_Desktop_Installer/src-tauri/`
+    - Tauri 桌面壳工程；
+    - `src/main.rs` 承载 runtime 引导、更新检查、更新下载替换、菜单事件；
+    - `tauri.conf.json` 当前产品名为 `星阙`。
+  - `Horosa_Desktop_Installer/scripts/`
+    - 打包、验收、发布脚本集合；
+    - 关键脚本：
+      - `build_desktop_release.sh`
+      - `verify_desktop_packaging.sh`
+      - `verify_github_release_end_to_end.sh`
+      - `publish_github_release.sh`
+      - `verify_public_distribution_readiness.sh`
+  - `Horosa_Desktop_Installer/distribution-support/`
+    - unsigned 自用/熟人分发支持模板：
+      - `unsigned_install_helper.template`
+      - `UNSIGNED_INSTALL_GUIDE.template`
+  - `Horosa_Desktop_Installer/installer-scripts/`
+    - `.pkg` 顶层 `postinstall` 模板。
+  - `Horosa_Desktop_Installer/web/`
+    - 安装器/初始化阶段 UI。
+  - `Horosa_Desktop_Installer/config/release_config.json`
+    - GitHub Release 资产名、repo、appName 等发布配置。
+- 当前 Release 交付结构：
+  - 主推下载文件：`Horosa-Installer-macos-universal-pkg.zip`
+  - zip 解压后默认包含：
+    - `Horosa-Installer-macos-universal.pkg`
+    - `Open-XingQue-Unsigned.command`
+    - `UNSIGNED_INSTALL_GUIDE.txt`
+- 当前 unsigned 分发口径：
+  - 仅支持 `Apple Silicon Mac + macOS 12+`
+  - 仅定位于开发者自用 / 少量熟人机器
+  - 遇到 Gatekeeper 拦截时，优先运行 `Open-XingQue-Unsigned.command`
+- 当前更新弹窗能力：
+  - 每次“检查更新”后都会显示结构化更新结果；
+  - 字段包括：`检查结果 / 当前版本 / 新版本号 / 运行环境 / 更新来源 / 更新摘要 / 完整 Changelog / GitHub 仓库 / Release 页面 / 是否立即更新`；
+  - `src-tauri/src/main.rs` 中的更新计划对象当前会同时保存：
+    - `repo_url`
+    - `release_url`
+  - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
+- 当前忽略规则（避免仓库混入安装器生成物）：
+  - `Horosa_Desktop_Installer/build/`
+  - `Horosa_Desktop_Installer/dist/`
+  - `Horosa_Desktop_Installer/src-tauri/target-user/`
+  - `Horosa_Desktop_Installer/src-tauri/icons/Horosa.iconset/`
+  - `Horosa_Desktop_Installer/assets/icon-base.png`
