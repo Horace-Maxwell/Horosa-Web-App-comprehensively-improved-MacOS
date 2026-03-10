@@ -9,6 +9,7 @@ import LiuRengBirthInput from '../lrzhan/LiuRengBirthInput';
 import DateTime from '../comp/DateTime';
 import JinKouChart from './JinKouChart';
 import { buildJinKouData } from './JinKouCalc';
+import { resolveJinKouDiFen } from './JinKouState';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import styles from '../../css/styles.less';
 
@@ -800,8 +801,12 @@ class JinKouMain extends Component{
 		const dayGan = dayGanZi.substr(0, 1);
 		const wx = LRConst.GanZiWuXing[dayGan];
 		const timeZi = normalizeZiFromText(result.liureng.nongli.time);
-		const useAutoDiFen = this.state.diFenAuto === true;
-		const diFen = useAutoDiFen && timeZi ? timeZi : this.state.diFen;
+		const diFen = resolveJinKouDiFen(
+			this.state.diFen,
+			this.state.diFenAuto === true,
+			timeZi,
+			!!this.state.liureng
+		);
 		const calcIsDiurnal = resolveChartIsDiurnal(chartObj === undefined ? this.props.value : chartObj);
 		const appliedBirth = buildBirthFields(this.state.birth, new DateTime());
 		const st = {
