@@ -3224,6 +3224,10 @@
     - `repo_url`
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
+  - 当前版本口径：
+    - 内部构建版本使用 `1.0.0`
+    - 用户可见显示版本使用 `1.0.0`
+    - GitHub Release / manifest tag 使用 `v1.0.0`
 - 当前忽略规则（避免仓库混入安装器生成物）：
   - `Horosa_Desktop_Installer/build/`
   - `Horosa_Desktop_Installer/dist/`

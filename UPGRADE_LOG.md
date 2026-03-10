@@ -5417,3 +5417,24 @@ Append new entries; do not rewrite history.
 - Verification (local):
   - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` 待本轮复验
   - `./Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh` 待本轮复验
+
+### 20:20 - 桌面安装器版本链统一升到 1.0.0 / v1.0.0（2026-03-09）
+- Scope: 将桌面安装器工程、更新清单、更新弹窗显示和 GitHub Release/tag 口径从 `0.1.0 / v0.1.0` 统一提升到 `1.0.0 / v1.0.0`，避免用户看到旧版本号。
+- Files:
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/config/release_config.json`
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/scripts/build_desktop_release.sh`
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 安装器内部语义化版本统一升到 `1.0.0`，保证 `npm / cargo / tauri` 构建链路保持合法版本号；
+  - 运行环境展示版本统一切到 `1.0.0`；
+  - 更新弹窗会直接显示 `1.0.0`；
+  - 最新 GitHub Release 与 manifest tag 统一为 `v1.0.0`；
+  - Release 标题也改为直接使用 tag 名，即 `v1.0.0`。

@@ -17,11 +17,12 @@ NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-}"
 UNSIGNED_HELPER_NAME="Open-XingQue-Unsigned.command"
 UNSIGNED_GUIDE_NAME="UNSIGNED_INSTALL_GUIDE.txt"
 
-read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
+read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME RELEASE_TAG <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
+version = json.loads((root / 'package.json').read_text())['version']
 print(
     config['appName'],
     config['runtimeAssetName'],
@@ -29,6 +30,7 @@ print(
     config['desktopPkgName'],
     config['desktopPkgZipName'],
     config['updateManifestName'],
+    f"{config['releaseTagPrefix']}{version}",
 )
 PYCONF
 )
@@ -189,7 +191,7 @@ dist = root / 'dist'
 arch = platform.machine().lower()
 platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
 version = json.loads((root / 'package.json').read_text())['version']
-tag = f"{config['releaseTagPrefix']}{version}"
+tag = "${RELEASE_TAG}"
 base = f"https://github.com/{config['repoOwner']}/{config['repoName']}/releases/download/{tag}"
 manifest = {
   'version': version,
