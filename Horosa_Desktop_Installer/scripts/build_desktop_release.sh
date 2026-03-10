@@ -79,7 +79,7 @@ replacements = {
     '__VERSION__': config['runtimeVersion'],
     '__RUNTIME_ASSET__': config['runtimeAssetName'],
     '__RUNTIME_SHA256__': os.environ['RUNTIME_SHA256_ENV'],
-    '__TAG_PREFIX__': config['releaseTagPrefix'],
+    '__RELEASE_TAG__': f"{config['releaseTagPrefix']}{json.loads((root / 'package.json').read_text())['version']}",
 }
 for key, value in replacements.items():
     template = template.replace(key, value)
