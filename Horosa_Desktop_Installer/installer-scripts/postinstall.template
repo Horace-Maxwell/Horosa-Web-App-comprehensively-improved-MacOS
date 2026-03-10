@@ -1,0 +1,95 @@
+#!/bin/bash
+set -euo pipefail
+
+TARGET_VOLUME="${3:-/}"
+APP_NAME="__APP_NAME__"
+APP_PATH="${HOROSA_APP_PATH:-${TARGET_VOLUME%/}/Applications/${APP_NAME}.app}"
+SHARED_ROOT="${HOROSA_RUNTIME_SHARED_ROOT:-${TARGET_VOLUME%/}/Users/Shared/Horosa}"
+RUNTIME_ROOT="${SHARED_ROOT}/runtime"
+CURRENT_DIR="${RUNTIME_ROOT}/current"
+WORK_DIR="${RUNTIME_ROOT}/_install"
+DOWNLOAD_DIR="${SHARED_ROOT}/downloads"
+LOG_PATH="${SHARED_ROOT}/installer.log"
+PENDING_PATH="${SHARED_ROOT}/runtime-install-pending.txt"
+ARCHIVE_NAME="__RUNTIME_ASSET__"
+ARCHIVE_PATH="${DOWNLOAD_DIR}/${ARCHIVE_NAME}"
+RUNTIME_URL="${HOROSA_RUNTIME_URL:-https://github.com/__REPO_OWNER__/__REPO_NAME__/releases/download/__TAG_PREFIX____VERSION__/__RUNTIME_ASSET__}"
+EXPECTED_VERSION="__VERSION__"
+EXPECTED_SHA256="__RUNTIME_SHA256__"
+
+mkdir -p "${DOWNLOAD_DIR}" "${RUNTIME_ROOT}"
+
+log_line() {
+  printf '[%s] %s\n' "$(/bin/date '+%Y-%m-%d %H:%M:%S')" "$1" >> "${LOG_PATH}"
+}
+
+mark_pending() {
+  printf '%s\n' "$1" > "${PENDING_PATH}"
+  /bin/chmod a+r "${PENDING_PATH}" >/dev/null 2>&1 || true
+}
+
+clear_pending() {
+  rm -f "${PENDING_PATH}"
+}
+
+defer_runtime_install() {
+  local reason="$1"
+  log_line "runtime bootstrap deferred: ${reason}"
+  mark_pending "${reason}"
+  rm -rf "${WORK_DIR}"
+  /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+  /bin/chmod -R a+rX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  exit 0
+}
+
+rm -rf "${WORK_DIR}"
+mkdir -p "${WORK_DIR}"
+
+if ! /usr/bin/curl -fL --retry 3 --connect-timeout 20 -o "${ARCHIVE_PATH}" "${RUNTIME_URL}"; then
+  defer_runtime_install "runtime download failed from ${RUNTIME_URL}"
+fi
+
+if [ -n "${EXPECTED_SHA256}" ]; then
+  ACTUAL_SHA256="$(/usr/bin/shasum -a 256 "${ARCHIVE_PATH}" | awk '{print $1}')"
+  if [ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]; then
+    defer_runtime_install "runtime checksum mismatch ${ACTUAL_SHA256} != ${EXPECTED_SHA256}"
+  fi
+fi
+
+if ! /usr/bin/tar -xzf "${ARCHIVE_PATH}" -C "${WORK_DIR}"; then
+  defer_runtime_install "runtime archive extract failed"
+fi
+
+if [ ! -f "${WORK_DIR}/runtime-payload/runtime-manifest.json" ]; then
+  defer_runtime_install "runtime manifest missing after extract"
+fi
+
+MANIFEST_VERSION="$(/usr/bin/plutil -extract version raw -o - "${WORK_DIR}/runtime-payload/runtime-manifest.json" 2>/dev/null || true)"
+if [ "${MANIFEST_VERSION}" != "${EXPECTED_VERSION}" ]; then
+  defer_runtime_install "runtime version mismatch ${MANIFEST_VERSION} != ${EXPECTED_VERSION}"
+fi
+
+PREVIOUS_DIR="${RUNTIME_ROOT}/previous"
+HAD_PREVIOUS=0
+rm -rf "${PREVIOUS_DIR}"
+if [ -d "${CURRENT_DIR}" ]; then
+  mv "${CURRENT_DIR}" "${PREVIOUS_DIR}"
+  HAD_PREVIOUS=1
+fi
+
+if mv "${WORK_DIR}/runtime-payload" "${CURRENT_DIR}"; then
+  rm -rf "${WORK_DIR}" "${PREVIOUS_DIR}"
+else
+  rm -rf "${CURRENT_DIR}"
+  if [ "${HAD_PREVIOUS}" = "1" ] && [ -d "${PREVIOUS_DIR}" ]; then
+    mv "${PREVIOUS_DIR}" "${CURRENT_DIR}"
+  fi
+  defer_runtime_install "failed to switch runtime payload"
+fi
+
+clear_pending
+log_line "runtime bootstrap installed successfully"
+/usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+/usr/bin/xattr -dr com.apple.quarantine "${CURRENT_DIR}" >/dev/null 2>&1 || true
+/bin/chmod -R a+rX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+exit 0
