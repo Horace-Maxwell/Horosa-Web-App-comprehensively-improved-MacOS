@@ -5349,3 +5349,71 @@ Append new entries; do not rewrite history.
     - `runtime/mastercheck_*.png`
 - Notes:
   - 这一步是把已有验收经验正式产品化，不改任何算法精度或页面业务逻辑。
+
+### 18:45 - 星阙桌面安装器工程补齐 GitHub 分发、unsigned 自用流程与结构化更新弹窗（2026-03-09）
+- Scope: 为独立桌面安装器 `Horosa_Desktop_Installer` 补齐一整套可持续发布链路：修复 `.pkg` 安装目标与 app 名称、完善 GitHub Release 单文件分发、加入 unsigned 自用/熟人安装辅助脚本，并把“检查更新”弹窗升级成结构化更新日志视图。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `Horosa_Desktop_Installer/scripts/build_desktop_release.sh`
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+  - `Horosa_Desktop_Installer/scripts/ad_hoc_sign_app.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_public_distribution_readiness.sh`
+  - `Horosa_Desktop_Installer/distribution-support/unsigned_install_helper.template`
+  - `Horosa_Desktop_Installer/distribution-support/UNSIGNED_INSTALL_GUIDE.template`
+  - `Horosa_Desktop_Installer/web/index.html`
+  - `Horosa_Desktop_Installer/web/app.js`
+  - `Horosa_Desktop_Installer/README.md`
+  - `.gitignore`
+- Details:
+  - 安装目标修正：桌面壳名称统一切到 `星阙`，`.pkg` 打包从 `pkgbuild --component` 改成 `--root + --component-plist`，并强制 `BundleIsRelocatable=false`，避免被 macOS 错误重定位到构建目录。
+  - Release 单文件分发：继续主推 `Horosa-Installer-macos-universal-pkg.zip`，但 zip 内现在同时携带：
+    - `Horosa-Installer-macos-universal.pkg`
+    - `Open-XingQue-Unsigned.command`
+    - `UNSIGNED_INSTALL_GUIDE.txt`
+  - unsigned 自用/熟人方案：新增 `Open-XingQue-Unsigned.command` 模板，负责尝试移除 `.pkg` / `.app` quarantine、引导用户右键打开或前往“系统设置 -> 隐私与安全性”放行；明确支持范围为 `Apple Silicon + macOS 12+`。
+  - 更新检查弹窗升级：不再只显示简单“已是最新版本 / 发现新版本”，而是每次检查后都统一弹出结构化结果，包含：
+    - `检查结果`
+    - `当前版本`
+    - `新版本号`
+    - `运行环境`
+    - `更新来源`
+    - `更新摘要`
+    - `完整 Changelog`
+    - 若有可更新内容，再追加 `是否立即更新`
+  - GitHub 同步：
+    - Release `v0.1.0` 资产已重传；
+    - Release 文案已更新为 unsigned 自用/熟人分发说明；
+    - 代码提交已推送到 `origin/main`，远端最新提交为 `6844edc8cd61cd4de458d270162dbed4dcb038fa`。
+- Verification (local):
+  - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml --check` ✅
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
+  - `HOROSA_DESKTOP_SKIP_REBUILD=1 ./Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh` ✅
+  - `./Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh` ✅
+  - 额外检查：从 GitHub 重新下载 `Horosa-Installer-macos-universal-pkg.zip`，确认 `Open-XingQue-Unsigned.command` 解压后仍保留可执行权限 `-rwxr-xr-x` ✅
+- Notes:
+  - 当前默认对外方案仍是 unsigned 自用/熟人分发，不是 Apple Developer ID + notarization 正式分发；
+  - 如需面向陌生用户稳定安装，后续仍需补正式签名与 notarization。
+
+### 19:12 - 更新弹窗补充 GitHub 仓库与 Release 页面直达链接（2026-03-09）
+- Scope: 继续完善 `Horosa_Desktop_Installer` 的更新检查弹窗，在“已是最新版本 / 固定更新清单 / See GitHub release notes.” 这类场景下，也直接展示仓库与对应 Release 页面地址，避免用户还要自己回忆 GitHub 链接。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `GithubRelease` 解析补入 `html_url`，以便 GitHub API 回退通道优先展示真实 Release 页面。
+  - `UpdatePlan` 新增：
+    - `repo_url`
+    - `release_url`
+  - manifest 通道会按 `repo_owner/repo_name + tag/version` 直接拼出仓库页与 Release 页；
+  - GitHub API 通道会优先使用返回的 `html_url`，缺失时再回退到 `/releases/tag/<tag>`；
+  - 结构化更新弹窗在 `完整 Changelog` 之后新增两段：
+    - `GitHub 仓库`
+    - `Release 页面`
+  - 因此即使摘要与完整日志仍显示 `See GitHub release notes.`，弹窗内也会同时附上可直接打开的 GitHub 地址。
+- Verification (local):
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` 待本轮复验
+  - `./Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh` 待本轮复验

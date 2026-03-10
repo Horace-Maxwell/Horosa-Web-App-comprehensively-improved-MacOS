@@ -58,6 +58,7 @@ struct ReleaseConfig {
 #[derive(Debug, Deserialize)]
 struct GithubRelease {
     tag_name: String,
+    html_url: Option<String>,
     body: Option<String>,
     assets: Vec<GithubAsset>,
 }
@@ -101,6 +102,8 @@ struct UpdatePlatform {
 struct UpdatePlan {
     latest_version: Version,
     notes: String,
+    repo_url: String,
+    release_url: String,
     app_url: String,
     app_sha256: Option<String>,
     runtime_url: Option<String>,
@@ -434,11 +437,22 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
             if let Ok(manifest) = response.json::<UpdateManifest>() {
                 if let Some(platform) = manifest.platforms.get(platform_key) {
                     let latest = Version::parse(manifest.version.trim())?;
+                    let repo_url = format!(
+                        "https://github.com/{}/{}",
+                        config.repo_owner, config.repo_name
+                    );
+                    let release_tag = manifest
+                        .tag
+                        .clone()
+                        .unwrap_or_else(|| format!("{}{}", config.release_tag_prefix, latest));
+                    let release_url = format!("{}/releases/tag/{}", repo_url, release_tag);
                     return Ok(UpdatePlan {
                         latest_version: latest,
                         notes: manifest
                             .notes
                             .unwrap_or_else(|| "See GitHub release notes.".to_string()),
+                        repo_url,
+                        release_url,
                         app_url: platform.app_url.clone(),
                         app_sha256: normalize_checksum(platform.app_sha256.clone()),
                         runtime_url: platform.runtime_url.clone(),
@@ -464,6 +478,10 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
         .error_for_status()?
         .json::<GithubRelease>()?;
     let latest = parse_version(&release.tag_name)?;
+    let repo_url = format!(
+        "https://github.com/{}/{}",
+        config.repo_owner, config.repo_name
+    );
     let asset = release
         .assets
         .iter()
@@ -476,6 +494,11 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
     Ok(UpdatePlan {
         latest_version: latest.clone(),
         notes: release.body.unwrap_or_default(),
+        repo_url: repo_url.clone(),
+        release_url: release
+            .html_url
+            .clone()
+            .unwrap_or_else(|| format!("{}/releases/tag/{}", repo_url, release.tag_name)),
         app_url: asset.browser_download_url.clone(),
         app_sha256: None,
         runtime_url: runtime_asset.map(|asset| asset.browser_download_url.clone()),
@@ -926,6 +949,8 @@ fn format_update_check_dialog(
     runtime_needs_update: bool,
     source: UpdateSource,
     notes: &str,
+    repo_url: &str,
+    release_url: &str,
 ) -> String {
     let status = if latest > current {
         "发现可用更新"
@@ -962,6 +987,12 @@ fn format_update_check_dialog(
 {}
 
 完整 Changelog
+{}
+
+GitHub 仓库
+{}
+
+Release 页面
 {}",
         status,
         current,
@@ -969,7 +1000,9 @@ fn format_update_check_dialog(
         format_runtime_status(local_runtime, remote_runtime),
         update_source,
         summary,
-        changelog
+        changelog,
+        repo_url,
+        release_url
     )
 }
 
@@ -991,6 +1024,8 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         runtime_needs_update,
         plan.source,
         &plan.notes,
+        &plan.repo_url,
+        &plan.release_url,
     );
     if plan.latest_version <= current && !runtime_needs_update {
         MessageDialog::new()
