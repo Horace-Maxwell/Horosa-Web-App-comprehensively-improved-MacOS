@@ -1,0 +1,12 @@
+{
+  "repoOwner": "Horace-Maxwell",
+  "repoName": "Horosa-Web-App-comprehensively-improved-MacOS",
+  "runtimeVersion": "0.1.0",
+  "runtimeAssetName": "horosa-runtime-macos-universal.tar.gz",
+  "desktopAssetName": "Horosa-Desktop-macos-universal.zip",
+  "desktopPkgName": "Horosa-Installer-macos-universal.pkg",
+  "desktopPkgZipName": "Horosa-Installer-macos-universal-pkg.zip",
+  "updateManifestName": "horosa-latest.json",
+  "releaseTagPrefix": "v",
+  "appName": "星阙"
+}

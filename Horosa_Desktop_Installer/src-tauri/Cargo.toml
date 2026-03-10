@@ -1,0 +1,32 @@
+[package]
+name = "horosa-desktop-installer"
+version = "0.1.0"
+description = "Horosa macOS desktop shell"
+authors = ["horacedong"]
+edition = "2021"
+build = "build.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow = "1"
+flate2 = "1"
+mime_guess = "2"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+rfd = "0.15"
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tar = "0.4"
+tauri = { version = "2", features = [] }
+tiny_http = "0.12"
+urlencoding = "2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+strip = true

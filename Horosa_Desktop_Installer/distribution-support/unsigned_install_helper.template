@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_NAME="__APP_NAME__"
+PKG_NAME="__PKG_NAME__"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_PATH="${HOROSA_APP_PATH_OVERRIDE:-/Applications/${APP_NAME}.app}"
+PKG_PATH="${HOROSA_PKG_PATH_OVERRIDE:-${SCRIPT_DIR}/${PKG_NAME}}"
+DRY_RUN="${HOROSA_DRY_RUN:-0}"
+SKIP_SECURITY_OPEN="${HOROSA_SKIP_OPEN_SECURITY:-0}"
+
+say() {
+  printf '%s
+' "$1"
+}
+
+open_item() {
+  local target="$1"
+  if [ "$DRY_RUN" = "1" ]; then
+    say "[DRY_RUN] open ${target}"
+    return 0
+  fi
+  open "$target"
+}
+
+open_security_settings() {
+  if [ "$SKIP_SECURITY_OPEN" = "1" ]; then
+    return 0
+  fi
+  if [ "$DRY_RUN" = "1" ]; then
+    say '[DRY_RUN] open Security & Privacy settings'
+    return 0
+  fi
+  open 'x-apple.systempreferences:com.apple.preference.security?Privacy_Security' >/dev/null 2>&1 || true
+}
+
+remove_quarantine() {
+  local target="$1"
+  if [ -e "$target" ]; then
+    /usr/bin/xattr -dr com.apple.quarantine "$target" >/dev/null 2>&1 || true
+  fi
+}
+
+if [ -d "$APP_PATH" ]; then
+  say "Detected installed ${APP_NAME}.app. Removing quarantine and opening it..."
+  say "已检测到已安装的 ${APP_NAME}.app，正在移除隔离属性并尝试打开。"
+  remove_quarantine "$APP_PATH"
+  open_item "$APP_PATH"
+  exit 0
+fi
+
+if [ -f "$PKG_PATH" ]; then
+  say "Detected installer package. Removing quarantine and opening the installer..."
+  say "已检测到安装包，正在移除隔离属性并打开安装器。"
+  remove_quarantine "$PKG_PATH"
+  open_item "$PKG_PATH"
+  cat <<EOF
+
+If macOS still blocks it:
+1. Right-click ${PKG_NAME} and choose Open.
+2. Or go to System Settings -> Privacy & Security and allow the blocked item.
+3. After installation, run this helper again to remove quarantine from /Applications/${APP_NAME}.app.
+
+如果 macOS 仍然拦截：
+1. 对 ${PKG_NAME} 点右键，选择“打开”。
+2. 或前往“系统设置 -> 隐私与安全性”，允许本次被拦截的项目。
+3. 安装完成后再次运行本脚本，它会尝试移除 /Applications/${APP_NAME}.app 的隔离属性。
+EOF
+  open_security_settings
+  exit 0
+fi
+
+cat <<EOF
+Could not find either of these paths:
+- ${PKG_PATH}
+- ${APP_PATH}
+
+未找到以下路径：
+- ${PKG_PATH}
+- ${APP_PATH}
+
+Manual fallback commands:
+/usr/bin/xattr -dr com.apple.quarantine "${PKG_PATH}"
+/usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}"
+EOF
+exit 1
