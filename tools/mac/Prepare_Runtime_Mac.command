@@ -9,6 +9,7 @@ PY_DST="${RUNTIME_DIR}/python"
 BUNDLE_DIR="${RUNTIME_DIR}/bundle"
 BOOTSTRAP_SH="${ROOT}/scripts/mac/bootstrap_and_run.sh"
 REQ_FILE="${ROOT}/scripts/requirements/mac-python.txt"
+PY_REPAIR_HELPER="${PROJECT_DIR}/scripts/repairEmbeddedPythonRuntime.py"
 
 UI_DIR="${PROJECT_DIR}/astrostudyui"
 IMAGE_DIR="${PROJECT_DIR}/astrostudysrv/image"
@@ -161,6 +162,11 @@ PY
     mkdir -p "${PY_DST}/lib/python${py_minor}/site-packages"
     echo "[Python] 复制额外 site-packages: ${extra_site}"
     rsync -a "${extra_site}/" "${PY_DST}/lib/python${py_minor}/site-packages/"
+  fi
+
+  if [ -f "${PY_REPAIR_HELPER}" ]; then
+    echo "[Python] 修复嵌入式 dylib 路径..."
+    /usr/bin/python3 "${PY_REPAIR_HELPER}" --repair "${PY_DST}"
   fi
 
   if ! ensure_python_runtime_deps; then

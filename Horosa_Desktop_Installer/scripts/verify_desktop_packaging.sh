@@ -226,11 +226,15 @@ HOROSA_RUNTIME_URL="${RUNTIME_ARCHIVE_URI}" HOROSA_RUNTIME_SHARED_ROOT="${INSTAL
 [ -f "${INSTALL_TARGET}/Users/Shared/Horosa/installer.log" ]
 [ -x "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" ]
 [ -x "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" ]
+[ -x "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
 [ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web/start_horosa_local.sh" ]
+/usr/bin/python3 "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python"
+PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
 
 read -r CHART_PORT BACKEND_PORT <<<"$(pick_ports)"
 (
   cd "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web"
+  PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
   HOROSA_SKIP_UI_BUILD=1 \
   HOROSA_SKIP_RUNTIME_WARMUP=1 \
   HOROSA_STARTUP_TIMEOUT=180 \

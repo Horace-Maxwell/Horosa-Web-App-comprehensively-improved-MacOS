@@ -23,6 +23,7 @@ BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
 ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
 DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
 DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
+EMBEDDED_PY_REPAIR_HELPER="${ROOT}/scripts/repairEmbeddedPythonRuntime.py"
 
 if [ -z "${HOROSA_PYTHON:-}" ] && [ -x "${ROOT_PARENT}/.runtime/mac/venv/bin/python3" ]; then
   PYTHON_BIN="${ROOT_PARENT}/.runtime/mac/venv/bin/python3"
@@ -265,6 +266,29 @@ raise SystemExit(1 if missing else 0)
 PY
 }
 
+repair_embedded_python_runtime() {
+  local py_bin="$1"
+  local py_root=""
+
+  if [ ! -f "${EMBEDDED_PY_REPAIR_HELPER}" ]; then
+    return 1
+  fi
+  if [ ! -x /usr/bin/python3 ]; then
+    return 1
+  fi
+  if [ ! -x "${py_bin}" ]; then
+    return 1
+  fi
+
+  py_root="$(cd "$(dirname "${py_bin}")/.." 2>/dev/null && pwd)"
+  if [ -z "${py_root}" ] || [ ! -f "${py_root}/Python" ] || [ ! -d "${py_root}/lib" ]; then
+    return 1
+  fi
+
+  diag_log "repair embedded python runtime links: ${py_root}"
+  /usr/bin/python3 "${EMBEDDED_PY_REPAIR_HELPER}" --repair "${py_root}" >>"${DIAG_FILE}" 2>&1
+}
+
 resolve_python_bin() {
   local root_parent=""
   local candidate=""
@@ -299,6 +323,12 @@ resolve_python_bin() {
     fi
 
     if python_runtime_ready "${resolved}"; then
+      PYTHON_BIN="${resolved}"
+      return 0
+    fi
+
+    if repair_embedded_python_runtime "${resolved}" && python_runtime_ready "${resolved}"; then
+      diag_log "python runtime recovered after relink repair: ${resolved}"
       PYTHON_BIN="${resolved}"
       return 0
     fi

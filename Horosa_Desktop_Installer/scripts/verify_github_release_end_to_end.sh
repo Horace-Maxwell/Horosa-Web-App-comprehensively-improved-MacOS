@@ -108,6 +108,9 @@ rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/target/Applications/${APP_NAME}.a
   exit 1
 }
 [ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/installer.log" ]
+[ -x "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
+/usr/bin/python3 "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python"
+PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
 
 read -r CHART_PORT BACKEND_PORT <<EOF
 $(python3 - <<'PY'
@@ -125,6 +128,7 @@ EOF
 
 (
   cd "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/Horosa-Web"
+  PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
   HOROSA_SKIP_UI_BUILD=1 \
   HOROSA_SKIP_RUNTIME_WARMUP=1 \
   HOROSA_STARTUP_TIMEOUT=180 \

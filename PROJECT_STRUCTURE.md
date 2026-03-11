@@ -3234,6 +3234,9 @@
     - GitHub Release 资产名、repo、appName 等发布配置。
   - `Horosa_Desktop_Installer/config/release_notes.md`
     - 当前 release 正文里的“本次更新 / What's New”来源文件；发布脚本会把它追加在 `技术资产 / Technical Assets` 之后。
+  - `Horosa-Web/scripts/repairEmbeddedPythonRuntime.py`
+    - clean Mac 发行链里的 embedded Python 修复器；
+    - 负责检查并修复 `Python.framework` 的绝对依赖、补做 ad-hoc 重签、验证 `Python.app` 与 dylib/so 可执行性。
 - 当前 Release 交付结构：
   - 主推下载文件：`Horosa-Installer-macos-universal-pkg.zip`
   - zip 解压后默认包含：
@@ -3252,10 +3255,10 @@
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
   - 当前版本口径：
-    - 桌面壳内部构建版本使用 `1.0.11`
-    - 用户可见桌面壳版本使用 `1.0.11`
+    - 桌面壳内部构建版本使用 `1.0.12`
+    - 用户可见桌面壳版本使用 `1.0.12`
     - 当前 runtime 版本跟随 app 版本自动对齐
-    - GitHub Release / manifest tag 使用 `v1.0.11`
+    - GitHub Release / manifest tag 使用 `v1.0.12`
   - 当前 runtime 自愈策略：
     - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
     - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；
@@ -3264,6 +3267,10 @@
     - 默认首屏已从“安装器界面”改成“通用启动页”，日常打开时会显示 `日常启动 / Runtime 快速自检`；
     - 只有真正进入 Runtime 下载、修复或应用更新时，界面才会切到 `首次准备 / 运行时修复 / 版本更新` 等模式；
     - 启动画面包含动态会话摘要、模式标签和更偏应用启动页的视觉，而不是每次都模拟首次安装。
+  - 当前应用内更新进度提示：
+    - 从主界面触发“检查更新”后，右上角会出现独立浮层进度卡；
+    - 会显示当前事务类型、下载/校验/替换阶段、百分比与当前说明文案；
+    - 浮层不依赖启动页 DOM，因此主界面更新时也能持续可见。
   - 当前缩放能力：
     - 桌面壳 `视图` 菜单现已显式提供 `放大 / 缩小 / 实际大小`；
     - 快捷键分别为 `CmdOrCtrl+=`、`CmdOrCtrl+-`、`CmdOrCtrl+0`；
@@ -3271,8 +3278,10 @@
   - 当前桌面发布与自检强化：
     - `Horosa-Web/start_horosa_local.sh`
       - 本地启动时如果 runtime 里的 backend jar 过旧，会优先用源码侧较新的 `astrostudyboot.jar` 覆盖刷新，避免 `主限法盘` 因 `/predict/pdchart` 不存在而空白。
+      - 当前还会在 embedded Python 不可用时自动调用 `repairEmbeddedPythonRuntime.py` 尝试自愈并重试。
     - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
       - 打包 runtime payload 时会显式把最新 `astrostudyboot.jar` 注入 bundle，确保新 release 不会继续携带旧 backend。
+      - 打包时保留 `runtime/mac/python/Resources/Python.app`，清理旧 `_CodeSignature` 并对修复后的 embedded Python 做 ad-hoc 重签。
     - `scripts/browser_horosa_jinkou_regression_check.py`
       - 金口诀专项浏览器回归，固定校验 `惊蛰后第5天 + 地分亥 -> 将神癸亥登明`。
     - `scripts/browser_primary_direction_chart_guangde_check.py`
@@ -3286,6 +3295,11 @@
         - 最终布局专项
         - 主限法细专项
         - 金口诀专项回归
+    - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+      - 会在模拟 `.pkg` 安装后校验 embedded Python 的 `Python.app` 是否存在；
+      - 并在干净 `PATH` 下直接执行 embedded Python，确保安装后启动不依赖系统 Python。
+    - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+      - 会对 GitHub release 下载回来的 runtime 做同样的 clean-Mac 验证，避免“本地包能跑但公开 release 资产少文件/签名坏掉”。
     - `scripts/browser_horosa_master_check.py`
       - 已把远端 3D/CDN 超时从致命失败降为 warning，避免第三方静态资源波动误伤本地功能验收。
     - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
