@@ -1,4 +1,3 @@
-- 修复桌面版 `推运盘 -> 主限法盘` 在本地 runtime 使用旧 `astrostudyboot.jar` 时左侧双盘空白的问题；现在 runtime 打包与启动链会优先同步最新 backend jar，确保 `/predict/pdchart` 真正可用。
-- 修复 `金口诀` 月将/将神在 `jieqi` 缺失、仅有 `jiedelta` 时误退回到“按月支取月将”的问题；现在会优先按节气段口径取月将，并兼容从 `jiedelta` 提取节气名。
-- 新增浏览器级 `金口诀` 回归检查，硬性校验 `惊蛰后第5天 + 地分亥 => 将神癸亥登明`，避免以后再次回退成 `壬戌河魁`。
-- 把主限法盘细专项浏览器校验并入本地总自检，并修正浏览器总巡检对远端 3D/CDN 超时的误报口径，不再把第三方静态资源超时算成产品故障。
+- 修复桌面壳在部分机器上启动即报 `release_config.json not found` 的问题；现在会优先读取打包后真实存在的 `Contents/Resources/_up_/config/release_config.json`。
+- 即使 `release_config.json` 缺失或损坏，桌面壳现在也会自动回退到内置默认发布配置，不再直接卡死在初始化页。
+- 保持更新检查、runtime 下载和 GitHub Release 链路可用，避免因为单个配置文件路径差异导致整套安装流程报废。

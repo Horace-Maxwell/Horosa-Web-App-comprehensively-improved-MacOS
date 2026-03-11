@@ -5659,6 +5659,40 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-10
 
+### 23:36 - 修复桌面壳在部分机器上启动时报 `release_config.json not found`；准备发版 1.0.11 / v1.0.11
+- Scope: 处理用户分发 `Mac星阙APP v1.0.10.zip` 后，在目标机器上打开 app 直接卡在初始化页并报 `release_config.json not found` 的问题。根因不是安装包没带配置，而是桌面壳读取路径和实际打包路径不一致：app 资源里真实存在的是 `Contents/Resources/_up_/config/release_config.json`，但旧逻辑只检查 `Contents/Resources/config/release_config.json`。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `load_release_config(...)` 现在按以下顺序加载：
+    - `Resources/_up_/config/release_config.json`
+    - `Resources/config/release_config.json`
+    - 开发目录 `../config/release_config.json`
+  - 如果以上路径都缺失，或者 JSON 读取/解析失败，桌面壳不会再直接抛出 `release_config.json not found`；
+  - 现在会自动回退到内置默认发布配置：
+    - `Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS`
+    - `horosa-runtime-macos-universal.tar.gz`
+    - `Horosa-Desktop-macos-universal.zip`
+    - `Horosa-Installer-macos-universal.pkg`
+    - `Horosa-Installer-macos-universal-pkg.zip`
+    - `horosa-latest.json`
+    - tag 前缀 `v`
+    - runtime 版本默认跟随 app 版本
+  - 这样即使配置文件在目标机器上被误删、路径不一致或读取失败，应用也能继续启动并使用更新链路，不会再卡死在启动页。
+  - 桌面壳版本提升到 `1.0.11 / v1.0.11`。
+- Verification:
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
+  - 通过解包检查确认：
+    - 安装包内实际配置路径为 `星阙.app/Contents/Resources/_up_/config/release_config.json`
+  - 代码路径已显式覆盖该真实打包路径，不再依赖错误的 `Resources/config` 单一路径。
+
 ### 22:34 - 修复桌面版主限法盘 runtime backend 漂移、金口诀节气段取将口径，并补齐两条浏览器级专项回归；准备发版 1.0.10 / v1.0.10
 - Scope: 收口本地主文件夹里尚未发版的两类真实问题。其一是桌面版升级后 `推运盘 -> 主限法盘` 仍可能空白，根因是 runtime 使用了旧 `astrostudyboot.jar`，缺少 `/predict/pdchart`；其二是 `金口诀` 在 `nongli.jieqi` 为空但 `jiedelta` 存在时，会错误退回“按月支取月将”，从而把将神误算成 `壬戌河魁`。同时把这两条真实故障补成浏览器级专项自检，并并入本地总验收入口。
 - Files:
