@@ -15,6 +15,8 @@ FULL_VERIFY_PY="${PROJECT_ROOT}/scripts/check_horosa_full_integration.py"
 BROWSER_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_master_check.py"
 TOOLBAR_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_toolbar_management_check.py"
 FINAL_LAYOUT_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_final_layout_check.py"
+PD_BROWSER_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_primary_direction_chart_guangde_check.py"
+JINKOU_BROWSER_VERIFY_PY="${PROJECT_ROOT}/scripts/browser_horosa_jinkou_regression_check.py"
 CHART_PORT="${HOROSA_CHART_PORT:-8899}"
 BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
 WEB_PORT="${HOROSA_WEB_PORT:-8000}"
@@ -227,7 +229,7 @@ PYTHON_BIN="$(resolve_python_bin)"
 "${PYTHON_BIN}" "${PD_VERIFY_PY}"
 "${PYTHON_BIN}" "${FULL_VERIFY_PY}"
 
-if [ -f "${BROWSER_VERIFY_PY}" ] || [ -f "${TOOLBAR_VERIFY_PY}" ] || [ -f "${FINAL_LAYOUT_VERIFY_PY}" ]; then
+if [ -f "${BROWSER_VERIFY_PY}" ] || [ -f "${TOOLBAR_VERIFY_PY}" ] || [ -f "${FINAL_LAYOUT_VERIFY_PY}" ] || [ -f "${PD_BROWSER_VERIFY_PY}" ] || [ -f "${JINKOU_BROWSER_VERIFY_PY}" ]; then
   if BROWSER_PYTHON_BIN="$(resolve_browser_python_bin 2>/dev/null)"; then
     if ensure_browser_web_port "${BROWSER_PYTHON_BIN}"; then
       if [ -f "${BROWSER_VERIFY_PY}" ]; then
@@ -246,6 +248,18 @@ if [ -f "${BROWSER_VERIFY_PY}" ] || [ -f "${TOOLBAR_VERIFY_PY}" ] || [ -f "${FIN
         echo ""
         echo "browser final layout: ${FINAL_LAYOUT_VERIFY_PY}"
         run_browser_python_check "browser final layout" "${FINAL_LAYOUT_VERIFY_PY}" "${PROJECT_ROOT}/runtime/final_layout_master_check.json"
+      fi
+
+      if [ -f "${PD_BROWSER_VERIFY_PY}" ]; then
+        echo ""
+        echo "browser primary direction detail: ${PD_BROWSER_VERIFY_PY}"
+        run_browser_python_check "browser primary direction detail" "${PD_BROWSER_VERIFY_PY}" "${PROJECT_ROOT}/runtime/browser_primary_direction_chart_guangde_check.json"
+      fi
+
+      if [ -f "${JINKOU_BROWSER_VERIFY_PY}" ]; then
+        echo ""
+        echo "browser jinkou regression: ${JINKOU_BROWSER_VERIFY_PY}"
+        run_browser_python_check "browser jinkou regression" "${JINKOU_BROWSER_VERIFY_PY}" "${PROJECT_ROOT}/runtime/browser_horosa_jinkou_regression_check.json"
       fi
     fi
   else

@@ -307,10 +307,14 @@ def main() -> None:
     fatal_console_errors = []
     ignored_console_errors = []
     for message in result["consoleErrors"]:
-        if "Failed to load resource" in message and "ERR_CONNECTION_TIMED_OUT" in message:
-            ignored_console_errors.append(message)
+        normalized = f"{message or ''}"
+        if "Failed to load resource" in normalized and (
+            "ERR_CONNECTION_TIMED_OUT" in normalized
+            or "ERR_TIMED_OUT" in normalized
+        ):
+            ignored_console_errors.append(normalized)
         else:
-            fatal_console_errors.append(message)
+            fatal_console_errors.append(normalized)
     result["consoleErrors"] = fatal_console_errors
     if ignored_console_errors:
         result["warnings"].append(

@@ -5,12 +5,15 @@ INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 RELEASE_NOTES_FILE="${INSTALLER_ROOT}/config/release_notes.md"
 
-read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
+read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
 version = json.loads((root / 'package.json').read_text())['version']
+runtime_version = str(config.get('runtimeVersion') or '').strip()
+if runtime_version.lower() in ('', 'auto', 'same-as-app'):
+    runtime_version = version
 print(
     config['repoOwner'],
     config['repoName'],
@@ -22,6 +25,7 @@ print(
     config['desktopPkgName'],
     config['desktopPkgZipName'],
     config['updateManifestName'],
+    runtime_version,
 )
 PY
 )
@@ -45,7 +49,7 @@ for asset in "${ASSETS[@]}"; do
   }
 done
 
-python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_PKG}" "${DIST_ROOT}/${RUNTIME_ASSET}" "${DESKTOP_ASSET}" "${DESKTOP_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${INSTALLER_ROOT}/config/release_config.json"
+python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_PKG}" "${DIST_ROOT}/${RUNTIME_ASSET}" "${DESKTOP_ASSET}" "${DESKTOP_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}"
 import hashlib, json, pathlib, sys
 
 manifest_path = pathlib.Path(sys.argv[1])
@@ -57,7 +61,7 @@ desktop_pkg = sys.argv[6]
 runtime_asset = sys.argv[7]
 tag_name = sys.argv[8]
 version = sys.argv[9]
-config = json.loads(pathlib.Path(sys.argv[10]).read_text())
+runtime_version = sys.argv[10]
 manifest = json.loads(manifest_path.read_text())
 
 if manifest.get('version') != version:
@@ -79,9 +83,9 @@ for key, suffix in expected_urls.items():
     if not platform.get(key, '').endswith('/' + suffix):
         raise SystemExit(f"local manifest {key} mismatch: {platform.get(key)}")
 
-if platform.get('runtimeVersion') != config.get('runtimeVersion'):
+if platform.get('runtimeVersion') != runtime_version:
     raise SystemExit(
-        f"local manifest runtimeVersion mismatch: {platform.get('runtimeVersion')} != {config.get('runtimeVersion')}"
+        f"local manifest runtimeVersion mismatch: {platform.get('runtimeVersion')} != {runtime_version}"
     )
 
 checks = {

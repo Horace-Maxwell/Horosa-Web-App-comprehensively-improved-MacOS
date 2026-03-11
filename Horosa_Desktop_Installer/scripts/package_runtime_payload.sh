@@ -6,6 +6,7 @@ REPO_ROOT="$(cd "${INSTALLER_ROOT}/.." && pwd)"
 BUILD_ROOT="${INSTALLER_ROOT}/build/runtime"
 STAGE_ROOT="${BUILD_ROOT}/runtime-payload"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
+BOOT_JAR_SOURCE="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
 RSYNC_FILTERS=(
   "--exclude=.DS_Store"
   "--exclude=._*"
@@ -15,7 +16,11 @@ $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
-print(config['runtimeVersion'], config['runtimeAssetName'])
+version = json.loads((root / 'package.json').read_text())['version']
+runtime_version = str(config.get('runtimeVersion') or '').strip()
+if runtime_version.lower() in ('', 'auto', 'same-as-app'):
+    runtime_version = version
+print(runtime_version, config['runtimeAssetName'])
 PY
 )
 EOF
@@ -36,6 +41,9 @@ rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/war
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/runtime/mac/java" "${STAGE_ROOT}/runtime/mac/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/runtime/mac/python" "${STAGE_ROOT}/runtime/mac/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/runtime/mac/bundle" "${STAGE_ROOT}/runtime/mac/"
+if [ -f "${BOOT_JAR_SOURCE}" ]; then
+  cp -f "${BOOT_JAR_SOURCE}" "${STAGE_ROOT}/runtime/mac/bundle/astrostudyboot.jar"
+fi
 rm -rf "${STAGE_ROOT}/runtime/mac/python/Resources/Python.app"
 find "${STAGE_ROOT}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
 

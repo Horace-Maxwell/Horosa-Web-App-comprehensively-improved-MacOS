@@ -403,11 +403,16 @@ ensure_frontend_build
 
 JAR="${ROOT}/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
 BUNDLE_JAR="${ROOT}/../runtime/mac/bundle/astrostudyboot.jar"
-if [ ! -f "${JAR}" ] && [ -f "${BUNDLE_JAR}" ]; then
-  diag_log "target jar missing, fallback to bundled jar: ${BUNDLE_JAR}"
-  echo "backend target jar missing, using bundled jar fallback."
-  mkdir -p "$(dirname "${JAR}")"
-  cp -f "${BUNDLE_JAR}" "${JAR}"
+if [ -f "${BUNDLE_JAR}" ]; then
+  if [ ! -f "${JAR}" ]; then
+    diag_log "target jar missing, fallback to bundled jar: ${BUNDLE_JAR}"
+    echo "backend target jar missing, using bundled jar fallback."
+    mkdir -p "$(dirname "${JAR}")"
+    cp -f "${BUNDLE_JAR}" "${JAR}"
+  elif [ "${BUNDLE_JAR}" -nt "${JAR}" ] && ! cmp -s "${BUNDLE_JAR}" "${JAR}"; then
+    diag_log "bundled jar newer than target jar, refreshing target from bundle"
+    cp -f "${BUNDLE_JAR}" "${JAR}"
+  fi
 fi
 if [ ! -f "${JAR}" ]; then
   diag_log "missing jar after fallback: ${JAR}"

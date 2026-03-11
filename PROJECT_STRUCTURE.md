@@ -3252,10 +3252,10 @@
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
   - 当前版本口径：
-    - 桌面壳内部构建版本使用 `1.0.5`
-    - 用户可见桌面壳版本使用 `1.0.5`
-    - 当前 runtime 版本保持 `1.0.1`
-    - GitHub Release / manifest tag 使用 `v1.0.5`
+    - 桌面壳内部构建版本使用 `1.0.10`
+    - 用户可见桌面壳版本使用 `1.0.10`
+    - 当前 runtime 版本跟随 app 版本自动对齐
+    - GitHub Release / manifest tag 使用 `v1.0.10`
   - 当前 runtime 自愈策略：
     - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
     - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；
@@ -3268,6 +3268,26 @@
     - 桌面壳 `视图` 菜单现已显式提供 `放大 / 缩小 / 实际大小`；
     - 快捷键分别为 `CmdOrCtrl+=`、`CmdOrCtrl+-`、`CmdOrCtrl+0`；
     - 缩放直接作用于 Tauri webview，不改默认窗口尺寸与初始比例。
+  - 当前桌面发布与自检强化：
+    - `Horosa-Web/start_horosa_local.sh`
+      - 本地启动时如果 runtime 里的 backend jar 过旧，会优先用源码侧较新的 `astrostudyboot.jar` 覆盖刷新，避免 `主限法盘` 因 `/predict/pdchart` 不存在而空白。
+    - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
+      - 打包 runtime payload 时会显式把最新 `astrostudyboot.jar` 注入 bundle，确保新 release 不会继续携带旧 backend。
+    - `scripts/browser_horosa_jinkou_regression_check.py`
+      - 金口诀专项浏览器回归，固定校验 `惊蛰后第5天 + 地分亥 -> 将神癸亥登明`。
+    - `scripts/browser_primary_direction_chart_guangde_check.py`
+      - 主限法表格与主限法盘联动专项浏览器校验，覆盖方法切换、表格时间同步、图面变化与状态文案。
+    - `Horosa-Web/verify_horosa_local.sh`
+      - 当前总自检入口已串起：
+        - 接口/性能/静态集成检查
+        - 主限法精度与多案例检查
+        - 浏览器总巡检
+        - 顶部菜单与管理专项
+        - 最终布局专项
+        - 主限法细专项
+        - 金口诀专项回归
+    - `scripts/browser_horosa_master_check.py`
+      - 已把远端 3D/CDN 超时从致命失败降为 warning，避免第三方静态资源波动误伤本地功能验收。
   - 当前应用内更新替换策略：
     - 当目标 app 位于 `/Applications` 时，更新器会显式走 macOS 管理员授权，而不是继续用普通用户态硬拷贝；
     - 更新 helper 会把替换过程写入 `~/Library/Application Support/com.horacedong.horosa/logs/update-installer.log`；

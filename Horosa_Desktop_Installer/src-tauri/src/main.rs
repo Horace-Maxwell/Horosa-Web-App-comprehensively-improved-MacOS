@@ -321,7 +321,16 @@ fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
     for path in candidates {
         if path.exists() {
             let data = fs::read_to_string(&path)?;
-            return serde_json::from_str(&data).context("parse release_config.json");
+            let mut config: ReleaseConfig =
+                serde_json::from_str(&data).context("parse release_config.json")?;
+            let runtime_version = config.runtime_version.trim().to_string();
+            if runtime_version.is_empty()
+                || runtime_version.eq_ignore_ascii_case("auto")
+                || runtime_version.eq_ignore_ascii_case("same-as-app")
+            {
+                config.runtime_version = app.package_info().version.to_string();
+            }
+            return Ok(config);
         }
     }
     Err(anyhow!("release_config.json not found"))

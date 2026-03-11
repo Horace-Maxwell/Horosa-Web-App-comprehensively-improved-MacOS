@@ -5659,6 +5659,65 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-10
 
+### 22:34 - 修复桌面版主限法盘 runtime backend 漂移、金口诀节气段取将口径，并补齐两条浏览器级专项回归；准备发版 1.0.10 / v1.0.10
+- Scope: 收口本地主文件夹里尚未发版的两类真实问题。其一是桌面版升级后 `推运盘 -> 主限法盘` 仍可能空白，根因是 runtime 使用了旧 `astrostudyboot.jar`，缺少 `/predict/pdchart`；其二是 `金口诀` 在 `nongli.jieqi` 为空但 `jiedelta` 存在时，会错误退回“按月支取月将”，从而把将神误算成 `壬戌河魁`。同时把这两条真实故障补成浏览器级专项自检，并并入本地总验收入口。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouCalc.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouCalc.test.js`
+  - `Horosa-Web/start_horosa_local.sh`
+  - `Horosa-Web/verify_horosa_local.sh`
+  - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
+  - `Horosa_Desktop_Installer/scripts/build_desktop_release.sh`
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+  - `Horosa_Desktop_Installer/config/release_config.json`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `scripts/browser_horosa_master_check.py`
+  - `scripts/browser_horosa_jinkou_regression_check.py`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - runtime backend 漂移修复：
+    - `Horosa-Web/start_horosa_local.sh` 现在会在本地启动时检测 bundle 内较新的 `astrostudyboot.jar`，必要时覆盖 runtime 里的旧 jar；
+    - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh` 会在打 runtime payload 时显式注入最新 backend jar，避免 release 重新带出旧后端；
+    - 这样桌面版主限法盘不再因为 runtime jar 过旧、缺失 `PredictiveController#pdchart()` 而左侧空白。
+  - 金口诀节气段月将修复：
+    - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouCalc.js` 现在优先按节气段取月将；
+    - 当 `nongli.jieqi` 为空时，会自动从 `nongli.jiedelta` 中提取节气名后再算月将；
+    - 因此 `惊蛰后第5天 + 地分亥` 会稳定落到 `将神癸亥登明`，不再误退回 `壬戌河魁`。
+  - 专项回归补强：
+    - 新增 `scripts/browser_horosa_jinkou_regression_check.py`，浏览器级硬断言金口诀正确渲染；
+    - `Horosa-Web/verify_horosa_local.sh` 新接入：
+      - `scripts/browser_primary_direction_chart_guangde_check.py`
+      - `scripts/browser_horosa_jinkou_regression_check.py`
+    - `scripts/browser_horosa_master_check.py` 对远端 3D/CDN 超时改为 warning，不再把第三方静态资源超时报成产品故障。
+  - 桌面壳版本提升到 `1.0.10 / v1.0.10`，并保持 runtime 版本随 app 自动对齐，避免后续再出现“源码修了但运行时没更新”的版本错位。
+- Verification:
+  - 单元与构建：
+    - `cd Horosa-Web/astrostudyui && npm test -- --runInBand src/components/jinkou/JinKouCalc.test.js` ✅
+    - `cd Horosa-Web/astrostudyui && npm run build:file` ✅
+  - 脚本与桌面壳：
+    - `bash -n Horosa-Web/verify_horosa_local.sh` ✅
+    - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
+  - 浏览器专项：
+    - `python3 scripts/browser_horosa_jinkou_regression_check.py` ✅
+    - `runtime/browser_horosa_jinkou_regression_check.json` 状态 `ok`
+    - `python3 scripts/browser_primary_direction_chart_guangde_check.py` ✅
+    - `runtime/guangde_primarydirchart_browser_check.json` 状态 `ok`
+    - `python3 scripts/browser_horosa_master_check.py` ✅
+    - `runtime/browser_horosa_master_check.json` 状态 `ok`
+    - `python3 scripts/browser_horosa_toolbar_management_check.py` ✅
+    - `runtime/browser_horosa_toolbar_management_check.json` 状态 `ok`
+    - `python3 scripts/browser_horosa_final_layout_check.py` ✅
+    - `runtime/final_layout_master_check.json` 状态 `ok`
+  - 运行态 / 接口 / 性能：
+    - `./Horosa-Web/verify_horosa_local.sh` 的核心检查项复验通过；
+    - 本轮样本中最慢强制场景约 `950.29ms`，仍保持在 `1s` 内。
+
 ### 00:12 - 宗师级按钮/菜单/管理深巡检补齐，并修复“管理事盘”选中后的抽屉收口链路
 - Scope: 补上此前浏览器总冒烟没有完全深挖的区域，把顶部菜单栏、图盘显示选择器、命盘/事盘管理、批注、关系盘和小工具的可操作项再往下压一层；同时修复 `管理事盘` 选中课例后抽屉关闭链路不够稳的问题，并把这轮深巡检正式并入本地总自检能力。
 - Files:
