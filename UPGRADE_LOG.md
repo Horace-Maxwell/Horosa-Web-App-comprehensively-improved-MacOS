@@ -5748,3 +5748,23 @@ Append new entries; do not rewrite history.
   - 新增 `JinKouMain.test.js`，把“首次自动取时支 / 手动地分保持不变”两条规则钉成回归测试；
   - GitHub Release 正文模板已收口为三段：`安装步骤（中文）`、`Install Steps (English)`、`技术资产 / Technical Assets`，并在其后追加 `本次更新 / What's New`；
   - 桌面壳版本提升到 `1.0.8 / v1.0.8`，runtime 版本继续保持 `1.0.1`。
+
+### 17:46 - 修复 v1.0.8 发布链 runtime checksum 漂移；桌面壳升到 1.0.9 / v1.0.9（2026-03-10）
+- Scope: 处理一条 fresh install 级别的真实发布故障。`v1.0.8` 的 `horosa-runtime-macos-universal.tar.gz` 与 `horosa-latest.json` 中的 `runtimeSha256` 不一致，导致 `.pkg` 在首次安装时会把 runtime 安装静默延期，远端验收脚本也因此失败。
+- Files:
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `PROJECT_STRUCTURE.md`
+  - `UPGRADE_LOG.md`
+- Details:
+  - `verify_desktop_packaging.sh` 不再在构建前额外单跑一次 `package_runtime_payload.sh`，避免把 dist 里的 runtime 资产改新后却没有同步重写 manifest；
+  - `publish_github_release.sh` 新增发布前硬校验：会逐项比对本地 `horosa-latest.json` 的 `version / tag / runtimeVersion / appUrl / pkgUrl / runtimeUrl / appSha256 / pkgSha256 / runtimeSha256` 与待上传资产，任何一项不一致都直接拒绝上传；
+  - `verify_github_release_end_to_end.sh` 在 `.pkg` 首装未产出 `runtime-manifest.json` 时，会直接输出 pending 原因，避免再次出现“脚本退出但不给错误上下文”的情况；
+  - 桌面壳版本提升到 `1.0.9 / v1.0.9`，runtime 版本继续保持 `1.0.1`。

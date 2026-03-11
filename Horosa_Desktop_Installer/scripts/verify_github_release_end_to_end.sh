@@ -101,7 +101,12 @@ mkdir -p "${TMP_INSTALL}/target/Applications"
 rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/target/Applications/${APP_NAME}.app/"
 /bin/bash "${COMPONENT_SCRIPT}" pkgid unused "${TMP_INSTALL}/target"
 
-[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
+[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ] || {
+  if [ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt" ]; then
+    echo "runtime install pending: $(cat "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt")" >&2
+  fi
+  exit 1
+}
 [ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/installer.log" ]
 
 read -r CHART_PORT BACKEND_PORT <<EOF

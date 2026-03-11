@@ -3213,11 +3213,14 @@
       - `verify_github_release_end_to_end.sh`
       - `publish_github_release.sh`
       - `verify_public_distribution_readiness.sh`
+    - 当前 `verify_desktop_packaging.sh` 会把“生成 runtime payload + 生成 manifest + 打包 app/pkg/zip”统一收敛到 `build_desktop_release.sh` 一次完成，避免同一轮验收里把 runtime 资产改新却遗留旧 manifest；
+    - 当前 `verify_github_release_end_to_end.sh` 在 `.pkg` 首装把 runtime 延期时，会直接打印 `runtime-install-pending.txt` 原因；
     - 当前 `publish_github_release.sh` 生成的 Release 正文只保留：
       - `安装步骤（中文）`
       - `Install Steps (English)`
       - `技术资产 / Technical Assets`
       - 然后再追加 `本次更新 / What's New`
+    - 当前 `publish_github_release.sh` 在上传前会强制校验 `horosa-latest.json` 里的 `app/pkg/runtime` URL、版本号与 SHA256 必须和本地待上传资产一致，否则直接拒绝发布。
   - `Horosa_Desktop_Installer/distribution-support/`
     - unsigned 自用/熟人分发支持模板：
       - `unsigned_install_helper.template`

@@ -45,6 +45,56 @@ for asset in "${ASSETS[@]}"; do
   }
 done
 
+python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_PKG}" "${DIST_ROOT}/${RUNTIME_ASSET}" "${DESKTOP_ASSET}" "${DESKTOP_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${INSTALLER_ROOT}/config/release_config.json"
+import hashlib, json, pathlib, sys
+
+manifest_path = pathlib.Path(sys.argv[1])
+app_path = pathlib.Path(sys.argv[2])
+pkg_path = pathlib.Path(sys.argv[3])
+runtime_path = pathlib.Path(sys.argv[4])
+desktop_asset = sys.argv[5]
+desktop_pkg = sys.argv[6]
+runtime_asset = sys.argv[7]
+tag_name = sys.argv[8]
+version = sys.argv[9]
+config = json.loads(pathlib.Path(sys.argv[10]).read_text())
+manifest = json.loads(manifest_path.read_text())
+
+if manifest.get('version') != version:
+    raise SystemExit(f"local manifest version mismatch: {manifest.get('version')} != {version}")
+if manifest.get('tag') != tag_name:
+    raise SystemExit(f"local manifest tag mismatch: {manifest.get('tag')} != {tag_name}")
+
+platforms = manifest.get('platforms', {})
+if not platforms:
+    raise SystemExit('local manifest missing platforms')
+platform = next(iter(platforms.values()))
+
+expected_urls = {
+    'appUrl': desktop_asset,
+    'pkgUrl': desktop_pkg,
+    'runtimeUrl': runtime_asset,
+}
+for key, suffix in expected_urls.items():
+    if not platform.get(key, '').endswith('/' + suffix):
+        raise SystemExit(f"local manifest {key} mismatch: {platform.get(key)}")
+
+if platform.get('runtimeVersion') != config.get('runtimeVersion'):
+    raise SystemExit(
+        f"local manifest runtimeVersion mismatch: {platform.get('runtimeVersion')} != {config.get('runtimeVersion')}"
+    )
+
+checks = {
+    'appSha256': app_path,
+    'pkgSha256': pkg_path,
+    'runtimeSha256': runtime_path,
+}
+for key, path in checks.items():
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if platform.get(key) != actual:
+        raise SystemExit(f"local manifest {key} mismatch: {platform.get(key)} != {actual}")
+PY
+
 if [ "${HOROSA_SKIP_VERIFY:-0}" != "1" ]; then
   "${INSTALLER_ROOT}/scripts/verify_desktop_packaging.sh"
 fi

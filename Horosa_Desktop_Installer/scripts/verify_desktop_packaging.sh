@@ -98,25 +98,22 @@ cleanup() {
 trap cleanup EXIT
 
 if [ "${HOROSA_DESKTOP_SKIP_REBUILD:-0}" != "1" ]; then
-  printf '[1/8] generate icon\n'
+  printf '[1/7] generate icon\n'
   "${INSTALLER_ROOT}/scripts/generate_icon.sh"
 
-  printf '[2/8] cargo fmt --check\n'
+  printf '[2/7] cargo fmt --check\n'
   cargo fmt --manifest-path "${INSTALLER_ROOT}/src-tauri/Cargo.toml" --check
 
-  printf '[3/8] cargo check\n'
+  printf '[3/7] cargo check\n'
   cargo check --manifest-path "${INSTALLER_ROOT}/src-tauri/Cargo.toml"
 
-  printf '[4/8] package runtime payload\n'
-  "${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
-
-  printf '[5/8] build desktop release\n'
+  printf '[4/7] build desktop release\n'
   "${INSTALLER_ROOT}/scripts/build_desktop_release.sh"
 else
-  printf '[1-5/8] skip rebuild, reuse existing assets\n'
+  printf '[1-4/7] skip rebuild, reuse existing assets\n'
 fi
 
-printf '[6/8] verify app/pkg artifacts\n'
+printf '[5/7] verify app/pkg artifacts\n'
 [ -f "${RUNTIME_ARCHIVE}" ]
 [ -f "${DESKTOP_ZIP}" ]
 [ -f "${INSTALLER_PKG}" ]
@@ -214,7 +211,7 @@ PYVERIFY
 pkgutil --expand-full "${INSTALLER_PKG}" "${EXPANDED_PKG}"
 find "${EXPANDED_PKG}" -type f | rg 'postinstall|PackageInfo|Distribution' >/dev/null
 
-printf '[7/8] simulate pkg postinstall download and shared-runtime launch\n'
+printf '[6/7] simulate pkg postinstall download and shared-runtime launch\n'
 mkdir -p "${INSTALL_TARGET}/Applications"
 rsync -a "${TARGET_APP}/" "${INSTALL_TARGET}/Applications/${APP_NAME}.app/"
 HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SHARED_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${POSTINSTALL_SCRIPT}" pkgid unused "${INSTALL_TARGET}"
@@ -257,7 +254,7 @@ echo "installer flow passed for ports ${CHART_PORT}/${BACKEND_PORT}."
 CHART_PORT=""
 BACKEND_PORT=""
 
-printf '[8/8] inspect expanded pkg payload path\n'
+printf '[7/7] inspect expanded pkg payload path\n'
 PAYLOAD_ROOT="$(find "${EXPANDED_PKG}" -path '*/Payload' -type d | head -n 1)"
 PACKAGE_INFO="$(find "${EXPANDED_PKG}" -path '*/PackageInfo' | head -n 1)"
 [ -n "${PAYLOAD_ROOT}" ]
