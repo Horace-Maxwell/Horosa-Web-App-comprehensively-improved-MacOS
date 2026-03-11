@@ -36,6 +36,14 @@ const DEFAULT_ZOOM: f64 = 1.0;
 const MIN_ZOOM: f64 = 0.7;
 const MAX_ZOOM: f64 = 1.8;
 const ZOOM_STEP: f64 = 0.1;
+const DEFAULT_REPO_OWNER: &str = "Horace-Maxwell";
+const DEFAULT_REPO_NAME: &str = "Horosa-Web-App-comprehensively-improved-MacOS";
+const DEFAULT_RUNTIME_ASSET_NAME: &str = "horosa-runtime-macos-universal.tar.gz";
+const DEFAULT_DESKTOP_ASSET_NAME: &str = "Horosa-Desktop-macos-universal.zip";
+const DEFAULT_DESKTOP_PKG_NAME: &str = "Horosa-Installer-macos-universal.pkg";
+const DEFAULT_DESKTOP_PKG_ZIP_NAME: &str = "Horosa-Installer-macos-universal-pkg.zip";
+const DEFAULT_UPDATE_MANIFEST_NAME: &str = "horosa-latest.json";
+const DEFAULT_RELEASE_TAG_PREFIX: &str = "v";
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -153,6 +161,21 @@ struct AppState {
     session: Mutex<Option<RuntimeSession>>,
     web_shutdown: Mutex<Option<Arc<AtomicBool>>>,
     zoom_level: Mutex<f64>,
+}
+
+fn fallback_release_config(app: &AppHandle) -> ReleaseConfig {
+    ReleaseConfig {
+        repo_owner: DEFAULT_REPO_OWNER.to_string(),
+        repo_name: DEFAULT_REPO_NAME.to_string(),
+        runtime_version: app.package_info().version.to_string(),
+        runtime_asset_name: DEFAULT_RUNTIME_ASSET_NAME.to_string(),
+        desktop_asset_name: DEFAULT_DESKTOP_ASSET_NAME.to_string(),
+        desktop_pkg_name: DEFAULT_DESKTOP_PKG_NAME.to_string(),
+        desktop_pkg_zip_name: DEFAULT_DESKTOP_PKG_ZIP_NAME.to_string(),
+        update_manifest_name: DEFAULT_UPDATE_MANIFEST_NAME.to_string(),
+        release_tag_prefix: DEFAULT_RELEASE_TAG_PREFIX.to_string(),
+        app_name: APP_NAME.to_string(),
+    }
 }
 
 impl Default for AppState {
@@ -315,25 +338,50 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
 fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
     let resource_dir = app.path().resource_dir().context("missing resource dir")?;
     let candidates = [
+        resource_dir.join("_up_/config/release_config.json"),
         resource_dir.join("config/release_config.json"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../config/release_config.json"),
     ];
+    let mut parse_errors = Vec::new();
     for path in candidates {
         if path.exists() {
-            let data = fs::read_to_string(&path)?;
-            let mut config: ReleaseConfig =
-                serde_json::from_str(&data).context("parse release_config.json")?;
-            let runtime_version = config.runtime_version.trim().to_string();
-            if runtime_version.is_empty()
-                || runtime_version.eq_ignore_ascii_case("auto")
-                || runtime_version.eq_ignore_ascii_case("same-as-app")
-            {
-                config.runtime_version = app.package_info().version.to_string();
+            match fs::read_to_string(&path) {
+                Ok(data) => match serde_json::from_str::<ReleaseConfig>(&data) {
+                    Ok(mut config) => {
+                        let runtime_version = config.runtime_version.trim().to_string();
+                        if runtime_version.is_empty()
+                            || runtime_version.eq_ignore_ascii_case("auto")
+                            || runtime_version.eq_ignore_ascii_case("same-as-app")
+                        {
+                            config.runtime_version = app.package_info().version.to_string();
+                        }
+                        return Ok(config);
+                    }
+                    Err(err) => {
+                        parse_errors.push(format!("{}: {}", path.display(), err));
+                    }
+                },
+                Err(err) => {
+                    parse_errors.push(format!("{}: {}", path.display(), err));
+                }
             }
-            return Ok(config);
         }
     }
-    Err(anyhow!("release_config.json not found"))
+    let fallback = fallback_release_config(app);
+    if parse_errors.is_empty() {
+        eprintln!(
+            "release_config.json not found in bundle resources, using embedded defaults for {}/{}",
+            fallback.repo_owner, fallback.repo_name
+        );
+    } else {
+        eprintln!(
+            "release_config.json unavailable, using embedded defaults for {}/{}; details: {}",
+            fallback.repo_owner,
+            fallback.repo_name,
+            parse_errors.join(" | ")
+        );
+    }
+    Ok(fallback)
 }
 
 fn runtime_paths_for_dir(app_data_dir: PathBuf, runtime_dir: PathBuf) -> RuntimePaths {

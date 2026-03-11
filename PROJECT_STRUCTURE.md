@@ -3252,10 +3252,10 @@
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
   - 当前版本口径：
-    - 桌面壳内部构建版本使用 `1.0.10`
-    - 用户可见桌面壳版本使用 `1.0.10`
+    - 桌面壳内部构建版本使用 `1.0.11`
+    - 用户可见桌面壳版本使用 `1.0.11`
     - 当前 runtime 版本跟随 app 版本自动对齐
-    - GitHub Release / manifest tag 使用 `v1.0.10`
+    - GitHub Release / manifest tag 使用 `v1.0.11`
   - 当前 runtime 自愈策略：
     - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
     - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；
@@ -3288,6 +3288,9 @@
         - 金口诀专项回归
     - `scripts/browser_horosa_master_check.py`
       - 已把远端 3D/CDN 超时从致命失败降为 warning，避免第三方静态资源波动误伤本地功能验收。
+    - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+      - `load_release_config(...)` 现在会按真实打包路径优先搜索 `Contents/Resources/_up_/config/release_config.json`；
+      - 如果外部配置缺失或损坏，会自动回退到内置 GitHub 发布配置，不再因为单一配置文件缺失而启动失败。
   - 当前应用内更新替换策略：
     - 当目标 app 位于 `/Applications` 时，更新器会显式走 macOS 管理员授权，而不是继续用普通用户态硬拷贝；
     - 更新 helper 会把替换过程写入 `~/Library/Application Support/com.horacedong.horosa/logs/update-installer.log`；
