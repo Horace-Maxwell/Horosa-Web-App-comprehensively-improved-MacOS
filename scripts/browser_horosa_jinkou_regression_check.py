@@ -99,7 +99,19 @@ def select_visible_dropdown_by_prefix(page, prefix: str, option_label: str) -> N
         raise AssertionError(f"找不到前缀为 {prefix!r} 的可见下拉框")
     target.click(force=True)
     page.wait_for_timeout(300)
-    option = page.locator(".ant-select-dropdown:visible").get_by_text(option_label, exact=True)
+    dropdown = page.locator(".ant-select-dropdown:visible").first
+    holder = dropdown.locator(".rc-virtual-list-holder").first
+    option = None
+    for step in range(8):
+        option = dropdown.get_by_text(option_label, exact=True)
+        if option.count():
+            break
+        if holder.count() == 0:
+            break
+        holder.evaluate("(el, top) => { el.scrollTop = top; el.dispatchEvent(new Event('scroll', { bubbles: true })); }", step * 240)
+        page.wait_for_timeout(200)
+    if option is None or option.count() == 0:
+        raise AssertionError(f"下拉框中找不到选项 {option_label!r}")
     option.first.click(force=True, timeout=10_000)
     page.wait_for_timeout(800)
 
