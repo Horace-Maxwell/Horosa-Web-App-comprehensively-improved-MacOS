@@ -100,6 +100,71 @@ describe('JinKouCalc', ()=>{
 		expect(data.yongYao.label).toBe('人元');
 	});
 
+	it('prefers 节气段月将 over conflicting 六壬月将 fallback', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			yue: '戌',
+			nongli: {
+				dayGanZi: '癸未',
+				time: '戌时',
+				monthGanZi: '辛卯',
+				jieqi: '惊蛰',
+			},
+			fourColumns: {
+				month: { ganzi: '辛卯' },
+			},
+		}), {
+			diFen: '戌',
+			guirengType: 0,
+		});
+		expect(data.yuejiang).toBe('亥');
+		expect(data.jiangZi).toBe('亥');
+		expect(data.jiangName).toBe('登明');
+		expect(data.jiangGan).toBe('癸');
+	});
+
+	it('falls back to 节气段月将 when 六壬月将缺失', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			nongli: {
+				dayGanZi: '癸未',
+				time: '戌时',
+				monthGanZi: '辛卯',
+				jieqi: '惊蛰',
+			},
+			fourColumns: {
+				month: { ganzi: '辛卯' },
+			},
+		}), {
+			diFen: '戌',
+			guirengType: 0,
+		});
+		expect(data.yuejiang).toBe('亥');
+		expect(data.jiangZi).toBe('亥');
+		expect(data.jiangName).toBe('登明');
+		expect(data.jiangGan).toBe('癸');
+	});
+
+	it('falls back to jiedelta text when jieqi field is missing', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			nongli: {
+				dayGanZi: '癸未',
+				time: '癸亥',
+				monthGanZi: '辛卯',
+				jieqi: null,
+				jiedelta: '惊蛰后第5天',
+			},
+			fourColumns: {
+				month: { ganzi: '辛卯' },
+			},
+		}), {
+			diFen: '亥',
+			guirengType: 0,
+		});
+		expect(data.yuejiang).toBe('亥');
+		expect(data.jiangZi).toBe('亥');
+		expect(data.jiangName).toBe('登明');
+		expect(data.jiangGan).toBe('癸');
+	});
+
 	it('uses explicit diurnal flag to determine day/night branch', ()=>{
 		const base = mockLiuReng({
 			nongli: {

@@ -68,6 +68,32 @@ const JinKouYueJiangByMonthBranch = {
 	'子': '丑',
 	'丑': '子',
 };
+const JinKouYueJiangByJieQi = {
+	'雨水': '亥',
+	'惊蛰': '亥',
+	'春分': '戌',
+	'清明': '戌',
+	'谷雨': '酉',
+	'立夏': '酉',
+	'小满': '申',
+	'芒种': '申',
+	'夏至': '未',
+	'小暑': '未',
+	'大暑': '午',
+	'立秋': '午',
+	'处暑': '巳',
+	'白露': '巳',
+	'秋分': '辰',
+	'寒露': '辰',
+	'霜降': '卯',
+	'立冬': '卯',
+	'小雪': '寅',
+	'大雪': '寅',
+	'冬至': '丑',
+	'小寒': '丑',
+	'大寒': '子',
+	'立春': '子',
+};
 const JinKouGuiRuleLiuReng = {
 	'甲': {
 		day: { start: '丑', reverse: false },
@@ -242,6 +268,37 @@ function getTimeZi(liureng){
 	return extractFromList(liureng.nongli.time, LRConst.ZiList);
 }
 
+function normalizeJieqiName(jieqi){
+	const map = {
+		'驚蟄': '惊蛰',
+		'穀雨': '谷雨',
+		'處暑': '处暑',
+		'白露節': '白露',
+	};
+	const txt = `${jieqi || ''}`.trim();
+	if(txt === ''){
+		return '';
+	}
+	const normalized = map[txt] ? map[txt] : txt;
+	return normalized.substring(0, 2);
+}
+
+function resolveJieqiForYueJiang(liureng){
+	if(!liureng || !liureng.nongli){
+		return '';
+	}
+	const nongli = liureng.nongli;
+	const direct = normalizeJieqiName(nongli.jieqi);
+	if(direct){
+		return direct;
+	}
+	const deltaTxt = `${nongli.jiedelta || ''}`.trim();
+	if(deltaTxt){
+		return normalizeJieqiName(deltaTxt);
+	}
+	return '';
+}
+
 function normalizeDiFen(diFen, fallback){
 	const zi = extractFromList(diFen, LRConst.ZiList);
 	if(zi){
@@ -312,8 +369,19 @@ function getGuiShenAtDiFen(dayGan, timeZi, diFen, guirengType, isDiurnal){
 	};
 }
 
-function getJiangZiAtDiFen(monthZi, timeZi, diFen){
-	const yuejiang = JinKouYueJiangByMonthBranch[monthZi] ? JinKouYueJiangByMonthBranch[monthZi] : LRConst.ZiHe[monthZi];
+function getYueJiang(liureng, monthZi){
+	const jieqi = resolveJieqiForYueJiang(liureng);
+	if(jieqi && JinKouYueJiangByJieQi[jieqi]){
+		return JinKouYueJiangByJieQi[jieqi];
+	}
+	const explicitYue = extractFromList(liureng && liureng.yue ? liureng.yue : '', LRConst.ZiList);
+	if(explicitYue){
+		return explicitYue;
+	}
+	return JinKouYueJiangByMonthBranch[monthZi] ? JinKouYueJiangByMonthBranch[monthZi] : LRConst.ZiHe[monthZi];
+}
+
+function getJiangZiAtDiFen(yuejiang, timeZi, diFen){
 	if(!yuejiang){
 		return {
 			yuejiang: '',
@@ -1143,7 +1211,8 @@ export function buildJinKouData(liureng, options){
 	const guiShen = getGuiShenAtDiFen(dayGan, timeZi, diFen, opt.guirengType, opt.isDiurnal);
 	const guiZi = guiShen.zi;
 	const guiGan = getStemByWuZiDun(dayGan, guiZi);
-	const jiang = getJiangZiAtDiFen(monthZi, timeZi, diFen);
+	const yuejiang = getYueJiang(liureng, monthZi);
+	const jiang = getJiangZiAtDiFen(yuejiang, timeZi, diFen);
 	const jiangZi = jiang.zi;
 	const jiangGan = getStemByWuZiDun(dayGan, jiangZi);
 
