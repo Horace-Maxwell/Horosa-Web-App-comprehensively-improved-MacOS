@@ -238,7 +238,7 @@ PY
 for asset in "${ASSETS[@]}"; do
   asset_name="$(basename "${asset}")"
   echo "uploading ${asset_name}"
-  curl -fsSL --progress-bar \
+  curl -fL --http1.1 --retry 5 --retry-delay 2 --retry-all-errors --progress-bar \
     -X POST \
     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
     -H 'Accept: application/vnd.github+json' \
