@@ -192,38 +192,347 @@ fn escape_js(text: &str) -> String {
     serde_json::to_string(text).unwrap_or_else(|_| "\"\"".to_string())
 }
 
+fn overlay_json(value: Option<&str>) -> String {
+    value.map(escape_js).unwrap_or_else(|| "null".to_string())
+}
+
+fn emit_overlay(
+    window: &WebviewWindow,
+    mode: Option<&str>,
+    pct: Option<u8>,
+    message: Option<&str>,
+    error: Option<&str>,
+    ready: bool,
+) {
+    let mode = overlay_json(mode);
+    let message = overlay_json(message);
+    let error = overlay_json(error);
+    let pct = pct
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "null".to_string());
+    let ready = if ready { "true" } else { "false" };
+    let _ = window.eval(&format!(
+        r#"
+(function () {{
+  if (!window.__horosaInlineProgress) {{
+    window.__horosaInlineProgress = (function () {{
+      const STYLE_ID = 'horosa-inline-progress-style';
+      const CARD_ID = 'horosa-inline-progress';
+      let hideTimer = null;
+      let lastMode = 'launch';
+
+      function isLauncherPage() {{
+        return !!document.querySelector('.installer-shell');
+      }}
+
+      function injectStyle() {{
+        if (document.getElementById(STYLE_ID)) return;
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = `
+          #${{CARD_ID}} {{
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            width: min(360px, calc(100vw - 28px));
+            z-index: 2147483646;
+            padding: 16px 16px 14px;
+            border-radius: 18px;
+            border: 1px solid rgba(22, 32, 45, 0.08);
+            background:
+              linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,248,252,0.92)),
+              linear-gradient(135deg, rgba(25,118,210,0.08), rgba(255,255,255,0));
+            box-shadow: 0 18px 48px rgba(21, 31, 44, 0.16);
+            backdrop-filter: blur(16px);
+            color: #182231;
+            transform: translateY(-10px) scale(0.96);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 180ms ease, transform 180ms ease;
+            font-family: "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+          }}
+          #${{CARD_ID}}.is-visible {{
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }}
+          #${{CARD_ID}}[data-tone="update"] {{
+            background:
+              linear-gradient(180deg, rgba(255,255,255,0.97), rgba(241,251,247,0.93)),
+              linear-gradient(135deg, rgba(14,127,99,0.12), rgba(255,255,255,0));
+          }}
+          #${{CARD_ID}}[data-tone="install"],
+          #${{CARD_ID}}[data-tone="repair"] {{
+            background:
+              linear-gradient(180deg, rgba(255,255,255,0.97), rgba(252,247,239,0.93)),
+              linear-gradient(135deg, rgba(179,105,18,0.14), rgba(255,255,255,0));
+          }}
+          #${{CARD_ID}}[data-tone="error"] {{
+            background:
+              linear-gradient(180deg, rgba(255,250,248,0.98), rgba(255,244,239,0.95)),
+              linear-gradient(135deg, rgba(182,72,38,0.16), rgba(255,255,255,0));
+          }}
+          #${{CARD_ID}} .hip-head {{
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+          }}
+          #${{CARD_ID}} .hip-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(14, 91, 216, 0.08);
+            color: #0f5cd5;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+          }}
+          #${{CARD_ID}}[data-tone="update"] .hip-badge {{
+            background: rgba(14,127,99,0.12);
+            color: #0e7f63;
+          }}
+          #${{CARD_ID}}[data-tone="install"] .hip-badge,
+          #${{CARD_ID}}[data-tone="repair"] .hip-badge {{
+            background: rgba(179,105,18,0.12);
+            color: #aa6517;
+          }}
+          #${{CARD_ID}}[data-tone="error"] .hip-badge {{
+            background: rgba(182,72,38,0.12);
+            color: #b64826;
+          }}
+          #${{CARD_ID}} .hip-dot {{
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: currentColor;
+            box-shadow: 0 0 0 5px rgba(14, 91, 216, 0.08);
+          }}
+          #${{CARD_ID}} .hip-title {{
+            margin-top: 12px;
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+          }}
+          #${{CARD_ID}} .hip-copy {{
+            margin-top: 6px;
+            color: #5b6878;
+            font-size: 13px;
+            line-height: 1.65;
+          }}
+          #${{CARD_ID}} .hip-metrics {{
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+          }}
+          #${{CARD_ID}} .hip-percent {{
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.04em;
+          }}
+          #${{CARD_ID}} .hip-phase {{
+            color: #6f7c8d;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+          }}
+          #${{CARD_ID}} .hip-track {{
+            margin-top: 10px;
+            height: 10px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(20,31,44,0.08);
+          }}
+          #${{CARD_ID}} .hip-fill {{
+            width: 0%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #0f5cd5 0%, #67a0ff 58%, #bfe0ff 100%);
+            transition: width 180ms ease;
+          }}
+          #${{CARD_ID}}[data-tone="update"] .hip-fill {{
+            background: linear-gradient(90deg, #0e7f63 0%, #45c7a0 58%, #c2f0df 100%);
+          }}
+          #${{CARD_ID}}[data-tone="install"] .hip-fill,
+          #${{CARD_ID}}[data-tone="repair"] .hip-fill {{
+            background: linear-gradient(90deg, #b36912 0%, #f0b34d 62%, #f8dca3 100%);
+          }}
+          #${{CARD_ID}}[data-tone="error"] .hip-fill {{
+            background: linear-gradient(90deg, #b64826 0%, #ea8a66 64%, #f4c3b0 100%);
+          }}
+        `;
+        document.head.appendChild(style);
+      }}
+
+      function ensureCard() {{
+        if (isLauncherPage()) return null;
+        injectStyle();
+        let card = document.getElementById(CARD_ID);
+        if (card) return card;
+        card = document.createElement('section');
+        card.id = CARD_ID;
+        card.innerHTML = `
+          <div class="hip-head">
+            <span class="hip-badge"><span class="hip-dot"></span><span class="hip-badge-text">更新进行中</span></span>
+            <span class="hip-phase">准备中</span>
+          </div>
+          <div class="hip-title">正在处理更新事务</div>
+          <div class="hip-copy">正在准备下载与替换，不需要额外操作。</div>
+          <div class="hip-metrics">
+            <div class="hip-percent">0%</div>
+            <div class="hip-step">下载资产</div>
+          </div>
+          <div class="hip-track"><div class="hip-fill"></div></div>
+        `;
+        document.body.appendChild(card);
+        return card;
+      }}
+
+      function shouldShow(mode, text, hasError) {{
+        if (hasError) return true;
+        if (mode === 'update') return true;
+        return /下载|更新|替换应用|运行环境更新|安装运行环境|解压运行环境|校验/.test(text || '');
+      }}
+
+      function tone(mode, hasError) {{
+        if (hasError) return 'error';
+        if (mode === 'update' || mode === 'install' || mode === 'repair') return mode;
+        return 'update';
+      }}
+
+      function titleFor(mode, hasError) {{
+        if (hasError) return '更新未完成';
+        if (mode === 'install') return '正在准备运行环境';
+        if (mode === 'repair') return '正在修复运行环境';
+        return '正在下载并安装更新';
+      }}
+
+      function badgeFor(mode, hasError) {{
+        if (hasError) return '需要处理';
+        if (mode === 'install') return '首次准备';
+        if (mode === 'repair') return '运行时修复';
+        return '更新进行中';
+      }}
+
+      function stepFor(text, ready) {{
+        if (ready) return '即将完成';
+        if (/校验/.test(text || '')) return '校验资产';
+        if (/替换应用|重开/.test(text || '')) return '替换应用';
+        if (/解压|切换/.test(text || '')) return '部署 Runtime';
+        if (/运行环境更新|运行环境/.test(text || '')) return '下载 Runtime';
+        return '下载资产';
+      }}
+
+      function phaseFor(pct, text, ready) {{
+        if (ready || pct >= 96) return '即将完成';
+        if (/替换应用|重开/.test(text || '') || pct >= 88) return '替换与重开';
+        if (/运行环境/.test(text || '') || pct >= 56) return 'Runtime 事务';
+        if (/下载/.test(text || '') || pct >= 10) return '下载中';
+        return '准备中';
+      }}
+
+      function show(card) {{
+        if (hideTimer) {{
+          clearTimeout(hideTimer);
+          hideTimer = null;
+        }}
+        card.classList.add('is-visible');
+      }}
+
+      function hideSoon(card) {{
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {{
+          card.classList.remove('is-visible');
+        }}, 1800);
+      }}
+
+      function setState(payload) {{
+        const mode = payload.mode || lastMode;
+        const text = payload.error || payload.message || '';
+        const hasError = !!payload.error;
+        const ready = !!payload.ready;
+        lastMode = mode;
+        const card = ensureCard();
+        if (!card) return;
+        if (!shouldShow(mode, text, hasError)) {{
+          if (!ready) card.classList.remove('is-visible');
+          return;
+        }}
+        card.dataset.tone = tone(mode, hasError);
+        card.querySelector('.hip-badge-text').textContent = badgeFor(mode, hasError);
+        card.querySelector('.hip-title').textContent = titleFor(mode, hasError);
+        card.querySelector('.hip-copy').textContent = text || '正在处理下载与安装事务。';
+        const pct = payload.pct == null ? 0 : Math.max(0, Math.min(100, Number(payload.pct) || 0));
+        card.querySelector('.hip-percent').textContent = `${{Math.round(pct)}}%`;
+        card.querySelector('.hip-phase').textContent = phaseFor(pct, text, ready);
+        card.querySelector('.hip-step').textContent = stepFor(text, ready);
+        card.querySelector('.hip-fill').style.width = `${{pct}}%`;
+        show(card);
+        if (ready && !hasError) {{
+          card.querySelector('.hip-copy').textContent = '更新准备完成，正在切回新版本。';
+          hideSoon(card);
+        }}
+      }}
+
+      return {{ setState }};
+    }})();
+  }}
+  window.__horosaInlineProgress.setState({{
+    mode: {mode},
+    pct: {pct},
+    message: {message},
+    error: {error},
+    ready: {ready}
+  }});
+}})();
+"#,
+    ));
+}
+
 fn emit_status(window: &WebviewWindow, message: &str) {
+    let raw_message = message;
     let message = escape_js(message);
     let _ = window.eval(&format!(
         "window.__horosaPendingStatusLines = window.__horosaPendingStatusLines || []; \
 window.__horosaPendingStatusLines.push({message}); \
 if (window.__horosaStatus) {{ window.__horosaStatus({message}); }}",
     ));
+    emit_overlay(window, None, None, Some(raw_message), None, false);
 }
 
 fn emit_progress(window: &WebviewWindow, pct: u8, message: &str) {
+    let raw_message = message;
     let message = escape_js(message);
     let _ = window.eval(&format!(
         "window.__horosaPendingProgress = {{ pct: {}, message: {} }}; \
 if (window.__horosaProgress) {{ window.__horosaProgress({}, {}); }}",
         pct, message, pct, message
     ));
+    emit_overlay(window, None, Some(pct), Some(raw_message), None, false);
 }
 
 fn emit_error(window: &WebviewWindow, message: &str) {
+    let raw_message = message;
     let message = escape_js(message);
     let _ = window.eval(&format!(
         "window.__horosaPendingError = {message}; \
 if (window.__horosaError) {{ window.__horosaError({message}); }}",
     ));
+    emit_overlay(window, Some("error"), None, None, Some(raw_message), false);
 }
 
 fn emit_mode(window: &WebviewWindow, mode: &str) {
+    let raw_mode = mode;
     let mode = escape_js(mode);
     let _ = window.eval(&format!(
         "window.__horosaPendingMode = {mode}; \
 if (window.__horosaMode) {{ window.__horosaMode({mode}); }}",
     ));
+    emit_overlay(window, Some(raw_mode), None, None, None, false);
 }
 
 fn emit_ready(window: &WebviewWindow, url: &str) {
@@ -232,6 +541,14 @@ fn emit_ready(window: &WebviewWindow, url: &str) {
         "window.__horosaPendingReadyUrl = {url}; \
 if (window.__horosaReady) {{ window.__horosaReady({url}); }} else {{ window.location.replace({url}); }}",
     ));
+    emit_overlay(
+        window,
+        None,
+        Some(100),
+        Some("更新准备完成，正在切回新版本。"),
+        None,
+        true,
+    );
 }
 
 fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
@@ -1385,6 +1702,8 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
 
     let zip_path = tmp_download_path(APP_NAME, "desktop-update.zip");
     if let Some(window) = app.get_webview_window("main") {
+        emit_mode(&window, "update");
+        emit_progress(&window, 4, "准备下载更新资产");
         emit_status(&window, "正在下载桌面更新包…");
         download_with_progress(&window, &plan.app_url, &zip_path, 10, 52, "下载桌面更新包")?;
         emit_status(&window, "桌面更新包下载完成，正在校验…");
@@ -1422,12 +1741,16 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
                 plan.runtime_sha256.as_deref(),
                 "运行环境更新包",
             )?;
+            if let Some(window) = app.get_webview_window("main") {
+                emit_progress(&window, 90, "运行环境更新已校验");
+            }
             runtime_archive_path = Some(runtime_path);
         }
     }
 
     if let Some(window) = app.get_webview_window("main") {
         emit_status(&window, "更新下载完成，准备替换应用并重开…");
+        emit_progress(&window, 94, "替换应用并重开");
     }
     install_downloaded_app(
         app,

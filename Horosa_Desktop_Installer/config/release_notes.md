@@ -1,3 +1,4 @@
-- 修复桌面壳在部分机器上启动即报 `release_config.json not found` 的问题；现在会优先读取打包后真实存在的 `Contents/Resources/_up_/config/release_config.json`。
-- 即使 `release_config.json` 缺失或损坏，桌面壳现在也会自动回退到内置默认发布配置，不再直接卡死在初始化页。
-- 保持更新检查、runtime 下载和 GitHub Release 链路可用，避免因为单个配置文件路径差异导致整套安装流程报废。
+- 修复 clean Mac 首装失败问题：runtime payload 重新保留 `Resources/Python.app`，并在修正嵌入 Python 动态库路径后自动重签，避免因为缺少系统 Python.framework 或签名失效卡死在 `dyld` / `python runtime not ready`。
+- 启动链新增嵌入 Python 自愈：桌面壳与本地启动脚本会在检测到坏掉的 embedded Python 时自动尝试修复并重试，降低“用户机器没装任何 Python / Java”时的启动失败率。
+- 强化安装器与 Release 验收：`.pkg` 模拟安装、shared runtime 启动、GitHub release 端到端检查现在都会额外验证 `Python.app` 存在，并在干净 `PATH` 下直接执行嵌入 Python。
+- 软件内检查更新新增精简进度浮层：从主界面触发更新时，右上角会显示当前下载/校验/替换进度，避免用户误以为没有开始下载。

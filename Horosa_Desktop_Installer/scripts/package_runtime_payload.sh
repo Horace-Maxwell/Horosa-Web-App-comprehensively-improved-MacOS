@@ -10,6 +10,8 @@ BOOT_JAR_SOURCE="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/ast
 RSYNC_FILTERS=(
   "--exclude=.DS_Store"
   "--exclude=._*"
+  "--exclude=_CodeSignature"
+  "--exclude=*/_CodeSignature"
 )
 read -r VERSION ARCHIVE_NAME <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
@@ -29,6 +31,7 @@ BUILT_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 
 rm -rf "${BUILD_ROOT}"
 mkdir -p "${STAGE_ROOT}/Horosa-Web/astrostudyui/scripts"
+mkdir -p "${STAGE_ROOT}/Horosa-Web/scripts"
 mkdir -p "${STAGE_ROOT}/runtime/mac"
 mkdir -p "${DIST_ROOT}"
 
@@ -38,14 +41,15 @@ rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astropy" "${STAGE_ROOT}/
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/flatlib-ctrad2" "${STAGE_ROOT}/Horosa-Web/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file" "${STAGE_ROOT}/Horosa-Web/astrostudyui/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/warmHorosaRuntime.js" "${STAGE_ROOT}/Horosa-Web/astrostudyui/scripts/"
+rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" "${STAGE_ROOT}/Horosa-Web/scripts/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/runtime/mac/java" "${STAGE_ROOT}/runtime/mac/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/runtime/mac/python" "${STAGE_ROOT}/runtime/mac/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/runtime/mac/bundle" "${STAGE_ROOT}/runtime/mac/"
 if [ -f "${BOOT_JAR_SOURCE}" ]; then
   cp -f "${BOOT_JAR_SOURCE}" "${STAGE_ROOT}/runtime/mac/bundle/astrostudyboot.jar"
 fi
-rm -rf "${STAGE_ROOT}/runtime/mac/python/Resources/Python.app"
 find "${STAGE_ROOT}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
+/usr/bin/python3 "${STAGE_ROOT}/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --repair "${STAGE_ROOT}/runtime/mac/python"
 
 python3 - <<INNERPY
 import json, pathlib

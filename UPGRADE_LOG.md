@@ -5861,3 +5861,31 @@ Append new entries; do not rewrite history.
   - `publish_github_release.sh` 新增发布前硬校验：会逐项比对本地 `horosa-latest.json` 的 `version / tag / runtimeVersion / appUrl / pkgUrl / runtimeUrl / appSha256 / pkgSha256 / runtimeSha256` 与待上传资产，任何一项不一致都直接拒绝上传；
   - `verify_github_release_end_to_end.sh` 在 `.pkg` 首装未产出 `runtime-manifest.json` 时，会直接输出 pending 原因，避免再次出现“脚本退出但不给错误上下文”的情况；
   - 桌面壳版本提升到 `1.0.9 / v1.0.9`，runtime 版本继续保持 `1.0.1`。
+
+### 13:11 - 修复 clean Mac 首装依赖缺失、补上软件内更新进度浮层；桌面壳升到 1.0.12 / v1.0.12（2026-03-11）
+- Scope: 处理“在没装 Python / Java 的普通 Mac 上，runtime 下载后仍然启动失败”的真实分发故障，并补上软件内更新时更直观的下载/替换进度提示。根因有两层：其一是 runtime payload 打包时错误删除了 `runtime/mac/python/Resources/Python.app`；其二是修复 embedded Python 的 load commands 后没有重签 Mach-O，导致 clean Mac 上直接卡死在 `dyld`。
+- Files:
+  - `Horosa-Web/scripts/repairEmbeddedPythonRuntime.py`
+  - `Horosa-Web/start_horosa_local.sh`
+  - `tools/mac/Prepare_Runtime_Mac.command`
+  - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - 新增 `repairEmbeddedPythonRuntime.py`，统一负责检查并修复 embedded Python 的绝对 `Python.framework` 依赖、清理旧 `_CodeSignature`、对 `python3.12 / Python / Python.app / *.so / *.dylib` 做 ad-hoc 重签；
+  - `package_runtime_payload.sh` 不再删除 `Resources/Python.app`，并在打包时显式排除旧 `_CodeSignature` 后重签，确保 release 里的 runtime 对 clean Mac 仍可执行；
+  - `start_horosa_local.sh` 与 `Prepare_Runtime_Mac.command` 都会在必要时调用同一套 embedded Python 修复器，避免“源码修了但本机旧 runtime 仍坏着”的情况；
+  - 安装器和 GitHub release 验收脚本现在会在干净 `PATH=/usr/bin:/bin:/usr/sbin:/sbin` 下直接执行 embedded Python，并强制校验 `Resources/Python.app/Contents/MacOS/Python` 存在；
+  - 这轮本地完整验收已实际通过 `.pkg -> postinstall -> shared runtime -> start_horosa_local.sh -> services are ready`，证明目标机器即使没有额外安装 Python / Java，也能依赖内置 runtime 完成启动；
+  - 软件内“检查更新”现在新增右上角浮层进度卡，会实时显示当前事务类型、下载/校验/替换阶段、百分比与当前说明文案；
+  - 浮层逻辑直接挂在桌面壳事件桥中，因此从主界面触发更新也能看到，不依赖启动页仍在前台；
+  - 桌面壳版本提升到 `1.0.12 / v1.0.12`，runtime 版本继续跟随 app 版本自动对齐。
