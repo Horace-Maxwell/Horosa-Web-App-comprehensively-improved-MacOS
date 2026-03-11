@@ -142,17 +142,6 @@ RELEASE_BODY="$(cat <<EOF
 
 普通用户不需要手动下载任何其他文件。
 
-## Install Steps (English)
-
-1. Download ${PRIMARY_DOWNLOAD}
-2. Unzip it
-3. Run Open-XingQue-Unsigned.command first
-4. If macOS still blocks it, right-click the .pkg installer and choose Open
-5. Finish installation
-6. If /Applications/星阙.app is blocked on first launch, run the same .command again, or right-click the app and choose Open
-
-No one else needs to manually download any other file.
-
 ## 技术资产 / Technical Assets
 
 此 Release 中其余资产是安装器与自动更新器使用的内部支持文件，普通用户可以忽略。
