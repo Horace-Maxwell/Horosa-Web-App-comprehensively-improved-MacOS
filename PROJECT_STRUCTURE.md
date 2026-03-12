@@ -3256,11 +3256,11 @@
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
   - 当前版本口径：
-    - 桌面壳内部构建版本使用 `1.0.15`
-    - 用户可见桌面壳版本使用 `1.0.15`
-    - 当前 runtime 版本独立为 `1.0.15-runtime1`
-    - GitHub app Release / manifest tag 使用 `v1.0.15`
-    - 当前 runtime Release tag 使用 `v1.0.15-runtime1`
+    - 桌面壳内部构建版本使用 `1.0.18`
+    - 用户可见桌面壳版本使用 `1.0.18`
+    - 当前 runtime 版本独立为 `1.0.18-runtime1`
+    - GitHub app Release / manifest tag 使用 `v1.0.18`
+    - 当前 runtime Release tag 使用 `v1.0.18-runtime1`
   - 当前 runtime 自愈策略：
     - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
     - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；

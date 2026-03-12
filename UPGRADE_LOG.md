@@ -14,6 +14,25 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-12
 
+### 16:50 - 修正 release 仍引用旧 runtime 导致前端告警未真正落到下载件，并补发 v1.0.18 / v1.0.18-runtime1 release
+- Scope: 前一轮源码和本地构建已经修掉 `RichEditor` 链路里的 `DOMNodeInserted` 弃用告警，但从 GitHub release 真下载下来的 `v1.0.16 / v1.0.17` 仍能复现。根因确认不是前端补丁失效，而是前端静态资源跟随独立 runtime 分发；前两版 app release 继续复用了旧 runtime `1.0.15-runtime1`，因此下载件运行时实际还是旧前端。这个回合把 app 与 runtime 一起提升到新 tag，并按 release 下载件重新验收。
+- Files:
+  - `Horosa-Web/astrostudyui/src/app.js`
+  - `Horosa_Desktop_Installer/config/release_config.json`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - 继续保留前端启动时对废弃 `DOMNodeInserted` 监听注册的兼容补丁，不改富文本批注的编辑、保存与回显逻辑；
+  - `release_config.json` 的独立 runtime 版本提升到 `1.0.18-runtime1`，不再让 app release 指向旧的 `1.0.15-runtime1`；
+  - release notes 与结构文档同步更新到 `1.0.18 / v1.0.18 / v1.0.18-runtime1` 口径；
+  - 这次会重新上传新的 runtime 资产，让 GitHub release 下载件真正拿到包含前端补丁的新 runtime。
+
 ### 16:05 - 修复 release 下载件中的富文本 DOMNodeInserted 告警并补发 v1.0.17 release
 - Scope: 针对从 GitHub release 下载后的真实运行环境，修复 `AI导出设置 / 批注` 深检里仍会冒出的 `DOMNodeInserted` 弃用告警，并重新发布新的桌面端 release。
 - Files:
