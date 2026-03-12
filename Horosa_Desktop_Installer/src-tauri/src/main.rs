@@ -44,6 +44,7 @@ const DEFAULT_DESKTOP_PKG_NAME: &str = "Horosa-Installer-macos-universal.pkg";
 const DEFAULT_DESKTOP_PKG_ZIP_NAME: &str = "Horosa-Installer-macos-universal-pkg.zip";
 const DEFAULT_UPDATE_MANIFEST_NAME: &str = "horosa-latest.json";
 const DEFAULT_RELEASE_TAG_PREFIX: &str = "v";
+const DOWNLOAD_MAX_ATTEMPTS: usize = 4;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -1019,6 +1020,37 @@ fn download_with_progress(
     end_pct: u8,
     label: &str,
 ) -> Result<()> {
+    let mut last_err = None;
+    for attempt in 1..=DOWNLOAD_MAX_ATTEMPTS {
+        if attempt > 1 {
+            let retry_msg = format!(
+                "{} 失败，正在重试（{}/{}）…",
+                label, attempt, DOWNLOAD_MAX_ATTEMPTS
+            );
+            emit_status(window, &retry_msg);
+            emit_progress(window, start_pct, &retry_msg);
+            thread::sleep(Duration::from_secs((attempt as u64 - 1) * 2));
+        }
+        match download_with_progress_once(window, url, dest, start_pct, end_pct, label) {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                last_err = Some(err);
+                let _ = fs::remove_file(dest);
+            }
+        }
+    }
+    let err = last_err.unwrap_or_else(|| anyhow!("download failed without error detail"));
+    Err(wrap_download_error(label, url, err))
+}
+
+fn download_with_progress_once(
+    window: &WebviewWindow,
+    url: &str,
+    dest: &Path,
+    start_pct: u8,
+    end_pct: u8,
+    label: &str,
+) -> Result<()> {
     let client = build_github_client(900)?;
     let mut response = client
         .get(url)
@@ -1053,6 +1085,37 @@ fn download_with_progress(
     }
     emit_progress(window, end_pct, label);
     Ok(())
+}
+
+fn wrap_download_error(label: &str, url: &str, err: anyhow::Error) -> anyhow::Error {
+    let details = format!("{err:#}");
+    let lower = details.to_ascii_lowercase();
+    let summary = if lower.contains("tls handshake eof") {
+        format!(
+            "{}失败：已自动重试 {} 次，但和 GitHub 建立安全连接时仍被中断。请稍后重试，或切换更稳定的网络后再试。",
+            label, DOWNLOAD_MAX_ATTEMPTS
+        )
+    } else if lower.contains("timed out") || lower.contains("timeout") {
+        format!(
+            "{}失败：已自动重试 {} 次，但下载仍然超时。请稍后重试，或切换更稳定的网络后再试。",
+            label, DOWNLOAD_MAX_ATTEMPTS
+        )
+    } else if lower.contains("dns")
+        || lower.contains("failed to lookup")
+        || lower.contains("name or service not known")
+        || lower.contains("nodename nor servname")
+    {
+        format!(
+            "{}失败：已自动重试 {} 次，但当前网络无法稳定解析 GitHub 地址。请检查网络或代理设置后再试。",
+            label, DOWNLOAD_MAX_ATTEMPTS
+        )
+    } else {
+        format!(
+            "{}失败：已自动重试 {} 次仍未完成。请稍后重试；如果反复失败，请优先检查当前网络是否能访问 GitHub。",
+            label, DOWNLOAD_MAX_ATTEMPTS
+        )
+    };
+    anyhow!("{summary}\n下载地址: {url}\n原始错误: {details}")
 }
 
 fn remove_dir_if_exists(path: &Path) -> Result<()> {
