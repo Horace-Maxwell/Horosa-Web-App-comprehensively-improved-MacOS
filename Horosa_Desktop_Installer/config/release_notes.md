@@ -1,4 +1,3 @@
-- 修复 app 内重装/首次准备时误删嵌入 Python 的真故障：桌面壳不再把 `runtime/mac/python/Resources/Python.app` 清掉，避免 `python3: posix_spawn ... Python.app ... Undefined error: 0` 和 `python runtime not ready`。
-- runtime 下载链现在会自动重试，并把 `tls handshake eof / timeout / DNS` 这类网络错误翻译成更明确的提示，减少偶发 GitHub 连接抖动直接把初始化打死。
-- 发布链改成 app release 与 runtime release 解耦：manifest 和 `.pkg postinstall` 会按独立 `runtimeVersion` 指向对应 runtime tag，runtime 没变时后续 app 发版可直接跳过 800MB 级 runtime 重传。
-- runtime payload 继续瘦身：打包时裁掉 Java 的 `jmods / demo / man / include / lib/src.zip` 与 Python 的 `test / __pycache__ / idlelib / turtledemo / Documentation / share / include`，在不减功能前提下缩小分发体积。
+- 修复桌面端本地盘库“新增后重启消失”的问题：前端静态页现在优先使用固定本地端口，避免每次启动换 origin 后让 `localStorage` 看起来像被清空，命盘/事盘可正常跨重启保留。
+- 修复印度律盘右侧 X 律盘切换发涩：同一组参数下新增结果缓存与并发请求去重，已算过的律盘切回去会直接复用，不再反复重新请求后端。
+- 当前 app release 继续复用独立 runtime `1.0.13-runtime1`，这次发布不需要重新上传超大 runtime 资产，自动更新仍会按 manifest 指向原 runtime tag。

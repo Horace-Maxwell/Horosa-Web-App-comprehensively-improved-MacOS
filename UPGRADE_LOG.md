@@ -5918,3 +5918,23 @@ Append new entries; do not rewrite history.
   - `verify_desktop_packaging.sh` 与 `verify_github_release_end_to_end.sh` 都更新为按 manifest 中的 runtime URL 验收，不再假定最新 app release 必须内含 runtime 资产；
   - `package_runtime_payload.sh` 继续裁掉明确不参与运行的 Java / Python 冗余内容，包括 `jmods / demo / man / include / lib/src.zip / test / idlelib / turtledemo / Documentation / __pycache__` 等，缩小 runtime 分发体积；
   - 桌面壳版本提升到 `1.0.13 / v1.0.13`，runtime 版本独立为 `1.0.13-runtime1`。
+
+### 21:35 - 修复桌面端本地盘库跨重启丢失与印度律盘重复计算；桌面壳升到 1.0.14 / v1.0.14（2026-03-11）
+- Scope: 处理两条真实用户体验问题。其一是新增命盘 / 事盘后重启软件“消失”，根因不是数据没写，而是桌面壳每次随机前端端口，导致浏览器把 `localStorage` 当成不同 origin；其二是印度律盘右侧 X 律盘切换时每次都重新请求后端，虽然通常不超过 5 秒，但没有缓存和并发去重，切回已看过的律盘仍会再次等待。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa-Web/astrostudyui/src/components/astro/IndiaChart.js`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - `main.rs` 中的前端静态服务改为优先绑定固定本地端口，保证桌面端每次启动尽量维持同一个本地 origin，从而让 `horosa.localCharts.v1` 与 `horosa.localCases.v1` 能跨重启稳定复用；
+  - 如固定端口已被占用，桌面壳仍会自动回退到空闲端口，不会因为端口冲突导致应用无法启动；
+  - `IndiaChart.js` 为 `/india/chart` 增加按参数归一化后的结果缓存与 in-flight 请求去重，同一组起盘参数和律盘分盘已算过一次后，再切回可直接命中缓存；
+  - 这轮没有改动 runtime payload，继续复用独立 runtime `1.0.13-runtime1`，因此发版时不需要重传超大 runtime 包；
+  - 桌面壳版本提升到 `1.0.14 / v1.0.14`，runtime 版本保持 `1.0.13-runtime1`。
