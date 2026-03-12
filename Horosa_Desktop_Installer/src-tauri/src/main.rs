@@ -793,7 +793,6 @@ fn runtime_python_ready(runtime_dir: &Path) -> bool {
 }
 
 fn prepare_runtime_dir(runtime_dir: &Path) -> Result<()> {
-    prune_runtime_extras(runtime_dir)?;
     let _ = cleanup_runtime_metadata(runtime_dir)?;
     Ok(())
 }
@@ -1122,12 +1121,6 @@ fn remove_dir_if_exists(path: &Path) -> Result<()> {
     if path.exists() {
         fs::remove_dir_all(path)?;
     }
-    Ok(())
-}
-
-fn prune_runtime_extras(runtime_dir: &Path) -> Result<()> {
-    let embedded_python_app = runtime_dir.join("runtime/mac/python/Resources/Python.app");
-    remove_dir_if_exists(&embedded_python_app)?;
     Ok(())
 }
 
