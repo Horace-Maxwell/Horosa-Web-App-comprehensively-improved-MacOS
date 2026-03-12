@@ -17,7 +17,7 @@ NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-}"
 UNSIGNED_HELPER_NAME="Open-XingQue-Unsigned.command"
 UNSIGNED_GUIDE_NAME="UNSIGNED_INSTALL_GUIDE.txt"
 
-read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME RELEASE_TAG RUNTIME_VERSION <<EOF
+read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME APP_RELEASE_TAG RUNTIME_VERSION RUNTIME_RELEASE_TAG <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -35,6 +35,7 @@ print(
     config['updateManifestName'],
     f"{config['releaseTagPrefix']}{version}",
     runtime_version,
+    f"{config['releaseTagPrefix']}{runtime_version}",
 )
 PYCONF
 )
@@ -71,7 +72,7 @@ if [ ! -d "${TARGET_APP}" ]; then
   exit 1
 fi
 
-INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" RUNTIME_SHA256_ENV="${RUNTIME_SHA256}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" python3 - <<'PYPOST'
+INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" RUNTIME_SHA256_ENV="${RUNTIME_SHA256}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" RUNTIME_RELEASE_TAG_ENV="${RUNTIME_RELEASE_TAG}" python3 - <<'PYPOST'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
@@ -83,7 +84,7 @@ replacements = {
     '__VERSION__': os.environ['RUNTIME_VERSION_ENV'],
     '__RUNTIME_ASSET__': config['runtimeAssetName'],
     '__RUNTIME_SHA256__': os.environ['RUNTIME_SHA256_ENV'],
-    '__RELEASE_TAG__': f"{config['releaseTagPrefix']}{json.loads((root / 'package.json').read_text())['version']}",
+    '__RUNTIME_RELEASE_TAG__': os.environ['RUNTIME_RELEASE_TAG_ENV'],
 }
 for key, value in replacements.items():
     template = template.replace(key, value)
@@ -187,28 +188,29 @@ echo "installer package ready: ${INSTALLER_PKG}"
 echo "installer delivery zip ready: ${INSTALLER_PKG_ZIP}"
 echo "component plist ready: ${COMPONENT_PLIST}"
 
-INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" RELEASE_TAG_ENV="${RELEASE_TAG}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" python3 - <<'PYMANIFEST'
+INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" APP_RELEASE_TAG_ENV="${APP_RELEASE_TAG}" RUNTIME_RELEASE_TAG_ENV="${RUNTIME_RELEASE_TAG}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" python3 - <<'PYMANIFEST'
 import hashlib, json, os, pathlib, platform
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
-release_tag = os.environ['RELEASE_TAG_ENV']
+app_release_tag = os.environ['APP_RELEASE_TAG_ENV']
+runtime_release_tag = os.environ['RUNTIME_RELEASE_TAG_ENV']
 runtime_version = os.environ['RUNTIME_VERSION_ENV']
 config = json.loads((root / 'config/release_config.json').read_text())
 dist = root / 'dist'
 arch = platform.machine().lower()
 platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
 version = json.loads((root / 'package.json').read_text())['version']
-tag = release_tag
-base = f"https://github.com/{config['repoOwner']}/{config['repoName']}/releases/download/{tag}"
+app_base = f"https://github.com/{config['repoOwner']}/{config['repoName']}/releases/download/{app_release_tag}"
+runtime_base = f"https://github.com/{config['repoOwner']}/{config['repoName']}/releases/download/{runtime_release_tag}"
 manifest = {
   'version': version,
-  'tag': tag,
+  'tag': app_release_tag,
   'notes': 'See GitHub release notes.',
   'manifestVersion': 1,
   'platforms': {
     platform_key: {
-      'appUrl': f"{base}/{config['desktopAssetName']}",
-      'pkgUrl': f"{base}/{config['desktopPkgName']}",
-      'runtimeUrl': f"{base}/{config['runtimeAssetName']}",
+      'appUrl': f"{app_base}/{config['desktopAssetName']}",
+      'pkgUrl': f"{app_base}/{config['desktopPkgName']}",
+      'runtimeUrl': f"{runtime_base}/{config['runtimeAssetName']}",
       'runtimeVersion': runtime_version,
       'appSha256': hashlib.sha256((dist / config['desktopAssetName']).read_bytes()).hexdigest(),
       'pkgSha256': hashlib.sha256((dist / config['desktopPkgName']).read_bytes()).hexdigest(),

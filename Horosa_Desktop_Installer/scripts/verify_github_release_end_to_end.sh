@@ -27,15 +27,16 @@ fetch "${RELEASE_API}" -o "${DOWNLOAD_ROOT}/release.json"
 fetch -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${MANIFEST_URL}" -o "${DOWNLOAD_ROOT}/horosa-latest.json"
 
 python3 - <<'PY' "${DOWNLOAD_ROOT}/release.json" "${DOWNLOAD_ROOT}/horosa-latest.json" > "${WORK_ROOT}/release.env"
-import json, pathlib, shlex, sys
+import json, pathlib, platform, shlex, sys
 release = json.loads(pathlib.Path(sys.argv[1]).read_text())
 manifest = json.loads(pathlib.Path(sys.argv[2]).read_text())
-platform = manifest['platforms']['darwin-aarch64']
+arch = platform.machine().lower()
+platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
+platform = manifest['platforms'][platform_key]
 required_assets = {
     'Horosa-Installer-macos-universal-pkg.zip',
     'Horosa-Installer-macos-universal.pkg',
     'Horosa-Desktop-macos-universal.zip',
-    'horosa-runtime-macos-universal.tar.gz',
     'horosa-latest.json',
 }
 asset_names = {asset['name'] for asset in release['assets']}
@@ -56,12 +57,14 @@ source "${WORK_ROOT}/release.env"
 fetch -o "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal-pkg.zip" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/Horosa-Installer-macos-universal-pkg.zip"
 fetch -o "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal.pkg" "${PKG_URL}"
 fetch -o "${DOWNLOAD_ROOT}/Horosa-Desktop-macos-universal.zip" "${APP_URL}"
+fetch -o "${DOWNLOAD_ROOT}/horosa-runtime-macos-universal.tar.gz" "${RUNTIME_URL}"
 
-python3 - <<'PY' "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal.pkg" "${PKG_SHA256}" "${DOWNLOAD_ROOT}/Horosa-Desktop-macos-universal.zip" "${APP_SHA256}"
+python3 - <<'PY' "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal.pkg" "${PKG_SHA256}" "${DOWNLOAD_ROOT}/Horosa-Desktop-macos-universal.zip" "${APP_SHA256}" "${DOWNLOAD_ROOT}/horosa-runtime-macos-universal.tar.gz" "${RUNTIME_SHA256}"
 import hashlib, pathlib, sys
 checks = [
     ('pkg', pathlib.Path(sys.argv[1]), sys.argv[2]),
     ('appzip', pathlib.Path(sys.argv[3]), sys.argv[4]),
+    ('runtime', pathlib.Path(sys.argv[5]), sys.argv[6]),
 ]
 for label, path, expected in checks:
     actual = hashlib.sha256(path.read_bytes()).hexdigest()

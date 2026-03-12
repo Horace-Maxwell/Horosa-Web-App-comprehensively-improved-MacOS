@@ -48,6 +48,17 @@ rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/runtime/mac/bundle" "${STAGE_ROOT}/
 if [ -f "${BOOT_JAR_SOURCE}" ]; then
   cp -f "${BOOT_JAR_SOURCE}" "${STAGE_ROOT}/runtime/mac/bundle/astrostudyboot.jar"
 fi
+rm -rf \
+  "${STAGE_ROOT}/runtime/mac/java/demo" \
+  "${STAGE_ROOT}/runtime/mac/java/include" \
+  "${STAGE_ROOT}/runtime/mac/java/jmods" \
+  "${STAGE_ROOT}/runtime/mac/java/lib/src.zip" \
+  "${STAGE_ROOT}/runtime/mac/java/man" \
+  "${STAGE_ROOT}/runtime/mac/python/include" \
+  "${STAGE_ROOT}/runtime/mac/python/share" \
+  "${STAGE_ROOT}/runtime/mac/python/Resources/English.lproj/Documentation"
+find "${STAGE_ROOT}/runtime/mac/python/lib" -type d \( -name 'test' -o -name '__pycache__' -o -name 'idlelib' -o -name 'turtledemo' \) -prune -exec rm -rf {} + 2>/dev/null || true
+find "${STAGE_ROOT}" -type d -name '_CodeSignature' -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
 /usr/bin/python3 "${STAGE_ROOT}/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --repair "${STAGE_ROOT}/runtime/mac/python"
 

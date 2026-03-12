@@ -175,6 +175,10 @@ if manifest['version'] != package['version']:
 expected_tag = f"{config['releaseTagPrefix']}{package['version']}"
 if manifest.get('tag') != expected_tag:
     raise SystemExit(f"manifest tag mismatch: {manifest.get('tag')} != {expected_tag}")
+runtime_version = str(config.get('runtimeVersion') or '').strip()
+if runtime_version.lower() in ('', 'auto', 'same-as-app'):
+    runtime_version = package['version']
+expected_runtime_tag = f"{config['releaseTagPrefix']}{runtime_version}"
 
 arch = platform.machine().lower()
 platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
@@ -191,8 +195,16 @@ if not platform_manifest['appUrl'].endswith('/' + config['desktopAssetName']):
     raise SystemExit('appUrl mismatch')
 if not platform_manifest['pkgUrl'].endswith('/' + config['desktopPkgName']):
     raise SystemExit('pkgUrl mismatch')
+if f"/releases/download/{expected_tag}/" not in platform_manifest['appUrl']:
+    raise SystemExit('appUrl release tag mismatch')
+if f"/releases/download/{expected_tag}/" not in platform_manifest['pkgUrl']:
+    raise SystemExit('pkgUrl release tag mismatch')
 if not platform_manifest['runtimeUrl'].endswith('/' + config['runtimeAssetName']):
     raise SystemExit('runtimeUrl mismatch')
+if f"/releases/download/{expected_runtime_tag}/" not in platform_manifest['runtimeUrl']:
+    raise SystemExit('runtimeUrl release tag mismatch')
+if platform_manifest.get('runtimeVersion') != runtime_version:
+    raise SystemExit('runtimeVersion mismatch')
 
 entries = plistlib.loads(component_plist_path.read_bytes())
 expected = f"Applications/{config['appName']}.app"
