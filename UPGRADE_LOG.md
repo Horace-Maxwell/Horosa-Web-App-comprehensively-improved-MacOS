@@ -5889,3 +5889,32 @@ Append new entries; do not rewrite history.
   - 软件内“检查更新”现在新增右上角浮层进度卡，会实时显示当前事务类型、下载/校验/替换阶段、百分比与当前说明文案；
   - 浮层逻辑直接挂在桌面壳事件桥中，因此从主界面触发更新也能看到，不依赖启动页仍在前台；
   - 桌面壳版本提升到 `1.0.12 / v1.0.12`，runtime 版本继续跟随 app 版本自动对齐。
+
+### 18:01 - 修复 app 内 runtime 重装误删 Python.app，并把 runtime 发布从 app release 解耦；桌面壳升到 1.0.13 / v1.0.13（2026-03-11）
+- Scope: 处理一条用户实际撞到的桌面壳故障，并把发版链路里最耗时的 800MB 级 runtime 上传做成可复用资产。故障根因是桌面壳在启动前清理 runtime 目录时，误删了嵌入 Python 必需的 `Resources/Python.app`，导致 app 内“首次准备 / 重新安装”在解压 runtime 后仍会报 `python runtime not ready` 与 `posix_spawn ... Undefined error: 0`。同时，原来的发布链把 runtime 强绑到每个 app tag，哪怕 runtime 没变也要重新上传整颗大包。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/config/release_config.json`
+  - `Horosa_Desktop_Installer/installer-scripts/postinstall.template`
+  - `Horosa_Desktop_Installer/scripts/build_desktop_release.sh`
+  - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - `main.rs` 不再在 `prepare_runtime_dir()` 中误删 `runtime/mac/python/Resources/Python.app`，app 内重新安装链恢复正常；
+  - runtime / 更新下载链增加自动重试，并把 `tls handshake eof / timeout / dns` 一类网络失败映射成更可读的界面提示；
+  - `release_config.json` 新增独立 runtime 版本口径，这次将 runtime 固定为 `1.0.13-runtime1`，不再默认和 app 版本硬绑定；
+  - `build_desktop_release.sh` 生成的 manifest 与 `.pkg postinstall` 现在会分别写入 app tag 与 runtime tag，因此 app release 可以继续是 `latest`，runtime 资产则可复用历史独立 tag；
+  - `publish_github_release.sh` 现在会在 runtime tag 未变化且远端资产已存在时直接跳过 runtime 上传；如需强制覆盖，可显式设置 `HOROSA_FORCE_RUNTIME_UPLOAD=1`；
+  - `verify_desktop_packaging.sh` 与 `verify_github_release_end_to_end.sh` 都更新为按 manifest 中的 runtime URL 验收，不再假定最新 app release 必须内含 runtime 资产；
+  - `package_runtime_payload.sh` 继续裁掉明确不参与运行的 Java / Python 冗余内容，包括 `jmods / demo / man / include / lib/src.zip / test / idlelib / turtledemo / Documentation / __pycache__` 等，缩小 runtime 分发体积；
+  - 桌面壳版本提升到 `1.0.13 / v1.0.13`，runtime 版本独立为 `1.0.13-runtime1`。

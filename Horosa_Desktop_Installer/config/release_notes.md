@@ -1,4 +1,4 @@
-- 修复 clean Mac 首装失败问题：runtime payload 重新保留 `Resources/Python.app`，并在修正嵌入 Python 动态库路径后自动重签，避免因为缺少系统 Python.framework 或签名失效卡死在 `dyld` / `python runtime not ready`。
-- 启动链新增嵌入 Python 自愈：桌面壳与本地启动脚本会在检测到坏掉的 embedded Python 时自动尝试修复并重试，降低“用户机器没装任何 Python / Java”时的启动失败率。
-- 强化安装器与 Release 验收：`.pkg` 模拟安装、shared runtime 启动、GitHub release 端到端检查现在都会额外验证 `Python.app` 存在，并在干净 `PATH` 下直接执行嵌入 Python。
-- 软件内检查更新新增精简进度浮层：从主界面触发更新时，右上角会显示当前下载/校验/替换进度，避免用户误以为没有开始下载。
+- 修复 app 内重装/首次准备时误删嵌入 Python 的真故障：桌面壳不再把 `runtime/mac/python/Resources/Python.app` 清掉，避免 `python3: posix_spawn ... Python.app ... Undefined error: 0` 和 `python runtime not ready`。
+- runtime 下载链现在会自动重试，并把 `tls handshake eof / timeout / DNS` 这类网络错误翻译成更明确的提示，减少偶发 GitHub 连接抖动直接把初始化打死。
+- 发布链改成 app release 与 runtime release 解耦：manifest 和 `.pkg postinstall` 会按独立 `runtimeVersion` 指向对应 runtime tag，runtime 没变时后续 app 发版可直接跳过 800MB 级 runtime 重传。
+- runtime payload 继续瘦身：打包时裁掉 Java 的 `jmods / demo / man / include / lib/src.zip` 与 Python 的 `test / __pycache__ / idlelib / turtledemo / Documentation / share / include`，在不减功能前提下缩小分发体积。

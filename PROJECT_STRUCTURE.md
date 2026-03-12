@@ -3214,13 +3214,14 @@
       - `publish_github_release.sh`
       - `verify_public_distribution_readiness.sh`
     - 当前 `verify_desktop_packaging.sh` 会把“生成 runtime payload + 生成 manifest + 打包 app/pkg/zip”统一收敛到 `build_desktop_release.sh` 一次完成，避免同一轮验收里把 runtime 资产改新却遗留旧 manifest；
-    - 当前 `verify_github_release_end_to_end.sh` 在 `.pkg` 首装把 runtime 延期时，会直接打印 `runtime-install-pending.txt` 原因；
+    - 当前 `verify_github_release_end_to_end.sh` 在 `.pkg` 首装把 runtime 延期时，会直接打印 `runtime-install-pending.txt` 原因，并会按 manifest 里的 `runtimeUrl` 真实下载 runtime 做 SHA256 校验；
     - 当前 `publish_github_release.sh` 生成的 Release 正文只保留：
       - `安装步骤（中文）`
       - `Install Steps (English)`
       - `技术资产 / Technical Assets`
       - 然后再追加 `本次更新 / What's New`
-    - 当前 `publish_github_release.sh` 在上传前会强制校验 `horosa-latest.json` 里的 `app/pkg/runtime` URL、版本号与 SHA256 必须和本地待上传资产一致，否则直接拒绝发布。
+    - 当前 `publish_github_release.sh` 在上传前会强制校验 `horosa-latest.json` 里的 `app/pkg/runtime` URL、版本号与 SHA256 必须和本地待上传资产一致，否则直接拒绝发布；
+    - 当前 `publish_github_release.sh` 已支持 app release 与 runtime release 解耦：runtime tag 未变化且远端 runtime 资产已存在时，会直接跳过重复上传。
   - `Horosa_Desktop_Installer/distribution-support/`
     - unsigned 自用/熟人分发支持模板：
       - `unsigned_install_helper.template`
@@ -3255,10 +3256,11 @@
     - `release_url`
   - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
   - 当前版本口径：
-    - 桌面壳内部构建版本使用 `1.0.12`
-    - 用户可见桌面壳版本使用 `1.0.12`
-    - 当前 runtime 版本跟随 app 版本自动对齐
-    - GitHub Release / manifest tag 使用 `v1.0.12`
+    - 桌面壳内部构建版本使用 `1.0.13`
+    - 用户可见桌面壳版本使用 `1.0.13`
+    - 当前 runtime 版本独立为 `1.0.13-runtime1`
+    - GitHub app Release / manifest tag 使用 `v1.0.13`
+    - 当前 runtime Release tag 使用 `v1.0.13-runtime1`
   - 当前 runtime 自愈策略：
     - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
     - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；
@@ -3281,7 +3283,8 @@
       - 当前还会在 embedded Python 不可用时自动调用 `repairEmbeddedPythonRuntime.py` 尝试自愈并重试。
     - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
       - 打包 runtime payload 时会显式把最新 `astrostudyboot.jar` 注入 bundle，确保新 release 不会继续携带旧 backend。
-      - 打包时保留 `runtime/mac/python/Resources/Python.app`，清理旧 `_CodeSignature` 并对修复后的 embedded Python 做 ad-hoc 重签。
+      - 打包时保留 `runtime/mac/python/Resources/Python.app`，清理旧 `_CodeSignature` 并对修复后的 embedded Python 做 ad-hoc 重签；
+      - 还会裁掉 Java 的 `jmods / demo / man / include / lib/src.zip` 与 Python 的 `test / idlelib / turtledemo / Documentation / __pycache__ / share / include`，减少 runtime 包体积。
     - `scripts/browser_horosa_jinkou_regression_check.py`
       - 金口诀专项浏览器回归，固定校验 `惊蛰后第5天 + 地分亥 -> 将神癸亥登明`。
     - `scripts/browser_primary_direction_chart_guangde_check.py`
