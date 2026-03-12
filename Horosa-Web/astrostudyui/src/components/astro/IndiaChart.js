@@ -6,6 +6,9 @@ import * as Constants from '../../utils/constants';
 import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 
+const indiaChartCache = new Map();
+const indiaChartInflight = new Map();
+
 function fieldsToParams(fields){
 	const params = {
 		date: fields.date.value.format('YYYY/MM/DD'),
@@ -55,6 +58,33 @@ function resolveIndiaLabel(fractal, hook){
 		return '命盘';
 	}
 	return `${fractal}律盘`;
+}
+
+function buildIndiaChartCacheKey(params){
+	if(!params){
+		return '';
+	}
+	const normalized = {
+		date: params.date || '',
+		time: params.time || '',
+		ad: params.ad,
+		zone: params.zone,
+		lat: params.lat,
+		lon: params.lon,
+		gpsLat: params.gpsLat,
+		gpsLon: params.gpsLon,
+		hsys: params.hsys,
+		zodiacal: params.zodiacal,
+		tradition: params.tradition,
+		strongRecption: params.strongRecption,
+		simpleAsp: params.simpleAsp,
+		virtualPointReceiveAsp: params.virtualPointReceiveAsp,
+		predictive: params.predictive,
+		name: params.name || '',
+		pos: params.pos || '',
+		chartnum: params.chartnum || 1,
+	};
+	return JSON.stringify(normalized);
 }
 
 function splitSections(text){
@@ -148,10 +178,24 @@ class IndiaChart extends Component{
 	}
 
 	async requestChart(params, sourceFields){
-		const data = await request(`${Constants.ServerRoot}/india/chart`, {
-			body: JSON.stringify(params),
-		});
-		const result = data[Constants.ResultKey]
+		const cacheKey = buildIndiaChartCacheKey(params);
+		let result = indiaChartCache.get(cacheKey);
+		if(!result){
+			let inflight = indiaChartInflight.get(cacheKey);
+			if(!inflight){
+				inflight = request(`${Constants.ServerRoot}/india/chart`, {
+					body: JSON.stringify(params),
+				}).then((data)=>{
+					const resolved = data[Constants.ResultKey];
+					indiaChartCache.set(cacheKey, resolved);
+					return resolved;
+				}).finally(()=>{
+					indiaChartInflight.delete(cacheKey);
+				});
+				indiaChartInflight.set(cacheKey, inflight);
+			}
+			result = await inflight;
+		}
 
 		const st = {
 			chartObj: result,
