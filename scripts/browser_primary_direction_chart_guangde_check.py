@@ -88,6 +88,18 @@ def visible_select_texts(page) -> list[str]:
     return texts
 
 
+def find_visible_dropdown(page):
+    dropdowns = page.locator(".ant-select-dropdown")
+    for idx in range(dropdowns.count() - 1, -1, -1):
+        dropdown = dropdowns.nth(idx)
+        try:
+            if dropdown.is_visible() and dropdown.locator(".ant-select-item-option-content").count():
+                return dropdown
+        except Exception:
+            continue
+    raise AssertionError("找不到可见下拉框")
+
+
 def select_visible_dropdown(page, visible_index: int, label: str) -> None:
     selectors = page.locator(".ant-select-selector")
     visible = []
@@ -99,9 +111,51 @@ def select_visible_dropdown(page, visible_index: int, label: str) -> None:
         except Exception:
             continue
     target = visible[visible_index]
-    target.click(force=True)
-    page.wait_for_timeout(250)
-    option = page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content", has_text=label).first
+    dropdown = None
+    for _ in range(3):
+        try:
+            target.scroll_into_view_if_needed(timeout=10_000)
+        except Exception:
+            pass
+        target.click(force=True)
+        page.wait_for_timeout(350)
+        try:
+            dropdown = find_visible_dropdown(page)
+            break
+        except AssertionError:
+            page.wait_for_timeout(300)
+    if dropdown is None:
+        raise AssertionError("点击下拉框后未出现可见选项列表")
+    exact_matches = dropdown.get_by_text(label, exact=True)
+    for idx in range(exact_matches.count()):
+        item = exact_matches.nth(idx)
+        try:
+            if item.is_visible():
+                item.click(force=True, timeout=10_000)
+                page.wait_for_timeout(350)
+                return
+        except Exception:
+            continue
+    holder = dropdown.locator(".rc-virtual-list-holder").first
+    option = None
+    for step in range(10):
+        candidates = dropdown.get_by_text(label, exact=True)
+        for idx in range(candidates.count()):
+            item = candidates.nth(idx)
+            try:
+                if item.is_visible():
+                    option = item
+                    break
+            except Exception:
+                continue
+        if option is not None:
+            break
+        if holder.count() == 0:
+            break
+        holder.evaluate("(el, top) => { el.scrollTop = top; el.dispatchEvent(new Event('scroll', { bubbles: true })); }", step * 240)
+        page.wait_for_timeout(200)
+    if option is None:
+        raise AssertionError(f"下拉框中找不到可见选项 {label!r}")
     option.click(force=True, timeout=10_000)
     page.wait_for_timeout(350)
 
