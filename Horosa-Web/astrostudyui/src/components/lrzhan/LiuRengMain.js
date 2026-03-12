@@ -14,6 +14,12 @@ import LiuRengInput from './LiuRengInput';
 import LiuRengBirthInput from './LiuRengBirthInput';
 import DateTime from '../comp/DateTime';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
+import {
+	getBirthGanzhiLocalCache,
+	getLiurengRunyearLocalCache,
+	setBirthGanzhiLocalCache,
+	setLiurengRunyearLocalCache,
+} from '../../utils/localCalcCache';
 
 
 const InputGroup = Input.Group;
@@ -4291,6 +4297,11 @@ class LiuRengMain extends Component{
 		if(this.birthYearGanZiCache[key]){
 			return this.birthYearGanZiCache[key];
 		}
+		const localHit = getBirthGanzhiLocalCache(key);
+		if(localHit){
+			this.birthYearGanZiCache[key] = localHit;
+			return localHit;
+		}
 		const params = {
 			ad: flds.date.value.ad,
 			date: flds.date.value.format('YYYY-MM-DD'),
@@ -4311,6 +4322,7 @@ class LiuRengMain extends Component{
 			) || extractGanZi(lr && lr.nongli ? (lr.nongli.yearGanZi || lr.nongli.yearJieqi || lr.nongli.year) : '');
 			if(ganzi){
 				this.birthYearGanZiCache[key] = ganzi;
+				setBirthGanzhiLocalCache(key, ganzi);
 			}
 			return ganzi;
 		}catch(e){
@@ -4413,10 +4425,14 @@ class LiuRengMain extends Component{
 		const runyearKey = buildCacheKey(params);
 		try{
 			let serverRes = {};
+			const localRunyearHit = runyearKey ? getLiurengRunyearLocalCache(runyearKey) : null;
 			if(runyearKey && this.runYearServerCache.has(runyearKey)){
 				serverRes = clonePlain(this.runYearServerCache.get(runyearKey)) || {};
 			}else if(runyearKey && this.runYearServerInflight.has(runyearKey)){
 				serverRes = clonePlain(await this.runYearServerInflight.get(runyearKey)) || {};
+			}else if(localRunyearHit){
+				serverRes = clonePlain(localRunyearHit) || {};
+				pushCache(this.runYearServerCache, runyearKey, clonePlain(serverRes), 96);
 			}else{
 				const req = request(`${Constants.ServerRoot}/liureng/runyear`, {
 					body: JSON.stringify(params),
@@ -4434,6 +4450,7 @@ class LiuRengMain extends Component{
 				serverRes = await req;
 				if(runyearKey){
 					pushCache(this.runYearServerCache, runyearKey, clonePlain(serverRes), 96);
+					setLiurengRunyearLocalCache(runyearKey, clonePlain(serverRes));
 				}
 			}
 			result = {
