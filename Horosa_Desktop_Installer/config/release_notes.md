@@ -1,3 +1,3 @@
-- 修复瘦身后 embedded Java 缺少 `Big5` 字符集支持导致 `/chart` 主链路启动失败的问题：runtime 里的 `jlink` 现在显式保留 `jdk.charsets` 与 `jdk.management`，安装后的主限法与图盘链路恢复正常。
-- 保留此前已经通过验收的轻量化收益：bundle 改成白名单打包，Python 侧继续移除测试/示例/缓存，Java 改为最小运行时，当前 runtime 压缩包维持在约 `616MB`。
-- 本次发布同步更新独立 runtime 到 `1.0.15-runtime1`，确保 GitHub release、manifest 和实际线上 runtime 资产完全一致。
+- 提升桌面端运行稳定性：`易与三式 / liureng/runyear` 与出生年干支查询加入持久缓存和失败回退，重复打开与弱网场景下响应更稳、更快。
+- 批注编辑器兼容性加固：对 `react-quill / quill` 增加安装期补丁，移除浏览器 `DOMNodeInserted` 弃用告警，不改变原有批注编辑与保存行为。
+- 3D 盘稳定性增强：远端模型失败冷却改为跨重开生效，离线时直接跳过远端模型探测并更快退回简化模式；同时补强了顶栏与批注/AI 导出设置的浏览器级深度自检脚本。
