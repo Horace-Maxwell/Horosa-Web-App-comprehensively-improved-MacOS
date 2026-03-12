@@ -14,6 +14,24 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-12
 
+### 16:05 - 修复 release 下载件中的富文本 DOMNodeInserted 告警并补发 v1.0.17 release
+- Scope: 针对从 GitHub release 下载后的真实运行环境，修复 `AI导出设置 / 批注` 深检里仍会冒出的 `DOMNodeInserted` 弃用告警，并重新发布新的桌面端 release。
+- Files:
+  - `Horosa-Web/astrostudyui/src/app.js`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+- Details:
+  - 在前端启动阶段统一拦截废弃的 `DOMNodeInserted` 监听注册，避免浏览器继续输出该弃用告警。
+  - 该补丁不改变 Quill 编辑器的内容编辑、保存、重开回显逻辑，因为目标事件在现代浏览器中本身已废弃且不会再触发。
+  - 先对新构建的 `dist-file` 做 `AI导出设置 / 批注` 深检，确认 `consoleErrors=[]` 后，再提升桌面安装器版本到 `1.0.17`。
+- Verification:
+  - `npm run build:file` in `Horosa-Web/astrostudyui`
+  - `scripts/browser_toolbar_deep_state_check.py` against rebuilt `dist-file`
+  - 期望结果：`dialogs=[]`、`pageErrors=[]`、`consoleErrors=[]`、`requestFailures=[]`
+
 ### 15:20 - 桌面端稳定性增强并补发 v1.0.16 release
 - Scope: 补齐此前只同步到 `main`、未同步到 release 的桌面端稳定性改动，并针对批注编辑器、`liureng/runyear`、3D 盘 fallback 与浏览器级深度自检进一步收口。
 - Files:
