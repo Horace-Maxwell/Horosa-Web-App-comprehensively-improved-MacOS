@@ -12,6 +12,41 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-03-12
+
+### 15:20 - 桌面端稳定性增强并补发 v1.0.16 release
+- Scope: 补齐此前只同步到 `main`、未同步到 release 的桌面端稳定性改动，并针对批注编辑器、`liureng/runyear`、3D 盘 fallback 与浏览器级深度自检进一步收口。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/astro3d/Astro3D.js`
+  - `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
+  - `Horosa-Web/astrostudyui/src/utils/localCalcCache.js`
+  - `Horosa-Web/astrostudyui/src/utils/preciseCalcBridge.js`
+  - `Horosa-Web/astrostudyui/package.json`
+  - `Horosa-Web/astrostudyui/scripts/patch_quill_domnodeinserted.js`
+  - `scripts/browser_toolbar_deep_state_check.py`
+  - `scripts/browser_topbar_full_enumeration_check.py`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+- Details:
+  - `liureng/runyear` 与出生年干支查询加入持久缓存与失败回退，避免重复打开和弱网时反复等待。
+  - `react-quill / quill` 增加安装期补丁，去掉 `DOMNodeInserted` 弃用告警，不改变批注保存行为。
+  - `Astro3D` 的远端模型失败冷却提升为跨重开生效，并在离线时直接跳过远端模型探测，减少 3D 盘卡在外网超时上的等待。
+  - 新增顶栏逐项枚举与批注/AI 导出设置深度验收脚本，补齐此前总巡检不够细的控件级核查。
+  - 桌面安装器版本提升到 `1.0.16`，继续复用独立 runtime `1.0.15-runtime1`。
+- Verification:
+  - `npm run build` in `Horosa-Web/astrostudyui`
+  - `Horosa-Web/verify_horosa_local.sh`
+  - `scripts/browser_horosa_master_check.py`
+  - `scripts/browser_horosa_toolbar_management_check.py`
+  - `scripts/browser_toolbar_deep_state_check.py`
+  - `scripts/browser_topbar_full_enumeration_check.py`
+  - `scripts/browser_horosa_final_layout_check.py`
+  - `scripts/browser_horosa_jinkou_regression_check.py`
+
 ## 2026-03-08
 
 ### 18:42 - 新增 Windows Codex「主限法盘」完整复现包
