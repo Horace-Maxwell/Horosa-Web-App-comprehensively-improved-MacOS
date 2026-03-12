@@ -102,40 +102,69 @@ const ChartOptKey = 'chart3dOpt';
 const ModelUnavailableAtKey = 'horosa3dModelUnavailableAt';
 const ModelUnavailableCooldown = 10 * 60 * 1000;
 
-function getModelUnavailableAt(){
-	if(typeof window === 'undefined' || !window.sessionStorage){
-		return 0;
+function getStorageValue(storage, key){
+	if(!storage){
+		return '';
 	}
 	try{
-		return Number(window.sessionStorage.getItem(ModelUnavailableAtKey) || 0);
+		return storage.getItem(key) || '';
 	}catch(err){
+		return '';
+	}
+}
+
+function setStorageValue(storage, key, value){
+	if(!storage){
+		return;
+	}
+	try{
+		storage.setItem(key, value);
+	}catch(err){
+		// ignore storage exceptions
+	}
+}
+
+function removeStorageValue(storage, key){
+	if(!storage){
+		return;
+	}
+	try{
+		storage.removeItem(key);
+	}catch(err){
+		// ignore storage exceptions
+	}
+}
+
+function getModelUnavailableAt(){
+	if(typeof window === 'undefined'){
 		return 0;
 	}
+	const localVal = Number(getStorageValue(window.localStorage, ModelUnavailableAtKey) || 0);
+	const sessionVal = Number(getStorageValue(window.sessionStorage, ModelUnavailableAtKey) || 0);
+	return Math.max(localVal || 0, sessionVal || 0);
 }
 
 function markModelUnavailableNow(){
-	if(typeof window === 'undefined' || !window.sessionStorage){
+	if(typeof window === 'undefined'){
 		return;
 	}
-	try{
-		window.sessionStorage.setItem(ModelUnavailableAtKey, `${Date.now()}`);
-	}catch(err){
-		// ignore storage exceptions
-	}
+	const value = `${Date.now()}`;
+	setStorageValue(window.localStorage, ModelUnavailableAtKey, value);
+	setStorageValue(window.sessionStorage, ModelUnavailableAtKey, value);
 }
 
 function clearModelUnavailableMark(){
-	if(typeof window === 'undefined' || !window.sessionStorage){
+	if(typeof window === 'undefined'){
 		return;
 	}
-	try{
-		window.sessionStorage.removeItem(ModelUnavailableAtKey);
-	}catch(err){
-		// ignore storage exceptions
-	}
+	removeStorageValue(window.localStorage, ModelUnavailableAtKey);
+	removeStorageValue(window.sessionStorage, ModelUnavailableAtKey);
 }
 
 function shouldSkipModelLoad(){
+	if(typeof navigator !== 'undefined' && navigator.onLine === false){
+		return true;
+	}
 	const unavailableAt = getModelUnavailableAt();
 	if(!unavailableAt){
 		return false;
