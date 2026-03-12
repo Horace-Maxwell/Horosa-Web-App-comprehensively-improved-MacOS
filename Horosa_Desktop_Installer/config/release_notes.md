@@ -1,3 +1,3 @@
-- 修复 release 自检里仍能复现的 `DOMNodeInserted` 控制台告警：前端启动时统一忽略废弃的 `DOMNodeInserted` 监听注册，不改变富文本批注的编辑、保存与回显逻辑。
-- 保留前一版已通过验收的稳定性增强：`liureng/runyear` 与出生年干支查询持久缓存/失败回退、3D 盘远端模型失败冷却与离线短路继续有效。
-- 本次发布继续复用独立 runtime `1.0.15-runtime1`，无需重新上传 runtime 大包。
+- 修复 release 下载件里仍能复现的 `DOMNodeInserted` 控制台告警：这次同步刷新独立 runtime 到 `1.0.18-runtime1`，让 release 实际使用的新前端静态资源与源码修复保持一致。
+- 保留并继续交付已通过验收的稳定性增强：`liureng/runyear` 与出生年干支查询持久缓存/失败回退、3D 盘远端模型失败冷却与离线短路继续有效。
+- 本次发布会同时上传新的独立 runtime `1.0.18-runtime1`，不再继续复用旧的 `1.0.15-runtime1`。
