@@ -60,6 +60,31 @@ if [ ! -f "${RUNTIME_ARCHIVE}" ]; then
 fi
 
 RUNTIME_SHA256="$(shasum -a 256 "${RUNTIME_ARCHIVE}" | awk '{print $1}')"
+if [ "${RUNTIME_RELEASE_TAG}" != "${APP_RELEASE_TAG}" ] && [ "${HOROSA_FORCE_RUNTIME_UPLOAD:-0}" != "1" ] && command -v gh >/dev/null 2>&1; then
+  REMOTE_RUNTIME_JSON="$(gh release view "${RUNTIME_RELEASE_TAG}" --repo "$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
+import json, os, pathlib
+root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
+config = json.loads((root / 'config/release_config.json').read_text())
+print(f"{config['repoOwner']}/{config['repoName']}")
+PY
+)" --json assets 2>/dev/null || true)"
+  REMOTE_RUNTIME_SHA="$(python3 - <<'PY' "${RUNTIME_ASSET}" "${REMOTE_RUNTIME_JSON}"
+import json, sys
+asset_name = sys.argv[1]
+payload = json.loads(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].strip() else {}
+for asset in payload.get('assets', []):
+    if asset.get('name') == asset_name:
+        digest = str(asset.get('digest') or '')
+        if digest.startswith('sha256:'):
+            print(digest.split(':', 1)[1])
+            break
+PY
+)"
+  if [ -n "${REMOTE_RUNTIME_SHA}" ]; then
+    RUNTIME_SHA256="${REMOTE_RUNTIME_SHA}"
+    echo "using remote runtime digest from ${RUNTIME_RELEASE_TAG}: ${RUNTIME_SHA256}"
+  fi
+fi
 
 if [ ! -d "${INSTALLER_ROOT}/node_modules" ]; then
   (cd "${INSTALLER_ROOT}" && npm install)
@@ -188,12 +213,13 @@ echo "installer package ready: ${INSTALLER_PKG}"
 echo "installer delivery zip ready: ${INSTALLER_PKG_ZIP}"
 echo "component plist ready: ${COMPONENT_PLIST}"
 
-INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" APP_RELEASE_TAG_ENV="${APP_RELEASE_TAG}" RUNTIME_RELEASE_TAG_ENV="${RUNTIME_RELEASE_TAG}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" python3 - <<'PYMANIFEST'
+INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" APP_RELEASE_TAG_ENV="${APP_RELEASE_TAG}" RUNTIME_RELEASE_TAG_ENV="${RUNTIME_RELEASE_TAG}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" RUNTIME_SHA256_ENV="${RUNTIME_SHA256}" python3 - <<'PYMANIFEST'
 import hashlib, json, os, pathlib, platform
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 app_release_tag = os.environ['APP_RELEASE_TAG_ENV']
 runtime_release_tag = os.environ['RUNTIME_RELEASE_TAG_ENV']
 runtime_version = os.environ['RUNTIME_VERSION_ENV']
+runtime_sha256 = os.environ['RUNTIME_SHA256_ENV']
 config = json.loads((root / 'config/release_config.json').read_text())
 dist = root / 'dist'
 arch = platform.machine().lower()
@@ -214,7 +240,7 @@ manifest = {
       'runtimeVersion': runtime_version,
       'appSha256': hashlib.sha256((dist / config['desktopAssetName']).read_bytes()).hexdigest(),
       'pkgSha256': hashlib.sha256((dist / config['desktopPkgName']).read_bytes()).hexdigest(),
-      'runtimeSha256': hashlib.sha256((dist / config['runtimeAssetName']).read_bytes()).hexdigest(),
+      'runtimeSha256': runtime_sha256,
     }
   }
 }
