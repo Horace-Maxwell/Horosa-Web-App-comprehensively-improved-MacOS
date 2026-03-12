@@ -5,7 +5,7 @@ INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 RELEASE_NOTES_FILE="${INSTALLER_ROOT}/config/release_notes.md"
 
-read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION <<EOF
+read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -20,6 +20,7 @@ print(
     config['releaseTagPrefix'],
     version,
     f"{config['releaseTagPrefix']}{version}",
+    f"{config['releaseTagPrefix']}{runtime_version}",
     config['runtimeAssetName'],
     config['desktopAssetName'],
     config['desktopPkgName'],
@@ -34,22 +35,22 @@ EOF
 RELEASE_NAME="${TAG_NAME}"
 API_ROOT="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 PRIMARY_DOWNLOAD="${DESKTOP_PKG_ZIP}"
-ASSETS=(
+APP_ASSETS=(
   "${DIST_ROOT}/${DESKTOP_PKG_ZIP}"
   "${DIST_ROOT}/${DESKTOP_PKG}"
   "${DIST_ROOT}/${DESKTOP_ASSET}"
-  "${DIST_ROOT}/${RUNTIME_ASSET}"
   "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 )
+RUNTIME_ARCHIVE_PATH="${DIST_ROOT}/${RUNTIME_ASSET}"
 
-for asset in "${ASSETS[@]}"; do
+for asset in "${APP_ASSETS[@]}" "${RUNTIME_ARCHIVE_PATH}"; do
   [ -f "${asset}" ] || {
     echo "missing asset: ${asset}" >&2
     exit 1
   }
 done
 
-python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_PKG}" "${DIST_ROOT}/${RUNTIME_ASSET}" "${DESKTOP_ASSET}" "${DESKTOP_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}"
+python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_PKG}" "${RUNTIME_ARCHIVE_PATH}" "${DESKTOP_ASSET}" "${DESKTOP_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}" "${RUNTIME_TAG_NAME}"
 import hashlib, json, pathlib, sys
 
 manifest_path = pathlib.Path(sys.argv[1])
@@ -62,6 +63,7 @@ runtime_asset = sys.argv[7]
 tag_name = sys.argv[8]
 version = sys.argv[9]
 runtime_version = sys.argv[10]
+runtime_tag_name = sys.argv[11]
 manifest = json.loads(manifest_path.read_text())
 
 if manifest.get('version') != version:
@@ -82,6 +84,12 @@ expected_urls = {
 for key, suffix in expected_urls.items():
     if not platform.get(key, '').endswith('/' + suffix):
         raise SystemExit(f"local manifest {key} mismatch: {platform.get(key)}")
+if f"/releases/download/{tag_name}/" not in platform.get('appUrl', ''):
+    raise SystemExit(f"local manifest appUrl tag mismatch: {platform.get('appUrl')}")
+if f"/releases/download/{tag_name}/" not in platform.get('pkgUrl', ''):
+    raise SystemExit(f"local manifest pkgUrl tag mismatch: {platform.get('pkgUrl')}")
+if f"/releases/download/{runtime_tag_name}/" not in platform.get('runtimeUrl', ''):
+    raise SystemExit(f"local manifest runtimeUrl tag mismatch: {platform.get('runtimeUrl')}")
 
 if platform.get('runtimeVersion') != runtime_version:
     raise SystemExit(
@@ -159,77 +167,96 @@ api_json() {
   curl -fsSL "${auth_header[@]}" "$@"
 }
 
-release_json=""
-if release_json="$(api_json "${API_ROOT}/releases/tags/${TAG_NAME}" 2>/dev/null)"; then
-  RELEASE_ID="$(python3 - <<'PY' "${release_json}"
+set_release_meta() {
+  local release_json="$1"
+  read -r ENSURE_RELEASE_ID ENSURE_UPLOAD_URL <<EOF_META
+$(python3 - <<'PY' "${release_json}"
 import json, sys
-print(json.loads(sys.argv[1])['id'])
+payload = json.loads(sys.argv[1])
+print(payload['id'], payload['upload_url'].split('{', 1)[0])
 PY
-)"
-  upload_url="$(python3 - <<'PY' "${release_json}"
-import json, sys
-print(json.loads(sys.argv[1])['upload_url'].split('{', 1)[0])
-PY
-)"
-  curl -fsSL -X PATCH "${auth_header[@]}" -H 'Content-Type: application/json' \
-    -d "$(python3 - <<'PY' "${RELEASE_NAME}" "${TAG_NAME}"
-import json, os, sys
+)
+EOF_META
+}
+
+ensure_release() {
+  local tag_name="$1"
+  local release_name="$2"
+  local release_body="$3"
+  local make_latest="$4"
+  local release_json=""
+  if release_json="$(api_json "${API_ROOT}/releases/tags/${tag_name}" 2>/dev/null)"; then
+    set_release_meta "${release_json}"
+    curl -fsSL -X PATCH "${auth_header[@]}" -H 'Content-Type: application/json' \
+      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" python3 - <<'PY'
+import json, os
 print(json.dumps({
-  'name': sys.argv[1],
-  'tag_name': sys.argv[2],
-  'body': os.environ['RELEASE_BODY'],
+  'name': os.environ['RELEASE_NAME_ENV'],
+  'tag_name': os.environ['TAG_NAME_ENV'],
+  'body': os.environ['RELEASE_BODY_ENV'],
   'draft': False,
   'prerelease': False,
-  'make_latest': 'true',
+  'make_latest': os.environ['MAKE_LATEST_ENV'],
 }))
 PY
 )" \
-    "${API_ROOT}/releases/${RELEASE_ID}" >/dev/null
-else
-  create_payload="$(python3 - <<'PY' "${TAG_NAME}" "${RELEASE_NAME}"
-import json, os, sys
+      "${API_ROOT}/releases/${ENSURE_RELEASE_ID}" >/dev/null
+  else
+    release_json="$(curl -fsSL -X POST "${auth_header[@]}" -H 'Content-Type: application/json' \
+      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" python3 - <<'PY'
+import json, os
 print(json.dumps({
-  'tag_name': sys.argv[1],
+  'tag_name': os.environ['TAG_NAME_ENV'],
   'target_commitish': 'main',
-  'name': sys.argv[2],
-  'body': os.environ['RELEASE_BODY'],
+  'name': os.environ['RELEASE_NAME_ENV'],
+  'body': os.environ['RELEASE_BODY_ENV'],
   'draft': False,
   'prerelease': False,
-  'make_latest': 'true',
+  'make_latest': os.environ['MAKE_LATEST_ENV'],
 }))
 PY
-)"
-  release_json="$(curl -fsSL -X POST "${auth_header[@]}" -H 'Content-Type: application/json' -d "${create_payload}" "${API_ROOT}/releases")"
-  RELEASE_ID="$(python3 - <<'PY' "${release_json}"
-import json, sys
-print(json.loads(sys.argv[1])['id'])
-PY
-)"
-  upload_url="$(python3 - <<'PY' "${release_json}"
-import json, sys
-print(json.loads(sys.argv[1])['upload_url'].split('{', 1)[0])
-PY
-)"
-fi
+)" "${API_ROOT}/releases")"
+    set_release_meta "${release_json}"
+  fi
+}
 
-assets_json="$(api_json "${API_ROOT}/releases/${RELEASE_ID}/assets?per_page=100")"
-while IFS=$'\t' read -r asset_id asset_name; do
-  [ -n "${asset_id}" ] || continue
-  case "${asset_name}" in
-    "${DESKTOP_PKG_ZIP}"|"${DESKTOP_PKG}"|"${DESKTOP_ASSET}"|"${RUNTIME_ASSET}"|"${UPDATE_MANIFEST_NAME}")
-      curl -fsSL -X DELETE "${auth_header[@]}" "${API_ROOT}/releases/assets/${asset_id}" >/dev/null
-      ;;
-  esac
-done < <(
-  python3 - <<'PY' "${assets_json}"
+delete_named_assets() {
+  local release_id="$1"
+  shift
+  [ "$#" -gt 0 ] || return 0
+  local assets_json
+  assets_json="$(api_json "${API_ROOT}/releases/${release_id}/assets?per_page=100")"
+  while IFS=$'\t' read -r asset_id asset_name; do
+    [ -n "${asset_id}" ] || continue
+    curl -fsSL -X DELETE "${auth_header[@]}" "${API_ROOT}/releases/assets/${asset_id}" >/dev/null
+  done < <(
+    python3 - <<'PY' "${assets_json}" "$@"
 import json, sys
-for asset in json.loads(sys.argv[1]):
-    print(f"{asset.get('id', '')}\t{asset.get('name', '')}")
+payload = json.loads(sys.argv[1])
+names = set(sys.argv[2:])
+for asset in payload:
+    if asset.get('name') in names:
+        print(f"{asset.get('id', '')}\t{asset.get('name', '')}")
 PY
-)
+  )
+}
 
-for asset in "${ASSETS[@]}"; do
-  asset_name="$(basename "${asset}")"
+release_has_asset() {
+  local release_id="$1"
+  local asset_name="$2"
+  python3 - <<'PY' "$(api_json "${API_ROOT}/releases/${release_id}/assets?per_page=100")" "${asset_name}"
+import json, sys
+payload = json.loads(sys.argv[1])
+target = sys.argv[2]
+raise SystemExit(0 if any(asset.get('name') == target for asset in payload) else 1)
+PY
+}
+
+upload_asset() {
+  local upload_url="$1"
+  local asset_path="$2"
+  local asset_name
+  asset_name="$(basename "${asset_path}")"
   echo "uploading ${asset_name}"
   curl -fL --http1.1 --retry 5 --retry-delay 2 --retry-all-errors --progress-bar \
     -X POST \
@@ -237,9 +264,43 @@ for asset in "${ASSETS[@]}"; do
     -H 'Accept: application/vnd.github+json' \
     -H 'X-GitHub-Api-Version: 2022-11-28' \
     -H 'Content-Type: application/octet-stream' \
-    --data-binary @"${asset}" \
+    --data-binary @"${asset_path}" \
     "${upload_url}?name=${asset_name}" >/dev/null
+}
+
+RUNTIME_RELEASE_BODY="$(cat <<EOF
+Reusable runtime payload for Horosa desktop releases.
+
+This release stores the shared runtime archive used by installer/bootstrap flows.
+EOF
+)"
+
+ensure_release "${TAG_NAME}" "${RELEASE_NAME}" "${RELEASE_BODY}" "true"
+APP_RELEASE_ID="${ENSURE_RELEASE_ID}"
+APP_UPLOAD_URL="${ENSURE_UPLOAD_URL}"
+
+delete_named_assets "${APP_RELEASE_ID}" "${DESKTOP_PKG_ZIP}" "${DESKTOP_PKG}" "${DESKTOP_ASSET}" "${UPDATE_MANIFEST_NAME}" "${RUNTIME_ASSET}"
+
+for asset in "${APP_ASSETS[@]}"; do
+  upload_asset "${APP_UPLOAD_URL}" "${asset}"
 done
+
+if [ "${RUNTIME_TAG_NAME}" = "${TAG_NAME}" ]; then
+  upload_asset "${APP_UPLOAD_URL}" "${RUNTIME_ARCHIVE_PATH}"
+  RUNTIME_RELEASE_ID="${APP_RELEASE_ID}"
+else
+  ensure_release "${RUNTIME_TAG_NAME}" "${RUNTIME_TAG_NAME}" "${RUNTIME_RELEASE_BODY}" "false"
+  RUNTIME_RELEASE_ID="${ENSURE_RELEASE_ID}"
+  RUNTIME_UPLOAD_URL="${ENSURE_UPLOAD_URL}"
+  if [ "${HOROSA_FORCE_RUNTIME_UPLOAD:-0}" = "1" ]; then
+    delete_named_assets "${RUNTIME_RELEASE_ID}" "${RUNTIME_ASSET}"
+    upload_asset "${RUNTIME_UPLOAD_URL}" "${RUNTIME_ARCHIVE_PATH}"
+  elif release_has_asset "${RUNTIME_RELEASE_ID}" "${RUNTIME_ASSET}"; then
+    echo "runtime asset already present on ${RUNTIME_TAG_NAME}; skipping upload"
+  else
+    upload_asset "${RUNTIME_UPLOAD_URL}" "${RUNTIME_ARCHIVE_PATH}"
+  fi
+fi
 
 LATEST_MANIFEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest/download/${UPDATE_MANIFEST_NAME}"
 LATEST_MANIFEST=""
@@ -262,7 +323,7 @@ if [ -z "${LATEST_MANIFEST}" ]; then
   exit 1
 fi
 
-python3 - <<'PY' "${LATEST_MANIFEST}" "${VERSION}" "${TAG_NAME}" "${DESKTOP_ASSET}" "${RUNTIME_ASSET}"
+python3 - <<'PY' "${LATEST_MANIFEST}" "${VERSION}" "${TAG_NAME}" "${RUNTIME_TAG_NAME}" "${DESKTOP_ASSET}" "${RUNTIME_ASSET}"
 import json, sys
 manifest = json.loads(sys.argv[1])
 if manifest['version'] != sys.argv[2]:
@@ -270,9 +331,13 @@ if manifest['version'] != sys.argv[2]:
 if manifest.get('tag') != sys.argv[3]:
     raise SystemExit(f"latest manifest tag mismatch: {manifest.get('tag')} != {sys.argv[3]}")
 platform = next(iter(manifest['platforms'].values()))
-if not platform['appUrl'].endswith('/' + sys.argv[4]):
+if f"/releases/download/{sys.argv[3]}/" not in platform['appUrl']:
+    raise SystemExit('latest manifest appUrl tag mismatch')
+if not platform['appUrl'].endswith('/' + sys.argv[5]):
     raise SystemExit('latest manifest appUrl mismatch')
-if not platform['runtimeUrl'].endswith('/' + sys.argv[5]):
+if f"/releases/download/{sys.argv[4]}/" not in platform['runtimeUrl']:
+    raise SystemExit('latest manifest runtimeUrl tag mismatch')
+if not platform['runtimeUrl'].endswith('/' + sys.argv[6]):
     raise SystemExit('latest manifest runtimeUrl mismatch')
 PY
 
