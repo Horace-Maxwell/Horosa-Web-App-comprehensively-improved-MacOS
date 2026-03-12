@@ -230,8 +230,22 @@ HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SH
 [ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]
 [ ! -d "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current" ]
 
-RUNTIME_ARCHIVE_URI="$(RUNTIME_ARCHIVE="${RUNTIME_ARCHIVE}" python3 -c 'from pathlib import Path; import os; print(Path(os.environ["RUNTIME_ARCHIVE"]).resolve().as_uri())')"
-HOROSA_RUNTIME_URL="${RUNTIME_ARCHIVE_URI}" HOROSA_RUNTIME_SHARED_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${POSTINSTALL_SCRIPT}" pkgid unused "${INSTALL_TARGET}"
+RUNTIME_SOURCE_URL="$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" UPDATE_MANIFEST_ENV="${UPDATE_MANIFEST}" RUNTIME_ARCHIVE_ENV="${RUNTIME_ARCHIVE}" python3 - <<'PY'
+import hashlib, json, os, pathlib, platform
+root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
+manifest = json.loads(pathlib.Path(os.environ['UPDATE_MANIFEST_ENV']).read_text())
+runtime_archive = pathlib.Path(os.environ['RUNTIME_ARCHIVE_ENV']).resolve()
+arch = platform.machine().lower()
+platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
+platform_manifest = manifest['platforms'][platform_key]
+local_sha = hashlib.sha256(runtime_archive.read_bytes()).hexdigest()
+if local_sha == platform_manifest.get('runtimeSha256'):
+    print(runtime_archive.as_uri())
+else:
+    print(platform_manifest['runtimeUrl'])
+PY
+)"
+HOROSA_RUNTIME_URL="${RUNTIME_SOURCE_URL}" HOROSA_RUNTIME_SHARED_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${POSTINSTALL_SCRIPT}" pkgid unused "${INSTALL_TARGET}"
 
 [ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
 [ ! -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]

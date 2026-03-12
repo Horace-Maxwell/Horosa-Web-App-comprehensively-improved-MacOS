@@ -50,20 +50,76 @@ for asset in "${APP_ASSETS[@]}" "${RUNTIME_ARCHIVE_PATH}"; do
   }
 done
 
-python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_PKG}" "${RUNTIME_ARCHIVE_PATH}" "${DESKTOP_ASSET}" "${DESKTOP_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}" "${RUNTIME_TAG_NAME}"
+resolve_token() {
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    printf '%s' "${GITHUB_TOKEN}"
+    return 0
+  fi
+  printf 'protocol=https\nhost=github.com\n\n' | git credential fill | awk -F= '/^password=/{print $2}'
+}
+
+GITHUB_TOKEN="$(resolve_token)"
+if [ -z "${GITHUB_TOKEN}" ]; then
+  echo 'missing GitHub token' >&2
+  exit 1
+fi
+
+auth_header=( -H "Authorization: Bearer ${GITHUB_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' )
+
+api_json() {
+  curl -fsSL "${auth_header[@]}" "$@"
+}
+
+EXPECTED_RUNTIME_SHA="$(python3 - <<'PY' "${RUNTIME_ARCHIVE_PATH}"
+import hashlib, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+print(hashlib.sha256(path.read_bytes()).hexdigest())
+PY
+)"
+
+if [ "${RUNTIME_TAG_NAME}" != "${TAG_NAME}" ] && [ "${HOROSA_FORCE_RUNTIME_UPLOAD:-0}" != "1" ]; then
+  REMOTE_RUNTIME_SHA="$(python3 - <<'PY' "${RUNTIME_ASSET}" "$(api_json "${API_ROOT}/releases/tags/${RUNTIME_TAG_NAME}" 2>/dev/null || true)"
+import json, sys
+asset_name = sys.argv[1]
+payload = json.loads(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].strip() else {}
+for asset in payload.get('assets', []):
+    if asset.get('name') == asset_name:
+        digest = str(asset.get('digest') or '')
+        if digest.startswith('sha256:'):
+            print(digest.split(':', 1)[1])
+            break
+PY
+)"
+  if [ -n "${REMOTE_RUNTIME_SHA}" ]; then
+    EXPECTED_RUNTIME_SHA="${REMOTE_RUNTIME_SHA}"
+    python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${EXPECTED_RUNTIME_SHA}"
+import json, pathlib, sys
+manifest_path = pathlib.Path(sys.argv[1])
+expected_runtime_sha = sys.argv[2]
+manifest = json.loads(manifest_path.read_text())
+platforms = manifest.get('platforms', {})
+for platform in platforms.values():
+    if platform.get('runtimeSha256') != expected_runtime_sha:
+        platform['runtimeSha256'] = expected_runtime_sha
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
+PY
+  fi
+fi
+
+python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_PKG}" "${DESKTOP_ASSET}" "${DESKTOP_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}" "${RUNTIME_TAG_NAME}" "${EXPECTED_RUNTIME_SHA}"
 import hashlib, json, pathlib, sys
 
 manifest_path = pathlib.Path(sys.argv[1])
 app_path = pathlib.Path(sys.argv[2])
 pkg_path = pathlib.Path(sys.argv[3])
-runtime_path = pathlib.Path(sys.argv[4])
-desktop_asset = sys.argv[5]
-desktop_pkg = sys.argv[6]
-runtime_asset = sys.argv[7]
-tag_name = sys.argv[8]
-version = sys.argv[9]
-runtime_version = sys.argv[10]
-runtime_tag_name = sys.argv[11]
+desktop_asset = sys.argv[4]
+desktop_pkg = sys.argv[5]
+runtime_asset = sys.argv[6]
+tag_name = sys.argv[7]
+version = sys.argv[8]
+runtime_version = sys.argv[9]
+runtime_tag_name = sys.argv[10]
+expected_runtime_sha = sys.argv[11]
 manifest = json.loads(manifest_path.read_text())
 
 if manifest.get('version') != version:
@@ -99,12 +155,13 @@ if platform.get('runtimeVersion') != runtime_version:
 checks = {
     'appSha256': app_path,
     'pkgSha256': pkg_path,
-    'runtimeSha256': runtime_path,
 }
 for key, path in checks.items():
     actual = hashlib.sha256(path.read_bytes()).hexdigest()
     if platform.get(key) != actual:
         raise SystemExit(f"local manifest {key} mismatch: {platform.get(key)} != {actual}")
+if platform.get('runtimeSha256') != expected_runtime_sha:
+    raise SystemExit(f"local manifest runtimeSha256 mismatch: {platform.get('runtimeSha256')} != {expected_runtime_sha}")
 PY
 
 if [ "${HOROSA_SKIP_VERIFY:-0}" != "1" ]; then
@@ -114,22 +171,6 @@ fi
 if [ "${HOROSA_REQUIRE_SIGNED_PUBLIC_RELEASE:-0}" = "1" ]; then
   "${INSTALLER_ROOT}/scripts/verify_public_distribution_readiness.sh"
 fi
-
-resolve_token() {
-  if [ -n "${GITHUB_TOKEN:-}" ]; then
-    printf '%s' "${GITHUB_TOKEN}"
-    return 0
-  fi
-  printf 'protocol=https\nhost=github.com\n\n' | git credential fill | awk -F= '/^password=/{print $2}'
-}
-
-GITHUB_TOKEN="$(resolve_token)"
-if [ -z "${GITHUB_TOKEN}" ]; then
-  echo 'missing GitHub token' >&2
-  exit 1
-fi
-
-auth_header=( -H "Authorization: Bearer ${GITHUB_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' )
 
 RELEASE_NOTES_SECTION=""
 if [ -f "${RELEASE_NOTES_FILE}" ]; then
@@ -162,10 +203,6 @@ The remaining assets in this release are internal support files for the installe
 EOF
 )"
 export RELEASE_BODY
-
-api_json() {
-  curl -fsSL "${auth_header[@]}" "$@"
-}
 
 set_release_meta() {
   local release_json="$1"
