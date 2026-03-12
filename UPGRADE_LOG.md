@@ -5938,3 +5938,34 @@ Append new entries; do not rewrite history.
   - `IndiaChart.js` 为 `/india/chart` 增加按参数归一化后的结果缓存与 in-flight 请求去重，同一组起盘参数和律盘分盘已算过一次后，再切回可直接命中缓存；
   - 这轮没有改动 runtime payload，继续复用独立 runtime `1.0.13-runtime1`，因此发版时不需要重传超大 runtime 包；
   - 桌面壳版本提升到 `1.0.14 / v1.0.14`，runtime 版本保持 `1.0.13-runtime1`。
+
+### 23:40 - 修复 runtime 瘦身后 `/chart` 启动链回归，并发布 1.0.15 / v1.0.15（2026-03-12）
+- Scope: 对桌面端 runtime 做完安全瘦身后，继续按安装态和浏览器态做宗师级验收，定位并修复 embedded Java 最小运行时缺失模块导致的真实回归；同时把 app 与 runtime 一起提升到新 tag，避免线上继续复用旧 runtime。
+- Files:
+  - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
+  - `Horosa_Desktop_Installer/config/release_config.json`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - `package_runtime_payload.sh` 中的 `jlink` 模块集补回 `jdk.charsets` 与 `jdk.management`，修复 `QiMengHelper` 读取 Excel 资源时因缺少 `Big5` 字符集而触发的 `/chart` 启动失败；
+  - runtime 打包继续保留此前已验证通过的安全瘦身：`bundle` 白名单化、日志/缓存/Apple 元数据排除、Python 侧移除测试/示例/缓存、Java 改为最小运行时；
+  - 本轮构建后的 runtime 压缩包大小收口到 `616295420` bytes，且已通过安装器链路、embedded Python、embedded Java、backend/chart 启动验收；
+  - 版本提升到 `1.0.15 / v1.0.15`，runtime 版本同步独立提升到 `1.0.15-runtime1`，避免 release/manifest 继续指向旧 runtime 资产；
+  - 基于安装态环境补跑 5 条浏览器自检脚本：
+    - `browser_horosa_master_check.py`
+    - `browser_horosa_toolbar_management_check.py`
+    - `browser_horosa_final_layout_check.py`
+    - `browser_primary_direction_chart_guangde_check.py`
+    - `browser_horosa_jinkou_regression_check.py`
+    所有脚本均返回 `status: ok`，仅保留第三方远端资源 warning。
+- Verification:
+  - `bash -n Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+  - 安装态 `Horosa-Web/verify_horosa_local.sh`（功能链通过，`/jieqi/year` 首轮严格性能阈值仍高于脚本设定的 `1000ms`）
+  - 安装态 Playwright 浏览器自检 5/5 通过

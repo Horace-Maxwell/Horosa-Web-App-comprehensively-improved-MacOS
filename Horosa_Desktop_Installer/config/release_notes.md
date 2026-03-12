@@ -1,3 +1,3 @@
-- 修复桌面端本地盘库“新增后重启消失”的问题：前端静态页现在优先使用固定本地端口，避免每次启动换 origin 后让 `localStorage` 看起来像被清空，命盘/事盘可正常跨重启保留。
-- 修复印度律盘右侧 X 律盘切换发涩：同一组参数下新增结果缓存与并发请求去重，已算过的律盘切回去会直接复用，不再反复重新请求后端。
-- 当前 app release 继续复用独立 runtime `1.0.13-runtime1`，这次发布不需要重新上传超大 runtime 资产，自动更新仍会按 manifest 指向原 runtime tag。
+- 修复瘦身后 embedded Java 缺少 `Big5` 字符集支持导致 `/chart` 主链路启动失败的问题：runtime 里的 `jlink` 现在显式保留 `jdk.charsets` 与 `jdk.management`，安装后的主限法与图盘链路恢复正常。
+- 保留此前已经通过验收的轻量化收益：bundle 改成白名单打包，Python 侧继续移除测试/示例/缓存，Java 改为最小运行时，当前 runtime 压缩包维持在约 `616MB`。
+- 本次发布同步更新独立 runtime 到 `1.0.15-runtime1`，确保 GitHub release、manifest 和实际线上 runtime 资产完全一致。
