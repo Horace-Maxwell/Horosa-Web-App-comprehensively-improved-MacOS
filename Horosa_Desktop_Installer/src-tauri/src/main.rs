@@ -45,6 +45,7 @@ const DEFAULT_DESKTOP_PKG_ZIP_NAME: &str = "Horosa-Installer-macos-universal-pkg
 const DEFAULT_UPDATE_MANIFEST_NAME: &str = "horosa-latest.json";
 const DEFAULT_RELEASE_TAG_PREFIX: &str = "v";
 const DOWNLOAD_MAX_ATTEMPTS: usize = 4;
+const DEFAULT_FRONTEND_PORT: u16 = 38991;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -1219,6 +1220,17 @@ fn choose_free_port() -> Result<u16> {
     Ok(port)
 }
 
+fn choose_port_with_preference(preferred_port: u16) -> Result<u16> {
+    match TcpListener::bind(("127.0.0.1", preferred_port)) {
+        Ok(listener) => {
+            let port = listener.local_addr()?.port();
+            drop(listener);
+            Ok(port)
+        }
+        Err(_) => choose_free_port(),
+    }
+}
+
 fn start_static_server(
     frontend_dir: PathBuf,
     port: u16,
@@ -1867,7 +1879,7 @@ fn runtime_bootstrap(
     );
     emit_status(&window, "正在检查安装配置…");
     let paths = ensure_runtime_installed(&app, &window, force_runtime_install)?;
-    let web_port = choose_free_port()?;
+    let web_port = choose_port_with_preference(DEFAULT_FRONTEND_PORT)?;
     let backend_port = choose_free_port()?;
     let chart_port = choose_free_port()?;
 
