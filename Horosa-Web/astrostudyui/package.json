@@ -4,7 +4,7 @@
 		"start": "export NODE_OPTIONS=--openssl-legacy-provider && umi dev",
 		"build": "export NODE_OPTIONS=--openssl-legacy-provider && umi build",
 		"build:file": "export BUILD_FOR_FILE=1 NODE_OPTIONS=--openssl-legacy-provider && umi build",
-		"postinstall": "umi generate tmp",
+		"postinstall": "node scripts/patch_quill_domnodeinserted.js && umi generate tmp",
 		"prettier": "prettier --write '**/*.{js,jsx,tsx,ts,less,md,json}'",
 		"test": "umi-test",
 		"test:coverage": "umi-test --coverage"

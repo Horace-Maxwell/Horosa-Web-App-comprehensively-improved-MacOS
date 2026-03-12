@@ -3,6 +3,8 @@ import { ServerRoot, ResultKey } from './constants';
 import {
 	getNongliLocalCache,
 	setNongliLocalCache,
+	getJieqiYearLocalCache,
+	setJieqiYearLocalCache,
 	getJieqiSeedLocalCache,
 	setJieqiSeedLocalCache,
 } from './localCalcCache';
@@ -271,6 +273,13 @@ export async function fetchPreciseJieqiYear(params){
 	if(key && jieqiYearMem.has(key)){
 		return jieqiYearMem.get(key);
 	}
+	const localHit = getJieqiYearLocalCache(reqParams);
+	if(localHit){
+		if(key){
+			pushCache(jieqiYearMem, key, localHit);
+		}
+		return localHit;
+	}
 	if(key && jieqiYearInflight.has(key)){
 		return jieqiYearInflight.get(key);
 	}
@@ -284,10 +293,11 @@ export async function fetchPreciseJieqiYear(params){
 			const result = rsp && rsp[ResultKey] ? rsp[ResultKey] : null;
 			if(result){
 				pushCache(jieqiYearMem, key, result);
+				setJieqiYearLocalCache(reqParams, result);
 			}
 			return result;
 		}catch(e){
-			return null;
+			return localHit || null;
 		}
 	})().finally(()=>{
 		if(key){
