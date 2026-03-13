@@ -4,7 +4,7 @@ set -euo pipefail
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 BUILD_ROOT="${INSTALLER_ROOT}/build"
-read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
+read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -15,6 +15,8 @@ print(
     config['desktopAssetName'],
     config['desktopPkgName'],
     config['desktopPkgZipName'],
+    config['desktopOfflinePkgName'],
+    config['desktopOfflinePkgZipName'],
     config['updateManifestName'],
 )
 PYCONF
@@ -24,17 +26,23 @@ RUNTIME_ARCHIVE="${DIST_ROOT}/${RUNTIME_ASSET}"
 DESKTOP_ZIP="${DIST_ROOT}/${DESKTOP_ASSET}"
 INSTALLER_PKG="${DIST_ROOT}/${DESKTOP_PKG}"
 INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_PKG_ZIP}"
+OFFLINE_INSTALLER_PKG="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
+OFFLINE_INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
 UPDATE_MANIFEST="${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 TARGET_ROOT="${INSTALLER_ROOT}/src-tauri/target-user"
 TARGET_APP="${TARGET_ROOT}/release/bundle/macos/${APP_NAME}.app"
 POSTINSTALL_SCRIPT="${BUILD_ROOT}/installer-scripts-rendered/postinstall"
+OFFLINE_POSTINSTALL_SCRIPT="${BUILD_ROOT}/installer-scripts-rendered-offline/postinstall"
 COMPONENT_PLIST="${BUILD_ROOT}/pkg/component.plist"
 UNSIGNED_HELPER_NAME="Open-XingQue-Unsigned.command"
 UNSIGNED_GUIDE_NAME="UNSIGNED_INSTALL_GUIDE.txt"
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/horosa-desktop-e2e.XXXXXX")"
 EXPANDED_PKG="${TMP_ROOT}/pkg-expanded"
+EXPANDED_OFFLINE_PKG="${TMP_ROOT}/pkg-expanded-offline"
 INSTALL_TARGET="${TMP_ROOT}/install-target"
+OFFLINE_INSTALL_TARGET="${TMP_ROOT}/offline-install-target"
 DELIVERY_UNZIP_ROOT="${TMP_ROOT}/delivery-unzip"
+OFFLINE_DELIVERY_UNZIP_ROOT="${TMP_ROOT}/offline-delivery-unzip"
 VERIFY_DMG="${TMP_ROOT}/verify.dmg"
 VERIFY_MOUNT="${TMP_ROOT}/verify-volume"
 CHART_PORT=""
@@ -98,31 +106,34 @@ cleanup() {
 trap cleanup EXIT
 
 if [ "${HOROSA_DESKTOP_SKIP_REBUILD:-0}" != "1" ]; then
-  printf '[1/8] generate icon\n'
+  printf '[1/9] generate icon\n'
   "${INSTALLER_ROOT}/scripts/generate_icon.sh"
 
-  printf '[2/8] cargo fmt --check\n'
+  printf '[2/9] cargo fmt --check\n'
   cargo fmt --manifest-path "${INSTALLER_ROOT}/src-tauri/Cargo.toml" --check
 
-  printf '[3/8] cargo check\n'
+  printf '[3/9] cargo check\n'
   cargo check --manifest-path "${INSTALLER_ROOT}/src-tauri/Cargo.toml"
 
-  printf '[4/8] cargo test (runtime update helper)\n'
+  printf '[4/9] cargo test (runtime update helper)\n'
   cargo test --manifest-path "${INSTALLER_ROOT}/src-tauri/Cargo.toml" runtime_update_command_
 
-  printf '[5/8] build desktop release\n'
+  printf '[5/9] build desktop release\n'
   "${INSTALLER_ROOT}/scripts/build_desktop_release.sh"
 else
-  printf '[1-5/8] skip rebuild, reuse existing assets\n'
+  printf '[1-5/9] skip rebuild, reuse existing assets\n'
 fi
 
-printf '[6/8] verify app/pkg artifacts\n'
+printf '[6/9] verify app/pkg artifacts\n'
 [ -f "${RUNTIME_ARCHIVE}" ]
 [ -f "${DESKTOP_ZIP}" ]
 [ -f "${INSTALLER_PKG}" ]
 [ -f "${INSTALLER_PKG_ZIP}" ]
+[ -f "${OFFLINE_INSTALLER_PKG}" ]
+[ -f "${OFFLINE_INSTALLER_PKG_ZIP}" ]
 [ -f "${UPDATE_MANIFEST}" ]
 [ -x "${POSTINSTALL_SCRIPT}" ]
+[ -x "${OFFLINE_POSTINSTALL_SCRIPT}" ]
 [ -f "${COMPONENT_PLIST}" ]
 [ -d "${TARGET_APP}" ]
 codesign --verify --deep --strict "${TARGET_APP}"
@@ -146,7 +157,13 @@ unzip -q "${INSTALLER_PKG_ZIP}" -d "${DELIVERY_UNZIP_ROOT}"
 [ -f "${DELIVERY_UNZIP_ROOT}/$(basename "${INSTALLER_PKG}")" ]
 [ -f "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" ]
 [ -f "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_GUIDE_NAME}" ]
+mkdir -p "${OFFLINE_DELIVERY_UNZIP_ROOT}"
+unzip -q "${OFFLINE_INSTALLER_PKG_ZIP}" -d "${OFFLINE_DELIVERY_UNZIP_ROOT}"
+[ -f "${OFFLINE_DELIVERY_UNZIP_ROOT}/$(basename "${OFFLINE_INSTALLER_PKG}")" ]
+[ -f "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" ]
+[ -f "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_GUIDE_NAME}" ]
 bash -n "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
+bash -n "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
 TMP_FAKE_APP="${TMP_ROOT}/fake-app/${APP_NAME}.app"
 mkdir -p "${TMP_FAKE_APP}"
 HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 /bin/bash "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" >/dev/null
@@ -224,9 +241,11 @@ else:
     raise SystemExit('component plist missing app bundle entry')
 PYVERIFY
 pkgutil --expand-full "${INSTALLER_PKG}" "${EXPANDED_PKG}"
+pkgutil --expand-full "${OFFLINE_INSTALLER_PKG}" "${EXPANDED_OFFLINE_PKG}"
 find "${EXPANDED_PKG}" -type f | rg 'postinstall|PackageInfo|Distribution' >/dev/null
+find "${EXPANDED_OFFLINE_PKG}" -type f | rg 'postinstall|PackageInfo|Distribution' >/dev/null
 
-printf '[7/8] simulate pkg postinstall download and shared-runtime launch\n'
+printf '[7/9] simulate pkg postinstall download and shared-runtime launch\n'
 mkdir -p "${INSTALL_TARGET}/Applications"
 rsync -a "${TARGET_APP}/" "${INSTALL_TARGET}/Applications/${APP_NAME}.app/"
 HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SHARED_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${POSTINSTALL_SCRIPT}" pkgid unused "${INSTALL_TARGET}"
@@ -287,7 +306,14 @@ echo "installer flow passed for ports ${CHART_PORT}/${BACKEND_PORT}."
 CHART_PORT=""
 BACKEND_PORT=""
 
-printf '[8/8] inspect expanded pkg payload path\n'
+printf '[8/9] simulate offline pkg postinstall with bundled runtime\n'
+mkdir -p "${OFFLINE_INSTALL_TARGET}/Applications"
+rsync -a "${TARGET_APP}/" "${OFFLINE_INSTALL_TARGET}/Applications/${APP_NAME}.app/"
+HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SHARED_ROOT="${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${OFFLINE_INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${OFFLINE_POSTINSTALL_SCRIPT}" pkgid unused "${OFFLINE_INSTALL_TARGET}"
+[ -f "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
+[ ! -f "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]
+
+printf '[9/9] inspect expanded pkg payload path\n'
 PAYLOAD_ROOT="$(find "${EXPANDED_PKG}" -path '*/Payload' -type d | head -n 1)"
 PACKAGE_INFO="$(find "${EXPANDED_PKG}" -path '*/PackageInfo' | head -n 1)"
 [ -n "${PAYLOAD_ROOT}" ]
@@ -298,4 +324,5 @@ plutil -extract CFBundleName raw -o - "${PAYLOAD_ROOT}/Applications/${APP_NAME}.
 rg 'install-location="/"' "${PACKAGE_INFO}"
 rg 'relocatable="false"' "${PACKAGE_INFO}"
 rg "Applications/${APP_NAME}.app" "${PACKAGE_INFO}"
+[ -f "$(find "${EXPANDED_OFFLINE_PKG}" -path '*/Scripts/'"${RUNTIME_ASSET}" -type f | head -n 1)" ]
 echo "expanded pkg payload passed: ${PAYLOAD_ROOT}/Applications/${APP_NAME}.app"

@@ -5,7 +5,7 @@ INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 RELEASE_NOTES_FILE="${INSTALLER_ROOT}/config/release_notes.md"
 
-read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION <<EOF
+read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -25,6 +25,8 @@ print(
     config['desktopAssetName'],
     config['desktopPkgName'],
     config['desktopPkgZipName'],
+    config['desktopOfflinePkgName'],
+    config['desktopOfflinePkgZipName'],
     config['updateManifestName'],
     runtime_version,
 )
@@ -38,6 +40,8 @@ PRIMARY_DOWNLOAD="${DESKTOP_PKG_ZIP}"
 APP_ASSETS=(
   "${DIST_ROOT}/${DESKTOP_PKG_ZIP}"
   "${DIST_ROOT}/${DESKTOP_PKG}"
+  "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
+  "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
   "${DIST_ROOT}/${DESKTOP_ASSET}"
   "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 )
@@ -184,6 +188,11 @@ PY
 fi
 
 RELEASE_BODY="$(cat <<EOF
+## 安装包选择（中文）
+
+- 轻量在线版：`${PRIMARY_DOWNLOAD}`，安装后会按 manifest 拉取 runtime。
+- 完整离线版：`${DESKTOP_OFFLINE_PKG_ZIP}`，runtime 已内置在安装包里，适合中国大陆或不方便联网的环境。
+
 ## 安装步骤（中文）
 
 1. 下载 ${PRIMARY_DOWNLOAD}
@@ -192,6 +201,8 @@ RELEASE_BODY="$(cat <<EOF
 4. 如果系统仍拦截，再对 .pkg 安装包点右键 -> 打开
 5. 完成安装
 6. 如果 /Applications/星阙.app 第一次被拦截，再次运行同一个 .command，或对 app 点右键 -> 打开
+
+如果你下载的是完整离线版，则整个安装过程不再需要额外下载 runtime。
 
 普通用户不需要手动下载任何其他文件。
 
