@@ -17,18 +17,25 @@
 
 - Release 页面：
   [https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-- 一键安装包直链：
+- 轻量在线安装包直链：
   [Horosa-Installer-macos-universal-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-universal-pkg.zip)
+- 完整离线安装包直链：
+  [Horosa-Installer-macos-universal-offline-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-universal-offline-pkg.zip)
 
-普通用户只需要下载这一个文件：
+请按你的网络环境下载：
 
 - `Horosa-Installer-macos-universal-pkg.zip`
+  - 适合：网络稳定、能正常访问 GitHub Release 的用户
+  - 特点：首包更小，安装时会继续下载 runtime
+- `Horosa-Installer-macos-universal-offline-pkg.zip`
+  - 适合：中国大陆用户、弱网用户、代理不稳定用户、需要拷给别人离线安装的场景
+  - 特点：安装包更大，但安装后不需要再额外下载 runtime
 
 其他 `.pkg`、`.zip`、`runtime`、`manifest` 文件都是安装器或自动更新器内部使用的支持资产，普通用户不用单独处理。
 
 ## 安装步骤
 
-下载 `Horosa-Installer-macos-universal-pkg.zip` 后：
+下载任一安装包 zip 后：
 
 1. 解压 zip
 2. 先双击里面的 `Open-XingQue-Unsigned.command`
@@ -42,7 +49,8 @@
 - 如果后续你在应用内点“检查更新”，而应用安装在 `/Applications`，macOS 也会按标准再要求一次管理员密码来完成替换
 - `Open-XingQue-Unsigned.command` 的作用，就是尽量把这一步做简单
 - 正常用户不需要打开 Terminal，也不需要自己安装 Python、Java、Node
-- 安装器会在首次安装/首次启动时自动准备运行所需组件
+- 轻量在线版会在安装阶段继续准备运行所需组件
+- 完整离线版已经把运行所需组件带在安装包里，更适合网络受限环境
 
 ## 只有在你想看源码时，才继续往下看
 

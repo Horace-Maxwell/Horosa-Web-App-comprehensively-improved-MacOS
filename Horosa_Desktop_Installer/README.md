@@ -4,16 +4,23 @@
 
 ## 普通用户下载入口
 
-如果你要告诉别人“去哪里下载一键安装包”，优先给这两个地址：
+如果你要告诉别人“去哪里下载一键安装包”，优先给这三个地址：
 
 - Release 页面：
   [https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-- 一键安装包直链：
+- 轻量在线安装包直链：
   [Horosa-Installer-macos-universal-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-universal-pkg.zip)
+- 完整离线安装包直链：
+  [Horosa-Installer-macos-universal-offline-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-universal-offline-pkg.zip)
 
-普通用户只需要下载：
+普通用户不要自己猜文件名，按场景下载：
 
 - `Horosa-Installer-macos-universal-pkg.zip`
+  - 适合：海外用户、网络稳定、可正常访问 GitHub Release 的环境
+  - 特点：包更小，安装时会联网拉取 runtime
+- `Horosa-Installer-macos-universal-offline-pkg.zip`
+  - 适合：中国大陆用户、弱网环境、离线分发、你想一次拷给别人就装完的场景
+  - 特点：包更大，但安装时不再额外下载 runtime
 
 下载后步骤要说明清楚：
 
@@ -46,16 +53,24 @@
 
 ## 安装模型
 
-用户侧只需要认一个文件：`Horosa-Installer-macos-universal-pkg.zip`。
+用户侧现在要认两个文件，但要明确告诉他们“按场景二选一”：
 
-Release 页面建议使用中英文双语提示，明确告诉普通用户只下载这一个 zip。
+- `Horosa-Installer-macos-universal-pkg.zip`
+- `Horosa-Installer-macos-universal-offline-pkg.zip`
+
+Release 页面建议使用中英文双语提示，明确告诉普通用户：
+
+- 网络稳定、能正常访问 GitHub Release：下载轻量在线版
+- 中国大陆、弱网、离线转发给别人：下载完整离线版
 
 用户下载并解压它，然后优先运行其中的 `Open-XingQue-Unsigned.command`；如果系统仍拦截，再对 `Horosa-Installer-macos-universal.pkg` 右键打开。
 
 安装器做两段事：
 
 1. `.pkg` 把 `星阙.app` 安装到 `/Applications`
-2. `postinstall` 优先从 GitHub Release 下载 runtime payload 到 `/Users/Shared/Horosa/runtime/current`
+2. `postinstall`
+   - 轻量在线版：优先从 GitHub Release 下载 runtime payload 到 `/Users/Shared/Horosa/runtime/current`
+   - 完整离线版：优先使用包内自带 runtime 归档，不再依赖额外下载
 
 如果安装阶段网络不通、Release 资产尚未上传、或 runtime 下载校验失败，`.pkg` 不会再整体安装失败；它会写入待补装标记，随后由首次启动继续完成 runtime 安装。
 
@@ -94,18 +109,22 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户只下
 
 1. 三个版本号始终一致：`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`
 2. Git tag 使用严格递增的 semver，例如 `v1.0.0`
-3. 对外下载安装只主推 `Horosa-Installer-macos-universal-pkg.zip`
-4. 发布资产必须同时上传五个文件：
+3. 对外下载安装需要明确分流：
+   - 轻量在线版：`Horosa-Installer-macos-universal-pkg.zip`
+   - 完整离线版：`Horosa-Installer-macos-universal-offline-pkg.zip`
+4. 发布资产必须同时上传六个文件：
    - `Horosa-Installer-macos-universal-pkg.zip`
    - `Horosa-Installer-macos-universal.pkg`
+   - `Horosa-Installer-macos-universal-offline-pkg.zip`
+   - `Horosa-Installer-macos-universal-offline.pkg`
    - `Horosa-Desktop-macos-universal.zip`
-   - `horosa-runtime-macos-universal.tar.gz`
    - `horosa-latest.json`
+   - runtime 独立 release 中的 `horosa-runtime-macos-universal.tar.gz`
 5. `horosa-latest.json` 必须指向同一 tag 下的版本化资产 URL
 6. Release 需要是正式版 latest，不要把预发布误当最新稳定版
 7. 发布前必须跑 `scripts/verify_desktop_packaging.sh`
 
-普通用户不需要理解其他资产，只需要下载这一个 zip。其余 release 资产继续保留给安装器与自动更新器使用。
+普通用户不需要理解其他资产，只需要在“轻量在线版”和“完整离线版”之间选对 zip。其余 release 资产继续保留给安装器与自动更新器使用。
 
 只要这几条不破，客户端就会优先抓到固定 manifest，再按 manifest 中的准确 URL 和哈希完成更新。
 
@@ -148,6 +167,8 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 
 - `Horosa-Installer-macos-universal.pkg`
 - `Horosa-Installer-macos-universal-pkg.zip`
+- `Horosa-Installer-macos-universal-offline.pkg`
+- `Horosa-Installer-macos-universal-offline-pkg.zip`
 - `Horosa-Desktop-macos-universal.zip`
 - `horosa-runtime-macos-universal.tar.gz`
 - `horosa-latest.json`
