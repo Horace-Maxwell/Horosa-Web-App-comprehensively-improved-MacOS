@@ -1,3 +1,12 @@
+## 安装包怎么选 / Which Package Should I Download?
+
+- 轻量在线版：`Horosa-Installer-macos-universal-pkg.zip`
+  - 适合：网络稳定、能正常访问 GitHub Release 的用户
+  - 特点：首包更小，但安装时会继续下载 runtime
+- 完整离线版：`Horosa-Installer-macos-universal-offline-pkg.zip`
+  - 适合：中国大陆用户、弱网环境、离线分发、想一次装完的用户
+  - 特点：安装包更大，但安装过程中不再额外下载 runtime
+
 - 新增完整离线安装包：`Horosa-Installer-macos-universal-offline-pkg.zip`，runtime 已内置在安装器里，首次安装不再额外联网下载任何东西。
 - 轻量在线版继续保留，离线版与在线版共用同一套安装逻辑；若包内自带 runtime，则优先使用本地归档，否则才回退到网络下载。
 - 本次 app release 提升到 `v1.0.20`，继续复用已验收通过的独立 runtime `1.0.18-runtime1`，算法与 runtime 内容不变。
