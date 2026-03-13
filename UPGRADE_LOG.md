@@ -12,6 +12,33 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-03-13
+
+### 00:20 - 修复软件内更新在 runtime 升级时最后一步失败，并发布 v1.0.19
+- Scope: 解决桌面端“下载完更新后看起来执行了安装、但最终未真正升级完成”的关键故障。根因是 app 内更新 helper 在安装 runtime 时把 `${WORK_ROOT}` 以字面量写进了内嵌 Python heredoc，导致读取 `runtime-manifest.json` 失败；这次只在新版本中修正，并补齐回归测试，保证未来版本继续走软件内更新时不会再因为 runtime 切换阶段而中断。
+- Files:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+  - `PROJECT_STRUCTURE.md`
+- Details:
+  - 把 app 内更新 helper 的 runtime 版本探测改为直接用 `plutil` 读取 `${WORK_ROOT}/runtime-payload/runtime-manifest.json`，不再通过会吞掉 shell 变量展开的单引号 heredoc 取值。
+  - 将生成的更新辅助脚本拆成独立 Rust helper 构造，减少后续拼接 shell 片段时再次引入路径转义/插值错误的概率。
+  - 新增两条 Rust 回归测试：一条检查生成命令不再包含字面量 `${WORK_ROOT}` manifest 路径；一条真实解压最小 runtime tar.gz 并验证 `current` 切换成功。
+  - `verify_desktop_packaging.sh` 接入该测试集，后续桌面发版若把更新 helper 改坏，会在本地验收阶段直接失败。
+  - 桌面安装器版本提升到 `1.0.19`；runtime 继续复用 `1.0.18-runtime1`，避免这次修复引入额外 runtime 变量。
+- Verification:
+  - `cargo fmt --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `cargo test --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml runtime_update_command_`
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+
 ## 2026-03-12
 
 ### 16:50 - 修正 release 仍引用旧 runtime 导致前端告警未真正落到下载件，并补发 v1.0.18 / v1.0.18-runtime1 release
