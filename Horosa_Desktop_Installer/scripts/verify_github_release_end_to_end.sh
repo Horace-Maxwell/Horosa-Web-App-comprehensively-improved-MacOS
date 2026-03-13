@@ -36,6 +36,8 @@ platform = manifest['platforms'][platform_key]
 required_assets = {
     'Horosa-Installer-macos-universal-pkg.zip',
     'Horosa-Installer-macos-universal.pkg',
+    'Horosa-Installer-macos-universal-offline-pkg.zip',
+    'Horosa-Installer-macos-universal-offline.pkg',
     'Horosa-Desktop-macos-universal.zip',
     'horosa-latest.json',
 }
@@ -56,6 +58,8 @@ source "${WORK_ROOT}/release.env"
 
 fetch -o "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal-pkg.zip" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/Horosa-Installer-macos-universal-pkg.zip"
 fetch -o "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal.pkg" "${PKG_URL}"
+fetch -o "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal-offline-pkg.zip" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/Horosa-Installer-macos-universal-offline-pkg.zip"
+fetch -o "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal-offline.pkg" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/Horosa-Installer-macos-universal-offline.pkg"
 fetch -o "${DOWNLOAD_ROOT}/Horosa-Desktop-macos-universal.zip" "${APP_URL}"
 fetch -o "${DOWNLOAD_ROOT}/horosa-runtime-macos-universal.tar.gz" "${RUNTIME_URL}"
 
@@ -80,6 +84,12 @@ ditto -x -k "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal-pkg.zip" "${DOWNL
 [ -f "${DOWNLOAD_ROOT}/delivery-unzip/UNSIGNED_INSTALL_GUIDE.txt" ]
 bash -n "${DOWNLOAD_ROOT}/delivery-unzip/Open-XingQue-Unsigned.command"
 HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 /bin/bash "${DOWNLOAD_ROOT}/delivery-unzip/Open-XingQue-Unsigned.command" >/dev/null
+mkdir -p "${DOWNLOAD_ROOT}/offline-delivery-unzip"
+ditto -x -k "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal-offline-pkg.zip" "${DOWNLOAD_ROOT}/offline-delivery-unzip"
+[ -f "${DOWNLOAD_ROOT}/offline-delivery-unzip/Horosa-Installer-macos-universal-offline.pkg" ]
+[ -f "${DOWNLOAD_ROOT}/offline-delivery-unzip/Open-XingQue-Unsigned.command" ]
+[ -f "${DOWNLOAD_ROOT}/offline-delivery-unzip/UNSIGNED_INSTALL_GUIDE.txt" ]
+bash -n "${DOWNLOAD_ROOT}/offline-delivery-unzip/Open-XingQue-Unsigned.command"
 
 ditto -x -k "${DOWNLOAD_ROOT}/Horosa-Desktop-macos-universal.zip" "${APP_UNZIP_ROOT}"
 APP_BUNDLE_PATH="$(find "${APP_UNZIP_ROOT}" -maxdepth 1 -type d -name "*.app" | head -n 1)"
@@ -100,6 +110,8 @@ trap cleanup EXIT
 
 pkgutil --expand-full "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal.pkg" "${TMP_INSTALL}/expanded" >/dev/null
 COMPONENT_SCRIPT="$(find "${TMP_INSTALL}/expanded" -path '*/Scripts/postinstall' | head -n 1)"
+pkgutil --expand-full "${DOWNLOAD_ROOT}/Horosa-Installer-macos-universal-offline.pkg" "${TMP_INSTALL}/expanded-offline" >/dev/null
+OFFLINE_COMPONENT_SCRIPT="$(find "${TMP_INSTALL}/expanded-offline" -path '*/Scripts/postinstall' | head -n 1)"
 mkdir -p "${TMP_INSTALL}/target/Applications"
 rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/target/Applications/${APP_NAME}.app/"
 /bin/bash "${COMPONENT_SCRIPT}" pkgid unused "${TMP_INSTALL}/target"
@@ -114,6 +126,12 @@ rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/target/Applications/${APP_NAME}.a
 [ -x "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
 /usr/bin/python3 "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python"
 PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
+
+mkdir -p "${TMP_INSTALL}/offline-target/Applications"
+rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/offline-target/Applications/${APP_NAME}.app/"
+HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" /bin/bash "${OFFLINE_COMPONENT_SCRIPT}" pkgid unused "${TMP_INSTALL}/offline-target"
+[ -f "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
+[ ! -f "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime-install-pending.txt" ]
 
 read -r CHART_PORT BACKEND_PORT <<EOF
 $(python3 - <<'PY'

@@ -14,6 +14,32 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-13
 
+### 02:30 - 新增完整离线安装包并发布 v1.0.20
+- Scope: 为中国大陆或弱网环境补一条“不需要二次下载 runtime”的安装路径。保留现有轻量在线包，同时新增完整离线包，把当前已验收通过的 runtime 直接封进安装器，用户只下载这一个包就能装完即用。
+- Files:
+  - `Horosa_Desktop_Installer/config/release_config.json`
+  - `Horosa_Desktop_Installer/installer-scripts/postinstall.template`
+  - `Horosa_Desktop_Installer/scripts/build_desktop_release.sh`
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.lock`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `UPGRADE_LOG.md`
+- Details:
+  - 新增离线安装包文件名配置，构建阶段会额外产出 `Horosa-Installer-macos-universal-offline.pkg` 与对应 zip。
+  - `postinstall` 改为优先使用包内同目录的 runtime 归档；只有离线资源不存在时，才走原来的网络下载路径。
+  - 发布脚本会把在线包和离线包一起上传到同一个 app release，并在 release 说明中明确区分两种安装方式。
+  - 桌面打包验收与 GitHub release e2e 都新增离线包检查，确保离线 pkg 在 `HOROSA_RUNTIME_URL` 指向不存在文件时仍能完成 runtime 安装。
+- Verification:
+  - `bash -n` for updated shell scripts
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+  - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+
 ### 00:20 - 修复软件内更新在 runtime 升级时最后一步失败，并发布 v1.0.19
 - Scope: 解决桌面端“下载完更新后看起来执行了安装、但最终未真正升级完成”的关键故障。根因是 app 内更新 helper 在安装 runtime 时把 `${WORK_ROOT}` 以字面量写进了内嵌 Python heredoc，导致读取 `runtime-manifest.json` 失败；这次只在新版本中修正，并补齐回归测试，保证未来版本继续走软件内更新时不会再因为 runtime 切换阶段而中断。
 - Files:

@@ -3,6 +3,7 @@ set -euo pipefail
 
 TARGET_VOLUME="${3:-/}"
 APP_NAME="__APP_NAME__"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_PATH="${HOROSA_APP_PATH:-${TARGET_VOLUME%/}/Applications/${APP_NAME}.app}"
 SHARED_ROOT="${HOROSA_RUNTIME_SHARED_ROOT:-${TARGET_VOLUME%/}/Users/Shared/Horosa}"
 RUNTIME_ROOT="${SHARED_ROOT}/runtime"
@@ -13,6 +14,7 @@ LOG_PATH="${SHARED_ROOT}/installer.log"
 PENDING_PATH="${SHARED_ROOT}/runtime-install-pending.txt"
 ARCHIVE_NAME="__RUNTIME_ASSET__"
 ARCHIVE_PATH="${DOWNLOAD_DIR}/${ARCHIVE_NAME}"
+LOCAL_ARCHIVE_PATH="${HOROSA_RUNTIME_LOCAL_ARCHIVE:-${SCRIPT_DIR}/${ARCHIVE_NAME}}"
 RUNTIME_URL="${HOROSA_RUNTIME_URL:-https://github.com/__REPO_OWNER__/__REPO_NAME__/releases/download/__RUNTIME_RELEASE_TAG__/__RUNTIME_ASSET__}"
 EXPECTED_VERSION="__VERSION__"
 EXPECTED_SHA256="__RUNTIME_SHA256__"
@@ -45,8 +47,13 @@ defer_runtime_install() {
 rm -rf "${WORK_DIR}"
 mkdir -p "${WORK_DIR}"
 
-if ! /usr/bin/curl -fL --retry 3 --connect-timeout 20 -o "${ARCHIVE_PATH}" "${RUNTIME_URL}"; then
-  defer_runtime_install "runtime download failed from ${RUNTIME_URL}"
+if [ -f "${LOCAL_ARCHIVE_PATH}" ]; then
+  log_line "using bundled runtime archive ${LOCAL_ARCHIVE_PATH}"
+  cp -f "${LOCAL_ARCHIVE_PATH}" "${ARCHIVE_PATH}"
+else
+  if ! /usr/bin/curl -fL --retry 3 --connect-timeout 20 -o "${ARCHIVE_PATH}" "${RUNTIME_URL}"; then
+    defer_runtime_install "runtime download failed from ${RUNTIME_URL}"
+  fi
 fi
 
 if [ -n "${EXPECTED_SHA256}" ]; then

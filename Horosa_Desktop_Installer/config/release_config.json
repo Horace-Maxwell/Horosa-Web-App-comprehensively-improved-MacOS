@@ -6,6 +6,8 @@
   "desktopAssetName": "Horosa-Desktop-macos-universal.zip",
   "desktopPkgName": "Horosa-Installer-macos-universal.pkg",
   "desktopPkgZipName": "Horosa-Installer-macos-universal-pkg.zip",
+  "desktopOfflinePkgName": "Horosa-Installer-macos-universal-offline.pkg",
+  "desktopOfflinePkgZipName": "Horosa-Installer-macos-universal-offline-pkg.zip",
   "updateManifestName": "horosa-latest.json",
   "releaseTagPrefix": "v",
   "appName": "星阙"

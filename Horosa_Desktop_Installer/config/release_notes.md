@@ -1,3 +1,3 @@
-- 修复软件内更新在“同时升级 runtime”时可能最后一步失败的问题：更新 helper 改为直接从解压后的 `runtime-manifest.json` 读取实际 runtime 版本，不再把 `${WORK_ROOT}` 当成字面量传给内嵌脚本。
-- 新增桌面更新器回归测试，覆盖 runtime payload 解压、manifest 读取、`current` 切换与 `_update` 清理，防止以后再把这条链改坏。
-- 本次 app release 提升到 `v1.0.19`，继续复用已验收通过的独立 runtime `1.0.18-runtime1`，不额外变更算法与 runtime 资产。
+- 新增完整离线安装包：`Horosa-Installer-macos-universal-offline-pkg.zip`，runtime 已内置在安装器里，首次安装不再额外联网下载任何东西。
+- 轻量在线版继续保留，离线版与在线版共用同一套安装逻辑；若包内自带 runtime，则优先使用本地归档，否则才回退到网络下载。
+- 本次 app release 提升到 `v1.0.20`，继续复用已验收通过的独立 runtime `1.0.18-runtime1`，算法与 runtime 内容不变。
