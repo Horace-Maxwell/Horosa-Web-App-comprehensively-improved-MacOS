@@ -1455,6 +1455,38 @@ fn app_bundle_path() -> Option<PathBuf> {
     None
 }
 
+fn build_runtime_update_command(
+    shared_runtime_root: &Path,
+    archive_path: &Path,
+    runtime_version: Option<&str>,
+) -> String {
+    format!(
+        "install_runtime() {{\nRUNTIME_ROOT={runtime_root}\nWORK_ROOT=\"${{RUNTIME_ROOT}}/_update\"\nPREVIOUS_ROOT=\"${{RUNTIME_ROOT}}/previous\"\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"${{RUNTIME_ROOT}}\"\nrm -rf \"${{WORK_ROOT}}\"\nmkdir -p \"${{WORK_ROOT}}\"\n/usr/bin/tar -xzf {archive} -C \"${{WORK_ROOT}}\"\nif [ ! -f \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" ]; then\n  echo \"runtime manifest missing after extract\" >&2\n  exit 1\nfi\nACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\"\nif [ -n \"${{EXPECTED_RUNTIME_VERSION}}\" ] && [ \"${{ACTUAL_RUNTIME_VERSION}}\" != \"${{EXPECTED_RUNTIME_VERSION}}\" ]; then\n  echo \"runtime version mismatch: ${{ACTUAL_RUNTIME_VERSION}} != ${{EXPECTED_RUNTIME_VERSION}}\" >&2\n  exit 1\nfi\nrm -rf \"${{PREVIOUS_ROOT}}\"\nHAD_RUNTIME=0\nif [ -d \"${{RUNTIME_ROOT}}/current\" ]; then\n  mv \"${{RUNTIME_ROOT}}/current\" \"${{PREVIOUS_ROOT}}\"\n  HAD_RUNTIME=1\nfi\nif mv \"${{WORK_ROOT}}/runtime-payload\" \"${{RUNTIME_ROOT}}/current\"; then\n  rm -rf \"${{WORK_ROOT}}\" \"${{PREVIOUS_ROOT}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{RUNTIME_ROOT}}/current\"\n  if [ \"${{HAD_RUNTIME}}\" = \"1\" ] && [ -d \"${{PREVIOUS_ROOT}}\" ]; then\n    mv \"${{PREVIOUS_ROOT}}\" \"${{RUNTIME_ROOT}}/current\"\n  fi\n  exit 1\nfi\n}}\ninstall_runtime\n",
+        runtime_root = shell_quote(shared_runtime_root),
+        archive = shell_quote(archive_path),
+        runtime_version = shell_quote_text(runtime_version.unwrap_or(""))
+    )
+}
+
+fn build_update_helper_script(
+    update_log: &Path,
+    target_app: &Path,
+    app_src: &Path,
+    current_uid: &str,
+    current_user: &str,
+    runtime_cmd: &str,
+) -> String {
+    format!(
+        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target={target}\"\necho \"src={src}\"\nsleep 2\n{runtime_cmd}open_app() {{\nTARGET={target}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nif [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n  /usr/bin/open \"${{TARGET}}\"\n  return 0\nfi\nif /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open \"${{TARGET}}\"; then\n  return 0\nfi\nif /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open \"${{TARGET}}\"; then\n  return 0\nfi\n/usr/bin/open \"${{TARGET}}\"\n}}\ninstall_app() {{\nTARGET={target}\nSRC={src}\nBACKUP_TARGET=\"${{TARGET}}.previous\"\nfor attempt in $(/usr/bin/seq 1 45); do\n  echo \"[app] attempt ${{attempt}}\"\n  rm -rf \"${{BACKUP_TARGET}}\"\n  HAD_TARGET=0\n  if [ -d \"${{TARGET}}\" ]; then\n    if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n      HAD_TARGET=1\n    else\n      echo \"[app] mv failed on attempt ${{attempt}}\"\n      /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n      sleep 1\n      continue\n    fi\n  fi\n  if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n    rm -rf \"${{BACKUP_TARGET}}\"\n    /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n    echo \"[app] install succeeded\"\n    return 0\n  fi\n  echo \"[app] ditto failed on attempt ${{attempt}}\"\n  rm -rf \"${{TARGET}}\"\n  if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n    mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n  fi\n  sleep 1\ndone\necho \"[app] install failed after retries\"\nreturn 1\n}}\ninstall_app\nopen_app\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
+        log = shell_quote(update_log),
+        runtime_cmd = runtime_cmd,
+        target = shell_quote(target_app),
+        src = shell_quote(app_src),
+        user_uid = shell_quote_text(current_uid),
+        user_name = shell_quote_text(current_user)
+    )
+}
+
 fn install_downloaded_app(
     app: AppHandle,
     zip_path: &Path,
@@ -1488,23 +1520,17 @@ fn install_downloaded_app(
         .map(Path::to_path_buf)
         .unwrap_or_else(|| PathBuf::from("/Users/Shared/Horosa/runtime"));
     let runtime_cmd = if let Some(archive_path) = runtime_archive {
-        format!(
-            "install_runtime() {{\nRUNTIME_ROOT={runtime_root}\nWORK_ROOT=\"${{RUNTIME_ROOT}}/_update\"\nPREVIOUS_ROOT=\"${{RUNTIME_ROOT}}/previous\"\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"${{RUNTIME_ROOT}}\"\nrm -rf \"${{WORK_ROOT}}\"\nmkdir -p \"${{WORK_ROOT}}\"\n/usr/bin/tar -xzf {archive} -C \"${{WORK_ROOT}}\"\nif [ ! -f \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" ]; then\n  echo \"runtime manifest missing after extract\" >&2\n  exit 1\nfi\nACTUAL_RUNTIME_VERSION=$(/usr/bin/python3 - <<'PY'\nimport json, pathlib\npath = pathlib.Path(r\"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\")\nprint(json.loads(path.read_text()).get(\"version\", \"\"))\nPY\n)\nif [ -n \"${{EXPECTED_RUNTIME_VERSION}}\" ] && [ \"${{ACTUAL_RUNTIME_VERSION}}\" != \"${{EXPECTED_RUNTIME_VERSION}}\" ]; then\n  echo \"runtime version mismatch: ${{ACTUAL_RUNTIME_VERSION}} != ${{EXPECTED_RUNTIME_VERSION}}\" >&2\n  exit 1\nfi\nrm -rf \"${{PREVIOUS_ROOT}}\"\nHAD_RUNTIME=0\nif [ -d \"${{RUNTIME_ROOT}}/current\" ]; then\n  mv \"${{RUNTIME_ROOT}}/current\" \"${{PREVIOUS_ROOT}}\"\n  HAD_RUNTIME=1\nfi\nif mv \"${{WORK_ROOT}}/runtime-payload\" \"${{RUNTIME_ROOT}}/current\"; then\n  rm -rf \"${{WORK_ROOT}}\" \"${{PREVIOUS_ROOT}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{RUNTIME_ROOT}}/current\"\n  if [ \"${{HAD_RUNTIME}}\" = \"1\" ] && [ -d \"${{PREVIOUS_ROOT}}\" ]; then\n    mv \"${{PREVIOUS_ROOT}}\" \"${{RUNTIME_ROOT}}/current\"\n  fi\n  exit 1\nfi\n}}\ninstall_runtime\n",
-            runtime_root = shell_quote(&shared_runtime_root),
-            archive = shell_quote(archive_path),
-            runtime_version = shell_quote_text(runtime_version.unwrap_or(""))
-        )
+        build_runtime_update_command(&shared_runtime_root, archive_path, runtime_version)
     } else {
         String::new()
     };
-    let script = format!(
-        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target={target}\"\necho \"src={src}\"\nsleep 2\n{runtime_cmd}open_app() {{\nTARGET={target}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nif [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n  /usr/bin/open \"${{TARGET}}\"\n  return 0\nfi\nif /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open \"${{TARGET}}\"; then\n  return 0\nfi\nif /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open \"${{TARGET}}\"; then\n  return 0\nfi\n/usr/bin/open \"${{TARGET}}\"\n}}\ninstall_app() {{\nTARGET={target}\nSRC={src}\nBACKUP_TARGET=\"${{TARGET}}.previous\"\nfor attempt in $(/usr/bin/seq 1 45); do\n  echo \"[app] attempt ${{attempt}}\"\n  rm -rf \"${{BACKUP_TARGET}}\"\n  HAD_TARGET=0\n  if [ -d \"${{TARGET}}\" ]; then\n    if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n      HAD_TARGET=1\n    else\n      echo \"[app] mv failed on attempt ${{attempt}}\"\n      /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n      sleep 1\n      continue\n    fi\n  fi\n  if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n    rm -rf \"${{BACKUP_TARGET}}\"\n    /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n    echo \"[app] install succeeded\"\n    return 0\n  fi\n  echo \"[app] ditto failed on attempt ${{attempt}}\"\n  rm -rf \"${{TARGET}}\"\n  if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n    mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n  fi\n  sleep 1\ndone\necho \"[app] install failed after retries\"\nreturn 1\n}}\ninstall_app\nopen_app\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
-        log = shell_quote(&update_log),
-        runtime_cmd = runtime_cmd,
-        target = shell_quote(&target_app),
-        src = shell_quote(&app_src),
-        user_uid = shell_quote_text(&current_uid),
-        user_name = shell_quote_text(&current_user)
+    let script = build_update_helper_script(
+        &update_log,
+        &target_app,
+        &app_src,
+        &current_uid,
+        &current_user,
+        &runtime_cmd,
     );
     fs::write(&helper, script)?;
     #[cfg(unix)]
@@ -1971,4 +1997,83 @@ fn main() {
                 cleanup_state(app);
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::fs;
+    use std::process::Command;
+    use tar::Builder;
+
+    fn temp_test_dir(name: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path =
+            std::env::temp_dir().join(format!("horosa-{}-{}-{}", name, std::process::id(), unique));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    fn create_runtime_archive(root: &Path, version: &str) -> PathBuf {
+        let payload_root = root.join("payload/runtime-payload");
+        fs::create_dir_all(&payload_root).unwrap();
+        fs::write(
+            payload_root.join("runtime-manifest.json"),
+            format!("{{\"version\":\"{}\"}}\n", version),
+        )
+        .unwrap();
+        fs::create_dir_all(payload_root.join("Horosa-Web")).unwrap();
+        let archive_path = root.join("runtime.tar.gz");
+        let tar_gz = File::create(&archive_path).unwrap();
+        let encoder = GzEncoder::new(tar_gz, Compression::default());
+        let mut builder = Builder::new(encoder);
+        builder
+            .append_dir_all("runtime-payload", &payload_root)
+            .unwrap();
+        builder.finish().unwrap();
+        archive_path
+    }
+
+    #[test]
+    fn runtime_update_command_uses_shell_resolved_manifest_path() {
+        let runtime_root = Path::new("/tmp/horosa-runtime-root");
+        let archive = Path::new("/tmp/horosa-runtime.tar.gz");
+        let command = build_runtime_update_command(runtime_root, archive, Some("1.0.19-runtime1"));
+        assert!(command.contains(
+            "ACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${WORK_ROOT}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\""
+        ));
+        assert!(!command
+            .contains("pathlib.Path(r\"${WORK_ROOT}/runtime-payload/runtime-manifest.json\")"));
+    }
+
+    #[test]
+    fn runtime_update_command_extracts_and_switches_payload() {
+        let root = temp_test_dir("runtime-update-helper");
+        let runtime_root = root.join("shared/runtime");
+        let archive = create_runtime_archive(&root, "1.0.19-runtime1");
+        let command =
+            build_runtime_update_command(&runtime_root, &archive, Some("1.0.19-runtime1"));
+        let script_path = root.join("run.sh");
+        fs::write(
+            &script_path,
+            format!(
+                "#!/bin/bash\nset -euo pipefail\n{}\n[ -f \"{current}/runtime-manifest.json\" ]\nVERSION=$(/usr/bin/plutil -extract version raw -o - \"{current}/runtime-manifest.json\")\n[ \"$VERSION\" = \"1.0.19-runtime1\" ]\n",
+                command,
+                current = runtime_root.join("current").display()
+            ),
+        )
+        .unwrap();
+        let status = Command::new("/bin/bash")
+            .arg(&script_path)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        assert!(runtime_root.join("current/runtime-manifest.json").exists());
+        assert!(!runtime_root.join("_update").exists());
+    }
 }

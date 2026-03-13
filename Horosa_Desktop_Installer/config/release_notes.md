@@ -1,3 +1,3 @@
-- 修复 release 下载件里仍能复现的 `DOMNodeInserted` 控制台告警：这次同步刷新独立 runtime 到 `1.0.18-runtime1`，让 release 实际使用的新前端静态资源与源码修复保持一致。
-- 保留并继续交付已通过验收的稳定性增强：`liureng/runyear` 与出生年干支查询持久缓存/失败回退、3D 盘远端模型失败冷却与离线短路继续有效。
-- 本次发布会同时上传新的独立 runtime `1.0.18-runtime1`，不再继续复用旧的 `1.0.15-runtime1`。
+- 修复软件内更新在“同时升级 runtime”时可能最后一步失败的问题：更新 helper 改为直接从解压后的 `runtime-manifest.json` 读取实际 runtime 版本，不再把 `${WORK_ROOT}` 当成字面量传给内嵌脚本。
+- 新增桌面更新器回归测试，覆盖 runtime payload 解压、manifest 读取、`current` 切换与 `_update` 清理，防止以后再把这条链改坏。
+- 本次 app release 提升到 `v1.0.19`，继续复用已验收通过的独立 runtime `1.0.18-runtime1`，不额外变更算法与 runtime 资产。
