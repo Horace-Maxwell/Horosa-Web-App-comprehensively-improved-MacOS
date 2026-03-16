@@ -116,12 +116,16 @@ mkdir -p "${TMP_INSTALL}/target/Applications"
 rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/target/Applications/${APP_NAME}.app/"
 /bin/bash "${COMPONENT_SCRIPT}" pkgid unused "${TMP_INSTALL}/target"
 
-[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ] || {
-  if [ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt" ]; then
-    echo "runtime install pending: $(cat "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt")" >&2
-  fi
-  exit 1
-}
+[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt" ]
+[ ! -d "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current" ]
+mkdir -p "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
+/usr/bin/tar -xzf "${DOWNLOAD_ROOT}/runtime.tar.gz" -C "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
+[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap/runtime-payload/runtime-manifest.json" ]
+mv "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap/runtime-payload" "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current"
+rm -rf "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
+rm -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt"
+
+[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
 [ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/installer.log" ]
 [ -x "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
 /usr/bin/python3 "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python"

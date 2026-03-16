@@ -69,15 +69,15 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
 
 1. `.pkg` 把 `星阙.app` 安装到 `/Applications`
 2. `postinstall`
-   - 轻量在线版：优先从 GitHub Release 下载 runtime payload 到 `/Users/Shared/Horosa/runtime/current`
+   - 轻量在线版：只写入“待补装”标记，不在安装器阶段联网下载 runtime
    - 完整离线版：优先使用包内自带 runtime 归档，不再依赖额外下载
 
-如果安装阶段网络不通、Release 资产尚未上传、或 runtime 下载校验失败，`.pkg` 不会再整体安装失败；它会写入待补装标记，随后由首次启动继续完成 runtime 安装。
+如果安装阶段网络不通、Release 资产尚未上传、或 runtime 下载校验失败，`.pkg` 不会再整体安装失败；轻量在线版会写入待补装标记，随后由首次启动继续完成 runtime 安装。
 
 首次打开 `星阙.app` 后：
 
 1. 原生窗口展示正式安装/初始化页
-2. 优先复用 `/Users/Shared/Horosa/runtime/current`
+2. 优先复用 `/Users/Shared/Horosa/runtime/current`；如果轻量在线版还没落好 runtime，就在这一步下载并安装
 3. 后台启动 Python / Java 服务
 4. 内置 WebView 自动切到星阙主界面
 

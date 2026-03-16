@@ -726,6 +726,24 @@ fn shared_runtime_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("/Users/Shared/Horosa/runtime/current"))
 }
 
+fn shared_runtime_root() -> PathBuf {
+    shared_runtime_dir()
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("/Users/Shared/Horosa/runtime"))
+}
+
+fn shared_runtime_pending_path() -> PathBuf {
+    shared_runtime_root()
+        .parent()
+        .map(|root| root.join("runtime-install-pending.txt"))
+        .unwrap_or_else(|| PathBuf::from("/Users/Shared/Horosa/runtime-install-pending.txt"))
+}
+
+fn is_shared_runtime_dir(runtime_dir: &Path) -> bool {
+    runtime_dir.starts_with(shared_runtime_root())
+}
+
 fn runtime_dir_has_required_files(runtime_dir: &Path) -> bool {
     runtime_dir.join("runtime-manifest.json").exists()
         && runtime_dir
@@ -805,19 +823,32 @@ fn runtime_dir_is_usable(runtime_dir: &Path) -> bool {
     prepare_runtime_dir(runtime_dir).is_ok() && runtime_python_ready(runtime_dir)
 }
 
+fn choose_runtime_dir(
+    shared_runtime_dir: &Path,
+    shared_ok: bool,
+    user_runtime_dir: &Path,
+    user_ok: bool,
+) -> PathBuf {
+    if shared_ok {
+        shared_runtime_dir.to_path_buf()
+    } else if user_ok {
+        user_runtime_dir.to_path_buf()
+    } else {
+        shared_runtime_dir.to_path_buf()
+    }
+}
+
 fn resolve_runtime_paths(app: &AppHandle) -> Result<RuntimePaths> {
     let app_data_dir = app.path().app_data_dir().context("missing app_data_dir")?;
     let user_runtime_dir = app_data_dir.join("runtime/current");
-    if runtime_dir_is_usable(&user_runtime_dir) {
-        return Ok(runtime_paths_for_dir(app_data_dir, user_runtime_dir));
-    }
-
     let shared_runtime = shared_runtime_dir();
-    if runtime_dir_is_usable(&shared_runtime) {
-        return Ok(runtime_paths_for_dir(app_data_dir, shared_runtime));
-    }
-
-    Ok(runtime_paths_for_dir(app_data_dir, user_runtime_dir))
+    let selected_runtime_dir = choose_runtime_dir(
+        &shared_runtime,
+        runtime_dir_is_usable(&shared_runtime),
+        &user_runtime_dir,
+        runtime_dir_is_usable(&user_runtime_dir),
+    );
+    Ok(runtime_paths_for_dir(app_data_dir, selected_runtime_dir))
 }
 
 fn read_runtime_manifest(paths: &RuntimePaths) -> Option<RuntimeManifest> {
@@ -1158,6 +1189,18 @@ fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> 
     Ok(())
 }
 
+fn clear_runtime_pending_marker(runtime_dir: &Path) -> Result<()> {
+    if !is_shared_runtime_dir(runtime_dir) {
+        return Ok(());
+    }
+    let pending = shared_runtime_pending_path();
+    if pending.exists() {
+        fs::remove_file(&pending)
+            .with_context(|| format!("remove pending marker {}", pending.display()))?;
+    }
+    Ok(())
+}
+
 fn ensure_runtime_installed(
     app: &AppHandle,
     window: &WebviewWindow,
@@ -1176,6 +1219,7 @@ fn ensure_runtime_installed(
         && runtime_dir_is_usable(&paths.runtime_dir);
 
     if already_ok && !force {
+        clear_runtime_pending_marker(&paths.runtime_dir)?;
         emit_mode(window, "launch");
         emit_progress(
             window,
@@ -1205,10 +1249,15 @@ fn ensure_runtime_installed(
     download_with_progress(window, &runtime_url, &archive_path, 8, 56, "下载运行环境")?;
     emit_status(window, "下载完成，正在解压运行环境…");
     emit_progress(window, 62, "解压运行环境");
-    let runtime_root = paths.app_data_dir.join("runtime");
+    let runtime_root = paths
+        .runtime_dir
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| paths.app_data_dir.join("runtime"));
     ensure_dir(&runtime_root)?;
     extract_runtime_archive(&archive_path, &runtime_root)?;
     let _ = fs::remove_file(&archive_path);
+    clear_runtime_pending_marker(&runtime_root.join("current"))?;
     emit_progress(window, 74, "运行环境安装完成");
     Ok(resolve_runtime_paths(app)?)
 }
@@ -2075,5 +2124,43 @@ mod tests {
         assert!(status.success());
         assert!(runtime_root.join("current/runtime-manifest.json").exists());
         assert!(!runtime_root.join("_update").exists());
+    }
+
+    #[test]
+    fn choose_runtime_dir_prefers_shared_runtime_for_fresh_and_existing_shared_installs() {
+        let shared = PathBuf::from("/Users/Shared/Horosa/runtime/current");
+        let user = PathBuf::from("/tmp/horosa-user/runtime/current");
+
+        assert_eq!(choose_runtime_dir(&shared, false, &user, false), shared);
+        assert_eq!(choose_runtime_dir(&shared, true, &user, false), shared);
+        assert_eq!(choose_runtime_dir(&shared, false, &user, true), user);
+        assert_eq!(choose_runtime_dir(&shared, true, &user, true), shared);
+    }
+
+    #[test]
+    fn clear_runtime_pending_marker_only_touches_shared_runtime_marker() {
+        let root = temp_test_dir("runtime-pending-clear");
+        let shared_runtime = root.join("Users/Shared/Horosa/runtime/current");
+        let shared_root = shared_runtime
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let pending = shared_root.join("runtime-install-pending.txt");
+        fs::create_dir_all(shared_runtime.parent().unwrap()).unwrap();
+        fs::write(&pending, "pending\n").unwrap();
+
+        std::env::set_var("HOROSA_SHARED_RUNTIME_DIR", &shared_runtime);
+        clear_runtime_pending_marker(&shared_runtime).unwrap();
+        assert!(!pending.exists());
+
+        fs::write(&pending, "pending\n").unwrap();
+        let user_runtime = root.join("user/runtime/current");
+        clear_runtime_pending_marker(&user_runtime).unwrap();
+        assert!(pending.exists());
+
+        fs::remove_file(&pending).unwrap();
+        std::env::remove_var("HOROSA_SHARED_RUNTIME_DIR");
     }
 }

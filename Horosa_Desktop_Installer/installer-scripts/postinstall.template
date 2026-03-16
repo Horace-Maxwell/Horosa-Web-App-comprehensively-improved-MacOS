@@ -18,6 +18,7 @@ LOCAL_ARCHIVE_PATH="${HOROSA_RUNTIME_LOCAL_ARCHIVE:-${SCRIPT_DIR}/${ARCHIVE_NAME
 RUNTIME_URL="${HOROSA_RUNTIME_URL:-https://github.com/__REPO_OWNER__/__REPO_NAME__/releases/download/__RUNTIME_RELEASE_TAG__/__RUNTIME_ASSET__}"
 EXPECTED_VERSION="__VERSION__"
 EXPECTED_SHA256="__RUNTIME_SHA256__"
+INSTALL_MODE="__INSTALL_MODE__"
 
 mkdir -p "${DOWNLOAD_DIR}" "${RUNTIME_ROOT}"
 
@@ -45,6 +46,15 @@ defer_runtime_install() {
 }
 
 rm -rf "${WORK_DIR}"
+
+if [ "${INSTALL_MODE}" = "defer-runtime-bootstrap" ]; then
+  log_line "runtime bootstrap deferred to first app launch"
+  mark_pending "runtime bootstrap deferred to first app launch"
+  /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+  /bin/chmod -R a+rX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  exit 0
+fi
+
 mkdir -p "${WORK_DIR}"
 
 if [ -f "${LOCAL_ARCHIVE_PATH}" ]; then
