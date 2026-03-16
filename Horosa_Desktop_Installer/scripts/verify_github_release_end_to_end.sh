@@ -119,7 +119,7 @@ rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/target/Applications/${APP_NAME}.a
 [ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt" ]
 [ ! -d "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current" ]
 mkdir -p "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
-/usr/bin/tar -xzf "${DOWNLOAD_ROOT}/runtime.tar.gz" -C "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
+/usr/bin/tar -xzf "${DOWNLOAD_ROOT}/horosa-runtime-macos-universal.tar.gz" -C "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
 [ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap/runtime-payload/runtime-manifest.json" ]
 mv "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap/runtime-payload" "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current"
 rm -rf "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
