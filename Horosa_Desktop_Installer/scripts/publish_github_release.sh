@@ -190,7 +190,7 @@ fi
 RELEASE_BODY="$(cat <<EOF
 ## 安装包选择（中文）
 
-- 轻量在线版：`${PRIMARY_DOWNLOAD}`，安装后会按 manifest 拉取 runtime。
+- 轻量在线版：`${PRIMARY_DOWNLOAD}`，`.pkg` 只安装 app，首次启动时会按 manifest 下载并准备 runtime。
 - 完整离线版：`${DESKTOP_OFFLINE_PKG_ZIP}`，runtime 已内置在安装包里，适合中国大陆或不方便联网的环境。
 
 ## 安装步骤（中文）

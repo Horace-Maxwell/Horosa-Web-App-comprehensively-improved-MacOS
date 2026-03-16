@@ -14,6 +14,37 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-13
 
+### 18:10 - 轻量在线包改为首次启动补 runtime，并准备发布 v1.0.21
+
+- Problem:
+  - 轻量在线包此前会在 `.pkg postinstall` 里联网下载 runtime。
+  - 这一步容易受到 GitHub / TLS / 代理 / 校园网 / 公司网影响，导致“安装看起来失败”。
+  - 同时 fresh install 的首装 runtime 落点和后续应用内更新的 shared runtime 口径也不完全一致。
+- Root Cause:
+  - 安装器阶段承担了本应由 app 首次启动承担的网络 bootstrap 事务。
+  - 在线包 `postinstall` 与 app 自身 `runtime_bootstrap()` 能力重叠，失败面被放大。
+- Changes:
+  - `Horosa_Desktop_Installer/installer-scripts/postinstall.template`
+    - 轻量在线包新增 `defer-runtime-bootstrap` 模式：安装器只写待补装标记，不再联网下载 runtime。
+    - 离线包保持 `bootstrap-now` 模式，继续优先使用包内 runtime 归档。
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+    - fresh install 现在优先选择 shared runtime 作为首装落点。
+    - 首次启动下载并安装成功后，会自动清掉 `runtime-install-pending.txt`。
+    - 新增单元测试覆盖 shared runtime 选择和 pending 标记清理。
+  - `Horosa_Desktop_Installer/scripts/build_desktop_release.sh`
+    - 在线包 / 离线包分别渲染不同的 postinstall 行为。
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
+    - 在线包验收改成：pkg defer -> 首启语义补 runtime -> 启动服务。
+  - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
+    - release e2e 验收同步改成在线包 defer 口径。
+- Verification (local):
+  - `cargo fmt --check` ✅
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml` ✅
+  - `cargo test --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml runtime_update_command_` ✅
+  - `cargo test --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml choose_runtime_dir_prefers_shared_runtime_for_fresh_and_existing_shared_installs` ✅
+  - `cargo test --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml clear_runtime_pending_marker_only_touches_shared_runtime_marker` ✅
+  - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh` ✅
+
 ### 02:30 - 新增完整离线安装包并发布 v1.0.20
 - Scope: 为中国大陆或弱网环境补一条“不需要二次下载 runtime”的安装路径。保留现有轻量在线包，同时新增完整离线包，把当前已验收通过的 runtime 直接封进安装器，用户只下载这一个包就能装完即用。
 - Files:

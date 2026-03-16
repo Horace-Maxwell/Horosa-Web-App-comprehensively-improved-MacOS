@@ -125,14 +125,22 @@ standard_scripts_dir.mkdir(parents=True, exist_ok=True)
 offline_scripts_dir.mkdir(parents=True, exist_ok=True)
 
 standard_template = template
-for key, value in {**base_replacements, '__RUNTIME_SHA256__': os.environ['RUNTIME_SHA256_ENV']}.items():
+for key, value in {
+    **base_replacements,
+    '__RUNTIME_SHA256__': os.environ['RUNTIME_SHA256_ENV'],
+    '__INSTALL_MODE__': 'defer-runtime-bootstrap',
+}.items():
     standard_template = standard_template.replace(key, value)
 out = standard_scripts_dir / 'postinstall'
 out.write_text(standard_template)
 out.chmod(0o755)
 
 offline_template = template
-for key, value in {**base_replacements, '__RUNTIME_SHA256__': os.environ['LOCAL_RUNTIME_SHA256_ENV']}.items():
+for key, value in {
+    **base_replacements,
+    '__RUNTIME_SHA256__': os.environ['LOCAL_RUNTIME_SHA256_ENV'],
+    '__INSTALL_MODE__': 'bootstrap-now',
+}.items():
     offline_template = offline_template.replace(key, value)
 offline_out = offline_scripts_dir / 'postinstall'
 offline_out.write_text(offline_template)

@@ -245,29 +245,20 @@ pkgutil --expand-full "${OFFLINE_INSTALLER_PKG}" "${EXPANDED_OFFLINE_PKG}"
 find "${EXPANDED_PKG}" -type f | rg 'postinstall|PackageInfo|Distribution' >/dev/null
 find "${EXPANDED_OFFLINE_PKG}" -type f | rg 'postinstall|PackageInfo|Distribution' >/dev/null
 
-printf '[7/9] simulate pkg postinstall download and shared-runtime launch\n'
+printf '[7/9] simulate online pkg defer + first-launch runtime bootstrap + shared-runtime launch\n'
 mkdir -p "${INSTALL_TARGET}/Applications"
 rsync -a "${TARGET_APP}/" "${INSTALL_TARGET}/Applications/${APP_NAME}.app/"
 HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SHARED_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${POSTINSTALL_SCRIPT}" pkgid unused "${INSTALL_TARGET}"
 [ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]
 [ ! -d "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current" ]
 
-RUNTIME_SOURCE_URL="$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" UPDATE_MANIFEST_ENV="${UPDATE_MANIFEST}" RUNTIME_ARCHIVE_ENV="${RUNTIME_ARCHIVE}" python3 - <<'PY'
-import hashlib, json, os, pathlib, platform
-root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
-manifest = json.loads(pathlib.Path(os.environ['UPDATE_MANIFEST_ENV']).read_text())
-runtime_archive = pathlib.Path(os.environ['RUNTIME_ARCHIVE_ENV']).resolve()
-arch = platform.machine().lower()
-platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
-platform_manifest = manifest['platforms'][platform_key]
-local_sha = hashlib.sha256(runtime_archive.read_bytes()).hexdigest()
-if local_sha == platform_manifest.get('runtimeSha256'):
-    print(runtime_archive.as_uri())
-else:
-    print(platform_manifest['runtimeUrl'])
-PY
-)"
-HOROSA_RUNTIME_URL="${RUNTIME_SOURCE_URL}" HOROSA_RUNTIME_SHARED_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${POSTINSTALL_SCRIPT}" pkgid unused "${INSTALL_TARGET}"
+BOOTSTRAP_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa/runtime"
+mkdir -p "${BOOTSTRAP_ROOT}/_bootstrap"
+/usr/bin/tar -xzf "${RUNTIME_ARCHIVE}" -C "${BOOTSTRAP_ROOT}/_bootstrap"
+[ -f "${BOOTSTRAP_ROOT}/_bootstrap/runtime-payload/runtime-manifest.json" ]
+mv "${BOOTSTRAP_ROOT}/_bootstrap/runtime-payload" "${BOOTSTRAP_ROOT}/current"
+rm -rf "${BOOTSTRAP_ROOT}/_bootstrap"
+rm -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt"
 
 [ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
 [ ! -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]
