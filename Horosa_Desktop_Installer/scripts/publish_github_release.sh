@@ -187,15 +187,22 @@ PY
 )"
 fi
 
-RELEASE_BODY="$(cat <<EOF
-## 安装包选择（中文）
+RELEASE_BODY="$(
+  PRIMARY_DOWNLOAD_ENV="${PRIMARY_DOWNLOAD}" \
+  DESKTOP_OFFLINE_PKG_ZIP_ENV="${DESKTOP_OFFLINE_PKG_ZIP}" \
+  RELEASE_NOTES_SECTION_ENV="${RELEASE_NOTES_SECTION}" \
+  python3 - <<'PY'
+import os
 
-- 轻量在线版：`${PRIMARY_DOWNLOAD}`，`.pkg` 只安装 app，首次启动时会按 manifest 下载并准备 runtime。
-- 完整离线版：`${DESKTOP_OFFLINE_PKG_ZIP}`，runtime 已内置在安装包里，适合中国大陆或不方便联网的环境。
+print(
+    f"""## 安装包选择（中文）
+
+- 轻量在线版：`{os.environ['PRIMARY_DOWNLOAD_ENV']}`，`.pkg` 只安装 app，首次启动时会按 manifest 下载并准备 runtime。
+- 完整离线版：`{os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV']}`，runtime 已内置在安装包里，适合中国大陆或不方便联网的环境。
 
 ## 安装步骤（中文）
 
-1. 下载 ${PRIMARY_DOWNLOAD}
+1. 下载 {os.environ['PRIMARY_DOWNLOAD_ENV']}
 2. 解压 zip
 3. 先双击里面的 Open-XingQue-Unsigned.command
 4. 如果系统仍拦截，再对 .pkg 安装包点右键 -> 打开
@@ -210,8 +217,9 @@ RELEASE_BODY="$(cat <<EOF
 
 此 Release 中其余资产是安装器与自动更新器使用的内部支持文件，普通用户可以忽略。
 
-The remaining assets in this release are internal support files for the installer and auto-updater. Ordinary users should ignore them.${RELEASE_NOTES_SECTION}
-EOF
+The remaining assets in this release are internal support files for the installer and auto-updater. Ordinary users should ignore them.{os.environ['RELEASE_NOTES_SECTION_ENV']}"""
+)
+PY
 )"
 export RELEASE_BODY
 
