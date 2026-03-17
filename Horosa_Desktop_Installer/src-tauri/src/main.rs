@@ -829,12 +829,20 @@ fn choose_runtime_dir(
     user_runtime_dir: &Path,
     user_ok: bool,
 ) -> PathBuf {
-    if shared_ok {
-        shared_runtime_dir.to_path_buf()
-    } else if user_ok {
-        user_runtime_dir.to_path_buf()
-    } else {
-        shared_runtime_dir.to_path_buf()
+    match (shared_ok, user_ok) {
+        (true, true) => {
+            let shared_manifest =
+                read_runtime_manifest_from_path(&shared_runtime_dir.join("runtime-manifest.json"));
+            let user_manifest =
+                read_runtime_manifest_from_path(&user_runtime_dir.join("runtime-manifest.json"));
+            match compare_runtime_manifests(shared_manifest.as_ref(), user_manifest.as_ref()) {
+                std::cmp::Ordering::Less => user_runtime_dir.to_path_buf(),
+                _ => shared_runtime_dir.to_path_buf(),
+            }
+        }
+        (true, false) => shared_runtime_dir.to_path_buf(),
+        (false, true) => user_runtime_dir.to_path_buf(),
+        (false, false) => shared_runtime_dir.to_path_buf(),
     }
 }
 
@@ -854,6 +862,39 @@ fn resolve_runtime_paths(app: &AppHandle) -> Result<RuntimePaths> {
 fn read_runtime_manifest(paths: &RuntimePaths) -> Option<RuntimeManifest> {
     let data = fs::read_to_string(&paths.manifest_path).ok()?;
     serde_json::from_str(&data).ok()
+}
+
+fn read_runtime_manifest_from_path(path: &Path) -> Option<RuntimeManifest> {
+    let data = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+fn runtime_version_rank(version: &str) -> Option<(Version, u64)> {
+    let trimmed = version.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if let Some((base, runtime_rev)) = trimmed.split_once("-runtime") {
+        let base_version = Version::parse(base.trim()).ok()?;
+        let runtime_rev = runtime_rev.trim().parse::<u64>().ok().unwrap_or(0);
+        return Some((base_version, runtime_rev));
+    }
+
+    Version::parse(trimmed).ok().map(|base| (base, 0))
+}
+
+fn compare_runtime_manifests(
+    shared_manifest: Option<&RuntimeManifest>,
+    user_manifest: Option<&RuntimeManifest>,
+) -> std::cmp::Ordering {
+    match (
+        shared_manifest.and_then(|manifest| runtime_version_rank(&manifest.version)),
+        user_manifest.and_then(|manifest| runtime_version_rank(&manifest.version)),
+    ) {
+        (Some(shared_rank), Some(user_rank)) => shared_rank.cmp(&user_rank),
+        _ => std::cmp::Ordering::Equal,
+    }
 }
 
 fn expected_runtime_url(config: &ReleaseConfig) -> String {
@@ -2135,6 +2176,36 @@ mod tests {
         assert_eq!(choose_runtime_dir(&shared, true, &user, false), shared);
         assert_eq!(choose_runtime_dir(&shared, false, &user, true), user);
         assert_eq!(choose_runtime_dir(&shared, true, &user, true), shared);
+    }
+
+    #[test]
+    fn choose_runtime_dir_prefers_newer_runtime_when_both_are_usable() {
+        let root = temp_test_dir("runtime-choose-newest");
+        let shared = root.join("Users/Shared/Horosa/runtime/current");
+        let user = root
+            .join("Users/test/Library/Application Support/com.horacedong.horosa/runtime/current");
+        fs::create_dir_all(&shared).unwrap();
+        fs::create_dir_all(&user).unwrap();
+        fs::write(
+            shared.join("runtime-manifest.json"),
+            r#"{"version":"1.0.23-runtime1","built_at":"2026-03-17 17:00:00"}"#,
+        )
+        .unwrap();
+        fs::write(
+            user.join("runtime-manifest.json"),
+            r#"{"version":"1.0.12","built_at":"2026-03-11 13:58:50"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(choose_runtime_dir(&shared, true, &user, true), shared);
+
+        fs::write(
+            user.join("runtime-manifest.json"),
+            r#"{"version":"1.0.24-runtime1","built_at":"2026-03-18 09:00:00"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(choose_runtime_dir(&shared, true, &user, true), user);
     }
 
     #[test]
