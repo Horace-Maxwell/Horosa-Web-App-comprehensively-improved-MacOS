@@ -12,6 +12,33 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-03-17
+
+### 15:20 - 去掉全站底部页脚并锁住最外层窗口滚动，准备发布 v1.0.22
+
+- Problem:
+  - 所有页面底部仍会额外渲染旧版权/备案页脚，占空间且视觉上已经不需要。
+  - 桌面壳最外层窗口仍会出现浏览器级纵向滚动条，和当前“内容应在页面内部自消化”的布局目标不一致。
+  - 需要确保关掉最外层滚动后，不会把内部超出内容直接锁死到看不见。
+- Changes:
+  - `Horosa-Web/astrostudyui/src/components/homepage/PageFooter.js`
+    - 页脚组件改为不渲染，删除全站底部旧版权/备案文案。
+  - `Horosa-Web/astrostudyui/src/layouts/app.js`
+    - 最外层 `Layout` 固定到桌面视口，`Content` 改为固定高度且不再由窗口本身接管滚动。
+    - `globalFooter` 保留零高度占位，避免依赖该节点的图盘测量逻辑失效。
+  - `Horosa-Web/astrostudyui/src/global.css`
+    - `html / body / #root` 固定为 `100%` 并关闭外层 overflow。
+    - `body` 固定到视口，彻底阻止根窗口继续滚动。
+  - `scripts/browser_outer_shell_scroll_check.py`
+    - 新增根窗口滚动专项检查，覆盖初始页与 `推运盘 / 易与三式 / 八字紫微 / 风水`。
+- Verification:
+  - `npm run build:file` ✅
+  - `python3 -m py_compile scripts/browser_outer_shell_scroll_check.py` ✅
+  - `~/miniconda3/bin/python scripts/browser_outer_shell_scroll_check.py` ✅
+  - `~/miniconda3/bin/python scripts/browser_horosa_final_layout_check.py` ✅
+  - `~/miniconda3/bin/python scripts/browser_horosa_toolbar_management_check.py` ✅
+  - `browser_horosa_master_check.json` latest status remained `ok` after rebuilding current `dist-file`
+
 ## 2026-03-13
 
 ### 18:10 - 轻量在线包改为首次启动补 runtime，并准备发布 v1.0.21
