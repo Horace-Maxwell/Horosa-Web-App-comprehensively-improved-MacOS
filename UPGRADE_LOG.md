@@ -14,6 +14,28 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-17
 
+### 16:25 - 修复软件内更新后仍继续读取旧 runtime 前端的问题，并准备发布 v1.0.23 / v1.0.23-runtime1
+
+- Problem:
+  - 用户通过软件内更新升到 `1.0.22` 后，原生 app 壳版本已经变化，但界面仍显示旧页脚和旧根滚动行为。
+  - 根因不是 app 没升级，而是 release 还在复用旧 runtime `1.0.18-runtime1`，前端资产没有跟着这次改动一起升级。
+  - 同时，用户目录里残留旧 runtime 时，也缺少“优先选择更新 runtime”的显式保护。
+- Changes:
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+    - `choose_runtime_dir()` 在 shared runtime 和 user runtime 同时可用时，改为比较 `runtime-manifest.json` 版本并优先选择更新的一套。
+    - 新增运行时版本比较与单元测试，覆盖“shared 更新 / user 更新”两种方向。
+  - `Horosa_Desktop_Installer/scripts/build_desktop_release.sh`
+    - 新增 runtime 防呆：如果本地 runtime SHA 与远端当前 runtime tag 资产不一致，而 `runtimeVersion` 没 bump，则直接终止构建。
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+    - 发布前同样执行 runtime SHA 一致性拦截，避免再次把旧 runtime 混进新 app release。
+  - `Horosa_Desktop_Installer/config/release_config.json`
+    - 独立 runtime 版本提升到 `1.0.23-runtime1`。
+- Verification:
+  - `cargo test` 覆盖运行时选择与更新 helper 回归
+  - `verify_desktop_packaging.sh`
+  - `verify_github_release_end_to_end.sh`
+  - 将直接从 GitHub release 下载新版本验证“软件内更新后界面仍旧”的问题已消失
+
 ### 15:20 - 去掉全站底部页脚并锁住最外层窗口滚动，准备发布 v1.0.22
 
 - Problem:
