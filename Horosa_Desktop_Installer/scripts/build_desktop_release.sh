@@ -89,6 +89,13 @@ for asset in payload.get('assets', []):
 PY
 )"
   if [ -n "${REMOTE_RUNTIME_SHA}" ]; then
+    if [ "${REMOTE_RUNTIME_SHA}" != "${LOCAL_RUNTIME_SHA256}" ]; then
+      echo "runtime payload changed, but release_config.json still points to ${RUNTIME_RELEASE_TAG}." >&2
+      echo "local runtime sha:  ${LOCAL_RUNTIME_SHA256}" >&2
+      echo "remote runtime sha: ${REMOTE_RUNTIME_SHA}" >&2
+      echo "bump runtimeVersion (or set HOROSA_FORCE_RUNTIME_UPLOAD=1) before publishing this release." >&2
+      exit 1
+    fi
     RUNTIME_SHA256="${REMOTE_RUNTIME_SHA}"
     echo "using remote runtime digest from ${RUNTIME_RELEASE_TAG}: ${RUNTIME_SHA256}"
   fi

@@ -95,6 +95,13 @@ for asset in payload.get('assets', []):
 PY
 )"
   if [ -n "${REMOTE_RUNTIME_SHA}" ]; then
+    if [ "${REMOTE_RUNTIME_SHA}" != "${EXPECTED_RUNTIME_SHA}" ]; then
+      echo "runtime payload changed, but release_config.json still points to ${RUNTIME_TAG_NAME}." >&2
+      echo "local runtime sha:  ${EXPECTED_RUNTIME_SHA}" >&2
+      echo "remote runtime sha: ${REMOTE_RUNTIME_SHA}" >&2
+      echo "bump runtimeVersion (or set HOROSA_FORCE_RUNTIME_UPLOAD=1) before publishing this release." >&2
+      exit 1
+    fi
     EXPECTED_RUNTIME_SHA="${REMOTE_RUNTIME_SHA}"
     python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${EXPECTED_RUNTIME_SHA}"
 import json, pathlib, sys
