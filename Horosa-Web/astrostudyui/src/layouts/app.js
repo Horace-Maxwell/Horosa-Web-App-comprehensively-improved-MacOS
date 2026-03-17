@@ -3,13 +3,12 @@ import { connect  } from 'dva';
 import { Layout,  BackTop, Spin,  } from 'antd';
 import * as AstroConst from '../constants/AstroConst';
 import PageHeader from '../components/homepage/PageHeader';
-import PageFooter from '../components/homepage/PageFooter';
 import styles from './app.less';
 
 const App = ({children, dispatch, app, user, })=>{
     const { userInfo, charts, admin, } = user;
     const { chartDisplay, colorTheme,} = app;
-    const { Header, Content, Footer } = Layout;
+    const { Header, Content } = Layout;
 
     function menuClick({item, key, keyPath}){
         dispatch({
@@ -25,7 +24,11 @@ const App = ({children, dispatch, app, user, })=>{
     AstroConst.setColorTheme(colorTheme);
 
     let mainstyle = {
-        minHeight: '100vh',
+        position: 'fixed',
+        inset: 0,
+        width: '100%',
+        height: '100vh',
+        overflow: 'hidden',
         background: AstroConst.AstroColor.Background,
         color: AstroConst.AstroColor.TextStroke,
         stroke: AstroConst.AstroColor.TextStroke,
@@ -40,15 +43,11 @@ const App = ({children, dispatch, app, user, })=>{
         stroke: AstroConst.AstroColor.TextStroke,
     };
     let contentStyle = {
-        marginTop: 64, paddingTop:10, 
+        marginTop: 64,
+        height: 'calc(100vh - 64px)',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
         backgroundColor: AstroConst.AstroColor.Backgroud, 
-        color: AstroConst.AstroColor.TextStroke,
-        stroke: AstroConst.AstroColor.TextStroke,
-    };
-    let footerStyle = { 
-        padding: '8px 50px 10px',
-        textAlign: 'center', 
-        backgroundColor: AstroConst.AstroColor.Backgroud,
         color: AstroConst.AstroColor.TextStroke,
         stroke: AstroConst.AstroColor.TextStroke,
     };
@@ -67,17 +66,15 @@ const App = ({children, dispatch, app, user, })=>{
             </Header>
 
             <Content id='mainContent' style={contentStyle}>
-                <div style={{ width:'100%', paddingLeft: 30, paddingRight:30}}>
+                <div style={{ width:'100%', height: '100%', paddingLeft: 30, paddingRight:30, overflow: 'hidden' }}>
                     <BackTop visibilityHeight={50}/>
-                    <div style={{paddingLeft: 30, paddingRight:30, paddingTop:30}}>
+                    <div style={{height: '100%', paddingLeft: 30, paddingRight:30, paddingTop:30, overflow: 'hidden'}}>
                         {children}
                     </div>
                 </div>
             </Content>
 
-            <Footer id='globalFooter' style={footerStyle}>
-                <PageFooter />
-            </Footer>
+            <div id='globalFooter' style={{height: 0, overflow: 'hidden'}} />
         </Layout>
     );
 };
