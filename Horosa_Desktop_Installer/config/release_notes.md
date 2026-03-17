@@ -16,5 +16,6 @@
 - 针对 `推运盘 / 易与三式 / 八字紫微 / 风水` 补了根窗口滚动专项回归，确认窗口本身不再滚动。
 - 修正了“app 壳已更新，但前端仍继续读取旧 runtime”的发布链问题。
 - 运行时选择逻辑现在会在 shared runtime 和 user runtime 都可用时优先选择更新版本，避免旧用户目录 runtime 挡住新版本。
+- Python 图盘服务关闭 CherryPy autoreloader，避免首启阶段因为 runtime 目录文件变化被误判为源码变更而自重启。
 - 发布脚本新增 runtime 变更防呆：如果本地 runtime 内容已经变化，但 `runtimeVersion` 仍指向旧 tag，会直接中止发布。
-- 本次 release 提升到 `v1.0.23`，并同步发布新的独立 runtime `1.0.23-runtime1`，确保这次前端改动会真正落到软件内更新和首次启动链。
+- 本次 release 提升到 `v1.0.24`，并同步发布新的独立 runtime `1.0.24-runtime1`，确保这次前端改动与 Python 服务稳定性修复都会真正落到软件内更新和首次启动链。

@@ -223,6 +223,7 @@ if __name__ == '__main__':
     cherrypy.config.update({'server.socket_host': '127.0.0.1',
                             'server.socket_port': chart_port,
                             'server.thread_pool': 30,
+                            'engine.autoreload.on': False,
                             })
 
     cherrypy.tools.cors = cherrypy._cptools.HandlerTool(CORS)

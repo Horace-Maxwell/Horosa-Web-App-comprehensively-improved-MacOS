@@ -14,6 +14,21 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-17
 
+### 16:40 - 关闭图盘 Python 服务的 CherryPy autoreloader，准备发布 v1.0.24 / v1.0.24-runtime1
+
+- Problem:
+  - 有用户在更新后启动时，`astropy` 图盘服务会在启动几秒后因为 embedded Python 目录中的文件变化被 CherryPy autoreloader 判定为“源码变更”，从而自发重启并导致 backend 链路超时失败。
+  - 该问题属于发布态不应开启 autoreload 的典型配置错误，会影响弱网或首次切换 runtime 后的稳定性。
+- Changes:
+  - `Horosa-Web/astropy/websrv/webchartsrv.py`
+    - 显式关闭 `engine.autoreload.on`，让图盘 Python 服务在发布态以稳定常驻模式启动，不再因为 runtime 文件时间戳变化而重启。
+  - `Horosa_Desktop_Installer/config/release_config.json`
+    - 独立 runtime 版本提升到 `1.0.24-runtime1`，确保这次 Python 服务修复进入真正的运行时资产。
+- Verification:
+  - 将重新执行 `verify_desktop_packaging.sh`
+  - 将重新执行 `verify_github_release_end_to_end.sh`
+  - 新 release 会直接从 GitHub 下载验“更新后启动不再因 autoreloader 自重启失败”
+
 ### 16:25 - 修复软件内更新后仍继续读取旧 runtime 前端的问题，并准备发布 v1.0.23 / v1.0.23-runtime1
 
 - Problem:
