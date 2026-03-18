@@ -46,6 +46,7 @@ const DEFAULT_UPDATE_MANIFEST_NAME: &str = "horosa-latest.json";
 const DEFAULT_RELEASE_TAG_PREFIX: &str = "v";
 const DOWNLOAD_MAX_ATTEMPTS: usize = 4;
 const DEFAULT_FRONTEND_PORT: u16 = 38991;
+const UPDATE_COMPLETE_MARKER_NAME: &str = "update-complete.txt";
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -738,6 +739,78 @@ fn shared_runtime_pending_path() -> PathBuf {
         .parent()
         .map(|root| root.join("runtime-install-pending.txt"))
         .unwrap_or_else(|| PathBuf::from("/Users/Shared/Horosa/runtime-install-pending.txt"))
+}
+
+fn update_complete_marker_path(app: &AppHandle) -> Result<PathBuf> {
+    let app_data_dir = app.path().app_data_dir().context("missing app_data_dir")?;
+    ensure_dir(&app_data_dir)?;
+    Ok(app_data_dir.join(UPDATE_COMPLETE_MARKER_NAME))
+}
+
+fn parse_marker_kv(data: &str) -> HashMap<String, String> {
+    let mut values = HashMap::new();
+    for line in data.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Some((key, value)) = trimmed.split_once('=') {
+            values.insert(key.trim().to_string(), value.trim().to_string());
+        }
+    }
+    values
+}
+
+fn consume_update_complete_notice(app: &AppHandle) -> Option<String> {
+    let marker = update_complete_marker_path(app).ok()?;
+    let data = fs::read_to_string(&marker).ok()?;
+    let values = parse_marker_kv(&data);
+    let _ = fs::remove_file(&marker);
+
+    let version = values
+        .get("version")
+        .filter(|value| !value.trim().is_empty())
+        .cloned()
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
+    let runtime_version = values
+        .get("runtime_version")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let installed_at = values
+        .get("installed_at")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+
+    let mut lines = vec![
+        "星阙 已完成更新".to_string(),
+        "".to_string(),
+        "当前版本".to_string(),
+        version,
+    ];
+    if let Some(runtime) = runtime_version {
+        lines.push("".to_string());
+        lines.push("运行环境".to_string());
+        lines.push(runtime);
+    }
+    if let Some(installed_at) = installed_at {
+        lines.push("".to_string());
+        lines.push("完成时间".to_string());
+        lines.push(installed_at);
+    }
+    lines.push("".to_string());
+    lines.push("本次更新已经安装完成并重新生效。".to_string());
+    Some(lines.join("\n"))
+}
+
+fn show_post_update_notice_if_needed(app: &AppHandle) {
+    if let Some(message) = consume_update_complete_notice(app) {
+        MessageDialog::new()
+            .set_level(MessageLevel::Info)
+            .set_title("更新完成")
+            .set_description(message)
+            .set_buttons(MessageButtons::Ok)
+            .show();
+    }
 }
 
 fn is_shared_runtime_dir(runtime_dir: &Path) -> bool {
@@ -1560,20 +1633,30 @@ fn build_runtime_update_command(
 
 fn build_update_helper_script(
     update_log: &Path,
+    completion_marker: &Path,
     target_app: &Path,
     app_src: &Path,
     current_uid: &str,
     current_user: &str,
+    current_pid: &str,
+    executable_name: &str,
+    target_version: &str,
+    runtime_version: Option<&str>,
     runtime_cmd: &str,
 ) -> String {
     format!(
-        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target={target}\"\necho \"src={src}\"\nsleep 2\n{runtime_cmd}open_app() {{\nTARGET={target}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nif [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n  /usr/bin/open \"${{TARGET}}\"\n  return 0\nfi\nif /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open \"${{TARGET}}\"; then\n  return 0\nfi\nif /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open \"${{TARGET}}\"; then\n  return 0\nfi\n/usr/bin/open \"${{TARGET}}\"\n}}\ninstall_app() {{\nTARGET={target}\nSRC={src}\nBACKUP_TARGET=\"${{TARGET}}.previous\"\nfor attempt in $(/usr/bin/seq 1 45); do\n  echo \"[app] attempt ${{attempt}}\"\n  rm -rf \"${{BACKUP_TARGET}}\"\n  HAD_TARGET=0\n  if [ -d \"${{TARGET}}\" ]; then\n    if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n      HAD_TARGET=1\n    else\n      echo \"[app] mv failed on attempt ${{attempt}}\"\n      /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n      sleep 1\n      continue\n    fi\n  fi\n  if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n    rm -rf \"${{BACKUP_TARGET}}\"\n    /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n    echo \"[app] install succeeded\"\n    return 0\n  fi\n  echo \"[app] ditto failed on attempt ${{attempt}}\"\n  rm -rf \"${{TARGET}}\"\n  if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n    mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n  fi\n  sleep 1\ndone\necho \"[app] install failed after retries\"\nreturn 1\n}}\ninstall_app\nopen_app\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
+        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    for wait_step in $(/usr/bin/seq 1 20); do\n      if is_target_running; then\n        echo \"[open] relaunch confirmed\"\n        return 0\n      fi\n      sleep 1\n    done\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    rm -rf \"${{BACKUP_TARGET}}\"\n    HAD_TARGET=0\n    if [ -d \"${{TARGET}}\" ]; then\n      if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        HAD_TARGET=1\n      else\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n    fi\n    if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n      rm -rf \"${{BACKUP_TARGET}}\"\n      /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n      echo \"[app] install succeeded\"\n      return 0\n    fi\n    echo \"[app] ditto failed on attempt ${{attempt}}\"\n    rm -rf \"${{TARGET}}\"\n    if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n      mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n    fi\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  return 1\n}}\nwait_for_old_app_exit\ninstall_app\nsleep 1\nmark_update_complete\nopen_app || true\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
         log = shell_quote(update_log),
+        marker = shell_quote(completion_marker),
         runtime_cmd = runtime_cmd,
         target = shell_quote(target_app),
         src = shell_quote(app_src),
         user_uid = shell_quote_text(current_uid),
-        user_name = shell_quote_text(current_user)
+        user_name = shell_quote_text(current_user),
+        old_pid = shell_quote_text(current_pid),
+        exec_name = shell_quote_text(executable_name),
+        target_version = shell_quote_text(target_version),
+        runtime_version = shell_quote_text(runtime_version.unwrap_or(""))
     )
 }
 
@@ -1582,6 +1665,7 @@ fn install_downloaded_app(
     zip_path: &Path,
     runtime_archive: Option<&Path>,
     runtime_version: Option<&str>,
+    target_version: &str,
 ) -> Result<()> {
     let extract_root = tmp_download_path(APP_NAME, "app-update");
     ensure_dir(&extract_root)?;
@@ -1601,9 +1685,18 @@ fn install_downloaded_app(
     let app_src = app_src.context("updated app bundle not found in zip")?;
     let target_app = app_bundle_path().context("current app bundle path not found")?;
     let update_log = update_helper_log_path(&app, &extract_root);
+    let completion_marker = update_complete_marker_path(&app)?;
     let helper = extract_root.join("install_update.sh");
     let current_uid = current_uid_string();
     let current_user = current_user_string();
+    let current_pid = std::process::id().to_string();
+    let executable_name = std::env::current_exe()
+        .ok()
+        .and_then(|path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().to_string())
+        })
+        .unwrap_or_else(|| "horosa-desktop-installer".to_string());
     let requires_admin = target_requires_admin_update(&target_app);
     let shared_runtime_root = shared_runtime_dir()
         .parent()
@@ -1616,10 +1709,15 @@ fn install_downloaded_app(
     };
     let script = build_update_helper_script(
         &update_log,
+        &completion_marker,
         &target_app,
         &app_src,
         &current_uid,
         &current_user,
+        &current_pid,
+        &executable_name,
+        target_version,
+        runtime_version,
         &runtime_cmd,
     );
     fs::write(&helper, script)?;
@@ -1941,6 +2039,7 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         &zip_path,
         runtime_archive_path.as_deref(),
         plan.runtime_version.as_deref(),
+        &plan.latest_version.to_string(),
     )?;
     Ok(())
 }
@@ -2040,6 +2139,7 @@ fn main() {
                             &window,
                             &frontend_url(session.web_port, session.backend_port),
                         );
+                        show_post_update_notice_if_needed(&app_handle);
                     }
                     Err(err) => emit_error(&window, &format!("星阙 初始化失败:\n{err:#}")),
                 }
@@ -2233,5 +2333,47 @@ mod tests {
 
         fs::remove_file(&pending).unwrap();
         std::env::remove_var("HOROSA_SHARED_RUNTIME_DIR");
+    }
+
+    #[test]
+    fn parse_marker_kv_reads_expected_fields() {
+        let values = parse_marker_kv(
+            "version=1.0.25\nruntime_version=1.0.25-runtime1\ninstalled_at=2026-03-17 20:00:00\n",
+        );
+        assert_eq!(values.get("version").map(String::as_str), Some("1.0.25"));
+        assert_eq!(
+            values.get("runtime_version").map(String::as_str),
+            Some("1.0.25-runtime1")
+        );
+        assert_eq!(
+            values.get("installed_at").map(String::as_str),
+            Some("2026-03-17 20:00:00")
+        );
+    }
+
+    #[test]
+    fn update_helper_script_waits_for_old_process_and_marks_completion() {
+        let root = temp_test_dir("update-helper-script");
+        let script = build_update_helper_script(
+            &root.join("update.log"),
+            &root.join("update-complete.txt"),
+            Path::new("/Applications/星阙.app"),
+            Path::new("/tmp/星阙.app"),
+            "501",
+            "horacedong",
+            "43210",
+            "horosa-desktop-installer",
+            "1.0.25",
+            Some("1.0.25-runtime1"),
+            "",
+        );
+        assert!(script.contains("wait_for_old_app_exit"));
+        assert!(script.contains("mark_update_complete"));
+        assert!(script.contains("open -n"));
+        assert!(script.contains("pgrep -f"));
+        assert!(script.contains("EXPECTED_VERSION="));
+        assert!(script.contains("1.0.25"));
+        assert!(script.contains("EXPECTED_RUNTIME_VERSION="));
+        assert!(script.contains("1.0.25-runtime1"));
     }
 }

@@ -764,6 +764,79 @@ export function genHtml(tipobj, needpadding, forceRich){
 	return parts.join('');
 }
 
+function applyTooltipStyles(divTooltip, styles){
+	if(divTooltip === undefined || divTooltip === null){
+		return;
+	}
+	Object.entries(styles).forEach(([key, value])=>{
+		divTooltip.style(key, value);
+	});
+}
+
+export function setupFloatingTooltip(divTooltip, overrideStyles){
+	if(divTooltip === undefined || divTooltip === null){
+		return;
+	}
+	const baseStyles = {
+		opacity: 0,
+		position: 'fixed',
+		'text-align': 'left',
+		'vertical-align': 'middle',
+		'white-space': 'normal',
+		'line-height': '1.4',
+		'box-sizing': 'border-box',
+		'overscroll-behavior': 'contain',
+		'z-index': '2600',
+		'pointer-events': 'none',
+	};
+	applyTooltipStyles(divTooltip, {
+		...baseStyles,
+		...(overrideStyles || {}),
+	});
+}
+
+export function positionFloatingTooltip(divTooltip, evt, options){
+	if(divTooltip === undefined || divTooltip === null || evt === undefined || evt === null){
+		return;
+	}
+	const node = divTooltip.node ? divTooltip.node() : null;
+	if(node === undefined || node === null){
+		return;
+	}
+	const viewportPadding = options && options.viewportPadding !== undefined ? options.viewportPadding : 12;
+	const preferredOffsetX = options && options.offsetX !== undefined ? options.offsetX : 16;
+	const preferredOffsetY = options && options.offsetY !== undefined ? options.offsetY : -28;
+	const fallbackOffsetY = options && options.fallbackOffsetY !== undefined ? options.fallbackOffsetY : 18;
+	const clientX = evt.clientX !== undefined ? evt.clientX : evt.pageX;
+	const clientY = evt.clientY !== undefined ? evt.clientY : evt.pageY;
+	const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+	const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+	let x = clientX + preferredOffsetX;
+	let y = clientY + preferredOffsetY;
+
+	const rect = node.getBoundingClientRect();
+	const maxX = Math.max(viewportPadding, viewportWidth - rect.width - viewportPadding);
+	const maxY = Math.max(viewportPadding, viewportHeight - rect.height - viewportPadding);
+	if(x > maxX){
+		x = maxX;
+	}
+	if(x < viewportPadding){
+		x = viewportPadding;
+	}
+	if(y > maxY){
+		y = maxY;
+	}
+	if(y < viewportPadding){
+		const fallbackY = clientY + fallbackOffsetY;
+		y = fallbackY > maxY ? maxY : Math.max(viewportPadding, fallbackY);
+	}
+
+	divTooltip
+		.style('left', `${Math.round(x)}px`)
+		.style('top', `${Math.round(y)}px`);
+}
+
 export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpadding, forceRich){
 	if(divTooltip === undefined || divTooltip === null){
 		return;
@@ -775,9 +848,8 @@ export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpaddi
 		divTooltip.transition()		
 			.duration(200)		
 			.style("opacity", hoverOpacity);
-		divTooltip.html(str)
-			.style("left", (evt.pageX) + "px")
-			.style("top", (evt.pageY - 28) + "px");
+		divTooltip.html(str);
+		positionFloatingTooltip(divTooltip, evt);
 	}).on('mouseout', (evt)=>{
 		divTooltip.transition()		
 			.duration(500)		

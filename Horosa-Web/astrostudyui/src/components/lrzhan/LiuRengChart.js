@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { Component } from 'react';
 import { Row, Col, Tabs, DatePicker, Input, Button, Card, Select } from 'antd';
-import {randomStr,} from '../../utils/helper';
+import {randomStr, setupFloatingTooltip} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import RengChart from './RengChart';
 
@@ -92,26 +92,20 @@ class LiuRengChart extends Component{
 
 	setupToolTip(divTooltip){
 		if(divTooltip){
-			divTooltip.style('opacity', 0)
-				.style('position', 'absolute')
-				.style('text-align', 'left')
-				.style('vertical-align', 'middle')
-				.style('width', 'auto')
-				.style('max-width', '560px')
-				.style('min-width', '220px')
-				.style('max-height', '62vh')
-				.style('overflow-y', 'auto')
-				.style('white-space', 'normal')
-				.style('line-height', '1.4')
-				.style('padding', '8px 10px')
-				.style('font', '13px sans-serif')
-				.style('background', '#ffffff')
-				.style('color', '#262626')
-				.style('border', '1px solid #e8e8e8')
-				.style('border-radius', '8px')
-				.style('box-shadow', '0 6px 18px rgba(0,0,0,0.16)')
-				.style('z-index', '2100')
-				.style('pointer-events', 'none');
+			setupFloatingTooltip(divTooltip, {
+				width: 'auto',
+				'max-width': '560px',
+				'min-width': '220px',
+				'max-height': '62vh',
+				'overflow-y': 'auto',
+				padding: '8px 10px',
+				font: '13px sans-serif',
+				background: '#ffffff',
+				color: '#262626',
+				border: '1px solid #e8e8e8',
+				'border-radius': '8px',
+				'box-shadow': '0 6px 18px rgba(0,0,0,0.16)',
+			});
 		}
 	}
 

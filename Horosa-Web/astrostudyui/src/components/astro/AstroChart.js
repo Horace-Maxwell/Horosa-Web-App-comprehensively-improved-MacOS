@@ -155,6 +155,7 @@ class AstroChart extends Component{
 			clearTimeout(this.redrawTimer);
 			this.redrawTimer = null;
 		}
+		d3.select('#' + this.state.tooltipId).remove();
 	}
 
 	render(){
