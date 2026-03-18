@@ -1,74 +1,5 @@
-import { cloneElement, isValidElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, } from 'react';
-import { createPortal } from 'react-dom';
-
-const VIEWPORT_PADDING = 12;
-const FLOAT_OFFSET = 14;
-
-function clamp(num, min, max){
-	return Math.min(Math.max(num, min), max);
-}
-
-function getViewportSize(){
-	if(typeof window === 'undefined'){
-		return {
-			width: 1440,
-			height: 900,
-		};
-	}
-	return {
-		width: window.innerWidth || 1440,
-		height: window.innerHeight || 900,
-	};
-}
-
-function getAnchorFromEvent(evt, currentTarget){
-	if(evt && Number.isFinite(evt.clientX) && Number.isFinite(evt.clientY)){
-		return {
-			x: evt.clientX,
-			y: evt.clientY,
-		};
-	}
-	if(currentTarget && currentTarget.getBoundingClientRect){
-		const rect = currentTarget.getBoundingClientRect();
-		return {
-			x: rect.left + rect.width / 2,
-			y: rect.top + rect.height / 2,
-		};
-	}
-	const viewport = getViewportSize();
-	return {
-		x: viewport.width / 2,
-		y: viewport.height / 2,
-	};
-}
-
-function calcOverlayPosition(anchor, overlaySize){
-	const viewport = getViewportSize();
-	const width = overlaySize.width || 0;
-	const height = overlaySize.height || 0;
-	const maxLeft = Math.max(VIEWPORT_PADDING, viewport.width - width - VIEWPORT_PADDING);
-	const maxTop = Math.max(VIEWPORT_PADDING, viewport.height - height - VIEWPORT_PADDING);
-	const preferredLeft = anchor.x - width / 2;
-	const canPlaceAbove = anchor.y - FLOAT_OFFSET - height >= VIEWPORT_PADDING;
-	const preferredTop = canPlaceAbove
-		? anchor.y - FLOAT_OFFSET - height
-		: anchor.y + FLOAT_OFFSET;
-	return {
-		left: clamp(preferredLeft, VIEWPORT_PADDING, maxLeft),
-		top: clamp(preferredTop, VIEWPORT_PADDING, maxTop),
-	};
-}
-
-function mergeHandler(originalHandler, nextHandler){
-	return (evt)=>{
-		if(typeof originalHandler === 'function'){
-			originalHandler(evt);
-		}
-		if(typeof nextHandler === 'function'){
-			nextHandler(evt);
-		}
-	};
-}
+import { cloneElement, isValidElement, useCallback, useMemo, } from 'react';
+import { Popover } from 'antd';
 
 function normalizeTip(tip){
 	if(!tip){
@@ -188,12 +119,13 @@ export function renderMeaningContent(tip){
 	return (
 		<div
 			style={{
-				width: 'min(560px, calc(100vw - 28px))',
+				width: 560,
 				maxWidth: 'min(560px, calc(100vw - 28px))',
-				maxHeight: 'min(62vh, calc(100vh - 28px))',
+				maxHeight: 'min(460px, calc(100vh - 28px))',
 				overflowY: 'auto',
 				overflowX: 'hidden',
 				whiteSpace: 'normal',
+				paddingRight: 4,
 			}}
 		>
 			{lines}
@@ -201,127 +133,44 @@ export function renderMeaningContent(tip){
 	);
 }
 
-function MeaningOverlayTrigger({ node, content, }){
-	const overlayRef = useRef(null);
-	const hideTimerRef = useRef(null);
-	const [visible, setVisible] = useState(false);
-	const [anchor, setAnchor] = useState({x: 0, y: 0});
-	const [overlayPosition, setOverlayPosition] = useState({
-		left: VIEWPORT_PADDING,
-		top: VIEWPORT_PADDING,
-	});
-
-	const clearHideTimer = useCallback(()=>{
-		if(hideTimerRef.current){
-			clearTimeout(hideTimerRef.current);
-			hideTimerRef.current = null;
+function MeaningPopoverTrigger({ node, content, }){
+	const getPopupContainer = useCallback(()=>{
+		if(typeof document !== 'undefined' && document.body){
+			return document.body;
 		}
+		return undefined;
 	}, []);
-
-	const showOverlay = useCallback((evt)=>{
-		clearHideTimer();
-		setAnchor(getAnchorFromEvent(evt, evt && evt.currentTarget));
-		setVisible(true);
-	}, [clearHideTimer]);
-
-	const moveOverlay = useCallback((evt)=>{
-		if(!visible){
-			return;
-		}
-		setAnchor(getAnchorFromEvent(evt, evt && evt.currentTarget));
-	}, [visible]);
-
-	const hideOverlaySoon = useCallback(()=>{
-		clearHideTimer();
-		hideTimerRef.current = setTimeout(()=>{
-			setVisible(false);
-		}, 100);
-	}, [clearHideTimer]);
-
-	useLayoutEffect(()=>{
-		if(!visible || !overlayRef.current){
-			return;
-		}
-		const rect = overlayRef.current.getBoundingClientRect();
-		setOverlayPosition(calcOverlayPosition(anchor, {
-			width: rect.width,
-			height: rect.height,
-		}));
-	}, [anchor, content, visible]);
-
-	useEffect(()=>{
-		return ()=>{
-			clearHideTimer();
-		};
-	}, [clearHideTimer]);
-
 	const triggerNode = useMemo(()=>{
-		const injectProps = {
-			onMouseEnter: showOverlay,
-			onMouseMove: moveOverlay,
-			onMouseLeave: hideOverlaySoon,
-			onFocus: showOverlay,
-			onBlur: hideOverlaySoon,
-			style: {
-				...(node && node.props && node.props.style ? node.props.style : {}),
-				cursor: 'help',
-			},
-		};
 		if(isValidElement(node)){
 			return cloneElement(node, {
-				...injectProps,
-				onMouseEnter: mergeHandler(node.props && node.props.onMouseEnter, showOverlay),
-				onMouseMove: mergeHandler(node.props && node.props.onMouseMove, moveOverlay),
-				onMouseLeave: mergeHandler(node.props && node.props.onMouseLeave, hideOverlaySoon),
-				onFocus: mergeHandler(node.props && node.props.onFocus, showOverlay),
-				onBlur: mergeHandler(node.props && node.props.onBlur, hideOverlaySoon),
+				style: {
+					...(node.props && node.props.style ? node.props.style : {}),
+					cursor: 'help',
+				},
 			});
 		}
 		return (
 			<span
-				onMouseEnter={showOverlay}
-				onMouseMove={moveOverlay}
-				onMouseLeave={hideOverlaySoon}
-				onFocus={showOverlay}
-				onBlur={hideOverlaySoon}
 				style={{cursor: 'help'}}
 			>
 				{node}
 			</span>
 		);
-	}, [hideOverlaySoon, moveOverlay, node, showOverlay]);
-
-	const overlayNode = visible && typeof document !== 'undefined'
-		? createPortal(
-			<div
-				ref={overlayRef}
-				onMouseEnter={clearHideTimer}
-				onMouseLeave={hideOverlaySoon}
-				style={{
-					position: 'fixed',
-					left: overlayPosition.left,
-					top: overlayPosition.top,
-					zIndex: 5000,
-					background: '#fff',
-					border: '1px solid rgba(0, 0, 0, 0.08)',
-					borderRadius: 10,
-					boxShadow: '0 10px 34px rgba(0, 0, 0, 0.18)',
-					padding: '12px 14px',
-					pointerEvents: 'auto',
-					boxSizing: 'border-box',
-				}}
-			>
-				{content}
-			</div>,
-			document.body,
-		)
-		: null;
+	}, [node]);
 
 	return (
-		<>
+		<Popover
+			trigger="hover"
+			placement="bottomLeft"
+			mouseEnterDelay={0.08}
+			mouseLeaveDelay={0.08}
+			autoAdjustOverflow
+			overlayStyle={{ maxWidth: 600 }}
+			getPopupContainer={getPopupContainer}
+			content={content}
+		>
 			{triggerNode}
-			{overlayNode}
-		</>
+		</Popover>
 	);
 }
 
@@ -333,5 +182,5 @@ export function wrapWithMeaning(node, enabled, tip){
 	if(!content){
 		return node;
 	}
-	return <MeaningOverlayTrigger node={node} content={content} />;
+	return <MeaningPopoverTrigger node={node} content={content} />;
 }

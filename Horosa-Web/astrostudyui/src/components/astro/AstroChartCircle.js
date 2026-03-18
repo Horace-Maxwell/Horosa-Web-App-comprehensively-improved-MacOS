@@ -33,17 +33,11 @@ export default class AstroChartCircle {
 	setupToolTip(){
 		if(this.divTooltip){
 			setupFloatingTooltip(this.divTooltip, {
-				width: '560px',
-				'max-width': '72vw',
-				'max-height': '60vh',
-				'overflow-y': 'auto',
-				padding: '8px 10px',
-				font: '13px sans-serif',
-				background: '#ffffff',
-				color: '#262626',
-				border: '1px solid #e8e8e8',
-				'border-radius': '8px',
-				'box-shadow': '0 6px 18px rgba(0,0,0,0.16)',
+				'max-width': 'min(560px, calc(100vw - 28px))',
+				'max-height': 'min(460px, calc(100vh - 28px))',
+				padding: '14px 16px',
+				font: '14px/1.6 "PingFang SC", "Microsoft YaHei", sans-serif',
+				'box-shadow': '0 8px 24px rgba(0,0,0,0.14)',
 			});
 		}
 	}

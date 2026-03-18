@@ -788,6 +788,18 @@ export function setupFloatingTooltip(divTooltip, overrideStyles){
 		'overscroll-behavior': 'contain',
 		'z-index': '2600',
 		'pointer-events': 'none',
+		width: '560px',
+		'max-width': 'min(560px, calc(100vw - 28px))',
+		'max-height': 'min(460px, calc(100vh - 28px))',
+		padding: '14px 16px',
+		font: '14px/1.6 "PingFang SC", "Microsoft YaHei", sans-serif',
+		background: '#ffffff',
+		color: '#262626',
+		border: '1px solid #e8e8e8',
+		'border-radius': '8px',
+		'box-shadow': '0 8px 24px rgba(0,0,0,0.14)',
+		'overflow-y': 'auto',
+		'overflow-x': 'hidden',
 	};
 	applyTooltipStyles(divTooltip, {
 		...baseStyles,
@@ -795,46 +807,105 @@ export function setupFloatingTooltip(divTooltip, overrideStyles){
 	});
 }
 
+function resolveFloatingAnchorRect(evt, options){
+	if(options && options.anchorNode && typeof options.anchorNode.getBoundingClientRect === 'function'){
+		const rect = options.anchorNode.getBoundingClientRect();
+		if(rect && rect.width >= 0 && rect.height >= 0){
+			return rect;
+		}
+	}
+	if(options && options.anchorRect){
+		return options.anchorRect;
+	}
+	if(evt){
+		const clientX = evt.clientX !== undefined ? evt.clientX : evt.pageX;
+		const clientY = evt.clientY !== undefined ? evt.clientY : evt.pageY;
+		return {
+			left: clientX,
+			right: clientX,
+			top: clientY,
+			bottom: clientY,
+			width: 0,
+			height: 0,
+		};
+	}
+	return {
+		left: 0,
+		right: 0,
+		top: 0,
+		bottom: 0,
+		width: 0,
+		height: 0,
+	};
+}
+
+function placeTooltipWithinViewport(anchorRect, tooltipRect, viewportWidth, viewportHeight, options){
+	const viewportPadding = options && options.viewportPadding !== undefined ? options.viewportPadding : 14;
+	const sideOffset = options && options.offsetX !== undefined ? options.offsetX : 12;
+	const verticalOffset = options && options.offsetY !== undefined ? options.offsetY : 12;
+	const anchorCenterX = anchorRect.left + anchorRect.width / 2;
+
+	let preferredLeft = anchorCenterX - tooltipRect.width / 2;
+	let left = Math.min(
+		Math.max(viewportPadding, preferredLeft),
+		Math.max(viewportPadding, viewportWidth - tooltipRect.width - viewportPadding),
+	);
+
+	let top = anchorRect.bottom + verticalOffset;
+	const bottomOverflow = top + tooltipRect.height + viewportPadding - viewportHeight;
+	if(bottomOverflow > 0){
+		const aboveTop = anchorRect.top - verticalOffset - tooltipRect.height;
+		if(aboveTop >= viewportPadding){
+			top = aboveTop;
+		}else{
+			top = Math.max(
+				viewportPadding,
+				viewportHeight - tooltipRect.height - viewportPadding,
+			);
+		}
+	}
+
+	const rightSpace = viewportWidth - anchorRect.right - viewportPadding;
+	const leftSpace = anchorRect.left - viewportPadding;
+	if((left + tooltipRect.width + viewportPadding > viewportWidth) && rightSpace >= tooltipRect.width){
+		left = anchorRect.right + sideOffset;
+	}
+	if((left < viewportPadding || anchorRect.left < tooltipRect.width / 2) && leftSpace >= tooltipRect.width){
+		left = anchorRect.left - sideOffset - tooltipRect.width;
+	}
+
+	left = Math.min(
+		Math.max(viewportPadding, left),
+		Math.max(viewportPadding, viewportWidth - tooltipRect.width - viewportPadding),
+	);
+	top = Math.min(
+		Math.max(viewportPadding, top),
+		Math.max(viewportPadding, viewportHeight - tooltipRect.height - viewportPadding),
+	);
+
+	return {
+		left: Math.round(left),
+		top: Math.round(top),
+	};
+}
+
 export function positionFloatingTooltip(divTooltip, evt, options){
-	if(divTooltip === undefined || divTooltip === null || evt === undefined || evt === null){
+	if(divTooltip === undefined || divTooltip === null){
 		return;
 	}
 	const node = divTooltip.node ? divTooltip.node() : null;
 	if(node === undefined || node === null){
 		return;
 	}
-	const viewportPadding = options && options.viewportPadding !== undefined ? options.viewportPadding : 12;
-	const preferredOffsetX = options && options.offsetX !== undefined ? options.offsetX : 16;
-	const preferredOffsetY = options && options.offsetY !== undefined ? options.offsetY : -28;
-	const fallbackOffsetY = options && options.fallbackOffsetY !== undefined ? options.fallbackOffsetY : 18;
-	const clientX = evt.clientX !== undefined ? evt.clientX : evt.pageX;
-	const clientY = evt.clientY !== undefined ? evt.clientY : evt.pageY;
 	const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
 	const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-
-	let x = clientX + preferredOffsetX;
-	let y = clientY + preferredOffsetY;
-
+	const anchorRect = resolveFloatingAnchorRect(evt, options);
 	const rect = node.getBoundingClientRect();
-	const maxX = Math.max(viewportPadding, viewportWidth - rect.width - viewportPadding);
-	const maxY = Math.max(viewportPadding, viewportHeight - rect.height - viewportPadding);
-	if(x > maxX){
-		x = maxX;
-	}
-	if(x < viewportPadding){
-		x = viewportPadding;
-	}
-	if(y > maxY){
-		y = maxY;
-	}
-	if(y < viewportPadding){
-		const fallbackY = clientY + fallbackOffsetY;
-		y = fallbackY > maxY ? maxY : Math.max(viewportPadding, fallbackY);
-	}
+	const placement = placeTooltipWithinViewport(anchorRect, rect, viewportWidth, viewportHeight, options);
 
 	divTooltip
-		.style('left', `${Math.round(x)}px`)
-		.style('top', `${Math.round(y)}px`);
+		.style('left', `${placement.left}px`)
+		.style('top', `${placement.top}px`);
 }
 
 export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpadding, forceRich){
@@ -842,6 +913,7 @@ export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpaddi
 		return;
 	}
 	const hoverOpacity = forceRich === true ? 1 : 0.9;
+	const anchorNode = titleSvg && titleSvg.node ? titleSvg.node() : null;
 
 	titleSvg.on('mouseover', (evt)=>{
 		let str = genHtml(tipobj, needpadding, forceRich) ;
@@ -849,11 +921,23 @@ export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpaddi
 			.duration(200)		
 			.style("opacity", hoverOpacity);
 		divTooltip.html(str);
-		positionFloatingTooltip(divTooltip, evt);
+		positionFloatingTooltip(divTooltip, evt, {
+			anchorNode,
+			offsetX: 12,
+			offsetY: 10,
+			viewportPadding: 14,
+		});
 	}).on('mouseout', (evt)=>{
 		divTooltip.transition()		
 			.duration(500)		
 			.style("opacity", 0);
+	}).on('mousemove', (evt)=>{
+		positionFloatingTooltip(divTooltip, evt, {
+			anchorNode,
+			offsetX: 12,
+			offsetY: 10,
+			viewportPadding: 14,
+		});
 	}).on('click', (evt)=>{
 		if(onTipClick){
 			onTipClick(tipobj);

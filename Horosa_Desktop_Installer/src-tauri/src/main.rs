@@ -802,6 +802,12 @@ fn consume_update_complete_notice(app: &AppHandle) -> Option<String> {
     Some(lines.join("\n"))
 }
 
+fn has_update_complete_marker(app: &AppHandle) -> bool {
+    update_complete_marker_path(app)
+        .map(|marker| marker.exists())
+        .unwrap_or(false)
+}
+
 fn show_post_update_notice_if_needed(app: &AppHandle) {
     if let Some(message) = consume_update_complete_notice(app) {
         MessageDialog::new()
@@ -1456,6 +1462,7 @@ fn start_runtime(
     window: &WebviewWindow,
     backend_port: u16,
     chart_port: u16,
+    startup_timeout_secs: Option<u64>,
 ) -> Result<()> {
     ensure_dir(&paths.logs_dir)?;
     prepare_runtime_dir(&paths.runtime_dir)?;
@@ -1465,7 +1472,8 @@ fn start_runtime(
 
     let python_bin = runtime_python_bin(&paths.runtime_dir);
     let java_bin = paths.runtime_dir.join("runtime/mac/java/bin/java");
-    let output = Command::new("/bin/bash")
+    let mut command = Command::new("/bin/bash");
+    command
         .arg(&paths.start_script)
         .current_dir(paths.runtime_dir.join("Horosa-Web"))
         .env("HOROSA_SKIP_UI_BUILD", "1")
@@ -1480,9 +1488,11 @@ fn start_runtime(
         .env(
             "HOROSA_DIAG_DIR",
             paths.logs_dir.to_string_lossy().to_string(),
-        )
-        .output()
-        .context("launch start_horosa_local.sh")?;
+        );
+    if let Some(timeout_secs) = startup_timeout_secs {
+        command.env("HOROSA_STARTUP_TIMEOUT", timeout_secs.to_string());
+    }
+    let output = command.output().context("launch start_horosa_local.sh")?;
     if !output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1645,7 +1655,7 @@ fn build_update_helper_script(
     runtime_cmd: &str,
 ) -> String {
     format!(
-        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    for wait_step in $(/usr/bin/seq 1 20); do\n      if is_target_running; then\n        echo \"[open] relaunch confirmed\"\n        return 0\n      fi\n      sleep 1\n    done\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    rm -rf \"${{BACKUP_TARGET}}\"\n    HAD_TARGET=0\n    if [ -d \"${{TARGET}}\" ]; then\n      if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        HAD_TARGET=1\n      else\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n    fi\n    if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n      rm -rf \"${{BACKUP_TARGET}}\"\n      /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n      echo \"[app] install succeeded\"\n      return 0\n    fi\n    echo \"[app] ditto failed on attempt ${{attempt}}\"\n    rm -rf \"${{TARGET}}\"\n    if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n      mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n    fi\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  return 1\n}}\nwait_for_old_app_exit\ninstall_app\nsleep 1\nmark_update_complete\nopen_app || true\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
+        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nAPP_DISPLAY_NAME=\"$(/usr/bin/basename \"${{TARGET}}\" .app)\"\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nwait_for_stable_relaunch() {{\n  local appeared=0\n  for wait_step in $(/usr/bin/seq 1 25); do\n    if is_target_running; then\n      appeared=1\n      break\n    fi\n    sleep 1\n  done\n  if [ \"${{appeared}}\" != \"1\" ]; then\n    echo \"[open] process never appeared\"\n    return 1\n  fi\n  for stable_step in $(/usr/bin/seq 1 10); do\n    if ! is_target_running; then\n      echo \"[open] process exited before becoming stable\"\n      return 1\n    fi\n    sleep 1\n  done\n  return 0\n}}\nactivate_app_once() {{\n  if [ -z \"${{APP_DISPLAY_NAME}}\" ]; then\n    return 0\n  fi\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n    return 0\n  fi\n  /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    activate_app_once\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n  activate_app_once\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      activate_app_once\n      echo \"[open] relaunch confirmed\"\n      return 0\n    fi\n    sleep 2\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    rm -rf \"${{BACKUP_TARGET}}\"\n    HAD_TARGET=0\n    if [ -d \"${{TARGET}}\" ]; then\n      if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        HAD_TARGET=1\n      else\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n    fi\n    if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n      rm -rf \"${{BACKUP_TARGET}}\"\n      /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n      echo \"[app] install succeeded\"\n      return 0\n    fi\n    echo \"[app] ditto failed on attempt ${{attempt}}\"\n    rm -rf \"${{TARGET}}\"\n    if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n      mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n    fi\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  return 1\n}}\nwait_for_old_app_exit\ninstall_app\nsleep 1\nmark_update_complete\nopen_app || true\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
         log = shell_quote(update_log),
         marker = shell_quote(completion_marker),
         runtime_cmd = runtime_cmd,
@@ -2095,8 +2105,8 @@ fn runtime_bootstrap(
     emit_status(&window, "正在检查安装配置…");
     let paths = ensure_runtime_installed(&app, &window, force_runtime_install)?;
     let web_port = choose_port_with_preference(DEFAULT_FRONTEND_PORT)?;
-    let backend_port = choose_free_port()?;
-    let chart_port = choose_free_port()?;
+    let mut backend_port = choose_free_port()?;
+    let mut chart_port = choose_free_port()?;
 
     let shutdown = Arc::new(AtomicBool::new(false));
     let _server_handle =
@@ -2107,7 +2117,44 @@ fn runtime_bootstrap(
         }
     }
 
-    start_runtime(&paths, &window, backend_port, chart_port)?;
+    let first_launch_after_update = has_update_complete_marker(&app);
+    let first_launch_timeout = if first_launch_after_update {
+        Some(300)
+    } else {
+        None
+    };
+    if let Err(first_err) = start_runtime(
+        &paths,
+        &window,
+        backend_port,
+        chart_port,
+        first_launch_timeout,
+    ) {
+        if first_launch_after_update {
+            emit_status(&window, "更新后的第一次启动正在自动复检服务，请稍候…");
+            emit_progress(&window, 84, "更新后首次启动自动重试");
+            stop_runtime(&paths);
+            thread::sleep(Duration::from_secs(3));
+            backend_port = choose_free_port()?;
+            chart_port = choose_free_port()?;
+            start_runtime(
+                &paths,
+                &window,
+                backend_port,
+                chart_port,
+                first_launch_timeout,
+            )
+            .map_err(|retry_err| {
+                anyhow!(
+                    "更新后首次启动失败，已自动重试一次仍未恢复。\n首次错误:\n{:#}\n\n重试错误:\n{:#}",
+                    first_err,
+                    retry_err
+                )
+            })?;
+        } else {
+            return Err(first_err);
+        }
+    }
     emit_progress(&window, 100, "星阙 已准备完成");
     Ok(RuntimeSession {
         paths,
@@ -2371,6 +2418,9 @@ mod tests {
         assert!(script.contains("mark_update_complete"));
         assert!(script.contains("open -n"));
         assert!(script.contains("pgrep -f"));
+        assert!(script.contains("wait_for_stable_relaunch"));
+        assert!(script.contains("activate_app_once"));
+        assert!(script.contains("osascript -e"));
         assert!(script.contains("EXPECTED_VERSION="));
         assert!(script.contains("1.0.25"));
         assert!(script.contains("EXPECTED_RUNTIME_VERSION="));

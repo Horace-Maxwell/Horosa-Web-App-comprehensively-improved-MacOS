@@ -14,6 +14,39 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-17
 
+### 18:05 - 让星盘长释义悬浮窗真正对齐右栏/遁甲弹层，并补强更新后自动重启与首启稳定性，准备发布 v1.0.27 / v1.0.27-runtime1
+
+- Problem:
+  - 用户最新反馈说明前一轮仍未打中真正的问题：星盘被窗口底边裁掉的不是右栏 `Popover`，而是图盘本身那条 D3 tooltip 链路。
+  - 这条 tooltip 之前仍按鼠标位置浮动，长内容时很容易贴着窗口底边或右边缘被截掉；视觉和右栏/遁甲那套白底固定弹层也不一致。
+  - 软件内更新虽然补了等待旧进程退出与重开确认，但用户侧仍出现“更新后不自己回来”和“第一次启动报错、第二次才正常”的现象，说明重启与首启稳定性还需要再收紧。
+- Changes:
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+    - 图盘通用 tooltip 改成按目标元素矩形定位，而不是继续跟着鼠标跑。
+    - 新增视口夹紧与上下/左右自动避让逻辑，长内容在弹层内部滚动，样式对齐右栏/遁甲认可的白底卡片风格。
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartCircle.js`
+    - 星盘图盘 tooltip 样式覆写同步收口到新弹层规格，避免局部把通用样式又压回旧版小黑框/小白框口径。
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`
+    - 仍保留右栏/组件侧的 `Popover` 方案，让组件类释义继续走用户认可的那套交互。
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+    - 更新 helper 现在会在 `open` 后主动尝试 `osascript activate`，减少“进程起来了但窗口没回来”的情况。
+    - 重启确认窗口从“出现即算成功”提高到“稳定存活一段时间才算成功”。
+    - 更新后的第一次启动现在默认给更宽的启动超时，并在首轮失败时自动停旧服务、换新端口、再重试一次，降低“第一次报错、第二次才好”的概率。
+  - `Horosa_Desktop_Installer/config/release_config.json`
+    - 独立 runtime 版本提升到 `1.0.27-runtime1`。
+- Verification:
+  - `npm run build`
+  - `cargo check --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `cargo test --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml update_helper_script_waits_for_old_process_and_marks_completion`
+  - `cargo test --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml runtime_update_command_uses_shell_resolved_manifest_path`
+  - `cargo test --manifest-path Horosa_Desktop_Installer/src-tauri/Cargo.toml runtime_update_command_extracts_and_switches_payload`
+  - `Horosa-Web/verify_horosa_local.sh`
+  - 定向浏览器检查：
+    - `runtime/browser_star_tooltip_viewport_check.json`
+    - `runtime/browser_star_long_tooltip_check.json`
+  - 将继续执行 `verify_desktop_packaging.sh`
+  - 将继续执行 `verify_github_release_end_to_end.sh`
+
 ### 17:50 - 修复星盘释义弹窗仍被窗口底边裁切，并准备发布 v1.0.26 / v1.0.26-runtime1
 
 - Problem:
