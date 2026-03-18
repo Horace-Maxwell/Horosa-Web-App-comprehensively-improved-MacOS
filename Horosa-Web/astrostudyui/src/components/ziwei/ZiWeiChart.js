@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { Component } from 'react';
 import { Row, Col, Tabs, DatePicker, Input, Button, Card, Select } from 'antd';
-import {randomStr,} from '../../utils/helper';
+import {randomStr, setupFloatingTooltip} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import ZWChart from './ZWChart';
 import DateTime from '../comp/DateTime';
@@ -82,17 +82,14 @@ class ZiWeiChart extends Component{
 
 	setupToolTip(divTooltip){
 		if(divTooltip){
-			divTooltip.style("opacity", 0)
-				.style('position', 'absolute')
-				.style('text-align', 'left')
-				.style('vertical-align', 'middle')
-				.style('width', '460px')
-				.style('padding', '2px')
-				.style('font', '13px sans-serif')
-				.style('background', 'lightsteelblue')
-				.style('border', '0px')
-				.style('border-radius', '8px')
-				.style('pointer-events', 'none');
+			setupFloatingTooltip(divTooltip, {
+				width: '460px',
+				padding: '2px',
+				font: '13px sans-serif',
+				background: 'lightsteelblue',
+				border: '0px',
+				'border-radius': '8px',
+			});
 		}
 	}
 
@@ -131,4 +128,3 @@ class ZiWeiChart extends Component{
 }
 
 export default ZiWeiChart;
-

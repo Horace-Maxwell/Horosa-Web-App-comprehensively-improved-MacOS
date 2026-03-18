@@ -14,6 +14,37 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-17
 
+### 17:30 - 修复图盘悬浮窗边缘裁切，并增强软件内更新重启闭环，准备发布 v1.0.25 / v1.0.25-runtime1
+
+- Problem:
+  - 图盘类 tooltip 直接按鼠标坐标写死到 `body`，鼠标靠近窗口边缘时，悬浮窗会被桌面窗口边界裁掉。
+  - 软件内更新虽然能替换 app，但缺少成熟更新器常见的“等待旧进程退出 / 自动重开重试 / 启动后一次性完成提示”闭环，导致用户常见感受是“关了会更新，但没自己回来，也不知道到底更没更完”。
+  - 更新后第一次启动偶发不稳，也更像是更新 helper 与新实例接力不够稳，而不是业务逻辑真的坏掉。
+- Changes:
+  - `Horosa-Web/astrostudyui/src/utils/helper.js`
+    - 新增共用悬浮 tooltip 样式与视口内自动定位逻辑，统一把图盘 tooltip 改成 `position: fixed` 并在窗口边缘自动回避。
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartCircle.js`
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
+  - `Horosa-Web/astrostudyui/src/components/ziwei/ZiWeiChart.js`
+  - `Horosa-Web/astrostudyui/src/components/su28/Su28Chart.js`
+  - `Horosa-Web/astrostudyui/src/components/su28/Su28ChartCircle.js`
+  - `Horosa-Web/astrostudyui/src/components/suzhan/SZChartComm.js`
+  - `Horosa-Web/astrostudyui/src/components/ziwei/ZWCommHouse.js`
+    - 图盘 tooltip 统一接入新的边缘避让定位逻辑，减少“星盘悬浮窗被窗口边缘挡住”的情况。
+  - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
+    - 更新 helper 现在会等待旧进程退出，再替换 app / runtime。
+    - 替换完成后会写入一次性更新完成标记，并对自动重开做多轮确认重试。
+    - 新版本启动成功后会消费该标记，弹出一次性的“更新完成”提示，让用户明确知道更新已生效。
+  - `Horosa_Desktop_Installer/config/release_config.json`
+    - 独立 runtime 版本提升到 `1.0.25-runtime1`。
+- Verification:
+  - `npm run build`
+  - `cargo check`
+  - `cargo test` 覆盖更新完成标记与更新 helper 脚本关键行为
+  - 将重新执行 `verify_desktop_packaging.sh`
+  - 将重新执行 `verify_github_release_end_to_end.sh`
+  - 新 release 会直接从 GitHub 下载验“tooltip 不再贴边裁切、更新后自动重开/完成提示链可用”
+
 ### 16:40 - 关闭图盘 Python 服务的 CherryPy autoreloader，准备发布 v1.0.24 / v1.0.24-runtime1
 
 - Problem:

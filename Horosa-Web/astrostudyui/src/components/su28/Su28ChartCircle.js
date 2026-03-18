@@ -4,7 +4,7 @@ import * as AstroText from '../../constants/AstroText';
 import * as Su28Helper from './Su28Helper';
 import * as SZConst from '../suzhan/SZConst';
 import {splitDegree} from '../astro/AstroHelper';
-import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip} from '../../utils/helper';
+import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip, positionFloatingTooltip, setupFloatingTooltip} from '../../utils/helper';
 import {drawTextV, drawTextH} from '../graph/GraphHelper';
 import {ZiSign,} from '../suzhan/SZConst';
 
@@ -69,18 +69,15 @@ class Su28ChartCircle {
 
 	setupToolTip(){
 		if(this.divTooltip){
-			this.divTooltip.style("opacity", 0)
-				.style('position', 'absolute')
-				.style('text-align', 'left')
-				.style('vertical-align', 'middle')
-				.style('width', '180px')
-				.style('padding', '2px')
-				.style('padding-left', '10px')
-				.style('font', '13px sans-serif')
-				.style('background', 'lightsteelblue')
-				.style('border', '0px')
-				.style('border-radius', '8px')
-				.style('pointer-events', 'none');
+			setupFloatingTooltip(this.divTooltip, {
+				width: '180px',
+				padding: '2px',
+				'padding-left': '10px',
+				font: '13px sans-serif',
+				background: 'lightsteelblue',
+				border: '0px',
+				'border-radius': '8px',
+			});
 		}
 	}
 
@@ -196,9 +193,8 @@ class Su28ChartCircle {
 			this.divTooltip.transition()		
 				.duration(200)		
 				.style("opacity", .9);
-			this.divTooltip.html(str)
-				.style("left", (evt.pageX) + "px")
-				.style("top", (evt.pageY - 28) + "px");
+			this.divTooltip.html(str);
+			positionFloatingTooltip(this.divTooltip, evt);
 		}).on('mouseout', (evt)=>{
 			this.divTooltip.transition()		
 				.duration(500)		

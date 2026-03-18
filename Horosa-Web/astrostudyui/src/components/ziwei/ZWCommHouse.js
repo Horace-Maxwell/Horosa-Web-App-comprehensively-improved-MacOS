@@ -3,7 +3,7 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as ZWCont from '../../constants/ZWConst';
 import * as ZiWeiHelper from './ZiWeiHelper';
 import * as GraphHelper from '../graph/GraphHelper';
-import {randomStr, creatTooltip, genHtml} from '../../utils/helper';
+import {randomStr, creatTooltip, genHtml, positionFloatingTooltip} from '../../utils/helper';
 
 export default class ZWCommHouse {
 	constructor(option){
@@ -46,8 +46,8 @@ export default class ZWCommHouse {
 
 		let lbl = genHtml(tipobj);
 		titleSvg.on('mouseover', (evt)=>{
-			let x = evt.pageX;
-			let y = evt.pageY - 48;
+			const pointerY = evt.clientY !== undefined ? evt.clientY : evt.pageY;
+			let y = pointerY - 48;
 			let ydelta = document.documentElement.clientHeight - y;
 			if(tipobj.tips instanceof Array && tipobj.tips.length > 3){
 				if(ydelta < 350){
@@ -72,9 +72,12 @@ export default class ZWCommHouse {
 				this.divTooltip.transition()		
 					.duration(200)		
 					.style("opacity", .9);
-				this.divTooltip.html(str)
-					.style("left", x + "px")
-					.style("top", y + "px");
+				this.divTooltip.html(str);
+				positionFloatingTooltip(this.divTooltip, evt, {
+					offsetX: 16,
+					offsetY: y - pointerY,
+					fallbackOffsetY: 18,
+				});
 			}else{
 				this.divTooltip.transition()		
 					.duration(500)		
