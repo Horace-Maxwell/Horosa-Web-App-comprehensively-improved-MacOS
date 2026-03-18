@@ -31,7 +31,7 @@ import HouseSu26 from './HouseSu26';
 import HouseSu27 from './HouseSu27';
 import HouseSuCenter from './HouseSuCenter';
 import { drawPath, drawTextH, drawTextV} from '../graph/GraphHelper';
-import {randomStr,} from '../../utils/helper';
+import {randomStr, setupFloatingTooltip} from '../../utils/helper';
 import * as SZConst from '../suzhan/SZConst';
 import {ZiSign,} from '../suzhan/SZConst';
 
@@ -72,18 +72,15 @@ class Su28Chart {
 
 	setupToolTip(){
 		if(this.divTooltip){
-			this.divTooltip.style("opacity", 0)
-				.style('position', 'absolute')
-				.style('text-align', 'left')
-				.style('vertical-align', 'middle')
-				.style('width', '180px')
-				.style('padding', '2px')
-				.style('padding-left', '10px')
-				.style('font', '13px sans-serif')
-				.style('background', 'lightsteelblue')
-				.style('border', '0px')
-				.style('border-radius', '8px')
-				.style('pointer-events', 'none');
+			setupFloatingTooltip(this.divTooltip, {
+				width: '180px',
+				padding: '2px',
+				'padding-left': '10px',
+				font: '13px sans-serif',
+				background: 'lightsteelblue',
+				border: '0px',
+				'border-radius': '8px',
+			});
 		}
 	}
 

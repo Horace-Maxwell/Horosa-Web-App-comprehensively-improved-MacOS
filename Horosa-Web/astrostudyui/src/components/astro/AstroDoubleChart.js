@@ -132,6 +132,7 @@ class AstroDoubleChart extends Component{
 
 	componentWillUnmount() {
 		window.removeEventListener('resize', this.handleResize);
+		d3.select('#' + this.state.tooltipId).remove();
 	}
 
 

@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import {splitDegree} from '../astro/AstroHelper';
-import {randomStr, creatTooltip} from '../../utils/helper';
+import {randomStr, creatTooltip, positionFloatingTooltip} from '../../utils/helper';
 
 class HouseSu {
 	constructor(option){
@@ -94,9 +94,8 @@ class HouseSu {
 			this.su28chart.divTooltip.transition()		
 				.duration(200)		
 				.style("opacity", .9);
-			this.su28chart.divTooltip.html(str)
-				.style("left", (evt.pageX) + "px")
-				.style("top", (evt.pageY - 28) + "px");
+			this.su28chart.divTooltip.html(str);
+			positionFloatingTooltip(this.su28chart.divTooltip, evt);
 		}).on('mouseout', (evt)=>{
 			this.su28chart.divTooltip.transition()		
 				.duration(500)		
@@ -174,4 +173,3 @@ class HouseSu {
 }
 
 export default HouseSu;
-

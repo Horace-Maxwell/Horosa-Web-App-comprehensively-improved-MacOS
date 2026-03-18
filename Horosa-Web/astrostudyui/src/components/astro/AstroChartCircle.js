@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import {splitDegree, whichTerm, convertLatToStr, convertLonToStr, getDignityText, getObjectsText} from './AstroHelper';
-import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip} from '../../utils/helper';
+import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip, setupFloatingTooltip} from '../../utils/helper';
 import {drawTextV, drawTextH} from '../graph/GraphHelper';
 import { appendAstroMeaningTips, buildSignMeaningTip, buildAspectMeaningTip } from './AstroMeaningData';
 
@@ -32,24 +32,19 @@ export default class AstroChartCircle {
 
 	setupToolTip(){
 		if(this.divTooltip){
-			this.divTooltip.style("opacity", 0)
-				.style('position', 'absolute')
-				.style('text-align', 'left')
-				.style('vertical-align', 'middle')
-				.style('width', '560px')
-				.style('max-width', '72vw')
-				.style('max-height', '60vh')
-				.style('overflow-y', 'auto')
-				.style('white-space', 'normal')
-				.style('line-height', '1.4')
-				.style('padding', '8px 10px')
-				.style('font', '13px sans-serif')
-				.style('background', '#ffffff')
-				.style('color', '#262626')
-				.style('border', '1px solid #e8e8e8')
-				.style('border-radius', '8px')
-				.style('box-shadow', '0 6px 18px rgba(0,0,0,0.16)')
-				.style('pointer-events', 'none');
+			setupFloatingTooltip(this.divTooltip, {
+				width: '560px',
+				'max-width': '72vw',
+				'max-height': '60vh',
+				'overflow-y': 'auto',
+				padding: '8px 10px',
+				font: '13px sans-serif',
+				background: '#ffffff',
+				color: '#262626',
+				border: '1px solid #e8e8e8',
+				'border-radius': '8px',
+				'box-shadow': '0 6px 18px rgba(0,0,0,0.16)',
+			});
 		}
 	}
 	
