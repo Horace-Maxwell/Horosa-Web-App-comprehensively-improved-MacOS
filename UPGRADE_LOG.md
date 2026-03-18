@@ -14,6 +14,27 @@ Append new entries; do not rewrite history.
 
 ## 2026-03-17
 
+### 17:50 - 修复星盘释义弹窗仍被窗口底边裁切，并准备发布 v1.0.26 / v1.0.26-runtime1
+
+- Problem:
+  - 前一轮修掉的是图盘类 D3 tooltip，但用户新反馈的“还是被挡住”其实是 `AstroMeaningPopover` 这条释义弹窗链路。
+  - 该弹窗之前仍依赖 Ant Design `Popover`，在当前桌面壳的固定外层布局与内部滚动容器组合下，仍可能被窗口底边或容器裁切。
+  - 这会让用户明明已经打开了“显示释义”，但实际弹出的释义框仍有一部分无论如何也看不到。
+- Changes:
+  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`
+    - 释义弹窗从 `Popover` 改成自有 body-portal 悬浮层。
+    - 统一按视口固定定位，并在靠近窗口边缘时自动回避。
+    - 内容区改成悬浮层内部滚动，不再依赖页面外层滚动，也不再受页面容器 `overflow` 裁切影响。
+    - 触发节点与悬浮层之间增加轻量延迟关闭，保证鼠标从触发点移动到弹窗内部时不会闪退，仍可滚动阅读长内容。
+  - `Horosa_Desktop_Installer/config/release_config.json`
+    - 独立 runtime 版本提升到 `1.0.26-runtime1`，确保前端释义弹窗修复进入真正的 release 下载件。
+- Verification:
+  - `npm run build`
+  - `Horosa-Web/verify_horosa_local.sh`
+  - 额外做了浏览器定向检查，确认释义内容已挂到 `body` 下的独立层，而不是继续困在页面容器里
+  - 将重新执行 `verify_desktop_packaging.sh`
+  - 将重新执行 `verify_github_release_end_to_end.sh`
+
 ### 17:30 - 修复图盘悬浮窗边缘裁切，并增强软件内更新重启闭环，准备发布 v1.0.25 / v1.0.25-runtime1
 
 - Problem:
