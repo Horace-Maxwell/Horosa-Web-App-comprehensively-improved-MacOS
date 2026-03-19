@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>偏好设置</title>
+    <link rel="stylesheet" href="./settings.css" />
+  </head>
+  <body>
+    <main class="prefs-shell">
+      <header class="prefs-header">
+        <div>
+          <div class="prefs-eyebrow">Preferences</div>
+          <h1>偏好设置</h1>
+          <p>把 星阙 调整得更像一款你愿意长期留在 Dock 里的 Mac app。</p>
+        </div>
+        <button id="saveBtn" class="primary-button">保存设置</button>
+      </header>
+
+      <section class="prefs-grid">
+        <article class="prefs-card">
+          <div class="card-title">通用</div>
+          <label class="toggle-row">
+            <div>
+              <div class="toggle-title">自动检查更新</div>
+              <div class="toggle-copy">启动后允许 星阙 在后台检查新版本。</div>
+            </div>
+            <input id="autoCheckUpdates" type="checkbox" />
+          </label>
+          <label class="toggle-row">
+            <div>
+              <div class="toggle-title">压缩启动中心布局</div>
+              <div class="toggle-copy">让启动页更紧凑，减少信息占用。</div>
+            </div>
+            <input id="compactLauncherLayout" type="checkbox" />
+          </label>
+          <label class="toggle-row">
+            <div>
+              <div class="toggle-title">替换前总是显示安装审查</div>
+              <div class="toggle-copy">在安装、修复和更新前，先列出将要替换的资产。</div>
+            </div>
+            <input id="alwaysReviewBeforeReplace" type="checkbox" />
+          </label>
+        </article>
+
+        <article class="prefs-card">
+          <div class="card-title">本机组件</div>
+          <div class="info-block">
+            <div class="info-label">当前版本</div>
+            <div class="info-value" id="runtimeVersion">读取中…</div>
+          </div>
+          <div class="button-stack">
+            <button class="secondary-button" id="openRuntimeBtn">在 Finder 中显示本机组件</button>
+            <button class="secondary-button" id="repairRuntimeBtn">重装本机组件</button>
+          </div>
+        </article>
+
+        <article class="prefs-card">
+          <div class="card-title">更新</div>
+          <label class="toggle-row">
+            <div>
+              <div class="toggle-title">显示状态通知</div>
+              <div class="toggle-copy">在更新完成等关键时刻显示 macOS 通知。</div>
+            </div>
+            <input id="showStatusNotifications" type="checkbox" />
+          </label>
+          <div class="button-stack">
+            <button class="secondary-button" id="checkUpdatesBtn">立即检查更新</button>
+          </div>
+        </article>
+
+        <article class="prefs-card">
+          <div class="card-title">数据与诊断</div>
+          <div class="path-list">
+            <div>
+              <div class="info-label">数据目录</div>
+              <div class="path-value" id="appDataDir">读取中…</div>
+            </div>
+            <div>
+              <div class="info-label">日志目录</div>
+              <div class="path-value" id="logsDir">读取中…</div>
+            </div>
+          </div>
+          <div class="button-stack">
+            <button class="secondary-button" id="openDataBtn">显示数据目录</button>
+            <button class="secondary-button" id="openLogsBtn">显示日志目录</button>
+            <button class="secondary-button" id="openDiagnosticsBtn">打开诊断中心</button>
+          </div>
+        </article>
+
+        <article class="prefs-card">
+          <div class="card-title">实验功能</div>
+          <label class="toggle-row">
+            <div>
+              <div class="toggle-title">启用实验功能</div>
+              <div class="toggle-copy">为未来的 Mac 集成功能预留开关。</div>
+            </div>
+            <input id="enableExperimentalFeatures" type="checkbox" />
+          </label>
+          <div class="button-stack">
+            <button class="secondary-button" id="openLoginItemsBtn">打开系统登录项设置</button>
+          </div>
+        </article>
+      </section>
+
+      <footer class="prefs-footer">
+        <div class="footer-pill" id="appVersion">星阙</div>
+        <div class="footer-pill" id="supportedArch">Apple Silicon</div>
+      </footer>
+      <div id="statusToast" class="status-toast hidden"></div>
+    </main>
+    <script src="./settings.js"></script>
+  </body>
+</html>

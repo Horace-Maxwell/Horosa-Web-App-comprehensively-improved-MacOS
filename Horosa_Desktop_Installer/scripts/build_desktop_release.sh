@@ -8,6 +8,7 @@ TARGET_ROOT="${INSTALLER_ROOT}/src-tauri/target-user"
 SCRIPTS_RENDERED_DIR="${BUILD_ROOT}/installer-scripts-rendered"
 OFFLINE_SCRIPTS_RENDERED_DIR="${BUILD_ROOT}/installer-scripts-rendered-offline"
 SUPPORT_RENDERED_DIR="${BUILD_ROOT}/distribution-support-rendered"
+OFFLINE_SUPPORT_RENDERED_DIR="${BUILD_ROOT}/distribution-support-rendered-offline"
 DELIVERY_ROOT="${BUILD_ROOT}/delivery-bundle"
 OFFLINE_DELIVERY_ROOT="${BUILD_ROOT}/delivery-bundle-offline"
 POSTINSTALL_TEMPLATE="${INSTALLER_ROOT}/installer-scripts/postinstall.template"
@@ -19,7 +20,7 @@ NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-}"
 UNSIGNED_HELPER_NAME="Open-XingQue-Unsigned.command"
 UNSIGNED_GUIDE_NAME="UNSIGNED_INSTALL_GUIDE.txt"
 
-read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME APP_RELEASE_TAG RUNTIME_VERSION RUNTIME_RELEASE_TAG <<EOF
+read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_DMG DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME APP_RELEASE_TAG RUNTIME_VERSION RUNTIME_RELEASE_TAG SUPPORTED_ARCH <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -32,6 +33,7 @@ print(
     config['appName'],
     config['runtimeAssetName'],
     config['desktopAssetName'],
+    config['desktopDmgName'],
     config['desktopPkgName'],
     config['desktopPkgZipName'],
     config['desktopOfflinePkgName'],
@@ -40,6 +42,7 @@ print(
     f"{config['releaseTagPrefix']}{version}",
     runtime_version,
     f"{config['releaseTagPrefix']}{runtime_version}",
+    config.get('supportedArch', 'arm64'),
 )
 PYCONF
 )
@@ -50,6 +53,7 @@ OFFLINE_COMPONENT_PKG="${BUILD_ROOT}/pkg/desktop-offline.component.pkg"
 COMPONENT_PLIST="${BUILD_ROOT}/pkg/component.plist"
 PKG_STAGE_ROOT="${BUILD_ROOT}/pkg-root"
 APP_BUNDLE_ZIP="${DIST_ROOT}/${DESKTOP_ASSET}"
+APP_DMG="${DIST_ROOT}/${DESKTOP_DMG}"
 INSTALLER_PKG="${DIST_ROOT}/${DESKTOP_PKG}"
 INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_PKG_ZIP}"
 OFFLINE_INSTALLER_PKG="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
@@ -57,7 +61,7 @@ OFFLINE_INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
 UPDATE_MANIFEST="${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 RUNTIME_ARCHIVE="${DIST_ROOT}/${RUNTIME_ASSET}"
 
-mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${SCRIPTS_RENDERED_DIR}" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${SUPPORT_RENDERED_DIR}"
+mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${SCRIPTS_RENDERED_DIR}" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${SUPPORT_RENDERED_DIR}" "${OFFLINE_SUPPORT_RENDERED_DIR}"
 "${INSTALLER_ROOT}/scripts/generate_icon.sh"
 "${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
 
@@ -105,10 +109,45 @@ if [ ! -d "${INSTALLER_ROOT}/node_modules" ]; then
   (cd "${INSTALLER_ROOT}" && npm install)
 fi
 
-(cd "${INSTALLER_ROOT}" && CARGO_TARGET_DIR="${TARGET_ROOT}" npm run tauri:build -- --bundles app)
+find "${TARGET_ROOT}/release/bundle" -type f -name '*.dmg' -delete 2>/dev/null || true
+TAURI_BUILD_OK=1
+if ! (cd "${INSTALLER_ROOT}" && CARGO_TARGET_DIR="${TARGET_ROOT}" npm run tauri:build -- --bundles app,dmg); then
+  TAURI_BUILD_OK=0
+  echo "tauri dmg bundling failed; checking for reusable app bundle and intermediate dmg..." >&2
+fi
 
 if [ ! -d "${TARGET_APP}" ]; then
   echo "missing built app bundle: ${TARGET_APP}" >&2
+  exit 1
+fi
+
+CURRENT_ARCH="$(uname -m)"
+if [ "${SUPPORTED_ARCH}" = "arm64" ] && [ "${CURRENT_ARCH}" != "arm64" ]; then
+  echo "release_config.json is locked to arm64, but current builder is ${CURRENT_ARCH}" >&2
+  exit 1
+fi
+
+BUILT_DMG="$(
+  TARGET_ROOT_ENV="${TARGET_ROOT}" python3 - <<'PYDMG'
+from pathlib import Path
+import os
+root = Path(os.environ['TARGET_ROOT_ENV']) / 'release' / 'bundle'
+candidates = [p for p in root.rglob('*.dmg') if not p.name.startswith('rw.')]
+if not candidates:
+    candidates = list(root.rglob('*.dmg'))
+if not candidates:
+    raise SystemExit(1)
+candidates.sort(key=lambda p: p.stat().st_mtime)
+print(candidates[-1])
+PYDMG
+)"
+if [ -z "${BUILT_DMG}" ] || [ ! -f "${BUILT_DMG}" ]; then
+  echo "missing built dmg artifact from tauri bundle output" >&2
+  exit 1
+fi
+
+if [ "${TAURI_BUILD_OK}" != "1" ] && [[ "$(basename "${BUILT_DMG}")" != rw.* ]]; then
+  echo "tauri dmg bundling failed and no intermediate dmg fallback was found" >&2
   exit 1
 fi
 
@@ -153,20 +192,30 @@ offline_out = offline_scripts_dir / 'postinstall'
 offline_out.write_text(offline_template)
 offline_out.chmod(0o755)
 
-helper = (root / 'distribution-support/unsigned_install_helper.template').read_text()
-guide = (root / 'distribution-support/UNSIGNED_INSTALL_GUIDE.template').read_text()
-for key, value in {
-    '__APP_NAME__': config['appName'],
-    '__PKG_NAME__': config['desktopPkgName'],
-}.items():
-    helper = helper.replace(key, value)
-    guide = guide.replace(key, value)
-helper_out = root / 'build/distribution-support-rendered/Open-XingQue-Unsigned.command'
-guide_out = root / 'build/distribution-support-rendered/UNSIGNED_INSTALL_GUIDE.txt'
-helper_out.write_text(helper)
-helper_out.chmod(0o755)
-guide_out.write_text(guide)
-guide_out.chmod(0o644)
+helper_template = (root / 'distribution-support/unsigned_install_helper.template').read_text()
+guide_template = (root / 'distribution-support/UNSIGNED_INSTALL_GUIDE.template').read_text()
+
+def render_support(output_dir: pathlib.Path, pkg_name: str, pkg_mode: str):
+    helper = helper_template
+    guide = guide_template
+    for key, value in {
+        '__APP_NAME__': config['appName'],
+        '__PKG_NAME__': pkg_name,
+        '__PKG_MODE__': pkg_mode,
+        '__RUNTIME_ASSET__': config['runtimeAssetName'],
+    }.items():
+        helper = helper.replace(key, value)
+        guide = guide.replace(key, value)
+    helper_out = output_dir / 'Open-XingQue-Unsigned.command'
+    guide_out = output_dir / 'UNSIGNED_INSTALL_GUIDE.txt'
+    output_dir.mkdir(parents=True, exist_ok=True)
+    helper_out.write_text(helper)
+    helper_out.chmod(0o755)
+    guide_out.write_text(guide)
+    guide_out.chmod(0o644)
+
+render_support(root / 'build/distribution-support-rendered', config['desktopPkgName'], 'online')
+render_support(root / 'build/distribution-support-rendered-offline', config['desktopOfflinePkgName'], 'offline')
 PYPOST
 
 cp -f "${RUNTIME_ARCHIVE}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET}"
@@ -185,11 +234,19 @@ APP_INFO_PLIST="${PKG_STAGE_ROOT}/Applications/${APP_NAME}.app/Contents/Info.pli
 BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw -o - "${APP_INFO_PLIST}")"
 APP_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "${APP_INFO_PLIST}")"
 
-rm -f "${APP_BUNDLE_ZIP}" "${INSTALLER_PKG}" "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_INSTALLER_PKG_ZIP}" "${COMPONENT_PKG}" "${OFFLINE_COMPONENT_PKG}" "${COMPONENT_PLIST}" "${UPDATE_MANIFEST}"
+rm -f "${APP_BUNDLE_ZIP}" "${APP_DMG}" "${INSTALLER_PKG}" "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_INSTALLER_PKG_ZIP}" "${COMPONENT_PKG}" "${OFFLINE_COMPONENT_PKG}" "${COMPONENT_PLIST}" "${UPDATE_MANIFEST}"
 (
   cd "$(dirname "${TARGET_APP}")"
   COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc "${APP_NAME}.app" "${APP_BUNDLE_ZIP}"
 )
+if [[ "$(basename "${BUILT_DMG}")" == rw.* ]]; then
+  DMG_CONVERT_BASE="${BUILD_ROOT}/$(basename "${APP_DMG}" .dmg)"
+  rm -f "${DMG_CONVERT_BASE}.dmg"
+  hdiutil convert "${BUILT_DMG}" -format UDZO -imagekey zlib-level=9 -o "${DMG_CONVERT_BASE}" >/dev/null
+  mv -f "${DMG_CONVERT_BASE}.dmg" "${APP_DMG}"
+else
+  cp -f "${BUILT_DMG}" "${APP_DMG}"
+fi
 
 pkgbuild --analyze --root "${PKG_STAGE_ROOT}" "${COMPONENT_PLIST}"
 COMPONENT_PLIST_ENV="${COMPONENT_PLIST}" APP_NAME_ENV="${APP_NAME}" python3 - <<'PYPLIST'
@@ -256,8 +313,8 @@ cp "${SUPPORT_RENDERED_DIR}/${UNSIGNED_GUIDE_NAME}" "${DELIVERY_ROOT}/${UNSIGNED
 rm -rf "${OFFLINE_DELIVERY_ROOT}"
 mkdir -p "${OFFLINE_DELIVERY_ROOT}"
 cp "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_DELIVERY_ROOT}/$(basename "${OFFLINE_INSTALLER_PKG}")"
-cp "${SUPPORT_RENDERED_DIR}/${UNSIGNED_HELPER_NAME}" "${OFFLINE_DELIVERY_ROOT}/${UNSIGNED_HELPER_NAME}"
-cp "${SUPPORT_RENDERED_DIR}/${UNSIGNED_GUIDE_NAME}" "${OFFLINE_DELIVERY_ROOT}/${UNSIGNED_GUIDE_NAME}"
+cp "${OFFLINE_SUPPORT_RENDERED_DIR}/${UNSIGNED_HELPER_NAME}" "${OFFLINE_DELIVERY_ROOT}/${UNSIGNED_HELPER_NAME}"
+cp "${OFFLINE_SUPPORT_RENDERED_DIR}/${UNSIGNED_GUIDE_NAME}" "${OFFLINE_DELIVERY_ROOT}/${UNSIGNED_GUIDE_NAME}"
 
 rm -f "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG_ZIP}"
 (
@@ -270,6 +327,7 @@ rm -f "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG_ZIP}"
 )
 
 echo "desktop app bundle ready: ${APP_BUNDLE_ZIP}"
+echo "desktop dmg ready: ${APP_DMG}"
 echo "installer package ready: ${INSTALLER_PKG}"
 echo "installer delivery zip ready: ${INSTALLER_PKG_ZIP}"
 echo "offline installer package ready: ${OFFLINE_INSTALLER_PKG}"
@@ -298,6 +356,7 @@ manifest = {
   'platforms': {
     platform_key: {
       'appUrl': f"{app_base}/{config['desktopAssetName']}",
+      'dmgUrl': f"{app_base}/{config['desktopDmgName']}",
       'pkgUrl': f"{app_base}/{config['desktopPkgName']}",
       'runtimeUrl': f"{runtime_base}/{config['runtimeAssetName']}",
       'runtimeVersion': runtime_version,

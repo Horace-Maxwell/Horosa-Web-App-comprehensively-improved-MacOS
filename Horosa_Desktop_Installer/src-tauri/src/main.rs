@@ -6,7 +6,7 @@ use mime_guess::from_path;
 use reqwest::blocking::Client;
 use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
 use semver::Version;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -15,20 +15,32 @@ use std::net::{SocketAddr, TcpListener};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tar::Archive;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Manager, RunEvent, Runtime, WebviewWindow};
+use tauri::{
+    AppHandle, LogicalPosition, LogicalSize, Manager, Position, RunEvent, Runtime, Size,
+    WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 use zip::ZipArchive;
 
 const APP_NAME: &str = "星阙";
+const MAIN_WINDOW_LABEL: &str = "main";
+const PREFERENCES_WINDOW_LABEL: &str = "preferences";
+const DIAGNOSTICS_WINDOW_LABEL: &str = "diagnostics";
 const MENU_CHECK_UPDATES: &str = "check_updates";
 const MENU_REINSTALL_RUNTIME: &str = "reinstall_runtime";
+const MENU_OPEN_PREFERENCES: &str = "open_preferences";
+const MENU_SHOW_MAIN_WINDOW: &str = "show_main_window";
+const MENU_SHOW_DIAGNOSTICS: &str = "show_diagnostics";
 const MENU_OPEN_LOGS: &str = "open_logs";
 const MENU_OPEN_DATA: &str = "open_data";
+const MENU_OPEN_RUNTIME: &str = "open_runtime";
+const MENU_RELOAD_MAIN: &str = "reload_main";
+const MENU_OPEN_RELEASES: &str = "open_releases";
 const MENU_ZOOM_IN: &str = "zoom_in";
 const MENU_ZOOM_OUT: &str = "zoom_out";
 const MENU_ZOOM_RESET: &str = "zoom_reset";
@@ -38,15 +50,21 @@ const MAX_ZOOM: f64 = 1.8;
 const ZOOM_STEP: f64 = 0.1;
 const DEFAULT_REPO_OWNER: &str = "Horace-Maxwell";
 const DEFAULT_REPO_NAME: &str = "Horosa-Web-App-comprehensively-improved-MacOS";
-const DEFAULT_RUNTIME_ASSET_NAME: &str = "horosa-runtime-macos-universal.tar.gz";
-const DEFAULT_DESKTOP_ASSET_NAME: &str = "Horosa-Desktop-macos-universal.zip";
-const DEFAULT_DESKTOP_PKG_NAME: &str = "Horosa-Installer-macos-universal.pkg";
-const DEFAULT_DESKTOP_PKG_ZIP_NAME: &str = "Horosa-Installer-macos-universal-pkg.zip";
+const DEFAULT_RUNTIME_ASSET_NAME: &str = "horosa-runtime-macos-arm64.tar.gz";
+const DEFAULT_DESKTOP_ASSET_NAME: &str = "Horosa-Desktop-macos-arm64.zip";
+const DEFAULT_DESKTOP_DMG_NAME: &str = "Horosa-Desktop-macos-arm64.dmg";
+const DEFAULT_DESKTOP_PKG_NAME: &str = "Horosa-Installer-macos-arm64.pkg";
+const DEFAULT_DESKTOP_PKG_ZIP_NAME: &str = "Horosa-Installer-macos-arm64-pkg.zip";
+const DEFAULT_DESKTOP_OFFLINE_PKG_NAME: &str = "Horosa-Installer-macos-arm64-offline.pkg";
+const DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME: &str = "Horosa-Installer-macos-arm64-offline-pkg.zip";
 const DEFAULT_UPDATE_MANIFEST_NAME: &str = "horosa-latest.json";
+const DEFAULT_SUPPORTED_ARCH: &str = "arm64";
 const DEFAULT_RELEASE_TAG_PREFIX: &str = "v";
 const DOWNLOAD_MAX_ATTEMPTS: usize = 4;
 const DEFAULT_FRONTEND_PORT: u16 = 38991;
 const UPDATE_COMPLETE_MARKER_NAME: &str = "update-complete.txt";
+const PREFERENCES_FILE_NAME: &str = "preferences.json";
+const WINDOW_STATE_FILE_NAME: &str = "window-state.json";
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -61,12 +79,28 @@ struct ReleaseConfig {
     runtime_asset_name: String,
     #[serde(rename = "desktopAssetName")]
     desktop_asset_name: String,
+    #[serde(rename = "desktopDmgName", default = "default_desktop_dmg_name")]
+    desktop_dmg_name: String,
     #[serde(rename = "desktopPkgName")]
     desktop_pkg_name: String,
     #[serde(rename = "desktopPkgZipName")]
     desktop_pkg_zip_name: String,
+    #[serde(
+        rename = "desktopOfflinePkgName",
+        default = "default_desktop_offline_pkg_name"
+    )]
+    desktop_offline_pkg_name: String,
+    #[serde(
+        rename = "desktopOfflinePkgZipName",
+        default = "default_desktop_offline_pkg_zip_name"
+    )]
+    desktop_offline_pkg_zip_name: String,
     #[serde(rename = "updateManifestName")]
     update_manifest_name: String,
+    #[serde(rename = "primaryDownload", default)]
+    primary_download: String,
+    #[serde(rename = "supportedArch", default = "default_supported_arch")]
+    supported_arch: String,
     #[serde(rename = "releaseTagPrefix")]
     release_tag_prefix: String,
     #[serde(rename = "appName")]
@@ -102,6 +136,8 @@ struct UpdateManifest {
 struct UpdatePlatform {
     #[serde(rename = "appUrl")]
     app_url: String,
+    #[serde(rename = "dmgUrl")]
+    dmg_url: Option<String>,
     #[serde(rename = "pkgUrl")]
     pkg_url: Option<String>,
     #[serde(rename = "runtimeUrl")]
@@ -160,10 +196,275 @@ struct RuntimeSession {
     web_port: u16,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AppPreferences {
+    auto_check_updates: bool,
+    show_status_notifications: bool,
+    compact_launcher_layout: bool,
+    enable_experimental_features: bool,
+    always_review_before_replace: bool,
+}
+
+impl Default for AppPreferences {
+    fn default() -> Self {
+        Self {
+            auto_check_updates: true,
+            show_status_notifications: true,
+            compact_launcher_layout: false,
+            enable_experimental_features: false,
+            always_review_before_replace: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum InstallSource {
+    DmgOnline,
+    PkgOnline,
+    PkgOffline,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InstallSourceMarker {
+    source: InstallSource,
+    installed_at: Option<u64>,
+    runtime_version: Option<String>,
+    app_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum LauncherStateKind {
+    LaunchReady,
+    OfflineReady,
+    OfflineReview,
+    OfflineRepairRequired,
+    RepairInProgress,
+    UpdateInProgress,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum RecoveryKind {
+    OfflineReinstallRequired,
+    RepairAvailable,
+    GenericFailure,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum LauncherActionKind {
+    ReinstallOfflinePackage,
+    OpenDiagnostics,
+    RevealData,
+    RevealRuntime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LauncherStatePayload {
+    kind: LauncherStateKind,
+    badge: String,
+    title: String,
+    summary: String,
+    detail: String,
+    recommendation: Option<String>,
+    install_source: Option<InstallSource>,
+    recovery_kind: Option<RecoveryKind>,
+    primary_action: Option<LauncherActionKind>,
+    secondary_actions: Vec<LauncherActionKind>,
+    raw_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum AssetReviewMode {
+    Install,
+    Repair,
+    Update,
+}
+
+impl AssetReviewMode {
+    fn title(self) -> &'static str {
+        match self {
+            Self::Install => "安装审查",
+            Self::Repair => "修复审查",
+            Self::Update => "更新审查",
+        }
+    }
+
+    fn progress_copy(self) -> &'static str {
+        match self {
+            Self::Install => "检查已安装内容",
+            Self::Repair => "检查待修复内容",
+            Self::Update => "检查将替换的内容",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+enum DetectedAssetKind {
+    InstalledApp,
+    SharedRuntime,
+    UserRuntime,
+    PendingMarker,
+    CachedRuntimeArchive,
+    CachedAppUpdate,
+}
+
+impl DetectedAssetKind {
+    fn key(self) -> &'static str {
+        match self {
+            Self::InstalledApp => "installed_app",
+            Self::SharedRuntime => "shared_runtime",
+            Self::UserRuntime => "user_runtime",
+            Self::PendingMarker => "pending_marker",
+            Self::CachedRuntimeArchive => "cached_runtime_archive",
+            Self::CachedAppUpdate => "cached_app_update",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum DetectedAssetState {
+    Healthy,
+    Outdated,
+    Broken,
+    Pending,
+    CacheOnly,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum AssetDecision {
+    Replace,
+    Keep,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AssetInventoryItem {
+    kind: DetectedAssetKind,
+    label: String,
+    path: String,
+    state: DetectedAssetState,
+    replace_recommended: bool,
+    requires_admin: bool,
+    details: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AssetReviewPayload {
+    mode: AssetReviewMode,
+    items: Vec<AssetInventoryItem>,
+    blocking_issues: Vec<String>,
+    default_selections: HashMap<String, AssetDecision>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AssetReviewCommitRequest {
+    mode: AssetReviewMode,
+    decisions: HashMap<String, AssetDecision>,
+    cancelled: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AssetReviewCommitResult {
+    allowed: bool,
+    blocking_issues: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PreferencesPayload {
+    preferences: AppPreferences,
+    app_version: String,
+    runtime_version: Option<String>,
+    app_data_dir: String,
+    logs_dir: String,
+    runtime_dir: String,
+    supported_arch: String,
+    primary_download: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DiagnosticsPayload {
+    log_path: String,
+    app_data_dir: String,
+    runtime_dir: String,
+    lines: Vec<String>,
+    assets: Vec<AssetInventoryItem>,
+    updated_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct SavedWindowState {
+    width: Option<f64>,
+    height: Option<f64>,
+    x: Option<f64>,
+    y: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct WindowStateStore {
+    main: SavedWindowState,
+    preferences: SavedWindowState,
+    diagnostics: SavedWindowState,
+}
+
+#[derive(Default)]
+struct PendingAssetReviewState {
+    payload: Option<AssetReviewPayload>,
+    response: Option<AssetReviewCommitRequest>,
+}
+
+struct AssetReviewCoordinator {
+    state: Mutex<PendingAssetReviewState>,
+    condvar: Condvar,
+}
+
+impl Default for AssetReviewCoordinator {
+    fn default() -> Self {
+        Self {
+            state: Mutex::new(PendingAssetReviewState::default()),
+            condvar: Condvar::new(),
+        }
+    }
+}
+
 struct AppState {
     session: Mutex<Option<RuntimeSession>>,
     web_shutdown: Mutex<Option<Arc<AtomicBool>>>,
     zoom_level: Mutex<f64>,
+    review: AssetReviewCoordinator,
+}
+
+fn default_desktop_dmg_name() -> String {
+    DEFAULT_DESKTOP_DMG_NAME.to_string()
+}
+
+fn default_supported_arch() -> String {
+    DEFAULT_SUPPORTED_ARCH.to_string()
+}
+
+fn default_desktop_offline_pkg_name() -> String {
+    DEFAULT_DESKTOP_OFFLINE_PKG_NAME.to_string()
+}
+
+fn default_desktop_offline_pkg_zip_name() -> String {
+    DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME.to_string()
 }
 
 fn fallback_release_config(app: &AppHandle) -> ReleaseConfig {
@@ -173,9 +474,14 @@ fn fallback_release_config(app: &AppHandle) -> ReleaseConfig {
         runtime_version: app.package_info().version.to_string(),
         runtime_asset_name: DEFAULT_RUNTIME_ASSET_NAME.to_string(),
         desktop_asset_name: DEFAULT_DESKTOP_ASSET_NAME.to_string(),
+        desktop_dmg_name: DEFAULT_DESKTOP_DMG_NAME.to_string(),
         desktop_pkg_name: DEFAULT_DESKTOP_PKG_NAME.to_string(),
         desktop_pkg_zip_name: DEFAULT_DESKTOP_PKG_ZIP_NAME.to_string(),
+        desktop_offline_pkg_name: DEFAULT_DESKTOP_OFFLINE_PKG_NAME.to_string(),
+        desktop_offline_pkg_zip_name: DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME.to_string(),
         update_manifest_name: DEFAULT_UPDATE_MANIFEST_NAME.to_string(),
+        primary_download: DEFAULT_DESKTOP_DMG_NAME.to_string(),
+        supported_arch: DEFAULT_SUPPORTED_ARCH.to_string(),
         release_tag_prefix: DEFAULT_RELEASE_TAG_PREFIX.to_string(),
         app_name: APP_NAME.to_string(),
     }
@@ -187,8 +493,291 @@ impl Default for AppState {
             session: Mutex::new(None),
             web_shutdown: Mutex::new(None),
             zoom_level: Mutex::new(DEFAULT_ZOOM),
+            review: AssetReviewCoordinator::default(),
         }
     }
+}
+
+fn preferences_path(app: &AppHandle) -> Result<PathBuf> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .context("missing app_config_dir")?;
+    ensure_dir(&dir)?;
+    Ok(dir.join(PREFERENCES_FILE_NAME))
+}
+
+fn load_preferences(app: &AppHandle) -> AppPreferences {
+    let Ok(path) = preferences_path(app) else {
+        return AppPreferences::default();
+    };
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|data| serde_json::from_str::<AppPreferences>(&data).ok())
+        .unwrap_or_default()
+}
+
+fn save_preferences(app: &AppHandle, preferences: &AppPreferences) -> Result<()> {
+    let path = preferences_path(app)?;
+    fs::write(path, serde_json::to_string_pretty(preferences)?).context("save preferences")
+}
+
+fn shared_assets_root() -> PathBuf {
+    shared_runtime_root()
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("/Users/Shared/Horosa"))
+}
+
+fn shared_downloads_dir() -> PathBuf {
+    shared_assets_root().join("downloads")
+}
+
+fn install_source_marker_path() -> PathBuf {
+    std::env::var_os("HOROSA_INSTALL_SOURCE_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| shared_assets_root().join("install-source.json"))
+}
+
+fn load_install_source_marker() -> Option<InstallSourceMarker> {
+    let path = install_source_marker_path();
+    let data = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+fn current_install_source(config: &ReleaseConfig) -> Option<InstallSource> {
+    let marker = load_install_source_marker()?;
+    if marker.source == InstallSource::PkgOffline
+        && offline_install_marker_is_current(&marker, &config.runtime_version)
+    {
+        return Some(InstallSource::PkgOffline);
+    }
+    Some(marker.source)
+}
+
+fn source_label(source: InstallSource) -> &'static str {
+    match source {
+        InstallSource::PkgOffline => "离线安装包",
+        InstallSource::PkgOnline => "在线安装包",
+        InstallSource::DmgOnline => "DMG 安装",
+        InstallSource::Unknown => "当前安装",
+    }
+}
+
+fn build_offline_ready_state(config: &ReleaseConfig) -> LauncherStatePayload {
+    LauncherStatePayload {
+        kind: LauncherStateKind::OfflineReady,
+        badge: "离线安装已完成".to_string(),
+        title: "这台 Mac 已准备好，可直接打开使用".to_string(),
+        summary: "当前离线安装来源已经把所需本机组件准备到位，本次不会联网下载。".to_string(),
+        detail: format!(
+            "当前安装来源：{}。本机组件版本 {} 已可直接使用；如需修复，请重新安装离线包。",
+            source_label(InstallSource::PkgOffline),
+            config.runtime_version
+        ),
+        recommendation: Some(
+            "后续日常打开会直接进入主界面，只有在你主动修复或更新时才会继续处理。".to_string(),
+        ),
+        install_source: Some(InstallSource::PkgOffline),
+        recovery_kind: None,
+        primary_action: None,
+        secondary_actions: vec![
+            LauncherActionKind::RevealRuntime,
+            LauncherActionKind::RevealData,
+        ],
+        raw_error: None,
+    }
+}
+
+fn build_offline_review_state(mode: AssetReviewMode) -> LauncherStatePayload {
+    LauncherStatePayload {
+        kind: LauncherStateKind::OfflineReview,
+        badge: mode.title().to_string(),
+        title: "已发现本机已有内容，请决定这次要替换哪些项目".to_string(),
+        summary: "这次不会自动覆盖已有资产，只有你勾选为“替换”的内容才会被处理。".to_string(),
+        detail: "离线路径下会尽量复用已经可用的本机组件，不会因为审查而自动转为联网准备。"
+            .to_string(),
+        recommendation: Some("如果这台 Mac 已经能正常使用，通常保留可复用内容就够了。".to_string()),
+        install_source: Some(InstallSource::PkgOffline),
+        recovery_kind: None,
+        primary_action: None,
+        secondary_actions: vec![
+            LauncherActionKind::OpenDiagnostics,
+            LauncherActionKind::RevealRuntime,
+        ],
+        raw_error: None,
+    }
+}
+
+fn build_repair_in_progress_state() -> LauncherStatePayload {
+    LauncherStatePayload {
+        kind: LauncherStateKind::RepairInProgress,
+        badge: "组件修复".to_string(),
+        title: "正在整理并恢复本机组件".to_string(),
+        summary: "星阙 会尽量保留当前数据，并在准备完成后自动回到主界面。".to_string(),
+        detail: "技术细节和完整日志仍然可用，但会退到第二层，避免打断当前恢复流程。".to_string(),
+        recommendation: None,
+        install_source: None,
+        recovery_kind: None,
+        primary_action: None,
+        secondary_actions: vec![],
+        raw_error: None,
+    }
+}
+
+fn build_update_in_progress_state() -> LauncherStatePayload {
+    LauncherStatePayload {
+        kind: LauncherStateKind::UpdateInProgress,
+        badge: "版本更新".to_string(),
+        title: "正在准备新版本并保持当前数据不变".to_string(),
+        summary: "下载、校验和替换都会在 app 内完成，准备好后会自动重开。".to_string(),
+        detail: "只有被确认要替换的 app 或本机组件会参与这次更新。".to_string(),
+        recommendation: None,
+        install_source: None,
+        recovery_kind: None,
+        primary_action: None,
+        secondary_actions: vec![],
+        raw_error: None,
+    }
+}
+
+fn build_generic_launcher_error(raw_error: &str) -> LauncherStatePayload {
+    LauncherStatePayload {
+        kind: LauncherStateKind::RepairInProgress,
+        badge: "需要处理".to_string(),
+        title: "这次准备没有按预期完成".to_string(),
+        summary: "星阙 还没有准备好，但当前数据和诊断入口都已经保留。".to_string(),
+        detail: "你可以先查看诊断信息，必要时再重新准备本机组件。".to_string(),
+        recommendation: Some(
+            "如果这是首次启动或刚完成更新，先查看诊断中心通常会更稳妥。".to_string(),
+        ),
+        install_source: None,
+        recovery_kind: Some(RecoveryKind::GenericFailure),
+        primary_action: Some(LauncherActionKind::OpenDiagnostics),
+        secondary_actions: vec![
+            LauncherActionKind::RevealData,
+            LauncherActionKind::RevealRuntime,
+        ],
+        raw_error: Some(raw_error.to_string()),
+    }
+}
+
+fn build_offline_repair_required_state(
+    config: &ReleaseConfig,
+    raw_error: &str,
+) -> LauncherStatePayload {
+    LauncherStatePayload {
+        kind: LauncherStateKind::OfflineRepairRequired,
+        badge: "离线修复".to_string(),
+        title: "本机组件不完整，当前无法继续打开 星阙".to_string(),
+        summary: "这台 Mac 之前通过离线安装包完成准备，但当前共享本机组件缺失、损坏或版本不完整。"
+            .to_string(),
+        detail: format!(
+            "请优先重新运行 {}。重新安装会把离线路径需要的本机组件重新接管到位。",
+            config.desktop_offline_pkg_name
+        ),
+        recommendation: Some(
+            "重新安装离线包是首选恢复方式；诊断中心和 Finder 入口仍然保留给你排查。".to_string(),
+        ),
+        install_source: Some(InstallSource::PkgOffline),
+        recovery_kind: Some(RecoveryKind::OfflineReinstallRequired),
+        primary_action: Some(LauncherActionKind::ReinstallOfflinePackage),
+        secondary_actions: vec![
+            LauncherActionKind::OpenDiagnostics,
+            LauncherActionKind::RevealRuntime,
+            LauncherActionKind::RevealData,
+        ],
+        raw_error: Some(raw_error.to_string()),
+    }
+}
+
+fn build_launcher_error_payload(app: &AppHandle, error: &anyhow::Error) -> LauncherStatePayload {
+    let raw_error = format!("{error:#}");
+    if let Ok(config) = load_release_config(app) {
+        if current_install_source(&config) == Some(InstallSource::PkgOffline) {
+            return build_offline_repair_required_state(&config, &raw_error);
+        }
+    }
+    build_generic_launcher_error(&raw_error)
+}
+
+fn app_downloads_dir(app: &AppHandle) -> Result<PathBuf> {
+    let dir = app.path().app_data_dir().context("missing app_data_dir")?;
+    Ok(dir.join("downloads"))
+}
+
+fn cached_runtime_archive_path(app: &AppHandle, config: &ReleaseConfig) -> Result<PathBuf> {
+    Ok(app_downloads_dir(app)?.join(&config.runtime_asset_name))
+}
+
+fn cached_app_update_path(app: &AppHandle, config: &ReleaseConfig) -> Result<PathBuf> {
+    Ok(app_downloads_dir(app)?.join(&config.desktop_asset_name))
+}
+
+fn installed_app_target_path() -> PathBuf {
+    PathBuf::from(format!("/Applications/{}.app", APP_NAME))
+}
+
+fn window_state_path(app: &AppHandle) -> Result<PathBuf> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .context("missing app_config_dir")?;
+    ensure_dir(&dir)?;
+    Ok(dir.join(WINDOW_STATE_FILE_NAME))
+}
+
+fn load_window_states(app: &AppHandle) -> WindowStateStore {
+    let Ok(path) = window_state_path(app) else {
+        return WindowStateStore::default();
+    };
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|data| serde_json::from_str::<WindowStateStore>(&data).ok())
+        .unwrap_or_default()
+}
+
+fn save_window_states(app: &AppHandle, states: &WindowStateStore) -> Result<()> {
+    let path = window_state_path(app)?;
+    fs::write(path, serde_json::to_string_pretty(states)?).context("save window state")
+}
+
+fn capture_window_state(window: &WebviewWindow) -> SavedWindowState {
+    let mut state = SavedWindowState::default();
+    if let Ok(size) = window.outer_size() {
+        state.width = Some(size.width as f64);
+        state.height = Some(size.height as f64);
+    }
+    if let Ok(position) = window.outer_position() {
+        state.x = Some(position.x as f64);
+        state.y = Some(position.y as f64);
+    }
+    state
+}
+
+fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
+    if let (Some(width), Some(height)) = (state.width, state.height) {
+        let _ = window.set_size(Size::Logical(LogicalSize::new(width, height)));
+    }
+    if let (Some(x), Some(y)) = (state.x, state.y) {
+        let _ = window.set_position(Position::Logical(LogicalPosition::new(x, y)));
+    }
+}
+
+fn persist_window_state_for_label(
+    app: &AppHandle,
+    label: &str,
+    window: &WebviewWindow,
+) -> Result<()> {
+    let mut store = load_window_states(app);
+    let state = capture_window_state(window);
+    match label {
+        MAIN_WINDOW_LABEL => store.main = state,
+        PREFERENCES_WINDOW_LABEL => store.preferences = state,
+        DIAGNOSTICS_WINDOW_LABEL => store.diagnostics = state,
+        _ => return Ok(()),
+    }
+    save_window_states(app, &store)
 }
 
 fn escape_js(text: &str) -> String {
@@ -398,7 +987,7 @@ fn emit_overlay(
       function shouldShow(mode, text, hasError) {{
         if (hasError) return true;
         if (mode === 'update') return true;
-        return /下载|更新|替换应用|运行环境更新|安装运行环境|解压运行环境|校验/.test(text || '');
+        return /下载|更新|替换应用|运行环境更新|本机组件更新|安装运行环境|安装本机组件|解压运行环境|解压本机组件|准备本机组件|部署本机组件|校验/.test(text || '');
       }}
 
       function tone(mode, hasError) {{
@@ -409,15 +998,15 @@ fn emit_overlay(
 
       function titleFor(mode, hasError) {{
         if (hasError) return '更新未完成';
-        if (mode === 'install') return '正在准备运行环境';
-        if (mode === 'repair') return '正在修复运行环境';
+        if (mode === 'install') return '正在准备本机组件';
+        if (mode === 'repair') return '正在修复本机组件';
         return '正在下载并安装更新';
       }}
 
       function badgeFor(mode, hasError) {{
         if (hasError) return '需要处理';
         if (mode === 'install') return '首次准备';
-        if (mode === 'repair') return '运行时修复';
+        if (mode === 'repair') return '组件修复';
         return '更新进行中';
       }}
 
@@ -425,15 +1014,15 @@ fn emit_overlay(
         if (ready) return '即将完成';
         if (/校验/.test(text || '')) return '校验资产';
         if (/替换应用|重开/.test(text || '')) return '替换应用';
-        if (/解压|切换/.test(text || '')) return '部署 Runtime';
-        if (/运行环境更新|运行环境/.test(text || '')) return '下载 Runtime';
+        if (/解压|切换|部署本机组件/.test(text || '')) return '部署组件';
+        if (/运行环境更新|本机组件更新|运行环境|本机组件/.test(text || '')) return '准备组件';
         return '下载资产';
       }}
 
       function phaseFor(pct, text, ready) {{
         if (ready || pct >= 96) return '即将完成';
         if (/替换应用|重开/.test(text || '') || pct >= 88) return '替换与重开';
-        if (/运行环境/.test(text || '') || pct >= 56) return 'Runtime 事务';
+        if (/运行环境|本机组件/.test(text || '') || pct >= 56) return '组件事务';
         if (/下载/.test(text || '') || pct >= 10) return '下载中';
         return '准备中';
       }}
@@ -518,16 +1107,6 @@ if (window.__horosaProgress) {{ window.__horosaProgress({}, {}); }}",
     emit_overlay(window, None, Some(pct), Some(raw_message), None, false);
 }
 
-fn emit_error(window: &WebviewWindow, message: &str) {
-    let raw_message = message;
-    let message = escape_js(message);
-    let _ = window.eval(&format!(
-        "window.__horosaPendingError = {message}; \
-if (window.__horosaError) {{ window.__horosaError({message}); }}",
-    ));
-    emit_overlay(window, Some("error"), None, None, Some(raw_message), false);
-}
-
 fn emit_mode(window: &WebviewWindow, mode: &str) {
     let raw_mode = mode;
     let mode = escape_js(mode);
@@ -554,7 +1133,97 @@ if (window.__horosaReady) {{ window.__horosaReady({url}); }} else {{ window.loca
     );
 }
 
+fn emit_launcher_state(window: &WebviewWindow, payload: &LauncherStatePayload) {
+    let json = serde_json::to_string(payload).unwrap_or_else(|_| "null".to_string());
+    let _ = window.eval(&format!(
+        "window.__horosaPendingStatePayload = {json}; \
+if (window.__horosaState) {{ window.__horosaState({json}); }}"
+    ));
+}
+
+fn emit_launcher_error(window: &WebviewWindow, payload: &LauncherStatePayload) {
+    let json = serde_json::to_string(payload).unwrap_or_else(|_| "null".to_string());
+    let overlay_message = payload
+        .recommendation
+        .as_deref()
+        .or(Some(payload.summary.as_str()));
+    let _ = window.eval(&format!(
+        "window.__horosaPendingStatePayload = {json}; \
+window.__horosaPendingError = {json}; \
+if (window.__horosaState) {{ window.__horosaState({json}); }} \
+if (window.__horosaError) {{ window.__horosaError({json}); }}"
+    ));
+    emit_overlay(window, Some("error"), None, None, overlay_message, false);
+}
+
+fn emit_asset_review(window: &WebviewWindow, payload: &AssetReviewPayload) {
+    let json = serde_json::to_string(payload).unwrap_or_else(|_| "null".to_string());
+    let _ = window.eval(&format!(
+        "window.__horosaPendingReviewPayload = {json}; \
+if (window.__horosaPresentReview) {{ window.__horosaPresentReview({json}); }}"
+    ));
+}
+
+fn clear_asset_review(window: &WebviewWindow) {
+    let _ = window.eval(
+        "window.__horosaPendingReviewPayload = null; \
+if (window.__horosaClearReview) { window.__horosaClearReview(); }",
+    );
+}
+
+fn wait_for_asset_review(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    payload: &AssetReviewPayload,
+) -> Result<Option<HashMap<String, AssetDecision>>> {
+    let state = app
+        .try_state::<AppState>()
+        .context("app review state missing")?;
+    {
+        let mut guard = state
+            .review
+            .state
+            .lock()
+            .map_err(|_| anyhow!("asset review state poisoned"))?;
+        guard.payload = Some(payload.clone());
+        guard.response = None;
+    }
+    emit_asset_review(window, payload);
+    let response = {
+        let mut guard = state
+            .review
+            .state
+            .lock()
+            .map_err(|_| anyhow!("asset review state poisoned"))?;
+        while guard.response.is_none() {
+            guard = state
+                .review
+                .condvar
+                .wait(guard)
+                .map_err(|_| anyhow!("asset review wait poisoned"))?;
+        }
+        let response = guard.response.take();
+        guard.payload = None;
+        response
+    };
+    clear_asset_review(window);
+    let Some(response) = response else {
+        return Ok(None);
+    };
+    if response.cancelled {
+        return Ok(None);
+    }
+    Ok(Some(merge_asset_decisions(payload, &response.decisions)))
+}
+
 fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
+    let preferences = MenuItem::with_id(
+        app,
+        MENU_OPEN_PREFERENCES,
+        "偏好设置…",
+        true,
+        Some("CmdOrCtrl+,"),
+    )?;
     let check_updates = MenuItem::with_id(
         app,
         MENU_CHECK_UPDATES,
@@ -565,12 +1234,59 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
     let reinstall_runtime = MenuItem::with_id(
         app,
         MENU_REINSTALL_RUNTIME,
-        "重新安装运行环境",
+        "重装本机组件",
         true,
         None::<&str>,
     )?;
-    let open_logs = MenuItem::with_id(app, MENU_OPEN_LOGS, "打开日志目录", true, None::<&str>)?;
-    let open_data = MenuItem::with_id(app, MENU_OPEN_DATA, "打开运行目录", true, None::<&str>)?;
+    let show_main_window = MenuItem::with_id(
+        app,
+        MENU_SHOW_MAIN_WINDOW,
+        "显示主窗口",
+        true,
+        Some("CmdOrCtrl+1"),
+    )?;
+    let show_diagnostics = MenuItem::with_id(
+        app,
+        MENU_SHOW_DIAGNOSTICS,
+        "诊断中心",
+        true,
+        Some("CmdOrCtrl+2"),
+    )?;
+    let open_logs = MenuItem::with_id(
+        app,
+        MENU_OPEN_LOGS,
+        "在 Finder 中显示日志",
+        true,
+        None::<&str>,
+    )?;
+    let open_data = MenuItem::with_id(
+        app,
+        MENU_OPEN_DATA,
+        "在 Finder 中显示数据目录",
+        true,
+        None::<&str>,
+    )?;
+    let open_runtime = MenuItem::with_id(
+        app,
+        MENU_OPEN_RUNTIME,
+        "在 Finder 中显示本机组件",
+        true,
+        None::<&str>,
+    )?;
+    let reload_main = MenuItem::with_id(
+        app,
+        MENU_RELOAD_MAIN,
+        "重新载入主界面",
+        true,
+        Some("CmdOrCtrl+R"),
+    )?;
+    let open_releases = MenuItem::with_id(
+        app,
+        MENU_OPEN_RELEASES,
+        "打开下载与版本说明",
+        true,
+        None::<&str>,
+    )?;
     let zoom_in = MenuItem::with_id(app, MENU_ZOOM_IN, "放大", true, Some("CmdOrCtrl+="))?;
     let zoom_out = MenuItem::with_id(app, MENU_ZOOM_OUT, "缩小", true, Some("CmdOrCtrl+-"))?;
     let zoom_reset =
@@ -582,6 +1298,8 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
         true,
         &[
             &PredefinedMenuItem::about(app, None, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &preferences,
             &PredefinedMenuItem::separator(app)?,
             &check_updates,
             &reinstall_runtime,
@@ -601,6 +1319,10 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
         "文件",
         true,
         &[
+            &show_main_window,
+            &show_diagnostics,
+            &PredefinedMenuItem::separator(app)?,
+            &open_runtime,
             &open_logs,
             &open_data,
             &PredefinedMenuItem::separator(app)?,
@@ -628,6 +1350,8 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
         "视图",
         true,
         &[
+            &reload_main,
+            &PredefinedMenuItem::separator(app)?,
             &zoom_in,
             &zoom_out,
             &zoom_reset,
@@ -649,10 +1373,513 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
         ],
     )?;
 
+    let help_menu = Submenu::with_items(app, "帮助", true, &[&open_releases])?;
+
     Menu::with_items(
         app,
-        &[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu],
+        &[
+            &app_menu,
+            &file_menu,
+            &edit_menu,
+            &view_menu,
+            &window_menu,
+            &help_menu,
+        ],
     )
+}
+
+fn show_or_focus_window(window: &WebviewWindow) {
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+fn create_secondary_window(
+    app: &AppHandle,
+    label: &str,
+    title: &str,
+    asset: &str,
+    size: (f64, f64),
+    min_size: (f64, f64),
+) -> Result<WebviewWindow> {
+    let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(asset.into()))
+        .title(title)
+        .resizable(true)
+        .center()
+        .inner_size(size.0, size.1)
+        .min_inner_size(min_size.0, min_size.1)
+        .visible(true);
+    let window = builder.build().context("build secondary window")?;
+    let states = load_window_states(app);
+    match label {
+        PREFERENCES_WINDOW_LABEL => apply_saved_window_state(&window, &states.preferences),
+        DIAGNOSTICS_WINDOW_LABEL => apply_saved_window_state(&window, &states.diagnostics),
+        _ => {}
+    }
+    Ok(window)
+}
+
+fn open_preferences_window(app: &AppHandle) -> Result<()> {
+    if let Some(window) = app.get_webview_window(PREFERENCES_WINDOW_LABEL) {
+        show_or_focus_window(&window);
+        return Ok(());
+    }
+    let window = create_secondary_window(
+        app,
+        PREFERENCES_WINDOW_LABEL,
+        "偏好设置",
+        "settings.html",
+        (760.0, 680.0),
+        (680.0, 620.0),
+    )?;
+    show_or_focus_window(&window);
+    Ok(())
+}
+
+fn open_diagnostics_window(app: &AppHandle) -> Result<()> {
+    if let Some(window) = app.get_webview_window(DIAGNOSTICS_WINDOW_LABEL) {
+        show_or_focus_window(&window);
+        return Ok(());
+    }
+    let window = create_secondary_window(
+        app,
+        DIAGNOSTICS_WINDOW_LABEL,
+        "诊断中心",
+        "diagnostics.html",
+        (840.0, 720.0),
+        (720.0, 620.0),
+    )?;
+    show_or_focus_window(&window);
+    Ok(())
+}
+
+fn open_main_window(app: &AppHandle) -> Result<()> {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        show_or_focus_window(&window);
+        return Ok(());
+    }
+
+    let window =
+        WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
+            .title(APP_NAME)
+            .resizable(true)
+            .center()
+            .inner_size(1480.0, 960.0)
+            .min_inner_size(1180.0, 760.0)
+            .build()
+            .context("recreate main window")?;
+    apply_saved_window_state(&window, &load_window_states(app).main);
+    set_window_zoom(app, DEFAULT_ZOOM)?;
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(slot) = state.session.lock() {
+            if let Some(session) = slot.as_ref() {
+                emit_ready(
+                    &window,
+                    &frontend_url(session.web_port, session.backend_port),
+                );
+            }
+        }
+    }
+    show_or_focus_window(&window);
+    Ok(())
+}
+
+fn show_macos_notification(title: &str, body: &str) {
+    let _ = Command::new("/usr/bin/osascript")
+        .arg("-e")
+        .arg(format!(
+            "display notification {} with title {}",
+            applescript_quote_text(body),
+            applescript_quote_text(title)
+        ))
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+}
+
+fn open_release_page(app: &AppHandle) -> Result<()> {
+    let config = load_release_config(app)?;
+    let url = format!(
+        "https://github.com/{}/{}/releases/latest",
+        config.repo_owner, config.repo_name
+    );
+    Command::new("open")
+        .arg(url)
+        .spawn()
+        .context("open release page")?;
+    Ok(())
+}
+
+fn build_preferences_payload(app: &AppHandle) -> Result<PreferencesPayload> {
+    let config = load_release_config(app)?;
+    let paths = resolve_runtime_paths(app)?;
+    Ok(PreferencesPayload {
+        preferences: load_preferences(app),
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+        runtime_version: local_runtime_version(app),
+        app_data_dir: paths.app_data_dir.to_string_lossy().to_string(),
+        logs_dir: paths.logs_dir.to_string_lossy().to_string(),
+        runtime_dir: paths.runtime_dir.to_string_lossy().to_string(),
+        supported_arch: config.supported_arch,
+        primary_download: config.primary_download,
+    })
+}
+
+fn replace_app_bundle(source: &Path, target: &Path) -> Result<()> {
+    if source == target {
+        return Ok(());
+    }
+    let backup = target.with_extension("app.previous");
+    let command = format!(
+        "set -euo pipefail\nTARGET={target}\nSOURCE={source}\nBACKUP={backup}\nrm -rf \"${{BACKUP}}\"\nif [ -d \"${{TARGET}}\" ]; then mv \"${{TARGET}}\" \"${{BACKUP}}\"; fi\nif /usr/bin/ditto \"${{SOURCE}}\" \"${{TARGET}}\"; then\n  rm -rf \"${{BACKUP}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{TARGET}}\"\n  if [ -d \"${{BACKUP}}\" ]; then mv \"${{BACKUP}}\" \"${{TARGET}}\" || true; fi\n  exit 1\nfi\n",
+        target = shell_quote(target),
+        source = shell_quote(source),
+        backup = shell_quote(&backup)
+    );
+    if target_requires_admin_update(target) {
+        let status = Command::new("/usr/bin/osascript")
+            .arg("-e")
+            .arg(format!(
+                "do shell script {} with administrator privileges",
+                applescript_quote_text(&format!("/bin/bash -lc {}", shell_quote_text(&command)))
+            ))
+            .status()
+            .context("replace installed app with admin")?;
+        if !status.success() {
+            return Err(anyhow!("app replace command exited with {}", status));
+        }
+    } else {
+        let status = Command::new("/bin/bash")
+            .arg("-lc")
+            .arg(command)
+            .status()
+            .context("replace installed app")?;
+        if !status.success() {
+            return Err(anyhow!("app replace command exited with {}", status));
+        }
+    }
+    Ok(())
+}
+
+fn clear_selected_assets_internal(
+    app: &AppHandle,
+    decisions: &HashMap<String, AssetDecision>,
+) -> Result<Vec<String>> {
+    let config = load_release_config(app)?;
+    let mut cleared = Vec::new();
+
+    if decision_for_kind(decisions, DetectedAssetKind::PendingMarker) == AssetDecision::Replace {
+        let path = shared_runtime_pending_path();
+        if path.exists() {
+            fs::remove_file(&path)
+                .with_context(|| format!("remove pending marker {}", path.display()))?;
+            cleared.push("已清理待处理安装标记".to_string());
+        }
+    }
+
+    if decision_for_kind(decisions, DetectedAssetKind::CachedRuntimeArchive)
+        == AssetDecision::Replace
+    {
+        let paths = [
+            cached_runtime_archive_path(app, &config)?,
+            shared_downloads_dir().join(&config.runtime_asset_name),
+        ];
+        for path in paths {
+            if path.exists() {
+                let _ = fs::remove_file(&path);
+            }
+        }
+        cleared.push("已清理本机组件缓存".to_string());
+    }
+
+    if decision_for_kind(decisions, DetectedAssetKind::CachedAppUpdate) == AssetDecision::Replace {
+        let path = cached_app_update_path(app, &config)?;
+        if path.exists() {
+            let _ = fs::remove_file(&path);
+            cleared.push("已清理 app 更新缓存".to_string());
+        }
+    }
+
+    if decision_for_kind(decisions, DetectedAssetKind::UserRuntime) == AssetDecision::Replace {
+        let root = user_runtime_root(app)?;
+        remove_dir_if_exists(&root)?;
+        cleared.push("已清理当前用户本机组件目录".to_string());
+    }
+
+    Ok(cleared)
+}
+
+fn replace_installed_app_if_selected(
+    decisions: &HashMap<String, AssetDecision>,
+) -> Result<Option<String>> {
+    if decision_for_kind(decisions, DetectedAssetKind::InstalledApp) != AssetDecision::Replace {
+        return Ok(None);
+    }
+    let source = match app_bundle_path() {
+        Some(path) => path,
+        None => return Ok(None),
+    };
+    let target = installed_app_target_path();
+    if !target.exists() || source == target {
+        return Ok(None);
+    }
+    replace_app_bundle(&source, &target)?;
+    Ok(Some(format!(
+        "已将当前 app 副本同步到 {}",
+        target.display()
+    )))
+}
+
+fn offline_reinstall_candidates(config: &ReleaseConfig) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        for root in [home.join("Downloads"), home.join("Desktop"), home] {
+            candidates.push(root.join(&config.desktop_offline_pkg_name));
+            candidates.push(root.join(&config.desktop_offline_pkg_zip_name));
+        }
+    }
+    candidates
+}
+
+fn open_offline_reinstall_flow(app: &AppHandle) -> Result<()> {
+    let config = load_release_config(app)?;
+    if let Some(path) = offline_reinstall_candidates(&config)
+        .into_iter()
+        .find(|path| path.exists())
+    {
+        Command::new("open")
+            .arg(&path)
+            .spawn()
+            .with_context(|| format!("open offline reinstall asset {}", path.display()))?;
+        return Ok(());
+    }
+
+    open_release_page(app)?;
+    MessageDialog::new()
+        .set_level(MessageLevel::Info)
+        .set_title("重新安装离线包")
+        .set_description(format!(
+            "没有在 Downloads 或 Desktop 中找到 {}。\n\n我已经为你打开最新 Release 页面，请重新获取离线安装包后再次安装。",
+            config.desktop_offline_pkg_name
+        ))
+        .set_buttons(MessageButtons::Ok)
+        .show();
+    Ok(())
+}
+
+fn collect_diagnostics_payload(app: &AppHandle) -> Result<DiagnosticsPayload> {
+    let paths = resolve_runtime_paths(app)?;
+    ensure_dir(&paths.logs_dir)?;
+    let mut latest_log = None;
+    let mut latest_mtime = UNIX_EPOCH;
+    for entry in fs::read_dir(&paths.logs_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("log") {
+            continue;
+        }
+        let modified = entry
+            .metadata()
+            .and_then(|meta| meta.modified())
+            .unwrap_or(UNIX_EPOCH);
+        if modified >= latest_mtime {
+            latest_mtime = modified;
+            latest_log = Some(path);
+        }
+    }
+    let log_path = latest_log.unwrap_or_else(|| paths.logs_dir.join("update-installer.log"));
+    let lines = fs::read_to_string(&log_path)
+        .unwrap_or_else(|_| "暂无日志，应用会在首次启动和更新时逐步写入这里。".to_string())
+        .lines()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>();
+    let lines = if lines.len() > 200 {
+        lines[lines.len() - 200..].to_vec()
+    } else {
+        lines
+    };
+    Ok(DiagnosticsPayload {
+        log_path: log_path.to_string_lossy().to_string(),
+        app_data_dir: paths.app_data_dir.to_string_lossy().to_string(),
+        runtime_dir: paths.runtime_dir.to_string_lossy().to_string(),
+        lines,
+        assets: build_asset_review_payload(
+            app,
+            AssetReviewMode::Install,
+            current_app_version(),
+            local_runtime_version(app),
+        )?
+        .items,
+        updated_at: unix_ts(),
+    })
+}
+
+#[tauri::command]
+fn load_preferences_payload(app: AppHandle) -> std::result::Result<PreferencesPayload, String> {
+    build_preferences_payload(&app).map_err(|err| format!("{err:#}"))
+}
+
+#[tauri::command]
+fn save_preferences_command(
+    app: AppHandle,
+    preferences: AppPreferences,
+) -> std::result::Result<(), String> {
+    save_preferences(&app, &preferences).map_err(|err| format!("{err:#}"))
+}
+
+#[tauri::command]
+fn read_diagnostics_snapshot(app: AppHandle) -> std::result::Result<DiagnosticsPayload, String> {
+    collect_diagnostics_payload(&app).map_err(|err| format!("{err:#}"))
+}
+
+#[tauri::command]
+fn scan_existing_assets(
+    app: AppHandle,
+    mode: String,
+) -> std::result::Result<AssetReviewPayload, String> {
+    let mode = parse_asset_review_mode(&mode).map_err(|err| format!("{err:#}"))?;
+    let config = load_release_config(&app).map_err(|err| format!("{err:#}"))?;
+    build_asset_review_payload(
+        &app,
+        mode,
+        current_app_version(),
+        Some(config.runtime_version),
+    )
+    .map_err(|err| format!("{err:#}"))
+}
+
+#[tauri::command]
+fn commit_asset_review(
+    app: AppHandle,
+    request: AssetReviewCommitRequest,
+) -> std::result::Result<AssetReviewCommitResult, String> {
+    let Some(state) = app.try_state::<AppState>() else {
+        return Err("missing app state".to_string());
+    };
+    let payload = {
+        let guard = state
+            .review
+            .state
+            .lock()
+            .map_err(|_| "asset review state poisoned".to_string())?;
+        guard.payload.clone()
+    }
+    .ok_or_else(|| "当前没有待确认的安装审查".to_string())?;
+
+    if payload.mode != request.mode {
+        return Err("安装审查模式不匹配".to_string());
+    }
+    if request.cancelled {
+        let mut guard = state
+            .review
+            .state
+            .lock()
+            .map_err(|_| "asset review state poisoned".to_string())?;
+        guard.response = Some(request);
+        state.review.condvar.notify_all();
+        return Ok(AssetReviewCommitResult {
+            allowed: false,
+            blocking_issues: Vec::new(),
+        });
+    }
+
+    let blocking_issues = validate_asset_review_payload(&app, &payload, &request.decisions)
+        .map_err(|err| format!("{err:#}"))?;
+    if !blocking_issues.is_empty() {
+        return Ok(AssetReviewCommitResult {
+            allowed: false,
+            blocking_issues,
+        });
+    }
+    let mut guard = state
+        .review
+        .state
+        .lock()
+        .map_err(|_| "asset review state poisoned".to_string())?;
+    guard.response = Some(request);
+    state.review.condvar.notify_all();
+    Ok(AssetReviewCommitResult {
+        allowed: true,
+        blocking_issues: Vec::new(),
+    })
+}
+
+#[tauri::command]
+fn clear_selected_assets(
+    app: AppHandle,
+    decisions: HashMap<String, AssetDecision>,
+) -> std::result::Result<Vec<String>, String> {
+    clear_selected_assets_internal(&app, &decisions).map_err(|err| format!("{err:#}"))
+}
+
+#[tauri::command]
+fn perform_launcher_action(
+    app: AppHandle,
+    action: LauncherActionKind,
+) -> std::result::Result<(), String> {
+    match action {
+        LauncherActionKind::ReinstallOfflinePackage => {
+            open_offline_reinstall_flow(&app).map_err(|err| format!("{err:#}"))
+        }
+        LauncherActionKind::OpenDiagnostics => {
+            open_diagnostics_window(&app).map_err(|err| format!("{err:#}"))
+        }
+        LauncherActionKind::RevealData => reveal_special_path(app, "data".to_string()),
+        LauncherActionKind::RevealRuntime => reveal_special_path(app, "runtime".to_string()),
+    }
+}
+
+#[tauri::command]
+fn reveal_special_path(app: AppHandle, kind: String) -> std::result::Result<(), String> {
+    let paths = resolve_runtime_paths(&app).map_err(|err| format!("{err:#}"))?;
+    let target = match kind.as_str() {
+        "logs" => paths.logs_dir,
+        "runtime" => paths.runtime_dir,
+        _ => paths.app_data_dir,
+    };
+    ensure_dir(&target).map_err(|err| format!("{err:#}"))?;
+    open_path(&target);
+    Ok(())
+}
+
+#[tauri::command]
+fn open_preferences_window_command(app: AppHandle) -> std::result::Result<(), String> {
+    open_preferences_window(&app).map_err(|err| format!("{err:#}"))
+}
+
+#[tauri::command]
+fn open_diagnostics_window_command(app: AppHandle) -> std::result::Result<(), String> {
+    open_diagnostics_window(&app).map_err(|err| format!("{err:#}"))
+}
+
+#[tauri::command]
+fn trigger_update_check_command(app: AppHandle) -> std::result::Result<(), String> {
+    thread::spawn(move || {
+        if let Err(err) = check_for_updates(app.clone()) {
+            MessageDialog::new()
+                .set_level(MessageLevel::Error)
+                .set_title("检查更新失败")
+                .set_description(format!("{err:#}"))
+                .set_buttons(MessageButtons::Ok)
+                .show();
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn trigger_runtime_repair_command(app: AppHandle) -> std::result::Result<(), String> {
+    trigger_reinstall(app);
+    Ok(())
+}
+
+#[tauri::command]
+fn open_login_items_settings_command() -> std::result::Result<(), String> {
+    Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
+        .spawn()
+        .map(|_| ())
+        .map_err(|err| err.to_string())
 }
 
 fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
@@ -674,6 +1901,15 @@ fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
                             || runtime_version.eq_ignore_ascii_case("same-as-app")
                         {
                             config.runtime_version = app.package_info().version.to_string();
+                        }
+                        if config.desktop_dmg_name.trim().is_empty() {
+                            config.desktop_dmg_name = DEFAULT_DESKTOP_DMG_NAME.to_string();
+                        }
+                        if config.primary_download.trim().is_empty() {
+                            config.primary_download = config.desktop_dmg_name.clone();
+                        }
+                        if config.supported_arch.trim().is_empty() {
+                            config.supported_arch = DEFAULT_SUPPORTED_ARCH.to_string();
                         }
                         return Ok(config);
                     }
@@ -810,6 +2046,9 @@ fn has_update_complete_marker(app: &AppHandle) -> bool {
 
 fn show_post_update_notice_if_needed(app: &AppHandle) {
     if let Some(message) = consume_update_complete_notice(app) {
+        if load_preferences(app).show_status_notifications {
+            show_macos_notification("星阙 已完成更新", "新版已经安装完成，并已重新生效。");
+        }
         MessageDialog::new()
             .set_level(MessageLevel::Info)
             .set_title("更新完成")
@@ -921,7 +2160,7 @@ fn choose_runtime_dir(
         }
         (true, false) => shared_runtime_dir.to_path_buf(),
         (false, true) => user_runtime_dir.to_path_buf(),
-        (false, false) => shared_runtime_dir.to_path_buf(),
+        (false, false) => user_runtime_dir.to_path_buf(),
     }
 }
 
@@ -1004,6 +2243,378 @@ fn current_platform_key() -> &'static str {
 fn local_runtime_version(app: &AppHandle) -> Option<String> {
     let paths = resolve_runtime_paths(app).ok()?;
     read_runtime_manifest(&paths).map(|m| m.version)
+}
+
+fn shared_runtime_matches_expected(expected_version: &str) -> bool {
+    let shared_runtime = shared_runtime_dir();
+    runtime_dir_is_usable(&shared_runtime)
+        && read_runtime_manifest_from_path(&shared_runtime.join("runtime-manifest.json"))
+            .map(|manifest| manifest.version.trim() == expected_version.trim())
+            .unwrap_or(false)
+}
+
+fn shared_runtime_paths(app: &AppHandle) -> Result<RuntimePaths> {
+    let app_data_dir = app.path().app_data_dir().context("missing app_data_dir")?;
+    Ok(runtime_paths_for_dir(app_data_dir, shared_runtime_dir()))
+}
+
+fn offline_install_marker_is_current(marker: &InstallSourceMarker, expected_runtime: &str) -> bool {
+    marker.source == InstallSource::PkgOffline
+        && marker
+            .runtime_version
+            .as_deref()
+            .map(|version| version.trim() == expected_runtime.trim())
+            .unwrap_or(false)
+}
+
+fn parse_asset_review_mode(value: &str) -> Result<AssetReviewMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "install" => Ok(AssetReviewMode::Install),
+        "repair" => Ok(AssetReviewMode::Repair),
+        "update" => Ok(AssetReviewMode::Update),
+        other => Err(anyhow!("unknown asset review mode: {other}")),
+    }
+}
+
+fn current_app_version() -> Option<Version> {
+    Version::parse(env!("CARGO_PKG_VERSION")).ok()
+}
+
+fn app_version_from_bundle(path: &Path) -> Option<Version> {
+    let plist = path.join("Contents/Info.plist");
+    if !plist.exists() {
+        return None;
+    }
+    let output = Command::new("/usr/bin/plutil")
+        .arg("-extract")
+        .arg("CFBundleShortVersionString")
+        .arg("raw")
+        .arg("-o")
+        .arg("-")
+        .arg(&plist)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let value = String::from_utf8(output.stdout).ok()?;
+    Version::parse(value.trim()).ok()
+}
+
+fn user_runtime_dir(app: &AppHandle) -> Result<PathBuf> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .context("missing app_data_dir")?
+        .join("runtime/current"))
+}
+
+fn user_runtime_root(app: &AppHandle) -> Result<PathBuf> {
+    Ok(user_runtime_dir(app)?
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| {
+            app.path()
+                .app_data_dir()
+                .unwrap_or_default()
+                .join("runtime")
+        }))
+}
+
+fn runtime_dir_for_kind(app: &AppHandle, kind: DetectedAssetKind) -> Result<PathBuf> {
+    match kind {
+        DetectedAssetKind::SharedRuntime => Ok(shared_runtime_dir()),
+        DetectedAssetKind::UserRuntime => user_runtime_dir(app),
+        other => Err(anyhow!("asset kind {:?} is not a runtime dir", other)),
+    }
+}
+
+fn runtime_root_for_kind(app: &AppHandle, kind: DetectedAssetKind) -> Result<PathBuf> {
+    let current = runtime_dir_for_kind(app, kind)?;
+    Ok(current
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| current))
+}
+
+fn merge_asset_decisions(
+    payload: &AssetReviewPayload,
+    decisions: &HashMap<String, AssetDecision>,
+) -> HashMap<String, AssetDecision> {
+    let mut merged = payload.default_selections.clone();
+    for (key, value) in decisions {
+        merged.insert(key.clone(), *value);
+    }
+    merged
+}
+
+fn decision_for_kind(
+    decisions: &HashMap<String, AssetDecision>,
+    kind: DetectedAssetKind,
+) -> AssetDecision {
+    decisions
+        .get(kind.key())
+        .copied()
+        .unwrap_or(AssetDecision::Keep)
+}
+
+fn join_asset_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn runtime_inventory_item(
+    kind: DetectedAssetKind,
+    path: &Path,
+    target_runtime_version: Option<&str>,
+) -> Option<AssetInventoryItem> {
+    let exists = path.exists() || path.parent().map(|parent| parent.exists()).unwrap_or(false);
+    if !exists {
+        return None;
+    }
+    let manifest = read_runtime_manifest_from_path(&path.join("runtime-manifest.json"));
+    let usable = runtime_dir_is_usable(path);
+    let state = if usable {
+        if let (Some(target), Some(manifest)) = (target_runtime_version, manifest.as_ref()) {
+            if !target.trim().is_empty() && manifest.version.trim() != target.trim() {
+                DetectedAssetState::Outdated
+            } else {
+                DetectedAssetState::Healthy
+            }
+        } else {
+            DetectedAssetState::Healthy
+        }
+    } else {
+        DetectedAssetState::Broken
+    };
+    let version_copy = manifest
+        .as_ref()
+        .map(|manifest| format!("当前版本 {}", manifest.version))
+        .unwrap_or_else(|| "结构不完整或缺少运行文件".to_string());
+    Some(AssetInventoryItem {
+        kind,
+        label: match kind {
+            DetectedAssetKind::SharedRuntime => "共享本机组件".to_string(),
+            DetectedAssetKind::UserRuntime => "当前用户本机组件".to_string(),
+            _ => "本机组件".to_string(),
+        },
+        path: path.to_string_lossy().to_string(),
+        state,
+        replace_recommended: state != DetectedAssetState::Healthy,
+        requires_admin: matches!(kind, DetectedAssetKind::SharedRuntime),
+        details: version_copy,
+    })
+}
+
+fn build_asset_review_payload(
+    app: &AppHandle,
+    mode: AssetReviewMode,
+    target_app_version: Option<Version>,
+    target_runtime_version: Option<String>,
+) -> Result<AssetReviewPayload> {
+    let config = load_release_config(app)?;
+    let mut items = Vec::new();
+    let mut default_selections = HashMap::new();
+    let current_bundle = app_bundle_path();
+
+    let app_asset_path = match mode {
+        AssetReviewMode::Update => current_bundle.clone(),
+        AssetReviewMode::Install | AssetReviewMode::Repair => {
+            let target = installed_app_target_path();
+            target.exists().then_some(target)
+        }
+    };
+    if let Some(path) = app_asset_path {
+        let bundle_version = app_version_from_bundle(&path);
+        let state = if let (Some(target), Some(existing)) =
+            (target_app_version.as_ref(), bundle_version.as_ref())
+        {
+            if existing < target {
+                DetectedAssetState::Outdated
+            } else {
+                DetectedAssetState::Healthy
+            }
+        } else {
+            DetectedAssetState::Healthy
+        };
+        let current_bundle_copy = current_bundle
+            .as_ref()
+            .filter(|bundle| bundle.as_path() != path)
+            .map(|bundle| format!("当前运行副本位于 {}", bundle.display()))
+            .unwrap_or_else(|| "当前将以这个 app 作为替换目标".to_string());
+        items.push(AssetInventoryItem {
+            kind: DetectedAssetKind::InstalledApp,
+            label: "已安装 app".to_string(),
+            path: path.to_string_lossy().to_string(),
+            state,
+            replace_recommended: state == DetectedAssetState::Outdated
+                || matches!(mode, AssetReviewMode::Install)
+                    && current_bundle
+                        .as_ref()
+                        .map(|bundle| bundle.as_path() != path)
+                        .unwrap_or(false),
+            requires_admin: target_requires_admin_update(&path),
+            details: bundle_version
+                .map(|version| format!("已安装版本 {}。{}", version, current_bundle_copy))
+                .unwrap_or(current_bundle_copy),
+        });
+    }
+
+    if let Some(item) = runtime_inventory_item(
+        DetectedAssetKind::SharedRuntime,
+        &shared_runtime_dir(),
+        target_runtime_version.as_deref(),
+    ) {
+        items.push(item);
+    }
+    if let Some(item) = runtime_inventory_item(
+        DetectedAssetKind::UserRuntime,
+        &user_runtime_dir(app)?,
+        target_runtime_version.as_deref(),
+    ) {
+        items.push(item);
+    }
+
+    let shared_runtime_is_healthy = items.iter().any(|item| {
+        item.kind == DetectedAssetKind::SharedRuntime && item.state == DetectedAssetState::Healthy
+    });
+    if shared_runtime_is_healthy
+        && matches!(mode, AssetReviewMode::Install | AssetReviewMode::Repair)
+    {
+        if let Some(item) = items
+            .iter_mut()
+            .find(|item| item.kind == DetectedAssetKind::UserRuntime)
+        {
+            item.replace_recommended = false;
+        }
+    }
+
+    let pending_marker = shared_runtime_pending_path();
+    if pending_marker.exists() {
+        items.push(AssetInventoryItem {
+            kind: DetectedAssetKind::PendingMarker,
+            label: "待处理安装标记".to_string(),
+            path: pending_marker.to_string_lossy().to_string(),
+            state: DetectedAssetState::Pending,
+            replace_recommended: true,
+            requires_admin: true,
+            details: "这表示上一次安装或修复没有完全收尾，建议清理后再继续。".to_string(),
+        });
+    }
+
+    let runtime_cache_paths = [
+        cached_runtime_archive_path(app, &config)?,
+        shared_downloads_dir().join(&config.runtime_asset_name),
+    ]
+    .into_iter()
+    .filter(|path| path.exists())
+    .collect::<Vec<_>>();
+    if !runtime_cache_paths.is_empty() {
+        items.push(AssetInventoryItem {
+            kind: DetectedAssetKind::CachedRuntimeArchive,
+            label: "已下载的本机组件归档".to_string(),
+            path: join_asset_paths(&runtime_cache_paths),
+            state: DetectedAssetState::CacheOnly,
+            replace_recommended: true,
+            requires_admin: runtime_cache_paths
+                .iter()
+                .any(|path| path.starts_with(shared_assets_root())),
+            details: "这些归档会在本次替换时重新下载或重新整理。".to_string(),
+        });
+    }
+
+    let app_update_cache = cached_app_update_path(app, &config)?;
+    if app_update_cache.exists() {
+        items.push(AssetInventoryItem {
+            kind: DetectedAssetKind::CachedAppUpdate,
+            label: "已下载的 app 更新包".to_string(),
+            path: app_update_cache.to_string_lossy().to_string(),
+            state: DetectedAssetState::CacheOnly,
+            replace_recommended: true,
+            requires_admin: false,
+            details: "这是之前缓存的 app 更新包，替换前可选择清理。".to_string(),
+        });
+    }
+
+    for item in &items {
+        default_selections.insert(
+            item.kind.key().to_string(),
+            if item.replace_recommended {
+                AssetDecision::Replace
+            } else {
+                AssetDecision::Keep
+            },
+        );
+    }
+
+    let mut payload = AssetReviewPayload {
+        mode,
+        items,
+        blocking_issues: Vec::new(),
+        default_selections,
+    };
+    payload.blocking_issues = validate_asset_review_payload(app, &payload, &HashMap::new())?;
+    Ok(payload)
+}
+
+fn validate_asset_review_payload(
+    app: &AppHandle,
+    payload: &AssetReviewPayload,
+    decisions: &HashMap<String, AssetDecision>,
+) -> Result<Vec<String>> {
+    let merged = merge_asset_decisions(payload, decisions);
+    let shared_kept_usable = decision_for_kind(&merged, DetectedAssetKind::SharedRuntime)
+        == AssetDecision::Keep
+        && runtime_dir_is_usable(&shared_runtime_dir());
+    let user_kept_usable = decision_for_kind(&merged, DetectedAssetKind::UserRuntime)
+        == AssetDecision::Keep
+        && runtime_dir_is_usable(&user_runtime_dir(app)?);
+    let shared_replace =
+        decision_for_kind(&merged, DetectedAssetKind::SharedRuntime) == AssetDecision::Replace;
+    let user_replace =
+        decision_for_kind(&merged, DetectedAssetKind::UserRuntime) == AssetDecision::Replace;
+
+    let mut issues = Vec::new();
+    if matches!(
+        payload.mode,
+        AssetReviewMode::Install | AssetReviewMode::Repair
+    ) && !shared_kept_usable
+        && !user_kept_usable
+        && !shared_replace
+        && !user_replace
+    {
+        issues.push("当前没有可复用的本机组件。请至少替换一份本机组件后再继续。".to_string());
+    }
+
+    if payload.mode == AssetReviewMode::Update {
+        let app_replace =
+            decision_for_kind(&merged, DetectedAssetKind::InstalledApp) == AssetDecision::Replace;
+        if !app_replace && !shared_replace && !user_replace {
+            issues.push(
+                "这次更新没有选择任何要替换的资产。请至少选择 app 或本机组件，或直接取消。"
+                    .to_string(),
+            );
+        }
+    }
+
+    Ok(issues)
+}
+
+fn should_present_review(app: &AppHandle, payload: &AssetReviewPayload) -> bool {
+    if payload.items.is_empty() {
+        return false;
+    }
+    let has_replacement_candidate = payload.items.iter().any(|item| {
+        item.state != DetectedAssetState::CacheOnly
+            && (item.replace_recommended || item.state == DetectedAssetState::Broken)
+    });
+    let preferences = load_preferences(app);
+    (preferences.always_review_before_replace && has_replacement_candidate)
+        || has_replacement_candidate
+        || !payload.blocking_issues.is_empty()
 }
 
 fn unix_ts() -> u64 {
@@ -1321,64 +2932,179 @@ fn clear_runtime_pending_marker(runtime_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+fn selected_runtime_roots(
+    app: &AppHandle,
+    decisions: &HashMap<String, AssetDecision>,
+) -> Result<Vec<PathBuf>> {
+    let mut roots = Vec::new();
+    if decision_for_kind(decisions, DetectedAssetKind::SharedRuntime) == AssetDecision::Replace {
+        roots.push(runtime_root_for_kind(
+            app,
+            DetectedAssetKind::SharedRuntime,
+        )?);
+    }
+    if decision_for_kind(decisions, DetectedAssetKind::UserRuntime) == AssetDecision::Replace {
+        roots.push(runtime_root_for_kind(app, DetectedAssetKind::UserRuntime)?);
+    }
+    Ok(roots)
+}
+
+fn kept_runtime_available(
+    app: &AppHandle,
+    decisions: &HashMap<String, AssetDecision>,
+) -> Result<bool> {
+    let shared_ok = decision_for_kind(decisions, DetectedAssetKind::SharedRuntime)
+        == AssetDecision::Keep
+        && runtime_dir_is_usable(&shared_runtime_dir());
+    let user_ok = decision_for_kind(decisions, DetectedAssetKind::UserRuntime)
+        == AssetDecision::Keep
+        && runtime_dir_is_usable(&user_runtime_dir(app)?);
+    Ok(shared_ok || user_ok)
+}
+
 fn ensure_runtime_installed(
     app: &AppHandle,
     window: &WebviewWindow,
     force: bool,
 ) -> Result<RuntimePaths> {
     let config = load_release_config(app)?;
-    let paths = resolve_runtime_paths(app)?;
+    if let Some(marker) = load_install_source_marker() {
+        if offline_install_marker_is_current(&marker, &config.runtime_version) {
+            if shared_runtime_matches_expected(&config.runtime_version) {
+                if force {
+                    return Err(anyhow!(
+                        "检测到当前来自离线安装包，且共享本机组件已经完整可用。如需重装，请重新运行离线安装包；当前不会转为联网下载。"
+                    ));
+                }
+                emit_launcher_state(window, &build_offline_ready_state(&config));
+                let shared_paths = shared_runtime_paths(app)?;
+                clear_runtime_pending_marker(&shared_paths.runtime_dir)?;
+                emit_mode(window, "launch");
+                emit_progress(window, 36, "离线安装已准备完成，可直接打开使用");
+                emit_status(
+                    window,
+                    &format!(
+                        "离线安装包已准备好本机组件 {}，本次不会联网下载。",
+                        config.runtime_version
+                    ),
+                );
+                return Ok(shared_paths);
+            }
+            return Err(anyhow!(
+                "检测到当前来自离线安装包，但共享本机组件缺失、损坏或版本不完整。请重新安装离线包；当前不会转为联网下载。"
+            ));
+        }
+    }
+
+    let mut paths = resolve_runtime_paths(app)?;
     ensure_dir(&paths.app_data_dir)?;
     ensure_dir(&paths.logs_dir)?;
 
     let current = read_runtime_manifest(&paths);
-    let already_ok = current
+    let review_mode = if force {
+        AssetReviewMode::Repair
+    } else if current.is_some() || runtime_dir_has_required_files(&paths.runtime_dir) {
+        AssetReviewMode::Repair
+    } else {
+        AssetReviewMode::Install
+    };
+    let review_payload = build_asset_review_payload(
+        app,
+        review_mode,
+        current_app_version(),
+        Some(config.runtime_version.clone()),
+    )?;
+    let mut decisions = review_payload.default_selections.clone();
+    if should_present_review(app, &review_payload) {
+        if current_install_source(&config) == Some(InstallSource::PkgOffline) {
+            emit_launcher_state(window, &build_offline_review_state(review_mode));
+        }
+        emit_mode(
+            window,
+            match review_mode {
+                AssetReviewMode::Install => "install",
+                AssetReviewMode::Repair => "repair",
+                AssetReviewMode::Update => "update",
+            },
+        );
+        emit_status(
+            window,
+            &format!(
+                "已检测到已安装内容，等待你确认本次{}。",
+                review_mode.title()
+            ),
+        );
+        emit_progress(window, 12, review_mode.progress_copy());
+        decisions = wait_for_asset_review(app, window, &review_payload)?
+            .ok_or_else(|| anyhow!("已取消本次{}", review_mode.title()))?;
+        for line in clear_selected_assets_internal(app, &decisions)? {
+            emit_status(window, &line);
+        }
+        if let Some(line) = replace_installed_app_if_selected(&decisions)? {
+            emit_status(window, &line);
+        }
+    }
+
+    paths = resolve_runtime_paths(app)?;
+    let refreshed_current = read_runtime_manifest(&paths);
+    let refreshed_ok = refreshed_current
         .as_ref()
         .map(|m| m.version == config.runtime_version)
         .unwrap_or(false)
         && runtime_dir_is_usable(&paths.runtime_dir);
-
-    if already_ok && !force {
+    let selected_roots = selected_runtime_roots(app, &decisions)?;
+    if refreshed_ok && !force && selected_roots.is_empty() {
         clear_runtime_pending_marker(&paths.runtime_dir)?;
         emit_mode(window, "launch");
         emit_progress(
             window,
             36,
-            &format!("检测到运行环境 {} 已存在", config.runtime_version),
+            &format!("检测到本机组件 {} 已可直接使用", config.runtime_version),
         );
-        if let Some(m) = current {
+        if let Some(m) = refreshed_current {
             emit_status(
                 window,
-                &format!("当前运行环境版本: {} ({})", m.version, m.built_at),
+                &format!("当前本机组件版本: {} ({})", m.version, m.built_at),
             );
         }
         return Ok(paths);
     }
 
-    if force {
-        emit_mode(window, "repair");
-    } else if current.is_some() || runtime_dir_has_required_files(&paths.runtime_dir) {
-        emit_mode(window, "repair");
-    } else {
-        emit_mode(window, "install");
+    if selected_roots.is_empty() && kept_runtime_available(app, &decisions)? {
+        emit_progress(window, 36, "保留当前已安装内容并继续启动");
+        emit_status(window, "你选择保留可复用的本机组件，本次不会重新下载。");
+        return resolve_runtime_paths(app);
     }
-    emit_status(window, "开始下载 星阙 运行环境…");
-    emit_progress(window, 6, "准备安装运行环境");
-    let archive_path = tmp_download_path(&config.app_name, "runtime.tar.gz");
+
+    let install_roots = if selected_roots.is_empty() {
+        vec![user_runtime_root(app)?]
+    } else {
+        selected_roots
+    };
+    if matches!(review_mode, AssetReviewMode::Repair) {
+        emit_launcher_state(window, &build_repair_in_progress_state());
+    }
+    emit_mode(
+        window,
+        match review_mode {
+            AssetReviewMode::Install => "install",
+            AssetReviewMode::Repair => "repair",
+            AssetReviewMode::Update => "update",
+        },
+    );
+    emit_status(window, "开始准备 星阙 本机组件…");
+    emit_progress(window, 18, "准备本机组件");
+    let archive_path = cached_runtime_archive_path(app, &config)?;
     let runtime_url = expected_runtime_url(&config);
-    download_with_progress(window, &runtime_url, &archive_path, 8, 56, "下载运行环境")?;
-    emit_status(window, "下载完成，正在解压运行环境…");
-    emit_progress(window, 62, "解压运行环境");
-    let runtime_root = paths
-        .runtime_dir
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| paths.app_data_dir.join("runtime"));
-    ensure_dir(&runtime_root)?;
-    extract_runtime_archive(&archive_path, &runtime_root)?;
-    let _ = fs::remove_file(&archive_path);
-    clear_runtime_pending_marker(&runtime_root.join("current"))?;
-    emit_progress(window, 74, "运行环境安装完成");
+    download_with_progress(window, &runtime_url, &archive_path, 8, 56, "准备本机组件")?;
+    emit_status(window, "组件归档已就绪，正在部署本机组件…");
+    emit_progress(window, 62, "部署本机组件");
+    for runtime_root in &install_roots {
+        ensure_dir(runtime_root)?;
+        extract_runtime_archive(&archive_path, runtime_root)?;
+        clear_runtime_pending_marker(&runtime_root.join("current"))?;
+    }
+    emit_progress(window, 74, "本机组件已准备完成");
     Ok(resolve_runtime_paths(app)?)
 }
 
@@ -1527,7 +3253,7 @@ fn clamp_zoom_level(value: f64) -> f64 {
 fn set_window_zoom(app: &AppHandle, zoom: f64) -> Result<()> {
     let clamped = clamp_zoom_level(zoom);
     let window = app
-        .get_webview_window("main")
+        .get_webview_window(MAIN_WINDOW_LABEL)
         .context("main window missing for zoom")?;
     window.set_zoom(clamped)?;
     if let Some(state) = app.try_state::<AppState>() {
@@ -1628,17 +3354,34 @@ fn app_bundle_path() -> Option<PathBuf> {
     None
 }
 
-fn build_runtime_update_command(
-    shared_runtime_root: &Path,
+fn build_single_runtime_update_command(
+    runtime_root: &Path,
     archive_path: &Path,
     runtime_version: Option<&str>,
+    index: usize,
 ) -> String {
     format!(
-        "install_runtime() {{\nRUNTIME_ROOT={runtime_root}\nWORK_ROOT=\"${{RUNTIME_ROOT}}/_update\"\nPREVIOUS_ROOT=\"${{RUNTIME_ROOT}}/previous\"\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"${{RUNTIME_ROOT}}\"\nrm -rf \"${{WORK_ROOT}}\"\nmkdir -p \"${{WORK_ROOT}}\"\n/usr/bin/tar -xzf {archive} -C \"${{WORK_ROOT}}\"\nif [ ! -f \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" ]; then\n  echo \"runtime manifest missing after extract\" >&2\n  exit 1\nfi\nACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\"\nif [ -n \"${{EXPECTED_RUNTIME_VERSION}}\" ] && [ \"${{ACTUAL_RUNTIME_VERSION}}\" != \"${{EXPECTED_RUNTIME_VERSION}}\" ]; then\n  echo \"runtime version mismatch: ${{ACTUAL_RUNTIME_VERSION}} != ${{EXPECTED_RUNTIME_VERSION}}\" >&2\n  exit 1\nfi\nrm -rf \"${{PREVIOUS_ROOT}}\"\nHAD_RUNTIME=0\nif [ -d \"${{RUNTIME_ROOT}}/current\" ]; then\n  mv \"${{RUNTIME_ROOT}}/current\" \"${{PREVIOUS_ROOT}}\"\n  HAD_RUNTIME=1\nfi\nif mv \"${{WORK_ROOT}}/runtime-payload\" \"${{RUNTIME_ROOT}}/current\"; then\n  rm -rf \"${{WORK_ROOT}}\" \"${{PREVIOUS_ROOT}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{RUNTIME_ROOT}}/current\"\n  if [ \"${{HAD_RUNTIME}}\" = \"1\" ] && [ -d \"${{PREVIOUS_ROOT}}\" ]; then\n    mv \"${{PREVIOUS_ROOT}}\" \"${{RUNTIME_ROOT}}/current\"\n  fi\n  exit 1\nfi\n}}\ninstall_runtime\n",
-        runtime_root = shell_quote(shared_runtime_root),
+        "install_runtime_{index}() {{\nRUNTIME_ROOT={runtime_root}\nWORK_ROOT=\"${{RUNTIME_ROOT}}/_update\"\nPREVIOUS_ROOT=\"${{RUNTIME_ROOT}}/previous\"\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"${{RUNTIME_ROOT}}\"\nrm -rf \"${{WORK_ROOT}}\"\nmkdir -p \"${{WORK_ROOT}}\"\n/usr/bin/tar -xzf {archive} -C \"${{WORK_ROOT}}\"\nif [ ! -f \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" ]; then\n  echo \"runtime manifest missing after extract\" >&2\n  exit 1\nfi\nACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\"\nif [ -n \"${{EXPECTED_RUNTIME_VERSION}}\" ] && [ \"${{ACTUAL_RUNTIME_VERSION}}\" != \"${{EXPECTED_RUNTIME_VERSION}}\" ]; then\n  echo \"runtime version mismatch: ${{ACTUAL_RUNTIME_VERSION}} != ${{EXPECTED_RUNTIME_VERSION}}\" >&2\n  exit 1\nfi\nrm -rf \"${{PREVIOUS_ROOT}}\"\nHAD_RUNTIME=0\nif [ -d \"${{RUNTIME_ROOT}}/current\" ]; then\n  mv \"${{RUNTIME_ROOT}}/current\" \"${{PREVIOUS_ROOT}}\"\n  HAD_RUNTIME=1\nfi\nif mv \"${{WORK_ROOT}}/runtime-payload\" \"${{RUNTIME_ROOT}}/current\"; then\n  rm -rf \"${{WORK_ROOT}}\" \"${{PREVIOUS_ROOT}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{RUNTIME_ROOT}}/current\"\n  if [ \"${{HAD_RUNTIME}}\" = \"1\" ] && [ -d \"${{PREVIOUS_ROOT}}\" ]; then\n    mv \"${{PREVIOUS_ROOT}}\" \"${{RUNTIME_ROOT}}/current\"\n  fi\n  exit 1\nfi\n}}\ninstall_runtime_{index}\n",
+        index = index,
+        runtime_root = shell_quote(runtime_root),
         archive = shell_quote(archive_path),
         runtime_version = shell_quote_text(runtime_version.unwrap_or(""))
     )
+}
+
+fn build_runtime_update_command(
+    runtime_roots: &[PathBuf],
+    archive_path: &Path,
+    runtime_version: Option<&str>,
+) -> String {
+    runtime_roots
+        .iter()
+        .enumerate()
+        .map(|(index, root)| {
+            build_single_runtime_update_command(root, archive_path, runtime_version, index)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn build_update_helper_script(
@@ -1674,6 +3417,7 @@ fn install_downloaded_app(
     app: AppHandle,
     zip_path: &Path,
     runtime_archive: Option<&Path>,
+    runtime_roots: &[PathBuf],
     runtime_version: Option<&str>,
     target_version: &str,
 ) -> Result<()> {
@@ -1708,12 +3452,8 @@ fn install_downloaded_app(
         })
         .unwrap_or_else(|| "horosa-desktop-installer".to_string());
     let requires_admin = target_requires_admin_update(&target_app);
-    let shared_runtime_root = shared_runtime_dir()
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from("/Users/Shared/Horosa/runtime"));
     let runtime_cmd = if let Some(archive_path) = runtime_archive {
-        build_runtime_update_command(&shared_runtime_root, archive_path, runtime_version)
+        build_runtime_update_command(runtime_roots, archive_path, runtime_version)
     } else {
         String::new()
     };
@@ -1944,25 +3684,6 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         return Ok(());
     }
 
-    let runtime_msg = if runtime_needs_update {
-        match (&local_runtime, &plan.runtime_version) {
-            (Some(local), Some(remote)) => format!(
-                "
-运行环境也会从 {} 更新到 {}。",
-                local, remote
-            ),
-            (None, Some(remote)) => format!(
-                "
-运行环境会安装到版本 {}。",
-                remote
-            ),
-            _ => "
-运行环境也会一起更新。"
-                .to_string(),
-        }
-    } else {
-        "".to_string()
-    };
     if plan.source == UpdateSource::Manifest
         && plan.latest_version > current
         && plan.app_sha256.is_none()
@@ -1975,56 +3696,103 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
     {
         return Err(anyhow!("更新清单缺少运行环境 sha256，已停止自动更新"));
     }
-    let confirmed = MessageDialog::new()
-        .set_level(MessageLevel::Info)
-        .set_title("更新检查结果")
-        .set_description(format!(
-            "{}{}{}
 
-是否立即更新
-是：下载并在退出后自动替换、更新运行环境并重开
-否：先关闭本窗口，稍后再更新",
-            summary, runtime_msg, admin_update_notice
-        ))
-        .set_buttons(MessageButtons::YesNo)
-        .show();
-    if confirmed != MessageDialogResult::Yes {
+    let review_payload = build_asset_review_payload(
+        &app,
+        AssetReviewMode::Update,
+        Some(plan.latest_version.clone()),
+        plan.runtime_version.clone(),
+    )?;
+    let mut decisions = review_payload.default_selections.clone();
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        emit_launcher_state(&window, &build_update_in_progress_state());
+        emit_mode(&window, "update");
+        emit_progress(&window, 8, "检查将替换的内容");
+        emit_status(
+            &window,
+            &format!(
+                "已获取更新信息，接下来会先审查本次要替换的资产。{}",
+                admin_update_notice
+            ),
+        );
+        if should_present_review(&app, &review_payload) {
+            decisions = wait_for_asset_review(&app, &window, &review_payload)?
+                .ok_or_else(|| anyhow!("已取消本次更新"))?;
+            for line in clear_selected_assets_internal(&app, &decisions)? {
+                emit_status(&window, &line);
+            }
+        }
+    } else {
+        let confirmed = MessageDialog::new()
+            .set_level(MessageLevel::Info)
+            .set_title("更新检查结果")
+            .set_description(format!(
+                "{summary}{admin_update_notice}\n\n当前没有主窗口可显示安装审查，将按推荐选项执行更新。是否继续？"
+            ))
+            .set_buttons(MessageButtons::YesNo)
+            .show();
+        if confirmed != MessageDialogResult::Yes {
+            return Ok(());
+        }
+    }
+
+    let app_should_update = plan.latest_version > current
+        && decision_for_kind(&decisions, DetectedAssetKind::InstalledApp) == AssetDecision::Replace;
+    let runtime_roots = if runtime_needs_update {
+        selected_runtime_roots(&app, &decisions)?
+    } else {
+        Vec::new()
+    };
+    let runtime_should_update = runtime_needs_update && !runtime_roots.is_empty();
+    if !app_should_update && !runtime_should_update {
+        MessageDialog::new()
+            .set_level(MessageLevel::Info)
+            .set_title("未执行更新")
+            .set_description("你保留了当前已安装内容，本次没有需要替换的资产。")
+            .set_buttons(MessageButtons::Ok)
+            .show();
         return Ok(());
     }
 
-    let zip_path = tmp_download_path(APP_NAME, "desktop-update.zip");
-    if let Some(window) = app.get_webview_window("main") {
-        emit_mode(&window, "update");
-        emit_progress(&window, 4, "准备下载更新资产");
-        emit_status(&window, "正在下载桌面更新包…");
-        download_with_progress(&window, &plan.app_url, &zip_path, 10, 52, "下载桌面更新包")?;
-        emit_status(&window, "桌面更新包下载完成，正在校验…");
-    } else {
-        let client = build_github_client(900)?;
-        let mut response = client.get(&plan.app_url).send()?.error_for_status()?;
-        let mut file = File::create(&zip_path)?;
-        std::io::copy(&mut response, &mut file)?;
+    let zip_path = cached_app_update_path(&app, &load_release_config(&app)?)?;
+    if app_should_update {
+        if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+            emit_status(&window, "正在下载桌面更新包…");
+            download_with_progress(&window, &plan.app_url, &zip_path, 12, 52, "下载桌面更新包")?;
+            emit_status(&window, "桌面更新包下载完成，正在校验…");
+        } else {
+            let client = build_github_client(900)?;
+            let mut response = client.get(&plan.app_url).send()?.error_for_status()?;
+            if let Some(parent) = zip_path.parent() {
+                ensure_dir(parent)?;
+            }
+            let mut file = File::create(&zip_path)?;
+            std::io::copy(&mut response, &mut file)?;
+        }
+        verify_sha256(&zip_path, plan.app_sha256.as_deref(), "桌面更新包")?;
     }
-    verify_sha256(&zip_path, plan.app_sha256.as_deref(), "桌面更新包")?;
 
     let mut runtime_archive_path = None;
-    if runtime_needs_update {
+    if runtime_should_update {
         if let Some(runtime_url) = plan.runtime_url.as_ref() {
-            let runtime_path = tmp_download_path(APP_NAME, "runtime-update.tar.gz");
-            if let Some(window) = app.get_webview_window("main") {
-                emit_status(&window, "正在下载运行环境更新…");
+            let runtime_path = cached_runtime_archive_path(&app, &load_release_config(&app)?)?;
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+                emit_status(&window, "正在下载本机组件更新…");
                 download_with_progress(
                     &window,
                     runtime_url,
                     &runtime_path,
-                    56,
+                    if app_should_update { 56 } else { 18 },
                     88,
-                    "下载运行环境更新",
+                    "下载本机组件更新",
                 )?;
-                emit_status(&window, "运行环境更新下载完成，正在校验…");
+                emit_status(&window, "本机组件更新下载完成，正在校验…");
             } else {
                 let client = build_github_client(900)?;
                 let mut response = client.get(runtime_url).send()?.error_for_status()?;
+                if let Some(parent) = runtime_path.parent() {
+                    ensure_dir(parent)?;
+                }
                 let mut file = File::create(&runtime_path)?;
                 std::io::copy(&mut response, &mut file)?;
             }
@@ -2033,29 +3801,67 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
                 plan.runtime_sha256.as_deref(),
                 "运行环境更新包",
             )?;
-            if let Some(window) = app.get_webview_window("main") {
-                emit_progress(&window, 90, "运行环境更新已校验");
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+                emit_progress(&window, 90, "本机组件更新已校验");
             }
             runtime_archive_path = Some(runtime_path);
         }
     }
 
-    if let Some(window) = app.get_webview_window("main") {
-        emit_status(&window, "更新下载完成，准备替换应用并重开…");
-        emit_progress(&window, 94, "替换应用并重开");
+    if app_should_update {
+        if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+            emit_status(&window, "更新下载完成，准备替换应用并重开…");
+            emit_progress(&window, 94, "替换应用并重开");
+        }
+        install_downloaded_app(
+            app,
+            &zip_path,
+            runtime_archive_path.as_deref(),
+            &runtime_roots,
+            plan.runtime_version.as_deref(),
+            &plan.latest_version.to_string(),
+        )?;
+        return Ok(());
     }
-    install_downloaded_app(
-        app,
-        &zip_path,
-        runtime_archive_path.as_deref(),
-        plan.runtime_version.as_deref(),
-        &plan.latest_version.to_string(),
-    )?;
+
+    if runtime_should_update {
+        let window = app
+            .get_webview_window(MAIN_WINDOW_LABEL)
+            .context("main window missing for runtime-only update")?;
+        emit_status(&window, "将只更新本机组件，并在当前 app 内完成重启。");
+        emit_progress(&window, 92, "准备切换本机组件");
+        cleanup_state(&app);
+        let runtime_archive = runtime_archive_path
+            .as_deref()
+            .context("runtime archive missing for runtime-only update")?;
+        for root in &runtime_roots {
+            ensure_dir(root)?;
+            extract_runtime_archive(runtime_archive, root)?;
+            clear_runtime_pending_marker(&root.join("current"))?;
+        }
+        let app_handle = app.clone();
+        let win = window.clone();
+        thread::spawn(
+            move || match runtime_bootstrap(app_handle.clone(), win.clone(), false) {
+                Ok(session) => {
+                    if let Some(state) = app_handle.try_state::<AppState>() {
+                        if let Ok(mut slot) = state.session.lock() {
+                            *slot = Some(session.clone());
+                        }
+                    }
+                    emit_ready(&win, &frontend_url(session.web_port, session.backend_port));
+                }
+                Err(err) => {
+                    emit_launcher_error(&win, &build_launcher_error_payload(&app_handle, &err))
+                }
+            },
+        );
+    }
     Ok(())
 }
 
 fn trigger_reinstall(app: AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let win = window.clone();
         let app_handle = app.clone();
         thread::spawn(
@@ -2068,7 +3874,9 @@ fn trigger_reinstall(app: AppHandle) {
                     }
                     emit_ready(&win, &frontend_url(session.web_port, session.backend_port));
                 }
-                Err(err) => emit_error(&win, &format!("重新安装失败: {err:#}")),
+                Err(err) => {
+                    emit_launcher_error(&win, &build_launcher_error_payload(&app_handle, &err))
+                }
             },
         );
     }
@@ -2167,12 +3975,28 @@ fn main() {
     tauri::Builder::default()
         .manage(AppState::default())
         .menu(build_menu)
+        .invoke_handler(tauri::generate_handler![
+            load_preferences_payload,
+            save_preferences_command,
+            read_diagnostics_snapshot,
+            scan_existing_assets,
+            commit_asset_review,
+            clear_selected_assets,
+            perform_launcher_action,
+            reveal_special_path,
+            open_preferences_window_command,
+            open_diagnostics_window_command,
+            trigger_update_check_command,
+            trigger_runtime_repair_command,
+            open_login_items_settings_command
+        ])
         .setup(|app| {
             let app_handle = app.handle().clone();
             let window = app
-                .get_webview_window("main")
+                .get_webview_window(MAIN_WINDOW_LABEL)
                 .context("main window missing")?
                 .clone();
+            apply_saved_window_state(&window, &load_window_states(&app_handle).main);
             set_window_zoom(&app_handle, DEFAULT_ZOOM)?;
             thread::spawn(move || {
                 match runtime_bootstrap(app_handle.clone(), window.clone(), false) {
@@ -2188,14 +4012,23 @@ fn main() {
                         );
                         show_post_update_notice_if_needed(&app_handle);
                     }
-                    Err(err) => emit_error(&window, &format!("星阙 初始化失败:\n{err:#}")),
+                    Err(err) => emit_launcher_error(
+                        &window,
+                        &build_launcher_error_payload(&app_handle, &err),
+                    ),
                 }
             });
             Ok(())
         })
         .on_menu_event(|app, event| {
             let id = event.id();
-            if id == MENU_CHECK_UPDATES {
+            if id == MENU_OPEN_PREFERENCES {
+                let _ = open_preferences_window(app);
+            } else if id == MENU_SHOW_MAIN_WINDOW {
+                let _ = open_main_window(app);
+            } else if id == MENU_SHOW_DIAGNOSTICS {
+                let _ = open_diagnostics_window(app);
+            } else if id == MENU_CHECK_UPDATES {
                 let app_handle = app.clone();
                 thread::spawn(move || {
                     if let Err(err) = check_for_updates(app_handle.clone()) {
@@ -2219,6 +4052,17 @@ fn main() {
                     let _ = ensure_dir(&paths.app_data_dir);
                     open_path(&paths.app_data_dir);
                 }
+            } else if id == MENU_OPEN_RUNTIME {
+                if let Ok(paths) = resolve_runtime_paths(app) {
+                    let _ = ensure_dir(&paths.runtime_dir);
+                    open_path(&paths.runtime_dir);
+                }
+            } else if id == MENU_RELOAD_MAIN {
+                if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+                    let _ = window.eval("window.location.reload()");
+                }
+            } else if id == MENU_OPEN_RELEASES {
+                let _ = open_release_page(app);
             } else if id == MENU_ZOOM_IN {
                 let _ = adjust_window_zoom(app, ZOOM_STEP);
             } else if id == MENU_ZOOM_OUT {
@@ -2229,10 +4073,18 @@ fn main() {
         })
         .build(tauri::generate_context!())
         .expect("error while running 星阙 desktop shell")
-        .run(|app, event| {
-            if let RunEvent::ExitRequested { .. } = event {
+        .run(|app, event| match event {
+            RunEvent::WindowEvent { label, event, .. } => {
+                if matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_)) {
+                    if let Some(window) = app.get_webview_window(&label) {
+                        let _ = persist_window_state_for_label(app, &label, &window);
+                    }
+                }
+            }
+            RunEvent::ExitRequested { .. } => {
                 cleanup_state(app);
             }
+            _ => {}
         });
 }
 
@@ -2280,7 +4132,11 @@ mod tests {
     fn runtime_update_command_uses_shell_resolved_manifest_path() {
         let runtime_root = Path::new("/tmp/horosa-runtime-root");
         let archive = Path::new("/tmp/horosa-runtime.tar.gz");
-        let command = build_runtime_update_command(runtime_root, archive, Some("1.0.19-runtime1"));
+        let command = build_runtime_update_command(
+            &[runtime_root.to_path_buf()],
+            archive,
+            Some("1.0.19-runtime1"),
+        );
         assert!(command.contains(
             "ACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${WORK_ROOT}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\""
         ));
@@ -2293,8 +4149,11 @@ mod tests {
         let root = temp_test_dir("runtime-update-helper");
         let runtime_root = root.join("shared/runtime");
         let archive = create_runtime_archive(&root, "1.0.19-runtime1");
-        let command =
-            build_runtime_update_command(&runtime_root, &archive, Some("1.0.19-runtime1"));
+        let command = build_runtime_update_command(
+            std::slice::from_ref(&runtime_root),
+            &archive,
+            Some("1.0.19-runtime1"),
+        );
         let script_path = root.join("run.sh");
         fs::write(
             &script_path,
@@ -2319,7 +4178,7 @@ mod tests {
         let shared = PathBuf::from("/Users/Shared/Horosa/runtime/current");
         let user = PathBuf::from("/tmp/horosa-user/runtime/current");
 
-        assert_eq!(choose_runtime_dir(&shared, false, &user, false), shared);
+        assert_eq!(choose_runtime_dir(&shared, false, &user, false), user);
         assert_eq!(choose_runtime_dir(&shared, true, &user, false), shared);
         assert_eq!(choose_runtime_dir(&shared, false, &user, true), user);
         assert_eq!(choose_runtime_dir(&shared, true, &user, true), shared);
