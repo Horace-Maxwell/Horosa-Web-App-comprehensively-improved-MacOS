@@ -4,7 +4,7 @@ set -euo pipefail
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 BUILD_ROOT="${INSTALLER_ROOT}/build"
-read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
+read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_DMG DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -13,6 +13,7 @@ print(
     config['appName'],
     config['runtimeAssetName'],
     config['desktopAssetName'],
+    config['desktopDmgName'],
     config['desktopPkgName'],
     config['desktopPkgZipName'],
     config['desktopOfflinePkgName'],
@@ -24,6 +25,7 @@ PYCONF
 EOF
 RUNTIME_ARCHIVE="${DIST_ROOT}/${RUNTIME_ASSET}"
 DESKTOP_ZIP="${DIST_ROOT}/${DESKTOP_ASSET}"
+DESKTOP_DMG_PATH="${DIST_ROOT}/${DESKTOP_DMG}"
 INSTALLER_PKG="${DIST_ROOT}/${DESKTOP_PKG}"
 INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_PKG_ZIP}"
 OFFLINE_INSTALLER_PKG="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
@@ -127,6 +129,7 @@ fi
 printf '[6/9] verify app/pkg artifacts\n'
 [ -f "${RUNTIME_ARCHIVE}" ]
 [ -f "${DESKTOP_ZIP}" ]
+[ -f "${DESKTOP_DMG_PATH}" ]
 [ -f "${INSTALLER_PKG}" ]
 [ -f "${INSTALLER_PKG_ZIP}" ]
 [ -f "${OFFLINE_INSTALLER_PKG}" ]
@@ -164,10 +167,16 @@ unzip -q "${OFFLINE_INSTALLER_PKG_ZIP}" -d "${OFFLINE_DELIVERY_UNZIP_ROOT}"
 [ -f "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_GUIDE_NAME}" ]
 bash -n "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
 bash -n "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
+rg 'PKG_NAME="'"$(basename "${INSTALLER_PKG}")"'"' "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
+rg 'PKG_NAME="'"$(basename "${OFFLINE_INSTALLER_PKG}")"'"' "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
+rg 'PKG_MODE="online"' "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
+rg 'PKG_MODE="offline"' "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
 TMP_FAKE_APP="${TMP_ROOT}/fake-app/${APP_NAME}.app"
 mkdir -p "${TMP_FAKE_APP}"
 HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 /bin/bash "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" >/dev/null
 HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 HOROSA_APP_PATH_OVERRIDE="${TMP_FAKE_APP}" /bin/bash "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" >/dev/null
+OFFLINE_HELPER_OUTPUT="$(HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 HOROSA_APP_PATH_OVERRIDE="${TMP_FAKE_APP}" /bin/bash "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" 2>&1)"
+printf '%s\n' "${OFFLINE_HELPER_OUTPUT}" | rg "$(basename "${OFFLINE_INSTALLER_PKG}")"
 INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" UPDATE_MANIFEST_ENV="${UPDATE_MANIFEST}" COMPONENT_PLIST_ENV="${COMPONENT_PLIST}" python3 - <<'PYVERIFY'
 import json, os, pathlib, platform, plistlib, re
 
@@ -213,10 +222,14 @@ for key in ('appSha256', 'pkgSha256', 'runtimeSha256'):
 
 if not platform_manifest['appUrl'].endswith('/' + config['desktopAssetName']):
     raise SystemExit('appUrl mismatch')
+if not platform_manifest['dmgUrl'].endswith('/' + config['desktopDmgName']):
+    raise SystemExit('dmgUrl mismatch')
 if not platform_manifest['pkgUrl'].endswith('/' + config['desktopPkgName']):
     raise SystemExit('pkgUrl mismatch')
 if f"/releases/download/{expected_tag}/" not in platform_manifest['appUrl']:
     raise SystemExit('appUrl release tag mismatch')
+if f"/releases/download/{expected_tag}/" not in platform_manifest['dmgUrl']:
+    raise SystemExit('dmgUrl release tag mismatch')
 if f"/releases/download/{expected_tag}/" not in platform_manifest['pkgUrl']:
     raise SystemExit('pkgUrl release tag mismatch')
 if not platform_manifest['runtimeUrl'].endswith('/' + config['runtimeAssetName']):
@@ -240,6 +253,13 @@ for entry in entries:
 else:
     raise SystemExit('component plist missing app bundle entry')
 PYVERIFY
+cp -f "${DESKTOP_DMG_PATH}" "${VERIFY_DMG}"
+hdiutil attach -nobrowse -mountpoint "${VERIFY_MOUNT}" "${VERIFY_DMG}" >/dev/null
+DMG_ATTACHED=1
+[ -d "${VERIFY_MOUNT}/${APP_NAME}.app" ]
+[ -L "${VERIFY_MOUNT}/Applications" ] || [ -d "${VERIFY_MOUNT}/Applications" ]
+hdiutil detach "${VERIFY_MOUNT}" -force >/dev/null
+DMG_ATTACHED=0
 pkgutil --expand-full "${INSTALLER_PKG}" "${EXPANDED_PKG}"
 pkgutil --expand-full "${OFFLINE_INSTALLER_PKG}" "${EXPANDED_OFFLINE_PKG}"
 find "${EXPANDED_PKG}" -type f | rg 'postinstall|PackageInfo|Distribution' >/dev/null
@@ -251,6 +271,8 @@ rsync -a "${TARGET_APP}/" "${INSTALL_TARGET}/Applications/${APP_NAME}.app/"
 HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SHARED_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${POSTINSTALL_SCRIPT}" pkgid unused "${INSTALL_TARGET}"
 [ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]
 [ ! -d "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current" ]
+[ -f "${INSTALL_TARGET}/Users/Shared/Horosa/install-source.json" ]
+rg '"source": "pkg_online"' "${INSTALL_TARGET}/Users/Shared/Horosa/install-source.json"
 
 BOOTSTRAP_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa/runtime"
 mkdir -p "${BOOTSTRAP_ROOT}/_bootstrap"
@@ -303,6 +325,12 @@ rsync -a "${TARGET_APP}/" "${OFFLINE_INSTALL_TARGET}/Applications/${APP_NAME}.ap
 HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SHARED_ROOT="${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${OFFLINE_INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${OFFLINE_POSTINSTALL_SCRIPT}" pkgid unused "${OFFLINE_INSTALL_TARGET}"
 [ -f "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
 [ ! -f "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]
+[ -f "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/install-source.json" ]
+rg '"source": "pkg_offline"' "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/install-source.json"
+if rg -q 'https://github.com/.*/horosa-runtime' "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/installer.log"; then
+  echo "offline installer log unexpectedly referenced runtime download url" >&2
+  exit 1
+fi
 
 printf '[9/9] inspect expanded pkg payload path\n'
 PAYLOAD_ROOT="$(find "${EXPANDED_PKG}" -path '*/Payload' -type d | head -n 1)"

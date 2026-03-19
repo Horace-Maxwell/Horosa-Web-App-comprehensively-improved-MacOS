@@ -3,11 +3,22 @@ set -euo pipefail
 
 APP_NAME="__APP_NAME__"
 PKG_NAME="__PKG_NAME__"
+PKG_MODE="__PKG_MODE__"
+RUNTIME_ASSET_NAME="__RUNTIME_ASSET__"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_PATH="${HOROSA_APP_PATH_OVERRIDE:-/Applications/${APP_NAME}.app}"
 PKG_PATH="${HOROSA_PKG_PATH_OVERRIDE:-${SCRIPT_DIR}/${PKG_NAME}}"
 DRY_RUN="${HOROSA_DRY_RUN:-0}"
 SKIP_SECURITY_OPEN="${HOROSA_SKIP_OPEN_SECURITY:-0}"
+SHARED_ROOT="${HOROSA_SHARED_ROOT_OVERRIDE:-/Users/Shared/Horosa}"
+SHARED_RUNTIME_DIR="${HOROSA_SHARED_RUNTIME_DIR_OVERRIDE:-${SHARED_ROOT}/runtime/current}"
+USER_RUNTIME_DIR="${HOROSA_USER_RUNTIME_DIR_OVERRIDE:-${HOME}/Library/Application Support/com.horacedong.horosa/runtime/current}"
+PENDING_PATH="${HOROSA_PENDING_PATH_OVERRIDE:-${SHARED_ROOT}/runtime-install-pending.txt}"
+RUNTIME_CACHE_PATH="${HOROSA_RUNTIME_CACHE_PATH_OVERRIDE:-${SHARED_ROOT}/downloads/${RUNTIME_ASSET_NAME}}"
+REVIEW_PLAN_PATH="${HOROSA_INSTALL_REVIEW_PLAN_PATH_OVERRIDE:-${SHARED_ROOT}/install-review-plan.json}"
+
+ASSET_KEYS=()
+ASSET_LABELS=()
 
 say() {
   printf '%s
@@ -41,15 +52,163 @@ remove_quarantine() {
   fi
 }
 
+record_asset() {
+  ASSET_KEYS+=("$1")
+  ASSET_LABELS+=("$2")
+}
+
+collect_assets() {
+  if [ -d "$APP_PATH" ]; then
+    record_asset "installed_app" "已安装 app"
+  fi
+  if [ -d "$SHARED_RUNTIME_DIR" ]; then
+    record_asset "shared_runtime" "共享本机组件"
+  fi
+  if [ -d "$USER_RUNTIME_DIR" ]; then
+    record_asset "user_runtime" "当前用户本机组件"
+  fi
+  if [ -f "$PENDING_PATH" ]; then
+    record_asset "pending_marker" "待处理安装标记"
+  fi
+  if [ -f "$RUNTIME_CACHE_PATH" ]; then
+    record_asset "cached_runtime_archive" "本机组件缓存"
+  fi
+}
+
+selected_has_key() {
+  local key="$1"
+  local selected="${2//, /,}"
+  local idx
+  for idx in "${!ASSET_KEYS[@]}"; do
+    if [ "${ASSET_KEYS[$idx]}" = "$key" ]; then
+      case ",${selected}," in
+        *",${ASSET_LABELS[$idx]},"*) return 0 ;;
+      esac
+    fi
+  done
+  return 1
+}
+
+write_review_plan() {
+  local selected="$1"
+  if [ "$DRY_RUN" = "1" ]; then
+    say "[DRY_RUN] would write ${REVIEW_PLAN_PATH}"
+    return 0
+  fi
+  mkdir -p "${SHARED_ROOT}"
+  SELECTED_LABELS="${selected}" REVIEW_PLAN_PATH_ENV="${REVIEW_PLAN_PATH}" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+selected = {item.strip() for item in os.environ.get('SELECTED_LABELS', '').split(',') if item.strip()}
+mapping = {
+    '已安装 app': 'installed_app',
+    '共享本机组件': 'shared_runtime',
+    '当前用户本机组件': 'user_runtime',
+    '待处理安装标记': 'pending_marker',
+    '本机组件缓存': 'cached_runtime_archive',
+}
+decisions = {value: ('replace' if key in selected else 'keep') for key, value in mapping.items()}
+payload = {
+    'generatedAt': __import__('time').time(),
+    'targetVersion': '',
+    'allowReplaceSharedRuntime': decisions.get('shared_runtime') == 'replace',
+    'decisions': decisions,
+}
+path = Path(os.environ['REVIEW_PLAN_PATH_ENV'])
+path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+PY
+}
+
+clear_selected_assets() {
+  local selected="$1"
+  if selected_has_key "user_runtime" "$selected"; then
+    if [ "$DRY_RUN" = "1" ]; then
+      say "[DRY_RUN] rm -rf ${USER_RUNTIME_DIR%/current}"
+    else
+      rm -rf "${USER_RUNTIME_DIR%/current}"
+    fi
+  fi
+  if selected_has_key "pending_marker" "$selected"; then
+    if [ "$DRY_RUN" = "1" ]; then
+      say "[DRY_RUN] rm -f ${PENDING_PATH}"
+    else
+      rm -f "${PENDING_PATH}"
+    fi
+  fi
+  if selected_has_key "cached_runtime_archive" "$selected"; then
+    if [ "$DRY_RUN" = "1" ]; then
+      say "[DRY_RUN] rm -f ${RUNTIME_CACHE_PATH}"
+    else
+      rm -f "${RUNTIME_CACHE_PATH}"
+    fi
+  fi
+}
+
+prompt_for_asset_review() {
+  if [ "$DRY_RUN" = "1" ]; then
+    local joined=""
+    local label
+    for label in "${ASSET_LABELS[@]}"; do
+      if [ -n "$joined" ]; then
+        joined="${joined}, "
+      fi
+      joined="${joined}${label}"
+    done
+    printf '%s\n' "$joined"
+    return 0
+  fi
+  local list_literal=""
+  local idx
+  for idx in "${!ASSET_LABELS[@]}"; do
+    if [ -n "$list_literal" ]; then
+      list_literal="${list_literal}, "
+    fi
+    list_literal="${list_literal}\"${ASSET_LABELS[$idx]}\""
+  done
+  /usr/bin/osascript <<OSA
+set assetList to {${list_literal}}
+set chosen to choose from list assetList with title "${APP_NAME} 安装审查" with prompt "检测到这台 Mac 上已有部分资产。请选择这次要替换的资产；未勾选的内容会尽量保留。" with multiple selections allowed and empty selection allowed
+if chosen is false then
+  return "__CANCEL__"
+end if
+return chosen as string
+OSA
+}
+
+enforce_pkg_blocking_rules() {
+  local selected="$1"
+  if [ -d "$APP_PATH" ] && ! selected_has_key "installed_app" "$selected"; then
+    /usr/bin/osascript -e 'display alert "需要先勾选替换已安装 app" message "离线安装包会覆盖 /Applications 中的 app。本次若不替换 app，请直接取消。" as critical buttons {"知道了"} default button "知道了"' >/dev/null 2>&1 || true
+    return 1
+  fi
+  return 0
+}
+
+if [ "${PKG_MODE}" = "online" ]; then
+  collect_assets
+fi
+
 if [ -d "$APP_PATH" ]; then
-  say "Detected installed ${APP_NAME}.app. Removing quarantine and opening it..."
-  say "已检测到已安装的 ${APP_NAME}.app，正在移除隔离属性并尝试打开。"
-  remove_quarantine "$APP_PATH"
-  open_item "$APP_PATH"
-  exit 0
+  say "Detected installed ${APP_NAME}.app."
+  say "已检测到已安装的 ${APP_NAME}.app。"
 fi
 
 if [ -f "$PKG_PATH" ]; then
+  if [ "${PKG_MODE}" = "online" ] && [ "${#ASSET_KEYS[@]}" -gt 0 ]; then
+    selection="$(prompt_for_asset_review)"
+    if [ "$selection" = "__CANCEL__" ]; then
+      say "Installation review cancelled."
+      say "你已取消本次安装审查。"
+      exit 0
+    fi
+    if ! enforce_pkg_blocking_rules "$selection"; then
+      exit 1
+    fi
+    write_review_plan "$selection"
+    clear_selected_assets "$selection"
+  fi
   say "Detected installer package. Removing quarantine and opening the installer..."
   say "已检测到安装包，正在移除隔离属性并打开安装器。"
   remove_quarantine "$PKG_PATH"
@@ -67,6 +226,14 @@ If macOS still blocks it:
 3. 安装完成后再次运行本脚本，它会尝试移除 /Applications/${APP_NAME}.app 的隔离属性。
 EOF
   open_security_settings
+  exit 0
+fi
+
+if [ -d "$APP_PATH" ]; then
+  say "No installer package was found, opening the installed app instead."
+  say "没有找到安装包，改为打开已安装的 app。"
+  remove_quarantine "$APP_PATH"
+  open_item "$APP_PATH"
   exit 0
 fi
 
