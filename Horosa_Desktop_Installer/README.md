@@ -127,13 +127,11 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
 1. 三个版本号始终一致：`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`
 2. Git tag 使用严格递增的 semver，例如 `v1.0.0`
 3. 对外下载安装需要明确分流：
-   - 主入口：`Horosa-Desktop-macos-arm64.dmg`
-   - 离线入口：`Horosa-Installer-macos-arm64-offline-pkg.zip`
+   - 主入口：`Horosa-Installer-macos-arm64-offline-pkg.zip`
+   - 补充入口：`Horosa-Desktop-macos-arm64.dmg`
 4. 发布资产必须至少同时上传：
    - `Horosa-Desktop-macos-arm64.dmg`
    - `Horosa-Desktop-macos-arm64.zip`
-   - `Horosa-Installer-macos-arm64.pkg`
-   - `Horosa-Installer-macos-arm64-pkg.zip`
    - `Horosa-Installer-macos-arm64-offline.pkg`
    - `Horosa-Installer-macos-arm64-offline-pkg.zip`
    - `horosa-latest.json`
@@ -142,7 +140,7 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
 6. Release 需要是正式版 latest，不要把预发布误当最新稳定版
 7. 发布前必须跑 `scripts/verify_desktop_packaging.sh`
 
-普通用户不需要理解其他资产，只需要在 `DMG` 和离线 `.pkg zip` 之间选对入口。其余 release 资产继续保留给安装器与自动更新器使用。
+普通用户不需要理解其他资产，只需要在离线 `.pkg zip` 和 `DMG` 之间选对入口。轻量在线 `.pkg` 已取消；其余 release 资产继续保留给安装器与自动更新器使用。
 
 只要这几条不破，客户端就会优先抓到固定 manifest，再按 manifest 中的准确 URL 和哈希完成更新。
 
@@ -165,7 +163,7 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 
 - 先跑一遍本地验收
 - 创建或更新当前版本对应的 GitHub Release
-- 覆盖上传 DMG、PKG、离线 PKG、更新 zip、manifest 等发布资产
+- 覆盖上传 DMG、离线 PKG、更新 zip、manifest 等发布资产
 - 轮询校验 `releases/latest/download/horosa-latest.json`
 - 确认客户端更新入口可以抓到当前版本
 
@@ -176,7 +174,7 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 - 对外交付 zip 是否能正常解压出 `.pkg`
 - 版本号是否同步
 - manifest 中的平台、URL、SHA-256 是否完整
-- `.pkg` 的 `postinstall` 是否能下载并部署 shared runtime
+- 离线 `.pkg` 是否能把 bundled runtime 正确部署到 shared runtime
 - shared runtime 是否能真实拉起 Horosa 后端服务
 
 ## 当前产物
@@ -185,8 +183,6 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 
 - `Horosa-Desktop-macos-arm64.dmg`
 - `Horosa-Desktop-macos-arm64.zip`
-- `Horosa-Installer-macos-arm64.pkg`
-- `Horosa-Installer-macos-arm64-pkg.zip`
 - `Horosa-Installer-macos-arm64-offline.pkg`
 - `Horosa-Installer-macos-arm64-offline-pkg.zip`
 - `horosa-runtime-macos-arm64.tar.gz`

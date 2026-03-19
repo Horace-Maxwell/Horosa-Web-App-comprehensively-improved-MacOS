@@ -41,8 +41,6 @@ RELEASE_NAME="${TAG_NAME}"
 API_ROOT="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 APP_ASSETS=(
   "${DIST_ROOT}/${DESKTOP_DMG}"
-  "${DIST_ROOT}/${DESKTOP_PKG_ZIP}"
-  "${DIST_ROOT}/${DESKTOP_PKG}"
   "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
   "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
   "${DIST_ROOT}/${DESKTOP_ASSET}"
@@ -120,7 +118,7 @@ PY
   fi
 fi
 
-python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_PKG}" "${DESKTOP_ASSET}" "${DESKTOP_DMG}" "${DESKTOP_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}" "${RUNTIME_TAG_NAME}" "${EXPECTED_RUNTIME_SHA}"
+python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}" "${DESKTOP_ASSET}" "${DESKTOP_DMG}" "${DESKTOP_OFFLINE_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}" "${RUNTIME_TAG_NAME}" "${EXPECTED_RUNTIME_SHA}"
 import hashlib, json, pathlib, sys
 
 manifest_path = pathlib.Path(sys.argv[1])
@@ -203,7 +201,6 @@ fi
 
 RELEASE_BODY="$(
   PRIMARY_DOWNLOAD_ENV="${PRIMARY_DOWNLOAD}" \
-  DESKTOP_PKG_ZIP_ENV="${DESKTOP_PKG_ZIP}" \
   PRIMARY_DMG_ENV="${DESKTOP_DMG}" \
   DESKTOP_OFFLINE_PKG_ZIP_ENV="${DESKTOP_OFFLINE_PKG_ZIP}" \
   SUPPORTED_ARCH_ENV="${SUPPORTED_ARCH}" \
@@ -214,22 +211,10 @@ import os
 print(
     f"""## 安装包选择（中文）
 
-- 在线安装包：`{os.environ['DESKTOP_PKG_ZIP_ENV']}`，适合网络稳定、可以正常访问 GitHub Release 的用户；首次启动会在 app 内联网准备本机组件。
-- 离线安装包：`{os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV']}`，本机组件已内置，适合中国大陆、弱网或需要拷给别人安装的环境。
+- 离线安装包：`{os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV']}`，本机组件已内置，适合所有普通用户，尤其适合中国大陆、弱网或需要拷给别人安装的环境。
 - DMG 补充入口：`{os.environ['PRIMARY_DMG_ENV']}`，适合偏好标准拖拽安装路径的 Mac 用户。
 
 ## 安装步骤（中文）
-
-在线安装包：
-
-1. 下载 `{os.environ['DESKTOP_PKG_ZIP_ENV']}`
-2. 解压 zip
-3. 双击里面的 `.pkg`
-4. 如果系统仍拦截，再运行同目录 `Open-XingQue-Unsigned.command` 作为兜底
-5. 安装完成后，从 `/Applications/星阙.app` 打开
-6. 首次启动时等待 app 内完成本机组件准备
-
-如果你下载的是离线安装包：
 
 1. 下载 `{os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV']}`
 2. 解压 zip
@@ -246,7 +231,7 @@ print(
 
 当前发布目标：Apple Silicon (`{os.environ['SUPPORTED_ARCH_ENV']}`)。
 
-普通用户只需要在“在线安装包 / 离线安装包 / DMG”三者中按场景选择其一，不需要手动处理其余内部资产。
+轻量在线 `.pkg` 已取消，不再继续分发。普通用户只需要在“离线安装包 / DMG”两者中按场景选择其一，不需要手动处理其余内部资产。
 
 ## 技术资产 / Technical Assets
 
