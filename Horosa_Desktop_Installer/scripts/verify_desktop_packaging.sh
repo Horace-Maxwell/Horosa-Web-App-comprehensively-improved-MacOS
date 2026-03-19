@@ -33,7 +33,6 @@ OFFLINE_INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
 UPDATE_MANIFEST="${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 TARGET_ROOT="${INSTALLER_ROOT}/src-tauri/target-user"
 TARGET_APP="${TARGET_ROOT}/release/bundle/macos/${APP_NAME}.app"
-POSTINSTALL_SCRIPT="${BUILD_ROOT}/installer-scripts-rendered/postinstall"
 OFFLINE_POSTINSTALL_SCRIPT="${BUILD_ROOT}/installer-scripts-rendered-offline/postinstall"
 COMPONENT_PLIST="${BUILD_ROOT}/pkg/component.plist"
 UNSIGNED_HELPER_NAME="Open-XingQue-Unsigned.command"
@@ -130,12 +129,9 @@ printf '[6/9] verify app/pkg artifacts\n'
 [ -f "${RUNTIME_ARCHIVE}" ]
 [ -f "${DESKTOP_ZIP}" ]
 [ -f "${DESKTOP_DMG_PATH}" ]
-[ -f "${INSTALLER_PKG}" ]
-[ -f "${INSTALLER_PKG_ZIP}" ]
 [ -f "${OFFLINE_INSTALLER_PKG}" ]
 [ -f "${OFFLINE_INSTALLER_PKG_ZIP}" ]
 [ -f "${UPDATE_MANIFEST}" ]
-[ -x "${POSTINSTALL_SCRIPT}" ]
 [ -x "${OFFLINE_POSTINSTALL_SCRIPT}" ]
 [ -f "${COMPONENT_PLIST}" ]
 [ -d "${TARGET_APP}" ]
@@ -155,26 +151,16 @@ with zipfile.ZipFile(zip_path) as archive:
     if info_plist.get('CFBundleName') != app_name:
         raise SystemExit(f"desktop zip bundle name mismatch: {info_plist.get('CFBundleName')} != {app_name}")
 PYZIP
-mkdir -p "${DELIVERY_UNZIP_ROOT}"
-unzip -q "${INSTALLER_PKG_ZIP}" -d "${DELIVERY_UNZIP_ROOT}"
-[ -f "${DELIVERY_UNZIP_ROOT}/$(basename "${INSTALLER_PKG}")" ]
-[ -f "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" ]
-[ -f "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_GUIDE_NAME}" ]
 mkdir -p "${OFFLINE_DELIVERY_UNZIP_ROOT}"
 unzip -q "${OFFLINE_INSTALLER_PKG_ZIP}" -d "${OFFLINE_DELIVERY_UNZIP_ROOT}"
 [ -f "${OFFLINE_DELIVERY_UNZIP_ROOT}/$(basename "${OFFLINE_INSTALLER_PKG}")" ]
 [ -f "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" ]
 [ -f "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_GUIDE_NAME}" ]
-bash -n "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
 bash -n "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
-rg 'PKG_NAME="'"$(basename "${INSTALLER_PKG}")"'"' "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
 rg 'PKG_NAME="'"$(basename "${OFFLINE_INSTALLER_PKG}")"'"' "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
-rg 'PKG_MODE="online"' "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
 rg 'PKG_MODE="offline"' "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}"
 TMP_FAKE_APP="${TMP_ROOT}/fake-app/${APP_NAME}.app"
 mkdir -p "${TMP_FAKE_APP}"
-HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 /bin/bash "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" >/dev/null
-HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 HOROSA_APP_PATH_OVERRIDE="${TMP_FAKE_APP}" /bin/bash "${DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" >/dev/null
 OFFLINE_HELPER_OUTPUT="$(HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 HOROSA_APP_PATH_OVERRIDE="${TMP_FAKE_APP}" /bin/bash "${OFFLINE_DELIVERY_UNZIP_ROOT}/${UNSIGNED_HELPER_NAME}" 2>&1)"
 printf '%s\n' "${OFFLINE_HELPER_OUTPUT}" | rg "$(basename "${OFFLINE_INSTALLER_PKG}")"
 INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" UPDATE_MANIFEST_ENV="${UPDATE_MANIFEST}" COMPONENT_PLIST_ENV="${COMPONENT_PLIST}" python3 - <<'PYVERIFY'
@@ -224,7 +210,7 @@ if not platform_manifest['appUrl'].endswith('/' + config['desktopAssetName']):
     raise SystemExit('appUrl mismatch')
 if not platform_manifest['dmgUrl'].endswith('/' + config['desktopDmgName']):
     raise SystemExit('dmgUrl mismatch')
-if not platform_manifest['pkgUrl'].endswith('/' + config['desktopPkgName']):
+if not platform_manifest['pkgUrl'].endswith('/' + config['desktopOfflinePkgName']):
     raise SystemExit('pkgUrl mismatch')
 if f"/releases/download/{expected_tag}/" not in platform_manifest['appUrl']:
     raise SystemExit('appUrl release tag mismatch')
@@ -260,66 +246,10 @@ DMG_ATTACHED=1
 [ -L "${VERIFY_MOUNT}/Applications" ] || [ -d "${VERIFY_MOUNT}/Applications" ]
 hdiutil detach "${VERIFY_MOUNT}" -force >/dev/null
 DMG_ATTACHED=0
-pkgutil --expand-full "${INSTALLER_PKG}" "${EXPANDED_PKG}"
 pkgutil --expand-full "${OFFLINE_INSTALLER_PKG}" "${EXPANDED_OFFLINE_PKG}"
-find "${EXPANDED_PKG}" -type f | rg 'postinstall|PackageInfo|Distribution' >/dev/null
 find "${EXPANDED_OFFLINE_PKG}" -type f | rg 'postinstall|PackageInfo|Distribution' >/dev/null
 
-printf '[7/9] simulate online pkg defer + first-launch runtime bootstrap + shared-runtime launch\n'
-mkdir -p "${INSTALL_TARGET}/Applications"
-rsync -a "${TARGET_APP}/" "${INSTALL_TARGET}/Applications/${APP_NAME}.app/"
-HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SHARED_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${POSTINSTALL_SCRIPT}" pkgid unused "${INSTALL_TARGET}"
-[ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]
-[ ! -d "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current" ]
-[ -f "${INSTALL_TARGET}/Users/Shared/Horosa/install-source.json" ]
-rg '"source": "pkg_online"' "${INSTALL_TARGET}/Users/Shared/Horosa/install-source.json"
-
-BOOTSTRAP_ROOT="${INSTALL_TARGET}/Users/Shared/Horosa/runtime"
-mkdir -p "${BOOTSTRAP_ROOT}/_bootstrap"
-/usr/bin/tar -xzf "${RUNTIME_ARCHIVE}" -C "${BOOTSTRAP_ROOT}/_bootstrap"
-[ -f "${BOOTSTRAP_ROOT}/_bootstrap/runtime-payload/runtime-manifest.json" ]
-mv "${BOOTSTRAP_ROOT}/_bootstrap/runtime-payload" "${BOOTSTRAP_ROOT}/current"
-rm -rf "${BOOTSTRAP_ROOT}/_bootstrap"
-rm -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt"
-
-[ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
-[ ! -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime-install-pending.txt" ]
-[ -f "${INSTALL_TARGET}/Users/Shared/Horosa/installer.log" ]
-[ -x "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" ]
-[ -x "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" ]
-[ -x "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
-[ -f "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web/start_horosa_local.sh" ]
-/usr/bin/python3 "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python"
-PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
-
-read -r CHART_PORT BACKEND_PORT <<<"$(pick_ports)"
-(
-  cd "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web"
-  PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
-  HOROSA_SKIP_UI_BUILD=1 \
-  HOROSA_SKIP_RUNTIME_WARMUP=1 \
-  HOROSA_STARTUP_TIMEOUT=180 \
-  HOROSA_CHART_PORT="${CHART_PORT}" \
-  HOROSA_SERVER_PORT="${BACKEND_PORT}" \
-  HOROSA_PYTHON="${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" \
-  HOROSA_JAVA_BIN="${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" \
-  HOROSA_LOG_ROOT="${TMP_ROOT}/logs" \
-  HOROSA_DIAG_DIR="${TMP_ROOT}/diag" \
-  /bin/bash ./start_horosa_local.sh
-)
-wait_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
-wait_http "http://127.0.0.1:${CHART_PORT}/" 60
-(
-  cd "${INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web"
-  HOROSA_CHART_PORT="${CHART_PORT}" HOROSA_SERVER_PORT="${BACKEND_PORT}" /bin/bash ./stop_horosa_local.sh
-)
-wait_port_gone "${CHART_PORT}" 20
-wait_port_gone "${BACKEND_PORT}" 20
-echo "installer flow passed for ports ${CHART_PORT}/${BACKEND_PORT}."
-CHART_PORT=""
-BACKEND_PORT=""
-
-printf '[8/9] simulate offline pkg postinstall with bundled runtime\n'
+printf '[7/8] simulate offline pkg postinstall with bundled runtime\n'
 mkdir -p "${OFFLINE_INSTALL_TARGET}/Applications"
 rsync -a "${TARGET_APP}/" "${OFFLINE_INSTALL_TARGET}/Applications/${APP_NAME}.app/"
 HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" HOROSA_RUNTIME_SHARED_ROOT="${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa" HOROSA_APP_PATH="${OFFLINE_INSTALL_TARGET}/Applications/${APP_NAME}.app" /bin/bash "${OFFLINE_POSTINSTALL_SCRIPT}" pkgid unused "${OFFLINE_INSTALL_TARGET}"
@@ -331,10 +261,43 @@ if rg -q 'https://github.com/.*/horosa-runtime' "${OFFLINE_INSTALL_TARGET}/Users
   echo "offline installer log unexpectedly referenced runtime download url" >&2
   exit 1
 fi
+[ -x "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" ]
+[ -x "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" ]
+[ -x "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
+[ -f "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web/start_horosa_local.sh" ]
+/usr/bin/python3 "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python"
+PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
 
-printf '[9/9] inspect expanded pkg payload path\n'
-PAYLOAD_ROOT="$(find "${EXPANDED_PKG}" -path '*/Payload' -type d | head -n 1)"
-PACKAGE_INFO="$(find "${EXPANDED_PKG}" -path '*/PackageInfo' | head -n 1)"
+read -r CHART_PORT BACKEND_PORT <<<"$(pick_ports)"
+(
+  cd "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web"
+  PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
+  HOROSA_SKIP_UI_BUILD=1 \
+  HOROSA_SKIP_RUNTIME_WARMUP=1 \
+  HOROSA_STARTUP_TIMEOUT=180 \
+  HOROSA_CHART_PORT="${CHART_PORT}" \
+  HOROSA_SERVER_PORT="${BACKEND_PORT}" \
+  HOROSA_PYTHON="${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" \
+  HOROSA_JAVA_BIN="${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" \
+  HOROSA_LOG_ROOT="${TMP_ROOT}/logs" \
+  HOROSA_DIAG_DIR="${TMP_ROOT}/diag" \
+  /bin/bash ./start_horosa_local.sh
+)
+wait_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
+wait_http "http://127.0.0.1:${CHART_PORT}/" 60
+(
+  cd "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web"
+  HOROSA_CHART_PORT="${CHART_PORT}" HOROSA_SERVER_PORT="${BACKEND_PORT}" /bin/bash ./stop_horosa_local.sh
+)
+wait_port_gone "${CHART_PORT}" 20
+wait_port_gone "${BACKEND_PORT}" 20
+echo "offline installer flow passed for ports ${CHART_PORT}/${BACKEND_PORT}."
+CHART_PORT=""
+BACKEND_PORT=""
+
+printf '[8/8] inspect expanded pkg payload path\n'
+PAYLOAD_ROOT="$(find "${EXPANDED_OFFLINE_PKG}" -path '*/Payload' -type d | head -n 1)"
+PACKAGE_INFO="$(find "${EXPANDED_OFFLINE_PKG}" -path '*/PackageInfo' | head -n 1)"
 [ -n "${PAYLOAD_ROOT}" ]
 [ -n "${PACKAGE_INFO}" ]
 [ -d "${PAYLOAD_ROOT}/Applications/${APP_NAME}.app" ]

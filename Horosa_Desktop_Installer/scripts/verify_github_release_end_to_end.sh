@@ -8,15 +8,13 @@ APP_UNZIP_ROOT="${WORK_ROOT}/app-unzip"
 RELEASE_API='https://api.github.com/repos/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest'
 MANIFEST_URL='https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/horosa-latest.json'
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-read -r APP_NAME DESKTOP_PKG_ZIP DESKTOP_PKG DESKTOP_OFFLINE_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_ASSET DESKTOP_DMG RUNTIME_ASSET <<EOF
+read -r APP_NAME DESKTOP_OFFLINE_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_ASSET DESKTOP_DMG RUNTIME_ASSET <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
 print(
     config['appName'],
-    config['desktopPkgZipName'],
-    config['desktopPkgName'],
     config['desktopOfflinePkgZipName'],
     config['desktopOfflinePkgName'],
     config['desktopAssetName'],
@@ -37,8 +35,6 @@ fetch() {
 fetch "${RELEASE_API}" -o "${DOWNLOAD_ROOT}/release.json"
 fetch -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${MANIFEST_URL}" -o "${DOWNLOAD_ROOT}/horosa-latest.json"
 
-DESKTOP_PKG_ZIP_ENV="${DESKTOP_PKG_ZIP}" \
-DESKTOP_PKG_ENV="${DESKTOP_PKG}" \
 DESKTOP_OFFLINE_PKG_ZIP_ENV="${DESKTOP_OFFLINE_PKG_ZIP}" \
 DESKTOP_OFFLINE_PKG_ENV="${DESKTOP_OFFLINE_PKG}" \
 DESKTOP_ASSET_ENV="${DESKTOP_ASSET}" \
@@ -51,8 +47,6 @@ arch = platform.machine().lower()
 platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
 platform = manifest['platforms'][platform_key]
 required_assets = {
-    os.environ['DESKTOP_PKG_ZIP_ENV'],
-    os.environ['DESKTOP_PKG_ENV'],
     os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV'],
     os.environ['DESKTOP_OFFLINE_PKG_ENV'],
     os.environ['DESKTOP_ASSET_ENV'],
@@ -74,15 +68,13 @@ PY
 
 source "${WORK_ROOT}/release.env"
 
-fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_PKG_ZIP}" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/${DESKTOP_PKG_ZIP}"
-fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_PKG}" "${PKG_URL}"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/${DESKTOP_OFFLINE_PKG_ZIP}"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/${DESKTOP_OFFLINE_PKG}"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_URL}"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_DMG}" "${DMG_URL}"
 fetch -o "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" "${RUNTIME_URL}"
 
-python3 - <<'PY' "${DOWNLOAD_ROOT}/${DESKTOP_PKG}" "${PKG_SHA256}" "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_SHA256}" "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" "${RUNTIME_SHA256}"
+python3 - <<'PY' "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "${PKG_SHA256}" "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_SHA256}" "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" "${RUNTIME_SHA256}"
 import hashlib, pathlib, sys
 checks = [
     ('pkg', pathlib.Path(sys.argv[1]), sys.argv[2]),
@@ -96,13 +88,6 @@ for label, path, expected in checks:
         raise SystemExit(f'{label} checksum mismatch: {actual} != {expected}')
 PY
 
-mkdir -p "${DOWNLOAD_ROOT}/delivery-unzip"
-ditto -x -k "${DOWNLOAD_ROOT}/${DESKTOP_PKG_ZIP}" "${DOWNLOAD_ROOT}/delivery-unzip"
-[ -f "${DOWNLOAD_ROOT}/delivery-unzip/${DESKTOP_PKG}" ]
-[ -f "${DOWNLOAD_ROOT}/delivery-unzip/Open-XingQue-Unsigned.command" ]
-[ -f "${DOWNLOAD_ROOT}/delivery-unzip/UNSIGNED_INSTALL_GUIDE.txt" ]
-bash -n "${DOWNLOAD_ROOT}/delivery-unzip/Open-XingQue-Unsigned.command"
-HOROSA_DRY_RUN=1 HOROSA_SKIP_OPEN_SECURITY=1 /bin/bash "${DOWNLOAD_ROOT}/delivery-unzip/Open-XingQue-Unsigned.command" >/dev/null
 mkdir -p "${DOWNLOAD_ROOT}/offline-delivery-unzip"
 ditto -x -k "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}" "${DOWNLOAD_ROOT}/offline-delivery-unzip"
 [ -f "${DOWNLOAD_ROOT}/offline-delivery-unzip/${DESKTOP_OFFLINE_PKG}" ]
@@ -117,9 +102,9 @@ plutil -extract CFBundleName raw -o - "${APP_BUNDLE_PATH}/Contents/Info.plist" |
 
 TMP_INSTALL="$(mktemp -d "${TMPDIR:-/tmp}/horosa-github-release.XXXXXX")"
 cleanup() {
-  if [ -n "${CHART_PORT:-}" ] && [ -n "${BACKEND_PORT:-}" ] && [ -d "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/Horosa-Web" ]; then
+  if [ -n "${CHART_PORT:-}" ] && [ -n "${BACKEND_PORT:-}" ] && [ -d "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web" ]; then
     (
-      cd "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/Horosa-Web"
+      cd "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web"
       HOROSA_CHART_PORT="${CHART_PORT}" HOROSA_SERVER_PORT="${BACKEND_PORT}" /bin/bash ./stop_horosa_local.sh >/dev/null 2>&1 || true
     )
   fi
@@ -127,34 +112,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-pkgutil --expand-full "${DOWNLOAD_ROOT}/${DESKTOP_PKG}" "${TMP_INSTALL}/expanded" >/dev/null
-COMPONENT_SCRIPT="$(find "${TMP_INSTALL}/expanded" -path '*/Scripts/postinstall' | head -n 1)"
 pkgutil --expand-full "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "${TMP_INSTALL}/expanded-offline" >/dev/null
 OFFLINE_COMPONENT_SCRIPT="$(find "${TMP_INSTALL}/expanded-offline" -path '*/Scripts/postinstall' | head -n 1)"
-mkdir -p "${TMP_INSTALL}/target/Applications"
-rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/target/Applications/${APP_NAME}.app/"
-/bin/bash "${COMPONENT_SCRIPT}" pkgid unused "${TMP_INSTALL}/target"
-
-[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt" ]
-[ ! -d "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current" ]
-mkdir -p "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
-/usr/bin/tar -xzf "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" -C "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
-[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap/runtime-payload/runtime-manifest.json" ]
-mv "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap/runtime-payload" "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current"
-rm -rf "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/_bootstrap"
-rm -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime-install-pending.txt"
-
-[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
-[ -f "${TMP_INSTALL}/target/Users/Shared/Horosa/installer.log" ]
-[ -x "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
-/usr/bin/python3 "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python"
-PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
 
 mkdir -p "${TMP_INSTALL}/offline-target/Applications"
 rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/offline-target/Applications/${APP_NAME}.app/"
 HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" /bin/bash "${OFFLINE_COMPONENT_SCRIPT}" pkgid unused "${TMP_INSTALL}/offline-target"
 [ -f "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
 [ ! -f "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime-install-pending.txt" ]
+[ -f "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/installer.log" ]
+[ -x "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
+/usr/bin/python3 "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python"
+PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
 
 read -r CHART_PORT BACKEND_PORT <<EOF
 $(python3 - <<'PY'
@@ -171,15 +140,15 @@ PY
 EOF
 
 (
-  cd "${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/Horosa-Web"
+  cd "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web"
   PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
   HOROSA_SKIP_UI_BUILD=1 \
   HOROSA_SKIP_RUNTIME_WARMUP=1 \
   HOROSA_STARTUP_TIMEOUT=180 \
   HOROSA_CHART_PORT="${CHART_PORT}" \
   HOROSA_SERVER_PORT="${BACKEND_PORT}" \
-  HOROSA_PYTHON="${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" \
-  HOROSA_JAVA_BIN="${TMP_INSTALL}/target/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" \
+  HOROSA_PYTHON="${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" \
+  HOROSA_JAVA_BIN="${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" \
   HOROSA_LOG_ROOT="${TMP_INSTALL}/logs" \
   HOROSA_DIAG_DIR="${TMP_INSTALL}/diag" \
   /bin/bash ./start_horosa_local.sh

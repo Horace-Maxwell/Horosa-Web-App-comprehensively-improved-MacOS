@@ -10,7 +10,7 @@
   "desktopOfflinePkgName": "Horosa-Installer-macos-arm64-offline.pkg",
   "desktopOfflinePkgZipName": "Horosa-Installer-macos-arm64-offline-pkg.zip",
   "updateManifestName": "horosa-latest.json",
-  "primaryDownload": "Horosa-Desktop-macos-arm64.dmg",
+  "primaryDownload": "Horosa-Installer-macos-arm64-offline-pkg.zip",
   "supportedArch": "arm64",
   "releaseTagPrefix": "v",
   "appName": "星阙"

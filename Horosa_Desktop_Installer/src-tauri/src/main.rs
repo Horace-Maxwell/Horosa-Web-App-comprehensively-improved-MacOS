@@ -2926,8 +2926,20 @@ fn clear_runtime_pending_marker(runtime_dir: &Path) -> Result<()> {
     }
     let pending = shared_runtime_pending_path();
     if pending.exists() {
-        fs::remove_file(&pending)
-            .with_context(|| format!("remove pending marker {}", pending.display()))?;
+        match fs::remove_file(&pending) {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+                eprintln!(
+                    "skip removing shared pending marker without elevated privileges: {} ({})",
+                    pending.display(),
+                    err
+                );
+            }
+            Err(err) => {
+                return Err(err)
+                    .with_context(|| format!("remove pending marker {}", pending.display()));
+            }
+        }
     }
     Ok(())
 }
@@ -4236,6 +4248,40 @@ mod tests {
         let user_runtime = root.join("user/runtime/current");
         clear_runtime_pending_marker(&user_runtime).unwrap();
         assert!(pending.exists());
+
+        fs::remove_file(&pending).unwrap();
+        std::env::remove_var("HOROSA_SHARED_RUNTIME_DIR");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn clear_runtime_pending_marker_ignores_permission_denied_for_shared_runtime_marker() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = temp_test_dir("runtime-pending-clear-permissions");
+        let shared_runtime = root.join("Users/Shared/Horosa/runtime/current");
+        let shared_root = shared_runtime
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let pending = shared_root.join("runtime-install-pending.txt");
+        fs::create_dir_all(shared_runtime.parent().unwrap()).unwrap();
+        fs::write(&pending, "pending\n").unwrap();
+
+        std::env::set_var("HOROSA_SHARED_RUNTIME_DIR", &shared_runtime);
+
+        let mut perms = fs::metadata(&shared_root).unwrap().permissions();
+        perms.set_mode(0o555);
+        fs::set_permissions(&shared_root, perms).unwrap();
+
+        clear_runtime_pending_marker(&shared_runtime).unwrap();
+        assert!(pending.exists());
+
+        let mut restore = fs::metadata(&shared_root).unwrap().permissions();
+        restore.set_mode(0o755);
+        fs::set_permissions(&shared_root, restore).unwrap();
 
         fs::remove_file(&pending).unwrap();
         std::env::remove_var("HOROSA_SHARED_RUNTIME_DIR");

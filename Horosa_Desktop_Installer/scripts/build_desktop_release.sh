@@ -5,11 +5,8 @@ INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 BUILD_ROOT="${INSTALLER_ROOT}/build"
 TARGET_ROOT="${INSTALLER_ROOT}/src-tauri/target-user"
-SCRIPTS_RENDERED_DIR="${BUILD_ROOT}/installer-scripts-rendered"
 OFFLINE_SCRIPTS_RENDERED_DIR="${BUILD_ROOT}/installer-scripts-rendered-offline"
-SUPPORT_RENDERED_DIR="${BUILD_ROOT}/distribution-support-rendered"
 OFFLINE_SUPPORT_RENDERED_DIR="${BUILD_ROOT}/distribution-support-rendered-offline"
-DELIVERY_ROOT="${BUILD_ROOT}/delivery-bundle"
 OFFLINE_DELIVERY_ROOT="${BUILD_ROOT}/delivery-bundle-offline"
 POSTINSTALL_TEMPLATE="${INSTALLER_ROOT}/installer-scripts/postinstall.template"
 UNSIGNED_HELPER_TEMPLATE="${INSTALLER_ROOT}/distribution-support/unsigned_install_helper.template"
@@ -61,7 +58,7 @@ OFFLINE_INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
 UPDATE_MANIFEST="${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 RUNTIME_ARCHIVE="${DIST_ROOT}/${RUNTIME_ASSET}"
 
-mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${SCRIPTS_RENDERED_DIR}" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${SUPPORT_RENDERED_DIR}" "${OFFLINE_SUPPORT_RENDERED_DIR}"
+mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_SUPPORT_RENDERED_DIR}"
 "${INSTALLER_ROOT}/scripts/generate_icon.sh"
 "${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
 
@@ -165,21 +162,8 @@ base_replacements = {
     '__RUNTIME_ASSET__': config['runtimeAssetName'],
     '__RUNTIME_RELEASE_TAG__': os.environ['RUNTIME_RELEASE_TAG_ENV'],
 }
-standard_scripts_dir = root / 'build/installer-scripts-rendered'
 offline_scripts_dir = root / 'build/installer-scripts-rendered-offline'
-standard_scripts_dir.mkdir(parents=True, exist_ok=True)
 offline_scripts_dir.mkdir(parents=True, exist_ok=True)
-
-standard_template = template
-for key, value in {
-    **base_replacements,
-    '__RUNTIME_SHA256__': os.environ['RUNTIME_SHA256_ENV'],
-    '__INSTALL_MODE__': 'defer-runtime-bootstrap',
-}.items():
-    standard_template = standard_template.replace(key, value)
-out = standard_scripts_dir / 'postinstall'
-out.write_text(standard_template)
-out.chmod(0o755)
 
 offline_template = template
 for key, value in {
@@ -214,7 +198,6 @@ def render_support(output_dir: pathlib.Path, pkg_name: str, pkg_mode: str):
     guide_out.write_text(guide)
     guide_out.chmod(0o644)
 
-render_support(root / 'build/distribution-support-rendered', config['desktopPkgName'], 'online')
 render_support(root / 'build/distribution-support-rendered-offline', config['desktopOfflinePkgName'], 'offline')
 PYPOST
 
@@ -293,8 +276,6 @@ build_product_pkg() {
   productbuild "${PRODUCTBUILD_ARGS[@]}"
 }
 
-build_component_pkg "${SCRIPTS_RENDERED_DIR}" "${COMPONENT_PKG}"
-build_product_pkg "${COMPONENT_PKG}" "${INSTALLER_PKG}"
 build_component_pkg "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_COMPONENT_PKG}"
 build_product_pkg "${OFFLINE_COMPONENT_PKG}" "${OFFLINE_INSTALLER_PKG}"
 
@@ -304,12 +285,6 @@ if [ -n "${APPLE_SIGNING_IDENTITY:-}" ] && [ -n "${APPLE_INSTALLER_IDENTITY}" ] 
   xcrun notarytool submit "${INSTALLER_PKG}" --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" --wait
   xcrun stapler staple "${INSTALLER_PKG}"
 fi
-rm -rf "${DELIVERY_ROOT}"
-mkdir -p "${DELIVERY_ROOT}"
-cp "${INSTALLER_PKG}" "${DELIVERY_ROOT}/$(basename "${INSTALLER_PKG}")"
-cp "${SUPPORT_RENDERED_DIR}/${UNSIGNED_HELPER_NAME}" "${DELIVERY_ROOT}/${UNSIGNED_HELPER_NAME}"
-cp "${SUPPORT_RENDERED_DIR}/${UNSIGNED_GUIDE_NAME}" "${DELIVERY_ROOT}/${UNSIGNED_GUIDE_NAME}"
-
 rm -rf "${OFFLINE_DELIVERY_ROOT}"
 mkdir -p "${OFFLINE_DELIVERY_ROOT}"
 cp "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_DELIVERY_ROOT}/$(basename "${OFFLINE_INSTALLER_PKG}")"
@@ -318,18 +293,12 @@ cp "${OFFLINE_SUPPORT_RENDERED_DIR}/${UNSIGNED_GUIDE_NAME}" "${OFFLINE_DELIVERY_
 
 rm -f "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG_ZIP}"
 (
-  cd "${DELIVERY_ROOT}"
-  /usr/bin/zip -qry "${INSTALLER_PKG_ZIP}" .
-)
-(
   cd "${OFFLINE_DELIVERY_ROOT}"
   /usr/bin/zip -qry "${OFFLINE_INSTALLER_PKG_ZIP}" .
 )
 
 echo "desktop app bundle ready: ${APP_BUNDLE_ZIP}"
 echo "desktop dmg ready: ${APP_DMG}"
-echo "installer package ready: ${INSTALLER_PKG}"
-echo "installer delivery zip ready: ${INSTALLER_PKG_ZIP}"
 echo "offline installer package ready: ${OFFLINE_INSTALLER_PKG}"
 echo "offline installer delivery zip ready: ${OFFLINE_INSTALLER_PKG_ZIP}"
 echo "component plist ready: ${COMPONENT_PLIST}"
@@ -357,11 +326,11 @@ manifest = {
     platform_key: {
       'appUrl': f"{app_base}/{config['desktopAssetName']}",
       'dmgUrl': f"{app_base}/{config['desktopDmgName']}",
-      'pkgUrl': f"{app_base}/{config['desktopPkgName']}",
+      'pkgUrl': f"{app_base}/{config['desktopOfflinePkgName']}",
       'runtimeUrl': f"{runtime_base}/{config['runtimeAssetName']}",
       'runtimeVersion': runtime_version,
       'appSha256': hashlib.sha256((dist / config['desktopAssetName']).read_bytes()).hexdigest(),
-      'pkgSha256': hashlib.sha256((dist / config['desktopPkgName']).read_bytes()).hexdigest(),
+      'pkgSha256': hashlib.sha256((dist / config['desktopOfflinePkgName']).read_bytes()).hexdigest(),
       'runtimeSha256': runtime_sha256,
     }
   }
