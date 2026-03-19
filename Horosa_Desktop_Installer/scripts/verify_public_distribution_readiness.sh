@@ -13,7 +13,7 @@ PKG_PATH="$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYPKG'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
-print(root / 'dist' / config['desktopPkgName'])
+print(root / 'dist' / config['desktopOfflinePkgName'])
 PYPKG
 )"
 ZIP_PATH="$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYZIP'

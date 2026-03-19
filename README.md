@@ -37,6 +37,14 @@
 
 推荐安装方式：
 
+1. 下载 `Horosa-Installer-macos-arm64-offline-pkg.zip`
+2. 解压 zip
+3. 双击里面的 `.pkg`
+4. 如果 macOS 仍拦截，再运行同目录 `Open-XingQue-Unsigned.command` 作为兜底
+5. 安装完成后，从 `/Applications/星阙.app` 打开；离线包会把所需本机组件一起装好，不会在首启时再去联网下载
+
+DMG 补充安装方式：
+
 1. 下载 `Horosa-Desktop-macos-arm64.dmg`
 2. 打开 DMG
 3. 把 `星阙.app` 拖入 `Applications`
@@ -44,21 +52,14 @@
 5. 如果检测到这台 Mac 上已有 app、本机组件或旧缓存，先在 app 内完成“安装审查”，手动勾选这次要替换的资产
 6. 如果是首次准备运行环境，等待 app 内完成初始化
 
-离线安装方式：
-
-1. 下载 `Horosa-Installer-macos-arm64-offline-pkg.zip`
-2. 解压 zip
-3. 双击里面的 `.pkg`
-4. 如果 macOS 仍拦截，再运行同目录 `Open-XingQue-Unsigned.command` 作为兜底
-5. 安装完成后，从 `/Applications/星阙.app` 打开；离线包会把所需本机组件一起装好，不会在首启时再去联网下载
-
 说明：
 
 - 当前短期仍未接入 Developer ID / notarization，所以第一次安装或第一次打开时，系统可能会要求你确认放行
 - 如果后续你在应用内点“检查更新”，而应用安装在 `/Applications`，macOS 也会按标准再要求一次管理员密码来完成替换
 - `Open-XingQue-Unsigned.command` 现在只作为兜底，不再是默认安装步骤
 - 正常用户不需要打开 Terminal，也不需要自己安装 Python、Java、Node
-- DMG 路线会优先表现成标准 Mac app：双击 app 直接开窗口，首次准备在 app 内完成
+- 推荐优先使用离线 `.pkg zip`；轻量在线 `.pkg` 已取消，不再继续分发
+- DMG 路线仍保留为补充入口：双击 app 直接开窗口，首次准备在 app 内完成
 - 安装、修复、更新都会先显示“安装审查”，列出这次将处理的已安装资产
 - 离线 `.pkg` 已经把运行所需组件带在安装包里，安装完成后应可直接打开使用，不再把联网下载当兜底
 - 如果离线路径损坏，启动页会优先显示“重新安装离线包”恢复卡片，技术细节默认收在第二层
