@@ -10,14 +10,15 @@ import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import styles from '../../css/styles.less';
 import DateTime from '../comp/DateTime';
-import { randomStr, } from '../../utils/helper';
+import {
+	PD_SYNC_REV,
+	DEFAULT_PD_METHOD,
+	DEFAULT_PD_TIME_KEY,
+	DEFAULT_PD_TYPE,
+	mergePrimaryDirectionChartObj,
+} from '../../utils/primaryDirectionSync';
 
 const Option = Select.Option;
-
-const PD_SYNC_REV = 'pd_method_sync_v6';
-const DEFAULT_PD_METHOD = 'core_alchabitius';
-const DEFAULT_PD_TIME_KEY = 'Ptolemy';
-const DEFAULT_PD_TYPE = 0;
 const PD_DISPLAY_ZONE = '+00:00';
 const CORE_PD_SUPPORTED_BASE_IDS = new Set([
 	AstroConst.SUN,
@@ -717,24 +718,14 @@ class AstroPrimaryDirectionChart extends Component{
 		if(this.unmounted || !Array.isArray(pdRows)){
 			return;
 		}
-		const nextChartObj = {
-			...chartObj,
-			params: {
-				...(chartObj.params || {}),
-				name: req.name,
-				pos: req.pos,
-				showPdBounds: req.showPdBounds === 0 ? 0 : 1,
-				pdtype: DEFAULT_PD_TYPE,
-				pdMethod: this.getSelectedPdMethod(),
-				pdTimeKey: this.getSelectedPdTimeKey(),
-				pdSyncRev: PD_SYNC_REV,
-			},
-			predictives: {
-				...(chartObj.predictives || {}),
-				primaryDirection: pdRows,
-			},
-			chartId: randomStr(8),
-		};
+		const nextChartObj = mergePrimaryDirectionChartObj(chartObj, {
+			pdRows,
+			showPdBounds: req.showPdBounds,
+			pdMethod: this.getSelectedPdMethod(),
+			pdTimeKey: this.getSelectedPdTimeKey(),
+			name: req.name,
+			pos: req.pos,
+		});
 		saveAstroAISnapshot(nextChartObj, nextFields);
 		this.props.dispatch({
 			type: 'app/save',

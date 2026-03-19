@@ -18,12 +18,16 @@ import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import { appendPlanetHouseInfoById, } from '../../utils/planetHouseInfo';
+import {
+	PD_SYNC_REV,
+	DEFAULT_PD_METHOD,
+	DEFAULT_PD_TIME_KEY,
+	DEFAULT_PD_TYPE,
+	mergePrimaryDirectionChartObj,
+	normalizePrimaryDirectionSubTabKey,
+} from '../../utils/primaryDirectionSync';
 
 const TabPane = Tabs.TabPane;
-const PD_SYNC_REV = 'pd_method_sync_v6';
-const DEFAULT_PD_METHOD = 'core_alchabitius';
-const DEFAULT_PD_TIME_KEY = 'Ptolemy';
-const DEFAULT_PD_TYPE = 0;
 const AI_EXPORT_PLANET_INFO = {
 	showHouse: 1,
 	showRuler: 1,
@@ -419,9 +423,10 @@ class AstroDirectMain extends Component{
 
 	constructor(props) {
 		super(props);
+		const initialTab = normalizePrimaryDirectionSubTabKey(props.currentSubTab);
 
 		this.state = {
-			currentTab: props.currentSubTab || 'primarydirect',
+			currentTab: initialTab,
 			hook:{
 				primarydirect:{
 					fun: null
@@ -469,6 +474,7 @@ class AstroDirectMain extends Component{
 		this.getDesiredPdConfig = this.getDesiredPdConfig.bind(this);
 		this.needsPrimaryDirectionLoad = this.needsPrimaryDirectionLoad.bind(this);
 		this.syncCurrentSubTab = this.syncCurrentSubTab.bind(this);
+		this.savePrimaryDirectionRows = this.savePrimaryDirectionRows.bind(this);
 
 		this.unmounted = false;
 		this.primaryDirectionInflightKey = '';
@@ -489,36 +495,37 @@ class AstroDirectMain extends Component{
 		if(!this.props.dispatch){
 			return;
 		}
-		if(this.props.currentSubTab === this.state.currentTab){
+		const nextTab = normalizePrimaryDirectionSubTabKey(this.state.currentTab);
+		if(this.props.currentSubTab === nextTab){
 			return;
 		}
 		this.props.dispatch({
 			type: 'astro/save',
 			payload: {
-				currentSubTab: this.state.currentTab,
+				currentSubTab: nextTab,
 			}
 		});
 	}
 
-	getDesiredPdConfig(chartObj){
+	getDesiredPdConfig(chartObj, override = {}){
 		const chart = chartObj || this.props.chartObj || {};
 		const params = chart.params || {};
 		const fields = this.props.fields || {};
 		return {
-			pdMethod: params.pdMethod
+			pdMethod: override.pdMethod || (params.pdMethod
 				? params.pdMethod
-				: (fields.pdMethod ? fields.pdMethod.value : DEFAULT_PD_METHOD),
-			pdTimeKey: params.pdTimeKey
+				: (fields.pdMethod ? fields.pdMethod.value : DEFAULT_PD_METHOD)),
+			pdTimeKey: override.pdTimeKey || (params.pdTimeKey
 				? params.pdTimeKey
-				: (fields.pdTimeKey ? fields.pdTimeKey.value : DEFAULT_PD_TIME_KEY),
+				: (fields.pdTimeKey ? fields.pdTimeKey.value : DEFAULT_PD_TIME_KEY)),
 		};
 	}
 
-	buildPrimaryDirectionRequest(chartObj){
+	buildPrimaryDirectionRequest(chartObj, override = {}){
 		const chart = chartObj || this.props.chartObj || {};
-		const desired = this.getDesiredPdConfig(chart);
+		const desired = this.getDesiredPdConfig(chart, override);
 		const nextFields = buildPrimaryDirectionFetchFields(
-			this.props.fields,
+			override.fields || this.props.fields,
 			chart,
 			desired.pdMethod,
 			desired.pdTimeKey
@@ -588,9 +595,43 @@ class AstroDirectMain extends Component{
 		return pds.length === 0;
 	}
 
-	async requestPrimaryDirectionRows(){
-		const chartObj = this.props.chartObj || {};
-		const req = this.buildPrimaryDirectionRequest(chartObj);
+	savePrimaryDirectionRows(chartObj, req, pdRows, options = {}){
+		if(!this.props.dispatch){
+			return;
+		}
+		const nextChartObj = mergePrimaryDirectionChartObj(chartObj, {
+			pdRows,
+			showPdBounds: req.showPdBounds,
+			pdMethod: req.pdMethod,
+			pdTimeKey: req.pdTimeKey,
+			name: req.name,
+			pos: req.pos,
+			chartId: options.chartId,
+		});
+		const payload = {
+			chartObj: nextChartObj,
+		};
+		if(options.fields){
+			payload.fields = options.fields;
+		}
+		this.props.dispatch({
+			type: 'astro/save',
+			payload,
+		});
+		if(options.runHook && options.fields){
+			this.props.dispatch({
+				type: 'astro/doHook',
+				payload: {
+					chartObj: nextChartObj,
+					fields: options.fields,
+				},
+			});
+		}
+	}
+
+	async requestPrimaryDirectionRows(options = {}){
+		const chartObj = options.chartObj || this.props.chartObj || {};
+		const req = this.buildPrimaryDirectionRequest(chartObj, options);
 		if(!req || !this.props.dispatch){
 			return;
 		}
@@ -632,26 +673,10 @@ class AstroDirectMain extends Component{
 		if(!pdRows){
 			return;
 		}
-		const nextChartObj = {
-			...chartObj,
-			params: {
-				...(chartObj.params || {}),
-				showPdBounds: req.showPdBounds === 0 ? 0 : 1,
-				pdtype: DEFAULT_PD_TYPE,
-				pdMethod: req.pdMethod,
-				pdTimeKey: req.pdTimeKey,
-				pdSyncRev: PD_SYNC_REV,
-			},
-			predictives: {
-				...(chartObj.predictives || {}),
-				primaryDirection: pdRows,
-			},
-		};
-		this.props.dispatch({
-			type: 'astro/save',
-			payload: {
-				chartObj: nextChartObj,
-			},
+		this.savePrimaryDirectionRows(chartObj, req, pdRows, {
+			fields: options.fields,
+			runHook: !!options.runHook,
+			chartId: options.chartId,
 		});
 	}
 
@@ -814,15 +839,12 @@ class AstroDirectMain extends Component{
 				fields: nextFields,
 			},
 		});
-		this.props.dispatch({
-			type: 'astro/fetchByFields',
-			payload: {
-				...nextFields,
-				__requestOptions: {
-					silent: true,
-					cache: false,
-				},
-			},
+		this.requestPrimaryDirectionRows({
+			chartObj: this.props.chartObj,
+			fields: nextFields,
+			pdMethod,
+			pdTimeKey,
+			runHook: true,
 		});
 	}
 
@@ -983,4 +1005,5 @@ class AstroDirectMain extends Component{
 	}
 }
 
+export { AstroDirectMain, buildPrimaryDirectionFetchFields, };
 export default AstroDirectMain;
