@@ -5,7 +5,7 @@ INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 RELEASE_NOTES_FILE="${INSTALLER_ROOT}/config/release_notes.md"
 
-read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_DMG DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION PRIMARY_DOWNLOAD SUPPORTED_ARCH <<EOF
+read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION PRIMARY_DOWNLOAD SUPPORTED_ARCH <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -23,14 +23,13 @@ print(
     f"{config['releaseTagPrefix']}{runtime_version}",
     config['runtimeAssetName'],
     config['desktopAssetName'],
-    config['desktopDmgName'],
     config['desktopPkgName'],
     config['desktopPkgZipName'],
     config['desktopOfflinePkgName'],
     config['desktopOfflinePkgZipName'],
     config['updateManifestName'],
     runtime_version,
-    config.get('primaryDownload', config['desktopDmgName']),
+    config.get('primaryDownload', config['desktopOfflinePkgZipName']),
     config.get('supportedArch', 'arm64'),
 )
 PY
@@ -40,7 +39,6 @@ EOF
 RELEASE_NAME="${TAG_NAME}"
 API_ROOT="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 APP_ASSETS=(
-  "${DIST_ROOT}/${DESKTOP_DMG}"
   "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
   "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
   "${DIST_ROOT}/${DESKTOP_ASSET}"
@@ -118,21 +116,20 @@ PY
   fi
 fi
 
-python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}" "${DESKTOP_ASSET}" "${DESKTOP_DMG}" "${DESKTOP_OFFLINE_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}" "${RUNTIME_TAG_NAME}" "${EXPECTED_RUNTIME_SHA}"
+python3 - <<'PY' "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" "${DIST_ROOT}/${DESKTOP_ASSET}" "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}" "${DESKTOP_ASSET}" "${DESKTOP_OFFLINE_PKG}" "${RUNTIME_ASSET}" "${TAG_NAME}" "${VERSION}" "${RUNTIME_VERSION}" "${RUNTIME_TAG_NAME}" "${EXPECTED_RUNTIME_SHA}"
 import hashlib, json, pathlib, sys
 
 manifest_path = pathlib.Path(sys.argv[1])
 app_path = pathlib.Path(sys.argv[2])
 pkg_path = pathlib.Path(sys.argv[3])
 desktop_asset = sys.argv[4]
-desktop_dmg = sys.argv[5]
-desktop_pkg = sys.argv[6]
-runtime_asset = sys.argv[7]
-tag_name = sys.argv[8]
-version = sys.argv[9]
-runtime_version = sys.argv[10]
-runtime_tag_name = sys.argv[11]
-expected_runtime_sha = sys.argv[12]
+desktop_pkg = sys.argv[5]
+runtime_asset = sys.argv[6]
+tag_name = sys.argv[7]
+version = sys.argv[8]
+runtime_version = sys.argv[9]
+runtime_tag_name = sys.argv[10]
+expected_runtime_sha = sys.argv[11]
 manifest = json.loads(manifest_path.read_text())
 
 if manifest.get('version') != version:
@@ -147,7 +144,6 @@ platform = next(iter(platforms.values()))
 
 expected_urls = {
     'appUrl': desktop_asset,
-    'dmgUrl': desktop_dmg,
     'pkgUrl': desktop_pkg,
     'runtimeUrl': runtime_asset,
 }
@@ -156,8 +152,6 @@ for key, suffix in expected_urls.items():
         raise SystemExit(f"local manifest {key} mismatch: {platform.get(key)}")
 if f"/releases/download/{tag_name}/" not in platform.get('appUrl', ''):
     raise SystemExit(f"local manifest appUrl tag mismatch: {platform.get('appUrl')}")
-if f"/releases/download/{tag_name}/" not in platform.get('dmgUrl', ''):
-    raise SystemExit(f"local manifest dmgUrl tag mismatch: {platform.get('dmgUrl')}")
 if f"/releases/download/{tag_name}/" not in platform.get('pkgUrl', ''):
     raise SystemExit(f"local manifest pkgUrl tag mismatch: {platform.get('pkgUrl')}")
 if f"/releases/download/{runtime_tag_name}/" not in platform.get('runtimeUrl', ''):
@@ -201,7 +195,6 @@ fi
 
 RELEASE_BODY="$(
   PRIMARY_DOWNLOAD_ENV="${PRIMARY_DOWNLOAD}" \
-  PRIMARY_DMG_ENV="${DESKTOP_DMG}" \
   DESKTOP_OFFLINE_PKG_ZIP_ENV="${DESKTOP_OFFLINE_PKG_ZIP}" \
   SUPPORTED_ARCH_ENV="${SUPPORTED_ARCH}" \
   RELEASE_NOTES_SECTION_ENV="${RELEASE_NOTES_SECTION}" \
@@ -212,7 +205,6 @@ print(
     f"""## 安装包选择（中文）
 
 - 离线安装包：`{os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV']}`，本机组件已内置，适合所有普通用户，尤其适合中国大陆、弱网或需要拷给别人安装的环境。
-- DMG 补充入口：`{os.environ['PRIMARY_DMG_ENV']}`，适合偏好标准拖拽安装路径的 Mac 用户。
 
 ## 安装步骤（中文）
 
@@ -222,16 +214,9 @@ print(
 4. 如果系统仍拦截，再运行同目录 `Open-XingQue-Unsigned.command` 作为兜底
 5. 安装完成后可直接打开使用，不再额外联网准备
 
-如果你偏好标准拖拽安装路径：
-
-1. 下载 `{os.environ['PRIMARY_DMG_ENV']}`
-2. 打开 DMG
-3. 将 `星阙.app` 拖入 `Applications`
-4. 从 `/Applications/星阙.app` 启动
-
 当前发布目标：Apple Silicon (`{os.environ['SUPPORTED_ARCH_ENV']}`)。
 
-轻量在线 `.pkg` 已取消，不再继续分发。普通用户只需要在“离线安装包 / DMG”两者中按场景选择其一，不需要手动处理其余内部资产。
+轻量在线 `.pkg` 与 `DMG` 公开入口都已取消。普通用户只需要下载离线安装包，不需要手动处理其余内部资产。
 
 ## 技术资产 / Technical Assets
 
@@ -355,7 +340,7 @@ ensure_release "${TAG_NAME}" "${RELEASE_NAME}" "${RELEASE_BODY}" "true"
 APP_RELEASE_ID="${ENSURE_RELEASE_ID}"
 APP_UPLOAD_URL="${ENSURE_UPLOAD_URL}"
 
-delete_named_assets "${APP_RELEASE_ID}" "${DESKTOP_DMG}" "${DESKTOP_PKG_ZIP}" "${DESKTOP_PKG}" "${DESKTOP_OFFLINE_PKG_ZIP}" "${DESKTOP_OFFLINE_PKG}" "${DESKTOP_ASSET}" "${UPDATE_MANIFEST_NAME}" "${RUNTIME_ASSET}"
+delete_named_assets "${APP_RELEASE_ID}" "Horosa-Desktop-macos-arm64.dmg" "${DESKTOP_PKG_ZIP}" "${DESKTOP_PKG}" "${DESKTOP_OFFLINE_PKG_ZIP}" "${DESKTOP_OFFLINE_PKG}" "${DESKTOP_ASSET}" "${UPDATE_MANIFEST_NAME}" "${RUNTIME_ASSET}"
 
 for asset in "${APP_ASSETS[@]}"; do
   upload_asset "${APP_UPLOAD_URL}" "${asset}"
@@ -399,7 +384,7 @@ if [ -z "${LATEST_MANIFEST}" ]; then
   exit 1
 fi
 
-python3 - <<'PY' "${LATEST_MANIFEST}" "${VERSION}" "${TAG_NAME}" "${RUNTIME_TAG_NAME}" "${DESKTOP_ASSET}" "${DESKTOP_DMG}" "${RUNTIME_ASSET}"
+python3 - <<'PY' "${LATEST_MANIFEST}" "${VERSION}" "${TAG_NAME}" "${RUNTIME_TAG_NAME}" "${DESKTOP_ASSET}" "${RUNTIME_ASSET}"
 import json, sys
 manifest = json.loads(sys.argv[1])
 if manifest['version'] != sys.argv[2]:
@@ -411,13 +396,9 @@ if f"/releases/download/{sys.argv[3]}/" not in platform['appUrl']:
     raise SystemExit('latest manifest appUrl tag mismatch')
 if not platform['appUrl'].endswith('/' + sys.argv[5]):
     raise SystemExit('latest manifest appUrl mismatch')
-if f"/releases/download/{sys.argv[3]}/" not in platform['dmgUrl']:
-    raise SystemExit('latest manifest dmgUrl tag mismatch')
-if not platform['dmgUrl'].endswith('/' + sys.argv[6]):
-    raise SystemExit('latest manifest dmgUrl mismatch')
 if f"/releases/download/{sys.argv[4]}/" not in platform['runtimeUrl']:
     raise SystemExit('latest manifest runtimeUrl tag mismatch')
-if not platform['runtimeUrl'].endswith('/' + sys.argv[7]):
+if not platform['runtimeUrl'].endswith('/' + sys.argv[6]):
     raise SystemExit('latest manifest runtimeUrl mismatch')
 PY
 

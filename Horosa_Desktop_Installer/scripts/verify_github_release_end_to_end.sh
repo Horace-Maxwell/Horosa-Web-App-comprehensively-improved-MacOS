@@ -8,7 +8,7 @@ APP_UNZIP_ROOT="${WORK_ROOT}/app-unzip"
 RELEASE_API='https://api.github.com/repos/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest'
 MANIFEST_URL='https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/horosa-latest.json'
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-read -r APP_NAME DESKTOP_OFFLINE_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_ASSET DESKTOP_DMG RUNTIME_ASSET <<EOF
+read -r APP_NAME DESKTOP_OFFLINE_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_ASSET RUNTIME_ASSET <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -18,7 +18,6 @@ print(
     config['desktopOfflinePkgZipName'],
     config['desktopOfflinePkgName'],
     config['desktopAssetName'],
-    config['desktopDmgName'],
     config['runtimeAssetName'],
 )
 PYCONF
@@ -38,7 +37,6 @@ fetch -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${MANIFEST_URL}" -o "$
 DESKTOP_OFFLINE_PKG_ZIP_ENV="${DESKTOP_OFFLINE_PKG_ZIP}" \
 DESKTOP_OFFLINE_PKG_ENV="${DESKTOP_OFFLINE_PKG}" \
 DESKTOP_ASSET_ENV="${DESKTOP_ASSET}" \
-DESKTOP_DMG_ENV="${DESKTOP_DMG}" \
 python3 - <<'PY' "${DOWNLOAD_ROOT}/release.json" "${DOWNLOAD_ROOT}/horosa-latest.json" > "${WORK_ROOT}/release.env"
 import json, os, pathlib, platform, shlex, sys
 release = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -50,7 +48,6 @@ required_assets = {
     os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV'],
     os.environ['DESKTOP_OFFLINE_PKG_ENV'],
     os.environ['DESKTOP_ASSET_ENV'],
-    os.environ['DESKTOP_DMG_ENV'],
     'horosa-latest.json',
 }
 asset_names = {asset['name'] for asset in release['assets']}
@@ -61,7 +58,7 @@ for key in ('tag_name', 'name'):
     print(f'{key.upper()}={shlex.quote(release[key])}')
 for key in ('version', 'tag'):
     print(f'MANIFEST_{key.upper()}={shlex.quote(manifest[key])}')
-for key in ('pkgUrl', 'appUrl', 'dmgUrl', 'runtimeUrl', 'pkgSha256', 'appSha256', 'runtimeSha256'):
+for key in ('pkgUrl', 'appUrl', 'runtimeUrl', 'pkgSha256', 'appSha256', 'runtimeSha256'):
     env = key.replace('Url', '_URL').replace('Sha256', '_SHA256').upper()
     print(f'{env}={shlex.quote(platform[key])}')
 PY
@@ -71,7 +68,6 @@ source "${WORK_ROOT}/release.env"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/${DESKTOP_OFFLINE_PKG_ZIP}"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/${DESKTOP_OFFLINE_PKG}"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_URL}"
-fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_DMG}" "${DMG_URL}"
 fetch -o "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" "${RUNTIME_URL}"
 
 python3 - <<'PY' "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "${PKG_SHA256}" "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_SHA256}" "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" "${RUNTIME_SHA256}"
