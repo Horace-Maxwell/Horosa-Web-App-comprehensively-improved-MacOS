@@ -9,6 +9,27 @@ import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import * as Constants from '../../utils/constants';
 import styles from '../../css/styles.less';
 
+export function resolveAstroDisplayMode(perchart, fields){
+	let zodiacal = perchart && perchart.zodiacal ? perchart.zodiacal : null;
+	if(zodiacal){
+		zodiacal = AstroText.AstroMsg[zodiacal] || zodiacal;
+	}else{
+		zodiacal = fields ? fields.zodiacal : null;
+	}
+
+	let hsys = perchart && perchart.hsys ? perchart.hsys : null;
+	if(hsys){
+		hsys = AstroText.AstroMsg[hsys] || hsys;
+	}else{
+		hsys = fields ? fields.hsys : null;
+	}
+
+	return {
+		zodiacal,
+		hsys,
+	};
+}
+
 
 class AstroInfo extends Component{
 
@@ -669,19 +690,9 @@ class AstroInfo extends Component{
 			overflowX:'hidden',
 		};
 
-		let zodiacal = perchart.zodiacal;
-		if(zodiacal){
-			zodiacal = AstroText.AstroMsg[zodiacal];
-		}else{
-			zodiacal = fields.zodiacal;
-		}
-
-		let hsys = perchart.hsys;
-		if(hsys){
-			hsys = AstroText.AstroMsg[hsys];
-		}else{
-			hsys = fields.hsys
-		}
+		const displayMode = resolveAstroDisplayMode(perchart, fields);
+		const zodiacal = displayMode.zodiacal;
+		const hsys = displayMode.hsys;
 
 		return (
 			<div className={styles.scrollbar} style={astyle}>
@@ -703,7 +714,7 @@ class AstroInfo extends Component{
 				</Row>
 				<Row gutter={12}>
 					<Col span={24}>
-						<span>{zodiacal}，{fields.hsys}</span>&nbsp;
+						<span>{zodiacal}，{hsys}</span>&nbsp;
 					</Col>
 				</Row>
 				{antiDom}

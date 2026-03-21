@@ -1,6 +1,6 @@
 # Horosa Web + App（GitHub 可上传版）
 
-更新时间：2026-03-09
+更新时间：2026-03-21
 
 这个仓库现在同时承担两件事：
 
@@ -17,21 +17,16 @@
 
 - Release 页面：
   [https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-- Mac 下载（推荐，Apple Silicon）：
-  [Horosa-Desktop-macos-arm64.dmg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Desktop-macos-arm64.dmg)
 - 离线安装包（弱网 / 转手安装）：
   [Horosa-Installer-macos-arm64-offline-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline-pkg.zip)
 
 请按场景下载：
 
-- `Horosa-Desktop-macos-arm64.dmg`
-  - 适合：绝大多数普通 Mac 用户
-  - 特点：标准 DMG 安装路径，拖入 `Applications` 后直接打开；如果需要首次准备运行环境，会在 app 内自动完成
 - `Horosa-Installer-macos-arm64-offline-pkg.zip`
-  - 适合：中国大陆、弱网、离线转发给别人安装
+  - 适合：所有普通用户，尤其是中国大陆、弱网、离线转发给别人安装
   - 特点：zip 内自带离线 `.pkg`，本机组件已内置，安装后可直接打开使用
 
-其他 `.pkg`、`.zip`、`runtime`、`manifest` 文件都是安装器或自动更新器内部使用的支持资产，普通用户不用单独处理。
+其他 `.pkg`、`.zip`、`runtime`、`manifest` 文件都是安装器或自动更新器内部使用的支持资产，普通用户不用单独处理。`DMG` 公开入口已取消，不再继续分发。
 
 ## 安装步骤
 
@@ -43,23 +38,13 @@
 4. 如果 macOS 仍拦截，再运行同目录 `Open-XingQue-Unsigned.command` 作为兜底
 5. 安装完成后，从 `/Applications/星阙.app` 打开；离线包会把所需本机组件一起装好，不会在首启时再去联网下载
 
-DMG 补充安装方式：
-
-1. 下载 `Horosa-Desktop-macos-arm64.dmg`
-2. 打开 DMG
-3. 把 `星阙.app` 拖入 `Applications`
-4. 从 `/Applications/星阙.app` 打开
-5. 如果检测到这台 Mac 上已有 app、本机组件或旧缓存，先在 app 内完成“安装审查”，手动勾选这次要替换的资产
-6. 如果是首次准备运行环境，等待 app 内完成初始化
-
 说明：
 
 - 当前短期仍未接入 Developer ID / notarization，所以第一次安装或第一次打开时，系统可能会要求你确认放行
 - 如果后续你在应用内点“检查更新”，而应用安装在 `/Applications`，macOS 也会按标准再要求一次管理员密码来完成替换
 - `Open-XingQue-Unsigned.command` 现在只作为兜底，不再是默认安装步骤
 - 正常用户不需要打开 Terminal，也不需要自己安装 Python、Java、Node
-- 推荐优先使用离线 `.pkg zip`；轻量在线 `.pkg` 已取消，不再继续分发
-- DMG 路线仍保留为补充入口：双击 app 直接开窗口，首次准备在 app 内完成
+- 公开下载入口现在只保留离线 `.pkg zip`；轻量在线 `.pkg` 和 `DMG` 都已取消
 - 安装、修复、更新都会先显示“安装审查”，列出这次将处理的已安装资产
 - 离线 `.pkg` 已经把运行所需组件带在安装包里，安装完成后应可直接打开使用，不再把联网下载当兜底
 - 如果离线路径损坏，启动页会优先显示“重新安装离线包”恢复卡片，技术细节默认收在第二层
