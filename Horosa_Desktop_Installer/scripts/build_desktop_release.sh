@@ -17,7 +17,7 @@ NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-}"
 UNSIGNED_HELPER_NAME="Open-XingQue-Unsigned.command"
 UNSIGNED_GUIDE_NAME="UNSIGNED_INSTALL_GUIDE.txt"
 
-read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_DMG DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME APP_RELEASE_TAG RUNTIME_VERSION RUNTIME_RELEASE_TAG SUPPORTED_ARCH <<EOF
+read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME APP_RELEASE_TAG RUNTIME_VERSION RUNTIME_RELEASE_TAG SUPPORTED_ARCH <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -30,7 +30,6 @@ print(
     config['appName'],
     config['runtimeAssetName'],
     config['desktopAssetName'],
-    config['desktopDmgName'],
     config['desktopPkgName'],
     config['desktopPkgZipName'],
     config['desktopOfflinePkgName'],
@@ -50,13 +49,13 @@ OFFLINE_COMPONENT_PKG="${BUILD_ROOT}/pkg/desktop-offline.component.pkg"
 COMPONENT_PLIST="${BUILD_ROOT}/pkg/component.plist"
 PKG_STAGE_ROOT="${BUILD_ROOT}/pkg-root"
 APP_BUNDLE_ZIP="${DIST_ROOT}/${DESKTOP_ASSET}"
-APP_DMG="${DIST_ROOT}/${DESKTOP_DMG}"
 INSTALLER_PKG="${DIST_ROOT}/${DESKTOP_PKG}"
 INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_PKG_ZIP}"
 OFFLINE_INSTALLER_PKG="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
 OFFLINE_INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
 UPDATE_MANIFEST="${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 RUNTIME_ARCHIVE="${DIST_ROOT}/${RUNTIME_ASSET}"
+LEGACY_DMG="${DIST_ROOT}/Horosa-Desktop-macos-arm64.dmg"
 
 mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_SUPPORT_RENDERED_DIR}"
 "${INSTALLER_ROOT}/scripts/generate_icon.sh"
@@ -108,9 +107,9 @@ fi
 
 find "${TARGET_ROOT}/release/bundle" -type f -name '*.dmg' -delete 2>/dev/null || true
 TAURI_BUILD_OK=1
-if ! (cd "${INSTALLER_ROOT}" && CARGO_TARGET_DIR="${TARGET_ROOT}" npm run tauri:build -- --bundles app,dmg); then
+if ! (cd "${INSTALLER_ROOT}" && CARGO_TARGET_DIR="${TARGET_ROOT}" npm run tauri:build -- --bundles app); then
   TAURI_BUILD_OK=0
-  echo "tauri dmg bundling failed; checking for reusable app bundle and intermediate dmg..." >&2
+  echo "tauri app bundling failed; checking for reusable app bundle..." >&2
 fi
 
 if [ ! -d "${TARGET_APP}" ]; then
@@ -124,27 +123,8 @@ if [ "${SUPPORTED_ARCH}" = "arm64" ] && [ "${CURRENT_ARCH}" != "arm64" ]; then
   exit 1
 fi
 
-BUILT_DMG="$(
-  TARGET_ROOT_ENV="${TARGET_ROOT}" python3 - <<'PYDMG'
-from pathlib import Path
-import os
-root = Path(os.environ['TARGET_ROOT_ENV']) / 'release' / 'bundle'
-candidates = [p for p in root.rglob('*.dmg') if not p.name.startswith('rw.')]
-if not candidates:
-    candidates = list(root.rglob('*.dmg'))
-if not candidates:
-    raise SystemExit(1)
-candidates.sort(key=lambda p: p.stat().st_mtime)
-print(candidates[-1])
-PYDMG
-)"
-if [ -z "${BUILT_DMG}" ] || [ ! -f "${BUILT_DMG}" ]; then
-  echo "missing built dmg artifact from tauri bundle output" >&2
-  exit 1
-fi
-
-if [ "${TAURI_BUILD_OK}" != "1" ] && [[ "$(basename "${BUILT_DMG}")" != rw.* ]]; then
-  echo "tauri dmg bundling failed and no intermediate dmg fallback was found" >&2
+if [ "${TAURI_BUILD_OK}" != "1" ]; then
+  echo "tauri app bundling failed and no reusable app bundle fallback was requested" >&2
   exit 1
 fi
 
@@ -217,19 +197,11 @@ APP_INFO_PLIST="${PKG_STAGE_ROOT}/Applications/${APP_NAME}.app/Contents/Info.pli
 BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw -o - "${APP_INFO_PLIST}")"
 APP_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "${APP_INFO_PLIST}")"
 
-rm -f "${APP_BUNDLE_ZIP}" "${APP_DMG}" "${INSTALLER_PKG}" "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_INSTALLER_PKG_ZIP}" "${COMPONENT_PKG}" "${OFFLINE_COMPONENT_PKG}" "${COMPONENT_PLIST}" "${UPDATE_MANIFEST}"
+rm -f "${APP_BUNDLE_ZIP}" "${INSTALLER_PKG}" "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_INSTALLER_PKG_ZIP}" "${COMPONENT_PKG}" "${OFFLINE_COMPONENT_PKG}" "${COMPONENT_PLIST}" "${UPDATE_MANIFEST}" "${LEGACY_DMG}"
 (
   cd "$(dirname "${TARGET_APP}")"
   COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc "${APP_NAME}.app" "${APP_BUNDLE_ZIP}"
 )
-if [[ "$(basename "${BUILT_DMG}")" == rw.* ]]; then
-  DMG_CONVERT_BASE="${BUILD_ROOT}/$(basename "${APP_DMG}" .dmg)"
-  rm -f "${DMG_CONVERT_BASE}.dmg"
-  hdiutil convert "${BUILT_DMG}" -format UDZO -imagekey zlib-level=9 -o "${DMG_CONVERT_BASE}" >/dev/null
-  mv -f "${DMG_CONVERT_BASE}.dmg" "${APP_DMG}"
-else
-  cp -f "${BUILT_DMG}" "${APP_DMG}"
-fi
 
 pkgbuild --analyze --root "${PKG_STAGE_ROOT}" "${COMPONENT_PLIST}"
 COMPONENT_PLIST_ENV="${COMPONENT_PLIST}" APP_NAME_ENV="${APP_NAME}" python3 - <<'PYPLIST'
@@ -298,7 +270,6 @@ rm -f "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG_ZIP}"
 )
 
 echo "desktop app bundle ready: ${APP_BUNDLE_ZIP}"
-echo "desktop dmg ready: ${APP_DMG}"
 echo "offline installer package ready: ${OFFLINE_INSTALLER_PKG}"
 echo "offline installer delivery zip ready: ${OFFLINE_INSTALLER_PKG_ZIP}"
 echo "component plist ready: ${COMPONENT_PLIST}"
@@ -325,7 +296,6 @@ manifest = {
   'platforms': {
     platform_key: {
       'appUrl': f"{app_base}/{config['desktopAssetName']}",
-      'dmgUrl': f"{app_base}/{config['desktopDmgName']}",
       'pkgUrl': f"{app_base}/{config['desktopOfflinePkgName']}",
       'runtimeUrl': f"{runtime_base}/{config['runtimeAssetName']}",
       'runtimeVersion': runtime_version,

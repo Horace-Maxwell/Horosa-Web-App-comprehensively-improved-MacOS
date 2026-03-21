@@ -23,15 +23,8 @@ config = json.loads((root / 'config/release_config.json').read_text())
 print(root / 'dist' / config['desktopAssetName'])
 PYZIP
 )"
-DMG_PATH="$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYDMG'
-import json, os, pathlib
-root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
-config = json.loads((root / 'config/release_config.json').read_text())
-print(root / 'dist' / config['desktopDmgName'])
-PYDMG
-)"
 
-for path in "$TARGET_APP" "$PKG_PATH" "$ZIP_PATH" "$DMG_PATH"; do
+for path in "$TARGET_APP" "$PKG_PATH" "$ZIP_PATH"; do
   [ -e "$path" ] || {
     echo "missing artifact: $path" >&2
     exit 1

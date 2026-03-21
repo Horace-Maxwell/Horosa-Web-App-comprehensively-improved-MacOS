@@ -52,7 +52,6 @@ const DEFAULT_REPO_OWNER: &str = "Horace-Maxwell";
 const DEFAULT_REPO_NAME: &str = "Horosa-Web-App-comprehensively-improved-MacOS";
 const DEFAULT_RUNTIME_ASSET_NAME: &str = "horosa-runtime-macos-arm64.tar.gz";
 const DEFAULT_DESKTOP_ASSET_NAME: &str = "Horosa-Desktop-macos-arm64.zip";
-const DEFAULT_DESKTOP_DMG_NAME: &str = "Horosa-Desktop-macos-arm64.dmg";
 const DEFAULT_DESKTOP_PKG_NAME: &str = "Horosa-Installer-macos-arm64.pkg";
 const DEFAULT_DESKTOP_PKG_ZIP_NAME: &str = "Horosa-Installer-macos-arm64-pkg.zip";
 const DEFAULT_DESKTOP_OFFLINE_PKG_NAME: &str = "Horosa-Installer-macos-arm64-offline.pkg";
@@ -79,8 +78,6 @@ struct ReleaseConfig {
     runtime_asset_name: String,
     #[serde(rename = "desktopAssetName")]
     desktop_asset_name: String,
-    #[serde(rename = "desktopDmgName", default = "default_desktop_dmg_name")]
-    desktop_dmg_name: String,
     #[serde(rename = "desktopPkgName")]
     desktop_pkg_name: String,
     #[serde(rename = "desktopPkgZipName")]
@@ -414,6 +411,7 @@ struct SavedWindowState {
     height: Option<f64>,
     x: Option<f64>,
     y: Option<f64>,
+    is_maximized: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -451,10 +449,6 @@ struct AppState {
     review: AssetReviewCoordinator,
 }
 
-fn default_desktop_dmg_name() -> String {
-    DEFAULT_DESKTOP_DMG_NAME.to_string()
-}
-
 fn default_supported_arch() -> String {
     DEFAULT_SUPPORTED_ARCH.to_string()
 }
@@ -474,13 +468,12 @@ fn fallback_release_config(app: &AppHandle) -> ReleaseConfig {
         runtime_version: app.package_info().version.to_string(),
         runtime_asset_name: DEFAULT_RUNTIME_ASSET_NAME.to_string(),
         desktop_asset_name: DEFAULT_DESKTOP_ASSET_NAME.to_string(),
-        desktop_dmg_name: DEFAULT_DESKTOP_DMG_NAME.to_string(),
         desktop_pkg_name: DEFAULT_DESKTOP_PKG_NAME.to_string(),
         desktop_pkg_zip_name: DEFAULT_DESKTOP_PKG_ZIP_NAME.to_string(),
         desktop_offline_pkg_name: DEFAULT_DESKTOP_OFFLINE_PKG_NAME.to_string(),
         desktop_offline_pkg_zip_name: DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME.to_string(),
         update_manifest_name: DEFAULT_UPDATE_MANIFEST_NAME.to_string(),
-        primary_download: DEFAULT_DESKTOP_DMG_NAME.to_string(),
+        primary_download: DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME.to_string(),
         supported_arch: DEFAULT_SUPPORTED_ARCH.to_string(),
         release_tag_prefix: DEFAULT_RELEASE_TAG_PREFIX.to_string(),
         app_name: APP_NAME.to_string(),
@@ -744,6 +737,7 @@ fn save_window_states(app: &AppHandle, states: &WindowStateStore) -> Result<()> 
 
 fn capture_window_state(window: &WebviewWindow) -> SavedWindowState {
     let mut state = SavedWindowState::default();
+    state.is_maximized = window.is_maximized().ok();
     if let Ok(size) = window.outer_size() {
         state.width = Some(size.width as f64);
         state.height = Some(size.height as f64);
@@ -756,6 +750,10 @@ fn capture_window_state(window: &WebviewWindow) -> SavedWindowState {
 }
 
 fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
+    if state.is_maximized == Some(true) {
+        let _ = window.maximize();
+        return;
+    }
     if let (Some(width), Some(height)) = (state.width, state.height) {
         let _ = window.set_size(Size::Logical(LogicalSize::new(width, height)));
     }
@@ -1469,6 +1467,7 @@ fn open_main_window(app: &AppHandle) -> Result<()> {
             .build()
             .context("recreate main window")?;
     apply_saved_window_state(&window, &load_window_states(app).main);
+    let _ = window.maximize();
     set_window_zoom(app, DEFAULT_ZOOM)?;
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(slot) = state.session.lock() {
@@ -1902,11 +1901,9 @@ fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
                         {
                             config.runtime_version = app.package_info().version.to_string();
                         }
-                        if config.desktop_dmg_name.trim().is_empty() {
-                            config.desktop_dmg_name = DEFAULT_DESKTOP_DMG_NAME.to_string();
-                        }
                         if config.primary_download.trim().is_empty() {
-                            config.primary_download = config.desktop_dmg_name.clone();
+                            config.primary_download =
+                                DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME.to_string();
                         }
                         if config.supported_arch.trim().is_empty() {
                             config.supported_arch = DEFAULT_SUPPORTED_ARCH.to_string();
@@ -4108,6 +4105,19 @@ mod tests {
     use std::fs;
     use std::process::Command;
     use tar::Builder;
+
+    #[test]
+    fn saved_window_state_accepts_legacy_json_without_maximize_flag() {
+        let state: SavedWindowState =
+            serde_json::from_str(r#"{"width":1480.0,"height":960.0,"x":120.0,"y":80.0}"#)
+                .expect("deserialize legacy window state");
+
+        assert_eq!(state.width, Some(1480.0));
+        assert_eq!(state.height, Some(960.0));
+        assert_eq!(state.x, Some(120.0));
+        assert_eq!(state.y, Some(80.0));
+        assert_eq!(state.is_maximized, None);
+    }
 
     fn temp_test_dir(name: &str) -> PathBuf {
         let unique = SystemTime::now()

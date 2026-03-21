@@ -476,6 +476,30 @@ async function loadJieqiChart(params, term, birth){
 	return chartObj;
 }
 
+function normalizeJieqiCompareValue(value){
+	if(value === undefined || value === null || value === ''){
+		return null;
+	}
+	return `${value}`;
+}
+
+export function isJieQiChartCompatible(chartObj, params){
+	const chartParams = chartObj && chartObj.params ? chartObj.params : {};
+	const reqParams = params || {};
+	return [
+		'year',
+		'ad',
+		'zone',
+		'lat',
+		'lon',
+		'gpsLat',
+		'gpsLon',
+		'hsys',
+		'zodiacal',
+		'doubingSu28',
+	].every((key)=>normalizeJieqiCompareValue(chartParams[key]) === normalizeJieqiCompareValue(reqParams[key]));
+}
+
 function isEncodedToken(text){
 	return /^[A-Za-z0-9${}]$/.test((text || '').trim());
 }
@@ -794,7 +818,7 @@ function tabNeedsJieqiCharts(currentTab, jieqis){
 }
 
 
-class JieQiChartsMain extends Component{
+export class JieQiChartsMain extends Component{
 
 	constructor(props) {
 		super(props);
@@ -986,11 +1010,16 @@ class JieQiChartsMain extends Component{
 		if(this.pendingChartRequest && this.pendingChartRequest.key === reqKey){
 			return this.pendingChartRequest.promise;
 		}
+		const cachedChart = this.state.result
+			&& this.state.result.charts
+			? this.state.result.charts[title]
+			: null;
 		if(this.state.result
 			&& this.state.result.charts
-			&& this.state.result.charts[title]){
+			&& cachedChart
+			&& isJieQiChartCompatible(cachedChart, reqParams)){
 			this.lastChartResultKey = reqKey;
-			return this.state.result.charts[title];
+			return cachedChart;
 		}
 		const seq = ++this.chartRequestSeq;
 		const reqPromise = (async()=>{

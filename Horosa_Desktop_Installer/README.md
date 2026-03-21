@@ -4,39 +4,33 @@
 
 ## 普通用户下载入口
 
-如果你要告诉别人“去哪里下载一键安装包”，优先给这三个地址：
+如果你要告诉别人“去哪里下载一键安装包”，优先给这两个地址：
 
 - Release 页面：
   [https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-- Mac 下载（推荐，Apple Silicon）：
-  [Horosa-Desktop-macos-arm64.dmg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Desktop-macos-arm64.dmg)
 - 离线安装包（弱网 / 转手分发）：
   [Horosa-Installer-macos-arm64-offline-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline-pkg.zip)
 
-普通用户不要自己猜文件名，按场景下载：
+普通用户不要自己猜文件名，直接下载：
 
-- `Horosa-Desktop-macos-arm64.dmg`
-  - 适合：绝大多数普通 Mac 用户
-  - 特点：标准 DMG 安装路径，拖入 `Applications` 后直接打开；如果缺少运行环境，会在 app 内自动准备
 - `Horosa-Installer-macos-arm64-offline-pkg.zip`
-  - 适合：中国大陆、弱网、离线拷给别人安装
+  - 适合：所有普通用户，尤其是中国大陆、弱网、离线拷给别人安装
   - 特点：包更大，但本机组件已内置，安装后可直接打开使用
 
 下载后步骤要说明清楚：
 
-1. 推荐方式：下载 `Horosa-Desktop-macos-arm64.dmg`，打开 DMG，把 `星阙.app` 拖入 `Applications`
-2. 从 `/Applications/星阙.app` 启动
-3. 如果检测到这台 Mac 上已有 app、本机组件或旧缓存，先在 app 内完成“安装审查”，手动勾选这次要替换的资产
-4. 如果是首次准备运行环境，等待 app 内完成初始化
-5. 如果你下载的是离线安装包，再解压 zip 并运行其中的 `.pkg`；离线安装完成后必须可直接打开，不再走联网准备
+1. 下载 `Horosa-Installer-macos-arm64-offline-pkg.zip`
+2. 解压 zip 并运行其中的 `.pkg`
+3. 从 `/Applications/星阙.app` 启动
+4. 如果检测到这台 Mac 上已有 app、本机组件或旧缓存，先在 app 内完成“安装审查”，手动勾选这次要替换的资产
+5. 离线安装完成后必须可直接打开，不再走联网准备
 6. `Open-XingQue-Unsigned.command` 只在系统拦截时作为兜底，不再是默认第一步
 
-其他 release 资产都不是给普通用户手动挑选的，应该放在说明后面，不要放在最前面干扰他们。
+其他 release 资产都不是给普通用户手动挑选的，应该放在说明后面，不要放在最前面干扰他们。`DMG` 公开入口已取消，不再继续分发。
 
 目标：
 
-- 交付标准 `DMG + .app` 主安装路径，同时保留离线 `.pkg` 作为弱网兜底。
-- 首次启动允许在 app 内联网准备 runtime，减少首包体积。
+- 交付离线 `.pkg zip` 作为唯一公开安装入口。
 - 日常启动使用原生 `.app`，内置浏览窗口，不弹 Terminal。
 - 菜单栏提供“检查更新”，支持自动下载、校验、替换、重开。
 - 如果应用安装在 `/Applications`，应用内更新会按 macOS 标准弹出管理员密码框来完成替换。
@@ -49,28 +43,20 @@
 - `config/release_config.json`: GitHub Release 与运行时资产配置
 - `installer-scripts/postinstall.template`: `.pkg` 安装后下载 runtime 的脚本模板
 - `scripts/package_runtime_payload.sh`: 打包 runtime payload
-- `scripts/build_desktop_release.sh`: 构建 `.app`、`.dmg`、`.pkg`、`horosa-latest.json`
+- `scripts/build_desktop_release.sh`: 构建 `.app zip`、离线 `.pkg`、`horosa-latest.json`
 - `scripts/verify_desktop_packaging.sh`: 一键验收脚本
 - `scripts/generate_icon.sh`: 生成圆角白底黑字“星阙”图标
 
 ## 安装模型
 
-用户侧现在主要认两个文件：
+用户侧现在只认一个文件：
 
-- `Horosa-Desktop-macos-arm64.dmg`
 - `Horosa-Installer-macos-arm64-offline-pkg.zip`
 
 Release 页面建议使用中英文双语提示，明确告诉普通用户：
 
-- 普通 Mac 用户：下载 `DMG`
-- 中国大陆、弱网、离线转发给别人：下载离线 `.pkg zip`
-
-推荐路径：
-
-1. 打开 `DMG`
-2. 拖入 `Applications`
-3. 双击 `/Applications/星阙.app`
-4. 如果缺少运行环境，app 内自动准备
+- 普通用户：下载离线 `.pkg zip`
+- 中国大陆、弱网、离线转发给别人：同样下载离线 `.pkg zip`
 
 离线路径：
 
@@ -84,7 +70,7 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
 
 1. 原生窗口展示正式安装/初始化页
 2. 所有安装、修复、更新都会先进入“安装审查”，列出 app、本机组件和缓存等已安装资产
-3. 优先复用 `/Users/Shared/Horosa/runtime/current`；如果没有共享 runtime，就在用户态目录完成下载与安装
+3. 优先复用 `/Users/Shared/Horosa/runtime/current`；离线路径下不再回退到联网准备
 4. 只有被勾选为“替换”的资产才会被处理，未勾选的内容会尽量保留
 5. 后台启动 Python / Java 服务
 6. 内置 WebView 自动切到星阙主界面
@@ -126,11 +112,9 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
 
 1. 三个版本号始终一致：`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`
 2. Git tag 使用严格递增的 semver，例如 `v1.0.0`
-3. 对外下载安装需要明确分流：
+3. 对外下载安装只保留一个公开入口：
    - 主入口：`Horosa-Installer-macos-arm64-offline-pkg.zip`
-   - 补充入口：`Horosa-Desktop-macos-arm64.dmg`
 4. 发布资产必须至少同时上传：
-   - `Horosa-Desktop-macos-arm64.dmg`
    - `Horosa-Desktop-macos-arm64.zip`
    - `Horosa-Installer-macos-arm64-offline.pkg`
    - `Horosa-Installer-macos-arm64-offline-pkg.zip`
@@ -140,7 +124,7 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
 6. Release 需要是正式版 latest，不要把预发布误当最新稳定版
 7. 发布前必须跑 `scripts/verify_desktop_packaging.sh`
 
-普通用户不需要理解其他资产，只需要在离线 `.pkg zip` 和 `DMG` 之间选对入口。轻量在线 `.pkg` 已取消；其余 release 资产继续保留给安装器与自动更新器使用。
+普通用户不需要理解其他资产，只需要下载离线 `.pkg zip`。轻量在线 `.pkg` 与 `DMG` 公开入口都已取消；其余 release 资产继续保留给安装器与自动更新器使用。
 
 只要这几条不破，客户端就会优先抓到固定 manifest，再按 manifest 中的准确 URL 和哈希完成更新。
 
@@ -163,14 +147,14 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 
 - 先跑一遍本地验收
 - 创建或更新当前版本对应的 GitHub Release
-- 覆盖上传 DMG、离线 PKG、更新 zip、manifest 等发布资产
+- 覆盖上传离线 PKG、更新 zip、manifest 和 runtime 等发布资产
 - 轮询校验 `releases/latest/download/horosa-latest.json`
 - 确认客户端更新入口可以抓到当前版本
 
 验收脚本会检查：
 
 - Rust 项目 `cargo fmt --check` 与 `cargo check`
-- runtime payload、`.dmg`、`.zip`、`.pkg`、`horosa-latest.json` 是否成功生成
+- runtime payload、`.zip`、`.pkg`、`horosa-latest.json` 是否成功生成
 - 对外交付 zip 是否能正常解压出 `.pkg`
 - 版本号是否同步
 - manifest 中的平台、URL、SHA-256 是否完整
@@ -181,7 +165,6 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 
 默认输出目录：`dist/`
 
-- `Horosa-Desktop-macos-arm64.dmg`
 - `Horosa-Desktop-macos-arm64.zip`
 - `Horosa-Installer-macos-arm64-offline.pkg`
 - `Horosa-Installer-macos-arm64-offline-pkg.zip`
