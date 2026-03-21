@@ -762,6 +762,17 @@ fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
     }
 }
 
+fn should_launch_main_window_maximized(state: &SavedWindowState) -> bool {
+    state.is_maximized != Some(false)
+}
+
+fn apply_main_window_launch_state(window: &WebviewWindow, state: &SavedWindowState) {
+    apply_saved_window_state(window, state);
+    if should_launch_main_window_maximized(state) {
+        let _ = window.maximize();
+    }
+}
+
 fn persist_window_state_for_label(
     app: &AppHandle,
     label: &str,
@@ -1466,8 +1477,7 @@ fn open_main_window(app: &AppHandle) -> Result<()> {
             .min_inner_size(1180.0, 760.0)
             .build()
             .context("recreate main window")?;
-    apply_saved_window_state(&window, &load_window_states(app).main);
-    let _ = window.maximize();
+    apply_main_window_launch_state(&window, &load_window_states(app).main);
     set_window_zoom(app, DEFAULT_ZOOM)?;
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(slot) = state.session.lock() {
@@ -4005,7 +4015,7 @@ fn main() {
                 .get_webview_window(MAIN_WINDOW_LABEL)
                 .context("main window missing")?
                 .clone();
-            apply_saved_window_state(&window, &load_window_states(&app_handle).main);
+            apply_main_window_launch_state(&window, &load_window_states(&app_handle).main);
             set_window_zoom(&app_handle, DEFAULT_ZOOM)?;
             thread::spawn(move || {
                 match runtime_bootstrap(app_handle.clone(), window.clone(), false) {
@@ -4117,6 +4127,29 @@ mod tests {
         assert_eq!(state.x, Some(120.0));
         assert_eq!(state.y, Some(80.0));
         assert_eq!(state.is_maximized, None);
+    }
+
+    #[test]
+    fn legacy_main_window_state_defaults_to_launch_maximized() {
+        let state = SavedWindowState {
+            width: Some(1480.0),
+            height: Some(960.0),
+            x: Some(120.0),
+            y: Some(80.0),
+            is_maximized: None,
+        };
+
+        assert!(should_launch_main_window_maximized(&state));
+    }
+
+    #[test]
+    fn explicit_non_maximized_state_is_respected() {
+        let state = SavedWindowState {
+            is_maximized: Some(false),
+            ..SavedWindowState::default()
+        };
+
+        assert!(!should_launch_main_window_maximized(&state));
     }
 
     fn temp_test_dir(name: &str) -> PathBuf {
