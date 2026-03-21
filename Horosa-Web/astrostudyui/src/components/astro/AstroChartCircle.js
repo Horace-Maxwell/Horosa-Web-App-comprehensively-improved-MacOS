@@ -6,6 +6,41 @@ import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip, setup
 import {drawTextV, drawTextH} from '../graph/GraphHelper';
 import { appendAstroMeaningTips, buildSignMeaningTip, buildAspectMeaningTip } from './AstroMeaningData';
 
+const ZODIACAL_LABELS = {
+	0: '回归黄道',
+	1: '恒星黄道',
+	'0': '回归黄道',
+	'1': '恒星黄道',
+	[AstroConst.TROPICAL]: '回归黄道',
+	[AstroConst.SIDEREAL]: '恒星黄道',
+};
+
+function resolveChartCircleZodiacal(value){
+	if(value === undefined || value === null || value === ''){
+		return null;
+	}
+	return ZODIACAL_LABELS[value] || AstroText.AstroMsg[value] || AstroText.AstroTxtMsg[value] || `${value}`;
+}
+
+function resolveChartCircleHouseSystem(value){
+	if(value === undefined || value === null || value === ''){
+		return null;
+	}
+	return AstroConst.HouseSys[`${value}`] || AstroText.AstroMsg[value] || `${value}`;
+}
+
+export function resolveChartCircleDisplayMode(params = {}){
+	return {
+		zodiacal: resolveChartCircleZodiacal(params.zodiacal),
+		hsys: resolveChartCircleHouseSystem(params.hsys),
+	};
+}
+
+function buildChartCircleDisplayModeText(params = {}){
+	const display = resolveChartCircleDisplayMode(params);
+	return [display.zodiacal, display.hsys].filter(Boolean).join('，');
+}
+
 
 export default class AstroChartCircle {
 	constructor(option){
@@ -1022,13 +1057,9 @@ export default class AstroChartCircle {
 			let suntm = '真太阳时：' + chartObj.chart.nongli.birth;
 			commtxts.push(suntm);
 		}
-		if(params.zodiacal === AstroConst.SIDEREAL){
-			commtxts.push(AstroText.AstroTxtMsg[params.zodiacal]);
-			let txt = AstroConst.HouseSys[params.hsys];
-			commtxts.push(txt)
-		}else{
-			let txt = AstroText.AstroMsg[params.zodiacal] + '，' + AstroConst.HouseSys[params.hsys]
-			commtxts.push(txt);
+		let displayModeText = buildChartCircleDisplayModeText(params);
+		if(displayModeText){
+			commtxts.push(displayModeText);
 		}
 		commtxts.push('日主星：' + AstroText.AstroMsgCN[chartObj.chart.dayerStar]);
 		commtxts.push('时主星：' + AstroText.AstroMsgCN[chartObj.chart.timerStar]);
@@ -1093,13 +1124,9 @@ export default class AstroChartCircle {
 			let suntime = '真太阳时：' + chartObj.chart.nongli.birth;
 			commtxts.push(suntime);
 		}
-		if(params.zodiacal === AstroConst.SIDEREAL){
-			commtxts.push(AstroText.AstroTxtMsg[params.zodiacal]);
-			let txt = AstroConst.HouseSys[params.hsys];
-			commtxts.push(txt)
-		}else{
-			let txt = AstroText.AstroMsg[params.zodiacal] + '，' + AstroConst.HouseSys[params.hsys]
-			commtxts.push(txt);
+		let displayModeText = buildChartCircleDisplayModeText(params);
+		if(displayModeText){
+			commtxts.push(displayModeText);
 		}
 		commtxts.push('日主星：' + AstroText.AstroMsgCN[chartObj.chart.dayerStar]);
 		commtxts.push('时主星：' + AstroText.AstroMsgCN[chartObj.chart.timerStar]);
