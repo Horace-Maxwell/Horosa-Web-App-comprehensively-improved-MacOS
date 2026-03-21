@@ -1,7 +1,7 @@
 {
   "repoOwner": "Horace-Maxwell",
   "repoName": "Horosa-Web-App-comprehensively-improved-MacOS",
-  "runtimeVersion": "1.1.2-runtime1",
+  "runtimeVersion": "1.1.3-runtime1",
   "runtimeAssetName": "horosa-runtime-macos-arm64.tar.gz",
   "desktopAssetName": "Horosa-Desktop-macos-arm64.zip",
   "desktopPkgName": "Horosa-Installer-macos-arm64.pkg",
