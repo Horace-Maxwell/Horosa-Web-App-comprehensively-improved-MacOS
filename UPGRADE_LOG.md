@@ -12,6 +12,30 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-03-27
+
+### 13:20 - 修复六壬左盘重绘时未同步最新性别，准备发布 v1.1.6 / v1.1.6-runtime1
+
+- Problem:
+  - 用户反馈本地 `v1.1.5` 里六壬页面仍能复现“卜卦人出生时间选 `女`，左盘 `行年 -> 性别` 仍显示 `男`”。
+  - 进一步排查后确认不是 `RengChart.getRunYear()` 的显示逻辑还没修，而是 `LiuRengChart` 在每次重绘时没有把最新 `props.gender` 同步回内部 `RengChart` 实例。
+  - 这会导致左盘继续吃初始化时那份旧性别，即使右侧表单和行年计算链已经按最新性别在跑。
+- Changes:
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
+    - 在 `drawChart()` 里补上 `this.rengchart.gender = this.props.gender`，让六壬左盘每次按最新 props 重绘。
+  - `Horosa-Web/astrostudyui/src/components/lrzhan/__tests__/LiuRengChart.test.js`
+    - 新增回归测试，覆盖“右侧性别 props 更新后，内部 `RengChart` 实例会同步收到新 gender”。
+  - `Horosa_Desktop_Installer/config/release_config.json`
+    - 独立 runtime 版本提升到 `1.1.6-runtime1`，确保这次前端修复进入真正的运行时资产。
+  - `Horosa_Desktop_Installer/config/release_notes.md`
+    - 补充本次六壬左盘同步修复说明。
+- Verification:
+  - `npm test -- --runInBand src/components/lrzhan/__tests__/RengChart.test.js src/components/lrzhan/__tests__/LiuRengChart.test.js`
+  - `npm run build`
+  - `npm run build:file`
+  - 将继续执行 `verify_desktop_packaging.sh`
+  - 将继续执行 `verify_github_release_end_to_end.sh`
+
 ## 2026-03-17
 
 ### 18:05 - 让星盘长释义悬浮窗真正对齐右栏/遁甲弹层，并补强更新后自动重启与首启稳定性，准备发布 v1.0.27 / v1.0.27-runtime1
