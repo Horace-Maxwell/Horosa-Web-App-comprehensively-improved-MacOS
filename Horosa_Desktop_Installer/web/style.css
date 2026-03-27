@@ -620,6 +620,24 @@ button {
   transition: width 220ms ease;
 }
 
+.progress-track.is-indeterminate span {
+  width: 38%;
+  transition: none;
+  animation: launcher-progress-indeterminate 1.3s ease-in-out infinite;
+}
+
+@keyframes launcher-progress-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  50% {
+    transform: translateX(55%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
 .phase-strip {
   margin-top: 14px;
   justify-content: space-between;

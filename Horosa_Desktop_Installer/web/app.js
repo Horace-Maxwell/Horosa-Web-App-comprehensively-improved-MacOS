@@ -1,5 +1,6 @@
 (function () {
   const progressFill = document.getElementById('progressFill');
+  const progressTrack = progressFill?.parentElement || null;
   const progressText = document.getElementById('progressText');
   const progressPct = document.getElementById('progressPct');
   const sessionInline = document.getElementById('sessionInline');
@@ -70,6 +71,7 @@
   let currentErrorPayload = null;
   let showFullLog = false;
   let retryActionKind = 'repair_runtime';
+  let progressIsIndeterminate = false;
 
   async function invoke(cmd, args) {
     if (window.__TAURI__?.core?.invoke) {
@@ -326,6 +328,33 @@
             action: 'repair_runtime'
           }
         };
+      case 'update_review':
+        return {
+          modeTag: '版本更新',
+          modeHint: '先检查，再由你决定是否继续',
+          brandTitle: '已发现可用更新，等待你确认',
+          brandCopy: '这次先只展示更新结果，不会立刻开始下载；只有你明确确认后，才会进入下载、校验和替换流程。',
+          sceneTitleText: '更新待确认',
+          sceneCopyText: '当前版本会保持不动，直到你明确选择继续本次更新。',
+          sessionInlineText: '等待确认更新',
+          summarySessionTypeText: '更新待确认',
+          summaryRuntimeStrategyText: '先比对版本与更新摘要，再由你决定是否开始替换',
+          summaryBackendModeText: '确认之前不会开始下载或重开',
+          summaryOutcomeText: '确认后才进入更新事务',
+          heroBadges: ['先检查结果再决定', '确认前不会开始下载', '当前版本保持不变'],
+          guards: [
+            ['更新入口', '“检查更新”现在默认只是检查，不会直接开始下载。'],
+            ['用户确认', '只有你明确选择继续时，才会进入更新事务。'],
+            ['当前状态', '在你确认之前，当前 app 和本机组件都不会被替换。'],
+            ['后续动作', '一旦确认继续，下载、校验、替换和重开会作为同一笔事务执行。']
+          ],
+          footer: '更新检查已经改成两阶段：先展示结果，再由你手动决定要不要开始更新。',
+          retry: {
+            title: '重新检查更新',
+            copy: '如果你暂缓了本次更新，稍后可以再重新检查',
+            action: 'repair_runtime'
+          }
+        };
       case 'error':
         return {
           modeTag: '需要处理',
@@ -442,6 +471,10 @@
             action: 'reinstall_offline_package'
           }
         };
+      case 'update_review':
+        return {
+          ...defaultSupportContentForMode('update_review')
+        };
       case 'offline_repair_required':
         return {
           ...defaultSupportContentForMode('error'),
@@ -515,6 +548,7 @@
         return 'error';
       case 'repair_in_progress':
         return 'repair';
+      case 'update_review':
       case 'update_in_progress':
         return 'update';
       default:
@@ -716,6 +750,8 @@
     currentReviewDecisions = { ...(payload.defaultSelections || {}) };
     assetReviewPanel.classList.remove('hidden');
     reviewIntro.textContent = `${modeToLabel(payload.mode)}已就绪。勾选你想替换的资产，未勾选的内容会尽量保留。`;
+    reviewCancelBtn.textContent = payload.mode === 'update' ? '稍后再说' : '取消';
+    reviewContinueBtn.textContent = payload.mode === 'update' ? '开始更新' : '继续';
     renderBlockingIssues(payload.blockingIssues || []);
     renderReviewItems(payload);
     applyMode(payload.mode);
@@ -728,6 +764,8 @@
     currentReviewDecisions = {};
     assetReviewPanel.classList.add('hidden');
     reviewItems.innerHTML = '';
+    reviewCancelBtn.textContent = '取消';
+    reviewContinueBtn.textContent = '继续';
     renderBlockingIssues([]);
   }
 
@@ -763,7 +801,9 @@
     summaryBackendMode.textContent = config.summaryBackendMode;
     summaryOutcome.textContent = config.summaryOutcome;
     sessionInline.textContent = config.sessionInline;
-    phaseLabel.textContent = resolvePhase(Number(progressPct.textContent.replace('%', '')) || 0).label;
+    phaseLabel.textContent = progressIsIndeterminate
+      ? '接收中'
+      : resolvePhase(Number(progressPct.textContent.replace('%', '')) || 0).label;
     applySupportContent(currentStatePayload && hasExplicitState ? currentStatePayload : fallbackStateForMode(nextMode));
     if (!hasExplicitState) {
       renderStatePanel(fallbackStateForMode(nextMode), { explicit: false });
@@ -798,14 +838,23 @@
     return null;
   }
 
-  function setProgress(pct, text) {
-    const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+  function setProgress(pct, text, options = {}) {
+    const indeterminate = Boolean(options.indeterminate);
+    const numericPct = Number(pct);
+    const basePct = Number(progressPct.textContent.replace('%', '')) || 0;
+    const clamped = Number.isFinite(numericPct)
+      ? Math.max(0, Math.min(100, numericPct))
+      : basePct;
     const inferredMode = inferMode(text);
     if (inferredMode) applyMode(inferredMode);
     const phase = resolvePhase(clamped);
-    progressFill.style.width = `${clamped}%`;
-    progressPct.textContent = `${Math.round(clamped)}%`;
-    phaseLabel.textContent = phase.label;
+    progressIsIndeterminate = indeterminate;
+    if (progressTrack) {
+      progressTrack.classList.toggle('is-indeterminate', indeterminate);
+    }
+    progressFill.style.width = indeterminate ? '38%' : `${clamped}%`;
+    progressPct.textContent = indeterminate ? '接收中' : `${Math.round(clamped)}%`;
+    phaseLabel.textContent = indeterminate ? '接收中' : phase.label;
     renderSteps(phase.step);
     if (text) {
       progressText.textContent = text;
@@ -849,8 +898,8 @@
     pushLine(message);
   };
 
-  window.__horosaProgress = function (pct, message) {
-    setProgress(pct, message);
+  window.__horosaProgress = function (pct, message, indeterminate) {
+    setProgress(pct, message, { indeterminate: Boolean(indeterminate) });
     if (message) pushLine(message);
   };
 
@@ -909,7 +958,8 @@
     if (window.__horosaPendingProgress) {
       window.__horosaProgress(
         window.__horosaPendingProgress.pct,
-        window.__horosaPendingProgress.message
+        window.__horosaPendingProgress.message,
+        window.__horosaPendingProgress.indeterminate
       );
     }
     if (Array.isArray(window.__horosaPendingStatusLines)) {

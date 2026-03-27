@@ -241,6 +241,7 @@ enum LauncherStateKind {
     OfflineReview,
     OfflineRepairRequired,
     RepairInProgress,
+    UpdateReview,
     UpdateInProgress,
 }
 
@@ -618,6 +619,23 @@ fn build_repair_in_progress_state() -> LauncherStatePayload {
     }
 }
 
+fn build_update_review_state() -> LauncherStatePayload {
+    LauncherStatePayload {
+        kind: LauncherStateKind::UpdateReview,
+        badge: "发现更新".to_string(),
+        title: "已获取新版本信息，等待你确认是否开始更新".to_string(),
+        summary: "这一步只负责检查和展示结果；只有你明确确认后，才会开始下载与替换。".to_string(),
+        detail: "如果你选择稍后再说，本次不会下载任何资产，也不会替换当前 app 或本机组件。"
+            .to_string(),
+        recommendation: Some("确认开始后，星阙 才会进入下载、校验与重开流程。".to_string()),
+        install_source: None,
+        recovery_kind: None,
+        primary_action: None,
+        secondary_actions: vec![],
+        raw_error: None,
+    }
+}
+
 fn build_update_in_progress_state() -> LauncherStatePayload {
     LauncherStatePayload {
         kind: LauncherStateKind::UpdateInProgress,
@@ -797,6 +815,14 @@ fn overlay_json(value: Option<&str>) -> String {
     value.map(escape_js).unwrap_or_else(|| "null".to_string())
 }
 
+fn overlay_bool_json(value: Option<bool>) -> String {
+    match value {
+        Some(true) => "true".to_string(),
+        Some(false) => "false".to_string(),
+        None => "null".to_string(),
+    }
+}
+
 fn emit_overlay(
     window: &WebviewWindow,
     mode: Option<&str>,
@@ -804,6 +830,7 @@ fn emit_overlay(
     message: Option<&str>,
     error: Option<&str>,
     ready: bool,
+    indeterminate: Option<bool>,
 ) {
     let mode = overlay_json(mode);
     let message = overlay_json(message);
@@ -812,6 +839,7 @@ fn emit_overlay(
         .map(|value| value.to_string())
         .unwrap_or_else(|| "null".to_string());
     let ready = if ready { "true" } else { "false" };
+    let indeterminate = overlay_bool_json(indeterminate);
     let _ = window.eval(&format!(
         r#"
 (function () {{
@@ -821,6 +849,8 @@ fn emit_overlay(
       const CARD_ID = 'horosa-inline-progress';
       let hideTimer = null;
       let lastMode = 'launch';
+      let lastPct = 0;
+      let lastIndeterminate = false;
 
       function isLauncherPage() {{
         return !!document.querySelector('.installer-shell');
@@ -955,6 +985,10 @@ fn emit_overlay(
             background: linear-gradient(90deg, #0f5cd5 0%, #67a0ff 58%, #bfe0ff 100%);
             transition: width 180ms ease;
           }}
+          #${{CARD_ID}}[data-indeterminate="true"] .hip-fill {{
+            width: 38%;
+            animation: horosa-inline-progress-sweep 1.2s linear infinite;
+          }}
           #${{CARD_ID}}[data-tone="update"] .hip-fill {{
             background: linear-gradient(90deg, #0e7f63 0%, #45c7a0 58%, #c2f0df 100%);
           }}
@@ -964,6 +998,14 @@ fn emit_overlay(
           }}
           #${{CARD_ID}}[data-tone="error"] .hip-fill {{
             background: linear-gradient(90deg, #b64826 0%, #ea8a66 64%, #f4c3b0 100%);
+          }}
+          @keyframes horosa-inline-progress-sweep {{
+            0% {{
+              transform: translateX(-130%);
+            }}
+            100% {{
+              transform: translateX(310%);
+            }}
           }}
         `;
         document.head.appendChild(style);
@@ -1019,8 +1061,9 @@ fn emit_overlay(
         return '更新进行中';
       }}
 
-      function stepFor(text, ready) {{
+      function stepFor(text, ready, indeterminate) {{
         if (ready) return '即将完成';
+        if (indeterminate && /下载|接收/.test(text || '')) return '接收资产';
         if (/校验/.test(text || '')) return '校验资产';
         if (/替换应用|重开/.test(text || '')) return '替换应用';
         if (/解压|切换|部署本机组件/.test(text || '')) return '部署组件';
@@ -1028,8 +1071,9 @@ fn emit_overlay(
         return '下载资产';
       }}
 
-      function phaseFor(pct, text, ready) {{
+      function phaseFor(pct, text, ready, indeterminate) {{
         if (ready || pct >= 96) return '即将完成';
+        if (indeterminate && /下载|接收/.test(text || '')) return '接收中';
         if (/替换应用|重开/.test(text || '') || pct >= 88) return '替换与重开';
         if (/运行环境|本机组件/.test(text || '') || pct >= 56) return '组件事务';
         if (/下载/.test(text || '') || pct >= 10) return '下载中';
@@ -1056,6 +1100,7 @@ fn emit_overlay(
         const text = payload.error || payload.message || '';
         const hasError = !!payload.error;
         const ready = !!payload.ready;
+        const indeterminate = payload.indeterminate == null ? lastIndeterminate : !!payload.indeterminate;
         lastMode = mode;
         const card = ensureCard();
         if (!card) return;
@@ -1064,14 +1109,19 @@ fn emit_overlay(
           return;
         }}
         card.dataset.tone = tone(mode, hasError);
+        card.dataset.indeterminate = indeterminate ? 'true' : 'false';
         card.querySelector('.hip-badge-text').textContent = badgeFor(mode, hasError);
         card.querySelector('.hip-title').textContent = titleFor(mode, hasError);
         card.querySelector('.hip-copy').textContent = text || '正在处理下载与安装事务。';
-        const pct = payload.pct == null ? 0 : Math.max(0, Math.min(100, Number(payload.pct) || 0));
-        card.querySelector('.hip-percent').textContent = `${{Math.round(pct)}}%`;
-        card.querySelector('.hip-phase').textContent = phaseFor(pct, text, ready);
-        card.querySelector('.hip-step').textContent = stepFor(text, ready);
-        card.querySelector('.hip-fill').style.width = `${{pct}}%`;
+        const pct = payload.pct == null ? lastPct : Math.max(0, Math.min(100, Number(payload.pct) || 0));
+        lastPct = pct;
+        lastIndeterminate = indeterminate;
+        card.querySelector('.hip-percent').textContent = indeterminate ? '接收中' : `${{Math.round(pct)}}%`;
+        card.querySelector('.hip-phase').textContent = phaseFor(pct, text, ready, indeterminate);
+        card.querySelector('.hip-step').textContent = stepFor(text, ready, indeterminate);
+        if (!indeterminate) {{
+          card.querySelector('.hip-fill').style.width = `${{pct}}%`;
+        }}
         show(card);
         if (ready && !hasError) {{
           card.querySelector('.hip-copy').textContent = '更新准备完成，正在切回新版本。';
@@ -1087,7 +1137,8 @@ fn emit_overlay(
     pct: {pct},
     message: {message},
     error: {error},
-    ready: {ready}
+    ready: {ready},
+    indeterminate: {indeterminate}
   }});
 }})();
 "#,
@@ -1102,18 +1153,45 @@ fn emit_status(window: &WebviewWindow, message: &str) {
 window.__horosaPendingStatusLines.push({message}); \
 if (window.__horosaStatus) {{ window.__horosaStatus({message}); }}",
     ));
-    emit_overlay(window, None, None, Some(raw_message), None, false);
+    emit_overlay(window, None, None, Some(raw_message), None, false, None);
 }
 
 fn emit_progress(window: &WebviewWindow, pct: u8, message: &str) {
     let raw_message = message;
     let message = escape_js(message);
     let _ = window.eval(&format!(
-        "window.__horosaPendingProgress = {{ pct: {}, message: {} }}; \
-if (window.__horosaProgress) {{ window.__horosaProgress({}, {}); }}",
+        "window.__horosaPendingProgress = {{ pct: {}, message: {}, indeterminate: false }}; \
+if (window.__horosaProgress) {{ window.__horosaProgress({}, {}, false); }}",
         pct, message, pct, message
     ));
-    emit_overlay(window, None, Some(pct), Some(raw_message), None, false);
+    emit_overlay(
+        window,
+        None,
+        Some(pct),
+        Some(raw_message),
+        None,
+        false,
+        Some(false),
+    );
+}
+
+fn emit_indeterminate_progress(window: &WebviewWindow, pct: u8, message: &str) {
+    let raw_message = message;
+    let message = escape_js(message);
+    let _ = window.eval(&format!(
+        "window.__horosaPendingProgress = {{ pct: {}, message: {}, indeterminate: true }}; \
+if (window.__horosaProgress) {{ window.__horosaProgress({}, {}, true); }}",
+        pct, message, pct, message
+    ));
+    emit_overlay(
+        window,
+        None,
+        Some(pct),
+        Some(raw_message),
+        None,
+        false,
+        Some(true),
+    );
 }
 
 fn emit_mode(window: &WebviewWindow, mode: &str) {
@@ -1123,7 +1201,7 @@ fn emit_mode(window: &WebviewWindow, mode: &str) {
         "window.__horosaPendingMode = {mode}; \
 if (window.__horosaMode) {{ window.__horosaMode({mode}); }}",
     ));
-    emit_overlay(window, Some(raw_mode), None, None, None, false);
+    emit_overlay(window, Some(raw_mode), None, None, None, false, None);
 }
 
 fn emit_ready(window: &WebviewWindow, url: &str) {
@@ -1139,6 +1217,7 @@ if (window.__horosaReady) {{ window.__horosaReady({url}); }} else {{ window.loca
         Some("更新准备完成，正在切回新版本。"),
         None,
         true,
+        Some(false),
     );
 }
 
@@ -1162,7 +1241,15 @@ window.__horosaPendingError = {json}; \
 if (window.__horosaState) {{ window.__horosaState({json}); }} \
 if (window.__horosaError) {{ window.__horosaError({json}); }}"
     ));
-    emit_overlay(window, Some("error"), None, None, overlay_message, false);
+    emit_overlay(
+        window,
+        Some("error"),
+        None,
+        None,
+        overlay_message,
+        false,
+        Some(false),
+    );
 }
 
 fn emit_asset_review(window: &WebviewWindow, payload: &AssetReviewPayload) {
@@ -2023,6 +2110,10 @@ fn consume_update_complete_notice(app: &AppHandle) -> Option<String> {
         .get("installed_at")
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
+    let relaunch_status = values
+        .get("relaunch_status")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
 
     let mut lines = vec![
         "星阙 已完成更新".to_string(),
@@ -2041,7 +2132,11 @@ fn consume_update_complete_notice(app: &AppHandle) -> Option<String> {
         lines.push(installed_at);
     }
     lines.push("".to_string());
-    lines.push("本次更新已经安装完成并重新生效。".to_string());
+    if relaunch_status.as_deref() == Some("pending_manual") {
+        lines.push("本次更新已经安装完成；这次是恢复启动，自动重开没有被系统确认。".to_string());
+    } else {
+        lines.push("本次更新已经安装完成并重新生效。".to_string());
+    }
     Some(lines.join("\n"))
 }
 
@@ -2835,6 +2930,19 @@ fn download_with_progress_once(
         ensure_dir(parent)?;
     }
     let total = response.content_length().unwrap_or(0);
+    if total > 0 {
+        emit_progress(
+            window,
+            start_pct,
+            &format!("{label}：已连接服务器，开始接收数据"),
+        );
+    } else {
+        emit_indeterminate_progress(
+            window,
+            start_pct,
+            &format!("{label}：已连接服务器，正在接收数据…"),
+        );
+    }
     let mut file = File::create(dest)?;
     let mut downloaded: u64 = 0;
     let mut buffer = [0u8; 64 * 1024];
@@ -3417,7 +3525,7 @@ fn build_update_helper_script(
     runtime_cmd: &str,
 ) -> String {
     format!(
-        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nAPP_DISPLAY_NAME=\"$(/usr/bin/basename \"${{TARGET}}\" .app)\"\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nwait_for_stable_relaunch() {{\n  local appeared=0\n  for wait_step in $(/usr/bin/seq 1 25); do\n    if is_target_running; then\n      appeared=1\n      break\n    fi\n    sleep 1\n  done\n  if [ \"${{appeared}}\" != \"1\" ]; then\n    echo \"[open] process never appeared\"\n    return 1\n  fi\n  for stable_step in $(/usr/bin/seq 1 10); do\n    if ! is_target_running; then\n      echo \"[open] process exited before becoming stable\"\n      return 1\n    fi\n    sleep 1\n  done\n  return 0\n}}\nactivate_app_once() {{\n  if [ -z \"${{APP_DISPLAY_NAME}}\" ]; then\n    return 0\n  fi\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n    return 0\n  fi\n  /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    activate_app_once\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n  activate_app_once\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      activate_app_once\n      echo \"[open] relaunch confirmed\"\n      return 0\n    fi\n    sleep 2\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    rm -rf \"${{BACKUP_TARGET}}\"\n    HAD_TARGET=0\n    if [ -d \"${{TARGET}}\" ]; then\n      if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        HAD_TARGET=1\n      else\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n    fi\n    if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n      rm -rf \"${{BACKUP_TARGET}}\"\n      /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n      echo \"[app] install succeeded\"\n      return 0\n    fi\n    echo \"[app] ditto failed on attempt ${{attempt}}\"\n    rm -rf \"${{TARGET}}\"\n    if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n      mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n    fi\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  return 1\n}}\nwait_for_old_app_exit\ninstall_app\nsleep 1\nmark_update_complete\nopen_app || true\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
+        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nAPP_DISPLAY_NAME=\"$(/usr/bin/basename \"${{TARGET}}\" .app)\"\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  local relaunch_status=\"${{1:-pending_manual}}\"\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nrelaunch_status=${{relaunch_status}}\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nwait_for_stable_relaunch() {{\n  local appeared=0\n  for wait_step in $(/usr/bin/seq 1 25); do\n    if is_target_running; then\n      appeared=1\n      break\n    fi\n    sleep 1\n  done\n  if [ \"${{appeared}}\" != \"1\" ]; then\n    echo \"[open] process never appeared\"\n    return 1\n  fi\n  for stable_step in $(/usr/bin/seq 1 10); do\n    if ! is_target_running; then\n      echo \"[open] process exited before becoming stable\"\n      return 1\n    fi\n    sleep 1\n  done\n  return 0\n}}\nactivate_app_once() {{\n  if [ -z \"${{APP_DISPLAY_NAME}}\" ]; then\n    return 0\n  fi\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n    return 0\n  fi\n  /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    activate_app_once\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n  activate_app_once\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      activate_app_once\n      echo \"[open] relaunch confirmed\"\n      mark_update_complete \"auto_relaunch_confirmed\"\n      return 0\n    fi\n    sleep 2\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    rm -rf \"${{BACKUP_TARGET}}\"\n    HAD_TARGET=0\n    if [ -d \"${{TARGET}}\" ]; then\n      if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        HAD_TARGET=1\n      else\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n    fi\n    if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n      rm -rf \"${{BACKUP_TARGET}}\"\n      /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n      echo \"[app] install succeeded\"\n      return 0\n    fi\n    echo \"[app] ditto failed on attempt ${{attempt}}\"\n    rm -rf \"${{TARGET}}\"\n    if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n      mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n    fi\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  return 1\n}}\nwait_for_old_app_exit\ninstall_app\nsleep 1\nmark_update_complete \"pending_manual\"\nif ! open_app; then\n  echo \"[open] automatic relaunch could not be confirmed; waiting for manual reopen\"\n  exit 72\nfi\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
         log = shell_quote(update_log),
         marker = shell_quote(completion_marker),
         runtime_cmd = runtime_cmd,
@@ -3703,6 +3811,24 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         return Ok(());
     }
 
+    let proceed = MessageDialog::new()
+        .set_level(MessageLevel::Info)
+        .set_title("发现可用更新")
+        .set_description(format!(
+            "{summary}{admin_update_notice}\n\n是否现在开始更新？选择“否”只会结束本次检查，不会开始下载。"
+        ))
+        .set_buttons(MessageButtons::YesNo)
+        .show();
+    if proceed != MessageDialogResult::Yes {
+        if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+            emit_launcher_state(&window, &build_update_review_state());
+            emit_mode(&window, "update");
+            emit_status(&window, "你已暂缓本次更新，当前不会开始下载。");
+            emit_progress(&window, 0, "本次更新已暂缓");
+        }
+        return Ok(());
+    }
+
     if plan.source == UpdateSource::Manifest
         && plan.latest_version > current
         && plan.app_sha256.is_none()
@@ -3722,37 +3848,35 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         Some(plan.latest_version.clone()),
         plan.runtime_version.clone(),
     )?;
-    let mut decisions = review_payload.default_selections.clone();
+    let decisions = review_payload.default_selections.clone();
+    let default_review_issues = validate_asset_review_payload(&app, &review_payload, &decisions)?;
+    if !default_review_issues.is_empty() {
+        return Err(anyhow!(
+            "更新前检查发现默认替换方案仍有阻断问题：\n{}",
+            default_review_issues.join("\n")
+        ));
+    }
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         emit_launcher_state(&window, &build_update_in_progress_state());
         emit_mode(&window, "update");
-        emit_progress(&window, 8, "检查将替换的内容");
+        emit_progress(&window, 8, "检查更新");
         emit_status(
             &window,
             &format!(
-                "已获取更新信息，接下来会先审查本次要替换的资产。{}",
+                "已确认开始更新，接下来会按推荐方案检查并准备本次要替换的资产。{}",
                 admin_update_notice
             ),
         );
-        if should_present_review(&app, &review_payload) {
-            decisions = wait_for_asset_review(&app, &window, &review_payload)?
-                .ok_or_else(|| anyhow!("已取消本次更新"))?;
-            for line in clear_selected_assets_internal(&app, &decisions)? {
-                emit_status(&window, &line);
-            }
+        for line in clear_selected_assets_internal(&app, &decisions)? {
+            emit_status(&window, &line);
         }
     } else {
-        let confirmed = MessageDialog::new()
+        MessageDialog::new()
             .set_level(MessageLevel::Info)
-            .set_title("更新检查结果")
-            .set_description(format!(
-                "{summary}{admin_update_notice}\n\n当前没有主窗口可显示安装审查，将按推荐选项执行更新。是否继续？"
-            ))
-            .set_buttons(MessageButtons::YesNo)
+            .set_title("更新即将开始")
+            .set_description("当前没有主窗口可显示进度卡片，将按推荐选项继续下载、校验与替换。")
+            .set_buttons(MessageButtons::Ok)
             .show();
-        if confirmed != MessageDialogResult::Yes {
-            return Ok(());
-        }
     }
 
     let app_should_update = plan.latest_version > current
@@ -3950,6 +4074,12 @@ fn runtime_bootstrap(
     } else {
         None
     };
+    if first_launch_after_update {
+        emit_status(&window, "检测到刚完成更新，正在执行更新后的首次恢复启动…");
+        emit_progress(&window, 78, "更新后首次恢复启动");
+        cleanup_state(&app);
+        thread::sleep(Duration::from_secs(1));
+    }
     if let Err(first_err) = start_runtime(
         &paths,
         &window,
@@ -4333,7 +4463,7 @@ mod tests {
     #[test]
     fn parse_marker_kv_reads_expected_fields() {
         let values = parse_marker_kv(
-            "version=1.0.25\nruntime_version=1.0.25-runtime1\ninstalled_at=2026-03-17 20:00:00\n",
+            "version=1.0.25\nruntime_version=1.0.25-runtime1\ninstalled_at=2026-03-17 20:00:00\nrelaunch_status=pending_manual\n",
         );
         assert_eq!(values.get("version").map(String::as_str), Some("1.0.25"));
         assert_eq!(
@@ -4343,6 +4473,10 @@ mod tests {
         assert_eq!(
             values.get("installed_at").map(String::as_str),
             Some("2026-03-17 20:00:00")
+        );
+        assert_eq!(
+            values.get("relaunch_status").map(String::as_str),
+            Some("pending_manual")
         );
     }
 
@@ -4373,5 +4507,9 @@ mod tests {
         assert!(script.contains("1.0.25"));
         assert!(script.contains("EXPECTED_RUNTIME_VERSION="));
         assert!(script.contains("1.0.25-runtime1"));
+        assert!(script.contains("relaunch_status="));
+        assert!(script.contains("pending_manual"));
+        assert!(script.contains("auto_relaunch_confirmed"));
+        assert!(!script.contains("open_app || true"));
     }
 }
