@@ -390,6 +390,7 @@ class RengChart {
 
 	getRunYear(){
 		const runyear = this.runyear || {};
+		const genderText = this.gender === 0 || this.gender === '0' ? '女' : '男';
 		let res = [{
 			key: '行年',
 			value: runyear.year ? runyear.year : '—',
@@ -398,7 +399,7 @@ class RengChart {
 			value: runyear.age !== undefined && runyear.age !== null ? (runyear.age + '岁') : '—',
 		},{
 			key: '性别',
-			value: this.gender ? '男' : '女',
+			value: genderText,
 		}];
 		return res;
 	}
