@@ -70,6 +70,7 @@ class LiuRengChart extends Component{
 		this.rengchart.nongli = chartobj.nongli;
 		this.rengchart.liureng = this.props.liureng;
 		this.rengchart.runyear = this.props.runyear;
+		this.rengchart.gender = this.props.gender;
 		this.rengchart.zhangshengElem = this.props.zhangshengElem;
 		this.rengchart.guireng = this.props.guireng;
 		this.rengchart.panStyleName = this.props.panStyleName || '';
