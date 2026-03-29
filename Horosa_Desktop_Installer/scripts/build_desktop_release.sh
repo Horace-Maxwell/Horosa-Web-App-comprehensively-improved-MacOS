@@ -8,14 +8,71 @@ TARGET_ROOT="${INSTALLER_ROOT}/src-tauri/target-user"
 OFFLINE_SCRIPTS_RENDERED_DIR="${BUILD_ROOT}/installer-scripts-rendered-offline"
 OFFLINE_SUPPORT_RENDERED_DIR="${BUILD_ROOT}/distribution-support-rendered-offline"
 OFFLINE_DELIVERY_ROOT="${BUILD_ROOT}/delivery-bundle-offline"
+NOTARY_BUILD_ROOT="${BUILD_ROOT}/notary"
 POSTINSTALL_TEMPLATE="${INSTALLER_ROOT}/installer-scripts/postinstall.template"
 UNSIGNED_HELPER_TEMPLATE="${INSTALLER_ROOT}/distribution-support/unsigned_install_helper.template"
 UNSIGNED_GUIDE_TEMPLATE="${INSTALLER_ROOT}/distribution-support/UNSIGNED_INSTALL_GUIDE.template"
 RELEASE_CONFIG="${INSTALLER_ROOT}/config/release_config.json"
+APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 APPLE_INSTALLER_IDENTITY="${APPLE_INSTALLER_IDENTITY:-}"
-NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-}"
+APPLE_ENTITLEMENTS_PATH="${APPLE_ENTITLEMENTS_PATH:-}"
+APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
+NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-horosa-notary}"
+HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION:-0}"
 UNSIGNED_HELPER_NAME="Open-XingQue-Unsigned.command"
 UNSIGNED_GUIDE_NAME="UNSIGNED_INSTALL_GUIDE.txt"
+
+pick_single_identity_hash() {
+  local profile="$1"
+  local label="$2"
+  local raw_matches unique_labels hashes
+  raw_matches="$(security find-identity -v -p "${profile}" 2>/dev/null | rg "Developer ID ${label}: " || true)"
+  unique_labels="$(printf '%s\n' "${raw_matches}" | sed -En 's/^ *[0-9]+\) [0-9A-F]+ "(.*)"$/\1/p' | sort -u)"
+  hashes="$(printf '%s\n' "${raw_matches}" | sed -En 's/^ *[0-9]+\) ([0-9A-F]+) ".*$/\1/p')"
+  local label_count hash_count
+  label_count="$(printf '%s\n' "${unique_labels}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  hash_count="$(printf '%s\n' "${hashes}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  if [ "${label_count}" = "1" ] && [ "${hash_count}" -ge "1" ]; then
+    printf '%s' "$(printf '%s\n' "${hashes}" | sed '/^$/d' | tail -n 1)"
+    return 0
+  fi
+  return 1
+}
+
+if [ -z "${APPLE_SIGNING_IDENTITY:-}" ] && APPLE_SIGNING_IDENTITY_AUTO="$(pick_single_identity_hash codesigning Application)"; then
+  APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY_AUTO}"
+fi
+if [ -z "${APPLE_INSTALLER_IDENTITY:-}" ] && APPLE_INSTALLER_IDENTITY_AUTO="$(pick_single_identity_hash basic Installer)"; then
+  APPLE_INSTALLER_IDENTITY="${APPLE_INSTALLER_IDENTITY_AUTO}"
+fi
+
+PUBLIC_SIGNING_INPUTS=0
+if [ -n "${APPLE_SIGNING_IDENTITY:-}" ] || [ -n "${APPLE_INSTALLER_IDENTITY:-}" ] || [ -n "${NOTARYTOOL_KEYCHAIN_PROFILE:-}" ]; then
+  PUBLIC_SIGNING_INPUTS=1
+fi
+PUBLIC_SIGNING_READY=0
+if [ -n "${APPLE_SIGNING_IDENTITY:-}" ] && [ -n "${APPLE_INSTALLER_IDENTITY:-}" ] && [ -n "${NOTARYTOOL_KEYCHAIN_PROFILE:-}" ]; then
+  PUBLIC_SIGNING_READY=1
+fi
+
+if [ "${PUBLIC_SIGNING_INPUTS}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" != "1" ]; then
+  echo "partial public distribution configuration detected." >&2
+  echo "APPLE_SIGNING_IDENTITY=${APPLE_SIGNING_IDENTITY:-<missing>}" >&2
+  echo "APPLE_INSTALLER_IDENTITY=${APPLE_INSTALLER_IDENTITY:-<missing>}" >&2
+  echo "NOTARYTOOL_KEYCHAIN_PROFILE=${NOTARYTOOL_KEYCHAIN_PROFILE:-<missing>}" >&2
+  echo "either provide all three values, or unset them for ad-hoc local builds." >&2
+  exit 1
+fi
+
+if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" != "1" ]; then
+  echo "HOROSA_PUBLIC_DISTRIBUTION=1 requires Developer ID Application, Developer ID Installer, and a notarytool keychain profile." >&2
+  exit 1
+fi
+
+if [ "${PUBLIC_SIGNING_READY}" = "1" ] && ! xcrun notarytool history --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" >/dev/null 2>&1; then
+  echo "notarytool keychain profile is unavailable: ${NOTARYTOOL_KEYCHAIN_PROFILE}" >&2
+  exit 1
+fi
 
 read -r APP_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME APP_RELEASE_TAG RUNTIME_VERSION RUNTIME_RELEASE_TAG SUPPORTED_ARCH <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
@@ -56,10 +113,11 @@ OFFLINE_INSTALLER_PKG_ZIP="${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
 UPDATE_MANIFEST="${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 RUNTIME_ARCHIVE="${DIST_ROOT}/${RUNTIME_ASSET}"
 LEGACY_DMG="${DIST_ROOT}/Horosa-Desktop-macos-arm64.dmg"
+NOTARY_APP_ZIP="${NOTARY_BUILD_ROOT}/${APP_NAME}.notary.zip"
 
-mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_SUPPORT_RENDERED_DIR}"
+mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_SUPPORT_RENDERED_DIR}" "${NOTARY_BUILD_ROOT}"
 "${INSTALLER_ROOT}/scripts/generate_icon.sh"
-"${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
+APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY}" APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN}" HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION}" "${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
 
 if [ ! -f "${RUNTIME_ARCHIVE}" ]; then
   echo "missing runtime archive: ${RUNTIME_ARCHIVE}" >&2
@@ -183,10 +241,10 @@ PYPOST
 
 cp -f "${RUNTIME_ARCHIVE}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET}"
 
-"${INSTALLER_ROOT}/scripts/ad_hoc_sign_app.sh" "${TARGET_APP}"
+APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY}" APPLE_ENTITLEMENTS_PATH="${APPLE_ENTITLEMENTS_PATH}" APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN}" "${INSTALLER_ROOT}/scripts/ad_hoc_sign_app.sh" "${TARGET_APP}"
 
 if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
-  /usr/bin/spctl -a -vv "${TARGET_APP}" || true
+  spctl -a -vv "${TARGET_APP}" || true
 fi
 
 rm -rf "${PKG_STAGE_ROOT}"
@@ -197,11 +255,7 @@ APP_INFO_PLIST="${PKG_STAGE_ROOT}/Applications/${APP_NAME}.app/Contents/Info.pli
 BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw -o - "${APP_INFO_PLIST}")"
 APP_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "${APP_INFO_PLIST}")"
 
-rm -f "${APP_BUNDLE_ZIP}" "${INSTALLER_PKG}" "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_INSTALLER_PKG_ZIP}" "${COMPONENT_PKG}" "${OFFLINE_COMPONENT_PKG}" "${COMPONENT_PLIST}" "${UPDATE_MANIFEST}" "${LEGACY_DMG}"
-(
-  cd "$(dirname "${TARGET_APP}")"
-  COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc "${APP_NAME}.app" "${APP_BUNDLE_ZIP}"
-)
+rm -f "${APP_BUNDLE_ZIP}" "${INSTALLER_PKG}" "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_INSTALLER_PKG_ZIP}" "${COMPONENT_PKG}" "${OFFLINE_COMPONENT_PKG}" "${COMPONENT_PLIST}" "${UPDATE_MANIFEST}" "${LEGACY_DMG}" "${NOTARY_APP_ZIP}"
 
 pkgbuild --analyze --root "${PKG_STAGE_ROOT}" "${COMPONENT_PLIST}"
 COMPONENT_PLIST_ENV="${COMPONENT_PLIST}" APP_NAME_ENV="${APP_NAME}" python3 - <<'PYPLIST'
@@ -242,7 +296,7 @@ build_product_pkg() {
   local output_pkg="$2"
   PRODUCTBUILD_ARGS=(--package "${component_pkg}")
   if [ -n "${APPLE_INSTALLER_IDENTITY}" ]; then
-    PRODUCTBUILD_ARGS+=(--sign "${APPLE_INSTALLER_IDENTITY}")
+    PRODUCTBUILD_ARGS+=(--sign "${APPLE_INSTALLER_IDENTITY}" --keychain "${APPLE_SIGNING_KEYCHAIN}")
   fi
   PRODUCTBUILD_ARGS+=("${output_pkg}")
   productbuild "${PRODUCTBUILD_ARGS[@]}"
@@ -251,12 +305,20 @@ build_product_pkg() {
 build_component_pkg "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_COMPONENT_PKG}"
 build_product_pkg "${OFFLINE_COMPONENT_PKG}" "${OFFLINE_INSTALLER_PKG}"
 
-if [ -n "${APPLE_SIGNING_IDENTITY:-}" ] && [ -n "${APPLE_INSTALLER_IDENTITY}" ] && [ -n "${NOTARYTOOL_KEYCHAIN_PROFILE}" ]; then
-  xcrun notarytool submit "${TARGET_APP}" --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" --wait
+if [ "${PUBLIC_SIGNING_READY}" = "1" ]; then
+  (
+    cd "$(dirname "${TARGET_APP}")"
+    ditto -c -k --keepParent "${APP_NAME}.app" "${NOTARY_APP_ZIP}"
+  )
+  xcrun notarytool submit "${NOTARY_APP_ZIP}" --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" --wait
   xcrun stapler staple "${TARGET_APP}"
-  xcrun notarytool submit "${INSTALLER_PKG}" --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" --wait
-  xcrun stapler staple "${INSTALLER_PKG}"
+  xcrun notarytool submit "${OFFLINE_INSTALLER_PKG}" --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" --wait
+  xcrun stapler staple "${OFFLINE_INSTALLER_PKG}"
 fi
+(
+  cd "$(dirname "${TARGET_APP}")"
+  COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc "${APP_NAME}.app" "${APP_BUNDLE_ZIP}"
+)
 rm -rf "${OFFLINE_DELIVERY_ROOT}"
 mkdir -p "${OFFLINE_DELIVERY_ROOT}"
 cp "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_DELIVERY_ROOT}/$(basename "${OFFLINE_INSTALLER_PKG}")"

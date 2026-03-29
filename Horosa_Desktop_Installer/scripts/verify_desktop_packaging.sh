@@ -44,6 +44,7 @@ DELIVERY_UNZIP_ROOT="${TMP_ROOT}/delivery-unzip"
 OFFLINE_DELIVERY_UNZIP_ROOT="${TMP_ROOT}/offline-delivery-unzip"
 CHART_PORT=""
 BACKEND_PORT=""
+PUBLIC_DISTRIBUTION_MODE="${HOROSA_PUBLIC_DISTRIBUTION:-0}"
 
 pick_ports() {
   python3 - <<'PYPORTS'
@@ -98,6 +99,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
+if [ "${PUBLIC_DISTRIBUTION_MODE}" != "1" ] && "${INSTALLER_ROOT}/scripts/check_apple_signing_prereqs.sh" >/dev/null 2>&1; then
+  PUBLIC_DISTRIBUTION_MODE=1
+fi
+
 if [ "${HOROSA_DESKTOP_SKIP_REBUILD:-0}" != "1" ]; then
   printf '[1/8] generate icon\n'
   "${INSTALLER_ROOT}/scripts/generate_icon.sh"
@@ -112,7 +117,7 @@ if [ "${HOROSA_DESKTOP_SKIP_REBUILD:-0}" != "1" ]; then
   cargo test --manifest-path "${INSTALLER_ROOT}/src-tauri/Cargo.toml" runtime_update_command_
 
   printf '[5/8] build desktop release\n'
-  "${INSTALLER_ROOT}/scripts/build_desktop_release.sh"
+  HOROSA_PUBLIC_DISTRIBUTION="${PUBLIC_DISTRIBUTION_MODE}" "${INSTALLER_ROOT}/scripts/build_desktop_release.sh"
 else
   printf '[1-5/8] skip rebuild, reuse existing assets\n'
 fi

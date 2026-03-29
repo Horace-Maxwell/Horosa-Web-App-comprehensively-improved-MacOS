@@ -6,6 +6,9 @@ REPO_ROOT="$(cd "${INSTALLER_ROOT}/.." && pwd)"
 BUILD_ROOT="${INSTALLER_ROOT}/build/runtime"
 STAGE_ROOT="${BUILD_ROOT}/runtime-payload"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
+APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
+APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
+HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION:-0}"
 BOOT_JAR_SOURCE="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
 BUNDLE_SOURCE_DIR="${REPO_ROOT}/runtime/mac/bundle"
 BUNDLE_JAR_FALLBACK="${BUNDLE_SOURCE_DIR}/astrostudyboot.jar"
@@ -100,17 +103,28 @@ else
   echo "missing astrostudyboot.jar in build output and runtime bundle fallback" >&2
   exit 1
 fi
+zip -q -d "${STAGE_ROOT}/runtime/mac/bundle/astrostudyboot.jar" \
+  'BOOT-INF/lib/netty-transport-native-kqueue-*-osx-x86_64.jar' \
+  'BOOT-INF/lib/netty-resolver-dns-native-macos-*-osx-x86_64.jar' >/dev/null 2>&1 || true
 rm -rf \
   "${STAGE_ROOT}/runtime/mac/python/lib/python3.12/ensurepip" \
   "${STAGE_ROOT}/runtime/mac/python/include" \
   "${STAGE_ROOT}/runtime/mac/python/share" \
-  "${STAGE_ROOT}/runtime/mac/python/Resources/English.lproj/Documentation"
+  "${STAGE_ROOT}/runtime/mac/python/Resources/English.lproj/Documentation" \
+  "${STAGE_ROOT}/runtime/mac/python/lib/python3.12/config-3.12-darwin"
 find "${STAGE_ROOT}/runtime/mac/python/lib" -type d \( -name 'test' -o -name 'tests' -o -name '__pycache__' -o -name 'idlelib' -o -name 'turtledemo' \) -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" -type d \( -name '.horosa-logs' -o -name '.pytest_cache' -o -name '.cache' -o -name '__pycache__' \) -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" -type d -name '_CodeSignature' -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" \( -name '*.pyc' -o -name '*.pyo' -o -name '*.map' -o -name '*.tmp' -o -name '*.temp' -o -name '*.pid' \) -delete 2>/dev/null || true
+find "${STAGE_ROOT}/runtime/mac/python/lib" -type f \( -name '*.a' -o -name '*.o' \) -delete 2>/dev/null || true
 /usr/bin/python3 "${STAGE_ROOT}/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --repair "${STAGE_ROOT}/runtime/mac/python"
+if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}" ]; then
+  /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" \
+    --identity "${APPLE_SIGNING_IDENTITY}" \
+    --keychain "${APPLE_SIGNING_KEYCHAIN}" \
+    "${STAGE_ROOT}/runtime/mac"
+fi
 
 python3 - <<INNERPY
 import json, pathlib

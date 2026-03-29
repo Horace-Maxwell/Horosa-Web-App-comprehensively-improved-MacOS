@@ -24,6 +24,7 @@ ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
 DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
 DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
 EMBEDDED_PY_REPAIR_HELPER="${ROOT}/scripts/repairEmbeddedPythonRuntime.py"
+PYTHON_LAUNCH_NOUSERSITE="${PYTHONNOUSERSITE:-}"
 
 if [ -z "${HOROSA_PYTHON:-}" ] && [ -x "${ROOT_PARENT}/.runtime/mac/venv/bin/python3" ]; then
   PYTHON_BIN="${ROOT_PARENT}/.runtime/mac/venv/bin/python3"
@@ -239,9 +240,16 @@ python_runtime_ready() {
   local py_minor=""
   local extra_site=""
   local py_path="${PYTHONPATH_ASTRO}"
+  local py_root=""
+  local use_embedded_runtime="0"
 
   if [ ! -x "${py_bin}" ]; then
     return 1
+  fi
+
+  py_root="$(cd "$(dirname "${py_bin}")/.." 2>/dev/null && pwd)"
+  if [ -n "${py_root}" ] && [ -f "${py_root}/Python" ] && [ -d "${py_root}/lib" ]; then
+    use_embedded_runtime="1"
   fi
 
   py_minor="$("${py_bin}" - <<'PY'
@@ -250,15 +258,17 @@ print(f"{sys.version_info.major}.{sys.version_info.minor}")
 PY
 )" || return 1
 
-  extra_site="${HOME}/Library/Python/${py_minor}/lib/python/site-packages"
-  if [ -d "${extra_site}" ]; then
-    py_path="${py_path}:${extra_site}"
-  fi
-  if [ -n "${PYTHONPATH:-}" ]; then
-    py_path="${py_path}:${PYTHONPATH}"
+  if [ "${use_embedded_runtime}" != "1" ]; then
+    extra_site="${HOME}/Library/Python/${py_minor}/lib/python/site-packages"
+    if [ -d "${extra_site}" ]; then
+      py_path="${py_path}:${extra_site}"
+    fi
+    if [ -n "${PYTHONPATH:-}" ]; then
+      py_path="${py_path}:${PYTHONPATH}"
+    fi
   fi
 
-  PYTHONPATH="${py_path}" "${py_bin}" - <<'PY' >/dev/null 2>&1
+  PYTHONPATH="${py_path}" PYTHONNOUSERSITE="$([ "${use_embedded_runtime}" = "1" ] && printf '1' || printf '%s' "${PYTHONNOUSERSITE:-}")" "${py_bin}" - <<'PY' >/dev/null 2>&1
 import importlib.util as iu
 mods = ("cherrypy", "jsonpickle", "swisseph")
 missing = [m for m in mods if iu.find_spec(m) is None]
@@ -470,6 +480,12 @@ if ! resolve_python_bin; then
 fi
 diag_log "python resolved: ${PYTHON_BIN}"
 
+PY_ROOT="$(cd "$(dirname "${PYTHON_BIN}")/.." 2>/dev/null && pwd || true)"
+if [ -n "${PY_ROOT}" ] && [ -f "${PY_ROOT}/Python" ] && [ -d "${PY_ROOT}/lib" ]; then
+  PYTHON_LAUNCH_NOUSERSITE="1"
+  diag_log "python launch isolation enabled for embedded runtime: ${PY_ROOT}"
+fi
+
 PY_MINOR="$("${PYTHON_BIN}" - <<'PY'
 import sys
 print(f"{sys.version_info.major}.{sys.version_info.minor}")
@@ -477,10 +493,10 @@ PY
 )"
 EXTRA_PY_SITE="${HOME}/Library/Python/${PY_MINOR}/lib/python/site-packages"
 
-if [ -d "${EXTRA_PY_SITE}" ]; then
+if [ "${PYTHON_LAUNCH_NOUSERSITE}" != "1" ] && [ -d "${EXTRA_PY_SITE}" ]; then
   PYTHONPATH_ASTRO="${PYTHONPATH_ASTRO}:${EXTRA_PY_SITE}"
 fi
-if [ -n "${PYTHONPATH:-}" ]; then
+if [ "${PYTHON_LAUNCH_NOUSERSITE}" != "1" ] && [ -n "${PYTHONPATH:-}" ]; then
   PYTHONPATH_ASTRO="${PYTHONPATH_ASTRO}:${PYTHONPATH}"
 fi
 
@@ -525,7 +541,12 @@ PY
 }
 
 cd "${ROOT}"
-launch_detached "${PY_LOG}" env PYTHONPATH="${PYTHONPATH_ASTRO}" HOROSA_CHART_PORT="${CHART_PORT}" "${PYTHON_BIN}" "${ROOT}/astropy/websrv/webchartsrv.py" >"${PY_PID_FILE}"
+PYTHON_LAUNCH_CMD=(env PYTHONPATH="${PYTHONPATH_ASTRO}" HOROSA_CHART_PORT="${CHART_PORT}")
+if [ "${PYTHON_LAUNCH_NOUSERSITE}" = "1" ]; then
+  PYTHON_LAUNCH_CMD+=(PYTHONNOUSERSITE=1)
+fi
+PYTHON_LAUNCH_CMD+=("${PYTHON_BIN}" "${ROOT}/astropy/websrv/webchartsrv.py")
+launch_detached "${PY_LOG}" "${PYTHON_LAUNCH_CMD[@]}" >"${PY_PID_FILE}"
 
 launch_detached "${JAVA_LOG}" "${JAVA_BIN}" -jar "${JAR}" \
   --server.port="${BACKEND_PORT}" \
