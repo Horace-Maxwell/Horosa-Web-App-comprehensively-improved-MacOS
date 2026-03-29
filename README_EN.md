@@ -77,9 +77,17 @@ Benefits:
 
 ## Preview
 
-| Main Workspace | Sanshi Workspace |
-| --- | --- |
-| ![Horosa Main Workspace](docs/assets/screenshots/main-workspace.png) | ![Horosa Sanshi Workspace](docs/assets/screenshots/sanshi-workspace.png) |
+<div align="center">
+  <p><strong>Main Workspace</strong></p>
+  <img src="docs/assets/screenshots/main-workspace.png" alt="Horosa Main Workspace" width="1200" />
+  <p><em>The primary Horosa workspace in the notarized macOS release, designed for chart reading, controls, and everyday desktop use.</em></p>
+</div>
+
+<div align="center">
+  <p><strong>Sanshi Workspace</strong></p>
+  <img src="docs/assets/screenshots/sanshi-workspace.png" alt="Horosa Sanshi Workspace" width="960" />
+  <p><em>A more advanced view that spotlights Sanshi workflows and deeper tool-driven analysis inside the same desktop product.</em></p>
+</div>
 
 These images currently come from verified release-check artifacts and reflect the UI that ships through the desktop delivery pipeline.
 
