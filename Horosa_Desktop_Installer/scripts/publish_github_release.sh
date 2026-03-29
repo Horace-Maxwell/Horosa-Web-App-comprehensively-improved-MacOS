@@ -3,7 +3,7 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
-RELEASE_NOTES_FILE="${INSTALLER_ROOT}/config/release_notes.md"
+RELEASE_DOCS_DIR="${INSTALLER_ROOT}/../docs/releases"
 
 read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION PRIMARY_DOWNLOAD SUPPORTED_ARCH <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
@@ -38,6 +38,10 @@ EOF
 
 RELEASE_NAME="${TAG_NAME}"
 API_ROOT="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
+RELEASE_DOC_ZH_FILE="${RELEASE_DOCS_DIR}/${TAG_NAME}-zh.md"
+RELEASE_DOC_EN_FILE="${RELEASE_DOCS_DIR}/${TAG_NAME}-en.md"
+RELEASE_DOC_ZH_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/docs/releases/${TAG_NAME}-zh.md"
+RELEASE_DOC_EN_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/docs/releases/${TAG_NAME}-en.md"
 APP_ASSETS=(
   "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
   "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
@@ -182,48 +186,62 @@ if [ "${HOROSA_REQUIRE_SIGNED_PUBLIC_RELEASE:-${HOROSA_PUBLIC_DISTRIBUTION:-0}}"
   "${INSTALLER_ROOT}/scripts/verify_public_distribution_readiness.sh"
 fi
 
-RELEASE_NOTES_SECTION=""
-if [ -f "${RELEASE_NOTES_FILE}" ]; then
-  RELEASE_NOTES_SECTION="$(python3 - <<'PY' "${RELEASE_NOTES_FILE}"
-from pathlib import Path
-import sys
-text = Path(sys.argv[1]).read_text().strip()
-print(f"\n\n## 本次更新 / What's New\n\n{text}" if text else "", end="")
-PY
-)"
-fi
-
 RELEASE_BODY="$(
   PRIMARY_DOWNLOAD_ENV="${PRIMARY_DOWNLOAD}" \
   DESKTOP_OFFLINE_PKG_ZIP_ENV="${DESKTOP_OFFLINE_PKG_ZIP}" \
   SUPPORTED_ARCH_ENV="${SUPPORTED_ARCH}" \
-  RELEASE_NOTES_SECTION_ENV="${RELEASE_NOTES_SECTION}" \
+  RELEASE_DOC_ZH_FILE_ENV="${RELEASE_DOC_ZH_FILE}" \
+  RELEASE_DOC_EN_FILE_ENV="${RELEASE_DOC_EN_FILE}" \
+  RELEASE_DOC_ZH_URL_ENV="${RELEASE_DOC_ZH_URL}" \
+  RELEASE_DOC_EN_URL_ENV="${RELEASE_DOC_EN_URL}" \
   python3 - <<'PY'
 import os
+from pathlib import Path
 
-print(
-    f"""## 安装包选择（中文）
 
-- 离线安装包：`{os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV']}`，本机组件已内置，适合所有普通用户，尤其适合中国大陆、弱网或需要拷给别人安装的环境。
+def read_text(path_env: str) -> str:
+    path = Path(os.environ[path_env])
+    if not path.is_file():
+        return ""
+    return path.read_text().strip()
 
-## 安装步骤（中文）
 
-1. 下载 `{os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV']}`
-2. 解压 zip
-3. 双击里面的 `.pkg`
-4. 如果系统仍拦截，再运行同目录 `Open-XingQue-Unsigned.command` 作为兜底
-5. 安装完成后可直接打开使用，不再额外联网准备
+primary_download = os.environ["DESKTOP_OFFLINE_PKG_ZIP_ENV"]
+arch = os.environ["SUPPORTED_ARCH_ENV"]
+zh_url = os.environ["RELEASE_DOC_ZH_URL_ENV"]
+en_url = os.environ["RELEASE_DOC_EN_URL_ENV"]
+zh_notes = read_text("RELEASE_DOC_ZH_FILE_ENV")
+en_notes = read_text("RELEASE_DOC_EN_FILE_ENV")
 
-当前发布目标：Apple Silicon (`{os.environ['SUPPORTED_ARCH_ENV']}`)。
+sections = [
+    "## 下载 / Download",
+    f"- 推荐安装包 / Recommended download: `{primary_download}`",
+    "- 适合普通用户、中国大陆、弱网和离线转发场景。",
+    "- Best for ordinary users, weak-network environments, and offline forwarding.",
+    f"- 当前平台目标 / Platform target: Apple Silicon (`{arch}`)",
+    "",
+    "## 安装步骤 / Installation",
+    f"1. 下载 / Download `{primary_download}`",
+    "2. 解压 zip / Extract the zip",
+    "3. 双击里面的 `.pkg` / Run the `.pkg` inside",
+    "4. 如被系统拦截，再运行 `Open-XingQue-Unsigned.command` / Use the fallback command only if macOS still blocks the app",
+    "5. 安装完成后直接打开使用 / Open the app after install",
+    "",
+    "## 文档 / Docs",
+    f"- [中文版本说明]({zh_url})",
+    f"- [English Release Notes]({en_url})",
+    "",
+    "## 技术资产 / Technical Assets",
+    "此 Release 中其余资产是安装器与自动更新器使用的内部支持文件，普通用户可以忽略。",
+    "The remaining assets in this release are internal support files for the installer and auto-updater. Ordinary users should ignore them.",
+]
 
-轻量在线 `.pkg` 与 `DMG` 公开入口都已取消。普通用户只需要下载离线安装包，不需要手动处理其余内部资产。
+if zh_notes:
+    sections.extend(["", "---", "", zh_notes])
+if en_notes:
+    sections.extend(["", "---", "", en_notes])
 
-## 技术资产 / Technical Assets
-
-此 Release 中其余资产是安装器与自动更新器使用的内部支持文件，普通用户可以忽略。
-
-The remaining assets in this release are internal support files for the installer and auto-updater. Ordinary users should ignore them.{os.environ['RELEASE_NOTES_SECTION_ENV']}"""
-)
+print("\n".join(sections))
 PY
 )"
 export RELEASE_BODY
