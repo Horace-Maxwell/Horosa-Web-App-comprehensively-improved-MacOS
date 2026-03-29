@@ -74,9 +74,17 @@
 
 ## 截图预览
 
-| 主界面工作区 | 三式合一工作区 |
-| --- | --- |
-| ![Horosa Main Workspace](docs/assets/screenshots/main-workspace.png) | ![Horosa Sanshi Workspace](docs/assets/screenshots/sanshi-workspace.png) |
+<div align="center">
+  <p><strong>Main Workspace / 主界面工作区</strong></p>
+  <img src="docs/assets/screenshots/main-workspace.png" alt="Horosa Main Workspace" width="1200" />
+  <p><em>这是 Horosa 在 macOS 正式版中的核心桌面工作区，用来承载盘面浏览、参数控制与日常解读。</em></p>
+</div>
+
+<div align="center">
+  <p><strong>Sanshi Workspace / 三式合一工作区</strong></p>
+  <img src="docs/assets/screenshots/sanshi-workspace.png" alt="Horosa Sanshi Workspace" width="960" />
+  <p><em>这里展示的是更偏高级功能的一面，用于体现三式合一与更深层的工具化分析场景。</em></p>
+</div>
 
 这些截图目前来自已验收的真实产物检查流程，能反映当前桌面交付链路下的实际 UI 状态。
 
