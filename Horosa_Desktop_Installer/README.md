@@ -128,6 +128,35 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
 
 只要这几条不破，客户端就会优先抓到固定 manifest，再按 manifest 中的准确 URL 和哈希完成更新。
 
+## Apple Developer 正式分发准备
+
+如果要把这套离线 `.pkg zip` 作为面向陌生用户的正式外部分发包，先准备好 Apple Developer 材料：
+
+- `Developer ID Application`
+- `Developer ID Installer`
+- `notarytool` keychain profile（默认约定为 `horosa-notary`）
+
+先在发布机执行：
+
+```bash
+cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Installer
+./scripts/check_apple_signing_prereqs.sh
+```
+
+脚本会只读检查：
+
+- 当前用户 keychain 中是否存在唯一可用的 `Developer ID Application`
+- 当前用户 keychain 中是否存在唯一可用的 `Developer ID Installer`
+- `xcrun notarytool` 是否能通过 `horosa-notary` 连到 Apple notarization 服务
+
+如果三项都通过，就可以进入正式外部分发模式。默认会优先自动识别本机可用的 `Developer ID` 身份，并使用 `horosa-notary` profile；如果你的机器上未来存在多张同类证书，优先直接复制 `check_apple_signing_prereqs.sh` 打印出来的 `export` 行。手动导出时也可以显式指定这三个环境变量：
+
+```bash
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+export APPLE_INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)"
+export NOTARYTOOL_KEYCHAIN_PROFILE="horosa-notary"
+```
+
 ## 本地构建与验收
 
 ```bash
@@ -136,11 +165,34 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 ./scripts/verify_desktop_packaging.sh
 ```
 
+正式外部分发构建：
+
+```bash
+cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Installer
+HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/build_desktop_release.sh
+./scripts/verify_public_distribution_readiness.sh
+```
+
+这会做额外动作：
+
+- `.app` 使用 `Developer ID Application` + hardened runtime + timestamp 签名
+- 离线 `.pkg` 使用 `Developer ID Installer` 签名
+- 对 `星阙.app` 与 `Horosa-Installer-macos-arm64-offline.pkg` 分别提交 notarization
+- 对二者分别 `staple`
+- 在 `.app` 完成 `staple` 后再生成 `Horosa-Desktop-macos-arm64.zip`
+
 发布到 GitHub Release：
 
 ```bash
 cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Installer
 ./scripts/publish_github_release.sh
+```
+
+正式外部分发发布：
+
+```bash
+cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Installer
+HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh
 ```
 
 这个脚本会：
@@ -173,4 +225,13 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 
 ## 说明
 
-如果需要在其他 mac 上零安全提示分发，还需要进一步接入 Apple Developer ID 签名与 notarization。当前这套工程已经解决了“损坏 app / 直跑 app / 终端弹出 / 更新不稳 / 数据丢失”这些产品侧问题，但不代替苹果官方签名体系。
+这套工程现在支持两种模式：
+
+- 默认模式：ad-hoc 本地构建，适合开发和自测
+- `HOROSA_PUBLIC_DISTRIBUTION=1`：Developer ID 签名 + notarization，适合正式对外分发
+
+正式分发前，务必通过：
+
+- `./scripts/check_apple_signing_prereqs.sh`
+- `./scripts/verify_desktop_packaging.sh`
+- `./scripts/verify_public_distribution_readiness.sh`

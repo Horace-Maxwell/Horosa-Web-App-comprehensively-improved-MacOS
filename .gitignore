@@ -10,6 +10,11 @@ Thumbs.db
 *.err
 *.tmp
 .tmp_*
+*.certSigningRequest
+developerID_*.cer
+
+# Local root cache
+.horosa-cache/
 
 # Local Horosa runtime state (must not upload)
 Horosa-Web/.horosa-local-logs/

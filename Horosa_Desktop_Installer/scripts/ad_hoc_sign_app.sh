@@ -4,11 +4,12 @@ set -euo pipefail
 APP_PATH="$1"
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 APPLE_ENTITLEMENTS_PATH="${APPLE_ENTITLEMENTS_PATH:-}"
+APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
 
 /usr/bin/xattr -cr "$APP_PATH" >/dev/null 2>&1 || true
 
 if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
-  SIGN_ARGS=(--force --deep --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY")
+  SIGN_ARGS=(--force --deep --options runtime --timestamp --keychain "$APPLE_SIGNING_KEYCHAIN" --sign "$APPLE_SIGNING_IDENTITY")
   if [ -n "$APPLE_ENTITLEMENTS_PATH" ]; then
     SIGN_ARGS+=(--entitlements "$APPLE_ENTITLEMENTS_PATH")
   fi

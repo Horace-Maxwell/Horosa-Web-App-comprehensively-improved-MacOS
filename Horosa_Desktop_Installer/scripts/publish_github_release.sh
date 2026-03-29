@@ -178,7 +178,7 @@ if [ "${HOROSA_SKIP_VERIFY:-0}" != "1" ]; then
   "${INSTALLER_ROOT}/scripts/verify_desktop_packaging.sh"
 fi
 
-if [ "${HOROSA_REQUIRE_SIGNED_PUBLIC_RELEASE:-0}" = "1" ]; then
+if [ "${HOROSA_REQUIRE_SIGNED_PUBLIC_RELEASE:-${HOROSA_PUBLIC_DISTRIBUTION:-0}}" = "1" ]; then
   "${INSTALLER_ROOT}/scripts/verify_public_distribution_readiness.sh"
 fi
 

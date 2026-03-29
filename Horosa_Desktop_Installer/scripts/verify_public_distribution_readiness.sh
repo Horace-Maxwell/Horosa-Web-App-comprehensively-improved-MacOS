@@ -34,6 +34,7 @@ done
 APP_SIG_OUTPUT="$(codesign -dv --verbose=4 "$TARGET_APP" 2>&1)"
 PKG_SIG_OUTPUT="$(pkgutil --check-signature "$PKG_PATH" 2>&1 || true)"
 SPCTL_OUTPUT="$(spctl -a -vv "$TARGET_APP" 2>&1 || true)"
+PKG_SPCTL_OUTPUT="$(spctl -a -vv -t install "$PKG_PATH" 2>&1 || true)"
 
 printf '%s
 ' "$APP_SIG_OUTPUT" | rg 'Authority=Developer ID Application' >/dev/null || {
@@ -57,5 +58,15 @@ printf '%s
 ' "$SPCTL_OUTPUT" >&2
   exit 1
 }
+printf '%s
+' "$PKG_SPCTL_OUTPUT" | rg 'accepted' >/dev/null || {
+  echo 'Gatekeeper does not accept installer package' >&2
+  printf '%s
+' "$PKG_SPCTL_OUTPUT" >&2
+  exit 1
+}
+
+xcrun stapler validate -q "$TARGET_APP" >/dev/null
+xcrun stapler validate -q "$PKG_PATH" >/dev/null
 
 echo 'public distribution readiness passed'
