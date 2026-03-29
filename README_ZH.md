@@ -74,9 +74,9 @@
 
 ## 截图预览
 
-| 主界面工作区 | 图盘验证快照 |
+| 主界面工作区 | 三式合一工作区 |
 | --- | --- |
-| ![Horosa Main Workspace](runtime/release_checks/browser_horosa_master_check_release.png) | ![Horosa Chart Snapshot](runtime/mastercheck_jieqi_entries.png) |
+| ![Horosa Main Workspace](docs/assets/screenshots/main-workspace.png) | ![Horosa Sanshi Workspace](docs/assets/screenshots/sanshi-workspace.png) |
 
 这些截图目前来自已验收的真实产物检查流程，能反映当前桌面交付链路下的实际 UI 状态。
 

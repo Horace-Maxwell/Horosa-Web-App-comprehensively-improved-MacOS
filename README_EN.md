@@ -77,9 +77,9 @@ Benefits:
 
 ## Preview
 
-| Main Workspace | Chart Verification Snapshot |
+| Main Workspace | Sanshi Workspace |
 | --- | --- |
-| ![Horosa Main Workspace](runtime/release_checks/browser_horosa_master_check_release.png) | ![Horosa Chart Snapshot](runtime/mastercheck_jieqi_entries.png) |
+| ![Horosa Main Workspace](docs/assets/screenshots/main-workspace.png) | ![Horosa Sanshi Workspace](docs/assets/screenshots/sanshi-workspace.png) |
 
 These images currently come from verified release-check artifacts and reflect the UI that ships through the desktop delivery pipeline.
 

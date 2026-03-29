@@ -22,9 +22,9 @@
 
 ## Preview
 
-| Main Workspace | Chart Verification Snapshot |
+| Main Workspace | Sanshi Workspace |
 | --- | --- |
-| ![Horosa Main Workspace](runtime/release_checks/browser_horosa_master_check_release.png) | ![Horosa Chart Snapshot](runtime/mastercheck_jieqi_entries.png) |
+| ![Horosa Main Workspace](docs/assets/screenshots/main-workspace.png) | ![Horosa Sanshi Workspace](docs/assets/screenshots/sanshi-workspace.png) |
 
 ## Why This Repository Exists / 这个仓库的定位
 
