@@ -6,12 +6,8 @@ DIST_ROOT="${INSTALLER_ROOT}/dist"
 BUILD_ROOT="${INSTALLER_ROOT}/build"
 TARGET_ROOT="${INSTALLER_ROOT}/src-tauri/target-user"
 OFFLINE_SCRIPTS_RENDERED_DIR="${BUILD_ROOT}/installer-scripts-rendered-offline"
-OFFLINE_SUPPORT_RENDERED_DIR="${BUILD_ROOT}/distribution-support-rendered-offline"
-OFFLINE_DELIVERY_ROOT="${BUILD_ROOT}/delivery-bundle-offline"
 NOTARY_BUILD_ROOT="${BUILD_ROOT}/notary"
 POSTINSTALL_TEMPLATE="${INSTALLER_ROOT}/installer-scripts/postinstall.template"
-UNSIGNED_HELPER_TEMPLATE="${INSTALLER_ROOT}/distribution-support/unsigned_install_helper.template"
-UNSIGNED_GUIDE_TEMPLATE="${INSTALLER_ROOT}/distribution-support/UNSIGNED_INSTALL_GUIDE.template"
 RELEASE_CONFIG="${INSTALLER_ROOT}/config/release_config.json"
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 APPLE_INSTALLER_IDENTITY="${APPLE_INSTALLER_IDENTITY:-}"
@@ -19,8 +15,6 @@ APPLE_ENTITLEMENTS_PATH="${APPLE_ENTITLEMENTS_PATH:-}"
 APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
 NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-horosa-notary}"
 HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION:-0}"
-UNSIGNED_HELPER_NAME="Open-XingQue-Unsigned.command"
-UNSIGNED_GUIDE_NAME="UNSIGNED_INSTALL_GUIDE.txt"
 
 pick_single_identity_hash() {
   local profile="$1"
@@ -115,7 +109,7 @@ RUNTIME_ARCHIVE="${DIST_ROOT}/${RUNTIME_ASSET}"
 LEGACY_DMG="${DIST_ROOT}/Horosa-Desktop-macos-arm64.dmg"
 NOTARY_APP_ZIP="${NOTARY_BUILD_ROOT}/${APP_NAME}.notary.zip"
 
-mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_SUPPORT_RENDERED_DIR}" "${NOTARY_BUILD_ROOT}"
+mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${NOTARY_BUILD_ROOT}"
 "${INSTALLER_ROOT}/scripts/generate_icon.sh"
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY}" APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN}" HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION}" "${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
 
@@ -214,29 +208,6 @@ offline_out = offline_scripts_dir / 'postinstall'
 offline_out.write_text(offline_template)
 offline_out.chmod(0o755)
 
-helper_template = (root / 'distribution-support/unsigned_install_helper.template').read_text()
-guide_template = (root / 'distribution-support/UNSIGNED_INSTALL_GUIDE.template').read_text()
-
-def render_support(output_dir: pathlib.Path, pkg_name: str, pkg_mode: str):
-    helper = helper_template
-    guide = guide_template
-    for key, value in {
-        '__APP_NAME__': config['appName'],
-        '__PKG_NAME__': pkg_name,
-        '__PKG_MODE__': pkg_mode,
-        '__RUNTIME_ASSET__': config['runtimeAssetName'],
-    }.items():
-        helper = helper.replace(key, value)
-        guide = guide.replace(key, value)
-    helper_out = output_dir / 'Open-XingQue-Unsigned.command'
-    guide_out = output_dir / 'UNSIGNED_INSTALL_GUIDE.txt'
-    output_dir.mkdir(parents=True, exist_ok=True)
-    helper_out.write_text(helper)
-    helper_out.chmod(0o755)
-    guide_out.write_text(guide)
-    guide_out.chmod(0o644)
-
-render_support(root / 'build/distribution-support-rendered-offline', config['desktopOfflinePkgName'], 'offline')
 PYPOST
 
 cp -f "${RUNTIME_ARCHIVE}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET}"
@@ -319,21 +290,10 @@ fi
   cd "$(dirname "${TARGET_APP}")"
   COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc "${APP_NAME}.app" "${APP_BUNDLE_ZIP}"
 )
-rm -rf "${OFFLINE_DELIVERY_ROOT}"
-mkdir -p "${OFFLINE_DELIVERY_ROOT}"
-cp "${OFFLINE_INSTALLER_PKG}" "${OFFLINE_DELIVERY_ROOT}/$(basename "${OFFLINE_INSTALLER_PKG}")"
-cp "${OFFLINE_SUPPORT_RENDERED_DIR}/${UNSIGNED_HELPER_NAME}" "${OFFLINE_DELIVERY_ROOT}/${UNSIGNED_HELPER_NAME}"
-cp "${OFFLINE_SUPPORT_RENDERED_DIR}/${UNSIGNED_GUIDE_NAME}" "${OFFLINE_DELIVERY_ROOT}/${UNSIGNED_GUIDE_NAME}"
-
 rm -f "${INSTALLER_PKG_ZIP}" "${OFFLINE_INSTALLER_PKG_ZIP}"
-(
-  cd "${OFFLINE_DELIVERY_ROOT}"
-  /usr/bin/zip -qry "${OFFLINE_INSTALLER_PKG_ZIP}" .
-)
 
 echo "desktop app bundle ready: ${APP_BUNDLE_ZIP}"
 echo "offline installer package ready: ${OFFLINE_INSTALLER_PKG}"
-echo "offline installer delivery zip ready: ${OFFLINE_INSTALLER_PKG_ZIP}"
 echo "component plist ready: ${COMPONENT_PLIST}"
 
 INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" APP_RELEASE_TAG_ENV="${APP_RELEASE_TAG}" RUNTIME_RELEASE_TAG_ENV="${RUNTIME_RELEASE_TAG}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" RUNTIME_SHA256_ENV="${RUNTIME_SHA256}" python3 - <<'PYMANIFEST'

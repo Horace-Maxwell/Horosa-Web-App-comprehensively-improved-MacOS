@@ -22,15 +22,14 @@ Use 1-2 paragraphs to explain:
 
 Regular users should download:
 
-- `Horosa-Installer-macos-arm64-offline-pkg.zip`
+- `Horosa-Installer-macos-arm64-offline.pkg`
 
 ## Installation Steps
 
 1. Download the offline installer package
-2. Extract the zip
-3. Run the `.pkg`
-4. Open `/Applications/星阙.app`
-5. Use the fallback command only if macOS still blocks the app
+2. Double-click the `.pkg` to start installation
+3. Open `/Applications/星阙.app`
+4. If macOS asks for confirmation, allow it in System Settings -> Privacy & Security
 
 ## Major Improvements
 
@@ -53,7 +52,7 @@ Regular users should download:
 ## Upgrade and Compatibility Notes
 
 - platform target:
-- recommended install path:
+- recommended install path: offline `.pkg`
 - compatibility notes:
 
 ## Related Docs

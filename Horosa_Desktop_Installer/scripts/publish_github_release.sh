@@ -29,7 +29,7 @@ print(
     config['desktopOfflinePkgZipName'],
     config['updateManifestName'],
     runtime_version,
-    config.get('primaryDownload', config['desktopOfflinePkgZipName']),
+    config.get('primaryDownload', config['desktopOfflinePkgName']),
     config.get('supportedArch', 'arm64'),
 )
 PY
@@ -43,7 +43,6 @@ RELEASE_DOC_EN_FILE="${RELEASE_DOCS_DIR}/${TAG_NAME}-en.md"
 RELEASE_DOC_ZH_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/docs/releases/${TAG_NAME}-zh.md"
 RELEASE_DOC_EN_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/docs/releases/${TAG_NAME}-en.md"
 APP_ASSETS=(
-  "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}"
   "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
   "${DIST_ROOT}/${DESKTOP_ASSET}"
   "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
@@ -188,7 +187,6 @@ fi
 
 RELEASE_BODY="$(
   PRIMARY_DOWNLOAD_ENV="${PRIMARY_DOWNLOAD}" \
-  DESKTOP_OFFLINE_PKG_ZIP_ENV="${DESKTOP_OFFLINE_PKG_ZIP}" \
   SUPPORTED_ARCH_ENV="${SUPPORTED_ARCH}" \
   RELEASE_DOC_ZH_FILE_ENV="${RELEASE_DOC_ZH_FILE}" \
   RELEASE_DOC_EN_FILE_ENV="${RELEASE_DOC_EN_FILE}" \
@@ -206,7 +204,7 @@ def read_text(path_env: str) -> str:
     return path.read_text().strip()
 
 
-primary_download = os.environ["DESKTOP_OFFLINE_PKG_ZIP_ENV"]
+primary_download = os.environ["PRIMARY_DOWNLOAD_ENV"]
 arch = os.environ["SUPPORTED_ARCH_ENV"]
 zh_url = os.environ["RELEASE_DOC_ZH_URL_ENV"]
 en_url = os.environ["RELEASE_DOC_EN_URL_ENV"]
@@ -222,10 +220,9 @@ sections = [
     "",
     "## 安装步骤 / Installation",
     f"1. 下载 / Download `{primary_download}`",
-    "2. 解压 zip / Extract the zip",
-    "3. 双击里面的 `.pkg` / Run the `.pkg` inside",
-    "4. 如被系统拦截，再运行 `Open-XingQue-Unsigned.command` / Use the fallback command only if macOS still blocks the app",
-    "5. 安装完成后直接打开使用 / Open the app after install",
+    "2. 双击 `.pkg` 开始安装 / Double-click the `.pkg` to start installation",
+    "3. 安装完成后直接打开 `/Applications/星阙.app` / Open `/Applications/星阙.app` after install",
+    "4. 如系统提示安全确认，请在“系统设置 -> 隐私与安全性”中放行 / If macOS asks for confirmation, allow it in System Settings -> Privacy & Security",
     "",
     "## 文档 / Docs",
     f"- [中文版本说明]({zh_url})",

@@ -22,15 +22,14 @@
 
 面向普通用户，请下载：
 
-- `Horosa-Installer-macos-arm64-offline-pkg.zip`
+- `Horosa-Installer-macos-arm64-offline.pkg`
 
 ## 安装步骤
 
 1. 下载离线安装包
-2. 解压 zip
-3. 运行 `.pkg`
-4. 从 `/Applications/星阙.app` 打开
-5. 如被拦截，再使用 fallback command
+2. 双击 `.pkg` 开始安装
+3. 从 `/Applications/星阙.app` 打开
+4. 如系统提示安全确认，请在“系统设置 -> 隐私与安全性”中放行
 
 ## 主要改进
 
@@ -53,7 +52,7 @@
 ## 升级与兼容
 
 - 平台目标：
-- 推荐安装方式：
+- 推荐安装方式：离线 `.pkg`
 - 兼容/不兼容说明：
 
 ## 相关文档

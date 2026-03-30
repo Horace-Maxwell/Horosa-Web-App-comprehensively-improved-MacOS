@@ -22,7 +22,7 @@ If you are here only to install Horosa, you do not need to clone the repo or ass
 
 Use this file:
 
-- [Horosa-Installer-macos-arm64-offline-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline-pkg.zip)
+- [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 
 It is the only public download we recommend to regular users. It is the right choice for:
 
@@ -37,11 +37,10 @@ Other release assets stay in the release because the installer, updater, and pub
 
 Recommended steps:
 
-1. Download `Horosa-Installer-macos-arm64-offline-pkg.zip`
-2. Extract the zip
-3. Run the `.pkg` inside
-4. Open `/Applications/星阙.app`
-5. If macOS still blocks the app, use `Open-XingQue-Unsigned.command` from the same folder as a fallback
+1. Download `Horosa-Installer-macos-arm64-offline.pkg`
+2. Double-click the `.pkg` to start installation
+3. Open `/Applications/星阙.app`
+4. If macOS asks for confirmation, allow it in System Settings -> Privacy & Security
 
 Distribution profile:
 
@@ -60,18 +59,18 @@ Distribution profile:
 
 The goal is not “here is a codebase, please build it yourself.” The goal is “Horosa should feel like a polished desktop product on macOS.”
 
-## Why the Offline `.pkg zip` Is the Primary Entry
+## Why the Offline `.pkg` Is the Primary Entry
 
 We deliberately keep one public recommendation:
 
-- `Horosa-Installer-macos-arm64-offline-pkg.zip`
+- `Horosa-Installer-macos-arm64-offline.pkg`
 
-That keeps the GitHub release surface understandable. Instead of asking a normal user to interpret multiple `.pkg`, `.zip`, runtime, and manifest assets, we point them to one download that matches the real install experience.
+That keeps the GitHub release surface understandable. Instead of asking a normal user to interpret multiple `.pkg`, `.zip`, runtime, and manifest assets, we point them to one signed and notarized installer that matches the real install experience.
 
 Benefits:
 
 - clearer installation guidance
-- better for weak networks and offline forwarding
+- better aligned with the standard macOS install path
 - no hidden “download the runtime later” dependency on first open
 - closer to the way polished desktop software is normally delivered
 
