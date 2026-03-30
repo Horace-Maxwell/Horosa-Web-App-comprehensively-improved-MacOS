@@ -474,7 +474,7 @@ fn fallback_release_config(app: &AppHandle) -> ReleaseConfig {
         desktop_offline_pkg_name: DEFAULT_DESKTOP_OFFLINE_PKG_NAME.to_string(),
         desktop_offline_pkg_zip_name: DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME.to_string(),
         update_manifest_name: DEFAULT_UPDATE_MANIFEST_NAME.to_string(),
-        primary_download: DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME.to_string(),
+        primary_download: DEFAULT_DESKTOP_OFFLINE_PKG_NAME.to_string(),
         supported_arch: DEFAULT_SUPPORTED_ARCH.to_string(),
         release_tag_prefix: DEFAULT_RELEASE_TAG_PREFIX.to_string(),
         app_name: APP_NAME.to_string(),
@@ -2000,7 +2000,7 @@ fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
                         }
                         if config.primary_download.trim().is_empty() {
                             config.primary_download =
-                                DEFAULT_DESKTOP_OFFLINE_PKG_ZIP_NAME.to_string();
+                                DEFAULT_DESKTOP_OFFLINE_PKG_NAME.to_string();
                         }
                         if config.supported_arch.trim().is_empty() {
                             config.supported_arch = DEFAULT_SUPPORTED_ARCH.to_string();
