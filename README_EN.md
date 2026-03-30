@@ -2,94 +2,48 @@
 
 # Horosa for macOS
 
-### The native Apple Silicon release channel for Horosa, with offline install and notarized delivery
+### A desktop metaphysics workstation for Apple Silicon, delivered through a signed offline installer and a notarized release channel
 
 [![Latest Release](https://img.shields.io/github/v/release/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?display_name=tag&sort=semver)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-[![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%26%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
+[![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
+[![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 
 [Portal](README.md) | [中文](README_ZH.md) | [Latest Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 
 </div>
 
-## What Horosa for macOS Is
+## Why Horosa Feels Different
 
-This repository is the public-facing macOS distribution channel for Horosa. It does more than store source code: it also carries the desktop installer project, runtime packaging flow, update manifest, and the GitHub release surface that ordinary users actually see.
+This repository certainly handles macOS delivery, but what it delivers is not a thin shell around one chart. Horosa on macOS already behaves like a layered metaphysics workstation: Western astrology, timing systems, relationship analysis, Chinese traditional methods, Yi and Sanshi workflows, Feng Shui, and export-oriented reading are organized as one desktop product rather than scattered tools.
 
-If you are here only to install Horosa, you do not need to clone the repo or assemble the runtime by hand. The intended user path is the offline installer package.
+That is the main idea this README should communicate. The installer matters, the notarization matters, but the bigger story is that the release channel is carrying a surprisingly broad and mature analysis surface.
 
-## Why Horosa Is More Than a Single Chart Viewer
+## What You Can Actually Do
 
-What ships through this repository is not a thin desktop shell around one chart. Horosa on macOS already behaves like a metaphysics workstation: a shared desktop surface where Western astrology, timing systems, relationship analysis, Chinese traditional methods, Yi and Sanshi workflows, Feng Shui, and export-oriented reading live inside one product.
+<table>
+  <tr>
+    <td width="50%">
+      <strong>As an end user</strong><br />
+      Download the offline installer, open Horosa like a finished macOS application, and start working without hand-assembling Python, Java, or supporting runtime pieces.
+    </td>
+    <td width="50%">
+      <strong>As a maintainer</strong><br />
+      Use the same repository to trace the installer project, runtime packaging, release notes, and publishing flow that back the public desktop delivery.
+    </td>
+  </tr>
+</table>
 
-That distinction matters on GitHub. This repository certainly carries the release pipeline, but the thing it ultimately delivers is a feature-dense desktop analysis environment rather than a packaging wrapper with a logo.
-
-## What End Users Should Download
-
-Use this file:
+Primary entry:
 
 - [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 
-It is the only public download we recommend to regular users. It is the right choice for:
+Best fit:
 
 - first-time installation
 - mainland China or weak-network environments
-- forwarding the installer to another machine or another person
-- users who want an install that is ready to open without a follow-up runtime download
-
-Other release assets stay in the release because the installer, updater, and publishing flow still depend on them. They are not the file an ordinary user should choose manually.
-
-## Installation Experience
-
-Recommended steps:
-
-1. Download `Horosa-Installer-macos-arm64-offline.pkg`
-2. Double-click the `.pkg` to start installation
-3. Open `/Applications/星阙.app`
-4. If macOS asks for confirmation, allow it in System Settings -> Privacy & Security
-
-Distribution profile:
-
-- Apple Silicon (`arm64`)
-- Developer ID signed
-- notarized by Apple
-- offline runtime path included in the install flow
-- native in-app update path for future releases
-
-## What You Will Actually See in Horosa
-
-- A primary workspace built around natal charting and a dedicated 3D chart view, not just a single flat chart.
-- A timing stack that already includes primary directions, a primary direction chart, zodiacal releasing, firdaria, profection, solar arc, solar return, lunar return, annual methods, and decennials.
-- A relationship layer with compare, composite, synastry, time-space midpoint, and Marks charts.
-- Broader astrology modules including Jieqi charts, astrocartography, Qizheng Siyu, Hellenistic, Indian, and quantitative views.
-- Chinese traditional modules including Bazi, Ziwei, gua-symbol references, twelve-palace tools, Bazi rule references, calendar, and Feng Shui.
-- An Yi and Sanshi stack covering Su Zhan, Yi Gua, Liu Ren, Jin Kou, Dun Jia, Tai Yi, and Tong She Fa.
-- A Sanshi United workspace that already goes beyond a placeholder tab, with overview, Tai Yi, shensha, Liu Ren, major patterns, sub-patterns, references, and Bagong details.
-- Workspace-level controls for chart configuration, aspect selection, planet selection, chart components, utilities, AI export, and AI export settings.
-
-## What This Delivery Gives You
-
-- a native `.app` installed to `/Applications`
-- a shared runtime managed for Horosa's Python and Java services
-- manifest-driven update delivery
-- one consistent review flow for install, repair, and update decisions
-
-The goal is not “here is a codebase, please build it yourself.” The goal is “Horosa should feel like a polished desktop product on macOS.”
-
-## Why the Offline `.pkg` Is the Primary Entry
-
-We deliberately keep one public recommendation:
-
-- `Horosa-Installer-macos-arm64-offline.pkg`
-
-That keeps the GitHub release surface understandable. Instead of asking a normal user to interpret multiple `.pkg`, `.zip`, runtime, and manifest assets, we point them to one signed and notarized installer that matches the real install experience.
-
-Benefits:
-
-- clearer installation guidance
-- better aligned with the standard macOS install path
-- no hidden “download the runtime later” dependency on first open
-- closer to the way polished desktop software is normally delivered
+- offline forwarding to another machine or another person
+- users who want a first open that does not depend on an extra runtime download
 
 ## Preview
 
@@ -105,29 +59,61 @@ Benefits:
   <p><em>A more advanced view that spotlights Sanshi workflows and deeper tool-driven analysis inside the same desktop product.</em></p>
 </div>
 
-These images currently come from verified release-check artifacts and reflect the UI that ships through the desktop delivery pipeline.
+## Signature Workflows
+
+### Natal to Timing
+
+Horosa already supports a continuous timing workflow rather than a loose menu of techniques. Users can start with natal and 3D chart reading, then move into primary directions, a primary direction chart, zodiacal releasing, firdaria, profection, solar arc, returns, and annual methods inside the same desktop environment.
+
+### Relationship Analysis
+
+The relationship layer is broader than a single compare screen. It already includes compare, composite, synastry, time-space midpoint, and Marks charts as distinct ways to inspect the same relationship from different structural angles.
+
+### Chinese Traditional Stack
+
+The Chinese traditional surface is presented as a system, not a decorative side module. Bazi, Ziwei, gua-symbol references, twelve-palace tools, calendar, and Feng Shui already live in the same workspace.
+
+### Yi and Sanshi Depth
+
+Yi and Sanshi go beyond standalone tabs. Horosa already includes Su Zhan, Yi Gua, Liu Ren, Jin Kou, Dun Jia, Tai Yi, Tong She Fa, and a deeper Sanshi United surface with overview, shensha, references, and Bagong interpretation detail.
 
 ## Implemented Disciplines
 
-### Western and global astrology
+### Western astrology
 
-- Natal chart, 3D chart, and everyday chart-reading workspace
-- Predictive stack: primary directions, primary direction chart, zodiacal releasing, firdaria, profection, solar arc, solar return, lunar return, annual methods, and decennials
-- Relationship charts: compare, composite, synastry, time-space midpoint, and Marks
-- Jieqi charts, astrocartography, Qizheng Siyu, Hellenistic, Indian, and quantitative modules
+The strength here is the continuity from natal reading to timing and relationship work.
 
-### Chinese traditional and divination systems
+- Natal chart and 3D chart
+- Primary directions, zodiacal releasing, firdaria, profection, solar arc, returns, annual methods
+- Compare, composite, synastry, time-space midpoint, and Marks charts
 
-- Bazi, Ziwei, gua-symbol references, twelve-palace tools, and Bazi rule references
-- Yi and Sanshi modules: Su Zhan, Yi Gua, Liu Ren, Jin Kou, Dun Jia, Tai Yi, and Tong She Fa
-- Sanshi United as an integrated surface with overview, Tai Yi, shensha, Liu Ren, pattern references, and Bagong interpretation details
-- Calendar and Feng Shui as first-class desktop modules rather than side utilities
+### Global and specialty modules
 
-## Research Workflow
+Horosa goes noticeably beyond the default Western stack for a desktop release.
 
-Horosa is built as a cross-tradition analysis surface. The intended experience is that a user can move from chart reading to timing, from relationship comparison to Chinese methods, and from calculation to export-oriented interpretation without leaving the same desktop product.
+- Jieqi charts
+- Astrocartography and planetary maps
+- Qizheng Siyu, Hellenistic, Indian, and quantitative views
 
-The current workflow surface already includes:
+### Chinese traditional systems
+
+The Chinese traditional layer is arranged as a genuine system of entrypoints and references.
+
+- Bazi, Ziwei, gua-symbol references, twelve-palace tools, and rule references
+- Calendar and Feng Shui as first-class modules
+- A workspace that allows cross-reading between different traditions
+
+### Yi and Sanshi
+
+This layer gains its depth from the jump between standalone methods and an integrated analysis surface.
+
+- Su Zhan, Yi Gua, Liu Ren, Jin Kou, Dun Jia, Tai Yi, Tong She Fa
+- Sanshi United with overview, Tai Yi, shensha, Liu Ren, major patterns, sub-patterns, references, and Bagong details
+- Integrated explanatory detail around pattern reading rather than placeholder tabs
+
+### Tools and export workflow
+
+Horosa is not only about calculation. It also provides the controls needed for desktop research and export-oriented interpretation.
 
 - chart configuration
 - aspect selection
@@ -137,14 +123,22 @@ The current workflow surface already includes:
 - AI export
 - AI export settings
 
-Themes already exist as part of the workspace system, but they stay a supporting customization detail rather than the headline feature.
+## Desktop Delivery
+
+On macOS, the delivery layer is meant to feel native and finished rather than improvised.
+
+- Apple Silicon (`arm64`)
+- Developer ID signed
+- notarized by Apple
+- offline runtime path included in the install flow
+- native in-app update path for future releases
+
+The point is not “here is a codebase, please assemble it yourself.” The point is “here is Horosa as a finished desktop product.”
 
 ## Latest Release Docs
 
 - [v1.1.7 Release Notes (English)](docs/releases/v1.1.7-en.md)
 - [v1.1.7 中文版本说明](docs/releases/v1.1.7-zh.md)
-
-Future releases will keep the same bilingual, versioned structure.
 
 ## FAQ
 
@@ -158,7 +152,7 @@ No. The public offline install path is designed to carry the required runtime se
 
 ### Why are there other files in the release
 
-Because the installer, updater, notarization flow, and runtime publishing pipeline still need them. They are internal support assets, not the public recommendation.
+Because the installer, updater, notarization flow, and runtime publishing pipeline still need them. They are support assets, not the public recommendation.
 
 ### Will updates remove my user data
 
@@ -166,16 +160,11 @@ No. App replacement and runtime switching are designed to update the program and
 
 ## Developer Entry
 
-If you maintain or build this stack, start here:
+If you maintain this stack, start with the path that matches your goal:
 
-- [README.md](README.md): repository portal
-- [README_ZH.md](README_ZH.md): full Chinese guide
-- [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md): installer internals and publishing flow
-- [docs/releases/v1.1.7-en.md](docs/releases/v1.1.7-en.md): current version release document source
-
-Key directories:
-
-- `Horosa_Desktop_Installer/`: installer, signing, notarization, publish scripts
-- `Horosa-Web/`: application source
-- `runtime/`: shared runtime and verification artifacts
-- `diagnostics/`: diagnostics and issue logs
+- Understand the public-facing repository layout: [README.md](README.md)
+- Read the full Chinese guide: [README_ZH.md](README_ZH.md)
+- Inspect installer internals and publishing flow: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
+- Read the current release document source: [docs/releases/v1.1.7-en.md](docs/releases/v1.1.7-en.md)
+- Enter the application source tree: `Horosa-Web/`
+- Inspect shared runtime and diagnostics: `runtime/` and `diagnostics/`
