@@ -18,6 +18,12 @@ This repository is the public-facing macOS distribution channel for Horosa. It d
 
 If you are here only to install Horosa, you do not need to clone the repo or assemble the runtime by hand. The intended user path is the offline installer package.
 
+## Why Horosa Is More Than a Single Chart Viewer
+
+What ships through this repository is not a thin desktop shell around one chart. Horosa on macOS already behaves like a metaphysics workstation: a shared desktop surface where Western astrology, timing systems, relationship analysis, Chinese traditional methods, Yi and Sanshi workflows, Feng Shui, and export-oriented reading live inside one product.
+
+That distinction matters on GitHub. This repository certainly carries the release pipeline, but the thing it ultimately delivers is a feature-dense desktop analysis environment rather than a packaging wrapper with a logo.
+
 ## What End Users Should Download
 
 Use this file:
@@ -49,6 +55,17 @@ Distribution profile:
 - notarized by Apple
 - offline runtime path included in the install flow
 - native in-app update path for future releases
+
+## What You Will Actually See in Horosa
+
+- A primary workspace built around natal charting and a dedicated 3D chart view, not just a single flat chart.
+- A timing stack that already includes primary directions, a primary direction chart, zodiacal releasing, firdaria, profection, solar arc, solar return, lunar return, annual methods, and decennials.
+- A relationship layer with compare, composite, synastry, time-space midpoint, and Marks charts.
+- Broader astrology modules including Jieqi charts, astrocartography, Qizheng Siyu, Hellenistic, Indian, and quantitative views.
+- Chinese traditional modules including Bazi, Ziwei, gua-symbol references, twelve-palace tools, Bazi rule references, calendar, and Feng Shui.
+- An Yi and Sanshi stack covering Su Zhan, Yi Gua, Liu Ren, Jin Kou, Dun Jia, Tai Yi, and Tong She Fa.
+- A Sanshi United workspace that already goes beyond a placeholder tab, with overview, Tai Yi, shensha, Liu Ren, major patterns, sub-patterns, references, and Bagong details.
+- Workspace-level controls for chart configuration, aspect selection, planet selection, chart components, utilities, AI export, and AI export settings.
 
 ## What This Delivery Gives You
 
@@ -89,6 +106,38 @@ Benefits:
 </div>
 
 These images currently come from verified release-check artifacts and reflect the UI that ships through the desktop delivery pipeline.
+
+## Implemented Disciplines
+
+### Western and global astrology
+
+- Natal chart, 3D chart, and everyday chart-reading workspace
+- Predictive stack: primary directions, primary direction chart, zodiacal releasing, firdaria, profection, solar arc, solar return, lunar return, annual methods, and decennials
+- Relationship charts: compare, composite, synastry, time-space midpoint, and Marks
+- Jieqi charts, astrocartography, Qizheng Siyu, Hellenistic, Indian, and quantitative modules
+
+### Chinese traditional and divination systems
+
+- Bazi, Ziwei, gua-symbol references, twelve-palace tools, and Bazi rule references
+- Yi and Sanshi modules: Su Zhan, Yi Gua, Liu Ren, Jin Kou, Dun Jia, Tai Yi, and Tong She Fa
+- Sanshi United as an integrated surface with overview, Tai Yi, shensha, Liu Ren, pattern references, and Bagong interpretation details
+- Calendar and Feng Shui as first-class desktop modules rather than side utilities
+
+## Research Workflow
+
+Horosa is built as a cross-tradition analysis surface. The intended experience is that a user can move from chart reading to timing, from relationship comparison to Chinese methods, and from calculation to export-oriented interpretation without leaving the same desktop product.
+
+The current workflow surface already includes:
+
+- chart configuration
+- aspect selection
+- planet selection
+- chart components
+- utility tools
+- AI export
+- AI export settings
+
+Themes already exist as part of the workspace system, but they stay a supporting customization detail rather than the headline feature.
 
 ## Latest Release Docs
 
