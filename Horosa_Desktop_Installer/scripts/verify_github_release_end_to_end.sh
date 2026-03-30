@@ -8,14 +8,13 @@ APP_UNZIP_ROOT="${WORK_ROOT}/app-unzip"
 RELEASE_API='https://api.github.com/repos/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest'
 MANIFEST_URL='https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/horosa-latest.json'
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-read -r APP_NAME DESKTOP_OFFLINE_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_ASSET RUNTIME_ASSET <<EOF
+read -r APP_NAME DESKTOP_OFFLINE_PKG DESKTOP_ASSET RUNTIME_ASSET <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
 print(
     config['appName'],
-    config['desktopOfflinePkgZipName'],
     config['desktopOfflinePkgName'],
     config['desktopAssetName'],
     config['runtimeAssetName'],
@@ -34,7 +33,6 @@ fetch() {
 fetch "${RELEASE_API}" -o "${DOWNLOAD_ROOT}/release.json"
 fetch -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${MANIFEST_URL}" -o "${DOWNLOAD_ROOT}/horosa-latest.json"
 
-DESKTOP_OFFLINE_PKG_ZIP_ENV="${DESKTOP_OFFLINE_PKG_ZIP}" \
 DESKTOP_OFFLINE_PKG_ENV="${DESKTOP_OFFLINE_PKG}" \
 DESKTOP_ASSET_ENV="${DESKTOP_ASSET}" \
 python3 - <<'PY' "${DOWNLOAD_ROOT}/release.json" "${DOWNLOAD_ROOT}/horosa-latest.json" > "${WORK_ROOT}/release.env"
@@ -45,7 +43,6 @@ arch = platform.machine().lower()
 platform_key = 'darwin-aarch64' if arch in ('arm64', 'aarch64') else 'darwin-x86_64'
 platform = manifest['platforms'][platform_key]
 required_assets = {
-    os.environ['DESKTOP_OFFLINE_PKG_ZIP_ENV'],
     os.environ['DESKTOP_OFFLINE_PKG_ENV'],
     os.environ['DESKTOP_ASSET_ENV'],
     'horosa-latest.json',
@@ -65,7 +62,6 @@ PY
 
 source "${WORK_ROOT}/release.env"
 
-fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/${DESKTOP_OFFLINE_PKG_ZIP}"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/${DESKTOP_OFFLINE_PKG}"
 fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_URL}"
 fetch -o "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" "${RUNTIME_URL}"
@@ -83,13 +79,6 @@ for label, path, expected in checks:
     if actual != expected:
         raise SystemExit(f'{label} checksum mismatch: {actual} != {expected}')
 PY
-
-mkdir -p "${DOWNLOAD_ROOT}/offline-delivery-unzip"
-ditto -x -k "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG_ZIP}" "${DOWNLOAD_ROOT}/offline-delivery-unzip"
-[ -f "${DOWNLOAD_ROOT}/offline-delivery-unzip/${DESKTOP_OFFLINE_PKG}" ]
-[ -f "${DOWNLOAD_ROOT}/offline-delivery-unzip/Open-XingQue-Unsigned.command" ]
-[ -f "${DOWNLOAD_ROOT}/offline-delivery-unzip/UNSIGNED_INSTALL_GUIDE.txt" ]
-bash -n "${DOWNLOAD_ROOT}/offline-delivery-unzip/Open-XingQue-Unsigned.command"
 
 ditto -x -k "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_UNZIP_ROOT}"
 APP_BUNDLE_PATH="$(find "${APP_UNZIP_ROOT}" -maxdepth 1 -type d -name "*.app" | head -n 1)"

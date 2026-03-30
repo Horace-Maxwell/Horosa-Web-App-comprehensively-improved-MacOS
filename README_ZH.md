@@ -22,7 +22,7 @@
 
 请直接使用：
 
-- [Horosa-Installer-macos-arm64-offline-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline-pkg.zip)
+- [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 
 它是当前唯一推荐给普通用户的公开下载入口，适合：
 
@@ -37,11 +37,10 @@
 
 推荐安装步骤：
 
-1. 下载 `Horosa-Installer-macos-arm64-offline-pkg.zip`
-2. 解压 zip
-3. 双击里面的 `.pkg`
-4. 安装完成后从 `/Applications/星阙.app` 打开
-5. 如果系统仍然拦截，再运行同目录的 `Open-XingQue-Unsigned.command` 作为兜底
+1. 下载 `Horosa-Installer-macos-arm64-offline.pkg`
+2. 双击 `.pkg` 开始安装
+3. 安装完成后从 `/Applications/星阙.app` 打开
+4. 如果系统提示安全确认，请在“系统设置 -> 隐私与安全性”中放行
 
 当前分发特点：
 
@@ -59,16 +58,16 @@
 
 换句话说，这个仓库的目标不是“让你自己搭环境”，而是“让 Horosa 在 Mac 上像一个完整成品一样被下载、安装、更新和恢复”。
 
-## 为什么只推荐离线 `.pkg zip`
+## 为什么只推荐离线 `.pkg`
 
 当前公开分发策略刻意收敛到一个用户入口：
 
-- `Horosa-Installer-macos-arm64-offline-pkg.zip`
+- `Horosa-Installer-macos-arm64-offline.pkg`
 
-这样做是为了避免 GitHub Release 页面变成“很多资产都能点，但大多数人根本不知道该下哪个”的状态。离线 `.pkg zip` 的好处是：
+这样做是为了避免 GitHub Release 页面变成“很多资产都能点，但大多数人根本不知道该下哪个”的状态。离线 `.pkg` 的好处是：
 
 - 安装包含义最清晰
-- 支持弱网和转手分发
+- 支持标准 macOS 安装路径
 - 首次打开不再依赖临时联网下载运行时
 - 更接近标准桌面软件的交付体验
 
@@ -99,7 +98,7 @@
 
 ### 我只是普通用户，需要克隆仓库吗
 
-不需要。直接下载 release 里的离线 `.pkg zip` 即可。
+不需要。直接下载 release 里的离线 `.pkg` 即可。
 
 ### 安装完成后还要自己装 Python / Java 吗
 
@@ -107,7 +106,7 @@
 
 ### 为什么 release 里还有别的文件
 
-因为自动更新器、安装器、公证与运行时发布仍然需要这些资产。但对普通用户来说，真正要点的只有离线 `.pkg zip`。
+因为自动更新器、安装器、公证与运行时发布仍然需要这些资产。但对普通用户来说，真正要点的只有离线 `.pkg`。
 
 ### 更新时会不会删掉我的用户数据
 

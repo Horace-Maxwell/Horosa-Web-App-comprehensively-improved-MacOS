@@ -9,28 +9,28 @@
 - Release 页面：
   [https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 - 离线安装包（弱网 / 转手分发）：
-  [Horosa-Installer-macos-arm64-offline-pkg.zip](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline-pkg.zip)
+  [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 
 普通用户不要自己猜文件名，直接下载：
 
-- `Horosa-Installer-macos-arm64-offline-pkg.zip`
+- `Horosa-Installer-macos-arm64-offline.pkg`
   - 适合：所有普通用户，尤其是中国大陆、弱网、离线拷给别人安装
-  - 特点：包更大，但本机组件已内置，安装后可直接打开使用
+  - 特点：已签名、已公证、安装后可直接打开使用
 
 下载后步骤要说明清楚：
 
-1. 下载 `Horosa-Installer-macos-arm64-offline-pkg.zip`
-2. 解压 zip 并运行其中的 `.pkg`
+1. 下载 `Horosa-Installer-macos-arm64-offline.pkg`
+2. 双击 `.pkg` 开始安装
 3. 从 `/Applications/星阙.app` 启动
 4. 如果检测到这台 Mac 上已有 app、本机组件或旧缓存，先在 app 内完成“安装审查”，手动勾选这次要替换的资产
 5. 离线安装完成后必须可直接打开，不再走联网准备
-6. `Open-XingQue-Unsigned.command` 只在系统拦截时作为兜底，不再是默认第一步
+6. 如果系统提示安全确认，按标准 macOS 路径在“系统设置 -> 隐私与安全性”中放行
 
 其他 release 资产都不是给普通用户手动挑选的，应该放在说明后面，不要放在最前面干扰他们。`DMG` 公开入口已取消，不再继续分发。
 
 目标：
 
-- 交付离线 `.pkg zip` 作为唯一公开安装入口。
+- 交付离线 `.pkg` 作为唯一公开安装入口。
 - 日常启动使用原生 `.app`，内置浏览窗口，不弹 Terminal。
 - 菜单栏提供“检查更新”，支持自动下载、校验、替换、重开。
 - 如果应用安装在 `/Applications`，应用内更新会按 macOS 标准弹出管理员密码框来完成替换。
@@ -52,16 +52,16 @@
 
 用户侧现在只认一个文件：
 
-- `Horosa-Installer-macos-arm64-offline-pkg.zip`
+- `Horosa-Installer-macos-arm64-offline.pkg`
 
 Release 页面建议使用中英文双语提示，明确告诉普通用户：
 
-- 普通用户：下载离线 `.pkg zip`
-- 中国大陆、弱网、离线转发给别人：同样下载离线 `.pkg zip`
+- 普通用户：下载离线 `.pkg`
+- 中国大陆、弱网、离线转发给别人：同样下载离线 `.pkg`
 
 离线路径：
 
-1. 解压 `Horosa-Installer-macos-arm64-offline-pkg.zip`
+1. 双击 `Horosa-Installer-macos-arm64-offline.pkg`
 2. `.pkg` 把 `星阙.app` 安装到 `/Applications`
 3. `postinstall` 优先使用包内自带 runtime 归档，不再依赖额外下载
 
@@ -114,24 +114,23 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
 1. 三个版本号始终一致：`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`
 2. Git tag 使用严格递增的 semver，例如 `v1.0.0`
 3. 对外下载安装只保留一个公开入口：
-   - 主入口：`Horosa-Installer-macos-arm64-offline-pkg.zip`
+   - 主入口：`Horosa-Installer-macos-arm64-offline.pkg`
 4. 发布资产必须至少同时上传：
    - `Horosa-Desktop-macos-arm64.zip`
    - `Horosa-Installer-macos-arm64-offline.pkg`
-   - `Horosa-Installer-macos-arm64-offline-pkg.zip`
    - `horosa-latest.json`
    - runtime 独立 release 中的 `horosa-runtime-macos-arm64.tar.gz`
 5. `horosa-latest.json` 必须指向同一 tag 下的版本化资产 URL
 6. Release 需要是正式版 latest，不要把预发布误当最新稳定版
 7. 发布前必须跑 `scripts/verify_desktop_packaging.sh`
 
-普通用户不需要理解其他资产，只需要下载离线 `.pkg zip`。轻量在线 `.pkg` 与 `DMG` 公开入口都已取消；其余 release 资产继续保留给安装器与自动更新器使用。
+普通用户不需要理解其他资产，只需要下载离线 `.pkg`。轻量在线 `.pkg` 与 `DMG` 公开入口都已取消；其余 release 资产继续保留给安装器与自动更新器使用。
 
 只要这几条不破，客户端就会优先抓到固定 manifest，再按 manifest 中的准确 URL 和哈希完成更新。
 
 ## Apple Developer 正式分发准备
 
-如果要把这套离线 `.pkg zip` 作为面向陌生用户的正式外部分发包，先准备好 Apple Developer 材料：
+如果要把这套离线 `.pkg` 作为面向陌生用户的正式外部分发包，先准备好 Apple Developer 材料：
 
 - `Developer ID Application`
 - `Developer ID Installer`
@@ -214,7 +213,7 @@ HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh
 
 - 先跑一遍本地验收
 - 创建或更新当前版本对应的 GitHub Release
-- 覆盖上传离线 PKG、更新 zip、manifest 和 runtime 等发布资产
+- 覆盖上传离线 PKG、桌面 app zip、manifest 和 runtime 等发布资产
 - 轮询校验 `releases/latest/download/horosa-latest.json`
 - 确认客户端更新入口可以抓到当前版本
 
@@ -222,7 +221,6 @@ HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh
 
 - Rust 项目 `cargo fmt --check` 与 `cargo check`
 - runtime payload、`.zip`、`.pkg`、`horosa-latest.json` 是否成功生成
-- 对外交付 zip 是否能正常解压出 `.pkg`
 - 版本号是否同步
 - manifest 中的平台、URL、SHA-256 是否完整
 - 离线 `.pkg` 是否能把 bundled runtime 正确部署到 shared runtime
@@ -234,7 +232,6 @@ HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh
 
 - `Horosa-Desktop-macos-arm64.zip`
 - `Horosa-Installer-macos-arm64-offline.pkg`
-- `Horosa-Installer-macos-arm64-offline-pkg.zip`
 - `horosa-runtime-macos-arm64.tar.gz`
 - `horosa-latest.json`
 

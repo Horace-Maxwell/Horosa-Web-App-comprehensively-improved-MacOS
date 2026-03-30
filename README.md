@@ -7,7 +7,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?display_name=tag&sort=semver)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 [![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%26%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-[![Primary Download](https://img.shields.io/badge/download-offline%20pkg%20zip-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline-pkg.zip)
+[![Primary Download](https://img.shields.io/badge/download-signed%20offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 
 [中文文档](README_ZH.md) | [English Guide](README_EN.md) | [Latest Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest) | [版本说明](docs/releases/v1.1.7-zh.md) | [Release Notes](docs/releases/v1.1.7-en.md)
 
@@ -15,8 +15,8 @@
 
 ## Start Here / 先看这里
 
-- End users: download [`Horosa-Installer-macos-arm64-offline-pkg.zip`](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline-pkg.zip).
-- 普通用户：直接下载 `Horosa-Installer-macos-arm64-offline-pkg.zip`，解压后运行里面的 `.pkg`。
+- End users: download [`Horosa-Installer-macos-arm64-offline.pkg`](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg).
+- 普通用户：直接下载 `Horosa-Installer-macos-arm64-offline.pkg` 并双击安装。
 - Developers and maintainers: start with [README_EN.md](README_EN.md) or [README_ZH.md](README_ZH.md).
 - 开发者与维护者：请阅读完整中英文文档，不要只看 release 资产名猜流程。
 
@@ -38,15 +38,15 @@
 
 - Deliver a polished macOS app experience for Horosa, not just source code.
 - 提供面向真实用户的 macOS 分发链路，而不只是工程目录。
-- Keep one public download recommendation: the offline `.pkg zip`.
+- Keep one public download recommendation: the signed and notarized offline `.pkg`.
 - 保持唯一公开推荐下载入口，避免普通用户在多个内部资产之间迷路。
 - Support native app updates, runtime switching, and shared runtime repair paths.
 - 兼顾应用内更新、共享运行时切换和离线恢复。
 
 ## Recommended Download / 推荐下载
 
-- Public install entry: `Horosa-Installer-macos-arm64-offline-pkg.zip`
-- 当前公开安装入口：`Horosa-Installer-macos-arm64-offline-pkg.zip`
+- Public install entry: `Horosa-Installer-macos-arm64-offline.pkg`
+- 当前公开安装入口：`Horosa-Installer-macos-arm64-offline.pkg`
 - Best for: China mainland, weak network, offline forwarding, and first-time users.
 - 适合：中国大陆、弱网、离线转发、第一次安装的普通用户。
 
