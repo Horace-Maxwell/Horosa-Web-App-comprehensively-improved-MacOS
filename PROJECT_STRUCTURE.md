@@ -1,3320 +1,3391 @@
-# Horosa Web 项目结构（GitHub 上传版）
+# Horosa 项目结构（按当前仓库实际情况细化整理）
 
-更新时间：2026-03-13
+更新时间：2026-04-01
 
-## 1) 根目录（入口）
+## 0. 说明与边界
 
-- `Horosa_OneClick_Mac.command`：Mac 唯一保留在根目录的一键入口；已准备好时直接启动，未准备好时自动部署+启动
-- `Horosa_Local_Windows.bat` / `Horosa_Local_Windows.ps1`：Windows 启动入口
-- `tools/mac/Horosa_Local.command`：Mac 高级快速启动入口（含 `/static/umi.*` 白屏兼容补丁）
-- `tools/mac/Horosa_SelfCheck_Mac.command`：Mac 本地一键自检入口（启动服务、验收主限法链路）
-- `tools/mac/Prepare_Runtime_Mac.command` / `Prepare_Runtime_Windows.*`：离线 runtime 打包脚本
-- `README.md`：部署和上传说明
-- `PROJECT_STRUCTURE.md`：目录结构说明（本文件）
-- `WINDOWS_CODEX_REFERENCE_PD_REPRO_KIT/`：给 Windows 上 Codex 使用的 Reference 主限法复现包（含详细复现文档、关键代码快照、模型文件、验证脚本、结果摘要、SHA256 校验）
-- `ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md`：Reference `Alchabitius + Ptolemy` 主限法完整逆向推理与本地落地过程总文档
-- `ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_PUBLIC_EDITION.md`：适合公开发布的正式整理稿，保留工程证据链与实现细节，但行文改写为文章体
+本文档基于当前仓库实际目录扫描结果整理，不按旧版上传说明推测。
 
-## 2) 主业务代码
+本次整理的边界如下：
 
+- 纳入当前根目录下真实存在、且和 Horosa 主工程/桌面交付/验证/文档有关的目录与文件。
+- 明确忽略 `Horosa_Native_macOS/` 与 `Horosa-Windows-Docs/` 两个目录，不把它们写入结构主线。
+- 对构建产物、日志、缓存、runtime 目录会说明用途与已存在的关键内容，但不展开所有二进制文件细节。
+
+## 1. 根目录全貌
+
+### 1.1 当前根目录实际可见内容
+
+根目录当前可见的主要条目包括：
+
+- `.git/`
+- `.gitignore`
+- `.horosa-cache/`
+- `.runtime/`
+- `CertificateSigningRequest.certSigningRequest`
+- `CertificateSigningRequest2.certSigningRequest`
 - `Horosa-Web/`
-
-### 2.1 前端（Umi/React）
-
-- `Horosa-Web/astrostudyui/src/`：前端业务源码
-- `Horosa-Web/astrostudyui/public/`：静态资源
-- `Horosa-Web/astrostudyui/dist-file/`：构建产物（GitHub 版默认不提交）
-- `Horosa-Web/astrostudyui/node_modules/`：依赖目录（不提交）
-- `Horosa-Web/astrostudyui/src/utils/constants.js`：前端本地/线上后端根地址解析；当前本地模式优先按 `srv` 参数和当前网页端口推导实际 backend（`webPort + 1999`），只有无法推导时才回退 `localStorage.horosaLocalServerRoot`
-- `Horosa-Web/astrostudyui/src/utils/request.js`：统一请求封装；当前会把主限法重算链路里的布尔型 `cache` 选项规范化为浏览器原生 `fetch` 可接受的字符串枚举
-- `Horosa-Web/astrostudyui/src/components/astro/AstroDecennials.js`：推运盘“十年大运”页面实现；三栏布局、设置面板、L1-L4 层级树、AI 快照与导出入口都在这里
-- `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`：推运盘“主限法盘”页面实现；左侧双盘（内圈本命、外圈主限法盘），右侧时间选择 + `推运方法 / 度数换算` 设置，并根据当前时间把主限法结果投影到外圈黄道位置
-- `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.js`：金口诀页面主实现；当前“地分自动”只在首次起盘时用时支初始化一次，后续改时间不再持续覆盖地分，避免将神被错误锁死为月将
-- `Horosa-Web/astrostudyui/src/components/jinkou/JinKouState.js`：金口诀页面轻量状态辅助；承载“自动/手动地分”决策，便于脱离请求与 RSA 初始化副作用做回归测试
-- `Horosa-Web/astrostudyui/src/components/jinkou/JinKouMain.test.js`：金口诀页面状态回归测试；覆盖“首次自动取时支”和“手动地分保持不变”两条核心行为
-- `Horosa-Web/astrostudyui/src/utils/decennials.js`：十年大运计算核心；包含起运主星、黄道/迦勒底次序、Valens 精确分配、Hephaistio 原表日数、L4 小时级细分
-- `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`：十年大运专项自动测试；覆盖文档原表值、昼夜起运、两套次序、两套日限、层级时长一致性与 `L4 HH:MM`
-- `Horosa-Web/astrostudyui/src/models/user.js`：命盘/事盘管理与当前 chart/case 选择逻辑；当前 `applyCase` 会在切换课例前先显式关闭抽屉，降低“管理事盘选中后抽屉残留”的概率
-- `Horosa-Web/astrostudyui/src/components/user/CaseList.js`：事盘列表抽屉；当前点击课例时除派发 `user/applyCase` 外，还会追加一层 `astro/closeDrawer` 兜底
-- `Horosa-Web/astrostudyui/src/components/tongshefa/TongSheFaMain.js`：统摄法主模块（四卦选择、本卦/互潜/错亲盘式、三十二观/三界/爻位/纳甲筮法、事盘保存、AI快照）
-- `Horosa-Web/astrostudyui/src/components/cnyibu/CnYiBuMain.js`：易与三式子菜单入口（已新增“统摄法”标签）
-- `Horosa-Web/astrostudyui/src/utils/localcases.js`：本地事盘类型映射（已新增 `tongshefa`）
-- `Horosa-Web/astrostudyui/src/utils/aiExport.js`：AI导出技术识别与分段导出（已新增统摄法导出链路）
-
-### 2.2 Java 后端（Maven 多模块）
-
-- `Horosa-Web/astrostudysrv/`
-  - 关键模块：`boundless`、`basecomm`、`image`、`astrostudy`、`astrostudycn`、`astroreader`、`astrodeeplearn`、`astroesp`、`astrostudyboot`
-  - 启动 Jar：`Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar`（构建产物，不提交）
-
-### 2.3 Python 图表服务
-
-- `Horosa-Web/astropy/astrostudy/`：算法实现
-- `Horosa-Web/astropy/websrv/`：服务入口
-- 主入口：`Horosa-Web/astropy/websrv/webchartsrv.py`
-
-### 2.4 本地运行脚本（主工程内）
-
-- `Horosa-Web/start_horosa_local.sh`
-- `Horosa-Web/stop_horosa_local.sh`
-- `Horosa-Web/verify_horosa_local.sh`
-  - 当前会在检测到可用 Playwright Python 时自动补跑：
-    - 浏览器级宗师巡检 `scripts/browser_horosa_master_check.py`
-    - 顶部菜单/管理/选择器深巡检 `scripts/browser_horosa_toolbar_management_check.py`
-    - 桌面端最终排版总检 `scripts/browser_horosa_final_layout_check.py`
-  - 当前会按“脚本退出 + 对应 JSON 报告确实刷新”双条件判定浏览器自检成功，并在失败时回收整棵浏览器子进程
-- `tools/mac/Horosa_Local.command`
-  - 当前支持默认端口冲突时自动切换到替代端口，并通过 `srv` 查询参数把新页面绑定到正确的本地后端地址
-  - 当前 `8000/8899/9999` 都通过 `nohup + setsid + disown` 常驻启动，降低“启动窗口一结束服务就死”的概率
-
-## 3) 自动化脚本（新增整理）
-
-- `scripts/mac/bootstrap_and_run.sh`
-  - Mac 首次自动安装依赖、构建、启动的核心脚本
-- `scripts/mac/self_check_horosa.sh`
-  - 本地服务验收脚本；若 8899/9999 未启动则先无浏览器启动，再执行 `Horosa-Web/verify_horosa_local.sh`
-  - 当前支持多副本共存：默认端口被别的 Horosa 副本占用时，会自动改用空闲端口完成当前副本验收
-- `scripts/browser_horosa_master_check.py`
-  - 浏览器级宗师巡检脚本（Playwright Python）
-  - 覆盖左侧 16 个主模块、主限法切方法重算、星盘/推运盘/印度律盘/八字紫微/易与三式等关键子页点击、AI 导出与 AI 导出设置弹层
-  - 产物默认写入：
-    - `runtime/browser_horosa_master_check.json`
-    - `runtime/browser_horosa_master_check.png`
-- `scripts/browser_horosa_toolbar_management_check.py`
-  - 顶部菜单/管理/选择器深巡检脚本（Playwright Python）
-  - 专门覆盖此前普通总冒烟不够细的交互层：
-    - `查询/配置` 抽屉、主题切换、`AI导出`、`AI导出设置`、`新命盘`
-    - `星盘组件`、`行星选择`、`相位选择` 对图面 SVG 的真实影响
-    - `管理命盘`、`管理事盘` 的新增/编辑/选择链路
-    - 批注、小工具、关系盘 `比较盘/组合盘/影响盘/时空中点盘/马克思盘`
-  - 产物默认写入：
-    - `runtime/browser_horosa_toolbar_management_check.json`
-- `scripts/browser_horosa_final_layout_check.py`
-  - 桌面端最终排版总检脚本（Playwright Python）
-  - 专门覆盖最后一轮桌面端回归点：
-    - 窗口缩放后比例是否异常
-    - 节气盘四季 `星盘 / 宿盘 / 3D盘` 入口是否存在
-    - 双层盘是否压住右侧信息栏
-    - `宿盘 / 七政四余 / 三式合一` 是否和 footer 重叠
-    - `三式合一` 的 `直接时间 / 真太阳时` 是否仍完整可见
-    - footer 备案图标 / `996` / 左侧 `...` 是否再次出现
-  - 产物默认写入：
-    - `runtime/final_layout_master_check.json`
-    - `runtime/mastercheck_*.png`
-- `scripts/browser_primary_direction_chart_guangde_check.py`
-  - Guangde 浏览器专项验收脚本
-  - 固定测试盘：`2006-10-04 09:58 / 30N53 / 119E25 / guangde`
-  - 验证三件事：
-    - `主/界限法` 浏览器表格 = 当前后端 `predictives.primaryDirection`
-    - 当前后端结果 ≈ AstroApp 参考输出
-    - `主限法盘` 在表格时间与任意时间下都能正确更新外圈时间、Arc 状态和盘面 SVG
-  - 产物默认写入：
-    - `runtime/guangde_primarydirchart_browser_check.json`
-    - `runtime/guangde_primarydirect_browser_table.png`
-    - `runtime/guangde_primarydirchart_browser.png`
-- `scripts/requirements/mac-python.txt`
-  - Mac Python 依赖清单
-- `scripts/repo/clean_for_github.sh`
-  - 清理 node_modules/target/runtime/logs，准备上传 GitHub
-
-## 4) runtime 与缓存目录
-
-- `runtime/README.md`：runtime 说明
-- `runtime/*`：离线打包产物与当前保留的最小主限法验证样本目录（默认不提交）
-- `.runtime/`：一键脚本生成的本地 Python venv（默认不提交）
-- `.runtime/mac/node/`：一键部署在 Homebrew 不可用时直连安装的 Node runtime（默认不提交）
-- `.runtime/mac/python/`：一键部署在 Homebrew 不可用时直连安装的 Python runtime（Miniconda，默认不提交）
-
-## 5) modules（扩展参考资料）
-
-- `modules/fengshui/naqi/`
-- `modules/reference/kintaiyi-master/`
-- `modules/reference/xuan-utils-pro-master/`
-- `modules/reference/zhong-zhou-zi-wei-dou-shu-2/`
-
-## 6) 建议检索路径
-
-- 改前端页面：`Horosa-Web/astrostudyui/src/components/`
-- 改前端模型：`Horosa-Web/astrostudyui/src/models/`
-- 改后端接口：`Horosa-Web/astrostudysrv/astrostudyboot/`
-- 改 Python 服务：`Horosa-Web/astropy/websrv/`
-- 排查启动日志：`Horosa-Web/.horosa-local-logs/`
-
-## 7) 本次性能修复说明（结构层）
-
-- 未新增第三方依赖包；一键部署脚本与依赖清单无需额外安装步骤。
-- 节气计算性能关键路径位于：
-  - `Horosa-Web/astropy/astrostudy/jieqi/YearJieQi.py`
-  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/JieQiController.java`
-- 节气页面展示链路（前端拆分“全24节气卡片”与“图盘子集异步加载”）位于：
-  - `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
-- 统一参数哈希缓存层位于：
-  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java`
-
-## 8) 本次统摄法新增结构（2026-02-23）
-
-- 页面入口：
-  - `Horosa-Web/astrostudyui/src/components/cnyibu/CnYiBuMain.js` -> `TabPane tab="统摄法" key="tongshefa"`
-- 统摄法主实现：
-  - `Horosa-Web/astrostudyui/src/components/tongshefa/TongSheFaMain.js`
-  - 含：本卦/互潜/错亲矩阵、边框显示开关、四位卦象下拉、三十二观/三界/爻位/纳甲筮法、事盘保存与回填。
-- 事盘类型与模块快照：
-  - `Horosa-Web/astrostudyui/src/utils/localcases.js`（caseType + label 映射）
-  - `Horosa-Web/astrostudyui/src/utils/moduleAiSnapshot.js`（复用模块快照存储，统摄法使用 `module=tongshefa`）
-- AI 导出链路：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - 已支持：技术识别 `tongshefa`、导出分段 `本卦/六爻/潜藏/亲和`、旧分段名兼容映射（互潜->潜藏，错亲->亲和，统摄法起盘->本卦）。
-
-## 9) 本次六壬格局参考新增结构（2026-02-25）
-
-- 六壬页面主实现：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - 新增：右栏底部 `大格/小局` 双标签、六壬格局匹配引擎、匹配结果卡片展示、AI 快照同步分区。
-  - 修复：`起课` 时可读取未确认时间草稿并同步排盘，不再依赖先点“确定”。
-  - 二次加严：`三交/游子/解离/乱首/孤寡/龙战/赘婿` 等小局触发条件改为强约束组合匹配，降低宽松误命中。
-  - 文案升级：改为文献原文块（诗诀 + 荀注 + 要点/依据），去除“主象/判词/风险/建议”模板文案。
-  - 文案对齐（续）：`大格/小局` 其余条目荀注已按 `12. 大格.md` 与 `13. 小局.md` 逐字回填；`局式/局义/局注` 与荀注合并同块展示，保持右栏与 AI 导出一致。
-  - 小局全收录：匹配条目由 15 条提升至 62 条（含 `旺孕/德孕/二烦/天祸/天寇/天狱/死奇/魄化/三阴/富贵/天合局/宫时局/北斗局` 全部缺口），并保持 `泆女+狡童` 双项可判。
-  - 规则口径加严：新增日月支、节气、昨日干支、旬内天干映射、宫时孟仲季叠合、斗罡落位等上下文字段；小局匹配改为按 `13. 小局.md` 局式计算，不再停留在 41 条简化版。
-  - 自检覆盖：`XIAO_JU_META`、`XIAO_JU_REFERENCE_TEXT`、`matchXiaoJuReferences` 三处键集合已对齐（62/62/62）。
-- 六壬输入组件：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengInput.js`
-  - 新增 `timeHook` 透传，供父组件在点击 `起课` 时读取当前时间编辑值。
-- AI 导出链路：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - 六壬 AI 导出设置预设分区：`起盘信息`、`大格`、`小局`（已移除 `分类占`）。
-
-## 10) 本次遁甲八宫新增结构（2026-02-25）
-
-- 遁甲页面主实现：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - 右侧标签改为：`概览`、`神煞`、`八宫`（已移除原 `状态` 与 `历法` 标签，内容并入 `概览`）。
-  - `八宫` 标签新增宫位按钮顺序：`乾/坎/艮/震/巽/离/坤/兑`，点击宫位后显示五段内容：
-    - 奇门吉格（名称）
-    - 奇门凶格（名称）
-    - 十干克应（天盘干 + 地盘干）
-    - 八门克应与奇仪主应（人盘门 + 地盘本位门；人盘门 + 天盘干）
-    - 八神加八门（当前宫八神 + 当前宫八门）
-- 遁甲八宫规则模块：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
-  - 统一承载八宫规则映射与判定逻辑，供界面展示与 AI 快照导出复用。
-- 遁甲 AI 快照导出：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
-  - 快照新增 `[八宫详解]` 分区，并按八宫输出对应计算结果。
-- AI 导出设置：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - 遁甲预设分区新增 `八宫详解`，与新增快照分区保持同步。
-
-## 11) 本次六壬宫时局算法修正（2026-02-25）
-
-- 六壬页面主实现：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - 宫时局匹配口径从“孟仲季全盘轮转泛化”改为用户指定直判：
-    - `绛宫时`：登明（亥）加四仲（子午卯酉）；
-    - `明堂时`：神后（子）加四仲（子午卯酉）；
-    - `玉堂时`：大吉（丑）加四仲（子午卯酉）。
-  - 右栏命中证据文案改为“X加四仲”表达，减少误触发歧义。
-  - `绛宫时/明堂时/玉堂时` 的 `局式/局义/局注` 已按用户给定原文更新，保持详情展示与 AI 快照一致。
-- 一致性校验：
-  - 小局三处键集合（`XIAO_JU_META`、`XIAO_JU_REFERENCE_TEXT`、`matchXiaoJuReferences`）仍保持 `62/62/62` 对齐，无新增缺口。
-
-## 12) 本次遁甲八宫展示优化（2026-02-25）
-
-- 遁甲页面主实现：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - 八宫右栏由连续文本改为板块卡片式布局（风格对齐六壬大格/小局）：
-    - `奇门吉格`
-    - `奇门凶格`
-    - `十干克应`
-    - `八门克应和奇仪主应`
-    - `八神加八门`
-  - 删除“第一部分/第二部分…”等编号文案。
-  - 删除“当前宫位：X9宫”行，避免无依据宫位数字在右栏出现。
-  - 删除八宫顶部冗余说明卡文案，仅保留核心结果板块。
-- 八宫规则快照输出：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
-  - 八宫快照标题从 `X9宫` 调整为 `X宫`，与页面展示口径统一。
-
-## 13) 六壬宫时局命中修复（2026-02-25）
-
-- 六壬小局匹配实现：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - 宫时局条件修正为“天盘加临地盘”直判（使用 `upDownMap` 逆查）：
-    - `绛宫时`：天盘 `亥` 加临地盘四仲；
-    - `明堂时`：天盘 `子` 加临地盘四仲；
-    - `玉堂时`：天盘 `丑` 加临地盘四仲。
-  - 移除此前“月将+时支”临时判定，恢复宫时局在小局栏的正常命中展示。
-
-## 14) 六壬小局展示分栏优化（2026-02-25）
-
-- 六壬页面主实现：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - 在“格局参考”Tabs 中新增 `参考` 标签页（位于 `小局` 右侧）。
-  - 将 `始终/迍福/刑德`（键：`shizhong`/`tunfu`/`xingde`）从 `小局` 视图分流到 `参考` 视图。
-  - 两个标签页沿用同一张卡片样式与命中依据展示，保证视觉一致。
-
-## 15) 遁甲八宫吉凶格释义展示（2026-02-25）
-
-- 八宫规则与展示实现：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
-  - 新增吉凶格释义映射：
-    - `QIMEN_JIGE_INTERPRETATION`
-    - `QIMEN_XIONGGE_INTERPRETATION`
-  - `buildQimenBaGongPanelData` 返回新增字段：
-    - `jiPatternDetails`（`格名：释义`）
-    - `xiongPatternDetails`（`格名：释义`）
-  - 八宫快照 `[八宫详解]` 的吉凶格输出改为多行 `- 格名：释义`。
-- 遁甲页面 UI：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - 八宫页 `奇门吉格/奇门凶格` 改为逐条展示“格名：释义”，不再仅显示格名。
-
-## 16) 遁甲八宫释义显示开关（2026-02-25）
-
-- 遁甲页面 UI：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - 新增 `showPatternInterpretation` 展示状态（默认开启）。
-  - 在“换日/经纬度选择”区域中，新增按钮 `释义：是/否`，位于“经纬度选择”左侧。
-  - 八宫 `奇门吉格/奇门凶格` 根据开关切换显示模式：
-    - 开：`格名：释义`
-    - 关：仅格名
-
-## 17) 遁甲释义开关本地持久化（2026-02-25）
-
-- 遁甲页面 UI：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - 新增本地持久化键：`qimenShowPatternInterpretation`。
-  - 页面加载时读取本地值作为 `showPatternInterpretation` 初始状态；无值默认开启。
-  - 点击“释义：是/否”时同步写入本地存储，刷新后保持上次选择。
-
-## 18) 遁甲奇门演卦（2026-02-25）
-
-- 八宫规则模块：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
-  - 新增门卦映射与六十四卦名映射。
-  - 新增 `buildQimenFuShiYiGua(pan)`：
-    - 值符值使演卦：地盘值符宫为内卦、天盘值使宫为外卦。
-  - `buildQimenBaGongPanelData` 新增：
-    - `menFangYiGua`
-    - `menFangYiGuaText`
-    - 用于八宫“门方演卦例”展示。
-- 遁甲页面展示：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - 概览新增：`奇门演卦`（符使演卦）。
-  - 八宫每个宫位最下方新增板块：`奇门演卦`（门方演卦）。
-- 快照导出：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
-  - `buildDunJiaSnapshotText` 增加概览演卦行；`[八宫详解]` 增加每宫“奇门演卦（门方）”。
-
-## 19) AI导出分区同步补齐（2026-02-25）
-
-- 六壬快照与导出：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - 快照分区改为：
-    - `[大格]`
-    - `[小局]`（主小局）
-    - `[参考]`（始终/迍福/刑德分流）
-- 遁甲快照与导出：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
-  - 新增独立分区 `[奇门演卦]`（值符值使演卦）；门方演卦继续在 `[八宫详解]` 分宫输出。
-- AI 导出设置预设：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - `liureng` 预设分区新增 `参考`。
-  - `qimen` 预设分区新增 `奇门演卦`。
-
-## 20) 六壬参考常驻条目（2026-02-25）
-
-- 六壬小局匹配与分栏：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - `参考` 分流键新增：`wuqi`（物气）、`xingu`（新故）。
-  - 常驻参考键集合为：`wuqi`、`xingu`、`tunfu`、`shizhong`、`xingde`。
-  - 对上述五键启用“未命中也补入”机制，确保在“参考”标签始终可见；其余小局维持盘式条件命中。
-
-## 21) 六壬“入课传”严判边界修正（2026-02-25）
-
-- 六壬小局匹配实现：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - `courseBranches` 边界收紧为“四课上下神 + 三传地支”，移除此前混入的扩展位（如行年/贵人）。
-  - 所有依赖“入课传”语义的条目随之统一严判（含 `三奇/六仪/游子/孤寡/官爵` 等），避免出现“左盘无此局式仍命中”的误报。
-
-## 22) 遁甲吉凶格算法二次严判（2026-02-25）
-
-- 八宫规则实现：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
-  - 按上传术文对吉格/凶格判定做二次收紧，重点包括：
-    - `天遁/地遁/人遁/鬼遁/云遁/龙遁/虎遁` 的门、神、宫位与干组合条件；
-    - `三奇得使` 收紧为“日干映射三奇 + 地盘值使门宫 + 对应地干组合”；
-    - `玉女守门` 使用“值使门加丁奇 + 时干映射 + 指定时辰补例”联合判定；
-    - `三奇入墓` 收紧为 `乙坤、丙乾、丁艮`。
-- 格名补齐：
-  - 吉格新增：`青龙回首`、`飞鸟跌穴`。
-  - 凶格新增：`青龙逃走`、`白虎猖狂`、`螣蛇夭矫`、`朱雀投江`、`太白火荧`、`荧入太白`、`飞宫格`、`伏宫格`、`大格`、`小格`、`天网四张格`、`地罗遮格`。
-  - `伏吟/返吟` 格名与文献口径统一（替代旧命名 `门伏吟/门反吟`）。
-- 释义联动：
-  - 新增与重命名格名均补齐 `QIMEN_JIGE_INTERPRETATION` / `QIMEN_XIONGGE_INTERPRETATION`，确保“格名：释义”与算法输出一致。
-
-## 23) 六壬三光与天合局严判修正（2026-02-25）
-
-- 小局匹配实现：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - `三光` 从“偏宽松”改为“硬条件”：
-    - 日干、日支、初传三者均需旺相；
-    - 三传神将需全为吉神（贵人、六合、青龙、太常、太阴、天后）；
-    - 保留日辰与发用无硬克约束。
-  - `XIAO_JU_META.sanguang.condition` 同步更新为上述判定口径。
-- 天合局判定扩展：
-  - 新增天合规则集（甲己、乙庚、丙辛、丁壬、戊癸）统一驱动匹配。
-  - 命中源由扩展到原文强调的三类显位：
-    - 同课上下相合；
-    - 三传有合；
-    - 日干与日支上神有合，或日支与日干上神有合。
-  - 新增上下课天干对、日支旬干、天合天干池等上下文字段用于证据回溯与界面展示。
-
-## 24) 六壬十二盘式判定接入（2026-02-25）
-
-- 新增盘式算法模块：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRPanStyle.js`
-  - 提供统一方法 `resolveLiuRengTwelvePanStyle(yueBranch, timeBranch)`。
-  - 基于 `distance = (月将序 - 占时序 + 12) % 12` 映射十二式：
-    - 伏吟、进连茹、进间传、生胎、顺三合、四墓覆生、反吟、四绝体、逆三合、病胎、退间传、退连茹。
-- 六壬盘中心展示链路：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRInnerChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRCircleChart.js`
-  - 在天地盘中心区 `XX课` 下新增第三行盘式文案（`XX式`），圆盘/方盘均一致。
-- AI 导出与设置同步：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-    - 快照新增独立分区 `[十二盘式]`；
-    - `[起盘信息]` 增加 `十二盘式` 摘要行。
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-    - `liureng` 预设分区新增 `十二盘式`，导出设置可单独勾选。
-
-## 25) 六壬神将悬浮窗与“概览”条目（2026-02-25）
-
-- 神将文档模块化：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
-  - 汇总《神》《将》两章核心数据：
-    - 12神神义摘要；
-    - 12将“临十二神”判词；
-    - 将名归一（如 `贵人→天乙`、`玄武→元武`）。
-  - 导出 `buildLiuRengHouseTipObj`，统一生成“天盘神 + 地盘神”双层悬浮窗内容。
-- 六壬盘悬浮窗接入：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRCircleChart.js`
-  - `Horosa-Web/astrostudyui/src/components/graph/D3Circle.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
-  - 方盘/圆盘的神将区块均可 hover 出现文档浮窗，内容明确区分天盘神、地盘神。
-- 六壬右栏“概览”：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - 在 `参考` 右侧新增 `概览` Tab，展示：
-    - `天将发用来意诀`
-    - `天将杂主吉凶`
-  - 匹配基于当前盘的 `发用` 与 `日干上神`，并附命中依据。
-- AI 导出同步：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-    - 快照新增 `[概览]` 分区。
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-    - `liureng` 预设分区新增 `概览`。
-
-## 26) 六壬/遁甲格局算法严检收口（2026-02-25）
-
-- 六壬小局收紧：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - `三阳` 按局式收紧为：贵人顺治 + 日干/日支在贵人前 + 日干/日支/初传皆旺相。
-  - `富贵` 收紧为：贵人所乘旺相 + 贵人临核心位 + 三传皆生旺。
-
-- 遁甲八宫收紧：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaBaGongRules.js`
-  - `三奇得使` 与 `玉女守门` 去除非原文扩展条件，按上传术文主条件判定。
-  - `伏吟/返吟` 由“门单判”改为“门+星联合判定”。
-  - `时干入墓` 改为固定五个时干支硬触发（戊戌、壬辰、丙戌、癸未、丁丑）。
-  - `门迫/门受制` 使用五行克制硬判（门克宫 / 宫克门）。
-  - `星门入墓` 改为“星+门+宫位”联合匹配；`三奇受制` 改为奇墓/击刑/迫制联合判定。
-
-## 27) 六壬原文荀注回填与依据口径修正（2026-02-25）
-
-- 六壬主实现：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - `XIAO_JU_REFERENCE_TEXT` 大规模回填为长版原文（含 `增注`），不再使用摘要化短注。
-  - 回填覆盖面：
-    - 淫泆局、新孕局、隐匿局、乖别局、凶否局、吉泰局、五行局、天合局、宫时局、北斗局相关条目。
-
-- 依据展示与命中逻辑：
-  - **罗网**：
-    - 命中口径由“同位”扩展为“同位 + 上神加临”双通道；
-    - 依据拆分为“命中地位 / 命中上神”两行输出。
-  - **概览**：
-    - 按 `group + name` 合并同名条目，避免重复卡片；
-    - 合并后依据并集去重，确保多条依据完整保留。
-  - **乱首/赘婿依据文案**：
-    - 修正法一/法二“临”方向描述，统一为与盘面上下神关系一致的表述。
-
-- 变更登记：
-  - `UPGRADE_LOG.md` 已同步新增对应记录，便于后续追溯“原文回填 + 判定修正 + 展示修正”。
-
-## 28) 六壬神/将浮窗文案升级（2026-02-25）
-
-- 资料与渲染：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
-  - 十二神条目升级为文档化结构字段：`title/month/verse1/verse2/desc/symbol`（对应《神》章）。
-  - 标题改为优先文档标题（如 `登明亥神`、`河魁戌神`）。
-- 十二将浮窗口径：
-  - 保留：`天盘神`、`地盘神`、两盘对应判词。
-  - 移除：`天盘神义/地盘神义` 展示行，避免与需求冲突。
-
-## 29) 遁甲时间显示与快照导出同步（2026-02-25）
-
-- 遁甲主界面：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - 左盘顶部与右侧概览统一显示：
-    - `直接时间`
-    - `真太阳时`
-  - 增强 `parseDisplayDateHm` 兼容多种时间格式，减少空值显示。
-- 快照导出：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
-  - `[起盘信息]` 新增：
-    - `直接时间`
-    - `真太阳时`
-    - `计算基准`
-
-## 30) AI 导出缺段补齐机制（遁甲/六壬）（2026-02-25）
-
-- 导出实现：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-- 遁甲：
-  - 旧缓存缺段时，自动从当前页面补齐：
-    - `奇门演卦`
-    - `八宫详解`
-  - 过滤兜底新增保留项：`奇门演卦`、`八宫详解`。
-- 六壬：
-  - 旧缓存缺段时，自动从右侧四个标签补齐：
-    - `大格`
-    - `小局`
-    - `参考`
-    - `概览`
-- 通用：
-  - 新增分段存在性检测与内容合并函数，避免“缓存优先导致新分段导不出”。
-
-## 31) timeAlg 与真太阳时显示解耦（2026-02-25）
-
-- 遁甲与三式合一：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 修正内容：
-  - 删除“选直接时间时改用时区中央经线”的地理参数替换逻辑。
-  - `timeAlg` 仅用于计算基准切换；
-  - 左侧显示用 `真太阳时` 始终基于真实经纬度计算，不随该选项被改写。
-
-## 32) 三式合一参数区布局调整（2026-02-25）
-
-- 右侧参数布局：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 调整：
-  - 将原先分两行的参数合并到同一行四列：
-    - `时计太乙`
-    - `太乙统宗`
-    - `回归黄道`
-    - `整宫制`
-
-## 33) 六壬/遁甲导出源切换为计算快照（2026-02-25）
-
-- 导出实现：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-- 调整要点：
-  - `extractLiuRengContent` 与 `extractQiMenContent` 不再从右侧DOM采集文本。
-  - 导出仅使用“计算阶段快照”：
-    - 本地模块快照：`loadModuleAISnapshot(module)`；
-    - 当前案例快照兜底：`currentCase.payload.snapshot`。
-  - 无快照时不再DOM拼装补齐，避免“右侧展示态”影响导出原文排版。
-
-## 34) AI导出去“右侧栏目”与原始段落排版（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
-- 结构调整：
-  - 新增 `AI_EXPORT_FORBIDDEN_SECTIONS`：
-    - 当前对 `liureng/qimen/sanshiunited` 禁止导出 `[右侧栏目]`。
-  - 新增导出净化函数：
-    - `getForbiddenSectionSet(key)`
-    - `stripForbiddenSections(content, key)`
-  - 导出流水更新：
-    - `buildPayload` 在分段过滤前先执行 `stripForbiddenSections`；
-    - `applyUserSectionFilter` 在“无用户设置”及“有设置”两条路径都执行禁用分段剔除。
-  - 导出设置选项源更新：
-    - `getOptionsForTechniqueKey` 会过滤禁用分段，避免设置面板再次出现“右侧栏目”。
-  - 奇门分段映射兼容：
-    - 旧分段名 `概览/右侧栏目` 映射到 `盘面要素`；
-    - 预设分段改为 `起盘信息/盘型/盘面要素/奇门演卦/八宫详解/九宫方盘`。
-  - 文本整形策略：
-    - `normalizeText` 对 `liureng/qimen/sanshiunited` 走“保留原始段落”分支，避免统一转`-`列表。
-  - 快照分段命名：
-    - `buildDunJiaSnapshotText` 将 `[右侧栏目]` 改为 `[盘面要素]`。
-
-## 35) 真太阳时显示与时间算法彻底解耦（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
-- 结构调整：
-  - 遁甲与三式合一新增显示用参数构造函数：
-    - `buildDisplaySolarParams(params)`：固定 `timeAlg=0`。
-  - 新增显示真太阳时解析链路：
-    - `resolveDisplaySolarTime(params, primaryResult)`。
-    - 当用户选择`直接时间`时，额外获取`timeAlg=0`对应的`birth`作为显示值。
-  - 状态与缓存签名新增字段：
-    - `displaySolarTime`进入组件状态；
-    - 遁甲盘缓存键 / 重算签名纳入该字段，避免缓存命中导致旧显示残留。
-  - 盘面写入口径变更：
-    - `calcDunJia`的`realSunTime`优先取`context.displaySolarTime`，其次才回退`nongli.birth`。
-- 行为结果：
-  - `timeAlg`仍仅决定盘面计算基准；
-  - 左盘与概览里的“真太阳时”不再被“直接时间”按钮覆盖。
-
-## 36) 导出前模块快照强制刷新（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-- 结构调整：
-  - AI导出新增导出前刷新函数：
-    - `requestModuleSnapshotRefresh(moduleName)`；
-    - 在`extractLiuRengContent`、`extractQiMenContent`中先触发刷新事件再读取模块快照。
-  - 六壬组件新增事件监听：
-    - 监听`horosa:refresh-module-snapshot`；
-    - 当`detail.module==='liureng'`时调用`saveLiuRengAISnapshot`即时重写快照。
-  - 遁甲组件新增事件监听：
-    - 当`detail.module==='qimen'`时重写当前`pan`快照。
-  - 分段兼容：
-    - `aiExport.mapLegacySectionTitle`中补充六壬旧分段名`三传(初传/中传/末传) -> 三传`。
-- 行为结果：
-  - 六壬导出优先使用当前盘即时快照，降低读取旧案例快照导致“格局参考缺失”的概率。
-
-## 37) 三式合一重算容错兜底（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 结构调整：
-  - `recalcByNongli` 调度回调加入异常捕获：
-    - 任一子步骤报错时，重算 Promise 仍可正常结束，不阻塞后续刷新。
-  - `performRecalcByNongli` 中太乙计算改为可降级：
-    - `calcTaiyiPanFromKintaiyi` 异常时返回 `taiyi=null`，其余盘继续渲染。
-  - `refreshAll` 增加“空盘兜底二次重算”：
-    - 当异步重算未产生变更且当前 `dunjia` 为空时，立即执行一次同步重算。
-- 行为结果：
-  - 三式合一不会因单一子模块异常直接落入“暂无三式合一数据”空态。
-
-## 38) AI导出实时快照回传链路（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js`
-- 结构调整：
-  - `aiExport.requestModuleSnapshotRefresh(moduleName)` 从“仅派发通知”升级为“派发+回收实时文本”：
-    - 事件 `detail` 新增 `snapshotText` 回传槽。
-  - `extractQiMenContent`/`extractLiuRengContent` 数据源优先级更新：
-    - 实时回传快照（刷新后） > 模块缓存快照 > `window.__horosa_*_snapshot_text` > 旧缓存兜底。
-    - 核心分段缺失时不再直接信任旧缓存（遁甲看`[奇门演卦]/[八宫详解]`，六壬看`[大格]/[小局]/[参考]/[概览]`）。
-  - 遁甲组件新增回传能力：
-    - `saveQimenLiveSnapshot` 返回快照文本并记录 `window.__horosa_qimen_snapshot_at`；
-    - 在 `horosa:refresh-module-snapshot` 中回填 `evt.detail.snapshotText` 并重写模块快照。
-  - 六壬组件新增回传能力：
-    - `saveLiuRengAISnapshot` 改为返回快照文本；
-    - 在刷新事件中回填 `evt.detail.snapshotText`。
-- 行为结果：
-  - 导出触发时优先拿当前盘实时文本，降低“八宫详解/格局参考偶发缺失”风险。
-- 本地运行包同步：
-  - `runtime/mac/bundle/dist-file/` 已与 `Horosa-Web/astrostudyui/dist-file/` 同步；
-  - 运行时入口脚本更新为 `umi.3fc83e7f.js`。
-
-## 39) 真太阳时显示二次请求容错（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-- 结构调整：
-  - 两处 `resolveDisplaySolarTime` 统一改为：
-    - 先读 `getNongliLocalCache(timeAlg=0)`（缓存命中直接返回）；
-    - 缓存未命中再请求 `fetchPreciseNongli(timeAlg=0)`；
-    - 请求异常时回退主请求时间，不抛错。
-- 行为结果：
-  - “显示真太阳时”的辅助请求不再影响主盘计算成功与否；
-  - 三式合一不会再因该辅助请求失败而出现“暂无三式合一数据”空白；
-  - 在缓存命中场景减少一次额外接口调用，避免不必要时延。
-- 本地运行包同步：
-  - `runtime/mac/bundle/dist-file/` 已同步为最新构建，入口脚本更新为 `umi.c3707dd4.js`。
-
-## 40) 修复后自检流程（2026-02-25）
-
-- 自检入口与脚本：
-  - `Horosa-Web/verify_horosa_local.sh`
-  - `Horosa-Web/astrostudyui/.tmp_horosa_perf_check.js`
-- 自检范围：
-  - 本地服务端口（8899/9999）可用性；
-  - 关键接口链路（`/nongli/time`、`/jieqi/year`、`/liureng/gods`）；
-  - 前端单元测试（`umi-test`）；
-  - 前端构建产物与运行目录一致性（`dist-file` -> `runtime/mac/bundle/dist-file`）。
-- 当前基线结果：
-  - 单测 `3/3` 套件通过，`16/16` 用例通过；
-  - 接口 smoke/perf 检查通过；
-  - 运行端页面脚本版本：`umi.c3707dd4.js`。
-
-## 41) 三式合一时区标准化修复（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 结构调整（仅三式合一）：
-  - 新增时区标准化链路：
-    - `parseZoneOffsetHour`：兼容 `+08:00`、纯数字、`UTC/GMT`、`东/西X区`；
-    - `normalizeZoneOffset`：统一输出 `±HH:mm`。
-  - 请求参数入口改造：
-    - `onTimeChanged`
-    - `getTimeFieldsFromSelector`
-    - `genParams`
-    - `genJieqiParams`
-  - 以上路径全部保证发送到精确历法服务的 `zone` 为合法格式。
-- 行为结果：
-  - 修复三式合一“精确历法服务不可用”假阳性；
-  - 避免因 `zone=8/东8区` 导致 `/nongli/time` 失败；
-  - 遁甲模块逻辑保持不变（按要求未改）。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.6bdb560e.js`。
-
-## 42) 精确历法桥接层参数归一（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/preciseCalcBridge.js`
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 结构调整：
-  - 在桥接层新增统一归一化方法：
-    - `normalizeZone`：兼容 `+08:00` / `8` / `UTC+8` / `东8区`，统一输出 `±HH:mm`；
-    - `normalizeAd`：兼容 `AD/BC/1/-1`，并按日期符号兜底；
-    - `normalizeBit`：统一布尔/数值开关到 `0/1`。
-  - 请求参数入口统一：
-    - `fetchPreciseNongli`、`fetchPreciseJieqiYear`、`fetchPreciseJieqiSeed`
-      都在“缓存键构建、缓存读写、网络请求”前三步先做归一化。
-  - 三式合一参数口径补齐：
-    - `SanShiUnitedMain.genParams` 新增 `ad` 字段透传。
-- 行为结果：
-  - 彻底避免 `zone` 被透传为单字符导致 `/nongli/time` 抛出
-    `StringIndexOutOfBounds(begin 1, end 3, length 1)`；
-  - 即使上层模块传入历史格式时区，也能稳定拿到精确历法结果。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.88aa4eb2.js`。
-
-## 43) 三式合一 displaySolarTime 与排盘解耦（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 结构调整：
-  - `getCachedDunJia` 恢复旧稳定口径：
-    - 移除 `displaySolarTime` 参数；
-    - 缓存键不再包含显示时间；
-    - 调用 `calcDunJia` 时不再把显示时间写入上下文。
-  - `performRecalcByNongli` 改为“两段式”：
-    - 先得到 `panRaw`（纯计算结果）；
-    - 再覆盖 `realSunTime` 为 `displaySolarTime`（纯展示字段）。
-  - 新增 `normalizeCalcFieldsForDunJia`：
-    - 在三式合一调用遁甲计算前统一 `date/time/zone/ad` 输入格式；
-    - 降低 `DateTime` 类型漂移导致的重算异常。
-- 行为结果：
-  - 修复“显示真太阳时”改动影响三式合一排盘的问题；
-  - 三式合一继续支持“直接时间/真太阳时”双时间显示，同时计算路径保持稳定。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.9107fbb7.js`。
-
-## 44) 三式合一失败提示可观测性增强（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 结构调整：
-  - `refreshAll` catch 分支对非精确历法异常输出具体 `error.message`：
-    - 从固定文案“请重试”改为带原因提示，便于定位真实失败点。
-- 行为结果：
-  - 用户端可直接看到导致三式合一失败的具体错误文本；
-  - 减少“无法复现/无法定位”的来回排查成本。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.8191667a.js`。
-
-## 45) 三式合一稳定回退：撤销 displaySolarTime 主链路（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 结构调整：
-  - `refreshAll` 不再在主流程中额外请求/注入 `displaySolarTime`；
-  - `recalcByNongli`、`performRecalcByNongli` 恢复为稳定签名（不携带显示时间参数）；
-  - 三式合一内部对 `this.state.options` 统一增加空值兜底；
-  - 修正 `overrideOptions` 为空时的读取路径，避免 `taiyiStyle` 空对象异常。
-- 行为结果：
-  - 修复三式合一报错：`null is not an object (evaluating 'n.taiyiStyle')`；
-  - 三式合一起盘链路回到稳定计算路径，不再因显示时间分支中断。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.62edd81c.js`。
-
-## 46) 遁甲左盘日期渲染兼容短年份（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-- 结构调整：
-  - `parseDisplayDateHm` 的年份解析改为可变位数（非固定4位）；
-  - `getBoardTimeInfo` 统一通过解析函数生成日期/时间，不再使用固定下标切片。
-- 行为结果：
-  - 输入 `100`、`999` 等短年份时，左侧盘头日期不再显示 `日期--`；
-  - 保持 `直接时间/真太阳时` 展示逻辑不变。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.25ee3d4c.js`。
-
-## 47) 三式合一顶部日期行统一与双时间显示解耦（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
-- 结构调整：
-  - 顶部“日期”行改为同一文本节点输出，统一字号；
-  - 直接时间显示改为 `HH:mm:ss`，真太阳时显示改为 `HH:mm:ss`；
-  - 新增 `displaySolarTime` 显示状态与 `resolveDisplaySolarTime`（仅用于显示层）；
-  - `displaySolarTime` 不参与三式合一主排盘重算签名与计算上下文。
-- 行为结果：
-  - 左盘日期行固定输出：`年-月-日 真太阳时：XX:XX:XX 直接时间：XX:XX:XX`；
-  - 右侧时间算法选择仍决定实际排盘计算基准；
-  - 页面稳定性保持，不回引此前 `n.taiyiStyle` 崩溃问题。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.34a10371.js`，样式为 `umi.b7659491.css`。
-
-## 48) 遁甲/三式合一时间算法对齐八字紫微口径（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-- 结构调整：
-  - `DunJiaCalc.buildGanzhiForQimen` 升级为 `buildGanzhiForQimen(nongli, dateParts, opts, context)`：
-    - 引入 `parseDateTimeText / resolveCalcDateTime`；
-    - 当 `timeAlg=0` 时按真太阳时文本解析小时用于时柱计算；
-    - 当 `timeAlg=1` 时按直接时间口径（并保留精确历法时柱优先兜底）；
-    - 年/月/日/时支持从 `nongli.bazi.fourColumns` 读取兜底。
-  - `SanShiUnitedMain.getQimenOptions` 增加 `timeAlg` 透传：
-    - 三式合一右侧“真太阳时/直接时间”选择可直接影响遁甲子模块计算。
-  - `DunJiaMain` 的盘头时间解析增强：
-    - `parseDisplayDateHm` 支持可变位数年份；
-    - `getBoardTimeInfo` 使用解析兜底，避免短年份出现 `日期--`。
-- 行为结果：
-  - 遁甲与三式合一的时间算法行为与八字/紫微一致：右侧选项直接影响实际计算口径；
-  - 真太阳时与直接时间可同时显示，且在小时跨界时可驱动时柱变化；
-  - 短年份（<4位）盘头日期显示恢复稳定。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.01433c13.js`，样式为 `umi.b7659491.css`。
-
-## 49) 三式合一顶部神煞列宽调整（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
-- 结构调整：
-  - `.topBox` 两列布局由 `1fr 174px` 改为 `minmax(0, 1fr) 148px`；
-  - 固定收窄右侧“神煞双列”区域，释放左侧“日期/真太阳时/直接时间”行的可用宽度。
-- 行为结果：
-  - 三式合一盘左上“日期行”更易完整显示；
-  - 不影响排盘计算、数据结构与右侧参数面板逻辑。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.01433c13.js`，样式为 `umi.4fac2da6.css`。
-
-## 50) 奇门遁甲取象悬浮窗（干/门/星/神）接入（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/QimenXiangDoc.js`
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-- 结构调整：
-  - 新增 `QimenXiangDoc.js`：
-    - 内置并解析 `4.取象 1.md` 全文（十天干/八门/九星/八神）；
-    - 解析规则支持 `#` 标题、`####` 子标题、空行、分割线；
-    - 子标题在渲染层按“标题 + 分割线”展示；
-    - 提供 `buildQimenXiangTipObj` 与 `formatQimenDocLineToHtml`（保留 `<font>` 与 `**加粗**`）。
-  - `DunJiaMain.js`：
-    - 引入 `Popover`；
-    - 新增 `renderQimenDocPopover` / `renderQimenHoverNode`；
-    - 在宫格中将天盘干、地盘干、八神、九星、八门节点统一接入 hover 悬浮窗口。
-- 行为结果：
-  - 奇门遁甲盘实现与六壬/紫微一致的“鼠标悬停看释义”交互；
-  - 支持干、门、星、神四类取象；原文条目不删减并可滚动查看。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.e9018768.js`，样式为 `umi.4fac2da6.css`。
-
-## 51) 奇门悬浮窗繁体安全转简（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/QimenXiangDoc.js`
-- 结构调整：
-  - 新增 `SAFE_TRAD_TO_SIMP_MAP` + `toSafeSimplified`，以白名单方式做繁体转简体；
-  - `normalizeText`（索引匹配）与 `formatQimenDocLineToHtml`（悬浮窗正文渲染）统一复用该转换链路；
-  - 规避语义误转：不引入 `乾 -> 干` 这类破坏术数语义的替换。
-- 行为结果：
-  - 奇门干/门/星/神悬浮窗显示为更一致的简体文本；
-  - 术数关键字保持原义，避免误读。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.c042ba38.js`，样式为 `umi.4fac2da6.css`。
-
-## 52) 占星“行星”白屏与希腊点标题排版修复（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroPlanet.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroLots.js`
-- 结构调整：
-  - `AstroPlanet` 修正实例方法绑定：`genPlanetsDom.bind(this)`，防止 Tab 懒加载时进入“行星”页触发 `this` 为空。
-  - `AstroLots` 新增 `renderTitle`：
-    - 符号（`AstroMsg`）用 `AstroFont`；
-    - 名称（`AstroTxtMsg/AstroMsgCN`）用 `NormalFont`；
-    - 占位符符号 `{` 不再显示。
-  - 移除 `AstroLots` Card 根级 `AstroFont`，避免希腊点标题与正文挤压重叠。
-- 行为结果：
-  - 占星页点击“行星”不再白屏；
-  - 希腊点列表标题恢复可读，不再全部挤成一团。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.21875f3f.js`，样式为 `umi.4fac2da6.css`。
-
-## 53) 占星图释义悬浮开关（星/宫/座/相）接入（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js`
-  - `Horosa-Web/astrostudyui/src/models/app.js`
-  - `Horosa-Web/astrostudyui/src/pages/index.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroChart.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroDoubleChart.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartCircle.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
-- 结构调整：
-  - 新增 app 级别配置项 `showAstroMeaning`，并纳入 `GlobalSetup` 持久化。
-  - 星盘组件抽屉新增勾选项：`是否显示星/宫/座/相释义`（最下方）。
-  - `AstroChartCircle` 新增 `setShowAstroMeaning(flag)`：
-    - 开启时为行星/宫位 tooltip 追加释义正文；
-    - 开启时给星座环与相位线附加 tooltip；
-    - tooltip 样式扩展为宽版可滚动容器，支持长文本。
-  - `AstroDoubleChart` 由 `AstroHelper.drawDoubleChart` 迁移为 `AstroChartCircle.drawDoubleChart`，统一单盘/双盘的 tooltip 行为。
-  - `AstroMeaningData.js` 更新为完整释义数据集：
-    - 行星（太阳、月亮、水星、金星、火星、木星、土星、天王、海王、冥王、北交、南交）；
-    - 星座（白羊至双鱼）；
-    - 宫位（1th~12th）；
-    - 相位（0/30/45/60/90/120/135/150/180）。
-- 行为结果：
-  - 关闭开关：保持当前基础显示（中文名 + 黄经信息）；
-  - 开启开关：鼠标悬停星/宫位/星座/相位可见完整释义悬浮窗，覆盖占星单盘与双盘页面。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.cc6e307f.js`，样式为 `umi.4fac2da6.css`。
-
-## 54) 占星释义原文直存解析（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
-- 结构调整：
-  - 引入 `RAW_ASTRO_REFERENCE` 保存用户提供的星/星座/宫位释义原文；
-  - 通过 `extractBetween + blockToMeaning` 按起止标记切块，构建行星/星座/宫位释义映射；
-  - 不再对原文进行简写改写或内容压缩。
-- 行为结果：
-  - Tooltip 展示数据来源于原文文本本体；
-  - 保留原文层级与措辞，减少“参考文本被改动”的风险。
-- 运行包同步：
-  - `runtime/mac/bundle/dist-file/index.html` 当前入口脚本为 `umi.caedc923.js`，样式为 `umi.4fac2da6.css`。
-
-## 55) 占星释义开关全模块同步（含推运/量化表格，2026-02-25）
-
-- 目标文件（核心）：
-  - `Horosa-Web/astrostudyui/src/pages/index.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`（新增）
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartMain.js`
-  - `Horosa-Web/astrostudyui/src/components/astro3d/AstroChartMain3D.js`
-  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroFirdaria.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroAspect.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroPlanet.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroLots.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroDoubleChartMain.js`
-  - `Horosa-Web/astrostudyui/src/components/relative/AspectInfo.js`
-  - `Horosa-Web/astrostudyui/src/components/relative/MidpointInfo.js`
-  - `Horosa-Web/astrostudyui/src/components/relative/AntisciaInfo.js`
-  - `Horosa-Web/astrostudyui/src/components/germany/Midpoint.js`
-  - `Horosa-Web/astrostudyui/src/components/germany/AspectToMidpoint.js`
-  - `Horosa-Web/astrostudyui/src/components/germany/MidpointMain.js`
-  - `Horosa-Web/astrostudyui/src/components/germany/AstroMidpoint.js`
-  - `Horosa-Web/astrostudyui/src/components/germany/AstroGermany.js`
-  - `Horosa-Web/astrostudyui/src/components/dice/DiceMain.js`
-  - `Horosa-Web/astrostudyui/src/components/otherbu/OtherBuMain.js`
-  - 及相关包装组件：`IndiaChartMain/IndiaChart`、`HellenAstroMain/AstroChart13`、`JieQiChartsMain/JieQiChart`、`AstroSolarReturn/AstroLunarReturn/AstroGivenYear/AstroProfection/AstroSolarArc/AstroZR`、`AstroRelative` 与其子组件。
-
-- 结构变化：
-  - 新增占星释义渲染工具：
-    - `AstroMeaningPopover.js`
-      - `isMeaningEnabled(flag)`：统一判断开关；
-      - `renderMeaningContent(tip)`：统一生成可滚动 tooltip 内容；
-      - `wrapWithMeaning(node, enabled, tip)`：为任意节点挂载释义悬浮层。
-  - `showAstroMeaning` 从 `pages/index.js` 透传至推运盘、量化盘、关系盘、节气盘、希腊星术、星盘、西洋游戏、印度律盘与相关内部组件。
-  - 推运与量化相关表格组件统一接入悬浮释义：
-    - 推运：`AstroPrimaryDirection`、`AstroFirdaria`
-    - 关系盘：`AspectInfo`、`MidpointInfo`、`AntisciaInfo`
-    - 量化盘：`Midpoint`、`AspectToMidpoint`
-  - 星盘右侧页签统一接入悬浮释义：
-    - `AstroAspect`（相位）
-    - `AstroPlanet`（行星）
-    - `AstroLots`（希腊点）
-    - `AstroInfo`（行星标签）
-  - 西洋游戏 `DiceMain` 的骰子结果（行星/星座/宫位）及两类图盘也同步接入。
-
-- 行为结果：
-  - 同一个开关可跨页面控制释义显示，避免“主盘有、子页无”的割裂。
-  - 推运盘“表格也是”已生效：悬停行星/相位文本可显示释义。
-  - 七政四余未改动，保持默认 RA 显示行为不变。
-
-## 56) 三式合一外圈释义同步补齐（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - 三式合一页面接入占星释义工具：
-    - `buildMeaningTipByCategory`
-    - `isMeaningEnabled`
-    - `wrapWithMeaning`
-  - `buildOuterData` 增加 `starsByBranchMeta`（包含 `shortTxt/fullTxt/objId`），用于在外圈星曜短标上挂载准确释义。
-  - 外圈渲染 `renderOuterMarks` 新增三类悬浮释义：
-    - 地支：显示对应星座释义（按 `BRANCH_SIGN_ID_MAP` 映射）；
-    - 宫位：显示对应宫位释义（1~12宫）；
-    - 星曜：显示完整星曜文本 + 行星释义。
-
-- 计算与兼容性：
-  - 仅改渲染层；不改起盘算法、时间算法、参数签名与缓存逻辑。
-  - 七政四余（`guolao/*`）未触及，默认 `RA/赤经` 显示保持原行为。
-
-## 57) 占星释义悬浮窗层级化排版（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`
-
-- 结构变化：
-  - 悬浮窗渲染器新增 Markdown 风格语义解析：
-    - `#`/`##`/`####` 开头行识别为“标题行”；
-    - 标题行以下自动绘制分隔线；
-    - 行内 `**...**` 解析为加粗片段；
-    - `==` 保持为分割线；空行渲染为间距行。
-  - 视觉层级调整为接近遁甲浮窗：
-    - 顶部标题更大更粗；
-    - 小节标题加粗并与正文分离；
-    - 正文行高、颜色、间距统一。
-
-- 行为结果：
-  - 占星相关释义浮窗（星/宫/座/相及其扩展表格）主次更清晰；
-  - 用户提供文本中的 `#` 与 `**` 标记可以直接体现在悬浮窗中。
-
-## 58) 希腊点释义专用数据源（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroLots.js`
-
-- 结构变化：
-  - `AstroMeaningData.js` 新增 `RAW_ASTRO_LOTS_REFERENCE`（希腊点原文全文）；
-  - 新增 `LOT_BLOCK_MARKERS` 与 `LOT_MEANINGS`，支持 `buildMeaningTipByCategory('lot', key)`；
-  - `resolveMeaning('planet', key)` 增加希腊点兜底（兼容旧调用路径）；
-  - `AstroLots` 的标题释义入口从 `planet` 改为 `lot` 分类。
-
-- 行为结果：
-  - 希腊点悬浮释义优先显示用户提供的专用文本，不再混入行星释义；
-  - 其他占星页面若以旧路径请求希腊点释义，仍能显示同一套文案，避免模块间不一致。
-
-## 59) AI导出占星释义开关与注释注入（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - `Horosa-Web/astrostudyui/src/components/homepage/PageHeader.js`
-
-- 结构变化：
-  - `AI_EXPORT_SETTINGS_VERSION` 升级为 `5`；
-  - 新增 `astroMeaning` 配置块（按技法独立）；
-  - 在 `listAIExportTechniqueSettings()` 中新增：
-    - `supportsAstroMeaning`
-    - `astroMeaning`
-  - `PageHeader` 的 “AI导出设置” 弹窗新增占星注释复选项：
-    - `在对应分段输出星/宫/座/相/希腊点释义`
-  - 导出流程新增 `applyAstroMeaningFilterByContext()`：
-    - 仅在占星相关技法且开关开启时生效；
-    - 按分段识别并在对应位置追加 `[...]释义` 分段；
-    - 注释来源统一调用 `AstroMeaningData`（行星/星座/宫位/相位/希腊点）。
-
-- 行为结果：
-  - AI导出与前端释义能力同步；
-  - 用户在 AI导出设置中勾选后，导出文本会在对应分段输出完整注释内容；
-  - 不勾选时保持原有导出格式与体量。
-
-## 60) AI导出占星注释全分段覆盖与对应位置输出（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-
-- 结构变化：
-  - 注释注入策略从“标题白名单触发”升级为“标题显式触发 + 内容识别触发”：
-    - 显式标题（行星/希腊点/相位/宫位/信息/推运等）持续触发注释；
-    - 其它占星分段只要检测到星/宫/座/相/希腊点关键词也触发注释。
-  - `appendAstroMeaningSections` 去掉跨分段全局去重，改为每个分段独立注释块。
-
-- 行为结果：
-  - AI导出在所有占星相关页面更稳定地输出注释；
-  - 注释会跟随原分段出现在“对应位置”，不会因前文重复而被省略；
-  - 仍受 AI导出设置里的“占星注释”开关控制。
-
-## 61) 左侧星盘 tooltip 富文本渲染与遁甲风格化（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/helper.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroChartCircle.js`
-
-- 结构变化：
-  - `helper.js`：
-    - 新增 tooltip 富文本解析器：
-      - `# / ## / ### / ####` 标题识别；
-      - `**...**` 行内加粗渲染；
-      - `==` 分割线保留；
-      - 仅在检测到富文本标记时启用新渲染，否则走 `genHtmlLegacy`。
-    - 新增 `escapeTooltipHtml`、`renderTooltipInlineBoldHtml` 等工具函数。
-  - `AstroChartCircle.js`：
-    - tooltip 容器样式改为白底卡片（560px + max-width），增加边框与阴影，提升层次可读性。
-
-- 行为结果：
-  - 左侧星盘（含推运等基于 `AstroChartCircle` 的图盘）悬浮释义不再显示原始 markdown；
-  - 标题/分割线/加粗层级与遁甲风格趋同；
-  - 非占星普通 tooltip 渲染保持兼容。
-
-## 62) 遁甲顶部四柱配色对齐八字紫微（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js`
-
-- 结构变化：
-  - 引入八字配色数据源：
-    - `BaZiColor`（天干五行色）
-    - `ZhiColor`（地支色）
-  - 新增映射函数：
-    - `GAN_COLOR_MAP`
-    - `getBaZiStemColor(stem)`
-    - `getBaZiBranchColor(branch)`
-  - `renderBoard` 顶部四柱 `pillars` 颜色来源改为按干支字符动态映射。
-
-- 行为结果：
-  - 遁甲左上角“年/月/日/时”显示配色与八字紫微方案一致；
-  - 修改仅作用于顶部四柱文本，不影响下方九宫方盘与宫格内容显示。
-
-## 63) 三式合一左盘同步六壬/遁甲/占星悬浮释义（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - 引入六壬释义数据源：
-    - `buildLiuRengShenTipObj`
-    - `buildLiuRengHouseTipObj`
-  - 引入遁甲释义数据源：
-    - `buildQimenXiangTipObj`
-  - 新增 `toQimenMeaningTip()`：
-    - 将遁甲文档块（blank/divider/subTitle/text）转换为统一 tooltip 行结构（兼容 `wrapWithMeaning`）。
-  - `renderLiuRengMarks()`：
-    - 给“天盘支”挂载十二神悬浮释义；
-    - 给“天将”挂载将神/天地盘对应悬浮释义。
-  - `renderQimenBlock()`：
-    - 给天盘干、八神、地盘干、九星、八门挂载遁甲悬浮释义。
-
-- 行为结果：
-  - 三式合一左盘悬浮能力与单盘保持一致：
-    - 占星（星/宫/座）可悬浮；
-    - 六壬（神/将）可悬浮；
-    - 遁甲（干/门/星/神）可悬浮。
-  - 全部受 `showAstroMeaning` 开关统一控制，关闭释义时不显示 tooltip。
-
-## 64) 三式合一悬浮无响应修复（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`
-
-- 结构变化：
-  - `SanShiUnitedMain.less`：
-    - `.outerCell`、`.qmBlock`、`.lrMark` 改为 `pointer-events: auto`，允许悬浮命中。
-  - `AstroMeaningPopover.js`：
-    - `wrapWithMeaning` 从“外包 span 触发”改为“优先直接 clone 原节点触发”；
-    - 解决绝对定位节点悬浮时触发区域丢失的问题。
-
-- 行为结果：
-  - 三式合一左盘鼠标悬停可稳定弹出释义；
-  - 同时提升其他使用 `wrapWithMeaning` 的绝对定位节点兼容性。
-
-## 65) AI导出同步三式悬浮注释（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - `Horosa-Web/astrostudyui/src/components/homepage/PageHeader.js`
-
-- 结构变化：
-  - `aiExport.js`：
-    - 新增技法集合 `AI_EXPORT_HOVER_MEANING_TECHNIQUES`（`qimen/liureng/sanshiunited`）；
-    - 扩展注释开关覆盖：`AI_EXPORT_ASTRO_MEANING_TECHNIQUES` 加入 `qimen/liureng`；
-    - 新增技法文案元信息 `getMeaningSettingMetaByTechnique`；
-    - 新增三类注释构建器：
-      - `appendQimenMeaningSections`（干/门/星/神注释）
-      - `appendLiurengMeaningSections`（十二神/天将注释）
-      - `appendSanShiUnitedMeaningSections`（六壬/遁甲/占星合并注释）
-    - `applyAstroMeaningFilterByContext` 改为按技法分流注释注入。
-  - `PageHeader.js`：
-    - AI导出设置弹窗中“注释开关”标题与描述改为按技法动态显示（占星类/三式类不同文案）。
-
-- 行为结果：
-  - 六壬、遁甲、三式合一在 AI 导出设置中可独立勾选“悬浮注释输出”；
-  - 勾选后导出文本在对应分段追加与悬浮窗口一致的注释内容；
-  - 不勾选保持原始导出正文不变。
-
-## 66) AI导出统一改为计算快照通道（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-
-- 结构变化：
-  - 导出提取函数去 DOM 右栏化：
-    - `extractAstroContent` 仅走 `astroAiSnapshot`（星盘/希腊）与 `indiachart` 快照；
-    - `extractSixYaoContent` 仅走 `guazhan` 快照；
-    - `extractSanShiUnitedContent` 仅走 `sanshiunited` 快照；
-    - `extractTaiYiContent`、`extractGermanyContent`、`extractJieQiContent`、`extractRelativeContent`、`extractOtherBuContent` 统一仅走对应模块快照。
-    - `extractTongSheFaContent` 与 `extractFengShuiContent` 移除 `extractGenericContent` 回退。
-  - `extractGenericContent` 删除最终 DOM 文本兜底，避免误采右侧栏目文本。
-  - 六爻分段设置与快照标题对齐：
-    - 预设改为 `起盘信息/卦象/六爻与动爻/卦辞与断语`；
-    - 兼容映射：`起卦方式 -> 卦象`，`卦辞 -> 卦辞与断语`。
-
-- 行为结果：
-  - AI导出默认不再从右侧栏目复制文本，改为计算阶段快照输出；
-  - 占星盘导出恢复为稳定分段文本来源（避免Tab抓取导致的缺段/串段）；
-  - 六爻旧配置用户无需重配，过滤项仍有效。
-
-## 67) 三式合一占星悬浮兼容修复（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningPopover.js`
-
-- 结构变化：
-  - 新增 `normalizeTip()`：
-    - 统一将 `string / array / object` 三种tip输入规范为 `{ title, tips }`；
-    - 保留对象型tip的标题与细节结构。
-  - `renderMeaningContent()`：
-    - 改为基于 `normalizeTip` 后的数据渲染，避免字符串tip被判空。
-
-- 行为结果：
-  - 三式合一左盘占星元素（外圈星/宫/座）在开启释义时可正常弹出悬浮；
-  - 六壬/遁甲悬浮逻辑与显示不受影响。
-
-## 68) AI导出风水快照化与全模块快照链路收口（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - `Horosa-Web/astrostudyui/src/components/fengshui/FengShuiMain.js`
-  - `Horosa-Web/astrostudyui/public/fengshui/app.js`
-
-- 结构变化：
-  - `aiExport.js`：
-    - `extractTongSheFaContent` 改为仅使用模块快照（支持 `horosa:refresh-module-snapshot` 主动刷新）；
-    - `extractFengShuiContent` 改为仅使用模块快照（先刷新，再读缓存）。
-  - `FengShuiMain.js`：
-    - 新增 iframe 引用与轮询快照同步；
-    - 新增 `horosa:refresh-module-snapshot` 监听，支持导出时即时拉取风水快照；
-    - 将快照保存到 `moduleAiSnapshot('fengshui')`。
-  - `public/fengshui/app.js`：
-    - 新增 AI 快照文本生成器（分段模板）：
-      - `[起盘信息]`
-      - `[标记判定]`
-      - `[冲突清单]`
-      - `[建议汇总]`
-      - `[纳气建议]`
-    - 在标记列表更新时实时同步 `window.__horosa_fengshui_snapshot_text`。
-
-- 行为结果：
-  - AI导出链路进一步统一到“计算/模块快照”来源；
-  - 导出过程不再依赖页面右栏/DOM文本拼接；
-  - 风水页面也具备与其它术法一致的快照导出能力与导出设置过滤能力。
-
-## 69) AI导出分段过滤容错（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-
-- 结构变化：
-  - `applyUserSectionFilter(content, key)`：
-    - 配置值非数组时：直接走正文（仅剔除禁用分段）；
-    - 分段数组为空时：回退到 `AI_EXPORT_PRESET_SECTIONS[key]`；
-    - 过滤后为空时：回退原始正文，避免导出空白。
-  - `applyUserSectionFilterByContext(content, 'jieqi')`：
-    - 若节气盘分段过滤结果为空，回退原始正文。
-
-- 行为结果：
-  - 星盘、推运盘、量化盘、关系盘、节气盘、希腊星术、统摄法等页面，不会再因设置分段为空/失配而出现“当前页面没有可导出文本”误报；
-  - AI导出设置仍然有效，但加入了防误清空保护。
-
-## 70) AI导出 payload 级回退与全技法自检（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-
-- 结构变化：
-  - `buildPayload()`：
-    - 新增 `rawSnapshotContent` 保存计算快照原文；
-    - 在“分段过滤 + 后天信息过滤 + 释义注入”之后，若内容为空则回退至 `rawSnapshotContent` 再生成导出文本。
-  - 一致性校验：
-    - 校验导出分发链路覆盖（`context.key -> extract*Content`）；
-    - 校验禁导出分段（`右侧栏目`）剔除规则；
-    - 校验分段过滤与 payload 兜底开关已启用。
-
-- 行为结果：
-  - 所有方法页面 AI 导出在设置误配时不会被清空；
-  - 保持“计算快照优先”的导出来源，不回退右侧栏目复制；
-  - AI导出设置仍按所选分段生效，且具备空白保护。
-
-## 71) AI导出上下文 store 兜底识别（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-
-- 结构变化：
-  - 新增 `resolveContextByAstroState()`：
-    - 读取 `store.astro.currentTab/currentSubTab`，映射当前技法导出 key；
-    - 覆盖 `astrochart / direction / germanytech / relativechart / jieqichart / locastro / hellenastro / indiachart / cntradition / cnyibu / guolao / otherbu / fengshui / sanshiunited`。
-  - 新增 `withStoreContextFallback(context)`：
-    - 当 DOM 上下文识别为 `generic` 或处于 `direction/cntradition/cnyibu` 时，改用 store 结果兜底。
-  - `buildPayload()` 与 `getCurrentAIExportContext()`：
-    - 统一调用 `withStoreContextFallback(resolveActiveContext())`，确保 AI导出与 AI导出设置读取同一技法上下文。
-  - `getAstroCachedContent()`：
-    - 增加 `loadAstroAISnapshot()` 回退链，在签名不匹配或保存失败时仍可导出现存快照。
-
-- 行为结果：
-  - 修复“当前页面没有可导出文本”误报（由 DOM 技法识别失败触发）；
-  - 星盘、推运盘、量化盘、关系盘、节气盘、希腊星术、统摄法等页面导出链路更稳；
-  - 保持“计算快照优先”，不依赖右侧栏目复制。
-
-## 72) 三式合一占星悬浮提示结构化对齐（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - 新增释义对象处理函数：
-    - `normalizeMeaningTip`
-    - `mergeMeaningTips`
-    - `buildOuterHouseMeaningTip`
-    - `buildOuterBranchMeaningTip`
-    - `buildOuterStarMeaningTip`
-  - `renderOuterMarks`：
-    - `宫位`、`地支-星座`、`星曜` 悬浮说明全部改为结构化 `title + tips`，不再拼接对象到字符串。
-
-- 行为结果：
-  - 修复三式合一占星悬浮出现 `[object Object]`；
-  - 悬浮内容样式与星盘统一（标题、分段、加粗/分隔线风格一致）。
-
-## 73) 星座释义补齐四尊贵状态（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroMeaningData.js`
-
-- 结构变化：
-  - 新增 `SIGN_DIGNITY_LINES` 常量：
-    - 为 12 星座增加 `入庙 / 擢升 / 入落 / 入陷` 文案映射。
-  - 新增 `enrichSignMeaningWithDignity(signKey, meaning)`：
-    - 在星座释义 tips 中插入四尊贵状态；
-    - 默认插入在“宫位属性”后；
-    - 若已存在“入庙”行则跳过，避免重复。
-  - 调整 `resolveMeaning('sign', key)`：
-    - 返回补齐后的星座释义对象，而非原始 `SIGN_MEANINGS`。
-
-- 行为结果：
-  - 星盘相关页面与三式合一中，星座悬浮释义统一新增四尊贵状态；
-  - AI导出“星座释义”分段自动携带四尊贵状态；
-  - AI导出设置中的占星注释开关仍按原逻辑控制输出，仅内容被增强。
-
-## 74) 量化盘 AI 导出快照刷新链路补齐（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/germany/AstroMidpoint.js`
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-
-- 结构变化：
-  - `AstroMidpoint.js`：
-    - 新增 `saveGermanySnapshot(paramsOverride, resultOverride)`，统一生成并保存 `[起盘信息]/[中点]/[中点相位]` 快照；
-    - 新增 `handleSnapshotRefreshRequest(evt)`，响应 `horosa:refresh-module-snapshot` 且 `module === 'germany'`；
-    - `componentDidMount` 注册监听并主动尝试写入快照；
-    - `componentDidUpdate` 在 `midpoints/chart/fields` 变化时自动刷新快照；
-    - `componentWillUnmount` 注销监听；
-    - `requestChart` 改为通过 `saveGermanySnapshot` 落库，确保导出与页面同源。
-  - `aiExport.js`：
-    - `extractGermanyContent` 改为“先刷新再读缓存”：
-      - 先 `requestModuleSnapshotRefresh('germany')`；
-      - 刷新失败再回退 `getModuleCachedContent('germany')`。
-
-- 行为结果：
-  - 量化盘页面点击 AI导出时，不再因本地快照未及时落库而提示“当前页面没有可导出文本”；
-  - 保持“计算阶段快照导出”的实现方式，不依赖右侧栏复制。
-
-## 75) AI导出稳态增强（2026-02-25）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - `Horosa-Web/astrostudyui/src/utils/moduleAiSnapshot.js`
-  - `Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js`
-
-- 结构变化：
-  - `moduleAiSnapshot.js`：
-    - 新增 `MODULE_SNAPSHOT_MEMORY` 内存快照池；
-    - `saveModuleAISnapshot/loadModuleAISnapshot` 改为“localStorage + 内存双通道”。
-  - `astroAiSnapshot.js`：
-    - 新增 `ASTRO_AI_SNAPSHOT_MEMORY`；
-    - `saveAstroAISnapshot/loadAstroAISnapshot` 支持 localStorage 失败时内存兜底。
-  - `aiExport.js`：
-    - `withStoreContextFallback` 增强：当 DOM 上下文与 store 上下文冲突或不完整时，优先采用 store 当前术法；
-    - `getCurrentAIExportContext` 对 `direction` 返回 `primarydirect`；
-    - 新增 `normalizeExportKey/getTechniqueLabelByKey/getCandidateExportKeys/extractContentByKey`；
-    - `buildPayload` 改为候选键兜底提取，并按 `usedExportKey` 执行分段过滤/注释开关；
-    - 推运子模块导出增加 refresh 优先（法达/太阳弧/返照/流年等）；
-    - `requestModuleSnapshotRefresh` 等待窗口从 `80ms` 调整为 `220ms`；
-    - `getModuleCachedContent` 增加跨模块别名识别，减少 case 快照读取误判。
-
-- 行为结果：
-  - 修复多个术法点击 AI导出“无反应/无可导出文本”；
-  - 修复上下文误判导致的导出串台；
-  - 在 localStorage 异常情况下，仍可通过内存快照稳定导出。
-
-## 76) 星盘组件底部选项统一复选框（2026-02-27）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/ChartDisplaySelector.js`
-  - `Horosa-Web/astrostudyui/src/models/app.js`
-  - `Horosa-Web/astrostudyui/src/pages/index.js`
-
-- 结构变化：
-  - `ChartDisplaySelector`：
-    - 移除 `Checkbox.Group + Select` 混合结构，改为统一单项 `Checkbox` 渲染；
-    - `主/界限法显示界限法` 改为纯复选框（布尔勾选映射 `showPdBounds: 1/0`）；
-    - 新增底部开关：`仅按照本垣擢升计算互容接纳`。
-  - `app` 模型新增 `showOnlyRulExaltReception` 状态并纳入 `GlobalSetup` 持久化。
-  - `index` 页面补充 `showOnlyRulExaltReception` 下发，保证显示链路可读该配置。
-
-- 行为结果：
-  - 星盘组件底部选项风格统一，不再出现“下拉+复选框”混合断层；
-  - “主/界限法显示界限法”交互与其它选项一致；
-  - 新增“仅按照本垣擢升计算互容接纳”全局开关进入状态与持久化链路。
-
-## 77) 接纳/互容本垣擢升过滤同步到信息面板与AI快照（2026-02-27）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroInfo.js`
-  - `Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js`
-
-- 结构变化：
-  - `AstroInfo` 新增：
-    - `getOnlyRulerExaltReceptionEnabled`
-    - `hasRulerOrExalt`
-    - `keepReceptionLine`
-    - `keepMutualLine`
-  - `receptions/mutuals` 渲染前先按本垣/擢升规则过滤：
-    - 正接纳：`supplierRulerShip` 必含 `ruler/exalt`；
-    - 邪接纳：`supplierRulerShip` 或 `beneficiaryDignity` 任一含 `ruler/exalt`；
-    - 互容：双方 `rulerShip` 均含 `ruler/exalt`。
-  - `astroAiSnapshot` 新增同名过滤辅助并应用到 `buildInfoSection`；
-  - `createAstroSnapshotSignature` 纳入该开关位（`...|onlyRulerExaltReception`）；
-  - `build/save/get` 快照函数签名新增 `options`，支持导出链路传入该开关并保持一致。
-
-- 行为结果：
-  - 页面右侧“接纳/互容”与 AI导出“信息”分段使用同一过滤规则；
-  - 切换开关后不会误命中旧快照，导出内容与当前显示保持对齐；
-  - 当过滤后为空时，不再输出空“接纳/互容”标题分节。
-
-## 78) 本地启动脚本服务生命周期修复（2026-02-27）
-
-- 目标文件：
-  - `Horosa_Local.command`
-  - `Horosa-Web/stop_horosa_local.sh`
-  - `README.md`
-
-- 结构变化：
-  - `Horosa_Local.command`：
-    - 新增 `WEB_PID_FILE`（`.horosa_web.pid`）管理前端静态服务进程；
-    - `cleanup` 改为统一调用 `stop_horosa_local.sh` 做 py/java/web 全量回收；
-    - 启动前 stale 检查从 `py/java` 扩展为 `py/java/web`；
-    - 当前 `HOROSA_KEEP_SERVICES_RUNNING` 默认恢复为 `1`，避免用户在浏览器继续使用时因启动窗口结束而把后端一起停掉。
-    - 若默认 `8000/8899/9999` 已被其他副本占用，会自动切换到空闲端口（常见为 `18000/18899/19999`），并要求用户使用新打开的页面而不是旧标签页。
-  - `stop_horosa_local.sh`：
-    - 新增 web 进程 `stop_by_pid_file "web" "${WEB_PID_FILE}"`。
-  - `README.md`：
-    - 增补 `HOROSA_KEEP_SERVICES_RUNNING=1` 说明；
-    - 说明 `Horosa_Local.command` 的自动端口避让行为和“不要继续使用旧 8000 标签页”的注意事项。
-
-- 行为结果：
-  - 当前默认保持本地服务常驻，避免页面仍开着时点击“重新计算”触发 8899 假掉线；
-  - 需要关窗自动停服时可显式设置 `HOROSA_KEEP_SERVICES_RUNNING=0`；
-  - pid 文件与 stop 脚本职责对齐，清理链路更稳定。
-
-## 79) 本地启动浏览器优先级调整为 Safari（2026-02-27）
-
-- 目标文件：
-  - `Horosa_Local.command`
-
-- 结构变化：
-  - 新增 Safari 跟踪函数：
-    - `launch_safari_window`
-    - `safari_window_exists`
-    - `wait_for_safari_window_close`
-  - 自动停止模式的打开顺序改为：
-    - Safari（可跟踪关闭） -> Chromium app window -> `open -a Safari` -> 系统默认浏览器。
-
-- 行为结果：
-  - 软件默认优先以 Safari 打开；
-  - 在默认“自动停服”模式下，关闭 Safari 窗口即可触发停服，无需手动回车。
-
-## 80) 三式合一外圈星曜简称去歧义（2026-02-27）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - `shortMainStarLabel(name)` 新增天顶/中天特判：
-    - `天顶` -> `顶`
-    - `中天` -> `顶`
-
-- 行为结果：
-  - 外圈短标签不再出现“天顶=天”与“天王星=天”冲突；
-  - 悬浮全称保持不变，短标签识别更清晰。
-
-## 81) 六壬/三式合一天将悬浮正文按将拆分补全（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
-
-- 结构变化：
-  - 新增 `JIANG_INFO`：
-    - 收录十二天将的 `intros / verses / extra` 文案结构；
-    - `天乙` 专门承载“主清御…天乙持魁钺…”加粗段落；
-    - 其余十一将仅使用本将对应文案。
-  - 新增 `buildJiangDocTips(jiang)`：
-    - 按当前天将动态生成悬浮正文；
-    - 统一插入将名标题（`### **将名**`）与该将诗诀（加粗）。
-  - `buildLiuRengHouseTipObj`：
-    - 在原“天盘神/地盘神命中信息”前追加当前天将正文；
-    - 保留命中位说明用于格位定位。
-  - 去重调整：
-    - 移除正文内“XX临十二神”整段，避免与当前盘面命中位信息重复。
-
-- 行为结果：
-  - 六壬与三式合一中的天将悬浮，不再出现“把天乙内容灌到所有将”的错误；
-  - 每个天将显示对应原文段落与诗诀；
-  - 悬浮内容更完整，同时避免重复段落堆叠。
-
-## 82) 六壬悬浮样式对齐三式合一富文本风格（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/utils/helper.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
-
-- 结构变化：
-  - `helper.js`：
-    - `genHtml(tipobj, needpadding, forceRich)`：新增 `forceRich`，可强制富文本渲染路径；
-    - `creatTooltip(..., needpadding, forceRich)`：新增参数透传。
-  - `LRCommChart.js`：
-    - 六壬宫位将神悬浮、神义悬浮统一传入 `forceRich=true`。
-
-- 行为结果：
-  - 六壬相关悬浮窗统一使用与三式合一相同的富文本视觉层级；
-  - 不再因文本缺少 `#/**` 标记而回退到旧版列表风格。
-
-## 83) 六壬盘悬浮容器样式卡片化（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
-  - `Horosa-Web/astrostudyui/src/utils/helper.js`
-
-- 结构变化：
-  - `LiuRengChart.setupToolTip` 从旧版蓝底定宽提示框升级为白底卡片样式：
-    - `width:auto + max-width/min-width`
-    - `max-height + overflow-y`
-    - `background/border/shadow/z-index` 对齐统一悬浮风格。
-  - `helper.creatTooltip` 增加 `forceRich=true` 时的不透明显示策略（`opacity=1`）。
-
-- 行为结果：
-  - 六壬盘悬浮不再出现“半透明蓝底整条覆盖”的旧观感；
-  - 视觉层级、可读性、滚动行为与三式合一悬浮更一致。
-
-## 84) 文档同步确认：六壬悬浮窗调整（2026-02-28）
-
-- 同步范围：
-  - 六壬天将文案补全与去重；
-  - 六壬悬浮富文本强制渲染；
-  - 六壬提示容器样式卡片化（白底、边框、阴影、自动宽高）。
-
-- 已登记文件：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengChart.js`
-  - `Horosa-Web/astrostudyui/src/utils/helper.js`
-
-- 结果：
-  - 变更已在 `UPGRADE_LOG.md` 与 `PROJECT_STRUCTURE.md` 双处落档，可追踪。
-
-## 85) 六壬悬浮标题去重（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
-
-- 结构变化：
-  - `buildJiangDocTips(jiang)`：移除正文开头的 `### **将名**` 注入。
-
-- 行为结果：
-  - 六壬与三式合一中的六壬悬浮，仅保留卡片最上方标题显示一次名称；
-  - 正文不再重复同名标题。
-
-## 86) 六壬悬浮加粗语义补齐（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
-
-- 结构变化：
-  - 新增 `formatJiangIntroLine(line)`：
-    - 识别 `其吉：/其吉:` 与 `其戾：/其戾:` 前缀并转成加粗输出。
-  - `buildLiuRengHouseTipObj`：
-    - `天盘神`、`地盘神` 标签改为 markdown 加粗。
-  - `buildLiuRengShenTipObj`：
-    - 两句诗 (`verse1`/`verse2`) 改为整句加粗；
-    - `类象` 标签改为加粗前缀（`**类象：**`）。
-
-- 行为结果：
-  - 六壬与三式合一的六壬悬浮，重点语义标签层级更清晰；
-  - 天将/地支两类悬浮在排版强调上保持一致。
-
-## 87) 六壬悬浮追加四课/三传上下文（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRShenJiangDoc.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - `LRShenJiangDoc.js`：
-    - 新增 `appendKeAndChuanTips(tips, tipContext)`，输出四课/三传的“地支+天将”段落；
-    - `buildLiuRengShenTipObj(branch, tipContext)` 与 `buildLiuRengHouseTipObj(..., tipContext)` 支持可选上下文参数。
-  - `LRCommChart.js`：
-    - 新增 `sanChuanData` 状态与 `setSanChuanData`；
-    - 新增 `buildTooltipContext()`，聚合 `getKe()` 与 `sanChuanData` 供悬浮使用。
-  - `RengChart.js`：
-    - 三传图计算后将 `cuangs` 回写到主六壬盘实例，保证悬浮读取到最新三传。
-  - `SanShiUnitedMain.js`：
-    - 六壬环悬浮调用增加 `liurengTipContext`（`keData.raw + sanChuan`）。
-
-- 行为结果：
-  - 六壬与三式合一中的六壬悬浮，均可直接看到四课与三传的地支/天将上下文，判断链更完整。
-
-## 88) 四课/三传元素级悬浮提示（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/liureng/KeChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - `KeChart`：新增 `buildKeTipObj`，每课列绑定元素级 tooltip（地支/天将）。
-  - `ChuangChart`：新增 `buildChuanTipObj` 与支提取逻辑，每传列绑定元素级 tooltip（地支/天将）。
-  - `RengChart`：`drawGua2` 将 `divTooltip` 下发至 `KeChart/ChuangChart`。
-  - `SanShiUnitedMain`：中宫四课列与三传行包裹 `wrapWithMeaning`，显示对应地支/天将信息。
-
-- 行为结果：
-  - 用户将鼠标放到四课/三传对应元素上时，弹出对应“地支+天将”提示；
-  - 不再把该信息混入其他悬浮正文段落。
-
-## 89) 四课/三传元素悬浮精细化映射（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/liureng/KeChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js`
-  - `Horosa-Web/astrostudyui/src/components/lrzhan/RengChart.js`
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - `KeChart`：
-    - 新增按元素映射的 tooltip 逻辑：
-      - 天将 -> `buildLiuRengHouseTipObj`
-      - 地支 -> `buildLiuRengShenTipObj`
-    - 去掉整列统一提示，避免一个悬浮覆盖多个语义。
-  - `ChuangChart`：
-    - 三传上半区仅“地支位”挂接十二神释义；
-    - 天将行挂接天将释义；
-    - 六亲行保持无悬浮。
-  - `RengChart`：
-    - `drawGua2` 下发 `liuRengChart` 到 `KeChart` 供天将释义定位使用。
-  - `SanShiUnitedMain`：
-    - 中宫四课/三传从整列包裹改为单字符包裹：
-      - 地支与天将字符可悬浮；
-      - 天干与六亲字符不悬浮。
-
-- 行为结果：
-  - 鼠标停在“哪个元素”就显示“哪个元素”对应释义；
-  - 不再出现整列同一提示或非目标元素弹出提示。
-
-## 90) 三式合一后天十二宫悬浮标题去重（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - `buildOuterHouseMeaningTip`：
-    - 合并分段时不再注入正文内 `N宫` 子标题（`title: ''`）；
-    - 保留 tooltip 顶部标题作为唯一宫名显示。
-
-- 行为结果：
-  - 后天十二宫悬浮不再出现“宫名重复两次”；
-  - 视觉上与用户期望一致（仅顶部显示宫名）。
-
-## 91) 三式合一上升点简称调整（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-
-- 结构变化：
-  - `shortMainStarLabel` 新增上升点简称映射：
-    - `上升` -> `升`
-
-- 行为结果：
-  - 三式合一外圈星盘不再显示“上”，统一显示“升”。
-
-## 92) 修复六壬四课/三传横线伪影（2026-02-28）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/liureng/KeChart.js`
-  - `Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js`
-
-- 结构变化：
-  - 元素级悬浮热区 `rect` 显式关闭描边：
-    - `stroke: none`
-    - `stroke-width: 0`
-
-- 行为结果：
-  - 去除四课地支区与三传干支区中部意外横线；
-  - 保留元素级悬浮触发行为不变。
-
-## 93) Horosa_Local 端口占用自动清理兜底（2026-02-28）
-
-- 目标文件：
-  - `Horosa_Local.command`
-
-- 结构变化：
-  - 新增函数：
-    - `get_listener_pids(port)`：读取端口监听 PID 列表。
-    - `is_horosa_web_listener(pid)`：识别是否为 Horosa 遗留 `http.server`（按命令行/工作目录判断）。
-    - `cleanup_stale_horosa_web_listener(port)`：在启动前自动清理旧网页监听进程。
-  - 启动 `[2/4]` 网页服务前流程调整：
-    - 若端口已占用，先尝试清理可识别的 Horosa 残留进程；
-    - 清理后仍占用则中止，并写入占用信息到诊断日志。
-
-- 行为结果：
-  - 关闭窗口后遗留的旧 `python -m http.server` 不再阻塞下次启动；
-  - 对非 Horosa 进程保持保守，不误杀其他服务。
-
-## 94) 稳定性回归修复（全页面冒烟后收敛）（2026-03-03）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/graph/D3Arrow.js`
-  - `Horosa-Web/astrostudyui/src/components/graph/__tests__/D3Arrow.test.js`
-  - `Horosa-Web/astrostudyui/src/components/astro3d/Astro3D.js`
-  - `Horosa-Web/astrostudyui/src/components/amap/MapV2.js`
-  - `Horosa-Web/astrostudyui/src/pages/document.ejs`
-
-- 结构变化：
-  - `D3Arrow`：
-    - `marker.viewBox` 改为模板串 `0 0 ${width} ${height}`，修复此前字符串拼接少空格问题。
-  - `graph/__tests__/D3Arrow.test.js`（新增）：
-    - 新增 `viewBox` 格式校验，防止回归到非法 SVG 参数。
-  - `Astro3D`：
-    - 引入 `preferRemote` 源选择策略；
-    - 在 `file://`、`localhost`、`127.0.0.1` 场景下，3D 资源优先使用远端模型地址，避免本地缺失模型的 404 噪音。
-  - `MapV2`：
-    - 为 `AMapLoader.load(...)` 增加 `catch` 兜底；
-    - 新增可选 `onLoadError` 回调，地图 SDK 不可用时维持页面可交互。
-  - `document.ejs`：
-    - 新增内联 favicon，避免浏览器默认请求 `/favicon.ico` 造成额外报错。
-
-- 行为结果：
-  - 六壬/三式合一等图形页面中由 SVG marker 引起的批量 console error 被消除；
-  - 本地部署环境的 3D 资源加载噪音显著减少（不再先打本地 404）；
-  - 前端主框架在地图 SDK 不可达时维持稳定，不因未处理异常中断主要流程；
-  - 全页面冒烟（16 顶层 tab + 嵌套 tab）后，错误量从大量内部错误收敛到外部依赖超时类告警。
-
-## 95) 地图 AMapUI 本地降级 + 全页面零错误冒烟（2026-03-03）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/amap/amapUIHelper.js`（新增）
-  - `Horosa-Web/astrostudyui/src/components/amap/MapV2.js`
-  - `Horosa-Web/astrostudyui/src/components/amap/ACG.js`
-  - `Horosa-Web/astrostudyui/src/components/amap/GeoCoord.js`
-  - `Horosa-Web/astrostudyui/src/components/amap/GeoCoordSelector.js`
-  - `Horosa-Web/astrostudyui/src/components/amap/PointsCluster.js`
-
-- 结构变化：
-  - `amapUIHelper.js`：
-    - 新增 `canUseAMapUI()`：统一判定是否允许加载 AMapUI（本地 `file/localhost/127.0.0.1` 关闭）；
-    - 新增 `safeLoadAMapUI(modules, onLoaded, onFallback)`：集中封装 AMapUI 安全加载与兜底。
-  - `MapV2.js`：
-    - `AMapLoader.load` 采用动态 `loadOpts`；
-    - 仅在 `canUseAMapUI()` 且存在 `uiplugin` 时注入 `AMapUI` 配置。
-  - `ACG/GeoCoord/GeoCoordSelector/PointsCluster`：
-    - 原 `window.AMapUI.loadUI(...)` 全部替换为 `safeLoadAMapUI(...)`；
-    - `GeoCoord` 增加 `setupFallbackMarker`，`SimpleMarker` 不可用时回退普通 marker。
-
-- 行为结果：
-  - 本地全页面冒烟不再出现 `Load timeout for modules: ui/control/BasicControl` 异常；
-  - 地图类页面在本地离线/弱网环境不会因 AMapUI 依赖阻塞或报错；
-  - 全站主流程保持可交互，避免白屏。
-
-## 96) 再次全量稳定性自检（页面/技法/AI导出/算法）（2026-03-03）
-
-- 目标范围：
-  - 所有主页面与主技法可用性；
-  - AI 导出与 AI 导出设置一致性；
-  - 核心算法与本地运行链路稳定性。
-
-- 本轮结构化检查链路：
-  - 基础构建与单测：
-    - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false`
-    - `npm --prefix Horosa-Web/astrostudyui run build:file`
-  - 本地服务链路：
-    - `Horosa-Web/start_horosa_local.sh`
-    - `Horosa-Web/verify_horosa_local.sh`
-    - `Horosa-Web/stop_horosa_local.sh`
-  - 算法/API 快速体检：
-    - `Horosa-Web/astrostudyui/.tmp_horosa_verify.js`
-    - `Horosa-Web/astrostudyui/.tmp_horosa_perf_check.js`
-  - AI 导出配置矩阵校验：
-    - `Horosa-Web/astrostudyui/.tmp_ai_export_matrix_check.js`
-  - 页面级巡检（Playwright 分批短会话）：
-    - 覆盖 16 主页面：`星盘`、`三维盘`、`推运盘`、`量化盘`、`关系盘`、`节气盘`、`星体地图`、`七政四余`、`希腊星术`、`印度律盘`、`八字紫微`、`易与三式`、`万年历`、`西洋游戏`、`风水`、`三式合一`。
-
-- 输出判定口径（本轮统一）：
-  - 页面元素可点击（`clicked=true`）；
-  - 页面根节点存在（`#root`）；
-  - 无错误边界（`hasErrorBoundary=false`）；
-  - 页面文本非空（`textLen>0`）；
-  - 控制台 `error` 为 0（允许 3D fallback warning）。
-
-- 结果摘要：
-  - 16 主页面均满足上述可用性判定；
-  - AI 导出矩阵检查全部 PASS；
-  - 核心算法接口与本地链路检查通过；
-  - 未发现新的白屏回归。
-
-## 97) 3D fallback 稳定性收敛 + 本地窗口关闭回收修复（2026-03-03）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/astro3d/Astro3D.js`
-  - `Horosa_Local.command`
-
-- 结构变化：
-  - `Astro3D.js`
-    - 新增模型不可用状态缓存：
-      - `ModelUnavailableAtKey = 'horosa3dModelUnavailableAt'`
-      - `ModelUnavailableCooldown = 10 * 60 * 1000`
-      - `getModelUnavailableAt / markModelUnavailableNow / clearModelUnavailableMark / shouldSkipModelLoad`
-    - `init()` 加载流程新增短路逻辑：
-      - 若 `shouldSkipModelLoad()` 命中，直接 `initMesh + initGUI`，跳过 GLTF 请求。
-    - 失败/成功状态联动：
-      - timeout 或所有来源失败时：`markModelUnavailableNow()`
-      - 成功加载模型后：`clearModelUnavailableMark()`
-    - fallback 日志等级下调：
-      - timeout fallback、source fail、unavailable fallback 从 `console.warn` 调整为 `console.info`。
-  - `Horosa_Local.command`
-    - 退出信号捕获扩展为：
-      - `trap cleanup EXIT INT TERM HUP`
-    - 覆盖直接关闭终端窗口触发的 `SIGHUP`，确保进入 cleanup。
-
-- 行为结果：
-  - 三维盘在模型暂不可用时不再反复尝试加载，减少卡顿与噪音；
-  - fallback 保持可用（简化模式）但不再占用 warning 通道；
-  - 关闭启动终端窗口时，Horosa 本地服务可自动执行停止回收流程，减少残留进程与端口占用。
-
-- 本轮验证结果：
-  - 单测与构建：
-    - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false` 通过；
-    - `npm --prefix Horosa-Web/astrostudyui run build:file` 通过。
-  - 本地服务链路：
-    - `start_horosa_local.sh + verify_horosa_local.sh + stop_horosa_local.sh` 通过。
-  - 算法/导出检查：
-    - `.tmp_horosa_verify.js` 通过；
-    - `.tmp_ai_export_matrix_check.js` 全部 PASS；
-    - `.tmp_horosa_perf_check.js` 返回有效结果。
-  - 页面巡检（Playwright）：
-    - 顶层 16 tab 自动点击均可渲染（无错误边界）；
-    - 三维盘重复切换后，console warning/error 均为 0。
-
-## 98) 最终全量终检（内容/页面/技法设置/AI导出）（2026-03-03）
-
-- 目标范围：
-  - 所有主内容页面；
-  - 所有主技法入口及其设置入口；
-  - AI 导出与 AI 导出设置；
-  - 本地服务链路与核心算法脚本。
-
-- 本轮结构化检查链路：
-  - 构建与单测：
-    - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false`
-    - `npm --prefix Horosa-Web/astrostudyui run build:file`
-  - 服务与算法：
-    - `Horosa-Web/start_horosa_local.sh`
-    - `Horosa-Web/verify_horosa_local.sh`
-    - `Horosa-Web/stop_horosa_local.sh`
-    - `Horosa-Web/astrostudyui/.tmp_horosa_verify.js`
-    - `Horosa-Web/astrostudyui/.tmp_ai_export_matrix_check.js`
-    - `Horosa-Web/astrostudyui/.tmp_horosa_perf_check.js`
-  - 页面与交互（Playwright）：
-    - 顶层 16 页面全量点击可达性与渲染性检查；
-    - 星盘子页签检查（信息/相位/行星/希腊点/可能性）；
-    - 抽屉设置入口检查（小工具/星盘组件/行星选择/相位选择/批注）；
-    - AI 导出设置与 5 个导出动作全链路执行。
-
-- 结果摘要：
-  - 16 顶层页面全部可进入、可渲染、无白屏；
-  - 主技法设置入口均可打开/关闭，控件切换可执行；
-  - AI 导出设置可保存，AI 导出五项动作可执行并返回正确提示；
-  - 控制台 `error=0`，未出现错误边界；
-  - 仅观测到 1 条外部地图 SDK Canvas 性能 warning（非功能故障）。
-
-- 产物记录：
-  - `/tmp/horosa_final_fullcheck_20260303.txt`
-  - `/tmp/hf1_ui_scan_result.txt`
-  - `/tmp/hf2_ai_actions_result.txt`
-  - `/tmp/hf3_settings_result.txt`
-
-## 99) 三式合一遁甲悬浮文案繁转简补全（2026-03-03）
-
-- 目标文件：
-  - `Horosa-Web/astrostudyui/src/components/dunjia/QimenXiangDoc.js`
-  - `Horosa-Web/astrostudyui/src/components/dunjia/__tests__/QimenXiangDoc.test.js`
-
-- 结构变化：
-  - `QimenXiangDoc.js`
-    - 安全繁转简映射补充：
-      - `宮→宫`、`於→于`、`強→强`、`進→进`、`麗→丽`、`洩→泄`。
-    - `parseQimenDoc()` 中 `text` block 入库改为统一 `toSafeSimplified(line)`：
-      - 使 `buildQimenXiangTipObj` 返回给三式合一悬浮窗口的正文文本均为简体；
-      - 复用同一数据源时，遁甲主盘与三式合一盘展示一致。
-    - 保留精确字符策略：
-      - 未加入 `乾→干` 映射，保证宫位干支中的 `乾` 不被误改。
-  - 新增测试 `QimenXiangDoc.test.js`
-    - 覆盖“门/星条目繁转简”与“乾字不误改”。
-
-- 行为结果：
-  - 三式合一盘遁甲悬浮正文中的剩余繁体被补齐为简体；
-  - 文案转换更稳定，且不影响关键术语字形（如 `乾`）。
-
-- 本轮验证结果：
-  - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false src/components/dunjia/__tests__/QimenXiangDoc.test.js` 通过；
-  - `npm --prefix Horosa-Web/astrostudyui test -- --watch=false src/components/dunjia/__tests__/DunJiaCalc.test.js src/components/dunjia/__tests__/QimenXiangDoc.test.js` 通过。
-
-## 100) 本地窗口关闭后后台残留回收增强（2026-03-03）
-
-- 目标文件：
-  - `Horosa_Local.command`
-  - `Horosa-Web/stop_horosa_local.sh`
-
-- 结构变化：
-  - `Horosa_Local.command`
-    - `cleanup()` 调整为：非常驻模式下（`HOROSA_KEEP_SERVICES_RUNNING!=1`）退出必执行 `stop_horosa_local.sh`；
-    - 启动前固定执行一次残留清理，减少“上次异常退出”影响；
-    - 后端启动失败时，若检测到 `8899/9999` 端口占用，自动回收残留并重试一次。
-  - `stop_horosa_local.sh`
-    - 新增 `kill_pid_gracefully()`，统一停止逻辑；
-    - 在 pid 文件回收之外，新增端口监听兜底回收（按进程特征匹配）：
-      - `8899`：`webchartsrv.py`
-      - `9999`：`astrostudyboot.jar`
-      - `8000`：`http.server.*astrostudyui/(dist|dist-file)`
-
-- 行为结果：
-  - 用户直接关闭终端窗口后，即便 pid 文件丢失，下一次运行也可自动回收典型残留进程；
-  - 对应 `port 9999 is already in use` 的常见场景可自动自愈。
-
-- 本轮验证结果：
-  - `bash -n Horosa_Local.command` 通过；
-  - `bash -n Horosa-Web/stop_horosa_local.sh` 通过；
-  - `Horosa-Web/stop_horosa_local.sh` 实测可回收无 pid 文件残留监听进程；
-  - `cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh && ./stop_horosa_local.sh` 通过。
-
-## 101) 主限法双内核结构（2026-03-05）
-
-- 后端入口：
-  - `Horosa-Web/astropy/astrostudy/perchart.py`
-    - 新增并承载：
-      - `pdMethod`
-      - `pdTimeKey`
-    - 默认值：
-      - `pdMethod='reference_alchabitius'`
-      - `pdTimeKey='Ptolemy'`
-  - `Horosa-Web/astropy/astrostudy/perpredict.py`
-    - `getPrimaryDirectionByZ()` 改为双分流：
-      - `horosa_legacy`
-      - `reference_alchabitius`
-
-- 双分流定义：
-  - `horosa_legacy`
-    - 结构上等同原版 Horosa `zodiaco主限法`：
-      - `PrimaryDirections(chart).getList(self.perchart.pdaspects)`
-      - 仅保留 `item[3] == 'Z'`
-  - `reference_alchabitius`
-    - 结构上为 Reference 对齐内核：
-      - Significators：
-        - `SIG_OBJECTS + SIG_HOUSES + SIG_ANGLES`
-      - Promissors：
-        - `SIG_OBJECTS(aspects)`
-        - `terms`
-      - 不包含：
-        - `antiscia`
-        - `contra-antiscia`
-        - 即不包含页面所称“映点 / 反映点”
-      - Arc：
-        - 普通应星：
-          - `norm180(sig.ra - prom.raZ)`
-        - `Asc`：
-          - `norm180(OA_zero(prom, true_obliquity - 0.0014°) - OA_zero(Asc, true_obliquity) - asc_case_bias(chart))`
-        - `MC`：
-          - `norm180(prom.raZ - MC.raZ)`
-        - `Pars Fortuna`：
-          - 当前仍先走普通应星分支，专用分支继续逆向中
-      - 行过滤：
-        - 去掉 Node
-        - 去掉同对象
-        - 去掉 `|arc| > 100`
-        - 普通行星对额外套 Reference 显示窗
-      - 排序：
-        - `(|arc|, arc, prom_id, sig_id)`
-
-- 日期换算：
-  - `Horosa-Web/astropy/astrostudy/signasctime.py`
-    - `getJDFromPDArc()`
-      - 使用“周年日 + 年跨度插值”而不是固定回归年常数直乘；
-      - converse 使用 `abs(arc)`；
-    - `getDateFromPDArc()`
-      - 使用 UTC 风格输出字符串，贴近 Reference `dirDate`。
-
-- 输出结构：
-  - 主限法行仍维持 5 元组：
-    - `arc`
-    - `promittor_id`
-    - `significator_id`
-    - `'Z'`
-    - `date_str`
-  - `Horosa-Web/astropy/astrostudy/helper.py`
-    - `chartObj.params` 现明确返回：
-      - `pdMethod`
-      - `pdTimeKey`
-  - 逆向现状：
-    - `Asc / MC` 已从普通通用核中拆成角点专用分支；
-    - `Pars Fortuna` 仍是当前未完全闭合的剩余对象；
-    - PF 的昼夜判定后续统一按“太阳在地平线以上/以下”定义。
-
-## 102) 主限法前端与导出链路（2026-03-05）
-
-- 设置与状态：
-  - `Horosa-Web/astrostudyui/src/models/app.js`
-    - 全局设置持久化新增：
-      - `pdMethod`
-      - `pdTimeKey`
-    - 登录态与无登录态都会恢复到 `astro.fields`
-  - `Horosa-Web/astrostudyui/src/models/astro.js`
-    - `fieldsToParams()` 会把：
-      - `pdMethod`
-      - `pdTimeKey`
-      发给后端排盘
-
-- 主限法页面：
-  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
-    - 新增 `applyPrimaryDirectionConfig(pdMethod, pdTimeKey)`；
-    - 页面提供：
-      - `推运方法`
-      - `度数换算`
-      - `计算`
-    - 子组件渲染使用 `chartObj.params.pdMethod / pdTimeKey` 作为“已应用方法”；
-    - 避免出现“左列按待应用值、右侧三列按旧结果”导致的假切换。
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
-    - `Horosa原方法`：
-      - 第一列标题 `赤经`
-    - `Alchabitius`：
-      - 第一列标题 `Arc`
-    - 主限法表格 remount key 现包含：
-      - `chartId`
-      - `pdMethod`
-      - `pdTimeKey`
-      - `showPdBounds`
-    - 避免切换 `度数换算` 后继续复用旧表格行缓存
-    - 顶部设置条改为响应式布局：
-      - 窄宽度或浏览器缩放后可自动换行
-      - `Select` 不再被固定宽高挤坏
-      - `计算` 按钮会跟随容器宽度伸缩，而不是保持僵硬固定尺寸
-    - 页面底部高度受控，表格在自身容器内滚动，不外溢窗口。
-
-- AI 导出：
-  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - 主限法快照新增 `[主/界限法设置]`，导出：
-    - `推运方法`
-    - `度数换算`
-    - `显示界限法`
-  - AI 导出设置 `primarydirect` 预设分段：
-    - `出生时间`
-    - `星盘信息`
-    - `主/界限法设置`
-    - `主/界限法表格`
-  - 导出时优先触发：
-    - `requestModuleSnapshotRefresh('primarydirect')`
-  - 所以导出的主限法文本默认跟随当前已应用的：
-    - `pdMethod`
-    - `pdTimeKey`
-    - `showPdBounds`
-  - 表格第一列标题随方法切换：
-    - `赤经`
-    - `Arc`
-
-- 文档入口：
-  - 新增根目录文档：
-    - `PRIMARY_DIRECTION_ALCHABITIUS_REPLICATION.md`
-    - `PRIMARY_DIRECTION_ALCHABITIUS_MATH_FLOW.md`
-  - 该文档用于完整描述 Reference 复刻核：
-    - 行结构
-    - Arc 公式
-    - 显示过滤
-    - 日期换算
-    - 最小复刻伪代码
-    - 回归脚本与统计结果
-  - 数学版文档补充：
-    - 纯数学符号定义
-    - `ra / raZ` 的坐标含义
-    - 各类对象构造公式
-    - `dirJD` 推导
-    - 流程图
-
-## 103) Alchabitius shared-core 对齐现状（2026-03-05 晚）
-
-- 仅影响 Reference 选项：
-  - `Horosa-Web/astropy/astrostudy/perchart.py`
-  - `Horosa-Web/astropy/astrostudy/perpredict.py`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
-  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
-  - `Horosa-Web/astrostudyui/src/models/app.js`
-  - `Horosa-Web/astrostudyui/src/models/astro.js`
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-- 当前 Reference kernel 的 shared-core 对象集：
-  - promissor：`Sun..Pluto + North Node`
-  - significator：`Sun..Pluto + North Node + Asc + MC`
-- 当前 Reference kernel 明确排除：
-  - `界 / Terms / Bounds / T_*`
-  - `Pars Fortuna`
-  - `Dark Moon`
-  - `Purple Clouds`
-  - `South Node`
-  - 其它 Reference 不支持的扩展虚点
-- 当前关键数学口径：
-  - `North Node` 使用 `TRUE_NODE`
-  - 普通对象与 `MC` 使用日期 `mean obliquity`
-  - `Asc` 的 significator zero-lat OA 分支使用日期 `true obliquity`
-  - `Asc` 的 promissor zero-lat OA 额外使用 `true obliquity - 0.0014°`
-  - `Asc` 另有 chart-level `asc_case_bias(chart)` 修正，只对 `Alchabitius` 的 `Asc` 行生效
-  - 验证口径使用 `utc_sourcejd_exact`
-- 前端主/界限法页：
-  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
-  - 当前 `推运方法` 切换会强制按 `pdtype=0` 重算，并在结果返回后整表 remount，避免出现“只更新左列标题、右侧三列仍是旧结果”的假切换
-- 本地验证与产物：
-  - `scripts/compare_pd_backend_rows.py`
-  - `scripts/compare_pd_backend_random.py`
-  - `runtime/pd_reverse/shared_core_kernel100_exact_summary.json`
-  - `runtime/pd_reverse/shared_core_hard200_exact_summary.json`
-  - `runtime/pd_reverse/shared_core_geo300_exact_summary.json`
-  - `runtime/pd_reverse/virtual_points_geo300_chart_summary.json`
-- 配套实现文档：
-  - `PRIMARY_DIRECTION_ALCHABITIUS_REPLICATION.md`
-  - `PRIMARY_DIRECTION_ALCHABITIUS_MATH_FLOW.md`
-
-### 103.1) 虚点残差的最新诊断与稳定修正（2026-03-06）
-
-- 新增实验脚本：
-  - `scripts/eval_virtual_point_kernels.py`
-- 该脚本沿用 duplicate-safe 配对逻辑，专门评估：
-  - `Asc`
-  - `MC`
-  - `North Node`
-- 诊断结论：
-  - 当前虚点残差的主要来源，不是 `Asc / MC / Node` 的主限弧公式主体跑偏；
-  - 更像是 promissor 本体坐标与当前基准本体坐标之间仍有细小差异；
-  - 其中 `Moon` 的本体黄经差异最大，因此 `Moon -> Asc / MC / North Node` 是最差桶。
-- 现已落地的稳定修正：
-  - `Horosa-Web/astropy/astrostudy/perpredict.py`
-  - 当前 production 已收窄为只对 `Moon -> Asc` 生效：
-    - promissor 月亮本体改用 Swiss `FLG_TRUEPOS` 重建，再构造相位点
-  - `Moon -> MC` 与 `Moon -> North Node` 都没有启用该修正：
-    - 因为它在 `runtime/pd_auto/run_geo_wide240_v7` 上出现轻微回退
-- 现有验证产物：
-  - `runtime/pd_reverse/virtual_kernel_geo300_summary.json`
-  - `runtime/pd_reverse/virtual_kernel_wide240_summary.json`
-  - `runtime/pd_reverse/virtual_kernel_run200_login_v1_summary.json`
-  - `runtime/pd_reverse/shared_core_geo300_exact_summary_vmoon2.json`
-  - `runtime/pd_reverse/shared_core_geo_wide240_v7_exact_summary_vmoon2.json`
-- 当前稳定收益：
-  - `geo300`
-    - `Asc`: `0.0010408782 -> 0.0010258268`
-    - `North Node`: `0.0003763461 -> 0.0003560969`
-  - `wide240_v7`
-    - `Asc`: `0.0016621602 -> 0.0016548058`
-    - `North Node`: `0.0005635118 -> 0.0005610257`
-- 上界诊断也已确认：
-  - 若 promissor 本体位置直接替换为当前基准本体位置，
-    `Asc / MC / North Node` 都还能继续大幅下降；
-  - 所以后续如果要逼近 `0.0001°`，重点应转向当前基准本体星历口径，而不是继续大改虚点方向公式。
-
-### 103.4) Asc promissor-side OA 微调（2026-03-06）
-
-- 在 `Horosa-Web/astropy/astrostudy/perpredict.py` 新增：
-  - `REFERENCE_PD_ASC_PROM_TRUE_OBLIQUITY_OFFSET = -0.0014`
-  - `REFERENCE_PD_ASC_CASE_CORR_MODEL`
-- 当前 `Asc` 生产口径：
-  - promissor side 的 zero-lat OA 使用 `true obliquity - 0.0014°`
-  - significator side 仍使用原始 `true obliquity`
-  - 在此基础上，再减去一个只与 natal chart 几何有关的 `asc_case_bias(chart)` 小修正
-- `asc_case_bias(chart)` 资源与训练入口：
-  - 模型文件：`Horosa-Web/astropy/astrostudy/models/reference_pd_asc_case_corr_et_v1.joblib`
-  - 元数据：`Horosa-Web/astropy/astrostudy/models/reference_pd_asc_case_corr_et_v1.json`
-  - 训练脚本：`scripts/train_reference_asc_case_correction.py`
-- 这层修正只作用于 `Asc`：
-  - 不改 `MC`
-  - 不改 `North Node`
-  - 不改已稳定的 planet-to-planet
-- 新验证产物：
-  - `runtime/pd_reverse/shared_core_run200_login_exact_summary_v5.json`
-  - `runtime/pd_reverse/shared_core_geo300_exact_summary_v11.json`
-  - `runtime/pd_reverse/shared_core_run200_login_exact_rows_v5.csv`
-  - `runtime/pd_reverse/shared_core_geo300_exact_rows_v11.csv`
-- 当前稳定收益：
-  - `run200_login`
-    - `shared_core arc_mae: 0.0002465703 -> 0.0002213291`
-    - `Asc arc_mae: 0.0006206678 -> 0.0003325791`
-    - `North Node arc_mae: 0.0000998902 -> 0.0000988982`
-  - `geo300`
-    - `shared_core arc_mae: 0.0002415835 -> 0.0002217847`
-    - `Asc arc_mae: 0.0006037416 -> 0.0003879265`
-    - `North Node arc_mae: 0.0001004009 -> 0.0000994236`
-  - `MC ≈ 3.06e-05°`
-  - `North Node < 1.00e-04°`
-
-### 103.3) 当前基准口径再确认（run200_login，2026-03-06）
-
-- 新验证产物：
-  - `runtime/pd_auto/run200_login`
-  - `runtime/pd_reverse/virtual_kernel_run200_login_v1_summary.json`
-- 结论更新：
-  - 当前参考批次的行为更接近 `geo300`，而不是 `wide240_v7`
-  - `run200_login` 中本地图盘 `Asc / MC` 角度本体与当前基准本体几乎重合：
-    - `Asc mae ≈ 0.0000257°`
-    - `MC mae ≈ 0.0000261°`
-  - 因此 `wide240_v7` 体现出的整张图盘角度偏移，更像旧批次或异常批次，不应继续主导当前生产实现
-- 当前基准口径下的虚点行结果：
-  - `Asc`: `arc_mae ≈ 0.0009593°`
-  - `MC`: `arc_mae ≈ 0.0001460°`
-  - `North Node`: `arc_mae ≈ 0.0001624°`
-- 进一步拆解：
-  - `Asc` 的剩余误差来自 promissor 本体经度，不来自 promissor 黄纬
-  - 默认 Swiss `apparent` 已是 `Sun..Pluto` 最接近当前基准的口径
-  - `Moon` 仍然是唯一 `TRUEPOS` 比默认 `apparent` 更接近当前基准的对象
-- 因此后续方向应收敛为：
-  - 不再围绕 `wide240_v7` 调整生产口径
-  - 若继续压低 `Asc`，优先追 promissor apparent longitude 口径
-
-### 103.2) 本地星历精度排查与可选 JPL 入口（2026-03-06）
-
-- 当前本地星历现状：
-  - `Horosa-Web/flatlib-ctrad2/flatlib/ephem/__init__.py`
-  - `Horosa-Web/flatlib-ctrad2/flatlib/ephem/swe.py`
-  - 默认星历路径指向 `Horosa-Web/flatlib-ctrad2/flatlib/resources/swefiles`
-  - 默认 flag 为 `FLG_SWIEPH | FLG_SPEED`
-  - 因此当前并非 Moshier，而是 Swiss Ephemeris `.se1`
-- 新增运行时切换入口：
-  - `Horosa-Web/flatlib-ctrad2/flatlib/ephem/swe.py`
-  - 现支持：
-    - `HOROSA_SWISSEPH_MODE=SWIEPH|JPL|MOSEPH`
-    - `HOROSA_SWISSEPH_JPL_FILE=/abs/path/to/de440.eph` 或相对 `swefiles/` 路径
-  - 现可通过 `getRuntimeConfig()` 读取当前 active path / mode / default flag / JPL file
-- 新增本地自检脚本：
-  - `scripts/check_local_ephemeris_precision.py`
-  - 用途：
-    - 输出当前 runtime ephemeris 配置
-    - 采样 `SWIEPH / MOSEPH / JPL(若可用)` 的 `lon / lat / ra / decl`
-    - 供后续拿到 JPL `.eph` 后直接复跑本地主限法误差对比
-- 当前结论：
-  - 机器本地未发现 `de406 / de431 / de440 / de441` 等 JPL 文件；
-  - 所以“提升本地星历精度”的下一步，不是继续改 arc 公式，而是补入 JPL `.eph` 后再用同一批 case 复测。
-
-### 103.4) current540 对象级 body correction（2026-03-06）
-
-- 新增训练脚本：
-  - `scripts/train_reference_virtual_body_corrections.py`
-- 新增运行时模型：
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_sun_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_moon_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_mercury_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_venus_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_mars_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_jupiter_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_saturn_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_uranus_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_neptune_v1.joblib`
-  - `Horosa-Web/astropy/astrostudy/models/reference_pd_virtual_body_corr_pluto_v1.joblib`
-- 运行时接入点：
-  - `Horosa-Web/astropy/astrostudy/perpredict.py`
-  - 新增：
-    - `REFERENCE_PD_VIRTUAL_BODY_CORR_MODELS`
-    - `_referenceLoadVirtualBodyCorrectionModel()`
-    - `_referenceVirtualBodyCorrectionFeatures()`
-    - `_applyReferencePromissorBodyModelCorrection()`
-- 当前用途：
-  - 只作用于 `Alchabitius` 的虚点 significator 行：
-    - `Asc`
-    - `MC`
-    - `North Node`
-  - `North Node` 仍保留 true-node 本体逻辑，不走单独 node body model。
-- current540 full-fit 虚点专项结果：
-  - `Asc arc_mae = 0.0009919653`
-  - `MC arc_mae = 0.0004144498`
-  - `North Node arc_mae = 0.0001155451`
-  - 三者都满足 `< 0.001°`
-
-### 103.5) 主限法服务层传参与本地一键自检（2026-03-06）
-
-- Java 控制器补齐 `pdMethod / pdTimeKey` 透传：
-  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
-  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
-  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/IndiaChartController.java`
-  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/PredictiveController.java`
-- 同一轮还补了内部 `_wireRev=pd_method_sync_v2` 请求版本号：
-  - 作用是让 `/chart`、`/qry/chart`、`/india/chart`、`/predict/pd` 相关缓存整体失效一次
-  - 避免升级后还命中旧缓存，导致运行态 `/chart.params` 里看不到 `pdMethod / pdTimeKey`
-- 作用：
-  - 之前 `pdMethod / pdTimeKey` 主要只在 Python 内核层和前端状态层存在；
-  - 现在通过 Java `/chart` 和 `/predict/pd` 控制器也会继续向下透传；
-  - 因此 Horosa 网站里切换 `Alchabitius / Horosa原方法` 时，整站真正换的是后端算法，不是只改前端显示或 AI 导出标签。
-- 新增运行时主限法验收脚本：
-  - `Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js`
-  - 直接请求本地 `http://127.0.0.1:9999`
-  - 同时验证：
-    - `/chart`
-    - `/predict/pd`
-    - `reference_alchabitius`
-    - `horosa_legacy`
-  - 并断言：
-    - `params.pdMethod / params.pdTimeKey` 返回值正确
-    - 两条方法链各自有结果
-    - `/chart` 与 `/predict/pd` 同方法输出一致
-    - 新旧两种方法的前导 rows 不相同
-- `Horosa-Web/verify_horosa_local.sh` 现已扩展为：
-  - 先跑原有 UI 代码静态校验
-  - 再跑主限法 runtime 验收脚本
-- 新增根目录自检入口：
-  - `Horosa_SelfCheck_Mac.command`
-  - 对应实现：`scripts/mac/self_check_horosa.sh`
-  - 用于“别人 Mac 一键部署后”的本地验收：
-    - 若服务没启动则用 `HOROSA_NO_BROWSER=1 + HOROSA_KEEP_SERVICES_RUNNING=1` 拉起
-    - 执行 `Horosa-Web/verify_horosa_local.sh`
-    - 自检结束后自动停止本次启动的服务
-    - 若默认端口已被其他副本占用，则自动改用空闲端口
-
-### 103.6) Horosa 整站静态接线 + 运行时 smoke check（2026-03-06）
-
-- 静态断言脚本：
-  - `scripts/check_horosa_full_integration.py`
-  - 用途：
-    - 检查首页顶层 tabs 与 `predictHook` 接线
-    - 检查 `八字紫微 / 易与三式` 子 tabs
-    - 检查模块级 AI snapshot 保存/读取
-    - 检查 `AI_EXPORT_TECHNIQUES / AI_EXPORT_PRESET_SECTIONS / requestModuleSnapshotRefresh`
-- 运行时 smoke 脚本：
-  - `Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js`
-  - 用途：
-    - 直接调用本地 `127.0.0.1:9999`
-    - 对整站核心模块做接口级形状断言
-    - 当前覆盖：
-      - `/chart`
-      - `/chart13`
-      - `/india/chart`
-      - `/location/acg`
-      - `/modern/relative`
-      - `/germany/midpoint`
-      - `/predict/pd`
-      - `/predict/profection`
-      - `/predict/solararc`
-      - `/predict/solarreturn`
-      - `/predict/lunarreturn`
-      - `/predict/givenyear`
-      - `/predict/zr`
-      - `/nongli/time`
-      - `/jieqi/year`
-      - `/bazi/direct`
-      - `/ziwei/birth`
-      - `/ziwei/rules`
-      - `/liureng/gods`
-      - `/liureng/runyear`
-      - `/gua/desc`
-      - `/common/pithy`
-      - `/common/gong12`
-      - `/calendar/month`
-- `Horosa-Web/verify_horosa_local.sh`
-  - 已升级为整合：
-    - 旧 UI 校验
-    - 主限法 runtime 校验
-    - 整站 runtime smoke
-    - 主限法 Python 校验
-    - 整站静态 Python 校验
-
-### 103.7) Alchabitius 主限法生产实现记录（2026-03-06）
-
-- 实现说明文档：
-  - `PRIMARY_DIRECTION_ALCHABITIUS_REPLICATION.md`
-  - 用途：
-    - 记录 Horosa 当前生产版 `Alchabitius` 的完整工程实现
-    - 明确区分：
-      - 主公式
-      - True Node 重建
-      - 动态 obliquity
-      - 虚点 promissor 修正层
-      - 前端 / AI 导出 / 服务层透传
-- 数学版文档：
-  - `PRIMARY_DIRECTION_ALCHABITIUS_MATH_FLOW.md`
-  - 用途：
-    - 单独记录当前生产版数学骨架与流程图
-    - 明确当前结果不是“纯公式版”，而是“公式 + 工程修正层”
-- 训练与验证脚本：
-  - `scripts/train_reference_virtual_body_corrections.py`
-  - `scripts/train_reference_asc_case_correction.py`
-  - `scripts/check_primary_direction_reference_integration.py`
-  - `scripts/compare_pd_backend_rows.py`
-  - `scripts/check_horosa_full_integration.py`
-    - 额外覆盖：
-      - 普通星盘右栏 `信息/相位/行星/希腊点/可能性`
-      - 3D盘右栏 `信息/相位/行星/希腊点`
-      - 希腊星术 `十三分盘`
-      - 印度律盘 `命盘 + 多律盘`
-      - 节气盘 `二十四节气 + 各节气星盘/宿盘/3D盘`
-      - 星体地图 `行星地图`
-      - 推运盘右栏全部技术页签
-- 生产模型目录：
-  - `Horosa-Web/astropy/astrostudy/models/`
-  - 当前包含：
-    - `reference_pd_virtual_body_corr_*.joblib`
-    - `reference_pd_asc_case_corr_et_v1.joblib`
-    - `reference_pd_asc_case_corr_et_v1.json`
-- 说明：
-  - 要在别人的 Mac 上“原模原样”复刻当前 Horosa 的 Reference 近似主限法，不能只复制 `perpredict.py`；
-  - 还必须同时带上：
-    - `models/` 目录
-    - 前端主限法接线
-    - Java 服务层透传
-    - AI 导出链路
-    - 自检脚本
-  - 2026-03-06 下午又补了一层运行态同步要求：
-    - `fieldsToParams()` 必须显式透传 `pdtype`
-    - `AstroDirectMain.applyPrimaryDirectionConfig()` 必须用 `cache: false` 强制重算
-    - `AstroPrimaryDirection` 必须把 `chart.params.pdtype !== 0` 视为未同步状态
-    - `verifyPrimaryDirectionRuntime.js` / `check_primary_direction_reference_integration.py` 必须断言表格直接显示后端 `pd[0]/pd[1]/pd[2]/pd[4]`
-    - 否则会出现“后端是对的，但页面还在显示旧 rows”的假偏差
-  - 同一天又补了服务常驻要求：
-    - `start_horosa_local.sh` 必须保证 `8899/9999` 在外层脚本退出后仍继续运行
-    - `self_check_horosa.sh` 默认不能在验收结束后自动把它自己拉起的服务停掉
-    - 否则用户页面还在，但主限法一点击 `计算` 就会报 `127.0.0.1:8899` 未就绪
-  - 同一天又补了多副本隔离要求：
-    - `stop_horosa_local.sh` 的兜底端口回收必须校验进程命令行属于当前工作区 `ROOT`
-    - 否则另一份 Horosa 副本在同机执行清理时，会把当前副本的 8000/8899/9999 服务误停
-  - 随后又补了多副本验收要求：
-    - `self_check_horosa.sh` 不能再写死 `8899/9999/8000`
-    - 若这些端口正被另一份副本占用，自检必须自动切到空闲端口而不是直接失败
-
-### 103.8) Windows Codex 主限法复现包（2026-03-06）
-
-- 根目录新目录：
-  - `WINDOWS_CODEX_REFERENCE_PD_REPRO_KIT/`
-- 目标：
-  - 让 Windows 上的 Codex 不需要重新研究算法，只依赖这个文件夹就能把当前 Mac 生产版 `Alchabitius` 主限法准确搬到 Windows 仓库。
-- 包内结构：
-  - `README_FIRST.md`
-    - 给人看的超详细复现说明
-  - `WINDOWS_CODEX_TASK_PROMPT.md`
-    - 直接交给 Windows Codex 的任务提示
-  - `FILE_MANIFEST.md`
-    - 文件清单与用途
-  - `SHA256SUMS.txt`
-    - 包内文件哈希校验
-  - `reference_docs/`
-    - 当前生产版主限法实现记录、数学版、结构说明、升级日志
-  - `expected_results/`
-    - 当前生产版关键结果摘要 JSON
-  - `snapshot/`
-    - 当前生产版关键代码快照、模型文件、Java/前端/验证脚本
-- 关键意义：
-  - `snapshot/` 下不仅有 Python 主限法算法文件，还包含：
-    - `models/` 二进制模型
-    - 前端主限法与 AI 导出接线
-    - Java 控制器透传
-    - 本地主限法/整站验证脚本
-  - 因此 Windows Codex 可直接按相对路径复刻，而不是根据文档二次猜测实现。
-
-### 103.9) Reference 主限法完整逆向推理总文档（2026-03-06）
-
-- 根目录文档：
-  - `ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md`
-- 目标：
-  - 把本地如何一步步整理当前目标 `Alchabitius + Ptolemy` 主限法的全过程单独写成一份长文档
-  - 不只写最终公式，还写：
-    - 基础输入范围
-    - 校准策略
-    - 每轮误差如何指向下一步
-    - 早期错误方向为什么被排除
-    - `TRUE_NODE / dynamic obliquity / Asc OA / body correction / display window / sourceJD exact` 各自是怎么被确认的
-    - 最终 Horosa 如何接到前端、Java 透传、AI 导出和验证脚本
-- 配套关系：
-  - 它是顶层“全过程总文档”
-  - `PRIMARY_DIRECTION_ALCHABITIUS_REPLICATION.md` 更偏生产实现说明
-  - `PRIMARY_DIRECTION_ALCHABITIUS_MATH_FLOW.md` 更偏数学骨架与流程图
-
-### 103.10) runtime 精简为主限法最小可运行/可验收集合（2026-03-06）
-
-- 当前 `runtime/` 不再保留早期逆向阶段的全部大样本与中间 CSV。
-- 现仅保留：
-  - `runtime/mac/`
-  - `runtime/pd_auto/run_geo_current540_v1`
-  - `runtime/pd_auto/plan_geo_current540_v1.csv`
-  - `runtime/pd_reverse/shared_core_geo_current540_s100_exact_rows_bodycorr.csv`
-  - `runtime/pd_reverse/shared_core_geo_current540_s100_exact_summary_bodycorr.json`
-  - `runtime/pd_reverse/stability_production_summary.json`
-  - `runtime/pd_reverse/virtual_only_geo_current540_fullfit_summary.json`
-  - `runtime/pd_reverse/shared_core_geo_current120_v2_exact_summary.json`
-- 目的：
-  - 让本地网站运行、主限法自检、整站自检仍然可用
-  - 同时把逆向阶段产生的 20G+ 中间产物清理掉
-
-### 103.11) Reference 主限法公开整理稿（2026-03-06）
-
-- 根目录文档：
-  - `ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_PUBLIC_EDITION.md`
-- 定位：
-  - 这是在完整逆向记录文档基础上整理出来的公开发布版
-  - 保留工程推理、证据层、关键常量、实现接线与验证结果
-  - 但把原本偏实验笔记的写法改写为“摘要 - 问题定义 - 证据 - 推理 - 实现 - 验证 - 结语”的正式文章结构
-- 与其它文档的关系：
-  - `ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md` 保留原始全过程痕迹，更适合内部研究和追索
-  - `ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_PUBLIC_EDITION.md` 更适合对外公开发布
-  - `PRIMARY_DIRECTION_ALCHABITIUS_REPLICATION.md` 仍是最贴近生产代码的实现说明
-
-### 103.12) Reference 主限法浏览器一致性修复（2026-03-06）
-
-- 这轮修复不是改主限法数学，而是改浏览器运行态一致性：
-  - `astrostudyui/src/models/astro.js`
-    - `pdtype` 默认值统一为 `0`
-  - `astropy/websrv/webchartsrv.py`
-  - `astropy/astrostudy/helper.py`
-    - `/chart` 返回的 `params` 补齐 `pdtype` 和 `showPdBounds`
-  - `astrostudysrv/astrostudy/.../AstroUser.java`
-  - `astrostudysrv/astrostudy/.../UserInfoController.java`
-    - Java 侧主限法类型默认值统一为 `0`
-- 目的：
-  - 避免页面标题显示 `Alchabitius`，但实际请求还是 `mundo主限法(pdtype=1)`。
-- 当前浏览器验收基准盘：
-  - 一组固定基准盘
-- 浏览器验收文件：
-  - `runtime/` 下对应浏览器 JSON 与截图
-- 这组文件用于证明：
-  - 用户浏览器第一页看到的主限法表格，已经重新和当前基准结果保持一致。
-
-### 103.13) Reference 主限法同步判定加固（2026-03-06）
-
-- `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
-  - 主限法页面顶部“已同步 / 重新计算”的最终判定逻辑
-  - 当前要求后端返回 `pdMethod / pdTimeKey / pdtype / pdSyncRev` 四项齐全，前端才允许进入 `已同步`
-- `Horosa-Web/astropy/websrv/webchartsrv.py`
-  - `/chart` 返回 `params.pdSyncRev = 'pd_method_sync_v6'`
-- `Horosa-Web/astropy/astrostudy/helper.py`
-  - helper 生成的 chart object 同步返回 `pdSyncRev`
-- `runtime/` 下对应主仓库浏览器截图与 JSON
-  - 这轮加固后再次做浏览器实测的证据文件
-
-### 103.14) 桌面打包版主限法与主仓库重新对齐（2026-03-06）
-
-- 目标：
-  - 确保桌面打包目录 `Horosa-Web+App (Mac)` 里的 `Alchabitius` 主限法，与主仓库当前生产实现完全一致。
-  - 重点验证样本：
-    - 一组固定基准盘
-- 本轮同步的关键文件：
-  - `Horosa-Web/astropy/astrostudy/helper.py`
-  - `Horosa-Web/astropy/websrv/webchartsrv.py`
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js`
-  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
-  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
-  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/PredictiveController.java`
-  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/IndiaChartController.java`
-- 关键约束：
-  - 主限法同步修订号统一为 `pd_method_sync_v6`
-  - 桌面包 Java `/chart` 也必须跟着升级 `_wireRev`，否则会继续命中旧版主限法缓存/旧编译产物
-- 桌面包取证文件：
-  - `runtime/` 下对应桌面包浏览器截图与 JSON
-- 这两份取证证明：
-  - 桌面包浏览器页面实际打的是桌面包自己的 `/chart`
-  - 用户看到的第一页表格已经重新和桌面包后端 `Alchabitius` 结果一致
-  - 第一屏关键行已经重新对回当前基准结果
-
-### 103.15) 推运盘十年大运新增结构（2026-03-07）
-
-- 页面入口：
-  - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
-  - 推运盘右栏页签新增：
-    - `TabPane tab="十年大运" key="decennials"`
-- 十年大运主实现：
-  - `Horosa-Web/astrostudyui/src/components/astro/AstroDecennials.js`
-  - 页面结构参考 `黄道星释`：
-    - 左侧：本命星盘；
-    - 中间：`L1-L4` 层级树，标题 `基于X起运`；
-    - 右侧：`设置` + `AI输出选择`。
-  - 设置项：
-    - `起运主星`
-    - `分配次序`
-    - `日限体系`
-    - `时间口径`
-      - `360天/年（按30天/月换算）`
-      - `365.25天/年（按回归年换算）`
-  - 展示规则：
-    - 中间层级使用行星符号，不再显示星座符号；
-    - 两种时间口径都以具体日期作为主显示；
-    - `360天/年` 模式下，在具体日期下方附带文档口径的名义区间说明；
-    - `365.25天/年` 模式下，具体日期按回归年比例拉伸；
-    - `L4` 显示到 `YYYY-MM-DD HH:mm`。
-- 十年大运计算核心：
-  - `Horosa-Web/astrostudyui/src/utils/decennials.js`
-  - 负责：
-    - 七曜基数（月）：土 `30`、木 `12`、火 `15`、日 `19`、金 `8`、水 `20`、月 `25`
-    - 总周期：`129个月 = 3870天`
-    - 起运主星解析：默认得时光体，也支持手选七曜
-    - 分配次序：实际黄道次序 / 迦勒底星序
-    - 日限体系：
-      - `Valens`：按比例精确到分钟
-      - `Hephaistio`：按文档原表日数
-    - 时间口径字段：
-      - `nominal`：按 `360天/年、30天/月` 换算的名义区间
-      - `date`：按所选时间口径换算得到的实际日期区间
-    - 层级输出：`L1 年主星 / L2 月主星 / L3 日主星 / L4 时主星`
-- AI 导出接线：
-  - `Horosa-Web/astrostudyui/src/utils/aiExport.js`
-  - 已新增：
-    - 技法键：`decennials`
-    - 技法名：`推运盘-十年大运`
-    - 预设分区：
-      - `起盘信息`
-      - `星盘信息`
-      - `十年大运设置`
-      - `基于X起运`
-  - 已兼容 `基于...起运` 的分段标题标准化，避免 AI 导出设置筛分不到十年大运快照。
-- 自检与巡检接线：
-  - `Horosa-Web/astrostudyui/src/utils/__tests__/decennials.test.js`
-    - 专项校验十年大运核心算法、两套时间口径的具体日期换算、名义区间辅助显示与 `L4 HH:MM` 显示。
-  - `scripts/browser_horosa_master_check.py`
-    - 推运盘子页巡检新增 `十年大运`。
-  - `scripts/check_horosa_full_integration.py`
-    - 静态接线检查新增 `十年大运` 页签断言。
-  - 当前说明：
-    - 该静态脚本仍会卡在主限法旧字符串断言，不代表十年大运模块异常。
-
-### 103.16) Windows Codex 主限法盘复现包（2026-03-08）
-
-- 根目录新增：
-  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/`
-- 目标：
-  - 给 Windows 上的 Codex 一套完整、可离线阅读、可直接对位替换的复现资料，覆盖：
-    - 新增的 `主限法盘` 页面；
-    - 现有 `AstroAPP-Alchabitius` 主限法实现；
-    - 广德盘浏览器级验收；
-    - 整站浏览器巡检与主限法阈值摘要。
-- 顶层文档：
-  - `README_FIRST.md`
-    - 先读说明，定义目标、范围、最低验收标准与执行顺序。
-  - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_FULL_REPLICATION_GUIDE.md`
-    - 极其详细的复现指南，逐段说明应复制哪些源码、模型与脚本，以及为什么必须保留 `pd_method_sync_v6`、为什么要清 `Horosa-Web/.horosa-cache`。
-  - `WINDOWS_CODEX_TASK_PROMPT.md`
-    - 可直接喂给 Windows Codex 的任务提示词，要求它严格按快照文件对位复刻并完成验收。
-  - `FILE_MANIFEST.md`
-    - 包内文件清单与用途说明。
-  - `SHA256SUMS.txt`
-    - 整包哈希清单，用于先校验资料完整性。
-- `reference_docs/`
-  - 当前主仓库说明文档副本：
-    - `README.md`
-    - `UPGRADE_LOG.md`
-    - `PROJECT_STRUCTURE.md`
-  - `主限法推演/`
-    - 主限法实现记录、数学流、全过程档案与公开整理稿副本。
-- `snapshot/`
-  - `Horosa-Web/astrostudyui/`
-    - `AstroPrimaryDirection.js`
-    - `AstroPrimaryDirectionChart.js`
-    - `AstroDirectMain.js`
-    - `aiExport.js`
-    - `constants.js`
-    - `request.js`
-    - `scripts/verifyPrimaryDirectionRuntime.js`
-  - `Horosa-Web/astropy/`
-    - `helper.py`
-    - `perpredict.py`
-    - `perchart.py`
-    - `webchartsrv.py`
-    - `webpredictsrv.py`
-    - `astrostudy/models/` 全部模型文件
-  - `Horosa-Web/astrostudysrv/`
-    - 四个关键 Java controller 快照
-  - 顶层脚本：
-    - `Horosa-Web/start_horosa_local.sh`
-    - `Horosa-Web/verify_horosa_local.sh`
-    - `scripts/check_primary_direction_astroapp_integration.py`
-    - `scripts/check_horosa_full_integration.py`
-    - `scripts/browser_primary_direction_chart_guangde_check.py`
-    - `scripts/browser_horosa_master_check.py`
-- `expected_results/`
-  - `runtime/guangde_*`
-    - 广德盘浏览器截图、表格截图、JSON 取证。
-  - `runtime/browser_horosa_master_check.*`
-    - 整站浏览器巡检结果。
-  - `runtime/pd_auto/debug_guangde_case/`
-    - AstroApp 当前抓取样本。
-  - `runtime/pd_reverse/`
-    - 广德盘 exact 摘要、全局 shared-core 摘要、稳定性摘要、虚点专项摘要。
-- 使用原则：
-  - Windows 侧要按 `snapshot/` 中的文件逐个覆盖目标仓库，而不是自行猜测实现。
-  - 完成后必须先跑广德盘，再跑整站巡检，再跑主限法阈值摘要校验。
-
-### 103.17) 主限法盘同步收口与一键入口重建判定（2026-03-08）
-
-- `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`
-  - `主限法盘` 的表格回写链路
-  - 当前策略：重算时直接调用 `/predict/pd`，把返回 rows 写回 `chartObj.predictives.primaryDirection`，保证 `主限法盘` 与 `主/界限法` 表格同源。
+- `Horosa_Desktop_Installer/`
 - `Horosa_OneClick_Mac.command`
-  - 根目录唯一推荐入口
-  - 不再只看“有没有 `dist-file / jar`”，而是会判断源码是否比构建产物更新；一旦源码更新，就自动重建。
-- `Horosa-Web/verify_horosa_local.sh`
-  - 整站验收总入口
-  - 浏览器 smoke 前若 `8000` 不在，会自动临时起一个静态页服务，避免验收被网页端口生命周期误伤。
-- 验收证据：
-  - `runtime/guangde_primarydirchart_browser_check.json`
-  - `runtime/guangde_primarydirchart_browser.png`
-  - `runtime/guangde_primarydirect_browser_table.png`
-  - 桌面打包版同名 `runtime/` 取证文件
+- `PROJECT_STRUCTURE.md`
+- `README.md`
+- `README_ZH.md`
+- `README_EN.md`
+- `UPGRADE_LOG.md`
+- `default.profraw`
+- `developerID_application.cer`
+- `developerID_installer.cer`
+- `diagnostics/`
+- `docs/`
+- `modules/`
+- `runtime/`
+- `scripts/`
+- `tools/`
+- `主限法推演/`
 
-### 103.18) `/chart` 主限法回写与 venv 自愈重建（2026-03-08）
+额外说明：
 
-- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
-  - 新增 `syncPredictiveMetaAndRows(...)`
-  - `/chart`、`/chart13` 返回前统一把 `params.pdMethod / pdTimeKey / pdtype / showPdBounds / pdSyncRev` 与当前请求对齐
-  - 若 `predictive=true`，直接调用 `AstroHelper.getPrimaryDirection(args)` 并覆盖 `predictives.primaryDirection`
-- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
-  - `/qry/chart` 复用同一套 `syncPredictiveMetaAndRows(...)`
-  - 保证查询接口不再回放旧主限法 rows
-- `scripts/mac/bootstrap_and_run.sh`
-  - `ensure_python_venv()` 改为先做可执行探测
-  - 若 `.runtime/mac/venv` 已损坏或迁移后 shebang 失效，自动删除并重建
-  - 安装依赖统一改为 `python -m pip`，避免旧 `bin/pip` 指向失效路径
-- 目的：
-  - 让 `/chart` 与 `/predict/pd` 在 `AstroAPP-Alchabitius / Horosa原方法` 双分支上完全一致
-  - 让 `Horosa_OneClick_Mac.command` 在瘦身包、迁移包和重下载包中都能自愈式重建运行环境
-- 对应验证：
-  - `node Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js`
-  - `scripts/mac/self_check_horosa.sh`
-  - `scripts/browser_primary_direction_chart_guangde_check.py`
+- 根目录还存在 `.DS_Store` 这类 macOS 元数据文件，不属于业务结构。
+- `.git/` 是仓库元数据目录，不属于产品代码结构本体。
 
-### 103.19) 主限法盘底层原理文档（2026-03-08）
+### 1.2 根目录主线划分
 
-- `主限法推演/主限法盘实现原理与算法说明.md`
-  - 新增的实现层总说明文档，专门解释 Horosa 里“主限法盘”的底层计算与显示逻辑。
-  - 覆盖内容：
-    - 为什么不能用“主/界限法”表格做事件插值
-    - 正确链路：`时间 -> 主限弧 -> 赤道层推进 -> 投影回黄道`
-    - 四轴/宫头为什么必须按 `ARMC + arc` 重建
-    - `AstroAPP-Alchabitius` 分支为何仍要先做基础点修正，再进入主限盘推进
-    - 为什么表格命中后，黄道盘面不一定还能看成完美黄道相位
-    - 当前主限法盘如何支持对 `directing by terms` 的观察与手工使用
-  - 适用对象：
-    - 后续维护者
-    - 需要理解“主限法盘”与“主/界限法表格”关系的研究者
-  - 未来要继续扩展 `terms overlay` 或主限辅助标记层的人
-  - 配套索引：
-    - `主限法推演/README.md` 现已补充该文档入口说明
+如果从维护角度看，这个仓库现在实际上由 6 条主线组成：
 
-### 103.20) 主限法按需加载与技法页性能自检（2026-03-08）
+1. `Horosa-Web/`
+   Horosa 主业务工程，包含前端、Java 后端、Python 图表/算法服务。
+2. `Horosa_Desktop_Installer/`
+   macOS 桌面安装器、Tauri 壳、打包/签名/发布链路。
+3. `scripts/` 和 `tools/`
+   仓库级脚本、本地启动入口、浏览器验收与主限法专项校验。
+4. `runtime/`
+   运行时包、验证样本、主限法反推结果、发布验收结果。
+5. `docs/`、`diagnostics/`、`README*.md`
+   面向用户与维护者的文档、截图与诊断记录。
+6. `modules/` 与 `主限法推演/`
+   扩展参考实现、主限法专门文档与逆向记录。
 
-- `Horosa-Web/astropy/astrostudy/helper.py`
-  - 新增 `includePrimaryDirection(data)` 与 `getPredictivesObj(data, perchart)`。
-  - `/chart` 层现在默认只回 `firdaria`；只有显式 `includePrimaryDirection=true` 才回 `primaryDirection`。
-- `Horosa-Web/astropy/websrv/webchartsrv.py`
-  - `/chart`、`/chart13` 改用 `getPredictivesObj(...)`，不再在普通 predictive 刷新时无条件算主限法。
-  - 进程启动时新增一组主限法 warmup 样本，先把 `AstroAPP-Alchabitius` 的模型和修正链热起来，降低首次进入主限法页的冷启动时间。
-- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
-- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/QueryChartController.java`
-- `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/IndiaChartController.java`
-  - Java 包装层统一新增/透传：
-    - `includePrimaryDirection`
-    - `pdMethod`
-    - `pdTimeKey`
-    - `pdtype`
-  - 只有在显式要求主限法时才回写 `predictives.primaryDirection`，避免普通 `/chart` 响应重新变重。
-- `Horosa-Web/astrostudyui/src/models/astro.js`
-  - 新增 `shouldIncludePrimaryDirection(state)`。
-  - 只有当顶层在 `推运盘`，且右侧子页是 `primarydirect / primarydirchart` 时，`fetch / fetchByChartData / fetchByFields / nowChart` 才给 `/chart` 带 `includePrimaryDirection=true`。
-  - 因此星盘、3D 盘、节气盘、七政四余、印度律盘、希腊星术等右侧改时间时，不再被主限法额外拖慢。
-- `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
-  - 增加主限法懒加载链路：
-    - 当前页若是 `primarydirect / primarydirchart`
-    - 且当前 `chartObj` 还没有与 `pdMethod / pdTimeKey / pdSyncRev` 对齐的主限法 rows
-    - 就单独请求 `/predict/pd` 回填
-  - 这样 `主/界限法` 和 `主限法盘` 仍共用同一批 rows，但非主限法页面不再重复算它。
-- `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
-  - 新增运行态性能自检脚本，当前覆盖：
-    - `星盘 / 3D盘`
-    - `推运盘`
-    - `三式合一`
-    - `易与三式`
-    - `节气盘`
-    - `七政四余`
-    - `印度律盘`
-    - `希腊星术`
-    - `关系盘`
-    - `量化盘`
-    - `八字紫微`
-  - 输出：
-    - `runtime/horosa_runtime_perf_check.json`
-  - 当前阈值：
-    - 技法页 `<= 1000ms`
-    - `万年历` 作为辅助页单列记录，不参与本轮技法阈值判定
-- `Horosa-Web/verify_horosa_local.sh`
-  - 现在会额外执行 `verifyHorosaPerformanceRuntime.js`，让本地一键自检能同时检查：
-    - 主限法按需加载行为
-    - 整站主要运行时返回结构
-    - 用户点名技法页的性能阈值
-- 当前本地实测上限（同机运行态）：
-  - `星盘 / 3D盘`: `439.782ms`
-  - `推运盘`: `262.993ms`
-  - `三式合一 / 易与三式`: `375.227ms`
-  - `节气盘`: `127.450ms`
-  - `七政四余`: `328.750ms`
-  - `印度律盘`: `91.008ms`
-  - `希腊星术`: `95.922ms`
-  - `关系盘`: `110.518ms`
-  - `量化盘`: `82.903ms`
-  - `八字紫微`: `443.465ms`
-- 直接结果：
-  - 用户点名的主技法页已全部回到 `1s` 内；
-  - 星盘相关页右侧时间变更不再因为主限法而被整站性拖慢。
+### 1.3 根目录关键文件
 
-### 103.21) 万年历月视图批量农历计算（2026-03-08）
+- `Horosa_OneClick_Mac.command`
+  根目录 Mac 一键入口。
+- `README.md`
+  总入口说明。
+- `README_ZH.md`
+  中文版产品/发布说明，当前重点已经明显转向 macOS 桌面正式分发。
+- `README_EN.md`
+  英文版说明。
+- `UPGRADE_LOG.md`
+  升级与变更记录。
+- `PROJECT_STRUCTURE.md`
+  当前这份结构说明。
+- `default.profraw`
+  本地性能/覆盖率相关残留产物，不是业务代码。
+- `CertificateSigningRequest*.certSigningRequest`
+  Apple 证书申请文件。
+- `developerID_application.cer`
+  Developer ID Application 证书文件。
+- `developerID_installer.cer`
+  Developer ID Installer 证书文件。
 
-- `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/NongliHelper.java`
-  - 新增 `getNongLiSeries(...)` 批量入口，专门给连续日期场景复用同一份月视图上下文。
-  - 新增三层请求内复用：
-    - `dayCache`
-    - `monthCache`
-    - `jieqiYearCache`
-  - 目的不是改算法，而是避免月视图里 `44` 个日期重复做：
-    - 日期级 `nongli` 持久缓存读写
-    - 农历月表重取
-    - 节气年表重取
-  - 计算链路仍保持原样：
-    - 真太阳时修正
-    - 农历月定位
-    - 节气命中
-    - 月干支/日干支/时干支
-    - 月将与用事
-    - 朔望时间判断
-  - 已额外做过批量结果与逐日原路径的逐项一致性核对，未发现结果漂移。
-- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/helper/CalendarHelper.java`
-  - `getMonthDays(...)` 不再逐日单独调用 `getNongLi(...)`。
-  - 现在先生成整个月视图所需的连续日期字符串，再一次性走 `getNongLiSeries(...)`。
-  - 这样 `days` 与 `prevDays` 结构保持不变，但后端耗时从秒级降到亚 `100ms`。
-- `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
-  - `万年历 /calendar/month` 已从辅助项改为正式阈值项。
-  - 现在 `runtime/horosa_runtime_perf_check.json` 中：
-    - `万年历` 进入 `modules`
-    - 不再进入 `auxiliaryModules`
-    - 和其它主页面一起强制执行 `<= 1000ms`
-- 当前本地实测上限（同机运行态）：
-  - `星盘 / 3D盘`: `328.676ms`
-  - `推运盘`: `277.669ms`
-  - `三式合一 / 易与三式`: `245.169ms`
-  - `节气盘`: `122.764ms`
-  - `七政四余`: `257.437ms`
-  - `印度律盘`: `88.949ms`
-  - `希腊星术`: `87.656ms`
-  - `关系盘`: `102.668ms`
-  - `量化盘`: `77.050ms`
-  - `八字紫微`: `363.275ms`
-  - `万年历`: `80.193ms`
-- 直接结果：
-  - `万年历 /calendar/month` 已从约 `3.1s` 降到约 `80ms`；
-  - 本轮纳入验收的整站主页面现已全部进入 `1s` 内。
+### 1.4 根目录本地运行痕迹
 
-### 103.22) 节气盘二十四节气首屏与图盘标签懒加载（2026-03-09）
+- `.horosa-cache/`
+  根级缓存目录，当前看到的是 `paramhash/` 相关缓存。
+- `.runtime/`
+  本地运行时与虚拟环境目录，当前可见：
+  - `.runtime/mac/`
+  - `.runtime/mac/m2/`
+  - `.runtime/mac/venv/`
 
-- `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
-  - `requestJieQi()` 现已改成：
-    - `二十四节气` 首屏只走一次完整 `/jieqi/year` 四柱请求；
-    - 节气图盘标签切换时按当前标签单独拉取 `/chart`；
-    - 不再把四季节气图盘整包一次性并发拉回。
-  - `requestJieQiCharts(...)` 现在会：
-    - 先从当前 `jieqi24` 结果中取对应节气时间；
-    - 再调用已有的 `loadJieqiChart(...)` 单盘缓存链路；
-    - 只把当前标签那一张盘写回 `result.charts[term]`。
-  - 新增 `cacheJieqiSeedRows(...) / findJieqiRow(...)`，用于：
-    - 复用节气时间种子；
-    - 让单盘懒加载不再依赖旧的四季批量图接口。
-- `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/JieQiController.java`
-  - `/jieqi/year` 里写入缓存前，`bazi.fourColumns` 会先转成 plain map，避免缓存命中后丢字段。
-  - `JieQiYearCacheRev` 已继续推进，用于主动失效旧结构缓存。
-  - 节气图盘里的 `chart.nongli` 仍保持原有结构，但现在同样先做 plain-map 化，保证缓存命中时不会丢 `bazi`。
-- `Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
-  - `jieqi_year_24` 现在是节气页首屏的正式强制阈值项。
-  - 旧的 `/jieqi/year` 四季批量图接口改为 `auxiliaryScenarios`，只做兼容观察，不再代表当前实际前端路径。
-  - `/chart` 场景现在同时覆盖 `节气盘`，用于度量节气单盘标签切换的真实底层耗时。
-- `Horosa-Web/astrostudyui/scripts/warmHorosaRuntime.js`
-  - 新增启动预热脚本，专门预热：
-    - `/chart`
-    - `/jieqi/year` 二十四节气首屏
-- `Horosa-Web/start_horosa_local.sh`
-  - 新增 `warm_runtime_routes()`：
-    - 服务就绪后自动跑 `warmHorosaRuntime.js`
-    - 预热失败只记日志，不阻塞启动
-    - 可用 `HOROSA_SKIP_RUNTIME_WARMUP=1` 跳过
-- 当前本地实测上限（启动预热后、运行态）：
-  - `节气盘`: `311.991ms`
-  - `星盘 / 3D盘`: `311.991ms`
-  - `万年历`: `89.511ms`
-  - `八字紫微`: `387.166ms`
-  - 全部强制阈值页：`<= 1000ms`
+## 2. 主业务工程：`Horosa-Web/`
 
-### 103.23) 宗师级收尾自检与运行报告归档（2026-03-09）
+这是 Horosa 的主业务代码区，也是桌面应用真正加载和调用的业务主体。
 
-- 自检入口：
-  - `scripts/mac/self_check_horosa.sh`
-    - 会自动串起运行态校验、Python 集成校验与浏览器总冒烟。
-  - `scripts/browser_primary_direction_chart_guangde_check.py`
-    - 单独覆盖主限法表格/主限法盘/方法切换/外圈时间联动。
-  - `scripts/check_local_ephemeris_precision.py`
-    - 单独检查本地 Swiss Ephemeris 运行时路径与采样精度状态。
-- 本轮关键产物：
-  - `runtime/horosa_runtime_perf_check.json`
-    - 当前全站主页面运行态性能报告；最新状态 `ok`。
-  - `runtime/browser_horosa_master_check.json`
-    - 浏览器层主模块冒烟结果；最新状态 `ok`。
-  - `runtime/browser_horosa_master_check.png`
-    - 浏览器总冒烟截图留档。
-  - `runtime/guangde_primarydirchart_browser_check.json`
-    - 主限法盘专项浏览器报告；最新状态 `ok`。
-- 本轮确认的运行态结果：
-  - `节气盘 /jieqi/year 二十四节气首屏`: `104.163ms`
-  - `节气单盘 /chart`（与星盘、3D盘共底层）: `311.352ms`
-  - `万年历 /calendar/month`: `76.123ms`
-  - 最慢强制项仍为 `八字紫微 /bazi/direct`: `361.181ms`
-- 风险说明：
-  - 浏览器总冒烟里若出现高德瓦片远端超时，会记录在 `warnings`，但不视作本地回归。
-  - 这类自检能把当前仓库与本地运行环境下的大多数高风险路径扫到，但仍不等于对未来一切输入组合做形式化证明。
+### 2.1 `Horosa-Web/` 的一级内容
 
-### 103.24) 主限法盘 ASC Term 高亮补完与专项浏览器验收（2026-03-09）
+当前在 `Horosa-Web/` 下可见的主要条目：
 
-- `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`
-  - `buildAscTermHighlight(...)` 继续基于主限法外圈盘的 `ASC -> sign/signlon` 精确结果匹配 `EGYPTIAN_TERMS`，并补充下游渲染所需的：
-    - `markerId: AstroConst.ASC`
-    - `markerLabel: 'ASC'`
-  - 右侧状态栏仍显示 `当前ASC所在界：...`，因此这份对象现在同时承担“状态文本”和“图面高亮”的统一数据源。
-- `Horosa-Web/astrostudyui/src/components/astro/AstroChartCircle.js`
-  - 新增 `resolveTermHighlightColor(...)`
-    - 当主题里界主星颜色与普通描边太接近时，自动回退到星座颜色，确保高亮在古老主题/浅色主题下仍然可辨识。
-  - 新增 `appendTermHighlightMarker(...)`
-    - 在命中的 `Term` 上叠加一条径向标记线与圆点，精确落在当前 `ASC` 度数位置。
-  - `termBand(...)`
-    - 命中的 `Term` 现在除了原有扇区外，还会有：
-      - 更粗的高对比描边；
-      - 一层内缩强调扇区；
-      - `astro-term-highlight` 类名；
-      - `data-term-sign / data-term-owner / data-highlight-marker / data-highlight-owner` 属性。
-    - 这样既让用户肉眼可见，也让浏览器验收脚本能稳定抓到当前高亮段。
-- `scripts/browser_primary_direction_chart_guangde_check.py`
-  - 新增 `read_term_highlight(page)`：
-    - 直接读取 `g.astro-term-highlight[data-highlight-marker="Asc"]`
-    - 校验其包含 `sign / owner / lineCount / markerCount`
-  - `read_state_lines(page)` 现会额外抓取 `当前ASC所在界：`
-  - 主限法盘专项浏览器报告现在会把
-    - `initial_pd_chart_term_highlight`
-    - `arbitrary_pd_chart_term_highlight`
-    一并写入 `runtime/guangde_primarydirchart_browser_check.json`
-- 当前本地验证结果：
-  - `Horosa-Web/verify_horosa_local.sh`: `ok`
-  - `scripts/browser_primary_direction_chart_guangde_check.py`: `ok`
-  - 当前运行态上限仍保持在 `1s` 内，最新关键值约为：
-    - `推运盘`: `262.717ms`
-    - `节气盘 /jieqi/year 二十四节气首屏`: `108.779ms`
-    - `万年历 /calendar/month`: `77.373ms`
+- `${env:HOME}/`
+- `.horosa-browser-profile/`
+- `.horosa-cache/`
+- `.horosa-local-logs/`
+- `.horosa_java.pid`
+- `.horosa_py.pid`
+- `.horosa_web.pid`
+- `astropy/`
+- `astrostudysrv/`
+- `astrostudyui/`
+- `flatlib-ctrad2/`
+- `scripts/`
+- `start_horosa_local.sh`
+- `stop_horosa_local.sh`
+- `verify_horosa_local.sh`
 
-### 103.25) 桌面比例回归修复 + 节气盘四季入口恢复 + 最终复核（2026-03-09）
+### 2.2 `Horosa-Web/` 的角色划分
 
-- `Horosa-Web/astrostudyui/src/models/app.js`
-  - 新增：
-    - `MinWorkspaceHeight = 660`
-    - `MaxWorkspaceHeight = 760`
-    - `normalizeWorkspaceHeight(viewportHeight)`
-  - 初始化时的 `astro.height` 现在不再随着超高屏幕无限增长，而是固定回桌面端旧比例上限。
-  - 结果是 2K/4K 视口下主盘区域仍保持约 `760px` 高度，避免用户反馈的“屏幕比例怪掉、图面被拉得过大”。
-- `Horosa-Web/astrostudyui/src/components/jieqi/JieQiChartsMain.js`
-  - `genTabsDom(height)` 现在始终按四季 `jieqis` 渲染：
-    - `春分/夏至/秋分/冬至` 的 `星盘 / 宿盘 / 3D盘` 入口 tab
-  - 只有具体 tab 内容继续按需懒加载，不再把“入口是否存在”绑定到 `result.charts` 是否已有缓存。
-  - 这修复了此前节气盘停在 `二十四节气` 首屏时，右侧四季入口整体消失的问题。
-- `scripts/browser_horosa_master_check.py`
-  - `TOP_MODULES` 里的 `节气盘` 浏览器巡检已扩展为 13 个页签：
-    - `二十四节气`
-    - 四季 `星盘 / 宿盘 / 3D盘`
-  - 因而后续只要这些入口再丢一次，浏览器冒烟就会直接 fail。
-- 最新自检证据：
-  - `runtime/browser_horosa_master_check.json`
-    - `status: ok`
-    - `节气盘` 下 13 个页签全部 `clicked=true`
-  - `runtime/guangde_primarydirchart_browser_check.json`
-    - `status: ok`
-    - `initial_pd_chart_term_highlight / arbitrary_pd_chart_term_highlight` 均存在
-  - 2048×1179 视口实测：
-    - 最大主盘 SVG `1274.3125 × 760`
-    - 说明桌面比例已回到固定高度，不再无限拉高
-- 最新运行态上限：
-  - `星盘 / 3D盘 / 节气单盘 /chart`: `283.94ms`
-  - `推运盘`: `257.602ms`
-  - `节气盘 /jieqi/year 二十四节气首屏`: `96.56ms`
-  - `万年历 /calendar/month`: `76.435ms`
-  - 最慢强制项 `八字紫微 /bazi/direct`: `341.895ms`
+- `astrostudyui/`
+  Umi + React 前端。
+- `astrostudysrv/`
+  Java Maven 多模块后端。
+- `astropy/`
+  Python 图表、推运、历法、主限法等算法与服务接口。
+- `flatlib-ctrad2/`
+  内置/修改版 Python 占星依赖库，给 Horosa 的图表与推运能力提供底层支持。
+- `scripts/repairEmbeddedPythonRuntime.py`
+  主工程内部用于修复嵌入式 Python runtime 的脚本。
 
-### 103.26) 桌面比例最终修正：撤销全局固定高度，恢复视口自适应（2026-03-09）
+### 2.3 前端：`Horosa-Web/astrostudyui/`
 
-- `Horosa-Web/astrostudyui/src/models/app.js`
-  - `normalizeWorkspaceHeight(viewportHeight)` 最终策略改为：
-    - 正常桌面视口：直接使用 `viewportHeight - 100`
-    - 过小/非法值：仅回落到 `MinWorkspaceHeight = 660`
-  - 不再保留 `MaxWorkspaceHeight` 这样的全局桌面高度上限。
-  - 这意味着 `astro.height` 重新回到“按当前窗口真实高度工作”，不再把星盘、推运盘、关系盘、节气盘等所有页面统一压成固定高度。
-- 根因结论：
-  - 本轮“窗口比例突然变坏”的直接根因，就是之前为修桌面比例临时加入的全局高度钳制。
-  - 它虽然短暂抑制了超高屏下的纵向放大，但也把双层盘和整站页面的原始比例一起改坏了。
-  - 最终方案因此不是继续微调 `760/800` 之类中间值，而是完全撤销全局上限，只保留最小安全高度兜底。
-- 当前布局验证证据：
-  - `runtime/layout_revert_metrics.json`
-    - `星盘`：主 SVG `1274.3125 × 1180`，`overlapX=false`
-    - `太阳弧`：主 SVG `1181.8125 × 1160`，`overlapX=false`
-    - `关系盘`：主 SVG `1175.078125 × 1090`，`overlapX=false`
-  - 对应截图：
-    - `runtime/layout_starchart_after_revert.png`
-    - `runtime/layout_solararc_after_revert.png`
-    - `runtime/layout_relation_after_revert.png`
-- 联动自检结果：
-  - `HOROSA_WEB_PORT=18009 ./Horosa-Web/verify_horosa_local.sh`：`ok`
-  - 浏览器总冒烟：
-    - 节气盘 13 个入口全部 `clicked=true`
-    - 主限法 `Horosa原方法 <-> AstroAPP-Alchabitius` 切换正常
-    - `主限法盘` SVG 与 ASC Term 高亮仍正常
-- 最新性能上限仍保持亚秒：
-  - `星盘 / 3D盘 / 节气单盘 /chart`: `336.58ms`
-  - `推运盘`: `264.141ms`
-  - `节气盘 /jieqi/year 二十四节气首屏`: `105.313ms`
-  - `万年历 /calendar/month`: `80.51ms`
-  - 最慢强制项 `八字紫微 /bazi/direct`: `369.496ms`
+#### 2.3.1 顶层文件与目录
 
-### 103.27) 三式合一头部时间区排版修正（2026-03-09）
+`astrostudyui/` 当前可见的顶层内容包括：
 
-- `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js`
-  - `renderTop(boardSize)` 的日期区头部改为两行双信息布局：
-    - `农历` 行：左侧主值显示紧凑农历文本，右侧显示 `直接时间`
-    - `日期` 行：左侧主值显示公历日期，右侧显示 `真太阳时`
-  - 不再把 `日期 + 真太阳时 + 直接时间` 直接拼成一条长文本，避免在固定宽度头部里被截断。
-- `Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.less`
-  - 新增日期区主文本/辅文本样式：
-    - `.dateMainText`
-    - `.dateMetaText`
-    - `.dateMetaLabel`
-    - `.dateMetaValue`
-  - 辅助时间标签字号下调到和周边说明文字更接近，头部信息层级更统一。
-- 当前确认结果：
-  - `runtime/sanshi_time_header_check.png`
-    - 头部已显示：
-      - `农历 | 正月廿一 | 直接时间 | 02:43`
-      - `日期 | 2026-03-09 | 真太阳时 | 02:29`
-  - 这次调整只改排版与文案摆放，不改三式合一的起盘算法、历法精度或真太阳时计算链路。
+- `.gitignore`
+- `.tmp_ai_export_matrix_check.js`
+- `.tmp_decode_response.js`
+- `.tmp_encode_request.js`
+- `.tmp_horosa_perf_check.js`
+- `.tmp_horosa_verify.js`
+- `.tmp_sanshi_calc_debug.mjs`
+- `.umirc.js`
+- `dist/`
+- `dist-file/`
+- `node_modules/`
+- `package-lock.json`
+- `package.json`
+- `public/`
+- `scripts/`
+- `src/`
 
-### 103.28) 底部备案遮挡、左侧三点折叠与方盘底边留白联修（2026-03-09）
+其中：
 
-- `Horosa-Web/astrostudyui/src/components/homepage/PageFooter.js`
-  - 底部 footer 改成单行纯文字备案信息。
-  - 已删除底部备案图片图标与 `996.icu` 徽标，避免压到盘面底边。
-- `Horosa-Web/astrostudyui/src/components/homepage/PageFooter.less`
-  - footer 字号与上边距收紧到更轻量的桌面样式。
-- `Horosa-Web/astrostudyui/src/layouts/app.js`
-  - `Footer` 增加 `id='globalFooter'`，供宿盘/七政四余方盘按 footer 顶部动态限高。
-  - footer padding 同步缩小。
-- `Horosa-Web/astrostudyui/src/layouts/app.less`
-  - 为顶层左侧总导航 `mainRootTabs` 增加全局样式：
-    - 隐藏 Ant Tabs 的 `nav-operations` 三点折叠按钮
-    - 左侧标签栏本体改为直接滚动
-    - 不再默认把最后几个顶层按钮塞进 `...`
-- `Horosa-Web/astrostudyui/src/pages/index.js`
-  - 顶层 tabs 增加 `className='mainRootTabs'`
-  - 首页主工作区容器高度不再额外减去 `50px`
-- `Horosa-Web/astrostudyui/src/models/app.js`
-  - 工作区保留高度从 `viewport - 100` 微调为 `viewport - 88`
-  - 因而默认“显示窗口”底边略微下放，但仍保留安全留白
-- `Horosa-Web/astrostudyui/src/components/suzhan/SuZhanChart.js`
-  - 方盘尺寸计算增加 footer 顶边感知；
-  - 宿盘仍始终保持正方形，但不会再贴到窗口最下端。
-- `Horosa-Web/astrostudyui/src/components/guolao/GuoLaoChart.js`
-  - 七政四余方盘同样改为按 footer 顶边动态限高；
-  - `VIEWPORT_BOTTOM_GAP` 也同步加大，底边更稳。
-- 当前验证结果：
-  - `runtime/layout_footer_menu_metrics.json`
-    - `navOpsDisplay = none`
-    - 顶层主按钮共 16 个，全部直接可见
-    - `流年法` 底部到 footer 留白约 `70px`
-    - `宿盘` / `七政四余` 方盘底部到 footer 留白约 `116px`
-  - 对应截图：
-    - `runtime/layout_top_tabs_footer_check.png`
-    - `runtime/layout_direction_flowyear_footer_check.png`
-    - `runtime/layout_cnyibu_suzhan_footer_check.png`
-    - `runtime/layout_guolao_footer_check.png`
+- `package.json`
+  当前前端脚本包括：
+  - `start`
+  - `build`
+  - `build:file`
+  - `postinstall`
+  - `prettier`
+  - `test`
+  - `test:coverage`
+- `.umirc.js`
+  Umi 项目配置入口。
+- `dist/`
+  常规前端构建产物。
+- `dist-file/`
+  用于桌面 runtime 打包的前端产物目录。
+- `node_modules/`
+  前端依赖目录。
+- `.tmp_*`
+  当前仓库里保留的调试/校验临时脚本。
 
-### 103.29) 窗口缩放高度实时同步修复与全站排版复核（2026-03-09）
+#### 2.3.2 `astrostudyui/scripts/`
 
-- `Horosa-Web/astrostudyui/src/models/app.js`
-  - `normalizeWorkspaceHeight(viewportHeight)` 继续作为唯一工作区高度入口；
-  - `subscriptions.setup(...)` 新增 `syncWorkspaceHeight(...)` 与带 `80ms` 防抖的 `window.resize` 监听；
-  - 页面启动后和窗口动态缩放后，都会把最新 `document.documentElement.clientHeight` 重新同步回 `astro.height`；
-  - 监听器在 model 订阅卸载时会主动 `removeEventListener + clearTimeout`，避免重复绑定。
-- 修复目的：
-  - 解决“初次打开正常，但浏览器缩放过一次后盘面和右栏比例突然怪掉”的全局桌面端回归；
-  - 根因是旧逻辑只在启动时计算一次工作区高度，后续 live resize 不会刷新。
-- 当前动态缩放专项产物：
-  - `runtime/resize_layout_audit_postfix.json`
-    - 覆盖：
-      - `astrochart`
-      - `direction_solararc`
-      - `jieqi_spring`
-      - `cnyibu_suzhan`
-      - `guolao`
-      - `sanshiunited`
-      - `calendar`
-    - 测试序列：
-      - `1720x1184 -> 1366x900 -> 2048x1280 -> 1366x900`
-    - 关键结果：
-      - 各页面 `compact` 与二次回缩 `compact2` 的主图高度差都为 `0`
-      - 说明 live resize 后已不再保留旧高度残影
-  - 对应截图：
-    - `runtime/resize_astrochart_compact2.png`
-    - `runtime/resize_direction_solararc_compact2.png`
-    - `runtime/resize_jieqi_spring_compact2.png`
-    - `runtime/resize_cnyibu_suzhan_compact2.png`
-    - `runtime/resize_guolao_compact2.png`
-    - `runtime/resize_calendar_compact2.png`
-    - `runtime/sanshi_time_header_current.png`
-    - `runtime/sanshi_time_header_current_compact.png`
-- 联动自检结果：
-  - `HOROSA_WEB_PORT=18013 ./Horosa-Web/verify_horosa_local.sh`：`ok`
-  - `HOROSA_WEB_PORT=18013 python3 scripts/browser_primary_direction_chart_guangde_check.py`：`ok`
-  - `python3 scripts/check_local_ephemeris_precision.py --json`：`ok`
-  - 浏览器总冒烟继续确认：
-    - 节气盘 13 个入口全部可点
-    - 主限法切方法与主限法盘外圈更新时间正常
-    - ASC 所在 Term 高亮仍存在
-    - 三式合一当前头部里 `直接时间 / 真太阳时` 在标准与紧凑宽度下都可见
-- 最新性能上限仍保持亚秒：
-  - `星盘 / 3D盘 / 节气单盘 /chart`: `373.65ms`
-  - `推运盘`: `264.434ms`
-  - `节气盘 /jieqi/year 二十四节气首屏`: `112.866ms`
-  - `万年历 /calendar/month`: `83.276ms`
-  - 最慢强制项 `八字紫微 /bazi/direct`: `376.863ms`
+前端自己的脚本目录当前包含：
 
-### 103.30) 宗师级终检留档：最后几项桌面端问题全部复核（2026-03-09）
+- `patch_quill_domnodeinserted.js`
+  安装后补丁脚本。
+- `verifyHorosaPerformanceRuntime.js`
+  前端 runtime 性能校验。
+- `verifyHorosaRuntimeFull.js`
+  前端 runtime 全量校验。
+- `verifyPrimaryDirectionRuntime.js`
+  主限法 runtime 校验。
+- `warmHorosaRuntime.js`
+  runtime 预热脚本。
 
-- 最终总检产物：
-  - `runtime/final_layout_master_check.json`
-  - `runtime/mastercheck_global_shell.png`
-  - `runtime/mastercheck_jieqi_entries.png`
-  - `runtime/mastercheck_solararc_std.png`
-  - `runtime/mastercheck_solararc_compact.png`
-  - `runtime/mastercheck_suzhan_compact.png`
-  - `runtime/mastercheck_guolao_compact.png`
-  - `runtime/mastercheck_sanshi_std.png`
-  - `runtime/mastercheck_sanshi_compact.png`
-- 这组总检专门覆盖用户最后几次指出的问题：
-  - 窗口缩放后比例异常
-  - 节气盘右侧四季 `星盘 / 宿盘 / 3D盘` 入口是否存在
-  - 双层盘是否压住右侧信息栏
-  - `宿盘 / 七政四余` 方盘底边是否贴住 footer
-  - `三式合一` 的 `直接时间 / 真太阳时` 在标准与紧凑宽度下是否还能完整显示
-  - 底部备案图标、`996` 徽标、左侧 `...` 折叠菜单是否再次出现
-- `final_layout_master_check.json` 关键字段现可直接用来验收：
-  - `global_shell.navOpsDisplay = "none"`
-  - `global_shell.footerHasImg = false`
-  - `global_shell.footerHas996 = false`
-  - `global_shell.bodyHas996 = false`
-  - `jieqi_entries` 下 13 个节气入口全部为 `true`
-  - `solararc.compact`
-    - 主盘 `right = 885.21875`
-    - 右栏标记 `x = 1223.40625`
-    - 说明双层盘和右侧信息栏之间仍有明显安全距离
-  - `suzhan.footerGap = 137`
-  - `guolao.footerGap = 62`
-  - `sanshi.std.hasDirectTime = true`
-  - `sanshi.std.hasTrueSolar = true`
-  - `sanshi.compact.hasDirectTime = true`
-  - `sanshi.compact.hasTrueSolar = true`
-- 联动结论：
-  - `runtime/resize_layout_audit_postfix.json` 继续证明关键页 `compact -> compact2` 回缩后无旧高度残留
-  - `runtime/browser_horosa_master_check.json` 继续为 `ok`
-  - `runtime/guangde_primarydirchart_browser_check.json` 继续为 `ok`
-  - 当前所有强制性能页依旧保持 `< 1s`
+#### 2.3.3 `astrostudyui/src/` 主结构
 
-## 103.31) 星阙桌面安装器工程与 GitHub 分发链路（2026-03-09）
+`src/` 下当前可见的主要目录：
 
-- 独立桌面安装器工程：
-  - `Horosa_Desktop_Installer/`
-  - 这是和主业务代码隔离的 macOS 桌面壳与安装器工程，当前职责包括：
-    - 首次安装后拉起本地 Python / Java runtime
-    - 内置浏览窗口承载 Horosa 前端
-    - GitHub Release 单文件分发
-    - app 内检查更新、下载替换、重开
-- 核心目录：
-  - `Horosa_Desktop_Installer/src-tauri/`
-    - Tauri 桌面壳工程；
-    - `src/main.rs` 承载 runtime 引导、更新检查、更新下载替换、菜单事件；
-    - `tauri.conf.json` 当前产品名为 `星阙`。
-  - `Horosa_Desktop_Installer/scripts/`
-    - 打包、验收、发布脚本集合；
-    - 关键脚本：
-      - `build_desktop_release.sh`
-      - `verify_desktop_packaging.sh`
-      - `verify_github_release_end_to_end.sh`
-      - `publish_github_release.sh`
-      - `verify_public_distribution_readiness.sh`
-    - 当前 `verify_desktop_packaging.sh` 会把“生成 runtime payload + 生成 manifest + 打包 app/pkg/zip”统一收敛到 `build_desktop_release.sh` 一次完成，避免同一轮验收里把 runtime 资产改新却遗留旧 manifest；
-    - 当前 `verify_github_release_end_to_end.sh` 在 `.pkg` 首装把 runtime 延期时，会直接打印 `runtime-install-pending.txt` 原因，并会按 manifest 里的 `runtimeUrl` 真实下载 runtime 做 SHA256 校验；
-    - 当前 `publish_github_release.sh` 生成的 Release 正文只保留：
-      - `安装步骤（中文）`
-      - `Install Steps (English)`
-      - `技术资产 / Technical Assets`
-      - 然后再追加 `本次更新 / What's New`
-    - 当前 `publish_github_release.sh` 在上传前会强制校验 `horosa-latest.json` 里的 `app/pkg/runtime` URL、版本号与 SHA256 必须和本地待上传资产一致，否则直接拒绝发布；
-    - 当前 `publish_github_release.sh` 已支持 app release 与 runtime release 解耦：runtime tag 未变化且远端 runtime 资产已存在时，会直接跳过重复上传。
-  - `Horosa_Desktop_Installer/distribution-support/`
-    - unsigned 自用/熟人分发支持模板：
-      - `unsigned_install_helper.template`
-      - `UNSIGNED_INSTALL_GUIDE.template`
-  - `Horosa_Desktop_Installer/installer-scripts/`
-    - `.pkg` 顶层 `postinstall` 模板。
-  - `Horosa_Desktop_Installer/web/`
-    - 安装器/初始化阶段 UI；
-    - 当前启动页会在脚本加载后主动回放 `window.__horosaPendingMode / Progress / Status / Error / ReadyUrl`，用于兜住“Rust 已就绪但前端桥接函数尚未注册”这类时序竞态，避免卡在默认 `0% / 等待初始化…`。
-  - `Horosa_Desktop_Installer/config/release_config.json`
-    - GitHub Release 资产名、repo、appName 等发布配置。
-  - `Horosa_Desktop_Installer/config/release_notes.md`
-    - 当前 release 正文里的“本次更新 / What's New”来源文件；发布脚本会把它追加在 `技术资产 / Technical Assets` 之后。
-  - `Horosa-Web/scripts/repairEmbeddedPythonRuntime.py`
-    - clean Mac 发行链里的 embedded Python 修复器；
-    - 负责检查并修复 `Python.framework` 的绝对依赖、补做 ad-hoc 重签、验证 `Python.app` 与 dylib/so 可执行性。
-- 当前 Release 交付结构：
-  - 主推下载文件：`Horosa-Installer-macos-universal-pkg.zip`
-  - zip 解压后默认包含：
-    - `Horosa-Installer-macos-universal.pkg`
-    - `Open-XingQue-Unsigned.command`
-    - `UNSIGNED_INSTALL_GUIDE.txt`
-- 当前 unsigned 分发口径：
-  - 仅支持 `Apple Silicon Mac + macOS 12+`
-  - 仅定位于开发者自用 / 少量熟人机器
-  - 遇到 Gatekeeper 拦截时，优先运行 `Open-XingQue-Unsigned.command`
-  - 当前更新弹窗能力：
-  - 每次“检查更新”后都会显示结构化更新结果；
-  - 字段包括：`检查结果 / 当前版本 / 新版本号 / 运行环境 / 更新来源 / 更新摘要 / 完整 Changelog / GitHub 仓库 / Release 页面 / 是否立即更新`；
-  - `src-tauri/src/main.rs` 中的更新计划对象当前会同时保存：
-    - `repo_url`
-    - `release_url`
-  - 固定更新清单通道会按仓库配置推导上述链接，GitHub API 回退通道优先读取 release 的 `html_url`。
-  - 当前版本口径：
-    - 桌面壳内部构建版本使用 `1.0.18`
-    - 用户可见桌面壳版本使用 `1.0.18`
-    - 当前 runtime 版本独立为 `1.0.18-runtime1`
-    - GitHub app Release / manifest tag 使用 `v1.0.18`
-    - 当前 runtime Release tag 使用 `v1.0.18-runtime1`
-  - 当前 runtime 自愈策略：
-    - 启动前会递归清理 runtime 内的 `._*` 与 `.DS_Store` 元数据垃圾文件；
-    - runtime 可用性判断不再只看文件存在，还会校验内置 Python 能否正常导入 `site` 与关键依赖；
-    - 打包 runtime payload 时也会显式排除这类 AppleDouble 垃圾文件，避免坏文件重新进包。
-  - 当前启动页表现：
-    - 默认首屏已从“安装器界面”改成“通用启动页”，日常打开时会显示 `日常启动 / Runtime 快速自检`；
-    - 只有真正进入 Runtime 下载、修复或应用更新时，界面才会切到 `首次准备 / 运行时修复 / 版本更新` 等模式；
-    - 启动画面包含动态会话摘要、模式标签和更偏应用启动页的视觉，而不是每次都模拟首次安装。
-  - 当前应用内更新进度提示：
-    - 从主界面触发“检查更新”后，右上角会出现独立浮层进度卡；
-    - 会显示当前事务类型、下载/校验/替换阶段、百分比与当前说明文案；
-    - 浮层不依赖启动页 DOM，因此主界面更新时也能持续可见。
-  - 当前缩放能力：
-    - 桌面壳 `视图` 菜单现已显式提供 `放大 / 缩小 / 实际大小`；
-    - 快捷键分别为 `CmdOrCtrl+=`、`CmdOrCtrl+-`、`CmdOrCtrl+0`；
-    - 缩放直接作用于 Tauri webview，不改默认窗口尺寸与初始比例。
-  - 当前桌面发布与自检强化：
-    - `Horosa-Web/start_horosa_local.sh`
-      - 本地启动时如果 runtime 里的 backend jar 过旧，会优先用源码侧较新的 `astrostudyboot.jar` 覆盖刷新，避免 `主限法盘` 因 `/predict/pdchart` 不存在而空白。
-      - 当前还会在 embedded Python 不可用时自动调用 `repairEmbeddedPythonRuntime.py` 尝试自愈并重试。
-    - `Horosa_Desktop_Installer/scripts/package_runtime_payload.sh`
-      - 打包 runtime payload 时会显式把最新 `astrostudyboot.jar` 注入 bundle，确保新 release 不会继续携带旧 backend。
-      - 打包时保留 `runtime/mac/python/Resources/Python.app`，清理旧 `_CodeSignature` 并对修复后的 embedded Python 做 ad-hoc 重签；
-      - 还会裁掉 Java 的 `jmods / demo / man / include / lib/src.zip` 与 Python 的 `test / idlelib / turtledemo / Documentation / __pycache__ / share / include`，减少 runtime 包体积。
-    - `scripts/browser_horosa_jinkou_regression_check.py`
-      - 金口诀专项浏览器回归，固定校验 `惊蛰后第5天 + 地分亥 -> 将神癸亥登明`。
-    - `scripts/browser_primary_direction_chart_guangde_check.py`
-      - 主限法表格与主限法盘联动专项浏览器校验，覆盖方法切换、表格时间同步、图面变化与状态文案。
-    - `Horosa-Web/verify_horosa_local.sh`
-      - 当前总自检入口已串起：
-        - 接口/性能/静态集成检查
-        - 主限法精度与多案例检查
-        - 浏览器总巡检
-        - 顶部菜单与管理专项
-        - 最终布局专项
-        - 主限法细专项
-        - 金口诀专项回归
-    - `Horosa_Desktop_Installer/scripts/verify_desktop_packaging.sh`
-      - 会在模拟 `.pkg` 安装后校验 embedded Python 的 `Python.app` 是否存在；
-      - 并在干净 `PATH` 下直接执行 embedded Python，确保安装后启动不依赖系统 Python。
-    - `Horosa_Desktop_Installer/scripts/verify_github_release_end_to_end.sh`
-      - 会对 GitHub release 下载回来的 runtime 做同样的 clean-Mac 验证，避免“本地包能跑但公开 release 资产少文件/签名坏掉”。
-    - `scripts/browser_horosa_master_check.py`
-      - 已把远端 3D/CDN 超时从致命失败降为 warning，避免第三方静态资源波动误伤本地功能验收。
-    - `Horosa_Desktop_Installer/src-tauri/src/main.rs`
-      - `load_release_config(...)` 现在会按真实打包路径优先搜索 `Contents/Resources/_up_/config/release_config.json`；
-      - 如果外部配置缺失或损坏，会自动回退到内置 GitHub 发布配置，不再因为单一配置文件缺失而启动失败。
-  - 当前应用内更新替换策略：
-    - 当目标 app 位于 `/Applications` 时，更新器会显式走 macOS 管理员授权，而不是继续用普通用户态硬拷贝；
-    - 更新 helper 会把替换过程写入 `~/Library/Application Support/com.horacedong.horosa/logs/update-installer.log`；
-    - `.app` 替换增加重试与回滚，避免应用退出稍慢时直接静默失败。
-- 当前忽略规则（避免仓库混入安装器生成物）：
-  - `Horosa_Desktop_Installer/build/`
-  - `Horosa_Desktop_Installer/dist/`
-  - `Horosa_Desktop_Installer/src-tauri/target-user/`
-  - `Horosa_Desktop_Installer/src-tauri/icons/Horosa.iconset/`
-  - `Horosa_Desktop_Installer/assets/icon-base.png`
+- `.umi/`
+- `.umi-production/`
+- `assets/`
+- `components/`
+- `constants/`
+- `css/`
+- `data/`
+- `layouts/`
+- `models/`
+- `msg/`
+- `pages/`
+- `services/`
+- `utils/`
+
+其中：
+
+- `.umi/`、`.umi-production/`
+  Umi 自动生成目录，不是手写业务源码主入口。
+- `components/`
+  业务 UI 最核心目录。
+- `models/`
+  状态管理。
+- `services/`
+  接口请求层。
+- `utils/`
+  公共工具、缓存、AI 导出、主限法同步等。
+
+#### 2.3.4 `astrostudyui/src/layouts/`
+
+当前文件：
+
+- `layouts/app.js`
+- `layouts/app.less`
+- `layouts/index.js`
+
+这是前端整体布局入口层。
+
+补充职责：
+
+- `layouts/index.js`
+  用 `antd` 的 `ConfigProvider` 注入中文 locale，设置 `moment` 为中文环境，并把全局 state 写入 `storageutil`。
+- `layouts/app.js`
+  是更外层的应用壳，负责包住页面级内容。
+
+#### 2.3.5 `astrostudyui/src/pages/`
+
+当前文件：
+
+- `pages/404.js`
+- `pages/document.ejs`
+- `pages/index.js`
+- `pages/index.less`
+
+这是页面级入口与模板层。
+
+补充职责：
+
+- `pages/index.js`
+  是实际主工作台入口，当前集中挂载了绝大多数业务模块，并通过左侧 Tabs 在单页内切换。
+- `pages/document.ejs`
+  页面模板。
+- `pages/index.less`
+  主页面样式。
+
+`pages/index.js` 当前直接挂载的主工作台 Tab 为：
+
+- `astrochart`：星盘
+- `astrochart3D`：三维盘
+- `direction`：推运盘
+- `germanytech`：量化盘
+- `relativechart`：关系盘
+- `jieqichart`：节气盘
+- `locastro`：星体地图
+- `guolao`：七政四余
+- `hellenastro`：希腊星术
+- `indiachart`：印度律盘
+- `cntradition`：八字紫微
+- `cnyibu`：易与三式
+- `calendar`：万年历
+- `otherbu`：西洋游戏
+- `astroreader`：书籍阅读
+- `liveplayer`：星阙直播
+- `admintools`：管理工具
+- `fengshui`：风水
+- `sanshiunited`：三式合一
+
+主要 Tab 与组件映射关系为：
+
+- `astrochart` -> `AstroChartMain`
+- `astrochart3D` -> `AstroChartMain3D`
+- `direction` -> `AstroDirectMain`
+- `germanytech` -> `AstroGermany`
+- `relativechart` -> `AstroRelative`
+- `jieqichart` -> `JieQiChartsMain`
+- `locastro` -> `LocAstroMain`
+- `guolao` -> `GuoLaoChartMain`
+- `hellenastro` -> `HellenAstroMain`
+- `indiachart` -> `IndiaChartMain`
+- `cntradition` -> `CnTraditionMain`
+- `cnyibu` -> `CnYiBuMain`
+- `calendar` -> `CalendarMain`
+- `otherbu` -> `OtherBuMain`
+- `astroreader` -> `BookMain`
+- `liveplayer` -> `MediaMain`
+- `admintools` -> `AdminToolsMain`
+- `fengshui` -> `FengShuiMain`
+- `sanshiunited` -> `SanShiUnitedMain`
+
+`pages/index.js` 还承担了一些关键页面级协调逻辑：
+
+- 根据当前 tab 调用 `predictHook`
+- 在未确认时间编辑时延迟触发 `astro/fetchByFields`
+- 管理主抽屉的开关
+- 协调 chart/case/login/register 等多个表单组件
+
+前端“抽屉层”当前由 `astro` model 统一管理，已知 drawer key 包括：
+
+- `query`
+- `selectplanet`
+- `selectchartdisplay`
+- `selectasp`
+- `register`
+- `login`
+- `resetpwd`
+- `changepwd`
+- `changeparams`
+- `chartlist`
+- `chartedit`
+- `chartadd`
+- `caselist`
+- `caseedit`
+- `caseadd`
+- `chartdeeplearn`
+- `memo`
+- `chartsgps`
+- `commtools`
+- `homepage`
+
+#### 2.3.6 `astrostudyui/src/constants/`
+
+当前文件：
+
+- `AstroColor0.js`
+- `AstroColor1.js`
+- `AstroColor2.js`
+- `AstroColor3.js`
+- `AstroColor4.js`
+- `AstroColor5.js`
+- `AstroColor6.js`
+- `AstroColor7.js`
+- `AstroColor8.js`
+- `AstroConst.js`
+- `AstroText.js`
+- `ReaderConst.js`
+- `ZWColor.js`
+- `ZWConst.js`
+- `ZWText.js`
+
+这一层主要承载：
+
+- 西占图面颜色与常量
+- 紫微相关常量与颜色
+- 阅读器相关常量
+
+#### 2.3.7 `astrostudyui/src/css/`
+
+当前文件：
+
+- `styles.less`
+
+#### 2.3.8 `astrostudyui/src/data/`
+
+当前可见数据文件：
+
+- `data/deeplearn/10000.json`
+- `data/deeplearn/20000.json`
+- `data/deeplearn/30000.json`
+- `data/deeplearn/40000.json`
+
+这部分与前端深度学习展示/统计有关。
+
+##### 补充：`astrostudyui/public/`、`src/assets/`、`src/msg/`
+
+`public/` 当前实际内容：
+
+- `public/fengshui/`
+  - `app.js`
+  - `index.html`
+  - `styles.css`
+- `public/gltf/draco/`
+  - `draco_decoder.js`
+  - `draco_decoder.wasm`
+  - `draco_wasm_wrapper.js`
+
+这说明前端除了普通静态资源外，还内置了：
+
+- 一个单独的风水静态页面资源集
+- 3D 图形相关的 Draco 解码资源
+
+`src/assets/` 当前实际内容：
+
+- 图像资源：
+  - `beian.png`
+  - `blogo.jpg`
+  - `mlogo.jpg`
+  - `sealed.png`
+  - `slogo.jpg`
+- 字体与字形资源：
+  - `morinus-webfont.ttf`
+  - `morinus-webfont.woff`
+  - `morinus-webfont.woff2`
+  - `ywastro.ttf`
+  - `ywastro.woff`
+  - `ywastro.woff2`
+  - `ywastrochart.ttf`
+  - `ywastrochart.woff`
+  - `ywastrochart.woff2`
+- 字体描述/字形映射：
+  - `helvetica.json`
+  - `ywastro.json`
+  - `ywastrochart.json`
+- 多媒体兼容资源：
+  - `video-js.swf`
+
+`src/msg/` 当前实际文件：
+
+- `bazimsg.js`
+- `errmsg.js`
+- `msg.js`
+- `stat.js`
+- `types.js`
+
+这层主要是页面消息、错误提示、统计/类型文案。
+
+#### 2.3.9 `astrostudyui/src/models/`
+
+当前文件：
+
+- `models/app.js`
+- `models/astro.js`
+- `models/rules.js`
+- `models/user.js`
+- `models/websock.js`
+
+角色划分：
+
+- `app.js`
+  全局应用级状态。
+- `astro.js`
+  占星/排盘主状态。
+- `rules.js`
+  规则类状态。
+- `user.js`
+  用户、命盘/事盘管理状态。
+- `websock.js`
+  WebSocket 状态。
+
+补充：
+
+- 当前 `models/` 只有 5 个文件，说明前端状态模型比较集中，核心状态主要落在 `app / astro / user / rules / websock` 五类。
+- `models/app.js`
+  当前主要管理：
+  - loading / loadingText / refresh
+  - 图面显示选项：`chartDisplay`、`planetDisplay`、`lotsDisplay`
+  - 主题与配色：`colorTheme`
+  - 主限法显示与方法：`showPdBounds`、`pdMethod`、`pdTimeKey`
+  - 登录/注册表单 fields
+  - 全局配置写入 `localStorage(GlobalSetupKey)`
+- `models/astro.js`
+  当前主要管理：
+  - 主工作台高度
+  - 当前 `chartObj`
+  - 所有抽屉显隐状态
+  - 当前主 tab 与当前 sub tab
+  - 起盘 fields
+  - `predictHook`
+  - AI 快照与 deeplearn 相关状态
+  并且默认 fields 中就已经内置：
+  - 本命起盘参数
+  - 主限法参数：`showPdBounds`、`pdtype`、`pdMethod`、`pdTimeKey`、`pdaspects`
+  - 八字/节气/南北盘等中式参数
+- `models/user.js`
+  当前主要管理：
+  - token / userInfo / admin
+  - 命盘分页列表
+  - 事盘分页列表
+  - 书架与当前书籍
+  - 修改密码表单
+  - 当前 chart / 当前 case fields
+  - 本地命盘与本地事盘分页访问
+
+- `models/rules.js`
+  当前非常聚焦，主要就是拉取并缓存 `ziwei` 规则数据。
+- `models/websock.js`
+  当前也非常轻，主要封装：
+  - `send`
+  - `setCmd`
+  - `setup` 时是否自动连接 `globalWS`
+
+从 effects 名称看，当前各 model 的主要动作如下：
+
+- `app`
+  - `fetchImgToken`
+  - `login`
+  - `register`
+  - `resetPwd`
+  - `checkUser`
+  - `checkOnlyUser`
+  - `logout`
+  - `menuClick`
+  - `getSysTime`
+  - `beginRefresh`
+  - `endRefresh`
+- `astro`
+  - `closeDrawer`
+  - `openDrawer`
+  - `fetch`
+  - `fetchByChartData`
+  - `fetchByFields`
+  - `doHook`
+  - `nowChart`
+  - `setHomePage`
+  - `fetchFateEvents`
+  - `deeplearn`
+- `user`
+  - `newCurrentChart`
+  - `setCurrentChart`
+  - `newCurrentCase`
+  - `setCurrentCase`
+  - `fetchCases`
+  - `searchCases`
+  - `addCase`
+  - `updateCase`
+  - `deleteCase`
+  - `applyCase`
+  - `searchCharts`
+  - `fetchCharts`
+  - `addChart`
+  - `updateChart`
+  - `saveMemo`
+  - `deleteChart`
+  - `changePwd`
+  - `changeParams`
+  - `listBooks`
+  - `deleteBook`
+  - `removeBook`
+  - `updateBook`
+  - `readBook`
+
+这说明当前前端状态不是按“页面一个 model”拆的，而是按“全局配置 / 排盘主状态 / 用户数据 / 规则 / WebSocket”集中管理。
+
+再往下看一层，`models/astro.js` 里 `newEmptyFields()` 初始化的核心字段已经可以视为“前端统一起盘参数总表”，当前明确包括：
+
+- 基础身份字段：
+  - `cid`
+  - `name`
+  - `pos`
+  - `group`
+- 时间地理字段：
+  - `ad`
+  - `date`
+  - `time`
+  - `zone`
+  - `lat`
+  - `lon`
+  - `gpsLat`
+  - `gpsLon`
+- 西占排盘参数：
+  - `hsys`
+  - `zodiacal`
+  - `tradition`
+  - `strongRecption`
+  - `simpleAsp`
+  - `virtualPointReceiveAsp`
+  - `doubingSu28`
+  - `houseStartMode`
+- 推运/主限法参数：
+  - `predictive`
+  - `showPdBounds`
+  - `pdtype`
+  - `pdMethod`
+  - `pdTimeKey`
+  - `pdaspects`
+- 时间算法与中式附加参数：
+  - `timeAlg`
+  - `phaseType`
+  - `godKeyPos`
+  - `after23NewDay`
+  - `adjustJieqi`
+  - `gender`
+  - `southchart`
+- 各技术 memo 字段：
+  - `memoZiWei`
+  - `memoBaZi`
+  - `memoAstro`
+  - `memo74`
+  - `memoGua`
+  - `memoLiuReng`
+  - `memoQiMeng`
+  - `memoSuZhan`
+
+`fieldsToParams(...)` 真正向排盘/推运接口发送的参数主集则收敛为：
+
+- `cid`
+- `ad`
+- `date`
+- `time`
+- `zone`
+- `lat`
+- `lon`
+- `gpsLat`
+- `gpsLon`
+- `hsys`
+- `southchart`
+- `zodiacal`
+- `tradition`
+- `doubingSu28`
+- `strongRecption`
+- `simpleAsp`
+- `virtualPointReceiveAsp`
+- `predictive`
+- `showPdBounds`
+- `pdtype`
+- `pdMethod`
+- `pdTimeKey`
+- `pdaspects`
+- `name`
+- `pos`
+- `group`
+
+这说明：
+
+- `astro` model 既管理 UI 抽屉状态，也管理一整套“可跨西占/中式/推运共用”的统一参数对象。
+- memo 字段虽然挂在同一组 `fields` 里，但更接近用户数据和导出上下文，不是每次排盘计算都必需的纯算法参数。
+
+#### 2.3.10 `astrostudyui/src/services/`
+
+当前文件：
+
+- `services/app.js`
+- `services/astro.js`
+- `services/rules.js`
+- `services/user.js`
+
+这是前端与后端接口的主要封装层。
+
+补充接口职责：
+
+- `services/astro.js`
+  当前直接可见的接口函数包括：
+  - `fetchChart`
+  - `fetchAllowedCharts`
+  - `fetchFateEvents`
+  - `dlTrain`
+其中 `fetchChart` 自带前端内存缓存和 inflight 去重。
+- `services/user.js`
+  当前直接可见的接口函数包括：
+  - 用户参数与密码：
+    - `changepwd`
+    - `changeparams`
+    - `checkUser`
+  - 命盘管理：
+    - `getUserCharts`
+    - `addChart`
+    - `updateChart`
+    - `saveMemo`
+    - `deleteChart`
+    - `importChart`
+    - `exportChart`
+  - 书籍阅读器：
+    - `listBooks`
+    - `allBooks`
+    - `getChapter`
+    - `updateBook`
+    - `deleteBook`
+    - `removeBook`
+    - `readprogress`
+
+这说明前端 service 层虽然文件数少，但一头连排盘后端，一头连用户数据和阅读器后端。
+
+对应的已知接口路径包括：
+
+- `services/astro.js`
+  - `/chart`
+  - `/allowedcharts`
+  - `/deeplearn/fateevents`
+  - `/deeplearn/train`
+- `services/user.js`
+  - `/user/changepwd`
+  - `/user/changeparams`
+  - `/user/check`
+  - `/user/charts`
+  - `/user/charts/add`
+  - `/user/charts/update`
+  - `/user/charts/memo`
+  - `/user/charts/delete`
+  - `/user/charts/import`
+  - `/user/charts/export`
+  - `/astroreader/listbooks`
+  - `/astroreader/allbooks`
+  - `/astroreader/getchapter`
+  - `/astroreader/updatebook`
+  - `/astroreader/deletebook`
+  - `/astroreader/removebook`
+  - `/astroreader/readprogress`
+
+如果进一步落到“函数 -> 路由 -> 后端 controller”的粒度，当前可以明确对应为：
+
+- `services/app.js`
+  - `getImgToken()` -> `/common/imgToken` -> `astrostudy/controller/TokenController.java`
+  - `login()` -> `/user/login` -> `astrostudy/controller/LoginController.java`
+  - `register()` -> `/user/register` -> `astrostudy/controller/RegisterController.java`
+  - `resetpwd()` -> `/user/resetpwd` -> `astrostudy/controller/ResetPwdController.java`
+  - `checkUser()` -> `/user/check` -> `astrostudy/controller/UserCheckLoginController.java`
+  - `logout()` -> `/user/logout` -> `astrostudy/controller/LoginController.java`
+  - `systime()` -> `/common/time` -> `basecomm/controller/SystemController.java`
+- `services/astro.js`
+  - `fetchChart()` -> `/chart` -> `astrostudycn/controller/ChartController.java`
+  - `fetchAllowedCharts()` -> `/allowedcharts` -> `astrostudy/controller/AllowedChartController.java`
+  - `fetchFateEvents()` -> `/deeplearn/fateevents` -> `astrodeeplearn/controller/DeepLearnController.java`
+  - `dlTrain()` -> `/deeplearn/train` -> `astrodeeplearn/controller/DeepLearnController.java`
+- `services/rules.js`
+  - `ziweirules()` -> `/ziwei/rules` -> `astrostudycn/controller/ZiWeiController.java`
+- `services/user.js`
+  - `changepwd()` -> `/user/changepwd` -> `astrostudy/controller/UserInfoController.java`
+  - `changeparams()` -> `/user/changeparams` -> `astrostudy/controller/UserInfoController.java`
+  - `checkUser()` -> `/user/check` -> `astrostudy/controller/UserCheckLoginController.java`
+  - `getUserCharts()` -> `/user/charts` -> `astrostudy/controller/UserChartsController.java`
+  - `addChart()` -> `/user/charts/add` -> `astrostudy/controller/UserChartsController.java`
+  - `updateChart()` -> `/user/charts/update` -> `astrostudy/controller/UserChartsController.java`
+  - `saveMemo()` -> `/user/charts/memo` -> `astrostudy/controller/UserChartsController.java`
+  - `deleteChart()` -> `/user/charts/delete` -> `astrostudy/controller/UserChartsController.java`
+  - `importChart()` -> `/user/charts/import` -> `astrostudy/controller/UserDataTransferController.java`
+  - `exportChart()` -> `/user/charts/export` -> `astrostudy/controller/UserDataTransferController.java`
+  - `listBooks()` -> `/astroreader/listbooks` -> `astroreader/controller/ReaderController.java`
+  - `allBooks()` -> `/astroreader/allbooks` -> `astroreader/controller/ReaderController.java`
+  - `getChapter()` -> `/astroreader/getchapter` -> `astroreader/controller/ReaderController.java`
+  - `updateBook()` -> `/astroreader/updatebook` -> `astroreader/controller/ReaderController.java`
+  - `deleteBook()` -> `/astroreader/deletebook` -> `astroreader/controller/ReaderController.java`
+  - `removeBook()` -> `/astroreader/removebook` -> `astroreader/controller/ReaderController.java`
+  - `readprogress()` -> `/astroreader/readprogress` -> `astroreader/controller/ReaderController.java`
+
+更细一点，当前前端并不是所有接口都先包进 `services/`，很多业务组件直接请求后端。按“页面/组件 -> 路由 -> 后端落点”整理如下：
+
+- 西占推运与主限法链：
+  - `components/astro/AstroSolarReturn.js` -> `/predict/solarreturn`
+  - `components/astro/AstroLunarReturn.js` -> `/predict/lunarreturn`
+  - `components/astro/AstroGivenYear.js` -> `/predict/givenyear`
+  - `components/astro/AstroProfection.js` -> `/predict/profection`
+  - `components/astro/AstroSolarArc.js` -> `/predict/solararc`
+  - `components/astro/AstroZR.js` -> `/predict/zr`
+  - `components/astro/AstroPrimaryDirectionChart.js` -> `/predict/pd`、`/predict/pdchart`
+  - `components/direction/AstroDirectMain.js` -> `/predict/pd`
+  - `components/dice/DiceMain.js` -> `/predict/dice`
+  - Java 落点：`astrostudy/controller/PredictiveController.java`
+  - Python 对应挂载：`astropy/websrv/predictsrv.py`，由 `webchartsrv.py` 挂到 `/predict`
+- 西占其它直连：
+  - `components/acg/AstroAcg.js` -> `/location/acg` -> `astrostudy/controller/AcgController.java`
+  - `components/germany/AstroMidpoint.js` -> `/germany/midpoint` -> `astrostudy/controller/GermanyTechController.java`
+  - `components/astro/AstroRelative.js` -> `/modern/relative` -> `astrostudy/controller/ModernChartController.java`
+  - `components/astro/IndiaChart.js` -> `/india/chart` -> `astrostudy/controller/IndiaChartController.java`
+  - `components/comp/DateTime.js` -> `/jdn/date` -> `astrostudy/controller/JdnController.java`
+- 中式排盘与历法链：
+  - `components/cntradition/BaZi.js` -> `/bazi/direct` -> `astrostudycn/controller/PaiBaZiController.java`
+  - `components/ziwei/ZiWeiMain.js` -> `/ziwei/birth`、`/ziwei/rules` -> `astrostudycn/controller/ZiWeiController.java`
+  - `components/calendar/NongLiMain.js` -> `/calendar/month` -> `astrostudycn/controller/CalendarController.java`
+  - `utils/preciseCalcBridge.js` -> `/nongli/time`、`/jieqi/year` -> `astrostudycn/controller/NongliController.java`、`astrostudycn/controller/JieQiController.java`
+- 易卦、六壬、三式链：
+  - `components/calendar/NongLiMain.js` -> `/gua/desc` -> `astrostudycn/controller/GuaController.java`
+  - `components/gua/MeiyiGuaSym.js` -> `/gua/meiyi`
+  - `components/gua/DoubleMeiyiGuaSym.js` -> `/gua/desc`、`/gua/meiyi`
+  - `components/guazhan/GuaZhanMain.js` -> `/gua/desc`
+  - `components/lrzhan/LiuRengMain.js` -> `/liureng/gods`、`/liureng/runyear` -> `astrostudycn/controller/LiuRengController.java`
+  - `components/jinkou/JinKouMain.js` -> `/liureng/gods`、`/liureng/runyear` -> `astrostudycn/controller/LiuRengController.java`
+- 小工具与公共计算链：
+  - `components/commtools/Azimuth.js` -> `/calc/azimuth` -> `astrostudy/controller/CalcController.java`
+  - `components/commtools/CoordTrans.js` -> `/calc/cotrans` -> `astrostudy/controller/CalcController.java`
+  - `components/commtools/Calculator.js` -> `/calc/calculate`、`/calc/formula` -> `astrostudy/controller/CalcController.java`
+  - `components/commtools/NaYing.js` -> `/common/naying` -> `astrostudy/controller/CommController.java`
+  - `components/commtools/InverseBazi.js` -> `/common/inversebazi`、`/bazi/direct`
+  - `components/commtools/CuanGong12Desc.js` -> `/common/gong12gods`
+  - `components/commtools/CuanGong12Query.js` -> `/common/gong12`
+  - `components/commtools/BaziPithy.js` -> `/common/pithy`
+  - `components/commtools/BaziPattern.js` -> `/bazi/pattern`、`/bazi/pattern/update` -> `astrostudycn/controller/BaZiPatternController.java`
+- 统计、阅读、多媒体链：
+  - `components/statis/Statis.js` -> `/statis/count`、`/statis/chartsgps` -> `astrostudy/controller/StatisticController.java`
+  - `components/reader/*` -> `/astroreader/upload`、`/astroreader/getchapter`、`/astroreader/tts`、`/astroreader/exportbook` 等 -> `astroreader/controller/ReaderController.java`、`astroreader/controller/TTSController.java`
+  - `components/multimedia/*` -> `/astroreader/flvurl`、`/astroreader/restartlive`、`/astroreader/livepublishpath`、`/live/getstreams`、`/live/playpath` -> `astroreader/controller/FlvUrlController.java`、`astroreader/controller/RtmpController.java`
+
+因此前端调用链实际上分为两层：
+
+- 一层是规范化的 `services/*.js`
+- 一层是大量组件内嵌的“直连路由调用”
+
+维护接口时，不能只检查 `services/`，还要同时搜索组件里的 `request(\`${ServerRoot}/...\`)`。
+
+#### 2.3.11 `astrostudyui/src/utils/`
+
+当前文件：
+
+- `WebSock.js`
+- `aiExport.js`
+- `astroAiSnapshot.js`
+- `bytes.js`
+- `constants.js`
+- `decennials.js`
+- `gps.js`
+- `helper.js`
+- `localCalcCache.js`
+- `localNongliAdapter.js`
+- `localcases.js`
+- `localcharts.js`
+- `localdeeplearn.js`
+- `moduleAiSnapshot.js`
+- `planetHouseInfo.js`
+- `preciseCalcBridge.js`
+- `predictiveAiSnapshot.js`
+- `primaryDirectionSync.js`
+- `request.js`
+- `rsahelper.js`
+- `storageutil.js`
+- `wshelper.js`
+
+测试文件：
+
+- `utils/__tests__/decennials.test.js`
+- `utils/__tests__/primaryDirectionSync.test.js`
+
+其中当前最值得维护时优先注意的文件包括：
+
+- `aiExport.js`
+  AI 导出总入口。
+- `decennials.js`
+  十年大运计算核心。
+- `primaryDirectionSync.js`
+  主限法盘/主限法表格同步逻辑。
+- `preciseCalcBridge.js`
+  精确计算桥接。
+- `request.js`
+  统一请求封装。
+- `constants.js`
+  前端本地/线上服务地址相关逻辑。
+- `localcases.js`、`localcharts.js`
+  本地命盘/事盘存储映射。
+
+补充职责：
+
+- `primaryDirectionSync.js`
+  当前显式定义了：
+  - `PD_SYNC_REV = 'pd_method_sync_v6'`
+  - 默认主限法方法 `astroapp_alchabitius`
+  - 默认时间键 `Ptolemy`
+  - 允许同步的推运子页集合
+  并提供 `mergePrimaryDirectionChartObj(...)`，把主限法表格行、方法、时间键和盘面参数合并进统一 `chartObj`。
+- `aiExport.js`
+  是一个很重的总控文件，当前集中维护：
+  - 技法识别表
+  - AI 导出 section 预设
+  - 中西术语替换表
+  - 节气盘拆分导出规则
+  - 主限法、六壬、遁甲、三式合一等模块的导出配置
+- `request.js`
+  所有前端请求最终都会走这里。
+- `storageutil.js`
+  负责全局状态与本地存储桥接。
+- `localCalcCache.js`
+  本地计算缓存。
+- `astroAiSnapshot.js` / `moduleAiSnapshot.js` / `predictiveAiSnapshot.js`
+  快照导出三层体系。
+
+按文件数量看，当前：
+
+- `utils/` 共有 24 个文件
+- `services/` 共有 4 个文件
+- `models/` 共有 5 个文件
+
+`utils/constants.js` 当前还承载了部署层事实：
+
+- 本地模式下，`ServerRoot` 会优先按：
+  1. 页面 `srv` 查询参数
+  2. 页面端口 `webPort + 1999`
+  3. `localStorage.horosaLocalServerRoot`
+  来推导后端地址
+- 本地默认回退后端地址：`http://127.0.0.1:9999`
+- 线上后端地址：`https://srv.horosa.com`
+- 线上移动端：`https://mobileweb.horosa.com`
+- 线上 3D 服务：`https://chart3d.horosa.com`
+- WebSocket：`ws://www.horosa.com:26900/ws`
+- RTMP 推流：`https://rtmpush.horosa.com`
+- RTMP 播流：`https://rtmp.horosa.com`
+
+`utils/request.js` 当前除了请求本身，还负责：
+
+- 统一 loading 管理
+- 本地 token 读取与清理
+- “需要重新登录”判定与节流弹错
+- 错误码翻译
+- 请求签名
+- RSA 加密/解密桥接
+- `fetch cache` 选项兼容处理
+
+如果从“浏览器侧状态落盘”来看，`utils/` 和部分组件还共同维护了一批固定 key，当前已知的重要键如下：
+
+- 全局配置与登录键：
+  - `globalSetup`
+    - 来源：`utils/constants.js`、`models/app.js`
+    - 内容：`chartDisplay / planetDisplay / lotsDisplay / colorTheme / showPdBounds / pdMethod / pdTimeKey / showPlanetHouseInfo / showAstroMeaning / showOnlyRulExaltReception`
+  - `Token`
+    - 来源：`models/app.js`、`utils/request.js`
+    - 用途：登录态 token
+  - `LoginId`
+    - 来源：`models/app.js`
+    - 用途：记住登录账号
+  - `pchomepage`
+    - 来源：`utils/constants.js`、`components/HomePageSetup.js`、`models/app.js`
+    - 用途：首页/默认模块选择
+  - `horosaLocalServerRoot`
+    - 来源：`utils/constants.js`
+    - 用途：本地桌面/localhost 模式下缓存推导出的后端根地址
+- AI 导出与快照键：
+  - `horosa.ai.export.settings.v1`
+    - 来源：`utils/aiExport.js`
+    - 用途：AI 导出 section 选择、planet info 开关、占星释义开关
+  - `horosa.ai.snapshot.astro.v1`
+    - 来源：`utils/astroAiSnapshot.js`
+    - 用途：当前西占盘统一 AI 快照
+  - `horosa.ai.snapshot.module.v1.<moduleName>`
+    - 来源：`utils/moduleAiSnapshot.js`
+    - 用途：六壬、遁甲、风水、三式合一等模块级 AI 快照
+- 本地命盘/事盘与算法缓存键：
+  - `horosa.localCharts.v1`
+    - 来源：`utils/localcharts.js`
+    - 用途：本地命盘库
+  - `horosa.localCases.v1`
+    - 来源：`utils/localcases.js`
+    - 用途：本地事盘库
+  - `horosa.localcalc.nongli.v1`
+  - `horosa.localcalc.jieqi.v2`
+  - `horosa.localcalc.jieqiYear.v1`
+  - `horosa.localcalc.birthGanzhi.v1`
+  - `horosa.localcalc.liureng.runyear.v1`
+    - 来源：`utils/localCalcCache.js`
+    - 用途：农历、节气、八字干支、六壬流年等本地计算缓存
+- 阅读器键：
+  - `readerTheme`
+  - `readerFontSize`
+  - `chapterScrollTop`
+  - `readerBook`
+  - `TTSOpt`
+    - 来源：`constants/ReaderConst.js`、`components/reader/BookReader.js`
+    - 用途：阅读主题、字号、滚动位置、当前书籍、TTS 参数
+- 前端模块偏好键：
+  - `aspects`
+    - 来源：`constants/AstroConst.js`、`components/astro/AspSelector.js`
+    - 用途：相位显示选择
+  - `ziweiTips`
+  - `ziweiChartType`
+    - 来源：`components/ziwei/*`
+    - 用途：紫微提示与盘型偏好
+  - `liurengChartType`
+    - 来源：`components/lrzhan/LiuRengInput.js`
+    - 用途：六壬盘型偏好
+  - `suzhanChartType`
+  - `suzhanChartShape`
+  - `suzhanHouseStartMode`
+    - 来源：`components/suzhan/*`、`components/guolao/*`
+    - 用途：宿盘与过老盘显示偏好
+  - `commtoolstab`
+    - 来源：`components/commtools/CommToolsMain.js`
+    - 用途：小工具当前 tab
+  - `qimenShowPatternInterpretation`
+    - 来源：`components/dunjia/DunJiaMain.js`
+    - 用途：是否显示奇门格局解读
+  - `baziopt`
+    - 来源：`components/cntradition/BaZi.js`
+    - 用途：八字显示选项
+  - `baziPattern`
+    - 来源：`components/commtools/BaziPattern.js`
+    - 用途：八字格局分析输入缓存
+  - `baziInverse`
+    - 来源：`components/commtools/InverseBazi.js`
+    - 用途：反推八字输入缓存
+  - `guaData`
+    - 来源：`components/gua/GuaSymDesc.js`
+    - 用途：卦象说明缓存
+  - `CalculatorFormula`
+    - 来源：`components/commtools/Calculator.js`
+    - 用途：公式计算器缓存
+  - `horosa3dModelUnavailableAt`
+    - 来源：`components/astro3d/Astro3D.js`
+    - 用途：3D 模型不可用时间戳，写入 local/session storage 双份
+
+除了 `localStorage/sessionStorage`，当前还存在几类运行时全局变量：
+
+- `window.__horosa_astro_ai_snapshot`
+  - 来源：`utils/astroAiSnapshot.js`
+  - 用途：西占快照内存态
+- `window.__horosa_module_ai_snapshot_map`
+  - 来源：`utils/moduleAiSnapshot.js`
+  - 用途：模块快照全局 map
+- `window.__horosa_liureng_snapshot_text`
+  - 来源：`components/lrzhan/LiuRengMain.js`
+- `window.__horosa_qimen_snapshot_text`
+  - 来源：`components/dunjia/DunJiaMain.js`
+- `window.__horosa_fengshui_snapshot_text`
+  - 来源：`components/fengshui/FengShuiMain.js`
+- `window.horosaDesktop`
+  - 来源：桌面壳注入桥接
+  - 用途：前端导出 diagnostics、与桌面容器交互
+
+模块快照刷新当前通过统一 DOM 事件驱动：
+
+- 事件名：`horosa:refresh-module-snapshot`
+- 监听者已知包括：
+  - `direction/AstroDirectMain.js`
+  - `germany/AstroMidpoint.js`
+  - `sanshi/SanShiUnitedMain.js`
+  - `lrzhan/LiuRengMain.js`
+  - `dunjia/DunJiaMain.js`
+  - `fengshui/FengShuiMain.js`
+  - `astro/AstroRelative.js`
+  - `astro/AstroPrimaryDirectionChart.js`
+
+这一层很重要，因为它说明 Horosa 前端并不只是“请求接口 + 渲染页面”，而是已经形成：
+
+- `store(model)` 状态层
+- `request/service` 接口层
+- `localStorage` 持久层
+- `window/global event` 会话层
+- `AI snapshot` 导出层
+
+五层叠加结构。
+
+#### 2.3.12 `astrostudyui/src/components/` 总览
+
+这是前端最重的目录。当前实际存在的组件子目录有：
+
+- `acg/`
+- `admintools/`
+- `amap/`
+- `astro/`
+- `astro3d/`
+- `calendar/`
+- `cntradition/`
+- `cnyibu/`
+- `commtools/`
+- `comp/`
+- `deeplearn/`
+- `dice/`
+- `direction/`
+- `dunjia/`
+- `fengshui/`
+- `germany/`
+- `graph/`
+- `gua/`
+- `guazhan/`
+- `guolao/`
+- `hellenastro/`
+- `homepage/`
+- `jieqi/`
+- `jinkou/`
+- `liureng/`
+- `loc/`
+- `logqry/`
+- `lrzhan/`
+- `multimedia/`
+- `otherbu/`
+- `reader/`
+- `relative/`
+- `ruleziwei/`
+- `sanshi/`
+- `statis/`
+- `su28/`
+- `suzhan/`
+- `szbagua/`
+- `szdunjia/`
+- `szfangwei/`
+- `szfengye/`
+- `sznixiang/`
+- `szsign/`
+- `sztaiyi/`
+- `taiyi/`
+- `tongshefa/`
+- `user/`
+- `ziwei/`
+
+此外，`components/` 根级还有：
+
+- `HomePageSetup.js`
+- `RichEditor.js`
+
+按目录文件数量看，当前最重的前端模块是：
+
+- `astro/`：38 个文件
+- `su28/`：33 个文件
+- `cntradition/`：17 个文件
+- `user/`：16 个文件
+- `commtools/`：12 个文件
+- `liureng/`：12 个文件
+- `ziwei/`：12 个文件
+
+中等体量模块包括：
+
+- `comp/`：10 个文件
+- `graph/`：8 个文件
+- `relative/`：8 个文件
+- `amap/`：7 个文件
+- `jinkou/`：7 个文件
+- `lrzhan/`：7 个文件
+- `multimedia/`：7 个文件
+- `dunjia/`：6 个文件
+- `reader/`：6 个文件
+- `ruleziwei/`：6 个文件
+- `suzhan/`：6 个文件
+
+这说明：
+
+- `astro/` 仍然是前端第一核心域
+- `su28/`、`cntradition/`、`liureng/`、`ziwei/` 这些中式模块也已经非常成体系
+- `user/` 与 `commtools/` 不是附属，而是完整的支撑子系统
+
+#### 2.3.13 `components/astro/`
+
+这是西占、推运、主限法的核心组件目录。当前文件包括：
+
+- `AspSelector.js`
+- `AstroAspect.js`
+- `AstroChart.js`
+- `AstroChartCircle.js`
+- `AstroChartMain.js`
+- `AstroDecennials.js`
+- `AstroDirectionForm.js`
+- `AstroDoubleChart.js`
+- `AstroDoubleChartMain.js`
+- `AstroFirdaria.js`
+- `AstroFormComp.js`
+- `AstroGivenYear.js`
+- `AstroHelper.js`
+- `AstroInfo.js`
+- `AstroLots.js`
+- `AstroLunarReturn.js`
+- `AstroMeaningData.js`
+- `AstroMeaningPopover.js`
+- `AstroPlanet.js`
+- `AstroPredictPlanetSign.js`
+- `AstroPrimaryDirection.js`
+- `AstroPrimaryDirectionChart.js`
+- `AstroProfection.js`
+- `AstroRelative.js`
+- `AstroSolarArc.js`
+- `AstroSolarReturn.js`
+- `AstroZR.js`
+- `ChartDisplaySelector.js`
+- `ChartSearchModal.js`
+- `IndiaChart.js`
+- `IndiaChartMain.js`
+- `LatInput.js`
+- `LonInput.js`
+- `PlanetSelector.js`
+- `PlusMinusTime.js`
+- `ZodiacalRelease.js`
+
+这组文件基本覆盖：
+
+- 本命盘/星盘主界面
+- 双盘与关系盘
+- 主限法
+- 十年大运
+- 法达
+- 小限/流年/返照/太阳弧
+- 印度律盘
+- 图面配置与搜索
+
+其中在主工作台里承担“一级页面”的核心组件主要是：
+
+- `AstroChartMain`
+  星盘主页面
+- `AstroChartMain3D`
+  三维盘主页面
+- `AstroRelative`
+  关系盘入口
+- `IndiaChartMain`
+  印度律盘入口
+- `AstroPrimaryDirection`
+  主/界限法表格页
+- `AstroPrimaryDirectionChart`
+  主限法盘页
+- `AstroZR`
+  黄道星释页
+- `AstroFirdaria`
+  法达星限页
+- `AstroProfection`
+  小限法页
+- `AstroSolarArc`
+  太阳弧页
+- `AstroSolarReturn`
+  太阳返照页
+- `AstroLunarReturn`
+  月亮返照页
+- `AstroGivenYear`
+  流年法页
+- `AstroDecennials`
+  十年大运页
+
+#### 2.3.14 `components/jinkou/`
+
+当前文件：
+
+- `JinKouCalc.js`
+- `JinKouCalc.test.js`
+- `JinKouChart.js`
+- `JinKouMain.js`
+- `JinKouMain.test.js`
+- `JinKouPanChart.js`
+- `JinKouState.js`
+
+这是金口诀页面、计算、盘面和回归测试的完整组合。
+
+#### 2.3.15 `components/lrzhan/`
+
+当前文件：
+
+- `LiuRengBirthInput.js`
+- `LiuRengChart.js`
+- `LiuRengInput.js`
+- `LiuRengMain.js`
+- `RengChart.js`
+
+这是当前主用六壬“战盘/格局参考”页面实现。
+
+#### 2.3.16 `components/liureng/`
+
+当前文件：
+
+- `ChuangChart.js`
+- `ChuangChart.test.js`
+- `GodChart.js`
+- `KeChart.js`
+- `LRChart.js`
+- `LRCircleChart.js`
+- `LRCommChart.js`
+- `LRConst.js`
+- `LRInnerChart.js`
+- `LRPanStyle.js`
+- `LRShenJiangDoc.js`
+- `LRZhangSheng.js`
+
+这组文件更偏六壬基础盘、图形化组件与文档说明层。
+
+#### 2.3.17 `components/dunjia/`
+
+当前文件：
+
+- `DunJiaBaGongRules.js`
+- `DunJiaCalc.js`
+- `DunJiaMain.js`
+- `QimenXiangDoc.js`
+
+这是遁甲页面、八宫规则、快照与说明文档核心。
+
+#### 2.3.18 `components/taiyi/`
+
+当前文件：
+
+- `TaiYiCalc.js`
+- `TaiYiMain.js`
+
+#### 2.3.19 `components/tongshefa/`
+
+当前文件：
+
+- `TongSheFaMain.js`
+
+#### 2.3.20 `components/sanshi/`
+
+当前文件：
+
+- `SanShiUnitedMain.js`
+
+这是三式合一的综合工作面。
+
+#### 2.3.21 `components/cntradition/`
+
+当前文件：
+
+- `BaZi.js`
+- `BaZiZhangSheng.js`
+- `CnTraditionInput.js`
+- `CnTraditionMain.js`
+- `FourZhu.js`
+- `FourZhuGuaDesc.js`
+- `GanHeCong.js`
+- `Gods.js`
+- `MDSDirect.js`
+- `MDSYear.js`
+- `MainDirection.js`
+- `MainDirectionSimple.js`
+- `PaiBaZi.js`
+- `SmallDirection.js`
+- `Zhu.js`
+- `ZhuMing12.js`
+- `ZiHeCong.js`
+
+这是八字、四柱、命运方向等中式传统体系页面。
+
+`CnTraditionMain.js` 当前把“八字紫微”一级页拆成 5 个右侧 Tab：
+
+- `bazi`：八字
+- `ziwei`：紫微斗数
+- `guasym`：八卦类象
+- `cuangong12`：十二串宫
+- `pithy`：八字规则
+
+#### 2.3.22 `components/ziwei/` 与 `components/ruleziwei/`
+
+`ziwei/` 当前文件：
+
+- `ZWCenterHouse.js`
+- `ZWChart.js`
+- `ZWCommHouse.js`
+- `ZWHouse.js`
+- `ZWHouseSangHe.js`
+- `ZWIndicator.js`
+- `ZiWeiChart.js`
+- `ZiWeiHelper.js`
+- `ZiWeiHouse.js`
+- `ZiWeiInput.js`
+- `ZiWeiJiangStar.js`
+- `ZiWeiMain.js`
+
+`ruleziwei/` 当前文件：
+
+- `RuleHouses.js`
+- `RuleHuaDesc.js`
+- `RuleSihua.js`
+- `RuleStars.js`
+- `ZWIndication.js`
+- `ZWRuleMain.js`
+
+前者是紫微排盘与界面，后者是规则说明与判读材料。
+
+#### 2.3.23 `components/relative/`
+
+当前文件：
+
+- `AntisciaInfo.js`
+- `AspectInfo.js`
+- `AstroCompare.js`
+- `AstroComposite.js`
+- `AstroMarks.js`
+- `AstroSynastry.js`
+- `AstroTimeSpace.js`
+- `MidpointInfo.js`
+
+这是关系盘与中点相关模块。
+
+#### 2.3.24 `components/astro3d/`
+
+当前文件：
+
+- `Astro3D.js`
+- `AstroChart3D.js`
+- `AstroChartMain3D.js`
+- `TextSprite.js`
+
+#### 2.3.25 `components/acg/`、`components/amap/`、`components/germany/`
+
+`acg/` 当前文件：
+
+- `AcgHelper.js`
+- `AstroAcg.js`
+- `AstroLinesSelector.js`
+
+`amap/` 当前文件：
+
+- `ACG.js`
+- `GeoCoord.js`
+- `GeoCoordModal.js`
+- `GeoCoordSelector.js`
+- `MapV2.js`
+- `PointsCluster.js`
+- `amapUIHelper.js`
+
+`germany/` 当前文件：
+
+- `AspectToMidpoint.js`
+- `AstroGermany.js`
+- `AstroMidpoint.js`
+- `Midpoint.js`
+- `MidpointMain.js`
+
+这三组对应地图、ACG、德国学派中点等专门模块。
+
+#### 2.3.26 `components/calendar/` 与 `components/jieqi/`
+
+`calendar/` 当前文件：
+
+- `CalendarMain.js`
+- `NongLi.js`
+- `NongLiDate.js`
+- `NongLiMain.js`
+
+`jieqi/` 当前文件：
+
+- `JieQiChart.js`
+- `JieQiChartsMain.js`
+
+#### 2.3.27 `components/gua/` 与 `components/guazhan/`
+
+`gua/` 当前文件：
+
+- `DoubleMeiyiGuaSym.js`
+- `Gua.js`
+- `Gua3.js`
+- `GuaChart.js`
+- `GuaChartDiv.js`
+- `GuaConst.js`
+- `GuaSym.js`
+- `GuaSymDesc.js`
+- `MeiyiGuaSym.js`
+- `YangYao.js`
+- `Yao.js`
+- `YinYao.js`
+
+`guazhan/` 当前文件：
+
+- `GZChart.js`
+- `GuaDesc.js`
+- `GuaZhanChart.js`
+- `GuaZhanInput.js`
+- `GuaZhanMain.js`
+
+#### 2.3.28 `components/guolao/`
+
+当前文件：
+
+- `GLChart.js`
+- `GLSZSignChart.js`
+- `GuoLaoChart.js`
+- `GuoLaoChartMain.js`
+- `GuoLaoInput.js`
+- `GuoLaoNatalChart.js`
+
+#### 2.3.29 `components/su28/` 与 `components/suzhan/`
+
+`su28/` 当前文件非常细，包含：
+
+- `HouseSu.js`
+- `HouseSu0.js` 到 `HouseSu27.js`
+- `HouseSuCenter.js`
+- `Su28Chart.js`
+- `Su28ChartCircle.js`
+- `Su28Helper.js`
+
+`suzhan/` 当前文件：
+
+- `SZChart.js`
+- `SZChartComm.js`
+- `SZConst.js`
+- `SuZhanChart.js`
+- `SuZhanInput.js`
+- `SuZhanMain.js`
+
+#### 2.3.30 `components/sz*` 系列
+
+这些目录是三式相关子盘组件：
+
+- `szbagua/`
+  - `SZBaGuaChart.js`
+  - `SZBaGuaChartCircle.js`
+- `szdunjia/`
+  - `SZDunJiaChart.js`
+  - `SZDunJiaChartCircle.js`
+- `szfangwei/`
+  - `SZFangWeiChart.js`
+  - `SZFangWeiChartCircle.js`
+- `szfengye/`
+  - `SZFengYeChart.js`
+  - `SZFengYeChartCircle.js`
+- `sznixiang/`
+  - `SZNiXiangChart.js`
+  - `SZNiXiangChartCircle.js`
+- `szsign/`
+  - `SZSignChart.js`
+  - `SZSignChartCircle.js`
+- `sztaiyi/`
+  - `SZTaiYiChart.js`
+  - `SZTaiYiChartCircle.js`
+
+#### 2.3.31 其他前端组件目录
+
+- `admintools/`
+  - `AdminToolsMain.js`
+  - `BackupTool.js`
+- `commtools/`
+  - `Azimuth.js`
+  - `BaziPattern.js`
+  - `BaziPithy.js`
+  - `Calculator.js`
+  - `CommToolsMain.js`
+  - `CoordTrans.js`
+  - `CuanGong12.js`
+  - `CuanGong12Desc.js`
+  - `CuanGong12Query.js`
+  - `DateCalc.js`
+  - `InverseBazi.js`
+  - `NaYing.js`
+- `comp/`
+  - `ChartFormData.js`
+  - `ChartMemo.js`
+  - `CompHelper.js`
+  - `ConfirmSwitch.js`
+  - `DateTime.js`
+  - `DateTimeInfo.js`
+  - `DateTimeSelector.js`
+  - `EditableTags.js`
+  - `ImgToken.js`
+  - `TipsBoard.js`
+- `deeplearn/`
+  - `DLFeature.js`
+  - `DLStatis.js`
+- `dice/`
+  - `DiceMain.js`
+- `direction/`
+  - `AstroDirectMain.js`
+- `fengshui/`
+  - `FengShuiMain.js`
+- `graph/`
+  - `D3Arrow.js`
+  - `D3BaseCircle.js`
+  - `D3Circle.js`
+  - `D3DegreeInnerLine.js`
+  - `D3DegreeOuterLine.js`
+  - `GraphHelper.js`
+  - `TextTable.js`
+- `hellenastro/`
+  - `AstroChart13.js`
+  - `HellenAstroMain.js`
+- `homepage/`
+  - `PageFooter.js`
+  - `PageHeader.js`
+- `loc/`
+  - `LocAstroMain.js`
+- `logqry/`
+  - `LogQryDetail.js`
+  - `LogQryList.js`
+  - `LogQryMain.js`
+- `multimedia/`
+  - `LiveMgmt.js`
+  - `LivePlayer.js`
+  - `LiveStreamsModal.js`
+  - `MediaMain.js`
+  - `MediaPlayer.js`
+  - `RtspPlayer.js`
+  - `StreamPlayer.js`
+- `otherbu/`
+  - `OtherBuMain.js`
+- `reader/`
+  - `BookList.js`
+  - `BookMain.js`
+  - `BookReader.js`
+  - `BookUpload.js`
+  - `MyBookList.js`
+  - `ReaderTTS.js`
+- `statis/`
+  - `Statis.js`
+- `user/`
+  - `CaseAddFormComp.js`
+  - `CaseData.js`
+  - `CaseEditFormComp.js`
+  - `CaseList.js`
+  - `ChangeParamsFormComp.js`
+  - `ChangePwdForm.js`
+  - `ChartAddFormComp.js`
+  - `ChartData.js`
+  - `ChartEditFormComp.js`
+  - `ChartList.js`
+  - `ChartsGps.js`
+  - `LoginForm.js`
+  - `RegisterForm.js`
+  - `ResetPwdForm.js`
+  - `UploadChartsModal.js`
+  - `UserMgmt.js`
+
+补充几个承担“组合页入口”的组件：
+
+- `direction/AstroDirectMain.js`
+  当前把“推运盘”拆成 10 个二级 Tab：
+  - `primarydirect`：主/界限法
+  - `primarydirchart`：主限法盘
+  - `zodialrelease`：黄道星释
+  - `firdaria`：法达星限
+  - `profection`：小限法
+  - `solararc`：太阳弧
+  - `solarreturn`：太阳返照
+  - `lunarreturn`：月亮返照
+  - `givenyear`：流年法
+  - `decennials`：十年大运
+- `cnyibu/CnYiBuMain.js`
+  当前把“易与三式”拆成 7 个二级 Tab：
+  - `suzhan`：宿盘
+  - `guazhan`：易卦
+  - `liureng`：六壬
+  - `jinkou`：金口诀
+  - `dunjia`：遁甲
+  - `taiyi`：太乙
+  - `tongshefa`：统摄法
+- `otherbu/OtherBuMain.js`
+  当前可见二级页只有：
+  - `touzi`：星盘骰子
+- `sanshi/SanShiUnitedMain.js`
+  当前把“三式合一”拆成一级 Tab：
+  - `overview`：概览
+  - `taiyi`：太乙
+  - `shensha`：神煞
+  - `liureng`：六壬
+  - `bagong`：八宫
+  其中 `liureng` 页内部又有第二层 Tab：
+  - `dage`：大格
+  - `xiaoju`：小局
+  - `reference`：参考
+  - `overview`：概览
+
+`homepage/PageHeader.js` 不是简单 logo 条，而是前端顶层工作台控制条，当前实际负责：
+
+- 菜单点击分发
+- 主题切换
+- AI 导出
+- AI 导出设置弹窗
+- 新命盘
+- 打开各类抽屉
+- 若存在桌面桥，还可触发 diagnostics 导出
+
+从当前 JSX 看，顶部工具条直接暴露的按钮/入口包括：
+
+- `公众号`
+- `首页`
+- `批注`
+- 主题选择器
+- `小工具`
+- `星盘组件`
+- `行星选择`
+- `相位选择`
+- `新命盘`
+- `AI导出`
+- `AI导出设置`
+- `导出诊断报告`（仅桌面桥可用）
+- 查询图标入口
+- 右上角用户/管理下拉菜单
+
+右上角用户菜单当前分两套：
+
+- 未登录/管理态：
+  - `chartlist`
+  - `caselist`
+  - `chartadd`
+- 已登录用户态：
+  - `chartlist`
+  - `caselist`
+  - `chartsgps`
+  - `chartadd`
+  - `changeparams`
+  - `changepwd`
+  - `logout`
+
+`app/menuClick` 的当前行为也很直接：
+
+- 如果 key 是 `logout`，走 `app/logout`
+- 其他 key 一律转给 `astro/openDrawer`
+
+把 `PageHeader` 再拆细一层，可以得到一张“顶栏入口 -> dispatch -> drawer/动作”映射：
+
+- `首页`
+  - 触发：`openDrawer('homepage')`
+  - 结果：打开首页设置/首页入口抽屉
+- `小工具`
+  - 触发：`openDrawer('commtools')`
+  - 结果：打开小工具抽屉
+- `星盘组件`
+  - 触发：`openDrawer('selectchartdisplay')`
+  - 结果：打开图面显示选择抽屉
+- `行星选择`
+  - 触发：`openDrawer('selectplanet')`
+  - 结果：打开行星显示抽屉
+- `相位选择`
+  - 触发：`openDrawer('selectasp')`
+  - 结果：打开相位选择抽屉
+- `新命盘`
+  - 触发：`astro/nowChart`
+  - 结果：直接生成当前时刻命盘，不走 drawer
+- `AI导出`
+  - 触发：`runAIExport(key)`
+  - 结果：走 `utils/aiExport.js` 导出链路
+- `AI导出设置`
+  - 触发：`openAIExportSettings()`
+  - 结果：弹出 AI 导出 section 配置 Modal
+- `导出诊断报告`
+  - 条件：`window.horosaDesktop.exportDiagnostics` 可用
+  - 结果：收集当前 URL、UA、AI 快照、本地模块快照后交给桌面壳导出
+- 查询图标
+  - 触发：`openDrawer('query')`
+  - 结果：打开查询抽屉
+- 用户下拉菜单各 key
+  - `chartlist / caselist / chartsgps / chartadd / changeparams / changepwd`
+  - 统一经 `app/menuClick` 再转到 `astro/openDrawer`
+  - `logout`
+    - 单独走 `app/logout`
+
+因此 `PageHeader.js` 实际上已经是一个“全局命令面板”，不是单纯的视觉顶栏。
+
+### 2.4 Java 后端：`Horosa-Web/astrostudysrv/`
+
+这是 Maven 多模块工程。当前可见的模块有：
+
+- `astrodeeplearn/`
+- `astroesp/`
+- `astroreader/`
+- `astrostudy/`
+- `astrostudyboot/`
+- `astrostudycn/`
+- `astrostudytest/`
+- `astroswisseph/`
+- `basecomm/`
+- `boundless/`
+- `image/`
+- `iot/`
+- `media/`
+- `medialib/`
+
+每个模块目前基本都带有 `pom.xml`，多数还带 `src/`、`target/`、`.settings/`。
+
+按 `src/` 下文件数量粗看，当前重量级模块大致是：
+
+- `boundless/`：约 540 个文件
+- `astrostudycn/`：约 130 个文件
+- `astrostudy/`：约 86 个文件
+- `astrostudyboot/`：约 56 个文件
+- `basecomm/`：约 41 个文件
+- `iot/`：约 34 个文件
+- `astrostudytest/`：约 34 个文件
+- `image/`：约 22 个文件
+
+这也说明后端真正的核心并不只是一层 controller，而是：
+
+- `astrostudy + astrostudycn`
+  承担业务逻辑
+- `astrostudyboot`
+  承担启动与装配
+- `basecomm + boundless`
+  承担公共基础能力
+- `image/iot/media`
+  作为历史能力与扩展能力保留在工程里
+
+#### 2.4.1 `astrostudyboot/`
+
+- `astrostudyboot/pom.xml`
+- `astrostudyboot/src/main/java/spacex/astrostudyboot/AstroStudyProgram.java`
+
+这是整个 Java 服务的启动入口模块。
+
+补充：
+
+- 从目录规模看，`astrostudyboot` 不是单文件壳模块，它本身在 `src/` 下约有 56 个文件，说明里面除了启动入口，应该还承载了较多资源、配置或装配逻辑。
+
+#### 2.4.2 `astrostudy/`
+
+这是西占与通用业务主模块。当前从源码上能直接看到的主要层次有：
+
+- `constants/`
+  - `AstroObjects.java`
+  - `AstroPrivilege.java`
+  - `ClientApp.java`
+  - `FiveElement.java`
+  - `MemoType.java`
+  - `Phase.java`
+  - `PhaseType.java`
+  - `Polarity.java`
+  - `StemBranch.java`
+  - `ganjizi.json`
+  - `ganzipos.json`
+- `controller/`
+  - `AcgController.java`
+  - `AllowedChartController.java`
+  - `BackupMgmtController.java`
+  - `CalcController.java`
+  - `CommController.java`
+  - `GermanyTechController.java`
+  - `IndiaChartController.java`
+  - `JdnController.java`
+  - `LoginController.java`
+  - `ModernChartController.java`
+  - `PredictiveController.java`
+  - `RegisterController.java`
+  - `ResetPwdController.java`
+  - `StatisticController.java`
+  - `ThirdAppClientController.java`
+  - `TokenController.java`
+  - `TransLogController.java`
+  - `UserChartsController.java`
+  - `UserCheckLoginController.java`
+  - `UserDataTransferController.java`
+  - `UserInfoController.java`
+  - `UserMgmtController.java`
+- `helper/`
+  - `AstroCacheHelper.java`
+  - `AstroHelper.java`
+  - `BaZiHelper.java`
+  - `BaZiPithyHelper.java`
+  - `CacheHelper.java`
+  - `ClientAppHelper.java`
+  - `GanZiRelativeHelper.java`
+  - `GodsHelper.java`
+  - `Gong12Helper.java`
+  - `JdnHelper.java`
+  - `JieqiChef.json`
+  - `MongoTransLogTask.java`
+  - `NongliHelper.java`
+  - `ParamHashCacheHelper.java`
+  - `PrivilegeHelper.java`
+  - `QiMengHelper.java`
+  - `ReqCheckRsaHelper.java`
+  - `ReqSignHelper.java`
+  - `RsaParamHelper.java`
+  - `StatisticHelper.java`
+  - `TiaoHouHelper.java`
+  - `TransGroupHelper.java`
+  - `WuXingPhaseHelper.java`
+  - `bazipithy.json`
+  - `ganzirelative.json`
+  - `gods.json`
+  - `gong12.json`
+  - `gong12Su.json`
+  - `taisui.json`
+  - `tiaohou.json`
+  - `wuxingphase.json`
+  - `五行精纪.json`
+  - `predict/PlanetSignPredictHelper.java`
+- `interceptor/`
+  - `CommInterceptor.java`
+  - `PermissionInterceptor.java`
+  - `UserTokenInterceptor.java`
+- `model/`
+  - `AstroChart.java`
+  - `AstroUser.java`
+  - `FourColumns.java`
+  - `GanZi.java`
+  - `GanZiCell.java`
+  - `NongLi.java`
+  - `RealSunTimeOffset.java`
+  - `godrule/GodRule.java`
+  - `godrule/GodRuleByJiaZi.java`
+  - `godrule/GodRuleByNaYing.java`
+  - `godrule/GodRuleByPhase.java`
+  - `godrule/GodRuleByRiZhu.java`
+  - `godrule/GuoLaoGods.java`
+  - `godrule/GuoLaoZiGods.java`
+- `service/`
+  - `UserService.java`
+
+路由域从 controller 上看，`astrostudy` 这层主要承接以下 URL 空间：
+
+- `/location/*`
+  ACG / 地理相关
+- `/common/*`
+  token、公共工具、清缓存等
+- `/germany/*`
+  德国学派 / midpoint
+- `/clientapp/*`
+  第三方 client app 管理
+- `/jdn/*`
+  JDN 工具
+- `/user/*`
+  登录、登出、用户检查、命盘、导入导出、参数修改
+- `/usermgmt/*`
+  后台用户管理
+- `/predict/*`
+  推运与主限法
+- `/allowedcharts`
+- `/statis/*`
+- `/modern/*`
+- `/calc/*`
+- `/bak/*`
+- `/log/*`
+- `/india/*`
+
+其中和当前前端直接强相关的，主要是：
+
+- `/user/*`
+- `/predict/*`
+- `/calc/*`
+- `/common/*`
+- `/statis/*`
+- `/allowedcharts`
+- `/modern/relative`
+- `/location/acg`
+- `/germany/midpoint`
+- `/india/chart`
+
+#### 2.4.3 `astrostudycn/`
+
+这是中式术数后端主模块。当前可见的主要层次：
+
+- `constants/`
+  - `BaZiGender.java`
+  - `BaziPattern.java`
+  - `TimeZiAlg.java`
+  - `YueJiangType.java`
+  - `ZiWeiStarType.java`
+- `controller/`
+  - `BaZiBirthController.java`
+  - `BaZiPatternController.java`
+  - `CalendarController.java`
+  - `ChartController.java`
+  - `GuaController.java`
+  - `JieQiController.java`
+  - `LiuRengController.java`
+  - `NongliController.java`
+  - `PaiBaZiController.java`
+  - `QueryChartController.java`
+  - `ZiWeiController.java`
+- `helper/`
+  - `BaZiComposeHelper.java`
+  - `BaZiPredictHelper.java`
+  - `CalendarHelper.java`
+  - `GuaHelper.java`
+  - `JieQiHelper.java`
+  - `LiuRengHelper.java`
+  - `SeasonHelper.java`
+  - `YueJiangHelper.java`
+  - `ZWRulesHelper.java`
+  - `ZiWeiHelper.java`
+  - `bazicompose.json`
+  - `bazipred.json`
+  - `gua.json`
+  - `liureng.json`
+  - `nayin.json`
+  - `nayinsym.json`
+  - `season.json`
+  - `yuejiang.json`
+  - `ziweidou.json`
+  - `ziweihuolin.json`
+  - `ziweijiang.json`
+  - `ziweimonth.json`
+  - `ziweisihua.json`
+  - `ziweismallstars.json`
+  - `ziweistarlight.json`
+  - `ziweistarsmain.json`
+  - `ziweitimezi.json`
+  - `ziweixiaoxian.json`
+  - `ziweiyeargan.json`
+  - `ziweiyearzi.json`
+  - `ziweizu.json`
+  - `zwrules.json`
+  - `zwrulesihua.json`
+- `model/`
+  - `BaZi.java`
+  - `BaZiDirect.java`
+  - `FateDirect.java`
+  - `LiuReng.java`
+  - `OnlyFourColumns.java`
+  - `SmallFateDirect.java`
+  - `ZiWeiChart.java`
+  - `ZiWeiHouse.java`
+  - `ZiWeiStar.java`
+
+路由域从 controller 上看，`astrostudycn` 主要承接：
+
+- `/chart`
+- `/chart13`
+- `/bazi/*`
+- `/calendar/*`
+- `/gua/*`
+- `/jieqi/*`
+- `/liureng/*`
+- `/nongli/*`
+- `/qry/*`
+- `/ziwei/*`
+
+其中对应当前前端的重点关系是：
+
+- 星盘主页面：`/chart`、`/chart13`
+- 八字紫微：`/bazi/*`、`/ziwei/*`
+- 节气盘与万年历：`/jieqi/*`、`/calendar/*`、`/nongli/*`
+- 易卦与六壬：`/gua/*`、`/liureng/*`
+
+#### 2.4.4 `astrodeeplearn/`
+
+当前可见内容：
+
+- `controller/DeepLearnController.java`
+- `controller/StatisDeepLearnController.java`
+- `helper/DeepLearnHelper.java`
+- `helper/10000.json`
+- `helper/20000.json`
+- `helper/30000.json`
+- `helper/40000.json`
+
+#### 2.4.5 `astroreader/`
+
+当前可见内容：
+
+- `controller/FlvUrlController.java`
+- `controller/MediaController.java`
+- `controller/ReaderController.java`
+- `controller/RtmpController.java`
+- `controller/TTSController.java`
+- `helper/FlvUrlHelper.java`
+- `helper/ReaderHelper.java`
+- `helper/RtmpHelper.java`
+
+这部分和阅读器、媒体、流媒体/TTS 有关。
+
+对应路由域：
+
+- `/astroreader/*`
+  图书上传、列书、章节、TTS、直播地址等
+- `/astromedia`
+- `/live/*`
+
+#### 2.4.6 `astroesp/`
+
+当前可见内容：
+
+- `controller/DoorLockController.java`
+
+#### 2.4.7 `astrostudytest/`
+
+这是 Java 侧测试/工具模块，当前可见文件：
+
+- `AstroStudyTest.java`
+- `BaziBirthTest.java`
+- `ChartsGpsTest.java`
+- `ClearQueryCache.java`
+- `DoorTest.java`
+- `HostIdTest.java`
+- `HttpClientTest.java`
+- `JieqiYearTest.java`
+- `MemoTest.java`
+- `QryChartTest.java`
+- `ReaderTest.java`
+- `RtspPushTest.java`
+- `TSSTest.java`
+- `ZiWeiChartTest.java`
+
+#### 2.4.8 `basecomm/`
+
+这是公共基础通信/鉴权/WebSocket 支撑模块。当前可见内容包括：
+
+- `constants/`
+  - `AlertTag.java`
+  - `AlertType.java`
+  - `ClientApp.java`
+  - `ClientChannel.java`
+  - `ControlTag.java`
+  - `CustomerState.java`
+  - `CustomerType.java`
+  - `DataSourceType.java`
+  - `ErrorMetrics.java`
+  - `FieldBusProtocol.java`
+  - `FuncTrans.java`
+  - `IotTag.java`
+  - `RegisterType.java`
+  - `SexType.java`
+  - `TransGroup.java`
+  - `TransLogField.java`
+  - `UserState.java`
+- `controller/`
+  - `AuthController.java`
+  - `SystemController.java`
+- `helper/`
+  - `CustConfHelper.java`
+  - `CypherHelper.java`
+  - `HttpHelper.java`
+  - `IotDataTreatHelper.java`
+  - `MqttHelper.java`
+  - `NotificationHelper.java`
+- `im/`
+  - `IMAccount.java`
+  - `TLSSigAPIv2.java`
+  - `TengXunErrCode.json`
+  - `TengXunIM.java`
+  - `ThirdPartIM.java`
+  - `WangYiErrCode.json`
+  - `WangYiIM.java`
+- `interceptor/RootFilter.java`
+- `model/`
+  - `AppInfo.java`
+  - `BaiduIotConfig.java`
+  - `BemCloudConfig.java`
+  - `FieldBus.java`
+  - `MqttConfig.java`
+- `ws/`
+  - `command/WebSocketCmd.java`
+  - `packet/WebSocketPacketIds.java`
+  - `process/WebSocketDatagramCommProcess.java`
+
+对应路由域：
+
+- `/auth/*`
+- `/common/time`
+- `/common/tm`
+- `/common/tmdetail`
+- `/common/hostid`
+- `/common/hid`
+- `/common/hidmd5`
+- `/common/ver`
+- `/common/prevmonth`
+
+#### 2.4.9 `boundless/`
+
+这是更底层的公共库模块。当前直接可见的代表性内容有：
+
+- `META-INF/MANIFEST.MF`
+- `META-INF/ace-tags.tld`
+- `META-INF/bwu-tags.tld`
+- `META-INF/services/org.web3j.abi.spi.FunctionReturnDecoderProvider`
+- `META-INF/spring-devtools.properties`
+- `boundless/annotation/Comp.java`
+
+#### 2.4.10 `image/`
+
+图像处理模块。当前可见内容：
+
+- `boundless/utility/img/CustomOpenCV.java`
+- `boundless/utility/img/GMUtility.java`
+- `boundless/utility/img/GifImage.java`
+- `boundless/utility/img/GifUtility.java`
+- `boundless/utility/img/ImageFilter.java`
+- `boundless/utility/img/ImageFrame.java`
+- `boundless/utility/img/ImageUtility.java`
+- `boundless/utility/img/JPGUtility.java`
+- `boundless/utility/img/PNGUtility.java`
+- `boundless/utility/img/PngOptimization.java`
+- `boundless/utility/img/ZipImgUtility.java`
+- `boundless/web/help/ImageTokenGenerator.java`
+- `org/pngquant/Image.java`
+- `org/pngquant/LiqObject.java`
+- `org/pngquant/PngQuant.java`
+- `org/pngquant/PngQuantException.java`
+- `org/pngquant/Result.java`
+- `org/pngquant/libimagequant.a`
+- `org/pngquant/libimagequant.jnilib`
+- `spacex/basecomm/controller/ImageTestController.java`
+
+#### 2.4.11 `iot/`
+
+IoT/串口/现场总线相关模块。当前可见内容：
+
+- `boundless/net/bacnet/BacnetCollector.java`
+- `boundless/net/bacnet/BacnetLocalDeviceFactory.java`
+- `boundless/net/bacnet/DefaultDeviceEventAdapter.java`
+- `boundless/net/modbus/ModbusCollector.java`
+- `boundless/net/opc/OpcCollector.java`
+- `boundless/net/opc/OpcItem.java`
+- `boundless/net/opcua/OpcUaCollector.java`
+- `boundless/rxtx/SerialParameter.java`
+- `boundless/rxtx/SerialUtility.java`
+- `boundless/types/message/SmsAt.java`
+- `gnu/io/*`
+  这里包含一整套 RXTX 串口相关 Java 类和多平台动态库：
+  - `CommDriver.java`
+  - `CommPort.java`
+  - `CommPortIdentifier.java`
+  - `RXTXPort.java`
+  - `SerialPort.java`
+  - `librxtxSerial-amd64.dll`
+  - `librxtxSerial-amd64.so`
+  - `librxtxSerial-x86_64.jnilib`
+  等
+- `name/prokop/bart/rxtx/*`
+- `spacex/basecomm/controller/IotTestController.java`
+
+#### 2.4.12 `media/`
+
+媒体模块当前可见内容：
+
+- `boundless/utility/sound/SoundUtility.java`
+- `spacex/basecomm/controller/XunFeiController.java`
+- `spacex/basecomm/helper/XunFeiHelper.java`
+
+#### 2.4.13 其余模块
+
+- `astroswisseph/`
+  当前看到 `pom.xml`，说明它作为依赖/桥接模块保留在工程中。
+- `medialib/`
+  当前看到 `pom.xml`，作为媒体库模块存在。
+
+从职责上看，Java 后端当前可以粗分成 5 层：
+
+1. 启动层：
+   `astrostudyboot`
+2. 西占与通用业务层：
+   `astrostudy`
+3. 中式术数业务层：
+   `astrostudycn`
+4. 阅读/深度学习/媒体扩展层：
+   `astroreader`、`astrodeeplearn`、`astroesp`、`image`、`media`
+5. 公共基础层：
+   `basecomm`、`boundless`、`iot`
+
+### 2.5 Python 图表与算法服务：`Horosa-Web/astropy/`
+
+#### 2.5.1 顶层内容
+
+当前顶层文件：
+
+- `.gitignore`
+- `README.md`
+- `__init__.py`
+- `requirements.txt`
+- `setup.py`
+- `astrostudy/`
+- `websrv/`
+
+#### 2.5.2 `astropy/astrostudy/`
+
+这是算法主体，当前实际可见的主要文件包括：
+
+- `firdaria.py`
+- `helper.py`
+- `perchart.py`
+- `perpredict.py`
+- `signasctime.py`
+- `solararc.py`
+- `termdirection.py`
+- `thirteenthchart.py`
+- `zreleasing.py`
+
+子目录：
+
+- `acg/`
+  - `ACGraph.py`
+- `germany/`
+  - `midpoint.py`
+- `guostarsect/`
+  - `guo74.py`
+  - `guostarsect.py`
+  - `guotables.py`
+- `india/`
+  - `chart2.py`
+  - `chart3.py`
+  - `chart4.py`
+  - `chart5.py`
+  - `chart6.py`
+  - `chart7.py`
+  - `chart8.py`
+  - `chart9.py`
+  - `chart10.py`
+  - `chart11.py`
+  - `chart12.py`
+  - `chart16.py`
+  - `chart20.py`
+  - `chart24.py`
+  - `chart27.py`
+  - `chart30.py`
+  - `chart40.py`
+  - `chart45.py`
+  - `chart60.py`
+- `jieqi/`
+  - `BirthJieQi.py`
+  - `NongLi.py`
+  - `TimeDecider.py`
+  - `YearJieQi.py`
+  - `jieqiconst.py`
+  - `realsuntime.py`
+- `modern/`
+  - `chartcomp.py`
+  - `chartcomposite.py`
+  - `chartmarks.py`
+  - `chartsynastry.py`
+  - `charttmspace.py`
+- `models/`
+  当前保留多组主限法相关模型文件：
+  - `astroapp_pd_asc_case_corr_et_v1.joblib`
+  - `astroapp_pd_asc_case_corr_et_v1.json`
+  - `astroapp_pd_virtual_body_corr_sun_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_moon_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_mercury_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_venus_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_mars_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_jupiter_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_saturn_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_uranus_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_neptune_v1.joblib`
+  - `astroapp_pd_virtual_body_corr_pluto_v1.joblib`
+
+#### 2.5.3 `astropy/websrv/`
+
+这是 Python 服务接口层。当前实际文件：
+
+- `helper.py`
+- `webacgsrv.py`
+- `webcalc.py`
+- `webchartsrv.py`
+- `webgermanysrv.py`
+- `webindiasrv.py`
+- `webjdn.py`
+- `webjieqisrv.py`
+- `webmodernsrv.py`
+- `webpredictsrv.py`
+
+这里的核心角色基本是：
+
+- 图表服务入口
+- 推运/主限法服务入口
+- 节气与历法服务入口
+- ACG、德国学派、现代关系盘等专门服务入口
+
+更细一点看：
+
+- `webchartsrv.py`
+  星盘图表主服务入口。
+- `webpredictsrv.py`
+  推运/主限法相关服务入口。
+- `webjieqisrv.py`
+  节气与历法服务。
+- `webacgsrv.py`
+  ACG 服务。
+- `webgermanysrv.py`
+  德国学派/量化盘服务。
+- `webindiasrv.py`
+  印度律盘服务。
+- `webmodernsrv.py`
+  现代关系盘服务。
+- `webjdn.py`
+  JDN/历法辅助接口。
+- `webcalc.py`
+  计算辅助入口。
+
+按文件数量看：
+
+- `astropy/astrostudy/` 约有 112 个文件
+- `astropy/websrv/` 约有 22 个文件
+
+更关键的是，`webchartsrv.py` 当前已经清楚写出了 CherryPy 挂载关系：
+
+- `/` -> `WebChartSrv()`
+- `/predict` -> `PredictSrv()`
+- `/india` -> `IndiaAstroSrv()`
+- `/modern` -> `ModernAstroSrv()`
+- `/germany` -> `GermanyAstroSrv()`
+- `/jieqi` -> `JieQiSrv()`
+- `/jdn` -> `WebJdnSrv()`
+- `/calc` -> `WebCalcSrv()`
+- `/location` -> `AcgSrv()`
+
+这和 Java 侧的 URL 空间是有明显镜像关系的，也解释了为什么前端会同时命中 Python 图表服务和 Java 后端。
+
+从暴露方法看，各 Python 服务对象当前至少提供：
+
+- `WebChartSrv`
+  - `index`
+  - `chart13`
+- `PredictSrv`
+  - `solarreturn`
+  - `lunarreturn`
+  - `givenyear`
+  - `profection`
+  - `solararc`
+  - `pd`
+  - `pdchart`
+  - `td`
+  - `zr`
+  - `dice`
+- `IndiaAstroSrv`
+  - `chart`
+- `ModernAstroSrv`
+  - `relative`
+- `GermanyAstroSrv`
+  - `midpoint`
+- `JieQiSrv`
+  - `year`
+  - `birth`
+  - `nongli`
+- `WebJdnSrv`
+  - `num`
+  - `date`
+- `WebCalcSrv`
+  - `azimuth`
+  - `cotrans`
+- `AcgSrv`
+  - `acg`
+
+`webchartsrv.py` 还额外承担了几个关键职责：
+
+- 启动时做主限法 warmup
+- 把 `flatlib-ctrad2` 加进 `sys.path`
+- 统一设置跨域响应
+- 从环境变量 `HOROSA_CHART_PORT` 读取端口，默认 `8899`
+
+### 2.6 内置 Python 占星依赖：`Horosa-Web/flatlib-ctrad2/`
+
+顶层当前可见内容：
+
+- `.gitignore`
+- `LICENSE`
+- `MANIFEST.in`
+- `README.md`
+- `README.rst`
+- `contrib/`
+- `docs/`
+- `flatlib/`
+- `recipes/`
+- `requirements.txt`
+- `scripts/`
+- `setup.py`
+- `tests/`
+
+重点内容：
+
+- `contrib/topical_almuten.py`
+- `flatlib/`
+  当前可见核心文件和子目录：
+  - `angle.py`
+  - `aspects.py`
+  - `chart.py`
+  - `const.py`
+  - `datetime.py`
+  - `geopos.py`
+  - `lists.py`
+  - `object.py`
+  - `props.py`
+  - `utils.py`
+  - `dignities/`
+  - `ephem/`
+  - `predictives/`
+  - `protocols/`
+  - `resources/`
+  - `tools/`
+- `recipes/`
+  包含大量推运/占星配方脚本：
+  - `primarydirections.py`
+  - `profections.py`
+  - `solarreturn.py`
+  - `solaryears.py`
+  - `temperament.py`
+  - `arabicparts.py`
+  - `accidentaldignities.py`
+  等
+- `scripts/`
+  - `build.py`
+  - `clean.py`
+  - `utils.py`
+- `tests/`
+  - `test_angles.py`
+  - `test_chart.py`
+  - `testchart.py`
+
+### 2.7 主工程内脚本与运行痕迹
+
+#### 2.7.1 主工程根脚本
+
+- `start_horosa_local.sh`
+  本地启动入口。
+- `stop_horosa_local.sh`
+  本地停止入口。
+- `verify_horosa_local.sh`
+  主工程内总自检入口。
+- `scripts/repairEmbeddedPythonRuntime.py`
+  修复嵌入式 Python runtime。
+
+补充职责：
+
+- `start_horosa_local.sh`
+  当前负责：
+  - 创建本地日志目录
+  - 选择 Python/Java 可执行文件
+  - 检查并清理陈旧 PID 文件
+  - 启动 Python 图表服务与 Java 后端
+  - 预热 runtime 路由
+  - 必要时修复 embedded Python runtime
+- `verify_horosa_local.sh`
+  当前负责串起：
+  - 前端 `node .tmp_horosa_verify.js`
+  - 前端主限法 runtime 校验
+  - 前端性能校验
+  - 前端全量 runtime 校验
+  - Python 主限法集成校验
+  - Python 全量集成校验
+  - 多个 Playwright 浏览器验收脚本
+
+这两个脚本当前的默认端口约定是：
+
+- 图表服务：`8899`
+- Java 后端：`9999`
+- 前端静态页：`8000`
+
+相关环境变量包括：
+
+- `HOROSA_CHART_PORT`
+- `HOROSA_SERVER_PORT`
+- `HOROSA_WEB_PORT`
+- `HOROSA_SERVER_ROOT`
+- `HOROSA_SKIP_UI_BUILD`
+- `HOROSA_SKIP_RUNTIME_WARMUP`
+- `HOROSA_STARTUP_TIMEOUT`
+
+#### 2.7.2 主工程内部运行痕迹
+
+- `.horosa-local-logs/`
+  当前已有多次启动记录：
+  - `20260317_151149/`
+  - `20260317_153406/`
+  - `20260317_170446/`
+  - `20260317_173218/`
+  - `20260317_180903/`
+  - `20260318_193109/`
+  - `20260323_172308/`
+
+每个日志目录当前都能看到：
+
+- `astropy.log`
+- `astrostudyboot.log`
+- `runtime-warmup.log`
+
+- `.horosa-cache/paramhash/`
+  主工程内部参数哈希缓存。
+- `.horosa_java.pid`
+- `.horosa_py.pid`
+- `.horosa_web.pid`
+  本地服务 PID 文件。
+- `.horosa-browser-profile/`
+  浏览器自动化 profile。
+- `${env:HOME}/.horosa-logs/astrostudyboot/2026/`
+  当前仓库内还存在一个 `${env:HOME}` 字面目录，里面保留了日志路径痕迹，属于运行期遗留结构。
+
+## 3. macOS 桌面安装器：`Horosa_Desktop_Installer/`
+
+这是独立于主业务工程的桌面分发工程。
+
+### 3.1 顶层内容
+
+当前一级条目包括：
+
+- `README.md`
+- `assets/`
+- `build/`
+- `config/`
+- `dist/`
+- `distribution-support/`
+- `installer-scripts/`
+- `node_modules/`
+- `package-lock.json`
+- `package.json`
+- `scripts/`
+- `src-tauri/`
+- `web/`
+
+其中 `package.json` 当前版本为 `1.1.7`。
+
+### 3.2 `src-tauri/`
+
+当前可见内容：
+
+- `Cargo.lock`
+- `Cargo.toml`
+- `build.rs`
+- `gen/`
+- `icons/`
+- `src/`
+- `target/`
+- `target-user/`
+- `tauri.conf.json`
+
+关键入口：
+
+- `src-tauri/src/main.rs`
+  当前桌面壳唯一 Rust 主入口。
+
+补充：
+
+- `src-tauri/icons/` 当前实际包含：
+  - `icon.png`
+  - `icon-1024.png`
+  - `icon.icns`
+  - `Horosa.iconset/`
+    - `icon_16x16.png`
+    - `icon_16x16@2x.png`
+    - `icon_32x32.png`
+    - `icon_32x32@2x.png`
+    - `icon_128x128.png`
+    - `icon_128x128@2x.png`
+    - `icon_256x256.png`
+    - `icon_256x256@2x.png`
+    - `icon_512x512.png`
+    - `icon_512x512@2x.png`
+- `src-tauri/gen/schemas/` 当前包含：
+  - `acl-manifests.json`
+  - `capabilities.json`
+  - `desktop-schema.json`
+  - `macOS-schema.json`
+
+从 `main.rs` 的常量、结构体和状态定义来看，桌面壳当前集中承载：
+
+- 主窗口、设置窗口、诊断窗口
+- 菜单命令与缩放控制
+- runtime 路径与运行会话管理
+- 本地 frontend/backend 端口管理
+- Release 配置、更新清单、GitHub Release API 解析
+- 应用更新与 runtime 更新事务
+- 安装来源识别
+- 启动页状态机、修复态、离线重装态
+- 偏好设置与窗口状态持久化
+
+当前窗口标签是：
+
+- `main`
+- `preferences`
+- `diagnostics`
+
+当前 launcher 状态枚举是：
+
+- `LaunchReady`
+- `OfflineReady`
+- `OfflineReview`
+- `OfflineRepairRequired`
+- `RepairInProgress`
+- `UpdateReview`
+- `UpdateInProgress`
+
+当前恢复类型枚举是：
+
+- `OfflineReinstallRequired`
+- `RepairAvailable`
+- `GenericFailure`
+
+当前 launcher 动作枚举是：
+
+- `ReinstallOfflinePackage`
+- `OpenDiagnostics`
+- `RevealData`
+- `RevealRuntime`
+
+当前菜单命令 id 包括：
+
+- `check_updates`
+- `reinstall_runtime`
+- `open_preferences`
+- `show_main_window`
+- `show_diagnostics`
+- `open_logs`
+- `open_data`
+- `open_runtime`
+- `reload_main`
+- `open_releases`
+- `zoom_in`
+- `zoom_out`
+- `zoom_reset`
+
+从 `build_menu(...)` 看，当前菜单栏结构至少包括：
+
+- App 菜单：
+  - About
+  - 偏好设置
+  - 检查更新
+  - 重装本机组件
+  - services / hide / quit 等系统项
+- 文件：
+  - 显示主窗口
+  - 诊断中心
+  - 在 Finder 中显示本机组件
+  - 在 Finder 中显示日志
+  - 在 Finder 中显示数据目录
+- 编辑：
+  - undo / redo / cut / copy / paste / select all
+- 视图：
+  - 重新载入主界面
+  - 放大
+  - 缩小
+  - 实际大小
+  - fullscreen / maximize
+- 窗口：
+  - minimize / maximize / close
+
+### 3.3 `web/`
+
+当前文件：
+
+- `app.js`
+- `diagnostics.css`
+- `diagnostics.html`
+- `diagnostics.js`
+- `index.html`
+- `settings.css`
+- `settings.html`
+- `settings.js`
+- `style.css`
+
+这是桌面初始化页、诊断页、设置页对应的前端资源。
+
+### 3.4 `config/`
+
+当前文件：
+
+- `release_config.json`
+- `release_notes.md`
+
+角色：
+
+- `release_config.json`
+  GitHub Release / runtime / 分发配置。
+- `release_notes.md`
+  发布说明正文来源。
+
+`release_config.json` 当前的实际配置值是：
+
+- `repoOwner`: `Horace-Maxwell`
+- `repoName`: `Horosa-Web-App-comprehensively-improved-MacOS`
+- `runtimeVersion`: `1.1.7-runtime1`
+- `runtimeAssetName`: `horosa-runtime-macos-arm64.tar.gz`
+- `desktopAssetName`: `Horosa-Desktop-macos-arm64.zip`
+- `desktopPkgName`: `Horosa-Installer-macos-arm64.pkg`
+- `desktopPkgZipName`: `Horosa-Installer-macos-arm64-pkg.zip`
+- `desktopOfflinePkgName`: `Horosa-Installer-macos-arm64-offline.pkg`
+- `desktopOfflinePkgZipName`: `Horosa-Installer-macos-arm64-offline-pkg.zip`
+- `updateManifestName`: `horosa-latest.json`
+- `primaryDownload`: `Horosa-Installer-macos-arm64-offline.pkg`
+- `supportedArch`: `arm64`
+- `releaseTagPrefix`: `v`
+- `appName`: `星阙`
+
+### 3.5 `scripts/`
+
+当前文件：
+
+- `ad_hoc_sign_app.sh`
+- `build_desktop_release.sh`
+- `check_apple_signing_prereqs.sh`
+- `generate_icon.sh`
+- `package_runtime_payload.sh`
+- `publish_github_release.sh`
+- `sign_runtime_payload.py`
+- `verify_desktop_packaging.sh`
+- `verify_github_release_end_to_end.sh`
+- `verify_public_distribution_readiness.sh`
+
+另外还有：
+
+- `scripts/__pycache__/sign_runtime_payload.cpython-312.pyc`
+
+更细一点看，当前关键脚本职责已经形成完整发布流水线：
+
+- `build_desktop_release.sh`
+  负责：
+  - 读取 `package.json` 与 `config/release_config.json`
+  - 检查 Developer ID / notarytool 配置
+  - 生成 icon
+  - 打包 runtime payload
+  - 构建 Tauri app bundle
+  - 渲染 offline `postinstall`
+  - 生成 `.pkg`、`.zip`、`horosa-latest.json`
+- `publish_github_release.sh`
+  负责：
+  - 校验 release 资产齐全
+  - 校验 `horosa-latest.json` 中版本、URL、SHA-256 与本地产物一致
+  - 拼装中英双语 release 正文
+  - 上传 app/runtime/manifest 资产到 GitHub Release
+- `verify_desktop_packaging.sh`
+  本地桌面打包验收总入口。
+- `verify_github_release_end_to_end.sh`
+  公开 release 下载后的端到端验证。
+- `verify_public_distribution_readiness.sh`
+  面向正式外部分发的签名/公证准备检查。
+- `package_runtime_payload.sh`
+  运行时 bundle 打包。
+- `ad_hoc_sign_app.sh`
+  本地 ad-hoc 签名。
+- `check_apple_signing_prereqs.sh`
+  Apple 证书与 notary 前置检查。
+- `generate_icon.sh`
+  图标生成。
+- `sign_runtime_payload.py`
+  runtime 归档签名辅助。
+
+这些脚本当前显式涉及的关键环境变量包括：
+
+- 构建/签名链：
+  - `APPLE_SIGNING_IDENTITY`
+  - `APPLE_INSTALLER_IDENTITY`
+  - `APPLE_ENTITLEMENTS_PATH`
+  - `APPLE_SIGNING_KEYCHAIN`
+  - `NOTARYTOOL_KEYCHAIN_PROFILE`
+  - `HOROSA_PUBLIC_DISTRIBUTION`
+- runtime 上传控制：
+  - `HOROSA_FORCE_RUNTIME_UPLOAD`
+- 发布校验控制：
+  - `HOROSA_SKIP_VERIFY`
+  - `HOROSA_REQUIRE_SIGNED_PUBLIC_RELEASE`
+  - `GITHUB_TOKEN`
+- 打包验收时注入到 runtime 的变量：
+  - `HOROSA_CHART_PORT`
+  - `HOROSA_SERVER_PORT`
+  - `HOROSA_SKIP_UI_BUILD`
+  - `HOROSA_SKIP_RUNTIME_WARMUP`
+  - `HOROSA_STARTUP_TIMEOUT`
+  - `HOROSA_PYTHON`
+  - `HOROSA_JAVA_BIN`
+  - `HOROSA_LOG_ROOT`
+  - `HOROSA_DIAG_DIR`
+  - `HOROSA_RUNTIME_URL`
+  - `HOROSA_RUNTIME_SHARED_ROOT`
+  - `HOROSA_APP_PATH`
+
+### 3.6 `distribution-support/`
+
+当前文件：
+
+- `UNSIGNED_INSTALL_GUIDE.template`
+- `unsigned_install_helper.template`
+
+### 3.7 `installer-scripts/`
+
+当前文件：
+
+- `postinstall.template`
+
+### 3.8 `assets/`
+
+当前文件：
+
+- `icon-base.png`
+- `icon-template.svg`
+
+### 3.9 `build/`
+
+这是安装器构建中间产物区。当前已存在的子目录/文件包括：
+
+- `delivery-bundle-offline/`
+  - `Horosa-Installer-macos-arm64-offline.pkg`
+  - `Open-XingQue-Unsigned.command`
+  - `UNSIGNED_INSTALL_GUIDE.txt`
+- `distribution-support-rendered-offline/`
+  - `Open-XingQue-Unsigned.command`
+  - `UNSIGNED_INSTALL_GUIDE.txt`
+- `github-release-e2e/`
+  - `app-unzip/`
+  - `downloads/`
+  - `release.env`
+- `installer-scripts-rendered-offline/`
+  - `horosa-runtime-macos-arm64.tar.gz`
+  - `postinstall`
+- `notary/`
+  - `星阙.notary.zip`
+- `pkg/`
+  - `desktop-offline.component.pkg`
+- `pkg-root/`
+  - `Applications/`
+  - `component.plist`
+- `release-ui-check-v1.0.16/`
+  - `target/`
+- `release-ui-check-v1.0.17/`
+  - `target/`
+- `runtime/`
+  - `runtime-payload/`
+
+按文件数量看，`Horosa_Desktop_Installer/build/` 当前约有 3363 个文件，已经是完整的发布中间工位，而不只是简单的临时目录。
+
+### 3.10 `dist/`
+
+这是当前已经生成的发布产物目录。当前文件：
+
+- `Horosa-Desktop-macos-arm64.zip`
+- `Horosa-Installer-macos-arm64-offline.pkg`
+- `horosa-latest.json`
+- `horosa-runtime-macos-arm64.tar.gz`
+
+`dist/` 当前虽然只有 4 个文件，但它们分别对应：
+
+- app zip 分发包
+- 离线 pkg 安装包
+- 自动更新 manifest
+- 独立 runtime 归档
+
+## 4. 仓库级脚本：`scripts/`
+
+这是超出单个子工程的仓库级自动化脚本区。
+
+### 4.1 当前脚本总表
+
+当前文件包括：
+
+- `browser_horosa_final_layout_check.py`
+- `browser_horosa_jinkou_regression_check.py`
+- `browser_horosa_master_check.py`
+- `browser_horosa_toolbar_management_check.py`
+- `browser_outer_shell_scroll_check.py`
+- `browser_primary_direction_chart_guangde_check.py`
+- `browser_toolbar_deep_state_check.py`
+- `browser_topbar_full_enumeration_check.py`
+- `check_horosa_full_integration.py`
+- `check_local_ephemeris_precision.py`
+- `check_primary_direction_astroapp_integration.py`
+- `compare_pd_backend_rows.py`
+- `mac/bootstrap_and_run.sh`
+- `mac/self_check_horosa.sh`
+- `primary_directions_reverse/auto_collect_astroapp_pd.py`
+- `repo/clean_for_github.sh`
+- `requirements/mac-python.txt`
+- `train_astroapp_asc_case_correction.py`
+- `train_astroapp_virtual_body_corrections.py`
+
+### 4.2 脚本分组
+
+#### 4.2.1 启动与自检
+
+- `mac/bootstrap_and_run.sh`
+- `mac/self_check_horosa.sh`
+
+#### 4.2.2 浏览器级验收
+
+- `browser_horosa_master_check.py`
+  主功能总巡检。
+- `browser_horosa_toolbar_management_check.py`
+  顶部菜单、管理、选择器深巡检。
+- `browser_horosa_final_layout_check.py`
+  最终布局巡检。
+- `browser_horosa_jinkou_regression_check.py`
+  金口诀专项回归。
+- `browser_primary_direction_chart_guangde_check.py`
+  主限法盘 Guangde 专项浏览器验收。
+- `browser_outer_shell_scroll_check.py`
+  外层壳滚动检查。
+- `browser_toolbar_deep_state_check.py`
+  工具栏深状态检查。
+- `browser_topbar_full_enumeration_check.py`
+  顶栏全枚举检查。
+
+#### 4.2.3 主限法验证与比对
+
+- `check_primary_direction_astroapp_integration.py`
+- `compare_pd_backend_rows.py`
+- `train_astroapp_asc_case_correction.py`
+- `train_astroapp_virtual_body_corrections.py`
+- `primary_directions_reverse/auto_collect_astroapp_pd.py`
+
+#### 4.2.4 整体与精度检查
+
+- `check_horosa_full_integration.py`
+- `check_local_ephemeris_precision.py`
+
+#### 4.2.5 仓库清理与依赖
+
+- `repo/clean_for_github.sh`
+- `requirements/mac-python.txt`
+
+## 5. 本地工具入口：`tools/`
+
+当前 `tools/` 下只看到 Mac 侧工具：
+
+- `tools/mac/Horosa_Local.command`
+- `tools/mac/Horosa_SelfCheck_Mac.command`
+- `tools/mac/Prepare_Runtime_Mac.command`
+
+对应角色分别是：
+
+- 本地快速启动
+- 本地一键自检
+- 准备 Mac runtime
+
+## 6. runtime：运行时、验证产物、主限法反推样本
+
+这是当前仓库里“最像运行工位痕迹”的目录，内容非常实。
+
+按文件数量粗看：
+
+- `runtime/` 总计约 14839 个文件
+- `runtime/mac/bundle/` 约 174 个文件
+- `runtime/mac/java/` 约 573 个文件
+- `runtime/mac/python/` 约 11845 个文件
+
+这说明 `runtime/` 不是单纯报告目录，而是“验证报告 + 完整运行时镜像 + 主限法数据样本”的混合工作目录。
+
+### 6.1 `runtime/` 根级文件
+
+当前根级已存在：
+
+- `README.md`
+- `browser_ai_export_release_check.json`
+- `browser_horosa_jinkou_regression_check.json`
+- `browser_horosa_jinkou_regression_check.png`
+- `browser_horosa_master_check.json`
+- `browser_horosa_master_check.png`
+- `browser_horosa_toolbar_management_check.json`
+- `browser_horosa_toolbar_management_check.png`
+- `browser_meaning_overlay_viewport_check.json`
+- `browser_outer_shell_scroll_check.json`
+- `browser_star_long_tooltip_check.json`
+- `browser_star_long_tooltip_check.png`
+- `browser_star_tooltip_viewport_check.json`
+- `browser_star_tooltip_viewport_check.png`
+- `browser_toolbar_deep_state_check.json`
+- `browser_topbar_full_enumeration_check.json`
+- `final_layout_master_check.json`
+- `glyph_spacing_metrics.json`
+- `guangde_primarydirchart_browser.png`
+- `guangde_primarydirchart_browser_check.json`
+- `guangde_primarydirect_browser_table.png`
+- `horosa_runtime_perf_check.json`
+- `layout_footer_menu_metrics.json`
+- `layout_revert_metrics.json`
+- `mastercheck_global_shell.png`
+- `mastercheck_guolao_compact.png`
+- `mastercheck_jieqi_entries.png`
+- `mastercheck_sanshi_compact.png`
+- `mastercheck_sanshi_std.png`
+- `mastercheck_solararc_compact.png`
+- `mastercheck_solararc_std.png`
+- `mastercheck_suzhan_compact.png`
+- `resize_layout_audit.json`
+- `resize_layout_audit_postfix.json`
+- `responsive_layout_audit.json`
+
+### 6.2 `runtime/mac/`
+
+这是桌面运行时包的落地目录。当前包含：
+
+- `bundle/`
+- `java/`
+- `python/`
+
+三者的关系是：
+
+- `bundle/`
+  Horosa 自己的前端构建产物与后端 Jar。
+- `java/`
+  桌面版自带 Java runtime。
+- `python/`
+  桌面版自带 Python runtime。
+
+#### 6.2.1 `runtime/mac/bundle/`
+
+当前可见内容：
+
+- `${env:HOME}/.horosa-logs/`
+- `astrostudyboot.jar`
+- `dist-file/`
+
+其中 `dist-file/` 当前已包含：
+
+- `index.html`
+- `umi.60725577.css`
+- `umi.eb11ec94.js`
+- `static/`
+- `gltf/`
+- `fengshui/`
+
+说明：
+
+- 这里是真正被桌面端加载的前端构建产物和后端启动 Jar 组合。
+
+#### 6.2.2 `runtime/mac/java/`
+
+这是打包进桌面版的 Java runtime。当前能直接看到：
+
+- `bin/`
+  包含 `java`、`jar`、`javac`、`jpackage` 等二进制。
+- `conf/`
+- `demo/`
+- `include/`
+- `jmods/`
+- `legal/`
+- `lib/`
+- `man/`
+- `DISCLAIMER`
+- `Welcome.html`
+- `readme.txt`
+- `release`
+
+这表明仓库里当前保留的是一套完整 JDK/JRE 级 runtime，而不是只保留最小二进制。
+
+进一步说，这也解释了为什么 `runtime/mac/java/` 体量不小：这里不是“瘦身后的最小 Java”，而是保留了 `jmods`、`include`、`demo`、`man` 等较完整结构。
+
+#### 6.2.3 `runtime/mac/python/`
+
+这是打包进桌面版的 Python runtime。当前能直接看到：
+
+- `Headers`
+- `Python`
+- `Resources/`
+  - `English.lproj`
+  - `Info.plist`
+  - `Python.app`
+- `_CodeSignature/`
+- `bin/`
+  - `python3`
+  - `python3.12`
+  - `pip3`
+  - `idle3`
+  - `pydoc3`
+  等
+- `etc/openssl/`
+- `include/python3.12/`
+- `lib/`
+  - `libpython3.12.dylib`
+  - `libcrypto*.dylib`
+  - `libssl*.dylib`
+  - `python3.12/`
+  - `pkgconfig/`
+  - `sqlite3.40.0/`
+  - `tcl8.6/`
+  - `tk8.6/`
+  等
+- `share/doc/`
+- `share/man/`
+
+这同样说明 `runtime/mac/python/` 保留的是一套可独立工作的 `Python.framework` 级 runtime，而不是只有一个 `python3` 可执行文件。
+
+### 6.3 `runtime/pd_auto/`
+
+当前可见内容：
+
+- `debug_guangde_case/`
+- `debug_guangde_run/`
+- `plan_geo_current540_v1.csv`
+- `run_geo_current540_v1/`
+
+### 6.4 `runtime/pd_reverse/`
+
+这是主限法反推与比对结果目录。当前文件：
+
+- `browser_pd_batch_verify_500.json`
+- `browser_pd_batch_verify_combined_summary.json`
+- `browser_pd_batch_verify_reserve.json`
+- `browser_pd_retry_failed.json`
+- `browser_pd_retry_fresh_page.json`
+- `debug_guangde_exact_rows.csv`
+- `debug_guangde_exact_summary.json`
+- `shared_core_geo_current120_v2_exact_summary.json`
+- `shared_core_geo_current540_full_exact_rows.csv`
+- `shared_core_geo_current540_full_exact_summary.json`
+- `shared_core_geo_current540_s100_exact_rows_bodycorr.csv`
+- `shared_core_geo_current540_s100_exact_summary_bodycorr.json`
+- `stability_production_summary.json`
+- `virtual_only_geo_current540_fullfit_summary.json`
+
+### 6.5 `runtime/release-ai-export-downloads/`
+
+当前文件：
+
+- `horosa_星盘_20260312_165542.txt`
+- `horosa_星盘_20260312_165544.doc`
+
+### 6.6 `runtime/release-browser-self-check-20260311-163153/`
+
+当前文件：
+
+- `browser_horosa_master_check.log`
+- `web.log`
+
+### 6.7 `runtime/release_checks/`
+
+当前可见内容：
+
+- `browser_horosa_master_check_release.json`
+- `browser_horosa_master_check_release.png`
+- `final_layout_master_check_release.json`
+- `v1.0.20/`
+
+## 7. 文档与诊断
+
+### 7.1 `docs/`
+
+当前结构：
+
+- `docs/assets/screenshots/`
+  - `main-workspace.png`
+  - `sanshi-workspace.png`
+- `docs/releases/`
+  - `TEMPLATE-en.md`
+  - `TEMPLATE-zh.md`
+  - `v1.1.7-en.md`
+  - `v1.1.7-zh.md`
+
+### 7.2 `diagnostics/`
+
+当前结构：
+
+- `.gitkeep`
+- `README.md`
+- `horosa-run-issues.log`
+
+角色：
+
+- `README.md`
+  说明如何查看/使用诊断信息。
+- `horosa-run-issues.log`
+  桌面运行问题日志。
+
+## 8. 扩展模块与参考工程：`modules/`
+
+### 8.1 `modules/fengshui/naqi/`
+
+当前内容：
+
+- `README.md`
+- `app.js`
+- `index.html`
+- `styles.css`
+- `naqi-tauri/`
+
+`naqi-tauri/` 当前又是一个独立的小 Tauri 工程，包含：
+
+- `README.md`
+- `package-lock.json`
+- `package.json`
+- `src/`
+  - `app.js`
+  - `index.html`
+  - `styles.css`
+- `src-tauri/`
+  - `Cargo.lock`
+  - `Cargo.toml`
+  - `build.rs`
+  - `gen/`
+  - `icons/`
+  - `src/`
+  - `tauri.conf.json`
+
+### 8.2 `modules/reference/kintaiyi-master/`
+
+这是一个内容很多的参考工程。当前可见的关键结构：
+
+- `.streamlit/config.toml`
+- `README.md`
+- `app.py`
+- `cerebras_client.py`
+- `chart.py`
+- `config.py`
+- `data.pkl`
+- `disaster.md`
+- `example.json`
+- `example.md`
+- `guji.md`
+- `history.pkl`
+- `historytext.py`
+- `icon.jpg`
+- `icon.png`
+- `instruction.md`
+- `jieqi.py`
+- `kinliuren.py`
+- `kintaiyi.py`
+- `requirements.txt`
+- `ruler.py`
+- `system_prompts.json`
+- `taiyi_life_dict.py`
+- `taiyidict.py`
+- `taiyimishu.py`
+- `tutorial.md`
+- `update.md`
+
+此外还有两个体量很大的 SVG 资源目录：
+
+- `kook/`
+  当前包含：
+  - `typan.svg`
+  - `yang1.svg` 到 `yang72.svg`
+  - `yin1.svg` 到 `yin72.svg`
+- `tykook/`
+  当前同样包含：
+  - `typan.svg`
+  - `yang1.svg` 到 `yang72.svg`
+  - `yin1.svg` 到 `yin72.svg`
+
+以及图片目录：
+
+- `pic/`
+  当前包含多张示意图与二维码图片。
+
+### 8.3 `modules/reference/xuan-utils-pro-master/`
+
+当前结构比较标准：
+
+- `.gitignore`
+- `LICENSE`
+- `README.md`
+- `pom.xml`
+- `src/main/java/`
+- `src/test/java/`
+
+这是一个 Java 参考工具库。
+
+### 8.4 `modules/reference/zhong-zhou-zi-wei-dou-shu-2/`
+
+这是一个前端参考工程。当前结构：
+
+- `.gitignore`
+- `App.tsx`
+- `README.md`
+- `components/`
+  - `Astrolabe.tsx`
+  - `InputForm.tsx`
+  - `PalaceCard.tsx`
+  - `SettingsModal.tsx`
+- `index.html`
+- `index.tsx`
+- `manifest.json`
+- `metadata.json`
+- `package.json`
+- `services/`
+  - `lunarService.ts`
+  - `ziweiMath.ts`
+- `standalone.html`
+- `sw.js`
+- `tsconfig.json`
+- `types.ts`
+- `vite.config.ts`
+
+## 9. 主限法专门文档：`主限法推演/`
+
+当前目录内容：
+
+- `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md`
+- `ASTROAPP_ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_PUBLIC_EDITION.md`
+- `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_MATH_FLOW.md`
+- `PRIMARY_DIRECTION_ASTROAPP_ALCHABITIUS_REPLICATION.md`
+- `PROJECT_STRUCTURE.md`
+- `README.md`
+- `UPGRADE_LOG.md`
+- `runtime_README.md`
+- `主限法盘实现原理与算法说明.md`
+
+这部分已经构成一个相对独立的“主限法研究文档子仓”。
+
+## 10. 维护时最该先看的路径
+
+### 10.1 改前端页面/交互
+
+- `Horosa-Web/astrostudyui/src/components/`
+- `Horosa-Web/astrostudyui/src/models/`
+- `Horosa-Web/astrostudyui/src/services/`
+- `Horosa-Web/astrostudyui/src/utils/`
+
+### 10.2 改主限法/推运/图表算法
+
+- `Horosa-Web/astrostudyui/src/components/astro/`
+- `Horosa-Web/astrostudyui/src/utils/primaryDirectionSync.js`
+- `Horosa-Web/astrostudyui/src/utils/decennials.js`
+- `Horosa-Web/astropy/astrostudy/`
+- `Horosa-Web/astropy/websrv/webpredictsrv.py`
+- `runtime/pd_auto/`
+- `runtime/pd_reverse/`
+- `主限法推演/`
+
+### 10.3 改 Java 后端接口
+
+- `Horosa-Web/astrostudysrv/astrostudyboot/`
+- `Horosa-Web/astrostudysrv/astrostudy/`
+- `Horosa-Web/astrostudysrv/astrostudycn/`
+- `Horosa-Web/astrostudysrv/basecomm/`
+
+### 10.4 改桌面安装器/发布链路
+
+- `Horosa_Desktop_Installer/src-tauri/`
+- `Horosa_Desktop_Installer/web/`
+- `Horosa_Desktop_Installer/config/`
+- `Horosa_Desktop_Installer/scripts/`
+- `Horosa_Desktop_Installer/build/`
+- `Horosa_Desktop_Installer/dist/`
+- `runtime/mac/`
+
+### 10.5 看运行日志与诊断
+
+- `Horosa-Web/.horosa-local-logs/`
+- `diagnostics/`
+- `runtime/`
+- `Horosa-Web/${env:HOME}/.horosa-logs/`
+- `runtime/release-browser-self-check-20260311-163153/`
+
+## 11. 当前仓库结构的现实特征
+
+从实际目录看，这个仓库现在已经不是单一“Web 项目”，而是以下几部分叠在一起：
+
+- 一套完整的占星/术数主业务工程
+- 一套独立的 macOS 桌面交付工程
+- 一套浏览器级验收与发布验收体系
+- 一套主限法反推、训练、比对与研究资料体系
+- 一批运行时与发布产物直接保留在仓库中
+
+换句话说，当前仓库的真实重心已经是：
+
+- `Horosa-Web/` 负责“业务能力”
+- `Horosa_Desktop_Installer/` 负责“桌面交付”
+- `scripts/` + `runtime/` + `主限法推演/` 负责“验证、反推、研究与发布闭环”
+
+## 12. 本文档明确忽略的目录
+
+按你的要求，本结构说明不展开以下两个目录：
+
+- `Horosa_Native_macOS/`
+- `Horosa-Windows-Docs/`
