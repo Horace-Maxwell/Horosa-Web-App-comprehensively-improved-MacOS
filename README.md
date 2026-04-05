@@ -152,6 +152,35 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
 - Chart components and utility tools / 星盘组件与小工具
 - AI export and AI export settings / AI 导出与 AI 导出设置
 
+## New In v1.2.0 / v1.2.0 新增重点
+
+<table>
+  <tr>
+    <td width="50%">
+      <strong>English</strong><br /><br />
+      <code>AIAnalysis</code> is now a first-class workspace rather than a small export helper. The current 1.2.0 release adds a dedicated right-side tab stack for Analyze, History, Materials, Templates, and Settings, with local-first persistence shared between web and app runtime modes.
+    </td>
+    <td width="50%">
+      <strong>中文</strong><br /><br />
+      <code>AIAnalysis</code> 现在已经是正式工作区，不再只是一个轻量导出附属入口。当前 1.2.0 版本加入了右侧独立的分析、历史、资料、模版、设置五个页签，并且以本地优先持久化为核心，同时被 Web 与 App 运行态共同复用。
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      - streaming AI responses with provider-native forwarding<br />
+      - conversation history, favorites, archive, batch export, and backup/restore<br />
+      - materials, templates, bundles, JSON schema validation, and provider diagnostics<br />
+      - DeepSeek and other mainstream provider presets already wired into the shared frontend
+    </td>
+    <td width="50%">
+      - 原生 provider 流式转发的 AI 输出<br />
+      - 对话历史、收藏、归档、批量导出、备份与恢复<br />
+      - 资料、模版、组合、JSON schema 校验、provider 诊断<br />
+      - DeepSeek 等主流 provider 预设已接入共享前端
+    </td>
+  </tr>
+</table>
+
 ## Get Started / 下载与文档导航
 
 <table>
