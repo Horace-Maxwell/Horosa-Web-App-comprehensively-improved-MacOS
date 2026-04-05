@@ -127,6 +127,17 @@ Horosa is not only about calculation. It also provides the controls needed for d
 - AI export
 - AI export settings
 
+## New In v1.2.0: AIAnalysis
+
+`AIAnalysis` is now a full workspace rather than a narrow export helper. Version `1.2.0` adds a dedicated tab stack for `Analyze`, `History`, `Materials`, `Templates`, and `Settings`, all designed around local-first persistence and shared between the web runtime and the desktop runtime.
+
+Key additions in this release:
+
+- streaming provider-native AI responses
+- local-first conversation history with archive, favorites, and batch export
+- materials, templates, bundles, backup/restore, and JSON-schema-aware template work
+- provider presets and diagnostics for DeepSeek and other mainstream model endpoints
+
 ## Desktop Delivery
 
 On macOS, the delivery layer is meant to feel native and finished rather than improvised.
