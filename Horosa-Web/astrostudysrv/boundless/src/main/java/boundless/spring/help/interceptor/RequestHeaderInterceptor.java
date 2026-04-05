@@ -31,6 +31,7 @@ import org.springframework.web.multipart.commons.CommonsMultipartResolver;
 import org.springframework.web.multipart.support.DefaultMultipartHttpServletRequest;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import boundless.exception.DecryptException;
 import boundless.exception.DecryptTimeoutException;
@@ -181,6 +182,11 @@ public class RequestHeaderInterceptor implements HandlerInterceptor {
 		boolean reqenc = getReqEncrypt(header);
 		
 		String trans = (String) header.get(KeyConstants.TransCode);
+		if(trans != null && trans.startsWith("/aianalysis/")) {
+			response.addHeader("Encrypted", "0");
+			response.setHeader("Encrypted", "0");
+			return false;
+		}
 		if(trans != null && excludeCheckRSA.contains(trans)) {
 			if(!reqenc) {
 				response.addHeader("Encrypted", "0");						
@@ -746,6 +752,11 @@ public class RequestHeaderInterceptor implements HandlerInterceptor {
 				MethodParameter p = mhandler.getReturnType();
 				Class t = p.getParameterType();
 				String n = t.getName();
+				if(SseEmitter.class.isAssignableFrom(t)) {
+					response.setContentType("text/event-stream;charset=UTF-8");
+			        TransData.clearTransData();
+					return;
+				}
 				if(n.equalsIgnoreCase("void")){
 					complete(request, response);
 				}

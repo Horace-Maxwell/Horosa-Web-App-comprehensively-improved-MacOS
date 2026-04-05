@@ -142,6 +142,10 @@ public class JsonConverter extends MappingJackson2HttpMessageConverter {
 	
 	
 	private boolean needEncryp(HttpOutputMessage outputMessage) {
+		if(TransData.isSSE()) {
+			outputMessage.getHeaders().set("Encrypted", "0");
+			return false;
+		}
 		Map<String, Object> header = TransData.getRequestHeader();
 		String privexp = getPrivExp(header);
 		String modulus = getModulus(header);

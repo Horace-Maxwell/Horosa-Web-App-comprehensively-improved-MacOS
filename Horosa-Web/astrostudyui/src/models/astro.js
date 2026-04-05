@@ -270,7 +270,7 @@ function hooking(hook, currentTab, fields, chartObj){
 		|| currentTab === 'hellenastro' || currentTab === 'guolao'
 		|| currentTab === 'germanytech' || currentTab === 'jieqichart'
 		|| currentTab === 'cntradition' || currentTab === 'cnyibu' || currentTab === 'otherbu'
-		|| currentTab === 'fengshui' || currentTab === 'sanshiunited'){
+		|| currentTab === 'fengshui' || currentTab === 'sanshiunited' || currentTab === 'aianalysis'){
 		if(hook[currentTab].fun){
 			hook[currentTab].fun(fields, chartObj)
 		}
@@ -358,6 +358,9 @@ export default {
 				fun: null
 			},
 			sanshiunited:{
+				fun: null
+			},
+			aianalysis:{
 				fun: null
 			},
 			astroreader:{

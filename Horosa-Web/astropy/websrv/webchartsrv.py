@@ -74,6 +74,12 @@ class WebChartSrv:
     @cherrypy.tools.json_in()
     def index(self):
         enable_crossdomain()
+        if cherrypy.request.method != 'POST':
+            return jsonpickle.encode({
+                'ok': True,
+                'service': 'chart',
+                'pdSyncRev': self.PD_SYNC_REV,
+            }, unpicklable=False)
         try:
             data = cherrypy.request.json
             print(data)

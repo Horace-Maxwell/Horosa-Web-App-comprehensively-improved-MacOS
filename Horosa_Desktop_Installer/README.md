@@ -41,7 +41,7 @@
 - `src-tauri/`: 原生桌面壳、更新器、后台启动管理
 - `web/`: 首次初始化、修复、更新事务显示页
 - `config/release_config.json`: GitHub Release 与运行时资产配置
-- `../docs/releases/`: 面向 GitHub 的版本化中英双语 release 文档源
+- `config/release_notes.md`: GitHub Release 正文模板说明
 - `installer-scripts/postinstall.template`: `.pkg` 安装后下载 runtime 的脚本模板
 - `scripts/package_runtime_payload.sh`: 打包 runtime payload
 - `scripts/build_desktop_release.sh`: 构建 `.app zip`、离线 `.pkg`、`horosa-latest.json`
@@ -181,19 +181,8 @@ HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/build_desktop_release.sh
 - 对二者分别 `staple`
 - 在 `.app` 完成 `staple` 后再生成 `Horosa-Desktop-macos-arm64.zip`
 
-发布到 GitHub Release 前，先准备当前版本的双语文档源：
-
-```bash
-cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial
-ls docs/releases/vX.Y.Z-zh.md docs/releases/vX.Y.Z-en.md
-```
-
-发布脚本现在会优先读取：
-
-- `docs/releases/vX.Y.Z-zh.md`
-- `docs/releases/vX.Y.Z-en.md`
-
-并把它们拼成 GitHub Release 页面正文。
+发布到 GitHub Release 前，不再需要准备仓库内的版本说明文件。
+发布脚本会直接根据当前版本号、安装入口、自动更新资产和内置双语模板生成 GitHub Release 页面正文。
 
 发布到 GitHub Release：
 

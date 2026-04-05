@@ -10,11 +10,14 @@ Thumbs.db
 *.err
 *.tmp
 .tmp_*
+*.profraw
+*.profdata
 *.certSigningRequest
 developerID_*.cer
 
 # Local root cache
 .horosa-cache/
+.playwright-cli/
 
 # Local Horosa runtime state (must not upload)
 Horosa-Web/.horosa-local-logs/
@@ -44,6 +47,7 @@ runtime/*
 **/.umi-production/
 Horosa-Web/astrostudyui/dist/
 Horosa-Web/astrostudyui/dist-file/
+Horosa-Web/astrostudyui/.tmp_horosa_*.js
 **/.cache/
 **/.next/
 **/coverage/
@@ -70,6 +74,10 @@ Horosa-Web/astrostudyui/dist-file/
 # Horosa desktop installer generated artifacts
 Horosa_Desktop_Installer/build/
 Horosa_Desktop_Installer/dist/
+Horosa_Desktop_Installer/src-tauri/target/
 Horosa_Desktop_Installer/src-tauri/target-user/
 Horosa_Desktop_Installer/src-tauri/icons/Horosa.iconset/
 Horosa_Desktop_Installer/assets/icon-base.png
+
+# Local review and profiling artifacts
+default.profraw

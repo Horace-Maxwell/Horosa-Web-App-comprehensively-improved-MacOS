@@ -1,0 +1,19 @@
+# CODEOWNERS for Horosa
+#
+# GitHub uses the first CODEOWNERS file it finds in .github/ or the repository
+# root. Keep this file on the default branch and update the handles
+# below before enforcing required code-owner reviews.
+#
+# Replace @Horace-Maxwell if the canonical public maintainer handle differs.
+
+* @Horace-Maxwell
+
+/.github/ @Horace-Maxwell
+/runtime/ @Horace-Maxwell
+/diagnostics/ @Horace-Maxwell
+
+/Horosa-Web/astrostudyui/ @Horace-Maxwell
+/Horosa-Web/astrostudysrv/ @Horace-Maxwell
+/Horosa-Web/astropy/ @Horace-Maxwell
+
+/Horosa_Desktop_Installer/ @Horace-Maxwell

@@ -1,0 +1,79 @@
+function hasTauriInvoke(){
+	return !!(
+		typeof window !== 'undefined'
+		&& (
+			(window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke)
+			|| (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke)
+		)
+	);
+}
+
+async function invoke(command, args){
+	if(window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke){
+		return window.__TAURI__.core.invoke(command, args);
+	}
+	if(window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke){
+		return window.__TAURI_INTERNALS__.invoke(command, args);
+	}
+	throw new Error('desktop.bridge.unavailable');
+}
+
+function normalizeDesktopImportItem(item){
+	if(!item || typeof item !== 'object'){
+		return null;
+	}
+	const fileName = item.fileName || item.file_name || '';
+	const mimeType = item.mimeType || item.mime_type || '';
+	const base64Data = item.base64Data || item.base64_data || '';
+	const relativePath = item.relativePath || item.relative_path || null;
+	if(!fileName || !base64Data){
+		return null;
+	}
+	return {
+		fileName,
+		mimeType,
+		base64Data,
+		relativePath,
+	};
+}
+
+export function normalizeDesktopImportItems(payload){
+	const list = Array.isArray(payload)
+		? payload
+		: (payload ? [payload] : []);
+	return list.map((item)=>normalizeDesktopImportItem(item)).filter(Boolean);
+}
+
+export function isDesktopBridgeAvailable(){
+	return hasTauriInvoke();
+}
+
+export async function pickDesktopFiles(){
+	if(!hasTauriInvoke()){
+		return [];
+	}
+	return normalizeDesktopImportItems(await invoke('pick_ai_analysis_files_command'));
+}
+
+export async function pickDesktopFolder(){
+	if(!hasTauriInvoke()){
+		return [];
+	}
+	return normalizeDesktopImportItems(await invoke('pick_ai_analysis_folder_command'));
+}
+
+export async function saveDesktopFile(payload){
+	if(!hasTauriInvoke()){
+		throw new Error('desktop.bridge.unavailable');
+	}
+	return invoke('save_ai_analysis_file_command', { payload });
+}
+
+export async function openDesktopBackup(){
+	if(!hasTauriInvoke()){
+		throw new Error('desktop.bridge.unavailable');
+	}
+	const payload = await invoke('open_ai_analysis_backup_command');
+	const list = normalizeDesktopImportItems(payload);
+	return list.length ? list[0] : null;
+}

@@ -15,11 +15,41 @@ const isLocalHost =
 		window.location.hostname === '127.0.0.1'
 	);
 
+function isValidServerRootValue(val){
+	return !!(val && /^https?:\/\/.+/i.test(`${val}`));
+}
+
+function safeStorageGet(storage, key){
+	try{
+		return storage && storage.getItem ? storage.getItem(key) : null;
+	}catch(e){
+		return null;
+	}
+}
+
+function safeStorageSet(storage, key, value){
+	try{
+		if(storage && storage.setItem){
+			storage.setItem(key, value);
+		}
+	}catch(e){}
+}
+
 function resolveLocalServerRoot(){
 	if(typeof window === 'undefined'){
 		return 'http://127.0.0.1:9999';
 	}
 	const storageKey = 'horosaLocalServerRoot';
+	const storageModeKey = 'horosaLocalServerRootMode';
+	const saveServerRoot = (serverRoot, mode)=>{
+		if(!isValidServerRootValue(serverRoot)){
+			return;
+		}
+		safeStorageSet(window.localStorage, storageKey, serverRoot);
+		if(mode){
+			safeStorageSet(window.localStorage, storageModeKey, mode);
+		}
+	};
 	const deriveFromPagePort = () => {
 		try{
 			const portTxt = `${window.location.port || ''}`.trim();
@@ -39,33 +69,35 @@ function resolveLocalServerRoot(){
 			return null;
 		}
 	};
-	let serverRoot = null;
 	try{
 		const params = new URLSearchParams(window.location.search || '');
 		const fromQuery = params.get('srv');
-		if(fromQuery && /^https?:\/\/.+/i.test(fromQuery)){
-			serverRoot = fromQuery;
-			window.localStorage && window.localStorage.setItem(storageKey, serverRoot);
+		if(isValidServerRootValue(fromQuery)){
+			saveServerRoot(fromQuery, 'query');
+			return fromQuery;
 		}
 	}catch(e){}
-	if(!serverRoot){
-		const fromPage = deriveFromPagePort();
-		if(fromPage){
-			serverRoot = fromPage;
-			try{
-				window.localStorage && window.localStorage.setItem(storageKey, serverRoot);
-			}catch(e){}
-		}
+	const fromStorage = safeStorageGet(window.localStorage, storageKey);
+	const storageMode = safeStorageGet(window.localStorage, storageModeKey);
+	const fromPage = deriveFromPagePort();
+	const shouldPreferStorage = isValidServerRootValue(fromStorage) &&
+		(
+			storageMode === 'query' ||
+			storageMode === 'pinned' ||
+			storageMode === 'manual' ||
+			!isValidServerRootValue(fromPage)
+		);
+	if(shouldPreferStorage){
+		return fromStorage;
 	}
-	if(!serverRoot){
-		try{
-			const fromStorage = window.localStorage && window.localStorage.getItem(storageKey);
-			if(fromStorage && /^https?:\/\/.+/i.test(fromStorage)){
-				serverRoot = fromStorage;
-			}
-		}catch(e){}
+	if(isValidServerRootValue(fromPage)){
+		saveServerRoot(fromPage, 'page');
+		return fromPage;
 	}
-	return serverRoot || 'http://127.0.0.1:9999';
+	if(isValidServerRootValue(fromStorage)){
+		return fromStorage;
+	}
+	return 'http://127.0.0.1:9999';
 }
 
 export const ServerRoot = isLocalHost ? resolveLocalServerRoot() : 'https://srv.horosa.com';

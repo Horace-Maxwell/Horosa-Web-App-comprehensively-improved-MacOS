@@ -36,7 +36,6 @@
 - `developerID_application.cer`
 - `developerID_installer.cer`
 - `diagnostics/`
-- `docs/`
 - `modules/`
 - `runtime/`
 - `scripts/`
@@ -60,8 +59,8 @@
    仓库级脚本、本地启动入口、浏览器验收与主限法专项校验。
 4. `runtime/`
    运行时包、验证样本、主限法反推结果、发布验收结果。
-5. `docs/`、`diagnostics/`、`README*.md`
-   面向用户与维护者的文档、截图与诊断记录。
+5. `diagnostics/`、`README*.md`、根目录治理文件
+   面向用户与维护者的说明、社区规范、许可证与诊断记录。
 6. `modules/` 与 `主限法推演/`
    扩展参考实现、主限法专门文档与逆向记录。
 
@@ -2399,7 +2398,6 @@ IoT/串口/现场总线相关模块。当前可见内容：
 - `README.md`
 - `README.rst`
 - `contrib/`
-- `docs/`
 - `flatlib/`
 - `recipes/`
 - `requirements.txt`
@@ -3159,18 +3157,16 @@ IoT/串口/现场总线相关模块。当前可见内容：
 
 ## 7. 文档与诊断
 
-### 7.1 `docs/`
+### 7.1 已移除的 `docs/`
 
-当前结构：
+该目录曾承载截图、发布说明和技术文档，但当前主仓库已经移除。
 
-- `docs/assets/screenshots/`
-  - `main-workspace.png`
-  - `sanshi-workspace.png`
-- `docs/releases/`
-  - `TEMPLATE-en.md`
-  - `TEMPLATE-zh.md`
-  - `v1.1.7-en.md`
-  - `v1.1.7-zh.md`
+对应信息现在分散到：
+
+- 根目录 `README*.md`
+- `Horosa_Desktop_Installer/README.md`
+- `PROJECT_STRUCTURE.md`
+- GitHub Releases 页面正文
 
 ### 7.2 `diagnostics/`
 

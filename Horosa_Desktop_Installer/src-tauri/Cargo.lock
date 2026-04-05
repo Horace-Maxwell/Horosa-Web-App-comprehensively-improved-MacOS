@@ -1588,9 +1588,10 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "horosa-desktop-installer"
-version = "1.1.7"
+version = "1.2.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "flate2",
  "mime_guess",
  "reqwest 0.12.28",
@@ -1604,6 +1605,7 @@ dependencies = [
  "tauri-build",
  "tiny_http",
  "urlencoding",
+ "walkdir",
  "zip",
 ]
 

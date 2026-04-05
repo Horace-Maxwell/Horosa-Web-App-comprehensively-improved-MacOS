@@ -42,6 +42,7 @@ def main() -> None:
     module_snapshot = root / "Horosa-Web" / "astrostudyui" / "src" / "utils" / "moduleAiSnapshot.js"
     precise_bridge = root / "Horosa-Web" / "astrostudyui" / "src" / "utils" / "preciseCalcBridge.js"
     astro_model = root / "Horosa-Web" / "astrostudyui" / "src" / "models" / "astro.js"
+    ai_analysis_main = root / "Horosa-Web" / "astrostudyui" / "src" / "components" / "aianalysis" / "AIAnalysisMain.js"
     verify_sh = root / "Horosa-Web" / "verify_horosa_local.sh"
 
     cntrad_main = root / "Horosa-Web" / "astrostudyui" / "src" / "components" / "cntradition" / "CnTraditionMain.js"
@@ -100,6 +101,7 @@ def main() -> None:
         "万年历": "calendar",
         "风水": "fengshui",
         "三式合一": "sanshiunited",
+        "AI分析": "aianalysis",
     }
     for label, key in top_level_tabs.items():
         _assert_tab(index_js, label, key)
@@ -140,6 +142,7 @@ def main() -> None:
         "'astrochart'",
         "'astrochart3D'",
         "'fengshui'",
+        "'aianalysis'",
     ]:
         _assert_contains(index_js, key)
     for hook_key in [
@@ -156,8 +159,28 @@ def main() -> None:
         "hook={predictHook.cntradition}",
         "hook={predictHook.cnyibu}",
         "hook={predictHook.sanshiunited}",
+        "hook={predictHook.aianalysis}",
     ]:
         _assert_contains(index_js, hook_key)
+
+    for needle in [
+        "tabPosition=\"right\"",
+        "本次分析模型",
+        "案例选择（命盘 / 事盘）",
+        "参考组合 / 资料（多选）",
+        "发送分析",
+        "历史",
+        "资料",
+        "模版",
+        "设置",
+    ]:
+        _assert_contains(ai_analysis_main, needle)
+
+    for needle in [
+        "currentTab === 'aianalysis'",
+        "aianalysis:{",
+    ]:
+        _assert_contains(astro_model, needle)
 
     _assert_contains(page_header, "runAIExport")
     _assert_contains(page_header, "loadAIExportSettings")
@@ -374,7 +397,7 @@ def main() -> None:
     _assert_contains(pd_table, "if(!this.needsPdRecompute())")
     _assert_contains(pd_table, "disabled={!needsPdRecompute}")
     _assert_contains(pd_table, "needsPdRecompute ? (isPdConfigDirty ? '重新计算' : '计算') : '已同步'")
-    _assert_contains(direct_main, "cache: false")
+    _assert_contains(direct_main, "includePrimaryDirection: true")
     _assert_contains(astro_model, "pdtype: fields.pdtype ? fields.pdtype.value : 0")
 
     _assert_contains(verify_sh, "verifyPrimaryDirectionRuntime.js")

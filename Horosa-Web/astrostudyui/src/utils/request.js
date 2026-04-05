@@ -267,6 +267,49 @@ export function getResponseHeaders(response){
     return respheaders;
 }
 
+export function buildSignedFetchOptions(options) {
+    if(LocalIp === null){
+        getUserIP((ip)=>{
+            LocalIp = ip;
+        });
+    }
+
+    let opts = {
+        ...(options || {}),
+    };
+    if(opts && opts.silent !== undefined){
+        delete opts.silent;
+    }
+    if(opts && opts.disableLoading !== undefined){
+        delete opts.disableLoading;
+    }
+    if(opts && opts.timeoutMs !== undefined){
+        delete opts.timeoutMs;
+    }
+    normalizeFetchCacheOption(opts);
+    let headers = opts.headers;
+    if(headers === undefined || headers === null){
+        headers = {};
+    }
+    if(opts.method === undefined){
+        opts.method = 'POST'
+    }
+
+    const usrtoken = safeGetLocalItem(Constants.TokenKey, '');
+    opts.headers = {
+        ...headers,
+        Token: usrtoken ? usrtoken : '',
+        'Content-Type': 'application/json; charset=UTF-8',
+        LocalIp: LocalIp,
+        ClientChannel: Constants.ClientChannel,
+        ClientApp: Constants.ClientApp,
+        ClientVer: Constants.ClientVer,
+    };
+    opts.headers.Signature = sign(usrtoken, opts.headers, opts.body);
+    opts.body = encrypt(opts.body);
+    return opts;
+}
+
 function encrypt(str){
     if(!Constants.NeedEncrypt || str === undefined || str === null || str === ''){
         return str;
@@ -343,9 +386,15 @@ function fetchWithTimeout(url, opts, timeoutMs){
 		...opts,
 	};
 	let controller = null;
+	const externalSignal = reqOpts.signal;
 	if(typeof AbortController !== 'undefined'){
 		controller = new AbortController();
 		reqOpts.signal = controller.signal;
+		if(externalSignal && typeof externalSignal.addEventListener === 'function'){
+			externalSignal.addEventListener('abort', ()=>{
+				controller.abort();
+			}, { once: true });
+		}
 	}
 	return new Promise((resolve, reject)=>{
 		let settled = false;
@@ -412,28 +461,7 @@ export default async function request(url, options) {
 			timeoutMs = opts.timeoutMs;
 			delete opts.timeoutMs;
 		}
-        normalizeFetchCacheOption(opts);
-        let headers = opts.headers;
-        if(headers === undefined || headers === null){
-            headers = {};
-        }
-        
-        if(opts.method === undefined){
-            opts.method = 'POST'
-        }
-    
-        const usrtoken = safeGetLocalItem(Constants.TokenKey, '');
-        opts.headers = {
-            ...headers,
-            Token: usrtoken ? usrtoken : '', 
-            'Content-Type': 'application/json; charset=UTF-8', 
-            LocalIp: LocalIp,
-            ClientChannel: Constants.ClientChannel,
-            ClientApp: Constants.ClientApp,
-            ClientVer: Constants.ClientVer,
-        };
-        opts.headers.Signature = sign(usrtoken, opts.headers, opts.body);
-        opts.body = encrypt(opts.body);
+        opts = buildSignedFetchOptions(opts);
     
         const st = new Date().getTime();
         const response = await fetchWithTimeout(url, opts, timeoutMs);
@@ -546,28 +574,7 @@ export async function requestRaw(url, options) {
 			timeoutMs = opts.timeoutMs;
 			delete opts.timeoutMs;
 		}
-        normalizeFetchCacheOption(opts);
-        let headers = opts.headers;
-        if(headers === undefined || headers === null){
-            headers = {};
-        }
-        
-        if(opts.method === undefined){
-            opts.method = 'POST'
-        }
-    
-        const usrtoken = safeGetLocalItem(Constants.TokenKey, '');
-        opts.headers = {
-            ...headers,
-            Token: usrtoken, 
-            'Content-Type': 'application/json; charset=UTF-8', 
-            LocalIp: LocalIp,
-            ClientChannel: Constants.ClientChannel,
-            ClientApp: Constants.ClientApp,
-            ClientVer: Constants.ClientVer,
-        };
-        opts.headers.Signature = sign(usrtoken, opts.headers, opts.body);
-        opts.body = encrypt(opts.body);
+        opts = buildSignedFetchOptions(opts);
     
         const st = new Date().getTime();
         const response = await fetchWithTimeout(url, opts, timeoutMs);
@@ -618,6 +625,55 @@ export async function requestRaw(url, options) {
         }
     }
 
+}
+
+export async function requestStream(url, options) {
+    const silent = !!(options && (options.silent || options.disableLoading));
+    const suppressAbortError = !!(options && options.suppressAbortError);
+    if(dispatch && !silent){
+        dispatch({
+            type: 'save',
+            payload: {
+                loading: true,
+            }
+        });
+    }
+    try{
+        let opts = {
+            ...(options || {}),
+        };
+        let timeoutMs = null;
+        if(opts && opts.timeoutMs !== undefined){
+            timeoutMs = opts.timeoutMs;
+            delete opts.timeoutMs;
+        }
+        opts = buildSignedFetchOptions(opts);
+        const response = await fetchWithTimeout(url, opts, timeoutMs);
+        getResponseHeaders(response);
+        return response;
+    }catch(e){
+        if(suppressAbortError && e && e.name === 'AbortError'){
+            throw e;
+        }
+        if(isTimeoutLikeError(e)){
+            if(!silent){
+                innerHandleError(buildTimeoutError());
+            }
+        }else{
+            innerHandleError(e);
+        }
+        throw e;
+    }finally{
+        if(dispatch && !silent){
+            dispatch({
+                type: 'save',
+                payload: {
+                    loading: false,
+                }
+            });
+            safeSetLocalItem('forceChange', '1');
+        }
+    }
 }
 
 export async function uploadFile(obj, onUploadComplete){

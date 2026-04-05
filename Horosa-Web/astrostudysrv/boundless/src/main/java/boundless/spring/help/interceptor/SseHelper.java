@@ -66,6 +66,10 @@ public class SseHelper {
 
 		return emitter;
 	}
+
+	public static void markCurrentThread() {
+		TransData.setSSE(true);
+	}
 	
 	public static SseEmitter get(String id) {
 		return emitters.get(id);
