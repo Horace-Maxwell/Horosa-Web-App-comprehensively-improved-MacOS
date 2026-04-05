@@ -29,7 +29,7 @@ That is the main idea this README should communicate. The installer matters, the
     </td>
     <td width="50%">
       <strong>As a maintainer</strong><br />
-      Use the same repository to trace the installer project, runtime packaging, release notes, and publishing flow behind the public desktop delivery.
+      Use the same repository to trace the installer project, runtime packaging, GitHub Release flow, and publishing pipeline behind the public desktop delivery.
     </td>
   </tr>
 </table>
@@ -47,17 +47,14 @@ Best fit:
 
 ## Preview
 
-<div align="center">
-  <p><strong>Main Workspace</strong></p>
-  <img src="docs/assets/screenshots/main-workspace.png" alt="Horosa Main Workspace" width="1200" />
-  <p><em>The primary Horosa workspace in the notarized macOS release, designed for chart reading, controls, and everyday desktop use.</em></p>
-</div>
+The repository no longer commits README screenshot assets directly. That keeps the source tree lighter and lets public-facing release visuals evolve separately.
 
-<div align="center">
-  <p><strong>Sanshi Workspace</strong></p>
-  <img src="docs/assets/screenshots/sanshi-workspace.png" alt="Horosa Sanshi Workspace" width="960" />
-  <p><em>A more advanced view that spotlights Sanshi workflows and deeper tool-driven analysis inside the same desktop product.</em></p>
-</div>
+Recommended capture set for the next polished release page:
+
+- Main workspace
+- Sanshi United workspace
+- AIAnalysis Analyze / History / Materials / Settings
+- Desktop install review and update flow
 
 ## Signature Workflows
 
@@ -135,10 +132,11 @@ On macOS, the delivery layer is meant to feel native and finished rather than im
 
 The point is not “here is a codebase, please assemble it yourself.” The point is “here is Horosa as a finished desktop product.”
 
-## Latest Release Docs
+## Current Release
 
-- [v1.1.7 Release Notes (English)](docs/releases/v1.1.7-en.md)
-- [v1.1.7 Chinese Release Notes](docs/releases/v1.1.7-zh.md)
+- target release train: `v1.2.0`
+- current release page: [GitHub Release v1.2.0](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.0)
+- release history: [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 ## FAQ
 
@@ -165,6 +163,162 @@ If you maintain this stack, start with the path that matches your goal:
 - understand the public-facing repository layout: [README.md](README.md)
 - read the full Chinese guide: [README_ZH.md](README_ZH.md)
 - inspect installer internals and publishing flow: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
-- read the current version document source: [docs/releases/v1.1.7-en.md](docs/releases/v1.1.7-en.md)
+- read the current release page: [GitHub Release v1.2.0](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.0)
 - enter the application source tree: `Horosa-Web/`
 - inspect shared runtime and diagnostics: `runtime/` and `diagnostics/`
+
+---
+
+## Repository Addendum
+
+The release-oriented introduction above remains intact. The sections below restate Horosa as a formal, open-source-ready software repository: product scope, architecture, local-first philosophy, verification model, and public collaboration surfaces are described here in a way that can later be pushed cleanly to GitHub.
+
+## Key Features
+
+- multi-surface metaphysics workspace across Western astrology and Chinese traditional systems
+- AIAnalysis with streaming, local-first history, materials, templates, bundles, backups, and provider diagnostics
+- shared web/app frontend with separate runtime verification
+- notarized macOS desktop shell with offline installer flow
+- regression scripts that validate both product behavior and release delivery
+
+## Why Horosa Is Different
+
+Horosa is not just a chart renderer, and it is not just an installer. It treats the whole session as the product: charting, interpretation, AI-assisted reasoning, export, recovery, and desktop delivery belong to the same system.
+
+## Architecture Summary
+
+- frontend: [`Horosa-Web/astrostudyui/`](Horosa-Web/astrostudyui)
+- local services: [`Horosa-Web/astrostudysrv/`](Horosa-Web/astrostudysrv) and [`Horosa-Web/astropy/`](Horosa-Web/astropy)
+- desktop shell and installer: [`Horosa_Desktop_Installer/`](Horosa_Desktop_Installer)
+- repository map: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+- desktop delivery internals: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
+
+## Local-First / File-First Philosophy
+
+- provider keys stay local by default
+- AIAnalysis materials, templates, bundles, history, and backups are designed around local persistence
+- export and restore are first-class features
+- the app should stay useful even when the network is unreliable
+
+## Screenshots And Placeholders
+
+Current repository state:
+
+- README screenshots are intentionally not committed
+- release-facing visuals should live in GitHub Release assets, screenshots in issues/PRs, or a future public media folder
+
+Recommended next captures:
+
+- main workspace
+- Sanshi United workspace
+- AIAnalysis analyze/history/materials/settings
+- desktop install review and update flow
+
+## Quickstart
+
+### Local Web Runtime
+
+```bash
+cd Horosa-Web/astrostudyui
+npm ci
+npm test -- --runInBand
+npm run build:file
+
+cd ../..
+cd Horosa-Web
+./start_horosa_local.sh
+./verify_horosa_local.sh
+```
+
+### Desktop Packaging
+
+```bash
+cd Horosa_Desktop_Installer
+./scripts/verify_desktop_packaging.sh
+```
+
+## Configuration
+
+### Workspace Initialization
+
+- start local services: [`Horosa-Web/start_horosa_local.sh`](Horosa-Web/start_horosa_local.sh)
+- verify local runtime: [`Horosa-Web/verify_horosa_local.sh`](Horosa-Web/verify_horosa_local.sh)
+- stop local services: [`Horosa-Web/stop_horosa_local.sh`](Horosa-Web/stop_horosa_local.sh)
+
+### Provider Configuration
+
+`AIAnalysis` currently supports:
+
+- OpenAI
+- DeepSeek
+- Anthropic
+- Gemini
+- OpenRouter
+- Ollama
+- Moonshot / Kimi
+- Zhipu AI
+- SiliconFlow
+- Groq
+- xAI
+- custom OpenAI-compatible endpoints
+
+Reference entrypoints:
+
+- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+- [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
+- `Horosa-Web/astrostudyui/src/components/aianalysis/`
+
+## How To Run Tests
+
+```bash
+cd Horosa-Web/astrostudyui && npm test -- --runInBand
+cd Horosa-Web/astrostudyui && npm run build:file
+cd Horosa-Web/astrostudysrv/boundless && mvn test -DskipTests=false
+cd Horosa-Web/astrostudysrv/astrostudy && mvn test -DskipTests=false
+cd Horosa_Desktop_Installer && cargo test --manifest-path src-tauri/Cargo.toml runtime_update_command_
+cd Horosa_Desktop_Installer && ./scripts/verify_desktop_packaging.sh
+```
+
+## Demo Flow
+
+1. Start the local Horosa runtime.
+2. Verify the main workspace still behaves correctly.
+3. Open `AIAnalysis`.
+4. Select a provider preset and model.
+5. Choose a case, attach materials, or apply a bundle.
+6. run a streamed analysis
+7. search history, export a conversation, and test backup/restore
+
+## Roadmap
+
+- scrub secrets and machine-specific legacy content before first public push
+- capture stronger AIAnalysis screenshots
+- enable GitHub-side security, branch protection, and Discussions / issue settings
+
+## Current Limitations
+
+- some legacy files still require a dedicated path/secret scrub before public push
+- GitHub-side settings such as Discussions, private vulnerability reporting, and branch protections still need to be enabled at publication time
+- backend module dependency sequencing is still more manual than ideal
+
+## Contribution
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [CONTRIBUTING_ZH.md](CONTRIBUTING_ZH.md)
+
+## Security
+
+- [SECURITY.md](SECURITY.md)
+- [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
+
+## License
+
+The repository source code is now licensed under the MIT License. See [LICENSE](LICENSE).
+
+## Community And Release Prep
+
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- [SUPPORT.md](SUPPORT.md)
+- [CITATION.cff](CITATION.cff)
+- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+- [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)

@@ -1,9 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use anyhow::{anyhow, Context, Result};
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 use flate2::read::GzDecoder;
 use mime_guess::from_path;
 use reqwest::blocking::Client;
+use rfd::{AsyncFileDialog, FileDialog};
 use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -25,6 +28,7 @@ use tauri::{
     WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tiny_http::{Header, Method, Response, Server, StatusCode};
+use walkdir::WalkDir;
 use zip::ZipArchive;
 
 const APP_NAME: &str = "星阙";
@@ -64,6 +68,8 @@ const DEFAULT_FRONTEND_PORT: u16 = 38991;
 const UPDATE_COMPLETE_MARKER_NAME: &str = "update-complete.txt";
 const PREFERENCES_FILE_NAME: &str = "preferences.json";
 const WINDOW_STATE_FILE_NAME: &str = "window-state.json";
+const AI_ANALYSIS_IMPORT_EXTENSIONS: [&str; 6] = ["txt", "md", "markdown", "doc", "docx", "pdf"];
+const AI_ANALYSIS_BACKUP_EXTENSIONS: [&str; 1] = ["zip"];
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -201,6 +207,25 @@ struct AppPreferences {
     compact_launcher_layout: bool,
     enable_experimental_features: bool,
     always_review_before_replace: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AiAnalysisFilePayload {
+    file_name: String,
+    mime_type: String,
+    base64_data: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    relative_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AiAnalysisSavePayload {
+    default_file_name: String,
+    base64_data: String,
+    #[serde(default)]
+    mime_type: String,
 }
 
 impl Default for AppPreferences {
@@ -1978,6 +2003,139 @@ fn open_login_items_settings_command() -> std::result::Result<(), String> {
         .map_err(|err| err.to_string())
 }
 
+fn ai_analysis_async_dialog() -> AsyncFileDialog {
+    let mut dialog = AsyncFileDialog::new();
+    dialog = dialog.add_filter("AI Analysis Files", &AI_ANALYSIS_IMPORT_EXTENSIONS);
+    dialog
+}
+
+fn build_ai_analysis_payload_from_bytes(
+    path: &Path,
+    root: Option<&Path>,
+    bytes: Vec<u8>,
+) -> AiAnalysisFilePayload {
+    let relative_path = root
+        .and_then(|base| path.strip_prefix(base).ok())
+        .map(|value| value.to_string_lossy().replace('\\', "/"));
+    AiAnalysisFilePayload {
+        file_name: path
+            .file_name()
+            .map(|value| value.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown.bin".to_string()),
+        mime_type: from_path(path)
+            .first_or_octet_stream()
+            .essence_str()
+            .to_string(),
+        base64_data: BASE64_STANDARD.encode(bytes),
+        relative_path,
+    }
+}
+
+fn build_ai_analysis_file_payload(
+    path: &Path,
+    root: Option<&Path>,
+) -> std::result::Result<AiAnalysisFilePayload, String> {
+    let bytes = fs::read(path).map_err(|err| format!("{err:#}"))?;
+    Ok(build_ai_analysis_payload_from_bytes(path, root, bytes))
+}
+
+#[tauri::command]
+async fn pick_ai_analysis_files_command() -> std::result::Result<Vec<AiAnalysisFilePayload>, String>
+{
+    let Some(handles) = ai_analysis_async_dialog().pick_files().await else {
+        return Ok(Vec::new());
+    };
+    let mut items = Vec::new();
+    for handle in handles.iter() {
+        let bytes = handle.read().await;
+        items.push(build_ai_analysis_payload_from_bytes(
+            handle.path(),
+            None,
+            bytes,
+        ));
+    }
+    Ok(items)
+}
+
+#[tauri::command]
+async fn pick_ai_analysis_folder_command() -> std::result::Result<Vec<AiAnalysisFilePayload>, String>
+{
+    let Some(root_handle) = AsyncFileDialog::new().pick_folder().await else {
+        return Ok(Vec::new());
+    };
+    let root = root_handle.path().to_path_buf();
+    let mut items = Vec::new();
+    let mut first_error = None;
+    for entry in WalkDir::new(&root)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+    {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let ext = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        if !AI_ANALYSIS_IMPORT_EXTENSIONS.contains(&ext.as_str()) {
+            continue;
+        }
+        match build_ai_analysis_file_payload(path, Some(&root)) {
+            Ok(payload) => items.push(payload),
+            Err(err) => {
+                if first_error.is_none() {
+                    first_error = Some(format!(
+                        "读取文件失败：{} ({})",
+                        path.to_string_lossy(),
+                        err
+                    ));
+                }
+            }
+        }
+    }
+    if items.is_empty() {
+        if let Some(err) = first_error {
+            return Err(err);
+        }
+    }
+    Ok(items)
+}
+
+#[tauri::command]
+fn save_ai_analysis_file_command(
+    payload: AiAnalysisSavePayload,
+) -> std::result::Result<String, String> {
+    let suggested_name = if payload.default_file_name.trim().is_empty() {
+        "ai-analysis-export.bin".to_string()
+    } else {
+        payload.default_file_name.trim().to_string()
+    };
+    let Some(target_path) = FileDialog::new().set_file_name(&suggested_name).save_file() else {
+        return Err("用户取消保存".to_string());
+    };
+    let bytes = BASE64_STANDARD
+        .decode(payload.base64_data.as_bytes())
+        .map_err(|err| format!("{err:#}"))?;
+    if let Some(parent) = target_path.parent() {
+        fs::create_dir_all(parent).map_err(|err| format!("{err:#}"))?;
+    }
+    fs::write(&target_path, bytes).map_err(|err| format!("{err:#}"))?;
+    Ok(target_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn open_ai_analysis_backup_command() -> std::result::Result<Option<AiAnalysisFilePayload>, String> {
+    let Some(path) = FileDialog::new()
+        .add_filter("AI Analysis Backup", &AI_ANALYSIS_BACKUP_EXTENSIONS)
+        .pick_file()
+    else {
+        return Ok(None);
+    };
+    build_ai_analysis_file_payload(&path, None).map(Some)
+}
+
 fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
     let resource_dir = app.path().resource_dir().context("missing resource dir")?;
     let candidates = [
@@ -1999,8 +2157,7 @@ fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
                             config.runtime_version = app.package_info().version.to_string();
                         }
                         if config.primary_download.trim().is_empty() {
-                            config.primary_download =
-                                DEFAULT_DESKTOP_OFFLINE_PKG_NAME.to_string();
+                            config.primary_download = DEFAULT_DESKTOP_OFFLINE_PKG_NAME.to_string();
                         }
                         if config.supported_arch.trim().is_empty() {
                             config.supported_arch = DEFAULT_SUPPORTED_ARCH.to_string();
@@ -2552,12 +2709,7 @@ fn build_asset_review_payload(
             label: "已安装 app".to_string(),
             path: path.to_string_lossy().to_string(),
             state,
-            replace_recommended: state == DetectedAssetState::Outdated
-                || matches!(mode, AssetReviewMode::Install)
-                    && current_bundle
-                        .as_ref()
-                        .map(|bundle| bundle.as_path() != path)
-                        .unwrap_or(false),
+            replace_recommended: should_recommend_installed_app_replacement(mode, state),
             requires_admin: target_requires_admin_update(&path),
             details: bundle_version
                 .map(|version| format!("已安装版本 {}。{}", version, current_bundle_copy))
@@ -2589,6 +2741,19 @@ fn build_asset_review_payload(
         if let Some(item) = items
             .iter_mut()
             .find(|item| item.kind == DetectedAssetKind::UserRuntime)
+        {
+            item.replace_recommended = false;
+        }
+    }
+
+    let user_runtime_is_healthy = items.iter().any(|item| {
+        item.kind == DetectedAssetKind::UserRuntime && item.state == DetectedAssetState::Healthy
+    });
+    if user_runtime_is_healthy && matches!(mode, AssetReviewMode::Install | AssetReviewMode::Repair)
+    {
+        if let Some(item) = items
+            .iter_mut()
+            .find(|item| item.kind == DetectedAssetKind::SharedRuntime)
         {
             item.replace_recommended = false;
         }
@@ -2660,6 +2825,13 @@ fn build_asset_review_payload(
     };
     payload.blocking_issues = validate_asset_review_payload(app, &payload, &HashMap::new())?;
     Ok(payload)
+}
+
+fn should_recommend_installed_app_replacement(
+    _mode: AssetReviewMode,
+    state: DetectedAssetState,
+) -> bool {
+    state == DetectedAssetState::Outdated
 }
 
 fn validate_asset_review_payload(
@@ -4137,7 +4309,11 @@ fn main() {
             open_diagnostics_window_command,
             trigger_update_check_command,
             trigger_runtime_repair_command,
-            open_login_items_settings_command
+            open_login_items_settings_command,
+            pick_ai_analysis_files_command,
+            pick_ai_analysis_folder_command,
+            save_ai_analysis_file_command,
+            open_ai_analysis_backup_command
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -4511,5 +4687,17 @@ mod tests {
         assert!(script.contains("pending_manual"));
         assert!(script.contains("auto_relaunch_confirmed"));
         assert!(!script.contains("open_app || true"));
+    }
+
+    #[test]
+    fn install_review_does_not_force_replace_for_healthy_existing_app() {
+        assert!(!should_recommend_installed_app_replacement(
+            AssetReviewMode::Install,
+            DetectedAssetState::Healthy
+        ));
+        assert!(should_recommend_installed_app_replacement(
+            AssetReviewMode::Install,
+            DetectedAssetState::Outdated
+        ));
     }
 }

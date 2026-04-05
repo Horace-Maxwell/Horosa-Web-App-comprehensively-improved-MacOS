@@ -33,6 +33,7 @@ import CalendarMain from '../components/calendar/CalendarMain';
 import OtherBuMain from '../components/otherbu/OtherBuMain';
 import FengShuiMain from '../components/fengshui/FengShuiMain';
 import SanShiUnitedMain from '../components/sanshi/SanShiUnitedMain';
+import AIAnalysisMain from '../components/aianalysis/AIAnalysisMain';
 import BookMain from '../components/reader/BookMain';
 import MediaMain from '../components/multimedia/MediaMain';
 import AdminToolsMain from '../components/admintools/AdminToolsMain';
@@ -80,7 +81,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 || key === 'otherbu' || key === 'cnyibu' || key === 'germanytech'
                 || key === 'guolao' || key === 'hellenastro'  || key === 'astrochart'
                 || key === 'locastro' || key === 'admintools' || key === 'astrochart3D'
-                || key === 'fengshui' || key === 'sanshiunited'){
+                || key === 'fengshui' || key === 'sanshiunited' || key === 'aianalysis'){
                 predictHook[key].fun(fields);
             }else if(key === 'astroreader'){
                 predictHook[key].fun();
@@ -485,6 +486,17 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
 	                        dispatch={dispatch}
 	                        hook={predictHook.sanshiunited}
 	                    />
+                </TabPane>
+
+                <TabPane tab="AI分析" key="aianalysis">
+                    <AIAnalysisMain
+                        height={height}
+                        fields={fields}
+                        fieldsAry={aryfields}
+                        chartObj={chartObj}
+                        dispatch={dispatch}
+                        hook={predictHook.aianalysis}
+                    />
                 </TabPane>
 
             </Tabs>

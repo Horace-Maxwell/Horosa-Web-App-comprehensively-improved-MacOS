@@ -106,6 +106,7 @@
             <mvc:exclude-mapping path="/calc/**"/> 
             <mvc:exclude-mapping path="/live/**"/> 
             <mvc:exclude-mapping path="/astromedia/**"/> 
+            <mvc:exclude-mapping path="/aianalysis/**"/>
             
 	        <bean class="spacex.astrostudy.interceptor.PermissionInterceptor" />
         </mvc:interceptor>

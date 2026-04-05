@@ -1,7 +1,16 @@
 {
   "name": "horosa-desktop-installer",
   "private": true,
-  "version": "1.1.7",
+  "version": "1.2.0",
+  "description": "Horosa macOS desktop shell, installer, and release automation workspace.",
+  "license": "MIT",
+  "keywords": [
+    "horosa",
+    "tauri",
+    "macos",
+    "desktop",
+    "local-first"
+  ],
   "scripts": {
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

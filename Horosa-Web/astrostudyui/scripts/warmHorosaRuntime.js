@@ -1,5 +1,14 @@
-const forge = require('node-forge');
-const RSA = require('js-rsa');
+function optionalRequire(name) {
+  try {
+    return require(name);
+  } catch (error) {
+    console.log(`[warmup] skip: missing optional dependency ${name}`);
+    process.exit(0);
+  }
+}
+
+const forge = optionalRequire('node-forge');
+const RSA = optionalRequire('js-rsa');
 const crypto = require('crypto');
 const { performance } = require('perf_hooks');
 

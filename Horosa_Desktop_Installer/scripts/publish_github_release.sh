@@ -3,8 +3,6 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
-RELEASE_DOCS_DIR="${INSTALLER_ROOT}/../docs/releases"
-
 read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION PRIMARY_DOWNLOAD SUPPORTED_ARCH <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
 import json, os, pathlib
@@ -38,10 +36,10 @@ EOF
 
 RELEASE_NAME="${TAG_NAME}"
 API_ROOT="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
-RELEASE_DOC_ZH_FILE="${RELEASE_DOCS_DIR}/${TAG_NAME}-zh.md"
-RELEASE_DOC_EN_FILE="${RELEASE_DOCS_DIR}/${TAG_NAME}-en.md"
-RELEASE_DOC_ZH_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/docs/releases/${TAG_NAME}-zh.md"
-RELEASE_DOC_EN_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/docs/releases/${TAG_NAME}-en.md"
+README_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/README.md"
+README_EN_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/README_EN.md"
+README_ZH_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/README_ZH.md"
+INSTALLER_README_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/Horosa_Desktop_Installer/README.md"
 APP_ASSETS=(
   "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
   "${DIST_ROOT}/${DESKTOP_ASSET}"
@@ -188,30 +186,37 @@ fi
 RELEASE_BODY="$(
   PRIMARY_DOWNLOAD_ENV="${PRIMARY_DOWNLOAD}" \
   SUPPORTED_ARCH_ENV="${SUPPORTED_ARCH}" \
-  RELEASE_DOC_ZH_FILE_ENV="${RELEASE_DOC_ZH_FILE}" \
-  RELEASE_DOC_EN_FILE_ENV="${RELEASE_DOC_EN_FILE}" \
-  RELEASE_DOC_ZH_URL_ENV="${RELEASE_DOC_ZH_URL}" \
-  RELEASE_DOC_EN_URL_ENV="${RELEASE_DOC_EN_URL}" \
+  VERSION_ENV="${VERSION}" \
+  TAG_NAME_ENV="${TAG_NAME}" \
+  README_URL_ENV="${README_URL}" \
+  README_EN_URL_ENV="${README_EN_URL}" \
+  README_ZH_URL_ENV="${README_ZH_URL}" \
+  INSTALLER_README_URL_ENV="${INSTALLER_README_URL}" \
   python3 - <<'PY'
 import os
-from pathlib import Path
-
-
-def read_text(path_env: str) -> str:
-    path = Path(os.environ[path_env])
-    if not path.is_file():
-        return ""
-    return path.read_text().strip()
-
 
 primary_download = os.environ["PRIMARY_DOWNLOAD_ENV"]
 arch = os.environ["SUPPORTED_ARCH_ENV"]
-zh_url = os.environ["RELEASE_DOC_ZH_URL_ENV"]
-en_url = os.environ["RELEASE_DOC_EN_URL_ENV"]
-zh_notes = read_text("RELEASE_DOC_ZH_FILE_ENV")
-en_notes = read_text("RELEASE_DOC_EN_FILE_ENV")
+version = os.environ["VERSION_ENV"]
+tag_name = os.environ["TAG_NAME_ENV"]
+readme_url = os.environ["README_URL_ENV"]
+readme_en_url = os.environ["README_EN_URL_ENV"]
+readme_zh_url = os.environ["README_ZH_URL_ENV"]
+installer_readme_url = os.environ["INSTALLER_README_URL_ENV"]
 
 sections = [
+    f"# Horosa {version}",
+    "",
+    "Horosa is a local-first metaphysics workstation for Apple Silicon, spanning Western astrology, Chinese traditional systems, AI-assisted analysis, and a notarized desktop delivery stack.",
+    "Horosa 是面向 Apple Silicon 的本地优先玄学工作站，覆盖西方占星、中国传统术数、AI 辅助分析，以及正式公证的桌面交付链路。",
+    "",
+    "## 当前版本亮点 / Release Highlights",
+    f"- 当前发布版本 / Current release: `{tag_name}`",
+    "- `AI分析 / AIAnalysis` 已进入正式发布线，包含流式分析、历史、资料、模版、组合、备份与 provider 诊断。",
+    "- `AIAnalysis` now ships on the public release line with streaming analysis, history, materials, templates, bundles, backups, and provider diagnostics.",
+    "- Web 与 App 继续共用同一套主前端，并维持各自运行态验证。",
+    "- Web and App continue to share the same primary frontend while keeping separate runtime validation.",
+    "",
     "## 下载 / Download",
     f"- 推荐安装包 / Recommended download: `{primary_download}`",
     "- 适合普通用户、中国大陆、弱网和离线转发场景。",
@@ -224,19 +229,24 @@ sections = [
     "3. 安装完成后直接打开 `/Applications/星阙.app` / Open `/Applications/星阙.app` after install",
     "4. 如系统提示安全确认，请在“系统设置 -> 隐私与安全性”中放行 / If macOS asks for confirmation, allow it in System Settings -> Privacy & Security",
     "",
-    "## 文档 / Docs",
-    f"- [中文版本说明]({zh_url})",
-    f"- [English Release Notes]({en_url})",
+    "## 仓库入口 / Repository Entry Points",
+    f"- [README portal]({readme_url})",
+    f"- [README English]({readme_en_url})",
+    f"- [README 中文]({readme_zh_url})",
+    f"- [Installer README]({installer_readme_url})",
+    "",
+    "## 自动更新与桌面交付 / Auto-Update And Desktop Delivery",
+    "- 自动更新继续依赖 `horosa-latest.json`、桌面安装包与独立 runtime 资产，不要求改变客户端协议。",
+    "- Auto-update continues to rely on `horosa-latest.json`, desktop release assets, and the separate runtime artifact without changing the client protocol.",
+    "",
+    "## 已知限制 / Known Limitations",
+    "- 仓库中的一部分 legacy 模块仍保留较强的本地运行和内部依赖假设。",
+    "- Some legacy modules in the repository still assume a strongly local runtime environment and internal dependency chain.",
     "",
     "## 技术资产 / Technical Assets",
     "此 Release 中其余资产是安装器与自动更新器使用的内部支持文件，普通用户可以忽略。",
     "The remaining assets in this release are internal support files for the installer and auto-updater. Ordinary users should ignore them.",
 ]
-
-if zh_notes:
-    sections.extend(["", "---", "", zh_notes])
-if en_notes:
-    sections.extend(["", "---", "", en_notes])
 
 print("\n".join(sections))
 PY
