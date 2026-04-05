@@ -10,7 +10,6 @@
 .DS_Store
 npm-debug.log*
 .vscode
-package-lock.json
 
 # umi
 .umi
@@ -18,4 +17,3 @@ package-lock.json
 
 yarn.lock
 yarn-error.log
-
