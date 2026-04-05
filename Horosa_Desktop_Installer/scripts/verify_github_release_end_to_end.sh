@@ -30,6 +30,24 @@ fetch() {
   curl -fL --retry 5 --retry-delay 2 --retry-all-errors "$@"
 }
 
+signed_backend_code() {
+  local url="$1"
+  local sig
+  sig="$(
+    python3 - <<'PY'
+import hashlib
+payload = 'FE45AB6E29EF111.0'
+print(hashlib.sha256(payload.encode('utf-8')).hexdigest())
+PY
+  )"
+  curl -s -o /dev/null --max-time 2 -w '%{http_code}' \
+    -H "ClientChannel: 1" \
+    -H "ClientApp: 1" \
+    -H "ClientVer: 1.0" \
+    -H "Signature: ${sig}" \
+    "$url" || true
+}
+
 fetch "${RELEASE_API}" -o "${DOWNLOAD_ROOT}/release.json"
 fetch -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${MANIFEST_URL}" -o "${DOWNLOAD_ROOT}/horosa-latest.json"
 
@@ -139,22 +157,35 @@ EOF
   /bin/bash ./start_horosa_local.sh
 )
 
-for url in "http://127.0.0.1:${BACKEND_PORT}/common/time" "http://127.0.0.1:${CHART_PORT}/"; do
-  ok=''
-  for _ in $(seq 1 120); do
-    code="$(curl -s -o /dev/null --max-time 2 -w '%{http_code}' "$url" || true)"
-    if [ -n "${code}" ] && [ "${code}" != '000' ]; then
-      echo "$url -> ${code}"
-      ok=1
-      break
-    fi
-    sleep 1
-  done
-  [ -n "${ok}" ] || {
-    echo "endpoint not ready: ${url}" >&2
-    exit 1
-  }
+chart_ok=''
+for _ in $(seq 1 120); do
+  code="$(curl -s -o /dev/null --max-time 2 -w '%{http_code}' "http://127.0.0.1:${CHART_PORT}/" || true)"
+  if [ -n "${code}" ] && [ "${code}" != '000' ] && [ "${code}" -lt 500 ]; then
+    echo "http://127.0.0.1:${CHART_PORT}/ -> ${code}"
+    chart_ok=1
+    break
+  fi
+  sleep 1
 done
+[ -n "${chart_ok}" ] || {
+  echo "endpoint not ready: http://127.0.0.1:${CHART_PORT}/" >&2
+  exit 1
+}
+
+backend_ok=''
+for _ in $(seq 1 120); do
+  code="$(signed_backend_code "http://127.0.0.1:${BACKEND_PORT}/common/time")"
+  if [ -n "${code}" ] && [ "${code}" != '000' ] && [ "${code}" -lt 500 ]; then
+    echo "http://127.0.0.1:${BACKEND_PORT}/common/time -> ${code}"
+    backend_ok=1
+    break
+  fi
+  sleep 1
+done
+[ -n "${backend_ok}" ] || {
+  echo "endpoint not ready: http://127.0.0.1:${BACKEND_PORT}/common/time" >&2
+  exit 1
+}
 
 APP_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "${APP_BUNDLE_PATH}/Contents/Info.plist")"
 echo "app_version=${APP_VERSION}"

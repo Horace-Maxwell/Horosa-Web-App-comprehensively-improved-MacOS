@@ -69,6 +69,34 @@ wait_http() {
   return 1
 }
 
+wait_signed_backend_http() {
+  local url="$1"
+  local timeout="${2:-120}"
+  local i
+  local code=""
+  local sig
+  sig="$(
+    python3 - <<'PY'
+import hashlib
+payload = 'FE45AB6E29EF111.0'
+print(hashlib.sha256(payload.encode('utf-8')).hexdigest())
+PY
+  )"
+  for i in $(seq 1 "${timeout}"); do
+    code="$(curl -s -o /dev/null --max-time 2 -w '%{http_code}' \
+      -H "ClientChannel: 1" \
+      -H "ClientApp: 1" \
+      -H "ClientVer: 1.0" \
+      -H "Signature: ${sig}" \
+      "$url" || true)"
+    if [ -n "${code}" ] && [ "${code}" != "000" ] && [ "${code}" -lt 500 ]; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 wait_port_gone() {
   local port="$1"
   local timeout="${2:-20}"
@@ -250,7 +278,7 @@ read -r CHART_PORT BACKEND_PORT <<<"$(pick_ports)"
   HOROSA_DIAG_DIR="${TMP_ROOT}/diag" \
   /bin/bash ./start_horosa_local.sh
 )
-wait_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
+wait_signed_backend_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
 wait_http "http://127.0.0.1:${CHART_PORT}/" 60
 (
   cd "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web"

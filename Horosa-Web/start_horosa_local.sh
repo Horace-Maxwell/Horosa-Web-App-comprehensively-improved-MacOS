@@ -109,6 +109,34 @@ http_responding() {
   return 0
 }
 
+signed_backend_http_responding() {
+  local url="$1"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 0
+  fi
+  local sig
+  sig="$(
+    python3 - <<'PY'
+import hashlib
+payload = 'FE45AB6E29EF111.0'
+print(hashlib.sha256(payload.encode('utf-8')).hexdigest())
+PY
+  )"
+  local code
+  code="$(
+    curl -s -o /dev/null -m 2 -w '%{http_code}' \
+      -H "ClientChannel: 1" \
+      -H "ClientApp: 1" \
+      -H "ClientVer: 1.0" \
+      -H "Signature: ${sig}" \
+      "${url}" || true
+  )"
+  if [ -z "${code}" ] || [ "${code}" = "000" ] || [ "${code}" -ge 500 ]; then
+    return 1
+  fi
+  return 0
+}
+
 warm_runtime_routes() {
   local warmup_js="${UI_DIR}/scripts/warmHorosaRuntime.js"
   local warmup_log="${LOG_DIR}/runtime-warmup.log"
@@ -181,7 +209,7 @@ java_bin_ready() {
   if [ ! -x "${java_bin}" ]; then
     return 1
   fi
-  "${java_bin}" -version >/dev/null 2>&1
+  return 0
 }
 
 resolve_java_bin() {
@@ -566,9 +594,9 @@ for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
   fi
 
   if port_listening "${CHART_PORT}" && port_listening "${BACKEND_PORT}"; then
-    if http_responding "http://127.0.0.1:${CHART_PORT}/" && http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
-      ready=1
-      break
+    if http_responding "http://127.0.0.1:${CHART_PORT}/" && signed_backend_http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
+        ready=1
+        break
     fi
   fi
   if [ $((_ % 10)) -eq 0 ]; then
