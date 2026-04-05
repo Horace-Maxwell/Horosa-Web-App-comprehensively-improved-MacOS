@@ -209,7 +209,26 @@ java_bin_ready() {
   if [ ! -x "${java_bin}" ]; then
     return 1
   fi
-  return 0
+  if [ -x /usr/bin/python3 ]; then
+    /usr/bin/python3 - "${java_bin}" <<'PY' >/dev/null 2>&1
+import subprocess
+import sys
+
+try:
+    completed = subprocess.run(
+        [sys.argv[1], "-version"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+except Exception:
+    raise SystemExit(1)
+
+raise SystemExit(0 if completed.returncode == 0 else 1)
+PY
+    return $?
+  fi
+  "${java_bin}" -version >/dev/null 2>&1
 }
 
 resolve_java_bin() {
