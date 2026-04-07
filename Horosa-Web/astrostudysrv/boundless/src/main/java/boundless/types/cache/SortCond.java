@@ -18,7 +18,19 @@ public class SortCond {
 		this.field = fld;
 		this.sort = st;
 	}
-	
+
+	public String getField() {
+		return this.field;
+	}
+
+	public SortType getSort() {
+		return this.sort;
+	}
+
+	public SortCond[] getOthers() {
+		return this.others;
+	}
+
 	public void and(SortCond... others) {
 		this.others = new SortCond[others.length];
 		

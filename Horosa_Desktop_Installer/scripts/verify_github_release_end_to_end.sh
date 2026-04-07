@@ -187,6 +187,13 @@ done
   exit 1
 }
 
+HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${INSTALLER_ROOT}/../Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js" >/dev/null
+if rg -n "MongoTimeoutException|127\\.0\\.0\\.1:27017|Connection refused" "${TMP_INSTALL}/logs" "${TMP_INSTALL}/diag" >/dev/null 2>&1; then
+  echo "github release smoke produced unexpected Mongo connection errors" >&2
+  rg -n "MongoTimeoutException|127\\.0\\.0\\.1:27017|Connection refused" "${TMP_INSTALL}/logs" "${TMP_INSTALL}/diag" >&2 || true
+  exit 1
+fi
+
 APP_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "${APP_BUNDLE_PATH}/Contents/Info.plist")"
 echo "app_version=${APP_VERSION}"
 echo "latest_manifest_version=${MANIFEST_VERSION}"

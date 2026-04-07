@@ -16,7 +16,11 @@ public class FilterOrCond extends FilterCond {
 	public FilterOrCond(FilterCond...conds){
 		this.conds = conds;
 	}
-	
+
+	public FilterCond[] getConds() {
+		return this.conds;
+	}
+
 	public Bson toBson(){
 		Bson[] bsons = new Bson[this.conds.length];
 		for(int i=0; i<bsons.length; i++) {
