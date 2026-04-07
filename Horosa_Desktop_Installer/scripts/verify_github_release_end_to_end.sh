@@ -127,6 +127,7 @@ HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" /bin/bash "${OFFL
 [ -x "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
 /usr/bin/python3 "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python"
 PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
+PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" -version >/dev/null
 
 read -r CHART_PORT BACKEND_PORT <<EOF
 $(python3 - <<'PY'
@@ -147,6 +148,7 @@ EOF
   PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
   HOROSA_SKIP_UI_BUILD=1 \
   HOROSA_SKIP_RUNTIME_WARMUP=1 \
+  HOROSA_REQUIRE_EMBEDDED_RUNTIME=1 \
   HOROSA_STARTUP_TIMEOUT=180 \
   HOROSA_CHART_PORT="${CHART_PORT}" \
   HOROSA_SERVER_PORT="${BACKEND_PORT}" \

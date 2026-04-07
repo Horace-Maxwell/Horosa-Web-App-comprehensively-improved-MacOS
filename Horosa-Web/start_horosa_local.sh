@@ -28,6 +28,7 @@ DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
 DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
 EMBEDDED_PY_REPAIR_HELPER="${ROOT}/scripts/repairEmbeddedPythonRuntime.py"
 PYTHON_LAUNCH_NOUSERSITE="${PYTHONNOUSERSITE:-}"
+REQUIRE_EMBEDDED_RUNTIME="${HOROSA_REQUIRE_EMBEDDED_RUNTIME:-0}"
 
 if [ -z "${HOROSA_PYTHON:-}" ] && [ -x "${ROOT_PARENT}/.runtime/mac/venv/bin/python3" ]; then
   PYTHON_BIN="${ROOT_PARENT}/.runtime/mac/venv/bin/python3"
@@ -62,7 +63,7 @@ diag_tail() {
 }
 
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
-diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR} mongo_optional=${DESKTOP_MONGO_OPTIONAL} needtranslog=${NEED_TRANSLOG}"
+diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR} mongo_optional=${DESKTOP_MONGO_OPTIONAL} needtranslog=${NEED_TRANSLOG} require_embedded_runtime=${REQUIRE_EMBEDDED_RUNTIME}"
 
 cleanup_metadata_files() {
   local root="$1"
@@ -242,6 +243,11 @@ resolve_java_bin() {
     return 0
   fi
 
+  if [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ]; then
+    diag_log "java strict mode enabled; refusing fallback away from ${JAVA_BIN}"
+    return 1
+  fi
+
   if command -v "${JAVA_BIN}" >/dev/null 2>&1; then
     resolved_bin="$(command -v "${JAVA_BIN}")"
     if java_bin_ready "${resolved_bin}"; then
@@ -360,6 +366,10 @@ resolve_python_bin() {
     "${root_parent}/.runtime/mac/venv/bin/python3"
     "${root_parent}/runtime/mac/python/bin/python3"
   )
+
+  if [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ]; then
+    candidates=("${PYTHON_BIN}")
+  fi
 
   if command -v python3 >/dev/null 2>&1; then
     candidates+=("$(command -v python3)")

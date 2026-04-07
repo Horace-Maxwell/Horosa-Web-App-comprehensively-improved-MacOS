@@ -3,7 +3,6 @@
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine as _;
-use flate2::read::GzDecoder;
 use mime_guess::from_path;
 use reqwest::blocking::Client;
 use rfd::{AsyncFileDialog, FileDialog};
@@ -21,7 +20,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tar::Archive;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{
     AppHandle, LogicalPosition, LogicalSize, Manager, Position, RunEvent, Runtime, Size,
@@ -3226,14 +3224,45 @@ fn remove_dir_if_exists(path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn archive_runtime_version(archive_path: &Path) -> Result<String> {
+    let output = Command::new("/usr/bin/tar")
+        .arg("-xOf")
+        .arg(archive_path)
+        .arg("runtime-payload/runtime-manifest.json")
+        .output()
+        .with_context(|| format!("read runtime manifest from {}", archive_path.display()))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow!(
+            "runtime manifest missing in {}: {}",
+            archive_path.display(),
+            stderr.trim()
+        ));
+    }
+    let manifest: RuntimeManifest =
+        serde_json::from_slice(&output.stdout).context("parse runtime manifest json")?;
+    Ok(manifest.version)
+}
+
 fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> {
     let extract_root = dest_root.join("_extract");
     remove_dir_if_exists(&extract_root)?;
     ensure_dir(&extract_root)?;
-    let tar_gz = File::open(archive_path)?;
-    let decoder = GzDecoder::new(tar_gz);
-    let mut archive = Archive::new(decoder);
-    archive.unpack(&extract_root)?;
+    let status = Command::new("/usr/bin/tar")
+        .arg("-xzf")
+        .arg(archive_path)
+        .arg("-C")
+        .arg(&extract_root)
+        .env("COPYFILE_DISABLE", "1")
+        .env("COPY_EXTENDED_ATTRIBUTES_DISABLE", "1")
+        .status()
+        .with_context(|| format!("extract runtime archive {}", archive_path.display()))?;
+    if !status.success() {
+        return Err(anyhow!(
+            "extract runtime archive failed for {}",
+            archive_path.display()
+        ));
+    }
 
     let extracted_runtime = extract_root.join("runtime-payload");
     if !extracted_runtime.exists() {
@@ -3254,6 +3283,13 @@ fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> 
         return Err(err.into());
     }
     prepare_runtime_dir(&final_runtime)?;
+    let _ = Command::new("/usr/bin/xattr")
+        .arg("-dr")
+        .arg("com.apple.quarantine")
+        .arg(&final_runtime)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
     remove_dir_if_exists(&backup_runtime)?;
     remove_dir_if_exists(&extract_root)?;
     Ok(())
@@ -3283,44 +3319,63 @@ fn clear_runtime_pending_marker(runtime_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn recover_user_runtime_from_cached_offline_assets(
-    app: &AppHandle,
+fn recover_runtime_from_cached_archives(
     window: &WebviewWindow,
     config: &ReleaseConfig,
-) -> Result<Option<RuntimePaths>> {
-    let user_root = user_runtime_root(app)?;
-    let candidates = local_runtime_archive_candidates(app, config)?;
-    if candidates.is_empty() {
-        return Ok(None);
-    }
-
+    candidates: &[PathBuf],
+    dest_root: &Path,
+    recovered_runtime_dir: &Path,
+    progress_step: &str,
+    recovered_step: &str,
+    start_status_prefix: &str,
+    success_status: &str,
+) -> Result<()> {
     emit_launcher_state(window, &build_repair_in_progress_state());
     emit_mode(window, "repair");
-    emit_progress(window, 18, "恢复当前用户本机组件");
+    emit_progress(window, 18, progress_step);
 
     let mut last_err = None;
     for archive in candidates {
+        match archive_runtime_version(&archive) {
+            Ok(version) if version.trim() != config.runtime_version.trim() => {
+                emit_status(
+                    window,
+                    &format!(
+                        "跳过本地缓存归档 {}：版本 {} 与当前要求的 {} 不一致。",
+                        archive.display(),
+                        version.trim(),
+                        config.runtime_version
+                    ),
+                );
+                last_err = Some(anyhow!(
+                    "runtime archive {} has version {}, expected {}",
+                    archive.display(),
+                    version.trim(),
+                    config.runtime_version
+                ));
+                continue;
+            }
+            Ok(_) => {}
+            Err(err) => {
+                last_err = Some(err);
+                continue;
+            }
+        }
         emit_status(
             window,
-            &format!(
-                "检测到共享离线路径不完整，正在尝试用本地缓存恢复当前用户本机组件：{}",
-                archive.display()
-            ),
+            &format!("{}：{}", start_status_prefix, archive.display()),
         );
-        match extract_runtime_archive(&archive, &user_root) {
+        match extract_runtime_archive(&archive, dest_root) {
             Ok(()) => {
-                let paths = resolve_runtime_paths(app)?;
-                if runtime_matches_expected(&paths.runtime_dir, &config.runtime_version) {
-                    emit_progress(window, 36, "已恢复当前用户本机组件");
-                    emit_status(
-                        window,
-                        "已从本地缓存恢复当前用户本机组件，将继续打开主界面。",
-                    );
-                    return Ok(Some(paths));
+                if runtime_matches_expected(recovered_runtime_dir, &config.runtime_version) {
+                    emit_progress(window, 36, recovered_step);
+                    emit_status(window, success_status);
+                    return Ok(());
                 }
                 last_err = Some(anyhow!(
-                    "runtime recovered from {} but still not usable",
-                    archive.display()
+                    "runtime recovered from {} into {} but still not usable",
+                    archive.display(),
+                    recovered_runtime_dir.display()
                 ));
             }
             Err(err) => {
@@ -3332,7 +3387,54 @@ fn recover_user_runtime_from_cached_offline_assets(
     if let Some(err) = last_err {
         return Err(err);
     }
-    Ok(None)
+    Err(anyhow!("no cached runtime archive candidates were usable"))
+}
+
+fn recover_shared_runtime_from_cached_offline_assets(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    config: &ReleaseConfig,
+) -> Result<Option<RuntimePaths>> {
+    let candidates = local_runtime_archive_candidates(app, config)?;
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+    recover_runtime_from_cached_archives(
+        window,
+        config,
+        &candidates,
+        &shared_runtime_root(),
+        &shared_runtime_dir(),
+        "恢复共享本机组件",
+        "已恢复共享本机组件",
+        "检测到共享离线路径不完整，正在尝试用本地缓存恢复共享本机组件",
+        "已从本地缓存恢复共享本机组件，将继续打开主界面。",
+    )?;
+    Ok(Some(shared_runtime_paths(app)?))
+}
+
+fn recover_user_runtime_from_cached_offline_assets(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    config: &ReleaseConfig,
+) -> Result<Option<RuntimePaths>> {
+    let user_root = user_runtime_root(app)?;
+    let candidates = local_runtime_archive_candidates(app, config)?;
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+    recover_runtime_from_cached_archives(
+        window,
+        config,
+        &candidates,
+        &user_root,
+        &user_root.join("current"),
+        "恢复当前用户本机组件",
+        "已恢复当前用户本机组件",
+        "检测到共享离线路径不完整，正在尝试用本地缓存恢复当前用户本机组件",
+        "已从本地缓存恢复当前用户本机组件，将继续打开主界面。",
+    )?;
+    Ok(Some(resolve_runtime_paths(app)?))
 }
 
 fn selected_runtime_roots(
@@ -3393,6 +3495,12 @@ fn ensure_runtime_installed(
                 );
                 return Ok(shared_paths);
             }
+            let mut cached_recovery_error = None;
+            match recover_shared_runtime_from_cached_offline_assets(app, window, &config) {
+                Ok(Some(paths)) => return Ok(paths),
+                Ok(None) => {}
+                Err(err) => cached_recovery_error = Some(err),
+            }
             if user_runtime_matches_expected(app, &config.runtime_version)? {
                 emit_mode(window, "launch");
                 emit_progress(window, 36, "共享离线路径异常，已回退到当前用户本机组件");
@@ -3402,10 +3510,17 @@ fn ensure_runtime_installed(
                 );
                 return resolve_runtime_paths(app);
             }
-            if let Some(paths) =
-                recover_user_runtime_from_cached_offline_assets(app, window, &config)?
-            {
-                return Ok(paths);
+            match recover_user_runtime_from_cached_offline_assets(app, window, &config) {
+                Ok(Some(paths)) => return Ok(paths),
+                Ok(None) => {}
+                Err(err) => {
+                    if cached_recovery_error.is_none() {
+                        cached_recovery_error = Some(err);
+                    }
+                }
+            }
+            if let Some(err) = cached_recovery_error {
+                return Err(err);
             }
             return Err(anyhow!(
                 "检测到当前来自离线安装包，但共享本机组件缺失、损坏或版本不完整。请重新安装离线包；当前不会转为联网下载。"
@@ -3620,6 +3735,7 @@ fn start_runtime(
         .arg(&paths.start_script)
         .current_dir(paths.runtime_dir.join("Horosa-Web"))
         .env("HOROSA_SKIP_UI_BUILD", "1")
+        .env("HOROSA_REQUIRE_EMBEDDED_RUNTIME", "1")
         .env("HOROSA_PYTHON", python_bin)
         .env("HOROSA_JAVA_BIN", java_bin)
         .env("HOROSA_SERVER_PORT", backend_port.to_string())
@@ -3778,7 +3894,7 @@ fn build_single_runtime_update_command(
     index: usize,
 ) -> String {
     format!(
-        "install_runtime_{index}() {{\nRUNTIME_ROOT={runtime_root}\nWORK_ROOT=\"${{RUNTIME_ROOT}}/_update\"\nPREVIOUS_ROOT=\"${{RUNTIME_ROOT}}/previous\"\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"${{RUNTIME_ROOT}}\"\nrm -rf \"${{WORK_ROOT}}\"\nmkdir -p \"${{WORK_ROOT}}\"\n/usr/bin/tar -xzf {archive} -C \"${{WORK_ROOT}}\"\nif [ ! -f \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" ]; then\n  echo \"runtime manifest missing after extract\" >&2\n  exit 1\nfi\nACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\"\nif [ -n \"${{EXPECTED_RUNTIME_VERSION}}\" ] && [ \"${{ACTUAL_RUNTIME_VERSION}}\" != \"${{EXPECTED_RUNTIME_VERSION}}\" ]; then\n  echo \"runtime version mismatch: ${{ACTUAL_RUNTIME_VERSION}} != ${{EXPECTED_RUNTIME_VERSION}}\" >&2\n  exit 1\nfi\nrm -rf \"${{PREVIOUS_ROOT}}\"\nHAD_RUNTIME=0\nif [ -d \"${{RUNTIME_ROOT}}/current\" ]; then\n  mv \"${{RUNTIME_ROOT}}/current\" \"${{PREVIOUS_ROOT}}\"\n  HAD_RUNTIME=1\nfi\nif mv \"${{WORK_ROOT}}/runtime-payload\" \"${{RUNTIME_ROOT}}/current\"; then\n  rm -rf \"${{WORK_ROOT}}\" \"${{PREVIOUS_ROOT}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{RUNTIME_ROOT}}/current\"\n  if [ \"${{HAD_RUNTIME}}\" = \"1\" ] && [ -d \"${{PREVIOUS_ROOT}}\" ]; then\n    mv \"${{PREVIOUS_ROOT}}\" \"${{RUNTIME_ROOT}}/current\"\n  fi\n  exit 1\nfi\n}}\ninstall_runtime_{index}\n",
+        "install_runtime_{index}() {{\nRUNTIME_ROOT={runtime_root}\nWORK_ROOT=\"${{RUNTIME_ROOT}}/_update\"\nPREVIOUS_ROOT=\"${{RUNTIME_ROOT}}/previous\"\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"${{RUNTIME_ROOT}}\"\nrm -rf \"${{WORK_ROOT}}\"\nmkdir -p \"${{WORK_ROOT}}\"\nCOPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar -xzf {archive} -C \"${{WORK_ROOT}}\"\nif [ ! -f \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" ]; then\n  echo \"runtime manifest missing after extract\" >&2\n  exit 1\nfi\nACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\"\nif [ -n \"${{EXPECTED_RUNTIME_VERSION}}\" ] && [ \"${{ACTUAL_RUNTIME_VERSION}}\" != \"${{EXPECTED_RUNTIME_VERSION}}\" ]; then\n  echo \"runtime version mismatch: ${{ACTUAL_RUNTIME_VERSION}} != ${{EXPECTED_RUNTIME_VERSION}}\" >&2\n  exit 1\nfi\nrm -rf \"${{PREVIOUS_ROOT}}\"\nHAD_RUNTIME=0\nif [ -d \"${{RUNTIME_ROOT}}/current\" ]; then\n  mv \"${{RUNTIME_ROOT}}/current\" \"${{PREVIOUS_ROOT}}\"\n  HAD_RUNTIME=1\nfi\nif mv \"${{WORK_ROOT}}/runtime-payload\" \"${{RUNTIME_ROOT}}/current\"; then\n  rm -rf \"${{WORK_ROOT}}\" \"${{PREVIOUS_ROOT}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{RUNTIME_ROOT}}/current\"\n  if [ \"${{HAD_RUNTIME}}\" = \"1\" ] && [ -d \"${{PREVIOUS_ROOT}}\" ]; then\n    mv \"${{PREVIOUS_ROOT}}\" \"${{RUNTIME_ROOT}}/current\"\n  fi\n  exit 1\nfi\n}}\ninstall_runtime_{index}\n",
         index = index,
         runtime_root = shell_quote(runtime_root),
         archive = shell_quote(archive_path),
@@ -4594,7 +4710,10 @@ mod tests {
         fs::create_dir_all(&payload_root).unwrap();
         fs::write(
             payload_root.join("runtime-manifest.json"),
-            format!("{{\"version\":\"{}\"}}\n", version),
+            format!(
+                "{{\"version\":\"{}\",\"built_at\":\"2026-04-07 00:00:00\"}}\n",
+                version
+            ),
         )
         .unwrap();
         fs::create_dir_all(payload_root.join("Horosa-Web")).unwrap();
@@ -4604,6 +4723,42 @@ mod tests {
         let mut builder = Builder::new(encoder);
         builder
             .append_dir_all("runtime-payload", &payload_root)
+            .unwrap();
+        builder.finish().unwrap();
+        archive_path
+    }
+
+    #[cfg(unix)]
+    fn create_usable_runtime_archive(root: &Path, version: &str) -> PathBuf {
+        let payload_root = root.join("usable/runtime-payload");
+        let runtime_dir = payload_root;
+        fs::create_dir_all(runtime_dir.join("Horosa-Web/astrostudyui/dist-file")).unwrap();
+        fs::write(
+            runtime_dir.join("runtime-manifest.json"),
+            format!(
+                "{{\"version\":\"{}\",\"built_at\":\"2026-04-07 00:00:00\"}}\n",
+                version
+            ),
+        )
+        .unwrap();
+        fs::write(
+            runtime_dir.join("Horosa-Web/start_horosa_local.sh"),
+            "#!/bin/sh\n",
+        )
+        .unwrap();
+        fs::write(
+            runtime_dir.join("Horosa-Web/astrostudyui/dist-file/index.html"),
+            "<html></html>\n",
+        )
+        .unwrap();
+        write_stub_executable(&runtime_dir.join("runtime/mac/python/bin/python3"));
+        write_stub_executable(&runtime_dir.join("runtime/mac/java/bin/java"));
+        let archive_path = root.join("usable-runtime.tar.gz");
+        let tar_gz = File::create(&archive_path).unwrap();
+        let encoder = GzEncoder::new(tar_gz, Compression::default());
+        let mut builder = Builder::new(encoder);
+        builder
+            .append_dir_all("runtime-payload", runtime_dir)
             .unwrap();
         builder.finish().unwrap();
         archive_path
@@ -4689,6 +4844,29 @@ mod tests {
         assert!(status.success());
         assert!(runtime_root.join("current/runtime-manifest.json").exists());
         assert!(!runtime_root.join("_update").exists());
+    }
+
+    #[test]
+    fn archive_runtime_version_reads_manifest_version() {
+        let root = temp_test_dir("runtime-archive-version");
+        let archive = create_runtime_archive(&root, "1.2.3-runtime1");
+        assert_eq!(
+            archive_runtime_version(&archive).unwrap(),
+            "1.2.3-runtime1".to_string()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn extract_runtime_archive_installs_usable_runtime() {
+        let root = temp_test_dir("runtime-archive-extract");
+        let archive = create_usable_runtime_archive(&root, "1.2.3-runtime1");
+        let dest_root = root.join("runtime-root");
+        extract_runtime_archive(&archive, &dest_root).unwrap();
+        let current = dest_root.join("current");
+        assert!(runtime_matches_expected(&current, "1.2.3-runtime1"));
+        assert!(!dest_root.join("_extract").exists());
+        assert!(!dest_root.join("previous").exists());
     }
 
     #[test]

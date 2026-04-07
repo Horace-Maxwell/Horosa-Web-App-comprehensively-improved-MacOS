@@ -121,9 +121,9 @@ find "${STAGE_ROOT}/runtime/mac/python/lib" -type f \( -name '*.a' -o -name '*.o
 /usr/bin/python3 "${STAGE_ROOT}/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --repair "${STAGE_ROOT}/runtime/mac/python"
 if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}" ]; then
   /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" \
+    "${STAGE_ROOT}/runtime/mac" \
     --identity "${APPLE_SIGNING_IDENTITY}" \
-    --keychain "${APPLE_SIGNING_KEYCHAIN}" \
-    "${STAGE_ROOT}/runtime/mac"
+    --keychain "${APPLE_SIGNING_KEYCHAIN}"
 fi
 
 python3 - <<INNERPY
@@ -135,7 +135,50 @@ INNERPY
 
 (
   cd "${BUILD_ROOT}"
-  tar -czf "${ARCHIVE_PATH}" runtime-payload
+  COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar --disable-copyfile -czf "${ARCHIVE_PATH}" runtime-payload
 )
+
+python3 - <<'PYVERIFY' "${ARCHIVE_PATH}"
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+
+archive = pathlib.Path(sys.argv[1])
+root = pathlib.Path(tempfile.mkdtemp(prefix="horosa-runtime-verify-"))
+try:
+    subprocess.run(
+        ["/usr/bin/tar", "-xzf", str(archive), "-C", str(root)],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    java_bin = root / "runtime-payload/runtime/mac/java/bin/java"
+    python_bin = root / "runtime-payload/runtime/mac/python/bin/python3"
+    subprocess.run(
+        [str(java_bin), "-version"],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        [
+            str(python_bin),
+            "-c",
+            "import cherrypy, jsonpickle, swisseph; print('ok')",
+        ],
+        check=True,
+        env={
+            **os.environ,
+            "PYTHONNOUSERSITE": "1",
+        },
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+finally:
+    shutil.rmtree(root, ignore_errors=True)
+PYVERIFY
 
 echo "runtime payload ready: ${ARCHIVE_PATH}"

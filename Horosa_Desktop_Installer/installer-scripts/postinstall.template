@@ -82,10 +82,18 @@ cleanup_work_dir() {
 }
 
 runtime_payload_is_usable() {
-  [ -f "${CURRENT_DIR}/runtime-manifest.json" ] \
-    && [ -f "${CURRENT_DIR}/Horosa-Web/start_horosa_local.sh" ] \
-    && [ -f "${CURRENT_DIR}/Horosa-Web/astrostudyui/dist-file/index.html" ] \
-    && [ -x "${CURRENT_DIR}/runtime/mac/python/bin/python3" ]
+  runtime_dir_is_usable "${CURRENT_DIR}"
+}
+
+runtime_dir_is_usable() {
+  local runtime_dir="$1"
+  [ -f "${runtime_dir}/runtime-manifest.json" ] \
+    && [ -f "${runtime_dir}/Horosa-Web/start_horosa_local.sh" ] \
+    && [ -f "${runtime_dir}/Horosa-Web/astrostudyui/dist-file/index.html" ] \
+    && [ -x "${runtime_dir}/runtime/mac/python/bin/python3" ] \
+    && [ -x "${runtime_dir}/runtime/mac/java/bin/java" ] \
+    && PATH="/usr/bin:/bin:/usr/sbin:/sbin" PYTHONNOUSERSITE=1 "${runtime_dir}/runtime/mac/python/bin/python3" -c 'import cherrypy, jsonpickle, swisseph' >/dev/null 2>&1 \
+    && PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${runtime_dir}/runtime/mac/java/bin/java" -version >/dev/null 2>&1
 }
 
 current_runtime_version() {
@@ -174,7 +182,7 @@ if [ -n "${EXPECTED_SHA256}" ]; then
   fi
 fi
 
-if ! /usr/bin/tar -xzf "${ARCHIVE_PATH}" -C "${WORK_DIR}"; then
+if ! COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar -xzf "${ARCHIVE_PATH}" -C "${WORK_DIR}"; then
   fail_offline_install "离线安装包内置运行环境解压失败，请重新下载离线安装包。"
 fi
 
@@ -206,7 +214,15 @@ if [ -d "${CURRENT_DIR}" ]; then
 fi
 
 if mv "${WORK_DIR}/runtime-payload" "${CURRENT_DIR}"; then
-  rm -rf "${WORK_DIR}" "${PREVIOUS_DIR}"
+  if runtime_dir_is_usable "${CURRENT_DIR}"; then
+    rm -rf "${WORK_DIR}" "${PREVIOUS_DIR}"
+  else
+    rm -rf "${CURRENT_DIR}"
+    if [ "${HAD_PREVIOUS}" = "1" ] && [ -d "${PREVIOUS_DIR}" ]; then
+      mv "${PREVIOUS_DIR}" "${CURRENT_DIR}"
+    fi
+    fail_offline_install "离线安装包内置运行环境无法直接运行，请重新下载安装最新离线安装包。"
+  fi
 else
   rm -rf "${CURRENT_DIR}"
   if [ "${HAD_PREVIOUS}" = "1" ] && [ -d "${PREVIOUS_DIR}" ]; then

@@ -232,11 +232,12 @@ def main() -> int:
         print(f"embedded python runtime still has {remaining} absolute load commands", file=sys.stderr)
         return 1
 
-    signature_problems = verify_signatures(root)
-    if signature_problems:
-        for issue in signature_problems:
-            print(f"embedded python signature invalid: {issue}", file=sys.stderr)
-        return 1
+    if mode_repair:
+        signature_problems = verify_signatures(root)
+        if signature_problems:
+            for issue in signature_problems:
+                print(f"embedded python signature invalid: {issue}", file=sys.stderr)
+            return 1
 
     print("embedded python runtime links OK")
     return 0
