@@ -730,7 +730,10 @@ fn build_offline_repair_required_state(
 fn build_launcher_error_payload(app: &AppHandle, error: &anyhow::Error) -> LauncherStatePayload {
     let raw_error = format!("{error:#}");
     if let Ok(config) = load_release_config(app) {
-        if current_install_source(&config) == Some(InstallSource::PkgOffline) {
+        if current_install_source(&config) == Some(InstallSource::PkgOffline)
+            && !shared_runtime_matches_expected(&config.runtime_version)
+            && !user_runtime_matches_expected(app, &config.runtime_version).unwrap_or(false)
+        {
             return build_offline_repair_required_state(&config, &raw_error);
         }
     }
@@ -744,6 +747,22 @@ fn app_downloads_dir(app: &AppHandle) -> Result<PathBuf> {
 
 fn cached_runtime_archive_path(app: &AppHandle, config: &ReleaseConfig) -> Result<PathBuf> {
     Ok(app_downloads_dir(app)?.join(&config.runtime_asset_name))
+}
+
+fn local_runtime_archive_candidates(
+    app: &AppHandle,
+    config: &ReleaseConfig,
+) -> Result<Vec<PathBuf>> {
+    let mut candidates = Vec::new();
+    let user_cached = cached_runtime_archive_path(app, config)?;
+    if user_cached.exists() {
+        candidates.push(user_cached);
+    }
+    let shared_cached = shared_downloads_dir().join(&config.runtime_asset_name);
+    if shared_cached.exists() && !candidates.iter().any(|path| path == &shared_cached) {
+        candidates.push(shared_cached);
+    }
+    Ok(candidates)
 }
 
 fn cached_app_update_path(app: &AppHandle, config: &ReleaseConfig) -> Result<PathBuf> {
@@ -2329,10 +2348,16 @@ fn runtime_dir_has_required_files(runtime_dir: &Path) -> bool {
         && runtime_dir
             .join("Horosa-Web/astrostudyui/dist-file/index.html")
             .exists()
+        && runtime_dir.join("runtime/mac/python/bin/python3").exists()
+        && runtime_dir.join("runtime/mac/java/bin/java").exists()
 }
 
 fn runtime_python_bin(runtime_dir: &Path) -> PathBuf {
     runtime_dir.join("runtime/mac/python/bin/python3")
+}
+
+fn runtime_java_bin(runtime_dir: &Path) -> PathBuf {
+    runtime_dir.join("runtime/mac/java/bin/java")
 }
 
 fn is_runtime_metadata_junk(name: &str) -> bool {
@@ -2388,6 +2413,20 @@ fn runtime_python_ready(runtime_dir: &Path) -> bool {
         .unwrap_or(false)
 }
 
+fn runtime_java_ready(runtime_dir: &Path) -> bool {
+    let java_bin = runtime_java_bin(runtime_dir);
+    if !java_bin.exists() {
+        return false;
+    }
+    Command::new(&java_bin)
+        .arg("-version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
 fn prepare_runtime_dir(runtime_dir: &Path) -> Result<()> {
     let _ = cleanup_runtime_metadata(runtime_dir)?;
     Ok(())
@@ -2397,7 +2436,9 @@ fn runtime_dir_is_usable(runtime_dir: &Path) -> bool {
     if !runtime_dir_has_required_files(runtime_dir) {
         return false;
     }
-    prepare_runtime_dir(runtime_dir).is_ok() && runtime_python_ready(runtime_dir)
+    prepare_runtime_dir(runtime_dir).is_ok()
+        && runtime_python_ready(runtime_dir)
+        && runtime_java_ready(runtime_dir)
 }
 
 fn choose_runtime_dir(
@@ -2506,10 +2547,21 @@ fn local_runtime_version(app: &AppHandle) -> Option<String> {
 
 fn shared_runtime_matches_expected(expected_version: &str) -> bool {
     let shared_runtime = shared_runtime_dir();
-    runtime_dir_is_usable(&shared_runtime)
-        && read_runtime_manifest_from_path(&shared_runtime.join("runtime-manifest.json"))
+    runtime_matches_expected(&shared_runtime, expected_version)
+}
+
+fn runtime_matches_expected(runtime_dir: &Path, expected_version: &str) -> bool {
+    runtime_dir_is_usable(runtime_dir)
+        && read_runtime_manifest_from_path(&runtime_dir.join("runtime-manifest.json"))
             .map(|manifest| manifest.version.trim() == expected_version.trim())
             .unwrap_or(false)
+}
+
+fn user_runtime_matches_expected(app: &AppHandle, expected_version: &str) -> Result<bool> {
+    Ok(runtime_matches_expected(
+        &user_runtime_dir(app)?,
+        expected_version,
+    ))
 }
 
 fn shared_runtime_paths(app: &AppHandle) -> Result<RuntimePaths> {
@@ -3231,6 +3283,58 @@ fn clear_runtime_pending_marker(runtime_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+fn recover_user_runtime_from_cached_offline_assets(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    config: &ReleaseConfig,
+) -> Result<Option<RuntimePaths>> {
+    let user_root = user_runtime_root(app)?;
+    let candidates = local_runtime_archive_candidates(app, config)?;
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+
+    emit_launcher_state(window, &build_repair_in_progress_state());
+    emit_mode(window, "repair");
+    emit_progress(window, 18, "恢复当前用户本机组件");
+
+    let mut last_err = None;
+    for archive in candidates {
+        emit_status(
+            window,
+            &format!(
+                "检测到共享离线路径不完整，正在尝试用本地缓存恢复当前用户本机组件：{}",
+                archive.display()
+            ),
+        );
+        match extract_runtime_archive(&archive, &user_root) {
+            Ok(()) => {
+                let paths = resolve_runtime_paths(app)?;
+                if runtime_matches_expected(&paths.runtime_dir, &config.runtime_version) {
+                    emit_progress(window, 36, "已恢复当前用户本机组件");
+                    emit_status(
+                        window,
+                        "已从本地缓存恢复当前用户本机组件，将继续打开主界面。",
+                    );
+                    return Ok(Some(paths));
+                }
+                last_err = Some(anyhow!(
+                    "runtime recovered from {} but still not usable",
+                    archive.display()
+                ));
+            }
+            Err(err) => {
+                last_err = Some(err);
+            }
+        }
+    }
+
+    if let Some(err) = last_err {
+        return Err(err);
+    }
+    Ok(None)
+}
+
 fn selected_runtime_roots(
     app: &AppHandle,
     decisions: &HashMap<String, AssetDecision>,
@@ -3288,6 +3392,20 @@ fn ensure_runtime_installed(
                     ),
                 );
                 return Ok(shared_paths);
+            }
+            if user_runtime_matches_expected(app, &config.runtime_version)? {
+                emit_mode(window, "launch");
+                emit_progress(window, 36, "共享离线路径异常，已回退到当前用户本机组件");
+                emit_status(
+                    window,
+                    "检测到共享离线路径不完整，但当前用户本机组件仍可用。本次将直接使用当前用户本机组件继续打开。",
+                );
+                return resolve_runtime_paths(app);
+            }
+            if let Some(paths) =
+                recover_user_runtime_from_cached_offline_assets(app, window, &config)?
+            {
+                return Ok(paths);
             }
             return Err(anyhow!(
                 "检测到当前来自离线安装包，但共享本机组件缺失、损坏或版本不完整。请重新安装离线包；当前不会转为联网下载。"
@@ -4419,6 +4537,8 @@ mod tests {
     use flate2::write::GzEncoder;
     use flate2::Compression;
     use std::fs;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
     use std::process::Command;
     use tar::Builder;
 
@@ -4487,6 +4607,43 @@ mod tests {
             .unwrap();
         builder.finish().unwrap();
         archive_path
+    }
+
+    #[cfg(unix)]
+    fn write_stub_executable(path: &Path) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(path, "#!/bin/sh\nexit 0\n").unwrap();
+        let mut perms = fs::metadata(path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(path, perms).unwrap();
+    }
+
+    #[cfg(unix)]
+    fn create_fake_runtime_tree(root: &Path, version: &str, with_java: bool) -> PathBuf {
+        let runtime_dir = root.join("runtime/current");
+        fs::create_dir_all(runtime_dir.join("Horosa-Web/astrostudyui/dist-file")).unwrap();
+        fs::write(
+            runtime_dir.join("runtime-manifest.json"),
+            format!("{{\"version\":\"{}\"}}\n", version),
+        )
+        .unwrap();
+        fs::write(
+            runtime_dir.join("Horosa-Web/start_horosa_local.sh"),
+            "#!/bin/sh\n",
+        )
+        .unwrap();
+        fs::write(
+            runtime_dir.join("Horosa-Web/astrostudyui/dist-file/index.html"),
+            "<html></html>\n",
+        )
+        .unwrap();
+        write_stub_executable(&runtime_dir.join("runtime/mac/python/bin/python3"));
+        if with_java {
+            write_stub_executable(&runtime_dir.join("runtime/mac/java/bin/java"));
+        }
+        runtime_dir
     }
 
     #[test]
@@ -4573,6 +4730,22 @@ mod tests {
         .unwrap();
 
         assert_eq!(choose_runtime_dir(&shared, true, &user, true), user);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_dir_is_not_usable_when_java_runtime_is_missing() {
+        let root = temp_test_dir("runtime-missing-java");
+        let runtime_dir = create_fake_runtime_tree(&root, "1.2.2-runtime1", false);
+        assert!(!runtime_dir_is_usable(&runtime_dir));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_dir_is_usable_with_python_and_java_stubs() {
+        let root = temp_test_dir("runtime-with-java");
+        let runtime_dir = create_fake_runtime_tree(&root, "1.2.2-runtime1", true);
+        assert!(runtime_dir_is_usable(&runtime_dir));
     }
 
     #[test]
