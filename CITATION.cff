@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use Horosa in research, software evaluation, or workflow comparison, please cite the project."
 title: "Horosa"
 type: software
-version: "1.2.2"
+version: "1.2.3"
 abstract: "Horosa is a local-first metaphysics workstation that combines a shared web/app workspace, local services, AI-assisted analysis, and a desktop delivery layer."
 license: "AGPL-3.0-only"
 authors:

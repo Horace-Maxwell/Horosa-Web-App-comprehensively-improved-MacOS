@@ -20,6 +20,7 @@ MACHO_MAGICS = {
 }
 FAT_MAGIC_BIG = b"\xca\xfe\xba\xbe"
 FAT_MAGIC_LITTLE = b"\xbe\xba\xfe\xca"
+SKIP_DIR_NAMES = {"java"}
 
 
 def run(*args: str) -> subprocess.CompletedProcess:
@@ -70,10 +71,20 @@ def sign_path(path: pathlib.Path, identity: str, keychain: Optional[str]) -> Non
     run_checked(*cmd)
 
 
+def should_skip(path: pathlib.Path, root: pathlib.Path) -> bool:
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return False
+    return any(part in SKIP_DIR_NAMES for part in relative.parts)
+
+
 def iter_bundle_dirs(root: pathlib.Path) -> list[pathlib.Path]:
     bundles: list[pathlib.Path] = []
     for path in root.rglob("*"):
         if not path.is_dir():
+            continue
+        if should_skip(path, root):
             continue
         if any(part == "_CodeSignature" for part in path.parts):
             continue
@@ -88,6 +99,8 @@ def iter_archive_files(root: pathlib.Path) -> list[pathlib.Path]:
     for path in root.rglob("*"):
         if not path.is_file() or path.is_symlink():
             continue
+        if should_skip(path, root):
+            continue
         if any(part == "_CodeSignature" for part in path.parts):
             continue
         if path.suffix.lower() in ARCHIVE_SUFFIXES:
@@ -98,6 +111,8 @@ def iter_archive_files(root: pathlib.Path) -> list[pathlib.Path]:
 def iter_macho_files(root: pathlib.Path) -> list[pathlib.Path]:
     machos: list[pathlib.Path] = []
     for path in root.rglob("*"):
+        if should_skip(path, root):
+            continue
         if any(part == "_CodeSignature" for part in path.parts):
             continue
         if path.suffix.lower() in ARCHIVE_SUFFIXES:
