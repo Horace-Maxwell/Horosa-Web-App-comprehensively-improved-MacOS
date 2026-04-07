@@ -280,6 +280,12 @@ read -r CHART_PORT BACKEND_PORT <<<"$(pick_ports)"
 )
 wait_signed_backend_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
 wait_http "http://127.0.0.1:${CHART_PORT}/" 60
+HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${INSTALLER_ROOT}/../Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js" >/dev/null
+if rg -n "MongoTimeoutException|127\\.0\\.0\\.1:27017|Connection refused" "${TMP_ROOT}/logs" "${TMP_ROOT}/diag" >/dev/null 2>&1; then
+  echo "runtime smoke produced unexpected Mongo connection errors" >&2
+  rg -n "MongoTimeoutException|127\\.0\\.0\\.1:27017|Connection refused" "${TMP_ROOT}/logs" "${TMP_ROOT}/diag" >&2 || true
+  exit 1
+fi
 (
   cd "${OFFLINE_INSTALL_TARGET}/Users/Shared/Horosa/runtime/current/Horosa-Web"
   HOROSA_CHART_PORT="${CHART_PORT}" HOROSA_SERVER_PORT="${BACKEND_PORT}" /bin/bash ./stop_horosa_local.sh

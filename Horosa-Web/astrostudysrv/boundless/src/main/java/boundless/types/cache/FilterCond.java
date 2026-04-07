@@ -54,7 +54,11 @@ public class FilterCond {
 	public Object getValue() {
 		return value;
 	}
-	
+
+	public CondOperator getOperator() {
+		return operator;
+	}
+
 	public void setField(String field) {
 		this.field = field;
 	}
