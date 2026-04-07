@@ -14,8 +14,8 @@
 [![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
-[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.0)
-[![Runtime](https://img.shields.io/badge/runtime-1.2.0--runtime4-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.0-runtime4)
+[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.1)
+[![Runtime](https://img.shields.io/badge/runtime-1.2.1--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.1-runtime1)
 [![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY.md)
 [![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT.md)
 [![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
@@ -28,7 +28,9 @@
 
 [Portal](README.md) | [Chinese Guide](README_ZH.md) | [Latest Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 
-**Current release:** `v1.2.0`
+**Current release:** `v1.2.1`
+
+**Stability update:** `v1.2.1` hardens ARM Mac installation by removing the local MongoDB requirement from first-run charting paths and by tightening release verification around real chart execution.
 
 **Licensing note:** the public repository is now distributed under `AGPL-3.0` because the released stack integrates Swiss Ephemeris / `pyswisseph`. Third-party subdirectories keep their own upstream notices.
 
@@ -169,7 +171,7 @@ The point is not “here is a codebase, please assemble it yourself.” The poin
 
 ## Latest Release
 
-- [GitHub Release v1.2.0](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.0)
+- [GitHub Release v1.2.1](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.1)
 - [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 ## FAQ
@@ -197,6 +199,6 @@ If you maintain this stack, start with the path that matches your goal:
 - understand the public-facing repository layout: [README.md](README.md)
 - read the full Chinese guide: [README_ZH.md](README_ZH.md)
 - inspect installer internals and publishing flow: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
-- read the current version release page: [GitHub Release v1.2.0](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.0)
+- read the current version release page: [GitHub Release v1.2.1](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.2.1)
 - enter the application source tree: `Horosa-Web/`
 - inspect shared runtime and diagnostics: `runtime/` and `diagnostics/`

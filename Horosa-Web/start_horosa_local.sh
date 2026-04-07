@@ -20,6 +20,9 @@ SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
 SKIP_RUNTIME_WARMUP="${HOROSA_SKIP_RUNTIME_WARMUP:-0}"
 CHART_PORT="${HOROSA_CHART_PORT:-8899}"
 BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
+DESKTOP_MONGO_OPTIONAL="${HOROSA_DESKTOP_MONGO_OPTIONAL:-1}"
+MONGO_FALLBACK_DIR="${HOROSA_MONGO_FALLBACK_DIR:-${ROOT}/.horosa-cache/mongo-fallback}"
+NEED_TRANSLOG="${HOROSA_NEED_TRANSLOG:-false}"
 ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
 DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
 DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
@@ -59,7 +62,7 @@ diag_tail() {
 }
 
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
-diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR}"
+diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR} mongo_optional=${DESKTOP_MONGO_OPTIONAL} needtranslog=${NEED_TRANSLOG}"
 
 cleanup_metadata_files() {
   local root="$1"
@@ -595,7 +598,11 @@ fi
 PYTHON_LAUNCH_CMD+=("${PYTHON_BIN}" "${ROOT}/astropy/websrv/webchartsrv.py")
 launch_detached "${PY_LOG}" "${PYTHON_LAUNCH_CMD[@]}" >"${PY_PID_FILE}"
 
-launch_detached "${JAVA_LOG}" "${JAVA_BIN}" -jar "${JAR}" \
+launch_detached "${JAVA_LOG}" env \
+  HOROSA_DESKTOP_MONGO_OPTIONAL="${DESKTOP_MONGO_OPTIONAL}" \
+  HOROSA_MONGO_FALLBACK_DIR="${MONGO_FALLBACK_DIR}" \
+  needtranslog="${NEED_TRANSLOG}" \
+  "${JAVA_BIN}" -jar "${JAR}" \
   --server.port="${BACKEND_PORT}" \
   --astrosrv=http://127.0.0.1:${CHART_PORT} \
   --mongodb.ip=127.0.0.1 \

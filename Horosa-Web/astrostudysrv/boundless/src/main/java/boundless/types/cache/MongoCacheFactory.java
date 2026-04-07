@@ -3,7 +3,9 @@ package boundless.types.cache;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
+import org.bson.Document;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
@@ -14,13 +16,18 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.connection.ClusterSettings;
 
 import boundless.io.FileUtility;
+import boundless.log.AppLoggers;
 import boundless.log.QueueLog;
 import boundless.types.ICache;
 import boundless.utility.ConvertUtility;
 import boundless.utility.ProgArgsHelper;
 import boundless.utility.StringUtility;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class MongoCacheFactory implements ICacheFactory {
+	private static final String OptionalEnvKey = "HOROSA_DESKTOP_MONGO_OPTIONAL";
+	private static final String FallbackDirEnvKey = "HOROSA_MONGO_FALLBACK_DIR";
 
 	private MongoClient mongoClient;
 	private String dbName;
@@ -33,8 +40,10 @@ public class MongoCacheFactory implements ICacheFactory {
 	
 	MongoClientSettings settings;
 	private List<ServerAddress> servers = new ArrayList<ServerAddress>();
-	
+
 	private boolean hasCreatedIndex = false;
+	private LocalDocumentCache fallbackCache = null;
+	private boolean optionalMode = false;
 	
 	private Boolean needMemCache = null;
 	private Boolean needCompress = null;
@@ -47,9 +56,11 @@ public class MongoCacheFactory implements ICacheFactory {
 	@Override
 	public void build(String proppath){
 		close();
+		this.fallbackCache = null;
 		
 		Properties p = FileUtility.getProperties(proppath);
 		ProgArgsHelper.convertProperties(p);
+		this.optionalMode = isOptionalModeEnabled();
 
 		servers.clear();
 		
@@ -97,7 +108,19 @@ public class MongoCacheFactory implements ICacheFactory {
 		MongoClientSettings.Builder builder = MongoClientSettings.builder();
 		builder.applyToClusterSettings((clusterBuilder)->{
 			clusterBuilder.applySettings(clusterSettings);
+			if(this.optionalMode) {
+				clusterBuilder.serverSelectionTimeout(1000, TimeUnit.MILLISECONDS);
+			}
 		});
+		if(this.optionalMode) {
+			builder.applyToSocketSettings((socketBuilder)->{
+				socketBuilder.connectTimeout(1000, TimeUnit.MILLISECONDS);
+				socketBuilder.readTimeout(2000, TimeUnit.MILLISECONDS);
+			});
+			builder.applyToServerSettings((serverBuilder)->{
+				serverBuilder.heartbeatFrequency(1000, TimeUnit.MILLISECONDS);
+			});
+		}
 
 		List<MongoCredential> credentials = new ArrayList<MongoCredential>();
 		if(!StringUtility.isNullOrEmpty(username)){
@@ -108,10 +131,20 @@ public class MongoCacheFactory implements ICacheFactory {
 		
 		settings = builder.build();
 		mongoClient = MongoClients.create(settings);
+		if(this.optionalMode && !canConnect()) {
+			QueueLog.info(AppLoggers.InfoLogger,
+					"mongo optional mode enabled for cache factory {}, collection {}, switching to local fallback cache.",
+					this.name, this.collectionName);
+			close();
+			this.fallbackCache = new LocalDocumentCache(resolveFallbackCacheName(), keyField, valueField, resolveFallbackPath());
+		}
 	}
 
 	@Override
 	public void reconnect(){
+		if(this.fallbackCache != null) {
+			return;
+		}
 		long st = System.currentTimeMillis();
 		try{
 			close();
@@ -134,6 +167,7 @@ public class MongoCacheFactory implements ICacheFactory {
 	
 	@Override
 	public void close(){
+		this.hasCreatedIndex = false;
 		if(mongoClient != null){
 			mongoClient.close();
 			mongoClient = null;
@@ -143,6 +177,9 @@ public class MongoCacheFactory implements ICacheFactory {
 
 	@Override
 	public ICache getCache() {
+		if(this.fallbackCache != null) {
+			return this.fallbackCache;
+		}
 		if(mongoClient != null){
 			MongoDatabase db = mongoClient.getDatabase(dbName);
 			MongoCache cache = new MongoCache(db, collectionName, keyField, valueField);
@@ -196,8 +233,53 @@ public class MongoCacheFactory implements ICacheFactory {
 		factory.needMemCache = this.needMemCache;
 		factory.needCompress = this.needCompress;
 		factory.hasCreatedIndex = false;
+		factory.optionalMode = this.optionalMode;
+		if(this.fallbackCache != null) {
+			factory.fallbackCache = new LocalDocumentCache(factory.resolveFallbackCacheName(), factory.keyField, factory.valueField, factory.resolveFallbackPath());
+		}
 		
 		return factory;
+	}
+
+	private boolean isOptionalModeEnabled() {
+		String env = System.getenv(OptionalEnvKey);
+		if(StringUtility.isNullOrEmpty(env)) {
+			return false;
+		}
+		return ConvertUtility.getValueAsBool(env, false);
+	}
+
+	private boolean canConnect() {
+		if(this.mongoClient == null) {
+			return false;
+		}
+		try {
+			MongoDatabase db = this.mongoClient.getDatabase(dbName);
+			db.runCommand(new Document("ping", 1));
+			return true;
+		}catch(Exception e) {
+			QueueLog.info(AppLoggers.InfoLogger, "mongo ping failed for cache factory {}: {}", this.name, e.getMessage());
+			return false;
+		}
+	}
+
+	private String resolveFallbackCacheName() {
+		if(!StringUtility.isNullOrEmpty(this.name)) {
+			return this.name;
+		}
+		if(!StringUtility.isNullOrEmpty(this.collectionName)) {
+			return this.collectionName;
+		}
+		return "mongo-fallback";
+	}
+
+	private Path resolveFallbackPath() {
+		String root = System.getenv(FallbackDirEnvKey);
+		if(StringUtility.isNullOrEmpty(root)) {
+			root = Paths.get(System.getProperty("user.dir", "."), ".horosa-cache", "mongo-fallback").toString();
+		}
+		String cacheName = resolveFallbackCacheName().replaceAll("[^A-Za-z0-9._-]", "_");
+		return Paths.get(root, cacheName + ".json");
 	}
 	
 }

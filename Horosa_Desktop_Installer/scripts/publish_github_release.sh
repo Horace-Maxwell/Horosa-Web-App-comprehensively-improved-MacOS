@@ -212,6 +212,8 @@ sections = [
     "",
     "## 当前版本亮点 / Release Highlights",
     f"- 当前发布版本 / Current release: `{tag_name}`",
+    "- `v1.2.1` 重点加强 ARM Mac 安装稳定性，移除了首次真实排盘对本地 MongoDB 的隐式依赖。",
+    "- `v1.2.1` hardens ARM Mac installation stability by removing the implicit local MongoDB dependency from first-run chart execution.",
     "- `AI分析 / AIAnalysis` 已进入正式发布线，包含流式分析、历史、资料、模版、组合、备份与 provider 诊断。",
     "- `AIAnalysis` now ships on the public release line with streaming analysis, history, materials, templates, bundles, backups, and provider diagnostics.",
     "- Web 与 App 继续共用同一套主前端，并维持各自运行态验证。",
