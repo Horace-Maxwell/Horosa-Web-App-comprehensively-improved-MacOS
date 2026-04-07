@@ -2,7 +2,7 @@
 	"name": "horosa-astrostudyui",
 	"private": true,
 	"description": "Horosa local-first web workspace and AI analysis surface.",
-	"license": "MIT",
+	"license": "AGPL-3.0-only",
 	"keywords": [
 		"horosa",
 		"astrology",
