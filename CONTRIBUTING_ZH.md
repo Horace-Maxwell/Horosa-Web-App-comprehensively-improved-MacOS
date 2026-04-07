@@ -157,4 +157,4 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ## 许可证说明
 
-Horosa 已明确采用 [MIT](LICENSE) 作为源码许可证。若未来品牌资产、截图、bundled runtime 或其他非代码资产需要单独政策，请把规则明确写成文档，而不是靠模糊表述去改变源码许可证的含义。
+Horosa 现已明确采用 [AGPL-3.0](LICENSE) 作为仓库级源码许可证，这次调整与公开发布栈中集成 Swiss Ephemeris / `pyswisseph` 的实际情况保持一致。第三方子目录仍可能保留各自上游原始许可证说明，提交时不要把这些上游文件强行改写成仓库级许可证。

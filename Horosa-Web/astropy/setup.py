@@ -8,9 +8,8 @@ setup(
     description = "astro test",
     author = "zjf",
     author_email = "zjfchine@foxmail.com",
-    license = 'MIT',
+    license = 'AGPL-3.0-only',
     install_requires = [],
     packages = find_packages(where='./'),
     package_dir = {'': '.'}
 )
-

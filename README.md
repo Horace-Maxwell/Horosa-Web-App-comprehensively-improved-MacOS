@@ -8,7 +8,7 @@
 ### 面向 Apple Silicon 的桌面玄学工作站
 
 [![Latest Release](https://img.shields.io/github/v/release/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?display_name=tag&sort=semver)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-[![License](https://img.shields.io/badge/license-MIT-2ea043)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626)](LICENSE)
 [![GitHub Repo stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 [![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 [![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
@@ -32,6 +32,7 @@
 <p>Horosa on macOS is delivered as a signed, notarized, offline-ready desktop product for cross-tradition analysis.</p>
 <p>macOS 版 Horosa 以签名、公证、离线可安装的正式桌面产品形态交付，用来承载跨传统的术数分析工作流。</p>
 <p><strong>Current release train / 当前发布线：v1.2.0</strong></p>
+<p><strong>Licensing note / 许可证说明：</strong>the public repository now ships under <code>AGPL-3.0</code> because the released stack integrates Swiss Ephemeris / <code>pyswisseph</code>; upstream third-party subdirectories keep their own original notices.</p>
 
 </div>
 
