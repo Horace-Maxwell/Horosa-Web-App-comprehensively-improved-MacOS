@@ -16,12 +16,29 @@ public class SysInitHelper {
 	public static final String InitMethodKey = "initMethod";
 	public static final String InitMethodParamKey = "initMethodParam";
 	
+	private static boolean flagEnabled(String key) {
+		if(StringUtility.isNullOrEmpty(key)) {
+			return true;
+		}
+		String value = System.getProperty(key);
+		if(StringUtility.isNullOrEmpty(value)) {
+			value = System.getenv(key);
+		}
+		if(StringUtility.isNullOrEmpty(value)) {
+			return true;
+		}
+		value = value.trim();
+		return !("0".equals(value) || "false".equalsIgnoreCase(value) || "off".equalsIgnoreCase(value));
+	}
 
 	public void setParameters(Map<String, Object> param){
 		
 		String className = ConvertUtility.getValueAsString(param.get(TaskClassKey));
 		String initMethod = ConvertUtility.getValueAsString(param.get(InitMethodKey));
 		String initMethodParam = ConvertUtility.getValueAsString(param.get(InitMethodParamKey));
+		if("spacex.astrostudy.helper.TransGroupHelper".equals(className) && !flagEnabled("HOROSA_ENABLE_STARTUP_TRANSGROUP_INIT")) {
+			return;
+		}
 		Object bean = param.get(TaskBeanKey);
 		try{
 			Class clazz = null;

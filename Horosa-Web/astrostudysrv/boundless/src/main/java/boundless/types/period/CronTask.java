@@ -24,6 +24,18 @@ public class CronTask {
 	public static final String TaskBeanKey = "taskBean";
 	
 	private static List<Scheduler> cronList = new LinkedList<Scheduler>();
+
+	private static boolean cronStartupEnabled() {
+		String value = System.getProperty("HOROSA_ENABLE_STARTUP_CRON");
+		if(StringUtility.isNullOrEmpty(value)) {
+			value = System.getenv("HOROSA_ENABLE_STARTUP_CRON");
+		}
+		if(StringUtility.isNullOrEmpty(value)) {
+			return true;
+		}
+		value = value.trim();
+		return !("0".equals(value) || "false".equalsIgnoreCase(value) || "off".equalsIgnoreCase(value));
+	}
 	
 	public static void shutdown(){
 		for(Scheduler cron : cronList){
@@ -47,6 +59,9 @@ public class CronTask {
 	}
 	
 	public void setParameters(Map<String, Object> param){
+		if(!cronStartupEnabled()){
+			return;
+		}
 		String pattern = ConvertUtility.getValueAsString(param.get(PatternKey));
 		String className = ConvertUtility.getValueAsString(param.get(TaskClassKey));
 		String scheduleMethod = ConvertUtility.getValueAsString(param.get(ScheduleMethodKey));

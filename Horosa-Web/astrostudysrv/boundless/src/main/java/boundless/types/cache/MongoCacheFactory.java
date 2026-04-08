@@ -27,6 +27,7 @@ import java.nio.file.Paths;
 
 public class MongoCacheFactory implements ICacheFactory {
 	private static final String OptionalEnvKey = "HOROSA_DESKTOP_MONGO_OPTIONAL";
+	private static final String SkipPingEnvKey = "HOROSA_DESKTOP_MONGO_SKIP_PING";
 	private static final String FallbackDirEnvKey = "HOROSA_MONGO_FALLBACK_DIR";
 
 	private MongoClient mongoClient;
@@ -44,6 +45,7 @@ public class MongoCacheFactory implements ICacheFactory {
 	private boolean hasCreatedIndex = false;
 	private LocalDocumentCache fallbackCache = null;
 	private boolean optionalMode = false;
+	private boolean skipPingOnBuild = false;
 	
 	private Boolean needMemCache = null;
 	private Boolean needCompress = null;
@@ -61,6 +63,7 @@ public class MongoCacheFactory implements ICacheFactory {
 		Properties p = FileUtility.getProperties(proppath);
 		ProgArgsHelper.convertProperties(p);
 		this.optionalMode = isOptionalModeEnabled();
+		this.skipPingOnBuild = isSkipPingEnabled();
 
 		servers.clear();
 		
@@ -101,6 +104,10 @@ public class MongoCacheFactory implements ICacheFactory {
 		}
 		if(StringUtility.isNullOrEmpty(valueField)){
 			valueField = "v";
+		}
+		if(this.optionalMode && this.skipPingOnBuild) {
+			this.fallbackCache = new LocalDocumentCache(resolveFallbackCacheName(), keyField, valueField, resolveFallbackPath());
+			return;
 		}
 		
 		ClusterSettings clusterSettings = ClusterSettings.builder().hosts(servers).build();
@@ -234,6 +241,7 @@ public class MongoCacheFactory implements ICacheFactory {
 		factory.needCompress = this.needCompress;
 		factory.hasCreatedIndex = false;
 		factory.optionalMode = this.optionalMode;
+		factory.skipPingOnBuild = this.skipPingOnBuild;
 		if(this.fallbackCache != null) {
 			factory.fallbackCache = new LocalDocumentCache(factory.resolveFallbackCacheName(), factory.keyField, factory.valueField, factory.resolveFallbackPath());
 		}
@@ -243,6 +251,14 @@ public class MongoCacheFactory implements ICacheFactory {
 
 	private boolean isOptionalModeEnabled() {
 		String env = System.getenv(OptionalEnvKey);
+		if(StringUtility.isNullOrEmpty(env)) {
+			return false;
+		}
+		return ConvertUtility.getValueAsBool(env, false);
+	}
+
+	private boolean isSkipPingEnabled() {
+		String env = System.getenv(SkipPingEnvKey);
 		if(StringUtility.isNullOrEmpty(env)) {
 			return false;
 		}
