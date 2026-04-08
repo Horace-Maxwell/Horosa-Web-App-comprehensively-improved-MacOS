@@ -18,6 +18,8 @@ import spacex.basecomm.constants.FuncTrans;
 import spacex.basecomm.constants.TransGroup;
 
 public class TransGroupHelper {
+	private static final Object buildLock = new Object();
+	private static volatile boolean built = false;
 	private static List<TransGroup> transgroups = new ArrayList<TransGroup>();
 	private static Set<String> trancodes = new HashSet<String>();
 	private static Map<String, Set<String>> funcTranscodes = new HashMap<String, Set<String>>();
@@ -143,25 +145,50 @@ public class TransGroupHelper {
 		}				
 	}
 	
+	private static void resetState() {
+		transgroups = new ArrayList<TransGroup>();
+		trancodes = new HashSet<String>();
+		funcTranscodes = new HashMap<String, Set<String>>();
+		commTrancodes = new HashSet<String>();
+		appTransgroups = new HashMap<String, List<TransGroup>>();
+		appFuncTranscodes = new HashMap<String, Map<String, Set<String>>>();
+		appTrancodes = new HashMap<String, Set<String>>();
+	}
+
 	public static void build(){
-		FileUtility.iteratePackage("data/transgroup", (file)->{
-			if(file instanceof File) {
-				addTransGroup((File)file);
-			}else {
-				addTransGroup((String)file);
+		synchronized (buildLock) {
+			if(built){
+				return;
 			}
-			return false;
-		});
+			resetState();
+			FileUtility.iteratePackage("data/transgroup", (file)->{
+				if(file instanceof File) {
+					addTransGroup((File)file);
+				}else {
+					addTransGroup((String)file);
+				}
+				return false;
+			});
+			built = true;
+		}
+	}
+
+	private static void ensureBuilt() {
+		if(!built) {
+			build();
+		}
 	}
 	
 	
 	public static Set<String> getCommTransCodes(){
+		ensureBuilt();
 		Set<String> set = new HashSet<String>();
 		set.addAll(commTrancodes);
 		return set;
 	}
 	
 	public static String getTransCodes(String funcId){
+		ensureBuilt();
 		String app = TransData.getClientApp();
 		Map<String, Set<String>> apptransmap = appFuncTranscodes.get(app);
 		Set<String> trans = funcTranscodes.get(funcId);
@@ -180,12 +207,14 @@ public class TransGroupHelper {
 	}
 	
 	public static TransGroup[] getTransGroups(){
+		ensureBuilt();
 		TransGroup[] groups = new TransGroup[transgroups.size()];
 		transgroups.toArray(groups);
 		return groups;
 	}
 	
 	public static Map<String, List<TransGroup>> getTransGroupsWithoutFunc(){
+		ensureBuilt();
 		Map<String, List<TransGroup>> res = new HashMap<String, List<TransGroup>>();
 		List<TransGroup> groups = new ArrayList<TransGroup>();
 		for(TransGroup group : transgroups){
@@ -209,6 +238,7 @@ public class TransGroupHelper {
 	}
 	
 	public static boolean permitTransCode(String app, String transcode) {
+		ensureBuilt();
 		if(commTrancodes.contains(transcode) || trancodes.contains(transcode)) {
 			return true;
 		}

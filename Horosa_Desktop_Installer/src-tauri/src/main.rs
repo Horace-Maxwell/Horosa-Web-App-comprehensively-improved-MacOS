@@ -179,6 +179,16 @@ struct RuntimeManifest {
     built_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RuntimeHealthCache {
+    manifest_version: String,
+    manifest_mtime: u64,
+    python_mtime: u64,
+    java_mtime: u64,
+    checked_at: u64,
+}
+
 #[derive(Debug, Clone)]
 struct RuntimePaths {
     app_data_dir: PathBuf,
@@ -2425,6 +2435,114 @@ fn runtime_java_ready(runtime_dir: &Path) -> bool {
         .unwrap_or(false)
 }
 
+fn runtime_health_cache_path(runtime_dir: &Path) -> PathBuf {
+    runtime_dir.join(".runtime-health-cache.json")
+}
+
+fn runtime_fast_path_marker_path(runtime_dir: &Path) -> PathBuf {
+    runtime_dir.join(".runtime-fast-path.json")
+}
+
+fn file_mtime_secs(path: &Path) -> Option<u64> {
+    let modified = fs::metadata(path).ok()?.modified().ok()?;
+    Some(
+        modified
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_else(|_| Duration::from_secs(0))
+            .as_secs(),
+    )
+}
+
+fn runtime_health_cache(runtime_dir: &Path) -> Option<RuntimeHealthCache> {
+    let path = runtime_health_cache_path(runtime_dir);
+    let text = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+fn runtime_fast_path_marker(runtime_dir: &Path) -> Option<RuntimeHealthCache> {
+    let path = runtime_fast_path_marker_path(runtime_dir);
+    let text = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+fn runtime_health_cache_matches(runtime_dir: &Path, cache: &RuntimeHealthCache) -> bool {
+    let manifest_path = runtime_dir.join("runtime-manifest.json");
+    let manifest = read_runtime_manifest_from_path(&manifest_path);
+    let python_bin = runtime_python_bin(runtime_dir);
+    let java_bin = runtime_java_bin(runtime_dir);
+    manifest
+        .as_ref()
+        .map(|manifest| manifest.version.trim() == cache.manifest_version.trim())
+        .unwrap_or(false)
+        && file_mtime_secs(&manifest_path) == Some(cache.manifest_mtime)
+        && file_mtime_secs(&python_bin) == Some(cache.python_mtime)
+        && file_mtime_secs(&java_bin) == Some(cache.java_mtime)
+}
+
+fn write_runtime_health_cache(runtime_dir: &Path, manifest: &RuntimeManifest) {
+    let manifest_path = runtime_dir.join("runtime-manifest.json");
+    let python_bin = runtime_python_bin(runtime_dir);
+    let java_bin = runtime_java_bin(runtime_dir);
+    let Some(manifest_mtime) = file_mtime_secs(&manifest_path) else {
+        return;
+    };
+    let Some(python_mtime) = file_mtime_secs(&python_bin) else {
+        return;
+    };
+    let Some(java_mtime) = file_mtime_secs(&java_bin) else {
+        return;
+    };
+    let payload = RuntimeHealthCache {
+        manifest_version: manifest.version.clone(),
+        manifest_mtime,
+        python_mtime,
+        java_mtime,
+        checked_at: unix_ts(),
+    };
+    if let Ok(text) = serde_json::to_string(&payload) {
+        let _ = fs::write(runtime_health_cache_path(runtime_dir), text);
+    }
+}
+
+fn write_runtime_fast_path_marker(runtime_dir: &Path, manifest: &RuntimeManifest) {
+    let manifest_path = runtime_dir.join("runtime-manifest.json");
+    let python_bin = runtime_python_bin(runtime_dir);
+    let java_bin = runtime_java_bin(runtime_dir);
+    let Some(manifest_mtime) = file_mtime_secs(&manifest_path) else {
+        return;
+    };
+    let Some(python_mtime) = file_mtime_secs(&python_bin) else {
+        return;
+    };
+    let Some(java_mtime) = file_mtime_secs(&java_bin) else {
+        return;
+    };
+    let payload = RuntimeHealthCache {
+        manifest_version: manifest.version.clone(),
+        manifest_mtime,
+        python_mtime,
+        java_mtime,
+        checked_at: unix_ts(),
+    };
+    if let Ok(text) = serde_json::to_string(&payload) {
+        let _ = fs::write(runtime_fast_path_marker_path(runtime_dir), text);
+    }
+}
+
+fn clear_runtime_health_cache(runtime_dir: &Path) {
+    let _ = fs::remove_file(runtime_health_cache_path(runtime_dir));
+}
+
+fn clear_runtime_fast_path_marker(runtime_dir: &Path) {
+    let _ = fs::remove_file(runtime_fast_path_marker_path(runtime_dir));
+}
+
+fn runtime_fast_path_allowed(runtime_dir: &Path) -> bool {
+    runtime_fast_path_marker(runtime_dir)
+        .map(|cache| runtime_health_cache_matches(runtime_dir, &cache))
+        .unwrap_or(false)
+}
+
 fn prepare_runtime_dir(runtime_dir: &Path) -> Result<()> {
     let _ = cleanup_runtime_metadata(runtime_dir)?;
     Ok(())
@@ -2434,9 +2552,24 @@ fn runtime_dir_is_usable(runtime_dir: &Path) -> bool {
     if !runtime_dir_has_required_files(runtime_dir) {
         return false;
     }
-    prepare_runtime_dir(runtime_dir).is_ok()
+    if let Some(cache) = runtime_health_cache(runtime_dir) {
+        if runtime_health_cache_matches(runtime_dir, &cache) {
+            return true;
+        }
+    }
+    let ready = prepare_runtime_dir(runtime_dir).is_ok()
         && runtime_python_ready(runtime_dir)
-        && runtime_java_ready(runtime_dir)
+        && runtime_java_ready(runtime_dir);
+    if ready {
+        if let Some(manifest) =
+            read_runtime_manifest_from_path(&runtime_dir.join("runtime-manifest.json"))
+        {
+            write_runtime_health_cache(runtime_dir, &manifest);
+        }
+    } else {
+        clear_runtime_health_cache(runtime_dir);
+    }
+    ready
 }
 
 fn choose_runtime_dir(
@@ -2587,6 +2720,22 @@ fn parse_asset_review_mode(value: &str) -> Result<AssetReviewMode> {
 
 fn current_app_version() -> Option<Version> {
     Version::parse(env!("CARGO_PKG_VERSION")).ok()
+}
+
+fn should_handoff_to_installed_app(
+    current_bundle: &Path,
+    target_bundle: &Path,
+    current_version: Option<&Version>,
+    target_version: Option<&Version>,
+) -> bool {
+    if current_bundle == target_bundle {
+        return false;
+    }
+    match (current_version, target_version) {
+        (_, None) => false,
+        (Some(current), Some(target)) => target > current,
+        (None, Some(_)) => true,
+    }
 }
 
 fn app_version_from_bundle(path: &Path) -> Option<Version> {
@@ -3721,6 +3870,9 @@ fn start_runtime(
     backend_port: u16,
     chart_port: u16,
     startup_timeout_secs: Option<u64>,
+    skip_runtime_warmup: bool,
+    skip_mongo_ping: bool,
+    trusted_runtime: bool,
 ) -> Result<()> {
     ensure_dir(&paths.logs_dir)?;
     prepare_runtime_dir(&paths.runtime_dir)?;
@@ -3740,6 +3892,18 @@ fn start_runtime(
         .env("HOROSA_JAVA_BIN", java_bin)
         .env("HOROSA_SERVER_PORT", backend_port.to_string())
         .env("HOROSA_CHART_PORT", chart_port.to_string())
+        .env(
+            "HOROSA_SKIP_RUNTIME_WARMUP",
+            if skip_runtime_warmup { "1" } else { "0" },
+        )
+        .env(
+            "HOROSA_DESKTOP_MONGO_SKIP_PING",
+            if skip_mongo_ping { "1" } else { "0" },
+        )
+        .env(
+            "HOROSA_TRUSTED_RUNTIME",
+            if trusted_runtime { "1" } else { "0" },
+        )
         .env(
             "HOROSA_LOG_ROOT",
             paths.logs_dir.to_string_lossy().to_string(),
@@ -3885,6 +4049,37 @@ fn app_bundle_path() -> Option<PathBuf> {
         }
     }
     None
+}
+
+fn handoff_to_newer_installed_app(app: &AppHandle) -> Result<bool> {
+    let Some(current_bundle) = app_bundle_path() else {
+        return Ok(false);
+    };
+    let target_bundle = installed_app_target_path();
+    if !target_bundle.exists() {
+        return Ok(false);
+    }
+
+    let current_version = app_version_from_bundle(&current_bundle).or_else(current_app_version);
+    let target_version = app_version_from_bundle(&target_bundle);
+    if !should_handoff_to_installed_app(
+        &current_bundle,
+        &target_bundle,
+        current_version.as_ref(),
+        target_version.as_ref(),
+    ) {
+        return Ok(false);
+    }
+
+    Command::new("open")
+        .arg("-na")
+        .arg(&target_bundle)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .with_context(|| format!("handoff to installed app {}", target_bundle.display()))?;
+    app.exit(0);
+    Ok(true)
 }
 
 fn build_single_runtime_update_command(
@@ -4480,6 +4675,11 @@ fn runtime_bootstrap(
     } else {
         None
     };
+    let skip_runtime_warmup = !first_launch_after_update;
+    let fast_path_enabled = !first_launch_after_update
+        && !force_runtime_install
+        && runtime_fast_path_allowed(&paths.runtime_dir);
+    let skip_mongo_ping = fast_path_enabled;
     if first_launch_after_update {
         emit_status(&window, "检测到刚完成更新，正在执行更新后的首次恢复启动…");
         emit_progress(&window, 78, "更新后首次恢复启动");
@@ -4492,7 +4692,11 @@ fn runtime_bootstrap(
         backend_port,
         chart_port,
         first_launch_timeout,
+        skip_runtime_warmup,
+        skip_mongo_ping,
+        fast_path_enabled,
     ) {
+        clear_runtime_fast_path_marker(&paths.runtime_dir);
         if first_launch_after_update {
             emit_status(&window, "更新后的第一次启动正在自动复检服务，请稍候…");
             emit_progress(&window, 84, "更新后首次启动自动重试");
@@ -4506,6 +4710,9 @@ fn runtime_bootstrap(
                 backend_port,
                 chart_port,
                 first_launch_timeout,
+                false,
+                false,
+                false,
             )
             .map_err(|retry_err| {
                 anyhow!(
@@ -4514,9 +4721,36 @@ fn runtime_bootstrap(
                     retry_err
                 )
             })?;
+        } else if fast_path_enabled {
+            emit_status(&window, "快速启动校验失败，正在自动回退到完整校验启动…");
+            emit_progress(&window, 84, "快速启动回退到完整校验");
+            stop_runtime(&paths);
+            thread::sleep(Duration::from_secs(1));
+            backend_port = choose_free_port()?;
+            chart_port = choose_free_port()?;
+            start_runtime(
+                &paths,
+                &window,
+                backend_port,
+                chart_port,
+                first_launch_timeout,
+                false,
+                false,
+                false,
+            )
+            .map_err(|retry_err| {
+                anyhow!(
+                    "快速启动失败，已自动回退到完整校验启动一次仍未恢复。\n首次错误:\n{:#}\n\n回退错误:\n{:#}",
+                    first_err,
+                    retry_err
+                )
+            })?;
         } else {
             return Err(first_err);
         }
+    }
+    if let Some(manifest) = read_runtime_manifest(&paths) {
+        write_runtime_fast_path_marker(&paths.runtime_dir, &manifest);
     }
     emit_progress(&window, 100, "星阙 已准备完成");
     Ok(RuntimeSession {
@@ -4557,6 +4791,9 @@ fn main() {
                 .clone();
             apply_main_window_launch_state(&window, &load_window_states(&app_handle).main);
             set_window_zoom(&app_handle, DEFAULT_ZOOM)?;
+            if handoff_to_newer_installed_app(&app_handle)? {
+                return Ok(());
+            }
             thread::spawn(move || {
                 match runtime_bootstrap(app_handle.clone(), window.clone(), false) {
                     Ok(session) => {
@@ -4781,7 +5018,10 @@ mod tests {
         fs::create_dir_all(runtime_dir.join("Horosa-Web/astrostudyui/dist-file")).unwrap();
         fs::write(
             runtime_dir.join("runtime-manifest.json"),
-            format!("{{\"version\":\"{}\"}}\n", version),
+            format!(
+                "{{\"version\":\"{}\",\"built_at\":\"2026-04-07 00:00:00\"}}\n",
+                version
+            ),
         )
         .unwrap();
         fs::write(
@@ -4924,6 +5164,79 @@ mod tests {
         let root = temp_test_dir("runtime-with-java");
         let runtime_dir = create_fake_runtime_tree(&root, "1.2.2-runtime1", true);
         assert!(runtime_dir_is_usable(&runtime_dir));
+    }
+
+    #[test]
+    fn handoff_to_installed_app_only_when_target_is_newer() {
+        let current_bundle = Path::new("/Users/test/Applications/星阙.app");
+        let target_bundle = Path::new("/Applications/星阙.app");
+        let current = Version::parse("1.2.1").unwrap();
+        let target = Version::parse("1.2.3").unwrap();
+        assert!(should_handoff_to_installed_app(
+            current_bundle,
+            target_bundle,
+            Some(&current),
+            Some(&target)
+        ));
+        assert!(!should_handoff_to_installed_app(
+            target_bundle,
+            target_bundle,
+            Some(&target),
+            Some(&target)
+        ));
+        assert!(!should_handoff_to_installed_app(
+            current_bundle,
+            target_bundle,
+            Some(&target),
+            Some(&current)
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_dir_usability_writes_health_cache() {
+        let root = temp_test_dir("runtime-health-cache");
+        let runtime_dir = create_fake_runtime_tree(&root, "1.2.3-runtime1", true);
+        assert!(runtime_dir_is_usable(&runtime_dir));
+        assert!(runtime_health_cache_path(&runtime_dir).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_health_cache_is_invalidated_when_runtime_changes() {
+        let root = temp_test_dir("runtime-health-cache-invalidate");
+        let runtime_dir = create_fake_runtime_tree(&root, "1.2.3-runtime1", true);
+        assert!(runtime_dir_is_usable(&runtime_dir));
+        let cache_path = runtime_health_cache_path(&runtime_dir);
+        assert!(cache_path.exists());
+        std::thread::sleep(Duration::from_secs(1));
+        fs::write(
+            runtime_dir.join("runtime-manifest.json"),
+            "{\"version\":\"1.2.4-runtime1\"}\n",
+        )
+        .unwrap();
+        let cache = runtime_health_cache(&runtime_dir).expect("cache exists");
+        assert!(!runtime_health_cache_matches(&runtime_dir, &cache));
+        assert!(runtime_dir_is_usable(&runtime_dir));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_fast_path_marker_is_invalidated_when_runtime_changes() {
+        let root = temp_test_dir("runtime-fast-path-invalidate");
+        let runtime_dir = create_fake_runtime_tree(&root, "1.2.3-runtime1", true);
+        let manifest =
+            read_runtime_manifest_from_path(&runtime_dir.join("runtime-manifest.json")).unwrap();
+        write_runtime_fast_path_marker(&runtime_dir, &manifest);
+        assert!(runtime_fast_path_allowed(&runtime_dir));
+        std::thread::sleep(Duration::from_secs(1));
+        fs::write(
+            runtime_dir.join("runtime-manifest.json"),
+            "{\"version\":\"1.2.4-runtime1\"}\n",
+        )
+        .unwrap();
+        assert!(!runtime_fast_path_allowed(&runtime_dir));
+        clear_runtime_fast_path_marker(&runtime_dir);
     }
 
     #[test]

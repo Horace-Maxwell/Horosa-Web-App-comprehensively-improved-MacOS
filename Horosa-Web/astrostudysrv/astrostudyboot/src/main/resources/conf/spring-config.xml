@@ -17,17 +17,17 @@
 		<property name="fileEncoding" value="UTF-8" />
  		<property name="locations">
 			<list>
-				<value>classpath*:conf/properties/log.properties</value>
-				<value>classpath*:conf/properties/jdbc.properties</value>
-				<value>classpath*:conf/properties/param/webparams.properties</value>
-				<value>classpath*:conf/properties/param/params.properties</value>
-			    <value>classpath*:conf/properties/msg/msg.properties</value>
-				<value>classpath*:conf/properties/msg/error.properties</value>
+				<value>classpath:conf/properties/log.properties</value>
+				<value>classpath:conf/properties/jdbc.properties</value>
+				<value>classpath:conf/properties/param/webparams.properties</value>
+				<value>classpath:conf/properties/param/params.properties</value>
+			    <value>classpath:conf/properties/msg/msg.properties</value>
+				<value>classpath:conf/properties/msg/error.properties</value>
 			</list>
 		</property>
  		<property name="yamlLocations">
 			<list>
-				<value>classpath*:conf/yaml/params.yml</value>
+				<value>classpath:conf/yaml/params.yml</value>
 			</list>
 		</property>
 	</bean>
@@ -48,8 +48,8 @@
  	<import resource="classpath*:/conf/spring-mybatis.xml" />
  -->
   	
- 	<import resource="classpath*:/conf/spring-mvc.xml" />
- 	<import resource="classpath*:/conf/beans.xml" />
+	<import resource="classpath:/conf/spring-mvc.xml" />
+	<import resource="classpath:/conf/beans.xml" />
  
 	
 		
