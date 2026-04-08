@@ -13,7 +13,16 @@
     http://www.springframework.org/schema/mvc/spring-mvc.xsd">
 	
     <context:annotation-config />
-    <context:component-scan base-package="boundless.**.springcomp,spacex.**.controller,spacex.**.service,com.**.service,com.**.controller" >
+    <context:component-scan base-package="
+        boundless.spring.help.springcomp,
+        boundless.spring.help.controller,
+        spacex.basecomm.controller,
+        spacex.astrostudy.controller,
+        spacex.astrostudy.service,
+        spacex.astrostudycn.controller,
+        spacex.astroreader.controller,
+        spacex.astroesp.controller,
+        spacex.astrodeeplearn.controller">
     </context:component-scan>
     
 	<mvc:annotation-driven>

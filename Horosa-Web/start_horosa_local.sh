@@ -29,6 +29,13 @@ DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
 EMBEDDED_PY_REPAIR_HELPER="${ROOT}/scripts/repairEmbeddedPythonRuntime.py"
 PYTHON_LAUNCH_NOUSERSITE="${PYTHONNOUSERSITE:-}"
 REQUIRE_EMBEDDED_RUNTIME="${HOROSA_REQUIRE_EMBEDDED_RUNTIME:-0}"
+DESKTOP_MONGO_SKIP_PING="${HOROSA_DESKTOP_MONGO_SKIP_PING:-0}"
+DESKTOP_SPRING_LAZY_INIT="${HOROSA_DESKTOP_SPRING_LAZY_INIT:-1}"
+DESKTOP_JAVA_FAST_START="${HOROSA_DESKTOP_JAVA_FAST_START:-1}"
+DESKTOP_JAVA_EXTRA_TOOL_OPTIONS="${HOROSA_DESKTOP_JAVA_EXTRA_TOOL_OPTIONS:--XX:+UseSerialGC -Xverify:none -Xms128m -Xmx512m}"
+TRUSTED_RUNTIME="${HOROSA_TRUSTED_RUNTIME:-0}"
+ENABLE_STARTUP_CRON="${HOROSA_ENABLE_STARTUP_CRON:-0}"
+ENABLE_STARTUP_TRANSGROUP_INIT="${HOROSA_ENABLE_STARTUP_TRANSGROUP_INIT:-0}"
 
 if [ -z "${HOROSA_PYTHON:-}" ] && [ -x "${ROOT_PARENT}/.runtime/mac/venv/bin/python3" ]; then
   PYTHON_BIN="${ROOT_PARENT}/.runtime/mac/venv/bin/python3"
@@ -63,7 +70,7 @@ diag_tail() {
 }
 
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
-diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR} mongo_optional=${DESKTOP_MONGO_OPTIONAL} needtranslog=${NEED_TRANSLOG} require_embedded_runtime=${REQUIRE_EMBEDDED_RUNTIME}"
+diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR} mongo_optional=${DESKTOP_MONGO_OPTIONAL} mongo_skip_ping=${DESKTOP_MONGO_SKIP_PING} trusted_runtime=${TRUSTED_RUNTIME} needtranslog=${NEED_TRANSLOG} require_embedded_runtime=${REQUIRE_EMBEDDED_RUNTIME} lazy_spring=${DESKTOP_SPRING_LAZY_INIT} java_fast_start=${DESKTOP_JAVA_FAST_START} startup_cron=${ENABLE_STARTUP_CRON} startup_transgroup=${ENABLE_STARTUP_TRANSGROUP_INIT}"
 
 cleanup_metadata_files() {
   local root="$1"
@@ -239,6 +246,10 @@ resolve_java_bin() {
   local java_home=""
   local resolved_bin=""
 
+  if [ "${TRUSTED_RUNTIME}" = "1" ] && [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ] && [ -x "${JAVA_BIN}" ]; then
+    return 0
+  fi
+
   if java_bin_ready "${JAVA_BIN}"; then
     return 0
   fi
@@ -359,6 +370,10 @@ resolve_python_bin() {
   local root_parent=""
   local candidate=""
   local resolved=""
+
+  if [ "${TRUSTED_RUNTIME}" = "1" ] && [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ] && [ -x "${PYTHON_BIN}" ]; then
+    return 0
+  fi
 
   root_parent="$(cd "${ROOT}/.." && pwd)"
   local candidates=(
@@ -530,6 +545,9 @@ if ! resolve_java_bin; then
   echo "install java 17+ or run ../Horosa_OneClick_Mac.command"
   exit 1
 fi
+if [ "${TRUSTED_RUNTIME}" = "1" ] && [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ] && [ -x "${JAVA_BIN}" ]; then
+  diag_log "java trusted-runtime fast path enabled: ${JAVA_BIN}"
+fi
 diag_log "java resolved: ${JAVA_BIN}"
 
 if ! resolve_python_bin; then
@@ -537,6 +555,9 @@ if ! resolve_python_bin; then
   echo "python runtime not ready: ${PYTHON_BIN}"
   echo "install runtime deps or run ../Horosa_OneClick_Mac.command"
   exit 1
+fi
+if [ "${TRUSTED_RUNTIME}" = "1" ] && [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ] && [ -x "${PYTHON_BIN}" ]; then
+  diag_log "python trusted-runtime fast path enabled: ${PYTHON_BIN}"
 fi
 diag_log "python resolved: ${PYTHON_BIN}"
 
@@ -608,18 +629,52 @@ fi
 PYTHON_LAUNCH_CMD+=("${PYTHON_BIN}" "${ROOT}/astropy/websrv/webchartsrv.py")
 launch_detached "${PY_LOG}" "${PYTHON_LAUNCH_CMD[@]}" >"${PY_PID_FILE}"
 
-launch_detached "${JAVA_LOG}" env \
+JAVA_LAUNCH_CMD=(env \
   HOROSA_DESKTOP_MONGO_OPTIONAL="${DESKTOP_MONGO_OPTIONAL}" \
+  HOROSA_DESKTOP_MONGO_SKIP_PING="${DESKTOP_MONGO_SKIP_PING}" \
   HOROSA_MONGO_FALLBACK_DIR="${MONGO_FALLBACK_DIR}" \
-  needtranslog="${NEED_TRANSLOG}" \
-  "${JAVA_BIN}" -jar "${JAR}" \
-  --server.port="${BACKEND_PORT}" \
-  --astrosrv=http://127.0.0.1:${CHART_PORT} \
-  --mongodb.ip=127.0.0.1 \
-  --redis.ip=127.0.0.1 >"${JAVA_PID_FILE}"
+  HOROSA_ENABLE_STARTUP_CRON="${ENABLE_STARTUP_CRON}" \
+  HOROSA_ENABLE_STARTUP_TRANSGROUP_INIT="${ENABLE_STARTUP_TRANSGROUP_INIT}" \
+  needtranslog="${NEED_TRANSLOG}")
+
+if [ "${DESKTOP_JAVA_FAST_START}" = "1" ]; then
+  JAVA_FAST_TOOL_OPTIONS="-Dlog4j2.statusLevel=WARN -Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom -Dspring.backgroundpreinitializer.ignore=true -XX:TieredStopAtLevel=1"
+  if [ -n "${DESKTOP_JAVA_EXTRA_TOOL_OPTIONS}" ]; then
+    JAVA_FAST_TOOL_OPTIONS="${JAVA_FAST_TOOL_OPTIONS} ${DESKTOP_JAVA_EXTRA_TOOL_OPTIONS}"
+  fi
+  JAVA_LAUNCH_CMD+=(
+    JAVA_TOOL_OPTIONS="${JAVA_FAST_TOOL_OPTIONS}"
+  )
+fi
+
+if [ "${DESKTOP_SPRING_LAZY_INIT}" = "1" ]; then
+  JAVA_LAUNCH_CMD+=(
+    SPRING_MAIN_LAZY_INITIALIZATION=true
+  )
+fi
+
+JAVA_LAUNCH_CMD+=(
+  "${JAVA_BIN}" -jar "${JAR}"
+  --server.port="${BACKEND_PORT}"
+  --astrosrv=http://127.0.0.1:${CHART_PORT}
+  --mongodb.ip=127.0.0.1
+  --redis.ip=127.0.0.1
+)
+
+launch_detached "${JAVA_LOG}" env \
+  "${JAVA_LAUNCH_CMD[@]}" >"${JAVA_PID_FILE}"
 
 ready=0
-for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
+poll_interval="1"
+progress_interval="10"
+if [ "${TRUSTED_RUNTIME}" = "1" ]; then
+  poll_interval="0.1"
+  progress_interval="100"
+fi
+elapsed_checks=0
+deadline_epoch=$(( $(date +%s) + STARTUP_TIMEOUT ))
+while true; do
+  elapsed_checks=$((elapsed_checks + 1))
   if ! kill -0 "$(cat "${PY_PID_FILE}")" >/dev/null 2>&1; then
     echo "astropy process exited during startup."
     break
@@ -629,16 +684,24 @@ for _ in $(seq 1 "${STARTUP_TIMEOUT}"); do
     break
   fi
 
-  if port_listening "${CHART_PORT}" && port_listening "${BACKEND_PORT}"; then
+  if [ "${TRUSTED_RUNTIME}" = "1" ]; then
     if http_responding "http://127.0.0.1:${CHART_PORT}/" && signed_backend_http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
-        ready=1
-        break
+      ready=1
+      break
+    fi
+  elif port_listening "${CHART_PORT}" && port_listening "${BACKEND_PORT}"; then
+    if http_responding "http://127.0.0.1:${CHART_PORT}/" && signed_backend_http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
+      ready=1
+      break
     fi
   fi
-  if [ $((_ % 10)) -eq 0 ]; then
-    echo "waiting services... ${_}/${STARTUP_TIMEOUT}s (${CHART_PORT}:$(port_listening "${CHART_PORT}" && echo up || echo down), ${BACKEND_PORT}:$(port_listening "${BACKEND_PORT}" && echo up || echo down))"
+  if [ $((elapsed_checks % progress_interval)) -eq 0 ]; then
+    echo "waiting services... ${elapsed_checks} checks (${CHART_PORT}:$(port_listening "${CHART_PORT}" && echo up || echo down), ${BACKEND_PORT}:$(port_listening "${BACKEND_PORT}" && echo up || echo down))"
   fi
-  sleep 1
+  if [ "$(date +%s)" -ge "${deadline_epoch}" ]; then
+    break
+  fi
+  sleep "${poll_interval}"
 done
 
 if [ "${ready}" -ne 1 ]; then

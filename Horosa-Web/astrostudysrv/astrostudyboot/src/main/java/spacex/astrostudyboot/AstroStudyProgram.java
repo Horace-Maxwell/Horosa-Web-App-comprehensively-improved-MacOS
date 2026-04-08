@@ -2,7 +2,6 @@ package spacex.astrostudyboot;
 
 import org.apache.tomcat.util.http.LegacyCookieProcessor;
 import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.actuate.autoconfigure.metrics.mongo.MongoMetricsAutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration;
@@ -24,8 +23,8 @@ import spacex.basecomm.constants.ClientChannel;
 import spacex.basecomm.helper.HttpHelper;
 import spacex.basecomm.model.AppInfo;
 
-@SpringBootApplication(exclude={MongoMetricsAutoConfiguration.class,MongoAutoConfiguration.class,MongoDataAutoConfiguration.class})
-@EnableAutoConfiguration(exclude={DataSourceAutoConfiguration.class,MongoMetricsAutoConfiguration.class,MongoAutoConfiguration.class,MongoDataAutoConfiguration.class})
+@SpringBootApplication(exclude={MongoAutoConfiguration.class,MongoDataAutoConfiguration.class})
+@EnableAutoConfiguration(exclude={DataSourceAutoConfiguration.class,MongoAutoConfiguration.class,MongoDataAutoConfiguration.class})
 @ImportResource("classpath:conf/spring-config.xml")
 public class AstroStudyProgram {
 
