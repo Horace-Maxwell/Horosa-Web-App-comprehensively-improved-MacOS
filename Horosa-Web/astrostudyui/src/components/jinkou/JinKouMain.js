@@ -267,7 +267,7 @@ function resolveDisplayRunYear(runyear, birth, guaFields){
 	};
 }
 
-function buildJinKouSnapshotText(params, liureng, runyear, jinkouData, wuxing, guirengType, gender){
+export function buildJinKouSnapshotText(params, liureng, runyear, jinkouData, wuxing, guirengType, gender){
 	const lines = [];
 	const nongli = liureng && liureng.nongli ? liureng.nongli : {};
 	const xingbie = `${gender}` === '1' ? '男' : '女';

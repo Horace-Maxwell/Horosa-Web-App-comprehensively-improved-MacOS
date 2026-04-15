@@ -910,7 +910,7 @@ function buildLiuRengBranchMap(lrLayout){
 	return map;
 }
 
-function buildSanShiUnitedSnapshotText(data){
+export function buildSanShiUnitedSnapshotText(data){
 	const {
 		fields,
 		options,

@@ -71,7 +71,9 @@ import {
 	buildPromptContext,
 	clipContextLayers,
 	getAnalysisSourceContext,
+	getAnalysisTechniqueContexts,
 	listAnalysisSources,
+	listAnalysisTechniqueOptions,
 } from '../../utils/aiAnalysisContext';
 import { parseMaterialFile } from '../../utils/aiAnalysisMaterial';
 import {
@@ -99,6 +101,10 @@ import {
 	rerankChunksWithVector,
 	shouldUseDirectAttach,
 } from '../../utils/aiAnalysisRag';
+import {
+	filterTechniqueKeysBySource,
+	getTechniqueContextMode,
+} from '../../utils/aiAnalysisSelection';
 import {
 	isDesktopBridgeAvailable,
 	openDesktopBackup,
@@ -571,6 +577,72 @@ function filterByDateRange(item, start, end){
 	return true;
 }
 
+function shallowEqualObject(a, b){
+	if(a === b){
+		return true;
+	}
+	const left = a && typeof a === 'object' ? a : {};
+	const right = b && typeof b === 'object' ? b : {};
+	const leftKeys = Object.keys(left);
+	const rightKeys = Object.keys(right);
+	if(leftKeys.length !== rightKeys.length){
+		return false;
+	}
+	for(let i = 0; i < leftKeys.length; i += 1){
+		const key = leftKeys[i];
+		if(left[key] !== right[key]){
+			return false;
+		}
+	}
+	return true;
+}
+
+function sameSourceContext(left, right){
+	if(left === right){
+		return true;
+	}
+	if(!left || !right){
+		return false;
+	}
+	return left.content === right.content
+		&& left.title === right.title
+		&& left.module === right.module
+		&& shallowEqualObject(left.meta, right.meta);
+}
+
+function buildTechniqueLoadingState(keys, labelMap){
+	return (keys || []).map((key)=>({
+		key,
+		title: labelMap.get(key) || key,
+		module: key,
+		content: '',
+		available: false,
+		status: 'loading',
+		meta: {},
+	}));
+}
+
+function mergeTechniqueState(list, nextItem, keys, labelMap){
+	const currentMap = new Map((list || []).map((item)=>[item.key, item]));
+	if(nextItem && nextItem.key){
+		currentMap.set(nextItem.key, nextItem);
+	}
+	return (keys || []).map((key)=>{
+		if(currentMap.has(key)){
+			return currentMap.get(key);
+		}
+		return {
+			key,
+			title: labelMap.get(key) || key,
+			module: key,
+			content: '',
+			available: false,
+			status: 'loading',
+			meta: {},
+		};
+	});
+}
+
 function AIAnalysisMain(props){
 	const defaultUi = loadUiPrefs();
 	const [innerTab, setInnerTab] = React.useState(defaultUi.innerTab || 'analysis');
@@ -591,6 +663,8 @@ function AIAnalysisMain(props){
 	const [modelSelection, setModelSelection] = React.useState(defaultUi.modelSelection || '');
 	const [referenceIds, setReferenceIds] = React.useState(defaultUi.referenceIds || []);
 	const [sourceContext, setSourceContext] = React.useState(null);
+	const [selectedTechniqueKeys, setSelectedTechniqueKeys] = React.useState(defaultUi.selectedTechniqueKeys || []);
+	const [techniqueContexts, setTechniqueContexts] = React.useState([]);
 	const [prompt, setPrompt] = React.useState('');
 	const [sessionSystemPrompt, setSessionSystemPrompt] = React.useState(defaultUi.sessionSystemPrompt || '');
 	const [historyKeyword, setHistoryKeyword] = React.useState('');
@@ -648,6 +722,17 @@ function AIAnalysisMain(props){
 			item,
 		}));
 	}, [sources]);
+
+	const techniqueOptions = React.useMemo(()=>{
+		return activeSource ? listAnalysisTechniqueOptions(activeSource) : [];
+	}, [activeSource]);
+	const techniqueLabelMap = React.useMemo(()=>{
+		return new Map((techniqueOptions || []).map((item)=>[item.value, item.label]));
+	}, [techniqueOptions]);
+	const activeTechniqueKeys = React.useMemo(()=>{
+		return filterTechniqueKeysBySource(activeSource, techniqueOptions, selectedTechniqueKeys);
+	}, [activeSource, techniqueOptions, selectedTechniqueKeys]);
+	const sourceContextMode = getTechniqueContextMode(activeTechniqueKeys);
 
 	const modelOptions = React.useMemo(()=>{
 		const result = [];
@@ -805,6 +890,16 @@ function AIAnalysisMain(props){
 				description: sessionSystemPrompt,
 			});
 		}
+		(techniqueContexts || []).forEach((item)=>{
+			items.push({
+				key: `technique:${item.key}`,
+				title: `技法 · ${item.title || item.key}`,
+				type: 'technique',
+				description: item.content
+					? `${item.content.slice(0, 180)}${item.content.length > 180 ? '...' : ''}`
+					: (item.status === 'missing' ? '当前未找到该技法可用快照，未挂载其他技法内容。' : '正在按已存案例/命盘数据自动补生成快照。'),
+			});
+		});
 		resolved.materials.forEach((item)=>{
 			items.push({
 				key: `material:${item.id}`,
@@ -822,7 +917,7 @@ function AIAnalysisMain(props){
 			});
 		});
 		return items;
-	}, [referenceIds, materials, bundles, templates, activeSource, sourceContext, sessionSystemPrompt]);
+	}, [referenceIds, materials, bundles, templates, activeSource, sourceContext, sessionSystemPrompt, techniqueContexts]);
 
 	const loadWorkspace = React.useCallback(async (options = {})=>{
 		setWorkspaceLoading(true);
@@ -884,6 +979,7 @@ function AIAnalysisMain(props){
 			innerTab,
 			modelSelection,
 			referenceIds,
+			selectedTechniqueKeys: activeTechniqueKeys,
 			sessionSystemPrompt,
 		});
 		if(props.dispatch){
@@ -894,7 +990,7 @@ function AIAnalysisMain(props){
 				},
 			});
 		}
-	}, [innerTab, modelSelection, referenceIds, sessionSystemPrompt, props.dispatch]);
+	}, [innerTab, modelSelection, referenceIds, activeTechniqueKeys, sessionSystemPrompt, props.dispatch]);
 
 	React.useEffect(()=>{
 		if(!selectedSourceId){
@@ -907,9 +1003,11 @@ function AIAnalysisMain(props){
 			return;
 		}
 		let cancelled = false;
-		getAnalysisSourceContext(source).then((ctx)=>{
+		getAnalysisSourceContext(source, {
+			mode: sourceContextMode,
+		}).then((ctx)=>{
 			if(!cancelled){
-				setSourceContext(ctx);
+				setSourceContext((prev)=>sameSourceContext(prev, ctx) ? prev : ctx);
 			}
 		}).catch(()=>{
 			if(!cancelled){
@@ -919,7 +1017,68 @@ function AIAnalysisMain(props){
 		return ()=>{
 			cancelled = true;
 		};
-	}, [selectedSourceId, sources]);
+	}, [selectedSourceId, sources, sourceContextMode]);
+
+	React.useEffect(()=>{
+		if(!activeSource){
+			if(selectedTechniqueKeys.length){
+				setSelectedTechniqueKeys([]);
+			}
+			setTechniqueContexts([]);
+			return;
+		}
+		const allowed = new Set(techniqueOptions.map((item)=>item.value));
+		const next = selectedTechniqueKeys.filter((item)=>allowed.has(item));
+		if(next.length !== selectedTechniqueKeys.length){
+			setSelectedTechniqueKeys(next);
+		}
+	}, [activeSource, techniqueOptions, selectedTechniqueKeys]);
+
+	React.useEffect(()=>{
+		if(!activeSource || !activeTechniqueKeys.length){
+			setTechniqueContexts([]);
+			return;
+		}
+		let cancelled = false;
+		setTechniqueContexts(buildTechniqueLoadingState(activeTechniqueKeys, techniqueLabelMap));
+		activeTechniqueKeys.forEach((techniqueKey)=>{
+			getAnalysisTechniqueContexts(activeSource, [techniqueKey], {
+				sourceContext,
+			}).then((items)=>{
+				if(cancelled){
+					return;
+				}
+				const nextItem = items && items[0]
+					? items[0]
+					: {
+						key: techniqueKey,
+						title: techniqueLabelMap.get(techniqueKey) || techniqueKey,
+						module: techniqueKey,
+						content: '',
+						available: false,
+						status: 'missing',
+						meta: {},
+					};
+				setTechniqueContexts((prev)=>mergeTechniqueState(prev, nextItem, activeTechniqueKeys, techniqueLabelMap));
+			}).catch(()=>{
+				if(cancelled){
+					return;
+				}
+				setTechniqueContexts((prev)=>mergeTechniqueState(prev, {
+					key: techniqueKey,
+					title: techniqueLabelMap.get(techniqueKey) || techniqueKey,
+					module: techniqueKey,
+					content: '',
+					available: false,
+					status: 'missing',
+					meta: {},
+				}, activeTechniqueKeys, techniqueLabelMap));
+			});
+		});
+		return ()=>{
+			cancelled = true;
+		};
+	}, [activeSource, activeTechniqueKeys, sourceContext, techniqueLabelMap]);
 
 	React.useEffect(()=>{
 		if(!modelOptions.length){
@@ -981,6 +1140,7 @@ function AIAnalysisMain(props){
 		setActiveConversationId(conversation.id);
 		setSelectedSourceId(conversation.sourceRef && conversation.sourceRef.id ? conversation.sourceRef.id : '');
 		setReferenceIds(conversation.referenceIds || []);
+		setSelectedTechniqueKeys(conversation.techniqueKeys || []);
 		setModelSelection(encodeModelSelection(conversation.providerProfileId || '', conversation.model || ''));
 		setSessionSystemPrompt(conversation.systemPrompt || '');
 		setMessages(await listConversationMessages(conversation.id));
@@ -1003,6 +1163,7 @@ function AIAnalysisMain(props){
 			providerType: profile ? profile.providerType : '',
 			model,
 			referenceIds: referenceIds.slice(0),
+			techniqueKeys: activeTechniqueKeys.slice(0),
 			systemPrompt: sessionSystemPrompt,
 			lastMessageAt: now,
 			updatedAt: now,
@@ -1229,13 +1390,20 @@ function AIAnalysisMain(props){
 	async function buildResolvedPrompt(currentPrompt, profile){
 		const resolvedRefs = resolveReferenceItems(referenceIds, materials, bundles, templates);
 		const currentSource = activeSource || (activeConversation && activeConversation.sourceRef ? sources.find((item)=>item.id === activeConversation.sourceRef.id) : null);
-		const ctx = currentSource && currentSource.record ? await getAnalysisSourceContext(currentSource) : sourceContext;
+		const ctx = currentSource && currentSource.record ? await getAnalysisSourceContext(currentSource, {
+			mode: activeTechniqueKeys.length ? 'meta' : 'full',
+		}) : sourceContext;
+		const resolvedTechniqueContexts = currentSource && activeTechniqueKeys.length
+			? await getAnalysisTechniqueContexts(currentSource, activeTechniqueKeys, { sourceContext: ctx })
+			: [];
 		if(ctx){
 			setSourceContext(ctx);
 		}
+		setTechniqueContexts(resolvedTechniqueContexts);
 		const retrieval = await retrieveMaterialContext(currentPrompt, resolvedRefs, profile);
 		const layers = buildContextLayers({
 			sourceContext: ctx,
+			techniqueContexts: resolvedTechniqueContexts,
 			materials: retrieval.directMaterials.map((item)=>({
 				...item,
 				retrievedOnly: false,
@@ -1250,6 +1418,7 @@ function AIAnalysisMain(props){
 		return {
 			systemPrompt: buildPromptContext({
 				sourceContext: ctx,
+				techniqueContexts: resolvedTechniqueContexts,
 				materials: retrieval.directMaterials,
 				bundles: resolvedRefs.bundles,
 				templates: resolvedRefs.templates,
@@ -2253,6 +2422,23 @@ function AIAnalysisMain(props){
 									))}
 								</Select>
 							</div>
+							{activeSource ? (
+								<div className={styles.toolbarField}>
+									<div className={styles.toolbarLabel}>使用技法</div>
+									<Select
+										mode="multiple"
+										allowClear
+										value={activeTechniqueKeys}
+										placeholder={`选择${activeSource.sourceType === 'chart' ? '命盘' : '事盘'}技法`}
+										style={{ width: '100%' }}
+										onChange={(vals)=>setSelectedTechniqueKeys(vals || [])}
+									>
+										{techniqueOptions.map((item)=>(
+											<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
+										))}
+									</Select>
+								</div>
+							) : null}
 							<div className={styles.toolbarField}>
 								<div className={styles.toolbarLabel}>参考组合 / 资料（多选）</div>
 								<Select

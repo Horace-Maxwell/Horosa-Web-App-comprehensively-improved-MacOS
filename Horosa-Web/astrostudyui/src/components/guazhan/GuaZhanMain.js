@@ -35,7 +35,7 @@ function lineText(line){
 	return `${line}`.trim();
 }
 
-function buildGuaSnapshotText(fields, st){
+export function buildGuaSnapshotText(fields, st){
 	const lines = [];
 	const nowGua = st && st.currentGua !== null && Gua64[st.currentGua] ? Gua64[st.currentGua] : null;
 	const yao = st && st.yao ? st.yao : [];

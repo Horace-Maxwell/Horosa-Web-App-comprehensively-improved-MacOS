@@ -8,7 +8,8 @@ STAGE_ROOT="${BUILD_ROOT}/runtime-payload"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
-HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION:-0}"
+HOROSA_PUBLIC_DISTRIBUTION_RAW="${HOROSA_PUBLIC_DISTRIBUTION:-auto}"
+HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION_RAW}"
 BOOT_JAR_SOURCE="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
 BUNDLE_SOURCE_DIR="${REPO_ROOT}/runtime/mac/bundle"
 BUNDLE_JAR_FALLBACK="${BUNDLE_SOURCE_DIR}/astrostudyboot.jar"
@@ -51,6 +52,14 @@ PY
 EOF
 ARCHIVE_PATH="${DIST_ROOT}/${ARCHIVE_NAME}"
 BUILT_AT="$(date '+%Y-%m-%d %H:%M:%S')"
+
+if [ "${HOROSA_PUBLIC_DISTRIBUTION_RAW}" = "auto" ]; then
+  if [ -n "${APPLE_SIGNING_IDENTITY}" ]; then
+    HOROSA_PUBLIC_DISTRIBUTION=1
+  else
+    HOROSA_PUBLIC_DISTRIBUTION=0
+  fi
+fi
 
 build_embedded_java_runtime() {
   local src_java="$1"
