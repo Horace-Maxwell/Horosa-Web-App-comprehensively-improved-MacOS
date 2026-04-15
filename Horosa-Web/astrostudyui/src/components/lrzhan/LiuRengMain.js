@@ -3801,7 +3801,7 @@ function buildSanChuanData(layout, keRaw, chartObj){
 	}
 }
 
-function buildLiuRengSnapshotText(params, liureng, runyear, chartObj, guirengType, zhangshengElem, gender){
+export function buildLiuRengSnapshotText(params, liureng, runyear, chartObj, guirengType, zhangshengElem, gender){
 	const lines = [];
 	const nongli = liureng && liureng.nongli ? liureng.nongli : (chartObj && chartObj.nongli ? chartObj.nongli : {});
 	const refs = buildLiuRengReferenceBundle(liureng, chartObj, guirengType, runyear);
