@@ -56,7 +56,7 @@ public class QueryChartController {
 		}
 		Map<String, Object> reqparams = (Map<String, Object>) res.get("params");
 		if(reqparams != null) {
-			reqparams.put("pdSyncRev", "pd_method_sync_v6");
+			reqparams.put("pdSyncRev", "pd_method_sync_v8");
 			if(args.containsKey("pdtype")) {
 				reqparams.put("pdtype", args.get("pdtype"));
 			}
@@ -98,7 +98,7 @@ public class QueryChartController {
 		String[] parts = StringUtility.splitString(birth, ' ');
 		chart.put("date", parts[0]);
 		chart.put("time", parts[1]);
-		chart.put("_wireRev", "pd_method_sync_v6");
+		chart.put("_wireRev", "pd_method_sync_v8");
 		chart.put("hsys", TransData.getValueAsInt("hsys", 0));
 		chart.put("zodiacal", TransData.getValueAsInt("zodiacal", 0));
 		chart.put("predictive", TransData.getValueAsBool("predictive", false));

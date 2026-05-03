@@ -51,6 +51,10 @@ TARGET_SIGS = {
     "MC": const.MC,
     "North Node": const.NORTH_NODE,
 }
+SAMPLE_SIGS = {
+    **TARGET_SIGS,
+    "Pars Fortuna": const.PARS_FORTUNA,
+}
 
 external-ref_PD_SUPPORTED_BASE_IDS = {
     const.SUN,
@@ -64,11 +68,12 @@ external-ref_PD_SUPPORTED_BASE_IDS = {
     const.NEPTUNE,
     const.PLUTO,
     const.NORTH_NODE,
+    const.PARS_FORTUNA,
     const.ASC,
     const.MC,
 }
 
-EXPECTED_PD_SYNC_REV = "pd_method_sync_v6"
+EXPECTED_PD_SYNC_REV = "pd_method_sync_v8"
 
 
 def _assert_contains(path: Path, needle: str) -> None:
@@ -181,7 +186,7 @@ def _load_sample_rows(case_dir: Path | None) -> dict[str, list]:
         if not isinstance(row, list) or len(row) < 5:
             continue
         sig_base = _base_direction_object_id(str(row[2]))
-        for label, obj_id in TARGET_SIGS.items():
+        for label, obj_id in SAMPLE_SIGS.items():
             if sig_base != obj_id:
                 continue
             derived_date = signasctime.getDateFromPDArc(float(row[0]))
@@ -190,7 +195,7 @@ def _load_sample_rows(case_dir: Path | None) -> dict[str, list]:
                     f"{label} sample row has desynced date: row={row[4]} derived={derived_date}"
                 )
             samples[label] = row
-    missing = [label for label in TARGET_SIGS if label not in samples]
+    missing = [label for label in SAMPLE_SIGS if label not in samples]
     if missing:
         raise AssertionError(f"sample backend rows missing targets: {missing}")
     return samples
@@ -264,9 +269,13 @@ def _multi_case_runtime_report(cases_root: Path, sample_size: int, seed: int) ->
         report["legacy_bound_rows_total"] += sum(1 for row in legacy_rows if _is_bound_row(row))
         report["legacy_hide_bounds_rows_total"] += len(legacy_hide_bounds)
 
-        # external-ref branch should already be aligned to the supported subset the UI displays.
+        # Compatibility branch should already be aligned to the supported subset the UI displays.
         if len(astro_rows) != len(astro_filtered):
-            raise AssertionError(f"{case_dir} external-ref rows still contain hidden/unsupported rows")
+            raise AssertionError(f"{case_dir} compatibility rows still contain hidden/unsupported rows")
+        if not any(_base_direction_object_id(str(row[1])) == const.PARS_FORTUNA for row in astro_rows):
+            raise AssertionError(f"{case_dir} compatibility rows missing Pars Fortuna promissor rows")
+        if not any(_base_direction_object_id(str(row[2])) == const.PARS_FORTUNA for row in astro_rows):
+            raise AssertionError(f"{case_dir} compatibility rows missing Pars Fortuna significator rows")
 
     if report["legacy_bound_rows_total"] <= 0:
         raise AssertionError("legacy multi-case sample did not include any bound rows to exercise showPdBounds")
@@ -386,6 +395,9 @@ def main() -> None:
     _assert_contains(perpredict, "getPrimaryDirectionByZexternal-refKernel")
     _assert_contains(perpredict, "pdMethod")
     _assert_contains(perpredict, "external-ref_PD_VIRTUAL_BODY_CORR_MODELS")
+    _assert_contains(perpredict, "external-ref_PD_PROMISSOR_IDS")
+    _assert_contains(perpredict, "external-ref_PD_SIGNIFICATOR_IDS")
+    _assert_contains(perpredict, "external-ref_PD_VIRTUAL_SIGNIFICATOR_IDS")
     _assert_contains(perpredict, "_applyexternal-refPromissorBodyModelCorrection")
     _assert_contains(perchart, "self.pdMethod = 'external-ref_alchabitius'")
     _assert_contains(perchart, "self.pdTimeKey = 'Ptolemy'")

@@ -14,8 +14,8 @@
 [![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
-[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.0)
-[![Runtime](https://img.shields.io/badge/runtime-1.3.0--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.0-runtime1)
+[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.1)
+[![Runtime](https://img.shields.io/badge/runtime-1.3.1--runtime3-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.1-runtime3)
 [![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY_ZH.md)
 [![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT_ZH.md)
 [![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
@@ -28,9 +28,9 @@
 
 [入口页](README.md) | [英文说明](README_EN.md) | [最新 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 
-**当前版本：** `v1.3.0`
+**当前版本：** `v1.3.1`
 
-**本次重点：** `v1.3.0` 汇总了最新的 AI分析 技法选择、自动快照补生成与桌面端打包更新，同时保留可信快速启动路径和 ARM Mac 安装稳定性兜底。
+**本次重点：** `v1.3.1` 补齐主限法福点输出，让 external-ref-Alchabitius 与星阙原方法保持独立，并让 AI 导出沿用同一张主限法表格结果。
 
 **许可证说明：** 当前公开仓库已切换为 `AGPL-3.0`，原因是发布栈中集成了 Swiss Ephemeris / `pyswisseph`。第三方子目录仍保持各自上游原始许可证说明。
 
@@ -175,7 +175,7 @@ macOS 这边强调的是正式桌面交付，而不是“把网页勉强包起�
 
 ## 最新版本
 
-- [GitHub Release v1.3.0](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.0)
+- [GitHub Release v1.3.1](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.1)
 - [所有 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 ## 常见问题
@@ -203,6 +203,6 @@ macOS 这边强调的是正式桌面交付，而不是“把网页勉强包起�
 - 想理解产品首页与用户入口：先看 [README.md](README.md)
 - 想看英文完整说明：看 [README_EN.md](README_EN.md)
 - 想理解安装器与发布链路：看 [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
-- 想看当前版本页面：看 [GitHub Release v1.3.0](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.0)
+- 想看当前版本页面：看 [GitHub Release v1.3.1](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.1)
 - 想进入主工程：看 `Horosa-Web/`
 - 想看共享运行时与诊断：看 `runtime/` 与 `diagnostics/`

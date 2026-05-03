@@ -72,7 +72,7 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" != "
   exit 1
 fi
 
-if [ "${PUBLIC_SIGNING_READY}" = "1" ] && ! xcrun notarytool history --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" >/dev/null 2>&1; then
+if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" = "1" ] && ! xcrun notarytool history --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" >/dev/null 2>&1; then
   echo "notarytool keychain profile is unavailable: ${NOTARYTOOL_KEYCHAIN_PROFILE}" >&2
   exit 1
 fi
@@ -285,7 +285,7 @@ build_product_pkg() {
 build_component_pkg "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_COMPONENT_PKG}"
 build_product_pkg "${OFFLINE_COMPONENT_PKG}" "${OFFLINE_INSTALLER_PKG}"
 
-if [ "${PUBLIC_SIGNING_READY}" = "1" ]; then
+if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" = "1" ]; then
   (
     cd "$(dirname "${TARGET_APP}")"
     ditto -c -k --keepParent "${APP_NAME}.app" "${NOTARY_APP_ZIP}"
