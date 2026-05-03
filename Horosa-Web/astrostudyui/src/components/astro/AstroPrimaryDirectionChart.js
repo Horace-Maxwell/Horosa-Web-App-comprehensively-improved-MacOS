@@ -32,6 +32,7 @@ const CORE_PD_SUPPORTED_BASE_IDS = new Set([
 	AstroConst.NEPTUNE,
 	AstroConst.PLUTO,
 	AstroConst.NORTH_NODE,
+	AstroConst.PARS_FORTUNA,
 	AstroConst.ASC,
 	AstroConst.MC,
 ]);

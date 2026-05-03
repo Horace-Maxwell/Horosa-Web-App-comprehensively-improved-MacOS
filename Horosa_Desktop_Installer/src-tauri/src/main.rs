@@ -5215,7 +5215,7 @@ mod tests {
         std::thread::sleep(Duration::from_secs(1));
         fs::write(
             runtime_dir.join("runtime-manifest.json"),
-            "{\"version\":\"1.3.0-runtime1\"}\n",
+            "{\"version\":\"1.3.1-runtime3\"}\n",
         )
         .unwrap();
         let cache = runtime_health_cache(&runtime_dir).expect("cache exists");
@@ -5235,7 +5235,7 @@ mod tests {
         std::thread::sleep(Duration::from_secs(1));
         fs::write(
             runtime_dir.join("runtime-manifest.json"),
-            "{\"version\":\"1.3.0-runtime1\"}\n",
+            "{\"version\":\"1.3.1-runtime3\"}\n",
         )
         .unwrap();
         assert!(!runtime_fast_path_allowed(&runtime_dir));

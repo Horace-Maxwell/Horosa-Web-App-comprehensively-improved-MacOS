@@ -11,7 +11,7 @@ import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
 
 const Option = Select.Option;
-const PD_SYNC_REV = 'pd_method_sync_v6';
+const PD_SYNC_REV = 'pd_method_sync_v8';
 const DEFAULT_PD_METHOD = 'core_alchabitius';
 const DEFAULT_PD_TIME_KEY = 'Ptolemy';
 const DEFAULT_PD_TYPE = 0;
@@ -27,6 +27,7 @@ const CORE_PD_SUPPORTED_BASE_IDS = new Set([
 	AstroConst.NEPTUNE,
 	AstroConst.PLUTO,
 	AstroConst.NORTH_NODE,
+	AstroConst.PARS_FORTUNA,
 	AstroConst.ASC,
 	AstroConst.MC,
 ]);

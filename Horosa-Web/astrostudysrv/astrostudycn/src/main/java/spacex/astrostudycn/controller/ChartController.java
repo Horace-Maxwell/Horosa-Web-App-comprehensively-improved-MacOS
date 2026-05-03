@@ -92,7 +92,7 @@ public class ChartController {
 		}
 		Map<String, Object> reqparams = (Map<String, Object>) res.get("params");
 		if(reqparams != null) {
-			reqparams.put("pdSyncRev", "pd_method_sync_v6");
+			reqparams.put("pdSyncRev", "pd_method_sync_v8");
 			reqparams.put("showPdBounds", ConvertUtility.getValueAsInt(args.get("showPdBounds"), 1));
 			if(args.containsKey("pdtype")) {
 				reqparams.put("pdtype", args.get("pdtype"));
@@ -161,7 +161,7 @@ public class ChartController {
 		params.put("lat", TransData.get("lat"));
 		params.put("lon", TransData.get("lon"));
 		// Bust legacy local/runtime cache entries after PD method/time-key response wiring changes.
-		params.put("_wireRev", "pd_method_sync_v6");
+		params.put("_wireRev", "pd_method_sync_v8");
 		params.put("hsys", TransData.getValueAsInt("hsys", 0));
 		params.put("tradition", TransData.getValueAsBool("tradition", false));
 		params.put("doubingSu28", TransData.getValueAsBool("doubingSu28", false));

@@ -3204,7 +3204,7 @@ function buildAliasMap(entries){
 }
 
 const EXTRA_LOT_ALIASES = {
-	[AstroConst.PARS_FORTUNA]: ['幸运点', 'Lot of Fortune'],
+	[AstroConst.PARS_FORTUNA]: ['福点', '幸运点', 'Part of Fortune', 'Lot of Fortune'],
 	[AstroConst.PARS_SPIRIT]: ['精神点', 'Lot of Spirit'],
 	[AstroConst.PARS_VENUS]: ['爱情点', 'Lot of Eros'],
 	[AstroConst.PARS_MERCURY]: ['必要点', 'Lot of Necessity'],

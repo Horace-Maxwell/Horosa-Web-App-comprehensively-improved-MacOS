@@ -32,6 +32,7 @@ CORE_SUPPORTED_BASE_IDS = {
     "Neptune",
     "Pluto",
     "North Node",
+    "Pars Fortuna",
     "Asc",
     "MC",
 }
@@ -296,6 +297,28 @@ def build_display_rows(chart_obj: dict) -> list[dict]:
             }
         )
     return rows
+
+
+def assert_pars_fortuna_rows(chart_obj: dict) -> dict:
+    raw = ((chart_obj.get("predictives") or {}).get("primaryDirection")) or []
+    pf_promissor_rows = [
+        pd for pd in raw
+        if len(pd) > 2 and base_direction_object_id(pd[1]) == "Pars Fortuna"
+    ]
+    pf_significator_rows = [
+        pd for pd in raw
+        if len(pd) > 2 and base_direction_object_id(pd[2]) == "Pars Fortuna"
+    ]
+    if not pf_promissor_rows:
+        raise AssertionError("主/界限法当前 chart 数据缺少 Pars Fortuna promissor rows")
+    if not pf_significator_rows:
+        raise AssertionError("主/界限法当前 chart 数据缺少 Pars Fortuna significator rows")
+    return {
+        "promissorRows": len(pf_promissor_rows),
+        "significatorRows": len(pf_significator_rows),
+        "firstPromissor": pf_promissor_rows[0],
+        "firstSignificator": pf_significator_rows[0],
+    }
 
 
 def parse_row_time(value: str) -> tuple[int, int, int, int, int, int]:
@@ -599,6 +622,7 @@ def main() -> None:
         page.screenshot(path=str(out_table_png), full_page=True)
 
         captured_chart_json = extract_primary_direction_chart_obj(page)
+        pars_fortuna_report = assert_pars_fortuna_rows(captured_chart_json)
         backend_rows = build_display_rows(captured_chart_json)[:7]
         core_rows = load_core_rows(limit=7)
 
@@ -708,6 +732,7 @@ def main() -> None:
 
     result["browser_table_first_rows"] = browser_table
     result["backend_first_rows"] = backend_rows
+    result["pars_fortuna_report"] = pars_fortuna_report
     result["core_first_rows"] = core_rows
     result["initial_pd_chart_state"] = initial_state
     result["initial_pd_chart_term_highlight"] = initial_term_highlight

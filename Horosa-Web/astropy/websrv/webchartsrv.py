@@ -44,7 +44,7 @@ from websrv.webacgsrv import AcgSrv
 
 class WebChartSrv:
     exposed = True
-    PD_SYNC_REV = 'pd_method_sync_v6'
+    PD_SYNC_REV = 'pd_method_sync_v8'
     PD_WARMUP_SAMPLE = {
         'date': '2028/04/06',
         'time': '09:33:00',

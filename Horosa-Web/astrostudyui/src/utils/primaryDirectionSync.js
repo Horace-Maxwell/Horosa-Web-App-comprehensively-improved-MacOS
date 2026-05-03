@@ -1,6 +1,6 @@
 import { randomStr, } from './helper';
 
-export const PD_SYNC_REV = 'pd_method_sync_v6';
+export const PD_SYNC_REV = 'pd_method_sync_v8';
 export const DEFAULT_PD_METHOD = 'core_alchabitius';
 export const DEFAULT_PD_TIME_KEY = 'Ptolemy';
 export const DEFAULT_PD_TYPE = 0;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Duplicate-aware validation: local Horosa PD rows vs Core dirs.csv.
+"""Duplicate-aware validation: local Horosa PD rows vs external reference dirs.csv.
 
 Matches rows on the same logical key:
     (promissor_id, significator_id, canonical_aspect)
@@ -7,9 +7,9 @@ Matches rows on the same logical key:
 Within each key bucket, rows are paired by nearest arc so repeated keys are
 preserved instead of overwritten.
 
-Core uses signed aspect keys for ordinary object significators, but its
-virtual-point significators (`Asc`, `MC`, current `sID=28`) are bucketed by
-absolute aspect only. The comparison key mirrors that behavior.
+The reference data uses signed aspect keys for ordinary object significators,
+but its virtual-point significators (`Asc`, `MC`, current `Pars Fortuna`/id 100)
+are bucketed by absolute aspect only. The comparison key mirrors that behavior.
 """
 
 from __future__ import annotations
@@ -64,13 +64,15 @@ OBJ2ID = {
     "South Node": 23,
     "Asc": 24,
     "MC": 25,
-    "Pars Fortuna": 28,
+    # The current reference dataset emits the enabled Part of Fortune as id 100.
+    # Older captures can contain sID=28, but that bucket is not the enabled PF row.
+    "Pars Fortuna": 100,
 }
 
 ID2NAME = {v: k for k, v in OBJ2ID.items()}
-ABS_ASPECT_SIG_IDS = {24, 25, 28}
+ABS_ASPECT_SIG_IDS = {24, 25, 100}
 SHARED_CORE_PROM_IDS = set(range(0, 11))
-SHARED_CORE_SIG_IDS = set(range(0, 11)) | {24, 25}
+SHARED_CORE_SIG_IDS = set(range(0, 11)) | {24, 25, 100}
 
 
 def _as_float(x: Any, default: float = float("nan")) -> float:
