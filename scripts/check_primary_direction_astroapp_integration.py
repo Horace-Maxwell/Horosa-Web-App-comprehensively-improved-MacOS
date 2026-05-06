@@ -418,6 +418,7 @@ def main() -> None:
     _assert_contains(pd_table, "Date: pd[4],")
     _assert_contains(pd_page, "applyPrimaryDirectionConfig(pdMethod, pdTimeKey)")
     _assert_contains(pd_page, "includePrimaryDirection: true")
+    _assert_contains(pd_page, "AstroConst.PARS_FORTUNA")
     _assert_contains(pd_page, "value: 0")
     _assert_contains(pd_page, "pdMethod={appliedPdMethod}")
     _assert_contains(pd_page, "pdTimeKey={appliedPdTimeKey}")
