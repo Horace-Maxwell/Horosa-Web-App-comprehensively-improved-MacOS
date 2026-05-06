@@ -44,6 +44,7 @@ const CORE_PD_SUPPORTED_BASE_IDS = new Set([
 	AstroConst.NEPTUNE,
 	AstroConst.PLUTO,
 	AstroConst.NORTH_NODE,
+	AstroConst.PARS_FORTUNA,
 	AstroConst.ASC,
 	AstroConst.MC,
 ]);
@@ -147,7 +148,13 @@ function isBoundDirectionRow(pd){
 function baseDirectionObjectId(text){
 	const parts = `${text || ''}`.split('_');
 	if(parts.length < 3){
-		return `${text || ''}`;
+		if(parts.length === 2 && (parts[0] === 'A' || parts[0] === 'C')){
+			return parts[1];
+		}
+		return `${text || ''}`.trim();
+	}
+	if(parts[0] === 'T'){
+		return `${parts[1] || ''}`.trim();
 	}
 	return parts.slice(1, parts.length - 1).join('_').trim();
 }
@@ -1005,5 +1012,5 @@ class AstroDirectMain extends Component{
 	}
 }
 
-export { AstroDirectMain, buildPrimaryDirectionFetchFields, };
+export { AstroDirectMain, buildPrimaryDirectionFetchFields, buildPrimaryDirectSnapshotText, };
 export default AstroDirectMain;

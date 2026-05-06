@@ -17,6 +17,7 @@ jest.mock('../../../utils/planetHouseInfo', ()=>({
 }));
 
 import { AstroDirectMain, } from '../AstroDirectMain';
+import { saveModuleAISnapshot, } from '../../../utils/moduleAiSnapshot';
 
 function buildFields(){
 	return {
@@ -116,6 +117,38 @@ describe('AstroDirectMain primary direction sync', ()=>{
 			pdTimeKey: 'Ptolemy',
 			fields: expect.any(Object),
 			runHook: true,
+		}));
+	});
+
+	test('primary direction AI snapshot keeps Pars Fortuna rows in Alchabitius mode', ()=>{
+		const chartObj = buildChartObj();
+		chartObj.params = {
+			...chartObj.params,
+			pdMethod: 'core_alchabitius',
+			pdTimeKey: 'Ptolemy',
+			showPdBounds: 1,
+		};
+		chartObj.predictives = {
+			primaryDirection: [
+				[12.5, 'N_Pars Fortuna_0', 'N_Mars_0', '', '2040-01-01 00:00:00'],
+				[13.5, 'N_Sun_0', 'N_Pars Fortuna_0', '', '2041-01-01 00:00:00'],
+				[14.5, 'N_Sun_0', 'N_South Node_0', '', '2042-01-01 00:00:00'],
+			],
+		};
+		const instance = new AstroDirectMain({
+			chartObj,
+			fields: buildFields(),
+		});
+
+		const text = instance.savePrimaryDirectSnapshot();
+
+		expect(text).toContain('| 12度30分 | 福点 | 火 | 2040-01-01 00:00:00 |');
+		expect(text).toContain('| 13度30分 | 日 | 福点 | 2041-01-01 00:00:00 |');
+		expect(text).not.toContain('2042-01-01 00:00:00');
+		expect(saveModuleAISnapshot).toHaveBeenCalledWith('primarydirect', expect.stringContaining('福点'), expect.objectContaining({
+			pdMethod: 'core_alchabitius',
+			pdTimeKey: 'Ptolemy',
+			showPdBounds: 1,
 		}));
 	});
 });
