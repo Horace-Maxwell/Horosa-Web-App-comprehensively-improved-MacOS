@@ -513,6 +513,21 @@ function getFieldKey(fields){
 	].join('|');
 }
 
+function getFieldSyncKey(fields){
+	if(!fields){
+		return '';
+	}
+	return [
+		getFieldKey(fields),
+		safe(fields.cid && fields.cid.value),
+		safe(fields.name && fields.name.value),
+		safe(fields.gender && fields.gender.value),
+		safe(fields.zodiacal && fields.zodiacal.value),
+		safe(fields.hsys && fields.hsys.value),
+		safe(fields.timeAlg && fields.timeAlg.value),
+	].join('|');
+}
+
 function getNongliKey(nongli){
 	if(!nongli){
 		return '';
@@ -1466,6 +1481,7 @@ class SanShiUnitedMain extends Component{
 		this.pendingRecalcPayload = null;
 		this.pendingRecalcResolvers = [];
 		this.pendingSnapshotTimer = null;
+		this.lastExternalFieldsKey = '';
 		this.taiyiCache = new Map();
 
 		this.refreshAll = this.refreshAll.bind(this);
@@ -1482,6 +1498,7 @@ class SanShiUnitedMain extends Component{
 		this.cancelPendingRecalc = this.cancelPendingRecalc.bind(this);
 		this.scheduleSnapshotSave = this.scheduleSnapshotSave.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
+		this.handleExternalFieldsSync = this.handleExternalFieldsSync.bind(this);
 		this.syncFields = this.syncFields.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.onTimeChanged = this.onTimeChanged.bind(this);
@@ -1501,17 +1518,12 @@ class SanShiUnitedMain extends Component{
 		this.handleWindowResize = this.handleWindowResize.bind(this);
 
 		if(this.props.hook){
-			this.props.hook.fun = (fields)=>{
+			this.props.hook.fun = (fields, chartObj)=>{
 				if(this.unmounted){
 					return;
 				}
 				this.restoreOptionsFromCurrentCase();
-				if(this.awaitingChartSync){
-					const activeFields = fields || this.state.localFields || this.props.fields;
-					if(activeFields){
-						this.setState({ localFields: activeFields });
-					}
-				}
+				this.handleExternalFieldsSync(fields, chartObj);
 			};
 		}
 	}
@@ -1815,6 +1827,55 @@ class SanShiUnitedMain extends Component{
 			}else{
 				this.refreshAll(nextLocalFields, true);
 			}
+		});
+	}
+
+	handleExternalFieldsSync(fields, chartObj){
+		const nextFields = fields || this.props.fields;
+		if(!nextFields){
+			return;
+		}
+		const chartKey = getOuterChartKey(chartObj || this.props.chartObj || this.props.chart || null);
+		const syncKey = `${getFieldSyncKey(nextFields)}|${chartKey}`;
+		if(syncKey && syncKey === this.lastExternalFieldsKey && !this.awaitingChartSync){
+			return;
+		}
+		this.lastExternalFieldsKey = syncKey;
+		if(this.awaitingSyncTimer){
+			clearTimeout(this.awaitingSyncTimer);
+			this.awaitingSyncTimer = null;
+		}
+		this.awaitingChartSync = false;
+		this.pendingTimeFields = null;
+		const currentOptions = this.state.options || {};
+		const nextOptions = {
+			...currentOptions,
+		};
+		const fieldGender = nextFields.gender ? nextFields.gender.value : null;
+		if(fieldGender === 0 || fieldGender === 1){
+			nextOptions.sex = fieldGender;
+		}
+		const shouldReplot = !!this.state.hasPlotted;
+		const patch = {
+			localFields: nextFields,
+			options: nextOptions,
+		};
+		if(shouldReplot){
+			patch.plottedFields = nextFields;
+			patch.loading = true;
+		}
+		this.setState(patch, ()=>{
+			this.prefetchNongliForFields(nextFields);
+			this.prefetchJieqiSeedForFields(nextFields, nextOptions);
+			if(!shouldReplot){
+				return;
+			}
+			setTimeout(()=>{
+				if(this.unmounted){
+					return;
+				}
+				this.refreshAll(nextFields, true);
+			}, 0);
 		});
 	}
 
