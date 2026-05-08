@@ -122,7 +122,7 @@ Release 页面建议使用中英文双语提示，明确告诉普通用户：
    - runtime 独立 release 中的 `horosa-runtime-macos-arm64.tar.gz`
 5. `horosa-latest.json` 必须指向同一 tag 下的版本化资产 URL
 6. Release 需要是正式版 latest，不要把预发布误当最新稳定版
-7. 发布前必须跑 `scripts/verify_desktop_packaging.sh`
+7. 发布前必须跑 `HOROSA_DESKTOP_SKIP_REBUILD=1 scripts/verify_desktop_packaging.sh`，避免验收阶段重复触发 Apple 签名与公证
 
 普通用户不需要理解其他资产，只需要下载离线 `.pkg`。轻量在线 `.pkg` 与 `DMG` 公开入口都已取消；其余 release 资产继续保留给安装器与自动更新器使用。
 
@@ -170,10 +170,13 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 ```bash
 cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Installer
 HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/build_desktop_release.sh
+HOROSA_DESKTOP_SKIP_REBUILD=1 ./scripts/verify_desktop_packaging.sh
 ./scripts/verify_public_distribution_readiness.sh
 ```
 
-这会做额外动作：
+第一条构建命令是唯一会触发 Apple 正式签名、公证与 staple 的步骤。后两条只复用已经生成的产物做验收，不再重新构建，也不再重新提交 notarization。
+
+正式构建会做额外动作：
 
 - `.app` 使用 `Developer ID Application` + hardened runtime + timestamp 签名
 - 离线 `.pkg` 使用 `Developer ID Installer` 签名
@@ -200,7 +203,7 @@ HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh
 
 这个脚本会：
 
-- 先跑一遍本地验收
+- 先以 `HOROSA_DESKTOP_SKIP_REBUILD=1` 跑一遍本地验收，复用已签名、公证、staple 的现有产物
 - 创建或更新当前版本对应的 GitHub Release
 - 覆盖上传离线 PKG、桌面 app zip、manifest 和 runtime 等发布资产
 - 轮询校验 `releases/latest/download/horosa-latest.json`

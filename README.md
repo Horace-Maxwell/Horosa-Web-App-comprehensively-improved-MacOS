@@ -15,8 +15,8 @@
 [![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
-[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.3)
-[![Runtime](https://img.shields.io/badge/runtime-1.3.3--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.3-runtime1)
+[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4)
+[![Runtime](https://img.shields.io/badge/runtime-1.3.4--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4-runtime1)
 [![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY.md)
 [![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT.md)
 [![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
@@ -27,12 +27,12 @@
 [![Read In English](https://img.shields.io/badge/Read%20In-English-0f766e?labelColor=52525b)](README_EN.md)
 [![查看中文版](https://img.shields.io/badge/查看-中文版-0f766e?labelColor=52525b)](README_ZH.md)
 
-[中文完整版](README_ZH.md) | [English Guide](README_EN.md) | [Latest Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest) | [v1.3.3 版本页面](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.3) | [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
+[中文完整版](README_ZH.md) | [English Guide](README_EN.md) | [Latest Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest) | [v1.3.4 版本页面](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4) | [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 <p>Horosa on macOS is delivered as a signed, notarized, offline-ready desktop product for cross-tradition analysis.</p>
 <p>macOS 版 Horosa 以签名、公证、离线可安装的正式桌面产品形态交付，用来承载跨传统的术数分析工作流。</p>
-<p><strong>Current release train / 当前发布线：v1.3.3</strong></p>
-<p><strong>Release focus / 本次重点：</strong><code>v1.3.3</code> restores Sanshi United chart-list reselection so a second saved chart syncs the right-side input panel and recalculates automatically across web and app.</p>
+<p><strong>Current release train / 当前发布线：v1.3.4</strong></p>
+<p><strong>Release focus / 本次重点：</strong><code>v1.3.4</code> fixes Qimen Tianpan stem flying so Dun Jia and Sanshi United update the heavenly stems correctly as the selected time changes across web and app.</p>
 <p><strong>Licensing note / 许可证说明：</strong>the public repository now ships under <code>AGPL-3.0</code> because the released stack integrates Swiss Ephemeris / <code>pyswisseph</code>; upstream third-party subdirectories keep their own original notices.</p>
 
 </div>
@@ -225,7 +225,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <strong>English</strong><br /><br />
       <a href="README_EN.md">README_EN.md</a>: full English guide<br />
       <a href="README_ZH.md">README_ZH.md</a>: Chinese full guide<br />
-      <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.3">v1.3.3 release page</a><br />
+      <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4">v1.3.4 release page</a><br />
       <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases">All releases</a><br />
       <a href="Horosa_Desktop_Installer/README.md">Installer internals</a>
     </td>
@@ -233,7 +233,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <strong>中文</strong><br /><br />
       <a href="README_ZH.md">README_ZH.md</a>：中文完整说明<br />
       <a href="README_EN.md">README_EN.md</a>：英文完整说明<br />
-      <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.3">v1.3.3 版本页面</a><br />
+      <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4">v1.3.4 版本页面</a><br />
       <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases">所有 Release</a><br />
       <a href="Horosa_Desktop_Installer/README.md">安装器内部说明</a>
     </td>
@@ -249,7 +249,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <strong>English</strong><br /><br />
       Understand the public-facing repository layout: <a href="README.md">README.md</a><br />
       Inspect installer internals and publishing flow: <a href="Horosa_Desktop_Installer/README.md">Horosa_Desktop_Installer/README.md</a><br />
-      Read the current version release page: <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.3">v1.3.3</a><br />
+      Read the current version release page: <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4">v1.3.4</a><br />
       Enter the application source tree: <code>Horosa-Web/</code><br />
       Inspect runtime and diagnostics: <code>runtime/</code>, <code>diagnostics/</code>
     </td>
@@ -257,7 +257,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <strong>中文</strong><br /><br />
       理解首页与用户入口：<a href="README.md">README.md</a><br />
       查看安装器与发布链路：<a href="Horosa_Desktop_Installer/README.md">Horosa_Desktop_Installer/README.md</a><br />
-      阅读当前版本页面：<a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.3">v1.3.3</a><br />
+      阅读当前版本页面：<a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4">v1.3.4</a><br />
       进入主工程源码：<code>Horosa-Web/</code><br />
       查看运行时与诊断：<code>runtime/</code>、<code>diagnostics/</code>
     </td>
