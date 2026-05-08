@@ -134,4 +134,49 @@ describe('SanShiUnitedMain chart-list synchronization', ()=>{
 		expect(component.state.plottedFields).toBe(null);
 		expect(component.refreshAll).not.toHaveBeenCalled();
 	});
+
+	it('uses the shared DunJia calculation for Sanshi qimen tianpan stems', ()=>{
+		const fields = buildFields('qimen-sample', 'Qimen Sample', '1998-02-20 20:48:00', '119e19', '26n04');
+		const component = mountLike(new SanShiUnitedMain({
+			fields,
+			chartObj: buildChart('qimen-sample'),
+			hook: {},
+		}));
+		const nongli = {
+			yearJieqi: '戊寅',
+			year: '戊寅',
+			monthGanZi: '甲寅',
+			dayGanZi: '戊戌',
+			time: '壬戌',
+			jieqi: '雨水',
+			jiedelta: '雨水后第1天',
+			birth: '1998-02-20 20:48:00',
+			month: '正月',
+			day: '廿四',
+			leap: false,
+		};
+		const pan = component.getCachedDunJia(fields, nongli, {
+			paiPanType: 3,
+			qijuMethod: 'chaibu',
+			zhiShiType: 0,
+			yueJiaQiJuType: 1,
+			kongMode: 'time',
+			yimaMode: 'time',
+			timeAlg: 1,
+			shiftPalace: 0,
+			fengJu: false,
+			after23NewDay: 1,
+		}, 1998, true);
+		expect(pan.juText).toEqual('阳遁九局上元');
+		expect(pan.tianGan).toMatchObject({
+			1: '庚',
+			2: '丙',
+			3: '丁',
+			4: '戊',
+			6: '己',
+			7: '壬',
+			8: '辛',
+			9: '乙',
+		});
+	});
 });
