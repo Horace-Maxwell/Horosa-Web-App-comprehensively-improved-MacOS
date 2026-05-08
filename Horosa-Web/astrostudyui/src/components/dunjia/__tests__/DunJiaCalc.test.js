@@ -45,6 +45,14 @@ function makeOptions(extra = {}){
 	};
 }
 
+function pickMap(mapObj){
+	const out = {};
+	[1, 2, 3, 4, 6, 7, 8, 9].forEach((key)=>{
+		out[key] = mapObj[key];
+	});
+	return out;
+}
+
 describe('DunJiaCalc options', ()=>{
 	test('paiPanType(年/月/日/时) produces different juText', ()=>{
 		const fields = makeFields('2026-02-17', '21:50:07');
@@ -142,5 +150,69 @@ describe('DunJiaCalc options', ()=>{
 		const panTrad = calcDunJia(fields, { ...base, jieqi: '驚蟄' }, makeOptions({ qijuMethod: 'chaibu' }), {});
 		expect(panTrad.juText).toEqual(panSimple.juText);
 		expect(panTrad.zhiShi).toEqual(panSimple.zhiShi);
+	});
+
+	test('天盘奇仪应随时干飞布，匹配旧版遁甲样本', ()=>{
+		const fields = makeFields('1998-02-20', '20:48:00');
+		const nongli = {
+			yearJieqi: '戊寅',
+			year: '戊寅',
+			monthGanZi: '甲寅',
+			dayGanZi: '戊戌',
+			time: '壬戌',
+			jieqi: '雨水',
+			jiedelta: '雨水后第1天',
+			birth: '1998-02-20 20:48:00',
+			month: '正月',
+			day: '廿四',
+			leap: false,
+		};
+		const pan = calcDunJia(fields, nongli, makeOptions({
+			qijuMethod: 'chaibu',
+			timeAlg: 1,
+		}), {});
+		expect(pan.juText).toEqual('阳遁九局上元');
+		expect(pickMap(pan.tianGan)).toEqual({
+			1: '庚',
+			2: '丙',
+			3: '丁',
+			4: '戊',
+			6: '己',
+			7: '壬',
+			8: '辛',
+			9: '乙',
+		});
+		expect(pickMap(pan.diPan)).toEqual({
+			1: '壬',
+			2: '戊',
+			3: '庚',
+			4: '辛',
+			6: '丙',
+			7: '乙',
+			8: '己',
+			9: '丁',
+		});
+		expect(pickMap(pan.renPan)).toEqual({
+			1: '死',
+			2: '惊',
+			3: '开',
+			4: '景',
+			6: '休',
+			7: '杜',
+			8: '伤',
+			9: '生',
+		});
+		expect(pickMap(pan.shenPan)).toEqual({
+			1: '符',
+			2: '蛇',
+			3: '阴',
+			4: '天',
+			6: '合',
+			7: '地',
+			8: '玄',
+			9: '虎',
+		});
+		expect(pan.zhiFu).toEqual('天禽');
+		expect(pan.zhiShi).toEqual('死门');
 	});
 });

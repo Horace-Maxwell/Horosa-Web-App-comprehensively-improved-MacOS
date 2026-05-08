@@ -176,7 +176,9 @@ if platform.get('runtimeSha256') != expected_runtime_sha:
 PY
 
 if [ "${HOROSA_SKIP_VERIFY:-0}" != "1" ]; then
-  "${INSTALLER_ROOT}/scripts/verify_desktop_packaging.sh"
+  # Publishing must not rebuild public assets: build_desktop_release.sh is the
+  # single place that signs, notarizes, and staples Apple distribution payloads.
+  HOROSA_DESKTOP_SKIP_REBUILD=1 "${INSTALLER_ROOT}/scripts/verify_desktop_packaging.sh"
 fi
 
 if [ "${HOROSA_REQUIRE_SIGNED_PUBLIC_RELEASE:-${HOROSA_PUBLIC_DISTRIBUTION:-0}}" = "1" ]; then
@@ -212,8 +214,8 @@ sections = [
     "",
     "## 当前版本亮点 / Release Highlights",
     f"- 当前发布版本 / Current release: `{tag_name}`",
-    f"- `{tag_name}` 修复三式合一从星盘列表二次切换命盘时右侧输入栏不同步的问题，确保新命盘会自动带入并重新起盘。",
-    f"- `{tag_name}` restores Sanshi United chart-list reselection so a second saved chart syncs the right-side input panel and recalculates automatically across Web and App.",
+    f"- `{tag_name}` 修复遁甲天盘奇仪随时辰飞布的问题，确保遁甲单盘、三式合一与 AI 导出在 Web 和 App 中使用同一套正确结果。",
+    f"- `{tag_name}` fixes Qimen Tianpan stem flying so Dun Jia, Sanshi United, and AI exports use the same time-sensitive result across Web and App.",
     "- `AI分析 / AIAnalysis` 已进入正式发布线，包含流式分析、历史、资料、模版、组合、备份与 provider 诊断。",
     "- `AIAnalysis` now ships on the public release line with streaming analysis, history, materials, templates, bundles, backups, and provider diagnostics.",
     "- Web 与 App 继续共用同一套主前端，并维持各自运行态验证。",
