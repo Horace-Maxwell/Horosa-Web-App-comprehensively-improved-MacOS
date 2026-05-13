@@ -205,6 +205,6 @@ If you maintain this stack, start with the path that matches your goal:
 
 ## Acknowledgements
 
-This project is an improved desktop distribution and productized continuation inspired by the 星阙 Horosa App and Web work released by Xun Shuang / Herakleios.
+This macOS edition is an improved distribution and integration work based on the Horosa App and Web released by Horosa-荀爽（Herakleios）. The lineage matters: Horosa was originally created by 郑大哥, with auxiliary design work from 荀爽（Herakleios）, and their public release made later study, maintenance, and extension possible.
 
-We also respectfully acknowledge Zheng dage, whose original creation, long-running maintenance, and public Horosa work made this lineage possible. Please do not forget the contributions of Shuang ge and Zheng dage.
+Please do not forget the contributions of 爽哥 and 郑大哥. This repository continues from their groundwork with respect, gratitude, and the hope that Horosa can remain useful to more people over time.
