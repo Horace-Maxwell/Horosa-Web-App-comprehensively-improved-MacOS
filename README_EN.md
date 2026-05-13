@@ -202,3 +202,9 @@ If you maintain this stack, start with the path that matches your goal:
 - read the current version release page: [GitHub Release v1.3.4](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4)
 - enter the application source tree: `Horosa-Web/`
 - inspect shared runtime and diagnostics: `runtime/` and `diagnostics/`
+
+## Acknowledgements
+
+This project is an improved desktop distribution and productized continuation inspired by the 星阙 Horosa App and Web work released by Xun Shuang / Herakleios.
+
+We also respectfully acknowledge Zheng dage, whose original creation, long-running maintenance, and public Horosa work made this lineage possible. Please do not forget the contributions of Shuang ge and Zheng dage.
