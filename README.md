@@ -268,15 +268,10 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
 
 ## Acknowledgements / 致谢
 
-<table>
-  <tr>
-    <td width="50%">
-      <strong>English</strong><br /><br />
-      This project is an improved desktop distribution and productized continuation inspired by the 星阙 Horosa App and Web work released by Xun Shuang / Herakleios. We also respectfully acknowledge Zheng dage, whose original creation and long-running public work made the Horosa lineage possible. Please do not forget the contributions of Shuang ge and Zheng dage.
-    </td>
-    <td width="50%">
-      <strong>中文</strong><br /><br />
-      本项目为参考星阙 Horosa - 荀爽（Herakleios）所发布的星阙 App 和 Web，改良制作而成。也郑重感谢郑大哥对原星阙体系的创建与长期公开贡献。请不要忘记爽哥和郑大哥的贡献。
-    </td>
-  </tr>
-</table>
+本项目为参考星阙 Horosa-荀爽（Herakleios）所发布的星阙 App 和 Web，并在 macOS 交付、运行时打包、功能整合与使用体验上继续改良制作。源流不可忘：星阙 Horosa 最早由郑大哥一手创建，荀爽（Herakleios）曾参与辅助设计，并将相关 App 与 Web 版本公开出来供后来者研究、学习与延展。
+
+请不要忘记爽哥和郑大哥的贡献。这个 macOS 版本的继续整理与发布，建立在前人已经搭起的星阙体系、术数工作流和公开分享精神之上。也感谢所有持续测试、反馈、修复和推动 Horosa 变得更完整的人。
+
+This macOS edition is an improved distribution and integration work based on the Horosa App and Web released by Horosa-荀爽（Herakleios）. The lineage matters: Horosa was originally created by 郑大哥, with auxiliary design work from 荀爽（Herakleios）, and their public release made later study, maintenance, and extension possible.
+
+Please do not forget the contributions of 爽哥 and 郑大哥. This repository continues from their groundwork with respect, gratitude, and the hope that Horosa can remain useful to more people over time.
