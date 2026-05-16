@@ -76,6 +76,22 @@ export default class AstroChartCircle {
 			});
 		}
 	}
+
+	solidifyText(root){
+		root.selectAll('text').each(function(){
+			let text = d3.select(this);
+			let fill = text.attr('fill');
+			let stroke = text.attr('stroke');
+			if(!fill || fill === 'none'){
+				fill = stroke && stroke !== 'none' ? stroke : AstroConst.AstroColor.Stroke;
+			}
+			text.attr('fill', fill)
+				.attr('stroke', 'none')
+				.attr('stroke-width', 0)
+				.attr('paint-order', 'fill')
+				.style('-webkit-text-stroke', '0px transparent');
+		});
+	}
 	
 	genTooltipObj(infoObj, name){
 		if(this.divTooltip === undefined || this.divTooltip === null){
@@ -1391,6 +1407,7 @@ export default class AstroChartCircle {
 		}else{
 			this.drawBirthInfo(svg, this.ChartMargin, chartObj, chartid);
 		}
+		this.solidifyText(svg);
 	
 	}
 	
@@ -1419,6 +1436,7 @@ export default class AstroChartCircle {
 	
 		let txtsu28 = (flags & AstroConst.CHART_SU28_TEXT) === 0 ? false : true;
 		let chartres = this.drawInnerChartWithOrgXY(topgroup, chartObj, orgx, orgy, houseR, rStep, flags, planetDisplay, txtsu28, keyplanets);
+		this.solidifyText(svg);
 		let resobj = {
 			svg: svg,
 			chart: chartres,
@@ -1712,6 +1730,7 @@ export default class AstroChartCircle {
 		let lat = chartObj.dirChart.pos ? chartObj.dirChart.pos.lat : null;
 		let lon = chartObj.dirChart.pos ? chartObj.dirChart.pos.lon : null;
 		this.drawOutterChartInfo(svg, this.ChartMargin, width, chartObj.dirChart.date, lat, lon, chartObj.inverse);
+		this.solidifyText(svg);
 	
 		return svg;
 	}
