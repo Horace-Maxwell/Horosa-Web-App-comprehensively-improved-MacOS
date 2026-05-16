@@ -1642,6 +1642,7 @@
     .horosa-workspace-shell .xq-chart-renderer-hellen,
     .horosa-workspace-shell .xq-chart-renderer-germany,
     .horosa-workspace-shell .xq-chart-renderer-locastro,
+    .horosa-workspace-shell .xq-chart-renderer-3d,
     .horosa-workspace-shell .xq-chart-renderer-dice {
         background:
             radial-gradient(circle at 50% 10%, var(--horosa-gold-soft), transparent 24%),
@@ -1661,6 +1662,7 @@
     :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-hellen,
     :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-germany,
     :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-locastro,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-3d,
     :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-dice {
         background:
             radial-gradient(circle at 50% 8%, rgba(216, 173, 99, 0.11), transparent 28%),
@@ -1680,10 +1682,160 @@
     .horosa-workspace-shell .xq-chart-renderer-hellen .ant-card,
     .horosa-workspace-shell .xq-chart-renderer-germany .ant-card,
     .horosa-workspace-shell .xq-chart-renderer-locastro .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-3d .ant-card,
     .horosa-workspace-shell .xq-chart-renderer-dice .ant-card {
         background:
             linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent),
             var(--horosa-panel-soft);
+    }
+
+    .horosa-workspace-shell .horosa-3d-page {
+        display: grid;
+        grid-template-columns: minmax(640px, 1fr) 360px;
+        gap: 10px;
+        height: 100%;
+        min-width: 980px;
+        min-height: 0;
+        padding: 8px;
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-3d-stage,
+    .horosa-workspace-shell .horosa-3d-side {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-3d-stage {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        padding: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-3d-stage-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0 2px 10px;
+    }
+
+    .horosa-workspace-shell .horosa-3d-eyebrow {
+        color: var(--horosa-accent-strong);
+        font-size: 12px;
+        font-weight: 720;
+        line-height: 1.2;
+    }
+
+    .horosa-workspace-shell .horosa-3d-title {
+        color: var(--horosa-text);
+        font-size: 18px;
+        font-weight: 760;
+        line-height: 1.3;
+    }
+
+    .horosa-workspace-shell .horosa-3d-hint {
+        color: var(--horosa-muted);
+        font-size: 12px;
+        line-height: 1.4;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-3d-canvas-wrap {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background:
+            radial-gradient(circle at 50% 44%, rgba(47, 125, 241, 0.10), transparent 35%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.26), transparent 58%),
+            var(--horosa-surface-solid);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-3d-canvas-wrap {
+        background:
+            radial-gradient(circle at 50% 44%, rgba(34, 211, 238, 0.11), transparent 36%),
+            linear-gradient(180deg, rgba(34, 211, 238, 0.035), transparent 58%),
+            var(--horosa-surface-solid);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .horosa-workspace-shell .horosa-3d-canvas-wrap > div {
+        border-radius: inherit;
+    }
+
+    .horosa-workspace-shell .horosa-3d-side {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-3d-time {
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--horosa-border);
+    }
+
+    .horosa-workspace-shell .horosa-3d-time .ant-select,
+    .horosa-workspace-shell .horosa-3d-time .ant-input,
+    .horosa-workspace-shell .horosa-3d-time .ant-picker,
+    .horosa-workspace-shell .horosa-3d-time button {
+        border-radius: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-3d-control-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-3d-control-grid .xq-select {
+        width: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-3d-geo {
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 8px;
+        background: var(--horosa-panel-soft);
+    }
+
+    .horosa-workspace-shell .horosa-3d-geo span:last-child {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--horosa-text-soft);
+        font-size: 12px;
+        text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-3d-tabs {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-3d-tabs > .ant-tabs-nav {
+        margin-bottom: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-3d-tabs .ant-tabs-content-holder,
+    .horosa-workspace-shell .horosa-3d-tabs .ant-tabs-content,
+    .horosa-workspace-shell .horosa-3d-tabs .ant-tabs-tabpane {
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-3d-tabs .ant-tabs-content-holder {
+        overflow: auto;
+        border: 1px solid var(--horosa-border);
+        border-radius: 8px;
+        background: var(--horosa-panel-soft);
     }
 
     .horosa-workspace-shell .horosa-liureng-page,

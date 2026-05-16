@@ -1,5 +1,4 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select, Button } from 'antd';
 import AstroChart3D from './AstroChart3D';
 import AstroInfo from '../astro/AstroInfo';
 import AstroAspect from '../astro/AstroAspect';
@@ -10,9 +9,17 @@ import DateTime from '../comp/DateTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import { getHousesOption } from '../comp/CompHelper'
+import {
+	XQButton,
+	XQPanel,
+	XQSectionTitle,
+	XQSelect,
+	XQTabs,
+	XQToolbar,
+} from '../xq-ui';
 
-const TabPane = Tabs.TabPane;
-const Option = Select.Option;
+const TabPane = XQTabs.TabPane;
+const Option = XQSelect.Option;
 
 class AstroChartMain3D extends Component{
 
@@ -103,7 +110,8 @@ class AstroChartMain3D extends Component{
 		}	
 
 		let height = this.props.height ? this.props.height : 760;
-		let tabHeight = height - 100;
+		let chartHeight = Math.max(360, height - 28);
+		let tabHeight = height - 252;
 
 		let showzodical = true;
 		let showhsys = true;
@@ -118,7 +126,7 @@ class AstroChartMain3D extends Component{
 		}
 		if(this.props.hidedateselector){
 			showdateselector = false;
-			tabHeight = tabHeight + 100;
+			tabHeight = tabHeight + 112;
 		}
 		if(this.props.hidelots){
 			showlots = false;
@@ -134,137 +142,121 @@ class AstroChartMain3D extends Component{
 		}
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={17}>
+			<div className="horosa-3d-page xq-chart-renderer xq-chart-renderer-3d">
+				<XQPanel className="horosa-3d-stage">
+					<div className="horosa-3d-stage-title">
+						<div>
+							<div className="horosa-3d-eyebrow">三维天球</div>
+							<div className="horosa-3d-title">3D 星盘</div>
+						</div>
+						<div className="horosa-3d-hint">双击画布进入或退出全屏</div>
+					</div>
+					<div className="horosa-3d-canvas-wrap">
 						<AstroChart3D 
 							value={chartObj} 
 							fields={this.props.fields}
 							chartDisplay={this.props.chartDisplay}
 							planetDisplay={this.props.planetDisplay}
 							lotsDisplay={this.props.lotsDisplay}
-							height={height}
+							height={chartHeight}
 							needChart3D={needChart3D}
-						/>	
-					</Col>
-					<Col span={7}>
-						<Row gutter={0}>
-							{
-								showdateselector && (
-									<Col span={24}>
-										<PlusMinusTime value={dt} onChange={this.changeTime} />
-									</Col>	
-								)
-							}
-							{
-								showzodical && (
-									<Col span={7}>
-										<Select 
-											style={{width: '100%'}}
-											onChange={this.changeZodiacal}
-											value={this.props.fields.zodiacal.value} size='small'>
-											<Option value={0}>回归黄道</Option>
-											<Option value={1}>恒星黄道</Option>
-										</Select>
-									</Col>
-	
-								)
-							}
-							{
-								showhsys && (
-									<Col span={10}>
-										<Select style={{width: '100%'}}
-											onChange={this.changeHsys}
-											value={this.props.fields.hsys.value} 
-											size='small'>
-											{ getHousesOption() }
-										</Select>
-									</Col>	
-								)
-							}
-							{
-								showhsys && (
-									<Col span={7}>
-										<Select style={{width: '100%'}}
-											onChange={this.changeSouthChart}
-											value={this.props.fields.southchart.value} 
-											size='small'>
-											<Option value={0}>天文星座</Option>
-											<Option value={1}>涵义星座</Option>
-										</Select>
-									</Col>	
-								)
-							}
-							{
-								indiahsys && (
-									<Col span={24}>
-										<Select style={{width:196}}
-											onChange={this.changeHsys}
-											value={this.props.fields.hsys.value} 
-											size='small'>
-											<Option value={0}>整宫制</Option>
-											<Option value={5}>Vehlow Equal</Option>
-										</Select>
-									</Col>	
-								)
-							}
-							{
-								showdateselector && (
-									<Col span={24}>
-										<Row>
-										<Col span={8}>
-											<GeoCoordModal 
-												onOk={this.changeGeo}
-												lat={this.props.fields.gpsLat.value} lng={this.props.fields.gpsLon.value}
-											>
-												<Button size='small' style={{width:'100%'}}>经纬度选择</Button>
-											</GeoCoordModal>
-										</Col>
-										<Col span={16} style={{textAlign: 'center'}}>
-											<span style={{width:'100%'}}>{this.props.fields.lon.value + ' ' + this.props.fields.lat.value}</span>
-										</Col>
-										</Row>
-									</Col>
-								)
-							}
-						</Row>
-						<Tabs defaultActiveKey="1" tabPosition='top'>
-								<TabPane tab="信息" key="1">
-									<AstroInfo height={tabHeight}
-										value={chartObj} fields={fields}
-										planetDisplay={this.props.planetDisplay}
-										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
-								</TabPane>
-								<TabPane tab="相位" key="2">
-									<AstroAspect 
-										value={chartObj} height={tabHeight}
-										lotsDisplay={this.props.lotsDisplay}
-										planetDisplay={this.props.planetDisplay}
-										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
-								</TabPane>
-								<TabPane tab="行星" key="3">
-									<AstroPlanet
-										value={chartObj}
-										height={tabHeight}
-										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
-								</TabPane>
-								{
-									showlots && (
-										<TabPane tab="希腊点" key="4">
-											<AstroLots value={chartObj} height={tabHeight} showAstroMeaning={this.props.showAstroMeaning}/>
-										</TabPane>	
-									)
-								}
-						</Tabs>
-					</Col>
-				</Row>
-
+						/>
+					</div>
+				</XQPanel>
+				<XQPanel className="horosa-3d-side">
+					{showdateselector ? (
+						<div className="horosa-3d-time">
+							<XQSectionTitle>时间</XQSectionTitle>
+							<PlusMinusTime value={dt} onChange={this.changeTime} />
+						</div>
+					) : null}
+					<XQSectionTitle>盘面参数</XQSectionTitle>
+					<div className="horosa-3d-control-grid">
+						{showzodical ? (
+							<XQSelect
+								onChange={this.changeZodiacal}
+								value={this.props.fields.zodiacal.value}
+								size='small'
+							>
+								<Option value={0}>回归黄道</Option>
+								<Option value={1}>恒星黄道</Option>
+							</XQSelect>
+						) : null}
+						{showhsys ? (
+							<XQSelect
+								onChange={this.changeHsys}
+								value={this.props.fields.hsys.value}
+								size='small'
+							>
+								{ getHousesOption() }
+							</XQSelect>
+						) : null}
+						{showhsys ? (
+							<XQSelect
+								onChange={this.changeSouthChart}
+								value={this.props.fields.southchart.value}
+								size='small'
+							>
+								<Option value={0}>天文星座</Option>
+								<Option value={1}>涵义星座</Option>
+							</XQSelect>
+						) : null}
+						{indiahsys ? (
+							<XQSelect
+								onChange={this.changeHsys}
+								value={this.props.fields.hsys.value}
+								size='small'
+							>
+								<Option value={0}>整宫制</Option>
+								<Option value={5}>Vehlow Equal</Option>
+							</XQSelect>
+						) : null}
+					</div>
+					{showdateselector ? (
+						<XQToolbar className="horosa-3d-geo">
+							<GeoCoordModal
+								onOk={this.changeGeo}
+								lat={this.props.fields.gpsLat.value}
+								lng={this.props.fields.gpsLon.value}
+							>
+								<XQButton size='small' iconName="locastro">经纬度选择</XQButton>
+							</GeoCoordModal>
+							<span>{this.props.fields.lon.value + ' ' + this.props.fields.lat.value}</span>
+						</XQToolbar>
+					) : null}
+					<XQTabs defaultActiveKey="1" tabPosition='top' className="horosa-3d-tabs">
+						<TabPane tab="信息" key="1">
+							<AstroInfo height={tabHeight}
+								value={chartObj} fields={fields}
+								planetDisplay={this.props.planetDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+						</TabPane>
+						<TabPane tab="相位" key="2">
+							<AstroAspect
+								value={chartObj} height={tabHeight}
+								lotsDisplay={this.props.lotsDisplay}
+								planetDisplay={this.props.planetDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+						</TabPane>
+						<TabPane tab="行星" key="3">
+							<AstroPlanet
+								value={chartObj}
+								height={tabHeight}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+						</TabPane>
+						{showlots ? (
+							<TabPane tab="希腊点" key="4">
+								<AstroLots value={chartObj} height={tabHeight} showAstroMeaning={this.props.showAstroMeaning}/>
+							</TabPane>
+						) : null}
+					</XQTabs>
+				</XQPanel>
 			</div>
 		);
 	}

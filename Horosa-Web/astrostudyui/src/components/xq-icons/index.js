@@ -81,6 +81,12 @@ const iconMap = {
 			<path {...lineProps} d="M16 4.2v2.2M20.2 8.4H18M18.8 5.6l-1.6 1.6" />
 		</Svg>
 	),
+	locastro: (
+		<Svg>
+			<path {...lineProps} d="M12 20.2s6-5.1 6-10.1A6 6 0 0 0 6 10.1c0 5 6 10.1 6 10.1z" />
+			<circle {...lineProps} cx="12" cy="10.1" r="2.3" />
+		</Svg>
+	),
 	user: (
 		<Svg>
 			<circle {...lineProps} cx="12" cy="8.6" r="3.3" />
