@@ -165,7 +165,7 @@ class EditableTags extends Component{
 				}
 				{
 					editable && !inputVisible && (
-						<Tag key={randomStr(8)} onClick={this.showInput} style={{ background: '#fff', borderStyle: 'dashed' }}>
+						<Tag key={randomStr(8)} onClick={this.showInput} style={{ background: 'var(--horosa-panel-bg, #fff)', borderStyle: 'dashed' }}>
 							<PlusOutlined /> {this.props.newTagLabel}
 						</Tag>
 					)

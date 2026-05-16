@@ -189,7 +189,13 @@ class GuaZhanMain extends Component{
 		this.unmounted = false;
 		this.lastRestoredCaseId = null;
 		this.timeHook = {};
-		this.genColor = [AstroConst.AstroColor.Stroke, '#a01306', '#948e33', '#7b5cbc', '#0b0e66'];
+		this.genColor = [
+			AstroConst.AstroColor.Stroke,
+			AstroConst.AstroColor.Mars || '#a01306',
+			AstroConst.AstroColor.MC || '#948e33',
+			AstroConst.AstroColor['Purple Clouds'] || '#7b5cbc',
+			AstroConst.AstroColor.Jupiter || '#0b0e66',
+		];
 		this.colorIndex = 0;
 		this.periodTask = null;
 		this.guaPeriodTask = null;

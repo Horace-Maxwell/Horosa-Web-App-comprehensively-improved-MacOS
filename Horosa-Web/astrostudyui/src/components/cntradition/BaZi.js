@@ -445,14 +445,14 @@ class BaZi extends Component{
 		let bazi = this.state.result ? this.state.result.bazi : {};
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={13}>
+			<div className="horosa-bazi-page">
+				<Row gutter={12} className="horosa-bazi-layout">
+					<Col span={15} className="horosa-bazi-chart-panel">
 						<PaiBaZi value={bazi} height={height+140} fields={this.props.fields} baziOpt={this.state.baziOpt} />
 					</Col>
-					<Col span={11}>
+					<Col span={9} className="horosa-bazi-inspector-panel">
 						<Row>
-							<Col span={24}>
+							<Col span={24} className="horosa-bazi-input-panel">
 								<CnTraditionInput 
 									fields={this.props.fields} 
 									baziOpt={this.state.baziOpt}
@@ -460,8 +460,8 @@ class BaZi extends Component{
 									onBaziOptChange={this.onBaziOptChange}
 								/>
 							</Col>
-							<Col span={24}>
-								<Tabs defaultActiveKey="0" tabPosition='top'>
+							<Col span={24} className="horosa-bazi-analysis-panel">
+								<Tabs defaultActiveKey="0" tabPosition='top' className="horosa-bazi-tabs">
 									<TabPane tab="行运概略" key="0">
 										<MainDirectionSimple value={bazi} height={tabHeight} />
 									</TabPane>

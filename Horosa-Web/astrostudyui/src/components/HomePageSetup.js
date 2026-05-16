@@ -4,20 +4,20 @@ import { ColorTheme, ReaderThemeKey, } from '../constants/ReaderConst';
 import { HomePageKey, } from '../utils/constants';
 
 const Pages = [{
-	path: ['1'],
+	path: ['astrochart'],
 	label: '星盘',
-	key: '1',
+	key: 'astrochart',
 },{
 	path: ['guolao'],
 	label: '七政四余',
 	key: 'guolao',
 },{
-	path: ['cntradition', 'bazi'],
+	path: ['bazi'],
 	label: '八字',
 	key: 'bazi',
 },{
-	path: ['cntradition', 'ziwei'],
-	label: '紫微斗数',
+	path: ['ziwei'],
+	label: '紫微',
 	key: 'ziwei',
 },{
 	path: ['astroreader'],

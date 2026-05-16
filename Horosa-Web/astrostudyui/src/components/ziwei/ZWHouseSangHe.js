@@ -154,7 +154,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let gzdata = [];
 		gzdata[0] = this.houseObj.ganzi.substr(0,1);
 		gzdata[1] = this.houseObj.ganzi.substr(1,1);
-		let gzsvg = GraphHelper.drawTextV(container.append('g'), gzdata, titleX, titleY, titleW/2, titleH, this.margin, '#948e33', 100);
+		let gzsvg = GraphHelper.drawTextV(container.append('g'), gzdata, titleX, titleY, titleW/2, titleH, this.margin, 'var(--horosa-gold, #948e33)', 100);
 		let gztip = ZWCont.NaYin[this.houseObj.ganzi];
 		if(gztip){
 			let tipobj = {
@@ -166,7 +166,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 
 		data[0] = this.houseObj.name.substr(0,1);
 		data[1] = this.houseObj.name.substr(1,1);
-		let housesvg = GraphHelper.drawTextV(container.append('g'), data, titleX+titleW/2, titleY, titleW/2, titleH, this.margin, '#0b0e66', 200);
+		let housesvg = GraphHelper.drawTextV(container.append('g'), data, titleX+titleW/2, titleY, titleW/2, titleH, this.margin, 'var(--horosa-accent-strong, #0b0e66)', 200);
 		let tip = this.ZWRules.RuleHouses[this.houseObj.name];
 		if(tip){
 			let tipobj = {

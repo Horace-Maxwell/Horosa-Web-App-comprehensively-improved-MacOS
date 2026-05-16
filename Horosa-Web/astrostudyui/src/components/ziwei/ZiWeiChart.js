@@ -84,11 +84,13 @@ class ZiWeiChart extends Component{
 		if(divTooltip){
 			setupFloatingTooltip(divTooltip, {
 				width: '460px',
-				padding: '2px',
+				padding: '8px 10px',
 				font: '13px sans-serif',
-				background: 'lightsteelblue',
-				border: '0px',
+				background: 'var(--horosa-surface-raised, lightsteelblue)',
+				color: 'var(--horosa-text, #182235)',
+				border: '1px solid var(--horosa-border, transparent)',
 				'border-radius': '8px',
+				'box-shadow': '0 10px 28px rgba(0,0,0,0.18)',
 			});
 		}
 	}

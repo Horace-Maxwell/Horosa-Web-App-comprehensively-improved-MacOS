@@ -113,7 +113,7 @@ class ZWChart {
 		let svgid = '#' + this.chartId;
 		this.svg = d3.select(svgid);
 		this.svg.html('');
-		this.svg.attr('stroke', '#000000').attr("stroke-width", 1);
+		this.svg.attr('stroke', 'var(--horosa-border-strong, #000000)').attr("stroke-width", 1);
 	
 		this.svgTopgroup = this.svg.append('g');
 		let x = this.margin;

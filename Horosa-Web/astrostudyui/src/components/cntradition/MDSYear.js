@@ -11,7 +11,7 @@ class MDSYear extends Component{
 			
 		};
 
-		this.background = '#66FFFF';
+		this.background = 'var(--horosa-bazi-year-bg, #66FFFF)';
 
 		this.genGong12GodDom = this.genGong12GodDom.bind(this);
 
@@ -59,6 +59,7 @@ class MDSYear extends Component{
 			padding: 5,
 			margin: 2,
 			width: '100%',
+			color: 'var(--horosa-text)',
 		};
 		let futureStyle={
 			textAlign: 'center',
@@ -67,6 +68,7 @@ class MDSYear extends Component{
 			margin: 2,
 			width: '100%',
 			background: this.background,
+			color: 'var(--horosa-text)',
 		};
 
 		let subdoms = subs.map((sub, idx)=>{
@@ -90,7 +92,7 @@ class MDSYear extends Component{
 					content={condom}
 				>
 					<Row key={randomStr(8)} style={{width: '100%'}}>
-						<Col span={24} style={yStyle}>
+						<Col span={24} className={y >= now.year ? 'horosa-bazi-year-cell horosa-bazi-year-cell-future' : 'horosa-bazi-year-cell'} style={yStyle}>
 							<span>{sub.ganzi}</span>
 						</Col>
 					</Row>
@@ -108,5 +110,3 @@ class MDSYear extends Component{
 }
 
 export default MDSYear;
-
-

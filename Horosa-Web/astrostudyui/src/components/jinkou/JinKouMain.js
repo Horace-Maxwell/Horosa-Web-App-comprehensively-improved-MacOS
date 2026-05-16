@@ -1033,23 +1033,23 @@ class JinKouMain extends Component{
 	renderInfoTable(title, rows){
 		if(!rows || rows.length === 0){
 			return (
-				<div style={{ border: '1px solid #d9d9d9', marginBottom: 8 }}>
-					<div style={{ backgroundColor: '#f7f3dc', padding: '2px 8px', fontWeight: 600 }}>{title}</div>
-					<div style={{ padding: '6px 8px', color: '#8c8c8c' }}>无</div>
+				<div style={{ border: '1px solid var(--horosa-border, #d9d9d9)', marginBottom: 8 }}>
+					<div style={{ backgroundColor: 'var(--horosa-gold-soft, #f7f3dc)', padding: '2px 8px', fontWeight: 600 }}>{title}</div>
+					<div style={{ padding: '6px 8px', color: 'var(--horosa-muted, #8c8c8c)' }}>无</div>
 				</div>
 			);
 		}
 		return (
-			<div style={{ border: '1px solid #d9d9d9', marginBottom: 8 }}>
-				<div style={{ backgroundColor: '#f7f3dc', padding: '2px 8px', fontWeight: 600 }}>{title}</div>
+			<div style={{ border: '1px solid var(--horosa-border, #d9d9d9)', marginBottom: 8 }}>
+				<div style={{ backgroundColor: 'var(--horosa-gold-soft, #f7f3dc)', padding: '2px 8px', fontWeight: 600 }}>{title}</div>
 				<div style={{ padding: 0 }}>
 					<table style={{ width: '100%', borderCollapse: 'collapse' }}>
 						<tbody>
 							{
 								rows.map((row, idx)=>(
 									<tr key={`${title}_${idx}`}>
-										<td style={{ width: '42%', borderTop: '1px solid #f0f0f0', padding: '2px 6px', color: '#595959' }}>{row.key}</td>
-										<td style={{ borderTop: '1px solid #f0f0f0', padding: '2px 6px', color: row.color ? row.color : '#262626', wordBreak: 'break-all' }}>{row.value}</td>
+										<td style={{ width: '42%', borderTop: '1px solid var(--horosa-border, #f0f0f0)', padding: '2px 6px', color: 'var(--horosa-text-soft, #595959)' }}>{row.key}</td>
+										<td style={{ borderTop: '1px solid var(--horosa-border, #f0f0f0)', padding: '2px 6px', color: row.color && row.color !== '#262626' ? row.color : 'var(--horosa-text, #262626)', wordBreak: 'break-all' }}>{row.value}</td>
 									</tr>
 								))
 							}
@@ -1116,8 +1116,8 @@ class JinKouMain extends Component{
 						<div style={{
 							height: chartHeight,
 							overflow: 'auto',
-							border: '1px solid #d9d9d9',
-							backgroundColor: '#f7f7f7',
+							border: '1px solid var(--horosa-border, #d9d9d9)',
+							backgroundColor: 'var(--horosa-panel-soft, #f7f7f7)',
 						}}>
 							<div style={{
 								width: '100%',

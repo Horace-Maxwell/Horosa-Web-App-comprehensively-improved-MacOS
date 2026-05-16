@@ -54,7 +54,7 @@ export default class NaYing extends Component{
                 padding: 5,
             }
             if(this.state.ganzi && ganzi === this.state.ganzi){
-                style.backgroundColor = '#33CCFF';
+                style.backgroundColor = 'var(--horosa-accent-soft, #33CCFF)';
             }
             let col = (
                 <Col span={24} key={randomStr(8)}><div style={style}>{ganzi}--{wx}</div></Col>

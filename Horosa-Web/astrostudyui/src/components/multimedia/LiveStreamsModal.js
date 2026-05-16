@@ -174,7 +174,7 @@ class LiveStreamsModal extends Component{
 			},
 			filterIcon: (filtered)=>{
 				let dom = (
-					<SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+					<SearchOutlined style={{ color: filtered ? 'var(--horosa-accent, #1890ff)' : undefined }} />
 				);
 				return dom;
 			},

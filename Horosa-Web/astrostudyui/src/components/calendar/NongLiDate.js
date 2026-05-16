@@ -11,10 +11,10 @@ class NongLiDate extends Component{
 			
 		};
 
-		this.gongliColor = '#000';
-		this.nongliColor = '#3b3b3b';
-		this.otherColor = '#bfbfbf';
-		this.weekenColor = '#ff0000';
+		this.gongliColor = 'var(--horosa-text, #000)';
+		this.nongliColor = 'var(--horosa-text-soft, #3b3b3b)';
+		this.otherColor = 'var(--horosa-muted, #bfbfbf)';
+		this.weekenColor = 'var(--horosa-danger, #ff0000)';
 
 		this.genGongliDom = this.genGongliDom.bind(this);
 		this.genNongliDom = this.genNongliDom.bind(this);
@@ -140,16 +140,15 @@ class NongLiDate extends Component{
 			popcontent = this.genPopContent(date);
 		}
 
-		let style = {
-			textAlign: 'center',
-		};
-		if(this.props.hightLight){
-			style.backgroundColor = '#33CCFF';
-		}
+		const className = [
+			'horosa-lunar-date-card',
+			this.props.hightLight ? 'is-active' : '',
+			date && date.isOther ? 'is-other' : '',
+		].filter(Boolean).join(' ');
 
 		return (
 			<Popover trigger='hover' title={poptitle} content={popcontent}>
-				<div style={style} onClick={this.onClick}>
+				<div className={className} onClick={this.onClick}>
 					<Row style={{textAlign: 'center'}}>
 						<Col span={24}>{gongli}</Col>
 					</Row>

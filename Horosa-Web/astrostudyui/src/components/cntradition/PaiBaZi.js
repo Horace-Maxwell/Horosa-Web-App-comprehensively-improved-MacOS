@@ -112,8 +112,8 @@ class PaiBaZi extends Component{
 		let dirdoms = this.genDirDom(rec.direction, rec.directTime);
 
 		return (
-			<div className={styles.scrollbar} style={style} id={this.state.id}>
-				<Row style={{marginBottom: 10}}>
+			<div className={`horosa-bazi-scroll ${styles.scrollbar}`} style={style} id={this.state.id}>
+				<Row className="horosa-bazi-summary" style={{marginBottom: 10}}>
 					<Col span={20}>
 						<span style={{fontSize: 16, fontWeight: 'bold'}}>{BaZiMsg[rec.gender]}</span>&nbsp;
 						<span>{name}</span>&nbsp;
@@ -124,7 +124,7 @@ class PaiBaZi extends Component{
 						<span>{chef}</span>&nbsp;
 						<span>{tiaohou}</span>
 					</Col>
-					<Col span={4}>
+					<Col span={4} style={{textAlign: 'right'}}>
 						<a href={null} onClick={()=>{ printArea(this.state.id);}}>打印命盘</a>
 					</Col>
 				</Row>

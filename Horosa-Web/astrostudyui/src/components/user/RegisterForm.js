@@ -69,7 +69,7 @@ export default function RegisterForm(props){
 						message: '请输入您有效的email' 
 					}]}
 				>
-					<Input prefix={<UserOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} placeholder="有效的email" />
+					<Input prefix={<UserOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} placeholder="有效的email" />
 				</FormItem>
 				
 				<FormItem
@@ -79,7 +79,7 @@ export default function RegisterForm(props){
 						message: '请输入您的密码！' 
 					}]}
 				>
-					<Input prefix={<LockOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} type="password" placeholder="密码" />
+					<Input prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="密码" />
 				</FormItem>
 
 				<FormItem
@@ -100,4 +100,3 @@ export default function RegisterForm(props){
 	);
     
 }
-

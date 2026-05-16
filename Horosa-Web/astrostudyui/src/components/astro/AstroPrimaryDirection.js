@@ -521,9 +521,9 @@ class AstroPrimaryDirection extends Component{
 		);
 		const needsPdRecompute = this.needsPdRecompute();
 		const controlBoxStyle = {
-			border: '1px solid #d9d9d9',
+			border: '1px solid var(--horosa-border, #d9d9d9)',
 			borderRadius: 4,
-			backgroundColor: '#fff',
+			backgroundColor: 'var(--horosa-panel-bg, #fff)',
 			padding: compactControls ? '8px 10px' : '6px 10px',
 			minHeight: stackedControls ? 48 : 40,
 			display: 'flex',
@@ -534,7 +534,7 @@ class AstroPrimaryDirection extends Component{
 		};
 		const labelStyle = {
 			whiteSpace: 'nowrap',
-			color: '#333',
+			color: 'var(--horosa-text, #333)',
 			flex: '0 0 auto',
 		};
 		const selectStyle = {

@@ -249,8 +249,8 @@ class TaiYiMain extends Component {
 		const r2 = 172;
 		const r3 = 222;
 		const r4 = 304;
-		const stroke = '#111';
-		const textColor = '#111';
+		const stroke = 'var(--horosa-border-strong, #111)';
+		const textColor = 'var(--horosa-text, #111)';
 		const textWeight = '500';
 			const palaceInfo = {};
 			(pan.palaces || []).forEach((p) => {

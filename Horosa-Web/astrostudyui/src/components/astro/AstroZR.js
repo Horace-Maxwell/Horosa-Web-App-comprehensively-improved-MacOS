@@ -540,7 +540,7 @@ class AstroZR extends Component{
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
 								showAstroMeaning={this.props.showAstroMeaning}
-								backgroundColor='aliceblue' height={height}
+								height={height}
 							/>
 
 					</Col>

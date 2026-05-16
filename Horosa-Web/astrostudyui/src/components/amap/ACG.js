@@ -58,9 +58,9 @@ class ACG extends Component{
 			gpslat = Math.round(pnt.lat*1000000)/1000000;
 			gpslon = Math.round(pnt.lon*1000000)/1000000;
 		}
-		let fontcolor = '#3b3b3b';
+		let fontcolor = 'var(--horosa-text, #3b3b3b)';
 		if(this.props.useSatellite){
-			fontcolor = '#fefeef';
+			fontcolor = 'var(--horosa-text, #fefeef)';
 		}
 		let dom = `<ul style='font-size:200%;color:${fontcolor}'><li>${title}</li><li>纬度:${lat}</li><li>经度:${lon}</li><li>gps纬度:${gpslat}</li><li>gps经度:${gpslon}</li></ul>`;
 		return dom;

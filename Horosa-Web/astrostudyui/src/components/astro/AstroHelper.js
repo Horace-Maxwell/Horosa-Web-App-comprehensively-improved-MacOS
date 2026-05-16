@@ -1159,7 +1159,7 @@ export function drawChartWithOrgXY(chartid, chartObj, orgx, orgy, radius, rStep,
 	let svgid = '#' + chartid;
 	let svg = d3.select(svgid);
 	svg.html('');
-	svg.attr('stroke', '#000000').attr("stroke-width", 1);
+	svg.attr('stroke', AstroConst.AstroColor.Stroke).attr("stroke-width", 1);
 
 	let topgroup = svg.append('g');
 
@@ -1414,7 +1414,7 @@ export function drawDoubleChart(chartid, chartObj, rStep, chartDisplay, planetDi
 	let svgid = '#' + chartid;
 	let svg = d3.select(svgid);
 	svg.html('');
-	svg.attr('stroke', '#000000').attr("stroke-width", 1);
+	svg.attr('stroke', AstroConst.AstroColor.Stroke).attr("stroke-width", 1);
 
 	let topgroup = svg.append('g');
 
@@ -1457,4 +1457,3 @@ export function drawDoubleChart(chartid, chartObj, rStep, chartDisplay, planetDi
 
 	return svg;
 }
-

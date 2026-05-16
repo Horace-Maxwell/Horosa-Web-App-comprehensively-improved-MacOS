@@ -474,7 +474,7 @@ class AstroDecennials extends Component{
 				color: LEVEL_COLORS[item.level - 1] || LEVEL_COLORS[0],
 				padding: '2px 6px',
 				borderRadius: 4,
-				background: item.active ? '#fff3bf' : 'transparent',
+				background: item.active ? 'var(--horosa-accent-soft, #fff3bf)' : 'transparent',
 				fontWeight: item.active ? 600 : 400,
 				wordBreak: 'break-word',
 			};
@@ -487,7 +487,7 @@ class AstroDecennials extends Component{
 					</span>
 					<span style={{ fontFamily: AstroConst.NormalFont }}>{` ${item.date || displayText}`}</span>
 					{nominalHint ? (
-						<div style={{ fontFamily: AstroConst.NormalFont, fontSize: 12, color: '#666', marginTop: 2 }}>
+						<div style={{ fontFamily: AstroConst.NormalFont, fontSize: 12, color: 'var(--horosa-muted, #666)', marginTop: 2 }}>
 							{`名义：${nominalHint}`}
 						</div>
 					) : null}
@@ -570,7 +570,7 @@ class AstroDecennials extends Component{
 							<Option value={item.value} key={item.value}>{item.label}</Option>
 						))}
 					</Select>
-					<div style={{ marginTop: 4, color: '#666', fontSize: 12 }}>
+					<div style={{ marginTop: 4, color: 'var(--horosa-muted, #666)', fontSize: 12 }}>
 						{`当前实际起运：${getDecennialPlanetLongName(resolved)}`}
 					</div>
 				</div>
@@ -597,7 +597,7 @@ class AstroDecennials extends Component{
 						<Option value={DECENNIAL_CALENDAR_TRADITIONAL}>360天/年（按30天/月换算）</Option>
 						<Option value={DECENNIAL_CALENDAR_ACTUAL}>365.25天/年（按回归年换算）</Option>
 					</Select>
-					<div style={{ marginTop: 4, color: '#666', fontSize: 12 }}>
+					<div style={{ marginTop: 4, color: 'var(--horosa-muted, #666)', fontSize: 12 }}>
 						{this.state.settings.calendarType === DECENNIAL_CALENDAR_TRADITIONAL
 							? '当前显示：具体日期；下方附带文档名义区间'
 							: `当前显示：${getDecennialCalendarLabel(this.state.settings.calendarType)}`}
@@ -625,7 +625,6 @@ class AstroDecennials extends Component{
 							planetDisplay={this.props.planetDisplay}
 							lotsDisplay={this.props.lotsDisplay}
 							showAstroMeaning={this.props.showAstroMeaning}
-							backgroundColor='aliceblue'
 							height={height}
 						/>
 					</Col>

@@ -695,7 +695,7 @@ class AstroInfo extends Component{
 		const hsys = displayMode.hsys;
 
 		return (
-			<div className={styles.scrollbar} style={astyle}>
+			<div className={`horosa-astro-info-scroll ${styles.scrollbar}`} style={astyle}>
 				<Row gutter={12}>
 					<Col span={24}>
 						<span>{perchart.isDiurnal ? '日生盘' : '夜生盘'}</span>&nbsp;

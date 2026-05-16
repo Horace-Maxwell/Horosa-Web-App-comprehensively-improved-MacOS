@@ -59,7 +59,7 @@ export default function ChangePwdForm(props){
 						message: '请输入您的旧密码！' 
 					}]}
 				>
-					<Input prefix={<LockOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} type="password" placeholder="旧密码" />
+					<Input prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="旧密码" />
 				</FormItem>
 
                 <FormItem
@@ -69,7 +69,7 @@ export default function ChangePwdForm(props){
 						message: '请输入您的新密码！' 
 					}]}
 				>
-					<Input prefix={<LockOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} type="password" placeholder="新密码" />
+					<Input prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码" />
 				</FormItem>
 
                 <FormItem
@@ -86,7 +86,7 @@ export default function ChangePwdForm(props){
 						}
 					}]}
 				>
-					<Input prefix={<LockOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} type="password" placeholder="新密码确认" />
+					<Input prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码确认" />
 				</FormItem>
 
 				<FormItem>
@@ -101,4 +101,3 @@ export default function ChangePwdForm(props){
 	);
     
 }
-

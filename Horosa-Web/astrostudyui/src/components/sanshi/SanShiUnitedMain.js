@@ -3476,7 +3476,7 @@ class SanShiUnitedMain extends Component{
 		}
 		return (
 			<div ref={this.captureRightPanel} style={{ display: 'flex', flexDirection: 'column', height: panelHeight, overflow: 'hidden' }}>
-				<div ref={this.captureRightTop} style={{ paddingBottom: 6, borderBottom: '1px solid #f0f0f0' }}>
+				<div ref={this.captureRightTop} style={{ paddingBottom: 6, borderBottom: '1px solid var(--horosa-border, #f0f0f0)' }}>
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<div>
 							<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.timeHook} />
@@ -3657,8 +3657,8 @@ class SanShiUnitedMain extends Component{
 										<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 8, rowGap: 4 }}>
 											{this.state.taiyi.palace16 && this.state.taiyi.palace16.map((item)=>(
 												<div key={`ty_p16_${item.palace}`}>
-													<span style={{ color: '#262626' }}>{item.palace}-</span>
-													<span style={{ color: '#8c8c8c' }}>{item.items && item.items.length ? item.items.join('、') : '—'}</span>
+													<span style={{ color: 'var(--horosa-text, #262626)' }}>{item.palace}-</span>
+													<span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>{item.items && item.items.length ? item.items.join('、') : '—'}</span>
 												</div>
 											))}
 										</div>
@@ -3673,7 +3673,7 @@ class SanShiUnitedMain extends Component{
 						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
 							<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 14, rowGap: 6, lineHeight: '24px' }}>
 								{pan && pan.shenSha && pan.shenSha.allItems && pan.shenSha.allItems.length
-									? pan.shenSha.allItems.map((item)=>(<div key={`ss_item_${item.name}`}><span style={{ color: '#262626' }}>{item.name}-</span><span style={{ color: '#8c8c8c' }}>{item.value}</span></div>))
+									? pan.shenSha.allItems.map((item)=>(<div key={`ss_item_${item.name}`}><span style={{ color: 'var(--horosa-text, #262626)' }}>{item.name}-</span><span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>{item.value}</span></div>))
 									: <div>暂无神煞</div>}
 							</div>
 						</Card>
@@ -3690,7 +3690,7 @@ class SanShiUnitedMain extends Component{
 									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
 										{refSummary ? (
 											<Card size='small' style={{ marginBottom: 8 }}>
-												<div style={{ color: '#595959' }}>{refSummary}</div>
+												<div style={{ color: 'var(--horosa-text-soft, #595959)' }}>{refSummary}</div>
 											</Card>
 										) : null}
 										{refBundle.dage && refBundle.dage.length ? refBundle.dage.map((item)=>(
@@ -3699,15 +3699,15 @@ class SanShiUnitedMain extends Component{
 													<span style={{ fontWeight: 600 }}>{item.name}</span>
 													<Tag color='blue'>{item.categoryName || '大格'}</Tag>
 												</div>
-												<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 													{buildReferenceDocumentText(item, 'dage')}
 												</div>
 												{item.evidence && item.evidence.length ? (
-													<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+													<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
 												) : null}
 											</Card>
 										)) : (
-											<Card size='small'><div style={{ color: '#8c8c8c' }}>当前盘未命中已收录的大格条件。</div></Card>
+											<Card size='small'><div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘未命中已收录的大格条件。</div></Card>
 										)}
 									</div>
 								</TabPane>
@@ -3719,15 +3719,15 @@ class SanShiUnitedMain extends Component{
 													<span style={{ fontWeight: 600 }}>{item.name}</span>
 													<Tag color='purple'>{item.categoryName || '小局'}</Tag>
 												</div>
-												<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 													{buildReferenceDocumentText(item, 'xiaoju')}
 												</div>
 												{item.evidence && item.evidence.length ? (
-													<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+													<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
 												) : null}
 											</Card>
 										)) : (
-											<Card size='small'><div style={{ color: '#8c8c8c' }}>当前盘暂未命中已收录的小局条件。</div></Card>
+											<Card size='small'><div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中已收录的小局条件。</div></Card>
 										)}
 									</div>
 								</TabPane>
@@ -3739,15 +3739,15 @@ class SanShiUnitedMain extends Component{
 													<span style={{ fontWeight: 600 }}>{item.name}</span>
 													<Tag color='gold'>参考</Tag>
 												</div>
-												<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 													{buildReferenceDocumentText(item, 'xiaoju')}
 												</div>
 												{item.evidence && item.evidence.length ? (
-													<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+													<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
 												) : null}
 											</Card>
 										)) : (
-											<Card size='small'><div style={{ color: '#8c8c8c' }}>当前盘暂无可展示的参考条目。</div></Card>
+											<Card size='small'><div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂无可展示的参考条目。</div></Card>
 										)}
 									</div>
 								</TabPane>
@@ -3761,15 +3761,15 @@ class SanShiUnitedMain extends Component{
 														{item.group === 'laiyi' ? '天将发用来意诀' : '天将杂主吉凶'}
 													</Tag>
 												</div>
-												<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+												<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 													{buildOverviewReferenceText(item)}
 												</div>
 												{item.evidence && item.evidence.length ? (
-													<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+													<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
 												) : null}
 											</Card>
 										)) : (
-											<Card size='small'><div style={{ color: '#8c8c8c' }}>当前盘未命中“天将发用来意诀/天将杂主吉凶”条目。</div></Card>
+											<Card size='small'><div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘未命中“天将发用来意诀/天将杂主吉凶”条目。</div></Card>
 										)}
 									</div>
 								</TabPane>
@@ -3786,7 +3786,7 @@ class SanShiUnitedMain extends Component{
 											size="small"
 											shape="round"
 											type={bagongPalace === num ? 'primary' : 'default'}
-											style={bagongPalace === num ? { minWidth: 42 } : { minWidth: 42, background: '#fafafa' }}
+											style={bagongPalace === num ? { minWidth: 42 } : { minWidth: 42, background: 'var(--horosa-panel-soft, #fafafa)' }}
 											onClick={()=>this.setState({ bagongPalace: num })}
 										>
 											{BAGONG_PALACE_NAME[num]}
@@ -3800,7 +3800,7 @@ class SanShiUnitedMain extends Component{
 												<span style={{ fontWeight: 600 }}>奇门吉格</span>
 												<Tag color='green'>{bagongData.jiPatterns.length}项</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												{bagongData.jiPatternDetails && bagongData.jiPatternDetails.length
 													? bagongData.jiPatternDetails.map((text)=>`• ${text}`).join('\n')
 													: '未命中'}
@@ -3811,7 +3811,7 @@ class SanShiUnitedMain extends Component{
 												<span style={{ fontWeight: 600 }}>奇门凶格</span>
 												<Tag color='volcano'>{bagongData.xiongPatterns.length}项</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												{bagongData.xiongPatternDetails && bagongData.xiongPatternDetails.length
 													? bagongData.xiongPatternDetails.map((text)=>`• ${text}`).join('\n')
 													: '未命中'}
@@ -3822,7 +3822,7 @@ class SanShiUnitedMain extends Component{
 												<span style={{ fontWeight: 600 }}>十干克应</span>
 												<Tag color='blue'>天{bagongData.tianGan || '—'} / 地{bagongData.diGan || '—'}</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												天{bagongData.tianGan || '—'}加地{bagongData.diGan || '—'}：{bagongData.tenGanText}
 											</div>
 										</Card>
@@ -3831,7 +3831,7 @@ class SanShiUnitedMain extends Component{
 												<span style={{ fontWeight: 600 }}>八门克应和奇仪主应</span>
 												<Tag color='purple'>人{bagongData.renDoor || '—'}</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												<div>人{bagongData.renDoor || '—'}加地{bagongData.baseDoor || '—'}：{bagongData.doorBaseText}</div>
 												<div style={{ marginTop: 4 }}>人{bagongData.renDoor || '—'}加天{bagongData.tianGan || '—'}：{bagongData.doorTianText}</div>
 											</div>
@@ -3841,7 +3841,7 @@ class SanShiUnitedMain extends Component{
 												<span style={{ fontWeight: 600 }}>八神加八门</span>
 												<Tag color='geekblue'>{bagongData.godFull || '—'}</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												{bagongData.godFull || '—'}加{bagongData.renDoor || '—'}门：{bagongData.godDoorText}
 											</div>
 										</Card>
@@ -3850,13 +3850,13 @@ class SanShiUnitedMain extends Component{
 												<span style={{ fontWeight: 600 }}>奇门演卦</span>
 												<Tag color='cyan'>{bagongData.menFangYiGua || '无'}</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												{bagongData.menFangYiGuaText || '无'}
 											</div>
 										</Card>
 									</>
 								) : (
-									<Card size='small'><div style={{ color: '#8c8c8c' }}>请先起盘后查看八宫信息。</div></Card>
+									<Card size='small'><div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>请先起盘后查看八宫信息。</div></Card>
 								)}
 							</div>
 						</Card>

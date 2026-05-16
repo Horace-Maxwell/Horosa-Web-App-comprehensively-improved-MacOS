@@ -59,7 +59,7 @@ function relationNameByKey(key){
 	if(key === 'Marks'){
 		return '马克斯盘';
 	}
-	return key || '关系盘';
+	return key || '合盘';
 }
 
 function pushAspectArray(lines, title, list){

@@ -1,6 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
 import AstroChartMain from './AstroChartMain';
+import IndiaSouthChart from './IndiaSouthChart';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
@@ -245,10 +245,16 @@ class IndiaChart extends Component{
 		}		
 	}
 
+	componentDidMount(){
+		this.requestChartObj();
+	}
+
 	render(){
 		let fields = this.props.fields;
 		let chartObj = this.state.chartObj;
 		let height = this.props.height ? this.props.height : 760;
+		let fractal = resolveIndiaFractal(this.props.chartnum, this.props.hook);
+		let label = resolveIndiaLabel(fractal, this.props.hook);
 
 		return (
 			<div>
@@ -260,6 +266,16 @@ class IndiaChart extends Component{
 					hidehsys={1}
 					indiahsys={1}
 					height={height} 
+					chartRenderer={({chartObj: currentChartObj, height: chartHeight})=>(
+						<IndiaSouthChart
+							value={currentChartObj}
+							chartnum={fractal}
+							label={label}
+							height={chartHeight}
+							planetDisplay={this.props.planetDisplay}
+							lotsDisplay={this.props.lotsDisplay}
+						/>
+					)}
 						chartDisplay={this.props.chartDisplay}
 						planetDisplay={this.props.planetDisplay}
 						lotsDisplay={this.props.lotsDisplay}

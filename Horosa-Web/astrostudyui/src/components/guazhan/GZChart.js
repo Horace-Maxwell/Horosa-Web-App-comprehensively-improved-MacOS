@@ -186,7 +186,7 @@ class GZChart {
 				hasChange = true;
 				obj.value = obj.value === 1 ? 0 : 1;
 				obj.change = false;
-				obj.nameColor = '#800080';
+				obj.nameColor = AstroConst.AstroColor['Purple Clouds'] || '#800080';
 			}
 			yao[i] = obj;
 		}

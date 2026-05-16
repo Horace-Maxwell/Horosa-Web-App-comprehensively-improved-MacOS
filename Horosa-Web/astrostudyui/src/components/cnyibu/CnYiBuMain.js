@@ -1,12 +1,8 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, } from 'antd';
+import { Tabs, } from 'antd';
 import { randomStr } from '../../utils/helper';
 import SuZhanMain from '../suzhan/SuZhanMain';
-import GuaZhanMain from '../guazhan/GuaZhanMain';
-import LiuRengMain from '../lrzhan/LiuRengMain';
 import JinKouMain from '../jinkou/JinKouMain';
-import DunJiaMain from '../dunjia/DunJiaMain';
-import TaiYiMain from '../taiyi/TaiYiMain';
 import TongSheFaMain from '../tongshefa/TongSheFaMain';
 
 
@@ -17,7 +13,7 @@ class CnYiBuMain extends Component{
 	constructor(props) {
 		super(props);
 		const subtab = this.props.currentSubTab ? this.props.currentSubTab : 'suzhan';
-		const validTabs = ['suzhan', 'guazhan', 'liureng', 'jinkou', 'dunjia', 'taiyi', 'tongshefa'];
+		const validTabs = ['suzhan', 'jinkou', 'tongshefa'];
 		const tab = validTabs.indexOf(subtab) >= 0 ? subtab : 'suzhan';
 
 		this.state = {
@@ -27,19 +23,7 @@ class CnYiBuMain extends Component{
 				suzhan:{
 					fun: null
 				},
-				guazhan:{
-					fun: null
-				},
-				liureng:{
-					fun: null
-				},
 				jinkou:{
-					fun: null
-				},
-				dunjia:{
-					fun: null
-				},
-				taiyi:{
 					fun: null
 				},
 				tongshefa:{
@@ -87,7 +71,7 @@ class CnYiBuMain extends Component{
 		const tab = this.state.currentTab;
 
 		return (
-			<div id={this.state.divId}>
+			<div id={this.state.divId} className="horosa-cnyibu-page">
 				<Tabs 
 					defaultActiveKey={tab} tabPosition='right'
 					activeKey={tab}
@@ -106,49 +90,12 @@ class CnYiBuMain extends Component{
 						/>
 					</TabPane>
 
-					<TabPane tab="易卦" key="guazhan">
-						<GuaZhanMain 
-							value={this.props.chart}
-							height={height}
-							fields={this.props.fields}
-							hook={this.state.hook.guazhan}
-							dispatch={this.props.dispatch}
-						/>
-					</TabPane>
-
-					<TabPane tab="六壬" key="liureng">
-						<LiuRengMain 
-							value={this.props.chart}
-							height={height}
-							fields={this.props.fields}
-							hook={this.state.hook.liureng}
-							dispatch={this.props.dispatch}
-						/>
-					</TabPane>
 					<TabPane tab="金口诀" key="jinkou">
 						<JinKouMain
 							value={this.props.chart}
 							height={height}
 							fields={this.props.fields}
 							hook={this.state.hook.jinkou}
-							dispatch={this.props.dispatch}
-						/>
-					</TabPane>
-					<TabPane tab="遁甲" key="dunjia">
-						<DunJiaMain
-							value={this.props.chart}
-							height={height}
-							fields={this.props.fields}
-							hook={this.state.hook.dunjia}
-							dispatch={this.props.dispatch}
-						/>
-					</TabPane>
-					<TabPane tab="太乙" key="taiyi">
-						<TaiYiMain
-							value={this.props.chart}
-							height={height}
-							fields={this.props.fields}
-							hook={this.state.hook.taiyi}
 							dispatch={this.props.dispatch}
 						/>
 					</TabPane>

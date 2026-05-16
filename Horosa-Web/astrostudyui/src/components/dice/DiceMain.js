@@ -502,9 +502,9 @@ class DiceMain extends Component{
 		}
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={17}>
+			<div className='horosa-dice-page'>
+				<Row gutter={14} className='horosa-dice-layout'>
+					<Col span={17} className='horosa-dice-chart-panel'>
 						<Tabs
 							defaultActiveKey='touzichart' tabPosition='bottom'
 							style={{ height: height }}						
@@ -530,7 +530,7 @@ class DiceMain extends Component{
 								</TabPane>
 						</Tabs>
 					</Col>
-					<Col span={7}>
+					<Col span={7} className='horosa-dice-inspector-panel'>
 						<div className={styles.scrollbar} style={style}>
 							<Row>
 								<Col span={24}>

@@ -143,7 +143,6 @@ class AstroChartMain3D extends Component{
 							chartDisplay={this.props.chartDisplay}
 							planetDisplay={this.props.planetDisplay}
 							lotsDisplay={this.props.lotsDisplay}
-							backgroundColor='aliceblue' 
 							height={height}
 							needChart3D={needChart3D}
 						/>	

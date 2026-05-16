@@ -1,5 +1,1263 @@
 @import '~antd/lib/style/themes/default.less';
 
+:global {
+    :root {
+        --horosa-bg: #f3f7fc;
+        --horosa-surface: rgba(255, 255, 255, 0.90);
+        --horosa-surface-solid: #ffffff;
+        --horosa-surface-raised: rgba(255, 255, 255, 0.97);
+        --horosa-header-bg: rgba(248, 251, 255, 0.90);
+        --horosa-nav-bg: rgba(238, 244, 252, 0.92);
+        --horosa-panel-bg: rgba(255, 255, 255, 0.88);
+        --horosa-panel-soft: rgba(242, 247, 254, 0.78);
+        --horosa-text: #162033;
+        --horosa-text-soft: #52627a;
+        --horosa-muted: #8794a8;
+        --horosa-border: rgba(76, 98, 134, 0.17);
+        --horosa-border-strong: rgba(51, 111, 201, 0.30);
+        --horosa-accent: #2f7df1;
+        --horosa-accent-soft: rgba(47, 125, 241, 0.12);
+        --horosa-accent-strong: #2167d4;
+        --horosa-gold: #b8893f;
+        --horosa-gold-soft: rgba(184, 137, 63, 0.15);
+        --horosa-cyan: #23b9d6;
+        --horosa-cyan-soft: rgba(35, 185, 214, 0.12);
+        --horosa-cinnabar: #bf3c36;
+        --horosa-danger: #cf1322;
+        --horosa-jade: #3d8f74;
+        --horosa-suzhan-fill: #fffdf1;
+        --horosa-bazi-direct-bg: #fff9e6;
+        --horosa-bazi-year-bg: #c8f7f5;
+        --horosa-calendar-heading-bg: #fff9e6;
+        --horosa-sanshi-board-outer: rgb(246, 245, 241);
+        --horosa-sanshi-board-qimen: rgb(238, 234, 232);
+        --horosa-sanshi-board-liureng: rgb(218, 217, 213);
+        --horosa-sanshi-board-center: rgb(197, 195, 194);
+        --horosa-shadow: 0 18px 46px rgba(39, 59, 91, 0.12);
+        --horosa-small-shadow: 0 8px 24px rgba(39, 59, 91, 0.08);
+        --horosa-radius: 8px;
+        --horosa-nav-width: 206px;
+        --horosa-toolbar-height: 72px;
+        --horosa-control-height: 34px;
+    }
+
+    :root[data-horosa-appearance='dark'] {
+        --horosa-bg: #06101a;
+        --horosa-surface: rgba(9, 21, 33, 0.86);
+        --horosa-surface-solid: #0a1621;
+        --horosa-surface-raised: rgba(12, 27, 41, 0.97);
+        --horosa-header-bg: rgba(6, 16, 26, 0.95);
+        --horosa-nav-bg: rgba(7, 18, 29, 0.95);
+        --horosa-panel-bg: rgba(10, 25, 38, 0.88);
+        --horosa-panel-soft: rgba(14, 32, 48, 0.74);
+        --horosa-text: #edf5f2;
+        --horosa-text-soft: #b9c7c9;
+        --horosa-muted: #80939b;
+        --horosa-border: rgba(202, 163, 93, 0.20);
+        --horosa-border-strong: rgba(35, 217, 238, 0.32);
+        --horosa-accent: #22d3ee;
+        --horosa-accent-soft: rgba(34, 211, 238, 0.14);
+        --horosa-accent-strong: #74e8f4;
+        --horosa-gold: #d8ad63;
+        --horosa-gold-soft: rgba(216, 173, 99, 0.18);
+        --horosa-cyan: #22d3ee;
+        --horosa-cyan-soft: rgba(34, 211, 238, 0.14);
+        --horosa-cinnabar: #ec644e;
+        --horosa-danger: #ff756c;
+        --horosa-jade: #73c59a;
+        --horosa-suzhan-fill: rgba(22, 43, 58, 0.92);
+        --horosa-bazi-direct-bg: rgba(24, 51, 71, 0.92);
+        --horosa-bazi-year-bg: rgba(70, 184, 190, 0.28);
+        --horosa-calendar-heading-bg: rgba(24, 51, 71, 0.92);
+        --horosa-sanshi-board-outer: #0d1c2b;
+        --horosa-sanshi-board-qimen: #12283a;
+        --horosa-sanshi-board-liureng: #183247;
+        --horosa-sanshi-board-center: #213d52;
+        --horosa-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
+        --horosa-small-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+    }
+
+    html,
+    body,
+    #root {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--horosa-bg);
+        color: var(--horosa-text);
+    }
+
+    body {
+        letter-spacing: 0;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+    }
+
+    .ant-layout {
+        min-height: 100vh;
+    }
+
+    .horosa-workspace-shell {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    .horosa-workspace-shell::before {
+        pointer-events: none;
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+            radial-gradient(circle at 22% 8%, rgba(47, 125, 241, 0.10), transparent 28%),
+            radial-gradient(circle at 88% 12%, rgba(184, 137, 63, 0.09), transparent 30%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.66), transparent 42%);
+        opacity: 1;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell::before {
+        background:
+            radial-gradient(circle at 20% 10%, rgba(34, 211, 238, 0.10), transparent 30%),
+            radial-gradient(circle at 86% 8%, rgba(216, 173, 99, 0.08), transparent 34%),
+            linear-gradient(180deg, rgba(12, 37, 58, 0.50), transparent 48%);
+    }
+
+    .horosa-workspace-shell .ant-layout-header {
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        box-shadow: 0 1px 0 var(--horosa-border), var(--horosa-small-shadow);
+    }
+
+    .horosa-workspace-shell .ant-layout-content {
+        position: relative;
+    }
+
+    .horosa-workspace-shell .ant-btn {
+        height: var(--horosa-control-height);
+        border-radius: 7px;
+        border-color: var(--horosa-border);
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        box-shadow: none;
+        letter-spacing: 0;
+    }
+
+    .horosa-workspace-shell .ant-btn-sm {
+        height: 30px;
+        padding: 0 10px;
+        font-size: 13px;
+    }
+
+    .horosa-workspace-shell .ant-btn:hover,
+    .horosa-workspace-shell .ant-btn:focus {
+        border-color: var(--horosa-accent);
+        background: var(--horosa-accent-soft);
+        color: var(--horosa-accent-strong);
+    }
+
+    .horosa-workspace-shell .ant-btn[disabled],
+    .horosa-workspace-shell .ant-btn[disabled]:hover,
+    .horosa-workspace-shell .ant-btn[disabled]:focus,
+    .horosa-workspace-shell .ant-btn[disabled]:active {
+        border-color: var(--horosa-border);
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-muted);
+        opacity: 0.62;
+    }
+
+    .horosa-workspace-shell .ant-typography,
+    .horosa-workspace-shell .ant-typography p {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-typography-secondary,
+    .horosa-workspace-shell .ant-typography.ant-typography-secondary {
+        color: var(--horosa-muted) !important;
+    }
+
+    .horosa-workspace-shell .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+    .horosa-workspace-shell .ant-input,
+    .horosa-workspace-shell .ant-input-affix-wrapper,
+    .horosa-workspace-shell .ant-input-number,
+    .horosa-workspace-shell .ant-picker {
+        border-radius: 7px;
+        border-color: var(--horosa-border);
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        box-shadow: none;
+    }
+
+    .horosa-workspace-shell .ant-input-number-input,
+    .horosa-workspace-shell .ant-picker-input > input,
+    .horosa-workspace-shell .ant-select-selection-search-input {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-select-arrow,
+    .horosa-workspace-shell .ant-input-prefix,
+    .horosa-workspace-shell .ant-input-suffix,
+    .horosa-workspace-shell .ant-picker-suffix,
+    .horosa-workspace-shell .ant-picker-clear {
+        color: var(--horosa-muted);
+    }
+
+    .horosa-workspace-shell .ant-select-selection-item,
+    .horosa-workspace-shell .ant-input::placeholder,
+    .horosa-workspace-shell .ant-input-number-input::placeholder,
+    .horosa-workspace-shell .ant-picker-input > input::placeholder {
+        color: var(--horosa-text-soft);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell input,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell textarea,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .ant-input,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .ant-input-affix-wrapper,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .ant-input-number,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .ant-picker,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        background: rgba(9, 23, 36, 0.94) !important;
+        color: var(--horosa-text) !important;
+    }
+
+    .horosa-workspace-shell .ant-tabs-tab {
+        color: var(--horosa-text-soft);
+        letter-spacing: 0;
+    }
+
+    .horosa-workspace-shell .ant-tabs-tab:hover,
+    .horosa-workspace-shell .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn,
+    .horosa-workspace-shell .ant-tabs-tab-active {
+        color: var(--horosa-accent-strong);
+    }
+
+    .horosa-workspace-shell .ant-tabs-ink-bar {
+        background: var(--horosa-accent);
+    }
+
+    .horosa-workspace-shell .ant-tabs-nav::before {
+        border-color: var(--horosa-border) !important;
+    }
+
+    .horosa-workspace-shell .ant-divider,
+    .horosa-workspace-shell .ant-divider-horizontal {
+        border-color: var(--horosa-border);
+    }
+
+    .horosa-workspace-shell .ant-divider-inner-text {
+        color: var(--horosa-text-soft);
+        font-weight: 600;
+    }
+
+    .horosa-workspace-shell .ant-row,
+    .horosa-workspace-shell .ant-col,
+    .horosa-workspace-shell .horosa-astro-info-scroll {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-astro-info-scroll {
+        padding-right: 4px;
+        line-height: 1.72;
+        font-size: 13px;
+    }
+
+    .horosa-workspace-shell .horosa-astro-info-scroll .ant-divider {
+        margin: 14px 0 8px;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-astro-info-scroll .ant-divider-inner-text {
+        color: var(--horosa-gold);
+        text-shadow: 0 0 12px rgba(216, 173, 99, 0.12);
+    }
+
+    .horosa-workspace-shell .ant-table,
+    .horosa-workspace-shell .ant-table-thead > tr > th,
+    .horosa-workspace-shell .ant-table-tbody > tr > td {
+        background: transparent;
+        border-color: var(--horosa-border);
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-table-thead > tr > th {
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text-soft);
+        font-weight: 600;
+    }
+
+    .horosa-workspace-shell .ant-table-tbody > tr:hover > td {
+        background: var(--horosa-accent-soft);
+    }
+
+    .horosa-workspace-shell .ant-card,
+    .horosa-workspace-shell .ant-modal-content,
+    .horosa-workspace-shell .ant-drawer-content {
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-surface-raised);
+        color: var(--horosa-text);
+        box-shadow: var(--horosa-shadow);
+    }
+
+    .horosa-workspace-shell .ant-drawer-header,
+    .horosa-workspace-shell .ant-modal-header,
+    .horosa-workspace-shell .ant-card-head {
+        border-color: var(--horosa-border);
+        background: transparent;
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-drawer-title,
+    .horosa-workspace-shell .ant-modal-title,
+    .horosa-workspace-shell .ant-card-head-title {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-dropdown-menu {
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-surface-raised);
+        box-shadow: var(--horosa-shadow);
+    }
+
+    .horosa-workspace-shell .ant-dropdown-menu-item,
+    .horosa-workspace-shell .ant-dropdown-menu-submenu-title {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-dropdown-menu-item:hover {
+        background: var(--horosa-accent-soft);
+    }
+
+    .ant-select-dropdown,
+    .ant-dropdown-menu,
+    .ant-modal-content,
+    .ant-drawer-content,
+    .ant-picker-dropdown .ant-picker-panel-container,
+    .ant-popover-inner,
+    .ant-tooltip-inner,
+    .ant-message-notice-content {
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-surface-raised);
+        color: var(--horosa-text);
+        box-shadow: var(--horosa-shadow);
+    }
+
+    .ant-modal-header,
+    .ant-modal-footer,
+    .ant-drawer-header,
+    .ant-card-head {
+        border-color: var(--horosa-border);
+        background: transparent;
+        color: var(--horosa-text);
+    }
+
+    .ant-modal-title,
+    .ant-drawer-title,
+    .ant-card-head-title,
+    .ant-modal-body,
+    .ant-drawer-body,
+    .ant-dropdown-menu-item,
+    .ant-dropdown-menu-submenu-title {
+        color: var(--horosa-text);
+    }
+
+    .ant-dropdown-menu-item:hover,
+    .ant-dropdown-menu-submenu-title:hover {
+        background: var(--horosa-accent-soft);
+    }
+
+    .ant-modal-root .ant-btn,
+    .ant-drawer .ant-btn,
+    .ant-popover .ant-btn,
+    .ant-message .ant-btn {
+        border-color: var(--horosa-border);
+        border-radius: 7px;
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        box-shadow: none;
+    }
+
+    .ant-modal-root .ant-btn:hover,
+    .ant-drawer .ant-btn:hover,
+    .ant-popover .ant-btn:hover,
+    .ant-message .ant-btn:hover {
+        border-color: var(--horosa-accent);
+        background: var(--horosa-accent-soft);
+        color: var(--horosa-accent-strong);
+    }
+
+    .ant-modal-root .ant-btn-primary,
+    .ant-drawer .ant-btn-primary,
+    .ant-popover .ant-btn-primary {
+        border-color: var(--horosa-accent);
+        background: var(--horosa-accent);
+        color: #fff;
+    }
+
+    .ant-modal-root .ant-input,
+    .ant-modal-root .ant-input-affix-wrapper,
+    .ant-modal-root .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+    .ant-drawer .ant-input,
+    .ant-drawer .ant-input-affix-wrapper,
+    .ant-drawer .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+    .ant-picker {
+        border-color: var(--horosa-border);
+        border-radius: 7px;
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        box-shadow: none;
+    }
+
+    .ant-checkbox-wrapper,
+    .ant-radio-wrapper,
+    .ant-form-item-label > label,
+    .ant-modal-close,
+    .ant-drawer-close {
+        color: var(--horosa-text);
+    }
+
+    .ant-select-item {
+        color: var(--horosa-text-soft);
+    }
+
+    .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+    .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+        background: var(--horosa-accent-soft);
+        color: var(--horosa-accent-strong);
+    }
+
+    .ant-popover-title,
+    .ant-popover-inner-content,
+    .ant-picker-header,
+    .ant-picker-content th,
+    .ant-picker-cell {
+        color: var(--horosa-text);
+        border-color: var(--horosa-border);
+    }
+
+    .ant-picker-cell-in-view {
+        color: var(--horosa-text);
+    }
+
+    .ant-picker-cell-disabled::before {
+        background: var(--horosa-panel-soft);
+    }
+
+    .ant-picker-header button,
+    .ant-picker-footer,
+    .ant-picker-today-btn {
+        color: var(--horosa-accent-strong);
+        border-color: var(--horosa-border);
+    }
+
+    .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
+    .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
+    .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+        background: var(--horosa-accent);
+        color: #fff;
+    }
+
+    .ant-tooltip-arrow-content,
+    .ant-popover-arrow-content {
+        background: var(--horosa-surface-raised);
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left {
+        height: 100%;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-surface);
+        box-shadow: var(--horosa-shadow);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav {
+        width: var(--horosa-nav-width);
+        max-height: calc(100vh - 96px);
+        margin-right: 0;
+        padding: 9px 9px;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 22%),
+            var(--horosa-nav-bg);
+        border-right: 1px solid var(--horosa-border);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav {
+        background:
+            linear-gradient(180deg, rgba(77, 163, 255, 0.08), transparent 30%),
+            var(--horosa-nav-bg);
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-wrap {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scrollbar-width: thin;
+        scrollbar-color: var(--horosa-border-strong) transparent;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-wrap::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+        background: transparent;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-wrap::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-wrap::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background: var(--horosa-border-strong);
+        background-clip: content-box;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-list {
+        width: 100%;
+        transform: none !important;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-operations {
+        display: none !important;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab {
+        position: relative;
+        width: 100%;
+        min-height: 36px;
+        margin: 1px 0;
+        padding: 7px 12px;
+        border-radius: 7px;
+        border: 1px solid transparent;
+        transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab-btn {
+        width: 100%;
+        line-height: 1.2;
+        text-align: left;
+    }
+
+    .horosa-workspace-shell .horosa-main-tab-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-main-tab-icon {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 25px;
+        height: 25px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 7px;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent),
+            var(--horosa-panel-bg);
+        color: var(--horosa-text-soft);
+        font-size: 14px;
+        transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .horosa-workspace-shell .horosa-main-tab-copy {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-main-tab-group {
+        display: block;
+        margin: 0 0 1px;
+        color: var(--horosa-muted);
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1;
+    }
+
+    .horosa-workspace-shell .horosa-main-tab-text {
+        display: block;
+        overflow: hidden;
+        color: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab-active {
+        border-color: var(--horosa-border-strong);
+        background:
+            linear-gradient(90deg, var(--horosa-accent-soft), transparent 110%),
+            var(--horosa-panel-soft);
+        box-shadow: inset 3px 0 0 var(--horosa-accent), 0 8px 18px rgba(47, 115, 224, 0.10);
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab-active .horosa-main-tab-icon {
+        border-color: var(--horosa-accent);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent),
+            var(--horosa-accent-soft);
+        color: var(--horosa-accent-strong);
+        box-shadow: 0 0 0 3px var(--horosa-cyan-soft, rgba(77, 163, 255, 0.08));
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab:hover {
+        background: var(--horosa-panel-soft);
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab:hover .horosa-main-tab-icon {
+        border-color: var(--horosa-border-strong);
+        color: var(--horosa-accent-strong);
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-content-holder {
+        border-left: 0;
+        background: linear-gradient(180deg, var(--horosa-panel-bg), transparent);
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-content-holder > .ant-tabs-content {
+        height: 100%;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-content-holder .ant-tabs-tabpane {
+        padding: 16px 18px;
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-tabs-top > .ant-tabs-nav {
+        margin-bottom: 12px;
+    }
+
+    .horosa-workspace-shell .ant-tabs-top > .ant-tabs-nav .ant-tabs-tab {
+        padding: 8px 0;
+    }
+
+    .horosa-workspace-shell .ant-tabs-right > .ant-tabs-nav {
+        padding: 10px 8px;
+        border-left: 1px solid var(--horosa-border);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 40%),
+            var(--horosa-nav-bg);
+    }
+
+    .horosa-workspace-shell .ant-tabs-right > .ant-tabs-nav .ant-tabs-tab {
+        min-height: 38px;
+        margin: 2px 0;
+        padding: 0 12px;
+        border-radius: 7px;
+    }
+
+    .horosa-workspace-shell .ant-tabs-right > .ant-tabs-nav .ant-tabs-tab-active {
+        border: 1px solid var(--horosa-border-strong);
+        background: var(--horosa-accent-soft);
+        box-shadow: inset -3px 0 0 var(--horosa-accent);
+    }
+
+    .horosa-workspace-shell .ant-tabs-right > .ant-tabs-nav .ant-tabs-ink-bar {
+        display: none;
+    }
+
+    .horosa-workspace-shell .horosa-astro-page,
+    .horosa-workspace-shell .horosa-bazi-page,
+    .horosa-workspace-shell .horosa-ziwei-page,
+    .horosa-workspace-shell .horosa-cntradition-page,
+    .horosa-workspace-shell .horosa-calendar-page {
+        height: 100%;
+        min-width: 0;
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-astro-layout,
+    .horosa-workspace-shell .horosa-bazi-layout,
+    .horosa-workspace-shell .horosa-ziwei-layout {
+        height: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-chart-stage,
+    .horosa-workspace-shell .horosa-bazi-chart-panel,
+    .horosa-workspace-shell .horosa-ziwei-chart-panel,
+    .horosa-workspace-shell .horosa-inspector-panel,
+    .horosa-workspace-shell .horosa-bazi-inspector-panel,
+    .horosa-workspace-shell .horosa-ziwei-inspector-panel {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-chart-stage,
+    .horosa-workspace-shell .horosa-bazi-chart-panel,
+    .horosa-workspace-shell .horosa-ziwei-chart-panel {
+        position: relative;
+        overflow: auto;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.10), transparent 52%),
+            var(--horosa-panel-bg);
+        box-shadow: var(--horosa-small-shadow);
+    }
+
+    .horosa-workspace-shell .horosa-chart-stage::before,
+    .horosa-workspace-shell .horosa-bazi-chart-panel::before,
+    .horosa-workspace-shell .horosa-ziwei-chart-panel::before {
+        pointer-events: none;
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: inherit;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .horosa-workspace-shell .horosa-chart-stage > *,
+    .horosa-workspace-shell .horosa-bazi-chart-panel > *,
+    .horosa-workspace-shell .horosa-ziwei-chart-panel > * {
+        position: relative;
+        z-index: 2;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-chart-stage,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-bazi-chart-panel,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-ziwei-chart-panel {
+        background:
+            linear-gradient(180deg, rgba(15, 36, 52, 0.78), rgba(7, 16, 26, 0.62)),
+            var(--horosa-panel-bg);
+    }
+
+    .horosa-workspace-shell .horosa-chart-stage svg,
+    .horosa-workspace-shell .horosa-bazi-chart-panel svg,
+    .horosa-workspace-shell .horosa-ziwei-chart-panel svg {
+        border-radius: var(--horosa-radius);
+    }
+
+    .horosa-workspace-shell .horosa-inspector-panel,
+    .horosa-workspace-shell .horosa-bazi-inspector-panel,
+    .horosa-workspace-shell .horosa-ziwei-inspector-panel {
+        overflow: hidden;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-panel-bg);
+        box-shadow: var(--horosa-small-shadow);
+    }
+
+    .horosa-workspace-shell .horosa-inspector-controls,
+    .horosa-workspace-shell .horosa-bazi-input-panel,
+    .horosa-workspace-shell .horosa-ziwei-input-panel {
+        padding: 12px 12px 10px;
+        border-bottom: 1px solid var(--horosa-border);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent),
+            var(--horosa-panel-soft);
+    }
+
+    .horosa-workspace-shell .horosa-inspector-controls .ant-col,
+    .horosa-workspace-shell .horosa-bazi-input-panel .ant-col,
+    .horosa-workspace-shell .horosa-ziwei-input-panel .ant-col {
+        margin-bottom: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-inspector-controls .ant-row {
+        align-items: center;
+    }
+
+    .horosa-workspace-shell .horosa-geo-value {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-height: 30px;
+        padding-left: 8px;
+        color: var(--horosa-text-soft);
+        font-size: 12px;
+        line-height: 1.2;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell .horosa-geo-value span {
+        display: inline-flex;
+        max-width: 100%;
+        padding: 5px 8px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 7px;
+        background: var(--horosa-panel-bg);
+    }
+
+    .horosa-workspace-shell .horosa-inspector-tabs,
+    .horosa-workspace-shell .horosa-bazi-tabs,
+    .horosa-workspace-shell .horosa-ziwei-tabs {
+        height: calc(100% - 132px);
+        padding: 0 12px 12px;
+    }
+
+    .horosa-workspace-shell .horosa-inspector-tabs .ant-tabs-content-holder,
+    .horosa-workspace-shell .horosa-bazi-tabs .ant-tabs-content-holder,
+    .horosa-workspace-shell .horosa-ziwei-tabs .ant-tabs-content-holder {
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-inspector-tabs .ant-tabs-tabpane,
+    .horosa-workspace-shell .horosa-bazi-tabs .ant-tabs-tabpane,
+    .horosa-workspace-shell .horosa-ziwei-tabs .ant-tabs-tabpane {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-bazi-direct-card {
+        border: 1px solid var(--horosa-border);
+        border-radius: 6px;
+        color: var(--horosa-text);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .horosa-workspace-shell .horosa-bazi-year-cell {
+        border-radius: 4px;
+        border: 1px solid rgba(77, 163, 255, 0.12);
+    }
+
+    .horosa-workspace-shell .horosa-bazi-summary {
+        margin: 4px 2px 14px;
+        padding: 13px 16px;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background:
+            linear-gradient(90deg, var(--horosa-gold-soft), transparent 42%),
+            var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        line-height: 1.65;
+    }
+
+    .horosa-workspace-shell .horosa-bazi-summary a {
+        color: var(--horosa-accent-strong);
+    }
+
+    .horosa-workspace-shell .horosa-bazi-pillar-card {
+        min-height: 100%;
+        padding: 14px 10px;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 58%),
+            var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-bazi-pillar-card {
+        background:
+            linear-gradient(180deg, rgba(216, 173, 99, 0.10), rgba(34, 211, 238, 0.03) 70%),
+            var(--horosa-panel-soft);
+    }
+
+    .horosa-workspace-shell .horosa-bazi-day-master-card {
+        border-color: var(--horosa-gold);
+        box-shadow: inset 0 0 0 1px rgba(216, 173, 99, 0.18), 0 14px 34px rgba(184, 137, 63, 0.12);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-bazi-day-master-card {
+        background:
+            radial-gradient(circle at 50% 0%, rgba(216, 173, 99, 0.20), transparent 42%),
+            linear-gradient(180deg, rgba(216, 173, 99, 0.12), rgba(34, 211, 238, 0.04) 76%),
+            var(--horosa-panel-soft);
+        box-shadow: inset 0 0 0 1px rgba(216, 173, 99, 0.24), 0 18px 38px rgba(0, 0, 0, 0.28);
+    }
+
+    .horosa-workspace-shell .horosa-bazi-scroll {
+        padding: 4px 7px 14px;
+    }
+
+    .horosa-workspace-shell .horosa-bazi-scroll .ant-divider {
+        margin: 16px 0 14px;
+    }
+
+    .horosa-workspace-shell .horosa-bazi-scroll .ant-divider-inner-text {
+        color: var(--horosa-gold);
+    }
+
+    .horosa-workspace-shell .horosa-bazi-main-direction-card {
+        padding: 6px 4px;
+        border-color: var(--horosa-border-strong);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.10), transparent),
+            var(--horosa-bazi-direct-bg) !important;
+    }
+
+    .horosa-workspace-shell .horosa-bazi-year-cell {
+        margin: 3px 1px;
+        border-color: var(--horosa-border);
+        background: var(--horosa-panel-soft) !important;
+        transition: border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .horosa-workspace-shell .horosa-bazi-year-cell-future {
+        border-color: var(--horosa-border-strong);
+        background:
+            linear-gradient(180deg, var(--horosa-cyan-soft), transparent),
+            var(--horosa-bazi-year-bg) !important;
+    }
+
+    .horosa-workspace-shell .horosa-ziwei-direction-button {
+        margin-bottom: 8px;
+        border-color: var(--horosa-border);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+            var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        line-height: 1.35;
+    }
+
+    .horosa-workspace-shell .horosa-ziwei-direction-button.ant-btn-primary {
+        border-color: var(--horosa-accent);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent),
+            var(--horosa-accent-soft);
+        color: var(--horosa-accent-strong);
+        text-shadow: none;
+        box-shadow: inset 0 0 0 1px rgba(77, 163, 255, 0.18);
+    }
+
+    .horosa-workspace-shell .horosa-bazi-analysis-panel,
+    .horosa-workspace-shell .horosa-ziwei-analysis-panel {
+        padding: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-cntradition-page > .ant-tabs-right {
+        height: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-cnyibu-page {
+        height: 100%;
+        min-width: 1080px;
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-cnyibu-page > .ant-tabs-right {
+        height: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-cntradition-page > .ant-tabs-right > .ant-tabs-nav {
+        width: 136px;
+        padding: 10px 8px;
+        border-left: 1px solid var(--horosa-border);
+        background: var(--horosa-nav-bg);
+    }
+
+    .horosa-workspace-shell .horosa-cnyibu-page > .ant-tabs-right > .ant-tabs-nav {
+        width: 120px;
+        padding: 10px 8px;
+        border-left: 1px solid var(--horosa-border);
+        background: var(--horosa-nav-bg);
+    }
+
+    .horosa-workspace-shell .horosa-cntradition-page > .ant-tabs-right > .ant-tabs-nav .ant-tabs-tab {
+        min-height: 36px;
+        margin: 2px 0;
+        padding: 0 10px;
+        border-radius: 7px;
+    }
+
+    .horosa-workspace-shell .horosa-cnyibu-page > .ant-tabs-right > .ant-tabs-nav .ant-tabs-tab {
+        min-height: 36px;
+        margin: 2px 0;
+        padding: 0 10px;
+        border-radius: 7px;
+    }
+
+    .horosa-workspace-shell .horosa-cntradition-page > .ant-tabs-right > .ant-tabs-nav .ant-tabs-tab-active {
+        background: var(--horosa-accent-soft);
+        box-shadow: inset -3px 0 0 var(--horosa-accent);
+    }
+
+    .horosa-workspace-shell .horosa-cnyibu-page > .ant-tabs-right > .ant-tabs-nav .ant-tabs-tab-active {
+        background: var(--horosa-accent-soft);
+        box-shadow: inset -3px 0 0 var(--horosa-accent);
+    }
+
+    .horosa-workspace-shell .horosa-calendar-page {
+        min-width: 980px;
+    }
+
+    .horosa-workspace-shell .horosa-dice-page {
+        height: 100%;
+        min-width: 980px;
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-dice-layout {
+        height: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-dice-chart-panel > .ant-tabs,
+    .horosa-workspace-shell .horosa-dice-inspector-panel > div {
+        overflow: hidden;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-panel-bg);
+        box-shadow: var(--horosa-small-shadow);
+    }
+
+    .horosa-workspace-shell .horosa-dice-chart-panel > .ant-tabs {
+        padding: 8px 10px 0;
+    }
+
+    .horosa-workspace-shell .horosa-dice-inspector-panel > div {
+        padding: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-dice-inspector-panel .ant-divider {
+        color: var(--horosa-text-soft);
+        border-top-color: var(--horosa-border);
+    }
+
+    .horosa-workspace-shell .horosa-calendar-tabs.ant-tabs-right {
+        height: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-tabs.ant-tabs-right > .ant-tabs-nav {
+        width: 88px;
+        padding: 10px 8px;
+        border-left: 1px solid var(--horosa-border);
+        background: var(--horosa-nav-bg);
+    }
+
+    .horosa-workspace-shell .horosa-calendar-tabs.ant-tabs-right > .ant-tabs-nav .ant-tabs-tab {
+        min-height: 36px;
+        margin: 2px 0;
+        padding: 0 10px;
+        border-radius: 7px;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-tabs.ant-tabs-right > .ant-tabs-nav .ant-tabs-tab-active {
+        background: var(--horosa-accent-soft);
+        box-shadow: inset -3px 0 0 var(--horosa-accent);
+    }
+
+    .horosa-workspace-shell .horosa-calendar-workbench {
+        display: grid;
+        grid-template-columns: minmax(640px, 1fr) 300px;
+        gap: 14px;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-board-panel,
+    .horosa-workspace-shell .horosa-calendar-detail-panel {
+        min-height: 0;
+        overflow: hidden;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-panel-bg);
+        box-shadow: var(--horosa-small-shadow);
+    }
+
+    .horosa-workspace-shell .horosa-calendar-board-panel {
+        padding: 14px;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-detail-panel {
+        display: flex;
+        flex-direction: column;
+        padding: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-control-strip {
+        padding: 8px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 8px;
+        background: var(--horosa-panel-soft);
+    }
+
+    .horosa-workspace-shell .horosa-calendar-detail-panel .ant-divider {
+        margin: 12px 0;
+        border-top-color: var(--horosa-border);
+    }
+
+    .horosa-workspace-shell .horosa-calendar-selected {
+        min-height: 0;
+        overflow: auto;
+        color: var(--horosa-text-soft);
+        line-height: 1.65;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-selected .ant-row {
+        row-gap: 4px;
+    }
+
+    .horosa-workspace-shell .horosa-empty-hint {
+        display: flex;
+        align-items: center;
+        min-height: 112px;
+        padding: 14px;
+        border: 1px dashed var(--horosa-border);
+        border-radius: 8px;
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-muted);
+        line-height: 1.55;
+    }
+
+    .horosa-workspace-shell .horosa-lunar-calendar {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-title {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 44px;
+        padding: 0 18px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 8px;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.10), transparent),
+            var(--horosa-calendar-heading-bg);
+        color: var(--horosa-text);
+        font-size: 21px;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-week-row,
+    .horosa-workspace-shell .horosa-calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-week-row > div {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 7px;
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text-soft);
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .horosa-workspace-shell .horosa-calendar-grid {
+        flex: 1;
+        min-height: 0;
+        grid-auto-rows: minmax(68px, 1fr);
+    }
+
+    .horosa-workspace-shell .horosa-calendar-cell-wrap {
+        min-width: 0;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-lunar-date-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        height: 100%;
+        min-height: 68px;
+        padding: 8px 4px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 8px;
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        cursor: pointer;
+        transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .horosa-workspace-shell .horosa-lunar-date-card:hover {
+        border-color: var(--horosa-border-strong);
+        background: var(--horosa-surface-raised);
+        transform: translateY(-1px);
+    }
+
+    .horosa-workspace-shell .horosa-lunar-date-card.is-active {
+        border-color: var(--horosa-accent);
+        background: var(--horosa-accent-soft);
+        box-shadow: inset 0 0 0 1px var(--horosa-border-strong);
+    }
+
+    .horosa-workspace-shell .horosa-lunar-date-card.is-other {
+        opacity: 0.58;
+    }
+
+    .horosa-workspace-shell .scrollbar::-webkit-scrollbar,
+    .horosa-workspace-shell ::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+    }
+
+    .horosa-workspace-shell .scrollbar::-webkit-scrollbar-track,
+    .horosa-workspace-shell ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .horosa-workspace-shell .scrollbar::-webkit-scrollbar-thumb,
+    .horosa-workspace-shell ::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: var(--horosa-border-strong);
+    }
+
+    @media (max-width: 760px) {
+        .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav {
+            width: 88px;
+            padding: 8px 6px;
+        }
+
+        .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab {
+            min-height: 38px;
+            padding: 6px 8px;
+        }
+
+        .horosa-workspace-shell .horosa-main-tab-label {
+            display: block;
+        }
+
+        .horosa-workspace-shell .horosa-main-tab-copy {
+            display: flex;
+        }
+
+        .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-content-holder .ant-tabs-tabpane {
+            padding: 8px;
+        }
+
+        .horosa-workspace-shell .horosa-astro-layout,
+        .horosa-workspace-shell .horosa-bazi-layout,
+        .horosa-workspace-shell .horosa-ziwei-layout {
+            min-width: 920px;
+        }
+
+        .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-content-holder {
+            overflow: auto;
+        }
+    }
+}
+
+.horosaAppShell {
+    position: relative;
+}
+
+.workspaceOuter {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 14px 14px 16px;
+    overflow: hidden;
+}
+
+.workspaceInner {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+}
+
+@media (max-width: 760px) {
+    .workspaceOuter {
+        padding: 8px;
+    }
+}
+
 .rootcontainer{
     width: 100%;
     height: 100%;
@@ -16,53 +1274,26 @@
 }
 
 .trigger:hover {
-    color: #1890ff;
+    color: var(--horosa-accent, #1890ff);
 }
-
 
 .sider::-webkit-scrollbar {
     width: 0px;
     height: 0px;
-    background-color: #f5f5f5;
+    background-color: var(--horosa-bg, #f5f5f5);
 }
 
 .sider::-webkit-scrollbar-track {
     -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
     box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
     border-radius: 10px;
-    background-color: #ffffff;
+    background-color: var(--horosa-surface-solid, #ffffff);
 }
 
 .sider::-webkit-scrollbar-thumb {
-    /*width: 10px;*/
     height: 20px;
     border-radius: 10px;
     -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
     box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
-    background-color: #D2D7DD;
-}
-
-:global {
-    .mainRootTabs.ant-tabs-left > .ant-tabs-nav {
-        max-height: calc(100vh - 92px);
-    }
-
-    .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-wrap {
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        scrollbar-width: none;
-    }
-
-    .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-wrap::-webkit-scrollbar {
-        width: 0;
-        height: 0;
-    }
-
-    .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-list {
-        transform: none !important;
-    }
-
-    .mainRootTabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-nav-operations {
-        display: none !important;
-    }
+    background-color: var(--horosa-border-strong, #D2D7DD);
 }

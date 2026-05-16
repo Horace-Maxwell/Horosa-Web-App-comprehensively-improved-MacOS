@@ -81,11 +81,11 @@ function purgeHeavyLocalCache(){
 }
 
 export const CASE_TYPE_OPTIONS = [
-	{ value: 'liuyao', label: '六爻', subTab: 'guazhan', module: 'guazhan' },
-	{ value: 'liureng', label: '六壬', subTab: 'liureng', module: 'liureng' },
+	{ value: 'liuyao', label: '六爻', subTab: null, tab: 'guazhan', module: 'guazhan' },
+	{ value: 'liureng', label: '六壬', subTab: null, tab: 'liureng', module: 'liureng' },
 	{ value: 'jinkou', label: '金口诀', subTab: 'jinkou', module: 'jinkou' },
-	{ value: 'taiyi', label: '太乙', subTab: 'taiyi', module: 'taiyi' },
-	{ value: 'qimen', label: '奇门', subTab: 'dunjia', module: 'qimen' },
+	{ value: 'taiyi', label: '太乙', subTab: null, tab: 'taiyi', module: 'taiyi' },
+	{ value: 'qimen', label: '奇门', subTab: null, tab: 'dunjia', module: 'qimen' },
 	{ value: 'tongshefa', label: '统摄法', subTab: 'tongshefa', module: 'tongshefa' },
 	{ value: 'sanshiunited', label: '三式合一', subTab: null, tab: 'sanshiunited', module: 'sanshiunited' },
 ];

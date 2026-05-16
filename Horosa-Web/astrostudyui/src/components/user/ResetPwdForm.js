@@ -77,7 +77,7 @@ export default function ResetPwdForm(props){
 						message: '请输入您有效的email' 
 					}]}
 				>
-					<Input prefix={<UserOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} placeholder="有效的email" />
+					<Input prefix={<UserOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} placeholder="有效的email" />
 				</FormItem>
 				
 				<FormItem
@@ -99,4 +99,3 @@ export default function ResetPwdForm(props){
 	);
     
 }
-

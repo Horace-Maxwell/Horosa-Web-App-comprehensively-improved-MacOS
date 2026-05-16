@@ -313,6 +313,7 @@ class ZiWeiMain extends Component{
 			let rad = (
 				<Col span={8} key={randomStr(8)}>
 					<Button 
+						className="horosa-ziwei-direction-button"
 						type={btntype}
 						onClick={()=>{this.onChangeDirection(idx);}} 
 						style={{width: '100%', height: 50}}
@@ -368,9 +369,9 @@ class ZiWeiMain extends Component{
 		}
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={16}>
+			<div className="horosa-ziwei-page">
+				<Row gutter={12} className="horosa-ziwei-layout">
+					<Col span={16} className="horosa-ziwei-chart-panel">
 						<ZiWeiChart 
 							value={chart} 
 							height={height} 
@@ -381,9 +382,9 @@ class ZiWeiMain extends Component{
 							onTipClick={this.onTipClick}
 						/>
 					</Col>
-					<Col span={8}>
+					<Col span={8} className="horosa-ziwei-inspector-panel">
 						<Row>
-							<Col span={24}>
+							<Col span={24} className="horosa-ziwei-input-panel">
 								<ZiWeiInput 
 									fields={this.props.fields} 
 									onFieldsChange={this.onFieldsChange}
@@ -392,8 +393,8 @@ class ZiWeiMain extends Component{
 						</Row>
 						<Divider />
 						<Row>
-							<Col span={24}>
-								<Tabs defaultActiveKey="1" tabPosition='top'>
+							<Col span={24} className="horosa-ziwei-analysis-panel">
+								<Tabs defaultActiveKey="1" tabPosition='top' className="horosa-ziwei-tabs">
 									<TabPane tab="行运" key="1">
 										<Row>
 											{doms}

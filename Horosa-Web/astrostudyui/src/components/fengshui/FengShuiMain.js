@@ -105,9 +105,9 @@ class FengShuiMain extends Component {
 						style={{
 							width: '100%',
 							height: typeof height === 'number' ? `${height}px` : 'calc(100vh - 132px)',
-							border: '1px solid #f0f0f0',
+							border: '1px solid var(--horosa-border, #f0f0f0)',
 							borderRadius: 8,
-							background: '#fff',
+							background: 'var(--horosa-panel-bg, #fff)',
 						}}
 					/>
 				</Card>

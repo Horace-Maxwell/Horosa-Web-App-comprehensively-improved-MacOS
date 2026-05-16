@@ -159,6 +159,8 @@ class AstroChartMain extends Component{
 
 		let height = this.props.height ? this.props.height : 760;
 		let tabHeight = height - 100;
+		const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : height;
+		let chartHeight = Math.max(520, Math.min(height - 112, viewportHeight - 220));
 
 		let showzodical = true;
 		let showhsys = true;
@@ -184,20 +186,28 @@ class AstroChartMain extends Component{
 		}
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={17}>
-							<AstroChart value={chartObj} 
-								chartDisplay={this.props.chartDisplay}
-								planetDisplay={this.props.planetDisplay}
-								lotsDisplay={this.props.lotsDisplay}
-								showAstroMeaning={this.props.showAstroMeaning}
-								backgroundColor='aliceblue' 
-								height={height}
-							/>
+			<div className="horosa-astro-page">
+				<Row gutter={12} className="horosa-astro-layout">
+					<Col span={17} className="horosa-chart-stage">
+							{
+								this.props.chartRenderer ? (
+									this.props.chartRenderer({
+										chartObj,
+										height: chartHeight,
+									})
+								) : (
+									<AstroChart value={chartObj}
+										chartDisplay={this.props.chartDisplay}
+										planetDisplay={this.props.planetDisplay}
+										lotsDisplay={this.props.lotsDisplay}
+										showAstroMeaning={this.props.showAstroMeaning}
+										height={chartHeight}
+									/>
+								)
+							}
 					</Col>
-					<Col span={7}>
-						<Row gutter={0}>
+					<Col span={7} className="horosa-inspector-panel">
+						<Row gutter={0} className="horosa-inspector-controls">
 							{
 								showdateselector && (
 									<Col span={24}>
@@ -269,15 +279,15 @@ class AstroChartMain extends Component{
 												<Button size='small' style={{width:'100%'}}>经纬度选择</Button>
 											</GeoCoordModal>
 										</Col>
-										<Col span={16} style={{textAlign: 'center'}}>
-											<span style={{width:'100%'}}>{this.props.fields.lon.value + ' ' + this.props.fields.lat.value}</span>
+										<Col span={16} className="horosa-geo-value">
+											<span>{this.props.fields.lon.value + ' ' + this.props.fields.lat.value}</span>
 										</Col>
 										</Row>
 									</Col>
 								)
 							}
 						</Row>
-						<Tabs defaultActiveKey="1" tabPosition='top'>
+						<Tabs defaultActiveKey="1" tabPosition='top' className="horosa-inspector-tabs">
 								<TabPane tab="信息" key="1">
 									<AstroInfo height={tabHeight}
 										value={chartObj} fields={fields}

@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, } from 'antd';
+import { Tabs, } from 'antd';
 import { randomStr } from '../../utils/helper';
 import NongLiMain from './NongLiMain';
 
@@ -62,10 +62,11 @@ class CalendarMain extends Component{
 		height = height - 20;
 
 		return (
-			<div id={this.state.divId}>
+			<div id={this.state.divId} className='horosa-calendar-page'>
 				<Tabs 
 					defaultActiveKey={this.state.currentTab} tabPosition='right'
 					onChange={this.changeTab}
+					className='horosa-calendar-tabs'
 					style={{ height: height }}
 				>
 					<TabPane tab="农历" key="nongli">

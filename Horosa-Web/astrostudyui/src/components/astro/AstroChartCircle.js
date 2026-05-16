@@ -325,7 +325,7 @@ export default class AstroChartCircle {
 					}
 					let rotang = -angle;
 					if(house1Ang !== undefined && house1Ang !== null && txtforward){
-						// rotang = 90 - house1Ang;
+						rotang = 90 - house1Ang;
 					}
 					let trans = 'translate(' + posx + ', ' + posy + ') rotate(' + rotang + ')';
 					return trans;	
@@ -341,6 +341,109 @@ export default class AstroChartCircle {
 		}
 		
 		return signs;
+	}
+
+	houseCuspBand(svg, r, rStep, houses, flags, house1Ang){
+		let showCuspText = (flags & AstroConst.CHART_HOUSEDEGREE) === AstroConst.CHART_HOUSEDEGREE;
+		let innerR = r - rStep;
+		let txtPosR = r - rStep / 2 - this.TxtOffsetTop;
+		const textAngle = house1Ang !== undefined && house1Ang !== null ? 90 - house1Ang : 0;
+		const labelClearance = Math.max(0, Math.min(rStep / 2 - 2, Math.max(10, rStep * 0.36)));
+		let band = svg.append('g');
+
+		band.append('circle')
+			.attr('r', r)
+			.attr('fill', 'none')
+			.attr('stroke', AstroConst.AstroColor.Stroke)
+			.attr('stroke-width', 1.35);
+		band.append('circle')
+			.attr('r', innerR)
+			.attr('fill', 'none')
+			.attr('stroke', AstroConst.AstroColor.Stroke)
+			.attr('stroke-width', 1.1);
+
+		for(let i=0; i<houses.length; i++){
+			let house = houses[i];
+			let lonrad = house.lon * Math.PI / 180;
+			const appendCuspLine = (outerRadius, innerRadius) => {
+				if(outerRadius <= innerRadius){
+					return;
+				}
+				let x1 = -outerRadius * Math.sin(lonrad);
+				let y1 = -outerRadius * Math.cos(lonrad);
+				let x2 = -innerRadius * Math.sin(lonrad);
+				let y2 = -innerRadius * Math.cos(lonrad);
+				band.append('line')
+					.attr('x1', x1)
+					.attr('y1', y1)
+					.attr('x2', x2)
+					.attr('y2', y2)
+					.attr('stroke', AstroConst.AstroColor.Stroke)
+					.attr('stroke-width', 1);
+			};
+			if(showCuspText){
+				appendCuspLine(Math.max(innerR, txtPosR - labelClearance), innerR);
+			}else{
+				appendCuspLine(r, innerR);
+			}
+
+			if(!showCuspText){
+				continue;
+			}
+
+			let sig = house.sign;
+			let angleparts = splitDegree(house.signlon);
+			let txts = [angleparts[0] + 'º', AstroText.AstroMsg[sig], angleparts[1] + "'"];
+			let lblgroup = band.append('g').attr("text-anchor", "middle");
+			lblgroup.selectAll('text').data(txts).enter().append('text')
+				.attr("dominant-baseline","middle")
+				.attr("text-anchor", "middle")
+				.attr('font-size', function(d, idx){
+					if(idx === 1){
+						return 22;
+					}
+					if(idx === 2){
+						return 11;
+					}
+					return 13;
+				})
+				.attr('stroke', function(d, idx){
+					if(idx === 1){
+						return AstroConst.AstroColor[sig];
+					}
+					return AstroConst.AstroColor.Stroke;
+				})
+				.attr('font-family', function(d,idx){
+					if(idx === 1){
+						return AstroConst.AstroChartFont;
+					}
+					return AstroConst.NormalFont;
+				})
+				.attr('font-weight', function(d, idx){
+					if(idx === 1){
+						return 400;
+					}
+					if(idx === 2){
+						return 400;
+					}
+					return 600;
+				})
+				.attr('transform', function(d, idx){
+					let centeridx = 1;
+					let ang = house.lon;
+					if(idx !== centeridx){
+						let deltaIdx = centeridx - idx;
+						ang = ang + deltaIdx * 3.6;
+					}
+					let rad = ang * Math.PI / 180;
+					let x = -txtPosR * Math.sin(rad);
+					let y = -txtPosR * Math.cos(rad);
+					return 'translate(' + x + ', ' + y + ') rotate(' + textAngle + ')';
+				})
+				.text(function(d){return d});
+		}
+
+		return band;
 	}
 
 	resolveTermHighlightColor(sig, termOwner, matchedHighlight){
@@ -385,7 +488,7 @@ export default class AstroChartCircle {
 			.attr('cx', dotX)
 			.attr('cy', dotY)
 			.attr('r', 4.5)
-			.attr('stroke', '#ffffff')
+			.attr('stroke', 'var(--horosa-surface-solid, #ffffff)')
 			.attr('stroke-width', 1.4)
 			.attr('fill', markerFill ? `${markerFill}` : markerStroke);
 	}
@@ -438,7 +541,7 @@ export default class AstroChartCircle {
 				let strokeColor = AstroConst.AstroColor.Stroke;
 				let fillColor = AstroConst.AstroColor['NoColor'];
 				let labelColor = samecolorwithsign ? AstroConst.AstroColor[sig] : AstroConst.AstroColor[term[0]];
-				let fontWeight = 100;
+				let fontWeight = 400;
 				let fontSize = 13;
 				let accentColor = null;
 				if(matchedHighlight){
@@ -742,9 +845,39 @@ export default class AstroChartCircle {
 		let txtforward = (flags & AstroConst.CHART_TXTPLANETFORWARD) === 0 ? false : true;
 		let txtplanet = (flags & AstroConst.CHART_TXTPLANET) === 0 ? false : true;
 		let degSet = [];
+		const isWideChart = r >= this.rThreshold;
+		const planetSymbolFont = isWideChart ? 25 : 21;
+		const signSymbolFont = isWideChart ? 20 : 17;
+		const planetTextFont = isWideChart ? 16 : 14;
+		const planetLayerInset = Math.max(isWideChart ? 32 : 24, Math.round(rStep * (isWideChart ? 0.22 : 0.28)));
+		const planetTextOffsets = isWideChart
+			? { planet: 0, degree: 32, sign: 50, minute: 68, retrograde: 84, extraStart: 100, extraStep: 15 }
+			: { planet: 0, degree: 26, sign: 42, minute: 58, retrograde: 72, extraStart: 86, extraStep: 13 };
 	
 		let innerR = r - rStep;
-		let txtPosR = r - 10 - this.TxtOffsetTop;
+		let txtPosR = r - planetLayerInset - this.TxtOffsetTop;
+		const getPlanetTextOffset = (idx, hasRetrograde) => {
+			if(!txtplanet){
+				return idx === 0 ? planetTextOffsets.planet : planetTextOffsets.degree + idx * planetTextOffsets.extraStep;
+			}
+			if(idx <= 1){
+				return planetTextOffsets.planet;
+			}
+			if(idx <= 3){
+				return planetTextOffsets.degree;
+			}
+			if(idx <= 5){
+				return planetTextOffsets.sign;
+			}
+			if(idx === 6){
+				return planetTextOffsets.minute;
+			}
+			if(hasRetrograde && idx === 7){
+				return planetTextOffsets.retrograde;
+			}
+			let extraBase = hasRetrograde ? 8 : 7;
+			return planetTextOffsets.extraStart + Math.max(0, idx - extraBase) * planetTextOffsets.extraStep;
+		};
 	
 		let stars = svg.append('g');
 		for(let i=0; i<houses.length; i++){
@@ -771,7 +904,7 @@ export default class AstroChartCircle {
 			if(!planetDisplay.has(pntstr)){
 				continue;
 			}
-			let angoffset = r >= this.rThreshold ? 5 : 11;
+			let angoffset = r >= this.rThreshold ? 7.5 : 11;
 			let tmplon = pnt.lon;
 			if((degSet.length > 0 && distanceInCircleAbs(degSet[degSet.length-1], tmplon) < angoffset) || 
 				(degSet.length > 0 && degSet[degSet.length-1] + angoffset > tmplon)){
@@ -794,7 +927,8 @@ export default class AstroChartCircle {
 				startxt[5] = '';
 				startxt[6] = degs[1] + "'";	
 			}
-			if(pnt.lonspeed < 0){
+			const hasRetrograde = pnt.lonspeed < 0;
+			if(hasRetrograde){
 				startxt.push(AstroText.AstroMsg['Retrograde']);
 			}
 			if(txtsu28){
@@ -812,13 +946,13 @@ export default class AstroChartCircle {
 				.attr("text-anchor", "middle")
 				.attr('font-size', function(d, idx){
 					if(idx === 0 || idx === 7 || (startxt.length === 3 && idx === 2)){ // 行星符号
-						return 16;
+						return planetSymbolFont;
 					}else if(idx === 1 || idx === 3 || idx === 5){ // 空格
 						return 1;
 					}else if(idx === 4){ // 星座符号
-						return 15;
+						return signSymbolFont;
 					}else{
-						return r >= this.rThreshold ? 13 : 13;
+						return planetTextFont;
 					}
 				})
 				.attr('stroke', function(d, idx){
@@ -834,11 +968,11 @@ export default class AstroChartCircle {
 					}else{
 						return AstroConst.NormalFont;
 					}
-				}).attr('font-weight', 100)
+				}).attr('font-weight', 400)
 				.attr('transform', function(d, idx){
-					let offset = r >= this.rThreshold ? 20 : 13;
-					let x = -(txtPosR - idx * offset) * Math.sin(lon);
-					let y = -(txtPosR - idx * offset) * Math.cos(lon);
+					let offset = getPlanetTextOffset(idx, hasRetrograde);
+					let x = -(txtPosR - offset) * Math.sin(lon);
+					let y = -(txtPosR - offset) * Math.cos(lon);
 					let angle = -pnt.lon;
 					if(house1Ang !== undefined && house1Ang !== null && txtforward){
 						angle = 90 - house1Ang;
@@ -938,9 +1072,10 @@ export default class AstroChartCircle {
 		return apsgroup;
 	}
 	
-	desposeHouses(svg, r, rStep, houses){
+	desposeHouses(svg, r, rStep, houses, house1Ang){
 		let innerR = r - rStep;
-		let txtPosR = r - rStep / 2 - 4;
+		let txtPosR = r - rStep / 2;
+		const textAngle = house1Ang !== undefined && house1Ang !== null ? 90 - house1Ang : 0;
 	
 		let terms = svg.append('g');
 		for(let i=0; i<houses.length; i++){
@@ -974,10 +1109,9 @@ export default class AstroChartCircle {
 					.attr('stroke', AstroConst.AstroColor.Stroke)
 					.attr("dominant-baseline","middle")
 					.attr("text-anchor", "middle")
-					.attr('font-size', 16)
+					.attr('font-size', 17)
 					.text(termtxt);
-			let txtang = -(term['lon'] + delta/2);
-			let txtrot = 'rotate(' + txtang + ')';
+			let txtrot = 'rotate(' + textAngle + ')';
 			lbl.attr('transform', txtrot);		
 	
 		}
@@ -1017,7 +1151,12 @@ export default class AstroChartCircle {
 					}else{
 						return AstroConst.NormalFont;
 					}
-				}).attr('font-weight', 100)
+				}).attr('font-weight', function(d, idx){
+					if(idx === 1){
+						return 400;
+					}
+					return 600;
+				})
 				.attr('transform', function(d, idx){
 					let x = 0;
 					let y = 0;
@@ -1272,14 +1411,10 @@ export default class AstroChartCircle {
 		let svgid = '#' + chartid;
 		let svg = d3.select(svgid);
 		svg.html('');
-		svg.attr('stroke', '#000000').attr("stroke-width", 1);
+		svg.attr('stroke', AstroConst.AstroColor.Stroke).attr("stroke-width", 1);
 	
 		let topgroup = svg.append('g');
 	
-		if((flags & AstroConst.CHART_HOUSEDEGREE) === AstroConst.CHART_HOUSEDEGREE){
-			let lblHousedegR = radius + 20;
-			this.labelHousesDeg(topgroup, lblHousedegR, 70, chartObj.chart.houses, flags);	
-		}
 		let houseR = this.drawOuterSigns(chartObj, topgroup, radius, rStep, flags, chartObj.chart.isDiurnal);
 	
 		let txtsu28 = (flags & AstroConst.CHART_SU28_TEXT) === 0 ? false : true;
@@ -1301,7 +1436,11 @@ export default class AstroChartCircle {
 			house1 = this.getHouse(chartObj, AstroConst.HOUSE1);
 		}
 		let house1ang = house1 ? house1['lon'] : null;
-		let signs = this.signsBand(topgroup, radius, rStep, flags, isDiurnal, house1ang);
+		if(chartObj && chartObj.chart && Array.isArray(chartObj.chart.houses)){
+			this.houseCuspBand(topgroup, radius, rStep, chartObj.chart.houses, flags, house1ang);
+		}else{
+			this.signsBand(topgroup, radius, rStep, flags, isDiurnal, house1ang);
+		}
 	
 		let needTerm = (flags & AstroConst.CHART_TERM) === AstroConst.CHART_TERM ? true : false;
 	
@@ -1319,28 +1458,29 @@ export default class AstroChartCircle {
 	
 	drawInnerChartWithOrgXY(topgroup, chartObj, orgx, orgy, houseR, rStep, flags, planetDisplay, txtsu28, keyplanets){
 		let housesObj = chartObj.chart.houses;
-		let houses = this.desposeHouses(topgroup, houseR, rStep, housesObj);
-	
-		let needInnerDeg = (flags & AstroConst.CHART_INNERDEG) === AstroConst.CHART_INNERDEG ? true : false;
-		if(needInnerDeg){
-			let innerDegLines = this.degreeInnerLines(topgroup, houseR);
-		}
-	
-		let starsR = houseR - rStep;
-		let starStep = 115;
+		let housesAry = chartObj.chart.houses;
+		let starsR = houseR;
+		let starStep = Math.max(132, Math.min(188, Math.round(houseR * 0.45)));
+		let innerHouseStep = Math.max(24, Math.min(30, Math.round(rStep * 0.9)));
 		let txtplanet = (flags & AstroConst.CHART_TXTPLANET) === 0 ? false : true;
 		if(!txtplanet){
-			starStep = 50;
+			starStep = Math.max(62, Math.min(86, Math.round(houseR * 0.22)));
 		}else{
 			if(starsR < this.rThreshold){
-				starStep = 70
+				starStep = 86
 			}
 			if(txtsu28){
 				starStep = starStep + 60;
 			}
 		}
-	
-		let housesAry = chartObj.chart.houses;
+
+		let houseBandR = starsR - starStep;
+		if(houseBandR < rStep * 3){
+			houseBandR = rStep * 3;
+			starStep = Math.max(50, starsR - houseBandR);
+		}
+		let houses = null;
+		let needInnerDeg = (flags & AstroConst.CHART_INNERDEG) === AstroConst.CHART_INNERDEG ? true : false;
 		let objectsAry = [];
 		for(let i=0; i<chartObj.chart.objects.length; i++){
 			objectsAry.push(chartObj.chart.objects[i]);
@@ -1357,21 +1497,26 @@ export default class AstroChartCircle {
 		let needPlanets = (flags & AstroConst.CHART_PLANETS) === AstroConst.CHART_PLANETS ? true : false;
 		if(needPlanets){
 			let stars = this.desposeStars(topgroup, chartObj, starsR, starStep, housesAry, objectsAry, planetDisplay, flags, house1['lon'], txtsu28);
+			houses = this.desposeHouses(topgroup, houseBandR, innerHouseStep, housesObj, house1['lon']);
+			if(needInnerDeg){
+				this.degreeInnerLines(topgroup, houseBandR);
+			}
 			if((flags & AstroConst.CHART_ANGLELINE) === AstroConst.CHART_ANGLELINE){
-				let angleR = houseR + 60;
-				let len = starStep + 90;
+				let angleR = starsR;
+				let len = starsR - (houseBandR - innerHouseStep);
 				if(starsR < this.rThreshold){
-					angleR = houseR + 40;
-					len = starStep + 70;
+					angleR = starsR;
+					len = starsR - (houseBandR - innerHouseStep);
 				}
 				this.drawAngles(topgroup, angleR, len, chartObj, flags);	
 			}
 		
 		}else{
 			starStep = 0;
+			houses = this.desposeHouses(topgroup, houseR, innerHouseStep, housesObj, house1['lon']);
 		}
 	
-		let aspR = starsR - starStep;
+		let aspR = needPlanets ? houseBandR - innerHouseStep : houseR - innerHouseStep;
 		let needSu = (flags & AstroConst.CHART_SU27) === AstroConst.CHART_SU27 ? true : false;
 		if(needSu){
 			let suSixHouseR = starsR - starStep;
@@ -1399,7 +1544,7 @@ export default class AstroChartCircle {
 		}
 	
 		if(keyplanets){
-			let maskStep = rStep + starStep;
+			let maskStep = innerHouseStep + starStep;
 			this.drawMask(topgroup, chartObj, houseR, maskStep, keyplanets);
 		}
 	
@@ -1527,7 +1672,7 @@ export default class AstroChartCircle {
 		let svgid = '#' + chartid;
 		let svg = d3.select(svgid);
 		svg.html('');
-		svg.attr('stroke', '#000000').attr("stroke-width", 1);
+		svg.attr('stroke', AstroConst.AstroColor.Stroke).attr("stroke-width", 1);
 	
 		let topgroup = svg.append('g');
 	

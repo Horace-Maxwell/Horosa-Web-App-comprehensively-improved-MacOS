@@ -7,24 +7,161 @@
 }
 
 .userbox {
+  position: relative;
+  display: grid;
+  grid-template-columns: 204px minmax(0, 1fr) minmax(380px, 500px);
+  align-items: center;
+  gap: 14px;
   width: 100%;
   height: 100%;
-  overflow-x: hidden;
+  padding: 0 18px;
+  overflow: hidden;
 }
 
-.userbox::after {
-  display: table;
-  content: "";
-  clear: both;
+.brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
-.user {
-  position: absolute;
-  font-size: 18px;
+.brandButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--horosa-text);
+  cursor: pointer;
 }
 
-.user span {
-  font-size: 14px;
+.brandButton:hover .brandMark {
+  border-color: var(--horosa-gold);
+  color: var(--horosa-gold);
+  box-shadow: 0 0 0 4px var(--horosa-gold-soft);
+}
+
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--horosa-border-strong);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.28), transparent 28%),
+    conic-gradient(from 22deg, var(--horosa-gold), var(--horosa-cyan, var(--horosa-accent)), var(--horosa-gold)),
+    var(--horosa-panel-soft);
+  color: #fff;
+  font-size: 22px;
+  box-shadow: inset 0 0 0 5px var(--horosa-panel-soft);
+  transition: all 0.18s ease;
+}
+
+.brandText {
+  color: var(--horosa-text);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+:global(:root[data-horosa-appearance='dark']) .brandText {
+  color: var(--horosa-gold);
+  text-shadow: 0 0 18px rgba(216, 173, 99, 0.16);
+}
+
+.commandBar,
+.utilityBar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.commandBar {
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.utilityBar {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.commandGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 42px;
+  padding: 0 8px;
+  border: 1px solid var(--horosa-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    var(--horosa-panel-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.primaryCommand {
+  border-color: var(--horosa-accent) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10), transparent),
+    var(--horosa-accent-soft) !important;
+  color: var(--horosa-accent-strong) !important;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--horosa-border-strong), 0 0 0 3px var(--horosa-cyan-soft, rgba(77, 163, 255, 0.05)) !important;
+}
+
+.compactCommand {
+  white-space: nowrap;
+}
+
+.searchInput {
+  width: 260px;
+}
+
+.appearanceButton {
+  min-width: 104px;
+}
+
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--horosa-border);
+  border-radius: 999px;
+  background: var(--horosa-panel-soft);
+  color: var(--horosa-text);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.account:hover {
+  border-color: var(--horosa-accent);
+  background: var(--horosa-accent-soft);
+}
+
+.avatar {
+  color: var(--horosa-accent-strong);
+  background: var(--horosa-panel-bg);
+  vertical-align: middle;
+}
+
+.name {
+  max-width: 88px;
+  overflow: hidden;
+  color: var(--horosa-text);
+  font-size: 13px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .action {
@@ -33,15 +170,6 @@
   display: inline-block;
   transition: all 0.3s;
   height: 100%;
-  > i {
-    font-size: 16px;
-    vertical-align: middle;
-    color: @text-color;
-  }
-  &:hover,
-  &:global(.ant-popover-open) {
-    background: @primary-1;
-  }
 }
 
 .quitaction {
@@ -50,25 +178,130 @@
   display: inline-block;
   transition: all 0.3s;
   height: 100%;
-  > i {
+}
+
+@media (max-width: 1500px) {
+  .userbox {
+    grid-template-columns: 150px minmax(0, 1fr) 342px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .brandText {
+    font-size: 20px;
+  }
+
+  .brandMark {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .commandGroup {
+    gap: 4px;
+    height: 38px;
+    padding: 0 5px;
+  }
+
+  .searchInput {
+    width: 168px;
+  }
+
+  .appearanceButton {
+    width: 34px;
+    min-width: 34px;
+    padding: 0;
+  }
+
+  .compactCommand :global(span:not(.anticon)),
+  .appearanceButton :global(span:not(.anticon)) {
+    display: none;
+  }
+
+}
+
+@media (max-width: 1320px) {
+  .userbox {
+    grid-template-columns: 104px minmax(0, 1fr) 260px;
+  }
+
+  .brandButton {
+    padding-right: 4px;
+  }
+
+  .brandText {
+    display: none;
+  }
+
+  .name {
+    display: none;
+  }
+
+  .account {
+    gap: 0;
+    padding: 0 7px;
+  }
+
+  .searchInput {
+    width: 150px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .userbox {
+    grid-template-columns: 74px minmax(0, 1fr) 192px;
+    gap: 6px;
+  }
+
+  .brandMark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .commandBar {
+    justify-content: flex-start;
+  }
+
+  .searchInput {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .userbox {
+    grid-template-columns: 48px minmax(0, 1fr) 92px;
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .brandButton {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .brandMark {
+    width: 30px;
+    height: 30px;
     font-size: 16px;
-    vertical-align: middle;
-    color: @text-color;
   }
-  &:hover,
-  &:global(.ant-popover-open) {
-    background: @primary-1;
+
+  .commandBar {
+    display: none;
+  }
+
+  .utilityBar {
+    gap: 6px;
+  }
+
+  .appearanceButton {
+    width: 32px;
+    min-width: 32px;
+  }
+
+  .account {
+    width: 32px;
+    height: 32px;
+    justify-content: center;
   }
 }
-
-
-.account {
-  .avatar {
-    margin: 20px 8px 20px 0;
-    color: @primary-color;
-    background: rgba(255, 255, 255, 0.85);
-    vertical-align: middle;
-  }
-}
-
-

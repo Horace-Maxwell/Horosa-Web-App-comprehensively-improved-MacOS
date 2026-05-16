@@ -101,9 +101,9 @@ class LiuRengChart extends Component{
 				'overflow-y': 'auto',
 				padding: '8px 10px',
 				font: '13px sans-serif',
-				background: '#ffffff',
-				color: '#262626',
-				border: '1px solid #e8e8e8',
+				background: 'var(--horosa-surface-raised, #ffffff)',
+				color: 'var(--horosa-text, #262626)',
+				border: '1px solid var(--horosa-border, #e8e8e8)',
 				'border-radius': '8px',
 				'box-shadow': '0 6px 18px rgba(0,0,0,0.16)',
 			});

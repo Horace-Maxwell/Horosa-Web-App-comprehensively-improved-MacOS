@@ -11,7 +11,7 @@ class MDSDirect extends Component{
 			
 		};
 
-		this.background = '#fefeef';
+		this.background = 'var(--horosa-bazi-direct-bg, #fefeef)';
 
 		this.genGong12GodDom = this.genGong12GodDom.bind(this);
 
@@ -77,7 +77,7 @@ class MDSDirect extends Component{
 		}
 
 		return (
-			<div style={{background: this.background}}>
+			<div className="horosa-bazi-direct-card horosa-bazi-main-direction-card" style={{background: this.background}}>
 				<Row>
 					<Col span={24} style={ageStyle}>
 						<span>{age}周岁</span>
@@ -101,5 +101,3 @@ class MDSDirect extends Component{
 }
 
 export default MDSDirect;
-
-

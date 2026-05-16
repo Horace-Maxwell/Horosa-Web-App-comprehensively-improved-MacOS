@@ -1,7 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, } from 'antd';
 import { randomStr } from '../../utils/helper';
-import * as AstroConst from '../../constants/AstroConst';
 import NongLiDate from './NongLiDate';
 import {Week} from '../../msg/types';
 import DateTime from '../comp/DateTime';
@@ -12,11 +10,8 @@ class NongLi extends Component{
 		this.state = {
 			
 		};
-
-		this.titleBackground = '#fefeef';
-		this.weekBackground = '#fefeef';
 		this.otherDaysColor = '';
-		this.daysColor = '#3b3b3b';
+		this.daysColor = 'var(--horosa-text, #3b3b3b)';
 
 		this.genDateCol = this.genDateCol.bind(this);
 		this.genDaysDom = this.genDaysDom.bind(this);
@@ -38,29 +33,19 @@ class NongLi extends Component{
 	}
 
 	genDateCol(date, ord, focusDate){
-		let span = 3;
-		if(ord === 0 || ord === 6){
-			span = 4;
-		}
-		let style={
-			textAlign: 'center',
-			padding: 5,
-			margin: 2,
-			width: '100%',
-		};
 		let hightlight = false;
 		let parts = date.birth.split(' ');
 		if(focusDate && focusDate === parts[0]){
 			hightlight = true;
 		}
 		let col = (
-			<Col key={randomStr(8)} span={span} style={style}>
+			<div key={randomStr(8)} className={`horosa-calendar-cell-wrap ${ord === 0 || ord === 6 ? 'is-weekend' : ''}`}>
 				<NongLiDate 						
 					date={date}
 					hightLight={hightlight}
 					onClick={this.onDateClick}
 				/>
-			</Col>
+			</div>
 		);
 		return col;
 	}
@@ -145,59 +130,35 @@ class NongLi extends Component{
 			rows.push(row5cols);
 		}
 
-		let doms = rows.map((item, idx)=>{
-			return (
-				<Row gutter={12} key={randomStr(8)} style={{marginTop:3}}>
-					{item}
-				</Row>
-			);
-		});
+		const cells = rows.reduce((acc, item) => acc.concat(item), []);
 
-		return doms;
+		return (
+			<div className='horosa-calendar-grid'>
+				{cells}
+			</div>
+		);
 	}
 
 
 	render(){
 		let height = this.props.height ? this.props.height : '100%';
-		let titleStyle={
-			textAlign: 'center',
-			fontWeight: 'bold',
-			fontSize: 20,
-			backgroundColor: this.titleBackground,
-			padding: 5,
-			margin: 2,
-		};
-		let weekStyle={
-			textAlign: 'center',
-			fontWeight: 'bold',
-			fontSize: 16,
-			backgroundColor: this.weekBackground,
-			padding: 5,
-			margin: 2,
-			width: '100%',
-		};
-
 		let dt = this.props.date.format('YYYY-MM');
 
 		let daysdom = this.genDaysDom();
 
 		return (
-			<div style={{height: height}}>
-				<Row>
-					<Col span={24} style={titleStyle}>{dt}</Col>
-				</Row>
-				<Row gutter={12}>
-					<Col span={4} style={weekStyle}>{Week['0']}</Col>
-					<Col span={3} style={weekStyle}>{Week['1']}</Col>
-					<Col span={3} style={weekStyle}>{Week['2']}</Col>
-					<Col span={3} style={weekStyle}>{Week['3']}</Col>
-					<Col span={3} style={weekStyle}>{Week['4']}</Col>
-					<Col span={3} style={weekStyle}>{Week['5']}</Col>
-					<Col span={4} style={weekStyle}>{Week['6']}</Col>
-				</Row>
-				<div>
-					{daysdom}
+			<div className='horosa-lunar-calendar' style={{height: height}}>
+				<div className='horosa-calendar-title'>{dt}</div>
+				<div className='horosa-calendar-week-row'>
+					<div>{Week['0']}</div>
+					<div>{Week['1']}</div>
+					<div>{Week['2']}</div>
+					<div>{Week['3']}</div>
+					<div>{Week['4']}</div>
+					<div>{Week['5']}</div>
+					<div>{Week['6']}</div>
 				</div>
+				{daysdom}
 
 			</div>
 		);

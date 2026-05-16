@@ -4692,8 +4692,8 @@ class LiuRengMain extends Component{
 							<TabPane tab="大格" key="dage">
 								<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
 									{refSummary ? (
-										<Card size='small' style={{ marginBottom: 8, background: '#fafafa' }}>
-											<div style={{ fontSize: 12, color: '#595959', lineHeight: '20px' }}>{refSummary}</div>
+										<Card size='small' style={{ marginBottom: 8, background: 'var(--horosa-panel-soft, #fafafa)' }}>
+											<div style={{ fontSize: 12, color: 'var(--horosa-text-soft, #595959)', lineHeight: '20px' }}>{refSummary}</div>
 										</Card>
 									) : null}
 									{refBundle.dage && refBundle.dage.length ? refBundle.dage.map((item)=>(
@@ -4702,16 +4702,16 @@ class LiuRengMain extends Component{
 												<span style={{ fontWeight: 600 }}>{item.name}</span>
 												<Tag color='blue'>{item.source || '课式命中'}</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												{buildReferenceDocumentText(item, 'dage')}
 											</div>
 											{item.evidence && item.evidence.length ? (
-												<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+												<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
 											) : null}
 										</Card>
 									)) : (
 										<Card size='small'>
-											<div style={{ color: '#8c8c8c' }}>当前盘暂未命中可判定的大格。</div>
+											<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中可判定的大格。</div>
 										</Card>
 									)}
 								</div>
@@ -4724,16 +4724,16 @@ class LiuRengMain extends Component{
 												<span style={{ fontWeight: 600 }}>{item.name}</span>
 												<Tag color='purple'>{item.categoryName || '小局'}</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												{buildReferenceDocumentText(item, 'xiaoju')}
 											</div>
 											{item.evidence && item.evidence.length ? (
-												<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+												<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
 											) : null}
 										</Card>
 									)) : (
 										<Card size='small'>
-											<div style={{ color: '#8c8c8c' }}>当前盘暂未命中已收录的小局条件。</div>
+											<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中已收录的小局条件。</div>
 										</Card>
 									)}
 								</div>
@@ -4746,16 +4746,16 @@ class LiuRengMain extends Component{
 												<span style={{ fontWeight: 600 }}>{item.name}</span>
 												<Tag color='gold'>参考</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												{buildReferenceDocumentText(item, 'xiaoju')}
 											</div>
 											{item.evidence && item.evidence.length ? (
-												<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+												<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
 											) : null}
 										</Card>
 									)) : (
 										<Card size='small'>
-											<div style={{ color: '#8c8c8c' }}>当前盘暂无可展示的参考条目。</div>
+											<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂无可展示的参考条目。</div>
 										</Card>
 									)}
 								</div>
@@ -4770,16 +4770,16 @@ class LiuRengMain extends Component{
 													{item.group === 'laiyi' ? '天将发用来意诀' : '天将杂主吉凶'}
 												</Tag>
 											</div>
-											<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 												{buildOverviewReferenceText(item)}
 											</div>
 											{item.evidence && item.evidence.length ? (
-												<div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+												<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
 											) : null}
 										</Card>
 									)) : (
 										<Card size='small'>
-											<div style={{ color: '#8c8c8c' }}>当前盘未命中“天将发用来意诀/天将杂主吉凶”条目。</div>
+											<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘未命中“天将发用来意诀/天将杂主吉凶”条目。</div>
 										</Card>
 									)}
 								</div>

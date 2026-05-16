@@ -1,9 +1,34 @@
 import React from 'react';
-import {  Avatar, Dropdown, Select, Button, message, Modal, Checkbox, } from 'antd';
-import { UserOutlined, LogoutOutlined, SearchOutlined } from '@ant-design/icons';
-import * as AstroConst from '../../constants/AstroConst';
+import {  Avatar, Dropdown, Select, Button, message, Modal, Checkbox, Input, Tooltip, } from 'antd';
+import {
+	UserOutlined,
+	LogoutOutlined,
+	SearchOutlined,
+	HomeOutlined,
+	MessageOutlined,
+	BgColorsOutlined,
+	ToolOutlined,
+	AppstoreOutlined,
+	PlusCircleOutlined,
+	FileTextOutlined,
+	SettingOutlined,
+	BulbOutlined,
+	MoonOutlined,
+	DesktopOutlined,
+	CompassOutlined,
+	StarOutlined,
+	BranchesOutlined,
+	BugOutlined,
+} from '@ant-design/icons';
 import blogo from '../../assets/blogo.jpg';
-import * as AstroText from '../../constants/AstroText';
+import {
+	APPEARANCE_DARK,
+	APPEARANCE_LIGHT,
+	APPEARANCE_SYSTEM,
+	getAppearanceLabel,
+	getNextAppearanceMode,
+	normalizeAppearanceMode,
+} from '../../utils/appearance';
 import {
 	runAIExport,
 	loadAIExportSettings,
@@ -17,7 +42,6 @@ import styles from './PageHeader.less';
 const Option = Select.Option;
 
 function PageHeader(props){
-	const currentColorTheme = AstroConst.normalizeColorThemeIndex(props.colorTheme);
 	const [aiSettingVisible, setAiSettingVisible] = React.useState(false);
 	const [aiSettingData, setAiSettingData] = React.useState(loadAIExportSettings());
 	const aiSettingDataRef = React.useRef(aiSettingData);
@@ -63,15 +87,19 @@ function PageHeader(props){
 		};
 	})();
 
-	function changeColorTheme(val){
+	function changeAppearanceMode(mode){
 		if(props.dispatch){
 			props.dispatch({
 				type: 'app/save',
-				payload:{ 
-					colorTheme: AstroConst.normalizeColorThemeIndex(val),
+				payload:{
+					appearanceMode: normalizeAppearanceMode(mode),
 				},
 			});		
 		}
+	}
+
+	function cycleAppearanceMode(){
+		changeAppearanceMode(getNextAppearanceMode(props.appearanceMode));
 	}
 
     function openDrawer(key){
@@ -344,11 +372,11 @@ function PageHeader(props){
 		avatarcomp = (<Avatar size="small" className={styles.avatar} icon={<UserOutlined />} />);
 	}
 
-	let colorOpts = AstroConst.colorThemes.map((opt, idx)=>{
-		return (
-			<Option key={opt} value={idx}>{opt}</Option>
-		);
-	});
+	const appearanceMode = normalizeAppearanceMode(props.appearanceMode);
+	const appearanceLabel = getAppearanceLabel(appearanceMode, props.resolvedAppearance);
+	const appearanceIcon = appearanceMode === APPEARANCE_SYSTEM
+		? <DesktopOutlined />
+		: (appearanceMode === APPEARANCE_DARK ? <MoonOutlined /> : <BulbOutlined />);
 
 	const horosaqr = [{
 		key: '1',
@@ -373,72 +401,90 @@ function PageHeader(props){
 
 		return (
 			<div className={styles.userbox}>
-				<div className={styles.user} style={{left: 30}}>
-					<span className={styles.action}>
-						<Dropdown menu={{items: horosaqr}} placement="bottom" trigger={['click', 'hover']}>
-							<span style={{color: '#79848e',}}><Button>公众号</Button></span>
-						</Dropdown>				
+				<div className={styles.brand}>
+					<Dropdown menu={{items: horosaqr}} placement="bottomLeft" trigger={['click', 'hover']}>
+						<button className={styles.brandButton} type="button">
+							<span className={styles.brandMark}><CompassOutlined /></span>
+							<span className={styles.brandText}>星阙</span>
+						</button>
+					</Dropdown>
+				</div>
+				<div className={styles.commandBar}>
+					<span className={styles.commandGroup}>
+						<Tooltip title="首页">
+							<Button className={styles.compactCommand} size='small' icon={<HomeOutlined />} onClick={()=>{openDrawer('homepage')}}>首页</Button>
+						</Tooltip>
+						<Tooltip title="批注">
+							<Button className={styles.compactCommand} size='small' icon={<MessageOutlined />} onClick={()=>{openDrawer('memo')}}>批注</Button>
+						</Tooltip>
+					</span>
+					<span className={styles.commandGroup}>
+						<Tooltip title="小工具">
+							<Button className={styles.compactCommand} size='small' icon={<ToolOutlined />} onClick={()=>{openDrawer('commtools')}}>小工具</Button>
+						</Tooltip>
+						<Tooltip title="星盘组件">
+							<Button className={styles.compactCommand} size='small' icon={<AppstoreOutlined />} onClick={()=>{openDrawer('selectchartdisplay')}}>星盘组件</Button>
+						</Tooltip>
+						<Tooltip title="行星选择">
+							<Button className={styles.compactCommand} size='small' icon={<StarOutlined />} onClick={()=>{openDrawer('selectplanet')}}>行星选择</Button>
+						</Tooltip>
+						<Tooltip title="相位选择">
+							<Button className={styles.compactCommand} size='small' icon={<BranchesOutlined />} onClick={()=>{openDrawer('selectasp')}}>相位选择</Button>
+						</Tooltip>
+					</span>
+					<span className={styles.commandGroup}>
+						<Button className={styles.primaryCommand} size='small' icon={<PlusCircleOutlined />} onClick={newChart}>新命盘</Button>
+						<Dropdown menu={{items: aiExportMenu, onClick: onAIExportClick}} placement="bottom" trigger={['click']}>
+							<Button className={styles.compactCommand} size='small' icon={<FileTextOutlined />}>AI导出</Button>
+						</Dropdown>
+						<Button className={styles.compactCommand} size='small' icon={<SettingOutlined />} onClick={openAIExportSettings}>AI导出设置</Button>
+						{hasDesktopBridge() ? (
+							<Button className={styles.compactCommand} size='small' icon={<BugOutlined />} onClick={onExportDiagnosticsClick}>诊断</Button>
+						) : null}
 					</span>
 				</div>
-			<div className={styles.user} style={{right: 30}}>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('homepage')}}>首页</Button>
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('memo')}}>批注</Button>
-				</span>
-				<span className={styles.action} >
-					<Select 
-						size='small'
-						style={{ width: 150 }}
-						value={currentColorTheme}
-						onChange={changeColorTheme}
+				<div className={styles.utilityBar}>
+					<Input
+						className={styles.searchInput}
+						size="small"
+						prefix={<SearchOutlined />}
+						placeholder="搜索功能 / 命盘 / 笔记"
+						readOnly
+						onClick={()=>{openDrawer('query')}}
+					/>
+					<Tooltip title={`主题：${appearanceLabel}。点击切换昼夜模式。`}>
+						<Button
+							size="small"
+							className={styles.appearanceButton}
+							icon={appearanceIcon}
+							onClick={cycleAppearanceMode}
+						>
+							{appearanceLabel}
+						</Button>
+					</Tooltip>
+					<Dropdown
+						menu={{
+							items: [
+								{ key: APPEARANCE_SYSTEM, label: '跟随系统' },
+								{ key: APPEARANCE_LIGHT, label: '昼间' },
+								{ key: APPEARANCE_DARK, label: '暗夜' },
+							],
+							onClick: ({key})=>changeAppearanceMode(key),
+						}}
+						trigger={['click']}
 					>
-						{colorOpts}
-					</Select>
-
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('commtools')}}>小工具</Button>
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('selectchartdisplay')}}>星盘组件</Button>
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('selectplanet')}}>行星选择</Button>
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('selectasp')}}>相位选择</Button>
-				</span>
-					<span className={styles.action} >
-						<Button size='small' onClick={newChart}>新命盘</Button>
-					</span>
-					<span className={styles.action} >
-						<Dropdown menu={{items: aiExportMenu, onClick: onAIExportClick}} placement="bottom" trigger={['click']}>
-							<Button size='small'>AI导出</Button>
-						</Dropdown>
-					</span>
-					<span className={styles.action} >
-						<Button size='small' onClick={openAIExportSettings}>AI导出设置</Button>
-					</span>
-					{hasDesktopBridge() ? (
-					<span className={styles.action} >
-						<Button size='small' onClick={onExportDiagnosticsClick}>导出诊断报告</Button>
-					</span>
-					) : null}
-					<span className={styles.action} >
-						<SearchOutlined onClick={()=>{openDrawer('query')}} />
-					</span>
-				<Dropdown menu={{
-					items: menu, 
-					onClick: props.onMenuClick}} 
-				>
-					<span className={`${styles.action} ${styles.account}`}>
-						{avatarcomp}
-						<span className={styles.name}>{username}</span>
-					</span>
-				</Dropdown>
-			</div>
+						<Button size="small" icon={<BgColorsOutlined />} />
+					</Dropdown>
+					<Dropdown menu={{
+							items: menu,
+							onClick: props.onMenuClick}}
+					>
+						<span className={`${styles.account}`}>
+							{avatarcomp}
+							<span className={styles.name}>{username}</span>
+						</span>
+					</Dropdown>
+				</div>
 			<Modal
 				title="AI导出设置"
 				open={aiSettingVisible}
