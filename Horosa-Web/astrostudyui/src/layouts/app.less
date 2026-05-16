@@ -1,4 +1,5 @@
 @import '~antd/lib/style/themes/default.less';
+@import '../components/xq-ui/styles.less';
 
 :global {
     :root {
@@ -1571,6 +1572,241 @@
 
     .horosa-workspace-shell .horosa-lunar-date-card.is-other {
         opacity: 0.58;
+    }
+
+    .horosa-workspace-shell .xq-chart-renderer {
+        background:
+            radial-gradient(circle at 50% 45%, rgba(47, 125, 241, 0.045), transparent 44%),
+            transparent !important;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer {
+        background:
+            radial-gradient(circle at 50% 45%, rgba(34, 211, 238, 0.055), transparent 45%),
+            transparent !important;
+    }
+
+    .horosa-workspace-shell .xq-chart-renderer text {
+        letter-spacing: 0;
+        paint-order: fill;
+    }
+
+    .horosa-workspace-shell .xq-chart-renderer-astro line,
+    .horosa-workspace-shell .xq-chart-renderer-astro path,
+    .horosa-workspace-shell .xq-chart-renderer-astro circle {
+        vector-effect: non-scaling-stroke;
+    }
+
+    .horosa-workspace-shell .xq-chart-renderer-india {
+        background:
+            radial-gradient(circle at 50% 46%, rgba(47, 125, 241, 0.05), transparent 42%),
+            transparent !important;
+    }
+
+    .horosa-workspace-shell .xq-india-board {
+        border-color: var(--horosa-border-strong);
+        border-radius: 8px;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 58%),
+            var(--horosa-surface-solid);
+        box-shadow: 0 18px 44px rgba(40, 74, 126, 0.10);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-india {
+        background:
+            radial-gradient(circle at 50% 46%, rgba(34, 211, 238, 0.06), transparent 42%),
+            transparent !important;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-india-board {
+        background:
+            linear-gradient(180deg, rgba(34, 211, 238, 0.035), transparent 58%),
+            var(--horosa-surface-solid);
+        box-shadow: 0 20px 54px rgba(0, 0, 0, 0.28);
+    }
+
+    .horosa-workspace-shell .xq-chart-renderer-sanshi .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-sanshi .ant-tabs-content-holder {
+        background: var(--horosa-panel-bg);
+    }
+
+    .horosa-workspace-shell .xq-chart-renderer-bazi,
+    .horosa-workspace-shell .xq-chart-renderer-ziwei,
+    .horosa-workspace-shell .xq-chart-renderer-liureng,
+    .horosa-workspace-shell .xq-chart-renderer-taiyi,
+    .horosa-workspace-shell .xq-chart-renderer-qimen,
+    .horosa-workspace-shell .xq-chart-renderer-liuyao,
+    .horosa-workspace-shell .xq-chart-renderer-jinkou,
+    .horosa-workspace-shell .xq-chart-renderer-direction,
+    .horosa-workspace-shell .xq-chart-renderer-fengshui {
+        background:
+            radial-gradient(circle at 50% 10%, var(--horosa-gold-soft), transparent 24%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 64%),
+            var(--horosa-panel-bg);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-bazi,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-ziwei,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-liureng,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-taiyi,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-qimen,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-liuyao,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-jinkou,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-direction,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .xq-chart-renderer-fengshui {
+        background:
+            radial-gradient(circle at 50% 8%, rgba(216, 173, 99, 0.11), transparent 28%),
+            linear-gradient(180deg, rgba(18, 41, 58, 0.72), rgba(7, 16, 26, 0.64)),
+            var(--horosa-panel-bg);
+    }
+
+    .horosa-workspace-shell .xq-chart-renderer-bazi .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-ziwei .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-liureng .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-taiyi .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-qimen .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-liuyao .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-jinkou .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-direction .ant-card,
+    .horosa-workspace-shell .xq-chart-renderer-fengshui .ant-card {
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent),
+            var(--horosa-panel-soft);
+    }
+
+    .horosa-workspace-shell .horosa-liureng-page,
+    .horosa-workspace-shell .horosa-taiyi-page,
+    .horosa-workspace-shell .horosa-auxchart-page,
+    .horosa-workspace-shell .horosa-india-chart-main,
+    .horosa-workspace-shell .horosa-guazhan-page,
+    .horosa-workspace-shell .horosa-jinkou-page,
+    .horosa-workspace-shell .horosa-direction-page,
+    .horosa-workspace-shell .horosa-fengshui-page {
+        height: 100%;
+        min-height: 0;
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-liureng-page > .ant-row,
+    .horosa-workspace-shell .horosa-taiyi-page > .ant-spin-nested-loading,
+    .horosa-workspace-shell .horosa-taiyi-page > .ant-spin-nested-loading > .ant-spin-container,
+    .horosa-workspace-shell .horosa-taiyi-page .ant-row {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-liureng-page > .ant-row > .ant-col,
+    .horosa-workspace-shell .horosa-taiyi-page > .ant-spin-nested-loading > .ant-spin-container > .ant-row > .ant-col {
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-liureng-page > .ant-row > .ant-col:first-child,
+    .horosa-workspace-shell .horosa-taiyi-page > .ant-spin-nested-loading > .ant-spin-container > .ant-row > .ant-col:first-child {
+        overflow: hidden;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-panel-bg);
+        box-shadow: var(--horosa-small-shadow);
+    }
+
+    .horosa-workspace-shell .horosa-liureng-page > .ant-row > .ant-col:last-child,
+    .horosa-workspace-shell .horosa-taiyi-page > .ant-spin-nested-loading > .ant-spin-container > .ant-row > .ant-col:last-child {
+        overflow: auto;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-panel-bg);
+        box-shadow: var(--horosa-small-shadow);
+        padding: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-cntradition-page .ant-tabs-content-holder,
+    .horosa-workspace-shell .horosa-cnyibu-page .ant-tabs-content-holder {
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background: var(--horosa-panel-bg);
+        box-shadow: var(--horosa-small-shadow);
+    }
+
+    .horosa-workspace-shell .horosa-cntradition-page .ant-tabs-tabpane,
+    .horosa-workspace-shell .horosa-cnyibu-page .ant-tabs-tabpane {
+        padding: 10px 12px;
+    }
+
+    .horosa-workspace-shell .ant-empty-description,
+    .horosa-workspace-shell .ant-list-item-meta-description,
+    .horosa-workspace-shell .ant-descriptions-item-label,
+    .horosa-workspace-shell .ant-descriptions-item-content {
+        color: var(--horosa-text-soft);
+    }
+
+    .horosa-workspace-shell .ant-card-small > .ant-card-head,
+    .horosa-workspace-shell .ant-card-small > .ant-card-body {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .horosa-workspace-shell .ant-card-small > .ant-card-body {
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .horosa-workspace-shell .ant-tag-blue,
+    .horosa-workspace-shell .ant-tag-cyan,
+    .horosa-workspace-shell .ant-tag-purple,
+    .horosa-workspace-shell .ant-tag-magenta,
+    .horosa-workspace-shell .ant-tag-gold {
+        border-color: var(--horosa-border-strong);
+        background: var(--horosa-accent-soft);
+        color: var(--horosa-accent-strong);
+    }
+
+    .horosa-workspace-shell .ant-card,
+    .horosa-workspace-shell .ant-list,
+    .horosa-workspace-shell .ant-collapse,
+    .horosa-workspace-shell .ant-descriptions,
+    .horosa-workspace-shell .ant-alert {
+        border-color: var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 60%),
+            var(--horosa-panel-bg);
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-tag {
+        border-color: var(--horosa-border);
+        border-radius: 6px;
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text-soft);
+    }
+
+    .horosa-workspace-shell .ant-radio-button-wrapper {
+        border-color: var(--horosa-border);
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .ant-radio-button-wrapper:not(:first-child)::before {
+        background-color: var(--horosa-border);
+    }
+
+    .horosa-workspace-shell .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+        border-color: var(--horosa-accent);
+        background: var(--horosa-accent);
+        color: #fff;
+        box-shadow: none;
+    }
+
+    .horosa-workspace-shell .ant-checkbox-inner,
+    .horosa-workspace-shell .ant-radio-inner {
+        border-color: var(--horosa-border-strong);
+        background: var(--horosa-panel-soft);
+    }
+
+    .horosa-workspace-shell .ant-checkbox-checked .ant-checkbox-inner,
+    .horosa-workspace-shell .ant-radio-checked .ant-radio-inner {
+        border-color: var(--horosa-accent);
+        background: var(--horosa-accent);
     }
 
     .horosa-workspace-shell .scrollbar::-webkit-scrollbar,

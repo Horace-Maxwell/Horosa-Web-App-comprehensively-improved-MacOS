@@ -94,7 +94,7 @@ class FengShuiMain extends Component {
 		}
 
 		return (
-			<div style={{ minHeight: height, marginTop: -12 }}>
+			<div className="horosa-fengshui-page xq-chart-renderer xq-chart-renderer-fengshui" style={{ minHeight: height, marginTop: -12 }}>
 				<Card bordered={false} bodyStyle={{ padding: 0 }}>
 					<iframe
 						ref={this.iframeRef}

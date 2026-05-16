@@ -1,18 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select, Button, Radio, Tooltip } from 'antd';
-import {
-	AppstoreOutlined,
-	BarChartOutlined,
-	BranchesOutlined,
-	CheckOutlined,
-	FieldTimeOutlined,
-	FileTextOutlined,
-	HeartOutlined,
-	PlusCircleOutlined,
-	RiseOutlined,
-	SaveOutlined,
-	StarOutlined,
-} from '@ant-design/icons';
+import { Row, Col, Tabs, Select, Button, Tooltip } from 'antd';
 import AstroChart from './AstroChart';
 import AstroInfo from './AstroInfo';
 import AstroAspect from './AstroAspect';
@@ -26,6 +13,8 @@ import { convertLatToStr, convertLonToStr} from './AstroHelper';
 import { getHousesOption } from '../comp/CompHelper'
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
+import { XQButton, XQSegmented, XQToggle } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const TabPane = Tabs.TabPane;
 const Option = Select.Option;
@@ -314,28 +303,28 @@ class AstroChartMain extends Component{
 			return null;
 		}
 		const iconMap = {
-			direction: <RiseOutlined />,
-			auxchart: <BarChartOutlined />,
-			relativechart: <HeartOutlined />,
-			jieqichart: <FieldTimeOutlined />,
+			direction: <XQIcon name="direction" />,
+			auxchart: <XQIcon name="aux" />,
+			relativechart: <XQIcon name="composite" />,
+			jieqichart: <XQIcon name="solstice" />,
 		};
 		return (
 			<div className="horosa-astro-feature-links">
 				<div className="horosa-side-section-title">相关功能</div>
 				<div className="horosa-feature-link-stack">
 					{links.map((item)=>(
-						<Button
+						<XQButton
 							key={item.key}
 							size="small"
 							className="horosa-feature-link-button"
-							icon={iconMap[item.key] || <AppstoreOutlined />}
+							icon={iconMap[item.key] || <XQIcon name="other" />}
 							onClick={()=>this.navigateFeature(item.key)}
 						>
 							<span className="horosa-feature-link-copy">
 								<span className="horosa-feature-link-label">{item.label}</span>
 								{item.desc ? <span className="horosa-feature-link-desc">{item.desc}</span> : null}
 							</span>
-						</Button>
+						</XQButton>
 					))}
 				</div>
 			</div>
@@ -388,41 +377,29 @@ class AstroChartMain extends Component{
 				<div className={`horosa-chart-style-block${isIndiaChart ? ' horosa-india-style-block' : ''}`}>
 					<div className="horosa-side-section-title">星盘样式</div>
 					{isIndiaChart ? (
-						<Radio.Group
-							size="small"
-							buttonStyle="solid"
+						<XQSegmented
 							value={indiaChartStyle}
 							onChange={this.changeIndiaChartStyle}
-						>
-							{AstroConst.INDIA_CHART_STYLE_OPTIONS.map((item)=>(
-								<Radio.Button key={item.value} value={item.value}>{item.label}</Radio.Button>
-							))}
-						</Radio.Group>
+							options={AstroConst.INDIA_CHART_STYLE_OPTIONS}
+						/>
 					) : (
-						<Radio.Group
-							size="small"
-							buttonStyle="solid"
+						<XQSegmented
 							value={chartStyle}
 							onChange={this.changeChartStyle}
-						>
-							{AstroConst.CHART_STYLE_OPTIONS.map((item)=>(
-								<Radio.Button key={item.value} value={item.value}>{item.label}</Radio.Button>
-							))}
-						</Radio.Group>
+							options={AstroConst.CHART_STYLE_OPTIONS}
+						/>
 					)}
 				</div>
 				<div className="horosa-context-actions">
-					<Button size="small" icon={<SaveOutlined />} onClick={()=>this.openDrawer('chartadd')}>存为命盘</Button>
-					<Button size="small" icon={<PlusCircleOutlined />} onClick={this.newChart}>此刻</Button>
-					<Button size="small" icon={<FileTextOutlined />} onClick={()=>this.openDrawer('memo')}>笔记</Button>
+					<XQButton size="small" iconName="aiExport" onClick={()=>this.openDrawer('chartadd')}>存为命盘</XQButton>
+					<XQButton size="small" iconName="newChart" onClick={this.newChart}>此刻</XQButton>
+					<XQButton size="small" iconName="note" onClick={()=>this.openDrawer('memo')}>笔记</XQButton>
 				</div>
 				<div className="horosa-context-tool-stack">
 					{chartTools.map((item)=>(
-						<Button key={item.key} size="small" autoInsertSpace={false} onClick={()=>this.openDrawer(item.key)}>
-							<span className="horosa-context-tool-text">
-								{item.label.split('').map((char, index)=><span key={`${item.key}-${index}`}>{char}</span>)}
-							</span>
-						</Button>
+						<XQButton key={item.key} size="small" autoInsertSpace={false} onClick={()=>this.openDrawer(item.key)}>
+							<span className="horosa-context-tool-text">{item.label}</span>
+						</XQButton>
 					))}
 				</div>
 				<div className="horosa-chart-quick-toggles">
@@ -431,16 +408,14 @@ class AstroChartMain extends Component{
 						{quickToggles.map((item)=>{
 							const active = currentDisplay.includes(item.opt);
 							return (
-								<Button
+								<XQToggle
 									key={item.opt}
 									size="small"
-									className={active ? 'horosa-chart-toggle-active' : ''}
-									icon={active ? <CheckOutlined /> : null}
-									aria-pressed={active}
+									active={active}
 									onClick={()=>this.toggleChartDisplayOption(item.opt)}
 								>
 									{item.label}
-								</Button>
+								</XQToggle>
 							);
 						})}
 					</div>
@@ -485,21 +460,21 @@ class AstroChartMain extends Component{
 			return null;
 		}
 		const actions = [
-			{ label: '主/界限法', icon: <BranchesOutlined />, key: 'primarydirect' },
-			{ label: '法达星限', icon: <FieldTimeOutlined />, key: 'firdaria' },
-			{ label: '黄道星释', icon: <StarOutlined />, key: 'zodialrelease' },
-			{ label: '小限法', icon: <PlusCircleOutlined />, key: 'profection' },
-			{ label: '太阳返照', icon: <RiseOutlined />, key: 'solarreturn' },
+			{ label: '主/界限法', icon: <XQIcon name="qimen" />, key: 'primarydirect' },
+			{ label: '法达星限', icon: <XQIcon name="solstice" />, key: 'firdaria' },
+			{ label: '黄道星释', icon: <XQIcon name="astro" />, key: 'zodialrelease' },
+			{ label: '小限法', icon: <XQIcon name="newChart" />, key: 'profection' },
+			{ label: '太阳返照', icon: <XQIcon name="direction" />, key: 'solarreturn' },
 		];
 		return (
 			<div className="horosa-side-quick-actions">
 				<div className="horosa-side-section-title">高频功能</div>
 				<div className="horosa-quick-action-grid">
 					{actions.map((item)=>(
-						<Button key={item.key} size="small" onClick={()=>this.navigateDirectionTool(item.key)}>
+						<XQButton key={item.key} size="small" onClick={()=>this.navigateDirectionTool(item.key)}>
 							<span className="horosa-quick-action-icon">{item.icon}</span>
 							<span className="horosa-quick-action-label">{item.label}</span>
-						</Button>
+						</XQButton>
 					))}
 				</div>
 			</div>

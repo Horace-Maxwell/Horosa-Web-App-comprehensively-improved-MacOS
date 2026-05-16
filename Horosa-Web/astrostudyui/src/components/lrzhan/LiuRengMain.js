@@ -4621,7 +4621,7 @@ class LiuRengMain extends Component{
 
 		let wxdoms = this.genWuXingDoms();
 		return (
-			<div>
+			<div className="horosa-liureng-page xq-chart-renderer xq-chart-renderer-liureng">
 				<Row gutter={6}>
 					<Col span={16}>
 						<LiuRengChart 

@@ -1,6 +1,5 @@
 import { Component } from 'react';
-import { List, } from 'antd';
-import { ColorTheme, ReaderThemeKey, } from '../constants/ReaderConst';
+import { XQNavItem } from './xq-ui';
 
 const Pages = [{
 	path: ['astrochart'],
@@ -20,17 +19,6 @@ const Pages = [{
 	key: 'astroreader',
 }];
 
-
-function getColorTheme(){
-	let theme = localStorage.getItem(ReaderThemeKey);
-	if(theme === undefined || theme === null){
-		theme = ColorTheme[0];
-	}else{
-		theme = JSON.parse(theme);
-	}
-
-	return theme;
-}
 
 class HomePageSetup extends Component{
 
@@ -66,37 +54,20 @@ class HomePageSetup extends Component{
 	}
 
 	genDom(){
-		let theme = getColorTheme();
 		const pages = this.props.pages && this.props.pages.length ? this.props.pages : Pages;
 		const currentKey = this.props.currentKey || (this.state.page ? this.state.page.key : '');
 		
 		let dom = (
-			<List
-				size='default'
-				dataSource={pages}
-				renderItem={(rec)=>{
-					let style = {
-						whiteSpace: 'nowrap', 
-						textOverflow: 'ellipsis',
-						overflowX: 'hidden',
-						marginLeft: 10
-					};
-					let colorstyle = {};
-					if(currentKey === rec.key){
-						style.backgroundColor = theme.bgColor;
-						style.color = theme.color;				
-						colorstyle.backgroundColor = theme.bgColor;
-						colorstyle.color = theme.color;				
-					}
-					return (
-						<List.Item key={rec.key} onClick={()=>{ this.clickPage(rec); }}
-							style={colorstyle}
-						>
-							<div style={style}>{rec.label}</div>
-						</List.Item>
-					)
-				}}
-			/>
+			<div className="xq-nav-list">
+				{pages.map((rec)=>(
+					<XQNavItem
+						key={rec.key}
+						item={rec}
+						active={currentKey === rec.key}
+						onClick={()=>{ this.clickPage(rec); }}
+					/>
+				))}
+			</div>
 		);
 		return dom;
 	}

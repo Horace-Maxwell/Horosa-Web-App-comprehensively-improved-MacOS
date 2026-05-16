@@ -371,7 +371,7 @@ class ZiWeiMain extends Component{
 		return (
 			<div className="horosa-ziwei-page">
 				<Row gutter={12} className="horosa-ziwei-layout">
-					<Col span={16} className="horosa-ziwei-chart-panel">
+					<Col span={16} className="horosa-ziwei-chart-panel xq-chart-renderer xq-chart-renderer-ziwei">
 						<ZiWeiChart 
 							value={chart} 
 							height={height} 

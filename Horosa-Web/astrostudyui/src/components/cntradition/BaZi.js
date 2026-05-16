@@ -447,7 +447,7 @@ class BaZi extends Component{
 		return (
 			<div className="horosa-bazi-page">
 				<Row gutter={12} className="horosa-bazi-layout">
-					<Col span={15} className="horosa-bazi-chart-panel">
+					<Col span={15} className="horosa-bazi-chart-panel xq-chart-renderer xq-chart-renderer-bazi">
 						<PaiBaZi value={bazi} height={height+140} fields={this.props.fields} baziOpt={this.state.baziOpt} />
 					</Col>
 					<Col span={9} className="horosa-bazi-inspector-panel">

@@ -3874,7 +3874,7 @@ class SanShiUnitedMain extends Component{
 			height = height - 20;
 		}
 		return (
-			<div className={styles.root} style={{ minHeight: height }}>
+			<div className={`${styles.root} xq-chart-renderer xq-chart-renderer-sanshi`} style={{ minHeight: height }}>
 				<Spin spinning={this.state.loading}>
 					<Row gutter={6}>
 						<Col span={16}>

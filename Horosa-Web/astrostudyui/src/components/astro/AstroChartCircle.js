@@ -5,6 +5,7 @@ import {splitDegree, whichTerm, convertLatToStr, convertLonToStr, getDignityText
 import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip, setupFloatingTooltip} from '../../utils/helper';
 import {drawTextV, drawTextH} from '../graph/GraphHelper';
 import { appendAstroMeaningTips, buildSignMeaningTip, buildAspectMeaningTip } from './AstroMeaningData';
+import { getChartRendererClass } from '../../renderers/xqChartTheme';
 
 const ZODIACAL_LABELS = {
 	0: '回归黄道',
@@ -1442,7 +1443,9 @@ export default class AstroChartCircle {
 		let svgid = '#' + chartid;
 		let svg = d3.select(svgid);
 		svg.html('');
-		svg.attr('stroke', AstroConst.AstroColor.Stroke).attr("stroke-width", 1);
+		svg.attr('class', getChartRendererClass('astro'))
+			.attr('stroke', AstroConst.AstroColor.Stroke)
+			.attr("stroke-width", 1);
 	
 		let topgroup = svg.append('g');
 	
@@ -1705,10 +1708,12 @@ export default class AstroChartCircle {
 		let delta = this.ChartMarginDelta - this.ChartMoveUp;
 		let signsR = Math.min(width, height) / 2 - delta;
 	
-		let svgid = '#' + chartid;
-		let svg = d3.select(svgid);
-		svg.html('');
-		svg.attr('stroke', AstroConst.AstroColor.Stroke).attr("stroke-width", 1);
+	let svgid = '#' + chartid;
+	let svg = d3.select(svgid);
+	svg.html('');
+	svg.attr('class', getChartRendererClass('astro'))
+		.attr('stroke', AstroConst.AstroColor.Stroke)
+		.attr("stroke-width", 1);
 	
 		let topgroup = svg.append('g');
 	

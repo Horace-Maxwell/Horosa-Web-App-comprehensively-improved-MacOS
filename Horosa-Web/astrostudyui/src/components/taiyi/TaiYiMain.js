@@ -582,7 +582,7 @@ class TaiYiMain extends Component {
 			height = height - 20;
 		}
 		return (
-			<div style={{ minHeight: height }}>
+			<div className="horosa-taiyi-page xq-chart-renderer xq-chart-renderer-taiyi" style={{ minHeight: height }}>
 				<Spin spinning={this.state.loading}>
 					<Row gutter={6}>
 						<Col span={16}>

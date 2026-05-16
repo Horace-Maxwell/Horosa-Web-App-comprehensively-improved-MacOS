@@ -307,8 +307,8 @@ class IndiaSouthChart extends Component{
 		const ascSignNumber = getAscSignNumber(chartObj);
 		const objectsBySign = getObjectsBySign(chartObj, this.props.planetDisplay, this.props.lotsDisplay);
 		return (
-			<div className="horosa-india-square-shell" style={{ '--india-chart-height': `${height}px` }}>
-				<div className="horosa-india-square-board">
+			<div className="horosa-india-square-shell xq-chart-renderer xq-chart-renderer-india" style={{ '--india-chart-height': `${height}px` }}>
+				<div className="horosa-india-square-board xq-india-board">
 					{this.renderCells(ascSignNumber, objectsBySign, chartObj)}
 					<div className="horosa-india-square-center">
 						<div className="horosa-india-square-center-d">D{chartnum}</div>

@@ -125,8 +125,8 @@ class IndiaNorthChart extends Component{
 		const ascSignNumber = getAscSignNumber(chartObj);
 		const objectsBySign = getObjectsBySign(chartObj, this.props.planetDisplay, this.props.lotsDisplay);
 		return (
-			<div className="horosa-india-square-shell" style={{ '--india-chart-height': `${height}px` }}>
-				<div className="horosa-india-square-board horosa-india-diagram-board horosa-india-north-board">
+			<div className="horosa-india-square-shell xq-chart-renderer xq-chart-renderer-india" style={{ '--india-chart-height': `${height}px` }}>
+				<div className="horosa-india-square-board horosa-india-diagram-board horosa-india-north-board xq-india-board">
 					<svg className="horosa-india-diagram-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
 						<rect x="0" y="0" width="100" height="100" />
 						<polygon points="50,0 100,50 50,100 0,50" />

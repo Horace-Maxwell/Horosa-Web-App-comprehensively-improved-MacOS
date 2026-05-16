@@ -881,7 +881,7 @@ class AstroDirectMain extends Component{
 			: (this.props.fields && this.props.fields.pdTimeKey ? this.props.fields.pdTimeKey.value : 'Ptolemy');
 
 		return (
-			<div>
+			<div className="horosa-direction-page xq-chart-renderer xq-chart-renderer-direction">
 				<Tabs 
 					activeKey={this.state.currentTab} tabPosition='right'
 					onChange={this.changeTab}

@@ -1110,7 +1110,7 @@ class JinKouMain extends Component{
 		const optionTabHeight = Math.max(170, Math.floor(chartHeight * 0.36));
 
 		return (
-			<div>
+			<div className="horosa-jinkou-page xq-chart-renderer xq-chart-renderer-jinkou">
 				<Row gutter={6}>
 					<Col span={16}>
 						<div style={{

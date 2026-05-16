@@ -1438,7 +1438,7 @@ class DunJiaMain extends Component {
 			zhiColor: getBaZiBranchColor(item.zhi),
 		}));
 		return (
-			<Card bordered={false} className="horosa-dunjia-board-card" bodyStyle={{ display: 'flex', justifyContent: 'center' }}>
+			<Card bordered={false} className="horosa-dunjia-board-card xq-chart-renderer xq-chart-renderer-qimen" bodyStyle={{ display: 'flex', justifyContent: 'center' }}>
 				<div className="horosa-dunjia-board-shell" style={{ width: scaledWidth, maxWidth: '100%', margin: '0 auto' }}>
 					<div style={{ width: boardWidth, transform: `scale(${boardScale})`, transformOrigin: 'top left' }}>
 						<div

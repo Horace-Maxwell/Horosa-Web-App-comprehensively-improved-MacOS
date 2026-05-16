@@ -1083,7 +1083,7 @@ class GuaZhanMain extends Component{
 		let guadesc = this.state.guaDesc;
 
 		return (
-			<div>
+			<div className="horosa-guazhan-page xq-chart-renderer xq-chart-renderer-liuyao">
 				<Row gutter={6}>
 					<Col span={16}>
 						<GuaZhanChart 

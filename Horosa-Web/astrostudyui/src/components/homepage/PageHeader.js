@@ -3,18 +3,6 @@ import {  Avatar, Dropdown, Select, Button, message, Modal, Checkbox, Input, Too
 import {
 	UserOutlined,
 	LogoutOutlined,
-	SearchOutlined,
-	HomeOutlined,
-	MessageOutlined,
-	BgColorsOutlined,
-	ToolOutlined,
-	PlusCircleOutlined,
-	FileTextOutlined,
-	SettingOutlined,
-	BulbOutlined,
-	MoonOutlined,
-	DesktopOutlined,
-	CompassOutlined,
 	BugOutlined,
 } from '@ant-design/icons';
 import blogo from '../../assets/blogo.jpg';
@@ -34,6 +22,8 @@ import {
 	getCurrentAIExportContext,
 	AI_EXPORT_SETTINGS_VERSION,
 } from '../../utils/aiExport';
+import { XQButton, XQIconButton } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import styles from './PageHeader.less';
 
 const Option = Select.Option;
@@ -366,14 +356,14 @@ function PageHeader(props){
 	if(props.avatar){
 		avatarcomp = (<Avatar size="small" className={styles.avatar} src={props.avatar} />);
 	}else{
-		avatarcomp = (<Avatar size="small" className={styles.avatar} icon={<UserOutlined />} />);
+		avatarcomp = (<Avatar size="small" className={styles.avatar} icon={<XQIcon name="user" />} />);
 	}
 
 	const appearanceMode = normalizeAppearanceMode(props.appearanceMode);
 	const appearanceLabel = getAppearanceLabel(appearanceMode, props.resolvedAppearance);
 	const appearanceIcon = appearanceMode === APPEARANCE_SYSTEM
-		? <DesktopOutlined />
-		: (appearanceMode === APPEARANCE_DARK ? <MoonOutlined /> : <BulbOutlined />);
+		? <XQIcon name="theme" />
+		: (appearanceMode === APPEARANCE_DARK ? <XQIcon name="theme" /> : <XQIcon name="theme" />);
 
 	const horosaqr = [{
 		key: '1',
@@ -401,7 +391,7 @@ function PageHeader(props){
 				<div className={styles.brand}>
 					<Dropdown menu={{items: horosaqr}} placement="bottomLeft" trigger={['click', 'hover']}>
 						<button className={styles.brandButton} type="button">
-							<span className={styles.brandMark}><CompassOutlined /></span>
+							<span className={styles.brandMark}><XQIcon name="astro" /></span>
 							<span className={styles.brandText}>星阙</span>
 						</button>
 					</Dropdown>
@@ -409,23 +399,23 @@ function PageHeader(props){
 				<div className={styles.commandBar}>
 					<span className={styles.commandGroup}>
 						<Tooltip title="导航">
-							<Button className={styles.compactCommand} size='small' icon={<HomeOutlined />} onClick={()=>{openDrawer('homepage')}}>导航</Button>
+							<XQButton className={styles.compactCommand} size='small' iconName="navigation" onClick={()=>{openDrawer('homepage')}}>导航</XQButton>
 						</Tooltip>
 						<Tooltip title="批注">
-							<Button className={styles.compactCommand} size='small' icon={<MessageOutlined />} onClick={()=>{openDrawer('memo')}}>批注</Button>
+							<XQButton className={styles.compactCommand} size='small' iconName="note" onClick={()=>{openDrawer('memo')}}>批注</XQButton>
 						</Tooltip>
 					</span>
 					<span className={styles.commandGroup}>
 						<Tooltip title="小工具">
-							<Button className={styles.compactCommand} size='small' icon={<ToolOutlined />} onClick={()=>{openDrawer('commtools')}}>小工具</Button>
+							<XQButton className={styles.compactCommand} size='small' iconName="tools" onClick={()=>{openDrawer('commtools')}}>小工具</XQButton>
 						</Tooltip>
 					</span>
 					<span className={styles.commandGroup}>
-						<Button className={styles.primaryCommand} size='small' icon={<PlusCircleOutlined />} onClick={newChart}>新命盘</Button>
+						<XQButton className={styles.primaryCommand} variant="primary" size='small' iconName="newChart" onClick={newChart}>新命盘</XQButton>
 						<Dropdown menu={{items: aiExportMenu, onClick: onAIExportClick}} placement="bottom" trigger={['click']}>
-							<Button className={styles.compactCommand} size='small' icon={<FileTextOutlined />}>AI导出</Button>
+							<XQButton className={styles.compactCommand} size='small' iconName="aiExport">AI导出</XQButton>
 						</Dropdown>
-						<Button className={styles.compactCommand} size='small' icon={<SettingOutlined />} onClick={openAIExportSettings}>AI导出设置</Button>
+						<XQButton className={styles.compactCommand} size='small' iconName="aiSettings" onClick={openAIExportSettings}>AI导出设置</XQButton>
 						{hasDesktopBridge() ? (
 							<Button className={styles.compactCommand} size='small' icon={<BugOutlined />} onClick={onExportDiagnosticsClick}>诊断</Button>
 						) : null}
@@ -435,7 +425,7 @@ function PageHeader(props){
 					<Input
 						className={styles.searchInput}
 						size="small"
-						prefix={<SearchOutlined />}
+						prefix={<XQIcon name="search" />}
 						placeholder="搜索功能 / 命盘 / 笔记"
 						readOnly
 						onClick={()=>{openDrawer('query')}}
@@ -461,7 +451,7 @@ function PageHeader(props){
 						}}
 						trigger={['click']}
 					>
-						<Button size="small" icon={<BgColorsOutlined />} />
+						<XQIconButton size="small" iconName="theme" />
 					</Dropdown>
 					<Dropdown menu={{
 							items: menu,

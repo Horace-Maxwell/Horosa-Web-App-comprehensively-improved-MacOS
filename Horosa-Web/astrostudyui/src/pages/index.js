@@ -1,29 +1,5 @@
 import { connect  } from 'dva';
-import { Drawer, Tabs, Spin, } from 'antd';
-import {
-    AimOutlined,
-    ApartmentOutlined,
-    ApiOutlined,
-    AppstoreOutlined,
-    BarChartOutlined,
-    BookOutlined,
-    BorderOuterOutlined,
-    BranchesOutlined,
-    BuildOutlined,
-    CalendarOutlined,
-    CompassOutlined,
-    DeploymentUnitOutlined,
-    ExperimentOutlined,
-    FieldTimeOutlined,
-    GlobalOutlined,
-    HeartOutlined,
-    PlayCircleOutlined,
-    RadarChartOutlined,
-    RiseOutlined,
-    StarOutlined,
-    ThunderboltOutlined,
-    ToolOutlined,
-} from '@ant-design/icons';
+import { Tabs, Spin, } from 'antd';
 import DateTime from '../components/comp/DateTime';
 import LoginForm from '../components/user/LoginForm';
 import RegisterForm from '../components/user/RegisterForm';
@@ -71,68 +47,70 @@ import TaiYiMain from '../components/taiyi/TaiYiMain';
 import * as AstroConst from '../constants/AstroConst';
 import {convertToArray} from '../utils/helper';
 import { APPEARANCE_DARK } from '../utils/appearance';
+import XQIcon from '../components/xq-icons';
+import { XQDrawer as Drawer } from '../components/xq-ui';
 
 const TabPane = Tabs.TabPane;
 let fetchByFieldsTimer = null;
 
 const mainTabIcons = {
-    占星: <StarOutlined />,
-    星盘: <StarOutlined />,
-    星运: <RiseOutlined />,
-    八字: <BorderOuterOutlined />,
-    紫微: <AimOutlined />,
-    '3D': <AppstoreOutlined />,
-    三维盘: <AppstoreOutlined />,
-    七政: <CompassOutlined />,
-    印占: <GlobalOutlined />,
-    辅盘: <BarChartOutlined />,
-    合盘: <HeartOutlined />,
-    七政四余: <CompassOutlined />,
-    印度占星: <GlobalOutlined />,
-    三式: <ApiOutlined />,
-    三式合一: <ApiOutlined />,
-    六壬: <DeploymentUnitOutlined />,
-    遁甲: <ThunderboltOutlined />,
-    六爻: <BranchesOutlined />,
-    太乙: <RadarChartOutlined />,
-    分至: <FieldTimeOutlined />,
-    节气盘: <FieldTimeOutlined />,
-    风水: <CompassOutlined />,
-    其他: <ApartmentOutlined />,
-    其他术数: <ApartmentOutlined />,
-    AI分析: <ExperimentOutlined />,
-    黄历: <CalendarOutlined />,
-    辅助: <BuildOutlined />,
-    书籍阅读: <BookOutlined />,
-    星阙直播: <PlayCircleOutlined />,
-    管理工具: <ToolOutlined />,
+    占星: <XQIcon name="astro" />,
+    星盘: <XQIcon name="astro" />,
+    星运: <XQIcon name="direction" />,
+    八字: <XQIcon name="bazi" />,
+    紫微: <XQIcon name="ziwei" />,
+    '3D': <XQIcon name="threeD" />,
+    三维盘: <XQIcon name="threeD" />,
+    七政: <XQIcon name="qizheng" />,
+    印占: <XQIcon name="vedic" />,
+    辅盘: <XQIcon name="aux" />,
+    合盘: <XQIcon name="composite" />,
+    七政四余: <XQIcon name="qizheng" />,
+    印度占星: <XQIcon name="vedic" />,
+    三式: <XQIcon name="sanshi" />,
+    三式合一: <XQIcon name="sanshi" />,
+    六壬: <XQIcon name="liureng" />,
+    遁甲: <XQIcon name="qimen" />,
+    六爻: <XQIcon name="liuyao" />,
+    太乙: <XQIcon name="taiyi" />,
+    分至: <XQIcon name="solstice" />,
+    节气盘: <XQIcon name="solstice" />,
+    风水: <XQIcon name="fengshui" />,
+    其他: <XQIcon name="other" />,
+    其他术数: <XQIcon name="other" />,
+    AI分析: <XQIcon name="ai" />,
+    黄历: <XQIcon name="calendar" />,
+    辅助: <XQIcon name="support" />,
+    书籍阅读: <XQIcon name="book" />,
+    星阙直播: <XQIcon name="live" />,
+    管理工具: <XQIcon name="admin" />,
 };
 
 const navigationPages = [
-    { label: '占星', key: 'astrochart' },
-    { label: '星运', key: 'direction' },
-    { label: '八字', key: 'bazi' },
-    { label: '紫微', key: 'ziwei' },
-    { label: '七政', key: 'guolao' },
-    { label: '印占', key: 'indiachart' },
-    { label: '辅盘', key: 'auxchart' },
-    { label: '合盘', key: 'relativechart' },
-    { label: '三式', key: 'sanshiunited' },
-    { label: '六壬', key: 'liureng' },
-    { label: '遁甲', key: 'dunjia' },
-    { label: '六爻', key: 'guazhan' },
-    { label: '太乙', key: 'taiyi' },
-    { label: '分至', key: 'jieqichart' },
-    { label: '风水', key: 'fengshui' },
-    { label: '其他', key: 'cnyibu' },
-    { label: 'AI分析', key: 'aianalysis' },
-    { label: '3D', key: 'astrochart3D' },
-    { label: '黄历', key: 'calendar' },
-    { label: '辅助', key: 'cntradition' },
+    { label: '占星', key: 'astrochart', icon: 'astro', group: '命' },
+    { label: '星运', key: 'direction', icon: 'direction', group: '命' },
+    { label: '八字', key: 'bazi', icon: 'bazi', group: '命' },
+    { label: '紫微', key: 'ziwei', icon: 'ziwei', group: '命' },
+    { label: '七政', key: 'guolao', icon: 'qizheng', group: '命' },
+    { label: '印占', key: 'indiachart', icon: 'vedic', group: '命' },
+    { label: '辅盘', key: 'auxchart', icon: 'aux', group: '命' },
+    { label: '合盘', key: 'relativechart', icon: 'composite', group: '命' },
+    { label: '三式', key: 'sanshiunited', icon: 'sanshi', group: '卜' },
+    { label: '六壬', key: 'liureng', icon: 'liureng', group: '卜' },
+    { label: '遁甲', key: 'dunjia', icon: 'qimen', group: '卜' },
+    { label: '六爻', key: 'guazhan', icon: 'liuyao', group: '卜' },
+    { label: '太乙', key: 'taiyi', icon: 'taiyi', group: '卜' },
+    { label: '分至', key: 'jieqichart', icon: 'solstice', group: '卜' },
+    { label: '风水', key: 'fengshui', icon: 'fengshui', group: '卜' },
+    { label: '其他', key: 'cnyibu', icon: 'other', group: '卜' },
+    { label: 'AI分析', key: 'aianalysis', icon: 'ai', group: '工具' },
+    { label: '3D', key: 'astrochart3D', icon: 'threeD', group: '工具' },
+    { label: '黄历', key: 'calendar', icon: 'calendar', group: '工具' },
+    { label: '辅助', key: 'cntradition', icon: 'support', group: '工具' },
 ];
 
 function mainTab(label, group, options = {}){
-    const icon = mainTabIcons[label] || <StarOutlined />;
+    const icon = mainTabIcons[label] || <XQIcon name="astro" />;
     return (
         <span
             className={`horosa-main-tab-label${options.hidden ? ' horosa-main-tab-hidden' : ''}`}
@@ -322,8 +300,11 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
     let aryregflds = convertToArray(registerFields);
     let aryloginflds = convertToArray(loginFields);
     const drawerNavigationPages = navigationPages.concat(
-        userInfo ? [{ label: '书籍阅读', key: 'astroreader' }, { label: '星阙直播', key: 'liveplayer' }] : [],
-        admin ? [{ label: '管理工具', key: 'admintools' }] : []
+        userInfo ? [
+            { label: '书籍阅读', key: 'astroreader', icon: 'book', group: '内容' },
+            { label: '星阙直播', key: 'liveplayer', icon: 'live', group: '内容' },
+        ] : [],
+        admin ? [{ label: '管理工具', key: 'admintools', icon: 'admin', group: '管理' }] : []
     );
 
 	return (
@@ -1102,12 +1083,13 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
 
             <Drawer
                 title='导航'
-                width={200}
+                width={260}
                 placement="left"
                 destroyOnClose={true}
                 onClose={closeDrawer}
                 maskClosable={true}
                 open={drawerVisible.homepage}
+                className="xq-drawer-nav"
                 style={{
                     height: 'calc(100% - 0px)',
                     overflow: 'auto',
