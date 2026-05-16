@@ -1,9 +1,8 @@
 import React from 'react';
-import {  Avatar, Dropdown, Select, Button, message, Modal, Checkbox, Input, Tooltip, } from 'antd';
+import { Avatar, Dropdown, message, Tooltip } from 'antd';
 import {
 	UserOutlined,
 	LogoutOutlined,
-	BugOutlined,
 } from '@ant-design/icons';
 import blogo from '../../assets/blogo.jpg';
 import {
@@ -22,11 +21,21 @@ import {
 	getCurrentAIExportContext,
 	AI_EXPORT_SETTINGS_VERSION,
 } from '../../utils/aiExport';
-import { XQButton, XQIconButton } from '../xq-ui';
+import {
+	XQButton,
+	XQCheckItem,
+	XQCheckList,
+	XQIconButton,
+	XQInput,
+	XQModal,
+	XQSectionTitle,
+	XQSelect,
+	XQToolbar,
+} from '../xq-ui';
 import XQIcon from '../xq-icons';
 import styles from './PageHeader.less';
 
-const Option = Select.Option;
+const Option = XQSelect.Option;
 
 function PageHeader(props){
 	const [aiSettingVisible, setAiSettingVisible] = React.useState(false);
@@ -163,6 +172,15 @@ function PageHeader(props){
 			aiSettingDataRef.current = next;
 			return next;
 		});
+	}
+
+	function onAISettingToggleOption(item){
+		const key = `${item}`;
+		const selected = currentSettingSelected.indexOf(key) >= 0;
+		const next = selected
+			? currentSettingSelected.filter((rec)=>rec !== key)
+			: currentSettingSelected.concat([key]);
+		onAISettingOptionsChange(next);
 	}
 
 	function onAISettingSelectAll(){
@@ -417,12 +435,12 @@ function PageHeader(props){
 						</Dropdown>
 						<XQButton className={styles.compactCommand} size='small' iconName="aiSettings" onClick={openAIExportSettings}>AI导出设置</XQButton>
 						{hasDesktopBridge() ? (
-							<Button className={styles.compactCommand} size='small' icon={<BugOutlined />} onClick={onExportDiagnosticsClick}>诊断</Button>
+							<XQButton className={styles.compactCommand} size='small' iconName="diagnostics" onClick={onExportDiagnosticsClick}>诊断</XQButton>
 						) : null}
 					</span>
 				</div>
 				<div className={styles.utilityBar}>
-					<Input
+					<XQInput
 						className={styles.searchInput}
 						size="small"
 						prefix={<XQIcon name="search" />}
@@ -431,14 +449,14 @@ function PageHeader(props){
 						onClick={()=>{openDrawer('query')}}
 					/>
 					<Tooltip title={`主题：${appearanceLabel}。点击切换昼夜模式。`}>
-						<Button
+						<XQButton
 							size="small"
 							className={styles.appearanceButton}
 							icon={appearanceIcon}
 							onClick={cycleAppearanceMode}
 						>
 							{appearanceLabel}
-						</Button>
+						</XQButton>
 					</Tooltip>
 					<Dropdown
 						menu={{
@@ -463,71 +481,87 @@ function PageHeader(props){
 						</span>
 					</Dropdown>
 				</div>
-			<Modal
+			<XQModal
 				title="AI导出设置"
 				open={aiSettingVisible}
 				onCancel={()=>setAiSettingVisible(false)}
-				onOk={onAISettingSave}
 				width={640}
+				footer={(
+					<XQToolbar className={styles.aiSettingFooter}>
+						<XQButton size="small" onClick={()=>setAiSettingVisible(false)}>取消</XQButton>
+						<XQButton size="small" variant="primary" onClick={onAISettingSave}>保存设置</XQButton>
+					</XQToolbar>
+				)}
 			>
-				<div style={{marginBottom: 10}}>选择技法：</div>
-				<Select
+				<div className={styles.aiSettingModal}>
+					<XQSectionTitle>选择技法</XQSectionTitle>
+					<XQSelect
 					size='small'
-					style={{width: '100%', marginBottom: 12}}
+					style={{width: '100%'}}
 					value={aiSettingKey}
 					onChange={(val)=>setAiSettingKey(val)}
-				>
-					{aiSettingTechs.map((item)=>(
-						<Option key={item.key} value={item.key}>{item.label}</Option>
-					))}
-				</Select>
-				<div style={{marginBottom: 10}}>
-					<Button size='small' onClick={onAISettingSelectAll} style={{marginRight: 8}}>全选</Button>
-					<Button size='small' onClick={onAISettingClear} style={{marginRight: 8}}>清空</Button>
-					<Button size='small' onClick={onAISettingResetDefault}>恢复默认</Button>
+					>
+						{aiSettingTechs.map((item)=>(
+							<Option key={item.key} value={item.key}>{item.label}</Option>
+						))}
+					</XQSelect>
+					<XQToolbar compact className={styles.aiSettingActions}>
+						<XQButton size='small' onClick={onAISettingSelectAll}>全选</XQButton>
+						<XQButton size='small' onClick={onAISettingClear}>清空</XQButton>
+						<XQButton size='small' onClick={onAISettingResetDefault}>恢复默认</XQButton>
+					</XQToolbar>
+					<XQSectionTitle>导出分段</XQSectionTitle>
+					{currentSettingOptions.length ? (
+						<XQCheckList columns={2} className={styles.aiSettingChecks}>
+							{currentSettingOptions.map((item)=>(
+								<XQCheckItem
+									key={item}
+									compact
+									checked={currentSettingSelected.indexOf(item) >= 0}
+									onClick={()=>onAISettingToggleOption(item)}
+								>
+									{item}
+								</XQCheckItem>
+							))}
+						</XQCheckList>
+					) : (
+						<div className={styles.aiSettingEmpty}>当前技法暂未检测到可选分段，请先在该技法完成一次排盘后再设置。</div>
+					)}
+					{currentSettingSupportsPlanetInfo ? (
+						<div>
+							<XQSectionTitle>星曜后天信息</XQSectionTitle>
+							<XQCheckList columns={2}>
+								<XQCheckItem
+									compact
+									checked={currentSettingPlanetInfo.showHouse === 1}
+									onClick={()=>onAISettingPlanetInfoChange('showHouse', currentSettingPlanetInfo.showHouse !== 1)}
+								>
+									显示星曜宫位
+								</XQCheckItem>
+								<XQCheckItem
+									compact
+									checked={currentSettingPlanetInfo.showRuler === 1}
+									onClick={()=>onAISettingPlanetInfoChange('showRuler', currentSettingPlanetInfo.showRuler !== 1)}
+								>
+									显示星曜主宰宫
+								</XQCheckItem>
+							</XQCheckList>
+						</div>
+					) : null}
+					{currentSettingSupportsAstroMeaning ? (
+						<div>
+							<XQSectionTitle>{currentSettingMeaningTitle}</XQSectionTitle>
+							<XQCheckItem
+								compact
+								checked={currentSettingAstroMeaning.enabled === 1}
+								onClick={()=>onAISettingAstroMeaningChange(currentSettingAstroMeaning.enabled !== 1)}
+							>
+								{currentSettingMeaningCheckbox}
+							</XQCheckItem>
+						</div>
+					) : null}
 				</div>
-				{currentSettingOptions.length ? (
-					<Checkbox.Group
-						options={currentSettingOptions.map((item)=>({label: item, value: item}))}
-						value={currentSettingSelected}
-						onChange={onAISettingOptionsChange}
-					/>
-				) : (
-					<div>当前技法暂未检测到可选分段，请先在该技法完成一次排盘后再设置。</div>
-				)}
-				{currentSettingSupportsPlanetInfo ? (
-					<div style={{marginTop: 14}}>
-						<div style={{marginBottom: 8}}>星曜后天信息（仅AI导出）：</div>
-						<Checkbox
-							checked={currentSettingPlanetInfo.showHouse === 1}
-							disabled={false}
-							onChange={(e)=>onAISettingPlanetInfoChange('showHouse', !!(e && e.target && e.target.checked))}
-							style={{marginRight: 16}}
-						>
-							显示星曜宫位
-						</Checkbox>
-						<Checkbox
-							checked={currentSettingPlanetInfo.showRuler === 1}
-							disabled={false}
-							onChange={(e)=>onAISettingPlanetInfoChange('showRuler', !!(e && e.target && e.target.checked))}
-						>
-							显示星曜主宰宫
-						</Checkbox>
-					</div>
-				) : null}
-				{currentSettingSupportsAstroMeaning ? (
-					<div style={{marginTop: 14}}>
-						<div style={{marginBottom: 8}}>{currentSettingMeaningTitle}</div>
-						<Checkbox
-							checked={currentSettingAstroMeaning.enabled === 1}
-							disabled={false}
-							onChange={(e)=>onAISettingAstroMeaningChange(!!(e && e.target && e.target.checked))}
-						>
-							{currentSettingMeaningCheckbox}
-						</Checkbox>
-					</div>
-				) : null}
-			</Modal>
+			</XQModal>
 		</div>
 	);
 }

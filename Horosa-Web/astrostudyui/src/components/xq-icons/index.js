@@ -63,6 +63,12 @@ const iconMap = {
 			<circle {...lineProps} cx="12" cy="12" r="3.2" />
 		</Svg>
 	),
+	diagnostics: (
+		<Svg>
+			<path {...lineProps} d="M7 5.5h10v4.2a5 5 0 0 1 2 4.1c0 3.4-2.8 6.2-7 6.2s-7-2.8-7-6.2a5 5 0 0 1 2-4.1z" />
+			<path {...lineProps} d="M9.2 5.5V3.8M14.8 5.5V3.8M8 11.5h8M8.2 15.2h7.6" />
+		</Svg>
+	),
 	search: (
 		<Svg>
 			<circle {...lineProps} cx="10.5" cy="10.5" r="5.8" />

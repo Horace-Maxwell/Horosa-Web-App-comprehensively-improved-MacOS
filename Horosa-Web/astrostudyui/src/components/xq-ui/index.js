@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Drawer, Radio, Select, Tabs, Tooltip } from 'antd';
+import { Button, Drawer, Input, Modal, Radio, Select, Tabs, Tooltip } from 'antd';
 import XQIcon from '../xq-icons';
 
 export function XQButton({children, iconName, className = '', variant = 'default', ...rest}){
@@ -120,6 +120,17 @@ export function XQSelect({className = '', popupClassName = '', dropdownClassName
 	);
 }
 
+XQSelect.Option = Select.Option;
+
+export function XQInput({className = '', ...rest}){
+	return (
+		<Input
+			{...rest}
+			className={`xq-input ${className}`.trim()}
+		/>
+	);
+}
+
 export function XQTabs({className = '', ...rest}){
 	return (
 		<Tabs
@@ -130,6 +141,17 @@ export function XQTabs({className = '', ...rest}){
 }
 
 XQTabs.TabPane = Tabs.TabPane;
+
+export function XQModal({className = '', children, ...rest}){
+	return (
+		<Modal
+			{...rest}
+			className={`xq-modal ${className}`.trim()}
+		>
+			{children}
+		</Modal>
+	);
+}
 
 export function XQDrawer({className = '', children, ...rest}){
 	return (
