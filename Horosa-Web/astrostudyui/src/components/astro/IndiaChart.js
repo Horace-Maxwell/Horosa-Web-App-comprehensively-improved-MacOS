@@ -1,8 +1,11 @@
 import { Component } from 'react';
 import AstroChartMain from './AstroChartMain';
+import IndiaEastChart from './IndiaEastChart';
+import IndiaNorthChart from './IndiaNorthChart';
 import IndiaSouthChart from './IndiaSouthChart';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
+import * as AstroConst from '../../constants/AstroConst';
 import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 
@@ -19,7 +22,7 @@ function fieldsToParams(fields){
 		lon: fields.lon.value,
 		gpsLat: fields.gpsLat.value,
 		gpsLon: fields.gpsLon.value,
-		hsys: fields.hsys.value === 0 || fields.hsys.value === 5 ? fields.hsys.value : 0,
+		hsys: fields.hsys.value,
 		zodiacal: 1,
 		tradition: fields.tradition.value,
 		strongRecption: fields.strongRecption.value,
@@ -57,7 +60,7 @@ function resolveIndiaLabel(fractal, hook){
 	if(fractal === 1){
 		return '命盘';
 	}
-	return `${fractal}律盘`;
+	return `${fractal}分盘`;
 }
 
 function buildIndiaChartCacheKey(params){
@@ -144,7 +147,7 @@ function buildIndiaSnapshotText(chartObj, fields, chartnum, hook){
 
 	const lines = [];
 	ensureSection(lines, '起盘信息', [
-		`当前律盘：${label}`,
+		`当前分盘：${label}`,
 		`分盘：D${fractal}`,
 		...baseInfo,
 	]);
@@ -255,9 +258,13 @@ class IndiaChart extends Component{
 		let height = this.props.height ? this.props.height : 760;
 		let fractal = resolveIndiaFractal(this.props.chartnum, this.props.hook);
 		let label = resolveIndiaLabel(fractal, this.props.hook);
+		let indiaChartStyle = AstroConst.normalizeIndiaChartStyle(this.props.indiaChartStyle);
+		const IndiaChartRenderer = indiaChartStyle === AstroConst.INDIA_CHART_STYLE_NORTH
+			? IndiaNorthChart
+			: (indiaChartStyle === AstroConst.INDIA_CHART_STYLE_EAST ? IndiaEastChart : IndiaSouthChart);
 
 		return (
-			<div>
+			<div className="horosa-india-chart-instance">
 					<AstroChartMain 
 						value={chartObj} 
 					onChange={this.onFieldsChange}
@@ -267,7 +274,7 @@ class IndiaChart extends Component{
 					indiahsys={1}
 					height={height} 
 					chartRenderer={({chartObj: currentChartObj, height: chartHeight})=>(
-						<IndiaSouthChart
+						<IndiaChartRenderer
 							value={currentChartObj}
 							chartnum={fractal}
 							label={label}
@@ -277,10 +284,12 @@ class IndiaChart extends Component{
 						/>
 					)}
 						chartDisplay={this.props.chartDisplay}
+						indiaChartStyle={indiaChartStyle}
 						planetDisplay={this.props.planetDisplay}
 						lotsDisplay={this.props.lotsDisplay}
 						showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 						showAstroMeaning={this.props.showAstroMeaning}
+						dispatch={this.props.dispatch}
 					/>
 			</div>
 		);

@@ -8,7 +8,6 @@ import {
 	MessageOutlined,
 	BgColorsOutlined,
 	ToolOutlined,
-	AppstoreOutlined,
 	PlusCircleOutlined,
 	FileTextOutlined,
 	SettingOutlined,
@@ -16,8 +15,6 @@ import {
 	MoonOutlined,
 	DesktopOutlined,
 	CompassOutlined,
-	StarOutlined,
-	BranchesOutlined,
 	BugOutlined,
 } from '@ant-design/icons';
 import blogo from '../../assets/blogo.jpg';
@@ -411,8 +408,8 @@ function PageHeader(props){
 				</div>
 				<div className={styles.commandBar}>
 					<span className={styles.commandGroup}>
-						<Tooltip title="首页">
-							<Button className={styles.compactCommand} size='small' icon={<HomeOutlined />} onClick={()=>{openDrawer('homepage')}}>首页</Button>
+						<Tooltip title="导航">
+							<Button className={styles.compactCommand} size='small' icon={<HomeOutlined />} onClick={()=>{openDrawer('homepage')}}>导航</Button>
 						</Tooltip>
 						<Tooltip title="批注">
 							<Button className={styles.compactCommand} size='small' icon={<MessageOutlined />} onClick={()=>{openDrawer('memo')}}>批注</Button>
@@ -421,15 +418,6 @@ function PageHeader(props){
 					<span className={styles.commandGroup}>
 						<Tooltip title="小工具">
 							<Button className={styles.compactCommand} size='small' icon={<ToolOutlined />} onClick={()=>{openDrawer('commtools')}}>小工具</Button>
-						</Tooltip>
-						<Tooltip title="星盘组件">
-							<Button className={styles.compactCommand} size='small' icon={<AppstoreOutlined />} onClick={()=>{openDrawer('selectchartdisplay')}}>星盘组件</Button>
-						</Tooltip>
-						<Tooltip title="行星选择">
-							<Button className={styles.compactCommand} size='small' icon={<StarOutlined />} onClick={()=>{openDrawer('selectplanet')}}>行星选择</Button>
-						</Tooltip>
-						<Tooltip title="相位选择">
-							<Button className={styles.compactCommand} size='small' icon={<BranchesOutlined />} onClick={()=>{openDrawer('selectasp')}}>相位选择</Button>
 						</Tooltip>
 					</span>
 					<span className={styles.commandGroup}>

@@ -1,16 +1,11 @@
 import { Component } from 'react';
 import { List, } from 'antd';
 import { ColorTheme, ReaderThemeKey, } from '../constants/ReaderConst';
-import { HomePageKey, } from '../utils/constants';
 
 const Pages = [{
 	path: ['astrochart'],
-	label: '星盘',
+	label: '占星',
 	key: 'astrochart',
-},{
-	path: ['guolao'],
-	label: '七政四余',
-	key: 'guolao',
 },{
 	path: ['bazi'],
 	label: '八字',
@@ -42,46 +37,43 @@ class HomePageSetup extends Component{
 	constructor(props){
 		super(props);
 
-		let home = localStorage.getItem(HomePageKey);
-		if(home){
-			home = JSON.parse(home);
-		}else{
-			home = {
-				...Pages[0],
-			};
-		}
-
 		this.state = {
-			page: home,
+			page: this.getInitialPage(props),
 		}
 
 		this.genDom = this.genDom.bind(this);
 		this.clickPage = this.clickPage.bind(this);
 	}
 
+	getInitialPage(props){
+		const pages = props.pages && props.pages.length ? props.pages : Pages;
+		const key = props.currentKey;
+		const current = pages.find((rec)=>rec.key === key);
+		return current || pages[0];
+	}
+
 	clickPage(rec){
 		this.setState({
 			page: rec,
 		}, ()=>{
-			let json = JSON.stringify(rec);
-			localStorage.setItem(HomePageKey, json);	
-			if(this.props.dispatch){
-				this.props.dispatch({
-					type: 'astro/setHomePage',
-					payload: rec,
-				});
+			if(this.props.onNavigate){
+				this.props.onNavigate(rec.key);
+			}
+			if(this.props.onClose){
+				this.props.onClose();
 			}
 		});
 	}
 
 	genDom(){
 		let theme = getColorTheme();
-		let home = this.state.page;
+		const pages = this.props.pages && this.props.pages.length ? this.props.pages : Pages;
+		const currentKey = this.props.currentKey || (this.state.page ? this.state.page.key : '');
 		
 		let dom = (
 			<List
 				size='default'
-				dataSource={Pages}
+				dataSource={pages}
 				renderItem={(rec)=>{
 					let style = {
 						whiteSpace: 'nowrap', 
@@ -90,14 +82,14 @@ class HomePageSetup extends Component{
 						marginLeft: 10
 					};
 					let colorstyle = {};
-					if(home.key === rec.key){
+					if(currentKey === rec.key){
 						style.backgroundColor = theme.bgColor;
 						style.color = theme.color;				
 						colorstyle.backgroundColor = theme.bgColor;
 						colorstyle.color = theme.color;				
 					}
 					return (
-						<List.Item key={rec.idx} onClick={()=>{ this.clickPage(rec); }}
+						<List.Item key={rec.key} onClick={()=>{ this.clickPage(rec); }}
 							style={colorstyle}
 						>
 							<div style={style}>{rec.label}</div>

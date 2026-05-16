@@ -193,7 +193,7 @@ class IndiaChartMain extends Component{
 				<TabPane 
 					tab={(
 							<Tooltip title={hook.txt}>
-								<span>{hook.fractal}律盘</span>
+								<span>{hook.fractal}分盘</span>
 							</Tooltip>					
 						)} 
 					key={key}
@@ -204,11 +204,13 @@ class IndiaChartMain extends Component{
 						fields={fields} 
 						height={height} 
 						chartDisplay={this.props.chartDisplay}
+							indiaChartStyle={this.props.indiaChartStyle}
 							planetDisplay={this.props.planetDisplay}
 							lotsDisplay={this.props.lotsDisplay}
 							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 							showAstroMeaning={this.props.showAstroMeaning}
 							hook={hook}
+							dispatch={this.props.dispatch}
 						/>						
 				</TabPane>
 			);
@@ -216,7 +218,7 @@ class IndiaChartMain extends Component{
 		}
 
 		return (
-			<div >
+			<div className="horosa-india-chart-main">
 				<Tabs 
 					defaultActiveKey={this.state.currentTab} tabPosition='right'
 					onChange={this.changeTab}
@@ -232,11 +234,13 @@ class IndiaChartMain extends Component{
 							fields={fields} 
 							height={height} 
 							chartDisplay={this.props.chartDisplay}
+								indiaChartStyle={this.props.indiaChartStyle}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
 								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 								showAstroMeaning={this.props.showAstroMeaning}
 								hook={this.state.hook.Natal}
+								dispatch={this.props.dispatch}
 							/>						
 					</TabPane>
 

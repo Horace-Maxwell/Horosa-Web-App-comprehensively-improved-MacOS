@@ -11,7 +11,7 @@ const SOUTH_INDIAN_SIGN_GRID = [
 	[9, 8, 7, 6],
 ];
 
-const SIGN_NAMES = {
+export const SIGN_NAMES = {
 	1: AstroConst.ARIES,
 	2: AstroConst.TAURUS,
 	3: AstroConst.GEMINI,
@@ -26,7 +26,7 @@ const SIGN_NAMES = {
 	12: AstroConst.PISCES,
 };
 
-const ROMAN_HOUSES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+export const ROMAN_HOUSES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 const INDIA_PLANET_LABELS = {
 	[AstroConst.SUN]: 'Su',
@@ -50,7 +50,7 @@ const INDIA_PLANET_LABELS = {
 	[AstroConst.IC]: 'IC',
 };
 
-function normalizeDegree(lon){
+export function normalizeDegree(lon){
 	const num = Number(lon);
 	if(!Number.isFinite(num)){
 		return 0;
@@ -66,7 +66,7 @@ function getSignNumberFromSign(sign){
 	return null;
 }
 
-function getSignNumber(obj){
+export function getSignNumber(obj){
 	if(!obj){
 		return null;
 	}
@@ -80,14 +80,14 @@ function getSignNumber(obj){
 	return null;
 }
 
-function getObject(chartObj, objid){
+export function getObject(chartObj, objid){
 	if(!chartObj || !chartObj.chart || !Array.isArray(chartObj.chart.objects)){
 		return null;
 	}
 	return chartObj.chart.objects.find((obj)=>obj.id === objid) || null;
 }
 
-function getAscSignNumber(chartObj){
+export function getAscSignNumber(chartObj){
 	const asc = getObject(chartObj, AstroConst.ASC);
 	const ascSign = getSignNumber(asc);
 	if(ascSign){
@@ -105,11 +105,11 @@ function getAscSignNumber(chartObj){
 	return 1;
 }
 
-function getHouseNumberForSign(signNumber, ascSignNumber){
+export function getHouseNumberForSign(signNumber, ascSignNumber){
 	return ((signNumber - ascSignNumber + 12) % 12) + 1;
 }
 
-function getObjectLabel(obj){
+export function getObjectLabel(obj){
 	if(!obj || !obj.id){
 		return '';
 	}
@@ -120,7 +120,7 @@ function getObjectLabel(obj){
 	return `${cn}`.slice(0, 2);
 }
 
-function getObjectDegree(obj){
+export function getObjectDegree(obj){
 	let value = obj && obj.signlon !== undefined && obj.signlon !== null ? obj.signlon : null;
 	if(value === null && obj && obj.lon !== undefined && obj.lon !== null){
 		value = normalizeDegree(obj.lon) % 30;
@@ -132,19 +132,38 @@ function getObjectDegree(obj){
 	return `${degs[0]}°`;
 }
 
-function getHouseCuspDegree(chartObj, houseNumber, signNumber){
+function getDegreeText(value){
+	if(value === undefined || value === null || value === ''){
+		return '';
+	}
+	const num = Number(value);
+	if(!Number.isFinite(num)){
+		return '';
+	}
+	const degs = splitDegree(num);
+	return `${degs[0]}°`;
+}
+
+export function getHouseCuspDegree(chartObj, houseNumber, signNumber){
 	const houses = chartObj && chartObj.chart && Array.isArray(chartObj.chart.houses) ? chartObj.chart.houses : [];
 	const house = houses.find((item)=>item.id === `House${houseNumber}`);
 	if(!house){
 		return '';
 	}
-	const houseSignNumber = getSignNumber(house);
-	if(houseSignNumber && houseSignNumber !== signNumber){
-		return '';
+	if(house.lon !== undefined && house.lon !== null){
+		const normalizedLon = normalizeDegree(house.lon);
+		const lonSignNumber = Math.floor(normalizedLon / 30) + 1;
+		if(signNumber && lonSignNumber !== signNumber){
+			return '';
+		}
+		return getDegreeText(normalizedLon % 30);
 	}
 	if(house.signlon !== undefined && house.signlon !== null){
-		const degs = splitDegree(house.signlon);
-		return `${degs[0]}°`;
+		const houseSignNumber = getSignNumber(house);
+		if(houseSignNumber && signNumber && houseSignNumber !== signNumber){
+			return '';
+		}
+		return getDegreeText(house.signlon);
 	}
 	return '';
 }
@@ -160,7 +179,7 @@ function buildDisplaySet(planetDisplay, lotsDisplay){
 	return displaySet;
 }
 
-function getObjectsBySign(chartObj, planetDisplay, lotsDisplay){
+export function getObjectsBySign(chartObj, planetDisplay, lotsDisplay){
 	if(!chartObj || !chartObj.chart){
 		return {};
 	}
@@ -200,7 +219,7 @@ function getObjectsBySign(chartObj, planetDisplay, lotsDisplay){
 	return bySign;
 }
 
-function getObjectColor(obj){
+export function getObjectColor(obj){
 	if(!obj){
 		return 'var(--horosa-accent-strong, #2167d4)';
 	}
@@ -276,7 +295,7 @@ class IndiaSouthChart extends Component{
 	render(){
 		const chartObj = this.props.value;
 		const chartnum = this.props.chartnum || 1;
-		const label = this.props.label || (chartnum === 1 ? '命盘' : `${chartnum}律盘`);
+		const label = this.props.label || (chartnum === 1 ? '命盘' : `${chartnum}分盘`);
 		const height = this.props.height || 720;
 		if(!chartObj || !chartObj.chart || chartObj.err){
 			return (
@@ -287,19 +306,8 @@ class IndiaSouthChart extends Component{
 		}
 		const ascSignNumber = getAscSignNumber(chartObj);
 		const objectsBySign = getObjectsBySign(chartObj, this.props.planetDisplay, this.props.lotsDisplay);
-		const modeText = chartObj.params ? [
-			chartObj.params.birth,
-			chartObj.params.lon && chartObj.params.lat ? `${chartObj.params.lon} ${chartObj.params.lat}` : '',
-		].filter(Boolean).join(' · ') : '';
 		return (
 			<div className="horosa-india-square-shell" style={{ '--india-chart-height': `${height}px` }}>
-				<div className="horosa-india-square-meta">
-					<div>
-						<span className="horosa-india-square-kicker">南印度方形盘</span>
-						<span className="horosa-india-square-title">{label}</span>
-					</div>
-					<div className="horosa-india-square-subtitle">{modeText}</div>
-				</div>
 				<div className="horosa-india-square-board">
 					{this.renderCells(ascSignNumber, objectsBySign, chartObj)}
 					<div className="horosa-india-square-center">

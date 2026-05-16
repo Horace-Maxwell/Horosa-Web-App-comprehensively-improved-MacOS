@@ -717,6 +717,15 @@ class AstroInfo extends Component{
 						<span>{zodiacal}，{hsys}</span>&nbsp;
 					</Col>
 				</Row>
+				{perchart.dayerStar || perchart.timerStar ? (
+					<Row gutter={12}>
+						<Col span={24}>
+							{perchart.dayerStar ? <span>日主星：{AstroText.AstroMsgCN[perchart.dayerStar] || perchart.dayerStar}</span> : null}
+							{perchart.dayerStar && perchart.timerStar ? <span>&emsp;</span> : null}
+							{perchart.timerStar ? <span>时主星：{AstroText.AstroMsgCN[perchart.timerStar] || perchart.timerStar}</span> : null}
+						</Col>
+					</Row>
+				) : null}
 				{antiDom}
 				{recpDom ? <Divider orientation="left">接纳</Divider> : null}
 				{recpDom}

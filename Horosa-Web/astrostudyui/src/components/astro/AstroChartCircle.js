@@ -41,6 +41,23 @@ function buildChartCircleDisplayModeText(params = {}){
 	return [display.zodiacal, display.hsys].filter(Boolean).join('，');
 }
 
+const ChartStyleProfiles = {
+	[AstroConst.CHART_STYLE_CURRENT]: {
+		outerMode: 'cusp',
+		starScale: 1,
+		innerHouseScale: 1,
+		forceFlags: 0,
+		clearFlags: 0,
+	},
+	[AstroConst.CHART_STYLE_ORIGINAL]: {
+		outerMode: 'zodiac',
+		starScale: 1.04,
+		innerHouseScale: 1,
+		forceFlags: 0,
+		clearFlags: 0,
+	},
+};
+
 
 export default class AstroChartCircle {
 	constructor(option){
@@ -57,8 +74,23 @@ export default class AstroChartCircle {
 		this.divTooltip = option.divTooltip;
 		this.onTipClick = option.onTipClick;
 		this.showAstroMeaning = option.showAstroMeaning ? true : false;
+		this.chartStyle = AstroConst.CHART_STYLE_CURRENT;
 
 		this.setupToolTip();
+	}
+
+	setChartStyle(style){
+		this.chartStyle = AstroConst.normalizeChartStyle(style);
+	}
+
+	getChartStyleProfile(){
+		return ChartStyleProfiles[this.chartStyle] || ChartStyleProfiles[AstroConst.CHART_STYLE_CURRENT];
+	}
+
+	applyChartStyleFlags(flags){
+		const profile = this.getChartStyleProfile();
+		const nextFlags = flags | (profile.forceFlags || 0);
+		return nextFlags & ~(profile.clearFlags || 0);
 	}
 
 	setShowAstroMeaning(flag){
@@ -862,7 +894,7 @@ export default class AstroChartCircle {
 		let txtplanet = (flags & AstroConst.CHART_TXTPLANET) === 0 ? false : true;
 		let degSet = [];
 		const isWideChart = r >= this.rThreshold;
-		const planetSymbolFont = isWideChart ? 25 : 21;
+		const planetSymbolFont = txtplanet ? (isWideChart ? 25 : 21) : (isWideChart ? 38 : 32);
 		const signSymbolFont = isWideChart ? 20 : 17;
 		const planetTextFont = isWideChart ? 16 : 14;
 		const planetLayerInset = Math.max(isWideChart ? 32 : 24, Math.round(rStep * (isWideChart ? 0.22 : 0.28)));
@@ -1205,19 +1237,13 @@ export default class AstroChartCircle {
 		let chartType = chartObj.chart.isDiurnal ? '，日生盘' : '，夜生盘';
 		let commtxts = [
 			'经度：' + params.lon + '， ' + '纬度：' + params.lat,
-			params.birth + ' ' + chartObj.chart.dayofweek,
+			params.birth,
 			'时区：' + params.zone + ' ' + chartType,
 		];
-		if(chartObj.chart.nongli){
-			let suntm = '真太阳时：' + chartObj.chart.nongli.birth;
-			commtxts.push(suntm);
-		}
 		let displayModeText = buildChartCircleDisplayModeText(params);
 		if(displayModeText){
 			commtxts.push(displayModeText);
 		}
-		commtxts.push('日主星：' + AstroText.AstroMsgCN[chartObj.chart.dayerStar]);
-		commtxts.push('时主星：' + AstroText.AstroMsgCN[chartObj.chart.timerStar]);
 	
 		let txts = [];
 		if(params.name){
@@ -1272,19 +1298,13 @@ export default class AstroChartCircle {
 		let chartType = chartObj.chart.isDiurnal ? '，日生盘' : '，夜生盘';
 		let commtxts = [
 			params.lon + '，' + params.lat,
-			params.birth + ' ' + chartObj.chart.dayofweek,
+			params.birth,
 			'时区：' + params.zone + ' ' + chartType,
 		];
-		if(chartObj.chart.nongli){
-			let suntime = '真太阳时：' + chartObj.chart.nongli.birth;
-			commtxts.push(suntime);
-		}
 		let displayModeText = buildChartCircleDisplayModeText(params);
 		if(displayModeText){
 			commtxts.push(displayModeText);
 		}
-		commtxts.push('日主星：' + AstroText.AstroMsgCN[chartObj.chart.dayerStar]);
-		commtxts.push('时主星：' + AstroText.AstroMsgCN[chartObj.chart.timerStar]);
 	
 		let txts = [];
 		if(params.name){
@@ -1372,10 +1392,11 @@ export default class AstroChartCircle {
 		return angglegroup;
 	}
 	
-	drawChart(chartid, chartObj, rStep, chartDisplay, planetDisplay, keyplanets){
+	drawChart(chartid, chartObj, rStep, chartDisplay, planetDisplay, keyplanets, chartStyle){
 		if(chartObj === undefined || chartObj === null || chartObj.err){
 			return null;
 		}
+		this.setChartStyle(chartStyle);
 		let svgdom = document.getElementById(chartid); 
 		if(svgdom === undefined || svgdom === null){
 			return null;
@@ -1391,6 +1412,7 @@ export default class AstroChartCircle {
 		for(let i=0; i<disp.length; i++){
 			flags = flags + disp[i];
 		}
+		flags = this.applyChartStyleFlags(flags);
 	
 		let orgx = width / 2;
 		let orgy = height / 2 - this.ChartMoveUp;
@@ -1399,14 +1421,6 @@ export default class AstroChartCircle {
 	
 		let ressvg = this.drawChartWithOrgXY(chartid, chartObj, orgx, orgy, signsR, rStep, flags, planetDisplay, keyplanets);
 		let svg = ressvg.svg;
-		if((flags & AstroConst.CHART_INFOINCIRCLE) === AstroConst.CHART_INFOINCIRCLE){
-			let r = ressvg.chart.radius;
-			let x = orgx - r * Math.sin(0);
-			let y = orgy - r * Math.cos(0);
-			this.drawBirthInfoInCircle(svg, r, x, y, chartObj, chartid);
-		}else{
-			this.drawBirthInfo(svg, this.ChartMargin, chartObj, chartid);
-		}
 		this.solidifyText(svg);
 	
 	}
@@ -1445,6 +1459,7 @@ export default class AstroChartCircle {
 	}
 	
 	drawOuterSigns(chartObj, topgroup, radius, rStep, flags, isDiurnal, termHighlight){
+		const profile = this.getChartStyleProfile();
 		let needOutDeg = (flags & AstroConst.CHART_OUTERDEG) === AstroConst.CHART_OUTERDEG ? true : false;
 		if(needOutDeg){
 			let outerDegLines = this.degreeOuterLines(topgroup, radius);
@@ -1454,7 +1469,9 @@ export default class AstroChartCircle {
 			house1 = this.getHouse(chartObj, AstroConst.HOUSE1);
 		}
 		let house1ang = house1 ? house1['lon'] : null;
-		if(chartObj && chartObj.chart && Array.isArray(chartObj.chart.houses)){
+		if(profile.outerMode === 'zodiac'){
+			this.signsBand(topgroup, radius, rStep, flags, isDiurnal, house1ang);
+		}else if(chartObj && chartObj.chart && Array.isArray(chartObj.chart.houses)){
 			this.houseCuspBand(topgroup, radius, rStep, chartObj.chart.houses, flags, house1ang);
 		}else{
 			this.signsBand(topgroup, radius, rStep, flags, isDiurnal, house1ang);
@@ -1475,15 +1492,14 @@ export default class AstroChartCircle {
 	}
 	
 	drawInnerChartWithOrgXY(topgroup, chartObj, orgx, orgy, houseR, rStep, flags, planetDisplay, txtsu28, keyplanets){
+		const profile = this.getChartStyleProfile();
 		let housesObj = chartObj.chart.houses;
 		let housesAry = chartObj.chart.houses;
 		let starsR = houseR;
 		let starStep = Math.max(132, Math.min(188, Math.round(houseR * 0.45)));
 		let innerHouseStep = Math.max(24, Math.min(30, Math.round(rStep * 0.9)));
 		let txtplanet = (flags & AstroConst.CHART_TXTPLANET) === 0 ? false : true;
-		if(!txtplanet){
-			starStep = Math.max(62, Math.min(86, Math.round(houseR * 0.22)));
-		}else{
+		if(txtplanet){
 			if(starsR < this.rThreshold){
 				starStep = 86
 			}
@@ -1491,6 +1507,8 @@ export default class AstroChartCircle {
 				starStep = starStep + 60;
 			}
 		}
+		starStep = Math.max(50, Math.round(starStep * (profile.starScale || 1)));
+		innerHouseStep = Math.max(22, Math.min(34, Math.round(innerHouseStep * (profile.innerHouseScale || 1))));
 
 		let houseBandR = starsR - starStep;
 		if(houseBandR < rStep * 3){
@@ -1712,9 +1730,6 @@ export default class AstroChartCircle {
 		objectsAry.sort((a,b)=>{ return a.lon - b.lon});
 		let starStep = 100;
 		let txtplanet = (flags & AstroConst.CHART_TXTPLANET) === 0 ? false : true;
-		if(!txtplanet){
-			starStep = 50;
-		}
 	
 		let natalchart = chartObj.dirChart.natalChart ? chartObj.dirChart.natalChart : chartObj.natualChart;
 		if(chartObj.dirChart.dirChart && chartObj.inverse){

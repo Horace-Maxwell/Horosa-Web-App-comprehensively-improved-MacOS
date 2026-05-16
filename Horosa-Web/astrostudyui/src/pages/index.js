@@ -108,10 +108,37 @@ const mainTabIcons = {
     管理工具: <ToolOutlined />,
 };
 
-function mainTab(label, group){
+const navigationPages = [
+    { label: '占星', key: 'astrochart' },
+    { label: '星运', key: 'direction' },
+    { label: '八字', key: 'bazi' },
+    { label: '紫微', key: 'ziwei' },
+    { label: '七政', key: 'guolao' },
+    { label: '印占', key: 'indiachart' },
+    { label: '辅盘', key: 'auxchart' },
+    { label: '合盘', key: 'relativechart' },
+    { label: '三式', key: 'sanshiunited' },
+    { label: '六壬', key: 'liureng' },
+    { label: '遁甲', key: 'dunjia' },
+    { label: '六爻', key: 'guazhan' },
+    { label: '太乙', key: 'taiyi' },
+    { label: '分至', key: 'jieqichart' },
+    { label: '风水', key: 'fengshui' },
+    { label: '其他', key: 'cnyibu' },
+    { label: 'AI分析', key: 'aianalysis' },
+    { label: '3D', key: 'astrochart3D' },
+    { label: '黄历', key: 'calendar' },
+    { label: '辅助', key: 'cntradition' },
+];
+
+function mainTab(label, group, options = {}){
     const icon = mainTabIcons[label] || <StarOutlined />;
     return (
-        <span className="horosa-main-tab-label" title={label} aria-label={label}>
+        <span
+            className={`horosa-main-tab-label${options.hidden ? ' horosa-main-tab-hidden' : ''}`}
+            title={label}
+            aria-label={label}
+        >
             <span className="horosa-main-tab-icon">{icon}</span>
             <span className="horosa-main-tab-copy">
                 {group ? <span className="horosa-main-tab-group">{group}</span> : null}
@@ -122,7 +149,7 @@ function mainTab(label, group){
 }
 
 function AstroIndex({dispatch, astro, app, user, rules, }){
-    const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, aspects, planetDisplay, lotsDisplay, resolvedAppearance, showPdBounds, showPlanetHouseInfo, showAstroMeaning, showOnlyRulExaltReception} = app;
+    const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, chartStyle, indiaChartStyle, aspects, planetDisplay, lotsDisplay, resolvedAppearance, showPdBounds, showPlanetHouseInfo, showAstroMeaning, showOnlyRulExaltReception} = app;
     const {
         pwdFields,
         userInfo,
@@ -294,6 +321,10 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
     let arycaseflds = convertToArray(currentCase);
     let aryregflds = convertToArray(registerFields);
     let aryloginflds = convertToArray(loginFields);
+    const drawerNavigationPages = navigationPages.concat(
+        userInfo ? [{ label: '书籍阅读', key: 'astroreader' }, { label: '星阙直播', key: 'liveplayer' }] : [],
+        admin ? [{ label: '管理工具', key: 'admintools' }] : []
+    );
 
 	return (
 		<div style={idxstyle}>
@@ -301,7 +332,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             <Tabs 
                 defaultActiveKey="astrochart" tabPosition='left' onChange={changeTab}
                 activeKey={currentTab}
-                className='mainRootTabs'
+                className='mainRootTabs horosa-nav-in-drawer'
                 style={{ height: height }}
             >
                 <TabPane tab={mainTab('占星', '命')} key="astrochart">
@@ -312,16 +343,26 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         fieldsAry={aryfields}
                         height={height} 
                         chartDisplay={chartDisplay}
+                        chartStyle={chartStyle}
                         planetDisplay={planetDisplay}
 	                        lotsDisplay={lotsDisplay}
 	                        showPlanetHouseInfo={showPlanetHouseInfo}
 	                        showAstroMeaning={showAstroMeaning}
+	                        memo={memo}
 	                        dispatch={dispatch}
 	                        hook={predictHook.astrochart}
+                            onNavigate={changeTab}
+                            showQuickActions={true}
+                            featureLinks={[
+                                { label: '星运', key: 'direction', desc: '推运、返照与时序' },
+                                { label: '辅盘', key: 'auxchart', desc: '量化、十三分与地图' },
+                                { label: '合盘', key: 'relativechart', desc: '关系与组合分析' },
+                                { label: '分至', key: 'jieqichart', desc: '节气与太阳时点' },
+                            ]}
 	                    />
                 </TabPane>
 
-                <TabPane tab={mainTab('星运')} key="direction">
+                <TabPane tab={mainTab('星运', null, { hidden: true })} key="direction">
 	                    <AstroDirectMain
                         height={height} 
                         fields={fields}
@@ -364,6 +405,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         fieldsAry={aryfields}
                         height={height} 
                         chartDisplay={chartDisplay}
+                        indiaChartStyle={indiaChartStyle}
                         planetDisplay={planetDisplay}
                         lotsDisplay={lotsDisplay}
                         hook={predictHook.guolao}
@@ -378,6 +420,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         fieldsAry={aryfields}
                         height={height} 
                         chartDisplay={chartDisplay}
+                        indiaChartStyle={indiaChartStyle}
                         planetDisplay={planetDisplay}
 	                        lotsDisplay={lotsDisplay}
 	                        showPlanetHouseInfo={showPlanetHouseInfo}
@@ -387,7 +430,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
 	                    />
                 </TabPane>
 
-                <TabPane tab={mainTab('辅盘')} key="auxchart">
+                <TabPane tab={mainTab('辅盘', null, { hidden: true })} key="auxchart">
                     <AuxChartMain
                         chart={chartObj}
                         onChange={changeCond}
@@ -405,7 +448,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     />
                 </TabPane>
 
-                <TabPane tab={mainTab('合盘')} key="relativechart">
+                <TabPane tab={mainTab('合盘', null, { hidden: true })} key="relativechart">
 	                    <AstroRelative
                         fields={fields} 
                         fieldsAry={aryfields}
@@ -474,7 +517,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     />
                 </TabPane>
 
-                <TabPane tab={mainTab('分至')} key="jieqichart">
+                <TabPane tab={mainTab('分至', null, { hidden: true })} key="jieqichart">
 	                    <JieQiChartsMain
                         height={height} 
                         fields={fields}
@@ -1058,7 +1101,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             </Drawer>
 
             <Drawer
-                title='首页设置'
+                title='导航'
                 width={200}
                 placement="left"
                 destroyOnClose={true}
@@ -1075,6 +1118,10 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 <HomePageSetup
                     dispatch={dispatch}
                     loading={loading}
+                    pages={drawerNavigationPages}
+                    currentKey={currentTab}
+                    onNavigate={changeTab}
+                    onClose={closeDrawer}
                 />
             </Drawer>
 

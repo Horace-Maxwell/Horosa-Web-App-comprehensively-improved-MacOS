@@ -908,6 +908,34 @@ export const CHART_DEFAULTOPTS = [
     CHART_TXTPLANETFORWARD
 ];
 
+export const CHART_STYLE_CURRENT = 'current';
+export const CHART_STYLE_ORIGINAL = 'original';
+
+export const CHART_STYLE_OPTIONS = [
+    { value: CHART_STYLE_CURRENT, label: '清简' },
+    { value: CHART_STYLE_ORIGINAL, label: '经典' },
+];
+
+export function normalizeChartStyle(value){
+    const found = CHART_STYLE_OPTIONS.find((item)=>item.value === value);
+    return found ? found.value : CHART_STYLE_CURRENT;
+}
+
+export const INDIA_CHART_STYLE_NORTH = 'north';
+export const INDIA_CHART_STYLE_SOUTH = 'south';
+export const INDIA_CHART_STYLE_EAST = 'east';
+
+export const INDIA_CHART_STYLE_OPTIONS = [
+    { value: INDIA_CHART_STYLE_NORTH, label: '北印' },
+    { value: INDIA_CHART_STYLE_SOUTH, label: '南印' },
+    { value: INDIA_CHART_STYLE_EAST, label: '东印' },
+];
+
+export function normalizeIndiaChartStyle(value){
+    const found = INDIA_CHART_STYLE_OPTIONS.find((item)=>item.value === value);
+    return found ? found.value : INDIA_CHART_STYLE_SOUTH;
+}
+
 const colorSelector = {
     '0': AstColor0.AstroColor,
     '1': AstColor1.AstroColor,

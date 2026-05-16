@@ -788,6 +788,20 @@ class AstroDirectMain extends Component{
 	}
 
 	componentDidUpdate(prevProps, prevState){
+		if(prevProps.currentSubTab !== this.props.currentSubTab){
+			const nextTab = normalizePrimaryDirectionSubTabKey(this.props.currentSubTab);
+			if(nextTab !== this.state.currentTab){
+				this.setState({ currentTab: nextTab }, ()=>{
+					this.ensurePrimaryDirectionReady();
+					this.saveDirectionSnapshot();
+					const hook = this.state.hook[nextTab];
+					if(hook && hook.fun){
+						hook.fun(this.props.chartObj);
+					}
+				});
+				return;
+			}
+		}
 		if(
 			prevState.currentTab !== this.state.currentTab ||
 			prevProps.chartObj !== this.props.chartObj ||
@@ -869,7 +883,7 @@ class AstroDirectMain extends Component{
 		return (
 			<div>
 				<Tabs 
-					defaultActiveKey={this.state.currentTab} tabPosition='right'
+					activeKey={this.state.currentTab} tabPosition='right'
 					onChange={this.changeTab}
 					style={{ height: height }}
 				>

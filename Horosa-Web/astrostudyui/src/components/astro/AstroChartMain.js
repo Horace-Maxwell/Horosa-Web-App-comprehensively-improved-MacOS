@@ -1,5 +1,18 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select, Button } from 'antd';
+import { Row, Col, Tabs, Select, Button, Radio, Tooltip } from 'antd';
+import {
+	AppstoreOutlined,
+	BarChartOutlined,
+	BranchesOutlined,
+	CheckOutlined,
+	FieldTimeOutlined,
+	FileTextOutlined,
+	HeartOutlined,
+	PlusCircleOutlined,
+	RiseOutlined,
+	SaveOutlined,
+	StarOutlined,
+} from '@ant-design/icons';
 import AstroChart from './AstroChart';
 import AstroInfo from './AstroInfo';
 import AstroAspect from './AstroAspect';
@@ -11,9 +24,33 @@ import DateTime from '../comp/DateTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { convertLatToStr, convertLonToStr} from './AstroHelper';
 import { getHousesOption } from '../comp/CompHelper'
+import * as AstroConst from '../../constants/AstroConst';
+import * as AstroText from '../../constants/AstroText';
 
 const TabPane = Tabs.TabPane;
 const Option = Select.Option;
+
+function fieldValue(fields, key, fallback = ''){
+	if(!fields || !fields[key]){
+		return fallback;
+	}
+	return fields[key].value !== undefined && fields[key].value !== null ? fields[key].value : fallback;
+}
+
+function formatFieldTime(fields){
+	const date = fieldValue(fields, 'date', null);
+	const time = fieldValue(fields, 'time', null);
+	const dateText = date && date.format ? date.format('YYYY-MM-DD') : '';
+	const timeText = time && time.format ? time.format('HH:mm:ss') : '';
+	return `${dateText}${timeText ? ` ${timeText}` : ''}`.trim();
+}
+
+function formatTrueSolarTime(value){
+	if(!value){
+		return '';
+	}
+	return `${value}`.replace(' ', '，');
+}
 
 class AstroChartMain extends Component{
 
@@ -32,6 +69,13 @@ class AstroChartMain extends Component{
 		this.changeHsys = this.changeHsys.bind(this);
 		this.changeGeo = this.changeGeo.bind(this);
 		this.changeSouthChart = this.changeSouthChart.bind(this);
+		this.openDrawer = this.openDrawer.bind(this);
+		this.newChart = this.newChart.bind(this);
+		this.changeChartStyle = this.changeChartStyle.bind(this);
+		this.changeIndiaChartStyle = this.changeIndiaChartStyle.bind(this);
+		this.toggleChartDisplayOption = this.toggleChartDisplayOption.bind(this);
+		this.navigateFeature = this.navigateFeature.bind(this);
+		this.navigateDirectionTool = this.navigateDirectionTool.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = ()=>{
@@ -139,6 +183,329 @@ class AstroChartMain extends Component{
 		}
 	}
 
+	openDrawer(key){
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'astro/openDrawer',
+				payload: {
+					key,
+				},
+			});
+		}
+	}
+
+	newChart(){
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'astro/nowChart',
+				payload: {},
+			});
+		}
+	}
+
+	changeChartStyle(e){
+		const chartStyle = e && e.target ? e.target.value : e;
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'app/save',
+				payload: {
+					chartStyle,
+				},
+			});
+		}
+	}
+
+	changeIndiaChartStyle(e){
+		const indiaChartStyle = e && e.target ? e.target.value : e;
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'app/save',
+				payload: {
+					indiaChartStyle,
+				},
+			});
+		}
+	}
+
+	toggleChartDisplayOption(opt){
+		if(!this.props.dispatch){
+			return;
+		}
+		const current = Array.isArray(this.props.chartDisplay) ? this.props.chartDisplay.slice(0) : [];
+		const idx = current.indexOf(opt);
+		if(idx >= 0){
+			current.splice(idx, 1);
+		}else{
+			current.push(opt);
+		}
+		this.props.dispatch({
+			type: 'app/save',
+			payload: {
+				chartDisplay: current,
+			},
+		});
+	}
+
+	navigateFeature(key){
+		if(this.props.onNavigate){
+			this.props.onNavigate(key);
+			return;
+		}
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'astro/save',
+				payload: {
+					currentTab: key,
+				},
+			});
+		}
+	}
+
+	navigateDirectionTool(subTab){
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'astro/save',
+				payload: {
+					currentTab: 'direction',
+					currentSubTab: subTab,
+				},
+			});
+			return;
+		}
+		this.navigateFeature('direction');
+	}
+
+	getChartMeta(chartObj, fields){
+		const chart = chartObj && chartObj.chart ? chartObj.chart : {};
+		const params = chartObj && chartObj.params ? chartObj.params : {};
+		const zodiacalRaw = chart.zodiacal || AstroConst.ZODIACAL[`${fieldValue(fields, 'zodiacal', 0)}`];
+		const hsysRaw = chart.hsys || AstroConst.HouseSys[`${fieldValue(fields, 'hsys', '')}`];
+		const birth = params.birth || formatFieldTime(fields) || '未排盘';
+		const location = fieldValue(fields, 'pos', '') || params.pos || '未命名地点';
+		const lon = fieldValue(fields, 'lon', params.lon || '--');
+		const lat = fieldValue(fields, 'lat', params.lat || '--');
+		const zone = params.zone || fieldValue(fields, 'zone', '--');
+		const zodiacal = AstroText.AstroMsg[zodiacalRaw] || AstroText.AstroTxtMsg[zodiacalRaw] || zodiacalRaw || '--';
+		const hsys = AstroText.AstroMsg[hsysRaw] || hsysRaw || '--';
+		const sect = chart.isDiurnal === undefined || chart.isDiurnal === null ? '昼夜未定' : (chart.isDiurnal ? '日生盘' : '夜生盘');
+		const dayofweek = chart.dayofweek || '';
+		const trueSolarTime = chart.nongli && chart.nongli.birth ? chart.nongli.birth : '';
+		const dayerStar = chart.dayerStar ? (AstroText.AstroMsgCN[chart.dayerStar] || chart.dayerStar) : '';
+		const timerStar = chart.timerStar ? (AstroText.AstroMsgCN[chart.timerStar] || chart.timerStar) : '';
+		return {
+			title: params.name || '本命盘',
+			birth: `${birth}${dayofweek ? ` ${dayofweek}` : ''}`,
+			location,
+			lon,
+			lat,
+			zone,
+			zodiacal,
+			hsys,
+			sect,
+			trueSolarTime,
+			dayerStar,
+			timerStar,
+		};
+	}
+
+	renderFeatureLinks(){
+		const links = this.props.featureLinks || [];
+		if(!links.length){
+			return null;
+		}
+		const iconMap = {
+			direction: <RiseOutlined />,
+			auxchart: <BarChartOutlined />,
+			relativechart: <HeartOutlined />,
+			jieqichart: <FieldTimeOutlined />,
+		};
+		return (
+			<div className="horosa-astro-feature-links">
+				<div className="horosa-side-section-title">相关功能</div>
+				<div className="horosa-feature-link-stack">
+					{links.map((item)=>(
+						<Button
+							key={item.key}
+							size="small"
+							className="horosa-feature-link-button"
+							icon={iconMap[item.key] || <AppstoreOutlined />}
+							onClick={()=>this.navigateFeature(item.key)}
+						>
+							<span className="horosa-feature-link-copy">
+								<span className="horosa-feature-link-label">{item.label}</span>
+								{item.desc ? <span className="horosa-feature-link-desc">{item.desc}</span> : null}
+							</span>
+						</Button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
+	renderContextPanel(meta){
+		const isIndiaChart = !!this.props.indiahsys;
+		const chartStyle = AstroConst.normalizeChartStyle(this.props.chartStyle);
+		const indiaChartStyle = AstroConst.normalizeIndiaChartStyle(this.props.indiaChartStyle);
+		const currentDisplay = Array.isArray(this.props.chartDisplay) ? this.props.chartDisplay : [];
+		const chartTools = [
+			{ label: '组件', key: 'selectchartdisplay' },
+			{ label: '行星', key: 'selectplanet' },
+			{ label: '相位', key: 'selectasp' },
+		];
+		const quickToggles = [
+			{ label: '相位线', opt: AstroConst.CHART_ASP_LINES },
+			{ label: '四角连线', opt: AstroConst.CHART_ANGLELINE },
+			{ label: '行星度数', opt: AstroConst.CHART_TXTPLANET },
+			{ label: '埃及界', opt: AstroConst.CHART_TERM },
+		];
+		return (
+			<div className="horosa-astro-context-panel">
+				<div className="horosa-context-heading">
+					<div className="horosa-context-title">
+						<span>{meta.title}</span>
+						<span className="horosa-context-sect">{meta.sect}</span>
+					</div>
+					<div className="horosa-context-mode">{meta.hsys} | {meta.zodiacal}</div>
+				</div>
+				<div className="horosa-context-lines">
+					<div>{meta.birth}</div>
+					<div className="horosa-context-line-pair">
+						<span>时区 {meta.zone}</span>
+						<span>{meta.location}</span>
+					</div>
+					<div className="horosa-context-line-pair">
+						<span>经度 {meta.lon}</span>
+						<span>纬度 {meta.lat}</span>
+					</div>
+					{meta.trueSolarTime ? (
+						<div>
+							<Tooltip title={`真太阳时：${formatTrueSolarTime(meta.trueSolarTime)}`} placement="right">
+								<Button className="horosa-true-solar-button" size="small">真太阳时</Button>
+							</Tooltip>
+						</div>
+					) : null}
+				</div>
+				<div className={`horosa-chart-style-block${isIndiaChart ? ' horosa-india-style-block' : ''}`}>
+					<div className="horosa-side-section-title">星盘样式</div>
+					{isIndiaChart ? (
+						<Radio.Group
+							size="small"
+							buttonStyle="solid"
+							value={indiaChartStyle}
+							onChange={this.changeIndiaChartStyle}
+						>
+							{AstroConst.INDIA_CHART_STYLE_OPTIONS.map((item)=>(
+								<Radio.Button key={item.value} value={item.value}>{item.label}</Radio.Button>
+							))}
+						</Radio.Group>
+					) : (
+						<Radio.Group
+							size="small"
+							buttonStyle="solid"
+							value={chartStyle}
+							onChange={this.changeChartStyle}
+						>
+							{AstroConst.CHART_STYLE_OPTIONS.map((item)=>(
+								<Radio.Button key={item.value} value={item.value}>{item.label}</Radio.Button>
+							))}
+						</Radio.Group>
+					)}
+				</div>
+				<div className="horosa-context-actions">
+					<Button size="small" icon={<SaveOutlined />} onClick={()=>this.openDrawer('chartadd')}>存为命盘</Button>
+					<Button size="small" icon={<PlusCircleOutlined />} onClick={this.newChart}>此刻</Button>
+					<Button size="small" icon={<FileTextOutlined />} onClick={()=>this.openDrawer('memo')}>笔记</Button>
+				</div>
+				<div className="horosa-context-tool-stack">
+					{chartTools.map((item)=>(
+						<Button key={item.key} size="small" autoInsertSpace={false} onClick={()=>this.openDrawer(item.key)}>
+							<span className="horosa-context-tool-text">
+								{item.label.split('').map((char, index)=><span key={`${item.key}-${index}`}>{char}</span>)}
+							</span>
+						</Button>
+					))}
+				</div>
+				<div className="horosa-chart-quick-toggles">
+					<div className="horosa-side-section-title">快捷显示</div>
+					<div className="horosa-chart-toggle-grid">
+						{quickToggles.map((item)=>{
+							const active = currentDisplay.includes(item.opt);
+							return (
+								<Button
+									key={item.opt}
+									size="small"
+									className={active ? 'horosa-chart-toggle-active' : ''}
+									icon={active ? <CheckOutlined /> : null}
+									aria-pressed={active}
+									onClick={()=>this.toggleChartDisplayOption(item.opt)}
+								>
+									{item.label}
+								</Button>
+							);
+						})}
+					</div>
+				</div>
+				{this.renderFeatureLinks()}
+			</div>
+		);
+	}
+
+	renderInterpretationPanel(meta){
+		const memo = this.props.memo ? this.props.memo : '';
+		const summary = [
+			`${meta.zodiacal}，${meta.hsys}，${meta.sect}`,
+			`${meta.birth}，${meta.location}`,
+			`经度 ${meta.lon}，纬度 ${meta.lat}，时区 ${meta.zone}`,
+		];
+		return (
+			<div className="horosa-interpretation-panel">
+				<Tabs defaultActiveKey="interpret" tabPosition="top" className="horosa-interpretation-tabs">
+					<TabPane tab="解读" key="interpret">
+						<div className="horosa-reading-lines">
+							{summary.map((line)=><p key={line}>{line}</p>)}
+						</div>
+					</TabPane>
+					<TabPane tab="笔记" key="note">
+						<div className="horosa-reading-lines">
+							<p>{memo || '暂无笔记'}</p>
+						</div>
+					</TabPane>
+					<TabPane tab="批注" key="memo">
+						<div className="horosa-reading-lines">
+							<p>{memo || '暂无批注'}</p>
+						</div>
+					</TabPane>
+				</Tabs>
+			</div>
+		);
+	}
+
+	renderQuickActions(){
+		if(this.props.showQuickActions !== true){
+			return null;
+		}
+		const actions = [
+			{ label: '主/界限法', icon: <BranchesOutlined />, key: 'primarydirect' },
+			{ label: '法达星限', icon: <FieldTimeOutlined />, key: 'firdaria' },
+			{ label: '黄道星释', icon: <StarOutlined />, key: 'zodialrelease' },
+			{ label: '小限法', icon: <PlusCircleOutlined />, key: 'profection' },
+			{ label: '太阳返照', icon: <RiseOutlined />, key: 'solarreturn' },
+		];
+		return (
+			<div className="horosa-side-quick-actions">
+				<div className="horosa-side-section-title">高频功能</div>
+				<div className="horosa-quick-action-grid">
+					{actions.map((item)=>(
+						<Button key={item.key} size="small" onClick={()=>this.navigateDirectionTool(item.key)}>
+							<span className="horosa-quick-action-icon">{item.icon}</span>
+							<span className="horosa-quick-action-label">{item.label}</span>
+						</Button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
 	render(){
 		let chartObj = this.props.value;
 		let fields = this.props.fields;
@@ -159,8 +526,9 @@ class AstroChartMain extends Component{
 
 		let height = this.props.height ? this.props.height : 760;
 		let tabHeight = height - 100;
+		const showQuickActions = this.props.showQuickActions === true;
 		const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : height;
-		let chartHeight = Math.max(520, Math.min(height - 112, viewportHeight - 220));
+		let chartHeight = Math.max(560, Math.min(height - 150, viewportHeight - 204));
 
 		let showzodical = true;
 		let showhsys = true;
@@ -184,29 +552,41 @@ class AstroChartMain extends Component{
 			indiahsys = true;
 			showhsys = false;
 		}
+		if(showQuickActions){
+			tabHeight = tabHeight - 108;
+		}
+		const meta = this.getChartMeta(chartObj, fields);
 
 		return (
 			<div className="horosa-astro-page">
-				<Row gutter={12} className="horosa-astro-layout">
-					<Col span={17} className="horosa-chart-stage">
-							{
-								this.props.chartRenderer ? (
-									this.props.chartRenderer({
-										chartObj,
-										height: chartHeight,
-									})
-								) : (
-									<AstroChart value={chartObj}
-										chartDisplay={this.props.chartDisplay}
+				<div className="horosa-astro-layout">
+					<div className="horosa-astro-workbench">
+						<div className="horosa-chart-body">
+							{this.renderContextPanel(meta)}
+							<div className="horosa-chart-stage">
+								{
+									this.props.chartRenderer ? (
+										this.props.chartRenderer({
+											chartObj,
+											height: chartHeight,
+											chartStyle: this.props.chartStyle,
+										})
+									) : (
+										<AstroChart value={chartObj}
+											chartDisplay={this.props.chartDisplay}
+											chartStyle={this.props.chartStyle}
 										planetDisplay={this.props.planetDisplay}
 										lotsDisplay={this.props.lotsDisplay}
 										showAstroMeaning={this.props.showAstroMeaning}
-										height={chartHeight}
+										height="100%"
 									/>
-								)
-							}
-					</Col>
-					<Col span={7} className="horosa-inspector-panel">
+									)
+								}
+							</div>
+						</div>
+						{this.renderInterpretationPanel(meta)}
+					</div>
+					<div className="horosa-inspector-panel">
 						<Row gutter={0} className="horosa-inspector-controls">
 							{
 								showdateselector && (
@@ -328,8 +708,9 @@ class AstroChartMain extends Component{
 								/>
 							</TabPane>
 						</Tabs>
-					</Col>
-				</Row>
+						{this.renderQuickActions()}
+					</div>
+				</div>
 
 			</div>
 		);

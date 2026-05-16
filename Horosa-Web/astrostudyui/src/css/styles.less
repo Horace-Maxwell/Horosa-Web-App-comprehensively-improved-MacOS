@@ -20,15 +20,32 @@
 }
 
 :global {
+	.horosa-india-chart-main,
+	.horosa-india-chart-instance {
+		width: 100%;
+		height: 100%;
+		min-height: 0;
+	}
+
+	.horosa-india-chart-main > .ant-tabs,
+	.horosa-india-chart-main > .ant-tabs > .ant-tabs-content-holder,
+	.horosa-india-chart-main > .ant-tabs > .ant-tabs-content-holder > .ant-tabs-content,
+	.horosa-india-chart-main > .ant-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane,
+	.horosa-india-chart-main > .ant-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane > div {
+		height: 100%;
+		min-height: 0;
+	}
+
 	.horosa-india-square-shell {
+		width: 100%;
 		height: 100%;
 		min-height: 520px;
-		padding: 24px;
+		padding: 10px 16px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 18px;
+		gap: 10px;
 		color: var(--horosa-text, #162033);
 	}
 
@@ -46,7 +63,7 @@
 	}
 
 	.horosa-india-square-meta {
-		width: ~"min(720px, 100%)";
+		width: ~"min(960px, 100%)";
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-end;
@@ -77,7 +94,8 @@
 	}
 
 	.horosa-india-square-board {
-		width: ~"min(720px, 100%, calc(var(--india-chart-height, 720px) - 96px))";
+		width: ~"min(960px, 100%, calc(var(--india-chart-height, 720px) - 48px))";
+		max-height: ~"calc(100% - 54px)";
 		aspect-ratio: 1 / 1;
 		position: relative;
 		display: grid;
@@ -87,6 +105,114 @@
 		background: var(--horosa-surface-solid, #ffffff);
 		box-shadow: var(--horosa-small-shadow, 0 8px 24px rgba(39, 59, 91, 0.08));
 		overflow: hidden;
+	}
+
+	.horosa-india-diagram-board {
+		display: block;
+	}
+
+	.horosa-india-diagram-lines {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		width: 100%;
+		height: 100%;
+		fill: none;
+		stroke: var(--horosa-border-strong, rgba(51, 111, 201, 0.30));
+		stroke-width: 0.34;
+		vector-effect: non-scaling-stroke;
+		pointer-events: none;
+	}
+
+	.horosa-india-diagram-layer {
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+		pointer-events: none;
+	}
+
+	.horosa-india-diagram-house,
+	.horosa-india-diagram-sign,
+	.horosa-india-diagram-object-anchor {
+		position: absolute;
+		transform: translate(-50%, -50%);
+		pointer-events: auto;
+	}
+
+	.horosa-india-diagram-house {
+		min-width: 44px;
+		text-align: left;
+	}
+
+	.horosa-india-diagram-sign {
+		min-width: 26px;
+		height: 24px;
+		padding: 0 6px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--horosa-border-strong, rgba(51, 111, 201, 0.30));
+		border-radius: 7px;
+		background: var(--horosa-panel-soft, rgba(242, 247, 254, 0.78));
+		color: var(--horosa-accent-strong, #2167d4);
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 800;
+	}
+
+	.horosa-india-diagram-object-anchor {
+		width: 18%;
+		min-height: 34px;
+		text-align: center;
+	}
+
+	.horosa-india-diagram-objects {
+		display: flex;
+		flex-wrap: wrap;
+		align-content: center;
+		align-items: center;
+		justify-content: center;
+		gap: 4px 8px;
+	}
+
+	.horosa-india-diagram-center {
+		position: absolute;
+		z-index: 3;
+		left: 50%;
+		top: 50%;
+		width: 22%;
+		height: 22%;
+		transform: translate(-50%, -50%);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 5px;
+		text-align: center;
+		pointer-events: none;
+	}
+
+	.horosa-india-diagram-center .horosa-india-square-center-d {
+		min-width: 54px;
+		height: 54px;
+		font-size: 21px;
+	}
+
+	.horosa-india-diagram-center .horosa-india-square-center-note {
+		font-size: 11px;
+		line-height: 14px;
+	}
+
+	.horosa-india-north-board {
+		background:
+			radial-gradient(circle at 50% 50%, var(--horosa-accent-soft, rgba(47, 125, 241, 0.12)), transparent 26%),
+			var(--horosa-surface-solid, #ffffff);
+	}
+
+	.horosa-india-east-board {
+		background:
+			linear-gradient(90deg, transparent 33.333%, var(--horosa-panel-soft, rgba(242, 247, 254, 0.78)) 33.333%, var(--horosa-panel-soft, rgba(242, 247, 254, 0.78)) 66.667%, transparent 66.667%),
+			var(--horosa-surface-solid, #ffffff);
 	}
 
 	.horosa-india-square-cell,

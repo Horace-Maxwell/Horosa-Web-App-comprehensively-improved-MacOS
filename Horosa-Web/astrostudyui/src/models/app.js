@@ -94,6 +94,8 @@ function normalizeGlobalSetup(setup){
         }
         normalized.planetDisplayDefaultsVersion = PlanetDisplayDefaultsVersion;
     }
+    normalized.chartStyle = AstroConst.normalizeChartStyle(normalized.chartStyle);
+    normalized.indiaChartStyle = AstroConst.normalizeIndiaChartStyle(normalized.indiaChartStyle);
     return normalized;
 }
 
@@ -175,6 +177,8 @@ export default {
         imgTokenListName: null,
 
         chartDisplay: AstroConst.CHART_DEFAULTOPTS,
+        chartStyle: AstroConst.CHART_STYLE_CURRENT,
+        indiaChartStyle: AstroConst.INDIA_CHART_STYLE_SOUTH,
         planetDisplay: AstroConst.DEFAULT_OBJECTS,
         lotsDisplay: AstroConst.DEFAULT_LOTS,
         colorTheme: AstroConst.DefaultColorTheme,
@@ -234,11 +238,19 @@ export default {
                     true
                 );
             }
+            if(Object.prototype.hasOwnProperty.call(payload, 'chartStyle')){
+                payload.chartStyle = AstroConst.normalizeChartStyle(payload.chartStyle);
+            }
+            if(Object.prototype.hasOwnProperty.call(payload, 'indiaChartStyle')){
+                payload.indiaChartStyle = AstroConst.normalizeIndiaChartStyle(payload.indiaChartStyle);
+            }
 
             let st = { ...state, ...payload };
             st.appearanceMode = normalizeAppearanceMode(st.appearanceMode);
             let globalSetup = {
                 chartDisplay: st.chartDisplay,
+                chartStyle: st.chartStyle,
+                indiaChartStyle: st.indiaChartStyle,
                 planetDisplay: st.planetDisplay,
                 lotsDisplay: st.lotsDisplay,
                 colorTheme: st.colorTheme,
