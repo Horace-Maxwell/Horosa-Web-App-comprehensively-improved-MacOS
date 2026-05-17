@@ -1,13 +1,14 @@
 import { Component } from 'react';
-import { Row, Col, Form, DatePicker, Input, Button, Select } from 'antd';
+import { Row, Col } from 'antd';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import DateTime from '../comp/DateTime';
 import * as SZConst from '../suzhan/SZConst';
+import { XQButton as Button, XQSelect as Select } from '../xq-ui';
 
-const {Option} = Select
+const {Option} = Select;
 
 class GuoLaoInput extends Component{
 	

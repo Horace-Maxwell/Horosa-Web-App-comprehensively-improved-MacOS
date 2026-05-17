@@ -1,14 +1,14 @@
 import { Component } from 'react';
-import { Row, Col, Form, DatePicker, Input, Button, Select, Checkbox } from 'antd';
+import { Row, Col, Checkbox } from 'antd';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import * as ZWCont from '../../constants/ZWConst';
 import DateTime from '../comp/DateTime';
+import { XQButton as Button, XQSelect as Select } from '../xq-ui';
 
-const {Option} = Select
-const InputGroup = Input.Group;
+const {Option} = Select;
 
 class ZiWeiInput extends Component{
 	
