@@ -1,13 +1,12 @@
-import React, {useRef} from 'react';
-import { Form, Input, Button, Select,  TimePicker, Row, Col,  } from 'antd';
+import { Form } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { preventEnterPress } from '../../utils/helper';
+import { XQButton, XQInput } from '../xq-ui';
 
 export default function ChangePwdForm(props){
 	const [form] = Form.useForm();
     const { getFieldValue } = form;
     const FormItem = Form.Item;
-    const Option = Select.Option;
 
 	function formFieldsChanged(changedFields, allFields){
         if(props.dispatch){
@@ -59,7 +58,7 @@ export default function ChangePwdForm(props){
 						message: '请输入您的旧密码！' 
 					}]}
 				>
-					<Input prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="旧密码" />
+					<XQInput prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="旧密码" />
 				</FormItem>
 
                 <FormItem
@@ -69,7 +68,7 @@ export default function ChangePwdForm(props){
 						message: '请输入您的新密码！' 
 					}]}
 				>
-					<Input prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码" />
+					<XQInput prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码" />
 				</FormItem>
 
                 <FormItem
@@ -86,13 +85,13 @@ export default function ChangePwdForm(props){
 						}
 					}]}
 				>
-					<Input prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码确认" />
+					<XQInput prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码确认" />
 				</FormItem>
 
 				<FormItem>
-					<Button type="primary" htmlType="submit">
+					<XQButton type="primary" htmlType="submit">
 						提&nbsp;交
-					</Button>
+					</XQButton>
 				</FormItem>
 
 
