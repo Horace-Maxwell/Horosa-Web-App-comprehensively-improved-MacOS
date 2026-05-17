@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Divider } from 'antd';
+import { XQTabs as Tabs } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 import Azimuth from './Azimuth';
 import CoordTrans from './CoordTrans';
