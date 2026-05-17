@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Card, Select, Button, Divider, Spin } from 'antd';
+import { Row, Col, Divider, Spin } from 'antd';
+import { XQButton as Button, XQCard as Card, XQSelect as Select } from '../xq-ui';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { fetchPreciseNongli } from '../../utils/preciseCalcBridge';
 import { setNongliLocalCache } from '../../utils/localCalcCache';

@@ -111,6 +111,48 @@
         box-shadow: none;
     }
 
+    .xq-card.ant-card {
+        overflow: hidden;
+        border: 1px solid var(--horosa-border);
+        border-radius: var(--horosa-radius);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 58%),
+            var(--horosa-surface-raised);
+        color: var(--horosa-text);
+        box-shadow: var(--horosa-shadow);
+    }
+
+    .xq-card.ant-card-bordered {
+        border-color: var(--horosa-border);
+    }
+
+    .xq-card.ant-card-small > .ant-card-head {
+        min-height: 34px;
+        padding: 0 10px;
+    }
+
+    .xq-card.ant-card-small > .ant-card-body {
+        padding: 10px;
+    }
+
+    .xq-card .ant-card-head {
+        border-color: var(--horosa-border);
+        background:
+            linear-gradient(90deg, var(--horosa-accent-soft), transparent 65%),
+            var(--horosa-panel-soft);
+        color: var(--horosa-text);
+    }
+
+    .xq-card .ant-card-head-title {
+        color: var(--horosa-text);
+        font-weight: 750;
+    }
+
+    .xq-card .ant-card-body {
+        background: transparent;
+        color: var(--horosa-text);
+    }
+
     .xq-toolbar {
         display: flex;
         align-items: center;

@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Card, Select, Button, Divider, Spin, Tag, Tabs, message, Popover } from 'antd';
+import { Row, Col, Divider, Spin, Tag, message, Popover } from 'antd';
+import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import {
 	getNongliLocalCache,

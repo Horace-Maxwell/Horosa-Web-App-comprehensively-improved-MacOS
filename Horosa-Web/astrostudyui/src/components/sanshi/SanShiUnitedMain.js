@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Card, Spin, Row, Col, Select, Button, Divider, Tabs, Tag, message } from 'antd';
+import { Spin, Row, Col, Divider, Tag, message } from 'antd';
+import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { splitDegree, convertLatToStr, convertLonToStr } from '../astro/AstroHelper';

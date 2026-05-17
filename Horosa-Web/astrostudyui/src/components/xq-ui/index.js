@@ -1,14 +1,15 @@
 import React from 'react';
-import { Button, Drawer, Input, Modal, Radio, Select, Tabs, Tooltip } from 'antd';
+import { Button, Card, Drawer, Input, Modal, Radio, Select, Tabs, Tooltip } from 'antd';
 import XQIcon from '../xq-icons';
 
 export function XQButton({children, iconName, className = '', variant = 'default', ...rest}){
 	const icon = iconName ? <XQIcon name={iconName} /> : rest.icon;
+	const visualVariant = variant === 'default' && rest.type === 'primary' ? 'primary' : variant;
 	return (
 		<Button
 			{...rest}
 			icon={icon}
-			className={`xq-button xq-button-${variant} ${className}`.trim()}
+			className={`xq-button xq-button-${visualVariant} ${className}`.trim()}
 		>
 			{children}
 		</Button>
@@ -63,6 +64,17 @@ export function XQPanel({children, className = '', tone = 'default', ...rest}){
 		<div {...rest} className={`xq-panel xq-panel-${tone} ${className}`.trim()}>
 			{children}
 		</div>
+	);
+}
+
+export function XQCard({children, className = '', ...rest}){
+	return (
+		<Card
+			{...rest}
+			className={`xq-card ${className}`.trim()}
+		>
+			{children}
+		</Card>
 	);
 }
 
