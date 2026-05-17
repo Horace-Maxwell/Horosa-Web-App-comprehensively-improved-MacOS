@@ -1,16 +1,10 @@
 import { Component } from 'react';
 import numeral from 'numeral';
-import { Row, Col, Table, Popconfirm, Button,  Input, Select, Pagination, Modal } from 'antd';
-import { EditOutlined, DeleteOutlined, SelectOutlined, UnorderedListOutlined } from '@ant-design/icons';
-import * as AstroText from '../../constants/AstroText';
-import * as AstroHelper from '../astro/AstroHelper';
+import { Row, Col, Popconfirm } from 'antd';
+import { DeleteOutlined, SelectOutlined } from '@ant-design/icons';
 import {TableOddRowBgColor, ServerRoot, ResultKey} from '../../utils/constants';
-import {getStore} from '../../utils/storageutil';
-import {randomStr} from '../../utils/helper';
 import request from '../../utils/request';
-
-const Search = Input.Search;
-const Option = Select.Option;
+import { XQButton, XQInput, XQModal, XQPagination, XQSearch, XQTable } from '../xq-ui';
 
 class BookList extends Component{
 
@@ -266,7 +260,7 @@ class BookList extends Component{
 
 		return (
 			<div style={{height: tbly}}>
-				<Modal open={this.state.editVisible} 
+				<XQModal open={this.state.editVisible}
 					onCancel={this.hideModalHandler}
 					onOk={this.saveBook}
 					width={800} title={title}
@@ -275,35 +269,35 @@ class BookList extends Component{
 					<div>
 						<Row gutter={16}>
 							<Col span={8}>书名</Col>
-							<Col span={8}><Input value={book.name} onChange={this.changeName} /></Col>
+							<Col span={8}><XQInput value={book.name} onChange={this.changeName} /></Col>
 							<Col span={8}></Col>
 						</Row>
 						<Row gutter={16}>
 							<Col span={8}>作者</Col>
-							<Col span={8}><Input value={book.author} onChange={this.changeAuthor} /></Col>
+							<Col span={8}><XQInput value={book.author} onChange={this.changeAuthor} /></Col>
 							<Col span={8}></Col>
 						</Row>
 					</div>
-				</Modal>
+				</XQModal>
 
 				<Row gutter={12} style={{marginBottom: 10}}>
 					<Col span={4}>
-						<Button type="primary" onClick={this.clickAdd}>添加书籍</Button>
+						<XQButton type="primary" onClick={this.clickAdd}>添加书籍</XQButton>
 					</Col>
 					<Col offset={4} span={6}>
-						<Input placeholder='所属用户' value={this.state.userId} onChange={this.changeUserId} />
+						<XQInput placeholder='所属用户' value={this.state.userId} onChange={this.changeUserId} />
 					</Col>
 
 					<Col span={10}>
-						<Search 
-							placeholder='以书名进行检索' enterButton 
+						<XQSearch
+							placeholder='以书名进行检索' enterButton
 							onSearch={this.searchByName}
 						/>
 					</Col>
 				</Row>
-				<Table
-					dataSource={ds} columns={columns} 
-					rowKey='shelfId'  
+				<XQTable
+					dataSource={ds} columns={columns}
+					rowKey='shelfId'
 					bordered size='small'
 					scroll={{x: '100%', y: tbly }}
 					pagination={false}
@@ -318,11 +312,11 @@ class BookList extends Component{
 							...rowstyle,
 						}
 					}}
-				/>					
-				<Pagination 
+				/>
+				<XQPagination
 					style={{marginTop:3, textAlign:'center',}}
 					pageSizeOptions={['30', '50', '100']}
-					showSizeChanger onShowSizeChange={this.changeShowSize} 
+					showSizeChanger onShowSizeChange={this.changeShowSize}
 					defaultPageSize={pageSize} defaultCurrent={pageIndex}
 					total={total} showTotal={this.showTotal} onChange={this.changePage} />
 
@@ -332,4 +326,3 @@ class BookList extends Component{
 }
 
 export default BookList;
-

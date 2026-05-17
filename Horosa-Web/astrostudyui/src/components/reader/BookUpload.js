@@ -1,16 +1,15 @@
 import { Component } from 'react';
-import { Upload, message, Row, Col, Select, Input} from 'antd';
+import { Upload, message, Row, Col } from 'antd';
 import Modal from 'drag-modal';
 import { DatabaseOutlined, InboxOutlined, } from '@ant-design/icons';
 import { ServerRoot } from '../../utils/constants';
 import * as Constants from '../../utils/constants';
-import { signRequest, downloadUrl } from '../../utils/request';
-import { randomStr } from '../../utils/helper';
+import { downloadUrl } from '../../utils/request';
 import { decryptRSA, } from '../../utils/rsahelper';
-import { Button } from 'antd-mobile';
+import { XQButton, XQInput, XQSelect } from '../xq-ui';
 
 const Dragger = Upload.Dragger;
-const { Option } = Select;
+const { Option } = XQSelect;
 
 class BookUpload extends Component{
 
@@ -137,17 +136,17 @@ class BookUpload extends Component{
 				<Row gutter={8}>
 					<Col span={3} style={{textAlign: 'right'}}>上传的文本编码</Col>
 					<Col span={4}>
-						<Select value={this.state.encode} onChange={this.changeEncode} style={{width: '100%'}} size='small'>
+						<XQSelect value={this.state.encode} onChange={this.changeEncode} style={{width: '100%'}} size='small'>
 							<Option value='UTF-8'>UTF-8</Option>
 							<Option value='GBK'>GBK</Option>
 							<Option value='GB2312'>GB2312</Option>
-						</Select>
+						</XQSelect>
 					</Col>
 					<Col span={4}>
-						<Input placeholder='书名' value={this.state.name} onChange={this.changeBookName} style={{width: '100%'}} size='small'/>
+						<XQInput placeholder='书名' value={this.state.name} onChange={this.changeBookName} style={{width: '100%'}} size='small'/>
 					</Col>
 					<Col span={4}>
-						<Input placeholder='作者' value={this.state.author} onChange={this.changeBookAuthor} style={{width: '100%'}} size='small'/>
+						<XQInput placeholder='作者' value={this.state.author} onChange={this.changeBookAuthor} style={{width: '100%'}} size='small'/>
 					</Col>
 				</Row>
 				<div style={{ height: height, marginTop: 10}}>
@@ -169,7 +168,7 @@ class BookUpload extends Component{
 				<div style={{marginTop: 50}}>
 					<Row>
 						<Col offset={8} span={8}>
-							<Button onClick={this.toBookshelf}><DatabaseOutlined />我的书架</Button>
+							<XQButton icon={<DatabaseOutlined />} onClick={this.toBookshelf}>我的书架</XQButton>
 						</Col>
 					</Row>
 				</div>
@@ -180,4 +179,3 @@ class BookUpload extends Component{
 }
 
 export default BookUpload;
-

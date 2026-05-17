@@ -1,17 +1,16 @@
 import { Component } from 'react';
-import { message, Row, Col, Drawer, List, Typography, Button, Select, Dropdown, Menu, Slider, Popover} from 'antd';
+import { Row, Col, List, Typography, Dropdown, Menu, Slider, Popover} from 'antd';
 import { UnorderedListOutlined, ZoomOutOutlined, ZoomInOutlined, DoubleRightOutlined, DoubleLeftOutlined, DatabaseOutlined, ToolOutlined, CustomerServiceOutlined, } from '@ant-design/icons';
-import { ServerRoot } from '../../utils/constants';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import { requestRaw, } from '../../utils/request';
 import { randomStr, launchFullScreen, exitFullScreen, checkFullScreen, selectText } from '../../utils/helper';
-import { decryptRSA, } from '../../utils/rsahelper';
 import { ColorTheme, ReaderThemeKey, ReaderFontSizeKey,ReaderScrollTopKey, ReaderBookKey, TTSOptKey,} from '../../constants/ReaderConst';
 import styles from '../../css/styles.less';
+import { XQDrawer, XQSelect } from '../xq-ui';
 
 const { Title, Paragraph, Text } = Typography;
-const { Option } = Select;
+const { Option } = XQSelect;
 
 
 class BookReader extends Component{
@@ -743,10 +742,10 @@ class BookReader extends Component{
 			</Row>
 			<Row>
 				<Col span={24}>
-					<Select size='small' style={{width: '100%'}} value={this.state.ttsOpt.voice} onChange={this.changeVoice}>
+					<XQSelect size='small' style={{width: '100%'}} value={this.state.ttsOpt.voice} onChange={this.changeVoice}>
 						<Option value='pinyin-huang'>男声</Option>
 						<Option value='pinyin-yali'>女声</Option>
-					</Select>
+					</XQSelect>
 				</Col>
 			</Row>
 			<Row style={{marginTop: 5}}>
@@ -977,7 +976,7 @@ class BookReader extends Component{
 					</Col>
 				</Row>
 
-				<Drawer
+				<XQDrawer
 					title='目录'
 					width={520}
 					placement="left"
@@ -994,11 +993,10 @@ class BookReader extends Component{
 					}}        
 				>
 					{catadom}
-				</Drawer>
+				</XQDrawer>
 			</div>
 		)
 	}
 }
 
 export default BookReader;
-
