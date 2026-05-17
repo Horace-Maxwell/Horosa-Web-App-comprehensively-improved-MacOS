@@ -13,22 +13,6 @@ import {
 	Upload,
 	message,
 } from 'antd';
-import {
-	DeleteOutlined,
-	DownloadOutlined,
-	EditOutlined,
-	ExportOutlined,
-	FolderOpenOutlined,
-	ImportOutlined,
-	PlusOutlined,
-	ReloadOutlined,
-	RetweetOutlined,
-	SearchOutlined,
-	SendOutlined,
-	StarOutlined,
-	StopOutlined,
-	SyncOutlined,
-} from '@ant-design/icons';
 import Mustache from 'mustache';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
@@ -2465,11 +2449,11 @@ function AIAnalysisMain(props){
 						</div>
 						<div className={styles.toolbarActions}>
 							<Space wrap>
-								<Button icon={<ReloadOutlined />} onClick={()=>setSources(listAnalysisSources())}>刷新案例</Button>
+								<Button icon={<XQIcon name="refresh" />} onClick={()=>setSources(listAnalysisSources())}>刷新案例</Button>
 								<Button onClick={resetConversationDraft}>新对话</Button>
-								<Button icon={<RetweetOutlined />} onClick={handleRegenerateLastReply} disabled={!activeConversation || sending}>重新生成</Button>
-								<Button icon={<EditOutlined />} onClick={handleEditLastUserAndBranch} disabled={!activeConversation || sending}>编辑上一条并分支</Button>
-								<Button icon={<StopOutlined />} danger onClick={handleStopStreaming} disabled={!sending}>停止生成</Button>
+								<Button icon={<XQIcon name="sync" />} onClick={handleRegenerateLastReply} disabled={!activeConversation || sending}>重新生成</Button>
+								<Button icon={<XQIcon name="edit" />} onClick={handleEditLastUserAndBranch} disabled={!activeConversation || sending}>编辑上一条并分支</Button>
+								<Button icon={<XQIcon name="stop" />} danger onClick={handleStopStreaming} disabled={!sending}>停止生成</Button>
 							</Space>
 						</div>
 					</Card>
@@ -2530,7 +2514,7 @@ function AIAnalysisMain(props){
 									/>
 									<div className={styles.composerActions}>
 										<Text type="secondary">Enter 发送，Shift + Enter 换行</Text>
-										<Button type="primary" icon={<SendOutlined />} loading={sending} onClick={handleSend}>发送分析</Button>
+										<Button type="primary" icon={<XQIcon name="send" />} loading={sending} onClick={handleSend}>发送分析</Button>
 									</div>
 								</div>
 							</div>
@@ -2602,13 +2586,13 @@ function AIAnalysisMain(props){
 					<div className={styles.historyBatchBar}>
 						<Space wrap>
 							<Button onClick={resetConversationDraft}>新建对话</Button>
-							<Button icon={<ExportOutlined />} onClick={exportSelectedConversations} disabled={!selectedHistoryIds.length}>批量导出</Button>
+							<Button icon={<XQIcon name="export" />} onClick={exportSelectedConversations} disabled={!selectedHistoryIds.length}>批量导出</Button>
 							<Button onClick={()=>handleArchiveSelected(true)} disabled={!selectedHistoryIds.length}>批量归档</Button>
 							<Button onClick={()=>handleArchiveSelected(false)} disabled={!selectedHistoryIds.length}>取消归档</Button>
 							<Button onClick={()=>handleFavoriteSelected(true)} disabled={!selectedHistoryIds.length}>批量收藏</Button>
 							<Button onClick={()=>handleFavoriteSelected(false)} disabled={!selectedHistoryIds.length}>取消收藏</Button>
 							<Popconfirm title="确定删除所选历史吗？" onConfirm={handleBatchDeleteConversations}>
-								<Button danger icon={<DeleteOutlined />} disabled={!selectedHistoryIds.length}>批量删除</Button>
+								<Button danger icon={<XQIcon name="delete" />} disabled={!selectedHistoryIds.length}>批量删除</Button>
 							</Popconfirm>
 						</Space>
 					</div>
@@ -2657,13 +2641,13 @@ function AIAnalysisMain(props){
 											<Button size="small" type="primary" onClick={()=>openConversation(record)}>打开</Button>
 											<Button size="small" onClick={()=>handleRenameConversation(record)}>重命名</Button>
 											<Button size="small" onClick={()=>handleDuplicateConversation(record)}>复制</Button>
-											<Button size="small" onClick={()=>handleToggleConversationFlag(record, 'favorite')} icon={<StarOutlined />}>{record.favorite ? '取消收藏' : '收藏'}</Button>
+											<Button size="small" onClick={()=>handleToggleConversationFlag(record, 'favorite')} icon={<XQIcon name="star" />}>{record.favorite ? '取消收藏' : '收藏'}</Button>
 											<Button size="small" onClick={()=>handleToggleConversationFlag(record, 'archived')}>{record.archived ? '取消归档' : '归档'}</Button>
 											<Button size="small" onClick={()=>exportConversation(record, 'md')}>Markdown</Button>
 											<Button size="small" onClick={()=>exportConversation(record, 'json')}>JSON</Button>
 											<Button size="small" onClick={()=>exportConversation(record, 'docx')}>Word</Button>
 											<Popconfirm title="确定删除这段历史吗？" onConfirm={()=>handleDeleteConversation(record.id)}>
-												<Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+												<Button size="small" danger icon={<XQIcon name="delete" />}>删除</Button>
 											</Popconfirm>
 										</Space>
 									),
@@ -2700,16 +2684,16 @@ function AIAnalysisMain(props){
 							<Select.Option value="size">按大小</Select.Option>
 						</Select>
 						<Space wrap>
-							<Button icon={<PlusOutlined />} type="primary" onClick={()=>openMaterialEditor(null)}>新建资料</Button>
-							<Button icon={<SyncOutlined />} onClick={dedupeMaterials}>去重</Button>
-							{desktopBridge ? <Button icon={<ImportOutlined />} onClick={handleDesktopFilePick}>桌面选文件</Button> : null}
-							{desktopBridge ? <Button icon={<FolderOpenOutlined />} onClick={handleDesktopFolderImport}>导入文件夹</Button> : null}
+							<Button icon={<XQIcon name="plus" />} type="primary" onClick={()=>openMaterialEditor(null)}>新建资料</Button>
+							<Button icon={<XQIcon name="sync" />} onClick={dedupeMaterials}>去重</Button>
+							{desktopBridge ? <Button icon={<XQIcon name="import" />} onClick={handleDesktopFilePick}>桌面选文件</Button> : null}
+							{desktopBridge ? <Button icon={<XQIcon name="folder" />} onClick={handleDesktopFolderImport}>导入文件夹</Button> : null}
 						</Space>
 					</div>
 					<Card size="small" bordered={false} className={styles.uploadCard}>
 						<Dragger multiple showUploadList={false} beforeUpload={handleUploadMaterial} accept=".txt,.md,.markdown,.doc,.docx,.pdf">
 							<p className="ant-upload-drag-icon">
-								<FolderOpenOutlined />
+								<XQIcon name="folder" />
 							</p>
 							<p className="ant-upload-text">拖动或点击上传资料文件</p>
 							<p className={styles.uploadHint}>支持 TXT / Markdown / DOC / DOCX / PDF，大文件会自动切块供 RAG 检索。</p>
@@ -2741,15 +2725,15 @@ function AIAnalysisMain(props){
 										{(item.extractedText || '').length > 300 ? '...' : ''}
 									</div>
 									<div className={styles.cardActions}>
-										<Button size="small" onClick={()=>openMaterialEditor(item)} icon={<EditOutlined />}>编辑</Button>
+										<Button size="small" onClick={()=>openMaterialEditor(item)} icon={<XQIcon name="edit" />}>编辑</Button>
 										<Button size="small" onClick={()=>setReferenceIds((prev)=>uniqueTextList(prev.concat(`material:${item.id}`)))}>加入参考</Button>
-										<Button size="small" icon={<DownloadOutlined />} onClick={()=>exportMaterialOriginal(item)}>原文件</Button>
+										<Button size="small" icon={<XQIcon name="download" />} onClick={()=>exportMaterialOriginal(item)}>原文件</Button>
 										<Button size="small" onClick={()=>exportMaterialText(item)}>提取文本</Button>
 										<Upload showUploadList={false} beforeUpload={(file)=>handleReplaceMaterial(item, file)}>
 											<Button size="small">替换文件</Button>
 										</Upload>
 										<Popconfirm title="确定删除这份资料吗？" onConfirm={()=>deleteMaterial(item.id)}>
-											<Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+											<Button size="small" danger icon={<XQIcon name="delete" />}>删除</Button>
 										</Popconfirm>
 									</div>
 								</Card>
@@ -2774,8 +2758,8 @@ function AIAnalysisMain(props){
 							onChange={(e)=>setTemplateKeyword(e.target.value)}
 						/>
 						<Space>
-							<Button icon={<PlusOutlined />} type="primary" onClick={()=>openTemplateEditor(null)}>新建模版</Button>
-							<Button icon={<PlusOutlined />} onClick={()=>openBundleEditor(null)}>新建组合</Button>
+							<Button icon={<XQIcon name="plus" />} type="primary" onClick={()=>openTemplateEditor(null)}>新建模版</Button>
+							<Button icon={<XQIcon name="plus" />} onClick={()=>openBundleEditor(null)}>新建组合</Button>
 						</Space>
 					</div>
 				</div>
@@ -2801,13 +2785,13 @@ function AIAnalysisMain(props){
 										{(item.instructionText || item.jsonSchema || item.content || '').length > 260 ? '...' : ''}
 									</div>
 									<div className={styles.cardActions}>
-										<Button size="small" onClick={()=>openTemplateEditor(item)} icon={<EditOutlined />}>编辑</Button>
+										<Button size="small" onClick={()=>openTemplateEditor(item)} icon={<XQIcon name="edit" />}>编辑</Button>
 										<Button size="small" onClick={()=>{
 											setPreviewTemplate(item);
 											setPreviewDrawerOpen(true);
 										}}>预览</Button>
 										<Popconfirm title="确定删除这个模版吗？" onConfirm={()=>deleteTemplate(item.id)}>
-											<Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+											<Button size="small" danger icon={<XQIcon name="delete" />}>删除</Button>
 										</Popconfirm>
 									</div>
 									<div className={styles.versionList}>
@@ -2831,11 +2815,11 @@ function AIAnalysisMain(props){
 										{item.defaultSystemPrompt || '未设置默认系统提示'}
 									</div>
 									<div className={styles.cardActions}>
-										<Button size="small" onClick={()=>openBundleEditor(item)} icon={<EditOutlined />}>编辑</Button>
+										<Button size="small" onClick={()=>openBundleEditor(item)} icon={<XQIcon name="edit" />}>编辑</Button>
 										<Button size="small" onClick={()=>applyBundle(item)}>一键应用</Button>
 										<Button size="small" onClick={()=>setReferenceIds((prev)=>uniqueTextList(prev.concat(`bundle:${item.id}`)))}>加入参考</Button>
 										<Popconfirm title="确定删除这个组合吗？" onConfirm={()=>deleteBundle(item.id)}>
-											<Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+											<Button size="small" danger icon={<XQIcon name="delete" />}>删除</Button>
 										</Popconfirm>
 									</div>
 								</>
@@ -2867,9 +2851,9 @@ function AIAnalysisMain(props){
 							onChange={(e)=>setSettingKeyword(e.target.value)}
 						/>
 						<Space>
-							<Button icon={<PlusOutlined />} type="primary" onClick={()=>openProviderEditor(null)}>新增接口配置</Button>
-							<Button icon={<ExportOutlined />} onClick={handleExportWorkspaceBackup}>导出备份</Button>
-							<Button icon={<ImportOutlined />} onClick={handleRestoreWorkspaceBackup}>恢复备份</Button>
+							<Button icon={<XQIcon name="plus" />} type="primary" onClick={()=>openProviderEditor(null)}>新增接口配置</Button>
+							<Button icon={<XQIcon name="export" />} onClick={handleExportWorkspaceBackup}>导出备份</Button>
+							<Button icon={<XQIcon name="import" />} onClick={handleRestoreWorkspaceBackup}>恢复备份</Button>
 						</Space>
 					</div>
 					<div className={styles.summaryBlock}>
@@ -2900,12 +2884,12 @@ function AIAnalysisMain(props){
 								</div>
 							) : null}
 							<div className={styles.cardActions}>
-								<Button size="small" onClick={()=>openProviderEditor(item)} icon={<EditOutlined />}>编辑</Button>
-								<Button size="small" onClick={()=>fetchModelsAndEmbeddings(item)} icon={<ReloadOutlined />}>拉取模型</Button>
+								<Button size="small" onClick={()=>openProviderEditor(item)} icon={<XQIcon name="edit" />}>编辑</Button>
+								<Button size="small" onClick={()=>fetchModelsAndEmbeddings(item)} icon={<XQIcon name="refresh" />}>拉取模型</Button>
 								<Button size="small" onClick={()=>testProfileChat(item)}>测试连接</Button>
-								<Button size="small" onClick={()=>runProviderDiagnostics(item)} icon={<SearchOutlined />}>连通性诊断</Button>
+								<Button size="small" onClick={()=>runProviderDiagnostics(item)} icon={<XQIcon name="search" />}>连通性诊断</Button>
 								<Popconfirm title="确定删除这条接口配置吗？" onConfirm={()=>deleteProvider(item.id)}>
-									<Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+									<Button size="small" danger icon={<XQIcon name="delete" />}>删除</Button>
 								</Popconfirm>
 							</div>
 						</Card>

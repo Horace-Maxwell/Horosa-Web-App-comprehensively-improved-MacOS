@@ -245,6 +245,107 @@ const iconMap = {
 			<path {...lineProps} d="M9.2 12.2 11.2 14l3.8-4" />
 		</Svg>
 	),
+	save: (
+		<Svg>
+			<path {...lineProps} d="M6 4.8h9.2L18 7.6v11.6H6z" />
+			<path {...lineProps} d="M8.5 4.8v5h6.2v-5M8.4 19.2v-5h7.2v5" />
+		</Svg>
+	),
+	file: (
+		<Svg>
+			<path {...lineProps} d="M7 4.5h6.7L17 7.8v11.7H7z" />
+			<path {...lineProps} d="M13.7 4.5v3.6H17M9.4 12.5h5.2M9.4 15.4h4.2" />
+		</Svg>
+	),
+	refresh: (
+		<Svg>
+			<path {...lineProps} d="M18.3 9.2A6.5 6.5 0 0 0 6.4 7.4L5 9.2" />
+			<path {...lineProps} d="M5 5.4v3.8h3.8M5.7 14.8a6.5 6.5 0 0 0 11.9 1.8l1.4-1.8" />
+			<path {...lineProps} d="M19 18.6v-3.8h-3.8" />
+		</Svg>
+	),
+	sync: (
+		<Svg>
+			<path {...lineProps} d="M7.2 7.5h7.1c2.5 0 4.5 2 4.5 4.5 0 1-.3 1.9-.8 2.6" />
+			<path {...lineProps} d="M10 4.8 7.2 7.5 10 10.2M16.8 16.5H9.7c-2.5 0-4.5-2-4.5-4.5 0-1 .3-1.9.8-2.6" />
+			<path {...lineProps} d="m14 19.2 2.8-2.7L14 13.8" />
+		</Svg>
+	),
+	delete: (
+		<Svg>
+			<path {...lineProps} d="M5 7h14M9 7V4.8h6V7M8 10v8.5h8V10" />
+			<path {...lineProps} d="M10.6 11.8v4.6M13.4 11.8v4.6" />
+		</Svg>
+	),
+	edit: (
+		<Svg>
+			<path {...lineProps} d="M5.5 18.5h4.1L18 10.1 13.9 6 5.5 14.4z" />
+			<path {...lineProps} d="m12.8 7.1 4.1 4.1" />
+		</Svg>
+	),
+	select: (
+		<Svg>
+			<path {...lineProps} d="M5 5h14v14H5z" />
+			<path {...lineProps} d="m8.2 12.2 2.4 2.4 5.2-5.2" />
+		</Svg>
+	),
+	export: (
+		<Svg>
+			<path {...lineProps} d="M7 12.8v5.7h10v-5.7" />
+			<path {...lineProps} d="M12 15.5V4.8M8.4 8.2 12 4.8l3.6 3.4" />
+		</Svg>
+	),
+	import: (
+		<Svg>
+			<path {...lineProps} d="M7 12.8v5.7h10v-5.7" />
+			<path {...lineProps} d="M12 4.8v10.7M8.4 12.1l3.6 3.4 3.6-3.4" />
+		</Svg>
+	),
+	download: (
+		<Svg>
+			<path {...lineProps} d="M6 18.5h12M12 4.8v10.1M8.4 11.6l3.6 3.4 3.6-3.4" />
+		</Svg>
+	),
+	folder: (
+		<Svg>
+			<path {...lineProps} d="M4.8 7.2h6l1.6 2H19v9H4.8z" />
+			<path {...lineProps} d="M4.8 9.2h14.2" />
+		</Svg>
+	),
+	star: (
+		<Svg>
+			<path {...lineProps} d="m12 4.5 2 4.2 4.6.7-3.3 3.2.8 4.6-4.1-2.2-4.1 2.2.8-4.6-3.3-3.2 4.6-.7z" />
+		</Svg>
+	),
+	play: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8.5" />
+			<path fill="currentColor" d="M10 8.4v7.2l5.7-3.6z" />
+		</Svg>
+	),
+	send: (
+		<Svg>
+			<path {...lineProps} d="M4.5 12 19 5.2l-4.2 13.6-3.1-5.2z" />
+			<path {...lineProps} d="m11.7 13.6 3.8-4" />
+		</Svg>
+	),
+	stop: (
+		<Svg>
+			<rect {...lineProps} x="7" y="7" width="10" height="10" rx="1.2" />
+		</Svg>
+	),
+	list: (
+		<Svg>
+			<path {...lineProps} d="M8.5 7h10M8.5 12h10M8.5 17h10" />
+			<path {...lineProps} d="M5.4 7h.1M5.4 12h.1M5.4 17h.1" />
+		</Svg>
+	),
+	back: (
+		<Svg>
+			<path {...lineProps} d="M15.8 5.8 9.6 12l6.2 6.2" />
+			<path {...lineProps} d="M10 12h9" />
+		</Svg>
+	),
 };
 
 export function XQIcon({name, className = '', ...rest}){

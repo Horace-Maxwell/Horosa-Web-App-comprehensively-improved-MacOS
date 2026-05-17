@@ -2,8 +2,8 @@ import moment from 'moment';
 import 'moment/locale/zh-cn';
 import { Component } from 'react';
 import { Row, Col } from 'antd';
-import { SelectOutlined, SearchOutlined } from '@ant-design/icons';
 import { XQButton as Button, XQDatePicker as DatePicker, XQInput as Input, XQPagination as Pagination, XQSelect as Select, XQTable as Table } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import { TableOddRowBgColor } from '../../utils/constants';
@@ -200,7 +200,7 @@ class LogQryList extends Component{
 			render: (text, record, index)=>{
 				return (
 					<span>
-						<a href={null} onClick={()=>{this.clickInfo(record);}}><SelectOutlined /></a>&emsp;
+						<a href={null} onClick={()=>{this.clickInfo(record);}}><XQIcon name="select" /></a>&emsp;
 					</span>
 				);			
 			},
@@ -241,7 +241,7 @@ class LogQryList extends Component{
 					</Col>
 					<Col span={3}>
 						<span style={{float: 'right'}}>
-							<Button type="primary" icon={<SearchOutlined />} size='small' onClick={this.search}>搜索</Button>
+							<Button type="primary" iconName="search" size='small' onClick={this.search}>搜索</Button>
 						</span>
 					</Col>
 

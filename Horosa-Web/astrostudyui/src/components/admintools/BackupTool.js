@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Row, Col, Popconfirm } from 'antd';
-import { SearchOutlined, DeleteOutlined, PlusOutlined, } from '@ant-design/icons';
 import { XQButton as Button, XQTable as Table } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import { TableOddRowBgColor, ServerRoot, ResultKey } from '../../utils/constants';
 import request from '../../utils/request';
 
@@ -63,7 +63,7 @@ export default class BackupTool extends Component{
 	renderActionCol(text, record, index){
 		return (
 			<Popconfirm title={`确定删除备份：${record.Dir} 吗?`} onConfirm={()=>{ this.clickDelete(record); }}>
-				&emsp;<a href={null} ><DeleteOutlined /></a>
+				&emsp;<a href={null} ><XQIcon name="delete" /></a>
 			</Popconfirm>
 		);
 	}
@@ -102,11 +102,11 @@ export default class BackupTool extends Component{
             <div style={style}>
                 <Row gutter={6} style={{marginTop: 10}}>
                     <Col offset={16} span={4}>
-                        <Button type="primary" onClick={this.search}><SearchOutlined />刷新</Button>
+                        <Button type="primary" iconName="refresh" onClick={this.search}>刷新</Button>
                     </Col>
                     <Col span={4}>
                         <span style={{float: 'right'}}>
-                            <Button onClick={this.clickBackup}><PlusOutlined />立即备份</Button>
+                            <Button iconName="plus" onClick={this.clickBackup}>立即备份</Button>
                         </span>
                     </Col>
                 </Row>

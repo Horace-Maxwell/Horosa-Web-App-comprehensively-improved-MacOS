@@ -2,8 +2,8 @@ import { Component } from 'react';
 import flvjs from 'flv.js';
 import { Popconfirm, Row, Col } from 'antd';
 import Modal from 'drag-modal';
-import { SearchOutlined, DeleteOutlined, PlaySquareOutlined, } from '@ant-design/icons';
 import { XQButton as Button, XQInput as Input, XQTable as Table } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import { ServerRoot, ResultKey, TableOddRowBgColor, RtmpPlayServer, }  from '../../utils/constants';
 import { randomStr, } from '../../utils/helper';
 import request from '../../utils/request';
@@ -132,7 +132,7 @@ class LiveMgmt extends Component{
 				<Button
 					type="primary"
 					onClick={() => this.handleSearch(selectedKeys, confirm)}
-					icon={<SearchOutlined />}
+					iconName="search"
 					size="small"
 					style={{ width: 90, marginRight: 8 }}
 				>
@@ -159,7 +159,7 @@ class LiveMgmt extends Component{
 			},
 			filterIcon: (filtered)=>{
 				let dom = (
-					<SearchOutlined style={{ color: filtered ? 'var(--horosa-accent, #1890ff)' : undefined }} />
+					<XQIcon name="search" style={{ color: filtered ? 'var(--horosa-accent, #1890ff)' : undefined }} />
 				);
 				return dom;
 			},
@@ -214,9 +214,9 @@ class LiveMgmt extends Component{
 			<span>
 				&emsp;
 				<Popconfirm title={`确定删除直播：${record.Stream} 吗?`} onConfirm={()=>{this.removeLive(record);}}>
-					<a href={null} ><DeleteOutlined /></a>&emsp;
+					<a href={null} ><XQIcon name="delete" /></a>&emsp;
 				</Popconfirm>
-				<a href={null} onClick={()=>{ this.playLive(record); }}><PlaySquareOutlined /></a>&emsp;
+				<a href={null} onClick={()=>{ this.playLive(record); }}><XQIcon name="play" /></a>&emsp;
 			</span>
 		);
 	}
@@ -264,7 +264,7 @@ class LiveMgmt extends Component{
 				</Modal>
 				<Row gutter={16} style={{marginBottom: 10}}>
 					<Col offset={20} span={4}>
-						<Button type="primary" onClick={this.search}><SearchOutlined />搜索</Button>
+						<Button type="primary" iconName="search" onClick={this.search}>搜索</Button>
 					</Col>
 				</Row>
 				<Table dataSource={this.state.dataSource} columns={columns}

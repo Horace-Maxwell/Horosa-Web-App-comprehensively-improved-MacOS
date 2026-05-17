@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import Modal from 'drag-modal';
-import { SearchOutlined, } from '@ant-design/icons';
 import { XQButton as Button, XQInput as Input, XQTable as Table } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import { ServerRoot, ResultKey, TableOddRowBgColor, }  from '../../utils/constants';
 import request from '../../utils/request';
 
@@ -147,7 +147,7 @@ class LiveStreamsModal extends Component{
 				<Button
 					type="primary"
 					onClick={() => this.handleSearch(selectedKeys, confirm)}
-					icon={<SearchOutlined />}
+					iconName="search"
 					size="small"
 					style={{ width: 90, marginRight: 8 }}
 				>
@@ -174,7 +174,7 @@ class LiveStreamsModal extends Component{
 			},
 			filterIcon: (filtered)=>{
 				let dom = (
-					<SearchOutlined style={{ color: filtered ? 'var(--horosa-accent, #1890ff)' : undefined }} />
+					<XQIcon name="search" style={{ color: filtered ? 'var(--horosa-accent, #1890ff)' : undefined }} />
 				);
 				return dom;
 			},
@@ -227,7 +227,7 @@ class LiveStreamsModal extends Component{
 				>
 				<div style={{ marginBottom: 20,}}>
 					<span >
-						<Button type="primary" onClick={this.search}><SearchOutlined />搜索</Button>
+						<Button type="primary" iconName="search" onClick={this.search}>搜索</Button>
 					</span>
 					<span style={{marginLeft: 20,}}>
 						选中的直播：
