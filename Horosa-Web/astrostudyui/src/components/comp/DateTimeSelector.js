@@ -1,6 +1,5 @@
 import { Component } from 'react';
 import { Row, Col } from 'antd';
-import { PlusOutlined, MinusOutlined, } from '@ant-design/icons';
 import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 import DateTime from './DateTime';
@@ -697,17 +696,13 @@ class DateTimeSelector extends Component{
 		let row = (
 			<Row key={randomStr(8)}>
 				<Col span={4}>
-					<Button size='small' onClick={this.clickMinus} style={{width: '100%'}}>
-						<MinusOutlined />
-					</Button>
+					<Button size='small' iconName='minus' onClick={this.clickMinus} style={{width: '100%'}} />
 				</Col>
 				<Col span={6}>
 					{timetypedom}
 				</Col>
 				<Col span={4}>
-					<Button size='small' onClick={this.clickPlus} style={{width: '100%'}}>
-						<PlusOutlined />
-					</Button>
+					<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 				</Col>
 				<Col span={5}>
 					<Button size='small' onClick={this.clickNow} style={{width: '100%'}}>
@@ -725,17 +720,13 @@ class DateTimeSelector extends Component{
 			row = (
 				<Row key={randomStr(8)}>
 					<Col span={5}>
-						<Button size='small' onClick={this.clickMinus} style={{width: '100%'}}>
-							<MinusOutlined />
-						</Button>
+						<Button size='small' iconName='minus' onClick={this.clickMinus} style={{width: '100%'}} />
 					</Col>
 					<Col span={6}>
 						{timetypedom}
 					</Col>
 					<Col span={5}>
-						<Button size='small' onClick={this.clickPlus} style={{width: '100%'}}>
-							<PlusOutlined />
-						</Button>
+						<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 					</Col>
 					<Col span={8}>
 						<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
@@ -752,17 +743,13 @@ class DateTimeSelector extends Component{
 						{zone}
 					</Col>
 					<Col span={3}>
-						<Button size='small' onClick={this.clickMinus} style={{width: '100%'}}>
-							<MinusOutlined />
-						</Button>
+						<Button size='small' iconName='minus' onClick={this.clickMinus} style={{width: '100%'}} />
 					</Col>
 					<Col span={6}>
 						{timetypedom}
 					</Col>
 					<Col span={3}>
-						<Button size='small' onClick={this.clickPlus} style={{width: '100%'}}>
-							<PlusOutlined />
-						</Button>
+						<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 					</Col>
 					<Col span={4}>
 						<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>

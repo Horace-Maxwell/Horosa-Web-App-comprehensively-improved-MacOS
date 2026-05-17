@@ -75,6 +75,18 @@ const iconMap = {
 			<path {...lineProps} d="m15 15 4 4" />
 		</Svg>
 	),
+	plus: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8.2" />
+			<path {...lineProps} d="M12 8v8M8 12h8" />
+		</Svg>
+	),
+	minus: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8.2" />
+			<path {...lineProps} d="M8 12h8" />
+		</Svg>
+	),
 	theme: (
 		<Svg>
 			<path {...lineProps} d="M17.8 14.8A7 7 0 0 1 9.2 6.2 7 7 0 1 0 17.8 14.8z" />

@@ -1,9 +1,15 @@
 import { Component } from 'react';
-import { Row, Col, Select, Button, Divider, Tabs, Card, Tag, message } from 'antd';
+import { Row, Col, Divider, Tag, message } from 'antd';
 import { littleEndian } from '../../utils/helper';
 import { Gua8, Gua64, getGua64 } from '../gua/GuaConst';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { getStore } from '../../utils/storageutil';
+import {
+	XQButton as Button,
+	XQCard as Card,
+	XQSelect as Select,
+	XQTabs as Tabs,
+} from '../xq-ui';
 import styles from '../../css/styles.less';
 
 const { Option } = Select;

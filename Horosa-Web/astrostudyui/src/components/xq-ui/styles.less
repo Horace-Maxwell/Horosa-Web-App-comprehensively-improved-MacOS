@@ -297,6 +297,8 @@
 
     .xq-input.ant-input,
     .xq-input.ant-input-affix-wrapper,
+    .xq-search.ant-input-search .ant-input,
+    .xq-search.ant-input-search .ant-input-group-addon .ant-btn,
     .xq-input-number.ant-input-number,
     .xq-date-picker.ant-picker {
         min-height: var(--horosa-control-height);
@@ -312,6 +314,20 @@
 
     .xq-input-number.ant-input-number {
         width: 100%;
+    }
+
+    .xq-textarea.ant-input {
+        min-height: auto;
+        line-height: 1.62;
+        resize: vertical;
+    }
+
+    .xq-search.ant-input-search .ant-input-group-addon {
+        background: transparent;
+    }
+
+    .xq-search.ant-input-search .ant-input-search-button {
+        color: var(--horosa-text);
     }
 
     .xq-input-number .ant-input-number-input,
@@ -338,6 +354,9 @@
     .xq-input.ant-input:focus,
     .xq-input.ant-input-affix-wrapper:hover,
     .xq-input.ant-input-affix-wrapper-focused,
+    .xq-search.ant-input-search:hover .ant-input,
+    .xq-search.ant-input-search .ant-input:focus,
+    .xq-search.ant-input-search:hover .ant-input-group-addon .ant-btn,
     .xq-input-number.ant-input-number:hover,
     .xq-input-number.ant-input-number-focused,
     .xq-date-picker.ant-picker:hover,

@@ -1,9 +1,5 @@
 import React from 'react';
 import { Avatar, Dropdown, message, Tooltip } from 'antd';
-import {
-	UserOutlined,
-	LogoutOutlined,
-} from '@ant-design/icons';
 import blogo from '../../assets/blogo.jpg';
 import {
 	APPEARANCE_DARK,
@@ -324,43 +320,52 @@ function PageHeader(props){
 			message.error((ret && ret.message) ? ret.message : '诊断报告导出失败');
 		}
 	}
+
+	function menuLabel(icon, text){
+		return (
+			<div className={styles.userMenuItem}>
+				<XQIcon name={icon} />
+				<span>{text}</span>
+			</div>
+		);
+	}
 	
 	let pubmenu = [{
 		key: 'chartlist',
-		label: (<div><UserOutlined />&nbsp;管理命盘</div>)
+		label: menuLabel('astro', '管理命盘')
 	},{
 		key: 'caselist',
-		label: (<div><UserOutlined />&nbsp;管理事盘</div>)
+		label: menuLabel('note', '管理事盘')
 	},{
 		key: 'chartadd',
-		label: (<div><UserOutlined />&nbsp;新增命盘</div>)
+		label: menuLabel('newChart', '新增命盘')
 	}];
 
 	let usermenu = [{
 		key: 'chartlist',
-		label: (<div><UserOutlined />&nbsp;我的星盘列表</div>)
+		label: menuLabel('astro', '我的星盘列表')
 	},{
 		key: 'caselist',
-		label: (<div><UserOutlined />&nbsp;管理事盘</div>)
+		label: menuLabel('note', '管理事盘')
 	},{
 		key: 'chartsgps',
-		label: (<div><UserOutlined />&nbsp;我的星盘分布</div>)
+		label: menuLabel('locastro', '我的星盘分布')
 	},{
 		key: 'chartadd',
-		label: (<div><UserOutlined />&nbsp;新增星盘数据</div>)
+		label: menuLabel('newChart', '新增星盘数据')
 	},{
 		key: 'changeparams',
-		label: (<div><UserOutlined />&nbsp;星盘参数修改</div>)
+		label: menuLabel('aiSettings', '星盘参数修改')
 	},{
 		key: 'changepwd',
-		label: (<div><UserOutlined />&nbsp;密码修改</div>)
+		label: menuLabel('admin', '密码修改')
 	},{
 		key: 'divider',
 		label: (<hr />),
 		disabled: true
 	},{
 		key: 'logout',
-		label: (<div><LogoutOutlined />&nbsp;退出登录</div>)
+		label: menuLabel('support', '退出登录')
 	}];
 
 	let menu = pubmenu;

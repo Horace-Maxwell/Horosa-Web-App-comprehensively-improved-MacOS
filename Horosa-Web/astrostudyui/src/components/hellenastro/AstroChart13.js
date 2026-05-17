@@ -1,5 +1,4 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
 import AstroChartMain from '../astro/AstroChartMain';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';

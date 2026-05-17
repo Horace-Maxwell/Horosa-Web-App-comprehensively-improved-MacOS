@@ -1,20 +1,13 @@
 import React from 'react';
 import {
-	Button,
-	Card,
 	Checkbox,
-	Drawer,
 	Empty,
 	Form,
-	Input,
-	Modal,
 	Popconfirm,
-	Select,
 	Space,
 	Spin,
 	Switch,
 	Table,
-	Tabs,
 	Tag,
 	Tooltip,
 	Typography,
@@ -22,22 +15,17 @@ import {
 	message,
 } from 'antd';
 import {
-	CopyOutlined,
 	DeleteOutlined,
 	DownloadOutlined,
 	EditOutlined,
 	ExportOutlined,
-	FileSearchOutlined,
 	FolderOpenOutlined,
-	HistoryOutlined,
 	ImportOutlined,
 	PlusOutlined,
 	ReloadOutlined,
 	RetweetOutlined,
-	SaveOutlined,
 	SearchOutlined,
 	SendOutlined,
-	SettingOutlined,
 	StarOutlined,
 	StopOutlined,
 	SyncOutlined,
@@ -47,6 +35,16 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import styles from './AIAnalysisMain.less';
 import MonacoEditor from './MonacoField';
+import XQIcon from '../xq-icons';
+import {
+	XQButton as Button,
+	XQCard as Card,
+	XQDrawer as Drawer,
+	XQInput as Input,
+	XQModal as Modal,
+	XQSelect as Select,
+	XQTabs as Tabs,
+} from '../xq-ui';
 import {
 	AI_ANALYSIS_SCHEMA_VERSION,
 	AI_ANALYSIS_STORES,
@@ -128,11 +126,11 @@ const { Dragger } = Upload;
 const { TabPane } = Tabs;
 
 const SECONDARY_TABS = [
-	{ key: 'analysis', label: '分析', icon: <FileSearchOutlined /> },
-	{ key: 'history', label: '历史', icon: <HistoryOutlined /> },
-	{ key: 'materials', label: '资料', icon: <SaveOutlined /> },
-	{ key: 'templates', label: '模版', icon: <CopyOutlined /> },
-	{ key: 'settings', label: '设置', icon: <SettingOutlined /> },
+	{ key: 'analysis', label: '分析', icon: <XQIcon name="ai" /> },
+	{ key: 'history', label: '历史', icon: <XQIcon name="calendar" /> },
+	{ key: 'materials', label: '资料', icon: <XQIcon name="book" /> },
+	{ key: 'templates', label: '模版', icon: <XQIcon name="note" /> },
+	{ key: 'settings', label: '设置', icon: <XQIcon name="aiSettings" /> },
 ];
 
 const RETRIEVAL_OPTIONS = [

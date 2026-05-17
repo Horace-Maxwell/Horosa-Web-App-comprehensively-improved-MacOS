@@ -1,6 +1,5 @@
 import * as d3 from 'd3';
 import { Component } from 'react';
-import { Row, Col, Tabs, DatePicker, Input, Button, Card, Select } from 'antd';
 import {randomStr, setupFloatingTooltip} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import ZWChart from './ZWChart';

@@ -1,9 +1,15 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Button, Tabs, Select, Input } from 'antd';
+import { Row, Col, Divider } from 'antd';
 import AstroChart from '../astro/AstroChart';
 import LatInput from '../astro/LatInput';
 import LonInput from '../astro/LonInput';
 import GeoCoordModal from '../amap/GeoCoordModal';
+import {
+	XQButton as Button,
+	XQInput as Input,
+	XQSelect as Select,
+	XQTabs as Tabs,
+} from '../xq-ui';
 import * as AstroHelper from '../astro/AstroHelper';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';

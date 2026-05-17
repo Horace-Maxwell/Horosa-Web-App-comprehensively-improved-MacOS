@@ -143,6 +143,27 @@ export function XQInput({className = '', ...rest}){
 	);
 }
 
+export function XQTextArea({className = '', ...rest}){
+	return (
+		<Input.TextArea
+			{...rest}
+			className={`xq-input xq-textarea ${className}`.trim()}
+		/>
+	);
+}
+
+export function XQSearch({className = '', ...rest}){
+	return (
+		<Input.Search
+			{...rest}
+			className={`xq-input xq-search ${className}`.trim()}
+		/>
+	);
+}
+
+XQInput.TextArea = XQTextArea;
+XQInput.Search = XQSearch;
+
 export function XQInputNumber({className = '', ...rest}){
 	return (
 		<InputNumber

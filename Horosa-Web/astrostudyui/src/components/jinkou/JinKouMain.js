@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Select, Tabs, message, Modal } from 'antd';
+import { Row, Col, Divider, message, Modal } from 'antd';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import * as LRConst from '../liureng/LRConst';
@@ -11,6 +11,11 @@ import JinKouChart from './JinKouChart';
 import { buildJinKouData } from './JinKouCalc';
 import { resolveJinKouDiFen } from './JinKouState';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
+import {
+	XQButton as Button,
+	XQSelect as Select,
+	XQTabs as Tabs,
+} from '../xq-ui';
 import {
 	getBirthGanzhiLocalCache,
 	getLiurengRunyearLocalCache,
