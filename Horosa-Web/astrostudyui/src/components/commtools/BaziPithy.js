@@ -1,13 +1,11 @@
 import { Component } from 'react';
 import { Row, Col, Divider } from 'antd';
-import { randomStr, isNumber } from '../../utils/helper';
+import { randomStr } from '../../utils/helper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import {Gan, Zi} from '../../msg/bazimsg';
 import { twoTextOneLine } from '../../utils/helper';
 import styles from '../../css/styles.less';
-
-const { Option } = Select;
 
 export default class BaziPithy extends Component{
 	constructor(props) {

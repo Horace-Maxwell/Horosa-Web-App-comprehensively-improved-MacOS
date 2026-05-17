@@ -1,5 +1,4 @@
 import { Component } from 'react';
-import { Row, Col, Table, Popconfirm, Button,  Input, Select, Pagination, Modal } from 'antd';
 import ChartData from './ChartData';
 
 export default class ChartAddFormComp extends Component{

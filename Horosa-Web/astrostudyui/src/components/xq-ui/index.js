@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Card, DatePicker, Drawer, Input, InputNumber, Modal, Radio, Select, Switch, Tabs, Tooltip } from 'antd';
+import { Button, Card, DatePicker, Drawer, Input, InputNumber, Modal, Pagination, Radio, Select, Switch, Table, Tabs, Tooltip } from 'antd';
 import XQIcon from '../xq-icons';
 
 export function XQButton({children, iconName, className = '', variant = 'default', ...rest}){
@@ -84,6 +84,24 @@ export function XQCard({children, className = '', ...rest}){
 		>
 			{children}
 		</Card>
+	);
+}
+
+export function XQTable({className = '', ...rest}){
+	return (
+		<Table
+			{...rest}
+			className={`xq-table ${className}`.trim()}
+		/>
+	);
+}
+
+export function XQPagination({className = '', ...rest}){
+	return (
+		<Pagination
+			{...rest}
+			className={`xq-pagination ${className}`.trim()}
+		/>
 	);
 }
 
