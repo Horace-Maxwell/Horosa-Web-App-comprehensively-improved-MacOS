@@ -1,7 +1,8 @@
 import { Component } from 'react';
-import { Tag, Input,  Popconfirm, } from 'antd';
+import { Tag, Popconfirm, } from 'antd';
 import { PlusOutlined,  } from '@ant-design/icons';
 import {randomStr} from '../../utils/helper';
+import { XQInput } from '../xq-ui';
 
 
 class EditableTags extends Component{
@@ -151,7 +152,7 @@ class EditableTags extends Component{
 				}
 				{
 					editable && inputVisible && (
-						<Input 
+						<XQInput
 							ref={this.saveInputRef}
 							type='text'
 							size='small'

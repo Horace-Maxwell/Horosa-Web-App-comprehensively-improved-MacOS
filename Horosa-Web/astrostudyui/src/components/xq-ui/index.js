@@ -161,14 +161,15 @@ export function XQSelect({className = '', popupClassName = '', dropdownClassName
 
 XQSelect.Option = Select.Option;
 
-export function XQInput({className = '', ...rest}){
+export const XQInput = React.forwardRef(function XQInput({className = '', ...rest}, ref){
 	return (
 		<Input
 			{...rest}
+			ref={ref}
 			className={`xq-input ${className}`.trim()}
 		/>
 	);
-}
+});
 
 export function XQTextArea({className = '', ...rest}){
 	return (
