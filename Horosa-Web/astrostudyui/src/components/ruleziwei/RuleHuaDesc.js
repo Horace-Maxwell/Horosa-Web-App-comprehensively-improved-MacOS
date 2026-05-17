@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Popover, } from 'antd';
+import { Row, Col, Divider, Popover, } from 'antd';
 import {randomStr,} from '../../utils/helper';
 import * as ZWConst from '../../constants/ZWConst';
 
@@ -159,4 +159,3 @@ class RuleHuaDesc extends Component{
 }
 
 export default RuleHuaDesc;
-

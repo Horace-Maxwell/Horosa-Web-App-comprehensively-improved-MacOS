@@ -1,14 +1,11 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
 import MidpointMain from './MidpointMain';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
-import { randomStr, } from '../../utils/helper';
 import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
-import styles from '../../css/styles.less';
 
 function fieldsToParams(fields){
 	const params = {
