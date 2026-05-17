@@ -1,8 +1,8 @@
 import { Component } from 'react';
 import { Tag, Popconfirm, } from 'antd';
-import { PlusOutlined,  } from '@ant-design/icons';
 import {randomStr} from '../../utils/helper';
 import { XQInput } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 
 class EditableTags extends Component{
@@ -167,7 +167,7 @@ class EditableTags extends Component{
 				{
 					editable && !inputVisible && (
 						<Tag key={randomStr(8)} onClick={this.showInput} style={{ background: 'var(--horosa-panel-bg, #fff)', borderStyle: 'dashed' }}>
-							<PlusOutlined /> {this.props.newTagLabel}
+							<XQIcon name="plus" /> {this.props.newTagLabel}
 						</Tag>
 					)
 				}

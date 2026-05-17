@@ -1,11 +1,11 @@
 import { Component } from 'react';
-import { SearchOutlined, } from '@ant-design/icons';
 import * as AstroText from '../../constants/AstroText';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import { TableOddRowBgColor } from '../../utils/constants';
 import { listLocalCharts } from '../../utils/localcharts';
 import { XQButton as Button, XQInput as Input, XQModal as Modal, XQTable as Table } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 
 class ChartSearchModal extends Component{
@@ -204,7 +204,7 @@ class ChartSearchModal extends Component{
 					<div style={{ marginBottom: 20,}}>
 						<span >
 							<Input placeholder="星盘名称" style={{width:200}} onChange={this.changeCommonSearch}/>&emsp;
-							<Button icon={<SearchOutlined />} onClick={this.search}>搜索</Button>
+							<Button icon={<XQIcon name="search" />} onClick={this.search}>搜索</Button>
 						</span>
 						<span style={{marginLeft: 20,}}>
 							选中星盘：

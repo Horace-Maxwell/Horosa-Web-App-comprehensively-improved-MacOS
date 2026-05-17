@@ -1,7 +1,7 @@
 import { Form } from 'antd';
-import { LockOutlined } from '@ant-design/icons';
 import { preventEnterPress } from '../../utils/helper';
 import { XQButton, XQInput } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 export default function ChangePwdForm(props){
 	const [form] = Form.useForm();
@@ -58,7 +58,7 @@ export default function ChangePwdForm(props){
 						message: '请输入您的旧密码！' 
 					}]}
 				>
-					<XQInput prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="旧密码" />
+					<XQInput prefix={<XQIcon name="lock" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="旧密码" />
 				</FormItem>
 
                 <FormItem
@@ -68,7 +68,7 @@ export default function ChangePwdForm(props){
 						message: '请输入您的新密码！' 
 					}]}
 				>
-					<XQInput prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码" />
+					<XQInput prefix={<XQIcon name="lock" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码" />
 				</FormItem>
 
                 <FormItem
@@ -85,7 +85,7 @@ export default function ChangePwdForm(props){
 						}
 					}]}
 				>
-					<XQInput prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码确认" />
+					<XQInput prefix={<XQIcon name="lock" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="新密码确认" />
 				</FormItem>
 
 				<FormItem>

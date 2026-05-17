@@ -1,9 +1,9 @@
 import { Form } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { preventEnterPress } from '../../utils/helper';
 import { EmailRegex } from '../../utils/constants';
 import ImgToken from '../comp/ImgToken';
 import { XQButton, XQInput } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 export default function RegisterForm(props){
 	const [form] = Form.useForm();
@@ -68,7 +68,7 @@ export default function RegisterForm(props){
 						message: '请输入您有效的email' 
 					}]}
 				>
-					<XQInput prefix={<UserOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} placeholder="有效的email" />
+					<XQInput prefix={<XQIcon name="user" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} placeholder="有效的email" />
 				</FormItem>
 				
 				<FormItem
@@ -78,7 +78,7 @@ export default function RegisterForm(props){
 						message: '请输入您的密码！' 
 					}]}
 				>
-					<XQInput prefix={<LockOutlined style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="密码" />
+					<XQInput prefix={<XQIcon name="lock" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="密码" />
 				</FormItem>
 
 				<FormItem

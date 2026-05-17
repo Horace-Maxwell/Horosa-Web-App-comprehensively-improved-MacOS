@@ -1,10 +1,10 @@
 import { Component } from 'react';
 import { Row, Col } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
 import { ServerRoot, ResultKey, TableOddRowBgColor }  from '../../utils/constants';
 import ConfirmSwitch from '../comp/ConfirmSwitch';
 import request from '../../utils/request';
 import { XQButton, XQInput, XQPagination, XQSelect, XQTable } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const { Option, } = XQSelect;
 
@@ -291,7 +291,7 @@ class UserMgmt extends Component{
 						<XQInput value={this.state.user} onChange={this.changeUser} placeholder='用户id' style={{width: '100%'}} />
 					</Col>
 					<Col offset={2} span={4}>
-						<XQButton type="primary" icon={<SearchOutlined />} onClick={this.search}>搜索</XQButton>
+						<XQButton type="primary" icon={<XQIcon name="search" />} onClick={this.search}>搜索</XQButton>
 					</Col>
 				</Row>
 				<XQTable dataSource={this.state.dataSource} columns={columns}

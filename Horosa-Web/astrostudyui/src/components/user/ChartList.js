@@ -1,6 +1,5 @@
 import { Component } from 'react';
 import { Row, Col, Popconfirm, message, } from 'antd';
-import { EditOutlined, DeleteOutlined, SelectOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import * as AstroText from '../../constants/AstroText';
 import {TableOddRowBgColor, } from '../../utils/constants';
 import {getStore} from '../../utils/storageutil';
@@ -8,6 +7,7 @@ import {randomStr} from '../../utils/helper';
 import EditableTags from '../comp/EditableTags';
 import { exportLocalChartsBackup, importLocalChartsBackup } from '../../utils/localcharts';
 import { XQButton, XQPagination, XQSearch, XQSelect, XQTable } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const Option = XQSelect.Option;
 
@@ -355,19 +355,19 @@ class ChartList extends Component{
 				render: (text, record, index)=>{
 					let dom = (
 						<span>
-							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><SelectOutlined /></a>&emsp;
+							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" /></a>&emsp;
 						</span>
 					);
 					const isLocalRecord = record && record.cid && (record.cid + '').indexOf('local-') === 0;
 					if((this.props.userInfo && this.props.userInfo.uid === record.creator) || isLocalRecord){
 						dom = (
 							<span>
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><SelectOutlined /></a>&emsp;
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><EditOutlined /></a>&emsp;
+								<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" /></a>&emsp;
+								<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" /></a>&emsp;
 							<Popconfirm title={`确定删除星盘：${record.name} 吗?`} onConfirm={()=>{this.clickRemove(record);}}>
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><DeleteOutlined /></a>
+								<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" /></a>
 							</Popconfirm>&emsp;
-							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickDLFeature(record);});}}><UnorderedListOutlined /></a>
+							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickDLFeature(record);});}}><XQIcon name="list" /></a>
 						</span>
 					);
 				}

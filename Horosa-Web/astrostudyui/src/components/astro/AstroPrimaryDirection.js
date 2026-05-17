@@ -1,6 +1,5 @@
 import { Component } from 'react';
 import { Row, Col } from 'antd';
-import { SearchOutlined, } from '@ant-design/icons';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
@@ -10,6 +9,7 @@ import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
 import { XQButton as Button, XQInput as Input, XQSelect as Select, XQTable as Table } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const Option = Select.Option;
 const PD_SYNC_REV = 'pd_method_sync_v8';
@@ -194,7 +194,7 @@ class AstroPrimaryDirection extends Component{
 			},
 			filterIcon: (filtered)=>{
 				let dom = (
-					<SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+					<XQIcon name="search" style={{ color: filtered ? '#1890ff' : undefined }} />
 				);
 				return dom;
 			},
@@ -227,7 +227,7 @@ class AstroPrimaryDirection extends Component{
 				<Button
 					type="primary"
 					onClick={() => this.handleSearch(selectedKeys, confirm)}
-					icon={<SearchOutlined />}
+					icon={<XQIcon name="search" />}
 					size="small"
 					style={{ width: 90, marginRight: 8 }}
 				>

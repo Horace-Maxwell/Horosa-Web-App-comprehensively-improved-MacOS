@@ -1,10 +1,10 @@
 import { Component } from 'react';
 import { Modal as AntModal, Upload,  message, } from 'antd';
-import { InboxOutlined } from '@ant-design/icons';
 import { ServerRoot } from '../../utils/constants';
 import * as Constants from '../../utils/constants';
 import { signRequest } from '../../utils/request';
 import { XQModal } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const Dragger = Upload.Dragger;
 
@@ -165,7 +165,7 @@ class UploadChartsModal extends Component{
 							fileList={this.state.fileList}
 						>
 							<p className="ant-upload-drag-icon">
-								<InboxOutlined />
+								<XQIcon name="inbox" />
 							</p>
 							<p className="ant-upload-text">点击或拖放文件到此区域进行上传</p>
 							<p className="ant-upload-hint">选择含有星盘数据的xlsx文件</p>

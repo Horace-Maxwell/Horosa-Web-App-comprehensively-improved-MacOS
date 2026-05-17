@@ -1,11 +1,11 @@
 import { Component } from 'react';
 import numeral from 'numeral';
 import { Row, Col, Popconfirm } from 'antd';
-import { EditOutlined, DeleteOutlined, SelectOutlined, DownloadOutlined } from '@ant-design/icons';
 import {TableOddRowBgColor, ServerRoot, ResultKey} from '../../utils/constants';
 import request from '../../utils/request';
 import {downloadUrl} from '../../utils/request';
 import { XQButton, XQInput, XQModal, XQPagination, XQSearch, XQTable } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 class MyBookList extends Component{
 
@@ -250,7 +250,7 @@ class MyBookList extends Component{
 			render: (text, record, index)=>{
 				let dom = (
 					<span>
-						<a href={null} onClick={()=>{this.clickInfo(record);}}><SelectOutlined /></a>&emsp;
+						<a href={null} onClick={()=>{this.clickInfo(record);}}><XQIcon name="select" /></a>&emsp;
 					</span>
 				);
 
@@ -258,12 +258,12 @@ class MyBookList extends Component{
 					let url = this.genDownloadUrl(record);
 					dom = (
 						<span>
-							<a href={null} onClick={()=>{this.clickInfo(record);}}><SelectOutlined /></a>&emsp;
-							<a href={null} onClick={()=>{this.clickEdit(record);}}><EditOutlined /></a>&emsp;
+							<a href={null} onClick={()=>{this.clickInfo(record);}}><XQIcon name="select" /></a>&emsp;
+							<a href={null} onClick={()=>{this.clickEdit(record);}}><XQIcon name="edit" /></a>&emsp;
 							<Popconfirm title={`确定删除书籍：${record.name} 吗?`} onConfirm={()=>{this.clickRemove(record);}}>
-								<a href={null} ><DeleteOutlined /></a>
+								<a href={null} ><XQIcon name="delete" /></a>
 							</Popconfirm>&emsp;
-							<a href={url} target='_blank'><DownloadOutlined /></a>&emsp;
+							<a href={url} target='_blank'><XQIcon name="download" /></a>&emsp;
 						</span>
 					);
 				}

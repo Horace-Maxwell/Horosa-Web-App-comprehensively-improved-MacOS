@@ -105,6 +105,19 @@ const iconMap = {
 			<path {...lineProps} d="M5.8 20a6.2 6.2 0 0 1 12.4 0" />
 		</Svg>
 	),
+	lock: (
+		<Svg>
+			<rect {...lineProps} x="6.2" y="10.2" width="11.6" height="9" rx="1.6" />
+			<path {...lineProps} d="M8.8 10.2V7.8a3.2 3.2 0 0 1 6.4 0v2.4" />
+			<path {...lineProps} d="M12 14.1v2.1" />
+		</Svg>
+	),
+	inbox: (
+		<Svg>
+			<path {...lineProps} d="M5.2 13.2 7.5 5h9l2.3 8.2v5.3H5.2z" />
+			<path {...lineProps} d="M5.2 13.2h4.2a2.6 2.6 0 0 0 5.2 0h4.2" />
+		</Svg>
+	),
 	astro: (
 		<Svg>
 			<circle {...lineProps} cx="12" cy="12" r="8.6" />
@@ -338,6 +351,42 @@ const iconMap = {
 		<Svg>
 			<path {...lineProps} d="M8.5 7h10M8.5 12h10M8.5 17h10" />
 			<path {...lineProps} d="M5.4 7h.1M5.4 12h.1M5.4 17h.1" />
+		</Svg>
+	),
+	zoomIn: (
+		<Svg>
+			<circle {...lineProps} cx="10.5" cy="10.5" r="5.8" />
+			<path {...lineProps} d="m15 15 4 4M10.5 7.8v5.4M7.8 10.5h5.4" />
+		</Svg>
+	),
+	zoomOut: (
+		<Svg>
+			<circle {...lineProps} cx="10.5" cy="10.5" r="5.8" />
+			<path {...lineProps} d="m15 15 4 4M7.8 10.5h5.4" />
+		</Svg>
+	),
+	prev: (
+		<Svg>
+			<path {...lineProps} d="M13.2 6.2 7.4 12l5.8 5.8" />
+			<path {...lineProps} d="M18 6.2 12.2 12l5.8 5.8" />
+		</Svg>
+	),
+	next: (
+		<Svg>
+			<path {...lineProps} d="m10.8 6.2 5.8 5.8-5.8 5.8" />
+			<path {...lineProps} d="m6 6.2 5.8 5.8L6 17.8" />
+		</Svg>
+	),
+	voice: (
+		<Svg>
+			<path {...lineProps} d="M5 14V10h3l4-3.4v10.8L8 14z" />
+			<path {...lineProps} d="M15.2 9.2a4 4 0 0 1 0 5.6M17.8 6.8a7.5 7.5 0 0 1 0 10.4" />
+		</Svg>
+	),
+	tool: (
+		<Svg>
+			<path {...lineProps} d="M14.3 5.1a4 4 0 0 0 4.6 4.6l-8.6 8.6a2.4 2.4 0 0 1-3.4-3.4z" />
+			<path {...lineProps} d="M7.4 15.6l1 1" />
 		</Svg>
 	),
 	back: (

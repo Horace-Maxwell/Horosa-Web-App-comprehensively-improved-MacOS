@@ -1,6 +1,5 @@
 import { Component } from 'react';
 import { Row, Col, Popconfirm, message } from 'antd';
-import { EditOutlined, DeleteOutlined, SelectOutlined } from '@ant-design/icons';
 import * as AstroText from '../../constants/AstroText';
 import { TableOddRowBgColor } from '../../utils/constants';
 import { getStore } from '../../utils/storageutil';
@@ -8,6 +7,7 @@ import { randomStr } from '../../utils/helper';
 import EditableTags from '../comp/EditableTags';
 import { getCaseTypeLabel, exportLocalCasesBackup, importLocalCasesBackup } from '../../utils/localcases';
 import { XQButton, XQPagination, XQSearch, XQSelect, XQTable } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const Option = XQSelect.Option;
 
@@ -330,10 +330,10 @@ class CaseList extends Component{
 			key: 'Action',
 			render: (text, record)=>(
 				<span>
-					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><SelectOutlined /></a>&emsp;
-					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><EditOutlined /></a>&emsp;
+					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" /></a>&emsp;
+					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" /></a>&emsp;
 					<Popconfirm title={`确定删除起课：${record.event || ''} 吗?`} onConfirm={()=>{this.clickRemove(record);}}>
-						<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><DeleteOutlined /></a>
+						<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" /></a>
 					</Popconfirm>
 				</span>
 			),

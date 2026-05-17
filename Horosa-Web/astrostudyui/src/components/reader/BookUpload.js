@@ -1,12 +1,12 @@
 import { Component } from 'react';
 import { Upload, message, Row, Col } from 'antd';
 import Modal from 'drag-modal';
-import { DatabaseOutlined, InboxOutlined, } from '@ant-design/icons';
 import { ServerRoot } from '../../utils/constants';
 import * as Constants from '../../utils/constants';
 import { downloadUrl } from '../../utils/request';
 import { decryptRSA, } from '../../utils/rsahelper';
 import { XQButton, XQInput, XQSelect } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const Dragger = Upload.Dragger;
 const { Option } = XQSelect;
@@ -159,7 +159,7 @@ class BookUpload extends Component{
 						fileList={this.state.fileList}
 					>
 						<p className="ant-upload-drag-icon">
-							<InboxOutlined />
+							<XQIcon name="inbox" />
 						</p>
 						<p className="ant-upload-text">点击或拖放文件到此区域进行上传</p>
 						<p className="ant-upload-hint">请尽量选择UTF-8编码的文本文件。若非UTF-8编码的文件，请先正确选择文本编码后，再上传文件。</p>
@@ -168,7 +168,7 @@ class BookUpload extends Component{
 				<div style={{marginTop: 50}}>
 					<Row>
 						<Col offset={8} span={8}>
-							<XQButton icon={<DatabaseOutlined />} onClick={this.toBookshelf}>我的书架</XQButton>
+							<XQButton icon={<XQIcon name="book" />} onClick={this.toBookshelf}>我的书架</XQButton>
 						</Col>
 					</Row>
 				</div>

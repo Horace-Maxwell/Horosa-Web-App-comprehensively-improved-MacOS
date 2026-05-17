@@ -1,6 +1,5 @@
 import { Component } from 'react';
 import { Row, Col, List, Typography, Dropdown, Menu, Slider, Popover} from 'antd';
-import { UnorderedListOutlined, ZoomOutOutlined, ZoomInOutlined, DoubleRightOutlined, DoubleLeftOutlined, DatabaseOutlined, ToolOutlined, CustomerServiceOutlined, } from '@ant-design/icons';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import { requestRaw, } from '../../utils/request';
@@ -8,6 +7,7 @@ import { randomStr, launchFullScreen, exitFullScreen, checkFullScreen, selectTex
 import { ColorTheme, ReaderThemeKey, ReaderFontSizeKey,ReaderScrollTopKey, ReaderBookKey, TTSOptKey,} from '../../constants/ReaderConst';
 import styles from '../../css/styles.less';
 import { XQDrawer, XQSelect } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = XQSelect;
@@ -874,22 +874,22 @@ class BookReader extends Component{
 			<div style={{marginLeft: 10}}>
 				<Row gutter={16}>
 					<Col span={2}>
-						<UnorderedListOutlined onClick={this.openCatalog} />
+						<XQIcon name="list" onClick={this.openCatalog} />
 					</Col>
 					<Col span={2}>
-						<DoubleLeftOutlined onClick={this.prevChapter} />
+						<XQIcon name="prev" onClick={this.prevChapter} />
 					</Col>
 					<Col span={2}>
-						<DoubleRightOutlined onClick={this.nextChapter} />
+						<XQIcon name="next" onClick={this.nextChapter} />
 					</Col>
 					<Col span={2}>
-						<ZoomOutOutlined onClick={this.sizeDown} />
+						<XQIcon name="zoomOut" onClick={this.sizeDown} />
 					</Col>
 					<Col span={2}>
-						<ZoomInOutlined onClick={this.sizeUp} />
+						<XQIcon name="zoomIn" onClick={this.sizeUp} />
 					</Col>
 					<Col span={1}>
-						<CustomerServiceOutlined onClick={this.clickTTS} />
+						<XQIcon name="voice" onClick={this.clickTTS} />
 					</Col>
 					<Col span={1}>
 						<Popover
@@ -898,7 +898,7 @@ class BookReader extends Component{
 							content={ttsoptdom}
 							open={this.state.ttsoptVisible}
 						>
-							<ToolOutlined onClick={(e)=>{this.showTTSOpt(0);}} />
+							<XQIcon name="tool" onClick={(e)=>{this.showTTSOpt(0);}} />
 						</Popover>
 					</Col>
 
@@ -909,7 +909,7 @@ class BookReader extends Component{
 						{themeselector}
 					</Col>
 					<Col span={1}>
-						<DatabaseOutlined onClick={this.toBookshelf} />
+						<XQIcon name="book" onClick={this.toBookshelf} />
 					</Col>
 				</Row>
 				{
@@ -941,22 +941,22 @@ class BookReader extends Component{
 				</Row>
 				<Row gutter={16} style={{marginTop: 5}}>
 				<Col span={2}>
-						<UnorderedListOutlined onClick={this.openCatalog} />
+						<XQIcon name="list" onClick={this.openCatalog} />
 					</Col>
 					<Col span={2}>
-						<DoubleLeftOutlined onClick={this.prevChapter} />
+						<XQIcon name="prev" onClick={this.prevChapter} />
 					</Col>
 					<Col span={2}>
-						<DoubleRightOutlined onClick={this.nextChapter} />
+						<XQIcon name="next" onClick={this.nextChapter} />
 					</Col>
 					<Col span={2}>
-						<ZoomOutOutlined onClick={this.sizeDown} />
+						<XQIcon name="zoomOut" onClick={this.sizeDown} />
 					</Col>
 					<Col span={2}>
-						<ZoomInOutlined onClick={this.sizeUp} />
+						<XQIcon name="zoomIn" onClick={this.sizeUp} />
 					</Col>
 					<Col span={2}>
-						<CustomerServiceOutlined onClick={this.clickTTS} />
+						<XQIcon name="voice" onClick={this.clickTTS} />
 					</Col>
 					<Col span={2}>
 						<Popover
@@ -965,14 +965,14 @@ class BookReader extends Component{
 							content={ttsoptdom}
 							open={this.state.ttsoptVisibleDown}
 						>
-							<ToolOutlined onClick={(e)=>{this.showTTSOpt(1);}} />
+							<XQIcon name="tool" onClick={(e)=>{this.showTTSOpt(1);}} />
 						</Popover>
 					</Col>
 					<Col span={8} style={{textAlign: 'center'}}>
 						{percent}% &nbsp; {words}
 					</Col>
 					<Col span={2}>
-						<DatabaseOutlined onClick={this.toBookshelf} />
+						<XQIcon name="book" onClick={this.toBookshelf} />
 					</Col>
 				</Row>
 
