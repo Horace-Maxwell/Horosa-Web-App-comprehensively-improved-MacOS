@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Select, Tooltip } from 'antd';
+import { Row, Col, Tooltip } from 'antd';
 import AstroChart from './AstroChart';
 import AstroInfo from './AstroInfo';
 import AstroAspect from './AstroAspect';
@@ -17,7 +17,7 @@ import { XQButton, XQSegmented, XQSelect, XQTabs, XQToggle } from '../xq-ui';
 import XQIcon from '../xq-icons';
 
 const TabPane = XQTabs.TabPane;
-const Option = Select.Option;
+const Option = XQSelect.Option;
 
 function fieldValue(fields, key, fallback = ''){
 	if(!fields || !fields[key]){

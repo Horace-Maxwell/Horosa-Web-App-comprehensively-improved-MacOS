@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Select, Input, InputNumber, } from 'antd';
+import { Input, } from 'antd';
+import { XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
 import { DefLon, DefGpsLon, } from '../../utils/constants';
 
 const Option = Select.Option;

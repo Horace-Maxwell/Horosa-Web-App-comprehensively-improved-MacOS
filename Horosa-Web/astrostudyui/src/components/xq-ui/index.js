@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Card, DatePicker, Drawer, Input, InputNumber, Modal, Radio, Select, Tabs, Tooltip } from 'antd';
+import { Button, Card, DatePicker, Drawer, Input, InputNumber, Modal, Radio, Select, Switch, Tabs, Tooltip } from 'antd';
 import XQIcon from '../xq-icons';
 
 export function XQButton({children, iconName, className = '', variant = 'default', ...rest}){
@@ -40,6 +40,15 @@ export function XQToggle({active, children, iconName, className = '', ...rest}){
 		>
 			{children}
 		</XQButton>
+	);
+}
+
+export function XQSwitch({className = '', ...rest}){
+	return (
+		<Switch
+			{...rest}
+			className={`xq-switch ${className}`.trim()}
+		/>
 	);
 }
 

@@ -1,6 +1,7 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Tooltip } from 'antd';
+import { Tooltip } from 'antd';
 import IndiaChart from './IndiaChart';
+import { XQTabs as Tabs } from '../xq-ui';
 
 
 const TabPane = Tabs.TabPane;

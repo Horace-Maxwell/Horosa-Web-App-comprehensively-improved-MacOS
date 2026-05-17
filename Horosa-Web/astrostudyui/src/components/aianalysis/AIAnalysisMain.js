@@ -6,7 +6,6 @@ import {
 	Popconfirm,
 	Space,
 	Spin,
-	Switch,
 	Table,
 	Tag,
 	Tooltip,
@@ -43,6 +42,7 @@ import {
 	XQInput as Input,
 	XQModal as Modal,
 	XQSelect as Select,
+	XQSwitch as Switch,
 	XQTabs as Tabs,
 } from '../xq-ui';
 import {
