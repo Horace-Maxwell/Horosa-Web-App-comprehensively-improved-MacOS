@@ -1,7 +1,7 @@
 import { Component } from 'react';
-import { Button, Input, Table, } from 'antd';
 import Modal from 'drag-modal';
 import { SearchOutlined, } from '@ant-design/icons';
+import { XQButton as Button, XQInput as Input, XQTable as Table } from '../xq-ui';
 import { ServerRoot, ResultKey, TableOddRowBgColor, }  from '../../utils/constants';
 import request from '../../utils/request';
 

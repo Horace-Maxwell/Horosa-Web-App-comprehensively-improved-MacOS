@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, } from 'antd';
+import { Row, Col, Divider, } from 'antd';
+import { XQButton as Button } from '../xq-ui';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import DateTimeSelector from '../comp/DateTimeSelector';

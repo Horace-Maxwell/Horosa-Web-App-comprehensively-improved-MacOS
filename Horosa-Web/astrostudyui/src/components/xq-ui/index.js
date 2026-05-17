@@ -211,6 +211,17 @@ export function XQDatePicker({className = '', popupClassName = '', ...rest}){
 	);
 }
 
+XQDatePicker.RangePicker = function XQRangePicker({className = '', popupClassName = '', ...rest}){
+	const RangePicker = DatePicker.RangePicker;
+	return (
+		<RangePicker
+			{...rest}
+			className={`xq-date-picker xq-range-picker ${className}`.trim()}
+			popupClassName={`xq-date-picker-popup ${popupClassName}`.trim()}
+		/>
+	);
+};
+
 export function XQTabs({className = '', ...rest}){
 	return (
 		<Tabs

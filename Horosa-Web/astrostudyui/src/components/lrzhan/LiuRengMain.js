@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Divider, InputNumber, Input, Checkbox, Modal, message, Tag } from 'antd';
+import { Row, Col, Divider, Modal, message, Tag } from 'antd';
 import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
@@ -23,7 +23,6 @@ import {
 } from '../../utils/localCalcCache';
 
 
-const InputGroup = Input.Group;
 const {Option} = Select;
 const TabPane = Tabs.TabPane;
 

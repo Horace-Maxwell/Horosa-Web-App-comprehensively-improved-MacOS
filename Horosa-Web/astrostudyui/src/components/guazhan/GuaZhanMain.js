@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Input, Checkbox, message } from 'antd';
+import { Row, Col, Divider, Checkbox, message } from 'antd';
 import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
@@ -16,9 +16,9 @@ import { fetchPreciseNongli } from '../../utils/preciseCalcBridge';
 import { setNongliLocalCache } from '../../utils/localCalcCache';
 import styles from '../../css/styles.less';
 
-const InputGroup = Input.Group;
 const {Option} = Select;
 const { TabPane } = Tabs;
+const compactInputGroupStyle = { display: 'flex', alignItems: 'center', gap: 8 };
 
 function guaText(gua){
 	if(!gua){
@@ -1184,7 +1184,7 @@ class GuaZhanMain extends Component{
 
 									<Row gutter={12} style={{marginTop: 20}}>
 										<Col span={12}>
-											<InputGroup compact>
+											<div style={compactInputGroupStyle}>
 												<label style={{ width: '40%', fontSize:18 }}>上卦</label>
 												<Select style={{ width: '60%' }}
 													allowClear={true} 
@@ -1193,10 +1193,10 @@ class GuaZhanMain extends Component{
 												>
 													{upopts}
 												</Select>
-											</InputGroup>
+											</div>
 										</Col>
 										<Col span={12}>
-											<InputGroup compact>
+											<div style={compactInputGroupStyle}>
 												<label style={{ width: '40%', fontSize:18 }}>下卦</label>
 												<Select style={{ width: '60%' }}
 													allowClear={true} 
@@ -1205,7 +1205,7 @@ class GuaZhanMain extends Component{
 												>
 													{downopts}
 												</Select>
-											</InputGroup>							
+											</div>
 										</Col>
 									</Row>
 									<Row gutter={12} >

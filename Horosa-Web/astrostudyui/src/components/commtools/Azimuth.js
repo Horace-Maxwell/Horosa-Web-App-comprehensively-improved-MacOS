@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Statistic, Input } from 'antd';
+import { Row, Col, Divider, Statistic } from 'antd';
 import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
 import LatInput from '../astro/LatInput';
 import LonInput from '../astro/LonInput';
@@ -12,7 +12,7 @@ import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 
 const Option = Select.Option;
-const InputGroup = Input.Group;
+const inputGroupStyle = { display: 'flex', alignItems: 'center', gap: 6 };
 
 class Azimuth extends Component{
 	constructor(props) {
@@ -245,54 +245,54 @@ class Azimuth extends Component{
 						</Select>
 					</Col>
 					<Col span={9}>
-						<InputGroup >
+						<div style={inputGroupStyle}>
 							<span>经：</span>
 							<InputNumber min={0} max={360} step={0.001} value={this.state.coordLon} 
 								onChange={this.changeCoordLon} 
 								style={{width: 120}}
 							/><span>度</span>
-						</InputGroup>
+						</div>
 					</Col>
 					<Col span={9}>
-						<InputGroup >
+						<div style={inputGroupStyle}>
 							<span>纬：</span>
 							<InputNumber min={-90} max={90} step={0.001} value={this.state.coordLat} 
 								onChange={this.changeCoordLat} 
 								style={{width: 120}}
 							/><span>度</span>
-						</InputGroup>
+						</div>
 					</Col>
 				</Row>
 				<Row style={{marginTop: 10}}>
 					<Col span={24}>
-						<InputGroup >
+						<div style={inputGroupStyle}>
 							<span>海拔：</span>
 							<InputNumber min={0} max={9000} step={10} 
 								value={this.state.height} 
 								onChange={this.changeHeight} 
 								style={{width: 120}}
 							/><span>米</span>
-						</InputGroup>
+						</div>
 					</Col>
 					<Col span={12}>
-						<InputGroup >
+						<div style={inputGroupStyle}>
 							<span>温度：</span>
 							<InputNumber min={-100} max={60} step={1} 
 								value={this.state.temp} 
 								onChange={this.changeTemp} 
 								style={{width: 120}}
 							/><span>摄氏度</span>
-						</InputGroup>
+						</div>
 					</Col>
 					<Col span={12}>
-						<InputGroup >
+						<div style={inputGroupStyle}>
 							<span>大气压：</span>
 							<InputNumber min={1} max={5000} step={10} 
 								value={this.state.press} 
 								onChange={this.changePress} 
 								style={{width: 120}}
 							/><span>百帕</span>
-						</InputGroup>
+						</div>
 					</Col>
 
 				</Row>

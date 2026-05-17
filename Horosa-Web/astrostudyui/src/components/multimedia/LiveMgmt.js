@@ -1,13 +1,12 @@
 import { Component } from 'react';
 import flvjs from 'flv.js';
-import { Button, Input, Table, Popconfirm, Row, Col, Popover,} from 'antd';
+import { Popconfirm, Row, Col } from 'antd';
 import Modal from 'drag-modal';
 import { SearchOutlined, DeleteOutlined, PlaySquareOutlined, } from '@ant-design/icons';
+import { XQButton as Button, XQInput as Input, XQTable as Table } from '../xq-ui';
 import { ServerRoot, ResultKey, TableOddRowBgColor, RtmpPlayServer, }  from '../../utils/constants';
-import ConfirmSwitch from '../comp/ConfirmSwitch';
 import { randomStr, } from '../../utils/helper';
 import request from '../../utils/request';
-import styles from '../../css/styles.less';
 
 class LiveMgmt extends Component{
 

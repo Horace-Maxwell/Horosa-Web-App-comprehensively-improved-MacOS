@@ -1,9 +1,9 @@
 import moment from 'moment';
 import 'moment/locale/zh-cn';
 import { Component } from 'react';
-import { Button, Input, DatePicker, Row, Col, Table, Pagination, Select, } from 'antd';
+import { Row, Col } from 'antd';
 import { SelectOutlined, SearchOutlined } from '@ant-design/icons';
-import { randomStr } from '../../utils/helper';
+import { XQButton as Button, XQDatePicker as DatePicker, XQInput as Input, XQPagination as Pagination, XQSelect as Select, XQTable as Table } from '../xq-ui';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import { TableOddRowBgColor } from '../../utils/constants';

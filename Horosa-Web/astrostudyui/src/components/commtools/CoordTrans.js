@@ -1,12 +1,12 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Statistic, Input } from 'antd';
+import { Row, Col, Divider, Statistic } from 'antd';
 import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
 import { randomStr, isNumber } from '../../utils/helper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 
 const Option = Select.Option;
-const InputGroup = Input.Group;
+const inputGroupStyle = { display: 'flex', alignItems: 'center', gap: 6 };
 
 class CoordTrans extends Component{
 	constructor(props) {
@@ -104,22 +104,22 @@ class CoordTrans extends Component{
 						</Select>
 					</Col>
 					<Col span={9}>
-						<InputGroup >
+						<div style={inputGroupStyle}>
 							<span>经：</span>
 							<InputNumber min={0} max={360} step={0.001} value={this.state.lon} 
 								onChange={this.changeLon} 
 								style={{width: 120}}
 							/><span>度</span>
-						</InputGroup>
+						</div>
 					</Col>
 					<Col span={9}>
-						<InputGroup >
+						<div style={inputGroupStyle}>
 							<span>纬：</span>
 							<InputNumber min={-90} max={90} step={0.001} value={this.state.lat} 
 								onChange={this.changeLat} 
 								style={{width: 120}}
 							/><span>度</span>
-						</InputGroup>
+						</div>
 					</Col>
 				</Row>
 				<Row style={{marginTop: 20}}>

@@ -1,5 +1,5 @@
 import { Component, createRef } from 'react';
-import { Card } from 'antd';
+import { XQCard as Card } from '../xq-ui';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 
 class FengShuiMain extends Component {

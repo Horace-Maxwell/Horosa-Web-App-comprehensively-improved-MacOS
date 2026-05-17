@@ -1,8 +1,8 @@
 import { Component } from 'react';
-import { Row, Col, Table, Popconfirm,  Button,} from 'antd';
+import { Row, Col, Popconfirm } from 'antd';
 import { SearchOutlined, DeleteOutlined, PlusOutlined, } from '@ant-design/icons';
+import { XQButton as Button, XQTable as Table } from '../xq-ui';
 import { TableOddRowBgColor, ServerRoot, ResultKey } from '../../utils/constants';
-import {randomStr} from '../../utils/helper';
 import request from '../../utils/request';
 
 
