@@ -1,5 +1,5 @@
 import { connect  } from 'dva';
-import { Tabs, Spin, } from 'antd';
+import { Spin, } from 'antd';
 import DateTime from '../components/comp/DateTime';
 import LoginForm from '../components/user/LoginForm';
 import RegisterForm from '../components/user/RegisterForm';
@@ -48,9 +48,9 @@ import * as AstroConst from '../constants/AstroConst';
 import {convertToArray} from '../utils/helper';
 import { APPEARANCE_DARK } from '../utils/appearance';
 import XQIcon from '../components/xq-icons';
-import { XQDrawer as Drawer } from '../components/xq-ui';
+import { XQDrawer as Drawer, XQTabs } from '../components/xq-ui';
 
-const TabPane = Tabs.TabPane;
+const TabPane = XQTabs.TabPane;
 let fetchByFieldsTimer = null;
 
 const mainTabIcons = {
@@ -310,7 +310,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
 	return (
 		<div style={idxstyle}>
         <Spin spinning={loading} size="large" tip={tip}>
-            <Tabs 
+            <XQTabs
                 defaultActiveKey="astrochart" tabPosition='left' onChange={changeTab}
                 activeKey={currentTab}
                 className='mainRootTabs horosa-nav-in-drawer'
@@ -628,7 +628,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     )
                 }
 
-            </Tabs>
+            </XQTabs>
 
             <Drawer
                 title='星盘配置'

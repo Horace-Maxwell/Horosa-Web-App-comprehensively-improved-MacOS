@@ -56,16 +56,32 @@ class HomePageSetup extends Component{
 	genDom(){
 		const pages = this.props.pages && this.props.pages.length ? this.props.pages : Pages;
 		const currentKey = this.props.currentKey || (this.state.page ? this.state.page.key : '');
+		const groupedPages = pages.reduce((groups, rec)=>{
+			const groupName = rec.group || '其他';
+			if(!groups[groupName]){
+				groups[groupName] = [];
+			}
+			groups[groupName].push(rec);
+			return groups;
+		}, {});
+		const groupOrder = ['命', '卜', '工具', '内容与管理', '其他'].filter((name)=>groupedPages[name]);
 		
 		let dom = (
 			<div className="xq-nav-list">
-				{pages.map((rec)=>(
-					<XQNavItem
-						key={rec.key}
-						item={rec}
-						active={currentKey === rec.key}
-						onClick={()=>{ this.clickPage(rec); }}
-					/>
+				{groupOrder.map((groupName)=>(
+					<div className="xq-nav-group" key={groupName}>
+						<div className="xq-nav-group-title">{groupName}</div>
+						<div className="xq-nav-group-items">
+							{groupedPages[groupName].map((rec)=>(
+								<XQNavItem
+									key={rec.key}
+									item={rec}
+									active={currentKey === rec.key}
+									onClick={()=>{ this.clickPage(rec); }}
+								/>
+							))}
+						</div>
+					</div>
 				))}
 			</div>
 		);
