@@ -705,13 +705,13 @@ class DateTimeSelector extends Component{
 					<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 				</Col>
 				<Col span={5}>
-					<Button size='small' onClick={this.clickNow} style={{width: '100%'}}>
-						此刻
+					<Button size='small' autoInsertSpace={false} onClick={this.clickNow} style={{width: '100%'}}>
+						<span>此刻</span>
 					</Button>
 				</Col>
 				<Col span={5}>
-					<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
-						确定
+					<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+						<span>确定</span>
 					</Button>
 				</Col>
 			</Row>
@@ -729,8 +729,8 @@ class DateTimeSelector extends Component{
 						<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 					</Col>
 					<Col span={8}>
-						<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
-							确定
+						<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+							<span>确定</span>
 						</Button>
 					</Col>
 				</Row>	
@@ -752,8 +752,8 @@ class DateTimeSelector extends Component{
 						<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 					</Col>
 					<Col span={4}>
-						<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
-							确定
+						<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+							<span>确定</span>
 						</Button>
 					</Col>
 				</Row>	
@@ -807,6 +807,16 @@ class DateTimeSelector extends Component{
 		let tmDom = this.genTmDom();
 		let needAdjust = this.props.showAdjust ? true : false;
 		let adjustDom = this.genAdjustDom();
+
+		if(this.props.adjustOnly){
+			return (
+				<Row className="xq-datetime-adjust-only">
+					<Col span={24}>
+						{adjustDom}
+					</Col>
+				</Row>
+			);
+		}
 
 		return (
 			<Row>

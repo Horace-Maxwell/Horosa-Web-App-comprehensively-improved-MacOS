@@ -50,6 +50,7 @@ class PlusMinusTime extends Component{
 						showTime={true}
 						needZone={needZone}
 						showAdjust={showAdjust}
+						adjustOnly={this.props.adjustOnly}
 						yearMonth={this.props.yearMonth}
 						onlyYear={this.props.onlyYear}
 						onChange={this.changeTime}

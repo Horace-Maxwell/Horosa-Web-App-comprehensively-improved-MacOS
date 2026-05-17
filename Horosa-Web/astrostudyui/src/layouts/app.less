@@ -2010,6 +2010,931 @@
         background: var(--horosa-border-strong);
     }
 
+    .horosa-astro-header {
+        box-shadow: 0 1px 0 rgba(218, 177, 111, 0.16) !important;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.horosa-astro-shell-active {
+        height: calc(100vh - 74px) !important;
+        max-height: calc(100vh - 74px) !important;
+        border-color: rgba(218, 177, 111, 0.16);
+        border-radius: 0;
+        background: #050607;
+        box-shadow: none;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.horosa-astro-shell-active > .ant-tabs-content-holder {
+        background: #050607;
+    }
+
+    .horosa-workspace-shell .mainRootTabs.horosa-astro-shell-active > .ant-tabs-content-holder .ant-tabs-tabpane {
+        padding: 4px;
+        background: #050607;
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign {
+        height: 100%;
+        min-width: 1080px;
+        background: #050607;
+        color: #eee2cf;
+        --horosa-astro-black: #050607;
+        --horosa-astro-panel: #090b0e;
+        --horosa-astro-panel-2: #0d1014;
+        --horosa-astro-line: rgba(215, 173, 105, 0.18);
+        --horosa-astro-line-strong: rgba(231, 190, 119, 0.42);
+        --horosa-astro-gold: #e7bd75;
+        --horosa-astro-gold-soft: rgba(231, 189, 117, 0.16);
+        --horosa-astro-text: #efe4d2;
+        --horosa-astro-muted: #928b82;
+        --horosa-astro-cyan: #79c9be;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .mainRootTabs.horosa-astro-shell-active {
+        border-color: var(--horosa-border);
+        background: var(--horosa-bg);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .mainRootTabs.horosa-astro-shell-active > .ant-tabs-content-holder,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .mainRootTabs.horosa-astro-shell-active > .ant-tabs-content-holder .ant-tabs-tabpane {
+        background: var(--horosa-bg);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign {
+        background: var(--horosa-bg);
+        color: var(--horosa-text);
+        --horosa-astro-black: var(--horosa-bg);
+        --horosa-astro-panel: var(--horosa-surface-raised);
+        --horosa-astro-panel-2: var(--horosa-panel-soft);
+        --horosa-astro-line: var(--horosa-border);
+        --horosa-astro-line-strong: var(--horosa-border-strong);
+        --horosa-astro-gold: var(--horosa-gold);
+        --horosa-astro-gold-soft: var(--horosa-gold-soft);
+        --horosa-astro-text: var(--horosa-text);
+        --horosa-astro-muted: var(--horosa-text-soft);
+        --horosa-astro-cyan: var(--horosa-accent-strong);
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) 64px;
+        gap: 4px;
+        height: 100%;
+        min-height: 0;
+        background: #050607;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign-layout {
+        background: var(--horosa-bg);
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign-grid {
+        display: grid;
+        grid-template-columns: clamp(285px, 20vw, 330px) minmax(520px, 1fr) clamp(335px, 25vw, 400px);
+        gap: 4px;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-astro-context-panel,
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-chart-stage,
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-inspector-panel,
+    .horosa-workspace-shell .horosa-bottom-quick-dock {
+        border: 1px solid var(--horosa-astro-line);
+        border-radius: 6px;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 46%),
+            var(--horosa-astro-panel) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-chart-stage {
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 46%),
+            var(--horosa-astro-panel) !important;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .horosa-astro-context-panel,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .horosa-chart-stage,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .horosa-inspector-panel,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-bottom-quick-dock {
+        border-color: var(--horosa-border);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 64%),
+            var(--horosa-surface-raised) !important;
+        box-shadow: var(--horosa-small-shadow);
+    }
+
+    .horosa-workspace-shell .horosa-astro-input-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        min-width: 0;
+        min-height: 0;
+        padding: 14px 12px;
+        overflow: auto;
+    }
+
+    .horosa-workspace-shell .horosa-panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-panel-kicker {
+        color: var(--horosa-astro-text);
+        font-size: 16px;
+        font-weight: 760;
+        line-height: 1.2;
+    }
+
+    .horosa-workspace-shell .horosa-panel-title {
+        margin-top: 5px;
+        color: var(--horosa-astro-muted);
+        font-size: 13px;
+        line-height: 1.3;
+    }
+
+    .horosa-workspace-shell .horosa-field-block {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-field-label,
+    .horosa-workspace-shell .horosa-side-section-title {
+        margin: 0;
+        color: #d6c7b0;
+        font-size: 14px;
+        font-weight: 680;
+        line-height: 1.2;
+    }
+
+    .horosa-workspace-shell .horosa-field-hint {
+        color: var(--horosa-astro-muted);
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    .horosa-workspace-shell .horosa-chart-mode-switch {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border-bottom: 1px solid rgba(215, 173, 105, 0.12);
+    }
+
+    .horosa-workspace-shell .horosa-chart-mode-switch button {
+        position: relative;
+        height: 36px;
+        border: 0;
+        background: transparent;
+        color: var(--horosa-astro-muted);
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .horosa-workspace-shell .horosa-chart-mode-switch button.is-active {
+        color: var(--horosa-astro-gold);
+    }
+
+    .horosa-workspace-shell .horosa-chart-mode-switch button.is-active::after {
+        content: "";
+        position: absolute;
+        right: 12px;
+        bottom: -1px;
+        left: 12px;
+        height: 2px;
+        border-radius: 999px;
+        background: var(--horosa-astro-gold);
+    }
+
+    .horosa-workspace-shell .horosa-unified-field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 38px;
+        padding: 0 10px;
+        border: 1px solid rgba(215, 173, 105, 0.18);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.018);
+        color: var(--horosa-astro-text);
+        text-align: left;
+        cursor: pointer;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-unified-field {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-unified-field:hover {
+        border-color: var(--horosa-astro-line-strong);
+        color: var(--horosa-astro-gold);
+    }
+
+    .horosa-workspace-shell .horosa-unified-field .xq-icon {
+        color: #c9b089;
+        font-size: 17px;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline {
+        min-width: 0;
+        padding-top: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .xq-datetime-adjust-only > .ant-col > .ant-row {
+        display: grid !important;
+        grid-template-columns: 32px minmax(84px, 1fr) 32px 46px 46px;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .xq-datetime-adjust-only > .ant-col > .ant-row > .ant-col {
+        flex: initial !important;
+        max-width: none !important;
+        width: auto !important;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn,
+    .horosa-workspace-shell .horosa-time-adjust-inline .xq-button.ant-btn {
+        width: 100%;
+        min-width: 0;
+        height: 32px;
+        padding: 0;
+        border-color: rgba(215, 173, 105, 0.20);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--horosa-astro-text);
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-time-adjust-inline .xq-button.ant-btn {
+        background: var(--horosa-astro-panel) !important;
+        color: var(--horosa-astro-text) !important;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-time-adjust-inline .xq-button.ant-btn {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .xq-icon {
+        font-size: 15px;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn-two-chinese-chars > span {
+        margin-right: -0.16em;
+        letter-spacing: -0.16em;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        height: 32px !important;
+        min-height: 32px;
+        border-color: rgba(215, 173, 105, 0.20) !important;
+        border-radius: 7px !important;
+        background: rgba(255, 255, 255, 0.02) !important;
+        color: var(--horosa-astro-text) !important;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        background: var(--horosa-astro-panel) !important;
+        color: var(--horosa-astro-text) !important;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        border-color: var(--horosa-border) !important;
+        background: var(--horosa-surface-solid) !important;
+        color: var(--horosa-text) !important;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-select-selection-item {
+        line-height: 30px !important;
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-select-arrow {
+        color: #c9b089;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn:hover,
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn:focus,
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-select-focused .ant-select-selector,
+    .horosa-workspace-shell .horosa-time-adjust-inline .ant-select:hover .ant-select-selector {
+        border-color: var(--horosa-astro-line-strong) !important;
+        background: rgba(231, 189, 117, 0.08) !important;
+        color: var(--horosa-astro-gold) !important;
+        box-shadow: none !important;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn:hover,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn:focus,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-select-focused .ant-select-selector,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-select:hover .ant-select-selector {
+        background: #0d0f12 !important;
+    }
+
+    .horosa-workspace-shell .horosa-place-field {
+        min-height: 52px;
+    }
+
+    .horosa-workspace-shell .horosa-place-field span {
+        display: grid;
+        min-width: 0;
+        gap: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-place-field strong {
+        overflow: hidden;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-place-field small {
+        color: var(--horosa-astro-muted);
+        font-size: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-field-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .xq-select:not(.ant-select-customize-input) .ant-select-selector,
+    .horosa-workspace-shell .horosa-astro-redesign .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        min-height: 36px;
+        border-color: rgba(215, 173, 105, 0.18) !important;
+        border-radius: 6px !important;
+        background: rgba(255, 255, 255, 0.018) !important;
+        color: var(--horosa-astro-text) !important;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-astro-redesign .xq-select:not(.ant-select-customize-input) .ant-select-selector,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-astro-redesign .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        background: var(--horosa-astro-panel) !important;
+        color: var(--horosa-astro-text) !important;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .xq-select:not(.ant-select-customize-input) .ant-select-selector,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        border-color: var(--horosa-border) !important;
+        background: var(--horosa-surface-solid) !important;
+        color: var(--horosa-text) !important;
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .xq-button.ant-btn,
+    .horosa-workspace-shell .horosa-astro-redesign .xq-icon-button.ant-btn {
+        border-color: rgba(215, 173, 105, 0.18);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.018);
+        color: var(--horosa-astro-text);
+        box-shadow: none;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .xq-button.ant-btn,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .xq-icon-button.ant-btn {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .xq-button.ant-btn:hover,
+    .horosa-workspace-shell .horosa-astro-redesign .xq-icon-button.ant-btn:hover {
+        border-color: var(--horosa-astro-line-strong);
+        color: var(--horosa-astro-gold);
+        box-shadow: 0 0 0 2px rgba(231, 189, 117, 0.08);
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .xq-segmented .ant-radio-button-wrapper {
+        border-color: rgba(215, 173, 105, 0.18) !important;
+        background: rgba(255, 255, 255, 0.018);
+        color: var(--horosa-astro-muted);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .xq-segmented .ant-radio-button-wrapper {
+        border-color: var(--horosa-border) !important;
+        background: var(--horosa-surface-solid);
+        color: var(--horosa-text-soft);
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .xq-segmented .ant-radio-button-wrapper-checked {
+        border-color: var(--horosa-astro-gold) !important;
+        background: rgba(231, 189, 117, 0.14) !important;
+        color: var(--horosa-astro-gold) !important;
+        box-shadow: none !important;
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-chart-style-block {
+        gap: 5px;
+        padding-top: 0;
+        border-top: 0;
+    }
+
+    .horosa-workspace-shell .horosa-input-nav-stack {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+        padding: 2px 0;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-input-nav-stack {
+        border-color: var(--horosa-border);
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-input-nav-stack .xq-button.ant-btn,
+    .horosa-workspace-shell .horosa-input-nav-stack .ant-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        width: 100%;
+        min-width: 0;
+        height: 44px;
+        padding: 0 8px;
+        border: 1px solid rgba(215, 173, 105, 0.18) !important;
+        border-radius: 7px;
+        background: #090b0e !important;
+        color: var(--horosa-astro-text) !important;
+        font-size: 13px;
+        font-weight: 650;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+        transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .horosa-workspace-shell .horosa-input-nav-stack .ant-btn > span:not(.anticon) {
+        overflow: hidden;
+        min-width: 0;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-input-nav-stack .xq-icon {
+        flex: 0 0 auto;
+        color: var(--horosa-astro-gold);
+        font-size: 19px;
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-input-nav-stack .xq-button.ant-btn:hover,
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-input-nav-stack .xq-button.ant-btn:focus,
+    .horosa-workspace-shell .horosa-input-nav-stack .ant-btn:hover,
+    .horosa-workspace-shell .horosa-input-nav-stack .ant-btn:focus {
+        border-color: var(--horosa-astro-line-strong) !important;
+        background: #0d0f12 !important;
+        color: var(--horosa-astro-gold) !important;
+        box-shadow: 0 0 0 2px rgba(231, 189, 117, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+        transform: translateY(-1px);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .horosa-input-nav-stack .xq-button.ant-btn,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-input-nav-stack .ant-btn {
+        border-color: var(--horosa-border) !important;
+        background: var(--horosa-surface-solid) !important;
+        color: var(--horosa-text) !important;
+        box-shadow: 0 6px 16px rgba(39, 59, 91, 0.05);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-input-nav-stack .xq-icon {
+        color: var(--horosa-gold);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .horosa-input-nav-stack .xq-button.ant-btn:hover,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .horosa-input-nav-stack .xq-button.ant-btn:focus,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-input-nav-stack .ant-btn:hover,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-input-nav-stack .ant-btn:focus {
+        border-color: var(--horosa-border-strong) !important;
+        background: rgba(184, 137, 63, 0.08) !important;
+        color: var(--horosa-gold) !important;
+    }
+
+    .horosa-workspace-shell .horosa-inline-toggle-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .horosa-workspace-shell .horosa-inline-toggle-row .ant-btn {
+        min-width: 0;
+        padding: 0 4px;
+        font-size: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-inline-toggle-row .xq-toggle-active {
+        border-color: var(--horosa-astro-gold);
+        background: rgba(231, 189, 117, 0.12);
+        color: var(--horosa-astro-gold);
+    }
+
+    .horosa-workspace-shell .horosa-recalculate-button.ant-btn {
+        height: 36px;
+        margin-top: auto;
+        border-color: rgba(231, 189, 117, 0.42);
+        background: rgba(231, 189, 117, 0.10);
+        color: var(--horosa-astro-gold);
+        font-weight: 730;
+    }
+
+    .horosa-workspace-shell .horosa-chart-stage-redesign {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        padding: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg {
+        max-width: 100%;
+        max-height: 100%;
+        background: var(--horosa-astro-panel) !important;
+        background-color: var(--horosa-astro-panel) !important;
+        transform: scale(1.055);
+        transform-origin: center;
+    }
+
+    .horosa-workspace-shell .horosa-astro-redesign .horosa-chart-stage-redesign > svg.xq-chart-renderer,
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-astro-redesign .horosa-chart-stage-redesign > svg.xq-chart-renderer {
+        background: var(--horosa-astro-panel) !important;
+        background-color: var(--horosa-astro-panel) !important;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .horosa-chart-stage-redesign > svg,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-astro-redesign .horosa-chart-stage-redesign > svg.xq-chart-renderer {
+        background: var(--horosa-surface-raised) !important;
+        background-color: var(--horosa-surface-raised) !important;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#050607"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#0b1a28"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#0B1A28"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#0d1e2d"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#0D1E2D"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#11253a"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#11253A"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#141b25"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#141B25"],
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#182532"] {
+        fill: var(--horosa-surface-raised) !important;
+    }
+
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#050607"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#0b1a28"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#0B1A28"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#0d1e2d"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#0D1E2D"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#11253a"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#11253A"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#141b25"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#141B25"],
+    .horosa-workspace-shell .horosa-chart-stage-redesign > svg [fill="#182532"] {
+        fill: var(--horosa-astro-panel) !important;
+    }
+
+    .horosa-workspace-shell .horosa-chart-floating-tools {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        z-index: 4;
+        display: inline-flex;
+        gap: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-astro-content-panel {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-content-tabs {
+        height: 100%;
+        padding: 0 14px 12px;
+    }
+
+    .horosa-workspace-shell .horosa-content-tabs.ant-tabs-top > .ant-tabs-nav {
+        margin: 0 0 8px;
+    }
+
+    .horosa-workspace-shell .horosa-content-tabs.xq-tabs.ant-tabs .ant-tabs-tab {
+        margin-right: 22px;
+        padding: 13px 0 8px;
+        color: var(--horosa-astro-muted);
+        font-size: 15px;
+        font-weight: 650;
+    }
+
+    .horosa-workspace-shell .horosa-content-tabs.xq-tabs.ant-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+        color: var(--horosa-astro-gold);
+    }
+
+    .horosa-workspace-shell .horosa-content-tabs .ant-tabs-ink-bar {
+        height: 2px;
+        border-radius: 999px;
+        background: var(--horosa-astro-gold);
+    }
+
+    .horosa-workspace-shell .horosa-content-tabs .ant-tabs-content-holder,
+    .horosa-workspace-shell .horosa-content-tabs .ant-tabs-content,
+    .horosa-workspace-shell .horosa-content-tabs .ant-tabs-tabpane {
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-astro-content-scroll {
+        display: grid;
+        gap: 8px;
+        padding: 2px 0 8px;
+    }
+
+    .horosa-workspace-shell .horosa-info-card {
+        padding: 12px;
+        border: 1px solid rgba(215, 173, 105, 0.16);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.018);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-info-card,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-lots-under-planets {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+    }
+
+    .horosa-workspace-shell .horosa-info-card-title {
+        margin-bottom: 10px;
+        color: #d8c5a7;
+        font-size: 14px;
+        font-weight: 720;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-info-card-title {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-info-row {
+        display: grid;
+        grid-template-columns: minmax(92px, 0.76fr) minmax(0, 1fr);
+        gap: 9px;
+        min-height: 28px;
+        align-items: center;
+        color: var(--horosa-astro-muted);
+        font-size: 13px;
+    }
+
+    .horosa-workspace-shell .horosa-info-row strong {
+        overflow: hidden;
+        color: rgba(239, 228, 210, 0.82);
+        font-weight: 560;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-info-row strong,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-classical-card {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-classical-card {
+        color: rgba(239, 228, 210, 0.84);
+        font-size: 13px;
+        line-height: 1.7;
+    }
+
+    .horosa-workspace-shell .horosa-classical-card .ant-row {
+        color: inherit;
+    }
+
+    .horosa-workspace-shell .horosa-classical-card .ant-divider {
+        display: none;
+    }
+
+    .horosa-workspace-shell .horosa-empty-line {
+        color: var(--horosa-astro-muted);
+        font-size: 13px;
+    }
+
+    .horosa-workspace-shell .horosa-planet-with-lots {
+        height: 100%;
+        overflow: auto;
+        padding-right: 4px;
+    }
+
+    .horosa-workspace-shell .horosa-lots-under-planets {
+        margin-top: 8px;
+        padding: 11px;
+        border: 1px solid rgba(215, 173, 105, 0.16);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.018);
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-dock {
+        display: grid;
+        grid-template-columns: 126px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        min-height: 0;
+        padding: 2px 10px;
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--horosa-astro-gold);
+        font-size: 15px;
+        font-weight: 760;
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-title .xq-icon {
+        font-size: 16px;
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-actions {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(78px, 1fr));
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-button {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        justify-items: center;
+        align-items: center;
+        gap: 1px;
+        min-width: 0;
+        height: 52px;
+        padding: 3px 5px 4px;
+        border: 1px solid rgba(215, 173, 105, 0.16);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.018);
+        color: rgba(239, 228, 210, 0.82);
+        cursor: pointer;
+        transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-bottom-quick-button {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+        color: var(--horosa-text-soft);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-bottom-quick-icon {
+        color: var(--horosa-gold);
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-button:hover {
+        border-color: var(--horosa-astro-line-strong);
+        background: rgba(231, 189, 117, 0.08);
+        color: var(--horosa-astro-gold);
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #e5bd77;
+        font-size: 27px;
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-button span:last-child {
+        overflow: hidden;
+        width: 100%;
+        font-size: 12px;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-time-popover {
+        width: 360px;
+        padding: 2px;
+    }
+
+    .horosa-settings-popover {
+        max-width: min(560px, calc(100vw - 36px));
+    }
+
+    .horosa-settings-popover .ant-popover-inner {
+        overflow: hidden;
+        border: 1px solid var(--horosa-astro-line, var(--horosa-border));
+        border-radius: 8px;
+        background: var(--horosa-astro-panel, var(--horosa-surface-raised));
+        color: var(--horosa-astro-text, var(--horosa-text));
+        box-shadow: 0 22px 58px rgba(0, 0, 0, 0.38);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-settings-popover .ant-popover-inner,
+    :root[data-horosa-appearance='dark'] .horosa-time-adjust-popover .ant-popover-inner {
+        border-color: rgba(215, 173, 105, 0.18);
+        background: #090b0e;
+        color: #efe4d2;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-settings-popover .ant-popover-inner {
+        background: var(--horosa-surface-raised);
+        color: var(--horosa-text);
+        box-shadow: var(--horosa-shadow);
+    }
+
+    .horosa-settings-popover .ant-popover-inner-content {
+        padding: 0;
+        color: inherit;
+    }
+
+    .horosa-settings-popover .ant-popover-arrow-content {
+        background: var(--horosa-astro-panel, var(--horosa-surface-raised));
+        border-color: var(--horosa-astro-line, var(--horosa-border));
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-settings-popover .ant-popover-arrow-content,
+    :root[data-horosa-appearance='dark'] .horosa-time-adjust-popover .ant-popover-arrow-content {
+        background: #090b0e;
+        border-color: rgba(215, 173, 105, 0.18);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-settings-popover .ant-popover-arrow-content {
+        background: var(--horosa-surface-raised);
+    }
+
+    .horosa-settings-popover-panel {
+        width: 430px;
+        max-width: calc(100vw - 48px);
+        max-height: min(620px, calc(100vh - 112px));
+        overflow: auto;
+        padding: 16px;
+    }
+
+    .horosa-settings-popover-panel-large {
+        width: 520px;
+    }
+
+    .horosa-settings-popover-title {
+        margin-bottom: 14px;
+        color: var(--horosa-astro-text, var(--horosa-text));
+        font-size: 16px;
+        font-weight: 760;
+        line-height: 1.2;
+    }
+
+    .horosa-settings-form-grid {
+        display: grid;
+        gap: 12px;
+    }
+
+    .horosa-settings-popover .horosa-selector-drawer {
+        max-height: min(520px, calc(100vh - 190px));
+        overflow: auto;
+        padding-right: 4px;
+    }
+
+    .horosa-settings-popover .xq-section-title {
+        margin: 14px 0 8px;
+    }
+
+    .horosa-settings-popover .xq-section-title:first-child {
+        margin-top: 0;
+    }
+
+    .horosa-settings-toggle-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-bottom: 2px;
+    }
+
+    .horosa-time-popover .ant-row {
+        row-gap: 6px;
+    }
+
+    .ant-popover .horosa-time-popover .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+    .ant-popover .horosa-time-popover .ant-input-number {
+        border-color: rgba(215, 173, 105, 0.18);
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--horosa-text);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-settings-popover .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+    :root[data-horosa-appearance='dark'] .ant-popover .horosa-time-popover .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+    :root[data-horosa-appearance='dark'] .ant-popover .horosa-time-popover .ant-input-number {
+        border-color: rgba(215, 173, 105, 0.20) !important;
+        background: #090b0e !important;
+        color: #efe4d2 !important;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-settings-popover .ant-select-selection-item,
+    :root[data-horosa-appearance='dark'] .ant-popover .horosa-time-popover .ant-select-selection-item,
+    :root[data-horosa-appearance='dark'] .ant-popover .horosa-time-popover .ant-input-number-input {
+        color: #efe4d2 !important;
+    }
+
     @media (max-width: 760px) {
         .horosa-workspace-shell .mainRootTabs.ant-tabs-left > .ant-tabs-nav {
             width: 88px;

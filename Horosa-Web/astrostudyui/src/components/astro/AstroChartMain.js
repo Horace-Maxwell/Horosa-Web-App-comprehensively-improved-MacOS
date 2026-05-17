@@ -1,11 +1,14 @@
 import { Component } from 'react';
-import { Row, Col, Tooltip } from 'antd';
+import { Row, Col, Popover, Tooltip } from 'antd';
 import AstroChart from './AstroChart';
 import AstroInfo from './AstroInfo';
 import AstroAspect from './AstroAspect';
 import AstroPlanet from './AstroPlanet';
 import AstroLots from './AstroLots';
 import AstroPredictPlanetSign from './AstroPredictPlanetSign';
+import AspSelector from './AspSelector';
+import ChartDisplaySelector from './ChartDisplaySelector';
+import PlanetSelector from './PlanetSelector';
 import PlusMinusTime from './PlusMinusTime';
 import DateTime from '../comp/DateTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
@@ -13,7 +16,7 @@ import { convertLatToStr, convertLonToStr} from './AstroHelper';
 import { getHousesOption } from '../comp/CompHelper'
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
-import { XQButton, XQSegmented, XQSelect, XQTabs, XQToggle } from '../xq-ui';
+import { XQButton, XQIconButton, XQSectionTitle, XQSegmented, XQSelect, XQTabs, XQToggle } from '../xq-ui';
 import XQIcon from '../xq-icons';
 
 const TabPane = XQTabs.TabPane;
@@ -65,6 +68,10 @@ class AstroChartMain extends Component{
 		this.toggleChartDisplayOption = this.toggleChartDisplayOption.bind(this);
 		this.navigateFeature = this.navigateFeature.bind(this);
 		this.navigateDirectionTool = this.navigateDirectionTool.bind(this);
+		this.renderInputOptionPopovers = this.renderInputOptionPopovers.bind(this);
+		this.renderInputPanel = this.renderInputPanel.bind(this);
+		this.renderContentPanel = this.renderContentPanel.bind(this);
+		this.renderBottomQuickDock = this.renderBottomQuickDock.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = ()=>{
@@ -425,6 +432,150 @@ class AstroChartMain extends Component{
 		);
 	}
 
+	renderInputPanel(meta, dt, options){
+		const isIndiaChart = !!this.props.indiahsys;
+		const chartStyle = AstroConst.normalizeChartStyle(this.props.chartStyle);
+		const indiaChartStyle = AstroConst.normalizeIndiaChartStyle(this.props.indiaChartStyle);
+		const currentDisplay = Array.isArray(this.props.chartDisplay) ? this.props.chartDisplay : [];
+		const {
+			showdateselector,
+			showzodical,
+			showhsys,
+			indiahsys,
+		} = options;
+		const quickToggles = [
+			{ label: '相位线', opt: AstroConst.CHART_ASP_LINES },
+			{ label: '四角', opt: AstroConst.CHART_ANGLELINE },
+			{ label: '度数', opt: AstroConst.CHART_TXTPLANET },
+			{ label: '界限', opt: AstroConst.CHART_TERM },
+		];
+		const timeEditor = (
+			<div className="horosa-time-popover">
+				<PlusMinusTime value={dt} onChange={this.changeTime} />
+			</div>
+		);
+		return (
+			<div className="horosa-astro-context-panel horosa-astro-input-panel">
+				<div className="horosa-panel-head">
+					<div>
+						<div className="horosa-panel-kicker">命盘设置</div>
+						<div className="horosa-panel-title">{meta.title}</div>
+					</div>
+					<XQIconButton size="small" iconName="chevronDown" tooltip="收合" />
+				</div>
+				<div className="horosa-chart-mode-switch">
+					<button type="button" className="is-active">单盘</button>
+					<button type="button" onClick={()=>this.navigateFeature('relativechart')}>多盘</button>
+				</div>
+				{showdateselector ? (
+					<div className="horosa-field-block">
+						<div className="horosa-field-label">时间</div>
+						<Popover content={timeEditor} trigger="click" placement="rightTop" overlayClassName="horosa-time-adjust-popover">
+							<button type="button" className="horosa-unified-field">
+								<XQIcon name="clock" />
+								<span>{formatFieldTime(this.props.fields) || meta.birth}</span>
+							</button>
+						</Popover>
+						<div className="horosa-field-hint">当地时间</div>
+						<div className="horosa-time-adjust-inline">
+							<PlusMinusTime value={dt} onChange={this.changeTime} hook={this.tmHook} adjustOnly />
+						</div>
+					</div>
+				) : null}
+				{showdateselector ? (
+					<div className="horosa-field-block">
+						<div className="horosa-field-label">地点</div>
+						<GeoCoordModal
+							onOk={this.changeGeo}
+							lat={this.props.fields.gpsLat.value} lng={this.props.fields.gpsLon.value}
+						>
+							<button type="button" className="horosa-unified-field horosa-place-field">
+								<XQIcon name="locastro" />
+								<span>
+									<strong>{meta.location}</strong>
+									<small>{this.props.fields.lon.value} · {this.props.fields.lat.value}</small>
+								</span>
+								<XQIcon name="globe" />
+							</button>
+						</GeoCoordModal>
+					</div>
+				) : null}
+				<div className="horosa-field-grid">
+					{showzodical ? (
+						<div className="horosa-field-block">
+							<div className="horosa-field-label">黄道</div>
+							<XQSelect
+								style={{width: '100%'}}
+								onChange={this.changeZodiacal}
+								value={this.props.fields.zodiacal.value} size='small'>
+								<Option value={0}>回归黄道</Option>
+								<Option value={1}>恒星黄道</Option>
+							</XQSelect>
+						</div>
+					) : null}
+					{showhsys ? (
+						<div className="horosa-field-block">
+							<div className="horosa-field-label">宫制</div>
+							<XQSelect style={{width: '100%'}}
+								onChange={this.changeHsys}
+								value={this.props.fields.hsys.value}
+								size='small'>
+								{ getHousesOption() }
+							</XQSelect>
+						</div>
+					) : null}
+					{indiahsys ? (
+						<div className="horosa-field-block">
+							<div className="horosa-field-label">印度宫制</div>
+							<XQSelect style={{width:'100%'}}
+								onChange={this.changeHsys}
+								value={this.props.fields.hsys.value}
+								size='small'>
+								<Option value={0}>整宫制</Option>
+								<Option value={5}>Vehlow Equal</Option>
+							</XQSelect>
+						</div>
+					) : null}
+				</div>
+				<div className={`horosa-chart-style-block${isIndiaChart ? ' horosa-india-style-block' : ''}`}>
+					<div className="horosa-side-section-title">星盘样式</div>
+					{isIndiaChart ? (
+						<XQSegmented
+							value={indiaChartStyle}
+							onChange={this.changeIndiaChartStyle}
+							options={AstroConst.INDIA_CHART_STYLE_OPTIONS}
+						/>
+					) : (
+						<XQSegmented
+							value={chartStyle}
+							onChange={this.changeChartStyle}
+							options={AstroConst.CHART_STYLE_OPTIONS}
+						/>
+					)}
+				</div>
+				{this.renderInputOptionPopovers(options, quickToggles, currentDisplay)}
+				<div className="horosa-inline-toggle-row">
+					{quickToggles.map((item)=>{
+						const active = currentDisplay.includes(item.opt);
+						return (
+							<XQToggle
+								key={item.opt}
+								size="small"
+								active={active}
+								onClick={()=>this.toggleChartDisplayOption(item.opt)}
+							>
+								{item.label}
+							</XQToggle>
+						);
+					})}
+				</div>
+				<XQButton className="horosa-recalculate-button" size="small" iconName="refresh" onClick={this.newChart}>
+					重算星盘
+				</XQButton>
+			</div>
+		);
+	}
+
 	renderInterpretationPanel(meta){
 		const memo = this.props.memo ? this.props.memo : '';
 		const summary = [
@@ -455,6 +606,155 @@ class AstroChartMain extends Component{
 		);
 	}
 
+	renderInputOptionPopovers(options, quickToggles, currentDisplay){
+		const isIndiaChart = !!this.props.indiahsys;
+		const chartStyle = AstroConst.normalizeChartStyle(this.props.chartStyle);
+		const indiaChartStyle = AstroConst.normalizeIndiaChartStyle(this.props.indiaChartStyle);
+		const {
+			showzodical,
+			showhsys,
+			indiahsys,
+		} = options;
+		const overlayClassName = "horosa-settings-popover";
+		const popoverProps = {
+			trigger: "click",
+			placement: "rightTop",
+			overlayClassName,
+			destroyTooltipOnHide: true,
+		};
+		const planetsContent = (
+			<div className="horosa-settings-popover-panel horosa-settings-popover-panel-large">
+				<div className="horosa-settings-popover-title">星体与容许度</div>
+				<PlanetSelector
+					value={this.props.planetDisplay}
+					lots={this.props.lotsDisplay}
+					dispatch={this.props.dispatch}
+				/>
+			</div>
+		);
+		const zodiacContent = (
+			<div className="horosa-settings-popover-panel">
+				<div className="horosa-settings-popover-title">宫位制与黄道</div>
+				<div className="horosa-settings-form-grid">
+					{showzodical ? (
+						<div className="horosa-field-block">
+							<div className="horosa-field-label">黄道</div>
+							<XQSelect
+								style={{width: '100%'}}
+								onChange={this.changeZodiacal}
+								value={this.props.fields.zodiacal.value}
+								size="small"
+							>
+								<Option value={0}>回归黄道</Option>
+								<Option value={1}>恒星黄道</Option>
+							</XQSelect>
+						</div>
+					) : null}
+					{showhsys ? (
+						<div className="horosa-field-block">
+							<div className="horosa-field-label">宫制</div>
+							<XQSelect
+								style={{width: '100%'}}
+								onChange={this.changeHsys}
+								value={this.props.fields.hsys.value}
+								size="small"
+							>
+								{ getHousesOption() }
+							</XQSelect>
+						</div>
+					) : null}
+					{indiahsys ? (
+						<div className="horosa-field-block">
+							<div className="horosa-field-label">印度宫制</div>
+							<XQSelect
+								style={{width: '100%'}}
+								onChange={this.changeHsys}
+								value={this.props.fields.hsys.value}
+								size="small"
+							>
+								<Option value={0}>整宫制</Option>
+								<Option value={5}>Vehlow Equal</Option>
+							</XQSelect>
+						</div>
+					) : null}
+				</div>
+			</div>
+		);
+		const displayContent = (
+			<div className="horosa-settings-popover-panel horosa-settings-popover-panel-large">
+				<div className="horosa-settings-popover-title">显示与样式</div>
+				<div className={`horosa-chart-style-block${isIndiaChart ? ' horosa-india-style-block' : ''}`}>
+					<div className="horosa-side-section-title">星盘样式</div>
+					{isIndiaChart ? (
+						<XQSegmented
+							value={indiaChartStyle}
+							onChange={this.changeIndiaChartStyle}
+							options={AstroConst.INDIA_CHART_STYLE_OPTIONS}
+						/>
+					) : (
+						<XQSegmented
+							value={chartStyle}
+							onChange={this.changeChartStyle}
+							options={AstroConst.CHART_STYLE_OPTIONS}
+						/>
+					)}
+				</div>
+				<ChartDisplaySelector
+					value={this.props.chartDisplay}
+					showPdBounds={this.props.fields && this.props.fields.showPdBounds ? this.props.fields.showPdBounds.value : this.props.showPdBounds}
+					showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+					showAstroMeaning={this.props.showAstroMeaning}
+					showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
+					fields={this.props.fields}
+					dispatch={this.props.dispatch}
+				/>
+			</div>
+		);
+		const switchContent = (
+			<div className="horosa-settings-popover-panel horosa-settings-popover-panel-large">
+				<div className="horosa-settings-popover-title">快捷切换</div>
+				<XQSectionTitle>快捷显示</XQSectionTitle>
+				<div className="horosa-chart-toggle-grid horosa-settings-toggle-grid">
+					{quickToggles.map((item)=>{
+						const active = currentDisplay.includes(item.opt);
+						return (
+							<XQToggle
+								key={item.opt}
+								size="small"
+								active={active}
+								onClick={()=>this.toggleChartDisplayOption(item.opt)}
+							>
+								{item.label}
+							</XQToggle>
+						);
+					})}
+				</div>
+				<XQSectionTitle>相位选择</XQSectionTitle>
+				<AspSelector
+					value={this.props.aspects}
+					dispatch={this.props.dispatch}
+				/>
+			</div>
+		);
+
+		return (
+			<div className="horosa-input-nav-stack">
+				<Popover {...popoverProps} content={planetsContent}>
+					<XQButton size="small" iconName="sidePlanets">星体与容许度</XQButton>
+				</Popover>
+				<Popover {...popoverProps} content={zodiacContent}>
+					<XQButton size="small" iconName="sideHouses">宫位制与黄道</XQButton>
+				</Popover>
+				<Popover {...popoverProps} content={displayContent}>
+					<XQButton size="small" iconName="sideStyle">显示与样式</XQButton>
+				</Popover>
+				<Popover {...popoverProps} content={switchContent}>
+					<XQButton size="small" iconName="sideSwitch">快捷切换</XQButton>
+				</Popover>
+			</div>
+		);
+	}
+
 	renderQuickActions(){
 		if(this.props.showQuickActions !== true){
 			return null;
@@ -477,6 +777,94 @@ class AstroChartMain extends Component{
 						</XQButton>
 					))}
 				</div>
+			</div>
+		);
+	}
+
+	renderBottomQuickDock(){
+		if(this.props.showQuickActions !== true){
+			return null;
+		}
+		const actions = [
+			{ label: '主限', icon: 'quickPrimary', onClick: ()=>this.navigateDirectionTool('primarydirect') },
+			{ label: '法达', icon: 'quickFirdaria', onClick: ()=>this.navigateDirectionTool('firdaria') },
+			{ label: '小限', icon: 'quickProfection', onClick: ()=>this.navigateDirectionTool('profection') },
+			{ label: '返照', icon: 'quickReturn', onClick: ()=>this.navigateDirectionTool('solarreturn') },
+			{ label: '合盘', icon: 'quickComposite', onClick: ()=>this.navigateFeature('relativechart') },
+			{ label: '星运', icon: 'quickTransit', onClick: ()=>this.navigateFeature('direction') },
+			{ label: '笔记', icon: 'quickNote', onClick: ()=>this.openDrawer('memo') },
+			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
+		];
+		return (
+			<div className="horosa-bottom-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions">
+					{actions.map((item)=>(
+						<button type="button" key={item.label} className="horosa-bottom-quick-button" onClick={item.onClick}>
+							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
+	renderContentPanel(chartObj, fields, tabHeight, showlots){
+		return (
+			<div className="horosa-inspector-panel horosa-astro-content-panel">
+				<XQTabs defaultActiveKey="1" tabPosition='top' className="horosa-inspector-tabs horosa-content-tabs">
+					<TabPane tab="信息" key="1">
+						<AstroInfo mode="summary" height={tabHeight}
+							value={chartObj} fields={fields}
+							planetDisplay={this.props.planetDisplay}
+							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+							showAstroMeaning={this.props.showAstroMeaning}
+							showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
+						/>
+					</TabPane>
+					<TabPane tab="相位" key="2">
+						<AstroAspect
+							value={chartObj} height={tabHeight}
+							lotsDisplay={this.props.lotsDisplay}
+							planetDisplay={this.props.planetDisplay}
+							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+							showAstroMeaning={this.props.showAstroMeaning}
+						/>
+					</TabPane>
+					<TabPane tab="行星" key="3">
+						<div className="horosa-planet-with-lots">
+							<AstroPlanet
+								value={chartObj}
+								height={showlots ? Math.max(300, tabHeight * 0.58) : tabHeight}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+							{showlots ? (
+								<div className="horosa-lots-under-planets">
+									<div className="horosa-info-card-title">希腊点</div>
+									<AstroLots value={chartObj} height={Math.max(240, tabHeight * 0.42)} showAstroMeaning={this.props.showAstroMeaning}/>
+								</div>
+							) : null}
+						</div>
+					</TabPane>
+					<TabPane tab="古典" key="4">
+						<AstroInfo mode="classical" height={tabHeight}
+							value={chartObj} fields={fields}
+							planetDisplay={this.props.planetDisplay}
+							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+							showAstroMeaning={this.props.showAstroMeaning}
+							showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
+						/>
+					</TabPane>
+					<TabPane tab="可能性" key="5">
+						<AstroPredictPlanetSign height={tabHeight}
+							value={chartObj} fields={fields}
+							planetDisplay={this.props.planetDisplay}
+							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+						/>
+					</TabPane>
+				</XQTabs>
 			</div>
 		);
 	}
@@ -527,18 +915,23 @@ class AstroChartMain extends Component{
 			indiahsys = true;
 			showhsys = false;
 		}
-		if(showQuickActions){
-			tabHeight = tabHeight - 108;
-		}
 		const meta = this.getChartMeta(chartObj, fields);
 
 		return (
-			<div className="horosa-astro-page">
-				<div className="horosa-astro-layout">
-					<div className="horosa-astro-workbench">
-						<div className="horosa-chart-body">
-							{this.renderContextPanel(meta)}
-							<div className="horosa-chart-stage">
+			<div className="horosa-astro-page horosa-astro-redesign">
+				<div className="horosa-astro-layout horosa-astro-redesign-layout">
+					<div className="horosa-astro-redesign-grid">
+						{this.renderInputPanel(meta, dt, {
+							showdateselector,
+							showzodical,
+							showhsys,
+							indiahsys,
+						})}
+						<div className="horosa-chart-stage horosa-chart-stage-redesign">
+							<div className="horosa-chart-floating-tools">
+								<XQIconButton size="small" iconName="settings" tooltip="星盘组件" onClick={()=>this.openDrawer('selectchartdisplay')} />
+								<XQIconButton size="small" iconName="sliders" tooltip="相位设置" onClick={()=>this.openDrawer('selectasp')} />
+							</div>
 								{
 									this.props.chartRenderer ? (
 										this.props.chartRenderer({
@@ -557,134 +950,10 @@ class AstroChartMain extends Component{
 									/>
 									)
 								}
-							</div>
 						</div>
-						{this.renderInterpretationPanel(meta)}
+						{this.renderContentPanel(chartObj, fields, tabHeight, showlots)}
 					</div>
-					<div className="horosa-inspector-panel">
-						<Row gutter={0} className="horosa-inspector-controls">
-							{
-								showdateselector && (
-									<Col span={24}>
-										<PlusMinusTime value={dt} onChange={this.changeTime} hook={this.tmHook} />
-									</Col>
-								)
-							}
-							{
-								showzodical && (
-									<Col span={7}>
-										<XQSelect
-											style={{width: '100%'}}
-											onChange={this.changeZodiacal}
-											value={this.props.fields.zodiacal.value} size='small'>
-											<Option value={0}>回归黄道</Option>
-											<Option value={1}>恒星黄道</Option>
-										</XQSelect>
-									</Col>
-
-								)
-							}
-							{
-								showhsys && (
-									<Col span={10}>
-										<XQSelect style={{width: '100%'}}
-											onChange={this.changeHsys}
-											value={this.props.fields.hsys.value}
-											size='small'>
-											{ getHousesOption() }
-										</XQSelect>
-									</Col>
-								)
-							}
-							{
-								showhsys && (
-									<Col span={7}>
-										<XQSelect style={{width: '100%'}}
-											onChange={this.changeSouthChart}
-											value={this.props.fields.southchart.value}
-											size='small'>
-											<Option value={0}>天文星座</Option>
-											<Option value={1}>涵义星座</Option>
-										</XQSelect>
-									</Col>
-								)
-							}
-							{
-								indiahsys && (
-									<Col span={24}>
-										<XQSelect style={{width:196}}
-											onChange={this.changeHsys}
-											value={this.props.fields.hsys.value}
-											size='small'>
-											<Option value={0}>整宫制</Option>
-											<Option value={5}>Vehlow Equal</Option>
-										</XQSelect>
-									</Col>
-								)
-							}
-							{
-								showdateselector && (
-									<Col span={24}>
-										<Row>
-										<Col span={8}>
-											<GeoCoordModal
-												onOk={this.changeGeo}
-												lat={this.props.fields.gpsLat.value} lng={this.props.fields.gpsLon.value}
-											>
-												<XQButton size='small' style={{width:'100%'}}>经纬度选择</XQButton>
-											</GeoCoordModal>
-										</Col>
-										<Col span={16} className="horosa-geo-value">
-											<span>{this.props.fields.lon.value + ' ' + this.props.fields.lat.value}</span>
-										</Col>
-										</Row>
-									</Col>
-								)
-							}
-						</Row>
-						<XQTabs defaultActiveKey="1" tabPosition='top' className="horosa-inspector-tabs">
-								<TabPane tab="信息" key="1">
-									<AstroInfo height={tabHeight}
-										value={chartObj} fields={fields}
-										planetDisplay={this.props.planetDisplay}
-										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
-								</TabPane>
-								<TabPane tab="相位" key="2">
-									<AstroAspect
-										value={chartObj} height={tabHeight}
-										lotsDisplay={this.props.lotsDisplay}
-										planetDisplay={this.props.planetDisplay}
-										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
-								</TabPane>
-								<TabPane tab="行星" key="3">
-									<AstroPlanet
-										value={chartObj}
-										height={tabHeight}
-										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
-								</TabPane>
-								{
-									showlots && (
-										<TabPane tab="希腊点" key="4">
-											<AstroLots value={chartObj} height={tabHeight} showAstroMeaning={this.props.showAstroMeaning}/>
-										</TabPane>
-									)
-								}
-							<TabPane tab="可能性" key="5">
-								<AstroPredictPlanetSign height={tabHeight}
-									value={chartObj} fields={fields}
-									planetDisplay={this.props.planetDisplay}
-									showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-								/>
-							</TabPane>
-						</XQTabs>
-						{this.renderQuickActions()}
-					</div>
+					{this.renderBottomQuickDock()}
 				</div>
 
 			</div>

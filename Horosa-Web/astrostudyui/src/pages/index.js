@@ -48,7 +48,7 @@ import * as AstroConst from '../constants/AstroConst';
 import {convertToArray} from '../utils/helper';
 import { APPEARANCE_DARK } from '../utils/appearance';
 import XQIcon from '../components/xq-icons';
-import { XQDrawer as Drawer, XQTabs } from '../components/xq-ui';
+import { XQDrawer as Drawer, XQModal, XQTabs } from '../components/xq-ui';
 
 const TabPane = XQTabs.TabPane;
 let fetchByFieldsTimer = null;
@@ -313,7 +313,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             <XQTabs
                 defaultActiveKey="astrochart" tabPosition='left' onChange={changeTab}
                 activeKey={currentTab}
-                className='mainRootTabs horosa-nav-in-drawer'
+                className={`mainRootTabs horosa-nav-in-drawer${currentTab === 'astrochart' ? ' horosa-astro-shell-active' : ''}`}
                 style={{ height: height }}
             >
                 <TabPane tab={mainTab('占星', '命')} key="astrochart">
@@ -325,10 +325,13 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         height={height} 
                         chartDisplay={chartDisplay}
                         chartStyle={chartStyle}
+                        aspects={aspects}
                         planetDisplay={planetDisplay}
 	                        lotsDisplay={lotsDisplay}
+	                        showPdBounds={showPdBounds}
 	                        showPlanetHouseInfo={showPlanetHouseInfo}
 	                        showAstroMeaning={showAstroMeaning}
+	                        showOnlyRulExaltReception={showOnlyRulExaltReception}
 	                        memo={memo}
 	                        dispatch={dispatch}
 	                        hook={predictHook.astrochart}
@@ -1081,31 +1084,31 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 />
             </Drawer>
 
-            <Drawer
-                title='导航'
-                width={260}
-                placement="left"
+            <XQModal
+                title={null}
+                footer={null}
+                centered
+                closable={false}
+                width={1228}
                 destroyOnClose={true}
-                onClose={closeDrawer}
                 maskClosable={true}
                 open={drawerVisible.homepage}
-                className="xq-drawer-nav"
-                style={{
-                    height: 'calc(100% - 0px)',
-                    overflow: 'auto',
-                    paddingBottom: 53,
-                    backgroundColor: 'transparent',
-                }}        
+                onCancel={closeDrawer}
+                className="xq-nav-popup"
+                transitionName="xq-nav-popup-motion"
+                maskTransitionName="xq-nav-popup-mask-motion"
             >
-                <HomePageSetup
-                    dispatch={dispatch}
-                    loading={loading}
-                    pages={drawerNavigationPages}
-                    currentKey={currentTab}
-                    onNavigate={changeTab}
-                    onClose={closeDrawer}
-                />
-            </Drawer>
+                <div className="xq-nav-popup-shell">
+                    <HomePageSetup
+                        dispatch={dispatch}
+                        loading={loading}
+                        pages={drawerNavigationPages}
+                        currentKey={currentTab}
+                        onNavigate={changeTab}
+                        onClose={closeDrawer}
+                    />
+                </div>
+            </XQModal>
 
         </Spin>
 		</div>

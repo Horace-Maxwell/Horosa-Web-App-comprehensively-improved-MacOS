@@ -10,9 +10,11 @@ import {
 } from '../utils/appearance';
 import styles from './app.less';
 
-const App = ({children, dispatch, app, user, })=>{
+const App = ({children, dispatch, app, user, astro, })=>{
     const { userInfo, admin, } = user;
     const { chartDisplay, appearanceMode,} = app;
+    const currentTab = astro && astro.currentTab ? astro.currentTab : null;
+    const isAstroPage = currentTab === 'astrochart';
     const { Header, Content } = Layout;
     const [prefersDark, setPrefersDark] = React.useState(()=>{
         if(typeof window === 'undefined' || !window.matchMedia){
@@ -80,12 +82,14 @@ const App = ({children, dispatch, app, user, })=>{
         color: 'var(--horosa-text)',
         stroke: 'var(--horosa-text)',
     };
+    const astroHeaderBg = resolvedAppearance === APPEARANCE_DARK ? '#050607' : 'var(--horosa-header-bg)';
+    const astroHeaderBorder = resolvedAppearance === APPEARANCE_DARK ? 'rgba(215, 173, 105, 0.18)' : 'var(--horosa-border)';
     let headerstyle = {
         position: 'fixed', width:'100%', zIndex: 100,
-        backgroundColor: 'var(--horosa-header-bg)',
+        backgroundColor: isAstroPage ? astroHeaderBg : 'var(--horosa-header-bg)',
         height:72, padding: 0,
         borderBottom: '1px solid',
-        borderBottomColor: 'var(--horosa-border)',
+        borderBottomColor: isAstroPage ? astroHeaderBorder : 'var(--horosa-border)',
         color: 'var(--horosa-text)',
         stroke: 'var(--horosa-text)',
     };
@@ -105,12 +109,13 @@ const App = ({children, dispatch, app, user, })=>{
             data-appearance={resolvedAppearance}
             style={mainstyle}
         >
-            <Header style={headerstyle}>
+            <Header className={isAstroPage ? 'horosa-astro-header' : ''} style={headerstyle}>
                 <PageHeader 
                     admin={admin}
                     chartDisplay={chartDisplay}
                     appearanceMode={appearanceMode}
                     resolvedAppearance={resolvedAppearance}
+                    currentTab={currentTab}
                     userInfo={userInfo} 
                     onMenuClick={menuClick}
                     dispatch={dispatch}
@@ -133,13 +138,14 @@ const App = ({children, dispatch, app, user, })=>{
 
 
 function mapStateToProps(state){
-    const { app, user, router } = state;
+    const { app, user, router, astro } = state;
     const { location } = router;
     const { query } = location;
 
     return {
         app: app,
         user: user,
+        astro: astro,
         query: query,
     };
 }

@@ -8,6 +8,11 @@ const lineProps = {
 	strokeLinejoin: 'round',
 };
 
+const boldLineProps = {
+	...lineProps,
+	strokeWidth: 2.2,
+};
+
 function Svg({children, viewBox = '0 0 24 24', className = '', ...rest}){
 	return (
 		<svg
@@ -73,6 +78,157 @@ const iconMap = {
 		<Svg>
 			<circle {...lineProps} cx="10.5" cy="10.5" r="5.8" />
 			<path {...lineProps} d="m15 15 4 4" />
+		</Svg>
+	),
+	bookmark: (
+		<Svg>
+			<path {...lineProps} d="M7 4.8h10v14.4l-5-3.1-5 3.1z" />
+		</Svg>
+	),
+	history: (
+		<Svg>
+			<path {...lineProps} d="M5.8 8.4a7.2 7.2 0 1 1-.8 5.1" />
+			<path {...lineProps} d="M4.8 5.2v4h4" />
+			<path {...lineProps} d="M12 8.2V12l3 2" />
+		</Svg>
+	),
+	settings: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="3.1" />
+			<path {...lineProps} d="M12 3.8v2.1M12 18.1v2.1M5.9 5.9l1.5 1.5M16.6 16.6l1.5 1.5M3.8 12h2.1M18.1 12h2.1M5.9 18.1l1.5-1.5M16.6 7.4l1.5-1.5" />
+		</Svg>
+	),
+	help: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8.5" />
+			<path {...lineProps} d="M9.6 9.4a2.6 2.6 0 1 1 3.2 2.5c-.7.3-.8.8-.8 1.7" />
+			<path {...lineProps} d="M12 17.1h.1" />
+		</Svg>
+	),
+	chevronDown: (
+		<Svg>
+			<path {...lineProps} d="m7 9.5 5 5 5-5" />
+		</Svg>
+	),
+	clock: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8.2" />
+			<path {...lineProps} d="M12 7.5V12l3.1 1.9" />
+		</Svg>
+	),
+	globe: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8.2" />
+			<path {...lineProps} d="M4 12h16M12 3.8c2.1 2.2 3.2 5 3.2 8.2S14.1 18 12 20.2M12 3.8C9.9 6 8.8 8.8 8.8 12s1.1 6 3.2 8.2" />
+		</Svg>
+	),
+	sliders: (
+		<Svg>
+			<path {...lineProps} d="M5 7h14M5 12h14M5 17h14" />
+			<circle {...lineProps} cx="9" cy="7" r="1.7" />
+			<circle {...lineProps} cx="15" cy="12" r="1.7" />
+			<circle {...lineProps} cx="11" cy="17" r="1.7" />
+		</Svg>
+	),
+	target: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8.2" />
+			<circle {...lineProps} cx="12" cy="12" r="4.4" />
+			<circle cx="12" cy="12" r="1.4" fill="currentColor" />
+		</Svg>
+	),
+	quickPrimary: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8.4" />
+			<circle {...lineProps} cx="12" cy="12" r="5.4" />
+			<circle {...lineProps} cx="12" cy="12" r="2" />
+			<path {...lineProps} d="M16.9 5.1a8.4 8.4 0 0 1 2.7 4.4" strokeDasharray="1 1.8" />
+			<circle cx="19" cy="8.4" r="1.5" fill="currentColor" />
+		</Svg>
+	),
+	quickFirdaria: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8" strokeDasharray="2.2 1.5" />
+			<circle {...lineProps} cx="12" cy="12" r="5.1" />
+			<path {...boldLineProps} d="M12 8.7V12l-2.5 2.3" />
+			<path {...lineProps} d="M16.8 5.6a8 8 0 0 1 2.6 4" />
+			<circle cx="19" cy="9.1" r="1.4" fill="currentColor" />
+		</Svg>
+	),
+	quickProfection: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="8" />
+			<circle {...lineProps} cx="12" cy="12" r="5.4" strokeDasharray="1.4 1.7" />
+			<circle {...lineProps} cx="12" cy="12" r="2.2" />
+			<circle cx="12" cy="12" r="1" fill="currentColor" />
+		</Svg>
+	),
+	quickReturn: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="10.8" r="4.5" />
+			<path {...lineProps} d="M12 2.6v2.2M12 16.8V19M4.6 10.8h2.2M17.2 10.8h2.2M6.8 5.6l1.5 1.5M15.7 14.5l1.5 1.5M17.2 5.6l-1.5 1.5M8.3 14.5 6.8 16" />
+			<path {...lineProps} d="M5.3 15.1a8.4 8.4 0 0 0 4.9 3.5" />
+			<path {...lineProps} d="m5.3 15.1 3-.3M5.3 15.1l1.4-2.6M18.7 15.1a8.4 8.4 0 0 1-4.9 3.5" />
+			<path {...lineProps} d="m18.7 15.1-3-.3M18.7 15.1l-1.4-2.6" />
+		</Svg>
+	),
+	quickComposite: (
+		<Svg>
+			<circle {...lineProps} cx="9.2" cy="12" r="4.9" />
+			<circle {...lineProps} cx="14.8" cy="12" r="4.9" />
+		</Svg>
+	),
+	quickTransit: (
+		<Svg>
+			<ellipse {...lineProps} cx="12" cy="12" rx="8.6" ry="3.4" transform="rotate(-25 12 12)" />
+			<path {...lineProps} d="M5.2 12.7a7 7 0 0 1 9.4-6.6" />
+			<path {...lineProps} d="M18.8 11.3a7 7 0 0 1-9.4 6.6" />
+		</Svg>
+	),
+	quickNote: (
+		<Svg>
+			<path {...lineProps} d="M7.3 4.8H17a1.5 1.5 0 0 1 1.5 1.5v10" />
+			<path {...lineProps} d="M5.5 7h9.7a1.5 1.5 0 0 1 1.5 1.5v10.7H5.5z" />
+			<path {...lineProps} d="M8.5 10.4h5.6M8.5 13.5h4.3" />
+			<path {...lineProps} d="m13.7 18.2 4.2-4.2 1.8 1.8-4.2 4.2-2.3.5z" />
+		</Svg>
+	),
+	quickAi: (
+		<Svg>
+			<path {...boldLineProps} d="M11.3 6.2 13 10.3l4.1 1.7-4.1 1.7-1.7 4.1-1.7-4.1L5.5 12l4.1-1.7z" />
+			<path {...boldLineProps} d="M17.6 3.4l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" />
+			<path {...boldLineProps} d="M6.8 4.6l.5 1.2 1.2.5-1.2.5L6.8 8l-.5-1.2-1.2-.5 1.2-.5z" />
+		</Svg>
+	),
+	sidePlanets: (
+		<Svg>
+			<path {...lineProps} d="M12 6.2c2 0 3.6 1.6 3.6 3.6 0 2.8-3.6 5.2-3.6 5.2s-3.6-2.4-3.6-5.2c0-2 1.6-3.6 3.6-3.6z" />
+			<path {...lineProps} d="M12 3.7v2.2M9.5 4.4l1.2 1.8M14.5 4.4l-1.2 1.8" />
+			<path {...lineProps} d="M7.2 18.8c1.2-2 2.8-3 4.8-3s3.6 1 4.8 3" />
+			<path {...lineProps} d="M5.7 18.8h12.6" />
+		</Svg>
+	),
+	sideHouses: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="7.6" />
+			<path {...lineProps} d="M4.7 12h14.6M12 4.4v15.2M7 6.6c2.8 1.6 5.5 3.4 10 10.8M17 6.6c-2.8 1.6-5.5 3.4-10 10.8" />
+			<path {...lineProps} d="M8.8 18.8h6.4" />
+		</Svg>
+	),
+	sideStyle: (
+		<Svg>
+			<path {...lineProps} d="m5.1 18.9 8.6-8.6" />
+			<path {...lineProps} d="m10.7 7.3 6 6" />
+			<path {...lineProps} d="m16.6 5 1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z" />
+			<path {...lineProps} d="M6.7 6.2v3.2M5.1 7.8h3.2M8 12.7v2.4M6.8 13.9h2.4" />
+		</Svg>
+	),
+	sideSwitch: (
+		<Svg>
+			<circle {...lineProps} cx="12" cy="12" r="3.1" />
+			<path {...lineProps} d="M8.1 6.1a7.1 7.1 0 0 1 9.6 2.1" />
+			<path {...lineProps} d="m17.7 8.2-3.1-.4M17.7 8.2l-.4-3.1M15.9 17.9a7.1 7.1 0 0 1-9.6-2.1" />
+			<path {...lineProps} d="m6.3 15.8 3.1.4M6.3 15.8l.4 3.1" />
 		</Svg>
 	),
 	plus: (

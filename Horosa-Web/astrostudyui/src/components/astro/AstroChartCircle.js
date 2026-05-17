@@ -7,6 +7,9 @@ import {drawTextV, drawTextH} from '../graph/GraphHelper';
 import { appendAstroMeaningTips, buildSignMeaningTip, buildAspectMeaningTip } from './AstroMeaningData';
 import { getChartRendererClass } from '../../renderers/xqChartTheme';
 
+const RETROGRADE_SYMBOL_COLOR = '#8f2d2d';
+const PLANET_MINUTE_TEXT_COLOR = '#80786e';
+
 const ZODIACAL_LABELS = {
 	0: '回归黄道',
 	1: '恒星黄道',
@@ -45,7 +48,7 @@ function buildChartCircleDisplayModeText(params = {}){
 const ChartStyleProfiles = {
 	[AstroConst.CHART_STYLE_CURRENT]: {
 		outerMode: 'cusp',
-		starScale: 1,
+		starScale: 1.04,
 		innerHouseScale: 1,
 		forceFlags: 0,
 		clearFlags: 0,
@@ -337,7 +340,7 @@ export default class AstroChartCircle {
 				.attr('font-family', AstroConst.AstroChartFont)
 				.attr('font-size', function(d, idx){
 					if(d === sig){
-						return 16;
+						return 24;
 					}
 					return 12;
 				})
@@ -397,7 +400,6 @@ export default class AstroChartCircle {
 		let innerR = r - rStep;
 		let txtPosR = r - rStep / 2 - this.TxtOffsetTop;
 		const textAngle = house1Ang !== undefined && house1Ang !== null ? 90 - house1Ang : 0;
-		const labelClearance = Math.max(0, Math.min(rStep / 2 - 2, Math.max(10, rStep * 0.36)));
 		let band = svg.append('g');
 
 		band.append('circle')
@@ -430,9 +432,7 @@ export default class AstroChartCircle {
 					.attr('stroke', AstroConst.AstroColor.Stroke)
 					.attr('stroke-width', 1);
 			};
-			if(showCuspText){
-				appendCuspLine(Math.max(innerR, txtPosR - labelClearance), innerR);
-			}else{
+			if(!showCuspText){
 				appendCuspLine(r, innerR);
 			}
 
@@ -449,18 +449,24 @@ export default class AstroChartCircle {
 				.attr("text-anchor", "middle")
 				.attr('font-size', function(d, idx){
 					if(idx === 1){
-						return 22;
+						return 24;
 					}
 					if(idx === 2){
 						return 11;
 					}
-					return 13;
+					return 15;
 				})
 				.attr('stroke', function(d, idx){
 					if(idx === 1){
 						return AstroConst.AstroColor[sig];
 					}
+					if(idx === 2){
+						return PLANET_MINUTE_TEXT_COLOR;
+					}
 					return AstroConst.AstroColor.Stroke;
+				})
+				.attr('fill', function(d, idx){
+					return idx === 2 ? PLANET_MINUTE_TEXT_COLOR : null;
 				})
 				.attr('font-family', function(d,idx){
 					if(idx === 1){
@@ -473,7 +479,7 @@ export default class AstroChartCircle {
 						return 400;
 					}
 					if(idx === 2){
-						return 400;
+						return 340;
 					}
 					return 600;
 				})
@@ -895,13 +901,16 @@ export default class AstroChartCircle {
 		let txtplanet = (flags & AstroConst.CHART_TXTPLANET) === 0 ? false : true;
 		let degSet = [];
 		const isWideChart = r >= this.rThreshold;
-		const planetSymbolFont = txtplanet ? (isWideChart ? 25 : 21) : (isWideChart ? 38 : 32);
-		const signSymbolFont = isWideChart ? 20 : 17;
-		const planetTextFont = isWideChart ? 16 : 14;
+		const planetSymbolFont = txtplanet ? (isWideChart ? 30 : 25) : (isWideChart ? 43 : 36);
+		const signSymbolFont = isWideChart ? 18 : 15;
+		const planetTextFont = isWideChart ? 12 : 10;
+		const planetDegreeFont = isWideChart ? 14 : 12;
+		const planetMinuteFont = isWideChart ? 9 : 8;
+		const retrogradeSymbolFont = isWideChart ? 15 : 13;
 		const planetLayerInset = Math.max(isWideChart ? 32 : 24, Math.round(rStep * (isWideChart ? 0.22 : 0.28)));
 		const planetTextOffsets = isWideChart
-			? { planet: 0, degree: 32, sign: 50, minute: 68, retrograde: 84, extraStart: 100, extraStep: 15 }
-			: { planet: 0, degree: 26, sign: 42, minute: 58, retrograde: 72, extraStart: 86, extraStep: 13 };
+			? { planet: 0, degree: 35, sign: 58, minute: 80, retrograde: 96, extraStart: 112, extraStep: 16 }
+			: { planet: 0, degree: 28, sign: 47, minute: 66, retrograde: 82, extraStart: 96, extraStep: 14 };
 	
 		let innerR = r - rStep;
 		let txtPosR = r - planetLayerInset - this.TxtOffsetTop;
@@ -980,6 +989,10 @@ export default class AstroChartCircle {
 			if(hasRetrograde){
 				startxt.push(AstroText.AstroMsg['Retrograde']);
 			}
+			const retrogradeTextIndex = hasRetrograde ? (txtplanet ? 7 : 2) : -1;
+			const degreeTextIndex = txtplanet ? 2 : -1;
+			const signTextIndex = txtplanet ? 4 : -1;
+			const minuteTextIndex = txtplanet ? 6 : -1;
 			if(txtsu28){
 				let sudegs = this.getSu28Text(chartObj, pnt);
 				sudegs.map((itm, idx)=>{
@@ -993,31 +1006,65 @@ export default class AstroChartCircle {
 			lblgroup.selectAll('text').data(startxt).enter().append('text')
 				.attr("dominant-baseline","middle")
 				.attr("text-anchor", "middle")
+				.attr('class', function(d, idx){
+					return idx === retrogradeTextIndex ? 'horosa-astro-retrograde-symbol' : null;
+				})
 				.attr('font-size', function(d, idx){
-					if(idx === 0 || idx === 7 || (startxt.length === 3 && idx === 2)){ // 行星符号
+					if(idx === retrogradeTextIndex){
+						return retrogradeSymbolFont;
+					}
+					if(idx === degreeTextIndex){
+						return planetDegreeFont;
+					}
+					if(idx === 0 || (startxt.length === 3 && idx === 2)){ // 行星符号
 						return planetSymbolFont;
 					}else if(idx === 1 || idx === 3 || idx === 5){ // 空格
 						return 1;
-					}else if(idx === 4){ // 星座符号
+					}else if(idx === signTextIndex){ // 星座符号
 						return signSymbolFont;
+					}else if(idx === minuteTextIndex){
+						return planetMinuteFont;
 					}else{
 						return planetTextFont;
 					}
 				})
 				.attr('stroke', function(d, idx){
+					if(idx === retrogradeTextIndex){
+						return RETROGRADE_SYMBOL_COLOR;
+					}
+					if(idx === minuteTextIndex){
+						return PLANET_MINUTE_TEXT_COLOR;
+					}
 					if(samecolorwithsign){
 						return AstroConst.AstroColor[pnt.sign];
 					}else{
 						return AstroConst.AstroColor[pntstr];
 					}				
 				})
+				.attr('fill', function(d, idx){
+					if(idx === retrogradeTextIndex){
+						return RETROGRADE_SYMBOL_COLOR;
+					}
+					if(idx === minuteTextIndex){
+						return PLANET_MINUTE_TEXT_COLOR;
+					}
+					return null;
+				})
 				.attr('font-family', function(d,idx){
-					if(idx === 0 || idx === 4 || idx === 7 || (startxt.length === 3 && idx === 2)){
+					if(idx === 0 || idx === 4 || idx === retrogradeTextIndex || (startxt.length === 3 && idx === 2)){
 						return AstroConst.AstroChartFont;
 					}else{
 						return AstroConst.NormalFont;
 					}
-				}).attr('font-weight', 400)
+				}).attr('font-weight', function(d, idx){
+					if(idx === degreeTextIndex || idx === signTextIndex){
+						return 520;
+					}
+					if(idx === minuteTextIndex){
+						return 340;
+					}
+					return 400;
+				})
 				.attr('transform', function(d, idx){
 					let offset = getPlanetTextOffset(idx, hasRetrograde);
 					let x = -(txtPosR - offset) * Math.sin(lon);
@@ -1463,6 +1510,7 @@ export default class AstroChartCircle {
 	
 	drawOuterSigns(chartObj, topgroup, radius, rStep, flags, isDiurnal, termHighlight){
 		const profile = this.getChartStyleProfile();
+		const outerBandStep = ['cusp', 'zodiac'].indexOf(profile.outerMode) >= 0 ? rStep + 8 : rStep;
 		let needOutDeg = (flags & AstroConst.CHART_OUTERDEG) === AstroConst.CHART_OUTERDEG ? true : false;
 		if(needOutDeg){
 			let outerDegLines = this.degreeOuterLines(topgroup, radius);
@@ -1473,17 +1521,17 @@ export default class AstroChartCircle {
 		}
 		let house1ang = house1 ? house1['lon'] : null;
 		if(profile.outerMode === 'zodiac'){
-			this.signsBand(topgroup, radius, rStep, flags, isDiurnal, house1ang);
+			this.signsBand(topgroup, radius, outerBandStep, flags, isDiurnal, house1ang);
 		}else if(chartObj && chartObj.chart && Array.isArray(chartObj.chart.houses)){
-			this.houseCuspBand(topgroup, radius, rStep, chartObj.chart.houses, flags, house1ang);
+			this.houseCuspBand(topgroup, radius, outerBandStep, chartObj.chart.houses, flags, house1ang);
 		}else{
-			this.signsBand(topgroup, radius, rStep, flags, isDiurnal, house1ang);
+			this.signsBand(topgroup, radius, outerBandStep, flags, isDiurnal, house1ang);
 		}
 	
 		let needTerm = (flags & AstroConst.CHART_TERM) === AstroConst.CHART_TERM ? true : false;
 	
 		if(needTerm){
-			let termR = radius - rStep;
+			let termR = radius - outerBandStep;
 			let termStep = 20;
 			let terms = this.termBand(topgroup, termR, termStep, flags, termHighlight);
 		
@@ -1491,7 +1539,7 @@ export default class AstroChartCircle {
 			return houseR;	
 		}
 	
-		return radius - rStep;
+		return radius - outerBandStep;
 	}
 	
 	drawInnerChartWithOrgXY(topgroup, chartObj, orgx, orgy, houseR, rStep, flags, planetDisplay, txtsu28, keyplanets){

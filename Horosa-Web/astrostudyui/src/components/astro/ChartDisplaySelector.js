@@ -112,7 +112,7 @@ class ChartDisplaySelector extends Component{
 		};
 		const currentDisplay = Array.isArray(this.props.value) ? this.props.value : [];
 
-		let allobjs = AstroConst.CHART_OPTIONS.map((opt)=>{
+		let allobjs = AstroConst.CHART_OPTIONS.filter((opt)=>opt !== AstroConst.CHART_INFOINCIRCLE).map((opt)=>{
 			const checked = currentDisplay.includes(opt);
 			return (
 				<XQCheckItem
