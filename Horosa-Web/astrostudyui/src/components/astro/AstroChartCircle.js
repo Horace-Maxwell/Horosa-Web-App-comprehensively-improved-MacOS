@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import {splitDegree, whichTerm, convertLatToStr, convertLonToStr, getDignityText, getObjectsText} from './AstroHelper';
-import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip, setupFloatingTooltip} from '../../utils/helper';
+import {randomStr, detectOS, distanceInCircleAbs, creatTooltip, setupFloatingTooltip} from '../../utils/helper';
 import {drawTextV, drawTextH} from '../graph/GraphHelper';
 import { appendAstroMeaningTips, buildSignMeaningTip, buildAspectMeaningTip } from './AstroMeaningData';
 import { getChartRendererClass } from '../../renderers/xqChartTheme';
@@ -1320,26 +1320,7 @@ export default class AstroChartCircle {
 			})
 			.text(function(d){return d});			
 	
-		let printsvg = svg.append('g');
-		printsvg.append('text')
-			.attr("dominant-baseline","middle")
-			.attr("text-anchor", "left")
-			.attr('font-weight', 100)
-			.attr('stroke', AstroConst.AstroColor.Stroke)
-			.attr('style', 'cursor:hand')
-			.attr('transform', function(d){
-				let x = margin;
-				let y = margin + rowheight * txts.length;
-				let trans = 'translate(' + x + ', ' + y + ')';
-				return trans;
-			})
-			.text('打印星盘');
-	
-		printsvg.on('click', ()=>{
-			printArea(chartid);
-		});
-		
-	}
+		}
 	
 	drawBirthInfoInCircle(svg, r, firstX, firstY, chartObj, chartid){
 		let params = chartObj.params;
@@ -1394,26 +1375,7 @@ export default class AstroChartCircle {
 			})
 			.text(function(d){return d});	
 			
-		let printsvg = svg.append('g');
-		printsvg.append('text')
-			.attr("dominant-baseline","middle")
-			.attr("text-anchor", "left")
-			.attr('font-weight', 100)
-			.attr('stroke', AstroConst.AstroColor.Stroke)
-			.attr('style', 'cursor:hand')
-			.attr('transform', function(d, idx){
-				y = fy + rowheight * txts.length;
-				let trans = 'translate(' + x + ', ' + y + ')';
-				return trans;
-			})
-			.text('打印星盘');
-	
-		printsvg.on('click', ()=>{
-			printArea(chartid);
-		});
-	
-	
-	}
+		}
 	
 	drawAngles(svg, r, len, chartObj, flags){
 		let asc = this.getObject(chartObj, AstroConst.ASC);

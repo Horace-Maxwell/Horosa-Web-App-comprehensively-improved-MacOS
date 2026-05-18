@@ -1,12 +1,11 @@
 import { Component } from 'react';
 import { Row, Col } from 'antd';
-import GeoCoordModal from '../amap/GeoCoordModal';
-import PlusMinusTime from '../astro/PlusMinusTime';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as LRConst from '../liureng/LRConst';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import DateTime from '../comp/DateTime';
-import { XQButton as Button, XQSelect as Select } from '../xq-ui';
+import { XQSelect as Select } from '../xq-ui';
 
 const {Option} = Select;
 
@@ -112,11 +111,12 @@ class LiuRengBirthInput extends Component{
 
 		return (
 			<div>
-			<Row>
-				<Col span={24}>
-					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} showAdjust={requireConfirm} />
-				</Col>	
-			</Row>
+			<SpaceTimePanel
+				fields={fields}
+				value={datetm}
+				onTimeChange={this.onTimeChanged}
+				onGeoChange={this.changeGeo}
+			/>
 			<Row>
 				<Col lg={12} xl={8}>
 					<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
@@ -131,20 +131,6 @@ class LiuRengBirthInput extends Component{
 						<Option value={0}>23点为当天</Option>
 						<Option value={1}>23点为第二天</Option>
 					</Select>				
-				</Col>
-
-				<Col lg={12} xl={8}>
-					<div>
-						<GeoCoordModal 
-							onOk={this.changeGeo}
-							lat={fields.gpsLat.value} lng={fields.gpsLon.value}
-						>
-							<Button size='small' style={{width:'100%'}}>经纬度选择</Button>
-						</GeoCoordModal>
-					</div>
-				</Col>
-				<Col lg={12} xl={24} style={{textAlign: 'right'}}>
-					<span style={{width:'100%', textAlign: 'center'}}>{fields.lon.value + ' ' + fields.lat.value}</span>
 				</Col>
 
 			</Row>

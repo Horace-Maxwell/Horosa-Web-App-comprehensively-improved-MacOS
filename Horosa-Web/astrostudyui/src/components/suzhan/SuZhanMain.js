@@ -1,5 +1,4 @@
 import { Component } from 'react';
-import { Row, Col, Divider, } from 'antd';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import {randomStr,} from '../../utils/helper';
@@ -10,6 +9,10 @@ import * as Su28Helper from '../su28/Su28Helper';
 import SuZhanInput from './SuZhanInput';
 import SuZhanChart from './SuZhanChart';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
+import { XQTabs as Tabs } from '../xq-ui';
+import XQIcon from '../xq-icons';
+
+const { TabPane } = Tabs;
 
 const SIMPLE_TOKEN_MAP = {
 	A: '日',
@@ -463,10 +466,98 @@ class SuZhanMain extends Component{
 		this.unmounted = true;
 	}
 
+	renderInputPanel(){
+		return (
+			<div className="horosa-suzhan-input-stack">
+				<div>
+					<div className="horosa-side-panel-title">宿盘设置</div>
+					<div className="horosa-side-panel-subtitle">时间、地点与宿盘选项</div>
+				</div>
+				<div className="horosa-suzhan-input-section">
+					<div className="horosa-suzhan-field-title"><XQIcon name="clock" />时间、地点与选项</div>
+					<div className="horosa-suzhan-input-embed">
+						<SuZhanInput
+							fields={this.props.fields}
+							onFieldsChange={this.onFieldsChange}
+						/>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	renderInfoRows(){
+		const fields = this.props.fields || {};
+		const chartObj = this.props.value || {};
+		const chart = chartObj.chart || {};
+		const fieldTime = fields.date && fields.time
+			? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}`
+			: '—';
+		const geo = fields.lon && fields.lat ? `${fields.lon.value} ${fields.lat.value}` : '—';
+		const rows = [
+			['起盘时间', fieldTime],
+			['地点', geo],
+			['外盘', fields.szchart ? chartTypeName(fields.szchart.value) : chartTypeName(SZConst.SZChart.chart)],
+			['盘型', fields.szshape ? chartShapeName(fields.szshape.value) : chartShapeName(SZConst.SZChart.shape)],
+			['宿法', fields.doubingSu28 && fields.doubingSu28.value === 1 ? '斗柄定房法' : '现实距星法'],
+			['人事十二宫', fields.houseStartMode ? houseStartModeName(fields.houseStartMode.value) : houseStartModeName(SZConst.SZChart.houseStartMode)],
+			['宫位数', chart.houses ? chart.houses.length : '—'],
+			['星曜数', chart.objects ? chart.objects.length : '—'],
+			['二十八宿', chart.fixedStarSu28 ? chart.fixedStarSu28.length : '—'],
+		];
+		return rows.map(([label, value])=>(
+			<div className="horosa-suzhan-info-row" key={label}>
+				<span>{label}</span>
+				<strong>{value}</strong>
+			</div>
+		));
+	}
+
+	renderHouseSuRows(){
+		const chartObj = this.props.value || {};
+		const chart = chartObj.chart || {};
+		const lines = buildHouseSuLines(chartObj, chart, this.props.planetDisplay, this.props.fields);
+		if(!lines.length){
+			return <div className="horosa-suzhan-empty">暂无宫宿数据</div>;
+		}
+		return lines.map((line, idx)=>{
+			if(!line){
+				return null;
+			}
+			const isHead = line.indexOf('宫位：') === 0 || line.indexOf('二十八宿：') === 0;
+			return (
+				<div className={isHead ? 'horosa-suzhan-line is-head' : 'horosa-suzhan-line'} key={`${idx}_${line}`}>
+					{line}
+				</div>
+			);
+		});
+	}
+
+	renderRightPanel(){
+		const snapshot = buildSuzhanSnapshotText(this.props.value, this.props.fields, this.props.planetDisplay);
+		return (
+			<Tabs defaultActiveKey="overview" tabPosition="top" className="horosa-suzhan-tabs">
+				<TabPane tab="概览" key="overview">
+					<div className="horosa-suzhan-info-card">
+						{this.renderInfoRows()}
+					</div>
+				</TabPane>
+				<TabPane tab="宫宿" key="houses">
+					<div className="horosa-suzhan-line-list">
+						{this.renderHouseSuRows()}
+					</div>
+				</TabPane>
+				<TabPane tab="快照" key="snapshot">
+					<pre className="horosa-suzhan-snapshot">{snapshot}</pre>
+				</TabPane>
+			</Tabs>
+		);
+	}
+
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 'calc(100% - 70px)'
+			height = 760
 		}else{
 			height = height - 20
 		}
@@ -477,29 +568,42 @@ class SuZhanMain extends Component{
 		chart.lots = chartObj ? chartObj.lots : [];
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={16}>
-						<SuZhanChart 
-							value={chart} 
-							height={height} 
-							fields={this.props.fields}  
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-						/>
-					</Col>
-					<Col span={8}>
-						<Row>
-							<Col span={24}>
-								<SuZhanInput 
-									fields={this.props.fields} 
-									onFieldsChange={this.onFieldsChange}
+			<div className="horosa-suzhan-page horosa-astro-redesign horosa-suzhan-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-suzhan-redesign-layout">
+					<div className="horosa-astro-redesign-grid horosa-suzhan-redesign-grid">
+						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-suzhan-input-panel">
+							{this.renderInputPanel()}
+						</div>
+						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-suzhan-chart-panel xq-chart-renderer xq-chart-renderer-suzhan">
+							<div className="horosa-suzhan-board-host">
+								<SuZhanChart
+									value={chart}
+									height={Math.max(560, height - 22)}
+									fields={this.props.fields}
+									chartDisplay={this.props.chartDisplay}
+									planetDisplay={this.props.planetDisplay}
 								/>
-							</Col>
-						</Row>
-						<Divider />
-					</Col>
-				</Row>
+							</div>
+						</div>
+						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-suzhan-info-panel">
+							<div className="horosa-side-panel-heading horosa-suzhan-info-heading">
+								<div>
+									<div className="horosa-side-panel-title">宿盘信息</div>
+									<div className="horosa-side-panel-subtitle">概览、宫宿与快照</div>
+								</div>
+							</div>
+							{this.renderRightPanel()}
+						</div>
+					</div>
+					<div className="horosa-bottom-quick-dock horosa-suzhan-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-suzhan-quick-placeholders">
+							{Array.from({ length: 8 }).map((_, idx)=>(
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
 
 		);

@@ -2907,7 +2907,7 @@ function AIAnalysisMain(props){
 	const previewResult = previewTemplate ? buildTemplatePreview(previewTemplate) : null;
 
 	return (
-		<div className={styles.root}>
+		<div className={`${styles.root} horosa-aianalysis-page`}>
 			<input
 				ref={backupRestoreInputRef}
 				type="file"

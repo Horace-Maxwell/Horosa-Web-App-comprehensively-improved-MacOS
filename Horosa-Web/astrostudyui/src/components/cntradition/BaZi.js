@@ -1,6 +1,6 @@
 import { Component } from 'react';
-import { Row, Col } from 'antd';
 import { XQTabs as Tabs } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import CnTraditionInput from './CnTraditionInput';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
@@ -446,52 +446,58 @@ class BaZi extends Component{
 		let bazi = this.state.result ? this.state.result.bazi : {};
 
 		return (
-			<div className="horosa-bazi-page">
-				<Row gutter={12} className="horosa-bazi-layout">
-					<Col span={15} className="horosa-bazi-chart-panel xq-chart-renderer xq-chart-renderer-bazi">
-						<PaiBaZi value={bazi} height={height+140} fields={this.props.fields} baziOpt={this.state.baziOpt} />
-					</Col>
-					<Col span={9} className="horosa-bazi-inspector-panel">
-						<Row>
-							<Col span={24} className="horosa-bazi-input-panel">
-								<CnTraditionInput 
-									fields={this.props.fields} 
-									baziOpt={this.state.baziOpt}
-									onFieldsChange={this.onFieldsChange}
-									onBaziOptChange={this.onBaziOptChange}
-								/>
-							</Col>
-							<Col span={24} className="horosa-bazi-analysis-panel">
-								<Tabs defaultActiveKey="0" tabPosition='top' className="horosa-bazi-tabs">
-									<TabPane tab="行运概略" key="0">
-										<MainDirectionSimple value={bazi} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="卦释" key="1">
-										<FourZhuGuaDesc value={bazi.fourColumns} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="十二长生" key="2">
-										<BaZiZhangSheng value={bazi} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="神煞" key="3">
-										<Gods value={bazi.fourColumns} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="大运" key="4">
-										<MainDirection value={bazi} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="小运" key="5">
-										<SmallDirection value={bazi} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="天干" key="6">
-										<GanHeCong value={bazi.fourColumns} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="地支" key="7">
-										<ZiHeCong value={bazi.fourColumns} height={tabHeight} />
-									</TabPane>
-								</Tabs>
-							</Col>
-						</Row>
-					</Col>
-				</Row>
+			<div className="horosa-bazi-page horosa-astro-redesign horosa-bazi-redesign">
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-bazi-redesign-layout">
+					<div className="horosa-astro-redesign-grid horosa-bazi-redesign-grid">
+						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-bazi-input-panel">
+							<CnTraditionInput
+								fields={this.props.fields}
+								baziOpt={this.state.baziOpt}
+								onFieldsChange={this.onFieldsChange}
+								onBaziOptChange={this.onBaziOptChange}
+							/>
+						</div>
+						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-bazi-chart-panel xq-chart-renderer xq-chart-renderer-bazi">
+							<PaiBaZi value={bazi} height={height+140} fields={this.props.fields} baziOpt={this.state.baziOpt} />
+						</div>
+						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-bazi-info-panel">
+							<Tabs defaultActiveKey="0" tabPosition='top' className="horosa-content-tabs horosa-bazi-tabs">
+								<TabPane tab="行运" key="0">
+									<MainDirectionSimple value={bazi} height={tabHeight} />
+								</TabPane>
+								<TabPane tab="卦释" key="1">
+									<FourZhuGuaDesc value={bazi.fourColumns} height={tabHeight} />
+								</TabPane>
+								<TabPane tab="长生" key="2">
+									<BaZiZhangSheng value={bazi} height={tabHeight} />
+								</TabPane>
+								<TabPane tab="神煞" key="3">
+									<Gods value={bazi.fourColumns} height={tabHeight} />
+								</TabPane>
+								<TabPane tab="大运" key="4">
+									<MainDirection value={bazi} height={tabHeight} />
+								</TabPane>
+								<TabPane tab="小运" key="5">
+									<SmallDirection value={bazi} height={tabHeight} />
+								</TabPane>
+								<TabPane tab="天干" key="6">
+									<GanHeCong value={bazi.fourColumns} height={tabHeight} />
+								</TabPane>
+								<TabPane tab="地支" key="7">
+									<ZiHeCong value={bazi.fourColumns} height={tabHeight} />
+								</TabPane>
+							</Tabs>
+						</div>
+					</div>
+					<div className="horosa-bottom-quick-dock horosa-bazi-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-bazi-quick-placeholders">
+							{Array.from({length: 8}).map((_, idx)=>(
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}

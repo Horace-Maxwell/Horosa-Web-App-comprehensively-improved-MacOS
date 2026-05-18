@@ -154,6 +154,15 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
         });
     }
 
+    function openDrawer(key){
+        dispatch({
+            type: 'astro/openDrawer',
+            payload:{
+                key: key,
+            },
+        });
+    }
+
     function changeTab(key){
         if(predictHook[key] && predictHook[key].fun){
             if(key === 'indiachart' || key === 'cntradition' || key === 'jieqichart'
@@ -313,7 +322,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             <XQTabs
                 defaultActiveKey="astrochart" tabPosition='left' onChange={changeTab}
                 activeKey={currentTab}
-                className={`mainRootTabs horosa-nav-in-drawer${currentTab === 'astrochart' ? ' horosa-astro-shell-active' : ''}`}
+                className={`mainRootTabs horosa-nav-in-drawer horosa-unified-shell-active${currentTab === 'astrochart' ? ' horosa-astro-shell-active' : ''}`}
                 style={{ height: height }}
             >
                 <TabPane tab={mainTab('占星', '命')} key="astrochart">
@@ -1040,6 +1049,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 title='小工具'
                 width={960}
                 placement="left"
+                className="horosa-commtools-drawer"
                 destroyOnClose={true}
                 onClose={closeDrawer}
                 maskClosable={true}
@@ -1105,6 +1115,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         pages={drawerNavigationPages}
                         currentKey={currentTab}
                         onNavigate={changeTab}
+                        onOpenTools={()=>openDrawer('commtools')}
                         onClose={closeDrawer}
                     />
                 </div>

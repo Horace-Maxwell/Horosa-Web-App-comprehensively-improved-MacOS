@@ -194,7 +194,7 @@ class AstroPrimaryDirection extends Component{
 			},
 			filterIcon: (filtered)=>{
 				let dom = (
-					<XQIcon name="search" style={{ color: filtered ? '#1890ff' : undefined }} />
+					<XQIcon name="search" style={{ color: filtered ? 'var(--horosa-accent, #e7bd75)' : undefined }} />
 				);
 				return dom;
 			},

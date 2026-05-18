@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Divider, } from 'antd';
+import { XQTabs as Tabs } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import {randomStr,} from '../../utils/helper';
@@ -11,6 +12,8 @@ import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import * as AstroText from '../../constants/AstroText';
 import * as SZConst from '../suzhan/SZConst';
 import * as Su28Helper from '../su28/Su28Helper';
+
+const TabPane = Tabs.TabPane;
 
 const SIMPLE_TOKEN_MAP = {
 	A: '日',
@@ -806,40 +809,56 @@ class GuoLaoChartMain extends Component{
 		}
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={16}>
-						<GuoLaoChart 
-							value={chart} 
-							height={height} 
-							fields={this.props.fields}  
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-							onTipClick={this.onTipClick}
-						/>
-					</Col>
-					<Col span={8}>
-						<Row>
-							<Col span={24}>
-								<GuoLaoInput 
-									fields={this.props.fields} 
-									onFieldsChange={this.onFieldsChange}
-								/>
-							</Col>
-						</Row>
-						<Divider />
-						<Row>
-							<Col span={24}>
-								<TipsBoard 
-									height={tipheight}
-									value={this.state.tips} 
-								/>
-							</Col>
-						</Row>
-					</Col>
-				</Row>
+			<div className="horosa-guolao-page horosa-astro-redesign horosa-guolao-redesign">
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-guolao-redesign-layout">
+					<div className="horosa-astro-redesign-grid horosa-guolao-redesign-grid">
+						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-guolao-input-panel">
+							<GuoLaoInput
+								fields={this.props.fields}
+								onFieldsChange={this.onFieldsChange}
+							/>
+						</div>
+						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-guolao-chart-panel xq-chart-renderer xq-chart-renderer-guolao">
+							<GuoLaoChart
+								value={chart}
+								height={height}
+								fields={this.props.fields}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								onTipClick={this.onTipClick}
+							/>
+						</div>
+						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-guolao-info-panel">
+							<Tabs defaultActiveKey="1" tabPosition="top" className="horosa-content-tabs horosa-guolao-tabs">
+								<TabPane tab="提示" key="1">
+									<TipsBoard
+										height={tipheight}
+										value={this.state.tips}
+									/>
+								</TabPane>
+								<TabPane tab="起盘信息" key="2">
+									<div className="horosa-guolao-summary">
+										<div className="horosa-info-card">
+											<div className="horosa-info-card-title">基本参数</div>
+											<div className="horosa-info-row"><span>时间</span><strong>{this.props.fields.date.value.format('YYYY-MM-DD')} {this.props.fields.time.value.format('HH:mm:ss')}</strong></div>
+											<div className="horosa-info-row"><span>地点</span><strong>{this.props.fields.lon.value} {this.props.fields.lat.value}</strong></div>
+											<div className="horosa-info-row"><span>时区</span><strong>{this.props.fields.zone.value}</strong></div>
+										</div>
+									</div>
+								</TabPane>
+							</Tabs>
+						</div>
+					</div>
+					<div className="horosa-bottom-quick-dock horosa-guolao-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-guolao-quick-placeholders">
+							{Array.from({length: 8}).map((_, idx)=>(
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
-
 		);
 	}
 }

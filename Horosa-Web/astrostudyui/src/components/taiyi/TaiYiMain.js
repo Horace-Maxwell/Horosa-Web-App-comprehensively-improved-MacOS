@@ -1,13 +1,15 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Spin } from 'antd';
-import { XQButton as Button, XQCard as Card, XQSelect as Select } from '../xq-ui';
+import { Spin } from 'antd';
+import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { fetchPreciseNongli } from '../../utils/preciseCalcBridge';
 import { setNongliLocalCache } from '../../utils/localCalcCache';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import XQIcon from '../xq-icons';
 import {
 	STYLE_OPTIONS,
 	ACCUM_OPTIONS,
@@ -21,6 +23,7 @@ import {
 } from './TaiYiCalc';
 
 const { Option } = Select;
+const { TabPane } = Tabs;
 const LAYER2_NUMS = ['二', '七', '六', '一', '八', '三', '四', '九'];
 const LAYER3_BRANCH_GUA = ['午', '未', '坤', '申', '酉', '戌', '乾', '亥', '子', '丑', '艮', '寅', '卯', '辰', '巽', '巳'];
 // 按 12地支+4卦固定分野（从午位开始顺时针）
@@ -484,8 +487,7 @@ class TaiYiMain extends Component {
 		);
 	}
 
-	renderRight() {
-		const pan = this.state.pan;
+	renderInputPanel() {
 		const opt = this.state.options;
 		const fields = this.props.fields || {};
 		let datetm = new DateTime();
@@ -497,103 +499,185 @@ class TaiYiMain extends Component {
 			}
 		}
 		return (
-			<div>
-				<Row gutter={4}>
-					<Col span={24}>
-						<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.timeHook} />
-					</Col>
-					<Col lg={12} xl={8}>
-						<Select size="small" value={fields.gender ? fields.gender.value : 1} onChange={this.onGenderChange} style={{ width: '100%' }}>
-							<Option value={-1}>未知</Option>
-							<Option value={0}>女</Option>
-							<Option value={1}>男</Option>
-						</Select>
-					</Col>
-					<Col lg={12} xl={8}>
-						<Select size="small" value={opt.style} onChange={(v) => this.onOptionChange('style', v)} style={{ width: '100%' }}>
-							{STYLE_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
-						</Select>
-					</Col>
-					<Col lg={12} xl={8}>
-						<GeoCoordModal onOk={this.changeGeo} lat={fields.gpsLat && fields.gpsLat.value} lng={fields.gpsLon && fields.gpsLon.value}>
-							<Button size="small" style={{ width: '100%' }}>经纬度选择</Button>
-						</GeoCoordModal>
-					</Col>
-					<Col lg={12} xl={8}>
-						<Select size="small" value={opt.tn} onChange={(v) => this.onOptionChange('tn', v)} style={{ width: '100%' }}>
-							{ACCUM_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
-						</Select>
-					</Col>
-					<Col lg={12} xl={8}>
-						<Select size="small" value={opt.tenching} onChange={(v) => this.onOptionChange('tenching', v)} style={{ width: '100%' }}>
-							{TENCHING_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{`十精:${item.label}`}</Option>)}
-						</Select>
-					</Col>
-					<Col lg={12} xl={8}>
-						<Select size="small" value={opt.rotation} onChange={(v) => this.onOptionChange('rotation', v)} style={{ width: '100%' }}>
-							{ROTATION_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
-						</Select>
-					</Col>
-					<Col span={12}>
-						<Select size="small" value={opt.sex} onChange={(v) => this.onOptionChange('sex', v)} style={{ width: '100%' }}>
-							{SEX_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{`命法:${item.label}`}</Option>)}
-						</Select>
-					</Col>
-					<Col span={12}>
-						<Button size="small" type="primary" style={{ width: '100%' }} onClick={this.clickPlot}>起盘</Button>
-					</Col>
-					<Col span={24} style={{ textAlign: 'right' }}>
-						<span>{fields.lon ? fields.lon.value : ''} {fields.lat ? fields.lat.value : ''}</span>
-					</Col>
-				</Row>
-
-				<Card bordered={false}>
-					<div style={{ lineHeight: '26px' }}>
-						<div>起盘方式：{getStyleLabel(opt.style)}</div>
-						<div>积年方式：{getAccumLabel(opt.tn)}</div>
-						<div>太乙：{pan ? `${pan.taiyiPalace}宫` : '—'}</div>
-						<div>文昌：{pan ? pan.skyeyes : '—'}</div>
-						<div>始击：{pan ? pan.sf : '—'}</div>
-						<div>太岁：{pan ? pan.taishui : '—'}</div>
-						<div>合神：{pan ? pan.hegod : '—'}</div>
-						<div>计神：{pan ? pan.jigod : '—'}</div>
-						<Divider style={{ margin: '10px 0' }} />
-						<div>定目：{pan ? (pan.se || '—') : '—'}</div>
-						<div>主大将/参将：{pan ? `${pan.homeGeneralPalace || '—'}/${pan.homeVGenPalace || '—'}` : '—'}</div>
-						<div>客大将/参将：{pan ? `${pan.awayGeneralPalace || '—'}/${pan.awayVGenPalace || '—'}` : '—'}</div>
-						<div>定大将/参将：{pan ? `${pan.setGeneralPalace || '—'}/${pan.setVGenPalace || '—'}` : '—'}</div>
-						<div>君臣民基：{pan ? `${pan.kingbase || '—'}/${pan.officerbase || '—'}/${pan.pplbase || '—'}` : '—'}</div>
-						<div>四神/天乙/地乙：{pan ? `${pan.fgd || '—'}/${pan.skyyi || '—'}/${pan.earthyi || '—'}` : '—'}</div>
-						<div>直符/飞符：{pan ? `${pan.zhifu || '—'}/${pan.flyfu || '—'}` : '—'}</div>
-						<div>五福/帝符/太尊：{pan ? `${pan.wufuPalace || '—'}/${pan.kingfu || '—'}/${pan.taijun || '—'}` : '—'}</div>
-						<div>飞鸟：{pan ? (pan.flybird || '—') : '—'}</div>
-						<div>三风/五风/八风：{pan ? `${pan.threewindPalace || '—'}/${pan.fivewindPalace || '—'}/${pan.eightwindPalace || '—'}` : '—'}</div>
-						<div>大游/小游：{pan ? `${pan.bigyoPalace || '—'}/${pan.smyoPalace || '—'}` : '—'}</div>
-					</div>
-					</Card>
+			<div className="horosa-taiyi-input-stack">
+				<div>
+					<div className="horosa-side-panel-title">太乙设置</div>
+					<div className="horosa-side-panel-subtitle">时间、地点与起盘选项</div>
 				</div>
+
+				<SpaceTimePanel
+					fields={fields}
+					value={datetm}
+					onTimeChange={this.onTimeChanged}
+					timeHook={this.timeHook}
+					onGeoChange={this.changeGeo}
+				/>
+
+				<div className="horosa-taiyi-input-section">
+					<div className="horosa-taiyi-field-title"><XQIcon name="taiyi" />盘式选项</div>
+					<div className="horosa-taiyi-select-grid">
+						<label className="horosa-taiyi-select-field">
+							<span>性别</span>
+							<Select value={fields.gender ? fields.gender.value : 1} onChange={this.onGenderChange}>
+								<Option value={-1}>未知</Option>
+								<Option value={0}>女</Option>
+								<Option value={1}>男</Option>
+							</Select>
+						</label>
+						<label className="horosa-taiyi-select-field">
+							<span>盘式</span>
+							<Select value={opt.style} onChange={(v) => this.onOptionChange('style', v)}>
+								{STYLE_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-taiyi-select-field">
+							<span>积年</span>
+							<Select value={opt.tn} onChange={(v) => this.onOptionChange('tn', v)}>
+								{ACCUM_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-taiyi-select-field">
+							<span>十精</span>
+							<Select value={opt.tenching} onChange={(v) => this.onOptionChange('tenching', v)}>
+								{TENCHING_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-taiyi-select-field">
+							<span>旋转</span>
+							<Select value={opt.rotation} onChange={(v) => this.onOptionChange('rotation', v)}>
+								{ROTATION_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-taiyi-select-field">
+							<span>命法</span>
+							<Select value={opt.sex} onChange={(v) => this.onOptionChange('sex', v)}>
+								{SEX_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+					</div>
+				</div>
+
+				<div className="horosa-taiyi-action-row">
+					<Button type="primary" onClick={this.clickPlot}>起盘</Button>
+				</div>
+			</div>
+		);
+	}
+
+	renderInfoRows() {
+		const pan = this.state.pan;
+		const opt = this.state.options;
+		const fields = this.props.fields || {};
+		const fieldTime = fields.date && fields.time
+			? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}`
+			: '—';
+		const geo = fields.lon && fields.lat ? `${fields.lon.value} ${fields.lat.value}` : '—';
+		const rows = [
+			['起盘时间', fieldTime],
+			['地点', geo],
+			['起盘方式', getStyleLabel(opt.style)],
+			['积年方式', getAccumLabel(opt.tn)],
+			['太乙', pan ? `${pan.taiyiPalace}宫` : '—'],
+			['文昌', pan ? pan.skyeyes : '—'],
+			['始击', pan ? pan.sf : '—'],
+			['太岁', pan ? pan.taishui : '—'],
+			['合神', pan ? pan.hegod : '—'],
+			['计神', pan ? pan.jigod : '—'],
+			['定目', pan ? (pan.se || '—') : '—'],
+			['主大将/参将', pan ? `${pan.homeGeneralPalace || '—'}/${pan.homeVGenPalace || '—'}` : '—'],
+			['客大将/参将', pan ? `${pan.awayGeneralPalace || '—'}/${pan.awayVGenPalace || '—'}` : '—'],
+			['定大将/参将', pan ? `${pan.setGeneralPalace || '—'}/${pan.setVGenPalace || '—'}` : '—'],
+			['君臣民基', pan ? `${pan.kingbase || '—'}/${pan.officerbase || '—'}/${pan.pplbase || '—'}` : '—'],
+			['四神/天乙/地乙', pan ? `${pan.fgd || '—'}/${pan.skyyi || '—'}/${pan.earthyi || '—'}` : '—'],
+			['直符/飞符', pan ? `${pan.zhifu || '—'}/${pan.flyfu || '—'}` : '—'],
+			['五福/帝符/太尊', pan ? `${pan.wufuPalace || '—'}/${pan.kingfu || '—'}/${pan.taijun || '—'}` : '—'],
+			['飞鸟', pan ? (pan.flybird || '—') : '—'],
+			['三风/五风/八风', pan ? `${pan.threewindPalace || '—'}/${pan.fivewindPalace || '—'}/${pan.eightwindPalace || '—'}` : '—'],
+			['大游/小游', pan ? `${pan.bigyoPalace || '—'}/${pan.smyoPalace || '—'}` : '—'],
+		];
+		return rows.map(([label, value]) => (
+			<div className="horosa-taiyi-info-row" key={label}>
+				<span>{label}</span>
+				<strong>{value}</strong>
+			</div>
+		));
+	}
+
+	renderPalaceRows() {
+		const pan = this.state.pan;
+		if (!pan || !pan.palace16) {
+			return <div className="horosa-taiyi-empty">暂无十六宫数据</div>;
+		}
+		return pan.palace16.map((item) => (
+			<div className="horosa-taiyi-palace-row" key={item.palace}>
+				<strong>{item.palace}</strong>
+				<span>{(item.items || []).join('、') || '—'}</span>
+			</div>
+		));
+	}
+
+	renderRightPanel() {
+		const pan = this.state.pan;
+		const snapshot = pan ? buildTaiyiSnapshotText(pan) : '暂无太乙盘数据';
+		return (
+			<Tabs defaultActiveKey="overview" tabPosition="top" className="horosa-taiyi-tabs">
+				<TabPane tab="概览" key="overview">
+					<div className="horosa-taiyi-info-card">
+						{this.renderInfoRows()}
+					</div>
+				</TabPane>
+				<TabPane tab="十六宫" key="palaces">
+					<div className="horosa-taiyi-palace-list">
+						{this.renderPalaceRows()}
+					</div>
+				</TabPane>
+				<TabPane tab="快照" key="snapshot">
+					<pre className="horosa-taiyi-snapshot">{snapshot}</pre>
+				</TabPane>
+			</Tabs>
 		);
 	}
 
 	render() {
 		let height = this.props.height ? this.props.height : 760;
 		if (height === '100%') {
-			height = 'calc(100% - 70px)';
+			height = 760;
 		} else {
 			height = height - 20;
 		}
 		return (
-			<div className="horosa-taiyi-page xq-chart-renderer xq-chart-renderer-taiyi" style={{ minHeight: height }}>
-				<Spin spinning={this.state.loading}>
-					<Row gutter={6}>
-						<Col span={16}>
-							{this.renderLeft()}
-						</Col>
-						<Col span={8}>
-							{this.renderRight()}
-						</Col>
-					</Row>
-				</Spin>
+			<div className="horosa-taiyi-page horosa-astro-redesign horosa-taiyi-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-taiyi-redesign-layout">
+					<Spin spinning={this.state.loading}>
+						<div className="horosa-astro-redesign-grid horosa-taiyi-redesign-grid">
+							<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-taiyi-input-panel">
+								{this.renderInputPanel()}
+							</div>
+							<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-taiyi-chart-panel xq-chart-renderer xq-chart-renderer-taiyi">
+								<div className="horosa-taiyi-board-host">
+									{this.renderLeft()}
+								</div>
+							</div>
+							<div className="horosa-inspector-panel horosa-astro-content-panel horosa-taiyi-info-panel">
+								<div className="horosa-side-panel-heading horosa-taiyi-info-heading">
+									<div>
+										<div className="horosa-side-panel-title">太乙信息</div>
+										<div className="horosa-side-panel-subtitle">概览、十六宫与快照</div>
+									</div>
+								</div>
+								{this.renderRightPanel()}
+							</div>
+						</div>
+					</Spin>
+					<div className="horosa-bottom-quick-dock horosa-taiyi-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-taiyi-quick-placeholders">
+							{Array.from({ length: 8 }).map((_, idx) => (
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}

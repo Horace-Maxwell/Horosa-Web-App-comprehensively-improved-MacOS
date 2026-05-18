@@ -1,10 +1,8 @@
 import { Component } from 'react';
-import { Row, Col, Checkbox } from 'antd';
-import { XQButton as Button, XQSelect as Select } from '../xq-ui';
-import GeoCoordModal from '../amap/GeoCoordModal';
-import PlusMinusTime from '../astro/PlusMinusTime';
-import { gcj02ToGps, randomStr } from '../../utils/helper';
-import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
+import { Checkbox } from 'antd';
+import { XQSelect as Select } from '../xq-ui';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
+import {convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import DateTime from '../comp/DateTime';
 
 const {Option} = Select
@@ -268,82 +266,85 @@ class CnTraditionInput extends Component{
 		}
 	}
 
-	render(){
-		let fields = this.props.fields ? this.props.fields : {};
-		let datetm = new DateTime();
-		if(fields.date && fields.time){
-			let str = fields.date.value.format('YYYY-MM-DD') + ' ' + 
-						fields.time.value.format('HH:mm:ss');
-			datetm.parse(str, 'YYYY-MM-DD HH:mm:ss');
-			if(fields.zone){
-				datetm.setZone(fields.zone.value);
+		render(){
+			let fields = this.props.fields ? this.props.fields : {};
+			let datetm = new DateTime();
+			if(fields.date && fields.time){
+				let str = fields.date.value.format('YYYY-MM-DD') + ' ' + 
+							fields.time.value.format('HH:mm:ss');
+				datetm.parse(str, 'YYYY-MM-DD HH:mm:ss');
+				if(fields.zone){
+					datetm.setZone(fields.zone.value);
+				}
 			}
+
+			return (
+				<div className="horosa-bazi-input-stack">
+					<div className="horosa-panel-head">
+						<div>
+							<div className="horosa-panel-kicker">八字设置</div>
+							<div className="horosa-panel-title">时间、地点与排盘选项</div>
+						</div>
+					</div>
+					<SpaceTimePanel
+						fields={fields}
+						value={datetm}
+						onTimeChange={this.onTimeChanged}
+						timeHook={this.tmHook}
+						onGeoChange={this.changeGeo}
+					/>
+					<div className="horosa-field-grid">
+						<div className="horosa-field-block">
+							<div className="horosa-field-label">性别</div>
+							<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
+								<Option value={-1}>未知</Option>
+								<Option value={0}>女</Option>
+								<Option value={1}>男</Option>
+							</Select>
+						</div>
+						<div className="horosa-field-block">
+							<div className="horosa-field-label">时间算法</div>
+							<Select value={fields.timeAlg.value} onChange={this.onTimeAlgChange} size='small' style={{width:'100%'}}>
+								<Option value={0}>真太阳时</Option>
+								<Option value={1}>直接时间</Option>
+								<Option value={2}>春分定卯时</Option>
+							</Select>
+						</div>
+					</div>
+					<div className="horosa-field-block">
+						<div className="horosa-field-label">计算选项</div>
+						<Select value={fields.phaseType.value} onChange={this.onPhaseTypeChange} size='small' style={{width:'100%'}}>
+							<Option value={0}>长生火土同</Option>
+							<Option value={1}>长生水土同</Option>
+							<Option value={2}>长生阳顺阴逆</Option>
+						</Select>
+					</div>
+					<div className="horosa-field-block">
+						<Select value={fields.godKeyPos.value} onChange={this.onGodKeyPosChange} size='small' style={{width:'100%'}} >
+							<Option value='年'>按年柱查神煞</Option>
+							<Option value='日'>按日柱查神煞</Option>
+							<Option value='年日'>年柱日柱都查</Option>
+						</Select>
+					</div>
+					<div className="horosa-field-block">
+						<Select value={fields.after23NewDay.value} onChange={this.onAfter23NewDayChange} size='small' style={{width:'100%'}}>
+							<Option value={0}>23点算当天</Option>
+							<Option value={1}>23点算第二天</Option>
+						</Select>
+					</div>
+					<div className="horosa-field-block">
+						<Select size='small' style={{width: '100%'}} value={fields.adjustJieqi.value} onChange={this.onChangeAdjustJieqi}>
+							<Option value={0}>不调整节气</Option>
+							<Option value={1}>节气按纬度调整</Option>
+						</Select>
+					</div>
+					<div className="horosa-bazi-option-card">
+						<Checkbox checked={this.props.baziOpt.onlyZiGanShen} onChange={this.onOnlyZiganChange}>只显示地支藏干十神</Checkbox>
+					</div>
+				</div>
+
+			);
 		}
-
-		return (
-			<Row>
-				<Col span={24}>
-					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.tmHook} />
-				</Col>
-				<Col span={8}>
-					<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
-						<Option value={-1}>未知</Option>
-						<Option value={0}>女</Option>
-						<Option value={1}>男</Option>
-					</Select>
-				</Col>
-				<Col span={8}>
-					<Select value={fields.timeAlg.value} onChange={this.onTimeAlgChange} size='small' style={{width:'100%'}}>
-						<Option value={0}>真太阳时</Option>
-						<Option value={1}>直接时间</Option>
-						<Option value={2}>春分定卯时</Option>
-					</Select>
-				</Col>
-				<Col span={8}>
-					<Select value={fields.phaseType.value} onChange={this.onPhaseTypeChange} size='small' style={{width:'100%'}}>
-						<Option value={0}>长生火土同</Option>
-						<Option value={1}>长生水土同</Option>
-						<Option value={2}>长生阳顺阴逆</Option>
-					</Select>
-				</Col>
-				<Col span={8}>
-					<Select value={fields.godKeyPos.value} onChange={this.onGodKeyPosChange} size='small' style={{width:'100%'}} >
-						<Option value='年'>按年柱查神煞</Option>
-						<Option value='日'>按日柱查神煞</Option>
-						<Option value='年日'>年柱日柱都查</Option>
-					</Select>
-				</Col>
-				<Col span={8}>
-					<Select value={fields.after23NewDay.value} onChange={this.onAfter23NewDayChange} size='small' style={{width:'100%'}}>
-						<Option value={0}>23点算当天</Option>
-						<Option value={1}>23点算第二天</Option>
-					</Select>
-				</Col>
-				<Col span={8}>
-					<GeoCoordModal 
-						onOk={this.changeGeo}
-						lat={fields.gpsLat.value} lng={fields.gpsLon.value}
-					>
-						<Button size='small' style={{width:'100%'}}>经纬度选择</Button>
-					</GeoCoordModal>
-				</Col>
-				<Col span={9}>
-					<Checkbox checked={this.props.baziOpt.onlyZiGanShen} onChange={this.onOnlyZiganChange}>只显示地支藏干十神</Checkbox>
-				</Col>
-				<Col span={8}>
-					<Select size='small' style={{width: '100%'}} value={fields.adjustJieqi.value} onChange={this.onChangeAdjustJieqi}>
-						<Option value={0}>不调整节气</Option>
-						<Option value={1}>节气按纬度调整</Option>
-					</Select>
-				</Col>
-				<Col span={7} style={{textAlign: 'right'}}>
-					<span style={{width:'100%'}}>{fields.lon.value + ' ' + fields.lat.value}</span>
-				</Col>
-
-			</Row>
-
-		);
-	}
 
 }
 

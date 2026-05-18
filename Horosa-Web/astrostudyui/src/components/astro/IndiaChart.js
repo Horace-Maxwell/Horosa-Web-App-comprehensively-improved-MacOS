@@ -12,7 +12,7 @@ import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 const indiaChartCache = new Map();
 const indiaChartInflight = new Map();
 
-function fieldsToParams(fields){
+export function fieldsToParams(fields){
 	const params = {
 		date: fields.date.value.format('YYYY/MM/DD'),
 		time: fields.time.value.format('HH:mm:ss'),
@@ -88,6 +88,28 @@ function buildIndiaChartCacheKey(params){
 		chartnum: params.chartnum || 1,
 	};
 	return JSON.stringify(normalized);
+}
+
+export async function requestIndiaChartData(params){
+	const cacheKey = buildIndiaChartCacheKey(params);
+	let result = indiaChartCache.get(cacheKey);
+	if(!result){
+		let inflight = indiaChartInflight.get(cacheKey);
+		if(!inflight){
+			inflight = request(`${Constants.ServerRoot}/india/chart`, {
+				body: JSON.stringify(params),
+			}).then((data)=>{
+				const resolved = data[Constants.ResultKey];
+				indiaChartCache.set(cacheKey, resolved);
+				return resolved;
+			}).finally(()=>{
+				indiaChartInflight.delete(cacheKey);
+			});
+			indiaChartInflight.set(cacheKey, inflight);
+		}
+		result = await inflight;
+	}
+	return result;
 }
 
 function splitSections(text){
@@ -181,24 +203,7 @@ class IndiaChart extends Component{
 	}
 
 	async requestChart(params, sourceFields){
-		const cacheKey = buildIndiaChartCacheKey(params);
-		let result = indiaChartCache.get(cacheKey);
-		if(!result){
-			let inflight = indiaChartInflight.get(cacheKey);
-			if(!inflight){
-				inflight = request(`${Constants.ServerRoot}/india/chart`, {
-					body: JSON.stringify(params),
-				}).then((data)=>{
-					const resolved = data[Constants.ResultKey];
-					indiaChartCache.set(cacheKey, resolved);
-					return resolved;
-				}).finally(()=>{
-					indiaChartInflight.delete(cacheKey);
-				});
-				indiaChartInflight.set(cacheKey, inflight);
-			}
-			result = await inflight;
-		}
+		let result = await requestIndiaChartData(params);
 
 		const st = {
 			chartObj: result,
@@ -262,6 +267,21 @@ class IndiaChart extends Component{
 		const IndiaChartRenderer = indiaChartStyle === AstroConst.INDIA_CHART_STYLE_NORTH
 			? IndiaNorthChart
 			: (indiaChartStyle === AstroConst.INDIA_CHART_STYLE_EAST ? IndiaEastChart : IndiaSouthChart);
+
+		if(this.props.chartOnly){
+			return (
+				<div className="horosa-india-chart-instance horosa-india-chart-only">
+					<IndiaChartRenderer
+						value={chartObj}
+						chartnum={fractal}
+						label={label}
+						height={height}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+					/>
+				</div>
+			);
+		}
 
 		return (
 			<div className="horosa-india-chart-instance">

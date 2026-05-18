@@ -1,6 +1,7 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Spin, Tag, message, Popover } from 'antd';
+import { Spin, Tag, message, Popover } from 'antd';
 import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import {
 	getNongliLocalCache,
@@ -16,6 +17,7 @@ import sealedImage from '../../assets/sealed.png';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
 import { getStore } from '../../utils/storageutil';
 import {
@@ -1394,7 +1396,7 @@ class DunJiaMain extends Component {
 	renderBoard(){
 		const pan = this.state.pan;
 		if(!this.state.hasPlotted){
-			return <Card bordered={false}>点击右侧“起盘”后显示遁甲盘</Card>;
+			return <Card bordered={false}>点击左侧“起盘”后显示遁甲盘</Card>;
 		}
 		if(!pan){
 			return <Card bordered={false}>暂无遁甲盘数据</Card>;
@@ -1557,6 +1559,128 @@ class DunJiaMain extends Component {
 		);
 	}
 
+	renderInputPanel(){
+		const opt = this.state.options;
+		const showPatternInterpretation = this.state.showPatternInterpretation !== false;
+		const fields = this.state.localFields || this.props.fields || {};
+		let datetm = new DateTime();
+		if(fields.date && fields.time){
+			const str = `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}`;
+			datetm = datetm.parse(str, 'YYYY-MM-DD HH:mm:ss');
+			if(fields.zone){
+				datetm.setZone(fields.zone.value);
+			}
+		}
+		return (
+			<div className="horosa-dunjia-input-stack">
+				<div className="horosa-side-panel-heading">
+					<div>
+						<div className="horosa-side-panel-title">遁甲设置</div>
+						<div className="horosa-side-panel-subtitle">时间、地点与起盘选项</div>
+					</div>
+				</div>
+				<SpaceTimePanel
+					fields={fields}
+					value={datetm}
+					onTimeChange={this.onTimeChanged}
+					timeHook={this.timeHook}
+					onGeoChange={this.changeGeo}
+				/>
+				<div className="horosa-dunjia-input-section">
+					<div className="horosa-dunjia-field-title">
+						<XQIcon name="sliders" />
+						<span>选项</span>
+					</div>
+					<div className="horosa-dunjia-select-grid">
+						<label className="horosa-dunjia-select-field">
+							<span>排盘</span>
+							<Select size="small" value={opt.paiPanType} onChange={(v)=>this.onOptionChange('paiPanType', v)}>
+								{PAIPAN_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>值使</span>
+							<Select size="small" value={opt.zhiShiType} onChange={(v)=>this.onOptionChange('zhiShiType', v)}>
+								{ZHISHI_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>起局</span>
+							<Select size="small" value={opt.qijuMethod} disabled={opt.paiPanType !== 3} onChange={(v)=>this.onOptionChange('qijuMethod', v)}>
+								{QIJU_METHOD_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>月家</span>
+							<Select size="small" value={opt.yueJiaQiJuType} disabled={opt.paiPanType !== 1} onChange={(v)=>this.onOptionChange('yueJiaQiJuType', v)}>
+								{YUEJIA_QIJU_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>空亡</span>
+							<Select size="small" value={opt.kongMode} onChange={(v)=>this.onOptionChange('kongMode', v)}>
+								{KONG_MODE_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>驿马</span>
+							<Select size="small" value={opt.yimaMode} onChange={(v)=>this.onOptionChange('yimaMode', v)}>
+								{MA_MODE_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>性别</span>
+							<Select size="small" value={opt.sex} onChange={this.onGenderChange}>
+								{SEX_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>移星</span>
+							<Select size="small" value={opt.shiftPalace} onChange={(v)=>this.onOptionChange('shiftPalace', v)}>
+								{YIXING_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>日界</span>
+							<Select size="small" value={opt.after23NewDay} onChange={(v)=>this.onOptionChange('after23NewDay', v)}>
+								{DAY_SWITCH_OPTIONS.map((item)=><Option key={`day_switch_${item.value}`} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>时间算法</span>
+							<Select size="small" value={normalizeTimeAlg(opt.timeAlg)} onChange={(v)=>this.onOptionChange('timeAlg', v)}>
+								{TIME_ALG_OPTIONS.map((item)=><Option key={`time_alg_${item.value}`} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>封局</span>
+							<Select size="small" value={opt.fengJu ? 1 : 0} onChange={(v)=>this.onOptionChange('fengJu', v === 1)}>
+								{FENGJU_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<div className="horosa-dunjia-toggle-field">
+							<span>格局释义</span>
+							<Button
+								type={showPatternInterpretation ? 'primary' : 'default'}
+								onClick={()=>{
+									const next = !showPatternInterpretation;
+									this.setState({ showPatternInterpretation: next });
+									savePatternInterpretationPreference(next);
+								}}
+							>
+								{showPatternInterpretation ? '显示' : '隐藏'}
+							</Button>
+						</div>
+					</div>
+					<div className="horosa-dunjia-action-row">
+						<Button type="primary" onClick={this.clickPlot} loading={this.state.loading} disabled={this.state.loading}>起盘</Button>
+						<Button onClick={this.clickSaveCase}>保存</Button>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	renderRight(){
 		const pan = this.state.pan;
 		const opt = this.state.options;
@@ -1577,10 +1701,10 @@ class DunJiaMain extends Component {
 		}
 		return (
 			<div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-				<div style={{ paddingBottom: 6, borderBottom: '1px solid var(--horosa-border, #f0f0f0)' }}>
+				<div style={{ display: 'none', paddingBottom: 6, borderBottom: '1px solid var(--horosa-border, #f0f0f0)' }}>
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<div>
-							<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.timeHook} />
+							<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.timeHook} confirmOnAdjust />
 						</div>
 
 						<div style={{ display: 'flex', gap: 4 }}>
@@ -1687,6 +1811,7 @@ class DunJiaMain extends Component {
 				</div>
 
 				<Tabs
+					className="horosa-dunjia-tabs"
 					activeKey={panelTab}
 					onChange={(key)=>this.setState({ rightPanelTab: key })}
 					style={{ marginTop: 8 }}
@@ -1826,24 +1951,43 @@ class DunJiaMain extends Component {
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 'calc(100% - 70px)';
+			height = 760;
 		}else{
 			height = height - 20;
 		}
 		return (
-			<div style={{ minHeight: height }}>
-				<Spin spinning={this.state.loading}>
-					<Row gutter={6}>
-						<Col span={16}>
-							<div ref={this.captureLeftBoardHost}>
-								{this.renderBoard()}
+			<div className="horosa-dunjia-page horosa-astro-redesign horosa-dunjia-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-dunjia-redesign-layout">
+					<Spin spinning={this.state.loading}>
+						<div className="horosa-astro-redesign-grid horosa-dunjia-redesign-grid">
+							<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-dunjia-input-panel">
+								{this.renderInputPanel()}
 							</div>
-						</Col>
-						<Col span={8}>
-							{this.renderRight()}
-						</Col>
-					</Row>
-				</Spin>
+							<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-dunjia-chart-panel xq-chart-renderer xq-chart-renderer-qimen">
+								<div ref={this.captureLeftBoardHost} className="horosa-dunjia-board-host">
+									{this.renderBoard()}
+								</div>
+							</div>
+							<div className="horosa-inspector-panel horosa-astro-content-panel horosa-dunjia-info-panel">
+								<div className="horosa-side-panel-heading horosa-dunjia-info-heading">
+									<div>
+										<div className="horosa-side-panel-title">遁甲信息</div>
+										<div className="horosa-side-panel-subtitle">概览、神煞与八宫详解</div>
+									</div>
+								</div>
+								{this.renderRight()}
+							</div>
+						</div>
+					</Spin>
+					<div className="horosa-bottom-quick-dock horosa-dunjia-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-dunjia-quick-placeholders">
+							{Array.from({length: 8}).map((_, idx)=>(
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}

@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
-import {detectOS, printArea, distanceInCircleAbs} from '../../utils/helper';
+import {detectOS, distanceInCircleAbs} from '../../utils/helper';
 
 const ChartMargin = 20;
 const ChartMarginDelta = 55;
@@ -1030,26 +1030,7 @@ export function drawBirthInfo(svg, margin, chartObj, chartid, inverse){
 		})
 		.text(function(d){return d});			
 
-	let printsvg = svg.append('g');
-	printsvg.append('text')
-		.attr("dominant-baseline","middle")
-		.attr("text-anchor", "left")
-		.attr('font-weight', 100)
-		.attr('stroke', AstroConst.AstroColor.Stroke)
-		.attr('style', 'cursor:hand')
-		.attr('transform', function(d){
-			let x = margin;
-			let y = margin + rowheight * txts.length;
-			let trans = 'translate(' + x + ', ' + y + ')';
-			return trans;
-		})
-		.text('打印星盘');
-
-	printsvg.on('click', ()=>{
-		printArea(chartid);
-	});
-	
-}
+	}
 
 export function drawBirthInfoInCircle(svg, r, firstX, firstY, chartObj, chartid){
 	let params = chartObj.params;
@@ -1103,26 +1084,7 @@ export function drawBirthInfoInCircle(svg, r, firstX, firstY, chartObj, chartid)
 		})
 		.text(function(d){return d});	
 		
-	let printsvg = svg.append('g');
-	printsvg.append('text')
-		.attr("dominant-baseline","middle")
-		.attr("text-anchor", "left")
-		.attr('font-weight', 100)
-		.attr('stroke', AstroConst.AstroColor.Stroke)
-		.attr('style', 'cursor:hand')
-		.attr('transform', function(d, idx){
-			y = fy + rowheight * txts.length;
-			let trans = 'translate(' + x + ', ' + y + ')';
-			return trans;
-		})
-		.text('打印星盘');
-
-	printsvg.on('click', ()=>{
-		printArea(chartid);
-	});
-
-
-}
+	}
 
 export function drawAngles(svg, r, len, chartObj, flags){
 	let asc = getObject(chartObj, AstroConst.ASC);

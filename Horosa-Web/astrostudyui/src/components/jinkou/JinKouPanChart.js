@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
-import { formatDate, printArea } from '../../utils/helper';
+import { formatDate } from '../../utils/helper';
 import { drawTextH, } from '../graph/GraphHelper';
 import LRCircleChart from '../liureng/LRCircleChart';
 import LRChart from '../liureng/LRChart';
@@ -138,14 +138,11 @@ class JinKouPanChart {
 		cords[3] = { x: this.margin + w, y: this.margin + titleH + h, w: w, h: h };
 
 		const titleords = { x: this.margin, y: this.margin, w: realW, h: titleH };
-		const printBtnOrds = { x: this.margin + 18, y: this.margin + titleH / 2 };
-
 		this.drawLiuRengCircle(cords[0]);
 		this.drawKeChuan(cords[1]);
 		this.drawJinKouTables(cords[2]);
 		this.drawRightGodPanels(cords[3]);
 		this.drawTitle(titleords);
-		this.drawPrintBtn(printBtnOrds.x, printBtnOrds.y);
 		return null;
 	}
 
@@ -717,24 +714,6 @@ class JinKouPanChart {
 		drawTextH(this.svgTopgroup, [txt], x, y, len, hh, marg, this.color);
 	}
 
-	drawPrintBtn(x, y){
-		const sz = 14;
-		const txtsvg = this.svgTopgroup.append('g');
-		txtsvg.append('text')
-			.attr('dominant-baseline', 'middle')
-			.attr('text-anchor', 'left')
-			.attr('font-weight', 100)
-			.attr('stroke', AstroConst.AstroColor.Stroke)
-			.attr('font-size', `${sz}px`)
-			.attr('x', x)
-			.attr('y', y)
-			.attr('style', 'cursor:hand')
-			.text('打印卦盘');
-
-		txtsvg.on('click', ()=>{
-			printArea(this.chartId);
-		});
-	}
 }
 
 export default JinKouPanChart;

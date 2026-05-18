@@ -221,11 +221,11 @@ export function getObjectsBySign(chartObj, planetDisplay, lotsDisplay){
 
 export function getObjectColor(obj){
 	if(!obj){
-		return 'var(--horosa-accent-strong, #2167d4)';
+		return 'var(--horosa-accent-strong, #e7bd75)';
 	}
 	return AstroConst.AstroColor[obj.id]
 		|| AstroConst.AstroColor[obj.sign]
-		|| 'var(--horosa-accent-strong, #2167d4)';
+		|| 'var(--horosa-accent-strong, #e7bd75)';
 }
 
 class IndiaSouthChart extends Component{

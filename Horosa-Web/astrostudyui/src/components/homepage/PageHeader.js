@@ -2,9 +2,6 @@ import React from 'react';
 import { Avatar, Dropdown, message, Tooltip } from 'antd';
 import blogo from '../../assets/blogo.jpg';
 import {
-	APPEARANCE_DARK,
-	APPEARANCE_LIGHT,
-	APPEARANCE_SYSTEM,
 	getAppearanceLabel,
 	getNextAppearanceMode,
 	normalizeAppearanceMode,
@@ -22,7 +19,6 @@ import {
 	XQCheckItem,
 	XQCheckList,
 	XQIconButton,
-	XQInput,
 	XQModal,
 	XQSectionTitle,
 	XQSelect,
@@ -32,6 +28,31 @@ import XQIcon from '../xq-icons';
 import styles from './PageHeader.less';
 
 const Option = XQSelect.Option;
+const PAGE_LABELS = {
+	astrochart: '占星',
+	direction: '星运',
+	bazi: '八字',
+	ziwei: '紫微',
+	guolao: '七政',
+	indiachart: '印占',
+	auxchart: '辅盘',
+	relativechart: '合盘',
+	sanshiunited: '三式',
+	liureng: '六壬',
+	dunjia: '遁甲',
+	guazhan: '六爻',
+	taiyi: '太乙',
+	jieqichart: '分至',
+	fengshui: '风水',
+	cnyibu: '其他',
+	aianalysis: 'AI分析',
+	astrochart3D: '3D',
+	calendar: '黄历',
+	cntradition: '辅助',
+	astroreader: '书籍阅读',
+	liveplayer: '星阙直播',
+	admintools: '管理工具',
+};
 
 function PageHeader(props){
 	const [aiSettingVisible, setAiSettingVisible] = React.useState(false);
@@ -385,9 +406,6 @@ function PageHeader(props){
 
 	const appearanceMode = normalizeAppearanceMode(props.appearanceMode);
 	const appearanceLabel = getAppearanceLabel(appearanceMode, props.resolvedAppearance);
-	const appearanceIcon = appearanceMode === APPEARANCE_SYSTEM
-		? <XQIcon name="theme" />
-		: (appearanceMode === APPEARANCE_DARK ? <XQIcon name="theme" /> : <XQIcon name="theme" />);
 
 	const horosaqr = [{
 		key: '1',
@@ -409,7 +427,7 @@ function PageHeader(props){
 		key: 'pdf',
 		label: (<div>导出PDF</div>),
 	}];
-	const isAstroHeader = props.currentTab === 'astrochart';
+	const currentPageLabel = PAGE_LABELS[props.currentTab] || '导航';
 	const astroSettingsMenu = [{
 		key: 'changeparams',
 		label: menuLabel('aiSettings', '星盘参数')
@@ -455,9 +473,8 @@ function PageHeader(props){
 		openDrawer(key);
 	}
 
-	if(isAstroHeader){
-		return (
-			<div className={`${styles.userbox} ${styles.astroUserbox}`}>
+	return (
+		<div className={`${styles.userbox} ${styles.astroUserbox}`}>
 				<div className={styles.astroBrand}>
 					<Dropdown menu={{items: horosaqr}} placement="bottomLeft" trigger={['click', 'hover']}>
 						<button className={`${styles.brandButton} ${styles.astroBrandButton}`} type="button">
@@ -475,7 +492,7 @@ function PageHeader(props){
 				<Tooltip title="打开导航">
 					<button className={styles.astroCurrentModule} type="button" onClick={()=>openDrawer('homepage')}>
 						<XQIcon name="sideSwitch" />
-						<span>占星</span>
+						<span>{currentPageLabel}</span>
 						<XQIcon name="chevronDown" />
 					</button>
 				</Tooltip>
@@ -483,6 +500,9 @@ function PageHeader(props){
 					<XQButton className={styles.astroHeaderCommand} size="small" iconName="search" onClick={()=>openDrawer('query')}>搜索</XQButton>
 					<XQButton className={styles.astroHeaderCommand} size="small" iconName="bookmark" onClick={()=>openDrawer('chartlist')}>收藏</XQButton>
 					<XQButton className={styles.astroHeaderCommand} size="small" iconName="history" onClick={()=>openDrawer('caselist')}>历史</XQButton>
+					<Dropdown menu={{items: aiExportMenu, onClick: onAIExportClick}} placement="bottom" trigger={['click']}>
+						<XQButton className={styles.astroHeaderCommand} size="small" iconName="aiExport">AI导出</XQButton>
+					</Dropdown>
 					<Dropdown menu={{items: astroSettingsMenu, onClick: onAstroSettingsClick}} placement="bottom" trigger={['click']}>
 						<XQButton className={styles.astroHeaderCommand} size="small" iconName="settings">设置</XQButton>
 					</Dropdown>
@@ -504,7 +524,7 @@ function PageHeader(props){
 					</Dropdown>
 				</div>
 				<XQModal
-					title="占星页帮助"
+					title={`${currentPageLabel}页帮助`}
 					open={astroHelpVisible}
 					onCancel={()=>setAstroHelpVisible(false)}
 					width={520}
@@ -600,168 +620,6 @@ function PageHeader(props){
 						) : null}
 					</div>
 				</XQModal>
-			</div>
-		);
-	}
-
-		return (
-			<div className={styles.userbox}>
-				<div className={styles.brand}>
-					<Dropdown menu={{items: horosaqr}} placement="bottomLeft" trigger={['click', 'hover']}>
-						<button className={styles.brandButton} type="button">
-							<span className={styles.brandMark}><XQIcon name="astro" /></span>
-							<span className={styles.brandText}>星阙</span>
-						</button>
-					</Dropdown>
-				</div>
-				<div className={styles.commandBar}>
-					<span className={styles.commandGroup}>
-						<Tooltip title="导航">
-							<XQButton className={styles.compactCommand} size='small' iconName="navigation" onClick={()=>{openDrawer('homepage')}}>导航</XQButton>
-						</Tooltip>
-						<Tooltip title="批注">
-							<XQButton className={styles.compactCommand} size='small' iconName="note" onClick={()=>{openDrawer('memo')}}>批注</XQButton>
-						</Tooltip>
-					</span>
-					<span className={styles.commandGroup}>
-						<Tooltip title="小工具">
-							<XQButton className={styles.compactCommand} size='small' iconName="tools" onClick={()=>{openDrawer('commtools')}}>小工具</XQButton>
-						</Tooltip>
-					</span>
-					<span className={styles.commandGroup}>
-						<XQButton className={styles.primaryCommand} variant="primary" size='small' iconName="newChart" onClick={newChart}>新命盘</XQButton>
-						<Dropdown menu={{items: aiExportMenu, onClick: onAIExportClick}} placement="bottom" trigger={['click']}>
-							<XQButton className={styles.compactCommand} size='small' iconName="aiExport">AI导出</XQButton>
-						</Dropdown>
-						<XQButton className={styles.compactCommand} size='small' iconName="aiSettings" onClick={openAIExportSettings}>AI导出设置</XQButton>
-						{hasDesktopBridge() ? (
-							<XQButton className={styles.compactCommand} size='small' iconName="diagnostics" onClick={onExportDiagnosticsClick}>诊断</XQButton>
-						) : null}
-					</span>
-				</div>
-				<div className={styles.utilityBar}>
-					<XQInput
-						className={styles.searchInput}
-						size="small"
-						prefix={<XQIcon name="search" />}
-						placeholder="搜索功能 / 命盘 / 笔记"
-						readOnly
-						onClick={()=>{openDrawer('query')}}
-					/>
-					<Tooltip title={`主题：${appearanceLabel}。点击切换昼夜模式。`}>
-						<XQButton
-							size="small"
-							className={styles.appearanceButton}
-							icon={appearanceIcon}
-							onClick={cycleAppearanceMode}
-						>
-							{appearanceLabel}
-						</XQButton>
-					</Tooltip>
-					<Dropdown
-						menu={{
-							items: [
-								{ key: APPEARANCE_SYSTEM, label: '跟随系统' },
-								{ key: APPEARANCE_LIGHT, label: '昼间' },
-								{ key: APPEARANCE_DARK, label: '暗夜' },
-							],
-							onClick: ({key})=>changeAppearanceMode(key),
-						}}
-						trigger={['click']}
-					>
-						<XQIconButton size="small" iconName="theme" />
-					</Dropdown>
-					<Dropdown menu={{
-							items: menu,
-							onClick: props.onMenuClick}}
-					>
-						<span className={`${styles.account}`}>
-							{avatarcomp}
-							<span className={styles.name}>{username}</span>
-						</span>
-					</Dropdown>
-				</div>
-			<XQModal
-				title="AI导出设置"
-				open={aiSettingVisible}
-				onCancel={()=>setAiSettingVisible(false)}
-				width={640}
-				footer={(
-					<XQToolbar className={styles.aiSettingFooter}>
-						<XQButton size="small" onClick={()=>setAiSettingVisible(false)}>取消</XQButton>
-						<XQButton size="small" variant="primary" onClick={onAISettingSave}>保存设置</XQButton>
-					</XQToolbar>
-				)}
-			>
-				<div className={styles.aiSettingModal}>
-					<XQSectionTitle>选择技法</XQSectionTitle>
-					<XQSelect
-					size='small'
-					style={{width: '100%'}}
-					value={aiSettingKey}
-					onChange={(val)=>setAiSettingKey(val)}
-					>
-						{aiSettingTechs.map((item)=>(
-							<Option key={item.key} value={item.key}>{item.label}</Option>
-						))}
-					</XQSelect>
-					<XQToolbar compact className={styles.aiSettingActions}>
-						<XQButton size='small' onClick={onAISettingSelectAll}>全选</XQButton>
-						<XQButton size='small' onClick={onAISettingClear}>清空</XQButton>
-						<XQButton size='small' onClick={onAISettingResetDefault}>恢复默认</XQButton>
-					</XQToolbar>
-					<XQSectionTitle>导出分段</XQSectionTitle>
-					{currentSettingOptions.length ? (
-						<XQCheckList columns={2} className={styles.aiSettingChecks}>
-							{currentSettingOptions.map((item)=>(
-								<XQCheckItem
-									key={item}
-									compact
-									checked={currentSettingSelected.indexOf(item) >= 0}
-									onClick={()=>onAISettingToggleOption(item)}
-								>
-									{item}
-								</XQCheckItem>
-							))}
-						</XQCheckList>
-					) : (
-						<div className={styles.aiSettingEmpty}>当前技法暂未检测到可选分段，请先在该技法完成一次排盘后再设置。</div>
-					)}
-					{currentSettingSupportsPlanetInfo ? (
-						<div>
-							<XQSectionTitle>星曜后天信息</XQSectionTitle>
-							<XQCheckList columns={2}>
-								<XQCheckItem
-									compact
-									checked={currentSettingPlanetInfo.showHouse === 1}
-									onClick={()=>onAISettingPlanetInfoChange('showHouse', currentSettingPlanetInfo.showHouse !== 1)}
-								>
-									显示星曜宫位
-								</XQCheckItem>
-								<XQCheckItem
-									compact
-									checked={currentSettingPlanetInfo.showRuler === 1}
-									onClick={()=>onAISettingPlanetInfoChange('showRuler', currentSettingPlanetInfo.showRuler !== 1)}
-								>
-									显示星曜主宰宫
-								</XQCheckItem>
-							</XQCheckList>
-						</div>
-					) : null}
-					{currentSettingSupportsAstroMeaning ? (
-						<div>
-							<XQSectionTitle>{currentSettingMeaningTitle}</XQSectionTitle>
-							<XQCheckItem
-								compact
-								checked={currentSettingAstroMeaning.enabled === 1}
-								onClick={()=>onAISettingAstroMeaningChange(currentSettingAstroMeaning.enabled !== 1)}
-							>
-								{currentSettingMeaningCheckbox}
-							</XQCheckItem>
-						</div>
-					) : null}
-				</div>
-			</XQModal>
 		</div>
 	);
 }

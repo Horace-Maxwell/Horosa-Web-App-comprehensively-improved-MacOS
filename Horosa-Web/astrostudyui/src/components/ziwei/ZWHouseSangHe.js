@@ -52,6 +52,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let container = this.owner.append('g').attr('id', this.id);
 		container.append('rect')
 				.attr('fill', this.houseBG)
+				.attr('stroke', ZWCont.ZWColor.HouseLineStroke)
 				.attr('x', this.x).attr('y', this.y)
 				.attr('width', this.width).attr('height', this.height);
 		this.svg = container;
@@ -71,6 +72,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let container = this.svg.append('g');
 		container.append('rect')
 				.attr('fill', this.houseBG)
+				.attr('stroke', ZWCont.ZWColor.HouseLineStroke)
 				.attr('x', x).attr('y', y)
 				.attr('width', w).attr('height', h);
 		let data = [];
@@ -93,7 +95,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 					data[1] = taisui.substr(1, 1);
 				}	
 			}
-			GraphHelper.drawTextH(container.append('g'), data, x, sy, w, h/3, 1.5, AstroConst.AstroColor.Stroke, 100);
+			GraphHelper.drawTextH(container.append('g'), data, x, sy, w, h/3, 1.5, ZWCont.ZWColor.StarSmallStroke, 100);
 		}
 
 		let dirX = x + w;
@@ -102,13 +104,14 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let dirH = h;
 		container.append('rect')
 				.attr('fill', this.houseBG)
+				.attr('stroke', ZWCont.ZWColor.HouseLineStroke)
 				.attr('x', dirX).attr('y', dirY)
 				.attr('width', dirW).attr('height', dirH);
 		if(this.dirname !== undefined && this.dirname !== null && this.dirname.length){
 			let dirData = [];
 			dirData[0] = '运';
 			dirData[1] = this.dirname.substr(0, 1);
-			GraphHelper.drawTextH(container.append('g'), dirData, dirX, dirY, dirW, dirH / 2, this.margin, AstroConst.AstroColor.Stroke);
+			GraphHelper.drawTextH(container.append('g'), dirData, dirX, dirY, dirW, dirH / 2, this.margin, ZWCont.ZWColor.HouseBranchStroke, 240);
 		}
 
 		if(this.yearText){
@@ -123,7 +126,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 			let yearH = 12;
 			let yearW = yearH * ydata.length;
 			let yearX = this.x + (this.width - yearW) / 2;
-			GraphHelper.drawTextH(container.append('g'), ydata, yearX, dirY-yearH - 0.5*yearH, yearW, yearH, 1, AstroConst.AstroColor.Stroke);
+			GraphHelper.drawTextH(container.append('g'), ydata, yearX, dirY-yearH - 0.5*yearH, yearW, yearH, 1, ZWCont.ZWColor.HouseAgeStroke);
 		}
 
 		let dirSubX1 = dirX;
@@ -134,13 +137,14 @@ class ZWHouseSangHe extends ZWCommHouse {
 				.attr('x1', dirSubX1)
 				.attr('y1', dirSubY1)
 				.attr('x2', dirSubX2)
-				.attr('y2', dirSubY2);
+				.attr('y2', dirSubY2)
+				.attr('stroke', ZWCont.ZWColor.HouseLineStroke);
 
 		let dirData = [];
 		dirData[0] = this.houseObj.direction[0] + '';
 		dirData[1] = '~';
 		dirData[2] = this.houseObj.direction[1] + '';
-		GraphHelper.drawTextH(container.append('g'), dirData, dirSubX1, dirSubY2, dirW, dirH / 2, this.margin, AstroConst.AstroColor.Stroke);
+		GraphHelper.drawTextH(container.append('g'), dirData, dirSubX1, dirSubY2, dirW, dirH / 2, this.margin, ZWCont.ZWColor.HouseAgeStroke, 140);
 
 		let titleX = dirX + dirW;
 		let titleY = y;
@@ -148,13 +152,17 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let titleH = h;
 		container.append('rect')
 				.attr('fill', this.houseBG)
+				.attr('stroke', ZWCont.ZWColor.HouseLineStroke)
 				.attr('x', titleX).attr('y', titleY)
 				.attr('width', titleW).attr('height', titleH);
 
-		let gzdata = [];
-		gzdata[0] = this.houseObj.ganzi.substr(0,1);
-		gzdata[1] = this.houseObj.ganzi.substr(1,1);
-		let gzsvg = GraphHelper.drawTextV(container.append('g'), gzdata, titleX, titleY, titleW/2, titleH, this.margin, 'var(--horosa-gold, #948e33)', 100);
+		let titleGroup = this.drawHouseTitleText(container.append('g'), {
+			x: titleX,
+			y: titleY,
+			w: titleW,
+			h: titleH,
+		});
+		let gzsvg = titleGroup.select('.horosa-ziwei-house-ganzi-hit');
 		let gztip = ZWCont.NaYin[this.houseObj.ganzi];
 		if(gztip){
 			let tipobj = {
@@ -164,9 +172,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 			this.genTooltip(gzsvg, tipobj, this.houseObj.name)
 		}
 
-		data[0] = this.houseObj.name.substr(0,1);
-		data[1] = this.houseObj.name.substr(1,1);
-		let housesvg = GraphHelper.drawTextV(container.append('g'), data, titleX+titleW/2, titleY, titleW/2, titleH, this.margin, 'var(--horosa-accent-strong, #0b0e66)', 200);
+		let housesvg = titleGroup.select('.horosa-ziwei-house-name-hit');
 		let tip = this.ZWRules.RuleHouses[this.houseObj.name];
 		if(tip){
 			let tipobj = {
@@ -178,51 +184,86 @@ class ZWHouseSangHe extends ZWCommHouse {
 		
 	}
 
+	drawHouseTitleText(group, ord){
+		const name = `${this.houseObj.name || ''}`.replace(/宫$/, '');
+		const ganzi = this.houseObj.ganzi || '';
+		const nameSize = Math.max(14, Math.min(ord.w * 0.46, ord.h * 0.54));
+		const ganziSize = Math.max(9, Math.min(ord.w * 0.30, ord.h * 0.28));
+		const cx = ord.x + ord.w / 2;
+		const nameY = ord.y + ord.h * 0.36;
+		const ganziY = ord.y + ord.h * 0.72;
+		group.append('text')
+			.attr('class', 'horosa-ziwei-house-name-hit')
+			.attr('x', cx)
+			.attr('y', nameY)
+			.attr('dominant-baseline', 'middle')
+			.attr('text-anchor', 'middle')
+			.attr('fill', 'var(--horosa-ziwei-house-title, var(--horosa-ziwei-house-name, #f3d18b))')
+			.attr('stroke', 'none')
+			.attr('font-size', `${nameSize}px`)
+			.attr('font-weight', 800)
+			.attr('font-family', AstroConst.NormalFont)
+			.text(name);
+		group.append('text')
+			.attr('class', 'horosa-ziwei-house-ganzi-hit')
+			.attr('x', cx)
+			.attr('y', ganziY)
+			.attr('dominant-baseline', 'middle')
+			.attr('text-anchor', 'middle')
+			.attr('fill', ZWCont.ZWColor.HouseAgeStroke)
+			.attr('stroke', 'none')
+			.attr('font-size', `${ganziSize}px`)
+			.attr('font-weight', 620)
+			.attr('font-family', AstroConst.NormalFont)
+			.text(ganzi);
+		return group;
+	}
+
 	drawStars(){
 		let starsCount = this.houseObj.starsMain.length + this.houseObj.starsAssist.length + this.houseObj.starsEvil.length
 						+ this.houseObj.starsOthersGood.length + this.houseObj.starsOthersBad.length;
 		let avgsz = (this.width - this.margin*starsCount) / starsCount;
-		let sz = this.fontSize < avgsz ? this.fontSize : avgsz;
-		this.fontSize = sz;
+		let baseStarSize = this.starFontSize || this.fontSize;
+		let sz = baseStarSize < avgsz ? baseStarSize : avgsz;
 
 		let x = this.x;
 		let y = this.y;
 		let w = sz + this.margin/2;
-		let h = sz*2 + this.margin*2;
-		for(let i=0; i<this.houseObj.starsMain.length; i++){
-			let star = this.houseObj.starsMain[i];
-			let sx = x + i*w;
-			this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarMainStroke);
-		}
-		x = x + this.houseObj.starsMain.length * w;
+		let h = sz*3 + this.margin*2;
+			for(let i=0; i<this.houseObj.starsMain.length; i++){
+				let star = this.houseObj.starsMain[i];
+				let sx = x + i*w;
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarMainStroke, 1, 700);
+			}
+			x = x + this.houseObj.starsMain.length * w;
 
-		for(let i=0; i<this.houseObj.starsAssist.length; i++){
-			let star = this.houseObj.starsAssist[i];
-			let sx = x + i*w;
-			this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarAssistStroke);
-		}
-		x = x + this.houseObj.starsAssist.length * w;
+			for(let i=0; i<this.houseObj.starsAssist.length; i++){
+				let star = this.houseObj.starsAssist[i];
+				let sx = x + i*w;
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarAssistStroke, 0.84, 100);
+			}
+			x = x + this.houseObj.starsAssist.length * w;
 
-		for(let i=0; i<this.houseObj.starsEvil.length; i++){
-			let star = this.houseObj.starsEvil[i];
-			let sx = x + i*w;
-			this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarEvilStroke);
-		}
-		x = x + this.houseObj.starsEvil.length * w;
+			for(let i=0; i<this.houseObj.starsEvil.length; i++){
+				let star = this.houseObj.starsEvil[i];
+				let sx = x + i*w;
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarEvilStroke, 0.84, 100);
+			}
+			x = x + this.houseObj.starsEvil.length * w;
 
-		for(let i=0; i<this.houseObj.starsOthersGood.length; i++){
-			let star = this.houseObj.starsOthersGood[i];
-			let sx = x + i*w;
-			this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarAssistStroke);
-		}
-		x = x + this.houseObj.starsOthersGood.length * w;
+			for(let i=0; i<this.houseObj.starsOthersGood.length; i++){
+				let star = this.houseObj.starsOthersGood[i];
+				let sx = x + i*w;
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarAssistStroke, 0.84, 100);
+			}
+			x = x + this.houseObj.starsOthersGood.length * w;
 
-		for(let i=0; i<this.houseObj.starsOthersBad.length; i++){
-			let star = this.houseObj.starsOthersBad[i];
-			let sx = x + i*w;
-			this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarEvilStroke);
+			for(let i=0; i<this.houseObj.starsOthersBad.length; i++){
+				let star = this.houseObj.starsOthersBad[i];
+				let sx = x + i*w;
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarEvilStroke, 0.84, 100);
+			}
 		}
-	}
 
 	drawHouse(){
 		this.drawTitle();
@@ -230,15 +271,28 @@ class ZWHouseSangHe extends ZWCommHouse {
 	}
 
 
-	drawStar(star, x, y, w, h, color){
+	drawStar(star, x, y, w, h, color, scale = 1, nameWeight = 100){
 		let yearGan = this.chartObj.yearGan;
 		let txt = [];
 		for(let i=0; i<star.name.length; i++){
 			txt[i] = star.name.charAt(i) + '';
 		}
-		txt.push(star.starlight ? star.starlight : '');
 
 		let mgn = 1;
+		let nameFontSize = Math.max(12, Math.round((w - 2 * mgn) * scale));
+		let nameW = nameFontSize + mgn * 2;
+		let nameX = x + (w - nameW) / 2;
+		let nameH = txt.length * (nameFontSize + mgn) + mgn * 2;
+		let lightTxt = [];
+		if(star.starlight){
+			for(let i=0; i<star.starlight.length; i++){
+				lightTxt[i] = star.starlight.charAt(i) + '';
+			}
+		}
+		let lightFontSize = Math.max(9, Math.round(nameFontSize * 0.58));
+		let lightGap = lightTxt.length ? 2 : 0;
+		let lightH = lightTxt.length ? lightTxt.length * (lightFontSize + 1) + mgn * 2 : 0;
+		let starGroup = this.svg.append('g');
 
 		let flyhua = null;
 		if(this.flyGanzi){
@@ -248,10 +302,17 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let starsvg = null;
 		if(flyhua){
 			let coloropt = ZWCont.ZWColor[flyhua];
-			starsvg = GraphHelper.drawTextV(this.svg.append('g'), txt, x, y, w, h, mgn, 
-				coloropt.color, null, coloropt.bg);
+			starsvg = GraphHelper.drawTextV(starGroup, txt, nameX, y, nameW, nameH, mgn, 
+				coloropt.color, nameWeight, coloropt.bg);
+			starsvg.selectAll('text').attr('fill', coloropt.color).attr('stroke', 'none');
 		}else{
-			starsvg = GraphHelper.drawTextV(this.svg.append('g'), txt, x, y, w, h, mgn, color);
+			starsvg = GraphHelper.drawTextV(starGroup, txt, nameX, y, nameW, nameH, mgn, color, nameWeight);
+			starsvg.selectAll('text').attr('fill', color).attr('stroke', 'none');
+		}
+		if(lightTxt.length){
+			let lightW = Math.max(12, Math.min(w, lightFontSize + mgn * 2));
+			let lightX = x + (w - lightW) / 2;
+			GraphHelper.drawTextV(starGroup, lightTxt, lightX, y + nameH + lightGap, lightW, lightH, mgn, 'var(--horosa-muted, #8a8f95)');
 		}
 
 		let tip = this.ZWRules.RuleStars[star.name];
@@ -260,7 +321,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 				title: star.name,
 				tips: tip,
 			};
-			this.genTooltip(starsvg, tipobj, star.name)
+			this.genTooltip(starGroup, tipobj, star.name)
 		}
 
 		let dim = {

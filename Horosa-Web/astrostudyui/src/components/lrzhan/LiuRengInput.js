@@ -1,12 +1,11 @@
 import { Component } from 'react';
 import { Row, Col } from 'antd';
-import GeoCoordModal from '../amap/GeoCoordModal';
-import PlusMinusTime from '../astro/PlusMinusTime';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as LRConst from '../liureng/LRConst';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import DateTime from '../comp/DateTime';
-import { XQButton as Button, XQSelect as Select } from '../xq-ui';
+import { XQSelect as Select } from '../xq-ui';
 
 const {Option} = Select;
 
@@ -20,11 +19,6 @@ class LiuRengInput extends Component{
 		this.changeGeo = this.changeGeo.bind(this);
 		this.onGenderChange = this.onGenderChange.bind(this);
 		this.onChartTypeChange = this.onChartTypeChange.bind(this);
-
-		let type = localStorage.getItem('liurengChartType');
-		if(type !== undefined && type !== null){
-			LRConst.LRChartType = parseInt(type+'');
-		}
 
 	}
 
@@ -90,8 +84,10 @@ class LiuRengInput extends Component{
 	}
 
 	onChartTypeChange(val){
-		LRConst.LRChartType = val;
-		localStorage.setItem('liurengChartType', val);
+		localStorage.setItem('liurengPanView', val);
+		if(this.props.onChartTypeChange){
+			this.props.onChartTypeChange(val);
+		}
 		if(this.props.onFieldsChange){
 			this.props.onFieldsChange({
 				lrchart: {
@@ -113,15 +109,17 @@ class LiuRengInput extends Component{
 			}
 		}
 
-		let lrchart = LRConst.LRChartType;
+		let lrchart = this.props.chartType !== undefined && this.props.chartType !== null ? this.props.chartType : LRConst.LRChart_Square;
 
 		return (
 			<div>
-			<Row>
-				<Col span={24}>
-					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.props.timeHook} />
-				</Col>	
-			</Row>
+			<SpaceTimePanel
+				fields={fields}
+				value={datetm}
+				onTimeChange={this.onTimeChanged}
+				timeHook={this.props.timeHook}
+				onGeoChange={this.changeGeo}
+			/>
 			<Row>
 				<Col lg={12} xl={8}>
 					<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
@@ -133,24 +131,11 @@ class LiuRengInput extends Component{
 
 				<Col lg={12} xl={8}>
 					<Select value={lrchart} onChange={this.onChartTypeChange} size='small' style={{width:'100%'}}>
-						<Option value={LRConst.LRChart_Circle}>圆形盘</Option>
-						<Option value={LRConst.LRChart_Square}>方形盘</Option>
+						<Option value={LRConst.LRChart_Square}>方盘</Option>
+						<Option value={LRConst.LRChart_Circle}>圆盘</Option>
 					</Select>				
 				</Col>
 
-				<Col lg={12} xl={8}>
-					<div>
-						<GeoCoordModal 
-							onOk={this.changeGeo}
-							lat={fields.gpsLat.value} lng={fields.gpsLon.value}
-						>
-							<Button size='small' style={{width:'100%'}}>经纬度选择</Button>
-						</GeoCoordModal>
-					</div>
-				</Col>
-				<Col lg={12} xl={24} style={{textAlign: 'right'}}>
-					<span style={{width:'100%', textAlign: 'center'}}>{fields.lon.value + ' ' + fields.lat.value}</span>
-				</Col>
 			</Row>
 			</div>
 		);

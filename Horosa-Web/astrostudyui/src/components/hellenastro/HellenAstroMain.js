@@ -1,8 +1,5 @@
 import { Component } from 'react';
 import AstroChart13 from './AstroChart13';
-import { XQTabs } from '../xq-ui';
-
-const TabPane = XQTabs.TabPane;
 
 class HellenAstroMain extends Component{
 
@@ -78,26 +75,17 @@ class HellenAstroMain extends Component{
 
 		return (
 			<div className="horosa-aux-module-page xq-chart-renderer xq-chart-renderer-hellen">
-				<XQTabs
-					defaultActiveKey={this.state.currentTab} tabPosition='right'
-					onChange={this.changeTab}
-					style={{ height: height }}
-				>
-					<TabPane tab='十三分盘' key="Chart13" >
-							<AstroChart13
-								onChange={this.onFieldsChange}
-							fields={fields}
-							height={height}
-							chartDisplay={this.props.chartDisplay}
-								planetDisplay={this.props.planetDisplay}
-								lotsDisplay={this.props.lotsDisplay}
-								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-								showAstroMeaning={this.props.showAstroMeaning}
-								hook={this.state.hook.Chart13}
-							/>
-					</TabPane>
-
-				</XQTabs>
+				<AstroChart13
+					onChange={this.onFieldsChange}
+					fields={fields}
+					height={height}
+					chartDisplay={this.props.chartDisplay}
+					planetDisplay={this.props.planetDisplay}
+					lotsDisplay={this.props.lotsDisplay}
+					showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+					showAstroMeaning={this.props.showAstroMeaning}
+					hook={this.state.hook.Chart13}
+				/>
 			</div>
 		);
 	}

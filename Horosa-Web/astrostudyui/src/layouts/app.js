@@ -14,7 +14,6 @@ const App = ({children, dispatch, app, user, astro, })=>{
     const { userInfo, admin, } = user;
     const { chartDisplay, appearanceMode,} = app;
     const currentTab = astro && astro.currentTab ? astro.currentTab : null;
-    const isAstroPage = currentTab === 'astrochart';
     const { Header, Content } = Layout;
     const [prefersDark, setPrefersDark] = React.useState(()=>{
         if(typeof window === 'undefined' || !window.matchMedia){
@@ -86,10 +85,10 @@ const App = ({children, dispatch, app, user, astro, })=>{
     const astroHeaderBorder = resolvedAppearance === APPEARANCE_DARK ? 'rgba(215, 173, 105, 0.18)' : 'var(--horosa-border)';
     let headerstyle = {
         position: 'fixed', width:'100%', zIndex: 100,
-        backgroundColor: isAstroPage ? astroHeaderBg : 'var(--horosa-header-bg)',
+        backgroundColor: astroHeaderBg,
         height:72, padding: 0,
         borderBottom: '1px solid',
-        borderBottomColor: isAstroPage ? astroHeaderBorder : 'var(--horosa-border)',
+        borderBottomColor: astroHeaderBorder,
         color: 'var(--horosa-text)',
         stroke: 'var(--horosa-text)',
     };
@@ -109,7 +108,7 @@ const App = ({children, dispatch, app, user, astro, })=>{
             data-appearance={resolvedAppearance}
             style={mainstyle}
         >
-            <Header className={isAstroPage ? 'horosa-astro-header' : ''} style={headerstyle}>
+            <Header className="horosa-astro-header" style={headerstyle}>
                 <PageHeader 
                     admin={admin}
                     chartDisplay={chartDisplay}

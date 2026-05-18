@@ -1,12 +1,10 @@
 import { Component } from 'react';
-import { Row, Col } from 'antd';
-import GeoCoordModal from '../amap/GeoCoordModal';
-import PlusMinusTime from '../astro/PlusMinusTime';
-import { gcj02ToGps, randomStr } from '../../utils/helper';
-import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
+import {convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import DateTime from '../comp/DateTime';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as SZConst from '../suzhan/SZConst';
-import { XQButton as Button, XQSelect as Select } from '../xq-ui';
+import { XQSelect as Select } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const {Option} = Select;
 
@@ -221,52 +219,59 @@ class GuoLaoInput extends Component{
 		}
 
 		return (
-			<div>
-			<Row>
-				<Col span={24}>
-					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.tmHook} />
-				</Col>	
-			</Row>
-			<Row>
-				<Col lg={12} xl={8}>
-					<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
-						<Option value={-1}>未知</Option>
-						<Option value={0}>女</Option>
-						<Option value={1}>男</Option>
-					</Select>
-				</Col>
-				<Col lg={12} xl={8}>
-					<Select value={fields.doubingSu28.value} onChange={this.onDoubingSu28Change} size='small' style={{width:'100%'}}>
-						<Option value={0}>现实距星法</Option>
-						<Option value={1}>斗柄定房法</Option>
-					</Select>
-				</Col>
-				<Col lg={12} xl={8}>
-					<Select value={szshape} onChange={this.onChartShapeChange} size='small' style={{width:'100%'}}>
-						<Option value={SZConst.SZChart_Circle}>圆形盘</Option>
-						<Option value={SZConst.SZChart_Square}>方形盘</Option>
-					</Select>
-				</Col>
-				<Col lg={12} xl={8}>
-					<Select value={houseStartMode} onChange={this.onHouseStartModeChange} size='small' style={{width:'100%'}}>
-						<Option value={SZConst.SZHouseStart_Bazi}>八字公式起盘</Option>
-						<Option value={SZConst.SZHouseStart_ASC}>ASC起盘</Option>
-					</Select>
-				</Col>
-				<Col lg={12} xl={8}>
+			<div className="horosa-guolao-input-stack">
+				<div className="horosa-side-panel-heading">
 					<div>
-						<GeoCoordModal 
-							onOk={this.changeGeo}
-							lat={fields.gpsLat.value} lng={fields.gpsLon.value}
-						>
-							<Button size='small' style={{width:'100%'}}>经纬度选择</Button>
-						</GeoCoordModal>
+						<div className="horosa-side-panel-title">七政设置</div>
+						<div className="horosa-side-panel-subtitle">时间、地点与排盘选项</div>
 					</div>
-				</Col>
-				<Col lg={12} xl={16} style={{textAlign: 'right'}}>
-					<span style={{width:'100%', textAlign: 'right'}}>{fields.lon.value + ' ' + fields.lat.value}</span>
-				</Col>
-			</Row>
+				</div>
+
+				<SpaceTimePanel
+					fields={fields}
+					value={datetm}
+					onTimeChange={this.onTimeChanged}
+					timeHook={this.tmHook}
+					onGeoChange={this.changeGeo}
+				/>
+
+				<div className="horosa-guolao-input-section">
+					<div className="horosa-guolao-field-title">
+						<XQIcon name="sliders" />
+						<span>选项</span>
+					</div>
+					<div className="horosa-guolao-select-grid">
+						<label className="horosa-guolao-select-field">
+							<span>性别</span>
+							<Select value={fields.gender.value} onChange={this.onGenderChange} size='small'>
+								<Option value={-1}>未知</Option>
+								<Option value={0}>女</Option>
+								<Option value={1}>男</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>二十八宿</span>
+							<Select value={fields.doubingSu28.value} onChange={this.onDoubingSu28Change} size='small'>
+								<Option value={0}>现实距星法</Option>
+								<Option value={1}>斗柄定房法</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>盘式</span>
+							<Select value={szshape} onChange={this.onChartShapeChange} size='small'>
+								<Option value={SZConst.SZChart_Circle}>圆形盘</Option>
+								<Option value={SZConst.SZChart_Square}>方形盘</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>人事十二宫</span>
+							<Select value={houseStartMode} onChange={this.onHouseStartModeChange} size='small'>
+								<Option value={SZConst.SZHouseStart_Bazi}>八字公式起盘</Option>
+								<Option value={SZConst.SZHouseStart_ASC}>ASC起盘</Option>
+							</Select>
+						</label>
+					</div>
+				</div>
 			</div>
 		);
 	}

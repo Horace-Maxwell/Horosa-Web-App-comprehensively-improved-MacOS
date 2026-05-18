@@ -142,6 +142,27 @@
 	flex: 0 0 auto;
 }
 
+:global(:root[data-horosa-appearance='dark']) .root {
+	:global(.ant-input),
+	:global(.ant-input-affix-wrapper),
+	:global(.ant-select:not(.ant-select-customize-input) .ant-select-selector),
+	:global(textarea),
+	.composer,
+	.previewCode,
+	.summaryBlock,
+	.messageAssistant {
+		border-color: rgba(215, 173, 105, 0.18) !important;
+		background: #090b0e !important;
+		background-color: #090b0e !important;
+		color: #efe4d2 !important;
+	}
+
+	.messageUser {
+		background: rgba(231, 189, 117, 0.10) !important;
+		color: #efe4d2;
+	}
+}
+
 .composerActions {
 	display: flex;
 	align-items: center;

@@ -1,20 +1,34 @@
 import { Component } from 'react';
 import { Row, Col, Divider } from 'antd';
+import { XQButton as Button } from '../xq-ui';
 import FourZhu from './FourZhu';
+import BaZiFineChart from './BaZiFineChart';
 import { BaZiMsg } from '../../msg/bazimsg';
-import { randomStr, printArea,} from '../../utils/helper';
+import { randomStr,} from '../../utils/helper';
 import styles from '../../css/styles.less';
 
+const BAZI_CHART_STYLE_KEY = 'baziChartStyle';
 
 class PaiBaZi extends Component{
 	constructor(props) {
 		super(props);
+		const savedStyle = localStorage.getItem(BAZI_CHART_STYLE_KEY);
 		this.state = {
 			id: 'div' + randomStr(8),
+			chartStyle: savedStyle === 'fine' ? 'fine' : 'simple',
 		};
 
 		this.genDirDom = this.genDirDom.bind(this);
 		this.genSubDirectDom = this.genSubDirectDom.bind(this);
+		this.changeChartStyle = this.changeChartStyle.bind(this);
+	}
+
+	changeChartStyle(chartStyle){
+		this.setState({
+			chartStyle,
+		}, ()=>{
+			localStorage.setItem(BAZI_CHART_STYLE_KEY, chartStyle);
+		});
 	}
 
 	genDirDom(dirs, directTime){
@@ -110,27 +124,47 @@ class PaiBaZi extends Component{
 		}
 
 		let dirdoms = this.genDirDom(rec.direction, rec.directTime);
+		const isFine = this.state.chartStyle === 'fine';
 
 		return (
 			<div className={`horosa-bazi-scroll ${styles.scrollbar}`} style={style} id={this.state.id}>
+				<div className="horosa-bazi-style-switch">
+					<Button
+						size="small"
+						type={!isFine ? 'primary' : 'default'}
+						onClick={()=>this.changeChartStyle('simple')}
+					>
+						简盘
+					</Button>
+					<Button
+						size="small"
+						type={isFine ? 'primary' : 'default'}
+						onClick={()=>this.changeChartStyle('fine')}
+					>
+						细盘
+					</Button>
+				</div>
 				<Row className="horosa-bazi-summary" style={{marginBottom: 10}}>
-					<Col span={20}>
-						<span style={{fontSize: 16, fontWeight: 'bold'}}>{BaZiMsg[rec.gender]}</span>&nbsp;
-						<span>{name}</span>&nbsp;
-						<span>农历:</span>
+						<Col span={24}>
+							<span style={{fontSize: 16, fontWeight: 'bold'}}>{BaZiMsg[rec.gender]}</span>&nbsp;
+							<span>{name}</span>&nbsp;
+							<span>农历:</span>
 						<span>{nongli}</span>&nbsp;
 						<span>{realtm}</span><br />
 						<span>{jiedelta}</span>
-						<span>{chef}</span>&nbsp;
-						<span>{tiaohou}</span>
-					</Col>
-					<Col span={4} style={{textAlign: 'right'}}>
-						<a href={null} onClick={()=>{ printArea(this.state.id);}}>打印命盘</a>
-					</Col>
-				</Row>
-				<FourZhu value={rec.fourColumns} baziOpt={this.props.baziOpt} gong12God={rec.gong12God} />
-				<Divider />
-				{dirdoms}
+							<span>{chef}</span>&nbsp;
+							<span>{tiaohou}</span>
+						</Col>
+					</Row>
+				{isFine ? (
+					<BaZiFineChart value={rec} fields={fields} />
+				) : (
+					<>
+						<FourZhu value={rec.fourColumns} baziOpt={this.props.baziOpt} gong12God={rec.gong12God} />
+						<Divider />
+						{dirdoms}
+					</>
+				)}
 			</div>
 		);
 	}

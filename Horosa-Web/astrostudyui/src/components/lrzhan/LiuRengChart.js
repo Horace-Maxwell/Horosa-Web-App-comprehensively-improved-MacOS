@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import { Component } from 'react';
+import { Modal } from 'antd';
 import {randomStr, setupFloatingTooltip} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import RengChart from './RengChart';
@@ -14,7 +15,11 @@ class LiuRengChart extends Component{
 			oy: 0,
 			radius: 0,
 			tooltipId: 'div' + randomStr(8),
+			metaDialog: null,
 		};
+
+		this.openMetaDialog = this.openMetaDialog.bind(this);
+		this.closeMetaDialog = this.closeMetaDialog.bind(this);
 
 		let opt = {
 			id: svgid,
@@ -28,12 +33,26 @@ class LiuRengChart extends Component{
 			zhangshengElem: this.props.zhangshengElem,
 			guireng: this.props.guireng,
 			panStyleName: this.props.panStyleName,
+			onMetaInfoClick: this.openMetaDialog,
+			chartType: this.props.chartType,
 		};
 		this.rengchart = new RengChart(opt);
 
 		this.drawChart = this.drawChart.bind(this);
 		this.handleResize = this.handleResize.bind(this);
 		this.setupToolTip = this.setupToolTip.bind(this);
+	}
+
+	openMetaDialog(payload){
+		this.setState({
+			metaDialog: payload,
+		});
+	}
+
+	closeMetaDialog(){
+		this.setState({
+			metaDialog: null,
+		});
 	}
 
 	handleResize(){
@@ -73,6 +92,8 @@ class LiuRengChart extends Component{
 		this.rengchart.zhangshengElem = this.props.zhangshengElem;
 		this.rengchart.guireng = this.props.guireng;
 		this.rengchart.panStyleName = this.props.panStyleName || '';
+		this.rengchart.onMetaInfoClick = this.openMetaDialog;
+		this.rengchart.chartType = this.props.chartType;
 
 		this.rengchart.draw();
 	}
@@ -121,10 +142,34 @@ class LiuRengChart extends Component{
 		}
 
 		this.drawChart();
+		const metaDialog = this.state.metaDialog;
+		const metaRows = metaDialog && Array.isArray(metaDialog.gods) ? metaDialog.gods : [];
 
 		return (
-			<svg id={this.state.chartid} style={chartstyle}>
-			</svg>
+			<>
+				<svg id={this.state.chartid} style={chartstyle}>
+				</svg>
+				<Modal
+					visible={!!metaDialog}
+					title={metaDialog ? metaDialog.title : ''}
+					footer={null}
+					onCancel={this.closeMetaDialog}
+					width={420}
+					className="horosa-liureng-meta-modal"
+					destroyOnClose
+				>
+					<div className="horosa-liureng-meta-list">
+						{metaRows.length ? metaRows.map((item, idx)=>(
+							<div className="horosa-liureng-meta-row" key={`${item.key}_${idx}`}>
+								<span>{item.key}</span>
+								<strong>{item.value}</strong>
+							</div>
+						)) : (
+							<div className="horosa-liureng-meta-empty">暂无信息</div>
+						)}
+					</div>
+				</Modal>
+			</>
 		)
 	}
 }

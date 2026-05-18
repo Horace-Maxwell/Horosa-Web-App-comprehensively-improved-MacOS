@@ -152,7 +152,7 @@ class DateTimeSelector extends Component{
 				if(this.props.onChange){
 					this.props.onChange({
 						...this.getCurrentValue(),
-						confirmed: false,
+						confirmed: !!this.props.confirmOnAdjust,
 					});
 				}
 				this.setState({

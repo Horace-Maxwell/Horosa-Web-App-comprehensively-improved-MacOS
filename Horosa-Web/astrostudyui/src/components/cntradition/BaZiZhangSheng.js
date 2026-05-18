@@ -2,7 +2,7 @@ import { Component } from 'react';
 import { Row, Col, Divider } from 'antd';
 import { XQSelect as Select } from '../xq-ui';
 import { ZhangSheng, SuiTuTong, ZSList, Gan, Zi, ZSColor } from '../../msg/bazimsg';
-import { randomStr, printArea,} from '../../utils/helper';
+import { randomStr,} from '../../utils/helper';
 import styles from '../../css/styles.less';
 
 const { Option, } = Select;

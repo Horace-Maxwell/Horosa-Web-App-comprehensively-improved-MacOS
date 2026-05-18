@@ -1,8 +1,5 @@
 import { Component } from 'react';
 import AstroAcg from '../acg/AstroAcg';
-import { XQTabs } from '../xq-ui';
-
-const TabPane = XQTabs.TabPane;
 
 class LocAstroMain extends Component{
 
@@ -77,20 +74,11 @@ class LocAstroMain extends Component{
 
 		return (
 			<div className="horosa-aux-module-page xq-chart-renderer xq-chart-renderer-locastro">
-				<XQTabs
-					defaultActiveKey={this.state.currentTab} tabPosition='right'
-					onChange={this.changeTab}
-					style={{ height: height }}
-				>
-					<TabPane tab='行星地图' key="Acg" >
-						<AstroAcg
-							height={height}
-							fields={fields}
-							hook={this.state.hook.Acg}
-						/>
-					</TabPane>
-
-				</XQTabs>
+				<AstroAcg
+					height={height}
+					fields={fields}
+					hook={this.state.hook.Acg}
+				/>
 			</div>
 		);
 	}

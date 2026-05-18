@@ -44,8 +44,9 @@ class CommToolsMain extends Component{
 		let fields = this.props.fields;
 
 		return (
-			<div>
+			<div className="horosa-commtools-root">
 				<Tabs 
+					className="horosa-commtools-tabs"
 					defaultActiveKey={this.state.tab} 
 					onChange={this.changeTab}
 					tabPosition='left'

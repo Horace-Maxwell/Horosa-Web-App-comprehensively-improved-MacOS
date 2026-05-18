@@ -1,6 +1,7 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Modal, message, Tag } from 'antd';
+import { Modal, message, Tag } from 'antd';
 import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import * as AstroConst from '../../constants/AstroConst';
@@ -34,6 +35,17 @@ function cloneDateTimeSafe(val, fallback){
 		return fallback.clone();
 	}
 	return new DateTime();
+}
+
+function readLiurengChartType(){
+	if(typeof window === 'undefined' || typeof localStorage === 'undefined'){
+		return LRConst.LRChart_Square;
+	}
+	const stored = parseInt(localStorage.getItem('liurengPanView'), 10);
+	if(stored === LRConst.LRChart_Circle || stored === LRConst.LRChart_Square){
+		return stored;
+	}
+	return LRConst.LRChart_Square;
 }
 
 function buildBirthFields(source, fallbackNow){
@@ -3957,6 +3969,7 @@ class LiuRengMain extends Component{
 			calcFields: null,
 			calcChart: null,
 			rightPanelTab: 'dage',
+			chartType: readLiurengChartType(),
 		};
 
 		this.unmounted = false;
@@ -3972,6 +3985,7 @@ class LiuRengMain extends Component{
 		this.onBirthChange = this.onBirthChange.bind(this);
 		this.onWuXingChange = this.onWuXingChange.bind(this);
 		this.onGuiRengChange = this.onGuiRengChange.bind(this);
+		this.onChartTypeChange = this.onChartTypeChange.bind(this);
 		this.genWuXingDoms = this.genWuXingDoms.bind(this);
 		this.genGodsParams = this.genGodsParams.bind(this);
 		this.genRunYearParams = this.genRunYearParams.bind(this);
@@ -4031,6 +4045,12 @@ class LiuRengMain extends Component{
 				},
 			});
 		}
+	}
+
+	onChartTypeChange(value){
+		this.setState({
+			chartType: value,
+		});
 	}
 
 	onBirthChange(field){
@@ -4593,10 +4613,188 @@ class LiuRengMain extends Component{
 		}
 	}
 
+	renderInputPanel(wxdoms){
+		return (
+			<div className="horosa-liureng-input-stack">
+				<div className="horosa-side-panel-heading">
+					<div>
+						<div className="horosa-side-panel-title">六壬设置</div>
+						<div className="horosa-side-panel-subtitle">时间、地点与起课选项</div>
+					</div>
+				</div>
+				<div className="horosa-liureng-input-section">
+					<div className="horosa-liureng-field-title">
+						<XQIcon name="clock" />
+						<span>时间与地点</span>
+					</div>
+					<LiuRengInput
+						fields={this.props.fields}
+						onFieldsChange={this.onFieldsChange}
+						timeHook={this.timeHook}
+						chartType={this.state.chartType}
+						onChartTypeChange={this.onChartTypeChange}
+					/>
+				</div>
+				<div className="horosa-liureng-input-section">
+					<div className="horosa-liureng-field-title">
+						<XQIcon name="user" />
+						<span>卜卦人出生时间</span>
+					</div>
+					<LiuRengBirthInput
+						fields={this.state.birth}
+						onFieldsChange={this.onBirthChange}
+						requireConfirm={true}
+					/>
+				</div>
+				<div className="horosa-liureng-input-section">
+					<div className="horosa-liureng-field-title">
+						<XQIcon name="sliders" />
+						<span>选项</span>
+					</div>
+					<div className="horosa-liureng-select-grid">
+						<label className="horosa-liureng-select-field horosa-liureng-select-field-wide">
+							<span>十二长生</span>
+							<Select value={this.state.wuxing} onChange={this.onWuXingChange}>
+								{wxdoms}
+							</Select>
+						</label>
+						<label className="horosa-liureng-select-field horosa-liureng-select-field-wide">
+							<span>贵人体系</span>
+							<Select value={this.state.guireng} onChange={this.onGuiRengChange}>
+								<Option value={0}>六壬法贵人</Option>
+								<Option value={1}>遁甲法贵人</Option>
+								<Option value={2}>星占法贵人</Option>
+							</Select>
+						</label>
+					</div>
+					<div className="horosa-liureng-action-row">
+						<Button type='primary' onClick={this.clickStartPaiPan}>起课</Button>
+						<Button onClick={this.clickSaveCase}>保存</Button>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	renderReferenceTabs(refData){
+		const {
+			refSummary,
+			refBundle,
+			xiaojuMainItems,
+			xiaojuReferenceItems,
+			overviewItems,
+			panelBodyHeight,
+		} = refData;
+		return (
+			<Tabs
+				className="horosa-liureng-tabs"
+				activeKey={this.state.rightPanelTab}
+				onChange={(key)=>this.setState({ rightPanelTab: key })}
+				animated={false}
+			>
+				<TabPane tab="大格" key="dage">
+					<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+						{refSummary ? (
+							<Card size='small' style={{ marginBottom: 8, background: 'var(--horosa-panel-soft, #fafafa)' }}>
+								<div style={{ fontSize: 12, color: 'var(--horosa-text-soft, #595959)', lineHeight: '20px' }}>{refSummary}</div>
+							</Card>
+						) : null}
+						{refBundle.dage && refBundle.dage.length ? refBundle.dage.map((item)=>(
+							<Card key={`dage_${item.key}`} size='small' style={{ marginBottom: 8 }}>
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+									<span style={{ fontWeight: 600 }}>{item.name}</span>
+									<Tag color='blue'>{item.source || '课式命中'}</Tag>
+								</div>
+								<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+									{buildReferenceDocumentText(item, 'dage')}
+								</div>
+								{item.evidence && item.evidence.length ? (
+									<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+								) : null}
+							</Card>
+						)) : (
+							<Card size='small'>
+								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中可判定的大格。</div>
+							</Card>
+						)}
+					</div>
+				</TabPane>
+				<TabPane tab="小局" key="xiaoju">
+					<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+						{xiaojuMainItems.length ? xiaojuMainItems.map((item)=>(
+							<Card key={`xiaoju_${item.key}`} size='small' style={{ marginBottom: 8 }}>
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+									<span style={{ fontWeight: 600 }}>{item.name}</span>
+									<Tag color='purple'>{item.categoryName || '小局'}</Tag>
+								</div>
+								<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+									{buildReferenceDocumentText(item, 'xiaoju')}
+								</div>
+								{item.evidence && item.evidence.length ? (
+									<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+								) : null}
+							</Card>
+						)) : (
+							<Card size='small'>
+								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中已收录的小局条件。</div>
+							</Card>
+						)}
+					</div>
+				</TabPane>
+				<TabPane tab="参考" key="reference">
+					<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+						{xiaojuReferenceItems.length ? xiaojuReferenceItems.map((item)=>(
+							<Card key={`ref_${item.key}`} size='small' style={{ marginBottom: 8 }}>
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+									<span style={{ fontWeight: 600 }}>{item.name}</span>
+									<Tag color='gold'>参考</Tag>
+								</div>
+								<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+									{buildReferenceDocumentText(item, 'xiaoju')}
+								</div>
+								{item.evidence && item.evidence.length ? (
+									<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+								) : null}
+							</Card>
+						)) : (
+							<Card size='small'>
+								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂无可展示的参考条目。</div>
+							</Card>
+						)}
+					</div>
+				</TabPane>
+				<TabPane tab="概览" key="overview">
+					<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+						{overviewItems.length ? overviewItems.map((item, idx)=>(
+							<Card key={`overview_${item.key}_${idx}`} size='small' style={{ marginBottom: 8 }}>
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+									<span style={{ fontWeight: 600 }}>{item.name}</span>
+									<Tag color={item.group === 'laiyi' ? 'cyan' : 'magenta'}>
+										{item.group === 'laiyi' ? '天将发用来意诀' : '天将杂主吉凶'}
+									</Tag>
+								</div>
+								<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+									{buildOverviewReferenceText(item)}
+								</div>
+								{item.evidence && item.evidence.length ? (
+									<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
+								) : null}
+							</Card>
+						)) : (
+							<Card size='small'>
+								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘未命中“天将发用来意诀/天将杂主吉凶”条目。</div>
+							</Card>
+						)}
+					</div>
+				</TabPane>
+			</Tabs>
+		);
+	}
+
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 'calc(100% - 70px)'
+			height = 760
 		}else{
 			height = height - 20
 		}
@@ -4612,7 +4810,7 @@ class LiuRengMain extends Component{
 		const xiaojuMainItems = xiaojuAllItems.filter((item)=>!XIAO_JU_REFERENCE_TAB_KEYS.has(item.key));
 		const xiaojuReferenceItems = xiaojuAllItems.filter((item)=>XIAO_JU_REFERENCE_TAB_KEYS.has(item.key));
 		const overviewItems = Array.isArray(refBundle.overview) ? refBundle.overview : [];
-		const panelBodyHeight = Number.isFinite(height) ? Math.max(170, Math.min(320, height - 540)) : 220;
+		const panelBodyHeight = Number.isFinite(height) ? Math.max(260, height - 126) : 'calc(100vh - 230px)';
 		const refSummary = [
 			refContext.courseName ? `课式：${refContext.courseName}` : '',
 			refContext.sanChuanText ? `三传：${refContext.sanChuanText}` : '',
@@ -4621,173 +4819,56 @@ class LiuRengMain extends Component{
 
 		let wxdoms = this.genWuXingDoms();
 		return (
-			<div className="horosa-liureng-page xq-chart-renderer xq-chart-renderer-liureng">
-				<Row gutter={6}>
-					<Col span={16}>
-						<LiuRengChart 
-							value={chart} 
-							liureng={this.state.liureng}
-							panStyleName={panStyleName}
-							runyear={displayRunYear}
-							gender={appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : -1}
-							zhangshengElem={this.state.wuxing}
-							guireng={this.state.guireng}
-							height={height} 
-							fields={chartFields}  
-							chartDisplay={this.props.chartDisplay}
-							planetDisplay={this.props.planetDisplay}
-						/>
-					</Col>
-					<Col span={8}>
-						<Row>
-							<Col span={24}>
-								<LiuRengInput 
-									fields={this.props.fields} 
-									onFieldsChange={this.onFieldsChange}
-									timeHook={this.timeHook}
+			<div className="horosa-liureng-page horosa-astro-redesign horosa-liureng-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-liureng-redesign-layout">
+					<div className="horosa-astro-redesign-grid horosa-liureng-redesign-grid">
+						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-liureng-input-panel">
+							{this.renderInputPanel(wxdoms)}
+						</div>
+						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-liureng-chart-panel xq-chart-renderer xq-chart-renderer-liureng">
+							<div className="horosa-liureng-chart-host">
+								<LiuRengChart
+									value={chart}
+									liureng={this.state.liureng}
+									panStyleName={panStyleName}
+									runyear={displayRunYear}
+									gender={appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : -1}
+									zhangshengElem={this.state.wuxing}
+									guireng={this.state.guireng}
+									height={height}
+									fields={chartFields}
+									chartType={this.state.chartType}
+									chartDisplay={this.props.chartDisplay}
+									planetDisplay={this.props.planetDisplay}
 								/>
-							</Col>
-						</Row>
-						<Row style={{ marginTop: 8 }}>
-							<Col span={24}>
-								<Button type='primary' style={{ width: '100%' }} onClick={this.clickStartPaiPan}>起课</Button>
-							</Col>
-						</Row>
-						<Row style={{ marginTop: 8 }}>
-							<Col span={24}>
-								<Button style={{ width: '100%' }} onClick={this.clickSaveCase}>保存</Button>
-							</Col>
-						</Row>
-						<Divider orientation='left'>卜卦人出生时间</Divider>
-						<Row>
-							<Col span={24}>
-								<LiuRengBirthInput 
-									fields={this.state.birth} 
-									onFieldsChange={this.onBirthChange}
-									requireConfirm={true}
-								/>
-							</Col>
-						</Row>
-						<Divider />
-						<Row>
-							<Col span={24}>
-								<Select value={this.state.wuxing} onChange={this.onWuXingChange} style={{width: '100%'}}>
-									{wxdoms}
-								</Select>
-							</Col>
-							<Col span={24}>
-								<Select value={this.state.guireng} onChange={this.onGuiRengChange} style={{width: '100%'}}>
-									<Option value={0}>六壬法贵人</Option>
-									<Option value={1}>遁甲法贵人</Option>
-									<Option value={2}>星占法贵人</Option>
-								</Select>
-							</Col>
-						</Row>
-						<Divider orientation='left'>格局参考</Divider>
-						<Tabs
-							activeKey={this.state.rightPanelTab}
-							onChange={(key)=>this.setState({ rightPanelTab: key })}
-							animated={false}
-						>
-							<TabPane tab="大格" key="dage">
-								<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
-									{refSummary ? (
-										<Card size='small' style={{ marginBottom: 8, background: 'var(--horosa-panel-soft, #fafafa)' }}>
-											<div style={{ fontSize: 12, color: 'var(--horosa-text-soft, #595959)', lineHeight: '20px' }}>{refSummary}</div>
-										</Card>
-									) : null}
-									{refBundle.dage && refBundle.dage.length ? refBundle.dage.map((item)=>(
-										<Card key={`dage_${item.key}`} size='small' style={{ marginBottom: 8 }}>
-											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-												<span style={{ fontWeight: 600 }}>{item.name}</span>
-												<Tag color='blue'>{item.source || '课式命中'}</Tag>
-											</div>
-											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
-												{buildReferenceDocumentText(item, 'dage')}
-											</div>
-											{item.evidence && item.evidence.length ? (
-												<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
-											) : null}
-										</Card>
-									)) : (
-										<Card size='small'>
-											<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中可判定的大格。</div>
-										</Card>
-									)}
+							</div>
+						</div>
+						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-liureng-info-panel">
+							<div className="horosa-side-panel-heading horosa-liureng-info-heading">
+								<div>
+									<div className="horosa-side-panel-title">格局参考</div>
+									<div className="horosa-side-panel-subtitle">大格、小局与参考条目</div>
 								</div>
-							</TabPane>
-							<TabPane tab="小局" key="xiaoju">
-								<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
-									{xiaojuMainItems.length ? xiaojuMainItems.map((item)=>(
-										<Card key={`xiaoju_${item.key}`} size='small' style={{ marginBottom: 8 }}>
-											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-												<span style={{ fontWeight: 600 }}>{item.name}</span>
-												<Tag color='purple'>{item.categoryName || '小局'}</Tag>
-											</div>
-											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
-												{buildReferenceDocumentText(item, 'xiaoju')}
-											</div>
-											{item.evidence && item.evidence.length ? (
-												<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
-											) : null}
-										</Card>
-									)) : (
-										<Card size='small'>
-											<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中已收录的小局条件。</div>
-										</Card>
-									)}
-								</div>
-							</TabPane>
-							<TabPane tab="参考" key="reference">
-								<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
-									{xiaojuReferenceItems.length ? xiaojuReferenceItems.map((item)=>(
-										<Card key={`ref_${item.key}`} size='small' style={{ marginBottom: 8 }}>
-											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-												<span style={{ fontWeight: 600 }}>{item.name}</span>
-												<Tag color='gold'>参考</Tag>
-											</div>
-											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
-												{buildReferenceDocumentText(item, 'xiaoju')}
-											</div>
-											{item.evidence && item.evidence.length ? (
-												<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
-											) : null}
-										</Card>
-									)) : (
-										<Card size='small'>
-											<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂无可展示的参考条目。</div>
-										</Card>
-									)}
-								</div>
-							</TabPane>
-							<TabPane tab="概览" key="overview">
-								<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
-									{overviewItems.length ? overviewItems.map((item, idx)=>(
-										<Card key={`overview_${item.key}_${idx}`} size='small' style={{ marginBottom: 8 }}>
-											<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-												<span style={{ fontWeight: 600 }}>{item.name}</span>
-												<Tag color={item.group === 'laiyi' ? 'cyan' : 'magenta'}>
-													{item.group === 'laiyi' ? '天将发用来意诀' : '天将杂主吉凶'}
-												</Tag>
-											</div>
-											<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
-												{buildOverviewReferenceText(item)}
-											</div>
-											{item.evidence && item.evidence.length ? (
-												<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 6 }}>依据：{item.evidence.join('；')}</div>
-											) : null}
-										</Card>
-									)) : (
-										<Card size='small'>
-											<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘未命中“天将发用来意诀/天将杂主吉凶”条目。</div>
-										</Card>
-									)}
-								</div>
-							</TabPane>
-						</Tabs>
-
-					</Col>
-				</Row>
+							</div>
+							{this.renderReferenceTabs({
+								refSummary,
+								refBundle,
+								xiaojuMainItems,
+								xiaojuReferenceItems,
+								overviewItems,
+								panelBodyHeight,
+							})}
+						</div>
+					</div>
+					<div className="horosa-bottom-quick-dock horosa-liureng-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-liureng-quick-placeholders">
+							{Array.from({length: 8}).map((_, idx)=>(
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
 
 		);

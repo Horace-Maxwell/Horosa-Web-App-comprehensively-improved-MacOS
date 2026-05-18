@@ -32,10 +32,11 @@ class HomePageSetup extends Component{
 		}
 
 		this.genDom = this.genDom.bind(this);
-		this.clickPage = this.clickPage.bind(this);
-		this.changeSearch = this.changeSearch.bind(this);
-		this.selectGroup = this.selectGroup.bind(this);
-	}
+			this.clickPage = this.clickPage.bind(this);
+			this.clickTools = this.clickTools.bind(this);
+			this.changeSearch = this.changeSearch.bind(this);
+			this.selectGroup = this.selectGroup.bind(this);
+		}
 
 	getInitialPage(props){
 		const pages = props.pages && props.pages.length ? props.pages : Pages;
@@ -44,9 +45,9 @@ class HomePageSetup extends Component{
 		return current || pages[0];
 	}
 
-	clickPage(rec){
-		this.setState({
-			page: rec,
+		clickPage(rec){
+			this.setState({
+				page: rec,
 		}, ()=>{
 			if(this.props.onNavigate){
 				this.props.onNavigate(rec.key);
@@ -54,8 +55,23 @@ class HomePageSetup extends Component{
 			if(this.props.onClose){
 				this.props.onClose();
 			}
-		});
-	}
+			});
+		}
+
+		clickTools(){
+			if(this.props.onOpenTools){
+				this.props.onOpenTools();
+				return;
+			}
+			if(this.props.dispatch){
+				this.props.dispatch({
+					type: 'astro/openDrawer',
+					payload: {
+						key: 'commtools',
+					},
+				});
+			}
+		}
 
 	changeSearch(e){
 		this.setState({
@@ -182,6 +198,17 @@ class HomePageSetup extends Component{
 											</span>
 										</button>
 									))}
+									{groupName === '工具' ? (
+										<div className="xq-nav-tool-launcher">
+											<button
+												type="button"
+												className="xq-nav-tool-button"
+												onClick={this.clickTools}
+											>
+												<span>小工具</span>
+											</button>
+										</div>
+									) : null}
 								</div>
 							</section>
 						))}

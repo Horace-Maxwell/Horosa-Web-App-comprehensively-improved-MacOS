@@ -1,8 +1,5 @@
 import { Component } from 'react';
 import AstroMidpoint from './AstroMidpoint'
-import { XQTabs } from '../xq-ui';
-
-const TabPane = XQTabs.TabPane;
 
 class AstroGermany extends Component{
 
@@ -65,32 +62,22 @@ class AstroGermany extends Component{
 
 	render(){
 		let height = this.props.height ? this.props.height : 760;
-		height = height - 50
 
 		let hook = this.state.hook;
 
 		return (
 			<div className="horosa-aux-module-page xq-chart-renderer xq-chart-renderer-germany">
-				<XQTabs
-					defaultActiveKey={this.state.currentTab} tabPosition='right'
-					onChange={this.changeTab}
-					style={{ height: height }}
-				>
-					<TabPane tab="行星中点" key="Midpoint">
-							<AstroMidpoint
-								onChange={this.onFieldsChange}
-								height={height}
-								fields={this.props.fields}
-								chart={this.props.chart}
-								chartDisplay={this.props.chartDisplay}
-								planetDisplay={this.props.planetDisplay}
-								lotsDisplay={this.props.lotsDisplay}
-								showAstroMeaning={this.props.showAstroMeaning}
-								hook={hook.Midpoint}
-							/>
-					</TabPane>
-
-				</XQTabs>
+				<AstroMidpoint
+					onChange={this.onFieldsChange}
+					height={height}
+					fields={this.props.fields}
+					chart={this.props.chart}
+					chartDisplay={this.props.chartDisplay}
+					planetDisplay={this.props.planetDisplay}
+					lotsDisplay={this.props.lotsDisplay}
+					showAstroMeaning={this.props.showAstroMeaning}
+					hook={hook.Midpoint}
+				/>
 			</div>
 		);
 	}
