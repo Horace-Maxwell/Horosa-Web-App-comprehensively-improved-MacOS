@@ -1,9 +1,11 @@
 import React from 'react';
-import {  Avatar, Dropdown, Select, Button, message, Modal, Checkbox, } from 'antd';
-import { UserOutlined, LogoutOutlined, SearchOutlined } from '@ant-design/icons';
-import * as AstroConst from '../../constants/AstroConst';
+import { Avatar, Dropdown, message, Tooltip } from 'antd';
 import blogo from '../../assets/blogo.jpg';
-import * as AstroText from '../../constants/AstroText';
+import {
+	getAppearanceLabel,
+	getNextAppearanceMode,
+	normalizeAppearanceMode,
+} from '../../utils/appearance';
 import {
 	runAIExport,
 	loadAIExportSettings,
@@ -12,13 +14,49 @@ import {
 	getCurrentAIExportContext,
 	AI_EXPORT_SETTINGS_VERSION,
 } from '../../utils/aiExport';
+import {
+	XQButton,
+	XQCheckItem,
+	XQCheckList,
+	XQIconButton,
+	XQModal,
+	XQSectionTitle,
+	XQSelect,
+	XQToolbar,
+} from '../xq-ui';
+import XQIcon from '../xq-icons';
 import styles from './PageHeader.less';
 
-const Option = Select.Option;
+const Option = XQSelect.Option;
+const PAGE_LABELS = {
+	astrochart: '占星',
+	direction: '星运',
+	bazi: '八字',
+	ziwei: '紫微',
+	guolao: '七政',
+	indiachart: '印占',
+	auxchart: '辅盘',
+	relativechart: '合盘',
+	sanshiunited: '三式',
+	liureng: '六壬',
+	dunjia: '遁甲',
+	guazhan: '六爻',
+	taiyi: '太乙',
+	jieqichart: '分至',
+	fengshui: '风水',
+	cnyibu: '其他',
+	aianalysis: 'AI分析',
+	astrochart3D: '3D',
+	calendar: '黄历',
+	cntradition: '辅助',
+	astroreader: '书籍阅读',
+	liveplayer: '星阙直播',
+	admintools: '管理工具',
+};
 
 function PageHeader(props){
-	const currentColorTheme = AstroConst.normalizeColorThemeIndex(props.colorTheme);
 	const [aiSettingVisible, setAiSettingVisible] = React.useState(false);
+	const [astroHelpVisible, setAstroHelpVisible] = React.useState(false);
 	const [aiSettingData, setAiSettingData] = React.useState(loadAIExportSettings());
 	const aiSettingDataRef = React.useRef(aiSettingData);
 	const [aiSettingTechs, setAiSettingTechs] = React.useState(listAIExportTechniqueSettings());
@@ -63,15 +101,19 @@ function PageHeader(props){
 		};
 	})();
 
-	function changeColorTheme(val){
+	function changeAppearanceMode(mode){
 		if(props.dispatch){
 			props.dispatch({
 				type: 'app/save',
-				payload:{ 
-					colorTheme: AstroConst.normalizeColorThemeIndex(val),
+				payload:{
+					appearanceMode: normalizeAppearanceMode(mode),
 				},
 			});		
 		}
+	}
+
+	function cycleAppearanceMode(){
+		changeAppearanceMode(getNextAppearanceMode(props.appearanceMode));
 	}
 
     function openDrawer(key){
@@ -148,6 +190,15 @@ function PageHeader(props){
 			aiSettingDataRef.current = next;
 			return next;
 		});
+	}
+
+	function onAISettingToggleOption(item){
+		const key = `${item}`;
+		const selected = currentSettingSelected.indexOf(key) >= 0;
+		const next = selected
+			? currentSettingSelected.filter((rec)=>rec !== key)
+			: currentSettingSelected.concat([key]);
+		onAISettingOptionsChange(next);
 	}
 
 	function onAISettingSelectAll(){
@@ -291,43 +342,52 @@ function PageHeader(props){
 			message.error((ret && ret.message) ? ret.message : '诊断报告导出失败');
 		}
 	}
+
+	function menuLabel(icon, text){
+		return (
+			<div className={styles.userMenuItem}>
+				<XQIcon name={icon} />
+				<span>{text}</span>
+			</div>
+		);
+	}
 	
 	let pubmenu = [{
 		key: 'chartlist',
-		label: (<div><UserOutlined />&nbsp;管理命盘</div>)
+		label: menuLabel('astro', '管理命盘')
 	},{
 		key: 'caselist',
-		label: (<div><UserOutlined />&nbsp;管理事盘</div>)
+		label: menuLabel('note', '管理事盘')
 	},{
 		key: 'chartadd',
-		label: (<div><UserOutlined />&nbsp;新增命盘</div>)
+		label: menuLabel('newChart', '新增命盘')
 	}];
 
 	let usermenu = [{
 		key: 'chartlist',
-		label: (<div><UserOutlined />&nbsp;我的星盘列表</div>)
+		label: menuLabel('astro', '我的星盘列表')
 	},{
 		key: 'caselist',
-		label: (<div><UserOutlined />&nbsp;管理事盘</div>)
+		label: menuLabel('note', '管理事盘')
 	},{
 		key: 'chartsgps',
-		label: (<div><UserOutlined />&nbsp;我的星盘分布</div>)
+		label: menuLabel('locastro', '我的星盘分布')
 	},{
 		key: 'chartadd',
-		label: (<div><UserOutlined />&nbsp;新增星盘数据</div>)
+		label: menuLabel('newChart', '新增星盘数据')
 	},{
 		key: 'changeparams',
-		label: (<div><UserOutlined />&nbsp;星盘参数修改</div>)
+		label: menuLabel('aiSettings', '星盘参数修改')
 	},{
 		key: 'changepwd',
-		label: (<div><UserOutlined />&nbsp;密码修改</div>)
+		label: menuLabel('admin', '密码修改')
 	},{
 		key: 'divider',
 		label: (<hr />),
 		disabled: true
 	},{
 		key: 'logout',
-		label: (<div><LogoutOutlined />&nbsp;退出登录</div>)
+		label: menuLabel('support', '退出登录')
 	}];
 
 	let menu = pubmenu;
@@ -341,14 +401,11 @@ function PageHeader(props){
 	if(props.avatar){
 		avatarcomp = (<Avatar size="small" className={styles.avatar} src={props.avatar} />);
 	}else{
-		avatarcomp = (<Avatar size="small" className={styles.avatar} icon={<UserOutlined />} />);
+		avatarcomp = (<Avatar size="small" className={styles.avatar} icon={<XQIcon name="user" />} />);
 	}
 
-	let colorOpts = AstroConst.colorThemes.map((opt, idx)=>{
-		return (
-			<Option key={opt} value={idx}>{opt}</Option>
-		);
-	});
+	const appearanceMode = normalizeAppearanceMode(props.appearanceMode);
+	const appearanceLabel = getAppearanceLabel(appearanceMode, props.resolvedAppearance);
 
 	const horosaqr = [{
 		key: '1',
@@ -370,140 +427,199 @@ function PageHeader(props){
 		key: 'pdf',
 		label: (<div>导出PDF</div>),
 	}];
+	const currentPageLabel = PAGE_LABELS[props.currentTab] || '导航';
+	const astroSettingsMenu = [{
+		key: 'changeparams',
+		label: menuLabel('aiSettings', '星盘参数')
+	},{
+		key: 'query',
+		label: menuLabel('astro', '排盘设置')
+	},{
+		key: 'aiExportSettings',
+		label: menuLabel('ai', 'AI导出设置')
+	}].concat(hasDesktopBridge() ? [{
+		key: 'diagnostics',
+		label: menuLabel('diagnostics', '诊断报告')
+	}] : []);
 
-		return (
-			<div className={styles.userbox}>
-				<div className={styles.user} style={{left: 30}}>
-					<span className={styles.action}>
-						<Dropdown menu={{items: horosaqr}} placement="bottom" trigger={['click', 'hover']}>
-							<span style={{color: '#79848e',}}><Button>公众号</Button></span>
-						</Dropdown>				
-					</span>
-				</div>
-			<div className={styles.user} style={{right: 30}}>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('homepage')}}>首页</Button>
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('memo')}}>批注</Button>
-				</span>
-				<span className={styles.action} >
-					<Select 
-						size='small'
-						style={{ width: 150 }}
-						value={currentColorTheme}
-						onChange={changeColorTheme}
-					>
-						{colorOpts}
-					</Select>
+	function onAstroSettingsClick({key}){
+		if(key === 'aiExportSettings'){
+			openAIExportSettings();
+			return;
+		}
+		if(key === 'diagnostics'){
+			onExportDiagnosticsClick();
+			return;
+		}
+		openDrawer(key);
+	}
 
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('commtools')}}>小工具</Button>
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('selectchartdisplay')}}>星盘组件</Button>
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('selectplanet')}}>行星选择</Button>
-				</span>
-				<span className={styles.action} >
-					<Button size='small' onClick={()=>{openDrawer('selectasp')}}>相位选择</Button>
-				</span>
-					<span className={styles.action} >
-						<Button size='small' onClick={newChart}>新命盘</Button>
-					</span>
-					<span className={styles.action} >
-						<Dropdown menu={{items: aiExportMenu, onClick: onAIExportClick}} placement="bottom" trigger={['click']}>
-							<Button size='small'>AI导出</Button>
+	const astroNewChartMenu = [{
+		key: 'now',
+		label: menuLabel('newChart', '重算当前')
+	},{
+		key: 'chartadd',
+		label: menuLabel('save', '存为命盘')
+	},{
+		key: 'chartlist',
+		label: menuLabel('astro', '命盘列表')
+	}];
+
+	function onAstroNewChartMenuClick({key}){
+		if(key === 'now'){
+			newChart();
+			return;
+		}
+		openDrawer(key);
+	}
+
+	return (
+		<div className={`${styles.userbox} ${styles.astroUserbox}`}>
+				<div className={styles.astroBrand}>
+					<Dropdown menu={{items: horosaqr}} placement="bottomLeft" trigger={['click', 'hover']}>
+						<button className={`${styles.brandButton} ${styles.astroBrandButton}`} type="button">
+							<span className={`${styles.brandMark} ${styles.astroBrandMark}`}><XQIcon name="astro" /></span>
+							<span className={`${styles.brandText} ${styles.astroBrandText}`}>星阙</span>
+						</button>
+					</Dropdown>
+					<div className={styles.astroNewChartGroup}>
+						<XQButton className={styles.astroPrimaryCommand} size="small" iconName="newChart" onClick={newChart}>新命盘</XQButton>
+						<Dropdown menu={{items: astroNewChartMenu, onClick: onAstroNewChartMenuClick}} placement="bottomLeft" trigger={['click']}>
+							<XQIconButton className={styles.astroSplitButton} size="small" iconName="chevronDown" label="" />
 						</Dropdown>
-					</span>
-					<span className={styles.action} >
-						<Button size='small' onClick={openAIExportSettings}>AI导出设置</Button>
-					</span>
-					{hasDesktopBridge() ? (
-					<span className={styles.action} >
-						<Button size='small' onClick={onExportDiagnosticsClick}>导出诊断报告</Button>
-					</span>
-					) : null}
-					<span className={styles.action} >
-						<SearchOutlined onClick={()=>{openDrawer('query')}} />
-					</span>
-				<Dropdown menu={{
-					items: menu, 
-					onClick: props.onMenuClick}} 
-				>
-					<span className={`${styles.action} ${styles.account}`}>
-						{avatarcomp}
-						<span className={styles.name}>{username}</span>
-					</span>
-				</Dropdown>
-			</div>
-			<Modal
-				title="AI导出设置"
-				open={aiSettingVisible}
-				onCancel={()=>setAiSettingVisible(false)}
-				onOk={onAISettingSave}
-				width={640}
-			>
-				<div style={{marginBottom: 10}}>选择技法：</div>
-				<Select
-					size='small'
-					style={{width: '100%', marginBottom: 12}}
-					value={aiSettingKey}
-					onChange={(val)=>setAiSettingKey(val)}
-				>
-					{aiSettingTechs.map((item)=>(
-						<Option key={item.key} value={item.key}>{item.label}</Option>
-					))}
-				</Select>
-				<div style={{marginBottom: 10}}>
-					<Button size='small' onClick={onAISettingSelectAll} style={{marginRight: 8}}>全选</Button>
-					<Button size='small' onClick={onAISettingClear} style={{marginRight: 8}}>清空</Button>
-					<Button size='small' onClick={onAISettingResetDefault}>恢复默认</Button>
+					</div>
 				</div>
-				{currentSettingOptions.length ? (
-					<Checkbox.Group
-						options={currentSettingOptions.map((item)=>({label: item, value: item}))}
-						value={currentSettingSelected}
-						onChange={onAISettingOptionsChange}
-					/>
-				) : (
-					<div>当前技法暂未检测到可选分段，请先在该技法完成一次排盘后再设置。</div>
-				)}
-				{currentSettingSupportsPlanetInfo ? (
-					<div style={{marginTop: 14}}>
-						<div style={{marginBottom: 8}}>星曜后天信息（仅AI导出）：</div>
-						<Checkbox
-							checked={currentSettingPlanetInfo.showHouse === 1}
-							disabled={false}
-							onChange={(e)=>onAISettingPlanetInfoChange('showHouse', !!(e && e.target && e.target.checked))}
-							style={{marginRight: 16}}
-						>
-							显示星曜宫位
-						</Checkbox>
-						<Checkbox
-							checked={currentSettingPlanetInfo.showRuler === 1}
-							disabled={false}
-							onChange={(e)=>onAISettingPlanetInfoChange('showRuler', !!(e && e.target && e.target.checked))}
-						>
-							显示星曜主宰宫
-						</Checkbox>
+				<Tooltip title="打开导航">
+					<button className={styles.astroCurrentModule} type="button" onClick={()=>openDrawer('homepage')}>
+						<XQIcon name="sideSwitch" />
+						<span>{currentPageLabel}</span>
+						<XQIcon name="chevronDown" />
+					</button>
+				</Tooltip>
+				<div className={styles.astroCommandCenter}>
+					<XQButton className={styles.astroHeaderCommand} size="small" iconName="search" onClick={()=>openDrawer('query')}>搜索</XQButton>
+					<XQButton className={styles.astroHeaderCommand} size="small" iconName="bookmark" onClick={()=>openDrawer('chartlist')}>收藏</XQButton>
+					<XQButton className={styles.astroHeaderCommand} size="small" iconName="history" onClick={()=>openDrawer('caselist')}>历史</XQButton>
+					<Dropdown menu={{items: aiExportMenu, onClick: onAIExportClick}} placement="bottom" trigger={['click']}>
+						<XQButton className={styles.astroHeaderCommand} size="small" iconName="aiExport">AI导出</XQButton>
+					</Dropdown>
+					<Dropdown menu={{items: astroSettingsMenu, onClick: onAstroSettingsClick}} placement="bottom" trigger={['click']}>
+						<XQButton className={styles.astroHeaderCommand} size="small" iconName="settings">设置</XQButton>
+					</Dropdown>
+					<XQButton className={styles.astroHeaderCommand} size="small" iconName="help" onClick={()=>setAstroHelpVisible(true)}>帮助</XQButton>
+				</div>
+				<div className={styles.astroUtilityBar}>
+					<Tooltip title={`主题：${appearanceLabel}。点击切换昼夜模式。`}>
+						<XQIconButton className={styles.astroRoundButton} size="small" iconName="theme" onClick={cycleAppearanceMode} />
+					</Tooltip>
+					<div className={styles.astroHeaderDivider} />
+					<Dropdown menu={{
+							items: menu,
+							onClick: props.onMenuClick}}
+					>
+						<span className={`${styles.account} ${styles.astroAccount}`}>
+							{avatarcomp}
+							<span className={styles.name}>{username}</span>
+						</span>
+					</Dropdown>
+				</div>
+				<XQModal
+					title={`${currentPageLabel}页帮助`}
+					open={astroHelpVisible}
+					onCancel={()=>setAstroHelpVisible(false)}
+					width={520}
+					footer={(
+						<XQToolbar className={styles.aiSettingFooter}>
+							<XQButton size="small" variant="primary" onClick={()=>setAstroHelpVisible(false)}>知道了</XQButton>
+						</XQToolbar>
+					)}
+				>
+					<div className={styles.astroHelpBody}>
+						<p>左侧用于排盘输入与显示设置，中间保留原星盘绘制，右侧集中查看信息、相位、行星、古典与可能性。</p>
+						<p>底部快捷功能会跳转到对应技法或打开已有抽屉，不改变排盘接口与本地服务调用。</p>
 					</div>
-				) : null}
-				{currentSettingSupportsAstroMeaning ? (
-					<div style={{marginTop: 14}}>
-						<div style={{marginBottom: 8}}>{currentSettingMeaningTitle}</div>
-						<Checkbox
-							checked={currentSettingAstroMeaning.enabled === 1}
-							disabled={false}
-							onChange={(e)=>onAISettingAstroMeaningChange(!!(e && e.target && e.target.checked))}
+				</XQModal>
+				<XQModal
+					title="AI导出设置"
+					open={aiSettingVisible}
+					onCancel={()=>setAiSettingVisible(false)}
+					width={640}
+					footer={(
+						<XQToolbar className={styles.aiSettingFooter}>
+							<XQButton size="small" onClick={()=>setAiSettingVisible(false)}>取消</XQButton>
+							<XQButton size="small" variant="primary" onClick={onAISettingSave}>保存设置</XQButton>
+						</XQToolbar>
+					)}
+				>
+					<div className={styles.aiSettingModal}>
+						<XQSectionTitle>选择技法</XQSectionTitle>
+						<XQSelect
+						size='small'
+						style={{width: '100%'}}
+						value={aiSettingKey}
+						onChange={(val)=>setAiSettingKey(val)}
 						>
-							{currentSettingMeaningCheckbox}
-						</Checkbox>
+							{aiSettingTechs.map((item)=>(
+								<Option key={item.key} value={item.key}>{item.label}</Option>
+							))}
+						</XQSelect>
+						<XQToolbar compact className={styles.aiSettingActions}>
+							<XQButton size='small' onClick={onAISettingSelectAll}>全选</XQButton>
+							<XQButton size='small' onClick={onAISettingClear}>清空</XQButton>
+							<XQButton size='small' onClick={onAISettingResetDefault}>恢复默认</XQButton>
+						</XQToolbar>
+						<XQSectionTitle>导出分段</XQSectionTitle>
+						{currentSettingOptions.length ? (
+							<XQCheckList columns={2} className={styles.aiSettingChecks}>
+								{currentSettingOptions.map((item)=>(
+									<XQCheckItem
+										key={item}
+										compact
+										checked={currentSettingSelected.indexOf(item) >= 0}
+										onClick={()=>onAISettingToggleOption(item)}
+									>
+										{item}
+									</XQCheckItem>
+								))}
+							</XQCheckList>
+						) : (
+							<div className={styles.aiSettingEmpty}>当前技法暂未检测到可选分段，请先在该技法完成一次排盘后再设置。</div>
+						)}
+						{currentSettingSupportsPlanetInfo ? (
+							<div>
+								<XQSectionTitle>星曜后天信息</XQSectionTitle>
+								<XQCheckList columns={2}>
+									<XQCheckItem
+										compact
+										checked={currentSettingPlanetInfo.showHouse === 1}
+										onClick={()=>onAISettingPlanetInfoChange('showHouse', currentSettingPlanetInfo.showHouse !== 1)}
+									>
+										显示星曜宫位
+									</XQCheckItem>
+									<XQCheckItem
+										compact
+										checked={currentSettingPlanetInfo.showRuler === 1}
+										onClick={()=>onAISettingPlanetInfoChange('showRuler', currentSettingPlanetInfo.showRuler !== 1)}
+									>
+										显示星曜主宰宫
+									</XQCheckItem>
+								</XQCheckList>
+							</div>
+						) : null}
+						{currentSettingSupportsAstroMeaning ? (
+							<div>
+								<XQSectionTitle>{currentSettingMeaningTitle}</XQSectionTitle>
+								<XQCheckItem
+									compact
+									checked={currentSettingAstroMeaning.enabled === 1}
+									onClick={()=>onAISettingAstroMeaningChange(currentSettingAstroMeaning.enabled !== 1)}
+								>
+									{currentSettingMeaningCheckbox}
+								</XQCheckItem>
+							</div>
+						) : null}
 					</div>
-				) : null}
-			</Modal>
+				</XQModal>
 		</div>
 	);
 }

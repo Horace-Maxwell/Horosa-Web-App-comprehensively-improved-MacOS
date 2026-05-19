@@ -30,6 +30,10 @@ import spacex.astrostudycn.helper.GuaHelper.HuGua;
 import spacex.astrostudycn.helper.SeasonHelper;
 
 public class BaZi {
+	private static final String GUOLAO_LIFE_MODE_ASC = "asc";
+	private static final String GUOLAO_LIFE_MODE_YUMAO = "yumao";
+	private static final String GUOLAO_LIFE_MODE_COTRANS = "cotrans";
+
 	private static double normalizeLon(double lon) {
 		double v = lon % 360.0;
 		if(v < 0) {
@@ -345,7 +349,29 @@ public class BaZi {
 	public Map<String, Object> getNongli(){
 		return this.nongli;
 	}
-	
+
+	public void genLifeMasterDeg(Map<String, Object> chart, String guolaoLifeMode, String sunRiseTime) {
+		genLifeMasterDeg(chart, guolaoLifeMode, sunRiseTime, false);
+	}
+
+	public void genLifeMasterDeg(Map<String, Object> chart, String guolaoLifeMode, String sunRiseTime, boolean zhengSidereal) {
+		if(GUOLAO_LIFE_MODE_YUMAO.equals(guolaoLifeMode)) {
+			if(this.genYuMaoLifeMasterDeg(chart, sunRiseTime, zhengSidereal)) {
+				return;
+			}
+		}
+		if(GUOLAO_LIFE_MODE_ASC.equals(guolaoLifeMode)) {
+			if(this.genAscLifeMasterDeg(chart)) {
+				return;
+			}
+		}
+		if(GUOLAO_LIFE_MODE_COTRANS.equals(guolaoLifeMode)) {
+			this.genLifeMasterDeg(chart);
+			return;
+		}
+		this.genLifeMasterDeg(chart);
+	}
+
 	public void genLifeMasterDeg(Map<String, Object> chart) {
 		List<Map<String, Object>> objects = (List<Map<String, Object>>) chart.get("objects");
 		Map<String, Object> sun = null;
@@ -430,6 +456,155 @@ public class BaZi {
 		int pos = 0;
 		for(Map<String, Object> obj : objects) {
 			double objlon = (double) obj.get("lon");
+			if(objlon > lon) {
+				break;
+			}
+			pos++;
+		}
+		objects.add(pos, master);
+	}
+
+	private boolean genAscLifeMasterDeg(Map<String, Object> chart) {
+		List<Map<String, Object>> objects = (List<Map<String, Object>>) chart.get("objects");
+		Map<String, Object> asc = null;
+		for(Map<String, Object> map : objects) {
+			String id = (String) map.get("id");
+			if(id.equals("Asc")) {
+				asc = map;
+				break;
+			}
+		}
+		if(asc == null) {
+			return false;
+		}
+
+		double lon = normalizeLon(ConvertUtility.getValueAsDouble(asc.get("lon")));
+		Map<String, Object> master = new HashMap<String, Object>();
+		master.putAll(asc);
+		master.put("lon", lon);
+		master.put("signlon", lon % 30);
+		master.put("id", "LifeMasterDeg74");
+		master.put("type", "GenericCN");
+		master.put("house", asc.get("house") == null ? findHouseForLon(chart, lon) : asc.get("house"));
+		fillLifeMasterSu(chart, master, lon, ConvertUtility.getValueAsDouble(master.get("ra"), lon));
+		insertLifeMaster(objects, master, lon);
+		return true;
+	}
+
+	private boolean genYuMaoLifeMasterDeg(Map<String, Object> chart, String sunRiseTime, boolean useRawBirthTime) {
+		List<Map<String, Object>> objects = (List<Map<String, Object>>) chart.get("objects");
+		Map<String, Object> sun = null;
+		for(Map<String, Object> map : objects) {
+			String id = (String) map.get("id");
+			if(id.equals("Sun")) {
+				sun = map;
+				break;
+			}
+		}
+		if(sun == null || sunRiseTime == null || sunRiseTime.trim().equals("")) {
+			return false;
+		}
+
+		double riseHour = parseHourValue(sunRiseTime);
+		if(riseHour < 0) {
+			return false;
+		}
+
+		double sunlon = (double) sun.get("lon");
+		int[] timeParts = useRawBirthTime ? this.oldBirthParts : this.birthParts;
+		double birthHour = timeParts[3] + timeParts[4] / 60.0 + timeParts[5] / 3600.0;
+		double signProbe = normalizeLon(sunlon - (riseHour - birthHour) * 15.0);
+		int lifeSignIdx = ConvertUtility.getValueAsInt(signProbe / 30);
+		if(lifeSignIdx < 0 || lifeSignIdx >= StemBranch.SignList.size()) {
+			lifeSignIdx = ((lifeSignIdx % 12) + 12) % 12;
+		}
+		double lon = normalizeLon(lifeSignIdx * 30 + (sunlon % 30));
+
+		Map<String, Object> master = new HashMap<String, Object>();
+		master.putAll(sun);
+		master.put("lon", lon);
+		master.put("ra", lon);
+		master.put("sign", StemBranch.SignList.get(lifeSignIdx));
+		master.put("signlon", lon % 30);
+		master.put("id", "LifeMasterDeg74");
+		master.put("type", "GenericCN");
+		master.put("house", findHouseForLon(chart, lon));
+		fillLifeMasterSu(chart, master, lon);
+		insertLifeMaster(objects, master, lon);
+		return true;
+	}
+
+	private double parseHourValue(String time) {
+		if(time == null) {
+			return -1;
+		}
+		String val = time.trim();
+		if(val.length() < 2) {
+			return -1;
+		}
+		String[] parts = val.split(":");
+		double hour = ConvertUtility.getValueAsDouble(parts[0], -1);
+		if(hour < 0) {
+			return -1;
+		}
+		double minute = parts.length > 1 ? ConvertUtility.getValueAsDouble(parts[1], 0) : 0;
+		double second = parts.length > 2 ? ConvertUtility.getValueAsDouble(parts[2], 0) : 0;
+		return hour + minute / 60.0 + second / 3600.0;
+	}
+
+	private String findHouseForLon(Map<String, Object> chart, double lon) {
+		List<Map<String, Object>> houses = (List<Map<String, Object>>) chart.get("houses");
+		if(houses == null || houses.isEmpty()) {
+			return "House1";
+		}
+		int hidx = 1;
+		for(Map<String, Object> house : houses) {
+			double houseLon = normalizeLon(ConvertUtility.getValueAsDouble(house.get("lon")));
+			double nextLon = normalizeLon(houseLon + ConvertUtility.getValueAsDouble(house.get("size"), 30));
+			boolean inHouse = houseLon <= nextLon ? lon >= houseLon && lon < nextLon : lon >= houseLon || lon < nextLon;
+			if(inHouse) {
+				return (String) house.get("id");
+			}
+			hidx++;
+		}
+		return "House1";
+	}
+
+	private void fillLifeMasterSu(Map<String, Object> chart, Map<String, Object> master, double lon) {
+		fillLifeMasterSu(chart, master, lon, lon);
+	}
+
+	private void fillLifeMasterSu(Map<String, Object> chart, Map<String, Object> master, double lon, double suDegree) {
+		List<Map<String, Object>> su28 = (List<Map<String, Object>>) chart.get("fixedStarSu28");
+		if(su28 != null && !su28.isEmpty()) {
+			Map<String, Object> star = null;
+			for(Map<String, Object> su : su28) {
+				double sura = ConvertUtility.getValueAsDouble(su.get("ra"));
+				if(sura <= suDegree) {
+					star = su;
+				}else {
+					break;
+				}
+			}
+			if(star == null) {
+				star = su28.get(su28.size() - 1);
+			}
+			master.put("su28", star.get("name"));
+		}
+
+		int su27idx = ConvertUtility.getValueAsInt((lon / 13.3333333));
+		if(su27idx < 0) {
+			su27idx = 0;
+		}else if(su27idx >= StemBranch.Su27.size()) {
+			su27idx = StemBranch.Su27.size() - 1;
+		}
+		master.put("su", StemBranch.Su27.get(su27idx));
+	}
+
+	private void insertLifeMaster(List<Map<String, Object>> objects, Map<String, Object> master, double lon) {
+		int pos = 0;
+		for(Map<String, Object> obj : objects) {
+			double objlon = ConvertUtility.getValueAsDouble(obj.get("lon"));
 			if(objlon > lon) {
 				break;
 			}

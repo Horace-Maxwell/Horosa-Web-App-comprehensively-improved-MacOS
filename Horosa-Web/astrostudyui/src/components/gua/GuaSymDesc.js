@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Select} from 'antd';
+import { Row, Col, } from 'antd';
 import DoubleMeiyiGuaSym from './DoubleMeiyiGuaSym';
 import GuaSym from './GuaSym';
 import GuaChartDiv from './GuaChartDiv';

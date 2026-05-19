@@ -92,7 +92,7 @@ class AstroChart extends Component{
 		if(this.chartCircle){
 			this.chartCircle.setShowAstroMeaning(this.getShowAstroMeaning());
 			try{
-				this.chartCircle.drawChart(this.state.chartid, chartobj, this.state.rStep, disp, planetDisp, keyplanets);
+				this.chartCircle.drawChart(this.state.chartid, chartobj, this.state.rStep, disp, planetDisp, keyplanets, this.props.chartStyle);
 			}catch(err){
 				console.error('AstroChart draw failed', err);
 			}

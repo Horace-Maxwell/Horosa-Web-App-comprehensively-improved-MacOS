@@ -1,7 +1,7 @@
 import { Component } from 'react';
-import { Checkbox, Row, Col } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
+import { XQCheckItem, XQCheckList, XQSectionTitle } from '../xq-ui';
 
 class ChartDisplaySelector extends Component{
 
@@ -112,61 +112,62 @@ class ChartDisplaySelector extends Component{
 		};
 		const currentDisplay = Array.isArray(this.props.value) ? this.props.value : [];
 
-		let allobjs = AstroConst.CHART_OPTIONS.map((opt)=>{
+		let allobjs = AstroConst.CHART_OPTIONS.filter((opt)=>opt !== AstroConst.CHART_INFOINCIRCLE).map((opt)=>{
+			const checked = currentDisplay.includes(opt);
 			return (
-				<Col span={24} key={opt}>
-					<Checkbox
-						style={labelStyle}
-						checked={currentDisplay.includes(opt)}
-						onChange={(e)=>this.changeChartOption(opt, e)}
-					>
+				<XQCheckItem
+					key={opt}
+					checked={checked}
+					onClick={()=>this.changeChartOption(opt, {target: {checked: !checked}})}
+				>
+					<span style={labelStyle}>
 						{AstroText.ChartOptionText[opt+'']}
-					</Checkbox>
-				</Col>
+					</span>
+				</XQCheckItem>
 			);
 		});
 
 		return (
-			<div>
-				<Row gutter={12}>
+			<div className="horosa-selector-drawer">
+				<XQSectionTitle>星盘层级</XQSectionTitle>
+				<XQCheckList>
 					{allobjs}
-					<Col span={24}>
-						<Checkbox
-							style={labelStyle}
-							checked={this.props.showPdBounds !== 0}
-							onChange={this.changeShowPdBounds}
-						>
+				</XQCheckList>
+				<XQSectionTitle>解释与计算</XQSectionTitle>
+				<XQCheckList>
+					<XQCheckItem
+						checked={this.props.showPdBounds !== 0}
+						onClick={()=>this.changeShowPdBounds({target: {checked: !(this.props.showPdBounds !== 0)}})}
+					>
+						<span style={labelStyle}>
 							主/界限法显示界限法
-						</Checkbox>
-					</Col>
-					<Col span={24}>
-						<Checkbox
-							style={labelStyle}
-							checked={this.props.showPlanetHouseInfo === 1 || this.props.showPlanetHouseInfo === true}
-							onChange={this.changeShowPlanetHouseInfo}
-						>
+						</span>
+					</XQCheckItem>
+					<XQCheckItem
+						checked={this.props.showPlanetHouseInfo === 1 || this.props.showPlanetHouseInfo === true}
+						onClick={()=>this.changeShowPlanetHouseInfo({target: {checked: !(this.props.showPlanetHouseInfo === 1 || this.props.showPlanetHouseInfo === true)}})}
+					>
+						<span style={labelStyle}>
 							星曜附带后天宫信息
-						</Checkbox>
-					</Col>
-					<Col span={24}>
-						<Checkbox
-							style={labelStyle}
-							checked={this.props.showAstroMeaning === 1 || this.props.showAstroMeaning === true}
-							onChange={this.changeShowAstroMeaning}
-						>
+						</span>
+					</XQCheckItem>
+					<XQCheckItem
+						checked={this.props.showAstroMeaning === 1 || this.props.showAstroMeaning === true}
+						onClick={()=>this.changeShowAstroMeaning({target: {checked: !(this.props.showAstroMeaning === 1 || this.props.showAstroMeaning === true)}})}
+					>
+						<span style={labelStyle}>
 							是否显示星/宫/座/相释义
-						</Checkbox>
-					</Col>
-					<Col span={24}>
-						<Checkbox
-							style={labelStyle}
-							checked={this.props.showOnlyRulExaltReception === 1 || this.props.showOnlyRulExaltReception === true}
-							onChange={this.changeOnlyRulerExaltReception}
-						>
+						</span>
+					</XQCheckItem>
+					<XQCheckItem
+						checked={this.props.showOnlyRulExaltReception === 1 || this.props.showOnlyRulExaltReception === true}
+						onClick={()=>this.changeOnlyRulerExaltReception({target: {checked: !(this.props.showOnlyRulExaltReception === 1 || this.props.showOnlyRulExaltReception === true)}})}
+					>
+						<span style={labelStyle}>
 							仅按照本垣擢升计算互容接纳
-						</Checkbox>
-					</Col>
-				</Row>
+						</span>
+					</XQCheckItem>
+				</XQCheckList>
 			</div>
 		);
 	}

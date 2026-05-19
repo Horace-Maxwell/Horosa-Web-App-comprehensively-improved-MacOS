@@ -1,9 +1,15 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Button, Tabs, Select, Input } from 'antd';
+import { Row, Col, Divider } from 'antd';
 import AstroChart from '../astro/AstroChart';
 import LatInput from '../astro/LatInput';
 import LonInput from '../astro/LonInput';
 import GeoCoordModal from '../amap/GeoCoordModal';
+import {
+	XQButton as Button,
+	XQInput as Input,
+	XQSelect as Select,
+	XQTabs as Tabs,
+} from '../xq-ui';
 import * as AstroHelper from '../astro/AstroHelper';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
@@ -502,9 +508,9 @@ class DiceMain extends Component{
 		}
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={17}>
+			<div className='horosa-dice-page'>
+				<Row gutter={14} className='horosa-dice-layout'>
+					<Col span={17} className='horosa-dice-chart-panel'>
 						<Tabs
 							defaultActiveKey='touzichart' tabPosition='bottom'
 							style={{ height: height }}						
@@ -530,7 +536,7 @@ class DiceMain extends Component{
 								</TabPane>
 						</Tabs>
 					</Col>
-					<Col span={7}>
+					<Col span={7} className='horosa-dice-inspector-panel'>
 						<div className={styles.scrollbar} style={style}>
 							<Row>
 								<Col span={24}>

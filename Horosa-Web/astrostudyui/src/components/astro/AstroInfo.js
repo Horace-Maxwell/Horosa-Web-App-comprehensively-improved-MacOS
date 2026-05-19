@@ -693,9 +693,80 @@ class AstroInfo extends Component{
 		const displayMode = resolveAstroDisplayMode(perchart, fields);
 		const zodiacal = displayMode.zodiacal;
 		const hsys = displayMode.hsys;
+		const mode = this.props.mode || 'full';
+
+		if(mode === 'summary'){
+			const rows = [
+				['名称', chart.params && chart.params.name ? chart.params.name : '本命盘'],
+				['出生时间', chart.params ? chart.params.birth : ''],
+				['地点', chart.params && chart.params.pos ? chart.params.pos : '未命名地点'],
+				['时区', chart.params ? chart.params.zone : fields.zone],
+				['黄道', zodiacal],
+				['宫位制', hsys],
+			];
+			const angleRows = perchart && perchart.houses ? perchart.houses.slice(0, 4).map((item, idx)=>{
+				const labels = ['上升点 (ASC)', '二宫', '三宫', '天底 (IC)'];
+				const sign = item && item.sign ? (AstroText.AstroMsgCN[item.sign] || AstroText.AstroMsg[item.sign] || item.sign) : '';
+				return [labels[idx] || item.id, sign, item && item.lon !== undefined ? `${Math.round(item.lon * 100) / 100}°` : ''];
+			}) : [];
+			return (
+				<div className={`horosa-astro-info-scroll horosa-astro-content-scroll ${styles.scrollbar}`} style={astyle}>
+					<div className="horosa-info-card">
+						<div className="horosa-info-card-title">基本信息</div>
+						{rows.map((row)=>(
+							<div className="horosa-info-row" key={row[0]}>
+								<span>{row[0]}</span>
+								<strong>{row[1] || '--'}</strong>
+							</div>
+						))}
+					</div>
+					<div className="horosa-info-card">
+						<div className="horosa-info-card-title">四轴与宫位</div>
+						{angleRows.length ? angleRows.map((row)=>(
+							<div className="horosa-info-row" key={row[0]}>
+								<span>{row[0]}</span>
+								<strong>{row[1]} {row[2]}</strong>
+							</div>
+						)) : <div className="horosa-empty-line">暂无宫位数据</div>}
+					</div>
+					<div className="horosa-info-card">
+						<div className="horosa-info-card-title">主星</div>
+						<div className="horosa-info-row">
+							<span>日主星</span>
+							<strong>{perchart.dayerStar ? (AstroText.AstroMsgCN[perchart.dayerStar] || perchart.dayerStar) : '--'}</strong>
+						</div>
+						<div className="horosa-info-row">
+							<span>时主星</span>
+							<strong>{perchart.timerStar ? (AstroText.AstroMsgCN[perchart.timerStar] || perchart.timerStar) : '--'}</strong>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
+		if(mode === 'classical'){
+			const hasReception = !!recpDom;
+			const hasMutual = !!mutDom;
+			return (
+				<div className={`horosa-astro-info-scroll horosa-astro-content-scroll ${styles.scrollbar}`} style={astyle}>
+					<div className="horosa-info-card horosa-classical-card">
+						<div className="horosa-info-card-title">接纳</div>
+						{hasReception ? recpDom : <div className="horosa-empty-line">暂无接纳信息</div>}
+					</div>
+					<div className="horosa-info-card horosa-classical-card">
+						<div className="horosa-info-card-title">互容</div>
+						{hasMutual ? mutDom : <div className="horosa-empty-line">暂无互容信息</div>}
+					</div>
+					<div className="horosa-info-card horosa-classical-card">
+						<div className="horosa-info-card-title">围攻</div>
+						{surattacks || <div className="horosa-empty-line">暂无围攻信息</div>}
+					</div>
+				</div>
+			);
+		}
 
 		return (
-			<div className={styles.scrollbar} style={astyle}>
+			<div className={`horosa-astro-info-scroll ${styles.scrollbar}`} style={astyle}>
 				<Row gutter={12}>
 					<Col span={24}>
 						<span>{perchart.isDiurnal ? '日生盘' : '夜生盘'}</span>&nbsp;
@@ -717,6 +788,15 @@ class AstroInfo extends Component{
 						<span>{zodiacal}，{hsys}</span>&nbsp;
 					</Col>
 				</Row>
+				{perchart.dayerStar || perchart.timerStar ? (
+					<Row gutter={12}>
+						<Col span={24}>
+							{perchart.dayerStar ? <span>日主星：{AstroText.AstroMsgCN[perchart.dayerStar] || perchart.dayerStar}</span> : null}
+							{perchart.dayerStar && perchart.timerStar ? <span>&emsp;</span> : null}
+							{perchart.timerStar ? <span>时主星：{AstroText.AstroMsgCN[perchart.timerStar] || perchart.timerStar}</span> : null}
+						</Col>
+					</Row>
+				) : null}
 				{antiDom}
 				{recpDom ? <Divider orientation="left">接纳</Divider> : null}
 				{recpDom}

@@ -1,8 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, } from 'antd';
+import { XQTabs as Tabs } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
-import BaZi from './BaZi';
-import ZiWeiMain from '../ziwei/ZiWeiMain';
 import GuaSymDesc from '../gua/GuaSymDesc';
 import CuanGong12 from '../commtools/CuanGong12';
 import BaziPithy from '../commtools/BaziPithy';
@@ -14,17 +12,13 @@ class CnTraditionMain extends Component{
 	constructor(props) {
 		super(props);
 
-		let tab = this.props.currentSubTab ? this.props.currentSubTab : 'bazi';
+		const subtab = this.props.currentSubTab ? this.props.currentSubTab : 'guasym';
+		const validTabs = ['guasym', 'cuangong12', 'pithy'];
+		const tab = validTabs.indexOf(subtab) >= 0 ? subtab : 'guasym';
 		this.state = {
 			divId: 'div_' + randomStr(8),
 			currentTab: tab,
 			hook:{
-				bazi:{
-					fun: null
-				},
-				ziwei:{
-					fun: null
-				},
 				guasym:{
 					fun: null
 				},
@@ -44,7 +38,7 @@ class CnTraditionMain extends Component{
 			this.props.hook.fun = (fields)=>{
 				let hook = this.state.hook;
 				let subtab = this.findTab();
-				if(hook[subtab].fun){
+				if(hook[subtab] && hook[subtab].fun){
 					hook[subtab].fun(fields);
 				}
 				setTimeout(()=>{
@@ -63,13 +57,13 @@ class CnTraditionMain extends Component{
 	}
 
 	findTab(){
-		let subtab = this.state.currentTab ? this.state.currentTab : 'bazi';
+		let subtab = this.state.currentTab ? this.state.currentTab : 'guasym';
 		for(let key in this.state.hook){
 			if(key === subtab){
 				return key;
 			}
 		}
-		let key = 'bazi';
+		let key = 'guasym';
 		return key;
 	}
 
@@ -99,31 +93,13 @@ class CnTraditionMain extends Component{
 		let tab = this.findTab();
 
 		return (
-			<div id={this.state.divId}>
+			<div id={this.state.divId} className="horosa-cntradition-page">
 				<Tabs 
 					defaultActiveKey={tab} tabPosition='right'
 					activeKey={tab}
 					onChange={this.changeTab}
 					style={{ height: height }}
 				>
-					<TabPane tab="八字" key="bazi">
-						<BaZi 
-							height={height}
-							fields={this.props.fields}
-							hook={this.state.hook.bazi}
-							dispatch={this.props.dispatch}
-						/>
-					</TabPane>
-
-					<TabPane tab="紫微斗数" key="ziwei">
-						<ZiWeiMain 
-							height={height}
-							fields={this.props.fields}
-							hook={this.state.hook.ziwei}
-							dispatch={this.props.dispatch}
-						/>
-					</TabPane>
-
 					<TabPane tab="八卦类象" key="guasym">
 						<GuaSymDesc />
 					</TabPane>

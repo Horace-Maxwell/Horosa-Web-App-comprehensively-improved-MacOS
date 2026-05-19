@@ -1,9 +1,8 @@
 import { Component } from 'react';
-import { Checkbox, Row, Col, Tabs, Divider, Button } from 'antd';
-import {randomStr} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { getAllLines, } from './AcgHelper';
+import { XQButton, XQCheckItem, XQCheckList, XQToolbar } from '../xq-ui';
 
 
 
@@ -13,25 +12,11 @@ class AstroLinesSelector extends Component{
 		super(props);
 
 		this.lines = getAllLines();
-		this.lineCols = this.lines.map((itm, index)=>{
-			let parts = itm.split(':');
-			let planet = parts[0];
-			let ang = parts[1];
-			let col = (
-				<Col span={6} key={itm}>
-					<Checkbox value={itm} style={{fontFamily: AstroConst.AstroFont, fontSize:'150%'}}>
-						{AstroText.AstroMsg[planet]}&nbsp;
-						{AstroText.AstroMsg['Asp0']}&nbsp;
-						{AstroText.AstroMsg[ang]}
-					</Checkbox>
-				</Col>
-			);
-			return col;
-		});
 
 		this.onChange = this.onChange.bind(this);
 		this.removeAll = this.removeAll.bind(this);
 		this.selectAll = this.selectAll.bind(this);
+		this.toggleLine = this.toggleLine.bind(this);
 
 	}
 
@@ -53,32 +38,46 @@ class AstroLinesSelector extends Component{
 		}
 	}
 
+	toggleLine(line){
+		const current = Array.isArray(this.props.value) ? this.props.value.slice(0) : [];
+		const idx = current.indexOf(line);
+		if(idx >= 0){
+			current.splice(idx, 1);
+		}else{
+			current.push(line);
+		}
+		this.onChange(current);
+	}
+
 	render(){
+		const activeLines = Array.isArray(this.props.value) ? this.props.value : [];
 
 		return (
-			<div>
-				<Row>
-					<Col span={12}>
-						<Button onClick={this.selectAll}>全选</Button>
-					</Col>
-					<Col span={12}>
-						<Button onClick={this.removeAll}>全部清除</Button>
-					</Col>
-				</Row>
-				<Row style={{marginTop:10}}>
-					<Col span={24}>
-						<Checkbox.Group 
-							style={{ width: '100%' }} 
-							onChange={this.onChange}
-							value={this.props.value}
-						>
-							<Row gutter={12}>
-								{this.lineCols}
-							</Row>
-						</Checkbox.Group>
-
-					</Col>
-				</Row>
+			<div className="horosa-selector-drawer horosa-acg-lines-selector">
+				<XQToolbar className="horosa-acg-lines-toolbar">
+					<XQButton size="small" onClick={this.selectAll}>全选</XQButton>
+					<XQButton size="small" onClick={this.removeAll}>全部清除</XQButton>
+				</XQToolbar>
+				<XQCheckList columns={2}>
+					{this.lines.map((itm)=>{
+						let parts = itm.split(':');
+						let planet = parts[0];
+						let ang = parts[1];
+						return (
+							<XQCheckItem
+								key={itm}
+								checked={activeLines.includes(itm)}
+								onClick={()=>this.toggleLine(itm)}
+							>
+								<span style={{fontFamily: AstroConst.AstroFont, fontSize:'135%'}}>
+									{AstroText.AstroMsg[planet]}&nbsp;
+									{AstroText.AstroMsg['Asp0']}&nbsp;
+									{AstroText.AstroMsg[ang]}
+								</span>
+							</XQCheckItem>
+						);
+					})}
+				</XQCheckList>
 			</div>
 		);
 	}
@@ -86,4 +85,3 @@ class AstroLinesSelector extends Component{
 }
 
 export default AstroLinesSelector;
-

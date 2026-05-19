@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tree, Card, } from 'antd';
+import { Tree, } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { randomStr, } from '../../utils/helper';

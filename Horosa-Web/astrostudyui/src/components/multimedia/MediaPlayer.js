@@ -1,6 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Input, Button, } from 'antd';
-import { randomStr } from '../../utils/helper';
+import { Row, Col } from 'antd';
+import { XQButton as Button, XQInput as Input } from '../xq-ui';
 import StreamPlayer from './StreamPlayer';
 
 class MediaPlayer extends Component{

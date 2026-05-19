@@ -1,11 +1,13 @@
 import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
-import {detectOS, printArea, distanceInCircleAbs} from '../../utils/helper';
+import {detectOS, distanceInCircleAbs} from '../../utils/helper';
 
 const ChartMargin = 20;
 const ChartMarginDelta = 55;
 const ChartMoveUp = 10;
+const RETROGRADE_SYMBOL_COLOR = '#8f2d2d';
+const PLANET_MINUTE_TEXT_COLOR = '#80786e';
 
 let TxtOffsetTop = 0;
 let rThreshold = 100;
@@ -697,6 +699,14 @@ export function desposeStars(svg, chartObj, r, rStep, houses, objects, planetDis
 		if(pnt.lonspeed < 0){
 			startxt.push(AstroText.AstroMsg['Retrograde']);
 		}
+		const hasRetrograde = pnt.lonspeed < 0;
+		const retrogradeTextIndex = hasRetrograde ? (txtplanet ? 4 : 1) : -1;
+		const degreeTextIndex = txtplanet ? 1 : -1;
+		const signTextIndex = txtplanet ? 2 : -1;
+		const minuteTextIndex = txtplanet ? 3 : -1;
+		const textOffsetMap = r >= rThreshold
+			? { 0: 0, 1: 24, 2: 48, 3: 68, 4: 84 }
+			: { 0: 0, 1: 17, 2: 34, 3: 50, 4: 64 };
 		if(txtsu28){
 			let sudegs = getSu28Text(chartObj, pnt);
 			sudegs.map((itm, idx)=>{
@@ -710,33 +720,68 @@ export function desposeStars(svg, chartObj, r, rStep, houses, objects, planetDis
 		lblgroup.selectAll('text').data(startxt).enter().append('text')
 			.attr("dominant-baseline","middle")
 			.attr("text-anchor", "middle")
+			.attr('class', function(d, idx){
+				return idx === retrogradeTextIndex ? 'horosa-astro-retrograde-symbol' : null;
+			})
 			.attr('font-size', function(d, idx){
-				if(idx === 0 || idx === 4 || (startxt.length === 2 && idx === 1)){
-					return r >= rThreshold ? 15 : 13;
-				}else if(idx === 2){
-					return r >= rThreshold ? 13 : 10;
-				}else{
+				if(idx === retrogradeTextIndex){
+					return r >= rThreshold ? 9 : 8;
+				}
+				if(idx === degreeTextIndex){
 					return r >= rThreshold ? 10 : 8;
+				}
+				if(idx === 0 || (startxt.length === 2 && idx === 1)){
+					return r >= rThreshold ? 18 : 15;
+				}else if(idx === signTextIndex){
+					return r >= rThreshold ? 11 : 9;
+				}else if(idx === minuteTextIndex){
+					return r >= rThreshold ? 6 : 5;
+				}else{
+					return r >= rThreshold ? 8 : 6;
 				}
 			})
 			.attr('stroke', function(d, idx){
+				if(idx === retrogradeTextIndex){
+					return RETROGRADE_SYMBOL_COLOR;
+				}
+				if(idx === minuteTextIndex){
+					return PLANET_MINUTE_TEXT_COLOR;
+				}
 				if(samecolorwithsign){
 					return AstroConst.AstroColor[pnt.sign];
 				}else{
 					return AstroConst.AstroColor[pntstr];
 				}				
 			})
+			.attr('fill', function(d, idx){
+				if(idx === retrogradeTextIndex){
+					return RETROGRADE_SYMBOL_COLOR;
+				}
+				if(idx === minuteTextIndex){
+					return PLANET_MINUTE_TEXT_COLOR;
+				}
+				return null;
+			})
 			.attr('font-family', function(d,idx){
-				if(idx === 0 || idx === 2 || idx === 4 || (startxt.length === 2 && idx === 1)){
+				if(idx === 0 || idx === 2 || idx === retrogradeTextIndex || (startxt.length === 2 && idx === 1)){
 					return AstroConst.AstroChartFont;
 				}else{
 					return AstroConst.NormalFont;
 				}
-			}).attr('font-weight', 100)
+			}).attr('font-weight', function(d, idx){
+				if(idx === degreeTextIndex || idx === signTextIndex){
+					return 520;
+				}
+				if(idx === minuteTextIndex){
+					return 300;
+				}
+				return 100;
+			})
 			.attr('transform', function(d, idx){
-				let offset = r >= rThreshold ? 20 : 13;
-				let x = -(txtPosR - idx * offset) * Math.sin(lon);
-				let y = -(txtPosR - idx * offset) * Math.cos(lon);
+				let baseOffset = r >= rThreshold ? 20 : 13;
+				let offset = textOffsetMap[idx] !== undefined ? textOffsetMap[idx] : textOffsetMap[4] + Math.max(0, idx - 4) * baseOffset;
+				let x = -(txtPosR - offset) * Math.sin(lon);
+				let y = -(txtPosR - offset) * Math.cos(lon);
 				let angle = -pnt.lon;
 				if(house1Ang !== undefined && house1Ang !== null && txtforward){
 					angle = 90 - house1Ang;
@@ -985,26 +1030,7 @@ export function drawBirthInfo(svg, margin, chartObj, chartid, inverse){
 		})
 		.text(function(d){return d});			
 
-	let printsvg = svg.append('g');
-	printsvg.append('text')
-		.attr("dominant-baseline","middle")
-		.attr("text-anchor", "left")
-		.attr('font-weight', 100)
-		.attr('stroke', AstroConst.AstroColor.Stroke)
-		.attr('style', 'cursor:hand')
-		.attr('transform', function(d){
-			let x = margin;
-			let y = margin + rowheight * txts.length;
-			let trans = 'translate(' + x + ', ' + y + ')';
-			return trans;
-		})
-		.text('打印星盘');
-
-	printsvg.on('click', ()=>{
-		printArea(chartid);
-	});
-	
-}
+	}
 
 export function drawBirthInfoInCircle(svg, r, firstX, firstY, chartObj, chartid){
 	let params = chartObj.params;
@@ -1058,26 +1084,7 @@ export function drawBirthInfoInCircle(svg, r, firstX, firstY, chartObj, chartid)
 		})
 		.text(function(d){return d});	
 		
-	let printsvg = svg.append('g');
-	printsvg.append('text')
-		.attr("dominant-baseline","middle")
-		.attr("text-anchor", "left")
-		.attr('font-weight', 100)
-		.attr('stroke', AstroConst.AstroColor.Stroke)
-		.attr('style', 'cursor:hand')
-		.attr('transform', function(d, idx){
-			y = fy + rowheight * txts.length;
-			let trans = 'translate(' + x + ', ' + y + ')';
-			return trans;
-		})
-		.text('打印星盘');
-
-	printsvg.on('click', ()=>{
-		printArea(chartid);
-	});
-
-
-}
+	}
 
 export function drawAngles(svg, r, len, chartObj, flags){
 	let asc = getObject(chartObj, AstroConst.ASC);
@@ -1159,7 +1166,7 @@ export function drawChartWithOrgXY(chartid, chartObj, orgx, orgy, radius, rStep,
 	let svgid = '#' + chartid;
 	let svg = d3.select(svgid);
 	svg.html('');
-	svg.attr('stroke', '#000000').attr("stroke-width", 1);
+	svg.attr('stroke', AstroConst.AstroColor.Stroke).attr("stroke-width", 1);
 
 	let topgroup = svg.append('g');
 
@@ -1414,7 +1421,7 @@ export function drawDoubleChart(chartid, chartObj, rStep, chartDisplay, planetDi
 	let svgid = '#' + chartid;
 	let svg = d3.select(svgid);
 	svg.html('');
-	svg.attr('stroke', '#000000').attr("stroke-width", 1);
+	svg.attr('stroke', AstroConst.AstroColor.Stroke).attr("stroke-width", 1);
 
 	let topgroup = svg.append('g');
 
@@ -1457,4 +1464,3 @@ export function drawDoubleChart(chartid, chartObj, rStep, chartDisplay, planetDi
 
 	return svg;
 }
-

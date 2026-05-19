@@ -1,15 +1,14 @@
 import { Component } from 'react';
-import { Row, Col, Table, Popconfirm, Button,  Input, Select, Pagination, Modal } from 'antd';
+import { Row, Col } from 'antd';
 import LatInput from '../astro/LatInput';
 import LonInput from '../astro/LonInput';
 import DateTimeSelector from '../comp/DateTimeSelector';
 import EditableTags from '../comp/EditableTags';
 import * as AstroHelper from '../astro/AstroHelper';
 import GeoCoordModal from '../amap/GeoCoordModal';
+import { XQButton, XQInput, XQSelect } from '../xq-ui';
 
-
-const Search = Input.Search;
-const Option = Select.Option;
+const Option = XQSelect.Option;
 
 export default class ChartData extends Component{
 	constructor(props) {
@@ -176,7 +175,7 @@ export default class ChartData extends Component{
 				<Row gutter={12}>
 					<Col span={24}>出生时间：</Col>
 					<Col span={24}>
-						<DateTimeSelector 
+						<DateTimeSelector
 							showTime={true}
 							showAdjust={false}
 							onChange={this.changeBirth}
@@ -189,7 +188,7 @@ export default class ChartData extends Component{
 						<Row>
 							<Col span={24}>姓名：</Col>
 							<Col span={24}>
-								<Input placeholder='姓名' value={flds.name.value} onChange={this.changeName} />
+								<XQInput placeholder='姓名' value={flds.name.value} onChange={this.changeName} />
 							</Col>
 						</Row>
 					</Col>
@@ -197,11 +196,11 @@ export default class ChartData extends Component{
 						<Row>
 							<Col span={24}>性别：</Col>
 							<Col span={24}>
-								<Select value={flds.gender.value} onChange={this.changeGender} style={{width: '100%'}}>
+								<XQSelect value={flds.gender.value} onChange={this.changeGender} style={{width: '100%'}}>
 									<Option value={-1}>未知</Option>
 									<Option value={0}>女</Option>
 									<Option value={1}>男</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -209,9 +208,9 @@ export default class ChartData extends Component{
 						<Row>
 							<Col span={24}>出生地：</Col>
 							<Col span={24}>
-								<Input placeholder='出生地' 
+								<XQInput placeholder='出生地'
 									value={flds.pos.value}
-									onChange={this.changePos} 
+									onChange={this.changePos}
 								/>
 							</Col>
 						</Row>
@@ -222,7 +221,7 @@ export default class ChartData extends Component{
 						<Row>
 							<Col span={24}>纬度：</Col>
 							<Col span={24}>
-								<LatInput 
+								<LatInput
 									value={flds.lat.value}
 									onChange={this.changeLat}
 								/>
@@ -233,7 +232,7 @@ export default class ChartData extends Component{
 						<Row>
 							<Col span={24}>经度：</Col>
 							<Col span={24}>
-								<LonInput 
+								<LonInput
 									value={flds.lon.value}
 									onChange={this.changeLon}
 								/>
@@ -244,11 +243,11 @@ export default class ChartData extends Component{
 						<Row>
 							<Col span={24}>从地图选取经纬度：</Col>
 							<Col span={24}>
-								<GeoCoordModal 
-									onOk={this.changeGeo} 
+								<GeoCoordModal
+									onOk={this.changeGeo}
 									lat={flds.gpsLat.value} lng={flds.gpsLon.value}
 								>
-									<Button>经纬度选择</Button>
+									<XQButton>经纬度选择</XQButton>
 								</GeoCoordModal>
 							</Col>
 						</Row>
@@ -259,10 +258,10 @@ export default class ChartData extends Component{
 						<Row>
 							<Col span={24}>是否公开：</Col>
 							<Col span={24}>
-								<Select value={flds.isPub.value} onChange={this.changeIsPub}>
+								<XQSelect value={flds.isPub.value} onChange={this.changeIsPub}>
 									<Option value={0}>否</Option>
 									<Option value={1}>是</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -270,8 +269,8 @@ export default class ChartData extends Component{
 						<Row>
 							<Col span={24}>标签：</Col>
 							<Col span={24}>
-								<EditableTags 
-									newTagLabel='添加标签' needConfirm={true} 
+								<EditableTags
+									newTagLabel='添加标签' needConfirm={true}
 									value={flds.group.value}
 									onChange={this.changeGroup}
 								/>
@@ -281,10 +280,10 @@ export default class ChartData extends Component{
 				</Row>
 				<Row gutter={12} style={{marginTop: margintop}}>
 					<Col offset={2} span={10}>
-						<Button type='primary' onClick={this.clickOk}>{okTitle}</Button>
+						<XQButton type='primary' onClick={this.clickOk}>{okTitle}</XQButton>
 					</Col>
 					<Col span={12}>
-						<Button onClick={this.clickReturn}>{returnTitle}</Button>
+						<XQButton onClick={this.clickReturn}>{returnTitle}</XQButton>
 					</Col>
 				</Row>
 			</div>

@@ -1,14 +1,13 @@
 import { Component } from 'react';
-import { Row, Col, Form, DatePicker, Input, Button, Select, Checkbox } from 'antd';
-import GeoCoordModal from '../amap/GeoCoordModal';
-import PlusMinusTime from '../astro/PlusMinusTime';
-import { gcj02ToGps, randomStr } from '../../utils/helper';
-import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
+import { Checkbox } from 'antd';
+import {convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import * as ZWCont from '../../constants/ZWConst';
 import DateTime from '../comp/DateTime';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
+import { XQSelect as Select } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
-const {Option} = Select
-const InputGroup = Input.Group;
+const {Option} = Select;
 
 class ZiWeiInput extends Component{
 	
@@ -209,49 +208,55 @@ class ZiWeiInput extends Component{
 			: 0;
 
 		return (
-			<div>
-			<Row>
-				<Col span={24}>
-					<PlusMinusTime value={datetm} ad={this.props.fields.ad.value} onChange={this.onTimeChanged} hook={this.tmHook} />
-				</Col>	
-			</Row>
-			<Row>
-				<Col lg={12} xl={6}>
-					<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
-						<Option value={-1}>未知</Option>
-						<Option value={0}>女</Option>
-						<Option value={1}>男</Option>
-					</Select>
-				</Col>
-				<Col lg={12} xl={6}>
-					<Select value={timeAlg} onChange={this.onTimeAlgChange} size='small' style={{width:'100%'}}>
-						<Option value={0}>真太阳时</Option>
-						<Option value={1}>直接时间</Option>
-					</Select>
-				</Col>
-				<Col lg={12} xl={6}>
-					<Select value={zwchart} onChange={this.onChartTypeChange} size='small' style={{width:'100%'}}>
-						<Option value={ZWCont.ZWChart_SiHua}>四化盘</Option>
-						<Option value={ZWCont.ZWChart_SangHe}>三合盘</Option>
-					</Select>				
-				</Col>
-				<Col lg={12} xl={6}>
+			<div className="horosa-ziwei-input-stack">
+				<div className="horosa-side-panel-heading">
 					<div>
-						<GeoCoordModal 
-							onOk={this.changeGeo}
-							lat={fields.gpsLat.value} lng={fields.gpsLon.value}
-						>
-							<Button size='small' style={{width:'100%'}}>经纬度选择</Button>
-						</GeoCoordModal>
+						<div className="horosa-side-panel-title">紫微设置</div>
+						<div className="horosa-side-panel-subtitle">时间、地点与排盘选项</div>
 					</div>
-				</Col>
-				<Col lg={12} xl={16}>
-					<Checkbox checked={this.state.showTips} onChange={this.onTipsChange}>允许提示</Checkbox>
-				</Col>
-				<Col lg={12} xl={8} style={{textAlign: 'right'}}>
-					<span style={{width:'100%', textAlign: 'center'}}>{fields.lon.value + ' ' + fields.lat.value}</span>
-				</Col>
-			</Row>
+				</div>
+
+				<SpaceTimePanel
+					fields={fields}
+					value={datetm}
+					onTimeChange={this.onTimeChanged}
+					timeHook={this.tmHook}
+					onGeoChange={this.changeGeo}
+				/>
+
+				<div className="horosa-ziwei-input-section">
+					<div className="horosa-ziwei-field-title">
+						<XQIcon name="sliders" />
+						<span>选项</span>
+					</div>
+					<div className="horosa-ziwei-select-grid">
+						<label className="horosa-ziwei-select-field">
+							<span>性别</span>
+							<Select value={fields.gender.value} onChange={this.onGenderChange} size='small'>
+								<Option value={-1}>未知</Option>
+								<Option value={0}>女</Option>
+								<Option value={1}>男</Option>
+							</Select>
+						</label>
+						<label className="horosa-ziwei-select-field">
+							<span>时间算法</span>
+							<Select value={timeAlg} onChange={this.onTimeAlgChange} size='small'>
+								<Option value={0}>真太阳时</Option>
+								<Option value={1}>直接时间</Option>
+							</Select>
+						</label>
+						<label className="horosa-ziwei-select-field horosa-ziwei-select-field-wide">
+							<span>盘式</span>
+							<Select value={zwchart} onChange={this.onChartTypeChange} size='small'>
+								<Option value={ZWCont.ZWChart_SiHua}>四化盘</Option>
+								<Option value={ZWCont.ZWChart_SangHe}>三合盘</Option>
+							</Select>
+						</label>
+					</div>
+					<div className="horosa-ziwei-option-card">
+						<Checkbox checked={this.state.showTips} onChange={this.onTipsChange}>允许提示</Checkbox>
+					</div>
+				</div>
 			</div>
 		);
 	}

@@ -1,11 +1,12 @@
 import { Component } from 'react';
-import { Select, Row, Col } from 'antd';
+import { Row, Col } from 'antd';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import {randomStr, randomNum, littleEndian,} from '../../utils/helper';
 import { Gua8, getGua8, } from '../gua/GuaConst';
 import GuaSym from './GuaSym';
 import GuaChartDiv from './GuaChartDiv';
+import { XQSelect as Select } from '../xq-ui';
 
 const { Option } = Select;
 

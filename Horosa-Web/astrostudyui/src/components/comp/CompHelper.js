@@ -1,7 +1,6 @@
-import { Form, Input, Button, Select, Row, Col,  } from 'antd';
-import { randomStr, } from '../../utils/helper';
+import { XQSelect } from '../xq-ui';
 
-const Option = Select.Option;
+const Option = XQSelect.Option;
 
 export function getHousesOption(){
 	let houses = [

@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Button, Input, Select } from 'antd';
+import { Row, Col } from 'antd';
 import LatInput from '../astro/LatInput';
 import LonInput from '../astro/LonInput';
 import DateTimeSelector from '../comp/DateTimeSelector';
@@ -7,9 +7,9 @@ import EditableTags from '../comp/EditableTags';
 import * as AstroHelper from '../astro/AstroHelper';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { CASE_TYPE_OPTIONS } from '../../utils/localcases';
+import { XQButton, XQInput, XQSelect, XQTextArea } from '../xq-ui';
 
-const { TextArea } = Input;
-const Option = Select.Option;
+const Option = XQSelect.Option;
 
 export default class CaseData extends Component{
 	constructor(props) {
@@ -178,7 +178,7 @@ export default class CaseData extends Component{
 						<Row>
 							<Col span={24}>事件：</Col>
 							<Col span={24}>
-								<TextArea
+								<XQTextArea
 									placeholder='事件'
 									value={flds.event.value}
 									onChange={this.changeEvent}
@@ -195,9 +195,9 @@ export default class CaseData extends Component{
 						<Row>
 							<Col span={24}>类型：</Col>
 							<Col span={24}>
-								<Select value={flds.caseType.value} onChange={this.changeCaseType} style={{ width: '100%' }}>
+								<XQSelect value={flds.caseType.value} onChange={this.changeCaseType} style={{ width: '100%' }}>
 									{CASE_TYPE_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -205,7 +205,7 @@ export default class CaseData extends Component{
 						<Row>
 							<Col span={24}>起课地：</Col>
 							<Col span={24}>
-								<Input placeholder='起课地' value={flds.pos.value} onChange={this.changePos} />
+								<XQInput placeholder='起课地' value={flds.pos.value} onChange={this.changePos} />
 							</Col>
 						</Row>
 					</Col>
@@ -233,7 +233,7 @@ export default class CaseData extends Component{
 							<Col span={24}>从地图选取经纬度：</Col>
 							<Col span={24}>
 								<GeoCoordModal onOk={this.changeGeo} lat={flds.gpsLat.value} lng={flds.gpsLon.value}>
-									<Button>经纬度选择</Button>
+									<XQButton>经纬度选择</XQButton>
 								</GeoCoordModal>
 							</Col>
 						</Row>
@@ -245,10 +245,10 @@ export default class CaseData extends Component{
 						<Row>
 							<Col span={24}>是否公开：</Col>
 							<Col span={24}>
-								<Select value={flds.isPub.value} onChange={this.changeIsPub}>
+								<XQSelect value={flds.isPub.value} onChange={this.changeIsPub}>
 									<Option value={0}>否</Option>
 									<Option value={1}>是</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -269,14 +269,13 @@ export default class CaseData extends Component{
 
 				<Row gutter={12} style={{ marginTop: margintop }}>
 					<Col offset={2} span={10}>
-						<Button type='primary' onClick={this.clickOk}>{okTitle}</Button>
+						<XQButton type='primary' onClick={this.clickOk}>{okTitle}</XQButton>
 					</Col>
 					<Col span={12}>
-						<Button onClick={this.clickReturn}>{returnTitle}</Button>
+						<XQButton onClick={this.clickReturn}>{returnTitle}</XQButton>
 					</Col>
 				</Row>
 			</div>
 		);
 	}
 }
-

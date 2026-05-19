@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Card, Tabs, Divider, Popover} from 'antd';
+import { Row, Col, Divider, Popover} from 'antd';
+import { XQCard as Card, XQTabs as Tabs } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 import { BaZiMsg } from '../../msg/bazimsg';
 import styles from '../../css/styles.less';
@@ -219,5 +220,4 @@ class MainDirection extends Component{
 }
 
 export default MainDirection;
-
 

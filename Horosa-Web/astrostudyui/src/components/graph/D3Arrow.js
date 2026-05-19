@@ -8,7 +8,7 @@ class D3Arrow {
 		this.y1 = option.y1;
 		this.x2 = option.x2;
 		this.y2 = option.y2;
-		this.color = option.color ? option.color : '#000000';
+		this.color = option.color ? option.color : 'var(--horosa-text, #000000)';
 		this.width = 12;
 		this.height = 12;
 

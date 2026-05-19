@@ -1,9 +1,10 @@
 import { Component } from 'react';
-import { Row, Card, } from 'antd';
+import { Row, } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
 import styles from '../../css/styles.less';
+import { XQCard as Card } from '../xq-ui';
 
 class AstroPredictPlanetSign extends Component{
 

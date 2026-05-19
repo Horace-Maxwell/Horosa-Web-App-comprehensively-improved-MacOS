@@ -1,5 +1,4 @@
 import { Component } from 'react';
-import { Row, Col, Table, Popconfirm, Button,  Input, Select, Pagination, Modal } from 'antd';
 import ChartFormData from '../comp/ChartFormData';
 
 export default class AstroFormComp extends Component{

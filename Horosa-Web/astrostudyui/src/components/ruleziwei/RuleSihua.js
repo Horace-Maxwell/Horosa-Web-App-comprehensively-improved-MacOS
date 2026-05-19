@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Popover, } from 'antd';
+import { Row, Col, Popover, } from 'antd';
 import {randomStr,} from '../../utils/helper';
 import * as ZWConst from '../../constants/ZWConst';
 
@@ -117,4 +117,3 @@ class RuleSihua extends Component{
 }
 
 export default RuleSihua;
-

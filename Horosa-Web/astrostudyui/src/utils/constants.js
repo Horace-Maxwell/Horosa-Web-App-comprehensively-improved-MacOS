@@ -140,7 +140,7 @@ export const DefGpsLon = 119.31516153077507;
 export const AccessDenyCode = 900;
 export const UploadFailCode = 800;
 
-export const TableOddRowBgColor = '#dffff6';
+export const TableOddRowBgColor = 'var(--horosa-table-row-alt, rgba(47, 125, 241, 0.06))';
 
 export const TimeInterval = 15000;
 

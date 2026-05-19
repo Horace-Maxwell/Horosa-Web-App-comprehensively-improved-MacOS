@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Statistic, Select, Input, Modal, Tooltip } from 'antd';
+import { Row, Col, Divider, Statistic, Modal, Tooltip } from 'antd';
+import { XQButton as Button, XQInput as Input, XQSelect as Select } from '../xq-ui';
 import { randomStr, isNumber } from '../../utils/helper';
 import { splitDegree, } from '../astro/AstroHelper';
 import request from '../../utils/request';

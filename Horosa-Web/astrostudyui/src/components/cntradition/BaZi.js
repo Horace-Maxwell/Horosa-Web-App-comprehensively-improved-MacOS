@@ -1,22 +1,24 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, DatePicker, Input, Button, Card, Select } from 'antd';
+import { XQTabs as Tabs } from '../xq-ui';
 import CnTraditionInput from './CnTraditionInput';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
-import PaiBaZi from './PaiBaZi';
+import PaiBaZi, { BAZI_CHART_STYLE_KEY } from './PaiBaZi';
 import Gods from './Gods';
 import GanHeCong from './GanHeCong';
 import ZiHeCong from './ZiHeCong';
-import MainDirection from './MainDirection';
-import SmallDirection from './SmallDirection';
-import MainDirectionSimple from './MainDirectionSimple';
 import BaZiZhangSheng from './BaZiZhangSheng';
 import FourZhuGuaDesc from './FourZhuGuaDesc';
+import BaZiLuckFlowPanel from './BaZiLuckFlowPanel';
+import BaZiAppInfoPanel from './BaZiAppInfoPanel';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
+import { buildLocalBaziResult } from '../../utils/baziLunarLocal';
 
 const TabPane = Tabs.TabPane;
 
 const BaZiOptKey = 'baziopt';
+const BAZI_CORE_ENDPOINT = '/bazi/birth';
+const BAZI_DIRECT_ENDPOINT = '/bazi/direct';
 
 function gzText(zhu){
 	if(!zhu){
@@ -197,6 +199,8 @@ function buildBaziSnapshotText(params, result){
 const BAZI_CACHE_MAX = 96;
 const baziMem = new Map();
 const baziInflight = new Map();
+const baziDirectMem = new Map();
+const baziDirectInflight = new Map();
 
 function clonePlain(obj){
 	if(obj === undefined || obj === null){
@@ -225,6 +229,37 @@ function pushCache(map, key, val, max = BAZI_CACHE_MAX){
 	}
 }
 
+function normalizeBaziGender(gender){
+	if(gender === 'Male' || gender === 'Female'){
+		return gender;
+	}
+	if(gender === false || `${gender}` === '0'){
+		return 'Female';
+	}
+	if(gender === true || `${gender}` === '1'){
+		return 'Male';
+	}
+	return '';
+}
+
+function normalizeBaziResult(result, params){
+	if(!result){
+		return result;
+	}
+	const next = {
+		...result,
+	};
+	const bazi = {
+		...(next.bazi || {}),
+	};
+	if(!bazi.gender){
+		bazi.gender = next.gender || normalizeBaziGender(params ? params.gender : null);
+	}
+	next.bazi = bazi;
+	next.coreOnly = !Array.isArray(bazi.direction) || bazi.direction.length === 0;
+	return next;
+}
+
 function buildBaziKey(params){
 	try{
 		return JSON.stringify(params || {});
@@ -244,7 +279,16 @@ async function fetchBaziCached(params, options){
 		const inflight = await baziInflight.get(key);
 		return clonePlain(inflight);
 	}
-	const req = request(`${Constants.ServerRoot}/bazi/direct`, {
+	try{
+		const localResult = buildLocalBaziResult(params);
+		if(key && localResult){
+			pushCache(baziMem, key, clonePlain(localResult));
+		}
+		return clonePlain(localResult);
+	}catch(e){
+		// Fall through to the legacy service when the local Lunar calculator cannot parse old edge cases.
+	}
+	const req = request(`${Constants.ServerRoot}${BAZI_CORE_ENDPOINT}`, {
 		body: JSON.stringify(params),
 		silent: opt.silent !== false,
 	}).then((data)=>{
@@ -260,6 +304,47 @@ async function fetchBaziCached(params, options){
 	});
 	if(key){
 		baziInflight.set(key, req);
+	}
+	const result = await req;
+	return clonePlain(result);
+}
+
+async function fetchBaziDirectCached(params, options){
+	const opt = options || {};
+	const disableCache = opt.cache === false;
+	const key = disableCache ? '' : buildBaziKey(params);
+	if(key && baziDirectMem.has(key)){
+		return clonePlain(baziDirectMem.get(key));
+	}
+	if(key && baziDirectInflight.has(key)){
+		const inflight = await baziDirectInflight.get(key);
+		return clonePlain(inflight);
+	}
+	try{
+		const localResult = buildLocalBaziResult(params);
+		if(key && localResult){
+			pushCache(baziDirectMem, key, clonePlain(localResult));
+		}
+		return clonePlain(localResult);
+	}catch(e){
+		// Fall through to the legacy service when the local Lunar calculator cannot parse old edge cases.
+	}
+	const req = request(`${Constants.ServerRoot}${BAZI_DIRECT_ENDPOINT}`, {
+		body: JSON.stringify(params),
+		silent: opt.silent !== false,
+	}).then((data)=>{
+		const result = data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
+		if(key && result){
+			pushCache(baziDirectMem, key, clonePlain(result));
+		}
+		return result;
+	}).finally(()=>{
+		if(key){
+			baziDirectInflight.delete(key);
+		}
+	});
+	if(key){
+		baziDirectInflight.set(key, req);
 	}
 	const result = await req;
 	return clonePlain(result);
@@ -281,6 +366,12 @@ class BaZi extends Component{
 		this.state = {
 			result: null,
 			baziOpt: bzopt,
+			chartStyle: localStorage.getItem(BAZI_CHART_STYLE_KEY) === 'fine' ? 'fine' : 'simple',
+			currentBaziKey: '',
+			directResult: null,
+			directKey: '',
+			directLoading: false,
+			directError: null,
 		};
 
 		this.unmounted = false;
@@ -288,10 +379,13 @@ class BaZi extends Component{
 		this.prefetchTimer = null;
 
 		this.requestBazi = this.requestBazi.bind(this);
+		this.requestBaziDirect = this.requestBaziDirect.bind(this);
 		this.prefetchBazi = this.prefetchBazi.bind(this);
 		this.genParams = this.genParams.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.onBaziOptChange = this.onBaziOptChange.bind(this);
+		this.onInfoTabChange = this.onInfoTabChange.bind(this);
+		this.changeBaziChartStyle = this.changeBaziChartStyle.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields)=>{
@@ -357,6 +451,14 @@ class BaZi extends Component{
 		});
 	}
 
+	changeBaziChartStyle(chartStyle){
+		this.setState({
+			chartStyle,
+		}, ()=>{
+			localStorage.setItem(BAZI_CHART_STYLE_KEY, chartStyle);
+		});
+	}
+
 	genParams(fields){
 		let flds = fields ? fields : this.props.fields;
 		const params = {
@@ -392,17 +494,24 @@ class BaZi extends Component{
 			return;
 		}
 		const params = this.genParams(fields);
+		const currentBaziKey = buildBaziKey(params);
 		const opt = options || {};
 		const seq = ++this.baziReqSeq;
-		const result = await fetchBaziCached(params, {
+		const rawResult = await fetchBaziCached(params, {
 			silent: opt.silent !== false,
 		});
+		const result = normalizeBaziResult(rawResult, params);
 		if(!result || this.unmounted || seq !== this.baziReqSeq){
 			return;
 		}
 
 		const st = {
 			result: result,
+			currentBaziKey,
+			directResult: result && result.local ? result : (this.state.currentBaziKey === currentBaziKey ? this.state.directResult : null),
+			directKey: result && result.local ? currentBaziKey : (this.state.currentBaziKey === currentBaziKey ? this.state.directKey : ''),
+			directLoading: this.state.currentBaziKey === currentBaziKey ? this.state.directLoading : false,
+			directError: this.state.currentBaziKey === currentBaziKey ? this.state.directError : null,
 		};
 
 		this.setState(st);
@@ -413,6 +522,54 @@ class BaZi extends Component{
 			lon: params.lon,
 			lat: params.lat,
 		});
+	}
+
+	async requestBaziDirect(){
+		if(!this.props.fields){
+			return;
+		}
+		const params = this.genParams(this.props.fields);
+		const key = buildBaziKey(params);
+		if(this.state.directResult && this.state.directKey === key){
+			return;
+		}
+		if(this.state.directLoading && this.state.directKey === key){
+			return;
+		}
+		this.setState({
+			directLoading: true,
+			directError: null,
+			directKey: key,
+		});
+		try{
+			const rawResult = await fetchBaziDirectCached(params, {
+				silent: true,
+			});
+			const result = normalizeBaziResult(rawResult, params);
+			if(this.unmounted || buildBaziKey(this.genParams(this.props.fields)) !== key){
+				return;
+			}
+			this.setState({
+				directResult: result,
+				directKey: key,
+				directLoading: false,
+				directError: null,
+			});
+		}catch(e){
+			if(this.unmounted){
+				return;
+			}
+			this.setState({
+				directLoading: false,
+				directError: '行运数据加载失败',
+			});
+		}
+	}
+
+	onInfoTabChange(key){
+		if(`${key}` === '0'){
+			this.requestBaziDirect();
+		}
 	}
 
 
@@ -436,61 +593,63 @@ class BaZi extends Component{
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 'calc(100% - 80px)'
+			height = '100%'
 		}else{
-			height = height - 80;
+			height = Math.max(320, height - 8);
 		}
 		let tabHeight = height - 20;
 
 		let bazi = this.state.result ? this.state.result.bazi : {};
+		const directBazi = this.state.directResult && this.state.directResult.bazi ? this.state.directResult.bazi : null;
+		const baziParams = this.props.fields ? this.genParams(this.props.fields) : {};
+		const isFineChart = this.state.chartStyle === 'fine';
+		const chartHeight = typeof height === 'number' ? Math.max(360, Math.round(height * 0.62)) : height;
+		const flowHeight = typeof height === 'number' ? Math.max(220, height - chartHeight - 18) : 240;
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={13}>
-						<PaiBaZi value={bazi} height={height+140} fields={this.props.fields} baziOpt={this.state.baziOpt} />
-					</Col>
-					<Col span={11}>
-						<Row>
-							<Col span={24}>
-								<CnTraditionInput 
-									fields={this.props.fields} 
-									baziOpt={this.state.baziOpt}
-									onFieldsChange={this.onFieldsChange}
-									onBaziOptChange={this.onBaziOptChange}
-								/>
-							</Col>
-							<Col span={24}>
-								<Tabs defaultActiveKey="0" tabPosition='top'>
-									<TabPane tab="行运概略" key="0">
-										<MainDirectionSimple value={bazi} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="卦释" key="1">
-										<FourZhuGuaDesc value={bazi.fourColumns} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="十二长生" key="2">
-										<BaZiZhangSheng value={bazi} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="神煞" key="3">
-										<Gods value={bazi.fourColumns} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="大运" key="4">
-										<MainDirection value={bazi} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="小运" key="5">
-										<SmallDirection value={bazi} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="天干" key="6">
-										<GanHeCong value={bazi.fourColumns} height={tabHeight} />
-									</TabPane>
-									<TabPane tab="地支" key="7">
-										<ZiHeCong value={bazi.fourColumns} height={tabHeight} />
-									</TabPane>
-								</Tabs>
-							</Col>
-						</Row>
-					</Col>
-				</Row>
+			<div className="horosa-bazi-page horosa-astro-redesign horosa-bazi-redesign">
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-bazi-redesign-layout">
+					<div className="horosa-astro-redesign-grid horosa-bazi-redesign-grid">
+						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-bazi-input-panel">
+							<CnTraditionInput
+								fields={this.props.fields}
+								baziOpt={this.state.baziOpt}
+								onFieldsChange={this.onFieldsChange}
+								onBaziOptChange={this.onBaziOptChange}
+							/>
+						</div>
+						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-bazi-chart-panel xq-chart-renderer xq-chart-renderer-bazi">
+							<div className={`horosa-bazi-main-stack ${isFineChart ? 'horosa-bazi-main-stack-fine' : ''}`}>
+								<div className="horosa-bazi-main-chart-slot">
+									<PaiBaZi
+										value={bazi}
+										height={isFineChart ? 'auto' : chartHeight}
+										fields={this.props.fields}
+										baziOpt={this.state.baziOpt}
+										chartStyle={this.state.chartStyle}
+										onChartStyleChange={this.changeBaziChartStyle}
+										showStyleSwitch={false}
+									/>
+								</div>
+								<div className="horosa-bazi-main-flow-slot">
+									<BaZiLuckFlowPanel
+										coreValue={bazi}
+										fullValue={directBazi}
+										height={flowHeight}
+										loading={this.state.directLoading}
+										error={this.state.directError}
+										jieqiParams={baziParams}
+										onLoad={this.requestBaziDirect}
+										compact
+									/>
+								</div>
+							</div>
+						</div>
+						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-bazi-info-panel">
+							<BaZiAppInfoPanel value={bazi} fields={this.props.fields} height={tabHeight} />
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}

@@ -45,4 +45,19 @@ describe('RengChart runyear gender label', ()=>{
 		const chart = buildChart(1);
 		expect(chart.getRunYear()[2].value).toBe('男');
 	});
+
+	test('simple text pan keeps the old heaven-plate branch mapping', ()=>{
+		const chart = buildChart(1);
+		chart.nongli = {
+			dayGanZi: '壬辰',
+		};
+		const house = chart.getSimpleHouse({
+			downZi: ['子', '丑'],
+			upZi: ['申', '酉'],
+			houseTianJiang: ['天后', '贵人'],
+		}, '丑');
+		expect(house.up).toBe('酉');
+		expect(house.gan).toBe('乙');
+		expect(house.jiang).toBe('贵');
+	});
 });

@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
-import { formatDate, printArea } from '../../utils/helper';
+import { formatDate } from '../../utils/helper';
 import { drawTextH, } from '../graph/GraphHelper';
 import LRCircleChart from '../liureng/LRCircleChart';
 import LRChart from '../liureng/LRChart';
@@ -138,14 +138,11 @@ class JinKouPanChart {
 		cords[3] = { x: this.margin + w, y: this.margin + titleH + h, w: w, h: h };
 
 		const titleords = { x: this.margin, y: this.margin, w: realW, h: titleH };
-		const printBtnOrds = { x: this.margin + 18, y: this.margin + titleH / 2 };
-
 		this.drawLiuRengCircle(cords[0]);
 		this.drawKeChuan(cords[1]);
 		this.drawJinKouTables(cords[2]);
 		this.drawRightGodPanels(cords[3]);
 		this.drawTitle(titleords);
-		this.drawPrintBtn(printBtnOrds.x, printBtnOrds.y);
 		return null;
 	}
 
@@ -225,7 +222,7 @@ class JinKouPanChart {
 		this.rengs[2].draw();
 	}
 
-	getColorByToken(token, def = '#262626'){
+	getColorByToken(token, def = AstroConst.AstroColor.TextStroke){
 		const txt = `${token || ''}`;
 		for(let i=0; i<txt.length; i++){
 			const one = txt.substr(i, 1);
@@ -237,6 +234,10 @@ class JinKouPanChart {
 			}
 		}
 		return def;
+	}
+
+	resolveTextColor(color){
+		return color && color !== '#262626' ? color : AstroConst.AstroColor.TextStroke;
 	}
 
 	drawCell(x, y, w, h, fill){
@@ -258,7 +259,7 @@ class JinKouPanChart {
 		const fontSize = option.fontSize ? option.fontSize : 16;
 		const padding = option.padding !== undefined ? option.padding : 6;
 		const align = option.align ? option.align : 'center';
-		const color = option.color ? option.color : '#262626';
+		const color = option.color ? option.color : AstroConst.AstroColor.TextStroke;
 		const bold = option.bold ? 400 : 300;
 
 		const tx = align === 'left' ? x + padding : x + w / 2;
@@ -286,7 +287,7 @@ class JinKouPanChart {
 		const meta = this.jinkouData && this.jinkouData.topInfo ? this.jinkouData.topInfo : {};
 		const cells = [{
 			text: '地分',
-			color: '#262626',
+			color: AstroConst.AstroColor.TextStroke,
 			fill: this.labelBg,
 			widthRate: 0.12,
 		}, {
@@ -296,22 +297,22 @@ class JinKouPanChart {
 			widthRate: 0.13,
 		}, {
 			text: '空亡',
-			color: '#262626',
+			color: AstroConst.AstroColor.TextStroke,
 			fill: this.labelBg,
 			widthRate: 0.12,
 		}, {
 			text: safeText(meta.xunKong, ''),
-			color: '#7a6a00',
+			color: AstroConst.AstroColor.MC,
 			fill: AstroConst.AstroColor.ChartBackgroud,
 			widthRate: 0.16,
 		}, {
 			text: '四大空亡',
-			color: '#262626',
+			color: AstroConst.AstroColor.TextStroke,
 			fill: this.labelBg,
 			widthRate: 0.25,
 		}, {
 			text: safeText(meta.siDaKong, ''),
-			color: this.getColorByToken(meta.siDaKong, '#7a6a00'),
+			color: this.getColorByToken(meta.siDaKong, AstroConst.AstroColor.MC),
 			fill: AstroConst.AstroColor.ChartBackgroud,
 			widthRate: 0.22,
 		}];
@@ -382,12 +383,12 @@ class JinKouPanChart {
 			const row = rows[i];
 			const showContent = cleanVal(row.content);
 			const data = [
-				{ text: row.label, color: '#262626', align: 'center' },
-				{ text: cleanVal(row.gan), color: row.ganColor ? row.ganColor : '#262626', align: 'center' },
-				{ text: showContent, color: row.contentColor ? row.contentColor : '#262626', align: 'center' },
+				{ text: row.label, color: AstroConst.AstroColor.TextStroke, align: 'center' },
+				{ text: cleanVal(row.gan), color: this.resolveTextColor(row.ganColor), align: 'center' },
+				{ text: showContent, color: this.resolveTextColor(row.contentColor), align: 'center' },
 				{ text: cleanVal(row.shenjiang), color: this.getColorByToken(showContent, '#5b3f91'), align: 'center' },
-				{ text: cleanVal(row.power), color: row.powerColor ? row.powerColor : '#262626', align: 'center' },
-				{ text: shortKong(row.kong), color: row.kong && row.kong !== '—' ? '#8a6a00' : '#8c8c8c', align: 'center' },
+				{ text: cleanVal(row.power), color: this.resolveTextColor(row.powerColor), align: 'center' },
+				{ text: shortKong(row.kong), color: row.kong && row.kong !== '—' ? AstroConst.AstroColor.MC : AstroConst.AstroColor.Stroke, align: 'center' },
 			];
 			for(let j=0; j<widths.length; j++){
 				const cx = xs[j];
@@ -424,7 +425,7 @@ class JinKouPanChart {
 					.attr('y1', lineY)
 					.attr('x2', lineX + lineW)
 					.attr('y2', lineY)
-					.attr('stroke', '#1f1f1f')
+					.attr('stroke', AstroConst.AstroColor.TextStroke)
 					.attr('stroke-width', 2);
 			}
 		}
@@ -485,7 +486,7 @@ class JinKouPanChart {
 				fontSize: 15,
 				align: 'left',
 				padding: 8,
-				color: '#262626',
+				color: AstroConst.AstroColor.TextStroke,
 			});
 		}
 	}
@@ -713,24 +714,6 @@ class JinKouPanChart {
 		drawTextH(this.svgTopgroup, [txt], x, y, len, hh, marg, this.color);
 	}
 
-	drawPrintBtn(x, y){
-		const sz = 14;
-		const txtsvg = this.svgTopgroup.append('g');
-		txtsvg.append('text')
-			.attr('dominant-baseline', 'middle')
-			.attr('text-anchor', 'left')
-			.attr('font-weight', 100)
-			.attr('stroke', AstroConst.AstroColor.Stroke)
-			.attr('font-size', `${sz}px`)
-			.attr('x', x)
-			.attr('y', y)
-			.attr('style', 'cursor:hand')
-			.text('打印卦盘');
-
-		txtsvg.on('click', ()=>{
-			printArea(this.chartId);
-		});
-	}
 }
 
 export default JinKouPanChart;

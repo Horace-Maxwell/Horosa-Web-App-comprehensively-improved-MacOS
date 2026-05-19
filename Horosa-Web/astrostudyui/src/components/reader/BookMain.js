@@ -1,14 +1,8 @@
 import { Component } from 'react';
-import { Row, Col, Popconfirm, Button,  Input, Select, Tabs, } from 'antd';
-import { EditOutlined, DeleteOutlined, SelectOutlined, UnorderedListOutlined } from '@ant-design/icons';
-import {TableOddRowBgColor, ServerRoot, ResultKey} from '../../utils/constants';
-import {randomStr} from '../../utils/helper';
 import BookReader from './BookReader';
 import BookList from './BookList';
 import MyBookList from './MyBookList';
 import BookUpload from './BookUpload';
-
-const TabPane = Tabs.TabPane;
 
 class BookMain extends Component{
 
@@ -134,6 +128,5 @@ class BookMain extends Component{
 }
 
 export default BookMain;
-
 
 

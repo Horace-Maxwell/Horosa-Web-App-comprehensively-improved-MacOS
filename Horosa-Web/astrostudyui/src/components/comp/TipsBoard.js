@@ -1,8 +1,8 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Card,} from 'antd';
-import * as Constants from '../../utils/constants';
+import { Divider } from 'antd';
 import {randomStr,} from '../../utils/helper';
 import styles from '../../css/styles.less';
+import { XQCard } from '../xq-ui';
 
 
 export default class TipsBoard extends Component{
@@ -74,7 +74,7 @@ export default class TipsBoard extends Component{
         }
 
         let res = (
-            <Card title={title} size='small' style={{width: '100%'}}>
+            <XQCard title={title} size='small' style={{width: '100%'}}>
                 <div className={styles.scrollbar} style={{
                     height: height, 
                     width: width,
@@ -83,7 +83,7 @@ export default class TipsBoard extends Component{
                 }}>
                     {dom}
                 </div>
-            </Card>
+            </XQCard>
         )
         if(dom === null){
             res = null;

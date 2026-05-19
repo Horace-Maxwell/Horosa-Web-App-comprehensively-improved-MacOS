@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, } from 'antd';
+import { Row, Col } from 'antd';
+import { XQTabs as Tabs } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 import LivePlayer from './LivePlayer';
 import MediaPlayer from './MediaPlayer';

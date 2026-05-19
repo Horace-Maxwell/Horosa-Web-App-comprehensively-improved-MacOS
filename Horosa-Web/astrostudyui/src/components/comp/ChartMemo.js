@@ -1,9 +1,10 @@
 import * as forge from 'node-forge';
 import { Component } from 'react';
-import { Row, Col, Tabs, Select, Button, Modal, Spin } from 'antd';
+import { Row, Col, Spin } from 'antd';
 import RichEditor from '../RichEditor';
+import { XQButton, XQSelect } from '../xq-ui';
 
-const Option = Select.Option;
+const Option = XQSelect.Option;
 class ChartMemo extends Component{
 	constructor(props) {
 		super(props);
@@ -109,7 +110,7 @@ class ChartMemo extends Component{
 		}
 
 		let typesel = (
-			<Select style={{width: '100%'}} onChange={this.changeType} value={type}>
+			<XQSelect style={{width: '100%'}} onChange={this.changeType} value={type}>
 				<Option value={0}>星盘</Option>
 				<Option value={1}>八字</Option>
 				<Option value={2}>紫微斗数</Option>
@@ -118,7 +119,7 @@ class ChartMemo extends Component{
 				<Option value={5}>六壬</Option>
 				<Option value={6}>奇门遁甲</Option>
 				<Option value={7}>宿盘</Option>
-			</Select>
+			</XQSelect>
 		);
 		if(readonly){
 			typesel = (
@@ -137,7 +138,7 @@ class ChartMemo extends Component{
 					</Col>
 					<Col span={12} style={{textAlign: 'right'}}>
 						{
-							!readonly && (<Button onClick={this.clickSave}>保存</Button>)
+							!readonly && (<XQButton onClick={this.clickSave}>保存</XQButton>)
 						}						
 					</Col>
 					<Col span={14}>{name}</Col>

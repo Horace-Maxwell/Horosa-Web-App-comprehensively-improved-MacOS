@@ -1,10 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Input, Button, } from 'antd';
 import AstroMidpoint from './AstroMidpoint'
-import * as Constants from '../../utils/constants';
-import request from '../../utils/request';
-
-const TabPane = Tabs.TabPane;
 
 class AstroGermany extends Component{
 
@@ -42,7 +37,7 @@ class AstroGermany extends Component{
 		let hook = this.state.hook;
 		if(hook[this.state.currentTab].fun){
 			hook[this.state.currentTab].fun()
-		}	
+		}
 	}
 
 	changeTab(key){
@@ -67,32 +62,22 @@ class AstroGermany extends Component{
 
 	render(){
 		let height = this.props.height ? this.props.height : 760;
-		height = height - 50
 
 		let hook = this.state.hook;
 
 		return (
-			<div>
-				<Tabs 
-					defaultActiveKey={this.state.currentTab} tabPosition='right'
-					onChange={this.changeTab}
-					style={{ height: height }}
-				>
-					<TabPane tab="行星中点" key="Midpoint">
-							<AstroMidpoint 
-								onChange={this.onFieldsChange}
-								height={height}
-								fields={this.props.fields}
-								chart={this.props.chart}
-								chartDisplay={this.props.chartDisplay}
-								planetDisplay={this.props.planetDisplay}
-								lotsDisplay={this.props.lotsDisplay}	
-								showAstroMeaning={this.props.showAstroMeaning}
-								hook={hook.Midpoint}	
-							/>
-					</TabPane>
-
-				</Tabs>
+			<div className="horosa-aux-module-page xq-chart-renderer xq-chart-renderer-germany">
+				<AstroMidpoint
+					onChange={this.onFieldsChange}
+					height={height}
+					fields={this.props.fields}
+					chart={this.props.chart}
+					chartDisplay={this.props.chartDisplay}
+					planetDisplay={this.props.planetDisplay}
+					lotsDisplay={this.props.lotsDisplay}
+					showAstroMeaning={this.props.showAstroMeaning}
+					hook={hook.Midpoint}
+				/>
 			</div>
 		);
 	}

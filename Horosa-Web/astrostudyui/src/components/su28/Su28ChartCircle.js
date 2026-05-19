@@ -4,7 +4,7 @@ import * as AstroText from '../../constants/AstroText';
 import * as Su28Helper from './Su28Helper';
 import * as SZConst from '../suzhan/SZConst';
 import {splitDegree} from '../astro/AstroHelper';
-import {randomStr, detectOS, printArea, distanceInCircleAbs, creatTooltip, positionFloatingTooltip, setupFloatingTooltip} from '../../utils/helper';
+import {randomStr, detectOS, distanceInCircleAbs, creatTooltip, positionFloatingTooltip, setupFloatingTooltip} from '../../utils/helper';
 import {drawTextV, drawTextH} from '../graph/GraphHelper';
 import {ZiSign,} from '../suzhan/SZConst';
 
@@ -74,7 +74,8 @@ class Su28ChartCircle {
 				padding: '2px',
 				'padding-left': '10px',
 				font: '13px sans-serif',
-				background: 'lightsteelblue',
+				background: 'var(--horosa-surface-raised, lightsteelblue)',
+				color: 'var(--horosa-text, #1f1f1f)',
 				border: '0px',
 				'border-radius': '8px',
 			});
@@ -767,28 +768,8 @@ class Su28ChartCircle {
 			})
 			.text(function(d){return d});			
 	
-		let printsvg = svg.append('g');
-		printsvg.append('text')
-			.attr("dominant-baseline","middle")
-			.attr("text-anchor", "left")
-			.attr('font-weight', 100)
-			.attr('stroke', AstroConst.AstroColor.Stroke)
-			.attr('style', 'cursor:hand')
-			.attr('transform', function(d){
-				let x = margin;
-				let y = margin + rowheight * txts.length;
-				let trans = 'translate(' + x + ', ' + y + ')';
-				return trans;
-			})
-			.text('打印星盘');
-	
-		printsvg.on('click', ()=>{
-			printArea(this.chartId);
-		});
-		
-
-		this.drawBaZi();
-	}
+			this.drawBaZi();
+		}
 	
 	drawBaZi(){
 		if(this.chartObj.nongli === undefined || this.chartObj.nongli === null ||

@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Popover, Card, } from 'antd';
+import { Row, Col, Popover, } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
@@ -8,6 +8,7 @@ import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../util
 import { buildMeaningTipByCategory, } from './AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import styles from '../../css/styles.less';
+import { XQCard as Card } from '../xq-ui';
 
 class AstroPlanet extends Component{
 

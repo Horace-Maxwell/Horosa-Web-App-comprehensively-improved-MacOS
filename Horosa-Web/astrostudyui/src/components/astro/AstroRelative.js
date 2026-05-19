@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Input, Button, } from 'antd';
+import { Row, Col, } from 'antd';
+import { XQButton as Button, XQSearch as Search, XQTabs as Tabs } from '../xq-ui';
 import ChartSearchModal from './ChartSearchModal'
 import AstroCompare from '../relative/AstroCompare'
 import AstroComposite from '../relative/AstroComposite'
@@ -13,7 +14,6 @@ import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 
 const TabPane = Tabs.TabPane;
-const Search = Input.Search;
 
 function msg(id){
 	if(id === undefined || id === null){
@@ -59,7 +59,7 @@ function relationNameByKey(key){
 	if(key === 'Marks'){
 		return '马克斯盘';
 	}
-	return key || '关系盘';
+	return key || '合盘';
 }
 
 function pushAspectArray(lines, title, list){

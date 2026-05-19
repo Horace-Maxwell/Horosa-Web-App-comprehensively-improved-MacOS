@@ -1,11 +1,7 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Tabs, } from 'antd';
-import * as ZWConst from '../../constants/ZWConst';
-import RuleHouses from './RuleHouses';
-import RuleStars from './RuleStars';
-import RuleSihua from './RuleSihua';
-import RuleHuaDesc from './RuleHuaDesc';
+import { Row, Col, } from 'antd';
 import styles from '../../css/styles.less';
+import { XQTabs as Tabs } from '../xq-ui';
 
 const TabPane = Tabs.TabPane;
 

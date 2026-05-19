@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
+import { XQTabs as Tabs } from '../xq-ui';
 import AstroChartMain from '../astro/AstroChartMain';
 
 const TabPane = Tabs.TabPane;

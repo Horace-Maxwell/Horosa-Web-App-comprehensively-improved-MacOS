@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Switch, Popconfirm, } from 'antd';
+import { Popconfirm, } from 'antd';
+import { XQSwitch as Switch } from '../xq-ui';
 
 class ConfirmSwitch extends Component{
 

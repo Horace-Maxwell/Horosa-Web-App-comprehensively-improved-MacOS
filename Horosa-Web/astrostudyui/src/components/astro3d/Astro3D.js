@@ -1095,7 +1095,7 @@ class Astro3D {
 
 		let dom = document.getElementById(this.chartId);
 		dom.appendChild(this.gui.domElement);
-		this.gui.domElement.style = 'position: absolute; right: -10px; top: 10px;'
+		this.gui.domElement.style = 'position: absolute; right: 10px; top: 10px; z-index: 5;'
 		this.gui.close();
 	}
 

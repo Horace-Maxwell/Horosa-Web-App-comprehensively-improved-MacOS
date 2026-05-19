@@ -7,24 +7,203 @@
 }
 
 .userbox {
+  position: relative;
+  display: grid;
+  grid-template-columns: 204px minmax(0, 1fr) minmax(380px, 500px);
+  align-items: center;
+  gap: 14px;
   width: 100%;
   height: 100%;
-  overflow-x: hidden;
+  padding: 0 18px;
+  overflow: hidden;
 }
 
-.userbox::after {
-  display: table;
-  content: "";
-  clear: both;
+.brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
-.user {
-  position: absolute;
-  font-size: 18px;
+.brandButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--horosa-text);
+  cursor: pointer;
 }
 
-.user span {
-  font-size: 14px;
+.brandButton:hover .brandMark {
+  border-color: var(--horosa-gold);
+  color: var(--horosa-gold);
+  box-shadow: 0 0 0 4px var(--horosa-gold-soft);
+}
+
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--horosa-border-strong);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.28), transparent 28%),
+    conic-gradient(from 22deg, var(--horosa-gold), var(--horosa-cyan, var(--horosa-accent)), var(--horosa-gold)),
+    var(--horosa-panel-soft);
+  color: #fff;
+  font-size: 22px;
+  box-shadow: inset 0 0 0 5px var(--horosa-panel-soft);
+  transition: all 0.18s ease;
+}
+
+.brandText {
+  color: var(--horosa-text);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+:global(:root[data-horosa-appearance='dark']) .brandText {
+  color: var(--horosa-gold);
+  text-shadow: 0 0 18px rgba(216, 173, 99, 0.16);
+}
+
+.commandBar,
+.utilityBar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.commandBar {
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.utilityBar {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.commandGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 42px;
+  padding: 0 8px;
+  border: 1px solid var(--horosa-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    var(--horosa-panel-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.primaryCommand {
+  border-color: var(--horosa-accent) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10), transparent),
+    var(--horosa-accent-soft) !important;
+  color: var(--horosa-accent-strong) !important;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--horosa-border-strong), 0 0 0 3px var(--horosa-cyan-soft, rgba(216, 173, 99, 0.05)) !important;
+}
+
+.compactCommand {
+  white-space: nowrap;
+}
+
+.searchInput {
+  width: 260px;
+}
+
+.appearanceButton {
+  min-width: 104px;
+}
+
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--horosa-border);
+  border-radius: 999px;
+  background: var(--horosa-panel-soft);
+  color: var(--horosa-text);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.account:hover {
+  border-color: var(--horosa-accent);
+  background: var(--horosa-accent-soft);
+}
+
+.avatar {
+  color: var(--horosa-accent-strong);
+  background: var(--horosa-panel-bg);
+  vertical-align: middle;
+}
+
+.userMenuItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--horosa-text);
+}
+
+.userMenuItem :global(.xq-icon) {
+  color: var(--horosa-accent-strong);
+  font-size: 15px;
+}
+
+.name {
+  max-width: 88px;
+  overflow: hidden;
+  color: var(--horosa-text);
+  font-size: 13px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aiSettingModal {
+  display: grid;
+  gap: 12px;
+}
+
+.aiSettingActions {
+  justify-content: flex-end;
+  padding-bottom: 2px;
+}
+
+.aiSettingChecks {
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.aiSettingEmpty {
+  min-height: 56px;
+  padding: 14px;
+  border: 1px dashed var(--horosa-border);
+  border-radius: 8px;
+  background: var(--horosa-panel-soft);
+  color: var(--horosa-text-soft);
+  font-size: 13px;
+}
+
+.aiSettingFooter {
+  justify-content: flex-end;
 }
 
 .action {
@@ -33,15 +212,6 @@
   display: inline-block;
   transition: all 0.3s;
   height: 100%;
-  > i {
-    font-size: 16px;
-    vertical-align: middle;
-    color: @text-color;
-  }
-  &:hover,
-  &:global(.ant-popover-open) {
-    background: @primary-1;
-  }
 }
 
 .quitaction {
@@ -50,25 +220,403 @@
   display: inline-block;
   transition: all 0.3s;
   height: 100%;
-  > i {
+}
+
+.astroUserbox {
+  grid-template-columns: minmax(310px, 430px) minmax(420px, 1fr) minmax(160px, 230px);
+  gap: 18px;
+  padding: 0 22px;
+  background: #050607;
+  color: #f2e7d2;
+}
+
+.astroBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+}
+
+.astroBrandButton {
+  height: 56px;
+  gap: 12px;
+  padding: 0;
+}
+
+.astroBrandMark {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #e0b86f;
+  font-size: 34px;
+  box-shadow: none;
+}
+
+.astroBrandText {
+  color: #e8c07a !important;
+  font-size: 26px;
+  font-weight: 700;
+  text-shadow: none !important;
+}
+
+.astroNewChartGroup {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  border: 1px solid rgba(218, 177, 111, 0.28);
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.astroPrimaryCommand {
+  min-width: 110px;
+  height: 38px !important;
+  border: 0 !important;
+  border-right: 1px solid rgba(218, 177, 111, 0.18) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #f0c983 !important;
+  font-weight: 700;
+}
+
+.astroSplitButton {
+  width: 36px;
+  height: 38px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #d0c4b4 !important;
+}
+
+.astroCommandCenter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 22px;
+  min-width: 0;
+}
+
+.astroCurrentModule {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 46px;
+  min-width: 138px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #e8c07a;
+  font-size: 19px;
+  font-weight: 760;
+  letter-spacing: 0;
+  box-shadow: none;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.astroCurrentModule :global(.xq-icon) {
+  color: #d8b16b;
+  font-size: 18px;
+}
+
+.astroCurrentModule :global(.xq-icon:first-child) {
+  font-size: 21px;
+}
+
+.astroCurrentModule :global(.xq-icon:last-child) {
+  font-size: 14px;
+  opacity: 0.72;
+}
+
+.astroCurrentModule:hover,
+.astroCurrentModule:focus {
+  background: rgba(232, 192, 122, 0.08);
+  color: #f0c983;
+  outline: none;
+}
+
+.astroHeaderCommand {
+  height: 38px !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: rgba(239, 232, 219, 0.78) !important;
+  font-size: 15px;
+  box-shadow: none !important;
+}
+
+.astroHeaderCommand :global(.xq-icon) {
+  color: rgba(239, 232, 219, 0.9);
+  font-size: 18px;
+}
+
+.astroHeaderCommand:hover,
+.astroHeaderCommand:focus {
+  color: #f0c983 !important;
+}
+
+.astroUtilityBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  min-width: 0;
+}
+
+.astroRoundButton {
+  width: 40px;
+  min-width: 40px;
+  height: 40px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #f0c983 !important;
+  font-size: 22px;
+  box-shadow: none !important;
+}
+
+.astroHeaderDivider {
+  width: 1px;
+  height: 30px;
+  background: rgba(218, 177, 111, 0.22);
+}
+
+.astroAccount {
+  width: 42px;
+  height: 42px;
+  justify-content: center;
+  padding: 0;
+  border-color: rgba(218, 177, 111, 0.24);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.astroAccount .name {
+  display: none;
+}
+
+:global(:root[data-horosa-appearance='light']) .astroUserbox {
+  background: var(--horosa-header-bg);
+  color: var(--horosa-text);
+}
+
+:global(:root[data-horosa-appearance='light']) .astroBrandMark,
+:global(:root[data-horosa-appearance='light']) .astroBrandText,
+:global(:root[data-horosa-appearance='light']) .astroCurrentModule,
+:global(:root[data-horosa-appearance='light']) .astroCurrentModule :global(.xq-icon),
+:global(:root[data-horosa-appearance='light']) .astroRoundButton {
+  color: var(--horosa-gold) !important;
+}
+
+:global(:root[data-horosa-appearance='light']) .astroNewChartGroup {
+  border-color: var(--horosa-border);
+  background: var(--horosa-surface-raised);
+}
+
+:global(:root[data-horosa-appearance='light']) .astroPrimaryCommand {
+  border-right-color: var(--horosa-border) !important;
+  color: var(--horosa-gold) !important;
+}
+
+:global(:root[data-horosa-appearance='light']) .astroSplitButton {
+  color: var(--horosa-text-soft) !important;
+}
+
+:global(:root[data-horosa-appearance='light']) .astroHeaderCommand {
+  color: var(--horosa-text-soft) !important;
+}
+
+:global(:root[data-horosa-appearance='light']) .astroHeaderCommand :global(.xq-icon) {
+  color: var(--horosa-text-soft);
+}
+
+:global(:root[data-horosa-appearance='light']) .astroHeaderCommand:hover,
+:global(:root[data-horosa-appearance='light']) .astroHeaderCommand:focus,
+:global(:root[data-horosa-appearance='light']) .astroCurrentModule:hover,
+:global(:root[data-horosa-appearance='light']) .astroCurrentModule:focus {
+  background: var(--horosa-gold-soft);
+  color: var(--horosa-gold) !important;
+}
+
+:global(:root[data-horosa-appearance='light']) .astroHeaderDivider {
+  background: var(--horosa-border);
+}
+
+:global(:root[data-horosa-appearance='light']) .astroAccount {
+  border-color: var(--horosa-border);
+  background: var(--horosa-surface-raised);
+}
+
+.astroHelpBody {
+  color: var(--horosa-text-soft);
+  line-height: 1.8;
+}
+
+.astroHelpBody p {
+  margin: 0 0 8px;
+}
+
+@media (max-width: 1500px) {
+  .userbox {
+    grid-template-columns: 150px minmax(0, 1fr) 342px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .brandText {
+    font-size: 20px;
+  }
+
+  .brandMark {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .commandGroup {
+    gap: 4px;
+    height: 38px;
+    padding: 0 5px;
+  }
+
+  .searchInput {
+    width: 168px;
+  }
+
+  .appearanceButton {
+    width: 34px;
+    min-width: 34px;
+    padding: 0;
+  }
+
+  .compactCommand :global(span:not(.anticon)),
+  .appearanceButton :global(span:not(.anticon)) {
+    display: none;
+  }
+
+}
+
+@media (max-width: 1320px) {
+  .userbox {
+    grid-template-columns: 104px minmax(0, 1fr) 260px;
+  }
+
+  .brandButton {
+    padding-right: 4px;
+  }
+
+  .brandText {
+    display: none;
+  }
+
+  .name {
+    display: none;
+  }
+
+  .account {
+    gap: 0;
+    padding: 0 7px;
+  }
+
+  .searchInput {
+    width: 150px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .userbox {
+    grid-template-columns: 74px minmax(0, 1fr) 192px;
+    gap: 6px;
+  }
+
+  .brandMark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .commandBar {
+    justify-content: flex-start;
+  }
+
+  .searchInput {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .userbox {
+    grid-template-columns: 48px minmax(0, 1fr) 92px;
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .brandButton {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .brandMark {
+    width: 30px;
+    height: 30px;
     font-size: 16px;
-    vertical-align: middle;
-    color: @text-color;
   }
-  &:hover,
-  &:global(.ant-popover-open) {
-    background: @primary-1;
+
+  .commandBar {
+    display: none;
+  }
+
+  .utilityBar {
+    gap: 6px;
+  }
+
+  .appearanceButton {
+    width: 32px;
+    min-width: 32px;
+  }
+
+  .account {
+    width: 32px;
+    height: 32px;
+    justify-content: center;
   }
 }
 
-
-.account {
-  .avatar {
-    margin: 20px 8px 20px 0;
-    color: @primary-color;
-    background: rgba(255, 255, 255, 0.85);
-    vertical-align: middle;
-  }
+.astroUserbox .astroBrandText {
+  display: inline !important;
 }
 
+.astroUserbox .astroBrandMark {
+  display: inline-flex !important;
+}
 
+.userbox.astroUserbox {
+  grid-template-columns: minmax(292px, 390px) minmax(430px, 1fr) minmax(126px, 170px) !important;
+  gap: 12px !important;
+  padding: 0 22px !important;
+}
+
+.astroUserbox .astroCommandCenter {
+  padding-right: 18px;
+}
+
+.astroUserbox .astroBrand {
+  min-width: 292px;
+}
+
+.astroUserbox .astroNewChartGroup {
+  flex: 0 0 auto;
+}
+
+.astroUserbox .astroPrimaryCommand :global(span:not(.anticon)),
+.astroUserbox .astroHeaderCommand :global(span:not(.anticon)) {
+  display: inline-flex !important;
+}

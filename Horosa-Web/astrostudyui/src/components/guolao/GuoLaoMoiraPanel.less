@@ -1,0 +1,299 @@
+.horosa-guolao-moira {
+	height: 100%;
+	overflow: auto;
+	padding-right: 4px;
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-moira-summary,
+.horosa-guolao-moira-section {
+	border: 1px solid var(--horosa-border-soft, rgba(231, 189, 117, 0.16));
+	background: var(--horosa-panel-soft, rgba(255, 255, 255, 0.035));
+	border-radius: 6px;
+	padding: 10px;
+	margin-bottom: 10px;
+}
+
+.horosa-guolao-moira-summary-title,
+.horosa-guolao-moira-section-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--horosa-astro-gold, #e7bd75);
+	margin-bottom: 7px;
+}
+
+.horosa-guolao-moira-summary-text,
+.horosa-guolao-moira-pattern-detail,
+.horosa-guolao-moira-empty {
+	font-size: 12px;
+	line-height: 20px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-warning {
+	margin-bottom: 8px;
+	padding: 8px 10px;
+	border: 1px solid rgba(205, 154, 65, 0.24);
+	border-radius: 6px;
+	background: rgba(205, 154, 65, 0.08);
+	color: var(--horosa-text-soft, #c8c0b2);
+	font-size: 12px;
+	line-height: 20px;
+}
+
+.horosa-guolao-moira-subtitle {
+	margin: 10px 0 6px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-moira-anchor-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.horosa-guolao-moira-anchor {
+	min-width: 0;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 6px;
+	padding: 8px;
+	background: rgba(0, 0, 0, 0.12);
+}
+
+.horosa-guolao-moira-kv-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.horosa-guolao-moira-kv {
+	min-width: 0;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 6px;
+	padding: 8px;
+	background: rgba(0, 0, 0, 0.12);
+}
+
+.horosa-guolao-moira-anchor span,
+.horosa-guolao-moira-planet span,
+.horosa-guolao-moira-god span {
+	display: block;
+	font-size: 11px;
+	color: var(--horosa-muted, #958b7a);
+}
+
+.horosa-guolao-moira-anchor strong,
+.horosa-guolao-moira-planet strong,
+.horosa-guolao-moira-god strong {
+	display: block;
+	font-size: 13px;
+	color: var(--horosa-text, #f0eee7);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.horosa-guolao-moira-anchor em,
+.horosa-guolao-moira-planet em {
+	display: block;
+	margin-top: 4px;
+	font-style: normal;
+	font-size: 11px;
+	color: var(--horosa-astro-muted, #a99b83);
+}
+
+.horosa-guolao-moira-patterns,
+.horosa-guolao-moira-planet-list,
+.horosa-guolao-moira-gods {
+	display: grid;
+	gap: 8px;
+}
+
+.horosa-guolao-moira-pattern,
+.horosa-guolao-moira-house-list > div,
+.horosa-guolao-moira-year-groups > div,
+.horosa-guolao-moira-planet,
+.horosa-guolao-moira-god {
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 6px;
+	padding: 8px;
+	background: rgba(0, 0, 0, 0.12);
+}
+
+.horosa-guolao-moira-pattern-head {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-bottom: 5px;
+}
+
+.horosa-guolao-moira-pattern-head span {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	font-size: 12px;
+	color: #111;
+	background: var(--horosa-astro-gold, #e7bd75);
+	flex: 0 0 auto;
+}
+
+.horosa-guolao-moira-pattern-bad .horosa-guolao-moira-pattern-head span {
+	background: #d98672;
+}
+
+.horosa-guolao-moira-pattern-notice .horosa-guolao-moira-pattern-head span {
+	background: #8fb6c9;
+}
+
+.horosa-guolao-moira-pattern-neutral .horosa-guolao-moira-pattern-head span {
+	background: #a7a59c;
+}
+
+.horosa-guolao-moira-pattern-head strong {
+	font-size: 13px;
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-moira-planet {
+	display: grid;
+	grid-template-columns: 52px minmax(0, 1fr) 52px;
+	gap: 8px;
+	align-items: center;
+	font-size: 12px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-planet em {
+	text-align: right;
+}
+
+.horosa-guolao-moira-table {
+	display: grid;
+	gap: 4px;
+	font-size: 12px;
+}
+
+.horosa-guolao-moira-table-row {
+	display: grid;
+	grid-template-columns: 30px minmax(76px, 1.1fr) minmax(70px, 1fr) minmax(82px, 1fr);
+	gap: 7px;
+	align-items: center;
+	min-height: 28px;
+	padding: 6px 7px;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 5px;
+	background: rgba(0, 0, 0, 0.10);
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-table-row > * {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.horosa-guolao-moira-table-row strong {
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-moira-table-head {
+	min-height: 24px;
+	background: rgba(231, 189, 117, 0.10);
+	color: var(--horosa-astro-gold, #e7bd75);
+	font-weight: 600;
+}
+
+.horosa-guolao-moira-house-list,
+.horosa-guolao-moira-year-groups {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.horosa-guolao-moira-god {
+	font-size: 12px;
+	line-height: 20px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-kv span,
+.horosa-guolao-moira-house-list span,
+.horosa-guolao-moira-year-groups span,
+.horosa-guolao-moira-chip-list em {
+	display: block;
+	font-size: 11px;
+	font-style: normal;
+	color: var(--horosa-muted, #958b7a);
+}
+
+.horosa-guolao-moira-kv strong,
+.horosa-guolao-moira-house-list strong,
+.horosa-guolao-moira-year-groups strong {
+	display: block;
+	min-width: 0;
+	font-size: 13px;
+	color: var(--horosa-text, #f0eee7);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.horosa-guolao-moira-house-list > div,
+.horosa-guolao-moira-year-groups > div {
+	min-width: 0;
+	font-size: 12px;
+	line-height: 19px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-house-list em,
+.horosa-guolao-moira-year-groups em {
+	display: block;
+	margin-top: 3px;
+	font-size: 11px;
+	font-style: normal;
+	color: var(--horosa-astro-gold, #e7bd75);
+}
+
+.horosa-guolao-moira-chip-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.horosa-guolao-moira-chip-list span {
+	display: inline-flex;
+	align-items: center;
+	min-height: 22px;
+	padding: 2px 7px;
+	border-radius: 999px;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	background: rgba(0, 0, 0, 0.12);
+	font-size: 11px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-moira {
+	color: var(--horosa-text, #2f2a22);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-summary,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-section,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-anchor,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-kv,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-table-row,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-house-list > div,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-year-groups > div,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-chip-list span,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-pattern,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-planet,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-god {
+	background: rgba(255, 255, 255, 0.62);
+}

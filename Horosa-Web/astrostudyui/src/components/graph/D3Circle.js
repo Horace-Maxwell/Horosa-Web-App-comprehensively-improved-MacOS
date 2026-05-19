@@ -8,14 +8,14 @@ class D3Circle {
 		this.oy = option.y;
 		this.or = option.r;
 		this.step = option.step;
-		this.color = option.color ? option.color : '#000000';
+		this.color = option.color ? option.color : 'var(--horosa-text, #000000)';
 		this.bgColor = option.bgColor ? option.bgColor : 'transparent';
 		this.data = option.data;
 		this.margin = option.margin ? option.margin : 2;
 		this.fontSize = this.step - this.margin > 20 ? 20 : this.step - this.margin;
 		this.highLightData = option.highLightData ? option.highLightData : [];
-		this.highLightColor = option.highLightColor ? option.highLightColor : '#ffffff';
-		this.highLightBgColor = option.highLightBgColor ? option.highLightBgColor : '#CC9900';
+		this.highLightColor = option.highLightColor ? option.highLightColor : 'var(--horosa-surface-solid, #ffffff)';
+		this.highLightBgColor = option.highLightBgColor ? option.highLightBgColor : 'var(--horosa-gold, #CC9900)';
 		this.onSegment = option.onSegment;
 
 		this.id = 'circle' + randomStr(8);

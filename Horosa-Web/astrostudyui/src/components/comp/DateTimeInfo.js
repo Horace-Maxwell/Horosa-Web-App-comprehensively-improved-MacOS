@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
+import { Row, Col } from 'antd';
 import DateTime from './DateTime';
 
 class DateTimeInfo extends Component{

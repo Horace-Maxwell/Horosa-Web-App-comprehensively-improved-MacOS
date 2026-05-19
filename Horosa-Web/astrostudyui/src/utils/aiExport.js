@@ -166,23 +166,23 @@ const JIEQI_SPLIT_TECHNIQUES = [
 
 const AI_EXPORT_TECHNIQUES = [
 	{ key: 'astrochart', label: '星盘' },
-	{ key: 'indiachart', label: '印度律盘' },
-	{ key: 'astrochart_like', label: '希腊/星体地图' },
-	{ key: 'relative', label: '关系盘' },
-	{ key: 'primarydirect', label: '推运盘-主/界限法' },
-	{ key: 'primarydirchart', label: '推运盘-主限法盘' },
-	{ key: 'zodialrelease', label: '推运盘-黄道星释' },
-	{ key: 'firdaria', label: '推运盘-法达星限' },
-	{ key: 'profection', label: '推运盘-小限法' },
-	{ key: 'solararc', label: '推运盘-太阳弧' },
-	{ key: 'solarreturn', label: '推运盘-太阳返照' },
-	{ key: 'lunarreturn', label: '推运盘-月亮返照' },
-	{ key: 'givenyear', label: '推运盘-流年法' },
-	{ key: 'decennials', label: '推运盘-十年大运' },
+	{ key: 'indiachart', label: '印度占星' },
+	{ key: 'astrochart_like', label: '十三分盘/占星地图' },
+	{ key: 'relative', label: '合盘' },
+	{ key: 'primarydirect', label: '星运-主/界限法' },
+	{ key: 'primarydirchart', label: '星运-主限法盘' },
+	{ key: 'zodialrelease', label: '星运-黄道星释' },
+	{ key: 'firdaria', label: '星运-法达星限' },
+	{ key: 'profection', label: '星运-小限法' },
+	{ key: 'solararc', label: '星运-太阳弧' },
+	{ key: 'solarreturn', label: '星运-太阳返照' },
+	{ key: 'lunarreturn', label: '星运-月亮返照' },
+	{ key: 'givenyear', label: '星运-流年法' },
+	{ key: 'decennials', label: '星运-十年大运' },
 	{ key: 'bazi', label: '八字' },
 	{ key: 'ziwei', label: '紫微斗数' },
 	{ key: 'suzhan', label: '宿占' },
-	{ key: 'sixyao', label: '易卦' },
+	{ key: 'sixyao', label: '六爻' },
 	{ key: 'tongshefa', label: '统摄法' },
 	{ key: 'liureng', label: '六壬' },
 	{ key: 'jinkou', label: '金口诀' },
@@ -193,7 +193,7 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'germany', label: '量化盘' },
 	{ key: 'jieqi', label: '节气盘' },
 	...JIEQI_SPLIT_TECHNIQUES,
-	{ key: 'otherbu', label: '西洋游戏' },
+	{ key: 'otherbu', label: '骰子' },
 	{ key: 'fengshui', label: '风水' },
 	{ key: 'generic', label: '其他页面' },
 ];
@@ -1235,14 +1235,28 @@ function findTopTabsContainer(root){
 	const topLabelHints = [
 		'星盘',
 		'三维盘',
+		'星运',
 		'推运盘',
+		'辅盘',
 		'量化盘',
+		'合盘',
 		'关系盘',
 		'节气盘',
+		'十三分盘',
+		'占星地图',
 		'希腊星术',
+		'印度占星',
 		'印度律盘',
+		'黄历',
+		'骰子',
+		'辅助',
 		'八字紫微',
+		'其他术数',
 		'易与三式',
+		'六爻',
+		'六壬',
+		'遁甲',
+		'太乙',
 		'七政四余',
 		'风水',
 		'三式合一',
@@ -1253,7 +1267,7 @@ function findTopTabsContainer(root){
 	let bestNavCount = -1;
 	for(let i=0; i<tabs.length; i++){
 		const names = getTabsNavItems(tabs[i]).map((n)=>textOf(n));
-		if(names.includes('星盘') && names.includes('易与三式')){
+		if(names.includes('星盘') && (names.includes('易与三式') || names.includes('其他术数') || names.includes('六爻'))){
 			return tabs[i];
 		}
 		if(!names.length){
@@ -1355,16 +1369,16 @@ function resolveActiveContext(){
 	};
 
 	const predictiveLabelMap = [
-		{ label: '主/界限法', key: 'primarydirect', name: '推运盘-主/界限法' },
-		{ label: '主限法盘', key: 'primarydirchart', name: '推运盘-主限法盘' },
-		{ label: '黄道星释', key: 'zodialrelease', name: '推运盘-黄道星释' },
-		{ label: '法达星限', key: 'firdaria', name: '推运盘-法达星限' },
-		{ label: '小限法', key: 'profection', name: '推运盘-小限法' },
-		{ label: '太阳弧', key: 'solararc', name: '推运盘-太阳弧' },
-		{ label: '太阳返照', key: 'solarreturn', name: '推运盘-太阳返照' },
-		{ label: '月亮返照', key: 'lunarreturn', name: '推运盘-月亮返照' },
-		{ label: '流年法', key: 'givenyear', name: '推运盘-流年法' },
-		{ label: '十年大运', key: 'decennials', name: '推运盘-十年大运' },
+		{ label: '主/界限法', key: 'primarydirect', name: '星运-主/界限法' },
+		{ label: '主限法盘', key: 'primarydirchart', name: '星运-主限法盘' },
+		{ label: '黄道星释', key: 'zodialrelease', name: '星运-黄道星释' },
+		{ label: '法达星限', key: 'firdaria', name: '星运-法达星限' },
+		{ label: '小限法', key: 'profection', name: '星运-小限法' },
+		{ label: '太阳弧', key: 'solararc', name: '星运-太阳弧' },
+		{ label: '太阳返照', key: 'solarreturn', name: '星运-太阳返照' },
+		{ label: '月亮返照', key: 'lunarreturn', name: '星运-月亮返照' },
+		{ label: '流年法', key: 'givenyear', name: '星运-流年法' },
+		{ label: '十年大运', key: 'decennials', name: '星运-十年大运' },
 	];
 	const predictiveByTop = predictiveLabelMap.find((item)=>topLabel && topLabel.includes(item.label));
 	if(predictiveByTop){
@@ -1373,7 +1387,7 @@ function resolveActiveContext(){
 		context.displayName = predictiveByTop.name;
 		return context;
 	}
-	// 右侧子标签直接激活时，顶层标题可能不是“推运盘/量化盘/关系盘/印度律盘”等；
+	// 右侧子标签直接激活时，顶层标题可能不是“星运/量化盘/合盘/印度占星”等；
 	// 这里优先按可见标签做直达识别，避免落入 generic 导致导出误判为空。
 	if(topLabel.includes('行星中点')){
 		context.key = 'germany';
@@ -1384,12 +1398,12 @@ function resolveActiveContext(){
 		|| topLabel.includes('影响盘') || topLabel.includes('时空中点盘')
 		|| topLabel.includes('马克斯盘')){
 		context.key = 'relative';
-		context.displayName = `关系盘-${topLabel}`;
+		context.displayName = `合盘-${topLabel}`;
 		return context;
 	}
 	if(topLabel.includes('命盘') || /(^|\s)\d+\s*律盘$/.test(topLabel)){
 		context.key = 'indiachart';
-		context.displayName = '印度律盘';
+		context.displayName = '印度占星';
 		return context;
 	}
 	if(topLabel.includes('节气') || topLabel.includes('春分') || topLabel.includes('夏至')
@@ -1409,7 +1423,7 @@ function resolveActiveContext(){
 		return context;
 	}
 
-	if(topLabel.includes('推运盘')){
+	if(topLabel.includes('星运') || topLabel.includes('推运盘')){
 		const subTabs = findTabsContainerByLabels(topPane, ['主/界限法', '黄道星释', '法达星限', '小限法', '太阳弧', '太阳返照', '月亮返照', '流年法', '十年大运'], false);
 		const subActiveTab = subTabs ? getTabsNavItems(subTabs).find((n)=>n.classList.contains('ant-tabs-tab-active')) : null;
 		const subLabel = textOf(subActiveTab);
@@ -1426,12 +1440,13 @@ function resolveActiveContext(){
 		// 否则会误读 astrochart 快照并造成“当前页面没有可导出文本”。
 		context.key = 'direction';
 		context.domain = 'predictive_raw';
-		context.displayName = subLabel ? `推运盘-${subLabel}` : '推运盘';
+		context.displayName = subLabel ? `星运-${subLabel}` : '星运';
 		return context;
 	}
 	const directCnYiBuMap = [
 		{ label: '统摄法', key: 'tongshefa', domain: 'tongshefa', name: '统摄法' },
-		{ label: '易卦', key: 'sixyao', domain: 'sixyao', name: '易卦' },
+		{ label: '六爻', key: 'sixyao', domain: 'sixyao', name: '六爻' },
+		{ label: '易卦', key: 'sixyao', domain: 'sixyao', name: '六爻' },
 		{ label: '六壬', key: 'liureng', domain: 'liureng', name: '大六壬' },
 		{ label: '金口诀', key: 'jinkou', domain: 'jinkou', name: '金口诀' },
 		{ label: '遁甲', key: 'qimen', domain: 'qimen', name: '奇门遁甲' },
@@ -1442,6 +1457,26 @@ function resolveActiveContext(){
 		context.key = directCnYiBu.key;
 		context.domain = directCnYiBu.domain;
 		context.displayName = directCnYiBu.name;
+		return context;
+	}
+	if(topLabel.includes('辅盘')){
+		const subTabs = findTabsContainerByLabels(topPane, ['量化盘', '十三分盘', '占星地图', '骰子'], false);
+		const subActiveTab = subTabs ? getTabsNavItems(subTabs).find((n)=>n.classList.contains('ant-tabs-tab-active')) : null;
+		const subLabel = textOf(subActiveTab);
+		context.subLabel = subLabel || '';
+		context.scopeRoot = subTabs ? (getDirectActivePane(subTabs) || topPane) : topPane;
+		if(subLabel.includes('十三分盘') || subLabel.includes('占星地图')){
+			context.key = 'astrochart_like';
+			context.displayName = subLabel;
+			return context;
+		}
+		if(subLabel.includes('骰子')){
+			context.key = 'otherbu';
+			context.displayName = '骰子';
+			return context;
+		}
+		context.key = 'germany';
+		context.displayName = subLabel || '量化盘';
 		return context;
 	}
 	if(topLabel.includes('星盘') || topLabel.includes('三维盘')){
@@ -1462,29 +1497,30 @@ function resolveActiveContext(){
 		context.displayName = '节气盘';
 		return context;
 	}
-	if(topLabel.includes('印度律盘')){
+	if(topLabel.includes('印度占星') || topLabel.includes('印度律盘')){
 		context.key = 'indiachart';
-		context.displayName = '印度律盘';
+		context.displayName = '印度占星';
 		return context;
 	}
-	if(topLabel.includes('希腊星术')
-		|| topLabel.includes('星体地图')){
+	if(topLabel.includes('十三分盘') || topLabel.includes('希腊星术')
+		|| topLabel.includes('占星地图') || topLabel.includes('星体地图')){
 		context.key = 'astrochart_like';
+		context.displayName = topLabel.includes('十三分盘') ? '十三分盘' : (topLabel.includes('占星地图') ? '占星地图' : '十三分盘 / 占星地图');
 		return context;
 	}
-	if(topLabel.includes('关系盘')){
+	if(topLabel.includes('合盘') || topLabel.includes('关系盘')){
 		const subTabs = findTabsContainerByLabels(topPane, ['比较盘', '组合盘', '影响盘', '时空中点盘', '马克斯盘'], false);
 		const subActiveTab = subTabs ? getTabsNavItems(subTabs).find((n)=>n.classList.contains('ant-tabs-tab-active')) : null;
 		const subLabel = textOf(subActiveTab);
 		context.key = 'relative';
 		context.subLabel = subLabel || '';
 		context.scopeRoot = subTabs ? (getDirectActivePane(subTabs) || topPane) : topPane;
-		context.displayName = subLabel ? `关系盘-${subLabel}` : '关系盘';
+		context.displayName = subLabel ? `合盘-${subLabel}` : '合盘';
 		return context;
 	}
-	if(topLabel.includes('西洋游戏')){
+	if(topLabel.includes('骰子') || topLabel.includes('西洋游戏')){
 		context.key = 'otherbu';
-		context.displayName = '西洋游戏';
+		context.displayName = '骰子';
 		return context;
 	}
 	if(topLabel.includes('风水')){
@@ -1499,8 +1535,8 @@ function resolveActiveContext(){
 		return context;
 	}
 
-	if(topLabel.includes('易与三式')){
-		const subTabs = findTabsContainerByLabels(topPane, ['宿盘', '易卦', '六壬', '金口诀', '遁甲', '太乙', '统摄法'], false);
+	if(topLabel.includes('易与三式') || topLabel.includes('其他术数')){
+		const subTabs = findTabsContainerByLabels(topPane, ['宿盘', '金口诀', '统摄法'], false);
 		if(!subTabs){
 			context.key = 'cnyibu';
 			return context;
@@ -1512,10 +1548,10 @@ function resolveActiveContext(){
 		context.scopeRoot = subPane;
 		context.subLabel = subLabel;
 
-		if(subLabel.includes('易卦')){
+		if(subLabel.includes('易卦') || subLabel.includes('六爻')){
 			context.key = 'sixyao';
 			context.domain = 'sixyao';
-			context.displayName = '易卦';
+			context.displayName = '六爻';
 			return context;
 		}
 
@@ -1568,12 +1604,13 @@ function resolveActiveContext(){
 		}
 
 		context.key = 'cnyibu';
-		context.displayName = subLabel || '易与三式';
+		context.displayName = subLabel || '其他术数';
 	}
-	if(topLabel.includes('八字紫微')){
-		const subTabs = findTabsContainerByLabels(topPane, ['八字', '紫微斗数'], false);
+	if(topLabel.includes('八字紫微') || topLabel.includes('辅助')){
+		const subTabs = findTabsContainerByLabels(topPane, ['八卦类象', '十二串宫', '八字规则', '八字', '紫微斗数'], false);
 		if(!subTabs){
 			context.key = 'cntradition';
+			context.displayName = topLabel.includes('辅助') ? '辅助' : '八字紫微';
 			return context;
 		}
 		const subActiveTab = getTabsNavItems(subTabs).find((n)=>n.classList.contains('ant-tabs-tab-active'));
@@ -1592,7 +1629,7 @@ function resolveActiveContext(){
 			return context;
 		}
 		context.key = 'cntradition';
-		context.displayName = subLabel || '八字紫微';
+		context.displayName = subLabel || (topLabel.includes('辅助') ? '辅助' : '八字紫微');
 		return context;
 	}
 
@@ -1612,20 +1649,26 @@ function resolveContextByAstroState(){
 			return null;
 		}
 		const predictiveMap = {
-			primarydirect: { key: 'primarydirect', displayName: '推运盘-主/界限法', domain: 'predictive_raw' },
-			primarydirchart: { key: 'primarydirchart', displayName: '推运盘-主限法盘', domain: 'predictive_raw' },
-			zodialrelease: { key: 'zodialrelease', displayName: '推运盘-黄道星释', domain: 'predictive_raw' },
-			firdaria: { key: 'firdaria', displayName: '推运盘-法达星限', domain: 'predictive_raw' },
-			profection: { key: 'profection', displayName: '推运盘-小限法', domain: 'predictive_raw' },
-			solararc: { key: 'solararc', displayName: '推运盘-太阳弧', domain: 'predictive_raw' },
-			solarreturn: { key: 'solarreturn', displayName: '推运盘-太阳返照', domain: 'predictive_raw' },
-			lunarreturn: { key: 'lunarreturn', displayName: '推运盘-月亮返照', domain: 'predictive_raw' },
-			givenyear: { key: 'givenyear', displayName: '推运盘-流年法', domain: 'predictive_raw' },
-			decennials: { key: 'decennials', displayName: '推运盘-十年大运', domain: 'predictive_raw' },
+			primarydirect: { key: 'primarydirect', displayName: '星运-主/界限法', domain: 'predictive_raw' },
+			primarydirchart: { key: 'primarydirchart', displayName: '星运-主限法盘', domain: 'predictive_raw' },
+			zodialrelease: { key: 'zodialrelease', displayName: '星运-黄道星释', domain: 'predictive_raw' },
+			firdaria: { key: 'firdaria', displayName: '星运-法达星限', domain: 'predictive_raw' },
+			profection: { key: 'profection', displayName: '星运-小限法', domain: 'predictive_raw' },
+			solararc: { key: 'solararc', displayName: '星运-太阳弧', domain: 'predictive_raw' },
+			solarreturn: { key: 'solarreturn', displayName: '星运-太阳返照', domain: 'predictive_raw' },
+			lunarreturn: { key: 'lunarreturn', displayName: '星运-月亮返照', domain: 'predictive_raw' },
+			givenyear: { key: 'givenyear', displayName: '星运-流年法', domain: 'predictive_raw' },
+			decennials: { key: 'decennials', displayName: '星运-十年大运', domain: 'predictive_raw' },
+		};
+		const auxchartMap = {
+			germanytech: { key: 'germany', displayName: '量化盘' },
+			hellenastro: { key: 'astrochart_like', displayName: '十三分盘' },
+			locastro: { key: 'astrochart_like', displayName: '占星地图' },
+			otherbu: { key: 'otherbu', displayName: '骰子' },
 		};
 		const cnyibuMap = {
 			suzhan: { key: 'suzhan', displayName: '宿盘' },
-			guazhan: { key: 'sixyao', displayName: '易卦', domain: 'sixyao' },
+			guazhan: { key: 'sixyao', displayName: '六爻', domain: 'sixyao' },
 			liureng: { key: 'liureng', displayName: '大六壬', domain: 'liureng' },
 			jinkou: { key: 'jinkou', displayName: '金口诀', domain: 'jinkou' },
 			dunjia: { key: 'qimen', displayName: '奇门遁甲', domain: 'qimen' },
@@ -1637,20 +1680,34 @@ function resolveContextByAstroState(){
 			return { key: 'astrochart', displayName: '星盘' };
 		case 'astrochart3D':
 			return { key: 'astrochart', displayName: '三维盘' };
+		case 'bazi':
+			return { key: 'bazi', displayName: '八字' };
+		case 'ziwei':
+			return { key: 'ziwei', displayName: '紫微斗数' };
+		case 'guazhan':
+			return { key: 'sixyao', displayName: '六爻', domain: 'sixyao' };
+		case 'liureng':
+			return { key: 'liureng', displayName: '大六壬', domain: 'liureng' };
+		case 'dunjia':
+			return { key: 'qimen', displayName: '奇门遁甲', domain: 'qimen' };
+		case 'taiyi':
+			return { key: 'taiyi', displayName: '太乙' };
 		case 'direction':
 			return predictiveMap[subTab] || predictiveMap.primarydirect;
 		case 'germanytech':
 			return { key: 'germany', displayName: '量化盘' };
+		case 'auxchart':
+			return auxchartMap[subTab] || auxchartMap.germanytech;
 		case 'relativechart':
-			return { key: 'relative', displayName: '关系盘' };
+			return { key: 'relative', displayName: '合盘' };
 		case 'jieqichart':
 			return { key: 'jieqi', displayName: '节气盘' };
 		case 'locastro':
-			return { key: 'astrochart_like', displayName: '星体地图' };
+			return { key: 'astrochart_like', displayName: '占星地图' };
 		case 'hellenastro':
-			return { key: 'astrochart_like', displayName: '希腊星术' };
+			return { key: 'astrochart_like', displayName: '十三分盘' };
 		case 'indiachart':
-			return { key: 'indiachart', displayName: '印度律盘' };
+			return { key: 'indiachart', displayName: '印度占星' };
 		case 'cntradition':
 			if(subTab === 'bazi'){
 				return { key: 'bazi', displayName: '八字' };
@@ -1658,13 +1715,13 @@ function resolveContextByAstroState(){
 			if(subTab === 'ziwei'){
 				return { key: 'ziwei', displayName: '紫微斗数' };
 			}
-			return { key: 'cntradition', displayName: '八字紫微' };
+			return { key: 'cntradition', displayName: '辅助' };
 		case 'cnyibu':
 			return cnyibuMap[subTab] || cnyibuMap.suzhan;
 		case 'guolao':
 			return { key: 'guolao', displayName: '七政四余' };
 		case 'otherbu':
-			return { key: 'otherbu', displayName: '西洋游戏' };
+			return { key: 'otherbu', displayName: '骰子' };
 		case 'fengshui':
 			return { key: 'fengshui', displayName: '风水' };
 		case 'sanshiunited':
@@ -1745,7 +1802,7 @@ export function getCurrentAIExportContext(){
 		if(context.key === 'direction'){
 			return {
 				key: 'primarydirect',
-				displayName: context.displayName || '推运盘-主/界限法',
+				displayName: context.displayName || '星运-主/界限法',
 			};
 		}
 		if(context.key === 'jieqi'){
@@ -2421,7 +2478,7 @@ function getIndiaCachedContent(activeLabel){
 async function extractAstroContent(context){
 	const isAstroLike = context && context.key === 'astrochart_like';
 	const topLabel = context && context.topLabel ? context.topLabel : '';
-	const isIndia = (context && context.key === 'indiachart') || topLabel.includes('印度律盘');
+	const isIndia = (context && context.key === 'indiachart') || topLabel.includes('印度占星') || topLabel.includes('印度律盘');
 	if(!isIndia){
 		// 星盘系导出固定走计算快照，不读取右侧栏目DOM。
 		const cached = getAstroCachedContent();
@@ -4236,13 +4293,14 @@ function getCandidateExportKeys(context){
 	const stateIsPredictive = isPredictiveExportKey(stateKey);
 	// 仅在上下文无法定位具体推运子模块时，才展开推运候选全量兜底；
 	// 避免“太阳弧导出成主限法”这类串台。
-	if((topInfo.includes('推运盘') || stateIsPredictive) && !primaryIsPredictive){
+	if((topInfo.includes('星运') || topInfo.includes('推运盘') || stateIsPredictive) && !primaryIsPredictive){
 		keys.push(...predictiveKeys);
 	}
 	if(topInfo.includes('三式合一') && !hasPrimarySpecific){
 		keys.push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi');
 	}
-	if(topInfo.includes('易与三式') && !hasPrimarySpecific){
+	if((topInfo.includes('易与三式') || topInfo.includes('其他术数') || topInfo.includes('六爻')
+		|| topInfo.includes('六壬') || topInfo.includes('金口诀') || topInfo.includes('遁甲') || topInfo.includes('太乙')) && !hasPrimarySpecific){
 		keys.push('suzhan', 'sixyao', 'jinkou', 'liureng', 'qimen', 'taiyi', 'tongshefa');
 	}
 	if((topInfo.includes('八字紫微') || topInfo.includes('八字') || topInfo.includes('紫微')) && !hasPrimarySpecific){
@@ -4251,7 +4309,7 @@ function getCandidateExportKeys(context){
 	if(topInfo.includes('量化盘') && !hasPrimarySpecific){
 		keys.push('germany');
 	}
-	if(topInfo.includes('关系盘') && !hasPrimarySpecific){
+	if((topInfo.includes('合盘') || topInfo.includes('关系盘')) && !hasPrimarySpecific){
 		keys.push('relative');
 	}
 	if(topInfo.includes('七政四余') && !hasPrimarySpecific){
@@ -4260,10 +4318,10 @@ function getCandidateExportKeys(context){
 	if(topInfo.includes('节气盘') && !hasPrimarySpecific){
 		keys.push('jieqi');
 	}
-	if(topInfo.includes('印度律盘') && !hasPrimarySpecific){
+	if((topInfo.includes('印度占星') || topInfo.includes('印度律盘')) && !hasPrimarySpecific){
 		keys.push('indiachart');
 	}
-	if((topInfo.includes('星盘') || topInfo.includes('三维盘') || topInfo.includes('希腊星术') || topInfo.includes('星体地图')) && !hasPrimarySpecific){
+	if((topInfo.includes('星盘') || topInfo.includes('三维盘') || topInfo.includes('十三分盘') || topInfo.includes('希腊星术') || topInfo.includes('占星地图') || topInfo.includes('星体地图')) && !hasPrimarySpecific){
 		keys.push('astrochart', 'astrochart_like');
 	}
 
@@ -4315,20 +4373,21 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 		push(contextKey);
 		return keys;
 	}
-	if(topInfo.includes('推运盘') || topInfo.includes('主/界限法') || topInfo.includes('法达星限')
+	if(topInfo.includes('星运') || topInfo.includes('推运盘') || topInfo.includes('主/界限法') || topInfo.includes('法达星限')
 		|| topInfo.includes('太阳弧') || topInfo.includes('太阳返照') || topInfo.includes('月亮返照')){
 		push('primarydirect', 'primarydirchart', 'firdaria', 'zodialrelease', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials');
 	}
 	if(topInfo.includes('三式合一')){
 		push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi', 'astrochart');
 	}
-	if(topInfo.includes('易与三式') || topInfo.includes('六壬') || topInfo.includes('金口诀') || topInfo.includes('遁甲')){
+	if(topInfo.includes('易与三式') || topInfo.includes('其他术数') || topInfo.includes('六爻')
+		|| topInfo.includes('六壬') || topInfo.includes('金口诀') || topInfo.includes('遁甲') || topInfo.includes('太乙')){
 		push('jinkou', 'liureng', 'qimen', 'sixyao', 'tongshefa', 'taiyi', 'suzhan');
 	}
 	if(topInfo.includes('八字') || topInfo.includes('紫微')){
 		push('bazi', 'ziwei');
 	}
-	if(topInfo.includes('关系盘')){
+	if(topInfo.includes('合盘') || topInfo.includes('关系盘')){
 		push('relative');
 	}
 	if(topInfo.includes('量化盘')){
@@ -4337,13 +4396,13 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 	if(topInfo.includes('节气盘')){
 		push('jieqi');
 	}
-	if(topInfo.includes('印度律盘')){
+	if(topInfo.includes('印度占星') || topInfo.includes('印度律盘')){
 		push('indiachart', 'astrochart');
 	}
 	if(topInfo.includes('七政四余')){
 		push('guolao', 'astrochart_like', 'astrochart');
 	}
-	if(topInfo.includes('星盘') || topInfo.includes('希腊星术') || topInfo.includes('星体地图') || topInfo.includes('三维盘')){
+	if(topInfo.includes('星盘') || topInfo.includes('十三分盘') || topInfo.includes('希腊星术') || topInfo.includes('占星地图') || topInfo.includes('星体地图') || topInfo.includes('三维盘')){
 		push('astrochart', 'astrochart_like', 'indiachart');
 	}
 	// 终极兜底：按术法族群补全，避免误报“无可导出文本”。

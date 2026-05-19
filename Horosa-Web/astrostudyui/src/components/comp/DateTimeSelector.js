@@ -1,6 +1,6 @@
 import { Component } from 'react';
-import { Select, Input, Button, InputNumber, Row, Col } from 'antd';
-import { PlusOutlined, MinusOutlined, } from '@ant-design/icons';
+import { Row, Col } from 'antd';
+import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 import DateTime from './DateTime';
 
@@ -152,7 +152,7 @@ class DateTimeSelector extends Component{
 				if(this.props.onChange){
 					this.props.onChange({
 						...this.getCurrentValue(),
-						confirmed: false,
+						confirmed: !!this.props.confirmOnAdjust,
 					});
 				}
 				this.setState({
@@ -696,26 +696,22 @@ class DateTimeSelector extends Component{
 		let row = (
 			<Row key={randomStr(8)}>
 				<Col span={4}>
-					<Button size='small' onClick={this.clickMinus} style={{width: '100%'}}>
-						<MinusOutlined />
-					</Button>
+					<Button size='small' iconName='minus' onClick={this.clickMinus} style={{width: '100%'}} />
 				</Col>
 				<Col span={6}>
 					{timetypedom}
 				</Col>
 				<Col span={4}>
-					<Button size='small' onClick={this.clickPlus} style={{width: '100%'}}>
-						<PlusOutlined />
+					<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
+				</Col>
+				<Col span={5}>
+					<Button size='small' autoInsertSpace={false} onClick={this.clickNow} style={{width: '100%'}}>
+						<span>此刻</span>
 					</Button>
 				</Col>
 				<Col span={5}>
-					<Button size='small' onClick={this.clickNow} style={{width: '100%'}}>
-						此刻
-					</Button>
-				</Col>
-				<Col span={5}>
-					<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
-						确定
+					<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+						<span>确定</span>
 					</Button>
 				</Col>
 			</Row>
@@ -724,21 +720,17 @@ class DateTimeSelector extends Component{
 			row = (
 				<Row key={randomStr(8)}>
 					<Col span={5}>
-						<Button size='small' onClick={this.clickMinus} style={{width: '100%'}}>
-							<MinusOutlined />
-						</Button>
+						<Button size='small' iconName='minus' onClick={this.clickMinus} style={{width: '100%'}} />
 					</Col>
 					<Col span={6}>
 						{timetypedom}
 					</Col>
 					<Col span={5}>
-						<Button size='small' onClick={this.clickPlus} style={{width: '100%'}}>
-							<PlusOutlined />
-						</Button>
+						<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 					</Col>
 					<Col span={8}>
-						<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
-							确定
+						<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+							<span>确定</span>
 						</Button>
 					</Col>
 				</Row>	
@@ -751,21 +743,17 @@ class DateTimeSelector extends Component{
 						{zone}
 					</Col>
 					<Col span={3}>
-						<Button size='small' onClick={this.clickMinus} style={{width: '100%'}}>
-							<MinusOutlined />
-						</Button>
+						<Button size='small' iconName='minus' onClick={this.clickMinus} style={{width: '100%'}} />
 					</Col>
 					<Col span={6}>
 						{timetypedom}
 					</Col>
 					<Col span={3}>
-						<Button size='small' onClick={this.clickPlus} style={{width: '100%'}}>
-							<PlusOutlined />
-						</Button>
+						<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 					</Col>
 					<Col span={4}>
-						<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
-							确定
+						<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+							<span>确定</span>
 						</Button>
 					</Col>
 				</Row>	
@@ -819,6 +807,16 @@ class DateTimeSelector extends Component{
 		let tmDom = this.genTmDom();
 		let needAdjust = this.props.showAdjust ? true : false;
 		let adjustDom = this.genAdjustDom();
+
+		if(this.props.adjustOnly){
+			return (
+				<Row className="xq-datetime-adjust-only">
+					<Col span={24}>
+						{adjustDom}
+					</Col>
+				</Row>
+			);
+		}
 
 		return (
 			<Row>

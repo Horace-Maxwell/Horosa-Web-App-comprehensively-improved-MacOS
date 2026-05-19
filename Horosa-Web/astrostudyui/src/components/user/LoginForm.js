@@ -1,13 +1,11 @@
-import { Component } from 'react';
-import { Form, Input, Button, Select, DatePicker,  Row, Col,  } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { Form } from 'antd';
 import { preventEnterPress } from '../../utils/helper';
-import { EmailRegex } from '../../utils/constants'
+import { XQButton, XQInput } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 export default function LoginForm(props){
 	const [form] = Form.useForm();
     const FormItem = Form.Item;
-    const Option = Select.Option;
 
     function formFieldsChanged(changedFields, allFields){
         if(props.onFieldsChange){
@@ -61,7 +59,7 @@ export default function LoginForm(props){
                         message: '请输入您登录名' 
                     }]}
                 >
-                    <Input prefix={<UserOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} placeholder="登录名" />
+                    <XQInput prefix={<XQIcon name="user" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} placeholder="登录名" />
 
 				</FormItem>
 				
@@ -72,13 +70,13 @@ export default function LoginForm(props){
                         message: '请输入您的密码！' 
                     }]}
                 >
-                    <Input prefix={<LockOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} type="password" placeholder="密码" onPressEnter={doSubmit} />
+                    <XQInput prefix={<XQIcon name="lock" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="密码" onPressEnter={doSubmit} />
 				</FormItem>
 
 				<FormItem>
-					<Button type="primary" htmlType="submit">
+					<XQButton type="primary" htmlType="submit">
 						登&nbsp;录
-					</Button>
+					</XQButton>
 				</FormItem>
 
 			</Form>
@@ -86,4 +84,3 @@ export default function LoginForm(props){
 	);
     
 }
-

@@ -1,9 +1,15 @@
 import { Component } from 'react';
-import { Row, Col, Select, Button, Divider, Tabs, Card, Tag, message } from 'antd';
+import { Row, Col, Divider, Tag, message } from 'antd';
 import { littleEndian } from '../../utils/helper';
 import { Gua8, Gua64, getGua64 } from '../gua/GuaConst';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { getStore } from '../../utils/storageutil';
+import {
+	XQButton as Button,
+	XQCard as Card,
+	XQSelect as Select,
+	XQTabs as Tabs,
+} from '../xq-ui';
 import styles from '../../css/styles.less';
 
 const { Option } = Select;
@@ -948,12 +954,12 @@ class TongSheFaMain extends Component{
 	renderOneYaoLine(val, key){
 		if(val === 1){
 			return (
-				<div key={key} style={{ height: 6, backgroundColor: '#333', borderRadius: 3, marginBottom: 6 }} />
+				<div key={key} style={{ height: 6, backgroundColor: 'var(--horosa-text, #333)', borderRadius: 3, marginBottom: 6 }} />
 			);
 		}
 		const partStyle = {
 			height: 6,
-			backgroundColor: '#333',
+			backgroundColor: 'var(--horosa-text, #333)',
 			borderRadius: 3,
 			width: '44%',
 		};
@@ -979,17 +985,17 @@ class TongSheFaMain extends Component{
 
 	renderHexColumn(label, hex, topLabel, bottomLabel){
 		return (
-			<div style={{ border: '1px solid #f0f0f0', borderRadius: 4, padding: 8, height: '100%' }}>
+			<div style={{ border: '1px solid var(--horosa-border, #f0f0f0)', borderRadius: 4, padding: 8, height: '100%' }}>
 				<div style={{ textAlign: 'center', fontWeight: 500 }}>{label}：{hex.gua ? hex.gua.name : '—'}</div>
-				<div style={{ textAlign: 'center', color: '#888', marginTop: 2 }}>{hex.gua ? `${hex.gua.house.name}宫${hex.gua.house.elem}` : ''}</div>
+				<div style={{ textAlign: 'center', color: 'var(--horosa-muted, #888)', marginTop: 2 }}>{hex.gua ? `${hex.gua.house.name}宫${hex.gua.house.elem}` : ''}</div>
 				<div style={{ marginTop: 8 }}>
-					<div style={{ textAlign: 'center', fontSize: 13, color: '#666' }}>{topLabel}</div>
+					<div style={{ textAlign: 'center', fontSize: 13, color: 'var(--horosa-text-soft, #666)' }}>{topLabel}</div>
 					<div style={{ textAlign: 'center', fontSize: 13 }}>{hex.upper.cname}（{hex.upper.name}）</div>
 					{this.renderYaoStack(hex.upper.value, `${label}_up`)}
 				</div>
 				<Divider style={{ margin: '8px 0' }} />
 				<div>
-					<div style={{ textAlign: 'center', fontSize: 13, color: '#666' }}>{bottomLabel}</div>
+					<div style={{ textAlign: 'center', fontSize: 13, color: 'var(--horosa-text-soft, #666)' }}>{bottomLabel}</div>
 					<div style={{ textAlign: 'center', fontSize: 13 }}>{hex.lower.cname}（{hex.lower.name}）</div>
 					{this.renderYaoStack(hex.lower.value, `${label}_down`)}
 				</div>
@@ -1028,7 +1034,7 @@ class TongSheFaMain extends Component{
 
 	renderMatrixStylePanel(title, leftHex, rightHex){
 		const tableStyle = { width: '100%', borderCollapse: 'collapse' };
-		const borderColor = this.state.showMatrixBorder ? '#e8e8e8' : 'transparent';
+		const borderColor = this.state.showMatrixBorder ? 'var(--horosa-border, #e8e8e8)' : 'transparent';
 		const tdStyle = {
 			border: `1px solid ${borderColor}`,
 			padding: '6px 4px',
@@ -1041,7 +1047,7 @@ class TongSheFaMain extends Component{
 		};
 		const colTd = { ...tdStyle, width: '38%' };
 		const smallTitle = {
-			color: '#666',
+			color: 'var(--horosa-text-soft, #666)',
 			fontSize: 13,
 			fontWeight: 500,
 		};
@@ -1111,7 +1117,7 @@ class TongSheFaMain extends Component{
 						title={`${meta.label}：${bagua.symbol}${bagua.cname}`}
 						bodyStyle={{ padding: 10 }}
 					>
-						<div style={{ color: '#888', marginBottom: 6 }}>{observe ? observe.intro : ''}</div>
+						<div style={{ color: 'var(--horosa-muted, #888)', marginBottom: 6 }}>{observe ? observe.intro : ''}</div>
 						<div>{safeText(desc, '—')}</div>
 					</Card>
 				</Col>
@@ -1157,7 +1163,7 @@ class TongSheFaMain extends Component{
 							</div>
 						)
 					}
-					<div style={{ color: '#666', marginBottom: 6 }}>{detail ? detail.subtitle : ''}</div>
+					<div style={{ color: 'var(--horosa-text-soft, #666)', marginBottom: 6 }}>{detail ? detail.subtitle : ''}</div>
 					<div style={{ marginBottom: 6 }}>三界阴阳：天界{t} · 人界{r} · 地界{d}</div>
 					{detail && detail.rows.map((row, idx)=>{
 						return <p key={`${bagua.key}_${idx}`} style={{ marginBottom: 8 }}>{row}</p>;
@@ -1179,7 +1185,7 @@ class TongSheFaMain extends Component{
 					})}
 				</Card>
 				<Divider style={{ margin: '10px 0' }} />
-				<div style={{ color: '#666', marginBottom: 8 }}>八卦全文（固定显示全部八卦）：</div>
+				<div style={{ color: 'var(--horosa-text-soft, #666)', marginBottom: 8 }}>八卦全文（固定显示全部八卦）：</div>
 				{baguaCards}
 			</div>
 		);
@@ -1219,8 +1225,8 @@ class TongSheFaMain extends Component{
 	}
 
 	renderNaJiaTable(rows, includeShiYing){
-		const thStyle = { border: '1px solid #e8e8e8', padding: '4px 6px', backgroundColor: '#fafafa', textAlign: 'center' };
-		const tdStyle = { border: '1px solid #e8e8e8', padding: '4px 6px', textAlign: 'center' };
+		const thStyle = { border: '1px solid var(--horosa-border, #e8e8e8)', padding: '4px 6px', backgroundColor: 'var(--horosa-panel-soft, #fafafa)', textAlign: 'center' };
+		const tdStyle = { border: '1px solid var(--horosa-border, #e8e8e8)', padding: '4px 6px', textAlign: 'center' };
 		return (
 			<table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 8 }}>
 				<thead>

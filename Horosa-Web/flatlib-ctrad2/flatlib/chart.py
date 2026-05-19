@@ -70,17 +70,19 @@ class Chart:
         self.date = realdate
         self.pos = pos
         self.hsys = hsys
+        self.sidereal_mode = kwargs.get('sidereal_mode', None)
 
         self.height = kwargs.get('height', 150)
         self.flags = swe.SEDEFAULT_FLAG
         if zodiacal == const.SIDEREAL:
             self.flags = swe.SEDEFAULT_FLAG | swisseph.FLG_SIDEREAL
 
-        self.objects = ephem.getObjectList(IDs, self.date, pos, self.height, self.flags)
-        if zodiacal == const.SIDEREAL:
-            self.houses, self.angles = ephem.getHouses(self.date, pos, hsys, self.height, swisseph.FLG_SIDEREAL)
-        else:
-            self.houses, self.angles = ephem.getHouses(self.date, pos, hsys, self.height)
+        with self._siderealContext():
+            self.objects = ephem.getObjectList(IDs, self.date, pos, self.height, self.flags)
+            if zodiacal == const.SIDEREAL:
+                self.houses, self.angles = ephem.getHouses(self.date, pos, hsys, self.height, swisseph.FLG_SIDEREAL)
+            else:
+                self.houses, self.angles = ephem.getHouses(self.date, pos, hsys, self.height)
 
         self.needpars = kwargs.get('needpars', True)
         if self.needpars:
@@ -94,6 +96,7 @@ class Chart:
         chart = Chart.__new__(Chart)
         chart.zodiacal = self.zodiacal
         chart.flags = self.flags
+        chart.sidereal_mode = getattr(self, 'sidereal_mode', None)
         chart.date = self.date
         chart.orgdate = self.orgdate
         chart.pos = self.pos
@@ -146,26 +149,31 @@ class Chart:
         
     def getFixedStar(self, ID):
         """ Returns a fixed star from the ephemeris. """
-        return ephem.getFixedStar(ID, self.date, self.pos, self.height, self.flags)
+        with self._siderealContext():
+            return ephem.getFixedStar(ID, self.date, self.pos, self.height, self.flags)
 
     def getFixedStars(self):
         """ Returns a list with all fixed stars. """
         IDs = const.LIST_FIXED_STARS
-        return ephem.getFixedStarList(IDs, self.date, self.pos, self.height, self.flags)
+        with self._siderealContext():
+            return ephem.getFixedStarList(IDs, self.date, self.pos, self.height, self.flags)
 
     def getFixedStarBeiDou(self):
         """ Returns a list with all fixed stars. """
         IDs = const.LIST_BEIDOU
-        return ephem.getFixedStarList(IDs, self.date, self.pos, self.height, self.flags)
+        with self._siderealContext():
+            return ephem.getFixedStarList(IDs, self.date, self.pos, self.height, self.flags)
 
     def getFixedStarBeiJi(self):
         """ Returns a list with all fixed stars. """
         IDs = const.LIST_BEIJI
-        return ephem.getFixedStarList(IDs, self.date, self.pos, self.height, self.flags)
+        with self._siderealContext():
+            return ephem.getFixedStarList(IDs, self.date, self.pos, self.height, self.flags)
 
     def getFixedStartsSu28(self):
         IDs = const.LIST_FIXED_SU28
-        stars = ephem.getFixedStarSu28List(IDs, self.date, self.pos, self.height, self.flags)
+        with self._siderealContext():
+            stars = ephem.getFixedStarSu28List(IDs, self.date, self.pos, self.height, self.flags)
         return stars
 
 
@@ -184,6 +192,10 @@ class Chart:
         mc = self.getAngle(const.MC)
         dist = angle.closestdistance(house10.lon, mc.lon)
         return abs(dist) < 0.0003  # 1 arc-second
+
+    def _siderealContext(self):
+        mode = self.sidereal_mode if self.zodiacal == const.SIDEREAL else None
+        return _SiderealContext(mode)
 
 
     # === Other properties === #
@@ -228,3 +240,21 @@ class Chart:
                         self.date.utcoffset)
         srDate = ephem.nextSolarReturn(date, sun.lon, self.flags)
         return Chart(srDate, self.pos, self.flags, hsys=self.hsys)
+
+
+class _SiderealContext:
+    def __init__(self, mode):
+        self.mode = mode
+
+    def __enter__(self):
+        if self.mode:
+            swe.setSiderealContext(
+                self.mode.get('mode'),
+                self.mode.get('t0', 0.0),
+                self.mode.get('ayan_t0', 0.0)
+            )
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        swe.clearSiderealContext()
+        return False

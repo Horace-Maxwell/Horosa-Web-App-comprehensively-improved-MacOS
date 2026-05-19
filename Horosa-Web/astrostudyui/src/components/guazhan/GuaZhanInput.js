@@ -1,12 +1,12 @@
 import { Component } from 'react';
-import { Row, Col, Form, DatePicker, Input, Button, Select } from 'antd';
-import GeoCoordModal from '../amap/GeoCoordModal';
-import PlusMinusTime from '../astro/PlusMinusTime';
+import { Row, Col } from 'antd';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import DateTime from '../comp/DateTime';
+import { XQSelect as Select } from '../xq-ui';
 
-const {Option} = Select
+const {Option} = Select;
 
 class GuaZhanInput extends Component{
 	
@@ -95,38 +95,22 @@ class GuaZhanInput extends Component{
 
 		return (
 			<div>
-			<Row>
-				<Col span={24}>
-					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.props.hook} />
-				</Col>	
-			</Row>
-			<Row>
-				<Col span={8}>
-					<Row>
-						<Col span={24}>
-							<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
-								<Option value={-1}>未知</Option>
-								<Option value={0}>女</Option>
-								<Option value={1}>男</Option>
-							</Select>
-						</Col>
-					</Row>
-				</Col>
-
-				<Col span={7}>
-					<div>
-						<GeoCoordModal 
-							onOk={this.changeGeo}
-							lat={fields.gpsLat.value} lng={fields.gpsLon.value}
-						>
-							<Button size='small'>经纬度选择</Button>
-						</GeoCoordModal>
-					</div>
-				</Col>
-				<Col span={9} style={{textAlign: 'center'}}>
-					<span>{fields.lon.value + ' ' + fields.lat.value}</span>
-				</Col>
-			</Row>
+				<SpaceTimePanel
+					fields={fields}
+					value={datetm}
+					onTimeChange={this.onTimeChanged}
+					timeHook={this.props.hook}
+					onGeoChange={this.changeGeo}
+				/>
+				<Row>
+					<Col span={24}>
+						<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
+							<Option value={-1}>未知</Option>
+							<Option value={0}>女</Option>
+							<Option value={1}>男</Option>
+						</Select>
+					</Col>
+				</Row>
 			</div>
 		);
 	}

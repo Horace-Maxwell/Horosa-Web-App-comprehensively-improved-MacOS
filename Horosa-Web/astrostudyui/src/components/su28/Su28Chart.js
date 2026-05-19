@@ -77,7 +77,8 @@ class Su28Chart {
 				padding: '2px',
 				'padding-left': '10px',
 				font: '13px sans-serif',
-				background: 'lightsteelblue',
+				background: 'var(--horosa-surface-raised, lightsteelblue)',
+				color: 'var(--horosa-text, #1f1f1f)',
 				border: '0px',
 				'border-radius': '8px',
 			});

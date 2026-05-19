@@ -1,9 +1,9 @@
 import { Component } from 'react';
-import { Select, Input, InputNumber, } from 'antd';
-import { DefLon, DefGpsLon, } from '../../utils/constants';
+import { XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
+import { DefLon } from '../../utils/constants';
 
 const Option = Select.Option;
-const InputGroup = Input.Group;
+const inputGroupStyle = { display: 'flex', alignItems: 'center', gap: 6 };
 
 class LonInput extends Component{
 	constructor(props) {
@@ -124,7 +124,7 @@ class LonInput extends Component{
 						</Select>	
 					)
 				}
-				<InputGroup >
+				<div style={inputGroupStyle}>
 					{
 						onerow && (
 							<Select value={londir} onChange={this.onDirectionChange} size={size}>
@@ -140,7 +140,7 @@ class LonInput extends Component{
 					<Select onChange={this.onDegreeMinChange} value={degmin} size={size} style={{width: 60}}>
 						{lonmindom}
 					</Select><span>分</span>
-				</InputGroup>
+				</div>
 			</div>
 		);
 	}

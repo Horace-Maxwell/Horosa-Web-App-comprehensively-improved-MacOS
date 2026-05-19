@@ -1,13 +1,13 @@
 import { Component } from 'react';
-import { Row, Col, Form, DatePicker, Input, Button, Select } from 'antd';
-import GeoCoordModal from '../amap/GeoCoordModal';
-import PlusMinusTime from '../astro/PlusMinusTime';
+import { Row, Col } from 'antd';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as SZConst from './SZConst';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import DateTime from '../comp/DateTime';
+import { XQSelect as Select } from '../xq-ui';
 
-const {Option} = Select
+const {Option} = Select;
 
 class SuZhanInput extends Component{
 	
@@ -186,11 +186,12 @@ class SuZhanInput extends Component{
 
 		return (
 			<div>
-			<Row>
-				<Col span={24}>
-					<PlusMinusTime value={datetm} onChange={this.onTimeChanged} />
-				</Col>	
-			</Row>
+			<SpaceTimePanel
+				fields={fields}
+				value={datetm}
+				onTimeChange={this.onTimeChanged}
+				onGeoChange={this.changeGeo}
+			/>
 			<Row>
 				<Col lg={12} xl={8}>
 					<Select value={fields.gender.value} onChange={this.onGenderChange} size='small' style={{width:'100%'}}>
@@ -210,16 +211,6 @@ class SuZhanInput extends Component{
 						<Option value={SZConst.SZChart_FangWeiChart}>方位外盘</Option>
 						<Option value={SZConst.SZChart_NiXiangChart}>逆向外盘</Option>
 					</Select>				
-				</Col>
-				<Col lg={12} xl={8}>
-					<div>
-						<GeoCoordModal 
-							onOk={this.changeGeo}
-							lat={fields.gpsLat.value} lng={fields.gpsLon.value}
-						>
-							<Button size='small' style={{width:'100%'}}>经纬度选择</Button>
-						</GeoCoordModal>
-					</div>
 				</Col>
 				<Col lg={12} xl={8}>
 					<Select value={szshape} onChange={this.onChartShapeChange} size='small' style={{width:'100%'}}>

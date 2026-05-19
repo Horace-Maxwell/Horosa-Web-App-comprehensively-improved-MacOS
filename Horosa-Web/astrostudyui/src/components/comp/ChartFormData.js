@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Table, Popconfirm, Button,  Input, Select, Pagination, Modal } from 'antd';
+import { Row, Col } from 'antd';
 import LatInput from '../astro/LatInput';
 import LonInput from '../astro/LonInput';
 import DateTimeSelector from './DateTimeSelector';
@@ -7,9 +7,9 @@ import EditableTags from './EditableTags';
 import * as AstroHelper from '../astro/AstroHelper';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import {getHousesOption} from './CompHelper';
+import { XQButton, XQInput, XQSelect } from '../xq-ui';
 
-const Search = Input.Search;
-const Option = Select.Option;
+const Option = XQSelect.Option;
 
 export default class ChartFormData extends Component{
 	constructor(props) {
@@ -232,14 +232,14 @@ export default class ChartFormData extends Component{
 						<Row gutter={12}>
 							<Col span={24}>日期时间：</Col>
 							<Col span={24}>
-								<DateTimeSelector 
+								<DateTimeSelector
 									showTime={true}
 									showAdjust={false}
 									onChange={this.changeBirth}
 									value={flds.date.value}
 								/>
 							</Col>
-						</Row>	
+						</Row>
 					)
 				}
 				{
@@ -249,7 +249,7 @@ export default class ChartFormData extends Component{
 								<Row>
 									<Col span={24}>姓名：</Col>
 									<Col span={24}>
-										<Input placeholder='姓名' value={flds.name.value} onChange={this.changeName} />
+										<XQInput placeholder='姓名' value={flds.name.value} onChange={this.changeName} />
 									</Col>
 								</Row>
 							</Col>
@@ -257,11 +257,11 @@ export default class ChartFormData extends Component{
 								<Row>
 									<Col span={24}>性别：</Col>
 									<Col span={24}>
-										<Select value={flds.gender.value} onChange={this.changeGender} style={{width: '100%'}}>
+										<XQSelect value={flds.gender.value} onChange={this.changeGender} style={{width: '100%'}}>
 											<Option value={-1}>未知</Option>
 											<Option value={0}>女</Option>
 											<Option value={1}>男</Option>
-										</Select>
+										</XQSelect>
 									</Col>
 								</Row>
 							</Col>
@@ -269,14 +269,14 @@ export default class ChartFormData extends Component{
 								<Row>
 									<Col span={24}>出生地：</Col>
 									<Col span={24}>
-										<Input placeholder='出生地' 
+										<XQInput placeholder='出生地'
 											value={flds.pos.value}
-											onChange={this.changePos} 
+											onChange={this.changePos}
 										/>
 									</Col>
 								</Row>
 							</Col>
-						</Row>	
+						</Row>
 					)
 				}
 				<Row gutter={12} style={{marginTop: margintop}}>
@@ -284,7 +284,7 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>纬度：</Col>
 							<Col span={24}>
-								<LatInput 
+								<LatInput
 									size='small'
 									value={flds.lat.value}
 									onChange={this.changeLat}
@@ -296,7 +296,7 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>经度：</Col>
 							<Col span={24}>
-								<LonInput 
+								<LonInput
 									size='small'
 									value={flds.lon.value}
 									onChange={this.changeLon}
@@ -308,11 +308,11 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>从地图选取经纬度：</Col>
 							<Col span={24}>
-								<GeoCoordModal 
-									onOk={this.changeGeo} 
+								<GeoCoordModal
+									onOk={this.changeGeo}
 									lat={flds.gpsLat.value} lng={flds.gpsLon.value}
 								>
-									<Button>经纬度选择</Button>
+									<XQButton>经纬度选择</XQButton>
 								</GeoCoordModal>
 							</Col>
 						</Row>
@@ -323,10 +323,10 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>黄道系统：</Col>
 							<Col span={24}>
-								<Select value={flds.zodiacal.value} onChange={this.changeZodiacal} style={{width: '100%'}}>
+								<XQSelect value={flds.zodiacal.value} onChange={this.changeZodiacal} style={{width: '100%'}}>
 									<Option value={0}>回归黄道</Option>
 									<Option value={1}>恒星黄道</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -334,9 +334,9 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>宫位制：</Col>
 							<Col span={24}>
-								<Select value={flds.hsys.value} onChange={this.changeHSys} style={{width: '100%'}}>
+								<XQSelect value={flds.hsys.value} onChange={this.changeHSys} style={{width: '100%'}}>
 									{ getHousesOption() }
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -344,10 +344,10 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>强接纳：</Col>
 							<Col span={24}>
-								<Select value={flds.strongRecption.value} onChange={this.changeStrongRecption} style={{width: '100%'}}>
+								<XQSelect value={flds.strongRecption.value} onChange={this.changeStrongRecption} style={{width: '100%'}}>
 									<Option value={1}>是</Option>
 									<Option value={0}>否</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -357,10 +357,10 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>简单相位计算：</Col>
 							<Col span={24}>
-								<Select value={flds.simpleAsp.value} onChange={this.changeSimpleAsp} style={{width: '100%'}}>
+								<XQSelect value={flds.simpleAsp.value} onChange={this.changeSimpleAsp} style={{width: '100%'}}>
 									<Option value={1}>是</Option>
 									<Option value={0}>否</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -368,10 +368,10 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>虚拟点能否接收相位：</Col>
 							<Col span={24}>
-								<Select value={flds.virtualPointReceiveAsp.value} onChange={this.changeVirtPntRecvAsp} style={{width: '100%'}}>
+								<XQSelect value={flds.virtualPointReceiveAsp.value} onChange={this.changeVirtPntRecvAsp} style={{width: '100%'}}>
 									<Option value={1}>是</Option>
 									<Option value={0}>否</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -379,10 +379,10 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>需要推运：</Col>
 							<Col span={24}>
-								<Select value={flds.predictive.value} onChange={this.changePredictive} style={{width: '100%'}}>
+								<XQSelect value={flds.predictive.value} onChange={this.changePredictive} style={{width: '100%'}}>
 									<Option value={1}>是</Option>
 									<Option value={0}>否</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -392,12 +392,12 @@ export default class ChartFormData extends Component{
 							<Row>
 								<Col span={24}>主限法推进类型：</Col>
 								<Col span={24}>
-								<Select value={flds.pdtype.value} onChange={this.changePdtype} style={{width: '100%'}}>
+								<XQSelect value={flds.pdtype.value} onChange={this.changePdtype} style={{width: '100%'}}>
 									<Option value={0}>zodiaco主限法</Option>
 									<Option value={1}>mundo主限法</Option>
 									<Option value={2}>界限顺时针推进</Option>
 									<Option value={3}>界限逆时针推进</Option>
-								</Select>
+								</XQSelect>
 						</Col>
 					</Row>
 					<Row gutter={12} style={{marginTop: margintop}}>
@@ -405,10 +405,10 @@ export default class ChartFormData extends Component{
 							<Row>
 								<Col span={24}>主/界限法显示界限法：</Col>
 								<Col span={24}>
-									<Select value={(flds.showPdBounds && flds.showPdBounds.value !== undefined) ? flds.showPdBounds.value : 1} onChange={this.changeShowPdBounds} style={{width: '100%'}}>
+									<XQSelect value={(flds.showPdBounds && flds.showPdBounds.value !== undefined) ? flds.showPdBounds.value : 1} onChange={this.changeShowPdBounds} style={{width: '100%'}}>
 										<Option value={1}>是</Option>
 										<Option value={0}>否</Option>
-									</Select>
+									</XQSelect>
 								</Col>
 							</Row>
 						</Col>
@@ -418,7 +418,7 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>主限法需要的相位：</Col>
 							<Col span={24}>
-								<Select mode="multiple" value={flds.pdaspects.value} onChange={this.changePdaspects} style={{width: '100%'}}>
+								<XQSelect mode="multiple" value={flds.pdaspects.value} onChange={this.changePdaspects} style={{width: '100%'}}>
 									<Option value={0}>0</Option>
 									<Option value={30}>30</Option>
 									<Option value={45}>45</Option>
@@ -428,7 +428,7 @@ export default class ChartFormData extends Component{
 									<Option value={135}>135</Option>
 									<Option value={150}>150</Option>
 									<Option value={180}>180</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -436,10 +436,10 @@ export default class ChartFormData extends Component{
 						<Row>
 							<Col span={24}>七政四余排盘法：</Col>
 							<Col span={24}>
-								<Select value={flds.doubingSu28.value} onChange={this.changeDoubingSu28} style={{width: '100%'}}>
+								<XQSelect value={flds.doubingSu28.value} onChange={this.changeDoubingSu28} style={{width: '100%'}}>
 									<Option value={0}>现实距星法</Option>
 									<Option value={1}>斗柄定房法</Option>
-								</Select>
+								</XQSelect>
 							</Col>
 						</Row>
 					</Col>
@@ -447,7 +447,7 @@ export default class ChartFormData extends Component{
 
 				<Row gutter={12} style={{marginTop: margintop}}>
 					<Col offset={4} span={10}>
-						<Button type='primary' onClick={this.clickOk}>{okTitle}</Button>
+						<XQButton type='primary' onClick={this.clickOk}>{okTitle}</XQButton>
 					</Col>
 				</Row>
 			</div>

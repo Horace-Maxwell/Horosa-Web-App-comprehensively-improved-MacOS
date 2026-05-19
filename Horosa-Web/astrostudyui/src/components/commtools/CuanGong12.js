@@ -1,9 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Tabs, } from 'antd';
-import { randomStr, isNumber } from '../../utils/helper';
-import request from '../../utils/request';
-import * as Constants from '../../utils/constants';
-import styles from '../../css/styles.less';
+import { XQTabs as Tabs } from '../xq-ui';
 import CuanGong12Query from './CuanGong12Query';
 import CuanGong12Desc from './CuanGong12Desc';
 

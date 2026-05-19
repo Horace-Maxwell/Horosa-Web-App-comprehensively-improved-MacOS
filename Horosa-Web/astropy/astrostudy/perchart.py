@@ -8,6 +8,7 @@ from flatlib.datetime import Datetime
 from flatlib.geopos import GeoPos
 from flatlib.chart import Chart
 from flatlib import const
+from flatlib import object
 from flatlib import aspects
 from flatlib.dignities import essential
 from flatlib.dignities import tables
@@ -45,6 +46,36 @@ timerStar = [
     const.MERCURY,
     const.MOON
 ]
+
+SU28_MODE_REAL = 0
+SU28_MODE_DOUBING = 1
+SU28_MODE_MOIRA_CURRENT = 2
+SU28_MODE_MOIRA_KAIXI = 3
+SU28_MODE_ZHENG_SIDEREAL = 4
+ZHENG_SIDEREAL_MODE = {
+    'mode': swe.SE_SIDM_USER,
+    't0': 2195875.5,
+    'ayan_t0': 4.0,
+}
+
+MOIRA_STELLAR_ORDER = [
+    '娄', '胃', '昴', '毕', '觜', '参', '井', '鬼', '柳', '星', '张', '翼', '轸', '角',
+    '亢', '氐', '房', '心', '尾', '箕', '斗', '牛', '女', '虚', '危', '室', '壁', '奎'
+]
+
+MOIRA_CURRENT_STELLAR_DEGREES = [
+    15.9, 26.3, 41.1, 53.2, 69.0, 70.0, 81.8, 112.3, 115.2, 130.5, 136.4, 151.4,
+    170.1, 187.2, 200.0, 208.9, 225.2, 230.6, 237.0, 255.6, 266.3, 290.1, 298.0,
+    308.9, 318.3, 333.6, 349.4, 358.3
+]
+
+MOIRA_KAIXI_STELLAR_DEGREES = [
+    16.0, 29.0, 44.0, 55.0, 70.5, 71.0, 80.0, 110.0, 113.0, 126.0, 133.0, 150.0,
+    170.0, 189.0, 201.0, 211.0, 227.0, 233.0, 239.0, 256.0, 266.0, 288.0, 295.0,
+    306.0, 315.0, 331.0, 349.0, 358.0
+]
+
+SU28_ID_BY_NAME = dict(zip(const.LIST_FIXED_SU28_NAME, const.LIST_FIXED_SU28))
 
 
 def excludeBad(x):
@@ -127,6 +158,26 @@ def takeAttackDelta(stars):
 
 class PerChart:
 
+    @staticmethod
+    def parseSu28Mode(value):
+        if isinstance(value, bool):
+            return SU28_MODE_DOUBING if value else SU28_MODE_REAL
+        if value is None:
+            return SU28_MODE_REAL
+        if isinstance(value, str):
+            txt = value.strip().lower()
+            if txt == 'true':
+                return SU28_MODE_DOUBING
+            if txt == 'false' or txt == '':
+                return SU28_MODE_REAL
+        try:
+            mode = int(value)
+        except:
+            return SU28_MODE_REAL
+        if mode in (SU28_MODE_REAL, SU28_MODE_DOUBING, SU28_MODE_MOIRA_CURRENT, SU28_MODE_MOIRA_KAIXI, SU28_MODE_ZHENG_SIDEREAL):
+            return mode
+        return SU28_MODE_REAL
+
     def __init__(self, data):
         self.data = data
 
@@ -204,10 +255,15 @@ class PerChart:
         if 'pdTimeKey' in data.keys():
             self.pdTimeKey = data['pdTimeKey']
 
+        self.su28Mode = self.parseSu28Mode(data.get('doubingSu28', SU28_MODE_REAL))
+        self.isZhengSidereal = self.su28Mode == SU28_MODE_ZHENG_SIDEREAL or data.get('guolaoZhengSidereal') == 1 or data.get('guolaoZhengSidereal') == '1'
+
         self.zodiacal = const.TROPICAL
         if 'zodiacal' in data.keys():
             if data['zodiacal'] == 1 or data['zodiacal'] == const.SIDEREAL:
                 self.zodiacal = const.SIDEREAL
+        if self.isZhengSidereal:
+            self.zodiacal = const.SIDEREAL
 
         self.dateTime = Datetime(self.date, self.time, self.zone)
         self.pos = GeoPos(self.lat, self.lon)
@@ -231,10 +287,8 @@ class PerChart:
             self.objlists.append(const.SUN)
 
         self.eastRa = None
-        if 'doubingSu28' in data.keys():
-            self.isDoubingSu28 = data['doubingSu28']
-        else:
-            self.isDoubingSu28 = False
+        self.isDoubingSu28 = self.su28Mode == SU28_MODE_DOUBING
+        siderealMode = ZHENG_SIDEREAL_MODE if self.isZhengSidereal else None
 
         self.needpars = True
         if 'needpars' in data.keys():
@@ -244,10 +298,10 @@ class PerChart:
         ids.extend(self.objlists)
 
         if self.tradition:
-            self.chart = Chart(self.dateTime, self.pos, self.zodiacal, hsys=self.house, needpars=self.needpars)
+            self.chart = Chart(self.dateTime, self.pos, self.zodiacal, hsys=self.house, needpars=self.needpars, sidereal_mode=siderealMode)
         else:
             self.chart = Chart(self.dateTime, self.pos, self.zodiacal,
-                               hsys=self.house, IDs=ids, needpars=self.needpars)
+                               hsys=self.house, IDs=ids, needpars=self.needpars, sidereal_mode=siderealMode)
         if const.SATURN in objset and const.MARS in objset and const.JUPITER in objset and const.VENUS in objset:
             self.objlists.extend(const.LIST_MIDDLE_POINTS)
 
@@ -1370,6 +1424,41 @@ class PerChart:
         res.sort(key=takeRa)
         return res
 
+    def getMoiraFixedStarSu28(self):
+        degrees = MOIRA_CURRENT_STELLAR_DEGREES
+        if self.su28Mode == SU28_MODE_MOIRA_KAIXI:
+            degrees = MOIRA_KAIXI_STELLAR_DEGREES
+
+        res = []
+        for idx, name in enumerate(MOIRA_STELLAR_ORDER):
+            ra = degrees[idx] % 360
+            sig = const.LIST_SIGNS[int(ra / 30) % 12]
+            star = {
+                'ra': ra,
+                'decl': 0,
+                'name': name,
+                'wuxing': const.Su28WuXing[name],
+                'animal': const.Su28Animal[name],
+                'id': SU28_ID_BY_NAME[name],
+                'lon': ra,
+                'lat': 0,
+                'sign': sig,
+                'signlon': ra % 30,
+                'type': const.OBJ_FIXED_STAR
+            }
+            res.append(object.Object.fromDict(star))
+        res.sort(key=takeRa)
+        return res
+
+    def fillPlanetSu28(self, res):
+        obj = const.LIST_ALL_POINTS
+        for id in obj:
+            try:
+                planet = self.chart.get(id)
+                self.setPlanetSu28(res, planet)
+            except:
+                continue
+
 
     def getAdjustFixedStarSu28(self):
         stars = self.chart.getFixedStartsSu28()
@@ -1407,15 +1496,12 @@ class PerChart:
         if self.isDoubingSu28:
             return self.getFixedStarSu28ByDouBing()
 
-        res = self.getAdjustFixedStarSu28()
+        if self.su28Mode == SU28_MODE_MOIRA_CURRENT or self.su28Mode == SU28_MODE_MOIRA_KAIXI:
+            res = self.getMoiraFixedStarSu28()
+        else:
+            res = self.getAdjustFixedStarSu28()
 
-        obj = const.LIST_ALL_POINTS
-        for id in obj:
-            try:
-                planet = self.chart.get(id)
-                self.setPlanetSu28(res, planet)
-            except:
-                continue
+        self.fillPlanetSu28(res)
 
         return res
 

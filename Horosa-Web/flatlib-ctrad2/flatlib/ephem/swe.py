@@ -13,6 +13,7 @@
 
 import math
 import os
+import threading
 import swisseph
 from flatlib import angle
 from flatlib import const
@@ -71,6 +72,28 @@ SE_SIDM_J2000 = 18
 SE_SIDM_J1900 = 19
 SE_SIDM_B1950 = 20
 SEDEFAULT_SIDM__MODE = SE_SIDM_LAHIRI
+SE_SIDM_USER = getattr(swisseph, 'SIDM_USER', 255)
+_SIDEREAL_CONTEXT = threading.local()
+
+
+def setSiderealContext(mode=None, t0=0.0, ayan_t0=0.0):
+    _SIDEREAL_CONTEXT.mode = mode
+    _SIDEREAL_CONTEXT.t0 = t0
+    _SIDEREAL_CONTEXT.ayan_t0 = ayan_t0
+
+
+def clearSiderealContext():
+    _SIDEREAL_CONTEXT.mode = None
+    _SIDEREAL_CONTEXT.t0 = 0.0
+    _SIDEREAL_CONTEXT.ayan_t0 = 0.0
+
+
+def applySiderealMode():
+    mode = getattr(_SIDEREAL_CONTEXT, 'mode', None)
+    if mode is None:
+        swisseph.set_sid_mode(SEDEFAULT_SIDM__MODE)
+    else:
+        swisseph.set_sid_mode(mode, getattr(_SIDEREAL_CONTEXT, 't0', 0.0), getattr(_SIDEREAL_CONTEXT, 'ayan_t0', 0.0))
 
 # Map objects
 SWE_OBJECTS = {
@@ -156,7 +179,7 @@ def getRuntimeConfig():
 def sweObject(obj, jd, flags=SEDEFAULT_FLAG):
     """ Returns an object from the Ephemeris. """
     sweObj = SWE_OBJECTS[obj]
-    swisseph.set_sid_mode(SEDEFAULT_SIDM__MODE)
+    applySiderealMode()
     sweList = swisseph.calc_ut(jd, sweObj, flags)[0]
     newflags = flags | SEFLG_EQUATORIAL
     eqlist = swisseph.calc_ut(jd, sweObj, newflags)[0]
@@ -177,7 +200,7 @@ def sweObject(obj, jd, flags=SEDEFAULT_FLAG):
 def sweObjectLon(obj, jd, flags=SEDEFAULT_FLAG):
     """ Returns the longitude of an object. """
     sweObj = SWE_OBJECTS[obj]
-    swisseph.set_sid_mode(SEDEFAULT_SIDM__MODE)
+    applySiderealMode()
     sweList = swisseph.calc_ut(jd, sweObj, flags)[0]
     return sweList[0]
 
@@ -198,6 +221,7 @@ def sweNextTransit(obj, jd, lat, lon, flag):
         
 def sweHouses(jd, lat, lon, hsys, flag=0):
     """ Returns lists of houses and angles. """
+    applySiderealMode()
     hlist = None
     ascmc = None
     swhsys = SWE_HOUSESYS[hsys]
@@ -242,6 +266,7 @@ def sweHouses(jd, lat, lon, hsys, flag=0):
     
 def sweHousesLon(jd, lat, lon, hsys, flag=0):
     """ Returns lists with house and angle longitudes. """
+    applySiderealMode()
     hlist = None
     ascmc = None
     hsys = SWE_HOUSESYS[hsys]
@@ -270,7 +295,7 @@ def sweHousesLon(jd, lat, lon, hsys, flag=0):
 
 def sweFixedStar(star, jd, flags=SEDEFAULT_FLAG):
     """ Returns a fixed star from the Ephemeris. """
-    swisseph.set_sid_mode(SEDEFAULT_SIDM__MODE)
+    applySiderealMode()
     sweList = swisseph.fixstar_ut(star, jd, flags)[0]
     mag = swisseph.fixstar_mag(star)
     newflags = flags | SEFLG_EQUATORIAL
@@ -293,7 +318,7 @@ def sweFixedStar(star, jd, flags=SEDEFAULT_FLAG):
 
 def sweFixedStarSu28(star, jd, flags=SEDEFAULT_FLAG):
     """ Returns a fixed star from the Ephemeris. """
-    swisseph.set_sid_mode(SEDEFAULT_SIDM__MODE)
+    applySiderealMode()
     sweList = swisseph.fixstar_ut(star, jd, flags)[0]
     mag = swisseph.fixstar_mag(star)
     newflags = flags | SEFLG_EQUATORIAL

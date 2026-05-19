@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Popover, Tabs, Select } from 'antd';
+import { Row, Col, Divider, Popover } from 'antd';
+import { XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import AstroChart from './AstroChart';
 import AstroDoubleChart from './AstroDoubleChart';
 import AstroDirectionForm from './AstroDirectionForm';

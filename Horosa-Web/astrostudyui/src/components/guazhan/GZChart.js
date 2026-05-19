@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
-import {randomStr, formatDate, printArea} from '../../utils/helper';
+import {randomStr, formatDate} from '../../utils/helper';
 import { drawTextH, } from '../graph/GraphHelper';
 import Gua from '../gua/Gua';
 import TextTable from '../graph/TextTable';
@@ -100,8 +100,6 @@ class GZChart {
 		cords[3] = {x: this.margin+w, y: this.margin+titleH+h, w: w, h: h};
 
 		let titleords = {x: this.margin, y: this.margin, w: realW, h: titleH};
-		let printBtnOrds = {x: this.margin + 3*realW/4, y: this.margin + realH - this.fontSize};
-
 		if(this.yao[0].name){
 			this.showYaoName = true;
 		}else{
@@ -114,7 +112,6 @@ class GZChart {
 		this.drawGua4(cords[3]);
 
 		this.drawTitle(titleords);
-		this.drawPrintBtn(printBtnOrds.x, printBtnOrds.y);
 	}
 
 	drawGua1(cord){
@@ -186,7 +183,7 @@ class GZChart {
 				hasChange = true;
 				obj.value = obj.value === 1 ? 0 : 1;
 				obj.change = false;
-				obj.nameColor = '#800080';
+				obj.nameColor = AstroConst.AstroColor['Purple Clouds'] || '#800080';
 			}
 			yao[i] = obj;
 		}
@@ -387,30 +384,6 @@ class GZChart {
 			drawTextH(this.svgTopgroup, data, x, y, len, h, marg, this.color);
 		}
 	}
-
-	drawPrintBtn(x, y){
-		let sz = 14;
-		let sx = x;
-		let sy = y;
-
-		let txtsvg = this.svgTopgroup.append('g');
-		txtsvg.append('text')
-			.attr("dominant-baseline","middle")
-			.attr("text-anchor", "left")
-			.attr('font-weight', 100)
-			.attr('stroke', AstroConst.AstroColor.Stroke)
-			.attr('font-size', `${sz}px`)
-			.attr('x', sx).attr('y', sy)
-			.attr('style', 'cursor:hand')
-			.text('打印卦盘');
-
-		txtsvg.on('click', ()=>{
-			let cid = this.chartId;
-			printArea(cid);
-		});
-
-	}
-
 
 }
 

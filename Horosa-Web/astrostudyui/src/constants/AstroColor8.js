@@ -1,65 +1,65 @@
 
 export const AstroColor = {
-    Backgroud: '#666666',
-    ChartBackgroud: '#2f3030',
-	Stroke: '#f2f2f2',
-	TextStroke: '#f2f2f2',
-	Fill: '#FFFFFF',
+    Backgroud: '#07111d',
+    ChartBackgroud: '#081622',
+	Stroke: '#a88855',
+	TextStroke: '#e7d2a5',
+	Fill: '#0d1d2b',
     NoColor: 'transparent',
-    Relation1: '#000033',
-    Relation2: '#000033',
-    Relation3: '#000033',
+    Relation1: '#5ea3ff',
+    Relation2: '#d7a94f',
+    Relation3: '#ff6f62',
 };
-AstroColor['Mercury'] = '#f2f2f2';
-AstroColor['Venus'] = '#f2f2f2';
-AstroColor['Mars'] = '#f2f2f2';
-AstroColor['Jupiter'] = '#f2f2f2';
-AstroColor['Saturn'] = '#f2f2f2';
-AstroColor['Sun'] = '#f2f2f2';
-AstroColor['Moon'] = '#f2f2f2';
-AstroColor['Dark Moon'] = '#f2f2f2';
-AstroColor['Purple Clouds'] = '#f2f2f2';
-AstroColor['North Node'] = '#f2f2f2';
-AstroColor['South Node'] = '#f2f2f2';
-AstroColor['Uranus'] = '#f2f2f2';
-AstroColor['Neptune'] = '#f2f2f2';
-AstroColor['Chiron'] = '#f2f2f2';
-AstroColor['Syzygy'] = '#f2f2f2';
-AstroColor['Pluto'] = '#f2f2f2';
-AstroColor['Asc'] = '#f2f2f2';
-AstroColor['Desc'] = '#f2f2f2';
-AstroColor['MC'] = '#f2f2f2';
-AstroColor['IC'] = '#f2f2f2';
+AstroColor['Mercury'] = '#7ee3a6';
+AstroColor['Venus'] = '#ff91b3';
+AstroColor['Mars'] = '#ff725f';
+AstroColor['Jupiter'] = '#79aaff';
+AstroColor['Saturn'] = '#d07aa9';
+AstroColor['Sun'] = '#ffd071';
+AstroColor['Moon'] = '#9fc0ff';
+AstroColor['Dark Moon'] = '#b7c6d7';
+AstroColor['Purple Clouds'] = '#d1a6ff';
+AstroColor['North Node'] = '#e0bc70';
+AstroColor['South Node'] = '#e0bc70';
+AstroColor['Uranus'] = '#67d2ad';
+AstroColor['Neptune'] = '#69b4ff';
+AstroColor['Chiron'] = '#e2b767';
+AstroColor['Syzygy'] = '#d7a94f';
+AstroColor['Pluto'] = '#d881d1';
+AstroColor['Asc'] = '#f0dec0';
+AstroColor['Desc'] = '#ff7b62';
+AstroColor['MC'] = '#e6bb6b';
+AstroColor['IC'] = '#d1dde9';
 
-AstroColor['Aries'] = '#7e7e7d';
-AstroColor['Taurus'] = '#7e7e7d';
-AstroColor['Gemini'] = '#7e7e7d';
-AstroColor['Cancer'] = '#7e7e7d';
-AstroColor['Leo'] = '#7e7e7d';
-AstroColor['Virgo'] = '#7e7e7d';
-AstroColor['Libra'] = '#7e7e7d';
-AstroColor['Scorpio'] = '#7e7e7d';
-AstroColor['Sagittarius'] = '#7e7e7d';
-AstroColor['Capricorn'] = '#7e7e7d';
-AstroColor['Aquarius'] = '#7e7e7d';
-AstroColor['Pisces'] = '#7e7e7d';
+AstroColor['Aries'] = '#ff6f58';
+AstroColor['Taurus'] = '#d5b052';
+AstroColor['Gemini'] = '#5bc5e8';
+AstroColor['Cancer'] = '#8fa8ff';
+AstroColor['Leo'] = '#ff6f58';
+AstroColor['Virgo'] = '#d5b052';
+AstroColor['Libra'] = '#5bc5e8';
+AstroColor['Scorpio'] = '#8fa8ff';
+AstroColor['Sagittarius'] = '#ff6f58';
+AstroColor['Capricorn'] = '#d5b052';
+AstroColor['Aquarius'] = '#5bc5e8';
+AstroColor['Pisces'] = '#8fa8ff';
 
 
-AstroColor['Asp0'] = '#191970';
-AstroColor['Asp60'] = '#33CCC3';
-AstroColor['Asp90'] = '#FE8090';
-AstroColor['Asp120'] = '#1B8C09';
-AstroColor['Asp180'] = '#470024';
+AstroColor['Asp0'] = '#d7a94f';
+AstroColor['Asp60'] = '#37d2cf';
+AstroColor['Asp90'] = '#ff725f';
+AstroColor['Asp120'] = '#65d08a';
+AstroColor['Asp180'] = '#f26183';
 
-AstroColor['命'] = '#082567';
-AstroColor['业'] = '#082567';
-AstroColor['胎'] = '#082567';
+AstroColor['命'] = '#d7a94f';
+AstroColor['业'] = '#d7a94f';
+AstroColor['胎'] = '#d7a94f';
 
-AstroColor['意'] = '#082567';
-AstroColor['事'] = '#082567';
-AstroColor['克'] = '#082567';
-AstroColor['聚'] = '#082567';
-AstroColor['同'] = '#082567';
+AstroColor['意'] = '#d7a94f';
+AstroColor['事'] = '#d7a94f';
+AstroColor['克'] = '#d7a94f';
+AstroColor['聚'] = '#d7a94f';
+AstroColor['同'] = '#d7a94f';
 
 AstroColor['SixHouses'] = 'transparent';
 
@@ -78,33 +78,33 @@ AstroColor['House11'] = AstroColor.Stroke;
 AstroColor['House12'] = AstroColor.Stroke;
 
 AstroColor.SignFill = {
-    Aries: '#2a2b2b',
-    Taurus: '#2a2b2b',
-    Gemini: '#2a2b2b',
-    Cancer: '#2a2b2b',
-    Leo: '#2a2b2b',
-    Virgo: '#2a2b2b',
-    Libra: '#2a2b2b',
-    Scorpio: '#2a2b2b',
-    Sagittarius: '#2a2b2b',
-    Capricorn: '#2a2b2b',
-    Aquarius: '#2a2b2b',
-    Pisces: '#2a2b2b',
+    Aries: '#0d1e2d',
+    Taurus: '#0d1e2d',
+    Gemini: '#0d1e2d',
+    Cancer: '#0d1e2d',
+    Leo: '#0d1e2d',
+    Virgo: '#0d1e2d',
+    Libra: '#0d1e2d',
+    Scorpio: '#0d1e2d',
+    Sagittarius: '#0d1e2d',
+    Capricorn: '#0d1e2d',
+    Aquarius: '#0d1e2d',
+    Pisces: '#0d1e2d',
 };
 
 AstroColor.HouseFill = {
-    House1: '#666666',
-    House2: '#666666',
-    House3: '#666666',
-    House4: '#666666',
-    House5: '#666666',
-    House6: '#666666',
-    House7: '#666666',
-    House8: '#666666',
-    House9: '#666666',
-    House10: '#666666',
-    House11: '#666666',
-    House12: '#666666',
+    House1: '#0b1a28',
+    House2: '#0b1a28',
+    House3: '#0b1a28',
+    House4: '#0b1a28',
+    House5: '#0b1a28',
+    House6: '#0b1a28',
+    House7: '#0b1a28',
+    House8: '#0b1a28',
+    House9: '#0b1a28',
+    House10: '#0b1a28',
+    House11: '#0b1a28',
+    House12: '#0b1a28',
 };
 
 AstroColor.PlanetZoneFill = {
@@ -122,4 +122,4 @@ AstroColor.PlanetZoneFill = {
     House12: 'transparent',
 };
 
-AstroColor.HouseMask = '#EEEEEE';
+AstroColor.HouseMask = '#11253a';

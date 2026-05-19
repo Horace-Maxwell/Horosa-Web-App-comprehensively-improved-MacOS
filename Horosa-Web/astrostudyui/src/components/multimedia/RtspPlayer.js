@@ -1,8 +1,6 @@
 import { Component } from 'react';
-import flvjs from 'flv.js';
-import { Row, Col, Input, InputNumber, Typography, Button, Select, Dropdown, Menu} from 'antd';
-import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
-import { randomStr } from '../../utils/helper';
+import { Row, Col } from 'antd';
+import { XQButton as Button } from '../xq-ui';
 import { ServerRoot, ResultKey} from '../../utils/constants';
 import request from '../../utils/request';
 import StreamPlayer from './StreamPlayer';
@@ -106,4 +104,3 @@ class RtspPlayer extends Component{
 }
 
 export default RtspPlayer;
-

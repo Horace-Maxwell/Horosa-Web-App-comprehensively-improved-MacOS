@@ -1,14 +1,62 @@
 import React from 'react';
 import { connect  } from 'dva';
-import { Layout,  BackTop, Spin,  } from 'antd';
+import { Layout,  BackTop,  } from 'antd';
 import * as AstroConst from '../constants/AstroConst';
 import PageHeader from '../components/homepage/PageHeader';
+import {
+    APPEARANCE_DARK,
+    applyAppearanceToDocument,
+    resolveAppearance,
+} from '../utils/appearance';
 import styles from './app.less';
 
-const App = ({children, dispatch, app, user, })=>{
-    const { userInfo, charts, admin, } = user;
-    const { chartDisplay, colorTheme,} = app;
+const App = ({children, dispatch, app, user, astro, })=>{
+    const { userInfo, admin, } = user;
+    const { chartDisplay, appearanceMode,} = app;
+    const currentTab = astro && astro.currentTab ? astro.currentTab : null;
     const { Header, Content } = Layout;
+    const [prefersDark, setPrefersDark] = React.useState(()=>{
+        if(typeof window === 'undefined' || !window.matchMedia){
+            return false;
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    const resolvedAppearance = resolveAppearance(appearanceMode, prefersDark);
+
+    React.useEffect(()=>{
+        if(typeof window === 'undefined' || !window.matchMedia){
+            return;
+        }
+        const media = window.matchMedia('(prefers-color-scheme: dark)');
+        const handleChange = (evt)=>{
+            setPrefersDark(!!evt.matches);
+        };
+        if(media.addEventListener){
+            media.addEventListener('change', handleChange);
+        }else if(media.addListener){
+            media.addListener(handleChange);
+        }
+        setPrefersDark(!!media.matches);
+        return ()=>{
+            if(media.removeEventListener){
+                media.removeEventListener('change', handleChange);
+            }else if(media.removeListener){
+                media.removeListener(handleChange);
+            }
+        };
+    }, []);
+
+    React.useEffect(()=>{
+        applyAppearanceToDocument(appearanceMode, resolvedAppearance);
+        if(dispatch){
+            dispatch({
+                type: 'app/save',
+                payload: {
+                    resolvedAppearance: resolvedAppearance,
+                },
+            });
+        }
+    }, [appearanceMode, resolvedAppearance]);
 
     function menuClick({item, key, keyPath}){
         dispatch({
@@ -21,7 +69,7 @@ const App = ({children, dispatch, app, user, })=>{
         });
     }
 
-    AstroConst.setColorTheme(colorTheme);
+    AstroConst.setColorTheme(resolvedAppearance === APPEARANCE_DARK ? 8 : AstroConst.DefaultColorTheme);
 
     let mainstyle = {
         position: 'fixed',
@@ -29,36 +77,44 @@ const App = ({children, dispatch, app, user, })=>{
         width: '100%',
         height: '100vh',
         overflow: 'hidden',
-        background: AstroConst.AstroColor.Background,
-        color: AstroConst.AstroColor.TextStroke,
-        stroke: AstroConst.AstroColor.TextStroke,
+        background: 'var(--horosa-bg)',
+        color: 'var(--horosa-text)',
+        stroke: 'var(--horosa-text)',
     };
+    const astroHeaderBg = resolvedAppearance === APPEARANCE_DARK ? '#050607' : 'var(--horosa-header-bg)';
+    const astroHeaderBorder = resolvedAppearance === APPEARANCE_DARK ? 'rgba(215, 173, 105, 0.18)' : 'var(--horosa-border)';
     let headerstyle = {
-        position: 'fixed', width:'100%', zIndex: 100, 
-        backgroundColor: AstroConst.AstroColor.Backgroud, 
-        height:64, padding: 0,
-        borderBottom: '2px solid', 
-        borderBottomColor: '#e8e8e8',
-        color: AstroConst.AstroColor.TextStroke,
-        stroke: AstroConst.AstroColor.TextStroke,
+        position: 'fixed', width:'100%', zIndex: 100,
+        backgroundColor: astroHeaderBg,
+        height:72, padding: 0,
+        borderBottom: '1px solid',
+        borderBottomColor: astroHeaderBorder,
+        color: 'var(--horosa-text)',
+        stroke: 'var(--horosa-text)',
     };
     let contentStyle = {
-        marginTop: 64,
-        height: 'calc(100vh - 64px)',
+        marginTop: 72,
+        height: 'calc(100vh - 72px)',
         overflow: 'hidden',
         boxSizing: 'border-box',
-        backgroundColor: AstroConst.AstroColor.Backgroud, 
-        color: AstroConst.AstroColor.TextStroke,
-        stroke: AstroConst.AstroColor.TextStroke,
+        backgroundColor: 'var(--horosa-bg)',
+        color: 'var(--horosa-text)',
+        stroke: 'var(--horosa-text)',
     };
 
     return (
-        <Layout style={mainstyle}>
-            <Header style={headerstyle}>
+        <Layout
+            className={`${styles.horosaAppShell} horosa-workspace-shell`}
+            data-appearance={resolvedAppearance}
+            style={mainstyle}
+        >
+            <Header className="horosa-astro-header" style={headerstyle}>
                 <PageHeader 
                     admin={admin}
                     chartDisplay={chartDisplay}
-                    colorTheme={colorTheme}
+                    appearanceMode={appearanceMode}
+                    resolvedAppearance={resolvedAppearance}
+                    currentTab={currentTab}
                     userInfo={userInfo} 
                     onMenuClick={menuClick}
                     dispatch={dispatch}
@@ -66,9 +122,9 @@ const App = ({children, dispatch, app, user, })=>{
             </Header>
 
             <Content id='mainContent' style={contentStyle}>
-                <div style={{ width:'100%', height: '100%', paddingLeft: 30, paddingRight:30, overflow: 'hidden' }}>
+                <div className={styles.workspaceOuter}>
                     <BackTop visibilityHeight={50}/>
-                    <div style={{height: '100%', paddingLeft: 30, paddingRight:30, paddingTop:30, overflow: 'hidden'}}>
+                    <div className={styles.workspaceInner}>
                         {children}
                     </div>
                 </div>
@@ -81,13 +137,14 @@ const App = ({children, dispatch, app, user, })=>{
 
 
 function mapStateToProps(state){
-    const { app, user, router } = state;
+    const { app, user, router, astro } = state;
     const { location } = router;
     const { query } = location;
 
     return {
         app: app,
         user: user,
+        astro: astro,
         query: query,
     };
 }

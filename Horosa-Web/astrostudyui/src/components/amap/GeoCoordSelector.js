@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import MapV2 from './MapV2';
-import { Row, Col, Input, Tag, } from 'antd';
+import { Row, Col, Tag } from 'antd';
+import { XQInput as Input } from '../xq-ui';
 import PropTypes from 'prop-types';
 import { uuid } from '../../utils/helper';
 import {randomStr} from '../../utils/helper';

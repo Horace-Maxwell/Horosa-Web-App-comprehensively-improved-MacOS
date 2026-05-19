@@ -1,8 +1,6 @@
 import { Component } from 'react';
-import flvjs from 'flv.js';
-import { Row, Col, Input, InputNumber, Typography, Button, Select, Dropdown, Modal,} from 'antd';
-import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
-import { randomStr } from '../../utils/helper';
+import { Row, Col, Modal } from 'antd';
+import { XQButton as Button, XQInput as Input } from '../xq-ui';
 import { ServerRoot, ResultKey, RtmpPlayServer, RtmpPushServer} from '../../utils/constants';
 import request from '../../utils/request';
 import LiveStreamsModal from './LiveStreamsModal';
@@ -157,4 +155,3 @@ class LivePlayer extends Component{
 }
 
 export default LivePlayer;
-

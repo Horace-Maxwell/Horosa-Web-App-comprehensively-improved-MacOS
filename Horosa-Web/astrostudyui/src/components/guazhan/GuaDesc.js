@@ -1,7 +1,8 @@
 import { Component } from 'react';
-import { Typography, Tabs } from 'antd';
+import { Typography } from 'antd';
 import {randomStr, } from '../../utils/helper';
 import styles from '../../css/styles.less';
+import { XQTabs as Tabs } from '../xq-ui';
 
 const { Title, Paragraph, Text } = Typography;
 const { TabPane } = Tabs;

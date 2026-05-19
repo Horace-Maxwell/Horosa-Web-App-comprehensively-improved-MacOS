@@ -1,6 +1,5 @@
 import * as d3 from 'd3';
 import { Component } from 'react';
-import { Row, Col, Tabs, DatePicker, Input, Button, Card, Select } from 'antd';
 import {randomStr, setupFloatingTooltip} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import ZWChart from './ZWChart';
@@ -18,11 +17,14 @@ class ZiWeiChart extends Component{
 			tooltipId: 'div' + randomStr(8),
 		};
 
-		this.zwchart = new ZWChart(svgid, null, this.props.fields, this.state.tooltipId, this.props.onTipClick);
+		this.zwchart = new ZWChart(svgid, null, this.props.fields, this.state.tooltipId, this.props.onTipClick, this.props.onCenterInfoClick);
 
 		this.drawChart = this.drawChart.bind(this);
 		this.handleResize = this.handleResize.bind(this);
+		this.scheduleDrawChart = this.scheduleDrawChart.bind(this);
 		this.setupToolTip = this.setupToolTip.bind(this);
+		this.drawFrame = null;
+		this.resizeObserver = null;
 
 		if(this.props.indicate){
 			this.props.indicate(this.zwchart.zwindicator);
@@ -40,14 +42,18 @@ class ZiWeiChart extends Component{
 			return;
 		}
 	
-		let orgx = w / 2;
-		let orgy = h / 2;
-		let delta = 30;
-		let chartR = Math.min(w, h) / 2 - delta;
-		this.setState({
-			ox: orgx,
-			oy: orgy,
-			radius: chartR,
+		this.scheduleDrawChart();
+	}
+
+	scheduleDrawChart(){
+		if(this.drawFrame){
+			cancelAnimationFrame(this.drawFrame);
+		}
+		this.drawFrame = requestAnimationFrame(()=>{
+			this.drawFrame = requestAnimationFrame(()=>{
+				this.drawFrame = null;
+				this.drawChart();
+			});
 		});
 	}
 
@@ -59,6 +65,8 @@ class ZiWeiChart extends Component{
 		}
 		
 		this.zwchart.fileds = this.props.fields;
+		this.zwchart.fields = this.props.fields;
+		this.zwchart.onCenterInfoClick = this.props.onCenterInfoClick;
 		this.zwchart.chart = chartobj;
 		if(this.props.dirIndex !== undefined && this.props.dirIndex !== null){
 			this.zwchart.dirHouseIndex = this.props.dirIndex;
@@ -84,11 +92,13 @@ class ZiWeiChart extends Component{
 		if(divTooltip){
 			setupFloatingTooltip(divTooltip, {
 				width: '460px',
-				padding: '2px',
+				padding: '8px 10px',
 				font: '13px sans-serif',
-				background: 'lightsteelblue',
-				border: '0px',
+				background: 'var(--horosa-surface-raised, lightsteelblue)',
+				color: 'var(--horosa-text, #182235)',
+				border: '1px solid var(--horosa-border, transparent)',
 				'border-radius': '8px',
+				'box-shadow': '0 10px 28px rgba(0,0,0,0.18)',
 			});
 		}
 	}
@@ -98,11 +108,33 @@ class ZiWeiChart extends Component{
 		d3.select('body').append('div').attr('id', this.state.tooltipId);
 		let divtip = d3.select('#' + this.state.tooltipId);
 		this.setupToolTip(divtip);
-		this.drawChart();
+		const svgdom = document.getElementById(this.state.chartid);
+		if(svgdom && typeof ResizeObserver !== 'undefined'){
+			this.resizeObserver = new ResizeObserver(()=>{
+				this.scheduleDrawChart();
+			});
+			this.resizeObserver.observe(svgdom);
+			if(svgdom.parentElement){
+				this.resizeObserver.observe(svgdom.parentElement);
+			}
+		}
+		this.scheduleDrawChart();
+	}
+
+	componentDidUpdate(){
+		this.scheduleDrawChart();
 	}
 
 	componentWillUnmount() {
 		window.removeEventListener('resize', this.handleResize);
+		if(this.drawFrame){
+			cancelAnimationFrame(this.drawFrame);
+			this.drawFrame = null;
+		}
+		if(this.resizeObserver){
+			this.resizeObserver.disconnect();
+			this.resizeObserver = null;
+		}
 		d3.select('#' + this.state.tooltipId).remove();
 	}
 
@@ -118,7 +150,6 @@ class ZiWeiChart extends Component{
 		}
 
 		this.zwchart.rules = this.props.rules;
-		this.drawChart();
 
 		return (
 			<svg id={this.state.chartid} style={chartstyle}>

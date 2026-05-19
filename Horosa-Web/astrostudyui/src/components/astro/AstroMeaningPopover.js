@@ -71,12 +71,12 @@ export function renderMeaningContent(tip){
 	const lines = [];
 	if(normalizedTip.title){
 		lines.push((
-			<div key="title" style={{fontSize: 17, lineHeight: '24px', fontWeight: 700, color: '#1f1f1f'}}>
+			<div key="title" style={{fontSize: 17, lineHeight: '24px', fontWeight: 700, color: 'var(--horosa-text, #1f1f1f)'}}>
 				{normalizedTip.title}
 			</div>
 		));
 		lines.push((
-			<div key="title_sep" style={{borderTop: '1px solid #d9d9d9', margin: '6px 0 8px'}} />
+			<div key="title_sep" style={{borderTop: '1px solid var(--horosa-border, #d9d9d9)', margin: '6px 0 8px'}} />
 		));
 	}
 	const tipLines = normalizedTip.tips;
@@ -85,7 +85,7 @@ export function renderMeaningContent(tip){
 		const trimmed = oneLine.trim();
 		if(trimmed === '=='){
 			lines.push((
-				<div key={`sep_${idx}`} style={{borderTop: '1px solid #e8e8e8', margin: '6px 0'}} />
+				<div key={`sep_${idx}`} style={{borderTop: '1px solid var(--horosa-border, #e8e8e8)', margin: '6px 0'}} />
 			));
 			return;
 		}
@@ -96,10 +96,10 @@ export function renderMeaningContent(tip){
 		if(isHeadingLine(trimmed)){
 			lines.push((
 				<div key={`heading_wrap_${idx}`} style={{marginTop: 4, marginBottom: 6}}>
-					<div style={{fontSize: 14, lineHeight: '20px', fontWeight: 700, color: '#262626'}}>
+					<div style={{fontSize: 14, lineHeight: '20px', fontWeight: 700, color: 'var(--horosa-text, #262626)'}}>
 						{renderInlineBold(stripHeadingText(trimmed), `heading_${idx}`)}
 					</div>
-					<div style={{borderTop: '1px solid #efefef', marginTop: 4}} />
+					<div style={{borderTop: '1px solid var(--horosa-border, #efefef)', marginTop: 4}} />
 				</div>
 			));
 			return;
@@ -107,7 +107,7 @@ export function renderMeaningContent(tip){
 		lines.push((
 			<div
 				key={`line_${idx}`}
-				style={{marginBottom: 3, fontSize: 13, lineHeight: '21px', color: '#262626', whiteSpace: 'pre-wrap'}}
+				style={{marginBottom: 3, fontSize: 13, lineHeight: '21px', color: 'var(--horosa-text, #262626)', whiteSpace: 'pre-wrap'}}
 			>
 				{renderInlineBold(oneLine, `line_${idx}`)}
 			</div>

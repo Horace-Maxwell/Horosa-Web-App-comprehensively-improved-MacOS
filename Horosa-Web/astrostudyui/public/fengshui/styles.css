@@ -886,7 +886,19 @@ canvas {
 }
 
 body.horosa-embed {
-  background: #fff;
+  color-scheme: dark;
+  --paper: #07101a;
+  --ink: #edf4ef;
+  --muted: #a9b8bd;
+  --accent: #d7aa62;
+  --accent-2: #4da3ff;
+  --accent-3: #73c59a;
+  --card: rgba(10, 24, 36, 0.92);
+  --border: rgba(192, 154, 91, 0.20);
+  --shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+  --glow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  background: #07101a;
+  color: var(--ink);
   overflow: auto;
 }
 
@@ -921,50 +933,111 @@ body.horosa-embed .controls {
 
 body.horosa-embed .control-tabs,
 body.horosa-embed .workspace-tabs {
-  background: #fff;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  box-shadow: none;
+  background: rgba(15, 33, 48, 0.86);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--glow);
 }
 
 body.horosa-embed .tab-btn {
   border: 1px solid transparent;
-  border-radius: 4px;
-  color: #595959;
+  border-radius: 7px;
+  color: var(--muted);
   font-weight: 500;
 }
 
 body.horosa-embed .tab-btn.active {
-  background: #e6f4ff;
-  color: #1677ff;
-  border-color: #91caff;
-  box-shadow: none;
+  background: rgba(77, 163, 255, 0.16);
+  color: #82c2ff;
+  border-color: rgba(77, 163, 255, 0.32);
+  box-shadow: var(--glow);
 }
 
 body.horosa-embed .quick-btn,
 body.horosa-embed .btn,
 body.horosa-embed .mini-btn,
 body.horosa-embed .file-btn span {
-  border-radius: 4px;
-  border: 1px solid #d9d9d9;
-  box-shadow: none;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  box-shadow: var(--glow);
   font-weight: 500;
 }
 
 body.horosa-embed .quick-btn.primary,
 body.horosa-embed .btn.primary,
 body.horosa-embed .mini-btn.primary {
-  background: #1677ff;
-  border-color: #1677ff;
+  background: #2f73e0;
+  border-color: #2f73e0;
   color: #fff;
 }
 
 body.horosa-embed .card {
-  background: #fff;
-  border: 1px solid #f0f0f0;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: none;
+  box-shadow: var(--shadow), var(--glow);
   backdrop-filter: none;
+}
+
+body.horosa-embed input[type="number"],
+body.horosa-embed select,
+body.horosa-embed .quick-btn,
+body.horosa-embed .btn.ghost,
+body.horosa-embed .file-btn,
+body.horosa-embed .segmented .seg-btn,
+body.horosa-embed .stat,
+body.horosa-embed .hint,
+body.horosa-embed .project-current,
+body.horosa-embed .project-item,
+body.horosa-embed .recent-item,
+body.horosa-embed .mini-btn,
+body.horosa-embed .marker-row {
+  background: rgba(15, 33, 48, 0.82);
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+body.horosa-embed .btn {
+  background: linear-gradient(135deg, #d7aa62, #9c6732);
+  color: #07101a;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+}
+
+body.horosa-embed .btn.ghost,
+body.horosa-embed .quick-btn.ghost {
+  color: var(--ink);
+}
+
+body.horosa-embed .segmented .seg-btn.active,
+body.horosa-embed .filter-btn.active,
+body.horosa-embed .mini-btn.active,
+body.horosa-embed .project-item.active,
+body.horosa-embed .marker-row.active {
+  background: rgba(77, 163, 255, 0.14);
+  border-color: rgba(77, 163, 255, 0.32);
+  color: #82c2ff;
+}
+
+body.horosa-embed .canvas-actions,
+body.horosa-embed .filter-btn {
+  background: rgba(15, 33, 48, 0.82);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+body.horosa-embed .canvas-area,
+body.horosa-embed .project-thumb {
+  background: #0b1723;
+}
+
+body.horosa-embed .canvas-area::after {
+  background: linear-gradient(120deg, rgba(77, 163, 255, 0.06), transparent 72%);
+  opacity: 1;
+}
+
+body.horosa-embed .marker-list::-webkit-scrollbar-thumb,
+body.horosa-embed .project-list::-webkit-scrollbar-thumb {
+  background: rgba(192, 154, 91, 0.38);
 }
 
 body.horosa-embed .hidden-in-horosa {
