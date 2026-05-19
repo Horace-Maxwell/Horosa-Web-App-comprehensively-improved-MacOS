@@ -4144,6 +4144,32 @@
         background: rgba(255, 239, 235, 0.68);
     }
 
+    .horosa-guolao-quick-pattern-output {
+        padding: 14px 16px;
+        border: 1px solid rgba(205, 166, 103, 0.16);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.82);
+        font-family: "Songti SC", "STSong", serif;
+    }
+
+    .horosa-guolao-quick-pattern-line {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+        color: #001a9d;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.8;
+    }
+
+    .horosa-guolao-quick-pattern-line strong {
+        color: #001a9d;
+        font: inherit;
+        word-break: keep-all;
+        white-space: normal;
+    }
+
     .horosa-guolao-quick-table {
         overflow: hidden;
         border: 1px solid rgba(205, 166, 103, 0.16);
@@ -5851,14 +5877,15 @@
         min-width: 0;
         min-height: 0;
         padding: 6px !important;
-        overflow: auto;
+        overflow: hidden;
     }
 
     .horosa-workspace-shell .horosa-guolao-redesign .horosa-guolao-chart-panel-moira {
-        align-items: flex-start;
-        justify-content: flex-start;
+        align-items: center;
+        justify-content: center;
+        container-type: size;
         overscroll-behavior: contain;
-        scrollbar-gutter: stable both-edges;
+        scrollbar-gutter: auto;
     }
 
     .horosa-workspace-shell .horosa-guolao-redesign .horosa-guolao-chart-panel > * {
@@ -5866,8 +5893,9 @@
     }
 
     .horosa-workspace-shell .horosa-guolao-redesign .horosa-guolao-chart-panel-moira > * {
-        flex: 0 0 auto;
-        max-width: none;
+        flex: 0 1 auto;
+        max-width: 100%;
+        max-height: 100%;
     }
 
     .horosa-workspace-shell .horosa-guolao-redesign .horosa-guolao-info-panel {
@@ -8224,16 +8252,46 @@
         gap: 7px;
     }
 
+    .horosa-workspace-shell .horosa-india-dasha-hover {
+        position: relative;
+    }
+
+    .horosa-workspace-shell .horosa-india-dasha-hover .horosa-india-dasha-subpanel {
+        position: absolute;
+        top: 50%;
+        right: calc(100% + 12px);
+        z-index: 5000;
+        display: none;
+        transform: translateY(-50%);
+    }
+
+    .horosa-workspace-shell .horosa-india-dasha-hover:hover .horosa-india-dasha-subpanel,
+    .horosa-workspace-shell .horosa-india-dasha-hover:focus-within .horosa-india-dasha-subpanel {
+        display: block;
+    }
+
     .horosa-workspace-shell .horosa-india-dasha-item {
         display: grid;
         grid-template-columns: 72px minmax(0, 1fr);
         gap: 8px;
         align-items: center;
+        width: 100%;
         min-width: 0;
         padding: 9px 10px;
         border: 1px solid rgba(215, 173, 105, 0.14);
         border-radius: 6px;
         background: rgba(255, 255, 255, 0.018);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+        transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .horosa-workspace-shell .horosa-india-dasha-item:hover,
+    .horosa-workspace-shell .horosa-india-dasha-item:focus-visible {
+        border-color: rgba(231, 189, 117, 0.38);
+        background: rgba(231, 189, 117, 0.08);
+        outline: none;
     }
 
     .horosa-workspace-shell .horosa-india-dasha-item.is-active {
@@ -8298,6 +8356,121 @@
 
     :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-india-dasha-item-meta span {
         color: var(--horosa-text);
+    }
+}
+
+:global {
+    .horosa-india-dasha-subpanel {
+        width: 380px;
+        max-width: calc(100vw - 56px);
+        padding: 10px;
+        border: 1px solid rgba(215, 173, 105, 0.20);
+        border-radius: 8px;
+        background: var(--horosa-panel-solid, #141922);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+        color: var(--horosa-astro-text, #e8edf7);
+    }
+
+    .horosa-india-dasha-subpanel.is-floating {
+        position: fixed;
+        z-index: 5000;
+        display: block;
+        max-width: calc(100vw - 24px);
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+
+    .horosa-india-dasha-subtitle {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 2px 2px 9px;
+        border-bottom: 1px solid rgba(215, 173, 105, 0.14);
+    }
+
+    .horosa-india-dasha-subtitle strong {
+        color: var(--horosa-astro-gold, #d7ad69);
+        font-size: 15px;
+        line-height: 1.2;
+    }
+
+    .horosa-india-dasha-subtitle span {
+        color: var(--horosa-astro-muted, #8fa0b9);
+        font-size: 12px;
+        line-height: 1.2;
+    }
+
+    .horosa-india-dasha-sublist {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-top: 8px;
+    }
+
+    .horosa-india-dasha-subitem {
+        display: grid;
+        grid-template-columns: 82px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        padding: 7px 8px;
+        border: 1px solid rgba(215, 173, 105, 0.12);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .horosa-india-dasha-subname {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .horosa-india-dasha-subname strong {
+        color: var(--horosa-astro-gold, #d7ad69);
+        font-size: 13px;
+        line-height: 1.15;
+    }
+
+    .horosa-india-dasha-subname span,
+    .horosa-india-dasha-submeta em {
+        color: var(--horosa-astro-muted, #8fa0b9);
+        font-size: 11px;
+        font-style: normal;
+        line-height: 1.2;
+    }
+
+    .horosa-india-dasha-submeta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        text-align: right;
+    }
+
+    .horosa-india-dasha-submeta span {
+        overflow: hidden;
+        color: var(--horosa-astro-text, #e8edf7);
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-india-dasha-subpanel {
+        border-color: var(--horosa-border, #d8dee9);
+        background: var(--horosa-surface-solid, #ffffff);
+        color: var(--horosa-text, #172033);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-india-dasha-subitem {
+        border-color: var(--horosa-border, #d8dee9);
+        background: var(--horosa-surface-solid, #ffffff);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-india-dasha-submeta span {
+        color: var(--horosa-text, #172033);
     }
 }
 

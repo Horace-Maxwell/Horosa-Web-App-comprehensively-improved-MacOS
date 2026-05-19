@@ -5,7 +5,7 @@ import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as SZConst from '../suzhan/SZConst';
 import { XQSelect as Select, XQToggle } from '../xq-ui';
 import XQIcon from '../xq-icons';
-import { GUOLAO_CHART_STYLE_CLASSIC, GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_LIFE_MODE_ASC, GUOLAO_LIFE_MODE_YUMAO, getStoredGuolaoLifeMode, normalizeGuolaoLifeMode, } from './GuoLaoChartStyle';
+import { GUOLAO_CHART_STYLE_CLASSIC, GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_LIFE_MODE_ASC, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, getStoredGuolaoLifeMode, normalizeGuolaoLifeMode, } from './GuoLaoChartStyle';
 
 const {Option} = Select;
 
@@ -303,13 +303,13 @@ class GuoLaoInput extends Component{
 							</Select>
 						</label>
 						<label className="horosa-guolao-select-field">
-							<span>二十八宿</span>
+							<span>宿度制</span>
 							<Select value={fields.doubingSu28.value} onChange={this.onDoubingSu28Change} size='small'>
-								<Option value={0}>现实距星法</Option>
+								<Option value={2}>回归今制</Option>
+								<Option value={3}>回归古制（开禧）</Option>
+								<Option value={4}>恒星制（郑式）</Option>
+								<Option value={0}>荀爽19年测量</Option>
 								<Option value={1}>斗柄定房法</Option>
-								<Option value={2}>今制宿度</Option>
-								<Option value={3}>开禧宿度</Option>
-								<Option value={4}>郑式恒星制</Option>
 							</Select>
 						</label>
 						<label className="horosa-guolao-select-field">
@@ -317,6 +317,7 @@ class GuoLaoInput extends Component{
 							<Select value={lifeMode} onChange={this.onLifeModeChange} size='small'>
 								<Option value={GUOLAO_LIFE_MODE_ASC}>占星上升</Option>
 								<Option value={GUOLAO_LIFE_MODE_YUMAO}>遇卯安命</Option>
+								<Option value={GUOLAO_LIFE_MODE_COTRANS}>赤黄转换</Option>
 							</Select>
 						</label>
 						<label className="horosa-guolao-select-field">

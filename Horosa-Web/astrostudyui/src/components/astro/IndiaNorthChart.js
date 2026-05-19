@@ -1,60 +1,62 @@
 import { Component } from 'react';
 import * as AstroText from '../../constants/AstroText';
 import {
-	ROMAN_HOUSES,
+	HOUSE_LABELS,
 	SIGN_NAMES,
 	getAscSignNumber,
 	getHouseCuspDegree,
+	getHouseLabel,
 	getObjectColor,
 	getObjectDegree,
 	getObjectLabel,
 	getObjectsBySign,
+	getSignSymbol,
 } from './IndiaSouthChart';
 import '../../css/styles.less';
 
 const NORTH_HOUSE_LABEL_POSITIONS = {
-	1: [50, 8],
-	2: [38, 8],
-	3: [7, 17],
-	4: [36, 34],
-	5: [7, 53],
-	6: [24, 83],
-	7: [50, 85],
-	8: [84, 83],
-	9: [94, 58],
-	10: [74, 34],
-	11: [94, 17],
-	12: [84, 8],
+	1: [50, 6],
+	2: [14, 3],
+	3: [5, 10],
+	4: [8, 50],
+	5: [6, 79],
+	6: [15, 96],
+	7: [50, 84],
+	8: [85, 96],
+	9: [94, 79],
+	10: [92, 50],
+	11: [95, 10],
+	12: [90, 3],
 };
 
 const NORTH_SIGN_BADGE_POSITIONS = {
-	1: [50, 42],
-	2: [25, 25],
-	3: [19, 31],
-	4: [41, 53],
-	5: [19, 77],
-	6: [25, 82],
-	7: [50, 58],
-	8: [75, 82],
-	9: [81, 77],
-	10: [59, 62],
-	11: [81, 31],
-	12: [75, 25],
+	1: [50, 40],
+	2: [27, 22],
+	3: [9, 31],
+	4: [40, 50],
+	5: [10, 72],
+	6: [18, 84],
+	7: [50, 60],
+	8: [82, 84],
+	9: [90, 72],
+	10: [60, 50],
+	11: [91, 31],
+	12: [73, 22],
 };
 
 const NORTH_OBJECT_ANCHOR_POSITIONS = {
-	1: [50, 36],
-	2: [36, 20],
-	3: [17, 29],
-	4: [36, 43],
-	5: [16, 55],
-	6: [22, 73],
-	7: [50, 70],
-	8: [82, 73],
-	9: [86, 55],
-	10: [66, 60],
-	11: [84, 29],
-	12: [64, 38],
+	1: [50, 24, 30, 14],
+	2: [34, 15, 24, 14],
+	3: [18, 24, 17, 18],
+	4: [35, 42, 22, 18],
+	5: [18, 68, 16, 18],
+	6: [26, 81, 14, 16],
+	7: [50, 73, 30, 16],
+	8: [74, 81, 14, 16],
+	9: [82, 68, 16, 18],
+	10: [65, 42, 22, 18],
+	11: [82, 24, 17, 18],
+	12: [66, 15, 24, 14],
 };
 
 function signNumberForHouse(houseNumber, ascSignNumber){
@@ -94,16 +96,20 @@ class IndiaNorthChart extends Component{
 			<div
 				key={`north_house_${houseNumber}`}
 				className="horosa-india-diagram-layer"
-				title={`${ROMAN_HOUSES[houseNumber - 1]}宫 · ${signNumber} ${signName}`}
+				title={`第${houseNumber}宫 · ${signName}`}
 			>
-				<div className="horosa-india-diagram-house" style={{ left: `${labelPos[0]}%`, top: `${labelPos[1]}%` }}>
-					<div className="horosa-india-square-roman">{ROMAN_HOUSES[houseNumber - 1]}</div>
+				<div className="horosa-india-diagram-house horosa-india-diagram-house-corner" style={{ left: `${labelPos[0]}%`, top: `${labelPos[1]}%` }}>
+					<div className="horosa-india-square-roman">{getHouseLabel(houseNumber)}</div>
 					{cuspDegree ? <div className="horosa-india-square-cusp">{cuspDegree}</div> : null}
 				</div>
-				<div className="horosa-india-diagram-sign" style={{ left: `${signPos[0]}%`, top: `${signPos[1]}%` }}>
-					{signNumber}
+				<div className="horosa-india-diagram-sign horosa-india-diagram-sign-corner" aria-label={`${signNumber} ${signName}`} style={{ left: `${signPos[0]}%`, top: `${signPos[1]}%` }}>
+					<span className="horosa-india-square-sign-symbol">{getSignSymbol(signNumber)}</span>
 				</div>
-				<div className="horosa-india-diagram-object-anchor" style={{ left: `${objectsPos[0]}%`, top: `${objectsPos[1]}%` }}>
+				<div
+					className="horosa-india-diagram-object-anchor horosa-india-diagram-object-anchor-roomy"
+					data-house={houseNumber}
+					style={{ left: `${objectsPos[0]}%`, top: `${objectsPos[1]}%`, width: `${objectsPos[2]}%`, height: `${objectsPos[3]}%` }}
+				>
 					{this.renderObjects(objects, houseNumber)}
 				</div>
 			</div>
@@ -135,11 +141,9 @@ class IndiaNorthChart extends Component{
 						<line x1="0" y1="100" x2="50" y2="50" />
 						<line x1="100" y1="100" x2="50" y2="50" />
 					</svg>
-					{ROMAN_HOUSES.map((_, idx)=>this.renderHouse(idx + 1, ascSignNumber, objectsBySign, chartObj))}
-					<div className="horosa-india-diagram-center">
+					{HOUSE_LABELS.map((_, idx)=>this.renderHouse(idx + 1, ascSignNumber, objectsBySign, chartObj))}
+					<div className="horosa-india-diagram-center horosa-india-diagram-center-compact">
 						<div className="horosa-india-square-center-d">D{chartnum}</div>
-						<div className="horosa-india-square-center-label">{label}</div>
-						<div className="horosa-india-square-center-note">固定宫位 · 星座随升</div>
 					</div>
 				</div>
 			</div>

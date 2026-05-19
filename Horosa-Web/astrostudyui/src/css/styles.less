@@ -142,31 +142,58 @@
 	.horosa-india-diagram-house {
 		min-width: 44px;
 		text-align: left;
+		z-index: 4;
+	}
+
+	.horosa-india-diagram-house-corner {
+		min-width: 34px;
+		text-align: center;
 	}
 
 	.horosa-india-diagram-sign {
-		min-width: 26px;
+		width: 24px;
+		min-width: 0;
 		height: 24px;
-		padding: 0 6px;
+		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border: 1px solid var(--horosa-border-strong, rgba(51, 111, 201, 0.30));
-		border-radius: 7px;
-		background: var(--horosa-panel-soft, rgba(242, 247, 254, 0.78));
+		border: 0;
+		border-radius: 0;
+		background: transparent;
 		color: var(--horosa-accent-strong, #2167d4);
 		font-size: 16px;
 		line-height: 22px;
 		font-weight: 800;
+		z-index: 4;
+	}
+
+	.horosa-india-diagram-sign-corner {
+		width: 24px;
+		min-width: 0;
+		height: 24px;
+		padding: 0;
+		border-radius: 0;
+		font-size: 15px;
+		line-height: 22px;
 	}
 
 	.horosa-india-diagram-object-anchor {
 		width: 18%;
 		min-height: 34px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		text-align: center;
+		z-index: 3;
+	}
+
+	.horosa-india-diagram-object-anchor-roomy {
+		min-height: 58px;
 	}
 
 	.horosa-india-diagram-objects {
+		width: 100%;
 		display: flex;
 		flex-wrap: wrap;
 		align-content: center;
@@ -203,10 +230,33 @@
 		line-height: 14px;
 	}
 
+	.horosa-india-diagram-center-compact {
+		width: 11%;
+		height: 11%;
+	}
+
+	.horosa-india-diagram-center-compact .horosa-india-square-center-d {
+		min-width: 44px;
+		height: 44px;
+		font-size: 20px;
+	}
+
 	.horosa-india-north-board {
 		background:
 			radial-gradient(circle at 50% 50%, var(--horosa-accent-soft, rgba(47, 125, 241, 0.12)), transparent 26%),
 			var(--horosa-surface-solid, #ffffff);
+	}
+
+	.horosa-india-north-board .horosa-india-diagram-objects {
+		gap: 3px 7px;
+	}
+
+	.horosa-india-north-board .horosa-india-square-object {
+		line-height: 17px;
+	}
+
+	.horosa-india-north-board .horosa-india-square-object-name {
+		font-size: 18px;
 	}
 
 	.horosa-india-east-board {
@@ -239,7 +289,7 @@
 
 	.horosa-india-square-roman {
 		color: var(--horosa-gold, #b8893f);
-		font-size: 17px;
+		font-size: 18px;
 		line-height: 18px;
 		font-weight: 700;
 		letter-spacing: 0;
@@ -296,19 +346,33 @@
 		position: absolute;
 		right: 8px;
 		bottom: 8px;
-		min-width: 24px;
+		width: 24px;
+		min-width: 0;
 		height: 24px;
-		padding: 0 6px;
+		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border: 1px solid var(--horosa-border-strong, rgba(51, 111, 201, 0.30));
-		border-radius: 7px;
-		background: var(--horosa-panel-soft, rgba(242, 247, 254, 0.78));
+		border: 0;
+		border-radius: 0;
+		background: transparent;
 		color: var(--horosa-accent-strong, #2167d4);
 		font-size: 16px;
 		line-height: 22px;
 		font-weight: 800;
+	}
+
+	.horosa-india-square-sign-symbol {
+		display: block;
+		font-family: 'ywastro';
+		font-size: 20px;
+		line-height: 1;
+		font-weight: 400;
+		letter-spacing: 0;
+	}
+
+	.horosa-india-diagram-sign-corner .horosa-india-square-sign-symbol {
+		font-size: 18px;
 	}
 
 	.horosa-india-square-center {

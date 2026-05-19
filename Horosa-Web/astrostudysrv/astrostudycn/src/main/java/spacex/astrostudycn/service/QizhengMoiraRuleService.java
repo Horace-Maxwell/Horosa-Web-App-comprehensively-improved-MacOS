@@ -3,6 +3,7 @@ package spacex.astrostudycn.service;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -55,8 +56,11 @@ public class QizhengMoiraRuleService {
 	private static final Set<String> SIYU = new HashSet<String>();
 	private static final Set<String> GOOD_GODS = new HashSet<String>();
 	private static final Set<String> BAD_GODS = new HashSet<String>();
+	private static final Map<String, String> PLANET_IDS_BY_CN = new HashMap<String, String>();
+	private static final Map<String, String> OVERCOMING = new HashMap<String, String>();
 	private static final String LIFE_MODE_ASC = "asc";
 	private static final String LIFE_MODE_YUMAO = "yumao";
+	private static final String LIFE_MODE_COTRANS = "cotrans";
 
 	static {
 		PLANET_NAMES.put("Sun", "日");
@@ -74,6 +78,9 @@ public class QizhengMoiraRuleService {
 		PLANET_NAMES.put("Asc", "升");
 		PLANET_NAMES.put("MC", "顶");
 		PLANET_NAMES.put("LifeMasterDeg74", "命度");
+		for(Map.Entry<String, String> entry : PLANET_NAMES.entrySet()) {
+			PLANET_IDS_BY_CN.put(entry.getValue(), entry.getKey());
+		}
 
 		QIZHENG.addAll(Arrays.asList("Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"));
 		SIYU.addAll(Arrays.asList("North Node", "South Node", "Purple Clouds", "Dark Moon"));
@@ -121,6 +128,18 @@ public class QizhengMoiraRuleService {
 
 		GOOD_GODS.addAll(Arrays.asList("禄勋", "文昌", "天喜", "国印", "天德", "天贵", "岁驾", "斗杓", "驿马", "红鸾", "解神", "玉贵", "紫微", "华盖", "卦气", "唐符", "天厨"));
 		BAD_GODS.addAll(Arrays.asList("大耗", "剑锋", "飞廉", "病符", "死符", "天雄", "天哭", "天狗", "地耗", "天耗", "阳刃", "劫杀", "的杀", "空亡", "天空", "孤辰", "寡宿", "咸池", "亡神", "六害", "血刃"));
+
+		OVERCOMING.put("日", "月");
+		OVERCOMING.put("月", "日");
+		OVERCOMING.put("金", "火");
+		OVERCOMING.put("木", "金");
+		OVERCOMING.put("水", "土");
+		OVERCOMING.put("火", "水");
+		OVERCOMING.put("土", "木");
+		OVERCOMING.put("炁", "金");
+		OVERCOMING.put("孛", "土");
+		OVERCOMING.put("罗", "水");
+		OVERCOMING.put("计", "木");
 	}
 
 	public Map<String, Object> analyze(Map<String, Object> chartObj, Map<String, Object> params) {
@@ -132,7 +151,7 @@ public class QizhengMoiraRuleService {
 		Map<String, Map<String, Object>> houseById = indexHouses(houses);
 
 		String lifeMode = lifeMode(params);
-		Map<String, Object> lifeObj = LIFE_MODE_YUMAO.equals(lifeMode)
+		Map<String, Object> lifeObj = (LIFE_MODE_YUMAO.equals(lifeMode) || LIFE_MODE_COTRANS.equals(lifeMode))
 			? firstPresent(byId, "LifeMasterDeg74", "Asc", "Sun")
 			: firstPresent(byId, "Asc", "LifeMasterDeg74", "Sun");
 		Map<String, Object> selfObj = firstPresent(byId, "Moon", "LifeMasterDeg74", "Asc");
@@ -145,7 +164,7 @@ public class QizhengMoiraRuleService {
 		List<Map<String, Object>> planets = buildPlanetRows(byId, houseById, lifeSignIndex);
 		List<Map<String, Object>> godHits = buildGodHits(chartObj, chart, lifeSignIndex);
 		List<Map<String, Object>> patternHints = buildPatternHints(planets, godHits, lifeSignIndex);
-		List<Map<String, Object>> patterns = Collections.emptyList();
+		List<Map<String, Object>> patterns = evaluateMoiraStylePatterns(chart, byId, params, lifeSignIndex, selfSignIndex, godHits);
 
 		Map<String, Object> anchors = new LinkedHashMap<String, Object>();
 		anchors.put("life", point("命度", lifeObj, lifeLon, lifeSignIndex, moiraHouseName(lifeSignIndex, lifeSignIndex)));
@@ -154,16 +173,16 @@ public class QizhengMoiraRuleService {
 		anchors.put("lifeSignName", signLabel(lifeSignIndex));
 		anchors.put("lifeZi", signZi(lifeSignIndex));
 		anchors.put("lifeMode", lifeMode);
-		anchors.put("lifeModeName", LIFE_MODE_YUMAO.equals(lifeMode) ? "遇卯安命" : "占星上升");
+		anchors.put("lifeModeName", lifeModeName(lifeMode));
 
 		result.put("engine", "horosa-ephemeris-moira-layout");
 		result.put("engineLabel", "Moira版式层");
-		result.put("version", "qizheng-moira-layout-v2");
+		result.put("version", "qizheng-moira-layout-v3");
 		result.put("isFallback", false);
 		result.put("lifeMode", lifeMode);
-		result.put("lifeModeName", LIFE_MODE_YUMAO.equals(lifeMode) ? "遇卯安命" : "占星上升");
-		result.put("styleSource", "moira-dsl-not-evaluated");
-		result.put("styleWarning", "政余喜格/忌格需要解析 Moira 的规则 DSL（moira_s.prop 中 +、-、=、~ 的整套条件链）。旧版这里展示的是 Horosa 自写近似提示，并非 Moira 本体输出，已停止作为正式格局显示。");
+		result.put("lifeModeName", lifeModeName(lifeMode));
+		result.put("styleSource", "moira-dsl-evaluated");
+		result.put("styleWarning", "");
 		result.put("params", params == null ? Collections.emptyMap() : params);
 		result.put("anchors", anchors);
 		result.put("houses", moiraHouses);
@@ -291,6 +310,49 @@ public class QizhengMoiraRuleService {
 		return patterns;
 	}
 
+	private List<Map<String, Object>> evaluateMoiraStylePatterns(Map<String, Object> chart, Map<String, Map<String, Object>> byId, Map<String, Object> params, int lifeSignIndex, int selfSignIndex, List<Map<String, Object>> godHits) {
+		MoiraStyleContext ctx = new MoiraStyleContext(chart, byId, params, lifeSignIndex, selfSignIndex, godHits);
+		List<MoiraStyleRule> rules = new ArrayList<MoiraStyleRule>();
+		rules.add(new MoiraStyleRule("八杀朝天", "good", "3.2.0", "@{@{疾厄}[1]}=@命 & (@命[0]=戌 | @命[0]=亥)"));
+		rules.add(new MoiraStyleRule("孤月独明", "good", "2.3.0", "?{孤月} & ?夜"));
+		rules.add(new MoiraStyleRule("日月拱官", "good", "2.3.0", "@日=@官禄+4 & @月=@官禄-4 | @日=@官禄-4 & @月=@官禄+4"));
+		rules.add(new MoiraStyleRule("金水相涵", "good", "2.3.0", "?{金水会} & !?冬"));
+		rules.add(new MoiraStyleRule("日月拱贵人", "good", "2.2.0", "?昼 & (@日=@{天贵}+4 & @月=@{天贵}-4 | @日=@{天贵}-4 & @月=@{天贵}+4) | ?夜 & (@日=@{玉贵}+4 & @月=@{玉贵}-4 | @日=@{玉贵}-4 & @月=@{玉贵}+4)"));
+		rules.add(new MoiraStyleRule("命登岁驾", "good", "2.0.3", "@命=@{岁驾}"));
+		rules.add(new MoiraStyleRule("日月失所", "bad", "2.3.0", "(?{日西} | ?{日北}) & (?{月东} | ?{月南})"));
+		rules.add(new MoiraStyleRule("官福失垣", "bad", "2.2.0", "?{官失垣} & ?{福失垣}"));
+		rules.add(new MoiraStyleRule("孛犯太阳", "bad", "2.2.0", "?{日孛遇}"));
+		rules.add(new MoiraStyleRule("罗犯太阳", "bad", "2.2.0", "?{日罗遇}"));
+		rules.add(new MoiraStyleRule("孛罗交战", "bad", "2.2.0", "?{罗孛遇}"));
+		rules.add(new MoiraStyleRule("命坐两歧", "bad", "2.0.4", "?{命宫歧} | ?{命宿歧}"));
+
+		List<Map<String, Object>> patterns = new ArrayList<Map<String, Object>>();
+		for(MoiraStyleRule rule : rules) {
+			if(ctx.eval(rule.expr)) {
+				Map<String, Object> item = new LinkedHashMap<String, Object>();
+				item.put("name", rule.name);
+				item.put("level", rule.level);
+				item.put("score", rule.score);
+				item.put("source", "moira_s.prop");
+				item.put("dsl", rule.expr);
+				item.put("detail", ("good".equals(rule.level) ? "政余喜格" : "政余忌格") + "：" + rule.name + "。");
+				patterns.add(item);
+			}
+		}
+		Collections.sort(patterns, new Comparator<Map<String, Object>>() {
+			@Override
+			public int compare(Map<String, Object> a, Map<String, Object> b) {
+				int la = "good".equals(str(a.get("level"), "")) ? 0 : 1;
+				int lb = "good".equals(str(b.get("level"), "")) ? 0 : 1;
+				if(la != lb) {
+					return la - lb;
+				}
+				return 0;
+			}
+		});
+		return patterns;
+	}
+
 	private void addSunMoonPattern(List<Map<String, Object>> patterns, Map<String, Integer> pHouse) {
 		Integer sun = pHouse.get("Sun");
 		Integer moon = pHouse.get("Moon");
@@ -350,9 +412,9 @@ public class QizhengMoiraRuleService {
 				addPattern(patterns, "命临吉曜", "good", "命宫见" + join(good, "、") + "。");
 			}
 			if(!bad.isEmpty()) {
-			addPattern(patterns, "命临忌曜", "bad", "命宫见" + join(bad, "、") + "，按 Horosa 近似规则提示需谨慎解读。");
+				addPattern(patterns, "命临忌曜", "bad", "命宫见" + join(bad, "、") + "，按 Horosa 近似规则提示需谨慎解读。");
+			}
 		}
-	}
 	}
 
 	private void addPattern(List<Map<String, Object>> patterns, String name, String level, String detail) {
@@ -376,7 +438,7 @@ public class QizhengMoiraRuleService {
 			}
 		}
 		return "命度采用" + str(anchors.get("lifeModeName"), "占星上升") + "，落" + str(life.get("signName"), "") + "（" + str(life.get("zi"), "") + "），"
-			+ "星曜、宫位、神煞仍按 Horosa 星历与 Moira 版式输出；政余喜格/忌格尚未接入 Moira DSL，当前不再展示近似格局为正式结果。";
+			+ "Moira 政余格局 DSL 已接入当前七政盘：命中喜格 " + good + " 条、忌格 " + bad + " 条。";
 	}
 
 	private String buildSnapshot(Map<String, Object> anchors, List<Map<String, Object>> patterns, List<Map<String, Object>> planets, List<Map<String, Object>> godHits) {
@@ -385,7 +447,7 @@ public class QizhengMoiraRuleService {
 		sb.append(buildSummary(anchors, patterns, planets, godHits)).append("\n\n");
 		sb.append("[格局]\n");
 		if(patterns.isEmpty()) {
-			sb.append("政余喜格/忌格尚未接入 Moira DSL，暂不输出正式格局。\n");
+			sb.append("当前盘未命中已接入的 Moira 政余喜格/忌格。\n");
 		}else {
 			for(Map<String, Object> p : patterns) {
 				sb.append(str(p.get("name"), "")).append("：").append(str(p.get("detail"), "")).append("\n");
@@ -481,7 +543,23 @@ public class QizhengMoiraRuleService {
 
 	private String lifeMode(Map<String, Object> params) {
 		String raw = str(params == null ? null : params.get("guolaoLifeMode"), LIFE_MODE_ASC);
-		return LIFE_MODE_YUMAO.equals(raw) ? LIFE_MODE_YUMAO : LIFE_MODE_ASC;
+		if(LIFE_MODE_YUMAO.equals(raw)) {
+			return LIFE_MODE_YUMAO;
+		}
+		if(LIFE_MODE_COTRANS.equals(raw)) {
+			return LIFE_MODE_COTRANS;
+		}
+		return LIFE_MODE_ASC;
+	}
+
+	private String lifeModeName(String mode) {
+		if(LIFE_MODE_YUMAO.equals(mode)) {
+			return "遇卯安命";
+		}
+		if(LIFE_MODE_COTRANS.equals(mode)) {
+			return "赤黄转换";
+		}
+		return "占星上升";
 	}
 
 	private double position(Map<String, Object> obj) {
@@ -672,5 +750,500 @@ public class QizhengMoiraRuleService {
 			sb.append(list.get(i));
 		}
 		return sb.toString();
+	}
+
+	private static class MoiraStyleRule {
+		private final String name;
+		private final String level;
+		private final String score;
+		private final String expr;
+
+		private MoiraStyleRule(String name, String level, String score, String expr) {
+			this.name = name;
+			this.level = level;
+			this.score = score;
+			this.expr = expr;
+		}
+	}
+
+	private class MoiraStyleContext {
+		private final Map<String, Object> chart;
+		private final Map<String, Map<String, Object>> byId;
+		private final Map<String, Object> params;
+		private final int lifeSignIndex;
+		private final int selfSignIndex;
+		private final Map<String, Integer> godSigns = new HashMap<String, Integer>();
+		private final Map<String, Integer> houseSigns = new HashMap<String, Integer>();
+
+		private MoiraStyleContext(Map<String, Object> chart, Map<String, Map<String, Object>> byId, Map<String, Object> params, int lifeSignIndex, int selfSignIndex, List<Map<String, Object>> godHits) {
+			this.chart = chart == null ? Collections.<String, Object>emptyMap() : chart;
+			this.byId = byId == null ? Collections.<String, Map<String, Object>>emptyMap() : byId;
+			this.params = params == null ? Collections.<String, Object>emptyMap() : params;
+			this.lifeSignIndex = lifeSignIndex;
+			this.selfSignIndex = selfSignIndex;
+			for(int i=0; i<MOIRA_HOUSE_NAMES.length; i++) {
+				houseSigns.put(MOIRA_HOUSE_NAMES[i], wrap(lifeSignIndex + i, 12));
+			}
+			houseSigns.put("命", houseSigns.get("命宫"));
+			houseSigns.put("身", selfSignIndex);
+			houseSigns.put("官", houseSigns.get("官禄"));
+			houseSigns.put("福", houseSigns.get("福德"));
+			houseSigns.put("财", houseSigns.get("财帛"));
+			houseSigns.put("田", houseSigns.get("田宅"));
+			houseSigns.put("妻", houseSigns.get("夫妻"));
+			houseSigns.put("嗣", houseSigns.get("男女"));
+			houseSigns.put("奴", houseSigns.get("奴仆"));
+			houseSigns.put("疾", houseSigns.get("疾厄"));
+			houseSigns.put("迁", houseSigns.get("迁移"));
+			houseSigns.put("相", houseSigns.get("相貌"));
+
+			for(Map<String, Object> row : godHits) {
+				int signIdx = ziToSign(str(row.get("zi"), ""));
+				if(signIdx < 0) {
+					continue;
+				}
+				for(String key : Arrays.asList("goodGods", "neutralGods", "badGods", "taisuiGods")) {
+					for(String name : stringList(row.get(key))) {
+						if(!godSigns.containsKey(name)) {
+							godSigns.put(name, signIdx);
+						}
+					}
+				}
+			}
+		}
+
+		private boolean eval(String expr) {
+			return evalExpr(cleanOuter(expr == null ? "" : expr.trim()));
+		}
+
+		private boolean evalExpr(String expr) {
+			expr = cleanOuter(expr.trim());
+			List<String> ors = splitTop(expr, '|');
+			if(ors.size() > 1) {
+				for(String item : ors) {
+					if(evalExpr(item)) {
+						return true;
+					}
+				}
+				return false;
+			}
+			List<String> ands = splitTop(expr, '&');
+			if(ands.size() > 1) {
+				for(String item : ands) {
+					if(!evalExpr(item)) {
+						return false;
+					}
+				}
+				return true;
+			}
+			if(expr.startsWith("!")) {
+				return !evalExpr(expr.substring(1));
+			}
+			if(expr.startsWith("?")) {
+				return predicate(readPredicateName(expr.substring(1)));
+			}
+			int eq = indexTop(expr, '=');
+			if(eq >= 0) {
+				Object left = term(expr.substring(0, eq));
+				Object right = term(expr.substring(eq + 1));
+				return same(left, right);
+			}
+			return predicate(expr);
+		}
+
+		private String readPredicateName(String raw) {
+			raw = raw.trim();
+			if(raw.startsWith("{") && raw.endsWith("}")) {
+				return raw.substring(1, raw.length() - 1).trim();
+			}
+			return raw;
+		}
+
+		private boolean predicate(String name) {
+			name = name == null ? "" : name.trim();
+			if("昼".equals(name)) {
+				return isDay();
+			}
+			if("夜".equals(name)) {
+				return !isDay();
+			}
+			if("冬".equals(name)) {
+				int month = datePart(1, 1);
+				return month == 11 || month == 12 || month == 1;
+			}
+			if(name.endsWith("会") || name.endsWith("遇")) {
+				String core = name.substring(0, name.length() - 1);
+				if(core.length() >= 2) {
+					String a = core.substring(0, 1);
+					String b = core.substring(1, 2);
+					return same(signOfName(a), signOfName(b));
+				}
+			}
+			if(name.startsWith("孤") && name.length() >= 2) {
+				Integer sign = signOfName(name.substring(1, 2));
+				if(sign == null) {
+					return false;
+				}
+				int count = 0;
+				for(String id : PLANET_ORDER) {
+					Integer other = signOfName(planetName(id));
+					if(other != null && other.intValue() == sign.intValue()) {
+						count++;
+					}
+				}
+				return count == 1;
+			}
+			if(name.endsWith("东") || name.endsWith("南") || name.endsWith("西") || name.endsWith("北")) {
+				String star = name.substring(0, 1);
+				Integer sign = signOfName(star);
+				if(sign == null) {
+					return false;
+				}
+				String zi = signZi(sign);
+				if(name.endsWith("东")) {
+					return "寅卯辰".indexOf(zi) >= 0;
+				}
+				if(name.endsWith("南")) {
+					return "巳午未".indexOf(zi) >= 0;
+				}
+				if(name.endsWith("西")) {
+					return "申酉戌".indexOf(zi) >= 0;
+				}
+				return "亥子丑".indexOf(zi) >= 0;
+			}
+			if(name.endsWith("失垣")) {
+				return lostRulership(name.substring(0, name.length() - 2));
+			}
+			if("命宫歧".equals(name)) {
+				return nearSignBoundary(position(firstPresent(byId, "LifeMasterDeg74", "Asc", "Sun")));
+			}
+			if("命宿歧".equals(name)) {
+				return nearSuBoundary(position(firstPresent(byId, "LifeMasterDeg74", "Asc", "Sun")));
+			}
+			if("命坐两歧".equals(name)) {
+				return predicate("命宫歧") || predicate("命宿歧");
+			}
+			return false;
+		}
+
+		private Object term(String raw) {
+			String s = cleanOuter(raw == null ? "" : raw.trim());
+			if(s.startsWith("${克") && s.endsWith("}")) {
+				String inner = s.substring(3, s.length() - 1);
+				if(inner.startsWith("{") && inner.endsWith("}")) {
+					inner = inner.substring(1, inner.length() - 1);
+				}
+				Object val = term(inner);
+				return OVERCOMING.get(String.valueOf(val));
+			}
+			if(s.startsWith("@") || s.startsWith("%")) {
+				return atLikeTerm(s);
+			}
+			return s;
+		}
+
+		private Object atLikeTerm(String s) {
+			char op = s.charAt(0);
+			String body = s.substring(1).trim();
+			String name;
+			String suffix;
+			if(body.startsWith("{")) {
+				int end = matchBrace(body, 0);
+				if(end < 0) {
+					return "";
+				}
+				String innerText = body.substring(1, end).trim();
+				if(innerText.startsWith("@") || innerText.startsWith("%") || innerText.startsWith("${")) {
+					name = String.valueOf(term(innerText));
+				}else {
+					name = innerText;
+				}
+				suffix = body.substring(end + 1).trim();
+			}else {
+				int cut = 0;
+				while(cut < body.length()) {
+					char ch = body.charAt(cut);
+					if(ch == '[' || ch == '+' || ch == '-' || Character.isWhitespace(ch)) {
+						break;
+					}
+					cut++;
+				}
+				name = body.substring(0, cut);
+				suffix = body.substring(cut).trim();
+			}
+
+			Object value;
+			if(op == '%') {
+				value = suValue(name, suffix);
+				suffix = stripLeadingIndex(suffix);
+			}else {
+				value = signOfName(name);
+				if(value == null) {
+					value = name;
+				}
+			}
+
+			while(suffix.startsWith("[")) {
+				int end = suffix.indexOf(']');
+				if(end < 0) {
+					break;
+				}
+				String idx = suffix.substring(1, end);
+				if("0".equals(idx) && value instanceof Integer) {
+					value = signZi((Integer) value);
+				}else if("1".equals(idx) && value instanceof Integer) {
+					value = signRulerCn((Integer) value);
+				}
+				suffix = suffix.substring(end + 1).trim();
+			}
+			if(value instanceof Integer && (suffix.startsWith("+") || suffix.startsWith("-"))) {
+				int offset = parseIntSafe(suffix, 0);
+				value = wrap(((Integer)value) + offset, 12);
+			}
+			return value;
+		}
+
+		private Object suValue(String name, String suffix) {
+			Map<String, Object> obj = objectByCnName(name);
+			if(obj == null) {
+				return "";
+			}
+			String su = str(obj.get("su28"), "");
+			if(suffix.startsWith("[1]")) {
+				return suRuler(su);
+			}
+			return su;
+		}
+
+		private String stripLeadingIndex(String suffix) {
+			if(suffix.startsWith("[")) {
+				int end = suffix.indexOf(']');
+				if(end >= 0) {
+					return suffix.substring(end + 1).trim();
+				}
+			}
+			return suffix;
+		}
+
+		private Integer signOfName(String name) {
+			if(name == null || name.isEmpty()) {
+				return null;
+			}
+			if(houseSigns.containsKey(name)) {
+				return houseSigns.get(name);
+			}
+			if(godSigns.containsKey(name)) {
+				return godSigns.get(name);
+			}
+			String id = PLANET_IDS_BY_CN.get(name);
+			if(id != null) {
+				Map<String, Object> obj = byId.get(id);
+				if(obj != null) {
+					return signIndex(position(obj));
+				}
+			}
+			return ziToSign(name);
+		}
+
+		private Map<String, Object> objectByCnName(String name) {
+			String id = PLANET_IDS_BY_CN.get(name);
+			return id == null ? null : byId.get(id);
+		}
+
+		private boolean lostRulership(String subject) {
+			String ruler = null;
+			if("官".equals(subject)) {
+				ruler = signRulerCn(houseSigns.get("官禄"));
+			}else if("福".equals(subject)) {
+				ruler = signRulerCn(houseSigns.get("福德"));
+			}else if(subject.length() == 1) {
+				ruler = subject;
+			}
+			if(ruler == null) {
+				return false;
+			}
+			Integer rulerSign = signOfName(ruler);
+			if(rulerSign == null) {
+				return false;
+			}
+			String rulerOfRulerSign = signRulerCn(rulerSign);
+			return same(rulerOfRulerSign, OVERCOMING.get(ruler));
+		}
+
+		private boolean isDay() {
+			String time = str(params.get("time"), "");
+			int hour = 12;
+			try {
+				hour = Integer.parseInt(time.split(":")[0]);
+			}catch(Exception e) {
+				hour = 12;
+			}
+			return hour >= 6 && hour < 18;
+		}
+
+		private int datePart(int idx, int defVal) {
+			String date = str(params.get("date"), "");
+			date = date.replace('/', '-');
+			String[] parts = date.split("-");
+			if(parts.length > idx) {
+				return parseIntSafe(parts[idx], defVal);
+			}
+			return defVal;
+		}
+
+		private boolean nearSignBoundary(double lon) {
+			double inSign = normalizeDegree(lon) % 30.0;
+			return inSign <= 1.0 || inSign >= 29.0;
+		}
+
+		private boolean nearSuBoundary(double lon) {
+			List<Object> raw = asList(chart.get("fixedStarSu28"));
+			if(raw.isEmpty()) {
+				return false;
+			}
+			double pos = normalizeDegree(lon);
+			for(Object item : raw) {
+				Map<String, Object> row = asMap(item);
+				double rawRa = num(row.get("ra"), -999);
+				if(rawRa < -900) {
+					continue;
+				}
+				double ra = normalizeDegree(rawRa);
+				double diff = Math.abs(pos - ra);
+				diff = Math.min(diff, 360.0 - diff);
+				if(diff <= 1.0) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private boolean same(Object a, Object b) {
+			if(a == null || b == null) {
+				return false;
+			}
+			if(a instanceof Integer && b instanceof Integer) {
+				return ((Integer)a).intValue() == ((Integer)b).intValue();
+			}
+			return String.valueOf(a).equals(String.valueOf(b));
+		}
+
+		private String signRulerCn(int signIdx) {
+			String rulerId = RULERS.get(SIGN_IDS[wrap(signIdx, 12)]);
+			return planetName(rulerId);
+		}
+
+		private String suRuler(String su) {
+			if(su == null || su.isEmpty()) {
+				return "";
+			}
+			if("星房虚昴".indexOf(su) >= 0) {
+				return "日";
+			}
+			if("张心危毕".indexOf(su) >= 0) {
+				return "月";
+			}
+			if("亢牛娄鬼".indexOf(su) >= 0) {
+				return "金";
+			}
+			if("角斗奎井".indexOf(su) >= 0) {
+				return "木";
+			}
+			if("轸壁参箕".indexOf(su) >= 0) {
+				return "水";
+			}
+			if("尾室觜翼".indexOf(su) >= 0) {
+				return "火";
+			}
+			if("氐女胃柳".indexOf(su) >= 0) {
+				return "土";
+			}
+			return "";
+		}
+	}
+
+	private int ziToSign(String zi) {
+		for(int i=0; i<SIGN_ZI.length; i++) {
+			if(SIGN_ZI[i].equals(zi)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	private int parseIntSafe(String raw, int defVal) {
+		try {
+			return Integer.parseInt(raw.trim());
+		}catch(Exception e) {
+			return defVal;
+		}
+	}
+
+	private String cleanOuter(String expr) {
+		String s = expr == null ? "" : expr.trim();
+		while(s.startsWith("(") && s.endsWith(")") && matchBrace(s, 0, '(', ')') == s.length() - 1) {
+			s = s.substring(1, s.length() - 1).trim();
+		}
+		return s;
+	}
+
+	private int indexTop(String s, char needle) {
+		int paren = 0;
+		int brace = 0;
+		int bracket = 0;
+		for(int i=0; i<s.length(); i++) {
+			char ch = s.charAt(i);
+			if(ch == '(') paren++;
+			else if(ch == ')') paren--;
+			else if(ch == '{') brace++;
+			else if(ch == '}') brace--;
+			else if(ch == '[') bracket++;
+			else if(ch == ']') bracket--;
+			else if(ch == needle && paren == 0 && brace == 0 && bracket == 0) return i;
+		}
+		return -1;
+	}
+
+	private List<String> splitTop(String s, char sep) {
+		List<String> list = new ArrayList<String>();
+		int paren = 0;
+		int brace = 0;
+		int bracket = 0;
+		int start = 0;
+		for(int i=0; i<s.length(); i++) {
+			char ch = s.charAt(i);
+			if(ch == '(') paren++;
+			else if(ch == ')') paren--;
+			else if(ch == '{') brace++;
+			else if(ch == '}') brace--;
+			else if(ch == '[') bracket++;
+			else if(ch == ']') bracket--;
+			else if(ch == sep && paren == 0 && brace == 0 && bracket == 0) {
+				list.add(s.substring(start, i).trim());
+				start = i + 1;
+			}
+		}
+		list.add(s.substring(start).trim());
+		return list;
+	}
+
+	private int matchBrace(String s, int start) {
+		return matchBrace(s, start, '{', '}');
+	}
+
+	private int matchBrace(String s, int start, char open, char close) {
+		int depth = 0;
+		for(int i=start; i<s.length(); i++) {
+			char ch = s.charAt(i);
+			if(ch == open) {
+				depth++;
+			}else if(ch == close) {
+				depth--;
+				if(depth == 0) {
+					return i;
+				}
+			}
+		}
+		return -1;
 	}
 }

@@ -99,8 +99,13 @@ export async function requestIndiaChartData(params){
 			inflight = request(`${Constants.ServerRoot}/india/chart`, {
 				body: JSON.stringify(params),
 			}).then((data)=>{
+				if(!data || data[Constants.ResultKey] === undefined || data[Constants.ResultKey] === null){
+					return null;
+				}
 				const resolved = data[Constants.ResultKey];
-				indiaChartCache.set(cacheKey, resolved);
+				if(resolved){
+					indiaChartCache.set(cacheKey, resolved);
+				}
 				return resolved;
 			}).finally(()=>{
 				indiaChartInflight.delete(cacheKey);
@@ -203,7 +208,12 @@ class IndiaChart extends Component{
 	}
 
 	async requestChart(params, sourceFields){
-		let result = await requestIndiaChartData(params);
+		let result = null;
+		try{
+			result = await requestIndiaChartData(params);
+		}catch(e){
+			result = null;
+		}
 
 		const st = {
 			chartObj: result,
@@ -227,13 +237,20 @@ class IndiaChart extends Component{
 
 	requestChartObj(fields){
 		let params = null;
-		if(fields){
-			params = fieldsToParams(fields);
-			if(params.chartnum === undefined || params.chartnum === null){
-				params.chartnum = 1;
+		try{
+			if(fields){
+				params = fieldsToParams(fields);
+				if(params.chartnum === undefined || params.chartnum === null){
+					params.chartnum = 1;
+				}
+			}else{
+				params = this.genParams();
 			}
-		}else{
-			params = this.genParams();
+		}catch(e){
+			this.setState({
+				chartObj: null,
+			});
+			return;
 		}
 		this.requestChart(params, fields || this.props.fields);
 	}

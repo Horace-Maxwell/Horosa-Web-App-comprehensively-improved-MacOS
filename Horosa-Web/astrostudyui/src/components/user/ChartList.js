@@ -11,6 +11,18 @@ import XQIcon from '../xq-icons';
 
 const Option = XQSelect.Option;
 
+const primaryActionIconStyle = {
+	fontSize: 24,
+};
+const primaryActionLinkStyle = {
+	display: 'inline-flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+	width: 34,
+	height: 34,
+	verticalAlign: 'middle',
+};
+
 class ChartList extends Component{
 
 	constructor(props) {
@@ -352,18 +364,18 @@ class ChartList extends Component{
 		},{
 			title: '操作',
 			key: 'Action',
-				render: (text, record, index)=>{
-					let dom = (
+			render: (text, record, index)=>{
+				let dom = (
+					<span>
+						<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>&emsp;
+					</span>
+				);
+				const isLocalRecord = record && record.cid && (record.cid + '').indexOf('local-') === 0;
+				if((this.props.userInfo && this.props.userInfo.uid === record.creator) || isLocalRecord){
+					dom = (
 						<span>
-							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" /></a>&emsp;
-						</span>
-					);
-					const isLocalRecord = record && record.cid && (record.cid + '').indexOf('local-') === 0;
-					if((this.props.userInfo && this.props.userInfo.uid === record.creator) || isLocalRecord){
-						dom = (
-							<span>
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" /></a>&emsp;
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" /></a>&emsp;
+							<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>&emsp;
+							<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" style={primaryActionIconStyle} /></a>&emsp;
 							<Popconfirm title={`确定删除星盘：${record.name} 吗?`} onConfirm={()=>{this.clickRemove(record);}}>
 								<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" /></a>
 							</Popconfirm>&emsp;

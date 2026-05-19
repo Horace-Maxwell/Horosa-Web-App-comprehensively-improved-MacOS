@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import * as AstroConst from '../../constants/AstroConst';
-import { GUOLAO_LIFE_MODE_YUMAO, getStoredGuolaoLifeMode, normalizeGuolaoLifeMode, } from './GuoLaoChartStyle';
+import { GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, getStoredGuolaoLifeMode, normalizeGuolaoLifeMode, } from './GuoLaoChartStyle';
 import './GuoLaoMoiraWheel.less';
 
 const R = 560;
@@ -291,9 +291,14 @@ function godColumnStep(count){
 	return {minStep: 2.7, maxStep: 5.1, arc: 25};
 }
 
-function objectRa(obj){
-	const num = Number(obj && (obj.ra !== undefined ? obj.ra : obj.lon));
+function objectRa(obj, preferLon = false){
+	const num = Number(obj && (preferLon && obj.lon !== undefined ? obj.lon : (obj.ra !== undefined ? obj.ra : obj.lon)));
 	return Number.isFinite(num) ? num : null;
+}
+
+function isZhengSiderealChart(chart){
+	const params = chart && chart.params ? chart.params : {};
+	return Number(params.doubingSu28) === 4 || Number(params.guolaoZhengSidereal) === 1;
 }
 
 function signIndexFromDegree(degree){
@@ -427,11 +432,11 @@ function resolveLabelDegrees(group, minGap){
 	}));
 }
 
-function planetPlacements(chart, inner, outer, dir, size){
+function planetPlacements(chart, inner, outer, dir, size, preferLon = false){
 	const objects = chart && chart.objects ? chart.objects : [];
 	const items = PLANET_DEFS.map((def, order)=>{
 		const obj = objects.find((item)=>item.id === def.id);
-		const degree = objectRa(obj);
+		const degree = objectRa(obj, preferLon);
 		if(!obj || degree === null){
 			return null;
 		}
@@ -463,10 +468,12 @@ function lifeDegree(chart, fields){
 	const life = findObject(chart, AstroConst.LIFEMASTERDEG74);
 	const asc = findObject(chart, AstroConst.ASC);
 	const sun = findObject(chart, AstroConst.SUN);
-	const useYuMao = lifeModeFromFields(fields) === GUOLAO_LIFE_MODE_YUMAO;
-	const primary = useYuMao ? objectRa(life) : objectRa(asc);
-	const secondary = useYuMao ? objectRa(asc) : objectRa(life);
-	const val = primary !== null ? primary : (secondary !== null ? secondary : objectRa(sun));
+	const lifeMode = lifeModeFromFields(fields);
+	const useLifeMaster = lifeMode === GUOLAO_LIFE_MODE_YUMAO || lifeMode === GUOLAO_LIFE_MODE_COTRANS;
+	const preferLon = isZhengSiderealChart(chart);
+	const primary = useLifeMaster ? objectRa(life, preferLon) : objectRa(asc, preferLon);
+	const secondary = useLifeMaster ? objectRa(asc, preferLon) : objectRa(life, preferLon);
+	const val = primary !== null ? primary : (secondary !== null ? secondary : objectRa(sun, preferLon));
 	return val === null ? 0 : val;
 }
 
@@ -790,7 +797,7 @@ class GuoLaoMoiraWheel extends Component{
 
 	renderPlanetRing(chart, opt){
 		const nodes = [];
-		const placements = planetPlacements(chart, opt.inner, opt.outer, opt.dir, opt.size);
+		const placements = planetPlacements(chart, opt.inner, opt.outer, opt.dir, opt.size, opt.preferLon);
 		placements.forEach((item, idx)=>{
 			const markTheta = moiraThetaFromDegree(item.degree);
 			const labelTheta = moiraThetaFromDegree(item.labelDegree);
@@ -821,6 +828,8 @@ class GuoLaoMoiraWheel extends Component{
 	}
 
 	renderPlanetLayers(birthChart, transitChart){
+		const birthPreferLon = isZhengSiderealChart(birthChart);
+		const transitPreferLon = isZhengSiderealChart(transitChart || birthChart);
 		return (
 			<g>
 				{this.renderPlanetRing(transitChart || birthChart, {
@@ -833,6 +842,7 @@ class GuoLaoMoiraWheel extends Component{
 					markColor: NOW_MARK,
 					markInner: r(4) + 2,
 					markOuter: r(STELLAR_TICK_INNER) + 1,
+					preferLon: transitPreferLon,
 				})}
 				{this.renderPlanetRing(birthChart, {
 					kind: 'birth',
@@ -844,6 +854,7 @@ class GuoLaoMoiraWheel extends Component{
 					markColor: BLACK,
 					markInner: r(STELLAR_TICK_OUTER) - 1,
 					markOuter: r(7) + 11,
+					preferLon: birthPreferLon,
 				})}
 			</g>
 		);
@@ -999,9 +1010,10 @@ class GuoLaoMoiraWheel extends Component{
 
 	render(){
 		const root = this.props.rootValue || {};
-		const chart = this.props.value || root.chart || {};
+		const rawChart = this.props.value || root.chart || {};
+		const chart = root.params ? {...rawChart, params: root.params} : rawChart;
 		const transitRoot = this.props.transitValue || {};
-		const transitChart = transitRoot.chart || null;
+		const transitChart = transitRoot.chart ? (transitRoot.params ? {...transitRoot.chart, params: transitRoot.params} : transitRoot.chart) : null;
 		const height = this.props.height || 740;
 		return (
 			<div className="horosa-guolao-moira-wheel" style={{height}} ref={this.containerRef}>

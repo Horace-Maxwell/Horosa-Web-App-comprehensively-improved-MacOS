@@ -51,6 +51,12 @@ SU28_MODE_REAL = 0
 SU28_MODE_DOUBING = 1
 SU28_MODE_MOIRA_CURRENT = 2
 SU28_MODE_MOIRA_KAIXI = 3
+SU28_MODE_ZHENG_SIDEREAL = 4
+ZHENG_SIDEREAL_MODE = {
+    'mode': swe.SE_SIDM_USER,
+    't0': 2195875.5,
+    'ayan_t0': 4.0,
+}
 
 MOIRA_STELLAR_ORDER = [
     '娄', '胃', '昴', '毕', '觜', '参', '井', '鬼', '柳', '星', '张', '翼', '轸', '角',
@@ -168,7 +174,7 @@ class PerChart:
             mode = int(value)
         except:
             return SU28_MODE_REAL
-        if mode in (SU28_MODE_REAL, SU28_MODE_DOUBING, SU28_MODE_MOIRA_CURRENT, SU28_MODE_MOIRA_KAIXI):
+        if mode in (SU28_MODE_REAL, SU28_MODE_DOUBING, SU28_MODE_MOIRA_CURRENT, SU28_MODE_MOIRA_KAIXI, SU28_MODE_ZHENG_SIDEREAL):
             return mode
         return SU28_MODE_REAL
 
@@ -249,10 +255,15 @@ class PerChart:
         if 'pdTimeKey' in data.keys():
             self.pdTimeKey = data['pdTimeKey']
 
+        self.su28Mode = self.parseSu28Mode(data.get('doubingSu28', SU28_MODE_REAL))
+        self.isZhengSidereal = self.su28Mode == SU28_MODE_ZHENG_SIDEREAL or data.get('guolaoZhengSidereal') == 1 or data.get('guolaoZhengSidereal') == '1'
+
         self.zodiacal = const.TROPICAL
         if 'zodiacal' in data.keys():
             if data['zodiacal'] == 1 or data['zodiacal'] == const.SIDEREAL:
                 self.zodiacal = const.SIDEREAL
+        if self.isZhengSidereal:
+            self.zodiacal = const.SIDEREAL
 
         self.dateTime = Datetime(self.date, self.time, self.zone)
         self.pos = GeoPos(self.lat, self.lon)
@@ -276,8 +287,8 @@ class PerChart:
             self.objlists.append(const.SUN)
 
         self.eastRa = None
-        self.su28Mode = self.parseSu28Mode(data.get('doubingSu28', SU28_MODE_REAL))
         self.isDoubingSu28 = self.su28Mode == SU28_MODE_DOUBING
+        siderealMode = ZHENG_SIDEREAL_MODE if self.isZhengSidereal else None
 
         self.needpars = True
         if 'needpars' in data.keys():
@@ -287,10 +298,10 @@ class PerChart:
         ids.extend(self.objlists)
 
         if self.tradition:
-            self.chart = Chart(self.dateTime, self.pos, self.zodiacal, hsys=self.house, needpars=self.needpars)
+            self.chart = Chart(self.dateTime, self.pos, self.zodiacal, hsys=self.house, needpars=self.needpars, sidereal_mode=siderealMode)
         else:
             self.chart = Chart(self.dateTime, self.pos, self.zodiacal,
-                               hsys=self.house, IDs=ids, needpars=self.needpars)
+                               hsys=self.house, IDs=ids, needpars=self.needpars, sidereal_mode=siderealMode)
         if const.SATURN in objset and const.MARS in objset and const.JUPITER in objset and const.VENUS in objset:
             self.objlists.extend(const.LIST_MIDDLE_POINTS)
 

@@ -51,12 +51,21 @@ public class ChartController {
 			if(ConvertUtility.getValueAsInt(args.get("doubingSu28"), 0) == SU28_MODE_ZHENG_SIDEREAL) {
 				astroArgs = new HashMap<String, Object>();
 				astroArgs.putAll(args);
-				astroArgs.put("doubingSu28", 2);
+				astroArgs.put("zodiacal", 1);
+				astroArgs.put("guolaoZhengSidereal", 1);
 			}
 			Map<String, Object> res = AstroHelper.getChart(astroArgs);
 			Map<String, Object> reqparams = (Map<String, Object>) res.get("params");
 			if(reqparams != null) {
 				reqparams.put("doubingSu28", args.get("doubingSu28"));
+				if(args.containsKey("guolaoLifeMode")) {
+					reqparams.put("guolaoLifeMode", args.get("guolaoLifeMode"));
+					reqparams.put("_guolaoLifeRev", "life_cotrans_v4");
+				}
+				if(ConvertUtility.getValueAsInt(args.get("doubingSu28"), 0) == SU28_MODE_ZHENG_SIDEREAL) {
+					reqparams.put("zodiacal", 1);
+					reqparams.put("guolaoZhengSidereal", 1);
+				}
 			}
 			int ad = ConvertUtility.getValueAsInt(args.get("ad"), 1);
 			String zone = ConvertUtility.getValueAsString(args.get("zone"));
@@ -68,7 +77,11 @@ public class ChartController {
 			Map<String, Object> map = bz.getNongli();
 			if(res.containsKey("chart")) {
 				Map<String, Object> chart = (Map<String, Object>) res.get("chart");
-				bz.genLifeMasterDeg(chart);
+				String guolaoLifeMode = ConvertUtility.getValueAsString(args.get("guolaoLifeMode"));
+				String guolaoSunRiseTime = reqparams == null ? null : ConvertUtility.getValueAsString(reqparams.get("guolaoSunRiseTime"));
+				boolean zhengSidereal = ConvertUtility.getValueAsInt(args.get("doubingSu28"), 0) == SU28_MODE_ZHENG_SIDEREAL
+					|| ConvertUtility.getValueAsInt(args.get("guolaoZhengSidereal"), 0) == 1;
+				bz.genLifeMasterDeg(chart, guolaoLifeMode, guolaoSunRiseTime, zhengSidereal);
 				applyZhengSiderealSu28(chart, args);
 				chart.put("nongli", map);
 			}else {
@@ -123,7 +136,7 @@ public class ChartController {
 		for(int i=0; i<ZHENG_SU28_NAMES.length; i++) {
 			Map<String, Object> row = new HashMap<String, Object>();
 			row.put("name", ZHENG_SU28_NAMES[i]);
-			row.put("ra", normalizeDegree(ZHENG_SIDEREAL_STELLAR_RA[i] + ayanamsha));
+			row.put("ra", normalizeDegree(ZHENG_SIDEREAL_STELLAR_RA[i]));
 			row.put("siderealRa", ZHENG_SIDEREAL_STELLAR_RA[i]);
 			row.put("source", "zheng-sidereal");
 			stars.add(row);
@@ -294,6 +307,7 @@ public class ChartController {
 		params.put("doubingSu28", getSu28Mode());
 		if(TransData.containsParam("guolaoLifeMode")) {
 			params.put("guolaoLifeMode", TransData.get("guolaoLifeMode"));
+			params.put("_guolaoLifeRev", "life_cotrans_v4");
 		}
 		params.put("strongRecption", TransData.getValueAsBool("strongRecption", false));
 		params.put("virtualPointReceiveAsp", TransData.getValueAsBool("virtualPointReceiveAsp", false));

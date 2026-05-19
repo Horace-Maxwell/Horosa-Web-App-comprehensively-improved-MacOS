@@ -12,7 +12,7 @@ import GuoLaoChart from './GuoLaoChart';
 import GuoLaoMoiraPanel from './GuoLaoMoiraPanel';
 import GuoLaoMoiraWheel from './GuoLaoMoiraWheel';
 import GuoLaoMoiraPickWheel from './GuoLaoMoiraPickWheel';
-import { GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_LIFE_MODE_YUMAO, getStoredGuolaoChartStyle, getStoredGuolaoLifeMode, getStoredGuolaoSu28Mode, getStoredMoiraTransitGodsVisible, normalizeGuolaoLifeMode, setStoredGuolaoChartStyle, setStoredGuolaoLifeMode, setStoredGuolaoSu28Mode, setStoredMoiraTransitGodsVisible, } from './GuoLaoChartStyle';
+import { GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, getStoredGuolaoChartStyle, getStoredGuolaoLifeMode, getStoredGuolaoSu28Mode, getStoredMoiraTransitGodsVisible, normalizeGuolaoLifeMode, setStoredGuolaoChartStyle, setStoredGuolaoLifeMode, setStoredGuolaoSu28Mode, setStoredMoiraTransitGodsVisible, } from './GuoLaoChartStyle';
 import { fetchMoiraQizhengRules, } from '../../services/qizheng';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import * as AstroText from '../../constants/AstroText';
@@ -129,7 +129,8 @@ const MOIRA_SPEED_LIMITS = {
 };
 
 const GUOLAO_CACHE_MAX = 96;
-const GUOLAO_SU28_CACHE_REV = 'guolao_moira_su28_v3';
+const GUOLAO_SU28_CACHE_REV = 'guolao_moira_su28_v6_zheng_yumao';
+const GUOLAO_SU28_MODE_ZHENG_SIDEREAL = 4;
 const guolaoMem = new Map();
 const guolaoInflight = new Map();
 
@@ -546,6 +547,7 @@ function normalizeChartParams(input){
 		zodiacal: normalizeNumText(src.zodiacal, 0),
 		tradition: normalizeNumText(src.tradition, 0),
 		doubingSu28: normalizeNumText(src.doubingSu28, 0),
+		guolaoZhengSidereal: normalizeNumText(src.guolaoZhengSidereal, 0),
 		guolaoLifeMode: normalizeGuolaoLifeMode(src.guolaoLifeMode),
 		strongRecption: normalizeNumText(src.strongRecption, 0),
 		simpleAsp: normalizeNumText(src.simpleAsp, 0),
@@ -730,7 +732,14 @@ function guolaoLifeModeFromFields(fields){
 }
 
 function guolaoLifeModeName(mode){
-	return normalizeGuolaoLifeMode(mode) === GUOLAO_LIFE_MODE_YUMAO ? '遇卯安命' : '占星上升';
+	const normalized = normalizeGuolaoLifeMode(mode);
+	if(normalized === GUOLAO_LIFE_MODE_YUMAO){
+		return '遇卯安命';
+	}
+	if(normalized === GUOLAO_LIFE_MODE_COTRANS){
+		return '赤黄转换';
+	}
+	return '占星上升';
 }
 
 function resolveHouseStartMode(fields){
@@ -932,6 +941,7 @@ function buildGuolaoSnapshotTextV2(params, result, planetDisplay, fields){
 }
 
 function fieldsToParams(fields){
+	const su28Mode = Number(fields.doubingSu28.value);
 	const params = {
 		date: fields.date.value.format('YYYY/MM/DD'),
 		time: fields.time.value.format('HH:mm:ss'),
@@ -941,9 +951,10 @@ function fieldsToParams(fields){
 		gpsLat: fields.gpsLat.value,
 		gpsLon: fields.gpsLon.value,
 		hsys: 0,
-		zodiacal: 0,
+		zodiacal: su28Mode === GUOLAO_SU28_MODE_ZHENG_SIDEREAL ? 1 : 0,
 		tradition: fields.tradition.value,
 		doubingSu28: fields.doubingSu28.value,
+		guolaoZhengSidereal: su28Mode === GUOLAO_SU28_MODE_ZHENG_SIDEREAL ? 1 : 0,
 		guolaoLifeMode: guolaoLifeModeFromFields(fields),
 		strongRecption: fields.strongRecption.value,
 		simpleAsp: fields.simpleAsp.value,
@@ -1162,6 +1173,8 @@ class GuoLaoChartMain extends Component{
 			params.gpsLon = baseParams.gpsLon;
 			params.gpsLat = baseParams.gpsLat;
 			params.doubingSu28 = baseParams.doubingSu28;
+			params.guolaoZhengSidereal = baseParams.guolaoZhengSidereal;
+			params.zodiacal = baseParams.zodiacal;
 			params.guolaoLifeMode = baseParams.guolaoLifeMode;
 			params.tradition = baseParams.tradition;
 			params.strongRecption = baseParams.strongRecption;
@@ -1431,15 +1444,10 @@ class GuoLaoChartMain extends Component{
 		const good = patterns.filter((item)=>item.level === 'good');
 		const bad = patterns.filter((item)=>item.level === 'bad');
 		const other = patterns.filter((item)=>item.level !== 'good' && item.level !== 'bad');
-		const renderCards = (list, emptyText)=>(
-			<div className="horosa-guolao-quick-card-grid">
-				{list.map((item, idx)=>(
-					<div className={`horosa-guolao-quick-card horosa-guolao-quick-pattern-${item.level || 'neutral'}`} key={`${item.name}-${idx}`}>
-						<div className="horosa-guolao-quick-card-title">{item.name}</div>
-						<div className="horosa-guolao-quick-card-text">{item.detail || 'Moira 规则命中，但后端未返回细节。'}</div>
-					</div>
-				))}
-				{list.length === 0 ? this.renderMoiraEmpty(emptyText) : null}
+		const renderLine = (label, list, emptyText)=>(
+			<div className={`horosa-guolao-quick-pattern-line horosa-guolao-quick-pattern-line-${label === '政余喜格' ? 'good' : 'bad'}`}>
+				<span>{label}：</span>
+				<strong>{list.length ? list.map((item)=>item.name).join('　') : emptyText}</strong>
 			</div>
 		);
 		return (
@@ -1447,9 +1455,20 @@ class GuoLaoChartMain extends Component{
 				{warning ? this.renderMoiraSection('格局数据源', (
 					<div className="horosa-guolao-quick-warning">{warning}</div>
 				)) : null}
-				{this.renderMoiraSection('政余喜格', renderCards(good, warning ? 'Moira 真实喜格 DSL 尚未接入，暂不输出正式喜格。' : '当前盘未命中已转译的 Moira 喜格。'))}
-				{this.renderMoiraSection('政余忌格', renderCards(bad, warning ? 'Moira 真实忌格 DSL 尚未接入，暂不输出正式忌格。' : '当前盘未命中已转译的 Moira 忌格。'))}
-				{other.length ? this.renderMoiraSection('察看项', renderCards(other, '')) : null}
+				<div className="horosa-guolao-quick-pattern-output">
+					{renderLine('政余喜格', good, warning ? 'Moira 真实喜格 DSL 尚未接入，暂不输出正式喜格。' : '当前盘未命中 Moira 喜格。')}
+					{renderLine('政余忌格', bad, warning ? 'Moira 真实忌格 DSL 尚未接入，暂不输出正式忌格。' : '当前盘未命中 Moira 忌格。')}
+				</div>
+				{other.length ? this.renderMoiraSection('察看项', (
+					<div className="horosa-guolao-quick-card-grid">
+						{other.map((item, idx)=>(
+							<div className={`horosa-guolao-quick-card horosa-guolao-quick-pattern-${item.level || 'neutral'}`} key={`${item.name}-${idx}`}>
+								<div className="horosa-guolao-quick-card-title">{item.name}</div>
+								<div className="horosa-guolao-quick-card-text">{item.detail || 'Moira 规则命中，但后端未返回细节。'}</div>
+							</div>
+						))}
+					</div>
+				)) : null}
 			</div>
 		);
 	}

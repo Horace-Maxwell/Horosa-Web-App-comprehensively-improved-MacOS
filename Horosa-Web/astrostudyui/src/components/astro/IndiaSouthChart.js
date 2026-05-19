@@ -26,7 +26,7 @@ export const SIGN_NAMES = {
 	12: AstroConst.PISCES,
 };
 
-export const ROMAN_HOUSES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+export const HOUSE_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 const INDIA_PLANET_LABELS = {
 	[AstroConst.SUN]: 'Su',
@@ -107,6 +107,15 @@ export function getAscSignNumber(chartObj){
 
 export function getHouseNumberForSign(signNumber, ascSignNumber){
 	return ((signNumber - ascSignNumber + 12) % 12) + 1;
+}
+
+export function getHouseLabel(houseNumber){
+	return HOUSE_LABELS[houseNumber - 1] || `${houseNumber}`;
+}
+
+export function getSignSymbol(signNumber){
+	const sign = SIGN_NAMES[signNumber];
+	return AstroText.AstroMsg[sign] || `${signNumber}`;
 }
 
 export function getObjectLabel(obj){
@@ -263,17 +272,17 @@ class IndiaSouthChart extends Component{
 					gridColumn: colIndex + 1,
 					gridRow: rowIndex + 1,
 				}}
-				title={`${signNumber} ${signName} · 第${houseNumber}宫`}
+				title={`${signName} · 第${houseNumber}宫`}
 			>
 				<div className="horosa-india-square-house">
-					<div className="horosa-india-square-roman">{ROMAN_HOUSES[houseNumber - 1]}</div>
+					<div className="horosa-india-square-roman">{getHouseLabel(houseNumber)}</div>
 					{cuspDegree ? <div className="horosa-india-square-cusp">{cuspDegree}</div> : null}
 				</div>
 				<div className="horosa-india-square-objects">
 					{objects.map((obj, idx)=>this.renderObject(obj, idx))}
 				</div>
 				<div className="horosa-india-square-sign" aria-label={`${signNumber} ${signName}`}>
-					{signNumber}
+					<span className="horosa-india-square-sign-symbol">{getSignSymbol(signNumber)}</span>
 				</div>
 			</div>
 		);

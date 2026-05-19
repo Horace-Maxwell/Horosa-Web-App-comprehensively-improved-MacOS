@@ -8,6 +8,7 @@ export const GUOLAO_LIFE_MODE_KEY = 'horosaGuolaoLifeMode';
 export const GUOLAO_DEFAULT_SU28_MODE = 2;
 export const GUOLAO_LIFE_MODE_ASC = 'asc';
 export const GUOLAO_LIFE_MODE_YUMAO = 'yumao';
+export const GUOLAO_LIFE_MODE_COTRANS = 'cotrans';
 
 function getStorage(){
 	return typeof localStorage === 'undefined' ? null : localStorage;
@@ -61,7 +62,13 @@ export function setStoredGuolaoSu28Mode(val){
 }
 
 export function normalizeGuolaoLifeMode(val){
-	return val === GUOLAO_LIFE_MODE_YUMAO ? GUOLAO_LIFE_MODE_YUMAO : GUOLAO_LIFE_MODE_ASC;
+	if(val === GUOLAO_LIFE_MODE_YUMAO){
+		return GUOLAO_LIFE_MODE_YUMAO;
+	}
+	if(val === GUOLAO_LIFE_MODE_COTRANS){
+		return GUOLAO_LIFE_MODE_COTRANS;
+	}
+	return GUOLAO_LIFE_MODE_ASC;
 }
 
 export function getStoredGuolaoLifeMode(){

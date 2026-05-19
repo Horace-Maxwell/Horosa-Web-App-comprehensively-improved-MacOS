@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { createPortal } from 'react-dom';
 import moment from 'moment';
 import IndiaChart, { fieldsToParams, requestIndiaChartData } from './IndiaChart';
 import DateTime from '../comp/DateTime';
@@ -121,6 +122,13 @@ function addDashaYears(momentValue, years){
 	return momentValue.clone().add(years * DASHA_YEAR_DAYS * 24 * 60 * 60 * 1000, 'milliseconds');
 }
 
+function subtractDashaYears(momentValue, years){
+	if(!momentValue || !momentValue.clone){
+		return null;
+	}
+	return momentValue.clone().subtract(years * DASHA_YEAR_DAYS * 24 * 60 * 60 * 1000, 'milliseconds');
+}
+
 function formatDuration(years){
 	const totalMonths = Math.max(0, Math.round(years * 12));
 	const y = Math.floor(totalMonths / 12);
@@ -135,7 +143,45 @@ function formatDuration(years){
 }
 
 function formatAge(years){
-	return `${Math.max(0, years).toFixed(1)}岁`;
+	if(years < 0){
+		return `出生前${Math.abs(years).toFixed(1)}年`;
+	}
+	return `${years.toFixed(1)}岁`;
+}
+
+function buildDashaSubPeriods(item){
+	if(!item || !item.start || !item.lord){
+		return [];
+	}
+	const subItems = [];
+	let start = item.start.clone();
+	let lordIndex = Number.isFinite(item.lord.idx)
+		? item.lord.idx
+		: DASHA_SEQUENCE.findIndex((lord)=>lord.key === item.lord.key);
+	if(lordIndex < 0){
+		return [];
+	}
+	for(let i=0; i<DASHA_SEQUENCE.length; i++){
+		const currentLordIndex = lordIndex % DASHA_SEQUENCE.length;
+		const lord = {
+			...DASHA_SEQUENCE[currentLordIndex],
+			idx: currentLordIndex,
+		};
+		const years = item.years * lord.years / 120;
+		const end = i === DASHA_SEQUENCE.length - 1 ? item.end.clone() : addDashaYears(start, years);
+		if(!end || !end.clone){
+			break;
+		}
+		subItems.push({
+			lord,
+			years,
+			start: start.clone(),
+			end: end.clone(),
+		});
+		start = end;
+		lordIndex += 1;
+	}
+	return subItems;
 }
 
 function buildVimshottariDasha(chartObj, fields){
@@ -155,15 +201,23 @@ function buildVimshottariDasha(chartObj, fields){
 		return null;
 	}
 	const firstBalance = firstLord.years * remainingRatio;
+	const firstElapsed = firstLord.years - firstBalance;
 	const items = [];
 	if(!birth.clone){
 		return null;
 	}
-	let start = birth.clone();
+	let start = subtractDashaYears(birth, firstElapsed);
+	if(!start || !start.clone){
+		return null;
+	}
 	let lordIndex = firstLord.idx;
 	for(let i=0; i<10; i++){
-		const lord = DASHA_SEQUENCE[lordIndex % DASHA_SEQUENCE.length];
-		const years = i === 0 ? firstBalance : lord.years;
+		const currentLordIndex = lordIndex % DASHA_SEQUENCE.length;
+		const lord = {
+			...DASHA_SEQUENCE[currentLordIndex],
+			idx: currentLordIndex,
+		};
+		const years = lord.years;
 		const end = addDashaYears(start, years);
 		if(!end || !end.clone){
 			break;
@@ -173,8 +227,8 @@ function buildVimshottariDasha(chartObj, fields){
 			years,
 			start: start.clone(),
 			end: end.clone(),
-			startAge: i === 0 ? 0 : items.length ? items[items.length - 1].endAge : 0,
-			endAge: items.length ? items[items.length - 1].endAge + years : years,
+			startAge: start.diff(birth, 'days', true) / DASHA_YEAR_DAYS,
+			endAge: end.diff(birth, 'days', true) / DASHA_YEAR_DAYS,
 			isBirthBalance: i === 0,
 			active: Date.now() >= start.valueOf() && Date.now() < end.valueOf(),
 		});
@@ -192,6 +246,7 @@ function buildVimshottariDasha(chartObj, fields){
 			lord: firstLord,
 		},
 		firstBalance,
+		firstElapsed,
 		items,
 	};
 }
@@ -215,6 +270,17 @@ function buildDashaFieldsKey(fields){
 	].join('|');
 }
 
+function canBuildIndiaChartParams(fields){
+	const nullableKeys = ['name', 'pos'];
+	const requiredKeys = [
+		'date', 'time', 'ad', 'zone', 'lat', 'lon', 'gpsLat', 'gpsLon', 'hsys',
+		'tradition', 'strongRecption', 'simpleAsp', 'virtualPointReceiveAsp',
+		'name', 'pos',
+	];
+	return requiredKeys.every((key)=>fields && fields[key] && fields[key].value !== undefined
+		&& (nullableKeys.indexOf(key) >= 0 || fields[key].value !== null));
+}
+
 class IndiaChartMain extends Component{
 
 	constructor(props) {
@@ -225,6 +291,8 @@ class IndiaChartMain extends Component{
 			dashaChartObj: null,
 			dashaLoading: false,
 			dashaFieldsKey: '',
+			dashaPopoverItem: null,
+			dashaPopoverStyle: null,
 			hook: {
 				Natal:{
 					txt:'命盘',
@@ -337,6 +405,9 @@ class IndiaChartMain extends Component{
 		this.changeHsys = this.changeHsys.bind(this);
 		this.changeIndiaChartStyle = this.changeIndiaChartStyle.bind(this);
 		this.requestDashaChart = this.requestDashaChart.bind(this);
+		this.showDashaSubPopover = this.showDashaSubPopover.bind(this);
+		this.hideDashaSubPopover = this.hideDashaSubPopover.bind(this);
+		this.lastDashaRequestKey = '';
 
 		this.tmHook = {
 			getValue: null,
@@ -354,6 +425,7 @@ class IndiaChartMain extends Component{
 					}
 					hook[this.state.currentTab].fun(fld)
 				}
+				this.requestDashaChart(fields);
 			};
 		}
 
@@ -467,13 +539,24 @@ class IndiaChartMain extends Component{
 
 	async requestDashaChart(fields){
 		const sourceFields = fields || this.props.fields;
-		const dashaFieldsKey = buildDashaFieldsKey(sourceFields);
-		if(!dashaFieldsKey || dashaFieldsKey === this.state.dashaFieldsKey){
+		if(!canBuildIndiaChartParams(sourceFields)){
 			return;
 		}
-		let params = fieldsToParams(sourceFields);
-		params.chartnum = 1;
+		const dashaFieldsKey = buildDashaFieldsKey(sourceFields);
+		if(!dashaFieldsKey || dashaFieldsKey === this.lastDashaRequestKey){
+			return;
+		}
+		this.lastDashaRequestKey = dashaFieldsKey;
+		let params = null;
+		try{
+			params = fieldsToParams(sourceFields);
+			params.chartnum = 1;
+		}catch(e){
+			this.lastDashaRequestKey = '';
+			return;
+		}
 		this.setState({
+			dashaChartObj: null,
 			dashaLoading: true,
 			dashaFieldsKey,
 		});
@@ -488,6 +571,7 @@ class IndiaChartMain extends Component{
 		}catch(e){
 			if(this.state.dashaFieldsKey === dashaFieldsKey){
 				this.setState({
+					dashaChartObj: null,
 					dashaLoading: false,
 				});
 			}
@@ -495,6 +579,14 @@ class IndiaChartMain extends Component{
 	}
 
 	componentDidMount(){
+		if(this.props.dispatch && this.props.indiaChartStyle !== AstroConst.INDIA_CHART_STYLE_SOUTH){
+			this.props.dispatch({
+				type: 'app/save',
+				payload: {
+					indiaChartStyle: AstroConst.INDIA_CHART_STYLE_SOUTH,
+				},
+			});
+		}
 		let hook = this.state.hook;
 		if(hook[this.state.currentTab].fun){
 			hook[this.state.currentTab].fun()
@@ -503,11 +595,39 @@ class IndiaChartMain extends Component{
 	}
 
 	componentDidUpdate(prevProps){
-		const oldKey = buildDashaFieldsKey(prevProps.fields);
-		const newKey = buildDashaFieldsKey(this.props.fields);
-		if(oldKey !== newKey){
-			this.requestDashaChart();
+		this.requestDashaChart();
+	}
+
+	showDashaSubPopover(item, e){
+		if(typeof window === 'undefined' || !e || !e.currentTarget || !e.currentTarget.getBoundingClientRect){
+			return;
 		}
+		const rect = e.currentTarget.getBoundingClientRect();
+		const margin = 12;
+		const panelWidth = Math.min(380, Math.max(300, window.innerWidth - margin * 2));
+		let left = rect.left - panelWidth - margin;
+		if(left < margin){
+			left = rect.right + margin;
+		}
+		if(left + panelWidth > window.innerWidth - margin){
+			left = Math.max(margin, window.innerWidth - panelWidth - margin);
+		}
+		const top = Math.max(88, Math.min(window.innerHeight - 88, rect.top + rect.height / 2));
+		this.setState({
+			dashaPopoverItem: item,
+			dashaPopoverStyle: {
+				left,
+				top,
+				width: panelWidth,
+			},
+		});
+	}
+
+	hideDashaSubPopover(){
+		this.setState({
+			dashaPopoverItem: null,
+			dashaPopoverStyle: null,
+		});
 	}
 
 	renderDashaPanel(fields){
@@ -537,19 +657,74 @@ class IndiaChartMain extends Component{
 					<div className="horosa-info-row"><span>当前</span><strong>{activeItem ? `${activeItem.lord.label} · ${activeItem.lord.en}` : '—'}</strong></div>
 				</div>
 				<div className="horosa-india-dasha-list">
-					{dasha.items.map((item, idx)=>(
-						<div className={`horosa-india-dasha-item${item.active ? ' is-active' : ''}`} key={`${item.lord.key}_${idx}`}>
-							<div className="horosa-india-dasha-item-main">
-								<strong>{item.lord.label}</strong>
-								<span>{item.lord.en}</span>
+					{dasha.items.map((item, idx)=>this.renderDashaItem(item, idx))}
+				</div>
+				{this.renderDashaFloatingPopover()}
+			</div>
+		);
+	}
+
+	renderDashaSubPopover(item, extraClassName = '', style = null){
+		const subItems = buildDashaSubPeriods(item);
+		return (
+			<div className={`horosa-india-dasha-subpanel${extraClassName}`} style={style || undefined}>
+				<div className="horosa-india-dasha-subtitle">
+					<strong>{item.lord.label}</strong>
+					<span>{item.lord.en} Antardasha</span>
+				</div>
+				<div className="horosa-india-dasha-sublist">
+					{subItems.map((subItem, idx)=>(
+						<div className="horosa-india-dasha-subitem" key={`${item.lord.key}_${subItem.lord.key}_${idx}`}>
+							<div className="horosa-india-dasha-subname">
+								<strong>{subItem.lord.label}</strong>
+								<span>{subItem.lord.en}</span>
 							</div>
-							<div className="horosa-india-dasha-item-meta">
-								<span>{item.start.format('YYYY-MM-DD')} - {item.end.format('YYYY-MM-DD')}</span>
-								<em>{formatAge(item.startAge)} - {formatAge(item.endAge)} · {formatDuration(item.years)}</em>
+							<div className="horosa-india-dasha-submeta">
+								<span>{subItem.start.format('YYYY-MM-DD')} - {subItem.end.format('YYYY-MM-DD')}</span>
+								<em>{formatDuration(subItem.years)}</em>
 							</div>
 						</div>
 					))}
 				</div>
+			</div>
+		);
+	}
+
+	renderDashaFloatingPopover(){
+		if(!this.state.dashaPopoverItem || !this.state.dashaPopoverStyle || typeof document === 'undefined' || !document.body){
+			return null;
+		}
+		return createPortal(
+			this.renderDashaSubPopover(this.state.dashaPopoverItem, ' is-floating', this.state.dashaPopoverStyle),
+			document.body
+		);
+	}
+
+	renderDashaItem(item, idx){
+		return (
+			<div
+				className="horosa-india-dasha-hover"
+				key={`${item.lord.key}_${idx}`}
+				onMouseEnter={(e)=>this.showDashaSubPopover(item, e)}
+				onMouseLeave={this.hideDashaSubPopover}
+				onFocus={(e)=>this.showDashaSubPopover(item, e)}
+				onBlur={this.hideDashaSubPopover}
+			>
+				<button
+					aria-label={`${item.lord.label} ${item.lord.en} 小运`}
+					className={`horosa-india-dasha-item${item.active ? ' is-active' : ''}`}
+					onClick={(e)=>this.showDashaSubPopover(item, e)}
+					type="button"
+				>
+					<div className="horosa-india-dasha-item-main">
+						<strong>{item.lord.label}</strong>
+						<span>{item.lord.en}</span>
+					</div>
+					<div className="horosa-india-dasha-item-meta">
+						<span>{item.start.format('YYYY-MM-DD')} - {item.end.format('YYYY-MM-DD')}</span>
+						<em>{formatAge(item.startAge)} - {formatAge(item.endAge)} · {formatDuration(item.years)}</em>
+					</div>
+				</button>
 			</div>
 		);
 	}
@@ -657,7 +832,7 @@ class IndiaChartMain extends Component{
 							/>
 						</div>
 						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-india-info-panel">
-							<Tabs defaultActiveKey="1" tabPosition="top" className="horosa-content-tabs horosa-india-tabs">
+							<Tabs defaultActiveKey="3" tabPosition="top" className="horosa-content-tabs horosa-india-tabs">
 								<TabPane tab="分盘" key="1">
 									<div className="horosa-india-split-list">
 										<button

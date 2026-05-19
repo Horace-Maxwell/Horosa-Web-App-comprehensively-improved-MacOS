@@ -1,61 +1,62 @@
 import { Component } from 'react';
 import * as AstroText from '../../constants/AstroText';
 import {
-	ROMAN_HOUSES,
 	SIGN_NAMES,
 	getAscSignNumber,
 	getHouseCuspDegree,
+	getHouseLabel,
 	getHouseNumberForSign,
 	getObjectColor,
 	getObjectDegree,
 	getObjectLabel,
 	getObjectsBySign,
+	getSignSymbol,
 } from './IndiaSouthChart';
 import '../../css/styles.less';
 
 const EAST_HOUSE_LABEL_POSITIONS = {
-	1: [50, 6],
-	2: [5, 7],
-	3: [5, 13],
-	4: [7, 50],
-	5: [6, 86],
-	6: [9, 95],
-	7: [50, 95],
-	8: [94, 95],
-	9: [95, 86],
-	10: [94, 50],
-	11: [95, 13],
-	12: [94, 7],
+	1: [50, 7],
+	2: [7, 82],
+	3: [18, 93],
+	4: [50, 93],
+	5: [82, 92],
+	6: [93, 82],
+	7: [93, 50],
+	8: [93, 18],
+	9: [82, 7],
+	10: [7, 50],
+	11: [18, 7],
+	12: [7, 18],
 };
 
 const EAST_SIGN_BADGE_POSITIONS = {
-	1: [50, 30],
-	2: [32, 30],
-	3: [29, 33],
-	4: [29, 50],
-	5: [29, 70],
-	6: [32, 73],
-	7: [50, 72],
-	8: [68, 73],
-	9: [71, 70],
-	10: [70, 50],
-	11: [71, 33],
-	12: [68, 30],
+	1: [50, 21],
+	2: [18, 73],
+	3: [27, 88],
+	4: [50, 82],
+	5: [73, 88],
+	6: [82, 73],
+	7: [82, 50],
+	8: [82, 27],
+	9: [73, 12],
+	10: [18, 50],
+	11: [27, 12],
+	12: [18, 27],
 };
 
 const EAST_OBJECT_ANCHOR_POSITIONS = {
-	1: [50, 18],
-	2: [29, 18],
-	3: [16, 20],
-	4: [18, 50],
-	5: [18, 72],
-	6: [22, 82],
-	7: [50, 83],
-	8: [76, 82],
-	9: [84, 72],
-	10: [82, 50],
-	11: [84, 28],
-	12: [76, 20],
+	1: [50, 24, 28, 14],
+	2: [18, 74, 22, 14],
+	3: [22, 82, 22, 14],
+	4: [50, 77, 28, 14],
+	5: [82, 82, 22, 14],
+	6: [82, 74, 22, 14],
+	7: [77, 50, 24, 22],
+	8: [82, 26, 22, 14],
+	9: [78, 18, 22, 14],
+	10: [23, 50, 24, 22],
+	11: [18, 18, 22, 16],
+	12: [18, 26, 22, 14],
 };
 
 class IndiaEastChart extends Component{
@@ -91,16 +92,20 @@ class IndiaEastChart extends Component{
 			<div
 				key={`east_sign_${signNumber}`}
 				className="horosa-india-diagram-layer"
-				title={`${signNumber} ${signName} · ${ROMAN_HOUSES[houseNumber - 1]}宫`}
+				title={`${signName} · 第${houseNumber}宫`}
 			>
-				<div className="horosa-india-diagram-house" style={{ left: `${housePos[0]}%`, top: `${housePos[1]}%` }}>
-					<div className="horosa-india-square-roman">{ROMAN_HOUSES[houseNumber - 1]}</div>
+				<div className="horosa-india-diagram-house horosa-india-diagram-house-corner" style={{ left: `${housePos[0]}%`, top: `${housePos[1]}%` }}>
+					<div className="horosa-india-square-roman">{getHouseLabel(houseNumber)}</div>
 					{cuspDegree ? <div className="horosa-india-square-cusp">{cuspDegree}</div> : null}
 				</div>
-				<div className="horosa-india-diagram-sign" style={{ left: `${signPos[0]}%`, top: `${signPos[1]}%` }}>
-					{signNumber}
+				<div className="horosa-india-diagram-sign horosa-india-diagram-sign-corner" aria-label={`${signNumber} ${signName}`} style={{ left: `${signPos[0]}%`, top: `${signPos[1]}%` }}>
+					<span className="horosa-india-square-sign-symbol">{getSignSymbol(signNumber)}</span>
 				</div>
-				<div className="horosa-india-diagram-object-anchor" style={{ left: `${objectsPos[0]}%`, top: `${objectsPos[1]}%` }}>
+				<div
+					className="horosa-india-diagram-object-anchor horosa-india-diagram-object-anchor-roomy"
+					data-sign={signNumber}
+					style={{ left: `${objectsPos[0]}%`, top: `${objectsPos[1]}%`, width: `${objectsPos[2]}%`, height: `${objectsPos[3]}%` }}
+				>
 					{this.renderObjects(objects, signNumber)}
 				</div>
 			</div>
@@ -143,10 +148,8 @@ class IndiaEastChart extends Component{
 						<rect x="33.333" y="33.333" width="33.334" height="33.334" />
 					</svg>
 					{Object.keys(EAST_SIGN_BADGE_POSITIONS).map((signNumber)=>this.renderSign(Number(signNumber), ascSignNumber, objectsBySign, chartObj))}
-					<div className="horosa-india-diagram-center">
+					<div className="horosa-india-diagram-center horosa-india-diagram-center-compact">
 						<div className="horosa-india-square-center-d">D{chartnum}</div>
-						<div className="horosa-india-square-center-label">{label}</div>
-						<div className="horosa-india-square-center-note">固定星座 · 顺时宫位</div>
 					</div>
 				</div>
 			</div>
