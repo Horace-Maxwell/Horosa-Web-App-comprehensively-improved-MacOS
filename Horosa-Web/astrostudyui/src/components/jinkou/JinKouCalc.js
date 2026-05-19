@@ -1,11 +1,11 @@
 import * as LRConst from '../liureng/LRConst';
 
 export const JinKouElementColor = {
-	'木': '#006400',
-	'火': '#c81808',
-	'土': '#704214',
-	'金': '#ffcf40',
-	'水': '#0a2e81',
+	'木': '#2f9f68',
+	'火': '#d64a35',
+	'土': '#b7842f',
+	'金': '#d6a64f',
+	'水': '#4da3ff',
 };
 
 const JinKouWuXingOrder = ['木', '火', '土', '金', '水'];

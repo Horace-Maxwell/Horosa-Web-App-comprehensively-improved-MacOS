@@ -33,14 +33,17 @@ public class BaZiBirthController {
 		PhaseType phaseType = (PhaseType) params.get("phaseType");
 		boolean zodiacalLon = (boolean) params.get("useZodicalLon");
 		boolean after23NewDay = (boolean) params.get("after23NewDay");
+		boolean gender = (boolean) params.get("gender");
+		boolean adjustJieqi = (boolean) params.get("adjustJieqi");
 		String godKeyPos = (String) params.get("godKeyPos");
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
 		
 		Object obj = ParamHashCacheHelper.get("/bazi/birth", params, (args)->{
-			BaZi bz = new BaZi(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay);
+			BaZi bz = new BaZi(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, adjustJieqi);
 			bz.calculate(phaseType);
 			Map<String, Object> res = new HashMap<String, Object>();
 			res.put("bazi", bz);
+			res.put("gender", gender ? "Male" : "Female");
 			return res;
 		});
 		
@@ -83,6 +86,9 @@ public class BaZiBirthController {
 		
 		boolean after23NewDay = TransData.getValueAsBool("after23NewDay", false);
 		map.put("after23NewDay", after23NewDay);
+
+		map.put("gender", TransData.getValueAsBool("gender", true));
+		map.put("adjustJieqi", TransData.getValueAsBool("adjustJieqi", false));
 		
 		int phaseType = TransData.getValueAsInt("phaseType", 0);
 		map.put("phaseType", PhaseType.fromCode(phaseType));

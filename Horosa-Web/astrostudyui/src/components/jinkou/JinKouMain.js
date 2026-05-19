@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Select, Tabs, message, Modal } from 'antd';
+import { message, Modal } from 'antd';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import * as LRConst from '../liureng/LRConst';
@@ -12,12 +12,17 @@ import { buildJinKouData } from './JinKouCalc';
 import { resolveJinKouDiFen } from './JinKouState';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import {
+	XQButton as Button,
+	XQSelect as Select,
+	XQTabs as Tabs,
+} from '../xq-ui';
+import {
 	getBirthGanzhiLocalCache,
 	getLiurengRunyearLocalCache,
 	setBirthGanzhiLocalCache,
 	setLiurengRunyearLocalCache,
 } from '../../utils/localCalcCache';
-import styles from '../../css/styles.less';
+import XQIcon from '../xq-icons';
 
 const { Option } = Select;
 const TabPane = Tabs.TabPane;
@@ -1033,23 +1038,23 @@ class JinKouMain extends Component{
 	renderInfoTable(title, rows){
 		if(!rows || rows.length === 0){
 			return (
-				<div style={{ border: '1px solid #d9d9d9', marginBottom: 8 }}>
-					<div style={{ backgroundColor: '#f7f3dc', padding: '2px 8px', fontWeight: 600 }}>{title}</div>
-					<div style={{ padding: '6px 8px', color: '#8c8c8c' }}>无</div>
+				<div style={{ border: '1px solid var(--horosa-border, #d9d9d9)', marginBottom: 8 }}>
+					<div style={{ backgroundColor: 'var(--horosa-gold-soft, #f7f3dc)', padding: '2px 8px', fontWeight: 600 }}>{title}</div>
+					<div style={{ padding: '6px 8px', color: 'var(--horosa-muted, #8c8c8c)' }}>无</div>
 				</div>
 			);
 		}
 		return (
-			<div style={{ border: '1px solid #d9d9d9', marginBottom: 8 }}>
-				<div style={{ backgroundColor: '#f7f3dc', padding: '2px 8px', fontWeight: 600 }}>{title}</div>
+			<div style={{ border: '1px solid var(--horosa-border, #d9d9d9)', marginBottom: 8 }}>
+				<div style={{ backgroundColor: 'var(--horosa-gold-soft, #f7f3dc)', padding: '2px 8px', fontWeight: 600 }}>{title}</div>
 				<div style={{ padding: 0 }}>
 					<table style={{ width: '100%', borderCollapse: 'collapse' }}>
 						<tbody>
 							{
 								rows.map((row, idx)=>(
 									<tr key={`${title}_${idx}`}>
-										<td style={{ width: '42%', borderTop: '1px solid #f0f0f0', padding: '2px 6px', color: '#595959' }}>{row.key}</td>
-										<td style={{ borderTop: '1px solid #f0f0f0', padding: '2px 6px', color: row.color ? row.color : '#262626', wordBreak: 'break-all' }}>{row.value}</td>
+										<td style={{ width: '42%', borderTop: '1px solid var(--horosa-border, #f0f0f0)', padding: '2px 6px', color: 'var(--horosa-text-soft, #595959)' }}>{row.key}</td>
+										<td style={{ borderTop: '1px solid var(--horosa-border, #f0f0f0)', padding: '2px 6px', color: row.color && row.color !== '#262626' ? row.color : 'var(--horosa-text, #262626)', wordBreak: 'break-all' }}>{row.value}</td>
 									</tr>
 								))
 							}
@@ -1060,10 +1065,184 @@ class JinKouMain extends Component{
 		);
 	}
 
+	renderInputPanel(wxdoms){
+		return (
+			<div className="horosa-jinkou-input-stack">
+				<div>
+					<div className="horosa-side-panel-title">金口诀设置</div>
+					<div className="horosa-side-panel-subtitle">起课时间、地分与问测人</div>
+				</div>
+
+				<div className="horosa-jinkou-input-section">
+					<div className="horosa-jinkou-field-title"><XQIcon name="clock" />起课时间与地点</div>
+					<div className="horosa-jinkou-input-embed">
+						<LiuRengInput
+							fields={this.props.fields}
+							onFieldsChange={this.onFieldsChange}
+						/>
+					</div>
+				</div>
+
+				<div className="horosa-jinkou-input-section">
+					<div className="horosa-jinkou-field-title"><XQIcon name="target" />地分与课式</div>
+					<label className="horosa-jinkou-select-field">
+						<span>地分</span>
+						<Select value={this.state.diFen} onChange={this.onDiFenChange}>
+							{
+								LRConst.ZiList.map((zi)=>(
+									<Option key={`difen_${zi}`} value={zi}>地分：{zi}</Option>
+								))
+							}
+						</Select>
+					</label>
+					<label className="horosa-jinkou-select-field">
+						<span>十二长生五行</span>
+						<Select value={this.state.wuxing} onChange={this.onWuXingChange}>
+							{wxdoms}
+						</Select>
+					</label>
+					<label className="horosa-jinkou-select-field">
+						<span>贵人体系</span>
+						<Select value={this.state.guireng} onChange={this.onGuiRengChange}>
+							<Option value={0}>六壬法贵人</Option>
+							<Option value={1}>遁甲法贵人</Option>
+							<Option value={2}>星占法贵人</Option>
+						</Select>
+					</label>
+				</div>
+
+				<div className="horosa-jinkou-input-section">
+					<div className="horosa-jinkou-field-title"><XQIcon name="user" />问测人出生时间</div>
+					<div className="horosa-jinkou-input-embed">
+						<LiuRengBirthInput
+							fields={this.state.birth}
+							onFieldsChange={this.onBirthChange}
+							requireConfirm={true}
+						/>
+					</div>
+				</div>
+
+				<div className="horosa-jinkou-action-row">
+					<Button type="primary" onClick={()=>this.requestGods(this.props.fields, this.props.value)}>起课</Button>
+					<Button onClick={this.clickSaveCase}>保存</Button>
+				</div>
+			</div>
+		);
+	}
+
+	renderOverviewRows(jinkouData, displayRunYear, appliedBirth, chartFields){
+		const params = chartFields ? this.genGodsParams(chartFields) : null;
+		const gender = appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : -1;
+		const guirenType = this.state.guireng === 0 ? '六壬法贵人' : (this.state.guireng === 1 ? '遁甲法贵人' : '星占法贵人');
+		const rows = [
+			['起课时间', params ? `${params.date} ${params.time}` : '—'],
+			['地点', params ? `${params.lon || '—'} ${params.lat || '—'}` : '—'],
+			['地分', jinkouData && jinkouData.ready ? jinkouData.topInfo.diFen : this.state.diFen],
+			['空亡', jinkouData && jinkouData.ready ? jinkouData.topInfo.xunKong : '—'],
+			['四大空亡', jinkouData && jinkouData.ready ? jinkouData.topInfo.siDaKong : '—'],
+			['用爻', jinkouData && jinkouData.yongYao ? `${jinkouData.yongYao.label || '—'}${jinkouData.yongYao.sign ? `(${jinkouData.yongYao.sign})` : ''}` : '—'],
+			['贵人体系', guirenType],
+			['十二长生', this.state.wuxing],
+			['行年', displayRunYear ? `${displayRunYear.year || '—'} / ${displayRunYear.age || '—'}岁` : '—'],
+			['性别', `${gender}` === '0' ? '女' : (`${gender}` === '1' ? '男' : '未知')],
+		];
+		return rows.map(([label, value])=>(
+			<div className="horosa-jinkou-info-row" key={label}>
+				<span>{label}</span>
+				<strong>{fmtValue(value)}</strong>
+			</div>
+		));
+	}
+
+	renderJinKouRows(jinkouData){
+		if(!jinkouData || !jinkouData.ready || !jinkouData.rows){
+			return <div className="horosa-jinkou-empty">暂无金口诀数据</div>;
+		}
+		return jinkouData.rows.map((row)=>(
+			<div className="horosa-jinkou-four-row" key={row.label}>
+				<div className="horosa-jinkou-four-label">{row.label}</div>
+				<div>
+					<strong>{fmtValue(row.content)}</strong>
+					<span>天干 {fmtValue(row.gan)} · 神将 {fmtValue(row.shenjiang)} · {fmtValue(row.power)} · {fmtValue(row.kong)}</span>
+				</div>
+			</div>
+		));
+	}
+
+	renderShenshaRows(jinkouData){
+		if(!jinkouData || !jinkouData.shenshaRows || !jinkouData.shenshaRows.length){
+			return <div className="horosa-jinkou-empty">暂无四位神煞</div>;
+		}
+		return jinkouData.shenshaRows.map((row)=>(
+			<div className="horosa-jinkou-info-row" key={row.label}>
+				<span>{row.label}</span>
+				<strong>{fmtValue(row.value)}</strong>
+			</div>
+		));
+	}
+
+	renderRightPanel(jinkouData, displayRunYear, appliedBirth, chartFields, godsZiRows, godsYearRows, zsRows, roleRefRows){
+		const params = chartFields ? this.genGodsParams(chartFields) : null;
+		const snapshot = buildJinKouSnapshotText(
+			params,
+			this.state.liureng,
+			displayRunYear,
+			jinkouData,
+			this.state.wuxing,
+			this.state.guireng,
+			appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : 1
+		);
+		return (
+			<Tabs defaultActiveKey="overview" tabPosition="top" className="horosa-jinkou-tabs">
+				<TabPane tab="概览" key="overview">
+					<div className="horosa-jinkou-info-card">
+						{this.renderOverviewRows(jinkouData, displayRunYear, appliedBirth, chartFields)}
+					</div>
+				</TabPane>
+				<TabPane tab="四位" key="rows">
+					<div className="horosa-jinkou-info-card">
+						{this.renderJinKouRows(jinkouData)}
+					</div>
+				</TabPane>
+				<TabPane tab="神煞" key="gods">
+					<Tabs
+						activeKey={this.state.rightTab}
+						onChange={this.setRightTab}
+						defaultActiveKey='godsZi'
+						tabPosition='top'
+						size='small'
+						className="horosa-jinkou-nested-tabs"
+					>
+						<TabPane tab='支煞' key='godsZi'>
+							{this.renderInfoTable('支煞', godsZiRows)}
+						</TabPane>
+						<TabPane tab='年煞' key='godsYear'>
+							{this.renderInfoTable('年煞', godsYearRows)}
+						</TabPane>
+						<TabPane tab='长生' key='zs'>
+							{this.renderInfoTable(`${this.state.wuxing}十二长生`, zsRows)}
+						</TabPane>
+						<TabPane tab='四位' key='roleRef'>
+							{this.renderInfoTable('四位参考', roleRefRows)}
+						</TabPane>
+					</Tabs>
+				</TabPane>
+				<TabPane tab="四煞" key="jkshensha">
+					<div className="horosa-jinkou-info-card">
+						{this.renderShenshaRows(jinkouData)}
+					</div>
+				</TabPane>
+				<TabPane tab="快照" key="snapshot">
+					<pre className="horosa-jinkou-snapshot">{snapshot}</pre>
+				</TabPane>
+			</Tabs>
+		);
+	}
+
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 'calc(100% - 70px)';
+			height = 760;
 		}else{
 			height = height - 20;
 		}
@@ -1107,22 +1286,16 @@ class JinKouMain extends Component{
 			key: '一、地分',
 			value: '下、田宅、子孙、奴仆、鞍马、六畜',
 		}];
-		const optionTabHeight = Math.max(170, Math.floor(chartHeight * 0.36));
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={16}>
-						<div style={{
-							height: chartHeight,
-							overflow: 'auto',
-							border: '1px solid #d9d9d9',
-							backgroundColor: '#f7f7f7',
-						}}>
-							<div style={{
-								width: '100%',
-								height: chartHeight,
-							}}>
+			<div className="horosa-jinkou-page horosa-astro-redesign horosa-jinkou-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-jinkou-redesign-layout">
+					<div className="horosa-astro-redesign-grid horosa-jinkou-redesign-grid">
+						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-jinkou-input-panel">
+							{this.renderInputPanel(wxdoms)}
+						</div>
+						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-jinkou-chart-panel xq-chart-renderer xq-chart-renderer-jinkou">
+							<div className="horosa-jinkou-board-host">
 								<JinKouChart
 									value={chart}
 									liureng={this.state.liureng}
@@ -1131,95 +1304,32 @@ class JinKouMain extends Component{
 									zhangshengElem={this.state.wuxing}
 									guireng={this.state.guireng}
 									jinkouData={jinkouData}
-									height={chartHeight}
+									height={Math.max(560, chartHeight - 22)}
 									fields={this.props.fields}
 									chartDisplay={this.props.chartDisplay}
 									planetDisplay={this.props.planetDisplay}
 								/>
 							</div>
 						</div>
-					</Col>
-					<Col span={8}>
-						<Row>
-							<Col span={24}>
-								<LiuRengInput
-									fields={this.props.fields}
-									onFieldsChange={this.onFieldsChange}
-								/>
-							</Col>
-						</Row>
-						<Row style={{ marginTop: 8 }} gutter={6}>
-							<Col span={12}>
-								<Button style={{ width: '100%' }} onClick={this.clickSaveCase}>保存</Button>
-							</Col>
-							<Col span={12}>
-								<Select value={this.state.diFen} onChange={this.onDiFenChange} style={{ width: '100%' }}>
-									{
-										LRConst.ZiList.map((zi)=>(
-											<Option key={`difen_${zi}`} value={zi}>地分：{zi}</Option>
-										))
-									}
-								</Select>
-							</Col>
-						</Row>
-						<Divider orientation='left'>卜卦人出生时间</Divider>
-						<Row>
-							<Col span={24}>
-								<LiuRengBirthInput
-									fields={this.state.birth}
-									onFieldsChange={this.onBirthChange}
-									requireConfirm={true}
-								/>
-							</Col>
-						</Row>
-						<Divider />
-						<Row gutter={6}>
-							<Col span={24}>
-								<Select value={this.state.wuxing} onChange={this.onWuXingChange} style={{ width: '100%' }}>
-									{wxdoms}
-								</Select>
-							</Col>
-							<Col span={24} style={{ marginTop: 4 }}>
-								<Select value={this.state.guireng} onChange={this.onGuiRengChange} style={{ width: '100%' }}>
-									<Option value={0}>六壬法贵人</Option>
-									<Option value={1}>遁甲法贵人</Option>
-									<Option value={2}>星占法贵人</Option>
-								</Select>
-							</Col>
-						</Row>
-
-						<Divider style={{ marginTop: 10, marginBottom: 8 }} />
-						<Tabs
-							activeKey={this.state.rightTab}
-							onChange={this.setRightTab}
-							defaultActiveKey='godsZi'
-							tabPosition='top'
-							size='small'
-							style={{ height: optionTabHeight + 44 }}
-						>
-							<TabPane tab='支煞' key='godsZi'>
-								<div className={styles.scrollbar} style={{ height: optionTabHeight, overflow: 'auto' }}>
-									{this.renderInfoTable('支煞', godsZiRows)}
+						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-jinkou-info-panel">
+							<div className="horosa-side-panel-heading horosa-jinkou-info-heading">
+								<div>
+									<div className="horosa-side-panel-title">金口诀信息</div>
+									<div className="horosa-side-panel-subtitle">概览、四位与神煞</div>
 								</div>
-							</TabPane>
-							<TabPane tab='年煞' key='godsYear'>
-								<div className={styles.scrollbar} style={{ height: optionTabHeight, overflow: 'auto' }}>
-									{this.renderInfoTable('年煞', godsYearRows)}
-								</div>
-							</TabPane>
-							<TabPane tab='十二长生' key='zs'>
-								<div className={styles.scrollbar} style={{ height: optionTabHeight, overflow: 'auto' }}>
-									{this.renderInfoTable(`${this.state.wuxing}十二长生`, zsRows)}
-								</div>
-							</TabPane>
-							<TabPane tab='四位参考' key='roleRef'>
-								<div className={styles.scrollbar} style={{ height: optionTabHeight, overflow: 'auto' }}>
-									{this.renderInfoTable('四位参考', roleRefRows)}
-								</div>
-							</TabPane>
-						</Tabs>
-					</Col>
-				</Row>
+							</div>
+							{this.renderRightPanel(jinkouData, displayRunYear, appliedBirth, chartFields, godsZiRows, godsYearRows, zsRows, roleRefRows)}
+						</div>
+					</div>
+					<div className="horosa-bottom-quick-dock horosa-jinkou-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-jinkou-quick-placeholders">
+							{Array.from({ length: 8 }).map((_, idx)=>(
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}

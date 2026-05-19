@@ -655,7 +655,7 @@ function renderTooltipRichLineHtml(line){
 	const oneLine = `${line || ''}`;
 	const trimmed = oneLine.trim();
 	if(trimmed === '=='){
-		return '<div style="border-top:1px solid #e8e8e8;margin:6px 0;"></div>';
+		return '<div style="border-top:1px solid var(--horosa-border, #e8e8e8);margin:6px 0;"></div>';
 	}
 	if(trimmed === ''){
 		return '<div style="height:4px;"></div>';
@@ -663,11 +663,11 @@ function renderTooltipRichLineHtml(line){
 	if(isTooltipHeadingLine(trimmed)){
 		const heading = renderTooltipInlineBoldHtml(stripTooltipHeadingText(trimmed));
 		return `<div style="margin-top:4px;margin-bottom:6px;">
-			<div style="font-size:14px;line-height:20px;font-weight:700;color:#262626;">${heading}</div>
-			<div style="border-top:1px solid #efefef;margin-top:4px;"></div>
+			<div style="font-size:14px;line-height:20px;font-weight:700;color:var(--horosa-text, #262626);">${heading}</div>
+			<div style="border-top:1px solid var(--horosa-border, #efefef);margin-top:4px;"></div>
 		</div>`;
 	}
-	return `<div style="margin-bottom:3px;font-size:13px;line-height:21px;color:#262626;white-space:pre-wrap;">${renderTooltipInlineBoldHtml(oneLine)}</div>`;
+	return `<div style="margin-bottom:3px;font-size:13px;line-height:21px;color:var(--horosa-text, #262626);white-space:pre-wrap;">${renderTooltipInlineBoldHtml(oneLine)}</div>`;
 }
 
 function hasTooltipRichFormat(tips){
@@ -740,8 +740,8 @@ export function genHtml(tipobj, needpadding, forceRich){
 	}
 	let parts = ['<div style="max-width:560px;max-height:62vh;overflow-y:auto;white-space:normal;">'];
 	if(tipobj.title){
-		parts.push(`<div style="font-size:17px;line-height:24px;font-weight:700;color:#1f1f1f;">${renderTooltipInlineBoldHtml(tipobj.title)}</div>`);
-		parts.push('<div style="border-top:1px solid #d9d9d9;margin:6px 0 8px;"></div>');
+		parts.push(`<div style="font-size:17px;line-height:24px;font-weight:700;color:var(--horosa-text, #1f1f1f);">${renderTooltipInlineBoldHtml(tipobj.title)}</div>`);
+		parts.push('<div style="border-top:1px solid var(--horosa-border, #d9d9d9);margin:6px 0 8px;"></div>');
 	}
 	if(tips instanceof Array){
 		for(let i=0; i<tips.length; i++){
@@ -750,7 +750,7 @@ export function genHtml(tipobj, needpadding, forceRich){
 				parts.push('<div style="margin:4px 0 6px 12px;">');
 				for(let j=0; j<item.length; j++){
 					let sitem = item[j];
-					parts.push(`<div style="margin-bottom:2px;font-size:13px;line-height:21px;color:#262626;white-space:pre-wrap;">• ${renderTooltipInlineBoldHtml(sitem)}</div>`);
+					parts.push(`<div style="margin-bottom:2px;font-size:13px;line-height:21px;color:var(--horosa-text, #262626);white-space:pre-wrap;">• ${renderTooltipInlineBoldHtml(sitem)}</div>`);
 				}
 				parts.push('</div>');
 			}else{
@@ -793,9 +793,9 @@ export function setupFloatingTooltip(divTooltip, overrideStyles){
 		'max-height': 'min(460px, calc(100vh - 28px))',
 		padding: '14px 16px',
 		font: '14px/1.6 "PingFang SC", "Microsoft YaHei", sans-serif',
-		background: '#ffffff',
-		color: '#262626',
-		border: '1px solid #e8e8e8',
+		background: 'var(--horosa-surface-raised, #ffffff)',
+		color: 'var(--horosa-text, #262626)',
+		border: '1px solid var(--horosa-border, #e8e8e8)',
 		'border-radius': '8px',
 		'box-shadow': '0 8px 24px rgba(0,0,0,0.14)',
 		'overflow-y': 'auto',

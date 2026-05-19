@@ -1,8 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
 import AstroChartMain from '../astro/AstroChartMain';
-
-const TabPane = Tabs.TabPane;
 
 function paramsToFields(param, flds){
 	let fields = {

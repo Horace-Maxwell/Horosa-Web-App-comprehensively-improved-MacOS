@@ -30,6 +30,7 @@ export default class ZWCommHouse {
 
 		this.stars = new Map();
 		this.fontSize = 18;
+		this.starFontSize = 23;
 		this.houseBG = AstroConst.AstroColor.ChartBackgroud;
 
 		this.divTooltip = option.divTooltip;

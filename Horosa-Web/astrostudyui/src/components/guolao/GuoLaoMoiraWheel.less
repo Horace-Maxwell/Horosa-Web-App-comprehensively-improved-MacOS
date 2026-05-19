@@ -1,0 +1,93 @@
+.horosa-guolao-moira-wheel {
+	position: relative;
+	width: 1120px;
+	height: 1120px !important;
+	min-width: 1120px;
+	min-height: 1120px;
+	padding: 0;
+	overflow: visible;
+	background: #ffffff;
+	border: 1px solid rgba(15, 23, 42, 0.12);
+	box-sizing: border-box;
+}
+
+.horosa-guolao-moira-wheel svg {
+	display: block;
+	width: 1120px;
+	min-width: 1120px;
+	height: 1120px;
+	min-height: 1120px;
+	background: #ffffff;
+	font-family: "Songti SC", "STSong", "SimSun", serif;
+	letter-spacing: 0;
+	text-rendering: geometricPrecision;
+}
+
+.horosa-guolao-moira-wheel text {
+	pointer-events: none;
+	user-select: none;
+	stroke: none;
+}
+
+.horosa-guolao-moira-wheel .moira-hover-zone {
+	fill: rgba(255, 255, 255, 0);
+	stroke: none;
+	pointer-events: all;
+	cursor: default;
+}
+
+.horosa-guolao-moira-tooltip {
+	position: absolute;
+	z-index: 12;
+	max-width: 420px;
+	padding: 5px 9px;
+	border: 1px solid #333333;
+	background: #ffffed;
+	color: #000000;
+	box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.26);
+	font-family: "Songti SC", "STSong", "SimSun", serif;
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 1.36;
+	letter-spacing: 0;
+	white-space: normal;
+	pointer-events: none;
+}
+
+.horosa-guolao-moira-wheel .moira-rings circle {
+	fill: none;
+	stroke: #111111;
+	stroke-width: 0.9;
+}
+
+.horosa-guolao-moira-wheel .moira-rings .moira-ring-major {
+	stroke-width: 1.15;
+}
+
+.horosa-guolao-moira-wheel .moira-rings .moira-ring-minor {
+	stroke-width: 0.8;
+}
+
+.horosa-guolao-moira-wheel .moira-rings .moira-outer-circle,
+.horosa-guolao-moira-wheel .moira-rings circle:last-child {
+	stroke-width: 1.35;
+}
+
+.horosa-guolao-moira-wheel .moira-main-divider line {
+	stroke: #111111;
+	stroke-width: 1;
+}
+
+.horosa-guolao-moira-wheel .moira-inner-lines line {
+	stroke: #111111;
+	stroke-width: 1;
+}
+
+.horosa-guolao-moira-wheel .moira-side-text {
+	font-family: "Songti SC", "STSong", "SimSun", serif;
+}
+
+.horosa-guolao-moira-wheel .moira-degree-ticks text,
+.horosa-guolao-moira-wheel .moira-limit-layer text {
+	font-family: Georgia, "Times New Roman", serif;
+}

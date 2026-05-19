@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 import * as AstroConst from '../../constants/AstroConst';
-import {randomStr, formatDate, printArea} from '../../utils/helper';
+import {randomStr, formatDate} from '../../utils/helper';
 import { drawTextH, } from '../graph/GraphHelper';
 import Gua from './Gua';
 import YinYao from './YinYao';

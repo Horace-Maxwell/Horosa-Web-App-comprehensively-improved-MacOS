@@ -1,8 +1,8 @@
 import { Component } from 'react';
 import { PageHeader, } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
 import LogQryList from './LogQryList';
 import LogQryDetail from './LogQryDetail';
+import XQIcon from '../xq-icons';
 
 class LogQryMain extends Component{
 	constructor(props) {
@@ -59,7 +59,7 @@ class LogQryMain extends Component{
 		let backHandle = null;
 
 		if(this.state.page && this.state.record){
-			backIcon = (<ArrowLeftOutlined />);
+			backIcon = (<XQIcon name="back" />);
 			title = this.state.record.transcode + ' ' + this.state.record.time;
 			backHandle = this.clickBack;
 		}

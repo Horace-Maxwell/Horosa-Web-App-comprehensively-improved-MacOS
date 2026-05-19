@@ -1709,5 +1709,34 @@ video::-webkit-media-text-track-display {
 html, body, :global(#root) {
   height: 100%;
 }
+@keyframes xqNavPopupIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.965);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
 
+@keyframes xqNavPopupOut {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(10px) scale(0.975);
+    }
+}
 
+@keyframes xqNavMaskIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes xqNavMaskOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}

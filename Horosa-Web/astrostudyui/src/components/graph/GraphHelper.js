@@ -8,7 +8,7 @@ export function drawTextH(svgowner, data, x, y, w, h, margin, color, weight, bgc
 	let firstmargin = (w - fsz * data.length - margin*(data.length - 1)) / 2 + fsz/2;
 	let firstmarginY = (h - fsz) / 2 + fsz/2;
 
-	let stroke = '#000000';
+	let stroke = 'var(--horosa-text, #000000)';
 	if(color){
 		stroke = color;
 	}
@@ -100,7 +100,7 @@ export function drawTextV(svgowner, data, x, y, w, h, margin, color, weight, bgc
 	let firstmargin = (h - (fsz + margin) * data.length) / 2 + fsz/2 + margin;
 	let firstmarginX = (w - fsz) / 2 + fsz/2;
 
-	let stroke = '#000000';
+	let stroke = 'var(--horosa-text, #000000)';
 	if(color){
 		stroke = color;
 	}

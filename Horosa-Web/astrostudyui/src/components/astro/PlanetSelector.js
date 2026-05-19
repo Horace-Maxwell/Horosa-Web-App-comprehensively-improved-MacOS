@@ -1,9 +1,9 @@
 import { Component } from 'react';
-import { Checkbox, Row, Col, Tabs, Divider } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
+import { XQCheckItem, XQCheckList, XQSectionTitle, XQTabs } from '../xq-ui';
 
-const TabPane = Tabs.TabPane;
+const TabPane = XQTabs.TabPane;
 
 
 class PlanetSelector extends Component{
@@ -13,6 +13,8 @@ class PlanetSelector extends Component{
 
 		this.onChange = this.onChange.bind(this);
 		this.onLotsChange = this.onLotsChange.bind(this);
+		this.togglePlanet = this.togglePlanet.bind(this);
+		this.toggleLot = this.toggleLot.bind(this);
 	}
 
 	renderLabel(item){
@@ -48,45 +50,62 @@ class PlanetSelector extends Component{
 		}
 	}
 
+	toggleValue(values, item){
+		const next = Array.isArray(values) ? values.slice(0) : [];
+		const idx = next.indexOf(item);
+		if(idx >= 0){
+			next.splice(idx, 1);
+		}else{
+			next.push(item);
+		}
+		return next;
+	}
+
+	togglePlanet(item){
+		const planetValues = Array.isArray(this.props.value) ? this.props.value : [];
+		this.onChange(this.toggleValue(planetValues, item));
+	}
+
+	toggleLot(item){
+		const lotValues = Array.isArray(this.props.lots) ? this.props.lots : [];
+		this.onLotsChange(this.toggleValue(lotValues, item));
+	}
+
 	render(){
 		const planetValues = Array.isArray(this.props.value) ? this.props.value : [];
 		const lotValues = Array.isArray(this.props.lots) ? this.props.lots : [];
 
 		let allobjs = AstroConst.LIST_POINTS.map((item)=>{
 			return (
-				<Col span={24} key={item}>
-					<Checkbox value={item}>
-						{this.renderLabel(item)}
-					</Checkbox>
-				</Col>
+				<XQCheckItem key={item} checked={planetValues.includes(item)} onClick={()=>this.togglePlanet(item)}>
+					{this.renderLabel(item)}
+				</XQCheckItem>
 			);
 		});
 
 		let lots = AstroConst.LOTS.map((item, idx)=>{
 			let col = (
-				<Col span={24} key={item}>
-					<Checkbox value={item}>
+				<XQCheckItem key={item} checked={lotValues.includes(item)} onClick={()=>this.toggleLot(item)}>
 						{this.renderLabel(item)}
-					</Checkbox>
-				</Col>
+				</XQCheckItem>
 			);
 			if(idx === 0){
 				col = (
-					<Col span={24} key={item}>
-						<Divider>希腊点</Divider>
-						<Checkbox value={item}>
+					<div key={item}>
+						<XQSectionTitle>希腊点</XQSectionTitle>
+						<XQCheckItem checked={lotValues.includes(item)} onClick={()=>this.toggleLot(item)}>
 							{this.renderLabel(item)}
-						</Checkbox>
-					</Col>
+						</XQCheckItem>
+					</div>
 				);
 			}else if(idx === 5){
 				col = (
-					<Col span={24} key={item}>
-						<Checkbox value={item}>
+					<div key={item}>
+						<XQCheckItem checked={lotValues.includes(item)} onClick={()=>this.toggleLot(item)}>
 							{this.renderLabel(item)}
-						</Checkbox>
-						<Divider>阿拉伯点</Divider>
-					</Col>
+						</XQCheckItem>
+						<XQSectionTitle>阿拉伯点</XQSectionTitle>
+					</div>
 				);
 			}
 
@@ -94,32 +113,15 @@ class PlanetSelector extends Component{
 		});
 
 		return (
-			<div>
-				<Tabs defaultActiveKey="1" tabPosition='top'>
+			<div className="horosa-selector-drawer">
+				<XQTabs defaultActiveKey="1" tabPosition='top'>
 					<TabPane tab="行星" key="1">
-						<Checkbox.Group 
-							style={{ width: '100%' }} 
-							onChange={this.onChange}
-							value={planetValues}
-						>
-							<Row gutter={12}>
-								{allobjs}
-							</Row>
-						</Checkbox.Group>
+						<XQCheckList>{allobjs}</XQCheckList>
 					</TabPane>
 					<TabPane tab="希腊点" key="2">
-						<Checkbox.Group 
-							style={{ width: '100%' }} 
-							onChange={this.onLotsChange}
-							value={lotValues}
-						>
-							<Row gutter={12}>
-								{lots}
-							</Row>
-						</Checkbox.Group>
-
+						<XQCheckList>{lots}</XQCheckList>
 					</TabPane>
-				</Tabs>
+				</XQTabs>
 			</div>
 		);
 	}

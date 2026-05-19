@@ -1,14 +1,13 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select, Drawer, Button } from 'antd';
+import { Row, Col } from 'antd';
 import ACG from '../amap/ACG';
 import request from '../../utils/request';
 import DateTimeInfo from '../comp/DateTimeInfo';
 import * as Constants from '../../utils/constants';
-import { randomStr, gpsToGcj02,} from '../../utils/helper';
-import * as AstroConst from '../../constants/AstroConst';
+import { gpsToGcj02,} from '../../utils/helper';
 import AstroLinesSelector from './AstroLinesSelector';
 import { getAllLines, } from './AcgHelper';
-import styles from '../../css/styles.less';
+import { XQButton, XQDrawer } from '../xq-ui';
 
 function fieldsToParams(fields){
 	const params = {
@@ -269,7 +268,7 @@ class AstroAcg extends Component{
 		}
 
 		return (
-			<div>
+			<div className="horosa-acg-page xq-chart-renderer xq-chart-renderer-locastro">
 				<Row>
 					<Col span={16}>
 						<DateTimeInfo  
@@ -277,7 +276,7 @@ class AstroAcg extends Component{
 						/>
 					</Col>
 					<Col span={4} style={{textAlign:'right', marginBottom: 10}}>
-						<Button size='small' onClick={this.openDrawer}>行星线选择</Button>
+						<XQButton size='small' onClick={this.openDrawer}>行星线选择</XQButton>
 					</Col>
 				</Row>
 				<Row>
@@ -292,7 +291,7 @@ class AstroAcg extends Component{
 					</Col>
 				</Row>
 
-				<Drawer
+				<XQDrawer
 					title='行星线选择'
 					width={500}
 					placement="left"
@@ -310,7 +309,7 @@ class AstroAcg extends Component{
 						value={this.state.lines}
 						onChange={this.changeLines}
 					/>
-				</Drawer>
+				</XQDrawer>
 			</div>
 		);
 	}

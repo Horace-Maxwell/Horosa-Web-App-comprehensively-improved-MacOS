@@ -1,8 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
 import AstroChartMain from '../astro/AstroChartMain';
-import * as Constants from '../../utils/constants';
-import request from '../../utils/request';
 
 function paramsToFields(params){
 	const fields = {

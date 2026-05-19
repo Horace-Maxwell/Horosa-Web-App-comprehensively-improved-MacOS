@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Divider, Tabs,Popover, } from 'antd';
+import { Row, Col, Divider, Popover } from 'antd';
+import { XQTabs as Tabs } from '../xq-ui';
 import AstroDoubleChart from './AstroDoubleChart';
 import AspectInfo from '../relative/AspectInfo';
 import MidpointInfo from '../relative/MidpointInfo';

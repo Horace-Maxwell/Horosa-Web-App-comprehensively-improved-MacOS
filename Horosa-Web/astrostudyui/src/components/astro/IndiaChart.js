@@ -1,15 +1,18 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
 import AstroChartMain from './AstroChartMain';
+import IndiaEastChart from './IndiaEastChart';
+import IndiaNorthChart from './IndiaNorthChart';
+import IndiaSouthChart from './IndiaSouthChart';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
+import * as AstroConst from '../../constants/AstroConst';
 import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 
 const indiaChartCache = new Map();
 const indiaChartInflight = new Map();
 
-function fieldsToParams(fields){
+export function fieldsToParams(fields){
 	const params = {
 		date: fields.date.value.format('YYYY/MM/DD'),
 		time: fields.time.value.format('HH:mm:ss'),
@@ -19,7 +22,7 @@ function fieldsToParams(fields){
 		lon: fields.lon.value,
 		gpsLat: fields.gpsLat.value,
 		gpsLon: fields.gpsLon.value,
-		hsys: fields.hsys.value === 0 || fields.hsys.value === 5 ? fields.hsys.value : 0,
+		hsys: fields.hsys.value,
 		zodiacal: 1,
 		tradition: fields.tradition.value,
 		strongRecption: fields.strongRecption.value,
@@ -57,7 +60,7 @@ function resolveIndiaLabel(fractal, hook){
 	if(fractal === 1){
 		return '命盘';
 	}
-	return `${fractal}律盘`;
+	return `${fractal}分盘`;
 }
 
 function buildIndiaChartCacheKey(params){
@@ -85,6 +88,33 @@ function buildIndiaChartCacheKey(params){
 		chartnum: params.chartnum || 1,
 	};
 	return JSON.stringify(normalized);
+}
+
+export async function requestIndiaChartData(params){
+	const cacheKey = buildIndiaChartCacheKey(params);
+	let result = indiaChartCache.get(cacheKey);
+	if(!result){
+		let inflight = indiaChartInflight.get(cacheKey);
+		if(!inflight){
+			inflight = request(`${Constants.ServerRoot}/india/chart`, {
+				body: JSON.stringify(params),
+			}).then((data)=>{
+				if(!data || data[Constants.ResultKey] === undefined || data[Constants.ResultKey] === null){
+					return null;
+				}
+				const resolved = data[Constants.ResultKey];
+				if(resolved){
+					indiaChartCache.set(cacheKey, resolved);
+				}
+				return resolved;
+			}).finally(()=>{
+				indiaChartInflight.delete(cacheKey);
+			});
+			indiaChartInflight.set(cacheKey, inflight);
+		}
+		result = await inflight;
+	}
+	return result;
 }
 
 function splitSections(text){
@@ -144,7 +174,7 @@ function buildIndiaSnapshotText(chartObj, fields, chartnum, hook){
 
 	const lines = [];
 	ensureSection(lines, '起盘信息', [
-		`当前律盘：${label}`,
+		`当前分盘：${label}`,
 		`分盘：D${fractal}`,
 		...baseInfo,
 	]);
@@ -178,23 +208,11 @@ class IndiaChart extends Component{
 	}
 
 	async requestChart(params, sourceFields){
-		const cacheKey = buildIndiaChartCacheKey(params);
-		let result = indiaChartCache.get(cacheKey);
-		if(!result){
-			let inflight = indiaChartInflight.get(cacheKey);
-			if(!inflight){
-				inflight = request(`${Constants.ServerRoot}/india/chart`, {
-					body: JSON.stringify(params),
-				}).then((data)=>{
-					const resolved = data[Constants.ResultKey];
-					indiaChartCache.set(cacheKey, resolved);
-					return resolved;
-				}).finally(()=>{
-					indiaChartInflight.delete(cacheKey);
-				});
-				indiaChartInflight.set(cacheKey, inflight);
-			}
-			result = await inflight;
+		let result = null;
+		try{
+			result = await requestIndiaChartData(params);
+		}catch(e){
+			result = null;
 		}
 
 		const st = {
@@ -219,13 +237,20 @@ class IndiaChart extends Component{
 
 	requestChartObj(fields){
 		let params = null;
-		if(fields){
-			params = fieldsToParams(fields);
-			if(params.chartnum === undefined || params.chartnum === null){
-				params.chartnum = 1;
+		try{
+			if(fields){
+				params = fieldsToParams(fields);
+				if(params.chartnum === undefined || params.chartnum === null){
+					params.chartnum = 1;
+				}
+			}else{
+				params = this.genParams();
 			}
-		}else{
-			params = this.genParams();
+		}catch(e){
+			this.setState({
+				chartObj: null,
+			});
+			return;
 		}
 		this.requestChart(params, fields || this.props.fields);
 	}
@@ -245,13 +270,38 @@ class IndiaChart extends Component{
 		}		
 	}
 
+	componentDidMount(){
+		this.requestChartObj();
+	}
+
 	render(){
 		let fields = this.props.fields;
 		let chartObj = this.state.chartObj;
 		let height = this.props.height ? this.props.height : 760;
+		let fractal = resolveIndiaFractal(this.props.chartnum, this.props.hook);
+		let label = resolveIndiaLabel(fractal, this.props.hook);
+		let indiaChartStyle = AstroConst.normalizeIndiaChartStyle(this.props.indiaChartStyle);
+		const IndiaChartRenderer = indiaChartStyle === AstroConst.INDIA_CHART_STYLE_NORTH
+			? IndiaNorthChart
+			: (indiaChartStyle === AstroConst.INDIA_CHART_STYLE_EAST ? IndiaEastChart : IndiaSouthChart);
+
+		if(this.props.chartOnly){
+			return (
+				<div className="horosa-india-chart-instance horosa-india-chart-only">
+					<IndiaChartRenderer
+						value={chartObj}
+						chartnum={fractal}
+						label={label}
+						height={height}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+					/>
+				</div>
+			);
+		}
 
 		return (
-			<div>
+			<div className="horosa-india-chart-instance">
 					<AstroChartMain 
 						value={chartObj} 
 					onChange={this.onFieldsChange}
@@ -260,11 +310,23 @@ class IndiaChart extends Component{
 					hidehsys={1}
 					indiahsys={1}
 					height={height} 
+					chartRenderer={({chartObj: currentChartObj, height: chartHeight})=>(
+						<IndiaChartRenderer
+							value={currentChartObj}
+							chartnum={fractal}
+							label={label}
+							height={chartHeight}
+							planetDisplay={this.props.planetDisplay}
+							lotsDisplay={this.props.lotsDisplay}
+						/>
+					)}
 						chartDisplay={this.props.chartDisplay}
+						indiaChartStyle={indiaChartStyle}
 						planetDisplay={this.props.planetDisplay}
 						lotsDisplay={this.props.lotsDisplay}
 						showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 						showAstroMeaning={this.props.showAstroMeaning}
+						dispatch={this.props.dispatch}
 					/>
 			</div>
 		);

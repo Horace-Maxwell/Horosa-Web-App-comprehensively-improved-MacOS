@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import {randomStr, printArea,} from '../../utils/helper';
+import {randomStr,} from '../../utils/helper';
 import * as ZWCont from '../../constants/ZWConst';
 import * as ZWText from '../../constants/ZWText';
 import * as AstroConst from '../../constants/AstroConst';
@@ -14,6 +14,7 @@ class ZWCenterHouse extends ZWCommHouse {
 
 		this.fields = option.fields;
 		this.yearDoujun = option.yearDoujun;
+		this.onCenterInfoClick = option.onCenterInfoClick;
 
 		this.id = 'house' + randomStr(8);
 		this.svg = null;
@@ -34,16 +35,44 @@ class ZWCenterHouse extends ZWCommHouse {
 				.attr('width', this.width).attr('height', this.height);
 		this.svg = container;
 
-		let pos = this.drawName();
-		pos = this.drawDouJun(pos.x, pos.y);
-		pos = this.drawDate(pos.x, pos.y);
-		pos = this.drawBaZi(pos.x, pos.y);
-		pos = this.drawPrintBtn(pos.x, pos.y);
-
 		this.drawShiTongZiHua();
 		this.drawSanFanSiZeng();
 
 		this.drawSangheLine();
+		this.drawInfoButton();
+	}
+
+	drawInfoButton(){
+		let bw = Math.min(132, this.width * 0.42);
+		let bh = 34;
+		let x = this.x + this.width / 2 - bw / 2;
+		let y = this.y + this.height / 2 - bh / 2;
+		let btn = this.svg.append('g').attr('class', 'horosa-ziwei-center-info-button');
+		btn.append('rect')
+			.attr('x', x).attr('y', y)
+			.attr('width', bw).attr('height', bh)
+			.attr('rx', 8).attr('ry', 8)
+			.attr('fill', 'var(--horosa-surface-raised, rgba(10, 12, 14, 0.92))')
+			.attr('stroke', 'var(--horosa-gold, #dab16f)')
+			.attr('stroke-width', 1.2);
+		btn.append('text')
+			.attr("dominant-baseline","middle")
+			.attr("text-anchor", "middle")
+			.attr('font-weight', 600)
+			.attr('stroke', 'transparent')
+			.attr('fill', 'var(--horosa-gold, #dab16f)')
+			.attr('font-size', '14px')
+			.attr('x', x + bw / 2).attr('y', y + bh / 2)
+			.text('命盘信息');
+		btn.attr('style', 'cursor:pointer');
+		btn.on('click', (evt)=>{
+			if(evt && evt.stopPropagation){
+				evt.stopPropagation();
+			}
+			if(this.onCenterInfoClick){
+				this.onCenterInfoClick();
+			}
+		});
 	}
 
 	drawName(){
@@ -238,34 +267,6 @@ class ZWCenterHouse extends ZWCommHouse {
 		let pos = {
 			x: x,
 			y: y+ h + this.rowgap,
-		};
-		return pos;
-	}
-
-	drawPrintBtn(x, y){
-		let sz = this.fontSize;
-		let sx = x;
-		let sy = y + this.rowgap;
-
-		let txtsvg = this.svg.append('g');
-		txtsvg.append('text')
-			.attr("dominant-baseline","middle")
-			.attr("text-anchor", "left")
-			.attr('font-weight', 100)
-			.attr('stroke', AstroConst.AstroColor.Stroke)
-			.attr('font-size', `${sz}px`)
-			.attr('x', sx).attr('y', sy)
-			.attr('style', 'cursor:hand')
-			.text('打印命盘');
-
-		txtsvg.on('click', ()=>{
-			let cid = this.zwchart.chartId;
-			printArea(cid);
-		});
-
-		let pos = {
-			x: x,
-			y: sy + sz + this.rowgap,
 		};
 		return pos;
 	}

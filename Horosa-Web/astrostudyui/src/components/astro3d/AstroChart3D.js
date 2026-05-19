@@ -225,6 +225,8 @@ class AstroChart3D extends Component{
 			width: this.props.width ? this.props.width : '100%',
 			height: height,
 			backgroundColor: AstroConst.AstroColor.ChartBackgroud,
+			position: 'relative',
+			overflow: 'hidden',
 		};
 
 		if(this.props.style){
