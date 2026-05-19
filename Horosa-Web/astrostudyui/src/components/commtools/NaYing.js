@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Select, } from 'antd';
+import { Row, Col, Divider } from 'antd';
+import { XQSelect as Select } from '../xq-ui';
 import { randomStr, isNumber } from '../../utils/helper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
@@ -54,7 +55,7 @@ export default class NaYing extends Component{
                 padding: 5,
             }
             if(this.state.ganzi && ganzi === this.state.ganzi){
-                style.backgroundColor = '#33CCFF';
+                style.backgroundColor = 'var(--horosa-accent-soft, #33CCFF)';
             }
             let col = (
                 <Col span={24} key={randomStr(8)}><div style={style}>{ganzi}--{wx}</div></Col>

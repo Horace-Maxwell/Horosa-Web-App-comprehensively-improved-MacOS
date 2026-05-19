@@ -1,6 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Statistic, Select, Input, Modal, InputNumber } from 'antd';
-import { randomStr, isNumber } from '../../utils/helper';
+import { Row, Col, Divider, Statistic } from 'antd';
+import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import DateTimeSelector from '../comp/DateTimeSelector';

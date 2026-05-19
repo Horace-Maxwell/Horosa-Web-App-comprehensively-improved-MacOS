@@ -1,10 +1,10 @@
 import { Component } from 'react';
-import { Modal, Upload,  message, } from 'antd';
-import { InboxOutlined } from '@ant-design/icons';
+import { Modal as AntModal, Upload,  message, } from 'antd';
 import { ServerRoot } from '../../utils/constants';
 import * as Constants from '../../utils/constants';
 import { signRequest } from '../../utils/request';
-import { randomStr } from '../../utils/helper';
+import { XQModal } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const Dragger = Upload.Dragger;
 
@@ -73,7 +73,7 @@ class UploadChartsModal extends Component{
             if(e.file.response.ResultCode === 0){
 				let res = e.file.response.Result;
 				if(res.FailCount === 0){
-					Modal.success({
+					AntModal.success({
 						title: `星盘数据${e.file.name}上传成功`,
 						content: `共处理${res.Total}条记录。`
 					});
@@ -81,7 +81,7 @@ class UploadChartsModal extends Component{
 						this.props.onSuccess();
 					}	
 				}else{
-					Modal.success({
+					AntModal.success({
 						title: `星盘数据${e.file.name}上传成功，`,
 						content: `成功处理${res.Total - res.FailCount}条记录，失败${res.FailCount}条记录。`
 					});
@@ -94,7 +94,7 @@ class UploadChartsModal extends Component{
 					});
 				}
             }else{
-                Modal.error({
+                AntModal.error({
 					title: `星盘数据${e.file.name}上传失败`,
 					content: e.file.response.Result,
 				});
@@ -147,8 +147,8 @@ class UploadChartsModal extends Component{
 				<span onClick={this.showModalHandler}>
 					{ this.props.children }
 				</span>
-				<Modal open={this.state.visible} 
-					onCancel={this.hideModalHandler}					
+				<XQModal open={this.state.visible}
+					onCancel={this.hideModalHandler}
 					onOk={this.clickOk}
 					footer={null}
 					width={800} title='星盘数据上传'
@@ -165,7 +165,7 @@ class UploadChartsModal extends Component{
 							fileList={this.state.fileList}
 						>
 							<p className="ant-upload-drag-icon">
-								<InboxOutlined />
+								<XQIcon name="inbox" />
 							</p>
 							<p className="ant-upload-text">点击或拖放文件到此区域进行上传</p>
 							<p className="ant-upload-hint">选择含有星盘数据的xlsx文件</p>
@@ -184,7 +184,7 @@ class UploadChartsModal extends Component{
 						</Dragger>,
 					</div>
 
-				</Modal>
+				</XQModal>
 			</span>
 
 		);

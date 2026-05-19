@@ -7,7 +7,7 @@ import * as ZWConst from '../../constants/ZWConst';
 import * as ZiWeiHelper from './ZiWeiHelper';
 
 class ZWChart {
-	constructor(chartid, chartObj, fields, tooltipId, onTipClick){
+	constructor(chartid, chartObj, fields, tooltipId, onTipClick, onCenterInfoClick){
 		this.fields = fields;
 		this.chartId = chartid;
 		this.chartObj = chartObj;
@@ -22,6 +22,7 @@ class ZWChart {
 		});
 		this.tooltipId = tooltipId;
 		this.onTipClick = onTipClick;
+		this.onCenterInfoClick = onCenterInfoClick;
 
 		this.rules = null;
 	}
@@ -113,7 +114,7 @@ class ZWChart {
 		let svgid = '#' + this.chartId;
 		this.svg = d3.select(svgid);
 		this.svg.html('');
-		this.svg.attr('stroke', '#000000').attr("stroke-width", 1);
+		this.svg.attr('stroke', ZWConst.ZWColor.HouseLineStroke).attr("stroke-width", 1);
 	
 		this.svgTopgroup = this.svg.append('g');
 		let x = this.margin;
@@ -178,6 +179,7 @@ class ZWChart {
 				divTooltipId: this.tooltipId,
 				rules: this.rules,
 				onTipClick: this.onTipClick,
+				onCenterInfoClick: this.onCenterInfoClick,
 			};
 			if(this.flyHouse){
 				opt.flyGanzi = this.flyHouse.ganzi;
@@ -204,10 +206,11 @@ class ZWChart {
 			fields: this.fields,
 			yearDoujun: this.yearDoujun,
 			divTooltip: d3.select('#' + this.tooltipId),
-			divTooltipId: this.tooltipId,
-			rules: this.rules,
-			onTipClick: this.onTipClick,
-		};
+				divTooltipId: this.tooltipId,
+				rules: this.rules,
+				onTipClick: this.onTipClick,
+				onCenterInfoClick: this.onCenterInfoClick,
+			};
 		let cenhouse = new ZWCenterHouse(opt);
 		cenhouse.draw();
 		this.houses[12] = cenhouse;

@@ -86,6 +86,12 @@ class WebChartSrv:
 
             perchart = PerChart(data)
             guostar = GuoStarSect(perchart)
+            guolao_sunrise_time = None
+            if data.get('guolaoLifeMode') == 'yumao':
+                try:
+                    guolao_sunrise_time = perchart.getSunRiseTime().get('timeStr')
+                except Exception:
+                    traceback.print_exc()
 
             obj = {
                 'params': {
@@ -97,7 +103,7 @@ class WebChartSrv:
                     'zone': data['zone'],
                     'tradition': perchart.tradition,
                     'zodiacal': perchart.zodiacal,
-                    'doubingSu28': perchart.isDoubingSu28,
+                    'doubingSu28': perchart.su28Mode,
                     'showPdBounds': data.get('showPdBounds', 1),
                     'pdtype': perchart.pdtype,
                     'pdMethod': perchart.pdMethod,
@@ -123,6 +129,9 @@ class WebChartSrv:
                     'houses': guostar.allTerm()
                 }
             }
+            if guolao_sunrise_time:
+                obj['params']['guolaoLifeMode'] = data.get('guolaoLifeMode')
+                obj['params']['guolaoSunRiseTime'] = guolao_sunrise_time
 
             predictives = getPredictivesObj(data, perchart)
             if predictives is not None:

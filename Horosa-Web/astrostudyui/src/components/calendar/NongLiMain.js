@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, } from 'antd';
+import { Row, Col, Divider, } from 'antd';
+import { XQButton as Button } from '../xq-ui';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import DateTimeSelector from '../comp/DateTimeSelector';
@@ -243,9 +244,8 @@ class NongLiMain extends Component{
 		let seldatedom = this.genSelectDateDom();
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={16}>
+			<div className='horosa-calendar-workbench'>
+				<section className='horosa-calendar-board-panel'>
 						<NongLi 
 							height={height}
 							date={this.state.date}
@@ -254,10 +254,9 @@ class NongLiMain extends Component{
 							focusDate={this.state.date}
 							onDateClick={this.clickDate}
 						/>
-					</Col>
-					<Col span={8}>
-						<Row>
-							<Col span={24}>
+				</section>
+				<aside className='horosa-calendar-detail-panel'>
+					<div className='horosa-calendar-control-strip'>
 								<DateTimeSelector 
 									value={this.state.date}
 									defaultTimeType='M'
@@ -266,13 +265,12 @@ class NongLiMain extends Component{
 									onlyMonthAdjust={true}
 									onChange={this.onTimeChanged} 
 								/>
-
-							</Col>
-						</Row>
-						<Divider />
-						{seldatedom}
-					</Col>
-				</Row>
+					</div>
+					<Divider />
+					<div className='horosa-calendar-selected'>
+						{seldatedom || <div className='horosa-empty-hint'>选择日期查看详细农历、干支与节气信息</div>}
+					</div>
+				</aside>
 			</div>
 		);
 	}

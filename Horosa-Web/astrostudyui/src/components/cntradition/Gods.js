@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Card, } from 'antd';
+import { Row, Col } from 'antd';
+import { XQCard as Card } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 import styles from '../../css/styles.less';
 

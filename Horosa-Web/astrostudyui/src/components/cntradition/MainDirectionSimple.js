@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Card, Tabs, Divider, Popover} from 'antd';
+import { Row, Col } from 'antd';
 import { randomStr } from '../../utils/helper';
 import { BaZiMsg } from '../../msg/bazimsg';
 import MDSDirect from './MDSDirect';
@@ -70,5 +70,4 @@ class MainDirectionSimple extends Component{
 }
 
 export default MainDirectionSimple;
-
 

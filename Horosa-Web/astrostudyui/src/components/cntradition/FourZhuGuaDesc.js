@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Select, Divider} from 'antd';
+import { Row, Col } from 'antd';
+import { XQSelect as Select } from '../xq-ui';
 import DoubleMeiyiGuaSym from '../gua/DoubleMeiyiGuaSym';
 import GuaChartDiv from '../gua/GuaChartDiv';
 import styles from '../../css/styles.less';

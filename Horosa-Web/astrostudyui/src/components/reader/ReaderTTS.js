@@ -1,5 +1,4 @@
 import { Component } from 'react';
-import { Icon, message, Row, Col, Drawer, List, Typography, Button, Select, Dropdown, Menu} from 'antd';
 import { randomStr } from '../../utils/helper';
 import { ServerRoot, } from '../../utils/constants';
 import { requestRaw, } from '../../utils/request';
@@ -67,4 +66,3 @@ class ReaderTTS extends Component{
 }
 
 export default ReaderTTS;
-

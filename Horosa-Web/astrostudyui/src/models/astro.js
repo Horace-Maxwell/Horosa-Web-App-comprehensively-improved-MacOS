@@ -9,6 +9,7 @@ import { saveAstroAISnapshot, } from '../utils/astroAiSnapshot';
 import { loadLocalFateEvents, saveLocalFateEvents, } from '../utils/localdeeplearn';
 
 let dtm = new DateTime();
+const DefaultHouseSystem = 1;
 
 function newEmptyFields(){
 	const fields = {
@@ -57,7 +58,7 @@ function newEmptyFields(){
 			name: ['pos'],
 		},
 		hsys: {
-			value: 0,
+			value: DefaultHouseSystem,
 			name: ['hsys'],
 		},
 		zodiacal: {
@@ -83,6 +84,10 @@ function newEmptyFields(){
 		doubingSu28: {
 			value: 0,
 			name: ['doubingSu28'],
+		},
+		guolaoLifeMode: {
+			value: 'asc',
+			name: ['guolaoLifeMode'],
 		},
 		houseStartMode: {
 			value: 0,
@@ -198,6 +203,7 @@ function fieldsToParams(fields){
 		zodiacal: fields.zodiacal.value,
 		tradition: fields.tradition.value,
 		doubingSu28: fields.doubingSu28.value,
+		guolaoLifeMode: fields.guolaoLifeMode ? fields.guolaoLifeMode.value : 'asc',
 		strongRecption: fields.strongRecption.value,
 		simpleAsp: fields.simpleAsp.value,
 		virtualPointReceiveAsp: fields.virtualPointReceiveAsp.value,
@@ -270,7 +276,10 @@ function hooking(hook, currentTab, fields, chartObj){
 		|| currentTab === 'hellenastro' || currentTab === 'guolao'
 		|| currentTab === 'germanytech' || currentTab === 'jieqichart'
 		|| currentTab === 'cntradition' || currentTab === 'cnyibu' || currentTab === 'otherbu'
-		|| currentTab === 'fengshui' || currentTab === 'sanshiunited' || currentTab === 'aianalysis'){
+		|| currentTab === 'fengshui' || currentTab === 'sanshiunited' || currentTab === 'aianalysis'
+		|| currentTab === 'bazi' || currentTab === 'ziwei' || currentTab === 'guazhan'
+		|| currentTab === 'liureng' || currentTab === 'dunjia' || currentTab === 'taiyi'
+		|| currentTab === 'auxchart'){
 		if(hook[currentTab].fun){
 			hook[currentTab].fun(fields, chartObj)
 		}
@@ -306,6 +315,12 @@ export default {
 			astrochart:{
 				fun: null
 			},
+			bazi:{
+				fun: null
+			},
+			ziwei:{
+				fun: null
+			},
 			astrochart3D:{
 				fun: null
 			},
@@ -339,6 +354,9 @@ export default {
 			germanytech:{
 				fun: null
 			},
+			auxchart:{
+				fun: null
+			},
 			jieqichart:{
 				fun: null
 			},
@@ -346,6 +364,18 @@ export default {
 				fun: null
 			},
 			cnyibu:{
+				fun: null
+			},
+			guazhan:{
+				fun: null
+			},
+			liureng:{
+				fun: null
+			},
+			dunjia:{
+				fun: null
+			},
+			taiyi:{
 				fun: null
 			},
 			calendar:{
@@ -421,7 +451,7 @@ export default {
 				name: ['pos'],
 			},
 			hsys: {
-				value: 0,
+				value: DefaultHouseSystem,
 				name: ['hsys'],
 			},
 			zodiacal: {
@@ -447,6 +477,10 @@ export default {
 			doubingSu28: {
 				value: 0,
 				name: ['doubingSu28'],
+			},
+			guolaoLifeMode: {
+				value: 'asc',
+				name: ['guolaoLifeMode'],
 			},
 			houseStartMode: {
 				value: 0,
@@ -564,7 +598,22 @@ export default {
 			if(tab && (values.memoType === undefined || values.memoType === null)){
 				let type = 0;
 				let memo = currentChart.memoAstro.value;
-				if(tab === 'cntradition'){
+				if(tab === 'bazi'){
+					type = 1;
+					memo = currentChart.memoBaZi.value;
+				}else if(tab === 'ziwei'){
+					type = 2;
+					memo = currentChart.memoZiWei.value;
+				}else if(tab === 'guazhan'){
+					type = 4;
+					memo = currentChart.memoGua.value;
+				}else if(tab === 'liureng'){
+					type = 5;
+					memo = currentChart.memoLiuReng.value;
+				}else if(tab === 'dunjia' || tab === 'taiyi'){
+					type = 6;
+					memo = currentChart.memoQiMeng.value;
+				}else if(tab === 'cntradition'){
 					if(subtab && subtab === 'bazi'){
 						type = 1;
 						memo = currentChart.memoBaZi.value;
@@ -1084,7 +1133,7 @@ export default {
 					yield put({
 						type: 'save',
 						payload: {
-							currentTab: '1',
+							currentTab: 'astrochart',
 						},
 					});		
 					return;
@@ -1094,7 +1143,7 @@ export default {
 			let payload = {
 				currentTab: path[0],
 			};
-			if(path.length > 0){
+			if(path.length > 1){
 				payload.currentSubTab = path[1];
 			}
 

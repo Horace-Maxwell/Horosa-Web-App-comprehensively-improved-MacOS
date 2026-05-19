@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Select, InputNumber, Input, Checkbox, Tabs, message } from 'antd';
+import { Checkbox, message } from 'antd';
+import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import * as AstroConst from '../../constants/AstroConst';
@@ -13,9 +14,8 @@ import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAi
 import { getStore } from '../../utils/storageutil';
 import { fetchPreciseNongli } from '../../utils/preciseCalcBridge';
 import { setNongliLocalCache } from '../../utils/localCalcCache';
-import styles from '../../css/styles.less';
+import XQIcon from '../xq-icons';
 
-const InputGroup = Input.Group;
 const {Option} = Select;
 const { TabPane } = Tabs;
 
@@ -189,7 +189,13 @@ class GuaZhanMain extends Component{
 		this.unmounted = false;
 		this.lastRestoredCaseId = null;
 		this.timeHook = {};
-		this.genColor = [AstroConst.AstroColor.Stroke, '#a01306', '#948e33', '#7b5cbc', '#0b0e66'];
+		this.genColor = [
+			AstroConst.AstroColor.Stroke,
+			AstroConst.AstroColor.Mars || '#a01306',
+			AstroConst.AstroColor.MC || '#948e33',
+			AstroConst.AstroColor['Purple Clouds'] || '#7b5cbc',
+			AstroConst.AstroColor.Jupiter || '#0b0e66',
+		];
 		this.colorIndex = 0;
 		this.periodTask = null;
 		this.guaPeriodTask = null;
@@ -1053,15 +1059,172 @@ class GuaZhanMain extends Component{
 		}
 	}
 
+	renderInputPanel(opts, upopts, downopts, dyvalues){
+		return (
+			<div className="horosa-guazhan-input-stack">
+				<div>
+					<div className="horosa-side-panel-title">六爻设置</div>
+					<div className="horosa-side-panel-subtitle">时间、地点与起卦方式</div>
+				</div>
+
+				<div className="horosa-guazhan-input-section">
+					<div className="horosa-guazhan-field-title"><XQIcon name="clock" />时间与地点</div>
+					<div className="horosa-guazhan-time-control">
+						<GuaZhanInput
+							fields={this.props.fields}
+							hook={this.timeHook}
+							onFieldsChange={this.onFieldsChange}
+						/>
+					</div>
+				</div>
+
+				<div className="horosa-guazhan-input-section">
+					<div className="horosa-guazhan-field-title"><XQIcon name="liuyao" />卦象与动爻</div>
+					<Select
+						allowClear={true}
+						showSearch={true}
+						showArrow={true}
+						placeholder='64卦'
+						filterOption={this.filterGua}
+						value={this.state.currentGua}
+						onChange={this.changeGua}
+					>
+						{opts}
+					</Select>
+					<Checkbox.Group className="horosa-guazhan-yao-checks" onChange={this.dongyaoChanged} value={dyvalues}>
+						<Checkbox value={0}>初爻动</Checkbox>
+						<Checkbox value={1}>二爻动</Checkbox>
+						<Checkbox value={2}>三爻动</Checkbox>
+						<Checkbox value={3}>四爻动</Checkbox>
+						<Checkbox value={4}>五爻动</Checkbox>
+						<Checkbox value={5}>上爻动</Checkbox>
+					</Checkbox.Group>
+				</div>
+
+				<div className="horosa-guazhan-input-section">
+					<div className="horosa-guazhan-field-title"><XQIcon name="refresh" />快捷起卦</div>
+					<div className="horosa-guazhan-action-grid">
+						<Button onClick={()=>{this.clickTimeGua()}}>时间起卦</Button>
+						<Button onClick={this.genGua}>{this.state.btnGenGua}</Button>
+						{this.state.btnName.map((name, idx)=>(
+							<Button key={idx} disabled={this.state.btnDisabled[idx]} onClick={()=>{this.genYao(idx);}}>{name}</Button>
+						))}
+					</div>
+				</div>
+
+				<div className="horosa-guazhan-input-section">
+					<div className="horosa-guazhan-field-title"><XQIcon name="target" />数字起卦</div>
+					<div className="horosa-guazhan-inline-row">
+						<InputNumber value={this.state.number} onChange={this.numberChanged} min={0} />
+						<Button onClick={this.clickNumGua}>数字起卦</Button>
+					</div>
+					<Select onChange={this.numGuaDongYaoChanged} value={this.state.numGuaDongYao}>
+						<Option value={-3}>数字直接决定动爻</Option>
+						<Option value={-2}>附加一个随机数决定动爻</Option>
+						<Option value={-1}>附加时辰决定动爻</Option>
+						<Option value={0}>第一动爻</Option>
+						<Option value={1}>第二动爻</Option>
+						<Option value={2}>第三动爻</Option>
+						<Option value={3}>第四动爻</Option>
+						<Option value={4}>第五动爻</Option>
+						<Option value={5}>第六动爻</Option>
+					</Select>
+				</div>
+
+				<div className="horosa-guazhan-input-section">
+					<div className="horosa-guazhan-field-title"><XQIcon name="settings" />自定义起卦</div>
+					<div className="horosa-guazhan-select-grid">
+						<label className="horosa-guazhan-select-field">
+							<span>上卦</span>
+							<Select allowClear={true} value={this.state.upGuaIdx} onChange={this.upGuaIdxChanged}>
+								{upopts}
+							</Select>
+						</label>
+						<label className="horosa-guazhan-select-field">
+							<span>下卦</span>
+							<Select allowClear={true} value={this.state.downGuaIdx} onChange={this.downGuaIdxChanged}>
+								{downopts}
+							</Select>
+						</label>
+					</div>
+					<Select onChange={this.custGuaDongYaoChanged} value={this.state.custGuaDongYao}>
+						<Option value={-3}>先天卦数直接决定动爻</Option>
+						<Option value={-2}>附加一个随机数决定动爻</Option>
+						<Option value={-1}>附加时辰决定动爻</Option>
+						<Option value={0}>第一动爻</Option>
+						<Option value={1}>第二动爻</Option>
+						<Option value={2}>第三动爻</Option>
+						<Option value={3}>第四动爻</Option>
+						<Option value={4}>第五动爻</Option>
+						<Option value={5}>第六动爻</Option>
+					</Select>
+					<Button onClick={this.clickCustGua}>自定义起卦</Button>
+				</div>
+
+				<div className="horosa-guazhan-action-row">
+					<Button onClick={this.clickSaveCase}>保存</Button>
+				</div>
+			</div>
+		);
+	}
+
+	renderInfoRows(){
+		const fields = this.props.fields || {};
+		const nongli = this.state.nongli || {};
+		const gua = this.state.currentGua !== null && Gua64[this.state.currentGua] ? Gua64[this.state.currentGua] : null;
+		const dyvalues = this.getDongYaos();
+		const fieldTime = fields.date && fields.time
+			? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}`
+			: '—';
+		const geo = fields.lon && fields.lat ? `${fields.lon.value} ${fields.lat.value}` : '—';
+		const gz = [nongli.yearJieqi || nongli.year || nongli.yearGanZi, nongli.monthGanZi, nongli.dayGanZi, nongli.time || nongli.timeGanZi]
+			.filter(Boolean)
+			.join(' / ');
+
+		return [
+			['起卦时间', fieldTime],
+			['地点', geo],
+			['干支', gz || '—'],
+			['当前本卦', gua ? guaText(gua) : '未生成'],
+			['动爻', dyvalues.length ? dyvalues.map(idx=>`第${idx + 1}爻`).join('、') : '无'],
+			['数字', this.state.number !== null && this.state.number !== undefined && this.state.number !== '' ? this.state.number : '—'],
+		].map(([label, value])=>(
+			<div className="horosa-guazhan-info-row" key={label}>
+				<span>{label}</span>
+				<strong>{value}</strong>
+			</div>
+		));
+	}
+
+	renderRightPanel(height, guadesc){
+		const infoHeight = Math.max(420, height - 170);
+		const snapshot = buildGuaSnapshotText(this.props.fields, this.state);
+		return (
+			<Tabs defaultActiveKey="overview" tabPosition="top" className="horosa-guazhan-tabs">
+				<TabPane tab="概览" key="overview">
+					<div className="horosa-guazhan-info-card">
+						{this.renderInfoRows()}
+					</div>
+				</TabPane>
+				<TabPane tab="卦辞" key="gua">
+					<div className="horosa-guazhan-desc-panel">
+						<GuaDesc height={infoHeight} value={guadesc} />
+					</div>
+				</TabPane>
+				<TabPane tab="快照" key="snapshot">
+					<pre className="horosa-guazhan-snapshot">{snapshot}</pre>
+				</TabPane>
+			</Tabs>
+		);
+	}
+
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 'calc(100% - 70px)'
+			height = 760
 		}else{
 			height = height - 20
 		}
-
-		let tabheight = height - 290;
 
 		let chartObj = this.props.value;
 		let chart = chartObj ? chartObj.chart : {};
@@ -1077,159 +1240,44 @@ class GuaZhanMain extends Component{
 		let guadesc = this.state.guaDesc;
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={16}>
+			<div className="horosa-guazhan-page horosa-astro-redesign horosa-guazhan-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-guazhan-redesign-layout">
+					<div className="horosa-astro-redesign-grid horosa-guazhan-redesign-grid">
+						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-guazhan-input-panel">
+							{this.renderInputPanel(opts, upopts, downopts, dyvalues)}
+						</div>
+						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-guazhan-chart-panel xq-chart-renderer xq-chart-renderer-liuyao">
+							<div className="horosa-guazhan-board-host">
 						<GuaZhanChart 
 							value={chart} 
-							height={height} 
+									height={Math.max(560, height - 22)}
 							fields={this.props.fields}  
 							nongli={this.state.nongli}
 							yao={yao}
 							chartDisplay={this.props.chartDisplay}
 							planetDisplay={this.props.planetDisplay}
 						/>
-					</Col>
-					<Col span={8}>
-						<Row>
-							<Col span={24}>
-								<GuaZhanInput 
-									fields={this.props.fields} 
-									hook={this.timeHook}
-									onFieldsChange={this.onFieldsChange}
-								/>
-							</Col>
-						</Row>
-						<Row style={{ marginTop: 8 }}>
-							<Col span={24}>
-								<Button style={{ width: '100%' }} onClick={this.clickSaveCase}>保存</Button>
-							</Col>
-						</Row>
-						<Divider />
-						<Row gutter={12} style={{marginBottom: 10}}>
-							<Col span={24}>
-								<Select 
-									allowClear={true} showSearch={true} showArrow={true}
-									placeholder='64卦'
-									filterOption={this.filterGua}
-									style={{width: '100%'}} 
-									value={this.state.currentGua}
-									onChange={this.changeGua}
-								>
-									{opts}
-								</Select>
-							</Col>
-						</Row>
-
-						<div style={{marginBottom: 10}}>
-							<Checkbox.Group onChange={this.dongyaoChanged} value={dyvalues}>
-								<Row gutter={12}>
-									<Col span={12}><Checkbox value={0}>第一爻动</Checkbox></Col>
-									<Col span={12}><Checkbox value={1}>第二爻动</Checkbox></Col>
-									<Col span={12}><Checkbox value={2}>第三爻动</Checkbox></Col>
-									<Col span={12}><Checkbox value={3}>第四爻动</Checkbox></Col>
-									<Col span={12}><Checkbox value={4}>第五爻动</Checkbox></Col>
-									<Col span={12}><Checkbox value={5}>第六爻动</Checkbox></Col>
-								</Row>
-							</Checkbox.Group>
 						</div>
-
-						<Tabs 
-							defaultActiveKey='method' tabPosition='top'
-							style={{ height: tabheight }}
-						>
-							<TabPane tab="起卦方式" key="method">
-								<div className={styles.scrollbar} style={{height: tabheight}}>
-									<Row gutter={12} style={{marginBottom:10}}>
-										<Col span={12}>
-											<Button onClick={()=>{this.clickTimeGua()}}>时间起卦</Button>
-										</Col>
-										<Col span={12}><Button onClick={this.genGua}>{this.state.btnGenGua}</Button></Col>
-									</Row>
-									<Row gutter={12}>
-										<Col span={12}><Button disabled={this.state.btnDisabled[0]} onClick={()=>{this.genYao(0);}}>{this.state.btnName[0]}</Button></Col>
-										<Col span={12}><Button disabled={this.state.btnDisabled[1]} onClick={()=>{this.genYao(1);}}>{this.state.btnName[1]}</Button></Col>
-										<Col span={12}><Button disabled={this.state.btnDisabled[2]} onClick={()=>{this.genYao(2);}}>{this.state.btnName[2]}</Button></Col>
-										<Col span={12}><Button disabled={this.state.btnDisabled[3]} onClick={()=>{this.genYao(3);}}>{this.state.btnName[3]}</Button></Col>
-										<Col span={12}><Button disabled={this.state.btnDisabled[4]} onClick={()=>{this.genYao(4);}}>{this.state.btnName[4]}</Button></Col>
-										<Col span={12}><Button disabled={this.state.btnDisabled[5]} onClick={()=>{this.genYao(5);}}>{this.state.btnName[5]}</Button></Col>
-									</Row>
-									<Row gutter={12} style={{marginTop: 20}}>
-										<Col span={12}>
-											<InputNumber style={{width: '100%'}} value={this.state.number} onChange={this.numberChanged} min={0} />
-										</Col>
-										<Col span={12}><Button style={{width:'90%'}} onClick={this.clickNumGua}>数字起卦</Button></Col>
-										<Col span={24}>
-											<Select onChange={this.numGuaDongYaoChanged} value={this.state.numGuaDongYao} style={{width:'95%'}}>
-												<Option value={-3}>数字直接决定动爻</Option>
-												<Option value={-2}>附加一个随机数决定动爻</Option>
-												<Option value={-1}>附加时辰决定动爻</Option>
-												<Option value={0}>第一动爻</Option>
-												<Option value={1}>第二动爻</Option>
-												<Option value={2}>第三动爻</Option>
-												<Option value={3}>第四动爻</Option>
-												<Option value={4}>第五动爻</Option>
-												<Option value={5}>第六动爻</Option>
-											</Select>
-
-										</Col>
-									</Row>
-
-									<Row gutter={12} style={{marginTop: 20}}>
-										<Col span={12}>
-											<InputGroup compact>
-												<label style={{ width: '40%', fontSize:18 }}>上卦</label>
-												<Select style={{ width: '60%' }}
-													allowClear={true} 
-													value={this.state.upGuaIdx}
-													onChange={this.upGuaIdxChanged}
-												>
-													{upopts}
-												</Select>
-											</InputGroup>
-										</Col>
-										<Col span={12}>
-											<InputGroup compact>
-												<label style={{ width: '40%', fontSize:18 }}>下卦</label>
-												<Select style={{ width: '60%' }}
-													allowClear={true} 
-													value={this.state.downGuaIdx}
-													onChange={this.downGuaIdxChanged}
-												>
-													{downopts}
-												</Select>
-											</InputGroup>							
-										</Col>
-									</Row>
-									<Row gutter={12} >
-										<Col span={15}>
-											<Select onChange={this.custGuaDongYaoChanged} value={this.state.custGuaDongYao} style={{width:'100%'}}>
-												<Option value={-3}>先天卦数直接决定动爻</Option>
-												<Option value={-2}>附加一个随机数决定动爻</Option>
-												<Option value={-1}>附加时辰决定动爻</Option>
-												<Option value={0}>第一动爻</Option>
-												<Option value={1}>第二动爻</Option>
-												<Option value={2}>第三动爻</Option>
-												<Option value={3}>第四动爻</Option>
-												<Option value={4}>第五动爻</Option>
-												<Option value={5}>第六动爻</Option>
-											</Select>
-										</Col>
-										<Col span={9}>
-											<Button style={{width:'98%'}} onClick={this.clickCustGua}>自定义起卦</Button>
-										</Col>
-
-									</Row>
+						</div>
+						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-guazhan-info-panel">
+							<div className="horosa-side-panel-heading horosa-guazhan-info-heading">
+								<div>
+									<div className="horosa-side-panel-title">六爻信息</div>
+									<div className="horosa-side-panel-subtitle">概览、卦辞与快照</div>
 								</div>
-							</TabPane>
-
-							<TabPane tab="卦辞" key="gua">
-								<GuaDesc height={tabheight} value={guadesc} />
-							</TabPane>
-						</Tabs>
-
-					</Col>
-				</Row>
+							</div>
+							{this.renderRightPanel(height, guadesc)}
+						</div>
+					</div>
+					<div className="horosa-bottom-quick-dock horosa-guazhan-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-guazhan-quick-placeholders">
+							{Array.from({length: 8}).map((_, idx)=>(
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
 
 		);

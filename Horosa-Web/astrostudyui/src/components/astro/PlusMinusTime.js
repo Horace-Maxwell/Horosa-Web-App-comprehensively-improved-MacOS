@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Select, Input, Button,  DatePicker, Row, Col } from 'antd';
+import { Row, Col } from 'antd';
 import DateTimeSelector from '../comp/DateTimeSelector';
 import DateTime from '../comp/DateTime';
 
@@ -50,6 +50,8 @@ class PlusMinusTime extends Component{
 						showTime={true}
 						needZone={needZone}
 						showAdjust={showAdjust}
+						adjustOnly={this.props.adjustOnly}
+						confirmOnAdjust={this.props.confirmOnAdjust}
 						yearMonth={this.props.yearMonth}
 						onlyYear={this.props.onlyYear}
 						onChange={this.changeTime}

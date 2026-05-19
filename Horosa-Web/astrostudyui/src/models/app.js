@@ -7,9 +7,27 @@ import {setDispatch} from '../utils/request';
 import {detectPlatform} from '../utils/helper';
 import * as AstroConst from '../constants/AstroConst';
 import { setTmDelta } from '../utils/request';
+import { normalizeAppearanceMode } from '../utils/appearance';
 
 const MinWorkspaceHeight = 660;
 const WorkspaceReservedHeight = 88;
+const ChartDisplayDefaultsVersion = 2;
+const PlanetDisplayDefaultsVersion = 2;
+const DefaultHouseSystem = 1;
+const HouseSystemDefaultsVersion = 2;
+const HouseSystemDefaultVersionKey = 'horosaHouseSystemDefaultsVersion';
+const ChartDisplayDefaultOffOptions = new Set([
+    AstroConst.CHART_SIGNRULER,
+    AstroConst.CHART_TERM,
+    AstroConst.CHART_OUTERDEG,
+    AstroConst.CHART_INNERDEG,
+]);
+const PlanetDisplayDefaultOffOptions = new Set([
+    AstroConst.DARKMOON,
+    AstroConst.PURPLE_CLOUDS,
+    AstroConst.DESC,
+    AstroConst.IC,
+]);
 
 function normalizeWorkspaceHeight(viewportHeight){
     const raw = Number(viewportHeight) - WorkspaceReservedHeight;
@@ -59,12 +77,63 @@ function normalizeDisplayList(raw, fallback, allowSet, allowEmpty = false){
     return fallbackArr;
 }
 
+function normalizeGlobalSetup(setup){
+    if(!setup || typeof setup !== 'object'){
+        return setup;
+    }
+    const normalized = { ...setup };
+    if(normalized.chartDisplayDefaultsVersion !== ChartDisplayDefaultsVersion){
+        if(Array.isArray(normalized.chartDisplay)){
+            normalized.chartDisplay = normalized.chartDisplay.filter((opt)=>!ChartDisplayDefaultOffOptions.has(Number(opt)));
+        }
+        normalized.chartDisplayDefaultsVersion = ChartDisplayDefaultsVersion;
+    }
+    if(normalized.planetDisplayDefaultsVersion !== PlanetDisplayDefaultsVersion){
+        if(Array.isArray(normalized.planetDisplay)){
+            normalized.planetDisplay = normalized.planetDisplay.filter((opt)=>!PlanetDisplayDefaultOffOptions.has(opt));
+        }
+        normalized.planetDisplayDefaultsVersion = PlanetDisplayDefaultsVersion;
+    }
+    normalized.chartStyle = AstroConst.normalizeChartStyle(normalized.chartStyle);
+    normalized.indiaChartStyle = AstroConst.normalizeIndiaChartStyle(normalized.indiaChartStyle);
+    return normalized;
+}
+
+function shouldMigrateHouseSystemDefault(hsys){
+    if(hsys === undefined || hsys === null || hsys === ''){
+        return true;
+    }
+    if(Number(hsys) !== 0){
+        return false;
+    }
+    try{
+        return localStorage.getItem(HouseSystemDefaultVersionKey) !== `${HouseSystemDefaultsVersion}`;
+    }catch(e){
+        return false;
+    }
+}
+
+function markHouseSystemDefaultMigrated(){
+    try{
+        localStorage.setItem(HouseSystemDefaultVersionKey, `${HouseSystemDefaultsVersion}`);
+    }catch(e){
+        // Ignore storage failures; the in-memory default still applies for this session.
+    }
+}
+
+function normalizeUserHouseSystem(hsys){
+    const numeric = Number(hsys);
+    const normalized = shouldMigrateHouseSystemDefault(hsys) || !Number.isFinite(numeric) ? DefaultHouseSystem : numeric;
+    markHouseSystemDefaultMigrated();
+    return normalized;
+}
+
 function userInfoToFields(flds, userInfo){
     flds.doubingSu28.value = userInfo.doubingSu28;
     flds.simpleAsp.value = userInfo.simpleAsp;
     flds.strongRecption.value = userInfo.strongRecption;
     flds.virtualPointReceiveAsp.value = userInfo.virtualPntReceiveAsp;
-    flds.hsys.value = userInfo.hsys;
+    flds.hsys.value = normalizeUserHouseSystem(userInfo.hsys);
     flds.zodiacal.value = userInfo.zodiacal;
     flds.predictive.value = userInfo.predictive;
     flds.tradition.value = userInfo.tradition;
@@ -99,6 +168,8 @@ export default {
     state: {
         systime: null,
         theme: 'light',
+        appearanceMode: 'system',
+        resolvedAppearance: 'light',
         loading: false,
         loadingText: null,
         refresh: false,
@@ -106,6 +177,8 @@ export default {
         imgTokenListName: null,
 
         chartDisplay: AstroConst.CHART_DEFAULTOPTS,
+        chartStyle: AstroConst.CHART_STYLE_CURRENT,
+        indiaChartStyle: AstroConst.INDIA_CHART_STYLE_SOUTH,
         planetDisplay: AstroConst.DEFAULT_OBJECTS,
         lotsDisplay: AstroConst.DEFAULT_LOTS,
         colorTheme: AstroConst.DefaultColorTheme,
@@ -116,6 +189,8 @@ export default {
         showPlanetHouseInfo: 0,
         showAstroMeaning: 0,
         showOnlyRulExaltReception: 0,
+        chartDisplayDefaultsVersion: ChartDisplayDefaultsVersion,
+        planetDisplayDefaultsVersion: PlanetDisplayDefaultsVersion,
 
         loginFields:{
             loginId: {
@@ -163,19 +238,31 @@ export default {
                     true
                 );
             }
+            if(Object.prototype.hasOwnProperty.call(payload, 'chartStyle')){
+                payload.chartStyle = AstroConst.normalizeChartStyle(payload.chartStyle);
+            }
+            if(Object.prototype.hasOwnProperty.call(payload, 'indiaChartStyle')){
+                payload.indiaChartStyle = AstroConst.normalizeIndiaChartStyle(payload.indiaChartStyle);
+            }
 
             let st = { ...state, ...payload };
+            st.appearanceMode = normalizeAppearanceMode(st.appearanceMode);
             let globalSetup = {
                 chartDisplay: st.chartDisplay,
+                chartStyle: st.chartStyle,
+                indiaChartStyle: st.indiaChartStyle,
                 planetDisplay: st.planetDisplay,
                 lotsDisplay: st.lotsDisplay,
                 colorTheme: st.colorTheme,
+                appearanceMode: st.appearanceMode,
                 showPdBounds: st.showPdBounds,
                 pdMethod: st.pdMethod,
                 pdTimeKey: st.pdTimeKey,
                 showPlanetHouseInfo: st.showPlanetHouseInfo,
                 showAstroMeaning: st.showAstroMeaning,
                 showOnlyRulExaltReception: st.showOnlyRulExaltReception,
+                chartDisplayDefaultsVersion: ChartDisplayDefaultsVersion,
+                planetDisplayDefaultsVersion: PlanetDisplayDefaultsVersion,
             };
             let json = JSON.stringify(globalSetup);
             localStorage.setItem(Constants.GlobalSetupKey, json);
@@ -341,9 +428,12 @@ export default {
             const param = {};
             let setupJson = localStorage.getItem(Constants.GlobalSetupKey);
             if(setupJson){
-                let json = JSON.parse(setupJson);
+                let json = normalizeGlobalSetup(JSON.parse(setupJson));
                 if(json && json.colorTheme !== undefined){
                     json.colorTheme = AstroConst.normalizeColorThemeIndex(json.colorTheme);
+                }
+                if(json && json.appearanceMode !== undefined){
+                    json.appearanceMode = normalizeAppearanceMode(json.appearanceMode);
                 }
                 yield put({
                     type: 'save',
@@ -449,9 +539,12 @@ export default {
             };
             let setupJson = localStorage.getItem(Constants.GlobalSetupKey);
             if(setupJson){
-                let json = JSON.parse(setupJson);
+                let json = normalizeGlobalSetup(JSON.parse(setupJson));
                 if(json && json.colorTheme !== undefined){
                     json.colorTheme = AstroConst.normalizeColorThemeIndex(json.colorTheme);
+                }
+                if(json && json.appearanceMode !== undefined){
+                    json.appearanceMode = normalizeAppearanceMode(json.appearanceMode);
                 }
                 yield put({
                     type: 'save',

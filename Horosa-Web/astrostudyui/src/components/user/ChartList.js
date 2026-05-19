@@ -1,15 +1,27 @@
 import { Component } from 'react';
-import { Row, Col, Table, Popconfirm, Button,  Input, Select, Pagination, message, } from 'antd';
-import { EditOutlined, DeleteOutlined, SelectOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { Row, Col, Popconfirm, message, } from 'antd';
 import * as AstroText from '../../constants/AstroText';
 import {TableOddRowBgColor, } from '../../utils/constants';
 import {getStore} from '../../utils/storageutil';
 import {randomStr} from '../../utils/helper';
 import EditableTags from '../comp/EditableTags';
 import { exportLocalChartsBackup, importLocalChartsBackup } from '../../utils/localcharts';
+import { XQButton, XQPagination, XQSearch, XQSelect, XQTable } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
-const Search = Input.Search;
-const Option = Select.Option;
+const Option = XQSelect.Option;
+
+const primaryActionIconStyle = {
+	fontSize: 24,
+};
+const primaryActionLinkStyle = {
+	display: 'inline-flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+	width: 34,
+	height: 34,
+	verticalAlign: 'middle',
+};
 
 class ChartList extends Component{
 
@@ -85,13 +97,13 @@ class ChartList extends Component{
 		if(this.props.dispatch){
 			this.props.dispatch({
 				type: this.state.dispType,
-				payload: { 
-					PageIndex: 1, 
+				payload: {
+					PageIndex: 1,
 					PageSize: pSize,
 					tag: this.state.tag,
 					name: this.state.name,
 				}
-			});	
+			});
 		}
 	}
 
@@ -107,13 +119,13 @@ class ChartList extends Component{
 		if(this.props.dispatch){
 			this.props.dispatch({
 				type: this.state.dispType,
-				payload: { 
-					PageIndex: page, 
+				payload: {
+					PageIndex: page,
 					PageSize: pSize,
 					tag: this.state.tag,
 					name: this.state.name,
 				}
-			});				
+			});
 		}
 	}
 
@@ -151,7 +163,7 @@ class ChartList extends Component{
 		if(this.props.dispatch){
 			this.props.dispatch({
 				type: 'astro/openDrawer',
-				payload:{ 
+				payload:{
 					key: 'chartadd',
 				},
 			});
@@ -163,7 +175,7 @@ class ChartList extends Component{
 		if(this.props.dispatch){
 			this.props.dispatch({
 				type: 'astro/openDrawer',
-				payload:{ 
+				payload:{
 					key: 'chartedit',
 					record: rec,
 				},
@@ -176,7 +188,7 @@ class ChartList extends Component{
 		if(this.props.dispatch){
 			this.props.dispatch({
 				type: 'astro/openDrawer',
-				payload:{ 
+				payload:{
 					key: 'chartdeeplearn',
 					record: rec,
 				},
@@ -249,7 +261,7 @@ class ChartList extends Component{
 					<EditableTags editable={false} value={tags} />
 				</div>
 			);
-			return dom;	
+			return dom;
 		}catch(e){
 			return txt;
 		}
@@ -269,9 +281,9 @@ class ChartList extends Component{
 						payload: {
 							tag: this.state.tag,
 						},
-					});		
+					});
 				});
-	
+
 			}else{
 				disptype = 'user/searchCharts';
 				this.setState({
@@ -284,7 +296,7 @@ class ChartList extends Component{
 							name: value,
 							tag: this.state.tag,
 						},
-					});		
+					});
 				});
 			}
 		}
@@ -352,22 +364,22 @@ class ChartList extends Component{
 		},{
 			title: '操作',
 			key: 'Action',
-				render: (text, record, index)=>{
-					let dom = (
+			render: (text, record, index)=>{
+				let dom = (
+					<span>
+						<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>&emsp;
+					</span>
+				);
+				const isLocalRecord = record && record.cid && (record.cid + '').indexOf('local-') === 0;
+				if((this.props.userInfo && this.props.userInfo.uid === record.creator) || isLocalRecord){
+					dom = (
 						<span>
-							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><SelectOutlined /></a>&emsp;
-						</span>
-					);
-					const isLocalRecord = record && record.cid && (record.cid + '').indexOf('local-') === 0;
-					if((this.props.userInfo && this.props.userInfo.uid === record.creator) || isLocalRecord){
-						dom = (
-							<span>
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><SelectOutlined /></a>&emsp;
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><EditOutlined /></a>&emsp;
+							<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>&emsp;
+							<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" style={primaryActionIconStyle} /></a>&emsp;
 							<Popconfirm title={`确定删除星盘：${record.name} 吗?`} onConfirm={()=>{this.clickRemove(record);}}>
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><DeleteOutlined /></a>
+								<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" /></a>
 							</Popconfirm>&emsp;
-							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickDLFeature(record);});}}><UnorderedListOutlined /></a>
+							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickDLFeature(record);});}}><XQIcon name="list" /></a>
 						</span>
 					);
 				}
@@ -388,12 +400,12 @@ class ChartList extends Component{
 			<div style={{height: tbly}}>
 				<Row gutter={12} style={{marginBottom: 10}}>
 					<Col span={4}>
-						<Button type="primary" onClick={this.clickAdd}>添加星盘</Button>
+						<XQButton type="primary" iconName="newChart" onClick={this.clickAdd}>添加星盘</XQButton>
 					</Col>
 
 					<Col span={10}>
-						<Button onClick={this.clickImportLocalBackup}>导入本地命盘(JSON)</Button>
-						<Button onClick={this.clickExportLocalBackup}>导出本地命盘(JSON)</Button>
+						<XQButton onClick={this.clickImportLocalBackup}>导入本地命盘(JSON)</XQButton>
+						<XQButton onClick={this.clickExportLocalBackup}>导出本地命盘(JSON)</XQButton>
 						<input
 							type='file'
 							accept='.json,application/json'
@@ -403,26 +415,26 @@ class ChartList extends Component{
 						/>
 					</Col>
 					<Col span={4}>
-						<Select 
-							placeholder='标签' 
+						<XQSelect
+							placeholder='标签'
 							showSearch allowClear
 							filterOption={this.filterTagsOption}
 							onChange={this.onTagChange}
 							style={{width: '100%'}}
 						>
 							{tags}
-						</Select>
+						</XQSelect>
 					</Col>
 					<Col span={6}>
-						<Search 
-							placeholder='以姓名进行检索' enterButton 
+						<XQSearch
+							placeholder='以姓名进行检索' enterButton
 							onSearch={this.searchByName}
 						/>
 					</Col>
 				</Row>
-				<Table
-					dataSource={ds} columns={columns} 
-					rowKey='cid'  
+				<XQTable
+					dataSource={ds} columns={columns}
+					rowKey='cid'
 					bordered size='small'
 					scroll={{x: '100%', y: tbly }}
 					pagination={false}
@@ -437,11 +449,11 @@ class ChartList extends Component{
 							...rowstyle,
 						}
 					}}
-				/>					
-				<Pagination 
+				/>
+				<XQPagination
 					style={{marginTop:3, textAlign:'center',}}
 					pageSizeOptions={['30', '50', '100']}
-					showSizeChanger onShowSizeChange={this.changeShowSize} 
+					showSizeChanger onShowSizeChange={this.changeShowSize}
 					defaultPageSize={pageSize} defaultCurrent={pageIndex}
 					total={total} showTotal={this.showTotal} onChange={this.changePage} />
 

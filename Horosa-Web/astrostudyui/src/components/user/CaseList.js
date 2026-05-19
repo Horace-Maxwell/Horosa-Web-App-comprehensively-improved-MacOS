@@ -1,15 +1,15 @@
 import { Component } from 'react';
-import { Row, Col, Table, Popconfirm, Button, Input, Select, Pagination, message } from 'antd';
-import { EditOutlined, DeleteOutlined, SelectOutlined } from '@ant-design/icons';
+import { Row, Col, Popconfirm, message } from 'antd';
 import * as AstroText from '../../constants/AstroText';
 import { TableOddRowBgColor } from '../../utils/constants';
 import { getStore } from '../../utils/storageutil';
 import { randomStr } from '../../utils/helper';
 import EditableTags from '../comp/EditableTags';
 import { getCaseTypeLabel, exportLocalCasesBackup, importLocalCasesBackup } from '../../utils/localcases';
+import { XQButton, XQPagination, XQSearch, XQSelect, XQTable } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
-const Search = Input.Search;
-const Option = Select.Option;
+const Option = XQSelect.Option;
 
 class CaseList extends Component{
 	constructor(props) {
@@ -330,10 +330,10 @@ class CaseList extends Component{
 			key: 'Action',
 			render: (text, record)=>(
 				<span>
-					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><SelectOutlined /></a>&emsp;
-					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><EditOutlined /></a>&emsp;
+					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" /></a>&emsp;
+					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" /></a>&emsp;
 					<Popconfirm title={`确定删除起课：${record.event || ''} 吗?`} onConfirm={()=>{this.clickRemove(record);}}>
-						<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><DeleteOutlined /></a>
+						<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" /></a>
 					</Popconfirm>
 				</span>
 			),
@@ -349,14 +349,14 @@ class CaseList extends Component{
 			<div style={{height: tbly}}>
 				<Row gutter={12} style={{marginBottom: 10}}>
 					<Col span={4}>
-						<Button type="primary" onClick={this.clickAdd}>添加起课</Button>
+						<XQButton type="primary" iconName="newChart" onClick={this.clickAdd}>添加起课</XQButton>
 					</Col>
 					<Col span={10}>
-						<Select value={this.state.type} onChange={this.onChangeType}>
+						<XQSelect value={this.state.type} onChange={this.onChangeType}>
 							<Option value={0}>本地事盘</Option>
-						</Select>
-						<Button onClick={this.clickImportLocalBackup}>导入本地事盘(JSON)</Button>
-						<Button onClick={this.clickExportLocalBackup}>导出本地事盘(JSON)</Button>
+						</XQSelect>
+						<XQButton onClick={this.clickImportLocalBackup}>导入本地事盘(JSON)</XQButton>
+						<XQButton onClick={this.clickExportLocalBackup}>导出本地事盘(JSON)</XQButton>
 						<input
 							type='file'
 							accept='.json,application/json'
@@ -366,7 +366,7 @@ class CaseList extends Component{
 						/>
 					</Col>
 					<Col span={4}>
-						<Select
+						<XQSelect
 							placeholder='标签'
 							showSearch allowClear
 							filterOption={this.filterTagsOption}
@@ -374,14 +374,14 @@ class CaseList extends Component{
 							style={{width: '100%'}}
 						>
 							{tags}
-						</Select>
+						</XQSelect>
 					</Col>
 					<Col span={6}>
-						<Search placeholder='以事件进行检索' enterButton onSearch={this.searchByName} />
+						<XQSearch placeholder='以事件进行检索' enterButton onSearch={this.searchByName} />
 					</Col>
 				</Row>
 
-				<Table
+				<XQTable
 					dataSource={ds}
 					columns={columns}
 					rowKey='cid'
@@ -402,7 +402,7 @@ class CaseList extends Component{
 					}}
 				/>
 
-				<Pagination
+				<XQPagination
 					style={{marginTop: 3, textAlign: 'center'}}
 					pageSizeOptions={['30', '50', '100']}
 					showSizeChanger

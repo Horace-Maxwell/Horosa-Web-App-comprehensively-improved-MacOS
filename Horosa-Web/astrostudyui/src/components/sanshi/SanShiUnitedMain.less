@@ -1,10 +1,11 @@
 .root {
   min-height: 100%;
-  color: #111;
+  min-width: 1040px;
+  color: var(--horosa-text);
 }
 
 .topBox {
-  border: 1px solid #fff;
+  border: 1px solid var(--horosa-border);
   border-radius: 10px;
   background: transparent;
   padding: 4px 6px;
@@ -20,7 +21,7 @@
 }
 
 .datePanel {
-  border: 1px solid #9f9f9f;
+  border: 1px solid var(--horosa-border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -32,16 +33,16 @@
 }
 
 .dateRow + .dateRow {
-  border-top: 1px solid #d7d7d7;
+  border-top: 1px solid var(--horosa-border);
 }
 
 .dateLabel {
-  border-right: 1px solid #d7d7d7;
+  border-right: 1px solid var(--horosa-border);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  color: #333;
+  color: var(--horosa-text-soft);
 }
 
 .dateValue {
@@ -52,7 +53,7 @@
   padding: 0 9px;
   font-size: 15px;
   line-height: 1;
-  color: #111;
+  color: var(--horosa-text);
   font-weight: 600;
   min-width: 0;
 }
@@ -79,31 +80,31 @@
   gap: 4px;
   white-space: nowrap;
   font-size: 12px;
-  color: #555;
+  color: var(--horosa-muted);
   font-weight: 500;
 }
 
 .dateMetaLabel {
   font-size: 12px;
-  color: #666;
+  color: var(--horosa-muted);
   font-weight: 500;
 }
 
 .dateMetaValue {
   font-size: 13px;
-  color: #333;
+  color: var(--horosa-text-soft);
   font-weight: 600;
 }
 
 .dateTime {
   font-size: 13px;
-  color: #333;
+  color: var(--horosa-text-soft);
   font-weight: 500;
 }
 
 .dateInlineTime {
   font-size: 12px;
-  color: #555;
+  color: var(--horosa-muted);
   font-weight: 500;
 }
 
@@ -128,7 +129,7 @@
 
 .pillarBox {
   min-height: 66px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--horosa-border, #d9d9d9);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.02);
   display: flex;
@@ -141,7 +142,7 @@
   font-size: 18px;
   line-height: 18px;
   font-weight: 700;
-  color: #111;
+  color: var(--horosa-text);
 }
 
 .pillarZhi {
@@ -149,7 +150,7 @@
   font-size: 18px;
   line-height: 18px;
   font-weight: 700;
-  color: #333;
+  color: var(--horosa-text-soft);
 }
 
 .pillarTags {
@@ -162,8 +163,9 @@
   width: 24px;
   height: 24px;
   border-radius: 12px;
-  background: #434343;
-  color: #fff;
+  border: 1px solid var(--horosa-border);
+  background: var(--horosa-panel-soft);
+  color: var(--horosa-gold);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,8 +189,9 @@
 .metaTitle {
   min-height: 32px;
   border-radius: 8px;
-  background: #3d4148;
-  color: #fff;
+  border: 1px solid var(--horosa-border);
+  background: var(--horosa-panel-soft);
+  color: var(--horosa-text-soft);
   font-size: 15px;
   display: flex;
   align-items: center;
@@ -197,10 +200,10 @@
 
 .metaValue {
   min-height: 32px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--horosa-border);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.02);
-  color: #111;
+  color: var(--horosa-text);
   font-size: 17px;
   display: flex;
   align-items: center;
@@ -208,7 +211,7 @@
 }
 
 .ssBox {
-  border: 1px solid #9f9f9f;
+  border: 1px solid var(--horosa-border-strong);
   border-radius: 8px;
   overflow: hidden;
   display: grid;
@@ -217,13 +220,13 @@
 }
 
 .ssCol + .ssCol {
-  border-left: 1px solid #d7d7d7;
+  border-left: 1px solid var(--horosa-border);
 }
 
 .ssItem,
 .ssValue {
   min-height: 28px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--horosa-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -232,11 +235,11 @@
 }
 
 .ssItem {
-  color: #333;
+  color: var(--horosa-text-soft);
 }
 
 .ssValue {
-  color: #111;
+  color: var(--horosa-text);
   font-weight: 600;
 }
 
@@ -250,10 +253,10 @@
 
 .middleBoard {
   position: relative;
-  border: 1px solid #fff;
+  border: 1px solid var(--horosa-border);
   border-radius: 0;
   overflow: hidden;
-  background: rgb(246, 245, 241);
+  background: var(--horosa-sanshi-board-outer);
 }
 
 .boardSvg {
@@ -266,29 +269,29 @@
 }
 
 .fillOuterRing {
-  fill: rgb(246, 245, 241);
+  fill: var(--horosa-sanshi-board-outer);
 }
 
 .fillQimenRing {
-  fill: rgb(238, 234, 232);
+  fill: var(--horosa-sanshi-board-qimen);
 }
 
 .fillLiurengRing {
-  fill: rgb(218, 217, 213);
+  fill: var(--horosa-sanshi-board-liureng);
 }
 
 .fillCenter {
-  fill: rgb(197, 195, 194);
+  fill: var(--horosa-sanshi-board-center);
 }
 
 .strokeMain {
-  stroke: #fff;
+  stroke: var(--horosa-border);
   stroke-width: 3;
   fill: none;
 }
 
 .strokeSub {
-  stroke: #fff;
+  stroke: var(--horosa-border);
   stroke-width: 1.8;
   fill: none;
 }
@@ -309,7 +312,7 @@
 }
 
 .outerHouse {
-  color: #111;
+  color: var(--horosa-text);
   font-weight: 700;
 }
 
@@ -318,13 +321,13 @@
 }
 
 .outerBranch {
-  color: #8a8a8a;
+  color: var(--horosa-muted);
   font-weight: 500;
 }
 
 .outerStars {
   position: absolute;
-  color: #8a8a8a;
+  color: var(--horosa-muted);
   z-index: 10;
 }
 
@@ -365,11 +368,11 @@
 }
 
 .lrMarkZiItem {
-  color: #6f6f6f;
+  color: var(--horosa-text-soft);
 }
 
 .lrMarkGodItem {
-  color: #6f6f6f;
+  color: var(--horosa-text-soft);
 }
 
 .qmRingCell {
@@ -378,12 +381,12 @@
   top: 0;
   right: 0;
   bottom: 0;
-  border: 1.6px solid rgb(218, 217, 213);
-  background: rgb(218, 217, 213);
+  border: 1.6px solid var(--horosa-sanshi-board-liureng);
+  background: var(--horosa-sanshi-board-liureng);
 }
 
 .qmBlockCorner .qmRingCell {
-  background: rgb(218, 217, 213);
+  background: var(--horosa-sanshi-board-liureng);
   left: -1px;
   top: -1px;
   right: -1px;
@@ -398,8 +401,8 @@
 .qmCenter {
   width: 33.4%;
   height: 33.4%;
-  background: rgb(197, 195, 194);
-  border: 1.6px solid #fff;
+  background: var(--horosa-sanshi-board-center);
+  border: 1.6px solid var(--horosa-border);
 }
 
 .qmTianGan,
@@ -410,7 +413,7 @@
   font-size: 22px;
   line-height: 1;
   font-weight: 700;
-  color: #111;
+  color: var(--horosa-text);
   z-index: 3;
 }
 
@@ -427,7 +430,7 @@
 .qmDiGan {
   left: 1px;
   bottom: 1px;
-  color: #595959;
+  color: var(--horosa-muted);
 }
 
 .qmStar {
@@ -440,16 +443,16 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  border: 1.6px solid rgb(60, 58, 57);
+  border: 1.6px solid var(--horosa-text-soft);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(60, 58, 57);
+  background: var(--horosa-text-soft);
   z-index: 1;
 }
 
 .qmDoor {
-  color: #fff;
+  color: var(--horosa-surface-solid, #fff);
   font-weight: 700;
   line-height: 1;
   text-align: center;
@@ -461,7 +464,7 @@
   font-size: 22px;
   line-height: 1.05;
   font-weight: 700;
-  color: #111;
+  color: var(--horosa-text);
 }
 
 .centerKe {
@@ -482,11 +485,11 @@
 }
 
 .centerKeMain {
-  color: #111;
+  color: var(--horosa-text);
 }
 
 .centerKeGray {
-  color: #8a8a8a;
+  color: var(--horosa-muted);
 }
 
 .centerChuan {
@@ -507,12 +510,12 @@
 }
 
 .centerChuanMain {
-  color: #111;
+  color: var(--horosa-text);
   text-align: center;
 }
 
 .centerChuanGray {
-  color: #8a8a8a;
+  color: var(--horosa-muted);
   text-align: center;
 }
 
@@ -524,7 +527,7 @@
 }
 
 .bottomGrid {
-  border: 1px solid #9f9f9f;
+  border: 1px solid var(--horosa-border-strong);
   border-radius: 8px;
   overflow: hidden;
   display: grid;
@@ -533,15 +536,15 @@
 
 .bottomCell {
   min-height: 40px;
-  border-right: 1px solid #d7d7d7;
-  border-bottom: 1px solid #d7d7d7;
+  border-right: 1px solid var(--horosa-border);
+  border-bottom: 1px solid var(--horosa-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 8px;
   font-size: 20px;
   line-height: 1;
-  color: #222;
+  color: var(--horosa-text, #222);
 }
 
 .bottomCell:nth-child(2n) {
@@ -554,16 +557,16 @@
 }
 
 .bottomCell span {
-  color: #333;
+  color: var(--horosa-text-soft);
 }
 
 .bottomCell b {
-  color: #111;
+  color: var(--horosa-text);
   font-weight: 700;
 }
 
 .bottomRight {
-  border: 1px solid #9f9f9f;
+  border: 1px solid var(--horosa-border);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -571,7 +574,7 @@
   justify-content: center;
   font-size: 20px;
   line-height: 1.1;
-  color: #111;
+  color: var(--horosa-text);
   font-weight: 700;
   overflow: hidden;
 }
@@ -584,7 +587,7 @@
 }
 
 .bottomRight > div + div {
-  border-top: 1px solid #d7d7d7;
+  border-top: 1px solid var(--horosa-border);
 }
 
 @media (max-width: 1520px) {

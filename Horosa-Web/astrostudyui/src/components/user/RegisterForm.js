@@ -1,14 +1,13 @@
-import { Component } from 'react';
-import { Form, Input, Button, Select,  TimePicker, Row, Col,  } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { Form } from 'antd';
 import { preventEnterPress } from '../../utils/helper';
 import { EmailRegex } from '../../utils/constants';
 import ImgToken from '../comp/ImgToken';
+import { XQButton, XQInput } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 export default function RegisterForm(props){
 	const [form] = Form.useForm();
     const FormItem = Form.Item;
-    const Option = Select.Option;
 
 	function formFieldsChanged(changedFields, allFields){
         if(props.dispatch){
@@ -69,7 +68,7 @@ export default function RegisterForm(props){
 						message: '请输入您有效的email' 
 					}]}
 				>
-					<Input prefix={<UserOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} placeholder="有效的email" />
+					<XQInput prefix={<XQIcon name="user" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} placeholder="有效的email" />
 				</FormItem>
 				
 				<FormItem
@@ -79,7 +78,7 @@ export default function RegisterForm(props){
 						message: '请输入您的密码！' 
 					}]}
 				>
-					<Input prefix={<LockOutlined style={{ color: 'rgba(0,0,0,.25)' }} />} type="password" placeholder="密码" />
+					<XQInput prefix={<XQIcon name="lock" style={{ color: 'var(--horosa-muted, rgba(0,0,0,.25))' }} />} type="password" placeholder="密码" />
 				</FormItem>
 
 				<FormItem
@@ -90,9 +89,9 @@ export default function RegisterForm(props){
 				</FormItem>
 
 				<FormItem>
-					<Button type="primary" htmlType="submit">
+					<XQButton type="primary" htmlType="submit">
 						注&nbsp;册
-					</Button>
+					</XQButton>
 				</FormItem>
 
 			</Form>
@@ -100,4 +99,3 @@ export default function RegisterForm(props){
 	);
     
 }
-

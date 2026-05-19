@@ -1,13 +1,12 @@
 import { Component } from 'react';
-import { Modal, Button, Input, Table, Popconfirm, Row, Col, Select, Pagination, } from 'antd';
-import { SearchOutlined, DeleteOutlined, PlaySquareOutlined, } from '@ant-design/icons';
-import { ServerRoot, ResultKey, TableOddRowBgColor, RtmpPlayServer, }  from '../../utils/constants';
+import { Row, Col } from 'antd';
+import { ServerRoot, ResultKey, TableOddRowBgColor }  from '../../utils/constants';
 import ConfirmSwitch from '../comp/ConfirmSwitch';
-import { randomStr, } from '../../utils/helper';
 import request from '../../utils/request';
-import styles from '../../css/styles.less';
+import { XQButton, XQInput, XQPagination, XQSelect, XQTable } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
-const { Option, } = Select;
+const { Option, } = XQSelect;
 
 class UserMgmt extends Component{
 
@@ -70,7 +69,7 @@ class UserMgmt extends Component{
 
 
 	async requestList(){
-		const params = { 
+		const params = {
 			user: this.state.user,
 			admin: this.state.admin,
 			privilege: this.state.privilege,
@@ -83,7 +82,7 @@ class UserMgmt extends Component{
 		});
 
 		const res = data[ResultKey];
-		
+
 		const st = {
 			dataSource: res.List,
 			total: res.Total,
@@ -91,10 +90,10 @@ class UserMgmt extends Component{
 
 		this.setState(st);
 	}
-	
+
 
 	async requestSetupAdmin(uid, admin){
-		const params = { 
+		const params = {
 			user: uid,
 			admin: admin,
 		};
@@ -105,9 +104,9 @@ class UserMgmt extends Component{
 
 		this.requestList();
 	}
-	
+
 	async requestSetPrivi(uid, privilege){
-		const params = { 
+		const params = {
 			user: uid,
 			privilege: privilege,
 		};
@@ -118,7 +117,7 @@ class UserMgmt extends Component{
 
 		this.requestList();
 	}
-	
+
 
 	search(e){
 		if(e){
@@ -199,9 +198,9 @@ class UserMgmt extends Component{
 
 				return (
 					<div>&emsp;
-						<ConfirmSwitch 
+						<ConfirmSwitch
 							confirmText={title}
-							checkedChildren='管理员' 
+							checkedChildren='管理员'
 							unCheckedChildren='普通用户'
 							value={flag}
 							onOk={chk=>this.switchAdmin(chk, record)}
@@ -226,9 +225,9 @@ class UserMgmt extends Component{
 				}
 				return (
 					<div>&emsp;
-						<ConfirmSwitch 
+						<ConfirmSwitch
 							confirmText={title}
-							checkedChildren='启用' 
+							checkedChildren='启用'
 							unCheckedChildren='关闭'
 							value={flag}
 							onOk={chk=>this.switchPushLive(chk, record)}
@@ -253,9 +252,9 @@ class UserMgmt extends Component{
 				}
 				return (
 					<div>&emsp;
-						<ConfirmSwitch 
+						<ConfirmSwitch
 							confirmText={title}
-							checkedChildren='启用' 
+							checkedChildren='启用'
 							unCheckedChildren='关闭'
 							value={flag}
 							onOk={chk=>this.switchBaziPriv(chk, record)}
@@ -267,7 +266,7 @@ class UserMgmt extends Component{
 
 		let style = {
 			height: height,
-			overflowY:'auto', 
+			overflowY:'auto',
 			overflowX:'hidden',
 		};
 
@@ -275,28 +274,28 @@ class UserMgmt extends Component{
 			<div>
 				<Row gutter={16} style={{marginBottom: 10}}>
 					<Col span={4}>
-						<Select value={this.state.admin} onChange={this.changeAdmin} style={{width: '100%'}}>
+						<XQSelect value={this.state.admin} onChange={this.changeAdmin} style={{width: '100%'}}>
 							<Option value={null}>所有用户</Option>
 							<Option value={true}>管理员</Option>
 							<Option value={false}>普通用户</Option>
-						</Select>
+						</XQSelect>
 					</Col>
 					<Col span={6}>
-						<Select value={this.state.privilege} onChange={this.changePrivilege} style={{width: '100%'}}>
+						<XQSelect value={this.state.privilege} onChange={this.changePrivilege} style={{width: '100%'}}>
 							<Option value={null}>不考虑权限</Option>
 							<Option value={2}>允许直播</Option>
 							<Option value={8}>允许编辑八字格局</Option>
-						</Select>
+						</XQSelect>
 					</Col>
 					<Col span={8}>
-						<Input value={this.state.user} onChange={this.changeUser} placeholder='用户id' style={{width: '100%'}} />
+						<XQInput value={this.state.user} onChange={this.changeUser} placeholder='用户id' style={{width: '100%'}} />
 					</Col>
 					<Col offset={2} span={4}>
-						<Button type="primary" onClick={this.search}><SearchOutlined />搜索</Button>
+						<XQButton type="primary" icon={<XQIcon name="search" />} onClick={this.search}>搜索</XQButton>
 					</Col>
 				</Row>
-				<Table dataSource={this.state.dataSource} columns={columns}
-					rowKey='uid' 
+				<XQTable dataSource={this.state.dataSource} columns={columns}
+					rowKey='uid'
 					bordered
 					pagination={false}
 					scroll={{x: '100%', y: tblHeight }}
@@ -312,9 +311,9 @@ class UserMgmt extends Component{
 						};
 					}}
 				/>
-				<Pagination 
+				<XQPagination
 					style={{marginTop:10, textAlign:'center',}}
-					showSizeChanger onShowSizeChange={this.changeShowSize} 
+					showSizeChanger onShowSizeChange={this.changeShowSize}
 					defaultPageSize={this.state.pageSize} defaultCurrent={this.state.pageIndex}
 					pageSizeOptions={['30', '50', '100', '500']}
 					total={this.state.total} showTotal={this.showTotal} onChange={this.changePage} />

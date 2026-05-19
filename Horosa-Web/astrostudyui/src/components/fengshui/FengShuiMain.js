@@ -1,5 +1,5 @@
 import { Component, createRef } from 'react';
-import { Card } from 'antd';
+import { XQCard as Card } from '../xq-ui';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 
 class FengShuiMain extends Component {
@@ -94,7 +94,7 @@ class FengShuiMain extends Component {
 		}
 
 		return (
-			<div style={{ minHeight: height, marginTop: -12 }}>
+			<div className="horosa-fengshui-page xq-chart-renderer xq-chart-renderer-fengshui" style={{ minHeight: height, marginTop: -12 }}>
 				<Card bordered={false} bodyStyle={{ padding: 0 }}>
 					<iframe
 						ref={this.iframeRef}
@@ -105,9 +105,9 @@ class FengShuiMain extends Component {
 						style={{
 							width: '100%',
 							height: typeof height === 'number' ? `${height}px` : 'calc(100vh - 132px)',
-							border: '1px solid #f0f0f0',
+							border: '1px solid var(--horosa-border, #f0f0f0)',
 							borderRadius: 8,
-							background: '#fff',
+							background: 'var(--horosa-panel-bg, #fff)',
 						}}
 					/>
 				</Card>

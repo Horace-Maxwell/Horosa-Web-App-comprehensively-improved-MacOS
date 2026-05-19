@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Button, Select, Divider } from 'antd';
+import { Row, Col, Divider } from 'antd';
 import AstroDoubleChart from './AstroDoubleChart';
 import PlusMinusTime from './PlusMinusTime';
 import * as AstroConst from '../../constants/AstroConst';
@@ -17,6 +17,7 @@ import {
 	DEFAULT_PD_TYPE,
 	mergePrimaryDirectionChartObj,
 } from '../../utils/primaryDirectionSync';
+import { XQButton as Button, XQSelect as Select } from '../xq-ui';
 
 const Option = Select.Option;
 const PD_DISPLAY_ZONE = '+00:00';

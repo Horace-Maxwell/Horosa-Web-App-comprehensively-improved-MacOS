@@ -1,6 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Table, Input, Button, Select,  } from 'antd';
-import { SearchOutlined, } from '@ant-design/icons';
+import { Row, Col } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
@@ -9,6 +8,8 @@ import { buildMeaningTipByCategory, } from './AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
+import { XQButton as Button, XQInput as Input, XQSelect as Select, XQTable as Table } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 const Option = Select.Option;
 const PD_SYNC_REV = 'pd_method_sync_v8';
@@ -193,7 +194,7 @@ class AstroPrimaryDirection extends Component{
 			},
 			filterIcon: (filtered)=>{
 				let dom = (
-					<SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+					<XQIcon name="search" style={{ color: filtered ? 'var(--horosa-accent, #e7bd75)' : undefined }} />
 				);
 				return dom;
 			},
@@ -226,7 +227,7 @@ class AstroPrimaryDirection extends Component{
 				<Button
 					type="primary"
 					onClick={() => this.handleSearch(selectedKeys, confirm)}
-					icon={<SearchOutlined />}
+					icon={<XQIcon name="search" />}
 					size="small"
 					style={{ width: 90, marginRight: 8 }}
 				>
@@ -521,9 +522,9 @@ class AstroPrimaryDirection extends Component{
 		);
 		const needsPdRecompute = this.needsPdRecompute();
 		const controlBoxStyle = {
-			border: '1px solid #d9d9d9',
+			border: '1px solid var(--horosa-border, #d9d9d9)',
 			borderRadius: 4,
-			backgroundColor: '#fff',
+			backgroundColor: 'var(--horosa-panel-bg, #fff)',
 			padding: compactControls ? '8px 10px' : '6px 10px',
 			minHeight: stackedControls ? 48 : 40,
 			display: 'flex',
@@ -534,7 +535,7 @@ class AstroPrimaryDirection extends Component{
 		};
 		const labelStyle = {
 			whiteSpace: 'nowrap',
-			color: '#333',
+			color: 'var(--horosa-text, #333)',
 			flex: '0 0 auto',
 		};
 		const selectStyle = {

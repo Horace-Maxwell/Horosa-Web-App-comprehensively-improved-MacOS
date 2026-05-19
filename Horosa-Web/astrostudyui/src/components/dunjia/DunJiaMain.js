@@ -1,5 +1,7 @@
 import { Component } from 'react';
-import { Row, Col, Card, Select, Button, Divider, Spin, Tag, Tabs, message, Popover } from 'antd';
+import { Spin, Tag, message, Popover } from 'antd';
+import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import {
 	getNongliLocalCache,
@@ -15,6 +17,7 @@ import sealedImage from '../../assets/sealed.png';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
+import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
 import { getStore } from '../../utils/storageutil';
 import {
@@ -108,11 +111,11 @@ const GAN_COLOR_MAP = {
 };
 
 function getBaZiStemColor(stem){
-	return GAN_COLOR_MAP[safe(stem, '')] || '#333333';
+	return GAN_COLOR_MAP[safe(stem, '')] || 'var(--horosa-text, #333333)';
 }
 
 function getBaZiBranchColor(branch){
-	return ZhiColor[safe(branch, '')] || '#333333';
+	return ZhiColor[safe(branch, '')] || 'var(--horosa-text, #333333)';
 }
 
 function normalizeTimeAlg(value){
@@ -1122,10 +1125,10 @@ class DunJiaMain extends Component {
 		const blocks = Array.isArray(tipObj.blocks) ? tipObj.blocks : [];
 		return (
 			<div style={{ maxWidth: 560, maxHeight: 460, overflowY: 'auto', paddingRight: 4 }}>
-				<div style={{ fontSize: 17, lineHeight: '24px', fontWeight: 700, color: '#1f1f1f' }}>
+				<div style={{ fontSize: 17, lineHeight: '24px', fontWeight: 700, color: 'var(--horosa-text, #1f1f1f)' }}>
 					{tipObj.title}
 				</div>
-				<div style={{ borderTop: '1px solid #d9d9d9', margin: '6px 0 8px' }} />
+				<div style={{ borderTop: '1px solid var(--horosa-border, #d9d9d9)', margin: '6px 0 8px' }} />
 				{blocks.map((block, idx)=>{
 					if(!block){
 						return null;
@@ -1134,13 +1137,13 @@ class DunJiaMain extends Component {
 						return <div key={`qimen_doc_blank_${idx}`} style={{ height: 6 }} />;
 					}
 					if(block.type === 'divider'){
-						return <div key={`qimen_doc_divider_${idx}`} style={{ borderTop: '1px solid #e8e8e8', margin: '6px 0' }} />;
+						return <div key={`qimen_doc_divider_${idx}`} style={{ borderTop: '1px solid var(--horosa-border, #e8e8e8)', margin: '6px 0' }} />;
 					}
 					if(block.type === 'subTitle'){
 						return (
 							<div key={`qimen_doc_subtitle_${idx}`} style={{ margin: '4px 0 6px' }}>
-								<div style={{ fontSize: 14, lineHeight: '20px', fontWeight: 700, color: '#262626' }}>{block.text}</div>
-								<div style={{ borderTop: '1px solid #efefef', marginTop: 4 }} />
+								<div style={{ fontSize: 14, lineHeight: '20px', fontWeight: 700, color: 'var(--horosa-text, #262626)' }}>{block.text}</div>
+								<div style={{ borderTop: '1px solid var(--horosa-border, #efefef)', marginTop: 4 }} />
 							</div>
 						);
 					}
@@ -1148,7 +1151,7 @@ class DunJiaMain extends Component {
 					return (
 						<div
 							key={`qimen_doc_text_${idx}`}
-							style={{ fontSize: 13, lineHeight: '21px', color: '#262626', whiteSpace: 'pre-wrap' }}
+							style={{ fontSize: 13, lineHeight: '21px', color: 'var(--horosa-text, #262626)', whiteSpace: 'pre-wrap' }}
 							dangerouslySetInnerHTML={{ __html: html }}
 						/>
 					);
@@ -1182,8 +1185,10 @@ class DunJiaMain extends Component {
 	}
 
 	renderCell(cell){
-		const titleColor = cell.hasKongWang ? '#2f54eb' : (cell.isCenter ? '#c7c7c7' : '#5f5f5f');
-		let tianGanColor = '#262626';
+		const titleColor = cell.hasKongWang
+			? 'var(--horosa-accent, #2f54eb)'
+			: (cell.isCenter ? 'var(--horosa-muted, #c7c7c7)' : 'var(--horosa-text-soft, #5f5f5f)');
+		let tianGanColor = 'var(--horosa-text, #262626)';
 		if(cell.hasJiXing && cell.hasRuMu){
 			tianGanColor = '#722ed1';
 		}else if(cell.hasJiXing){
@@ -1192,18 +1197,18 @@ class DunJiaMain extends Component {
 			tianGanColor = '#8b5e3c';
 		}
 		// 八神不跟随值符或天盘干状态染色，保持独立显示。
-		const godColor = '#262626';
-		const line2Color = cell.hasMenPo ? '#fa8c16' : '#262626';
-		const line3Color = '#262626';
-		const diGanColor = '#262626';
-		const centerMinorColor = '#8c8c8c';
+		const godColor = 'var(--horosa-text, #262626)';
+		const line2Color = cell.hasMenPo ? '#fa8c16' : 'var(--horosa-text, #262626)';
+		const line3Color = 'var(--horosa-text, #262626)';
+		const diGanColor = 'var(--horosa-text, #262626)';
+		const centerMinorColor = 'var(--horosa-muted, #8c8c8c)';
 		const unifiedFont = 34;
 		const insetX = 52;
 		const insetY = 40;
 		const isGenPalace = cell.palaceNum === 7 || cell.palaceName === '艮';
 		const yiMaStyle = isGenPalace
-			? { position: 'absolute', left: 10, bottom: 8, fontSize: 20, lineHeight: '20px', color: '#111' }
-			: { position: 'absolute', top: 8, right: 10, fontSize: 20, lineHeight: '20px', color: '#111' };
+			? { position: 'absolute', left: 10, bottom: 8, fontSize: 20, lineHeight: '20px', color: 'var(--horosa-text, #111)' }
+			: { position: 'absolute', top: 8, right: 10, fontSize: 20, lineHeight: '20px', color: 'var(--horosa-text, #111)' };
 
 		const palacePosMap = {
 			1: { right: 12, bottom: 8 }, // 巽：靠中宫（右下）
@@ -1243,9 +1248,9 @@ class DunJiaMain extends Component {
 				<div
 					key={`cell_${cell.palaceNum}`}
 					style={{
-						background: '#f6f6f6',
+						background: 'var(--horosa-panel-soft, #f6f6f6)',
 						borderRadius: 14,
-						border: '1px solid #ececec',
+						border: '1px solid var(--horosa-border, #ececec)',
 						height: 214,
 						padding: 0,
 						position: 'relative',
@@ -1286,9 +1291,9 @@ class DunJiaMain extends Component {
 			<div
 				key={`cell_${cell.palaceNum}`}
 				style={{
-					background: '#f6f6f6',
+					background: 'var(--horosa-panel-soft, #f6f6f6)',
 					borderRadius: 14,
-					border: '1px solid #ececec',
+					border: '1px solid var(--horosa-border, #ececec)',
 					height: 214,
 					padding: 0,
 					position: 'relative',
@@ -1391,7 +1396,7 @@ class DunJiaMain extends Component {
 	renderBoard(){
 		const pan = this.state.pan;
 		if(!this.state.hasPlotted){
-			return <Card bordered={false}>点击右侧“起盘”后显示遁甲盘</Card>;
+			return <Card bordered={false}>点击左侧“起盘”后显示遁甲盘</Card>;
 		}
 		if(!pan){
 			return <Card bordered={false}>暂无遁甲盘数据</Card>;
@@ -1436,15 +1441,15 @@ class DunJiaMain extends Component {
 			zhiColor: getBaZiBranchColor(item.zhi),
 		}));
 		return (
-			<Card bordered={false}>
-				<div style={{ width: scaledWidth, maxWidth: '100%' }}>
+			<Card bordered={false} className="horosa-dunjia-board-card xq-chart-renderer xq-chart-renderer-qimen" bodyStyle={{ display: 'flex', justifyContent: 'center' }}>
+				<div className="horosa-dunjia-board-shell" style={{ width: scaledWidth, maxWidth: '100%', margin: '0 auto' }}>
 					<div style={{ width: boardWidth, transform: `scale(${boardScale})`, transformOrigin: 'top left' }}>
 						<div
 							style={{
 								padding: 12,
 								borderRadius: 14,
-								background: '#fbfbfb',
-								border: '1px solid #efefef',
+								background: 'var(--horosa-surface-solid, #fbfbfb)',
+								border: '1px solid var(--horosa-border, #efefef)',
 								marginBottom: 8,
 								width: boardWidth,
 								maxWidth: '100%',
@@ -1452,7 +1457,7 @@ class DunJiaMain extends Component {
 						>
 							<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
 									<div style={{ display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
-										<span style={{ fontSize: 18, lineHeight: '22px', fontWeight: 700, color: '#222' }}>
+										<span style={{ fontSize: 18, lineHeight: '22px', fontWeight: 700, color: 'var(--horosa-text, #222)' }}>
 											{dateTitle}
 										</span>
 										<span
@@ -1461,7 +1466,7 @@ class DunJiaMain extends Component {
 												fontSize: 18,
 												lineHeight: '22px',
 												fontWeight: 700,
-												color: '#222',
+												color: 'var(--horosa-text, #222)',
 												whiteSpace: 'nowrap',
 											}}
 										>
@@ -1469,7 +1474,7 @@ class DunJiaMain extends Component {
 									</span>
 								</div>
 								{shiftTitle ? (
-									<div style={{ fontSize: 16, lineHeight: '20px', fontWeight: 700, color: '#595959' }}>
+									<div style={{ fontSize: 16, lineHeight: '20px', fontWeight: 700, color: 'var(--horosa-text-soft, #595959)' }}>
 										{shiftTitle}
 									</div>
 								) : null}
@@ -1500,7 +1505,7 @@ class DunJiaMain extends Component {
 										<span
 											style={{
 												marginLeft: 6,
-												color: '#8c8c8c',
+												color: 'var(--horosa-muted, #8c8c8c)',
 												fontSize: 24,
 												lineHeight: 1,
 												fontWeight: 700,
@@ -1511,10 +1516,10 @@ class DunJiaMain extends Component {
 									</div>
 								))}
 							</div>
-							<div style={{ marginTop: 6, fontSize: 16, lineHeight: '20px', fontWeight: 700, color: '#202020' }}>
+							<div style={{ marginTop: 6, fontSize: 16, lineHeight: '20px', fontWeight: 700, color: 'var(--horosa-text, #202020)' }}>
 								{pan.juText} 值符:{pan.zhiFu} 值使:{pan.zhiShi}
 							</div>
-							<div style={{ marginTop: 4, fontSize: 14, lineHeight: '18px', color: '#595959' }}>
+							<div style={{ marginTop: 4, fontSize: 14, lineHeight: '18px', color: 'var(--horosa-text-soft, #595959)' }}>
 								{pan.options.kongModeLabel}-{pan.kongWang} 旬首-{pan.xunShou}
 							</div>
 						</div>
@@ -1554,6 +1559,128 @@ class DunJiaMain extends Component {
 		);
 	}
 
+	renderInputPanel(){
+		const opt = this.state.options;
+		const showPatternInterpretation = this.state.showPatternInterpretation !== false;
+		const fields = this.state.localFields || this.props.fields || {};
+		let datetm = new DateTime();
+		if(fields.date && fields.time){
+			const str = `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}`;
+			datetm = datetm.parse(str, 'YYYY-MM-DD HH:mm:ss');
+			if(fields.zone){
+				datetm.setZone(fields.zone.value);
+			}
+		}
+		return (
+			<div className="horosa-dunjia-input-stack">
+				<div className="horosa-side-panel-heading">
+					<div>
+						<div className="horosa-side-panel-title">遁甲设置</div>
+						<div className="horosa-side-panel-subtitle">时间、地点与起盘选项</div>
+					</div>
+				</div>
+				<SpaceTimePanel
+					fields={fields}
+					value={datetm}
+					onTimeChange={this.onTimeChanged}
+					timeHook={this.timeHook}
+					onGeoChange={this.changeGeo}
+				/>
+				<div className="horosa-dunjia-input-section">
+					<div className="horosa-dunjia-field-title">
+						<XQIcon name="sliders" />
+						<span>选项</span>
+					</div>
+					<div className="horosa-dunjia-select-grid">
+						<label className="horosa-dunjia-select-field">
+							<span>排盘</span>
+							<Select size="small" value={opt.paiPanType} onChange={(v)=>this.onOptionChange('paiPanType', v)}>
+								{PAIPAN_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>值使</span>
+							<Select size="small" value={opt.zhiShiType} onChange={(v)=>this.onOptionChange('zhiShiType', v)}>
+								{ZHISHI_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>起局</span>
+							<Select size="small" value={opt.qijuMethod} disabled={opt.paiPanType !== 3} onChange={(v)=>this.onOptionChange('qijuMethod', v)}>
+								{QIJU_METHOD_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>月家</span>
+							<Select size="small" value={opt.yueJiaQiJuType} disabled={opt.paiPanType !== 1} onChange={(v)=>this.onOptionChange('yueJiaQiJuType', v)}>
+								{YUEJIA_QIJU_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>空亡</span>
+							<Select size="small" value={opt.kongMode} onChange={(v)=>this.onOptionChange('kongMode', v)}>
+								{KONG_MODE_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>驿马</span>
+							<Select size="small" value={opt.yimaMode} onChange={(v)=>this.onOptionChange('yimaMode', v)}>
+								{MA_MODE_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>性别</span>
+							<Select size="small" value={opt.sex} onChange={this.onGenderChange}>
+								{SEX_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>移星</span>
+							<Select size="small" value={opt.shiftPalace} onChange={(v)=>this.onOptionChange('shiftPalace', v)}>
+								{YIXING_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>日界</span>
+							<Select size="small" value={opt.after23NewDay} onChange={(v)=>this.onOptionChange('after23NewDay', v)}>
+								{DAY_SWITCH_OPTIONS.map((item)=><Option key={`day_switch_${item.value}`} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>时间算法</span>
+							<Select size="small" value={normalizeTimeAlg(opt.timeAlg)} onChange={(v)=>this.onOptionChange('timeAlg', v)}>
+								{TIME_ALG_OPTIONS.map((item)=><Option key={`time_alg_${item.value}`} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<label className="horosa-dunjia-select-field">
+							<span>封局</span>
+							<Select size="small" value={opt.fengJu ? 1 : 0} onChange={(v)=>this.onOptionChange('fengJu', v === 1)}>
+								{FENGJU_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
+							</Select>
+						</label>
+						<div className="horosa-dunjia-toggle-field">
+							<span>格局释义</span>
+							<Button
+								type={showPatternInterpretation ? 'primary' : 'default'}
+								onClick={()=>{
+									const next = !showPatternInterpretation;
+									this.setState({ showPatternInterpretation: next });
+									savePatternInterpretationPreference(next);
+								}}
+							>
+								{showPatternInterpretation ? '显示' : '隐藏'}
+							</Button>
+						</div>
+					</div>
+					<div className="horosa-dunjia-action-row">
+						<Button type="primary" onClick={this.clickPlot} loading={this.state.loading} disabled={this.state.loading}>起盘</Button>
+						<Button onClick={this.clickSaveCase}>保存</Button>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	renderRight(){
 		const pan = this.state.pan;
 		const opt = this.state.options;
@@ -1574,10 +1701,10 @@ class DunJiaMain extends Component {
 		}
 		return (
 			<div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-				<div style={{ paddingBottom: 6, borderBottom: '1px solid #f0f0f0' }}>
+				<div style={{ display: 'none', paddingBottom: 6, borderBottom: '1px solid var(--horosa-border, #f0f0f0)' }}>
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<div>
-							<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.timeHook} />
+							<PlusMinusTime value={datetm} onChange={this.onTimeChanged} hook={this.timeHook} confirmOnAdjust />
 						</div>
 
 						<div style={{ display: 'flex', gap: 4 }}>
@@ -1684,6 +1811,7 @@ class DunJiaMain extends Component {
 				</div>
 
 				<Tabs
+					className="horosa-dunjia-tabs"
 					activeKey={panelTab}
 					onChange={(key)=>this.setState({ rightPanelTab: key })}
 					style={{ marginTop: 8 }}
@@ -1721,7 +1849,7 @@ class DunJiaMain extends Component {
 						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: 'calc(100vh - 420px)', overflowY: 'auto' }}>
 							<div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', columnGap: 14, rowGap: 6, lineHeight: '24px' }}>
 								{pan && pan.shenSha && pan.shenSha.allItems && pan.shenSha.allItems.length
-									? pan.shenSha.allItems.map((item)=>(<div key={`ss_item_${item.name}`}><span style={{ color: '#262626' }}>{item.name}-</span><span style={{ color: '#8c8c8c' }}>{item.value}</span></div>))
+									? pan.shenSha.allItems.map((item)=>(<div key={`ss_item_${item.name}`}><span style={{ color: 'var(--horosa-text, #262626)' }}>{item.name}-</span><span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>{item.value}</span></div>))
 									: <div>暂无神煞</div>}
 							</div>
 						</Card>
@@ -1735,7 +1863,7 @@ class DunJiaMain extends Component {
 										size="small"
 										shape="round"
 										type={bagongPalace === num ? 'primary' : 'default'}
-										style={bagongPalace === num ? { minWidth: 42 } : { minWidth: 42, background: '#fafafa' }}
+										style={bagongPalace === num ? { minWidth: 42 } : { minWidth: 42, background: 'var(--horosa-panel-soft, #fafafa)' }}
 										onClick={()=>this.setState({ bagongPalace: num })}
 									>
 										{BAGONG_PALACE_NAME[num]}
@@ -1749,7 +1877,7 @@ class DunJiaMain extends Component {
 											<span style={{ fontWeight: 600 }}>奇门吉格</span>
 											<Tag color='green'>{bagongData.jiPatterns.length}项</Tag>
 										</div>
-										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+										<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 											{showPatternInterpretation
 												? (bagongData.jiPatternDetails && bagongData.jiPatternDetails.length
 													? bagongData.jiPatternDetails.map((text)=>`• ${text}`).join('\n')
@@ -1762,7 +1890,7 @@ class DunJiaMain extends Component {
 											<span style={{ fontWeight: 600 }}>奇门凶格</span>
 											<Tag color='volcano'>{bagongData.xiongPatterns.length}项</Tag>
 										</div>
-										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+										<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 											{showPatternInterpretation
 												? (bagongData.xiongPatternDetails && bagongData.xiongPatternDetails.length
 													? bagongData.xiongPatternDetails.map((text)=>`• ${text}`).join('\n')
@@ -1775,7 +1903,7 @@ class DunJiaMain extends Component {
 											<span style={{ fontWeight: 600 }}>十干克应</span>
 											<Tag color='blue'>天{bagongData.tianGan || '—'} / 地{bagongData.diGan || '—'}</Tag>
 										</div>
-										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+										<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 											天{bagongData.tianGan || '—'}加地{bagongData.diGan || '—'}：{bagongData.tenGanText}
 										</div>
 									</Card>
@@ -1784,7 +1912,7 @@ class DunJiaMain extends Component {
 											<span style={{ fontWeight: 600 }}>八门克应和奇仪主应</span>
 											<Tag color='purple'>人{bagongData.renDoor || '—'}</Tag>
 										</div>
-										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+										<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 											<div>人{bagongData.renDoor || '—'}加地{bagongData.baseDoor || '—'}：{bagongData.doorBaseText}</div>
 											<div style={{ marginTop: 4 }}>人{bagongData.renDoor || '—'}加天{bagongData.tianGan || '—'}：{bagongData.doorTianText}</div>
 										</div>
@@ -1794,7 +1922,7 @@ class DunJiaMain extends Component {
 											<span style={{ fontWeight: 600 }}>八神加八门</span>
 											<Tag color='geekblue'>{bagongData.godFull || '—'}</Tag>
 										</div>
-										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+										<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 											{bagongData.godFull || '—'}加{bagongData.renDoor || '—'}门：{bagongData.godDoorText}
 										</div>
 									</Card>
@@ -1803,14 +1931,14 @@ class DunJiaMain extends Component {
 											<span style={{ fontWeight: 600 }}>奇门演卦</span>
 											<Tag color='cyan'>{bagongData.menFangYiGua || '无'}</Tag>
 										</div>
-										<div style={{ color: '#595959', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
+										<div style={{ color: 'var(--horosa-text-soft, #595959)', lineHeight: '22px', whiteSpace: 'pre-wrap' }}>
 											{bagongData.menFangYiGuaText || '无'}
 										</div>
 									</Card>
 								</div>
 							) : (
 								<Card size='small'>
-									<div style={{ color: '#8c8c8c' }}>请先起盘后查看八宫信息。</div>
+									<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>请先起盘后查看八宫信息。</div>
 								</Card>
 							)}
 						</Card>
@@ -1823,24 +1951,43 @@ class DunJiaMain extends Component {
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 'calc(100% - 70px)';
+			height = 760;
 		}else{
 			height = height - 20;
 		}
 		return (
-			<div style={{ minHeight: height }}>
-				<Spin spinning={this.state.loading}>
-					<Row gutter={6}>
-						<Col span={16}>
-							<div ref={this.captureLeftBoardHost}>
-								{this.renderBoard()}
+			<div className="horosa-dunjia-page horosa-astro-redesign horosa-dunjia-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-dunjia-redesign-layout">
+					<Spin spinning={this.state.loading}>
+						<div className="horosa-astro-redesign-grid horosa-dunjia-redesign-grid">
+							<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-dunjia-input-panel">
+								{this.renderInputPanel()}
 							</div>
-						</Col>
-						<Col span={8}>
-							{this.renderRight()}
-						</Col>
-					</Row>
-				</Spin>
+							<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-dunjia-chart-panel xq-chart-renderer xq-chart-renderer-qimen">
+								<div ref={this.captureLeftBoardHost} className="horosa-dunjia-board-host">
+									{this.renderBoard()}
+								</div>
+							</div>
+							<div className="horosa-inspector-panel horosa-astro-content-panel horosa-dunjia-info-panel">
+								<div className="horosa-side-panel-heading horosa-dunjia-info-heading">
+									<div>
+										<div className="horosa-side-panel-title">遁甲信息</div>
+										<div className="horosa-side-panel-subtitle">概览、神煞与八宫详解</div>
+									</div>
+								</div>
+								{this.renderRight()}
+							</div>
+						</div>
+					</Spin>
+					<div className="horosa-bottom-quick-dock horosa-dunjia-quick-dock">
+						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+						<div className="horosa-bottom-quick-actions horosa-dunjia-quick-placeholders">
+							{Array.from({length: 8}).map((_, idx)=>(
+								<div className="horosa-bottom-quick-placeholder" key={idx} />
+							))}
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}

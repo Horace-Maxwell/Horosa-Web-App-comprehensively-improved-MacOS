@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Statistic, Row, Col, Button, Divider } from 'antd';
+import { Statistic, Row, Col } from 'antd';
+import { XQButton as Button } from '../xq-ui';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 

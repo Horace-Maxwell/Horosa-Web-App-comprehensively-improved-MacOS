@@ -23,31 +23,36 @@ export let SiHua = {
 };
 
 export const ZWColor = {
-	Stroke: '#3b3b3b',
-	SelectedBG: '#66FFFF',
-	SangHeBG: '#fefeef',
-	DuiGongBG: '#fefeef',
-	StarMainStroke: '#ff0000',
-	StarAssistStroke: '#CC3399',
-	StarEvilStroke: '#990033',
-	StarOthersGoodStroke: '#3b3b3b',
-	StarOthersBadStroke: '#3b3b3b',
-	StarSmallStroke: '#3b3b3b',
+	Stroke: 'var(--horosa-text-soft, #3b3b3b)',
+	SelectedBG: 'var(--horosa-cyan-soft, #66FFFF)',
+	SangHeBG: 'var(--horosa-panel-bg, #fefeef)',
+	DuiGongBG: 'var(--horosa-panel-bg, #fefeef)',
+	StarMainStroke: 'var(--horosa-ziwei-star-main, #9b6a2d)',
+	StarAssistStroke: 'var(--horosa-ziwei-star-assist, #327f8d)',
+	StarEvilStroke: 'var(--horosa-ziwei-star-evil, #a9473f)',
+	StarOthersGoodStroke: 'var(--horosa-ziwei-star-assist, #327f8d)',
+	StarOthersBadStroke: 'var(--horosa-ziwei-star-evil, #a9473f)',
+	StarSmallStroke: 'var(--horosa-ziwei-house-muted, #8a8f95)',
+	HouseLineStroke: 'var(--horosa-ziwei-house-line, rgba(184, 137, 63, 0.22))',
+	HouseMetaStroke: 'var(--horosa-ziwei-house-meta, #7a8790)',
+	HouseBranchStroke: 'var(--horosa-ziwei-house-branch, #b8893f)',
+	HouseNameStroke: 'var(--horosa-ziwei-house-name, #d8ad63)',
+	HouseAgeStroke: 'var(--horosa-ziwei-house-age, #8794a8)',
 
 	'禄': {
-		bg: '#CC9900',
+		bg: 'var(--horosa-gold, #CC9900)',
 		color: '#ffffff',
 	},
 	'权': {
-		bg: '#0000ff',
+		bg: '#2b67d8',
 		color: '#ffffff',
 	},
 	'科': {
-		bg: '#0099FF',
+		bg: 'var(--horosa-cyan, #0099FF)',
 		color: '#ffffff',
 	},
 	'忌': {
-		bg: '#ff0000',
+		bg: 'var(--horosa-cinnabar, #ff0000)',
 		color: '#ffffff',
 	},
 };
@@ -126,4 +131,3 @@ SihuaColor['禄'] = SihuaColor[0];
 SihuaColor['权'] = SihuaColor[1];
 SihuaColor['科'] = SihuaColor[2];
 SihuaColor['忌'] = SihuaColor[3];
-

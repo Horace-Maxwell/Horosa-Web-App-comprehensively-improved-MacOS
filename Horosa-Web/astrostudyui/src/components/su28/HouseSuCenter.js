@@ -3,7 +3,7 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as Su28Helper from './Su28Helper';
 import HouseSu from './HouseSu';
 import { drawPath, drawTextH, drawTextV} from '../graph/GraphHelper';
-import {randomStr, printArea, genHtml} from '../../utils/helper';
+import {randomStr, genHtml} from '../../utils/helper';
 
 class HouseSuCenter extends HouseSu{
 	constructor(option){
@@ -54,7 +54,6 @@ class HouseSuCenter extends HouseSu{
 		if(this.fields.name.value && this.fields.name.value !== ''){
 			data.push('姓名：' + this.fields.name.value)
 		}
-		data.push('打印');
 
 		let zutips = {
 			title: '四柱纳音',
@@ -93,15 +92,6 @@ class HouseSuCenter extends HouseSu{
 			}
 			y = y + h;
 		}
-
-		if(txtgrp.length){
-			txtgrp[txtgrp.length-1].attr('style', 'cursor:hand');
-			txtgrp[txtgrp.length-1].on('click', ()=>{
-				let cid = this.su28chart.chartId;
-				printArea(cid);
-			});	
-		}
-
 
 	}
 

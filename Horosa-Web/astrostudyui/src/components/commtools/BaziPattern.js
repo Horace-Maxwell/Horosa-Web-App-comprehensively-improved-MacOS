@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Button, Divider, Select, Input, Popconfirm, InputNumber, message} from 'antd';
+import { Row, Col, Divider, Popconfirm, message} from 'antd';
+import { XQButton as Button, XQInput as Input, XQSelect as Select } from '../xq-ui';
 import { randomStr, isNumber } from '../../utils/helper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
