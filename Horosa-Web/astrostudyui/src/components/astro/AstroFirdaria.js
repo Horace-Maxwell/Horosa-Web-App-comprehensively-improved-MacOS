@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Table, Divider, } from 'antd';
+import { Row, Col, Divider, } from 'antd';
 import {randomStr} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
@@ -7,8 +7,8 @@ import * as AstroHelper from './AstroHelper';
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
 import { buildMeaningTipByCategory, } from './AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
-import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
+import { XQTable as Table } from '../xq-ui';
 
 class AstroFirdaria extends Component{
 

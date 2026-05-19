@@ -104,11 +104,11 @@ function MonacoField(props){
 					display: 'flex',
 					alignItems: 'center',
 					justifyContent: 'center',
-					color: '#7d7d7d',
+					color: 'var(--horosa-muted, #7d7d7d)',
 					fontSize: 12,
 					pointerEvents: 'none',
-					background: '#fafafa',
-					border: '1px solid #f0f0f0',
+					background: 'var(--horosa-panel-soft, #fafafa)',
+					border: '1px solid var(--horosa-border, #f0f0f0)',
 				}}
 				>
 					{loading}

@@ -1,11 +1,12 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Popconfirm, Button,  Input, Select,InputNumber, Divider } from 'antd';
+import { Row, Col } from 'antd';
+import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import * as AstroText from '../../constants/AstroText';
 import { randomStr, isNumber} from '../../utils/helper';
 import styles from '../../css/styles.less';
 
 
-const { Option }=Select;
+const { Option } = Select;
 const TabPane = Tabs.TabPane;
 
 class DLFeature extends Component{
@@ -178,4 +179,3 @@ class DLFeature extends Component{
 }
 
 export default DLFeature;
-

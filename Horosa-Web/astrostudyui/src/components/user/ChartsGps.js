@@ -1,6 +1,7 @@
 import { Component } from 'react';
-import { Row, Col, Button } from 'antd';
+import { Row, Col } from 'antd';
 import PointsCluster from '../amap/PointsCluster';
+import { XQButton } from '../xq-ui';
 
 class ChartsGps extends Component{
 
@@ -41,7 +42,7 @@ class ChartsGps extends Component{
 			<div style={{height: height}}>
 				<Row style={{marginBottom: 10}}>
 					<Col span={4}>
-						<Button type="primary" onClick={this.search}>查询分布</Button>
+						<XQButton type="primary" onClick={this.search}>查询分布</XQButton>
 					</Col>
 				</Row>
 				<PointsCluster 

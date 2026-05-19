@@ -1,10 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, } from 'antd';
 import { randomStr } from '../../utils/helper';
 import DiceMain from '../dice/DiceMain';
-
-
-const TabPane = Tabs.TabPane;
 
 class OtherBuMain extends Component{
 
@@ -49,36 +45,26 @@ class OtherBuMain extends Component{
 						currentSubTab: key,
 					}
 				});
-			}	
+			}
 		});
 	}
 
 
 	render(){
 		let height = this.props.height ? this.props.height : 760;
-		height = height - 20;
 
 		return (
-			<div id={this.state.divId}>
-				<Tabs 
-					defaultActiveKey={this.state.currentTab} tabPosition='right'
-					onChange={this.changeTab}
-					style={{ height: height }}
-				>
-					<TabPane tab="星盘骰子" key="touzi">
-							<DiceMain 
-								height={height}
-								fields={this.props.fields}
-								chartDisplay={this.props.chartDisplay}
-								planetDisplay={this.props.planetDisplay}
-								lotsDisplay={this.props.lotsDisplay}
-								showAstroMeaning={this.props.showAstroMeaning}
-								hook={this.state.hook.touzi}
-								dispatch={this.props.dispatch}
-							/>
-					</TabPane>
-
-				</Tabs>
+			<div id={this.state.divId} className="horosa-aux-module-page xq-chart-renderer xq-chart-renderer-dice">
+				<DiceMain
+					height={height}
+					fields={this.props.fields}
+					chartDisplay={this.props.chartDisplay}
+					planetDisplay={this.props.planetDisplay}
+					lotsDisplay={this.props.lotsDisplay}
+					showAstroMeaning={this.props.showAstroMeaning}
+					hook={this.state.hook.touzi}
+					dispatch={this.props.dispatch}
+				/>
 			</div>
 		);
 	}

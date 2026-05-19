@@ -1,9 +1,10 @@
 import { Component } from 'react';
-import { Row, Col, Select} from 'antd';
+import { Row, Col, } from 'antd';
 import MeiyiGuaSym from './MeiyiGuaSym';
 import GuaChartDiv from './GuaChartDiv';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
+import { XQSelect as Select } from '../xq-ui';
 
 const { Option } = Select;
 

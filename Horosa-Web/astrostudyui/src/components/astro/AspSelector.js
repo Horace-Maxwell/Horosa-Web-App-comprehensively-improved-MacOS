@@ -1,11 +1,7 @@
 import { Component } from 'react';
-import { Checkbox, Row, Col, Tabs, Divider } from 'antd';
-import {randomStr} from '../../utils/helper';
-import * as AstroHelper from './AstroHelper';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
-
-const TabPane = Tabs.TabPane;
+import { XQCheckItem, XQCheckList } from '../xq-ui';
 
 
 class AspSelector extends Component{
@@ -14,6 +10,7 @@ class AspSelector extends Component{
 		super(props);
 
 		this.onChange = this.onChange.bind(this);
+		this.toggleAspect = this.toggleAspect.bind(this);
 	}
 
 	onChange(checkedValues){
@@ -30,37 +27,50 @@ class AspSelector extends Component{
 		}
 	}
 
-	render(){
-		let allobjs = AstroConst.LIST_ASP.map((item, idx)=>{
-			return (
-				<Col span={24} key={item}>
-					<Checkbox value={item}>
-						<span>{AstroText.AstroTxtMsg[item]}</span>
-						<span style={{fontFamily: AstroConst.AstroFont}}>{'（' + AstroText.AstroMsg[item] + '）'}</span>
-					</Checkbox>
-				</Col>
-			);
-		});
-
+	getCurrentValue(){
 		let val = localStorage.getItem(AstroConst.AspKey);
 		if(val === undefined || val === null){
 			val = AstroConst.DEFAULT_ASPECTS;
 			localStorage.setItem(AstroConst.AspKey, JSON.stringify(val));
-		}else{
-			val = JSON.parse(val);
+			return val;
 		}
+		try{
+			return JSON.parse(val);
+		}catch(err){
+			localStorage.setItem(AstroConst.AspKey, JSON.stringify(AstroConst.DEFAULT_ASPECTS));
+			return AstroConst.DEFAULT_ASPECTS;
+		}
+	}
+
+	toggleAspect(item){
+		const current = this.getCurrentValue();
+		const next = Array.isArray(current) ? current.slice(0) : [];
+		const idx = next.indexOf(item);
+		if(idx >= 0){
+			next.splice(idx, 1);
+		}else{
+			next.push(item);
+		}
+		this.onChange(next);
+	}
+
+	render(){
+		let val = this.getCurrentValue();
+		let allobjs = AstroConst.LIST_ASP.map((item)=>{
+			const checked = Array.isArray(val) && val.indexOf(item) >= 0;
+			return (
+				<XQCheckItem key={item} checked={checked} onClick={()=>this.toggleAspect(item)}>
+						<span>{AstroText.AstroTxtMsg[item]}</span>
+						<span style={{fontFamily: AstroConst.AstroFont}}>{'（' + AstroText.AstroMsg[item] + '）'}</span>
+				</XQCheckItem>
+			);
+		});
 
 		return (
-			<div>
-				<Checkbox.Group 
-					style={{ width: '100%' }} 
-					onChange={this.onChange}
-					value={val}
-				>
-					<Row gutter={12}>
-						{allobjs}
-					</Row>
-				</Checkbox.Group>
+			<div className="horosa-selector-drawer">
+				<XQCheckList>
+					{allobjs}
+				</XQCheckList>
 			</div>
 		);
 	}

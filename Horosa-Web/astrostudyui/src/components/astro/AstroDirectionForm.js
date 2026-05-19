@@ -1,7 +1,6 @@
 import React from 'react';
 import { useEffect } from 'react';
-import { Form, Button, Select, Input, Row, Col,   } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Form, Row, Col,   } from 'antd';
 import { preventEnterPress } from '../../utils/helper';
 import LatInput from './LatInput';
 import LonInput from './LonInput';
@@ -9,6 +8,8 @@ import PlusMinusTime from './PlusMinusTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import * as AstroHelper from '../astro/AstroHelper';
 import DateTime from '../comp/DateTime';
+import { XQButton as Button, XQInput as Input, XQSelect as Select } from '../xq-ui';
+import XQIcon from '../xq-icons';
 
 export default function AstroDirectionForm(props){
 	let [form] = Form.useForm();
@@ -193,7 +194,7 @@ export default function AstroDirectionForm(props){
 							</Col>
 							<Col span={12}>
 								<FormItem>
-									<Button icon={<SearchOutlined />} type="primary" htmlType="submit">提交</Button>
+									<Button icon={<XQIcon name="search" />} type="primary" htmlType="submit">提交</Button>
 								</FormItem>
 							</Col>
 						</Row>	
@@ -205,7 +206,7 @@ export default function AstroDirectionForm(props){
 						<Row>
 							<Col offset={8} span={16}>
 								<FormItem>
-									<Button icon={<SearchOutlined />} type="primary" htmlType="submit">提交</Button>
+									<Button icon={<XQIcon name="search" />} type="primary" htmlType="submit">提交</Button>
 								</FormItem>
 							</Col>
 						</Row>	
@@ -217,5 +218,3 @@ export default function AstroDirectionForm(props){
     
 
 }
-
-

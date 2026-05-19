@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Radio, Divider, Select, } from 'antd';
+import { Row, Col, Radio, Divider, } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
@@ -10,6 +10,7 @@ import * as Constants from '../../utils/constants';
 import { randomStr, } from '../../utils/helper';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import styles from '../../css/styles.less';
+import { XQSelect as Select } from '../xq-ui';
 
 const RadioGroup = Radio.Group;
 const Option = Select.Option;
@@ -540,7 +541,7 @@ class AstroZR extends Component{
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
 								showAstroMeaning={this.props.showAstroMeaning}
-								backgroundColor='aliceblue' height={height}
+								height={height}
 							/>
 
 					</Col>

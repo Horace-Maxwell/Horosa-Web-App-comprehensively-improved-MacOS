@@ -1,11 +1,12 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Select } from 'antd';
+import { Row, Col, } from 'antd';
 import AstroChart from '../astro/AstroChart';
 import Midpoint from './Midpoint';
 import AspectToMidpoint from './AspectToMidpoint';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
 import { getHousesOption } from '../comp/CompHelper'
+import { XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 
 const TabPane = Tabs.TabPane;
 const Option = Select.Option;

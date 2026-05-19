@@ -1,8 +1,5 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Tooltip } from 'antd';
 import AstroAcg from '../acg/AstroAcg';
-
-const TabPane = Tabs.TabPane;
 
 class LocAstroMain extends Component{
 
@@ -13,7 +10,7 @@ class LocAstroMain extends Component{
 			hook: {
 				Acg:{
 					fun: null
-				},	
+				},
 			},
 		};
 
@@ -35,13 +32,13 @@ class LocAstroMain extends Component{
 	}
 
 
-	changeTab(key){		
+	changeTab(key){
 		this.setState({
 			currentTab: key,
 		}, ()=>{
 			if(this.state.hook[key] && this.state.hook[key].fun){
 				this.state.hook[key].fun();
-			}	
+			}
 			if(this.props.dispatch){
 				this.props.dispatch({
 					type: 'astro/save',
@@ -49,7 +46,7 @@ class LocAstroMain extends Component{
 						currentSubTab: key,
 					}
 				});
-			}				
+			}
 		});
 	}
 
@@ -60,7 +57,7 @@ class LocAstroMain extends Component{
 			if(hook.fun){
 				hook.fun(flds);
 			}
-		}		
+		}
 	}
 
 	componentDidMount(){
@@ -76,25 +73,15 @@ class LocAstroMain extends Component{
 
 
 		return (
-			<div >
-				<Tabs 
-					defaultActiveKey={this.state.currentTab} tabPosition='right'
-					onChange={this.changeTab}
-					style={{ height: height }}
-				>
-					<TabPane tab='行星地图' key="Acg" >
-						<AstroAcg 
-							height={height} 
-							fields={fields} 
-							hook={this.state.hook.Acg}
-						/>
-					</TabPane>
-
-				</Tabs>
+			<div className="horosa-aux-module-page xq-chart-renderer xq-chart-renderer-locastro">
+				<AstroAcg
+					height={height}
+					fields={fields}
+					hook={this.state.hook.Acg}
+				/>
 			</div>
 		);
 	}
 }
 
 export default LocAstroMain;
-

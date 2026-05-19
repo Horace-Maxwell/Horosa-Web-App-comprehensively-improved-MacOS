@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import { Row, Col, Tabs, Input, Button, DatePicker, Card, Select } from 'antd';
+import { Row, Col, } from 'antd';
+import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import AstroChartMain from '../astro/AstroChartMain';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import SuZhanMain from '../suzhan/SuZhanMain';
@@ -22,9 +23,7 @@ import { setJieqiSeedLocalCache, } from '../../utils/localCalcCache';
 import { fetchPreciseJieqiYear } from '../../utils/preciseCalcBridge';
 import { appendPlanetHouseInfo, appendPlanetHouseInfoById, } from '../../utils/planetHouseInfo';
 
-const { MonthPicker, } = DatePicker
 const TabPane = Tabs.TabPane;
-const InputGroup = Input.Group;
 const {Option} = Select
 const JIEQI_STD = [
 	'小寒', '大寒', '立春', '雨水', '惊蛰', '春分',
