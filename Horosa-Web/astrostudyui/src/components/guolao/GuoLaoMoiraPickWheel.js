@@ -33,9 +33,8 @@ const PICK_RING_DRAW_TYPE = [1, 0, 0, 0, 1, -10, 1, 1, -10, 2, 0, 1, -10];
 const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 const MOUNTAINS = ['子', '癸', '丑', '艮', '寅', '甲', '卯', '乙', '辰', '巽', '巳', '丙', '午', '丁', '未', '坤', '申', '庚', '酉', '辛', '戌', '乾', '亥', '壬'];
 const INNER_PAIR = ['土子', '土丑', '木寅', '火卯', '金辰', '水巳', '日午', '月未', '水申', '金酉', '火戌', '木亥'];
-const HOUSE_LABEL = ['德福', '相貌', '命宫', '财帛', '兄弟', '田宅', '男女', '奴仆', '夫妻', '疾厄', '迁移', '官禄'];
-const HOUSE_NUMBERS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '1'];
-const STEM_BRANCHES = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸', '甲', '乙'];
+const HOUSE_LABEL = ['命宫', '相貌', '福德', '官禄', '迁移', '疾厄', '夫妻', '奴仆', '男女', '田宅', '兄弟', '财帛'];
+const HOUSE_NUMBERS = ['1', '12', '11', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
 
 function r(idx){
 	return PICK_RING_POS[idx] * R;
@@ -250,11 +249,13 @@ class GuoLaoMoiraPickWheel extends Component{
 			const theta = pickThetaFromDegree(degree);
 			const major = degree % 30 === 0;
 			const mid = degree % 5 === 0;
-			const start = major ? inner : (mid ? inner + delta : inner + 2 * delta);
+			const anchorInner = opt.anchor === 'inner';
+			const start = anchorInner ? inner : (major ? inner : (mid ? inner + delta : inner + 2 * delta));
+			const end = anchorInner ? (major ? outer : (mid ? inner + 2 * delta : inner + delta)) : outer;
 			const color = opt.mutedMajor ? BLACK : (major ? RED : BLACK);
 			nodes.push(
 				<g key={`${keyPrefix}-${degree}`}>
-					{radialLine(theta, start, outer, {
+					{radialLine(theta, start, end, {
 						color,
 						width: major ? (opt.majorWidth || 0.8) : 0.6,
 						opacity: opt.opacity === undefined ? (major ? 0.6 : 0.48) : opt.opacity,
@@ -310,22 +311,13 @@ class GuoLaoMoiraPickWheel extends Component{
 				</g>
 			);
 		}
-		for(let i = 0; i < 12; i++){
-			const theta = pickThetaFromDegree(sectorCenter(i, 12));
-			nodes.push(
-				<g key={`branch-ring-${i}`}>
-					{horizontalRingText(BRANCHES[i], (r(7) + r(8)) / 2, theta, {size: 25, color: BLACK, weight: 500})}
-					{horizontalRingText(STEM_BRANCHES[i], (r(6) + r(7)) / 2, theta, {size: 22, color: BLACK, weight: 500})}
-				</g>
-			);
-		}
 		return <g className="moira-pick-mountain-rings">{nodes}</g>;
 	}
 
 	renderStellarTicks(){
 		const nodes = [
-			...this.renderDegreeMarkBand(r(4), r(5), 'pick-stellar-up', {mutedMajor: true, opacity: 0.38}),
-			...this.renderDegreeMarkBand(r(7), r(8), 'pick-stellar-down', {mutedMajor: true, opacity: 0.38}),
+			...this.renderDegreeMarkBand(r(4), r(5), 'pick-stellar-up', {mutedMajor: true, opacity: 0.38, anchor: 'inner'}),
+			...this.renderDegreeMarkBand(r(7), r(8), 'pick-stellar-down', {mutedMajor: true, opacity: 0.38, anchor: 'inner'}),
 		];
 		return <g className="moira-stellar-ticks">{nodes}</g>;
 	}

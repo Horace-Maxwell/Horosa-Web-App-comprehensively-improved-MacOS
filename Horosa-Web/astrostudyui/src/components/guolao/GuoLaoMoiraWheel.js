@@ -829,11 +829,13 @@ class GuoLaoMoiraWheel extends Component{
 			const theta = thetaForDegree(degree);
 			const major = degree % 30 === 0;
 			const mid = degree % 5 === 0;
-			const start = major ? inner : (mid ? inner + delta : inner + 2 * delta);
+			const anchorInner = opt.anchor === 'inner';
+			const start = anchorInner ? inner : (major ? inner : (mid ? inner + delta : inner + 2 * delta));
+			const end = anchorInner ? (major ? outer : (mid ? inner + 2 * delta : inner + delta)) : outer;
 			const color = opt.mutedMajor ? BLACK : (major ? RED : BLACK);
 			nodes.push(
 				<g key={`${keyPrefix}-${degree}`}>
-					{radialLine(theta, start, outer, {
+					{radialLine(theta, start, end, {
 						color,
 						width: major ? (opt.majorWidth || 0.82) : 0.62,
 						opacity: opt.opacity === undefined ? (major ? 0.6 : 0.48) : opt.opacity,
@@ -849,7 +851,7 @@ class GuoLaoMoiraWheel extends Component{
 		const life = lifeDegree(chart, fields);
 		const lifeTheta = moiraThetaFromDegree(life);
 			nodes.push(...this.renderDegreeMarkBand(r(4), r(5), 'full-stellar-up', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38}));
-			nodes.push(...this.renderDegreeMarkBand(r(6), r(7), 'full-stellar-down', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38}));
+			nodes.push(...this.renderDegreeMarkBand(r(6), r(7), 'full-stellar-down', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38, anchor: 'inner'}));
 		for(let age = 1; age <= 106; age++){
 			const degree = limitDegreeForAge(life, age + 0.5);
 			const theta = moiraThetaFromDegree(degree);
