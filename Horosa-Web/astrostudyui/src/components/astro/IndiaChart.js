@@ -86,6 +86,7 @@ function buildIndiaChartCacheKey(params){
 		name: params.name || '',
 		pos: params.pos || '',
 		chartnum: params.chartnum || 1,
+		jyotishRev: 'jyotish_engine_v1',
 	};
 	return JSON.stringify(normalized);
 }
@@ -220,6 +221,9 @@ class IndiaChart extends Component{
 		};
 
 		this.setState(st);
+		if(this.props.onChartLoad){
+			this.props.onChartLoad(result, params);
+		}
 		const snapshotFields = sourceFields || this.props.fields;
 		const snapshotText = buildIndiaSnapshotText(result, snapshotFields, params ? params.chartnum : null, this.props.hook);
 		if(snapshotText){

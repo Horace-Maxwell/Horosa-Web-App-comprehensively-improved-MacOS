@@ -2,7 +2,7 @@ import traceback
 import jsonpickle
 import cherrypy
 from astrostudy.perchart import PerChart
-from astrostudy.helper import getChartJson
+from astrostudy.helper import getChartObj
 from websrv.helper import enable_crossdomain
 from astrostudy.india.chart2 import Chart2
 from astrostudy.india.chart3 import Chart3
@@ -23,6 +23,14 @@ from astrostudy.india.chart30 import Chart30
 from astrostudy.india.chart40 import Chart40
 from astrostudy.india.chart45 import Chart45
 from astrostudy.india.chart60 import Chart60
+from astrostudy.india.jyotish_engine import build_jyotish
+
+
+def getIndiaChartJson(data, perchart, jyotish=None):
+    obj = getChartObj(data, perchart)
+    if jyotish is not None:
+        obj['jyotish'] = jyotish
+    return jsonpickle.encode(obj, unpicklable=False)
 
 
 class IndiaAstroSrv:
@@ -48,6 +56,20 @@ class IndiaAstroSrv:
                 chartnum = data['chartnum']
 
             perchart = PerChart(data)
+            try:
+                jyotish = build_jyotish(perchart)
+            except:
+                traceback.print_exc()
+                jyotish = {
+                    'engine': {
+                        'name': 'Horosa JyotishEngine',
+                        'version': '0.1.0',
+                        'ephemeris': 'Horosa Swiss Ephemeris / flatlib PerChart',
+                        'source': 'chart_json_only',
+                        'chartnum': 1,
+                    },
+                    'error': 'jyotish calculation error'
+                }
             indiachart = perchart
             if chartnum == 2:
                 indiachart = Chart2(perchart)
@@ -88,12 +110,12 @@ class IndiaAstroSrv:
             elif chartnum == 60:
                 indiachart = Chart60(perchart)
             else:
-                res = getChartJson(data, perchart)
+                res = getIndiaChartJson(data, perchart, jyotish)
                 return res
 
             indiachart.fractal()
 
-            res = getChartJson(data, perchart)
+            res = getIndiaChartJson(data, perchart, jyotish)
             return res
         except:
             traceback.print_exc()

@@ -160,6 +160,14 @@ function formatAge(years){
 }
 
 function buildDashaSubPeriods(item){
+	if(item && Array.isArray(item.antardashas)){
+		return item.antardashas.map((subItem)=>({
+			...subItem,
+			lord: normalizeDashaLord(subItem.lord),
+			start: moment(subItem.start),
+			end: moment(subItem.end),
+		}));
+	}
 	if(!item || !item.start || !item.lord){
 		return [];
 	}
@@ -194,7 +202,47 @@ function buildDashaSubPeriods(item){
 	return subItems;
 }
 
+function normalizeDashaLord(lord){
+	if(!lord){
+		return {
+			key: '',
+			label: '—',
+			en: '',
+			years: 0,
+		};
+	}
+	const local = DASHA_BY_KEY[lord.key] || DASHA_SEQUENCE.find((item)=>item.en === lord.key || item.key === lord.key);
+	return {
+		...(local || {}),
+		...lord,
+		en: lord.en || lord.key || (local ? local.en : ''),
+		label: lord.label || (local ? local.label : lord.key),
+	};
+}
+
 function buildVimshottariDasha(chartObj, fields){
+	const backend = chartObj && chartObj.jyotish && chartObj.jyotish.dasha && chartObj.jyotish.dasha.vimshottari;
+	if(backend && backend.available && Array.isArray(backend.mahadashas)){
+		return {
+			backend: true,
+			moon: null,
+			moonLon: backend.moonLongitude,
+			nakshatra: {
+				...(backend.moonNakshatra || {}),
+				lord: normalizeDashaLord(backend.firstLord || (backend.moonNakshatra ? {key: backend.moonNakshatra.lord} : null)),
+			},
+			firstBalance: backend.firstBalanceYears,
+			firstElapsed: backend.firstElapsedYears,
+			items: backend.mahadashas.map((item)=>({
+				...item,
+				lord: normalizeDashaLord(item.lord),
+				start: moment(item.start),
+				end: moment(item.end),
+				active: !!item.active,
+				isBirthBalance: !!item.birthBalance,
+			})),
+		};
+	}
 	const moon = getMoonObject(chartObj);
 	const moonLon = normalizeDegree(moon ? moon.lon : null);
 	const birth = buildBirthMoment(fields);
@@ -261,6 +309,121 @@ function buildVimshottariDasha(chartObj, fields){
 	};
 }
 
+function getJyotish(chartObj){
+	return chartObj && chartObj.jyotish ? chartObj.jyotish : null;
+}
+
+function formatJyotishDate(value){
+	if(!value){
+		return '—';
+	}
+	if(value.format){
+		return value.format('YYYY-MM-DD');
+	}
+	const parsed = moment(value);
+	return parsed.isValid() ? parsed.format('YYYY-MM-DD') : `${value}`;
+}
+
+function formatDegree(value){
+	const num = Number(value);
+	if(!Number.isFinite(num)){
+		return '—';
+	}
+	const deg = Math.floor(num);
+	const min = Math.floor((num - deg) * 60);
+	return `${deg}°${`${min}`.padStart(2, '0')}′`;
+}
+
+function getJyotishPlanetStates(jyotish){
+	return jyotish && jyotish.strengths && Array.isArray(jyotish.strengths.planetaryStates)
+		? jyotish.strengths.planetaryStates
+		: [];
+}
+
+function getJyotishDasha(chartObj){
+	return chartObj && chartObj.jyotish && chartObj.jyotish.dasha ? chartObj.jyotish.dasha.vimshottari : null;
+}
+
+function normalizeChartDateKey(value){
+	return `${value || ''}`.replace(/\//g, '-');
+}
+
+function buildJyotishParamsKey(params){
+	if(!params){
+		return '';
+	}
+	return [
+		normalizeChartDateKey(params.date),
+		params.time || '',
+		params.ad,
+		params.zone || '',
+		params.lon || '',
+		params.lat || '',
+		params.gpsLon,
+		params.gpsLat,
+		params.hsys,
+	].join('|');
+}
+
+function cloneIndiaFieldValue(value){
+	if(value && value.clone){
+		try{
+			return value.clone();
+		}catch(e){}
+	}
+	if(value && typeof value === 'object'){
+		return {
+			...value,
+		};
+	}
+	return value;
+}
+
+function cloneIndiaFieldsForJyotish(fields){
+	if(!fields){
+		return null;
+	}
+	const cloned = {
+		...fields,
+	};
+	Object.keys(cloned).forEach((key)=>{
+		const item = cloned[key];
+		if(item && typeof item === 'object' && Object.prototype.hasOwnProperty.call(item, 'value')){
+			cloned[key] = {
+				...item,
+				value: cloneIndiaFieldValue(item.value),
+			};
+		}
+	});
+	return cloned;
+}
+
+function resolveJyotishChartObj(state, fields){
+	const activeKey = buildDashaFieldsKey(fields);
+	if(!state || !activeKey){
+		return null;
+	}
+	if(state.mainChartObj && state.mainChartObj.jyotish && state.mainChartKey === activeKey){
+		return state.mainChartObj;
+	}
+	return (state.dashaChartObj && state.dashaChartKey === activeKey)
+		? state.dashaChartObj
+		: null;
+}
+
+function hasUsableJyotishChart(state, fieldsKey){
+	if(!state || !fieldsKey){
+		return false;
+	}
+	if(state.mainChartObj && state.mainChartObj.jyotish && state.mainChartKey === fieldsKey){
+		return true;
+	}
+	if(state.dashaChartObj && state.dashaChartObj.jyotish && state.dashaChartKey === fieldsKey){
+		return true;
+	}
+	return false;
+}
+
 function buildDashaFieldsKey(fields){
 	if(!fields || !fields.date || !fields.time){
 		return '';
@@ -301,9 +464,14 @@ class IndiaChartMain extends Component{
 			dashaChartObj: null,
 			dashaLoading: false,
 			dashaFieldsKey: '',
+			dashaChartKey: '',
 			dashaPopoverItem: null,
 			dashaPopoverStyle: null,
-			infoTab: '1',
+			mainChartObj: null,
+			mainChartKey: '',
+			activeJyotishFields: null,
+			activeJyotishKey: '',
+			jyotishTab: '3',
 			hook: {
 				Natal:{
 					txt:'命盘',
@@ -418,9 +586,11 @@ class IndiaChartMain extends Component{
 		this.requestDashaChart = this.requestDashaChart.bind(this);
 		this.showDashaSubPopover = this.showDashaSubPopover.bind(this);
 		this.hideDashaSubPopover = this.hideDashaSubPopover.bind(this);
-		this.changeInfoTab = this.changeInfoTab.bind(this);
 		this.handleQuickAction = this.handleQuickAction.bind(this);
+		this.changeJyotishTab = this.changeJyotishTab.bind(this);
+		this.handleMainChartLoad = this.handleMainChartLoad.bind(this);
 		this.lastDashaRequestKey = '';
+		this.lastObservedFieldsKey = '';
 
 		this.tmHook = {
 			getValue: null,
@@ -550,19 +720,13 @@ class IndiaChartMain extends Component{
 		}
 	}
 
-	changeInfoTab(key){
-		this.setState({
-			infoTab: key,
-		});
-	}
-
 	handleQuickAction(item){
 		if(!item){
 			return;
 		}
 		if(item.action === 'tab' && item.tab){
 			this.changeTab(item.tab);
-			this.changeInfoTab('1');
+			this.changeJyotishTab('1');
 			return;
 		}
 		if(item.action === 'style' && item.style){
@@ -570,7 +734,7 @@ class IndiaChartMain extends Component{
 			return;
 		}
 		if(item.action === 'infoTab' && item.infoTab){
-			this.changeInfoTab(item.infoTab);
+			this.changeJyotishTab(item.infoTab);
 		}
 	}
 
@@ -579,14 +743,22 @@ class IndiaChartMain extends Component{
 		if(!canBuildIndiaChartParams(sourceFields)){
 			return;
 		}
-		const dashaFieldsKey = buildDashaFieldsKey(sourceFields);
-		if(!dashaFieldsKey || dashaFieldsKey === this.lastDashaRequestKey){
+		const jyotishFields = cloneIndiaFieldsForJyotish(sourceFields);
+		const dashaFieldsKey = buildDashaFieldsKey(jyotishFields);
+		const alreadyHasData = hasUsableJyotishChart(this.state, dashaFieldsKey);
+		if(!dashaFieldsKey || (dashaFieldsKey === this.lastDashaRequestKey && (this.state.dashaLoading || alreadyHasData))){
+			if(dashaFieldsKey && dashaFieldsKey !== this.state.activeJyotishKey){
+				this.setState({
+					activeJyotishFields: jyotishFields,
+					activeJyotishKey: dashaFieldsKey,
+				});
+			}
 			return;
 		}
 		this.lastDashaRequestKey = dashaFieldsKey;
 		let params = null;
 		try{
-			params = fieldsToParams(sourceFields);
+			params = fieldsToParams(jyotishFields);
 			params.chartnum = 1;
 		}catch(e){
 			this.lastDashaRequestKey = '';
@@ -594,14 +766,20 @@ class IndiaChartMain extends Component{
 		}
 		this.setState({
 			dashaChartObj: null,
+			dashaChartKey: '',
 			dashaLoading: true,
 			dashaFieldsKey,
+			mainChartObj: this.state.mainChartKey === dashaFieldsKey ? this.state.mainChartObj : null,
+			mainChartKey: this.state.mainChartKey === dashaFieldsKey ? this.state.mainChartKey : '',
+			activeJyotishFields: jyotishFields,
+			activeJyotishKey: dashaFieldsKey,
 		});
 		try{
 			const dashaChartObj = await requestIndiaChartData(params);
 			if(this.state.dashaFieldsKey === dashaFieldsKey){
 				this.setState({
 					dashaChartObj,
+					dashaChartKey: dashaFieldsKey,
 					dashaLoading: false,
 				});
 			}
@@ -609,6 +787,7 @@ class IndiaChartMain extends Component{
 			if(this.state.dashaFieldsKey === dashaFieldsKey){
 				this.setState({
 					dashaChartObj: null,
+					dashaChartKey: '',
 					dashaLoading: false,
 				});
 			}
@@ -620,11 +799,20 @@ class IndiaChartMain extends Component{
 		if(hook[this.state.currentTab].fun){
 			hook[this.state.currentTab].fun()
 		}
+		this.lastObservedFieldsKey = buildDashaFieldsKey(this.props.fields);
 		this.requestDashaChart();
 	}
 
-	componentDidUpdate(prevProps){
-		this.requestDashaChart();
+	componentDidUpdate(){
+		const currentFieldsKey = buildDashaFieldsKey(this.props.fields);
+		if(currentFieldsKey && currentFieldsKey !== this.lastObservedFieldsKey){
+			this.lastObservedFieldsKey = currentFieldsKey;
+			this.requestDashaChart(this.props.fields);
+			return;
+		}
+		if(currentFieldsKey && currentFieldsKey !== this.lastDashaRequestKey && !hasUsableJyotishChart(this.state, currentFieldsKey) && !this.state.dashaLoading){
+			this.requestDashaChart(this.props.fields);
+		}
 	}
 
 	showDashaSubPopover(item, e){
@@ -659,8 +847,59 @@ class IndiaChartMain extends Component{
 		});
 	}
 
+	changeJyotishTab(key){
+		this.setState({
+			jyotishTab: key,
+		});
+	}
+
+	handleMainChartLoad(chartObj, params){
+		const mainChartKey = buildJyotishParamsKey(params);
+		const activeKey = this.state.activeJyotishKey || buildDashaFieldsKey(this.props.fields);
+		if(activeKey && mainChartKey && mainChartKey !== activeKey){
+			return;
+		}
+		this.setState({
+			mainChartObj: chartObj || null,
+			mainChartKey,
+			dashaLoading: mainChartKey && mainChartKey === activeKey && chartObj && chartObj.jyotish ? false : this.state.dashaLoading,
+		});
+	}
+
+	renderJyotishNav(){
+		const items = [
+			{ key: '2', icon: 'note', title: '五支', sub: '起盘' },
+			{ key: '3', icon: 'clock', title: '大运', sub: 'Dasha' },
+			{ key: '4', icon: 'sidePlanets', title: '星曜', sub: '状态' },
+			{ key: '5', icon: 'target', title: '八分', sub: 'AV' },
+			{ key: '6', icon: 'quickTransit', title: 'KP', sub: '择时' },
+		];
+		return (
+			<div className="horosa-india-input-section horosa-india-jyotish-nav">
+				<div className="horosa-india-field-title">
+					<XQIcon name="target" />
+					<span>高级印占</span>
+				</div>
+				<div className="horosa-india-jyotish-buttons">
+					{items.map((item)=>(
+						<button
+							type="button"
+							key={item.key}
+							className={`horosa-india-jyotish-button${this.state.jyotishTab === item.key ? ' is-active' : ''}`}
+							onClick={()=>this.changeJyotishTab(item.key)}
+						>
+							<XQIcon name={item.icon} />
+							<span>{item.title}</span>
+							<em>{item.sub}</em>
+						</button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
 	renderDashaPanel(fields){
-		const dasha = buildVimshottariDasha(this.state.dashaChartObj, fields);
+		const dasha = buildVimshottariDasha(resolveJyotishChartObj(this.state, fields), fields);
 		if(this.state.dashaLoading && !dasha){
 			return (
 				<div className="horosa-india-dasha-panel">
@@ -693,6 +932,211 @@ class IndiaChartMain extends Component{
 		);
 	}
 
+	renderPanchangaPanel(fields){
+		const chartObj = resolveJyotishChartObj(this.state, fields);
+		const jyotish = getJyotish(chartObj);
+		const panchanga = jyotish ? jyotish.panchanga : null;
+		const dasha = getJyotishDasha(chartObj);
+		return (
+			<div className="horosa-india-summary horosa-india-jyotish-panel">
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">基本参数</div>
+					<div className="horosa-info-row"><span>时间</span><strong>{fields.date.value.format('YYYY-MM-DD')} {fields.time.value.format('HH:mm:ss')}</strong></div>
+					<div className="horosa-info-row"><span>地点</span><strong>{fields.lon.value} {fields.lat.value}</strong></div>
+					<div className="horosa-info-row"><span>时区</span><strong>{fields.zone.value}</strong></div>
+					<div className="horosa-info-row"><span>星历</span><strong>{jyotish && jyotish.engine ? 'Swiss / flatlib' : '—'}</strong></div>
+				</div>
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Panchanga 五支</div>
+					{panchanga ? (
+						<>
+							<div className="horosa-info-row"><span>Vara</span><strong>{panchanga.vara.label} · {panchanga.vara.name}</strong></div>
+							<div className="horosa-info-row"><span>Tithi</span><strong>{panchanga.tithi.index}. {panchanga.tithi.name} · {panchanga.tithi.paksha}</strong></div>
+							<div className="horosa-info-row"><span>Nakshatra</span><strong>{panchanga.nakshatra.index}. {panchanga.nakshatra.name} P{panchanga.nakshatra.pada}</strong></div>
+							<div className="horosa-info-row"><span>Yoga</span><strong>{panchanga.yoga.index}. {panchanga.yoga.name}</strong></div>
+							<div className="horosa-info-row"><span>Karana</span><strong>{panchanga.karana.name}</strong></div>
+							<div className="horosa-info-row"><span>日出</span><strong>{panchanga.sunrise || '—'}</strong></div>
+						</>
+					) : (
+						<div className="horosa-india-dasha-empty">暂无五支数据</div>
+					)}
+				</div>
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Dasha 摘要</div>
+					{dasha && dasha.available ? (
+						<>
+							<div className="horosa-info-row"><span>月宿</span><strong>{dasha.moonNakshatra.index}. {dasha.moonNakshatra.name}</strong></div>
+							<div className="horosa-info-row"><span>起运</span><strong>{dasha.firstLord.label} · {dasha.firstLord.key}</strong></div>
+							<div className="horosa-info-row"><span>出生余额</span><strong>{formatDuration(dasha.firstBalanceYears)}</strong></div>
+							<div className="horosa-info-row"><span>当前大运</span><strong>{dasha.current ? `${dasha.current.lord.label} · ${dasha.current.lord.key}` : '—'}</strong></div>
+						</>
+					) : (
+						<div className="horosa-india-dasha-empty">暂无大运摘要</div>
+					)}
+				</div>
+			</div>
+		);
+	}
+
+	renderPlanetStatePanel(fields){
+		const jyotish = getJyotish(resolveJyotishChartObj(this.state, fields));
+		const states = getJyotishPlanetStates(jyotish);
+		const shadbala = jyotish && jyotish.shadbala && Array.isArray(jyotish.shadbala.planets) ? jyotish.shadbala.planets : [];
+		const karakas = jyotish && jyotish.jaimini ? jyotish.jaimini.charaKarakas || [] : [];
+		const drishti = jyotish && Array.isArray(jyotish.grahaDrishti) ? jyotish.grahaDrishti : [];
+		return (
+			<div className="horosa-india-jyotish-panel">
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Graha 状态</div>
+					<div className="horosa-india-data-list">
+						{states.map((item)=>(
+							<div className="horosa-india-data-row" key={item.id}>
+								<strong>{item.label}</strong>
+								<span>{item.signLabel} {formatDegree(item.signlon)} · 宫{item.house || '—'}</span>
+								<em>{item.dignity} · {item.nakshatra ? `${item.nakshatra.name} P${item.nakshatra.pada}` : '—'}</em>
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Shadbala</div>
+					<div className="horosa-india-data-list">
+						{shadbala.map((item)=>(
+							<div className="horosa-india-data-row" key={item.id}>
+								<strong>{item.label}</strong>
+								<span>{item.totalRupa} Rupa · {item.totalVirupa} Virupa</span>
+								<em>Sthana {item.sthana} · Dig {item.dig} · Chesta {item.chesta}</em>
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Jaimini Chara Karaka</div>
+					<div className="horosa-india-data-list">
+						{karakas.map((item)=>(
+							<div className="horosa-india-data-row" key={item.karaka}>
+								<strong>{item.karaka}</strong>
+								<span>{item.label}</span>
+								<em>{item.signLabel} {formatDegree(item.signlon)}</em>
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Graha Drishti</div>
+					<div className="horosa-india-data-list">
+						{drishti.slice(0, 14).map((item, idx)=>(
+							<div className="horosa-india-data-row" key={`${item.giver}_${item.aspectHouse}_${idx}`}>
+								<strong>{item.giverLabel}</strong>
+								<span>{item.aspectHouse}视 · {item.targetSignLabel}</span>
+								<em>{item.receives && item.receives.length ? item.receives.join('、') : '无星体承接'}</em>
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	renderAshtakavargaPanel(fields){
+		const jyotish = getJyotish(resolveJyotishChartObj(this.state, fields));
+		const ashtakavarga = jyotish ? jyotish.ashtakavarga : null;
+		if(!ashtakavarga || !ashtakavarga.available){
+			return <div className="horosa-india-dasha-empty">暂无 Ashtakavarga 数据</div>;
+		}
+		const rows = ashtakavarga.sarvaBySign || [];
+		return (
+			<div className="horosa-india-jyotish-panel">
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Sarvashtakavarga</div>
+					<div className="horosa-india-av-grid">
+						{rows.map((item)=>(
+							<div className="horosa-india-av-cell" key={item.sign}>
+								<span>{item.label}</span>
+								<strong>{item.bindu}</strong>
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Bhinna Ashtakavarga</div>
+					<div className="horosa-india-data-list">
+						{Object.keys(ashtakavarga.bhinna || {}).map((planet)=>(
+							<div className="horosa-india-data-row" key={planet}>
+								<strong>{planet}</strong>
+								<span>{Object.values(ashtakavarga.bhinna[planet]).reduce((sum, value)=>sum + value, 0)} bindu</span>
+								<em>按 BPHS 表计算</em>
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	renderKpMuhurtaPanel(fields){
+		const jyotish = getJyotish(resolveJyotishChartObj(this.state, fields));
+		const kp = jyotish ? jyotish.kp : null;
+		const muhurta = jyotish ? jyotish.muhurta : null;
+		const sublords = kp && kp.sublords ? kp.sublords : {};
+		return (
+			<div className="horosa-india-jyotish-panel">
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">KP Sublord</div>
+					<div className="horosa-india-data-list">
+						{Object.keys(sublords).map((key)=>(
+							<div className="horosa-india-data-row" key={key}>
+								<strong>{key}</strong>
+								<span>{sublords[key].starLord ? sublords[key].starLord.label : '—'} / {sublords[key].subLord ? sublords[key].subLord.label : '—'}</span>
+								<em>{sublords[key].nakshatra ? `${sublords[key].nakshatra.name} P${sublords[key].nakshatra.pada}` : '—'}</em>
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Muhurta</div>
+					{muhurta && muhurta.available !== false ? (
+						<>
+							<div className="horosa-info-row"><span>日出</span><strong>{muhurta.sunrise || '—'}</strong></div>
+							<div className="horosa-info-row"><span>日落</span><strong>{muhurta.sunset || '—'}</strong></div>
+							<div className="horosa-info-row"><span>Rahu Kalam</span><strong>{muhurta.rahuKalam ? `${muhurta.rahuKalam.start} - ${muhurta.rahuKalam.end}` : '—'}</strong></div>
+							<div className="horosa-info-row"><span>Yamaganda</span><strong>{muhurta.yamaganda ? `${muhurta.yamaganda.start} - ${muhurta.yamaganda.end}` : '—'}</strong></div>
+							<div className="horosa-info-row"><span>Gulika</span><strong>{muhurta.gulika ? `${muhurta.gulika.start} - ${muhurta.gulika.end}` : '—'}</strong></div>
+						</>
+					) : (
+						<div className="horosa-india-dasha-empty">暂无择时数据</div>
+					)}
+				</div>
+			</div>
+		);
+	}
+
+	renderQuickDock(indiaChartStyle){
+		return (
+			<div className="horosa-bottom-quick-dock horosa-india-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-india-quick-actions">
+					{INDIA_QUICK_ACTIONS.map((item)=>{
+						const isActive = (item.action === 'tab' && this.state.currentTab === item.tab)
+							|| (item.action === 'style' && indiaChartStyle === item.style)
+							|| (item.action === 'infoTab' && this.state.jyotishTab === item.infoTab);
+						return (
+							<button
+								type="button"
+								key={item.key}
+								className={`horosa-bottom-quick-button horosa-india-quick-button${isActive ? ' is-active' : ''}`}
+								onClick={()=>this.handleQuickAction(item)}
+							>
+								<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+								<span>{item.label}</span>
+							</button>
+						);
+					})}
+				</div>
+			</div>
+		);
+	}
+
 	renderDashaSubPopover(item, extraClassName = '', style = null){
 		const subItems = buildDashaSubPeriods(item);
 		return (
@@ -709,7 +1153,7 @@ class IndiaChartMain extends Component{
 								<span>{subItem.lord.en}</span>
 							</div>
 							<div className="horosa-india-dasha-submeta">
-								<span>{subItem.start.format('YYYY-MM-DD')} - {subItem.end.format('YYYY-MM-DD')}</span>
+								<span>{formatJyotishDate(subItem.start)} - {formatJyotishDate(subItem.end)}</span>
 								<em>{formatDuration(subItem.years)}</em>
 							</div>
 						</div>
@@ -750,7 +1194,7 @@ class IndiaChartMain extends Component{
 						<span>{item.lord.en}</span>
 					</div>
 					<div className="horosa-india-dasha-item-meta">
-						<span>{item.start.format('YYYY-MM-DD')} - {item.end.format('YYYY-MM-DD')}</span>
+						<span>{formatJyotishDate(item.start)} - {formatJyotishDate(item.end)}</span>
 						<em>{formatAge(item.startAge)} - {formatAge(item.endAge)} · {formatDuration(item.years)}</em>
 					</div>
 				</button>
@@ -760,6 +1204,7 @@ class IndiaChartMain extends Component{
 
 	render(){
 		let fields = this.props.fields;
+		let jyotishFields = this.state.activeJyotishFields || fields;
 		let chartHeight = '100%';
 		let datetm = new DateTime();
 		if(fields.date && fields.time){
@@ -839,6 +1284,7 @@ class IndiaChartMain extends Component{
 										/>
 									</div>
 								</div>
+								{this.renderJyotishNav()}
 							</div>
 						</div>
 						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-india-chart-panel">
@@ -857,10 +1303,11 @@ class IndiaChartMain extends Component{
 								showAstroMeaning={this.props.showAstroMeaning}
 								hook={currentHook}
 								dispatch={this.props.dispatch}
+								onChartLoad={this.handleMainChartLoad}
 							/>
 						</div>
 						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-india-info-panel">
-							<Tabs activeKey={this.state.infoTab} onChange={this.changeInfoTab} tabPosition="top" className="horosa-content-tabs horosa-india-tabs">
+							<Tabs activeKey={this.state.jyotishTab} onChange={this.changeJyotishTab} tabPosition="top" className="horosa-content-tabs horosa-india-tabs">
 								<TabPane tab="分盘" key="1">
 									<div className="horosa-india-split-list">
 										<button
@@ -884,44 +1331,25 @@ class IndiaChartMain extends Component{
 										))}
 									</div>
 								</TabPane>
-								<TabPane tab="起盘信息" key="2">
-									<div className="horosa-india-summary">
-										<div className="horosa-info-card">
-											<div className="horosa-info-card-title">基本参数</div>
-											<div className="horosa-info-row"><span>时间</span><strong>{fields.date.value.format('YYYY-MM-DD')} {fields.time.value.format('HH:mm:ss')}</strong></div>
-											<div className="horosa-info-row"><span>地点</span><strong>{fields.lon.value} {fields.lat.value}</strong></div>
-											<div className="horosa-info-row"><span>时区</span><strong>{fields.zone.value}</strong></div>
-											<div className="horosa-info-row"><span>当前分盘</span><strong>D{currentHook.fractal} {currentHook.txt || ''}</strong></div>
-										</div>
-									</div>
+								<TabPane tab="五支" key="2">
+									{this.renderPanchangaPanel(jyotishFields)}
 								</TabPane>
 								<TabPane tab="大运" key="3">
-									{this.renderDashaPanel(fields)}
+									{this.renderDashaPanel(jyotishFields)}
+								</TabPane>
+								<TabPane tab="星曜" key="4">
+									{this.renderPlanetStatePanel(jyotishFields)}
+								</TabPane>
+								<TabPane tab="八分" key="5">
+									{this.renderAshtakavargaPanel(jyotishFields)}
+								</TabPane>
+								<TabPane tab="KP/择时" key="6">
+									{this.renderKpMuhurtaPanel(jyotishFields)}
 								</TabPane>
 							</Tabs>
 						</div>
 					</div>
-					<div className="horosa-bottom-quick-dock horosa-india-quick-dock">
-						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-						<div className="horosa-bottom-quick-actions horosa-india-quick-actions">
-							{INDIA_QUICK_ACTIONS.map((item)=>{
-								const isActive = (item.action === 'tab' && this.state.currentTab === item.tab)
-									|| (item.action === 'style' && indiaChartStyle === item.style)
-									|| (item.action === 'infoTab' && this.state.infoTab === item.infoTab);
-								return (
-									<button
-										type="button"
-										key={item.key}
-										className={`horosa-bottom-quick-button horosa-india-quick-button${isActive ? ' is-active' : ''}`}
-										onClick={()=>this.handleQuickAction(item)}
-									>
-										<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-										<span>{item.label}</span>
-									</button>
-								);
-							})}
-						</div>
-					</div>
+					{this.renderQuickDock(indiaChartStyle)}
 				</div>
 			</div>
 		);
