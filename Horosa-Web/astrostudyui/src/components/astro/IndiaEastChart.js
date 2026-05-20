@@ -59,6 +59,13 @@ const EAST_OBJECT_ANCHOR_POSITIONS = {
 	12: [18, 26, 22, 14],
 };
 
+function buildChartHeightStyle(height){
+	const value = height || 720;
+	return {
+		'--india-chart-height': typeof value === 'number' ? `${value}px` : value,
+	};
+}
+
 class IndiaEastChart extends Component{
 	renderObjects(objects, signNumber){
 		return (
@@ -117,9 +124,10 @@ class IndiaEastChart extends Component{
 		const chartnum = this.props.chartnum || 1;
 		const label = this.props.label || (chartnum === 1 ? '命盘' : `${chartnum}分盘`);
 		const height = this.props.height || 720;
+		const chartHeightStyle = buildChartHeightStyle(height);
 		if(!chartObj || !chartObj.chart || chartObj.err){
 			return (
-				<div className="horosa-india-square-shell" style={{ '--india-chart-height': `${height}px` }}>
+				<div className="horosa-india-square-shell" style={chartHeightStyle}>
 					<div className="horosa-india-square-placeholder">等待排盘数据</div>
 				</div>
 			);
@@ -127,7 +135,7 @@ class IndiaEastChart extends Component{
 		const ascSignNumber = getAscSignNumber(chartObj);
 		const objectsBySign = getObjectsBySign(chartObj, this.props.planetDisplay, this.props.lotsDisplay);
 		return (
-			<div className="horosa-india-square-shell xq-chart-renderer xq-chart-renderer-india" style={{ '--india-chart-height': `${height}px` }}>
+			<div className="horosa-india-square-shell xq-chart-renderer xq-chart-renderer-india" style={chartHeightStyle}>
 				<div className="horosa-india-square-board horosa-india-diagram-board horosa-india-east-board xq-india-board">
 					<svg className="horosa-india-diagram-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
 						<rect x="0" y="0" width="100" height="100" />

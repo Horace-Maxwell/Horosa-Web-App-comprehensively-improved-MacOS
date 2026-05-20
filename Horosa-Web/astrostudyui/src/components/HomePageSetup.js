@@ -31,12 +31,29 @@ class HomePageSetup extends Component{
 			searchValue: '',
 		}
 
+		this.searchInput = null;
 		this.genDom = this.genDom.bind(this);
-			this.clickPage = this.clickPage.bind(this);
-			this.clickTools = this.clickTools.bind(this);
-			this.changeSearch = this.changeSearch.bind(this);
-			this.selectGroup = this.selectGroup.bind(this);
+		this.clickPage = this.clickPage.bind(this);
+		this.clickTools = this.clickTools.bind(this);
+		this.changeSearch = this.changeSearch.bind(this);
+		this.selectGroup = this.selectGroup.bind(this);
+		this.focusSearch = this.focusSearch.bind(this);
+	}
+
+	componentDidMount(){
+		this.focusSearch();
+	}
+
+	focusSearch(){
+		if(this.searchInput){
+			setTimeout(()=>{
+				if(this.searchInput){
+					this.searchInput.focus();
+					this.searchInput.select();
+				}
+			}, 80);
 		}
+	}
 
 	getInitialPage(props){
 		const pages = props.pages && props.pages.length ? props.pages : Pages;
@@ -142,6 +159,7 @@ class HomePageSetup extends Component{
 					<label className="xq-nav-popup-search">
 						<XQIcon name="search" />
 						<input
+							ref={(node)=>{ this.searchInput = node; }}
 							value={this.state.searchValue}
 							onChange={this.changeSearch}
 							placeholder="搜索模块或术法"

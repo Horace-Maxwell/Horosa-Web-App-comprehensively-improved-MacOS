@@ -381,6 +381,7 @@ class BaZiLuckFlowPanel extends Component{
 			jieqiLoading: {},
 		};
 		this.ensureJieqiYear = this.ensureJieqiYear.bind(this);
+		this.emitSelection = this.emitSelection.bind(this);
 	}
 
 	componentDidMount(){
@@ -433,9 +434,41 @@ class BaZiLuckFlowPanel extends Component{
 			monthId: month ? month.id : '',
 			dayId: day ? day.id : '',
 		}, ()=>{
+			this.emitSelection();
 			if(year && year.year){
 				this.ensureJieqiYear(year.year);
 			}
+		});
+	}
+
+	emitSelection(){
+		if(!this.props.onSelectionChange || !this.props.fullValue){
+			return;
+		}
+		const value = this.props.fullValue || {};
+		const dayStem = this.getDayStem(value);
+		const luckItems = buildLuckItems(value, dayStem);
+		const luck = luckItems.find((item)=>item.id === this.state.luckId) || luckItems[0];
+		const yearItems = buildYearItems(luck, dayStem);
+		const year = yearItems.find((item)=>item.id === this.state.yearId) || yearItems[0];
+		const monthItems = buildMonthItems(year, dayStem, this.state.jieqiYears);
+		const month = monthItems.find((item)=>item.id === this.state.monthId) || monthItems[0];
+		const dayItems = buildDayItems(month, dayStem);
+		const day = dayItems.find((item)=>item.id === this.state.dayId) || dayItems[0];
+		this.props.onSelectionChange({
+			luckId: luck ? luck.id : '',
+			yearId: year ? year.id : '',
+			monthId: month ? month.id : '',
+			dayId: day ? day.id : '',
+			luckType: luck ? luck.type : '',
+			luckStartYear: luck ? luck.startYear : null,
+			year: year ? year.year : null,
+			luckRaw: luck && luck.raw ? luck.raw : null,
+			yearRaw: year && year.raw ? year.raw : null,
+			luckPillar: luck && luck.pillar ? luck.pillar : null,
+			yearPillar: year && year.pillar ? year.pillar : null,
+			monthPillar: month && month.pillar ? month.pillar : null,
+			dayPillar: day && day.pillar ? day.pillar : null,
 		});
 	}
 
@@ -593,7 +626,7 @@ class BaZiLuckFlowPanel extends Component{
 						yearId: years[0] ? years[0].id : '',
 						monthId: months[0] ? months[0].id : '',
 						dayId: days[0] ? days[0].id : '',
-					});
+					}, this.emitSelection);
 				})}
 				{this.renderAxis('流年', '', yearItems, year ? year.id : '', (item)=>{
 					const months = buildMonthItems(item, dayStem, this.state.jieqiYears);
@@ -603,6 +636,7 @@ class BaZiLuckFlowPanel extends Component{
 						monthId: months[0] ? months[0].id : '',
 						dayId: days[0] ? days[0].id : '',
 					}, ()=>{
+						this.emitSelection();
 						this.ensureJieqiYear(item.year);
 					});
 				})}
@@ -611,12 +645,12 @@ class BaZiLuckFlowPanel extends Component{
 					this.setState({
 						monthId: item.id,
 						dayId: days[0] ? days[0].id : '',
-					});
+					}, this.emitSelection);
 				})}
 				{this.renderAxis('流日', '', dayItems, day ? day.id : '', (item)=>{
 					this.setState({
 						dayId: item.id,
-					});
+					}, this.emitSelection);
 				}, 'horosa-bazi-flow-day-row')}
 			</div>
 		);

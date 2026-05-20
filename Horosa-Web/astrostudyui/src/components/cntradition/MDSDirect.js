@@ -3,6 +3,10 @@ import { Row, Col, Popover} from 'antd';
 import { randomStr } from '../../utils/helper';
 import { BaZiMsg } from '../../msg/bazimsg';
 
+function gongName(gong12, palace, part){
+	return gong12 && gong12[palace] && gong12[palace][part] && gong12[palace][part].name
+		? gong12[palace][part].name : '';
+}
 
 class MDSDirect extends Component{
 	constructor(props) {
@@ -25,16 +29,16 @@ class MDSDirect extends Component{
 
 		dom = (
 			<div>
-			<ul>
-				<li>大运：{gong12['运']['干'].name}，{gong12['运']['支'].name}</li>
-				<li>年柱：{gong12['年']['干'].name}，{gong12['月']['支'].name}</li>
-				<li>月柱：{gong12['月']['干'].name}，{gong12['月']['支'].name}</li>
-				<li>日柱：{gong12['日']['干'].name}，{gong12['日']['支'].name}</li>
-				<li>时柱：{gong12['时']['干'].name}，{gong12['时']['支'].name}</li>
-				<li>胎元：{gong12['胎']['干'].name}，{gong12['胎']['支'].name}</li>
-				<li>命宫：{gong12['命']['干'].name}，{gong12['命']['支'].name}</li>
-				<li>身宫：{gong12['身']['干'].name}，{gong12['身']['支'].name}</li>
-			</ul>
+				<ul>
+					<li>大运：{gongName(gong12, '运', '干')}，{gongName(gong12, '运', '支')}</li>
+					<li>年柱：{gongName(gong12, '年', '干')}，{gongName(gong12, '年', '支')}</li>
+					<li>月柱：{gongName(gong12, '月', '干')}，{gongName(gong12, '月', '支')}</li>
+					<li>日柱：{gongName(gong12, '日', '干')}，{gongName(gong12, '日', '支')}</li>
+					<li>时柱：{gongName(gong12, '时', '干')}，{gongName(gong12, '时', '支')}</li>
+					<li>胎元：{gongName(gong12, '胎', '干')}，{gongName(gong12, '胎', '支')}</li>
+					<li>命宫：{gongName(gong12, '命', '干')}，{gongName(gong12, '命', '支')}</li>
+					<li>身宫：{gongName(gong12, '身', '干')}，{gongName(gong12, '身', '支')}</li>
+				</ul>
 			</div>
 		);
 
@@ -90,7 +94,7 @@ class MDSDirect extends Component{
 				<Row>
 					<Col span={24} style={gzStyle}>
 						<span>
-							{dir.mainDirect.ganzi}
+							{mainDirect.ganzi || ''}
 						</span>
 					</Col>
 				</Row>

@@ -77,7 +77,11 @@ function elementClass(label){
 }
 
 function makeColumn(title, rec, kind){
-	const item = rec || {};
+	const item = typeof rec === 'string' ? {
+		ganzi: rec,
+		stem: { cell: rec.charAt(0) },
+		branch: { cell: rec.charAt(1) },
+	} : (rec || {});
 	return {
 		title,
 		kind,
@@ -91,6 +95,24 @@ function makeColumn(title, rec, kind){
 		nayingPhase: item.nayingPhase || '',
 		ganziPhase: item.ganziPhase || '',
 		xunEmpty: item.xunEmpty || '',
+	};
+}
+
+function pillarToRecord(pillar){
+	if(!pillar){
+		return null;
+	}
+	return {
+		ganzi: pillar.ganzi || `${pillar.stem || ''}${pillar.branch || ''}`,
+		stem: {
+			cell: pillar.stem || '',
+			relative: pillar.stemRel || '',
+		},
+		branch: {
+			cell: pillar.branch || '',
+			relative: pillar.branchRel || '',
+		},
+		naying: pillar.naYin || '',
 	};
 }
 
@@ -119,6 +141,45 @@ function getCurrentDirection(rec){
 		};
 	}
 	return selected || {};
+}
+
+function getSelectedDirection(rec, selection){
+	if(!selection){
+		return null;
+	}
+	const dirs = rec && Array.isArray(rec.direction) ? rec.direction : [];
+	let block = selection.luckRaw || null;
+	if(!block && selection.luckType !== 'small' && selection.luckStartYear !== null && selection.luckStartYear !== undefined){
+		block = dirs.find((item)=>Number(item && item.startYear) === Number(selection.luckStartYear)) || null;
+	}
+	if(!block && selection.luckType !== 'small' && selection.year !== null && selection.year !== undefined){
+		block = dirs.find((item)=>{
+			const start = Number(item && item.startYear);
+			return Number.isFinite(start) && Number(selection.year) >= start && Number(selection.year) < start + 10;
+		}) || null;
+	}
+	let sub = selection.yearRaw || null;
+	if(!sub && block && Array.isArray(block.subDirect) && selection.year !== null && selection.year !== undefined){
+		const index = Number(selection.year) - Number(block.startYear);
+		if(index >= 0 && index < block.subDirect.length){
+			sub = block.subDirect[index];
+		}
+	}
+	if(!sub && selection.yearPillar){
+		sub = pillarToRecord(selection.yearPillar);
+	}
+	if(!block && selection.luckPillar){
+		block = {
+			mainDirect: pillarToRecord(selection.luckPillar),
+		};
+	}
+	if(!block && !sub){
+		return null;
+	}
+	return {
+		block,
+		sub,
+	};
 }
 
 function relationKey(start, end, label, type){
@@ -224,7 +285,7 @@ class BaZiFineChart extends Component{
 				makeColumn('时柱', four.time, 'natal'),
 			];
 		}
-		const current = getCurrentDirection(rec);
+		const current = getSelectedDirection(rec, this.props.flowSelection) || getCurrentDirection(rec);
 		return [
 			makeColumn('流年', current.sub, 'flow'),
 			makeColumn('大运', current.block ? current.block.mainDirect : null, 'luck'),

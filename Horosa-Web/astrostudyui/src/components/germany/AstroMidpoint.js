@@ -296,7 +296,7 @@ class AstroMidpoint extends Component{
 		}
 
 		return (
-			<div>
+			<div className="horosa-midpoint-host">
 					<MidpointMain 
 						value={chartObj} 
 						onChange={this.onFieldsChange}

@@ -408,12 +408,14 @@ class SuZhanMain extends Component{
 	constructor(props) {
 		super(props);
 		this.state = {
-
+			rightPanelTab: 'overview',
 		};
 
 		this.unmounted = false;
 
 		this.onFieldsChange = this.onFieldsChange.bind(this);
+		this.setRightPanelTab = this.setRightPanelTab.bind(this);
+		this.navigateFeature = this.navigateFeature.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields)=>{
@@ -464,6 +466,27 @@ class SuZhanMain extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+	}
+
+	setRightPanelTab(key){
+		this.setState({
+			rightPanelTab: key,
+		});
+	}
+
+	navigateFeature(tabKey, subTab){
+		if(this.props.dispatch){
+			const payload = {
+				currentTab: tabKey,
+			};
+			if(subTab){
+				payload.currentSubTab = subTab;
+			}
+			this.props.dispatch({
+				type: 'astro/save',
+				payload,
+			});
+		}
 	}
 
 	renderInputPanel(){
@@ -536,7 +559,7 @@ class SuZhanMain extends Component{
 	renderRightPanel(){
 		const snapshot = buildSuzhanSnapshotText(this.props.value, this.props.fields, this.props.planetDisplay);
 		return (
-			<Tabs defaultActiveKey="overview" tabPosition="top" className="horosa-suzhan-tabs">
+			<Tabs activeKey={this.state.rightPanelTab} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-suzhan-tabs">
 				<TabPane tab="概览" key="overview">
 					<div className="horosa-suzhan-info-card">
 						{this.renderInfoRows()}
@@ -554,6 +577,37 @@ class SuZhanMain extends Component{
 		);
 	}
 
+	renderBottomQuickDock(){
+		const actions = [
+			{ label: '概览', icon: 'quickPrimary', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
+			{ label: '宫宿', icon: 'quickComposite', active: this.state.rightPanelTab === 'houses', onClick: ()=>this.setRightPanelTab('houses') },
+			{ label: '快照', icon: 'quickNote', active: this.state.rightPanelTab === 'snapshot', onClick: ()=>this.setRightPanelTab('snapshot') },
+			{ label: '金口诀', icon: 'quickFirdaria', onClick: ()=>this.navigateFeature('cnyibu', 'jinkou') },
+			{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.navigateFeature('cnyibu', 'tongshefa') },
+			{ label: '太乙', icon: 'quickReturn', onClick: ()=>this.navigateFeature('taiyi') },
+			{ label: '遁甲', icon: 'quickTransit', onClick: ()=>this.navigateFeature('dunjia') },
+			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
+		];
+		return (
+			<div className="horosa-bottom-quick-dock horosa-suzhan-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-suzhan-quick-actions">
+					{actions.map((item)=>(
+						<button
+							type="button"
+							key={item.label}
+							className={`horosa-bottom-quick-button horosa-suzhan-quick-button${item.active ? ' is-active' : ''}`}
+							onClick={item.onClick}
+						>
+							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
@@ -565,10 +619,10 @@ class SuZhanMain extends Component{
 		let chartObj = this.props.value;
 		let chart = chartObj ? chartObj.chart : {};
 		chart.aspects = chartObj ? chartObj.aspects : {};
-		chart.lots = chartObj ? chartObj.lots : [];
+			chart.lots = chartObj ? chartObj.lots : [];
 
-		return (
-			<div className="horosa-suzhan-page horosa-astro-redesign horosa-suzhan-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+			return (
+				<div className={`horosa-suzhan-page horosa-astro-redesign horosa-suzhan-redesign${this.props.hideQuickDock ? ' horosa-suzhan-embedded' : ''}`} style={{ height: height, minHeight: height, overflow: 'hidden' }}>
 				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-suzhan-redesign-layout">
 					<div className="horosa-astro-redesign-grid horosa-suzhan-redesign-grid">
 						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-suzhan-input-panel">
@@ -595,14 +649,7 @@ class SuZhanMain extends Component{
 							{this.renderRightPanel()}
 						</div>
 					</div>
-					<div className="horosa-bottom-quick-dock horosa-suzhan-quick-dock">
-						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-						<div className="horosa-bottom-quick-actions horosa-suzhan-quick-placeholders">
-							{Array.from({ length: 8 }).map((_, idx)=>(
-								<div className="horosa-bottom-quick-placeholder" key={idx} />
-							))}
-						</div>
-					</div>
+					{!this.props.hideQuickDock && this.renderBottomQuickDock()}
 				</div>
 			</div>
 

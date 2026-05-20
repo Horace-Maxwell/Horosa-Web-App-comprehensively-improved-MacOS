@@ -11,6 +11,7 @@ import BaZiZhangSheng from './BaZiZhangSheng';
 import FourZhuGuaDesc from './FourZhuGuaDesc';
 import BaZiLuckFlowPanel from './BaZiLuckFlowPanel';
 import BaZiAppInfoPanel from './BaZiAppInfoPanel';
+import { BaZiLegacyMain, BaZiLegacyInfoPanel } from './BaZiLegacyView';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import { buildLocalBaziResult } from '../../utils/baziLunarLocal';
 
@@ -372,6 +373,7 @@ class BaZi extends Component{
 			directKey: '',
 			directLoading: false,
 			directError: null,
+			flowSelection: null,
 		};
 
 		this.unmounted = false;
@@ -386,6 +388,7 @@ class BaZi extends Component{
 		this.onBaziOptChange = this.onBaziOptChange.bind(this);
 		this.onInfoTabChange = this.onInfoTabChange.bind(this);
 		this.changeBaziChartStyle = this.changeBaziChartStyle.bind(this);
+		this.onFlowSelectionChange = this.onFlowSelectionChange.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields)=>{
@@ -459,6 +462,12 @@ class BaZi extends Component{
 		});
 	}
 
+	onFlowSelectionChange(flowSelection){
+		this.setState({
+			flowSelection,
+		});
+	}
+
 	genParams(fields){
 		let flds = fields ? fields : this.props.fields;
 		const params = {
@@ -512,6 +521,7 @@ class BaZi extends Component{
 			directKey: result && result.local ? currentBaziKey : (this.state.currentBaziKey === currentBaziKey ? this.state.directKey : ''),
 			directLoading: this.state.currentBaziKey === currentBaziKey ? this.state.directLoading : false,
 			directError: this.state.currentBaziKey === currentBaziKey ? this.state.directError : null,
+			flowSelection: this.state.currentBaziKey === currentBaziKey ? this.state.flowSelection : null,
 		};
 
 		this.setState(st);
@@ -603,11 +613,12 @@ class BaZi extends Component{
 		const directBazi = this.state.directResult && this.state.directResult.bazi ? this.state.directResult.bazi : null;
 		const baziParams = this.props.fields ? this.genParams(this.props.fields) : {};
 		const isFineChart = this.state.chartStyle === 'fine';
+		const isLegacyUi = this.state.baziOpt && this.state.baziOpt.uiMode === 'legacy';
 		const chartHeight = typeof height === 'number' ? Math.max(360, Math.round(height * 0.62)) : height;
 		const flowHeight = typeof height === 'number' ? Math.max(220, height - chartHeight - 18) : 240;
 
 		return (
-			<div className="horosa-bazi-page horosa-astro-redesign horosa-bazi-redesign">
+			<div className={`horosa-bazi-page horosa-astro-redesign horosa-bazi-redesign ${isLegacyUi ? 'horosa-bazi-legacy-ui' : ''}`}>
 				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-bazi-redesign-layout">
 					<div className="horosa-astro-redesign-grid horosa-bazi-redesign-grid">
 						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-bazi-input-panel">
@@ -619,34 +630,44 @@ class BaZi extends Component{
 							/>
 						</div>
 						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-bazi-chart-panel xq-chart-renderer xq-chart-renderer-bazi">
-							<div className={`horosa-bazi-main-stack ${isFineChart ? 'horosa-bazi-main-stack-fine' : ''}`}>
-								<div className="horosa-bazi-main-chart-slot">
-									<PaiBaZi
-										value={bazi}
-										height={isFineChart ? 'auto' : chartHeight}
-										fields={this.props.fields}
-										baziOpt={this.state.baziOpt}
-										chartStyle={this.state.chartStyle}
-										onChartStyleChange={this.changeBaziChartStyle}
-										showStyleSwitch={false}
-									/>
+							{isLegacyUi ? (
+								<BaZiLegacyMain value={bazi} fields={this.props.fields} baziOpt={this.state.baziOpt} />
+							) : (
+								<div className={`horosa-bazi-main-stack ${isFineChart ? 'horosa-bazi-main-stack-fine' : ''}`}>
+									<div className="horosa-bazi-main-chart-slot">
+										<PaiBaZi
+											value={bazi}
+											height={isFineChart ? 'auto' : chartHeight}
+											fields={this.props.fields}
+											baziOpt={this.state.baziOpt}
+											chartStyle={this.state.chartStyle}
+											onChartStyleChange={this.changeBaziChartStyle}
+											showStyleSwitch={false}
+											flowSelection={this.state.flowSelection}
+										/>
+									</div>
+									<div className="horosa-bazi-main-flow-slot">
+										<BaZiLuckFlowPanel
+											coreValue={bazi}
+											fullValue={directBazi}
+											height={flowHeight}
+											loading={this.state.directLoading}
+											error={this.state.directError}
+											jieqiParams={baziParams}
+											onLoad={this.requestBaziDirect}
+											onSelectionChange={this.onFlowSelectionChange}
+											compact
+										/>
+									</div>
 								</div>
-								<div className="horosa-bazi-main-flow-slot">
-									<BaZiLuckFlowPanel
-										coreValue={bazi}
-										fullValue={directBazi}
-										height={flowHeight}
-										loading={this.state.directLoading}
-										error={this.state.directError}
-										jieqiParams={baziParams}
-										onLoad={this.requestBaziDirect}
-										compact
-									/>
-								</div>
-							</div>
+							)}
 						</div>
 						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-bazi-info-panel">
-							<BaZiAppInfoPanel value={bazi} fields={this.props.fields} height={tabHeight} />
+							{isLegacyUi ? (
+								<BaZiLegacyInfoPanel value={bazi} fields={this.props.fields} height={tabHeight} />
+							) : (
+								<BaZiAppInfoPanel value={bazi} fields={this.props.fields} height={tabHeight} />
+							)}
 						</div>
 					</div>
 				</div>

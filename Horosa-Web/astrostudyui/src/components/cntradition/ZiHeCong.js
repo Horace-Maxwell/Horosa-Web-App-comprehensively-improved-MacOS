@@ -4,6 +4,13 @@ import { XQCard as Card } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 import styles from '../../css/styles.less';
 
+function relationItemText(item){
+	if(!item){
+		return '';
+	}
+	return `${item.cell || ''}（${item.zhu || ''}）`;
+}
+
 class ZiHeCong extends Component{
 	constructor(props) {
 		super(props);
@@ -18,11 +25,17 @@ class ZiHeCong extends Component{
 
 	genHeDom(rec){
 		let rows = [];
+		if(!rec){
+			return rows;
+		}
 		for(let key in rec){
 			let ary = rec[key];
+			if(!Array.isArray(ary) || ary.length === 0){
+				continue;
+			}
 			let spans = ary.map((item, idx)=>{
 				return (
-					<span key={randomStr(8)}>{item.cell}（{item.zhu}）&emsp;</span>
+					<span key={randomStr(8)}>{relationItemText(item)}&emsp;</span>
 				)
 			});
 			let spanhe = (
@@ -43,10 +56,16 @@ class ZiHeCong extends Component{
 
 	genCongDom(rec){
 		let rows = [];
+		if(!rec){
+			return rows;
+		}
 		for(let key in rec){
 			let ary = rec[key];
-			let gan0 = (<span key={randomStr(8)}>{ary[0].cell}（{ary[0].zhu}）&emsp;</span>);
-			let gan1 = (<span key={randomStr(8)}>{ary[1].cell}（{ary[1].zhu}）&emsp;</span>);
+			if(!Array.isArray(ary) || ary.length < 2){
+				continue;
+			}
+			let gan0 = (<span key={randomStr(8)}>{relationItemText(ary[0])}&emsp;</span>);
+			let gan1 = (<span key={randomStr(8)}>{relationItemText(ary[1])}&emsp;</span>);
 			let cong = (<span key={randomStr(8)}>冲</span>);
 			let row = (
 				<Row key={randomStr(8)}>
@@ -64,11 +83,17 @@ class ZiHeCong extends Component{
 
 	genXingDom(rec){
 		let rows = [];
+		if(!rec){
+			return rows;
+		}
 		for(let key in rec){
 			let ary = rec[key];
+			if(!Array.isArray(ary) || ary.length === 0){
+				continue;
+			}
 			let spans = ary.map((item, idx)=>{
 				return (
-					<span key={randomStr(8)}>{item.cell}（{item.zhu}）&emsp;</span>
+					<span key={randomStr(8)}>{relationItemText(item)}&emsp;</span>
 				)
 			});
 			let row = (
@@ -97,37 +122,37 @@ class ZiHeCong extends Component{
 		let gongdom = this.genHeDom(rec.ziHe3);
 		let huidom = this.genHeDom(rec.ziHui);
 		let congdom = this.genCongDom(rec.ziCong);
-		let xingdom = this.genXingDom(rec.ziXing);
-		let cuandom = this.genXingDom(rec.ziCuan);
-		let podom = this.genXingDom(rec.ziPo);
+			let xingdom = this.genXingDom(rec.ziXing);
+			let cuandom = this.genXingDom(rec.ziCuan);
+			let podom = this.genXingDom(rec.ziPo);
+			const empty = <div style={{padding: '8px 12px'}}>暂无资料</div>;
 
-		return (
-			<div className={styles.scrollbar} style={style}>
-				<Card title='合' bordered={true} >
-					{hedom}
-				</Card>
-				<Card title='拱' bordered={true} >
-					{gongdom}
-				</Card>
-				<Card title='会' bordered={true} >
-					{huidom}
-				</Card>
-				<Card title='刑' bordered={true} >
-					{xingdom}
-				</Card>
-				<Card title='冲' bordered={true} >
-					{congdom}
-				</Card>
-				<Card title='穿' bordered={true} >
-					{cuandom}
-				</Card>
-				<Card title='破' bordered={true} >
-					{podom}
-				</Card>
-			</div>
-		);
+			return (
+				<div className={styles.scrollbar} style={style}>
+					<Card title='合' bordered={true} >
+						{hedom.length ? hedom : empty}
+					</Card>
+					<Card title='拱' bordered={true} >
+						{gongdom.length ? gongdom : empty}
+					</Card>
+					<Card title='会' bordered={true} >
+						{huidom.length ? huidom : empty}
+					</Card>
+					<Card title='刑' bordered={true} >
+						{xingdom.length ? xingdom : empty}
+					</Card>
+					<Card title='冲' bordered={true} >
+						{congdom.length ? congdom : empty}
+					</Card>
+					<Card title='穿' bordered={true} >
+						{cuandom.length ? cuandom : empty}
+					</Card>
+					<Card title='破' bordered={true} >
+						{podom.length ? podom : empty}
+					</Card>
+				</div>
+			);
 	}
 }
 
 export default ZiHeCong;
-

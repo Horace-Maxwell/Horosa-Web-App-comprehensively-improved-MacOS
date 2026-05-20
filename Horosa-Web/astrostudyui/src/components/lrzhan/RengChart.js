@@ -7,6 +7,7 @@ import LRChart from '../liureng/LRChart';
 import LRTextSquareChart from '../liureng/LRTextSquareChart';
 import KeChart from '../liureng/KeChart';
 import ChuangChart from '../liureng/ChuangChart';
+import GodChart from '../liureng/GodChart';
 import * as LRConst from '../liureng/LRConst';
 import { getSignZi, LRChart_Circle, LRChart_Square, TaiSui} from '../liureng/LRConst';
 import { ZSList, ZhangSheng, } from '../liureng/LRZhangSheng';
@@ -81,6 +82,7 @@ class RengChart {
 		this.panStyleName = options.panStyleName || '';
 		this.onMetaInfoClick = options.onMetaInfoClick;
 		this.chartType = options.chartType !== undefined && options.chartType !== null ? options.chartType : LRChart_Square;
+		this.compactPreview = !!options.compactPreview;
 
 		this.margin = 20;
 		this.svgTopgroup = null;
@@ -148,16 +150,38 @@ class RengChart {
 			.attr('y', 0)
 			.attr('width', realW).attr('height', realH);
 
-		let titleH = this.liureng ? Math.min(210, Math.max(128, realH * 0.34)) : 0;
-		let h = realH - titleH;
+		if(!this.compactPreview && !this.liureng){
+			return null;
+		}
+
+		const circleLayout = !this.compactPreview && this.isCircleChart();
+		let titleH = this.compactPreview ? 0 : Math.min(220, Math.max(178, realH * 0.155));
+		let bodyGap = this.compactPreview ? 0 : Math.max(20, Math.min(38, realH * 0.024));
+		if(circleLayout){
+			titleH = Math.min(190, Math.max(158, realH * 0.2));
+			bodyGap = Math.max(14, Math.min(24, realH * 0.016));
+		}
+		let h = Math.max(0, realH - titleH - bodyGap);
 		let cords = [];
-		cords[0] = {x: 0, y: titleH, w: realW, h: h};
+		cords[0] = {x: 0, y: titleH + bodyGap, w: realW, h: h};
 		cords[1] = {x: 0, y: 0, w: realW, h: titleH};
 
-		this.drawLiuRengInfoHeader(cords[1]);
-		this.prepareLiuRengBase(cords[0]);
-		this.drawSimpleBody(cords[0]);
+		if(!this.compactPreview){
+			this.drawLiuRengInfoHeader(cords[1]);
 		}
+		this.prepareLiuRengBase(cords[0]);
+		if(this.compactPreview){
+			this.drawSquareBoardBody(cords[0]);
+		}else if(this.isCircleChart()){
+			this.drawCircleBody(cords[0]);
+		}else{
+			this.drawSimpleBody(cords[0]);
+		}
+		}
+
+	isCircleChart(){
+		return parseInt(this.chartType, 10) === LRChart_Circle;
+	}
 
 	prepareLiuRengBase(cord){
 		let w = cord.w;
@@ -191,6 +215,110 @@ class RengChart {
 
 		this.ke = this.rengs[0].getKe();
 
+	}
+
+	prepareChuang(cord){
+		if(this.rengs.length === 0 || this.rengs[0] === undefined || this.rengs[0] === null){
+			return null;
+		}
+
+		const opt = {
+			chartObj: this.chartObj,
+			x: cord.x,
+			y: cord.y,
+			width: cord.w,
+			height: cord.h,
+			owner: this.svgTopgroup,
+			ke: this.ke,
+			nongli: this.nongli,
+			guireng: this.guireng,
+			liuRengChart: this.rengs[0],
+			divTooltip: this.tooltipId ? d3.select(`#${this.tooltipId}`) : null,
+		};
+		const csvg = new ChuangChart(opt);
+		try{
+			csvg.genCuangs();
+		}catch(e){
+			if(typeof console !== 'undefined' && console.warn){
+				console.warn('[RengChart] failed to generate san chuan', e);
+			}
+		}
+		if(!csvg.cuangs){
+			csvg.cuangs = {
+				name: '',
+				tianJiang: [],
+				liuQin: [],
+				cuang: [],
+			};
+		}
+		this.rengs[2] = csvg;
+		if(this.rengs[0]){
+			this.rengs[0].cuangName = csvg.cuangs && csvg.cuangs.name ? csvg.cuangs.name : '';
+		}
+		return csvg;
+	}
+
+	drawSquareBoardBody(cord){
+		if(!this.rengs[0]){
+			return;
+		}
+		this.prepareChuang(cord);
+		this.rengs[0].draw();
+	}
+
+	drawCircleBody(cord){
+		if(!this.rengs[0]){
+			return;
+		}
+		const outerGap = Math.max(4, Math.min(12, cord.w * 0.008));
+		const innerGap = Math.max(8, Math.min(18, cord.w * 0.012));
+        const metaH = this.liureng ? Math.max(260, Math.min(400, cord.h * 0.45)) : 0;
+        const topAreaH = Math.max(240, cord.h - outerGap * 2 - (metaH ? metaH + innerGap : 0));
+        const bodyY = cord.y + outerGap;
+		const contentW = Math.max(0, cord.w - outerGap * 2);
+		const circleColumnW = Math.max(300, Math.min(contentW * 0.48, contentW - 260));
+		const rightX = cord.x + outerGap + circleColumnW + innerGap;
+		const rightW = Math.max(220, cord.x + cord.w - rightX - outerGap);
+        const size = Math.max(220, Math.min(circleColumnW, topAreaH, 500) - 4);
+		const x = cord.x + outerGap + (circleColumnW - size) / 2;
+		const y = bodyY;
+		const opt = {
+			chartObj: this.chartObj,
+			fields: this.fields,
+			x,
+			y,
+			width: size,
+			height: size,
+			owner: this.svgTopgroup,
+			divTooltip: this.tooltipId ? d3.select(`#${this.tooltipId}`) : null,
+			yue: this.yue,
+			nongli: this.nongli,
+			guireng: this.guireng,
+			panStyleName: this.panStyleName || this.getPanStyleName(),
+		};
+		const circle = new LRCircleChart(opt);
+		circle.draw();
+		this.rengs[1] = circle;
+
+		const keChuanCord = {
+            x: rightX,
+            y: bodyY,
+            w: rightW,
+            h: Math.max(240, Math.min(topAreaH, 390)),
+        };
+		this.drawGua2(keChuanCord);
+		if(this.rengs[2] && this.rengs[2].cuangs && this.rengs[2].cuangs.name){
+			circle.cuangName = this.rengs[2].cuangs.name;
+		}
+
+		if(metaH > 0){
+			this.drawCircleMetaTables({
+				x: cord.x + outerGap,
+				y: bodyY + topAreaH + innerGap,
+				w: contentW,
+				h: metaH,
+			});
+		}
 	}
 
 	formatSolarTime(){
@@ -304,12 +432,12 @@ class RengChart {
 		}
 		const group = this.svgTopgroup.append('g').attr('class', 'liureng-info-header');
 		const padX = Math.max(18, cord.w * 0.05);
-		const topY = cord.y + Math.max(46, cord.h * 0.34);
-		const pillarY = cord.y + Math.max(100, cord.h * 0.68);
-		const dividerY = cord.y + cord.h - Math.max(8, cord.h * 0.08);
-		const timeSize = Math.max(20, Math.min(38, cord.w * 0.052));
-		const pillarSize = Math.max(22, Math.min(34, cord.w * 0.045));
-		const rightSize = Math.max(20, Math.min(36, cord.w * 0.048));
+		const topY = cord.y + Math.max(44, cord.h * 0.27);
+		const pillarY = cord.y + Math.max(104, cord.h * 0.67);
+		const dividerY = cord.y + cord.h - Math.max(8, cord.h * 0.055);
+		const timeSize = Math.max(18, Math.min(34, cord.w * 0.05));
+		const pillarSize = Math.max(20, Math.min(30, cord.w * 0.043));
+		const rightSize = Math.max(18, Math.min(32, cord.w * 0.046));
 		const rightX = cord.x + cord.w - padX;
 		const solarTime = this.formatSolarTime();
 		const xun = this.liureng && this.liureng.xun ? this.liureng.xun : {};
@@ -452,44 +580,12 @@ class RengChart {
 			return;
 		}
 		const chart = this.rengs[0];
-		const opt1 = {
-			chartObj: this.chartObj,
-			x: cord.x,
-			y: cord.y,
-			width: cord.w,
-			height: cord.h,
-			owner: this.svgTopgroup,
-			ke: this.ke,
-			nongli: this.nongli,
-			guireng: this.guireng,
-			liuRengChart: chart,
-			divTooltip: this.tooltipId ? d3.select(`#${this.tooltipId}`) : null,
-		};
-		const csvg = new ChuangChart(opt1);
-		try{
-			csvg.genCuangs();
-		}catch(e){
-			if(typeof console !== 'undefined' && console.warn){
-				console.warn('[RengChart] failed to generate san chuan', e);
-			}
-		}
-		if(!csvg.cuangs){
-			csvg.cuangs = {
-				name: '',
-				tianJiang: [],
-				liuQin: [],
-				cuang: [],
-			};
-		}
-		this.rengs[2] = csvg;
-		if(chart){
-			chart.cuangName = csvg.cuangs && csvg.cuangs.name ? csvg.cuangs.name : '';
-		}
+		const csvg = this.prepareChuang(cord);
 
 		const group = this.svgTopgroup.append('g').attr('class', 'liureng-simple-body');
 		const padX = Math.max(34, cord.w * 0.055);
-		const padTop = Math.max(26, cord.h * 0.055);
-		const padBottom = Math.max(34, cord.h * 0.075);
+		const padTop = Math.max(48, cord.h * 0.07);
+		const padBottom = Math.max(32, cord.h * 0.035);
 		const bodyY = cord.y + padTop;
 		const bodyH = Math.max(0, cord.h - padTop - padBottom);
 		const splitX = cord.x + cord.w * 0.43;
@@ -545,11 +641,12 @@ class RengChart {
 		const branchSize = Math.max(18, Math.min(42, size * 0.096));
 		const jiangSize = Math.max(16, Math.min(34, size * 0.084));
 		const ganSize = Math.max(15, Math.min(30, size * 0.074));
-		const rowGap = Math.max(branchSize * 1.28, Math.min(54, size * 0.136));
-		const colGap = Math.max(branchSize * 1.38, Math.min(54, cord.w * 0.15));
-		const centerX = cord.x + cord.w * 0.50;
+		const maxRowGap = Math.max(branchSize * 1.45, (cord.h - 16) / 7.55);
+		const rowGap = Math.max(branchSize * 1.45, Math.min(92, size * 0.17, maxRowGap));
+		const colGap = Math.max(branchSize * 1.48, Math.min(68, cord.w * 0.16));
+		const centerX = cord.x + cord.w * 0.46;
 		const panHeight = rowGap * 7.75;
-		const topY = cord.y + Math.max(rowGap * 0.55, (cord.h - panHeight) / 2 + rowGap * 0.72);
+		const topY = cord.y + Math.max(rowGap * 0.82, Math.min(cord.h * 0.36, (cord.h - panHeight) / 2 + rowGap * 0.86));
 		const branches = LRConst.ZiList;
 		const house = branches.reduce((acc, branch)=>{
 			acc[branch] = this.getSimpleHouse(chart, branch);
@@ -635,8 +732,8 @@ class RengChart {
 		const keOrder = [3, 2, 1, 0];
 		const keList = Array.isArray(this.ke) ? this.ke : [];
 		const keX = cord.x + cord.w * 0.03;
-		const keY = cord.y + cord.h * 0.34;
-		const keGap = Math.max(big * 1.22, Math.min(82, cord.h * 0.145));
+		const keY = cord.y + cord.h * 0.27;
+		const keGap = Math.max(big * 1.48, Math.min(124, cord.h * 0.205));
 		const tokenGap = big * 1.06;
 		const drawKeTokenRow = (rowIdx, y)=>{
 			keOrder.forEach((keIdx, tokenIdx)=>{
@@ -847,6 +944,59 @@ class RengChart {
 		this.rengs[2] = csvg;
 		this.rengs[2].draw();
 
+	}
+
+	drawCircleMetaTables(cord){
+		if(this.liureng === undefined || this.liureng === null){
+			return;
+		}
+
+		const sections = [
+			['行年', this.getRunYear()],
+			['旬日', this.getXun()],
+			['旺衰', this.getData(this.liureng.season)],
+			['支煞', this.getData(this.liureng.godsZi)],
+			['年煞', this.getYearGods()],
+			[`${this.zhangshengElem}十二长生`, this.getZhangSheng()],
+			['基础神煞', this.getData(this.liureng.gods)],
+			['干煞', this.getData(this.liureng.godsGan)],
+			['月煞', this.getData(this.liureng.godsMonth)],
+		].filter((item)=>Array.isArray(item[1]) && item[1].length > 0);
+
+		if(sections.length === 0 || cord.w <= 0 || cord.h <= 0){
+			return;
+		}
+
+		const gap = 8;
+		const cols = 3;
+		const rowWeights = [0.21, 0.56, 0.23];
+		const cellW = (cord.w - gap * (cols - 1)) / cols;
+		const availableH = cord.h - gap * (rowWeights.length - 1);
+		const rowHeights = rowWeights.map((weight)=>availableH * weight);
+		const rowY = rowHeights.reduce((acc, rowH, idx)=>{
+			acc.push(idx === 0 ? cord.y : acc[idx - 1] + rowHeights[idx - 1] + gap);
+			return acc;
+		}, []);
+
+		sections.forEach((section, idx)=>{
+			const col = idx % cols;
+			const row = Math.floor(idx / cols);
+			const opt = {
+				chartObj: this.chartObj,
+				guireng: this.guireng,
+				x: cord.x + col * (cellW + gap),
+				y: rowY[row] || cord.y,
+				width: cellW,
+				height: rowHeights[row] || rowHeights[rowHeights.length - 1],
+				owner: this.svgTopgroup,
+				title: section[0],
+				gods: section[1],
+			};
+			const chart = new GodChart(opt);
+			chart.titleFontSize = Math.max(14, Math.min(20, opt.height * 0.20));
+			chart.godFontSize = Math.max(row === 1 ? 11 : 12, Math.min(16, opt.height * (row === 1 ? 0.085 : 0.14)));
+			chart.draw();
+		});
 	}
 
 	drawGua3(cord){

@@ -453,7 +453,7 @@ class AstroRelative extends Component{
 		let hook = this.state.hook;
 
 		return (
-			<div>
+			<div className="horosa-relative-page">
 				<Row gutter={12}>
 					<Col span={8}>
 						<ChartSearchModal onOk={this.selectChartA}>
@@ -469,11 +469,12 @@ class AstroRelative extends Component{
 						<Button onClick={this.clickDoChart}>排盘</Button>
 					</Col>
 				</Row>
-				<Row gutter={12} style={{marginTop: 10}}>
+				<Row className="horosa-relative-chart-row" gutter={12} style={{marginTop: 10}}>
 					<Col span={24}>
 						<Tabs 
 							defaultActiveKey={this.state.currentTab} tabPosition='right'
 							onChange={this.changeTab}
+							className="horosa-relative-tabs"
 							style={{ height: height }}
 						>
 							<TabPane tab="比较盘" key="Comp">

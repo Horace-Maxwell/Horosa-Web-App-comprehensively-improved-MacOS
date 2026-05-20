@@ -5,7 +5,6 @@ import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import {randomStr,} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
-import TipsBoard from '../comp/TipsBoard';
 import DateTime from '../comp/DateTime';
 import GuoLaoInput from './GuoLaoInput';
 import GuoLaoChart from './GuoLaoChart';
@@ -127,6 +126,60 @@ const MOIRA_SPEED_LIMITS = {
 	Mars: {slow: 0.4, fast: 0.70},
 	Saturn: {slow: 0.02, fast: 0.13},
 };
+const MOIRA_PLANET_CN_TO_ID = {
+	日: AstroConst.SUN,
+	月: AstroConst.MOON,
+	水: AstroConst.MERCURY,
+	金: AstroConst.VENUS,
+	火: AstroConst.MARS,
+	木: AstroConst.JUPITER,
+	土: AstroConst.SATURN,
+	罗: AstroConst.NORTH_NODE,
+	计: AstroConst.SOUTH_NODE,
+	炁: AstroConst.PURPLE_CLOUDS,
+	孛: AstroConst.DARKMOON,
+};
+const MOIRA_RULER_BY_SIGN = {
+	Aries: AstroConst.MARS,
+	Taurus: AstroConst.VENUS,
+	Gemini: AstroConst.MERCURY,
+	Cancer: AstroConst.MOON,
+	Leo: AstroConst.SUN,
+	Virgo: AstroConst.MERCURY,
+	Libra: AstroConst.VENUS,
+	Scorpio: AstroConst.MARS,
+	Sagittarius: AstroConst.JUPITER,
+	Capricorn: AstroConst.SATURN,
+	Aquarius: AstroConst.SATURN,
+	Pisces: AstroConst.JUPITER,
+};
+const MOIRA_EXILE_BY_SIGN = {
+	Aries: AstroConst.VENUS,
+	Taurus: AstroConst.MARS,
+	Gemini: AstroConst.JUPITER,
+	Cancer: AstroConst.SATURN,
+	Leo: AstroConst.SATURN,
+	Virgo: AstroConst.JUPITER,
+	Libra: AstroConst.MARS,
+	Scorpio: AstroConst.VENUS,
+	Sagittarius: AstroConst.MERCURY,
+	Capricorn: AstroConst.MOON,
+	Aquarius: AstroConst.SUN,
+	Pisces: AstroConst.MERCURY,
+};
+const MOIRA_OVERCOMING = {
+	日: '月',
+	月: '日',
+	金: '火',
+	木: '金',
+	水: '土',
+	火: '水',
+	土: '木',
+	炁: '金',
+	孛: '土',
+	罗: '水',
+	计: '木',
+};
 
 const GUOLAO_CACHE_MAX = 96;
 const GUOLAO_SU28_CACHE_REV = 'guolao_moira_su28_v6_zheng_yumao';
@@ -184,6 +237,23 @@ function hasUnverifiedMoiraPatternSource(value){
 		value.styleSource === 'moira-dsl-not-evaluated'
 		|| value.engine === 'moira-rules-on-horosa-ephemeris'
 		|| value.version === 'qizheng-moira-rules-v1'
+	);
+}
+
+function isIncompleteMoiraRules(value){
+	if(!value){
+		return true;
+	}
+	if(hasUnverifiedMoiraPatternSource(value)){
+		return true;
+	}
+	const text = `${value.styleWarning || ''} ${value.summary || ''} ${value.message || ''}`;
+	return (
+		text.indexOf('仍在接入') >= 0
+		|| text.indexOf('暂不输出') >= 0
+		|| text.indexOf('暂不生成') >= 0
+		|| text.indexOf('未返回完整') >= 0
+		|| !Array.isArray(value.patterns)
 	);
 }
 
@@ -415,6 +485,316 @@ function buildGodRowsFromChart(result, fields){
 			taisuiGods: orderGods(one.taisuiGods, MOIRA_TRANSIT_GOD_ORDER),
 		};
 	});
+}
+
+function buildHouseRowsFromChart(result, fields){
+	const chart = getChart(result);
+	const ascSignIndex = computeAscSignIndex(result, chart, fields);
+	return safeList(chart.houses).map((house, idx)=>{
+		const sign = signFromLon(house && house.lon);
+		const signIdx = sign ? AstroConst.LIST_SIGNS.indexOf(sign) : -1;
+		const area = signIdx >= 0 && SZConst.SZSigns[signIdx] && SZConst.SZSigns[signIdx].length >= 2
+			? `${SZConst.SZSigns[signIdx][0]}${SZConst.SZSigns[signIdx][1]}`
+			: '';
+		return {
+			index: idx,
+			name: houseFullLabel(house, idx, ascSignIndex),
+			zi: sign ? (SZConst.SignZi[sign] || '') : '',
+			area,
+			signName: sign ? msg(sign) : '',
+			moiraStarHouse: msg(house && house.id ? house.id : null) || '',
+		};
+	});
+}
+
+function signIndexFromLon(lon){
+	const sign = signFromLon(lon);
+	return sign ? AstroConst.LIST_SIGNS.indexOf(sign) : -1;
+}
+
+function objectSignIndex(chart, id){
+	const obj = findChartObject(chart, id);
+	const lon = objectLon(obj);
+	return lon === null ? -1 : signIndexFromLon(lon);
+}
+
+function localLifeObject(chart, fields){
+	const mode = guolaoLifeModeFromFields(fields);
+	const life = findChartObject(chart, AstroConst.LIFEMASTERDEG74);
+	const asc = findChartObject(chart, AstroConst.ASC);
+	const sun = findChartObject(chart, AstroConst.SUN);
+	if(mode === GUOLAO_LIFE_MODE_YUMAO || mode === GUOLAO_LIFE_MODE_COTRANS){
+		return life || asc || sun || null;
+	}
+	return asc || life || sun || null;
+}
+
+function localLifeSignIndex(chart, fields){
+	const life = localLifeObject(chart, fields);
+	const lon = objectLon(life);
+	return lon === null ? -1 : signIndexFromLon(lon);
+}
+
+function localMoiraHouseSign(lifeSignIndex, houseOffset){
+	return lifeSignIndex < 0 ? -1 : (lifeSignIndex + houseOffset + 12) % 12;
+}
+
+function localSignZi(signIdx){
+	const sign = AstroConst.LIST_SIGNS[(signIdx + 12) % 12];
+	return sign ? (SZConst.SignZi[sign] || '') : '';
+}
+
+function localPlanetCnById(id){
+	const row = MOIRA_PLANET_ORDER.find((item)=>item.id === id);
+	return row ? row.name : msg(id);
+}
+
+function localSignOfCn(chart, name, lifeSignIndex, selfSignIndex, godSigns){
+	const houseMap = {
+		命: localMoiraHouseSign(lifeSignIndex, 0),
+		命宫: localMoiraHouseSign(lifeSignIndex, 0),
+		财: localMoiraHouseSign(lifeSignIndex, 1),
+		财帛: localMoiraHouseSign(lifeSignIndex, 1),
+		兄弟: localMoiraHouseSign(lifeSignIndex, 2),
+		田: localMoiraHouseSign(lifeSignIndex, 3),
+		田宅: localMoiraHouseSign(lifeSignIndex, 3),
+		嗣: localMoiraHouseSign(lifeSignIndex, 4),
+		男女: localMoiraHouseSign(lifeSignIndex, 4),
+		奴: localMoiraHouseSign(lifeSignIndex, 5),
+		奴仆: localMoiraHouseSign(lifeSignIndex, 5),
+		妻: localMoiraHouseSign(lifeSignIndex, 6),
+		夫妻: localMoiraHouseSign(lifeSignIndex, 6),
+		疾: localMoiraHouseSign(lifeSignIndex, 7),
+		疾厄: localMoiraHouseSign(lifeSignIndex, 7),
+		迁: localMoiraHouseSign(lifeSignIndex, 8),
+		迁移: localMoiraHouseSign(lifeSignIndex, 8),
+		官: localMoiraHouseSign(lifeSignIndex, 9),
+		官禄: localMoiraHouseSign(lifeSignIndex, 9),
+		福: localMoiraHouseSign(lifeSignIndex, 10),
+		福德: localMoiraHouseSign(lifeSignIndex, 10),
+		相: localMoiraHouseSign(lifeSignIndex, 11),
+		相貌: localMoiraHouseSign(lifeSignIndex, 11),
+		身: selfSignIndex,
+	};
+	if(Object.prototype.hasOwnProperty.call(houseMap, name)){
+		return houseMap[name];
+	}
+	if(godSigns && godSigns[name] !== undefined){
+		return godSigns[name];
+	}
+	if(MOIRA_PLANET_CN_TO_ID[name]){
+		return objectSignIndex(chart, MOIRA_PLANET_CN_TO_ID[name]);
+	}
+	const signs = ['戌', '酉', '申', '未', '午', '巳', '辰', '卯', '寅', '丑', '子', '亥'];
+	const idx = signs.indexOf(name);
+	return idx >= 0 ? idx : -1;
+}
+
+function localMoiraGodSigns(godRows){
+	const res = {};
+	safeList(godRows).forEach((row)=>{
+		const signIdx = ['戌', '酉', '申', '未', '午', '巳', '辰', '卯', '寅', '丑', '子', '亥'].indexOf(row.zi);
+		if(signIdx < 0){
+			return;
+		}
+		['goodGods', 'neutralGods', 'badGods', 'taisuiGods'].forEach((key)=>{
+			safeList(row[key]).forEach((name)=>{
+				const val = formatGodName(name);
+				if(val && res[val] === undefined){
+					res[val] = signIdx;
+				}
+			});
+		});
+	});
+	return res;
+}
+
+function localMoiraSuRuler(su){
+	if(!su){
+		return '';
+	}
+	if('星房虚昴'.indexOf(su) >= 0){
+		return '日';
+	}
+	if('张心危毕'.indexOf(su) >= 0){
+		return '月';
+	}
+	if('亢牛娄鬼'.indexOf(su) >= 0){
+		return '金';
+	}
+	if('角斗奎井'.indexOf(su) >= 0){
+		return '木';
+	}
+	if('轸壁参箕'.indexOf(su) >= 0){
+		return '水';
+	}
+	if('尾室觜翼'.indexOf(su) >= 0){
+		return '火';
+	}
+	if('氐女胃柳'.indexOf(su) >= 0){
+		return '土';
+	}
+	return '';
+}
+
+function localMoiraIsWinter(params){
+	const raw = `${params && params.date ? params.date : ''}`.replace(/\//g, '-');
+	const month = Number((raw.split('-')[1] || '').replace(/^0+/, ''));
+	return month === 11 || month === 12 || month === 1;
+}
+
+function localMoiraIsDay(params){
+	const hour = Number(`${params && params.time ? params.time : '12:00:00'}`.split(':')[0]);
+	return Number.isFinite(hour) ? hour >= 6 && hour < 18 : true;
+}
+
+function localMoiraNearSignBoundary(lon){
+	if(lon === null){
+		return false;
+	}
+	const val = ((lon % 30) + 30) % 30;
+	return val <= 1 || val >= 29;
+}
+
+function localMoiraNearSuBoundary(chart, lon){
+	if(lon === null){
+		return false;
+	}
+	return safeList(chart && chart.fixedStarSu28).some((item)=>{
+		const ra = normDegree(item && item.ra);
+		if(ra === null){
+			return false;
+		}
+		const diff = Math.abs(normDegree(lon) - ra);
+		return Math.min(diff, 360 - diff) <= 1;
+	});
+}
+
+function localMoiraLostRulership(chart, subject, lifeSignIndex, selfSignIndex, godSigns){
+	const signIdx = localSignOfCn(chart, subject, lifeSignIndex, selfSignIndex, godSigns);
+	if(signIdx < 0){
+		return false;
+	}
+	const sign = AstroConst.LIST_SIGNS[signIdx];
+	const rulerId = MOIRA_RULER_BY_SIGN[sign];
+	const rulerCn = localPlanetCnById(rulerId);
+	const rulerSign = objectSignIndex(chart, rulerId);
+	if(rulerSign < 0){
+		return false;
+	}
+	const rulerOfRulerSign = localPlanetCnById(MOIRA_RULER_BY_SIGN[AstroConst.LIST_SIGNS[rulerSign]]);
+	return rulerOfRulerSign === MOIRA_OVERCOMING[rulerCn];
+}
+
+function addLocalMoiraPattern(list, name, level, score, detail, dsl){
+	list.push({
+		name,
+		level,
+		score,
+		source: 'moira_s.prop-local',
+		dsl,
+		detail,
+	});
+}
+
+function buildLocalMoiraPatterns(chartObj, fields, params, godRows){
+	const chart = getChart(chartObj);
+	const lifeObj = localLifeObject(chart, fields);
+	const lifeLon = objectLon(lifeObj);
+	const lifeSignIndex = localLifeSignIndex(chart, fields);
+	const selfSignIndex = objectSignIndex(chart, AstroConst.MOON);
+	const godSigns = localMoiraGodSigns(godRows);
+	const signOf = (name)=>localSignOfCn(chart, name, lifeSignIndex, selfSignIndex, godSigns);
+	const same = (a, b)=>a >= 0 && b >= 0 && a === b;
+	const rel = (base, offset)=>(base + offset + 12) % 12;
+	const sun = signOf('日');
+	const moon = signOf('月');
+	const venus = signOf('金');
+	const mercury = signOf('水');
+	const darkMoon = signOf('孛');
+	const northNode = signOf('罗');
+	const guan = signOf('官');
+	const fu = signOf('福');
+	const patterns = [];
+	const isDay = localMoiraIsDay(params);
+	const lifeZi = lifeSignIndex >= 0 ? localSignZi(lifeSignIndex) : '';
+
+	if(lifeSignIndex >= 0 && lifeZi && ('戌亥'.indexOf(lifeZi) >= 0)){
+		const diseaseRulerCn = localPlanetCnById(MOIRA_RULER_BY_SIGN[AstroConst.LIST_SIGNS[signOf('疾')]]);
+		if(same(signOf(diseaseRulerCn), lifeSignIndex)){
+			addLocalMoiraPattern(patterns, '八杀朝天', 'good', '3.2.0', '政余喜格：疾厄宫主入命，且命临戌亥。', '@{@{疾厄}[1]}=@命');
+		}
+	}
+	const moonSign = moon;
+	if(moonSign >= 0){
+		const sameMoonSignCount = MOIRA_PLANET_ORDER
+			.map((item)=>objectSignIndex(chart, item.id))
+			.filter((idx)=>idx === moonSign).length;
+		if(!isDay && sameMoonSignCount === 1){
+			addLocalMoiraPattern(patterns, '孤月独明', 'good', '2.3.0', '政余喜格：夜生月曜独居一方。', '?{孤月} & ?夜');
+		}
+	}
+	if(same(sun, rel(guan, 4)) && same(moon, rel(guan, -4)) || same(sun, rel(guan, -4)) && same(moon, rel(guan, 4))){
+		addLocalMoiraPattern(patterns, '日月拱官', 'good', '2.3.0', '政余喜格：日月分拱官禄。', '@日=@官禄+4 & @月=@官禄-4');
+	}
+	if(same(venus, mercury) && !localMoiraIsWinter(params)){
+		addLocalMoiraPattern(patterns, '金水相涵', 'good', '2.3.0', '政余喜格：金水同宫，且不以冬令破格。', '?{金水会} & !?冬');
+	}
+	const noble = signOf(isDay ? '天贵' : '玉贵');
+	if(same(sun, rel(noble, 4)) && same(moon, rel(noble, -4)) || same(sun, rel(noble, -4)) && same(moon, rel(noble, 4))){
+		addLocalMoiraPattern(patterns, '日月拱贵人', 'good', '2.2.0', `政余喜格：${isDay ? '昼取天贵' : '夜取玉贵'}，日月分拱。`, '?昼/夜 & 日月拱贵人');
+	}
+	if(same(lifeSignIndex, signOf('岁驾'))){
+		addLocalMoiraPattern(patterns, '命登岁驾', 'good', '2.0.3', '政余喜格：命度临岁驾。', '@命=@{岁驾}');
+	}
+	if(sun >= 0 && moon >= 0){
+		const sunZi = localSignZi(sun);
+		const moonZi = localSignZi(moon);
+		if(('申酉戌亥子丑'.indexOf(sunZi) >= 0) && ('寅卯辰巳午未'.indexOf(moonZi) >= 0)){
+			addLocalMoiraPattern(patterns, '日月失所', 'bad', '2.3.0', '政余忌格：日居西北、月居东南。', '(?{日西}|?{日北}) & (?{月东}|?{月南})');
+		}
+	}
+	if(localMoiraLostRulership(chart, '官', lifeSignIndex, selfSignIndex, godSigns) && localMoiraLostRulership(chart, '福', lifeSignIndex, selfSignIndex, godSigns)){
+		addLocalMoiraPattern(patterns, '官福失垣', 'bad', '2.2.0', '政余忌格：官禄、福德主失垣。', '?{官失垣} & ?{福失垣}');
+	}
+	if(same(darkMoon, sun)){
+		addLocalMoiraPattern(patterns, '孛犯太阳', 'bad', '2.2.0', '政余忌格：孛与太阳同宫。', '?{日孛遇}');
+	}
+	if(same(northNode, sun)){
+		addLocalMoiraPattern(patterns, '罗犯太阳', 'bad', '2.2.0', '政余忌格：罗与太阳同宫。', '?{日罗遇}');
+	}
+	if(same(northNode, darkMoon)){
+		addLocalMoiraPattern(patterns, '孛罗交战', 'bad', '2.2.0', '政余忌格：罗孛同宫。', '?{罗孛遇}');
+	}
+	if(localMoiraNearSignBoundary(lifeLon) || localMoiraNearSuBoundary(chart, lifeLon)){
+		addLocalMoiraPattern(patterns, '命坐两歧', 'bad', '2.0.4', '政余忌格：命度近宫界或宿界。', '?{命宫歧} | ?{命宿歧}');
+	}
+	return patterns.sort((a, b)=>{
+		const la = a.level === 'good' ? 0 : (a.level === 'bad' ? 1 : 2);
+		const lb = b.level === 'good' ? 0 : (b.level === 'bad' ? 1 : 2);
+		return la - lb;
+	});
+}
+
+function buildLocalMoiraRules(params, chartObj, fields, reason){
+	const godHits = buildGodRowsFromChart(chartObj, fields);
+	const patterns = buildLocalMoiraPatterns(chartObj, fields, params, godHits);
+	return {
+		engine: 'horosa-local-moira-panel-fallback',
+		engineLabel: 'Moira政余格局（本地规则）',
+		summary: `本地已接入 Moira 政余格局规则：命中喜格 ${patterns.filter((item)=>item.level === 'good').length} 条、忌格 ${patterns.filter((item)=>item.level === 'bad').length} 条。`,
+		styleSource: 'moira-dsl-local-evaluated',
+		styleWarning: '',
+		params: {
+			...(params || {}),
+		},
+		anchors: {},
+		houses: buildHouseRowsFromChart(chartObj, fields),
+		planets: [],
+		patterns,
+		godHits,
+		fallbackReason: reason ? `${reason}` : '',
+	};
 }
 
 function normalizeGodRows(rows, order){
@@ -1136,17 +1516,26 @@ class GuoLaoChartMain extends Component{
 		this.setState({
 			moiraLoading: true,
 		});
-		const rsp = await fetchMoiraQizhengRules({
-			params: params,
-			chartObj: chartObj,
-		}, {
-			silent: true,
-			timeoutMs: 12000,
-		});
+		let rsp = null;
+		let fallbackReason = 'empty-response';
+		try{
+			rsp = await fetchMoiraQizhengRules({
+				params: params,
+				chartObj: chartObj,
+			}, {
+				silent: true,
+				timeoutMs: 12000,
+			});
+		}catch(e){
+			fallbackReason = e && e.message ? e.message : 'request-error';
+		}
 		if(this.unmounted || seq !== this.moiraReqSeq){
 			return;
 		}
-		const rules = rsp && rsp[Constants.ResultKey] ? rsp[Constants.ResultKey] : null;
+		const remoteRules = rsp && rsp[Constants.ResultKey] ? rsp[Constants.ResultKey] : null;
+		const rules = isIncompleteMoiraRules(remoteRules)
+			? buildLocalMoiraRules(params, chartObj, this.props.fields, fallbackReason)
+			: remoteRules;
 		this.setState({
 			moiraRules: rules,
 			moiraLoading: false,
@@ -1731,12 +2120,6 @@ class GuoLaoChartMain extends Component{
 		const usePickWheel = this.state.chartStyle === GUOLAO_CHART_STYLE_PICK;
 		const useMoiraLikeWheel = useMoiraWheel || usePickWheel;
 
-		let tipheight = 270;
-		let docwid = document.documentElement.clientWidth;
-		if(docwid <= 1440){
-			tipheight = 120;
-		}
-
 		return (
 			<div className="horosa-guolao-page horosa-astro-redesign horosa-guolao-redesign">
 				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-guolao-redesign-layout">
@@ -1793,13 +2176,11 @@ class GuoLaoChartMain extends Component{
 							)}
 						</div>
 						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-guolao-info-panel">
-							<Tabs defaultActiveKey="1" tabPosition="top" className="horosa-content-tabs horosa-guolao-tabs">
-								<TabPane tab="提示" key="1">
-									<TipsBoard
-										height={tipheight}
-										value={this.state.tips}
-									/>
-								</TabPane>
+							<Tabs
+								activeKey="moira"
+								tabPosition="top"
+								className="horosa-content-tabs horosa-guolao-tabs"
+							>
 								<TabPane tab="Moira" key="moira">
 									<GuoLaoMoiraPanel
 										value={this.state.moiraRules}
@@ -1808,17 +2189,8 @@ class GuoLaoChartMain extends Component{
 										transitValue={this.state.moiraTransitChartObj}
 										transitParams={paramsWithMoiraTransit(this.props.fields, this.state.moiraTransitTime)}
 										fields={this.props.fields}
+										chartMode={usePickWheel ? 'pick' : 'moira'}
 									/>
-								</TabPane>
-								<TabPane tab="起盘信息" key="2">
-									<div className="horosa-guolao-summary">
-										<div className="horosa-info-card">
-											<div className="horosa-info-card-title">基本参数</div>
-											<div className="horosa-info-row"><span>时间</span><strong>{this.props.fields.date.value.format('YYYY-MM-DD')} {this.props.fields.time.value.format('HH:mm:ss')}</strong></div>
-											<div className="horosa-info-row"><span>地点</span><strong>{this.props.fields.lon.value} {this.props.fields.lat.value}</strong></div>
-											<div className="horosa-info-row"><span>时区</span><strong>{this.props.fields.zone.value}</strong></div>
-										</div>
-									</div>
 								</TabPane>
 							</Tabs>
 						</div>

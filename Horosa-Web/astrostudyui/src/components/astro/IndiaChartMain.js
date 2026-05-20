@@ -13,6 +13,16 @@ const {Option} = Select;
 const TabPane = Tabs.TabPane;
 const DASHA_YEAR_DAYS = 365.25;
 const NAKSHATRA_SIZE = 360 / 27;
+const INDIA_QUICK_ACTIONS = [
+	{ key: 'd1', label: '命盘', icon: 'sidePlanets', action: 'tab', tab: 'Natal' },
+	{ key: 'd9', label: '合伴', icon: 'sideHouses', action: 'tab', tab: 'Navamsa' },
+	{ key: 'd10', label: '事业', icon: 'quickPrimary', action: 'tab', tab: 'Dasamsa' },
+	{ key: 'd12', label: '父辈', icon: 'quickFirdaria', action: 'tab', tab: 'Dwadasamsa' },
+	{ key: 'north', label: '北印', icon: 'sideStyle', action: 'style', style: AstroConst.INDIA_CHART_STYLE_NORTH },
+	{ key: 'south', label: '南印', icon: 'quickReturn', action: 'style', style: AstroConst.INDIA_CHART_STYLE_SOUTH },
+	{ key: 'east', label: '东印', icon: 'quickTransit', action: 'style', style: AstroConst.INDIA_CHART_STYLE_EAST },
+	{ key: 'dasha', label: '大运', icon: 'quickNote', action: 'infoTab', infoTab: '3' },
+];
 const DASHA_SEQUENCE = [
 	{ key: 'Ketu', label: '计都', en: 'Ketu', years: 7 },
 	{ key: 'Venus', label: '金星', en: 'Venus', years: 20 },
@@ -293,6 +303,7 @@ class IndiaChartMain extends Component{
 			dashaFieldsKey: '',
 			dashaPopoverItem: null,
 			dashaPopoverStyle: null,
+			infoTab: '1',
 			hook: {
 				Natal:{
 					txt:'命盘',
@@ -407,6 +418,8 @@ class IndiaChartMain extends Component{
 		this.requestDashaChart = this.requestDashaChart.bind(this);
 		this.showDashaSubPopover = this.showDashaSubPopover.bind(this);
 		this.hideDashaSubPopover = this.hideDashaSubPopover.bind(this);
+		this.changeInfoTab = this.changeInfoTab.bind(this);
+		this.handleQuickAction = this.handleQuickAction.bind(this);
 		this.lastDashaRequestKey = '';
 
 		this.tmHook = {
@@ -537,6 +550,30 @@ class IndiaChartMain extends Component{
 		}
 	}
 
+	changeInfoTab(key){
+		this.setState({
+			infoTab: key,
+		});
+	}
+
+	handleQuickAction(item){
+		if(!item){
+			return;
+		}
+		if(item.action === 'tab' && item.tab){
+			this.changeTab(item.tab);
+			this.changeInfoTab('1');
+			return;
+		}
+		if(item.action === 'style' && item.style){
+			this.changeIndiaChartStyle(item.style);
+			return;
+		}
+		if(item.action === 'infoTab' && item.infoTab){
+			this.changeInfoTab(item.infoTab);
+		}
+	}
+
 	async requestDashaChart(fields){
 		const sourceFields = fields || this.props.fields;
 		if(!canBuildIndiaChartParams(sourceFields)){
@@ -579,14 +616,6 @@ class IndiaChartMain extends Component{
 	}
 
 	componentDidMount(){
-		if(this.props.dispatch && this.props.indiaChartStyle !== AstroConst.INDIA_CHART_STYLE_SOUTH){
-			this.props.dispatch({
-				type: 'app/save',
-				payload: {
-					indiaChartStyle: AstroConst.INDIA_CHART_STYLE_SOUTH,
-				},
-			});
-		}
 		let hook = this.state.hook;
 		if(hook[this.state.currentTab].fun){
 			hook[this.state.currentTab].fun()
@@ -731,8 +760,7 @@ class IndiaChartMain extends Component{
 
 	render(){
 		let fields = this.props.fields;
-		let height = this.props.height ? this.props.height : 760;
-		let chartHeight = height === '100%' ? '100%' : Math.max(520, height - 118);
+		let chartHeight = '100%';
 		let datetm = new DateTime();
 		if(fields.date && fields.time){
 			let str = fields.date.value.format('YYYY-MM-DD') + ' ' +
@@ -832,7 +860,7 @@ class IndiaChartMain extends Component{
 							/>
 						</div>
 						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-india-info-panel">
-							<Tabs defaultActiveKey="3" tabPosition="top" className="horosa-content-tabs horosa-india-tabs">
+							<Tabs activeKey={this.state.infoTab} onChange={this.changeInfoTab} tabPosition="top" className="horosa-content-tabs horosa-india-tabs">
 								<TabPane tab="分盘" key="1">
 									<div className="horosa-india-split-list">
 										<button
@@ -875,10 +903,23 @@ class IndiaChartMain extends Component{
 					</div>
 					<div className="horosa-bottom-quick-dock horosa-india-quick-dock">
 						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-						<div className="horosa-bottom-quick-actions horosa-india-quick-placeholders">
-							{Array.from({length: 8}).map((_, idx)=>(
-								<div className="horosa-bottom-quick-placeholder" key={idx} />
-							))}
+						<div className="horosa-bottom-quick-actions horosa-india-quick-actions">
+							{INDIA_QUICK_ACTIONS.map((item)=>{
+								const isActive = (item.action === 'tab' && this.state.currentTab === item.tab)
+									|| (item.action === 'style' && indiaChartStyle === item.style)
+									|| (item.action === 'infoTab' && this.state.infoTab === item.infoTab);
+								return (
+									<button
+										type="button"
+										key={item.key}
+										className={`horosa-bottom-quick-button horosa-india-quick-button${isActive ? ' is-active' : ''}`}
+										onClick={()=>this.handleQuickAction(item)}
+									>
+										<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+										<span>{item.label}</span>
+									</button>
+								);
+							})}
 						</div>
 					</div>
 				</div>

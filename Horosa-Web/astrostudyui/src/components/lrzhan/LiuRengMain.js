@@ -4733,7 +4733,6 @@ class LiuRengMain extends Component{
 			xiaojuMainItems,
 			xiaojuReferenceItems,
 			overviewItems,
-			panelBodyHeight,
 		} = refData;
 		return (
 			<Tabs
@@ -4743,7 +4742,7 @@ class LiuRengMain extends Component{
 				animated={false}
 			>
 				<TabPane tab="大格" key="dage">
-					<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+					<div className="horosa-liureng-reference-tab-body">
 						{refSummary ? (
 							<Card size='small' style={{ marginBottom: 8, background: 'var(--horosa-panel-soft, #fafafa)' }}>
 								<div style={{ fontSize: 12, color: 'var(--horosa-text-soft, #595959)', lineHeight: '20px' }}>{refSummary}</div>
@@ -4770,7 +4769,7 @@ class LiuRengMain extends Component{
 					</div>
 				</TabPane>
 				<TabPane tab="小局" key="xiaoju">
-					<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+					<div className="horosa-liureng-reference-tab-body">
 						{xiaojuMainItems.length ? xiaojuMainItems.map((item)=>(
 							<Card key={`xiaoju_${item.key}`} size='small' style={{ marginBottom: 8 }}>
 								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -4792,7 +4791,7 @@ class LiuRengMain extends Component{
 					</div>
 				</TabPane>
 				<TabPane tab="参考" key="reference">
-					<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+					<div className="horosa-liureng-reference-tab-body">
 						{xiaojuReferenceItems.length ? xiaojuReferenceItems.map((item)=>(
 							<Card key={`ref_${item.key}`} size='small' style={{ marginBottom: 8 }}>
 								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -4814,7 +4813,7 @@ class LiuRengMain extends Component{
 					</div>
 				</TabPane>
 				<TabPane tab="概览" key="overview">
-					<div style={{ maxHeight: panelBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+					<div className="horosa-liureng-reference-tab-body">
 						{overviewItems.length ? overviewItems.map((item, idx)=>(
 							<Card key={`overview_${item.key}_${idx}`} size='small' style={{ marginBottom: 8 }}>
 								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -4961,7 +4960,6 @@ class LiuRengMain extends Component{
 		const xiaojuMainItems = xiaojuAllItems.filter((item)=>!XIAO_JU_REFERENCE_TAB_KEYS.has(item.key));
 		const xiaojuReferenceItems = xiaojuAllItems.filter((item)=>XIAO_JU_REFERENCE_TAB_KEYS.has(item.key));
 		const overviewItems = Array.isArray(refBundle.overview) ? refBundle.overview : [];
-		const panelBodyHeight = Number.isFinite(height) ? Math.max(260, height - 126) : 'calc(100vh - 230px)';
 		const refSummary = [
 			refContext.courseName ? `课式：${refContext.courseName}` : '',
 			refContext.sanChuanText ? `三传：${refContext.sanChuanText}` : '',
@@ -5009,7 +5007,6 @@ class LiuRengMain extends Component{
 								xiaojuMainItems,
 								xiaojuReferenceItems,
 								overviewItems,
-								panelBodyHeight,
 							})}
 						</div>
 					</div>

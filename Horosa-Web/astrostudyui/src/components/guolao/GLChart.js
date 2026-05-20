@@ -52,11 +52,13 @@ class GLChart {
 	
 		this.svgTopgroup = this.svg.append('g');
 
+		const isCircleChart = SZConst.SZChart.shape === SZConst.SZChart_Circle;
 		let option = {
 			x: this.margin,
 			y: this.margin,
 			width: realW,
 			height: realH,
+			visualTopOffset: isCircleChart ? 54 : 0,
 			chartId: this.chartId,
 			owner: this.svgTopgroup,
 			chartObj: this.chartObj,
@@ -67,7 +69,7 @@ class GLChart {
 			onTipClick: this.onTipClick,
 		};
 
-		if(SZConst.SZChart.shape === SZConst.SZChart_Circle){
+		if(isCircleChart){
 			this.su28chart = new GuoLaoNatalChart(option);
 		}else{
 			this.su28chart = new GLSZSignChart(option);

@@ -28,6 +28,7 @@ class CnTraditionInput extends Component{
 		this.onChangeAdjustJieqi = this.onChangeAdjustJieqi.bind(this);
 
 		this.onOnlyZiganChange = this.onOnlyZiganChange.bind(this);
+		this.onUiModeChange = this.onUiModeChange.bind(this);
 
 	}
 
@@ -37,6 +38,16 @@ class CnTraditionInput extends Component{
 			...this.props.baziOpt,
 		};
 		opt.onlyZiGanShen = val;
+		if(this.props.onBaziOptChange){
+			this.props.onBaziOptChange(opt);
+		}
+	}
+
+	onUiModeChange(val){
+		let opt = {
+			...this.props.baziOpt,
+			uiMode: val,
+		};
 		if(this.props.onBaziOptChange){
 			this.props.onBaziOptChange(opt);
 		}
@@ -287,6 +298,7 @@ class CnTraditionInput extends Component{
 						</div>
 					</div>
 					<SpaceTimePanel
+						className="horosa-bazi-time-control"
 						fields={fields}
 						value={datetm}
 						onTimeChange={this.onTimeChanged}
@@ -340,6 +352,13 @@ class CnTraditionInput extends Component{
 					</div>
 					<div className="horosa-bazi-option-card">
 						<Checkbox checked={this.props.baziOpt.onlyZiGanShen} onChange={this.onOnlyZiganChange}>只显示地支藏干十神</Checkbox>
+					</div>
+					<div className="horosa-field-block">
+						<div className="horosa-field-label">界面样式</div>
+						<Select value={this.props.baziOpt.uiMode || 'modern'} onChange={this.onUiModeChange} size='small' style={{width:'100%'}}>
+							<Option value="modern">新星阙UI</Option>
+							<Option value="legacy">旧星阙UI</Option>
+						</Select>
 					</div>
 				</div>
 

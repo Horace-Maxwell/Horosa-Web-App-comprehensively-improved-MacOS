@@ -36,6 +36,8 @@ class Yao{
 		this.txtLen = 0;
 		this.txtSize = 0;
 		this.nameMargin = 10;
+		this.changeMarkWidth = this.showName ? 22 : 0;
+		this.changeNameGap = this.showName ? 10 : 0;
 		this.nameColor = AstroConst.AstroColor.Stroke;
 		this.changedNameColor = '#800080';
 		if(option.nameColor){
@@ -78,6 +80,7 @@ class Yao{
 		}
 		let txtColor = this.change ? this.changedNameColor : this.nameColor;
 		let w = this.yaoWidth;
+		let markerWidth = this.change ? this.changeMarkWidth : 0;
 		let nameW = this.txtLen-this.nameMargin;
 		let data = this.name.split('');
 		let last = data.length > 4 ? data[4] : null;
@@ -85,6 +88,9 @@ class Yao{
 			data = data.slice(0,4);
 		}
 		let txtx = this.x+w+this.nameMargin;
+		if(this.change){
+			txtx += markerWidth + this.changeNameGap;
+		}
 		let h = this.height;
 		if(h < this.fontSize){
 			h = this.fontSize;
@@ -102,10 +108,10 @@ class Yao{
 			txtx = this.x+w + this.txtMargin;
 			if(this.value === 1){
 				data = ['○'];
-				drawTextH(this.svg, data, txtx, txty, nameW/4, h, 0, txtColor);	
+				drawTextH(this.svg, data, txtx, txty, this.changeMarkWidth, h, 0, txtColor);
 			}else if(this.value === 0){
 				data = ['✕'];
-				drawTextH(this.svg, data, txtx, txty, nameW/4, h, 0, txtColor);
+				drawTextH(this.svg, data, txtx, txty, this.changeMarkWidth, h, 0, txtColor);
 			}
 		}
 	}

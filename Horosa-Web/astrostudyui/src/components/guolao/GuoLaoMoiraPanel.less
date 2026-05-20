@@ -1,6 +1,6 @@
 .horosa-guolao-moira {
 	height: 100%;
-	overflow: auto;
+	overflow: visible;
 	padding-right: 4px;
 	color: var(--horosa-text, #f0eee7);
 }
@@ -37,6 +37,17 @@
 	border-radius: 6px;
 	background: rgba(205, 154, 65, 0.08);
 	color: var(--horosa-text-soft, #c8c0b2);
+	font-size: 12px;
+	line-height: 20px;
+}
+
+.horosa-guolao-moira-note {
+	margin-top: 8px;
+	padding: 8px 10px;
+	border: 1px dashed var(--horosa-border-soft, rgba(231, 189, 117, 0.18));
+	border-radius: 6px;
+	color: var(--horosa-text-soft, #c8c0b2);
+	background: rgba(231, 189, 117, 0.045);
 	font-size: 12px;
 	line-height: 20px;
 }
@@ -91,9 +102,10 @@
 	display: block;
 	font-size: 13px;
 	color: var(--horosa-text, #f0eee7);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+	word-break: break-word;
 }
 
 .horosa-guolao-moira-anchor em,
@@ -181,8 +193,8 @@
 
 .horosa-guolao-moira-table-row {
 	display: grid;
-	grid-template-columns: 30px minmax(76px, 1.1fr) minmax(70px, 1fr) minmax(82px, 1fr);
-	gap: 7px;
+	grid-template-columns: 28px minmax(66px, 1fr) minmax(58px, 0.86fr) minmax(70px, 0.95fr);
+	gap: 6px;
 	align-items: center;
 	min-height: 28px;
 	padding: 6px 7px;
@@ -194,9 +206,10 @@
 
 .horosa-guolao-moira-table-row > * {
 	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: normal;
+	word-break: break-word;
 }
 
 .horosa-guolao-moira-table-row strong {
@@ -240,9 +253,10 @@
 	min-width: 0;
 	font-size: 13px;
 	color: var(--horosa-text, #f0eee7);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+	word-break: break-word;
 }
 
 .horosa-guolao-moira-house-list > div,

@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { Component, Fragment } from 'react';
 import { Spin, Divider, Tag, message } from 'antd';
 import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
@@ -127,6 +127,16 @@ const QIMEN_OPTIONS = {
 	shiftPalace: 0,
 	fengJu: false,
 };
+
+const SANSHI_QUICK_ACTIONS = [
+	{ key: 'overview', label: '概览', icon: 'sidePlanets', tab: 'overview' },
+	{ key: 'taiyi', label: '太乙', icon: 'quickPrimary', tab: 'taiyi' },
+	{ key: 'shensha', label: '神煞', icon: 'quickNote', tab: 'shensha' },
+	{ key: 'liureng', label: '六壬', icon: 'quickFirdaria', tab: 'liureng' },
+	{ key: 'bagong', label: '八宫', icon: 'sideHouses', tab: 'bagong' },
+	{ key: 'plot', label: '起盘', icon: 'quickTransit', action: 'plot' },
+	{ key: 'save', label: '保存', icon: 'quickReturn', action: 'save' },
+];
 
 const OUTER_RING_LAYOUT = [
 	{ branch: '巳', side: 'top', x0: 11.1, x1: 33.33, y0: 0, y1: 11.1 },
@@ -1457,6 +1467,7 @@ class SanShiUnitedMain extends Component{
 				taiyiAccum: 0,
 			},
 			leftBoardWidth: 0,
+			leftBoardHeight: 0,
 			viewportHeight: getViewportHeight(),
 			rightTopHeight: 0,
 			rightPanelHeight: 0,
@@ -1513,6 +1524,8 @@ class SanShiUnitedMain extends Component{
 		this.clickPlot = this.clickPlot.bind(this);
 		this.changeGeo = this.changeGeo.bind(this);
 		this.clickSave = this.clickSave.bind(this);
+		this.handleQuickAction = this.handleQuickAction.bind(this);
+		this.renderQuickDock = this.renderQuickDock.bind(this);
 		this.parseCasePayload = this.parseCasePayload.bind(this);
 		this.restoreOptionsFromCurrentCase = this.restoreOptionsFromCurrentCase.bind(this);
 		this.captureLeftBoardHost = this.captureLeftBoardHost.bind(this);
@@ -1529,6 +1542,49 @@ class SanShiUnitedMain extends Component{
 				this.handleExternalFieldsSync(fields, chartObj);
 			};
 		}
+	}
+
+	handleQuickAction(item){
+		if(!item){
+			return;
+		}
+		if(item.tab){
+			this.setState({ rightPanelTab: item.tab });
+			return;
+		}
+		if(item.action === 'plot'){
+			this.clickPlot();
+			return;
+		}
+		if(item.action === 'save'){
+			this.clickSave();
+		}
+	}
+
+	renderQuickDock(){
+		const rightPanelTab = this.state.rightPanelTab === 'status' ? 'overview' : this.state.rightPanelTab;
+		return (
+			<div className="horosa-bottom-quick-dock horosa-sanshi-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-sanshi-quick-actions">
+					{SANSHI_QUICK_ACTIONS.map((item)=>{
+						const active = item.tab && item.tab === rightPanelTab;
+						return (
+							<button
+								type="button"
+								key={item.key}
+								className={`horosa-bottom-quick-button horosa-sanshi-quick-button${active ? ' is-active' : ''}`}
+								onClick={()=>this.handleQuickAction(item)}
+								disabled={this.state.loading && item.action === 'plot'}
+							>
+								<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+								<span>{item.label}</span>
+							</button>
+						);
+					})}
+				</div>
+			</div>
+		);
 	}
 
 	async resolveDisplaySolarTime(params, primaryNongli){
@@ -1671,6 +1727,7 @@ class SanShiUnitedMain extends Component{
 	handleWindowResize(){
 		const viewportHeight = getViewportHeight();
 		const leftBoardWidth = this.leftBoardHost ? this.leftBoardHost.clientWidth : 0;
+		const leftBoardHeight = this.leftBoardHost ? this.leftBoardHost.clientHeight : 0;
 		const rightTopHeight = this.rightTopHost ? this.rightTopHost.clientHeight : 0;
 		const rightTop = this.rightPanelHost ? this.rightPanelHost.getBoundingClientRect().top : 0;
 		const fallbackPanelHeight = Math.max(420, viewportHeight - 120);
@@ -1678,12 +1735,14 @@ class SanShiUnitedMain extends Component{
 			? Math.max(220, viewportHeight - rightTop - 8)
 			: fallbackPanelHeight;
 		const changed = Math.abs((this.state.leftBoardWidth || 0) - leftBoardWidth) >= 2
+			|| Math.abs((this.state.leftBoardHeight || 0) - leftBoardHeight) >= 2
 			|| Math.abs((this.state.viewportHeight || 0) - viewportHeight) >= 2
 			|| Math.abs((this.state.rightTopHeight || 0) - rightTopHeight) >= 2
 			|| Math.abs((this.state.rightPanelHeight || 0) - rightPanelHeight) >= 2;
 		if(changed){
 			this.setState({
 				leftBoardWidth,
+				leftBoardHeight,
 				viewportHeight,
 				rightTopHeight,
 				rightPanelHeight,
@@ -2774,8 +2833,9 @@ class SanShiUnitedMain extends Component{
 	calcBoardSize(height){
 		const viewH = this.state.viewportHeight || 900;
 		const baseH = typeof height === 'number' ? height : viewH - 20;
-		// 高度优先：先保证不超出可视区，再按宽度做二次约束。
-		const hCap = Math.max(SANSHI_BOARD_MIN, Math.min(viewH - 320, baseH - 300));
+		const hostH = this.state.leftBoardHeight > 0 ? this.state.leftBoardHeight : baseH;
+		// 三式方盘必须完整留在中间栏内：顶部历法栏、底部旬空栏和间距先扣掉，再按宽度二次约束。
+		const hCap = Math.max(SANSHI_BOARD_MIN, Math.min(viewH - 340, baseH - 318, hostH - 318));
 		const wCap = this.state.leftBoardWidth > 0 ? (this.state.leftBoardWidth - 8) : SANSHI_BOARD_MAX;
 		let target = hCap;
 		if(Number.isFinite(wCap) && wCap > 0){
@@ -2933,6 +2993,7 @@ class SanShiUnitedMain extends Component{
 					{wrapWithMeaning(
 						<span
 							className={`${styles.outerLabel} ${styles.outerHouse}`}
+							data-meaning-placement="top"
 							style={{
 								fontSize: houseFont,
 								lineHeight: `${houseFont}px`,
@@ -2947,6 +3008,7 @@ class SanShiUnitedMain extends Component{
 					{wrapWithMeaning(
 						<span
 							className={`${styles.outerLabel} ${styles.outerBranch}`}
+							data-meaning-placement="top"
 							style={{
 								fontSize: branchFont,
 								lineHeight: `${branchFont}px`,
@@ -2980,6 +3042,7 @@ class SanShiUnitedMain extends Component{
 															{wrapWithMeaning(
 																<span
 																	className={styles.outerStarItem}
+																	data-meaning-placement="top"
 																	style={{ fontSize: starFont, lineHeight: `${Math.round(starFont * 1.12)}px` }}
 																>
 																	{safe(star.shortTxt, '')}
@@ -3045,10 +3108,11 @@ class SanShiUnitedMain extends Component{
 				const godLeft = `${leftNum - (ux * innerShift)}%`;
 				const godTop = `${topNum - (uy * innerShift)}%`;
 				return [
-					<span key={`lr_zi_wrap_${branch}_${idx}`}>
+					<Fragment key={`lr_zi_wrap_${branch}_${idx}`}>
 						{wrapWithMeaning(
 							<div
 								className={`${styles.lrMark} ${styles.lrMarkZiItem}`}
+								data-meaning-placement="top"
 								style={{
 									left: ziLeft,
 									top: ziTop,
@@ -3062,11 +3126,12 @@ class SanShiUnitedMain extends Component{
 							showMeaning,
 							shenTip
 						)}
-					</span>,
-					<span key={`lr_god_wrap_${branch}_${idx}`}>
+					</Fragment>,
+					<Fragment key={`lr_god_wrap_${branch}_${idx}`}>
 						{wrapWithMeaning(
 							<div
 								className={`${styles.lrMark} ${styles.lrMarkGodItem}`}
+								data-meaning-placement="top"
 								style={{
 									left: godLeft,
 									top: godTop,
@@ -3080,7 +3145,7 @@ class SanShiUnitedMain extends Component{
 							showMeaning,
 							jiangTip
 						)}
-					</span>,
+					</Fragment>,
 				];
 			}
 			const leftNum = parseFloat(`${pos.left}`) || 50;
@@ -3107,10 +3172,11 @@ class SanShiUnitedMain extends Component{
 			const ziTransform = `translate(calc(-50% + ${ziShiftX}px), calc(-50% + ${ziShiftY}px))`;
 			const godTransform = `translate(calc(-50% + ${godShiftX}px), calc(-50% + ${godShiftY}px))`;
 			return [
-				<span key={`lr_zi_wrap_${branch}_${idx}`}>
+				<Fragment key={`lr_zi_wrap_${branch}_${idx}`}>
 					{wrapWithMeaning(
 						<div
 							className={`${styles.lrMark} ${styles.lrMarkZiItem}`}
+							data-meaning-placement="top"
 							style={{
 								left: pos.left,
 								top: pos.top,
@@ -3124,11 +3190,12 @@ class SanShiUnitedMain extends Component{
 						showMeaning,
 						shenTip
 					)}
-				</span>,
-				<span key={`lr_god_wrap_${branch}_${idx}`}>
+				</Fragment>,
+				<Fragment key={`lr_god_wrap_${branch}_${idx}`}>
 					{wrapWithMeaning(
 						<div
 							className={`${styles.lrMark} ${styles.lrMarkGodItem}`}
+							data-meaning-placement="top"
 							style={{
 								left: pos.left,
 								top: pos.top,
@@ -3142,7 +3209,7 @@ class SanShiUnitedMain extends Component{
 						showMeaning,
 						jiangTip
 					)}
-				</span>,
+				</Fragment>,
 			];
 		});
 	}
@@ -3177,32 +3244,36 @@ class SanShiUnitedMain extends Component{
 			>
 				<div className={styles.qmRingCell} />
 				{wrapWithMeaning(
-					<div className={styles.qmTianGan} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.tianGan, ' ')}</div>,
+					<div className={styles.qmTianGan} data-meaning-placement="top" style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.tianGan, ' ')}</div>,
 					showMeaning,
 					tianGanTip
 				)}
 				{wrapWithMeaning(
-					<div className={styles.qmGod} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.god, ' ')}</div>,
+					<div className={styles.qmGod} data-meaning-placement="top" style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.god, ' ')}</div>,
 					showMeaning,
 					godTip
 				)}
 				{wrapWithMeaning(
-					<div className={styles.qmDiGan} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.diGan, ' ')}</div>,
+					<div className={styles.qmDiGan} data-meaning-placement="top" style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.diGan, ' ')}</div>,
 					showMeaning,
 					diGanTip
 				)}
 				{wrapWithMeaning(
-					<div className={styles.qmStar} style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.tianXing, ' ')}</div>,
+					<div className={styles.qmStar} data-meaning-placement="top" style={{ fontSize: qimenFont, lineHeight: `${qimenFont}px` }}>{safe(cell.tianXing, ' ')}</div>,
 					showMeaning,
 					starTip
 				)}
-				<div className={styles.qmDoorBox} style={{ width: doorSize, height: doorSize, borderWidth: doorBorder }}>
-					{wrapWithMeaning(
-						<div className={styles.qmDoor} style={{ fontSize: doorFont, lineHeight: `${doorFont}px` }}>{safe(cell.door, ' ')}</div>,
-						showMeaning,
-						doorTip
-					)}
-				</div>
+				{wrapWithMeaning(
+					<div
+						className={styles.qmDoorBox}
+						data-meaning-placement="top"
+						style={{ width: doorSize, height: doorSize, borderWidth: doorBorder }}
+					>
+						<div className={styles.qmDoor} style={{ fontSize: doorFont, lineHeight: `${doorFont}px` }}>{safe(cell.door, ' ')}</div>
+					</div>,
+					showMeaning,
+					doorTip
+				)}
 			</div>
 		);
 	}
@@ -3281,12 +3352,12 @@ class SanShiUnitedMain extends Component{
 					{keCols.map((col, idx)=>(
 						<div key={`ke_col_${idx}`} className={styles.centerKeCol} style={{ height: sectionH }}>
 							{wrapWithMeaning(
-								<div className={styles.centerKeGray}>{col.god}</div>,
+								<div className={styles.centerKeGray} data-meaning-placement="top">{col.god}</div>,
 								showMeaning,
 								col.jiangTip
 							)}
 							{wrapWithMeaning(
-								<div className={styles.centerKeMain}>{col.main1}</div>,
+								<div className={styles.centerKeMain} data-meaning-placement="top">{col.main1}</div>,
 								showMeaning,
 								col.shenTip
 							)}
@@ -3307,12 +3378,12 @@ class SanShiUnitedMain extends Component{
 						<div key={`chuan_row_${idx}`} className={styles.centerChuanRow}>
 							<span className={styles.centerChuanGray}>{row.gan || ''}</span>
 							{wrapWithMeaning(
-								<span className={styles.centerChuanMain}>{row.zhi}</span>,
+								<span className={styles.centerChuanMain} data-meaning-placement="top">{row.zhi}</span>,
 								showMeaning,
 								row.shenTip
 							)}
 							{wrapWithMeaning(
-								<span className={styles.centerChuanGray}>{row.god}</span>,
+								<span className={styles.centerChuanGray} data-meaning-placement="top">{row.god}</span>,
 								showMeaning,
 								row.jiangTip
 							)}
@@ -3439,7 +3510,7 @@ class SanShiUnitedMain extends Component{
 		}
 		const boardSize = this.calcBoardSize(height);
 		return (
-			<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+			<div className={styles.boardStack}>
 				{this.renderTop(boardSize)}
 				{this.renderMiddle(boardSize)}
 				{this.renderBottom(boardSize)}
@@ -3569,7 +3640,7 @@ class SanShiUnitedMain extends Component{
 			}
 		}
 		return (
-			<div ref={this.captureRightPanel} style={{ display: 'flex', flexDirection: 'column', height: panelHeight, overflow: 'hidden' }}>
+			<div ref={this.captureRightPanel} className="horosa-sanshi-right-shell" style={{ display: 'flex', flexDirection: 'column', height: panelHeight, overflow: 'hidden' }}>
 				<div ref={this.captureRightTop} style={{ display: 'none', paddingBottom: 6, borderBottom: '1px solid var(--horosa-border, #f0f0f0)' }}>
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<div>
@@ -3705,10 +3776,11 @@ class SanShiUnitedMain extends Component{
 					onChange={(key)=>this.setState({ rightPanelTab: key })}
 					destroyInactiveTabPane
 					animated={false}
+					className="horosa-sanshi-right-tabs"
 					style={{ marginTop: 8, flex: 1, minHeight: 0, overflow: 'hidden' }}
 				>
 					<TabPane tab="概览" key="overview">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ lineHeight: '26px' }}>
 								<div>局数：{pan ? pan.juText : '—'}</div>
 								<div>旬首：{pan ? pan.xunShou : '—'}</div>
@@ -3727,7 +3799,7 @@ class SanShiUnitedMain extends Component{
 						</Card>
 					</TabPane>
 					<TabPane tab="太乙" key="taiyi">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ lineHeight: '24px' }}>
 								{this.state.taiyi ? (
 									<>
@@ -3764,7 +3836,7 @@ class SanShiUnitedMain extends Component{
 						</Card>
 					</TabPane>
 					<TabPane tab="神煞" key="shensha">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 14, rowGap: 6, lineHeight: '24px' }}>
 								{pan && pan.shenSha && pan.shenSha.allItems && pan.shenSha.allItems.length
 									? pan.shenSha.allItems.map((item)=>(<div key={`ss_item_${item.name}`}><span style={{ color: 'var(--horosa-text, #262626)' }}>{item.name}-</span><span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>{item.value}</span></div>))
@@ -3773,15 +3845,16 @@ class SanShiUnitedMain extends Component{
 						</Card>
 					</TabPane>
 					<TabPane tab="六壬" key="liureng">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<Tabs
 								activeKey={this.state.liurengRefTab}
 								onChange={(key)=>this.setState({ liurengRefTab: key })}
 								destroyInactiveTabPane
 								animated={false}
+								className="horosa-sanshi-liureng-tabs"
 							>
 								<TabPane tab="大格" key="dage">
-									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+									<div style={{ paddingRight: 4 }}>
 										{refSummary ? (
 											<Card size='small' style={{ marginBottom: 8 }}>
 												<div style={{ color: 'var(--horosa-text-soft, #595959)' }}>{refSummary}</div>
@@ -3806,7 +3879,7 @@ class SanShiUnitedMain extends Component{
 									</div>
 								</TabPane>
 								<TabPane tab="小局" key="xiaoju">
-									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+									<div style={{ paddingRight: 4 }}>
 										{xiaojuMainItems.length ? xiaojuMainItems.map((item)=>(
 											<Card key={`ssu_lr_xiaoju_${item.key}`} size='small' style={{ marginBottom: 8 }}>
 												<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -3826,7 +3899,7 @@ class SanShiUnitedMain extends Component{
 									</div>
 								</TabPane>
 								<TabPane tab="参考" key="reference">
-									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+									<div style={{ paddingRight: 4 }}>
 										{xiaojuReferenceItems.length ? xiaojuReferenceItems.map((item)=>(
 											<Card key={`ssu_lr_ref_${item.key}`} size='small' style={{ marginBottom: 8 }}>
 												<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -3846,7 +3919,7 @@ class SanShiUnitedMain extends Component{
 									</div>
 								</TabPane>
 								<TabPane tab="概览" key="overview">
-									<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+									<div style={{ paddingRight: 4 }}>
 										{overviewItems.length ? overviewItems.map((item, idx)=>(
 											<Card key={`ssu_lr_overview_${item.key}_${idx}`} size='small' style={{ marginBottom: 8 }}>
 												<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -3871,8 +3944,8 @@ class SanShiUnitedMain extends Component{
 						</Card>
 					</TabPane>
 					<TabPane tab="八宫" key="bagong">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: tabBodyHeight, overflowY: 'auto' }}>
-							<div style={{ maxHeight: nestedTabBodyHeight, overflowY: 'auto', paddingRight: 4 }}>
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
+							<div style={{ paddingRight: 4 }}>
 								<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
 									{BAGONG_PALACE_ORDER.map((num)=>(
 										<Button
@@ -3961,14 +4034,11 @@ class SanShiUnitedMain extends Component{
 	}
 
 	render(){
-		let height = this.props.height ? this.props.height : 760;
-		if(height === '100%'){
-			height = 760;
-		}else{
-			height = height - 20;
-		}
+		const height = this.state.leftBoardHeight > 0
+			? this.state.leftBoardHeight
+			: Math.max(760, (this.state.viewportHeight || 900) - 108);
 		return (
-			<div className={`${styles.root} horosa-sanshi-page horosa-astro-redesign horosa-sanshi-redesign`} style={{ minHeight: height }}>
+			<div className={`${styles.root} horosa-sanshi-page horosa-astro-redesign horosa-sanshi-redesign`} style={{ height: '100%', minHeight: 0 }}>
 				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-sanshi-redesign-layout">
 					<Spin spinning={this.state.loading}>
 						<div className="horosa-astro-redesign-grid horosa-sanshi-redesign-grid">
@@ -3985,14 +4055,7 @@ class SanShiUnitedMain extends Component{
 							</div>
 						</div>
 					</Spin>
-					<div className="horosa-bottom-quick-dock horosa-sanshi-quick-dock">
-						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-						<div className="horosa-bottom-quick-actions horosa-sanshi-quick-placeholders">
-							{Array.from({length: 8}).map((_, idx)=>(
-								<div className="horosa-bottom-quick-placeholder" key={idx} />
-							))}
-						</div>
-					</div>
+					{this.renderQuickDock()}
 				</div>
 			</div>
 		);

@@ -1562,10 +1562,10 @@ export class JieQiChartsMain extends Component{
 		}
 
 		return (
-			<div id={this.state.divid}>
+			<div id={this.state.divid} className="horosa-jieqi-page">
 				{
 					showInput && (
-					<Row gutter={6}>
+					<Row className="horosa-jieqi-toolbar" gutter={6} align="middle">
 						<Col span={8}>
 							<DateTimeSelector
 								value={this.state.time}

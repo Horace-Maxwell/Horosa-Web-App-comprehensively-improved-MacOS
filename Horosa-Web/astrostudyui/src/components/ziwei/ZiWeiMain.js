@@ -221,6 +221,10 @@ class ZiWeiMain extends Component{
 		this.onTipClick = this.onTipClick.bind(this);
 		this.openCenterInfo = this.openCenterInfo.bind(this);
 		this.closeCenterInfo = this.closeCenterInfo.bind(this);
+		this.openDrawer = this.openDrawer.bind(this);
+		this.navigateFeature = this.navigateFeature.bind(this);
+		this.navigateDirectionTool = this.navigateDirectionTool.bind(this);
+		this.renderBottomQuickDock = this.renderBottomQuickDock.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields)=>{
@@ -407,6 +411,72 @@ class ZiWeiMain extends Component{
 		});
 	}
 
+	openDrawer(key){
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'astro/openDrawer',
+				payload: {
+					key,
+				},
+			});
+		}
+	}
+
+	navigateFeature(key){
+		if(this.props.onNavigate){
+			this.props.onNavigate(key);
+			return;
+		}
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'astro/save',
+				payload: {
+					currentTab: key,
+				},
+			});
+		}
+	}
+
+	navigateDirectionTool(subTab){
+		if(this.props.dispatch){
+			this.props.dispatch({
+				type: 'astro/save',
+				payload: {
+					currentTab: 'direction',
+					currentSubTab: subTab,
+				},
+			});
+			return;
+		}
+		this.navigateFeature('direction');
+	}
+
+	renderBottomQuickDock(){
+		const actions = [
+			{ label: '主限', icon: 'quickPrimary', onClick: ()=>this.navigateDirectionTool('primarydirect') },
+			{ label: '法达', icon: 'quickFirdaria', onClick: ()=>this.navigateDirectionTool('firdaria') },
+			{ label: '小限', icon: 'quickProfection', onClick: ()=>this.navigateDirectionTool('profection') },
+			{ label: '返照', icon: 'quickReturn', onClick: ()=>this.navigateDirectionTool('solarreturn') },
+			{ label: '合盘', icon: 'quickComposite', onClick: ()=>this.navigateFeature('relativechart') },
+			{ label: '星运', icon: 'quickTransit', onClick: ()=>this.navigateFeature('direction') },
+			{ label: '笔记', icon: 'quickNote', onClick: ()=>this.openDrawer('memo') },
+			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
+		];
+		return (
+			<div className="horosa-bottom-quick-dock horosa-ziwei-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-ziwei-quick-actions">
+					{actions.map((item)=>(
+						<button type="button" key={item.label} className="horosa-bottom-quick-button" onClick={item.onClick}>
+							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
 	renderZiWeiInfoPanel(infoData){
 		if(!infoData || infoData.rows.length === 0){
 			return <div className="horosa-empty-hint">起盘后显示命盘信息</div>;
@@ -490,9 +560,10 @@ class ZiWeiMain extends Component{
 							/>
 						</div>
 						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-ziwei-chart-panel xq-chart-renderer xq-chart-renderer-ziwei">
-							<ZiWeiChart
-								value={chart}
-									height={height}
+							<div className="horosa-ziwei-chart-viewport">
+								<ZiWeiChart
+									value={chart}
+									height="100%"
 									fields={this.props.fields}
 									dirIndex={dirIndex}
 									indicate={this.indicate}
@@ -501,15 +572,16 @@ class ZiWeiMain extends Component{
 									onCenterInfoClick={this.openCenterInfo}
 								/>
 							</div>
-							<div className="horosa-inspector-panel horosa-astro-content-panel horosa-ziwei-info-panel">
-								<Tabs defaultActiveKey="info" tabPosition='top' className="horosa-content-tabs horosa-ziwei-tabs">
-									<TabPane tab="命盘" key="info">
-										{this.renderZiWeiInfoPanel(infoData)}
-									</TabPane>
-									<TabPane tab="行运" key="1">
-										<div className="horosa-ziwei-direction-list">
-											<Row>
-												{doms}
+						</div>
+						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-ziwei-info-panel">
+							<Tabs defaultActiveKey="info" tabPosition='top' className="horosa-content-tabs horosa-ziwei-tabs">
+								<TabPane tab="命盘" key="info">
+									{this.renderZiWeiInfoPanel(infoData)}
+								</TabPane>
+								<TabPane tab="行运" key="1">
+									<div className="horosa-ziwei-direction-list">
+										<Row>
+											{doms}
 										</Row>
 									</div>
 								</TabPane>
@@ -525,14 +597,7 @@ class ZiWeiMain extends Component{
 								</Tabs>
 							</div>
 						</div>
-						<div className="horosa-bottom-quick-dock horosa-ziwei-quick-dock">
-							<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-							<div className="horosa-bottom-quick-actions horosa-ziwei-quick-placeholders">
-								{Array.from({length: 8}).map((_, idx)=>(
-									<div className="horosa-bottom-quick-placeholder" key={idx} />
-								))}
-							</div>
-						</div>
+						{this.renderBottomQuickDock()}
 						<Modal
 							open={this.state.centerInfoVisible}
 							title="命盘信息"

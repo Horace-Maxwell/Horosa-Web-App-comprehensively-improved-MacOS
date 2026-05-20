@@ -1,6 +1,6 @@
 import { Component } from 'react';
 import { Spin } from 'antd';
-import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
+import { XQButton as Button, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { fetchPreciseNongli } from '../../utils/preciseCalcBridge';
 import { setNongliLocalCache } from '../../utils/localCalcCache';
@@ -46,6 +46,7 @@ class TaiYiMain extends Component {
 				sex: '男',
 				rotation: '固定',
 			},
+			rightPanelTab: 'overview',
 		};
 
 		this.unmounted = false;
@@ -60,6 +61,8 @@ class TaiYiMain extends Component {
 		this.requestNongli = this.requestNongli.bind(this);
 		this.genParams = this.genParams.bind(this);
 		this.recalc = this.recalc.bind(this);
+		this.setRightPanelTab = this.setRightPanelTab.bind(this);
+		this.navigateFeature = this.navigateFeature.bind(this);
 
 		if (this.props.hook) {
 			this.props.hook.fun = (fields) => {
@@ -193,6 +196,27 @@ class TaiYiMain extends Component {
 		});
 	}
 
+	setRightPanelTab(key) {
+		this.setState({
+			rightPanelTab: key,
+		});
+	}
+
+	navigateFeature(tabKey, subTab) {
+		if (this.props.dispatch) {
+			const payload = {
+				currentTab: tabKey,
+			};
+			if (subTab) {
+				payload.currentSubTab = subTab;
+			}
+			this.props.dispatch({
+				type: 'astro/save',
+				payload,
+			});
+		}
+	}
+
 	async requestNongli(fields) {
 		const params = this.genParams(fields);
 		if(!params){
@@ -242,7 +266,7 @@ class TaiYiMain extends Component {
 	renderLeft() {
 		const pan = this.state.pan;
 		if (!pan) {
-			return <Card bordered={false}>暂无太乙盘数据</Card>;
+			return <div className="horosa-taiyi-empty horosa-taiyi-board-empty">暂无太乙盘数据</div>;
 		}
 		const width = 860;
 		const height = 720;
@@ -280,12 +304,13 @@ class TaiYiMain extends Component {
 			`太乙数:${pan.taiyiNum}`,
 		];
 		return (
-			<div>
-				<Card bordered={false}>
-					<div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+			<div className="horosa-taiyi-board-canvas">
+					<div className="horosa-taiyi-board-svg-wrap">
 						<svg
+							className="horosa-taiyi-board-svg"
 							viewBox={`0 0 ${width} ${height}`}
-							style={{ width: '100%', maxWidth: 860, background: 'transparent', textRendering: 'geometricPrecision' }}
+							preserveAspectRatio="xMidYMid meet"
+							style={{ background: 'transparent', textRendering: 'geometricPrecision' }}
 						>
 							<circle cx={centerX} cy={centerY} r={r0} fill="none" stroke={stroke} strokeWidth="2.5" />
 							<circle cx={centerX} cy={centerY} r={r1} fill="none" stroke={stroke} strokeWidth="2" />
@@ -482,7 +507,6 @@ class TaiYiMain extends Component {
 							})}
 						</svg>
 					</div>
-				</Card>
 			</div>
 		);
 	}
@@ -620,7 +644,7 @@ class TaiYiMain extends Component {
 		const pan = this.state.pan;
 		const snapshot = pan ? buildTaiyiSnapshotText(pan) : '暂无太乙盘数据';
 		return (
-			<Tabs defaultActiveKey="overview" tabPosition="top" className="horosa-taiyi-tabs">
+			<Tabs activeKey={this.state.rightPanelTab} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-taiyi-tabs">
 				<TabPane tab="概览" key="overview">
 					<div className="horosa-taiyi-info-card">
 						{this.renderInfoRows()}
@@ -635,6 +659,37 @@ class TaiYiMain extends Component {
 					<pre className="horosa-taiyi-snapshot">{snapshot}</pre>
 				</TabPane>
 			</Tabs>
+		);
+	}
+
+	renderBottomQuickDock() {
+		const actions = [
+			{ label: '起盘', icon: 'quickPrimary', onClick: this.clickPlot },
+			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: () => this.setRightPanelTab('overview') },
+			{ label: '十六宫', icon: 'quickTransit', active: this.state.rightPanelTab === 'palaces', onClick: () => this.setRightPanelTab('palaces') },
+			{ label: '快照', icon: 'quickNote', active: this.state.rightPanelTab === 'snapshot', onClick: () => this.setRightPanelTab('snapshot') },
+			{ label: '六爻', icon: 'quickFirdaria', onClick: () => this.navigateFeature('guazhan') },
+			{ label: '遁甲', icon: 'quickProfection', onClick: () => this.navigateFeature('dunjia') },
+			{ label: '宿盘', icon: 'quickReturn', onClick: () => this.navigateFeature('cnyibu', 'suzhan') },
+			{ label: 'AI助手', icon: 'quickAi', onClick: () => this.navigateFeature('aianalysis') },
+		];
+		return (
+			<div className="horosa-bottom-quick-dock horosa-taiyi-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-taiyi-quick-actions">
+					{actions.map((item) => (
+						<button
+							type="button"
+							key={item.label}
+							className={`horosa-bottom-quick-button horosa-taiyi-quick-button${item.active ? ' is-active' : ''}`}
+							onClick={item.onClick}
+						>
+							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			</div>
 		);
 	}
 
@@ -669,14 +724,7 @@ class TaiYiMain extends Component {
 							</div>
 						</div>
 					</Spin>
-					<div className="horosa-bottom-quick-dock horosa-taiyi-quick-dock">
-						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-						<div className="horosa-bottom-quick-actions horosa-taiyi-quick-placeholders">
-							{Array.from({ length: 8 }).map((_, idx) => (
-								<div className="horosa-bottom-quick-placeholder" key={idx} />
-							))}
-						</div>
-					</div>
+					{this.renderBottomQuickDock()}
 				</div>
 			</div>
 		);

@@ -109,6 +109,29 @@ const navigationPages = [
     { label: '辅助', key: 'cntradition', icon: 'support', group: '工具' },
 ];
 
+const fullHeightWorkspaceTabs = new Set([
+    'astrochart',
+    'direction',
+    'bazi',
+    'ziwei',
+    'guolao',
+    'indiachart',
+    'auxchart',
+    'relativechart',
+    'sanshiunited',
+    'liureng',
+    'dunjia',
+    'guazhan',
+    'taiyi',
+    'jieqichart',
+    'fengshui',
+    'cnyibu',
+    'aianalysis',
+    'astrochart3D',
+    'calendar',
+    'cntradition',
+]);
+
 function mainTab(label, group, options = {}){
     const icon = mainTabIcons[label] || <XQIcon name="astro" />;
     return (
@@ -316,8 +339,8 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
         admin ? [{ label: '管理工具', key: 'admintools', icon: 'admin', group: '管理' }] : []
     );
 
-    const isFullHeightWorkspaceTab = currentTab === 'astrochart' || currentTab === 'bazi' || currentTab === 'guolao';
-    const rootTabsHeight = isFullHeightWorkspaceTab ? 'calc(100vh - 74px)' : height;
+    const isFullHeightWorkspaceTab = fullHeightWorkspaceTabs.has(currentTab);
+    const rootTabsHeight = isFullHeightWorkspaceTab ? 'calc(100vh - 72px)' : height;
 
 	return (
 		<div style={idxstyle}>
@@ -325,7 +348,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             <XQTabs
                 defaultActiveKey="astrochart" tabPosition='left' onChange={changeTab}
                 activeKey={currentTab}
-                className={`mainRootTabs horosa-nav-in-drawer horosa-unified-shell-active${isFullHeightWorkspaceTab ? ' horosa-astro-shell-active' : ''}${currentTab === 'bazi' ? ' horosa-bazi-shell-active' : ''}`}
+                className={`mainRootTabs horosa-nav-in-drawer horosa-unified-shell-active${isFullHeightWorkspaceTab ? ' horosa-astro-shell-active' : ''}${currentTab === 'bazi' ? ' horosa-bazi-shell-active' : ''}${currentTab === 'dunjia' ? ' horosa-dunjia-shell-active' : ''}${currentTab === 'sanshiunited' ? ' horosa-sanshi-shell-active' : ''}`}
                 style={{ height: rootTabsHeight }}
             >
                 <TabPane tab={mainTab('占星', '命')} key="astrochart">
