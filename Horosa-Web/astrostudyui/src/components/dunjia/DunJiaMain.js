@@ -75,9 +75,18 @@ const DEFAULT_OPTIONS = {
 
 const DUNJIA_BOARD_BASE_WIDTH = 662;
 const DUNJIA_BOARD_BASE_HEIGHT = 870;
-const DUNJIA_SCALE_MIN = 0.64;
-const DUNJIA_SCALE_MAX = 1.22;
+const DUNJIA_SCALE_MIN = 0.58;
+const DUNJIA_SCALE_MAX = 1.18;
 const QIMEN_PATTERN_INTERPRETATION_STORAGE_KEY = 'qimenShowPatternInterpretation';
+let lastDunJiaLiveState = null;
+const DUNJIA_LEGEND_ITEMS = [
+	{ key: 'jixing', label: '击刑', color: '#cf1322', bg: 'rgba(207, 19, 34, 0.10)' },
+	{ key: 'rumu', label: '入墓', color: '#8b5e3c', bg: 'rgba(139, 94, 60, 0.12)' },
+	{ key: 'both', label: '击刑+入墓', color: '#722ed1', bg: 'rgba(114, 46, 209, 0.10)' },
+	{ key: 'menpo', label: '门迫', color: '#fa8c16', bg: 'rgba(250, 140, 22, 0.12)' },
+	{ key: 'kongwang', label: '空亡', color: '#2f54eb', bg: 'rgba(47, 84, 235, 0.10)' },
+	{ key: 'yima', label: '🐎 驿马', color: 'var(--horosa-text, #262626)', bg: 'rgba(140, 140, 140, 0.10)' },
+];
 
 function clamp(val, min, max){
 	return Math.max(min, Math.min(max, val));
@@ -330,6 +339,32 @@ function needJieqiYearSeed(options){
 	return opt.paiPanType === 3 && opt.qijuMethod === 'zhirun';
 }
 
+function rememberDunJiaLiveState(payload){
+	if(!payload || !payload.pan){
+		return;
+	}
+	lastDunJiaLiveState = {
+		fieldKey: payload.fieldKey || '',
+		lastNongliKey: payload.lastNongliKey || '',
+		lastPanSignature: payload.lastPanSignature || '',
+		nongli: payload.nongli || null,
+		displaySolarTime: payload.displaySolarTime || '',
+		pan: payload.pan,
+		options: payload.options ? { ...payload.options } : null,
+	};
+}
+
+function getRestorableDunJiaLiveState(fields){
+	if(!lastDunJiaLiveState || !lastDunJiaLiveState.pan){
+		return null;
+	}
+	const fieldKey = getFieldKey(fields);
+	if(lastDunJiaLiveState.fieldKey && fieldKey && lastDunJiaLiveState.fieldKey !== fieldKey){
+		return null;
+	}
+	return lastDunJiaLiveState;
+}
+
 function extractIsDiurnalFromChartProp(val){
 	if(!val){
 		return null;
@@ -344,22 +379,25 @@ function extractIsDiurnalFromChartProp(val){
 class DunJiaMain extends Component {
 	constructor(props){
 		super(props);
+		const restoredLiveState = getRestorableDunJiaLiveState(props.fields);
+		const initialOptions = restoredLiveState && restoredLiveState.options
+			? { ...DEFAULT_OPTIONS, ...restoredLiveState.options }
+			: { ...DEFAULT_OPTIONS };
 
 		this.state = {
 			loading: false,
-			nongli: null,
-			displaySolarTime: '',
-			pan: null,
+			nongli: restoredLiveState ? restoredLiveState.nongli : null,
+			displaySolarTime: restoredLiveState ? restoredLiveState.displaySolarTime : '',
+			pan: restoredLiveState ? restoredLiveState.pan : null,
 			localFields: null,
-			hasPlotted: false,
+			hasPlotted: !!(restoredLiveState && restoredLiveState.pan),
 			rightPanelTab: 'overview',
 			bagongPalace: BAGONG_PALACE_ORDER[0],
 			showPatternInterpretation: loadPatternInterpretationPreference(),
 			leftBoardWidth: 0,
+			leftBoardHeight: 0,
 			viewportHeight: getViewportHeight(),
-			options: {
-				...DEFAULT_OPTIONS,
-			},
+			options: initialOptions,
 		};
 
 		this.unmounted = false;
@@ -367,8 +405,8 @@ class DunJiaMain extends Component {
 		this.jieqiYearSeeds = {};
 		this.lastRestoredCaseId = null;
 		this.timeHook = {};
-		this.lastNongliKey = '';
-		this.lastPanSignature = '';
+		this.lastNongliKey = restoredLiveState ? restoredLiveState.lastNongliKey : '';
+		this.lastPanSignature = restoredLiveState ? restoredLiveState.lastPanSignature : '';
 		this.pendingNongli = null;
 		this.requestSeq = 0;
 		this.panCache = new Map();
@@ -503,11 +541,14 @@ class DunJiaMain extends Component {
 	handleWindowResize(){
 		const viewportHeight = getViewportHeight();
 		const leftBoardWidth = this.leftBoardHost ? this.leftBoardHost.clientWidth : 0;
+		const leftBoardHeight = this.leftBoardHost ? this.leftBoardHost.clientHeight : 0;
 		const changed = Math.abs((this.state.leftBoardWidth || 0) - leftBoardWidth) >= 2
+			|| Math.abs((this.state.leftBoardHeight || 0) - leftBoardHeight) >= 2
 			|| Math.abs((this.state.viewportHeight || 0) - viewportHeight) >= 2;
 		if(changed){
 			this.setState({
 				leftBoardWidth,
+				leftBoardHeight,
 				viewportHeight,
 			});
 		}
@@ -516,12 +557,11 @@ class DunJiaMain extends Component {
 	calcBoardScale(){
 		const viewH = this.state.viewportHeight || 900;
 		const availW = this.state.leftBoardWidth > 0 ? (this.state.leftBoardWidth - 22) : DUNJIA_BOARD_BASE_WIDTH;
+		const availH = this.state.leftBoardHeight > 0 ? (this.state.leftBoardHeight - 12) : (viewH - 96);
 		const widthScale = availW / DUNJIA_BOARD_BASE_WIDTH;
-		// 高度优先：先按可视高度给出主缩放，再用宽度做上限约束。
-		let rawScale = (viewH - 230) / DUNJIA_BOARD_BASE_HEIGHT;
-		if(Number.isFinite(widthScale) && widthScale > 0){
-			rawScale = Math.min(rawScale, widthScale);
-		}
+		const heightScale = availH / DUNJIA_BOARD_BASE_HEIGHT;
+		// 遁甲盘直接铺在中心栏里，缩放以实际容器高宽为准，不再预留旧卡片外框空间。
+		let rawScale = Math.min(widthScale, heightScale);
 		if(!Number.isFinite(rawScale) || rawScale <= 0){
 			return 1;
 		}
@@ -782,6 +822,15 @@ class DunJiaMain extends Component {
 		this.lastPanSignature = panSignature;
 		this.setState({ pan, displaySolarTime: displaySolar }, ()=>{
 			if(pan){
+				rememberDunJiaLiveState({
+					fieldKey: getFieldKey(flds),
+					lastNongliKey: this.lastNongliKey,
+					lastPanSignature: this.lastPanSignature,
+					nongli: nongli || this.state.nongli,
+					displaySolarTime: displaySolar,
+					pan,
+					options: fixedOptions,
+				});
 				const snapshotText = saveQimenLiveSnapshot(pan);
 				if(snapshotText){
 					saveModuleAISnapshot('qimen', snapshotText);
@@ -1004,9 +1053,19 @@ class DunJiaMain extends Component {
 							nongli: result,
 							displaySolarTime,
 							pan,
+							hasPlotted: true,
 							loading: false,
 						}, ()=>{
 						if(pan){
+							rememberDunJiaLiveState({
+								fieldKey: getFieldKey(flds),
+								lastNongliKey: this.lastNongliKey,
+								lastPanSignature: this.lastPanSignature,
+								nongli: result,
+								displaySolarTime,
+								pan,
+								options: fixedOptions,
+							});
 							const snapshotText = saveQimenLiveSnapshot(pan);
 							if(snapshotText){
 								saveModuleAISnapshot('qimen', snapshotText);
@@ -1406,6 +1465,7 @@ class DunJiaMain extends Component {
 		const boardWidth = (cellSize * 3) + (boardGap * 2);
 		const boardScale = this.calcBoardScale();
 		const scaledWidth = Math.round(boardWidth * boardScale);
+		const scaledHeight = Math.round(DUNJIA_BOARD_BASE_HEIGHT * boardScale);
 		const timeInfo = getBoardTimeInfo(pan);
 		const dateTitle = timeInfo.dateText;
 		const shiftTitle = pan && pan.shiftPalace > 0 ? `（顺转${pan.shiftPalace}宫）` : '';
@@ -1441,10 +1501,13 @@ class DunJiaMain extends Component {
 			zhiColor: getBaZiBranchColor(item.zhi),
 		}));
 		return (
-			<Card bordered={false} className="horosa-dunjia-board-card xq-chart-renderer xq-chart-renderer-qimen" bodyStyle={{ display: 'flex', justifyContent: 'center' }}>
-				<div className="horosa-dunjia-board-shell" style={{ width: scaledWidth, maxWidth: '100%', margin: '0 auto' }}>
+			<div
+				className="horosa-dunjia-board-shell xq-chart-renderer xq-chart-renderer-qimen"
+				style={{ width: scaledWidth, height: scaledHeight, maxWidth: '100%', margin: '0 auto' }}
+			>
 					<div style={{ width: boardWidth, transform: `scale(${boardScale})`, transformOrigin: 'top left' }}>
 						<div
+							className="horosa-dunjia-board-summary"
 							style={{
 								padding: 12,
 								borderRadius: 14,
@@ -1523,7 +1586,7 @@ class DunJiaMain extends Component {
 								{pan.options.kongModeLabel}-{pan.kongWang} 旬首-{pan.xunShou}
 							</div>
 						</div>
-						<div style={{ position: 'relative', width: boardWidth, maxWidth: '100%' }}>
+						<div className="horosa-dunjia-grid-wrap" style={{ position: 'relative', width: boardWidth, maxWidth: '100%' }}>
 							<div style={{ display: 'grid', gridTemplateColumns: `repeat(3, ${cellSize}px)`, gap: boardGap }}>
 								{pan.cells.map((cell)=>this.renderCell(cell))}
 							</div>
@@ -1545,17 +1608,22 @@ class DunJiaMain extends Component {
 								</div>
 							) : null}
 						</div>
-						<div style={{ marginTop: 12 }}>
-							<Tag color="red">击刑</Tag>
-							<Tag color="#8b5e3c">入墓</Tag>
-							<Tag color="#722ed1">击刑+入墓</Tag>
-							<Tag color="orange">门迫</Tag>
-							<Tag color="blue">空亡</Tag>
-							<Tag color="default">🐎 驿马</Tag>
+						<div className="horosa-dunjia-board-tags" style={{ marginTop: 12 }}>
+							{DUNJIA_LEGEND_ITEMS.map((item)=>(
+								<span
+									key={item.key}
+									className="horosa-dunjia-legend-tag"
+									style={{
+										'--qimen-legend-color': item.color,
+										'--qimen-legend-bg': item.bg,
+									}}
+								>
+									{item.label}
+								</span>
+							))}
 						</div>
 					</div>
-				</div>
-			</Card>
+			</div>
 		);
 	}
 
@@ -1817,7 +1885,7 @@ class DunJiaMain extends Component {
 					style={{ marginTop: 8 }}
 				>
 					<TabPane tab="概览" key="overview">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: 'calc(100vh - 420px)', overflowY: 'auto' }}>
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ lineHeight: '26px' }}>
 								<div>命式：{pan ? pan.options.sexLabel : '—'}</div>
 								<div>符头：{pan ? pan.fuTou : '—'}</div>
@@ -1846,7 +1914,7 @@ class DunJiaMain extends Component {
 						</Card>
 					</TabPane>
 					<TabPane tab="神煞" key="shensha">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: 'calc(100vh - 420px)', overflowY: 'auto' }}>
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', columnGap: 14, rowGap: 6, lineHeight: '24px' }}>
 								{pan && pan.shenSha && pan.shenSha.allItems && pan.shenSha.allItems.length
 									? pan.shenSha.allItems.map((item)=>(<div key={`ss_item_${item.name}`}><span style={{ color: 'var(--horosa-text, #262626)' }}>{item.name}-</span><span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>{item.value}</span></div>))
@@ -1855,7 +1923,7 @@ class DunJiaMain extends Component {
 						</Card>
 					</TabPane>
 					<TabPane tab="八宫" key="bagong">
-						<Card bordered={false} bodyStyle={{ padding: '10px 12px', maxHeight: 'calc(100vh - 420px)', overflowY: 'auto' }}>
+						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
 								{BAGONG_PALACE_ORDER.map((num)=>(
 									<Button
@@ -1948,15 +2016,91 @@ class DunJiaMain extends Component {
 		);
 	}
 
+	renderQuickDock(){
+		const panelTab = this.state.rightPanelTab;
+		const showPatternInterpretation = this.state.showPatternInterpretation !== false;
+		const items = [
+			{
+				key: 'overview',
+				label: '概览',
+				icon: 'target',
+				active: panelTab === 'overview',
+				onClick: ()=>this.setState({ rightPanelTab: 'overview' }),
+			},
+			{
+				key: 'shensha',
+				label: '神煞',
+				icon: 'sidePlanets',
+				active: panelTab === 'shensha',
+				onClick: ()=>this.setState({ rightPanelTab: 'shensha' }),
+			},
+			{
+				key: 'bagong',
+				label: '八宫',
+				icon: 'sideHouses',
+				active: panelTab === 'bagong',
+				onClick: ()=>this.setState({ rightPanelTab: 'bagong' }),
+			},
+			{
+				key: 'interpretation',
+				label: showPatternInterpretation ? '释义显示' : '释义隐藏',
+				icon: 'quickNote',
+				active: showPatternInterpretation,
+				onClick: ()=>{
+					const next = !showPatternInterpretation;
+					this.setState({ showPatternInterpretation: next });
+					savePatternInterpretationPreference(next);
+				},
+			},
+			{
+				key: 'plot',
+				label: '重新起盘',
+				icon: 'qimen',
+				active: false,
+				disabled: this.state.loading,
+				onClick: this.clickPlot,
+			},
+			{
+				key: 'save',
+				label: '保存案例',
+				icon: 'bookmark',
+				active: false,
+				disabled: !this.state.pan,
+				onClick: this.clickSaveCase,
+			},
+		];
+		return (
+			<div className="horosa-bottom-quick-dock horosa-dunjia-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-dunjia-quick-actions">
+					{items.map((item)=>(
+						<button
+							type="button"
+							key={item.key}
+							className={`horosa-bottom-quick-button horosa-dunjia-quick-button${item.active ? ' is-active' : ''}`}
+							onClick={item.onClick}
+							disabled={item.disabled}
+						>
+							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 760;
+			height = '100%';
 		}else{
-			height = height - 20;
+			height = Number(height);
+			height = Number.isFinite(height) && height > 0 ? height : 760;
 		}
+		const pageHeight = this.props.height ? '100%' : height;
 		return (
-			<div className="horosa-dunjia-page horosa-astro-redesign horosa-dunjia-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+			<div className="horosa-dunjia-page horosa-astro-redesign horosa-dunjia-redesign" style={{ height: pageHeight, minHeight: 0, overflow: 'hidden' }}>
 				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-dunjia-redesign-layout">
 					<Spin spinning={this.state.loading}>
 						<div className="horosa-astro-redesign-grid horosa-dunjia-redesign-grid">
@@ -1979,14 +2123,7 @@ class DunJiaMain extends Component {
 							</div>
 						</div>
 					</Spin>
-					<div className="horosa-bottom-quick-dock horosa-dunjia-quick-dock">
-						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-						<div className="horosa-bottom-quick-actions horosa-dunjia-quick-placeholders">
-							{Array.from({length: 8}).map((_, idx)=>(
-								<div className="horosa-bottom-quick-placeholder" key={idx} />
-							))}
-						</div>
-					</div>
+					{this.renderQuickDock()}
 				</div>
 			</div>
 		);

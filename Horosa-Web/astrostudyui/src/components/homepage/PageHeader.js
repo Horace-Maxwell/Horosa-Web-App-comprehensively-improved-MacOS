@@ -497,7 +497,7 @@ function PageHeader(props){
 					</button>
 				</Tooltip>
 				<div className={styles.astroCommandCenter}>
-					<XQButton className={styles.astroHeaderCommand} size="small" iconName="search" onClick={()=>openDrawer('query')}>搜索</XQButton>
+					<XQButton className={styles.astroHeaderCommand} size="small" iconName="search" onClick={()=>openDrawer('homepage')}>搜索</XQButton>
 					<XQButton className={styles.astroHeaderCommand} size="small" iconName="bookmark" onClick={()=>openDrawer('chartlist')}>收藏</XQButton>
 					<XQButton className={styles.astroHeaderCommand} size="small" iconName="history" onClick={()=>openDrawer('caselist')}>历史</XQButton>
 					<Dropdown menu={{items: aiExportMenu, onClick: onAIExportClick}} placement="bottom" trigger={['click']}>

@@ -891,7 +891,7 @@ class AstroPrimaryDirectionChart extends Component{
 		const appliedMethodLabel = applied.pdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'AstroAPP-Alchabitius';
 		const sectionGapStyle = {marginTop: 6};
 		const hintStyle = {
-			color: 'rgba(0, 0, 0, 0.65)',
+			color: 'var(--horosa-text-soft)',
 			lineHeight: 1.85,
 		};
 

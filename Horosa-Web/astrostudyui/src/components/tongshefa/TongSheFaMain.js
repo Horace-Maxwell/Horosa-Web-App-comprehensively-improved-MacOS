@@ -801,6 +801,7 @@ class TongSheFaMain extends Component{
 		this.state = {
 			selected: { ...DEFAULT_SELECTION },
 			showMatrixBorder: true,
+			detailTab: 'observe32',
 		};
 
 		this.unmounted = false;
@@ -808,6 +809,7 @@ class TongSheFaMain extends Component{
 
 		this.onBorderToggle = this.onBorderToggle.bind(this);
 		this.changeSelect = this.changeSelect.bind(this);
+		this.changeDetailTab = this.changeDetailTab.bind(this);
 		this.clickSaveCase = this.clickSaveCase.bind(this);
 		this.parseCasePayload = this.parseCasePayload.bind(this);
 		this.restoreFromCurrentCase = this.restoreFromCurrentCase.bind(this);
@@ -910,6 +912,12 @@ class TongSheFaMain extends Component{
 		};
 		this.setState({
 			selected: normalizeSelection(selected),
+		});
+	}
+
+	changeDetailTab(key){
+		this.setState({
+			detailTab: key,
 		});
 	}
 
@@ -1299,7 +1307,7 @@ class TongSheFaMain extends Component{
 		}
 
 		return (
-			<div className={styles.scrollbar} style={{ height: tabheight, overflowY: 'auto', overflowX: 'hidden', paddingRight: 2 }}>
+			<div className={styles.scrollbar} style={{ height: tabheight, overflowY: 'auto', overflowX: 'hidden', paddingRight: 2, paddingBottom: 14 }}>
 				<Card size='small' title='左右卦之五行关系' style={{ marginBottom: 8 }}>
 					<div style={{ marginBottom: 6 }}>
 						<Tag color='blue'>{model.mainRelation}</Tag>
@@ -1335,7 +1343,7 @@ class TongSheFaMain extends Component{
 					<div>右卦升降：{fmtRise(model.rightRise)}</div>
 				</Card>
 
-				<Card size='small' title='爻变'>
+				<Card size='small' title='爻变' style={{ marginBottom: 8 }}>
 					{model.yaoChanges.map((item)=>{
 						return <div key={`chg_${item.line}`}>{item.line}爻：{item.changed ? '有' : '无'}</div>;
 					})}
@@ -1347,21 +1355,22 @@ class TongSheFaMain extends Component{
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		if(height === '100%'){
-			height = 'calc(100% - 70px)';
+			height = '100%';
 		}else{
-			height = height - 20;
+			height = height;
 		}
-		const tabheight = typeof height === 'number' ? Math.max(height - 360, 220) : 'calc(100% - 360px)';
-		const leftHeight = typeof height === 'number' ? height : 'calc(100% - 20px)';
+		const tabheight = typeof height === 'number' ? Math.max(height - 304, 260) : '100%';
+		const tabContentHeight = typeof tabheight === 'number' ? Math.max(tabheight - 46, 220) : '100%';
+		const leftHeight = typeof height === 'number' ? height : '100%';
 		const model = buildTongSheFaModel(this.state.selected);
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={16}>
-						<div className={styles.scrollbar} style={{ height: leftHeight, overflowY: 'auto', overflowX: 'hidden', paddingRight: 3 }}>
-							<Row gutter={8}>
-								<Col span={12}>
+			<div className="horosa-tongshefa-page" style={{ height, minHeight: 0, overflow: 'hidden' }}>
+				<Row gutter={6} className="horosa-tongshefa-layout" style={{ height: '100%', minHeight: 0 }}>
+					<Col span={16} className="horosa-tongshefa-left-col">
+							<div className={styles.scrollbar} style={{ height: leftHeight, overflowY: 'auto', overflowX: 'hidden', paddingRight: 3 }}>
+								<Row gutter={8}>
+									<Col span={12}>
 									{this.renderMatrixStylePanel('本卦', model.baseLeft, model.baseRight)}
 								</Col>
 								<Col span={12}>
@@ -1373,11 +1382,11 @@ class TongSheFaMain extends Component{
 									{this.renderMatrixStylePanel('互潜', model.mutualLeft, model.mutualRight)}
 								</Col>
 							</Row>
-						</div>
-					</Col>
-					<Col span={8}>
-						<Row>
-							<Col span={24}>
+							</div>
+						</Col>
+						<Col span={8} className="horosa-tongshefa-right-col">
+							<Row>
+								<Col span={24}>
 								<div style={{ marginBottom: 2 }}>是否显示边框</div>
 								<Select
 									value={this.state.showMatrixBorder ? 1 : 0}
@@ -1431,18 +1440,25 @@ class TongSheFaMain extends Component{
 								</Select>
 							</Col>
 						</Row>
-						<Tabs defaultActiveKey='observe32' tabPosition='top' style={{ height: tabheight }}>
+						<Tabs
+							activeKey={this.state.detailTab}
+							defaultActiveKey='observe32'
+								onChange={this.changeDetailTab}
+								tabPosition='top'
+								className='horosa-tongshefa-tabs'
+								style={{ height: tabheight }}
+							>
 							<TabPane tab='三十二观' key='observe32'>
-								{this.renderObserveTab(model, tabheight)}
+								{this.renderObserveTab(model, tabContentHeight)}
 							</TabPane>
 							<TabPane tab='三界' key='sanjie'>
-								{this.renderSanJieTab(model, tabheight)}
+								{this.renderSanJieTab(model, tabContentHeight)}
 							</TabPane>
 							<TabPane tab='爻位' key='yaowei'>
-								{this.renderYaoWeiTab(model, tabheight)}
+								{this.renderYaoWeiTab(model, tabContentHeight)}
 							</TabPane>
 							<TabPane tab='纳甲筮法' key='najia'>
-								{this.renderNaJiaTab(model, tabheight)}
+								{this.renderNaJiaTab(model, tabContentHeight)}
 							</TabPane>
 						</Tabs>
 					</Col>

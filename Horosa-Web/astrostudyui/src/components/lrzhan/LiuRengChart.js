@@ -35,6 +35,7 @@ class LiuRengChart extends Component{
 			panStyleName: this.props.panStyleName,
 			onMetaInfoClick: this.openMetaDialog,
 			chartType: this.props.chartType,
+			compactPreview: this.props.compactPreview,
 		};
 		this.rengchart = new RengChart(opt);
 
@@ -95,6 +96,7 @@ class LiuRengChart extends Component{
 		this.rengchart.panStyleName = this.props.panStyleName || '';
 		this.rengchart.onMetaInfoClick = this.openMetaDialog;
 		this.rengchart.chartType = this.props.chartType;
+		this.rengchart.compactPreview = !!this.props.compactPreview;
 
 		this.rengchart.draw();
 	}
@@ -125,7 +127,8 @@ class LiuRengChart extends Component{
 			|| prevProps.zhangshengElem !== this.props.zhangshengElem
 			|| prevProps.guireng !== this.props.guireng
 			|| prevProps.panStyleName !== this.props.panStyleName
-			|| prevProps.chartType !== this.props.chartType){
+			|| prevProps.chartType !== this.props.chartType
+			|| prevProps.compactPreview !== this.props.compactPreview){
 			this.safeDrawChart();
 		}
 	}

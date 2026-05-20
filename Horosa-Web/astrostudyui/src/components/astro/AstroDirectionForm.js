@@ -102,7 +102,7 @@ export default function AstroDirectionForm(props){
 	dt.addDate(1);
 
 	return (
-		<div style={{height: height}}>
+		<div className="horosa-direction-form" style={{minHeight: height}}>
 			<Form onFinish={handleSubmit} onKeyPress={preventEnterPress}
 				onFieldsChange={formFieldsChanged}
 				fields={props.fieldsAry}

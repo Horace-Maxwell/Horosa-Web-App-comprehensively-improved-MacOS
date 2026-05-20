@@ -7,6 +7,17 @@ import styles from '../../css/styles.less';
 
 const TabPane = Tabs.TabPane;
 
+function safeArray(value){
+	return Array.isArray(value) ? value : [];
+}
+
+function describeStemBranch(item){
+	if(!item){
+		return '';
+	}
+	return `${BaZiMsg[item.polar] || ''}${item.cell || ''}${BaZiMsg[item.element] || ''}•${BaZiMsg[item.relative] || item.relative || ''}`;
+}
+
 class MainDirection extends Component{
 	constructor(props) {
 		super(props);
@@ -54,9 +65,10 @@ class MainDirection extends Component{
 
 		let taisuiCols = [];
 		let spans = [];
-		if(rec.branch.taisuiGods.length > 0){
-			spans.push(rec.branch.taisuiGods.join('，'));
-		}
+			const taisuiGods = safeArray(rec.branch && rec.branch.taisuiGods);
+			if(taisuiGods.length > 0){
+				spans.push(taisuiGods.join('，'));
+			}
 		if(spans.length > 0){
 			let content = (
 				<Col key={randomStr(8)} span={24}>
@@ -80,18 +92,24 @@ class MainDirection extends Component{
 		}
 	}
 
-	genGods(rec, titleStr){
-		let cols = [];
-		let spans = [];
-		if(rec.goodGods.length > 0){
-			spans.push(rec.goodGods.join('，'));
-		}
-		if(rec.neutralGods.length > 0){
-			spans.push(rec.neutralGods.join('，'));
-		}
-		if(rec.badGods.length > 0){
-			spans.push(rec.badGods.join('，'));
-		}
+		genGods(rec, titleStr){
+			if(rec === undefined || rec === null){
+				return null;
+			}
+			let cols = [];
+			let spans = [];
+			const goodGods = safeArray(rec.goodGods);
+			const neutralGods = safeArray(rec.neutralGods);
+			const badGods = safeArray(rec.badGods);
+			if(goodGods.length > 0){
+				spans.push(goodGods.join('，'));
+			}
+			if(neutralGods.length > 0){
+				spans.push(neutralGods.join('，'));
+			}
+			if(badGods.length > 0){
+				spans.push(badGods.join('，'));
+			}
 
 		if(spans.length > 0){
 			let content = (
@@ -110,34 +128,35 @@ class MainDirection extends Component{
 
 	genSubDirectDom(dir, startYear, age, mainDirect, directTime, height){
 		let dirdoms = [];
-		for(let i=0; i<dir.length; i++){
-			let sub = dir[i];
-			let y = startYear + i;
-			let dirtm = y;
-			let gods = this.genGodsDom(sub);
-			let popcontent = (
-				<div style={{width: 350}}>
-					<Row key={randomStr(8)} style={{width: 350}}>
-						<Col span={24} key={randomStr(8)}>
-							{BaZiMsg[sub.stem.polar] + sub.stem.cell + BaZiMsg[sub.stem.element]}&bull;{BaZiMsg[sub.stem.relative]}
-						</Col>
-						<Col span={24} key={randomStr(8)}>
-							{BaZiMsg[sub.branch.polar] + sub.branch.cell + BaZiMsg[sub.branch.element]}&bull;{BaZiMsg[sub.branch.relative]}
-						</Col>
-					</Row>
-					<Divider />
-					{gods}
-					<h4>值年星宿：{sub.starCharger.name}</h4>
-					<div>{sub.starCharger.event}</div>
-				</div>
-			)
-			let titlerow = (
-				<Popover content={popcontent} title={sub.ganzi + ' ' + dirtm + ' ' + (age + i) + '岁'} key={randomStr(8)}>
-					<Row key={randomStr(8)}>
-						<Col span={4}>{sub.ganzi}</Col>
-						<Col span={6}>{sub.naying}</Col>
-						<Col span={9}>{dirtm}</Col>
-						<Col span={5}>{age + i}岁</Col>
+			for(let i=0; i<dir.length; i++){
+				let sub = dir[i] || {};
+				let y = startYear + i;
+				let dirtm = y;
+				let gods = this.genGodsDom(sub);
+				let starCharger = sub.starCharger || {};
+				let popcontent = (
+					<div style={{width: 350}}>
+						<Row key={randomStr(8)} style={{width: 350}}>
+							<Col span={24} key={randomStr(8)}>
+								{describeStemBranch(sub.stem)}
+							</Col>
+							<Col span={24} key={randomStr(8)}>
+								{describeStemBranch(sub.branch)}
+							</Col>
+						</Row>
+						<Divider />
+						{gods}
+						<h4>值年星宿：{starCharger.name || '暂无'}</h4>
+						<div>{starCharger.event || ''}</div>
+					</div>
+				)
+				let titlerow = (
+					<Popover content={popcontent} title={(sub.ganzi || '') + ' ' + dirtm + ' ' + (age + i) + '岁'} key={randomStr(8)}>
+						<Row key={randomStr(8)}>
+							<Col span={4}>{sub.ganzi || ''}</Col>
+							<Col span={6}>{sub.naying || ''}</Col>
+							<Col span={9}>{dirtm}</Col>
+							<Col span={5}>{age + i}岁</Col>
 					</Row>
 				</Popover>
 			);
@@ -146,18 +165,18 @@ class MainDirection extends Component{
 		}
 		let dirTime = startYear;
 
-		let maingods = this.genGodsDom(mainDirect);
-		let title = (
-			<div key={randomStr(8)}>
-				<Row>
-					<Col span={12}>{mainDirect.ganzi + '-' + mainDirect.ganziPhase}</Col>
-					<Col span={12}>{mainDirect.naying + '-' + mainDirect.nayingPhase}</Col>
-					<Col span={12} key={randomStr(8)}>
-						{BaZiMsg[mainDirect.stem.polar] + mainDirect.stem.cell + BaZiMsg[mainDirect.stem.element]}&bull;{BaZiMsg[mainDirect.stem.relative]}
-					</Col>
-					<Col span={12} key={randomStr(8)}>
-						{BaZiMsg[mainDirect.branch.polar] + mainDirect.branch.cell + BaZiMsg[mainDirect.branch.element]}&bull;{BaZiMsg[mainDirect.branch.relative]}
-					</Col>
+			let maingods = this.genGodsDom(mainDirect);
+			let title = (
+				<div key={randomStr(8)}>
+					<Row>
+						<Col span={12}>{[mainDirect.ganzi, mainDirect.ganziPhase].filter(Boolean).join('-')}</Col>
+						<Col span={12}>{[mainDirect.naying, mainDirect.nayingPhase].filter(Boolean).join('-')}</Col>
+						<Col span={12} key={randomStr(8)}>
+							{describeStemBranch(mainDirect.stem)}
+						</Col>
+						<Col span={12} key={randomStr(8)}>
+							{describeStemBranch(mainDirect.branch)}
+						</Col>
 				</Row>
 				{maingods}
 				<Row>
@@ -176,16 +195,16 @@ class MainDirection extends Component{
 	genDirectionDom(dirs, directTime, height){
 		let panes = [];
 		if(dirs && dirs.length){
-			for(let i = 0; i<dirs.length && i<8; i++){
-				let dir = dirs[i];
-				let age = dir.age;
-				let startYear = dir.startYear;
-				let mainDirect = dir.mainDirect;
-				let subdir = this.genSubDirectDom(dir.subDirect, startYear, age, mainDirect, directTime, height);
-				let pane = (
-					<TabPane tab={startYear + ' ' + mainDirect.ganzi} key={i}>
-						{subdir}
-					</TabPane>
+				for(let i = 0; i<dirs.length && i<8; i++){
+					let dir = dirs[i];
+					let age = dir.age;
+					let startYear = dir.startYear;
+					let mainDirect = dir.mainDirect || {};
+					let subdir = this.genSubDirectDom(safeArray(dir.subDirect), startYear, age, mainDirect, directTime, height);
+					let pane = (
+						<TabPane tab={startYear + ' ' + (mainDirect.ganzi || '')} key={i}>
+							{subdir}
+						</TabPane>
 				);
 				panes.push(pane);
 			}	
@@ -202,14 +221,16 @@ class MainDirection extends Component{
 			overflowX:'hidden',
 		};
 
-		let doms = this.genDirectionDom(rec.direction, rec.directTime, height);
+			let doms = this.genDirectionDom(safeArray(rec.direction), rec.directTime, height);
+			let directAge = Number.isFinite(rec.directAge) ? rec.directAge.toFixed(0) : '';
+			let directYear = typeof rec.directTime === 'string' ? rec.directTime.substr(0, 4) : '';
 
 		return (
 			<div className={styles.scrollbar} style={style}>
 				<Row style={{marginLeft:20}}>
-					<Col span={24} style={{fontSize: 16, fontWeight: 'bold'}}>
-						{'上运时间：' + rec.directAge.toFixed(0) + '周岁 ' + rec.directTime.substr(0, 4) + ' '}
-					</Col>
+						<Col span={24} style={{fontSize: 16, fontWeight: 'bold'}}>
+							{'上运时间：' + directAge + '周岁 ' + directYear + ' '}
+						</Col>
 				</Row>
 				<Tabs defaultActiveKey="0" tabPosition='right' style={{marginTop: 15}}>
 					{doms}
@@ -220,4 +241,3 @@ class MainDirection extends Component{
 }
 
 export default MainDirection;
-

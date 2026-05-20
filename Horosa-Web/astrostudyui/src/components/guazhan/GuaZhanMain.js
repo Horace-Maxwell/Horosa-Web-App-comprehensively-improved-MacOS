@@ -168,6 +168,8 @@ class GuaZhanMain extends Component{
 		this.clickSaveCase = this.clickSaveCase.bind(this);
 		this.parseCasePayload = this.parseCasePayload.bind(this);
 		this.restoreFromCurrentCase = this.restoreFromCurrentCase.bind(this);
+		this.setRightPanelTab = this.setRightPanelTab.bind(this);
+		this.navigateFeature = this.navigateFeature.bind(this);
 
 		this.state = {
 			yao: this.emptyYao(),
@@ -184,6 +186,7 @@ class GuaZhanMain extends Component{
 			downGuaIdx:null,
 			number: null,
 			guaDesc: null,
+			rightPanelTab: 'overview',
 		};
 
 		this.unmounted = false;
@@ -286,6 +289,27 @@ class GuaZhanMain extends Component{
 				this.requestGuaDesc();
 			}
 		});
+	}
+
+	setRightPanelTab(key){
+		this.setState({
+			rightPanelTab: key,
+		});
+	}
+
+	navigateFeature(tabKey, subTab){
+		if(this.props.dispatch){
+			const payload = {
+				currentTab: tabKey,
+			};
+			if(subTab){
+				payload.currentSubTab = subTab;
+			}
+			this.props.dispatch({
+				type: 'astro/save',
+				payload,
+			});
+		}
 	}
 
 	clickTimeGua(fields){
@@ -1200,7 +1224,7 @@ class GuaZhanMain extends Component{
 		const infoHeight = Math.max(420, height - 170);
 		const snapshot = buildGuaSnapshotText(this.props.fields, this.state);
 		return (
-			<Tabs defaultActiveKey="overview" tabPosition="top" className="horosa-guazhan-tabs">
+			<Tabs activeKey={this.state.rightPanelTab} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-guazhan-tabs">
 				<TabPane tab="概览" key="overview">
 					<div className="horosa-guazhan-info-card">
 						{this.renderInfoRows()}
@@ -1215,6 +1239,37 @@ class GuaZhanMain extends Component{
 					<pre className="horosa-guazhan-snapshot">{snapshot}</pre>
 				</TabPane>
 			</Tabs>
+		);
+	}
+
+	renderBottomQuickDock(){
+		const actions = [
+			{ label: '时间卦', icon: 'quickPrimary', onClick: ()=>this.clickTimeGua() },
+			{ label: '随机卦', icon: 'quickFirdaria', onClick: this.genGua },
+			{ label: '数字卦', icon: 'quickProfection', onClick: this.clickNumGua },
+			{ label: '自定义', icon: 'quickReturn', onClick: this.clickCustGua },
+			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
+			{ label: '卦辞', icon: 'quickTransit', active: this.state.rightPanelTab === 'gua', onClick: ()=>this.setRightPanelTab('gua') },
+			{ label: '保存', icon: 'quickNote', onClick: this.clickSaveCase },
+			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
+		];
+		return (
+			<div className="horosa-bottom-quick-dock horosa-guazhan-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-guazhan-quick-actions">
+					{actions.map((item)=>(
+						<button
+							type="button"
+							key={item.label}
+							className={`horosa-bottom-quick-button horosa-guazhan-quick-button${item.active ? ' is-active' : ''}`}
+							onClick={item.onClick}
+						>
+							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			</div>
 		);
 	}
 
@@ -1269,14 +1324,7 @@ class GuaZhanMain extends Component{
 							{this.renderRightPanel(height, guadesc)}
 						</div>
 					</div>
-					<div className="horosa-bottom-quick-dock horosa-guazhan-quick-dock">
-						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-						<div className="horosa-bottom-quick-actions horosa-guazhan-quick-placeholders">
-							{Array.from({length: 8}).map((_, idx)=>(
-								<div className="horosa-bottom-quick-placeholder" key={idx} />
-							))}
-						</div>
-					</div>
+					{this.renderBottomQuickDock()}
 				</div>
 			</div>
 

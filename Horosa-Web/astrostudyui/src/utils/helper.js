@@ -908,16 +908,25 @@ export function positionFloatingTooltip(divTooltip, evt, options){
 		.style('top', `${placement.top}px`);
 }
 
-export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpadding, forceRich){
+export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpadding, forceRich, options){
 	if(divTooltip === undefined || divTooltip === null){
 		return;
 	}
 	const hoverOpacity = forceRich === true ? 1 : 0.9;
 	const anchorNode = titleSvg && titleSvg.node ? titleSvg.node() : null;
+	const stopPropagation = !!(options && options.stopPropagation);
+	const useMouseEnterLeave = !!(options && options.useMouseEnterLeave);
+	const stopEventPropagation = (evt)=>{
+		if(stopPropagation && evt && typeof evt.stopPropagation === 'function'){
+			evt.stopPropagation();
+		}
+	};
 
-	titleSvg.on('mouseover', (evt)=>{
+	const showTooltip = (evt)=>{
+		stopEventPropagation(evt);
 		let str = genHtml(tipobj, needpadding, forceRich) ;
-		divTooltip.transition()		
+		divTooltip.interrupt()
+			.transition()
 			.duration(200)		
 			.style("opacity", hoverOpacity);
 		divTooltip.html(str);
@@ -927,22 +936,36 @@ export function creatTooltip(divTooltip, titleSvg, tipobj, onTipClick, needpaddi
 			offsetY: 10,
 			viewportPadding: 14,
 		});
-	}).on('mouseout', (evt)=>{
-		divTooltip.transition()		
+	};
+	const hideTooltip = (evt)=>{
+		stopEventPropagation(evt);
+		divTooltip.interrupt()
+			.transition()
 			.duration(500)		
 			.style("opacity", 0);
-	}).on('mousemove', (evt)=>{
+	};
+	const moveTooltip = (evt)=>{
+		stopEventPropagation(evt);
 		positionFloatingTooltip(divTooltip, evt, {
 			anchorNode,
 			offsetX: 12,
 			offsetY: 10,
 			viewportPadding: 14,
 		});
-	}).on('click', (evt)=>{
+	};
+	const clickTooltip = (evt)=>{
+		stopEventPropagation(evt);
 		if(onTipClick){
 			onTipClick(tipobj);
 		}
-	});
+	};
+	const enterEvent = useMouseEnterLeave ? 'mouseenter' : 'mouseover';
+	const leaveEvent = useMouseEnterLeave ? 'mouseleave' : 'mouseout';
+	titleSvg
+		.on(enterEvent, showTooltip)
+		.on(leaveEvent, hideTooltip)
+		.on('mousemove', moveTooltip)
+		.on('click', clickTooltip);
 }
 
 export function printArea(id){

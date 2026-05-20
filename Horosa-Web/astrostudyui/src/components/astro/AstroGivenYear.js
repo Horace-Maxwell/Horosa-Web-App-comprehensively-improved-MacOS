@@ -304,7 +304,7 @@ class AstroGivenYear extends Component{
 		));
 
 		let dom = (
-			<div>
+			<div className="horosa-givenyear-aspect-list">
 				{rows}
 			</div>
 		);
@@ -402,9 +402,9 @@ class AstroGivenYear extends Component{
 		let chartHeight = height - 50;
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={17}>
+			<div className="horosa-givenyear-page">
+				<Row className="horosa-givenyear-layout" gutter={6}>
+					<Col className="horosa-givenyear-chart-panel" span={17}>
 						<Tabs
 							defaultActiveKey='doublechart' tabPosition='bottom'
 							style={{ height: height }}						
@@ -439,8 +439,8 @@ class AstroGivenYear extends Component{
 						</Tabs>
 
 					</Col>
-					<Col span={7}>
-						<div className={styles.scrollbar} style={style}>
+					<Col className="horosa-givenyear-side-panel" span={7}>
+						<div className={`${styles.scrollbar} horosa-givenyear-side-scroll`} style={style}>
 							<Row>
 								<Col span={24}>
 									<AstroDirectionForm {...fields}
@@ -452,9 +452,9 @@ class AstroGivenYear extends Component{
 									/>
 								</Col>
 							</Row>
-							<Row style={{marginTop: 50}}>
+							<Row className="horosa-givenyear-inverse-row">
 								<Col span={24}>
-									<Select value={this.state.inverse} onChange={this.changeDblChartType} style={{width: "100%"}}>
+									<Select className="horosa-givenyear-inverse-select" value={this.state.inverse} onChange={this.changeDblChartType} style={{width: "100%"}}>
 										<Option value={true}>天象盘在内盘</Option>
 										<Option value={false}>原命盘在内盘</Option>
 									</Select>

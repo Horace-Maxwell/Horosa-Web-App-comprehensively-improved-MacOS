@@ -29,7 +29,6 @@ const YEAR_STAR_BY_STEM = {
 	壬: '计',
 	癸: '罗',
 };
-const DEGREE_RELATIONS = ['难', '仇', '恩', '用'];
 const YEAR_INFO_GROUPS = [
 	['天禄', '科名', '天马', '生官'],
 	['天暗', '科甲', '地驿'],
@@ -45,9 +44,6 @@ const YEAR_INFO_GROUPS = [
 ];
 const TEN_GOD_ORG = ['天禄', '天暗', '天福', '天耗', '天荫', '天贵', '天嗣', '天刑', '天印', '天囚', '天权'];
 const TEN_GOD_ALT = ['比肩', '劫财', '食神', '伤官', '偏财', '正财', '七杀', '正官', '偏印', '正印'];
-const SPEED_STATE = ['顺', '逆', '蚀', '留', '伏', '迟', '速'];
-const BIRTH_MASTER_DISPLAY_LIST = ['劫杀', '文昌', '禄勋', '大耗', '月杀', '咸池', '唐符', '天厨', '伏尸', '三刑', '勾神', '蓦越', '黄幡', '的杀', '孤辰', '天喜', '注受', '剑锋', '飞廉', '病符', '紫微', '华盖', '天贵', '六害', '孤虚', '游奕', '年符', '死符', '地雌', '卷舌', '绞杀', '天德', '贯索', '亡神', '国印', '岁殿', '卦气', '空亡', '豹尾', '擎天', '天空', '大杀', '天厄', '月廉', '天雄', '天哭', '天狗', '地耗', '月符', '披头', '红鸾', '岁驾', '小耗', '寡宿', '飞刃', '天耗', '斗杓', '驿马', '阳刃', '阑干', '玉贵', '血刃', '浮沉', '解神'];
-const NOW_MASTER_DISPLAY_LIST = ['岁驾', '天空', '地雌', '贯索', '五鬼', '死符', '大耗', '天厄', '天雄', '大杀', '卷舌', '天德', '天狗', '蓦越', '亡神', '天喜', '披头', '血刃', '解神', '天哭', '地解', '劫杀', '的杀', '红鸾', '驿马', '游奕', '擎天', '黄幡', '豹尾', '天厨', '三刑', '六害', '咸池', '阳刃', '禄勋', '天贵'];
 const SPEED_LIMITS = {
 	Venus: { slow: 0.71, fast: 1.245 },
 	Jupiter: { slow: 0.05, fast: 0.23 },
@@ -153,6 +149,31 @@ function degreeText(lon){
 	const deg = Math.floor(val % 30);
 	const min = Math.floor(((val % 30) - deg) * 60);
 	return `${deg}度${min}分`;
+}
+
+function signNameFromLon(lon){
+	const idx = Math.floor(norm(lon) / 30) % 12;
+	return msg(AstroConst.LIST_SIGNS[idx]);
+}
+
+function ziFromLon(lon){
+	const list = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+	return list[Math.floor(norm(lon) / 30) % 12] || '';
+}
+
+function anchorFromObject(chart, id, fallbackId, label){
+	const obj = findObject(chart, id) || findObject(chart, fallbackId);
+	const lon = objectLon(obj);
+	if(!obj || lon === null){
+		return {};
+	}
+	return {
+		signName: signNameFromLon(lon),
+		degreeText: degreeText(lon),
+		zi: ziFromLon(lon),
+		area: msg(obj.id) || label,
+		moiraHouse: msg(obj.house) || '',
+	};
 }
 
 function compactDegreeText(lon){
@@ -340,20 +361,28 @@ function PlanetTable({rows}){
 	);
 }
 
-function ChipList({items}){
-	const list = safeList(items);
-	return (
-		<div className="horosa-guolao-moira-chip-list">
-			{list.length ? list.map((item)=>(
-				<span key={item}>{item}</span>
-			)) : <em>无</em>}
-		</div>
-	);
+function hasRenderableChart(rootValue){
+	return safeList(rootValue && rootValue.chart && rootValue.chart.objects).length > 0;
+}
+
+function buildPanelFallbackValue(rootValue){
+	return {
+		engine: 'horosa-local-moira-panel-fallback',
+		engineLabel: 'Moira政余格局',
+		summary: '',
+		styleWarning: '',
+		params: mergeDefined(rootValue && rootValue.params),
+		anchors: {},
+		houses: [],
+		planets: [],
+		patterns: [],
+		godHits: [],
+	};
 }
 
 export default function GuoLaoMoiraPanel(props){
-	const value = props.value;
 	const rootValue = props.rootValue || {};
+	const value = props.value || (hasRenderableChart(rootValue) ? buildPanelFallbackValue(rootValue) : null);
 	const birthChart = rootValue.chart || {};
 	const transitRoot = props.transitValue || {};
 	const transitChart = transitRoot.chart || {};
@@ -376,8 +405,12 @@ export default function GuoLaoMoiraPanel(props){
 	}
 
 	const anchors = value.anchors || {};
-	const life = anchors.life || {};
-	const self = anchors.self || {};
+	const life = anchors.life && Object.keys(anchors.life).length
+		? anchors.life
+		: anchorFromObject(birthChart, AstroConst.LIFEMASTERDEG74, AstroConst.ASC, '命度点');
+	const self = anchors.self && Object.keys(anchors.self).length
+		? anchors.self
+		: anchorFromObject(birthChart, AstroConst.MOON, AstroConst.ASC, '身度参考');
 	const unverifiedPatternSource = hasUnverifiedMoiraPatternSource(value);
 	const styleWarning = value.styleWarning || (unverifiedPatternSource ? '当前接口返回的是旧版 Horosa 近似格局，不是 Moira 本体的政余喜格/忌格；已屏蔽为正式格局输出。' : '');
 	const patterns = unverifiedPatternSource ? [] : safeList(value.patterns);
@@ -396,14 +429,10 @@ export default function GuoLaoMoiraPanel(props){
 	const sunset = pickDeep(rootValue, ['sunset', 'sunSet', 'sunsetTime', 'sun_set']);
 	const moonrise = pickDeep(rootValue, ['moonrise', 'moonRise', 'moonriseTime', 'moon_rise']);
 	const moonset = pickDeep(rootValue, ['moonset', 'moonSet', 'moonsetTime', 'moon_set']);
+	const hasRiseSet = sunrise || sunset || moonrise || moonset;
 
 	return (
 		<div className="horosa-guolao-moira">
-			<div className="horosa-guolao-moira-summary">
-				<div className="horosa-guolao-moira-summary-title">{value.engineLabel || 'Moira规则层'}</div>
-				<div className="horosa-guolao-moira-summary-text">{value.summary}</div>
-			</div>
-
 			<Section title="起盘与流年">
 				<KeyValueGrid items={[
 					{label: '计算法', value: '地心计算法'},
@@ -418,34 +447,28 @@ export default function GuoLaoMoiraPanel(props){
 
 			<Section title="真太阳与出没">
 				<KeyValueGrid items={[
-					{label: '真太阳时间', value: apparentSolar || '由后端星历数据保留'},
-					{label: '日出', value: sunrise || '当前星历响应未返回'},
-					{label: '日落', value: sunset || '当前星历响应未返回'},
-					{label: '月出', value: moonrise || '当前星历响应未返回'},
-					{label: '月落', value: moonset || '当前星历响应未返回'},
+					{label: '真太阳时间', value: apparentSolar || dateTextFromParams(params)},
+					{label: '日出', value: sunrise},
+					{label: '日落', value: sunset},
+					{label: '月出', value: moonrise},
+					{label: '月落', value: moonset},
 				]} />
+				{hasRiseSet ? null : <div className="horosa-guolao-moira-note">日月出没接口未给出独立字段，当前先以起盘时间和盘面星曜为准。</div>}
 			</Section>
 
 			<Section title="命身与限度">
 				<div className="horosa-guolao-moira-anchor-grid">
 					<div className="horosa-guolao-moira-anchor">
 						<span>命主/命度</span>
-						<strong>{life.signName || '-'} {life.degreeText || ''}</strong>
+						<strong>{life.signName || '随盘面'} {life.degreeText || ''}</strong>
 						<em>{[life.zi, life.area, life.moiraHouse, anchors.lifeModeName || value.lifeModeName].filter(Boolean).join(' · ')}</em>
 					</div>
 					<div className="horosa-guolao-moira-anchor">
 						<span>身主/身度</span>
-						<strong>{self.signName || '-'} {self.degreeText || ''}</strong>
-						<em>{self.zi || ''} · {self.area || ''} · {self.moiraHouse || ''}</em>
+						<strong>{self.signName || '随盘面'} {self.degreeText || ''}</strong>
+						<em>{[self.zi, self.area, self.moiraHouse].filter(Boolean).join(' · ')}</em>
 					</div>
 				</div>
-				<KeyValueGrid items={[
-					{label: '飞限', value: '按 Moira 童限/洞微飞限序列'},
-					{label: '小限', value: '按流年岁数推移'},
-					{label: '月限', value: '按流月推移'},
-					{label: '速度态', value: SPEED_STATE.join('、')},
-					{label: '度用关系', value: DEGREE_RELATIONS.join('、')},
-				]} />
 			</Section>
 
 			<Section title="本命星曜">
@@ -487,13 +510,6 @@ export default function GuoLaoMoiraPanel(props){
 				</div>
 			</Section>
 
-			<Section title="神煞输出目录">
-				<div className="horosa-guolao-moira-subtitle">本命显示序</div>
-				<ChipList items={BIRTH_MASTER_DISPLAY_LIST} />
-				<div className="horosa-guolao-moira-subtitle">流年显示序</div>
-				<ChipList items={NOW_MASTER_DISPLAY_LIST} />
-			</Section>
-
 			<Section title="神煞全表">
 				<div className="horosa-guolao-moira-gods">
 					{godHits.map((item)=>(
@@ -524,18 +540,7 @@ export default function GuoLaoMoiraPanel(props){
 							</div>
 						))}
 					</div>
-				) : <div className="horosa-guolao-moira-empty">暂不输出正式政余喜格/忌格，避免把 Horosa 近似提示误显示为 Moira 本体结果。</div>}
-			</Section>
-
-			<Section title="Moira输出索引">
-				<ChipList items={[
-					'星图计算', '四柱八字', '星图批注', '数据管理系统',
-					'命主/身主', '命度/身度', '七政四余', '本命星曜', '流年星曜',
-					'二十八宿', '殿垣旺乐', '顺逆蚀留伏迟速', '十二宫', '虚实',
-					'飞限', '小限', '月限', '真太阳时间', '日月出没',
-					'年曜', '十神', '天禄至天权', '科名至伤官',
-					'本命神煞', '流年神煞', '政余喜格', '政余忌格', '神煞注释',
-				]} />
+				) : <div className="horosa-guolao-moira-empty">当前盘未命中已接入的 Moira 政余喜格/忌格。</div>}
 			</Section>
 		</div>
 	);

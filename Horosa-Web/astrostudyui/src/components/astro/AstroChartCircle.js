@@ -183,6 +183,20 @@ export default class AstroChartCircle {
 		creatTooltip(this.divTooltip, titleSvg, tipobj, this.onTipClick, true);
 	}
 
+	genSignMeaningTooltip(titleSvg, signKey){
+		if(!this.showAstroMeaning || !titleSvg || !signKey){
+			return;
+		}
+		const signTip = buildSignMeaningTip(signKey);
+		if(!signTip){
+			return;
+		}
+		creatTooltip(this.divTooltip, titleSvg, signTip, this.onTipClick, true, true, {
+			stopPropagation: true,
+			useMouseEnterLeave: true,
+		});
+	}
+
 
 	getHouse(chartObj, houseid){
 		if(chartObj === undefined || chartObj === null || chartObj.err){
@@ -444,7 +458,7 @@ export default class AstroChartCircle {
 			let angleparts = splitDegree(house.signlon);
 			let txts = [angleparts[0] + 'º', AstroText.AstroMsg[sig], angleparts[1] + "'"];
 			let lblgroup = band.append('g').attr("text-anchor", "middle");
-			lblgroup.selectAll('text').data(txts).enter().append('text')
+			const cuspTexts = lblgroup.selectAll('text').data(txts).enter().append('text')
 				.attr("dominant-baseline","middle")
 				.attr("text-anchor", "middle")
 				.attr('font-size', function(d, idx){
@@ -496,6 +510,7 @@ export default class AstroChartCircle {
 					return 'translate(' + x + ', ' + y + ') rotate(' + textAngle + ')';
 				})
 				.text(function(d){return d});
+			this.genSignMeaningTooltip(cuspTexts.filter((d, idx)=>idx === 1), sig);
 		}
 
 		return band;
@@ -1003,7 +1018,7 @@ export default class AstroChartCircle {
 				});
 			}
 	
-			lblgroup.selectAll('text').data(startxt).enter().append('text')
+			const planetTexts = lblgroup.selectAll('text').data(startxt).enter().append('text')
 				.attr("dominant-baseline","middle")
 				.attr("text-anchor", "middle")
 				.attr('class', function(d, idx){
@@ -1077,6 +1092,7 @@ export default class AstroChartCircle {
 					return trans;
 				})
 				.text(function(d){return d});	
+			this.genSignMeaningTooltip(planetTexts.filter((d, idx)=>idx === signTextIndex), pnt.sign);
 		}
 	
 		return stars;
@@ -1568,7 +1584,9 @@ export default class AstroChartCircle {
 		let aspR = needPlanets ? houseBandR - innerHouseStep : houseR - innerHouseStep;
 		let needSu = (flags & AstroConst.CHART_SU27) === AstroConst.CHART_SU27 ? true : false;
 		if(needSu){
-			let suSixHouseR = starsR - starStep;
+			const houseOuterR = needPlanets ? houseBandR : houseR;
+			const houseInnerR = houseOuterR - innerHouseStep;
+			let suSixHouseR = houseInnerR;
 			let suSH = this.suSixhouses(topgroup, suSixHouseR, rStep, chartObj);
 		
 			let suR = suSixHouseR - rStep;

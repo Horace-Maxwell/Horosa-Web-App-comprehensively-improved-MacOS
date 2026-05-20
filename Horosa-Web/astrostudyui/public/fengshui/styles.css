@@ -909,7 +909,7 @@ body.horosa-embed::after {
 
 body.horosa-embed .app {
   max-width: none;
-  padding: 8px;
+  padding: 16px 10px 10px;
   min-height: auto;
   height: auto;
 }
@@ -919,7 +919,9 @@ body.horosa-embed .topbar {
 }
 
 body.horosa-embed .quickbar {
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-top: 2px;
 }
 
 body.horosa-embed .layout {

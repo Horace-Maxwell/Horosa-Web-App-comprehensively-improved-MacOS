@@ -4,8 +4,10 @@ import { GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, getStoredGuolaoLifeMo
 import './GuoLaoMoiraWheel.less';
 
 const R = 560;
-const VIEW = 1280;
+const VIEW = 1220;
 const RING_POS = [0.10, 0.22, 0.28, 0.34, 0.43, 0.45, 0.51, 0.53, 0.62, 0.77, 0.92, 0.95, 1.0];
+const RING_DRAW_TYPE = [1, 0, 0, 0, 1, -10, -10, 1, 1, 0, 0, 1, -10];
+const LIMIT_SEQ = [11.0, 10.0, 11.0, 15.0, 8.0, 7.0, 11.0, 4.5, 4.5, 4.5, 5.0, 5.0];
 
 const BLACK = '#000000';
 const GREEN = '#008000';
@@ -22,6 +24,7 @@ const GOD_RING_OUTER = 10;
 const TWELVE_SIGNS = ['酉', '申', '未', '午', '巳', '辰', '卯', '寅', '丑', '子', '亥', '戌'];
 const RING1 = ['金酉', '水申', '月未', '日午', '水巳', '金辰', '火卯', '木寅', '土丑', '土子', '木亥', '火戌'];
 const HOUSE_BRANCH = ['财帛', '兄弟', '田宅', '男女', '奴仆', '夫妻', '疾厄', '迁移', '官禄', '福德', '相貌', '命宫'];
+const HOUSE_NUMBERS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '1'];
 const SIGN_NAMES = ['白羊', '金牛', '双子', '巨蟹', '狮子', '处女', '天秤', '天蝎', '射手', '摩羯', '水瓶', '双鱼'];
 const HALF_STELLAR = ['娄', '胃', '昴', '毕', '觜', '参', '井', '鬼', '柳', '星', '张', '翼', '轸', '角', '亢', '氐', '房', '心', '尾', '箕', '斗', '牛', '女', '虚', '危', '室', '壁', '奎'];
 const FULL_STELLAR = ['娄金', '胃土', '昴日', '毕月', '觜火', '参水', '井木', '鬼金', '柳土', '星日', '张月', '翼火', '轸水', '角木', '亢金', '氐土', '房日', '心月', '尾火', '箕水', '斗木', '牛金', '女土', '虚日', '危月', '室火', '壁水', '奎木'];
@@ -108,6 +111,26 @@ function radialLine(theta, inner, outer, opt = {}){
 	);
 }
 
+function connectorLine(markTheta, labelTheta, inner, outer, dir, opt = {}){
+	const band = Math.max(1, outer - inner);
+	const gap = Math.max(8, Math.min(30, band * 0.56));
+	const startRadius = dir >= 0 ? outer : inner;
+	const endRadius = dir >= 0 ? outer - gap : inner + gap;
+	const a = point(startRadius, markTheta);
+	const b = point(endRadius, labelTheta);
+	return (
+		<line
+			x1={a.x}
+			y1={a.y}
+			x2={b.x}
+			y2={b.y}
+			stroke={opt.color || BLACK}
+			strokeWidth={opt.width || 1}
+			opacity={opt.opacity === undefined ? 1 : opt.opacity}
+		/>
+	);
+}
+
 function cleanText(text){
 	return `${text || ''}`.replace(/\s+/g, '');
 }
@@ -180,10 +203,7 @@ function verticalText(text, x, y, opt = {}){
 
 function horizontalRingText(text, radius, theta, opt = {}){
 	const p = point(radius, theta);
-	let rotate = theta + 90;
-	if(theta > 90 || theta < -90){
-		rotate += 180;
-	}
+	const rotate = tangentRotate(theta);
 	return (
 		<text
 			x={p.x}
@@ -198,6 +218,40 @@ function horizontalRingText(text, radius, theta, opt = {}){
 		>
 			{text}
 		</text>
+	);
+}
+
+function pairedRadialText(text, theta, inner, outer, opt = {}){
+	const chars = Array.from(cleanText(text));
+	if(!chars.length){
+		return null;
+	}
+	const band = Math.max(1, outer - inner);
+	const branch = chars.slice(1).join('');
+	const items = [
+		{key: 'outer', value: chars[0], radius: inner + band * 0.68},
+		{key: 'inner', value: branch || chars[1] || '', radius: inner + band * 0.34},
+	].filter((item)=>item.value);
+	return (
+		<g className="moira-paired-radial-text">
+			{items.map((item)=>{
+				const p = point(item.radius, theta);
+				return (
+					<text
+						key={`${text}-${item.key}-${theta}`}
+						x={p.x}
+						y={p.y}
+						fill={opt.color || BLACK}
+						fontSize={opt.size || 22}
+						fontWeight={opt.weight || 600}
+						textAnchor="middle"
+						dominantBaseline="central"
+					>
+						{item.value}
+					</text>
+				);
+			})}
+		</g>
 	);
 }
 
@@ -258,21 +312,21 @@ function radialColumns(items, centerTheta, inner, outer, opt = {}){
 
 function godTextSize(count){
 	if(count > 22){
-		return 12;
+		return 11;
 	}
 	if(count > 18){
-		return 15;
+		return 13;
 	}
 	if(count > 14){
-		return 17;
+		return 15;
 	}
 	if(count > 10){
-		return 20;
+		return 17;
 	}
 	if(count > 6){
-		return 22;
+		return 19;
 	}
-	return 25;
+	return 21;
 }
 
 function godColumnStep(count){
@@ -448,8 +502,11 @@ function planetPlacements(chart, inner, outer, dir, size, preferLon = false){
 		};
 	}).filter(Boolean).sort((a, b)=>a.degree - b.degree || a.order - b.order);
 	const center = (inner + outer) / 2;
-	const safeRadius = Math.max(inner + 18, Math.min(outer - 18, center + dir * 2));
-	const minGap = Math.max(4.2, Math.min(8.8, (size || 30) / Math.max(180, safeRadius) * 180 / Math.PI * 1.15));
+	const band = Math.max(1, outer - inner);
+	const pad = Math.min(18, Math.max(4, band / 3));
+	const preferredRadius = center + dir * Math.min(4, band / 8);
+	const safeRadius = Math.max(inner + pad, Math.min(outer - pad, preferredRadius));
+	const minGap = Math.max(5.6, Math.min(12.5, (size || 30) / Math.max(180, safeRadius) * 180 / Math.PI * 1.35));
 	const groups = clusterPlanetItems(items, minGap);
 	return groups.reduce((list, group)=>list.concat(resolveLabelDegrees(group, minGap).map((item)=>({
 		...item,
@@ -477,8 +534,47 @@ function lifeDegree(chart, fields){
 	return val === null ? 0 : val;
 }
 
+function childLimitYears(life){
+	const inSign = norm(Number(life || 0)) % 30;
+	return Math.max(1, Math.round(9 + inSign / 3));
+}
+
+function limitSegments(life){
+	return [childLimitYears(life)].concat(LIMIT_SEQ.slice(1));
+}
+
+function limitAgeOffset(life, age){
+	const segments = limitSegments(life);
+	let rest = Math.max(0, Number(age || 1) - 1);
+	let offset = 0;
+	for(let i = 0; i < segments.length; i++){
+		const span = Math.max(0.1, segments[i]);
+		if(rest <= span){
+			return offset + 30 * rest / span;
+		}
+		offset += 30;
+		rest -= span;
+	}
+	return Math.min(360, offset);
+}
+
+function limitAgeAtOffset(life, offset){
+	const segments = limitSegments(life);
+	let rest = Math.max(0, Number(offset || 0));
+	let age = 1;
+	for(let i = 0; i < segments.length; i++){
+		const span = Math.max(0.1, segments[i]);
+		if(rest <= 30){
+			return age + rest / 30 * span;
+		}
+		age += span;
+		rest -= 30;
+	}
+	return age;
+}
+
 function limitDegreeForAge(life, age){
-	return norm(Number(life || 0) - (Number(age || 1) - 1) * 3);
+	return norm(Number(life || 0) - limitAgeOffset(life, age));
 }
 
 function limitOffsetFromLife(life, degree){
@@ -486,7 +582,7 @@ function limitOffsetFromLife(life, degree){
 }
 
 function limitYearForDegree(birthYear, life, degree){
-	return birthYear + Math.floor(limitOffsetFromLife(life, degree) / 3);
+	return birthYear + Math.floor(limitAgeAtOffset(life, limitOffsetFromLife(life, degree)) - 1);
 }
 
 function tangentRotate(theta){
@@ -580,11 +676,56 @@ class GuoLaoMoiraWheel extends Component{
 		super(props);
 		this.state = {
 			tooltip: null,
+			containerSide: 0,
 		};
 		this.containerRef = React.createRef();
+		this.resizeObserver = null;
+		this.measureContainer = this.measureContainer.bind(this);
 		this.showTooltip = this.showTooltip.bind(this);
 		this.moveTooltip = this.moveTooltip.bind(this);
 		this.hideTooltip = this.hideTooltip.bind(this);
+	}
+
+	componentDidMount(){
+		this.measureContainer();
+		if(typeof ResizeObserver !== 'undefined' && this.containerRef.current){
+			this.resizeObserver = new ResizeObserver(this.measureContainer);
+			this.resizeObserver.observe(this.containerRef.current);
+		}
+		if(typeof window !== 'undefined'){
+			window.addEventListener('resize', this.measureContainer);
+		}
+	}
+
+	componentDidUpdate(prevProps){
+		if(prevProps.height !== this.props.height){
+			this.measureContainer();
+		}
+	}
+
+	componentWillUnmount(){
+		if(this.resizeObserver){
+			this.resizeObserver.disconnect();
+			this.resizeObserver = null;
+		}
+		if(typeof window !== 'undefined'){
+			window.removeEventListener('resize', this.measureContainer);
+		}
+	}
+
+	measureContainer(){
+		const node = this.containerRef.current;
+		if(!node){
+			return;
+		}
+		const rect = node.getBoundingClientRect();
+		const fallbackHeight = Number(this.props.height) || 740;
+		const availableWidth = rect.width || node.clientWidth || fallbackHeight;
+		const availableHeight = rect.height || node.clientHeight || fallbackHeight;
+		const nextSide = Math.max(280, Math.floor(Math.min(availableWidth, availableHeight)));
+		if(Number.isFinite(nextSide) && nextSide !== this.state.containerSide){
+			this.setState({containerSide: nextSide});
+		}
 	}
 
 	tooltipPoint(evt){
@@ -644,11 +785,11 @@ class GuoLaoMoiraWheel extends Component{
 	renderRings(){
 		return (
 			<g className="moira-rings">
-				{RING_POS.map((pos, idx)=>idx === 2 || idx === 4 || idx === 7 || idx === 9 ? null : (
+				{RING_POS.map((pos, idx)=>RING_DRAW_TYPE[idx] <= -10 ? null : (
 					<circle
 						key={`ring-${idx}`}
 						r={pos * R}
-						className={idx === 0 || idx === 4 || idx === 6 || idx === 8 || idx === 10 || idx === 12 ? 'moira-ring-major' : 'moira-ring-minor'}
+						className={RING_DRAW_TYPE[idx] === 1 || idx === 0 || idx === 11 ? 'moira-ring-major' : 'moira-ring-minor'}
 					/>
 				))}
 			</g>
@@ -657,42 +798,63 @@ class GuoLaoMoiraWheel extends Component{
 
 	renderSectorLines(){
 		const nodes = [];
-		for(let i = 0; i < 12; i++){
-			const edge = -30 * i;
+		for(let ringIdx = 1; ringIdx < RING_DRAW_TYPE.length; ringIdx++){
+			const drawType = RING_DRAW_TYPE[ringIdx];
+			if(drawType <= 0 && drawType > -10){
+				for(let i = 0; i < 12; i++){
+					nodes.push(
+						<g key={`sector-${ringIdx}-${i}`}>
+							{radialLine(-30 * i, r(ringIdx - 1), r(ringIdx), {color: BLACK, width: 0.95})}
+						</g>
+					);
+				}
+			}
+			if(drawType === 2 || drawType === -11){
+				for(let i = 0; i < 24; i++){
+					nodes.push(
+						<g key={`sector24-${ringIdx}-${i}`}>
+							{radialLine(-7.5 - 15 * i, r(ringIdx - 1), r(ringIdx), {color: BLACK, width: 0.85})}
+						</g>
+					);
+				}
+			}
+		}
+		return <g>{nodes}</g>;
+	}
+
+	renderDegreeMarkBand(inner, outer, keyPrefix, thetaForDegree = moiraThetaFromDegree, opt = {}){
+		const nodes = [];
+		const delta = (outer - inner) / 3;
+		for(let degree = 0; degree < 360; degree++){
+			const theta = thetaForDegree(degree);
+			const major = degree % 30 === 0;
+			const mid = degree % 5 === 0;
+			const start = major ? inner : (mid ? inner + delta : inner + 2 * delta);
+			const color = opt.mutedMajor ? BLACK : (major ? RED : BLACK);
 			nodes.push(
-				<g key={`sector-${i}`}>
-					{radialLine(edge, r(0), r(3), {color: BLACK, width: 1})}
-					{radialLine(edge, r(GOD_RING_INNER), r(GOD_RING_OUTER), {color: BLACK, width: 1})}
+				<g key={`${keyPrefix}-${degree}`}>
+					{radialLine(theta, start, outer, {
+						color,
+						width: major ? (opt.majorWidth || 0.82) : 0.62,
+						opacity: opt.opacity === undefined ? (major ? 0.6 : 0.48) : opt.opacity,
+					})}
 				</g>
 			);
 		}
-		return <g>{nodes}</g>;
+		return nodes;
 	}
 
 	renderDegreeTicks(chart, fields){
 		const nodes = [];
 		const life = lifeDegree(chart, fields);
 		const lifeTheta = moiraThetaFromDegree(life);
-		for(let offset = 0; offset < 360; offset++){
-			const degree = norm(life - offset);
-			const theta = moiraThetaFromDegree(degree);
-			const major = offset % 30 === 0;
-			const mid = offset % 5 === 0;
-			const inner = major ? r(11) - 5 : (mid ? r(11) + 2 : r(11) + 9);
-			nodes.push(
-				<g key={`tick-${offset}`}>
-					{radialLine(theta, inner, r(12), {
-						color: major || mid ? RED : BLACK,
-						width: major ? 1.2 : 0.8,
-					})}
-				</g>
-			);
-		}
-		for(let age = 1; age <= 120; age++){
-			const degree = limitDegreeForAge(life, age);
+			nodes.push(...this.renderDegreeMarkBand(r(4), r(5), 'full-stellar-up', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38}));
+			nodes.push(...this.renderDegreeMarkBand(r(6), r(7), 'full-stellar-down', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38}));
+		for(let age = 1; age <= 106; age++){
+			const degree = limitDegreeForAge(life, age + 0.5);
 			const theta = moiraThetaFromDegree(degree);
 			if(age % 1 === 0){
-				const p = point((r(11) + r(12)) / 2, theta);
+				const p = point(r(10) + (r(11) - r(10)) * 0.5, theta);
 				nodes.push(
 					<text key={`limit-age-${age}`} x={p.x} y={p.y} fill={GREEN} fontSize="10.5" textAnchor="middle" dominantBaseline="central">
 						{age}
@@ -702,50 +864,49 @@ class GuoLaoMoiraWheel extends Component{
 		}
 		nodes.push(
 			<g key="life-degree-marker" className="moira-life-degree-marker">
-				{radialLine(lifeTheta, r(11) - 9, r(12) + 2, {color: RED, width: 2.7})}
+				{radialLine(lifeTheta, r(10), r(11), {color: RED, width: 2.7})}
 			</g>
 		);
 		return <g className="moira-degree-ticks">{nodes}</g>;
 	}
 
 	renderStellarTicks(){
-		const nodes = [];
-		for(let degree = 0; degree < 360; degree++){
-			const theta = moiraThetaFromDegree(degree);
-			const major = degree % 5 === 0;
-			const tickLen = major ? 7 : 4;
-			const width = major ? 0.72 : 0.42;
-			nodes.push(
-				<g key={`stellar-tick-${degree}`}>
-					{radialLine(theta, r(STELLAR_TICK_OUTER) - tickLen, r(STELLAR_TICK_OUTER), {color: BLACK, width})}
-					{radialLine(theta, r(STELLAR_TICK_INNER), r(STELLAR_TICK_INNER) + tickLen, {color: BLACK, width})}
-				</g>
-			);
-		}
-		return <g className="moira-stellar-ticks">{nodes}</g>;
+		return null;
 	}
 
 	renderStaticTwelve(){
 		const nodes = [];
 		for(let i = 0; i < 12; i++){
 			const theta = sectorTheta(i);
-			const startTheta = -30 * i;
-			const endTheta = -30 * (i + 1);
-			const pRing1 = point((r(0) + r(1)) / 2, theta);
-			const pHouse = point((r(1) + r(3)) / 2, theta);
-			const tip = `${HOUSE_BRANCH[i]}：${TWELVE_SIGNS[i]}；同经：${RING1[i]}`;
-			nodes.push(
-				<g key={`static-${i}`}>
+				const startTheta = -30 * i;
+				const endTheta = -30 * (i + 1);
+					const pNumber = point((r(1) + r(2)) / 2, theta);
+					const houseNameRadius = (r(2) + r(3)) / 2;
+				const tip = `${HOUSE_BRANCH[i]}：${TWELVE_SIGNS[i]}；同经：${RING1[i]}`;
+				nodes.push(
+					<g key={`static-${i}`}>
 					<path
 						className="moira-hover-zone"
 						d={annularSectorPath(r(0), r(3), endTheta, startTheta)}
 						{...this.tooltipHandlers(tip)}
 					>
-						<title>{tip}</title>
-					</path>
-					{verticalText(RING1[i], pRing1.x, pRing1.y, {size: 24, maxPerCol: 2, color: BLACK, weight: 600})}
-					{verticalText(HOUSE_BRANCH[i], pHouse.x, pHouse.y, {size: 27, maxPerCol: 2, color: GREEN, weight: 700})}
-				</g>
+							<title>{tip}</title>
+						</path>
+						{pairedRadialText(RING1[i], theta, r(0), r(1), {size: 22, color: BLACK, weight: 600})}
+							{horizontalRingText(HOUSE_BRANCH[i], houseNameRadius, theta, {size: 20, color: GREEN, weight: 700})}
+						<text
+							x={pNumber.x}
+							y={pNumber.y}
+							fill={GREEN}
+							fontSize="20"
+							fontWeight="600"
+							textAnchor="middle"
+							dominantBaseline="central"
+							transform={`rotate(${tangentRotate(theta)} ${pNumber.x} ${pNumber.y})`}
+						>
+							{HOUSE_NUMBERS[i]}
+						</text>
+					</g>
 			);
 		}
 		return (
@@ -814,7 +975,7 @@ class GuoLaoMoiraWheel extends Component{
 					>
 						<title>{tip}</title>
 					</circle>
-					{radialLine(markTheta, opt.markInner, opt.markOuter, {color: opt.markColor, width: 1.05})}
+						{connectorLine(markTheta, labelTheta, opt.markInner, opt.markOuter, opt.lineDir || 1, {color: opt.markColor, width: 1.05})}
 					{verticalText(item.label, p.x, p.y, {
 						size: opt.size,
 						maxPerCol: 1,
@@ -832,32 +993,34 @@ class GuoLaoMoiraWheel extends Component{
 		const transitPreferLon = isZhengSiderealChart(transitChart || birthChart);
 		return (
 			<g>
-				{this.renderPlanetRing(transitChart || birthChart, {
-					kind: 'now',
-					inner: r(3) + 4,
-					outer: r(STELLAR_TICK_INNER) - 9,
-					dir: 1,
-					size: 30,
-					color: BLUE,
-					markColor: NOW_MARK,
-					markInner: r(4) + 2,
-					markOuter: r(STELLAR_TICK_INNER) + 1,
-					preferLon: transitPreferLon,
-				})}
-				{this.renderPlanetRing(birthChart, {
-					kind: 'birth',
-					inner: r(STELLAR_TICK_OUTER) + 10,
-					outer: r(8) - 8,
-					dir: -1,
-					size: 31,
-					color: GREEN,
-					markColor: BLACK,
-					markInner: r(STELLAR_TICK_OUTER) - 1,
-					markOuter: r(7) + 11,
-					preferLon: birthPreferLon,
-				})}
-			</g>
-		);
+					{this.renderPlanetRing(transitChart || birthChart, {
+						kind: 'now',
+						inner: r(3) + 6,
+						outer: r(4) - 6,
+						dir: 1,
+						size: 27,
+						color: BLUE,
+							markColor: NOW_MARK,
+							markInner: r(3),
+							markOuter: r(4),
+							lineDir: 1,
+							preferLon: transitPreferLon,
+						})}
+					{this.renderPlanetRing(birthChart, {
+						kind: 'birth',
+						inner: r(7) + 7,
+						outer: r(8) - 8,
+						dir: -1,
+						size: 28,
+						color: GREEN,
+							markColor: BLACK,
+							markInner: r(7),
+							markOuter: r(8),
+							lineDir: -1,
+							preferLon: birthPreferLon,
+						})}
+				</g>
+			);
 	}
 
 	renderGodRing(root, chart, opt){
@@ -939,28 +1102,43 @@ class GuoLaoMoiraWheel extends Component{
 			});
 		}
 		yearMarks.sort((a, b)=>limitOffsetFromLife(life, a.degree) - limitOffsetFromLife(life, b.degree));
-		yearMarks.forEach((mark)=>{
-			const degree = norm(mark.degree);
-			const theta = moiraThetaFromDegree(degree);
-			const pYear = point(r(12) + 28, theta);
-			nodes.push(
-				<text
-					key={`year-${mark.key}`}
-					x={pYear.x}
-					y={pYear.y}
-					fill={BLACK}
-					fontSize={mark.key === 'birth' ? 24 : 21}
-					fontWeight={mark.key === 'birth' ? 600 : 400}
-					textAnchor="middle"
-					dominantBaseline="central"
-					transform={`rotate(${tangentRotate(theta)} ${pYear.x} ${pYear.y})`}
-				>
-					{mark.year}
-				</text>
-			);
-		});
-		return <g className="moira-limit-layer">{nodes}</g>;
-	}
+			yearMarks.forEach((mark)=>{
+				const degree = norm(mark.degree);
+				const theta = moiraThetaFromDegree(degree);
+				const pYear = point(r(12) + 28, theta);
+				nodes.push(
+					<g key={`year-${mark.key}`}>
+						{radialLine(theta, r(10), r(12), {color: BLACK, width: mark.key === 'birth' ? 1.35 : 1})}
+						<text
+							x={pYear.x}
+							y={pYear.y}
+							fill={BLACK}
+							fontSize={mark.key === 'birth' ? 24 : 21}
+							fontWeight={mark.key === 'birth' ? 600 : 400}
+							textAnchor="middle"
+							dominantBaseline="central"
+							transform={`rotate(${tangentRotate(theta)} ${pYear.x} ${pYear.y})`}
+						>
+							{mark.year}
+						</text>
+					</g>
+				);
+			});
+			for(let age = 1; age <= 106; age++){
+				const theta = moiraThetaFromDegree(limitDegreeForAge(life, age));
+				const major = age === 1 || age % 10 === 0;
+				nodes.push(
+					<g key={`limit-age-line-${age}`}>
+						{radialLine(theta, major ? r(10) : (r(10) + r(11)) / 2, r(11), {
+							color: major ? RED : GREEN,
+							width: major ? 1.1 : 0.7,
+							opacity: major ? 0.9 : 0.68,
+						})}
+					</g>
+				);
+			}
+			return <g className="moira-limit-layer">{nodes}</g>;
+		}
 
 	renderSideText(root, chart, fields){
 		const birthYear = birthYearFrom(root, chart, fields);
@@ -975,19 +1153,19 @@ class GuoLaoMoiraWheel extends Component{
 		const h = bazi.time && bazi.time.text ? bazi.time.text : '';
 		return (
 			<g className="moira-side-text" opacity="0.96">
-				<text x="-600" y="545" fill={BLACK} fontSize="17">
-					<tspan x="-600" dy="0">四柱：{[y, m, d, h].filter(Boolean).join(' ')}</tspan>
-					<tspan x="-600" dy="25">流年：{transitYear} {stemBranchForYear(transitYear)}</tspan>
-					<tspan x="-600" dy="25">{params.date || ''} {params.time || ''}</tspan>
-					<tspan x="-600" dy="25">{transitParams.date ? `流年时间：${transitParams.date} ${transitParams.time || ''}` : ''}</tspan>
-				</text>
-				<text x="600" y="540" fill={BLACK} fontSize="17" textAnchor="end">
-					<tspan x="600" dy="0">地心计算</tspan>
-					<tspan x="600" dy="25">七政四余</tspan>
-					<tspan x="600" dy="25">Moira full</tspan>
-				</text>
-			</g>
-		);
+					<text x="-590" y="522" fill={BLACK} fontSize="17">
+						<tspan x="-590" dy="0">四柱：{[y, m, d, h].filter(Boolean).join(' ')}</tspan>
+						<tspan x="-590" dy="24">流年：{transitYear} {stemBranchForYear(transitYear)}</tspan>
+						<tspan x="-590" dy="24">{params.date || ''} {params.time || ''}</tspan>
+						<tspan x="-590" dy="24">{transitParams.date ? `流年时间：${transitParams.date} ${transitParams.time || ''}` : ''}</tspan>
+					</text>
+					<text x="590" y="522" fill={BLACK} fontSize="17" textAnchor="end">
+						<tspan x="590" dy="0">地心计算</tspan>
+						<tspan x="590" dy="24">七政四余</tspan>
+						<tspan x="590" dy="24">Moira full</tspan>
+					</text>
+				</g>
+			);
 	}
 
 	renderTooltip(){
@@ -1015,9 +1193,11 @@ class GuoLaoMoiraWheel extends Component{
 		const transitRoot = this.props.transitValue || {};
 		const transitChart = transitRoot.chart ? (transitRoot.params ? {...transitRoot.chart, params: transitRoot.params} : transitRoot.chart) : null;
 		const height = this.props.height || 740;
+		const side = this.state.containerSide || Math.min(height, 740);
 		return (
 			<div className="horosa-guolao-moira-wheel" style={{height}} ref={this.containerRef}>
 				<svg
+					style={{width: side, height: side}}
 					viewBox={`${-VIEW / 2} ${-VIEW / 2} ${VIEW} ${VIEW}`}
 					role="img"
 					aria-label="Moira风格七政星盘"
@@ -1061,9 +1241,11 @@ export {
 	point as moiraPoint,
 	annularSectorPath as moiraAnnularSectorPath,
 	radialLine as moiraRadialLine,
+	connectorLine as moiraConnectorLine,
 	formatGodName as moiraFormatGodName,
 	verticalText as moiraVerticalText,
 	horizontalRingText as moiraHorizontalRingText,
+	pairedRadialText as moiraPairedRadialText,
 	radialStackText as moiraRadialStackText,
 	radialColumns as moiraRadialColumns,
 	godTextSize as moiraGodTextSize,

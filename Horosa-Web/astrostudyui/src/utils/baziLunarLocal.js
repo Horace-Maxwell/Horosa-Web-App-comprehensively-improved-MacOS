@@ -35,6 +35,81 @@ const SHI_SHEN_SHORT = {
 	日主: '日元',
 };
 
+const GAN_HE_RULES = [
+	{ key: '甲己合土', cells: ['甲', '己'] },
+	{ key: '乙庚合金', cells: ['乙', '庚'] },
+	{ key: '丙辛合水', cells: ['丙', '辛'] },
+	{ key: '丁壬合木', cells: ['丁', '壬'] },
+	{ key: '戊癸合火', cells: ['戊', '癸'] },
+];
+
+const GAN_CONG_RULES = [
+	{ key: '甲庚冲', cells: ['甲', '庚'] },
+	{ key: '乙辛冲', cells: ['乙', '辛'] },
+	{ key: '丙壬冲', cells: ['丙', '壬'] },
+	{ key: '丁癸冲', cells: ['丁', '癸'] },
+];
+
+const ZHI_HE6_RULES = [
+	{ key: '子丑合土', cells: ['子', '丑'] },
+	{ key: '寅亥合木', cells: ['寅', '亥'] },
+	{ key: '卯戌合火', cells: ['卯', '戌'] },
+	{ key: '辰酉合金', cells: ['辰', '酉'] },
+	{ key: '巳申合水', cells: ['巳', '申'] },
+	{ key: '午未合土', cells: ['午', '未'] },
+];
+
+const ZHI_HE3_RULES = [
+	{ key: '申子辰合水', cells: ['申', '子', '辰'] },
+	{ key: '亥卯未合木', cells: ['亥', '卯', '未'] },
+	{ key: '寅午戌合火', cells: ['寅', '午', '戌'] },
+	{ key: '巳酉丑合金', cells: ['巳', '酉', '丑'] },
+];
+
+const ZHI_HUI_RULES = [
+	{ key: '寅卯辰会木', cells: ['寅', '卯', '辰'] },
+	{ key: '巳午未会火', cells: ['巳', '午', '未'] },
+	{ key: '申酉戌会金', cells: ['申', '酉', '戌'] },
+	{ key: '亥子丑会水', cells: ['亥', '子', '丑'] },
+];
+
+const ZHI_CONG_RULES = [
+	{ key: '子午冲', cells: ['子', '午'] },
+	{ key: '丑未冲', cells: ['丑', '未'] },
+	{ key: '寅申冲', cells: ['寅', '申'] },
+	{ key: '卯酉冲', cells: ['卯', '酉'] },
+	{ key: '辰戌冲', cells: ['辰', '戌'] },
+	{ key: '巳亥冲', cells: ['巳', '亥'] },
+];
+
+const ZHI_XING_RULES = [
+	{ key: '寅巳申三刑', cells: ['寅', '巳', '申'] },
+	{ key: '丑戌未三刑', cells: ['丑', '戌', '未'] },
+	{ key: '子卯刑', cells: ['子', '卯'] },
+	{ key: '辰辰自刑', cells: ['辰', '辰'] },
+	{ key: '午午自刑', cells: ['午', '午'] },
+	{ key: '酉酉自刑', cells: ['酉', '酉'] },
+	{ key: '亥亥自刑', cells: ['亥', '亥'] },
+];
+
+const ZHI_CUAN_RULES = [
+	{ key: '子未穿', cells: ['子', '未'] },
+	{ key: '丑午穿', cells: ['丑', '午'] },
+	{ key: '寅巳穿', cells: ['寅', '巳'] },
+	{ key: '卯辰穿', cells: ['卯', '辰'] },
+	{ key: '申亥穿', cells: ['申', '亥'] },
+	{ key: '酉戌穿', cells: ['酉', '戌'] },
+];
+
+const ZHI_PO_RULES = [
+	{ key: '子酉破', cells: ['子', '酉'] },
+	{ key: '丑辰破', cells: ['丑', '辰'] },
+	{ key: '寅亥破', cells: ['寅', '亥'] },
+	{ key: '卯午破', cells: ['卯', '午'] },
+	{ key: '巳申破', cells: ['巳', '申'] },
+	{ key: '未戌破', cells: ['未', '戌'] },
+];
+
 const TRIGRAMS = {
 	乾: { name: '乾', yao: [1, 1, 1] },
 	兑: { name: '兑', yao: [1, 1, 0] },
@@ -212,6 +287,109 @@ function makeGua(gan, zhi){
 	};
 }
 
+function makeStarChargerFromSolar(solar){
+	if(!solar || !solar.getLunar){
+		return null;
+	}
+	try{
+		const lunar = solar.getLunar();
+		const name = lunar && lunar.getXiu ? lunar.getXiu() : '';
+		if(!name){
+			return null;
+		}
+		const luck = lunar.getXiuLuck ? lunar.getXiuLuck() : '';
+		const song = lunar.getXiuSong ? lunar.getXiuSong() : '';
+		return {
+			name,
+			luck,
+			event: [luck ? `${luck}宿` : '', song].filter(Boolean).join('。'),
+		};
+	}catch(e){
+		return null;
+	}
+}
+
+function safeSolarAtYear(year, baseSolar){
+	const month = baseSolar && baseSolar.getMonth ? baseSolar.getMonth() : 7;
+	const day = baseSolar && baseSolar.getDay ? baseSolar.getDay() : 1;
+	for(let d = day; d >= 1; d--){
+		try{
+			return Solar.fromYmd(year, month, d);
+		}catch(e){
+			// Try the previous day for leap-day and month-edge cases.
+		}
+	}
+	return Solar.fromYmd(year, 7, 1);
+}
+
+function makeRelationItem(pillar, zhu){
+	const source = pillar || {};
+	return {
+		cell: source.cell || '',
+		zhu: zhu || source.zhu || '',
+		polar: source.polar,
+		element: source.element,
+		relative: source.relative,
+	};
+}
+
+function collectRelationSources(four, part){
+	const keys = [
+		['year', '年'],
+		['month', '月'],
+		['day', '日'],
+		['time', '时'],
+		['tai', '胎'],
+		['ming', '命'],
+		['shen', '身'],
+	];
+	return keys.map(([key, label])=>{
+		const item = four && four[key] ? four[key] : {};
+		const node = part === 'stem' ? item.stem : item.branch;
+		return makeRelationItem(node, label);
+	}).filter((item)=>item.cell);
+}
+
+function relationMapByRules(items, rules, minUniqueCount){
+	const result = {};
+	rules.forEach((rule)=>{
+		const matched = [];
+		const requiredCount = {};
+		rule.cells.forEach((cell)=>{
+			requiredCount[cell] = (requiredCount[cell] || 0) + 1;
+		});
+		Object.keys(requiredCount).forEach((cell)=>{
+			const found = items.filter((item)=>item.cell === cell);
+			if(found.length >= requiredCount[cell]){
+				matched.push(...found);
+			}
+		});
+		const need = minUniqueCount || rule.cells.length;
+		const matchedUniqueCount = Array.from(new Set(matched.map((item)=>item.cell))).length;
+		const selfRule = Object.keys(requiredCount).length === 1 && rule.cells.length > 1;
+		if((selfRule && matched.length >= rule.cells.length) || (!selfRule && matchedUniqueCount >= need)){
+			result[rule.key] = matched;
+		}
+	});
+	return result;
+}
+
+function buildStemBranchRelations(four){
+	const stems = collectRelationSources(four, 'stem');
+	const branches = collectRelationSources(four, 'branch');
+	return {
+		ganHe: relationMapByRules(stems, GAN_HE_RULES),
+		ganCong: relationMapByRules(stems, GAN_CONG_RULES),
+		ziHe6: relationMapByRules(branches, ZHI_HE6_RULES),
+		ziHe3: relationMapByRules(branches, ZHI_HE3_RULES, 2),
+		ziHui: relationMapByRules(branches, ZHI_HUI_RULES),
+		ziXing: relationMapByRules(branches, ZHI_XING_RULES),
+		ziCong: relationMapByRules(branches, ZHI_CONG_RULES),
+		ziCuan: relationMapByRules(branches, ZHI_CUAN_RULES),
+		ziPo: relationMapByRules(branches, ZHI_PO_RULES),
+	};
+}
+
 function makePillar(label, ganzi, data){
 	const gan = `${ganzi || ''}`.charAt(0);
 	const zhi = `${ganzi || ''}`.charAt(1);
@@ -311,14 +489,15 @@ function buildFourColumns(eightChar){
 		zhi: four.ming.branch.cell,
 	};
 	const shenSha = calcFourPillarShenSha(four);
-	['year', 'month', 'day', 'time'].forEach((key)=>{
-		if(four[key]){
-			four[key].shenSha = shenSha[key] || [];
-			four[key].neutralGods = four[key].shenSha;
-		}
-	});
-	return four;
-}
+		['year', 'month', 'day', 'time'].forEach((key)=>{
+			if(four[key]){
+				four[key].shenSha = shenSha[key] || [];
+				four[key].neutralGods = four[key].shenSha;
+			}
+		});
+		Object.assign(four, buildStemBranchRelations(four));
+		return four;
+	}
 
 function flowMonthFromSolar(year, term, solar, dayGan){
 	const lunar = solar.getLunar();
@@ -376,6 +555,7 @@ function buildDirection(yun, dayGan, birthSolar){
 				age: year.getAge(),
 				index: year.getIndex(),
 				flowMonths: buildFlowMonths(year, birthSolar, dayGan),
+				starCharger: makeStarChargerFromSolar(safeSolarAtYear(year.getYear(), birthSolar)),
 				...pillarFromGanzi('年', year.getGanZhi(), dayGan),
 			})),
 		};
@@ -397,14 +577,29 @@ function buildMainDirection(yun, dayGan){
 	});
 }
 
-function buildSmallDirection(yun, dayGan){
-	const first = yun.getDaYun(1)[0];
-	return first.getXiaoYun().map((item)=>({
-		year: item.getYear(),
-		age: item.getAge(),
-		ganzi: item.getGanZhi(),
-		...pillarFromGanzi('小', item.getGanZhi(), dayGan),
-	}));
+function buildSmallDirection(yun, dayGan, birthSolar){
+	return yun.getDaYun(10).flatMap((dayun)=>dayun.getXiaoYun()).map((item)=>{
+		const year = item.getYear();
+		const yearSolar = safeSolarAtYear(year, birthSolar);
+		const yearLunar = yearSolar.getLunar();
+		const yearGanzi = yearLunar.getYearInGanZhiByLiChun ? yearLunar.getYearInGanZhiByLiChun() : yearLunar.getYearInGanZhi();
+		const direct = pillarFromGanzi('小', item.getGanZhi(), dayGan);
+		const liunian = {
+			year,
+			age: item.getAge(),
+			starCharger: makeStarChargerFromSolar(yearSolar),
+			...pillarFromGanzi('年', yearGanzi, dayGan),
+		};
+		return {
+			year,
+			age: item.getAge(),
+			ganzi: item.getGanZhi(),
+			ganzhi: item.getGanZhi(),
+			direct,
+			yearGanzi: liunian,
+			...direct,
+		};
+	});
 }
 
 function formatStartLuck(yun){
@@ -447,10 +642,10 @@ export function buildLocalBaziResult(params){
 		gender: gender === 1 ? 'Male' : 'Female',
 		nongli: buildNongli(lunar, solar, solar),
 		fourColumns,
-		gong12God: {},
-		direction: buildDirection(yun, dayGan, solar),
-		mainDirection: buildMainDirection(yun, dayGan),
-		smallDirection: buildSmallDirection(yun, dayGan),
+			gong12God: {},
+			direction: buildDirection(yun, dayGan, solar),
+			mainDirection: buildMainDirection(yun, dayGan),
+			smallDirection: buildSmallDirection(yun, dayGan, solar),
 		directTime: yun.getStartSolar().toYmdHms(),
 		directInfo: formatStartLuck(yun),
 		tiaohou: [],

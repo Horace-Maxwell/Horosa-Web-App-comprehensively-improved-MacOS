@@ -16,48 +16,55 @@ import '../../css/styles.less';
 
 const NORTH_HOUSE_LABEL_POSITIONS = {
 	1: [50, 6],
-	2: [14, 3],
-	3: [5, 10],
-	4: [8, 50],
-	5: [6, 79],
-	6: [15, 96],
+	2: [16, 7],
+	3: [8, 13],
+	4: [9, 50],
+	5: [8, 77],
+	6: [17, 93],
 	7: [50, 84],
-	8: [85, 96],
-	9: [94, 79],
-	10: [92, 50],
-	11: [95, 10],
-	12: [90, 3],
+	8: [83, 93],
+	9: [92, 77],
+	10: [91, 50],
+	11: [92, 13],
+	12: [84, 7],
 };
 
 const NORTH_SIGN_BADGE_POSITIONS = {
 	1: [50, 40],
 	2: [27, 22],
-	3: [9, 31],
+	3: [11, 32],
 	4: [40, 50],
-	5: [10, 72],
-	6: [18, 84],
+	5: [12, 71],
+	6: [20, 82],
 	7: [50, 60],
-	8: [82, 84],
-	9: [90, 72],
+	8: [80, 82],
+	9: [88, 71],
 	10: [60, 50],
-	11: [91, 31],
+	11: [89, 32],
 	12: [73, 22],
 };
 
 const NORTH_OBJECT_ANCHOR_POSITIONS = {
 	1: [50, 24, 30, 14],
-	2: [34, 15, 24, 14],
-	3: [18, 24, 17, 18],
+	2: [34, 17, 22, 13],
+	3: [19, 25, 16, 17],
 	4: [35, 42, 22, 18],
-	5: [18, 68, 16, 18],
-	6: [26, 81, 14, 16],
+	5: [19, 67, 15, 17],
+	6: [27, 79, 14, 15],
 	7: [50, 73, 30, 16],
-	8: [74, 81, 14, 16],
-	9: [82, 68, 16, 18],
+	8: [73, 79, 14, 15],
+	9: [81, 67, 15, 17],
 	10: [65, 42, 22, 18],
-	11: [82, 24, 17, 18],
-	12: [66, 15, 24, 14],
+	11: [81, 25, 16, 17],
+	12: [66, 17, 22, 13],
 };
+
+function buildChartHeightStyle(height){
+	const value = height || 720;
+	return {
+		'--india-chart-height': typeof value === 'number' ? `${value}px` : value,
+	};
+}
 
 function signNumberForHouse(houseNumber, ascSignNumber){
 	return ((ascSignNumber + houseNumber - 2) % 12) + 1;
@@ -121,9 +128,10 @@ class IndiaNorthChart extends Component{
 		const chartnum = this.props.chartnum || 1;
 		const label = this.props.label || (chartnum === 1 ? '命盘' : `${chartnum}分盘`);
 		const height = this.props.height || 720;
+		const chartHeightStyle = buildChartHeightStyle(height);
 		if(!chartObj || !chartObj.chart || chartObj.err){
 			return (
-				<div className="horosa-india-square-shell" style={{ '--india-chart-height': `${height}px` }}>
+				<div className="horosa-india-square-shell" style={chartHeightStyle}>
 					<div className="horosa-india-square-placeholder">等待排盘数据</div>
 				</div>
 			);
@@ -131,7 +139,7 @@ class IndiaNorthChart extends Component{
 		const ascSignNumber = getAscSignNumber(chartObj);
 		const objectsBySign = getObjectsBySign(chartObj, this.props.planetDisplay, this.props.lotsDisplay);
 		return (
-			<div className="horosa-india-square-shell xq-chart-renderer xq-chart-renderer-india" style={{ '--india-chart-height': `${height}px` }}>
+			<div className="horosa-india-square-shell xq-chart-renderer xq-chart-renderer-india" style={chartHeightStyle}>
 				<div className="horosa-india-square-board horosa-india-diagram-board horosa-india-north-board xq-india-board">
 					<svg className="horosa-india-diagram-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
 						<rect x="0" y="0" width="100" height="100" />

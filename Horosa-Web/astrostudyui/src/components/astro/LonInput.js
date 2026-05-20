@@ -115,7 +115,7 @@ class LonInput extends Component{
 		}
 
 		return (
-			<div>
+			<div className={onerow ? 'horosa-lon-input horosa-geo-inline-input' : 'horosa-lon-input'}>
 				{
 					onerow === false && (
 						<Select value={londir} onChange={this.onDirectionChange} size={size} style={{width: '80%'}}>
@@ -124,7 +124,7 @@ class LonInput extends Component{
 						</Select>	
 					)
 				}
-				<div style={inputGroupStyle}>
+				<div className="horosa-geo-inline-row" style={inputGroupStyle}>
 					{
 						onerow && (
 							<Select value={londir} onChange={this.onDirectionChange} size={size}>
@@ -136,10 +136,10 @@ class LonInput extends Component{
 					<InputNumber min={0} max={180}  step={1} value={deg} size={size}
 						onChange={this.onDegreeChange} 
 						style={{width:70}}
-					/><span>度&nbsp;&nbsp;</span>
+					/><span className="horosa-geo-unit">度</span>
 					<Select onChange={this.onDegreeMinChange} value={degmin} size={size} style={{width: 60}}>
 						{lonmindom}
-					</Select><span>分</span>
+					</Select><span className="horosa-geo-unit">分</span>
 				</div>
 			</div>
 		);

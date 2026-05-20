@@ -11,6 +11,13 @@ const SOUTH_INDIAN_SIGN_GRID = [
 	[9, 8, 7, 6],
 ];
 
+function buildChartHeightStyle(height){
+	const value = height || 720;
+	return {
+		'--india-chart-height': typeof value === 'number' ? `${value}px` : value,
+	};
+}
+
 export const SIGN_NAMES = {
 	1: AstroConst.ARIES,
 	2: AstroConst.TAURUS,
@@ -306,9 +313,10 @@ class IndiaSouthChart extends Component{
 		const chartnum = this.props.chartnum || 1;
 		const label = this.props.label || (chartnum === 1 ? '命盘' : `${chartnum}分盘`);
 		const height = this.props.height || 720;
+		const chartHeightStyle = buildChartHeightStyle(height);
 		if(!chartObj || !chartObj.chart || chartObj.err){
 			return (
-				<div className="horosa-india-square-shell" style={{ '--india-chart-height': `${height}px` }}>
+				<div className="horosa-india-square-shell" style={chartHeightStyle}>
 					<div className="horosa-india-square-placeholder">等待排盘数据</div>
 				</div>
 			);
@@ -316,7 +324,7 @@ class IndiaSouthChart extends Component{
 		const ascSignNumber = getAscSignNumber(chartObj);
 		const objectsBySign = getObjectsBySign(chartObj, this.props.planetDisplay, this.props.lotsDisplay);
 		return (
-			<div className="horosa-india-square-shell xq-chart-renderer xq-chart-renderer-india" style={{ '--india-chart-height': `${height}px` }}>
+			<div className="horosa-india-square-shell xq-chart-renderer xq-chart-renderer-india" style={chartHeightStyle}>
 				<div className="horosa-india-square-board xq-india-board">
 					{this.renderCells(ascSignNumber, objectsBySign, chartObj)}
 					<div className="horosa-india-square-center">

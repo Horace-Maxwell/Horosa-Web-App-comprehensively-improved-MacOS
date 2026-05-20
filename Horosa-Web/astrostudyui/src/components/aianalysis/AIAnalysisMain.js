@@ -2711,8 +2711,13 @@ function AIAnalysisMain(props){
 								</Space>
 							</Card>
 						) : null}
-						<div className={styles.materialGrid}>
-							{filteredMaterials.length === 0 ? <Empty description="暂无资料" /> : filteredMaterials.map((item)=>(
+						{filteredMaterials.length === 0 ? (
+							<div className={styles.materialEmpty}>
+								<Empty description="暂无资料" />
+							</div>
+						) : (
+							<div className={styles.materialGrid}>
+								{filteredMaterials.map((item)=>(
 								<Card key={item.id} size="small" title={item.name} bordered={false}>
 									<div className={styles.cardMeta}>
 										<div>类型：{item.kind || 'note'}</div>
@@ -2737,8 +2742,9 @@ function AIAnalysisMain(props){
 										</Popconfirm>
 									</div>
 								</Card>
-							))}
-						</div>
+								))}
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

@@ -4,6 +4,9 @@ import { XQCard as Card } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 import styles from '../../css/styles.less';
 
+function safeArray(value){
+	return Array.isArray(value) ? value : [];
+}
 
 class Gods extends Component{
 	constructor(props) {
@@ -51,8 +54,9 @@ class Gods extends Component{
 
 		let taisuiCols = [];
 		let spans = [];
-		for(let i=0; i<rec.branch.taisuiGods.length; i++){
-			let str = rec.branch.taisuiGods[i];
+		const taisuiGods = safeArray(rec.branch && rec.branch.taisuiGods);
+		for(let i=0; i<taisuiGods.length; i++){
+			let str = taisuiGods[i];
 			let span = (
 				<span key={randomStr(8)}>{str}&emsp;</span>
 			);
@@ -82,24 +86,30 @@ class Gods extends Component{
 	}
 
 	genGods(rec, titleStr){
+		if(rec === undefined || rec === null){
+			return null;
+		}
 		let cols = [];
 		let spans = [];
-		for(let i=0; i<rec.goodGods.length; i++){
-			let str = rec.goodGods[i];
+		const goodGods = safeArray(rec.goodGods);
+		const neutralGods = safeArray(rec.neutralGods);
+		const badGods = safeArray(rec.badGods);
+		for(let i=0; i<goodGods.length; i++){
+			let str = goodGods[i];
 			let span = (
 				<span key={randomStr(8)}>{str}&emsp;</span>
 			);
 			spans.push(span);
 		}
-		for(let i=0; i<rec.neutralGods.length; i++){
-			let str = rec.neutralGods[i];
+		for(let i=0; i<neutralGods.length; i++){
+			let str = neutralGods[i];
 			let span = (
 				<span key={randomStr(8)}>{str}&emsp;</span>
 			);
 			spans.push(span);
 		}
-		for(let i=0; i<rec.badGods.length; i++){
-			let str = rec.badGods[i];
+		for(let i=0; i<badGods.length; i++){
+			let str = badGods[i];
 			let span = (
 				<span key={randomStr(8)}>{str}&emsp;</span>
 			);

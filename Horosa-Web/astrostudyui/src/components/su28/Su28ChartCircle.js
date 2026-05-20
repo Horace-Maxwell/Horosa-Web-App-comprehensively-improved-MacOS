@@ -35,8 +35,9 @@ class Su28ChartCircle {
 		this.y = option.y;
 		this.width = option.width;
 		this.height = option.height;
+		this.visualTopOffset = Number.isFinite(option.visualTopOffset) ? option.visualTopOffset : 0;
 		this.ox = (option.x + option.width) / 2;
-		this.oy = (option.y + option.height) / 2;
+		this.oy = (option.y + option.height) / 2 + this.visualTopOffset;
 
 		this.houseMap = new Map();
 
@@ -45,8 +46,9 @@ class Su28ChartCircle {
 		this.id = 'circlechart' + randomStr(8);
 
 		this.margin = 3;
-		this.or = option.width <= option.height ? option.width / 2 : option.height / 2;
-		this.or = this.or - 10;
+		const effectiveHeight = Math.max(0, option.height - this.visualTopOffset * 1.2);
+		this.or = option.width <= effectiveHeight ? option.width / 2 : effectiveHeight / 2;
+		this.or = Math.max(0, this.or - 10);
 
 		this.objectMap = new Map();
 
@@ -755,6 +757,7 @@ class Su28ChartCircle {
 	
 		let rowheight = 20;
 		let margin = this.margin + this.ChartMargin;
+		let yOffset = this.visualTopOffset;
 		let svg = this.owner;
 		let txtg = svg.append('g');
 		txtg.selectAll('text').data(txts).enter().append('text')
@@ -762,7 +765,7 @@ class Su28ChartCircle {
 			.attr('stroke', AstroConst.AstroColor.Stroke)
 			.attr('transform', function(d, idx){
 				let x = margin;
-				let y = margin + rowheight * idx;
+				let y = margin + yOffset + rowheight * idx;
 				let trans = 'translate(' + x + ', ' + y + ')';
 				return trans;
 			})
@@ -779,10 +782,12 @@ class Su28ChartCircle {
 
 		let svg = this.owner;
 		let margin = this.margin;
+		let yOffset = this.visualTopOffset;
+		let topRightInfoLeftShift = 32;
 
 		let birthtxt = '真太阳时：' + this.chartObj.nongli.birth;
-		let x = this.x + this.width - 200 - margin;
-		let y = margin + this.fontSize;
+		let x = this.x + this.width - 200 - margin - topRightInfoLeftShift;
+		let y = margin + yOffset + this.fontSize;
 		let birthsvg = svg.append('g');
 		birthsvg.append('text')
 			.attr("dominant-baseline","middle")
@@ -817,8 +822,8 @@ class Su28ChartCircle {
 		}];
 
 		let lineWidth = 100;
-		x = this.x + this.width - lineWidth - margin;
-		y = margin*2 + this.fontSize;
+		x = this.x + this.width - lineWidth - margin - topRightInfoLeftShift;
+		y = margin*2 + yOffset + this.fontSize;
 		let w = (lineWidth - margin) / 4;
 		let h = w * 3 + margin;
 		for(let i=0; i<data.length; i++){

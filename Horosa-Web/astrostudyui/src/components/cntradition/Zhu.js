@@ -53,12 +53,12 @@ class Zhu extends Component{
 			zhu = zhu + '宫'
 		}
 
-		let gong12Gan = null;
-		let gong12Zi = null;
-		if(gong12){
-			gong12Gan = gong12['干'].name;
-			gong12Zi = gong12['支'].name;
-		}
+			let gong12Gan = null;
+			let gong12Zi = null;
+			if(gong12){
+				gong12Gan = gong12['干'] && gong12['干'].name ? gong12['干'].name : null;
+				gong12Zi = gong12['支'] && gong12['支'].name ? gong12['支'].name : null;
+			}
 
 		let gzphasePad = rec && rec.ganziPhase && rec.ganziPhase.length === 1 ? (<span>&emsp;</span>) : null;
 		let nyphasePad = rec && rec.nayingPhase && rec.nayingPhase.length === 1 ? (<span>&emsp;</span>) : null;

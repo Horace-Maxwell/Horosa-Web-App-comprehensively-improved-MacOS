@@ -39,19 +39,22 @@
 	.horosa-india-square-shell {
 		width: 100%;
 		height: 100%;
-		min-height: 520px;
-		padding: 10px 16px;
+		min-height: 0;
+		box-sizing: border-box;
+		padding: 18px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: 10px;
 		color: var(--horosa-text, #162033);
+		overflow: hidden;
 	}
 
 	.horosa-india-square-placeholder {
-		width: ~"min(720px, 100%)";
-		min-height: 360px;
+		width: ~"min(720px, calc(100% - 32px))";
+		height: ~"min(420px, calc(100% - 32px))";
+		min-height: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -94,8 +97,9 @@
 	}
 
 	.horosa-india-square-board {
-		width: ~"min(960px, 100%, calc(var(--india-chart-height, 720px) - 48px))";
-		max-height: ~"calc(100% - 54px)";
+		width: ~"min(900px, calc(100% - 44px), calc(var(--india-chart-height, 720px) - 44px))";
+		max-width: ~"calc(100% - 44px)";
+		max-height: ~"calc(100% - 44px)";
 		aspect-ratio: 1 / 1;
 		position: relative;
 		display: grid;
@@ -181,6 +185,7 @@
 	.horosa-india-diagram-object-anchor {
 		width: 18%;
 		min-height: 34px;
+		box-sizing: border-box;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -248,15 +253,15 @@
 	}
 
 	.horosa-india-north-board .horosa-india-diagram-objects {
-		gap: 3px 7px;
+		gap: 2px 6px;
 	}
 
 	.horosa-india-north-board .horosa-india-square-object {
-		line-height: 17px;
+		line-height: 16px;
 	}
 
 	.horosa-india-north-board .horosa-india-square-object-name {
-		font-size: 18px;
+		font-size: 17px;
 	}
 
 	.horosa-india-east-board {

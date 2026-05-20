@@ -6,7 +6,8 @@ import * as SZConst from './SZConst';
 import SZChart from './SZChart';
 
 const SQUARE_SIDE_MIN = 620;
-const SQUARE_SIDE_MAX = 980;
+const SQUARE_SIDE_MAX = 1280;
+const SQUARE_SIDE_PANEL_GAP = 16;
 const VIEWPORT_BOTTOM_GAP = 28;
 
 function clamp(val, min, max){
@@ -82,10 +83,12 @@ class SuZhanChart extends Component{
 				}
 				viewportRemainH = bottomLimit - rect.top - VIEWPORT_BOTTOM_GAP;
 			}
-			if(parentW > 0 && parentH > 0){
-				sideByContainer = Math.min(parentW, parentH, viewportRemainH > 0 ? viewportRemainH : parentH);
-			}else if(parentW > 0){
-				sideByContainer = viewportRemainH > 0 ? Math.min(parentW, viewportRemainH) : parentW;
+			if(parentW > 0){
+				// 方形宿盘优先吃满中间栏宽度；高度不足交给中间面板滚动承接。
+				// 否则底部快捷栏或视口剩余高度会把方盘压成很小一块。
+				sideByContainer = Math.max(parentW - SQUARE_SIDE_PANEL_GAP, 0);
+			}else if(parentH > 0){
+				sideByContainer = Math.max(parentH - SQUARE_SIDE_PANEL_GAP, 0);
 			}
 			if((sideByContainer === null || sideByContainer <= 0) && viewportRemainH > 0){
 				sideByContainer = viewportRemainH;
@@ -211,18 +214,30 @@ class SuZhanChart extends Component{
 			};
 		}
 
-		if(isSquareChart){
-			const side = this.state.lockedSide || 740;
-			chartstyle.width = `${side}px`;
-			chartstyle.height = `${side}px`;
-		}
+			if(isSquareChart){
+				const side = this.state.lockedSide || 740;
+				chartstyle.width = `${side}px`;
+				chartstyle.height = `${side}px`;
+				chartstyle.minWidth = `${side}px`;
+				chartstyle.minHeight = `${side}px`;
+				chartstyle.aspectRatio = '1 / 1';
+				chartstyle.flex = '0 0 auto';
+				chartstyle.display = 'block';
+			}
 
 		this.drawChart();
 
-		return (
-			<svg id={this.state.chartid} style={chartstyle}>
-			</svg>
-		)
+			const chartClassName = isSquareChart ? 'horosa-suzhan-square-svg' : 'horosa-suzhan-circle-svg';
+			return (
+				<svg
+					id={this.state.chartid}
+					className={chartClassName}
+					width={isSquareChart ? (this.state.lockedSide || 740) : undefined}
+					height={isSquareChart ? (this.state.lockedSide || 740) : undefined}
+					style={chartstyle}
+				>
+				</svg>
+			)
 	}
 }
 

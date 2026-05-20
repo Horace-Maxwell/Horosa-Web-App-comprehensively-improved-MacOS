@@ -611,8 +611,8 @@ class AstroPrimaryDirection extends Component{
 
 		
 		return (
-			<div className={styles.scrollbar} style={style}>
-				<Row gutter={[8, 8]} style={{marginBottom: controlBottom, flex: '0 0 auto'}}>
+			<div className={`${styles.scrollbar} horosa-primary-direction-page`} style={style}>
+				<Row className='horosa-primary-direction-toolbar' gutter={[8, 8]} style={{marginBottom: controlBottom, flex: '0 0 auto'}}>
 					<Col xs={24} md={12} lg={8}>
 						<div style={controlBoxStyle}>
 							<span style={labelStyle}>推运方法</span>
@@ -654,6 +654,7 @@ class AstroPrimaryDirection extends Component{
 				</Row>
 				<div style={tableWrapStyle}>
 					<Table
+						className='horosa-primary-direction-table'
 						key={tableKey}
 						dataSource={ds} columns={columns} 
 						rowKey='Seq'  

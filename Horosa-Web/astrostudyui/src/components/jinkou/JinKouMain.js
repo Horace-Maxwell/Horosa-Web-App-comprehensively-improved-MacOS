@@ -514,6 +514,7 @@ class JinKouMain extends Component{
 			guireng: 0,
 			diFen: '子',
 			diFenAuto: true,
+			rightPanelTab: 'overview',
 			rightTab: 'godsZi',
 			calcFields: null,
 			calcIsDiurnal: null,
@@ -531,7 +532,9 @@ class JinKouMain extends Component{
 		this.onWuXingChange = this.onWuXingChange.bind(this);
 		this.onGuiRengChange = this.onGuiRengChange.bind(this);
 		this.onDiFenChange = this.onDiFenChange.bind(this);
+		this.setRightPanelTab = this.setRightPanelTab.bind(this);
 		this.setRightTab = this.setRightTab.bind(this);
+		this.navigateFeature = this.navigateFeature.bind(this);
 		this.genWuXingDoms = this.genWuXingDoms.bind(this);
 		this.genGodsParams = this.genGodsParams.bind(this);
 		this.genRunYearParams = this.genRunYearParams.bind(this);
@@ -627,6 +630,27 @@ class JinKouMain extends Component{
 		this.setState({
 			rightTab: key,
 		});
+	}
+
+	setRightPanelTab(key){
+		this.setState({
+			rightPanelTab: key,
+		});
+	}
+
+	navigateFeature(tabKey, subTab){
+		if(this.props.dispatch){
+			const payload = {
+				currentTab: tabKey,
+			};
+			if(subTab){
+				payload.currentSubTab = subTab;
+			}
+			this.props.dispatch({
+				type: 'astro/save',
+				payload,
+			});
+		}
 	}
 
 	genRunYearParams(){
@@ -1193,7 +1217,7 @@ class JinKouMain extends Component{
 			appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : 1
 		);
 		return (
-			<Tabs defaultActiveKey="overview" tabPosition="top" className="horosa-jinkou-tabs">
+			<Tabs activeKey={this.state.rightPanelTab} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-jinkou-tabs">
 				<TabPane tab="概览" key="overview">
 					<div className="horosa-jinkou-info-card">
 						{this.renderOverviewRows(jinkouData, displayRunYear, appliedBirth, chartFields)}
@@ -1236,6 +1260,37 @@ class JinKouMain extends Component{
 					<pre className="horosa-jinkou-snapshot">{snapshot}</pre>
 				</TabPane>
 			</Tabs>
+		);
+	}
+
+	renderBottomQuickDock(){
+		const actions = [
+			{ label: '起课', icon: 'quickPrimary', onClick: ()=>this.requestGods(this.props.fields, this.props.value) },
+			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
+			{ label: '四位', icon: 'quickTransit', active: this.state.rightPanelTab === 'rows', onClick: ()=>this.setRightPanelTab('rows') },
+			{ label: '神煞', icon: 'quickFirdaria', active: this.state.rightPanelTab === 'gods', onClick: ()=>this.setRightPanelTab('gods') },
+			{ label: '保存', icon: 'quickNote', onClick: this.clickSaveCase },
+			{ label: '宿盘', icon: 'quickReturn', onClick: ()=>this.navigateFeature('cnyibu', 'suzhan') },
+			{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.navigateFeature('cnyibu', 'tongshefa') },
+			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
+		];
+		return (
+			<div className="horosa-bottom-quick-dock horosa-jinkou-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-jinkou-quick-actions">
+					{actions.map((item)=>(
+						<button
+							type="button"
+							key={item.label}
+							className={`horosa-bottom-quick-button horosa-jinkou-quick-button${item.active ? ' is-active' : ''}`}
+							onClick={item.onClick}
+						>
+							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			</div>
 		);
 	}
 
@@ -1288,7 +1343,7 @@ class JinKouMain extends Component{
 		}];
 
 		return (
-			<div className="horosa-jinkou-page horosa-astro-redesign horosa-jinkou-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
+				<div className={`horosa-jinkou-page horosa-astro-redesign horosa-jinkou-redesign${this.props.hideQuickDock ? ' horosa-jinkou-embedded' : ''}`} style={{ height: height, minHeight: height, overflow: 'hidden' }}>
 				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-jinkou-redesign-layout">
 					<div className="horosa-astro-redesign-grid horosa-jinkou-redesign-grid">
 						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-jinkou-input-panel">
@@ -1321,14 +1376,7 @@ class JinKouMain extends Component{
 							{this.renderRightPanel(jinkouData, displayRunYear, appliedBirth, chartFields, godsZiRows, godsYearRows, zsRows, roleRefRows)}
 						</div>
 					</div>
-					<div className="horosa-bottom-quick-dock horosa-jinkou-quick-dock">
-						<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-						<div className="horosa-bottom-quick-actions horosa-jinkou-quick-placeholders">
-							{Array.from({ length: 8 }).map((_, idx)=>(
-								<div className="horosa-bottom-quick-placeholder" key={idx} />
-							))}
-						</div>
-					</div>
+					{!this.props.hideQuickDock && this.renderBottomQuickDock()}
 				</div>
 			</div>
 		);

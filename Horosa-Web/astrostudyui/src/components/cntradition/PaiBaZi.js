@@ -194,7 +194,12 @@ class PaiBaZi extends Component{
 							</div>
 						</Col>
 					</Row>
-				<BaZiFineChart value={rec} fields={fields} mode={isFine ? 'fine' : 'simple'} />
+				<BaZiFineChart
+					value={rec}
+					fields={fields}
+					mode={isFine ? 'fine' : 'simple'}
+					flowSelection={this.props.flowSelection}
+				/>
 			</div>
 		);
 	}

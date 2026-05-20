@@ -4,6 +4,17 @@ import { randomStr } from '../../utils/helper';
 import { BaZiMsg } from '../../msg/bazimsg';
 import styles from '../../css/styles.less';
 
+function safeArray(value){
+	return Array.isArray(value) ? value : [];
+}
+
+function describeStemBranch(item){
+	if(!item){
+		return '';
+	}
+	return `${BaZiMsg[item.polar] || ''}${item.cell || ''}${BaZiMsg[item.element] || ''}•${BaZiMsg[item.relative] || item.relative || ''}`;
+}
+
 class SmallDirection extends Component{
 	constructor(props) {
 		super(props);
@@ -51,9 +62,10 @@ class SmallDirection extends Component{
 
 		let taisuiCols = [];
 		let spans = [];
-		if(rec.branch.taisuiGods.length > 0){
-			spans.push(rec.branch.taisuiGods.join('，'));
-		}
+			const taisuiGods = safeArray(rec.branch && rec.branch.taisuiGods);
+			if(taisuiGods.length > 0){
+				spans.push(taisuiGods.join('，'));
+			}
 		if(spans.length > 0){
 			let content = (
 				<Col key={randomStr(8)} span={24}>
@@ -77,18 +89,24 @@ class SmallDirection extends Component{
 		}
 	}
 
-	genGods(rec, titleStr){
-		let cols = [];
-		let spans = [];
-		if(rec.goodGods.length > 0){
-			spans.push(rec.goodGods.join('，'));
-		}
-		if(rec.neutralGods.length > 0){
-			spans.push(rec.neutralGods.join('，'));
-		}
-		if(rec.badGods.length > 0){
-			spans.push(rec.badGods.join('，'));
-		}
+		genGods(rec, titleStr){
+			if(rec === undefined || rec === null){
+				return null;
+			}
+			let cols = [];
+			let spans = [];
+			const goodGods = safeArray(rec.goodGods);
+			const neutralGods = safeArray(rec.neutralGods);
+			const badGods = safeArray(rec.badGods);
+			if(goodGods.length > 0){
+				spans.push(goodGods.join('，'));
+			}
+			if(neutralGods.length > 0){
+				spans.push(neutralGods.join('，'));
+			}
+			if(badGods.length > 0){
+				spans.push(badGods.join('，'));
+			}
 
 		if(spans.length > 0){
 			let content = (
@@ -106,23 +124,24 @@ class SmallDirection extends Component{
 
 	genDirectionDom(dirs){
 		let dirdoms = [];
-		for(let i=0; i<dirs.length; i++){
-			let dir = dirs[i];
-			let age = dir.age;
-			let year = dir.year;
-			let subdir = dir.direct;
-			let yeardir = dir.yearGanzi;
-			let subgods = this.genGodsDom(subdir);
-			let yeargods = this.genGodsDom(yeardir);
-			let popsubcontent = (
-				<div style={{width: 350}}>
-					<Row key={randomStr(8)}>
-						<Col span={24} key={randomStr(8)}>
-							{BaZiMsg[subdir.stem.polar] + subdir.stem.cell + BaZiMsg[subdir.stem.element]}&bull;{BaZiMsg[subdir.stem.relative]}
-						</Col>
-						<Col span={24} key={randomStr(8)}>
-							{BaZiMsg[subdir.branch.polar] + subdir.branch.cell + BaZiMsg[subdir.branch.element]}&bull;{BaZiMsg[subdir.branch.relative]}
-						</Col>
+			for(let i=0; i<dirs.length; i++){
+				let dir = dirs[i] || {};
+				let age = dir.age;
+				let year = dir.year;
+				let subdir = dir.direct || {};
+				let yeardir = dir.yearGanzi || {};
+				let subgods = this.genGodsDom(subdir);
+				let yeargods = this.genGodsDom(yeardir);
+				let starCharger = yeardir.starCharger || {};
+				let popsubcontent = (
+					<div style={{width: 350}}>
+						<Row key={randomStr(8)}>
+							<Col span={24} key={randomStr(8)}>
+								{describeStemBranch(subdir.stem)}
+							</Col>
+							<Col span={24} key={randomStr(8)}>
+								{describeStemBranch(subdir.branch)}
+							</Col>
 						<Col span={24} key={randomStr(8)}><Divider /></Col>
 					</Row>
 					{subgods}
@@ -131,31 +150,31 @@ class SmallDirection extends Component{
 			let popyearcontent = (
 				<div style={{width: 350}}>
 					<Row key={randomStr(8)}>
-						<Col span={24} key={randomStr(8)}>
-							{BaZiMsg[yeardir.stem.polar] + yeardir.stem.cell + BaZiMsg[yeardir.stem.element]}&bull;{BaZiMsg[yeardir.stem.relative]}
-						</Col>
-						<Col span={24} key={randomStr(8)}>
-							{BaZiMsg[yeardir.branch.polar] + yeardir.branch.cell + BaZiMsg[yeardir.branch.element]}&bull;{BaZiMsg[yeardir.branch.relative]}
-						</Col>
+							<Col span={24} key={randomStr(8)}>
+								{describeStemBranch(yeardir.stem)}
+							</Col>
+							<Col span={24} key={randomStr(8)}>
+								{describeStemBranch(yeardir.branch)}
+							</Col>
 						<Col span={24} key={randomStr(8)}><Divider /></Col>
-					</Row>
-					{yeargods}
-					<h4>值年星宿：{yeardir.starCharger.name}</h4>
-					<div>{yeardir.starCharger.event}</div>
-				</div>
-			)
+						</Row>
+						{yeargods}
+						<h4>值年星宿：{starCharger.name || '暂无'}</h4>
+						<div>{starCharger.event || ''}</div>
+					</div>
+				)
 
 			let row = (
 				<Row key={randomStr(8)} gutter={12}>
 					<Col span={9}>
-						<Popover content={popsubcontent} title={'小运：' + subdir.ganzi}>
-							小运：{subdir.ganzi}（{subdir.naying}）
-						</Popover>
-					</Col>
-					<Col span={9}>
-						<Popover content={popyearcontent} title={'流年：' + yeardir.ganzi + ' ' + year + ' ' + age + '岁'}>
-							流年：{yeardir.ganzi}（{yeardir.naying}）
-						</Popover>
+							<Popover content={popsubcontent} title={'小运：' + (subdir.ganzi || '')}>
+								小运：{subdir.ganzi || ''}（{subdir.naying || ''}）
+							</Popover>
+						</Col>
+						<Col span={9}>
+							<Popover content={popyearcontent} title={'流年：' + (yeardir.ganzi || '') + ' ' + year + ' ' + age + '岁'}>
+								流年：{yeardir.ganzi || ''}（{yeardir.naying || ''}）
+							</Popover>
 					</Col>
 					<Col span={3}>{year}</Col>
 					<Col span={3}>{age}周岁</Col>
@@ -176,7 +195,7 @@ class SmallDirection extends Component{
 			overflowX:'hidden',
 		};
 
-		let doms = this.genDirectionDom(rec.smallDirection);
+			let doms = this.genDirectionDom(safeArray(rec.smallDirection));
 
 		return (
 			<div className={styles.scrollbar} style={style}>
@@ -187,5 +206,4 @@ class SmallDirection extends Component{
 }
 
 export default SmallDirection;
-
 

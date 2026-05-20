@@ -106,9 +106,9 @@ class MidpointMain extends Component{
 		}
 
 		return (
-			<div>
-				<Row gutter={6}>
-					<Col span={18}>
+			<div className="horosa-midpoint-workbench">
+				<Row gutter={6} className="horosa-midpoint-layout">
+					<Col span={18} className="horosa-midpoint-chart-col">
 							<AstroChart value={chartObj} 
 								chartDisplay={this.props.chartDisplay}
 								planetDisplay={this.props.planetDisplay}
@@ -117,8 +117,8 @@ class MidpointMain extends Component{
 								height={height}
 							/>
 					</Col>
-					<Col span={6}>
-						<Row>
+					<Col span={6} className="horosa-midpoint-side-col">
+						<Row className="horosa-midpoint-control-grid">
 							{
 								showdateselector && (
 									<Col span={24}>
@@ -179,7 +179,7 @@ class MidpointMain extends Component{
 								)
 							}
 						</Row>
-						<Tabs defaultActiveKey="1" tabPosition='top'>
+						<Tabs defaultActiveKey="1" tabPosition='top' className="horosa-midpoint-side-tabs">
 							<TabPane tab="中点" key="1">
 									<Midpoint height={height}
 										value={midpoints} fields={fields}

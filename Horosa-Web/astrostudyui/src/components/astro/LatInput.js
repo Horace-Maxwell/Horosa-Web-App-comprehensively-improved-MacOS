@@ -114,7 +114,7 @@ class LatInput extends Component{
 		}
 
 		return (
-			<div>
+			<div className={onerow ? 'horosa-lat-input horosa-geo-inline-input' : 'horosa-lat-input'}>
 				{
 					onerow === false && (
 						<Select value={latdir} onChange={this.onDirectionChange} size={size} style={{width:'80%'}}>
@@ -123,7 +123,7 @@ class LatInput extends Component{
 						</Select>	
 					)
 				}
-				<div style={inputGroupStyle}>
+				<div className="horosa-geo-inline-row" style={inputGroupStyle}>
 					{
 						onerow && (
 							<Select value={latdir} onChange={this.onDirectionChange} size={size}>
@@ -135,10 +135,10 @@ class LatInput extends Component{
 					<InputNumber min={0} max={90} step={1} value={deg} size={size} 
 						onChange={this.onDegreeChange} 
 						style={{width: 70}}
-					/><span>度&nbsp;&nbsp;</span>
+					/><span className="horosa-geo-unit">度</span>
 					<Select onChange={this.onDegreeMinChange} value={degmin} size={size} style={{width: 60}}>
 						{latmindom}
-					</Select><span>分</span>
+					</Select><span className="horosa-geo-unit">分</span>
 				</div>
 			</div>
 		);

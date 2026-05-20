@@ -140,6 +140,12 @@ function MeaningPopoverTrigger({ node, content, }){
 		}
 		return undefined;
 	}, []);
+	const customPlacement = useMemo(()=>{
+		if(isValidElement(node) && node.props && node.props['data-meaning-placement']){
+			return node.props['data-meaning-placement'];
+		}
+		return '';
+	}, [node]);
 	const triggerNode = useMemo(()=>{
 		if(isValidElement(node)){
 			return cloneElement(node, {
@@ -161,7 +167,8 @@ function MeaningPopoverTrigger({ node, content, }){
 	return (
 		<Popover
 			trigger="hover"
-			placement="bottomLeft"
+			placement={customPlacement || 'bottomLeft'}
+			arrowPointAtCenter={!!customPlacement}
 			mouseEnterDelay={0.08}
 			mouseLeaveDelay={0.08}
 			autoAdjustOverflow
