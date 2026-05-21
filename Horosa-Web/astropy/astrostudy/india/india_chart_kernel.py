@@ -266,6 +266,7 @@ class IndiaChartKernel:
 
     def reinit(self):
         self.isDiurnal = self.chart.isDiurnal()
+        self.chart.hsys = self.house
         for house in self.chart.houses:
             house.planets = []
             house.ruler = None
@@ -395,11 +396,20 @@ class IndiaChartKernel:
         }
 
     def to_response(self, data, jyotish=None):
+        varga = getattr(self, 'vargaChart', {
+            'chartnum': 1,
+            'key': 'd1',
+            'name': 'Rashi',
+            'label': 'D1 Rashi',
+        })
+        varga_engine_version = getattr(self, 'vargaEngineVersion', 'india_kernel_varga_v2')
         params = {
             'birth': self.getBirthStr(),
             'ad': -1 if self.isBC else 1,
             'lat': data['lat'],
             'lon': data['lon'],
+            'chartnum': varga.get('chartnum', 1),
+            'varga': varga,
             'hsys': self.houseCode,
             'hsysLabel': self.houseLabel,
             'ayanamsa': self.siderealModeKey,
@@ -413,7 +423,7 @@ class IndiaChartKernel:
             'pdtype': self.pdtype,
             'pdMethod': self.pdMethod,
             'pdTimeKey': self.pdTimeKey,
-            'pdSyncRev': 'india_kernel_v1',
+            'pdSyncRev': varga_engine_version,
             'engine': 'IndiaChartKernel',
         }
         if 'name' in data:

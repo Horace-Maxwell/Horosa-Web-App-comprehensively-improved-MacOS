@@ -566,7 +566,7 @@ class IndiaChartMain extends Component{
 					fun: null
 				},
 				Trimsamsa:{
-					txt: null,
+					txt:'厄运',
 					fractal: 30,
 					fun: null
 				},
@@ -581,7 +581,7 @@ class IndiaChartMain extends Component{
 					fun: null
 				},
 				Shashtyamsa:{
-					txt: null,
+					txt:'业力',
 					fractal: 60,
 					fun: null
 				},
@@ -1323,9 +1323,7 @@ class IndiaChartMain extends Component{
 			let splitItems = [];
 		for(let key in this.state.hook){
 			let hook = this.state.hook[key];
-			if(hook.fractal === 1 || hook.fractal === 5 ||
-				hook.fractal === 6 || hook.fractal === 8 ||
-				hook.fractal === 11 || hook.fractal === 30 || hook.fractal === 60){
+			if(hook.fractal === 1){
 				continue;
 			}
 			splitItems.push({

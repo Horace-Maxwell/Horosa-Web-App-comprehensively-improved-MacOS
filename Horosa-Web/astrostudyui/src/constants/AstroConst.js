@@ -793,17 +793,37 @@ export const LIST_SU_RELATION = [
     '胎', '荣', '衰', '安', '危', '成', '坏', '友', '亲'
 ]
 
-export const HouseSys = {
-    '0': '整宫制',
-    '1': 'Alcabitus',
-    '2': 'Regiomontanus',
-    '3': 'Placidus',
-    '4': 'Koch',
-    '5': 'Vehlow Equal',
-    '6': 'Polich Page',
-    '7': 'Sripati',
-    '8': '天顶为10宫中点等宫制'
-}
+export const HOUSE_SYSTEM_OPTIONS = [
+    { value: 0, label: '整宫制' },
+    { value: 1, label: 'Alcabitus' },
+    { value: 2, label: 'Regiomontanus' },
+    { value: 3, label: 'Placidus' },
+    { value: 4, label: 'Koch' },
+    { value: 5, label: 'Vehlow Equal' },
+    { value: 6, label: 'Polich Page' },
+    { value: 7, label: 'Sripati' },
+    { value: 8, label: '天顶为10宫中点等宫制' },
+    { value: 9, label: 'Porphyry' },
+    { value: 10, label: 'Campanus' },
+    { value: 11, label: 'Equal' },
+    { value: 12, label: 'Equal MC' },
+    { value: 13, label: 'Meridian' },
+    { value: 14, label: 'Horizontal' },
+    { value: 15, label: 'Morinus' },
+    { value: 16, label: 'Carter Poli-Equatorial' },
+    { value: 17, label: 'Sunshine' },
+    { value: 18, label: 'Sunshine Alternate' },
+    { value: 19, label: 'Krusinski-Pisa-Goelzer' },
+    { value: 20, label: 'Pullen SD' },
+    { value: 21, label: 'Pullen SR' },
+    { value: 22, label: 'APC Houses' },
+    { value: 23, label: 'Savard-A' },
+];
+
+export const HouseSys = HOUSE_SYSTEM_OPTIONS.reduce((result, item)=>{
+    result[`${item.value}`] = item.label;
+    return result;
+}, {});
 
 export const INDIA_AYANAMSA_DEFAULT = 'lahiri';
 export const INDIA_AYANAMSA_OPTIONS = [
@@ -842,6 +862,21 @@ export const HSYS_Koch = 'Koch';
 export const HSYS_Vehlow_Equal = 'Vehlow Equal';
 export const HSYS_PolichPage = 'Polich Page';
 export const HSYS_Sripati = 'Sripati';
+export const HSYS_Porphyry = 'Porphyrius';
+export const HSYS_Campanus = 'Campanus';
+export const HSYS_Equal = 'Equal';
+export const HSYS_Equal_MC = 'Equal MC';
+export const HSYS_Meridian = 'Meridian';
+export const HSYS_Horizontal = 'Azimuthal';
+export const HSYS_Morinus = 'Morinus';
+export const HSYS_Carter_Poli_Equatorial = 'Carter Poli-Equatorial';
+export const HSYS_Sunshine = 'Sunshine';
+export const HSYS_Sunshine_Alt = 'Sunshine Alternate';
+export const HSYS_Krusinski = 'Krusinski-Pisa-Goelzer';
+export const HSYS_Pullen_SD = 'Pullen SD';
+export const HSYS_Pullen_SR = 'Pullen SR';
+export const HSYS_APC = 'APC Houses';
+export const HSYS_Savard_A = 'Savard-A';
 
 export const STAR_ALGENIB = 'Algenib'
 export const STAR_ALPHERATZ = 'Alpheratz'

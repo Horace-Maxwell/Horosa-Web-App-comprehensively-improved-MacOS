@@ -145,7 +145,15 @@ SWE_HOUSESYS = {
     const.HOUSES_ALCABITUS: b'B',
     const.HOUSES_SRIPATI: b'S',
     const.HOUSES_MORINUS: b'M',
-    const.HOUSES_EQUAL_MC: b'D'
+    const.HOUSES_EQUAL_MC: b'D',
+    const.HOUSES_CARTER_POLI_EQUATORIAL: b'F',
+    const.HOUSES_SUNSHINE: b'I',
+    const.HOUSES_SUNSHINE_ALT: b'i',
+    const.HOUSES_KRUSINSKI: b'U',
+    const.HOUSES_PULLEN_SD: b'L',
+    const.HOUSES_PULLEN_SR: b'Q',
+    const.HOUSES_APC: b'Y',
+    const.HOUSES_SAVARD_A: b'J'
 }
 
 

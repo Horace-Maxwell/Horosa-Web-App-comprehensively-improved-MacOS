@@ -98,7 +98,7 @@ function buildIndiaChartCacheKey(params){
 		name: params.name || '',
 		pos: params.pos || '',
 		chartnum: params.chartnum || 1,
-		jyotishRev: 'india_kernel_v1',
+		jyotishRev: 'india_kernel_varga_v2',
 	};
 	return JSON.stringify(normalized);
 }

@@ -520,7 +520,7 @@ class AstroChartMain extends Component{
 								onChange={this.changeHsys}
 								value={this.props.fields.hsys.value}
 								size='small'>
-								{ getHousesOption() }
+								{ getHousesOption(true) }
 							</XQSelect>
 						</div>
 					) : null}
@@ -659,7 +659,7 @@ class AstroChartMain extends Component{
 								value={this.props.fields.hsys.value}
 								size="small"
 							>
-								{ getHousesOption() }
+								{ getHousesOption(true) }
 							</XQSelect>
 						</div>
 					) : null}
