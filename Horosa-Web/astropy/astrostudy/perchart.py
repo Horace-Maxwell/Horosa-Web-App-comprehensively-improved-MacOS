@@ -95,7 +95,22 @@ hsys=[
     const.HOUSES_VEHLOW_EQUAL,
     const.HOUSES_POLICH_PAGE,
     const.HOUSES_SRIPATI,
-    custHouse_Equal_MC_Middle
+    custHouse_Equal_MC_Middle,
+    const.HOUSES_PORPHYRIUS,
+    const.HOUSES_CAMPANUS,
+    const.HOUSES_EQUAL,
+    const.HOUSES_EQUAL_MC,
+    const.HOUSES_MERIDIAN,
+    const.HOUSES_AZIMUTHAL,
+    const.HOUSES_MORINUS,
+    const.HOUSES_CARTER_POLI_EQUATORIAL,
+    const.HOUSES_SUNSHINE,
+    const.HOUSES_SUNSHINE_ALT,
+    const.HOUSES_KRUSINSKI,
+    const.HOUSES_PULLEN_SD,
+    const.HOUSES_PULLEN_SR,
+    const.HOUSES_APC,
+    const.HOUSES_SAVARD_A
 ]
 
 LOTS = [
@@ -132,6 +147,10 @@ LIST_OBJECTS_NOCHIRON = [
 
 
 def getHSys(house):
+    try:
+        house = int(house)
+    except (TypeError, ValueError):
+        return const.HOUSES_WHOLE_SIGN
     if house < 0 or house >= len(hsys):
         return const.HOUSES_WHOLE_SIGN
     return hsys[house]

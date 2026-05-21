@@ -1,5 +1,6 @@
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
+import { moiraMergeStellarRelationRows as mergeStellarRelationRows, } from './GuoLaoMoiraWheel';
 import './GuoLaoMoiraPanel.less';
 
 const PLANET_ORDER = [
@@ -58,6 +59,15 @@ function safeList(val){
 
 function safeMap(val){
 	return val && typeof val === 'object' ? val : {};
+}
+
+function joinYearItems(items){
+	return safeList(items).map((item)=>{
+		if(item && typeof item === 'object'){
+			return [item.name, item.star ? `化${item.star}` : ''].filter(Boolean).join(' ');
+		}
+		return `${item || ''}`;
+	}).filter(Boolean).join('、');
 }
 
 function hasUnverifiedMoiraPatternSource(value){
@@ -151,6 +161,13 @@ function degreeText(lon){
 	return `${deg}度${min}分`;
 }
 
+function suDegreeText(lon){
+	const val = norm(lon);
+	const deg = Math.floor(val);
+	const min = Math.floor((val - deg) * 60);
+	return `${deg}度${min}分`;
+}
+
 function signNameFromLon(lon){
 	const idx = Math.floor(norm(lon) / 30) % 12;
 	return msg(AstroConst.LIST_SIGNS[idx]);
@@ -168,11 +185,38 @@ function anchorFromObject(chart, id, fallbackId, label){
 		return {};
 	}
 	return {
+		longitude: lon,
 		signName: signNameFromLon(lon),
 		degreeText: degreeText(lon),
 		zi: ziFromLon(lon),
 		area: msg(obj.id) || label,
 		moiraHouse: msg(obj.house) || '',
+	};
+}
+
+function suHostForLon(chart, lon){
+	const val = Number(lon);
+	const stars = safeList(chart && chart.fixedStarSu28).map((item)=>({
+		name: item.name || item.label || '',
+		ra: Number(item.ra),
+	})).filter((item)=>item.name && Number.isFinite(item.ra)).sort((a, b)=>a.ra - b.ra);
+	if(!stars.length || !Number.isFinite(val)){
+		return null;
+	}
+	const degree = norm(val);
+	let star = stars[stars.length - 1];
+	for(let i = 0; i < stars.length; i++){
+		if(stars[i].ra <= degree){
+			star = stars[i];
+		}else {
+			break;
+		}
+	}
+	const offset = norm(degree - star.ra);
+	return {
+		name: star.name,
+		degreeText: suDegreeText(offset),
+		value: `${star.name} ${suDegreeText(offset)}`,
 	};
 }
 
@@ -224,12 +268,57 @@ function getBazi(root){
 	return (chart.nongli && chart.nongli.bazi) || (root && root.nongli && root.nongli.bazi) || {};
 }
 
-function baziText(root){
-	const bazi = getBazi(root);
-	return ['year', 'month', 'day', 'time'].map((key)=>{
-		const one = bazi[key] || {};
-		return one.text || one.name || '';
-	}).filter(Boolean).join(' ');
+function textFromBaziPole(value){
+	if(value === undefined || value === null || value === ''){
+		return '';
+	}
+	if(typeof value === 'string' || typeof value === 'number'){
+		return `${value}`;
+	}
+	if(typeof value !== 'object'){
+		return '';
+	}
+	const direct = value.text || value.name || value.value || value.ganzi || value.ganZi || value.pillar || value.column;
+	if(direct){
+		return `${direct}`;
+	}
+	const stem = safeMap(value.stem);
+	const branch = safeMap(value.branch);
+	const stemText = stem.cell || stem.text || stem.name || stem.value || value.gan || value.stemText || value.tianGan || '';
+	const branchText = branch.cell || branch.text || branch.name || branch.value || value.zhi || value.branchText || value.diZhi || '';
+	return `${stemText || ''}${branchText || ''}`;
+}
+
+function readBaziPole(bazi, key){
+	const data = safeMap(bazi);
+	const fourColumns = safeMap(data.fourColumns || data.fourcolumns || data.fourPillars || data.pillars);
+	const fourZhuMap = safeMap(fourColumns.fourZhuMap || data.fourZhuMap);
+	const zhKeys = {
+		year: '年',
+		month: '月',
+		day: '日',
+		time: '时',
+	};
+	const candidates = [
+		data[key],
+		fourColumns[key],
+		data[`${key}Pole`],
+		fourColumns[`${key}Pole`],
+		data[`${key}Pillar`],
+		fourColumns[`${key}Pillar`],
+		data[`${key}Column`],
+		fourColumns[`${key}Column`],
+		data[`${key}Ganzi`],
+		fourColumns[`${key}Ganzi`],
+		zhKeys[key] ? fourZhuMap[zhKeys[key]] : '',
+	];
+	for(const item of candidates){
+		const text = textFromBaziPole(item).trim();
+		if(text){
+			return text;
+		}
+	}
+	return '';
 }
 
 function lunarText(root){
@@ -240,14 +329,23 @@ function lunarText(root){
 
 function baziStemBranch(root, key, fallbackYear){
 	const bazi = getBazi(root);
-	const one = bazi[key] || {};
-	if(one.text){
-		return one.text;
+	const pole = readBaziPole(bazi, key);
+	if(pole){
+		return pole;
 	}
 	if(key === 'year'){
 		return stemBranchForYear(fallbackYear);
 	}
 	return '';
+}
+
+function baziText(root){
+	const bazi = getBazi(root);
+	const direct = bazi.text || bazi.name || bazi.fourColumnsText || bazi.fourPillarsText;
+	if(direct){
+		return direct;
+	}
+	return ['year', 'month', 'day', 'time'].map((key)=>readBaziPole(bazi, key)).filter(Boolean).join(' ');
 }
 
 function findObject(chart, id){
@@ -361,6 +459,46 @@ function PlanetTable({rows}){
 	);
 }
 
+function YearSignTable({rows}){
+	return (
+		<div className="horosa-guolao-moira-table">
+			<div className="horosa-guolao-moira-table-row horosa-guolao-moira-table-head">
+				<span>宫</span><span>化曜</span><span>曜名</span><span>宫性</span>
+			</div>
+			{safeList(rows).map((item)=>(
+				<div className="horosa-guolao-moira-table-row" key={`${item.mode || 'year'}-${item.name}`}>
+					<strong>{item.name}</strong>
+					<span>{item.star || '-'}</span>
+					<span>{item.shortName || '-'}</span>
+					<span>{[item.quality, item.zi, item.signName].filter(Boolean).join(' · ')}</span>
+				</div>
+			))}
+		</div>
+	);
+}
+
+function StellarRelationTable({rows}){
+	const list = safeList(rows).filter((item)=>safeList(item.main).length || safeList(item.same).length || safeList(item.transitMain).length || safeList(item.transitSame).length);
+	if(!list.length){
+		return <div className="horosa-guolao-moira-empty">当前星宿未形成可摘录的落宿/同经信息。</div>;
+	}
+	return (
+		<div className="horosa-guolao-moira-table horosa-guolao-moira-stellar-table">
+			<div className="horosa-guolao-moira-table-row horosa-guolao-moira-table-head">
+				<span>宿</span><span>本命落入</span><span>本命同经</span><span>流年落入</span>
+			</div>
+			{list.map((item)=>(
+				<div className="horosa-guolao-moira-table-row" key={`stellar-${item.index}-${item.name}`}>
+					<strong>{item.label || item.name}</strong>
+					<span>{joinNames(item.main)}</span>
+					<span>{joinNames(item.same)}</span>
+					<span>{[joinNames(item.transitMain), safeList(item.transitSame).length ? `同经：${joinNames(item.transitSame)}` : ''].filter((val)=>val && val !== '无').join('；') || '无'}</span>
+				</div>
+			))}
+		</div>
+	);
+}
+
 function hasRenderableChart(rootValue){
 	return safeList(rootValue && rootValue.chart && rootValue.chart.objects).length > 0;
 }
@@ -389,7 +527,7 @@ export default function GuoLaoMoiraPanel(props){
 	const params = mergeDefined(value && value.params, rootValue.params);
 	const transitParams = safeMap(props.transitParams);
 
-	if(props.loading){
+	if(props.loading && !value){
 		return (
 			<div className="horosa-guolao-moira">
 				<div className="horosa-guolao-moira-empty">正在推演 Moira 规则层...</div>
@@ -411,24 +549,33 @@ export default function GuoLaoMoiraPanel(props){
 	const self = anchors.self && Object.keys(anchors.self).length
 		? anchors.self
 		: anchorFromObject(birthChart, AstroConst.MOON, AstroConst.ASC, '身度参考');
+	const lifeSuHost = suHostForLon(birthChart, life.longitude);
+	const selfSuHost = suHostForLon(birthChart, self.longitude);
 	const unverifiedPatternSource = hasUnverifiedMoiraPatternSource(value);
 	const styleWarning = value.styleWarning || (unverifiedPatternSource ? '当前接口返回的是旧版 Horosa 近似格局，不是 Moira 本体的政余喜格/忌格；已屏蔽为正式格局输出。' : '');
 	const patterns = unverifiedPatternSource ? [] : safeList(value.patterns);
 	const planets = safeList(value.planets);
-	const natalPlanetRows = buildPlanetRows(birthChart, planets);
-	const transitPlanetRows = buildPlanetRows(transitChart, []);
-	const godHits = safeList(value.godHits);
-	const houses = safeList(value.houses);
+		const natalPlanetRows = buildPlanetRows(birthChart, planets);
+		const transitPlanetRows = buildPlanetRows(transitChart, []);
+		const godHits = safeList(value.godHits);
+		const yearStars = safeMap(value.yearStars);
+		const birthYearStars = safeMap(yearStars.birth);
+		const currentYearStars = safeMap(yearStars.transit);
+		const natalYearStars = safeList(value.natalYearStars);
+		const transitYearStars = safeList(value.transitYearStars);
+		const transitGodHits = safeList(value.transitGodHits);
+		const houses = safeList(value.houses);
+	const stellarRelationRows = mergeStellarRelationRows(birthChart, transitChart);
 	const birthYear = yearFromParams(params);
 	const transitYear = yearFromParams(transitParams);
 	const birthYearText = baziStemBranch(rootValue, 'year', birthYear);
 	const transitYearText = stemBranchForYear(transitYear);
 	const age = transitYear - birthYear + 1;
 	const apparentSolar = pickDeep(rootValue, ['apparentSolar', 'apparent_solar', 'apparentSolarTime', 'solarTime', 'trueSolarTime']) || (birthChart.nongli && birthChart.nongli.birth);
-	const sunrise = pickDeep(rootValue, ['sunrise', 'sunRise', 'sunriseTime', 'sun_rise']);
-	const sunset = pickDeep(rootValue, ['sunset', 'sunSet', 'sunsetTime', 'sun_set']);
-	const moonrise = pickDeep(rootValue, ['moonrise', 'moonRise', 'moonriseTime', 'moon_rise']);
-	const moonset = pickDeep(rootValue, ['moonset', 'moonSet', 'moonsetTime', 'moon_set']);
+	const sunrise = pickDeep(rootValue, ['sunrise', 'sunRise', 'sunriseTime', 'sunRiseTime', 'sun_rise', 'guolaoSunRiseTime']);
+	const sunset = pickDeep(rootValue, ['sunset', 'sunSet', 'sunsetTime', 'sunSetTime', 'sun_set']);
+	const moonrise = pickDeep(rootValue, ['moonrise', 'moonRise', 'moonriseTime', 'moonRiseTime', 'moon_rise']);
+	const moonset = pickDeep(rootValue, ['moonset', 'moonSet', 'moonsetTime', 'moonSetTime', 'moon_set']);
 	const hasRiseSet = sunrise || sunset || moonrise || moonset;
 
 	return (
@@ -469,15 +616,29 @@ export default function GuoLaoMoiraPanel(props){
 						<em>{[self.zi, self.area, self.moiraHouse].filter(Boolean).join(' · ')}</em>
 					</div>
 				</div>
+				<div className="horosa-guolao-moira-anchor-grid horosa-guolao-moira-su-anchor-grid">
+					<div className="horosa-guolao-moira-anchor">
+						<span>命度宿主</span>
+						<strong>{lifeSuHost ? lifeSuHost.value : '随盘面'}</strong>
+					</div>
+					<div className="horosa-guolao-moira-anchor">
+						<span>身度宿主</span>
+						<strong>{selfSuHost ? selfSuHost.value : '随盘面'}</strong>
+					</div>
+				</div>
 			</Section>
 
-			<Section title="本命星曜">
-				<PlanetTable rows={natalPlanetRows} />
-			</Section>
+				<Section title="本命星曜">
+					{natalYearStars.length ? <YearSignTable rows={natalYearStars} /> : <PlanetTable rows={natalPlanetRows} />}
+				</Section>
 
-			<Section title="流年星曜">
-				<PlanetTable rows={transitPlanetRows} />
-			</Section>
+				<Section title="流年星曜">
+					{transitYearStars.length ? <YearSignTable rows={transitYearStars} /> : <PlanetTable rows={transitPlanetRows} />}
+				</Section>
+
+				<Section title="星宿落入与同经">
+					<StellarRelationTable rows={stellarRelationRows} />
+				</Section>
 
 			<Section title="十二宫位">
 				<div className="horosa-guolao-moira-house-list">
@@ -491,21 +652,28 @@ export default function GuoLaoMoiraPanel(props){
 				</div>
 			</Section>
 
-			<Section title="年曜与十神">
-				<KeyValueGrid items={[
-					{label: '本命年柱', value: birthYearText},
-					{label: '流年年柱', value: transitYearText},
-					{label: '十干化禄', value: `${transitYearText.slice(0, 1)} → ${YEAR_STAR_BY_STEM[transitYearText.slice(0, 1)] || '-'}`},
-					{label: '原十神序', value: TEN_GOD_ORG.join('、')},
-					{label: '替代十神序', value: TEN_GOD_ALT.join('、')},
-				]} />
-				<div className="horosa-guolao-moira-year-groups">
-					{yearInfoRows('年曜', transitYearText).map((row, idx)=>(
-						<div key={`${row.main}-${idx}`}>
-							<strong>{row.main}</strong>
-							<span>{row.items.slice(1).join('、') || '主项'}</span>
-							{row.yearStar ? <em>化禄：{row.yearStar}</em> : null}
-						</div>
+				<Section title="年曜与十神">
+					<KeyValueGrid items={[
+						{label: '本命年柱', value: birthYearStars.yearPole || birthYearText},
+						{label: '流年年柱', value: currentYearStars.yearPole || transitYearText},
+						{label: '本命首曜', value: birthYearStars.yearStar},
+						{label: '流年首曜', value: currentYearStars.yearStar || `${transitYearText.slice(0, 1)} → ${YEAR_STAR_BY_STEM[transitYearText.slice(0, 1)] || '-'}`},
+						{label: '原十神序', value: safeList(yearStars.tenGodListOrg).length ? yearStars.tenGodListOrg.join('、') : TEN_GOD_ORG.join('、')},
+						{label: '替代十神序', value: safeList(yearStars.tenGodListAlt).length ? yearStars.tenGodListAlt.join('、') : TEN_GOD_ALT.join('、')},
+					]} />
+					<div className="horosa-guolao-moira-year-groups">
+						{safeList(currentYearStars.groups).length ? currentYearStars.groups.map((row, idx)=>(
+							<div key={`${row.main}-${idx}`}>
+								<strong>{row.main}</strong>
+								<span>{joinYearItems(row.items)}</span>
+								{row.mainStar ? <em>化曜：{row.mainStar}</em> : null}
+							</div>
+						)) : yearInfoRows('年曜', transitYearText).map((row, idx)=>(
+							<div key={`${row.main}-${idx}`}>
+								<strong>{row.main}</strong>
+								<span>{row.items.slice(1).join('、') || '主项'}</span>
+								{row.yearStar ? <em>化禄：{row.yearStar}</em> : null}
+							</div>
 					))}
 				</div>
 			</Section>
@@ -513,20 +681,38 @@ export default function GuoLaoMoiraPanel(props){
 			<Section title="神煞全表">
 				<div className="horosa-guolao-moira-gods">
 					{godHits.map((item)=>(
-						<div className="horosa-guolao-moira-god" key={`${item.house}-${item.zi}`}>
-							<strong>{item.house}</strong>
-							<span>{item.zi} · {item.signName}</span>
-							<div>吉：{joinNames(item.goodGods)}</div>
-							<div>平：{joinNames(item.neutralGods)}</div>
-							<div>忌：{joinNames(item.badGods)}</div>
-							<div>太岁：{joinNames(item.taisuiGods)}</div>
-						</div>
-					))}
+							<div className="horosa-guolao-moira-god" key={`${item.house}-${item.zi}`}>
+								<strong>{item.house}</strong>
+								<span>{item.zi} · {item.signName}</span>
+								{safeList(item.gods).length ? <div>曜：{joinNames(item.gods)}</div> : (
+									<>
+										<div>吉：{joinNames(item.goodGods)}</div>
+										<div>平：{joinNames(item.neutralGods)}</div>
+										<div>忌：{joinNames(item.badGods)}</div>
+										<div>太岁：{joinNames(item.taisuiGods)}</div>
+									</>
+								)}
+							</div>
+						))}
 					{godHits.length === 0 ? <div className="horosa-guolao-moira-empty">当前盘未返回可摘录的七政神煞。</div> : null}
-				</div>
-			</Section>
+					</div>
+				</Section>
 
-			<Section title="政余格局">
+				{transitGodHits.length ? (
+					<Section title="流年神煞">
+						<div className="horosa-guolao-moira-gods">
+							{transitGodHits.map((item)=>(
+								<div className="horosa-guolao-moira-god" key={`now-${item.house}-${item.zi}`}>
+									<strong>{item.house}</strong>
+									<span>{item.zi} · {item.signName}</span>
+									<div>曜：{joinNames(item.gods || item.taisuiGods)}</div>
+								</div>
+							))}
+						</div>
+					</Section>
+				) : null}
+
+				<Section title="政余格局">
 				{styleWarning ? <div className="horosa-guolao-moira-warning">{styleWarning}</div> : null}
 				{patterns.length ? (
 					<div className="horosa-guolao-moira-patterns">

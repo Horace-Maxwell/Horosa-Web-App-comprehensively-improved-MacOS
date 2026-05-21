@@ -16,6 +16,7 @@ const RED = '#ff0000';
 const MAGENTA = '#ff00ff';
 const NOW_MARK = '#804040';
 const PALE = '#b5d8c7';
+const MUTED_PLANET = '#8a8a8a';
 const STELLAR_TICK_INNER = 5;
 const STELLAR_TICK_OUTER = 6;
 const GOD_RING_INNER = 8;
@@ -23,8 +24,7 @@ const GOD_RING_OUTER = 10;
 
 const TWELVE_SIGNS = ['酉', '申', '未', '午', '巳', '辰', '卯', '寅', '丑', '子', '亥', '戌'];
 const RING1 = ['金酉', '水申', '月未', '日午', '水巳', '金辰', '火卯', '木寅', '土丑', '土子', '木亥', '火戌'];
-const HOUSE_BRANCH = ['财帛', '兄弟', '田宅', '男女', '奴仆', '夫妻', '疾厄', '迁移', '官禄', '福德', '相貌', '命宫'];
-const HOUSE_NUMBERS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '1'];
+const HOUSE_BRANCH = ['命宫', '财帛', '兄弟', '田宅', '男女', '奴仆', '夫妻', '疾厄', '迁移', '官禄', '福德', '相貌'];
 const SIGN_NAMES = ['白羊', '金牛', '双子', '巨蟹', '狮子', '处女', '天秤', '天蝎', '射手', '摩羯', '水瓶', '双鱼'];
 const HALF_STELLAR = ['娄', '胃', '昴', '毕', '觜', '参', '井', '鬼', '柳', '星', '张', '翼', '轸', '角', '亢', '氐', '房', '心', '尾', '箕', '斗', '牛', '女', '虚', '危', '室', '壁', '奎'];
 const FULL_STELLAR = ['娄金', '胃土', '昴日', '毕月', '觜火', '参水', '井木', '鬼金', '柳土', '星日', '张月', '翼火', '轸水', '角木', '亢金', '氐土', '房日', '心月', '尾火', '箕水', '斗木', '牛金', '女土', '虚日', '危月', '室火', '壁水', '奎木'];
@@ -241,7 +241,7 @@ function pairedRadialText(text, theta, inner, outer, opt = {}){
 						key={`${text}-${item.key}-${theta}`}
 						x={p.x}
 						y={p.y}
-						fill={opt.color || BLACK}
+						fill={item.key === 'outer' ? (opt.primaryColor || opt.color || BLACK) : (opt.secondaryColor || opt.color || BLACK)}
 						fontSize={opt.size || 22}
 						fontWeight={opt.weight || 600}
 						textAnchor="middle"
@@ -365,10 +365,18 @@ function dmsText(value){
 		return '';
 	}
 	val = ((val % 30) + 30) % 30;
-	const deg = Math.floor(val);
+	let deg = Math.floor(val);
 	const minFloat = (val - deg) * 60;
-	const min = Math.floor(minFloat);
-	const sec = Math.round((minFloat - min) * 60);
+	let min = Math.floor(minFloat);
+	let sec = Math.round((minFloat - min) * 60);
+	if(sec >= 60){
+		sec = 0;
+		min += 1;
+	}
+	if(min >= 60){
+		min = 0;
+		deg += 1;
+	}
 	return `${String(deg).padStart(2, '0')}°${String(min).padStart(2, '0')}′${String(sec).padStart(2, '0')}″`;
 }
 
@@ -378,14 +386,216 @@ function speedText(obj){
 	return `${sign}${Math.abs(speed).toFixed(4)}`;
 }
 
-function objectTooltip(item, kind){
+function listText(items, empty = '无'){
+	const list = (items || []).filter(Boolean);
+	return list.length ? list.join('、') : empty;
+}
+
+function uniquePush(list, val){
+	if(!val || list.indexOf(val) >= 0){
+		return;
+	}
+	list.push(val);
+}
+
+function starHostByIndex(index){
+	const full = FULL_STELLAR[index] || '';
+	return full.length > 1 ? full.slice(1) : '';
+}
+
+function stellarIndexForDegree(stars, degree){
+	const value = norm(degree);
+	let found = -1;
+	for(let i = 0; i < stars.length; i++){
+		const start = norm(stars[i].ra);
+		const end = norm(stars[(i + 1) % stars.length].ra);
+		if(start <= end){
+			if(value >= start && value < end){
+				found = i;
+				break;
+			}
+		}else if(value >= start || value < end){
+			found = i;
+			break;
+		}
+	}
+	return found;
+}
+
+function buildStellarRelations(chart){
+	const stars = buildFixedStars(chart);
+	const rows = stars.map((star, idx)=>({
+		index: idx,
+		name: star.name || HALF_STELLAR[idx] || '',
+		label: star.label || FULL_STELLAR[idx] || star.name || '',
+		host: starHostByIndex(idx),
+		main: [],
+		same: [],
+	}));
+	const objects = chart && chart.objects ? chart.objects : [];
+	const preferLon = isZhengSiderealChart(chart);
+	PLANET_DEFS.forEach((def)=>{
+		const obj = objects.find((one)=>one.id === def.id);
+		const degree = objectRa(obj, preferLon);
+		if(!obj || degree === null){
+			return;
+		}
+		const idx = stellarIndexForDegree(stars, degree);
+		if(idx < 0 || !rows[idx]){
+			return;
+		}
+		uniquePush(rows[idx].main, def.label);
+		const host = rows[idx].host;
+		if(!host){
+			return;
+		}
+		rows.forEach((row, rowIdx)=>{
+			if(rowIdx !== idx && row.host === host){
+				uniquePush(row.same, def.label);
+			}
+		});
+	});
+	return rows;
+}
+
+function mergeStellarRelationRows(birthChart, transitChart){
+	const birth = buildStellarRelations(birthChart);
+	const transit = transitChart ? buildStellarRelations(transitChart) : [];
+	return birth.map((row, idx)=>({
+		...row,
+		transitMain: transit[idx] ? transit[idx].main : [],
+		transitSame: transit[idx] ? transit[idx].same : [],
+	}));
+}
+
+function findRulePlanet(rules, item){
+	const label = item && item.label;
+	const id = item && item.id;
+	return (rules && rules.planets ? rules.planets : []).find((row)=>row && (row.id === id || row.name === label)) || null;
+}
+
+function findYearPlanetRow(rules, item, kind){
+	const yearStars = rules && rules.yearStars ? rules.yearStars : {};
+	const key = kind === 'birth' ? 'birth' : 'transit';
+	const bucket = yearStars[key] || {};
+	const rows = bucket.planetRows || [];
+	const label = item && item.label;
+	return rows.find((row)=>row && row.star === label) || null;
+}
+
+function yearSignRowsForPlanet(rules, item, kind){
+	const rows = kind === 'birth'
+		? (rules && rules.natalYearStars ? rules.natalYearStars : [])
+		: (rules && rules.transitYearStars ? rules.transitYearStars : []);
+	const label = item && item.label;
+	return rows.filter((row)=>row && row.star === label);
+}
+
+function yearSignRowForZi(rules, zi, kind){
+	const rows = kind === 'birth'
+		? (rules && rules.natalYearStars ? rules.natalYearStars : [])
+		: (rules && rules.transitYearStars ? rules.transitYearStars : []);
+	return rows.find((row)=>row && row.zi === zi) || null;
+}
+
+function weakSolidRowForZi(rules, zi){
+	const weakSolid = rules && rules.weakSolid ? rules.weakSolid : {};
+	const rows = weakSolid.houses || [];
+	return rows.find((row)=>row && row.zi === zi) || null;
+}
+
+function weakSolidText(row){
+	if(!row){
+		return '';
+	}
+	if(row.label){
+		return row.label;
+	}
+	const parts = [];
+	if(row.weak){
+		parts.push(`虚${listText(row.weakPillars, '')}`);
+	}
+	if(row.solid){
+		parts.push(`实${listText(row.solidPillars, '')}`);
+	}
+	return parts.join('、');
+}
+
+function objectTooltip(item, kind, rules){
 	const degree = norm(item.degree);
 	const signIdx = signIndexFromDegree(degree);
 	const inSign = degree - signIdx * 30;
 	const su = item.obj && item.obj.su28 ? item.obj.su28 : '';
 	const label = item.label || item.name || item.id;
 	const layer = kind === 'birth' ? '本命' : '流年';
-	return `${label}（${layer}）：${su ? `${su} ` : ''}${dmsText(inSign)}；${SIGN_NAMES[signIdx]} ${dmsText(inSign)}；速度 ${speedText(item.obj)}`;
+	const rulePlanet = kind === 'birth' ? findRulePlanet(rules, item) : null;
+	const yearPlanet = findYearPlanetRow(rules, item, kind);
+	const yearSignRows = yearSignRowsForPlanet(rules, item, kind);
+	const lines = [
+		`${label}（${layer}）：${su ? `${su} ` : ''}${dmsText(inSign)}；${SIGN_NAMES[signIdx]} ${dmsText(inSign)}`,
+		`速度：${speedText(item.obj)}`,
+	];
+	if(yearPlanet){
+		const change = yearPlanet.changeTo || '';
+		const items = listText(yearPlanet.items, '');
+		lines.push(`化曜：${change || '—'}${items ? `（${items}）` : ''}`);
+	}
+	if(yearSignRows.length){
+		lines.push(`所临命曜：${yearSignRows.map((row)=>`${row.name}${row.shortName ? `·${row.shortName}` : ''}`).join('、')}`);
+	}
+	if(rulePlanet){
+		lines.push(`宫位：${[rulePlanet.moiraHouse, rulePlanet.zi, rulePlanet.area || rulePlanet.signName].filter(Boolean).join(' · ')}`);
+		if(rulePlanet.dignity){
+			lines.push(`虚实：${rulePlanet.dignity}`);
+		}
+	}
+	return lines.filter(Boolean).join('\n');
+}
+
+function signTooltip(zi, houseName, sameText, rules, gods){
+	const row = yearSignRowForZi(rules, zi, 'birth');
+	const weakSolid = weakSolidRowForZi(rules, zi);
+	const lines = [
+		`${zi}：${houseName}；同经：${sameText}`,
+		row ? `命曜：${row.star || '—'} ${row.shortName || ''}${row.quality ? `；${row.quality}` : ''}` : '',
+		weakSolid ? `虚实：${weakSolidText(weakSolid) || '无'}` : '',
+		gods && gods.length ? `神煞：${listText(gods)}` : '',
+	];
+	return lines.filter(Boolean).join('\n');
+}
+
+function weakSolidMarkers(row, theta, inner, outer){
+	if(!row || (!row.weak && !row.solid)){
+		return null;
+	}
+	const markers = [];
+	const band = Math.max(1, outer - inner);
+	const dotTheta = theta;
+	if(row.weak){
+		markers.push({key: 'weak', color: RED});
+	}
+	if(row.solid){
+		markers.push({key: 'solid', color: GREEN});
+	}
+	const baseRadius = outer - Math.max(5, band * 0.11);
+	return (
+		<g className="moira-weak-solid-markers" pointerEvents="none">
+			{markers.map((item, idx)=>{
+				const offsetTheta = dotTheta + (idx - (markers.length - 1) / 2) * 4.5;
+				const p = point(baseRadius, offsetTheta);
+				return (
+					<circle
+						key={`${item.key}-${theta}`}
+						cx={p.x}
+						cy={p.y}
+						r="2.8"
+						fill={item.color}
+						stroke="none"
+					/>
+				);
+			})}
+		</g>
+	);
 }
 
 function objectsNearDegree(chart, degree, tolerance = 1.2){
@@ -532,6 +742,16 @@ function lifeDegree(chart, fields){
 	const secondary = useLifeMaster ? objectRa(asc, preferLon) : objectRa(life, preferLon);
 	const val = primary !== null ? primary : (secondary !== null ? secondary : objectRa(sun, preferLon));
 	return val === null ? 0 : val;
+}
+
+function sectorIndexFromSignIndex(signIndex){
+	return ((Number(signIndex || 0) - 1) % 12 + 12) % 12;
+}
+
+function houseIndexForSector(sectorIdx, life){
+	const signIndex = Math.floor(norm(life) / 30);
+	const lifeSector = sectorIndexFromSignIndex(signIndex);
+	return (sectorIdx - lifeSector + 12) % 12;
 }
 
 function childLimitYears(life){
@@ -729,10 +949,11 @@ class GuoLaoMoiraWheel extends Component{
 	}
 
 	tooltipPoint(evt){
-		const box = this.containerRef.current ? this.containerRef.current.getBoundingClientRect() : {left: 0, top: 0};
+		const maxX = typeof window !== 'undefined' ? Math.max(12, window.innerWidth - 440) : evt.clientX + 14;
+		const maxY = typeof window !== 'undefined' ? Math.max(12, window.innerHeight - 220) : evt.clientY + 16;
 		return {
-			x: evt.clientX - box.left + 14,
-			y: evt.clientY - box.top + 16,
+			x: Math.min(evt.clientX + 14, maxX),
+			y: Math.min(evt.clientY + 16, maxY),
 		};
 	}
 
@@ -876,39 +1097,46 @@ class GuoLaoMoiraWheel extends Component{
 		return null;
 	}
 
-	renderStaticTwelve(){
+	renderStaticTwelve(root, chart, fields){
 		const nodes = [];
+		const life = lifeDegree(chart, fields);
+		const ziGods = getZiGods(root, chart);
 		for(let i = 0; i < 12; i++){
 			const theta = sectorTheta(i);
-				const startTheta = -30 * i;
-				const endTheta = -30 * (i + 1);
-					const pNumber = point((r(1) + r(2)) / 2, theta);
-					const houseNameRadius = (r(2) + r(3)) / 2;
-				const tip = `${HOUSE_BRANCH[i]}：${TWELVE_SIGNS[i]}；同经：${RING1[i]}`;
-				nodes.push(
-					<g key={`static-${i}`}>
+			const startTheta = -30 * i;
+			const endTheta = -30 * (i + 1);
+			const pNumber = point((r(1) + r(2)) / 2, theta);
+			const houseNameRadius = (r(2) + r(3)) / 2;
+			const houseIndex = houseIndexForSector(i, life);
+			const houseName = HOUSE_BRANCH[houseIndex];
+			const houseNumber = `${houseIndex + 1}`;
+			const gods = orderedGods(collectGods(ziGods, TWELVE_SIGNS[i]), BIRTH_GOD_ORDER);
+			const weakSolid = weakSolidRowForZi(this.props.moiraRules, TWELVE_SIGNS[i]);
+			const tip = signTooltip(TWELVE_SIGNS[i], houseName, RING1[i], this.props.moiraRules, gods);
+			nodes.push(
+				<g key={`static-${i}`}>
 					<path
 						className="moira-hover-zone"
 						d={annularSectorPath(r(0), r(3), endTheta, startTheta)}
 						{...this.tooltipHandlers(tip)}
 					>
-							<title>{tip}</title>
-						</path>
-						{pairedRadialText(RING1[i], theta, r(0), r(1), {size: 22, color: BLACK, weight: 600})}
-							{horizontalRingText(HOUSE_BRANCH[i], houseNameRadius, theta, {size: 20, color: GREEN, weight: 700})}
-						<text
-							x={pNumber.x}
-							y={pNumber.y}
-							fill={GREEN}
-							fontSize="20"
-							fontWeight="600"
-							textAnchor="middle"
-							dominantBaseline="central"
-							transform={`rotate(${tangentRotate(theta)} ${pNumber.x} ${pNumber.y})`}
-						>
-							{HOUSE_NUMBERS[i]}
-						</text>
-					</g>
+					</path>
+					{pairedRadialText(RING1[i], theta, r(0), r(1), {size: 22, primaryColor: MUTED_PLANET, secondaryColor: BLACK, weight: 600})}
+					{weakSolidMarkers(weakSolid, theta, r(0), r(1))}
+					{horizontalRingText(houseName, houseNameRadius, theta, {size: 20, color: GREEN, weight: 700})}
+					<text
+						x={pNumber.x}
+						y={pNumber.y}
+						fill={GREEN}
+						fontSize="20"
+						fontWeight="600"
+						textAnchor="middle"
+						dominantBaseline="central"
+						transform={`rotate(${tangentRotate(theta)} ${pNumber.x} ${pNumber.y})`}
+					>
+						{houseNumber}
+					</text>
+				</g>
 			);
 		}
 		return (
@@ -924,6 +1152,10 @@ class GuoLaoMoiraWheel extends Component{
 
 	renderStellarRing(chart){
 		const stars = buildFixedStars(chart);
+		const birthRelations = buildStellarRelations(chart);
+		const transitRoot = this.props.transitValue || {};
+		const transitChart = transitRoot.chart ? (transitRoot.params ? {...transitRoot.chart, params: transitRoot.params} : transitRoot.chart) : null;
+		const transitRelations = transitChart ? buildStellarRelations(transitChart) : [];
 		const nodes = [];
 		stars.forEach((cur, idx)=>{
 			const nxt = stars[(idx + 1) % stars.length];
@@ -935,7 +1167,16 @@ class GuoLaoMoiraWheel extends Component{
 			const centerTheta = moiraThetaFromDegree(Number(cur.ra) + span / 2);
 			const p = point((r(STELLAR_TICK_INNER) + r(STELLAR_TICK_OUTER)) / 2, centerTheta);
 			const endRa = norm(Number(cur.ra) + span);
-			const tip = `${cur.label || cur.name}：${dmsText(0)} 至 ${dmsText(span)}；起点 ${norm(cur.ra).toFixed(2)}°，终点 ${endRa.toFixed(2)}°`;
+			const birth = birthRelations[idx] || {};
+			const transit = transitRelations[idx] || {};
+			const tip = [
+				`${cur.label || cur.name}：${dmsText(0)} 至 ${dmsText(span)}`,
+				`本命落入：${listText(birth.main)}`,
+				`本命同经：${listText(birth.same)}`,
+				transitChart ? `流年落入：${listText(transit.main)}` : '',
+				transitChart ? `流年同经：${listText(transit.same)}` : '',
+				`起点 ${norm(cur.ra).toFixed(2)}°，终点 ${endRa.toFixed(2)}°`,
+			].filter(Boolean).join('\n');
 			nodes.push(
 				<g key={`stellar-${idx}`}>
 					<path
@@ -943,7 +1184,6 @@ class GuoLaoMoiraWheel extends Component{
 						d={annularSectorPath(r(STELLAR_TICK_INNER), r(STELLAR_TICK_OUTER), moiraThetaFromDegree(Number(cur.ra) + span), edgeTheta)}
 						{...this.tooltipHandlers(tip)}
 					>
-						<title>{tip}</title>
 					</path>
 					{radialLine(edgeTheta, r(STELLAR_TICK_INNER) + 1, r(STELLAR_TICK_OUTER) - 1, {color: RED, width: 1})}
 					{verticalText(cur.name || cur.label, p.x, p.y, {
@@ -965,7 +1205,7 @@ class GuoLaoMoiraWheel extends Component{
 			const markTheta = moiraThetaFromDegree(item.degree);
 			const labelTheta = moiraThetaFromDegree(item.labelDegree);
 			const p = point(item.radius, labelTheta);
-			const tip = objectTooltip(item, opt.kind);
+			const tip = objectTooltip(item, opt.kind, this.props.moiraRules);
 			nodes.push(
 				<g key={`${opt.kind}-planet-${item.id}-${idx}`}>
 					<circle
@@ -975,7 +1215,6 @@ class GuoLaoMoiraWheel extends Component{
 						r={Math.max(20, opt.size * 0.82)}
 						{...this.tooltipHandlers(tip)}
 					>
-						<title>{tip}</title>
 					</circle>
 						{connectorLine(markTheta, labelTheta, opt.markInner, opt.markOuter, opt.lineDir || 1, {color: opt.markColor, width: 1.05})}
 					{verticalText(item.label, p.x, p.y, {
@@ -1044,7 +1283,6 @@ class GuoLaoMoiraWheel extends Component{
 						d={annularSectorPath(opt.inner, opt.outer, endTheta, startTheta)}
 						{...this.tooltipHandlers(tip)}
 					>
-						<title>{tip}</title>
 					</path>
 					{radialColumns(gods, theta, opt.inner, opt.outer, {
 						size: opt.size || godSize,
@@ -1214,7 +1452,7 @@ class GuoLaoMoiraWheel extends Component{
 					{this.renderSectorLines()}
 					{this.renderDegreeTicks(chart, this.props.fields)}
 					{this.renderStellarTicks()}
-					{this.renderStaticTwelve()}
+					{this.renderStaticTwelve(root, chart, this.props.fields)}
 					{this.renderStellarRing(chart)}
 					{this.renderPlanetLayers(chart, transitChart)}
 					{this.renderStarTables(root, chart, transitRoot, transitChart)}
@@ -1258,6 +1496,8 @@ export {
 	planetColor as moiraPlanetColor,
 	circularGap as moiraCircularGap,
 	planetPlacements as moiraPlanetPlacements,
+	buildStellarRelations as moiraBuildStellarRelations,
+	mergeStellarRelationRows as moiraMergeStellarRelationRows,
 	getZiGods as moiraGetZiGods,
 	collectGods as moiraCollectGods,
 	orderedGods as moiraOrderedGods,

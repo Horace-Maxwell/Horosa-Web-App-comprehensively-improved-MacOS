@@ -21,6 +21,7 @@ _CUR_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJ_ROOT = os.path.abspath(os.path.join(_CUR_DIR, "..", ".."))
 _FLATLIB_CANDIDATES = [
     os.path.join(_PROJ_ROOT, "flatlib-ctrad2"),
+    os.path.abspath(os.path.join(_PROJ_ROOT, "..", "flatlib-ctrad2")),
 ]
 for _cand in reversed(_FLATLIB_CANDIDATES):
     if os.path.isdir(os.path.join(_cand, "flatlib")) and _cand not in sys.path:
@@ -39,6 +40,8 @@ from websrv.webjieqisrv import JieQiSrv
 from websrv.webjdn import WebJdnSrv
 from websrv.webcalc import WebCalcSrv
 from websrv.webacgsrv import AcgSrv
+from websrv.webastroextrasrv import AstroExtraSrv
+from websrv.webplanetariumsrv import PlanetariumSrv
 
 
 
@@ -252,6 +255,8 @@ if __name__ == '__main__':
     cherrypy.tree.mount(WebJdnSrv(), '/jdn')
     cherrypy.tree.mount(WebCalcSrv(), '/calc')
     cherrypy.tree.mount(AcgSrv(), '/location')
+    cherrypy.tree.mount(AstroExtraSrv(), '/astroextra')
+    cherrypy.tree.mount(PlanetariumSrv(), '/planetarium')
 
     cherrypy.engine.start()
     cherrypy.engine.block()

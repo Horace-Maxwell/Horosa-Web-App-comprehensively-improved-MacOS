@@ -6,13 +6,15 @@ import AstroGermany from '../germany/AstroGermany';
 import HellenAstroMain from '../hellenastro/HellenAstroMain';
 import LocAstroMain from '../loc/LocAstroMain';
 import OtherBuMain from '../otherbu/OtherBuMain';
+import AstroHarmonicLab from './AstroHarmonicLab';
 
 const TabPane = Tabs.TabPane;
-const AUX_TABS = ['germanytech', 'hellenastro', 'locastro', 'otherbu'];
+const AUX_TABS = ['germanytech', 'hellenastro', 'locastro', 'harmonic', 'otherbu'];
 const AUX_QUICK_ACTIONS = [
 	{ key: 'germanytech', label: '量化盘', icon: 'quickPrimary' },
 	{ key: 'hellenastro', label: '十三分盘', icon: 'astro' },
 	{ key: 'locastro', label: '占星地图', icon: 'locastro' },
+	{ key: 'harmonic', label: '调波盘', icon: 'quickTransit' },
 	{ key: 'otherbu', label: '骰子', icon: 'quickAi' },
 ];
 
@@ -33,12 +35,15 @@ class AuxChartMain extends Component{
 				hellenastro:{
 					fun: null
 				},
-				locastro:{
-					fun: null
-				},
-				otherbu:{
-					fun: null
-				},
+					locastro:{
+						fun: null
+					},
+					harmonic:{
+						fun: null
+					},
+					otherbu:{
+						fun: null
+					},
 			},
 		};
 
@@ -166,10 +171,17 @@ class AuxChartMain extends Component{
 								hook={this.state.hook.locastro}
 								dispatch={this.props.dispatch}
 							/>
-						</TabPane>
+							</TabPane>
 
-						<TabPane tab="骰子" key="otherbu">
-							<OtherBuMain
+							<TabPane tab="调波盘" key="harmonic">
+								<AstroHarmonicLab
+									value={this.props.chart}
+									height={childHeight}
+								/>
+							</TabPane>
+	
+							<TabPane tab="骰子" key="otherbu">
+								<OtherBuMain
 								height={childHeight}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}

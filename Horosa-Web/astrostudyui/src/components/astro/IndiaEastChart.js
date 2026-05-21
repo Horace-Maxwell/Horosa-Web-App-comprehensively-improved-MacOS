@@ -10,6 +10,7 @@ import {
 	getObjectDegree,
 	getObjectLabel,
 	getObjectsBySign,
+	getIndiaChartOptionNote,
 	getSignSymbol,
 } from './IndiaSouthChart';
 import '../../css/styles.less';
@@ -68,20 +69,24 @@ function buildChartHeightStyle(height){
 
 class IndiaEastChart extends Component{
 	renderObjects(objects, signNumber){
+		const degreeDisplayMode = this.props.degreeDisplayMode;
 		return (
 			<div className="horosa-india-diagram-objects">
-				{objects.map((obj, idx)=>(
-					<span
-						className="horosa-india-square-object"
-						key={`${signNumber}_${obj.id}_${idx}_${obj.lon}`}
-						title={`${AstroText.AstroMsgCN[obj.id] || obj.name || obj.id} ${getObjectDegree(obj)}`}
-						style={{ '--india-object-color': getObjectColor(obj) }}
-					>
-						<span className="horosa-india-square-object-name">{getObjectLabel(obj)}</span>
-						<span className="horosa-india-square-object-degree">{getObjectDegree(obj)}</span>
-						{Number(obj.lonspeed) < 0 ? <span className="horosa-india-square-retro">R</span> : null}
-					</span>
-				))}
+				{objects.map((obj, idx)=>{
+					const degree = getObjectDegree(obj, degreeDisplayMode);
+					return (
+						<span
+							className="horosa-india-square-object"
+							key={`${signNumber}_${obj.id}_${idx}_${obj.lon}`}
+							title={`${AstroText.AstroMsgCN[obj.id] || obj.name || obj.id} ${degree}`}
+							style={{ '--india-object-color': getObjectColor(obj) }}
+						>
+							<span className="horosa-india-square-object-name">{getObjectLabel(obj)}</span>
+							<span className="horosa-india-square-object-degree">{degree}</span>
+							{Number(obj.lonspeed) < 0 ? <span className="horosa-india-square-retro">R</span> : null}
+						</span>
+					);
+				})}
 			</div>
 		);
 	}
@@ -94,7 +99,7 @@ class IndiaEastChart extends Component{
 		const objectsPos = EAST_OBJECT_ANCHOR_POSITIONS[signNumber];
 		const sign = SIGN_NAMES[signNumber];
 		const signName = AstroText.AstroMsgCN[sign] || sign;
-		const cuspDegree = getHouseCuspDegree(chartObj, houseNumber, signNumber);
+		const cuspDegree = getHouseCuspDegree(chartObj, houseNumber, signNumber, this.props.degreeDisplayMode);
 		return (
 			<div
 				key={`east_sign_${signNumber}`}
@@ -158,6 +163,7 @@ class IndiaEastChart extends Component{
 					{Object.keys(EAST_SIGN_BADGE_POSITIONS).map((signNumber)=>this.renderSign(Number(signNumber), ascSignNumber, objectsBySign, chartObj))}
 					<div className="horosa-india-diagram-center horosa-india-diagram-center-compact">
 						<div className="horosa-india-square-center-d">D{chartnum}</div>
+						<div className="horosa-india-square-center-note">{getIndiaChartOptionNote(chartObj)}</div>
 					</div>
 				</div>
 			</div>

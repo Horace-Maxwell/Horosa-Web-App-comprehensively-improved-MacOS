@@ -1,23 +1,14 @@
 import { XQSelect } from '../xq-ui';
+import { HOUSE_SYSTEM_OPTIONS } from '../../constants/AstroConst';
 
 const Option = XQSelect.Option;
 
-export function getHousesOption(){
-	let houses = [
-		{key: 0, label: '整宫制'},
-		{key: 1, label: 'Alcabitus'},
-		{key: 2, label: 'Regiomontanus'},
-		{key: 3, label: 'Placidus'},
-		{key: 4, label: 'Koch'},
-		{key: 5, label: 'Vehlow Equal'},
-		{key: 6, label: 'Polich Page'},
-		{key: 7, label: 'Sripati'},
-		{key: 8, label: '天顶为10宫中点等宫制'}
-	]
+export function getHousesOption(expanded=false){
+	let houses = expanded ? HOUSE_SYSTEM_OPTIONS : HOUSE_SYSTEM_OPTIONS.slice(0, 9);
 
 	let dom = houses.map((item, idx)=>{
 		return (
-			<Option key={idx} value={item.key}>{item.label}</Option>
+			<Option key={idx} value={item.value}>{item.label}</Option>
 		);
 	});
 
