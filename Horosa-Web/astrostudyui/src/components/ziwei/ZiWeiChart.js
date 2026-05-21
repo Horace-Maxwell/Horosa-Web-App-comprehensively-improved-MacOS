@@ -22,9 +22,11 @@ class ZiWeiChart extends Component{
 		this.drawChart = this.drawChart.bind(this);
 		this.handleResize = this.handleResize.bind(this);
 		this.scheduleDrawChart = this.scheduleDrawChart.bind(this);
+		this.ensureChartSurfaceSize = this.ensureChartSurfaceSize.bind(this);
 		this.setupToolTip = this.setupToolTip.bind(this);
 		this.drawFrame = null;
 		this.resizeObserver = null;
+		this.sizeRetryCount = 0;
 
 		if(this.props.indicate){
 			this.props.indicate(this.zwchart.zwindicator);
@@ -57,10 +59,52 @@ class ZiWeiChart extends Component{
 		});
 	}
 
+	ensureChartSurfaceSize(){
+		const svgdom = document.getElementById(this.state.chartid);
+		if(svgdom === undefined || svgdom === null){
+			return false;
+		}
+
+		if(svgdom.clientWidth > 0 && svgdom.clientHeight > 0){
+			this.sizeRetryCount = 0;
+			return true;
+		}
+
+		const viewport = svgdom.parentElement;
+		const panel = viewport ? viewport.parentElement : null;
+		const source = panel || viewport;
+		if(source === undefined || source === null || typeof source.getBoundingClientRect !== 'function'){
+			return false;
+		}
+
+		const rect = source.getBoundingClientRect();
+		const size = Math.floor(Math.min(rect.width, rect.height) - 12);
+		if(size <= 0){
+			return false;
+		}
+
+		if(viewport){
+			viewport.style.width = size + 'px';
+			viewport.style.height = size + 'px';
+		}
+		svgdom.style.width = size + 'px';
+		svgdom.style.height = size + 'px';
+		this.sizeRetryCount = 0;
+		return true;
+	}
+
 	drawChart(){
 		let chartobj = this.props.value;
 		if(chartobj === undefined || chartobj === null 
 			|| chartobj.houses === undefined || chartobj.houses === null){
+			return;
+		}
+
+		if(!this.ensureChartSurfaceSize()){
+			if(this.sizeRetryCount < 8){
+				this.sizeRetryCount += 1;
+				this.scheduleDrawChart();
+			}
 			return;
 		}
 		

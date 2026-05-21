@@ -276,7 +276,7 @@ class JyotishEngine:
             'engine': {
                 'name': 'Horosa JyotishEngine',
                 'version': '0.1.0',
-                'ephemeris': 'Horosa Swiss Ephemeris / flatlib PerChart',
+                'ephemeris': 'Horosa Swiss Ephemeris / IndiaChartKernel',
                 'source': 'chart_json_only',
                 'chartnum': 1,
             },
@@ -670,7 +670,8 @@ class JyotishEngine:
         if self.asc:
             sublords[const.ASC] = self.kp_sublord(self.asc.lon)
         return {
-            'ayanamsa': 'Lahiri / Horosa sidereal context',
+            'ayanamsa': getattr(self.perchart, 'siderealModeLabel', 'Lahiri / Horosa sidereal context'),
+            'ayanamsaKey': getattr(self.perchart, 'siderealModeKey', 'lahiri'),
             'sublords': sublords,
         }
 

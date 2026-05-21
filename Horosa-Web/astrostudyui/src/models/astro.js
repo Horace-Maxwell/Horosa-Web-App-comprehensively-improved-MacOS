@@ -7,6 +7,7 @@ import {randomStr,} from '../utils/helper';
 import { DefLat, DefLon, DefGpsLat, DefGpsLon, } from '../utils/constants';
 import { saveAstroAISnapshot, } from '../utils/astroAiSnapshot';
 import { loadLocalFateEvents, saveLocalFateEvents, } from '../utils/localdeeplearn';
+import * as AstroConst from '../constants/AstroConst';
 
 let dtm = new DateTime();
 const DefaultHouseSystem = 1;
@@ -61,6 +62,14 @@ function newEmptyFields(){
 			value: DefaultHouseSystem,
 			name: ['hsys'],
 		},
+		indiaHsys: {
+			value: AstroConst.INDIA_HOUSE_SYSTEM_DEFAULT,
+			name: ['indiaHsys'],
+		},
+		indiaAyanamsa: {
+			value: AstroConst.INDIA_AYANAMSA_DEFAULT,
+			name: ['indiaAyanamsa'],
+		},
 		zodiacal: {
 			value: 0,
 			name: ['zodiacal'],
@@ -88,6 +97,10 @@ function newEmptyFields(){
 		guolaoLifeMode: {
 			value: 'asc',
 			name: ['guolaoLifeMode'],
+		},
+		guolaoNodeMode: {
+			value: 'northKetuSouthRahu',
+			name: ['guolaoNodeMode'],
 		},
 		houseStartMode: {
 			value: 0,
@@ -481,6 +494,10 @@ export default {
 			guolaoLifeMode: {
 				value: 'asc',
 				name: ['guolaoLifeMode'],
+			},
+			guolaoNodeMode: {
+				value: 'northKetuSouthRahu',
+				name: ['guolaoNodeMode'],
 			},
 			houseStartMode: {
 				value: 0,

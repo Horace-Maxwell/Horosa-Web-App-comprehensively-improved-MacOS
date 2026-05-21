@@ -80,6 +80,7 @@ def validate_case(case):
     assert_true(len(jyotish['shadbala']['planets']) == 7, 'unexpected shadbala planet count')
     assert_true(len(jyotish['jaimini']['charaKarakas']) == 7, 'missing chara karakas')
     assert_true('Moon' in jyotish['kp']['sublords'], 'missing KP Moon sublord')
+    assert_true(chart_after['params']['ayanamsa'] == 'lahiri', 'default india ayanamsa should be Lahiri')
 
     d1_moon_nak = jyotish['panchanga']['nakshatra']['name']
     navamsa_data = copy.deepcopy(data)
@@ -99,8 +100,25 @@ def validate_case(case):
     }
 
 
+def validate_india_options():
+    data = build_params(BASE_CASES[0])
+    lahiri = PerChart(dict(data, indiaAyanamsa='lahiri'))
+    raman = PerChart(dict(data, indiaAyanamsa='raman'))
+    lahiri_moon = lahiri.chart.get('Moon').lon
+    raman_moon = raman.chart.get('Moon').lon
+    assert_true(abs(lahiri_moon - raman_moon) > 0.1, 'india ayanamsa selector should change sidereal longitudes')
+    assert_true(raman.siderealModeKey == 'raman', 'Raman ayanamsa key not applied')
+
+    whole = PerChart(dict(data, hsys=0, indiaHsys=0))
+    sripati = PerChart(dict(data, hsys=7, indiaHsys=7))
+    whole_h1 = whole.chart.getHouse('House1').lon
+    sripati_h1 = sripati.chart.getHouse('House1').lon
+    assert_true(abs(whole_h1 - sripati_h1) > 0.1, 'india house system selector should change house cusps')
+
+
 def main():
     rows = [validate_case(case) for case in BASE_CASES]
+    validate_india_options()
     print(json.dumps({
         'ok': True,
         'cases': rows,

@@ -805,6 +805,35 @@ export const HouseSys = {
     '8': '天顶为10宫中点等宫制'
 }
 
+export const INDIA_AYANAMSA_DEFAULT = 'lahiri';
+export const INDIA_AYANAMSA_OPTIONS = [
+    { value: 'lahiri', label: 'Lahiri' },
+    { value: 'raman', label: 'Raman' },
+    { value: 'krishnamurti', label: 'Krishnamurti / KP' },
+    { value: 'yukteshwar', label: 'Yukteshwar' },
+    { value: 'true_citra', label: 'True Citra' },
+    { value: 'true_revati', label: 'True Revati' },
+];
+
+export function normalizeIndiaAyanamsa(value){
+    const found = INDIA_AYANAMSA_OPTIONS.find((item)=>item.value === value);
+    return found ? found.value : INDIA_AYANAMSA_DEFAULT;
+}
+
+export const INDIA_HOUSE_SYSTEM_DEFAULT = 0;
+export const INDIA_HOUSE_SYSTEM_OPTIONS = [
+    { value: 0, label: '整宫制' },
+    { value: 5, label: '等宫制' },
+    { value: 7, label: 'Sripati' },
+    { value: 3, label: 'KP/Placidus' },
+];
+
+export function normalizeIndiaHouseSystem(value){
+    const numeric = Number(value);
+    const found = INDIA_HOUSE_SYSTEM_OPTIONS.find((item)=>item.value === numeric);
+    return found ? found.value : INDIA_HOUSE_SYSTEM_DEFAULT;
+}
+
 export const HSYS_Whole_Sign = 'Whole Sign';
 export const HSYS_Alcabitus = 'Alcabitus';
 export const HSYS_Regiomontanus = 'Regiomontanus';

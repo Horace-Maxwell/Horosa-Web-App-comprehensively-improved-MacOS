@@ -12,7 +12,13 @@ import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 const indiaChartCache = new Map();
 const indiaChartInflight = new Map();
 
-export function fieldsToParams(fields){
+export function fieldsToParams(fields, overrides = {}){
+	const indiaHsys = overrides.indiaHsys !== undefined && overrides.indiaHsys !== null
+		? AstroConst.normalizeIndiaHouseSystem(overrides.indiaHsys)
+		: (fields.indiaHsys ? AstroConst.normalizeIndiaHouseSystem(fields.indiaHsys.value) : AstroConst.INDIA_HOUSE_SYSTEM_DEFAULT);
+	const indiaAyanamsa = overrides.indiaAyanamsa !== undefined && overrides.indiaAyanamsa !== null
+		? AstroConst.normalizeIndiaAyanamsa(overrides.indiaAyanamsa)
+		: (fields.indiaAyanamsa ? AstroConst.normalizeIndiaAyanamsa(fields.indiaAyanamsa.value) : AstroConst.INDIA_AYANAMSA_DEFAULT);
 	const params = {
 		date: fields.date.value.format('YYYY/MM/DD'),
 		time: fields.time.value.format('HH:mm:ss'),
@@ -22,7 +28,11 @@ export function fieldsToParams(fields){
 		lon: fields.lon.value,
 		gpsLat: fields.gpsLat.value,
 		gpsLon: fields.gpsLon.value,
-		hsys: fields.hsys.value,
+		hsys: indiaHsys,
+		indiaHsys,
+		indiaAyanamsa,
+		ayanamsa: indiaAyanamsa,
+		siderealMode: indiaAyanamsa,
 		zodiacal: 1,
 		tradition: fields.tradition.value,
 		strongRecption: fields.strongRecption.value,
@@ -77,6 +87,8 @@ function buildIndiaChartCacheKey(params){
 		gpsLat: params.gpsLat,
 		gpsLon: params.gpsLon,
 		hsys: params.hsys,
+		indiaHsys: params.indiaHsys,
+		indiaAyanamsa: params.indiaAyanamsa || AstroConst.INDIA_AYANAMSA_DEFAULT,
 		zodiacal: params.zodiacal,
 		tradition: params.tradition,
 		strongRecption: params.strongRecption,
@@ -86,7 +98,7 @@ function buildIndiaChartCacheKey(params){
 		name: params.name || '',
 		pos: params.pos || '',
 		chartnum: params.chartnum || 1,
-		jyotishRev: 'jyotish_engine_v1',
+		jyotishRev: 'india_kernel_v1',
 	};
 	return JSON.stringify(normalized);
 }
@@ -199,6 +211,7 @@ class IndiaChart extends Component{
 		this.genParams = this.genParams.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.requestChartObj = this.requestChartObj.bind(this);
+		this.getIndiaOptionOverrides = this.getIndiaOptionOverrides.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields)=>{
@@ -206,6 +219,17 @@ class IndiaChart extends Component{
 			};
 		}
 
+	}
+
+	getIndiaOptionOverrides(){
+		const overrides = {};
+		if(this.props.indiaHsys !== undefined && this.props.indiaHsys !== null){
+			overrides.indiaHsys = this.props.indiaHsys;
+		}
+		if(this.props.indiaAyanamsa !== undefined && this.props.indiaAyanamsa !== null){
+			overrides.indiaAyanamsa = this.props.indiaAyanamsa;
+		}
+		return overrides;
 	}
 
 	async requestChart(params, sourceFields){
@@ -243,7 +267,7 @@ class IndiaChart extends Component{
 		let params = null;
 		try{
 			if(fields){
-				params = fieldsToParams(fields);
+				params = fieldsToParams(fields, this.getIndiaOptionOverrides());
 				if(params.chartnum === undefined || params.chartnum === null){
 					params.chartnum = 1;
 				}
@@ -261,7 +285,7 @@ class IndiaChart extends Component{
 
 	genParams(){
 		let fields = this.props.fields;
-		let params = fieldsToParams(fields);
+		let params = fieldsToParams(fields, this.getIndiaOptionOverrides());
 		if(this.props.chartnum){
 			params.chartnum = this.props.chartnum;
 		}
@@ -276,6 +300,31 @@ class IndiaChart extends Component{
 
 	componentDidMount(){
 		this.requestChartObj();
+	}
+
+	componentDidUpdate(prevProps){
+		let prevKey = '';
+		let nextKey = '';
+		try{
+			const prevOverrides = {};
+			if(prevProps.indiaHsys !== undefined && prevProps.indiaHsys !== null){
+				prevOverrides.indiaHsys = prevProps.indiaHsys;
+			}
+			if(prevProps.indiaAyanamsa !== undefined && prevProps.indiaAyanamsa !== null){
+				prevOverrides.indiaAyanamsa = prevProps.indiaAyanamsa;
+			}
+			const prevParams = fieldsToParams(prevProps.fields, prevOverrides);
+			if(prevProps.chartnum){
+				prevParams.chartnum = prevProps.chartnum;
+			}
+			prevKey = buildIndiaChartCacheKey(prevParams);
+			nextKey = buildIndiaChartCacheKey(this.genParams());
+		}catch(e){
+			return;
+		}
+		if(prevKey !== nextKey){
+			this.requestChartObj();
+		}
 	}
 
 	render(){
@@ -299,6 +348,7 @@ class IndiaChart extends Component{
 						height={height}
 						planetDisplay={this.props.planetDisplay}
 						lotsDisplay={this.props.lotsDisplay}
+						degreeDisplayMode={this.props.degreeDisplayMode}
 					/>
 				</div>
 			);
@@ -322,6 +372,7 @@ class IndiaChart extends Component{
 							height={chartHeight}
 							planetDisplay={this.props.planetDisplay}
 							lotsDisplay={this.props.lotsDisplay}
+							degreeDisplayMode={this.props.degreeDisplayMode}
 						/>
 					)}
 						chartDisplay={this.props.chartDisplay}

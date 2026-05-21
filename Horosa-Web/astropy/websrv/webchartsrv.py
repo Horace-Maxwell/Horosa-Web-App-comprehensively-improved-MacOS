@@ -21,6 +21,7 @@ _CUR_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJ_ROOT = os.path.abspath(os.path.join(_CUR_DIR, "..", ".."))
 _FLATLIB_CANDIDATES = [
     os.path.join(_PROJ_ROOT, "flatlib-ctrad2"),
+    os.path.abspath(os.path.join(_PROJ_ROOT, "..", "flatlib-ctrad2")),
 ]
 for _cand in reversed(_FLATLIB_CANDIDATES):
     if os.path.isdir(os.path.join(_cand, "flatlib")) and _cand not in sys.path:

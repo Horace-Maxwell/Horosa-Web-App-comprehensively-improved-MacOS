@@ -6,13 +6,19 @@ import DateTime from '../comp/DateTime';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import {convertLatToStr, convertLonToStr} from './AstroHelper';
 import * as AstroConst from '../../constants/AstroConst';
-import { XQSelect as Select, XQSegmented as Segmented, XQTabs as Tabs } from '../xq-ui';
+import { XQSegmented as Segmented, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
 
-const {Option} = Select;
 const TabPane = Tabs.TabPane;
+const {Option} = Select;
 const DASHA_YEAR_DAYS = 365.25;
 const NAKSHATRA_SIZE = 360 / 27;
+const INDIA_DEGREE_DISPLAY_DEGREE = 'degree';
+const INDIA_DEGREE_DISPLAY_FULL = 'full';
+const INDIA_DEGREE_DISPLAY_OPTIONS = [
+	{ value: INDIA_DEGREE_DISPLAY_DEGREE, label: '只度数' },
+	{ value: INDIA_DEGREE_DISPLAY_FULL, label: '度数+分数' },
+];
 const INDIA_QUICK_ACTIONS = [
 	{ key: 'd1', label: '命盘', icon: 'sidePlanets', action: 'tab', tab: 'Natal' },
 	{ key: 'd9', label: '合伴', icon: 'sideHouses', action: 'tab', tab: 'Navamsa' },
@@ -41,6 +47,7 @@ const DASHA_BY_KEY = DASHA_SEQUENCE.reduce((map, item, idx)=>{
 	};
 	return map;
 }, {});
+
 const NAKSHATRAS = [
 	['Ashwini', 'Ketu'], ['Bharani', 'Venus'], ['Krittika', 'Sun'],
 	['Rohini', 'Moon'], ['Mrigashira', 'Mars'], ['Ardra', 'Rahu'],
@@ -362,6 +369,7 @@ function buildJyotishParamsKey(params){
 		params.gpsLon,
 		params.gpsLat,
 		params.hsys,
+		params.indiaAyanamsa || AstroConst.INDIA_AYANAMSA_DEFAULT,
 	].join('|');
 }
 
@@ -439,14 +447,15 @@ function buildDashaFieldsKey(fields){
 		fields.lat ? fields.lat.value : '',
 		fields.gpsLon ? fields.gpsLon.value : '',
 		fields.gpsLat ? fields.gpsLat.value : '',
-		fields.hsys ? fields.hsys.value : '',
+		fields.indiaHsys ? fields.indiaHsys.value : AstroConst.INDIA_HOUSE_SYSTEM_DEFAULT,
+		fields.indiaAyanamsa ? fields.indiaAyanamsa.value : AstroConst.INDIA_AYANAMSA_DEFAULT,
 	].join('|');
 }
 
 function canBuildIndiaChartParams(fields){
 	const nullableKeys = ['name', 'pos'];
 	const requiredKeys = [
-		'date', 'time', 'ad', 'zone', 'lat', 'lon', 'gpsLat', 'gpsLon', 'hsys',
+		'date', 'time', 'ad', 'zone', 'lat', 'lon', 'gpsLat', 'gpsLon',
 		'tradition', 'strongRecption', 'simpleAsp', 'virtualPointReceiveAsp',
 		'name', 'pos',
 	];
@@ -472,6 +481,9 @@ class IndiaChartMain extends Component{
 			activeJyotishFields: null,
 			activeJyotishKey: '',
 			jyotishTab: '3',
+			indiaHsysValue: null,
+			indiaAyanamsaValue: null,
+			degreeDisplayMode: INDIA_DEGREE_DISPLAY_DEGREE,
 			hook: {
 				Natal:{
 					txt:'命盘',
@@ -580,17 +592,20 @@ class IndiaChartMain extends Component{
 		this.changeTab = this.changeTab.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.changeTime = this.changeTime.bind(this);
-		this.changeGeo = this.changeGeo.bind(this);
-		this.changeHsys = this.changeHsys.bind(this);
-		this.changeIndiaChartStyle = this.changeIndiaChartStyle.bind(this);
+			this.changeGeo = this.changeGeo.bind(this);
+			this.changeHsys = this.changeHsys.bind(this);
+			this.changeIndiaAyanamsa = this.changeIndiaAyanamsa.bind(this);
+			this.changeDegreeDisplayMode = this.changeDegreeDisplayMode.bind(this);
+			this.changeIndiaChartStyle = this.changeIndiaChartStyle.bind(this);
 		this.requestDashaChart = this.requestDashaChart.bind(this);
 		this.showDashaSubPopover = this.showDashaSubPopover.bind(this);
 		this.hideDashaSubPopover = this.hideDashaSubPopover.bind(this);
 		this.handleQuickAction = this.handleQuickAction.bind(this);
 		this.changeJyotishTab = this.changeJyotishTab.bind(this);
 		this.handleMainChartLoad = this.handleMainChartLoad.bind(this);
-		this.lastDashaRequestKey = '';
-		this.lastObservedFieldsKey = '';
+			this.lastDashaRequestKey = '';
+			this.lastObservedFieldsKey = '';
+			this.mainIndiaChartRef = null;
 
 		this.tmHook = {
 			getValue: null,
@@ -608,7 +623,7 @@ class IndiaChartMain extends Component{
 					}
 					hook[this.state.currentTab].fun(fld)
 				}
-				this.requestDashaChart(fields);
+				this.requestDashaChart(this.withIndiaOptionFields(fields));
 			};
 		}
 
@@ -636,16 +651,29 @@ class IndiaChartMain extends Component{
 	}
 
 	onFieldsChange(values){
+		let flds = this.withIndiaOptionFields(this.props.fields);
 		if(this.props.onChange){
-			let flds = this.props.onChange(values);
-			flds.chartnum = {};
-			flds.chartnum.value = this.state.currentFractal;
-			let hook = this.state.hook[this.state.currentTab];
-			if(hook.fun){
-				hook.fun(flds);
+			try{
+				const changedFields = this.props.onChange(values);
+				if(changedFields){
+					flds = this.withIndiaOptionFields(changedFields);
+				}
+			}catch(e){
+				if(typeof window !== 'undefined' && window.console){
+					window.console.error(e);
+				}
 			}
-			this.requestDashaChart(flds);
-		}		
+		}
+		if(!flds){
+			return;
+		}
+		flds.chartnum = {};
+		flds.chartnum.value = this.state.currentFractal;
+		let hook = this.state.hook[this.state.currentTab];
+		if(hook.fun){
+			hook.fun(flds);
+		}
+		this.requestDashaChart(flds);
 	}
 
 	changeTime(value){
@@ -701,11 +729,73 @@ class IndiaChartMain extends Component{
 	}
 
 	changeHsys(value){
-		this.onFieldsChange({
-			hsys: {
-				value,
-			},
+		const indiaHsys = AstroConst.normalizeIndiaHouseSystem(value);
+		const indiaAyanamsa = this.state.indiaAyanamsaValue !== null && this.state.indiaAyanamsaValue !== undefined
+			? this.state.indiaAyanamsaValue
+			: (this.props.fields && this.props.fields.indiaAyanamsa ? AstroConst.normalizeIndiaAyanamsa(this.props.fields.indiaAyanamsa.value) : AstroConst.INDIA_AYANAMSA_DEFAULT);
+		this.setState({
+			indiaHsysValue: indiaHsys,
+			mainChartObj: null,
+			mainChartKey: '',
+		}, ()=>{
+			this.requestDashaChart(this.withIndiaOptionFields(this.props.fields, {
+				indiaHsys,
+				indiaAyanamsa,
+			}));
 		});
+	}
+
+	changeIndiaAyanamsa(value){
+		const indiaAyanamsa = AstroConst.normalizeIndiaAyanamsa(value);
+		const indiaHsys = this.state.indiaHsysValue !== null && this.state.indiaHsysValue !== undefined
+			? this.state.indiaHsysValue
+			: (this.props.fields && this.props.fields.indiaHsys ? AstroConst.normalizeIndiaHouseSystem(this.props.fields.indiaHsys.value) : AstroConst.INDIA_HOUSE_SYSTEM_DEFAULT);
+		this.setState({
+			indiaAyanamsaValue: indiaAyanamsa,
+			mainChartObj: null,
+			mainChartKey: '',
+		}, ()=>{
+			this.requestDashaChart(this.withIndiaOptionFields(this.props.fields, {
+				indiaHsys,
+				indiaAyanamsa,
+			}));
+		});
+	}
+
+	changeDegreeDisplayMode(value){
+		const degreeDisplayMode = value === INDIA_DEGREE_DISPLAY_FULL
+			? INDIA_DEGREE_DISPLAY_FULL
+			: INDIA_DEGREE_DISPLAY_DEGREE;
+		this.setState({
+			degreeDisplayMode,
+		});
+	}
+
+	withIndiaOptionFields(fields, optionOverrides = {}){
+		if(!fields){
+			return fields;
+		}
+		const indiaHsys = optionOverrides.indiaHsys !== undefined && optionOverrides.indiaHsys !== null
+			? AstroConst.normalizeIndiaHouseSystem(optionOverrides.indiaHsys)
+			: (this.state.indiaHsysValue !== null && this.state.indiaHsysValue !== undefined
+			? this.state.indiaHsysValue
+			: (fields.indiaHsys ? AstroConst.normalizeIndiaHouseSystem(fields.indiaHsys.value) : AstroConst.INDIA_HOUSE_SYSTEM_DEFAULT));
+		const indiaAyanamsa = optionOverrides.indiaAyanamsa !== undefined && optionOverrides.indiaAyanamsa !== null
+			? AstroConst.normalizeIndiaAyanamsa(optionOverrides.indiaAyanamsa)
+			: (this.state.indiaAyanamsaValue !== null && this.state.indiaAyanamsaValue !== undefined
+			? this.state.indiaAyanamsaValue
+			: (fields.indiaAyanamsa ? AstroConst.normalizeIndiaAyanamsa(fields.indiaAyanamsa.value) : AstroConst.INDIA_AYANAMSA_DEFAULT));
+		return {
+			...fields,
+			indiaHsys: {
+				...(fields.indiaHsys || { name: ['indiaHsys'] }),
+				value: indiaHsys,
+			},
+			indiaAyanamsa: {
+				...(fields.indiaAyanamsa || { name: ['indiaAyanamsa'] }),
+				value: indiaAyanamsa,
+			},
+		};
 	}
 
 	changeIndiaChartStyle(value){
@@ -780,6 +870,8 @@ class IndiaChartMain extends Component{
 				this.setState({
 					dashaChartObj,
 					dashaChartKey: dashaFieldsKey,
+					mainChartObj: dashaChartObj || null,
+					mainChartKey: dashaFieldsKey,
 					dashaLoading: false,
 				});
 			}
@@ -799,19 +891,21 @@ class IndiaChartMain extends Component{
 		if(hook[this.state.currentTab].fun){
 			hook[this.state.currentTab].fun()
 		}
-		this.lastObservedFieldsKey = buildDashaFieldsKey(this.props.fields);
-		this.requestDashaChart();
+		const fields = this.withIndiaOptionFields(this.props.fields);
+		this.lastObservedFieldsKey = buildDashaFieldsKey(fields);
+		this.requestDashaChart(fields);
 	}
 
-	componentDidUpdate(){
-		const currentFieldsKey = buildDashaFieldsKey(this.props.fields);
+	componentDidUpdate(prevProps, prevState){
+		const fields = this.withIndiaOptionFields(this.props.fields);
+		const currentFieldsKey = buildDashaFieldsKey(fields);
 		if(currentFieldsKey && currentFieldsKey !== this.lastObservedFieldsKey){
 			this.lastObservedFieldsKey = currentFieldsKey;
-			this.requestDashaChart(this.props.fields);
+			this.requestDashaChart(fields);
 			return;
 		}
 		if(currentFieldsKey && currentFieldsKey !== this.lastDashaRequestKey && !hasUsableJyotishChart(this.state, currentFieldsKey) && !this.state.dashaLoading){
-			this.requestDashaChart(this.props.fields);
+			this.requestDashaChart(fields);
 		}
 	}
 
@@ -855,7 +949,7 @@ class IndiaChartMain extends Component{
 
 	handleMainChartLoad(chartObj, params){
 		const mainChartKey = buildJyotishParamsKey(params);
-		const activeKey = this.state.activeJyotishKey || buildDashaFieldsKey(this.props.fields);
+		const activeKey = this.state.activeJyotishKey || buildDashaFieldsKey(this.withIndiaOptionFields(this.props.fields));
 		if(activeKey && mainChartKey && mainChartKey !== activeKey){
 			return;
 		}
@@ -945,6 +1039,8 @@ class IndiaChartMain extends Component{
 					<div className="horosa-info-row"><span>地点</span><strong>{fields.lon.value} {fields.lat.value}</strong></div>
 					<div className="horosa-info-row"><span>时区</span><strong>{fields.zone.value}</strong></div>
 					<div className="horosa-info-row"><span>星历</span><strong>{jyotish && jyotish.engine ? 'Swiss / flatlib' : '—'}</strong></div>
+					<div className="horosa-info-row"><span>黄道</span><strong>Sidereal 恒星黄道</strong></div>
+					<div className="horosa-info-row"><span>岁差</span><strong>{(chartObj && chartObj.params && chartObj.params.ayanamsaLabel) || 'Lahiri / Chitrapaksha'}</strong></div>
 				</div>
 				<div className="horosa-info-card">
 					<div className="horosa-info-card-title">Panchanga 五支</div>
@@ -1203,7 +1299,13 @@ class IndiaChartMain extends Component{
 	}
 
 	render(){
-		let fields = this.props.fields;
+		let fields = this.withIndiaOptionFields(this.props.fields);
+		const indiaHsys = fields.indiaHsys
+			? AstroConst.normalizeIndiaHouseSystem(fields.indiaHsys.value)
+			: AstroConst.INDIA_HOUSE_SYSTEM_DEFAULT;
+		const indiaAyanamsa = fields.indiaAyanamsa
+			? AstroConst.normalizeIndiaAyanamsa(fields.indiaAyanamsa.value)
+			: AstroConst.INDIA_AYANAMSA_DEFAULT;
 		let jyotishFields = this.state.activeJyotishFields || fields;
 		let chartHeight = '100%';
 		let datetm = new DateTime();
@@ -1215,10 +1317,10 @@ class IndiaChartMain extends Component{
 				datetm.setZone(fields.zone.value);
 			}
 		}
-		const currentHook = this.state.hook[this.state.currentTab] || this.state.hook.Natal;
-		const indiaChartStyle = AstroConst.normalizeIndiaChartStyle(this.props.indiaChartStyle);
-
-		let splitItems = [];
+			const currentHook = this.state.hook[this.state.currentTab] || this.state.hook.Natal;
+			const indiaChartStyle = AstroConst.normalizeIndiaChartStyle(this.props.indiaChartStyle);
+			const degreeDisplayMode = this.state.degreeDisplayMode || INDIA_DEGREE_DISPLAY_DEGREE;
+			let splitItems = [];
 		for(let key in this.state.hook){
 			let hook = this.state.hook[key];
 			if(hook.fractal === 1 || hook.fractal === 5 ||
@@ -1229,10 +1331,17 @@ class IndiaChartMain extends Component{
 			splitItems.push({
 				key,
 				...hook,
-			});
-		}
+				});
+			}
+			const splitOptions = [
+				{ value: 'Natal', label: '命盘 D1' },
+				...splitItems.map((item)=>({
+					value: item.key,
+					label: `${item.fractal}分盘${item.txt ? ` · ${item.txt}` : ''}`,
+				})),
+			];
 
-		return (
+			return (
 			<div className="horosa-india-chart-main horosa-astro-redesign horosa-india-redesign">
 				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-india-redesign-layout">
 					<div className="horosa-astro-redesign-grid horosa-india-redesign-grid">
@@ -1256,25 +1365,60 @@ class IndiaChartMain extends Component{
 										<XQIcon name="sliders" />
 										<span>选项</span>
 									</div>
-									<div className="horosa-india-select-grid">
-										<label className="horosa-india-select-field">
-											<span>印度宫制</span>
-											<Select value={fields.hsys.value} onChange={this.changeHsys} size="small">
-												{Object.keys(AstroConst.HouseSys).map((key)=>(
-													<Option value={parseInt(key, 10)} key={key}>{AstroConst.HouseSys[key]}</Option>
-												))}
-											</Select>
-										</label>
-										<label className="horosa-india-select-field">
-											<span>当前分盘</span>
-											<Select value={this.state.currentTab} onChange={this.changeTab} size="small">
-												<Option value="Natal">命盘 D1</Option>
-												{splitItems.map((item)=>(
-													<Option value={item.key} key={item.key}>{item.fractal}分盘{item.txt ? ` · ${item.txt}` : ''}</Option>
-												))}
-											</Select>
-										</label>
-									</div>
+										<div className="horosa-india-select-grid">
+											<div className="horosa-india-select-field">
+												<span>岁差制</span>
+												<Select
+													size="small"
+													style={{width: '100%'}}
+													value={indiaAyanamsa}
+													onChange={this.changeIndiaAyanamsa}
+												>
+													{AstroConst.INDIA_AYANAMSA_OPTIONS.map((item)=>(
+														<Option value={item.value} key={item.value}>{item.label}</Option>
+													))}
+												</Select>
+											</div>
+											<div className="horosa-india-select-field">
+												<span>分宫制</span>
+												<Select
+													size="small"
+													style={{width: '100%'}}
+													value={indiaHsys}
+													onChange={this.changeHsys}
+												>
+													{AstroConst.INDIA_HOUSE_SYSTEM_OPTIONS.map((item)=>(
+														<Option value={item.value} key={item.value}>{item.label}</Option>
+													))}
+												</Select>
+											</div>
+												<div className="horosa-india-select-field">
+													<span>当前分盘</span>
+													<Select
+													size="small"
+													style={{width: '100%'}}
+													value={this.state.currentTab}
+													onChange={this.changeTab}
+												>
+													{splitOptions.map((item)=>(
+														<Option value={item.value} key={item.value}>{item.label}</Option>
+													))}
+													</Select>
+												</div>
+												<div className="horosa-india-select-field">
+													<span>完整度数</span>
+													<Select
+														size="small"
+														style={{width: '100%'}}
+														value={degreeDisplayMode}
+														onChange={this.changeDegreeDisplayMode}
+													>
+														{INDIA_DEGREE_DISPLAY_OPTIONS.map((item)=>(
+															<Option value={item.value} key={item.value}>{item.label}</Option>
+														))}
+													</Select>
+												</div>
+											</div>
 									<div className="horosa-india-style-block">
 										<div className="horosa-side-section-title">盘式</div>
 										<Segmented
@@ -1288,16 +1432,20 @@ class IndiaChartMain extends Component{
 							</div>
 						</div>
 						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-india-chart-panel">
-							<IndiaChart
-								key={`${this.state.currentTab}_${indiaChartStyle}`}
-								chartOnly
-								chartnum={currentHook.fractal}
+								<IndiaChart
+									key={`${this.state.currentTab}_${indiaChartStyle}_${indiaAyanamsa}_${indiaHsys}`}
+									chartOnly
+									ref={(node)=>{ this.mainIndiaChartRef = node; }}
+									chartnum={currentHook.fractal}
 							onChange={this.onFieldsChange}
 								fields={fields}
 								height={chartHeight}
-								chartDisplay={this.props.chartDisplay}
-								indiaChartStyle={indiaChartStyle}
-								planetDisplay={this.props.planetDisplay}
+									chartDisplay={this.props.chartDisplay}
+										indiaChartStyle={indiaChartStyle}
+										indiaAyanamsa={indiaAyanamsa}
+										indiaHsys={indiaHsys}
+										degreeDisplayMode={degreeDisplayMode}
+										planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
 								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 								showAstroMeaning={this.props.showAstroMeaning}

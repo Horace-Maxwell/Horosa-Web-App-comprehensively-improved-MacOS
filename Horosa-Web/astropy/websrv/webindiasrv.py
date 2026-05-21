@@ -1,8 +1,6 @@
 import traceback
 import jsonpickle
 import cherrypy
-from astrostudy.perchart import PerChart
-from astrostudy.helper import getChartObj
 from websrv.helper import enable_crossdomain
 from astrostudy.india.chart2 import Chart2
 from astrostudy.india.chart3 import Chart3
@@ -23,11 +21,12 @@ from astrostudy.india.chart30 import Chart30
 from astrostudy.india.chart40 import Chart40
 from astrostudy.india.chart45 import Chart45
 from astrostudy.india.chart60 import Chart60
+from astrostudy.india.india_chart_kernel import IndiaChartKernel
 from astrostudy.india.jyotish_engine import build_jyotish
 
 
-def getIndiaChartJson(data, perchart, jyotish=None):
-    obj = getChartObj(data, perchart)
+def getIndiaChartJson(data, indiachart, jyotish=None):
+    obj = indiachart.to_response(data, jyotish)
     if jyotish is not None:
         obj['jyotish'] = jyotish
     return jsonpickle.encode(obj, unpicklable=False)
@@ -51,11 +50,16 @@ class IndiaAstroSrv:
             data['tradition'] = False
             data['predictive'] = False
             data['zodiacal'] = 1
+            data['hsys'] = data.get('indiaHsys', data.get('hsys', 0))
+            data['siderealMode'] = data.get('indiaAyanamsa', data.get('ayanamsa', data.get('siderealMode', 'lahiri')))
             chartnum = 1
             if 'chartnum' in data.keys():
-                chartnum = data['chartnum']
+                try:
+                    chartnum = int(data['chartnum'])
+                except:
+                    chartnum = 1
 
-            perchart = PerChart(data)
+            perchart = IndiaChartKernel(data)
             try:
                 jyotish = build_jyotish(perchart)
             except:
@@ -64,7 +68,7 @@ class IndiaAstroSrv:
                     'engine': {
                         'name': 'Horosa JyotishEngine',
                         'version': '0.1.0',
-                        'ephemeris': 'Horosa Swiss Ephemeris / flatlib PerChart',
+                        'ephemeris': 'Horosa Swiss Ephemeris / IndiaChartKernel',
                         'source': 'chart_json_only',
                         'chartnum': 1,
                     },
