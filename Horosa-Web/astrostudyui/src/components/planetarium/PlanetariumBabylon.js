@@ -49,6 +49,10 @@ const TEXTURED_BODY_IDS = new Set([
 	'Sun', 'Moon', 'Earth', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto',
 ]);
 
+const ALWAYS_LABELED_BODY_IDS = new Set([
+	'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto',
+]);
+
 const DEFAULT_LAYERS = {
 	stars: true,
 	bodies: true,
@@ -236,6 +240,15 @@ function cameraRotationForDirection(direction){
 		x: -Math.asin(clamp(dir.y, -1, 1)),
 		y: Math.atan2(dir.x, dir.z),
 	};
+}
+
+function easeInOutCubic(t){
+	const v = clamp(t, 0, 1);
+	return v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2;
+}
+
+function lerpNumber(a, b, t){
+	return a + (b - a) * t;
 }
 
 function formatDeg(val){
@@ -467,6 +480,71 @@ function paintMoonPhase(ctx, phase, size){
 	ctx.restore();
 }
 
+function paintGroundSurface(ctx, width, height){
+	ctx.clearRect(0, 0, width, height);
+	const base = ctx.createLinearGradient(0, 0, width, height);
+	base.addColorStop(0, '#12221d');
+	base.addColorStop(0.42, '#09120f');
+	base.addColorStop(1, '#172018');
+	ctx.fillStyle = base;
+	ctx.fillRect(0, 0, width, height);
+
+	for(let y = 0; y < height; y += 2){
+		const shade = 10 + Math.round((y / height) * 18);
+		ctx.fillStyle = `rgba(${shade}, ${shade + 5}, ${shade + 9}, 0.06)`;
+		ctx.fillRect(0, y, width, 1);
+	}
+
+	for(let i = 0; i < 900; i += 1){
+		const x = noise2(i, 2, 31) * width;
+		const y = noise2(i, 4, 32) * height;
+		const r = 0.5 + noise2(i, 6, 33) * 2.6;
+		const warm = noise2(i, 7, 34) > 0.64;
+		ctx.fillStyle = warm ? 'rgba(108, 101, 57, 0.16)' : 'rgba(67, 118, 84, 0.15)';
+		ctx.beginPath();
+		ctx.ellipse(x, y, r * 2.8, r, noise2(i, 8, 35) * Math.PI, 0, Math.PI * 2);
+		ctx.fill();
+	}
+
+	for(let i = 0; i < 420; i += 1){
+		const x = noise2(i, 13, 39) * width;
+		const y = noise2(i, 14, 40) * height;
+		const h = 10 + noise2(i, 15, 41) * 32;
+		const lean = (noise2(i, 16, 42) - 0.5) * 8;
+		ctx.strokeStyle = i % 3 ? 'rgba(92, 132, 86, 0.16)' : 'rgba(130, 127, 72, 0.12)';
+		ctx.lineWidth = 1 + noise2(i, 17, 43) * 1.6;
+		ctx.beginPath();
+		ctx.moveTo(x, y);
+		ctx.lineTo(x + lean, y - h);
+		ctx.stroke();
+	}
+
+	for(let i = 0; i < 34; i += 1){
+		const y = noise2(i, 11, 36) * height;
+		ctx.strokeStyle = i % 2 ? 'rgba(100, 129, 134, 0.05)' : 'rgba(58, 78, 72, 0.07)';
+		ctx.lineWidth = 1 + noise2(i, 12, 37) * 3;
+		ctx.beginPath();
+		for(let x = 0; x <= width; x += 28){
+			const wave = Math.sin(x * 0.01 + i * 0.82) * (4 + noise2(i, x, 38) * 8);
+			if(x === 0){ ctx.moveTo(x, y + wave); }else{ ctx.lineTo(x, y + wave); }
+		}
+		ctx.stroke();
+	}
+
+	const centerGlow = ctx.createRadialGradient(width * 0.5, height * 0.46, width * 0.08, width * 0.5, height * 0.46, width * 0.64);
+	centerGlow.addColorStop(0, 'rgba(88, 126, 91, 0.22)');
+	centerGlow.addColorStop(0.48, 'rgba(34, 57, 39, 0.12)');
+	centerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+	ctx.fillStyle = centerGlow;
+	ctx.fillRect(0, 0, width, height);
+
+	const vignette = ctx.createRadialGradient(width * 0.5, height * 0.5, width * 0.18, width * 0.5, height * 0.5, width * 0.78);
+	vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+	vignette.addColorStop(1, 'rgba(0, 0, 0, 0.36)');
+	ctx.fillStyle = vignette;
+	ctx.fillRect(0, 0, width, height);
+}
+
 function buildObservationTime(fields){
 	const dt = fields && fields.time && fields.time.value && fields.time.value.clone
 		? fields.time.value.clone()
@@ -574,6 +652,22 @@ class PlanetariumRenderer {
 			this.groundCamera.inputs.removeByType('FreeCameraGamepadInput');
 		}
 
+		this.transitionCamera = new CameraCtor(
+			'planetarium-transition-camera',
+			new BABYLON.Vector3(0, OBSERVER_EYE_HEIGHT, 0),
+			this.scene,
+		);
+		this.transitionCamera.minZ = 0.5;
+		this.transitionCamera.maxZ = SKY_RADIUS * 4;
+		this.transitionCamera.fov = this.groundCamera.fov;
+		this.transitionCamera.speed = 0;
+		if(this.transitionCamera.inputs && this.transitionCamera.inputs.removeByType){
+			this.transitionCamera.inputs.removeByType('FreeCameraKeyboardMoveInput');
+			this.transitionCamera.inputs.removeByType('FreeCameraGamepadInput');
+			this.transitionCamera.inputs.removeByType('FreeCameraMouseInput');
+			this.transitionCamera.inputs.removeByType('FreeCameraTouchInput');
+		}
+
 		this.orbitCamera = new BABYLON.ArcRotateCamera(
 			'planetarium-orbit-camera',
 			Math.PI * 1.25,
@@ -630,15 +724,13 @@ class PlanetariumRenderer {
 		groundOccluder.position.y = -0.8;
 		groundOccluder.isPickable = false;
 		groundOccluder.alwaysSelectAsActiveMesh = true;
-		const groundMat = new BABYLON.StandardMaterial('ground-horizon-occluder-material', this.scene);
-		groundMat.disableLighting = true;
-		groundMat.diffuseColor = new BABYLON.Color3(0.004, 0.007, 0.014);
-		groundMat.emissiveColor = new BABYLON.Color3(0.004, 0.007, 0.014);
-		groundMat.specularColor = BABYLON.Color3.Black();
+		const groundMat = this.createGroundMaterial();
 		groundOccluder.material = groundMat;
+		this.groundMat = groundMat;
 		this.groundOccluder = groundOccluder;
+		this.landscapeMeshes = this.createHorizonLandscape();
 
-		this.setViewMode('ground');
+		this.setViewMode('ground', false);
 
 		this.glow = null;
 		this.sky = sky;
@@ -679,10 +771,149 @@ class PlanetariumRenderer {
 		this.applyLayerVisibility();
 	}
 
-	setViewMode(mode){
+	setGroundElementsEnabled(enabled){
+		if(this.groundOccluder){
+			this.groundOccluder.setEnabled(enabled);
+		}
+		(this.landscapeMeshes || []).forEach((mesh)=>mesh.setEnabled(enabled));
+	}
+
+	cameraPosition(camera){
+		if(!camera){
+			return BABYLON.Vector3.Zero();
+		}
+		if(camera.globalPosition){
+			return camera.globalPosition.clone();
+		}
+		return camera.position ? camera.position.clone() : BABYLON.Vector3.Zero();
+	}
+
+	cameraTarget(camera, fallbackDistance = LINE_RADIUS){
+		if(!camera){
+			return new BABYLON.Vector3(0, 80, LINE_RADIUS);
+		}
+		if(camera.target){
+			return camera.target.clone();
+		}
+		const position = this.cameraPosition(camera);
+		if(camera.getForwardRay){
+			const ray = camera.getForwardRay(fallbackDistance);
+			return position.add(ray.direction.scale(fallbackDistance));
+		}
+		return position.add(new BABYLON.Vector3(0, 0, fallbackDistance));
+	}
+
+	setFreeCameraView(camera, position, target, fov){
+		camera.position.copyFrom(position);
+		camera.setTarget(target);
+		camera.fov = fov;
+	}
+
+	prepareOrbitDestination(){
+		this.orbitCamera.target = BABYLON.Vector3.Zero();
+		this.orbitCamera.radius = Math.max(1120, this.orbitCamera.radius || 1120);
+		this.orbitCamera.beta = clamp(this.orbitCamera.beta || Math.PI * 0.42, 0.18, Math.PI * 0.82);
+		return {
+			position: this.cameraPosition(this.orbitCamera),
+			target: this.orbitCamera.target.clone(),
+			fov: this.orbitCamera.fov || 0.8,
+		};
+	}
+
+	completeViewMode(nextMode, nextCamera){
+		if(this.camera && this.camera.detachControl){
+			this.camera.detachControl(this.canvas);
+		}
+		this.viewTransition = null;
+		this.viewMode = nextMode;
+		this.camera = nextCamera;
+		this.scene.activeCamera = nextCamera;
+		if(nextMode === 'ground'){
+			this.groundCamera.position = new BABYLON.Vector3(0, OBSERVER_EYE_HEIGHT, 0);
+			this.groundCamera.setTarget(new BABYLON.Vector3(0, 110, 760));
+			this.groundCamera.fov = 1.08;
+		}
+		this.setGroundElementsEnabled(nextMode === 'ground');
+		nextCamera.attachControl(this.canvas, true);
+		this.applyLabelVisibility();
+	}
+
+	animateViewTransition(nextMode, nextCamera){
+		if(!this.transitionCamera || !this.scene){
+			this.completeViewMode(nextMode, nextCamera);
+			return;
+		}
+		if(this.viewTransition && this.viewTransition.cancel){
+			this.viewTransition.cancel();
+		}
+		const startCamera = this.camera || this.scene.activeCamera || nextCamera;
+		const oldMode = this.viewMode;
+		if(startCamera && startCamera.detachControl){
+			startCamera.detachControl(this.canvas);
+		}
+		const startPosition = this.cameraPosition(startCamera);
+		const startTarget = this.cameraTarget(startCamera);
+		const startFov = startCamera && startCamera.fov ? startCamera.fov : 0.92;
+		const destination = nextMode === 'ground'
+			? {
+				position: new BABYLON.Vector3(0, OBSERVER_EYE_HEIGHT, 0),
+				target: new BABYLON.Vector3(0, 110, 760),
+				fov: 1.08,
+			}
+			: this.prepareOrbitDestination();
+		const transition = {
+			cancelled: false,
+			cancel(){
+				this.cancelled = true;
+			},
+		};
+		this.viewTransition = transition;
+		this.viewMode = nextMode;
+		this.camera = this.transitionCamera;
+		this.scene.activeCamera = this.transitionCamera;
+		this.setGroundElementsEnabled(nextMode === 'ground' || oldMode === 'ground');
+		this.setFreeCameraView(this.transitionCamera, startPosition, startTarget, startFov);
+		const duration = 1450;
+		const started = nowMs();
+		const tick = ()=>{
+			if(transition.cancelled || this.disposed || !this.scene){
+				return;
+			}
+			const t = easeInOutCubic((nowMs() - started) / duration);
+			const position = BABYLON.Vector3.Lerp(startPosition, destination.position, t);
+			const target = BABYLON.Vector3.Lerp(startTarget, destination.target, t);
+			const fov = lerpNumber(startFov, destination.fov, t);
+			this.setFreeCameraView(this.transitionCamera, position, target, fov);
+			if(nextMode === 'orbit' && t > 0.72){
+				this.setGroundElementsEnabled(false);
+			}
+			if(t < 1){
+				requestAnimationFrame(tick);
+				return;
+			}
+			this.completeViewMode(nextMode, nextCamera);
+		};
+		requestAnimationFrame(tick);
+	}
+
+	setViewMode(mode, animate = true){
 		const nextMode = mode === 'orbit' ? 'orbit' : 'ground';
 		const nextCamera = nextMode === 'orbit' ? this.orbitCamera : this.groundCamera;
 		if(!nextCamera){
+			return;
+		}
+		if(this.camera && this.viewMode === nextMode && this.camera !== this.transitionCamera){
+			this.setGroundElementsEnabled(nextMode === 'ground');
+			if(this.scene && this.scene.activeCamera !== this.camera){
+				this.scene.activeCamera = this.camera;
+			}
+			if(this.camera.attachControl){
+				this.camera.attachControl(this.canvas, true);
+			}
+			return;
+		}
+		if(animate && this.camera && this.scene && this.scene.activeCamera){
+			this.animateViewTransition(nextMode, nextCamera);
 			return;
 		}
 		if(this.camera && this.camera.detachControl){
@@ -694,10 +925,10 @@ class PlanetariumRenderer {
 		nextCamera.attachControl(this.canvas, true);
 		if(nextMode === 'ground'){
 			this.groundCamera.position = new BABYLON.Vector3(0, OBSERVER_EYE_HEIGHT, 0);
+			this.groundCamera.setTarget(new BABYLON.Vector3(0, 110, 760));
+			this.groundCamera.fov = 1.08;
 		}
-		if(this.groundOccluder){
-			this.groundOccluder.setEnabled(nextMode === 'ground');
-		}
+		this.setGroundElementsEnabled(nextMode === 'ground');
 		this.applyLabelVisibility();
 	}
 
@@ -730,6 +961,73 @@ class PlanetariumRenderer {
 		mat.diffuseColor = color;
 		mat.alpha = alpha;
 		return mat;
+	}
+
+	createGroundMaterial(){
+		const texture = new BABYLON.DynamicTexture('ground-night-surface-texture', { width: 1024, height: 1024 }, this.scene, true);
+		texture.hasAlpha = false;
+		texture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+		texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+		texture.uScale = 22;
+		texture.vScale = 22;
+		paintGroundSurface(texture.getContext(), 1024, 1024);
+		texture.update(false);
+
+		const mat = new BABYLON.StandardMaterial('ground-horizon-occluder-material', this.scene);
+		mat.disableLighting = true;
+		mat.diffuseTexture = texture;
+		mat.emissiveTexture = texture;
+		mat.diffuseColor = new BABYLON.Color3(0.115, 0.15, 0.115);
+		mat.emissiveColor = new BABYLON.Color3(0.115, 0.15, 0.115);
+		mat.specularColor = BABYLON.Color3.Black();
+		mat.backFaceCulling = false;
+		return mat;
+	}
+
+	createTerrainBand(name, radius, bottomAlt, topBaseAlt, amplitude, color){
+		const segments = 192;
+		const positions = [];
+		const indices = [];
+		for(let i = 0; i <= segments; i += 1){
+			const azimuth = (i / segments) * 360;
+			const wave = Math.sin(degToRad(azimuth * 1.15)) * amplitude * 0.42
+				+ Math.sin(degToRad(azimuth * 2.4 + 38)) * amplitude * 0.24
+				+ Math.sin(degToRad(azimuth * 4.2 + 114)) * amplitude * 0.08;
+			const softness = (noise2(Math.floor(i / 4), 21, radius) - 0.5) * amplitude * 0.18;
+			const topAlt = clamp(topBaseAlt + wave + softness, topBaseAlt - amplitude * 0.45, topBaseAlt + amplitude * 0.58);
+			const top = toSkyVector({ azimuth, altitudeAppa: topAlt }, radius);
+			const bottom = toSkyVector({ azimuth, altitudeAppa: bottomAlt }, radius);
+			positions.push(top.x, top.y, top.z, bottom.x, bottom.y, bottom.z);
+			if(i < segments){
+				const a = i * 2;
+				indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+			}
+		}
+		const mesh = new BABYLON.Mesh(name, this.scene);
+		const vertexData = new BABYLON.VertexData();
+		vertexData.positions = positions;
+		vertexData.indices = indices;
+		const normals = [];
+		BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+		vertexData.normals = normals;
+		vertexData.applyToMesh(mesh, true);
+		mesh.isPickable = false;
+		mesh.alwaysSelectAsActiveMesh = true;
+		mesh.renderingGroupId = 0;
+		const mat = new BABYLON.StandardMaterial(`${name}-material`, this.scene);
+		mat.disableLighting = true;
+		mat.diffuseColor = color;
+		mat.emissiveColor = color;
+		mat.specularColor = BABYLON.Color3.Black();
+		mat.backFaceCulling = false;
+		mesh.material = mat;
+		return mesh;
+	}
+
+	createHorizonLandscape(){
+		const ridge = this.createTerrainBand('distant-ridge-silhouette', LINE_RADIUS - 36, -14, 0.15, 1.25, new BABYLON.Color3(0.025, 0.052, 0.046));
+		const nearRidge = this.createTerrainBand('near-field-silhouette', LINE_RADIUS - 62, -16, -0.8, 0.68, new BABYLON.Color3(0.018, 0.038, 0.03));
+		return [ridge, nearRidge];
 	}
 
 	createSurfaceTexture(id, phase){
@@ -1029,11 +1327,11 @@ class PlanetariumRenderer {
 		const sky = data && data.sky ? data.sky : {};
 		const mode = sky.mode || 'night';
 		const palettes = {
-			day: { clear: [0.26, 0.43, 0.68], sky: [0.22, 0.42, 0.74], glow: [0.56, 0.72, 0.9], glowAlpha: 0.28 },
-			civilTwilight: { clear: [0.11, 0.16, 0.32], sky: [0.12, 0.15, 0.36], glow: [0.86, 0.46, 0.22], glowAlpha: 0.24 },
-			nauticalTwilight: { clear: [0.035, 0.055, 0.13], sky: [0.035, 0.055, 0.16], glow: [0.35, 0.43, 0.72], glowAlpha: 0.18 },
-			astronomicalTwilight: { clear: [0.012, 0.02, 0.055], sky: [0.01, 0.018, 0.052], glow: [0.14, 0.24, 0.48], glowAlpha: 0.13 },
-			night: { clear: [0.004, 0.006, 0.014], sky: [0.004, 0.007, 0.022], glow: [0.04, 0.11, 0.22], glowAlpha: 0.08 },
+			day: { clear: [0.26, 0.43, 0.68], sky: [0.22, 0.42, 0.74], glow: [0.56, 0.72, 0.9], glowAlpha: 0.28, ground: [0.22, 0.28, 0.2], land: [0.08, 0.16, 0.12] },
+			civilTwilight: { clear: [0.11, 0.16, 0.32], sky: [0.12, 0.15, 0.36], glow: [0.86, 0.46, 0.22], glowAlpha: 0.24, ground: [0.16, 0.13, 0.1], land: [0.07, 0.075, 0.052] },
+			nauticalTwilight: { clear: [0.035, 0.055, 0.13], sky: [0.035, 0.055, 0.16], glow: [0.35, 0.43, 0.72], glowAlpha: 0.18, ground: [0.11, 0.125, 0.095], land: [0.042, 0.07, 0.06] },
+			astronomicalTwilight: { clear: [0.012, 0.02, 0.055], sky: [0.01, 0.018, 0.052], glow: [0.14, 0.24, 0.48], glowAlpha: 0.13, ground: [0.09, 0.115, 0.083], land: [0.03, 0.06, 0.052] },
+			night: { clear: [0.004, 0.006, 0.014], sky: [0.004, 0.007, 0.022], glow: [0.04, 0.11, 0.22], glowAlpha: 0.08, ground: [0.078, 0.105, 0.074], land: [0.025, 0.052, 0.043] },
 		};
 		const p = palettes[mode] || palettes.night;
 		this.scene.clearColor = new BABYLON.Color4(p.clear[0], p.clear[1], p.clear[2], 1);
@@ -1044,6 +1342,18 @@ class PlanetariumRenderer {
 			this.horizonGlow.material.emissiveColor = new BABYLON.Color3(p.glow[0], p.glow[1], p.glow[2]);
 			this.horizonGlow.material.alpha = p.glowAlpha;
 		}
+		if(this.groundMat){
+			this.groundMat.diffuseColor = new BABYLON.Color3(p.ground[0], p.ground[1], p.ground[2]);
+			this.groundMat.emissiveColor = new BABYLON.Color3(p.ground[0], p.ground[1], p.ground[2]);
+		}
+		(this.landscapeMeshes || []).forEach((mesh, idx)=>{
+			const mat = mesh && mesh.material;
+			if(mat){
+				const scale = idx === 0 ? 1 : (idx === 1 ? 0.72 : 0.86);
+				mat.diffuseColor = new BABYLON.Color3(p.land[0] * scale, p.land[1] * scale, p.land[2] * scale);
+				mat.emissiveColor = new BABYLON.Color3(p.land[0] * scale, p.land[1] * scale, p.land[2] * scale);
+			}
+		});
 	}
 
 	createCardinals(){
@@ -1076,9 +1386,13 @@ class PlanetariumRenderer {
 		mat.opacityTexture = texture;
 		mat.disableLighting = true;
 		mat.useAlphaFromDiffuseTexture = true;
-		const plane = BABYLON.MeshBuilder.CreatePlane(`label-${text}`, { width: 58, height: 29 }, this.scene);
+		mat.disableDepthWrite = true;
+		mat.disableDepthTest = true;
+		const scale = Math.max(0.9, (size || 48) / 48);
+		const plane = BABYLON.MeshBuilder.CreatePlane(`label-${text}`, { width: 58 * scale, height: 29 * scale }, this.scene);
 		plane.material = mat;
 		plane.isPickable = false;
+		plane.renderingGroupId = 2;
 		return plane;
 	}
 
@@ -1226,13 +1540,16 @@ class PlanetariumRenderer {
 				this.createSaturnRing(mesh, group);
 			}
 
-			if(body.id === 'Sun' || body.id === 'Moon' || body.id === 'Jupiter' || body.id === 'Saturn'){
-				const label = this.createTextPlane(bodyName(body), 42, '#f4f7ff', 'rgba(0,0,0,0)');
-				label.position = mesh.position.add(new BABYLON.Vector3(0, 24, 0));
+			if(ALWAYS_LABELED_BODY_IDS.has(body.id)){
+				const labelSize = body.id === 'Sun' || body.id === 'Moon' ? 58 : 50;
+				const labelOffset = body.id === 'Sun' ? 38 : (body.id === 'Moon' ? 34 : 29);
+				const labelColor = body.id === 'Sun' ? '#ffe5a8' : (body.id === 'Moon' ? '#e9f4ff' : '#f4f7ff');
+				const label = this.createTextPlane(bodyName(body), labelSize, labelColor, 'rgba(0,0,0,0)');
+				label.position = mesh.position.add(new BABYLON.Vector3(0, labelOffset, 0));
 				label.parent = group;
 				label.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
 				label.metadata = { labelKind: 'body' };
-				this.registerFollowerMesh(label, body.id, ()=>new BABYLON.Vector3(0, 24, 0));
+				this.registerFollowerMesh(label, body.id, ()=>new BABYLON.Vector3(0, labelOffset, 0));
 			}
 		});
 		this.createEarthAnchor(group);
@@ -1242,9 +1559,7 @@ class PlanetariumRenderer {
 		if(!this.camera || !this.scene){
 			return;
 		}
-		const showBody = this.viewMode === 'orbit'
-			? this.camera.radius < 1040
-			: this.camera.fov < 1.12;
+		const showBody = this.viewMode === 'ground' ? true : this.camera.radius < 1040;
 		this.scene.meshes.forEach((mesh)=>{
 			const kind = mesh.metadata && mesh.metadata.labelKind;
 			if(kind === 'body'){
@@ -1346,6 +1661,7 @@ class PlanetariumRenderer {
 		if(this.groundOccluder){
 			this.groundOccluder.dispose(false, true);
 		}
+		(this.landscapeMeshes || []).forEach((mesh)=>mesh.dispose(false, true));
 		if(this.glow){
 			this.glow.dispose();
 		}
