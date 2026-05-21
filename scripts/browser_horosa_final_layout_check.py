@@ -152,6 +152,25 @@ def save_screenshot(page, name: str) -> None:
     page.screenshot(path=str(RUNTIME_DIR / name), full_page=True)
 
 
+def open_module(page, label: str) -> bool:
+    if click_visible_text(page, label):
+        return True
+    if not click_visible_text(page, "搜索"):
+        return False
+    page.wait_for_timeout(500)
+    modal = page.locator(".ant-modal:visible").filter(has=page.get_by_text("选择功能模块", exact=True)).first
+    if modal.count() == 0 or modal.get_by_text(label, exact=True).count() == 0:
+        return False
+    target = modal.get_by_title(label).first
+    if target.count() == 0:
+        target = modal.get_by_role("button", name=label, exact=True).first
+    if target.count() == 0:
+        target = modal.get_by_text(label, exact=True).first
+    target.click(force=True)
+    page.wait_for_timeout(1_000)
+    return True
+
+
 def main() -> None:
     web_port = os.environ.get("HOROSA_WEB_PORT", "8000")
     server_root = os.environ.get("HOROSA_SERVER_ROOT", f"http://127.0.0.1:{os.environ.get('HOROSA_SERVER_PORT', '9999')}")
@@ -182,14 +201,14 @@ def main() -> None:
         ensure(not result["global_shell"]["bodyHas996"], "page body still contains 996 badge text")
         save_screenshot(page, "mastercheck_global_shell.png")
 
-        ensure(click_visible_text(page, "节气盘"), "cannot open 节气盘")
+        ensure(open_module(page, "分至"), "cannot open 分至 / 节气盘")
         page.wait_for_timeout(1_500)
         result["jieqi_entries"] = {label: bool(read_label_box(page, [label])) for label in JIEQI_ENTRY_LABELS}
         missing_jieqi_entries = [label for label, present in result["jieqi_entries"].items() if not present]
         ensure(not missing_jieqi_entries, f"missing jieqi entries: {missing_jieqi_entries}")
         save_screenshot(page, "mastercheck_jieqi_entries.png")
 
-        ensure(click_visible_text(page, "推运盘"), "cannot open 推运盘")
+        ensure(open_module(page, "星运"), "cannot open 星运 / 推运盘")
         ensure(click_visible_text(page, "太阳弧"), "cannot open 太阳弧")
         page.wait_for_timeout(1_800)
         solar_std = collect_metrics(page)
@@ -210,7 +229,7 @@ def main() -> None:
         result["solararc"] = {"std": solar_std, "compact": solar_compact}
         save_screenshot(page, "mastercheck_solararc_compact.png")
 
-        ensure(click_visible_text(page, "易与三式"), "cannot open 易与三式")
+        ensure(open_module(page, "其他"), "cannot open 其他 / 易与三式")
         ensure(click_visible_text(page, "宿盘"), "cannot open 宿盘")
         page.wait_for_timeout(1_800)
         suzhan = collect_metrics(page)
@@ -221,7 +240,7 @@ def main() -> None:
         result["suzhan"] = suzhan
         save_screenshot(page, "mastercheck_suzhan_compact.png")
 
-        ensure(click_visible_text(page, "七政四余"), "cannot open 七政四余")
+        ensure(open_module(page, "七政"), "cannot open 七政 / 七政四余")
         page.wait_for_timeout(1_800)
         guolao = collect_metrics(page)
         ensure(guolao["chart"] is not None, "guolao chart missing")
@@ -231,7 +250,7 @@ def main() -> None:
 
         page.set_viewport_size({"width": 1720, "height": 1184})
         page.wait_for_timeout(1_000)
-        ensure(click_visible_text(page, "三式合一"), "cannot open 三式合一")
+        ensure(open_module(page, "三式"), "cannot open 三式 / 三式合一")
         if not click_visible_text(page, "起 盘"):
             ensure(click_visible_text(page, "起盘", exact=False), "cannot click 三式合一起盘")
         page.wait_for_timeout(2_800)

@@ -3,7 +3,7 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
-read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION PRIMARY_DOWNLOAD SUPPORTED_ARCH <<EOF
+read -r REPO_OWNER REPO_NAME TAG_PREFIX VERSION TAG_NAME RUNTIME_TAG_NAME RUNTIME_ASSET DESKTOP_ASSET DESKTOP_PKG DESKTOP_PKG_ZIP DESKTOP_OFFLINE_PKG DESKTOP_OFFLINE_PKG_ZIP UPDATE_MANIFEST_NAME RUNTIME_VERSION PRIMARY_DOWNLOAD SUPPORTED_ARCH RELEASE_CHANNEL <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -29,12 +29,27 @@ print(
     runtime_version,
     config.get('primaryDownload', config['desktopOfflinePkgName']),
     config.get('supportedArch', 'arm64'),
+    config.get('releaseChannel', 'stable'),
 )
 PY
 )
 EOF
 
-RELEASE_NAME="${TAG_NAME}"
+RELEASE_CHANNEL="${HOROSA_RELEASE_CHANNEL:-${RELEASE_CHANNEL}}"
+RELEASE_PRERELEASE="false"
+APP_MAKE_LATEST="true"
+RELEASE_CHANNEL_LABEL=""
+case "$(printf '%s' "${RELEASE_CHANNEL}" | tr '[:upper:]' '[:lower:]')" in
+  beta|preview|prerelease|pre-release)
+    RELEASE_PRERELEASE="true"
+    APP_MAKE_LATEST="${HOROSA_RELEASE_MAKE_LATEST:-false}"
+    RELEASE_CHANNEL_LABEL="Beta"
+    ;;
+  *)
+    APP_MAKE_LATEST="${HOROSA_RELEASE_MAKE_LATEST:-true}"
+    ;;
+esac
+RELEASE_NAME="${TAG_NAME}${RELEASE_CHANNEL_LABEL:+ ${RELEASE_CHANNEL_LABEL}}"
 API_ROOT="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 README_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/README.md"
 README_EN_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${TAG_NAME}/README_EN.md"
@@ -194,6 +209,7 @@ RELEASE_BODY="$(
   README_EN_URL_ENV="${README_EN_URL}" \
   README_ZH_URL_ENV="${README_ZH_URL}" \
   INSTALLER_README_URL_ENV="${INSTALLER_README_URL}" \
+  RELEASE_CHANNEL_LABEL_ENV="${RELEASE_CHANNEL_LABEL}" \
   python3 - <<'PY'
 import os
 
@@ -207,19 +223,22 @@ readme_zh_url = os.environ["README_ZH_URL_ENV"]
 installer_readme_url = os.environ["INSTALLER_README_URL_ENV"]
 
 sections = [
-    f"# Horosa {version}",
+    f"# Horosa {version}{' Beta' if os.environ.get('RELEASE_CHANNEL_LABEL_ENV') == 'Beta' else ''}",
+    "",
+    "Beta release / Beta 测试版：this build is published for early verification before it is promoted as the stable latest release." if os.environ.get("RELEASE_CHANNEL_LABEL_ENV") == "Beta" else "",
+    "Beta 测试版：本构建用于正式稳定版前的提前验证；安装包、runtime 与 manifest 已完成签名、公证和端到端检查。" if os.environ.get("RELEASE_CHANNEL_LABEL_ENV") == "Beta" else "",
     "",
     "Horosa is a local-first metaphysics workstation for Apple Silicon, spanning Western astrology, Chinese traditional systems, AI-assisted analysis, and a notarized desktop delivery stack.",
     "Horosa 是面向 Apple Silicon 的本地优先玄学工作站，覆盖西方占星、中国传统术数、AI 辅助分析，以及正式公证的桌面交付链路。",
     "",
     "## 当前版本亮点 / Release Highlights",
-    f"- 当前发布版本 / Current release: `{tag_name}`",
-    f"- `{tag_name}` 修复遁甲天盘奇仪随时辰飞布的问题，确保遁甲单盘、三式合一与 AI 导出在 Web 和 App 中使用同一套正确结果。",
-    f"- `{tag_name}` fixes Qimen Tianpan stem flying so Dun Jia, Sanshi United, and AI exports use the same time-sensitive result across Web and App.",
-    "- `AI分析 / AIAnalysis` 已进入正式发布线，包含流式分析、历史、资料、模版、组合、备份与 provider 诊断。",
-    "- `AIAnalysis` now ships on the public release line with streaming analysis, history, materials, templates, bundles, backups, and provider diagnostics.",
-    "- Web 与 App 继续共用同一套主前端，并维持各自运行态验证。",
-    "- Web and App continue to share the same primary frontend while keeping separate runtime validation.",
+    f"- 当前发布版本 / Current release: `{tag_name}`{(' Beta' if os.environ.get('RELEASE_CHANNEL_LABEL_ENV') == 'Beta' else '')}",
+    f"- `{tag_name}` 对齐桌面界面、README 截图、离线安装包、runtime 版本与 GitHub 发布清单。",
+    f"- `{tag_name}` aligns the desktop interface, README screenshots, offline installer, runtime version, and GitHub release manifest.",
+    "- 启动页重做为高信息密度 runtime 控制台，集中展示组件、服务、日志与恢复动作。",
+    "- The launcher has been redesigned as a denser runtime console for component, service, log, and recovery status.",
+    "- README 示例图替换为占星工作区、三式工作区与导航弹层三张最新截图。",
+    "- README screenshots now show the astrology workspace, Sanshi workspace, and navigation overlay.",
     "",
     "## 下载 / Download",
     f"- 推荐安装包 / Recommended download: `{primary_download}`",
@@ -252,7 +271,7 @@ sections = [
     "The remaining assets in this release are internal support files for the installer and auto-updater. Ordinary users should ignore them.",
 ]
 
-print("\n".join(sections))
+print("\n".join(sections).replace("\n\n\n", "\n\n"))
 PY
 )"
 export RELEASE_BODY
@@ -274,18 +293,19 @@ ensure_release() {
   local release_name="$2"
   local release_body="$3"
   local make_latest="$4"
+  local prerelease="$5"
   local release_json=""
   if release_json="$(api_json "${API_ROOT}/releases/tags/${tag_name}" 2>/dev/null)"; then
     set_release_meta "${release_json}"
     curl -fsSL -X PATCH "${auth_header[@]}" -H 'Content-Type: application/json' \
-      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" python3 - <<'PY'
+      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" PRERELEASE_ENV="${prerelease}" python3 - <<'PY'
 import json, os
 print(json.dumps({
   'name': os.environ['RELEASE_NAME_ENV'],
   'tag_name': os.environ['TAG_NAME_ENV'],
   'body': os.environ['RELEASE_BODY_ENV'],
   'draft': False,
-  'prerelease': False,
+  'prerelease': os.environ['PRERELEASE_ENV'] == 'true',
   'make_latest': os.environ['MAKE_LATEST_ENV'],
 }))
 PY
@@ -293,7 +313,7 @@ PY
       "${API_ROOT}/releases/${ENSURE_RELEASE_ID}" >/dev/null
   else
     release_json="$(curl -fsSL -X POST "${auth_header[@]}" -H 'Content-Type: application/json' \
-      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" python3 - <<'PY'
+      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" PRERELEASE_ENV="${prerelease}" python3 - <<'PY'
 import json, os
 print(json.dumps({
   'tag_name': os.environ['TAG_NAME_ENV'],
@@ -301,7 +321,7 @@ print(json.dumps({
   'name': os.environ['RELEASE_NAME_ENV'],
   'body': os.environ['RELEASE_BODY_ENV'],
   'draft': False,
-  'prerelease': False,
+  'prerelease': os.environ['PRERELEASE_ENV'] == 'true',
   'make_latest': os.environ['MAKE_LATEST_ENV'],
 }))
 PY
@@ -365,7 +385,7 @@ This release stores the shared runtime archive used by installer/bootstrap flows
 EOF
 )"
 
-ensure_release "${TAG_NAME}" "${RELEASE_NAME}" "${RELEASE_BODY}" "true"
+ensure_release "${TAG_NAME}" "${RELEASE_NAME}" "${RELEASE_BODY}" "${APP_MAKE_LATEST}" "${RELEASE_PRERELEASE}"
 APP_RELEASE_ID="${ENSURE_RELEASE_ID}"
 APP_UPLOAD_URL="${ENSURE_UPLOAD_URL}"
 
@@ -379,7 +399,7 @@ if [ "${RUNTIME_TAG_NAME}" = "${TAG_NAME}" ]; then
   upload_asset "${APP_UPLOAD_URL}" "${RUNTIME_ARCHIVE_PATH}"
   RUNTIME_RELEASE_ID="${APP_RELEASE_ID}"
 else
-  ensure_release "${RUNTIME_TAG_NAME}" "${RUNTIME_TAG_NAME}" "${RUNTIME_RELEASE_BODY}" "false"
+  ensure_release "${RUNTIME_TAG_NAME}" "${RUNTIME_TAG_NAME}${RELEASE_CHANNEL_LABEL:+ ${RELEASE_CHANNEL_LABEL}}" "${RUNTIME_RELEASE_BODY}" "false" "${RELEASE_PRERELEASE}"
   RUNTIME_RELEASE_ID="${ENSURE_RELEASE_ID}"
   RUNTIME_UPLOAD_URL="${ENSURE_UPLOAD_URL}"
   if [ "${HOROSA_FORCE_RUNTIME_UPLOAD:-0}" = "1" ]; then
@@ -392,7 +412,11 @@ else
   fi
 fi
 
-LATEST_MANIFEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest/download/${UPDATE_MANIFEST_NAME}"
+if [ "${RELEASE_PRERELEASE}" = "true" ]; then
+  LATEST_MANIFEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${TAG_NAME}/${UPDATE_MANIFEST_NAME}"
+else
+  LATEST_MANIFEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest/download/${UPDATE_MANIFEST_NAME}"
+fi
 LATEST_MANIFEST=""
 for _ in $(seq 1 20); do
   if LATEST_MANIFEST="$(curl -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${LATEST_MANIFEST_URL}" 2>/dev/null)"; then

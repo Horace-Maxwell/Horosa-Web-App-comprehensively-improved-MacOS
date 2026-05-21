@@ -5,23 +5,32 @@ INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK_ROOT="${INSTALLER_ROOT}/build/github-release-e2e"
 DOWNLOAD_ROOT="${WORK_ROOT}/downloads"
 APP_UNZIP_ROOT="${WORK_ROOT}/app-unzip"
-RELEASE_API='https://api.github.com/repos/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest'
-MANIFEST_URL='https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/horosa-latest.json'
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-read -r APP_NAME DESKTOP_OFFLINE_PKG DESKTOP_ASSET RUNTIME_ASSET <<EOF
+read -r APP_NAME DESKTOP_OFFLINE_PKG DESKTOP_ASSET RUNTIME_ASSET TAG_NAME RELEASE_CHANNEL <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
+version = json.loads((root / 'package.json').read_text())['version']
 print(
     config['appName'],
     config['desktopOfflinePkgName'],
     config['desktopAssetName'],
     config['runtimeAssetName'],
+    f"{config['releaseTagPrefix']}{version}",
+    config.get('releaseChannel', 'stable'),
 )
 PYCONF
 )
 EOF
+RELEASE_API='https://api.github.com/repos/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest'
+MANIFEST_URL='https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/horosa-latest.json'
+case "$(printf '%s' "${HOROSA_RELEASE_CHANNEL:-${RELEASE_CHANNEL}}" | tr '[:upper:]' '[:lower:]')" in
+  beta|preview|prerelease|pre-release)
+    RELEASE_API="https://api.github.com/repos/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tags/${TAG_NAME}"
+    MANIFEST_URL="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/horosa-latest.json"
+    ;;
+esac
 
 rm -rf "${WORK_ROOT}"
 mkdir -p "${DOWNLOAD_ROOT}" "${APP_UNZIP_ROOT}"
@@ -32,14 +41,7 @@ fetch() {
 
 signed_backend_code() {
   local url="$1"
-  local sig
-  sig="$(
-    python3 - <<'PY'
-import hashlib
-payload = 'FE45AB6E29EF111.0'
-print(hashlib.sha256(payload.encode('utf-8')).hexdigest())
-PY
-  )"
+  local sig="9947b25d6400dac3e74fea88ec1a2308a2c9abf5f3a0cda32b7655717fa86278"
   curl -s -o /dev/null --max-time 2 -w '%{http_code}' \
     -H "ClientChannel: 1" \
     -H "ClientApp: 1" \

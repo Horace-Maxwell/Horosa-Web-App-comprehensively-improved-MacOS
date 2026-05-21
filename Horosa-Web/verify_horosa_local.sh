@@ -185,10 +185,7 @@ resolve_dist_dir() {
 
 ensure_browser_web_port() {
   local py_bin="$1"
-
-  if port_listening "${WEB_PORT}"; then
-    return 0
-  fi
+  local candidate=""
 
   resolve_dist_dir
   if [ ! -f "${DIST_DIR}/index.html" ]; then
@@ -196,11 +193,44 @@ ensure_browser_web_port() {
     return 1
   fi
 
+  web_port_healthy() {
+    local port="$1"
+    "${py_bin}" - <<'PY' "${port}"
+import sys
+import urllib.request
+
+port = sys.argv[1]
+try:
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/index.html", timeout=3) as resp:
+        body = resp.read(4096)
+    raise SystemExit(0 if b"root" in body or b"umi" in body else 1)
+except Exception:
+    raise SystemExit(1)
+PY
+  }
+
+  if port_listening "${WEB_PORT}"; then
+    if web_port_healthy "${WEB_PORT}"; then
+      return 0
+    fi
+    echo "browser smoke: web ${WEB_PORT} is listening but did not serve Horosa index.html; selecting a temporary port ..."
+    for candidate in $(seq 8001 8020); do
+      if ! port_listening "${candidate}"; then
+        WEB_PORT="${candidate}"
+        break
+      fi
+    done
+    if port_listening "${WEB_PORT}"; then
+      echo "browser smoke skipped: no free fallback web port in 8001-8020."
+      return 1
+    fi
+  fi
+
   echo "browser smoke: web ${WEB_PORT} not listening, starting temporary static server ..."
   nohup "${py_bin}" -m http.server "${WEB_PORT}" --bind 127.0.0.1 --directory "${DIST_DIR}" >/tmp/horosa_verify_web.log 2>&1 &
   TEMP_WEB_PID="$!"
   for _ in $(seq 1 20); do
-    if port_listening "${WEB_PORT}"; then
+    if port_listening "${WEB_PORT}" && web_port_healthy "${WEB_PORT}"; then
       return 0
     fi
     sleep 0.2

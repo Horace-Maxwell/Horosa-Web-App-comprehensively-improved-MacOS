@@ -19,88 +19,91 @@
             <div class="window-appicon">星</div>
             <div>
               <div class="window-title">星阙</div>
-              <div class="window-subtitle">Mac 启动与更新中心</div>
+              <div class="window-subtitle">Runtime Control</div>
             </div>
           </div>
           <div class="window-actions">
-            <button class="toolbar-button" id="openPreferencesBtn">偏好设置</button>
-            <button class="toolbar-button toolbar-button--ghost" id="openDiagnosticsBtn">诊断中心</button>
+            <button class="toolbar-button toolbar-button--ghost" id="openDiagnosticsBtn">诊断</button>
+            <button class="toolbar-button" id="openPreferencesBtn">偏好</button>
           </div>
         </header>
 
         <div class="window-body">
           <aside class="context-column">
             <section class="brand-card">
-              <div class="brand-mark">星阙</div>
-              <h1 id="heroTitle">正在准备 星阙</h1>
-              <p id="heroCopy">
-                这会是一个标准的 Mac 启动流程。只有在首次安装、修复或更新时，才会继续准备所需组件。
-              </p>
-              <div class="mode-pills">
-                <span class="mode-pill" id="heroModeTag">日常启动</span>
-                <span class="mode-pill mode-pill--soft" id="heroModeHint">后台准备本机组件</span>
+              <div class="brand-topline">
+                <div class="brand-mark">SQ</div>
+                <div>
+                  <div class="mode-pill" id="heroModeTag">日常启动</div>
+                  <div class="brand-meta" id="heroModeHint">复用本机组件</div>
+                </div>
+              </div>
+              <h1 id="heroTitle">星阙 启动中</h1>
+              <p id="heroCopy">App 2.0.0 / runtime1 / arm64</p>
+              <div class="status-dial" aria-hidden="true">
+                <div class="dial-ring"></div>
+                <div class="dial-grid"></div>
+                <div class="dial-core"></div>
               </div>
             </section>
 
             <section class="sidebar-card">
-              <div class="sidebar-label">当前状态</div>
+              <div class="sidebar-label">状态</div>
               <div class="sidebar-value" id="sessionInline">日常启动</div>
-              <div class="sidebar-help" id="sceneCopy">
-                将优先复用已经准备好的本机组件，并在后台启动服务。
-              </div>
+              <div class="sidebar-help" id="sceneCopy">检查 app、runtime、backend、chartpy。</div>
             </section>
 
-            <section class="sidebar-card">
-              <div class="sidebar-label">本次会话</div>
+            <section class="sidebar-card session-card">
+              <div class="sidebar-label">会话</div>
               <dl class="summary-list">
                 <div>
-                  <dt>任务类型</dt>
+                  <dt>类型</dt>
                   <dd id="summarySessionType">日常启动</dd>
                 </div>
                 <div>
-                  <dt>组件策略</dt>
-                  <dd id="summaryRuntimeStrategy">优先复用已有组件</dd>
+                  <dt>组件</dt>
+                  <dd id="summaryRuntimeStrategy">复用现有 runtime</dd>
                 </div>
                 <div>
-                  <dt>后台方式</dt>
-                  <dd id="summaryBackendMode">隐藏启动本地服务</dd>
+                  <dt>服务</dt>
+                  <dd id="summaryBackendMode">后台启动</dd>
                 </div>
                 <div>
-                  <dt>完成后</dt>
-                  <dd id="summaryOutcome">自动进入主界面</dd>
+                  <dt>结果</dt>
+                  <dd id="summaryOutcome">进入主界面</dd>
                 </div>
               </dl>
             </section>
 
             <section class="timeline-card">
-              <div class="sidebar-label">进度阶段</div>
+              <div class="sidebar-label">管线</div>
               <ol class="step-list">
                 <li class="step-item is-active" data-step="1">
-                  <span class="step-no">1</span>
+                  <span class="step-no">01</span>
                   <div>
-                    <div class="step-name">检查已安装内容</div>
-                    <div class="step-desc">盘点 app、本机组件和缓存，决定本次要替换哪些内容</div>
+                    <div class="step-name">安装状态</div>
+                    <div class="step-desc">app / marker / cache</div>
                   </div>
                 </li>
                 <li class="step-item" data-step="2">
-                  <span class="step-no">2</span>
+                  <span class="step-no">02</span>
                   <div>
-                    <div class="step-name">准备本机组件</div>
-                    <div class="step-desc">仅在需要时下载、校验并切换组件</div>
+                    <div class="step-name">本机组件</div>
+                    <div class="step-desc">runtime / jar / python</div>
                   </div>
                 </li>
                 <li class="step-item" data-step="3">
-                  <span class="step-no">3</span>
+                  <span class="step-no">03</span>
                   <div>
-                    <div class="step-name">启动后台服务</div>
-                    <div class="step-desc">在后台启动所需服务，不显示 Terminal</div>
+                    <div class="step-name">后台服务</div>
+                    <div class="step-desc">backend / chartpy</div>
                   </div>
                 </li>
                 <li class="step-item" data-step="4">
-                  <span class="step-no">4</span>
+                  <span class="step-no">04</span>
                   <div>
-                    <div class="step-name">进入 星阙</div>
-                    <div class="step-desc">准备完成后直接切入主程序界面</div>
+                    <div class="step-name">主界面</div>
+                    <div class="step-desc">handoff</div>
                   </div>
                 </li>
               </ol>
@@ -109,43 +112,30 @@
 
           <section class="content-column">
             <section class="hero-panel">
-              <div class="hero-grid">
-                <div>
-                  <div class="eyebrow">Mac App Session</div>
-                  <h2 id="sceneTitle">日常启动</h2>
-                  <p class="hero-body">
-                    如果这台 Mac 已经准备好所需组件，你只会看到短暂的检查过程；如果需要首次准备或修复，整个流程也会在 app 内完成。
-                  </p>
-                  <div class="hero-badges">
-                    <span class="hero-badge" id="heroBadgePrimary">DMG 主入口</span>
-                    <span class="hero-badge" id="heroBadgeSecondary">首次准备在 app 内完成</span>
-                    <span class="hero-badge" id="heroBadgeTertiary">后台更新与重开</span>
-                  </div>
-                </div>
-                <div class="status-orb" aria-hidden="true">
-                  <div class="orb-ring orb-ring--outer"></div>
-                  <div class="orb-ring orb-ring--inner"></div>
-                  <div class="orb-core"></div>
-                </div>
+              <div>
+                <div class="eyebrow">Mac Session</div>
+                <h2 id="sceneTitle">日常启动</h2>
+                <p class="hero-body">只显示启动结果、组件状态和可执行动作。</p>
+              </div>
+              <div class="hero-badges">
+                <span class="hero-badge" id="heroBadgePrimary">DMG</span>
+                <span class="hero-badge" id="heroBadgeSecondary">Runtime</span>
+                <span class="hero-badge" id="heroBadgeTertiary">Backend</span>
               </div>
             </section>
 
             <section id="statePanel" class="state-panel">
               <div class="state-panel__head">
                 <span id="stateBadge" class="state-badge">启动中心</span>
-                <span id="stateInstallSource" class="state-meta hidden">当前安装</span>
+                <span id="stateInstallSource" class="state-meta hidden">离线安装包</span>
               </div>
               <div class="state-panel__body">
                 <div>
-                  <h3 id="stateTitle" class="state-title">这台 Mac 会在准备完成后自动进入主界面</h3>
-                  <p id="stateSummary" class="state-summary">
-                    日常打开会优先复用已经准备好的内容，只有在首次准备、修复或更新时才会延伸为完整流程。
-                  </p>
+                  <h3 id="stateTitle" class="state-title">准备进入主界面</h3>
+                  <p id="stateSummary" class="state-summary">等待 runtime 检查结果。</p>
                 </div>
                 <div class="state-detail-group">
-                  <p id="stateDetail" class="state-detail">
-                    默认会把技术细节收在第二层，先让你看见当前状态和下一步动作。
-                  </p>
+                  <p id="stateDetail" class="state-detail">服务未就绪前不会切换窗口。</p>
                   <p id="stateRecommendation" class="state-recommendation hidden"></p>
                 </div>
               </div>
@@ -153,67 +143,74 @@
 
             <section class="metrics-grid">
               <article class="metric-card">
-                <div class="metric-label">总进度</div>
+                <div class="metric-label">进度</div>
                 <div class="metric-value" id="progressPct">0%</div>
               </article>
               <article class="metric-card metric-card--wide">
                 <div class="metric-label">当前步骤</div>
-                <div class="metric-value metric-value--small" id="progressText">等待初始化…</div>
+                <div class="metric-value metric-value--small" id="progressText">等待初始化...</div>
               </article>
               <article class="metric-card">
-                <div class="metric-label">当前阶段</div>
-                <div class="metric-value metric-value--small" id="phaseLabel">准备阶段</div>
+                <div class="metric-label">阶段</div>
+                <div class="metric-value metric-value--small" id="phaseLabel">准备</div>
               </article>
             </section>
 
             <section class="progress-panel">
               <div class="panel-header">
                 <div>
-                  <div class="panel-title">启动与更新进度</div>
-                  <div class="panel-subtitle">普通启动会更快完成；首次准备、修复或更新时会自动延伸为完整流程</div>
+                  <div class="panel-title">执行管线</div>
+                  <div class="panel-subtitle">install · runtime · services · handoff</div>
                 </div>
-                <div class="panel-chip">Live</div>
+                <div class="panel-chip">LIVE</div>
               </div>
               <div class="progress-track">
                 <span id="progressFill"></span>
               </div>
               <div class="phase-strip">
-                <span>安装检查</span>
-                <span>组件准备</span>
-                <span>服务启动</span>
-                <span>进入主界面</span>
+                <span>安装</span>
+                <span>组件</span>
+                <span>服务</span>
+                <span>进入</span>
               </div>
             </section>
 
             <section class="action-grid">
               <button class="action-card" id="openDataBtn">
-                <span class="action-title">显示数据目录</span>
-                <span class="action-copy">在 Finder 中打开应用数据与缓存所在位置</span>
+                <span class="action-icon">⌁</span>
+                <span>
+                  <span class="action-title">数据目录</span>
+                  <span class="action-copy">Library / logs / cache</span>
+                </span>
               </button>
               <button class="action-card" id="openRuntimeBtn">
-                <span class="action-title">显示本机组件</span>
-                <span class="action-copy">查看当前正在使用的本机组件与共享资源</span>
+                <span class="action-icon">◈</span>
+                <span>
+                  <span class="action-title">本机组件</span>
+                  <span class="action-copy">runtime / java / python</span>
+                </span>
               </button>
               <button class="action-card" id="retryBtn">
-                <span class="action-title" id="retryActionTitle">重装本机组件</span>
-                <span class="action-copy" id="retryActionCopy">当组件损坏或更新不完整时，重新准备本机组件</span>
+                <span class="action-icon">↺</span>
+                <span>
+                  <span class="action-title" id="retryActionTitle">重装组件</span>
+                  <span class="action-copy" id="retryActionCopy">repair runtime</span>
+                </span>
               </button>
             </section>
 
             <section id="assetReviewPanel" class="review-panel hidden">
               <div class="panel-header panel-header--review">
                 <div>
-                  <div class="panel-title">安装审查</div>
-                  <div class="panel-subtitle">只有你勾选为“替换”的资产才会被处理；未勾选的内容会尽量保留并复用。</div>
+                  <div class="panel-title">资产审查</div>
+                  <div class="panel-subtitle">replace / keep</div>
                 </div>
                 <div class="review-header-actions">
                   <button class="toolbar-button toolbar-button--ghost" id="reviewCancelBtn">取消</button>
                   <button class="toolbar-button" id="reviewContinueBtn">继续</button>
                 </div>
               </div>
-              <div id="reviewIntro" class="review-intro">
-                正在整理本次会替换的内容…
-              </div>
+              <div id="reviewIntro" class="review-intro">等待资产清单...</div>
               <div id="reviewBlocking" class="review-blocking hidden"></div>
               <div id="reviewItems" class="review-list"></div>
             </section>
@@ -222,38 +219,38 @@
               <article class="detail-card">
                 <div class="panel-header">
                   <div>
-                    <div class="panel-title">过程摘要</div>
-                    <div class="panel-subtitle">默认只显示最近摘要；需要时再展开完整过程和原始细节</div>
+                    <div class="panel-title">日志</div>
+                    <div class="panel-subtitle">最近事件</div>
                   </div>
-                  <button class="toolbar-button toolbar-button--ghost" id="toggleLogBtn">展开详细过程</button>
+                  <button class="toolbar-button toolbar-button--ghost" id="toggleLogBtn">展开</button>
                 </div>
-                <div id="logSummaryNote" class="log-summary-note">启动中心会优先展示关键状态，不会让技术细节抢占主视图。</div>
-                <pre id="statusLog">等待星阙初始化…</pre>
+                <div id="logSummaryNote" class="log-summary-note">最近事件</div>
+                <pre id="statusLog">等待初始化...</pre>
               </article>
 
               <article class="detail-card detail-card--compact">
                 <div class="panel-header">
                   <div>
-                    <div class="panel-title">安全与恢复</div>
-                    <div class="panel-subtitle">尽量用更符合 Mac 用户认知的方式解释正在发生的事</div>
+                    <div class="panel-title">保护项</div>
+                    <div class="panel-subtitle">不会静默删除</div>
                   </div>
                 </div>
                 <div class="guard-list">
                   <div class="guard-item">
-                    <div class="guard-key" id="guardKeyOne">应用更新</div>
-                    <div class="guard-value" id="guardValueOne">下载完成后先替换 `.app`，再自动重开</div>
+                    <div class="guard-key" id="guardKeyOne">App</div>
+                    <div class="guard-value" id="guardValueOne">替换前校验签名。</div>
                   </div>
                   <div class="guard-item">
-                    <div class="guard-key" id="guardKeyTwo">安装审查</div>
-                    <div class="guard-value" id="guardValueTwo">先列出已安装内容，再由你决定这次要替换哪些资产</div>
+                    <div class="guard-key" id="guardKeyTwo">Runtime</div>
+                    <div class="guard-value" id="guardValueTwo">损坏才重建。</div>
                   </div>
                   <div class="guard-item">
-                    <div class="guard-key" id="guardKeyThree">弱网场景</div>
-                    <div class="guard-value" id="guardValueThree">失败时保留日志、Finder 入口和重新审查，不要求手工修脚本</div>
+                    <div class="guard-key" id="guardKeyThree">Logs</div>
+                    <div class="guard-value" id="guardValueThree">失败时保留。</div>
                   </div>
                   <div class="guard-item">
-                    <div class="guard-key" id="guardKeyFour">数据目录</div>
-                    <div class="guard-value" id="guardValueFour">用户数据与运行日志不会在更新时被删除</div>
+                    <div class="guard-key" id="guardKeyFour">Data</div>
+                    <div class="guard-value" id="guardValueFour">更新不删除。</div>
                   </div>
                 </div>
               </article>
@@ -264,26 +261,22 @@
                 <span id="recoveryBadge" class="state-badge state-badge--danger">需要处理</span>
                 <span id="recoveryInstallSource" class="state-meta hidden">当前安装</span>
               </div>
-              <h3 id="recoveryTitle" class="recovery-title">本机组件不完整，当前无法继续打开 星阙</h3>
-              <p id="recoverySummary" class="recovery-summary">
-                当前流程没有顺利完成，但恢复入口和当前数据都已经保留。
-              </p>
-              <p id="recoveryDetail" class="recovery-detail">
-                你可以先走推荐恢复动作，再按需要查看诊断信息或本机组件位置。
-              </p>
+              <h3 id="recoveryTitle" class="recovery-title">runtime 未就绪</h3>
+              <p id="recoverySummary" class="recovery-summary">按推荐动作恢复。</p>
+              <p id="recoveryDetail" class="recovery-detail">诊断细节已保留。</p>
               <p id="recoveryRecommendation" class="recovery-recommendation hidden"></p>
               <div class="recovery-actions">
                 <button id="recoveryPrimaryBtn" class="toolbar-button toolbar-button--primary hidden">重新安装离线包</button>
                 <div id="recoverySecondaryActions" class="recovery-secondary-actions"></div>
               </div>
               <details id="recoveryDetails" class="technical-details">
-                <summary>显示技术细节</summary>
+                <summary>原始错误</summary>
                 <pre id="recoveryRawError">当前没有额外技术细节。</pre>
               </details>
             </section>
 
             <footer class="footer-note">
-              <div id="footerNote">星阙 现在会优先表现成一个标准的 Mac app：主入口是 DMG，首次准备在 app 内完成，遇到异常时提供 Finder、日志和重试入口。</div>
+              <div id="footerNote">窗口大小会随上次关闭状态恢复。</div>
             </footer>
           </section>
         </div>

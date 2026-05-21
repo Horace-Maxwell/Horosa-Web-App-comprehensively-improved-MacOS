@@ -86,73 +86,73 @@
   const MODE_CONFIG = {
     launch: {
       tag: '日常启动',
-      hint: '快速检查并进入主界面',
-      title: '正在准备 星阙',
-      copy: '日常打开时会优先复用已经准备好的本机组件，并在后台启动服务后直接进入主界面。',
+      hint: '复用本机组件',
+      title: '星阙 启动中',
+      copy: 'App 2.0.0 / runtime1 / arm64',
       sceneTitle: '日常启动',
-      sceneCopy: '如果这台 Mac 已经准备好所需组件，你只会看到很短暂的检查过程。',
+      sceneCopy: '检查 app、runtime、backend、chartpy。',
       summarySessionType: '日常启动',
-      summaryRuntimeStrategy: '优先复用已有组件',
-      summaryBackendMode: '已就绪后自动启动本地服务',
-      summaryOutcome: '自动进入主界面',
+      summaryRuntimeStrategy: '复用现有 runtime',
+      summaryBackendMode: '后台启动',
+      summaryOutcome: '进入主界面',
       sessionInline: '日常启动',
-      phases: ['正在检查安装状态', '正在确认本机组件', '正在启动后台服务', '正在进入主界面']
+      phases: ['检查安装', '确认组件', '启动服务', '进入主界面']
     },
     install: {
       tag: '首次准备',
-      hint: '准备并接管本机组件',
-      title: '正在为这台 Mac 准备 星阙',
-      copy: '当前机器还没有完整组件，星阙 会在 app 内完成准备、校验和切换，然后自动进入主界面。',
+      hint: '部署 runtime',
+      title: '准备本机组件',
+      copy: '校验离线包 · 写入共享 runtime · 启动服务',
       sceneTitle: '首次准备',
-      sceneCopy: '首次准备会在 app 内完成，不需要手工运行脚本或理解内部资产。',
+      sceneCopy: '部署 runtime、jar、python。',
       summarySessionType: '首次准备',
-      summaryRuntimeStrategy: '按需准备、校验并切换组件',
-      summaryBackendMode: '准备完成后自动启动后台服务',
-      summaryOutcome: '完成后直接进入主界面',
+      summaryRuntimeStrategy: '部署并校验 runtime',
+      summaryBackendMode: '部署后启动',
+      summaryOutcome: '进入主界面',
       sessionInline: '首次准备',
-      phases: ['正在检查安装状态', '正在准备与部署组件', '正在启动后台服务', '正在进入主界面']
+      phases: ['检查安装', '部署组件', '启动服务', '进入主界面']
     },
     repair: {
       tag: '组件修复',
-      hint: '重新准备本机组件',
-      title: '正在修复 星阙 本机组件',
-      copy: '检测到当前组件需要重新整理、替换或手动修复。完成后会自动重新启动并返回主界面。',
+      hint: '重建 runtime',
+      title: '修复本机组件',
+      copy: '清理异常标记 · 重建 runtime · 保留数据',
       sceneTitle: '本机组件修复',
-      sceneCopy: '会先整理现有组件，再按需重新准备新的本机组件。',
+      sceneCopy: '只处理损坏或不完整组件。',
       summarySessionType: '组件修复',
-      summaryRuntimeStrategy: '清理异常内容并按需重建',
-      summaryBackendMode: '修复后重新启动后台服务',
-      summaryOutcome: '修复完成后返回主界面',
+      summaryRuntimeStrategy: '重建异常组件',
+      summaryBackendMode: '修复后启动',
+      summaryOutcome: '返回主界面',
       sessionInline: '组件修复',
-      phases: ['正在检查安装状态', '正在修复本机组件', '正在启动后台服务', '正在进入主界面']
+      phases: ['检查安装', '修复组件', '启动服务', '进入主界面']
     },
     update: {
       tag: '版本更新',
-      hint: '下载并重开新版本',
-      title: '正在更新 星阙',
-      copy: '新版本会先完成下载和校验，再替换应用、按需更新本机组件，并自动重开回到新的星阙。',
+      hint: '下载并重开',
+      title: '更新星阙',
+      copy: '下载 · 校验 · 替换 app · 重开',
       sceneTitle: '应用更新',
-      sceneCopy: '下载与替换都在 app 内完成，用户看到的是更接近标准 Mac app 的更新流程。',
+      sceneCopy: '按 manifest 替换 app/runtime。',
       summarySessionType: '版本更新',
-      summaryRuntimeStrategy: '按清单下载并校验更新资产',
-      summaryBackendMode: '替换成功后自动重开',
-      summaryOutcome: '自动进入新版本',
+      summaryRuntimeStrategy: '按 manifest 校验',
+      summaryBackendMode: '替换后重开',
+      summaryOutcome: '进入新版本',
       sessionInline: '版本更新',
-      phases: ['正在准备更新', '正在下载更新资产', '正在替换应用', '正在重开 星阙']
+      phases: ['准备更新', '下载资产', '替换应用', '重开星阙']
     },
     error: {
       tag: '需要处理',
-      hint: '恢复动作优先，技术细节后置',
-      title: '星阙 还没有准备完成',
-      copy: '当前流程没有顺利完成。你可以先走推荐恢复动作，再按需要查看诊断信息。',
+      hint: '等待恢复动作',
+      title: '启动中断',
+      copy: '查看诊断 · 保留日志 · 执行恢复',
       sceneTitle: '需要处理',
-      sceneCopy: '主界面会优先告诉你下一步该做什么，完整细节会放到第二层。',
+      sceneCopy: '优先显示可执行恢复动作。',
       summarySessionType: '流程中断',
-      summaryRuntimeStrategy: '保留当前状态，等待你决定下一步',
-      summaryBackendMode: '后台服务尚未完全就绪',
-      summaryOutcome: '处理完成后再重试',
+      summaryRuntimeStrategy: '保留现场',
+      summaryBackendMode: '服务未就绪',
+      summaryOutcome: '恢复后重试',
       sessionInline: '需要处理',
-      phases: ['正在检查安装状态', '处理中断', '等待修复', '等待重试']
+      phases: ['检查安装', '流程中断', '等待恢复', '等待重试']
     }
   };
 
@@ -206,9 +206,9 @@
         return {
           kind: 'launch_ready',
           badge: '首次准备',
-          title: '首次准备会在 app 内完成',
-          summary: '这一步会尽量保持安静，只在需要时准备本机组件并自动继续。',
-          detail: '普通用户不需要理解内部资产、脚本或缓存结构。',
+          title: '部署本机组件',
+          summary: 'runtime、jar、python 将写入共享位置。',
+          detail: '完成后启动 backend 与 chartpy。',
           recommendation: null,
           installSource: null
         };
@@ -216,9 +216,9 @@
         return {
           kind: 'repair_in_progress',
           badge: '组件修复',
-          title: '正在整理并恢复本机组件',
-          summary: '会优先保留当前数据，并在准备完成后自动回到主界面。',
-          detail: '完整日志仍然保留，但不会再主导当前页面。',
+          title: '重建异常组件',
+          summary: '保留用户数据与日志。',
+          detail: '只替换损坏或不完整的 runtime 内容。',
           recommendation: null,
           installSource: null
         };
@@ -226,9 +226,9 @@
         return {
           kind: 'update_in_progress',
           badge: '版本更新',
-          title: '正在准备新版本并保持当前数据不变',
-          summary: '下载、校验和替换都在 app 内完成，准备好后会自动重开。',
-          detail: '只有已确认需要替换的资产会参与本次更新。',
+          title: '按 manifest 更新',
+          summary: '下载、校验、替换、重开。',
+          detail: '用户数据不参与替换。',
           recommendation: null,
           installSource: null
         };
@@ -236,9 +236,9 @@
         return {
           kind: 'launch_ready',
           badge: '启动中心',
-          title: '这台 Mac 会在准备完成后自动进入主界面',
-          summary: '日常打开会优先复用已经准备好的内容，只有在首次准备、修复或更新时才会延伸为完整流程。',
-          detail: '默认会把技术细节收在第二层，先让你看见当前状态和下一步动作。',
+          title: '准备进入主界面',
+          summary: '等待 runtime 检查结果。',
+          detail: '服务未就绪前不会切换窗口。',
           recommendation: null,
           installSource: null
         };
@@ -508,8 +508,174 @@
     }
   }
 
+  function compactSupportContent(content, payload) {
+    const key = payload?.kind || currentMode;
+    const commonGuards = [
+      ['App', '签名校验后替换。'],
+      ['Runtime', '损坏或版本不符才重建。'],
+      ['Logs', '失败时保留。'],
+      ['Data', '更新不删除用户数据。']
+    ];
+    const variants = {
+      launch: {
+        modeTag: '日常启动',
+        modeHint: '复用本机组件',
+        brandTitle: '星阙 启动中',
+          brandCopy: 'App 2.0.0 / runtime1 / arm64',
+        sceneTitleText: '日常启动',
+        sceneCopyText: '检查 app、runtime、backend、chartpy。',
+        sessionInlineText: '日常启动',
+        summarySessionTypeText: '日常启动',
+        summaryRuntimeStrategyText: '复用现有 runtime',
+        summaryBackendModeText: '后台启动',
+        summaryOutcomeText: '进入主界面',
+        heroBadges: ['DMG', 'Runtime', 'Backend'],
+        guards: commonGuards,
+        footer: '窗口大小会随上次关闭状态恢复。',
+        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+      },
+      install: {
+        modeTag: '首次准备',
+        modeHint: '部署 runtime',
+        brandTitle: '准备本机组件',
+        brandCopy: '校验离线包 · 写入共享 runtime · 启动服务',
+        sceneTitleText: '首次准备',
+        sceneCopyText: '部署 runtime、jar、python。',
+        sessionInlineText: '首次准备',
+        summarySessionTypeText: '首次准备',
+        summaryRuntimeStrategyText: '部署并校验 runtime',
+        summaryBackendModeText: '部署后启动',
+        summaryOutcomeText: '进入主界面',
+        heroBadges: ['Offline pkg', 'Shared runtime', 'No terminal'],
+        guards: commonGuards,
+        footer: '离线包内置 runtime，安装后可无网启动。',
+        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+      },
+      repair: {
+        modeTag: '组件修复',
+        modeHint: '重建 runtime',
+        brandTitle: '修复本机组件',
+        brandCopy: '清理异常标记 · 重建 runtime · 保留数据',
+        sceneTitleText: '组件修复',
+        sceneCopyText: '只处理损坏或不完整组件。',
+        sessionInlineText: '组件修复',
+        summarySessionTypeText: '组件修复',
+        summaryRuntimeStrategyText: '重建异常组件',
+        summaryBackendModeText: '修复后启动',
+        summaryOutcomeText: '返回主界面',
+        heroBadges: ['Repair', 'Keep data', 'Keep logs'],
+        guards: commonGuards,
+        footer: '修复不删除用户数据。',
+        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+      },
+      update: {
+        modeTag: '版本更新',
+        modeHint: '下载并重开',
+        brandTitle: '更新星阙',
+        brandCopy: '下载 · 校验 · 替换 app · 重开',
+        sceneTitleText: '应用更新',
+        sceneCopyText: '按 manifest 替换 app/runtime。',
+        sessionInlineText: '版本更新',
+        summarySessionTypeText: '版本更新',
+        summaryRuntimeStrategyText: 'manifest 校验',
+        summaryBackendModeText: '替换后重开',
+        summaryOutcomeText: '进入新版本',
+        heroBadges: ['Manifest', 'Signature', 'Restart'],
+        guards: commonGuards,
+        footer: '更新只替换清单资产。',
+        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+      },
+      error: {
+        modeTag: '需要处理',
+        modeHint: '等待恢复动作',
+        brandTitle: '启动中断',
+        brandCopy: '查看诊断 · 保留日志 · 执行恢复',
+        sceneTitleText: '需要处理',
+        sceneCopyText: '优先显示可执行恢复动作。',
+        sessionInlineText: '需要处理',
+        summarySessionTypeText: '流程中断',
+        summaryRuntimeStrategyText: '保留现场',
+        summaryBackendModeText: '服务未就绪',
+        summaryOutcomeText: '恢复后重试',
+        heroBadges: ['Diagnostics', 'Logs', 'Recover'],
+        guards: commonGuards,
+        footer: '错误详情保留在诊断中心。',
+        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+      },
+      offline_ready: {
+        modeTag: '离线安装',
+        modeHint: '无网可用',
+        brandTitle: '离线包已就绪',
+        brandCopy: 'App · Shared runtime · Local services',
+        sceneTitleText: '离线安装完成',
+        sceneCopyText: '复用离线包内置 runtime。',
+        sessionInlineText: '可直接使用',
+        summarySessionTypeText: '离线安装',
+        summaryRuntimeStrategyText: '复用共享 runtime',
+        summaryBackendModeText: '后台启动',
+        summaryOutcomeText: '进入主界面',
+        heroBadges: ['Offline', 'Trusted pkg', 'Ready'],
+        guards: commonGuards,
+        footer: '离线安装包已包含 runtime。',
+        retry: { title: '重新安装离线包', copy: 'run offline pkg', action: 'reinstall_offline_package' }
+      },
+      offline_review: {
+        modeTag: '安装审查',
+        modeHint: '先确认再替换',
+        brandTitle: '选择替换项',
+        brandCopy: 'replace / keep · app · runtime · cache',
+        sceneTitleText: '离线安装审查',
+        sceneCopyText: '只处理勾选为替换的资产。',
+        sessionInlineText: '等待审查',
+        summarySessionTypeText: '离线审查',
+        summaryRuntimeStrategyText: '保留可复用资产',
+        summaryBackendModeText: '确认后继续',
+        summaryOutcomeText: '按选择执行',
+        heroBadges: ['Review', 'Replace', 'Keep'],
+        guards: commonGuards,
+        footer: '未勾选资产保持不动。',
+        retry: { title: '重新安装离线包', copy: 'run offline pkg', action: 'reinstall_offline_package' }
+      },
+      offline_repair_required: {
+        modeTag: '离线修复',
+        modeHint: '重装离线包',
+        brandTitle: '离线 runtime 损坏',
+        brandCopy: '重新安装 pkg · 重建共享 runtime',
+        sceneTitleText: '离线修复',
+        sceneCopyText: '首选重新运行离线安装包。',
+        sessionInlineText: '需要修复',
+        summarySessionTypeText: '离线修复',
+        summaryRuntimeStrategyText: '重新接管 runtime',
+        summaryBackendModeText: '等待恢复',
+        summaryOutcomeText: '重装后启动',
+        heroBadges: ['Offline repair', 'Reinstall pkg', 'Keep data'],
+        guards: commonGuards,
+        footer: '建议重新安装离线包。',
+        retry: { title: '重新安装离线包', copy: 'run offline pkg', action: 'reinstall_offline_package' }
+      },
+      update_review: {
+        modeTag: '更新确认',
+        modeHint: '确认后下载',
+        brandTitle: '发现新版本',
+        brandCopy: 'manifest 已比对 · 等待确认',
+        sceneTitleText: '更新待确认',
+        sceneCopyText: '确认前不下载、不替换、不重开。',
+        sessionInlineText: '等待确认',
+        summarySessionTypeText: '更新确认',
+        summaryRuntimeStrategyText: '比对 manifest',
+        summaryBackendModeText: '确认后执行',
+        summaryOutcomeText: '进入更新事务',
+        heroBadges: ['Check only', 'Confirm', 'Update'],
+        guards: commonGuards,
+        footer: '检查更新不再自动替换。',
+        retry: { title: '重新检查更新', copy: 'check manifest', action: 'repair_runtime' }
+      }
+    };
+    return { ...content, ...(variants[key] || variants[currentMode] || variants.launch) };
+  }
+
   function applySupportContent(payload) {
-    const content = supportContentForPayload(payload);
+    const content = compactSupportContent(supportContentForPayload(payload), payload);
     heroModeTag.textContent = content.modeTag;
     heroModeHint.textContent = content.modeHint;
     heroTitle.textContent = content.brandTitle;
@@ -557,8 +723,9 @@
   }
 
   function renderLog() {
+    document.body.classList.toggle('show-full-log', showFullLog);
     const visibleLines = showFullLog ? lines : lines.slice(-8);
-    statusLog.textContent = visibleLines.length ? visibleLines.join('\n') : '等待星阙初始化…';
+    statusLog.textContent = visibleLines.length ? visibleLines.join('\n') : '等待初始化...';
     statusLog.scrollTop = statusLog.scrollHeight;
     const hiddenCount = Math.max(0, lines.length - visibleLines.length);
     if (toggleLogBtn) {
@@ -567,10 +734,10 @@
     }
     if (logSummaryNote) {
       logSummaryNote.textContent = showFullLog
-        ? '当前正在显示完整过程与历史记录。'
+        ? '完整日志'
         : hiddenCount > 0
-          ? `当前只显示最近 8 条摘要，另外还有 ${hiddenCount} 条详细记录已收起。`
-          : '当前只显示摘要；完整技术细节会在需要时展开。';
+          ? `最近 8 条 / 已收起 ${hiddenCount} 条`
+          : '最近事件';
     }
   }
 
@@ -1018,7 +1185,7 @@
   applyMode('launch');
   setProgress(0, '等待初始化…');
   renderLog();
-  pushLine('星阙启动中心已加载。');
+    pushLine('启动页已加载。');
   bootstrapPreferences();
   replayPendingState();
 })();

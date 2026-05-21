@@ -39,7 +39,44 @@ def click_visible_text(page, label: str, *, exact: bool = True, timeout_ms: int 
     return False
 
 
+def open_module(page, label: str) -> bool:
+    if click_visible_text(page, label):
+        return True
+    if not click_visible_text(page, "搜索"):
+        return False
+    page.wait_for_timeout(500)
+    modal = page.locator(".ant-modal:visible").filter(has=page.get_by_text("选择功能模块", exact=True)).first
+    if modal.count() == 0:
+        return False
+    target = modal.get_by_title(label).first
+    if target.count() == 0:
+        target = modal.get_by_role("button", name=label, exact=True).first
+    if target.count() == 0:
+        target = modal.get_by_text(label, exact=True).first
+    if target.count() == 0:
+        return False
+    target.click(force=True)
+    page.wait_for_timeout(1000)
+    return True
+
+
 def set_visible_datetime_selector(page, year: int, month: int, day: int, hour: int, minute: int, second: int, zone: str = "+08:00", visible_index: int = 0, confirm: bool = False) -> None:
+    page.evaluate(
+        """
+        (visibleIndex) => {
+          const inputs = Array.from(document.querySelectorAll('input[placeholder="年"]')).filter((el) => {
+            const style = window.getComputedStyle(el);
+            return style && style.display !== 'none' && style.visibility !== 'hidden' && el.offsetParent !== null;
+          });
+          if (inputs[visibleIndex]) return;
+          const buttons = Array.from(document.querySelectorAll('button')).filter((el) => /\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2}/.test(el.innerText || ''));
+          const btn = buttons[visibleIndex] || buttons[0];
+          if (btn) btn.click();
+        }
+        """,
+        visible_index,
+    )
+    page.wait_for_timeout(500)
     page.evaluate(
         """
         ([visibleIndex, year, month, day, hour, minute, second, zone, confirm]) => {
@@ -229,8 +266,8 @@ def main() -> None:
         page.goto(base_url, wait_until="domcontentloaded", timeout=120_000)
         page.wait_for_timeout(5_000)
 
-        if not click_visible_text(page, "易与三式"):
-            raise AssertionError("无法点击左侧模块：易与三式")
+        if not open_module(page, "其他"):
+            raise AssertionError("无法点击模块：其他 / 易与三式")
         if not click_visible_text(page, "金口诀"):
             raise AssertionError("无法打开右侧页签：金口诀")
         page.wait_for_timeout(1_500)
