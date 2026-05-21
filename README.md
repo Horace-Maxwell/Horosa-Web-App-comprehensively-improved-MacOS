@@ -7,11 +7,11 @@
 ### A desktop metaphysics workstation for Apple Silicon
 ### 面向 Apple Silicon 的桌面玄学工作站
 
-[![Latest Release](https://img.shields.io/github/v/release/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?display_name=tag&sort=semver)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
+[![Version](https://img.shields.io/badge/version-v2.0.0%20beta-b45309)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626)](LICENSE)
 [![GitHub Repo stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
-[![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-[![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0)
+[![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0)
 [![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.0.0/Horosa-Installer-macos-arm64-offline.pkg)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
@@ -27,12 +27,12 @@
 [![Read In English](https://img.shields.io/badge/Read%20In-English-0f766e?labelColor=52525b)](README_EN.md)
 [![查看中文版](https://img.shields.io/badge/查看-中文版-0f766e?labelColor=52525b)](README_ZH.md)
 
-[中文完整版](README_ZH.md) | [English Guide](README_EN.md) | [Latest Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest) | [v2.0.0 版本页面](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0) | [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
+[中文完整版](README_ZH.md) | [English Guide](README_EN.md) | [v2.0.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0) | [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 <p>Horosa on macOS is delivered as a signed, notarized, offline-ready desktop product for cross-tradition analysis.</p>
 <p>macOS 版 Horosa 以签名、公证、离线可安装的正式桌面产品形态交付，用来承载跨传统的术数分析工作流。</p>
 <p><strong>Current release train / 当前发布线：v2.0.0 beta</strong></p>
-<p><strong>Release focus / 本次重点：</strong><code>v2.0.0 beta</code> refreshes the desktop interface, README screenshots, offline installer, and release manifest as one aligned major update.</p>
+<p><strong>Release focus / 本次重点：</strong><code>v2.0.0 beta</code> is a desktop-product beta: a redesigned launcher, remembered window size, no-scroll startup information, fresh screenshots, and a notarized offline installer for clean Apple Silicon Macs.</p>
 <p><strong>Licensing note / 许可证说明：</strong>the public repository now ships under <code>AGPL-3.0</code> because the released stack integrates Swiss Ephemeris / <code>pyswisseph</code>; upstream third-party subdirectories keep their own original notices.</p>
 
 </div>
@@ -182,25 +182,29 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
   <tr>
     <td width="50%">
       <strong>English</strong><br /><br />
-      <code>v2.0.0 beta</code> is a major release pass for the desktop product: refreshed screenshots, a redesigned launcher, version-aligned release assets, and a stricter offline installer path for clean Apple Silicon machines.
+      <code>v2.0.0 beta</code> is the desktop-product beta for this new release train: it redesigns the startup experience, keeps launch information visible without scrolling, remembers the last window size, refreshes the public screenshots, and tightens the clean-Mac offline installer path.
     </td>
     <td width="50%">
       <strong>中文</strong><br /><br />
-      <code>v2.0.0 beta</code> 是一次面向桌面成品形态的大版本整理：更新 README 截图、重做启动页、对齐发布资产版本，并强化全新 Apple Silicon 电脑上的离线安装路径。
+      <code>v2.0.0 beta</code> 是这条新发布线的桌面成品 beta：重做启动体验，打开后不需要下滑即可看到关键信息，记忆上次窗口大小，更新公开截图，并强化全新 Apple Silicon 电脑上的离线安装路径。
     </td>
   </tr>
   <tr>
     <td width="50%">
-      - updated astrology, Sanshi, and navigation-overlay screenshots<br />
-      - denser desktop launcher with runtime, service, log, and recovery status<br />
-      - notarized offline <code>.pkg</code> remains the primary public install path<br />
-      - version alignment across README, package metadata, Tauri config, release config, and manifest
+      - redesigned launcher UI with runtime, service, log, recovery, and install-source status<br />
+      - startup screen is constrained to the first viewport instead of relying on page scroll<br />
+      - app remembers the last window size and restores it on the next launch<br />
+      - one-click Web/command path now avoids clean-mac Python assumptions<br />
+      - README screenshots now match the 2.0.0 astrology, Sanshi, and navigation UI<br />
+      - notarized offline <code>.pkg</code>, app zip, runtime archive, and manifest are aligned as <code>2.0.0 / 2.0.0-runtime1</code>
     </td>
     <td width="50%">
-      - 替换为占星、三式、导航弹层三张最新截图<br />
-      - 启动页改为高信息密度的 runtime / service / log / recovery 控制台<br />
-      - 公证后的离线 <code>.pkg</code> 继续作为公开主安装入口<br />
-      - README、package、Tauri 配置、release_config 与 manifest 版本统一对齐
+      - 启动页重做为 runtime / service / log / recovery / install-source 控制台<br />
+      - 启动首屏被约束在第一视口内，打开后不需要下滑才能看到关键信息<br />
+      - App 会记忆上次窗口大小，下次启动自动沿用<br />
+      - 一键打开 Web 与命令端路径移除全新 Mac 上对系统 Python 的隐性假设<br />
+      - README 截图替换为 2.0.0 的占星、三式与导航弹层界面<br />
+      - 公证离线 <code>.pkg</code>、app zip、runtime 包与 manifest 统一对齐到 <code>2.0.0 / 2.0.0-runtime1</code>
     </td>
   </tr>
 </table>
@@ -256,7 +260,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <strong>English</strong><br /><br />
       Understand the public-facing repository layout: <a href="README.md">README.md</a><br />
       Inspect installer internals and publishing flow: <a href="Horosa_Desktop_Installer/README.md">Horosa_Desktop_Installer/README.md</a><br />
-      Read the current version release page: <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0">v2.0.0</a><br />
+      Read the current beta release page: <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0">v2.0.0 Beta</a><br />
       Enter the application source tree: <code>Horosa-Web/</code><br />
       Inspect runtime and diagnostics: <code>runtime/</code>, <code>diagnostics/</code>
     </td>
