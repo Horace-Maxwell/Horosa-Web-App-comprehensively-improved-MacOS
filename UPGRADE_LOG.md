@@ -22,13 +22,15 @@ Append new entries; do not rewrite history.
   - `README.md`
   - `README_EN.md`
   - `README_ZH.md`
+  - `Horosa_Desktop_Installer/config/release_config.json`
   - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
 - Details:
   - README 三语顶部版本徽章改为 `v2.0.0 beta`，主要下载入口改为 tag-specific 的 `v2.0.0` 离线 `.pkg`，避免 prerelease 被 GitHub latest 规则绕开。
   - 新增重点从“版本对齐”扩展为真实用户可感知能力：启动页重做、首屏不需下滑、窗口大小记忆、一键 Web/命令端 clean-Mac Python 假设移除、三张新截图与离线安装链路。
+  - GitHub Release 保持标题/正文为 `Beta`，但将 `v2.0.0` 设为非 prerelease 且 `Latest`，让仓库右栏 Releases 卡片直接显示本轮版本。
   - 发布脚本内嵌 Release 正文同步更新，后续重跑 `publish_github_release.sh` 不会回退到旧文案。
 - Verification:
-  - 将继续执行 README 文案 grep、脚本语法检查，并用 `gh release edit` 同步线上 `v2.0.0 Beta` 正文。
+  - 将继续执行 README 文案 grep、脚本语法检查，并用 `gh release edit` / GitHub API 校验线上 `v2.0.0 Beta` 为 latest release。
 
 ### 14:50 - 准备 2.0.0 大版本发布候选：启动页、截图、版本与离线安装链路统一对齐
 
