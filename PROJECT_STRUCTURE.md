@@ -2545,7 +2545,7 @@ IoT/串口/现场总线相关模块。当前可见内容：
 - `src-tauri/`
 - `web/`
 
-其中 `package.json` 当前版本为 `1.1.7`。
+其中 `package.json` 当前版本为 `2.0.0`。
 
 ### 3.2 `src-tauri/`
 
@@ -2685,7 +2685,7 @@ IoT/串口/现场总线相关模块。当前可见内容：
 - `settings.js`
 - `style.css`
 
-这是桌面初始化页、诊断页、设置页对应的前端资源。
+这是桌面初始化页、诊断页、设置页对应的前端资源。当前 `index.html` / `style.css` / `app.js` 是 2.0.0 启动控制台：首屏展示 runtime、服务、日志与恢复动作，并配合桌面壳保存上次窗口大小。
 
 ### 3.4 `config/`
 
@@ -2705,7 +2705,7 @@ IoT/串口/现场总线相关模块。当前可见内容：
 
 - `repoOwner`: `Horace-Maxwell`
 - `repoName`: `Horosa-Web-App-comprehensively-improved-MacOS`
-- `runtimeVersion`: `1.1.7-runtime1`
+- `runtimeVersion`: `2.0.0-runtime1`
 - `runtimeAssetName`: `horosa-runtime-macos-arm64.tar.gz`
 - `desktopAssetName`: `Horosa-Desktop-macos-arm64.zip`
 - `desktopPkgName`: `Horosa-Installer-macos-arm64.pkg`
@@ -3157,16 +3157,16 @@ IoT/串口/现场总线相关模块。当前可见内容：
 
 ## 7. 文档与诊断
 
-### 7.1 已移除的 `docs/`
+### 7.1 `docs/`
 
-该目录曾承载截图、发布说明和技术文档，但当前主仓库已经移除。
+当前 `docs/` 重新承担公开文档和 README 截图资产：
 
-对应信息现在分散到：
+- `docs/assets/screenshots/horosa-astrology-workspace.png`
+- `docs/assets/screenshots/horosa-sanshi-workspace.png`
+- `docs/assets/screenshots/horosa-navigation-overlay.png`
+- `docs/world-metaphysics-masterplan/`
 
-- 根目录 `README*.md`
-- `Horosa_Desktop_Installer/README.md`
-- `PROJECT_STRUCTURE.md`
-- GitHub Releases 页面正文
+旧的 `main-workspace.png` 与 `sanshi-workspace.png` 示例图已移除，README 三语都指向这组三张 2.0.0 截图。
 
 ### 7.2 `diagnostics/`
 

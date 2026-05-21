@@ -12,6 +12,38 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-05-21
+
+### 14:50 - 准备 2.0.0 大版本发布候选：启动页、截图、版本与离线安装链路统一对齐
+
+- Scope:
+  - 将本轮发布目标提升为 `v2.0.0 / v2.0.0-runtime1`，用于承载桌面界面、README 展示图、离线安装包、runtime 与 GitHub 发布清单的统一大更新。
+- Files:
+  - `README.md`
+  - `README_ZH.md`
+  - `README_EN.md`
+  - `PROJECT_STRUCTURE.md`
+  - `CITATION.cff`
+  - `docs/assets/screenshots/horosa-astrology-workspace.png`
+  - `docs/assets/screenshots/horosa-sanshi-workspace.png`
+  - `docs/assets/screenshots/horosa-navigation-overlay.png`
+  - `Horosa_Desktop_Installer/package.json`
+  - `Horosa_Desktop_Installer/package-lock.json`
+  - `Horosa_Desktop_Installer/src-tauri/Cargo.toml`
+  - `Horosa_Desktop_Installer/src-tauri/tauri.conf.json`
+  - `Horosa_Desktop_Installer/config/release_config.json`
+  - `Horosa_Desktop_Installer/scripts/publish_github_release.sh`
+  - `Horosa_Desktop_Installer/web/index.html`
+  - `Horosa_Desktop_Installer/web/style.css`
+  - `Horosa_Desktop_Installer/web/app.js`
+- Details:
+  - README 三语删除旧示例图引用，替换为占星工作区、三式工作区、导航弹层三张 2.0.0 截图。
+  - 启动页重做为高信息密度 runtime 控制台，首屏展示组件、服务、日志与恢复动作，并保留上次窗口大小恢复逻辑。
+  - 发布脚本内嵌 GitHub Release 正文同步改为 2.0.0 重点，不再沿用 v1.3.4 遁甲修复说明。
+  - `PROJECT_STRUCTURE.md` 重新登记 `docs/assets/screenshots/` 的三张公开截图资产，并把 runtimeVersion 更新为 `2.0.0-runtime1`。
+- Verification:
+  - 将继续执行 README 截图引用检查、版本一致性检查、Web/App 构建、AIAnalysis 验收、签名公证离线包构建与 fresh-install 级别包装验证。
+
 ## 2026-03-27
 
 ### 13:20 - 修复六壬左盘重绘时未同步最新性别，准备发布 v1.1.6 / v1.1.6-runtime1

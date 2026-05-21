@@ -11,11 +11,11 @@
 [![GitHub Repo stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 [![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 [![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
-[![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
+[![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.0.0/Horosa-Installer-macos-arm64-offline.pkg)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
-[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4)
-[![Runtime](https://img.shields.io/badge/runtime-1.3.4--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4-runtime1)
+[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0)
+[![Runtime](https://img.shields.io/badge/runtime-2.0.0--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0-runtime1)
 [![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY.md)
 [![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT.md)
 [![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
@@ -28,9 +28,9 @@
 
 [Portal](README.md) | [Chinese Guide](README_ZH.md) | [Latest Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest)
 
-**Current release:** `v1.3.4`
+**Current release:** `v2.0.0 beta`
 
-**Release focus:** `v1.3.4` fixes Qimen Tianpan stem flying so Dun Jia, Sanshi United, and AI exports use the same time-sensitive result across web and app.
+**Release focus:** `v2.0.0 beta` aligns the desktop interface, README screenshots, offline installer, runtime version, and GitHub release manifest as one major release candidate.
 
 **Licensing note:** the public repository is now distributed under `AGPL-3.0` because the released stack integrates Swiss Ephemeris / `pyswisseph`. Third-party subdirectories keep their own upstream notices.
 
@@ -59,7 +59,7 @@ That is the main idea this README should communicate. The installer matters, the
 
 Primary entry:
 
-- [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/Horosa-Installer-macos-arm64-offline.pkg)
+- [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.0.0/Horosa-Installer-macos-arm64-offline.pkg)
 
 Best fit:
 
@@ -71,15 +71,21 @@ Best fit:
 ## Preview
 
 <div align="center">
-  <p><strong>Main Workspace</strong></p>
-  <img src="docs/assets/screenshots/main-workspace.png" alt="Horosa Main Workspace" width="1200" />
-  <p><em>The primary Horosa workspace in the notarized macOS release, designed for chart reading, controls, and everyday desktop use.</em></p>
+  <p><strong>Astrology Workspace</strong></p>
+  <img src="docs/assets/screenshots/horosa-astrology-workspace.png" alt="Horosa astrology workspace" width="1200" />
+  <p><em>A three-column astrology workspace with chart controls, a large wheel canvas, detail tabs, and quick actions.</em></p>
 </div>
 
 <div align="center">
   <p><strong>Sanshi Workspace</strong></p>
-  <img src="docs/assets/screenshots/sanshi-workspace.png" alt="Horosa Sanshi Workspace" width="960" />
-  <p><em>A more advanced view that spotlights Sanshi workflows and deeper tool-driven analysis inside the same desktop product.</em></p>
+  <img src="docs/assets/screenshots/horosa-sanshi-workspace.png" alt="Horosa Sanshi workspace" width="1200" />
+  <p><em>The Sanshi surface keeps the plate, setup panel, overview tabs, and quick-function rail visible in one desktop view.</em></p>
+</div>
+
+<div align="center">
+  <p><strong>Navigation Overlay</strong></p>
+  <img src="docs/assets/screenshots/horosa-navigation-overlay.png" alt="Horosa navigation overlay" width="1200" />
+  <p><em>The dark command overlay groups astrology, Yi/Sanshi, workbench tools, and recent modules for fast switching.</em></p>
 </div>
 
 ## Signature Workflows
@@ -146,16 +152,16 @@ Horosa is not only about calculation. It also provides the controls needed for d
 - AI export
 - AI export settings
 
-## New In v1.2.0: AIAnalysis
+## New In v2.0.0
 
-`AIAnalysis` is now a full workspace rather than a narrow export helper. Version `1.2.0` adds a dedicated tab stack for `Analyze`, `History`, `Materials`, `Templates`, and `Settings`, all designed around local-first persistence and shared between the web runtime and the desktop runtime.
+`2.0.0 beta` is a desktop-product release pass rather than a single feature patch. It aligns the public presentation, startup experience, version metadata, runtime payload, and installer path under the same release train.
 
 Key additions in this release:
 
-- streaming provider-native AI responses
-- local-first conversation history with archive, favorites, and batch export
-- materials, templates, bundles, backup/restore, and JSON-schema-aware template work
-- provider presets and diagnostics for DeepSeek and other mainstream model endpoints
+- refreshed README screenshots for astrology, Sanshi, and navigation
+- redesigned desktop launcher with runtime, service, log, and recovery status
+- `2.0.0 / 2.0.0-runtime1` aligned across package metadata, Tauri config, release config, README, and manifest
+- the notarized offline `.pkg` remains the primary install path for clean Apple Silicon machines
 
 ## Desktop Delivery
 
@@ -171,7 +177,7 @@ The point is not “here is a codebase, please assemble it yourself.” The poin
 
 ## Latest Release
 
-- [GitHub Release v1.3.4](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4)
+- [GitHub Release v2.0.0](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0)
 - [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 ## FAQ
@@ -199,7 +205,7 @@ If you maintain this stack, start with the path that matches your goal:
 - understand the public-facing repository layout: [README.md](README.md)
 - read the full Chinese guide: [README_ZH.md](README_ZH.md)
 - inspect installer internals and publishing flow: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
-- read the current version release page: [GitHub Release v1.3.4](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v1.3.4)
+- read the current version release page: [GitHub Release v2.0.0](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.0)
 - enter the application source tree: `Horosa-Web/`
 - inspect shared runtime and diagnostics: `runtime/` and `diagnostics/`
 
