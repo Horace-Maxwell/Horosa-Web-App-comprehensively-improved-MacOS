@@ -5,7 +5,7 @@ import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as SZConst from '../suzhan/SZConst';
 import { XQSelect as Select, XQToggle } from '../xq-ui';
 import XQIcon from '../xq-icons';
-import { GUOLAO_CHART_STYLE_CLASSIC, GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_LIFE_MODE_ASC, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, getStoredGuolaoLifeMode, normalizeGuolaoLifeMode, } from './GuoLaoChartStyle';
+import { GUOLAO_CHART_STYLE_CLASSIC, GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_LIFE_MODE_ASC, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_KETU, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, } from './GuoLaoChartStyle';
 
 const {Option} = Select;
 
@@ -25,21 +25,9 @@ class GuoLaoInput extends Component{
 		this.onChartShapeChange = this.onChartShapeChange.bind(this);
 		this.onChartStyleChange = this.onChartStyleChange.bind(this);
 		this.onLifeModeChange = this.onLifeModeChange.bind(this);
-		this.onHouseStartModeChange = this.onHouseStartModeChange.bind(this);
+		this.onNodeModeChange = this.onNodeModeChange.bind(this);
 		this.onMoiraTransitTimeChanged = this.onMoiraTransitTimeChanged.bind(this);
 		this.onMoiraTransitGodsToggle = this.onMoiraTransitGodsToggle.bind(this);
-
-		let houseStartMode = localStorage.getItem('suzhanHouseStartMode');
-		if(houseStartMode !== undefined && houseStartMode !== null){
-			try{
-				houseStartMode = parseInt(houseStartMode, 10);
-				if(houseStartMode === SZConst.SZHouseStart_ASC){
-					SZConst.SZChart.houseStartMode = SZConst.SZHouseStart_ASC;
-				}
-			}catch(e){
-				SZConst.SZChart.houseStartMode = SZConst.SZHouseStart_Bazi;
-			}
-		}
 	}
 
 	onGenderChange(val){
@@ -168,26 +156,12 @@ class GuoLaoInput extends Component{
 		}
 	}
 
-	onMoiraTransitTimeChanged(value){
-		if(this.props.onMoiraTransitTimeChange){
-			this.props.onMoiraTransitTimeChange(value);
-		}
-	}
-
-	onMoiraTransitGodsToggle(){
-		if(this.props.onMoiraTransitGodsVisibleChange){
-			this.props.onMoiraTransitGodsVisibleChange(!this.props.showMoiraTransitGods);
-		}
-	}
-
-	onHouseStartModeChange(val){
-		SZConst.SZChart.houseStartMode = val;
-		localStorage.setItem('suzhanHouseStartMode', val);
+	onNodeModeChange(val){
 		if(this.props.onFieldsChange){
 			let dt = this.tmHook.getValue().value;
 			this.props.onFieldsChange({
-				houseStartMode: {
-					value: val,
+				guolaoNodeMode: {
+					value: normalizeGuolaoNodeMode(val),
 				},
 				date: {
 					value: dt.clone(),
@@ -201,8 +175,19 @@ class GuoLaoInput extends Component{
 				zone:{
 					value: dt.zone,
 				},
-
 			});
+		}
+	}
+
+	onMoiraTransitTimeChanged(value){
+		if(this.props.onMoiraTransitTimeChange){
+			this.props.onMoiraTransitTimeChange(value);
+		}
+	}
+
+	onMoiraTransitGodsToggle(){
+		if(this.props.onMoiraTransitGodsVisibleChange){
+			this.props.onMoiraTransitGodsVisibleChange(!this.props.showMoiraTransitGods);
 		}
 	}
 
@@ -256,20 +241,15 @@ class GuoLaoInput extends Component{
 			fields.szshape.value !== undefined && fields.szshape.value !== null){
 			szshape = fields.szshape.value;
 		}
-		let houseStartMode = SZConst.SZChart.houseStartMode;
-		if(fields.houseStartMode !== undefined && fields.houseStartMode !== null &&
-			fields.houseStartMode.value !== undefined && fields.houseStartMode.value !== null){
-			houseStartMode = parseInt(fields.houseStartMode.value, 10);
-		}
-		if(houseStartMode !== SZConst.SZHouseStart_ASC){
-			houseStartMode = SZConst.SZHouseStart_Bazi;
-		}
 		const chartStyle = this.props.chartStyle === GUOLAO_CHART_STYLE_PICK
 			? GUOLAO_CHART_STYLE_PICK
 			: (this.props.chartStyle === GUOLAO_CHART_STYLE_MOIRA ? GUOLAO_CHART_STYLE_MOIRA : GUOLAO_CHART_STYLE_CLASSIC);
 		const lifeMode = fields.guolaoLifeMode && fields.guolaoLifeMode.value !== undefined && fields.guolaoLifeMode.value !== null
 			? normalizeGuolaoLifeMode(fields.guolaoLifeMode.value)
 			: getStoredGuolaoLifeMode();
+		const nodeMode = fields.guolaoNodeMode && fields.guolaoNodeMode.value !== undefined && fields.guolaoNodeMode.value !== null
+			? normalizeGuolaoNodeMode(fields.guolaoNodeMode.value)
+			: getStoredGuolaoNodeMode();
 
 		return (
 			<div className="horosa-guolao-input-stack">
@@ -336,10 +316,10 @@ class GuoLaoInput extends Component{
 							</Select>
 						</label>
 						<label className="horosa-guolao-select-field">
-							<span>人事十二宫</span>
-							<Select value={houseStartMode} onChange={this.onHouseStartModeChange} size='small'>
-								<Option value={SZConst.SZHouseStart_Bazi}>八字公式起盘</Option>
-								<Option value={SZConst.SZHouseStart_ASC}>ASC起盘</Option>
+							<span>罗计</span>
+							<Select value={nodeMode} onChange={this.onNodeModeChange} size='small'>
+								<Option value={GUOLAO_NODE_MODE_NORTH_RAHU}>北罗南计</Option>
+								<Option value={GUOLAO_NODE_MODE_NORTH_KETU}>北计南罗</Option>
 							</Select>
 						</label>
 					</div>

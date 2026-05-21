@@ -5205,6 +5205,23 @@
         word-break: break-word;
     }
 
+    .horosa-guolao-quick-style-level label {
+        display: grid;
+        grid-template-columns: auto minmax(120px, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .horosa-guolao-quick-style-level span {
+        display: inline;
+        margin-bottom: 0;
+        white-space: nowrap;
+    }
+
+    .horosa-guolao-quick-style-level input {
+        width: 100%;
+    }
+
     .horosa-guolao-quick-card-grid,
     .horosa-guolao-quick-god-grid {
         display: grid;
@@ -5261,29 +5278,134 @@
     }
 
     .horosa-guolao-quick-pattern-output {
-        padding: 14px 16px;
-        border: 1px solid rgba(205, 166, 103, 0.16);
-        border-radius: 7px;
-        background: rgba(255, 255, 255, 0.82);
-        font-family: "Songti SC", "STSong", serif;
-    }
-
-    .horosa-guolao-quick-pattern-line {
         display: grid;
-        grid-template-columns: max-content minmax(0, 1fr);
-        gap: 14px;
-        align-items: start;
-        color: #001a9d;
-        font-size: 20px;
-        font-weight: 700;
-        line-height: 1.8;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
     }
 
-    .horosa-guolao-quick-pattern-line strong {
-        color: #001a9d;
-        font: inherit;
+    .horosa-guolao-quick-pattern-group {
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid rgba(205, 166, 103, 0.18);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.84);
+        box-shadow: 0 8px 22px rgba(59, 43, 22, 0.06);
+    }
+
+    .horosa-guolao-quick-pattern-group-head {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 12px;
+        min-width: 0;
+    }
+
+    .horosa-guolao-quick-pattern-group-head span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+        flex: 0 0 auto;
+    }
+
+    .horosa-guolao-quick-pattern-group-head strong {
+        min-width: 0;
+        color: var(--horosa-text);
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.25;
+    }
+
+    .horosa-guolao-quick-pattern-group-head em {
+        margin-left: auto;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-style: normal;
+        font-size: 12px;
+        color: var(--horosa-muted);
+        background: rgba(25, 34, 48, 0.06);
+        white-space: nowrap;
+    }
+
+    .horosa-guolao-quick-pattern-chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .horosa-guolao-quick-pattern-chip-list span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(25, 34, 48, 0.08);
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--horosa-text);
+        font-size: 15px;
+        font-weight: 650;
+        line-height: 1.25;
+        box-shadow: 0 2px 8px rgba(31, 34, 42, 0.04);
         word-break: keep-all;
-        white-space: normal;
+    }
+
+    .horosa-guolao-quick-pattern-chip-list i {
+        display: block;
+        padding: 8px 0 2px;
+        color: var(--horosa-text-soft);
+        font-style: normal;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .horosa-guolao-quick-pattern-group-good {
+        border-color: rgba(58, 139, 102, 0.22);
+        background: linear-gradient(180deg, rgba(244, 252, 248, 0.95), rgba(255, 255, 255, 0.86));
+    }
+
+    .horosa-guolao-quick-pattern-group-good .horosa-guolao-quick-pattern-group-head span {
+        background: #278d64;
+    }
+
+    .horosa-guolao-quick-pattern-group-good .horosa-guolao-quick-pattern-chip-list span {
+        border-color: rgba(39, 141, 100, 0.18);
+        background: rgba(235, 249, 242, 0.92);
+        color: #176042;
+    }
+
+    .horosa-guolao-quick-pattern-group-bad {
+        border-color: rgba(185, 83, 68, 0.22);
+        background: linear-gradient(180deg, rgba(255, 247, 244, 0.95), rgba(255, 255, 255, 0.86));
+    }
+
+    .horosa-guolao-quick-pattern-group-bad .horosa-guolao-quick-pattern-group-head span {
+        background: #b75545;
+    }
+
+    .horosa-guolao-quick-pattern-group-bad .horosa-guolao-quick-pattern-chip-list span {
+        border-color: rgba(183, 85, 69, 0.18);
+        background: rgba(255, 240, 236, 0.92);
+        color: #8b3429;
+    }
+
+    @media (max-width: 760px) {
+        .horosa-guolao-quick-pattern-output {
+            grid-template-columns: 1fr;
+        }
+
+        .horosa-guolao-quick-pattern-group-head strong {
+            font-size: 16px;
+        }
+
+        .horosa-guolao-quick-pattern-chip-list span {
+            font-size: 14px;
+        }
     }
 
     .horosa-guolao-quick-table {
@@ -5394,6 +5516,43 @@
 
     :root[data-horosa-appearance='dark'] .horosa-guolao-quick-pattern-bad {
         background: rgba(170, 68, 55, 0.12);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-guolao-quick-pattern-group {
+        background: rgba(255, 255, 255, 0.035);
+        border-color: rgba(215, 173, 105, 0.13);
+        box-shadow: none;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-guolao-quick-pattern-group-head em {
+        color: rgba(245, 233, 212, 0.62);
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-guolao-quick-pattern-group-good {
+        background: rgba(39, 126, 83, 0.10);
+        border-color: rgba(83, 176, 124, 0.18);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-guolao-quick-pattern-group-bad {
+        background: rgba(170, 68, 55, 0.10);
+        border-color: rgba(210, 112, 95, 0.18);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-guolao-quick-pattern-chip-list span {
+        box-shadow: none;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-guolao-quick-pattern-group-good .horosa-guolao-quick-pattern-chip-list span {
+        background: rgba(56, 153, 103, 0.18);
+        border-color: rgba(105, 196, 143, 0.18);
+        color: rgba(219, 252, 232, 0.92);
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-guolao-quick-pattern-group-bad .horosa-guolao-quick-pattern-chip-list span {
+        background: rgba(191, 82, 67, 0.18);
+        border-color: rgba(225, 128, 110, 0.18);
+        color: rgba(255, 224, 218, 0.92);
     }
 
     .horosa-workspace-shell .horosa-bazi-redesign .horosa-bazi-redesign-grid {
@@ -7269,6 +7428,7 @@
     }
 
     .horosa-workspace-shell .horosa-india-select-field {
+        position: relative;
         display: flex;
         flex-direction: column;
         gap: 5px;
@@ -7281,6 +7441,76 @@
 
     .horosa-workspace-shell .horosa-india-style-block {
         padding-top: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-india-jyotish-nav {
+        gap: 9px;
+    }
+
+    .horosa-workspace-shell .horosa-india-jyotish-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .horosa-workspace-shell .horosa-india-jyotish-button {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        gap: 1px 7px;
+        align-items: center;
+        min-width: 0;
+        min-height: 42px;
+        padding: 7px 8px;
+        border: 1px solid rgba(215, 173, 105, 0.14);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.018);
+        color: var(--horosa-astro-text);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+        transition: border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .horosa-workspace-shell .horosa-india-jyotish-button .xq-icon {
+        grid-row: 1 / span 2;
+        color: var(--horosa-astro-gold);
+        font-size: 17px;
+    }
+
+    .horosa-workspace-shell .horosa-india-jyotish-button span {
+        overflow: hidden;
+        font-size: 12px;
+        font-weight: 720;
+        line-height: 1.12;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-india-jyotish-button em {
+        overflow: hidden;
+        color: var(--horosa-astro-muted);
+        font-size: 11px;
+        font-style: normal;
+        line-height: 1.12;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-india-jyotish-button:hover,
+    .horosa-workspace-shell .horosa-india-jyotish-button.is-active {
+        border-color: rgba(231, 189, 117, 0.42);
+        background: rgba(231, 189, 117, 0.08);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-india-jyotish-button {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+        color: var(--horosa-text);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-india-jyotish-button.is-active {
+        background: var(--horosa-gold-soft);
     }
 
     .horosa-workspace-shell .horosa-india-redesign .horosa-india-chart-panel {
@@ -9764,6 +9994,112 @@
 
     .horosa-workspace-shell .horosa-india-summary {
         padding-top: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-india-jyotish-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-top: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-india-data-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-india-data-row {
+        display: grid;
+        grid-template-columns: 78px minmax(0, 1fr);
+        gap: 3px 9px;
+        align-items: center;
+        min-width: 0;
+        padding: 7px 8px;
+        border: 1px solid rgba(215, 173, 105, 0.12);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.018);
+    }
+
+    .horosa-workspace-shell .horosa-india-data-row strong {
+        overflow: hidden;
+        color: var(--horosa-astro-gold);
+        font-size: 13px;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-india-data-row span,
+    .horosa-workspace-shell .horosa-india-data-row em {
+        overflow: hidden;
+        min-width: 0;
+        font-size: 12px;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-india-data-row span {
+        color: var(--horosa-astro-text);
+        font-weight: 650;
+    }
+
+    .horosa-workspace-shell .horosa-india-data-row em {
+        grid-column: 2;
+        color: var(--horosa-astro-muted);
+        font-style: normal;
+    }
+
+    .horosa-workspace-shell .horosa-india-av-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .horosa-workspace-shell .horosa-india-av-cell {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        min-width: 0;
+        padding: 8px 9px;
+        border: 1px solid rgba(215, 173, 105, 0.12);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.018);
+    }
+
+    .horosa-workspace-shell .horosa-india-av-cell span {
+        overflow: hidden;
+        color: var(--horosa-astro-muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-india-av-cell strong {
+        color: var(--horosa-astro-gold);
+        font-size: 15px;
+        line-height: 1.1;
+    }
+
+    .horosa-workspace-shell .horosa-bottom-quick-button.is-active {
+        border-color: rgba(231, 189, 117, 0.42);
+        background: rgba(231, 189, 117, 0.12);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-india-data-row,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-india-av-cell {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-india-data-row span {
+        color: var(--horosa-text);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-bottom-quick-button.is-active {
+        background: var(--horosa-gold-soft);
     }
 
     .horosa-workspace-shell .horosa-india-dasha-panel {

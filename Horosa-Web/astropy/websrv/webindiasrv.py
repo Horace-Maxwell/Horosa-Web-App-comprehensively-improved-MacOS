@@ -1,28 +1,17 @@
 import traceback
 import jsonpickle
 import cherrypy
-from astrostudy.perchart import PerChart
-from astrostudy.helper import getChartJson
 from websrv.helper import enable_crossdomain
-from astrostudy.india.chart2 import Chart2
-from astrostudy.india.chart3 import Chart3
-from astrostudy.india.chart4 import Chart4
-from astrostudy.india.chart5 import Chart5
-from astrostudy.india.chart6 import Chart6
-from astrostudy.india.chart7 import Chart7
-from astrostudy.india.chart8 import Chart8
-from astrostudy.india.chart9 import Chart9
-from astrostudy.india.chart10 import Chart10
-from astrostudy.india.chart11 import Chart11
-from astrostudy.india.chart12 import Chart12
-from astrostudy.india.chart16 import Chart16
-from astrostudy.india.chart20 import Chart20
-from astrostudy.india.chart24 import Chart24
-from astrostudy.india.chart27 import Chart27
-from astrostudy.india.chart30 import Chart30
-from astrostudy.india.chart40 import Chart40
-from astrostudy.india.chart45 import Chart45
-from astrostudy.india.chart60 import Chart60
+from astrostudy.india.india_chart_kernel import IndiaChartKernel
+from astrostudy.india.jyotish_engine import build_jyotish
+from astrostudy.india.varga import apply_varga_chart, normalize_chartnum
+
+
+def getIndiaChartJson(data, indiachart, jyotish=None):
+    obj = indiachart.to_response(data, jyotish)
+    if jyotish is not None:
+        obj['jyotish'] = jyotish
+    return jsonpickle.encode(obj, unpicklable=False)
 
 
 class IndiaAstroSrv:
@@ -43,57 +32,34 @@ class IndiaAstroSrv:
             data['tradition'] = False
             data['predictive'] = False
             data['zodiacal'] = 1
+            data['hsys'] = data.get('indiaHsys', data.get('hsys', 0))
+            data['siderealMode'] = data.get('indiaAyanamsa', data.get('ayanamsa', data.get('siderealMode', 'lahiri')))
             chartnum = 1
             if 'chartnum' in data.keys():
-                chartnum = data['chartnum']
+                try:
+                    chartnum = int(data['chartnum'])
+                except:
+                    chartnum = 1
+            chartnum = normalize_chartnum(chartnum)
 
-            perchart = PerChart(data)
-            indiachart = perchart
-            if chartnum == 2:
-                indiachart = Chart2(perchart)
-            elif chartnum == 3:
-                indiachart = Chart3(perchart)
-            elif chartnum == 4:
-                indiachart = Chart4(perchart)
-            elif chartnum == 5:
-                indiachart = Chart5(perchart)
-            elif chartnum == 6:
-                indiachart = Chart6(perchart)
-            elif chartnum == 7:
-                indiachart = Chart7(perchart)
-            elif chartnum == 8:
-                indiachart = Chart8(perchart)
-            elif chartnum == 9:
-                indiachart = Chart9(perchart)
-            elif chartnum == 10:
-                indiachart = Chart10(perchart)
-            elif chartnum == 11:
-                indiachart = Chart11(perchart)
-            elif chartnum == 12:
-                indiachart = Chart12(perchart)
-            elif chartnum == 16:
-                indiachart = Chart16(perchart)
-            elif chartnum == 20:
-                indiachart = Chart20(perchart)
-            elif chartnum == 24:
-                indiachart = Chart24(perchart)
-            elif chartnum == 27:
-                indiachart = Chart27(perchart)
-            elif chartnum == 30:
-                indiachart = Chart30(perchart)
-            elif chartnum == 40:
-                indiachart = Chart40(perchart)
-            elif chartnum == 45:
-                indiachart = Chart45(perchart)
-            elif chartnum == 60:
-                indiachart = Chart60(perchart)
-            else:
-                res = getChartJson(data, perchart)
-                return res
+            perchart = IndiaChartKernel(data)
+            try:
+                jyotish = build_jyotish(perchart)
+            except:
+                traceback.print_exc()
+                jyotish = {
+                    'engine': {
+                        'name': 'Horosa JyotishEngine',
+                        'version': '0.1.0',
+                        'ephemeris': 'Horosa Swiss Ephemeris / IndiaChartKernel',
+                        'source': 'chart_json_only',
+                        'chartnum': 1,
+                    },
+                    'error': 'jyotish calculation error'
+                }
+            apply_varga_chart(perchart, chartnum)
 
-            indiachart.fractal()
-
-            res = getChartJson(data, perchart)
+            res = getIndiaChartJson(data, perchart, jyotish)
             return res
         except:
             traceback.print_exc()

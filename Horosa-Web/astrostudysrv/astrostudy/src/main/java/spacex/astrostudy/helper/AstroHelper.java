@@ -34,6 +34,13 @@ public class AstroHelper {
 	public static final String Acg = PropertyPlaceholder.getProperty("acg", "/location/acg");
 	public static final String Azimuth = PropertyPlaceholder.getProperty("azimuth", "/calc/azimuth");
 	public static final String Cotrans = PropertyPlaceholder.getProperty("cotrans", "/calc/cotrans");
+	public static final String AstroExtraAnalysis = PropertyPlaceholder.getProperty("astroextra.analysis", "/astroextra/analysis");
+	public static final String AstroExtraEphemeris = PropertyPlaceholder.getProperty("astroextra.ephemeris", "/astroextra/ephemeris");
+	public static final String AstroExtraProgressions = PropertyPlaceholder.getProperty("astroextra.progressions", "/astroextra/progressions");
+	public static final String AstroExtraReturns = PropertyPlaceholder.getProperty("astroextra.returns", "/astroextra/returns");
+	public static final String AstroExtraHarmonic = PropertyPlaceholder.getProperty("astroextra.harmonic", "/astroextra/harmonic");
+	public static final String AstroExtraRelative = PropertyPlaceholder.getProperty("astroextra.relative", "/astroextra/relative");
+	public static final String PlanetariumState = PropertyPlaceholder.getProperty("planetarium.state", "/planetarium/state");
 	
 	private static Map<String, Object> request(String path, Map<String, Object> params){
 		if(Debug || DisableRequestCache) {
@@ -144,5 +151,33 @@ public class AstroHelper {
 	public static Map<String, Object> getCotrans(Map<String, Object> params){
 		return requestNoCache(Cotrans, params);
 	}
-	
-}
+
+	public static Map<String, Object> getAstroExtraAnalysis(Map<String, Object> params){
+		return requestNoCache(AstroExtraAnalysis, params);
+	}
+
+	public static Map<String, Object> getAstroExtraEphemeris(Map<String, Object> params){
+		return requestNoCache(AstroExtraEphemeris, params);
+	}
+
+	public static Map<String, Object> getAstroExtraProgressions(Map<String, Object> params){
+		return requestNoCache(AstroExtraProgressions, params);
+	}
+
+	public static Map<String, Object> getAstroExtraReturns(Map<String, Object> params){
+		return requestNoCache(AstroExtraReturns, params);
+	}
+
+	public static Map<String, Object> getAstroExtraHarmonic(Map<String, Object> params){
+		return requestNoCache(AstroExtraHarmonic, params);
+	}
+
+	public static Map<String, Object> getAstroExtraRelative(Map<String, Object> params){
+		return requestNoCache(AstroExtraRelative, params);
+	}
+
+	public static Map<String, Object> getPlanetariumState(Map<String, Object> params){
+		return requestNoCache(PlanetariumState, params);
+	}
+		
+	}

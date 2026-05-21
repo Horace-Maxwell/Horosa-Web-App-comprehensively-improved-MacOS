@@ -136,19 +136,7 @@ export function getObjectLabel(obj){
 	return `${cn}`.slice(0, 2);
 }
 
-export function getObjectDegree(obj){
-	let value = obj && obj.signlon !== undefined && obj.signlon !== null ? obj.signlon : null;
-	if(value === null && obj && obj.lon !== undefined && obj.lon !== null){
-		value = normalizeDegree(obj.lon) % 30;
-	}
-	if(value === null){
-		return '';
-	}
-	const degs = splitDegree(value);
-	return `${degs[0]}°`;
-}
-
-function getDegreeText(value){
+function formatIndiaDegree(value, degreeDisplayMode){
 	if(value === undefined || value === null || value === ''){
 		return '';
 	}
@@ -156,11 +144,45 @@ function getDegreeText(value){
 	if(!Number.isFinite(num)){
 		return '';
 	}
-	const degs = splitDegree(num);
-	return `${degs[0]}°`;
+	const normalizedValue = ((num % 30) + 30) % 30;
+	if(degreeDisplayMode !== 'full'){
+		return `${Math.floor(normalizedValue)}°`;
+	}
+	const degs = splitDegree(normalizedValue);
+	return `${degs[0]}°${`${degs[1]}`.padStart(2, '0')}′`;
 }
 
-export function getHouseCuspDegree(chartObj, houseNumber, signNumber){
+export function getObjectDegree(obj, degreeDisplayMode){
+	let value = obj && obj.signlon !== undefined && obj.signlon !== null ? obj.signlon : null;
+	if(value === null && obj && obj.lon !== undefined && obj.lon !== null){
+		value = normalizeDegree(obj.lon) % 30;
+	}
+	return formatIndiaDegree(value, degreeDisplayMode);
+}
+
+function getDegreeText(value, degreeDisplayMode){
+	return formatIndiaDegree(value, degreeDisplayMode);
+}
+
+function getIndiaAyanamsaLabel(chartObj){
+	const params = chartObj && chartObj.params ? chartObj.params : {};
+	const key = params.ayanamsa || AstroConst.INDIA_AYANAMSA_DEFAULT;
+	const found = AstroConst.INDIA_AYANAMSA_OPTIONS.find((item)=>item.value === key);
+	return found ? found.label : (params.ayanamsaLabel || key || 'Lahiri');
+}
+
+function getIndiaHouseSystemLabel(chartObj){
+	const params = chartObj && chartObj.params ? chartObj.params : {};
+	const hsys = AstroConst.normalizeIndiaHouseSystem(params.hsys);
+	const found = AstroConst.INDIA_HOUSE_SYSTEM_OPTIONS.find((item)=>item.value === hsys);
+	return found ? found.label : `${params.hsys}`;
+}
+
+export function getIndiaChartOptionNote(chartObj){
+	return `${getIndiaAyanamsaLabel(chartObj)} · ${getIndiaHouseSystemLabel(chartObj)}`;
+}
+
+export function getHouseCuspDegree(chartObj, houseNumber, signNumber, degreeDisplayMode){
 	const houses = chartObj && chartObj.chart && Array.isArray(chartObj.chart.houses) ? chartObj.chart.houses : [];
 	const house = houses.find((item)=>item.id === `House${houseNumber}`);
 	if(!house){
@@ -172,14 +194,14 @@ export function getHouseCuspDegree(chartObj, houseNumber, signNumber){
 		if(signNumber && lonSignNumber !== signNumber){
 			return '';
 		}
-		return getDegreeText(normalizedLon % 30);
+		return getDegreeText(normalizedLon % 30, degreeDisplayMode);
 	}
 	if(house.signlon !== undefined && house.signlon !== null){
 		const houseSignNumber = getSignNumber(house);
 		if(houseSignNumber && signNumber && houseSignNumber !== signNumber){
 			return '';
 		}
-		return getDegreeText(house.signlon);
+		return getDegreeText(house.signlon, degreeDisplayMode);
 	}
 	return '';
 }
@@ -248,7 +270,7 @@ class IndiaSouthChart extends Component{
 	renderObject(obj, idx){
 		const retro = obj && Number(obj.lonspeed) < 0;
 		const label = getObjectLabel(obj);
-		const degree = getObjectDegree(obj);
+		const degree = getObjectDegree(obj, this.props.degreeDisplayMode);
 		const titleName = AstroText.AstroMsgCN[obj.id] || obj.name || obj.id;
 		return (
 			<span
@@ -269,7 +291,7 @@ class IndiaSouthChart extends Component{
 		const houseNumber = getHouseNumberForSign(signNumber, ascSignNumber);
 		const objects = objectsBySign[signNumber] || [];
 		const signName = AstroText.AstroMsgCN[sign] || sign;
-		const cuspDegree = getHouseCuspDegree(chartObj, houseNumber, signNumber);
+		const cuspDegree = getHouseCuspDegree(chartObj, houseNumber, signNumber, this.props.degreeDisplayMode);
 		const isAscCell = houseNumber === 1;
 		return (
 			<div
@@ -330,7 +352,7 @@ class IndiaSouthChart extends Component{
 					<div className="horosa-india-square-center">
 						<div className="horosa-india-square-center-d">D{chartnum}</div>
 						<div className="horosa-india-square-center-label">{label}</div>
-						<div className="horosa-india-square-center-note">固定星座 · 顺时宫位</div>
+						<div className="horosa-india-square-center-note">{getIndiaChartOptionNote(chartObj)}</div>
 					</div>
 				</div>
 			</div>

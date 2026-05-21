@@ -6,6 +6,7 @@ import AstroAspect from './AstroAspect';
 import AstroPlanet from './AstroPlanet';
 import AstroLots from './AstroLots';
 import AstroPredictPlanetSign from './AstroPredictPlanetSign';
+import AstroAnalysisLab from './AstroAnalysisLab';
 import AspSelector from './AspSelector';
 import ChartDisplaySelector from './ChartDisplaySelector';
 import PlanetSelector from './PlanetSelector';
@@ -520,7 +521,7 @@ class AstroChartMain extends Component{
 								onChange={this.changeHsys}
 								value={this.props.fields.hsys.value}
 								size='small'>
-								{ getHousesOption() }
+								{ getHousesOption(true) }
 							</XQSelect>
 						</div>
 					) : null}
@@ -659,7 +660,7 @@ class AstroChartMain extends Component{
 								value={this.props.fields.hsys.value}
 								size="small"
 							>
-								{ getHousesOption() }
+								{ getHousesOption(true) }
 							</XQSelect>
 						</div>
 					) : null}
@@ -848,25 +849,31 @@ class AstroChartMain extends Component{
 							) : null}
 						</div>
 					</TabPane>
-					<TabPane tab="古典" key="4">
-						<AstroInfo mode="classical" height={tabHeight}
-							value={chartObj} fields={fields}
+						<TabPane tab="古典" key="4">
+							<AstroInfo mode="classical" height={tabHeight}
+								value={chartObj} fields={fields}
 							planetDisplay={this.props.planetDisplay}
 							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 							showAstroMeaning={this.props.showAstroMeaning}
 							showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
 						/>
 					</TabPane>
-					<TabPane tab="可能性" key="5">
-						<AstroPredictPlanetSign height={tabHeight}
-							value={chartObj} fields={fields}
+						<TabPane tab="可能性" key="5">
+							<AstroPredictPlanetSign height={tabHeight}
+								value={chartObj} fields={fields}
 							planetDisplay={this.props.planetDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-						/>
-					</TabPane>
-				</XQTabs>
-			</div>
-		);
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+							/>
+						</TabPane>
+						<TabPane tab="格局" key="6">
+							<AstroAnalysisLab
+								value={chartObj}
+								height={tabHeight}
+							/>
+						</TabPane>
+					</XQTabs>
+				</div>
+			);
 	}
 
 	render(){
