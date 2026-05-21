@@ -12,6 +12,8 @@
   "primaryDownload": "Horosa-Installer-macos-arm64-offline.pkg",
   "supportedArch": "arm64",
   "releaseChannel": "beta",
+  "releasePrerelease": false,
+  "releaseMakeLatest": true,
   "releaseTagPrefix": "v",
   "appName": "星阙"
 }
