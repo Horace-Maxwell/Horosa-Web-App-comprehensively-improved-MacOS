@@ -292,7 +292,7 @@ function hooking(hook, currentTab, fields, chartObj){
 		|| currentTab === 'fengshui' || currentTab === 'sanshiunited' || currentTab === 'aianalysis'
 		|| currentTab === 'bazi' || currentTab === 'ziwei' || currentTab === 'guazhan'
 		|| currentTab === 'liureng' || currentTab === 'dunjia' || currentTab === 'taiyi'
-		|| currentTab === 'auxchart'){
+		|| currentTab === 'auxchart' || currentTab === 'planetarium'){
 		if(hook[currentTab].fun){
 			hook[currentTab].fun(fields, chartObj)
 		}
@@ -335,6 +335,9 @@ export default {
 				fun: null
 			},
 			astrochart3D:{
+				fun: null
+			},
+			planetarium:{
 				fun: null
 			},
 			direction:{

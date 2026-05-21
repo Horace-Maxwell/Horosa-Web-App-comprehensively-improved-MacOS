@@ -28,6 +28,25 @@ const INDIA_QUICK_ACTIONS = [
 	{ key: 'south', label: '南印', icon: 'quickReturn', action: 'style', style: AstroConst.INDIA_CHART_STYLE_SOUTH },
 	{ key: 'east', label: '东印', icon: 'quickTransit', action: 'style', style: AstroConst.INDIA_CHART_STYLE_EAST },
 	{ key: 'dasha', label: '大运', icon: 'quickNote', action: 'infoTab', infoTab: '3' },
+	{ key: 'yoga', label: 'Yoga', icon: 'target', action: 'infoTab', infoTab: '7' },
+];
+const YOGA_CATEGORY_LABELS = {
+	'Pancha Mahapurusha': '五大人瑜伽',
+	Lunar: '月亮瑜伽',
+	Solar: '太阳瑜伽',
+	Raja: '王瑜伽',
+	Dhana: '财富瑜伽',
+	Viparita: '逆转王瑜伽',
+	Parivartana: '交换瑜伽',
+	Nabhasa: '形态瑜伽',
+	Challenge: '挑战/煞',
+	Support: '保护瑜伽',
+	Association: '星体关联',
+	Spiritual: '出离/灵性',
+};
+const YOGA_CATEGORY_ORDER = [
+	'Pancha Mahapurusha', 'Raja', 'Dhana', 'Lunar', 'Solar', 'Viparita',
+	'Parivartana', 'Nabhasa', 'Support', 'Association', 'Spiritual', 'Challenge',
 ];
 const DASHA_SEQUENCE = [
 	{ key: 'Ketu', label: '计都', en: 'Ketu', years: 7 },
@@ -320,6 +339,14 @@ function getJyotish(chartObj){
 	return chartObj && chartObj.jyotish ? chartObj.jyotish : null;
 }
 
+function hasYogaPayload(chartObj){
+	return !!(chartObj && chartObj.jyotish && chartObj.jyotish.yogas !== undefined);
+}
+
+function hasJyotishPayload(chartObj){
+	return !!(chartObj && chartObj.jyotish);
+}
+
 function formatJyotishDate(value){
 	if(!value){
 		return '—';
@@ -411,10 +438,10 @@ function resolveJyotishChartObj(state, fields){
 	if(!state || !activeKey){
 		return null;
 	}
-	if(state.mainChartObj && state.mainChartObj.jyotish && state.mainChartKey === activeKey){
+	if(hasJyotishPayload(state.mainChartObj) && state.mainChartKey === activeKey){
 		return state.mainChartObj;
 	}
-	return (state.dashaChartObj && state.dashaChartKey === activeKey)
+	return (hasJyotishPayload(state.dashaChartObj) && state.dashaChartKey === activeKey)
 		? state.dashaChartObj
 		: null;
 }
@@ -423,10 +450,10 @@ function hasUsableJyotishChart(state, fieldsKey){
 	if(!state || !fieldsKey){
 		return false;
 	}
-	if(state.mainChartObj && state.mainChartObj.jyotish && state.mainChartKey === fieldsKey){
+	if(hasYogaPayload(state.mainChartObj) && state.mainChartKey === fieldsKey){
 		return true;
 	}
-	if(state.dashaChartObj && state.dashaChartObj.jyotish && state.dashaChartKey === fieldsKey){
+	if(hasYogaPayload(state.dashaChartObj) && state.dashaChartKey === fieldsKey){
 		return true;
 	}
 	return false;
@@ -956,7 +983,7 @@ class IndiaChartMain extends Component{
 		this.setState({
 			mainChartObj: chartObj || null,
 			mainChartKey,
-			dashaLoading: mainChartKey && mainChartKey === activeKey && chartObj && chartObj.jyotish ? false : this.state.dashaLoading,
+			dashaLoading: mainChartKey && mainChartKey === activeKey && hasYogaPayload(chartObj) ? false : this.state.dashaLoading,
 		});
 	}
 
@@ -967,6 +994,7 @@ class IndiaChartMain extends Component{
 			{ key: '4', icon: 'sidePlanets', title: '星曜', sub: '状态' },
 			{ key: '5', icon: 'target', title: '八分', sub: 'AV' },
 			{ key: '6', icon: 'quickTransit', title: 'KP', sub: '择时' },
+			{ key: '7', icon: 'target', title: 'Yoga', sub: '组合' },
 		];
 		return (
 			<div className="horosa-india-input-section horosa-india-jyotish-nav">
@@ -1162,6 +1190,79 @@ class IndiaChartMain extends Component{
 								<strong>{planet}</strong>
 								<span>{Object.values(ashtakavarga.bhinna[planet]).reduce((sum, value)=>sum + value, 0)} bindu</span>
 								<em>按 BPHS 表计算</em>
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	renderYogaPanel(fields){
+		const jyotish = getJyotish(resolveJyotishChartObj(this.state, fields));
+		const yogas = jyotish ? jyotish.yogas : null;
+		if(!yogas){
+			return <div className="horosa-india-dasha-empty">Yoga 计算中...</div>;
+		}
+		if(yogas.available === false){
+			return <div className="horosa-india-dasha-empty">Yoga 暂不可用：{yogas.error || yogas.reason || '后端未返回数据'}</div>;
+		}
+		const items = Array.isArray(yogas.items) ? yogas.items : [];
+		const summary = yogas.summary || {};
+		const grouped = items.reduce((map, item)=>{
+			const category = item.category || 'Other';
+			if(!map[category]){
+				map[category] = [];
+			}
+			map[category].push(item);
+			return map;
+		}, {});
+		const categories = Object.keys(grouped).sort((a, b)=>{
+			const ai = YOGA_CATEGORY_ORDER.indexOf(a);
+			const bi = YOGA_CATEGORY_ORDER.indexOf(b);
+			const av = ai >= 0 ? ai : 99;
+			const bv = bi >= 0 ? bi : 99;
+			if(av !== bv){
+				return av - bv;
+			}
+			return a.localeCompare(b);
+		});
+		return (
+			<div className="horosa-india-jyotish-panel">
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">Yoga 命盘组合</div>
+					<div className="horosa-info-row"><span>规则目录</span><strong>{yogas.engine && yogas.engine.catalogVersion ? yogas.engine.catalogVersion : 'core_yoga_catalog'}</strong></div>
+					<div className="horosa-info-row"><span>命中总数</span><strong>{summary.total || items.length}</strong></div>
+					<div className="horosa-info-row"><span>强/中/弱</span><strong>{summary.strong || 0} / {summary.medium || 0} / {summary.weak || 0}</strong></div>
+					<div className="horosa-info-row"><span>口径</span><strong>D1 Rashi 盘为主，按星座/宫位/照射/交换判定</strong></div>
+				</div>
+				{categories.length ? categories.map((category)=>(
+					<div className="horosa-info-card" key={category}>
+						<div className="horosa-info-card-title">{YOGA_CATEGORY_LABELS[category] || category}</div>
+						<div className="horosa-india-data-list">
+							{grouped[category].map((item)=>(
+								<div className="horosa-india-data-row" key={item.id}>
+									<strong>{item.zhName || item.name}</strong>
+									<span>{item.name} · {item.levelLabel || item.level || '—'} · {item.score || 0}</span>
+									<em>{Array.isArray(item.evidence) && item.evidence.length ? item.evidence.slice(0, 2).join('；') : item.result || '—'}</em>
+								</div>
+							))}
+						</div>
+					</div>
+				)) : (
+					<div className="horosa-info-card">
+						<div className="horosa-info-card-title">命中 Yoga</div>
+						<div className="horosa-india-dasha-empty">当前规则目录未命中可显示的 Yoga</div>
+					</div>
+				)}
+				<div className="horosa-info-card">
+					<div className="horosa-info-card-title">规则说明</div>
+					<div className="horosa-india-data-list">
+						{(yogas.notes || []).map((note, idx)=>(
+							<div className="horosa-india-data-row" key={`note_${idx}`}>
+								<strong>说明{idx + 1}</strong>
+								<span>{note}</span>
+								<em>{idx === 0 ? '命盘 Yoga 与 Panchanga Yoga 已分开' : '可继续扩展规则目录'}</em>
 							</div>
 						))}
 					</div>
@@ -1491,6 +1592,9 @@ class IndiaChartMain extends Component{
 								</TabPane>
 								<TabPane tab="KP/择时" key="6">
 									{this.renderKpMuhurtaPanel(jyotishFields)}
+								</TabPane>
+								<TabPane tab="Yoga" key="7">
+									{this.renderYogaPanel(jyotishFields)}
 								</TabPane>
 							</Tabs>
 						</div>

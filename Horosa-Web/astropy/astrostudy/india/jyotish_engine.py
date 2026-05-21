@@ -5,6 +5,8 @@ from flatlib import const
 from flatlib.datetime import Datetime
 from flatlib.ephem import eph
 
+from astrostudy.india.yoga_engine import build_yogas
+
 
 SIGN_CN = {
     const.ARIES: '白羊',
@@ -282,6 +284,7 @@ class JyotishEngine:
             },
             'panchanga': self.panchanga(),
             'nakshatras': self.nakshatras(),
+            'yogas': self.yogas(),
             'dasha': {
                 'vimshottari': self.vimshottari(),
             },
@@ -295,6 +298,15 @@ class JyotishEngine:
             'transit': self.transit_notes(),
             'compatibility': self.compatibility_shell(),
         }
+
+    def yogas(self):
+        try:
+            return build_yogas(self.perchart)
+        except Exception as exc:
+            return {
+                'available': False,
+                'error': str(exc),
+            }
 
     def panchanga(self):
         sun_lon = getattr(self.sun, 'lon', 0)

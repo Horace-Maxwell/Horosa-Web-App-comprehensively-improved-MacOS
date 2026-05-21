@@ -40,6 +40,8 @@ from websrv.webjieqisrv import JieQiSrv
 from websrv.webjdn import WebJdnSrv
 from websrv.webcalc import WebCalcSrv
 from websrv.webacgsrv import AcgSrv
+from websrv.webastroextrasrv import AstroExtraSrv
+from websrv.webplanetariumsrv import PlanetariumSrv
 
 
 
@@ -253,6 +255,8 @@ if __name__ == '__main__':
     cherrypy.tree.mount(WebJdnSrv(), '/jdn')
     cherrypy.tree.mount(WebCalcSrv(), '/calc')
     cherrypy.tree.mount(AcgSrv(), '/location')
+    cherrypy.tree.mount(AstroExtraSrv(), '/astroextra')
+    cherrypy.tree.mount(PlanetariumSrv(), '/planetarium')
 
     cherrypy.engine.start()
     cherrypy.engine.block()

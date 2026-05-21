@@ -11,6 +11,7 @@ import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 
 const indiaChartCache = new Map();
 const indiaChartInflight = new Map();
+const INDIA_CHART_CACHE_REV = 'india_kernel_varga_v2_yoga_v1';
 
 export function fieldsToParams(fields, overrides = {}){
 	const indiaHsys = overrides.indiaHsys !== undefined && overrides.indiaHsys !== null
@@ -33,6 +34,7 @@ export function fieldsToParams(fields, overrides = {}){
 		indiaAyanamsa,
 		ayanamsa: indiaAyanamsa,
 		siderealMode: indiaAyanamsa,
+		_jyotishRev: INDIA_CHART_CACHE_REV,
 		zodiacal: 1,
 		tradition: fields.tradition.value,
 		strongRecption: fields.strongRecption.value,
@@ -89,6 +91,7 @@ function buildIndiaChartCacheKey(params){
 		hsys: params.hsys,
 		indiaHsys: params.indiaHsys,
 		indiaAyanamsa: params.indiaAyanamsa || AstroConst.INDIA_AYANAMSA_DEFAULT,
+		jyotishRev: params._jyotishRev || INDIA_CHART_CACHE_REV,
 		zodiacal: params.zodiacal,
 		tradition: params.tradition,
 		strongRecption: params.strongRecption,
@@ -98,14 +101,21 @@ function buildIndiaChartCacheKey(params){
 		name: params.name || '',
 		pos: params.pos || '',
 		chartnum: params.chartnum || 1,
-		jyotishRev: 'india_kernel_varga_v2',
 	};
 	return JSON.stringify(normalized);
+}
+
+function hasCurrentJyotishPayload(result){
+	return !!(result && result.jyotish && result.jyotish.yogas);
 }
 
 export async function requestIndiaChartData(params){
 	const cacheKey = buildIndiaChartCacheKey(params);
 	let result = indiaChartCache.get(cacheKey);
+	if(result && !hasCurrentJyotishPayload(result)){
+		indiaChartCache.delete(cacheKey);
+		result = null;
+	}
 	if(!result){
 		let inflight = indiaChartInflight.get(cacheKey);
 		if(!inflight){
@@ -116,7 +126,7 @@ export async function requestIndiaChartData(params){
 					return null;
 				}
 				const resolved = data[Constants.ResultKey];
-				if(resolved){
+				if(resolved && hasCurrentJyotishPayload(resolved)){
 					indiaChartCache.set(cacheKey, resolved);
 				}
 				return resolved;

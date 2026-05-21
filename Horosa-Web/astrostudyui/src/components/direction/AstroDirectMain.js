@@ -12,6 +12,9 @@ import AstroGivenYear from '../astro/AstroGivenYear';
 import AstroSolarArc from '../astro/AstroSolarArc';
 import AstroProfection from '../astro/AstroProfection';
 import AstroDecennials from '../astro/AstroDecennials';
+import AstroEphemeris from '../astro/AstroEphemeris';
+import AstroProgressions from '../astro/AstroProgressions';
+import AstroReturnTimeline from '../astro/AstroReturnTimeline';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from '../astro/AstroHelper';
@@ -463,11 +466,20 @@ class AstroDirectMain extends Component{
 				decennials:{
 					fun: null
 				},
-				zodialrelease:{
-					fun: null
+					zodialrelease:{
+						fun: null
+					},
+					ephemeris:{
+						fun: null
+					},
+					progressions:{
+						fun: null
+					},
+					returntimeline:{
+						fun: null
+					},
+		
 				},
-	
-			},
 		};
 
 		this.changeTab = this.changeTab.bind(this);
@@ -1019,9 +1031,27 @@ class AstroDirectMain extends Component{
 							showAstroMeaning={this.props.showAstroMeaning}
 							hook={this.state.hook.decennials}
 						/>
-					</TabPane>
+						</TabPane>
+						<TabPane tab="星历" key="ephemeris">
+							<AstroEphemeris
+								value={this.props.chartObj}
+								height={height}
+							/>
+						</TabPane>
+						<TabPane tab="推运" key="progressions">
+							<AstroProgressions
+								value={this.props.chartObj}
+								height={height}
+							/>
+						</TabPane>
+						<TabPane tab="回归轴" key="returntimeline">
+							<AstroReturnTimeline
+								value={this.props.chartObj}
+								height={height}
+							/>
+						</TabPane>
 
-				</Tabs>
+					</Tabs>
 			</div>
 		);
 	}

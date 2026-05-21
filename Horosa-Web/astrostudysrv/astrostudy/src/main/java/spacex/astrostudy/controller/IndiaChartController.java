@@ -80,7 +80,10 @@ public class IndiaChartController {
 		params.put("lon", TransData.get("lon"));
 		// Bust legacy local/runtime cache entries after PD method/time-key response wiring changes.
 		params.put("_wireRev", "pd_method_sync_v8");
-		params.put("_indiaOptionsRev", "india_kernel_v1");
+		params.put("_indiaOptionsRev", "india_kernel_yoga_v1");
+		if(TransData.containsParam("_jyotishRev")) {
+			params.put("_jyotishRev", TransData.getValueAsString("_jyotishRev"));
+		}
 		params.put("hsys", TransData.getValueAsInt("indiaHsys", TransData.getValueAsInt("hsys", 0)));
 		params.put("indiaHsys", TransData.getValueAsInt("indiaHsys", TransData.getValueAsInt("hsys", 0)));
 		String indiaAyanamsa = "lahiri";
