@@ -67,10 +67,19 @@ SEACTIVE_PATH = None
 SEACTIVE_MODE = None
 SEACTIVE_JPL_FILE = None
 
-SE_SIDM_LAHIRI = 1
+SE_SIDM_FAGAN_BRADLEY = getattr(swisseph, 'SIDM_FAGAN_BRADLEY', 0)
+SE_SIDM_LAHIRI = getattr(swisseph, 'SIDM_LAHIRI', 1)
+SE_SIDM_DELUCE = getattr(swisseph, 'SIDM_DELUCE', 2)
+SE_SIDM_RAMAN = getattr(swisseph, 'SIDM_RAMAN', 3)
+SE_SIDM_USHASHASHI = getattr(swisseph, 'SIDM_USHASHASHI', 4)
+SE_SIDM_KRISHNAMURTI = getattr(swisseph, 'SIDM_KRISHNAMURTI', 5)
+SE_SIDM_YUKTESHWAR = getattr(swisseph, 'SIDM_YUKTESHWAR', 7)
 SE_SIDM_J2000 = 18
 SE_SIDM_J1900 = 19
 SE_SIDM_B1950 = 20
+SE_SIDM_TRUE_CITRA = getattr(swisseph, 'SIDM_TRUE_CITRA', 27)
+SE_SIDM_TRUE_REVATI = getattr(swisseph, 'SIDM_TRUE_REVATI', 28)
+SE_SIDM_KRISHNAMURTI_VP291 = getattr(swisseph, 'SIDM_KRISHNAMURTI_VP291', 45)
 SEDEFAULT_SIDM__MODE = SE_SIDM_LAHIRI
 SE_SIDM_USER = getattr(swisseph, 'SIDM_USER', 255)
 _SIDEREAL_CONTEXT = threading.local()
@@ -136,7 +145,15 @@ SWE_HOUSESYS = {
     const.HOUSES_ALCABITUS: b'B',
     const.HOUSES_SRIPATI: b'S',
     const.HOUSES_MORINUS: b'M',
-    const.HOUSES_EQUAL_MC: b'D'
+    const.HOUSES_EQUAL_MC: b'D',
+    const.HOUSES_CARTER_POLI_EQUATORIAL: b'F',
+    const.HOUSES_SUNSHINE: b'I',
+    const.HOUSES_SUNSHINE_ALT: b'i',
+    const.HOUSES_KRUSINSKI: b'U',
+    const.HOUSES_PULLEN_SD: b'L',
+    const.HOUSES_PULLEN_SR: b'Q',
+    const.HOUSES_APC: b'Y',
+    const.HOUSES_SAVARD_A: b'J'
 }
 
 

@@ -7,6 +7,7 @@ import AstroComposite from '../relative/AstroComposite'
 import AstroSynastry from '../relative/AstroSynastry'
 import AstroTimeSpace from '../relative/AstroTimeSpace'
 import AstroMarks from '../relative/AstroMarks'
+import AstroRelativeScore from '../relative/AstroRelativeScore'
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import * as AstroText from '../../constants/AstroText';
@@ -206,12 +207,18 @@ class AstroRelative extends Component{
 					result: null,
 					fun: null
 				},
-				Marks:{
-					txt:'马克斯盘',
-					relative: 4,
-					result: null,
-					fun: null
-				},
+					Marks:{
+						txt:'马克斯盘',
+						relative: 4,
+						result: null,
+						fun: null
+					},
+					Score:{
+						txt:'关系量化',
+						relative: 0,
+						result: null,
+						fun: null
+					},
 
 			},
 		}
@@ -537,9 +544,9 @@ class AstroRelative extends Component{
 										hook={hook.TimeSpace}	
 									/>
 							</TabPane>
-							<TabPane tab="马克斯盘" key="Marks">
-									<AstroMarks 
-										value={hook.Marks.result}
+								<TabPane tab="马克斯盘" key="Marks">
+										<AstroMarks 
+											value={hook.Marks.result}
 									height={height}
 									fields={this.props.fields}
 									chartA={this.state.chartA}
@@ -550,10 +557,16 @@ class AstroRelative extends Component{
 										showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 										showAstroMeaning={this.props.showAstroMeaning}
 										hook={hook.Marks}	
-									/>
-							</TabPane>
+										/>
+								</TabPane>
+								<TabPane tab="关系量化" key="Score">
+										<AstroRelativeScore
+											params={this.genParams()}
+											height={height}
+										/>
+								</TabPane>
 
-						</Tabs>
+							</Tabs>
 					</Col>
 				</Row>
 			</div>

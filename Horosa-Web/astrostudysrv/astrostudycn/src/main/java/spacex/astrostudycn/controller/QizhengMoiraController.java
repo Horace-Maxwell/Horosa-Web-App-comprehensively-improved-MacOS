@@ -29,7 +29,17 @@ public class QizhengMoiraController {
 		if(paramsObj instanceof Map) {
 			params = (Map<String, Object>) paramsObj;
 		}
-		Map<String, Object> res = moiraRuleService.analyze((Map<String, Object>) chartObj, params);
+		Map<String, Object> transitParams = Collections.emptyMap();
+		Object transitParamsObj = TransData.get("transitParams");
+		if(transitParamsObj instanceof Map) {
+			transitParams = (Map<String, Object>) transitParamsObj;
+		}
+		Map<String, Object> transitChartObj = Collections.emptyMap();
+		Object transitChartRaw = TransData.get("transitChartObj");
+		if(transitChartRaw instanceof Map) {
+			transitChartObj = (Map<String, Object>) transitChartRaw;
+		}
+		Map<String, Object> res = moiraRuleService.analyze((Map<String, Object>) chartObj, params, transitChartObj, transitParams);
 		TransData.set(res);
 	}
 }

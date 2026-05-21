@@ -33,6 +33,7 @@
 		"@monaco-editor/react": "^4.7.0",
 		"ajv": "^8.17.1",
 		"ajv-formats": "^3.0.1",
+		"babylonjs": "^7.54.3",
 		"d3": "^7.8.4",
 		"docx": "^9.5.1",
 		"drag-modal": "^1.0.6",

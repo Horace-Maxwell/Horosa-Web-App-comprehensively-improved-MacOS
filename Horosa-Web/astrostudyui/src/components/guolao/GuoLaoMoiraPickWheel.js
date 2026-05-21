@@ -24,6 +24,7 @@ import {
 	moiraRadialLine as radialLine,
 	moiraVerticalText as verticalText,
 	moiraGetZiGods as getZiGods,
+	moiraBuildStellarRelations as buildStellarRelations,
 	MOIRA_BIRTH_GOD_ORDER as BIRTH_GOD_ORDER,
 } from './GuoLaoMoiraWheel';
 import './GuoLaoMoiraWheel.less';
@@ -63,6 +64,16 @@ function shortPlanetLine(theta, inner, outer, dir, opt = {}){
 		return radialLine(theta, inner, Math.min(outer, inner + length), opt);
 	}
 	return radialLine(theta, Math.max(inner, outer - length), outer, opt);
+}
+
+function listText(items, empty = '无'){
+	const list = (items || []).filter(Boolean);
+	return list.length ? list.join('、') : empty;
+}
+
+function yearSignRowForZi(rules, zi){
+	const rows = rules && rules.natalYearStars ? rules.natalYearStars : [];
+	return rows.find((row)=>row && row.zi === zi) || null;
 }
 
 class GuoLaoMoiraPickWheel extends Component{
@@ -123,10 +134,11 @@ class GuoLaoMoiraPickWheel extends Component{
 	}
 
 	tooltipPoint(evt){
-		const box = this.containerRef.current ? this.containerRef.current.getBoundingClientRect() : {left: 0, top: 0};
+		const maxX = typeof window !== 'undefined' ? Math.max(12, window.innerWidth - 440) : evt.clientX + 14;
+		const maxY = typeof window !== 'undefined' ? Math.max(12, window.innerHeight - 220) : evt.clientY + 16;
 		return {
-			x: evt.clientX - box.left + 14,
-			y: evt.clientY - box.top + 16,
+			x: Math.min(evt.clientX + 14, maxX),
+			y: Math.min(evt.clientY + 16, maxY),
 		};
 	}
 
@@ -268,13 +280,22 @@ class GuoLaoMoiraPickWheel extends Component{
 
 	renderStaticCore(){
 		const nodes = [];
+		const root = this.props.rootValue || {};
+		const chart = this.props.value || root.chart || {};
+		const ziGods = getZiGods(root, chart);
 			for(let i = 0; i < 12; i++){
 				const start = i * 30;
 				const end = (i + 1) * 30;
 				const theta = pickThetaFromDegree(sectorCenter(i, 12));
 				const houseNameRadius = (r(2) + r(3)) / 2;
 				const houseNumberRadius = (r(1) + r(2)) / 2;
-				const tip = `${BRANCHES[i]}：${HOUSE_LABEL[i]}；同经：${INNER_PAIR[i]}`;
+				const gods = orderedGods(collectGods(ziGods, BRANCHES[i]), BIRTH_GOD_ORDER);
+				const yearRow = yearSignRowForZi(this.props.moiraRules, BRANCHES[i]);
+				const tip = [
+					`${BRANCHES[i]}：${HOUSE_LABEL[i]}；同经：${INNER_PAIR[i]}`,
+					yearRow ? `命曜：${yearRow.star || '—'} ${yearRow.shortName || ''}${yearRow.quality ? `；${yearRow.quality}` : ''}` : '',
+					gods.length ? `神煞：${listText(gods)}` : '',
+				].filter(Boolean).join('\n');
 			nodes.push(
 				<g key={`pick-static-${i}`}>
 					<path
@@ -282,7 +303,6 @@ class GuoLaoMoiraPickWheel extends Component{
 						d={annularSectorPath(r(0), r(4), pickThetaFromDegree(start), pickThetaFromDegree(end))}
 						{...this.tooltipHandlers(tip)}
 					>
-						<title>{tip}</title>
 					</path>
 						{radialLine(pickThetaFromDegree(start), r(0), r(3), {color: BLACK, width: 0.95})}
 							{pairedRadialText(INNER_PAIR[i], theta, r(0), r(1), {size: 22, color: BLACK, weight: 600})}
@@ -324,6 +344,7 @@ class GuoLaoMoiraPickWheel extends Component{
 
 	renderStellarRing(chart){
 		const stars = buildFixedStars(chart);
+		const relations = buildStellarRelations(chart);
 		const nodes = [];
 		stars.forEach((cur, idx)=>{
 			const nxt = stars[(idx + 1) % stars.length];
@@ -333,7 +354,12 @@ class GuoLaoMoiraPickWheel extends Component{
 			}
 			const edgeTheta = pickThetaFromDegree(cur.ra);
 			const centerTheta = pickThetaFromDegree(Number(cur.ra) + span / 2);
-			const tip = `${cur.label || cur.name}：宿距 ${span.toFixed(2)}°`;
+			const rel = relations[idx] || {};
+			const tip = [
+				`${cur.label || cur.name}：宿距 ${span.toFixed(2)}°`,
+				`本命落入：${listText(rel.main)}`,
+				`本命同经：${listText(rel.same)}`,
+			].join('\n');
 			nodes.push(
 				<g key={`pick-stellar-${idx}`}>
 					<path
@@ -341,7 +367,6 @@ class GuoLaoMoiraPickWheel extends Component{
 						d={annularSectorPath(r(4), r(5), pickThetaFromDegree(Number(cur.ra)), pickThetaFromDegree(Number(cur.ra) + span))}
 						{...this.tooltipHandlers(tip)}
 					>
-						<title>{tip}</title>
 					</path>
 					{radialLine(edgeTheta, r(4) + 1, r(5) - 1, {color: RED, width: 1})}
 					{horizontalRingText(cur.name || cur.label, (r(4) + r(5)) / 2, centerTheta, {size: 19, color: BLACK, weight: 600})}
@@ -357,7 +382,7 @@ class GuoLaoMoiraPickWheel extends Component{
 			const markTheta = pickThetaFromDegree(item.degree);
 			const labelTheta = pickThetaFromDegree(item.labelDegree);
 			const p = point(item.radius, labelTheta);
-			const tip = objectTooltip(item, opt.kind);
+			const tip = objectTooltip(item, opt.kind, this.props.moiraRules);
 			return (
 				<g key={`pick-${opt.kind}-planet-${item.id}-${idx}`}>
 					<circle
@@ -367,7 +392,6 @@ class GuoLaoMoiraPickWheel extends Component{
 						r={Math.max(20, opt.size * 0.82)}
 						{...this.tooltipHandlers(tip)}
 					>
-						<title>{tip}</title>
 					</circle>
 						{shortPlanetLine(markTheta, opt.markInner, opt.markOuter, opt.lineDir || 1, {color: opt.markColor, width: 1.05})}
 					{verticalText(item.label, p.x, p.y, {
@@ -431,7 +455,6 @@ class GuoLaoMoiraPickWheel extends Component{
 						d={annularSectorPath(r(9), r(10), pickThetaFromDegree(start), pickThetaFromDegree(end))}
 						{...this.tooltipHandlers(tip)}
 					>
-						<title>{tip}</title>
 					</path>
 					{radialColumns(gods, theta, r(9) + 10, r(10) - 12, {
 						size: godSize,

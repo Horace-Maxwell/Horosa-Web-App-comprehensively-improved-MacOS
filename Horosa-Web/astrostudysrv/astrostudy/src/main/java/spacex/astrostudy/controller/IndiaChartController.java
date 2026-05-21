@@ -80,7 +80,23 @@ public class IndiaChartController {
 		params.put("lon", TransData.get("lon"));
 		// Bust legacy local/runtime cache entries after PD method/time-key response wiring changes.
 		params.put("_wireRev", "pd_method_sync_v8");
-		params.put("hsys", TransData.getValueAsInt("hsys", 0));
+		params.put("_indiaOptionsRev", "india_kernel_yoga_v1");
+		if(TransData.containsParam("_jyotishRev")) {
+			params.put("_jyotishRev", TransData.getValueAsString("_jyotishRev"));
+		}
+		params.put("hsys", TransData.getValueAsInt("indiaHsys", TransData.getValueAsInt("hsys", 0)));
+		params.put("indiaHsys", TransData.getValueAsInt("indiaHsys", TransData.getValueAsInt("hsys", 0)));
+		String indiaAyanamsa = "lahiri";
+		if(TransData.containsParam("indiaAyanamsa")) {
+			indiaAyanamsa = TransData.getValueAsString("indiaAyanamsa");
+		}else if(TransData.containsParam("ayanamsa")) {
+			indiaAyanamsa = TransData.getValueAsString("ayanamsa");
+		}else if(TransData.containsParam("siderealMode")) {
+			indiaAyanamsa = TransData.getValueAsString("siderealMode");
+		}
+		params.put("indiaAyanamsa", indiaAyanamsa);
+		params.put("ayanamsa", indiaAyanamsa);
+		params.put("siderealMode", indiaAyanamsa);
 		params.put("tradition", TransData.getValueAsBool("tradition", false));
 		params.put("strongRecption", TransData.getValueAsBool("strongRecption", false));
 		params.put("virtualPointReceiveAsp", TransData.getValueAsBool("virtualPointReceiveAsp", false));

@@ -5,10 +5,13 @@ export const GUOLAO_CHART_STYLE_KEY = 'horosaGuolaoChartStyle';
 export const GUOLAO_SU28_MODE_KEY = 'horosaGuolaoSu28Mode';
 export const GUOLAO_MOIRA_TRANSIT_GODS_KEY = 'horosaGuolaoMoiraTransitGods';
 export const GUOLAO_LIFE_MODE_KEY = 'horosaGuolaoLifeMode';
+export const GUOLAO_NODE_MODE_KEY = 'horosaGuolaoNodeMode';
 export const GUOLAO_DEFAULT_SU28_MODE = 2;
 export const GUOLAO_LIFE_MODE_ASC = 'asc';
 export const GUOLAO_LIFE_MODE_YUMAO = 'yumao';
 export const GUOLAO_LIFE_MODE_COTRANS = 'cotrans';
+export const GUOLAO_NODE_MODE_NORTH_KETU = 'northKetuSouthRahu';
+export const GUOLAO_NODE_MODE_NORTH_RAHU = 'northRahuSouthKetu';
 
 function getStorage(){
 	return typeof localStorage === 'undefined' ? null : localStorage;
@@ -78,6 +81,23 @@ export function getStoredGuolaoLifeMode(){
 export function setStoredGuolaoLifeMode(val){
 	const mode = normalizeGuolaoLifeMode(val);
 	writeItem(GUOLAO_LIFE_MODE_KEY, mode);
+	return mode;
+}
+
+export function normalizeGuolaoNodeMode(val){
+	if(val === GUOLAO_NODE_MODE_NORTH_RAHU){
+		return GUOLAO_NODE_MODE_NORTH_RAHU;
+	}
+	return GUOLAO_NODE_MODE_NORTH_KETU;
+}
+
+export function getStoredGuolaoNodeMode(){
+	return normalizeGuolaoNodeMode(readItem(GUOLAO_NODE_MODE_KEY));
+}
+
+export function setStoredGuolaoNodeMode(val){
+	const mode = normalizeGuolaoNodeMode(val);
+	writeItem(GUOLAO_NODE_MODE_KEY, mode);
 	return mode;
 }
 

@@ -42,9 +42,11 @@
 }
 
 .horosa-guolao-moira-tooltip {
-	position: absolute;
+	position: fixed;
 	z-index: 12;
-	max-width: 420px;
+	width: max-content;
+	min-width: 220px;
+	max-width: min(420px, calc(100vw - 32px));
 	padding: 5px 9px;
 	border: 1px solid #333333;
 	background: #ffffed;
@@ -55,7 +57,7 @@
 	font-weight: 700;
 	line-height: 1.36;
 	letter-spacing: 0;
-	white-space: normal;
+	white-space: pre-line;
 	pointer-events: none;
 }
 
