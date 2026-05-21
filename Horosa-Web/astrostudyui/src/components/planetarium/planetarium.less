@@ -8,6 +8,23 @@
 	overflow: hidden;
 }
 
+.horosa-planetarium-page.is-left-collapsed {
+	grid-template-columns: 42px minmax(0, 1fr) 296px;
+}
+
+.horosa-planetarium-page.is-left-collapsed .planetarium-left > *:not(.planetarium-title) {
+	display: none;
+}
+
+.horosa-planetarium-page.is-left-collapsed .planetarium-left {
+	padding: 12px 8px;
+}
+
+.horosa-planetarium-page.is-left-collapsed .planetarium-title h2,
+.horosa-planetarium-page.is-left-collapsed .planetarium-title small {
+	display: none;
+}
+
 .horosa-planetarium-loading {
 	display: flex;
 	align-items: center;
@@ -48,6 +65,16 @@
 	font-size: 28px;
 	font-weight: 650;
 	letter-spacing: 0;
+	color: #f4f8ff;
+}
+
+.planetarium-collapse {
+	min-height: 28px;
+	border: 1px solid rgba(145, 170, 210, 0.22);
+	background: rgba(18, 27, 47, 0.9);
+	color: #dce8ff;
+	border-radius: 7px;
+	cursor: pointer;
 }
 
 .planetarium-time {
@@ -58,9 +85,36 @@
 	line-height: 1.7;
 }
 
-.planetarium-time div {
+.planetarium-time > div:first-child {
 	font-size: 15px;
 	font-weight: 600;
+}
+
+.planetarium-observer-line {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(145, 170, 210, 0.14);
+	display: grid;
+	gap: 2px;
+}
+
+.planetarium-observer-line span {
+	color: #edf4ff;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.planetarium-observer-line em {
+	color: #8fa2c1;
+	font-size: 11px;
+	font-style: normal;
+}
+
+.planetarium-observer-actions {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	margin-top: 10px;
 }
 
 .planetarium-section {
@@ -75,14 +129,19 @@
 }
 
 .planetarium-speed-grid,
-.planetarium-layer-grid {
+.planetarium-view-grid,
+.planetarium-layer-grid,
+.planetarium-step-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 8px;
 }
 
 .planetarium-speed-grid button,
+.planetarium-view-grid button,
+.planetarium-step-grid button,
 .planetarium-actions button,
+.planetarium-observer-actions button,
 .planetarium-chip {
 	min-height: 34px;
 	border: 1px solid rgba(145, 170, 210, 0.22);
@@ -93,13 +152,53 @@
 }
 
 .planetarium-speed-grid button:hover,
+.planetarium-view-grid button:hover,
+.planetarium-step-grid button:hover,
 .planetarium-actions button:hover,
+.planetarium-observer-actions button:hover,
 .planetarium-chip:hover {
 	border-color: rgba(117, 177, 255, 0.68);
 	background: rgba(31, 48, 82, 0.95);
 }
 
+.planetarium-observer-actions button:disabled {
+	opacity: 0.42;
+	cursor: not-allowed;
+}
+
+.planetarium-search {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 58px;
+	gap: 8px;
+}
+
+.planetarium-search input {
+	min-width: 0;
+	height: 34px;
+	padding: 0 10px;
+	border: 1px solid rgba(145, 170, 210, 0.22);
+	background: rgba(10, 16, 30, 0.92);
+	color: #edf4ff;
+	border-radius: 7px;
+	outline: none;
+}
+
+.planetarium-search button {
+	border: 1px solid rgba(145, 170, 210, 0.22);
+	background: rgba(18, 27, 47, 0.9);
+	color: #dce8ff;
+	border-radius: 7px;
+	cursor: pointer;
+}
+
+.planetarium-hint {
+	margin-top: 7px;
+	color: #9fb0ca;
+	font-size: 12px;
+}
+
 .planetarium-speed-grid button.is-active,
+.planetarium-view-grid button.is-active,
 .planetarium-chip.is-on {
 	border-color: rgba(113, 198, 255, 0.85);
 	background: rgba(25, 73, 116, 0.78);
@@ -111,6 +210,10 @@
 	grid-template-columns: 1fr 78px;
 	gap: 8px;
 	margin-top: 10px;
+}
+
+.planetarium-step-grid {
+	margin-top: 8px;
 }
 
 .planetarium-stage {
@@ -140,19 +243,29 @@
 	border-radius: 7px;
 }
 
+.planetarium-status.is-syncing {
+	left: auto;
+	right: 18px;
+	bottom: 18px;
+	background: rgba(8, 13, 26, 0.58);
+	color: #b8c8e4;
+}
+
 .planetarium-status.is-error {
 	border-color: rgba(255, 124, 124, 0.55);
 	color: #ffd2d2;
 }
 
 .planetarium-metrics,
-.planetarium-detail {
+.planetarium-detail,
+.planetarium-perf-log {
 	display: grid;
 	gap: 9px;
 }
 
 .planetarium-metrics div,
-.planetarium-detail div {
+.planetarium-detail div,
+.planetarium-perf-log div {
 	display: flex;
 	justify-content: space-between;
 	gap: 12px;
@@ -161,10 +274,15 @@
 }
 
 .planetarium-metrics strong,
-.planetarium-detail strong {
+.planetarium-detail strong,
+.planetarium-perf-log strong {
 	text-align: right;
 	color: #f7fbff;
 	font-weight: 600;
+}
+
+.planetarium-perf-log span {
+	color: #9fb0ca;
 }
 
 .planetarium-detail h3 {
