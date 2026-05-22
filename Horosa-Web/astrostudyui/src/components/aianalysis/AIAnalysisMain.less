@@ -101,6 +101,109 @@
 	color: var(--horosa-muted);
 }
 
+.toolbarLabelInline {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.quickApiButton {
+	height: 22px !important;
+	padding: 0 8px !important;
+	font-size: 12px !important;
+	border-radius: 6px !important;
+	border-color: rgba(136, 154, 184, 0.28) !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: var(--horosa-accent-strong) !important;
+}
+
+.quickApiButton:hover,
+.quickApiButton:focus {
+	border-color: var(--horosa-accent) !important;
+	background: var(--horosa-accent-soft) !important;
+}
+
+.quickApiButton[disabled],
+.quickApiButton[disabled]:hover,
+.quickApiButton[disabled]:focus {
+	border-color: rgba(136, 154, 184, 0.18) !important;
+	background: transparent !important;
+	color: var(--horosa-muted) !important;
+	opacity: 0.52;
+}
+
+.providerAdvancedToggle {
+	margin: 8px 0 14px;
+}
+
+.providerAdvancedButton {
+	height: 36px !important;
+	padding: 0 16px !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	border-radius: 8px !important;
+}
+
+.providerAdvancedPanel {
+	padding: 12px 12px 2px;
+	margin-bottom: 12px;
+	border: 1px solid var(--horosa-border);
+	border-radius: 8px;
+	background: var(--horosa-panel-soft);
+}
+
+.providerSwitchList {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.providerSwitchItem {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px;
+	border: 1px solid var(--horosa-border);
+	border-radius: 8px;
+	background: var(--horosa-panel-soft);
+}
+
+.providerSwitchItemActive {
+	border-color: var(--horosa-accent);
+	background: var(--horosa-accent-soft);
+}
+
+.providerSwitchMain {
+	min-width: 0;
+}
+
+.providerSwitchTitle {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	color: var(--horosa-text);
+}
+
+.providerSwitchMeta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 14px;
+	font-size: 12px;
+	color: var(--horosa-muted);
+}
+
+.providerSwitchUrl {
+	margin-top: 6px;
+	overflow: hidden;
+	font-size: 12px;
+	color: var(--horosa-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .toolbarActions {
 	margin-top: 10px;
 }
