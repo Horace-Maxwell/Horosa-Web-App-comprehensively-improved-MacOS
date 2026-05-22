@@ -31,7 +31,7 @@ const DEFAULT_QIMEN_OPTIONS = {
 	yimaMode: 'day',
 	timeAlg: 0,
 	shiftPalace: 0,
-	after23NewDay: 1,
+	after23NewDay: 0,
 	fengJu: false,
 	paiPanType: 3,
 	zhiShiType: 0,

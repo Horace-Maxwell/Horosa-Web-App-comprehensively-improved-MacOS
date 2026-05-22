@@ -69,7 +69,7 @@ const DEFAULT_OPTIONS = {
 	yimaMode: 'day',
 	timeAlg: 0,
 	shiftPalace: 0,
-	after23NewDay: 1,
+	after23NewDay: 0,
 	fengJu: false,
 };
 
@@ -283,7 +283,7 @@ function getFieldKey(fields){
 }
 
 function getAfter23NewDayValue(options){
-	return options && options.after23NewDay === 0 ? 0 : 1;
+	return options && options.after23NewDay === 1 ? 1 : 0;
 }
 
 function getTimeAlgValue(options){

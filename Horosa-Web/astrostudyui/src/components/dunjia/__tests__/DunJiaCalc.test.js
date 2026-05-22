@@ -1,4 +1,6 @@
 import { calcDunJia } from '../DunJiaCalc';
+import { buildLocalBaziResult } from '../../../utils/baziLunarLocal';
+import { buildLocalJieqiYearSeed } from '../../../utils/localNongliAdapter';
 
 function makeFields(dateStr, timeStr){
 	return {
@@ -53,6 +55,38 @@ function pickMap(mapObj){
 	return out;
 }
 
+function getGanzi(pillar){
+	return (pillar && (pillar.ganzhi || pillar.ganZhi)) || '';
+}
+
+function buildLocalNongliForTest(date, time){
+	const local = buildLocalBaziResult({
+		date,
+		time,
+		zone: '+08:00',
+		lon: '120e00',
+		lat: '0n00',
+		gpsLon: 120,
+		gpsLat: 0,
+		ad: 1,
+		gender: 1,
+		timeAlg: 1,
+		after23NewDay: 0,
+	});
+	const bazi = local.bazi;
+	const four = bazi.fourColumns;
+	return {
+		...bazi.nongli,
+		bazi,
+		yearGanZi: getGanzi(four.year),
+		yearJieqi: getGanzi(four.year),
+		monthGanZi: getGanzi(four.month),
+		dayGanZi: getGanzi(four.day),
+		time: getGanzi(four.time),
+		timeGanZi: getGanzi(four.time),
+	};
+}
+
 describe('DunJiaCalc options', ()=>{
 	test('paiPanType(年/月/日/时) produces different juText', ()=>{
 		const fields = makeFields('2026-02-17', '21:50:07');
@@ -73,20 +107,20 @@ describe('DunJiaCalc options', ()=>{
 		expect(panA.juText).not.toEqual(panB.juText);
 	});
 
-	test('zhiShiType changes 值使 when 值符 is 天禽', ()=>{
+	test('zhiShiType changes 值使 when 值符 is 芮禽', ()=>{
 		const nongli = makeNongli();
 		let foundTime = null;
 		for(let h=0; h<24; h++){
 			const hh = `${h}`.padStart(2, '0');
 			const fields = makeFields('2026-02-17', `${hh}:50:07`);
 			const pan = calcDunJia(fields, nongli, makeOptions({ paiPanType: 3, zhiShiType: 0 }), {});
-			if(pan && pan.zhiFu === '天禽'){
+			if(pan && pan.zhiFu === '芮禽'){
 				foundTime = `${hh}:50:07`;
 				break;
 			}
 		}
 		if(!foundTime){
-			// 部分历法/参数组合下未必会命中“天禽”时刻，此时退化为稳定性校验：
+			// 部分历法/参数组合下未必会命中“芮禽”时刻，此时退化为稳定性校验：
 			// 不要求值使变化，但要求不同 zhiShiType 不抛错且有可用结果。
 			const fallbackFields = makeFields('2026-02-17', '21:50:07');
 			const pan0 = calcDunJia(fallbackFields, nongli, makeOptions({ paiPanType: 3, zhiShiType: 0 }), {});
@@ -212,7 +246,205 @@ describe('DunJiaCalc options', ()=>{
 			8: '玄',
 			9: '虎',
 		});
-		expect(pan.zhiFu).toEqual('天禽');
+		expect(pan.zhiFu).toEqual('芮禽');
 		expect(pan.zhiShi).toEqual('死门');
+	});
+
+	test('1994-01-17 甲寅时奇门盘拆补应对齐 Horosa APP 样本', ()=>{
+		const fields = makeFields('1994-01-17', '04:59:00');
+		const nongli = {
+			yearJieqi: '癸酉',
+			year: '癸酉',
+			monthGanZi: '乙丑',
+			dayGanZi: '癸卯',
+			time: '甲寅',
+			jieqi: '小寒',
+			jiedelta: '小寒后第12天',
+			birth: '1994-01-17 04:59:00',
+			month: '腊月',
+			day: '初六',
+			leap: false,
+		};
+		const pan = calcDunJia(fields, nongli, makeOptions({
+			qijuMethod: 'chaibu',
+			timeAlg: 1,
+		}), {});
+		expect(pan.juText).toEqual('阳遁八局中元');
+		expect(pan.zhiFu).toEqual('天辅');
+		expect(pan.zhiShi).toEqual('杜门');
+		expect(pan.kongWang).toEqual('辰巳');
+		expect(pan.xunShou).toEqual('甲午');
+		expect(pickMap(pan.tianGan)).toEqual({
+			1: '癸',
+			2: '己',
+			3: '辛',
+			4: '壬',
+			6: '乙',
+			7: '戊',
+			8: '庚',
+			9: '丙',
+		});
+		expect(pickMap(pan.diPan)).toEqual({
+			1: '癸',
+			2: '己',
+			3: '辛',
+			4: '壬',
+			6: '乙',
+			7: '戊',
+			8: '庚',
+			9: '丙',
+		});
+		expect(pickMap(pan.renPan)).toEqual({
+			1: '杜',
+			2: '景',
+			3: '死',
+			4: '伤',
+			6: '惊',
+			7: '生',
+			8: '休',
+			9: '开',
+		});
+		expect(pickMap(pan.shenPan)).toEqual({
+			1: '符',
+			2: '蛇',
+			3: '阴',
+			4: '天',
+			6: '合',
+			7: '地',
+			8: '玄',
+			9: '虎',
+		});
+		const stars = {};
+		pan.cells.forEach((cell)=>{
+			stars[cell.palaceNum] = cell.tianXing;
+		});
+		expect(pickMap(stars)).toEqual({
+			1: '辅',
+			2: '英',
+			3: '芮',
+			4: '冲',
+			6: '柱',
+			7: '任',
+			8: '蓬',
+			9: '心',
+		});
+	});
+
+	test('1994-01-17 甲寅时奇门盘置润应使用当前日柱定三元', ()=>{
+		const fields = makeFields('1994-01-17', '04:59:00');
+		const nongli = {
+			yearJieqi: '癸酉',
+			year: '癸酉',
+			monthGanZi: '乙丑',
+			dayGanZi: '癸卯',
+			time: '甲寅',
+			jieqi: '小寒',
+			jiedelta: '小寒后第12天',
+			birth: '1994-01-17 04:59:00',
+			month: '腊月',
+			day: '初六',
+			leap: false,
+		};
+		const context = {
+			jieqiYearSeeds: {
+				1993: {
+					大雪: { term: '大雪', time: '1993-12-07 23:30:00', dateKey: '19931207', dayGanzhi: '癸亥' },
+				},
+				1994: {
+					芒种: { term: '芒种', time: '1994-06-06 00:00:00', dateKey: '19940606', dayGanzhi: '癸亥' },
+					大雪: { term: '大雪', time: '1994-12-07 00:00:00', dateKey: '19941207', dayGanzhi: '丁卯' },
+				},
+			},
+		};
+		const pan = calcDunJia(fields, nongli, makeOptions({
+			qijuMethod: 'zhirun',
+			timeAlg: 1,
+		}), context);
+		expect(pan.juText).toEqual('阳遁八局中元');
+		expect(pan.zhiFu).toEqual('天辅');
+		expect(pan.zhiShi).toEqual('杜门');
+		expect(pickMap(pan.tianGan)).toEqual({
+			1: '癸',
+			2: '己',
+			3: '辛',
+			4: '壬',
+			6: '乙',
+			7: '戊',
+			8: '庚',
+			9: '丙',
+		});
+		expect(pickMap(pan.shenPan)).toEqual({
+			1: '符',
+			2: '蛇',
+			3: '阴',
+			4: '天',
+			6: '合',
+			7: '地',
+			8: '玄',
+			9: '虎',
+		});
+	});
+
+	test('本地节气 fallback 按准确交节时刻判断当前节气', ()=>{
+		const beforeDaxue = buildLocalNongliForTest('2047-12-07', '13:10:00');
+		const afterDaxue = buildLocalNongliForTest('2047-12-07', '13:12:00');
+		expect(beforeDaxue.jieqi).toEqual('小雪');
+		expect(afterDaxue.jieqi).toEqual('大雪');
+	});
+
+	test('默认晚子时不提前换日，拆补与手机版口径一致', ()=>{
+		const fields = makeFields('1982-07-28', '23:48:00');
+		const nongli = buildLocalNongliForTest('1982-07-28', '23:48:00');
+		const defaultPan = calcDunJia(fields, nongli, makeOptions({
+			qijuMethod: 'chaibu',
+			timeAlg: 1,
+		}), {});
+		const ziZhengPan = calcDunJia(fields, nongli, makeOptions({
+			qijuMethod: 'chaibu',
+			timeAlg: 1,
+			after23NewDay: 0,
+		}), {});
+		expect(defaultPan.options.daySwitchLabel).toEqual('子正换日');
+		expect(defaultPan.juText).toEqual(ziZhengPan.juText);
+		expect(defaultPan.ganzhi.day).toEqual(ziZhengPan.ganzhi.day);
+		expect(defaultPan.ganzhi.time).toEqual(ziZhengPan.ganzhi.time);
+		expect(pickMap(defaultPan.tianGan)).toEqual(pickMap(ziZhengPan.tianGan));
+	});
+
+	test('置润值符星落中宫时天盘应继续飞布', ()=>{
+		const fields = makeFields('2015-12-22', '11:42:00');
+		const nongli = buildLocalNongliForTest('2015-12-22', '11:42:00');
+		const context = {
+			jieqiYearSeeds: {
+				2014: buildLocalJieqiYearSeed(2014, '+08:00'),
+				2015: buildLocalJieqiYearSeed(2015, '+08:00'),
+			},
+		};
+		const pan = calcDunJia(fields, nongli, makeOptions({
+			qijuMethod: 'zhirun',
+			timeAlg: 1,
+		}), context);
+		expect(pan.juText).toEqual('阳遁七局中元');
+		expect(pan.zhiFu).toEqual('芮禽');
+		expect(pickMap(pan.diPan)).toEqual({
+			1: '丁',
+			2: '庚',
+			3: '壬',
+			4: '癸',
+			6: '戊',
+			7: '己',
+			8: '辛',
+			9: '乙',
+		});
+		expect(pickMap(pan.tianGan)).toEqual({
+			1: '壬',
+			2: '戊',
+			3: '乙',
+			4: '庚',
+			6: '辛',
+			7: '丁',
+			8: '癸',
+			9: '己',
+		});
 	});
 });
