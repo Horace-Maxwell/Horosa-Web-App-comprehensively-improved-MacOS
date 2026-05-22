@@ -408,7 +408,7 @@ function PageHeader(props){
 
 	const horosaqr = [{
 		key: '1',
-		label: (<img src={blogo} alt='星阙公众号' style={{width: 200, height:200}} />)
+		label: (<img className={styles.brandQrImage} src={blogo} alt='星阙公众号' />)
 	}];
 	const aiExportMenu = [{
 		key: 'all',
@@ -475,7 +475,7 @@ function PageHeader(props){
 	return (
 		<div className={`${styles.userbox} ${styles.astroUserbox}`}>
 				<div className={styles.astroBrand}>
-					<Dropdown menu={{items: horosaqr}} placement="bottomLeft" trigger={['click', 'hover']}>
+					<Dropdown menu={{items: horosaqr}} placement="bottomLeft" trigger={['click']} overlayClassName={styles.brandQrDropdown}>
 						<button className={`${styles.brandButton} ${styles.astroBrandButton}`} type="button">
 							<span className={`${styles.brandMark} ${styles.astroBrandMark}`}><XQIcon name="astro" /></span>
 							<span className={`${styles.brandText} ${styles.astroBrandText}`}>星阙</span>

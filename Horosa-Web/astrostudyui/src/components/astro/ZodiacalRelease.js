@@ -10,8 +10,17 @@ const { TreeNode } = Tree;
 class ZodiacalRelease extends Component{
 	constructor(props) {
 		super(props);
-		this.colors = ['#0a2e81','#c81808', '#005000', '#948e33'];
-		this.bgColors = ['#d3d3d3','#d3d3d3', '#d3d3d3'];
+		this.colors = [
+			'var(--horosa-direction-level-1, #275fc7)',
+			'var(--horosa-direction-level-2, #c72d22)',
+			'var(--horosa-direction-level-3, #237a45)',
+			'var(--horosa-direction-level-4, #805526)',
+		];
+		this.bgColors = [
+			'var(--horosa-direction-node-highlight, rgba(184, 137, 63, 0.14))',
+			'var(--horosa-direction-node-highlight, rgba(184, 137, 63, 0.14))',
+			'var(--horosa-direction-node-highlight, rgba(184, 137, 63, 0.14))',
+		];
 
 		this.genZRSubLevelDom = this.genZRSubLevelDom.bind(this);
 	}
@@ -84,8 +93,8 @@ class ZodiacalRelease extends Component{
 			dom = this.genZRSubLevelDom(this.props.value, -1);
 		}
 		return (
-			<div className={styles.scrollbar} style={style}>
-				<Tree>
+			<div className={`${styles.scrollbar} horosa-direction-tree-scroll horosa-zodiacal-release-tree-scroll`} style={style}>
+				<Tree className="horosa-direction-tree horosa-zodiacal-release-tree">
 					{dom}
 				</Tree>
 			</div>

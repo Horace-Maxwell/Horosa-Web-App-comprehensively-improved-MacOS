@@ -924,8 +924,10 @@ class AstroChartMain extends Component{
 		}
 		const meta = this.getChartMeta(chartObj, fields);
 
+		const rootClassName = `horosa-astro-page horosa-astro-redesign${showQuickActions ? '' : ' horosa-astro-no-bottom-dock'}`;
+
 		return (
-			<div className="horosa-astro-page horosa-astro-redesign">
+			<div className={rootClassName}>
 				<div className="horosa-astro-layout horosa-astro-redesign-layout">
 					<div className="horosa-astro-redesign-grid">
 						{this.renderInputPanel(meta, dt, {

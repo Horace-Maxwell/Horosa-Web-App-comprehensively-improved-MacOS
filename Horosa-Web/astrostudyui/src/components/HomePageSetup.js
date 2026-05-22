@@ -35,7 +35,6 @@ class HomePageSetup extends Component{
 		this.genDom = this.genDom.bind(this);
 		this.clickPage = this.clickPage.bind(this);
 		this.clickTools = this.clickTools.bind(this);
-		this.clickPlanetarium = this.clickPlanetarium.bind(this);
 		this.changeSearch = this.changeSearch.bind(this);
 		this.selectGroup = this.selectGroup.bind(this);
 		this.focusSearch = this.focusSearch.bind(this);
@@ -88,17 +87,6 @@ class HomePageSetup extends Component{
 						key: 'commtools',
 					},
 				});
-			}
-		}
-
-		clickPlanetarium(){
-			if(this.props.onOpenPlanetarium){
-				this.props.onOpenPlanetarium();
-			}else if(this.props.onNavigate){
-				this.props.onNavigate('planetarium');
-			}
-			if(this.props.onClose){
-				this.props.onClose();
 			}
 		}
 
@@ -236,13 +224,6 @@ class HomePageSetup extends Component{
 												onClick={this.clickTools}
 											>
 												<span>小工具</span>
-											</button>
-											<button
-												type="button"
-												className={`xq-nav-tool-button ${currentKey === 'planetarium' ? 'xq-nav-tool-button-active' : ''}`}
-												onClick={this.clickPlanetarium}
-											>
-												<span>天文馆</span>
 											</button>
 										</div>
 									) : null}

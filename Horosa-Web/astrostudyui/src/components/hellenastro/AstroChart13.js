@@ -202,7 +202,7 @@ class AstroChart13 extends Component{
 		let height = this.props.height ? this.props.height : 760;
 
 		return (
-			<div>
+			<div style={{height: '100%', minHeight: 0}}>
 					<AstroChartMain 
 						value={chartObj} 
 					onChange={this.onFieldsChange}

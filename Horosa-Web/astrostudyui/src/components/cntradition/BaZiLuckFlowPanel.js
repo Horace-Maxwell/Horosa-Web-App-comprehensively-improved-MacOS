@@ -14,6 +14,13 @@ const GAN_ELEMENT = {
 	庚: 'metal', 辛: 'metal',
 	壬: 'water', 癸: 'water',
 };
+const ELEMENT_COLOR = {
+	wood: 'var(--horosa-bazi-wood)',
+	fire: 'var(--horosa-bazi-fire)',
+	earth: 'var(--horosa-bazi-earth)',
+	metal: 'var(--horosa-bazi-metal)',
+	water: 'var(--horosa-bazi-water)',
+};
 const ELEMENT_GENERATES = {
 	wood: 'fire',
 	fire: 'earth',
@@ -76,6 +83,15 @@ function splitGanzi(ganzi){
 	};
 }
 
+function elementColorByStem(stem){
+	const element = GAN_ELEMENT[stem];
+	return element ? ELEMENT_COLOR[element] : undefined;
+}
+
+function elementColorByBranch(branch){
+	return elementColorByStem(BRANCH_MAIN_STEM[branch]);
+}
+
 function relation(dayStem, targetStem){
 	if(!dayStem || !targetStem){
 		return '';
@@ -113,6 +129,8 @@ function normalizePillar(pillar, dayStem){
 		ganzi,
 		stem: pair.stem,
 		branch: pair.branch,
+		stemColor: elementColorByStem(pair.stem),
+		branchColor: elementColorByBranch(pair.branch),
 		stemRel,
 		branchRel,
 		naYin: NaYin[ganzi] || '',
@@ -560,6 +578,8 @@ class BaZiLuckFlowPanel extends Component{
 	renderItem(item, selected, onClick){
 		const pillar = item.pillar || {};
 		const labelOnly = item.labelOnly;
+		const stemStyle = pillar.stemColor ? { color: pillar.stemColor } : undefined;
+		const branchStyle = pillar.branchColor ? { color: pillar.branchColor } : undefined;
 		return (
 			<button
 				type="button"
@@ -576,8 +596,8 @@ class BaZiLuckFlowPanel extends Component{
 					</span>
 				) : (
 					<span className="horosa-bazi-flow-pillar">
-						<span><b>{pillar.stem || ''}</b><em>{pillar.stemRel || ''}</em></span>
-						<span><b>{pillar.branch || ''}</b><em>{pillar.branchRel || ''}</em></span>
+						<span><b style={stemStyle}>{pillar.stem || ''}</b><em>{pillar.stemRel || ''}</em></span>
+						<span><b style={branchStyle}>{pillar.branch || ''}</b><em>{pillar.branchRel || ''}</em></span>
 					</span>
 				)}
 				{item.foot ? <span className="horosa-bazi-flow-foot">{item.foot}</span> : null}
