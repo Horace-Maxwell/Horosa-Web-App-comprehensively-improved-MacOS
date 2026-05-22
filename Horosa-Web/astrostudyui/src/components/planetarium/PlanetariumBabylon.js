@@ -16,6 +16,7 @@ const GROUND_MAX_FOV = 1.62;
 const ORBIT_MIN_RADIUS = 80;
 const ORBIT_MAX_RADIUS = 2400;
 const PLANETARIUM_PERF_KEY = '__horosaPlanetariumPerf';
+const HORIZON_PANORAMA_URL = 'planetarium/horizon-panorama.png?v=20260522-landscape-5';
 let planetariumStateCache = null;
 
 const BODY_LABELS = {
@@ -637,6 +638,83 @@ function drawEllipse(ctx, x, y, rx, ry, color, alpha = 1){
 	ctx.restore();
 }
 
+function colorArrayCss(color, alpha = 1){
+	const c = color || [0, 0, 0];
+	return `rgba(${Math.round(clamp(c[0], 0, 1) * 255)}, ${Math.round(clamp(c[1], 0, 1) * 255)}, ${Math.round(clamp(c[2], 0, 1) * 255)}, ${alpha})`;
+}
+
+function mixColorArray(a, b, t){
+	const ratio = clamp(t, 0, 1);
+	return [
+		(a[0] || 0) * (1 - ratio) + (b[0] || 0) * ratio,
+		(a[1] || 0) * (1 - ratio) + (b[1] || 0) * ratio,
+		(a[2] || 0) * (1 - ratio) + (b[2] || 0) * ratio,
+	];
+}
+
+function paintSkySurface(ctx, width, height, palette){
+	const p = palette || {};
+	const zenith = p.zenith || [0.004, 0.007, 0.022];
+	const mid = p.sky || [0.018, 0.04, 0.11];
+	const horizon = p.horizon || p.clear || [0.04, 0.08, 0.18];
+	ctx.clearRect(0, 0, width, height);
+
+	const grad = ctx.createLinearGradient(0, 0, 0, height);
+	grad.addColorStop(0, colorArrayCss(zenith, 1));
+	grad.addColorStop(0.44, colorArrayCss(mid, 1));
+	grad.addColorStop(0.72, colorArrayCss(horizon, 1));
+	grad.addColorStop(1, colorArrayCss(mixColorArray(zenith, horizon, 0.34), 1));
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, width, height);
+
+	const horizonGlow = ctx.createRadialGradient(width * 0.5, height * 0.7, width * 0.06, width * 0.5, height * 0.7, width * 0.72);
+	horizonGlow.addColorStop(0, colorArrayCss(p.glow || horizon, p.skyGlowAlpha || 0.18));
+	horizonGlow.addColorStop(0.55, colorArrayCss(p.glow || horizon, (p.skyGlowAlpha || 0.18) * 0.38));
+	horizonGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+	ctx.fillStyle = horizonGlow;
+	ctx.fillRect(0, 0, width, height);
+
+	for(let i = 0; i < 1800; i += 1){
+		const x = noise2(i, 11, 71) * width;
+		const y = noise2(i, 13, 72) * height;
+		const alpha = (noise2(i, 17, 73) - 0.5) * 0.025;
+		if(Math.abs(alpha) < 0.003){
+			continue;
+		}
+		ctx.fillStyle = alpha > 0 ? `rgba(255, 255, 255, ${alpha})` : `rgba(0, 0, 0, ${-alpha})`;
+		ctx.fillRect(x, y, 1, 1);
+	}
+
+	const vignette = ctx.createRadialGradient(width * 0.5, height * 0.52, width * 0.18, width * 0.5, height * 0.52, width * 0.78);
+	vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+	vignette.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+	ctx.fillStyle = vignette;
+	ctx.fillRect(0, 0, width, height);
+}
+
+function paintHorizonMistSurface(ctx, width, height, palette){
+	const p = palette || {};
+	const glow = p.glow || p.horizon || [0.2, 0.28, 0.5];
+	const clear = p.clear || [0.006, 0.01, 0.02];
+	ctx.clearRect(0, 0, width, height);
+
+	const vertical = ctx.createLinearGradient(0, 0, 0, height);
+	vertical.addColorStop(0, 'rgba(0, 0, 0, 0)');
+	vertical.addColorStop(0.34, colorArrayCss(glow, (p.mistAlpha || 0.16) * 0.16));
+	vertical.addColorStop(0.52, colorArrayCss(glow, p.mistAlpha || 0.16));
+	vertical.addColorStop(0.72, colorArrayCss(mixColorArray(glow, clear, 0.55), (p.mistAlpha || 0.16) * 0.34));
+	vertical.addColorStop(1, 'rgba(0, 0, 0, 0)');
+	ctx.fillStyle = vertical;
+	ctx.fillRect(0, 0, width, height);
+
+	const centerGlow = ctx.createRadialGradient(width * 0.5, height * 0.56, width * 0.08, width * 0.5, height * 0.56, width * 0.58);
+	centerGlow.addColorStop(0, colorArrayCss(glow, (p.mistAlpha || 0.16) * 0.55));
+	centerGlow.addColorStop(0.55, colorArrayCss(glow, (p.mistAlpha || 0.16) * 0.2));
+	centerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+	ctx.fillStyle = centerGlow;
+	ctx.fillRect(0, 0, width, height);
+}
+
 function planetTextureSize(id){
 	return id === 'Moon' ? { width: 512, height: 512 } : { width: 512, height: 256 };
 }
@@ -1113,11 +1191,25 @@ class PlanetariumRenderer {
 		sky.isPickable = false;
 		sky.alwaysSelectAsActiveMesh = true;
 		sky.infiniteDistance = true;
+		const skyTexture = new BABYLON.DynamicTexture('planetarium-sky-gradient-texture', { width: 1024, height: 512 }, this.scene, true);
+		skyTexture.hasAlpha = false;
+		this.skyTexture = skyTexture;
+		paintSkySurface(skyTexture.getContext(), 1024, 512, {
+			zenith: [0.004, 0.007, 0.022],
+			sky: [0.018, 0.04, 0.11],
+			horizon: [0.04, 0.08, 0.18],
+			glow: [0.04, 0.11, 0.22],
+			skyGlowAlpha: 0.08,
+		});
+		skyTexture.update(false);
 		const skyMat = new BABYLON.StandardMaterial('sky-material', this.scene);
 		skyMat.disableLighting = true;
 		skyMat.disableDepthWrite = true;
 		skyMat.backFaceCulling = false;
-		skyMat.emissiveColor = new BABYLON.Color3(0.006, 0.011, 0.032);
+		skyMat.diffuseTexture = skyTexture;
+		skyMat.emissiveTexture = skyTexture;
+		skyMat.diffuseColor = BABYLON.Color3.White();
+		skyMat.emissiveColor = BABYLON.Color3.White();
 		skyMat.alpha = 1;
 		sky.material = skyMat;
 		this.skyMat = skyMat;
@@ -1140,7 +1232,9 @@ class PlanetariumRenderer {
 		groundOccluder.material = groundMat;
 		this.groundMat = groundMat;
 		this.groundOccluder = groundOccluder;
-		this.landscapeMeshes = this.createHorizonLandscape();
+		this.horizonPanorama = this.createHorizonPanorama();
+		this.horizonMist = this.createHorizonMist();
+		this.landscapeMeshes = [];
 
 		this.setViewMode('ground', false);
 
@@ -1159,6 +1253,7 @@ class PlanetariumRenderer {
 
 		this.engine.runRenderLoop(()=>{
 			if(this.scene){
+				this.updateGroundScenePosition();
 				this.applyLabelVisibility();
 				this.scene.render();
 				if(this.onMetrics){
@@ -1185,9 +1280,28 @@ class PlanetariumRenderer {
 
 	setGroundElementsEnabled(enabled){
 		if(this.groundOccluder){
-			this.groundOccluder.setEnabled(enabled);
+			this.groundOccluder.setEnabled(false);
+		}
+		if(this.horizonPanorama){
+			this.horizonPanorama.setEnabled(enabled);
+		}
+		if(this.horizonMist){
+			this.horizonMist.setEnabled(enabled);
 		}
 		(this.landscapeMeshes || []).forEach((mesh)=>mesh.setEnabled(enabled));
+	}
+
+	updateGroundScenePosition(){
+		if(this.viewMode !== 'ground' || !this.camera){
+			return;
+		}
+		const position = this.cameraPosition(this.camera);
+		[this.horizonPanorama, this.horizonMist].forEach((mesh)=>{
+			if(mesh){
+				mesh.position.x = position.x;
+				mesh.position.z = position.z;
+			}
+		});
 	}
 
 	cameraPosition(camera){
@@ -1378,24 +1492,118 @@ class PlanetariumRenderer {
 	}
 
 	createGroundMaterial(){
-		const texture = new BABYLON.DynamicTexture('ground-night-surface-texture', { width: 1024, height: 1024 }, this.scene, true);
-		texture.hasAlpha = false;
-		texture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
-		texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
-		texture.uScale = 22;
-		texture.vScale = 22;
-		paintGroundSurface(texture.getContext(), 1024, 1024);
-		texture.update(false);
-
 		const mat = new BABYLON.StandardMaterial('ground-horizon-occluder-material', this.scene);
+		mat.disableLighting = true;
+		mat.diffuseColor = new BABYLON.Color3(0.015, 0.014, 0.014);
+		mat.emissiveColor = new BABYLON.Color3(0.015, 0.014, 0.014);
+		mat.specularColor = BABYLON.Color3.Black();
+		mat.backFaceCulling = false;
+		mat.alpha = 0;
+		return mat;
+	}
+
+	createHorizonPanorama(){
+		const radius = LINE_RADIUS - 18;
+		const azSegments = 256;
+		const altSegments = 56;
+		const topAlt = 42;
+		const bottomAlt = -72;
+		const positions = [];
+		const indices = [];
+		const uvs = [];
+		for(let y = 0; y <= altSegments; y += 1){
+			const v = y / altSegments;
+			const altitudeAppa = topAlt + (bottomAlt - topAlt) * v;
+			for(let x = 0; x <= azSegments; x += 1){
+				const u = x / azSegments;
+				const position = toSkyVector({ azimuth: u * 360, altitudeAppa }, radius);
+				positions.push(position.x, position.y, position.z);
+				uvs.push(1 - u, v);
+			}
+		}
+		for(let y = 0; y < altSegments; y += 1){
+			for(let x = 0; x < azSegments; x += 1){
+				const a = y * (azSegments + 1) + x;
+				const b = a + 1;
+				const c = a + azSegments + 1;
+				const d = c + 1;
+				indices.push(a, c, b, b, c, d);
+			}
+		}
+		const mesh = new BABYLON.Mesh('horizon-panorama-layer', this.scene);
+		const vertexData = new BABYLON.VertexData();
+		vertexData.positions = positions;
+		vertexData.indices = indices;
+		vertexData.uvs = uvs;
+		const normals = [];
+		BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+		vertexData.normals = normals;
+		vertexData.applyToMesh(mesh, true);
+		mesh.isPickable = false;
+		mesh.alwaysSelectAsActiveMesh = true;
+		mesh.renderingGroupId = 1;
+
+		const texture = new BABYLON.Texture(HORIZON_PANORAMA_URL, this.scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+		texture.hasAlpha = true;
+		texture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+		texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+		const mat = new BABYLON.StandardMaterial('horizon-panorama-material', this.scene);
 		mat.disableLighting = true;
 		mat.diffuseTexture = texture;
 		mat.emissiveTexture = texture;
-		mat.diffuseColor = new BABYLON.Color3(0.115, 0.15, 0.115);
-		mat.emissiveColor = new BABYLON.Color3(0.115, 0.15, 0.115);
+		mat.opacityTexture = texture;
+		mat.useAlphaFromDiffuseTexture = true;
+		mat.diffuseColor = new BABYLON.Color3(0.52, 0.52, 0.5);
+		mat.emissiveColor = new BABYLON.Color3(0.52, 0.52, 0.5);
 		mat.specularColor = BABYLON.Color3.Black();
 		mat.backFaceCulling = false;
-		return mat;
+		mat.disableDepthWrite = true;
+		mat.disableDepthTest = true;
+		mat.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+		mesh.material = mat;
+		return mesh;
+	}
+
+	createHorizonMist(){
+		const mesh = BABYLON.MeshBuilder.CreateCylinder('horizon-mist-layer', {
+			diameter: LINE_RADIUS * 2.62,
+			height: 260,
+			tessellation: 192,
+			subdivisions: 1,
+			cap: BABYLON.Mesh.NO_CAP,
+			sideOrientation: BABYLON.Mesh.BACKSIDE,
+		}, this.scene);
+		mesh.position.y = 18;
+		mesh.isPickable = false;
+		mesh.alwaysSelectAsActiveMesh = true;
+		mesh.renderingGroupId = 1;
+
+		const texture = new BABYLON.DynamicTexture('horizon-mist-texture', { width: 1024, height: 256 }, this.scene, true);
+		texture.hasAlpha = true;
+		this.horizonMistTexture = texture;
+		paintHorizonMistSurface(texture.getContext(), 1024, 256, {
+			glow: [0.28, 0.38, 0.65],
+			clear: [0.008, 0.012, 0.028],
+			mistAlpha: 0.14,
+		});
+		texture.update(false);
+
+		const mat = new BABYLON.StandardMaterial('horizon-mist-material', this.scene);
+		mat.disableLighting = true;
+		mat.diffuseTexture = texture;
+		mat.emissiveTexture = texture;
+		mat.opacityTexture = texture;
+		mat.useAlphaFromDiffuseTexture = true;
+		mat.diffuseColor = BABYLON.Color3.White();
+		mat.emissiveColor = BABYLON.Color3.White();
+		mat.specularColor = BABYLON.Color3.Black();
+		mat.backFaceCulling = false;
+		mat.disableDepthWrite = true;
+		mat.disableDepthTest = true;
+		mat.alpha = 0.82;
+		mesh.material = mat;
+		return mesh;
 	}
 
 	createTerrainBand(name, radius, bottomAlt, topBaseAlt, amplitude, color){
@@ -1758,21 +1966,30 @@ class PlanetariumRenderer {
 		});
 	}
 
+	updateSkyTexture(p){
+		if(!this.skyTexture){
+			return;
+		}
+		paintSkySurface(this.skyTexture.getContext(), 1024, 512, p);
+		this.skyTexture.update(false);
+	}
+
 	updateSky(data){
 		const sky = data && data.sky ? data.sky : {};
 		const mode = sky.mode || 'night';
 		const palettes = {
-			day: { clear: [0.26, 0.43, 0.68], sky: [0.22, 0.42, 0.74], glow: [0.56, 0.72, 0.9], glowAlpha: 0.28, ground: [0.22, 0.28, 0.2], land: [0.08, 0.16, 0.12] },
-			civilTwilight: { clear: [0.11, 0.16, 0.32], sky: [0.12, 0.15, 0.36], glow: [0.86, 0.46, 0.22], glowAlpha: 0.24, ground: [0.16, 0.13, 0.1], land: [0.07, 0.075, 0.052] },
-			nauticalTwilight: { clear: [0.035, 0.055, 0.13], sky: [0.035, 0.055, 0.16], glow: [0.35, 0.43, 0.72], glowAlpha: 0.18, ground: [0.11, 0.125, 0.095], land: [0.042, 0.07, 0.06] },
-			astronomicalTwilight: { clear: [0.012, 0.02, 0.055], sky: [0.01, 0.018, 0.052], glow: [0.14, 0.24, 0.48], glowAlpha: 0.13, ground: [0.09, 0.115, 0.083], land: [0.03, 0.06, 0.052] },
-			night: { clear: [0.004, 0.006, 0.014], sky: [0.004, 0.007, 0.022], glow: [0.04, 0.11, 0.22], glowAlpha: 0.08, ground: [0.078, 0.105, 0.074], land: [0.025, 0.052, 0.043] },
+			day: { clear: [0.26, 0.43, 0.68], zenith: [0.11, 0.27, 0.56], sky: [0.22, 0.42, 0.74], horizon: [0.4, 0.57, 0.78], glow: [0.56, 0.72, 0.9], glowAlpha: 0.28, skyGlowAlpha: 0.26, mistAlpha: 0.18, ground: [0.64, 0.61, 0.54], panorama: [0.7, 0.69, 0.65], land: [0.13, 0.115, 0.095] },
+			civilTwilight: { clear: [0.11, 0.16, 0.32], zenith: [0.025, 0.04, 0.12], sky: [0.12, 0.15, 0.36], horizon: [0.34, 0.22, 0.2], glow: [0.86, 0.46, 0.22], glowAlpha: 0.24, skyGlowAlpha: 0.24, mistAlpha: 0.2, ground: [0.42, 0.37, 0.31], panorama: [0.58, 0.52, 0.46], land: [0.08, 0.068, 0.054] },
+			nauticalTwilight: { clear: [0.035, 0.055, 0.13], zenith: [0.01, 0.018, 0.055], sky: [0.035, 0.055, 0.16], horizon: [0.08, 0.1, 0.22], glow: [0.35, 0.43, 0.72], glowAlpha: 0.18, skyGlowAlpha: 0.18, mistAlpha: 0.16, ground: [0.28, 0.27, 0.23], panorama: [0.42, 0.42, 0.39], land: [0.052, 0.05, 0.042] },
+			astronomicalTwilight: { clear: [0.012, 0.02, 0.055], zenith: [0.004, 0.008, 0.028], sky: [0.01, 0.018, 0.052], horizon: [0.028, 0.04, 0.09], glow: [0.14, 0.24, 0.48], glowAlpha: 0.13, skyGlowAlpha: 0.13, mistAlpha: 0.11, ground: [0.2, 0.19, 0.16], panorama: [0.32, 0.32, 0.3], land: [0.036, 0.034, 0.03] },
+			night: { clear: [0.004, 0.006, 0.014], zenith: [0.001, 0.003, 0.012], sky: [0.004, 0.007, 0.022], horizon: [0.012, 0.02, 0.045], glow: [0.04, 0.11, 0.22], glowAlpha: 0.08, skyGlowAlpha: 0.08, mistAlpha: 0.07, ground: [0.15, 0.145, 0.125], panorama: [0.24, 0.24, 0.23], land: [0.026, 0.024, 0.022] },
 		};
 		const p = palettes[mode] || palettes.night;
 		this.scene.clearColor = new BABYLON.Color4(p.clear[0], p.clear[1], p.clear[2], 1);
 		if(this.skyMat){
-			this.skyMat.emissiveColor = new BABYLON.Color3(p.sky[0], p.sky[1], p.sky[2]);
+			this.skyMat.emissiveColor = BABYLON.Color3.White();
 		}
+		this.updateSkyTexture(p);
 		if(this.horizonGlow && this.horizonGlow.material){
 			this.horizonGlow.material.emissiveColor = new BABYLON.Color3(p.glow[0], p.glow[1], p.glow[2]);
 			this.horizonGlow.material.alpha = p.glowAlpha;
@@ -1780,6 +1997,17 @@ class PlanetariumRenderer {
 		if(this.groundMat){
 			this.groundMat.diffuseColor = new BABYLON.Color3(p.ground[0], p.ground[1], p.ground[2]);
 			this.groundMat.emissiveColor = new BABYLON.Color3(p.ground[0], p.ground[1], p.ground[2]);
+		}
+		if(this.horizonPanorama && this.horizonPanorama.material){
+			this.horizonPanorama.material.diffuseColor = new BABYLON.Color3(p.panorama[0], p.panorama[1], p.panorama[2]);
+			this.horizonPanorama.material.emissiveColor = new BABYLON.Color3(p.panorama[0], p.panorama[1], p.panorama[2]);
+		}
+		if(this.horizonMistTexture){
+			paintHorizonMistSurface(this.horizonMistTexture.getContext(), 1024, 256, p);
+			this.horizonMistTexture.update(false);
+		}
+		if(this.horizonMist && this.horizonMist.material){
+			this.horizonMist.material.alpha = mode === 'day' ? 0.62 : 0.86;
 		}
 		(this.landscapeMeshes || []).forEach((mesh, idx)=>{
 			const mat = mesh && mesh.material;
@@ -1907,6 +2135,16 @@ class PlanetariumRenderer {
 			this.registerProjectableMesh(mesh, star, STAR_RADIUS + 2);
 			if(star.name){ this.bodyMeshes[star.name] = mesh; }
 			if(star.id){ this.bodyMeshes[star.id] = mesh; }
+			if(Number(star.mag) <= 1.1){
+				const halo = BABYLON.MeshBuilder.CreateSphere(`bright-star-halo-${star.id}`, { diameter: 8 + b * 12, segments: 12 }, this.scene);
+				halo.position.copyFrom(mesh.position);
+				halo.material = this.material(`bright-star-halo-mat-${star.id}`, new BABYLON.Color3(c.r, c.g, c.b), 0.1 + b * 0.08);
+				halo.material.alphaMode = BABYLON.Engine.ALPHA_ADD;
+				halo.parent = group;
+				halo.isPickable = false;
+				halo.renderingGroupId = 1;
+				this.registerFollowerMesh(halo, star.id, ()=>BABYLON.Vector3.Zero());
+			}
 		});
 	}
 
@@ -2353,11 +2591,25 @@ class PlanetariumRenderer {
 		if(this.sky){
 			this.sky.dispose(false, true);
 		}
+		if(this.skyTexture){
+			this.skyTexture.dispose();
+			this.skyTexture = null;
+		}
 		if(this.horizonGlow){
 			this.horizonGlow.dispose(false, true);
 		}
 		if(this.groundOccluder){
 			this.groundOccluder.dispose(false, true);
+		}
+		if(this.horizonPanorama){
+			this.horizonPanorama.dispose(false, true);
+		}
+		if(this.horizonMist){
+			this.horizonMist.dispose(false, true);
+		}
+		if(this.horizonMistTexture){
+			this.horizonMistTexture.dispose();
+			this.horizonMistTexture = null;
 		}
 		(this.landscapeMeshes || []).forEach((mesh)=>mesh.dispose(false, true));
 		if(this.glow){
@@ -2415,6 +2667,11 @@ class PlanetariumBabylon extends Component{
 		this.sceneSyncInFlight = false;
 		this.pendingRequestOptions = null;
 		this.playTimer = null;
+		this.playbackAnchorMs = 0;
+		this.playbackAnchorTime = null;
+		this.playbackLastFrameMs = 0;
+		this.playbackLastStateMs = 0;
+		this.playbackLastMetricMs = 0;
 		this.backgroundFullTimer = null;
 		this.pendingFullRequest = null;
 		this.pendingFullRender = null;
@@ -2487,7 +2744,7 @@ class PlanetariumBabylon extends Component{
 		this._isUnmounted = true;
 		this.pushPerfLog('release', { canvasReleased: true });
 		if(this.playTimer){
-			clearInterval(this.playTimer);
+			cancelAnimationFrame(this.playTimer);
 			this.playTimer = null;
 		}
 		if(this.metricTimer){
@@ -2738,48 +2995,70 @@ class PlanetariumBabylon extends Component{
 
 	setupPlayback(){
 		if(this.playTimer){
-			clearInterval(this.playTimer);
+			cancelAnimationFrame(this.playTimer);
 			this.playTimer = null;
 		}
 		const speed = Number(this.state.speed || 0);
 		if(!speed){
+			this.playbackAnchorTime = null;
+			this.playbackAnchorMs = 0;
+			this.playbackLastFrameMs = 0;
+			this.playbackLastStateMs = 0;
+			this.playbackLastMetricMs = 0;
 			return;
 		}
-		const intervalMs = 250;
-		this.playTimer = setInterval(()=>{
-			this.setState((prev)=>{
-				const next = prev.time.clone();
-				next.addSecond(speed * intervalMs / 1000);
-				return { time: next };
-			}, ()=>{
-				this.applyLocalPlaybackFrame(speed);
-				this.maybeSyncPlayback(speed);
-			});
-		}, intervalMs);
+		this.playbackAnchorMs = nowMs();
+		this.playbackAnchorTime = this.state.time.clone();
+		this.playbackLastFrameMs = this.playbackAnchorMs;
+		this.playbackLastStateMs = this.playbackAnchorMs;
+		this.playbackLastMetricMs = this.playbackAnchorMs;
+		const frame = ()=>{
+			if(this._isUnmounted || Number(this.state.speed || 0) !== speed){
+				this.playTimer = null;
+				return;
+			}
+			const frameMs = nowMs();
+			const elapsedSeconds = Math.max(0, (frameMs - this.playbackAnchorMs) / 1000);
+			const next = this.playbackAnchorTime.clone();
+			next.addSecond(speed * elapsedSeconds);
+			this.applyLocalPlaybackFrame(speed, next, frameMs);
+			this.maybeSyncPlayback(speed, next);
+			if(frameMs - this.playbackLastStateMs >= 120){
+				this.playbackLastStateMs = frameMs;
+				this.setState({ time: next });
+			}
+			this.playbackLastFrameMs = frameMs;
+			this.playTimer = requestAnimationFrame(frame);
+		};
+		this.playTimer = requestAnimationFrame(frame);
 	}
 
-	applyLocalPlaybackFrame(speed){
+	applyLocalPlaybackFrame(speed, frameTime, frameMs){
 		if(!this.renderer || !this.state.data){
 			return;
 		}
-		const renderMs = this.renderer.updateProjectedTime(this.state.time, this.getEffectiveFields());
-		this.setState((prev)=>({
-			metrics: {
-				...prev.metrics,
-				renderMs,
-				loadMs: 0,
-			},
-		}));
+		const renderMs = this.renderer.updateProjectedTime(frameTime || this.state.time, this.getEffectiveFields());
+		const metricMs = frameMs || nowMs();
+		if(metricMs - this.playbackLastMetricMs >= 500){
+			this.playbackLastMetricMs = metricMs;
+			this.setState((prev)=>({
+				metrics: {
+					...prev.metrics,
+					renderMs,
+					loadMs: 0,
+				},
+			}));
+		}
 	}
 
-	maybeSyncPlayback(speed){
+	maybeSyncPlayback(speed, frameTime){
 		const now = nowMs();
 		const syncEvery = speed <= 60 ? 15000 : (speed <= 86400 ? 7000 : 5000);
 		if(now - this.lastPlaybackSyncAt < syncEvery){
 			return;
 		}
 		this.lastPlaybackSyncAt = now;
-		this.requestPlaybackCalibration();
+		this.requestPlaybackCalibration(frameTime);
 	}
 
 	async requestPlaybackCalibration(syncTimeArg){

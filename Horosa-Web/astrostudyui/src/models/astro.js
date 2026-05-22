@@ -334,9 +334,6 @@ export default {
 			ziwei:{
 				fun: null
 			},
-			astrochart3D:{
-				fun: null
-			},
 			planetarium:{
 				fun: null
 			},
