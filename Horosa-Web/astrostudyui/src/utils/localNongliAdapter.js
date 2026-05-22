@@ -1,3 +1,5 @@
+import { Solar } from 'lunar-javascript';
+
 const GAN = '甲乙丙丁戊己庚辛壬癸'.split('');
 const ZHI = '子丑寅卯辰巳午未申酉戌亥'.split('');
 const JIAZI = [];
@@ -36,14 +38,6 @@ const JIEQI_STD = [
 	'寒露', '霜降', '立冬', '小雪', '大雪', '冬至',
 ];
 
-// 标准“定气”近似算法常量（1900-2100 范围内常用）
-const S_TERM_INFO = [
-	0, 21208, 42467, 63836, 85337, 107014,
-	128867, 150921, 173149, 195551, 218072, 240693,
-	263343, 285989, 308563, 331033, 353350, 375494,
-	397447, 419210, 440795, 462224, 483532, 504758,
-];
-
 function safe(v, d = ''){
 	return v === undefined || v === null ? d : v;
 }
@@ -57,42 +51,6 @@ function cloneJson(obj){
 	}catch(e){
 		return { ...obj };
 	}
-}
-
-function parseZoneMinutes(zone){
-	const txt = `${safe(zone, '+08:00')}`;
-	const m = txt.match(/^([+-]?)(\d{1,2})(?::?(\d{2}))?$/);
-	if(!m){
-		return 8 * 60;
-	}
-	const sign = m[1] === '-' ? -1 : 1;
-	const hh = parseInt(m[2], 10);
-	const mm = parseInt(m[3] || '0', 10);
-	if(Number.isNaN(hh) || Number.isNaN(mm)){
-		return 8 * 60;
-	}
-	return sign * (hh * 60 + mm);
-}
-
-function toZonedDate(date, zoneMinutes){
-	return new Date(date.getTime() + zoneMinutes * 60000);
-}
-
-function formatYmdHms(date, zoneMinutes){
-	const zdt = toZonedDate(date, zoneMinutes);
-	const y = zdt.getUTCFullYear();
-	const m = `${zdt.getUTCMonth() + 1}`.padStart(2, '0');
-	const d = `${zdt.getUTCDate()}`.padStart(2, '0');
-	const hh = `${zdt.getUTCHours()}`.padStart(2, '0');
-	const mm = `${zdt.getUTCMinutes()}`.padStart(2, '0');
-	const ss = `${zdt.getUTCSeconds()}`.padStart(2, '0');
-	return {
-		date: `${y}-${m}-${d}`,
-		time: `${hh}:${mm}:${ss}`,
-		year: y,
-		month: parseInt(m, 10),
-		day: parseInt(d, 10),
-	};
 }
 
 function getOnlyDateNum(year, month, day){
@@ -199,30 +157,32 @@ export function extractNongliFromChartWrap(chartWrap, fields){
 	return normalizeNongli(nongli, fields);
 }
 
-function buildJieqiDate(year, termIndex){
-	const baseUtcMs = Date.UTC(1900, 0, 6, 2, 5, 0);
-	const ms = 31556925974.7 * (year - 1900) + S_TERM_INFO[termIndex] * 60000 + baseUtcMs;
-	return new Date(ms);
-}
-
 export function buildLocalJieqiYearSeed(year, zone){
 	const y = parseInt(year, 10);
 	if(Number.isNaN(y)){
 		return null;
 	}
-	const zoneMinutes = parseZoneMinutes(zone);
 	const seed = {};
+	let table = null;
+	try{
+		table = Solar.fromYmd(y, 7, 1).getLunar().getJieQiTable();
+	}catch(e){
+		table = null;
+	}
 	for(let i=0; i<JIEQI_STD.length; i++){
 		const term = JIEQI_STD[i];
-		const dt = buildJieqiDate(y, i);
-		const local = formatYmdHms(dt, zoneMinutes);
+		const solar = table && table[term] ? table[term] : null;
+		if(!solar || !solar.toYmdHms){
+			continue;
+		}
+		const time = solar.toYmdHms();
+		const date = solar.toYmd ? solar.toYmd() : time.substring(0, 10);
 		seed[term] = {
 			term,
-			time: `${local.date} ${local.time}`,
-			dateKey: local.date.replace(/-/g, ''),
-			dayGanzhi: getDayGanZhi(local.year, local.month, local.day),
+			time,
+			dateKey: date.replace(/-/g, ''),
+			dayGanzhi: getDayGanZhi(solar.getYear(), solar.getMonth(), solar.getDay()),
 		};
 	}
-	return seed;
+	return Object.keys(seed).length ? seed : null;
 }
-
