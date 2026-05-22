@@ -46,7 +46,6 @@ const PAGE_LABELS = {
 	fengshui: '风水',
 	cnyibu: '其他',
 	aianalysis: 'AI分析',
-	astrochart3D: '3D',
 	calendar: '黄历',
 	cntradition: '辅助',
 	astroreader: '书籍阅读',

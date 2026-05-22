@@ -106,7 +106,7 @@ const navigationPages = [
     { label: '风水', key: 'fengshui', icon: 'fengshui', group: '卜' },
     { label: '其他', key: 'cnyibu', icon: 'other', group: '卜' },
     { label: 'AI分析', key: 'aianalysis', icon: 'ai', group: '工具' },
-    { label: '3D', key: 'astrochart3D', icon: 'threeD', group: '工具' },
+    { label: '天文馆', key: 'planetarium', icon: 'globe', group: '工具' },
     { label: '黄历', key: 'calendar', icon: 'calendar', group: '工具' },
     { label: '辅助', key: 'cntradition', icon: 'support', group: '工具' },
 ];
@@ -589,29 +589,25 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     />
                 </TabPane>
 
-                {
-                    true && (
-                    <TabPane tab={mainTab('3D')} key="astrochart3D">
-	                        <AstroChartMain3D 
-                            value={chartObj} 
-                            onChange={changeCond}
-                            fields={fields} 
-                            fieldsAry={aryfields}
-                            height={height} 
-                            currentTab={currentTab}
-                            chartDisplay={chartDisplay}
-                            planetDisplay={planetDisplay}
-	                            lotsDisplay={lotsDisplay}
-	                            showPlanetHouseInfo={showPlanetHouseInfo}
-	                            showAstroMeaning={showAstroMeaning}
-	                            dispatch={dispatch}
-	                            hook={predictHook.astrochart3D}
-	                        />
-                    </TabPane>   
-                    )
-                }
+                <TabPane tab={mainTab('3D')} key="astrochart3D">
+                    <AstroChartMain3D
+                        value={chartObj}
+                        onChange={changeCond}
+                        fields={fields}
+                        fieldsAry={aryfields}
+                        height={height}
+                        currentTab={currentTab}
+                        chartDisplay={chartDisplay}
+                        planetDisplay={planetDisplay}
+                        lotsDisplay={lotsDisplay}
+                        showPlanetHouseInfo={showPlanetHouseInfo}
+                        showAstroMeaning={showAstroMeaning}
+                        dispatch={dispatch}
+                        hook={predictHook.astrochart3D}
+                    />
+                </TabPane>
 
-                <TabPane tab={mainTab('天文馆', null, { hidden: true })} key="planetarium">
+                <TabPane tab={mainTab('天文馆', '工具')} key="planetarium">
                     <PlanetariumMain
                         height={height}
                         fields={fields}
@@ -1157,7 +1153,6 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         currentKey={currentTab}
                         onNavigate={changeTab}
                         onOpenTools={()=>openDrawer('commtools')}
-                        onOpenPlanetarium={()=>changeTab('planetarium')}
                         onClose={closeDrawer}
                     />
                 </div>

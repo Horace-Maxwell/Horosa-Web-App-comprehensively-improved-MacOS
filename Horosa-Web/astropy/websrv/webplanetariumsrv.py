@@ -2,6 +2,7 @@ import os
 import math
 import json
 import re
+import time
 import traceback
 
 import cherrypy
@@ -29,11 +30,17 @@ _FIXSTARS_PATH = os.path.join(_ROOT, "flatlib-ctrad2", "flatlib", "resources", "
 _BSC5_PATH = os.path.join(_ROOT, "astropy", "resources", "bsc5-horosa.json")
 _STAR_CACHE = None
 _BSC5_CACHE = None
+_BASE_STAR_CACHE = None
 
 
 ZODIAC_LABELS = [
     "白羊", "金牛", "双子", "巨蟹", "狮子", "处女",
     "天秤", "天蝎", "射手", "摩羯", "水瓶", "双鱼",
+]
+
+ZODIAC_IDS = [
+    const.ARIES, const.TAURUS, const.GEMINI, const.CANCER, const.LEO, const.VIRGO,
+    const.LIBRA, const.SCORPIO, const.SAGITTARIUS, const.CAPRICORN, const.AQUARIUS, const.PISCES,
 ]
 
 PLANETARIUM_OBJECTS = [
@@ -52,6 +59,86 @@ QIZHENG_SIYU = [
 def _norm_degree(value):
     res = float(value) % 360.0
     return res + 360.0 if res < 0 else res
+
+
+def _zodiac_info(lon):
+    lon = _norm_degree(lon)
+    idx = int(lon // 30) % 12
+    return {
+        "zodiacSign": ZODIAC_LABELS[idx],
+        "zodiacSignId": ZODIAC_IDS[idx],
+        "zodiacDegree": lon - idx * 30,
+    }
+
+
+def _visibility_info(item, sun_altitude=None):
+    alt = _num(item.get("altitudeAppa", item.get("altitudeTrue", 0)))
+    mag = item.get("mag", None)
+    is_above = alt > 0
+    twilight = None
+    if sun_altitude is not None:
+        if sun_altitude > -0.833:
+            twilight = "day"
+        elif sun_altitude > -6:
+            twilight = "civil"
+        elif sun_altitude > -12:
+            twilight = "nautical"
+        elif sun_altitude > -18:
+            twilight = "astronomical"
+        else:
+            twilight = "night"
+    visible = is_above
+    if mag is not None and sun_altitude is not None and sun_altitude > -6 and _num(mag, 99) > 1.5:
+        visible = False
+    if alt > 60:
+        horizon_state = "高空"
+    elif alt > 15:
+        horizon_state = "可见"
+    elif alt > 0:
+        horizon_state = "近地平"
+    elif alt > -6:
+        horizon_state = "地平线下"
+    else:
+        horizon_state = "不可见"
+    return {
+        "visible": visible,
+        "aboveHorizon": is_above,
+        "horizonState": horizon_state,
+        "twilight": twilight,
+    }
+
+
+def _moon_phase_info(bodies):
+    sun = next((item for item in bodies if item.get("id") == const.SUN), None)
+    moon = next((item for item in bodies if item.get("id") == const.MOON), None)
+    if not sun or not moon:
+        return None
+    elongation = _norm_degree(_num(moon.get("lon")) - _num(sun.get("lon")))
+    illumination = (1 - math.cos(math.radians(elongation))) / 2
+    age = elongation / 360.0 * 29.530588853
+    if elongation < 22.5 or elongation >= 337.5:
+        name = "朔"
+    elif elongation < 67.5:
+        name = "蛾眉月"
+    elif elongation < 112.5:
+        name = "上弦"
+    elif elongation < 157.5:
+        name = "盈凸月"
+    elif elongation < 202.5:
+        name = "望"
+    elif elongation < 247.5:
+        name = "亏凸月"
+    elif elongation < 292.5:
+        name = "下弦"
+    else:
+        name = "残月"
+    return {
+        "phaseAngle": elongation,
+        "illumination": illumination,
+        "ageDays": age,
+        "phaseName": name,
+        "waxing": elongation < 180,
+    }
 
 
 def _num(value, default=0.0):
@@ -223,6 +310,16 @@ def _read_bsc5_catalog():
     return stars
 
 
+def _base_star_catalog():
+    global _BASE_STAR_CACHE
+    if _BASE_STAR_CACHE is not None:
+        return _BASE_STAR_CACHE
+    stars = list(_read_bsc5_catalog() or _read_star_catalog())
+    stars.sort(key=lambda rec: rec.get("mag", 99))
+    _BASE_STAR_CACHE = stars
+    return stars
+
+
 def _plain_obj(obj):
     res = {
         "id": getattr(obj, "id", ""),
@@ -241,19 +338,21 @@ def _plain_obj(obj):
         "house": getattr(obj, "house", None),
         "su28": getattr(obj, "su28", None),
     }
+    res.update(_zodiac_info(res["lon"]))
     if getattr(obj, "lonspeed", None) is not None:
         res["lonspeed"] = obj.lonspeed
+    res.update(_visibility_info(res))
     return res
 
 
-def _build_catalog_stars(perchart, limit):
+def _build_catalog_stars(perchart, limit, catalog=None):
     stars = []
-    catalog = _read_bsc5_catalog() or _read_star_catalog()
+    catalog = catalog if catalog is not None else _base_star_catalog()
     for star in catalog:
         item = dict(star)
         item.update(_altaz_from_equatorial(perchart.dateTime.jd, perchart.pos, item["ra"], item["decl"]))
+        item.update(_visibility_info(item))
         stars.append(item)
-    stars.sort(key=lambda rec: rec.get("mag", 99))
     if limit and len(stars) > limit:
         return stars[:limit]
     return stars
@@ -395,6 +494,7 @@ class PlanetariumSrv:
     @cherrypy.tools.json_in()
     def state(self):
         enable_crossdomain()
+        started = time.perf_counter()
         try:
             data = cherrypy.request.json if cherrypy.request.method == "POST" else {}
             data = data or {}
@@ -405,15 +505,45 @@ class PlanetariumSrv:
             requested_objects = data.get("objlists") or PLANETARIUM_OBJECTS
             data["objlists"] = [item for item in requested_objects if item in PLANETARIUM_OBJECT_IDS]
             perchart = PerChart(data)
-            catalog_limit = int(data.get("starLimit", 9000) or 9000)
+            catalog_limit = int(data.get("starLimit", 9000))
+            include_catalog = catalog_limit != 0
+            include_overlays = data.get("includeOverlays", True) is not False
+            include_traditions = data.get("includeTraditions", True) is not False
+            base_catalog = _base_star_catalog() if include_catalog else None
 
             bodies = [_plain_obj(item) for item in _chart_objects(perchart)]
-            su28 = [_plain_obj(item) for item in _safe_perchart_list(perchart, "getFixedStarSu28")]
-            beidou = [_plain_obj(item) for item in _safe_perchart_list(perchart, "getBeiDou")]
-            fixed_stars = [_plain_obj(item) for item in _safe_perchart_list(perchart, "getFixedStars")]
+            sun_body = next((item for item in bodies if item.get("id") == const.SUN), None)
+            sun_altitude = sun_body.get("altitudeAppa") if sun_body else None
+            for item in bodies:
+                item.update(_visibility_info(item, sun_altitude))
+            su28 = [_plain_obj(item) for item in _safe_perchart_list(perchart, "getFixedStarSu28")] if include_traditions else []
+            beidou = [_plain_obj(item) for item in _safe_perchart_list(perchart, "getBeiDou")] if include_traditions else []
+            fixed_stars = [_plain_obj(item) for item in _safe_perchart_list(perchart, "getFixedStars")] if include_traditions else []
+            for group in (su28, beidou, fixed_stars):
+                for item in group:
+                    item.update(_visibility_info(item, sun_altitude))
+            catalog_stars = _build_catalog_stars(perchart, catalog_limit, base_catalog) if include_catalog else []
+            for item in catalog_stars:
+                item.update(_visibility_info(item, sun_altitude))
+            moon_phase = _moon_phase_info(bodies)
+            sky_mode = "night"
+            if sun_altitude is not None:
+                if sun_altitude > -0.833:
+                    sky_mode = "day"
+                elif sun_altitude > -6:
+                    sky_mode = "civilTwilight"
+                elif sun_altitude > -12:
+                    sky_mode = "nauticalTwilight"
+                elif sun_altitude > -18:
+                    sky_mode = "astronomicalTwilight"
 
             res = {
                 "version": "planetarium-v1",
+                "schema": {
+                    "id": "horosa.planetarium.state",
+                    "version": 1,
+                    "sections": ["observer", "bodies", "stars", "overlays", "traditions", "sky", "meta"],
+                },
                 "observer": {
                     "date": data.get("date"),
                     "time": data.get("time"),
@@ -427,24 +557,34 @@ class PlanetariumSrv:
                 },
                 "bodies": bodies,
                 "stars": {
-                    "catalog": _build_catalog_stars(perchart, catalog_limit),
+                    "catalog": catalog_stars,
                     "fixed": fixed_stars,
                     "source": "Yale Bright Star Catalog v5, with Swiss Ephemeris Alt-Az projection",
                     "magLimit": 6.5,
+                    "catalogFields": ["id", "name", "ra", "decl", "azimuth", "altitudeAppa", "mag", "colorIndex", "colorTemperature", "constellation", "visible"],
                 },
-                "overlays": _build_overlays(perchart),
+                "overlays": _build_overlays(perchart) if include_overlays else {},
                 "traditions": {
                     "su28": su28,
                     "beidou": beidou,
                     "qizhengSiyu": [item for item in bodies if item["id"] in QIZHENG_SIYU],
                 },
+                "sky": {
+                    "mode": sky_mode,
+                    "sunAltitude": sun_altitude,
+                    "moonPhase": moon_phase,
+                },
                 "meta": {
-                    "catalogCount": len(_read_bsc5_catalog() or _read_star_catalog()),
-                    "bsc5CatalogCount": len(_read_bsc5_catalog()),
-                    "swissFixedStarCount": len(_read_star_catalog()),
-                    "renderedCatalogCount": min(len(_read_bsc5_catalog() or _read_star_catalog()), catalog_limit),
+                    "catalogCount": len(base_catalog) if base_catalog is not None else 0,
+                    "bsc5CatalogCount": len(_read_bsc5_catalog()) if include_catalog else 0,
+                    "swissFixedStarCount": len(_read_star_catalog()) if include_catalog else 0,
+                    "renderedCatalogCount": len(catalog_stars),
+                    "lightweight": not include_catalog or not include_overlays or not include_traditions,
                     "hsys": getHSys(data.get("hsys", 1)),
                     "zodiacal": perchart.zodiacal,
+                    "timingMs": {
+                        "total": round((time.perf_counter() - started) * 1000, 2),
+                    },
                 },
             }
             return jsonpickle.encode(res, unpicklable=False)

@@ -17,7 +17,8 @@
 		"postinstall": "node scripts/patch_quill_domnodeinserted.js && umi generate tmp",
 		"prettier": "prettier --write '**/*.{js,jsx,tsx,ts,less,md,json}'",
 		"test": "umi-test",
-		"test:coverage": "umi-test --coverage"
+		"test:coverage": "umi-test --coverage",
+		"planetarium:perf": "node scripts/planetariumPerfSmoke.js"
 	},
 	"lint-staged": {
 		"*.{js,jsx,less,md,json}": [

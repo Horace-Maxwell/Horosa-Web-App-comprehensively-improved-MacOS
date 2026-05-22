@@ -7,6 +7,7 @@ class PlanetariumMain extends Component{
 		this.state = {
 			LoadedComponent: null,
 			loadError: null,
+			runtimeLoadMs: 0,
 		};
 		this.mounted = false;
 	}
@@ -33,6 +34,7 @@ class PlanetariumMain extends Component{
 		if(this.state.LoadedComponent){
 			return;
 		}
+		const started = Date.now();
 		this.loadBabylonRuntime()
 			.then(()=>import(/* webpackChunkName: "planetarium-babylon" */ './PlanetariumBabylon'))
 			.then((mod)=>{
@@ -42,6 +44,7 @@ class PlanetariumMain extends Component{
 				this.setState({
 					LoadedComponent: mod.default,
 					loadError: null,
+					runtimeLoadMs: Date.now() - started,
 				});
 			})
 			.catch((err)=>{
@@ -100,7 +103,7 @@ class PlanetariumMain extends Component{
 				</div>
 			);
 		}
-		return <LoadedComponent {...this.props} />;
+		return <LoadedComponent {...this.props} runtimeLoadMs={this.state.runtimeLoadMs} />;
 	}
 }
 
