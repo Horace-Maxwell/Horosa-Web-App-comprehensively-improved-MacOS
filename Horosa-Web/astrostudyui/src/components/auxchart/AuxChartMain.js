@@ -112,7 +112,7 @@ class AuxChartMain extends Component{
 	render(){
 		let height = this.props.height ? this.props.height : 760;
 		height = height - 20;
-		const childHeight = Math.max(height - 92, 520);
+		const childHeight = Math.max(height - 36, 560);
 		const tab = this.findTab();
 
 		return (

@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import { Row, Col, } from 'antd';
 import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
+import XQIcon from '../xq-icons';
 import AstroChartMain from '../astro/AstroChartMain';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import SuZhanMain from '../suzhan/SuZhanMain';
@@ -884,6 +885,7 @@ export class JieQiChartsMain extends Component{
 
 		this.gen24JieqiDom = this.gen24JieqiDom.bind(this);
 		this.genTabsDom = this.genTabsDom.bind(this);
+		this.renderBottomQuickDock = this.renderBottomQuickDock.bind(this);
 		this.saveCurrentJieQiSnapshot = this.saveCurrentJieQiSnapshot.bind(this);
 		this.scheduleJieqiSnapshotSave = this.scheduleJieqiSnapshotSave.bind(this);
 
@@ -1462,6 +1464,7 @@ export class JieQiChartsMain extends Component{
 					<SuZhanMain
 						value={chart}
 						height={height}
+						hideQuickDock={true}
 						fields={flds}
 						chartDisplay={this.props.chartDisplay}
 						planetDisplay={this.props.planetDisplay}
@@ -1497,6 +1500,40 @@ export class JieQiChartsMain extends Component{
 		}
 
 		return tabs;
+	}
+
+	renderBottomQuickDock(){
+		const actions = [
+			{ key: '二十四节气', label: '二十四节气', icon: 'quickPrimary' },
+		];
+		(this.state.jieqis || []).forEach((title)=>{
+			actions.push(
+				{ key: title, label: `${title}星盘`, icon: 'quickTransit' },
+				{ key: `宿盘${title}`, label: `${title}宿盘`, icon: 'quickReturn' },
+				{ key: `3D盘${title}`, label: `${title}3D盘`, icon: 'quickComposite' },
+			);
+		});
+		return (
+			<div className="horosa-bottom-quick-dock horosa-jieqi-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-jieqi-quick-actions">
+					{actions.map((item)=>{
+						const active = this.state.currentTab === item.key;
+						return (
+							<button
+								type="button"
+								key={item.key}
+								className={`horosa-bottom-quick-button horosa-jieqi-quick-button${active ? ' is-active' : ''}`}
+								onClick={()=>this.changeTab(item.key)}
+							>
+								<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+								<span>{item.label}</span>
+							</button>
+						);
+					})}
+				</div>
+			</div>
+		);
 	}
 
 	componentDidMount(){
@@ -1539,20 +1576,20 @@ export class JieQiChartsMain extends Component{
 
 	render(){
 		let height = this.props.height ? this.props.height : 760;
-
+		let contentHeight = height;
 		if(height === '100%'){
-			height = 'calc(100% - 70px)'
-		}else{
-			height = height - 50
+			contentHeight = '100%';
+		}else if(typeof height === 'number'){
+			contentHeight = Math.max(260, height - 118);
 		}
 		let style = {
-			height: height,
+			height: '100%',
 			overflowY:'auto', 
 			overflowX:'hidden',
 		};
 
 
-		const tabs = this.genTabsDom(height);
+		const tabs = this.genTabsDom(contentHeight);
 
 		let jieqi24dom = this.gen24JieqiDom();
 
@@ -1612,7 +1649,8 @@ export class JieQiChartsMain extends Component{
 					tabPosition='right'
 					onChange={this.changeTab}
 					destroyInactiveTabPane={true}
-					style={{ height: height }}
+					className="horosa-jieqi-tabs"
+					style={{ height: '100%' }}
 				>
 					<TabPane tab='二十四节气' key='二十四节气'>
 						<div className={styles.scrollbar} style={style}>
@@ -1621,6 +1659,7 @@ export class JieQiChartsMain extends Component{
 					</TabPane>
 					{ tabs }
 				</Tabs>
+				{this.renderBottomQuickDock()}
 			</div>
 		);
 	}

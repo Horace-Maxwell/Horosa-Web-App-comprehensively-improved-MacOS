@@ -261,6 +261,29 @@
   text-shadow: none !important;
 }
 
+.brandQrDropdown {
+  :global(.ant-dropdown-menu) {
+    padding: 8px;
+    border: 1px solid rgba(218, 177, 111, 0.22);
+    border-radius: 8px;
+    background: rgba(10, 11, 12, 0.96);
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+  }
+
+  :global(.ant-dropdown-menu-item) {
+    padding: 0;
+    border-radius: 6px;
+    background: transparent !important;
+  }
+}
+
+.brandQrImage {
+  display: block;
+  width: 132px;
+  height: 132px;
+  border-radius: 4px;
+}
+
 .astroNewChartGroup {
   display: inline-flex;
   align-items: center;
@@ -419,6 +442,14 @@
 :global(:root[data-horosa-appearance='light']) .astroNewChartGroup {
   border-color: var(--horosa-border);
   background: var(--horosa-surface-raised);
+}
+
+:global(:root[data-horosa-appearance='light']) .brandQrDropdown {
+  :global(.ant-dropdown-menu) {
+    border-color: var(--horosa-border);
+    background: #ffffff;
+    box-shadow: var(--horosa-small-shadow);
+  }
 }
 
 :global(:root[data-horosa-appearance='light']) .astroPrimaryCommand {

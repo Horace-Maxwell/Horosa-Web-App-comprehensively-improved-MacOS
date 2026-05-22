@@ -9,6 +9,10 @@ import { getChartRendererClass } from '../../renderers/xqChartTheme';
 
 const RETROGRADE_SYMBOL_COLOR = '#8f2d2d';
 const PLANET_MINUTE_TEXT_COLOR = '#80786e';
+const DARK_SIGN_FILL_OPACITY = 0.18;
+const DARK_HOUSE_FILL_OPACITY = 0.36;
+const KEY_HOUSE_FILL_OPACITY = 0.18;
+const NON_KEY_HOUSE_MASK_OPACITY = 0.08;
 
 const ZODIACAL_LABELS = {
 	0: '回归黄道',
@@ -43,6 +47,29 @@ export function resolveChartCircleDisplayMode(params = {}){
 function buildChartCircleDisplayModeText(params = {}){
 	const display = resolveChartCircleDisplayMode(params);
 	return [display.zodiacal, display.hsys].filter(Boolean).join('，');
+}
+
+function isTransparentFill(fill){
+	return fill === undefined || fill === null || `${fill}`.toLowerCase() === 'transparent';
+}
+
+function getColorLuminance(fill){
+	const color = d3.color(fill);
+	if(!color){
+		return 255;
+	}
+	return (0.2126 * color.r) + (0.7152 * color.g) + (0.0722 * color.b);
+}
+
+function isDarkChartTheme(){
+	return getColorLuminance(AstroConst.AstroColor.ChartBackgroud) < 80;
+}
+
+function getChartLayerFillOpacity(fill, darkOpacity){
+	if(isTransparentFill(fill)){
+		return 1;
+	}
+	return isDarkChartTheme() ? darkOpacity : 1;
 }
 
 const ChartStyleProfiles = {
@@ -322,9 +349,11 @@ export default class AstroChartCircle {
 			});
 			let sig = AstroConst.LIST_SIGNS[i];
 			let siggroup = signs.append('g');
+			const signFill = AstroConst.AstroColor.SignFill[sig];
 			siggroup.append('path')
 				.attr('d', arcd).attr('stroke', AstroConst.AstroColor.Stroke)
-				.attr('fill', AstroConst.AstroColor.SignFill[sig]);
+				.attr('fill', signFill)
+				.attr('fill-opacity', getChartLayerFillOpacity(signFill, DARK_SIGN_FILL_OPACITY));
 	
 			let lblgroup = siggroup.append('g').attr("text-anchor", "middle");
 			let txts = [
@@ -1206,9 +1235,11 @@ export default class AstroChartCircle {
 			let termgroup = terms.append('g');
 			this.genTooltip(termgroup, term);
 
+			const houseFill = AstroConst.AstroColor.HouseFill[term.id];
 			termgroup.append('path')
 				.attr('d', arcd).attr('stroke', AstroConst.AstroColor[term.id])
-				.attr('fill', AstroConst.AstroColor.HouseFill[term.id]);
+				.attr('fill', houseFill)
+				.attr('fill-opacity', getChartLayerFillOpacity(houseFill, DARK_HOUSE_FILL_OPACITY));
 	
 			let demiStep = (delta / 2) * Math.PI / 180;
 			let lblgroup = termgroup.append('g').attr("text-anchor", "middle");
@@ -1657,12 +1688,13 @@ export default class AstroChartCircle {
 			if(hasKey){
 				maksgrp.append('path')
 					.attr('d', arcd).attr('stroke', AstroConst.AstroColor.Stroke)
-					.attr('fill', AstroConst.AstroColor.HouseFill[house.id]);	
+					.attr('fill', AstroConst.AstroColor.HouseFill[house.id])
+					.attr('fill-opacity', KEY_HOUSE_FILL_OPACITY);
 			}else{
 				maksgrp.append('path')
 					.attr('d', arcd).attr('stroke', AstroConst.AstroColor.Stroke)
-					.attr('opacity', 0.2)
-					.attr('fill', AstroConst.AstroColor.HouseMask);	
+					.attr('fill', AstroConst.AstroColor.HouseMask)
+					.attr('fill-opacity', NON_KEY_HOUSE_MASK_OPACITY);
 			}
 		}
 	

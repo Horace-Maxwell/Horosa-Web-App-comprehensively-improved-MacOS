@@ -55,7 +55,12 @@ const AI_MODE_ITEMS = [
 	},
 ];
 
-const LEVEL_COLORS = ['#0a2e81', '#c81808', '#005000', '#948e33'];
+const LEVEL_COLORS = [
+	'var(--horosa-direction-level-1, #275fc7)',
+	'var(--horosa-direction-level-2, #c72d22)',
+	'var(--horosa-direction-level-3, #237a45)',
+	'var(--horosa-direction-level-4, #805526)',
+];
 
 function safeIdx(idx, len){
 	if(!len || len <= 0){
@@ -631,8 +636,9 @@ class AstroDecennials extends Component{
 					</Col>
 					<Col span={6}>
 						<Divider>{`基于${getDecennialPlanetShortName(resolved)}起运`}</Divider>
-						<div className={styles.scrollbar} style={style}>
+						<div className={`${styles.scrollbar} horosa-direction-tree-scroll horosa-decennials-tree-scroll`} style={style}>
 							<Tree
+								className="horosa-direction-tree horosa-decennials-tree"
 								expandedKeys={this.state.expandedKeys}
 								onExpand={this.changeExpandedKeys}
 								selectable={false}

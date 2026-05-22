@@ -2545,7 +2545,7 @@ IoT/串口/现场总线相关模块。当前可见内容：
 - `src-tauri/`
 - `web/`
 
-其中 `package.json` 当前版本为 `2.0.0`。
+其中 `package.json` 当前版本为 `2.0.2`。
 
 ### 3.2 `src-tauri/`
 
@@ -2685,7 +2685,7 @@ IoT/串口/现场总线相关模块。当前可见内容：
 - `settings.js`
 - `style.css`
 
-这是桌面初始化页、诊断页、设置页对应的前端资源。当前 `index.html` / `style.css` / `app.js` 是 2.0.0 启动控制台：首屏展示 runtime、服务、日志与恢复动作，并配合桌面壳保存上次窗口大小。
+这是桌面初始化页、诊断页、设置页对应的前端资源。当前 `index.html` / `style.css` / `app.js` 是 2.0.2 启动控制台：首屏展示 runtime、服务、日志与恢复动作，并配合桌面壳保存上次窗口大小。
 
 ### 3.4 `config/`
 
@@ -2705,7 +2705,7 @@ IoT/串口/现场总线相关模块。当前可见内容：
 
 - `repoOwner`: `Horace-Maxwell`
 - `repoName`: `Horosa-Web-App-comprehensively-improved-MacOS`
-- `runtimeVersion`: `2.0.0-runtime1`
+- `runtimeVersion`: `2.0.2-runtime1`
 - `runtimeAssetName`: `horosa-runtime-macos-arm64.tar.gz`
 - `desktopAssetName`: `Horosa-Desktop-macos-arm64.zip`
 - `desktopPkgName`: `Horosa-Installer-macos-arm64.pkg`
@@ -3166,7 +3166,7 @@ IoT/串口/现场总线相关模块。当前可见内容：
 - `docs/assets/screenshots/horosa-navigation-overlay.png`
 - `docs/world-metaphysics-masterplan/`
 
-旧的 `main-workspace.png` 与 `sanshi-workspace.png` 示例图已移除，README 三语都指向这组三张 2.0.0 截图。
+旧的 `main-workspace.png` 与 `sanshi-workspace.png` 示例图已移除，README 三语都指向这组三张 2.0.2 截图。
 
 ### 7.2 `diagnostics/`
 

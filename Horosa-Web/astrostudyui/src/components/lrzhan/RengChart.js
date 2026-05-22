@@ -158,8 +158,8 @@ class RengChart {
 		let titleH = this.compactPreview ? 0 : Math.min(220, Math.max(178, realH * 0.155));
 		let bodyGap = this.compactPreview ? 0 : Math.max(20, Math.min(38, realH * 0.024));
 		if(circleLayout){
-			titleH = Math.min(190, Math.max(158, realH * 0.2));
-			bodyGap = Math.max(14, Math.min(24, realH * 0.016));
+			titleH = Math.min(112, Math.max(86, realH * 0.092));
+			bodyGap = Math.max(6, Math.min(12, realH * 0.008));
 		}
 		let h = Math.max(0, realH - titleH - bodyGap);
 		let cords = [];
@@ -272,14 +272,14 @@ class RengChart {
 		}
 		const outerGap = Math.max(4, Math.min(12, cord.w * 0.008));
 		const innerGap = Math.max(8, Math.min(18, cord.w * 0.012));
-        const metaH = this.liureng ? Math.max(260, Math.min(400, cord.h * 0.45)) : 0;
-        const topAreaH = Math.max(240, cord.h - outerGap * 2 - (metaH ? metaH + innerGap : 0));
+        const reservedMetaH = this.liureng ? Math.max(320, Math.min(470, cord.h * 0.52)) : 0;
+        const topAreaH = Math.max(240, cord.h - outerGap * 2 - (reservedMetaH ? reservedMetaH + innerGap : 0));
         const bodyY = cord.y + outerGap;
 		const contentW = Math.max(0, cord.w - outerGap * 2);
-		const circleColumnW = Math.max(300, Math.min(contentW * 0.48, contentW - 260));
+		const circleColumnW = Math.max(280, Math.min(contentW * 0.41, contentW - 360));
 		const rightX = cord.x + outerGap + circleColumnW + innerGap;
 		const rightW = Math.max(220, cord.x + cord.w - rightX - outerGap);
-        const size = Math.max(220, Math.min(circleColumnW, topAreaH, 500) - 4);
+        const size = Math.max(220, Math.min(circleColumnW * 0.92, topAreaH, 440) - 4);
 		const x = cord.x + outerGap + (circleColumnW - size) / 2;
 		const y = bodyY;
 		const opt = {
@@ -304,19 +304,21 @@ class RengChart {
             x: rightX,
             y: bodyY,
             w: rightW,
-            h: Math.max(240, Math.min(topAreaH, 390)),
+            h: Math.max(250, Math.min(topAreaH, 380)),
         };
 		this.drawGua2(keChuanCord);
 		if(this.rengs[2] && this.rengs[2].cuangs && this.rengs[2].cuangs.name){
 			circle.cuangName = this.rengs[2].cuangs.name;
 		}
 
-		if(metaH > 0){
+		if(reservedMetaH > 0){
+			const metaY = bodyY + Math.max(size, keChuanCord.h) + innerGap;
+			const metaBottom = cord.y + cord.h - outerGap;
 			this.drawCircleMetaTables({
 				x: cord.x + outerGap,
-				y: bodyY + topAreaH + innerGap,
+				y: metaY,
 				w: contentW,
-				h: metaH,
+				h: Math.max(220, metaBottom - metaY),
 			});
 		}
 	}
@@ -327,22 +329,22 @@ class RengChart {
 			const dateText = `${fields.date.value.format ? fields.date.value.format('YYYY-MM-DD HH:mm:ss') : fields.date.value}`;
 			const timeText = `${fields.time.value.format ? fields.time.value.format('YYYY-MM-DD HH:mm:ss') : fields.time.value}`;
 			const dateMatch = dateText.match(/(-?\d{1,4})-(\d{1,2})-(\d{1,2})/);
-			const timeMatch = timeText.match(/(\d{1,2}):(\d{1,2})/);
+			const timeMatch = timeText.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
 			if(dateMatch){
-				return `${dateMatch[1]}年${dateMatch[2].padStart(2, '0')}月${dateMatch[3].padStart(2, '0')}日 ${timeMatch ? timeMatch[1].padStart(2, '0') : '00'}:${timeMatch ? timeMatch[2].padStart(2, '0') : '00'}`;
+				return `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')} ${timeMatch ? timeMatch[1].padStart(2, '0') : '00'}:${timeMatch ? timeMatch[2].padStart(2, '0') : '00'}:${timeMatch && timeMatch[3] ? timeMatch[3].padStart(2, '0') : '00'}`;
 			}
 		}
 		if(fields.params && fields.params.birth){
-			const match = `${fields.params.birth}`.match(/(-?\d{1,4})-(\d{1,2})-(\d{1,2}).*?(\d{1,2}):(\d{1,2})/);
+			const match = `${fields.params.birth}`.match(/(-?\d{1,4})-(\d{1,2})-(\d{1,2}).*?(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
 			if(match){
-				return `${match[1]}年${match[2].padStart(2, '0')}月${match[3].padStart(2, '0')}日 ${match[4].padStart(2, '0')}:${match[5].padStart(2, '0')}`;
+				return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')} ${match[4].padStart(2, '0')}:${match[5].padStart(2, '0')}:${match[6] ? match[6].padStart(2, '0') : '00'}`;
 			}
 			return `${fields.params.birth}`.substr(0, 16);
 		}
 		if(this.nongli && this.nongli.birth){
-			const match = `${this.nongli.birth}`.match(/(-?\d{1,4})-(\d{1,2})-(\d{1,2}).*?(\d{1,2}):(\d{1,2})/);
+			const match = `${this.nongli.birth}`.match(/(-?\d{1,4})-(\d{1,2})-(\d{1,2}).*?(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
 			if(match){
-				return `${match[1]}年${match[2].padStart(2, '0')}月${match[3].padStart(2, '0')}日 ${match[4].padStart(2, '0')}:${match[5].padStart(2, '0')}`;
+				return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')} ${match[4].padStart(2, '0')}:${match[5].padStart(2, '0')}:${match[6] ? match[6].padStart(2, '0') : '00'}`;
 			}
 			return `${this.nongli.birth}`.substr(0, 16);
 		}
@@ -432,43 +434,22 @@ class RengChart {
 		}
 		const group = this.svgTopgroup.append('g').attr('class', 'liureng-info-header');
 		const padX = Math.max(18, cord.w * 0.05);
-		const topY = cord.y + Math.max(44, cord.h * 0.27);
-		const pillarY = cord.y + Math.max(104, cord.h * 0.67);
+		const topY = cord.y + Math.max(34, cord.h * 0.42);
 		const dividerY = cord.y + cord.h - Math.max(8, cord.h * 0.055);
-		const timeSize = Math.max(18, Math.min(34, cord.w * 0.05));
-		const pillarSize = Math.max(20, Math.min(30, cord.w * 0.043));
-		const rightSize = Math.max(18, Math.min(32, cord.w * 0.046));
-		const rightX = cord.x + cord.w - padX;
+		const summarySize = Math.max(16, Math.min(24, cord.w * 0.028));
 		const solarTime = this.formatSolarTime();
-		const xun = this.liureng && this.liureng.xun ? this.liureng.xun : {};
-		const yue = this.yue || '';
-		const xunKong = xun['旬空'] || '';
-		const xunHead = xun['旬首'] || '';
 		const pillars = this.getFourPillars();
-		const pillarStartX = cord.x + padX + pillarSize * 0.1;
-		const pillarGap = Math.max(pillarSize * 2.15, Math.min(96, cord.w * 0.12));
+		const pillarText = pillars
+			.map((pillar)=>`${pillar.value || '—'}${pillar.label}`)
+			.join(' ');
+		const summaryText = `公历：${solarTime || '—'}；八字：${pillarText}`;
 
-		this.drawInfoText(group, solarTime, cord.x + padX, topY, {
+		this.drawInfoText(group, summaryText, cord.x + cord.w / 2, topY, {
 			fill: 'var(--horosa-liureng-square-main, #f0eee7)',
-			size: timeSize,
+			size: summarySize,
 			weight: 760,
-		});
-		this.drawInfoPair(group, '月将-', yue || '—', rightX, topY, {
-			size: rightSize,
-			weight: 760,
-		});
-
-		pillars.forEach((pillar, idx)=>{
-			this.drawFourPillar(group, pillar, pillarStartX + idx * pillarGap, pillarY, pillarSize);
-		});
-
-		this.drawInfoPair(group, '旬空-', xunKong || '—', rightX, pillarY - pillarSize * 0.12, {
-			size: rightSize * 0.82,
-			weight: 760,
-		});
-		this.drawInfoPair(group, '旬首-', xunHead || '—', rightX, pillarY + pillarSize * 1.02, {
-			size: rightSize * 0.82,
-			weight: 760,
+			anchor: 'middle',
+			family: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
 		});
 
 		group.append('line')
@@ -968,16 +949,53 @@ class RengChart {
 		}
 
 		const gap = 8;
-		const cols = 3;
-		const rowWeights = [0.21, 0.56, 0.23];
-		const cellW = (cord.w - gap * (cols - 1)) / cols;
-		const availableH = cord.h - gap * (rowWeights.length - 1);
-		const rowHeights = rowWeights.map((weight)=>availableH * weight);
-		const rowY = rowHeights.reduce((acc, rowH, idx)=>{
-			acc.push(idx === 0 ? cord.y : acc[idx - 1] + rowHeights[idx - 1] + gap);
+		const byTitle = sections.reduce((acc, section)=>{
+			acc[section[0]] = section;
 			return acc;
-		}, []);
+		}, {});
+		const leftTop = ['行年', '旬日', '旺衰'].map((key)=>byTitle[key]).filter(Boolean);
+		const leftBottom = ['基础神煞', '干煞', '月煞'].map((key)=>byTitle[key]).filter(Boolean);
+		const rightTall = ['支煞', '年煞', `${this.zhangshengElem}十二长生`].map((key)=>byTitle[key]).filter(Boolean);
 
+		if(leftTop.length + leftBottom.length + rightTall.length >= sections.length){
+			const leftW = Math.max(320, Math.min(cord.w * 0.48, cord.w - 360));
+			const rightW = cord.w - leftW - gap;
+			const leftColW = (leftW - gap * 2) / 3;
+			const rightColW = (rightW - gap * 2) / 3;
+			const topRowH = Math.max(92, Math.min(142, cord.h * 0.31));
+			const bottomRowH = Math.max(92, cord.h - topRowH - gap);
+			const drawSection = (section, x, y, width, height, rowType)=>{
+				const opt = {
+					chartObj: this.chartObj,
+					guireng: this.guireng,
+					x,
+					y,
+					width,
+					height,
+					owner: this.svgTopgroup,
+					title: section[0],
+					gods: section[1],
+				};
+				const chart = new GodChart(opt);
+				chart.titleFontSize = Math.max(14, Math.min(rowType === 'top' ? 23 : 20, opt.height * (rowType === 'top' ? 0.24 : 0.18)));
+				chart.godFontSize = Math.max(rowType === 'tall' ? 11 : 13, Math.min(rowType === 'top' ? 18 : 16, opt.height * (rowType === 'tall' ? 0.055 : 0.15)));
+				chart.draw();
+			};
+			leftTop.forEach((section, idx)=>{
+				drawSection(section, cord.x + idx * (leftColW + gap), cord.y, leftColW, topRowH, 'top');
+			});
+			leftBottom.forEach((section, idx)=>{
+				drawSection(section, cord.x + idx * (leftColW + gap), cord.y + topRowH + gap, leftColW, bottomRowH, 'bottom');
+			});
+			rightTall.forEach((section, idx)=>{
+				drawSection(section, cord.x + leftW + gap + idx * (rightColW + gap), cord.y, rightColW, cord.h, 'tall');
+			});
+			return;
+		}
+
+		const cols = 3;
+		const cellW = (cord.w - gap * (cols - 1)) / cols;
+		const rowH = Math.max(92, (cord.h - gap * 2) / 3);
 		sections.forEach((section, idx)=>{
 			const col = idx % cols;
 			const row = Math.floor(idx / cols);
@@ -985,16 +1003,16 @@ class RengChart {
 				chartObj: this.chartObj,
 				guireng: this.guireng,
 				x: cord.x + col * (cellW + gap),
-				y: rowY[row] || cord.y,
+				y: cord.y + row * (rowH + gap),
 				width: cellW,
-				height: rowHeights[row] || rowHeights[rowHeights.length - 1],
+				height: rowH,
 				owner: this.svgTopgroup,
 				title: section[0],
 				gods: section[1],
 			};
 			const chart = new GodChart(opt);
-			chart.titleFontSize = Math.max(14, Math.min(20, opt.height * 0.20));
-			chart.godFontSize = Math.max(row === 1 ? 11 : 12, Math.min(16, opt.height * (row === 1 ? 0.085 : 0.14)));
+			chart.titleFontSize = Math.max(14, Math.min(row === 0 ? 23 : 20, opt.height * (row === 0 ? 0.24 : 0.20)));
+			chart.godFontSize = Math.max(row === 1 ? 11 : 13, Math.min(row === 0 ? 18 : 16, opt.height * (row === 1 ? 0.085 : (row === 0 ? 0.16 : 0.14))));
 			chart.draw();
 		});
 	}
