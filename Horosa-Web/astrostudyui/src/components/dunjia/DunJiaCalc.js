@@ -781,9 +781,12 @@ function buildGanzhiForQimen(nongli, dateParts, opts, context){
 		|| (nongli ? nongli.time : '')
 	);
 	const computedTime = getHourGanZhi(day, calcDateTime.hour);
-	const time = normalizeTimeAlg(opts && opts.timeAlg) === 0
+	const switchedLateZi = calcDateTime.hour === 23 && !!(opts && opts.after23NewDay);
+	const time = switchedLateZi
 		? (computedTime || preciseTime)
-		: (preciseTime || computedTime);
+		: (normalizeTimeAlg(opts && opts.timeAlg) === 0
+		? (computedTime || preciseTime)
+		: (preciseTime || computedTime));
 	return {
 		year: normalizeGanZhi(
 			(bazi && bazi.year && bazi.year.ganzi)
@@ -936,7 +939,29 @@ function panSky(ganzhi, qmju){
 	const rotate = meta.yy === '阳' ? CLOCKWISE_EIGHTGUA : [...CLOCKWISE_EIGHTGUA].reverse();
 	const earth = panEarth(qmju);
 	const earthR = invertMap(earth);
+	const zfzs = zhifuNZhishi(ganzhi, qmju);
 	const fuHead = JJ[getXunHead(ganzhi.time)] || '戊';
+	const ganHead = zfzs.值符天干[1];
+	const starGong = zfzs.值符星宫[1];
+	const earthOnRing = rotate.map((g)=>earth[g]);
+	if(starGong === '中'){
+		const gongReorder = newList(rotate, '坤');
+		let ganReorder;
+		if(panGod(ganzhi, qmju).坤 !== '符'){
+			ganReorder = newList(earthOnRing, earth.坤);
+		}else if(earth.坤 === ganHead){
+			ganReorder = newList(earthOnRing, earthOnRing[earthOnRing.length - 1]);
+		}else{
+			try{
+				ganReorder = newList(earthOnRing, ganHead);
+			}catch(e){
+				ganReorder = newList(earthOnRing, earth.坤);
+			}
+		}
+		const out = zipToMap(gongReorder, ganReorder);
+		out.中 = earth.中;
+		return out;
+	}
 	const timeGan = getGanzhiGan(ganzhi.time);
 	const normalizeTianpanGong = (gong)=>gong === '中' ? '坤' : gong;
 	const sourceGong = normalizeTianpanGong(earthR[fuHead]);
@@ -1312,11 +1337,8 @@ function qimenJuNameZhirun(dateParts, dayGanzhi, yearSeeds, fallbackJieqi, after
 		return qimenJuNameChaibu(fallbackJieqi || '', dayGanzhi);
 	}
 	const jieqi = jqrz.substring(0, 2);
-	const rizhu = jqrz.substring(2, 4);
-	const idx = getGanzhiIndex(rizhu);
-	const futou = Math.floor(idx / 15) * 15;
-	const yuanId = Math.floor((idx - futou) / 5);
-	const yuan = ['上元', '中元', '下元'][yuanId] || '上元';
+	const yuan = findYuan(dayGanzhi);
+	const yuanId = yuan === '上元' ? 0 : (yuan === '中元' ? 1 : 2);
 	const code = JIEQI2JU[jieqi] || '一七四阳';
 	const yy = code.substring(code.length - 1);
 	return `${yy}遁${code.substring(yuanId, yuanId + 1)}局${yuan}`;
@@ -1447,7 +1469,7 @@ export function calcDunJia(fields, nongli, options, context){
 		yimaMode: 'day',
 		timeAlg: 0,
 		shiftPalace: 0,
-		after23NewDay: 1,
+		after23NewDay: 0,
 		fengJu: false,
 		...(options || {}),
 	};
@@ -1493,10 +1515,7 @@ export function calcDunJia(fields, nongli, options, context){
 
 	const zhiFuPalace = rotateOuterPalaceNum(GUA_POS_MAP[zfzs.值符星宫[1]] || 5, shiftPalace);
 	const zhiShiPalace = rotateOuterPalaceNum(GUA_POS_MAP[zfzs.值使门宫[1]] || 5, shiftPalace);
-	let zhiFu = JIU_XING_NAME[(zfzs.值符星宫[0] || '').replace(/禽/g, '芮')] || `${(zfzs.值符星宫[0] || '').replace(/禽/g, '芮')}`;
-	if((zfzs.值符星宫[0] || '') === '禽'){
-		zhiFu = '天禽';
-	}
+	const zhiFu = JIU_XING_NAME[(zfzs.值符星宫[0] || '').replace(/禽/g, '芮')] || `${(zfzs.值符星宫[0] || '').replace(/禽/g, '芮')}`;
 	const zhiShi = BA_MEN_NAME[zfzs.值使门宫[0]] || `${zfzs.值使门宫[0]}门`;
 
 	const cells = buildCells(diPan, tianPan, men, shen, star, zhiFuPalace, zhiShiPalace, {

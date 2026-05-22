@@ -14,6 +14,7 @@ import CaseEditFormComp from '../components/user/CaseEditFormComp';
 import CaseList from '../components/user/CaseList';
 import AstroFormComp from '../components/astro/AstroFormComp';
 import AstroChartMain from '../components/astro/AstroChartMain';
+import AstroChartMain3D from '../components/astro3d/AstroChartMain3D';
 import PlanetariumMain from '../components/planetarium/PlanetariumMain';
 import AuxChartMain from '../components/auxchart/AuxChartMain';
 import IndiaChartMain from '../components/astro/IndiaChartMain';
@@ -59,6 +60,8 @@ const mainTabIcons = {
     星运: <XQIcon name="direction" />,
     八字: <XQIcon name="bazi" />,
     紫微: <XQIcon name="ziwei" />,
+    '3D': <XQIcon name="threeD" />,
+    三维盘: <XQIcon name="threeD" />,
     天文馆: <XQIcon name="globe" />,
     七政: <XQIcon name="qizheng" />,
     印占: <XQIcon name="vedic" />,
@@ -126,6 +129,7 @@ const fullHeightWorkspaceTabs = new Set([
     'fengshui',
     'cnyibu',
     'aianalysis',
+    'astrochart3D',
     'planetarium',
     'calendar',
     'cntradition',
@@ -190,7 +194,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             if(key === 'indiachart' || key === 'cntradition' || key === 'jieqichart'
                 || key === 'otherbu' || key === 'cnyibu' || key === 'germanytech'
                 || key === 'guolao' || key === 'hellenastro'  || key === 'astrochart'
-                || key === 'locastro' || key === 'admintools'
+                || key === 'locastro' || key === 'admintools' || key === 'astrochart3D'
                 || key === 'planetarium'
                 || key === 'fengshui' || key === 'sanshiunited' || key === 'aianalysis'
                 || key === 'bazi' || key === 'ziwei' || key === 'guazhan'
@@ -582,6 +586,24 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         chartObj={chartObj}
                         dispatch={dispatch}
                         hook={predictHook.aianalysis}
+                    />
+                </TabPane>
+
+                <TabPane tab={mainTab('3D')} key="astrochart3D">
+                    <AstroChartMain3D
+                        value={chartObj}
+                        onChange={changeCond}
+                        fields={fields}
+                        fieldsAry={aryfields}
+                        height={height}
+                        currentTab={currentTab}
+                        chartDisplay={chartDisplay}
+                        planetDisplay={planetDisplay}
+                        lotsDisplay={lotsDisplay}
+                        showPlanetHouseInfo={showPlanetHouseInfo}
+                        showAstroMeaning={showAstroMeaning}
+                        dispatch={dispatch}
+                        hook={predictHook.astrochart3D}
                     />
                 </TabPane>
 

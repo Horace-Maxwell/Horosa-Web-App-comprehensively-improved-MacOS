@@ -29,7 +29,14 @@ def _assert_regex(path: Path, pattern: str) -> None:
 
 
 def _assert_tab(path: Path, label: str, key: str) -> None:
-    _assert_regex(path, rf'<TabPane tab="{re.escape(label)}" key="{re.escape(key)}"')
+    # Top-level tabs may use rich labels through mainTab('...'), while legacy
+    # sub-tabs still use plain tab="...". Keep both shapes covered.
+    _assert_regex(
+        path,
+        rf'<TabPane\b(?=[^>]*\bkey=["\']{re.escape(key)}["\'])(?=[^>]*(?:'
+        rf'tab=["\']{re.escape(label)}["\']|tab=\{{mainTab\(["\']{re.escape(label)}["\']'
+        rf'))',
+    )
 
 
 def main() -> None:
@@ -86,29 +93,31 @@ def main() -> None:
     }
 
     top_level_tabs = {
-        "星盘": "astrochart",
-        "三维盘": "astrochart3D",
-        "推运盘": "direction",
-        "量化盘": "germanytech",
-        "关系盘": "relativechart",
-        "节气盘": "jieqichart",
-        "星体地图": "locastro",
-        "七政四余": "guolao",
-        "希腊星术": "hellenastro",
-        "印度律盘": "indiachart",
-        "八字紫微": "cntradition",
-        "易与三式": "cnyibu",
-        "万年历": "calendar",
+        "占星": "astrochart",
+        "星运": "direction",
+        "八字": "bazi",
+        "紫微": "ziwei",
+        "七政": "guolao",
+        "印占": "indiachart",
+        "辅盘": "auxchart",
+        "合盘": "relativechart",
+        "三式": "sanshiunited",
+        "六壬": "liureng",
+        "遁甲": "dunjia",
+        "六爻": "guazhan",
+        "太乙": "taiyi",
+        "分至": "jieqichart",
         "风水": "fengshui",
-        "三式合一": "sanshiunited",
+        "其他": "cnyibu",
         "AI分析": "aianalysis",
+        "3D": "astrochart3D",
+        "黄历": "calendar",
+        "辅助": "cntradition",
     }
     for label, key in top_level_tabs.items():
         _assert_tab(index_js, label, key)
 
     cntrad_tabs = {
-        "八字": "bazi",
-        "紫微斗数": "ziwei",
         "八卦类象": "guasym",
         "十二串宫": "cuangong12",
         "八字规则": "pithy",
@@ -118,11 +127,7 @@ def main() -> None:
 
     cnyibu_tabs = {
         "宿盘": "suzhan",
-        "易卦": "guazhan",
-        "六壬": "liureng",
         "金口诀": "jinkou",
-        "遁甲": "dunjia",
-        "太乙": "taiyi",
         "统摄法": "tongshefa",
     }
     for label, key in cnyibu_tabs.items():
@@ -149,17 +154,24 @@ def main() -> None:
         "hook={predictHook.astrochart}",
         "hook={predictHook.astrochart3D}",
         "hook={predictHook.direction}",
-        "hook={predictHook.relativechart}",
-        "hook={predictHook.germanytech}",
-        "hook={predictHook.jieqichart}",
-        "hook={predictHook.locastro}",
+        "hook={predictHook.bazi}",
+        "hook={predictHook.ziwei}",
         "hook={predictHook.guolao}",
-        "hook={predictHook.hellenastro}",
         "hook={predictHook.indiachart}",
-        "hook={predictHook.cntradition}",
-        "hook={predictHook.cnyibu}",
+        "hook={predictHook.auxchart}",
+        "hook={predictHook.relativechart}",
         "hook={predictHook.sanshiunited}",
+        "hook={predictHook.liureng}",
+        "hook={predictHook.dunjia}",
+        "hook={predictHook.guazhan}",
+        "hook={predictHook.taiyi}",
+        "hook={predictHook.jieqichart}",
+        "hook={predictHook.cnyibu}",
         "hook={predictHook.aianalysis}",
+        "hook={predictHook.cntradition}",
+        "hook={predictHook.astrochart3D}",
+        "hook={predictHook.planetarium}",
+        "hook={predictHook.calendar}",
     ]:
         _assert_contains(index_js, hook_key)
 
@@ -187,9 +199,10 @@ def main() -> None:
     _assert_contains(page_header, "saveAIExportSettings")
     _assert_contains(page_header, "listAIExportTechniqueSettings")
     _assert_contains(page_header, "getCurrentAIExportContext")
-    _assert_contains(page_header, "<Button size='small'>AI导出</Button>")
+    _assert_contains(page_header, "<XQButton className={styles.astroHeaderCommand} size=\"small\" iconName=\"aiExport\">AI导出</XQButton>")
     _assert_contains(page_header, "AI导出设置")
-    _assert_contains(page_header, "Checkbox.Group")
+    _assert_contains(page_header, "XQCheckList")
+    _assert_contains(page_header, "XQCheckItem")
     _assert_contains(page_header, "message.success('AI导出设置已保存')")
 
     for needle in [
@@ -198,8 +211,10 @@ def main() -> None:
         "<TabPane tab=\"信息\" key=\"1\">",
         "<TabPane tab=\"相位\" key=\"2\">",
         "<TabPane tab=\"行星\" key=\"3\">",
-        "<TabPane tab=\"希腊点\" key=\"4\">",
+        "<div className=\"horosa-info-card-title\">希腊点</div>",
+        "<TabPane tab=\"古典\" key=\"4\">",
         "<TabPane tab=\"可能性\" key=\"5\">",
+        "<TabPane tab=\"格局\" key=\"6\">",
     ]:
         _assert_contains(astro_chart_main, needle)
 
@@ -221,12 +236,12 @@ def main() -> None:
     _assert_contains(astro3d_core, "const ModelUnavailableAtKey = 'horosa3dModelUnavailableAt';")
 
     _assert_contains(hellen_main, "currentTab: \"Chart13\"")
-    _assert_contains(hellen_main, "<TabPane tab='十三分盘' key=\"Chart13\" >")
+    _assert_contains(hellen_main, "<AstroChart13")
     _assert_contains(hellen_main, "hook={this.state.hook.Chart13}")
     _assert_contains(chart13, "fetchChart13Cached")
     _assert_contains(chart13, "request(`${Constants.ServerRoot}/chart13`")
 
-    _assert_contains(loc_main, "<TabPane tab='行星地图' key=\"Acg\" >")
+    _assert_contains(loc_main, "<AstroAcg")
     _assert_contains(loc_main, "hook={this.state.hook.Acg}")
     _assert_contains(acg, "request(`${Constants.ServerRoot}/location/acg`")
 
@@ -239,8 +254,10 @@ def main() -> None:
         "Dasamsa:{",
         "Shodasamsa:{",
         "Chaturvimsamsa:{",
-        "tab={this.state.hook.Natal.txt}",
-        "<span>{hook.fractal}律盘</span>",
+        "value={this.state.currentTab}",
+        "chartnum={currentHook.fractal}",
+        "onClick={()=>this.changeTab('Natal')}",
+        "<strong>D{item.fractal}</strong>",
         "saveModuleAISnapshot('indiachart_current'",
         "saveModuleAISnapshot(`indiachart_${fractal}`",
     ]:

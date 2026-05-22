@@ -833,7 +833,7 @@ fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
 }
 
 fn should_launch_main_window_maximized(state: &SavedWindowState) -> bool {
-    state.is_maximized != Some(false)
+    state.is_maximized == Some(true)
 }
 
 fn apply_main_window_launch_state(window: &WebviewWindow, state: &SavedWindowState) {
@@ -4871,7 +4871,12 @@ fn main() {
         .expect("error while running 星阙 desktop shell")
         .run(|app, event| match event {
             RunEvent::WindowEvent { label, event, .. } => {
-                if matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_)) {
+                if matches!(
+                    event,
+                    WindowEvent::Moved(_)
+                        | WindowEvent::Resized(_)
+                        | WindowEvent::CloseRequested { .. }
+                ) {
                     if let Some(window) = app.get_webview_window(&label) {
                         let _ = persist_window_state_for_label(app, &label, &window);
                     }
@@ -4912,7 +4917,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_main_window_state_defaults_to_launch_maximized() {
+    fn legacy_main_window_state_keeps_saved_size() {
         let state = SavedWindowState {
             width: Some(1480.0),
             height: Some(960.0),
@@ -4921,7 +4926,7 @@ mod tests {
             is_maximized: None,
         };
 
-        assert!(should_launch_main_window_maximized(&state));
+        assert!(!should_launch_main_window_maximized(&state));
     }
 
     #[test]
@@ -4932,6 +4937,16 @@ mod tests {
         };
 
         assert!(!should_launch_main_window_maximized(&state));
+    }
+
+    #[test]
+    fn explicit_maximized_state_is_respected() {
+        let state = SavedWindowState {
+            is_maximized: Some(true),
+            ..SavedWindowState::default()
+        };
+
+        assert!(should_launch_main_window_maximized(&state));
     }
 
     fn temp_test_dir(name: &str) -> PathBuf {

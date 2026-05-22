@@ -8,6 +8,8 @@ import {
 	getJieqiSeedLocalCache,
 	setJieqiSeedLocalCache,
 } from './localCalcCache';
+import { buildLocalBaziResult } from './baziLunarLocal';
+import { buildLocalJieqiYearSeed } from './localNongliAdapter';
 
 const NONG_LI_KEYS = ['date', 'time', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'ad', 'gender', 'after23NewDay', 'timeAlg'];
 const JIE_QI_SEED_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'jieqis', 'seedOnly'];
@@ -182,10 +184,129 @@ function toDateKey(time){
 }
 
 function normalizeDayGanzhi(entry){
+	if(entry && entry.dayGanzhi){
+		return safe(entry.dayGanzhi);
+	}
+	if(entry && entry.dayGanZhi){
+		return safe(entry.dayGanZhi);
+	}
 	const bazi = entry && entry.bazi ? entry.bazi : null;
 	const four = bazi && bazi.fourColumns ? bazi.fourColumns : null;
 	const day = four && four.day ? four.day : null;
-	return safe(day && day.ganzi);
+	return safe((day && (day.ganzi || day.ganZhi)) || '');
+}
+
+function jieqiFromText(text){
+	const source = safe(text);
+	const after = source.indexOf('后第');
+	if(after > 0){
+		return source.substring(0, after);
+	}
+	const before = source.indexOf('前第');
+	if(before > 0){
+		return source.substring(0, before);
+	}
+	return source.length >= 2 ? source.substring(0, 2) : '';
+}
+
+function buildLocalNongliFallback(params){
+	try{
+		const local = buildLocalBaziResult(params || {});
+		const bazi = local && local.bazi ? local.bazi : null;
+		const nongli = bazi && bazi.nongli ? bazi.nongli : null;
+		const four = bazi && bazi.fourColumns ? bazi.fourColumns : {};
+		if(!bazi || !nongli){
+			return null;
+		}
+		const result = {
+			...nongli,
+			bazi,
+			yearGanZi: safe(four.year && four.year.ganzi),
+			yearJieqi: safe(four.year && four.year.ganzi),
+			monthGanZi: safe(four.month && four.month.ganzi),
+			dayGanZi: safe(four.day && four.day.ganzi),
+			time: safe(four.time && four.time.ganzi),
+			timeGanZi: safe(four.time && four.time.ganzi),
+			local: true,
+		};
+		if(!result.jieqi){
+			result.jieqi = jieqiFromText(result.jiedelta);
+		}
+		return result;
+	}catch(e){
+		return null;
+	}
+}
+
+function buildLocalJieqiYearFallback(params){
+	const year = parseInt(safe(params && params.year), 10);
+	if(!year || Number.isNaN(year)){
+		return null;
+	}
+	const seed = buildLocalJieqiYearSeed(year, params && params.zone);
+	if(!seed){
+		return null;
+	}
+	const jieqi24 = Object.keys(seed).map((term)=>({
+		jieqi: term,
+		time: safe(seed[term] && seed[term].time),
+		bazi: {
+			fourColumns: {
+				day: {
+					ganzi: safe(seed[term] && seed[term].dayGanzhi),
+				},
+			},
+		},
+	}));
+	return {
+		year,
+		jieqi24,
+		local: true,
+	};
+}
+
+function fillJieqiDayGanzhiFromLocal(result, params){
+	if(!result || !Array.isArray(result.jieqi24)){
+		return result;
+	}
+	const year = parseInt(safe((params && params.year) || result.year), 10);
+	if(!year || Number.isNaN(year)){
+		return result;
+	}
+	let localSeed = null;
+	const getLocalDayGanzhi = (term)=>{
+		if(!localSeed){
+			localSeed = buildLocalJieqiYearSeed(year, params && params.zone);
+		}
+		return safe(localSeed && localSeed[term] && localSeed[term].dayGanzhi);
+	};
+	let changed = false;
+	const jieqi24 = result.jieqi24.map((entry)=>{
+		const term = safe(entry && entry.jieqi);
+		if(!term || normalizeDayGanzhi(entry)){
+			return entry;
+		}
+		const localDay = getLocalDayGanzhi(term);
+		if(!localDay){
+			return entry;
+		}
+		changed = true;
+		return {
+			...(entry || {}),
+			dayGanzhi: localDay,
+			bazi: {
+				...((entry && entry.bazi) || {}),
+				fourColumns: {
+					...(((entry && entry.bazi && entry.bazi.fourColumns) || {})),
+					day: {
+						...(((entry && entry.bazi && entry.bazi.fourColumns && entry.bazi.fourColumns.day) || {})),
+						ganzi: localDay,
+					},
+				},
+			},
+		};
+	});
+	return changed ? { ...result, jieqi24, localDayGanzhiFilled: true } : result;
 }
 
 function normalizeSeedTerms(params){
@@ -254,7 +375,12 @@ export async function fetchPreciseNongli(params){
 			}
 			return result;
 		}catch(e){
-			return null;
+			const fallback = buildLocalNongliFallback(reqParams);
+			if(fallback){
+				pushCache(nongliMem, key, fallback);
+				setNongliLocalCache(reqParams, fallback);
+			}
+			return fallback;
 		}
 	})().finally(()=>{
 		if(key){
@@ -292,12 +418,18 @@ export async function fetchPreciseJieqiYear(params){
 			});
 			const result = rsp && rsp[ResultKey] ? rsp[ResultKey] : null;
 			if(result){
-				pushCache(jieqiYearMem, key, result);
-				setJieqiYearLocalCache(reqParams, result);
+				const filledResult = fillJieqiDayGanzhiFromLocal(result, reqParams);
+				pushCache(jieqiYearMem, key, filledResult);
+				setJieqiYearLocalCache(reqParams, filledResult);
 			}
-			return result;
+			return result ? fillJieqiDayGanzhiFromLocal(result, reqParams) : result;
 		}catch(e){
-			return localHit || null;
+			const fallback = localHit || buildLocalJieqiYearFallback(reqParams);
+			if(fallback){
+				pushCache(jieqiYearMem, key, fallback);
+				setJieqiYearLocalCache(reqParams, fallback);
+			}
+			return fallback || null;
 		}
 	})().finally(()=>{
 		if(key){

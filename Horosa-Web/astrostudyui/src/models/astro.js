@@ -337,6 +337,9 @@ export default {
 			planetarium:{
 				fun: null
 			},
+			planetarium:{
+				fun: null
+			},
 			direction:{
 				fun: null
 			},

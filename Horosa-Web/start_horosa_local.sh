@@ -125,14 +125,7 @@ signed_backend_http_responding() {
   if ! command -v curl >/dev/null 2>&1; then
     return 0
   fi
-  local sig
-  sig="$(
-    python3 - <<'PY'
-import hashlib
-payload = 'FE45AB6E29EF111.0'
-print(hashlib.sha256(payload.encode('utf-8')).hexdigest())
-PY
-  )"
+  local sig="9947b25d6400dac3e74fea88ec1a2308a2c9abf5f3a0cda32b7655717fa86278"
   local code
   code="$(
     curl -s -o /dev/null -m 2 -w '%{http_code}' \
