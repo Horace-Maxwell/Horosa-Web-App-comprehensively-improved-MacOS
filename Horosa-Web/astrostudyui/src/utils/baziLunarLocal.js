@@ -607,7 +607,7 @@ function formatStartLuck(yun){
 }
 
 function buildNongli(lunar, solar, apparentSolar){
-	const prev = lunar.getPrevJie(true);
+	const prev = lunar.getPrevJieQi ? lunar.getPrevJieQi(false) : lunar.getPrevJie(false);
 	const prevSolar = prev && prev.getSolar ? prev.getSolar() : null;
 	let dayDiff = '';
 	if(prevSolar && solar.subtract){
@@ -619,6 +619,7 @@ function buildNongli(lunar, solar, apparentSolar){
 		day: lunar.getDayInChinese(),
 		leap: lunar.getMonth ? lunar.getMonth() < 0 : false,
 		birth: apparentSolar.toYmdHms(),
+		jieqi: prev && prev.getName ? prev.getName() : '',
 		jiedelta: dayDiff,
 		chef: '',
 	};
