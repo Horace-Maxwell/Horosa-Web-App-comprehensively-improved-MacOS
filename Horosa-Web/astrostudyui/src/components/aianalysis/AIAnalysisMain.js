@@ -627,7 +627,7 @@ function mergeTechniqueState(list, nextItem, keys, labelMap){
 
 function AIAnalysisMain(props){
 	const defaultUi = loadUiPrefs();
-	const [innerTab, setInnerTab] = React.useState(defaultUi.innerTab || 'analysis');
+	const [innerTab, setInnerTab] = React.useState('analysis');
 	const [workspaceLoading, setWorkspaceLoading] = React.useState(false);
 	const [sending, setSending] = React.useState(false);
 	const [sources, setSources] = React.useState([]);
@@ -669,6 +669,8 @@ function AIAnalysisMain(props){
 	const [templateModalOpen, setTemplateModalOpen] = React.useState(false);
 	const [bundleModalOpen, setBundleModalOpen] = React.useState(false);
 	const [providerModalOpen, setProviderModalOpen] = React.useState(false);
+	const [providerSwitchModalOpen, setProviderSwitchModalOpen] = React.useState(false);
+	const [providerAdvancedOpen, setProviderAdvancedOpen] = React.useState(false);
 	const [previewDrawerOpen, setPreviewDrawerOpen] = React.useState(false);
 	const [previewTemplate, setPreviewTemplate] = React.useState(null);
 	const [editingMaterial, setEditingMaterial] = React.useState(null);
@@ -731,6 +733,17 @@ function AIAnalysisMain(props){
 		});
 		return result;
 	}, [providerProfiles]);
+
+	const activeProviderProfile = React.useMemo(()=>{
+		const parsed = parseModelSelection(modelSelection);
+		if(parsed.profileId){
+			const selectedProfile = providerProfiles.find((item)=>item.id === parsed.profileId && item.enabled !== false);
+			if(selectedProfile){
+				return selectedProfile;
+			}
+		}
+		return providerProfiles.find((item)=>item.enabled !== false) || null;
+	}, [modelSelection, providerProfiles]);
 
 	const referenceOptions = React.useMemo(()=>{
 		const folderLookup = new Map(materialFolders.map((item)=>[item.id, item]));
@@ -2094,11 +2107,16 @@ function AIAnalysisMain(props){
 	function openProviderEditor(profile){
 		setEditingProvider(profile || null);
 		providerForm.setFieldsValue(buildProviderFormValues(profile));
+		setProviderAdvancedOpen(false);
 		setProviderModalOpen(true);
 	}
 
 	async function saveProviderForm(){
-		const values = await providerForm.validateFields();
+		const checkedValues = await providerForm.validateFields();
+		const values = {
+			...providerForm.getFieldsValue(true),
+			...checkedValues,
+		};
 		const providerType = values.providerType || 'openai';
 		const preset = getProviderPreset(providerType);
 		const providerOptions = buildProviderOptionsFromForm(values);
@@ -2131,6 +2149,7 @@ function AIAnalysisMain(props){
 		}, 'provider');
 		setProviderProfiles((prev)=>sortByUpdatedDesc(prev.some((item)=>item.id === saved.id) ? prev.map((item)=>item.id === saved.id ? saved : item) : [saved].concat(prev)));
 		setProviderModalOpen(false);
+		setProviderAdvancedOpen(false);
 		setEditingProvider(null);
 		message.success('接口配置已保存');
 	}
@@ -2371,7 +2390,39 @@ function AIAnalysisMain(props){
 					<Card size="small" className={styles.toolbarCard} bordered={false}>
 						<div className={styles.toolbarRow}>
 							<div className={styles.toolbarField}>
-								<div className={styles.toolbarLabel}>本次分析模型</div>
+								<div className={`${styles.toolbarLabel} ${styles.toolbarLabelInline}`}>
+									<span>本次分析模型</span>
+									<Button
+										size="small"
+										className={styles.quickApiButton}
+										onClick={()=>openProviderEditor(null)}
+									>
+										配置 API
+									</Button>
+									<Button
+										size="small"
+										className={styles.quickApiButton}
+										disabled={!activeProviderProfile}
+										onClick={()=>activeProviderProfile && fetchModelsAndEmbeddings(activeProviderProfile)}
+									>
+										拉取模型
+									</Button>
+									<Button
+										size="small"
+										className={styles.quickApiButton}
+										disabled={!activeProviderProfile}
+										onClick={()=>activeProviderProfile && testProfileChat(activeProviderProfile)}
+									>
+										测试连接
+									</Button>
+									<Button
+										size="small"
+										className={styles.quickApiButton}
+										onClick={()=>setProviderSwitchModalOpen(true)}
+									>
+										生效 API
+									</Button>
+								</div>
 								<Select
 									showSearch
 									value={modelSelection || undefined}
@@ -3103,12 +3154,70 @@ function AIAnalysisMain(props){
 			</Modal>
 
 			<Modal
+				title="生效 API"
+				open={providerSwitchModalOpen}
+				width={720}
+				footer={null}
+				bodyStyle={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
+				onCancel={()=>setProviderSwitchModalOpen(false)}
+			>
+				{providerProfiles.length ? (
+					<div className={styles.providerSwitchList}>
+						{providerProfiles.map((profile)=>{
+							const models = normalizeProfileModels(profile);
+							const isCurrent = activeProviderProfile && activeProviderProfile.id === profile.id;
+							const displayName = profile.name || getProviderDisplayName(profile.providerType);
+							return (
+								<div
+									key={profile.id}
+									className={[
+										styles.providerSwitchItem,
+										isCurrent ? styles.providerSwitchItemActive : '',
+									].filter(Boolean).join(' ')}
+								>
+									<div className={styles.providerSwitchMain}>
+										<div className={styles.providerSwitchTitle}>
+											<strong>{displayName}</strong>
+											{isCurrent ? <Tag color="blue">当前</Tag> : null}
+											{profile.enabled === false ? <Tag>未启用</Tag> : <Tag color="green">已启用</Tag>}
+										</div>
+										<div className={styles.providerSwitchMeta}>
+											<span>类型：{getProviderDisplayName(profile.providerType)}</span>
+											<span>协议族：{profile.protocolFamily || getProviderProtocolFamily(profile.providerType)}</span>
+											<span>模型：{models[0] || '未配置'}</span>
+										</div>
+										{profile.baseUrl ? (
+											<div className={styles.providerSwitchUrl}>{profile.baseUrl}</div>
+										) : null}
+									</div>
+									<Button
+										type="primary"
+										icon={<XQIcon name="edit" />}
+										onClick={()=>{
+											setProviderSwitchModalOpen(false);
+											openProviderEditor(profile);
+										}}
+									>
+										编辑
+									</Button>
+								</div>
+							);
+						})}
+					</div>
+				) : (
+					<Empty description="暂无接口配置" />
+				)}
+			</Modal>
+
+			<Modal
 				title={editingProvider ? '编辑接口配置' : '新增接口配置'}
 				open={providerModalOpen}
 				width={720}
+				bodyStyle={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
 				onOk={saveProviderForm}
 				onCancel={()=>{
 					setProviderModalOpen(false);
+					setProviderAdvancedOpen(false);
 					setEditingProvider(null);
 				}}
 			>
@@ -3132,18 +3241,9 @@ function AIAnalysisMain(props){
 						</Select>
 					</Form.Item>
 					<Form.Item name="apiKey" label="API Key">
-						<Input.Password placeholder="留空表示不设置" />
+						<Input type="password" placeholder="留空表示不设置" />
 					</Form.Item>
 					<Form.Item name="baseUrl" label="Base URL">
-						<Input />
-					</Form.Item>
-					<Form.Item name="manualModels" label="聊天模型列表">
-						<TextArea rows={4} />
-					</Form.Item>
-					<Form.Item name="embeddingModels" label="Embedding 模型列表">
-						<TextArea rows={3} />
-					</Form.Item>
-					<Form.Item name="requestTimeoutMs" label="请求超时（毫秒）">
 						<Input />
 					</Form.Item>
 					<Form.Item shouldUpdate noStyle>
@@ -3153,12 +3253,37 @@ function AIAnalysisMain(props){
 							</div>
 						)}
 					</Form.Item>
-					<Form.Item name="extraHeadersText" label="额外请求头（JSON 对象）">
-						<MonacoEditor height="160px" defaultLanguage="json" beforeMount={configureMonaco} />
-					</Form.Item>
-					<Form.Item name="extraBodyText" label="额外请求体（JSON 对象）">
-						<MonacoEditor height="160px" defaultLanguage="json" beforeMount={configureMonaco} />
-					</Form.Item>
+					<div className={styles.providerAdvancedToggle}>
+						<Button
+							className={styles.providerAdvancedButton}
+							icon={<XQIcon name="sliders" />}
+							onClick={()=>setProviderAdvancedOpen((prev)=>!prev)}
+						>
+							{providerAdvancedOpen ? '收起高级参数' : '展开高级参数'}
+						</Button>
+					</div>
+					{providerAdvancedOpen ? (
+						<div className={styles.providerAdvancedPanel}>
+							<Form.Item name="manualModels" label="聊天模型列表">
+								<TextArea rows={4} />
+							</Form.Item>
+							<Form.Item name="embeddingModels" label="Embedding 模型列表">
+								<TextArea rows={3} />
+							</Form.Item>
+							<Form.Item name="requestTimeoutMs" label="请求超时（毫秒）">
+								<Input />
+							</Form.Item>
+							<Form.Item name="extraHeadersText" label="额外请求头（JSON 对象）">
+								<MonacoEditor height="140px" defaultLanguage="json" beforeMount={configureMonaco} />
+							</Form.Item>
+							<Form.Item name="extraBodyText" label="额外请求体（JSON 对象）">
+								<MonacoEditor height="140px" defaultLanguage="json" beforeMount={configureMonaco} />
+							</Form.Item>
+							<Form.Item name="providerOptionsText" label="补充高级参数（JSON）">
+								<MonacoEditor height="160px" defaultLanguage="json" beforeMount={configureMonaco} />
+							</Form.Item>
+						</div>
+					) : null}
 					<Form.Item shouldUpdate noStyle>
 						{({ getFieldValue })=>{
 							const providerType = getFieldValue('providerType');
@@ -3221,9 +3346,6 @@ function AIAnalysisMain(props){
 							}
 							return null;
 						}}
-					</Form.Item>
-					<Form.Item name="providerOptionsText" label="补充高级参数（JSON）">
-						<MonacoEditor height="220px" defaultLanguage="json" beforeMount={configureMonaco} />
 					</Form.Item>
 					<Form.Item name="enabled" label="启用此配置" valuePropName="checked">
 						<Switch />
