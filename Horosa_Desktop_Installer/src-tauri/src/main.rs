@@ -206,6 +206,7 @@ struct RuntimePaths {
 struct RuntimeSession {
     paths: RuntimePaths,
     backend_port: u16,
+    chart_port: u16,
     web_port: u16,
 }
 
@@ -1717,7 +1718,7 @@ fn open_main_window(app: &AppHandle) -> Result<()> {
             if let Some(session) = slot.as_ref() {
                 emit_ready(
                     &window,
-                    &frontend_url(session.web_port, session.backend_port),
+                    &frontend_url(session.web_port, session.backend_port, session.chart_port),
                 );
             }
         }
@@ -4023,12 +4024,15 @@ fn start_runtime(
     Ok(())
 }
 
-fn frontend_url(web_port: u16, backend_port: u16) -> String {
-    let root = format!("http://127.0.0.1:{}", backend_port);
+fn frontend_url(web_port: u16, backend_port: u16, chart_port: u16) -> String {
+    let backend_root = format!("http://127.0.0.1:{}", backend_port);
+    let chart_root = format!("http://127.0.0.1:{}", chart_port);
     format!(
-        "http://127.0.0.1:{}/index.html?srv={}&v={}",
+        "http://127.0.0.1:{}/index.html?srv={}&chartSrv={}&kentangSrv={}&v={}",
         web_port,
-        urlencoding::encode(&root),
+        urlencoding::encode(&backend_root),
+        urlencoding::encode(&chart_root),
+        urlencoding::encode(&chart_root),
         unix_ts()
     )
 }
@@ -4687,7 +4691,10 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
                             *slot = Some(session.clone());
                         }
                     }
-                    emit_ready(&win, &frontend_url(session.web_port, session.backend_port));
+                    emit_ready(
+                        &win,
+                        &frontend_url(session.web_port, session.backend_port, session.chart_port),
+                    );
                 }
                 Err(err) => {
                     emit_launcher_error(&win, &build_launcher_error_payload(&app_handle, &err))
@@ -4710,7 +4717,10 @@ fn trigger_reinstall(app: AppHandle) {
                             *slot = Some(session.clone());
                         }
                     }
-                    emit_ready(&win, &frontend_url(session.web_port, session.backend_port));
+                    emit_ready(
+                        &win,
+                        &frontend_url(session.web_port, session.backend_port, session.chart_port),
+                    );
                 }
                 Err(err) => {
                     emit_launcher_error(&win, &build_launcher_error_payload(&app_handle, &err))
@@ -4850,6 +4860,7 @@ fn runtime_bootstrap(
     Ok(RuntimeSession {
         paths,
         backend_port,
+        chart_port,
         web_port,
     })
 }
@@ -4898,7 +4909,11 @@ fn main() {
                         }
                         emit_ready(
                             &window,
-                            &frontend_url(session.web_port, session.backend_port),
+                            &frontend_url(
+                                session.web_port,
+                                session.backend_port,
+                                session.chart_port,
+                            ),
                         );
                         show_post_update_notice_if_needed(&app_handle);
                     }
@@ -5100,6 +5115,15 @@ mod tests {
         };
 
         assert!(should_launch_main_window_maximized(&state));
+    }
+
+    #[test]
+    fn frontend_url_injects_chart_service_for_packaged_kentang_routes() {
+        let url = frontend_url(38991, 63968, 63967);
+
+        assert!(url.contains("srv=http%3A%2F%2F127.0.0.1%3A63968"));
+        assert!(url.contains("chartSrv=http%3A%2F%2F127.0.0.1%3A63967"));
+        assert!(url.contains("kentangSrv=http%3A%2F%2F127.0.0.1%3A63967"));
     }
 
     fn temp_test_dir(name: &str) -> PathBuf {

@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_DIR = ROOT / "runtime"
 JSON_PATH = RUNTIME_DIR / "browser_horosa_aianalysis_check.json"
 SCREENSHOT_PATH = RUNTIME_DIR / "browser_horosa_aianalysis_check.png"
+CHART_FIXTURE_CACHE = None
 
 
 def build_base_url(mock_server_root: str) -> str:
@@ -64,6 +65,8 @@ class MockProxyHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if self._send_app_bootstrap_fixture():
+            return
         self._proxy_request()
 
     def do_POST(self):
@@ -128,6 +131,8 @@ class MockProxyHandler(BaseHTTPRequestHandler):
                     },
                 }
             )
+        if self._send_app_bootstrap_fixture():
+            return
         self._proxy_request()
 
     def _read_body(self) -> bytes:
@@ -169,6 +174,22 @@ class MockProxyHandler(BaseHTTPRequestHandler):
         except BrokenPipeError:
             return
 
+    def _send_app_bootstrap_fixture(self) -> bool:
+        """Keep the AIAnalysis e2e isolated from unrelated startup probes."""
+        if self.path.startswith("/common/time"):
+            self._read_body()
+            return self._send_json({"ResultCode": 0, "Result": {"time": int(time.time() * 1000)}}) or True
+        if self.path.startswith("/user/check"):
+            self._read_body()
+            return self._send_json({"ResultCode": 0, "Result": {"registered": True, "offline": True}}) or True
+        if self.path.startswith("/ziwei/rules"):
+            self._read_body()
+            return self._send_json({"ResultCode": 0, "Result": {"rules": []}}) or True
+        if self.path == "/chart" or self.path.startswith("/chart?"):
+            self._read_body()
+            return self._send_json({"ResultCode": 0, "Result": build_chart_fixture()}) or True
+        return False
+
     def _proxy_request(self):
         body = self._read_body()
         target = f"{self.backend_root}{self.path}"
@@ -199,6 +220,68 @@ class MockProxyHandler(BaseHTTPRequestHandler):
 
 class QuietThreadingHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
+
+
+def build_chart_fixture() -> dict:
+    global CHART_FIXTURE_CACHE
+    if CHART_FIXTURE_CACHE is not None:
+        return CHART_FIXTURE_CACHE
+
+    astropy_root = ROOT / "Horosa-Web" / "astropy"
+    flatlib_root = ROOT / "Horosa-Web" / "flatlib-ctrad2"
+    for item in (str(flatlib_root), str(astropy_root)):
+        if item not in sys.path:
+            sys.path.insert(0, item)
+
+    import jsonpickle  # type: ignore
+    from astrostudy.guostarsect.guostarsect import GuoStarSect  # type: ignore
+    from astrostudy.helper import getPredictivesObj  # type: ignore
+    from astrostudy.perchart import PerChart  # type: ignore
+    from websrv.webchartsrv import WebChartSrv  # type: ignore
+
+    data = dict(WebChartSrv.PD_WARMUP_SAMPLE)
+    perchart = PerChart(data)
+    guostar = GuoStarSect(perchart)
+    fixture = {
+        "params": {
+            "birth": perchart.getBirthStr(),
+            "ad": -1 if perchart.isBC else 1,
+            "lat": data["lat"],
+            "lon": data["lon"],
+            "hsys": data["hsys"],
+            "zone": data["zone"],
+            "tradition": perchart.tradition,
+            "zodiacal": perchart.zodiacal,
+            "doubingSu28": perchart.su28Mode,
+            "showPdBounds": data.get("showPdBounds", 1),
+            "pdtype": perchart.pdtype,
+            "pdMethod": perchart.pdMethod,
+            "pdTimeKey": perchart.pdTimeKey,
+            "pdSyncRev": WebChartSrv.PD_SYNC_REV,
+        },
+        "chart": perchart.getChartObj(),
+        "receptions": perchart.getReceptions(),
+        "mutuals": perchart.getMutuals(),
+        "declParallel": perchart.getParallel(),
+        "aspects": {
+            "normalAsp": perchart.getAspects(),
+            "immediateAsp": perchart.getImmediateAspects(),
+            "signAsp": perchart.getSignAspects(),
+        },
+        "lots": perchart.getPars(perchart.chart),
+        "surround": {
+            "planets": perchart.surroundPlanets(),
+            "attacks": perchart.surroundAttacks(),
+            "houses": perchart.surroundHouses(),
+        },
+        "guoStarSect": {"houses": guostar.allTerm()},
+    }
+    predictives = getPredictivesObj(data, perchart)
+    if predictives is not None:
+        fixture["predictives"] = predictives
+
+    CHART_FIXTURE_CACHE = json.loads(jsonpickle.encode(fixture, unpicklable=False))
+    return CHART_FIXTURE_CACHE
 
 
 def click_text(page, text: str, exact: bool = True, timeout: int = 15000):

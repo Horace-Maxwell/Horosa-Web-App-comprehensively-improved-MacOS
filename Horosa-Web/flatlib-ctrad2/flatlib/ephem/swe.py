@@ -98,6 +98,7 @@ def clearSiderealContext():
 
 
 def applySiderealMode():
+    ensureEphePath()
     mode = getattr(_SIDEREAL_CONTEXT, 'mode', None)
     if mode is None:
         swisseph.set_sid_mode(SEDEFAULT_SIDM__MODE)
@@ -182,6 +183,14 @@ def setPath(path):
         SEACTIVE_JPL_FILE = jpl_file
 
 
+def ensureEphePath():
+    """Restore flatlib's Swiss Ephemeris path after shared-process callers change it."""
+    if SEACTIVE_PATH:
+        swisseph.set_ephe_path(SEACTIVE_PATH)
+    if SEACTIVE_JPL_FILE:
+        swisseph.set_jpl_file(SEACTIVE_JPL_FILE)
+
+
 def getRuntimeConfig():
     return {
         'path': SEACTIVE_PATH,
@@ -228,6 +237,7 @@ def sweNextTransit(obj, jd, lat, lon, flag):
     
     """
     sweObj = SWE_OBJECTS[obj]
+    ensureEphePath()
     flag = swisseph.CALC_RISE if flag == 'RISE' else swisseph.CALC_SET
     trans = swisseph.rise_trans(jd, sweObj, lon, lat, 0, 0, 0, flag)
     return trans[1][0]
@@ -362,6 +372,7 @@ def sweFixedStarSu28(star, jd, flags=SEDEFAULT_FLAG):
 def solarEclipseGlobal(jd, backward):
     """ Returns the jd details of previous or next global solar eclipse. """
 
+    ensureEphePath()
     sweList = swisseph.sol_eclipse_when_glob(jd, backward=backward)
     return {
         'maximum': sweList[1][0],
@@ -376,6 +387,7 @@ def solarEclipseGlobal(jd, backward):
 def lunarEclipseGlobal(jd, backward):
     """ Returns the jd details of previous or next global lunar eclipse. """
 
+    ensureEphePath()
     sweList = swisseph.lun_eclipse_when(jd, backward=backward)
     return {
         'maximum': sweList[1][0],
