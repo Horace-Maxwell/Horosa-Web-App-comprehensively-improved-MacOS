@@ -2,20 +2,22 @@
 
 简体中文 | [English](README_EN.md)
 
+<img src="Horosa_Desktop_Installer/assets/icon-source.png" alt="Horosa app icon" width="144" />
+
 # Horosa for macOS
 
 ### A desktop metaphysics workstation for Apple Silicon, delivered through a signed offline installer and a notarized release channel
 
-[![Version](https://img.shields.io/badge/version-v2.0.2%20beta-b45309)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.2)
+[![Version](https://img.shields.io/badge/version-v2.1.0%20beta-b45309)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626)](LICENSE)
 [![GitHub Repo stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
-[![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.2)
-[![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.2)
-[![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.0.2/Horosa-Installer-macos-arm64-offline.pkg)
+[![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
-[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.2)
-[![Runtime](https://img.shields.io/badge/runtime-2.0.2--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.2-runtime1)
+[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime1)
 [![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY.md)
 [![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT.md)
 [![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
@@ -26,11 +28,11 @@
 [![Read In Chinese](https://img.shields.io/badge/Read%20In-Chinese-0f766e?labelColor=52525b)](README_ZH.md)
 [![Portal](https://img.shields.io/badge/Portal-Bilingual-0f766e?labelColor=52525b)](README.md)
 
-[Portal](README.md) | [Chinese Guide](README_ZH.md) | [v2.0.2 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.2)
+[Portal](README.md) | [Chinese Guide](README_ZH.md) | [v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
 
-**Current release:** `v2.0.2 beta`
+**Current release:** `v2.1.0 beta`
 
-**Release focus:** `v2.0.2 beta` keeps the 2.0 desktop delivery track, preserves the Qimen backend parity work from 2.0.1, and polishes the app-wide desktop UI for release testing.
+**Release focus:** `v2.1.0 beta` broadens the traditional-method engine layer, hardens chart/case data management, expands structured AI export coverage, preserves user/window state across launches, and polishes light/dark desktop UI for release testing.
 
 **Licensing note:** the public repository is now distributed under `AGPL-3.0` because the released stack integrates Swiss Ephemeris / `pyswisseph`. Third-party subdirectories keep their own upstream notices.
 
@@ -59,7 +61,7 @@ That is the main idea this README should communicate. The installer matters, the
 
 Primary entry:
 
-- [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.0.2/Horosa-Installer-macos-arm64-offline.pkg)
+- [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)
 
 Best fit:
 
@@ -152,20 +154,20 @@ Horosa is not only about calculation. It also provides the controls needed for d
 - AI export
 - AI export settings
 
-## New In v2.0.2
+## New In v2.1.0
 
-`2.0.2 beta` is a focused update for the 2.0 desktop release train. It keeps the signed offline installer path, preserves the Qimen parity work from 2.0.1, and tightens app-wide layout, theme contrast, navigation, and desktop delivery.
+`2.1.0 beta` is a broad update for the desktop release train. It keeps the signed offline installer path while bringing the newly integrated traditional-method engines into local data management, structured AI export, persistent settings, light/dark theme polish, and desktop delivery verification.
 
 Key additions in this release:
 
-- Qimen Dunjia Ju selection now matches the Horosa mobile API for both Chaibu and Zhirun modes
-- Zhirun keeps its own section logic while using the current chart day pillar for Sanyuan
-- Tianpan stems, Dipan stems, doors, stars, Ju text, and Fu/Shi were checked against 300 Chabu + 300 Zhirun real mobile-API cases
-- local fallback now follows exact solar-term transition times and keeps Zi-hour day switching at the mobile-compatible default
-- desktop Eight Gods labels intentionally retain the established `虎 / 玄` display preference
-- app-wide side panels, bottom quick actions, Fen/Zhi pages, Liuren circular layout, BaZi luck rows, and Dice chart masking were polished for dark and light themes
-- duplicate navigation entries were removed while keeping the larger primary module entry
-- `2.0.2 / 2.0.2-runtime1` aligned across package metadata, Tauri config, release config, README, manifest, app zip, offline pkg, and runtime archive
+- added and normalized backend integrations for Taiyi, Jin Kou, Huangji/Wangji, Wuzhao, Taixuan, Jingjue, Shenyishu, Kin Astro, Qizheng, Qimen, and related specialty methods
+- chart management and case management now preserve new-method inputs, tags, snapshots, raw backend payloads, JSON import/export, and reopening behavior
+- AI export now reads from structured backend data and exposes selectable export groups for each supported technique, tab, and page
+- user settings, desktop window size, and necessary UI choices are persisted across close/reopen and app updates
+- local event management UI was simplified, with useful actions aligned in the same row as chart management
+- app-wide light/dark mode contrast, dropdowns, overlays, loading states, management lists, and export controls were audited and polished
+- Qimen Dunjia parity and the previous desktop delivery fixes remain preserved
+- `2.1.0 / 2.1.0-runtime1` aligned across package metadata, Tauri config, release config, README, manifest, app zip, offline pkg, and runtime archive
 - the notarized offline `.pkg` remains the primary install path for clean Apple Silicon machines
 
 ## Desktop Delivery
@@ -182,7 +184,7 @@ The point is not “here is a codebase, please assemble it yourself.” The poin
 
 ## Current Beta Release
 
-- [GitHub Release v2.0.2 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.2)
+- [GitHub Release v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
 - [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 ## FAQ
@@ -210,7 +212,7 @@ If you maintain this stack, start with the path that matches your goal:
 - understand the public-facing repository layout: [README.md](README.md)
 - read the full Chinese guide: [README_ZH.md](README_ZH.md)
 - inspect installer internals and publishing flow: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
-- read the current beta release page: [GitHub Release v2.0.2 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.0.2)
+- read the current beta release page: [GitHub Release v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
 - enter the application source tree: `Horosa-Web/`
 - inspect shared runtime and diagnostics: `runtime/` and `diagnostics/`
 
@@ -219,3 +221,5 @@ If you maintain this stack, start with the path that matches your goal:
 This macOS edition is an improved distribution and integration work based on the Horosa App and Web released by Horosa-荀爽（Herakleios）. The lineage matters: Horosa was originally created by 郑大哥, with auxiliary design work from 荀爽（Herakleios）, and their public release made later study, maintenance, and extension possible.
 
 Please do not forget the contributions of 爽哥 and 郑大哥. This repository continues from their groundwork with respect, gratitude, and the hope that Horosa can remain useful to more people over time.
+
+Special thanks also go to [kentang2017](https://github.com/kentang2017) for publicly sharing long-running Python projects for traditional Chinese methods. Horosa v2.1.0 integrates or adapts several of those calculation engines; upstream projects identified as MIT-licensed are documented in `THIRD_PARTY_NOTICES.md` and their vendored directories, while projects without an explicit open-source license declaration are listed separately to avoid mixing license assumptions.

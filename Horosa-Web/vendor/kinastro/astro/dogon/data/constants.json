@@ -1,0 +1,193 @@
+{
+  "system": {
+    "name": "Dogon Sirius Cosmology",
+    "name_short": "dogon_sirius",
+    "culture": "Dogon (Mali)",
+    "sigui_cycle_years": 60,
+    "sigui_anchor_year": 1967,
+    "sigui_b_orbital_period_years": 50.09,
+    "sirius_b_semimajor_arcsec": 7.56,
+    "sirius_b_eccentricity": 0.5914,
+    "sirius_b_inclination_deg": 136.5,
+    "sirius_b_omega_deg": 147.3,
+    "sirius_b_Omega_deg": 44.6,
+    "sirius_b_T_peri_jd": 2446000.5,
+    "disclaimer": {
+      "zh": "本模組呈現 Dogon 口傳宇宙觀（含 Marcel Griaule 系列紀錄）作為文化知識，不等同現代天文學或歷史定論；部分內容存在學術爭議。",
+      "en": "This module presents Dogon oral cosmology (including lore documented in the Marcel Griaule corpus) as cultural knowledge, not as settled modern scientific fact; some claims remain academically contested."
+    }
+  },
+  "palette": {
+    "ochre": "#B66A2A",
+    "indigo": "#1E2957",
+    "earth": "#8F6B3F",
+    "black": "#111111",
+    "stardust": "#D9BF8B",
+    "nommo": "#4CA8A8"
+  },
+  "bodies": {
+    "sirius_a": {
+      "label": "Sirius A",
+      "dogon_name": "Sigi Tolo",
+      "color": "#F5E2B8",
+      "radius": 10,
+      "period_years": 50.09,
+      "cultural": {
+        "zh": "可見主星，光耀如 Sigui 祭儀之火，統御多貢宇宙秩序。",
+        "en": "Brilliant principal star; its heliacal rising marks the Sigui ceremonial fire and cosmic order."
+      }
+    },
+    "sirius_b": {
+      "label": "Sirius B",
+      "dogon_name": "Po Tolo",
+      "color": "#D0D7F2",
+      "radius": 6,
+      "period_years": 50.09,
+      "cultural": {
+        "zh": "Po Tolo（白矮星）：比 fonio 種子重千倍的『種子星』，承載宇宙濃縮之力，50 年一圈，是生死轉化的計時者。",
+        "en": "Po Tolo (white dwarf): the dense 'seed-star' heavier than fonio, tracing a 50-year ellipse — timekeeper of life–death transformation."
+      }
+    },
+    "sirius_c": {
+      "label": "Sirius C",
+      "dogon_name": "Emme Ya Tolo",
+      "color": "#4CA8A8",
+      "radius": 5,
+      "period_years": 32.0,
+      "cultural": {
+        "zh": "Emme Ya Tolo（女性太陽）：Nommo 雙生神之一的象徵，連結月球週期與雙生性，此天體在天文學上尚未獲確認，以文化符號呈現。",
+        "en": "Emme Ya Tolo ('Female Sun'): symbolic of one Nommo twin, linking lunar cycles and duality. Astronomically unconfirmed; presented as cultural symbol."
+      }
+    }
+  },
+  "zones": [
+    {
+      "id": "nommo_corridor",
+      "label": "Nommo Corridor",
+      "declination_min": -25.0,
+      "declination_max": -5.0,
+      "meaning_zh": "祖靈交流與傳承門徑",
+      "meaning_en": "Ancestral transmission corridor"
+    },
+    {
+      "id": "seed_axis",
+      "label": "Seed Axis",
+      "declination_min": -5.0,
+      "declination_max": 15.0,
+      "meaning_zh": "創造、播種與生命循環",
+      "meaning_en": "Creation, seeding, and cyclical renewal"
+    },
+    {
+      "id": "mask_horizon",
+      "label": "Mask Horizon",
+      "declination_min": 15.0,
+      "declination_max": 35.0,
+      "meaning_zh": "儀式顯化與集體記憶",
+      "meaning_en": "Ritual manifestation and collective memory"
+    }
+  ],
+  "references": [
+    "Griaule, Marcel & Dieterlen, Germaine (mid-20th c. ethnographic corpus)",
+    "van Beek, W. E. A. (critical reassessment of Dogon astronomical knowledge)",
+    "Temple, Robert – 'The Sirius Mystery' (popularized but contested interpretations)",
+    "Holberg, J.B. (2007) – Sirius: Brightest Diamond in the Night Sky",
+    "Modern astronomy: Sirius A/B orbital period ~50.09 years; Sirius B eccentricity ~0.59"
+  ],
+  "sigui_life_phases": [
+    {
+      "phase": 1,
+      "range_years": [0, 12],
+      "label_zh": "種子期（Amma 之息）",
+      "label_en": "Seed Phase (Breath of Amma)",
+      "desc_zh": "宇宙蛋初破，生命原力潛藏，對應播種節律。",
+      "desc_en": "The cosmic egg cracks open; life force lies dormant, aligned with the planting rhythm."
+    },
+    {
+      "phase": 2,
+      "range_years": [12, 24],
+      "label_zh": "Nommo 覺醒期",
+      "label_en": "Nommo Awakening",
+      "desc_zh": "水靈甦醒，雙生性顯現，社群連結建立。",
+      "desc_en": "Water-spirit stirs; duality awakens, communal bonds form."
+    },
+    {
+      "phase": 3,
+      "range_years": [24, 36],
+      "label_zh": "儀式承擔期",
+      "label_en": "Ritual Stewardship",
+      "desc_zh": "Po Tolo 軌道中段，個體承擔傳統責任，成為行走的祖先記憶。",
+      "desc_en": "Mid-orbit of Po Tolo; the individual bears traditional duties, becoming a living ancestral memory."
+    },
+    {
+      "phase": 4,
+      "range_years": [36, 50],
+      "label_zh": "長老醞釀期",
+      "label_en": "Elder Ripening",
+      "desc_zh": "Sigui 更新前夕，智慧濃縮如種子，準備播撒至下一代。",
+      "desc_en": "On the eve of Sigui renewal; wisdom condenses like seed, ready to scatter to the next generation."
+    },
+    {
+      "phase": 5,
+      "range_years": [50, 60],
+      "label_zh": "Sigui 回歸期",
+      "label_en": "Sigui Return",
+      "desc_zh": "宇宙週期閉合，Po Tolo 回到近點，長老智慧在大儀式中顯化傳承。",
+      "desc_en": "The cosmic cycle closes; Po Tolo returns to periapsis — elder wisdom manifests and is passed on in the Great Ceremony."
+    }
+  ],
+  "aspects": {
+    "orbs": {
+      "conjunction": 8.0,
+      "opposition": 8.0,
+      "trine": 6.0,
+      "square": 6.0,
+      "sextile": 4.0
+    },
+    "nommo_harmonics": [120, 240],
+    "amma_axis": [0, 180]
+  },
+  "cross_cultural": [
+    {
+      "system": "Egyptian Decans",
+      "focus": {
+        "zh": "索普德特（Sopdet）與天狼星歲首：每年偕日升預示尼羅河氾濫、農曆更新，是非洲最古老的天文曆法時標之一。",
+        "en": "Sopdet/Sirius heliacal rising: annual Nile-flood herald and calendar reset — one of Africa's oldest astronomical timekeepers."
+      }
+    },
+    {
+      "system": "Vedic / Jyotish",
+      "focus": {
+        "zh": "天狼星對應 Mrigashira 月宿邊緣，與 Vac（語言之神）及宇宙秩序（Ṛta）連結；固定星能量可作為出生盤判讀參考。",
+        "en": "Near Mrigashira nakshatra boundary; linked to Vac (speech deity) and Ṛta (cosmic order); fixed-star influence enriches natal reading."
+      }
+    },
+    {
+      "system": "Ziwei Doushu",
+      "focus": {
+        "zh": "天狼星在紫微斗數中近似『天機』或『廉貞』之固定恆星能量，與週期運行之宮位形成跨文化共振，可探討命宮/遷移宮之隱性影響。",
+        "en": "Sirius resonates with fixed-star energy analogous to Tianji/Lianzhen; its cycle echoes the 60-year Jiazi stem-branch cycle — a cross-cultural temporal parallel."
+      }
+    },
+    {
+      "system": "Andean (Andean Ceque / Inkan)",
+      "focus": {
+        "zh": "安地斯文明中天狼星（Urcuchillay 神域附近）與喇瑪群星相關，農牧儀式週期結構與多貢 Sigui 呈現相近的 50–60 年大週期思維。",
+        "en": "In Andean cosmovisión, Sirius-region stars (near Urcuchillay) govern llama-herding rites; the 50–60-year great-cycle thinking parallels the Sigui structural rhythm."
+      }
+    },
+    {
+      "system": "Babylonian",
+      "focus": {
+        "zh": "固定星王權預兆傳統：天狼星光度異常預示乾旱或征戰，與多貢重視週期異象的宇宙觀共鳴。",
+        "en": "Fixed-star kingship-omen tradition: Sirius magnitude anomalies presaged drought or war — resonating with Dogon emphasis on cyclical cosmic signs."
+      }
+    },
+    {
+      "system": "Maya",
+      "focus": {
+        "zh": "長週期曆法（Bak'tun）與儀式時間結構：多貢 60 年 Sigui 與瑪雅長曆的大週期更新理念形成跨洋對話。",
+        "en": "Long-cycle calendrics (Bak'tun) and ritual time: the 60-year Sigui and Maya Long Count great-cycle renewal share a trans-oceanic dialogue on cosmic periodicity."
+      }
+    }
+  ]
+}

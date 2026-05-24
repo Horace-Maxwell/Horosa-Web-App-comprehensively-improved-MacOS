@@ -1,0 +1,78 @@
+{
+  "source": "Picatrix (Greer & Warnock 英譯本, Book II Ch.9 及書末 28 月宮儀式段落)",
+  "description": "Picatrix 完整行星祈禱文（Planetary Invocations）。每顆行星包含靈名列表 + 標準呼喚文。可直接用於 Invocation Helper 或 Talisman 製作儀式。",
+  "prayers": [
+    {
+      "planet": "Saturn",
+      "name_en": "Saturn",
+      "name_zh": "土星",
+      "arabic_name": "Zohal / Kewan",
+      "spirit_names": ["Quermiex", "Tos", "Herus", "Quemis", "Dius", "Tamines", "Tahytos", "Macader", "Quehinen"],
+      "prayer_text": "Quermiex, Tos, Herus, Quemis, Dius, Tamines, Tahytos, Macader, Quehinen —— 土星啊！速速偕眾靈降臨！",
+      "notes": "用於摧毀、監禁、長期事務。適合土星時辰製作惡圖像。",
+      "source": "Book II"
+    },
+    {
+      "planet": "Jupiter",
+      "name_en": "Jupiter",
+      "name_zh": "木星",
+      "arabic_name": "Mustari / Birgis",
+      "spirit_names": ["Bethniehus", "Darmexim", "Maciem", "Maxar", "Derix", "Tahix", "Tayros", "Deheydex", "Mebguedex"],
+      "prayer_text": "Bethniehus, Darmexim, Maciem, Maxar, Derix, Tahix, Tayros, Deheydex, Mebguedex —— 木星啊！速速偕眾靈降臨！",
+      "notes": "用於財富、榮譽、友誼、治療。吉星中最常用於善圖像。",
+      "source": "Book II"
+    },
+    {
+      "planet": "Mars",
+      "name_en": "Mars",
+      "name_zh": "火星",
+      "arabic_name": "Mirrih / Baharam",
+      "spirit_names": ["Guebdemis", "Hegneydiz", "Gueydenuz", "Magras", "Herdehus", "Hewbdegabdis", "Mehynas", "Dehydemes"],
+      "prayer_text": "Guebdemis, Hegneydiz, Gueydenuz, Magras, Herdehus, Hewbdegabdis, Mehynas, Dehydemes —— 赤紅火星，Baharam啊！速速偕眾靈降臨！",
+      "notes": "用於戰爭、摧毀、力量、復仇。",
+      "source": "Book II"
+    },
+    {
+      "planet": "Sun",
+      "name_en": "Sun",
+      "name_zh": "太陽",
+      "arabic_name": "Shams",
+      "spirit_names": ["Beydelux", "Demeymes", "Adulex", "Metnegayn", "Atmefex", "Naquiris", "Gadix"],
+      "prayer_text": "Beydelux, Demeymes, Adulex, Metnegayn, Atmefex, Naquiris, Gadix —— 太陽啊！速速偕眾靈降臨！",
+      "notes": "用於榮譽、權力、健康、勝利。",
+      "source": "Book II"
+    },
+    {
+      "planet": "Venus",
+      "name_en": "Venus",
+      "name_zh": "金星",
+      "arabic_name": "Zuhara / Anahid",
+      "spirit_names": ["Deydex", "Gueylus", "Meylus", "Demerix", "Albimex", "Centus", "Angaras", "Dehetarix"],
+      "prayer_text": "Deydex, Gueylus, Meylus, Demerix, Albimex, Centus, Angaras, Dehetarix —— 金星，Neyrgat啊！速速偕眾靈降臨！",
+      "notes": "用於愛情、友誼、歡愉、藝術。最適合愛情圖像。",
+      "source": "Book II"
+    },
+    {
+      "planet": "Mercury",
+      "name_en": "Mercury",
+      "name_zh": "水星",
+      "arabic_name": "Utarid / Harus",
+      "spirit_names": ["Barhuyex", "Emirex", "Hamerix", "Sehix", "Deryx", "Meyer", "Deherix", "Baix", "Faurix"],
+      "prayer_text": "Barhuyex, Emirex, Hamerix, Sehix, Deryx, Meyer, Deherix, Baix, Faurix —— 書寫吧，水星啊！速速偕眾靈降臨！",
+      "notes": "用於知識、商業、欺騙、醫術、旅行。",
+      "source": "Book II"
+    },
+    {
+      "planet": "Moon",
+      "name_en": "Moon",
+      "name_zh": "月亮",
+      "arabic_name": "Qamar",
+      "spirit_names": ["Guernus", "Hedus", "Maranus", "Miltas", "Taymex", "Ranix", "Mehylus", "Degayus"],
+      "prayer_text": "Guernus, Hedus, Maranus, Miltas, Taymex, Ranix, Mehylus, Degayus —— 月亮啊！速速偕眾靈降臨！",
+      "notes": "所有圖像製作的核心，需配合 28 月宮使用。",
+      "source": "Book II"
+    }
+  ],
+  "usage_notes": "使用時可搭配對應行星時辰、香料與材質。祈禱文通常在大聲朗讀靈名後，接上「—— [行星]啊！速速偕眾靈降臨！」的呼喚句。善圖像宜在吉星時辰，惡圖像宜在凶星時辰。",
+  "license_suggestion": "MIT（僅供歷史、學術、研究用途）"
+}

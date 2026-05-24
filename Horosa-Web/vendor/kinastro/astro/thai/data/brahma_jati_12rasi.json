@@ -1,0 +1,134 @@
+{
+  "name": "brahma_jati_12rasi",
+  "description": "泰國傳統พรหมชาติ 12 ราศี 年運輪（Brahma Jati 12 Positions）",
+  "rules": {
+    "male": "從 \"เจดีย์\" 開始順時針（右轉）數到當前年齡",
+    "female": "從 \"เจดีย์\" 開始逆時針（左轉）數到當前年齡",
+    "note": "數到當前年齡落在哪個位置，即為該年的吉凶"
+  },
+  "positions": {
+    "1": {
+      "id": 1,
+      "thai": "เจดีย์",
+      "name_zh": "佛塔",
+      "name_en": "Chedi (Stupa)",
+      "meaning_thai": "ปีนั้นจะอยู่ร่มเย็นเป็นสุข จะมีความสุขกายสบายใจ จะได้ทำบุญกุศลในศาสนา ปรารถนาสิ่งใด ย่อมได้สมใจ",
+      "meaning_zh": "年運極佳，身心安樂，適合做功德，事事如意，心想事成",
+      "meaning_en": "Extremely auspicious year. Peaceful and happy, good for making merit, all wishes come true.",
+      "level": "大吉"
+    },
+    "2": {
+      "id": 2,
+      "thai": "จัตรเงิน",
+      "name_zh": "銀傘",
+      "name_en": "Silver Umbrella (Chatra Ngoen)",
+      "meaning_thai": "ปีนั้นจะมีสากผลเงินทอง ใช้พอสบายไม่เดือดร้อนกาย ในครอบครัว ไปทางไหนก็คาใด จะมีคนอุปถัมภ์กัชชูพอประมาณ",
+      "meaning_zh": "財運順遂，生活無憂，有人扶持，家庭和睦",
+      "meaning_en": "Good financial luck, comfortable life, support from others, family harmony.",
+      "level": "吉"
+    },
+    "3": {
+      "id": 3,
+      "thai": "คอขาด",
+      "name_zh": "斷頸",
+      "name_en": "Broken Neck",
+      "meaning_thai": "ปีนั้นจะประสบความร้อนอกร้อนใจ จะมีคดีความถึงโรงถึงศาลทำให้ต้องเสีย錢ทองของรัก ไม่มีเวลาประกอบอาชีพ ทำมาหากินอย่างปกติสุข ไม่ดีเลย",
+      "meaning_zh": "最差之一：官非纏身、破財、心煩意亂、事業停滯",
+      "meaning_en": "One of the worst positions: lawsuits, financial loss, anxiety, career stagnation.",
+      "level": "大凶"
+    },
+    "4": {
+      "id": 4,
+      "thai": "เรือนหลวง",
+      "name_zh": "皇宮",
+      "name_en": "Royal Residence (Ruean Luang)",
+      "meaning_thai": "ปีนั้นจะดีมีความสุขกายสบายใจ จะมีที่พึ่งพิงในความอนุเคราะห์ในเรื่องความเป็นอยู่ เป็นข้าราชการจะได้เลื่อนยศฐานธรดาศักดิ์ดี",
+      "meaning_zh": "事業順利、貴人相助，適合公職，可升遷加薪",
+      "meaning_en": "Very good for career and public service, promotion and support from authority.",
+      "level": "吉"
+    },
+    "5": {
+      "id": 5,
+      "thai": "ปราสาท",
+      "name_zh": "宮殿",
+      "name_en": "Prasat (Grand Palace)",
+      "meaning_thai": "ปีนั้นว่าจะมีความสุขอย่างยิ่ง จะประสบโชคสากมากมายในชีวิต คิดสิ่งใดจะได้สมความปรารถนา ดีนัก",
+      "meaning_zh": "大吉大利，幸福美滿，願望極易實現",
+      "meaning_en": "Extremely auspicious, great happiness, abundant luck, wishes easily fulfilled.",
+      "level": "大吉"
+    },
+    "6": {
+      "id": 6,
+      "thai": "ราษ",
+      "name_zh": "羅剎",
+      "name_en": "Rasi / Demon Position",
+      "meaning_thai": "ปีนั้นจะเดือดร้อนใจอาจจะมีเรื่องทะเลาะวิวาทเป็นคดีความ จะมีคนมาคอยยุแหย่ให้วุ่นวาย หรือหาเรื่องราวให้ตนต้องเดือดร้อนจะมีปวดหัวตัวร้อน เป็นประจำ ไม่ดี",
+      "meaning_zh": "是非口舌、小人陷害、心煩氣躁、容易惹官司",
+      "meaning_en": "Arguments, lawsuits, backstabbers, constant stress and headaches.",
+      "level": "凶"
+    },
+    "7": {
+      "id": 7,
+      "thai": "จัตรทอง",
+      "name_zh": "金傘",
+      "name_en": "Golden Umbrella (Chatra Thong)",
+      "meaning_thai": "ปีนั้นจะมีเกียรติยศปรากฏในฝูงชนทั่วไป ไปสารทิศใดๆจะมีคนคอยอุปถัมภ์กัชชู ไม่เดือดร้อนเลย ดีมาก",
+      "meaning_zh": "名聲遠播、貴人極多、不愁吃穿，極佳",
+      "meaning_en": "Great fame and honor, strong support everywhere, very prosperous.",
+      "level": "大吉"
+    },
+    "8": {
+      "id": 8,
+      "thai": "เทวดาขี้เศ้า",
+      "name_zh": "脾氣壞的天神",
+      "name_en": "Grumpy Angel / Poor Deva",
+      "meaning_thai": "ปีนั้นค่อนข้างดี จะมีคนคอยช่วยเหลือในหน้าที่การงาน แต่ระวังบริวารจะนำความเดือดร้อนมาให้ ดีปานกลาง",
+      "meaning_zh": "中吉：有人幫忙工作，但需小心下屬或身邊人帶來麻煩",
+      "meaning_en": "Moderately good; help in work, but beware subordinates causing trouble.",
+      "level": "中吉"
+    },
+    "9": {
+      "id": 9,
+      "thai": "คนต้องขี่ยคา",
+      "name_zh": "被騎的人",
+      "name_en": "Person Being Ridden / Oppressed",
+      "meaning_thai": "ปีนั้นถึงคราวเคราะห์หามยามร้ายจะมีเรื่องวุ่นวายในตนและครอบครัว จะถูกจองจำหรือไม่มีความสุขกายสบายใจเลย",
+      "meaning_zh": "大凶：家庭紛爭、可能被囚禁或極不順心",
+      "meaning_en": "Very bad luck; chaos in family, possible imprisonment or extreme unhappiness.",
+      "level": "大凶"
+    },
+    "10": {
+      "id": 10,
+      "thai": "ฟ้อมด",
+      "name_zh": "鬼",
+      "name_en": "Ghost / Phantom",
+      "meaning_thai": "ปีนั้นจะมีคนมาขอความช่วยเหลือรับอาสาเจ้านายจะได้ดี แต่จะมีความสุขไม่มากนักจะทุกข์กายทุกข์ใจพอประมาณ ดีปานกลาง",
+      "meaning_zh": "中吉：有人求助或委託工作，雖有收穫但仍有些勞累煩心",
+      "meaning_en": "Moderately good; people seek help, gain from service, but some hardship.",
+      "level": "中吉"
+    },
+    "11": {
+      "id": 11,
+      "thai": "แม่มด",
+      "name_zh": "女巫",
+      "name_en": "Witch / Sorceress",
+      "meaning_thai": "ปีนั้นจะมีคนนำลาภมาให้ แต่必須แลกเปลี่ยนกับความช่วยเหลือจากตน มีความสบายใจพอประมาณแต่จะเหนื่อยใจดีปานกลาง",
+      "meaning_zh": "中吉：有人帶來好運，但需付出勞力或幫忙，稍感疲累",
+      "meaning_en": "Moderately good; profit comes but requires your effort, some mental fatigue.",
+      "level": "中吉"
+    },
+    "12": {
+      "id": 12,
+      "thai": "นาคราช",
+      "name_zh": "龍王",
+      "name_en": "Naga King",
+      "meaning_thai": "ปีนั้นจะมีอำนาจวาสนา จะตากำลังดี มีคนมาอ่อนน้อมยอมเป็นคนรับใช้ จะได้ลาภจากบริวารและผู้ใหญ่ แต่ให้ระวังคำพูดและอารมณ์ให้มากดีปานกลาง",
+      "meaning_zh": "中上吉：權勢與人緣佳，有人輔佐，但需注意言語與情緒控制",
+      "meaning_en": "Good power and fortune, subordinates serve you, gains from elders; watch speech and temper.",
+      "level": "中上吉"
+    }
+  },
+  "source": "The Complete Brahma Jati Manual (ตำรา พรหมชาติ ฉบับสมบูรณ์)",
+  "version": "1.1",
+  "last_updated": "2026-04-16"
+}

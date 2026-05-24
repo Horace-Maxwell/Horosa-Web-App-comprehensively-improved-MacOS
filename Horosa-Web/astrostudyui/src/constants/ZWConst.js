@@ -40,19 +40,19 @@ export const ZWColor = {
 	HouseAgeStroke: 'var(--horosa-ziwei-house-age, #8794a8)',
 
 	'禄': {
-		bg: 'var(--horosa-gold, #CC9900)',
+		bg: '#c9912e',
 		color: '#ffffff',
 	},
 	'权': {
-		bg: '#2b67d8',
+		bg: '#2868d8',
 		color: '#ffffff',
 	},
 	'科': {
-		bg: 'var(--horosa-cyan, #0099FF)',
+		bg: '#1497a8',
 		color: '#ffffff',
 	},
 	'忌': {
-		bg: 'var(--horosa-cinnabar, #ff0000)',
+		bg: '#d44d43',
 		color: '#ffffff',
 	},
 };

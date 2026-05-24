@@ -66,6 +66,8 @@ const DEFAULT_FRONTEND_PORT: u16 = 38991;
 const UPDATE_COMPLETE_MARKER_NAME: &str = "update-complete.txt";
 const PREFERENCES_FILE_NAME: &str = "preferences.json";
 const WINDOW_STATE_FILE_NAME: &str = "window-state.json";
+const WINDOW_STATE_SCHEMA_VERSION: u8 = 2;
+const WINDOW_STATE_COORDINATE_SPACE: &str = "logical";
 const AI_ANALYSIS_IMPORT_EXTENSIONS: [&str; 6] = ["txt", "md", "markdown", "doc", "docx", "pdf"];
 const AI_ANALYSIS_BACKUP_EXTENSIONS: [&str; 1] = ["zip"];
 
@@ -446,6 +448,10 @@ struct SavedWindowState {
     x: Option<f64>,
     y: Option<f64>,
     is_maximized: Option<bool>,
+    #[serde(default)]
+    state_version: Option<u8>,
+    #[serde(default)]
+    coordinate_space: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -805,29 +811,105 @@ fn save_window_states(app: &AppHandle, states: &WindowStateStore) -> Result<()> 
     fs::write(path, serde_json::to_string_pretty(states)?).context("save window state")
 }
 
+fn valid_scale_factor(scale_factor: f64) -> f64 {
+    if scale_factor.is_finite() && scale_factor > 0.0 {
+        scale_factor
+    } else {
+        1.0
+    }
+}
+
+fn logical_value(value: f64, scale_factor: f64) -> f64 {
+    value / valid_scale_factor(scale_factor)
+}
+
+fn state_uses_logical_coordinates(state: &SavedWindowState) -> bool {
+    state.state_version.unwrap_or(0) >= WINDOW_STATE_SCHEMA_VERSION
+        || state.coordinate_space.as_deref() == Some(WINDOW_STATE_COORDINATE_SPACE)
+}
+
+fn should_migrate_legacy_window_state(
+    state: &SavedWindowState,
+    scale_factor: f64,
+    monitor_width: Option<f64>,
+    monitor_height: Option<f64>,
+) -> bool {
+    let scale_factor = valid_scale_factor(scale_factor);
+    if state_uses_logical_coordinates(state) || scale_factor <= 1.0 {
+        return false;
+    }
+
+    let width_limit = monitor_width.unwrap_or(2200.0) * 1.05;
+    let height_limit = monitor_height.unwrap_or(1400.0) * 1.05;
+    state
+        .width
+        .map(|width| width.is_finite() && width > width_limit)
+        .unwrap_or(false)
+        || state
+            .height
+            .map(|height| height.is_finite() && height > height_limit)
+            .unwrap_or(false)
+}
+
+fn normalize_saved_window_state_for_apply(
+    state: &SavedWindowState,
+    scale_factor: f64,
+    monitor_width: Option<f64>,
+    monitor_height: Option<f64>,
+) -> SavedWindowState {
+    let mut next = state.clone();
+    if should_migrate_legacy_window_state(state, scale_factor, monitor_width, monitor_height) {
+        next.width = next.width.map(|value| logical_value(value, scale_factor));
+        next.height = next.height.map(|value| logical_value(value, scale_factor));
+        next.x = next.x.map(|value| logical_value(value, scale_factor));
+        next.y = next.y.map(|value| logical_value(value, scale_factor));
+    }
+    next.state_version = Some(WINDOW_STATE_SCHEMA_VERSION);
+    next.coordinate_space = Some(WINDOW_STATE_COORDINATE_SPACE.to_string());
+    next
+}
+
 fn capture_window_state(window: &WebviewWindow) -> SavedWindowState {
     let mut state = SavedWindowState::default();
     state.is_maximized = window.is_maximized().ok();
+    state.state_version = Some(WINDOW_STATE_SCHEMA_VERSION);
+    state.coordinate_space = Some(WINDOW_STATE_COORDINATE_SPACE.to_string());
+    let scale_factor = window.scale_factor().map(valid_scale_factor).unwrap_or(1.0);
     if let Ok(size) = window.outer_size() {
-        state.width = Some(size.width as f64);
-        state.height = Some(size.height as f64);
+        state.width = Some(logical_value(size.width as f64, scale_factor));
+        state.height = Some(logical_value(size.height as f64, scale_factor));
     }
     if let Ok(position) = window.outer_position() {
-        state.x = Some(position.x as f64);
-        state.y = Some(position.y as f64);
+        state.x = Some(logical_value(position.x as f64, scale_factor));
+        state.y = Some(logical_value(position.y as f64, scale_factor));
     }
     state
 }
 
 fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
-    if state.is_maximized == Some(true) {
+    let scale_factor = window.scale_factor().map(valid_scale_factor).unwrap_or(1.0);
+    let (monitor_width, monitor_height) = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .map(|monitor| {
+            let size = monitor.size();
+            (
+                Some(logical_value(size.width as f64, scale_factor)),
+                Some(logical_value(size.height as f64, scale_factor)),
+            )
+        })
+        .unwrap_or((None, None));
+    let normalized =
+        normalize_saved_window_state_for_apply(state, scale_factor, monitor_width, monitor_height);
+    if normalized.is_maximized == Some(true) {
         let _ = window.maximize();
         return;
     }
-    if let (Some(width), Some(height)) = (state.width, state.height) {
+    if let (Some(width), Some(height)) = (normalized.width, normalized.height) {
         let _ = window.set_size(Size::Logical(LogicalSize::new(width, height)));
     }
-    if let (Some(x), Some(y)) = (state.x, state.y) {
+    if let (Some(x), Some(y)) = (normalized.x, normalized.y) {
         let _ = window.set_position(Position::Logical(LogicalPosition::new(x, y)));
     }
 }
@@ -857,6 +939,18 @@ fn persist_window_state_for_label(
         _ => return Ok(()),
     }
     save_window_states(app, &store)
+}
+
+fn persist_all_known_window_states(app: &AppHandle) {
+    for label in [
+        MAIN_WINDOW_LABEL,
+        PREFERENCES_WINDOW_LABEL,
+        DIAGNOSTICS_WINDOW_LABEL,
+    ] {
+        if let Some(window) = app.get_webview_window(label) {
+            let _ = persist_window_state_for_label(app, label, &window);
+        }
+    }
 }
 
 fn escape_js(text: &str) -> String {
@@ -4883,9 +4977,11 @@ fn main() {
                 }
             }
             RunEvent::ExitRequested { .. } => {
+                persist_all_known_window_states(app);
                 cleanup_state(app);
             }
             RunEvent::Exit => {
+                persist_all_known_window_states(app);
                 cleanup_state(app);
             }
             _ => {}
@@ -4914,6 +5010,8 @@ mod tests {
         assert_eq!(state.x, Some(120.0));
         assert_eq!(state.y, Some(80.0));
         assert_eq!(state.is_maximized, None);
+        assert_eq!(state.state_version, None);
+        assert_eq!(state.coordinate_space, None);
     }
 
     #[test]
@@ -4924,9 +5022,64 @@ mod tests {
             x: Some(120.0),
             y: Some(80.0),
             is_maximized: None,
+            ..SavedWindowState::default()
         };
 
         assert!(!should_launch_main_window_maximized(&state));
+    }
+
+    #[test]
+    fn legacy_retina_window_state_migrates_physical_pixels_to_logical_size() {
+        let state = SavedWindowState {
+            width: Some(2960.0),
+            height: Some(1920.0),
+            x: Some(240.0),
+            y: Some(160.0),
+            is_maximized: Some(false),
+            state_version: None,
+            coordinate_space: None,
+        };
+
+        let normalized =
+            normalize_saved_window_state_for_apply(&state, 2.0, Some(1512.0), Some(982.0));
+
+        assert_eq!(normalized.width, Some(1480.0));
+        assert_eq!(normalized.height, Some(960.0));
+        assert_eq!(normalized.x, Some(120.0));
+        assert_eq!(normalized.y, Some(80.0));
+        assert_eq!(normalized.state_version, Some(WINDOW_STATE_SCHEMA_VERSION));
+        assert_eq!(
+            normalized.coordinate_space.as_deref(),
+            Some(WINDOW_STATE_COORDINATE_SPACE)
+        );
+    }
+
+    #[test]
+    fn logical_window_state_is_not_rescaled_on_retina_displays() {
+        let state = SavedWindowState {
+            width: Some(1480.0),
+            height: Some(960.0),
+            x: Some(120.0),
+            y: Some(80.0),
+            is_maximized: Some(false),
+            state_version: Some(WINDOW_STATE_SCHEMA_VERSION),
+            coordinate_space: Some(WINDOW_STATE_COORDINATE_SPACE.to_string()),
+        };
+
+        let normalized =
+            normalize_saved_window_state_for_apply(&state, 2.0, Some(1512.0), Some(982.0));
+
+        assert_eq!(normalized.width, Some(1480.0));
+        assert_eq!(normalized.height, Some(960.0));
+        assert_eq!(normalized.x, Some(120.0));
+        assert_eq!(normalized.y, Some(80.0));
+    }
+
+    #[test]
+    fn invalid_scale_factor_falls_back_to_one() {
+        assert_eq!(valid_scale_factor(0.0), 1.0);
+        assert_eq!(valid_scale_factor(f64::NAN), 1.0);
+        assert_eq!(logical_value(960.0, 0.0), 960.0);
     }
 
     #[test]

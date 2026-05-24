@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "kinastro"
+version = "2.0.0"
+description = "Multi-system astrology chart application (堅占星)"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "streamlit>=1.52.2",
+    "pyswisseph>=2.10.3.2",
+    "plotly>=6.0.1",
+    "svgwrite>=1.4.3",
+    "fpdf2>=2.7.6",
+    "cerebras-cloud-sdk>=1.67.0",
+    "kinqimen>=0.0.6.6",
+    "kintaiyi @ git+https://github.com/kentang2017/kintaiyi.git",
+    "sxtwl>=2.0.6",
+    "ichingshifa>=3.1.9",
+    "numpy>=1.24.0",
+]
+
+[project.urls]
+Repository = "https://github.com/kentang2017/kinastro"

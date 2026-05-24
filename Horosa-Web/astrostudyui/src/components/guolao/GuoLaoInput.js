@@ -5,7 +5,7 @@ import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as SZConst from '../suzhan/SZConst';
 import { XQSelect as Select, XQToggle } from '../xq-ui';
 import XQIcon from '../xq-icons';
-import { GUOLAO_CHART_STYLE_CLASSIC, GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_LIFE_MODE_ASC, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_KETU, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, } from './GuoLaoChartStyle';
+import { GUOLAO_CHART_STYLE_CLASSIC, GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_CHART_STYLE_QIZHENG, GUOLAO_LIFE_MODE_ASC, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_KETU, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, } from './GuoLaoChartStyle';
 
 const {Option} = Select;
 
@@ -28,6 +28,8 @@ class GuoLaoInput extends Component{
 		this.onNodeModeChange = this.onNodeModeChange.bind(this);
 		this.onMoiraTransitTimeChanged = this.onMoiraTransitTimeChanged.bind(this);
 		this.onMoiraTransitGodsToggle = this.onMoiraTransitGodsToggle.bind(this);
+		this.onEngineModeChange = this.onEngineModeChange.bind(this);
+		this.onKinastroOptionChange = this.onKinastroOptionChange.bind(this);
 	}
 
 	onGenderChange(val){
@@ -191,6 +193,18 @@ class GuoLaoInput extends Component{
 		}
 	}
 
+	onEngineModeChange(val){
+		if(this.props.onEngineModeChange){
+			this.props.onEngineModeChange(val);
+		}
+	}
+
+	onKinastroOptionChange(key, value){
+		if(this.props.onKinastroOptionChange){
+			this.props.onKinastroOptionChange(key, value);
+		}
+	}
+
 	changeGeo(rec){
 		if(this.props.onFieldsChange){
 			let dt = this.tmHook.getValue().value;
@@ -241,15 +255,38 @@ class GuoLaoInput extends Component{
 			fields.szshape.value !== undefined && fields.szshape.value !== null){
 			szshape = fields.szshape.value;
 		}
-		const chartStyle = this.props.chartStyle === GUOLAO_CHART_STYLE_PICK
-			? GUOLAO_CHART_STYLE_PICK
-			: (this.props.chartStyle === GUOLAO_CHART_STYLE_MOIRA ? GUOLAO_CHART_STYLE_MOIRA : GUOLAO_CHART_STYLE_CLASSIC);
+		const engineMode = this.props.engineMode === 'kinastro' ? 'kinastro' : 'horosa';
+		const chartStyle = engineMode === 'kinastro'
+			? GUOLAO_CHART_STYLE_QIZHENG
+			: (this.props.chartStyle === GUOLAO_CHART_STYLE_PICK
+				? GUOLAO_CHART_STYLE_PICK
+				: (this.props.chartStyle === GUOLAO_CHART_STYLE_MOIRA ? GUOLAO_CHART_STYLE_MOIRA : GUOLAO_CHART_STYLE_CLASSIC));
 		const lifeMode = fields.guolaoLifeMode && fields.guolaoLifeMode.value !== undefined && fields.guolaoLifeMode.value !== null
 			? normalizeGuolaoLifeMode(fields.guolaoLifeMode.value)
 			: getStoredGuolaoLifeMode();
 		const nodeMode = fields.guolaoNodeMode && fields.guolaoNodeMode.value !== undefined && fields.guolaoNodeMode.value !== null
 			? normalizeGuolaoNodeMode(fields.guolaoNodeMode.value)
 			: getStoredGuolaoNodeMode();
+		const kinOptions = this.props.kinastroOptions || {};
+		const chartDateNative = fields.date && fields.date.value && fields.date.value.format ? fields.date.value.format('YYYY-MM-DD') : '';
+		const kinCurrentYear = kinOptions.currentYear || new Date().getFullYear();
+		const kinTransitMode = kinOptions.transitMode || 'none';
+		const kinTransitDate = kinOptions.transitDate || '';
+		const kinTransitTime = kinOptions.transitTime || '';
+		const kinElectionalStartDate = kinOptions.electionalStartDate || chartDateNative;
+		const kinElectionalCriteria = kinOptions.electionalCriteria || 'general';
+		const kinElectionalDays = kinOptions.electionalDays || 30;
+		const chartStyleField = (
+			<label className="horosa-guolao-select-field">
+				<span>星盘样式</span>
+				<Select value={chartStyle} onChange={this.onChartStyleChange} size='small'>
+					<Option value={GUOLAO_CHART_STYLE_CLASSIC}>Horosa原盘</Option>
+					<Option value={GUOLAO_CHART_STYLE_MOIRA}>Moira圆盘</Option>
+					<Option value={GUOLAO_CHART_STYLE_PICK}>天星择日</Option>
+					<Option value={GUOLAO_CHART_STYLE_QIZHENG}>坚七政</Option>
+				</Select>
+			</label>
+		);
 
 		return (
 			<div className="horosa-guolao-input-stack">
@@ -273,6 +310,114 @@ class GuoLaoInput extends Component{
 						<XQIcon name="sliders" />
 						<span>选项</span>
 					</div>
+					{engineMode === 'kinastro' ? (
+					<div className="horosa-guolao-select-grid horosa-guolao-kinastro-options">
+						<label className="horosa-guolao-select-field">
+							<span>性别</span>
+							<Select value={fields.gender.value} onChange={this.onGenderChange} size='small'>
+								<Option value={0}>女</Option>
+								<Option value={1}>男</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>流时</span>
+							<Select value={kinTransitMode} onChange={(val)=>this.onKinastroOptionChange('transitMode', val)} size='small'>
+								<Option value="none">关闭</Option>
+								<Option value="same">同刻</Option>
+								<Option value="now">此刻</Option>
+								<Option value="custom">自定</Option>
+							</Select>
+						</label>
+						{kinTransitMode === 'custom' ? (
+						<>
+							<label className="horosa-guolao-select-field">
+								<span>流时日期</span>
+								<input
+									className="horosa-guolao-mini-input"
+									type="date"
+									value={kinTransitDate}
+									onChange={(event)=>this.onKinastroOptionChange('transitDate', event.currentTarget.value)}
+									onInput={(event)=>this.onKinastroOptionChange('transitDate', event.currentTarget.value)}
+								/>
+							</label>
+							<label className="horosa-guolao-select-field">
+								<span>流时时间</span>
+								<input
+									className="horosa-guolao-mini-input"
+									type="time"
+									value={kinTransitTime}
+									onChange={(event)=>this.onKinastroOptionChange('transitTime', event.currentTarget.value)}
+									onInput={(event)=>this.onKinastroOptionChange('transitTime', event.currentTarget.value)}
+								/>
+							</label>
+						</>
+						) : null}
+						<label className="horosa-guolao-select-field">
+							<span>推运年份</span>
+							<input
+								className="horosa-guolao-mini-input"
+								type="number"
+								min="1"
+								max="9999"
+								value={kinCurrentYear}
+								onChange={(event)=>this.onKinastroOptionChange('currentYear', event.currentTarget.value)}
+							/>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>择日起日</span>
+							<input
+								className="horosa-guolao-mini-input"
+								type="date"
+								value={kinElectionalStartDate}
+								onChange={(event)=>this.onKinastroOptionChange('electionalStartDate', event.currentTarget.value)}
+								onInput={(event)=>this.onKinastroOptionChange('electionalStartDate', event.currentTarget.value)}
+							/>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>择日用途</span>
+							<Select value={kinElectionalCriteria} onChange={(val)=>this.onKinastroOptionChange('electionalCriteria', val)} size='small'>
+								<Option value="general">通用</Option>
+								<Option value="marriage">嫁娶</Option>
+								<Option value="travel">出行</Option>
+								<Option value="business">开市</Option>
+								<Option value="moving">搬迁</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>择日天数</span>
+							<input
+								className="horosa-guolao-mini-input"
+								type="number"
+								min="1"
+								max="60"
+								value={kinElectionalDays}
+								onChange={(event)=>this.onKinastroOptionChange('electionalDays', event.currentTarget.value)}
+							/>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>古籍断语</span>
+							<Select value={kinOptions.showZhangguo === false ? 'off' : 'on'} onChange={(val)=>this.onKinastroOptionChange('showZhangguo', val === 'on')} size='small'>
+								<Option value="on">显示</Option>
+								<Option value="off">隐藏</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>神煞</span>
+							<Select value={kinOptions.showShensha === false ? 'off' : 'on'} onChange={(val)=>this.onKinastroOptionChange('showShensha', val === 'on')} size='small'>
+								<Option value="on">显示</Option>
+								<Option value="off">隐藏</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>命宫解读</span>
+							<Select value={kinOptions.showMingGong === false ? 'off' : 'on'} onChange={(val)=>this.onKinastroOptionChange('showMingGong', val === 'on')} size='small'>
+								<Option value="on">显示</Option>
+								<Option value="off">隐藏</Option>
+							</Select>
+						</label>
+						{chartStyleField}
+					</div>
+					) : (
 					<div className="horosa-guolao-select-grid">
 						<label className="horosa-guolao-select-field">
 							<span>性别</span>
@@ -308,24 +453,18 @@ class GuoLaoInput extends Component{
 							</Select>
 						</label>
 						<label className="horosa-guolao-select-field">
-							<span>星盘样式</span>
-							<Select value={chartStyle} onChange={this.onChartStyleChange} size='small'>
-								<Option value={GUOLAO_CHART_STYLE_CLASSIC}>Horosa原盘</Option>
-								<Option value={GUOLAO_CHART_STYLE_MOIRA}>Moira圆盘</Option>
-								<Option value={GUOLAO_CHART_STYLE_PICK}>天星择日</Option>
-							</Select>
-						</label>
-						<label className="horosa-guolao-select-field">
 							<span>罗计</span>
 							<Select value={nodeMode} onChange={this.onNodeModeChange} size='small'>
 								<Option value={GUOLAO_NODE_MODE_NORTH_RAHU}>北罗南计</Option>
 								<Option value={GUOLAO_NODE_MODE_NORTH_KETU}>北计南罗</Option>
 							</Select>
 						</label>
+						{chartStyleField}
 					</div>
+					)}
 				</div>
 
-				{chartStyle === GUOLAO_CHART_STYLE_MOIRA || chartStyle === GUOLAO_CHART_STYLE_PICK ? (
+				{engineMode !== 'kinastro' && (chartStyle === GUOLAO_CHART_STYLE_MOIRA || chartStyle === GUOLAO_CHART_STYLE_PICK) ? (
 					<div className="horosa-guolao-input-section horosa-guolao-moira-transit-section">
 						<div className="horosa-guolao-field-title">
 							<XQIcon name="clock" />

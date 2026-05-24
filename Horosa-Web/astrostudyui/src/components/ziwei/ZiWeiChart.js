@@ -112,6 +112,7 @@ class ZiWeiChart extends Component{
 		this.zwchart.fields = this.props.fields;
 		this.zwchart.onCenterInfoClick = this.props.onCenterInfoClick;
 		this.zwchart.chart = chartobj;
+		this.zwchart.kinastroBorrowed = !!chartobj.kinastroBorrowed;
 		if(this.props.dirIndex !== undefined && this.props.dirIndex !== null){
 			this.zwchart.dirHouseIndex = this.props.dirIndex;
 		}else{

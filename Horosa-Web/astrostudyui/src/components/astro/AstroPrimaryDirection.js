@@ -490,7 +490,8 @@ class AstroPrimaryDirection extends Component{
 		let height = this.props.height ? this.props.height : document.documentElement.clientHeight - 50;
 		const controlHeight = stackedControls ? 110 : (compactControls ? 82 : 54);
 		const controlBottom = 10;
-		const tableReserve = controlHeight + controlBottom + 126;
+		const bottomSafeReserve = 64;
+		const tableReserve = controlHeight + controlBottom + 126 + bottomSafeReserve;
 		let tblY = height - tableReserve;
 		if(tblY < 200){
 			tblY = 200;

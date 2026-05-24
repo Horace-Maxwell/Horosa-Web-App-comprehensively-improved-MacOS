@@ -83,12 +83,44 @@ function purgeHeavyLocalCache(){
 export const CASE_TYPE_OPTIONS = [
 	{ value: 'liuyao', label: '六爻', subTab: null, tab: 'guazhan', module: 'guazhan' },
 	{ value: 'liureng', label: '六壬', subTab: null, tab: 'liureng', module: 'liureng' },
-	{ value: 'jinkou', label: '金口诀', subTab: 'jinkou', module: 'jinkou' },
+	{ value: 'suzhan', label: '宿盘', subTab: 'suzhan', tab: 'cnyibu', module: 'suzhan' },
+	{ value: 'jinkou', label: '金口诀', subTab: 'jinkou', tab: 'cnyibu', module: 'jinkou' },
 	{ value: 'taiyi', label: '太乙', subTab: null, tab: 'taiyi', module: 'taiyi' },
 	{ value: 'qimen', label: '奇门', subTab: null, tab: 'dunjia', module: 'qimen' },
-	{ value: 'tongshefa', label: '统摄法', subTab: 'tongshefa', module: 'tongshefa' },
+	{ value: 'tongshefa', label: '统摄法', subTab: 'tongshefa', tab: 'cnyibu', module: 'tongshefa' },
+	{ value: 'huangji', label: '皇极经世', subTab: 'huangji', tab: 'cnyibu', module: 'huangji' },
+	{ value: 'wuzhao', label: '五兆', subTab: 'wuzhao', tab: 'cnyibu', module: 'wuzhao' },
+	{ value: 'taixuan', label: '太玄', subTab: 'taixuan', tab: 'cnyibu', module: 'taixuan' },
+	{ value: 'jingjue', label: '荆诀', subTab: 'jingjue', tab: 'cnyibu', module: 'jingjue' },
+	{ value: 'shenyishu', label: '神易数', subTab: 'shenyishu', tab: 'cnyibu', module: 'shenyishu' },
 	{ value: 'sanshiunited', label: '三式合一', subTab: null, tab: 'sanshiunited', module: 'sanshiunited' },
 ];
+
+const CASE_TYPE_ALIASES = {
+	'六爻': 'liuyao',
+	'六壬': 'liureng',
+	'宿盘': 'suzhan',
+	'宿盤': 'suzhan',
+	'宿占': 'suzhan',
+	'金口诀': 'jinkou',
+	'太乙': 'taiyi',
+	'奇门': 'qimen',
+	'奇門': 'qimen',
+	'遁甲': 'qimen',
+	'三式合一': 'sanshiunited',
+	'统摄法': 'tongshefa',
+	'統攝法': 'tongshefa',
+	'皇极经世': 'huangji',
+	'皇極經世': 'huangji',
+	'皇极': 'huangji',
+	'皇極': 'huangji',
+	'五兆': 'wuzhao',
+	'太玄': 'taixuan',
+	'荆诀': 'jingjue',
+	'荊訣': 'jingjue',
+	'神易数': 'shenyishu',
+	'神易數': 'shenyishu',
+};
 
 function safeParseJson(txt, defVal){
 	if(!txt){
@@ -131,41 +163,36 @@ function normalizeGroup(group){
 
 function normalizeCaseType(type){
 	const val = `${type || ''}`.trim();
-	if(val === '六爻'){
+	if(!val){
 		return 'liuyao';
 	}
-	if(val === '六壬'){
-		return 'liureng';
-	}
-	if(val === '金口诀'){
-		return 'jinkou';
-	}
-	if(val === '太乙'){
-		return 'taiyi';
-	}
-	if(val === '奇门' || val === '遁甲'){
-		return 'qimen';
-	}
-	if(val === '三式合一'){
-		return 'sanshiunited';
-	}
-	if(val === '统摄法'){
-		return 'tongshefa';
+	if(CASE_TYPE_ALIASES[val]){
+		return CASE_TYPE_ALIASES[val];
 	}
 	if(CASE_TYPE_OPTIONS.find((item)=>item.value === val)){
 		return val;
 	}
-	return 'liuyao';
+	return val;
 }
 
 export function getCaseTypeLabel(type){
 	const one = CASE_TYPE_OPTIONS.find((item)=>item.value === normalizeCaseType(type));
-	return one ? one.label : '六爻';
+	return one ? one.label : (type || '六爻');
 }
 
 export function getCaseTypeMeta(type){
-	const one = CASE_TYPE_OPTIONS.find((item)=>item.value === normalizeCaseType(type));
-	return one || CASE_TYPE_OPTIONS[0];
+	const normalized = normalizeCaseType(type);
+	const one = CASE_TYPE_OPTIONS.find((item)=>item.value === normalized);
+	if(one){
+		return one;
+	}
+	return {
+		value: normalized,
+		label: normalized || '六爻',
+		subTab: normalized || null,
+		tab: 'cnyibu',
+		module: normalized || 'guazhan',
+	};
 }
 
 function sortByUpdateTimeDesc(list){
@@ -287,10 +314,12 @@ export function buildLocalCaseRecord(values){
 	if(divTime && typeof divTime.format === 'function'){
 		divTime = divTime.format('YYYY-MM-DD HH:mm:ss');
 	}
+	const caseType = normalizeCaseType(values.caseType || values.sourceModule);
+	const caseMeta = getCaseTypeMeta(caseType);
 	const record = {
 		cid: cid,
 		event: values.event ? values.event : '',
-		caseType: normalizeCaseType(values.caseType),
+		caseType: caseType,
 		divTime: divTime ? divTime : nowStr(),
 		zone: values.zone !== undefined && values.zone !== null ? values.zone : '+08:00',
 		lat: values.lat,
@@ -301,17 +330,22 @@ export function buildLocalCaseRecord(values){
 		isPub: values.isPub !== undefined && values.isPub !== null ? parseInt(values.isPub + '', 10) : 0,
 		group: normalizeGroup(values.group),
 		creator: values.creator ? values.creator : 'local',
-		updateTime: nowStr(),
+		updateTime: values.preserveUpdateTime && values.updateTime ? values.updateTime : nowStr(),
 		payload: normalizePayload(values.payload),
-		sourceModule: values.sourceModule ? values.sourceModule : null,
+		sourceModule: values.sourceModule ? values.sourceModule : caseMeta.module,
 	};
 	return record;
 }
 
 export function upsertLocalCase(values){
-	const next = buildLocalCaseRecord(values);
 	const list = readRawCases();
-	const idx = list.findIndex((item)=> item.cid === next.cid);
+	const cid = values && values.cid ? values.cid : null;
+	const idx = cid ? list.findIndex((item)=> item.cid === cid) : -1;
+	const base = idx >= 0 ? list[idx] : {};
+	const next = buildLocalCaseRecord({
+		...base,
+		...(values || {}),
+	});
 	if(idx >= 0){
 		list[idx] = {
 			...list[idx],
@@ -360,7 +394,10 @@ export function importLocalCasesBackup(payload){
 		if(!item || typeof item !== 'object'){
 			return;
 		}
-		upsertLocalCase(item);
+		upsertLocalCase({
+			...item,
+			preserveUpdateTime: true,
+		});
 		imported += 1;
 	});
 	const total = readRawCases().length;

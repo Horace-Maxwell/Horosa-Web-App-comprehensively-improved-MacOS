@@ -13,14 +13,14 @@
         --horosa-panel-soft: rgba(242, 247, 254, 0.78);
         --horosa-text: #162033;
         --horosa-text-soft: #52627a;
-        --horosa-muted: #8794a8;
+        --horosa-muted: #68758a;
         --horosa-border: rgba(76, 98, 134, 0.17);
         --horosa-border-strong: rgba(51, 111, 201, 0.30);
         --horosa-accent: #2f7df1;
         --horosa-accent-soft: rgba(47, 125, 241, 0.12);
         --horosa-accent-strong: #2167d4;
-        --horosa-gold: #b8893f;
-        --horosa-gold-soft: rgba(184, 137, 63, 0.15);
+        --horosa-gold: #9a6a25;
+        --horosa-gold-soft: rgba(154, 106, 37, 0.16);
         --horosa-cyan: #23b9d6;
         --horosa-cyan-soft: rgba(35, 185, 214, 0.12);
         --horosa-cinnabar: #bf3c36;
@@ -30,11 +30,11 @@
         --horosa-ziwei-star-assist: #327f8d;
         --horosa-ziwei-star-evil: #a9473f;
         --horosa-ziwei-house-name: #9b6a2d;
-        --horosa-ziwei-house-branch: #b8893f;
+        --horosa-ziwei-house-branch: #9a6a25;
         --horosa-ziwei-house-meta: #6d7b8c;
-        --horosa-ziwei-house-muted: #8794a8;
+        --horosa-ziwei-house-muted: #68758a;
         --horosa-ziwei-house-age: #6f7d8d;
-        --horosa-ziwei-house-line: rgba(76, 98, 134, 0.18);
+        --horosa-ziwei-house-line: rgba(76, 98, 134, 0.36);
         --horosa-table-row-alt: rgba(47, 125, 241, 0.06);
         --horosa-suzhan-fill: #fffdf1;
         --horosa-bazi-direct-bg: #fff9e6;
@@ -42,13 +42,13 @@
         --horosa-bazi-wood: #237a45;
         --horosa-bazi-fire: #c72d22;
         --horosa-bazi-earth: #805526;
-        --horosa-bazi-metal: #b8893f;
+        --horosa-bazi-metal: #9a6a25;
         --horosa-bazi-water: #275fc7;
         --horosa-direction-level-1: #275fc7;
         --horosa-direction-level-2: #c72d22;
         --horosa-direction-level-3: #237a45;
         --horosa-direction-level-4: #805526;
-        --horosa-direction-node-highlight: rgba(184, 137, 63, 0.14);
+        --horosa-direction-node-highlight: rgba(154, 106, 37, 0.14);
         --horosa-calendar-heading-bg: #fff9e6;
         --horosa-sanshi-board-outer: rgb(246, 245, 241);
         --horosa-sanshi-board-qimen: rgb(238, 234, 232);
@@ -57,10 +57,10 @@
         --horosa-liureng-square-main: #1c1c1c;
         --horosa-liureng-square-muted: #8e8e8e;
         --horosa-liureng-square-jiang: #d9a24f;
-        --horosa-liureng-square-accent: #b8893f;
-        --horosa-liureng-square-line: rgba(184, 137, 63, 0.16);
-        --horosa-liureng-square-center-bg: rgba(184, 137, 63, 0.045);
-        --horosa-liureng-square-active-bg: rgba(184, 137, 63, 0.08);
+        --horosa-liureng-square-accent: #9a6a25;
+        --horosa-liureng-square-line: rgba(154, 106, 37, 0.16);
+        --horosa-liureng-square-center-bg: rgba(154, 106, 37, 0.045);
+        --horosa-liureng-square-active-bg: rgba(154, 106, 37, 0.08);
         --horosa-shadow: 0 18px 46px rgba(39, 59, 91, 0.12);
         --horosa-small-shadow: 0 8px 24px rgba(39, 59, 91, 0.08);
         --horosa-radius: 8px;
@@ -103,7 +103,7 @@
         --horosa-ziwei-house-meta: #8c9998;
         --horosa-ziwei-house-muted: #7f8d8e;
         --horosa-ziwei-house-age: #9aa6a6;
-        --horosa-ziwei-house-line: rgba(216, 173, 99, 0.24);
+        --horosa-ziwei-house-line: rgba(216, 173, 99, 0.42);
         --horosa-table-row-alt: rgba(216, 173, 99, 0.075);
         --horosa-suzhan-fill: rgba(13, 15, 18, 0.94);
         --horosa-bazi-direct-bg: rgba(231, 189, 117, 0.10);
@@ -132,6 +132,7 @@
         --horosa-liureng-square-active-bg: rgba(231, 189, 117, 0.10);
         --horosa-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
         --horosa-small-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+        color-scheme: dark;
     }
 
     html,
@@ -149,6 +150,7 @@
     :root[data-horosa-appearance='dark'] #root {
         background: var(--horosa-bg) !important;
         color: var(--horosa-text);
+        color-scheme: dark;
     }
 
     body {
@@ -222,6 +224,15 @@
         background: var(--horosa-panel-soft);
         color: var(--horosa-muted);
         opacity: 0.62;
+    }
+
+    .horosa-workspace-shell .ant-spin,
+    .horosa-workspace-shell .ant-spin-text {
+        color: var(--horosa-accent-strong);
+    }
+
+    .horosa-workspace-shell .ant-spin-dot-item {
+        background-color: var(--horosa-accent-strong);
     }
 
     .horosa-workspace-shell .ant-typography,
@@ -1012,6 +1023,146 @@
     .ant-tooltip-arrow-content,
     .ant-popover-arrow-content {
         background: var(--horosa-surface-raised);
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-select-dropdown,
+    :root[data-horosa-appearance='dark'] .ant-dropdown-menu,
+    :root[data-horosa-appearance='dark'] .ant-cascader-menus,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-panel-container,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-panel,
+    :root[data-horosa-appearance='dark'] .ant-popover-inner,
+    :root[data-horosa-appearance='dark'] .ant-tooltip-inner,
+    :root[data-horosa-appearance='dark'] .ant-message-notice-content,
+    :root[data-horosa-appearance='dark'] .ant-notification-notice,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-modal-content,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-modal-header,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-modal-footer,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-drawer-content,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-drawer-header,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-drawer-body {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-raised);
+        color: var(--horosa-text);
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-select-item,
+    :root[data-horosa-appearance='dark'] .ant-select-item-option-content,
+    :root[data-horosa-appearance='dark'] .ant-cascader-menu-item,
+    :root[data-horosa-appearance='dark'] .ant-dropdown-menu-item,
+    :root[data-horosa-appearance='dark'] .ant-dropdown-menu-submenu-title,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-header,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-header button,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-content th,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-cell,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-cell-in-view,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-footer,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-today-btn,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-time-panel-cell-inner,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-modal-title,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-modal-confirm-title,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-modal-confirm-content,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-drawer-title,
+    :root[data-horosa-appearance='dark'] .ant-popover-title,
+    :root[data-horosa-appearance='dark'] .ant-popover-inner-content,
+    :root[data-horosa-appearance='dark'] .ant-message-notice-content,
+    :root[data-horosa-appearance='dark'] .ant-notification-notice,
+    :root[data-horosa-appearance='dark'] .ant-notification-notice-message,
+    :root[data-horosa-appearance='dark'] .ant-notification-notice-description,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-typography,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-form-item-label > label,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-checkbox-wrapper,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-radio-wrapper,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-empty-description,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-typography,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-form-item-label > label,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-checkbox-wrapper,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-radio-wrapper,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-empty-description {
+        color: var(--horosa-text);
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-select-item-option-disabled,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-cell-disabled,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-cell-disabled .ant-picker-cell-inner,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-btn[disabled],
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-btn[disabled],
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-input[disabled],
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-input[disabled],
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-select-disabled .ant-select-selector,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-select-disabled .ant-select-selector {
+        color: var(--horosa-muted);
+        opacity: 0.68;
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+    :root[data-horosa-appearance='dark'] .ant-select-item-option-selected:not(.ant-select-item-option-disabled),
+    :root[data-horosa-appearance='dark'] .ant-cascader-menu-item-active,
+    :root[data-horosa-appearance='dark'] .ant-cascader-menu-item:hover,
+    :root[data-horosa-appearance='dark'] .ant-dropdown-menu-item:hover,
+    :root[data-horosa-appearance='dark'] .ant-dropdown-menu-submenu-title:hover,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner,
+    :root[data-horosa-appearance='dark'] .ant-picker-dropdown .ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+        border-color: var(--horosa-border-strong);
+        background: var(--horosa-accent-soft);
+        color: var(--horosa-accent-strong);
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-input,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-input-affix-wrapper,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-input-number,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-input-number-input,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-picker,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-picker-input > input,
+    :root[data-horosa-appearance='dark'] .ant-modal-root textarea.ant-input,
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-input,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-input-affix-wrapper,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-input-number,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-input-number-input,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-picker,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-picker-input > input,
+    :root[data-horosa-appearance='dark'] .ant-drawer textarea.ant-input,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+        color: var(--horosa-text);
+        box-shadow: none;
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-btn,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-btn,
+    :root[data-horosa-appearance='dark'] .ant-popover .ant-btn,
+    :root[data-horosa-appearance='dark'] .ant-message .ant-btn,
+    :root[data-horosa-appearance='dark'] .ant-notification .ant-btn {
+        border-color: var(--horosa-border);
+        background: var(--horosa-panel-soft);
+        color: var(--horosa-text);
+        box-shadow: none;
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-btn:hover,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-btn:hover,
+    :root[data-horosa-appearance='dark'] .ant-popover .ant-btn:hover,
+    :root[data-horosa-appearance='dark'] .ant-message .ant-btn:hover,
+    :root[data-horosa-appearance='dark'] .ant-notification .ant-btn:hover {
+        border-color: var(--horosa-border-strong);
+        background: var(--horosa-accent-soft);
+        color: var(--horosa-accent-strong);
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-btn-primary,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-btn-primary,
+    :root[data-horosa-appearance='dark'] .ant-popover .ant-btn-primary {
+        border-color: var(--horosa-accent);
+        background: var(--horosa-accent);
+        color: #071015;
+    }
+
+    :root[data-horosa-appearance='dark'] .ant-modal-root .ant-alert,
+    :root[data-horosa-appearance='dark'] .ant-drawer .ant-alert {
+        border-color: var(--horosa-border);
+        background: var(--horosa-accent-soft);
+        color: var(--horosa-text);
     }
 
     .horosa-workspace-shell .mainRootTabs.ant-tabs-left {
@@ -4636,6 +4787,10 @@
         font-size: 17px;
     }
 
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-unified-field .xq-icon {
+        color: var(--horosa-gold);
+    }
+
     .horosa-workspace-shell .horosa-time-adjust-inline {
         min-width: 0;
         padding-top: 2px;
@@ -4726,6 +4881,10 @@
 
     .horosa-workspace-shell .horosa-time-adjust-inline .ant-select-arrow {
         color: #c9b089;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-time-adjust-inline .ant-select-arrow {
+        color: var(--horosa-muted);
     }
 
     .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn:hover,
@@ -6951,7 +7110,8 @@
     }
 
     .horosa-workspace-shell .horosa-ziwei-select-field-wide {
-        grid-column: 1 / -1;
+        grid-column-start: 1;
+        grid-column-end: -1;
     }
 
     .horosa-workspace-shell .horosa-ziwei-option-card {
@@ -7001,6 +7161,11 @@
         transform-origin: center;
     }
 
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-chart-viewport > svg rect,
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-chart-viewport > svg line {
+        stroke-width: 1.35px;
+    }
+
     .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-info-panel {
         min-width: 0;
         min-height: 0;
@@ -7044,7 +7209,19 @@
         color: var(--horosa-astro-gold) !important;
     }
 
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-direction-card .horosa-ziwei-direction-list {
+        margin-top: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-direction-card .horosa-ziwei-direction-button.ant-btn {
+        height: 48px !important;
+        padding: 4px 5px !important;
+        line-height: 1.15;
+    }
+
     .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-meta-scroll {
+        align-content: start;
+        grid-auto-rows: max-content;
         height: 100%;
         padding: 2px 0 12px;
         overflow: auto;
@@ -7067,6 +7244,22 @@
         text-align: center;
     }
 
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-bazi-card {
+        padding: 10px 12px;
+    }
+
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-bazi-card .horosa-info-card-title {
+        margin-bottom: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-bazi-card .horosa-ziwei-bazi-grid {
+        gap: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-bazi-card .horosa-ziwei-bazi-cell {
+        padding: 8px 6px;
+    }
+
     .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-bazi-cell span,
     .horosa-ziwei-center-info-modal .horosa-ziwei-bazi-cell span {
         display: block;
@@ -7083,6 +7276,11 @@
         font-size: 18px;
         font-weight: 760;
         line-height: 1;
+    }
+
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-bazi-card .horosa-ziwei-bazi-cell strong {
+        margin-top: 6px;
+        font-size: 16px;
     }
 
     .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-direction-mini-grid,
@@ -7300,6 +7498,24 @@
         box-shadow: none !important;
     }
 
+    .horosa-workspace-shell .horosa-guolao-redesign .xq-select .ant-select-selection-item {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+        line-height: 32px !important;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-guolao-redesign .ant-input,
+    .horosa-workspace-shell .horosa-guolao-redesign .ant-input-number-input {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .horosa-workspace-shell .horosa-guolao-redesign .xq-select .ant-select-arrow,
     .horosa-workspace-shell .horosa-guolao-redesign .ant-picker-suffix {
         color: var(--horosa-astro-gold);
@@ -7356,6 +7572,13 @@
         font-weight: 650;
     }
 
+    .horosa-workspace-shell .horosa-guolao-select-field > span {
+        min-width: 0;
+        line-height: 1.32;
+        overflow-wrap: anywhere;
+        word-break: keep-all;
+    }
+
     .horosa-workspace-shell .horosa-guolao-toggle-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7401,6 +7624,511 @@
     .horosa-workspace-shell .horosa-guolao-moira-transit-time .horosa-time-adjust-inline .ant-select,
     .horosa-workspace-shell .horosa-guolao-moira-transit-time .horosa-time-adjust-inline .ant-btn {
         min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-guolao-core-grid {
+        margin-bottom: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-guolao-select-field-wide {
+        grid-column-start: 1;
+        grid-column-end: -1;
+    }
+
+    .horosa-workspace-shell .horosa-guolao-mini-input {
+        width: 100%;
+        min-height: 34px;
+        box-sizing: border-box;
+        padding: 4px 9px;
+        border: 1px solid rgba(215, 173, 105, 0.18);
+        border-radius: 6px;
+        background: #090b0e;
+        color: var(--horosa-astro-text);
+        outline: none;
+        font: inherit;
+        font-weight: 700;
+        color-scheme: dark;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-guolao-mini-input {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+        color: var(--horosa-text);
+        color-scheme: light;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-board {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: 10px;
+        width: 100%;
+        max-width: 1040px;
+        height: 100%;
+        max-height: 880px;
+        min-width: 0;
+        min-height: 0;
+        padding: clamp(10px, 1.2vw, 16px);
+        border: 1px solid rgba(215, 173, 105, 0.2);
+        border-radius: 8px;
+        background: radial-gradient(circle at 50% 46%, rgba(215, 173, 105, 0.08), transparent 42%), #08141d;
+        color: var(--horosa-astro-text);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-board {
+        border-color: #d8c7aa;
+        background: radial-gradient(circle at 50% 46%, rgba(190, 137, 60, 0.14), transparent 42%), #fffdf8;
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-board-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(116px, 1fr));
+        grid-template-rows: repeat(4, minmax(112px, 1fr));
+        gap: 4px;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-house,
+    .horosa-workspace-shell .horosa-qizheng-kin-center {
+        min-width: 0;
+        min-height: 0;
+        border: 1.35px solid rgba(215, 173, 105, 0.36);
+        background: rgba(255, 255, 255, 0.018);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-house,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-center {
+        border-color: #b99d70;
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-house {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        gap: 5px;
+        padding: 8px;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-house-head,
+    .horosa-workspace-shell .horosa-qizheng-kin-house-foot {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-house-head strong {
+        color: var(--horosa-astro-gold);
+        font-size: clamp(16px, 1.18vw, 20px);
+        font-weight: 820;
+        line-height: 1.1;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-house-head span,
+    .horosa-workspace-shell .horosa-qizheng-kin-house-foot span {
+        overflow: hidden;
+        color: var(--horosa-astro-muted);
+        font-size: 11px;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-planet-tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        gap: 5px;
+        min-height: 0;
+        overflow: auto;
+        scrollbar-width: thin;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-planet-tags i {
+        color: var(--horosa-astro-muted);
+        font-style: normal;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-planet {
+        display: inline-grid;
+        grid-template-columns: auto;
+        gap: 1px;
+        max-width: 100%;
+        padding: 3px 5px;
+        border: 1px solid rgba(215, 173, 105, 0.2);
+        border-radius: 5px;
+        background: rgba(215, 173, 105, 0.08);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-planet b {
+        color: var(--horosa-astro-text);
+        font-size: clamp(13px, 0.92vw, 15px);
+        font-weight: 840;
+        line-height: 1.05;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-planet em {
+        color: var(--horosa-astro-muted);
+        font-size: 10.5px;
+        font-style: normal;
+        font-weight: 650;
+        line-height: 1;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-planet.is-retro {
+        border-color: rgba(209, 93, 93, 0.38);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-planet.is-qidu {
+        background: rgba(68, 139, 208, 0.12);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-planet b {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-shensha-tags,
+    .horosa-workspace-shell .horosa-qizheng-kin-chip-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-shensha-tags span,
+    .horosa-workspace-shell .horosa-qizheng-kin-chip-cloud span {
+        padding: 2px 5px;
+        border: 1px solid rgba(215, 173, 105, 0.16);
+        border-radius: 999px;
+        color: var(--horosa-astro-muted);
+        font-size: 10.5px;
+        font-weight: 700;
+        line-height: 1.1;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center {
+        grid-column: 2 / span 2;
+        grid-row: 2 / span 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+        padding: 18px;
+        text-align: center;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center span {
+        color: var(--horosa-astro-gold);
+        font-size: 11px;
+        font-weight: 760;
+        letter-spacing: 0;
+        text-transform: uppercase;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center h3 {
+        margin: 0;
+        color: var(--horosa-astro-text);
+        font-size: clamp(24px, 2.2vw, 36px);
+        font-weight: 830;
+        letter-spacing: 0;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-center h3 {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center p {
+        margin: 0;
+        color: var(--horosa-astro-muted);
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center-grid div {
+        min-width: 0;
+        padding: 7px 5px;
+        border: 1px solid rgba(215, 173, 105, 0.16);
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.14);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-center-grid div {
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center-grid small,
+    .horosa-workspace-shell .horosa-qizheng-kin-center-grid b {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center-grid small {
+        color: var(--horosa-astro-muted);
+        font-size: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center-grid b {
+        color: var(--horosa-astro-text);
+        font-size: 15px;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-center-grid b {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center-meta,
+    .horosa-workspace-shell .horosa-qizheng-kin-board-footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 5px 10px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-center-meta span,
+    .horosa-workspace-shell .horosa-qizheng-kin-board-footer span {
+        color: var(--horosa-astro-muted);
+        font-size: 11px;
+        font-weight: 650;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-board-footer {
+        overflow: hidden;
+        padding-top: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-board-footer b {
+        color: var(--horosa-astro-gold);
+        margin-right: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        max-width: 760px;
+        min-height: 220px;
+        border: 1px dashed rgba(215, 173, 105, 0.28);
+        border-radius: 8px;
+        color: var(--horosa-astro-muted);
+        font-weight: 720;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-error {
+        color: #e58b8b;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-info-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-info-card {
+        padding: 12px;
+        border: 1px solid rgba(215, 173, 105, 0.16);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.18);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-info-card {
+        border-color: var(--horosa-border);
+        background: var(--horosa-surface-solid);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-info-card h4 {
+        margin: 0 0 9px;
+        color: var(--horosa-astro-text);
+        font-size: 14px;
+        font-weight: 780;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-info-card h4 {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-row-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-row {
+        display: grid;
+        grid-template-columns: minmax(74px, 0.9fr) minmax(0, 1.35fr);
+        gap: 10px;
+        align-items: start;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-row > span {
+        color: var(--horosa-astro-muted);
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-row strong {
+        min-width: 0;
+        color: var(--horosa-astro-text);
+        font-size: 12px;
+        font-weight: 760;
+        line-height: 1.48;
+        overflow-wrap: anywhere;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-row strong {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-row strong.is-multiline {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-row-line {
+        display: block;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-prose p {
+        margin: 0;
+        color: var(--horosa-astro-text);
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1.65;
+        white-space: pre-wrap;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-prose p {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-empty {
+        color: var(--horosa-astro-muted);
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-card {
+        padding: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-item {
+        border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+        border-radius: 6px;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.12);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-reading-item {
+        border-color: var(--horosa-border);
+        background: rgba(255, 255, 255, 0.62);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-head {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 6px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-head span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        color: #111;
+        background: var(--horosa-astro-gold, #e7bd75);
+        font-size: 12px;
+        font-weight: 800;
+        flex: 0 0 auto;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-bad .horosa-qizheng-kin-reading-head span {
+        background: #d98672;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-neutral .horosa-qizheng-kin-reading-head span {
+        background: #a7a59c;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-head strong {
+        min-width: 0;
+        color: var(--horosa-astro-text);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-reading-head strong {
+        color: var(--horosa-text);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-detail {
+        display: grid;
+        gap: 3px;
+        padding-left: 29px;
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-reading-detail p {
+        margin: 0;
+        color: var(--horosa-astro-muted);
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-qizheng-kin-reading-detail p {
+        color: var(--horosa-muted);
+    }
+
+    .horosa-workspace-shell .horosa-qizheng-kin-quick-dock .horosa-guolao-quick-button.is-active {
+        border-color: rgba(231, 189, 117, 0.46);
+        background: rgba(231, 189, 117, 0.12);
+        color: var(--horosa-astro-gold);
+    }
+
+    @media (max-width: 1360px) {
+        .horosa-workspace-shell .horosa-qizheng-kin-board-grid {
+            grid-template-columns: repeat(4, minmax(92px, 1fr));
+            grid-template-rows: repeat(4, minmax(96px, 1fr));
+        }
+
+        .horosa-workspace-shell .horosa-qizheng-kin-house {
+            padding: 6px;
+        }
+
+        .horosa-workspace-shell .horosa-qizheng-kin-house-head strong {
+            font-size: 15px;
+        }
+
+        .horosa-workspace-shell .horosa-qizheng-kin-planet b {
+            font-size: 13px;
+        }
     }
 
     .horosa-workspace-shell .horosa-guolao-redesign .horosa-guolao-chart-panel {
@@ -8197,6 +8925,46 @@
         color: var(--horosa-gold);
     }
 
+    @media (max-width: 900px) {
+        .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-redesign-layout {
+            grid-template-rows: auto 64px;
+            height: 100%;
+            overflow: auto;
+        }
+
+        .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-redesign-grid {
+            grid-template-columns: minmax(0, 1fr) !important;
+            height: auto;
+            min-height: 0;
+            overflow: visible;
+        }
+
+        .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-input-panel,
+        .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-chart-panel,
+        .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-info-panel {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-chart-panel {
+            height: ~"min(760px, 148vw)";
+            min-height: 520px;
+            overflow: hidden;
+        }
+
+        .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-info-panel {
+            min-height: 520px;
+            overflow: hidden;
+        }
+
+        .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-quick-actions {
+            grid-template-columns: repeat(6, minmax(116px, 1fr));
+            overflow-x: auto;
+        }
+    }
+
     .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-input-panel,
     .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-chart-panel,
     .horosa-workspace-shell .horosa-dunjia-redesign .horosa-dunjia-info-panel {
@@ -8341,6 +9109,11 @@
         color: var(--horosa-astro-muted);
         font-size: 12px;
         font-weight: 650;
+    }
+
+    .horosa-workspace-shell .horosa-dunjia-select-field.is-wide {
+        grid-column-start: 1;
+        grid-column-end: -1;
     }
 
     .horosa-workspace-shell .horosa-dunjia-toggle-field .ant-btn {
@@ -8744,6 +9517,13 @@
         overflow: auto;
     }
 
+    .horosa-workspace-shell .horosa-taiyi-section-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 0;
+    }
+
     .horosa-workspace-shell .horosa-taiyi-info-card,
     .horosa-workspace-shell .horosa-taiyi-palace-list {
         display: flex;
@@ -8755,6 +9535,13 @@
         background: rgba(255, 255, 255, 0.018);
     }
 
+    .horosa-workspace-shell .horosa-taiyi-section-card .horosa-taiyi-info-heading {
+        color: var(--horosa-astro-text);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0;
+    }
+
     :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-taiyi-info-card,
     :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-taiyi-palace-list {
         border-color: var(--horosa-border);
@@ -8764,7 +9551,7 @@
     .horosa-workspace-shell .horosa-taiyi-info-row,
     .horosa-workspace-shell .horosa-taiyi-palace-row {
         display: grid;
-        grid-template-columns: 88px minmax(0, 1fr);
+        grid-template-columns: 112px minmax(0, 1fr);
         gap: 8px;
         align-items: baseline;
         color: var(--horosa-astro-muted);
@@ -8891,6 +9678,172 @@
     .horosa-workspace-shell .horosa-tongshefa-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane {
         height: 100%;
         min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-card-subtitle,
+    .horosa-workspace-shell .horosa-tongshefa-muted {
+        color: var(--horosa-text-soft, rgba(255, 255, 255, 0.64));
+        font-size: 12px;
+        line-height: 1.7;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-card-subtitle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-main-badge,
+    .horosa-workspace-shell .horosa-tongshefa-chip,
+    .horosa-workspace-shell .horosa-tongshefa-pill {
+        border: 1px solid var(--horosa-border, rgba(212, 175, 55, 0.22));
+        border-radius: 8px;
+        background: var(--horosa-panel-soft, rgba(255, 255, 255, 0.045));
+        color: var(--horosa-text, #e8e1d4);
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-main-badge {
+        flex: 0 0 auto;
+        padding: 1px 8px;
+        color: var(--horosa-gold, #d9b76f);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-preference-grid,
+    .horosa-workspace-shell .horosa-tongshefa-two-col {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-preference-col,
+    .horosa-workspace-shell .horosa-tongshefa-soft-panel,
+    .horosa-workspace-shell .horosa-tongshefa-relation-row {
+        border: 1px solid var(--horosa-border, rgba(212, 175, 55, 0.18));
+        border-radius: 8px;
+        background: var(--horosa-panel-soft, rgba(255, 255, 255, 0.04));
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-preference-col,
+    .horosa-workspace-shell .horosa-tongshefa-soft-panel {
+        padding: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-mini-title,
+    .horosa-workspace-shell .horosa-tongshefa-relation-title {
+        color: var(--horosa-text, #f2eadb);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.55;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-pill {
+        display: block;
+        margin-top: 6px;
+        padding: 5px 8px;
+        font-size: 12px;
+        line-height: 1.55;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-relation-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-relation-row {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: 9px;
+        padding: 9px 10px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-relation-badge,
+    .horosa-workspace-shell .horosa-tongshefa-round-mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--horosa-text, #f2eadb);
+        color: var(--horosa-bg, #0b0c0d);
+        font-weight: 800;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-relation-badge {
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-relation-dynamic,
+    .horosa-workspace-shell .horosa-tongshefa-explain {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid var(--horosa-border, rgba(212, 175, 55, 0.16));
+        color: var(--horosa-text-soft, rgba(255, 255, 255, 0.68));
+        font-size: 12px;
+        line-height: 1.75;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-chip-row,
+    .horosa-workspace-shell .horosa-tongshefa-change-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-chip {
+        padding: 3px 7px;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-mark-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        margin-top: 7px;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-round-mark {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        font-size: 11px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-rise-item + .horosa-tongshefa-rise-item {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--horosa-border, rgba(212, 175, 55, 0.14));
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-change-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 8px;
+        border: 1px solid var(--horosa-border, rgba(212, 175, 55, 0.18));
+        border-radius: 8px;
+        background: var(--horosa-panel-soft, rgba(255, 255, 255, 0.04));
+        font-size: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-tongshefa-change-item strong {
+        color: var(--horosa-gold, #d9b76f);
+        font-weight: 700;
+    }
+
+    @media (max-width: 1480px) {
+        .horosa-workspace-shell .horosa-tongshefa-preference-grid,
+        .horosa-workspace-shell .horosa-tongshefa-two-col {
+            grid-template-columns: 1fr;
+        }
     }
 
     .horosa-workspace-shell .horosa-suzhan-redesign .horosa-suzhan-redesign-grid {
@@ -9052,10 +10005,10 @@
     }
 
     .horosa-workspace-shell .horosa-suzhan-board-host > svg.horosa-suzhan-square-svg {
-        max-width: none;
-        max-height: none;
+        max-width: 100%;
+        max-height: 100%;
         aspect-ratio: 1 / 1;
-        flex: 0 0 auto;
+        flex: 0 1 auto;
     }
 
     .horosa-workspace-shell .horosa-suzhan-redesign .horosa-suzhan-info-panel {
@@ -9254,6 +10207,12 @@
     .horosa-workspace-shell .horosa-jinkou-input-embed .ant-col {
         padding-right: 2px !important;
         padding-left: 2px !important;
+    }
+
+    .horosa-workspace-shell .horosa-jinkou-input-embed .ant-col-lg-12.ant-col-xl-8,
+    .horosa-workspace-shell .horosa-suzhan-input-embed .ant-col-lg-12.ant-col-xl-8 {
+        flex: 0 0 50%;
+        max-width: 50%;
     }
 
     .horosa-workspace-shell .horosa-jinkou-redesign .xq-select,
@@ -9465,6 +10424,1987 @@
         color: var(--horosa-text-soft);
     }
 
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-redesign-layout {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign {
+        --horosa-huangji-accent: var(--horosa-astro-gold);
+        --horosa-huangji-accent-strong: #f2cf91;
+        --horosa-huangji-text: var(--horosa-astro-text);
+        --horosa-huangji-muted: var(--horosa-astro-muted);
+        --horosa-huangji-line: rgba(215, 173, 105, 0.18);
+        --horosa-huangji-line-strong: rgba(224, 180, 105, 0.48);
+        --horosa-huangji-card-bg: rgba(255, 255, 255, 0.025);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-redesign {
+        --horosa-huangji-accent: var(--horosa-gold);
+        --horosa-huangji-accent-strong: #9b6a2d;
+        --horosa-huangji-text: var(--horosa-text);
+        --horosa-huangji-muted: var(--horosa-text-soft);
+        --horosa-huangji-line: rgba(184, 137, 63, 0.18);
+        --horosa-huangji-line-strong: rgba(145, 110, 62, 0.40);
+        --horosa-huangji-card-bg: rgba(255, 253, 247, 0.86);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign.horosa-huangji-embedded .horosa-huangji-redesign-layout {
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-redesign-layout > .ant-spin-nested-loading,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-redesign-layout > .ant-spin-nested-loading > .ant-spin-container {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-redesign-grid {
+        display: grid !important;
+        grid-template-columns: clamp(285px, 20vw, 330px) minmax(520px, 1fr) clamp(335px, 25vw, 400px);
+        gap: 4px;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-input-panel,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-chart-panel,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-info-panel {
+        border-color: var(--horosa-astro-line) !important;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 46%), var(--horosa-astro-panel) !important;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-input-panel,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-chart-panel,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-info-panel {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(250, 246, 236, 0.72)), var(--horosa-astro-panel) !important;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-input-panel {
+        padding: 16px;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-input-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-spacetime-panel,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-field-block,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-time-adjust-inline {
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-time-adjust-inline {
+        overflow-x: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-time-adjust-inline .xq-datetime-adjust-only > .ant-col > .ant-row {
+        grid-template-columns: 30px minmax(72px, 1fr) 30px 40px 40px;
+        max-width: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-input-section {
+        padding: 12px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-input-section {
+        background: var(--horosa-huangji-card-bg);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-field-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        color: var(--horosa-huangji-accent);
+        font-weight: 700;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-select-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-select-field {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 6px;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-select-field > span {
+        min-width: 0;
+        line-height: 1.32;
+        word-break: keep-all;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-select-field.is-wide {
+        grid-column-start: 1;
+        grid-column-end: -1;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .xq-select,
+    .horosa-workspace-shell .horosa-huangji-redesign .ant-input,
+    .horosa-workspace-shell .horosa-huangji-redesign .ant-input-number,
+    .horosa-workspace-shell .horosa-huangji-redesign .ant-btn {
+        width: 100%;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .xq-select .ant-select-selector,
+    .horosa-workspace-shell .horosa-huangji-redesign .ant-input,
+    .horosa-workspace-shell .horosa-huangji-redesign .ant-input-number,
+    .horosa-workspace-shell .horosa-huangji-redesign .ant-btn {
+        min-height: 36px !important;
+        border-color: var(--horosa-huangji-line) !important;
+        background: rgba(0, 0, 0, 0.2) !important;
+        color: var(--horosa-huangji-text) !important;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .xq-select .ant-select-selection-item {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+        line-height: 34px !important;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .xq-select .ant-select-selection-search,
+    .horosa-workspace-shell .horosa-huangji-redesign .xq-select .ant-select-selection-search-input {
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .ant-input-number-input {
+        height: 34px;
+        min-width: 0;
+        color: var(--horosa-huangji-text) !important;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .ant-input {
+        padding: 6px 11px;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-redesign .xq-select .ant-select-selector,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-redesign .ant-input,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-redesign .ant-input-number,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-redesign .ant-btn {
+        background: #fffdf8 !important;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-action-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-chart-panel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-board-host {
+        width: clamp(640px, 82%, 1080px);
+        max-width: 100%;
+        min-width: 0;
+        max-height: 100%;
+        overflow: auto;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-board {
+        display: flex;
+        min-height: clamp(560px, 72vh, 760px);
+        flex-direction: column;
+        gap: 14px;
+        padding: clamp(18px, 2.2vw, 28px);
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 8px;
+        background: radial-gradient(circle at 50% 0%, rgba(214, 167, 85, 0.12), transparent 30%), rgba(0, 0, 0, 0.16);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-board {
+        background:
+            radial-gradient(circle at 50% 0%, rgba(184, 137, 63, 0.08), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 252, 246, 0.88));
+        box-shadow: 0 18px 46px rgba(80, 67, 45, 0.10);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-board-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--horosa-huangji-line);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-board-kicker {
+        display: none;
+        color: var(--horosa-huangji-accent);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-board h2 {
+        margin: 0;
+        color: var(--horosa-huangji-text);
+        font-size: 30px;
+        line-height: 1.15;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-board-time {
+        color: var(--horosa-huangji-muted);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-meta-grid,
+    .horosa-workspace-shell .horosa-huangji-cycle-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-meta-grid > div,
+    .horosa-workspace-shell .horosa-huangji-cycle-row > div {
+        padding: 10px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-meta-grid span,
+    .horosa-workspace-shell .horosa-huangji-cycle-row span,
+    .horosa-workspace-shell .horosa-huangji-cycle-row small {
+        display: block;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-meta-grid strong,
+    .horosa-workspace-shell .horosa-huangji-cycle-row strong {
+        display: block;
+        margin-top: 4px;
+        color: var(--horosa-huangji-text);
+        font-size: 15px;
+        line-height: 1.35;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-ganzhi-card {
+        grid-column-start: 1;
+        grid-column-end: -1;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-ganzhi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(64px, 1fr));
+        gap: 7px;
+        margin-top: 7px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-ganzhi-item {
+        min-width: 0;
+        padding: 7px 8px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.14);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-ganzhi-item {
+        background: rgba(255, 255, 255, 0.56);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-ganzhi-item em {
+        display: block;
+        color: var(--horosa-huangji-muted);
+        font-size: 11px;
+        font-style: normal;
+        line-height: 1.2;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-ganzhi-item strong {
+        margin-top: 3px;
+        color: var(--horosa-huangji-text);
+        font-size: 14px;
+        font-weight: 760;
+        line-height: 1.25;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-cycle-row strong {
+        color: var(--horosa-huangji-accent);
+        font-size: 28px;
+        line-height: 1.1;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-section-title {
+        margin-bottom: 8px;
+        color: var(--horosa-huangji-muted);
+        font-weight: 700;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-gua-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-gua-grid.is-macro {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .horosa-workspace-shell .horosa-huangji-gua-grid.is-xinyi {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-bottom: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-gua-card {
+        display: flex;
+        min-height: 116px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 10px 8px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+        text-align: center;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-gua-symbol {
+        color: var(--horosa-huangji-accent);
+        font-size: 40px;
+        line-height: 1;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-gua-card strong {
+        color: var(--horosa-huangji-text);
+        font-size: 18px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-gua-card span {
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        line-height: 1.35;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-info-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+        padding: 16px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-tabs {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-tabs > .ant-tabs-nav {
+        flex: 0 0 auto;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-tabs .ant-tabs-content-holder {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-tabs .ant-tabs-content,
+    .horosa-workspace-shell .horosa-huangji-tabs .ant-tabs-tabpane {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-tabs .ant-tabs-tabpane {
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-section-list {
+        display: flex;
+        height: 100%;
+        min-height: 0;
+        flex-direction: column;
+        gap: 10px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-info-card,
+    .horosa-workspace-shell .horosa-huangji-classic-section {
+        padding: 12px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.18);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-info-card,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-classic-section {
+        background: var(--horosa-huangji-card-bg);
+        box-shadow: 0 8px 20px rgba(80, 67, 45, 0.045);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-info-heading {
+        margin-bottom: 8px;
+        color: var(--horosa-huangji-text);
+        font-weight: 700;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-info-row {
+        display: grid;
+        grid-template-columns: minmax(90px, 32%) minmax(0, 1fr);
+        gap: 8px;
+        padding: 5px 0;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-info-row strong {
+        min-width: 0;
+        color: var(--horosa-huangji-text);
+        font-size: 13px;
+        font-weight: 700;
+        white-space: pre-line;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-classic-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-classic-section strong {
+        color: var(--horosa-huangji-accent-strong);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-classic-section p {
+        margin: 6px 0 0;
+        color: var(--horosa-huangji-text);
+        font-size: 12px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-classic-section em {
+        display: block;
+        margin-top: 8px;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-style: normal;
+        line-height: 1.45;
+    }
+
+    .horosa-workspace-shell .horosa-huangji-snapshot {
+        overflow-y: auto;
+        height: 100%;
+        min-height: 100%;
+        margin: 0;
+        padding: 12px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.24);
+        color: var(--horosa-huangji-text);
+        font-size: 12px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-huangji-snapshot {
+        background: var(--horosa-huangji-card-bg);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-empty {
+        display: flex;
+        min-height: 120px;
+        align-items: center;
+        justify-content: center;
+        color: var(--horosa-huangji-muted);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-tabs .ant-tabs-tab:hover,
+    .horosa-workspace-shell .horosa-huangji-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+        color: var(--horosa-huangji-accent-strong);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-tabs .ant-tabs-ink-bar {
+        background: var(--horosa-huangji-accent);
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-redesign .horosa-huangji-redesign-grid {
+        grid-template-columns: clamp(285px, 19vw, 330px) minmax(560px, 1fr) clamp(335px, 25vw, 400px);
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-split-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-split-note {
+        margin-top: 8px;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-redesign .horosa-huangji-action-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-board {
+        display: flex;
+        min-height: clamp(520px, 68vh, 740px);
+        flex-direction: column;
+        gap: 14px;
+        padding: clamp(18px, 2.2vw, 28px);
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 8px;
+        background: radial-gradient(circle at 50% 0%, rgba(214, 167, 85, 0.12), transparent 30%), rgba(0, 0, 0, 0.16);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-wuzhao-board {
+        background:
+            radial-gradient(circle at 50% 0%, rgba(184, 137, 63, 0.08), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 252, 246, 0.88));
+        box-shadow: 0 18px 46px rgba(80, 67, 45, 0.10);
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-board .horosa-wuzhao-title {
+        margin: 0;
+        color: var(--horosa-huangji-text) !important;
+        font-size: 30px !important;
+        line-height: 1.15 !important;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-meta-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-board-grid {
+        display: grid;
+        flex: 1 1 auto;
+        min-height: 0;
+        grid-template-columns: repeat(3, minmax(150px, 1fr));
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-position-card {
+        display: flex;
+        min-width: 0;
+        min-height: 180px;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-position-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-position-head strong {
+        color: var(--horosa-huangji-text);
+        font-size: 18px;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-position-head span,
+    .horosa-workspace-shell .horosa-wuzhao-position-foot span,
+    .horosa-workspace-shell .horosa-wuzhao-position-foot em {
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-style: normal;
+        line-height: 1.4;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-number {
+        color: var(--horosa-huangji-accent);
+        font-size: 42px;
+        font-weight: 760;
+        line-height: 1;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-position-main {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-position-main span {
+        overflow: hidden;
+        padding: 6px 7px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 6px;
+        color: var(--horosa-huangji-text);
+        font-size: 13px;
+        font-weight: 700;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-wuzhao-position-foot {
+        display: flex;
+        min-height: 36px;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-redesign .horosa-huangji-redesign-grid {
+        grid-template-columns: clamp(285px, 19vw, 330px) minmax(560px, 1fr) clamp(335px, 25vw, 400px);
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-note {
+        margin-top: 8px;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-board {
+        display: flex;
+        min-height: clamp(520px, 68vh, 740px);
+        flex-direction: column;
+        gap: 14px;
+        padding: clamp(18px, 2.2vw, 28px);
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 8px;
+        background: radial-gradient(circle at 50% 0%, rgba(214, 167, 85, 0.12), transparent 30%), rgba(0, 0, 0, 0.16);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-taixuan-board {
+        background:
+            radial-gradient(circle at 50% 0%, rgba(184, 137, 63, 0.08), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 252, 246, 0.88));
+        box-shadow: 0 18px 46px rgba(80, 67, 45, 0.10);
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-board .horosa-taixuan-title {
+        margin: 0;
+        color: var(--horosa-huangji-text) !important;
+        font-size: 30px !important;
+        line-height: 1.15 !important;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-meta-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-main-grid {
+        display: grid;
+        flex: 1 1 auto;
+        min-height: 0;
+        grid-template-columns: minmax(220px, 0.82fr) minmax(0, 1.18fr);
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-symbol-card,
+    .horosa-workspace-shell .horosa-taixuan-text-card {
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-symbol-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 14px;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-symbol-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-symbol-head strong {
+        color: var(--horosa-huangji-accent);
+        font-size: 28px;
+        letter-spacing: 0;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-line-stack {
+        display: grid;
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-line-row {
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.10);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-taixuan-line-row {
+        background: rgba(255, 255, 255, 0.50);
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-line-row span {
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-line-row strong {
+        overflow: hidden;
+        color: var(--horosa-huangji-text);
+        font-family: Menlo, Monaco, Consolas, monospace;
+        font-size: clamp(16px, 1.45vw, 23px);
+        line-height: 1.1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-text-card {
+        overflow-y: auto;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-text-card > span,
+    .horosa-workspace-shell .horosa-taixuan-selected-lines em {
+        display: block;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-text-card > strong {
+        display: block;
+        margin-top: 6px;
+        color: var(--horosa-huangji-text);
+        font-size: 15px;
+        line-height: 1.7;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-selected-lines {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-selected-lines > div {
+        padding: 10px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.10);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-taixuan-selected-lines > div {
+        background: rgba(255, 255, 255, 0.50);
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-selected-lines p {
+        margin: 4px 0 0;
+        color: var(--horosa-huangji-text);
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    .horosa-workspace-shell .horosa-taixuan-all-lines {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-jingjue-board {
+        min-height: clamp(500px, 64vh, 700px);
+    }
+
+    .horosa-workspace-shell .horosa-jingjue-group-stack {
+        display: grid;
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-jingjue-group-row {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr) 54px;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.10);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-jingjue-group-row {
+        background: rgba(255, 255, 255, 0.52);
+    }
+
+    .horosa-workspace-shell .horosa-jingjue-group-row span,
+    .horosa-workspace-shell .horosa-jingjue-group-row em {
+        overflow: hidden;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-jingjue-group-row strong {
+        overflow: hidden;
+        color: var(--horosa-huangji-text);
+        font-size: clamp(18px, 1.35vw, 24px);
+        line-height: 1.1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-jingjue-gua-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-jingjue-gua-card p {
+        margin-top: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-jingjue-gua-card em {
+        display: block;
+        margin-top: 5px;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-style: normal;
+        line-height: 1.45;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-board {
+        min-height: clamp(520px, 66vh, 720px);
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-pillar-grid,
+    .horosa-workspace-shell .horosa-shenyishu-role-grid,
+    .horosa-workspace-shell .horosa-shenyishu-shensha-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-pillar-card,
+    .horosa-workspace-shell .horosa-shenyishu-role-card,
+    .horosa-workspace-shell .horosa-shenyishu-shensha-card {
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        gap: 6px;
+        padding: 11px 12px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.10);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-shenyishu-pillar-card,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-shenyishu-role-card,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-shenyishu-shensha-card {
+        background: rgba(255, 255, 255, 0.52);
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-pillar-card span,
+    .horosa-workspace-shell .horosa-shenyishu-role-card span,
+    .horosa-workspace-shell .horosa-shenyishu-shensha-card span,
+    .horosa-workspace-shell .horosa-shenyishu-pillar-card em,
+    .horosa-workspace-shell .horosa-shenyishu-role-card em {
+        overflow: hidden;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-pillar-card strong,
+    .horosa-workspace-shell .horosa-shenyishu-role-card strong,
+    .horosa-workspace-shell .horosa-shenyishu-shensha-card strong {
+        overflow: hidden;
+        color: var(--horosa-huangji-text);
+        font-size: clamp(17px, 1.25vw, 22px);
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-role-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-main-grid {
+        margin-top: 10px;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-reason-list {
+        display: grid;
+        gap: 7px;
+        margin: 10px 0 14px;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-reason-list p {
+        margin: 0;
+        padding: 8px 10px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        color: var(--horosa-huangji-text);
+        font-size: 13px;
+        line-height: 1.5;
+        background: rgba(0, 0, 0, 0.10);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-shenyishu-reason-list p {
+        background: rgba(255, 255, 255, 0.52);
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-redesign .horosa-huangji-tabs .ant-tabs-tab {
+        margin: 0 0 0 12px;
+        padding-right: 0;
+        padding-left: 0;
+        font-size: 13px;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-redesign .horosa-huangji-tabs .ant-tabs-tab:first-child {
+        margin-left: 0;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-quick-actions {
+        grid-template-columns: repeat(7, minmax(64px, 1fr));
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-board,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-wuzhao-board,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-taixuan-board {
+        border: 2px solid var(--horosa-huangji-line-strong);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-board-header {
+        border-bottom: 2px solid var(--horosa-huangji-line-strong);
+    }
+
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-meta-grid > div,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-cycle-row > div,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-ganzhi-item,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-gua-card,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-wuzhao-position-card,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-wuzhao-position-main span,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-taixuan-symbol-card,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-taixuan-text-card,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-taixuan-selected-lines > div,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-taixuan-line-row,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-jingjue-group-row,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-shenyishu-pillar-card,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-shenyishu-role-card,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-shenyishu-shensha-card,
+    .horosa-workspace-shell .horosa-huangji-redesign .horosa-shenyishu-reason-list p {
+        border-color: var(--horosa-huangji-line-strong);
+        border-width: 1.5px;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-input-stack .horosa-huangji-select-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-input-stack .horosa-huangji-select-field.is-wide {
+        grid-column: auto;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-redesign .xq-select .ant-select-selector {
+        height: auto !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+    }
+
+    .horosa-workspace-shell .horosa-shenyishu-redesign .xq-select .ant-select-selection-item {
+        min-height: 28px;
+        white-space: normal;
+        line-height: 1.25 !important;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-grid.has-technique-rail {
+        grid-template-columns: clamp(285px, 18vw, 330px) minmax(560px, 1fr) clamp(335px, 23vw, 410px) clamp(86px, 6vw, 110px) !important;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-huangji-redesign-layout {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) 60px;
+        gap: 4px;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign.horosa-huangji-embedded .horosa-huangji-redesign-layout {
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-huangji-redesign-layout > .ant-spin-nested-loading,
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-huangji-redesign-layout > .ant-spin-nested-loading > .ant-spin-container {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-quick-dock {
+        align-self: stretch;
+        min-height: 0;
+        height: 60px;
+        margin: 0;
+        padding: 4px 8px;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-quick-actions {
+        height: 100%;
+        align-content: stretch;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-input-stack {
+        gap: 10px;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-huangji-input-section {
+        padding: 10px 11px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-cetian {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-xianqin {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-tieban {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: calc(100vh - 350px);
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-fendjing {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-beiji {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-nanji {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: calc(100vh - 350px);
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-chunzi {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: calc(100vh - 350px);
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-xianqin-options {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 9px;
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-xianqin-option-row {
+        display: grid;
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-xianqin-option-row.is-method {
+        grid-template-columns: minmax(82px, 0.52fr) minmax(0, 1.48fr);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-xianqin-option-row.is-lunar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-xianqin-option-row .horosa-huangji-select-field > span {
+        white-space: normal;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-xianqin-option-row .ant-select-selector,
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-xianqin-option-row .ant-input-number {
+        min-height: 36px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid .horosa-huangji-select-field.is-wide {
+        grid-column: 1 / span 2;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-xianqin .horosa-huangji-select-field.is-wide,
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-select-grid-cetian .horosa-huangji-select-field.is-wide {
+        grid-column: 1 / span 1;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-huangji-select-field {
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-huangji-select-field > span {
+        display: block;
+        max-width: 100%;
+        overflow: visible;
+        white-space: normal;
+        text-overflow: clip;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-huangji-select-field .ant-input-number,
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-huangji-select-field .ant-select {
+        width: 100%;
+    }
+
+    .horosa-kinastro-center-info-modal .horosa-info-row {
+        grid-template-columns: 108px minmax(0, 1fr);
+    }
+
+    .horosa-kinastro-center-info-modal .horosa-info-row strong {
+        text-align: left;
+        line-height: 1.6;
+        word-break: break-word;
+    }
+
+    .horosa-kinastro-center-info-modal .horosa-ziwei-meta-scroll {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-bottom: 4px;
+    }
+
+    .horosa-kinastro-center-info-modal .horosa-info-card {
+        margin-bottom: 0;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-technique-rail {
+        display: flex;
+        min-height: 0;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid var(--horosa-astro-line);
+        border-radius: 7px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 46%), var(--horosa-astro-panel);
+        overflow-y: auto;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-kinastro-technique-rail {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(250, 246, 236, 0.72)), var(--horosa-astro-panel);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-technique-rail button {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: transparent;
+        color: var(--horosa-huangji-muted);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-technique-rail button.is-active {
+        border-color: rgba(242, 207, 145, 0.76);
+        background: rgba(215, 173, 105, 0.14);
+        color: var(--horosa-huangji-accent-strong);
+        box-shadow: inset 3px 0 0 var(--horosa-huangji-accent);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-muted-note {
+        display: block;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.5;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-board-host {
+        width: ~"min(100%, 1180px)";
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-board {
+        width: clamp(620px, 74vw, 1040px);
+        max-width: 100%;
+        max-height: 100%;
+        margin-right: auto;
+        margin-left: auto;
+        overflow: auto;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan {
+        --horosa-shusuan-board-line: rgba(228, 184, 111, 0.58);
+        --horosa-shusuan-card-line: rgba(228, 184, 111, 0.42);
+        --horosa-shusuan-card-shadow: rgba(0, 0, 0, 0.18);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-kinastro-module-shusuan {
+        --horosa-shusuan-board-line: rgba(184, 126, 47, 0.42);
+        --horosa-shusuan-card-line: rgba(184, 126, 47, 0.32);
+        --horosa-shusuan-card-shadow: rgba(113, 82, 31, 0.08);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-huangji-chart-panel {
+        justify-content: center;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-board {
+        border: 2px solid var(--horosa-shusuan-board-line);
+        box-shadow: 0 18px 44px var(--horosa-shusuan-card-shadow);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-meta-grid > div,
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-shenyishu-pillar-card,
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-text-card,
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-tieban-palace-strip > div,
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-fendjing-verse-grid > div,
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-beiji-query-grid > div,
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-nanji-entry-grid > div,
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-chunzi-analysis-grid > div,
+    .horosa-workspace-shell .horosa-kinastro-module-shusuan .horosa-kinastro-beiji-dayun-grid > div {
+        border-width: 1.5px;
+        border-color: var(--horosa-shusuan-card-line);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-board,
+    .horosa-workspace-shell .horosa-kinastro-xianqin-board {
+        width: clamp(760px, 78vw, 1180px);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-tieban-board {
+        width: clamp(680px, 72vw, 1040px);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-fendjing-board {
+        width: clamp(700px, 70vw, 1020px);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-board {
+        width: clamp(720px, 72vw, 1060px);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-nanji-board {
+        width: clamp(760px, 72vw, 1080px);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-chunzi-board {
+        width: clamp(760px, 72vw, 1080px);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-copy-board {
+        display: grid;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+        place-items: center;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-copy-board .horosa-ziwei-center-info-button {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-center-info-overlay {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 4;
+        width: ~"min(132px, 17%)";
+        min-width: 92px;
+        height: 34px;
+        border: 1.2px solid var(--horosa-gold, #dab16f);
+        border-radius: 8px;
+        background: var(--horosa-kinastro-center-bg, var(--horosa-surface-raised, rgba(10, 12, 14, 0.92)));
+        color: var(--horosa-gold, #dab16f);
+        font-size: 14px;
+        font-weight: 700;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-center-info-overlay:hover {
+        border-color: var(--horosa-huangji-accent-strong);
+        color: var(--horosa-huangji-accent-strong);
+        box-shadow: 0 0 0 1px rgba(215, 173, 105, 0.18);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport {
+        --horosa-kinastro-ziwei-bg: #fffdf7;
+        --horosa-kinastro-center-bg: rgba(255, 255, 255, 0.98);
+        --horosa-ziwei-house-line: rgba(60, 78, 106, 0.56);
+        --horosa-ziwei-house-title: #9b6a2d;
+        --horosa-ziwei-house-name: #9b6a2d;
+        --horosa-ziwei-house-age: #526173;
+        --horosa-ziwei-star-main: #9b6a2d;
+        --horosa-ziwei-star-assist: #276977;
+        --horosa-ziwei-star-evil: #9f3f38;
+        --horosa-ziwei-house-muted: #526476;
+        width: ~"min(82vh, 100%, 920px)";
+        height: ~"min(82vh, 100%, 920px)";
+        max-width: 100%;
+        max-height: 100%;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+    }
+
+    :root[data-horosa-appearance='dark'] .horosa-workspace-shell .horosa-kinastro-ziwei-viewport {
+        --horosa-kinastro-ziwei-bg: #071823;
+        --horosa-kinastro-center-bg: rgba(10, 12, 14, 0.92);
+        --horosa-ziwei-house-line: rgba(231, 183, 109, 0.58);
+        --horosa-ziwei-house-title: #f4cf82;
+        --horosa-ziwei-house-name: #f4cf82;
+        --horosa-ziwei-house-age: #a7b4bf;
+        --horosa-ziwei-star-main: #f2c975;
+        --horosa-ziwei-star-assist: #7bc4cf;
+        --horosa-ziwei-star-evil: #de756d;
+        --horosa-ziwei-house-muted: #93a5b3;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 8px;
+        background: var(--horosa-kinastro-ziwei-bg);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg text:not([fill]) {
+        fill: var(--horosa-ziwei-house-age);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg text {
+        font-weight: 660;
+        text-rendering: geometricPrecision;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg text[font-size='8'],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg text[font-size='9'],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg text[font-size='10'] {
+        font-size: 10.5px;
+        font-weight: 680;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect,
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg line {
+        stroke-width: 1.9px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect[fill="#FFFFFF"],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect[fill="#ffffff"],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect[fill="white"],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect[fill="rgb(255, 255, 255)"],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect[fill="#081622"],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect[fill="#071823"],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect[fill="rgb(8, 22, 34)"],
+    .horosa-workspace-shell .horosa-kinastro-ziwei-viewport > svg rect[fill="rgb(7, 24, 35)"] {
+        fill: var(--horosa-kinastro-ziwei-bg) !important;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-meta-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-pillar-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-text-card {
+        min-width: 0;
+        min-height: 132px;
+        overflow: auto;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-text-card.is-large {
+        grid-column: span 1;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-tieban-feature-grid {
+        align-items: stretch;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-tieban-palace-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-tieban-palace-strip > div {
+        min-width: 0;
+        min-height: 92px;
+        padding: 9px 10px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+        overflow: auto;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-tieban-palace-strip span {
+        display: block;
+        color: var(--horosa-huangji-accent);
+        font-size: 12px;
+        font-weight: 760;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-tieban-palace-strip strong {
+        display: block;
+        margin-top: 2px;
+        color: var(--horosa-huangji-text);
+        font-size: 14px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-tieban-palace-strip p {
+        margin: 3px 0 0;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-fendjing-feature-grid {
+        grid-template-columns: 1fr 1.15fr 0.85fr;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-fendjing-verse-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-fendjing-verse-grid > div {
+        min-width: 0;
+        min-height: 106px;
+        padding: 9px 10px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+        overflow: auto;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-fendjing-verse-grid span {
+        display: block;
+        color: var(--horosa-huangji-accent);
+        font-size: 12px;
+        font-weight: 760;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-fendjing-verse-grid p {
+        margin: 4px 0 0;
+        color: var(--horosa-huangji-text);
+        font-size: 12px;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-core {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-query-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-nanji-entry-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-chunzi-analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-query-grid > div,
+    .horosa-workspace-shell .horosa-kinastro-nanji-entry-grid > div,
+    .horosa-workspace-shell .horosa-kinastro-chunzi-analysis-grid > div {
+        min-width: 0;
+        min-height: 118px;
+        padding: 9px 10px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+        overflow: auto;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-query-grid span,
+    .horosa-workspace-shell .horosa-kinastro-nanji-entry-grid span,
+    .horosa-workspace-shell .horosa-kinastro-chunzi-analysis-grid span,
+    .horosa-workspace-shell .horosa-kinastro-beiji-dayun-grid span {
+        display: block;
+        color: var(--horosa-huangji-accent);
+        font-size: 12px;
+        font-weight: 760;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-query-grid strong,
+    .horosa-workspace-shell .horosa-kinastro-nanji-entry-grid strong,
+    .horosa-workspace-shell .horosa-kinastro-chunzi-analysis-grid strong,
+    .horosa-workspace-shell .horosa-kinastro-beiji-dayun-grid strong {
+        display: block;
+        margin-top: 3px;
+        color: var(--horosa-huangji-text);
+        font-size: 14px;
+        line-height: 1.35;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-query-grid p,
+    .horosa-workspace-shell .horosa-kinastro-nanji-entry-grid p {
+        display: -webkit-box;
+        margin: 5px 0 0;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        line-height: 1.45;
+        word-break: break-word;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-dayun-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-dayun-grid > div {
+        min-width: 0;
+        min-height: 76px;
+        padding: 8px 9px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-beiji-dayun-grid p {
+        margin: 3px 0 0;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+        line-height: 1.35;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-text-card p,
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell p,
+    .horosa-workspace-shell .horosa-kinastro-palace-card em {
+        margin: 4px 0 0;
+        color: var(--horosa-huangji-muted);
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-palace-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-palace-card,
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell {
+        min-width: 0;
+        min-height: 96px;
+        padding: 10px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 7px;
+        background: var(--horosa-huangji-card-bg);
+        color: var(--horosa-huangji-text);
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-palace-card span,
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell div span {
+        color: var(--horosa-huangji-accent);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-palace-card strong,
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell strong {
+        display: block;
+        margin-top: 4px;
+        color: var(--horosa-huangji-text);
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-rows: repeat(4, minmax(82px, 1fr));
+        gap: 7px;
+        margin-top: 12px;
+        aspect-ratio: 1.42 / 1;
+        height: clamp(430px, 64vh, 660px);
+        min-height: 0;
+        max-height: calc(100% - 62px);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        border-color: var(--horosa-ziwei-house-line);
+        background: rgba(255, 255, 255, 0.018);
+        box-shadow: inset 0 0 0 1px rgba(215, 173, 105, 0.08);
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-kinastro-cetian-cell {
+        background: rgba(255, 255, 255, 0.68);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell.is-ming {
+        border-color: rgba(210, 106, 95, 0.72);
+        box-shadow: inset 0 0 0 1px rgba(210, 106, 95, 0.28);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell.is-shen {
+        border-color: rgba(130, 173, 176, 0.68);
+        box-shadow: inset 0 0 0 1px rgba(130, 173, 176, 0.25);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell.is-tai {
+        border-color: rgba(241, 200, 121, 0.64);
+        box-shadow: inset 0 0 0 1px rgba(241, 200, 121, 0.24);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell .is-main {
+        color: var(--horosa-ziwei-star-main);
+        font-size: clamp(16px, 1.25vw, 20px);
+        font-weight: 820;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell .is-aux {
+        color: var(--horosa-ziwei-star-assist);
+        font-size: clamp(12px, 0.82vw, 14px);
+        font-weight: 680;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell em,
+    .horosa-workspace-shell .horosa-kinastro-cetian-cell small {
+        color: var(--horosa-huangji-muted);
+        font-style: normal;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-starline {
+        min-height: 16px;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-center {
+        grid-row: 2 / 4;
+        grid-column: 2 / 4;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        padding: 14px;
+        border: 1px solid rgba(215, 173, 105, 0.26);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.22);
+        color: var(--horosa-huangji-text);
+        text-align: center;
+        overflow: hidden;
+    }
+
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-kinastro-cetian-center {
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-center h3 {
+        margin: 0;
+        color: var(--horosa-huangji-accent);
+        font-size: 20px;
+        font-weight: 820;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-center p {
+        margin: 0;
+        color: var(--horosa-huangji-muted);
+        line-height: 1.3;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-center-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-center-grid span {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 2px;
+        padding: 6px 8px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 6px;
+        color: var(--horosa-huangji-muted);
+        font-size: 12px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-center-grid strong {
+        color: var(--horosa-huangji-text);
+        font-size: 13px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-sihua {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-cetian-sihua span {
+        padding: 3px 6px;
+        border: 1px solid var(--horosa-huangji-line);
+        border-radius: 999px;
+        color: var(--horosa-ziwei-star-main);
+        font-size: 12px;
+        font-weight: 720;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-quick-actions {
+        grid-template-columns: repeat(9, minmax(64px, 1fr));
+    }
+
+    @media (max-width: 1180px) {
+        .horosa-workspace-shell .horosa-wuzhao-meta-grid,
+        .horosa-workspace-shell .horosa-wuzhao-board-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 900px) {
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-redesign-layout {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            min-height: 100%;
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-redesign-layout > .ant-spin-nested-loading,
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-redesign-layout > .ant-spin-nested-loading > .ant-spin-container {
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-redesign-grid {
+            grid-template-columns: minmax(0, 1fr);
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            height: auto;
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-chart-panel,
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-huangji-info-panel {
+            min-height: 420px;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-board {
+            min-height: 0;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-input-stack,
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-spacetime-panel,
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-field-block {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-time-adjust-inline {
+            overflow-x: hidden;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-time-adjust-inline .ant-row,
+        .horosa-workspace-shell .horosa-huangji-redesign .horosa-time-adjust-inline .ant-col {
+            overflow-x: hidden;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-meta-grid,
+        .horosa-workspace-shell .horosa-huangji-cycle-row,
+        .horosa-workspace-shell .horosa-huangji-gua-grid,
+        .horosa-workspace-shell .horosa-huangji-gua-grid.is-macro,
+        .horosa-workspace-shell .horosa-huangji-gua-grid.is-xinyi {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-grid.has-technique-rail {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .horosa-workspace-shell .horosa-kinastro-technique-rail {
+            min-height: auto;
+            flex-direction: row;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .horosa-workspace-shell .horosa-kinastro-technique-rail button {
+            min-width: 110px;
+        }
+
+        .horosa-workspace-shell .horosa-kinastro-board {
+            width: 100%;
+        }
+
+        .horosa-workspace-shell .horosa-kinastro-meta-grid,
+        .horosa-workspace-shell .horosa-kinastro-pillar-grid,
+        .horosa-workspace-shell .horosa-kinastro-feature-grid,
+        .horosa-workspace-shell .horosa-kinastro-beiji-core,
+        .horosa-workspace-shell .horosa-kinastro-beiji-query-grid,
+        .horosa-workspace-shell .horosa-kinastro-beiji-dayun-grid,
+        .horosa-workspace-shell .horosa-kinastro-nanji-entry-grid,
+        .horosa-workspace-shell .horosa-kinastro-chunzi-analysis-grid,
+        .horosa-workspace-shell .horosa-kinastro-fendjing-verse-grid,
+        .horosa-workspace-shell .horosa-kinastro-palace-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .horosa-workspace-shell .horosa-kinastro-cetian-grid {
+            aspect-ratio: auto;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: none;
+            height: auto;
+            max-height: none;
+            min-height: 0;
+        }
+
+        .horosa-workspace-shell .horosa-kinastro-cetian-cell,
+        .horosa-workspace-shell .horosa-kinastro-cetian-center {
+            grid-row: auto !important;
+            grid-column: auto !important;
+        }
+
+        .horosa-workspace-shell .horosa-huangji-ganzhi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .horosa-workspace-shell .horosa-wuzhao-board-grid,
+        .horosa-workspace-shell .horosa-wuzhao-meta-grid,
+        .horosa-workspace-shell .horosa-wuzhao-split-grid,
+        .horosa-workspace-shell .horosa-taixuan-main-grid,
+        .horosa-workspace-shell .horosa-taixuan-meta-grid,
+        .horosa-workspace-shell .horosa-jingjue-main-grid,
+        .horosa-workspace-shell .horosa-jingjue-meta-grid,
+        .horosa-workspace-shell .horosa-shenyishu-main-grid,
+        .horosa-workspace-shell .horosa-shenyishu-meta-grid,
+        .horosa-workspace-shell .horosa-shenyishu-pillar-grid,
+        .horosa-workspace-shell .horosa-shenyishu-shensha-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
     .horosa-workspace-shell .horosa-guazhan-redesign .horosa-guazhan-redesign-layout {
         grid-template-rows: minmax(0, 1fr) 64px;
         gap: 4px;
@@ -9655,7 +12595,8 @@
     }
 
     .horosa-workspace-shell .horosa-guazhan-action-row .ant-btn {
-        grid-column: 1 / -1;
+        grid-column-start: 1;
+        grid-column-end: -1;
         font-weight: 720;
     }
 
@@ -9780,6 +12721,150 @@
         border-color: var(--horosa-border);
         background: var(--horosa-surface-solid);
         color: var(--horosa-text-soft);
+    }
+
+    .horosa-workspace-shell :is(
+        .horosa-dunjia-redesign,
+        .horosa-taiyi-redesign,
+        .horosa-jinkou-redesign,
+        .horosa-guazhan-redesign,
+        .horosa-huangji-redesign,
+        .horosa-wuzhao-redesign,
+        .horosa-taixuan-redesign,
+        .horosa-jingjue-redesign,
+        .horosa-shenyishu-redesign,
+        .horosa-kinastro-redesign,
+        .horosa-sanshi-redesign,
+        .horosa-liureng-redesign,
+        .horosa-suzhan-redesign,
+        .horosa-guolao-redesign
+    ) :is(.xq-select, .ant-select, .ant-input, .ant-input-number, .ant-picker, .ant-btn) {
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .horosa-workspace-shell :is(
+        .horosa-dunjia-redesign,
+        .horosa-taiyi-redesign,
+        .horosa-jinkou-redesign,
+        .horosa-guazhan-redesign,
+        .horosa-huangji-redesign,
+        .horosa-wuzhao-redesign,
+        .horosa-taixuan-redesign,
+        .horosa-jingjue-redesign,
+        .horosa-shenyishu-redesign,
+        .horosa-kinastro-redesign,
+        .horosa-sanshi-redesign,
+        .horosa-liureng-redesign,
+        .horosa-suzhan-redesign,
+        .horosa-guolao-redesign
+    ) .ant-select-single:not(.ant-select-customize-input) .ant-select-selector {
+        height: auto !important;
+        min-height: 36px !important;
+        padding-right: 22px !important;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell :is(
+        .horosa-dunjia-redesign,
+        .horosa-taiyi-redesign,
+        .horosa-jinkou-redesign,
+        .horosa-guazhan-redesign,
+        .horosa-huangji-redesign,
+        .horosa-wuzhao-redesign,
+        .horosa-taixuan-redesign,
+        .horosa-jingjue-redesign,
+        .horosa-shenyishu-redesign,
+        .horosa-kinastro-redesign,
+        .horosa-sanshi-redesign,
+        .horosa-liureng-redesign,
+        .horosa-suzhan-redesign,
+        .horosa-guolao-redesign
+    ) .ant-select-single .ant-select-selector :is(.ant-select-selection-item, .ant-select-selection-placeholder) {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        max-width: 100%;
+        min-height: 34px;
+        padding-right: 0;
+        overflow: hidden;
+        color: inherit;
+        font-size: 13px;
+        line-height: 1.28 !important;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .horosa-workspace-shell :is(
+        .horosa-dunjia-redesign,
+        .horosa-taiyi-redesign,
+        .horosa-jinkou-redesign,
+        .horosa-guazhan-redesign,
+        .horosa-huangji-redesign,
+        .horosa-wuzhao-redesign,
+        .horosa-taixuan-redesign,
+        .horosa-jingjue-redesign,
+        .horosa-shenyishu-redesign,
+        .horosa-kinastro-redesign,
+        .horosa-sanshi-redesign,
+        .horosa-liureng-redesign,
+        .horosa-suzhan-redesign,
+        .horosa-guolao-redesign
+    ) .ant-select-single .ant-select-arrow {
+        right: 9px;
+        margin-top: -6px;
+    }
+
+    .horosa-workspace-shell :is(
+        .horosa-dunjia-select-field,
+        .horosa-taiyi-select-field,
+        .horosa-jinkou-select-field,
+        .horosa-guazhan-select-field,
+        .horosa-huangji-select-field,
+        .horosa-sanshi-select-field,
+        .horosa-liureng-select-field,
+        .horosa-guolao-select-field
+    ) > span {
+        display: block;
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+        font-size: 12.5px;
+        line-height: 1.35;
+        white-space: normal;
+        word-break: keep-all;
+    }
+
+    .horosa-workspace-shell :is(
+        .horosa-dunjia-redesign,
+        .horosa-taiyi-redesign,
+        .horosa-jinkou-redesign,
+        .horosa-guazhan-redesign,
+        .horosa-huangji-redesign,
+        .horosa-sanshi-redesign,
+        .horosa-liureng-redesign,
+        .horosa-suzhan-redesign,
+        .horosa-guolao-redesign
+    ) .ant-btn > span {
+        min-width: 0;
+        overflow: hidden;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+    }
+
+    .horosa-workspace-shell .horosa-guazhan-yao-checks .ant-checkbox-wrapper {
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-guazhan-yao-checks .ant-checkbox + span {
+        min-width: 0;
+        padding-right: 0;
+        overflow: hidden;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: normal;
     }
 
     .horosa-workspace-shell .horosa-sanshi-redesign .horosa-sanshi-redesign-layout {
@@ -10645,7 +13730,8 @@
         .horosa-aianalysis-page,
         .horosa-3d-page,
         .horosa-suzhan-page,
-        .horosa-jinkou-page
+        .horosa-jinkou-page,
+        .horosa-huangji-page
     ) {
         width: 100% !important;
         max-width: 100% !important;
@@ -10925,6 +14011,45 @@
     .horosa-workspace-shell .horosa-jinkou-nested-tabs [style*="overflow-y: auto"] {
         max-height: none !important;
         overflow: visible !important;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-grid.has-technique-rail {
+        grid-template-columns: clamp(285px, 18vw, 330px) minmax(560px, 1fr) clamp(335px, 23vw, 410px) clamp(86px, 6vw, 110px) !important;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-tabs {
+        display: flex;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-tabs > .ant-tabs-nav {
+        flex: 0 0 auto;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-tabs > .ant-tabs-nav .ant-tabs-tab {
+        margin: 0 0 0 10px;
+        padding-right: 0;
+        padding-left: 0;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-tabs > .ant-tabs-nav .ant-tabs-tab:first-child {
+        margin-left: 0;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-tabs > .ant-tabs-nav .ant-tabs-nav-wrap {
+        min-width: 0;
+    }
+
+    .horosa-workspace-shell .horosa-kinastro-redesign .horosa-kinastro-tabs > .ant-tabs-content-holder {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto !important;
+        padding-bottom: 8px;
+        scroll-padding-bottom: 8px;
     }
 
     .horosa-workspace-shell .horosa-bazi-tabs [style*="overflow-y: auto"],

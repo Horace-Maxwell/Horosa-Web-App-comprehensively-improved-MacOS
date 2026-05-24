@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "source": "Kalachakra Tantra / 時輪金剛續",
+    "description_zh": "藏傳時輪金剛占星核心資料：十二生肖、五行、Mewa 九宮、Parkha 八卦、五力、九曜",
+    "description_en": "Tibetan Kalachakra Astrology core data: 12 Animals, 5 Elements, 9 Mewa, 8 Parkha, 5 Forces, 9 Graha",
+    "last_updated": "2026-04-18"
+  },
+  "animals": [
+    {"index": 0, "tibetan": "Byi-ba",  "cn": "鼠", "en": "Rat",     "element": "Wood",  "emoji": "🐀"},
+    {"index": 1, "tibetan": "Glang",   "cn": "牛", "en": "Ox",      "element": "Wood",  "emoji": "🐂"},
+    {"index": 2, "tibetan": "sTag",    "cn": "虎", "en": "Tiger",   "element": "Fire",  "emoji": "🐅"},
+    {"index": 3, "tibetan": "Yos",     "cn": "兔", "en": "Rabbit",  "element": "Fire",  "emoji": "🐇"},
+    {"index": 4, "tibetan": "ḥBrug",   "cn": "龍", "en": "Dragon",  "element": "Earth", "emoji": "🐉"},
+    {"index": 5, "tibetan": "sBrul",   "cn": "蛇", "en": "Snake",   "element": "Earth", "emoji": "🐍"},
+    {"index": 6, "tibetan": "rTa",     "cn": "馬", "en": "Horse",   "element": "Metal", "emoji": "🐴"},
+    {"index": 7, "tibetan": "Lug",     "cn": "羊", "en": "Sheep",   "element": "Metal", "emoji": "🐑"},
+    {"index": 8, "tibetan": "sPre-hu", "cn": "猴", "en": "Monkey",  "element": "Water", "emoji": "🐒"},
+    {"index": 9, "tibetan": "Bya",     "cn": "鳥", "en": "Bird",    "element": "Water", "emoji": "🐦"},
+    {"index": 10,"tibetan": "Khyi",    "cn": "狗", "en": "Dog",     "element": "Earth", "emoji": "🐕"},
+    {"index": 11,"tibetan": "Phag",    "cn": "豬", "en": "Pig",     "element": "Water", "emoji": "🐖"}
+  ],
+  "elements": [
+    {"index": 0, "tibetan": "Shing", "en": "Wood",  "cn": "木", "color": "#228B22", "emoji": "🌳"},
+    {"index": 1, "tibetan": "Me",    "en": "Fire",  "cn": "火", "color": "#DC143C", "emoji": "🔥"},
+    {"index": 2, "tibetan": "Sa",    "en": "Earth", "cn": "土", "color": "#DAA520", "emoji": "🌍"},
+    {"index": 3, "tibetan": "Lcags", "en": "Metal", "cn": "金", "color": "#C0C0C0", "emoji": "⚙️"},
+    {"index": 4, "tibetan": "Chu",   "en": "Water", "cn": "水", "color": "#1E90FF", "emoji": "💧"}
+  ],
+  "mewa": [
+    {"number": 1, "tibetan": "sMe-ba dkar-po",   "color_cn": "白", "color_en": "White",     "direction": "北 North",    "auspicious": true},
+    {"number": 2, "tibetan": "sMe-ba nag-po",    "color_cn": "黑", "color_en": "Black",     "direction": "西南 SW",     "auspicious": false},
+    {"number": 3, "tibetan": "sMe-ba sngon-po",  "color_cn": "藍", "color_en": "Blue",      "direction": "東 East",     "auspicious": true},
+    {"number": 4, "tibetan": "sMe-ba ljang-khu",  "color_cn": "綠", "color_en": "Green",     "direction": "東南 SE",     "auspicious": true},
+    {"number": 5, "tibetan": "sMe-ba ser-po",    "color_cn": "黃", "color_en": "Yellow",    "direction": "中央 Center", "auspicious": false},
+    {"number": 6, "tibetan": "sMe-ba dkar-po",   "color_cn": "白", "color_en": "White",     "direction": "西北 NW",     "auspicious": true},
+    {"number": 7, "tibetan": "sMe-ba dmar-po",   "color_cn": "紅", "color_en": "Red",       "direction": "西 West",     "auspicious": false},
+    {"number": 8, "tibetan": "sMe-ba dkar-po",   "color_cn": "白", "color_en": "White",     "direction": "東北 NE",     "auspicious": true},
+    {"number": 9, "tibetan": "sMe-ba dmar-po",   "color_cn": "紅", "color_en": "Maroon/Red","direction": "南 South",    "auspicious": false}
+  ],
+  "parkha": [
+    {"index": 0, "tibetan": "Kham",  "cn": "坎", "en": "Kan (Water)",    "direction": "北 North",  "element": "Water"},
+    {"index": 1, "tibetan": "Li",    "cn": "離", "en": "Li (Fire)",      "direction": "南 South",  "element": "Fire"},
+    {"index": 2, "tibetan": "Dui",   "cn": "兌", "en": "Dui (Lake)",     "direction": "西 West",   "element": "Metal"},
+    {"index": 3, "tibetan": "Gen",   "cn": "艮", "en": "Gen (Mountain)", "direction": "東北 NE",   "element": "Earth"},
+    {"index": 4, "tibetan": "Qian",  "cn": "乾", "en": "Qian (Heaven)",  "direction": "西北 NW",   "element": "Metal"},
+    {"index": 5, "tibetan": "Kun",   "cn": "坤", "en": "Kun (Earth)",    "direction": "西南 SW",   "element": "Earth"},
+    {"index": 6, "tibetan": "Zhen",  "cn": "震", "en": "Zhen (Thunder)", "direction": "東 East",   "element": "Wood"},
+    {"index": 7, "tibetan": "Xun",   "cn": "巽", "en": "Xun (Wind)",     "direction": "東南 SE",   "element": "Wood"}
+  ],
+  "five_forces": [
+    {"tibetan": "La",        "cn": "魂",   "en": "Soul",       "description_cn": "生命的精神核心", "description_en": "Spiritual core of life"},
+    {"tibetan": "Sok",       "cn": "命",   "en": "Life",       "description_cn": "生命活力",       "description_en": "Life vitality"},
+    {"tibetan": "Lu",        "cn": "身",   "en": "Body",       "description_cn": "身體健康",       "description_en": "Physical health"},
+    {"tibetan": "Wangthang", "cn": "權勢", "en": "Power",      "description_cn": "個人權威與影響力","description_en": "Authority and influence"},
+    {"tibetan": "Lungta",    "cn": "風馬", "en": "Wind Horse",  "description_cn": "運勢與好運",     "description_en": "Fortune and luck"}
+  ],
+  "graha": [
+    {"en": "Sun",     "cn": "太陽", "tibetan": "Nyima",    "wylie": "nyi-ma",     "glyph": "☉"},
+    {"en": "Moon",    "cn": "月亮", "tibetan": "Dawa",     "wylie": "zla-ba",     "glyph": "☽"},
+    {"en": "Mercury", "cn": "水星", "tibetan": "Lhakpa",   "wylie": "lhag-pa",    "glyph": "☿"},
+    {"en": "Venus",   "cn": "金星", "tibetan": "Pasang",   "wylie": "pa-sangs",   "glyph": "♀"},
+    {"en": "Mars",    "cn": "火星", "tibetan": "Mig-dmar", "wylie": "mig-dmar",   "glyph": "♂"},
+    {"en": "Jupiter", "cn": "木星", "tibetan": "Phur-bu",  "wylie": "phur-bu",    "glyph": "♃"},
+    {"en": "Saturn",  "cn": "土星", "tibetan": "Spen-pa",  "wylie": "spen-pa",    "glyph": "♄"},
+    {"en": "Rahu",    "cn": "羅睺", "tibetan": "Ra-hu",    "wylie": "ra-hu",      "glyph": "☊"},
+    {"en": "Ketu",    "cn": "計都", "tibetan": "Khe-ta",   "wylie": "khe-ta",     "glyph": "☋"}
+  ]
+}

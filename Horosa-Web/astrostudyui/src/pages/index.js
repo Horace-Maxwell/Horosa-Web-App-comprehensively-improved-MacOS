@@ -45,6 +45,8 @@ import GuaZhanMain from '../components/guazhan/GuaZhanMain';
 import LiuRengMain from '../components/lrzhan/LiuRengMain';
 import DunJiaMain from '../components/dunjia/DunJiaMain';
 import TaiYiMain from '../components/taiyi/TaiYiMain';
+import ShuSuanMain from '../components/shusuan/ShuSuanMain';
+import MingOtherMain from '../components/mingother/MingOtherMain';
 import * as AstroConst from '../constants/AstroConst';
 import {convertToArray} from '../utils/helper';
 import { APPEARANCE_DARK } from '../utils/appearance';
@@ -67,6 +69,7 @@ const mainTabIcons = {
     印占: <XQIcon name="vedic" />,
     辅盘: <XQIcon name="aux" />,
     合盘: <XQIcon name="composite" />,
+    数算: <XQIcon name="quickPrimary" />,
     七政四余: <XQIcon name="qizheng" />,
     印度占星: <XQIcon name="vedic" />,
     三式: <XQIcon name="sanshi" />,
@@ -97,6 +100,8 @@ const navigationPages = [
     { label: '印占', key: 'indiachart', icon: 'vedic', group: '命' },
     { label: '辅盘', key: 'auxchart', icon: 'aux', group: '命' },
     { label: '合盘', key: 'relativechart', icon: 'composite', group: '命' },
+    { label: '数算', key: 'shusuan', icon: 'quickPrimary', group: '命' },
+    { label: '其他', key: 'mingother', icon: 'other', group: '命' },
     { label: '三式', key: 'sanshiunited', icon: 'sanshi', group: '卜' },
     { label: '六壬', key: 'liureng', icon: 'liureng', group: '卜' },
     { label: '遁甲', key: 'dunjia', icon: 'qimen', group: '卜' },
@@ -120,6 +125,8 @@ const fullHeightWorkspaceTabs = new Set([
     'indiachart',
     'auxchart',
     'relativechart',
+    'shusuan',
+    'mingother',
     'sanshiunited',
     'liureng',
     'dunjia',
@@ -199,6 +206,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 || key === 'fengshui' || key === 'sanshiunited' || key === 'aianalysis'
                 || key === 'bazi' || key === 'ziwei' || key === 'guazhan'
                 || key === 'liureng' || key === 'dunjia' || key === 'taiyi'
+                || key === 'shusuan' || key === 'mingother'
                 || key === 'auxchart'){
                 predictHook[key].fun(fields);
             }else if(key === 'astroreader'){
@@ -209,7 +217,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
         }
 
         const cnTraditionTabs = ['guasym', 'cuangong12', 'pithy'];
-        const cnYiBuTabs = ['suzhan', 'jinkou', 'tongshefa'];
+        const cnYiBuTabs = ['suzhan', 'jinkou', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu'];
         const auxChartTabs = ['germanytech', 'hellenastro', 'locastro', 'otherbu'];
         let nextSubTab = null;
         if(key === 'cntradition'){
@@ -343,7 +351,8 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
         admin ? [{ label: '管理工具', key: 'admintools', icon: 'admin', group: '管理' }] : []
     );
 
-    const isFullHeightWorkspaceTab = fullHeightWorkspaceTabs.has(currentTab);
+    const activeMainTab = currentTab === 'yanqin' ? 'mingother' : currentTab;
+    const isFullHeightWorkspaceTab = fullHeightWorkspaceTabs.has(activeMainTab);
     const rootTabsHeight = isFullHeightWorkspaceTab ? 'calc(100vh - 72px)' : height;
 
 	return (
@@ -351,8 +360,8 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
         <Spin spinning={loading} size="large" tip={tip}>
             <XQTabs
                 defaultActiveKey="astrochart" tabPosition='left' onChange={changeTab}
-                activeKey={currentTab}
-                className={`mainRootTabs horosa-nav-in-drawer horosa-unified-shell-active${isFullHeightWorkspaceTab ? ' horosa-astro-shell-active' : ''}${currentTab === 'bazi' ? ' horosa-bazi-shell-active' : ''}${currentTab === 'dunjia' ? ' horosa-dunjia-shell-active' : ''}${currentTab === 'sanshiunited' ? ' horosa-sanshi-shell-active' : ''}`}
+                activeKey={activeMainTab}
+                className={`mainRootTabs horosa-nav-in-drawer horosa-unified-shell-active${isFullHeightWorkspaceTab ? ' horosa-astro-shell-active' : ''}${activeMainTab === 'bazi' ? ' horosa-bazi-shell-active' : ''}${activeMainTab === 'dunjia' ? ' horosa-dunjia-shell-active' : ''}${activeMainTab === 'sanshiunited' ? ' horosa-sanshi-shell-active' : ''}`}
                 style={{ height: rootTabsHeight }}
             >
                 <TabPane tab={mainTab('占星', '命')} key="astrochart">
@@ -487,6 +496,26 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     />
                 </TabPane>
 
+                <TabPane tab={mainTab('数算', null, { hidden: true })} key="shusuan">
+                    <ShuSuanMain
+                        value={chartObj}
+                        height={height}
+                        fields={fields}
+                        hook={predictHook.shusuan}
+                        dispatch={dispatch}
+                    />
+                </TabPane>
+
+                <TabPane tab={mainTab('其他', null, { hidden: true })} key="mingother">
+                    <MingOtherMain
+                        value={chartObj}
+                        height={height}
+                        fields={fields}
+                        hook={predictHook.mingother}
+                        dispatch={dispatch}
+                    />
+                </TabPane>
+
                 <TabPane tab={mainTab('三式', '卜')} key="sanshiunited">
 	                    <SanShiUnitedMain
 	                        height={height}
@@ -596,7 +625,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         fields={fields}
                         fieldsAry={aryfields}
                         height={height}
-                        currentTab={currentTab}
+                        currentTab={activeMainTab}
                         chartDisplay={chartDisplay}
                         planetDisplay={planetDisplay}
                         lotsDisplay={lotsDisplay}
@@ -614,7 +643,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         fieldsAry={aryfields}
                         dispatch={dispatch}
                         hook={predictHook.planetarium}
-                        active={currentTab === 'planetarium'}
+                        active={activeMainTab === 'planetarium'}
                     />
                 </TabPane>
 
@@ -1074,7 +1103,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     memoType={memoType}
                     memo={memo}
                     currentSubTab={currentSubTab}
-                    currentTab={currentTab}
+                    currentTab={activeMainTab}
                     userInfo={userInfo}
                     currentChart={currentChart}
                     dispatch={dispatch}
@@ -1150,7 +1179,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         dispatch={dispatch}
                         loading={loading}
                         pages={drawerNavigationPages}
-                        currentKey={currentTab}
+                        currentKey={activeMainTab}
                         onNavigate={changeTab}
                         onOpenTools={()=>openDrawer('commtools')}
                         onClose={closeDrawer}

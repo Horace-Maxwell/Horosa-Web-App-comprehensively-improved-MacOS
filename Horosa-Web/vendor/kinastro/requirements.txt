@@ -1,0 +1,19 @@
+streamlit==1.52.2
+pyswisseph==2.10.3.2
+plotly>=6.0.1
+svgwrite==1.4.3
+fpdf2>=2.7.6
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+cerebras-cloud-sdk>=1.67.0
+openai>=1.0.0
+opencc-python-reimplemented>=0.1.7
+kinqimen>=0.0.6.6
+kintaiyi @ git+https://github.com/kentang2017/kintaiyi.git
+sxtwl>=2.0.6
+ichingshifa>=3.1.9
+numpy>=1.24.0
+taixuanshifa>=1.0.8
+yfinance>=0.2.36
+akshare>=1.18.60
+

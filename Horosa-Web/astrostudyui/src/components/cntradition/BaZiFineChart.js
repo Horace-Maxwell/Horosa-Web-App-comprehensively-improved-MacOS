@@ -19,6 +19,32 @@ const ZHI_SANHE = [
 const ZHI_SANHUI = [
 	[['寅', '卯', '辰'], '木'], [['巳', '午', '未'], '火'], [['申', '酉', '戌'], '金'], [['亥', '子', '丑'], '水'],
 ];
+const STEM_ELEMENT = {
+	甲: 'Wood',
+	乙: 'Wood',
+	丙: 'Fire',
+	丁: 'Fire',
+	戊: 'Earth',
+	己: 'Earth',
+	庚: 'Metal',
+	辛: 'Metal',
+	壬: 'Water',
+	癸: 'Water',
+};
+const BRANCH_MAIN_STEM = {
+	子: '癸',
+	丑: '己',
+	寅: '甲',
+	卯: '乙',
+	辰: '戊',
+	巳: '丙',
+	午: '丁',
+	未: '己',
+	申: '庚',
+	酉: '辛',
+	戌: '戊',
+	亥: '壬',
+};
 
 function shortRel(item){
 	if(!item){
@@ -319,13 +345,19 @@ class BaZiFineChart extends Component{
 	}
 
 	getElementColor(rec){
-		const element = rec && rec.element;
+		const cell = typeof rec === 'string' ? rec : (rec && rec.cell);
+		const element = (rec && rec.element) || STEM_ELEMENT[cell] || STEM_ELEMENT[BRANCH_MAIN_STEM[cell]];
 		const map = {
 			Wood: 'var(--horosa-bazi-wood)',
+			wood: 'var(--horosa-bazi-wood)',
 			Fire: 'var(--horosa-bazi-fire)',
+			fire: 'var(--horosa-bazi-fire)',
 			Earth: 'var(--horosa-bazi-earth)',
+			earth: 'var(--horosa-bazi-earth)',
 			Metal: 'var(--horosa-bazi-metal)',
+			metal: 'var(--horosa-bazi-metal)',
 			Water: 'var(--horosa-bazi-water)',
+			water: 'var(--horosa-bazi-water)',
 		};
 		return map[element] || undefined;
 	}

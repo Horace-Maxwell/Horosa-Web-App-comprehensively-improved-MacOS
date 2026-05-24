@@ -6,7 +6,7 @@ import DateTimeSelector from '../comp/DateTimeSelector';
 import EditableTags from '../comp/EditableTags';
 import * as AstroHelper from '../astro/AstroHelper';
 import GeoCoordModal from '../amap/GeoCoordModal';
-import { CASE_TYPE_OPTIONS } from '../../utils/localcases';
+import { CASE_TYPE_OPTIONS, getCaseTypeMeta } from '../../utils/localcases';
 import { XQButton, XQInput, XQSelect, XQTextArea } from '../xq-ui';
 
 const Option = XQSelect.Option;
@@ -66,7 +66,15 @@ export default class CaseData extends Component{
 	}
 
 	changeCaseType(val){
-		this.setValue('caseType', val);
+		const flds = this.state.fields;
+		flds.caseType.value = val;
+		if(flds.sourceModule){
+			const meta = getCaseTypeMeta(val);
+			flds.sourceModule.value = meta.module || val;
+		}
+		this.setState({
+			fields: flds,
+		});
 	}
 
 	changePos(e){

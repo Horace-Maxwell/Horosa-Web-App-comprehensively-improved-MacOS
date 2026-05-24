@@ -233,9 +233,9 @@ class HomePageSetup extends Component{
 						{contentGroupOrder.length === 0 ? (
 							<div className="xq-nav-empty">没有找到匹配的模块</div>
 						) : null}
+						<div className="xq-nav-micro-note">高频入口支持搜索、分组扫视与最近使用</div>
 					</main>
 				</div>
-				<div className="xq-nav-micro-note">高频入口支持搜索、分组扫视与最近使用</div>
 			</>
 		);
 		return dom;

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神易數兵佔系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", "SimSun", serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 2.8em;
+            color: #d4af37;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+            letter-spacing: 4px;
+        }
+        
+        .subtitle {
+            color: #8b8b8b;
+            font-size: 1.1em;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #d4af37;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(212,175,55,0.4);
+            border-radius: 6px;
+            color: #e8e8e8;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #d4af37;
+            box-shadow: 0 0 10px rgba(212,175,55,0.3);
+        }
+        
+        .row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #d4af37 0%, #b8962e 100%);
+            border: none;
+            border-radius: 8px;
+            color: #1a1a2e;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 3px;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(212,175,55,0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #result {
+            display: none;
+        }
+        
+        .result-section {
+            margin-bottom: 20px;
+        }
+        
+        .result-section h3 {
+            color: #d4af37;
+            border-bottom: 1px solid rgba(212,175,55,0.3);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .result-item {
+            background: rgba(0,0,0,0.2);
+            padding: 12px 15px;
+            border-radius: 6px;
+            border-left: 3px solid #d4af37;
+        }
+        
+        .result-item .label {
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .result-item .value {
+            color: #e8e8e8;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        
+        .jixiong-box {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .jixiong-box.daji { background: linear-gradient(135deg, rgba(34,139,34,0.3), rgba(0,100,0,0.3)); border: 2px solid #228b22; }
+        .jixiong-box.ji { background: linear-gradient(135deg, rgba(144,238,144,0.2), rgba(0,128,0,0.2)); border: 2px solid #90ee90; }
+        .jixiong-box.ping { background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.2)); border: 2px solid #ffa500; }
+        .jixiong-box.xiong { background: linear-gradient(135deg, rgba(255,0,0,0.2), rgba(139,0,0,0.2)); border: 2px solid #ff6347; }
+        .jixiong-box.daxiong { background: linear-gradient(135deg, rgba(139,0,0,0.3), rgba(75,0,0,0.3)); border: 2px solid #dc143c; }
+        
+        .jixiong-box .level {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .jixiong-box .score {
+            color: #888;
+            margin-bottom: 10px;
+        }
+        
+        .jixiong-box .detail {
+            font-size: 1.2em;
+        }
+        
+        .reasons {
+            margin-top: 15px;
+            text-align: left;
+        }
+        
+        .reasons li {
+            margin: 5px 0;
+            color: #aaa;
+        }
+        
+        .reasons li.positive { color: #90ee90; }
+        .reasons li.negative { color: #ff6347; }
+        
+        .zhuke-box {
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(212,175,55,0.3);
+        }
+        
+        .zhuke-conclusion {
+            color: #d4af37;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .zhuke-analysis {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .zhuke-analysis li {
+            margin: 8px 0;
+            color: #aaa;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .zhuke-analysis li::before {
+            content: "•";
+            color: #d4af37;
+            position: absolute;
+            left: 5px;
+        }
+        
+        .bagua-display {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        .bagua-item {
+            background: linear-gradient(135deg, rgba(212,175,55,0.2), rgba(184,150,46,0.1));
+            border: 1px solid #d4af37;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            color: #d4af37;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #d4af37;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(212,175,55,0.3);
+            border-top: 3px solid #d4af37;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>神易數兵佔</h1>
+            <p class="subtitle">講武全書兵佔卷之十六 · 明州玄谷蔡時宜撰</p>
+        </header>
+        
+        <div class="card">
+            <form id="bingzhanForm">
+                <div class="form-group">
+                    <label>請選擇生辰</label>
+                    <div class="row">
+                        <div>
+                            <input type="number" id="year" min="1900" max="2100" value="2023" placeholder="年">
+                        </div>
+                        <div>
+                            <input type="number" id="month" min="1" max="12" value="7" placeholder="月">
+                        </div>
+                        <div>
+                            <input type="number" id="day" min="1" max="31" value="4" placeholder="日">
+                        </div>
+                        <div>
+                            <input type="number" id="hour" min="0" max="23" value="22" placeholder="時">
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit">起卦佔卜</button>
+            </form>
+        </div>
+        
+        <div id="loading" class="card" style="display:none;">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>推演神易數中...</p>
+            </div>
+        </div>
+        
+        <div id="result" class="card">
+            <div class="result-section">
+                <h3>干支資訊</h3>
+                <div class="result-grid" id="gangzhiGrid"></div>
+            </div>
+            
+            <div class="result-section">
+                <h3>神卦</h3>
+                <div class="bagua-display" id="baguaDisplay"></div>
+            </div>
+            
+            <div class="result-section">
+                <h3>總數分析 - 行軍佔</h3>
+                <div class="result-grid" id="zongshuGrid"></div>
+            </div>
+            
+            <div class="result-section">
+                <h3>主客判斷</h3>
+                <div class="zhuke-box" id="zhukeBox">
+                    <div class="zhuke-conclusion" id="zhukeConclusion"></div>
+                    <ul class="zhuke-analysis" id="zhukeAnalysis"></ul>
+                </div>
+            </div>
+            
+            <div class="result-section">
+                <h3>神煞</h3>
+                <div class="result-grid" id="shenshaGrid"></div>
+            </div>
+            
+            <div class="result-section">
+                <h3>吉凶判斷</h3>
+                <div class="jixiong-box" id="jixiongBox">
+                    <div class="level" id="jixiongLevel"></div>
+                    <div class="score" id="jixiongScore"></div>
+                    <div class="detail" id="jixiongDetail"></div>
+                    <ul class="reasons" id="jixiongReasons"></ul>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>神易數 © 兵佔系統 · 基於講武全書卷十六</p>
+        </footer>
+    </div>
+    
+    <script>
+        document.getElementById('bingzhanForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const year = document.getElementById('year').value;
+            const month = document.getElementById('month').value;
+            const day = document.getElementById('day').value;
+            const hour = document.getElementById('hour').value;
+            
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/bingzhan?year=${year}&month=${month}&day=${day}&hour=${hour}`);
+                const data = await response.json();
+                
+                displayResult(data);
+            } catch (error) {
+                alert('占卜失败: ' + error.message);
+            }
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('result').style.display = 'block';
+        });
+        
+        function displayResult(data) {
+            // 干支信息
+            const gangzhiGrid = document.getElementById('gangzhiGrid');
+            gangzhiGrid.innerHTML = '';
+            for (const [key, value] of Object.entries(data['干支'])) {
+                const wx = data['五行'][key] || '';
+                gangzhiGrid.innerHTML += `
+                    <div class="result-item">
+                        <div class="label">${key}支</div>
+                        <div class="value">${value} (${wx})</div>
+                    </div>
+                `;
+            }
+            
+            // 神卦
+            const baguaDisplay = document.getElementById('baguaDisplay');
+            baguaDisplay.innerHTML = `
+                <div class="bagua-item">${data['連山卦']}</div>
+                <div class="bagua-item">${data['歸藏卦']}</div>
+            `;
+            
+            // 總數分析 - 行軍佔
+            const zongshuGrid = document.getElementById('zongshuGrid');
+            zongshuGrid.innerHTML = '';
+            const zs = data['總數分析'];
+            const posLabels = {'百位': '主將', '十位': '我兵', '個位': '賊寇'};
+            for (const [pos, val] of Object.entries(zs)) {
+                zongshuGrid.innerHTML += `
+                    <div class="result-item">
+                        <div class="label">${pos} (${posLabels[pos]})</div>
+                        <div class="value">${val['數']} → ${val['卦']} (${val['陰陽']}數)</div>
+                    </div>
+                `;
+            }
+            
+            // 主客判斷
+            const zk = data['主客判斷'];
+            document.getElementById('zhukeConclusion').textContent = zk['結論'];
+            const zhukeAnalysis = document.getElementById('zhukeAnalysis');
+            zhukeAnalysis.innerHTML = '';
+            zk['分析'].forEach(a => {
+                zhukeAnalysis.innerHTML += `<li>${a}</li>`;
+            });
+            
+            // 神煞
+            const shenshaGrid = document.getElementById('shenshaGrid');
+            shenshaGrid.innerHTML = '';
+            for (const [key, value] of Object.entries(data['神煞'])) {
+                shenshaGrid.innerHTML += `
+                    <div class="result-item">
+                        <div class="label">${key}</div>
+                        <div class="value">${value}</div>
+                    </div>
+                `;
+            }
+            
+            // 吉凶
+            const jx = data['吉凶'];
+            const jixiongBox = document.getElementById('jixiongBox');
+            jixiongBox.className = 'jixiong-box';
+            
+            const levelMap = {'大吉': 'daji', '吉': 'ji', '平': 'ping', '凶': 'xiong', '大凶': 'daxiong'};
+            jixiongBox.classList.add(levelMap[jx['level']] || 'ping');
+            
+            document.getElementById('jixiongLevel').textContent = jx['level'];
+            document.getElementById('jixiongScore').textContent = `评分: ${jx['score']}`;
+            document.getElementById('jixiongDetail').textContent = jx['detail'];
+            
+            const reasons = document.getElementById('jixiongReasons');
+            reasons.innerHTML = '';
+            jx['reasons'].forEach(r => {
+                const isPositive = r.includes('+');
+                reasons.innerHTML += `<li class="${isPositive ? 'positive' : 'negative'}">${r}</li>`;
+            });
+        }
+        
+        // 自动设置当前时间
+        const now = new Date();
+        document.getElementById('year').value = now.getFullYear();
+        document.getElementById('month').value = now.getMonth() + 1;
+        document.getElementById('day').value = now.getDate();
+        document.getElementById('hour').value = now.getHours();
+    </script>
+</body>
+</html>

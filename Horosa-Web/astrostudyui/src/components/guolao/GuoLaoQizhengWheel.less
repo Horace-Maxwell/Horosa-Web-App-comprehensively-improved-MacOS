@@ -1,0 +1,144 @@
+.horosa-qizheng-kin-wheel {
+	--qz-bg: #070718;
+	--qz-bg-panel: #0b0b20;
+	--qz-ring-fill: rgba(28, 28, 52, 0.86);
+	--qz-outer-sector: rgba(22, 22, 38, 0.92);
+	--qz-current-sector: rgba(80, 66, 30, 0.78);
+	--qz-text: #fff4e6;
+	--qz-text-strong: #fffaf0;
+	--qz-text-secondary: #f1e9ff;
+	--qz-muted: #d4cfde;
+	--qz-warm: #ffdc91;
+	--qz-accent: #ffd34e;
+	--qz-cyan: #9be7ff;
+	--qz-line: rgba(225, 221, 236, 0.58);
+	--qz-line-soft: rgba(210, 206, 222, 0.4);
+	--qz-line-strong: rgba(255, 249, 236, 0.72);
+	--qz-radial-line: rgba(250, 244, 232, 0.54);
+	--qz-shensha-text: #f0cacd;
+	--qz-planet-stroke: #fff7e8;
+	--qz-planet-sun: #ff7a50;
+	--qz-planet-moon: #eef2ff;
+	--qz-planet-mercury: #8eaaff;
+	--qz-planet-venus: #ffe166;
+	--qz-planet-mars: #ff4c70;
+	--qz-planet-jupiter: #62ef7b;
+	--qz-planet-saturn: #df9650;
+	--qz-planet-rahu: #e66cff;
+	--qz-planet-ketu: #b57aff;
+	--qz-planet-yuebei: #93d0da;
+	--qz-planet-ziqi: #f078ff;
+	--qz-planet-default: #f0eee7;
+	--qz-aspect-conj: #ffe166;
+	--qz-aspect-opp: #ff4c70;
+	--qz-aspect-square: #ffb15a;
+	--qz-aspect-trine: #62ef7b;
+	--qz-aspect-sextile: #8eaaff;
+	--qz-group-east-bg: rgba(21, 83, 31, 0.9);
+	--qz-group-east-text: #a9ffb4;
+	--qz-group-north-bg: rgba(34, 38, 92, 0.94);
+	--qz-group-north-text: #d9ddff;
+	--qz-group-west-bg: rgba(91, 82, 38, 0.88);
+	--qz-group-west-text: #fff0b8;
+	--qz-group-south-bg: rgba(99, 32, 34, 0.92);
+	--qz-group-south-text: #ffc0ba;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background: var(--qz-bg);
+}
+
+.horosa-qizheng-kin-wheel svg {
+	display: block;
+	width: calc((100vh - 128px) * 0.98);
+	height: calc((100vh - 128px) * 0.98);
+	max-width: 100%;
+	max-height: 100%;
+	aspect-ratio: 1;
+	border-radius: 14px;
+	background: var(--qz-bg-panel);
+}
+
+.horosa-qizheng-kin-wheel .qz-wheel-bg {
+	fill: var(--qz-bg-panel);
+}
+
+.horosa-qizheng-kin-wheel .qz-wheel-center-disc {
+	fill: rgba(46, 46, 70, 0.95);
+	stroke: var(--qz-line-strong);
+	stroke-width: 1.4;
+}
+
+.horosa-qizheng-kin-wheel text {
+	paint-order: normal;
+	stroke: transparent;
+	stroke-width: 0;
+	stroke-linejoin: round;
+}
+
+.horosa-qizheng-kin-wheel .qz-wheel-center-text text,
+.horosa-qizheng-kin-wheel .qz-wheel-pillars text,
+.horosa-qizheng-kin-wheel .qz-wheel-corner-note text {
+	stroke-width: 0;
+}
+
+:root[data-horosa-appearance='light'] .horosa-qizheng-kin-wheel {
+	--qz-bg: #f0ece2;
+	--qz-bg-panel: #f8f4eb;
+	--qz-ring-fill: rgba(243, 237, 224, 0.96);
+	--qz-outer-sector: rgba(248, 244, 235, 0.96);
+	--qz-current-sector: rgba(255, 222, 120, 0.44);
+	--qz-text: #17130f;
+	--qz-text-strong: #050403;
+	--qz-text-secondary: #282235;
+	--qz-muted: #4c4650;
+	--qz-warm: #70490a;
+	--qz-accent: #9b6a00;
+	--qz-cyan: #176a80;
+	--qz-line: rgba(54, 48, 42, 0.58);
+	--qz-line-soft: rgba(67, 58, 49, 0.36);
+	--qz-line-strong: rgba(33, 27, 21, 0.68);
+	--qz-radial-line: rgba(36, 31, 26, 0.5);
+	--qz-shensha-text: #5c272c;
+	--qz-planet-stroke: #fffaf0;
+	--qz-planet-sun: #a92c12;
+	--qz-planet-moon: #444b56;
+	--qz-planet-mercury: #1f4ca9;
+	--qz-planet-venus: #785400;
+	--qz-planet-mars: #a80e33;
+	--qz-planet-jupiter: #08671d;
+	--qz-planet-saturn: #7d3c08;
+	--qz-planet-rahu: #76139b;
+	--qz-planet-ketu: #532087;
+	--qz-planet-yuebei: #225966;
+	--qz-planet-ziqi: #83118f;
+	--qz-planet-default: #1c1a17;
+	--qz-aspect-conj: #b47b00;
+	--qz-aspect-opp: #c71b42;
+	--qz-aspect-square: #a45300;
+	--qz-aspect-trine: #15812b;
+	--qz-aspect-sextile: #2857bd;
+	--qz-group-east-bg: rgba(200, 239, 204, 0.96);
+	--qz-group-east-text: #033f14;
+	--qz-group-north-bg: rgba(214, 218, 249, 0.96);
+	--qz-group-north-text: #171f6f;
+	--qz-group-west-bg: rgba(246, 228, 161, 0.96);
+	--qz-group-west-text: #4d3200;
+	--qz-group-south-bg: rgba(250, 205, 200, 0.96);
+	--qz-group-south-text: #6f1512;
+	background: var(--qz-bg);
+}
+
+:root[data-horosa-appearance='light'] .horosa-qizheng-kin-wheel .qz-wheel-center-disc {
+	fill: rgba(255, 251, 243, 0.94);
+}
+
+:root[data-horosa-appearance='light'] .horosa-qizheng-kin-wheel text {
+	stroke: transparent;
+	stroke-width: 0;
+}

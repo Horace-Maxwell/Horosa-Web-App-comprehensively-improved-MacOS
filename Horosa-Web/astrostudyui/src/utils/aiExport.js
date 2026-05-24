@@ -102,9 +102,38 @@ const DOMAIN_REPLACERS = {
 
 const ENABLE_SVG_TEXT_EXPORT = false;
 const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
-export const AI_EXPORT_SETTINGS_VERSION = 6;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 6;
-const AI_EXPORT_SECTION_MIGRATION_KEYS = ['liureng', 'qimen', 'sanshiunited'];
+export const AI_EXPORT_SETTINGS_VERSION = 9;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 9;
+const AI_EXPORT_SECTION_MIGRATION_KEYS = [
+	'bazi',
+	'ziwei',
+	'suzhan',
+	'sixyao',
+	'tongshefa',
+	'liureng',
+	'jinkou',
+	'qimen',
+	'sanshiunited',
+	'taiyi',
+	'guolao',
+	'germany',
+	'otherbu',
+	'fengshui',
+	'huangji',
+	'wuzhao',
+	'taixuan',
+	'jingjue',
+	'shenyishu',
+	'shaozi',
+	'tieban',
+	'fendjing',
+	'beiji',
+	'nanji',
+	'chunzi',
+	'xianqin',
+	'cetian',
+	'qizhengkin',
+];
 const AI_EXPORT_PLANET_INFO_DEFAULT = {
 	showHouse: 1,
 	showRuler: 1,
@@ -184,12 +213,26 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'suzhan', label: '宿占' },
 	{ key: 'sixyao', label: '六爻' },
 	{ key: 'tongshefa', label: '统摄法' },
+	{ key: 'huangji', label: '皇极经世' },
+	{ key: 'wuzhao', label: '五兆' },
+	{ key: 'taixuan', label: '太玄筮法' },
+	{ key: 'jingjue', label: '荆诀' },
+	{ key: 'shenyishu', label: '神易数' },
 	{ key: 'liureng', label: '六壬' },
 	{ key: 'jinkou', label: '金口诀' },
 	{ key: 'qimen', label: '奇门遁甲' },
 	{ key: 'sanshiunited', label: '三式合一' },
 	{ key: 'taiyi', label: '太乙' },
 	{ key: 'guolao', label: '七政四余' },
+	{ key: 'qizhengkin', label: '七政四余（七政）' },
+	{ key: 'shaozi', label: '邵子神数' },
+	{ key: 'tieban', label: '铁板神数' },
+	{ key: 'fendjing', label: '鬼谷分定经' },
+	{ key: 'beiji', label: '北极神数' },
+	{ key: 'nanji', label: '南极神数' },
+	{ key: 'chunzi', label: '蠢子数' },
+	{ key: 'xianqin', label: '万化仙禽' },
+	{ key: 'cetian', label: '策天飞星' },
 	{ key: 'germany', label: '量化盘' },
 	{ key: 'jieqi', label: '节气盘' },
 	...JIEQI_SPLIT_TECHNIQUES,
@@ -213,11 +256,16 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	lunarreturn: ['星盘信息', '起盘信息', '相位'],
 	givenyear: ['星盘信息', '起盘信息', '相位'],
 	decennials: ['起盘信息', '星盘信息', '十年大运设置', '基于X起运'],
-	bazi: ['起盘信息', '四柱与三元', '流年行运概略', '神煞（四柱与三元）'],
-	ziwei: ['起盘信息'],
-	suzhan: ['起盘信息'],
+	bazi: ['起盘信息', '四柱与三元', '神煞（四柱与三元）', '大运', '流年行运概略'],
+	ziwei: ['起盘信息', '宫位总览'],
+	suzhan: ['起盘信息', '宿盘宫位与二十八宿星曜'],
 	sixyao: ['起盘信息', '卦象', '六爻与动爻', '卦辞与断语'],
 	tongshefa: ['本卦', '六爻', '潜藏', '亲和'],
+	huangji: ['起盘', '元会运世', '天道卦', '人事卦', '心易发微', '历史年表'],
+	wuzhao: ['起盘', '揲筮', '兆', '木乡', '火乡', '土乡', '金乡', '水乡', '特殊标记'],
+	taixuan: ['起盘', '玄首', '方州部家', '表'],
+	jingjue: ['起课', '卦辞', '三分', '十六卦'],
+	shenyishu: ['起盘', '干支与五行', '神卦', '五行法则', '兵占', '主客判断', '神煞', '长生', '吉凶'],
 	liureng: [
 		'起盘信息',
 		'十二盘式',
@@ -238,9 +286,38 @@ const AI_EXPORT_PRESET_SECTIONS = {
 		'参考',
 		'概览',
 	],
-	jinkou: ['起盘信息', '金口诀速览', '金口诀四位', '四位神煞'],
-	taiyi: ['起盘信息', '太乙盘', '十六宫标记'],
-	qimen: ['起盘信息', '盘型', '盘面要素', '奇门演卦', '八宫详解', '九宫方盘'],
+	jinkou: [
+		'起盘信息',
+		'金口诀速览',
+		'金口诀四位',
+		'金口诀三盘',
+		'四位神煞',
+		'行年',
+		'旬日',
+		'旺衰',
+		'基础神煞',
+		'干煞',
+		'月煞',
+		'支煞',
+		'岁煞',
+		'十二长生',
+	],
+	taiyi: [
+		'起盘信息',
+		'太乙盘',
+		'太乙诸神',
+		'风游',
+		'主客定算',
+		'十二神',
+		'八门与宿曜',
+		'断法',
+		'七大兵法',
+		'博弈',
+		'命法',
+		'命宫行限',
+		'十六宫标记',
+	],
+	qimen: ['起盘信息', '盘型', '盘面要素', '奇门演卦', '八宫详解', '九宫方盘', '九宫与宫内星体'],
 	sanshiunited: [
 		'起盘信息',
 		'概览',
@@ -263,10 +340,19 @@ const AI_EXPORT_PRESET_SECTIONS = {
 		'西北乾宫',
 	],
 	guolao: ['起盘信息', '七政四余宫位与二十八宿星曜', '神煞'],
-	germany: ['起盘信息'],
+	qizhengkin: ['起盘', '四柱', '星曜', '十二宫', '神煞', '年限', '流时', '择日', '张果断语', '命宫解读'],
+	shaozi: ['起盘', '四柱', '四位起数', '河洛纳音', '完整结构', '64钥匙', '元会运世', '条文'],
+	tieban: ['起盘', '四柱', '算盘定部', '条文', '计算摘要', '命身刻分', '神数号码', '十二宫', '十二宫条文', '紫微安星', '条文库', '大运', '六亲佐证'],
+	fendjing: ['起盘', '四柱', '两头钳', '命格', '判断', '六段断语'],
+	beiji: ['起盘', '年时', '条文索引', '完整条文', '条文检索', '家亲', '财官性情', '大运'],
+	nanji: ['起盘', '四柱', '宫部条文', '条文查询', '大运', '密码', '星图推演'],
+	chunzi: ['起盘', '四柱', '代码来源', '结构解析', '候选条文', '代码查询', '批量代码查询', '关键词检索', '多标签检索', '宿名检索', '时辰检索'],
+	xianqin: ['起盘', '三宫', '三星', '衍生星', '十二宫', '吞啖合战', '情性与格局', '二十八宿禽', '十二宫顺序', '三元起宿', '合宿表', '科名月宿', '四季得时', '情性赋全表', '二十八宿正像', '吞啖合战规则', '贵贱赋摘要'],
+	cetian: ['起盘', '农历与命身', '四化', '飞星', '格局', '命宮', '兄弟宮', '夫妻宮', '子女宮', '財帛宮', '疾厄宮', '遷移宮', '交友宮', '官祿宮', '田宅宮', '福德宮', '父母宮', '星曜属性', '正曜副曜', '宫干四化表', '飞化规则', '古法格局规则', '三合组'],
+	germany: ['起盘信息', '宫位宫头', '行星', '中点', '中点相位'],
 	jieqi: ['节气盘参数', '春分星盘', '春分宿盘', '夏至星盘', '夏至宿盘', '秋分星盘', '秋分宿盘', '冬至星盘', '冬至宿盘'],
 	...JIEQI_SETTING_PRESETS,
-	otherbu: ['起盘信息'],
+	otherbu: ['起盘信息', '骰子结果', '骰子盘宫位与星体', '天象盘宫位与星体'],
 	fengshui: ['起盘信息', '标记判定', '冲突清单', '建议汇总', '纳气建议'],
 	generic: ['起盘信息'],
 };
@@ -566,6 +652,24 @@ function snapshotModuleKeyByContextKey(key){
 	if(key === 'sixyao'){
 		return 'guazhan';
 	}
+	const map = {
+		wuzhao: 'wuzhao',
+		taixuan: 'taixuan',
+		jingjue: 'jingjue',
+		shenyishu: 'shenyishu',
+		shaozi: 'kinastro-shaozi',
+		tieban: 'kinastro-tieban',
+		fendjing: 'kinastro-fendjing',
+		beiji: 'kinastro-beiji',
+		nanji: 'kinastro-nanji',
+		chunzi: 'kinastro-chunzi',
+		xianqin: 'kinastro-xianqin',
+		cetian: 'kinastro-cetian',
+		qizhengkin: 'guolao-qizhengkin',
+	};
+	if(map[key]){
+		return map[key];
+	}
 	return key;
 }
 
@@ -781,6 +885,65 @@ function mapLegacySectionTitle(key, title){
 			return '卦辞与断语';
 		}
 	}
+	if(key === 'wuzhao'){
+		if(normalized === '五兆'){
+			return '揲筮';
+		}
+		if(normalized === '标记'){
+			return '特殊标记';
+		}
+	}
+	if(key === 'taixuan'){
+		if(normalized === '全文' || normalized === '条文'){
+			return '表';
+		}
+	}
+	if(key === 'jingjue'){
+		if(normalized === '起盘'){
+			return '起课';
+		}
+	}
+	if(key === 'shenyishu'){
+		if(normalized === '干支' || normalized === '五行'){
+			return '干支与五行';
+		}
+		if(normalized === '五行法则'){
+			return '五行法则';
+		}
+	}
+	if(key === 'qizhengkin'){
+		if(normalized === '命宫'){
+			return '命宫解读';
+		}
+		if(normalized === '宿度'){
+			return '星曜';
+		}
+	}
+	if(key === 'tieban'){
+		if(normalized === '宫位'){
+			return '十二宫';
+		}
+	}
+	if(key === 'cetian'){
+		const palaceMap = {
+			命宫: '命宮',
+			兄弟宫: '兄弟宮',
+			夫妻宫: '夫妻宮',
+			子女宫: '子女宮',
+			财帛宫: '財帛宮',
+			疾厄宫: '疾厄宮',
+			迁移宫: '遷移宮',
+			交友宫: '交友宮',
+			官禄宫: '官祿宮',
+			田宅宫: '田宅宮',
+			福德宫: '福德宮',
+			父母宫: '父母宮',
+			十八飞星: '星曜属性',
+		};
+		if(palaceMap[normalized]){
+			return palaceMap[normalized];
+		}
+	}
 	return normalized;
 }
 
@@ -858,10 +1021,17 @@ function applyUserSectionFilter(content, key){
 	return stripForbiddenSections(filtered, key);
 }
 
-function getJieQiWantedSections(settings){
+function getJieQiWantedSections(settings, activeKey = 'jieqi'){
 	const sections = settings && settings.sections && typeof settings.sections === 'object'
 		? settings.sections
 		: {};
+	if(isJieQiSplitSettingKey(activeKey)){
+		const defaults = AI_EXPORT_PRESET_SECTIONS[activeKey] || [];
+		const picked = Object.prototype.hasOwnProperty.call(sections, activeKey)
+			? (Array.isArray(sections[activeKey]) ? sections[activeKey] : [])
+			: defaults;
+		return new Set(picked.map((item)=>normalizeSectionTitle(item)).filter(Boolean));
+	}
 	const hasSplitConfig = JIEQI_SPLIT_SETTING_KEYS.some((key)=>Object.prototype.hasOwnProperty.call(sections, key));
 	if(!hasSplitConfig){
 		if(!Object.prototype.hasOwnProperty.call(sections, 'jieqi')){
@@ -887,11 +1057,11 @@ function getJieQiWantedSections(settings){
 }
 
 function applyUserSectionFilterByContext(content, key){
-	if(key !== 'jieqi'){
+	if(key !== 'jieqi' && !isJieQiSplitSettingKey(key)){
 		return applyUserSectionFilter(content, key);
 	}
 	const settings = loadAIExportSettings();
-	const wanted = getJieQiWantedSections(settings);
+	const wanted = getJieQiWantedSections(settings, key);
 	if(wanted === null){
 		return content;
 	}
@@ -1445,6 +1615,14 @@ function resolveActiveContext(){
 	}
 	const directCnYiBuMap = [
 		{ label: '统摄法', key: 'tongshefa', domain: 'tongshefa', name: '统摄法' },
+		{ label: '皇极经世', key: 'huangji', domain: 'huangji', name: '皇极经世' },
+		{ label: '皇極經世', key: 'huangji', domain: 'huangji', name: '皇极经世' },
+		{ label: '五兆', key: 'wuzhao', domain: 'kentang_raw', name: '五兆' },
+		{ label: '太玄', key: 'taixuan', domain: 'kentang_raw', name: '太玄筮法' },
+		{ label: '荆诀', key: 'jingjue', domain: 'kentang_raw', name: '荆诀' },
+		{ label: '荊訣', key: 'jingjue', domain: 'kentang_raw', name: '荆诀' },
+		{ label: '神易数', key: 'shenyishu', domain: 'kentang_raw', name: '神易数' },
+		{ label: '神易數', key: 'shenyishu', domain: 'kentang_raw', name: '神易数' },
 		{ label: '六爻', key: 'sixyao', domain: 'sixyao', name: '六爻' },
 		{ label: '易卦', key: 'sixyao', domain: 'sixyao', name: '六爻' },
 		{ label: '六壬', key: 'liureng', domain: 'liureng', name: '大六壬' },
@@ -1536,7 +1714,7 @@ function resolveActiveContext(){
 	}
 
 	if(topLabel.includes('易与三式') || topLabel.includes('其他术数')){
-		const subTabs = findTabsContainerByLabels(topPane, ['宿盘', '金口诀', '统摄法'], false);
+		const subTabs = findTabsContainerByLabels(topPane, ['宿盘', '金口诀', '统摄法', '皇极经世'], false);
 		if(!subTabs){
 			context.key = 'cnyibu';
 			return context;
@@ -1559,6 +1737,41 @@ function resolveActiveContext(){
 			context.key = 'tongshefa';
 			context.domain = 'tongshefa';
 			context.displayName = '统摄法';
+			return context;
+		}
+
+		if(subLabel.includes('皇极经世') || subLabel.includes('皇極經世')){
+			context.key = 'huangji';
+			context.domain = 'huangji';
+			context.displayName = '皇极经世';
+			return context;
+		}
+
+		if(subLabel.includes('五兆')){
+			context.key = 'wuzhao';
+			context.domain = 'kentang_raw';
+			context.displayName = '五兆';
+			return context;
+		}
+
+		if(subLabel.includes('太玄')){
+			context.key = 'taixuan';
+			context.domain = 'kentang_raw';
+			context.displayName = '太玄筮法';
+			return context;
+		}
+
+		if(subLabel.includes('荆诀') || subLabel.includes('荊訣')){
+			context.key = 'jingjue';
+			context.domain = 'kentang_raw';
+			context.displayName = '荆诀';
+			return context;
+		}
+
+		if(subLabel.includes('神易数') || subLabel.includes('神易數')){
+			context.key = 'shenyishu';
+			context.domain = 'kentang_raw';
+			context.displayName = '神易数';
 			return context;
 		}
 
@@ -1674,6 +1887,11 @@ function resolveContextByAstroState(){
 			dunjia: { key: 'qimen', displayName: '奇门遁甲', domain: 'qimen' },
 			taiyi: { key: 'taiyi', displayName: '太乙' },
 			tongshefa: { key: 'tongshefa', displayName: '统摄法', domain: 'tongshefa' },
+			huangji: { key: 'huangji', displayName: '皇极经世', domain: 'huangji' },
+			wuzhao: { key: 'wuzhao', displayName: '五兆', domain: 'kentang_raw' },
+			taixuan: { key: 'taixuan', displayName: '太玄筮法', domain: 'kentang_raw' },
+			jingjue: { key: 'jingjue', displayName: '荆诀', domain: 'kentang_raw' },
+			shenyishu: { key: 'shenyishu', displayName: '神易数', domain: 'kentang_raw' },
 		};
 		switch(topTab){
 		case 'astrochart':
@@ -1717,9 +1935,20 @@ function resolveContextByAstroState(){
 			}
 			return { key: 'cntradition', displayName: '辅助' };
 		case 'cnyibu':
-			return cnyibuMap[subTab] || cnyibuMap.suzhan;
+			return cnyibuMap[getRuntimeCnYiBuTab()] || cnyibuMap[subTab] || cnyibuMap.suzhan;
 		case 'guolao':
+			if(getStoredGuolaoEngineModeForExport() === 'kinastro'){
+				return { key: 'qizhengkin', displayName: '七政四余（七政）', domain: 'kentang_raw' };
+			}
 			return { key: 'guolao', displayName: '七政四余' };
+		case 'shusuan': {
+			const technique = getRuntimeKinAstroTechnique('shusuan') || 'shaozi';
+			return KINASTRO_EXPORT_CONTEXTS[technique] || KINASTRO_EXPORT_CONTEXTS.shaozi;
+		}
+		case 'yanqin':
+			return KINASTRO_EXPORT_CONTEXTS.xianqin;
+		case 'mingother':
+			return KINASTRO_EXPORT_CONTEXTS.cetian;
 		case 'otherbu':
 			return { key: 'otherbu', displayName: '骰子' };
 		case 'fengshui':
@@ -1755,6 +1984,7 @@ function withStoreContextFallback(context){
 	const shouldUseFallback = !baseKey
 		|| !baseKnown
 		|| isBaseUmbrella
+		|| (baseKey === 'guolao' && fallbackKey === 'qizhengkin')
 		|| (baseKey === fallbackKey && fallbackSpecific);
 	if(!shouldUseFallback){
 		return base;
@@ -1796,22 +2026,89 @@ function detectJieQiSettingKeyByScope(scopeRoot){
 	return detectJieQiSettingKeyByLabel(textOf(active));
 }
 
+function resolveExportContextForPayload(rawContext){
+	const context = rawContext && typeof rawContext === 'object'
+		? { ...rawContext }
+		: { key: 'generic', displayName: '当前页面' };
+	if(context.key === 'direction'){
+		return {
+			...context,
+			key: 'primarydirect',
+			displayName: context.displayName || '星运-主/界限法',
+		};
+	}
+	if(context.key === 'jieqi'){
+		const splitKey = detectJieQiSettingKeyByScope(context.scopeRoot) || detectJieQiSettingKeyByCurrentSnapshot();
+		if(splitKey){
+			return {
+				...context,
+				key: splitKey,
+				displayName: getTechniqueLabelByKey(splitKey) || context.displayName || '节气盘',
+			};
+		}
+	}
+	return context;
+}
+
+const KINASTRO_EXPORT_CONTEXTS = {
+	shaozi: { key: 'shaozi', displayName: '邵子神数', domain: 'kentang_raw' },
+	tieban: { key: 'tieban', displayName: '铁板神数', domain: 'kentang_raw' },
+	fendjing: { key: 'fendjing', displayName: '鬼谷分定经', domain: 'kentang_raw' },
+	beiji: { key: 'beiji', displayName: '北极神数', domain: 'kentang_raw' },
+	nanji: { key: 'nanji', displayName: '南极神数', domain: 'kentang_raw' },
+	chunzi: { key: 'chunzi', displayName: '蠢子数', domain: 'kentang_raw' },
+	xianqin: { key: 'xianqin', displayName: '万化仙禽', domain: 'kentang_raw' },
+	cetian: { key: 'cetian', displayName: '策天飞星', domain: 'kentang_raw' },
+};
+
+function getRuntimeKinAstroTechnique(group){
+	try{
+		if(typeof window === 'undefined'){
+			return '';
+		}
+		const raw = window.__horosaKinAstroCurrent;
+		if(raw && typeof raw === 'object'){
+			if(group && raw[group]){
+				return `${raw[group]}`;
+			}
+			if(raw.technique){
+				return `${raw.technique}`;
+			}
+		}
+		if(typeof raw === 'string'){
+			return raw;
+		}
+		if(window.__horosaKinAstroTechnique){
+			return `${window.__horosaKinAstroTechnique}`;
+		}
+	}catch(e){
+	}
+	return '';
+}
+
+function getRuntimeCnYiBuTab(){
+	try{
+		if(typeof window !== 'undefined' && window.__horosaCnyibuCurrentTab){
+			return `${window.__horosaCnyibuCurrentTab}`;
+		}
+	}catch(e){
+	}
+	return '';
+}
+
+function getStoredGuolaoEngineModeForExport(){
+	try{
+		if(typeof window !== 'undefined' && window.localStorage){
+			return window.localStorage.getItem('horosa.guolao.engineMode') === 'kinastro' ? 'kinastro' : 'horosa';
+		}
+	}catch(e){
+	}
+	return 'horosa';
+}
+
 export function getCurrentAIExportContext(){
 	try{
-		const context = withStoreContextFallback(resolveActiveContext());
-		if(context.key === 'direction'){
-			return {
-				key: 'primarydirect',
-				displayName: context.displayName || '星运-主/界限法',
-			};
-		}
-		if(context.key === 'jieqi'){
-			const byScope = detectJieQiSettingKeyByScope(context.scopeRoot);
-			return {
-				key: byScope || detectJieQiSettingKeyByCurrentSnapshot(),
-				displayName: context.displayName,
-			};
-		}
+		const context = resolveExportContextForPayload(withStoreContextFallback(resolveActiveContext()));
 		return {
 			key: context.key,
 			displayName: context.displayName,
@@ -1866,6 +2163,147 @@ export function listAIExportTechniqueSettings(){
 			astroMeaningCheckbox: meaningMeta.checkbox,
 		};
 	});
+}
+
+function getExtractorKindByExportKey(key){
+	const exportKey = normalizeExportKey(key);
+	if(exportKey === 'astrochart' || exportKey === 'astrochart_like' || exportKey === 'indiachart'){
+		return 'astro';
+	}
+	if(exportKey === 'germany'){
+		return 'germany';
+	}
+	if(exportKey === 'jieqi' || isJieQiSplitSettingKey(exportKey)){
+		return 'jieqi';
+	}
+	if(isPredictiveExportKey(exportKey)){
+		return 'predictive';
+	}
+	if(exportKey === 'sixyao'){
+		return 'sixyao';
+	}
+	if(exportKey === 'liureng'){
+		return 'liureng';
+	}
+	if(exportKey === 'jinkou'){
+		return 'jinkou';
+	}
+	if(exportKey === 'qimen'){
+		return 'qimen';
+	}
+	if(exportKey === 'sanshiunited'){
+		return 'sanshiunited';
+	}
+	if(exportKey === 'tongshefa'){
+		return 'tongshefa';
+	}
+	if(exportKey === 'huangji' || exportKey === 'wuzhao' || exportKey === 'taixuan' || exportKey === 'jingjue'
+		|| exportKey === 'shenyishu' || exportKey === 'shaozi' || exportKey === 'tieban' || exportKey === 'fendjing'
+		|| exportKey === 'beiji' || exportKey === 'nanji' || exportKey === 'chunzi' || exportKey === 'xianqin'
+		|| exportKey === 'cetian' || exportKey === 'qizhengkin' || exportKey === 'guolao' || exportKey === 'suzhan'
+		|| exportKey === 'bazi' || exportKey === 'ziwei'){
+		return `module:${snapshotModuleKeyByContextKey(exportKey)}`;
+	}
+	if(exportKey === 'taiyi'){
+		return 'taiyi';
+	}
+	if(exportKey === 'relative'){
+		return 'relative';
+	}
+	if(exportKey === 'otherbu'){
+		return 'otherbu';
+	}
+	if(exportKey === 'fengshui'){
+		return 'fengshui';
+	}
+	if(exportKey === 'generic'){
+		return 'generic';
+	}
+	return '';
+}
+
+function getStructuredSnapshotKeysByExportKey(key){
+	const exportKey = normalizeExportKey(key);
+	if(exportKey === 'astrochart' || exportKey === 'astrochart_like'){
+		return ['astro'];
+	}
+	if(exportKey === 'indiachart'){
+		return ['indiachart_current', 'indiachart'];
+	}
+	if(exportKey === 'jieqi' || isJieQiSplitSettingKey(exportKey)){
+		return ['jieqi_current', 'jieqi'];
+	}
+	if(exportKey === 'sixyao'){
+		return ['guazhan', 'sixyao'];
+	}
+	if(exportKey === 'qizhengkin'){
+		return ['guolao-qizhengkin', 'qizhengkin'];
+	}
+	if(exportKey === 'generic'){
+		return [];
+	}
+	if(isPredictiveExportKey(exportKey)
+		|| exportKey === 'liureng'
+		|| exportKey === 'jinkou'
+		|| exportKey === 'qimen'
+		|| exportKey === 'sanshiunited'
+		|| exportKey === 'tongshefa'
+		|| exportKey === 'taiyi'
+		|| exportKey === 'relative'
+		|| exportKey === 'germany'
+		|| exportKey === 'guolao'
+		|| exportKey === 'suzhan'
+		|| exportKey === 'bazi'
+		|| exportKey === 'ziwei'
+		|| exportKey === 'otherbu'
+		|| exportKey === 'fengshui'){
+		return [exportKey];
+	}
+	const moduleKey = snapshotModuleKeyByContextKey(exportKey);
+	return moduleKey ? [moduleKey] : [];
+}
+
+export function getAIExportAuditMatrix(){
+	return AI_EXPORT_TECHNIQUES.map((item)=>({
+		key: item.key,
+		label: item.label,
+		presetSections: (AI_EXPORT_PRESET_SECTIONS[item.key] || []).slice(0),
+		options: getOptionsForTechniqueKey(item.key),
+		extractionKind: getExtractorKindByExportKey(item.key),
+		snapshotModuleKey: snapshotModuleKeyByContextKey(item.key),
+		structuredSnapshotKeys: getStructuredSnapshotKeysByExportKey(item.key),
+		migrationEnabled: AI_EXPORT_SECTION_MIGRATION_KEYS.includes(item.key),
+		supportsPlanetInfo: isPlanetInfoTechnique(item.key),
+		supportsAstroMeaning: isAstroMeaningTechnique(item.key) || isHoverMeaningTechnique(item.key),
+		isJieQiSplit: isJieQiSplitSettingKey(item.key),
+	}));
+}
+
+export function getAIExportEffectiveSectionsForTechnique(key, settings = loadAIExportSettings()){
+	const exportKey = normalizeExportKey(key);
+	if(exportKey === 'jieqi' || isJieQiSplitSettingKey(exportKey)){
+		const wanted = getJieQiWantedSections(settings, exportKey);
+		return wanted ? Array.from(wanted) : [];
+	}
+	const source = settings && settings.sections && typeof settings.sections === 'object'
+		? settings.sections
+		: {};
+	const selected = Array.isArray(source[exportKey]) ? source[exportKey] : [];
+	const preset = Array.isArray(AI_EXPORT_PRESET_SECTIONS[exportKey]) ? AI_EXPORT_PRESET_SECTIONS[exportKey] : [];
+	const picked = selected.length ? selected : preset;
+	const forbidden = getForbiddenSectionSet(exportKey);
+	return uniqueArray(picked
+		.map((item)=>mapLegacySectionTitle(exportKey, item))
+		.filter(Boolean)
+		.filter((item)=>!forbidden || !forbidden.has(normalizeSectionTitle(item))));
+}
+
+export function resolveAIExportContextForTest(context){
+	const normalized = resolveExportContextForPayload(context);
+	return {
+		key: normalized.key,
+		displayName: normalized.displayName,
+	};
 }
 
 function appendSvgSection(parts, scopeRoot){
@@ -2050,6 +2488,50 @@ function getModuleAliasList(moduleName){
 	if(name === 'jieqi' || name === 'jieqi_current' || name.indexOf('jieqi_') === 0){
 		set.add('jieqi');
 		set.add('jieqi_current');
+	}
+	if(name === 'qizhengkin' || name === 'guolao-qizhengkin'){
+		set.add('qizhengkin');
+		set.add('guolao-qizhengkin');
+	}
+	if(name === 'shaozi' || name === 'kinastro-shaozi'){
+		set.add('shaozi');
+		set.add('kinastro-shaozi');
+		set.add('shusuan');
+	}
+	if(name === 'tieban' || name === 'kinastro-tieban'){
+		set.add('tieban');
+		set.add('kinastro-tieban');
+		set.add('shusuan');
+	}
+	if(name === 'fendjing' || name === 'kinastro-fendjing'){
+		set.add('fendjing');
+		set.add('kinastro-fendjing');
+		set.add('shusuan');
+	}
+	if(name === 'beiji' || name === 'kinastro-beiji'){
+		set.add('beiji');
+		set.add('kinastro-beiji');
+		set.add('shusuan');
+	}
+	if(name === 'nanji' || name === 'kinastro-nanji'){
+		set.add('nanji');
+		set.add('kinastro-nanji');
+		set.add('shusuan');
+	}
+	if(name === 'chunzi' || name === 'kinastro-chunzi'){
+		set.add('chunzi');
+		set.add('kinastro-chunzi');
+		set.add('shusuan');
+	}
+	if(name === 'xianqin' || name === 'kinastro-xianqin' || name === 'yanqin'){
+		set.add('xianqin');
+		set.add('kinastro-xianqin');
+		set.add('yanqin');
+	}
+	if(name === 'cetian' || name === 'kinastro-cetian' || name === 'mingother'){
+		set.add('cetian');
+		set.add('kinastro-cetian');
+		set.add('mingother');
 	}
 	return Array.from(set).filter(Boolean);
 }
@@ -3131,6 +3613,21 @@ async function extractGenericContent(context){
 			return cached;
 		}
 	}
+	if(context.key === 'huangji'){
+		const cached = getModuleCachedContent('huangji');
+		if(cached){
+			return cached;
+		}
+	}
+	if(context.key === 'wuzhao' || context.key === 'taixuan' || context.key === 'jingjue' || context.key === 'shenyishu'
+		|| context.key === 'shaozi' || context.key === 'tieban' || context.key === 'fendjing' || context.key === 'beiji'
+		|| context.key === 'nanji' || context.key === 'chunzi' || context.key === 'xianqin' || context.key === 'cetian'
+		|| context.key === 'qizhengkin'){
+		const cached = getModuleCachedContent(snapshotModuleKeyByContextKey(context.key));
+		if(cached){
+			return cached;
+		}
+	}
 	if(context.key === 'sixyao'){
 		const cached = getModuleCachedContent('guazhan');
 		if(cached){
@@ -3146,6 +3643,26 @@ async function extractGenericContent(context){
 
 	void context;
 	return '';
+}
+
+function isKentangRawExportKey(key){
+	const val = normalizeExportKey(key);
+	return [
+		'huangji',
+		'wuzhao',
+		'taixuan',
+		'jingjue',
+		'shenyishu',
+		'shaozi',
+		'tieban',
+		'fendjing',
+		'beiji',
+		'nanji',
+		'chunzi',
+		'xianqin',
+		'cetian',
+		'qizhengkin',
+	].indexOf(val) >= 0;
 }
 
 function applyReplacers(text, replacers){
@@ -3210,7 +3727,8 @@ function normalizeText(text, domain){
 		|| domain === 'tongshefa'
 		|| domain === 'liureng'
 		|| domain === 'qimen'
-		|| domain === 'sanshiunited'){
+		|| domain === 'sanshiunited'
+		|| domain === 'kentang_raw'){
 		return output.trim();
 	}
 	if(output.length > 120000){
@@ -4300,8 +4818,18 @@ function getCandidateExportKeys(context){
 		keys.push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi');
 	}
 	if((topInfo.includes('易与三式') || topInfo.includes('其他术数') || topInfo.includes('六爻')
-		|| topInfo.includes('六壬') || topInfo.includes('金口诀') || topInfo.includes('遁甲') || topInfo.includes('太乙')) && !hasPrimarySpecific){
-		keys.push('suzhan', 'sixyao', 'jinkou', 'liureng', 'qimen', 'taiyi', 'tongshefa');
+		|| topInfo.includes('六壬') || topInfo.includes('金口诀') || topInfo.includes('遁甲') || topInfo.includes('太乙')
+		|| topInfo.includes('皇极') || topInfo.includes('五兆') || topInfo.includes('太玄') || topInfo.includes('荆诀') || topInfo.includes('神易')) && !hasPrimarySpecific){
+		keys.push('suzhan', 'sixyao', 'jinkou', 'liureng', 'qimen', 'taiyi', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu');
+	}
+	if((topInfo.includes('数算') || topInfo.includes('邵子') || topInfo.includes('铁板') || topInfo.includes('鬼谷') || topInfo.includes('北极') || topInfo.includes('南极') || topInfo.includes('蠢子')) && !hasPrimarySpecific){
+		keys.push('shaozi', 'tieban', 'fendjing', 'beiji', 'nanji', 'chunzi');
+	}
+	if((topInfo.includes('演禽') || topInfo.includes('仙禽')) && !hasPrimarySpecific){
+		keys.push('xianqin');
+	}
+	if(topInfo.includes('策天') && !hasPrimarySpecific){
+		keys.push('cetian');
 	}
 	if((topInfo.includes('八字紫微') || topInfo.includes('八字') || topInfo.includes('紫微')) && !hasPrimarySpecific){
 		keys.push('bazi', 'ziwei');
@@ -4313,7 +4841,7 @@ function getCandidateExportKeys(context){
 		keys.push('relative');
 	}
 	if(topInfo.includes('七政四余') && !hasPrimarySpecific){
-		keys.push('guolao');
+		keys.push('qizhengkin', 'guolao');
 	}
 	if(topInfo.includes('节气盘') && !hasPrimarySpecific){
 		keys.push('jieqi');
@@ -4327,7 +4855,7 @@ function getCandidateExportKeys(context){
 
 	// 兜底候选：确保上下文误判时仍能从计算快照抓到内容。
 	if(!hasPrimarySpecific){
-		keys.push('astrochart', 'astrochart_like', 'indiachart', 'relative', 'germany', 'jieqi', 'guolao', 'bazi', 'ziwei', 'qimen', 'liureng', 'jinkou', 'sanshiunited', 'tongshefa', 'sixyao', 'taiyi', 'otherbu', 'fengshui');
+		keys.push('astrochart', 'astrochart_like', 'indiachart', 'relative', 'germany', 'jieqi', 'guolao', 'qizhengkin', 'bazi', 'ziwei', 'qimen', 'liureng', 'jinkou', 'sanshiunited', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu', 'sixyao', 'taiyi', 'shaozi', 'tieban', 'fendjing', 'beiji', 'nanji', 'chunzi', 'xianqin', 'cetian', 'otherbu', 'fengshui');
 	}
 
 	return uniqueArray(keys.map((key)=>normalizeExportKey(key)).filter(Boolean));
@@ -4381,8 +4909,18 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 		push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi', 'astrochart');
 	}
 	if(topInfo.includes('易与三式') || topInfo.includes('其他术数') || topInfo.includes('六爻')
-		|| topInfo.includes('六壬') || topInfo.includes('金口诀') || topInfo.includes('遁甲') || topInfo.includes('太乙')){
-		push('jinkou', 'liureng', 'qimen', 'sixyao', 'tongshefa', 'taiyi', 'suzhan');
+		|| topInfo.includes('六壬') || topInfo.includes('金口诀') || topInfo.includes('遁甲') || topInfo.includes('太乙')
+		|| topInfo.includes('皇极') || topInfo.includes('五兆') || topInfo.includes('太玄') || topInfo.includes('荆诀') || topInfo.includes('神易')){
+		push('jinkou', 'liureng', 'qimen', 'sixyao', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu', 'taiyi', 'suzhan');
+	}
+	if(topInfo.includes('数算') || topInfo.includes('邵子') || topInfo.includes('铁板') || topInfo.includes('鬼谷') || topInfo.includes('北极') || topInfo.includes('南极') || topInfo.includes('蠢子')){
+		push('shaozi', 'tieban', 'fendjing', 'beiji', 'nanji', 'chunzi');
+	}
+	if(topInfo.includes('演禽') || topInfo.includes('仙禽')){
+		push('xianqin');
+	}
+	if(topInfo.includes('策天')){
+		push('cetian');
 	}
 	if(topInfo.includes('八字') || topInfo.includes('紫微')){
 		push('bazi', 'ziwei');
@@ -4400,7 +4938,7 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 		push('indiachart', 'astrochart');
 	}
 	if(topInfo.includes('七政四余')){
-		push('guolao', 'astrochart_like', 'astrochart');
+		push('qizhengkin', 'guolao', 'astrochart_like', 'astrochart');
 	}
 	if(topInfo.includes('星盘') || topInfo.includes('十三分盘') || topInfo.includes('希腊星术') || topInfo.includes('占星地图') || topInfo.includes('星体地图') || topInfo.includes('三维盘')){
 		push('astrochart', 'astrochart_like', 'indiachart');
@@ -4410,8 +4948,8 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 		'astrochart', 'astrochart_like', 'indiachart',
 		'relative', 'germany', 'jieqi',
 		'primarydirect', 'primarydirchart', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials',
-		'sanshiunited', 'qimen', 'liureng', 'jinkou', 'sixyao', 'tongshefa', 'taiyi', 'suzhan',
-		'guolao', 'otherbu', 'fengshui',
+		'sanshiunited', 'qimen', 'liureng', 'jinkou', 'sixyao', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu', 'taiyi', 'suzhan',
+		'guolao', 'qizhengkin', 'shaozi', 'tieban', 'fendjing', 'beiji', 'nanji', 'chunzi', 'xianqin', 'cetian', 'otherbu', 'fengshui',
 		'bazi', 'ziwei',
 	);
 	return keys;
@@ -4424,7 +4962,7 @@ async function extractContentByKey(exportKey, context){
 	if(exportKey === 'germany'){
 		return extractGermanyContent(context);
 	}
-	if(exportKey === 'jieqi'){
+	if(exportKey === 'jieqi' || isJieQiSplitSettingKey(exportKey)){
 		return extractJieQiContent(context);
 	}
 	if(exportKey === 'primarydirect'){
@@ -4475,6 +5013,15 @@ async function extractContentByKey(exportKey, context){
 	if(exportKey === 'tongshefa'){
 		return extractTongSheFaContent(context);
 	}
+	if(exportKey === 'huangji'){
+		return extractSimpleModuleContent('huangji');
+	}
+	if(exportKey === 'wuzhao' || exportKey === 'taixuan' || exportKey === 'jingjue' || exportKey === 'shenyishu'
+		|| exportKey === 'shaozi' || exportKey === 'tieban' || exportKey === 'fendjing' || exportKey === 'beiji'
+		|| exportKey === 'nanji' || exportKey === 'chunzi' || exportKey === 'xianqin' || exportKey === 'cetian'
+		|| exportKey === 'qizhengkin'){
+		return extractSimpleModuleContent(snapshotModuleKeyByContextKey(exportKey));
+	}
 	if(exportKey === 'taiyi'){
 		return extractTaiYiContent(context);
 	}
@@ -4503,7 +5050,7 @@ async function extractContentByKey(exportKey, context){
 }
 
 async function buildPayload(){
-	const context = withStoreContextFallback(resolveActiveContext());
+	const context = resolveExportContextForPayload(withStoreContextFallback(resolveActiveContext()));
 	const exportKey = normalizeExportKey(context.key);
 	const now = new Date();
 
@@ -4549,17 +5096,20 @@ async function buildPayload(){
 	const rawSnapshotContent = stripForbiddenSections(content, usedExportKey);
 	content = applyUserSectionFilterByContext(rawSnapshotContent, usedExportKey);
 	let planetSettingKey = usedExportKey;
-	if(usedExportKey === 'jieqi'){
-		planetSettingKey = detectJieQiSettingKeyByScope(context.scopeRoot) || detectJieQiSettingKeyByCurrentSnapshot() || 'jieqi';
+	if(usedExportKey === 'jieqi' || isJieQiSplitSettingKey(usedExportKey)){
+		planetSettingKey = isJieQiSplitSettingKey(usedExportKey)
+			? usedExportKey
+			: (detectJieQiSettingKeyByScope(context.scopeRoot) || detectJieQiSettingKeyByCurrentSnapshot() || 'jieqi');
 	}
 	content = applyPlanetInfoFilterByContext(content, planetSettingKey);
-	content = normalizeText(content, context.domain);
+	const normalizeDomain = isKentangRawExportKey(usedExportKey) ? 'kentang_raw' : context.domain;
+	content = normalizeText(content, normalizeDomain);
 	content = applyAstroMeaningFilterByContext(content, planetSettingKey)
 		.replace(/\n{3,}/g, '\n\n')
 		.trim();
 	if(!content && rawSnapshotContent){
 		// 兜底：设置过滤链条异常时，回退到计算快照原文，避免“无可导出文本”误报。
-		content = applyAstroMeaningFilterByContext(normalizeText(rawSnapshotContent, context.domain), planetSettingKey)
+		content = applyAstroMeaningFilterByContext(normalizeText(rawSnapshotContent, normalizeDomain), planetSettingKey)
 			.replace(/\n{3,}/g, '\n\n')
 			.trim();
 	}

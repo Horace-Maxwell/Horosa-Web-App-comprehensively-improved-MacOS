@@ -1,0 +1,38 @@
+[
+  {
+    "id": "lot_fortune",
+    "name_en": "Lot of Fortune",
+    "name_zh": "幸運點",
+    "day_formula": { "add": "Moon", "subtract": "Sun" },
+    "night_formula": { "add": "Sun", "subtract": "Moon" },
+    "meaning_en": "Material flow, livelihood timing, and embodied well-being.",
+    "meaning_zh": "象徵物質流動、生計時機與身心安穩。"
+  },
+  {
+    "id": "lot_spirit",
+    "name_en": "Lot of Spirit",
+    "name_zh": "精神點",
+    "day_formula": { "add": "Sun", "subtract": "Moon" },
+    "night_formula": { "add": "Moon", "subtract": "Sun" },
+    "meaning_en": "Purpose, oath, and direction of conscious action.",
+    "meaning_zh": "象徵志向、誓言與有意識行動方向。"
+  },
+  {
+    "id": "lot_journey",
+    "name_en": "Lot of Journey",
+    "name_zh": "遷徙點",
+    "day_formula": { "add": "Mercury", "subtract": "Moon" },
+    "night_formula": { "add": "Moon", "subtract": "Mercury" },
+    "meaning_en": "Movement, routes, trade paths, and safe migration timing.",
+    "meaning_zh": "象徵移動、路徑、交易網絡與平安遷徙時機。"
+  },
+  {
+    "id": "lot_community",
+    "name_en": "Lot of Community",
+    "name_zh": "社群點",
+    "day_formula": { "add": "Jupiter", "subtract": "Saturn" },
+    "night_formula": { "add": "Saturn", "subtract": "Jupiter" },
+    "meaning_en": "Mutual support, customary law, and intergenerational continuity.",
+    "meaning_zh": "象徵互助、習俗秩序與世代延續。"
+  }
+]
