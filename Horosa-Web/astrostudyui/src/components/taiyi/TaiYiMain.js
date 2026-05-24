@@ -15,7 +15,6 @@ import {
 	TIME_BASIS_OPTIONS,
 	DAY_SWITCH_OPTIONS,
 	GAME_THEORY_OPTIONS,
-	calcTaiyi,
 	fetchTaiyiPan,
 	buildTaiyiSnapshotText,
 	getStyleLabel,
@@ -222,11 +221,10 @@ class TaiYiMain extends Component {
 		try{
 			pan = await fetchTaiyiPan(nextFields, nextNongli, nextOptions);
 		}catch(e){
-			console.warn('kintaiyi backend failed, falling back to local TaiYiCore', e);
-			pan = calcTaiyi(nextFields, nextNongli, nextOptions);
-			if(pan){
-				pan.source = 'horosa-local-fallback';
-				pan.backendError = e && e.message ? e.message : `${e}`;
+			console.warn('kintaiyi backend failed', e);
+			pan = null;
+			if(!this.unmounted && reqSeq === this.taiyiRequestSeq){
+				message.error('太乙计算失败：本地太乙服务不可用');
 			}
 		}
 		if(this.unmounted || reqSeq !== this.taiyiRequestSeq){

@@ -17,6 +17,8 @@ import {
 	MA_MODE_OPTIONS,
 	YIXING_OPTIONS,
 	calcDunJia,
+	fetchQimenPan,
+	normalizeKinqimenData,
 } from '../dunjia/DunJiaCalc';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
@@ -35,9 +37,9 @@ import {
 import {
 	TAIYI_STYLE_OPTIONS,
 	TAIYI_ACCUM_OPTIONS,
-	calcTaiyiPanFromKintaiyi,
 	buildTaiyiSnapshotLines,
 } from './core/TaiYiCore';
+import { fetchTaiyiPan } from '../taiyi/TaiYiCalc';
 import { appendPlanetHouseInfo, } from '../../utils/planetHouseInfo';
 import { buildMeaningTipByCategory, } from '../astro/AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
@@ -87,6 +89,15 @@ const BRANCH_SIGN_ID_MAP = {
 	戌: AstroConst.ARIES,
 	亥: AstroConst.PISCES,
 };
+function normalizeKenQimenOptions(options){
+	const next = {
+		...(options || {}),
+	};
+	if(next.paiPanType === 1){
+		next.paiPanType = 3;
+	}
+	return next;
+}
 const SANSHI_PALACE_EXPORT_ORDER = [
 	{ title: '正北坎宫', palaceNum: 8, branches: ['子'] },
 	{ title: '东北艮宫', palaceNum: 7, branches: ['丑', '寅'] },
@@ -1637,6 +1648,36 @@ class SanShiUnitedMain extends Component{
 		return pan;
 	}
 
+	async getKinqimenDunJia(fields, nongli, qimenOptions, year, isDiurnal, displaySolarTime){
+		const fallbackPan = this.getCachedDunJia(fields, nongli, qimenOptions, year, isDiurnal);
+		const backendPan = await fetchQimenPan(fields, nongli, qimenOptions, {
+			year,
+			jieqiYearSeeds: this.jieqiYearSeeds,
+			isDiurnal,
+			displaySolarTime,
+		});
+		const pan = normalizeKinqimenData(backendPan, fallbackPan, qimenOptions, nongli);
+		if(!pan || pan.source !== 'kinqimen'){
+			throw new Error('sanshi.qimen.kinqimen_unavailable');
+		}
+		return pan;
+	}
+
+	async getKintaiyiPan(fields, nongli, options){
+		const pan = await fetchTaiyiPan(fields, nongli, {
+			style: options && options.taiyiStyle !== undefined ? options.taiyiStyle : 3,
+			tn: options && options.taiyiAccum !== undefined ? options.taiyiAccum : 0,
+			sex: options && options.sex === 0 ? '女' : '男',
+			timeBasis: normalizeTimeAlg(options && options.timeAlg) === 0 ? 'trueSolar' : 'direct',
+			after23NewDay: options && options.after23NewDay !== undefined ? options.after23NewDay : 1,
+			gameTheory: 0,
+		});
+		if(!pan || pan.source !== 'kintaiyi'){
+			throw new Error('sanshi.taiyi.kintaiyi_unavailable');
+		}
+		return pan;
+	}
+
 	componentDidMount(){
 		this.unmounted = false;
 		this.restoreOptionsFromCurrentCase(true);
@@ -1857,6 +1898,7 @@ class SanShiUnitedMain extends Component{
 					options.taiyiAccum = payload.options.taiyiAccum;
 				}
 			}
+		const normalizedOptions = normalizeKenQimenOptions(options);
 		this.lastRestoredCaseId = caseVersion;
 		const patchFields = {};
 		if(options.zodiacal !== undefined){
@@ -1879,13 +1921,13 @@ class SanShiUnitedMain extends Component{
 			this.onFieldsChange(patchFields, true);
 		}
 		this.setState({
-			options,
+			options: normalizedOptions,
 			hasPlotted: true,
 			localFields: nextLocalFields,
 			plottedFields: nextLocalFields,
 		}, ()=>{
 			if(this.state.nongli){
-				this.recalcByNongli(nextLocalFields, this.state.nongli, options);
+				this.recalcByNongli(nextLocalFields, this.state.nongli, normalizedOptions);
 			}else{
 				this.refreshAll(nextLocalFields, true);
 			}
@@ -2049,10 +2091,14 @@ class SanShiUnitedMain extends Component{
 	}
 
 		onOptionChange(key, value){
-			const options = {
+			if(key === 'paiPanType' && value === 1){
+				message.warning('月家奇门暂未由 Ken 后端支持，已从排盘选项移除');
+				return;
+			}
+			const options = normalizeKenQimenOptions({
 				...(this.state.options || {}),
 				[key]: value,
-			};
+			});
 		this.setState({ options }, ()=>{
 			if(key === 'after23NewDay' || key === 'paiPanType' || key === 'qijuMethod'){
 				const flds = this.getActiveFields();
@@ -2420,7 +2466,7 @@ class SanShiUnitedMain extends Component{
 		}
 	}
 
-	recalcByNongli(fields, nongli, overrideOptions){
+	recalcByNongli(fields, nongli, overrideOptions, displaySolarTime){
 		const flds = fields || this.state.localFields || this.props.fields;
 		if(!flds || !nongli){
 			return Promise.resolve(false);
@@ -2429,6 +2475,7 @@ class SanShiUnitedMain extends Component{
 			fields: flds,
 			nongli,
 			overrideOptions,
+			displaySolarTime,
 		};
 		if(this.pendingRecalcTimer){
 			clearTimeout(this.pendingRecalcTimer);
@@ -2450,8 +2497,21 @@ class SanShiUnitedMain extends Component{
 					}
 					try{
 						this.lastRecalcError = null;
-						const changed = this.performRecalcByNongli(payload.fields, payload.nongli, payload.overrideOptions);
-						this.resolvePendingRecalc(changed);
+						Promise.resolve(this.performRecalcByNongli(
+							payload.fields,
+							payload.nongli,
+							payload.overrideOptions,
+							payload.displaySolarTime
+						)).then((changed)=>{
+							this.resolvePendingRecalc(changed);
+						}).catch((e)=>{
+							this.lastRecalcError = e;
+							if(!this.unmounted){
+								this.setState({ loading: false });
+								console.error('[SanShiUnited] performRecalcByNongli failed', e);
+							}
+							this.resolvePendingRecalc(false);
+						});
 					}catch(e){
 						this.lastRecalcError = e;
 						if(!this.unmounted){
@@ -2464,7 +2524,7 @@ class SanShiUnitedMain extends Component{
 			});
 		}
 
-	performRecalcByNongli(fields, nongli, overrideOptions){
+	async performRecalcByNongli(fields, nongli, overrideOptions, displaySolarTime){
 		const flds = fields || this.state.localFields || this.props.fields;
 		if(!flds || !nongli){
 			return false;
@@ -2493,7 +2553,14 @@ class SanShiUnitedMain extends Component{
 		}
 		const year = parseInt(flds.date.value.format('YYYY'), 10);
 		const isDiurnal = extractIsDiurnalFromChartWrap(chartWrap);
-		const dunjia = this.getCachedDunJia(flds, nongli, qimenOptions, year, isDiurnal);
+		const dunjia = await this.getKinqimenDunJia(
+			flds,
+			nongli,
+			qimenOptions,
+			year,
+			isDiurnal,
+			displaySolarTime || this.state.displaySolarTime
+		);
 		const astroChart = chartWrap && chartWrap.chart ? chartWrap.chart : null;
 		const lrNongli = buildLrNongli(nongli, dunjia);
 		const nianMing = safe(lrNongli && lrNongli.runyear, '')
@@ -2560,21 +2627,13 @@ class SanShiUnitedMain extends Component{
 		].join('|');
 		let taiyi = this.taiyiCache.get(taiyiCacheKey);
 		if(!taiyi){
-			try{
-				taiyi = calcTaiyiPanFromKintaiyi(flds, nongli, {
-					style: mergedOptions.taiyiStyle,
-					tn: mergedOptions.taiyiAccum,
-					sex: mergedOptions.sex,
-				});
-				this.taiyiCache.set(taiyiCacheKey, taiyi);
-				if(this.taiyiCache.size > 48){
-					const firstKey = this.taiyiCache.keys().next().value;
-					if(firstKey){
-						this.taiyiCache.delete(firstKey);
-					}
+			taiyi = await this.getKintaiyiPan(flds, nongli, mergedOptions);
+			this.taiyiCache.set(taiyiCacheKey, taiyi);
+			if(this.taiyiCache.size > 48){
+				const firstKey = this.taiyiCache.keys().next().value;
+				if(firstKey){
+					this.taiyiCache.delete(firstKey);
 				}
-			}catch(e){
-				taiyi = null;
 			}
 		}
 		let outerData = this.outerDataCache.data;
@@ -2755,7 +2814,7 @@ class SanShiUnitedMain extends Component{
 						if(this.unmounted || seq !== this.refreshSeq){
 							return;
 						}
-						const changed = await this.recalcByNongli(fields, nongli);
+						const changed = await this.recalcByNongli(fields, nongli, null, displaySolarTime);
 						if(!changed && !this.state.dunjia && this.lastRecalcError){
 							throw this.lastRecalcError;
 						}

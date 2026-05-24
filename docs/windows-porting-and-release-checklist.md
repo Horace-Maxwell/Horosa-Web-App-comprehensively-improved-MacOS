@@ -135,6 +135,8 @@ http://127.0.0.1:<webPort>/index.html?srv=http%3A%2F%2F127.0.0.1%3A<backendPort>
 - `srv` 只给 Java backend。
 - `chartSrv` 给普通星盘和占星计算相关服务。
 - `kentangSrv` 给太乙、金口诀、奇门、五兆、太玄、荆诀、神易数、Kin Astro 等所有 kentang/kin 路由。
+- 三式合一的路由口径必须单独自检：奇门、太乙走 kentang2017 后端，六壬不走 kentang 后端，继续使用现有本地六壬实现。
+- 如果某个技法选项没有对应后端，例如当前 Ken 奇门没有月家完整盘，不要在 UI 中保留它并静默回退旧算法；应从相关页面下拉项移除，旧保存数据打开时归一到受支持的后端口径。
 - 前端 `KENTANG_SERVICE_CONFIG` 每加一个模块，都有 path、queryKeys、默认本地端口、测试覆盖。
 - 开发时浏览器地址栏里残留的旧 `taiyiSrv`、`jinkouSrv`、固定端口不能当作发布包真相；打包 app 必须由 launcher 注入当前实际端口。
 
@@ -381,7 +383,7 @@ Windows 不能只打前端 app。必须同时准备：
       "appSha256": "...",
       "pkgSha256": "...",
       "runtimeSha256": "...",
-      "runtimeVersion": "2.1.0-runtime2"
+      "runtimeVersion": "2.1.0-runtime3"
     }
   }
 }
@@ -395,7 +397,7 @@ Windows 不能只打前端 app。必须同时准备：
 
 Windows 版规则：
 
-- App 版本可以仍是 `2.1.0`，但 runtime 内容变了就要 bump runtime tag，例如 `2.1.0-runtime1` -> `2.1.0-runtime2`。
+- App 版本可以仍是 `2.1.0`，但 runtime 内容变了就要 bump runtime tag，例如 `2.1.0-runtime2` -> `2.1.0-runtime3`。
 - 如果只修桌面壳窗口、图标、菜单等 native shell 问题，不要重发 runtime。macOS 版为此加入了 `HOROSA_REUSE_REMOTE_RUNTIME=1`，从既有 runtime release 下载 asset 后只重打 app/pkg。
 - manifest 的 `runtimeVersion`、`runtimeUrl`、`runtimeSha256` 必须同步更新。
 - 安装器、修复流程、自动更新流程都必须比较 runtime manifest version；不匹配就替换 runtime。

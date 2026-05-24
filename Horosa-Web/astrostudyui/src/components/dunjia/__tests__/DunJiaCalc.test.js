@@ -1,4 +1,4 @@
-import { calcDunJia } from '../DunJiaCalc';
+import { PAIPAN_OPTIONS, calcDunJia, isKinqimenMode } from '../DunJiaCalc';
 import { buildLocalBaziResult } from '../../../utils/baziLunarLocal';
 import { buildLocalJieqiYearSeed } from '../../../utils/localNongliAdapter';
 
@@ -88,6 +88,13 @@ function buildLocalNongliForTest(date, time){
 }
 
 describe('DunJiaCalc options', ()=>{
+	test('all enabled Qimen modes are Ken backend modes', ()=>{
+		expect(PAIPAN_OPTIONS.map((item)=>item.value)).toEqual([0, 2, 3, 4, 5]);
+		PAIPAN_OPTIONS.forEach((item)=>{
+			expect(isKinqimenMode(item.value)).toBe(true);
+		});
+	});
+
 	test('paiPanType(年/月/日/时) produces different juText', ()=>{
 		const fields = makeFields('2026-02-17', '21:50:07');
 		const nongli = makeNongli();

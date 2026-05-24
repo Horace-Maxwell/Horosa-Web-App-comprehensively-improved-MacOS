@@ -80,6 +80,11 @@ describe('SanShiUnitedMain chart-list synchronization', ()=>{
 	afterEach(()=>{
 		jest.runOnlyPendingTimers();
 		jest.useRealTimers();
+		if(global.fetch && global.fetch.mockRestore){
+			global.fetch.mockRestore();
+		}else{
+			delete global.fetch;
+		}
 	});
 
 	it('replaces plotted fields and auto recalculates when a second saved chart is selected', ()=>{
@@ -135,7 +140,7 @@ describe('SanShiUnitedMain chart-list synchronization', ()=>{
 		expect(component.refreshAll).not.toHaveBeenCalled();
 	});
 
-	it('uses the shared DunJia calculation for Sanshi qimen tianpan stems', ()=>{
+	it('uses only the Ken qimen backend for Sanshi qimen stems', async ()=>{
 		const fields = buildFields('qimen-sample', 'Qimen Sample', '1998-02-20 20:48:00', '119e19', '26n04');
 		const component = mountLike(new SanShiUnitedMain({
 			fields,
@@ -155,7 +160,34 @@ describe('SanShiUnitedMain chart-list synchronization', ()=>{
 			day: '廿四',
 			leap: false,
 		};
-		const pan = component.getCachedDunJia(fields, nongli, {
+		global.fetch = jest.fn().mockResolvedValue({
+			text: jest.fn().mockResolvedValue(JSON.stringify({
+				ResultCode: 0,
+				Result: {
+					source: 'kinqimen',
+					engine: 'kinqimen',
+					mode: 'hour',
+					modeLabel: '时家奇门',
+					selected: {
+						'排盤方式': '拆補',
+						'干支': '戊寅年甲寅月戊戌日壬戌时',
+						'排局': '阳遁九局上元',
+						'節氣': '雨水',
+						'旬首': '甲寅',
+						'天盤': { 震: '癸', 巽: '辛', 離: '丙', 坤: '乙', 兌: '壬', 乾: '丁', 坎: '庚', 艮: '己', 中: '戊' },
+						'地盤': { 震: '丙', 巽: '乙', 離: '壬', 坤: '丁', 兌: '庚', 乾: '己', 坎: '癸', 艮: '辛', 中: '戊' },
+						'門': { 震: '休', 巽: '生', 離: '傷', 坤: '杜', 兌: '景', 乾: '死', 坎: '驚', 艮: '開' },
+						'星': { 震: '蓬', 巽: '任', 離: '沖', 坤: '輔', 兌: '英', 乾: '禽', 坎: '柱', 艮: '心' },
+						'神': { 震: '符', 巽: '蛇', 離: '陰', 坤: '合', 兌: '虎', 乾: '玄', 坎: '地', 艮: '天' },
+						'值符值使': {
+							'值符星宮': ['禽', '坤'],
+							'值使門宮': ['杜', '坤'],
+						},
+					},
+				},
+			})),
+		});
+		const pan = await component.getKinqimenDunJia(fields, nongli, {
 			paiPanType: 3,
 			qijuMethod: 'chaibu',
 			zhiShiType: 0,
@@ -167,16 +199,103 @@ describe('SanShiUnitedMain chart-list synchronization', ()=>{
 			fengJu: false,
 			after23NewDay: 1,
 		}, 1998, true);
+		expect(global.fetch).toHaveBeenCalledTimes(1);
+		expect(global.fetch.mock.calls[0][0]).toContain('/qimen/pan');
+		expect(global.fetch.mock.calls[0][0]).not.toContain('/taiyi/');
+		expect(global.fetch.mock.calls[0][0]).not.toContain('/jinkou/');
+		expect(pan.source).toEqual('kinqimen');
+		expect(pan.options.qimenEngineLabel).toEqual('');
 		expect(pan.juText).toEqual('阳遁九局上元');
 		expect(pan.tianGan).toMatchObject({
-			1: '庚',
+			1: '辛',
 			2: '丙',
-			3: '丁',
-			4: '戊',
-			6: '己',
-			7: '壬',
-			8: '辛',
-			9: '乙',
+			3: '乙',
+			4: '癸',
+			6: '壬',
+			7: '己',
+			8: '庚',
+			9: '丁',
 		});
+	});
+
+	it('uses Ken backends for Sanshi taiyi and qimen but not liureng', async ()=>{
+		const fields = buildFields('sanshi-backend', 'Sanshi Backend', '2026-05-24 15:30:00', '119e19', '26n04');
+		const component = mountLike(new SanShiUnitedMain({
+			fields,
+			chartObj: buildChart('sanshi-backend'),
+			hook: {},
+		}));
+		const nongli = {
+			yearJieqi: '丙午',
+			year: '丙午',
+			monthGanZi: '癸巳',
+			dayGanZi: '戊戌',
+			time: '庚申',
+			jieqi: '小满',
+			jiedelta: '立夏后第19天',
+			birth: '2026-05-24 15:29:00',
+			month: '四月',
+			day: '初八',
+			leap: false,
+		};
+		global.fetch = jest.fn((url)=>{
+			if(`${url}`.indexOf('/qimen/pan') >= 0){
+				return Promise.resolve({
+					text: jest.fn().mockResolvedValue(JSON.stringify({
+						ResultCode: 0,
+						Result: {
+							source: 'kinqimen',
+							mode: 'hour',
+							modeLabel: '时家奇门',
+							selected: {
+								'排局': '阳遁五局上元',
+								'節氣': '小满',
+								'旬首': '甲寅',
+								'干支': '丙午年癸巳月戊戌日庚申时',
+								'天盤': { 震: '癸', 巽: '辛', 離: '丙', 坤: '乙', 兌: '壬', 乾: '丁', 坎: '庚', 艮: '己', 中: '戊' },
+								'地盤': { 震: '丙', 巽: '乙', 離: '壬', 坤: '丁', 兌: '庚', 乾: '己', 坎: '癸', 艮: '辛', 中: '戊' },
+								'門': { 震: '休', 巽: '生', 離: '傷', 坤: '杜', 兌: '景', 乾: '死', 坎: '驚', 艮: '開' },
+								'星': { 震: '蓬', 巽: '任', 離: '沖', 坤: '輔', 兌: '英', 乾: '禽', 坎: '柱', 艮: '心' },
+								'神': { 震: '符', 巽: '蛇', 離: '陰', 坤: '合', 兌: '虎', 乾: '玄', 坎: '地', 艮: '天' },
+								'值符值使': {
+									'值符星宮': ['禽', '坤'],
+									'值使門宮': ['杜', '坤'],
+								},
+							},
+						},
+					})),
+				});
+			}
+			if(`${url}`.indexOf('/taiyi/pan') >= 0){
+				return Promise.resolve({
+					text: jest.fn().mockResolvedValue(JSON.stringify({
+						ResultCode: 0,
+						Result: {
+							source: 'kintaiyi',
+							dateStr: '2026-05-24',
+							timeStr: '15:30:00',
+							style: 3,
+							tn: 0,
+							kook: { num: 5, text: '阳遁五局' },
+							taiyiNum: 5,
+							taiyiPalace: '中',
+							ganzhi: { year: '丙午', month: '癸巳', day: '戊戌', time: '庚申' },
+							palace16: [],
+							options: { styleLabel: '太乙局', accumLabel: '统宗宝鉴' },
+						},
+					})),
+				});
+			}
+			return Promise.reject(new Error(`unexpected fetch ${url}`));
+		});
+		const changed = await component.performRecalcByNongli(fields, nongli, null, '2026-05-24 15:29:00');
+		expect(changed).toBe(true);
+		const urls = global.fetch.mock.calls.map((call)=>`${call[0]}`);
+		expect(urls.filter((url)=>url.indexOf('/qimen/pan') >= 0)).toHaveLength(1);
+		expect(urls.filter((url)=>url.indexOf('/taiyi/pan') >= 0)).toHaveLength(1);
+		expect(urls.some((url)=>url.indexOf('/liureng') >= 0 || url.indexOf('/reng') >= 0)).toBe(false);
+		expect(component.state.dunjia.source).toBe('kinqimen');
+		expect(component.state.taiyi.source).toBe('kintaiyi');
+		expect(component.state.liureng).toBeTruthy();
 	});
 });
