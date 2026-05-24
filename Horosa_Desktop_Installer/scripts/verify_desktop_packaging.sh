@@ -188,7 +188,8 @@ if len({package['version'], tauri['version'], cargo_version}) != 1:
     raise SystemExit('version mismatch across package.json / tauri.conf.json / Cargo.toml')
 if tauri['productName'] != config['appName']:
     raise SystemExit('tauri productName does not match appName')
-if tauri['app']['windows'][0]['title'] != config['appName']:
+windows = tauri['app'].get('windows') or []
+if windows and windows[0].get('title') != config['appName']:
     raise SystemExit('window title does not match appName')
 
 manifest = json.loads(manifest_path.read_text())

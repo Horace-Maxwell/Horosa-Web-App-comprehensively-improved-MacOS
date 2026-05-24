@@ -68,6 +68,8 @@ const PREFERENCES_FILE_NAME: &str = "preferences.json";
 const WINDOW_STATE_FILE_NAME: &str = "window-state.json";
 const WINDOW_STATE_SCHEMA_VERSION: u8 = 2;
 const WINDOW_STATE_COORDINATE_SPACE: &str = "logical";
+const MAIN_WINDOW_DEFAULT_SIZE: (f64, f64) = (1480.0, 960.0);
+const MAIN_WINDOW_MIN_SIZE: (f64, f64) = (1180.0, 760.0);
 const AI_ANALYSIS_IMPORT_EXTENSIONS: [&str; 6] = ["txt", "md", "markdown", "doc", "docx", "pdf"];
 const AI_ANALYSIS_BACKUP_EXTENSIONS: [&str; 1] = ["zip"];
 
@@ -488,6 +490,7 @@ struct AppState {
     web_shutdown: Mutex<Option<Arc<AtomicBool>>>,
     zoom_level: Mutex<f64>,
     review: AssetReviewCoordinator,
+    window_state_persistence_ready: AtomicBool,
 }
 
 fn default_supported_arch() -> String {
@@ -528,6 +531,7 @@ impl Default for AppState {
             web_shutdown: Mutex::new(None),
             zoom_level: Mutex::new(DEFAULT_ZOOM),
             review: AssetReviewCoordinator::default(),
+            window_state_persistence_ready: AtomicBool::new(false),
         }
     }
 }
@@ -870,26 +874,11 @@ fn normalize_saved_window_state_for_apply(
     next
 }
 
-fn capture_window_state(window: &WebviewWindow) -> SavedWindowState {
-    let mut state = SavedWindowState::default();
-    state.is_maximized = window.is_maximized().ok();
-    state.state_version = Some(WINDOW_STATE_SCHEMA_VERSION);
-    state.coordinate_space = Some(WINDOW_STATE_COORDINATE_SPACE.to_string());
-    let scale_factor = window.scale_factor().map(valid_scale_factor).unwrap_or(1.0);
-    if let Ok(size) = window.outer_size() {
-        state.width = Some(logical_value(size.width as f64, scale_factor));
-        state.height = Some(logical_value(size.height as f64, scale_factor));
-    }
-    if let Ok(position) = window.outer_position() {
-        state.x = Some(logical_value(position.x as f64, scale_factor));
-        state.y = Some(logical_value(position.y as f64, scale_factor));
-    }
-    state
-}
-
-fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
-    let scale_factor = window.scale_factor().map(valid_scale_factor).unwrap_or(1.0);
-    let (monitor_width, monitor_height) = window
+fn current_monitor_logical_size(
+    window: &WebviewWindow,
+    scale_factor: f64,
+) -> (Option<f64>, Option<f64>) {
+    window
         .current_monitor()
         .ok()
         .flatten()
@@ -900,7 +889,103 @@ fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
                 Some(logical_value(size.height as f64, scale_factor)),
             )
         })
-        .unwrap_or((None, None));
+        .unwrap_or((None, None))
+}
+
+fn effective_captured_maximized(
+    raw_is_maximized: Option<bool>,
+    width: Option<f64>,
+    height: Option<f64>,
+    monitor_width: Option<f64>,
+    monitor_height: Option<f64>,
+) -> Option<bool> {
+    if raw_is_maximized != Some(true) {
+        return raw_is_maximized;
+    }
+
+    let (Some(width), Some(height), Some(monitor_width), Some(monitor_height)) =
+        (width, height, monitor_width, monitor_height)
+    else {
+        return raw_is_maximized;
+    };
+    if !width.is_finite()
+        || !height.is_finite()
+        || !monitor_width.is_finite()
+        || !monitor_height.is_finite()
+        || width <= 0.0
+        || height <= 0.0
+        || monitor_width <= 0.0
+        || monitor_height <= 0.0
+    {
+        return raw_is_maximized;
+    }
+
+    let covers_monitor = width >= monitor_width * 0.92 && height >= monitor_height * 0.88;
+    Some(covers_monitor)
+}
+
+fn finite_positive(value: f64) -> bool {
+    value.is_finite() && value > 0.0
+}
+
+fn saved_launch_size(
+    state: &SavedWindowState,
+    fallback: (f64, f64),
+    min_size: (f64, f64),
+) -> (f64, f64) {
+    if state.is_maximized == Some(true) || !state_uses_logical_coordinates(state) {
+        return fallback;
+    }
+
+    let (Some(width), Some(height)) = (state.width, state.height) else {
+        return fallback;
+    };
+    if !finite_positive(width) || !finite_positive(height) {
+        return fallback;
+    }
+    (width.max(min_size.0), height.max(min_size.1))
+}
+
+fn saved_launch_position(state: &SavedWindowState) -> Option<(f64, f64)> {
+    if state.is_maximized == Some(true) || !state_uses_logical_coordinates(state) {
+        return None;
+    }
+    let (Some(x), Some(y)) = (state.x, state.y) else {
+        return None;
+    };
+    if !x.is_finite() || !y.is_finite() {
+        return None;
+    }
+    Some((x, y))
+}
+
+fn capture_window_state(window: &WebviewWindow) -> SavedWindowState {
+    let mut state = SavedWindowState::default();
+    state.state_version = Some(WINDOW_STATE_SCHEMA_VERSION);
+    state.coordinate_space = Some(WINDOW_STATE_COORDINATE_SPACE.to_string());
+    let scale_factor = window.scale_factor().map(valid_scale_factor).unwrap_or(1.0);
+    let (monitor_width, monitor_height) = current_monitor_logical_size(window, scale_factor);
+    if let Ok(size) = window.outer_size() {
+        state.width = Some(logical_value(size.width as f64, scale_factor));
+        state.height = Some(logical_value(size.height as f64, scale_factor));
+    }
+    if let Ok(position) = window.outer_position() {
+        state.x = Some(logical_value(position.x as f64, scale_factor));
+        state.y = Some(logical_value(position.y as f64, scale_factor));
+    }
+    state.is_maximized = effective_captured_maximized(
+        window.is_maximized().ok(),
+        state.width,
+        state.height,
+        monitor_width,
+        monitor_height,
+    );
+    state
+}
+
+fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
+    let scale_factor = window.scale_factor().map(valid_scale_factor).unwrap_or(1.0);
+    let (monitor_width, monitor_height) = current_monitor_logical_size(window, scale_factor);
     let normalized =
         normalize_saved_window_state_for_apply(state, scale_factor, monitor_width, monitor_height);
     if normalized.is_maximized == Some(true) {
@@ -924,6 +1009,27 @@ fn apply_main_window_launch_state(window: &WebviewWindow, state: &SavedWindowSta
     if should_launch_main_window_maximized(state) {
         let _ = window.maximize();
     }
+}
+
+fn set_window_state_persistence_ready(app: &AppHandle, ready: bool) {
+    if let Some(state) = app.try_state::<AppState>() {
+        state
+            .window_state_persistence_ready
+            .store(ready, Ordering::SeqCst);
+    }
+}
+
+fn is_window_state_persistence_ready(app: &AppHandle) -> bool {
+    app.try_state::<AppState>()
+        .map(|state| state.window_state_persistence_ready.load(Ordering::SeqCst))
+        .unwrap_or(true)
+}
+
+fn enable_window_state_persistence_after_launch(app: AppHandle) {
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(3));
+        set_window_state_persistence_ready(&app, true);
+    });
 }
 
 fn persist_window_state_for_label(
@@ -1637,6 +1743,25 @@ fn show_or_focus_window(window: &WebviewWindow) {
     let _ = window.set_focus();
 }
 
+fn build_main_window(app: &AppHandle, state: &SavedWindowState) -> Result<WebviewWindow> {
+    let size = saved_launch_size(state, MAIN_WINDOW_DEFAULT_SIZE, MAIN_WINDOW_MIN_SIZE);
+    let should_maximize = should_launch_main_window_maximized(state);
+    let mut builder =
+        WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
+            .title(APP_NAME)
+            .resizable(true)
+            .inner_size(size.0, size.1)
+            .min_inner_size(MAIN_WINDOW_MIN_SIZE.0, MAIN_WINDOW_MIN_SIZE.1)
+            .maximized(should_maximize)
+            .visible(false);
+    if let Some((x, y)) = saved_launch_position(state) {
+        builder = builder.position(x, y);
+    } else {
+        builder = builder.center();
+    }
+    builder.build().context("build main window")
+}
+
 fn create_secondary_window(
     app: &AppHandle,
     label: &str,
@@ -1645,15 +1770,27 @@ fn create_secondary_window(
     size: (f64, f64),
     min_size: (f64, f64),
 ) -> Result<WebviewWindow> {
-    let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(asset.into()))
+    let states = load_window_states(app);
+    let saved_state = match label {
+        PREFERENCES_WINDOW_LABEL => Some(&states.preferences),
+        DIAGNOSTICS_WINDOW_LABEL => Some(&states.diagnostics),
+        _ => None,
+    };
+    let initial_size = saved_state
+        .map(|state| saved_launch_size(state, size, min_size))
+        .unwrap_or(size);
+    let mut builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(asset.into()))
         .title(title)
         .resizable(true)
-        .center()
-        .inner_size(size.0, size.1)
+        .inner_size(initial_size.0, initial_size.1)
         .min_inner_size(min_size.0, min_size.1)
-        .visible(true);
+        .visible(false);
+    if let Some((x, y)) = saved_state.and_then(saved_launch_position) {
+        builder = builder.position(x, y);
+    } else {
+        builder = builder.center();
+    }
     let window = builder.build().context("build secondary window")?;
-    let states = load_window_states(app);
     match label {
         PREFERENCES_WINDOW_LABEL => apply_saved_window_state(&window, &states.preferences),
         DIAGNOSTICS_WINDOW_LABEL => apply_saved_window_state(&window, &states.diagnostics),
@@ -1702,17 +1839,10 @@ fn open_main_window(app: &AppHandle) -> Result<()> {
         return Ok(());
     }
 
-    let window =
-        WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
-            .title(APP_NAME)
-            .resizable(true)
-            .center()
-            .inner_size(1480.0, 960.0)
-            .min_inner_size(1180.0, 760.0)
-            .visible(false)
-            .build()
-            .context("recreate main window")?;
-    apply_main_window_launch_state(&window, &load_window_states(app).main);
+    set_window_state_persistence_ready(app, false);
+    let state = load_window_states(app).main;
+    let window = build_main_window(app, &state).context("recreate main window")?;
+    apply_main_window_launch_state(&window, &state);
     set_window_zoom(app, DEFAULT_ZOOM)?;
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(slot) = state.session.lock() {
@@ -1725,6 +1855,7 @@ fn open_main_window(app: &AppHandle) -> Result<()> {
         }
     }
     show_or_focus_window(&window);
+    enable_window_state_persistence_after_launch(app.clone());
     Ok(())
 }
 
@@ -4891,16 +5022,20 @@ fn main() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
-            let window = app
-                .get_webview_window(MAIN_WINDOW_LABEL)
-                .context("main window missing")?
-                .clone();
-            apply_main_window_launch_state(&window, &load_window_states(&app_handle).main);
+            set_window_state_persistence_ready(&app_handle, false);
+            let main_state = load_window_states(&app_handle).main;
+            let window = if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+                window
+            } else {
+                build_main_window(&app_handle, &main_state)?
+            };
+            apply_main_window_launch_state(&window, &main_state);
             set_window_zoom(&app_handle, DEFAULT_ZOOM)?;
             if handoff_to_newer_installed_app(&app_handle)? {
                 return Ok(());
             }
             show_or_focus_window(&window);
+            enable_window_state_persistence_after_launch(app_handle.clone());
             thread::spawn(move || {
                 match runtime_bootstrap(app_handle.clone(), window.clone(), false) {
                     Ok(session) => {
@@ -4982,23 +5117,29 @@ fn main() {
         .expect("error while running 星阙 desktop shell")
         .run(|app, event| match event {
             RunEvent::WindowEvent { label, event, .. } => {
-                if matches!(
-                    event,
-                    WindowEvent::Moved(_)
-                        | WindowEvent::Resized(_)
-                        | WindowEvent::CloseRequested { .. }
-                ) {
+                let should_persist = match event {
+                    WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
+                        is_window_state_persistence_ready(app)
+                    }
+                    WindowEvent::CloseRequested { .. } => true,
+                    _ => false,
+                };
+                if should_persist {
                     if let Some(window) = app.get_webview_window(&label) {
                         let _ = persist_window_state_for_label(app, &label, &window);
                     }
                 }
             }
             RunEvent::ExitRequested { .. } => {
-                persist_all_known_window_states(app);
+                if is_window_state_persistence_ready(app) {
+                    persist_all_known_window_states(app);
+                }
                 cleanup_state(app);
             }
             RunEvent::Exit => {
-                persist_all_known_window_states(app);
+                if is_window_state_persistence_ready(app) {
+                    persist_all_known_window_states(app);
+                }
                 cleanup_state(app);
             }
             _ => {}
@@ -5117,6 +5258,88 @@ mod tests {
         };
 
         assert!(should_launch_main_window_maximized(&state));
+    }
+
+    #[test]
+    fn captured_maximized_state_keeps_true_for_monitor_sized_bounds() {
+        assert_eq!(
+            effective_captured_maximized(
+                Some(true),
+                Some(1728.0),
+                Some(1079.0),
+                Some(1728.0),
+                Some(1117.0)
+            ),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn captured_maximized_state_is_cleared_for_user_resized_bounds() {
+        assert_eq!(
+            effective_captured_maximized(
+                Some(true),
+                Some(1420.0),
+                Some(880.0),
+                Some(1728.0),
+                Some(1117.0)
+            ),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn saved_launch_size_uses_logical_saved_bounds_before_window_is_shown() {
+        let state = SavedWindowState {
+            width: Some(1320.0),
+            height: Some(840.0),
+            x: Some(180.0),
+            y: Some(120.0),
+            is_maximized: Some(false),
+            state_version: Some(WINDOW_STATE_SCHEMA_VERSION),
+            coordinate_space: Some(WINDOW_STATE_COORDINATE_SPACE.to_string()),
+        };
+
+        assert_eq!(
+            saved_launch_size(&state, MAIN_WINDOW_DEFAULT_SIZE, MAIN_WINDOW_MIN_SIZE),
+            (1320.0, 840.0)
+        );
+        assert_eq!(saved_launch_position(&state), Some((180.0, 120.0)));
+    }
+
+    #[test]
+    fn saved_launch_size_ignores_legacy_or_maximized_bounds() {
+        let legacy_state = SavedWindowState {
+            width: Some(2960.0),
+            height: Some(1920.0),
+            is_maximized: Some(false),
+            ..SavedWindowState::default()
+        };
+        let maximized_state = SavedWindowState {
+            width: Some(1320.0),
+            height: Some(840.0),
+            is_maximized: Some(true),
+            state_version: Some(WINDOW_STATE_SCHEMA_VERSION),
+            coordinate_space: Some(WINDOW_STATE_COORDINATE_SPACE.to_string()),
+            ..SavedWindowState::default()
+        };
+
+        assert_eq!(
+            saved_launch_size(
+                &legacy_state,
+                MAIN_WINDOW_DEFAULT_SIZE,
+                MAIN_WINDOW_MIN_SIZE
+            ),
+            MAIN_WINDOW_DEFAULT_SIZE
+        );
+        assert_eq!(
+            saved_launch_size(
+                &maximized_state,
+                MAIN_WINDOW_DEFAULT_SIZE,
+                MAIN_WINDOW_MIN_SIZE
+            ),
+            MAIN_WINDOW_DEFAULT_SIZE
+        );
     }
 
     #[test]

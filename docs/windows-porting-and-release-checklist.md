@@ -290,9 +290,11 @@ Windows 实现要点：
 - 保存逻辑坐标，不直接保存物理像素，否则高 DPI 屏幕会出错。
 - 记录 `stateVersion` 和 `coordinateSpace`，给以后迁移用。
 - 恢复窗口时要检查当前显示器尺寸，避免窗口跑到屏幕外。
-- 最大化状态要单独保存。
+- 最大化状态要单独保存，但不能让过期的最大化标记覆盖用户最后缩小后的真实宽高。macOS 版这次的补丁就是：如果系统还报告 maximized，但记录到的窗口 bounds 已经明显小于显示器，就按非最大化保存。
 - 关闭窗口、app 退出、更新前都要 persist 一次。
 - 主窗口必须隐藏创建，先应用保存的 size/position/maximized，再 show/focus。
+- 如果“隐藏创建后再 set_size”仍然出现先大后小，就不要在静态配置里预建默认主窗口；应在 native 启动代码里读取窗口状态，把保存尺寸直接作为 window builder 的初始尺寸，再 show。
+- 启动早期的 `Moved` / `Resized` 事件可能不是用户操作，而是窗口管理器初始化噪声。macOS 版最终做法是在首次 show 后延迟打开窗口状态写回，避免默认尺寸或中间位置污染 `window-state.json`。
 - 不要依赖前端 `resizeTo()` 作为 packaged app 的窗口恢复方案；Windows launcher / Tauri / native shell 必须在窗口显示前恢复。
 
 持久化文件建议放在 app config dir，不要放在安装目录。Windows 上通常会落到 `%APPDATA%` 或 `%LOCALAPPDATA%` 的 app config 路径。
@@ -303,6 +305,7 @@ Windows 实现要点：
 - 启动 packaged app。
 - 用 UI automation 轮询窗口 bounds。
 - 期望第一次可见窗口就是保存尺寸，不能先出现默认尺寸。
+- 再测一次：最大化或接近全屏打开，手动缩小窗口，关闭 app，重新打开。期望直接恢复缩小后的 bounds，不能又被 `isMaximized=true` 拉回全屏。
 
 ## Windows 图标不能是假圆角
 
@@ -364,6 +367,7 @@ Windows 不能只打前端 app。必须同时准备：
 Windows 版规则：
 
 - App 版本可以仍是 `2.1.0`，但 runtime 内容变了就要 bump runtime tag，例如 `2.1.0-runtime1` -> `2.1.0-runtime2`。
+- 如果只修桌面壳窗口、图标、菜单等 native shell 问题，不要重发 runtime。macOS 版为此加入了 `HOROSA_REUSE_REMOTE_RUNTIME=1`，从既有 runtime release 下载 asset 后只重打 app/pkg。
 - manifest 的 `runtimeVersion`、`runtimeUrl`、`runtimeSha256` 必须同步更新。
 - 安装器、修复流程、自动更新流程都必须比较 runtime manifest version；不匹配就替换 runtime。
 - 发布脚本如果发现 runtime hash 变了但 runtimeVersion 没变，必须失败。
@@ -465,7 +469,7 @@ HOROSA_SERVER_ROOT=http://127.0.0.1:<backendPort> node Horosa-Web/astrostudyui/s
 - 跑普通 `/chart` 多时间点回归。
 - 跑 Java backend smoke。
 - 跑 AIAnalysis 自检。
-- 关闭再打开，确认窗口大小与用户设置恢复且不跳尺寸。
+- 关闭再打开，确认窗口大小与用户设置恢复且不跳尺寸；还要测最大化后缩小再重开的路径。
 - 新增命盘/事盘、导出 JSON、删除、导入、再打开，确认不丢。
 - 确认 release 是 draft/prerelease 状态符合产品要求。
 
