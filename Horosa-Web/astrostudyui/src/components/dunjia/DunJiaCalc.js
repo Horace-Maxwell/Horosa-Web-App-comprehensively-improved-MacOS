@@ -31,7 +31,6 @@ export const JIEQI_OPTIONS = [
 
 export const PAIPAN_OPTIONS = [
 	{ value: 0, label: '年家奇门' },
-	{ value: 1, label: '月家奇门' },
 	{ value: 2, label: '金函日家' },
 	{ value: 3, label: '时家奇门' },
 	{ value: 4, label: '刻家奇门' },
@@ -720,11 +719,15 @@ function normalizeQijuMethod(method){
 }
 
 export function isKinqimenMode(paiPanType){
-	return [2, 3, 4, 5].indexOf(normalizeNum(paiPanType, 3)) >= 0;
+	const type = normalizeNum(paiPanType, 3);
+	return type !== 1;
 }
 
 function getKinqimenMode(paiPanType){
 	const type = normalizeNum(paiPanType, 3);
+	if(type === 0){
+		return 'year';
+	}
 	if(type === 4){
 		return 'minute';
 	}
@@ -747,7 +750,10 @@ function getRawValue(obj, keys, def = ''){
 }
 
 function normalizeGuaName(gua){
-	return normalizeText(gua).replace(/乾/g, '乾');
+	return normalizeText(gua)
+		.replace(/離/g, '离')
+		.replace(/兌/g, '兑')
+		.replace(/乾/g, '乾');
 }
 
 function normalizeGuaMap(mapObj){
@@ -907,7 +913,7 @@ export function normalizeKinqimenData(backendPan, fallbackPan, options, nongli){
 		cells,
 		options: {
 			...(fallbackPan.options || {}),
-			qimenEngineLabel: '堅奇門 kinqimen',
+			qimenEngineLabel: '',
 			qimenModeLabel,
 			paiPanLabel: getOptionLabel(PAIPAN_OPTIONS, opts.paiPanType),
 			qijuMethodLabel: normalizeText(backendPan.qijuMethod) === 'zhirun' ? '置闰' : (normalizeText(getRawValue(raw, ['排盤方式', '排盘方式'], '')) || (fallbackPan.options ? fallbackPan.options.qijuMethodLabel : '')),

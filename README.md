@@ -18,7 +18,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
 [![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime2-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime2)
+[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime3-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime3)
 [![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY.md)
 [![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT.md)
 [![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
@@ -194,6 +194,8 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
   <tr>
     <td width="50%">
       - added and normalized backend integrations for Taiyi, Jin Kou, Huangji/Wangji, Wuzhao, Taixuan, Jingjue, Shenyishu, Kin Astro, Qizheng, Qimen, and related specialty methods<br />
+      - Sanshi United now routes Qimen and Taiyi through the kentang2017 backend while LiuReng remains on the existing local LiuReng implementation<br />
+      - unsupported Qimen month-chart selection was removed from Qimen and Sanshi surfaces instead of silently falling back to the old local calculation<br />
       - chart management and case management now preserve new-method inputs, tags, snapshots, raw backend payloads, JSON import/export, and reopening behavior<br />
       - AI export now reads from structured backend data and exposes selectable export groups for each supported technique, tab, and page<br />
       - user settings, desktop window size, and necessary UI choices are persisted across close/reopen and app updates<br />
@@ -202,10 +204,12 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       - local event management UI was simplified, with useful actions aligned in the same row as chart management<br />
       - app-wide light/dark mode contrast, dropdowns, overlays, loading states, management lists, and export controls were audited and polished<br />
       - Qimen Dunjia parity and the previous desktop delivery fixes remain preserved<br />
-      - notarized offline <code>.pkg</code>, app zip, runtime archive, and manifest are aligned as <code>2.1.0 / 2.1.0-runtime2</code>
+      - notarized offline <code>.pkg</code>, app zip, runtime archive, and manifest are aligned as <code>2.1.0 / 2.1.0-runtime3</code>
     </td>
     <td width="50%">
       - 新增并规范接入太乙、金口诀、皇极经世、五兆、太玄、荆诀、神易数、Kin Astro、七政四余、奇门等命法与卜法后端<br />
+      - 三式合一中奇门与太乙已固定走 kentang2017 后端口径，六壬保留现有本地六壬实现，避免误接不该接入的后端<br />
+      - 奇门和三式合一页面已移除后端不支持的月家奇门选项，不再静默回退到旧本地算法<br />
       - 管理命盘与管理事盘现在会保留新技法输入、标签、快照、后端原始结构化数据、JSON 导入导出与重开恢复行为<br />
       - AI 导出改为直接读取结构化后端数据，并为每个支持技法、tab 与页面提供可勾选的导出分段<br />
       - 用户设置、桌面窗口大小与必要 UI 选项会在关闭、重开和版本更新后继续沿用<br />
@@ -214,7 +218,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       - 本地事盘管理 UI 移除无效按钮，并把有效操作与命盘管理一样统一到同一行<br />
       - 全局明暗主题、下拉层、弹层、加载态、管理列表与导出控件再次检查并打磨可读性<br />
       - 保留此前奇门遁甲一致性与桌面交付修复<br />
-      - 公证离线 <code>.pkg</code>、app zip、runtime 包与 manifest 统一对齐到 <code>2.1.0 / 2.1.0-runtime2</code>
+      - 公证离线 <code>.pkg</code>、app zip、runtime 包与 manifest 统一对齐到 <code>2.1.0 / 2.1.0-runtime3</code>
     </td>
   </tr>
 </table>

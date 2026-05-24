@@ -206,6 +206,7 @@ jest.mock('../../components/dunjia/DunJiaCalc', ()=>({
 
 jest.mock('../../components/taiyi/TaiYiCalc', ()=>({
 	calcTaiyi: jest.fn(()=>({ kind: 'taiyi-pan' })),
+	fetchTaiyiPan: jest.fn(async ()=>({ kind: 'taiyi-pan', source: 'kintaiyi' })),
 	buildTaiyiSnapshotText: jest.fn(()=> '自动生成的太乙快照'),
 }));
 

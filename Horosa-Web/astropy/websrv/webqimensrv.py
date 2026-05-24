@@ -20,6 +20,7 @@ import kinqimen  # noqa: E402
 
 
 MODE_LABELS = {
+    "year": "年家奇门",
     "hour": "时家奇门",
     "minute": "刻家奇门",
     "golden": "金函玉镜",
@@ -158,6 +159,8 @@ def _build_sections(selected, all_raw, mode, option):
 
 
 def _mode_result(qimen_obj, mode, option):
+    if mode == "year":
+        return {"年家": qimen_obj.ypan()}
     if mode == "minute":
         return qimen_obj.pan_minute(option)
     if mode == "golden":
@@ -212,7 +215,7 @@ class QiMenSrv:
                 "allRaw": all_raw,
                 "sections": _build_sections(selected, all_raw, mode, option),
                 "capabilities": {
-                    "modes": ["hour", "minute", "golden", "overall"],
+                    "modes": ["year", "hour", "minute", "golden", "overall"],
                     "methods": ["chaibu", "zhirun"],
                     "unsupportedByKinqimen": ["月家完整盘"],
                 },

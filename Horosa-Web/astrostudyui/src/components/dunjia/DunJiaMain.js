@@ -82,6 +82,16 @@ const DUNJIA_SCALE_MIN = 0.58;
 const DUNJIA_SCALE_MAX = 1.18;
 const QIMEN_PATTERN_INTERPRETATION_STORAGE_KEY = 'qimenShowPatternInterpretation';
 let lastDunJiaLiveState = null;
+function normalizeKenQimenOptions(options){
+	const next = {
+		...DEFAULT_OPTIONS,
+		...(options || {}),
+	};
+	if(next.paiPanType === 1){
+		next.paiPanType = 3;
+	}
+	return next;
+}
 const DUNJIA_LEGEND_ITEMS = [
 	{ key: 'jixing', label: '击刑', color: '#cf1322', bg: 'rgba(207, 19, 34, 0.10)' },
 	{ key: 'rumu', label: '入墓', color: '#8b5e3c', bg: 'rgba(139, 94, 60, 0.12)' },
@@ -387,8 +397,8 @@ class DunJiaMain extends Component {
 		super(props);
 		const restoredLiveState = getRestorableDunJiaLiveState(props.fields);
 		const initialOptions = restoredLiveState && restoredLiveState.options
-			? { ...DEFAULT_OPTIONS, ...restoredLiveState.options }
-			: { ...DEFAULT_OPTIONS };
+			? normalizeKenQimenOptions(restoredLiveState.options)
+			: normalizeKenQimenOptions();
 
 		this.state = {
 			loading: false,
@@ -635,6 +645,10 @@ class DunJiaMain extends Component {
 					changed = true;
 				}
 			});
+		}
+		if(nextOptions.paiPanType === 1){
+			nextOptions.paiPanType = 3;
+			changed = true;
 		}
 		const pan = payload.pan && typeof payload.pan === 'object' ? payload.pan : null;
 		if(pan){
@@ -1118,11 +1132,15 @@ class DunJiaMain extends Component {
 	}
 
 	onOptionChange(key, value){
+		if(key === 'paiPanType' && value === 1){
+			message.warning('月家奇门暂未由 Ken 后端支持，已从排盘选项移除');
+			return;
+		}
 		const nextVal = key === 'timeAlg' ? normalizeTimeAlg(value) : value;
-		const options = {
+		const options = normalizeKenQimenOptions({
 			...this.state.options,
 			[key]: nextVal,
-		};
+		});
 		const nextState = { options };
 		if(key === 'timeAlg'){
 			nextState.localFields = {
@@ -1916,7 +1934,6 @@ class DunJiaMain extends Component {
 						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ lineHeight: '26px' }}>
 								<div>命式：{pan ? pan.options.sexLabel : '—'}</div>
-								<div>计算源：{pan ? (pan.options.qimenEngineLabel || '星阙本地') : '—'}</div>
 								<div>起盘方式：{pan ? (pan.qimenModeLabel || pan.options.paiPanLabel || '—') : '—'}</div>
 								<div>符头：{pan ? pan.fuTou : '—'}</div>
 								<div>节气：{pan ? pan.jieqiText : '—'}</div>
