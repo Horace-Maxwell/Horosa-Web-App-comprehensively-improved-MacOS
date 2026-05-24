@@ -212,6 +212,7 @@ If you maintain this stack, start with the path that matches your goal:
 - understand the public-facing repository layout: [README.md](README.md)
 - read the full Chinese guide: [README_ZH.md](README_ZH.md)
 - inspect installer internals and publishing flow: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
+- plan a Windows port and release gate: [Windows porting checklist](docs/windows-porting-and-release-checklist.md)
 - read the current beta release page: [GitHub Release v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
 - enter the application source tree: `Horosa-Web/`
 - inspect shared runtime and diagnostics: `runtime/` and `diagnostics/`
