@@ -66,6 +66,30 @@ SEDEFAULT_FLAG = _defaultFlags()
 SEACTIVE_PATH = None
 SEACTIVE_MODE = None
 SEACTIVE_JPL_FILE = None
+_SET_EPHE_PATH = swisseph.set_ephe_path
+
+
+def _candidateEphePath():
+    env_path = os.environ.get('HOROSA_SWISSEPH_PATH', '').strip()
+    if env_path and os.path.isdir(env_path):
+        return env_path
+    if SEACTIVE_PATH and os.path.isdir(SEACTIVE_PATH):
+        return SEACTIVE_PATH
+    package_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'resources', 'swefiles'))
+    if os.path.isdir(package_path):
+        return package_path
+    return SEACTIVE_PATH
+
+
+def _guardedSetEphePath(path):
+    # Several bundled kinastro modules reset pyswisseph to its process default
+    # with set_ephe_path(""). Keep the packaged swefiles path active instead.
+    if path is None or str(path).strip() == '':
+        path = _candidateEphePath() or ''
+    return _SET_EPHE_PATH(path)
+
+
+swisseph.set_ephe_path = _guardedSetEphePath
 
 SE_SIDM_FAGAN_BRADLEY = getattr(swisseph, 'SIDM_FAGAN_BRADLEY', 0)
 SE_SIDM_LAHIRI = getattr(swisseph, 'SIDM_LAHIRI', 1)

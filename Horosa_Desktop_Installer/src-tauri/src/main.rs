@@ -1709,6 +1709,7 @@ fn open_main_window(app: &AppHandle) -> Result<()> {
             .center()
             .inner_size(1480.0, 960.0)
             .min_inner_size(1180.0, 760.0)
+            .visible(false)
             .build()
             .context("recreate main window")?;
     apply_main_window_launch_state(&window, &load_window_states(app).main);
@@ -4899,6 +4900,7 @@ fn main() {
             if handoff_to_newer_installed_app(&app_handle)? {
                 return Ok(());
             }
+            show_or_focus_window(&window);
             thread::spawn(move || {
                 match runtime_bootstrap(app_handle.clone(), window.clone(), false) {
                     Ok(session) => {
