@@ -175,6 +175,7 @@ done
   echo "endpoint not ready: http://127.0.0.1:${CHART_PORT}/" >&2
   exit 1
 }
+python3 "${INSTALLER_ROOT}/scripts/verify_kentang_runtime_endpoints.py" --root "http://127.0.0.1:${CHART_PORT}"
 
 backend_ok=''
 for _ in $(seq 1 120); do

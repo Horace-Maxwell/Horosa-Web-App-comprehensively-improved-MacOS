@@ -282,6 +282,7 @@ read -r CHART_PORT BACKEND_PORT <<<"$(pick_ports)"
 )
 wait_signed_backend_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
 wait_http "http://127.0.0.1:${CHART_PORT}/" 60
+python3 "${INSTALLER_ROOT}/scripts/verify_kentang_runtime_endpoints.py" --root "http://127.0.0.1:${CHART_PORT}"
 HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${INSTALLER_ROOT}/../Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js" >/dev/null
 if rg -n "MongoTimeoutException|127\\.0\\.0\\.1:27017|Connection refused" "${TMP_ROOT}/logs" "${TMP_ROOT}/diag" >/dev/null 2>&1; then
   echo "runtime smoke produced unexpected Mongo connection errors" >&2

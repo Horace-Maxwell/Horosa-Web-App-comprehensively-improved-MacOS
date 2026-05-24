@@ -49,6 +49,15 @@ describe('kentang service root isolation', ()=>{
 		expect(serviceRoot.buildKentangEndpoint('cetian', 'pan')).toBe('http://127.0.0.1:8898/cetian/pan');
 	});
 
+	test('uses packaged desktop chart service for all kentang routes', ()=>{
+		const serviceRoot = loadServiceRoot(
+			'http://127.0.0.1:38991/index.html?srv=http%3A%2F%2F127.0.0.1%3A63968&chartSrv=http%3A%2F%2F127.0.0.1%3A63967'
+		);
+		expect(serviceRoot.buildKentangEndpoint('taiyi', 'pan')).toBe('http://127.0.0.1:63967/taiyi/pan');
+		expect(serviceRoot.buildKentangEndpoint('jinkou', 'pan')).toBe('http://127.0.0.1:63967/jinkou/pan');
+		expect(serviceRoot.buildKentangEndpoint('qizhengkin', 'pan')).toBe('http://127.0.0.1:63967/qizhengkin/pan');
+	});
+
 	test('derives the local kentang port from the primary local server root', ()=>{
 		const serviceRoot = loadServiceRoot(
 			'http://127.0.0.1:3001/?srv=http%3A%2F%2F127.0.0.1%3A9999'
