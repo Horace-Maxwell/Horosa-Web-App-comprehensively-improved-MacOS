@@ -404,6 +404,20 @@ Windows 版规则：
 - 发布脚本如果发现 runtime hash 变了但 runtimeVersion 没变，必须失败。
 - 发布总结必须写明 app tag 和 runtime tag。
 
+## macOS 2.1.0 最终发布复盘要带到 Windows
+
+这次 macOS 2.1.0 最终发布已经证明：本地构建通过不等于发布包可靠，GitHub 上的最终资产也必须被下载回来重验。Windows 复刻时要把这些规则直接写进 release gate。
+
+- App release 名称可以写 `v2.1.0 Beta`，但产品要求“不要放到 prerelease”时，GitHub release 的 `prerelease` 必须是 `false`。不要把名称里的 Beta 和 GitHub prerelease 状态混为一谈。
+- App release 和 runtime release 是两条线。macOS 最终是 app tag `v2.1.0`，runtime tag `v2.1.0-runtime3`；Windows 也要在发布总结里分别写清楚 app tag、runtime tag、manifest version、runtimeVersion。
+- 只要 frontend/backend/runtime payload 变了，旧 runtime asset 就视为过期。macOS 后期因为奇门/太乙/三式合一路由、启动页和 runtime 文件变化，必须从 `runtime2` bump 到 `runtime3`；Windows 不允许继续复用旧 runtime 版本号。
+- 如果最后阶段只修 native shell，例如窗口大小恢复、图标、安装器 UI，可以复用远端 runtime；但必须在 manifest 和安装器里证明 runtime hash 没变。
+- 奇门遁甲单页和三式合一中的奇门必须走 kentang2017 / Ken 后端；太乙也走 Ken 后端；六壬不走 Ken 后端。这个边界要有单元测试和安装包 smoke，不要靠人工记忆。
+- 如果 Ken 后端没有某个排盘选项，例如当前没有可用的月家奇门完整盘，Windows UI 也必须从奇门单页和三式合一里移除该选项；旧保存数据遇到 `paiPanType: 1` 时归一到受支持选项，不能静默回退旧算法。
+- 任何“计算源：xxx”这类对用户无意义的实现细节不要出现在正式 UI 或 AI 导出内容里，除非它是用户决策所必需的信息。
+- 发布后回下载 e2e 必须至少证明：manifest SHA 与下载文件一致、installer/app/runtime 可展开、icon alpha 仍是真透明、runtime 能启动、17 个 kentang/kin 端点通过、普通 `/chart` 多时间点通过、Java `/common/time` 通过、管理命盘/事盘和 AI 导出测试通过。
+- 任何 late steer 改动了后端路由、runtime payload、数据结构、AI 导出结构或管理数据字段，都要把已构建/已签名/已上传的旧资产视为 stale，重新构建、重新验、重新上传覆盖 release。
+
 ## Windows 不能照搬的 macOS 细节
 
 这些要全部替换：
@@ -468,18 +482,19 @@ $env:PYTHONPATH = "$RuntimeRoot\Horosa-Web\flatlib-ctrad2;$RuntimeRoot\Horosa-We
 4. 启动安装后的 runtime，不是开发 checkout。
 5. 先跑 kentang/kin 17 个端点。
 6. 再跑普通 `/chart` 多日期、多时间、多时区回归。
-7. 再跑 signed backend `/common/time`。
-8. 再跑完整 backend runtime smoke：
+7. 单独验证奇门/太乙/六壬边界：奇门和太乙走 Ken 后端，六壬继续走本地实现；奇门单页和三式合一都不能出现无后端支撑的月家奇门选项。
+8. 再跑 signed backend `/common/time`。
+9. 再跑完整 backend runtime smoke：
 
 ```bash
 HOROSA_SERVER_ROOT=http://127.0.0.1:<backendPort> node Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js
 ```
 
-9. 跑 AIAnalysis app 侧自检。
-10. 跑管理命盘/管理事盘真实关闭重开测试。
-11. 检查 icon alpha 和主体边距。
-12. 检查安装包签名、timestamp、SHA256、manifest Windows platform 字段。
-13. 在干净 VM 上模拟全新安装：无开发 checkout、无系统 Python/Java 依赖、空白 `%ProgramData%\Horosa` 和 `%APPDATA%\Horosa`。
+10. 跑 AIAnalysis app 侧自检。
+11. 跑管理命盘/管理事盘真实关闭重开测试。
+12. 检查 icon alpha 和主体边距。
+13. 检查安装包签名、timestamp、SHA256、manifest Windows platform 字段。
+14. 在干净 VM 上模拟全新安装：无开发 checkout、无系统 Python/Java 依赖、空白 `%ProgramData%\Horosa` 和 `%APPDATA%\Horosa`。
 
 ## Windows 发布后回下载自检
 
@@ -503,6 +518,8 @@ HOROSA_SERVER_ROOT=http://127.0.0.1:<backendPort> node Horosa-Web/astrostudyui/s
 - 关闭再打开，确认窗口大小与用户设置恢复且不跳尺寸；还要测最大化后缩小再重开的路径。
 - 新增命盘/事盘、导出 JSON、删除、导入、再打开，确认不丢。
 - 确认 release 是 draft/prerelease 状态符合产品要求。
+- 如果 release 名称包含 Beta，但产品要求正式可见，GitHub API 里 `prerelease` 仍必须是 `false`。
+- 如果重新上传覆盖同一个 app tag，必须再次下载最新 assets，不要复用本地旧下载缓存。
 
 发布总结里必须写明这些检查是否通过。只要有一项没跑，不能写“全面完成”。
 
@@ -530,6 +547,7 @@ HOROSA_SERVER_ROOT=http://127.0.0.1:<backendPort> node Horosa-Web/astrostudyui/s
 
 - 前端 tab/入口有吗？
 - 本机服务 endpoint 有吗？
+- 用户可选项都有 endpoint 或本地实现支撑吗？没有支撑的选项是否已从所有相关页面移除？
 - Windows runtime payload 会把相关 Python/vendor/data 文件带进去吗？
 - `PYTHONPATH` 能找到它吗？
 - 如果使用 `pyswisseph`，是否会污染全局 ephemeris path？
@@ -539,6 +557,7 @@ HOROSA_SERVER_ROOT=http://127.0.0.1:<backendPort> node Horosa-Web/astrostudyui/s
 - AI 导出有结构化 snapshot key 吗？
 - AI 导出设置有合适的分段吗？
 - 旧 AI 导出设置迁移后会包含新增分段吗？
+- 单页、三式合一、管理入口、AI 导出、保存数据里的技法口径是否完全一致？
 - 安装包后 smoke 覆盖它了吗？
 - 发布后回下载 e2e 覆盖它了吗？
 - 第三方代码 license 和致谢写了吗？
