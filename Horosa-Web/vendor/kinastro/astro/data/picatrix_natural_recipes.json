@@ -1,0 +1,206 @@
+{
+  "source": "Picatrix (Greer & Warnock 英譯本, Book II 後半自然魔法章節 + Book I Ch.5 散見配方)",
+  "description": "Picatrix 完整自然魔法配方（Natural Magic Recipes）資料庫。這些配方不需複雜天體時機，主要使用草藥、動物部位、礦物、樹脂等自然物質，直接產生奇效。可與 Talisman Generator 結合使用。",
+  "recipes": [
+    {
+      "id": 1,
+      "title_en": "Drive Away Scorpions",
+      "title_zh": "驅趕蠍子",
+      "purpose": "使蠍子遠離城市，甚至四十英里範圍",
+      "ingredients": ["純金", "蠍子形象（尾部先鑄，最後倒置毒刺自刺）", "帶孔金屬礦石"],
+      "procedure": "製作純金蠍子（先尾、再足、再鉗、再頭），倒置毒刺讓蠍子自刺自己，埋入礦石，再埋於城市重要區域",
+      "timing": "太陽時分、月亮在上升/角宮、金牛/水瓶/獅子座（最佳獅子座）、土星逆行",
+      "notes": "製作順序極重要",
+      "source": "Book I, Ch.5"
+    },
+    {
+      "id": 2,
+      "title_en": "Cure Scorpion Sting",
+      "title_zh": "治療蠍螫",
+      "purpose": "立即消除疼痛並痊癒",
+      "ingredients": ["碧玉", "蠍子形象", "金環", "軟香料"],
+      "procedure": "碧玉雕蠍子，嵌入金環，以香料印上，浸水飲用",
+      "timing": "月相時分、月亮在天蠍座第二面、獅子/金牛/水瓶座",
+      "notes": "另有銅板書寫名號版本（zaare zaare...）",
+      "source": "Book I, Ch.5"
+    },
+    {
+      "id": 3,
+      "title_en": "Catch Many Fish",
+      "title_zh": "捕獲大量魚類",
+      "purpose": "使魚群聚集於指定水域",
+      "ingredients": ["小米（任其腐爛）", "脂肪", "磨粉蠶豆", "公牛血", "蘆葦", "麻線"],
+      "procedure": "腐爛小米與其他物混合成團，裹入蘆葦縫紮，投入水中",
+      "timing": "任意（自然魔法）",
+      "notes": "另有阿爾哈內米版本：雙魚座第二面、月亮與水星升起，直接投入河中",
+      "source": "Book II"
+    },
+    {
+      "id": 4,
+      "title_en": "Catch Sleeping Birds",
+      "title_zh": "捕捉樹上熟睡之鳥",
+      "purpose": "使樹上鳥類墜地如死，可隨意捕捉",
+      "ingredients": ["陸龜脂", "薔薇籽", "甜沒藥", "安息香", "驢尿"],
+      "procedure": "等量混合研磨成藥丸，置陰涼處晾乾，置於燃燒木炭上燻蒸樹下（絲巾掩鼻）",
+      "timing": "無風晴朗之日",
+      "notes": "欲救活鳥類，用熱水洗足即可",
+      "source": "Book II"
+    },
+    {
+      "id": 5,
+      "title_en": "Make Person Hard to Get Drunk",
+      "title_zh": "使人不易醉酒",
+      "purpose": "飲酒永不致醉",
+      "ingredients": ["黃銅容器", "蒸餾葡萄酒", "捲心菜汁", "柏樹汁"],
+      "procedure": "容器浸入混合液直至完全吸收，再以苦杏仁油塗抹容器後飲酒",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 6,
+      "title_en": "Keep Flies Away from Table",
+      "title_zh": "蒼蠅不會靠近餐桌",
+      "purpose": "驅趕蒼蠅",
+      "ingredients": ["新鮮乳香", "黃色金粉", "乾燥科凡土", "墨魚汁", "蒼蠅形圖像"],
+      "procedure": "研磨成粉混墨魚汁，塗抹餐桌與雙手，並置蒼蠅形圖像於桌上",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 7,
+      "title_en": "Drive Away Wasps & Reptiles",
+      "title_zh": "驅趕黃蜂與爬蟲",
+      "purpose": "使毒獸遠離",
+      "ingredients": ["豹皮（鞣製成毯子）"],
+      "procedure": "製成毯子鋪於指定區域",
+      "timing": "任意",
+      "notes": "另有 aristolochia + 大型綠蜥蜴 + 獅膽藥丸版本",
+      "source": "Book II"
+    },
+    {
+      "id": 8,
+      "title_en": "Prevent Pregnancy",
+      "title_zh": "令女子不懷孕",
+      "purpose": "與女子同房時防止懷孕",
+      "ingredients": ["黃銅猿猴形象", "毒芹"],
+      "procedure": "貫穿脊骨填入毒芹，繫於大腿",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 9,
+      "title_en": "Dogs Will Not Bark",
+      "title_zh": "令犬不吠",
+      "purpose": "狗不會對你吠叫，反而逃離",
+      "ingredients": ["曼德拉草根", "母狗乳汁"],
+      "procedure": "研磨混合製成狗形雕像",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 10,
+      "title_en": "Turn Iron into Water",
+      "title_zh": "令鐵轉化為水",
+      "purpose": "鐵塊變成液態可流動",
+      "ingredients": ["camesir 草藥", "墨魚", "青石榴殼", "葡萄酒醋"],
+      "procedure": "研磨混合，以醋蒸餾，反覆淬鍊鐵塊，靜置後除醋",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 11,
+      "title_en": "Cloth Bursts into Flames",
+      "title_zh": "令布匹無火自燃",
+      "purpose": "布料如被火燒般自燃",
+      "ingredients": ["金黃礦石", "濃烈葡萄酒醋", "糞肥", "鹵水"],
+      "procedure": "礦石磨粉混醋蒸餾，埋糞肥14日，再浸鹵水14日，以液塗抹布料",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 12,
+      "title_en": "Red Burning Water",
+      "title_zh": "燃燒時呈全紅色之水",
+      "purpose": "水燃燒時整棟房屋呈現紅色（龍血之色）",
+      "ingredients": ["塞浦路斯石灰", "蒸餾葡萄酒醋"],
+      "procedure": "石灰烘烤至全紅，磨粉倒入5倍醋，置3日後煮沸，放入燈芯點燃",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 13,
+      "title_en": "Create Poisonous Green Spider",
+      "title_zh": "製作能咬人致死的綠色狼蛛",
+      "purpose": "製作毒狼蛛（咬人必死）",
+      "ingredients": ["野羅勒草藥"],
+      "procedure": "禁食一日，夜間嚼野羅勒置玻璃罐密封，暗室靜置40日",
+      "timing": "任意",
+      "notes": "可溶於橄欖油治療狼蛛咬傷",
+      "source": "Book II"
+    },
+    {
+      "id": 14,
+      "title_en": "Create Red Serpent",
+      "title_zh": "製作紅蛇",
+      "purpose": "製作紅蛇（可化為龍形）",
+      "ingredients": ["大型蜘蛛網", "驢奶", "龜脂", "紅亞麻布"],
+      "procedure": "蜘蛛網浸驢奶3日消失，加龜脂混成腦髓狀，包紅亞麻布埋糞肥7日",
+      "timing": "任意",
+      "notes": "置於青蛙處會化為龍形",
+      "source": "Book II"
+    },
+    {
+      "id": 15,
+      "title_en": "Drive Away Insects",
+      "title_zh": "驅趕昆蟲",
+      "purpose": "昆蟲無法進入房屋",
+      "ingredients": ["處女母馬鬃毛"],
+      "procedure": "鬃毛打結成昆蟲形（越多越好，如葡萄串），置黃銅容器密封埋屋中央",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 16,
+      "title_en": "Drive Away Wolves & Harmful Animals",
+      "title_zh": "驅趕狼群及其他有害動物",
+      "purpose": "野獸聞聲逃竄，爬行動物死亡",
+      "ingredients": ["海刺蝟脊骨", "其皮（鞣製塗油）"],
+      "procedure": "蒙於鼓或黃銅鍋上，夜間敲擊",
+      "timing": "夜間",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 17,
+      "title_en": "Silence Frogs in Lake",
+      "title_zh": "驅逐湖中青蛙",
+      "purpose": "青蛙完全停止鳴叫",
+      "ingredients": ["阿提姆扎克脂肪", "蜂蠟", "燈芯"],
+      "procedure": "混合製成蠟燭，點燃於任一地點",
+      "timing": "任意",
+      "notes": "",
+      "source": "Book II"
+    },
+    {
+      "id": 18,
+      "title_en": "Catch Wolf Spiders",
+      "title_zh": "捕捉狼蛛",
+      "purpose": "使狼蛛聚集於圖像前",
+      "ingredients": ["沒藥", "白豆蔻", "紅礬", "砒霜", "莎草汁", "狼蛛形像"],
+      "procedure": "混合製成狼蛛形像與藥丸，置形像於前，焚燒藥丸作為熏香",
+      "timing": "任意",
+      "notes": "熏香效力遠勝形像",
+      "source": "Book II"
+    }
+  ],
+  "usage_notes": "這些自然魔法配方大多不需嚴格天體時機，但部分可與28月宮或行星時辰結合效果更強。許多配方使用劇毒物質（砒霜、硫磺等），請勿實際製作，僅供歷史研究用途。",
+  "license_suggestion": "MIT（僅供歷史、學術、研究用途）"
+}

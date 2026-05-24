@@ -11,8 +11,9 @@ import GuoLaoChart from './GuoLaoChart';
 import GuoLaoMoiraPanel from './GuoLaoMoiraPanel';
 import GuoLaoMoiraWheel from './GuoLaoMoiraWheel';
 import GuoLaoMoiraPickWheel from './GuoLaoMoiraPickWheel';
-import { GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoChartStyle, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, getStoredGuolaoSu28Mode, getStoredMoiraTransitGodsVisible, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, setStoredGuolaoChartStyle, setStoredGuolaoLifeMode, setStoredGuolaoNodeMode, setStoredGuolaoSu28Mode, setStoredMoiraTransitGodsVisible, } from './GuoLaoChartStyle';
-import { fetchMoiraQizhengRules, } from '../../services/qizheng';
+import GuoLaoQizhengWheel from './GuoLaoQizhengWheel';
+import { GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_CHART_STYLE_QIZHENG, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoChartStyle, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, getStoredGuolaoSu28Mode, getStoredMoiraTransitGodsVisible, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, setStoredGuolaoChartStyle, setStoredGuolaoLifeMode, setStoredGuolaoNodeMode, setStoredGuolaoSu28Mode, setStoredMoiraTransitGodsVisible, } from './GuoLaoChartStyle';
+import { fetchKinastroQizheng, fetchMoiraQizhengRules, } from '../../services/qizheng';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import * as AstroText from '../../constants/AstroText';
 import * as SZConst from '../suzhan/SZConst';
@@ -72,6 +73,90 @@ const MOIRA_QUICK_ACTIONS = [
 	{key: 'aspects', label: '相位', icon: 'sideSwitch'},
 	{key: 'gods', label: '神煞', icon: 'quickNote'},
 ];
+
+const GUOLAO_ENGINE_STORAGE_KEY = 'horosa.guolao.engineMode';
+const GUOLAO_KIN_OPTIONS_STORAGE_KEY = 'horosa.guolao.kinastroQizheng.options';
+const QIZHENG_KIN_QUICK_ACTIONS = [
+	{key: 'overview', label: '概览', icon: 'quickPrimary'},
+	{key: 'planets', label: '星曜', icon: 'sidePlanets'},
+	{key: 'houses', label: '宫位', icon: 'sideHouses'},
+	{key: 'shensha', label: '神煞', icon: 'quickNote'},
+	{key: 'dasha', label: '年限', icon: 'quickTransit'},
+	{key: 'transit', label: '流时', icon: 'quickTransit'},
+	{key: 'electional', label: '择日', icon: 'quickNote'},
+	{key: 'mansion', label: '宿度', icon: 'sidePlanets'},
+	{key: 'readings', label: '断语', icon: 'sideSwitch'},
+];
+
+function getStoredGuolaoEngineMode(){
+	try{
+		return localStorage.getItem(GUOLAO_ENGINE_STORAGE_KEY) === 'kinastro' ? 'kinastro' : 'horosa';
+	}catch(e){
+		return 'horosa';
+	}
+}
+
+function setStoredGuolaoEngineMode(value){
+	const next = value === 'kinastro' ? 'kinastro' : 'horosa';
+	try{
+		localStorage.setItem(GUOLAO_ENGINE_STORAGE_KEY, next);
+	}catch(e){}
+	return next;
+}
+
+function formatNativeDate(date){
+	const target = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+	const y = target.getFullYear();
+	const m = `${target.getMonth() + 1}`.padStart(2, '0');
+	const d = `${target.getDate()}`.padStart(2, '0');
+	return `${y}-${m}-${d}`;
+}
+
+function formatNativeTime(date){
+	const target = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+	const h = `${target.getHours()}`.padStart(2, '0');
+	const m = `${target.getMinutes()}`.padStart(2, '0');
+	return `${h}:${m}`;
+}
+
+function getStoredKinastroQizhengOptions(){
+	const now = new Date();
+	const defaults = {
+		currentYear: new Date().getFullYear(),
+		transitMode: 'none',
+		transitDate: formatNativeDate(now),
+		transitTime: formatNativeTime(now),
+		showZhangguo: true,
+		showShensha: true,
+		showMingGong: true,
+		electionalStartDate: '',
+		electionalCriteria: 'general',
+		electionalDays: 30,
+	};
+	try{
+		const raw = JSON.parse(localStorage.getItem(GUOLAO_KIN_OPTIONS_STORAGE_KEY) || '{}');
+		return {
+			...defaults,
+			...(raw || {}),
+			currentYear: Number(raw && raw.currentYear) || defaults.currentYear,
+		};
+	}catch(e){
+		return defaults;
+	}
+}
+
+function setStoredKinastroQizhengOptions(value){
+	const next = {
+		...getStoredKinastroQizhengOptions(),
+		...(value || {}),
+	};
+	next.currentYear = Math.max(1, Math.min(9999, Number(next.currentYear) || new Date().getFullYear()));
+	next.electionalDays = Math.max(1, Math.min(60, Number(next.electionalDays) || 30));
+	try{
+		localStorage.setItem(GUOLAO_KIN_OPTIONS_STORAGE_KEY, JSON.stringify(next));
+	}catch(e){}
+	return next;
+}
 
 const MOIRA_PLANET_ORDER = [
 	{id: AstroConst.SUN, name: '日'},
@@ -230,6 +315,133 @@ function safeList(val){
 
 function safeMap(val){
 	return val && typeof val === 'object' ? val : {};
+}
+
+function fmtValue(value){
+	if(value === undefined || value === null || value === ''){
+		return '—';
+	}
+	if(Array.isArray(value)){
+		const text = value.map((item)=>fmtValue(item)).filter((item)=>item && item !== '—').join('、');
+		return text || '—';
+	}
+	if(typeof value === 'object'){
+		const text = Object.keys(value).map((key)=>{
+			const val = fmtValue(value[key]);
+			return val && val !== '—' ? `${key}：${val}` : '';
+		}).filter(Boolean).join('；');
+		return text || '—';
+	}
+	return `${value}`.replace(/None/g, '无');
+}
+
+function isQizhengLimitObject(value){
+	return (value && typeof value === 'object' && !Array.isArray(value)
+		&& (
+			value.start_age !== undefined
+			|| value.end_age !== undefined
+			|| value.start_year !== undefined
+			|| value.end_year !== undefined
+			|| value.palace_name !== undefined
+		))
+		|| (typeof value === 'string' && /(?:palace_name|start_age|end_age|start_year|end_year)\s*[:：]/.test(value));
+}
+
+function parseQizhengLimitValue(value){
+	if(value && typeof value === 'object' && !Array.isArray(value)){
+		return safeMap(value);
+	}
+	if(typeof value !== 'string'){
+		return {};
+	}
+	return value.split(/[;；]/).reduce((map, part)=>{
+		const pair = `${part || ''}`.split(/[:：]/);
+		if(pair.length < 2){
+			return map;
+		}
+		const key = pair.shift().trim();
+		const val = pair.join(':').trim();
+		if(key){
+			map[key] = val;
+		}
+		return map;
+	}, {});
+}
+
+function fmtQizhengLimitObject(value){
+	const item = parseQizhengLimitValue(value);
+	const ageText = item.start_age !== undefined || item.end_age !== undefined
+		? `${fmtValue(item.start_age)}-${fmtValue(item.end_age)}岁`
+		: '';
+	const yearText = item.start_year !== undefined || item.end_year !== undefined
+		? `${fmtValue(item.start_year)}-${fmtValue(item.end_year)}年`
+		: '';
+	const parts = [
+		item.palace_name,
+		item.lord,
+		item.branch_name || item.branch,
+		ageText,
+		yearText,
+	].map((val)=>fmtValue(val)).filter((val)=>val && val !== '—');
+	return parts.join(' | ') || '—';
+}
+
+function fmtQizhengKinRowValue(row){
+	const value = row ? row.value : null;
+	if(isQizhengLimitObject(value)){
+		return fmtQizhengLimitObject(value);
+	}
+	return fmtValue(value);
+}
+
+function splitQizhengKinDisplayLines(value){
+	const text = fmtValue(value);
+	if(!/[;；]/.test(text)){
+		return [text];
+	}
+	const lines = [];
+	let current = '';
+	text.split(/([;；])/).forEach((part)=>{
+		if(!part){
+			return;
+		}
+		current += part;
+		if(part === ';' || part === '；'){
+			const line = current.trim();
+			if(line){
+				lines.push(line);
+			}
+			current = '';
+		}
+	});
+	const last = current.trim();
+	if(last){
+		lines.push(last);
+	}
+	return lines.length ? lines : [text];
+}
+
+function qizhengKinReadingLevel(row){
+	const title = row && row.label ? `${row.label}` : '';
+	const value = fmtQizhengKinRowValue(row);
+	const text = `${title} ${value}`;
+	if(/忌格|忌|凶|破|败|失|刑|害|陷|空亡/.test(text)){
+		return 'bad';
+	}
+	if(/喜格|吉|合格|贵|福|禄|旺|德|拱/.test(text)){
+		return 'good';
+	}
+	return 'neutral';
+}
+
+function qizhengKinReadingBadge(level){
+	if(level === 'bad'){
+		return '忌';
+	}
+	if(level === 'good'){
+		return '吉';
+	}
+	return '断';
 }
 
 function hasUnverifiedMoiraPatternSource(value){
@@ -1531,6 +1743,8 @@ function paramsWithMoiraTransit(fields, transitTime){
 class GuoLaoChartMain extends Component{
 	constructor(props) {
 		super(props);
+		const storedChartStyle = getStoredGuolaoChartStyle();
+		const storedEngineMode = storedChartStyle === GUOLAO_CHART_STYLE_QIZHENG ? 'kinastro' : getStoredGuolaoEngineMode();
 		this.state = {
 			chartObj: null,
 			moiraTransitTime: makeDefaultMoiraTransitTime(props.fields),
@@ -1542,10 +1756,16 @@ class GuoLaoChartMain extends Component{
 			moiraPanelTransitChartObj: null,
 			moiraPanelTransitParams: null,
 			moiraLoading: false,
-			chartStyle: getStoredGuolaoChartStyle(),
+			chartStyle: storedEngineMode === 'kinastro' ? GUOLAO_CHART_STYLE_QIZHENG : storedChartStyle,
 			showMoiraTransitGods: getStoredMoiraTransitGodsVisible(),
 			moiraQuickDialog: null,
 			moiraStyleLevel: 3,
+			engineMode: storedEngineMode,
+			kinastroOptions: getStoredKinastroQizhengOptions(),
+			qizhengKinPan: null,
+			qizhengKinLoading: false,
+			qizhengKinError: '',
+			qizhengKinActiveTab: 'overview',
 		};
 
 		this.unmounted = false;
@@ -1553,6 +1773,7 @@ class GuoLaoChartMain extends Component{
 		this.moiraReqSeq = 0;
 		this.prefetchTimer = null;
 		this.moiraTransitReqSeq = 0;
+		this.qizhengKinReqSeq = 0;
 		this.guolaoDefaultsEnsured = false;
 
 		this.onFieldsChange = this.onFieldsChange.bind(this);
@@ -1573,6 +1794,10 @@ class GuoLaoChartMain extends Component{
 		this.openMoiraQuickDialog = this.openMoiraQuickDialog.bind(this);
 		this.closeMoiraQuickDialog = this.closeMoiraQuickDialog.bind(this);
 		this.onMoiraStyleLevelChange = this.onMoiraStyleLevelChange.bind(this);
+		this.onEngineModeChange = this.onEngineModeChange.bind(this);
+		this.onKinastroOptionChange = this.onKinastroOptionChange.bind(this);
+		this.requestKinastroQizheng = this.requestKinastroQizheng.bind(this);
+		this.onQizhengKinTabChange = this.onQizhengKinTabChange.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields, chartObj)=>{
@@ -1585,11 +1810,22 @@ class GuoLaoChartMain extends Component{
 	}
 
 	onChartStyleChange(val){
+		const chartStyle = setStoredGuolaoChartStyle(val);
+		const engineMode = setStoredGuolaoEngineMode(chartStyle === GUOLAO_CHART_STYLE_QIZHENG ? 'kinastro' : 'horosa');
 		this.setState({
-			chartStyle: setStoredGuolaoChartStyle(val),
+			chartStyle,
+			engineMode,
+			qizhengKinError: '',
 		}, ()=>{
-			if(val === GUOLAO_CHART_STYLE_MOIRA || val === GUOLAO_CHART_STYLE_PICK){
+			if(engineMode === 'kinastro'){
+				this.requestKinastroQizheng();
+			}else if(chartStyle === GUOLAO_CHART_STYLE_MOIRA || chartStyle === GUOLAO_CHART_STYLE_PICK){
 				this.requestMoiraTransitChart();
+				if(!this.state.chartObj && this.props.fields){
+					this.requestChartObj();
+				}
+			}else if(this.props.fields){
+				this.requestChartObj();
 			}
 		});
 	}
@@ -1634,6 +1870,99 @@ class GuoLaoChartMain extends Component{
 		this.setState({
 			moiraStyleLevel: level,
 		});
+	}
+
+	onEngineModeChange(value){
+		const engineMode = setStoredGuolaoEngineMode(value);
+		const storedChartStyle = getStoredGuolaoChartStyle();
+		const chartStyle = engineMode === 'kinastro'
+			? setStoredGuolaoChartStyle(GUOLAO_CHART_STYLE_QIZHENG)
+			: (storedChartStyle === GUOLAO_CHART_STYLE_QIZHENG ? setStoredGuolaoChartStyle(GUOLAO_CHART_STYLE_MOIRA) : storedChartStyle);
+		this.setState({
+			engineMode,
+			chartStyle,
+			qizhengKinError: '',
+		}, ()=>{
+			if(engineMode === 'kinastro'){
+				this.requestKinastroQizheng();
+			}else if(this.props.fields){
+				this.requestChartObj();
+			}
+		});
+	}
+
+	onKinastroOptionChange(key, value){
+		const next = setStoredKinastroQizhengOptions({
+			...this.state.kinastroOptions,
+			[key]: value,
+		});
+		this.setState({
+			kinastroOptions: next,
+		}, ()=>{
+			if(this.state.engineMode === 'kinastro'){
+				this.requestKinastroQizheng();
+			}
+		});
+	}
+
+	onQizhengKinTabChange(key){
+		this.setState({
+			qizhengKinActiveTab: key,
+		});
+	}
+
+	async requestKinastroQizheng(){
+		if(!this.props.fields || this.unmounted){
+			return null;
+		}
+		const params = this.genParams();
+		if(!params){
+			return null;
+		}
+		const options = this.state.kinastroOptions || {};
+		const seq = ++this.qizhengKinReqSeq;
+		this.setState({
+			qizhengKinLoading: true,
+			qizhengKinError: '',
+		});
+		try{
+		const pan = await fetchKinastroQizheng({
+				...params,
+				qizhengKinCurrentYear: options.currentYear,
+				qizhengKinTransitMode: options.transitMode || 'none',
+				qizhengKinTransitDate: options.transitDate || '',
+				qizhengKinTransitTime: options.transitTime || '',
+				qizhengKinElectionalStartDate: options.electionalStartDate || '',
+				qizhengKinElectionalCriteria: options.electionalCriteria || 'general',
+				qizhengKinElectionalDays: options.electionalDays || 30,
+			});
+			if(this.unmounted || seq !== this.qizhengKinReqSeq){
+				return pan;
+			}
+			this.setState({
+				qizhengKinPan: pan,
+				qizhengKinLoading: false,
+				qizhengKinError: '',
+			});
+			if(pan && pan.snapshot){
+				saveModuleAISnapshot('guolao-qizhengkin', pan.snapshot, {
+					date: params.date,
+					time: params.time,
+					zone: params.zone,
+					lon: params.lon,
+					lat: params.lat,
+				});
+			}
+			return pan;
+		}catch(e){
+			if(!this.unmounted && seq === this.qizhengKinReqSeq){
+				this.setState({
+					qizhengKinLoading: false,
+					qizhengKinError: e && e.message ? e.message : '七政四余服务暂不可用',
+				});
+			}
+			return null;
+		}
 	}
 
 	ensureGuolaoDefaults(){
@@ -1962,6 +2291,10 @@ class GuoLaoChartMain extends Component{
 
 	componentDidMount(){
 		this.unmounted = false;
+		if(this.state.engineMode === 'kinastro'){
+			this.requestKinastroQizheng();
+			return;
+		}
 		if(this.ensureGuolaoDefaults()){
 			return;
 		}
@@ -1970,7 +2303,13 @@ class GuoLaoChartMain extends Component{
 		}
 	}
 
-	componentDidUpdate(prevProps){
+	componentDidUpdate(prevProps, prevState){
+		if(this.state.engineMode === 'kinastro'){
+			if(prevProps.fields !== this.props.fields || (prevState && prevState.engineMode !== this.state.engineMode)){
+				this.requestKinastroQizheng();
+			}
+			return;
+		}
 		if(prevProps.fields !== this.props.fields && this.ensureGuolaoDefaults()){
 			return;
 		}
@@ -1995,6 +2334,7 @@ class GuoLaoChartMain extends Component{
 		this.unmounted = true;
 		this.moiraReqSeq++;
 		this.moiraTransitReqSeq++;
+		this.qizhengKinReqSeq++;
 		if(this.prefetchTimer){
 			clearTimeout(this.prefetchTimer);
 			this.prefetchTimer = null;
@@ -2490,6 +2830,206 @@ class GuoLaoChartMain extends Component{
 		);
 	}
 
+	renderQizhengKinRows(rows){
+		const list = safeList(rows);
+		if(!list.length){
+			return <div className="horosa-qizheng-kin-empty">暂无内容</div>;
+		}
+		return (
+			<div className="horosa-qizheng-kin-row-list">
+				{list.map((item, idx)=>{
+					const value = fmtQizhengKinRowValue(item);
+					const lines = splitQizhengKinDisplayLines(value);
+					return (
+						<div className="horosa-qizheng-kin-row" key={`${item.label || 'row'}-${idx}`}>
+							<span>{item.label}</span>
+							<strong className={lines.length > 1 ? 'is-multiline' : ''}>
+								{lines.map((line, lineIdx)=>(
+									<span className="horosa-qizheng-kin-row-line" key={`${item.label || 'row'}-${idx}-${lineIdx}`}>{line}</span>
+								))}
+							</strong>
+						</div>
+					);
+				})}
+			</div>
+		);
+	}
+
+	renderQizhengKinSection(section){
+		return (
+			<div className="horosa-qizheng-kin-info-card" key={section.title}>
+				<h4>{section.title}</h4>
+				{this.renderQizhengKinRows(section.rows)}
+			</div>
+		);
+	}
+
+	renderQizhengKinReadingCards(section){
+		const rows = safeList(section && section.rows);
+		return (
+			<div className="horosa-qizheng-kin-info-card horosa-qizheng-kin-reading-card">
+				<h4>{section && section.title ? section.title : '张果断语'}</h4>
+				{rows.length ? (
+					<div className="horosa-qizheng-kin-reading-list">
+						{rows.map((item, idx)=>{
+							const level = qizhengKinReadingLevel(item);
+							const value = fmtQizhengKinRowValue(item);
+							const lines = splitQizhengKinDisplayLines(value);
+							return (
+								<div className={`horosa-qizheng-kin-reading-item horosa-qizheng-kin-reading-${level}`} key={`${item.label || 'reading'}-${idx}`}>
+									<div className="horosa-qizheng-kin-reading-head">
+										<span>{qizhengKinReadingBadge(level)}</span>
+										<strong>{item.label || '断语'}</strong>
+									</div>
+									<div className="horosa-qizheng-kin-reading-detail">
+										{lines.map((line, lineIdx)=>(
+											<p key={`${item.label || 'reading'}-${idx}-${lineIdx}`}>{line}</p>
+										))}
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				) : <div className="horosa-qizheng-kin-empty">暂无断语</div>}
+			</div>
+		);
+	}
+
+	renderQizhengKinMingGongBlock(mingGong){
+		const data = safeMap(mingGong);
+		return (
+			<div className="horosa-qizheng-kin-info-stack">
+				<div className="horosa-qizheng-kin-info-card">
+					<h4>命宫</h4>
+					{this.renderQizhengKinRows([
+						{label: '地支', value: data.branch},
+						{label: '宫位', value: data.house},
+						{label: '入命星', value: data.planets},
+					])}
+				</div>
+				{safeList(data.items).map((item)=>(
+					<div className="horosa-qizheng-kin-info-card horosa-qizheng-kin-prose" key={item.title}>
+						<h4>{item.title}</h4>
+						<p>{item.text}</p>
+					</div>
+				))}
+			</div>
+		);
+	}
+
+	renderQizhengKinBoard(){
+		const pan = this.state.qizhengKinPan;
+		if(this.state.qizhengKinLoading && !pan){
+			return <div className="horosa-qizheng-kin-status">七政四余排盘中...</div>;
+		}
+		if(this.state.qizhengKinError && !pan){
+			return <div className="horosa-qizheng-kin-status horosa-qizheng-kin-error">{this.state.qizhengKinError}</div>;
+		}
+		if(!pan){
+			return <div className="horosa-qizheng-kin-status">请点击起盘，或调整左侧选项。</div>;
+		}
+		return <GuoLaoQizhengWheel pan={pan} />;
+	}
+
+	renderQizhengKinInfoPanel(){
+		const pan = this.state.qizhengKinPan;
+		const qz = pan && pan.qizheng ? pan.qizheng : {};
+		const sections = safeList(pan && pan.sections);
+		const sectionByTitle = new Map(sections.map((item)=>[item.title, item]));
+		const options = this.state.kinastroOptions || {};
+		const zhangguo = safeMap(qz.zhangguo);
+		const mingGong = safeMap(qz.mingGong);
+		const overviewContent = [
+			sectionByTitle.get('起盘'),
+			sectionByTitle.get('四柱'),
+		].filter(Boolean).map((item)=>this.renderQizhengKinSection(item));
+		if(options.showMingGong !== false){
+			overviewContent.push(this.renderQizhengKinMingGongBlock(mingGong));
+		}
+		const tabs = [
+			{key: 'overview', label: '概览', content: overviewContent},
+			{key: 'planets', label: '星曜', content: this.renderQizhengKinSection(sectionByTitle.get('星曜') || {title: '星曜', rows: []})},
+			{key: 'houses', label: '宫位', content: this.renderQizhengKinSection(sectionByTitle.get('十二宫') || {title: '十二宫', rows: []})},
+			options.showShensha === false ? null : {key: 'shensha', label: '神煞', content: this.renderQizhengKinSection(sectionByTitle.get('神煞') || {title: '神煞', rows: []})},
+			{key: 'dasha', label: '年限', content: this.renderQizhengKinSection(sectionByTitle.get('年限') || {title: '年限', rows: []})},
+			options.showZhangguo === false ? null : {key: 'readings', label: '断语', content: (
+				<div className="horosa-qizheng-kin-info-stack">
+					{this.renderQizhengKinReadingCards(sectionByTitle.get('张果断语') || {title: '张果断语', rows: []})}
+					<div className="horosa-qizheng-kin-info-card">
+						<h4>格局目录</h4>
+						<div className="horosa-qizheng-kin-chip-cloud">
+							{Object.keys(safeMap(zhangguo.patternsByCategory)).map((key)=>(
+								<span key={key}>{key} {safeList(zhangguo.patternsByCategory[key]).length}</span>
+							))}
+						</div>
+					</div>
+				</div>
+			)},
+			qz.transit ? {key: 'transit', label: '流时', content: this.renderQizhengKinSection(sectionByTitle.get('流时') || {title: '流时', rows: []})} : null,
+			qz.electional ? {key: 'electional', label: '择日', content: this.renderQizhengKinSection(sectionByTitle.get('择日') || {title: '择日', rows: []})} : null,
+			qz.mansions ? {key: 'mansion', label: '宿度', content: (
+				<div className="horosa-qizheng-kin-info-stack">
+					{sections.filter((item)=>/宿度$/.test(item.title)).map((item)=>this.renderQizhengKinSection(item))}
+				</div>
+			)} : null,
+		].filter(Boolean);
+		const active = tabs.some((item)=>item.key === this.state.qizhengKinActiveTab)
+			? this.state.qizhengKinActiveTab
+			: (tabs[0] ? tabs[0].key : 'overview');
+		return (
+			<Tabs
+				activeKey={active}
+				onChange={this.onQizhengKinTabChange}
+				tabPosition="top"
+				className="horosa-content-tabs horosa-guolao-tabs horosa-qizheng-kin-tabs"
+			>
+				{tabs.map((item)=>(
+					<TabPane tab={item.label} key={item.key}>
+						<div className="horosa-qizheng-kin-info-stack">
+							{item.content}
+						</div>
+					</TabPane>
+				))}
+			</Tabs>
+		);
+	}
+
+	renderQizhengKinQuickDock(){
+		const pan = this.state.qizhengKinPan;
+		const qz = pan && pan.qizheng ? pan.qizheng : {};
+		const options = this.state.kinastroOptions || {};
+		const actions = QIZHENG_KIN_QUICK_ACTIONS.filter((item)=>{
+			if(item.key === 'transit'){
+				return !!qz.transit;
+			}
+			if(item.key === 'shensha'){
+				return options.showShensha !== false;
+			}
+			if(item.key === 'readings'){
+				return options.showZhangguo !== false;
+			}
+			return true;
+		});
+		return (
+			<div className="horosa-bottom-quick-dock horosa-guolao-quick-dock horosa-qizheng-kin-quick-dock">
+				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
+				<div className="horosa-bottom-quick-actions horosa-guolao-quick-actions">
+					{actions.map((item)=>(
+						<button
+							type="button"
+							className={`horosa-bottom-quick-button horosa-guolao-quick-button${this.state.qizhengKinActiveTab === item.key ? ' is-active' : ''}`}
+							key={item.key}
+							onClick={()=>this.onQizhengKinTabChange(item.key)}
+						>
+							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
 	renderQuickDock(){
 		return (
 			<div className="horosa-bottom-quick-dock horosa-guolao-quick-dock">
@@ -2529,15 +3069,20 @@ class GuoLaoChartMain extends Component{
 		const moiraPanelChartObj = this.state.moiraPanelChartObj || chartObj;
 		const moiraPanelTransitChartObj = this.state.moiraPanelTransitChartObj || this.state.moiraTransitChartObj;
 		const moiraPanelTransitParams = this.state.moiraPanelTransitParams || paramsWithMoiraTransit(this.props.fields, this.state.moiraTransitTime);
+		const useKinastroQizheng = this.state.engineMode === 'kinastro';
 
 		return (
-			<div className="horosa-guolao-page horosa-astro-redesign horosa-guolao-redesign">
+			<div className={`horosa-guolao-page horosa-astro-redesign horosa-guolao-redesign${useKinastroQizheng ? ' horosa-qizheng-kin-page' : ''}`}>
 				<div className="horosa-astro-layout horosa-astro-redesign-layout horosa-guolao-redesign-layout">
 					<div className="horosa-astro-redesign-grid horosa-guolao-redesign-grid">
 						<div className="horosa-astro-context-panel horosa-astro-input-panel horosa-guolao-input-panel">
 							<GuoLaoInput
 								fields={this.props.fields}
 								onFieldsChange={this.onFieldsChange}
+								engineMode={this.state.engineMode}
+								onEngineModeChange={this.onEngineModeChange}
+								kinastroOptions={this.state.kinastroOptions}
+								onKinastroOptionChange={this.onKinastroOptionChange}
 								chartStyle={this.state.chartStyle}
 								onChartStyleChange={this.onChartStyleChange}
 								moiraTransitTime={this.state.moiraTransitTime}
@@ -2547,7 +3092,7 @@ class GuoLaoChartMain extends Component{
 							/>
 						</div>
 						<div className={`horosa-chart-stage horosa-chart-stage-redesign horosa-guolao-chart-panel xq-chart-renderer xq-chart-renderer-guolao${useMoiraLikeWheel ? ' horosa-guolao-chart-panel-moira' : ''}`}>
-							{usePickWheel ? (
+							{useKinastroQizheng ? this.renderQizhengKinBoard() : usePickWheel ? (
 								<GuoLaoMoiraPickWheel
 									rootValue={chartObj}
 									value={chart}
@@ -2588,7 +3133,7 @@ class GuoLaoChartMain extends Component{
 							)}
 						</div>
 						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-guolao-info-panel">
-							<Tabs
+							{useKinastroQizheng ? this.renderQizhengKinInfoPanel() : <Tabs
 								activeKey="moira"
 								tabPosition="top"
 								className="horosa-content-tabs horosa-guolao-tabs"
@@ -2604,12 +3149,12 @@ class GuoLaoChartMain extends Component{
 										chartMode={usePickWheel ? 'pick' : 'moira'}
 									/>
 								</TabPane>
-							</Tabs>
+							</Tabs>}
 						</div>
 					</div>
-					{this.renderQuickDock()}
+					{useKinastroQizheng ? this.renderQizhengKinQuickDock() : this.renderQuickDock()}
 				</div>
-				{this.renderMoiraQuickModal()}
+				{useKinastroQizheng ? null : this.renderMoiraQuickModal()}
 			</div>
 		);
 	}

@@ -28,6 +28,8 @@ RSYNC_FILTERS=(
   "--exclude=*/.pytest_cache"
   "--exclude=.cache"
   "--exclude=*/.cache"
+  "--exclude=.git"
+  "--exclude=*/.git"
   "--exclude=__pycache__"
   "--exclude=*/__pycache__"
   "--exclude=*.pyc"
@@ -86,6 +88,7 @@ mkdir -p "${STAGE_ROOT}/Horosa-Web/astrostudyui/scripts"
 mkdir -p "${STAGE_ROOT}/Horosa-Web/scripts"
 mkdir -p "${STAGE_ROOT}/Horosa-Web/astropy"
 mkdir -p "${STAGE_ROOT}/Horosa-Web/flatlib-ctrad2"
+mkdir -p "${STAGE_ROOT}/Horosa-Web/vendor"
 mkdir -p "${STAGE_ROOT}/runtime/mac"
 mkdir -p "${STAGE_ROOT}/runtime/mac/bundle"
 mkdir -p "${DIST_ROOT}"
@@ -95,6 +98,12 @@ rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh" "$
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astropy/__init__.py" "${STAGE_ROOT}/Horosa-Web/astropy/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astropy/astrostudy" "${STAGE_ROOT}/Horosa-Web/astropy/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astropy/websrv" "${STAGE_ROOT}/Horosa-Web/astropy/"
+if [ -d "${REPO_ROOT}/Horosa-Web/vendor" ]; then
+  rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/vendor/" "${STAGE_ROOT}/Horosa-Web/vendor/"
+fi
+if [ -f "${REPO_ROOT}/THIRD_PARTY_NOTICES.md" ]; then
+  rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/THIRD_PARTY_NOTICES.md" "${STAGE_ROOT}/"
+fi
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/flatlib-ctrad2/flatlib" "${STAGE_ROOT}/Horosa-Web/flatlib-ctrad2/"
 if [ -f "${REPO_ROOT}/Horosa-Web/flatlib-ctrad2/LICENSE" ]; then
   rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/flatlib-ctrad2/LICENSE" "${STAGE_ROOT}/Horosa-Web/flatlib-ctrad2/"
@@ -121,13 +130,52 @@ rm -rf \
   "${STAGE_ROOT}/runtime/mac/python/share" \
   "${STAGE_ROOT}/runtime/mac/python/Resources/English.lproj/Documentation" \
   "${STAGE_ROOT}/runtime/mac/python/lib/python3.12/config-3.12-darwin"
-find "${STAGE_ROOT}/runtime/mac/python/lib" -type d \( -name 'test' -o -name 'tests' -o -name '__pycache__' -o -name 'idlelib' -o -name 'turtledemo' \) -prune -exec rm -rf {} + 2>/dev/null || true
+find "${STAGE_ROOT}/runtime/mac/python/lib/python3.12" \
+  -path "${STAGE_ROOT}/runtime/mac/python/lib/python3.12/site-packages" -prune -o \
+  -type d \( -name 'test' -o -name 'tests' -o -name '__pycache__' -o -name 'idlelib' -o -name 'turtledemo' \) \
+  -prune -exec rm -rf {} + 2>/dev/null || true
+find "${STAGE_ROOT}/runtime/mac/python/lib/python3.12/site-packages" \
+  -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" -type d \( -name '.horosa-logs' -o -name '.pytest_cache' -o -name '.cache' -o -name '__pycache__' \) -prune -exec rm -rf {} + 2>/dev/null || true
+find "${STAGE_ROOT}" -type d -name '.git' -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" -type d -name '_CodeSignature' -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" \( -name '*.pyc' -o -name '*.pyo' -o -name '*.map' -o -name '*.tmp' -o -name '*.temp' -o -name '*.pid' \) -delete 2>/dev/null || true
 find "${STAGE_ROOT}/runtime/mac/python/lib" -type f \( -name '*.a' -o -name '*.o' \) -delete 2>/dev/null || true
 /usr/bin/python3 "${STAGE_ROOT}/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --repair "${STAGE_ROOT}/runtime/mac/python"
+PYTHONNOUSERSITE=1 PYTHONPATH="${STAGE_ROOT}/Horosa-Web/astropy" \
+  "${STAGE_ROOT}/runtime/mac/python/bin/python3" - <<'PY'
+import importlib
+
+modules = [
+    "websrv.webtaiyisrv",
+    "websrv.webjinkousrv",
+    "websrv.webqimensrv",
+    "websrv.webwangjisrv",
+    "websrv.webwuzhaosrv",
+    "websrv.webtaixuansrv",
+    "websrv.webjingjuesrv",
+    "websrv.webshenyishusrv",
+    "websrv.webshaozisrv",
+    "websrv.webtiebansrv",
+    "websrv.webfendjingsrv",
+    "websrv.webbeijisrv",
+    "websrv.webnanjisrv",
+    "websrv.webchunzisrv",
+    "websrv.webxianqinsrv",
+    "websrv.webcetiansrv",
+    "websrv.webqizhengkinsrv",
+]
+missing = []
+for module_name in modules:
+    try:
+        importlib.import_module(module_name)
+    except Exception as exc:
+        missing.append(f"{module_name}: {exc!r}")
+if missing:
+    raise SystemExit("kentang runtime import check failed:\n" + "\n".join(missing))
+print(f"kentang runtime import check OK: {len(modules)} adapters")
+PY
 if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}" ]; then
   /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" \
     "${STAGE_ROOT}/runtime/mac" \

@@ -1,0 +1,136 @@
+{
+  "title": "納迪占星術（Meena 版） - 行星在各星宿的效果",
+  "source": "第二部 第一章 行星的星象效應 + 全書 Guna 變化說明",
+  "description": "本檔案收錄 Meena 版納迪占星術中，每一顆行星落在不同星宿時所產生的 Sthoola（粗相）與 Sookshma（細相）效果。重點強調行星因星宿主星而產生的 Guna（三德）變化，以及實際預測時應注意的吉凶結果。",
+  "planet_nakshatra_effects": {
+    "sun": {
+      "name": "太陽（Ravi）",
+      "effects": [
+        {
+          "nakshatra_group": "自身星宿（Krithika、Uttara、Uttarashada）",
+          "description": "太陽若落在自身所主宰的星宿，雖然無法為命主帶來極大的好處，但結果也不會像落在土星或羅睺星宿時那樣糟糕。"
+        },
+        {
+          "nakshatra_group": "月亮星宿（Rohini、Hasta、Sravana）",
+          "description": "太陽落在月亮所主宰的星宿時，因為月亮星宿屬於友星，會帶來良好結果，例如獲得政府與國王的榮譽、子女誕生、事業成功，並使命主聲名遠播。"
+        },
+        {
+          "nakshatra_group": "羅睺星宿（Arudra、Swati、Satabisha）",
+          "description": "太陽落在羅睺所主宰的星宿時，對命主非常不利，容易導致疾病纏身、心神不寧，經常捲入爭執與訴訟，家人或朋友圈中也可能發生死亡事件。"
+        }
+      ]
+    },
+    "moon": {
+      "name": "月亮（Chandra）",
+      "effects": [
+        {
+          "nakshatra_group": "自身星宿（Rohini、Hasta、Sravana）",
+          "description": "月亮落在自身所主宰的星宿時，命主心智清明、個性溫和，容易獲得榮譽與豐盛飲食。"
+        },
+        {
+          "nakshatra_group": "古魯星宿（Punarvasu、Visakha、Purvabhadrapada）",
+          "description": "月亮落在古魯所主宰的星宿時，命主會因為精神修養而獲得名譽與尊榮，但也較難享有內心的平靜與滿足。"
+        }
+      ]
+    },
+    "mars": {
+      "name": "火星（Kuja）與 計都（Ketu）",
+      "effects": [
+        {
+          "nakshatra_group": "瑜伽兇星星宿",
+          "description": "火星若落在瑜伽兇星所主宰的星宿，並配合適當的 Guna 時，通常會帶來良好結果，命主將聲名遠播，在爭執與糾紛中獲勝，並獲得土地等形式的財產。"
+        },
+        {
+          "nakshatra_group": "自身星宿（Mrigasira、Chitha、Dhanishta）",
+          "description": "火星落在自身所主宰的星宿時，會引發疾病、貧困、親屬死亡、官府麻煩等不良影響；若火星同時不是吉星，這些負面效應會更加嚴重。"
+        },
+        {
+          "nakshatra_group": "古魯星宿（Punarvasu、Visakha、Purvabhadrapada）",
+          "description": "火星落在古魯所主宰的星宿時，命主起初會經歷一些困難，但後續將享受良好效應，包括子女帶來的幸福、獲得財產、因精神修養而得名譽與尊榮。"
+        }
+      ]
+    },
+    "mercury": {
+      "name": "水星（Budha）",
+      "effects": [
+        {
+          "nakshatra_group": "古魯星宿",
+          "description": "水星落在古魯所主宰的星宿時，效果與古魯在該星宿時相似，命主在商業上會興旺，藝術與文化天賦也會提升。"
+        }
+      ]
+    },
+    "jupiter": {
+      "name": "木星（Guru）",
+      "effects": [
+        {
+          "nakshatra_group": "自身星宿（Punarvasu、Visakha、Purvabhadrapada）",
+          "description": "木星落在自身所主宰的星宿時，命主將獲得良好教育、享有財富、受到上級尊重，並過著大致幸福的生活，但在北方與南方方向才能獲得成功。"
+        },
+        {
+          "nakshatra_group": "蘇克拉星宿",
+          "description": "木星落在蘇克拉所主宰的星宿時，命主可獲得一定程度的好運，例如婚姻美滿、因學歷資格而獲得家族榮譽，並擁有車輛。"
+        },
+        {
+          "nakshatra_group": "土星或羅睺星宿",
+          "description": "木星落在土星或羅睺所主宰的星宿時，會導致命主生病、貧困，並使其心懷恐懼，有時親近家人會去世，命主也會聽聞此類悲痛消息。"
+        }
+      ]
+    },
+    "venus": {
+      "name": "金星（Sukra）與 月亮",
+      "effects": [
+        {
+          "nakshatra_group": "土星與火星星宿",
+          "description": "金星若位置不佳，命主將遭遇不利結果；但若土星與火星恰好是瑜伽煞星，則命主可免於這些不良影響。"
+        },
+        {
+          "nakshatra_group": "羅睺星宿",
+          "description": "金星落在羅睺所主宰的星宿時，結果未必極佳，但命主仍有可能獲得意外之福。"
+        },
+        {
+          "nakshatra_group": "太陽星宿",
+          "description": "金星落在太陽所主宰的星宿時，尤其當金星與太陽皆為吉星，命主將享有拉吉約格的益處，能獲得財富與榮譽。"
+        }
+      ]
+    },
+    "saturn": {
+      "name": "土星（Sani）與 羅睺（Rahu）",
+      "effects": [
+        {
+          "nakshatra_group": "瑜伽卡喇克星宿且在本位宮",
+          "description": "土星若位於瑜伽卡喇克星宿且處於本位宮時，命主將享有幸福、內心滿足、事業成功，並可能透過黑魔法獲得利益。"
+        },
+        {
+          "nakshatra_group": "羅睺自身星宿",
+          "description": "土星落在羅睺所主宰的星宿時，初期效果不佳，命主健康受擾、人際關係易生嫌隙，有時甚至可能遭遇中毒之險，但最終能克服困難，結果轉為良好。"
+        },
+        {
+          "nakshatra_group": "計都星宿",
+          "description": "土星落在計都所主宰的星宿時，若計都對命主不凶，則命主將獲得極佳的結果。"
+        },
+        {
+          "nakshatra_group": "太陽或月亮星宿",
+          "description": "土星落在太陽或月亮所主宰的星宿時，結果對命主不利，容易遭受親屬損失，財富也會受政府困擾。"
+        }
+      ]
+    },
+    "rahu": {
+      "name": "羅睺（Rahu）",
+      "effects": [
+        {
+          "nakshatra_group": "自身星宿",
+          "description": "羅睺落在自身所主宰的星宿時，初期效果不佳，但最終命主能克服困難並獲得良好結果。"
+        }
+      ]
+    },
+    "ketu": {
+      "name": "計都（Ketu）",
+      "effects": [
+        {
+          "nakshatra_group": "自身星宿",
+          "description": "計都落在自身所主宰的星宿時，若未受凶星影響，命主將獲得良好結果，具體效果須視宮位而定。"
+        }
+      ]
+    }
+  }
+}

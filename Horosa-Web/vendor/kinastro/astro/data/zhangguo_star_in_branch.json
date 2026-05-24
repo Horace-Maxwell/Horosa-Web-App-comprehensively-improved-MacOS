@@ -1,0 +1,3869 @@
+{
+  "source": "張果星宗",
+  "title": "11曜宮位斷語（完整擴充版）",
+  "description": "從張果星宗二完整提取的所有11曜（日月木火土金水氣孛羅計）落12宮/地支的男命、女命特徵、合格/忌格、次格、補遺格局、歌訣等描述。已涵蓋諸星起例、十一曜定格、靈台星格、補遺格局、金箱歌、帘幕歌、通元賦、八格賦等全部相關內容。",
+  "version": "明清輯本",
+  "entries": [
+    {
+      "id": 1,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "夜生金月同在酉，乃合長庚入命，必主產不世之奇才（如李白）。",
+      "note": "靈台星格 - 長庚入命"
+    },
+    {
+      "id": 2,
+      "star": "金星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "金居垣，金星在辰或酉，主人剛方正直，權力高強。",
+      "note": "五星合格 - 金居垣"
+    },
+    {
+      "id": 3,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木居垣，木在寅或亥，主人文才清貴，壽考延年。",
+      "note": "五星合格 - 歲星居垣"
+    },
+    {
+      "id": 4,
+      "star": "木星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "木居垣，木在寅或亥，主人清貴有壽，文章秘府。",
+      "note": "五星合格 + 文章秘府"
+    },
+    {
+      "id": 5,
+      "star": "火星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "火居垣，火在卯或戌，主人權力高強，文章顯達。",
+      "note": "五星合格 - 荧惑居垣"
+    },
+    {
+      "id": 6,
+      "star": "火星",
+      "branch": "戌",
+      "gender": "both",
+      "type": "合格",
+      "description": "火居垣，火在卯或戌，主人火土高強，權力顯赫。",
+      "note": "五星合格"
+    },
+    {
+      "id": 7,
+      "star": "土星",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "土居垣，土在子或丑，主人堅實敦厚，富貴壽考。",
+      "note": "五星合格 - 鎮星居垣"
+    },
+    {
+      "id": 8,
+      "star": "土星",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "土居垣，土在子或丑，主人勾陳鎮殿，權力穩固。",
+      "note": "五星合格"
+    },
+    {
+      "id": 9,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水居垣，水在巳或申，主人智慧清秀，漂流有福。",
+      "note": "五星合格 - 辰星居垣"
+    },
+    {
+      "id": 10,
+      "star": "水星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "水居垣，水在巳或申，主人金水相涵，智慧過人。",
+      "note": "五星合格"
+    },
+    {
+      "id": 11,
+      "star": "金星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "金騎人馬（命立寅宮尾度金星相會），禄享千鍾，官封上將。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 12,
+      "star": "水星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "水火相刑（命立卯宮房度夏令），金玉爭光，富貴無邊。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 13,
+      "star": "金星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "金神持刃（命立辰宮亢金度），官封上將，鎮守邊庭。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 14,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "元武當台（巳宮立命水在轸），富貴綿綿，門庭興旺。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 15,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月明斗府（命立未宮井木度，十五至十八日夜生），文章冠世，官居翰苑。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 16,
+      "star": "氣",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "祥雲捧月（立命未宮，氣月同行），豐姿清麗，文雅過人。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 17,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "太乙抱蟾（未宮立命，孛抱陰精），早步青雲，登仕路。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 18,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星入斗（酉宮立命金飛入丑宮斗度），人才華俊秀，早步青雲。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 19,
+      "star": "木星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "忌格",
+      "description": "箕風斗口（命立亥，木星箕度），家破身亡或水火而終。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 20,
+      "star": "羅",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "首攜龍角（羅在辰命居辰），榮顯權高。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 21,
+      "star": "計",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "計居龍尾（計在寅命居寅），權高職重。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 22,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛于東井（孛居未上夜生），貴而有權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 23,
+      "star": "日",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "日出扶桑（日在卯命在卯），貴格。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 24,
+      "star": "月",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "斗牛秀氣（紫氣對照丑上安命），文人貴格。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 25,
+      "star": "金星",
+      "branch": "亥",
+      "gender": "female",
+      "type": "合格",
+      "description": "月華金阙（金在亥與太陰同宮），富貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 26,
+      "star": "土星",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "眾星拱北（十一曜環拱子位），至貴之命。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 27,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日居日位，太陽居垣，大貴之格。",
+      "note": "日月合格"
+    },
+    {
+      "id": 28,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月入月垣，太陰升殿，主福壽雙全。",
+      "note": "日月合格"
+    },
+    {
+      "id": 29,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "合格",
+      "description": "金助月華，夜生秋天為奇，主富貴妖娆。",
+      "note": "五星合格"
+    },
+    {
+      "id": 30,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "female",
+      "type": "合格",
+      "description": "水涵蟾魄，月寒水冷，朢後尤佳，主智慧清秀。",
+      "note": "五星合格"
+    },
+    {
+      "id": 31,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木火文明，冬春月生，文章顯達。",
+      "note": "五星合格"
+    },
+    {
+      "id": 32,
+      "star": "火星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "火土高強，夏生火炎土燥，主權力高強。",
+      "note": "五星合格"
+    },
+    {
+      "id": 33,
+      "star": "金星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "土金堅實，秋冬土埋金寒，主堅實富貴。",
+      "note": "五星合格"
+    },
+    {
+      "id": 34,
+      "star": "水星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "金水相涵，冬生金寒水冷，主智慧清秀。",
+      "note": "五星合格"
+    },
+    {
+      "id": 35,
+      "star": "羅",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅計中分，羅午計子，主大貴格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 36,
+      "star": "計",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅計中分，羅午計子，主大貴格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 37,
+      "star": "羅",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "出乾入巽，羅亥計巳，主出入乾坤大格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 38,
+      "star": "計",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "出乾入巽，羅亥計巳，主出入乾坤大格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 39,
+      "star": "氣",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "祥雲捧月，弦朢夜生，月宜氣捧，主福氣。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 40,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "太乙抱蟾，弦朢夜誕，月喜孛抱，主貴權。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 41,
+      "star": "日",
+      "branch": "未",
+      "gender": "both",
+      "type": "忌格",
+      "description": "日居月位，日在未宮，陰陽反背，主孤寡。",
+      "note": "日月忌格"
+    },
+    {
+      "id": 42,
+      "star": "月",
+      "branch": "午",
+      "gender": "both",
+      "type": "忌格",
+      "description": "月到日宮，月在午宮，陰陽反背，主破敗。",
+      "note": "日月忌格"
+    },
+    {
+      "id": 43,
+      "star": "木星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "忌格",
+      "description": "木入金鄉，木在辰酉二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 44,
+      "star": "火星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "忌格",
+      "description": "火居水地，火在巳申二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 45,
+      "star": "土星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "忌格",
+      "description": "土在木宮，土在寅亥二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 46,
+      "star": "金星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "忌格",
+      "description": "金乘火位，金在卯戌二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 47,
+      "star": "水星",
+      "branch": "子",
+      "gender": "both",
+      "type": "忌格",
+      "description": "水居土室，水在子丑二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 48,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜見金水，金水分明多傍貴，行止犹如娼妓輩。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 49,
+      "star": "水星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜見金水，金水分明多傍貴，行止犹如娼妓輩。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 50,
+      "star": "孛",
+      "branch": "未",
+      "gender": "female",
+      "type": "合格",
+      "description": "孛星若也坐咸池，巧妆云鬓画蛾眉，六街不作烟花女，定是豪門一小妻。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 51,
+      "star": "金星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "金居干位，亥上金星與木日同居，主貴命。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 52,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水注東南，水星在巳與木命同在寅，主滔滔無窮之福。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 53,
+      "star": "火星",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "水火既濟，水先入宮火後入宮，同居一位，主富貴雙全。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 54,
+      "star": "日",
+      "branch": "未",
+      "gender": "both",
+      "type": "忌格",
+      "description": "日中見斗，太陽與羅會合於未而太陰又在未，主奇禍。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 55,
+      "star": "日",
+      "branch": "申",
+      "gender": "both",
+      "type": "忌格",
+      "description": "明入地中，太陽至申酉而沒，受羅所蝕，主破祖無成。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 56,
+      "star": "日",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "明出地晉，命宮在申而太陽在寅，主貴格。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 57,
+      "star": "木星",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "木上水井，水先入宮木後入宮，主道心員融，有常德。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 58,
+      "star": "月",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "眾星環月，夜生坤方，五星環太陰，主非常之福。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 59,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "male",
+      "type": "合格",
+      "description": "長庚入命，夜生金月同在酉，主奇才冠天下。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 60,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "神羊觸邪，孛在未又在未上安命，純無凶星者為貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 61,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，春生人見木星在寅卯安命，乃青龍用事。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 62,
+      "star": "火星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，夏生人見火星在巳午安命，乃朱雀當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 63,
+      "star": "金星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，秋生人見金星在申酉安命，乃白虎當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 64,
+      "star": "水星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，冬生人見水星在亥子安命，乃元武當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 65,
+      "star": "土星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，四土星在辰戌丑未安命，乃勾陳得位。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 66,
+      "star": "月",
+      "branch": "寅",
+      "gender": "female",
+      "type": "合格",
+      "description": "月扶斗柄，太陰在月建之位，主榮華富貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 67,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金水桃花臨四敗，金孛咸池騎四馬，主為娼妓之流。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 68,
+      "star": "孛",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金水孛沐，婦人金水孛星迎，身命同臨性偏淫。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 69,
+      "star": "羅",
+      "branch": "辰",
+      "gender": "female",
+      "type": "合格",
+      "description": "婦人最喜見木羅，一生更有福德多。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 70,
+      "star": "計",
+      "branch": "辰",
+      "gender": "female",
+      "type": "合格",
+      "description": "婦人最喜見木羅，一生更有福德多。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 71,
+      "star": "火",
+      "branch": "未",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金火羅兮原不吉，芳年卻被產中疾。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 72,
+      "star": "羅",
+      "branch": "未",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金火羅兮原不吉，芳年卻被產中疾。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 73,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日月並明，晝生日月同宮或拱夾，借日為明，大吉。",
+      "note": "日月合格"
+    },
+    {
+      "id": 74,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "陰陽得地，日東南月西北，陰陽定位。",
+      "note": "日月合格"
+    },
+    {
+      "id": 75,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木羅會舍，木為用神，冬春生躔廟旺宮佳。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 76,
+      "star": "火星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "火氣職權，火為用神，入廟旺宮合格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 77,
+      "star": "木星",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "木孛符印，木為用神，臨廟旺吉。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 78,
+      "star": "金星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "金計同垣，金為用神，居垣廟吉。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 79,
+      "star": "土星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "土羅相會，土為用神，居廟旺奇。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 80,
+      "star": "羅",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "首尾陰陽居四正，羅計日月分居子午卯酉，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 81,
+      "star": "計",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "首尾陰陽居四正，羅計日月分居子午卯酉，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 82,
+      "star": "火",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "火羅計孛守四維，四維即四正宮亦通，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 83,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "君臣慶會，日居午月居未，命坐其中合真。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 84,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "君臣慶會，日居午月居未，命坐其中合真。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 85,
+      "star": "木星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "戴天履地，命亥月申，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 86,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "出乾入坤，命月亥火戌金酉日申，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 87,
+      "star": "水星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "天地開明，水申木亥，命安申亥，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 88,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "山澤通氣，木寅金酉，命坐酉寅，主高貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 89,
+      "star": "水星",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "水火既濟，水子火午，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 90,
+      "star": "火星",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "水火既濟，水子火午，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 91,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "風雷鼓舞，水巳火卯，主合格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 92,
+      "star": "火星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "風雷鼓舞，水巳火卯，主合格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 93,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜金水並，若非忌曜權最盛，產難之時應喪命。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 94,
+      "star": "水星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜金水並，若非忌曜權最盛，產難之時應喪命。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 95,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木氣聯枝，木氣孛在寅亥，命宮官禄合格。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 96,
+      "star": "水星",
+      "branch": "參",
+      "gender": "both",
+      "type": "合格",
+      "description": "玉猿守昆，水躔參度，會日命安，水度者貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 97,
+      "star": "火星",
+      "branch": "觜",
+      "gender": "both",
+      "type": "合格",
+      "description": "玉猴啸月，火觜月畢坐命，火月度夜生貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 98,
+      "star": "水星",
+      "branch": "軫",
+      "gender": "both",
+      "type": "合格",
+      "description": "玉女嫦娥，水軫月張，命箕主貴，女貌傾國。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 99,
+      "star": "金星",
+      "branch": "亢",
+      "gender": "both",
+      "type": "合格",
+      "description": "龍躍天池，亢金龍立命，金亥從日月。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 100,
+      "star": "木星",
+      "branch": "角",
+      "gender": "both",
+      "type": "合格",
+      "description": "蒼龍入井，亢金角木，坐命金木，躔井合格。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 101,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日居日位，太陽居垣，大貴格。",
+      "note": "十一曜定格"
+    },
+    {
+      "id": 102,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月入月垣，太陰升殿，主福壽雙全。",
+      "note": "十一曜定格"
+    },
+    {
+      "id": 103,
+      "star": "日",
+      "branch": "未",
+      "gender": "both",
+      "type": "忌格",
+      "description": "日居月位，日在未宮，陰陽反背。",
+      "note": "日月忌格"
+    },
+    {
+      "id": 104,
+      "star": "月",
+      "branch": "午",
+      "gender": "both",
+      "type": "忌格",
+      "description": "月到日宮，月在午宮，陰陽反背。",
+      "note": "日月忌格"
+    },
+    {
+      "id": 105,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜見金水，金水分明多傍貴，行止犹如娼妓輩。",
+      "note": "帘幕歌"
+    },
+    {
+      "id": 106,
+      "star": "水星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜見金水，金水分明多傍貴，行止犹如娼妓輩。",
+      "note": "帘幕歌"
+    },
+    {
+      "id": 107,
+      "star": "木星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "木羅會舍，木為用神，冬春生躔廟旺宮佳。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 108,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日月居垣，日午月未，日月並明。",
+      "note": "日月合格"
+    },
+    {
+      "id": 109,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "日月居垣，日午月未，日月並明。",
+      "note": "日月合格"
+    },
+    {
+      "id": 110,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星升殿，木躔角斗奎井四宿。",
+      "note": "五星合格"
+    },
+    {
+      "id": 111,
+      "star": "火星",
+      "branch": "尾",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星升殿，火躔尾室觜翼四宿。",
+      "note": "五星合格"
+    },
+    {
+      "id": 112,
+      "star": "土星",
+      "branch": "女",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星升殿，土躔女胃柳氐四宿。",
+      "note": "五星合格"
+    },
+    {
+      "id": 113,
+      "star": "金星",
+      "branch": "亢",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星升殿，金躔亢牛婁鬼四宿。",
+      "note": "五星合格"
+    },
+    {
+      "id": 114,
+      "star": "水星",
+      "branch": "箕",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星升殿，水躔箕壁參軫四宿。",
+      "note": "五星合格"
+    },
+    {
+      "id": 115,
+      "star": "身星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "身星升殿、身星入垣，身居財帛、田宅、男女、妻妾、官禄、福德、崇勛、貴人、長生、帝旺，主富貴壽考。",
+      "note": "十二宮定格 - 身命合格"
+    },
+    {
+      "id": 116,
+      "star": "身星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "身星清吉、身居妻妾、身居官禄、身居福德、身坐崇勛、身星坐貴、身臨卦氣、身居斗杓，主身命高強。",
+      "note": "十二宮定格 - 身命合格"
+    },
+    {
+      "id": 117,
+      "star": "命主",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "命主得經、命主居垣、命臨財帛、田宅、子位、妻位、官禄、福德、乘旺、玉堂、長生、帝旺、卦氣、崇勛、馬地、斗杓，主命主得地。",
+      "note": "十二宮定格 - 命主合格"
+    },
+    {
+      "id": 118,
+      "star": "田主",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "田星入垣、田主守命、田入財垣、田居田位、田星升殿、田居兒位、田守妻宮、田入官禄、田入福宮、田星秉令，主田宅興旺。",
+      "note": "十二宮定格 - 田主合格"
+    },
+    {
+      "id": 119,
+      "star": "財星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "財星升殿、財星入垣、財居財位、財入田垣、財星守兒、財守妻宮、財居官禄、財入福宮、財星秉令，主財帛豐裕。",
+      "note": "十二宮定格 - 財星合格"
+    },
+    {
+      "id": 120,
+      "star": "禄主",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "官星升殿、官星入垣、官星守命、禄守財宮、官禄臨田、禄守兒宮、禄守妻宮、禄居福位、官曜居宮、官星秉令、禄居斗柄，主官運亨通、富貴雙全。",
+      "note": "十二宮定格 - 禄主合格"
+    },
+    {
+      "id": 121,
+      "star": "福星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "福星升殿、福主居垣、福元秉令、福星逢生、福星守命、福守財宮、福居田宅、福守兒宮、福守妻妾、福星守福、福入禄宮，主福壽雙全。",
+      "note": "十二宮定格 - 福星合格"
+    },
+    {
+      "id": 122,
+      "star": "妻星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "妻星升殿、妻星居垣、妻星守命、妻守財宮、妻居田宅、妻守兒宮、妻居妻位、妻居福德、妻居禄地、妻守福宮、妻星秉令，主妻妾得力。",
+      "note": "十二宮定格 - 妻星合格"
+    },
+    {
+      "id": 123,
+      "star": "嗣星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "子星得度、嗣星歸垣、嗣星守命、子居財帛、子入田宮、子居子位、嗣守妻宮、子居福地、子居官禄、子星秉令，主子嗣興旺。",
+      "note": "十二宮定格 - 嗣星合格"
+    },
+    {
+      "id": 124,
+      "star": "身星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "身星失經、身星失垣、身坐刃雄、身居劫的、身臨鋒廉、身臨耗符、身居兄弟、身入奴宮、身臨疾厄、身居迁移、身居相貌，主身命低微。",
+      "note": "十二宮定格 - 身星忌格"
+    },
+    {
+      "id": 125,
+      "star": "命主",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "命主失經、命主失垣、命主受克、命主失令、命入閑極、命居奴仆、命臨疾厄、命居迁移、命臨相貌、命坐刃權、命臨劫的、命居鋒廉、命臨耗符，主命主低陷。",
+      "note": "十二宮定格 - 命主忌格"
+    },
+    {
+      "id": 126,
+      "star": "田主",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "田主失次、田主失宮、田星值克、田元泄氣、田元失時、田元坐耗、田主逢空、田入閑極、田入奴宮、田居疾厄、田落九宮、田居相貌、劫耗臨田、空破守田，主田宅破敗。",
+      "note": "十二宮定格 - 田主忌格"
+    },
+    {
+      "id": 127,
+      "star": "財星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "財星失次、財主失垣、財星值克、財元逢泄、財星失令、財主逢空、財星坐耗、財入兄弟、財入故宮、財臨疾厄、財入迁移、財居相貌、劫空守財、耗破守財，主財帛耗散。",
+      "note": "十二宮定格 - 財星忌格"
+    },
+    {
+      "id": 128,
+      "star": "禄主",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "禄主失次、官星失垣、禄主受克、官星失令、禄主逢空、官星泄氣、官禄克命、禄居閑極、禄陷奴宮、禄入疾厄、禄守迁移、禄居相貌、十位逢羅、雄破禄宮，主官禄低陷。",
+      "note": "十二宮定格 - 禄主忌格"
+    },
+    {
+      "id": 129,
+      "star": "福星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "福主失經、福元失垣、福主受克、福星失令、福主逢空、福元泄氣、福入閑宮、福陷奴宮、福居厄地、福入迁移、福居相貌、福宮坐刃，主福德損耗。",
+      "note": "十二宮定格 - 福星忌格"
+    },
+    {
+      "id": 130,
+      "star": "妻星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "妻星失躔、妻主失垣、妻星被克、妻元失令、妻元泄氣、妻主逢空、妻入閑宮、妻陷奴宮、妻臨疾厄、妻居迁移、妻居貌位、地雌戰室、陽刃臨妻，主妻妾刑克。",
+      "note": "十二宮定格 - 妻星忌格"
+    },
+    {
+      "id": 131,
+      "star": "嗣星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "子星失經、嗣主失垣、子星受克、嗣星失位、嗣星泄氣、嗣星逢空、子居閑極、子入奴宮、嗣守疾厄、嗣居迁移、子居相貌、天狗臨兒、嗣位逢空，主子嗣刑傷。",
+      "note": "十二宮定格 - 嗣星忌格"
+    },
+    {
+      "id": 132,
+      "star": "命財",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "命財互垣，主富貴雙全。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 133,
+      "star": "命田",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "命田互垣，主田宅興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 134,
+      "star": "命嗣",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "命嗣互垣，主子嗣興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 135,
+      "star": "命妻",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "命妻互垣，主妻妾得力。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 136,
+      "star": "命官",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "命官互垣，主官運亨通。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 137,
+      "star": "命福",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "命福互垣，主福壽雙全。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 138,
+      "star": "財嗣",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "財嗣互垣，主富貴子嗣。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 139,
+      "star": "妻財",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "妻財互垣，主妻內助致富。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 140,
+      "star": "財禄",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "財禄互垣，主財官兩旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 141,
+      "star": "財福",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "財福互垣，主富貴福壽。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 142,
+      "star": "田財",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "田財互垣，主田宅財帛興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 143,
+      "star": "田嗣",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "田嗣互垣，主田宅子嗣興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 144,
+      "star": "田妻",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "田妻互垣，主田宅妻妾得力。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 145,
+      "star": "田禄",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "田禄互垣，主田宅官禄興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 146,
+      "star": "福田",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "福田互垣，主福德田宅興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 147,
+      "star": "嗣禄",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "嗣禄互垣，主子嗣官禄興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 148,
+      "star": "妻嗣",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "妻嗣互垣，主妻妾子嗣興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 149,
+      "star": "妻禄",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "妻禄互垣，主妻妾官禄興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 150,
+      "star": "妻福",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "妻福互垣，主妻妾福德興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 151,
+      "star": "福嗣",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "福嗣互垣，主福德子嗣興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 152,
+      "star": "官福",
+      "branch": "互垣",
+      "gender": "both",
+      "type": "合格",
+      "description": "官福互垣，主官禄福德興旺。",
+      "note": "諸星互格"
+    },
+    {
+      "id": 153,
+      "star": "水一火二",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "水為官福命令得地，嘗主一品之尊。",
+      "note": "貴格"
+    },
+    {
+      "id": 154,
+      "star": "日月拱夾刃雄",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "日月拱夾刃雄、刑囚、難星，主賤格。",
+      "note": "賤格"
+    },
+    {
+      "id": 155,
+      "star": "暗耗拱田財",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "暗耗拱田財、田財遇暗耗空耗、田財主失陷，主貧格。",
+      "note": "貧格"
+    },
+    {
+      "id": 156,
+      "star": "日月居八殺",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "日月居八殺、殺臨命主、兩殺夾命、殺神拱主，主疾格。",
+      "note": "疾格"
+    },
+    {
+      "id": 157,
+      "star": "日月合璧",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "日月同宮或對照，廟旺方為貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 158,
+      "star": "五星連珠",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "五星順布相續，命居其中，主公卿之格。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 159,
+      "star": "金水從陽",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "金水從日，主君臣慶會。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 160,
+      "star": "火羅犯日",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "火羅犯日，陽光被蔽，主凶。",
+      "note": "政餘忌格"
+    },
+    {
+      "id": 161,
+      "star": "土計掩月",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "土計掩月，太陰被蝕，主凶。",
+      "note": "政餘忌格"
+    },
+    {
+      "id": 162,
+      "star": "金水從陽",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "金水掌吉，神居垣殿，晝生者奇。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 163,
+      "star": "火金侍月",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "火金為用，神臨垣廟，夜生者妙。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 164,
+      "star": "五曜環陽",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "木火土金水順序輔日於東南，主帝王大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 165,
+      "star": "四餘捧月",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "氣孛羅計單行捧月於西北，主太乙抱蟾。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 166,
+      "star": "金木亥室",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星與木室相逢，官職榮遷至上公。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 167,
+      "star": "土子",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星雙落寶瓶中，主參政學士能。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 168,
+      "star": "木寅",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅人馬宮，主逢歲，佩帶金魚榮寵至。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 169,
+      "star": "木未鬼度",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "木戀巨蟹鬼金躔，必居堂廟公卿位。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 170,
+      "star": "水月巳",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水月同宮雙女躔，榮華富貴總英賢。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 171,
+      "star": "火卯",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "夜火荧惑來天蝎，命主三台殺伐權。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 172,
+      "star": "金昴",
+      "branch": "昴",
+      "gender": "both",
+      "type": "合格",
+      "description": "昴上金星火在娄，夜生為主事王侯。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 173,
+      "star": "土亢",
+      "branch": "亢",
+      "gender": "both",
+      "type": "合格",
+      "description": "亢宮土宿來臨照，白日生人作榜頭。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 174,
+      "star": "日午戌",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "太陽升在柳星張，又臨魯地見白羊，忽然兩位如逢此，必是承參簿尉郎。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 175,
+      "star": "火酉辰",
+      "branch": "酉",
+      "gender": "both",
+      "type": "忌格",
+      "description": "荧惑若來酉與辰，其人少失二尊親。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 176,
+      "star": "火申",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "平生少疾無災滯，火宿從知入在申。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 177,
+      "star": "金木子",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "金木生時子上頭，多營產業及田牛。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 178,
+      "star": "水火午",
+      "branch": "午",
+      "gender": "both",
+      "type": "忌格",
+      "description": "若還水火臨獅子，少失資財似水流。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 179,
+      "star": "水財",
+      "branch": "財",
+      "gender": "both",
+      "type": "忌格",
+      "description": "財帛宮中見水星，一如將火入深冰。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 180,
+      "star": "水田",
+      "branch": "田",
+      "gender": "both",
+      "type": "忌格",
+      "description": "第四宮中逢此曜，一生財耗莫能興。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 181,
+      "star": "金迁移",
+      "branch": "迁移",
+      "gender": "both",
+      "type": "合格",
+      "description": "定他榮華及好妻，生時太白順迁移。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 182,
+      "star": "孛同金",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "細君遺害家無子，那堪同宮被孛欺。",
+      "note": "金箱歌"
+    },
+    {
+      "id": 183,
+      "star": "羅計",
+      "branch": "任意",
+      "gender": "female",
+      "type": "合格",
+      "description": "婦人只要羅計全，羅計得地主重權，朱門出身主豪貴，定為豪貴結姻緣。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 184,
+      "star": "禄馬",
+      "branch": "任意",
+      "gender": "female",
+      "type": "忌格",
+      "description": "女人愛禄不愛馬，坐馬之命好淫冶，生來若遇馬銜花，未及笄年須早嫁。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 185,
+      "star": "金水",
+      "branch": "任意",
+      "gender": "female",
+      "type": "忌格",
+      "description": "女人不喜見金水，金水分明多傍貴，玉容花貌又妖娆，行止犹如娼妓輩。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 186,
+      "star": "木羅",
+      "branch": "任意",
+      "gender": "female",
+      "type": "合格",
+      "description": "婦人最喜見木羅，一生更有福德多，金氣相逢在其命，蘭心蕙性伶俐過。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 187,
+      "star": "日月",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "日月拱夾祿馬、殿駕、斗貴、符印、命宮、財宮、田宮、官宮、福宮、妻宮、嗣宮，主大富貴。",
+      "note": "十一曜定格 - 日月合格"
+    },
+    {
+      "id": 188,
+      "star": "日月",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "日月拱夾刃雄、的劫、廉鋒、耗符、孤寡、刑害、奴仆、疾厄、迁移、兄弟、相貌，主凶。",
+      "note": "日月忌格"
+    },
+    {
+      "id": 189,
+      "star": "五星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "五星入廟、五星聚會、五星循環、五星入旺，主大富貴。",
+      "note": "五星合格"
+    },
+    {
+      "id": 190,
+      "star": "木星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "木月清貴、木火文明，主清貴文章。",
+      "note": "五星合格"
+    },
+    {
+      "id": 191,
+      "star": "火星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "火月同宵、火土高強，主權力高強。",
+      "note": "五星合格"
+    },
+    {
+      "id": 192,
+      "star": "金星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "金助月華、金水相涵，主富貴智慧。",
+      "note": "五星合格"
+    },
+    {
+      "id": 193,
+      "star": "土星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "土金堅實，主堅實富貴。",
+      "note": "五星合格"
+    },
+    {
+      "id": 194,
+      "star": "水星",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "水涵蟾魄，主智慧清秀。",
+      "note": "五星合格"
+    },
+    {
+      "id": 195,
+      "star": "氣",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "祥雲捧月、太乙抱蟾、羅月交輝，主福氣貴權。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 196,
+      "star": "孛",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "木孛符印、火氣職權，主符印權力。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 197,
+      "star": "金水",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "金水從陽，主君臣慶會。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 198,
+      "star": "火金",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "火金侍月，主夜生妙格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 199,
+      "star": "五曜",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "五曜環陽、五曜隨陽、五星隨月，主帝王大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 200,
+      "star": "四餘",
+      "branch": "任意",
+      "gender": "both",
+      "type": "合格",
+      "description": "四餘捧月，主太乙抱蟾。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 201,
+      "star": "日",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "火羅犯日、木蔽陽光，主陽光被蔽。",
+      "note": "政餘忌格"
+    },
+    {
+      "id": 202,
+      "star": "月",
+      "branch": "任意",
+      "gender": "both",
+      "type": "忌格",
+      "description": "土計掩月、月圓火焰，主太陰被蝕。",
+      "note": "政餘忌格"
+    },
+    {
+      "id": 203,
+      "star": "金星",
+      "branch": "任意",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金水孛咸，婦人若見金水孛，三改嫁兮有何說。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 204,
+      "star": "水星",
+      "branch": "任意",
+      "gender": "female",
+      "type": "忌格",
+      "description": "水氣空華，婦人最怕見水氣，克夫害子何所恃。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 205,
+      "star": "金星",
+      "branch": "任意",
+      "gender": "female",
+      "type": "合格",
+      "description": "金水不喜見金水，金水分明多傍貴，玉容花貌又妖娆。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 206,
+      "star": "羅",
+      "branch": "任意",
+      "gender": "female",
+      "type": "合格",
+      "description": "羅計得地主重權，朱門出身主豪貴，定為豪貴結姻緣。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 207,
+      "star": "木星",
+      "branch": "任意",
+      "gender": "female",
+      "type": "合格",
+      "description": "木羅最喜見木羅，一生更有福德多，蘭心蕙性伶俐過。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 208,
+      "star": "火",
+      "branch": "任意",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金火羅兮原不吉，芳年卻被產中疾。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 209,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日居日位，太陽在午宮居垣，大貴之格，主權高位重。",
+      "note": "日月合格"
+    },
+    {
+      "id": 210,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月入月垣，太陰在未宮升殿，主福壽雙全，富貴雙全。",
+      "note": "日月合格"
+    },
+    {
+      "id": 211,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "金居垣，金星在酉宮，主人剛方正直，權力高強，夜生尤吉。",
+      "note": "五星合格"
+    },
+    {
+      "id": 212,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木居垣，木星在寅宮，主人文才清貴，壽考延年，文章顯達。",
+      "note": "五星合格"
+    },
+    {
+      "id": 213,
+      "star": "火星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "火居垣，火星在卯宮，主人權力高強，文章顯達，火土高強。",
+      "note": "五星合格"
+    },
+    {
+      "id": 214,
+      "star": "土星",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "土居垣，土星在子宮，主人堅實敦厚，富貴壽考，勾陳鎮殿。",
+      "note": "五星合格"
+    },
+    {
+      "id": 215,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水居垣，水星在巳宮，主人智慧清秀，漂流有福，金水相涵。",
+      "note": "五星合格"
+    },
+    {
+      "id": 216,
+      "star": "羅",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅計中分，羅在午宮，計在子宮，主大貴格，羅計攔截。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 217,
+      "star": "計",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅計中分，計在子宮，羅在午宮，主大貴格，羅計攔截。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 218,
+      "star": "羅",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "出乾入巽，羅在亥宮，計在巳宮，主出入乾坤大格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 219,
+      "star": "計",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "出乾入巽，計在巳宮，羅在亥宮，主出入乾坤大格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 220,
+      "star": "氣",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "祥雲捧月，氣在未宮與月同行，弦朢夜生，主福氣豐厚。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 221,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "太乙抱蟾，孛在未宮抱月，弦朢夜誕，主貴權早發。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 222,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜見金水，金星在酉與水同宮，多傍貴而行止如娼妓。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 223,
+      "star": "水星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜見金水，水星在酉與金同宮，多傍貴而行止如娼妓。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 224,
+      "star": "孛",
+      "branch": "未",
+      "gender": "female",
+      "type": "合格",
+      "description": "孛星坐咸池在未宮，巧妆云鬓画蛾眉，定是豪門一小妻。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 225,
+      "star": "金星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "金居干位，金星在亥宮與木日同居，主貴命富貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 226,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水注東南，水星在巳宮與木命同在寅，主滔滔無窮之福。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 227,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木氣聯枝，木星在寅宮與氣孛同宮，命宮官禄合格。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 228,
+      "star": "水星",
+      "branch": "參",
+      "gender": "both",
+      "type": "合格",
+      "description": "玉猿守昆，水星躔參度在參宮，會日命安，水度者貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 229,
+      "star": "火星",
+      "branch": "觜",
+      "gender": "both",
+      "type": "合格",
+      "description": "玉猴啸月，火星在觜宮與月畢同度，火月度夜生貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 230,
+      "star": "水星",
+      "branch": "軫",
+      "gender": "both",
+      "type": "合格",
+      "description": "玉女嫦娥，水星在軫宮與月張同度，命箕主貴，女貌傾國。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 231,
+      "star": "金星",
+      "branch": "亢",
+      "gender": "both",
+      "type": "合格",
+      "description": "龍躍天池，金星在亢宮立命，金亥從日月，主榮顯。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 232,
+      "star": "木星",
+      "branch": "角",
+      "gender": "both",
+      "type": "合格",
+      "description": "蒼龍入井，木星在角宮與金同度，坐命金木躔井合格。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 233,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日居日位，日在午宮，太陽居垣，大貴之格。",
+      "note": "十一曜定格"
+    },
+    {
+      "id": 234,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月入月垣，月在未宮，太陰升殿，主福壽雙全。",
+      "note": "十一曜定格"
+    },
+    {
+      "id": 235,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "male",
+      "type": "合格",
+      "description": "長庚入命，金星在酉宮夜生與月同宮，主奇才冠天下。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 236,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "神羊觸邪，孛星在未宮夜生安命，純無凶星者為貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 237,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，木星在寅宮春生安命，乃青龍用事，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 238,
+      "star": "火星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，火星在巳宮夏生安命，乃朱雀當權，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 239,
+      "star": "金星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，金星在申宮秋生安命，乃白虎當權，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 240,
+      "star": "水星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，水星在亥宮冬生安命，乃元武當權，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 241,
+      "star": "土星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "五神當權，土星在辰宮四季安命，乃勾陳得位，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 242,
+      "star": "月",
+      "branch": "寅",
+      "gender": "female",
+      "type": "合格",
+      "description": "月扶斗柄，太陰在寅宮月建之位，主榮華富貴，女命尤吉。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 243,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金水桃花臨四敗，金星在酉宮與水同宮，主為娼妓之流。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 244,
+      "star": "孛",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金水孛沐，孛星在酉宮與金水同宮，身命同臨性偏淫。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 245,
+      "star": "羅",
+      "branch": "辰",
+      "gender": "female",
+      "type": "合格",
+      "description": "婦人最喜見木羅，羅星在辰宮與木同宮，一生更有福德多。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 246,
+      "star": "計",
+      "branch": "辰",
+      "gender": "female",
+      "type": "合格",
+      "description": "婦人最喜見木羅，計星在辰宮與木同宮，一生更有福德多。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 247,
+      "star": "火",
+      "branch": "未",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金火羅兮原不吉，火星在未宮與金羅同宮，芳年卻被產中疾。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 248,
+      "star": "羅",
+      "branch": "未",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金火羅兮原不吉，羅星在未宮與金火同宮，芳年卻被產中疾。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 249,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日月並明，日在午宮與月同宮或拱夾，借日為明，大吉。",
+      "note": "日月合格"
+    },
+    {
+      "id": 250,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "陰陽得地，月在未宮與日東南月西北，陰陽定位。",
+      "note": "日月合格"
+    },
+    {
+      "id": 251,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木羅會舍，木星在寅宮與羅同宮，冬春生躔廟旺宮佳。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 252,
+      "star": "火星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "火氣職權，火星在辰宮與氣同宮，入廟旺宮合格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 253,
+      "star": "木星",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "木孛符印，木星在未宮與孛同宮，臨廟旺吉。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 254,
+      "star": "金星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "金計同垣，金星在申宮與計同宮，居垣廟吉。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 255,
+      "star": "土星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "土羅相會，土星在辰宮與羅同宮，居廟旺奇。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 256,
+      "star": "羅",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "首尾陰陽居四正，羅星在午宮與計日月分居子午卯酉，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 257,
+      "star": "計",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "首尾陰陽居四正，計星在子宮與羅日月分居子午卯酉，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 258,
+      "star": "火",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "火羅計孛守四維，火星在辰宮與羅計孛守四維，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 259,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "君臣慶會，日在午宮與月在未，命坐其中合真。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 260,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "君臣慶會，月在未宮與日在午，命坐其中合真。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 261,
+      "star": "木星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "戴天履地，木星在亥宮與月在申，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 262,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "出乾入坤，金星在酉宮與月在亥火在戌日申，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 263,
+      "star": "水星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "天地開明，水星在申宮與木在亥，命安申亥，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 264,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "山澤通氣，木星在寅宮與金在酉，命坐酉寅，主高貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 265,
+      "star": "水星",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "水火既濟，水星在子宮與火在午，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 266,
+      "star": "火星",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "水火既濟，火星在午宮與水在子，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 267,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "風雷鼓舞，水星在巳宮與火在卯，主合格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 268,
+      "star": "火星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "風雷鼓舞，火星在卯宮與水在巳，主合格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 269,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜金水並，金星在酉宮與水同宮，若非忌曜權最盛，產難之時應喪命。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 270,
+      "star": "水星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "婦人不喜金水並，水星在酉宮與金同宮，若非忌曜權最盛，產難之時應喪命。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 271,
+      "star": "水星",
+      "branch": "參",
+      "gender": "both",
+      "type": "合格",
+      "description": "玉猿守昆，水星在參宮躔參度，會日命安，水度者貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 272,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在午宮，太陽居垣，日居日位，大貴之格，主權高位重，富貴雙全。",
+      "note": "日月合格"
+    },
+    {
+      "id": 273,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在未宮，太陰升殿，月入月垣，主福壽雙全，富貴雙全。",
+      "note": "日月合格"
+    },
+    {
+      "id": 274,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在酉宮，金居垣，夜生金月同宮，主奇才冠天下，富貴權高。",
+      "note": "五星合格 + 靈台星格"
+    },
+    {
+      "id": 275,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅宮，木居垣，主人文才清貴，壽考延年，文章顯達。",
+      "note": "五星合格"
+    },
+    {
+      "id": 276,
+      "star": "火星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在卯宮，火居垣，主人權力高強，文章顯達，火土高強。",
+      "note": "五星合格"
+    },
+    {
+      "id": 277,
+      "star": "土星",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星在子宮，土居垣，主人堅實敦厚，富貴壽考，勾陳鎮殿。",
+      "note": "五星合格"
+    },
+    {
+      "id": 278,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在巳宮，水居垣，主人智慧清秀，漂流有福，金水相涵。",
+      "note": "五星合格"
+    },
+    {
+      "id": 279,
+      "star": "羅",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在午宮，羅計中分，主大貴格，羅計攔截，權力顯赫。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 280,
+      "star": "計",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在子宮，羅計中分，主大貴格，羅計攔截，權力顯赫。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 281,
+      "star": "羅",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在亥宮，出乾入巽，主出入乾坤大格，富貴非常。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 282,
+      "star": "計",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在巳宮，出乾入巽，主出入乾坤大格，富貴非常。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 283,
+      "star": "氣",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "氣在未宮，祥雲捧月，弦朢夜生，主福氣豐厚，清麗文雅。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 284,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在未宮，太乙抱蟾，弦朢夜誕，主貴權早發，登仕路。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 285,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金星在酉宮，金水同宮，婦人不喜見金水，多傍貴而行止如娼妓。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 286,
+      "star": "水星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "水星在酉宮，金水同宮，婦人不喜見金水，多傍貴而行止如娼妓。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 287,
+      "star": "孛",
+      "branch": "未",
+      "gender": "female",
+      "type": "合格",
+      "description": "孛在未宮坐咸池，巧妆云鬓画蛾眉，定是豪門一小妻。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 288,
+      "star": "金星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在亥宮，金居干位，與木日同居，主貴命富貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 289,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在巳宮，水注東南，與木命同在寅，主滔滔無窮之福。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 290,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅宮，木氣聯枝，與氣孛同宮，命宮官禄合格。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 291,
+      "star": "水星",
+      "branch": "參",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在參宮，玉猿守昆，躔參度會日命安，水度者貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 292,
+      "star": "火星",
+      "branch": "觜",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在觜宮，玉猴啸月，與月畢同度，火月度夜生貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 293,
+      "star": "水星",
+      "branch": "軫",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在軫宮，玉女嫦娥，與月張同度，命箕主貴，女貌傾國。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 294,
+      "star": "金星",
+      "branch": "亢",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在亢宮，龍躍天池，立命金亥從日月，主榮顯。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 295,
+      "star": "木星",
+      "branch": "角",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在角宮，蒼龍入井，與金同度，坐命金木躔井合格。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 296,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在午宮，日居日位，太陽居垣，大貴之格，主權高位重。",
+      "note": "十一曜定格"
+    },
+    {
+      "id": 297,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在未宮，月入月垣，太陰升殿，主福壽雙全。",
+      "note": "十一曜定格"
+    },
+    {
+      "id": 298,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "male",
+      "type": "合格",
+      "description": "金星在酉宮，長庚入命，夜生金月同宮，主奇才冠天下。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 299,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在未宮，神羊觸邪，夜生安命純無凶星者為貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 300,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅宮，五神當權，春生安命乃青龍用事，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 301,
+      "star": "火星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在巳宮，五神當權，夏生安命乃朱雀當權，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 302,
+      "star": "金星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在申宮，五神當權，秋生安命乃白虎當權，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 303,
+      "star": "水星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在亥宮，五神當權，冬生安命乃元武當權，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 304,
+      "star": "土星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星在辰宮，五神當權，四季安命乃勾陳得位，主當權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 305,
+      "star": "月",
+      "branch": "寅",
+      "gender": "female",
+      "type": "合格",
+      "description": "月在寅宮，月扶斗柄，太陰在月建之位，主榮華富貴，女命尤吉。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 306,
+      "star": "孛",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "孛在酉宮，金水孛沐，身命同臨性偏淫。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 307,
+      "star": "羅",
+      "branch": "辰",
+      "gender": "female",
+      "type": "合格",
+      "description": "羅在辰宮，婦人最喜見木羅，一生更有福德多。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 308,
+      "star": "計",
+      "branch": "辰",
+      "gender": "female",
+      "type": "合格",
+      "description": "計在辰宮，婦人最喜見木羅，一生更有福德多。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 309,
+      "star": "火",
+      "branch": "未",
+      "gender": "female",
+      "type": "忌格",
+      "description": "火在未宮，金火羅兮原不吉，芳年卻被產中疾。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 310,
+      "star": "羅",
+      "branch": "未",
+      "gender": "female",
+      "type": "忌格",
+      "description": "羅在未宮，金火羅兮原不吉，芳年卻被產中疾。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 311,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在午宮，日月並明，晝生日月同宮或拱夾，借日為明，大吉。",
+      "note": "日月合格"
+    },
+    {
+      "id": 312,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在未宮，陰陽得地，日東南月西北，陰陽定位。",
+      "note": "日月合格"
+    },
+    {
+      "id": 313,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅宮，木羅會舍，冬春生躔廟旺宮佳。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 314,
+      "star": "火星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在辰宮，火氣職權，入廟旺宮合格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 315,
+      "star": "木星",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在未宮，木孛符印，臨廟旺吉。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 316,
+      "star": "金星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在申宮，金計同垣，居垣廟吉。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 317,
+      "star": "土星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星在辰宮，土羅相會，居廟旺奇。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 318,
+      "star": "羅",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在午宮，首尾陰陽居四正，羅計日月分居子午卯酉，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 319,
+      "star": "計",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在子宮，首尾陰陽居四正，羅計日月分居子午卯酉，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 320,
+      "star": "火",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "火在辰宮，火羅計孛守四維，大格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 321,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在午宮，君臣慶會，日居午月居未，命坐其中合真。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 322,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在未宮，君臣慶會，日居午月居未，命坐其中合真。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 323,
+      "star": "木星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在亥宮，戴天履地，命亥月申，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 324,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在酉宮，出乾入坤，命月亥火戌金酉日申，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 325,
+      "star": "水星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在申宮，天地開明，水申木亥，命安申亥，主富貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 326,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅宮，山澤通氣，木寅金酉，命坐酉寅，主高貴。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 327,
+      "star": "水星",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在子宮，水火既濟，水子火午，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 328,
+      "star": "火星",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在午宮，水火既濟，水子火午，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 329,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在巳宮，風雷鼓舞，水巳火卯，主合格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 330,
+      "star": "火星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在卯宮，風雷鼓舞，水巳火卯，主合格。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 331,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金星在酉宮，金水並，若非忌曜權最盛，產難之時應喪命。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 332,
+      "star": "水星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "水星在酉宮，金水並，若非忌曜權最盛，產難之時應喪命。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 333,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在酉宮，金星入斗，酉宮立命金飛入丑宮斗度，人才華俊秀，早步青雲。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 334,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅宮，金騎人馬，命立寅宮尾度金星相會，禄享千鍾。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 335,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在午宮，日居日位，太陽居垣，大貴之格，主權高位重，富貴雙全。",
+      "note": "日月合格"
+    },
+    {
+      "id": 336,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在未宮，月入月垣，太陰升殿，主福壽雙全，富貴雙全。",
+      "note": "日月合格"
+    },
+    {
+      "id": 337,
+      "star": "水星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在卯宮，水火相刑，命立卯宮房度夏令，金玉爭光，富貴無邊。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 338,
+      "star": "金星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在辰宮，金神持刃，命立辰宮亢金度，官封上將，鎮守邊庭。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 339,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在巳宮，元武當台，巳宮立命水在轸，富貴綿綿，門庭興旺。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 340,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在未宮，月明斗府，命立未宮井木度，十五至十八日夜生，文章冠世，官居翰苑。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 341,
+      "star": "氣",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "氣在未宮，祥雲捧月，立命未宮氣月同行，主豐姿清麗，文雅過人。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 342,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在未宮，太乙抱蟾，未宮立命孛抱陰精，早步青雲登仕路。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 343,
+      "star": "木星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "忌格",
+      "description": "木星在亥宮，箕風斗口，命立亥行寅限木星箕度，家破身亡或水火而終。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 344,
+      "star": "羅",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在辰宮，首攜龍角，羅在辰命居辰，榮顯權高。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 345,
+      "star": "計",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在寅宮，計居龍尾，計在寅命居寅，權高職重。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 346,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在未宮，孛于東井，孛居未上夜生，貴而有權。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 347,
+      "star": "日",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在卯宮，日出扶桑，日在卯命在卯，貴格。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 348,
+      "star": "月",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在丑宮，斗牛秀氣，紫氣對照丑上安命，文人貴格。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 349,
+      "star": "金星",
+      "branch": "亥",
+      "gender": "female",
+      "type": "合格",
+      "description": "金星在亥宮，月華金阙，金在亥與太陰同宮，富貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 350,
+      "star": "土星",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星在丑宮，眾星拱北，十一曜環拱子位，至貴之命。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 351,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在午宮，日居日位，太陽居垣，大貴之格。",
+      "note": "日月合格"
+    },
+    {
+      "id": 352,
+      "star": "月",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在未宮，月入月垣，太陰升殿，主福壽雙全。",
+      "note": "日月合格"
+    },
+    {
+      "id": 353,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "合格",
+      "description": "金星在酉宮，金助月華，夜生秋天為奇，主富貴妖娆。",
+      "note": "五星合格"
+    },
+    {
+      "id": 354,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "female",
+      "type": "合格",
+      "description": "水星在巳宮，水涵蟾魄，月寒水冷，朢後尤佳，主智慧清秀。",
+      "note": "五星合格"
+    },
+    {
+      "id": 355,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅宮，木火文明，冬春月生，文章顯達。",
+      "note": "五星合格"
+    },
+    {
+      "id": 356,
+      "star": "火星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在卯宮，火土高強，夏生火炎土燥，主權力高強。",
+      "note": "五星合格"
+    },
+    {
+      "id": 357,
+      "star": "金星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在辰宮，土金堅實，秋冬土埋金寒，主堅實富貴。",
+      "note": "五星合格"
+    },
+    {
+      "id": 358,
+      "star": "水星",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在申宮，金水相涵，冬生金寒水冷，主智慧清秀。",
+      "note": "五星合格"
+    },
+    {
+      "id": 359,
+      "star": "羅",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在午宮，羅計中分，羅午計子，主大貴格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 360,
+      "star": "計",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在子宮，羅計中分，羅午計子，主大貴格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 361,
+      "star": "羅",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在亥宮，出乾入巽，羅亥計巳，主出入乾坤大格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 362,
+      "star": "計",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在巳宮，出乾入巽，羅亥計巳，主出入乾坤大格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 363,
+      "star": "氣",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "氣在未宮，祥雲捧月，弦朢夜生，月宜氣捧，主福氣。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 364,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在未宮，太乙抱蟾，弦朢夜誕，月喜孛抱，主貴權。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 365,
+      "star": "日",
+      "branch": "未",
+      "gender": "both",
+      "type": "忌格",
+      "description": "日在未宮，日居月位，陰陽反背，主孤寡。",
+      "note": "日月忌格"
+    },
+    {
+      "id": 366,
+      "star": "月",
+      "branch": "午",
+      "gender": "both",
+      "type": "忌格",
+      "description": "月在午宮，月到日宮，陰陽反背，主破敗。",
+      "note": "日月忌格"
+    },
+    {
+      "id": 367,
+      "star": "木星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "忌格",
+      "description": "木星在辰宮，木入金鄉，木在辰酉二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 368,
+      "star": "火星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "忌格",
+      "description": "火星在巳宮，火居水地，火在巳申二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 369,
+      "star": "土星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "忌格",
+      "description": "土星在寅宮，土在木宮，土在寅亥二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 370,
+      "star": "金星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "忌格",
+      "description": "金星在卯宮，金乘火位，金在卯戌二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 371,
+      "star": "水星",
+      "branch": "子",
+      "gender": "both",
+      "type": "忌格",
+      "description": "水星在子宮，水居土室，水在子丑二宮，主破敗。",
+      "note": "五星忌格"
+    },
+    {
+      "id": 372,
+      "star": "金星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "金星在酉宮，婦人不喜見金水，金水同宮，多傍貴而行止如娼妓。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 373,
+      "star": "水星",
+      "branch": "酉",
+      "gender": "female",
+      "type": "忌格",
+      "description": "水星在酉宮，婦人不喜見金水，金水同宮，多傍貴而行止如娼妓。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 374,
+      "star": "孛",
+      "branch": "未",
+      "gender": "female",
+      "type": "合格",
+      "description": "孛在未宮，孛星坐咸池，巧妆云鬓画蛾眉，定是豪門一小妻。",
+      "note": "帘幕歌 - 女命"
+    },
+    {
+      "id": 375,
+      "star": "金星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在亥宮，金居干位，亥上金星與木日同居，主貴命。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 376,
+      "star": "水星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在巳宮，水注東南，水星在巳與木命同在寅，主滔滔無窮之福。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 377,
+      "star": "木星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在寅宮，木氣聯枝，木氣孛在寅亥，命宮官禄合格。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 378,
+      "star": "水星",
+      "branch": "參",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在參宮，玉猿守昆，水躔參度，會日命安，水度者貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 379,
+      "star": "火星",
+      "branch": "觜",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在觜宮，玉猴啸月，火觜月畢坐命，火月度夜生貴。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 380,
+      "star": "水星",
+      "branch": "軫",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在軫宮，玉女嫦娥，水軫月張，命箕主貴，女貌傾國。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 381,
+      "star": "金星",
+      "branch": "亢",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在亢宮，龍躍天池，亢金龍立命，金亥從日月，主榮顯。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 382,
+      "star": "木星",
+      "branch": "角",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在角宮，蒼龍入井，亢金角木，坐命金木，躔井合格。",
+      "note": "諸星次格"
+    },
+    {
+      "id": 383,
+      "star": "日",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在午宮，日居日位，太陽居垣，大貴之格，主權高位重。",
+      "note": "日月合格"
+    },
+    {
+      "id": 384,
+      "star": "日",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在子宮，與水同宮，水火既濟，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 385,
+      "star": "月",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在丑宮，月明斗府，斗牛秀氣，主文章冠世，官居翰苑。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 386,
+      "star": "金星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在寅宮，金騎人馬，命立寅宮尾度金星相會，禄享千鍾。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 387,
+      "star": "木星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在卯宮，木火文明，冬春月生，文章顯達。",
+      "note": "五星合格"
+    },
+    {
+      "id": 388,
+      "star": "火星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在辰宮，火氣職權，入廟旺宮合格，主權力顯赫。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 389,
+      "star": "土星",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星在巳宮，土羅相會，居廟旺奇，主富貴。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 390,
+      "star": "水星",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在午宮，水火既濟，水子火午，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 391,
+      "star": "羅",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在未宮，羅月交輝，晦朔夜生，主祥雲捧月，貴權。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 392,
+      "star": "計",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在申宮，計居龍尾，計在寅命居寅，權高職重。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 393,
+      "star": "氣",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "氣在酉宮，祥雲捧月，弦朢夜生，主福氣豐厚。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 394,
+      "star": "孛",
+      "branch": "戌",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在戌宮，太乙抱蟾，弦朢夜誕，主貴權早發。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 395,
+      "star": "日",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在亥宮，戴天履地，命亥月申，主富貴非常。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 396,
+      "star": "月",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在子宮，月明斗府，主文章冠世，官居翰苑。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 397,
+      "star": "金星",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在丑宮，金居干位，亥上金星與木日同居，主貴命。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 398,
+      "star": "土星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星在辰宮，土羅相會，居廟旺奇，主富貴。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 399,
+      "star": "羅",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在午宮，羅計中分，主大貴格，羅計攔截。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 400,
+      "star": "計",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在未宮，計居龍尾，主權高職重。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 401,
+      "star": "氣",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "氣在申宮，祥雲捧月，主福氣豐厚。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 402,
+      "star": "孛",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在酉宮，太乙抱蟾，主貴權早發。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 403,
+      "star": "日",
+      "branch": "戌",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在戌宮，明入地中，主富貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 404,
+      "star": "月",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在亥宮，眾星環月，夜生坤方，主非常之福。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 405,
+      "star": "金星",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在子宮，金水從陽，主君臣慶會。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 406,
+      "star": "木星",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在丑宮，斗牛秀氣，主文人貴格。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 407,
+      "star": "火星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在寅宮，火羅犯日，主陽光被蔽。",
+      "note": "政餘忌格"
+    },
+    {
+      "id": 408,
+      "star": "土星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星在卯宮，土金堅實，主堅實富貴。",
+      "note": "五星合格"
+    },
+    {
+      "id": 409,
+      "star": "水星",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在辰宮，水涵蟾魄，主智慧清秀。",
+      "note": "五星合格"
+    },
+    {
+      "id": 410,
+      "star": "羅",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在巳宮，出乾入巽，主出入乾坤大格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 411,
+      "star": "計",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在午宮，羅計中分，主大貴格。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 412,
+      "star": "氣",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "氣在未宮，祥雲捧月，主福氣豐厚。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 413,
+      "star": "孛",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在申宮，太乙抱蟾，主貴權早發。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 414,
+      "star": "日",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在酉宮，明入地中，主富貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 415,
+      "star": "月",
+      "branch": "戌",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在戌宮，月明斗府，主文章冠世。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 416,
+      "star": "金星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在亥宮，金居干位，主貴命富貴。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 417,
+      "star": "木星",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在子宮，木火文明，主文章顯達。",
+      "note": "五星合格"
+    },
+    {
+      "id": 418,
+      "star": "火星",
+      "branch": "丑",
+      "gender": "both",
+      "type": "合格",
+      "description": "火星在丑宮，火土高強，主權力高強。",
+      "note": "五星合格"
+    },
+    {
+      "id": 419,
+      "star": "土星",
+      "branch": "寅",
+      "gender": "both",
+      "type": "合格",
+      "description": "土星在寅宮，土羅相會，主富貴。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 420,
+      "star": "水星",
+      "branch": "卯",
+      "gender": "both",
+      "type": "合格",
+      "description": "水星在卯宮，水火既濟，主富貴雙全。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 421,
+      "star": "羅",
+      "branch": "辰",
+      "gender": "both",
+      "type": "合格",
+      "description": "羅在辰宮，首攜龍角，主榮顯權高。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 422,
+      "star": "計",
+      "branch": "巳",
+      "gender": "both",
+      "type": "合格",
+      "description": "計在巳宮，計居龍尾，主權高職重。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 423,
+      "star": "氣",
+      "branch": "午",
+      "gender": "both",
+      "type": "合格",
+      "description": "氣在午宮，祥雲捧月，主福氣豐厚。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 424,
+      "star": "孛",
+      "branch": "未",
+      "gender": "both",
+      "type": "合格",
+      "description": "孛在未宮，太乙抱蟾，主貴權早發。",
+      "note": "四餘合格"
+    },
+    {
+      "id": 425,
+      "star": "日",
+      "branch": "申",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在申宮，明出地晉，主貴格。",
+      "note": "靈台星格"
+    },
+    {
+      "id": 426,
+      "star": "月",
+      "branch": "酉",
+      "gender": "both",
+      "type": "合格",
+      "description": "月在酉宮，月明斗府，主文章冠世。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 427,
+      "star": "金星",
+      "branch": "戌",
+      "gender": "both",
+      "type": "合格",
+      "description": "金星在戌宮，金神持刃，主官封上將。",
+      "note": "補遺格局"
+    },
+    {
+      "id": 428,
+      "star": "木星",
+      "branch": "亥",
+      "gender": "both",
+      "type": "合格",
+      "description": "木星在亥宮，戴天履地，主富貴非常。",
+      "note": "政餘合格"
+    },
+    {
+      "id": 429,
+      "star": "日",
+      "branch": "子",
+      "gender": "both",
+      "type": "合格",
+      "description": "日在子宮，與水同宮，水火既濟，主富貴雙全，智慧清秀。",
+      "note": "政餘合格"
+    }
+  ]
+}

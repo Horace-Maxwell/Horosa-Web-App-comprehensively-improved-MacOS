@@ -1,0 +1,68 @@
+[
+  {
+    "key": "sirius",
+    "swe_name": "Sirius",
+    "name_en": "Sirius",
+    "name_zh": "天狼星",
+    "magnitude": -1.46,
+    "constellation": "Canis Major",
+    "fallback_longitude": 104.0,
+    "meaning_en": "Leadership, vitality, and ancestral fire in community life.",
+    "meaning_zh": "象徵領導力、生命力與祖先火焰，強化社群凝聚。"
+  },
+  {
+    "key": "canopus",
+    "swe_name": "Canopus",
+    "name_en": "Canopus",
+    "name_zh": "老人星",
+    "magnitude": -0.74,
+    "constellation": "Carina",
+    "fallback_longitude": 106.8,
+    "meaning_en": "Navigation, long-distance guidance, and elder wisdom.",
+    "meaning_zh": "象徵航行、遷徙指引與長者智慧。"
+  },
+  {
+    "key": "aldebaran",
+    "swe_name": "Aldebaran",
+    "name_en": "Aldebaran",
+    "name_zh": "畢宿五",
+    "magnitude": 0.85,
+    "constellation": "Taurus",
+    "fallback_longitude": 70.0,
+    "meaning_en": "Courage, guardianship, and responsibility to land.",
+    "meaning_zh": "象徵勇氣、守護與對土地的責任。"
+  },
+  {
+    "key": "spica",
+    "swe_name": "Spica",
+    "name_en": "Spica",
+    "name_zh": "角宿一",
+    "magnitude": 0.97,
+    "constellation": "Virgo",
+    "fallback_longitude": 204.2,
+    "meaning_en": "Harvest blessing, skill, and practical abundance.",
+    "meaning_zh": "象徵收穫祝福、技藝與務實豐盛。"
+  },
+  {
+    "key": "arcturus",
+    "swe_name": "Arcturus",
+    "name_en": "Arcturus",
+    "name_zh": "大角星",
+    "magnitude": -0.05,
+    "constellation": "Boötes",
+    "fallback_longitude": 204.8,
+    "meaning_en": "Seasonal timing, shepherding, and communal protection.",
+    "meaning_zh": "象徵季節時機、牧養守護與社群防衛。"
+  },
+  {
+    "key": "fomalhaut",
+    "swe_name": "Fomalhaut",
+    "name_en": "Fomalhaut",
+    "name_zh": "北落師門",
+    "magnitude": 1.16,
+    "constellation": "Piscis Austrinus",
+    "fallback_longitude": 333.0,
+    "meaning_en": "Purification, boundary-setting, and sacred intention.",
+    "meaning_zh": "象徵淨化、界線感與神聖意圖。"
+  }
+]

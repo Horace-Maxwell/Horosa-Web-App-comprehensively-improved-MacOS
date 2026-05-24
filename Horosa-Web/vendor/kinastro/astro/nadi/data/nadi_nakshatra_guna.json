@@ -1,0 +1,196 @@
+{
+  "title": "納迪占星術（Meena 版） - 27 星宿 Guna 完整對照表",
+  "source": "第一部星宿性質分類 + 第二部行星在各星宿的 Guna 變化說明",
+  "description": "本檔案收錄 Meena 版納迪占星術中 27 個星宿的完整 Guna（三德）分類、主宰行星，以及行星落在該星宿時所產生的 Sookshma Guna 變化。每條描述均為完整句子，便於查詢與應用。",
+  "nakshatras": {
+    "1_Aswini": {
+      "name": "阿斯溫尼（Aswini）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Ketu（計都）",
+      "description": "阿斯溫尼星宿屬於 Thamasic 性質，主宰行星為計都。行星落在阿斯溫尼時會帶有強烈的 Thamasic 特質，容易產生突發、激烈或隱藏的影響。",
+      "planet_guna_change": "任何行星落在阿斯溫尼，都會轉為帶有 Thamasic 色彩的性質，特別是太陽、月亮、金星落在這裡時，其 Rajasa 或 Satwika 本質會被明顯弱化。"
+    },
+    "2_Bharani": {
+      "name": "婆羅尼（Bharani）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Sukra（金星）",
+      "description": "婆羅尼星宿屬於 Rajasic 性質，主宰行星為金星。行星落在婆羅尼時會帶來強烈的欲望、行動力與物質層面的影響。",
+      "planet_guna_change": "行星落在婆羅尼時會強化 Rajasic 特質，金星在此星宿力量最強。"
+    },
+    "3_Krithika": {
+      "name": "克里提卡（Krithika）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Ravi（太陽）",
+      "description": "克里提卡星宿屬於 Rajasic 性質，主宰行星為太陽。行星落在克里提卡時會帶來強烈的領導力、熱情與切割性的影響。",
+      "planet_guna_change": "太陽落在自身星宿克里提卡時，其 Rajasic 特質會被強化。"
+    },
+    "4_Rohini": {
+      "name": "羅希尼（Rohini）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Chandra（月亮）",
+      "description": "羅希尼星宿屬於 Rajasic 性質，主宰行星為月亮。行星落在羅希尼時會帶來成長、豐盛與感官享受的影響。",
+      "planet_guna_change": "月亮落在自身星宿羅希尼時，其 Rajasic 特質會被強化。"
+    },
+    "5_Mrigasira": {
+      "name": "密迦沙拉（Mrigasira）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Kuja（火星）",
+      "description": "密迦沙拉星宿屬於 Thamasic 性質，主宰行星為火星。行星落在密迦沙拉時會帶來探索、追尋與激烈衝突的影響。",
+      "planet_guna_change": "火星落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "6_Arudra": {
+      "name": "阿魯德拉（Arudra）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Rahu（羅睺）",
+      "description": "阿魯德拉星宿屬於 Thamasic 性質，主宰行星為羅睺。行星落在阿魯德拉時會帶來動盪、變化與精神層面的混亂。",
+      "planet_guna_change": "羅睺落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "7_Punarvasu": {
+      "name": "普那瓦蘇（Punarvasu）",
+      "guna": "Sathvik（純淨本質）",
+      "ruler": "Guru（木星）",
+      "description": "普那瓦蘇星宿屬於 Sathvik 性質，主宰行星為木星。行星落在普那瓦蘇時會帶來智慧、回歸與精神層面的提升。",
+      "planet_guna_change": "木星落在自身星宿時，其 Satwika 特質會被大幅強化。"
+    },
+    "8_Pushyami": {
+      "name": "布什亞米（Pushyami）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Sani（土星）",
+      "description": "布什亞米星宿屬於 Thamasic 性質，主宰行星為土星。行星落在布什亞米時會帶來紀律、限制與長期性的影響。",
+      "planet_guna_change": "土星落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "9_Aslesha": {
+      "name": "阿舍夏（Aslesha）",
+      "guna": "Sathvik（純淨本質）",
+      "ruler": "Budha（水星）",
+      "description": "阿舍夏星宿屬於 Sathvik 性質，主宰行星為水星。行星落在阿舍夏時會帶來智慧、纏繞與心智層面的影響。",
+      "planet_guna_change": "水星落在自身星宿時，其 Satwika 特質會被強化。"
+    },
+    "10_Makha": {
+      "name": "瑪克哈（Makha）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Ketu（計都）",
+      "description": "瑪克哈星宿屬於 Thamasic 性質，主宰行星為計都。行星落在瑪克哈時會帶來祖先、權威與突然性的影響。",
+      "planet_guna_change": "計都落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "11_Pubba": {
+      "name": "普巴（Pubba）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Sukra（金星）",
+      "description": "普巴星宿屬於 Rajasic 性質，主宰行星為金星。行星落在普巴時會帶來享樂、創造與感官層面的影響。",
+      "planet_guna_change": "金星落在自身星宿時，其 Rajasic 特質會被強化。"
+    },
+    "12_Uttara": {
+      "name": "烏塔拉（Uttara）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Ravi（太陽）",
+      "description": "烏塔拉星宿屬於 Rajasic 性質，主宰行星為太陽。行星落在烏塔拉時會帶來穩定、權威與持久性的影響。",
+      "planet_guna_change": "太陽落在自身星宿時，其 Rajasic 特質會被強化。"
+    },
+    "13_Hasta": {
+      "name": "哈斯塔（Hasta）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Chandra（月亮）",
+      "description": "哈斯塔星宿屬於 Rajasic 性質，主宰行星為月亮。行星落在哈斯塔時會帶來技巧、手藝與心智層面的影響。",
+      "planet_guna_change": "月亮落在自身星宿時，其 Rajasic 特質會被強化。"
+    },
+    "14_Chitha": {
+      "name": "奇塔（Chitha）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Kuja（火星）",
+      "description": "奇塔星宿屬於 Thamasic 性質，主宰行星為火星。行星落在奇塔時會帶來藝術、創造與激烈性的影響。",
+      "planet_guna_change": "火星落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "15_Swati": {
+      "name": "斯瓦蒂（Swati）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Rahu（羅睺）",
+      "description": "斯瓦蒂星宿屬於 Thamasic 性質，主宰行星為羅睺。行星落在斯瓦蒂時會帶來獨立、流動與精神層面的影響。",
+      "planet_guna_change": "羅睺落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "16_Visaka": {
+      "name": "維薩卡（Visaka）",
+      "guna": "Sathvik（純淨本質）",
+      "ruler": "Guru（木星）",
+      "description": "維薩卡星宿屬於 Sathvik 性質，主宰行星為木星。行星落在維薩卡時會帶來決心、目標與精神層面的提升。",
+      "planet_guna_change": "木星落在自身星宿時，其 Satwika 特質會被大幅強化。"
+    },
+    "17_Anuradha": {
+      "name": "阿努拉達（Anuradha）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Sani（土星）",
+      "description": "阿努拉達星宿屬於 Thamasic 性質，主宰行星為土星。行星落在阿努拉達時會帶來奉獻、紀律與長期性的影響。",
+      "planet_guna_change": "土星落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "18_Jyeshta": {
+      "name": "傑斯塔（Jyeshta）",
+      "guna": "Sathvik（純淨本質）",
+      "ruler": "Budha（水星）",
+      "description": "傑斯塔星宿屬於 Sathvik 性質，主宰行星為水星。行星落在傑斯塔時會帶來智慧、保護與心智層面的影響。",
+      "planet_guna_change": "水星落在自身星宿時，其 Satwika 特質會被強化。"
+    },
+    "19_Mula": {
+      "name": "穆拉（Mula）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Ketu（計都）",
+      "description": "穆拉星宿屬於 Thamasic 性質，主宰行星為計都。行星落在穆拉時會帶來根源、破壞與轉化的影響。",
+      "planet_guna_change": "計都落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "20_Purvashada": {
+      "name": "普爾瓦沙達（Purvashada）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Sukra（金星）",
+      "description": "普爾瓦沙達星宿屬於 Rajasic 性質，主宰行星為金星。行星落在普爾瓦沙達時會帶來勝利、野心與物質層面的影響。",
+      "planet_guna_change": "金星落在自身星宿時，其 Rajasic 特質會被強化。"
+    },
+    "21_Uttarashada": {
+      "name": "烏塔拉沙達（Uttarashada）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Ravi（太陽）",
+      "description": "烏塔拉沙達星宿屬於 Rajasic 性質，主宰行星為太陽。行星落在烏塔拉沙達時會帶來不敗、權威與持久性的影響。",
+      "planet_guna_change": "太陽落在自身星宿時，其 Rajasic 特質會被強化。"
+    },
+    "22_Sravana": {
+      "name": "斯拉瓦納（Sravana）",
+      "guna": "Rajasic（激動本質）",
+      "ruler": "Chandra（月亮）",
+      "description": "斯拉瓦納星宿屬於 Rajasic 性質，主宰行星為月亮。行星落在斯拉瓦納時會帶來傾聽、學習與知識層面的影響。",
+      "planet_guna_change": "月亮落在自身星宿時，其 Rajasic 特質會被強化。"
+    },
+    "23_Dhanishta": {
+      "name": "丹尼什塔（Dhanishta）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Kuja（火星）",
+      "description": "丹尼什塔星宿屬於 Thamasic 性質，主宰行星為火星。行星落在丹尼什塔時會帶來財富、音樂與行動力的影響。",
+      "planet_guna_change": "火星落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "24_Satabisha": {
+      "name": "薩塔比夏（Satabisha）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Rahu（羅睺）",
+      "description": "薩塔比夏星宿屬於 Thamasic 性質，主宰行星為羅睺。行星落在薩塔比夏時會帶來治療、神秘與流動性的影響。",
+      "planet_guna_change": "羅睺落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "25_Purvabhadrapada": {
+      "name": "普爾瓦巴德拉帕達（Purvabhadrapada）",
+      "guna": "Sathvik（純淨本質）",
+      "ruler": "Guru（木星）",
+      "description": "普爾瓦巴德拉帕達星宿屬於 Sathvik 性質，主宰行星為木星。行星落在普爾瓦巴德拉帕達時會帶來智慧、犧牲與精神層面的提升。",
+      "planet_guna_change": "木星落在自身星宿時，其 Satwika 特質會被大幅強化。"
+    },
+    "26_Uttarabhadrapada": {
+      "name": "烏塔拉巴德拉帕達（Uttarabhadrapada）",
+      "guna": "Thamasic（惰性本質）",
+      "ruler": "Sani（土星）",
+      "description": "烏塔拉巴德拉帕達星宿屬於 Thamasic 性質，主宰行星為土星。行星落在烏塔拉巴德拉帕達時會帶來深度、智慧與長期性的影響。",
+      "planet_guna_change": "土星落在自身星宿時，其 Thamasic 特質會被強化。"
+    },
+    "27_Revati": {
+      "name": "雷瓦提（Revati）",
+      "guna": "Sathvik（純淨本質）",
+      "ruler": "Budha（水星）",
+      "description": "雷瓦提星宿屬於 Sathvik 性質，主宰行星為水星。行星落在雷瓦提時會帶來慈悲、保護與完成性的影響。",
+      "planet_guna_change": "水星落在自身星宿時，其 Satwika 特質會被強化。"
+    }
+  }
+}

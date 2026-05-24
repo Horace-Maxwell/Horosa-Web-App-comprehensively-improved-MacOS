@@ -1,0 +1,89 @@
+{
+  "metadata": {
+    "source": "Dropsie College MS.164",
+    "section": "female_appearances",
+    "description_zh": "MS.164 手稿中所有女性命盤的外貌形容專用資料（共 5 筆完整描述）。適合在『MS.164 手稿占卜』頁面快速查詢女性外貌。",
+    "total_entries": 5,
+    "note_zh": "手稿中僅有這 5 個星座有明確、完整的女性外貌描述，其餘為零星提及或未形成獨立命盤。",
+    "last_updated": "2026-04-15"
+  },
+
+  "appearances": [
+    {
+      "zodiac_zh": "摩羯座",
+      "planet_zh": "土星",
+      "zodiac_ar": "الجدي",
+      "planet_ar": "زحل",
+      "appearance_zh": "皮膚微黃或淡褐色、體型高挑、氣質尊貴。聲音悅耳，臉頰與額頭有特殊標誌，雙唇纖薄，四肢修長，胸膛寬闊，頸項細長，眉目濃密，手掌線紋清晰。",
+      "appearance_details": {
+        "skin": "微黃或淡褐色",
+        "height": "高挑",
+        "face": "臉頰有標誌，額頭與下巴具特徵",
+        "lips": "纖薄",
+        "limbs": "四肢修長",
+        "chest": "胸膛寬闊",
+        "neck": "頸項細長",
+        "eyes_brows": "眉目濃密",
+        "hands": "手掌線紋清晰"
+      },
+      "page_ref": "494"
+    },
+    {
+      "zodiac_zh": "雙魚座",
+      "planet_zh": "木星",
+      "zodiac_ar": "الحوت",
+      "planet_ar": "المشتري",
+      "appearance_zh": "膚色白皙、髮色金黃、體態優雅、骨骼方正、身形勻稱、舉止端莊。",
+      "appearance_details": {
+        "skin": "白皙",
+        "hair": "金黃",
+        "body": "優雅、骨骼方正、身形勻稱"
+      },
+      "page_ref": "498"
+    },
+    {
+      "zodiac_zh": "雙子座",
+      "planet_zh": "水星",
+      "zodiac_ar": "الجوزاء",
+      "planet_ar": "عطارد",
+      "appearance_zh": "皮膚白皙、髮色金黃、眉心或有痣記，容貌清秀，性情善妒。",
+      "appearance_details": {
+        "skin": "白皙",
+        "hair": "金黃",
+        "marks": "眉心或有痣記",
+        "face": "清秀"
+      },
+      "page_ref": "502"
+    },
+    {
+      "zodiac_zh": "獅子座",
+      "planet_zh": "太陽",
+      "zodiac_ar": "الأسد",
+      "planet_ar": "الشمس",
+      "appearance_zh": "面色如朝陽般明亮、略帶黃調，臍部或呈金色，容貌俊美、聰慧靈巧，髮色深黑。",
+      "appearance_details": {
+        "skin": "明亮略帶黃調",
+        "navel": "或呈金色",
+        "face": "俊美",
+        "hair": "深黑"
+      },
+      "page_ref": "502"
+    },
+    {
+      "zodiac_zh": "金牛座",
+      "planet_zh": "金星",
+      "zodiac_ar": "الثور",
+      "planet_ar": "الزهرة",
+      "appearance_zh": "膚色深沉、金黃色顴骨、高聳鼻樑、長頸、下顎寬闊、步履蹣跚。",
+      "appearance_details": {
+        "skin": "深沉",
+        "cheeks": "金黃色顴骨",
+        "nose": "高聳",
+        "neck": "長頸",
+        "chin": "下顎寬闊",
+        "walk": "步履蹣跚"
+      },
+      "page_ref": "492"
+    }
+  ]
+}

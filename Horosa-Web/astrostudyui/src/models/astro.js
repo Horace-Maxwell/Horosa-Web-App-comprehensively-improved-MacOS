@@ -292,6 +292,7 @@ function hooking(hook, currentTab, fields, chartObj){
 		|| currentTab === 'fengshui' || currentTab === 'sanshiunited' || currentTab === 'aianalysis'
 		|| currentTab === 'bazi' || currentTab === 'ziwei' || currentTab === 'guazhan'
 		|| currentTab === 'liureng' || currentTab === 'dunjia' || currentTab === 'taiyi'
+		|| currentTab === 'shusuan' || currentTab === 'yanqin' || currentTab === 'mingother'
 		|| currentTab === 'auxchart' || currentTab === 'planetarium'){
 		if(hook[currentTab].fun){
 			hook[currentTab].fun(fields, chartObj)
@@ -392,6 +393,15 @@ export default {
 				fun: null
 			},
 			taiyi:{
+				fun: null
+			},
+			shusuan:{
+				fun: null
+			},
+			yanqin:{
+				fun: null
+			},
+			mingother:{
 				fun: null
 			},
 			calendar:{
@@ -863,6 +873,17 @@ export default {
 							creator: chart.creator.value,
 							updateTime: chart.updateTime.value,
 							group: chart.group.value,
+							memoAstro: chart.memoAstro.value,
+							memoBaZi: chart.memoBaZi.value,
+							memoZiWei: chart.memoZiWei.value,
+							memo74: chart.memo74.value,
+							memoGua: chart.memoGua.value,
+							memoLiuReng: chart.memoLiuReng.value,
+							memoQiMeng: chart.memoQiMeng.value,
+							memoSuZhan: chart.memoSuZhan.value,
+							payload: chart.payload ? chart.payload.value : null,
+							sourceModule: chart.sourceModule ? chart.sourceModule.value : null,
+							chartType: chart.chartType ? chart.chartType.value : null,
 							drawerVisible: drawer,
 						};
 						yield put({

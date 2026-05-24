@@ -103,6 +103,18 @@ function newEmptyChartFields(){
 			value: null,
 			name: ['memoSuZhan'],
 		},
+		payload: {
+			value: null,
+			name: ['payload'],
+		},
+		sourceModule: {
+			value: null,
+			name: ['sourceModule'],
+		},
+		chartType: {
+			value: null,
+			name: ['chartType'],
+		},
 
 	};
 
@@ -328,6 +340,18 @@ export default {
 				value: null,
 				name: ['memoSuZhan'],
 			},
+			payload: {
+				value: null,
+				name: ['payload'],
+			},
+			sourceModule: {
+				value: null,
+				name: ['sourceModule'],
+			},
+			chartType: {
+				value: null,
+				name: ['chartType'],
+			},
 
 		},
 		currentCase: {
@@ -422,7 +446,7 @@ export default {
 			chart.zone.value = tm.zone;
 			chart.lat.value = fld.lat.value;
 			chart.lon.value = fld.lon.value;
-			chart.doubingSu28 = fld.doubingSu28.value;
+			chart.doubingSu28.value = fld.doubingSu28 ? fld.doubingSu28.value : 0;
 			chart.group.value = fld.group.value;
 			if(fld.group && !(fld.group.value instanceof Array)){
 				try{
@@ -444,6 +468,17 @@ export default {
 			chart.memoLiuReng.value = fld.memoLiuReng.value;
 			chart.memoQiMeng.value = fld.memoQiMeng.value;
 			chart.memoSuZhan.value = fld.memoSuZhan.value;
+			if(values){
+				if(values.payload !== undefined){
+					chart.payload.value = values.payload;
+				}
+				if(values.sourceModule !== undefined){
+					chart.sourceModule.value = values.sourceModule;
+				}
+				if(values.chartType !== undefined){
+					chart.chartType.value = values.chartType;
+				}
+			}
 
 			yield put({
                 type: 'save',
@@ -505,6 +540,9 @@ export default {
 			chart.memoLiuReng.value = values.memoLiuReng;
 			chart.memoQiMeng.value = values.memoQiMeng;
 			chart.memoSuZhan.value = values.memoSuZhan;
+			chart.payload.value = values.payload;
+			chart.sourceModule.value = values.sourceModule;
+			chart.chartType.value = values.chartType;
 
 			yield put({
                 type: 'save',
@@ -568,10 +606,10 @@ export default {
 				if(values.zone){
 					caze.zone.value = values.zone;
 				}
-				if(values.lat){
+				if(values.lat !== undefined && values.lat !== null){
 					caze.lat.value = values.lat;
 				}
-				if(values.lon){
+				if(values.lon !== undefined && values.lon !== null){
 					caze.lon.value = values.lon;
 				}
 				if(values.gpsLat !== undefined && values.gpsLat !== null){
@@ -802,10 +840,10 @@ export default {
 			flds.time.value = tm.clone();
 			flds.ad.value = tm.ad;
 			flds.zone.value = zone;
-			if(values.lon){
+			if(values.lon !== undefined && values.lon !== null){
 				flds.lon.value = values.lon;
 			}
-			if(values.lat){
+			if(values.lat !== undefined && values.lat !== null){
 				flds.lat.value = values.lat;
 			}
 			if(values.gpsLon !== undefined && values.gpsLon !== null){
@@ -817,13 +855,14 @@ export default {
 			if(values.pos !== undefined){
 				flds.pos.value = values.pos;
 			}
-			const typeMeta = getCaseTypeMeta(values.caseType);
+			const typeMeta = getCaseTypeMeta(values.caseType || values.sourceModule);
 			const nextTab = typeMeta.tab ? typeMeta.tab : (typeMeta.module === 'sanshiunited' ? 'sanshiunited' : 'cnyibu');
+			const nextSubTab = typeMeta.subTab || null;
 			yield put({
 				type: 'astro/save',
 				payload: {
 					currentTab: nextTab,
-					currentSubTab: nextTab === 'cnyibu' ? typeMeta.subTab : null,
+					currentSubTab: nextSubTab,
 				},
 			});
 			yield put({
@@ -1002,6 +1041,9 @@ export default {
 					group: currentChart.group.value,
 					doubingSu28: currentChart.doubingSu28.value,
 					creator: currentChart.creator.value,
+					payload: currentChart.payload ? currentChart.payload.value : null,
+					sourceModule: currentChart.sourceModule ? currentChart.sourceModule.value : null,
+					chartType: currentChart.chartType ? currentChart.chartType.value : null,
 				});
 			}catch(e){
 				Modal.error({

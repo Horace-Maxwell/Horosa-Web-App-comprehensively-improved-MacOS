@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kinwangji"
+version = "0.1.0"
+description = "皇極經世 (Huangji Jingshi) — Python implementation of Shao Yong's yuan-hui-yun-shi cycles and 24 solar terms calculation."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.8"
+authors = [
+    { name = "kentang2017" },
+]
+keywords = ["huangji", "jingshi", "shao-yong", "yijing", "solar-terms", "chinese-calendar"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dependencies = [
+    "ephem>=4.1.6",
+    "sxtwl>=2.0.6",
+    "cn2an>=0.5.23",
+    "bidict>=0.22.1",
+]
+
+[project.optional-dependencies]
+app = [
+    "streamlit>=1.22",
+    "pendulum>=3.0.0",
+    "pytz>=2022.4",
+]
+dev = [
+    "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/kentang2017/kinwangji"
+Repository = "https://github.com/kentang2017/kinwangji"
+Issues = "https://github.com/kentang2017/kinwangji/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kinwangji"]

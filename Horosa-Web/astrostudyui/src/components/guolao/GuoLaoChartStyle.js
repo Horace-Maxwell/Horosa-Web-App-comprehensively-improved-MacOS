@@ -1,6 +1,7 @@
 export const GUOLAO_CHART_STYLE_CLASSIC = 'classic';
 export const GUOLAO_CHART_STYLE_MOIRA = 'moira';
 export const GUOLAO_CHART_STYLE_PICK = 'pick';
+export const GUOLAO_CHART_STYLE_QIZHENG = 'qizhengKin';
 export const GUOLAO_CHART_STYLE_KEY = 'horosaGuolaoChartStyle';
 export const GUOLAO_SU28_MODE_KEY = 'horosaGuolaoSu28Mode';
 export const GUOLAO_MOIRA_TRANSIT_GODS_KEY = 'horosaGuolaoMoiraTransitGods';
@@ -37,13 +38,18 @@ export function getStoredGuolaoChartStyle(){
 	if(val === GUOLAO_CHART_STYLE_PICK){
 		return GUOLAO_CHART_STYLE_PICK;
 	}
+	if(val === GUOLAO_CHART_STYLE_QIZHENG){
+		return GUOLAO_CHART_STYLE_QIZHENG;
+	}
 	return GUOLAO_CHART_STYLE_MOIRA;
 }
 
 export function setStoredGuolaoChartStyle(val){
 	const next = val === GUOLAO_CHART_STYLE_PICK
 		? GUOLAO_CHART_STYLE_PICK
-		: (val === GUOLAO_CHART_STYLE_MOIRA ? GUOLAO_CHART_STYLE_MOIRA : GUOLAO_CHART_STYLE_CLASSIC);
+		: (val === GUOLAO_CHART_STYLE_QIZHENG
+			? GUOLAO_CHART_STYLE_QIZHENG
+			: (val === GUOLAO_CHART_STYLE_MOIRA ? GUOLAO_CHART_STYLE_MOIRA : GUOLAO_CHART_STYLE_CLASSIC));
 	writeItem(GUOLAO_CHART_STYLE_KEY, next);
 	return next;
 }

@@ -31,6 +31,11 @@ export default class ZWCommHouse {
 		this.stars = new Map();
 		this.fontSize = 18;
 		this.starFontSize = 23;
+		this.kinastroBorrowed = !!option.kinastroBorrowed;
+		if(option.kinastroBorrowed){
+			this.fontSize = 17;
+			this.starFontSize = 25;
+		}
 		this.houseBG = AstroConst.AstroColor.ChartBackgroud;
 
 		this.divTooltip = option.divTooltip;

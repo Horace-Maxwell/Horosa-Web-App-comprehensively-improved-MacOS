@@ -1,0 +1,130 @@
+{
+  "name": "brahma_jati_monthly_variants",
+  "description": "泰國傳統พรหมชาติ 12 生肖每月細分變體（不同月份出生有不同類型、個性、運勢差異）",
+  "note": "每個生肖依出生月份分為 3~4 種不同「動物類型」，個性、事業、財運、婚姻均有明顯差異。可與 brahma_jati_birthyear.json 合併使用。",
+  "years": {
+    "ปีชวด": {
+      "name_zh": "鼠年",
+      "name_en": "Rat Year",
+      "variants": {
+        "5-6-7": { "type_thai": "หนูท้องขาว", "type_zh": "白腹鼠", "type_en": "White-Bellied Rat", "meaning_thai": "สติปัญญาดี ใจบุญสุนทร์ ทำราชการมีเกียรติเจริญก้าวหน้า ข้าทาสบริวารมาก ทำการค้าจะมีกำไร", "meaning_zh": "智慧高、樂善好施、官運亨通、部屬多、生意獲利豐厚", "meaning_en": "High intelligence, benevolent, excellent government career, many subordinates, profitable business." },
+        "8-9-10": { "type_thai": "หนูหริ่ง", "type_zh": "條紋鼠", "type_en": "Striped Rat", "meaning_thai": "ได้รับความเดือดร้อนยุ่งยากใจ ข้าไพร่เรือกสวนน่ารำคาญ ถูกเบียดเบียน พูดจาไม่ยั่งยืน ทำราชการยศน้อย", "meaning_zh": "多煩惱、勞心勞力、下屬麻煩、易被欺負、說話不穩定、官運不佳", "meaning_en": "Frequent troubles, hard work, annoying subordinates, easily bullied, unstable speech, low official rank." },
+        "10-12-1": { "type_thai": "หนูฝี", "type_zh": "鬼鼠", "type_en": "Ghost Rat", "meaning_thai": "ตกระกำลำบากเมื่อน้อย หากขาดการศึกษามักโจบาป ทำราชการอาสาเจ้านายดี ทำการค้าทำไร่นามีอยู่มีกินพอประมาณ", "meaning_zh": "幼年辛苦、無學易犯罪、為官忠誠、生意農務普通但能溫飽", "meaning_en": "Difficult childhood, uneducated may commit crimes, loyal in service, average but sufficient livelihood." },
+        "2-3-4": { "type_thai": "หนูตะเภา", "type_zh": "天竺鼠型", "type_en": "Guinea Pig Rat", "meaning_thai": "อยู่นิ่งเฉยไม่เป็น มีความขยันหมั่นเพียรดี มีความคิดริเริ่มใหม่ๆ ทำราชการก้าวหน้า ทำไร่นาค้าขายมีกำไร ลูกหลานมาก ไปต่างถิ่นมีคนนับหน้า", "meaning_zh": "穩重勤奮、創意豐富、事業進展順利、農商獲利、子女多、外地受尊重", "meaning_en": "Steady and diligent, creative, good career advancement, profitable farming/business, many children, respected abroad." }
+      }
+    },
+    "ปีฉลู": {
+      "name_zh": "牛年",
+      "name_en": "Ox Year",
+      "variants": {
+        "5-6-7": { "type_thai": "วัวดินเผา", "type_zh": "陶土牛", "type_en": "Clay Ox", "meaning_thai": "ใช้ชีวิตแบบอิสระ ทำราชการจะได้ดีมีสุข ใจร้อนรน อยู่ที่ไหนได้ไม่นาน มีทรัพย์สินเงินทองมาก", "meaning_zh": "生活自由、官運佳但心急、難久留一處、財富豐厚", "meaning_en": "Free-spirited life, good official career but impatient, does not stay long in one place, wealthy." },
+        "8-9-10": { "type_thai": "วัวคนใช้งาน", "type_zh": "勞動牛", "type_en": "Working Ox", "meaning_thai": "อดทน ใจแข็ง ขยันหมั่นเพียร ทำงานได้ทุกอย่าง อาสาเจ้านายดี ทำราชการดี ทำไร่นาก็ดี พอมีทรัพย์เลี้ยงตัว", "meaning_zh": "耐勞心堅、勤奮能幹、任何工作皆可、忠誠服務、事業穩定、足以溫飽", "meaning_en": "Patient and hardworking, can do any job, loyal service, stable career, sufficient livelihood." },
+        "11-12-1": { "type_thai": "วัวเปลี่ยว", "type_zh": "孤獨牛", "type_en": "Lonely Ox", "meaning_thai": "หากินยาก ใจบุญเห็นใจผู้อื่น ทำราชการพอเอาตัวรอด ทำไร่นาจะผลิดผลได้กำไรดี", "meaning_zh": "謀生不易、仁慈、官運普通、農務獲利不錯", "meaning_en": "Hard to make a living, kind-hearted, average official career, good profit from farming." },
+        "2-3-4": { "type_thai": "วัวอุสสราช", "type_zh": "王牛", "type_en": "Royal Ox", "meaning_thai": "เกิดมามีบุญ ไม่สู้พบความลำบาก ทำราชการได้เป็นใหญ่ ข้าไพร่บริวารมาก ทำไร่นาร่ำรวย ค้าขายไม่สู้ดีแต่ได้ทรัพย์จากมรดก", "meaning_zh": "天生有福、少遇困難、官運亨通、部屬多、農務致富、生意普通但有遺產", "meaning_en": "Born with good fortune, few difficulties, high official position, many subordinates, rich from farming, average business but inherits wealth." }
+      }
+    },
+    "ปีขาล": {
+      "name_zh": "虎年",
+      "name_en": "Tiger Year",
+      "variants": {
+        "5-6-7": { "type_thai": "เสือดำ", "type_zh": "黑虎", "type_en": "Black Tiger", "meaning_thai": "กล้าหาญ เด็ดขาด มีอำนาจบารมี แต่脾气ร้อนแรง 容易衝突", "meaning_zh": "勇敢果斷、威嚴強大，但脾氣暴躁、易起衝突", "meaning_en": "Brave and decisive, strong authority, but hot-tempered and prone to conflict." },
+        "8-9-10": { "type_thai": "เสือเหลือง", "type_zh": "黃虎", "type_en": "Yellow Tiger", "meaning_thai": "ฉลาด มีเสน่ห์ เก่งเจรจา แต่ค่อนข้างหยิ่งยโส", "meaning_zh": "聰明有魅力、善於交際，但較驕傲", "meaning_en": "Intelligent and charismatic, good at communication, but somewhat arrogant." },
+        "11-12-1": { "type_thai": "เสือขาว", "type_zh": "白虎", "type_en": "White Tiger", "meaning_thai": "ใจบุญ ช่วยเหลือผู้อื่น ทำราชการมีชื่อเสียง แต่ชีวิตค่อนข้างเหนื่อย", "meaning_zh": "仁慈樂於助人、官運有名聲，但生活較勞累", "meaning_en": "Kind and helpful, good reputation in career, but life is laborious." },
+        "2-3-4": { "type_thai": "เสือแดง", "type_zh": "紅虎", "type_en": "Red Tiger", "meaning_thai": "มีโชค ทำการค้าขายร่ำรวย ลูกหลานมาก แต่ต้องระวังอุบัติเหตุ", "meaning_zh": "有福氣、生意興隆、子女多，但需注意意外", "meaning_en": "Lucky, prosperous business, many children, but beware of accidents." }
+      }
+    },
+    "ปีเถาะ": {
+      "name_zh": "兔年",
+      "name_en": "Rabbit Year",
+      "variants": {
+        "5-6-7": { "type_thai": "กระต่ายป่า", "type_zh": "野兔", "type_en": "Wild Rabbit", "meaning_thai": "อ่อนโยน ฉลาด มีเสน่ห์ แต่敏感 ง่ายต่อการ受傷ใจ", "meaning_zh": "溫柔聰明、有魅力，但敏感易受傷", "meaning_en": "Gentle, intelligent, charming, but sensitive and easily hurt emotionally." },
+        "8-9-10": { "type_thai": "กระต่ายบ้าน", "type_zh": "家兔", "type_en": "Domestic Rabbit", "meaning_thai": "สงบ ใจดี เก่งเรื่องบ้านเรือน แต่ขาดความกล้าหาญ", "meaning_zh": "安靜善良、擅長家務，但較缺乏勇氣", "meaning_en": "Calm and kind, good at household matters, but lacks courage." },
+        "11-12-1": { "type_thai": "กระต่ายเงิน", "type_zh": "銀兔", "type_en": "Silver Rabbit", "meaning_thai": "มีโชคลาภ ทำการค้าขายดี แต่ต้องระวังเรื่องคู่ครอง", "meaning_zh": "有財運、生意順利，但需注意婚姻", "meaning_en": "Lucky with wealth, good business, but careful with relationships." },
+        "2-3-4": { "type_thai": "กระต่ายทอง", "type_zh": "金兔", "type_en": "Golden Rabbit", "meaning_thai": "มีบุญวาสนา ชีวิตสบาย ลูกหลานดี แต่ต้องระวังสุขภาพ", "meaning_zh": "天生有福、生活安逸、子女優秀，但需注意健康", "meaning_en": "Born with good fortune, comfortable life, good children, but watch health." }
+      }
+    },
+    "ปีมะโรง": {
+      "name_zh": "大蛇年",
+      "name_en": "Large Snake Year",
+      "variants": {
+        "5-6-7": { "type_thai": "งูใหญ่สีทอง", "type_zh": "金大蛇", "type_en": "Golden Large Snake", "meaning_thai": "มีอำนาจ วาสนา ฉลาด มีเสน่ห์ ทำราชการก้าวหน้า แต่ต้องระวังคำพูด", "meaning_zh": "權勢福氣、聰明有魅力、官運亨通，但需注意言語", "meaning_en": "Powerful and fortunate, intelligent and charismatic, good career advancement, but watch speech." },
+        "8-9-10": { "type_thai": "งูใหญ่สีดำ", "type_zh": "黑大蛇", "type_en": "Black Large Snake", "meaning_thai": "กล้าหาญ เด็ดขาด แต่ชีวิตค่อนข้างเหนื่อย ต้องระวังอุบัติเหตุ", "meaning_zh": "勇敢果斷，但生活較勞累，需注意意外", "meaning_en": "Brave and decisive, but life is laborious, beware of accidents." },
+        "11-12-1": { "type_thai": "งูใหญ่สีขาว", "type_zh": "白大蛇", "type_en": "White Large Snake", "meaning_thai": "ใจบุญ ช่วยเหลือผู้อื่น มีโชคลาภจากผู้ใหญ่", "meaning_zh": "仁慈樂於助人、有長輩帶來好運", "meaning_en": "Kind and helpful, gains from elders." },
+        "2-3-4": { "type_thai": "งูใหญ่สีแดง", "type_zh": "紅大蛇", "type_en": "Red Large Snake", "meaning_thai": "มีโชคใหญ่ ทำการค้าขายร่ำรวย ลูกหลานมาก", "meaning_zh": "大福氣、生意興隆、子女多", "meaning_en": "Great luck, prosperous business, many children." }
+      }
+    },
+    "ปีมะเส็ง": {
+      "name_zh": "小蛇年",
+      "name_en": "Small Snake Year",
+      "variants": {
+        "5-6-7": { "type_thai": "งูเล็กสีทอง", "type_zh": "金小蛇", "type_en": "Golden Small Snake", "meaning_thai": "ฉลาด 機智 มีเสน่ห์ แต่ค่อนข้างหยิ่งยโส", "meaning_zh": "聰明機智、有魅力，但較驕傲", "meaning_en": "Clever and witty, charismatic, but somewhat arrogant." },
+        "8-9-10": { "type_thai": "งูเล็กสีดำ", "type_zh": "黑小蛇", "type_en": "Black Small Snake", "meaning_thai": "อดทน ใจแข็ง แต่ชีวิตค่อนข้างเหนื่อย", "meaning_zh": "耐勞心堅，但生活較勞累", "meaning_en": "Patient and strong-willed, but life is laborious." },
+        "11-12-1": { "type_thai": "งูเล็กสีขาว", "type_zh": "白小蛇", "type_en": "White Small Snake", "meaning_thai": "ใจบุญ ช่วยเหลือผู้อื่น มีโชคลาภจากบริวาร", "meaning_zh": "仁慈樂於助人、有部屬帶來好運", "meaning_en": "Kind and helpful, gains from subordinates." },
+        "2-3-4": { "type_thai": "งูเล็กสีแดง", "type_zh": "紅小蛇", "type_en": "Red Small Snake", "meaning_thai": "มีโชค ทำการค้าขายดี แต่ต้องระวังสุขภาพ", "meaning_zh": "有福氣、生意順利，但需注意健康", "meaning_en": "Lucky, good business, but watch health." }
+      }
+    },
+    "ปีมะเมีย": {
+      "name_zh": "馬年",
+      "name_en": "Horse Year",
+      "variants": {
+        "5-6-7": { "type_thai": "ม้าดำ", "type_zh": "黑馬", "type_en": "Black Horse", "meaning_thai": "กล้าหาญ เด็ดขาด มีเสน่ห์ แต่容易衝動", "meaning_zh": "勇敢果斷、有魅力，但易衝動", "meaning_en": "Brave and decisive, charismatic, but impulsive." },
+        "8-9-10": { "type_thai": "ม้าแดง", "type_zh": "紅馬", "type_en": "Red Horse", "meaning_thai": "มีโชค ทำการค้าขายร่ำรวย ลูกหลานมาก", "meaning_zh": "有福氣、生意興隆、子女多", "meaning_en": "Lucky, prosperous business, many children." },
+        "11-12-1": { "type_thai": "ม้าขาว", "type_zh": "白馬", "type_en": "White Horse", "meaning_thai": "ใจบุญ ช่วยเหลือผู้อื่น ทำราชการมีชื่อเสียง", "meaning_zh": "仁慈樂於助人、官運有名聲", "meaning_en": "Kind and helpful, good reputation in career." },
+        "2-3-4": { "type_thai": "ม้าเหลือง", "type_zh": "黃馬", "type_en": "Yellow Horse", "meaning_thai": "ฉลาด เก่งเจรจา แต่ชีวิตค่อนข้างเหนื่อย", "meaning_zh": "聰明善於交際，但生活較勞累", "meaning_en": "Intelligent and good at communication, but life is laborious." }
+      }
+    },
+    "ปีมะแม": {
+      "name_zh": "羊年",
+      "name_en": "Goat Year",
+      "variants": {
+        "5-6-7": { "type_thai": "แพะดำ", "type_zh": "黑羊", "type_en": "Black Goat", "meaning_thai": "อดทน ใจดี แต่ชีวิตค่อนข้างเหนื่อย", "meaning_zh": "耐勞善良，但生活較勞累", "meaning_en": "Patient and kind, but life is laborious." },
+        "8-9-10": { "type_thai": "แพะขาว", "type_zh": "白羊", "type_en": "White Goat", "meaning_thai": "มีโชคลาภ ทำการค้าขายดี ลูกหลานมาก", "meaning_zh": "有財運、生意順利、子女多", "meaning_en": "Lucky with wealth, good business, many children." },
+        "11-12-1": { "type_thai": "แพะทอง", "type_zh": "金羊", "type_en": "Golden Goat", "meaning_thai": "มีบุญวาสนา ชีวิตสบาย แต่ต้องระวังสุขภาพ", "meaning_zh": "天生有福、生活安逸，但需注意健康", "meaning_en": "Born with good fortune, comfortable life, but watch health." },
+        "2-3-4": { "type_thai": "แพะแดง", "type_zh": "紅羊", "type_en": "Red Goat", "meaning_thai": "มีเสน่ห์ เก่งศิลปะ แต่ค่อนข้าง被动", "meaning_zh": "有魅力、擅長藝術，但較被動", "meaning_en": "Charismatic and artistic, but somewhat passive." }
+      }
+    },
+    "ปีวอก": {
+      "name_zh": "猴年",
+      "name_en": "Monkey Year",
+      "variants": {
+        "5-6-7": { "type_thai": "ลิงดำ", "type_zh": "黑猴", "type_en": "Black Monkey", "meaning_thai": "ฉลาด 機智 แต่ขี้เล่น 難安定", "meaning_zh": "聰明機智，但好動難安定", "meaning_en": "Clever and witty, but playful and restless." },
+        "8-9-10": { "type_thai": "ลิงทอง", "type_zh": "金猴", "type_en": "Golden Monkey", "meaning_thai": "มีโชค ทำการค้าขายร่ำรวย มีชื่อเสียง", "meaning_zh": "有福氣、生意興隆、有名聲", "meaning_en": "Lucky, prosperous business, famous." },
+        "11-12-1": { "type_thai": "ลิงขาว", "type_zh": "白猴", "type_en": "White Monkey", "meaning_thai": "ใจบุญ ช่วยเหลือผู้อื่น แต่ชีวิตค่อนข้างเหนื่อย", "meaning_zh": "仁慈樂於助人，但生活較勞累", "meaning_en": "Kind and helpful, but life is laborious." },
+        "2-3-4": { "type_thai": "ลิงแดง", "type_zh": "紅猴", "type_en": "Red Monkey", "meaning_thai": "มีเสน่ห์ เก่งศิลปะ ชีวิตสนุกสนาน", "meaning_zh": "有魅力、擅長藝術、生活快樂", "meaning_en": "Charismatic and artistic, joyful life." }
+      }
+    },
+    "ปีระกา": {
+      "name_zh": "雞年",
+      "name_en": "Rooster Year",
+      "variants": {
+        "5-6-7": { "type_thai": "ไก่ดำ", "type_zh": "黑雞", "type_en": "Black Rooster", "meaning_thai": "กล้าหาญ เด็ดขาด มี leadership แต่固執", "meaning_zh": "勇敢果斷、有領導力，但較固執", "meaning_en": "Brave and decisive, leadership qualities, but stubborn." },
+        "8-9-10": { "type_thai": "ไก่ทอง", "type_zh": "金雞", "type_en": "Golden Rooster", "meaning_thai": "มีโชคลาภ ทำราชการก้าวหน้า มีชื่อเสียง", "meaning_zh": "有財運、官運亨通、有名聲", "meaning_en": "Lucky, good official career, famous." },
+        "11-12-1": { "type_thai": "ไก่ขาว", "type_zh": "白雞", "type_en": "White Rooster", "meaning_thai": "ใจดี ช่วยเหลือผู้อื่น แต่ต้องระวังสุขภาพ", "meaning_zh": "善良樂於助人，但需注意健康", "meaning_en": "Kind and helpful, but watch health." },
+        "2-3-4": { "type_thai": "ไก่แดง", "type_zh": "紅雞", "type_en": "Red Rooster", "meaning_thai": "มีเสน่ห์ เก่งศิลปะ ชีวิตสนุกสนาน", "meaning_zh": "有魅力、擅長藝術、生活快樂", "meaning_en": "Charismatic and artistic, joyful life." }
+      }
+    },
+    "ปีจอ": {
+      "name_zh": "狗年",
+      "name_en": "Dog Year",
+      "variants": {
+        "5-6-7": { "type_thai": "หมาเหลือง", "type_zh": "黃狗", "type_en": "Yellow Dog", "meaning_thai": "忠誠 可靠 勤奮 แต่容易焦慮", "meaning_zh": "忠誠可靠、勤奮，但容易焦慮", "meaning_en": "Loyal, reliable, hardworking, but prone to anxiety." },
+        "8-9-10": { "type_thai": "หมาแดง", "type_zh": "紅狗", "type_en": "Red Dog", "meaning_thai": "มีโชค ช่วยเหลือผู้อื่น มีบริวารมาก", "meaning_zh": "有福氣、樂於助人、部屬多", "meaning_en": "Lucky, helpful, many subordinates." },
+        "11-12-1": { "type_thai": "หมาดำ", "type_zh": "黑狗", "type_en": "Black Dog", "meaning_thai": "อดทน ใจแข็ง แต่ชีวิตค่อนข้างเหนื่อย", "meaning_zh": "耐勞心堅，但生活較勞累", "meaning_en": "Patient and strong-willed, but life is laborious." },
+        "2-3-4": { "type_thai": "หมา��าว", "type_zh": "白狗", "type_en": "White Dog", "meaning_thai": "ใจบุญ ชีวิตสบาย ลูกหลานดี", "meaning_zh": "仁慈、生活安逸、子女優秀", "meaning_en": "Kind, comfortable life, good children." }
+      }
+    },
+    "ปีกุน": {
+      "name_zh": "豬年",
+      "name_en": "Pig Year",
+      "variants": {
+        "5-6-7": { "type_thai": "หมูดำ", "type_zh": "黑豬", "type_en": "Black Pig", "meaning_thai": "ใจดี 樂觀 แต่ค่อนข้าง懒散", "meaning_zh": "善良樂觀，但較懶散", "meaning_en": "Kind and optimistic, but somewhat lazy." },
+        "8-9-10": { "type_thai": "หมูทอง", "type_zh": "金豬", "type_en": "Golden Pig", "meaning_thai": "มีโชคลาภ ทำการค้าขายร่ำรวย ลูกหลานมาก", "meaning_zh": "有財運、生意興隆、子女多", "meaning_en": "Lucky with wealth, prosperous business, many children." },
+        "11-12-1": { "type_thai": "หมูขาว", "type_zh": "白豬", "type_en": "White Pig", "meaning_thai": "ใจบุญ ช่วยเหลือผู้อื่น ชีวิตสบาย", "meaning_zh": "仁慈樂於助人、生活安逸", "meaning_en": "Kind and helpful, comfortable life." },
+        "2-3-4": { "type_thai": "หมูแดง", "type_zh": "紅豬", "type_en": "Red Pig", "meaning_thai": "มีเสน่ห์ เก่งศิลปะ ชีวิตสนุกสนาน", "meaning_zh": "有魅力、擅長藝術、生活快樂", "meaning_en": "Charismatic and artistic, joyful life." }
+      }
+    }
+  },
+  "source": "The Complete Brahma Jati Manual (ตำรา พรหมชาติ ฉบับสมบูรณ์)",
+  "version": "1.3",
+  "last_updated": "2026-04-16"
+}

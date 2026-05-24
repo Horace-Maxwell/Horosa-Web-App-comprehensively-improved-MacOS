@@ -194,17 +194,29 @@
 	}
 
 	.horosa-india-diagram-object-anchor-roomy {
-		min-height: 58px;
+		min-height: 46px;
 	}
 
 	.horosa-india-diagram-objects {
 		width: 100%;
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: max-content;
 		align-content: center;
-		align-items: center;
+		align-items: baseline;
 		justify-content: center;
-		gap: 4px 8px;
+		justify-items: center;
+		gap: 1px;
+		max-width: 100%;
+		transform-origin: 50% 50%;
+	}
+
+	.horosa-india-diagram-objects-single {
+		grid-template-columns: max-content;
+	}
+
+	.horosa-india-diagram-objects-very-dense {
+		gap: 0;
+		transform: scale(0.86);
 	}
 
 	.horosa-india-diagram-center {
@@ -253,15 +265,37 @@
 	}
 
 	.horosa-india-north-board .horosa-india-diagram-objects {
-		gap: 2px 6px;
+		gap: 0;
 	}
 
 	.horosa-india-north-board .horosa-india-square-object {
-		line-height: 16px;
+		line-height: 15px;
 	}
 
 	.horosa-india-north-board .horosa-india-square-object-name {
-		font-size: 17px;
+		font-size: 15px;
+	}
+
+	.horosa-india-north-board .horosa-india-square-object,
+	.horosa-india-east-board .horosa-india-square-object {
+		padding: 0;
+		border-radius: 0;
+		background: transparent;
+		box-shadow: none;
+		text-shadow:
+			0 1px 0 var(--horosa-surface-solid, #ffffff),
+			0 0 8px var(--horosa-surface-solid, #ffffff);
+	}
+
+	.horosa-india-east-board .horosa-india-square-object-name {
+		font-size: 15px;
+	}
+
+	.horosa-india-north-board .horosa-india-square-object-degree,
+	.horosa-india-north-board .horosa-india-square-retro,
+	.horosa-india-east-board .horosa-india-square-object-degree,
+	.horosa-india-east-board .horosa-india-square-retro {
+		font-size: 10px;
 	}
 
 	.horosa-india-east-board {
@@ -441,6 +475,13 @@
 
 	:root[data-horosa-appearance='dark'] .horosa-india-square-object {
 		text-shadow: 0 0 14px rgba(255, 255, 255, 0.08);
+	}
+
+	:root[data-horosa-appearance='dark'] .horosa-india-north-board .horosa-india-square-object,
+	:root[data-horosa-appearance='dark'] .horosa-india-east-board .horosa-india-square-object {
+		text-shadow:
+			0 1px 0 var(--horosa-surface-solid, #0a1621),
+			0 0 8px var(--horosa-surface-solid, #0a1621);
 	}
 
 	@media (max-width: 1180px) {

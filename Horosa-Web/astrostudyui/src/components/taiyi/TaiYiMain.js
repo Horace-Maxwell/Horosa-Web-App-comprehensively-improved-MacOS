@@ -1,9 +1,8 @@
 import { Component } from 'react';
-import { Spin } from 'antd';
+import { message, Spin } from 'antd';
 import { XQButton as Button, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { fetchPreciseNongli } from '../../utils/preciseCalcBridge';
-import { setNongliLocalCache } from '../../utils/localCalcCache';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
@@ -12,15 +11,18 @@ import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
 import XQIcon from '../xq-icons';
 import {
 	STYLE_OPTIONS,
-	ACCUM_OPTIONS,
-	TENCHING_OPTIONS,
-	SEX_OPTIONS,
-	ROTATION_OPTIONS,
+	METHOD_OPTIONS,
+	TIME_BASIS_OPTIONS,
+	DAY_SWITCH_OPTIONS,
+	GAME_THEORY_OPTIONS,
 	calcTaiyi,
+	fetchTaiyiPan,
 	buildTaiyiSnapshotText,
 	getStyleLabel,
-	getAccumLabel,
+	getMethodLabel,
+	getMethodSource,
 } from './TaiYiCalc';
+import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -30,6 +32,16 @@ const LAYER3_BRANCH_GUA = ['午', '未', '坤', '申', '酉', '戌', '乾', '亥
 // 午大威，子地主
 const LAYER4_FIXED = ['大威', '大义', '天道', '大武', '武德', '太簇', '阴主', '阴德', '地主', '阳德', '和德', '吕申', '高丛', '太阳', '大炅', '大神'];
 const TAIYI_FONT = '"SimHei", "Heiti SC", "Microsoft YaHei", sans-serif';
+const PRECISE_NONGLI_TIMEOUT_MS = 3500;
+
+function withTimeout(promise, timeoutMs) {
+	return Promise.race([
+		promise,
+		new Promise((resolve) => {
+			setTimeout(() => resolve(null), timeoutMs);
+		}),
+	]);
+}
 
 class TaiYiMain extends Component {
 	constructor(props) {
@@ -42,15 +54,17 @@ class TaiYiMain extends Component {
 			options: {
 				style: 3,
 				tn: 0,
-				tenching: 0,
 				sex: '男',
-				rotation: '固定',
+				timeBasis: 'direct',
+				after23NewDay: 0,
+				gameTheory: 0,
 			},
 			rightPanelTab: 'overview',
 		};
 
 		this.unmounted = false;
 		this.timeHook = {};
+		this.taiyiRequestSeq = 0;
 		this.onOptionChange = this.onOptionChange.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
 		this.onTimeChanged = this.onTimeChanged.bind(this);
@@ -61,6 +75,8 @@ class TaiYiMain extends Component {
 		this.requestNongli = this.requestNongli.bind(this);
 		this.genParams = this.genParams.bind(this);
 		this.recalc = this.recalc.bind(this);
+		this.restoreFromCurrentCase = this.restoreFromCurrentCase.bind(this);
+		this.clickSaveCase = this.clickSaveCase.bind(this);
 		this.setRightPanelTab = this.setRightPanelTab.bind(this);
 		this.navigateFeature = this.navigateFeature.bind(this);
 
@@ -76,6 +92,9 @@ class TaiYiMain extends Component {
 
 	componentDidMount() {
 		this.unmounted = false;
+		if (this.restoreFromCurrentCase(true)) {
+			return;
+		}
 		if (this.props.fields) {
 			this.requestNongli(this.props.fields);
 		}
@@ -83,6 +102,9 @@ class TaiYiMain extends Component {
 
 	componentDidUpdate(prevProps) {
 		if (prevProps.fields !== this.props.fields && this.props.fields) {
+			if (this.restoreFromCurrentCase(false)) {
+				return;
+			}
 			this.requestNongli(this.props.fields);
 		}
 	}
@@ -183,13 +205,34 @@ class TaiYiMain extends Component {
 			gpsLat: flds.gpsLat.value,
 			gpsLon: flds.gpsLon.value,
 			gender: flds.gender.value,
-			after23NewDay: 0,
+			after23NewDay: this.state.options.after23NewDay || 0,
 		};
 	}
 
-	recalc(fields, nongli, options) {
-		const pan = calcTaiyi(fields || this.props.fields, nongli || this.state.nongli, options || this.state.options);
-		this.setState({ pan }, () => {
+	async recalc(fields, nongli, options) {
+		const reqSeq = ++this.taiyiRequestSeq;
+		const nextFields = fields || this.props.fields;
+		const nextNongli = nongli || this.state.nongli;
+		const nextOptions = options || this.state.options;
+		if(!nextFields){
+			return;
+		}
+		this.setState({ loading: true });
+		let pan = null;
+		try{
+			pan = await fetchTaiyiPan(nextFields, nextNongli, nextOptions);
+		}catch(e){
+			console.warn('kintaiyi backend failed, falling back to local TaiYiCore', e);
+			pan = calcTaiyi(nextFields, nextNongli, nextOptions);
+			if(pan){
+				pan.source = 'horosa-local-fallback';
+				pan.backendError = e && e.message ? e.message : `${e}`;
+			}
+		}
+		if(this.unmounted || reqSeq !== this.taiyiRequestSeq){
+			return;
+		}
+		this.setState({ pan, loading: false }, () => {
 			if (pan) {
 				saveModuleAISnapshot('taiyi', buildTaiyiSnapshotText(pan));
 			}
@@ -222,27 +265,21 @@ class TaiYiMain extends Component {
 		if(!params){
 			return;
 		}
-		const result = await fetchPreciseNongli(params);
-		if(!result){
-			if(!this.unmounted){
-				this.setState({ nongli: null, pan: null, loading: false });
-			}
-			return;
-		}
-		setNongliLocalCache(params, result);
+		this.setState({ loading: true });
 		if (this.unmounted) {
 			return;
 		}
-		const pan = calcTaiyi(fields || this.props.fields, result, this.state.options);
-		this.setState({
-			nongli: result,
-			pan,
-			loading: false,
-		}, () => {
-			if (pan) {
-				saveModuleAISnapshot('taiyi', buildTaiyiSnapshotText(pan));
-			}
-		});
+		let nongli = null;
+		try {
+			nongli = await withTimeout(fetchPreciseNongli(params), PRECISE_NONGLI_TIMEOUT_MS);
+		} catch (e) {
+			console.warn('taiyi precise nongli failed, continuing with kintaiyi calendar fields', e);
+		}
+		if (this.unmounted) {
+			return;
+		}
+		this.setState({ nongli });
+		await this.recalc(fields || this.props.fields, nongli, this.state.options);
 	}
 
 	onOptionChange(key, value) {
@@ -252,6 +289,54 @@ class TaiYiMain extends Component {
 		};
 		this.setState({ options }, () => {
 			this.recalc(this.props.fields, this.state.nongli, options);
+		});
+	}
+
+	restoreFromCurrentCase(force) {
+		const saved = getKentangSavedCasePayload('taiyi');
+		if (!saved || !saved.payload) {
+			return false;
+		}
+		if (!force && this.lastRestoredCaseId === saved.caseVersion) {
+			return false;
+		}
+		const payload = saved.payload;
+		const options = payload.options && typeof payload.options === 'object' ? payload.options : {};
+		this.lastRestoredCaseId = saved.caseVersion;
+		this.taiyiRequestSeq += 1;
+		this.setState({
+			loading: false,
+			options: {
+				...this.state.options,
+				...options,
+			},
+			nongli: payload.nongli || null,
+			pan: payload.pan || null,
+			rightPanelTab: 'overview',
+		}, () => {
+			if (this.state.pan) {
+				saveModuleAISnapshot('taiyi', buildTaiyiSnapshotText(this.state.pan));
+			}
+		});
+		return true;
+	}
+
+	clickSaveCase() {
+		if (!this.state.pan) {
+			message.warning('请先起盘后再保存');
+			return;
+		}
+		openKentangCaseDrawer({
+			dispatch: this.props.dispatch,
+			fields: this.props.fields,
+			module: 'taiyi',
+			label: '太乙',
+			payload: {
+				options: this.state.options,
+				nongli: this.state.nongli,
+				pan: this.state.pan,
+				snapshot: buildTaiyiSnapshotText(this.state.pan),
+			},
 		});
 	}
 
@@ -285,15 +370,22 @@ class TaiYiMain extends Component {
 				palaceInfo[p.palace] = p.items || [];
 			});
 			const layer5 = LAYER3_BRANCH_GUA.map((p) => (palaceInfo[p] ? palaceInfo[p].slice(0) : []));
-			const ganzhiCompact = pan && pan.ganzhi
-				? [pan.ganzhi.year || '—', pan.ganzhi.month || '—', pan.ganzhi.day || '—', pan.ganzhi.time || '—'].join('/')
-				: '—';
+			const pillars = pan && pan.ganzhi ? pan.ganzhi : {};
+			const panOptions = pan && pan.options ? pan.options : {};
 			const topLeftInfo = [
-				`农历:${pan.lunarText || '—'}`,
-				`真太阳时:${pan.realSunTime || '—'}`,
-				`干支:${ganzhiCompact}`,
-				`节气:${pan.jiedelta || '—'}`,
+				`农历：${pan.lunarText || '—'}`,
+				`真太阳时：${pan.realSunTime || '—'}`,
+				`年柱：${pillars.year || '—'}　月柱：${pillars.month || '—'}`,
+				`日柱：${pillars.day || '—'}　时柱：${pillars.time || '—'}`,
+				`节气：${pan.jiedelta || '—'}`,
+				`计法：${panOptions.styleLabel || '—'}　古法：${panOptions.methodLabel || panOptions.accumLabel || '—'}`,
+				`年号：${pan.reignYear || this.getSectionValue('年號')}`,
+				`纪元：${pan.calendarEra || pan.jiyuan || this.getSectionValue('紀元')}`,
 			];
+			const topMetaX = 14;
+			const topMetaY = 4;
+			const topMetaLineHeight = 17;
+			const topMetaFontSize = 13;
 			const bottomRightInfo = [
 				`积数:${pan.accNum}`,
 				`命式:${pan.zhao}`,
@@ -319,18 +411,18 @@ class TaiYiMain extends Component {
 							<circle cx={centerX} cy={centerY} r={r4} fill="none" stroke={stroke} strokeWidth="2.5" />
 
 								<text
-									x={20}
-									y={30}
+									x={topMetaX}
+									y={topMetaY}
 									textAnchor="start"
 									dominantBaseline="hanging"
 									fill={textColor}
 									stroke="none"
-									fontSize="15"
+									fontSize={topMetaFontSize}
 									fontWeight={textWeight}
 									fontFamily={TAIYI_FONT}
 								>
 									{topLeftInfo.map((line, lineIdx) => (
-										<tspan key={`ty_meta_${lineIdx}`} x={20} dy={lineIdx === 0 ? 0 : 20}>
+										<tspan key={`ty_meta_${lineIdx}`} x={topMetaX} dy={lineIdx === 0 ? 0 : topMetaLineHeight}>
 											{line}
 										</tspan>
 									))}
@@ -481,6 +573,9 @@ class TaiYiMain extends Component {
 								const angle = -90 + idx * 22.5;
 								const p = this.polarPoint(centerX, centerY, (r3 + r4) / 2, angle);
 								const merged = (lines || []).filter(Boolean).slice(0, 3);
+								const fontSize = merged.length >= 3 ? 14 : (merged.length === 2 ? 15 : 16);
+								const lineHeight = merged.length >= 3 ? 16 : 17;
+								const firstDy = -((merged.length - 1) * lineHeight) / 2;
 								if (!merged.length) {
 									return null;
 								}
@@ -493,12 +588,12 @@ class TaiYiMain extends Component {
 											dominantBaseline="middle"
 											fill={textColor}
 											stroke="none"
-											fontSize="16"
+											fontSize={fontSize}
 											fontWeight={textWeight}
 											fontFamily={TAIYI_FONT}
 										>
 										{merged.map((ln, lnIdx) => (
-											<tspan key={`l5_tspan_${idx}_${lnIdx}`} x={p.x} dy={lnIdx === 0 ? 0 : 18}>
+											<tspan key={`l5_tspan_${idx}_${lnIdx}`} x={p.x} dy={lnIdx === 0 ? firstDy : lineHeight}>
 												{ln}
 											</tspan>
 										))}
@@ -514,6 +609,7 @@ class TaiYiMain extends Component {
 	renderInputPanel() {
 		const opt = this.state.options;
 		const fields = this.props.fields || {};
+		const isLifeStyle = opt.style === 5;
 		let datetm = new DateTime();
 		if (fields.date && fields.time) {
 			const str = `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}`;
@@ -541,9 +637,9 @@ class TaiYiMain extends Component {
 					<div className="horosa-taiyi-field-title"><XQIcon name="taiyi" />盘式选项</div>
 					<div className="horosa-taiyi-select-grid">
 						<label className="horosa-taiyi-select-field">
-							<span>性别</span>
-							<Select value={fields.gender ? fields.gender.value : 1} onChange={this.onGenderChange}>
-								<Option value={-1}>未知</Option>
+							<span>{isLifeStyle ? '命法性别' : '性别'}</span>
+							<Select value={isLifeStyle ? (opt.sex === '女' ? 0 : 1) : (fields.gender ? fields.gender.value : 1)} onChange={this.onGenderChange}>
+								{!isLifeStyle && <Option value={-1}>未知</Option>}
 								<Option value={0}>女</Option>
 								<Option value={1}>男</Option>
 							</Select>
@@ -554,35 +650,40 @@ class TaiYiMain extends Component {
 								{STYLE_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
 							</Select>
 						</label>
+						{!isLifeStyle && (
+							<label className="horosa-taiyi-select-field">
+								<span>古法公式</span>
+								<Select value={opt.tn} onChange={(v) => this.onOptionChange('tn', v)}>
+									{METHOD_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+								</Select>
+							</label>
+						)}
 						<label className="horosa-taiyi-select-field">
-							<span>积年</span>
-							<Select value={opt.tn} onChange={(v) => this.onOptionChange('tn', v)}>
-								{ACCUM_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+							<span>时间基准</span>
+							<Select value={opt.timeBasis} onChange={(v) => this.onOptionChange('timeBasis', v)}>
+								{TIME_BASIS_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
 							</Select>
 						</label>
 						<label className="horosa-taiyi-select-field">
-							<span>十精</span>
-							<Select value={opt.tenching} onChange={(v) => this.onOptionChange('tenching', v)}>
-								{TENCHING_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+							<span>换日</span>
+							<Select value={opt.after23NewDay} onChange={(v) => this.onOptionChange('after23NewDay', v)}>
+								{DAY_SWITCH_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
 							</Select>
 						</label>
-						<label className="horosa-taiyi-select-field">
-							<span>旋转</span>
-							<Select value={opt.rotation} onChange={(v) => this.onOptionChange('rotation', v)}>
-								{ROTATION_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
-							</Select>
-						</label>
-						<label className="horosa-taiyi-select-field">
-							<span>命法</span>
-							<Select value={opt.sex} onChange={(v) => this.onOptionChange('sex', v)}>
-								{SEX_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
-							</Select>
-						</label>
+						{!isLifeStyle && (
+							<label className="horosa-taiyi-select-field">
+								<span>博弈</span>
+								<Select value={opt.gameTheory} onChange={(v) => this.onOptionChange('gameTheory', v)}>
+									{GAME_THEORY_OPTIONS.map((item) => <Option key={item.value} value={item.value}>{item.label}</Option>)}
+								</Select>
+							</label>
+						)}
 					</div>
 				</div>
 
 				<div className="horosa-taiyi-action-row">
 					<Button type="primary" onClick={this.clickPlot}>起盘</Button>
+					<Button onClick={this.clickSaveCase}>保存</Button>
 				</div>
 			</div>
 		);
@@ -592,6 +693,8 @@ class TaiYiMain extends Component {
 		const pan = this.state.pan;
 		const opt = this.state.options;
 		const fields = this.props.fields || {};
+		const panOptions = pan && pan.options ? pan.options : {};
+		const isLifeStyle = opt.style === 5;
 		const fieldTime = fields.date && fields.time
 			? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}`
 			: '—';
@@ -599,32 +702,88 @@ class TaiYiMain extends Component {
 		const rows = [
 			['起盘时间', fieldTime],
 			['地点', geo],
-			['起盘方式', getStyleLabel(opt.style)],
-			['积年方式', getAccumLabel(opt.tn)],
-			['太乙', pan ? `${pan.taiyiPalace}宫` : '—'],
-			['文昌', pan ? pan.skyeyes : '—'],
-			['始击', pan ? pan.sf : '—'],
-			['太岁', pan ? pan.taishui : '—'],
-			['合神', pan ? pan.hegod : '—'],
-			['计神', pan ? pan.jigod : '—'],
-			['定目', pan ? (pan.se || '—') : '—'],
-			['主大将/参将', pan ? `${pan.homeGeneralPalace || '—'}/${pan.homeVGenPalace || '—'}` : '—'],
-			['客大将/参将', pan ? `${pan.awayGeneralPalace || '—'}/${pan.awayVGenPalace || '—'}` : '—'],
-			['定大将/参将', pan ? `${pan.setGeneralPalace || '—'}/${pan.setVGenPalace || '—'}` : '—'],
-			['君臣民基', pan ? `${pan.kingbase || '—'}/${pan.officerbase || '—'}/${pan.pplbase || '—'}` : '—'],
-			['四神/天乙/地乙', pan ? `${pan.fgd || '—'}/${pan.skyyi || '—'}/${pan.earthyi || '—'}` : '—'],
-			['直符/飞符', pan ? `${pan.zhifu || '—'}/${pan.flyfu || '—'}` : '—'],
-			['五福/帝符/太尊', pan ? `${pan.wufuPalace || '—'}/${pan.kingfu || '—'}/${pan.taijun || '—'}` : '—'],
-			['飞鸟', pan ? (pan.flybird || '—') : '—'],
-			['三风/五风/八风', pan ? `${pan.threewindPalace || '—'}/${pan.fivewindPalace || '—'}/${pan.eightwindPalace || '—'}` : '—'],
-			['大游/小游', pan ? `${pan.bigyoPalace || '—'}/${pan.smyoPalace || '—'}` : '—'],
+			['起盘方式', panOptions.styleLabel || getStyleLabel(opt.style)],
+			['历史年号', pan ? (pan.reignYear || this.getSectionValue('年號')) : '—'],
+			['太乙纪元', pan ? (pan.calendarEra || pan.jiyuan || this.getSectionValue('紀元')) : '—'],
+			['时间基准', panOptions.timeBasisLabel || '直接时间'],
+			['换日', panOptions.daySwitchLabel || '子正换日'],
 		];
+		if (isLifeStyle) {
+			rows.push(
+				['性别', panOptions.sexLabel || opt.sex || '—'],
+				['命局', this.getSectionValue('命局', pan && pan.kook ? pan.kook.text : '—')],
+				['命宫/身宫', `${this.getSectionValue('安命宮')}/${this.getSectionValue('安身宮')}`],
+				['飞禄/飞马', `${this.getSectionValue('飛祿')}/${this.getSectionValue('飛馬')}`],
+				['黑符', this.getSectionValue('黑符')],
+				['阳九/百六', `${this.getSectionValue('陽九')}/${this.getSectionValue('百六')}`],
+				['阳九行限', this.getSectionValue('陽九行限')],
+				['百六行限', this.getSectionValue('百六行限')]
+			);
+		} else {
+			rows.push(
+				['古法公式', panOptions.methodLabel || panOptions.accumLabel || getMethodLabel(opt.tn)],
+				['古法出处', panOptions.methodSource || getMethodSource(opt.tn)],
+				['博弈', panOptions.gameTheoryLabel || (opt.gameTheory === 1 ? '开启' : '关闭')],
+				['局式', pan ? (pan.kook && pan.kook.text ? pan.kook.text : '—') : '—'],
+				['阳九/百六', `${this.getSectionValue('陽九')}/${this.getSectionValue('百六')}`],
+				['太乙', pan ? `${pan.taiyiPalace || '—'}宫` : '—'],
+				['文昌', pan ? pan.skyeyes : '—'],
+				['始击', pan ? pan.sf : '—'],
+				['太岁', pan ? pan.taishui : '—'],
+				['合神', pan ? pan.hegod : '—'],
+				['计神', pan ? pan.jigod : '—'],
+				['定目', pan ? (pan.se || '—') : '—'],
+				['主大将/参将', pan ? `${pan.homeGeneralPalace || '—'}/${pan.homeVGenPalace || '—'}` : '—'],
+				['客大将/参将', pan ? `${pan.awayGeneralPalace || '—'}/${pan.awayVGenPalace || '—'}` : '—'],
+				['定大将/参将', pan ? `${pan.setGeneralPalace || '—'}/${pan.setVGenPalace || '—'}` : '—'],
+				['君臣民基', pan ? `${pan.kingbase || '—'}/${pan.officerbase || '—'}/${pan.pplbase || '—'}` : '—'],
+				['四神/天乙/地乙', pan ? `${pan.fgd || '—'}/${pan.skyyi || '—'}/${pan.earthyi || '—'}` : '—'],
+				['直符/飞符', pan ? `${pan.zhifu || '—'}/${pan.flyfu || '—'}` : '—'],
+				['五福/帝符/太尊', pan ? `${pan.wufuPalace || '—'}/${pan.kingfu || '—'}/${pan.taijun || '—'}` : '—'],
+				['飞鸟', pan ? (pan.flybird || '—') : '—'],
+				['三风/五风/八风', pan ? `${this.formatWindValue('threewind')}/${this.formatWindValue('fivewind')}/${this.formatWindValue('eightwind')}` : '—'],
+				['大游/小游', pan ? `${this.formatWindValue('bigyo')}/${this.formatWindValue('smyo')}` : '—']
+			);
+		}
 		return rows.map(([label, value]) => (
 			<div className="horosa-taiyi-info-row" key={label}>
 				<span>{label}</span>
 				<strong>{value}</strong>
 			</div>
 		));
+	}
+
+	formatWindValue(prefix) {
+		const pan = this.state.pan;
+		if (!pan) {
+			return '—';
+		}
+		const palaceKey = `${prefix}Palace`;
+		const numKey = `${prefix}Num`;
+		const palace = pan[palaceKey] || '—';
+		const num = pan[numKey];
+		return num ? `${palace}(${num})` : palace;
+	}
+
+	getSectionValue(sourceKey, fallback = '—') {
+		const pan = this.state.pan;
+		const sections = pan && pan.sections ? pan.sections : [];
+		for (let i = 0; i < sections.length; i += 1) {
+			const rows = sections[i].rows || [];
+			for (let j = 0; j < rows.length; j += 1) {
+				if (rows[j].sourceKey === sourceKey || rows[j].label === sourceKey) {
+					return this.formatDisplayValue(rows[j].value);
+				}
+			}
+		}
+		return fallback;
+	}
+
+	hasSectionTitles(titles) {
+		const pan = this.state.pan;
+		const sections = pan && pan.sections ? pan.sections : [];
+		const titleSet = new Set(titles);
+		return sections.some((section) => titleSet.has(section.title));
 	}
 
 	renderPalaceRows() {
@@ -640,11 +799,65 @@ class TaiYiMain extends Component {
 		));
 	}
 
+	formatDisplayValue(value) {
+		if (value === undefined || value === null || value === '') {
+			return '—';
+		}
+		if (Array.isArray(value)) {
+			return value.map((item) => this.formatDisplayValue(item)).filter((item) => item && item !== '—').join('、') || '—';
+		}
+		if (typeof value === 'object') {
+			const text = Object.keys(value).map((key) => {
+				const item = this.formatDisplayValue(value[key]);
+				if (!item || item === '—') {
+					return '';
+				}
+				return `${key}：${item}`;
+			}).filter(Boolean).join('；');
+			return text || '—';
+		}
+		return `${value}`.replace(/得None/g, '未得').replace(/None/g, '未得');
+	}
+
+	renderSectionRows(titles) {
+		const pan = this.state.pan;
+		const sections = pan && pan.sections ? pan.sections : [];
+		const titleSet = titles && titles.length ? new Set(titles) : null;
+		const filtered = titleSet ? sections.filter((section) => titleSet.has(section.title)) : sections;
+		if (!filtered.length) {
+			return <div className="horosa-taiyi-empty">暂无 kintaiyi 输出</div>;
+		}
+		return filtered.map((section) => (
+			<div className="horosa-taiyi-info-card horosa-taiyi-section-card" key={section.title}>
+				<div className="horosa-taiyi-info-heading">{section.title}</div>
+				{(section.rows || []).map((row) => (
+					<div className="horosa-taiyi-info-row" key={`${section.title}_${row.label}`}>
+						<span>{row.label}</span>
+						<strong>{this.formatDisplayValue(row.value)}</strong>
+					</div>
+				))}
+			</div>
+		));
+	}
+
 	renderRightPanel() {
 		const pan = this.state.pan;
-		const snapshot = pan ? buildTaiyiSnapshotText(pan) : '暂无太乙盘数据';
+		const showLifeTab = this.hasSectionTitles(['命法', '命宫行限']);
+		const showDoorsTab = this.hasSectionTitles(['八门与宿曜']);
+		const showRulingsTab = this.hasSectionTitles(['断法', '七大兵法', '博弈']);
+		const tabKeys = ['overview', 'palaces', 'spirits'];
+		if (showDoorsTab) {
+			tabKeys.push('doors');
+		}
+		if (showRulingsTab) {
+			tabKeys.push('rulings');
+		}
+		if (showLifeTab) {
+			tabKeys.push('life');
+		}
+		const activeKey = tabKeys.indexOf(this.state.rightPanelTab) >= 0 ? this.state.rightPanelTab : 'overview';
 		return (
-			<Tabs activeKey={this.state.rightPanelTab} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-taiyi-tabs">
+			<Tabs activeKey={activeKey} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-taiyi-tabs">
 				<TabPane tab="概览" key="overview">
 					<div className="horosa-taiyi-info-card">
 						{this.renderInfoRows()}
@@ -655,24 +868,51 @@ class TaiYiMain extends Component {
 						{this.renderPalaceRows()}
 					</div>
 				</TabPane>
-				<TabPane tab="快照" key="snapshot">
-					<pre className="horosa-taiyi-snapshot">{snapshot}</pre>
+				<TabPane tab="神煞" key="spirits">
+					<div className="horosa-taiyi-section-list">
+						{this.renderSectionRows(['太乙诸神', '风游', '十二神'])}
+					</div>
 				</TabPane>
+				{showDoorsTab && (
+					<TabPane tab="八门" key="doors">
+						<div className="horosa-taiyi-section-list">
+							{this.renderSectionRows(['八门与宿曜'])}
+						</div>
+					</TabPane>
+				)}
+				{showRulingsTab && (
+					<TabPane tab="断法" key="rulings">
+						<div className="horosa-taiyi-section-list">
+							{this.renderSectionRows(['断法', '七大兵法', '博弈'])}
+						</div>
+					</TabPane>
+				)}
+				{showLifeTab && (
+					<TabPane tab="命法" key="life">
+						<div className="horosa-taiyi-section-list">
+							{this.renderSectionRows(['命法', '命宫行限'])}
+						</div>
+					</TabPane>
+				)}
 			</Tabs>
 		);
 	}
 
 	renderBottomQuickDock() {
+		const showLifeTab = this.hasSectionTitles(['命法', '命宫行限']);
+		const showDoorsTab = this.hasSectionTitles(['八门与宿曜']);
+		const showRulingsTab = this.hasSectionTitles(['断法', '七大兵法', '博弈']);
 		const actions = [
 			{ label: '起盘', icon: 'quickPrimary', onClick: this.clickPlot },
+			{ label: '保存', icon: 'quickNote', onClick: this.clickSaveCase },
 			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: () => this.setRightPanelTab('overview') },
 			{ label: '十六宫', icon: 'quickTransit', active: this.state.rightPanelTab === 'palaces', onClick: () => this.setRightPanelTab('palaces') },
-			{ label: '快照', icon: 'quickNote', active: this.state.rightPanelTab === 'snapshot', onClick: () => this.setRightPanelTab('snapshot') },
-			{ label: '六爻', icon: 'quickFirdaria', onClick: () => this.navigateFeature('guazhan') },
-			{ label: '遁甲', icon: 'quickProfection', onClick: () => this.navigateFeature('dunjia') },
-			{ label: '宿盘', icon: 'quickReturn', onClick: () => this.navigateFeature('cnyibu', 'suzhan') },
+			{ label: '神煞', icon: 'quickReturn', active: this.state.rightPanelTab === 'spirits', onClick: () => this.setRightPanelTab('spirits') },
+			...(showDoorsTab ? [{ label: '八门', icon: 'quickNote', active: this.state.rightPanelTab === 'doors', onClick: () => this.setRightPanelTab('doors') }] : []),
+			...(showRulingsTab ? [{ label: '断法', icon: 'quickReturn', active: this.state.rightPanelTab === 'rulings', onClick: () => this.setRightPanelTab('rulings') }] : []),
+			...(showLifeTab ? [{ label: '命法', icon: 'quickNote', active: this.state.rightPanelTab === 'life', onClick: () => this.setRightPanelTab('life') }] : []),
 			{ label: 'AI助手', icon: 'quickAi', onClick: () => this.navigateFeature('aianalysis') },
-		];
+		].slice(0, 9);
 		return (
 			<div className="horosa-bottom-quick-dock horosa-taiyi-quick-dock">
 				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
@@ -717,7 +957,7 @@ class TaiYiMain extends Component {
 								<div className="horosa-side-panel-heading horosa-taiyi-info-heading">
 									<div>
 										<div className="horosa-side-panel-title">太乙信息</div>
-										<div className="horosa-side-panel-subtitle">概览、十六宫与快照</div>
+										<div className="horosa-side-panel-subtitle">概览、十六宫与神煞</div>
 									</div>
 								</div>
 								{this.renderRightPanel()}

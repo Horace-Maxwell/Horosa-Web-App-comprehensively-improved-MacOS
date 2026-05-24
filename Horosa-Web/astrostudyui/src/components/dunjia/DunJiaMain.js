@@ -32,6 +32,9 @@ import {
 	YIXING_OPTIONS,
 	DAY_SWITCH_OPTIONS,
 	calcDunJia,
+	fetchQimenPan,
+	isKinqimenMode,
+	normalizeKinqimenData,
 	buildDunJiaSnapshotText,
 } from './DunJiaCalc';
 import {
@@ -336,6 +339,9 @@ function getQimenOptionsKey(options){
 
 function needJieqiYearSeed(options){
 	const opt = options || {};
+	if(isKinqimenMode(opt.paiPanType)){
+		return false;
+	}
 	return opt.paiPanType === 3 && opt.qijuMethod === 'zhirun';
 }
 
@@ -473,6 +479,16 @@ class DunJiaMain extends Component {
 			}
 		}
 		return pan;
+	}
+
+	async getResolvedPan(fields, nongli, options, displaySolarTime){
+		const ctx = this.getContext(fields, displaySolarTime);
+		const fallbackPan = this.getCachedPan(fields, nongli, options, displaySolarTime);
+		if(!fallbackPan || !isKinqimenMode(options && options.paiPanType)){
+			return fallbackPan;
+		}
+		const backendPan = await fetchQimenPan(fields, nongli, options, ctx);
+		return normalizeKinqimenData(backendPan, fallbackPan, options, nongli);
 	}
 
 	componentDidMount(){
@@ -795,7 +811,7 @@ class DunJiaMain extends Component {
 		};
 	}
 
-	recalc(fields, nongli, options, displaySolarTime){
+	async recalc(fields, nongli, options, displaySolarTime){
 		const flds = fields || this.state.localFields || this.props.fields;
 		if(!flds || !nongli){
 			return;
@@ -818,25 +834,36 @@ class DunJiaMain extends Component {
 		if(this.state.pan && panSignature === this.lastPanSignature){
 			return;
 		}
-		const pan = this.getCachedPan(flds, nongli || this.state.nongli, fixedOptions, displaySolar);
-		this.lastPanSignature = panSignature;
-		this.setState({ pan, displaySolarTime: displaySolar }, ()=>{
-			if(pan){
-				rememberDunJiaLiveState({
-					fieldKey: getFieldKey(flds),
-					lastNongliKey: this.lastNongliKey,
-					lastPanSignature: this.lastPanSignature,
-					nongli: nongli || this.state.nongli,
-					displaySolarTime: displaySolar,
-					pan,
-					options: fixedOptions,
-				});
-				const snapshotText = saveQimenLiveSnapshot(pan);
-				if(snapshotText){
-					saveModuleAISnapshot('qimen', snapshotText);
+		const remoteMode = isKinqimenMode(fixedOptions.paiPanType);
+		if(remoteMode && !this.state.loading){
+			this.setState({ loading: true });
+		}
+		try{
+			const pan = await this.getResolvedPan(flds, nongli || this.state.nongli, fixedOptions, displaySolar);
+			this.lastPanSignature = panSignature;
+			this.setState({ pan, displaySolarTime: displaySolar, loading: false }, ()=>{
+				if(pan){
+					rememberDunJiaLiveState({
+						fieldKey: getFieldKey(flds),
+						lastNongliKey: this.lastNongliKey,
+						lastPanSignature: this.lastPanSignature,
+						nongli: nongli || this.state.nongli,
+						displaySolarTime: displaySolar,
+						pan,
+						options: fixedOptions,
+					});
+					const snapshotText = saveQimenLiveSnapshot(pan);
+					if(snapshotText){
+						saveModuleAISnapshot('qimen', snapshotText);
+					}
 				}
+			});
+		}catch(e){
+			if(!this.unmounted){
+				this.setState({ loading: false });
+				message.error('遁甲计算失败：本地奇门服务不可用');
 			}
-		});
+		}
 	}
 
 	genJieqiParams(fields, year){
@@ -1046,7 +1073,7 @@ class DunJiaMain extends Component {
 						safe(this.getContext(flds, displaySolarTime).isDiurnal, ''),
 						displaySolarTime,
 					].join('|');
-					const pan = this.getCachedPan(flds, result, fixedOptions, displaySolarTime);
+					const pan = await this.getResolvedPan(flds, result, fixedOptions, displaySolarTime);
 					this.lastNongliKey = requestKey;
 					this.lastPanSignature = panSignature;
 						this.setState({
@@ -1674,11 +1701,11 @@ class DunJiaMain extends Component {
 						</label>
 						<label className="horosa-dunjia-select-field">
 							<span>起局</span>
-							<Select size="small" value={opt.qijuMethod} disabled={opt.paiPanType !== 3} onChange={(v)=>this.onOptionChange('qijuMethod', v)}>
+							<Select size="small" value={opt.qijuMethod} disabled={[3, 4, 5].indexOf(opt.paiPanType) < 0} onChange={(v)=>this.onOptionChange('qijuMethod', v)}>
 								{QIJU_METHOD_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
 							</Select>
 						</label>
-						<label className="horosa-dunjia-select-field">
+						<label className="horosa-dunjia-select-field is-wide">
 							<span>月家</span>
 							<Select size="small" value={opt.yueJiaQiJuType} disabled={opt.paiPanType !== 1} onChange={(v)=>this.onOptionChange('yueJiaQiJuType', v)}>
 								{YUEJIA_QIJU_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
@@ -1752,7 +1779,8 @@ class DunJiaMain extends Component {
 	renderRight(){
 		const pan = this.state.pan;
 		const opt = this.state.options;
-		const panelTab = this.state.rightPanelTab;
+		const validPanelTabs = ['overview', 'shensha', 'bagong'];
+		const panelTab = validPanelTabs.indexOf(this.state.rightPanelTab) >= 0 ? this.state.rightPanelTab : 'overview';
 		const bagongPalace = BAGONG_PALACE_NAME[this.state.bagongPalace] ? this.state.bagongPalace : BAGONG_PALACE_ORDER[0];
 		const bagongData = buildQimenBaGongPanelData(pan, bagongPalace);
 		const fushiYiGua = buildQimenFuShiYiGua(pan);
@@ -1787,7 +1815,7 @@ class DunJiaMain extends Component {
 								</Select>
 							</div>
 							<div style={{ flex: 1 }}>
-								<Select size="small" value={opt.qijuMethod} disabled={opt.paiPanType !== 3} onChange={(v)=>this.onOptionChange('qijuMethod', v)} style={{ width: '100%' }}>
+								<Select size="small" value={opt.qijuMethod} disabled={[3, 4, 5].indexOf(opt.paiPanType) < 0} onChange={(v)=>this.onOptionChange('qijuMethod', v)} style={{ width: '100%' }}>
 									{QIJU_METHOD_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
 								</Select>
 							</div>
@@ -1814,7 +1842,7 @@ class DunJiaMain extends Component {
 									{ZHISHI_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
 								</Select>
 							</div>
-							<div style={{ flex: 1 }}>
+							<div style={{ flex: 1.45 }}>
 								<Select size="small" value={opt.yueJiaQiJuType} disabled={opt.paiPanType !== 1} onChange={(v)=>this.onOptionChange('yueJiaQiJuType', v)} style={{ width: '100%' }}>
 									{YUEJIA_QIJU_OPTIONS.map((item)=><Option key={item.value} value={item.value}>{item.label}</Option>)}
 								</Select>
@@ -1888,6 +1916,8 @@ class DunJiaMain extends Component {
 						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ lineHeight: '26px' }}>
 								<div>命式：{pan ? pan.options.sexLabel : '—'}</div>
+								<div>计算源：{pan ? (pan.options.qimenEngineLabel || '星阙本地') : '—'}</div>
+								<div>起盘方式：{pan ? (pan.qimenModeLabel || pan.options.paiPanLabel || '—') : '—'}</div>
 								<div>符头：{pan ? pan.fuTou : '—'}</div>
 								<div>节气：{pan ? pan.jieqiText : '—'}</div>
 								<div>局数：{pan ? pan.juText : '—'}</div>
@@ -2017,7 +2047,8 @@ class DunJiaMain extends Component {
 	}
 
 	renderQuickDock(){
-		const panelTab = this.state.rightPanelTab;
+		const validPanelTabs = ['overview', 'shensha', 'bagong'];
+		const panelTab = validPanelTabs.indexOf(this.state.rightPanelTab) >= 0 ? this.state.rightPanelTab : 'overview';
 		const showPatternInterpretation = this.state.showPatternInterpretation !== false;
 		const items = [
 			{

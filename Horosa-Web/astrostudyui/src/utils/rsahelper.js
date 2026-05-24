@@ -4,7 +4,14 @@ import * as forge from 'node-forge';
 let modulus="902563E4F9348E8366C0939BAB48D4403AA7CCD933EECF899265228512C4B72F2E30084B7CADF97132D0882A51FB814E5ADD82D676CFCFBC22ECDDCFACE8D4444BC60B5B30A53EB933321BA2FB9AA69727C03A5E6A90BDAB5895A8E179FF24CF9B0F66A4061E028EAB86FCE733254B5ED2D0CE47AF7A4CD1BB987702237F2A89FE8D86938ACD9D125CC6A1094AA291418D088D355A139E00C406045D38BD215F23F3D222352FD74AC914798FE3160B10A93C7F15319D5B44840850DF6A504E0299CD994F0A3133C7D58054AB19C43B6FEAA71AC0F61904665F345C2D99A25BD56D1CBFFFD08BE699D6FA53E1AD2ED812B8710DBA86D4CC43FF6389DEDD2888B9";
 let publicexp='10001';
 
-const keypair = new RSA.RSAKeyPair(publicexp, publicexp, modulus, 2048);
+let keypair = null;
+
+function getKeypair(){
+	if(!keypair){
+		keypair = new RSA.RSAKeyPair(publicexp, publicexp, modulus, 2048);
+	}
+	return keypair;
+}
 
 
 function randomKeyStr(len){
@@ -50,7 +57,7 @@ export function encryptRSA(txt, tm){
 	let bytes = cipher.output.bytes();
 	let encoded = forge.util.encode64(bytes);
 
-	let rsakeyraw = RSA.encryptedString(keypair, txtkey, RSA.RSAAPP.PKCS1Padding, RSA.RSAAPP.RawEncoding);	
+		let rsakeyraw = RSA.encryptedString(getKeypair(), txtkey, RSA.RSAAPP.PKCS1Padding, RSA.RSAAPP.RawEncoding);
 	let rsakey = forge.util.encode64(rsakeyraw);
 
 	let res = encoded + ',' + rsakey;
@@ -72,7 +79,7 @@ export function decryptRSA(txt){
 	let parts = txt.split(',');
 	let keyWordAry = forge.util.decode64(parts[1]);
 	let keycoded = forge.util.createBuffer(keyWordAry).toHex();
-	let txtkeyStr = RSA.decryptedString(keypair, keycoded);
+	let txtkeyStr = RSA.decryptedString(getKeypair(), keycoded);
 	let txtkey = extractKey(txtkeyStr);
 
 	let coded = forge.util.decode64(parts[0])
@@ -92,5 +99,3 @@ function extractKey(data){
 	}
 	return key;
 }
-
-

@@ -9,14 +9,15 @@ const RING_POS = [0.10, 0.22, 0.28, 0.34, 0.43, 0.45, 0.51, 0.53, 0.62, 0.77, 0.
 const RING_DRAW_TYPE = [1, 0, 0, 0, 1, -10, -10, 1, 1, 0, 0, 1, -10];
 const LIMIT_SEQ = [11.0, 10.0, 11.0, 15.0, 8.0, 7.0, 11.0, 4.5, 4.5, 4.5, 5.0, 5.0];
 
-const BLACK = '#000000';
-const GREEN = '#008000';
-const BLUE = '#000080';
-const RED = '#ff0000';
-const MAGENTA = '#ff00ff';
-const NOW_MARK = '#804040';
-const PALE = '#b5d8c7';
-const MUTED_PLANET = '#8a8a8a';
+const MOIRA_BG = 'var(--moira-bg, #ffffff)';
+const BLACK = 'var(--moira-ink, #000000)';
+const GREEN = 'var(--moira-green, #008000)';
+const BLUE = 'var(--moira-blue, #000080)';
+const RED = 'var(--moira-red, #ff0000)';
+const MAGENTA = 'var(--moira-magenta, #ff00ff)';
+const NOW_MARK = 'var(--moira-now-mark, #804040)';
+const PALE = 'var(--moira-pale, #b5d8c7)';
+const MUTED_PLANET = 'var(--moira-muted-planet, #8a8a8a)';
 const STELLAR_TICK_INNER = 5;
 const STELLAR_TICK_OUTER = 6;
 const GOD_RING_INNER = 8;
@@ -113,9 +114,9 @@ function radialLine(theta, inner, outer, opt = {}){
 
 function connectorLine(markTheta, labelTheta, inner, outer, dir, opt = {}){
 	const band = Math.max(1, outer - inner);
-	const gap = Math.max(8, Math.min(30, band * 0.56));
+	const length = Math.max(7, Math.min(14, opt.length || band * 0.22));
 	const startRadius = dir >= 0 ? outer : inner;
-	const endRadius = dir >= 0 ? outer - gap : inner + gap;
+	const endRadius = dir >= 0 ? outer - length : inner + length;
 	const a = point(startRadius, markTheta);
 	const b = point(endRadius, labelTheta);
 	return (
@@ -1071,8 +1072,8 @@ class GuoLaoMoiraWheel extends Component{
 		const nodes = [];
 		const life = lifeDegree(chart, fields);
 		const lifeTheta = moiraThetaFromDegree(life);
-			nodes.push(...this.renderDegreeMarkBand(r(4), r(5), 'full-stellar-up', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38}));
-			nodes.push(...this.renderDegreeMarkBand(r(6), r(7), 'full-stellar-down', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38, anchor: 'inner'}));
+			nodes.push(...this.renderDegreeMarkBand(r(4), r(5), 'full-stellar-up', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38, anchor: 'inner'}));
+			nodes.push(...this.renderDegreeMarkBand(r(6), r(7), 'full-stellar-down', moiraThetaFromDegree, {mutedMajor: true, opacity: 0.38}));
 		for(let age = 1; age <= 106; age++){
 			const degree = limitDegreeForAge(life, age + 0.5);
 			const theta = moiraThetaFromDegree(degree);
@@ -1142,7 +1143,7 @@ class GuoLaoMoiraWheel extends Component{
 		return (
 			<g className="moira-static-twelve">
 				{nodes}
-				<circle r={r(0)} fill="#fff" stroke={BLACK} />
+				<circle r={r(0)} fill={MOIRA_BG} stroke={BLACK} />
 				<text x="0" y="-24" fill={GREEN} fontSize="28" fontWeight="700" textAnchor="middle">七政</text>
 				<text x="0" y="8" fill={GREEN} fontSize="28" fontWeight="700" textAnchor="middle">立命</text>
 				<text x="0" y="40" fill={GREEN} fontSize="28" fontWeight="700" textAnchor="middle">度木</text>
@@ -1442,7 +1443,7 @@ class GuoLaoMoiraWheel extends Component{
 					role="img"
 					aria-label="Moira风格七政星盘"
 				>
-					<rect x={-VIEW / 2} y={-VIEW / 2} width={VIEW} height={VIEW} fill="#fff" />
+					<rect x={-VIEW / 2} y={-VIEW / 2} width={VIEW} height={VIEW} fill={MOIRA_BG} />
 					<g className="moira-pale-guides">
 						{Array.from({length: 24}).map((_, idx)=>(
 							<g key={`guide-${idx}`}>{radialLine(-15 * idx, r(GOD_RING_INNER), r(GOD_RING_OUTER), {color: PALE, width: 0.55, opacity: 0.18})}</g>
@@ -1468,6 +1469,7 @@ class GuoLaoMoiraWheel extends Component{
 export {
 	R as MOIRA_WHEEL_R,
 	VIEW as MOIRA_WHEEL_VIEW,
+	MOIRA_BG as MOIRA_BACKGROUND,
 	BLACK as MOIRA_BLACK,
 	GREEN as MOIRA_GREEN,
 	BLUE as MOIRA_BLUE,

@@ -1,0 +1,244 @@
+[
+  {
+    "index": 0,
+    "akkadian": "LU.HUN.GA",
+    "chinese": "雇農 / 雇工",
+    "english": "The Hired Man",
+    "western": "Aries",
+    "glyph": "♈",
+    "ruling_god": "Marduk (主神)",
+    "direction": "E",
+    "direction_cn": "東方",
+    "personality": "開創力強、行動果斷、獨立自主",
+    "omen": "LU.HUN.GA 升起之時，耕作吉利，新事業可興。"
+  },
+  {
+    "index": 1,
+    "akkadian": "GU4.AN.NA",
+    "chinese": "天牛",
+    "english": "The Bull of Heaven",
+    "western": "Taurus",
+    "glyph": "♉",
+    "ruling_god": "Ishtar (愛與戰爭女神)",
+    "direction": "E",
+    "direction_cn": "東方",
+    "personality": "穩重堅韌、重視物質安全、忠誠可靠",
+    "omen": "GU4.AN.NA 明亮，牧畜繁盛，穀倉充實。"
+  },
+  {
+    "index": 2,
+    "akkadian": "MAŠ.TAB.BA.GAL.GAL",
+    "chinese": "大雙子",
+    "english": "The Great Twins",
+    "western": "Gemini",
+    "glyph": "♊",
+    "ruling_god": "Nabu (智慧神)",
+    "direction": "NE",
+    "direction_cn": "東北方",
+    "personality": "聰慧善辯、適應力強、多才多藝",
+    "omen": "MAŠ.TAB.BA 雙星並行，書信使者順利，商旅有利。"
+  },
+  {
+    "index": 3,
+    "akkadian": "ALLA",
+    "chinese": "螃蟹",
+    "english": "The Crab",
+    "western": "Cancer",
+    "glyph": "♋",
+    "ruling_god": "Sin (月神)",
+    "direction": "N",
+    "direction_cn": "北方",
+    "personality": "重感情、直覺強、家庭觀念重",
+    "omen": "ALLA 明現，河水平穩，婦人安產。"
+  },
+  {
+    "index": 4,
+    "akkadian": "UR.GU.LA",
+    "chinese": "獅子",
+    "english": "The Lion",
+    "western": "Leo",
+    "glyph": "♌",
+    "ruling_god": "Shamash (太陽神)",
+    "direction": "N",
+    "direction_cn": "北方",
+    "personality": "威嚴自信、領袖氣質、慷慨大方",
+    "omen": "UR.GU.LA 昇起，王者受祝福，正義得伸張。"
+  },
+  {
+    "index": 5,
+    "akkadian": "AB.SIN",
+    "chinese": "穗 / 犁溝",
+    "english": "The Furrow",
+    "western": "Virgo",
+    "glyph": "♍",
+    "ruling_god": "Nabu (智慧神)",
+    "direction": "NW",
+    "direction_cn": "西北方",
+    "personality": "細心嚴謹、分析力強、追求完美",
+    "omen": "AB.SIN 豐收之兆，農事吉祥，穀物充盈。"
+  },
+  {
+    "index": 6,
+    "akkadian": "ZI.BA.AN.NA",
+    "chinese": "天秤",
+    "english": "The Scales",
+    "western": "Libra",
+    "glyph": "♎",
+    "ruling_god": "Shamash (太陽神)",
+    "direction": "W",
+    "direction_cn": "西方",
+    "personality": "公正和諧、重視平衡、外交能力強",
+    "omen": "ZI.BA.AN.NA 平衡，審判公正，貿易順利。"
+  },
+  {
+    "index": 7,
+    "akkadian": "GIR.TAB",
+    "chinese": "蠍子",
+    "english": "The Scorpion",
+    "western": "Scorpio",
+    "glyph": "♏",
+    "ruling_god": "Nergal (戰爭與瘟疫神)",
+    "direction": "W",
+    "direction_cn": "西方",
+    "personality": "洞察力強、意志堅定、深沉內斂",
+    "omen": "GIR.TAB 明亮，敵人退卻，但須防暗害。"
+  },
+  {
+    "index": 8,
+    "akkadian": "PA.BIL.SAG",
+    "chinese": "射手 / 巴比倫射手",
+    "english": "The Archer / Pabilsag",
+    "western": "Sagittarius",
+    "glyph": "♐",
+    "ruling_god": "Marduk (主神)",
+    "direction": "SW",
+    "direction_cn": "西南方",
+    "personality": "樂觀進取、追求真理、自由奔放",
+    "omen": "PA.BIL.SAG 高懸，遠征有利，學問增長。"
+  },
+  {
+    "index": 9,
+    "akkadian": "SUḪUR.MAŠ",
+    "chinese": "山羊魚",
+    "english": "The Goat-Fish",
+    "western": "Capricorn",
+    "glyph": "♑",
+    "ruling_god": "Ninurta (農業與戰爭神)",
+    "direction": "S",
+    "direction_cn": "南方",
+    "personality": "堅毅務實、有責任感、擅長規劃",
+    "omen": "SUḪUR.MAŠ 穩行，建築工程順利，水利有功。"
+  },
+  {
+    "index": 10,
+    "akkadian": "GU",
+    "chinese": "大者 / 水瓶",
+    "english": "The Great One",
+    "western": "Aquarius",
+    "glyph": "♒",
+    "ruling_god": "Ninurta (農業與戰爭神)",
+    "direction": "S",
+    "direction_cn": "南方",
+    "personality": "獨立思考、博愛理想、創新改革",
+    "omen": "GU 昇起，降雨適時，灌溉順暢。"
+  },
+  {
+    "index": 11,
+    "akkadian": "ZIB.ME",
+    "chinese": "魚尾 / 雙魚",
+    "english": "The Tails / Two Fish",
+    "western": "Pisces",
+    "glyph": "♓",
+    "ruling_god": "Marduk (主神)",
+    "direction": "SE",
+    "direction_cn": "東南方",
+    "personality": "直覺敏銳、富同情心、靈性深厚",
+    "omen": "ZIB.ME 在天，漁獲豐盛，夢兆可信。"
+  },
+  {
+    "_comment": "Planet Gods (Enūma Anu Enlil)",
+    "planet_gods": {
+      "Sun": {"deity": "Shamash", "chinese": "太陽神", "domain": "正義、光明、真理"},
+      "Moon": {"deity": "Sin", "chinese": "月神", "domain": "時間、曆法、夜間"},
+      "Mercury": {"deity": "Nabu", "chinese": "智慧神", "domain": "書寫、智慧、學問"},
+      "Venus": {"deity": "Ishtar", "chinese": "愛與戰爭女神", "domain": "愛情、美、戰爭"},
+      "Mars": {"deity": "Nergal", "chinese": "戰爭與瘟疫神", "domain": "戰爭、瘟疫、死亡"},
+      "Jupiter": {"deity": "Marduk", "chinese": "主神", "domain": "王權、正義、命運"},
+      "Saturn": {"deity": "Ninurta", "chinese": "農業與戰爭神", "domain": "農業、建築、戰爭"}
+    }
+  },
+  {
+    "_comment": "Simple Omens (Enūma Anu Enlil style placeholders)",
+    "omens": {
+      "solar_eclipse": "日蝕現，君主有厄，國事動盪。",
+      "solar_eclipse_en": "A solar eclipse appears — the ruler faces calamity; state affairs are turbulent.",
+      "lunar_eclipse": "月蝕現，王后或后宮有事端，敵國蠢動。",
+      "lunar_eclipse_en": "A lunar eclipse appears — the queen or harem has trouble; enemy states stir.",
+      "venus_morning": "Ishtar 晨星東方昇起，戰爭勝利之兆。",
+      "venus_morning_en": "Ishtar rises as morning star in the east — an omen of victory in war.",
+      "venus_evening": "Ishtar 昏星西方現，和平與繁榮。",
+      "venus_evening_en": "Ishtar appears as evening star in the west — peace and prosperity.",
+      "jupiter_exalted": "Marduk 居高，國王受天神庇佑。",
+      "jupiter_exalted_en": "Marduk rides high — the king is sheltered by the gods.",
+      "saturn_retrograde": "Ninurta 逆行，堤壩修築延誤，農作不利。",
+      "saturn_retrograde_en": "Ninurta retrogrades — dam construction is delayed; agriculture suffers.",
+      "mars_bright": "Nergal 光芒增強，邊境戰事將起。",
+      "mars_bright_en": "Nergal's brilliance increases — border warfare will erupt.",
+      "mercury_invisible": "Nabu 隱沒，書信延遲，文書有誤。",
+      "mercury_invisible_en": "Nabu is invisible — letters are delayed; documents contain errors."
+    }
+  },
+  {
+    "_comment": "K.8538 Planisphere — 8-Sector Descriptions",
+    "k8538_sectors": [
+      {
+        "index": 0, "direction": "NE", "direction_cn": "東北",
+        "constellation": "MUL.MUL (Pleiades)",
+        "description_cn": "昴宿星團區——七姊妹星座，春季升起的標誌星群。",
+        "description_en": "Pleiades sector — the Seven Sisters, a marker of spring rising."
+      },
+      {
+        "index": 1, "direction": "E", "direction_cn": "東",
+        "constellation": "GU4.AN.NA (Bull of Heaven)",
+        "description_cn": "天牛區——Taurus 核心，Ishtar 傳說中的神獸。",
+        "description_en": "Bull of Heaven sector — core of Taurus, Ishtar's legendary beast."
+      },
+      {
+        "index": 2, "direction": "SE", "direction_cn": "東南",
+        "constellation": "SIPA.ZI.AN.NA (True Shepherd of Anu)",
+        "description_cn": "牧者區——Orion 核心，天穹的守護者。",
+        "description_en": "True Shepherd sector — core of Orion, guardian of the heavens."
+      },
+      {
+        "index": 3, "direction": "S", "direction_cn": "南",
+        "constellation": "KAK.SI.SÁ (Arrow Star)",
+        "description_cn": "箭矢區——天狼星（Sirius），最亮的恆星。",
+        "description_en": "Arrow sector — Sirius, the brightest fixed star."
+      },
+      {
+        "index": 4, "direction": "SW", "direction_cn": "西南",
+        "constellation": "MAŠ.TAB.BA (Great Twins)",
+        "description_cn": "大雙子區——Gemini 核心，對稱的雙子星。",
+        "description_en": "Great Twins sector — core of Gemini, the symmetrical twin stars."
+      },
+      {
+        "index": 5, "direction": "W", "direction_cn": "西",
+        "constellation": "GIR.TAB (Scorpion)",
+        "description_cn": "蠍子區——Scorpius 核心，夏季的標誌星座。",
+        "description_en": "Scorpion sector — core of Scorpius, marker of summer."
+      },
+      {
+        "index": 6, "direction": "NW", "direction_cn": "西北",
+        "constellation": "TI8 (Eagle)",
+        "description_cn": "老鷹區——Aquila 核心，包含牛郎星（Altair）。",
+        "description_en": "Eagle sector — core of Aquila, containing Altair."
+      },
+      {
+        "index": 7, "direction": "N", "direction_cn": "北",
+        "constellation": "IKU (Field)",
+        "description_cn": "方田區——飛馬座四邊形，秋分的標誌。",
+        "description_en": "Field sector — the Great Square of Pegasus, marker of autumn equinox."
+      }
+    ]
+  }
+]

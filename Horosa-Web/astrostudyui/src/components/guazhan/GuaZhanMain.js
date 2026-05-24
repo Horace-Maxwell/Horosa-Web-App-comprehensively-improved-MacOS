@@ -1222,9 +1222,9 @@ class GuaZhanMain extends Component{
 
 	renderRightPanel(height, guadesc){
 		const infoHeight = Math.max(420, height - 170);
-		const snapshot = buildGuaSnapshotText(this.props.fields, this.state);
+		const activeKey = ['overview', 'gua'].indexOf(this.state.rightPanelTab) >= 0 ? this.state.rightPanelTab : 'overview';
 		return (
-			<Tabs activeKey={this.state.rightPanelTab} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-guazhan-tabs">
+			<Tabs activeKey={activeKey} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-guazhan-tabs">
 				<TabPane tab="概览" key="overview">
 					<div className="horosa-guazhan-info-card">
 						{this.renderInfoRows()}
@@ -1234,9 +1234,6 @@ class GuaZhanMain extends Component{
 					<div className="horosa-guazhan-desc-panel">
 						<GuaDesc height={infoHeight} value={guadesc} />
 					</div>
-				</TabPane>
-				<TabPane tab="快照" key="snapshot">
-					<pre className="horosa-guazhan-snapshot">{snapshot}</pre>
 				</TabPane>
 			</Tabs>
 		);
@@ -1318,7 +1315,7 @@ class GuaZhanMain extends Component{
 							<div className="horosa-side-panel-heading horosa-guazhan-info-heading">
 								<div>
 									<div className="horosa-side-panel-title">六爻信息</div>
-									<div className="horosa-side-panel-subtitle">概览、卦辞与快照</div>
+									<div className="horosa-side-panel-subtitle">概览与卦辞</div>
 								</div>
 							</div>
 							{this.renderRightPanel(height, guadesc)}

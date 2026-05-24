@@ -11,11 +11,40 @@ import XQIcon from '../xq-icons';
 
 const Option = XQSelect.Option;
 
+const primaryActionIconStyle = {
+	fontSize: 19,
+};
+const primaryActionLinkStyle = {
+	display: 'inline-flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+	width: 26,
+	height: 26,
+	verticalAlign: 'middle',
+	color: '#1890ff',
+	lineHeight: 1,
+};
+const actionCellStyle = {
+	display: 'inline-flex',
+	alignItems: 'center',
+	gap: 2,
+	whiteSpace: 'nowrap',
+};
+const listToolbarStyle = {
+	marginBottom: 12,
+	rowGap: 10,
+};
+const backupActionsStyle = {
+	display: 'flex',
+	alignItems: 'center',
+	gap: 8,
+	flexWrap: 'wrap',
+};
+
 class CaseList extends Component{
 	constructor(props) {
 		super(props);
 		this.state = {
-			type: 0,
 			tag: null,
 			name: null,
 			dispType: 'user/searchCases',
@@ -28,7 +57,6 @@ class CaseList extends Component{
 		this.changeShowSize = this.changeShowSize.bind(this);
 		this.showTotal = this.showTotal.bind(this);
 		this.changePage = this.changePage.bind(this);
-		this.onChangeType = this.onChangeType.bind(this);
 		this.genTagsOption = this.genTagsOption.bind(this);
 		this.filterTagsOption = this.filterTagsOption.bind(this);
 		this.onTagChange = this.onTagChange.bind(this);
@@ -160,12 +188,6 @@ class CaseList extends Component{
 				});
 			}
 		}
-	}
-
-	onChangeType(val){
-		this.setState({
-			type: val,
-		});
 	}
 
 	clickExportLocalBackup(){
@@ -328,12 +350,13 @@ class CaseList extends Component{
 		},{
 			title: '操作',
 			key: 'Action',
+			width: 112,
 			render: (text, record)=>(
-				<span>
-					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" /></a>&emsp;
-					<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" /></a>&emsp;
+				<span style={actionCellStyle}>
+					<a href={null} title="选择" style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>
+					<a href={null} title="编辑" style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" style={primaryActionIconStyle} /></a>
 					<Popconfirm title={`确定删除起课：${record.event || ''} 吗?`} onConfirm={()=>{this.clickRemove(record);}}>
-						<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" /></a>
+						<a href={null} title="删除" style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" style={primaryActionIconStyle} /></a>
 					</Popconfirm>
 				</span>
 			),
@@ -347,14 +370,11 @@ class CaseList extends Component{
 
 		return (
 			<div style={{height: tbly}}>
-				<Row gutter={12} style={{marginBottom: 10}}>
-					<Col span={4}>
+				<Row gutter={12} type="flex" align="middle" style={listToolbarStyle}>
+					<Col xs={24} sm={8} md={5} lg={4}>
 						<XQButton type="primary" iconName="newChart" onClick={this.clickAdd}>添加起课</XQButton>
 					</Col>
-					<Col span={10}>
-						<XQSelect value={this.state.type} onChange={this.onChangeType}>
-							<Option value={0}>本地事盘</Option>
-						</XQSelect>
+					<Col xs={24} sm={16} md={10} lg={10} style={backupActionsStyle}>
 						<XQButton onClick={this.clickImportLocalBackup}>导入本地事盘(JSON)</XQButton>
 						<XQButton onClick={this.clickExportLocalBackup}>导出本地事盘(JSON)</XQButton>
 						<input
@@ -365,7 +385,7 @@ class CaseList extends Component{
 							onChange={this.onImportLocalFileChange}
 						/>
 					</Col>
-					<Col span={4}>
+					<Col xs={24} sm={8} md={4} lg={4}>
 						<XQSelect
 							placeholder='标签'
 							showSearch allowClear
@@ -376,7 +396,7 @@ class CaseList extends Component{
 							{tags}
 						</XQSelect>
 					</Col>
-					<Col span={6}>
+					<Col xs={24} sm={16} md={5} lg={6}>
 						<XQSearch placeholder='以事件进行检索' enterButton onSearch={this.searchByName} />
 					</Col>
 				</Row>

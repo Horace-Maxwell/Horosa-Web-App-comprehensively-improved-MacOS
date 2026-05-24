@@ -5,7 +5,7 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as SZConst from './SZConst';
 import SZChart from './SZChart';
 
-const SQUARE_SIDE_MIN = 620;
+const SQUARE_SIDE_MIN = 480;
 const SQUARE_SIDE_MAX = 1280;
 const SQUARE_SIDE_PANEL_GAP = 16;
 const VIEWPORT_BOTTOM_GAP = 28;
@@ -32,6 +32,10 @@ class SuZhanChart extends Component{
 		this.drawChart = this.drawChart.bind(this);
 		this.updateSquareSide = this.updateSquareSide.bind(this);
 		this.handleResize = this.handleResize.bind(this);
+		this.scheduleSquareMeasure = this.scheduleSquareMeasure.bind(this);
+		this.squareMeasureTimers = [];
+		this.squareMeasureFrame = null;
+		this.mounted = false;
 	}
 
 	updateSquareSide(){
@@ -67,8 +71,13 @@ class SuZhanChart extends Component{
 		const svgdom = document.getElementById(this.state.chartid);
 		if(svgdom){
 			const parent = svgdom.parentElement;
-			const parentW = parent ? parent.clientWidth : 0;
-			const parentH = parent ? parent.clientHeight : 0;
+			const panel = svgdom.closest ? (svgdom.closest('.horosa-suzhan-chart-panel') || parent) : parent;
+			const panelRect = panel && panel.getBoundingClientRect ? panel.getBoundingClientRect() : null;
+			const parentRect = parent && parent.getBoundingClientRect ? parent.getBoundingClientRect() : null;
+			const panelW = panel ? Math.floor(panelRect && panelRect.width ? panelRect.width : panel.clientWidth) : 0;
+			const panelH = panel ? Math.floor(panelRect && panelRect.height ? panelRect.height : panel.clientHeight) : 0;
+			const parentW = parent ? Math.floor(parentRect && parentRect.width ? parentRect.width : parent.clientWidth) : 0;
+			const parentH = parent ? Math.floor(parentRect && parentRect.height ? parentRect.height : parent.clientHeight) : 0;
 			let viewportRemainH = 0;
 			const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
 			if(viewportH > 0){
@@ -83,15 +92,24 @@ class SuZhanChart extends Component{
 				}
 				viewportRemainH = bottomLimit - rect.top - VIEWPORT_BOTTOM_GAP;
 			}
-			if(parentW > 0){
-				// 方形宿盘优先吃满中间栏宽度；高度不足交给中间面板滚动承接。
-				// 否则底部快捷栏或视口剩余高度会把方盘压成很小一块。
-				sideByContainer = Math.max(parentW - SQUARE_SIDE_PANEL_GAP, 0);
-			}else if(parentH > 0){
-				sideByContainer = Math.max(parentH - SQUARE_SIDE_PANEL_GAP, 0);
+			const candidates = [];
+			const pushCandidate = (v)=>{
+				if(Number.isFinite(v) && v > 0){
+					candidates.push(Math.max(v - SQUARE_SIDE_PANEL_GAP, 0));
+				}
+			};
+			pushCandidate(panelW);
+			pushCandidate(panelH);
+			pushCandidate(parentW);
+			pushCandidate(parentH);
+			if(viewportRemainH > 0){
+				candidates.push(viewportRemainH);
 			}
-			if((sideByContainer === null || sideByContainer <= 0) && viewportRemainH > 0){
-				sideByContainer = viewportRemainH;
+			const usableCandidates = candidates.filter(v=>v >= 360);
+			if(usableCandidates.length > 0){
+				sideByContainer = Math.min(...usableCandidates);
+			}else if(candidates.length > 0){
+				sideByContainer = Math.max(...candidates);
 			}
 		}
 
@@ -106,6 +124,36 @@ class SuZhanChart extends Component{
 		side = clamp(Math.round(side), SQUARE_SIDE_MIN, SQUARE_SIDE_MAX);
 		if(this.state.lockedSide === null || Math.abs(this.state.lockedSide - side) >= 4){
 			this.setState({ lockedSide: side });
+		}
+	}
+
+	scheduleSquareMeasure(delay = 0){
+		const measure = ()=>{
+			if(!this.mounted){
+				return;
+			}
+			if(typeof window !== 'undefined' && window.requestAnimationFrame){
+				this.squareMeasureFrame = window.requestAnimationFrame(()=>{
+					this.squareMeasureFrame = null;
+					if(!this.mounted){
+						return;
+					}
+					this.updateSquareSide();
+					this.drawChart();
+				});
+			}else{
+				this.updateSquareSide();
+				this.drawChart();
+			}
+		};
+		if(delay > 0){
+			const timer = window.setTimeout(()=>{
+				this.squareMeasureTimers = this.squareMeasureTimers.filter(item=>item !== timer);
+				measure();
+			}, delay);
+			this.squareMeasureTimers.push(timer);
+		}else{
+			measure();
 		}
 	}
 
@@ -171,14 +219,26 @@ class SuZhanChart extends Component{
 	}
 
 	componentDidMount(){
+		this.mounted = true;
 		window.addEventListener('resize', this.handleResize);
 		d3.select('body').append('div').attr('id', this.state.tooltipId);
 		this.updateSquareSide();
+		this.scheduleSquareMeasure(80);
+		this.scheduleSquareMeasure(240);
 		this.drawChart();
 	}
 
 	componentWillUnmount() {
+		this.mounted = false;
 		window.removeEventListener('resize', this.handleResize);
+		if(this.squareMeasureFrame !== null && window.cancelAnimationFrame){
+			window.cancelAnimationFrame(this.squareMeasureFrame);
+			this.squareMeasureFrame = null;
+		}
+		for(let i=0; i<this.squareMeasureTimers.length; i++){
+			window.clearTimeout(this.squareMeasureTimers[i]);
+		}
+		this.squareMeasureTimers = [];
 		d3.select('#' + this.state.tooltipId).remove();
 	}
 
@@ -191,9 +251,16 @@ class SuZhanChart extends Component{
 			: SZConst.SZChart.shape;
 		if(prevShape !== nextShape && nextShape === SZConst.SZChart_Square){
 			this.updateSquareSide();
+			this.scheduleSquareMeasure(80);
 		}
 		if(nextShape === SZConst.SZChart_Square){
 			this.updateSquareSide();
+			if(prevProps.height !== this.props.height
+				|| prevProps.width !== this.props.width
+				|| prevProps.value !== this.props.value
+				|| prevProps.fields !== this.props.fields){
+				this.scheduleSquareMeasure(80);
+			}
 		}
 	}
 
@@ -218,10 +285,10 @@ class SuZhanChart extends Component{
 				const side = this.state.lockedSide || 740;
 				chartstyle.width = `${side}px`;
 				chartstyle.height = `${side}px`;
-				chartstyle.minWidth = `${side}px`;
-				chartstyle.minHeight = `${side}px`;
+				chartstyle.maxWidth = '100%';
+				chartstyle.maxHeight = '100%';
 				chartstyle.aspectRatio = '1 / 1';
-				chartstyle.flex = '0 0 auto';
+				chartstyle.flex = '0 1 auto';
 				chartstyle.display = 'block';
 			}
 

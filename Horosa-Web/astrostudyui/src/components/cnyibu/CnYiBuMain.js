@@ -4,18 +4,38 @@ import { randomStr } from '../../utils/helper';
 import SuZhanMain from '../suzhan/SuZhanMain';
 import JinKouMain from '../jinkou/JinKouMain';
 import TongSheFaMain from '../tongshefa/TongSheFaMain';
+import HuangJiMain from '../huangji/HuangJiMain';
+import WuZhaoMain from '../wuzhao/WuZhaoMain';
+import TaiXuanMain from '../taixuan/TaiXuanMain';
+import JingJueMain from '../jingjue/JingJueMain';
+import ShenYiShuMain from '../shenyishu/ShenYiShuMain';
 import XQIcon from '../xq-icons';
 
 
 const TabPane = Tabs.TabPane;
+const CNYIBU_VALID_TABS = ['suzhan', 'jinkou', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu'];
+
+function getRuntimeCnYiBuTab(){
+	if(typeof window === 'undefined'){
+		return null;
+	}
+	const tab = window.__horosaCnyibuCurrentTab;
+	return CNYIBU_VALID_TABS.indexOf(tab) >= 0 ? tab : null;
+}
+
+function setRuntimeCnYiBuTab(tab){
+	if(typeof window !== 'undefined' && CNYIBU_VALID_TABS.indexOf(tab) >= 0){
+		window.__horosaCnyibuCurrentTab = tab;
+	}
+}
 
 class CnYiBuMain extends Component{
 
 	constructor(props) {
 		super(props);
-		const subtab = this.props.currentSubTab ? this.props.currentSubTab : 'suzhan';
-		const validTabs = ['suzhan', 'jinkou', 'tongshefa'];
-		const tab = validTabs.indexOf(subtab) >= 0 ? subtab : 'suzhan';
+		const subtab = this.props.currentSubTab || getRuntimeCnYiBuTab() || 'suzhan';
+		const tab = CNYIBU_VALID_TABS.indexOf(subtab) >= 0 ? subtab : 'suzhan';
+		setRuntimeCnYiBuTab(tab);
 
 		this.state = {
 			divId: 'div_' + randomStr(8),
@@ -29,6 +49,21 @@ class CnYiBuMain extends Component{
 				},
 				tongshefa:{
 					fun: null
+				},
+				huangji:{
+					fun: null
+				},
+				wuzhao:{
+					fun: null
+				},
+				taixuan:{
+					fun: null
+				},
+				jingjue:{
+					fun: null
+				},
+				shenyishu:{
+					fun: null
 				}
 			},
 		};
@@ -37,6 +72,11 @@ class CnYiBuMain extends Component{
 			suzhan: createRef(),
 			jinkou: createRef(),
 			tongshefa: createRef(),
+			huangji: createRef(),
+			wuzhao: createRef(),
+			taixuan: createRef(),
+			jingjue: createRef(),
+			shenyishu: createRef(),
 		};
 
 		this.changeTab = this.changeTab.bind(this);
@@ -55,6 +95,7 @@ class CnYiBuMain extends Component{
 	}
 
 	changeTab(key){
+		setRuntimeCnYiBuTab(key);
 		let hook = this.state.hook;
 		this.setState({
 			currentTab: key,
@@ -73,6 +114,21 @@ class CnYiBuMain extends Component{
 		});
 	}
 
+	componentDidUpdate(prevProps){
+		if(prevProps.currentSubTab !== this.props.currentSubTab){
+			const key = this.props.currentSubTab;
+			if(CNYIBU_VALID_TABS.indexOf(key) >= 0 && key !== this.state.currentTab){
+				setRuntimeCnYiBuTab(key);
+				this.setState({ currentTab: key }, ()=>{
+					const hook = this.state.hook;
+					if(hook[key] && hook[key].fun){
+						hook[key].fun(this.props.fields, this.props.chart);
+					}
+				});
+			}
+		}
+	}
+
 	getActiveChild(){
 		const ref = this.childRefs[this.state.currentTab];
 		return ref && ref.current ? ref.current : null;
@@ -82,7 +138,7 @@ class CnYiBuMain extends Component{
 		const child = this.getActiveChild();
 		if(child && fn){
 			fn(child);
-			this.forceUpdate();
+			window.setTimeout(()=>this.forceUpdate(), 0);
 		}
 	}
 
@@ -114,6 +170,11 @@ class CnYiBuMain extends Component{
 				{ label: '快照', icon: 'quickNote', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
 				{ label: '金口诀', icon: 'quickFirdaria', onClick: ()=>this.changeTab('jinkou') },
 				{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.changeTab('tongshefa') },
+				{ label: '皇极经世', icon: 'quickReturn', onClick: ()=>this.changeTab('huangji') },
+				{ label: '五兆', icon: 'quickPrimary', onClick: ()=>this.changeTab('wuzhao') },
+				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
+				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
+				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
 				{ label: '太乙', icon: 'quickReturn', onClick: ()=>this.navigateFeature('taiyi') },
 				{ label: '遁甲', icon: 'quickTransit', onClick: ()=>this.navigateFeature('dunjia') },
 				{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
@@ -128,9 +189,14 @@ class CnYiBuMain extends Component{
 				{ label: '保存', icon: 'quickNote', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
 				{ label: '宿盘', icon: 'quickReturn', onClick: ()=>this.changeTab('suzhan') },
 				{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.changeTab('tongshefa') },
+				{ label: '皇极经世', icon: 'quickTransit', onClick: ()=>this.changeTab('huangji') },
+				{ label: '五兆', icon: 'quickPrimary', onClick: ()=>this.changeTab('wuzhao') },
+				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
+				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
+				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
 				{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
 			];
-		}else{
+		}else if(tab === 'tongshefa'){
 			const detailTab = activeChild && activeChild.state ? activeChild.state.detailTab : 'observe32';
 			const showMatrixBorder = activeChild && activeChild.state ? activeChild.state.showMatrixBorder : true;
 			actions = [
@@ -142,13 +208,103 @@ class CnYiBuMain extends Component{
 				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
 				{ label: '宿盘', icon: 'quickProfection', onClick: ()=>this.changeTab('suzhan') },
 				{ label: '金口诀', icon: 'quickAi', onClick: ()=>this.changeTab('jinkou') },
+				{ label: '皇极经世', icon: 'quickTransit', onClick: ()=>this.changeTab('huangji') },
+				{ label: '五兆', icon: 'quickPrimary', onClick: ()=>this.changeTab('wuzhao') },
+				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
+				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
+				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
+			];
+		}else if(tab === 'huangji'){
+			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
+			actions = [
+				{ label: '起盘', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.clickPlot()) },
+				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
+				{ label: '卦象', icon: 'quickTransit', active: rightPanelTab === 'gua', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('gua')) },
+				{ label: '心易', icon: 'quickFirdaria', active: rightPanelTab === 'xinyi', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('xinyi')) },
+				{ label: '年表', icon: 'quickNote', active: rightPanelTab === 'history', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('history')) },
+				{ label: '典籍', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
+				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
+				{ label: '完整', icon: 'quickProfection', active: rightPanelTab === 'full', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('full')) },
+				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
+				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
+				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
+				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
+			];
+		}else if(tab === 'wuzhao'){
+			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
+			actions = [
+				{ label: '起盘', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.clickPlot()) },
+				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
+				{ label: '六位', icon: 'quickTransit', active: rightPanelTab === 'positions', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('positions')) },
+				{ label: '标记', icon: 'quickFirdaria', active: rightPanelTab === 'flags', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('flags')) },
+				{ label: '典籍', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
+				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
+				{ label: '完整', icon: 'quickProfection', active: rightPanelTab === 'full', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('full')) },
+				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
+				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
+				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
+				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
+			];
+		}else if(tab === 'taixuan'){
+			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
+			actions = [
+				{ label: '起筮', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.randomizeSeed()) },
+				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
+				{ label: '玄首', icon: 'quickTransit', active: rightPanelTab === 'head', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('head')) },
+				{ label: '表', icon: 'quickFirdaria', active: rightPanelTab === 'lines', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('lines')) },
+				{ label: '全文', icon: 'quickNote', active: rightPanelTab === 'fulltext', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('fulltext')) },
+				{ label: '典籍', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
+				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
+				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
+				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
+				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
+			];
+		}else if(tab === 'jingjue'){
+			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
+			actions = [
+				{ label: '重起', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.randomizeSeed()) },
+				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
+				{ label: '起课', icon: 'quickTransit', active: rightPanelTab === 'cast', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('cast')) },
+				{ label: '十六卦', icon: 'quickFirdaria', active: rightPanelTab === 'gua', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('gua')) },
+				{ label: '来源', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
+				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
+				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
+				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
+			];
+		}else{
+			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
+			actions = [
+				{ label: '起盘', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.clickPlot()) },
+				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
+				{ label: '干支', icon: 'quickTransit', active: rightPanelTab === 'pillars', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('pillars')) },
+				{ label: '五行', icon: 'quickReturn', active: rightPanelTab === 'wuxing', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('wuxing')) },
+				{ label: '兵占', icon: 'quickFirdaria', active: rightPanelTab === 'military', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('military')) },
+				{ label: '神煞', icon: 'quickProfection', active: rightPanelTab === 'shensha', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('shensha')) },
+				{ label: '完整', icon: 'quickNote', active: rightPanelTab === 'full', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('full')) },
+				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
+				{ label: '来源', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
+				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
 			];
 		}
 
+		const hiddenQuickActions = {
+			huangji: ['典籍', '完整', '快照'],
+			wuzhao: ['典籍', '完整', '快照'],
+			taixuan: ['典籍', '快照'],
+			jingjue: ['来源', '快照'],
+			shenyishu: ['完整', '来源', '快照'],
+		}[tab];
+		if(hiddenQuickActions){
+			actions = actions.filter((item)=>hiddenQuickActions.indexOf(item.label) < 0);
+		}
+
+		const actionGridStyle = {
+			gridTemplateColumns: `repeat(${actions.length}, minmax(58px, 1fr))`,
+		};
 		return (
 			<div className="horosa-bottom-quick-dock horosa-cnyibu-quick-dock">
 				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-cnyibu-quick-actions">
+				<div className="horosa-bottom-quick-actions horosa-cnyibu-quick-actions" style={actionGridStyle}>
 					{actions.map((item)=>(
 						<button
 							type="button"
@@ -213,6 +369,61 @@ class CnYiBuMain extends Component{
 							fields={this.props.fields}
 							hook={this.state.hook.tongshefa}
 							dispatch={this.props.dispatch}
+						/>
+					</TabPane>
+					<TabPane tab="皇极经世" key="huangji">
+						<HuangJiMain
+							ref={this.childRefs.huangji}
+							value={this.props.chart}
+							height={contentHeight}
+							fields={this.props.fields}
+							hook={this.state.hook.huangji}
+							dispatch={this.props.dispatch}
+							hideQuickDock
+						/>
+					</TabPane>
+					<TabPane tab="五兆" key="wuzhao">
+						<WuZhaoMain
+							ref={this.childRefs.wuzhao}
+							value={this.props.chart}
+							height={contentHeight}
+							fields={this.props.fields}
+							hook={this.state.hook.wuzhao}
+							dispatch={this.props.dispatch}
+							hideQuickDock
+						/>
+					</TabPane>
+					<TabPane tab="太玄" key="taixuan">
+						<TaiXuanMain
+							ref={this.childRefs.taixuan}
+							value={this.props.chart}
+							height={contentHeight}
+							fields={this.props.fields}
+							hook={this.state.hook.taixuan}
+							dispatch={this.props.dispatch}
+							hideQuickDock
+						/>
+					</TabPane>
+					<TabPane tab="荆诀" key="jingjue">
+						<JingJueMain
+							ref={this.childRefs.jingjue}
+							value={this.props.chart}
+							height={contentHeight}
+							fields={this.props.fields}
+							hook={this.state.hook.jingjue}
+							dispatch={this.props.dispatch}
+							hideQuickDock
+						/>
+					</TabPane>
+					<TabPane tab="神易数" key="shenyishu">
+						<ShenYiShuMain
+							ref={this.childRefs.shenyishu}
+							value={this.props.chart}
+							height={contentHeight}
+							fields={this.props.fields}
+							hook={this.state.hook.shenyishu}
+							dispatch={this.props.dispatch}
+							hideQuickDock
 						/>
 					</TabPane>
 

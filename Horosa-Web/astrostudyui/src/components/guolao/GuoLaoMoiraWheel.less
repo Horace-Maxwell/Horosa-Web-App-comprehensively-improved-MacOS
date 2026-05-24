@@ -1,4 +1,17 @@
 .horosa-guolao-moira-wheel {
+	--moira-bg: var(--horosa-surface-solid, #ffffff);
+	--moira-ink: var(--horosa-text, #000000);
+	--moira-line: var(--horosa-text, #111111);
+	--moira-tooltip-bg: var(--horosa-surface-raised, #ffffed);
+	--moira-tooltip-text: var(--horosa-text, #000000);
+	--moira-tooltip-border: var(--horosa-border-strong, #333333);
+	--moira-green: #008000;
+	--moira-blue: #000080;
+	--moira-red: #ff0000;
+	--moira-magenta: #ff00ff;
+	--moira-now-mark: #804040;
+	--moira-pale: #b5d8c7;
+	--moira-muted-planet: #8a8a8a;
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -9,7 +22,7 @@
 	min-height: 0;
 	padding: 0;
 	overflow: visible;
-	background: #ffffff;
+	background: var(--moira-bg);
 	border: 0;
 	box-sizing: border-box;
 }
@@ -21,7 +34,7 @@
 	max-height: 100%;
 	min-width: 0;
 	min-height: 0;
-	background: #ffffff;
+	background: var(--moira-bg);
 	overflow: visible;
 	font-family: "Songti SC", "STSong", "SimSun", serif;
 	letter-spacing: 0;
@@ -48,10 +61,10 @@
 	min-width: 220px;
 	max-width: min(420px, calc(100vw - 32px));
 	padding: 5px 9px;
-	border: 1px solid #333333;
-	background: #ffffed;
-	color: #000000;
-	box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.26);
+	border: 1px solid var(--moira-tooltip-border);
+	background: var(--moira-tooltip-bg);
+	color: var(--moira-tooltip-text);
+	box-shadow: var(--horosa-small-shadow, 1px 1px 3px rgba(0, 0, 0, 0.26));
 	font-family: "Songti SC", "STSong", "SimSun", serif;
 	font-size: 18px;
 	font-weight: 700;
@@ -63,7 +76,7 @@
 
 .horosa-guolao-moira-wheel .moira-rings circle {
 	fill: none;
-	stroke: #111111;
+	stroke: var(--moira-line);
 	stroke-width: 0.9;
 }
 
@@ -81,12 +94,12 @@
 }
 
 .horosa-guolao-moira-wheel .moira-main-divider line {
-	stroke: #111111;
+	stroke: var(--moira-line);
 	stroke-width: 1;
 }
 
 .horosa-guolao-moira-wheel .moira-inner-lines line {
-	stroke: #111111;
+	stroke: var(--moira-line);
 	stroke-width: 1;
 }
 
@@ -97,4 +110,20 @@
 .horosa-guolao-moira-wheel .moira-degree-ticks text,
 .horosa-guolao-moira-wheel .moira-limit-layer text {
 	font-family: Georgia, "Times New Roman", serif;
+}
+
+:root[data-horosa-appearance='dark'] .horosa-guolao-moira-wheel {
+	--moira-bg: var(--horosa-surface-solid, #090b0e);
+	--moira-ink: var(--horosa-text, #edf5f2);
+	--moira-line: rgba(237, 245, 242, 0.74);
+	--moira-tooltip-bg: var(--horosa-surface-raised, #11100d);
+	--moira-tooltip-text: var(--horosa-text, #edf5f2);
+	--moira-tooltip-border: var(--horosa-border-strong, rgba(231, 189, 117, 0.42));
+	--moira-green: #82d28e;
+	--moira-blue: #8aa7ff;
+	--moira-red: #ff766f;
+	--moira-magenta: #ff7df4;
+	--moira-now-mark: #d38a7e;
+	--moira-pale: rgba(188, 218, 207, 0.72);
+	--moira-muted-planet: var(--horosa-muted, #80939b);
 }

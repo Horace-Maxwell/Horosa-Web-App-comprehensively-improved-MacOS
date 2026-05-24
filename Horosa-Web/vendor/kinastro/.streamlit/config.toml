@@ -1,0 +1,17 @@
+[theme]
+primaryColor = "#EAB308"
+backgroundColor = "#0F172A"
+secondaryBackgroundColor = "#1e1b4b"
+textColor = "#e0e0ff"
+base = "dark"
+
+[server]
+runOnSave = false
+enableStaticServing = false
+
+[client]
+showErrorDetails = false
+toolbarMode = "minimal"
+
+[runner]
+fastReruns = true

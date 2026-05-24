@@ -12,16 +12,50 @@ import XQIcon from '../xq-icons';
 const Option = XQSelect.Option;
 
 const primaryActionIconStyle = {
-	fontSize: 24,
+	fontSize: 19,
 };
 const primaryActionLinkStyle = {
 	display: 'inline-flex',
 	alignItems: 'center',
 	justifyContent: 'center',
-	width: 34,
-	height: 34,
+	width: 26,
+	height: 26,
 	verticalAlign: 'middle',
+	color: '#1890ff',
+	lineHeight: 1,
 };
+const actionCellStyle = {
+	display: 'inline-flex',
+	alignItems: 'center',
+	gap: 2,
+	whiteSpace: 'nowrap',
+};
+const listToolbarStyle = {
+	marginBottom: 12,
+	rowGap: 10,
+};
+const backupActionsStyle = {
+	display: 'flex',
+	alignItems: 'center',
+	gap: 8,
+	flexWrap: 'wrap',
+};
+
+export function isEditableChartRecord(record, userInfo){
+	if(!record){
+		return false;
+	}
+	if(userInfo && userInfo.uid && userInfo.uid === record.creator){
+		return true;
+	}
+	if(record.creator === 'local'){
+		return true;
+	}
+	if(record.cid && `${record.cid}`.indexOf('local-') === 0){
+		return true;
+	}
+	return false;
+}
 
 class ChartList extends Component{
 
@@ -364,22 +398,22 @@ class ChartList extends Component{
 		},{
 			title: '操作',
 			key: 'Action',
+			width: 128,
 			render: (text, record, index)=>{
 				let dom = (
-					<span>
-						<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>&emsp;
+					<span style={actionCellStyle}>
+						<a href={null} title="选择" style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>
 					</span>
 				);
-				const isLocalRecord = record && record.cid && (record.cid + '').indexOf('local-') === 0;
-				if((this.props.userInfo && this.props.userInfo.uid === record.creator) || isLocalRecord){
+				if(isEditableChartRecord(record, this.props.userInfo)){
 					dom = (
-						<span>
-							<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>&emsp;
-							<a href={null} style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" style={primaryActionIconStyle} /></a>&emsp;
+						<span style={actionCellStyle}>
+							<a href={null} title="选择" style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickInfo(record);});}}><XQIcon name="select" style={primaryActionIconStyle} /></a>
+							<a href={null} title="编辑" style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickEdit(record);});}}><XQIcon name="edit" style={primaryActionIconStyle} /></a>
 							<Popconfirm title={`确定删除星盘：${record.name} 吗?`} onConfirm={()=>{this.clickRemove(record);}}>
-								<a href={null} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" /></a>
-							</Popconfirm>&emsp;
-							<a href={null} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickDLFeature(record);});}}><XQIcon name="list" /></a>
+								<a href={null} title="删除" style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt);}}><XQIcon name="delete" style={primaryActionIconStyle} /></a>
+							</Popconfirm>
+							<a href={null} title="明细" style={primaryActionLinkStyle} onClick={(evt)=>{this.handleOpClick(evt, ()=>{this.clickDLFeature(record);});}}><XQIcon name="list" style={primaryActionIconStyle} /></a>
 						</span>
 					);
 				}
@@ -398,12 +432,12 @@ class ChartList extends Component{
 
 		return (
 			<div style={{height: tbly}}>
-				<Row gutter={12} style={{marginBottom: 10}}>
-					<Col span={4}>
+				<Row gutter={12} type="flex" align="middle" style={listToolbarStyle}>
+					<Col xs={24} sm={8} md={5} lg={4}>
 						<XQButton type="primary" iconName="newChart" onClick={this.clickAdd}>添加星盘</XQButton>
 					</Col>
 
-					<Col span={10}>
+					<Col xs={24} sm={16} md={10} lg={10} style={backupActionsStyle}>
 						<XQButton onClick={this.clickImportLocalBackup}>导入本地命盘(JSON)</XQButton>
 						<XQButton onClick={this.clickExportLocalBackup}>导出本地命盘(JSON)</XQButton>
 						<input
@@ -414,7 +448,7 @@ class ChartList extends Component{
 							onChange={this.onImportLocalFileChange}
 						/>
 					</Col>
-					<Col span={4}>
+					<Col xs={24} sm={8} md={4} lg={4}>
 						<XQSelect
 							placeholder='标签'
 							showSearch allowClear
@@ -425,7 +459,7 @@ class ChartList extends Component{
 							{tags}
 						</XQSelect>
 					</Col>
-					<Col span={6}>
+					<Col xs={24} sm={16} md={5} lg={6}>
 						<XQSearch
 							placeholder='以姓名进行检索' enterButton
 							onSearch={this.searchByName}

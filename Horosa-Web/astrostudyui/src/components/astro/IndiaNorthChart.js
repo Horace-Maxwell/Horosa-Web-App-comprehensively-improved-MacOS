@@ -16,48 +16,48 @@ import {
 import '../../css/styles.less';
 
 const NORTH_HOUSE_LABEL_POSITIONS = {
-	1: [50, 6],
-	2: [16, 7],
-	3: [8, 13],
-	4: [9, 50],
-	5: [8, 77],
-	6: [17, 93],
-	7: [50, 84],
-	8: [83, 93],
-	9: [92, 77],
-	10: [91, 50],
-	11: [92, 13],
-	12: [84, 7],
+	1: [50, 5],
+	2: [12, 5],
+	3: [5, 12],
+	4: [8, 50],
+	5: [5, 88],
+	6: [12, 95],
+	7: [50, 95],
+	8: [88, 95],
+	9: [95, 88],
+	10: [92, 50],
+	11: [95, 12],
+	12: [88, 5],
 };
 
 const NORTH_SIGN_BADGE_POSITIONS = {
-	1: [50, 40],
-	2: [27, 22],
-	3: [11, 32],
+	1: [50, 39],
+	2: [28, 20],
+	3: [20, 28],
 	4: [40, 50],
-	5: [12, 71],
-	6: [20, 82],
-	7: [50, 60],
-	8: [80, 82],
-	9: [88, 71],
+	5: [20, 72],
+	6: [28, 80],
+	7: [50, 61],
+	8: [72, 80],
+	9: [80, 72],
 	10: [60, 50],
-	11: [89, 32],
-	12: [73, 22],
+	11: [80, 28],
+	12: [72, 20],
 };
 
 const NORTH_OBJECT_ANCHOR_POSITIONS = {
-	1: [50, 24, 30, 14],
-	2: [34, 17, 22, 13],
-	3: [19, 25, 16, 17],
-	4: [35, 42, 22, 18],
-	5: [19, 67, 15, 17],
-	6: [27, 79, 14, 15],
-	7: [50, 73, 30, 16],
-	8: [73, 79, 14, 15],
-	9: [81, 67, 15, 17],
-	10: [65, 42, 22, 18],
-	11: [81, 25, 16, 17],
-	12: [66, 17, 22, 13],
+	1: [50, 25, 18, 16],
+	2: [25, 12, 14, 14],
+	3: [12, 25, 13, 16],
+	4: [25, 50, 16, 17],
+	5: [12, 75, 13, 16],
+	6: [25, 88, 14, 14],
+	7: [50, 75, 18, 16],
+	8: [75, 88, 14, 14],
+	9: [88, 75, 13, 16],
+	10: [75, 50, 16, 17],
+	11: [88, 25, 13, 16],
+	12: [75, 12, 14, 14],
 };
 
 function buildChartHeightStyle(height){
@@ -74,8 +74,9 @@ function signNumberForHouse(houseNumber, ascSignNumber){
 class IndiaNorthChart extends Component{
 	renderObjects(objects, houseNumber){
 		const degreeDisplayMode = this.props.degreeDisplayMode;
+		const countClass = objects.length > 3 ? ' horosa-india-diagram-objects-very-dense' : (objects.length > 1 ? ' horosa-india-diagram-objects-dense' : ' horosa-india-diagram-objects-single');
 		return (
-			<div className="horosa-india-diagram-objects">
+			<div className={`horosa-india-diagram-objects${countClass}`} data-count={objects.length}>
 				{objects.map((obj, idx)=>{
 					const degree = getObjectDegree(obj, degreeDisplayMode);
 					return (

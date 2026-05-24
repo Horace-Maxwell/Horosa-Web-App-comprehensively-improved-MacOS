@@ -114,7 +114,7 @@ class ZWChart {
 		let svgid = '#' + this.chartId;
 		this.svg = d3.select(svgid);
 		this.svg.html('');
-		this.svg.attr('stroke', ZWConst.ZWColor.HouseLineStroke).attr("stroke-width", 1);
+		this.svg.attr('stroke', ZWConst.ZWColor.HouseLineStroke).attr("stroke-width", this.kinastroBorrowed ? 1.55 : 1.35);
 	
 		this.svgTopgroup = this.svg.append('g');
 		let x = this.margin;
@@ -180,6 +180,7 @@ class ZWChart {
 				rules: this.rules,
 				onTipClick: this.onTipClick,
 				onCenterInfoClick: this.onCenterInfoClick,
+				kinastroBorrowed: this.kinastroBorrowed,
 			};
 			if(this.flyHouse){
 				opt.flyGanzi = this.flyHouse.ganzi;

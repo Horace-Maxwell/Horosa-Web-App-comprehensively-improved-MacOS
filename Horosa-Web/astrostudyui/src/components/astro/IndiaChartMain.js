@@ -706,7 +706,8 @@ class IndiaChartMain extends Component{
 	changeTime(value){
 		let dt = value.time;
 		this.onFieldsChange({
-			__confirmed: !!value.confirmed,
+			tm: dt.clone(),
+			confirmed: !!value.confirmed,
 			date: {
 				value: dt.clone(),
 			},

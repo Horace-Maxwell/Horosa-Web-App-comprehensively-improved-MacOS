@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import {
 	MOIRA_WHEEL_R as R,
 	MOIRA_WHEEL_VIEW as VIEW,
+	MOIRA_BACKGROUND as MOIRA_BG,
 	MOIRA_BLACK as BLACK,
 	MOIRA_GREEN as GREEN,
 	MOIRA_BLUE as BLUE,
@@ -57,13 +58,24 @@ function sectorCenter(index, parts){
 	return (index + 0.5) * (360 / parts);
 }
 
-function shortPlanetLine(theta, inner, outer, dir, opt = {}){
+function pickPlanetConnectorLine(markTheta, labelTheta, inner, outer, dir, opt = {}){
 	const span = Math.max(1, outer - inner);
-	const length = Math.min(20, Math.max(9, span * 0.38));
-	if(dir < 0){
-		return radialLine(theta, inner, Math.min(outer, inner + length), opt);
-	}
-	return radialLine(theta, Math.max(inner, outer - length), outer, opt);
+	const length = Math.max(7, Math.min(14, opt.length || span * 0.22));
+	const startRadius = dir >= 0 ? outer : inner;
+	const endRadius = dir >= 0 ? outer - length : inner + length;
+	const a = point(startRadius, markTheta);
+	const b = point(endRadius, labelTheta);
+	return (
+		<line
+			x1={a.x}
+			y1={a.y}
+			x2={b.x}
+			y2={b.y}
+			stroke={opt.color || BLACK}
+			strokeWidth={opt.width || 1}
+			opacity={opt.opacity === undefined ? 1 : opt.opacity}
+		/>
+	);
 }
 
 function listText(items, empty = '无'){
@@ -314,7 +326,7 @@ class GuoLaoMoiraPickWheel extends Component{
 			return (
 			<g className="moira-static-twelve moira-pick-static-core">
 				{nodes}
-				<circle r={r(0)} fill="#fff" stroke={BLACK} strokeWidth="1" />
+				<circle r={r(0)} fill={MOIRA_BG} stroke={BLACK} strokeWidth="1" />
 				{radialLine(pickThetaFromDegree(180), r(0) + 10, r(4) - 5, {color: RED, width: 2.4})}
 				{radialLine(pickThetaFromDegree(0), r(0) + 10, r(1) + 8, {color: RED, width: 2.4})}
 			</g>
@@ -393,7 +405,7 @@ class GuoLaoMoiraPickWheel extends Component{
 						{...this.tooltipHandlers(tip)}
 					>
 					</circle>
-						{shortPlanetLine(markTheta, opt.markInner, opt.markOuter, opt.lineDir || 1, {color: opt.markColor, width: 1.05})}
+						{pickPlanetConnectorLine(markTheta, labelTheta, opt.markInner, opt.markOuter, opt.lineDir || 1, {color: opt.markColor, width: 1.05})}
 					{verticalText(item.label, p.x, p.y, {
 						size: opt.size,
 						maxPerCol: 1,
@@ -501,7 +513,7 @@ class GuoLaoMoiraPickWheel extends Component{
 					role="img"
 					aria-label="Moira天星择日盘"
 				>
-					<rect x={-VIEW / 2} y={-VIEW / 2} width={VIEW} height={VIEW} fill="#fff" />
+					<rect x={-VIEW / 2} y={-VIEW / 2} width={VIEW} height={VIEW} fill={MOIRA_BG} />
 					<g className="moira-pale-guides">
 						{Array.from({length: 24}).map((_, idx)=>(
 							<g key={`pick-guide-${idx}`}>{radialLine(pickThetaFromDegree(idx * 15), r(7), r(10), {color: PALE, width: 0.55, opacity: 0.18})}</g>

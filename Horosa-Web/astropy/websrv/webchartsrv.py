@@ -42,6 +42,7 @@ from websrv.webcalc import WebCalcSrv
 from websrv.webacgsrv import AcgSrv
 from websrv.webastroextrasrv import AstroExtraSrv
 from websrv.webplanetariumsrv import PlanetariumSrv
+from websrv.kentang.registry import mount_kentang_services
 
 
 
@@ -257,6 +258,7 @@ if __name__ == '__main__':
     cherrypy.tree.mount(AcgSrv(), '/location')
     cherrypy.tree.mount(AstroExtraSrv(), '/astroextra')
     cherrypy.tree.mount(PlanetariumSrv(), '/planetarium')
+    mount_kentang_services(cherrypy)
 
     cherrypy.engine.start()
     cherrypy.engine.block()

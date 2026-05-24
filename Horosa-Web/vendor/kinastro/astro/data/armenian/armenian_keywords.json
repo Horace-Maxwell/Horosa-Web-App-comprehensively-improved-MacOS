@@ -1,0 +1,15 @@
+{
+  "Խոյ": ["warrior-lineage", "initiation", "ancestral-courage"],
+  "Ցուլ": ["land-guardianship", "craft", "continuity"],
+  "Երկվորյակ": ["oral-memory", "scribal-wisdom", "messenger-lineage"],
+  "Խեցգետին": ["clan-protection", "hearth", "blood-memory"],
+  "Առյուծ": ["royal-authority", "solar-legacy", "leadership-karma"],
+  "Կույս": ["ritual-purity", "healing", "service-duty"],
+  "Կշեռք": ["oath", "justice", "diplomatic-destiny"],
+  "Կարիճ": ["underworld-oath", "transformation", "hidden-inheritance"],
+  "Աղեղնավոր": ["pilgrimage", "truth-quest", "sacred-aim"],
+  "Այծեղջյուր": ["mountain-endurance", "legacy-building", "discipline"],
+  "Ջրհոս": ["tribal-reform", "collective-destiny", "vision"],
+  "Ձկներ": ["mystic-memory", "compassion", "soul-release"],
+  "angular_house": ["angular-house-emphasis", "ancestral-axis-activation"]
+}

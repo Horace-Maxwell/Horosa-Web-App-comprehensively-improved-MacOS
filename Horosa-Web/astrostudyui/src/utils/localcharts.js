@@ -119,6 +119,20 @@ function normalizeGroup(group){
 	return JSON.stringify([group]);
 }
 
+function normalizePayload(payload){
+	if(payload === undefined || payload === null){
+		return null;
+	}
+	if(typeof payload === 'string'){
+		return payload;
+	}
+	try{
+		return JSON.stringify(payload);
+	}catch(e){
+		return `${payload}`;
+	}
+}
+
 function sortByUpdateTimeDesc(list){
 	return list.sort((a, b)=>{
 		const ta = Date.parse(a.updateTime || '') || 0;
@@ -224,6 +238,7 @@ export function buildLocalChartRecord(values){
 	if(birth && typeof birth.format === 'function'){
 		birth = birth.format('YYYY-MM-DD HH:mm:ss');
 	}
+	const sourceModule = values.sourceModule ? values.sourceModule : null;
 	const record = {
 		cid: cid,
 		name: values.name ? values.name : '',
@@ -239,7 +254,7 @@ export function buildLocalChartRecord(values){
 		doubingSu28: values.doubingSu28 ? 1 : 0,
 		group: normalizeGroup(values.group),
 		creator: values.creator ? values.creator : 'local',
-		updateTime: nowStr(),
+		updateTime: values.preserveUpdateTime && values.updateTime ? values.updateTime : nowStr(),
 		memoAstro: values.memoAstro ? values.memoAstro : null,
 		memoBaZi: values.memoBaZi ? values.memoBaZi : null,
 		memoZiWei: values.memoZiWei ? values.memoZiWei : null,
@@ -248,14 +263,22 @@ export function buildLocalChartRecord(values){
 		memoLiuReng: values.memoLiuReng ? values.memoLiuReng : null,
 		memoQiMeng: values.memoQiMeng ? values.memoQiMeng : null,
 		memoSuZhan: values.memoSuZhan ? values.memoSuZhan : null,
+		payload: normalizePayload(values.payload),
+		sourceModule: sourceModule,
+		chartType: values.chartType ? values.chartType : sourceModule,
 	};
 	return record;
 }
 
 export function upsertLocalChart(values){
-	const next = buildLocalChartRecord(values);
 	const list = readRawCharts();
-	const idx = list.findIndex((item)=> item.cid === next.cid);
+	const cid = values && values.cid ? values.cid : null;
+	const idx = cid ? list.findIndex((item)=> item.cid === cid) : -1;
+	const base = idx >= 0 ? list[idx] : {};
+	const next = buildLocalChartRecord({
+		...base,
+		...(values || {}),
+	});
 	if(idx >= 0){
 		list[idx] = {
 			...list[idx],
@@ -304,7 +327,10 @@ export function importLocalChartsBackup(payload){
 		if(!item || typeof item !== 'object'){
 			return;
 		}
-		upsertLocalChart(item);
+		upsertLocalChart({
+			...item,
+			preserveUpdateTime: true,
+		});
 		imported += 1;
 	});
 	const total = readRawCharts().length;

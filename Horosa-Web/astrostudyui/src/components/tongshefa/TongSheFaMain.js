@@ -163,6 +163,20 @@ const RIGHT_YAO_META = [
 	{ role: '规训', target: '规矩与训戒' },
 ];
 
+const MATRIX_PANEL_META = {
+	本卦: '当前四宫所成之象',
+	互潜: '中爻互见，潜藏结构',
+	错亲: '阴阳相反，亲和参照',
+};
+
+const FIVE_FRIEND_EXPLANATIONS = [
+	{ key: '鬼', title: '压力与拘束', definition: '它会钳制我，使我服从于它，不敢越雷池。' },
+	{ key: '爱', title: '心之所向', definition: '它是我希望得到、希望成就、希望抵达的方向。' },
+	{ key: '制', title: '我所欲控', definition: '它被我视为财产，或某种可支配的资源。' },
+	{ key: '同', title: '竞争关系', definition: '希望共同目标、共同利益；若硬来乱来，也会变成冲突。' },
+	{ key: '义', title: '恩人贵人', definition: '它保护我、助我、给我力量。' },
+];
+
 const OBSERVE_32 = {
 	taiyin: {
 		title: '本体（太阴）',
@@ -794,6 +808,68 @@ function fmtPatternDetail(pattern){
 	return pattern.details.map((item)=>`${item.from}/${item.to}:${item.branchPair || '—'}${item.status === '无' ? '' : item.status}`).join('，');
 }
 
+function groupFiveFriendItems(mainElem, leftLines, rightLines){
+	const list = [];
+	leftLines.forEach((info, idx)=>{
+		list.push({
+			relation: relationByElem(mainElem, info.elem),
+			label: `左${idx + 1}`,
+			role: LEFT_YAO_META[idx] ? LEFT_YAO_META[idx].role : `${idx + 1}爻`,
+			branch: info.branch || '',
+			elem: info.elem || '',
+		});
+	});
+	rightLines.forEach((info, idx)=>{
+		list.push({
+			relation: relationByElem(mainElem, info.elem),
+			label: `右${idx + 1}`,
+			role: RIGHT_YAO_META[idx] ? RIGHT_YAO_META[idx].role : `${idx + 1}爻`,
+			branch: info.branch || '',
+			elem: info.elem || '',
+		});
+	});
+	return list.reduce((acc, item)=>{
+		const key = item.relation || '—';
+		if(!acc[key]){
+			acc[key] = [];
+		}
+		acc[key].push(item);
+		return acc;
+	}, {});
+}
+
+function fiveFriendDynamicText(key, items){
+	if(!items || items.length === 0){
+		return '当前未见此类关系。';
+	}
+	const positions = items.map((item)=>`${item.label}（${item.role}·${item.branch}${item.elem}）`).join('、');
+	const roles = items.map((item)=>item.role).join('、');
+	switch(key){
+		case '鬼':
+			return `${positions}为鬼；这些层面会形成压力与拘束，使人服从、顾忌，难以轻易越界。`;
+		case '爱':
+			return `${positions}为爱；这些层面是心之所向，显示人希望得到、亲近或成就的方向。`;
+		case '制':
+			return `${positions}为制；这些层面容易被看作可掌控、可支配、可调用的资源。`;
+		case '同':
+			return `${positions}为同；这些层面与自身目标相近，既可共利同行，也可能因同类相争而冲突。`;
+		case '义':
+			return `${positions}为义；${roles}会成为助力、保护与恩惠之源，给人力量。`;
+		default:
+			return positions;
+	}
+}
+
+function patternExplanation(context, type){
+	if(type === '六穿'){
+		return `${context}上见全局相穿：心智的不同层面互相战斗，互不相让，互相否定，为的是分出一个胜者。穿，是锋芒、战斗与一击致命的意象。`;
+	}
+	if(type === '六合'){
+		return `${context}上见全局相合：有混元一切的倾向。对于事实、行为、遭遇，一口吞下，平等看待，认为万物一体，混同你我。`;
+	}
+	return '';
+}
+
 class TongSheFaMain extends Component{
 	constructor(props) {
 		super(props);
@@ -1041,6 +1117,7 @@ class TongSheFaMain extends Component{
 	}
 
 	renderMatrixStylePanel(title, leftHex, rightHex){
+		const subtitle = MATRIX_PANEL_META[title] || '';
 		const tableStyle = { width: '100%', borderCollapse: 'collapse' };
 		const borderColor = this.state.showMatrixBorder ? 'var(--horosa-border, #e8e8e8)' : 'transparent';
 		const tdStyle = {
@@ -1064,6 +1141,11 @@ class TongSheFaMain extends Component{
 				<div style={{ textAlign: 'center', fontWeight: 600, marginBottom: 6 }}>
 					{title}
 				</div>
+				{subtitle && (
+					<div style={{ textAlign: 'center', color: 'var(--horosa-text-soft, #666)', fontSize: 12, marginTop: -2, marginBottom: 5 }}>
+						{subtitle}
+					</div>
+				)}
 				<div style={{ textAlign: 'center', marginBottom: 8 }}>
 					（{shortGuaName(leftHex.gua ? leftHex.gua.name : '左卦')} · {shortGuaName(rightHex.gua ? rightHex.gua.name : '右卦')}）
 				</div>
@@ -1228,7 +1310,48 @@ class TongSheFaMain extends Component{
 						return <p key={`r_${idx}`} style={{ marginBottom: 8 }}>{txt}</p>;
 					})}
 				</Card>
+				{this.renderPreferenceSummary(model)}
 			</div>
+		);
+	}
+
+	renderPreferenceSummary(model){
+		const buildItems = (value)=>{
+			const left = model.baseLeft.lines.map((line, idx)=>{
+				if(line !== value){
+					return null;
+				}
+				const meta = LEFT_YAO_META[idx];
+				return `思想·${meta.role}：${meta.target}`;
+			}).filter(Boolean);
+			const right = model.baseRight.lines.map((line, idx)=>{
+				if(line !== value){
+					return null;
+				}
+				const meta = RIGHT_YAO_META[idx];
+				return `实践·${meta.role}：${meta.target}`;
+			}).filter(Boolean);
+			return left.concat(right);
+		};
+		const columns = [
+			{ title: '我看重', items: buildItems(0) },
+			{ title: '我蔑视', items: buildItems(1) },
+		];
+		return (
+			<Card size='small' title='取舍总览' style={{ marginTop: 8 }}>
+				<div className='horosa-tongshefa-preference-grid'>
+					{columns.map((col)=>{
+						return (
+							<div className='horosa-tongshefa-preference-col' key={col.title}>
+								<div className='horosa-tongshefa-mini-title'>{col.title}</div>
+								{col.items.map((item)=>{
+									return <div className='horosa-tongshefa-pill' key={`${col.title}_${item}`}>{item}</div>;
+								})}
+							</div>
+						);
+					})}
+				</div>
+			</Card>
 		);
 	}
 
@@ -1264,6 +1387,172 @@ class TongSheFaMain extends Component{
 					})}
 				</tbody>
 			</table>
+		);
+	}
+
+	renderFiveFriendsCard(title, subtitle, mainElem, model){
+		const groups = groupFiveFriendItems(mainElem, model.leftLines, model.rightLines);
+		return (
+			<Card size='small' title={title} style={{ marginBottom: 8 }}>
+				<div className='horosa-tongshefa-card-subtitle'>
+					{subtitle}
+					<span className='horosa-tongshefa-main-badge'>{mainElem || '—'}为主</span>
+				</div>
+				<div className='horosa-tongshefa-relation-list'>
+					{FIVE_FRIEND_EXPLANATIONS.map((item)=>{
+						const rows = groups[item.key] || [];
+						return (
+							<div className='horosa-tongshefa-relation-row' key={`${title}_${item.key}`}>
+								<div className='horosa-tongshefa-relation-badge'>{item.key}</div>
+								<div className='horosa-tongshefa-relation-body'>
+									<div className='horosa-tongshefa-relation-title'>{item.title}</div>
+									<div className='horosa-tongshefa-muted'>{item.definition}</div>
+									<div className='horosa-tongshefa-relation-dynamic'>{fiveFriendDynamicText(item.key, rows)}</div>
+								</div>
+							</div>
+						);
+					})}
+				</div>
+			</Card>
+		);
+	}
+
+	renderPatternSide(title, context, pattern){
+		const explanation = patternExplanation(context, pattern ? pattern.type : '');
+		return (
+			<div className='horosa-tongshefa-soft-panel'>
+				<div className='horosa-tongshefa-mini-title'>{title}：{pattern ? pattern.type : '—'}</div>
+				{
+					pattern && pattern.details && pattern.details.length > 0 ? (
+						<div className='horosa-tongshefa-chip-row'>
+							{pattern.details.map((item)=>{
+								return (
+									<span className='horosa-tongshefa-chip' key={`${title}_${item.from}_${item.to}`}>
+										{item.from}/{item.to}：{item.branchPair || '—'}{item.status === '无' ? '' : item.status}
+									</span>
+								);
+							})}
+						</div>
+					) : (
+						<div className='horosa-tongshefa-muted'>未见明显六合、六穿成局。</div>
+					)
+				}
+				{explanation && <div className='horosa-tongshefa-explain'>{explanation}</div>}
+			</div>
+		);
+	}
+
+	renderBigPatternDetailCard(model){
+		return (
+			<Card size='small' title='大局' style={{ marginBottom: 8 }}>
+				<div className='horosa-tongshefa-two-col'>
+					{this.renderPatternSide('左卦', '思想', model.leftBigPattern)}
+					{this.renderPatternSide('右卦', '实践', model.rightBigPattern)}
+				</div>
+			</Card>
+		);
+	}
+
+	renderShiYingSide(title, lines, metas){
+		const items = lines.map((info, idx)=>{
+			if(!info.shiYing){
+				return null;
+			}
+			const meta = metas[idx] || {};
+			const rel = info.ownRel || '';
+			return {
+				mark: info.shiYing,
+				text: `${idx + 1}爻（${meta.role || `${idx + 1}爻`}）· ${info.branch || ''}${info.elem || ''}${rel}`,
+			};
+		}).filter(Boolean);
+		return (
+			<div className='horosa-tongshefa-soft-panel'>
+				<div className='horosa-tongshefa-mini-title'>{title}</div>
+				{
+					items.length === 0 ? (
+						<div className='horosa-tongshefa-muted'>未标出世应</div>
+					) : items.map((item, idx)=>{
+						return (
+							<div className='horosa-tongshefa-mark-row' key={`${title}_${idx}`}>
+								<span className='horosa-tongshefa-round-mark'>{item.mark}</span>
+								<span>{item.text}</span>
+							</div>
+						);
+					})
+				}
+			</div>
+		);
+	}
+
+	renderShiYingCard(model){
+		return (
+			<Card size='small' title='世应' style={{ marginBottom: 8 }}>
+				<div className='horosa-tongshefa-explain'>
+					世爻=着眼点。应爻=吸引点。吸引与着眼，是成对出现的；世爻与应爻，也总是成对，共同指明此人的第一兴趣，或者说，聚焦点。
+				</div>
+				<div className='horosa-tongshefa-two-col' style={{ marginTop: 8 }}>
+					{this.renderShiYingSide('左卦 · 思想', model.leftLines, LEFT_YAO_META)}
+					{this.renderShiYingSide('右卦 · 实践', model.rightLines, RIGHT_YAO_META)}
+				</div>
+			</Card>
+		);
+	}
+
+	renderRiseSide(title, attacks, metas){
+		return (
+			<div className='horosa-tongshefa-soft-panel'>
+				<div className='horosa-tongshefa-mini-title'>{title}</div>
+				{
+					!attacks || attacks.length === 0 ? (
+						<div className='horosa-tongshefa-muted'>无明显升击。</div>
+					) : attacks.map((attack)=>{
+						const fromRole = metas[attack.from - 1] ? metas[attack.from - 1].role : `${attack.from}爻`;
+						const targetRoles = attack.targets.map((line)=>{
+							return metas[line - 1] ? metas[line - 1].role : `${line}爻`;
+						}).join('、');
+						return (
+							<div className='horosa-tongshefa-rise-item' key={`${title}_${attack.from}_${attack.targets.join('_')}`}>
+								<div className='horosa-tongshefa-relation-title'>{attack.from}击{attack.targets.join('、')}</div>
+								<div className='horosa-tongshefa-muted'>有浓烈的渴望让{fromRole}上升，超越于{targetRoles}。这是阳气向上、主动突破与征服阴位的倾向。</div>
+							</div>
+						);
+					})
+				}
+			</div>
+		);
+	}
+
+	renderRiseDetailCard(model){
+		return (
+			<Card size='small' title='升降' style={{ marginBottom: 8 }}>
+				<div className='horosa-tongshefa-two-col'>
+					{this.renderRiseSide('左卦 · 思想', model.leftRise, LEFT_YAO_META)}
+					{this.renderRiseSide('右卦 · 实践', model.rightRise, RIGHT_YAO_META)}
+				</div>
+				<div className='horosa-tongshefa-explain' style={{ marginTop: 8 }}>
+					阳气渴望上升，直到遇到另一阳爻为止。阳击阴，就是战斗，阳想征服阴。一个爻，它本身的阴阳，是其本然；这个爻，能变化升降，是其应然。
+				</div>
+			</Card>
+		);
+	}
+
+	renderYaoChangeDetailCard(model){
+		return (
+			<Card size='small' title='爻变' style={{ marginBottom: 8 }}>
+				<div className='horosa-tongshefa-change-grid'>
+					{model.yaoChanges.map((item)=>{
+						return (
+							<div className='horosa-tongshefa-change-item' key={`chg_${item.line}`}>
+								<span>{item.line}爻</span>
+								<strong>{item.changed ? '有变' : '不变'}</strong>
+							</div>
+						);
+					})}
+				</div>
+				<div className='horosa-tongshefa-explain' style={{ marginTop: 8 }}>
+					同一爻位上，左右若阴阳不同，那就是爻变。一旦发生爻变，那左右两爻的五行，就要在相互作用中激变。爻变是动荡之象，凡参与其中的爻，其阴阳性都不稳定，往往具有两面性。
+				</div>
+			</Card>
 		);
 	}
 
@@ -1327,27 +1616,18 @@ class TongSheFaMain extends Component{
 					<div style={{ marginBottom: 6 }}>左卦属性：{model.leftElem || '—'}（思想）</div>
 					{this.renderNaJiaTable(leftAsMainRows, false)}
 				</Card>
+				{this.renderFiveFriendsCard('五友：左卦为主', '以思想为主，十二爻是客。', model.leftElem, model)}
 
 				<Card size='small' title='右卦与十二爻（以右卦为主）' style={{ marginBottom: 8 }}>
 					<div style={{ marginBottom: 6 }}>右卦属性：{model.rightElem || '—'}（实践）</div>
 					{this.renderNaJiaTable(rightAsMainRows, false)}
 				</Card>
+				{this.renderFiveFriendsCard('五友：右卦为主', '以实践为主，十二爻是客。', model.rightElem, model)}
 
-				<Card size='small' title='大局' style={{ marginBottom: 8 }}>
-					<div>左卦：{model.leftBigPattern.type}（{fmtPatternDetail(model.leftBigPattern)}）</div>
-					<div>右卦：{model.rightBigPattern.type}（{fmtPatternDetail(model.rightBigPattern)}）</div>
-				</Card>
-
-				<Card size='small' title='升降' style={{ marginBottom: 8 }}>
-					<div>左卦升降：{fmtRise(model.leftRise)}</div>
-					<div>右卦升降：{fmtRise(model.rightRise)}</div>
-				</Card>
-
-				<Card size='small' title='爻变' style={{ marginBottom: 8 }}>
-					{model.yaoChanges.map((item)=>{
-						return <div key={`chg_${item.line}`}>{item.line}爻：{item.changed ? '有' : '无'}</div>;
-					})}
-				</Card>
+				{this.renderBigPatternDetailCard(model)}
+				{this.renderShiYingCard(model)}
+				{this.renderRiseDetailCard(model)}
+				{this.renderYaoChangeDetailCard(model)}
 			</div>
 		);
 	}
