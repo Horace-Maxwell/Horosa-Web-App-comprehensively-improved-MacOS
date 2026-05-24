@@ -104,6 +104,8 @@ ditto -x -k "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_UNZIP_ROOT}"
 APP_BUNDLE_PATH="$(find "${APP_UNZIP_ROOT}" -maxdepth 1 -type d -name "*.app" | head -n 1)"
 [ -n "${APP_BUNDLE_PATH}" ]
 plutil -extract CFBundleName raw -o - "${APP_BUNDLE_PATH}/Contents/Info.plist" | rg "^${APP_NAME}$"
+python3 "${INSTALLER_ROOT}/scripts/verify_icon_alpha.py" \
+  --paths "${APP_BUNDLE_PATH}/Contents/Resources/icon.icns"
 
 TMP_INSTALL="$(mktemp -d "${TMPDIR:-/tmp}/horosa-github-release.XXXXXX")"
 cleanup() {
@@ -175,6 +177,8 @@ done
   echo "endpoint not ready: http://127.0.0.1:${CHART_PORT}/" >&2
   exit 1
 }
+# Keep the technique smoke before the generic chart/backend smoke. This catches
+# shared-process global state pollution, including Swiss Ephemeris path resets.
 python3 "${INSTALLER_ROOT}/scripts/verify_kentang_runtime_endpoints.py" --root "http://127.0.0.1:${CHART_PORT}"
 
 backend_ok=''
