@@ -280,6 +280,32 @@ python3 scripts/browser_horosa_aianalysis_check.py
 
 如果 Windows 版数量不同，必须写明是产品范围变化；否则视为遗漏。
 
+## 启动控制台必须实时自洽
+
+macOS 2.1.0 后期重做过启动页。这里最容易犯的错不是“好不好看”，而是信息不真实：进度还是 8%，页面却写“已完成”；或者错误态还显示 Ready；或者只做了几个静态 mock，真实启动进度完全不更新。
+
+Windows 版必须按真实启动状态驱动 UI：
+
+- 进度百分比、阶段、主标题、pipeline 勾选/转圈/叉号、右上状态 chip 必须五者一致。
+- 8% 左右只能表示刚开始检查；100% 且所有步骤成功后才允许出现 Ready、已完成、进入主界面。
+- 错误态要停在失败步骤，后续步骤灰态，不要继续显示 Live。
+- “重建/修复 Runtime” 是积极修复动作，用品牌色；红色只表达失败状态，不要把普通重装按钮做成危险色。
+- 启动页必须使用最终 app icon，同一套透明圆角资产，不要临时 SVG、旧白底黑字或两个图标混用。
+- 进度要能接受任意实际值，例如 8%、26%、42%、73%、100%，不能只支持设计稿里列出的两三个状态。
+
+建议把 macOS 当前 `verify_launcher_console_states.py` 的思路移植到 Windows：
+
+- 用 Playwright 打开启动控制台 HTML。
+- 分别注入 Daily Launch、动态中间进度、Offline Ready、Runtime Failed。
+- 断言文案、chip、CTA、pipeline class、milestone、日志、icon 数量、旧恢复面板隐藏、无横向/纵向溢出。
+- 截图保留到 release artifacts，方便看字体是否挤压。
+
+这次还暴露了一个 harness 自身易错点：发布验收脚本里 `python3` 不一定是有 Playwright 的 Python。Windows 版不要假设全局 `python` 正确，应支持：
+
+- `HOROSA_PLAYWRIGHT_PYTHON` 或等价环境变量显式指定。
+- 自动探测项目虚拟环境、工具链 Python、系统 Python，只有能 `import playwright` 的候选才可用于 UI harness。
+- 如果找不到，不要跳过启动页检查；直接让 release gate 失败并提示安装/指定 Playwright Python。
+
 ## 窗口大小和用户设置持久化
 
 macOS 版后面补过窗口大小持久化，但真正的坑是“先跳到默认大小，再跳回保存大小”。Windows 版要避免这个问题。
