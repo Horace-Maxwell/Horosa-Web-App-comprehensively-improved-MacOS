@@ -117,10 +117,27 @@ UPDATE_MANIFEST="${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
 RUNTIME_ARCHIVE="${DIST_ROOT}/${RUNTIME_ASSET}"
 LEGACY_DMG="${DIST_ROOT}/Horosa-Desktop-macos-arm64.dmg"
 NOTARY_APP_ZIP="${NOTARY_BUILD_ROOT}/${APP_NAME}.notary.zip"
+REPO_SLUG="$(
+INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
+import json, os, pathlib
+root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
+config = json.loads((root / 'config/release_config.json').read_text())
+print(f"{config['repoOwner']}/{config['repoName']}")
+PY
+)"
 
 mkdir -p "${DIST_ROOT}" "${BUILD_ROOT}/pkg" "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${NOTARY_BUILD_ROOT}"
 "${INSTALLER_ROOT}/scripts/generate_icon.sh"
-APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY}" APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN}" HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION}" "${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
+if [ "${HOROSA_REUSE_REMOTE_RUNTIME:-0}" = "1" ] && [ "${RUNTIME_RELEASE_TAG}" != "${APP_RELEASE_TAG}" ]; then
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "HOROSA_REUSE_REMOTE_RUNTIME=1 requires gh to download ${RUNTIME_ASSET} from ${RUNTIME_RELEASE_TAG}." >&2
+    exit 1
+  fi
+  rm -f "${RUNTIME_ARCHIVE}"
+  gh release download "${RUNTIME_RELEASE_TAG}" --repo "${REPO_SLUG}" --pattern "${RUNTIME_ASSET}" --dir "${DIST_ROOT}" --clobber
+else
+  APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY}" APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN}" HOROSA_PUBLIC_DISTRIBUTION="${HOROSA_PUBLIC_DISTRIBUTION}" "${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
+fi
 
 if [ ! -f "${RUNTIME_ARCHIVE}" ]; then
   echo "missing runtime archive: ${RUNTIME_ARCHIVE}" >&2
@@ -130,13 +147,7 @@ fi
 LOCAL_RUNTIME_SHA256="$(shasum -a 256 "${RUNTIME_ARCHIVE}" | awk '{print $1}')"
 RUNTIME_SHA256="${LOCAL_RUNTIME_SHA256}"
 if [ "${RUNTIME_RELEASE_TAG}" != "${APP_RELEASE_TAG}" ] && [ "${HOROSA_FORCE_RUNTIME_UPLOAD:-0}" != "1" ] && command -v gh >/dev/null 2>&1; then
-  REMOTE_RUNTIME_JSON="$(gh release view "${RUNTIME_RELEASE_TAG}" --repo "$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PY'
-import json, os, pathlib
-root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
-config = json.loads((root / 'config/release_config.json').read_text())
-print(f"{config['repoOwner']}/{config['repoName']}")
-PY
-)" --json assets 2>/dev/null || true)"
+  REMOTE_RUNTIME_JSON="$(gh release view "${RUNTIME_RELEASE_TAG}" --repo "${REPO_SLUG}" --json assets 2>/dev/null || true)"
   REMOTE_RUNTIME_SHA="$(python3 - <<'PY' "${RUNTIME_ASSET}" "${REMOTE_RUNTIME_JSON}"
 import json, sys
 asset_name = sys.argv[1]

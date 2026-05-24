@@ -9,19 +9,7 @@
     "beforeBuildCommand": ""
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "星阙",
-        "width": 1480,
-        "height": 960,
-        "minWidth": 1180,
-        "minHeight": 760,
-        "resizable": true,
-        "visible": false,
-        "fullscreen": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
