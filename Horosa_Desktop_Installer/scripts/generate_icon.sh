@@ -53,9 +53,58 @@ for rawPath in CommandLine.arguments.dropFirst() {
 SWIFT
 }
 
+render_rounded_icon() {
+  local input_png="$1"
+  local output_png="$2"
+  swift - "${input_png}" "${output_png}" <<'SWIFT'
+import AppKit
+import Foundation
+
+let args = CommandLine.arguments
+let input = URL(fileURLWithPath: args[1])
+let output = URL(fileURLWithPath: args[2])
+let canvas = NSSize(width: 1024, height: 1024)
+let cornerRadius: CGFloat = 228
+
+guard let source = NSImage(contentsOf: input),
+      let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: Int(canvas.width),
+        pixelsHigh: Int(canvas.height),
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+      ) else {
+    exit(1)
+}
+
+let context = NSGraphicsContext(bitmapImageRep: rep)
+NSGraphicsContext.saveGraphicsState()
+NSGraphicsContext.current = context
+context?.imageInterpolation = .high
+let rect = NSRect(origin: .zero, size: canvas)
+context?.cgContext.clear(CGRect(x: 0, y: 0, width: canvas.width, height: canvas.height))
+
+let rounded = NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius)
+rounded.addClip()
+source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+NSGraphicsContext.restoreGraphicsState()
+
+guard let png = rep.representation(using: .png, properties: [.interlaced: false]) else {
+    exit(1)
+}
+try png.write(to: output)
+SWIFT
+}
+
 if [ -f "${SOURCE_PNG}" ]; then
-  sips -z 1024 1024 "${SOURCE_PNG}" --out "${BASE_PNG}" >/dev/null
+  render_rounded_icon "${SOURCE_PNG}" "${BASE_PNG}"
   force_rgba_pngs "${BASE_PNG}"
+  cp "${BASE_PNG}" "${SOURCE_PNG}"
   cp "${BASE_PNG}" "${ICON_DIR}/icon.png"
 else
   swift - <<'SWIFT' "${ASSET_DIR}" "${ICON_DIR}"

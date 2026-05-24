@@ -105,7 +105,7 @@ export const KENTANG_SERVICE_CONFIG = {
 	},
 };
 
-const COMMON_QUERY_KEYS = ['kentangSrv', 'kinSrv'];
+const COMMON_QUERY_KEYS = ['kentangSrv', 'chartSrv', 'kinSrv'];
 
 export function isValidHttpUrl(value){
 	return !!(value && /^https?:\/\/.+/i.test(`${value}`));
