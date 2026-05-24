@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Smoke-test every bundled kentang/kin runtime endpoint."""
+"""Smoke-test every bundled kentang/kin runtime endpoint.
+
+Release rule: every packaged technique exposed by the kentang/kin chart service
+must be represented here before publishing. The installed-app release checks run
+this before the generic chart smoke to catch shared runtime state pollution.
+"""
 
 from __future__ import annotations
 
