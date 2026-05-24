@@ -75,8 +75,9 @@ class ZWHouseSangHe extends ZWCommHouse {
 				.attr('stroke', ZWCont.ZWColor.HouseLineStroke)
 				.attr('x', x).attr('y', y)
 				.attr('width', w).attr('height', h);
+		this.drawKinastroCornerMark(container, x, y, w, h);
 		let data = [];
-		for(let i=0; i<this.houseObj.starsSmall.length; i++){
+		for(let i=0; i<(this.houseObj.starsSmall || []).length; i++){
 			let star = this.houseObj.starsSmall[i];
 			let sy = y + i*h/3;
 			data[0] = star.name.substr(0,1);
@@ -95,7 +96,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 					data[1] = taisui.substr(1, 1);
 				}	
 			}
-			GraphHelper.drawTextH(container.append('g'), data, x, sy, w, h/3, 1.5, ZWCont.ZWColor.StarSmallStroke, 100);
+			GraphHelper.drawTextH(container.append('g'), data, x, sy, w, h/3, 1.5, ZWCont.ZWColor.StarSmallStroke, 520);
 		}
 
 		let dirX = x + w;
@@ -184,8 +185,27 @@ class ZWHouseSangHe extends ZWCommHouse {
 		
 	}
 
+	drawKinastroCornerMark(group, x, y, w, h){
+		if(!this.kinastroBorrowed || !this.houseObj || !this.houseObj.kinastroCornerMark){
+			return;
+		}
+		const sz = Math.max(14, Math.min(w * 0.42, h * 0.58));
+		group.append('text')
+			.attr('class', 'horosa-ziwei-kinastro-corner-mark')
+			.attr('x', x + w / 2)
+			.attr('y', y + h / 2)
+			.attr('dominant-baseline', 'middle')
+			.attr('text-anchor', 'middle')
+			.attr('fill', 'var(--horosa-ziwei-house-title, var(--horosa-ziwei-house-name, #f3d18b))')
+			.attr('stroke', 'none')
+			.attr('font-size', `${sz}px`)
+			.attr('font-weight', 800)
+			.attr('font-family', AstroConst.NormalFont)
+			.text(this.houseObj.kinastroCornerMark);
+	}
+
 	drawHouseTitleText(group, ord){
-		const name = `${this.houseObj.name || ''}`.replace(/宫$/, '');
+		const name = `${this.houseObj.name || ''}`.replace(/[宫宮]$/, '');
 		const ganzi = this.houseObj.ganzi || '';
 		const nameSize = Math.max(14, Math.min(ord.w * 0.46, ord.h * 0.54));
 		const ganziSize = Math.max(9, Math.min(ord.w * 0.30, ord.h * 0.28));
@@ -221,7 +241,10 @@ class ZWHouseSangHe extends ZWCommHouse {
 
 	drawStars(){
 		let starsCount = this.houseObj.starsMain.length + this.houseObj.starsAssist.length + this.houseObj.starsEvil.length
-						+ this.houseObj.starsOthersGood.length + this.houseObj.starsOthersBad.length;
+						+ (this.houseObj.starsOthersGood || []).length + (this.houseObj.starsOthersBad || []).length;
+		if(!starsCount){
+			return;
+		}
 		let avgsz = (this.width - this.margin*starsCount) / starsCount;
 		let baseStarSize = this.starFontSize || this.fontSize;
 		let sz = baseStarSize < avgsz ? baseStarSize : avgsz;
@@ -229,7 +252,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let x = this.x;
 		let y = this.y;
 		let w = sz + this.margin/2;
-		let h = sz*3 + this.margin*2;
+		let h = this.kinastroBorrowed ? sz*4 + this.margin*4 : sz*3 + this.margin*2;
 			for(let i=0; i<this.houseObj.starsMain.length; i++){
 				let star = this.houseObj.starsMain[i];
 				let sx = x + i*w;
@@ -240,28 +263,28 @@ class ZWHouseSangHe extends ZWCommHouse {
 			for(let i=0; i<this.houseObj.starsAssist.length; i++){
 				let star = this.houseObj.starsAssist[i];
 				let sx = x + i*w;
-				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarAssistStroke, 0.84, 100);
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarAssistStroke, 0.9, 520);
 			}
 			x = x + this.houseObj.starsAssist.length * w;
 
 			for(let i=0; i<this.houseObj.starsEvil.length; i++){
 				let star = this.houseObj.starsEvil[i];
 				let sx = x + i*w;
-				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarEvilStroke, 0.84, 100);
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarEvilStroke, 0.9, 520);
 			}
 			x = x + this.houseObj.starsEvil.length * w;
 
-			for(let i=0; i<this.houseObj.starsOthersGood.length; i++){
+			for(let i=0; i<(this.houseObj.starsOthersGood || []).length; i++){
 				let star = this.houseObj.starsOthersGood[i];
 				let sx = x + i*w;
-				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarAssistStroke, 0.84, 100);
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarAssistStroke, 0.9, 520);
 			}
-			x = x + this.houseObj.starsOthersGood.length * w;
+			x = x + (this.houseObj.starsOthersGood || []).length * w;
 
-			for(let i=0; i<this.houseObj.starsOthersBad.length; i++){
+			for(let i=0; i<(this.houseObj.starsOthersBad || []).length; i++){
 				let star = this.houseObj.starsOthersBad[i];
 				let sx = x + i*w;
-				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarEvilStroke, 0.84, 100);
+				this.drawStar(star, sx, y, w, h, ZWCont.ZWColor.StarEvilStroke, 0.9, 520);
 			}
 		}
 
@@ -272,6 +295,13 @@ class ZWHouseSangHe extends ZWCommHouse {
 
 
 	drawStar(star, x, y, w, h, color, scale = 1, nameWeight = 100){
+		if(!star || !star.name){
+			return;
+		}
+		if(this.kinastroBorrowed){
+			this.drawKinastroStar(star, x, y, w, h, color, scale, nameWeight);
+			return;
+		}
 		let yearGan = this.chartObj.yearGan;
 		let txt = [];
 		for(let i=0; i<star.name.length; i++){
@@ -284,9 +314,10 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let nameX = x + (w - nameW) / 2;
 		let nameH = txt.length * (nameFontSize + mgn) + mgn * 2;
 		let lightTxt = [];
-		if(star.starlight){
-			for(let i=0; i<star.starlight.length; i++){
-				lightTxt[i] = star.starlight.charAt(i) + '';
+		const metaText = [star.starlight, star.flyTo ? `→${star.flyTo}` : ''].filter(Boolean).join('');
+		if(metaText){
+			for(let i=0; i<metaText.length; i++){
+				lightTxt[i] = metaText.charAt(i) + '';
 			}
 		}
 		let lightFontSize = Math.max(9, Math.round(nameFontSize * 0.58));
@@ -295,7 +326,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 		let starGroup = this.svg.append('g');
 
 		let flyhua = null;
-		if(this.flyGanzi){
+		if(this.flyGanzi && !this.kinastroBorrowed){
 			let gan = this.flyGanzi.charAt(0) + '';
 			flyhua = ZiWeiHelper.getSiHua(star.name, gan);
 		}
@@ -312,7 +343,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 		if(lightTxt.length){
 			let lightW = Math.max(12, Math.min(w, lightFontSize + mgn * 2));
 			let lightX = x + (w - lightW) / 2;
-			GraphHelper.drawTextV(starGroup, lightTxt, lightX, y + nameH + lightGap, lightW, lightH, mgn, 'var(--horosa-muted, #8a8f95)');
+			GraphHelper.drawTextV(starGroup, lightTxt, lightX, y + nameH + lightGap, lightW, lightH, mgn, star.flyTo ? '#cda24d' : 'var(--horosa-muted, #8a8f95)');
 		}
 
 		let tip = this.ZWRules.RuleStars[star.name];
@@ -330,9 +361,15 @@ class ZWHouseSangHe extends ZWCommHouse {
 			w: w,
 			h: h
 		};
-		let hua = ZiWeiHelper.getSiHua(star.name, yearGan);
+		let hua = star.hua || (!this.kinastroBorrowed ? ZiWeiHelper.getSiHua(star.name, yearGan) : '');
+		if(hua === '祿'){
+			hua = '禄';
+		}
 		if(hua){
 			let coloropt = ZWCont.ZWColor[hua];
+			if(!coloropt){
+				coloropt = ZWCont.ZWColor.StarMainStroke;
+			}
 			let huax = x + mgn;
 			let huay = y + h;
 			let huaw = w - mgn*2;
@@ -340,11 +377,17 @@ class ZWHouseSangHe extends ZWCommHouse {
 			let huatxt = [hua];
 			let huasvg = GraphHelper.drawTextV(this.svg.append('g'), 
 				huatxt, huax, huay, huaw, huah, mgn, 
-				coloropt.color, null, coloropt.bg);
+				coloropt.color || '#ffffff', 850, coloropt.bg || ZWCont.ZWColor.StarMainStroke);
+			huasvg.selectAll('text')
+				.attr('fill', coloropt.color || '#ffffff')
+				.attr('stroke', 'rgba(0, 0, 0, 0.34)')
+				.attr('stroke-width', 0.55)
+				.attr('paint-order', 'stroke')
+				.attr('font-weight', 850);
 				
-			let huatip = this.ZWRules.RuleSihua[hua].slice(0);
-			let huahouse = this.ZWRuleSihua.HuaInHouse[hua];
-			let huahousetip = huahouse[this.houseObj.name].slice(0);
+			let huatip = this.ZWRules && this.ZWRules.RuleSihua && this.ZWRules.RuleSihua[hua] ? this.ZWRules.RuleSihua[hua].slice(0) : [];
+			let huahouse = this.ZWRuleSihua && this.ZWRuleSihua.HuaInHouse ? this.ZWRuleSihua.HuaInHouse[hua] : null;
+			let huahousetip = huahouse && huahouse[this.houseObj.name] ? huahouse[this.houseObj.name].slice(0) : [];
 			let hasflag = false;
 			for(let val of huatip){
 				if(val === '=='){
@@ -368,7 +411,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 		}
 
 		let housegan = this.houseObj.ganzi.charAt(0);
-		let ganhua = ZiWeiHelper.getSiHua(star.name, housegan);
+		let ganhua = !this.kinastroBorrowed ? ZiWeiHelper.getSiHua(star.name, housegan) : null;
 		if(ganhua){
 			let coloropt = ZWCont.ZWColor[ganhua];
 			let huax = x + mgn;
@@ -396,7 +439,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 			let arrow = new D3Arrow(opt);
 			arrow.draw();
 		}
-		if(this.dirIndex !== undefined && this.dirIndex !== null){
+		if(!this.kinastroBorrowed && this.dirIndex !== undefined && this.dirIndex !== null){
 			let dirhouse = this.chartObj.houses[this.dirIndex];
 			let dirgan = dirhouse.ganzi.charAt(0);
 			let dirhua = ZiWeiHelper.getSiHua(star.name, dirgan);
@@ -418,6 +461,119 @@ class ZWHouseSangHe extends ZWCommHouse {
 		this.stars.set(star.name, dim);
 	}
 
+	drawKinastroStar(star, x, y, w, h, color, scale = 1, nameWeight = 760){
+		const txt = [];
+		for(let i=0; i<star.name.length; i++){
+			txt[i] = star.name.charAt(i) + '';
+		}
+		const group = this.svg.append('g').attr('class', 'horosa-ziwei-kinastro-star-stack');
+		const fontSize = Math.max(16, Math.min(22, Math.round((w - 3) * scale)));
+		const nameW = Math.max(fontSize + 3, Math.min(w * scale, w + 2));
+		const nameH = Math.max(fontSize * txt.length + txt.length + 2, fontSize + 4);
+		const nameX = x + (w - nameW) / 2;
+		let cursorY = y + 1;
+		let starsvg = GraphHelper.drawTextV(group, txt, nameX, cursorY, nameW, nameH, 1, color, nameWeight || 760);
+		starsvg.selectAll('text')
+			.attr('fill', color)
+			.attr('stroke', 'none')
+			.attr('font-weight', nameWeight || 760);
+		cursorY += nameH + 1;
+
+		if(star.starlight){
+			group.append('text')
+				.attr('class', 'horosa-ziwei-kinastro-star-light')
+				.attr('x', x + w / 2)
+				.attr('y', cursorY + 6)
+				.attr('dominant-baseline', 'middle')
+				.attr('text-anchor', 'middle')
+				.attr('fill', 'var(--horosa-ziwei-house-age, #8794a8)')
+				.attr('stroke', 'none')
+				.attr('font-size', `${Math.max(10, Math.min(12, Math.round(w * 0.46)))}px`)
+				.attr('font-weight', 680)
+				.attr('font-family', AstroConst.NormalFont)
+				.text(star.starlight);
+			cursorY += 14;
+		}
+
+		let hua = star.hua;
+		if(hua === '祿'){
+			hua = '禄';
+		}
+		if(hua){
+			let coloropt = ZWCont.ZWColor[hua] || ZWCont.ZWColor.StarMainStroke;
+			const badgeSize = Math.max(16, Math.min(21, w + 1));
+			const badgeX = x + (w - badgeSize) / 2;
+			let huasvg = GraphHelper.drawTextV(group, [hua], badgeX, cursorY, badgeSize, badgeSize, 1,
+				coloropt.color || '#ffffff', 850, coloropt.bg || ZWCont.ZWColor.StarMainStroke);
+			huasvg.selectAll('text')
+				.attr('fill', coloropt.color || '#ffffff')
+				.attr('stroke', 'rgba(0, 0, 0, 0.34)')
+				.attr('stroke-width', 0.55)
+				.attr('paint-order', 'stroke')
+				.attr('font-weight', 850);
+			cursorY += badgeSize + 2;
+		}
+
+		if(star.flyTo){
+			const flyBranch = `${star.flyTo}`.replace(/[宫宮]$/, '').slice(-1);
+			const flyW = Math.max(20, Math.min(25, w + 3));
+			const flyH = Math.max(21, Math.min(26, flyW));
+			const tipH = Math.max(4, Math.round(flyH * 0.22));
+			const flyX = x + (w - flyW) / 2;
+			const flyY = cursorY;
+			const flyMidX = flyX + flyW / 2;
+			const flyBottom = flyY + flyH;
+			group.append('rect')
+				.attr('class', 'horosa-ziwei-kinastro-fly-badge')
+				.attr('x', flyX)
+				.attr('y', flyY)
+				.attr('width', flyW)
+				.attr('height', flyH)
+				.attr('rx', 3)
+				.attr('ry', 3)
+				.attr('fill', 'rgba(205, 162, 77, 0.14)')
+				.attr('stroke', '#cda24d')
+				.attr('stroke-width', 1.25);
+			group.append('path')
+				.attr('class', 'horosa-ziwei-kinastro-fly-tip')
+				.attr('d', `M${flyMidX - tipH},${flyBottom - 1} L${flyMidX + tipH},${flyBottom - 1} L${flyMidX},${flyBottom + tipH} Z`)
+				.attr('fill', 'rgba(205, 162, 77, 0.14)')
+				.attr('stroke', '#cda24d')
+				.attr('stroke-width', 1.25)
+				.attr('stroke-linejoin', 'round');
+			const flyFont = Math.max(14, Math.min(17, Math.round(flyW * 0.72)));
+			group.append('text')
+				.attr('class', 'horosa-ziwei-kinastro-fly-text')
+				.attr('x', flyMidX)
+				.attr('y', flyY + flyH / 2 + 0.5)
+				.attr('dominant-baseline', 'middle')
+				.attr('text-anchor', 'middle')
+				.attr('fill', '#f3d18b')
+				.attr('stroke', 'rgba(0, 0, 0, 0.32)')
+				.attr('stroke-width', 0.45)
+				.attr('paint-order', 'stroke')
+				.attr('font-size', `${flyFont}px`)
+				.attr('font-weight', 850)
+				.attr('font-family', AstroConst.NormalFont)
+				.text(flyBranch);
+			cursorY += flyH + tipH + 3;
+		}
+
+		let tip = this.ZWRules && this.ZWRules.RuleStars ? this.ZWRules.RuleStars[star.name] : null;
+		if(tip){
+			this.genTooltip(group, {
+				title: star.name,
+				tips: tip,
+			}, star.name);
+		}
+		this.stars.set(star.name, {
+			x,
+			y,
+			w,
+			h: Math.min(h, cursorY - y),
+		});
+	}
+
 	drawLaiYing(){
 		let hw = this.fontSize;
 		let hh = hw * 2 + this.margin;
@@ -434,7 +590,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 			hx = hx - hw - this.margin;
 		}
 		
-		if(this.houseObj.isBody){
+		if(this.houseObj.isBody && !this.kinastroBorrowed){
 			let txt = ['身', '宫'];
 			GraphHelper.drawTextV(this.svg.append('g'), txt, hx, hy, hw, hh, 2, 
 				color, null, null, color);		

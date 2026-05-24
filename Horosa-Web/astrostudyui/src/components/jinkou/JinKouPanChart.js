@@ -260,7 +260,7 @@ class JinKouPanChart {
 		const padding = option.padding !== undefined ? option.padding : 6;
 		const align = option.align ? option.align : 'center';
 		const color = option.color ? option.color : AstroConst.AstroColor.TextStroke;
-		const bold = option.bold ? 400 : 300;
+		const fontWeight = option.fontWeight ? option.fontWeight : (option.bold ? 650 : 400);
 
 		const tx = align === 'left' ? x + padding : x + w / 2;
 		const anchor = align === 'left' ? 'start' : 'middle';
@@ -277,7 +277,7 @@ class JinKouPanChart {
 			.attr('dominant-baseline', 'middle')
 			.attr('text-anchor', anchor)
 			.attr('font-size', `${fontSize}px`)
-			.attr('font-weight', bold)
+			.attr('font-weight', fontWeight)
 			.attr('stroke', 'none')
 			.attr('fill', color)
 			.text(txt);
@@ -285,52 +285,78 @@ class JinKouPanChart {
 
 	drawTopLineSection(x, y, w, h){
 		const meta = this.jinkouData && this.jinkouData.topInfo ? this.jinkouData.topInfo : {};
-		const cells = [{
+		const rowH = h / 2;
+		const rows = [[{
 			text: '地分',
 			color: AstroConst.AstroColor.TextStroke,
 			fill: this.labelBg,
-			widthRate: 0.12,
+			widthRate: 0.16,
 		}, {
 			text: safeText(meta.diFen, ''),
 			color: this.getColorByToken(meta.diFen),
 			fill: AstroConst.AstroColor.ChartBackgroud,
-			widthRate: 0.13,
+			widthRate: 0.17,
 		}, {
+			text: '月将',
+			color: AstroConst.AstroColor.TextStroke,
+			fill: this.labelBg,
+			widthRate: 0.16,
+		}, {
+			text: safeText(meta.yuejiang, ''),
+			color: this.getColorByToken(meta.yuejiang),
+			fill: AstroConst.AstroColor.ChartBackgroud,
+			widthRate: 0.17,
+		}, {
+			text: '占时',
+			color: AstroConst.AstroColor.TextStroke,
+			fill: this.labelBg,
+			widthRate: 0.16,
+		}, {
+			text: safeText(meta.zhanshi, ''),
+			color: this.getColorByToken(meta.zhanshi),
+			fill: AstroConst.AstroColor.ChartBackgroud,
+			widthRate: 0.18,
+		}], [{
 			text: '空亡',
 			color: AstroConst.AstroColor.TextStroke,
 			fill: this.labelBg,
-			widthRate: 0.12,
+			widthRate: 0.20,
 		}, {
 			text: safeText(meta.xunKong, ''),
 			color: AstroConst.AstroColor.MC,
 			fill: AstroConst.AstroColor.ChartBackgroud,
-			widthRate: 0.16,
+			widthRate: 0.28,
 		}, {
 			text: '四大空亡',
 			color: AstroConst.AstroColor.TextStroke,
 			fill: this.labelBg,
-			widthRate: 0.25,
+			widthRate: 0.24,
 		}, {
 			text: safeText(meta.siDaKong, ''),
 			color: this.getColorByToken(meta.siDaKong, AstroConst.AstroColor.MC),
 			fill: AstroConst.AstroColor.ChartBackgroud,
-			widthRate: 0.22,
-		}];
-		let cx = x;
-		for(let i=0; i<cells.length; i++){
-			const one = cells[i];
-			const cw = w * one.widthRate;
-			this.drawCell(cx, y, cw, h, one.fill);
-			this.drawText({
-				x: cx,
-				y: y,
-				w: cw,
-				h: h,
-				text: one.text,
-				fontSize: 18,
-				color: one.color,
-			});
-			cx += cw;
+			widthRate: 0.28,
+		}]];
+		for(let r=0; r<rows.length; r++){
+			const cells = rows[r];
+			let cx = x;
+			const cy = y + rowH * r;
+			for(let i=0; i<cells.length; i++){
+				const one = cells[i];
+				const cw = w * one.widthRate;
+				this.drawCell(cx, cy, cw, rowH, one.fill);
+				this.drawText({
+					x: cx,
+					y: cy,
+					w: cw,
+					h: rowH,
+					text: one.text,
+					fontSize: 15,
+					color: one.color,
+					fontWeight: 600,
+				});
+				cx += cw;
+			}
 		}
 	}
 
@@ -412,6 +438,7 @@ class JinKouPanChart {
 					fontSize: 17,
 					align: data[j].align,
 					allowEmpty: true,
+					fontWeight: 600,
 				});
 			}
 			if(yongLabel && row.label === yongLabel){
@@ -475,6 +502,7 @@ class JinKouPanChart {
 				h: rowH,
 				text: row.label,
 				fontSize: 16,
+				fontWeight: 600,
 			});
 			this.drawCell(x + labelW, cy, valueW, rowH, AstroConst.AstroColor.ChartBackgroud);
 			this.drawText({
@@ -487,6 +515,7 @@ class JinKouPanChart {
 				align: 'left',
 				padding: 8,
 				color: AstroConst.AstroColor.TextStroke,
+				fontWeight: 600,
 			});
 		}
 	}
@@ -513,8 +542,8 @@ class JinKouPanChart {
 		const gap = 10;
 		let topH = Math.floor(h * 0.16);
 		let middleH = Math.floor(h * 0.50);
-		if(topH < 42){
-			topH = 42;
+		if(topH < 72){
+			topH = 72;
 		}
 		if(middleH < 150){
 			middleH = 150;

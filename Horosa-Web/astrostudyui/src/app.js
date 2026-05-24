@@ -1,4 +1,5 @@
 import { handleError } from './utils/helper';
+import { installWindowSizePersistence } from './utils/windowSizePersistence';
 
 if (typeof window !== 'undefined' && typeof EventTarget !== 'undefined') {
     const proto = EventTarget.prototype;
@@ -14,6 +15,7 @@ if (typeof window !== 'undefined' && typeof EventTarget !== 'undefined') {
     }
 }
 
+installWindowSizePersistence();
 
 export const dva = {
     config: {

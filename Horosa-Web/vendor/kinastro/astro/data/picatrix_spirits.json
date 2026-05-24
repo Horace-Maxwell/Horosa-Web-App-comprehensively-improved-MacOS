@@ -1,0 +1,167 @@
+{
+  "metadata": {
+    "source": "Ghayat al-Hakim (Picatrix) - Source Library English Translation (2026)",
+    "volume": "Book III (Talismanic & Spirit Magic)",
+    "description": "Picatrix 七大行星靈完整資料庫，用於 kinastro 靈體召喚與塔利斯曼生成模組",
+    "last_updated": "2026-05-15"
+  },
+  "perfect_nature": {
+    "name": "完美本性（Perfect Nature）",
+    "arabic_names": ["Tamāġīs", "Baġdīswād", "Waġdās", "Nūfānāġādīs"],
+    "latin_names": ["Meegius", "Betzahuech", "Vacdez", "Nufeneguediz"],
+    "chinese_names": ["塔瑪吉斯", "巴吉德斯瓦德", "瓦格達斯", "努法納吉達斯"],
+    "timing": "月亮位於白羊座 1°（無論晝夜）",
+    "steps": [
+      "面向東方，直立站立",
+      "重複念誦四靈名 7 次",
+      "念長篇祈禱文（呼喚個人守護靈降臨、賜予智慧、移除無知）",
+      "等待靈以人形出現或於夢中傳授知識"
+    ],
+    "warning": "此為進入更高星體魔法的關鍵前置儀式，需心正、時正"
+  },
+  "spirits": {
+    "土星": {
+      "planet": "Saturn",
+      "arabic_name": "Zuhal",
+      "latin_name": "Saturnus",
+      "chinese_name": "土星",
+      "metal": "鐵",
+      "stones": ["鑽石", "手石", "tamasse", "nechechate", "elaur", "senet", "almagmac"],
+      "colors": ["黑", "深褐", "暗灰"],
+      "suffumigation": "沒藥、硫磺、苦艾、胡椒",
+      "direction": "北方",
+      "invocation_text": {
+        "zh": "啊！崇高之名的主宰、偉大力量的至高主！啊！土星！你寒冷、貧瘠、哀傷、兇險……你守信、睿智、孤獨、深沉……我以你的大慈大悲祈求你，成就我所求之事……",
+        "en": "O high and exalted name, master of great power, O Saturn! You who are cold, sterile, sorrowful, and perilous... faithful, wise, solitary, profound... by your great mercy I beseech you to accomplish my desire..."
+      },
+      "figures": [
+        {"tradition": "傳統1", "desc": "站立男子，雙手持蛇與魚，腳下蝗蟲與圓柱量器"},
+        {"tradition": "傳統4", "desc": "站立男子，高舉雙手持單一魚，腳下蝗蟲與圓柱量器"},
+        {"tradition": "傳統5", "desc": "老人坐於高座"},
+        {"tradition": "傳統8", "desc": "老人騎龍，右手持鐮刀，左手持長矛，身穿黑衣"}
+      ],
+      "talisman_examples": [
+        {"name": "帶來不幸", "timing": "土星日時 + 上升摩羯座第二面相", "material": "鉛板 + 戴勝鳥腦", "effect": "使目標地點持續受土星影響"}
+      ]
+    },
+    "木星": {
+      "planet": "Jupiter",
+      "arabic_name": "Mushtari",
+      "latin_name": "Jupiter",
+      "chinese_name": "木星",
+      "metal": "鉛（本版傳統） / 錫",
+      "stones": ["白石", "金色石", "祖母綠", "珊瑚", "水晶"],
+      "colors": ["白", "金黃", "藍"],
+      "suffumigation": "乳香、檀香、肉桂",
+      "direction": "東方",
+      "invocation_text": {
+        "zh": "啊！木星！你崇高、智慧、仁慈、勝利之主……",
+        "en": "O Jupiter! You who are exalted, wise, merciful, and victorious..."
+      },
+      "figures": [
+        {"tradition": "傳統", "desc": "智慧國王坐於寶座，手持權杖與書卷"}
+      ],
+      "talisman_examples": []
+    },
+    "火星": {
+      "planet": "Mars",
+      "arabic_name": "Mirrikh",
+      "latin_name": "Mars",
+      "chinese_name": "火星",
+      "metal": "銅",
+      "stones": ["紅石", "血石", "pinonida", "alaquat"],
+      "colors": ["紅", "鐵灰"],
+      "suffumigation": "硫磺、沒藥、龍血",
+      "direction": "南方",
+      "invocation_text": {
+        "zh": "啊！火星！你強悍、勇敢、戰爭之主……",
+        "en": "O Mars! You who are bold, courageous, and lord of war..."
+      },
+      "figures": [
+        {"tradition": "傳統2", "desc": "持劍男子"},
+        {"tradition": "傳統3", "desc": "騎獅男子，右手持劍、左手持人頭，身穿鐵色衣"},
+        {"tradition": "傳統", "desc": "裸體男子與金星女子對望，手置於她頸部"}
+      ],
+      "talisman_examples": []
+    },
+    "太陽": {
+      "planet": "Sun",
+      "arabic_name": "Shams",
+      "latin_name": "Sol",
+      "chinese_name": "太陽",
+      "metal": "金",
+      "stones": ["磁石", "紅寶石", "石棉", "balas ruby", "珍珠"],
+      "colors": ["金黃", "紅"],
+      "suffumigation": "沉香、乳香、番紅花",
+      "direction": "東方",
+      "invocation_text": {
+        "zh": "啊！太陽！你光明、榮耀、權力之主……",
+        "en": "O Sun! You who are luminous, glorious, and lord of power..."
+      },
+      "figures": [
+        {"tradition": "傳統", "desc": "騎龍男子，左手持盾"},
+        {"tradition": "傳統", "desc": "駕四馬戰車，手持鏡子與盾，身穿番紅花黃衣"},
+        {"tradition": "Picatrix版", "desc": "戴皇冠國王，面前黑烏鴉，腳下太陽圖"}
+      ],
+      "talisman_examples": []
+    },
+    "金星": {
+      "planet": "Venus",
+      "arabic_name": "Zuhrah",
+      "latin_name": "Venus",
+      "chinese_name": "金星",
+      "metal": "紅銅 / 銀",
+      "stones": ["青金石", "珊瑚", "lyenoch", "alanche", "almagmac"],
+      "colors": ["白", "綠", "粉紅"],
+      "suffumigation": "玫瑰、檀香、龍涎香",
+      "direction": "西方",
+      "invocation_text": {
+        "zh": "啊！金星！你美麗、愛情、喜悅之主……",
+        "en": "O Venus! You who are beautiful, loving, and lady of joy..."
+      },
+      "figures": [
+        {"tradition": "傳統", "desc": "持蘋果的女子"},
+        {"tradition": "印度聖人版", "desc": "右手持球、左手持刻有符號的石板"},
+        {"tradition": "傳統", "desc": "騎牡鹿、散髮持花、白衣女子"},
+        {"tradition": "Magi版", "desc": "鳥頭鷹足人形"}
+      ],
+      "talisman_examples": [
+        {"name": "吸引朋友", "timing": "金星 + 木星第二面相上升 + 月亮漸盈", "material": "金屬板 + 寫名字 + 燒戴勝鳥頭"}
+      ]
+    },
+    "水星": {
+      "planet": "Mercury",
+      "arabic_name": "Utarid",
+      "latin_name": "Mercurius",
+      "chinese_name": "水星",
+      "metal": "水銀",
+      "stones": ["綠寶石", "arumbedich"],
+      "colors": ["綠", "灰"],
+      "suffumigation": "乳香、丁香",
+      "direction": "北方 / 西方",
+      "invocation_text": {
+        "zh": "啊！水星！你智慧、溝通、機敏之主……",
+        "en": "O Mercury! You who are wise, communicative, and lord of agility..."
+      },
+      "figures": [],
+      "talisman_examples": []
+    },
+    "月亮": {
+      "planet": "Moon",
+      "arabic_name": "Qamar",
+      "latin_name": "Luna",
+      "chinese_name": "月亮",
+      "metal": "銀",
+      "stones": ["銀礦石", "晶石", "azure", "alassa", "almeche"],
+      "colors": ["白", "銀"],
+      "suffumigation": "沉香、樟腦",
+      "direction": "西方",
+      "invocation_text": {
+        "zh": "啊！月亮！你變化、夢境、滋養之主……",
+        "en": "O Moon! You who are changeable, dream-like, and lady of nourishment..."
+      },
+      "figures": [],
+      "talisman_examples": []
+    }
+  }
+}

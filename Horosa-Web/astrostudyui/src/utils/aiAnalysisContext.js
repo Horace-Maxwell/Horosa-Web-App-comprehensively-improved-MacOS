@@ -10,7 +10,7 @@ import { AI_ANALYSIS_STORES, getStoreRecord, putStoreRecord } from './aiAnalysis
 import { buildRetrievedContextText } from './aiAnalysisRag';
 import { fetchPreciseNongli } from './preciseCalcBridge';
 import { calcDunJia, buildDunJiaSnapshotText } from '../components/dunjia/DunJiaCalc';
-import { calcTaiyi, buildTaiyiSnapshotText } from '../components/taiyi/TaiYiCalc';
+import { calcTaiyi, fetchTaiyiPan, buildTaiyiSnapshotText } from '../components/taiyi/TaiYiCalc';
 import { buildTongSheFaModel, buildTongSheFaSnapshot } from '../components/tongshefa/TongSheFaMain';
 import { buildJinKouData } from '../components/jinkou/JinKouCalc';
 import { resolveJinKouDiFen } from '../components/jinkou/JinKouState';
@@ -446,7 +446,12 @@ async function regenerateTaiyiSnapshot(record, payload){
 	if(!options.sex){
 		options.sex = getCaseGenderLabel(record);
 	}
-	const pan = calcTaiyi(fields, nongli, options);
+	let pan = null;
+	try{
+		pan = await fetchTaiyiPan(fields, nongli, options);
+	}catch(e){
+		pan = calcTaiyi(fields, nongli, options);
+	}
 	return buildTaiyiSnapshotText(pan);
 }
 

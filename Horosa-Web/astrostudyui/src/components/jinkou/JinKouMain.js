@@ -8,7 +8,7 @@ import LiuRengInput from '../lrzhan/LiuRengInput';
 import LiuRengBirthInput from '../lrzhan/LiuRengBirthInput';
 import DateTime from '../comp/DateTime';
 import JinKouChart from './JinKouChart';
-import { buildJinKouData } from './JinKouCalc';
+import { buildJinKouData, fetchJinKouPan, normalizeKinjinkouData } from './JinKouCalc';
 import { resolveJinKouDiFen } from './JinKouState';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import {
@@ -276,7 +276,7 @@ export function buildJinKouSnapshotText(params, liureng, runyear, jinkouData, wu
 	const lines = [];
 	const nongli = liureng && liureng.nongli ? liureng.nongli : {};
 	const xingbie = `${gender}` === '1' ? '男' : '女';
-	const guirenType = guirengType === 0 ? '六壬法贵人' : (guirengType === 1 ? '遁甲法贵人' : '星占法贵人');
+	const guirenType = jinkouData && jinkouData.source === 'kinjinkou' ? 'kinjinkou 贵人歌诀' : (guirengType === 0 ? '六壬法贵人' : (guirengType === 1 ? '遁甲法贵人' : '星占法贵人'));
 	const briefKong = (txt)=>{
 		const val = `${txt || ''}`;
 		const hasEmpty = val.indexOf('空亡') >= 0;
@@ -366,7 +366,19 @@ export function buildJinKouSnapshotText(params, liureng, runyear, jinkouData, wu
 		}
 		for(let i=0; i<jinkouData.rows.length; i++){
 			const row = jinkouData.rows[i];
-			lines.push(`${row.label}：天干=${fmtValue(row.gan)}；内容=${fmtValue(row.content)}；神将=${fmtValue(row.shenjiang)}；状态=${fmtValue(row.power)}；空亡=${fmtValue(row.kong)}`);
+			const nayin = row.nayin ? `；纳音=${fmtValue(row.nayin)}` : '';
+			lines.push(`${row.label}：天干=${fmtValue(row.gan)}；内容=${fmtValue(row.content)}；神将=${fmtValue(row.shenjiang)}；状态=${fmtValue(row.power)}；空亡=${fmtValue(row.kong)}${nayin}`);
+		}
+	}else{
+		lines.push('无');
+	}
+	lines.push('');
+
+	lines.push('[金口诀三盘]');
+	if(jinkouData && jinkouData.ready && jinkouData.plates && jinkouData.plates.length){
+		for(let i=0; i<jinkouData.plates.length; i++){
+			const row = jinkouData.plates[i];
+			lines.push(`${fmtValue(row.di)}：天盘=${fmtValue(row.tian)}；将神=${fmtValue(row.jiang)}；神盘=${fmtValue(row.shen)}；贵神=${fmtValue(row.gui)}`);
 		}
 	}else{
 		lines.push('无');
@@ -514,6 +526,11 @@ class JinKouMain extends Component{
 			guireng: 0,
 			diFen: '子',
 			diFenAuto: true,
+			yueJiang: 'auto',
+			zhanShi: 'auto',
+			timeBasis: 'direct',
+			jinkouPan: null,
+			jinkouError: '',
 			rightPanelTab: 'overview',
 			rightTab: 'godsZi',
 			calcFields: null,
@@ -532,6 +549,9 @@ class JinKouMain extends Component{
 		this.onWuXingChange = this.onWuXingChange.bind(this);
 		this.onGuiRengChange = this.onGuiRengChange.bind(this);
 		this.onDiFenChange = this.onDiFenChange.bind(this);
+		this.onYueJiangChange = this.onYueJiangChange.bind(this);
+		this.onZhanShiChange = this.onZhanShiChange.bind(this);
+		this.onTimeBasisChange = this.onTimeBasisChange.bind(this);
 		this.setRightPanelTab = this.setRightPanelTab.bind(this);
 		this.setRightTab = this.setRightTab.bind(this);
 		this.navigateFeature = this.navigateFeature.bind(this);
@@ -622,7 +642,41 @@ class JinKouMain extends Component{
 			diFen: val,
 			diFenAuto: false,
 		}, ()=>{
-			this.saveJinKouSnapshot(null, this.state.liureng, this.state.runyear, this.state.wuxing, this.state.guireng, val);
+			if(this.state.liureng){
+				this.requestGods(this.state.calcFields || this.props.fields, this.props.value);
+			}else{
+				this.saveJinKouSnapshot(null, this.state.liureng, this.state.runyear, this.state.wuxing, this.state.guireng, val);
+			}
+		});
+	}
+
+	onYueJiangChange(val){
+		this.setState({
+			yueJiang: val,
+		}, ()=>{
+			if(this.state.liureng){
+				this.requestGods(this.state.calcFields || this.props.fields, this.props.value);
+			}
+		});
+	}
+
+	onZhanShiChange(val){
+		this.setState({
+			zhanShi: val,
+		}, ()=>{
+			if(this.state.liureng){
+				this.requestGods(this.state.calcFields || this.props.fields, this.props.value);
+			}
+		});
+	}
+
+	onTimeBasisChange(val){
+		this.setState({
+			timeBasis: val,
+		}, ()=>{
+			if(this.state.liureng){
+				this.requestGods(this.state.calcFields || this.props.fields, this.props.value);
+			}
 		});
 	}
 
@@ -762,7 +816,7 @@ class JinKouMain extends Component{
 		}
 	}
 
-	saveJinKouSnapshot(params, liureng, runyear, wuxing, guirengType, diFen){
+	saveJinKouSnapshot(params, liureng, runyear, wuxing, guirengType, diFen, jinkouPan){
 		if(!liureng){
 			return;
 		}
@@ -780,11 +834,12 @@ class JinKouMain extends Component{
 			lon: finalLon,
 			lat: finalLat,
 		};
-		const jinkouData = buildJinKouData(liureng, {
+		const localJinKouData = buildJinKouData(liureng, {
 			diFen: diFen,
 			guirengType: guirengType,
 			isDiurnal: this.state.calcIsDiurnal,
 		});
+		const jinkouData = normalizeKinjinkouData(jinkouPan || this.state.jinkouPan, localJinKouData);
 		const appliedBirth = getAppliedBirth(this.state);
 		saveModuleAISnapshot('jinkou', buildJinKouSnapshotText(
 			saveParams,
@@ -850,18 +905,33 @@ class JinKouMain extends Component{
 		);
 		const calcIsDiurnal = resolveChartIsDiurnal(chartObj === undefined ? this.props.value : chartObj);
 		const appliedBirth = buildBirthFields(this.state.birth, new DateTime());
+		let jinkouPan = null;
+		let jinkouError = '';
+		try{
+			jinkouPan = await fetchJinKouPan(fields, result.liureng.nongli, {
+				diFen: diFen,
+				yueJiang: this.state.yueJiang,
+				zhanShi: this.state.zhanShi,
+				timeBasis: this.state.timeBasis,
+			});
+		}catch(e){
+			jinkouError = e && e.message ? e.message : '金口诀本地排盘服务尚未就绪';
+			console.warn('kinjinkou backend failed, falling back to local JinKouCalc', e);
+		}
 		const st = {
 			liureng: result.liureng,
 			calcBirth: appliedBirth,
 			wuxing: wx,
 			diFen: diFen,
+			jinkouPan: jinkouPan,
+			jinkouError: jinkouError,
 			calcFields: fields,
 			calcIsDiurnal: calcIsDiurnal,
 		};
 
 		this.setState(st, ()=>{
 			this.requestRunYear();
-			this.saveJinKouSnapshot(params, result.liureng, this.state.runyear, wx, this.state.guireng, diFen);
+			this.saveJinKouSnapshot(params, result.liureng, this.state.runyear, wx, this.state.guireng, diFen, jinkouPan);
 		});
 	}
 
@@ -992,7 +1062,7 @@ class JinKouMain extends Component{
 		this.setState({
 			runyear: result,
 		}, ()=>{
-			this.saveJinKouSnapshot(null, this.state.liureng, result, this.state.wuxing, this.state.guireng, this.state.diFen);
+			this.saveJinKouSnapshot(null, this.state.liureng, result, this.state.wuxing, this.state.guireng, this.state.diFen, this.state.jinkouPan);
 		});
 	}
 
@@ -1016,6 +1086,7 @@ class JinKouMain extends Component{
 			wuxing: this.state.wuxing,
 			guireng: this.state.guireng,
 			diFen: this.state.diFen,
+			jinkouPan: this.state.jinkouPan,
 		};
 		if(this.props.dispatch){
 			this.props.dispatch({
@@ -1126,11 +1197,32 @@ class JinKouMain extends Component{
 						</Select>
 					</label>
 					<label className="horosa-jinkou-select-field">
-						<span>贵人体系</span>
-						<Select value={this.state.guireng} onChange={this.onGuiRengChange}>
-							<Option value={0}>六壬法贵人</Option>
-							<Option value={1}>遁甲法贵人</Option>
-							<Option value={2}>星占法贵人</Option>
+						<span>月将</span>
+						<Select value={this.state.yueJiang} onChange={this.onYueJiangChange}>
+							<Option value="auto">自动取月将</Option>
+							{
+								LRConst.ZiList.map((zi)=>(
+									<Option key={`yuejiang_${zi}`} value={zi}>月将：{zi}</Option>
+								))
+							}
+						</Select>
+					</label>
+					<label className="horosa-jinkou-select-field">
+						<span>占时</span>
+						<Select value={this.state.zhanShi} onChange={this.onZhanShiChange}>
+							<Option value="auto">自动取时支</Option>
+							{
+								LRConst.ZiList.map((zi)=>(
+									<Option key={`zhanshi_${zi}`} value={zi}>占时：{zi}</Option>
+								))
+							}
+						</Select>
+					</label>
+					<label className="horosa-jinkou-select-field">
+						<span>时间基准</span>
+						<Select value={this.state.timeBasis} onChange={this.onTimeBasisChange}>
+							<Option value="direct">直接时间</Option>
+							<Option value="trueSolar">真太阳时</Option>
 						</Select>
 					</label>
 				</div>
@@ -1157,15 +1249,16 @@ class JinKouMain extends Component{
 	renderOverviewRows(jinkouData, displayRunYear, appliedBirth, chartFields){
 		const params = chartFields ? this.genGodsParams(chartFields) : null;
 		const gender = appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : -1;
-		const guirenType = this.state.guireng === 0 ? '六壬法贵人' : (this.state.guireng === 1 ? '遁甲法贵人' : '星占法贵人');
 		const rows = [
 			['起课时间', params ? `${params.date} ${params.time}` : '—'],
 			['地点', params ? `${params.lon || '—'} ${params.lat || '—'}` : '—'],
+			['时间基准', this.state.timeBasis === 'trueSolar' ? '真太阳时' : '直接时间'],
 			['地分', jinkouData && jinkouData.ready ? jinkouData.topInfo.diFen : this.state.diFen],
+			['月将', jinkouData && jinkouData.topInfo ? (jinkouData.topInfo.yuejiang || '—') : '—'],
+			['占时', jinkouData && jinkouData.topInfo ? (jinkouData.topInfo.zhanshi || '—') : '—'],
 			['空亡', jinkouData && jinkouData.ready ? jinkouData.topInfo.xunKong : '—'],
 			['四大空亡', jinkouData && jinkouData.ready ? jinkouData.topInfo.siDaKong : '—'],
 			['用爻', jinkouData && jinkouData.yongYao ? `${jinkouData.yongYao.label || '—'}${jinkouData.yongYao.sign ? `(${jinkouData.yongYao.sign})` : ''}` : '—'],
-			['贵人体系', guirenType],
 			['十二长生', this.state.wuxing],
 			['行年', displayRunYear ? `${displayRunYear.year || '—'} / ${displayRunYear.age || '—'}岁` : '—'],
 			['性别', `${gender}` === '0' ? '女' : (`${gender}` === '1' ? '男' : '未知')],
@@ -1178,6 +1271,39 @@ class JinKouMain extends Component{
 		));
 	}
 
+	renderStartRows(jinkouData, chartFields){
+		if(!jinkouData || !jinkouData.ready){
+			return <div className="horosa-jinkou-empty">暂无起课数据</div>;
+		}
+		const params = chartFields ? this.genGodsParams(chartFields) : null;
+		const backend = jinkouData.backend || {};
+		const ganzhi = backend.ganzhi || {};
+		const rows = [
+			['日期', backend.dateStr || (params ? params.date : '')],
+			['时间', backend.timeStr || (params ? params.time : '')],
+			['真太阳时', backend.realSunTime || (this.state.liureng && this.state.liureng.nongli ? this.state.liureng.nongli.birth : '')],
+			['节气', backend.jiedelta || (this.state.liureng && this.state.liureng.nongli ? this.state.liureng.nongli.jiedelta : '')],
+			['年柱', ganzhi.year],
+			['月柱', ganzhi.month],
+			['日柱', ganzhi.day],
+			['时柱', ganzhi.time],
+			['地分', backend.difen],
+			['月将', backend.yuejiang],
+			['占时', backend.zhanshi],
+			['四大空亡', backend.siDaKong],
+		];
+		return (
+			<div className="horosa-jinkou-info-card">
+				{rows.map(([label, value])=>(
+					<div className="horosa-jinkou-info-row" key={`start_${label}`}>
+						<span>{label}</span>
+						<strong>{fmtValue(value || '—')}</strong>
+					</div>
+				))}
+			</div>
+		);
+	}
+
 	renderJinKouRows(jinkouData){
 		if(!jinkouData || !jinkouData.ready || !jinkouData.rows){
 			return <div className="horosa-jinkou-empty">暂无金口诀数据</div>;
@@ -1187,7 +1313,7 @@ class JinKouMain extends Component{
 				<div className="horosa-jinkou-four-label">{row.label}</div>
 				<div>
 					<strong>{fmtValue(row.content)}</strong>
-					<span>天干 {fmtValue(row.gan)} · 神将 {fmtValue(row.shenjiang)} · {fmtValue(row.power)} · {fmtValue(row.kong)}</span>
+					<span>天干 {fmtValue(row.gan)} · 神将 {fmtValue(row.shenjiang)} · {fmtValue(row.power)} · {fmtValue(row.kong)}{row.nayin ? ` · 纳音 ${row.nayin}` : ''}</span>
 				</div>
 			</div>
 		));
@@ -1205,27 +1331,47 @@ class JinKouMain extends Component{
 		));
 	}
 
+	renderPlateRows(jinkouData){
+		if(!jinkouData || !jinkouData.plates || !jinkouData.plates.length){
+			return <div className="horosa-jinkou-empty">暂无三盘数据</div>;
+		}
+		return jinkouData.plates.map((row)=>(
+			<div className="horosa-jinkou-info-row" key={`plate_${row.index || row.di}`}>
+					<span>{row.di}</span>
+				<strong>{`天${fmtValue(row.tian)} · 将${fmtValue(row.jiang)} · 神${fmtValue(row.shen)} · 贵${fmtValue(row.gui)}`}</strong>
+			</div>
+		));
+	}
+
+	renderRawText(jinkouData){
+		const rawText = jinkouData && jinkouData.backend ? jinkouData.backend.rawText : '';
+		if(!rawText){
+			return <div className="horosa-jinkou-empty">暂无原文</div>;
+		}
+		return <pre className="horosa-jinkou-snapshot">{rawText}</pre>;
+	}
+
 	renderRightPanel(jinkouData, displayRunYear, appliedBirth, chartFields, godsZiRows, godsYearRows, zsRows, roleRefRows){
-		const params = chartFields ? this.genGodsParams(chartFields) : null;
-		const snapshot = buildJinKouSnapshotText(
-			params,
-			this.state.liureng,
-			displayRunYear,
-			jinkouData,
-			this.state.wuxing,
-			this.state.guireng,
-			appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : 1
-		);
+		const validPanelTabs = ['overview', 'start', 'rows', 'plates', 'gods', 'jkshensha'];
+		const activeKey = validPanelTabs.indexOf(this.state.rightPanelTab) >= 0 ? this.state.rightPanelTab : 'overview';
 		return (
-			<Tabs activeKey={this.state.rightPanelTab} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-jinkou-tabs">
+			<Tabs activeKey={activeKey} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-jinkou-tabs">
 				<TabPane tab="概览" key="overview">
 					<div className="horosa-jinkou-info-card">
 						{this.renderOverviewRows(jinkouData, displayRunYear, appliedBirth, chartFields)}
 					</div>
 				</TabPane>
+				<TabPane tab="起课" key="start">
+					{this.renderStartRows(jinkouData, chartFields)}
+				</TabPane>
 				<TabPane tab="四位" key="rows">
 					<div className="horosa-jinkou-info-card">
 						{this.renderJinKouRows(jinkouData)}
+					</div>
+				</TabPane>
+				<TabPane tab="三盘" key="plates">
+					<div className="horosa-jinkou-info-card">
+						{this.renderPlateRows(jinkouData)}
 					</div>
 				</TabPane>
 				<TabPane tab="神煞" key="gods">
@@ -1256,9 +1402,6 @@ class JinKouMain extends Component{
 						{this.renderShenshaRows(jinkouData)}
 					</div>
 				</TabPane>
-				<TabPane tab="快照" key="snapshot">
-					<pre className="horosa-jinkou-snapshot">{snapshot}</pre>
-				</TabPane>
 			</Tabs>
 		);
 	}
@@ -1267,7 +1410,9 @@ class JinKouMain extends Component{
 		const actions = [
 			{ label: '起课', icon: 'quickPrimary', onClick: ()=>this.requestGods(this.props.fields, this.props.value) },
 			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
+			{ label: '课情', icon: 'quickNote', active: this.state.rightPanelTab === 'start', onClick: ()=>this.setRightPanelTab('start') },
 			{ label: '四位', icon: 'quickTransit', active: this.state.rightPanelTab === 'rows', onClick: ()=>this.setRightPanelTab('rows') },
+			{ label: '三盘', icon: 'quickReturn', active: this.state.rightPanelTab === 'plates', onClick: ()=>this.setRightPanelTab('plates') },
 			{ label: '神煞', icon: 'quickFirdaria', active: this.state.rightPanelTab === 'gods', onClick: ()=>this.setRightPanelTab('gods') },
 			{ label: '保存', icon: 'quickNote', onClick: this.clickSaveCase },
 			{ label: '宿盘', icon: 'quickReturn', onClick: ()=>this.navigateFeature('cnyibu', 'suzhan') },
@@ -1312,11 +1457,12 @@ class JinKouMain extends Component{
 		const chartFields = this.state.calcFields ? this.state.calcFields : this.props.fields;
 		const appliedBirth = getAppliedBirth(this.state);
 		const displayRunYear = resolveDisplayRunYear(this.state.runyear, appliedBirth, chartFields);
-		const jinkouData = buildJinKouData(this.state.liureng, {
+		const localJinKouData = buildJinKouData(this.state.liureng, {
 			diFen: this.state.diFen,
 			guirengType: this.state.guireng,
 			isDiurnal: this.state.calcIsDiurnal,
 		});
+		const jinkouData = normalizeKinjinkouData(this.state.jinkouPan, localJinKouData);
 		const wxdoms = this.genWuXingDoms();
 
 		const godsZiRows = this.state.liureng ? mapObjToRows(this.state.liureng.godsZi) : [];

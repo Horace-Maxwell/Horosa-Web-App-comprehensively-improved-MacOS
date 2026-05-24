@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { message } from 'antd';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import {randomStr,} from '../../utils/helper';
@@ -9,6 +10,7 @@ import * as Su28Helper from '../su28/Su28Helper';
 import SuZhanInput from './SuZhanInput';
 import SuZhanChart from './SuZhanChart';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
+import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import { XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
 
@@ -403,6 +405,22 @@ function buildQimenSnapshotText(chartObj, fields){
 	return lines.join('\n');
 }
 
+function fieldValue(fields, key, fallback = null){
+	if(!fields || !fields[key] || fields[key].value === undefined || fields[key].value === null){
+		return fallback;
+	}
+	return fields[key].value;
+}
+
+function buildSuZhanCaseOptions(fields){
+	return {
+		szchart: fieldValue(fields, 'szchart', SZConst.SZChart.chart),
+		szshape: fieldValue(fields, 'szshape', SZConst.SZChart.shape),
+		doubingSu28: fieldValue(fields, 'doubingSu28', 0),
+		houseStartMode: fieldValue(fields, 'houseStartMode', SZConst.SZChart.houseStartMode),
+	};
+}
+
 
 class SuZhanMain extends Component{
 	constructor(props) {
@@ -414,6 +432,8 @@ class SuZhanMain extends Component{
 		this.unmounted = false;
 
 		this.onFieldsChange = this.onFieldsChange.bind(this);
+		this.restoreFromCurrentCase = this.restoreFromCurrentCase.bind(this);
+		this.clickSaveCase = this.clickSaveCase.bind(this);
 		this.setRightPanelTab = this.setRightPanelTab.bind(this);
 		this.navigateFeature = this.navigateFeature.bind(this);
 
@@ -445,8 +465,77 @@ class SuZhanMain extends Component{
 		}
 	}
 
+	restoreFromCurrentCase(force){
+		const saved = getKentangSavedCasePayload('suzhan');
+		if(!saved || !saved.payload){
+			return false;
+		}
+		if(!force && this.lastRestoredCaseId === saved.caseVersion){
+			return false;
+		}
+		const payload = saved.payload;
+		const options = payload.options && typeof payload.options === 'object' ? payload.options : {};
+		const patch = {};
+		['szchart', 'szshape', 'doubingSu28', 'houseStartMode'].forEach((key)=>{
+			if(options[key] !== undefined && options[key] !== null){
+				patch[key] = { value: options[key] };
+			}
+		});
+		if(patch.szchart){
+			SZConst.SZChart.chart = parseInt(patch.szchart.value, 10);
+			localStorage.setItem('suzhanChartType', patch.szchart.value);
+		}
+		if(patch.szshape){
+			SZConst.SZChart.shape = parseInt(patch.szshape.value, 10);
+			localStorage.setItem('suzhanChartShape', patch.szshape.value);
+		}
+		if(patch.houseStartMode){
+			const houseStartMode = parseInt(patch.houseStartMode.value, 10) === SZConst.SZHouseStart_ASC
+				? SZConst.SZHouseStart_ASC : SZConst.SZHouseStart_Bazi;
+			patch.houseStartMode.value = houseStartMode;
+			SZConst.SZChart.houseStartMode = houseStartMode;
+			localStorage.setItem('suzhanHouseStartMode', houseStartMode);
+		}
+		this.lastRestoredCaseId = saved.caseVersion;
+		if(Object.keys(patch).length > 0 && this.props.dispatch){
+			this.props.dispatch({
+				type: 'astro/fetchByFields',
+				payload: {
+					...(this.props.fields || {}),
+					...patch,
+				},
+			});
+		}
+		if(payload.snapshot){
+			saveModuleAISnapshot('suzhan', payload.snapshot);
+		}
+		return Object.keys(patch).length > 0;
+	}
+
+	clickSaveCase(){
+		if(!this.props.fields){
+			message.warning('当前宿盘资料未就绪');
+			return;
+		}
+		const snapshot = buildSuzhanSnapshotText(this.props.value, this.props.fields, this.props.planetDisplay);
+		openKentangCaseDrawer({
+			dispatch: this.props.dispatch,
+			fields: this.props.fields,
+			module: 'suzhan',
+			label: '宿盘',
+			payload: {
+				options: buildSuZhanCaseOptions(this.props.fields),
+				chart: this.props.value || null,
+				snapshot,
+			},
+		});
+	}
+
 	componentDidMount(){
 		this.unmounted = false;
+		if(this.restoreFromCurrentCase(true)){
+			return;
+		}
 		if(this.props.fields){
 			saveModuleAISnapshot('suzhan', buildSuzhanSnapshotText(this.props.value, this.props.fields, this.props.planetDisplay));
 			if(this.props.fields.szchart && this.props.fields.szchart.value === SZConst.SZChart_DunJiaChart){
@@ -456,6 +545,9 @@ class SuZhanMain extends Component{
 	}
 
 	componentDidUpdate(prevProps){
+		if(this.restoreFromCurrentCase(false)){
+			return;
+		}
 		if(prevProps.value !== this.props.value || prevProps.fields !== this.props.fields || prevProps.planetDisplay !== this.props.planetDisplay){
 			saveModuleAISnapshot('suzhan', buildSuzhanSnapshotText(this.props.value, this.props.fields, this.props.planetDisplay));
 			if(this.props.fields && this.props.fields.szchart && this.props.fields.szchart.value === SZConst.SZChart_DunJiaChart){
@@ -582,6 +674,7 @@ class SuZhanMain extends Component{
 			{ label: '概览', icon: 'quickPrimary', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
 			{ label: '宫宿', icon: 'quickComposite', active: this.state.rightPanelTab === 'houses', onClick: ()=>this.setRightPanelTab('houses') },
 			{ label: '快照', icon: 'quickNote', active: this.state.rightPanelTab === 'snapshot', onClick: ()=>this.setRightPanelTab('snapshot') },
+			{ label: '保存', icon: 'quickReturn', onClick: this.clickSaveCase },
 			{ label: '金口诀', icon: 'quickFirdaria', onClick: ()=>this.navigateFeature('cnyibu', 'jinkou') },
 			{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.navigateFeature('cnyibu', 'tongshefa') },
 			{ label: '太乙', icon: 'quickReturn', onClick: ()=>this.navigateFeature('taiyi') },

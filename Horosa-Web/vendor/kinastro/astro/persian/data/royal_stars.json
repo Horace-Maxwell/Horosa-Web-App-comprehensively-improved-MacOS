@@ -1,0 +1,57 @@
+{
+  "royal_stars": {
+    "Aldebaran": {
+      "name_en": "Aldebaran",
+      "name_cn": "畢宿五",
+      "name_pahlavi": "Tascheter",
+      "constellation": "Taurus",
+      "sassanian_longitude": 69.0,
+      "modern_longitude": 69.87,
+      "meaning_en": "Spring Equinox marker, honor, wealth, courage",
+      "meaning_cn": "春分點標記，榮譽，財富，勇氣",
+      "element": "Fire",
+      "nature": "Benefic",
+      "ruling_planet": "Mars"
+    },
+    "Regulus": {
+      "name_en": "Regulus",
+      "name_cn": "軒轅十四",
+      "name_pahlavi": "Vanand",
+      "constellation": "Leo",
+      "sassanian_longitude": 149.0,
+      "modern_longitude": 149.83,
+      "meaning_en": "Royal star, leadership, power, authority",
+      "meaning_cn": "帝王之星，領導力，權力，權威",
+      "element": "Fire",
+      "nature": "Benefic",
+      "ruling_planet": "Jupiter"
+    },
+    "Antares": {
+      "name_en": "Antares",
+      "name_cn": "心宿二",
+      "name_pahlavi": "Satevis",
+      "constellation": "Scorpio",
+      "sassanian_longitude": 249.0,
+      "modern_longitude": 249.67,
+      "meaning_en": "Autumn Equinox marker, challenge, transformation",
+      "meaning_cn": "秋分點標記，挑戰，轉化",
+      "element": "Water",
+      "nature": "Malefic",
+      "ruling_planet": "Mars"
+    },
+    "Fomalhaut": {
+      "name_en": "Fomalhaut",
+      "name_cn": "北落師門",
+      "name_pahlavi": "Hastorang",
+      "constellation": "Pisces",
+      "sassanian_longitude": 339.0,
+      "modern_longitude": 339.47,
+      "meaning_en": "Winter Solstice marker, spirituality, magic",
+      "meaning_cn": "冬至點標記，靈性，魔法",
+      "element": "Water",
+      "nature": "Benefic",
+      "ruling_planet": "Venus"
+    }
+  },
+  "historical_note": "Four Royal Stars served as guardians of the sky in Sassanian astronomy, marking equinoxes and solstices in 3rd-7th century CE. Source: Greater Bundahishn, Al-Biruni."
+}

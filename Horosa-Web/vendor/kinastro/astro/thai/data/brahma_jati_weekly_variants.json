@@ -1,0 +1,166 @@
+{
+  "name": "brahma_jati_weekly_variants",
+  "description": "泰國傳統พรหมชาติ 12 生肖出生星期細分（不同星期出生有不同個性、運勢與守護神影響）",
+  "note": "每個生肖依出生星期再細分 7 種變體。建議與出生年 + 出生月合併使用，可得到最精準的個性與運勢解讀。",
+  "years": {
+    "ปีชวด": {
+      "name_zh": "鼠年",
+      "name_en": "Rat Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神鼠", "type_en": "Divine Rat", "meaning_zh": "智慧高、反應快、不吃虧、做事有條理，但與配偶意見常不合", "meaning_en": "High intelligence, quick-witted, rarely loses out, methodical, but often disagrees with spouse." },
+        "Monday": { "type_zh": "水神鼠", "type_en": "Water Deva Rat", "meaning_zh": "官運佳、財運好、適合水上或貿易事業，晚年安樂", "meaning_en": "Excellent official and financial luck, good for water-related or trading business, peaceful later years." },
+        "Tuesday": { "type_zh": "火神鼠", "type_en": "Fire Deva Rat", "meaning_zh": "個性剛強、領導力強，但易與人衝突，需注意健康", "meaning_en": "Strong personality and leadership, but prone to conflict; watch health." },
+        "Wednesday": { "type_zh": "水星鼠", "type_en": "Mercury Rat", "meaning_zh": "聰明機智、善交際、事業多變，適合自由職業", "meaning_en": "Clever and sociable, career changes often, good for freelance work." },
+        "Thursday": { "type_zh": "木星鼠", "type_en": "Jupiter Rat", "meaning_zh": "福氣深厚、貴人多、適合公職或宗教事業", "meaning_en": "Deep fortune, many benefactors, good for government or religious work." },
+        "Friday": { "type_zh": "金星鼠", "type_en": "Venus Rat", "meaning_zh": "魅力強、異性緣佳，但感情較複雜，需注意桃花劫", "meaning_en": "Very charming, strong opposite-sex attraction, but complicated love life; beware romance troubles." },
+        "Saturday": { "type_zh": "土星鼠", "type_en": "Saturn Rat", "meaning_zh": "堅忍不拔、晚年發達，但幼年較辛苦", "meaning_en": "Persevering, success comes later in life, but difficult early years." }
+      }
+    },
+    "ปีฉลู": {
+      "name_zh": "牛年",
+      "name_en": "Ox Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神牛", "type_en": "Divine Ox", "meaning_zh": "穩重可靠、事業穩定、適合農業或公職", "meaning_en": "Steady and reliable, stable career, good for farming or government work." },
+        "Monday": { "type_zh": "水神牛", "type_en": "Water Deva Ox", "meaning_zh": "財運佳、適合水上或貿易事業，家庭和睦", "meaning_en": "Good wealth luck, good for water-related or trading business, harmonious family." },
+        "Tuesday": { "type_zh": "火神牛", "type_en": "Fire Deva Ox", "meaning_zh": "個性剛強、領導力強，但易與人衝突", "meaning_en": "Strong personality and leadership, but prone to conflict." },
+        "Wednesday": { "type_zh": "水星牛", "type_en": "Mercury Ox", "meaning_zh": "聰明務實、適合商業或技術工作", "meaning_en": "Intelligent and practical, good for business or technical work." },
+        "Thursday": { "type_zh": "木星牛", "type_en": "Jupiter Ox", "meaning_zh": "福氣深厚、貴人多、晚年安樂", "meaning_en": "Deep fortune, many benefactors, peaceful later years." },
+        "Friday": { "type_zh": "金星牛", "type_en": "Venus Ox", "meaning_zh": "溫柔有魅力、家庭幸福，但感情較複雜", "meaning_en": "Gentle and charming, happy family, but complicated love life." },
+        "Saturday": { "type_zh": "土星牛", "type_en": "Saturn Ox", "meaning_zh": "堅忍勤奮、事業穩定，但幼年較辛苦", "meaning_en": "Persevering and hardworking, stable career, but difficult early years." }
+      }
+    },
+    "ปีขาล": {
+      "name_zh": "虎年",
+      "name_en": "Tiger Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神虎", "type_en": "Divine Tiger", "meaning_zh": "威嚴強大、領導力強、事業大成", "meaning_en": "Strong authority and leadership, great career success." },
+        "Monday": { "type_zh": "水神虎", "type_en": "Water Deva Tiger", "meaning_zh": "財運佳、適合流動性事業，晚年富貴", "meaning_en": "Good wealth, good for mobile business, wealthy later years." },
+        "Tuesday": { "type_zh": "火神虎", "type_en": "Fire Deva Tiger", "meaning_zh": "個性剛烈、行動力強，但易衝動", "meaning_en": "Fiery personality, strong action, but impulsive." },
+        "Wednesday": { "type_zh": "水星虎", "type_en": "Mercury Tiger", "meaning_zh": "機智靈活、適合創意或外交工作", "meaning_en": "Witty and flexible, good for creative or diplomatic work." },
+        "Thursday": { "type_zh": "木星虎", "type_en": "Jupiter Tiger", "meaning_zh": "福氣深厚、貴人多、名利雙收", "meaning_en": "Deep fortune, many benefactors, fame and wealth." },
+        "Friday": { "type_zh": "金星虎", "type_en": "Venus Tiger", "meaning_zh": "魅力強、異性緣佳，但感情較多波折", "meaning_en": "Very charming, strong opposite-sex attraction, but complicated love life." },
+        "Saturday": { "type_zh": "土星虎", "type_en": "Saturn Tiger", "meaning_zh": "堅忍不拔、晚年大成，但幼年辛苦", "meaning_en": "Persevering, great success later in life, but difficult early years." }
+      }
+    },
+    "ปีเถาะ": {
+      "name_zh": "兔年",
+      "name_en": "Rabbit Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神兔", "type_en": "Divine Rabbit", "meaning_zh": "溫柔聰明、魅力強、事業順利", "meaning_en": "Gentle and intelligent, very charming, smooth career." },
+        "Monday": { "type_zh": "水神兔", "type_en": "Water Deva Rabbit", "meaning_zh": "財運佳、適合藝術或服務業", "meaning_en": "Good wealth, good for arts or service industry." },
+        "Tuesday": { "type_zh": "火神兔", "type_en": "Fire Deva Rabbit", "meaning_zh": "個性活潑、行動力強，但易情緒化", "meaning_en": "Lively and energetic, but emotional." },
+        "Wednesday": { "type_zh": "水星兔", "type_en": "Mercury Rabbit", "meaning_zh": "機智善交際、適合外交或公關工作", "meaning_en": "Witty and sociable, good for diplomacy or PR." },
+        "Thursday": { "type_zh": "木星兔", "type_en": "Jupiter Rabbit", "meaning_zh": "福氣深厚、家庭幸福、晚年安樂", "meaning_en": "Deep fortune, happy family, peaceful later years." },
+        "Friday": { "type_zh": "金星兔", "type_en": "Venus Rabbit", "meaning_zh": "魅力極強、異性緣佳、感情豐富", "meaning_en": "Extremely charming, strong opposite-sex attraction, rich love life." },
+        "Saturday": { "type_zh": "土星兔", "type_en": "Saturn Rabbit", "meaning_zh": "溫和堅忍、事業穩定，但需注意健康", "meaning_en": "Gentle and persevering, stable career, but watch health." }
+      }
+    },
+    "ปีมะโรง": {
+      "name_zh": "大蛇年",
+      "name_en": "Large Snake Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神大蛇", "type_en": "Divine Large Snake", "meaning_zh": "權勢福氣、聰明有魅力、官運亨通", "meaning_en": "Powerful and fortunate, intelligent and charismatic, excellent official career." },
+        "Monday": { "type_zh": "水神大蛇", "type_en": "Water Deva Large Snake", "meaning_zh": "財運佳、適合貿易或流動事業", "meaning_en": "Good wealth luck, good for trading or mobile business." },
+        "Tuesday": { "type_zh": "火神大蛇", "type_en": "Fire Deva Large Snake", "meaning_zh": "個性剛強、行動力強，但易衝動", "meaning_en": "Strong personality, energetic, but impulsive." },
+        "Wednesday": { "type_zh": "水星大蛇", "type_en": "Mercury Large Snake", "meaning_zh": "機智靈活、適合外交或創意工作", "meaning_en": "Witty and flexible, good for diplomacy or creative work." },
+        "Thursday": { "type_zh": "木星大蛇", "type_en": "Jupiter Large Snake", "meaning_zh": "福氣深厚、貴人多、名利雙收", "meaning_en": "Deep fortune, many benefactors, fame and wealth." },
+        "Friday": { "type_zh": "金星大蛇", "type_en": "Venus Large Snake", "meaning_zh": "魅力強、異性緣佳，但感情較複雜", "meaning_en": "Very charming, strong opposite-sex attraction, but complicated love life." },
+        "Saturday": { "type_zh": "土星大蛇", "type_en": "Saturn Large Snake", "meaning_zh": "堅忍不拔、晚年大成，但幼年辛苦", "meaning_en": "Persevering, great success later in life, but difficult early years." }
+      }
+    },
+    "ปีมะเส็ง": {
+      "name_zh": "小蛇年",
+      "name_en": "Small Snake Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神小蛇", "type_en": "Divine Small Snake", "meaning_zh": "聰明機智、有魅力、適合創意工作", "meaning_en": "Clever and charismatic, good for creative work." },
+        "Monday": { "type_zh": "水神小蛇", "type_en": "Water Deva Small Snake", "meaning_zh": "財運佳、適合水上或流動事業", "meaning_en": "Good wealth luck, good for water-related or mobile business." },
+        "Tuesday": { "type_zh": "火神小蛇", "type_en": "Fire Deva Small Snake", "meaning_zh": "個性剛強、行動力強，但易衝動", "meaning_en": "Strong personality, energetic, but impulsive." },
+        "Wednesday": { "type_zh": "水星小蛇", "type_en": "Mercury Small Snake", "meaning_zh": "機智靈活、善交際", "meaning_en": "Witty and sociable." },
+        "Thursday": { "type_zh": "木星小蛇", "type_en": "Jupiter Small Snake", "meaning_zh": "福氣深厚、貴人多", "meaning_en": "Deep fortune, many benefactors." },
+        "Friday": { "type_zh": "金星小蛇", "type_en": "Venus Small Snake", "meaning_zh": "魅力強、異性緣佳", "meaning_en": "Very charming, strong opposite-sex attraction." },
+        "Saturday": { "type_zh": "土星小蛇", "type_en": "Saturn Small Snake", "meaning_zh": "堅忍勤奮、晚年發達", "meaning_en": "Persevering and hardworking, success comes later." }
+      }
+    },
+    "ปีมะเมีย": {
+      "name_zh": "馬年",
+      "name_en": "Horse Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神馬", "type_en": "Divine Horse", "meaning_zh": "熱情行動力強、事業大成", "meaning_en": "Passionate and energetic, great career success." },
+        "Monday": { "type_zh": "水神馬", "type_en": "Water Deva Horse", "meaning_zh": "財運佳、適合貿易或旅行事業", "meaning_en": "Good wealth, good for trading or travel business." },
+        "Tuesday": { "type_zh": "火神馬", "type_en": "Fire Deva Horse", "meaning_zh": "個性剛烈、領導力強，但易衝動", "meaning_en": "Fiery personality, strong leadership, but impulsive." },
+        "Wednesday": { "type_zh": "水星馬", "type_en": "Mercury Horse", "meaning_zh": "機智靈活、善交際", "meaning_en": "Witty and sociable." },
+        "Thursday": { "type_zh": "木星馬", "type_en": "Jupiter Horse", "meaning_zh": "福氣深厚、貴人多", "meaning_en": "Deep fortune, many benefactors." },
+        "Friday": { "type_zh": "金星馬", "type_en": "Venus Horse", "meaning_zh": "魅力強、異性緣佳", "meaning_en": "Very charming, strong opposite-sex attraction." },
+        "Saturday": { "type_zh": "土星馬", "type_en": "Saturn Horse", "meaning_zh": "堅忍不拔、晚年大成", "meaning_en": "Persevering, great success later in life." }
+      }
+    },
+    "ปีมะแม": {
+      "name_zh": "羊年",
+      "name_en": "Goat Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神羊", "type_en": "Divine Goat", "meaning_zh": "溫和藝術氣質、適合創作事業", "meaning_en": "Gentle and artistic, good for creative work." },
+        "Monday": { "type_zh": "水神羊", "type_en": "Water Deva Goat", "meaning_zh": "財運佳、適合服務或藝術行業", "meaning_en": "Good wealth, good for service or arts industry." },
+        "Tuesday": { "type_zh": "火神羊", "type_en": "Fire Deva Goat", "meaning_zh": "個性溫和但內心堅定", "meaning_en": "Gentle but inwardly determined." },
+        "Wednesday": { "type_zh": "水星羊", "type_en": "Mercury Goat", "meaning_zh": "機智善交際、適合公關工作", "meaning_en": "Witty and sociable, good for PR." },
+        "Thursday": { "type_zh": "木星羊", "type_en": "Jupiter Goat", "meaning_zh": "福氣深厚、家庭幸福", "meaning_en": "Deep fortune, happy family." },
+        "Friday": { "type_zh": "金星羊", "type_en": "Venus Goat", "meaning_zh": "魅力強、感情豐富", "meaning_en": "Very charming, rich love life." },
+        "Saturday": { "type_zh": "土星羊", "type_en": "Saturn Goat", "meaning_zh": "堅忍勤奮、晚年安樂", "meaning_en": "Persevering and hardworking, peaceful later years." }
+      }
+    },
+    "ปีวอก": {
+      "name_zh": "猴年",
+      "name_en": "Monkey Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神猴", "type_en": "Divine Monkey", "meaning_zh": "機智幽默、創意豐富、事業多變", "meaning_en": "Witty and humorous, creative, career changes often." },
+        "Monday": { "type_zh": "水神猴", "type_en": "Water Deva Monkey", "meaning_zh": "財運佳、適合貿易或表演事業", "meaning_en": "Good wealth, good for trading or performing arts." },
+        "Tuesday": { "type_zh": "火神猴", "type_en": "Fire Deva Monkey", "meaning_zh": "個性活潑、行動力強，但易衝動", "meaning_en": "Lively and energetic, but impulsive." },
+        "Wednesday": { "type_zh": "水星猴", "type_en": "Mercury Monkey", "meaning_zh": "機智靈活、善交際", "meaning_en": "Witty and sociable." },
+        "Thursday": { "type_zh": "木星猴", "type_en": "Jupiter Monkey", "meaning_zh": "福氣深厚、貴人多", "meaning_en": "Deep fortune, many benefactors." },
+        "Friday": { "type_zh": "金星猴", "type_en": "Venus Monkey", "meaning_zh": "魅力極強、異性緣佳", "meaning_en": "Extremely charming, strong opposite-sex attraction." },
+        "Saturday": { "type_zh": "土星猴", "type_en": "Saturn Monkey", "meaning_zh": "堅忍不拔、晚年大成", "meaning_en": "Persevering, great success later in life." }
+      }
+    },
+    "ปีระกา": {
+      "name_zh": "雞年",
+      "name_en": "Rooster Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神雞", "type_en": "Divine Rooster", "meaning_zh": "勇敢果斷、有領導力", "meaning_en": "Brave and decisive, leadership qualities." },
+        "Monday": { "type_zh": "水神雞", "type_en": "Water Deva Rooster", "meaning_zh": "財運佳、適合貿易事業", "meaning_en": "Good wealth, good for trading business." },
+        "Tuesday": { "type_zh": "火神雞", "type_en": "Fire Deva Rooster", "meaning_zh": "個性剛強、行動力強", "meaning_en": "Strong personality, energetic." },
+        "Wednesday": { "type_zh": "水星雞", "type_en": "Mercury Rooster", "meaning_zh": "機智善交際", "meaning_en": "Witty and sociable." },
+        "Thursday": { "type_zh": "木星雞", "type_en": "Jupiter Rooster", "meaning_zh": "福氣深厚、名利雙收", "meaning_en": "Deep fortune, fame and wealth." },
+        "Friday": { "type_zh": "金星雞", "type_en": "Venus Rooster", "meaning_zh": "魅力強、異性緣佳", "meaning_en": "Very charming, strong opposite-sex attraction." },
+        "Saturday": { "type_zh": "土星雞", "type_en": "Saturn Rooster", "meaning_zh": "堅忍勤奮、晚年發達", "meaning_en": "Persevering and hardworking, success comes later." }
+      }
+    },
+    "ปีจอ": {
+      "name_zh": "狗年",
+      "name_en": "Dog Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神狗", "type_en": "Divine Dog", "meaning_zh": "忠誠可靠、事業穩定", "meaning_en": "Loyal and reliable, stable career." },
+        "Monday": { "type_zh": "水神狗", "type_en": "Water Deva Dog", "meaning_zh": "財運佳、適合服務業", "meaning_en": "Good wealth, good for service industry." },
+        "Tuesday": { "type_zh": "火神狗", "type_en": "Fire Deva Dog", "meaning_zh": "個性剛強、保護力強", "meaning_en": "Strong personality, protective." },
+        "Wednesday": { "type_zh": "水星狗", "type_en": "Mercury Dog", "meaning_zh": "機智務實、善交際", "meaning_en": "Witty and practical, sociable." },
+        "Thursday": { "type_zh": "木星狗", "type_en": "Jupiter Dog", "meaning_zh": "福氣深厚、貴人多", "meaning_en": "Deep fortune, many benefactors." },
+        "Friday": { "type_zh": "金星狗", "type_en": "Venus Dog", "meaning_zh": "溫和有魅力、家庭幸福", "meaning_en": "Gentle and charming, happy family." },
+        "Saturday": { "type_zh": "土星狗", "type_en": "Saturn Dog", "meaning_zh": "堅忍勤奮、晚年安樂", "meaning_en": "Persevering and hardworking, peaceful later years." }
+      }
+    },
+    "ปีกุน": {
+      "name_zh": "豬年",
+      "name_en": "Pig Year",
+      "weekly": {
+        "Sunday": { "type_zh": "天神豬", "type_en": "Divine Pig", "meaning_zh": "善良樂觀、魅力強", "meaning_en": "Kind and optimistic, very charming." },
+        "Monday": { "type_zh": "水神豬", "type_en": "Water Deva Pig", "meaning_zh": "財運佳、適合服務或藝術行業", "meaning_en": "Good wealth, good for service or arts industry." },
+        "Tuesday": { "type_zh": "火神豬", "type_en": "Fire Deva Pig", "meaning_zh": "個性溫和但內心堅定", "meaning_en": "Gentle but inwardly determined." },
+        "Wednesday": { "type_zh": "水星豬", "type_en": "Mercury Pig", "meaning_zh": "機智善交際", "meaning_en": "Witty and sociable." },
+        "Thursday": { "type_zh": "木星豬", "type_en": "Jupiter Pig", "meaning_zh": "福氣深厚、家庭幸福", "meaning_en": "Deep fortune, happy family." },
+        "Friday": { "type_zh": "金星豬", "type_en": "Venus Pig", "meaning_zh": "魅力強、感情豐富", "meaning_en": "Very charming, rich love life." },
+        "Saturday": { "type_zh": "土星豬", "type_en": "Saturn Pig", "meaning_zh": "堅忍勤奮、晚年安樂", "meaning_en": "Persevering and hardworking, peaceful later years." }
+      }
+    }
+  },
+  "source": "The Complete Brahma Jati Manual (ตำรา พรหมชาติ ฉบับสมบูรณ์)",
+  "version": "1.0",
+  "last_updated": "2026-04-16"
+}

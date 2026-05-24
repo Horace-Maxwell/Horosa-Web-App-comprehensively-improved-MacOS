@@ -1,0 +1,173 @@
+{
+  "chara_karaka": {
+    "description": {
+      "zh": "Chara Karaka（可變徵象星）是 Jaimini 體系的核心概念，依照行星在星座內的度數高低排列，決定每顆行星扮演的角色。",
+      "en": "Chara Karaka (variable significators) are the core concept of the Jaimini system. They are assigned based on the degree of each planet within its sign."
+    },
+    "karakas": [
+      {
+        "index": 0,
+        "name": "Atmakaraka",
+        "abbr": "AK",
+        "meaning_zh": "靈魂徵象星，代表自我、靈魂目的",
+        "meaning_en": "Soul significator — represents the self, soul purpose"
+      },
+      {
+        "index": 1,
+        "name": "Amatyakaraka",
+        "abbr": "AmK",
+        "meaning_zh": "大臣徵象星，代表事業、職業",
+        "meaning_en": "Minister significator — represents career, profession"
+      },
+      {
+        "index": 2,
+        "name": "Bhratrukaraka",
+        "abbr": "BK",
+        "meaning_zh": "兄弟徵象星，代表兄弟姐妹、勇氣",
+        "meaning_en": "Sibling significator — represents siblings, courage"
+      },
+      {
+        "index": 3,
+        "name": "Matrukaraka",
+        "abbr": "MK",
+        "meaning_zh": "母親徵象星，代表母親、不動產",
+        "meaning_en": "Mother significator — represents mother, property"
+      },
+      {
+        "index": 4,
+        "name": "Putrakaraka",
+        "abbr": "PK",
+        "meaning_zh": "子女徵象星，代表子女、智慧",
+        "meaning_en": "Child significator — represents children, wisdom"
+      },
+      {
+        "index": 5,
+        "name": "Gnatikaraka",
+        "abbr": "GK",
+        "meaning_zh": "敵人徵象星，代表疾病、障礙",
+        "meaning_en": "Enemy significator — represents disease, obstacles"
+      },
+      {
+        "index": 6,
+        "name": "Darakaraka",
+        "abbr": "DK",
+        "meaning_zh": "配偶徵象星，代表婚姻、伴侶",
+        "meaning_en": "Spouse significator — represents marriage, partner"
+      }
+    ]
+  },
+  "rashi_drishti": {
+    "description": {
+      "zh": "Rashi Drishti（星座視線）是 Jaimini 體系獨有的相位系統，基於星座之間的固定關係，而非行星度數。",
+      "en": "Rashi Drishti (sign aspects) is unique to the Jaimini system, based on fixed relationships between signs rather than planetary degrees."
+    },
+    "rules": {
+      "zh": [
+        "活動星座 (Chara) 視線射向固定星座 (Sthira)，反之亦然（互視）",
+        "雙體星座 (Dwiswabhava) 之間互視",
+        "同一性質的星座不互視"
+      ],
+      "en": [
+        "Cardinal (Chara) signs aspect Fixed (Sthira) signs and vice versa (mutual)",
+        "Dual (Dwiswabhava) signs aspect each other",
+        "Signs of the same quality do not aspect each other"
+      ]
+    }
+  },
+  "argala": {
+    "description": {
+      "zh": "Argala（介入）是 Jaimini 體系的特殊影響力分析，表示某宮位對另一宮位的「干預」效果。",
+      "en": "Argala (intervention) is a special influence analysis in the Jaimini system, showing the 'intervention' effect of one house on another."
+    },
+    "types": [
+      {
+        "house_from": 2,
+        "name_zh": "第二宮 Argala（財富介入）",
+        "name_en": "2nd House Argala (wealth intervention)",
+        "obstruction": 12
+      },
+      {
+        "house_from": 4,
+        "name_zh": "第四宮 Argala（幸福介入）",
+        "name_en": "4th House Argala (happiness intervention)",
+        "obstruction": 10
+      },
+      {
+        "house_from": 11,
+        "name_zh": "第十一宮 Argala（收益介入）",
+        "name_en": "11th House Argala (gains intervention)",
+        "obstruction": 3
+      },
+      {
+        "house_from": 5,
+        "name_zh": "第五宮 Argala（子女/功德介入）",
+        "name_en": "5th House Argala (children/merit intervention)",
+        "obstruction": 9
+      }
+    ]
+  },
+  "pada": {
+    "description": {
+      "zh": "Arudha Pada（虛象宮）反映外在世界對命主的感知。每個宮位的 Pada 由該宮主星的位置計算得出。",
+      "en": "Arudha Pada reflects how the external world perceives the native. Each house's Pada is calculated from the position of its lord."
+    },
+    "special_padas": [
+      {
+        "name": "Arudha Lagna",
+        "abbr": "AL",
+        "house": 1,
+        "meaning_zh": "命宮虛象，代表外在形象、社會地位",
+        "meaning_en": "Arudha of 1st house — external image, social status"
+      },
+      {
+        "name": "Upapada Lagna",
+        "abbr": "UL",
+        "house": 12,
+        "meaning_zh": "第十二宮虛象，代表婚姻伴侶的實際狀況",
+        "meaning_en": "Arudha of 12th house — actual status of marriage partner"
+      },
+      {
+        "name": "Darapada",
+        "abbr": "A7",
+        "house": 7,
+        "meaning_zh": "第七宮虛象，代表伴侶的外在形象",
+        "meaning_en": "Arudha of 7th house — external image of partner"
+      }
+    ]
+  },
+  "sthira_karaka": {
+    "description": {
+      "zh": "Sthira Karaka（固定徵象星）與 Chara Karaka 不同，每顆行星永遠代表固定的主題。",
+      "en": "Sthira Karaka (fixed significators) differ from Chara Karaka — each planet permanently represents fixed themes."
+    },
+    "assignments": [
+      {"planet": "Sun", "planet_zh": "太陽", "signification_zh": "父親", "signification_en": "Father"},
+      {"planet": "Moon", "planet_zh": "月亮", "signification_zh": "母親", "signification_en": "Mother"},
+      {"planet": "Mars", "planet_zh": "火星", "signification_zh": "兄弟姐妹", "signification_en": "Siblings"},
+      {"planet": "Mercury", "planet_zh": "水星", "signification_zh": "親戚", "signification_en": "Relatives"},
+      {"planet": "Jupiter", "planet_zh": "木星", "signification_zh": "子女", "signification_en": "Children"},
+      {"planet": "Venus", "planet_zh": "金星", "signification_zh": "配偶", "signification_en": "Spouse"},
+      {"planet": "Saturn", "planet_zh": "土星", "signification_zh": "壽命、痛苦", "signification_en": "Longevity, suffering"}
+    ]
+  },
+  "chara_dasha": {
+    "description": {
+      "zh": "Chara Dasha 是 Jaimini 體系最重要的大運系統，以星座為單位運行，每個星座的大運期間由該星座主星決定。",
+      "en": "Chara Dasha is the most important dasha system in Jaimini, operating sign by sign, with each sign's period determined by its lord."
+    },
+    "rules": {
+      "zh": [
+        "大運從命宮或第七宮開始，取決於命宮星座的奇偶性",
+        "奇數星座（Aries、Gemini 等）從命宮順時針開始",
+        "偶數星座（Taurus、Cancer 等）從第七宮逆時針開始",
+        "每個星座的大運年數由主星到該星座的距離決定"
+      ],
+      "en": [
+        "Dasha starts from Lagna or 7th house depending on the odd/even nature of Lagna sign",
+        "Odd signs (Aries, Gemini, etc.) start from Lagna in direct order",
+        "Even signs (Taurus, Cancer, etc.) start from 7th house in reverse order",
+        "Duration of each sign's dasha depends on the distance of its lord from the sign"
+      ]
+    }
+  }
+}

@@ -16,48 +16,48 @@ import {
 import '../../css/styles.less';
 
 const EAST_HOUSE_LABEL_POSITIONS = {
-	1: [50, 7],
-	2: [7, 82],
-	3: [18, 93],
-	4: [50, 93],
-	5: [82, 92],
-	6: [93, 82],
-	7: [93, 50],
-	8: [93, 18],
-	9: [82, 7],
-	10: [7, 50],
-	11: [18, 7],
-	12: [7, 18],
+	1: [5, 50],
+	2: [5, 88],
+	3: [12, 95],
+	4: [50, 95],
+	5: [88, 95],
+	6: [95, 88],
+	7: [95, 50],
+	8: [95, 12],
+	9: [88, 5],
+	10: [50, 5],
+	11: [12, 5],
+	12: [5, 12],
 };
 
 const EAST_SIGN_BADGE_POSITIONS = {
-	1: [50, 21],
-	2: [18, 73],
-	3: [27, 88],
-	4: [50, 82],
-	5: [73, 88],
-	6: [82, 73],
-	7: [82, 50],
-	8: [82, 27],
-	9: [73, 12],
-	10: [18, 50],
-	11: [27, 12],
-	12: [18, 27],
+	1: [29, 50],
+	2: [27, 70],
+	3: [30, 73],
+	4: [50, 71],
+	5: [70, 73],
+	6: [73, 70],
+	7: [71, 50],
+	8: [73, 30],
+	9: [70, 27],
+	10: [50, 29],
+	11: [30, 27],
+	12: [27, 30],
 };
 
 const EAST_OBJECT_ANCHOR_POSITIONS = {
-	1: [50, 24, 28, 14],
-	2: [18, 74, 22, 14],
-	3: [22, 82, 22, 14],
-	4: [50, 77, 28, 14],
-	5: [82, 82, 22, 14],
-	6: [82, 74, 22, 14],
-	7: [77, 50, 24, 22],
-	8: [82, 26, 22, 14],
-	9: [78, 18, 22, 14],
-	10: [23, 50, 24, 22],
-	11: [18, 18, 22, 16],
-	12: [18, 26, 22, 14],
+	1: [16.7, 50, 18, 16],
+	2: [11.5, 77.5, 14, 14],
+	3: [22.5, 88.5, 14, 14],
+	4: [50, 83.5, 18, 16],
+	5: [77.5, 88.5, 14, 14],
+	6: [88.5, 77.5, 14, 14],
+	7: [83.5, 50, 18, 16],
+	8: [88.5, 22.5, 14, 14],
+	9: [77.5, 11.5, 14, 14],
+	10: [50, 16.5, 18, 16],
+	11: [22.5, 11.5, 14, 14],
+	12: [11.5, 22.5, 14, 14],
 };
 
 function buildChartHeightStyle(height){
@@ -70,8 +70,9 @@ function buildChartHeightStyle(height){
 class IndiaEastChart extends Component{
 	renderObjects(objects, signNumber){
 		const degreeDisplayMode = this.props.degreeDisplayMode;
+		const countClass = objects.length > 3 ? ' horosa-india-diagram-objects-very-dense' : (objects.length > 1 ? ' horosa-india-diagram-objects-dense' : ' horosa-india-diagram-objects-single');
 		return (
-			<div className="horosa-india-diagram-objects">
+			<div className={`horosa-india-diagram-objects${countClass}`} data-count={objects.length}>
 				{objects.map((obj, idx)=>{
 					const degree = getObjectDegree(obj, degreeDisplayMode);
 					return (

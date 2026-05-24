@@ -477,7 +477,7 @@ class ZiWeiMain extends Component{
 		);
 	}
 
-	renderZiWeiInfoPanel(infoData){
+	renderZiWeiInfoPanel(infoData, directionDoms, tipheight){
 		if(!infoData || infoData.rows.length === 0){
 			return <div className="horosa-empty-hint">起盘后显示命盘信息</div>;
 		}
@@ -492,7 +492,7 @@ class ZiWeiMain extends Component{
 						</div>
 					))}
 				</div>
-				<div className="horosa-info-card">
+				<div className="horosa-info-card horosa-ziwei-bazi-card">
 					<div className="horosa-info-card-title">四柱</div>
 					<div className="horosa-ziwei-bazi-grid">
 						{infoData.bazi.map((item)=>(
@@ -503,18 +503,18 @@ class ZiWeiMain extends Component{
 						))}
 					</div>
 				</div>
-				<div className="horosa-info-card">
-					<div className="horosa-info-card-title">大限</div>
-					<div className="horosa-ziwei-direction-mini-grid">
-						{infoData.directions.map((item)=>(
-							<div className="horosa-ziwei-direction-mini" key={item.key}>
-								<span>{item.age}</span>
-								<strong>{item.gz}</strong>
-								<em>{item.startYear || '—'}</em>
-							</div>
-						))}
+				<div className="horosa-info-card horosa-ziwei-direction-card">
+					<div className="horosa-info-card-title">行运大限</div>
+					<div className="horosa-ziwei-direction-list">
+						<Row>
+							{directionDoms}
+						</Row>
 					</div>
 				</div>
+				<TipsBoard
+					height={tipheight}
+					value={this.state.tips}
+					/>
 			</div>
 		);
 	}
@@ -576,26 +576,13 @@ class ZiWeiMain extends Component{
 						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-ziwei-info-panel">
 							<Tabs defaultActiveKey="info" tabPosition='top' className="horosa-content-tabs horosa-ziwei-tabs">
 								<TabPane tab="命盘" key="info">
-									{this.renderZiWeiInfoPanel(infoData)}
-								</TabPane>
-								<TabPane tab="行运" key="1">
-									<div className="horosa-ziwei-direction-list">
-										<Row>
-											{doms}
-										</Row>
-									</div>
+									{this.renderZiWeiInfoPanel(infoData, doms, tipheight)}
 								</TabPane>
 								<TabPane tab="资料参考" key="2">
 									<ZWRuleMain height={height} rules={this.state.rules} />
 								</TabPane>
-								<TabPane tab="提示" key="3">
-									<TipsBoard
-										height={tipheight}
-										value={this.state.tips}
-										/>
-									</TabPane>
-								</Tabs>
-							</div>
+							</Tabs>
+						</div>
 						</div>
 						{this.renderBottomQuickDock()}
 						<Modal
@@ -606,7 +593,7 @@ class ZiWeiMain extends Component{
 							width={640}
 							className="horosa-ziwei-center-info-modal"
 						>
-							{this.renderZiWeiInfoPanel(infoData)}
+							{this.renderZiWeiInfoPanel(infoData, doms, tipheight)}
 						</Modal>
 					</div>
 				</div>
