@@ -67,10 +67,12 @@ const DEFAULT_FRONTEND_PORT: u16 = 38991;
 const UPDATE_COMPLETE_MARKER_NAME: &str = "update-complete.txt";
 const PREFERENCES_FILE_NAME: &str = "preferences.json";
 const WINDOW_STATE_FILE_NAME: &str = "window-state.json";
-const WINDOW_STATE_SCHEMA_VERSION: u8 = 2;
+const WINDOW_STATE_SCHEMA_VERSION: u8 = 3;
 const WINDOW_STATE_COORDINATE_SPACE: &str = "logical";
 const MAIN_WINDOW_DEFAULT_SIZE: (f64, f64) = (1480.0, 960.0);
 const MAIN_WINDOW_MIN_SIZE: (f64, f64) = (1180.0, 760.0);
+#[cfg(target_os = "macos")]
+const MACOS_LEGACY_OUTER_TO_INNER_HEIGHT_DELTA: f64 = 28.0;
 const AI_ANALYSIS_IMPORT_EXTENSIONS: [&str; 6] = ["txt", "md", "markdown", "doc", "docx", "pdf"];
 const AI_ANALYSIS_BACKUP_EXTENSIONS: [&str; 1] = ["zip"];
 const DESKTOP_WINDOW_INIT_SCRIPT: &str = r#"
@@ -103,9 +105,11 @@ const DESKTOP_WINDOW_INIT_SCRIPT: &str = r#"
 })();
 "#;
 #[cfg(target_os = "macos")]
-const LEGACY_MACOS_WINDOW_DEFAULT_KEYS: [&str; 2] = [
+const LEGACY_MACOS_WINDOW_DEFAULT_KEYS: [&str; 4] = [
     "NSWindow Frame main-workspace",
     "NSSplitView Subview Frames main-workspace, SidebarNavigationSplitView",
+    "NSWindow Frame SwiftUI.ModifiedContent<SwiftUI.ModifiedContent<Horosa.RootWorkspaceView, SwiftUI._EnvironmentKeyWritingModifier<Swift.Optional<Horosa.AppModel>>>, SwiftUI._FlexFrameLayout>-1-AppWindow-1",
+    "NSSplitView Subview Frames SwiftUI.ModifiedContent<SwiftUI.ModifiedContent<Horosa.RootWorkspaceView, SwiftUI._EnvironmentKeyWritingModifier<Swift.Optional<Horosa.AppModel>>>, SwiftUI._FlexFrameLayout>-1-AppWindow-1, SidebarNavigationSplitView",
 ];
 
 #[allow(dead_code)]
@@ -868,6 +872,27 @@ fn state_uses_logical_coordinates(state: &SavedWindowState) -> bool {
         || state.coordinate_space.as_deref() == Some(WINDOW_STATE_COORDINATE_SPACE)
 }
 
+fn state_uses_inner_size(state: &SavedWindowState) -> bool {
+    state.state_version.unwrap_or(0) >= WINDOW_STATE_SCHEMA_VERSION
+}
+
+#[cfg(target_os = "macos")]
+fn migrate_legacy_outer_size_to_inner_size(state: &mut SavedWindowState) {
+    if state_uses_inner_size(state) {
+        return;
+    }
+    state.height = state.height.map(|height| {
+        if height.is_finite() && height > MACOS_LEGACY_OUTER_TO_INNER_HEIGHT_DELTA {
+            height - MACOS_LEGACY_OUTER_TO_INNER_HEIGHT_DELTA
+        } else {
+            height
+        }
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn migrate_legacy_outer_size_to_inner_size(_state: &mut SavedWindowState) {}
+
 fn should_migrate_legacy_window_state(
     state: &SavedWindowState,
     scale_factor: f64,
@@ -904,6 +929,7 @@ fn normalize_saved_window_state_for_apply(
         next.x = next.x.map(|value| logical_value(value, scale_factor));
         next.y = next.y.map(|value| logical_value(value, scale_factor));
     }
+    migrate_legacy_outer_size_to_inner_size(&mut next);
     next.state_version = Some(WINDOW_STATE_SCHEMA_VERSION);
     next.coordinate_space = Some(WINDOW_STATE_COORDINATE_SPACE.to_string());
     next
@@ -968,11 +994,13 @@ fn saved_launch_size(
     fallback: (f64, f64),
     min_size: (f64, f64),
 ) -> (f64, f64) {
-    if state.is_maximized == Some(true) || !state_uses_logical_coordinates(state) {
+    if !state_uses_logical_coordinates(state) {
         return fallback;
     }
 
-    let (Some(width), Some(height)) = (state.width, state.height) else {
+    let mut normalized = state.clone();
+    migrate_legacy_outer_size_to_inner_size(&mut normalized);
+    let (Some(width), Some(height)) = (normalized.width, normalized.height) else {
         return fallback;
     };
     if !finite_positive(width) || !finite_positive(height) {
@@ -982,7 +1010,7 @@ fn saved_launch_size(
 }
 
 fn saved_launch_position(state: &SavedWindowState) -> Option<(f64, f64)> {
-    if state.is_maximized == Some(true) || !state_uses_logical_coordinates(state) {
+    if !state_uses_logical_coordinates(state) {
         return None;
     }
     let (Some(x), Some(y)) = (state.x, state.y) else {
@@ -1000,7 +1028,7 @@ fn capture_window_state(window: &WebviewWindow) -> SavedWindowState {
     state.coordinate_space = Some(WINDOW_STATE_COORDINATE_SPACE.to_string());
     let scale_factor = window.scale_factor().map(valid_scale_factor).unwrap_or(1.0);
     let (monitor_width, monitor_height) = current_monitor_logical_size(window, scale_factor);
-    if let Ok(size) = window.outer_size() {
+    if let Ok(size) = window.inner_size() {
         state.width = Some(logical_value(size.width as f64, scale_factor));
         state.height = Some(logical_value(size.height as f64, scale_factor));
     }
@@ -1023,10 +1051,6 @@ fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
     let (monitor_width, monitor_height) = current_monitor_logical_size(window, scale_factor);
     let normalized =
         normalize_saved_window_state_for_apply(state, scale_factor, monitor_width, monitor_height);
-    if normalized.is_maximized == Some(true) {
-        let _ = window.maximize();
-        return;
-    }
     if let (Some(width), Some(height)) = (normalized.width, normalized.height) {
         let _ = window.set_size(Size::Logical(LogicalSize::new(width, height)));
     }
@@ -1035,15 +1059,13 @@ fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
     }
 }
 
-fn should_launch_main_window_maximized(state: &SavedWindowState) -> bool {
-    state.is_maximized == Some(true)
+#[cfg(test)]
+fn should_launch_main_window_maximized(_state: &SavedWindowState) -> bool {
+    false
 }
 
 fn apply_main_window_launch_state(window: &WebviewWindow, state: &SavedWindowState) {
     apply_saved_window_state(window, state);
-    if should_launch_main_window_maximized(state) {
-        let _ = window.maximize();
-    }
 }
 
 fn stabilize_main_window_after_navigation(
@@ -1139,6 +1161,11 @@ fn configure_macos_native_window_restoration() {
             .stderr(Stdio::null())
             .status();
     }
+    let _ = Command::new("/usr/bin/defaults")
+        .args(["synchronize", APP_IDENTIFIER])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -1190,7 +1217,7 @@ fn emit_overlay(
       let lastIndeterminate = false;
 
       function isLauncherPage() {{
-        return !!document.querySelector('.installer-shell');
+        return !!document.querySelector('.launcher-shell');
       }}
 
       function injectStyle() {{
@@ -1202,9 +1229,9 @@ fn emit_overlay(
             position: fixed;
             top: 18px;
             right: 18px;
-            width: min(360px, calc(100vw - 28px));
+            width: min(420px, calc(100vw - 48px));
             z-index: 2147483646;
-            padding: 16px 16px 14px;
+            padding: 20px 22px 18px;
             border-radius: 18px;
             border: 1px solid rgba(22, 32, 45, 0.08);
             background:
@@ -1255,7 +1282,7 @@ fn emit_overlay(
             color: #0f5cd5;
             font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.05em;
+            letter-spacing: 0;
           }}
           #${{CARD_ID}}[data-tone="update"] .hip-badge {{
             background: rgba(14,127,99,0.12);
@@ -1281,7 +1308,8 @@ fn emit_overlay(
             margin-top: 12px;
             font-size: 19px;
             font-weight: 700;
-            letter-spacing: -0.03em;
+            letter-spacing: 0;
+            line-height: 1.35;
           }}
           #${{CARD_ID}} .hip-copy {{
             margin-top: 6px;
@@ -1299,13 +1327,13 @@ fn emit_overlay(
           #${{CARD_ID}} .hip-percent {{
             font-size: 26px;
             font-weight: 700;
-            letter-spacing: -0.04em;
+            letter-spacing: 0;
           }}
           #${{CARD_ID}} .hip-phase {{
             color: #6f7c8d;
             font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.06em;
+            letter-spacing: 0;
             text-transform: uppercase;
           }}
           #${{CARD_ID}} .hip-track {{
@@ -1829,7 +1857,6 @@ fn show_or_focus_window(window: &WebviewWindow) {
 
 fn build_main_window(app: &AppHandle, state: &SavedWindowState) -> Result<WebviewWindow> {
     let size = saved_launch_size(state, MAIN_WINDOW_DEFAULT_SIZE, MAIN_WINDOW_MIN_SIZE);
-    let should_maximize = should_launch_main_window_maximized(state);
     let mut builder =
         WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
             .title(APP_NAME)
@@ -1837,7 +1864,6 @@ fn build_main_window(app: &AppHandle, state: &SavedWindowState) -> Result<Webvie
             .inner_size(size.0, size.1)
             .min_inner_size(MAIN_WINDOW_MIN_SIZE.0, MAIN_WINDOW_MIN_SIZE.1)
             .initialization_script(DESKTOP_WINDOW_INIT_SCRIPT)
-            .maximized(should_maximize)
             .visible(false);
     if let Some((x, y)) = saved_launch_position(state) {
         builder = builder.position(x, y);
@@ -5293,7 +5319,7 @@ mod tests {
             normalize_saved_window_state_for_apply(&state, 2.0, Some(1512.0), Some(982.0));
 
         assert_eq!(normalized.width, Some(1480.0));
-        assert_eq!(normalized.height, Some(960.0));
+        assert_eq!(normalized.height, Some(932.0));
         assert_eq!(normalized.x, Some(120.0));
         assert_eq!(normalized.y, Some(80.0));
         assert_eq!(normalized.state_version, Some(WINDOW_STATE_SCHEMA_VERSION));
@@ -5342,13 +5368,13 @@ mod tests {
     }
 
     #[test]
-    fn explicit_maximized_state_is_respected() {
+    fn explicit_maximized_state_restores_saved_bounds_without_native_zoom() {
         let state = SavedWindowState {
             is_maximized: Some(true),
             ..SavedWindowState::default()
         };
 
-        assert!(should_launch_main_window_maximized(&state));
+        assert!(!should_launch_main_window_maximized(&state));
     }
 
     #[test]
@@ -5411,10 +5437,13 @@ mod tests {
         assert!(LEGACY_MACOS_WINDOW_DEFAULT_KEYS.contains(&"NSWindow Frame main-workspace"));
         assert!(LEGACY_MACOS_WINDOW_DEFAULT_KEYS
             .contains(&"NSSplitView Subview Frames main-workspace, SidebarNavigationSplitView"));
+        assert!(LEGACY_MACOS_WINDOW_DEFAULT_KEYS
+            .iter()
+            .any(|key| key.contains("Horosa.RootWorkspaceView")));
     }
 
     #[test]
-    fn saved_launch_size_ignores_legacy_or_maximized_bounds() {
+    fn saved_launch_size_ignores_legacy_bounds_but_uses_maximized_saved_bounds() {
         let legacy_state = SavedWindowState {
             width: Some(2960.0),
             height: Some(1920.0),
@@ -5444,8 +5473,66 @@ mod tests {
                 MAIN_WINDOW_DEFAULT_SIZE,
                 MAIN_WINDOW_MIN_SIZE
             ),
-            MAIN_WINDOW_DEFAULT_SIZE
+            (1320.0, 840.0)
         );
+    }
+
+    #[test]
+    fn maximized_launch_uses_saved_bounds_as_builder_size() {
+        let state = SavedWindowState {
+            width: Some(1728.0),
+            height: Some(1079.0),
+            x: Some(0.0),
+            y: Some(38.0),
+            is_maximized: Some(true),
+            state_version: Some(WINDOW_STATE_SCHEMA_VERSION),
+            coordinate_space: Some(WINDOW_STATE_COORDINATE_SPACE.to_string()),
+        };
+
+        assert_eq!(
+            saved_launch_size(&state, MAIN_WINDOW_DEFAULT_SIZE, MAIN_WINDOW_MIN_SIZE),
+            (1728.0, 1079.0)
+        );
+        assert_eq!(saved_launch_position(&state), Some((0.0, 38.0)));
+    }
+
+    #[test]
+    fn previous_maximized_outer_size_state_launches_with_inner_height() {
+        let state = SavedWindowState {
+            width: Some(1728.0),
+            height: Some(1079.0),
+            x: Some(-1.0),
+            y: Some(38.0),
+            is_maximized: Some(true),
+            state_version: Some(2),
+            coordinate_space: Some(WINDOW_STATE_COORDINATE_SPACE.to_string()),
+        };
+
+        assert_eq!(
+            saved_launch_size(&state, MAIN_WINDOW_DEFAULT_SIZE, MAIN_WINDOW_MIN_SIZE),
+            (1728.0, 1051.0)
+        );
+        assert_eq!(saved_launch_position(&state), Some((-1.0, 38.0)));
+        assert!(!should_launch_main_window_maximized(&state));
+    }
+
+    #[test]
+    fn previous_logical_outer_size_state_is_converted_to_inner_height_for_launch() {
+        let state = SavedWindowState {
+            width: Some(1260.0),
+            height: Some(820.0),
+            x: Some(260.0),
+            y: Some(160.0),
+            is_maximized: Some(false),
+            state_version: Some(2),
+            coordinate_space: Some(WINDOW_STATE_COORDINATE_SPACE.to_string()),
+        };
+
+        assert_eq!(
+            saved_launch_size(&state, MAIN_WINDOW_DEFAULT_SIZE, MAIN_WINDOW_MIN_SIZE),
+            (1260.0, 792.0)
+        );
+        assert_eq!(saved_launch_position(&state), Some((260.0, 160.0)));
     }
 
     #[test]

@@ -197,6 +197,8 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       - chart management and case management now preserve new-method inputs, tags, snapshots, raw backend payloads, JSON import/export, and reopening behavior<br />
       - AI export now reads from structured backend data and exposes selectable export groups for each supported technique, tab, and page<br />
       - user settings, desktop window size, and necessary UI choices are persisted across close/reopen and app updates<br />
+      - the desktop startup console was rebuilt around a shared Daily / Offline Ready / Failed state skeleton with real-time backend progress, consistent pipeline states, the final Xingque icon, and no duplicate status panels<br />
+      - window restoration now targets the first visible frame instead of only the final size, preventing the previous launch-size flash on reopened apps<br />
       - local event management UI was simplified, with useful actions aligned in the same row as chart management<br />
       - app-wide light/dark mode contrast, dropdowns, overlays, loading states, management lists, and export controls were audited and polished<br />
       - Qimen Dunjia parity and the previous desktop delivery fixes remain preserved<br />
@@ -207,6 +209,8 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       - 管理命盘与管理事盘现在会保留新技法输入、标签、快照、后端原始结构化数据、JSON 导入导出与重开恢复行为<br />
       - AI 导出改为直接读取结构化后端数据，并为每个支持技法、tab 与页面提供可勾选的导出分段<br />
       - 用户设置、桌面窗口大小与必要 UI 选项会在关闭、重开和版本更新后继续沿用<br />
+      - 桌面启动控制台重做为 Daily / Offline Ready / Failed 共用骨架，进度实时跟随后端百分比与步骤，管线状态保持一致，并统一使用新版星阙 icon<br />
+      - 窗口恢复改为验证首个可见帧，而不是只看最终大小，避免重开时先大后小或大小跳动<br />
       - 本地事盘管理 UI 移除无效按钮，并把有效操作与命盘管理一样统一到同一行<br />
       - 全局明暗主题、下拉层、弹层、加载态、管理列表与导出控件再次检查并打磨可读性<br />
       - 保留此前奇门遁甲一致性与桌面交付修复<br />
@@ -297,6 +301,6 @@ This macOS edition is an improved distribution and integration work based on the
 
 Please do not forget the contributions of 爽哥 and 郑大哥. This repository continues from their groundwork with respect, gratitude, and the hope that Horosa can remain useful to more people over time.
 
-Special thanks also go to [kentang2017](https://github.com/kentang2017) for publicly sharing long-running Python projects for traditional Chinese methods. Horosa v2.1.0 integrates or adapts several of those calculation engines; upstream projects identified as MIT-licensed are documented in `THIRD_PARTY_NOTICES.md` and their vendored directories, while projects without an explicit open-source license declaration are listed separately to avoid mixing license assumptions.
-
 也特别感谢 [kentang2017](https://github.com/kentang2017) 长期公开的传统术数 Python 项目。Horosa v2.1.0 接入或适配了其中多项计算引擎；已声明为 MIT License 的上游项目在 `THIRD_PARTY_NOTICES.md` 和对应 vendored 目录中保留许可证说明，未找到明确开源许可证声明的项目也在第三方声明中单独标注，避免混同。
+
+Special thanks also go to [kentang2017](https://github.com/kentang2017) for publicly sharing long-running Python projects for traditional Chinese methods. Horosa v2.1.0 integrates or adapts several of those calculation engines; upstream projects identified as MIT-licensed are documented in `THIRD_PARTY_NOTICES.md` and their vendored directories, while projects without an explicit open-source license declaration are listed separately to avoid mixing license assumptions.

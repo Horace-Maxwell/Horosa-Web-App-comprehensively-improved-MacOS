@@ -41,6 +41,24 @@ CHART_PORT=""
 BACKEND_PORT=""
 PUBLIC_DISTRIBUTION_MODE="${HOROSA_PUBLIC_DISTRIBUTION:-0}"
 
+find_playwright_python() {
+  local candidate
+  for candidate in "${HOROSA_PLAYWRIGHT_PYTHON:-}" "$(command -v python3 || true)" "${HOME}/miniconda3/bin/python3" "/opt/homebrew/bin/python3" "/usr/local/bin/python3" "/usr/bin/python3"; do
+    [ -n "${candidate}" ] || continue
+    [ -x "${candidate}" ] || continue
+    if "${candidate}" - <<'PY' >/dev/null 2>&1
+from playwright.sync_api import sync_playwright  # noqa: F401
+PY
+    then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+PLAYWRIGHT_PYTHON="$(find_playwright_python || true)"
+
 pick_ports() {
   python3 - <<'PYPORTS'
 import socket
@@ -144,6 +162,13 @@ if [ "${HOROSA_DESKTOP_SKIP_REBUILD:-0}" != "1" ]; then
 else
   printf '[1-5/8] skip rebuild, reuse existing assets\n'
 fi
+
+printf '[launcher] verify startup console states\n'
+if [ -z "${PLAYWRIGHT_PYTHON}" ]; then
+  echo "could not find a python3 with Playwright installed; set HOROSA_PLAYWRIGHT_PYTHON=/path/to/python3" >&2
+  exit 1
+fi
+"${PLAYWRIGHT_PYTHON}" "${INSTALLER_ROOT}/scripts/verify_launcher_console_states.py"
 
 printf '[6/8] verify app/pkg artifacts\n'
 [ -f "${RUNTIME_ARCHIVE}" ]

@@ -18,8 +18,15 @@
   const sceneCopy = document.getElementById('sceneCopy');
   const summarySessionType = document.getElementById('summarySessionType');
   const summaryRuntimeStrategy = document.getElementById('summaryRuntimeStrategy');
+  const summaryThirdLabel = document.getElementById('summaryThirdLabel');
   const summaryBackendMode = document.getElementById('summaryBackendMode');
   const summaryOutcome = document.getElementById('summaryOutcome');
+  const progressSubtitle = document.getElementById('progressSubtitle');
+  const primaryCtaBtn = document.getElementById('primaryCtaBtn');
+  const primaryCtaLabel = document.getElementById('primaryCtaLabel');
+  const diagnosticDot = document.getElementById('diagnosticDot');
+  const milestones = Array.from(document.querySelectorAll('[data-milestone]'));
+  const phaseItems = Array.from(document.querySelectorAll('[data-phase-step]'));
   const openPreferencesBtn = document.getElementById('openPreferencesBtn');
   const openDiagnosticsBtn = document.getElementById('openDiagnosticsBtn');
   const openDataBtn = document.getElementById('openDataBtn');
@@ -72,6 +79,7 @@
   let showFullLog = false;
   let retryActionKind = 'repair_runtime';
   let progressIsIndeterminate = false;
+  let currentTone = 'launch';
 
   async function invoke(cmd, args) {
     if (window.__TAURI__?.core?.invoke) {
@@ -83,20 +91,111 @@
     throw new Error('Tauri invoke bridge unavailable');
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function nowTime(offsetSeconds = 0) {
+    const date = new Date(Date.now() + offsetSeconds * 1000);
+    return date.toLocaleTimeString('zh-CN', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
+
+  function setProgressNumber(value) {
+    if (!progressPct) return;
+    if (String(value) === '接收中') {
+      progressPct.textContent = '接收中';
+      return;
+    }
+    const clamped = Math.max(0, Math.min(100, Number(value) || 0));
+    progressPct.innerHTML = `${Math.round(clamped)}<span class="pct-sign">%</span>`;
+  }
+
+  function setProgressCopy(prefix, emphasis, suffix = '') {
+    if (!progressSubtitle) return;
+    const parts = [];
+    if (prefix) parts.push(escapeHtml(prefix));
+    if (emphasis) parts.push(`<span>${escapeHtml(emphasis)}</span>`);
+    if (suffix) parts.push(escapeHtml(suffix));
+    progressSubtitle.innerHTML = parts.join(' · ');
+  }
+
+  function statusIcon(kind) {
+    if (kind === 'ready') return '<svg aria-hidden="true"><use href="#xq-check"></use></svg>';
+    if (kind === 'failed') return '<svg aria-hidden="true"><use href="#xq-x"></use></svg>';
+    return '<span class="status-dot" aria-hidden="true"></span>';
+  }
+
+  function setStatusPill(kind, label) {
+    if (!heroBadgeTertiary) return;
+    heroBadgeTertiary.className = `progress-status hero-badge hero-badge--${kind}`;
+    heroBadgeTertiary.innerHTML = `${statusIcon(kind)}${escapeHtml(label)}`;
+  }
+
+  function setPrimaryCta(visible, label) {
+    if (!primaryCtaBtn || !primaryCtaLabel) return;
+    primaryCtaLabel.textContent = label || '进入主界面';
+    primaryCtaBtn.classList.toggle('hidden', !visible);
+  }
+
+  function applyLauncherTone(tone) {
+    currentTone = tone || 'launch';
+    document.body.dataset.launcherTone = currentTone;
+    diagnosticDot?.classList.toggle('hidden', currentTone !== 'error');
+    if (toggleLogBtn) {
+      toggleLogBtn.textContent = currentTone === 'error' ? '展开错误' : '展开详情';
+    }
+    if (currentTone === 'ready') {
+      setStatusPill('ready', 'Ready');
+      setPrimaryCta(true, '进入主界面');
+    } else if (currentTone === 'error') {
+      setStatusPill('failed', 'Failed');
+      setPrimaryCta(true, '重建 Runtime');
+    } else {
+      setStatusPill('live', 'Live');
+      setPrimaryCta(false, '进入主界面');
+    }
+  }
+
   const MODE_CONFIG = {
     launch: {
       tag: '日常启动',
       hint: '复用本机组件',
-      title: '星阙 启动中',
-      copy: 'App 2.0.0 / runtime1 / arm64',
-      sceneTitle: '日常启动',
-      sceneCopy: '检查 app、runtime、backend、chartpy。',
+      title: '正在检查本机环境',
+      copy: '完成后将自动进入主界面，无需手动操作',
+      sceneTitle: '正在检查本机环境',
+      sceneCopy: '完成后将自动进入主界面，无需手动操作',
       summarySessionType: '日常启动',
       summaryRuntimeStrategy: '复用现有 runtime',
       summaryBackendMode: '后台启动',
-      summaryOutcome: '进入主界面',
+      summaryOutcome: '待进入主界面',
       sessionInline: '日常启动',
-      phases: ['检查安装', '确认组件', '启动服务', '进入主界面']
+      phases: ['安装检查', '本机组件', '后台服务', '主界面'],
+      badges: ['Daily', 'Reuse runtime', 'LIVE']
+    },
+    offline: {
+      tag: '离线安装',
+      hint: '本次不会联网下载',
+      title: '离线安装已完成',
+      copy: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
+      sceneTitle: '离线安装已完成',
+      sceneCopy: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
+      summarySessionType: '离线安装完成',
+      summaryRuntimeStrategy: '来自离线包的本机组件',
+      summaryBackendMode: '下次启动直接复用',
+      summaryOutcome: '已完成',
+      sessionInline: '离线安装已完成',
+      phases: ['安装检查', '本机组件', '后台服务', '完成'],
+      badges: ['Offline', 'Trusted pkg', 'Ready']
     },
     install: {
       tag: '首次准备',
@@ -173,6 +272,14 @@
     );
   }
 
+  function runtimeVersionForPayload(payload) {
+    const direct = payload?.runtimeVersion || payload?.runtime_version || payload?.version;
+    if (direct) return String(direct);
+    const sourceText = [payload?.detail, payload?.summary, payload?.rawError].filter(Boolean).join(' ');
+    const match = sourceText.match(/(?:runtime|本机组件|版本)\s*(?:version|版本)?\s*([0-9]+\.[0-9]+\.[0-9]+(?:[-\w.]*)?)/i);
+    return match?.[1] || '2.1.0';
+  }
+
   function toTitleCase(value) {
     const map = {
       installed_app: '已安装 App',
@@ -232,13 +339,23 @@
           recommendation: null,
           installSource: null
         };
+      case 'offline':
+        return {
+          kind: 'offline_ready',
+          badge: 'Ready',
+          title: '离线安装已完成',
+          summary: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
+          detail: '当前步骤：—',
+          recommendation: null,
+          installSource: 'pkg_offline'
+        };
       default:
         return {
-          kind: 'launch_ready',
-          badge: '启动中心',
-          title: '准备进入主界面',
-          summary: '等待 runtime 检查结果。',
-          detail: '服务未就绪前不会切换窗口。',
+          kind: 'launch_checking',
+          badge: 'Daily Launch',
+          title: '正在检查本机环境',
+          summary: '完成后将自动进入主界面，无需手动操作',
+          detail: '当前步骤：检查 App 签名',
           recommendation: null,
           installSource: null
         };
@@ -385,24 +502,24 @@
       default:
         return {
           modeTag: '日常启动',
-          modeHint: '快速检查并进入主界面',
-          brandTitle: '正在准备 星阙',
-          brandCopy: '日常打开会优先复用已经准备好的本机组件，并在后台启动所需服务后直接进入主界面。',
-          sceneTitleText: '日常启动',
-          sceneCopyText: '如果这台 Mac 已经准备好所需内容，你只会看到短暂的检查过程。',
+          modeHint: '复用本机组件',
+          brandTitle: '正在检查本机环境',
+          brandCopy: '完成后将自动进入主界面，无需手动操作',
+          sceneTitleText: '正在检查本机环境',
+          sceneCopyText: '完成后将自动进入主界面，无需手动操作',
           sessionInlineText: '日常启动',
           summarySessionTypeText: '日常启动',
-          summaryRuntimeStrategyText: '优先复用已有组件',
-          summaryBackendModeText: '已就绪后自动启动所需服务',
-          summaryOutcomeText: '自动进入主界面',
-          heroBadges: ['DMG 主入口', '首次准备在 app 内完成', '后台更新与重开'],
+          summaryRuntimeStrategyText: '复用现有 runtime',
+          summaryBackendModeText: '后台服务待启动',
+          summaryOutcomeText: '待进入主界面',
+          heroBadges: ['Daily', 'Reuse runtime', 'LIVE'],
           guards: [
-            ['应用更新', '下载完成后先替换 `.app`，再自动重开。'],
-            ['安装审查', '先列出已安装内容，再由你决定这次要替换哪些资产。'],
-            ['启动方式', '日常打开会优先复用已准备好的内容，尽量减少打扰。'],
-            ['数据目录', '用户数据与运行日志不会在更新时被删除。']
+            ['App', '签名校验后替换。'],
+            ['Runtime', '损坏或版本不符才重建。'],
+            ['Logs', '失败时保留。'],
+            ['Data', '更新不删除用户数据。']
           ],
-          footer: '星阙 现在会优先表现成一个标准的 Mac app：主入口是 DMG，首次准备在 app 内完成，遇到异常时提供 Finder、日志和重试入口。',
+          footer: '窗口大小会随上次关闭状态恢复。',
           retry: {
             title: '重装本机组件',
             copy: '当组件损坏或更新不完整时，重新准备本机组件',
@@ -419,27 +536,27 @@
         return {
           ...modeDefaults,
           modeTag: '离线安装',
-          modeHint: '本次不会联网下载',
-          brandTitle: '这台 Mac 已准备好',
-          brandCopy: '离线安装已经把所需本机组件准备到位，日常打开会直接进入主界面。',
+          modeHint: 'Trusted pkg',
+          brandTitle: '离线安装已完成',
+          brandCopy: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
           sceneTitleText: '离线安装已完成',
-          sceneCopyText: '当前机器已经准备好所需内容；如果只是日常打开，你只会看到短暂检查。',
-          sessionInlineText: '可直接使用',
+          sceneCopyText: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
+          sessionInlineText: '离线安装已完成',
           summarySessionTypeText: '离线安装完成',
-          summaryRuntimeStrategyText: '复用离线安装已准备好的本机组件',
-          summaryBackendModeText: '已就绪后自动启动所需服务',
-          summaryOutcomeText: '直接进入主界面',
-          heroBadges: ['离线安装已完成', '本次不会联网下载', '可直接打开使用'],
+          summaryRuntimeStrategyText: '来自离线包的本机组件',
+          summaryBackendModeText: '下次启动直接复用',
+          summaryOutcomeText: '已完成',
+          heroBadges: ['Offline', 'Trusted pkg', 'Ready'],
           guards: [
-            ['首选恢复', '如果后续发现本机组件损坏，请直接重新安装离线包。'],
-            ['本机组件', '离线安装包已经把需要的内容准备到共享位置。'],
-            ['已安装内容', '你仍然可以在 Finder 查看数据目录和本机组件位置。'],
-            ['数据安全', '用户数据和日志不会因为离线路径而被额外清理。']
+            ['App', '签名校验后替换。'],
+            ['Runtime', '离线包组件已校验。'],
+            ['Logs', '失败时保留。'],
+            ['Data', '安装更新不删除用户数据。']
           ],
-          footer: '离线路径已经准备完成，日常打开会直接进入主界面；如需修复，请重新安装离线包。',
+          footer: '离线安装完成后，下次打开会直接复用本机组件并进入主界面。',
           retry: {
             title: '重新安装离线包',
-            copy: '当离线路径损坏或需要重新接管时，重新运行离线安装包',
+            copy: 'secondary action',
             action: 'reinstall_offline_package'
           }
         };
@@ -518,18 +635,49 @@
     ];
     const variants = {
       launch: {
-        modeTag: '日常启动',
+        tone: 'launch',
+        modeTag: 'Daily launch',
         modeHint: '复用本机组件',
-        brandTitle: '星阙 启动中',
-          brandCopy: 'App 2.0.0 / runtime1 / arm64',
-        sceneTitleText: '日常启动',
-        sceneCopyText: '检查 app、runtime、backend、chartpy。',
+        brandTitle: '检查本机环境',
+        brandCopy: '完成后自动进入主界面',
+        sceneTitleText: '正在检查本机环境',
+        sceneCopyText: '完成后将自动进入主界面，无需手动操作',
         sessionInlineText: '日常启动',
         summarySessionTypeText: '日常启动',
-        summaryRuntimeStrategyText: '复用现有 runtime',
-        summaryBackendModeText: '后台启动',
-        summaryOutcomeText: '进入主界面',
-        heroBadges: ['DMG', 'Runtime', 'Backend'],
+        summaryRuntimeStrategyText: '复用 runtime',
+        summaryThirdLabelText: '预计',
+        summaryBackendModeText: '~ 4s',
+        summaryOutcomeText: '待进入主界面',
+        heroBadges: ['Daily', 'Reuse runtime', 'LIVE'],
+        statusLabel: 'Live',
+        progressPrefix: '当前步骤',
+        progressEmphasis: '检查 App 签名',
+        progressSuffix: '',
+        primaryCtaLabel: '进入主界面',
+        guards: commonGuards,
+        footer: '窗口大小会随上次关闭状态恢复。',
+        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+      },
+      launch_ready: {
+        tone: 'ready',
+        modeTag: 'Daily launch',
+        modeHint: '复用本机组件',
+        brandTitle: '已完成启动检查',
+        brandCopy: '正在进入主界面。',
+        sceneTitleText: '已完成启动检查',
+        sceneCopyText: 'App、本机组件和后台服务均已完成检查。',
+        sessionInlineText: '日常启动',
+        summarySessionTypeText: '日常启动',
+        summaryRuntimeStrategyText: '复用 runtime',
+        summaryThirdLabelText: '结果',
+        summaryBackendModeText: '已就绪',
+        summaryOutcomeText: '准备进入主界面',
+        heroBadges: ['Daily', 'Reuse runtime', 'Ready'],
+        statusLabel: 'Ready',
+        progressPrefix: '启动检查已完成',
+        progressEmphasis: '正在进入主界面',
+        progressSuffix: '',
+        primaryCtaLabel: '进入主界面',
         guards: commonGuards,
         footer: '窗口大小会随上次关闭状态恢复。',
         retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
@@ -586,38 +734,52 @@
         retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
       },
       error: {
-        modeTag: '需要处理',
-        modeHint: '等待恢复动作',
-        brandTitle: '启动中断',
-        brandCopy: '查看诊断 · 保留日志 · 执行恢复',
+        tone: 'error',
+        modeTag: 'Needs attention',
+        modeHint: 'Runtime 损坏 · 建议重建',
+        brandTitle: '组件校验未通过',
+        brandCopy: 'Runtime 损坏 · 建议重建',
         sceneTitleText: '需要处理',
         sceneCopyText: '优先显示可执行恢复动作。',
         sessionInlineText: '需要处理',
-        summarySessionTypeText: '流程中断',
-        summaryRuntimeStrategyText: '保留现场',
-        summaryBackendModeText: '服务未就绪',
+        summarySessionTypeText: '日常启动',
+        summaryRuntimeStrategyText: 'Runtime 异常',
+        summaryThirdLabelText: '结果',
+        summaryBackendModeText: '等待修复',
         summaryOutcomeText: '恢复后重试',
-        heroBadges: ['Diagnostics', 'Logs', 'Recover'],
+        heroBadges: ['Error', 'Runtime', 'Failed'],
+        statusLabel: 'Failed',
+        progressPrefix: '本机组件',
+        progressEmphasis: 'runtime jar 哈希不符',
+        progressSuffix: 'pipeline 已暂停',
+        primaryCtaLabel: '重建 Runtime',
         guards: commonGuards,
-        footer: '错误详情保留在诊断中心。',
+        footer: '日志已保留 · 重建不会影响用户数据',
         retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
       },
       offline_ready: {
-        modeTag: '离线安装',
-        modeHint: '无网可用',
-        brandTitle: '离线包已就绪',
-        brandCopy: 'App · Shared runtime · Local services',
-        sceneTitleText: '离线安装完成',
-        sceneCopyText: '复用离线包内置 runtime。',
-        sessionInlineText: '可直接使用',
+        tone: 'ready',
+        modeTag: 'Offline install',
+        modeHint: '本次未联网 · 来自离线包',
+        brandTitle: '已就绪',
+        brandCopy: '本次未联网 · 来自离线包',
+        sceneTitleText: '离线安装已完成',
+        sceneCopyText: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
+        sessionInlineText: '离线安装已完成',
         summarySessionTypeText: '离线安装',
         summaryRuntimeStrategyText: '复用共享 runtime',
-        summaryBackendModeText: '后台启动',
-        summaryOutcomeText: '进入主界面',
+        summaryThirdLabelText: '来源',
+        summaryBackendModeText: 'pkg 2.1.0',
+        summaryOutcomeText: '已完成',
         heroBadges: ['Offline', 'Trusted pkg', 'Ready'],
+        statusLabel: 'Ready',
+        progressPrefix: '离线安装已完成',
+        progressEmphasis: 'runtime 2.1.0',
+        progressSuffix: '下次打开直接进入',
+        primaryCtaLabel: '进入主界面',
         guards: commonGuards,
-        footer: '离线安装包已包含 runtime。',
-        retry: { title: '重新安装离线包', copy: 'run offline pkg', action: 'reinstall_offline_package' }
+        footer: '离线安装包已包含 runtime · 窗口大小随上次关闭状态恢复',
+        retry: { title: '重新安装离线包', copy: 'secondary action', action: 'reinstall_offline_package' }
       },
       offline_review: {
         modeTag: '安装审查',
@@ -637,20 +799,27 @@
         retry: { title: '重新安装离线包', copy: 'run offline pkg', action: 'reinstall_offline_package' }
       },
       offline_repair_required: {
-        modeTag: '离线修复',
-        modeHint: '重装离线包',
-        brandTitle: '离线 runtime 损坏',
-        brandCopy: '重新安装 pkg · 重建共享 runtime',
+        tone: 'error',
+        modeTag: 'Needs attention',
+        modeHint: 'Runtime 损坏 · 建议重建',
+        brandTitle: '组件校验未通过',
+        brandCopy: 'Runtime 损坏 · 建议重建',
         sceneTitleText: '离线修复',
         sceneCopyText: '首选重新运行离线安装包。',
         sessionInlineText: '需要修复',
-        summarySessionTypeText: '离线修复',
-        summaryRuntimeStrategyText: '重新接管 runtime',
-        summaryBackendModeText: '等待恢复',
+        summarySessionTypeText: '离线安装',
+        summaryRuntimeStrategyText: 'Runtime 异常',
+        summaryThirdLabelText: '结果',
+        summaryBackendModeText: '等待修复',
         summaryOutcomeText: '重装后启动',
-        heroBadges: ['Offline repair', 'Reinstall pkg', 'Keep data'],
+        heroBadges: ['Offline repair', 'Runtime', 'Failed'],
+        statusLabel: 'Failed',
+        progressPrefix: '本机组件',
+        progressEmphasis: 'runtime jar 哈希不符',
+        progressSuffix: 'pipeline 已暂停',
+        primaryCtaLabel: '重建 Runtime',
         guards: commonGuards,
-        footer: '建议重新安装离线包。',
+        footer: '日志已保留 · 重建不会影响用户数据',
         retry: { title: '重新安装离线包', copy: 'run offline pkg', action: 'reinstall_offline_package' }
       },
       update_review: {
@@ -676,7 +845,20 @@
 
   function applySupportContent(payload) {
     const content = compactSupportContent(supportContentForPayload(payload), payload);
-    heroModeTag.textContent = content.modeTag;
+    if (payload?.kind === 'offline_ready') {
+      const runtimeVersion = runtimeVersionForPayload(payload);
+      content.summaryBackendModeText = `pkg ${runtimeVersion}`;
+      content.progressEmphasis = `runtime ${runtimeVersion}`;
+    }
+    const inferredTone =
+      content.tone ||
+      (payload?.kind === 'offline_ready' || payload?.kind === 'launch_ready'
+        ? 'ready'
+        : payload?.kind === 'offline_repair_required' || payload?.recoveryKind || currentMode === 'error'
+          ? 'error'
+          : 'launch');
+    applyLauncherTone(inferredTone);
+    heroModeTag.innerHTML = `<span class="mode-dot mode-dot--live"></span>${escapeHtml(content.modeTag)}`;
     heroModeHint.textContent = content.modeHint;
     heroTitle.textContent = content.brandTitle;
     heroCopy.textContent = content.brandCopy;
@@ -685,11 +867,22 @@
     sessionInline.textContent = content.sessionInlineText;
     summarySessionType.textContent = content.summarySessionTypeText;
     summaryRuntimeStrategy.textContent = content.summaryRuntimeStrategyText;
+    if (summaryThirdLabel) summaryThirdLabel.textContent = content.summaryThirdLabelText || '预计';
     summaryBackendMode.textContent = content.summaryBackendModeText;
     summaryOutcome.textContent = content.summaryOutcomeText;
     heroBadgePrimary.textContent = content.heroBadges[0];
     heroBadgeSecondary.textContent = content.heroBadges[1];
-    heroBadgeTertiary.textContent = content.heroBadges[2];
+    if (inferredTone === 'ready') {
+      setStatusPill('ready', content.statusLabel || content.heroBadges[2] || 'Ready');
+    } else if (inferredTone === 'error') {
+      setStatusPill('failed', content.statusLabel || content.heroBadges[2] || 'Failed');
+    } else {
+      setStatusPill('live', content.statusLabel || content.heroBadges[2] || 'Live');
+    }
+    setPrimaryCta(inferredTone !== 'launch', content.primaryCtaLabel);
+    if (content.progressPrefix || content.progressEmphasis || content.progressSuffix) {
+      setProgressCopy(content.progressPrefix, content.progressEmphasis, content.progressSuffix);
+    }
     guardKeyOne.textContent = content.guards[0][0];
     guardValueOne.textContent = content.guards[0][1];
     guardKeyTwo.textContent = content.guards[1][0];
@@ -702,12 +895,14 @@
     retryActionTitle.textContent = content.retry.title;
     retryActionCopy.textContent = content.retry.copy;
     retryActionKind = content.retry.action;
-    retryBtn.classList.toggle('action-card--accent', retryActionKind === 'reinstall_offline_package');
+    retryBtn.classList.toggle('action-card--secondary', retryActionKind === 'reinstall_offline_package');
+    renderLog();
   }
 
   function preferredModeForState(payload) {
     switch (payload?.kind) {
       case 'offline_ready':
+        return 'offline';
       case 'launch_ready':
         return 'launch';
       case 'offline_repair_required':
@@ -722,27 +917,95 @@
     }
   }
 
+  function inferLogLevel(message) {
+    const text = String(message || '').toLowerCase();
+    if (/错误|失败|未通过|不符|损坏|error|failed|mismatch|invalid/.test(text)) return 'error';
+    if (/警告|warn|偏好读取失败/.test(text)) return 'warn';
+    if (/完成|就绪|通过|ok|ready|成功/.test(text)) return 'ok';
+    return 'info';
+  }
+
+  function normalizeLogEntry(entry) {
+    if (entry && typeof entry === 'object') {
+      return {
+        time: entry.time || nowTime(),
+        level: entry.level || inferLogLevel(entry.message),
+        message: entry.message || ''
+      };
+    }
+    return {
+      time: nowTime(),
+      level: inferLogLevel(entry),
+      message: String(entry || '')
+    };
+  }
+
+  function defaultLogEntries() {
+    if (currentTone === 'ready') {
+      return [
+        { time: nowTime(-32), level: 'info', message: '离线包校验通过' },
+        { time: nowTime(-16), level: 'ok', message: '本机组件全部就位' },
+        { time: nowTime(-1), level: 'ok', message: '后台服务启动完成' }
+      ];
+    }
+    if (currentTone === 'error') {
+      return [
+        { time: nowTime(-3), level: 'info', message: '启动页已加载' },
+        { time: nowTime(-1), level: 'info', message: '开始校验本机组件' },
+        { time: nowTime(), level: 'error', message: 'runtime jar 哈希不符' }
+      ];
+    }
+    return [
+      { time: nowTime(-2), level: 'info', message: '启动页已加载' },
+      { time: nowTime(-1), level: 'info', message: '校验 App 签名' },
+      { time: nowTime(), level: 'info', message: '准备检查本机组件' }
+    ];
+  }
+
   function renderLog() {
+    if (!statusLog) return;
     document.body.classList.toggle('show-full-log', showFullLog);
-    const visibleLines = showFullLog ? lines : lines.slice(-8);
-    statusLog.textContent = visibleLines.length ? visibleLines.join('\n') : '等待初始化...';
+    const recordedEntries = lines.map(normalizeLogEntry);
+    const entries =
+      recordedEntries.length >= 3
+        ? recordedEntries
+        : [...defaultLogEntries().slice(0, Math.max(0, 3 - recordedEntries.length)), ...recordedEntries];
+    const visibleEntries = showFullLog ? entries : entries.slice(-8);
+    statusLog.innerHTML = visibleEntries
+      .map((entry) => {
+        const level = entry.level || 'info';
+        return `
+          <div class="log-row ${level === 'error' ? 'log-row--error' : ''}">
+            <span class="log-time">${escapeHtml(entry.time)}</span>
+            <span class="log-level log-level--${escapeHtml(level)}">${escapeHtml(level)}</span>
+            <span class="log-message">${escapeHtml(entry.message)}</span>
+          </div>
+        `;
+      })
+      .join('');
     statusLog.scrollTop = statusLog.scrollHeight;
-    const hiddenCount = Math.max(0, lines.length - visibleLines.length);
+    const hiddenCount = Math.max(0, entries.length - visibleEntries.length);
     if (toggleLogBtn) {
-      toggleLogBtn.textContent = showFullLog ? '收起详细过程' : '展开详细过程';
-      toggleLogBtn.disabled = lines.length <= 8;
+      toggleLogBtn.textContent = showFullLog
+        ? currentTone === 'error'
+          ? '收起错误'
+          : '收起详情'
+        : currentTone === 'error'
+          ? '展开错误'
+          : '展开详情';
+      toggleLogBtn.disabled = entries.length <= 8;
     }
     if (logSummaryNote) {
       logSummaryNote.textContent = showFullLog
         ? '完整日志'
         : hiddenCount > 0
           ? `最近 8 条 / 已收起 ${hiddenCount} 条`
-          : '最近事件';
+          : `最近 ${visibleEntries.length} 条`;
     }
   }
 
   function pushLine(line) {
-    lines.push(line);
+    lines.push(normalizeLogEntry(line));
     while (lines.length > 40) lines.shift();
     renderLog();
   }
@@ -817,7 +1080,7 @@
     hasExplicitState = explicit;
     statePanel.classList.remove('hidden');
     statePanel.dataset.stateKind = payload.kind || '';
-    stateBadge.textContent = payload.badge || '启动中心';
+    stateBadge.textContent = payload.badge || MODE_CONFIG[currentMode]?.tag || '状态';
     stateTitle.textContent = payload.title || '这台 Mac 会在准备完成后自动进入主界面';
     stateSummary.textContent = payload.summary || '';
     stateDetail.textContent = payload.detail || '';
@@ -892,6 +1155,17 @@
       applySupportContent(fallback);
       return;
     }
+    if (payload.kind === 'offline_ready') {
+      payload = {
+        ...payload,
+        badge: 'Ready',
+        title: '离线安装已完成',
+        summary: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
+        detail: '当前步骤：—',
+        recommendation: null,
+        installSource: payload.installSource || 'pkg_offline'
+      };
+    }
     const preferredMode = preferredModeForState(payload);
     if (preferredMode) {
       const previousExplicit = hasExplicitState;
@@ -903,13 +1177,20 @@
     if (payload.kind === 'offline_repair_required' || payload.recoveryKind) {
       applyMode('error');
       renderStatePanel(payload, { explicit: true });
-      renderRecoveryPanel(payload);
+      currentErrorPayload = payload;
+      hideRecoveryPanel();
       applySupportContent(payload);
+      setProgress(26, payload.rawError || payload.detail || 'runtime jar 哈希不符');
       return;
     }
     hideRecoveryPanel();
     renderStatePanel(payload, { explicit: true });
     applySupportContent(payload);
+    if (payload.kind === 'offline_ready') {
+      setProgress(100, '—');
+    } else if (payload.kind === 'launch_ready') {
+      setProgress(100, payload.currentStep || '准备进入主界面');
+    }
   }
 
   function presentReview(payload) {
@@ -938,17 +1219,67 @@
 
   function resolvePhase(pct) {
     const phases = MODE_CONFIG[currentMode]?.phases || MODE_CONFIG.launch.phases;
-    if (pct >= 90) return { step: 4, label: phases[3] };
+    if (pct >= 100) return { step: 4, label: currentMode === 'offline' ? '完成' : '完成', complete: true };
+    if (pct >= 90) return { step: 4, label: phases[3], complete: false };
     if (pct >= 65) return { step: 3, label: phases[2] };
     if (pct >= 25) return { step: 2, label: phases[1] };
     return { step: 1, label: phases[0] };
   }
 
-  function renderSteps(activeStep) {
+  function renderSteps(activeStep, completeAll = false, failedStep = null) {
     stepItems.forEach((item) => {
       const step = Number(item.dataset.step || 0);
-      item.classList.toggle('is-active', step === activeStep);
-      item.classList.toggle('is-complete', step < activeStep);
+      const isFailed = failedStep === step;
+      const isComplete = completeAll || (!failedStep && step < activeStep) || (failedStep && step < failedStep);
+      const isActive = !completeAll && !failedStep && step === activeStep;
+      const isHighlight = completeAll && step === 4;
+      item.classList.toggle('is-active', isActive);
+      item.classList.toggle('is-complete', isComplete);
+      item.classList.toggle('is-failed', isFailed);
+      item.classList.toggle('is-highlight', isHighlight);
+      const marker = item.querySelector('.step-marker');
+      if (marker) {
+        if (isComplete || isHighlight) {
+          marker.innerHTML = '<svg aria-hidden="true"><use href="#xq-check"></use></svg>';
+        } else if (isFailed) {
+          marker.innerHTML = '<svg aria-hidden="true"><use href="#xq-x"></use></svg>';
+        } else {
+          marker.innerHTML = '';
+        }
+      }
+      const desc = item.querySelector('.step-desc');
+      if (desc) {
+        if (completeAll) {
+          desc.textContent = step === 4 ? 'handoff 就绪' : '已完成';
+        } else if (isFailed) {
+          desc.textContent = 'jar hash mismatch';
+        } else if (isComplete) {
+          desc.textContent = '已完成';
+        } else if (isActive) {
+          desc.textContent = '进行中';
+        } else if (failedStep && step > failedStep) {
+          desc.textContent = '未执行';
+        } else {
+          desc.textContent = '等待';
+        }
+      }
+    });
+  }
+
+  function renderMilestones(pct, failedStep = null, completeAll = false) {
+    milestones.forEach((item) => {
+      const step = Number(item.dataset.milestone || 0);
+      const complete = completeAll || (!failedStep && pct >= [0, 33, 66, 100][step - 1]) || (failedStep && step < failedStep);
+      item.classList.toggle('is-complete', complete);
+      item.classList.toggle('is-active', !completeAll && !failedStep && step === resolvePhase(pct).step);
+      item.classList.toggle('is-failed', failedStep === step);
+    });
+    phaseItems.forEach((item) => {
+      const step = Number(item.dataset.phaseStep || 0);
+      const complete = completeAll || (!failedStep && pct >= [0, 33, 66, 100][step - 1]) || (failedStep && step < failedStep);
+      item.classList.toggle('is-complete', complete);
+      item.classList.toggle('is-active', !completeAll && !failedStep && step === resolvePhase(pct).step);
+      item.classList.toggle('is-failed', failedStep === step);
     });
   }
 
@@ -968,9 +1299,12 @@
     summaryBackendMode.textContent = config.summaryBackendMode;
     summaryOutcome.textContent = config.summaryOutcome;
     sessionInline.textContent = config.sessionInline;
+    const currentPct = Number(progressPct.textContent.replace('%', '')) || 0;
+    const phase = resolvePhase(currentPct);
     phaseLabel.textContent = progressIsIndeterminate
       ? '接收中'
-      : resolvePhase(Number(progressPct.textContent.replace('%', '')) || 0).label;
+      : phase.label;
+    renderSteps(phase.step, Boolean(phase.complete));
     applySupportContent(currentStatePayload && hasExplicitState ? currentStatePayload : fallbackStateForMode(nextMode));
     if (!hasExplicitState) {
       renderStatePanel(fallbackStateForMode(nextMode), { explicit: false });
@@ -986,9 +1320,9 @@
     if (
       hasExplicitState &&
       currentStatePayload?.kind === 'offline_ready' &&
-      /离线安装|本次不会联网下载|可直接打开使用/.test(text)
+      /离线安装|本次不会联网下载|Trusted pkg|Ready/.test(text)
     ) {
-      return 'launch';
+      return 'offline';
     }
     if (/更新|替换应用|重开/.test(text)) return 'update';
     if (/修复|重装/.test(text)) return 'repair';
@@ -1015,16 +1349,27 @@
     const inferredMode = inferMode(text);
     if (inferredMode) applyMode(inferredMode);
     const phase = resolvePhase(clamped);
+    const failedStep = currentTone === 'error' ? 2 : null;
+    const completeAll = currentTone === 'ready' || Boolean(phase.complete);
     progressIsIndeterminate = indeterminate;
     if (progressTrack) {
       progressTrack.classList.toggle('is-indeterminate', indeterminate);
     }
     progressFill.style.width = indeterminate ? '38%' : `${clamped}%`;
-    progressPct.textContent = indeterminate ? '接收中' : `${Math.round(clamped)}%`;
+    setProgressNumber(indeterminate ? '接收中' : clamped);
     phaseLabel.textContent = indeterminate ? '接收中' : phase.label;
-    renderSteps(phase.step);
-    if (text) {
+    renderSteps(failedStep || phase.step, completeAll, failedStep);
+    renderMilestones(clamped, failedStep, completeAll);
+    if (currentTone === 'ready' && clamped >= 100) {
+      setProgressCopy('离线安装已完成', currentMode === 'offline' ? 'runtime 2.1.0' : text || '准备进入主界面', currentMode === 'offline' ? '下次打开直接进入' : '');
+    } else if (currentTone === 'error') {
+      const message = text && text !== '这次准备没有按预期完成' ? text : 'runtime jar 哈希不符';
+      setProgressCopy('本机组件', message, 'pipeline 已暂停');
+    } else if (text) {
       progressText.textContent = text;
+      setProgressCopy('当前步骤', text, '');
+    } else if (!indeterminate && clamped >= 100 && currentMode === 'offline') {
+      setProgressCopy('离线安装已完成', 'runtime 2.1.0', '下次打开直接进入');
     }
   }
 
@@ -1047,7 +1392,9 @@
         Boolean(payload?.preferences?.compactLauncherLayout)
       );
     } catch (error) {
-      pushLine('无法读取偏好设置，继续使用默认布局。');
+      if (window.__TAURI__ || window.__TAURI_INTERNALS__) {
+        pushLine({ level: 'warn', message: '无法读取偏好设置，继续使用默认布局。' });
+      }
     }
   }
 
@@ -1087,7 +1434,10 @@
         : payload;
     applyMode('error');
     setLauncherState(normalized);
-    pushLine(`错误: ${normalized.title || normalized.summary || '需要处理'}`);
+    pushLine({
+      level: 'error',
+      message: normalized.rawError || normalized.detail || normalized.summary || normalized.title || '需要处理'
+    });
   };
 
   window.__horosaReady = function (url) {
@@ -1096,8 +1446,18 @@
     currentStatePayload = null;
     hasExplicitState = false;
     applyMode('launch');
-    setProgress(100, '星阙 已准备完成');
-    renderStatePanel(fallbackStateForMode('launch'), { explicit: false });
+    setProgress(100, '准备进入主界面');
+    const readyPayload = {
+      kind: 'launch_ready',
+      badge: 'Ready',
+      title: '已准备进入主界面',
+      summary: 'App、本机组件和后台服务均已完成检查。',
+      detail: '正在切换到主界面。',
+      recommendation: null,
+      installSource: null
+    };
+    renderStatePanel(readyPayload, { explicit: false });
+    applySupportContent(readyPayload);
     pushLine('星阙 已准备完成，正在进入主界面…');
     setTimeout(() => {
       window.location.replace(url);
@@ -1148,6 +1508,20 @@
   bindAction(openDiagnosticsBtn, () => invoke('open_diagnostics_window_command'));
   bindAction(openDataBtn, () => invoke('reveal_special_path', { kind: 'data' }));
   bindAction(openRuntimeBtn, () => invoke('reveal_special_path', { kind: 'runtime' }));
+  bindAction(primaryCtaBtn, () => {
+    if (currentTone === 'error') {
+      if (retryActionKind === 'reinstall_offline_package') {
+        return runLauncherAction('reinstall_offline_package');
+      }
+      return invoke('trigger_runtime_repair_command');
+    }
+    if (window.__horosaPendingReadyUrl) {
+      window.location.replace(window.__horosaPendingReadyUrl);
+      return Promise.resolve();
+    }
+    pushLine({ level: 'ok', message: '主界面切换已就绪' });
+    return Promise.resolve();
+  });
   bindAction(retryBtn, () => {
     if (retryActionKind === 'reinstall_offline_package') {
       return runLauncherAction('reinstall_offline_package');
@@ -1183,9 +1557,8 @@
   });
 
   applyMode('launch');
-  setProgress(0, '等待初始化…');
+  setProgress(8, '检查 App 签名');
   renderLog();
-    pushLine('启动页已加载。');
   bootstrapPreferences();
   replayPendingState();
 })();
