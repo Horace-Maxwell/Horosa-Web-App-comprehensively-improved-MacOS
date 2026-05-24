@@ -165,6 +165,20 @@ cd /Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa_Desktop_Insta
 ./scripts/verify_desktop_packaging.sh
 ```
 
+启动页与窗口状态也必须作为桌面交付的一部分检查：
+
+- 启动控制台只保留一套 Daily / Offline Ready / Failed 共用骨架，真实进度仍然由后端 `__horosaProgress(pct, message, indeterminate)` 实时驱动，不允许只写死几个展示状态
+- Daily、Offline Ready、Failed 三种语义状态必须同时检查进度数字、状态 chip、Pipeline、日志、CTA 与标题文案是否自洽
+- 错误态不能再弹出旧的大恢复面板遮住主进度区，恢复动作应回到同一页面内的绿色主 CTA、日志和诊断入口
+- 启动页必须统一使用最终星阙 icon，不能混用临时 SVG 或旧图标
+- 窗口大小恢复必须采样首个可见窗口帧，不能只看最后结果；如果出现先大后小或大小跳动，发布直接阻断
+
+可直接运行：
+
+```bash
+python3 scripts/verify_launcher_console_states.py
+```
+
 正式外部分发构建：
 
 ```bash

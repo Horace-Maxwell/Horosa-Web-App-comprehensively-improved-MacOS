@@ -164,6 +164,8 @@ Key additions in this release:
 - chart management and case management now preserve new-method inputs, tags, snapshots, raw backend payloads, JSON import/export, and reopening behavior
 - AI export now reads from structured backend data and exposes selectable export groups for each supported technique, tab, and page
 - user settings, desktop window size, and necessary UI choices are persisted across close/reopen and app updates
+- the desktop startup console now uses one shared Daily / Offline Ready / Failed skeleton with real-time backend progress, consistent pipeline states, the final Xingque icon, and no duplicate status panels
+- window restoration is validated from the first visible frame, not only the final size, preventing the previous launch-size flash on reopened apps
 - local event management UI was simplified, with useful actions aligned in the same row as chart management
 - app-wide light/dark mode contrast, dropdowns, overlays, loading states, management lists, and export controls were audited and polished
 - Qimen Dunjia parity and the previous desktop delivery fixes remain preserved
