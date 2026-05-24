@@ -30,6 +30,7 @@ use walkdir::WalkDir;
 use zip::ZipArchive;
 
 const APP_NAME: &str = "星阙";
+const APP_IDENTIFIER: &str = "com.horacedong.horosa";
 const MAIN_WINDOW_LABEL: &str = "main";
 const PREFERENCES_WINDOW_LABEL: &str = "preferences";
 const DIAGNOSTICS_WINDOW_LABEL: &str = "diagnostics";
@@ -72,6 +73,40 @@ const MAIN_WINDOW_DEFAULT_SIZE: (f64, f64) = (1480.0, 960.0);
 const MAIN_WINDOW_MIN_SIZE: (f64, f64) = (1180.0, 760.0);
 const AI_ANALYSIS_IMPORT_EXTENSIONS: [&str; 6] = ["txt", "md", "markdown", "doc", "docx", "pdf"];
 const AI_ANALYSIS_BACKUP_EXTENSIONS: [&str; 1] = ["zip"];
+const DESKTOP_WINDOW_INIT_SCRIPT: &str = r#"
+(() => {
+  const noop = () => undefined;
+  const lock = (name) => {
+    try {
+      Object.defineProperty(window, name, {
+        value: noop,
+        writable: false,
+        configurable: false
+      });
+    } catch (_) {
+      try { window[name] = noop; } catch (_) {}
+    }
+  };
+  try {
+    Object.defineProperty(window, "__HOROSA_DESKTOP_SHELL__", {
+      value: true,
+      writable: false,
+      configurable: false
+    });
+  } catch (_) {
+    try { window.__HOROSA_DESKTOP_SHELL__ = true; } catch (_) {}
+  }
+  lock("resizeTo");
+  lock("resizeBy");
+  lock("moveTo");
+  lock("moveBy");
+})();
+"#;
+#[cfg(target_os = "macos")]
+const LEGACY_MACOS_WINDOW_DEFAULT_KEYS: [&str; 2] = [
+    "NSWindow Frame main-workspace",
+    "NSSplitView Subview Frames main-workspace, SidebarNavigationSplitView",
+];
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -1011,6 +1046,30 @@ fn apply_main_window_launch_state(window: &WebviewWindow, state: &SavedWindowSta
     }
 }
 
+fn stabilize_main_window_after_navigation(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: SavedWindowState,
+) {
+    thread::spawn(move || {
+        set_window_state_persistence_ready(&app, false);
+        for delay_ms in [0_u64, 80, 240, 520, 960] {
+            if delay_ms > 0 {
+                thread::sleep(Duration::from_millis(delay_ms));
+            }
+            apply_main_window_launch_state(&window, &state);
+        }
+        thread::sleep(Duration::from_millis(500));
+        set_window_state_persistence_ready(&app, true);
+    });
+}
+
+fn emit_ready_and_stabilize(app: &AppHandle, window: &WebviewWindow, url: &str) {
+    let state = load_window_states(app).main;
+    emit_ready(window, url);
+    stabilize_main_window_after_navigation(app.clone(), window.clone(), state);
+}
+
 fn set_window_state_persistence_ready(app: &AppHandle, ready: bool) {
     if let Some(state) = app.try_state::<AppState>() {
         state
@@ -1059,6 +1118,31 @@ fn persist_all_known_window_states(app: &AppHandle) {
         }
     }
 }
+
+#[cfg(target_os = "macos")]
+fn configure_macos_native_window_restoration() {
+    let _ = Command::new("/usr/bin/defaults")
+        .args([
+            "write",
+            APP_IDENTIFIER,
+            "ApplePersistenceIgnoreState",
+            "-bool",
+            "YES",
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    for key in LEGACY_MACOS_WINDOW_DEFAULT_KEYS {
+        let _ = Command::new("/usr/bin/defaults")
+            .args(["delete", APP_IDENTIFIER, key])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn configure_macos_native_window_restoration() {}
 
 fn escape_js(text: &str) -> String {
     serde_json::to_string(text).unwrap_or_else(|_| "\"\"".to_string())
@@ -1752,6 +1836,7 @@ fn build_main_window(app: &AppHandle, state: &SavedWindowState) -> Result<Webvie
             .resizable(true)
             .inner_size(size.0, size.1)
             .min_inner_size(MAIN_WINDOW_MIN_SIZE.0, MAIN_WINDOW_MIN_SIZE.1)
+            .initialization_script(DESKTOP_WINDOW_INIT_SCRIPT)
             .maximized(should_maximize)
             .visible(false);
     if let Some((x, y)) = saved_launch_position(state) {
@@ -1784,6 +1869,7 @@ fn create_secondary_window(
         .resizable(true)
         .inner_size(initial_size.0, initial_size.1)
         .min_inner_size(min_size.0, min_size.1)
+        .initialization_script(DESKTOP_WINDOW_INIT_SCRIPT)
         .visible(false);
     if let Some((x, y)) = saved_state.and_then(saved_launch_position) {
         builder = builder.position(x, y);
@@ -1847,7 +1933,8 @@ fn open_main_window(app: &AppHandle) -> Result<()> {
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(slot) = state.session.lock() {
             if let Some(session) = slot.as_ref() {
-                emit_ready(
+                emit_ready_and_stabilize(
+                    app,
                     &window,
                     &frontend_url(session.web_port, session.backend_port, session.chart_port),
                 );
@@ -4823,7 +4910,8 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
                             *slot = Some(session.clone());
                         }
                     }
-                    emit_ready(
+                    emit_ready_and_stabilize(
+                        &app_handle,
                         &win,
                         &frontend_url(session.web_port, session.backend_port, session.chart_port),
                     );
@@ -4849,7 +4937,8 @@ fn trigger_reinstall(app: AppHandle) {
                             *slot = Some(session.clone());
                         }
                     }
-                    emit_ready(
+                    emit_ready_and_stabilize(
+                        &app_handle,
                         &win,
                         &frontend_url(session.web_port, session.backend_port, session.chart_port),
                     );
@@ -4998,6 +5087,7 @@ fn runtime_bootstrap(
 }
 
 fn main() {
+    configure_macos_native_window_restoration();
     tauri::Builder::default()
         .manage(AppState::default())
         .menu(build_menu)
@@ -5044,7 +5134,8 @@ fn main() {
                                 *slot = Some(session.clone());
                             }
                         }
-                        emit_ready(
+                        emit_ready_and_stabilize(
+                            &app_handle,
                             &window,
                             &frontend_url(
                                 session.web_port,
@@ -5305,6 +5396,21 @@ mod tests {
             (1320.0, 840.0)
         );
         assert_eq!(saved_launch_position(&state), Some((180.0, 120.0)));
+    }
+
+    #[test]
+    fn desktop_init_script_prevents_frontend_window_resize_fights() {
+        assert!(DESKTOP_WINDOW_INIT_SCRIPT.contains("__HOROSA_DESKTOP_SHELL__"));
+        assert!(DESKTOP_WINDOW_INIT_SCRIPT.contains("resizeTo"));
+        assert!(DESKTOP_WINDOW_INIT_SCRIPT.contains("moveTo"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn legacy_macos_defaults_cleanup_targets_old_main_workspace_frames() {
+        assert!(LEGACY_MACOS_WINDOW_DEFAULT_KEYS.contains(&"NSWindow Frame main-workspace"));
+        assert!(LEGACY_MACOS_WINDOW_DEFAULT_KEYS
+            .contains(&"NSSplitView Subview Frames main-workspace, SidebarNavigationSplitView"));
     }
 
     #[test]

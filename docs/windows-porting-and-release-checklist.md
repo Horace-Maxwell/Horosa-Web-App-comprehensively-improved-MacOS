@@ -296,12 +296,15 @@ Windows 实现要点：
 - 如果“隐藏创建后再 set_size”仍然出现先大后小，就不要在静态配置里预建默认主窗口；应在 native 启动代码里读取窗口状态，把保存尺寸直接作为 window builder 的初始尺寸，再 show。
 - 启动早期的 `Moved` / `Resized` 事件可能不是用户操作，而是窗口管理器初始化噪声。macOS 版最终做法是在首次 show 后延迟打开窗口状态写回，避免默认尺寸或中间位置污染 `window-state.json`。
 - 不要依赖前端 `resizeTo()` 作为 packaged app 的窗口恢复方案；Windows launcher / Tauri / native shell 必须在窗口显示前恢复。
+- packaged app 里要让 native shell 成为唯一窗口尺寸控制者。macOS 版最终还在 WebView document-start 注入脚本，锁住 `resizeTo` / `resizeBy` / `moveTo` / `moveBy`，避免前端浏览器版窗口记忆逻辑在页面加载后又抢一次尺寸。
+- macOS 版还关闭了系统级 `ApplePersistenceIgnoreState`，并清掉旧 SwiftUI 版本留下的 `NSWindow Frame main-workspace` / `NSSplitView Subview Frames main-workspace`。Windows 复刻时也要检查是否有系统/框架自己的 window restore、window placement 或 registry/AppData frame 缓存会和 Horosa 自己的 `window-state.json` 打架。
 
 持久化文件建议放在 app config dir，不要放在安装目录。Windows 上通常会落到 `%APPDATA%` 或 `%LOCALAPPDATA%` 的 app config 路径。
 
 验证方式：
 
 - 写入一个测试窗口状态，例如 `1180x760 at 120,120`。
+- 同时故意写入一个系统/框架层的旧大窗口记录，用来模拟“会先大一下”的真实现场。
 - 启动 packaged app。
 - 用 UI automation 轮询窗口 bounds。
 - 期望第一次可见窗口就是保存尺寸，不能先出现默认尺寸。
