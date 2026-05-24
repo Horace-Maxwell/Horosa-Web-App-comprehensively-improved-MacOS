@@ -244,6 +244,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <a href="README_ZH.md">README_ZH.md</a>: Chinese full guide<br />
       <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0">v2.1.0 release page</a><br />
       <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases">All releases</a><br />
+      <a href="docs/windows-porting-and-release-checklist.md">Windows porting checklist</a><br />
       <a href="Horosa_Desktop_Installer/README.md">Installer internals</a>
     </td>
     <td width="50%">
@@ -252,6 +253,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <a href="README_EN.md">README_EN.md</a>：英文完整说明<br />
       <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0">v2.1.0 版本页面</a><br />
       <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases">所有 Release</a><br />
+      <a href="docs/windows-porting-and-release-checklist.md">Windows 复刻与发布自检指南</a><br />
       <a href="Horosa_Desktop_Installer/README.md">安装器内部说明</a>
     </td>
   </tr>
@@ -266,6 +268,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <strong>English</strong><br /><br />
       Understand the public-facing repository layout: <a href="README.md">README.md</a><br />
       Inspect installer internals and publishing flow: <a href="Horosa_Desktop_Installer/README.md">Horosa_Desktop_Installer/README.md</a><br />
+      Plan a Windows port and release gate: <a href="docs/windows-porting-and-release-checklist.md">Windows porting checklist</a><br />
       Read the current beta release page: <a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0">v2.1.0 Beta</a><br />
       Enter the application source tree: <code>Horosa-Web/</code><br />
       Inspect runtime and diagnostics: <code>runtime/</code>, <code>diagnostics/</code>
@@ -274,6 +277,7 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       <strong>中文</strong><br /><br />
       理解首页与用户入口：<a href="README.md">README.md</a><br />
       查看安装器与发布链路：<a href="Horosa_Desktop_Installer/README.md">Horosa_Desktop_Installer/README.md</a><br />
+      规划 Windows 复刻与发布验收：<a href="docs/windows-porting-and-release-checklist.md">Windows 复刻与发布自检指南</a><br />
       阅读当前版本页面：<a href="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0">v2.1.0</a><br />
       进入主工程源码：<code>Horosa-Web/</code><br />
       查看运行时与诊断：<code>runtime/</code>、<code>diagnostics/</code>
