@@ -17,7 +17,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
 [![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime1-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime1)
+[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime2-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime2)
 [![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY.md)
 [![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT.md)
 [![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
@@ -167,7 +167,7 @@ Key additions in this release:
 - local event management UI was simplified, with useful actions aligned in the same row as chart management
 - app-wide light/dark mode contrast, dropdowns, overlays, loading states, management lists, and export controls were audited and polished
 - Qimen Dunjia parity and the previous desktop delivery fixes remain preserved
-- `2.1.0 / 2.1.0-runtime1` aligned across package metadata, Tauri config, release config, README, manifest, app zip, offline pkg, and runtime archive
+- `2.1.0 / 2.1.0-runtime2` aligned across package metadata, Tauri config, release config, README, manifest, app zip, offline pkg, and runtime archive
 - the notarized offline `.pkg` remains the primary install path for clean Apple Silicon machines
 
 ## Desktop Delivery

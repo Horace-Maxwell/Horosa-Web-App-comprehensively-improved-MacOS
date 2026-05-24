@@ -46,7 +46,7 @@
 - `scripts/package_runtime_payload.sh`: 打包 runtime payload
 - `scripts/build_desktop_release.sh`: 构建 `.app zip`、离线 `.pkg`、`horosa-latest.json`
 - `scripts/verify_desktop_packaging.sh`: 一键验收脚本
-- `scripts/generate_icon.sh`: 生成圆角白底黑字“星阙”图标
+- `scripts/generate_icon.sh`: 从透明圆角星空图标源生成 macOS app icon、iconset 与 icns
 
 ## 安装模型
 
@@ -217,6 +217,7 @@ HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh
 - manifest 中的平台、URL、SHA-256 是否完整
 - 离线 `.pkg` 是否能把 bundled runtime 正确部署到 shared runtime
 - shared runtime 是否能真实拉起 Horosa 后端服务
+- kentang/kin 新技法全量 smoke 后，普通命盘接口仍必须成功，防止 Swiss Ephemeris 全局路径被新技法污染后退化成 `param error`
 
 ## 当前产物
 
