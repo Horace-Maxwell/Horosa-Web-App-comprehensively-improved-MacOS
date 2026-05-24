@@ -153,6 +153,7 @@ printf '[6/8] verify app/pkg artifacts\n'
 [ -x "${OFFLINE_POSTINSTALL_SCRIPT}" ]
 [ -f "${COMPONENT_PLIST}" ]
 [ -d "${TARGET_APP}" ]
+python3 "${INSTALLER_ROOT}/scripts/verify_icon_alpha.py" --installer-root "${INSTALLER_ROOT}"
 codesign --verify --deep --strict "${TARGET_APP}"
 DESKTOP_ZIP_ENV="${DESKTOP_ZIP}" APP_NAME_ENV="${APP_NAME}" python3 - <<'PYZIP'
 import os, plistlib, zipfile
@@ -282,6 +283,8 @@ read -r CHART_PORT BACKEND_PORT <<<"$(pick_ports)"
 )
 wait_signed_backend_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
 wait_http "http://127.0.0.1:${CHART_PORT}/" 60
+# Keep the technique smoke before the generic chart/backend smoke. This catches
+# shared-process global state pollution, including Swiss Ephemeris path resets.
 python3 "${INSTALLER_ROOT}/scripts/verify_kentang_runtime_endpoints.py" --root "http://127.0.0.1:${CHART_PORT}"
 HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${INSTALLER_ROOT}/../Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js" >/dev/null
 if rg -n "MongoTimeoutException|127\\.0\\.0\\.1:27017|Connection refused" "${TMP_ROOT}/logs" "${TMP_ROOT}/diag" >/dev/null 2>&1; then
