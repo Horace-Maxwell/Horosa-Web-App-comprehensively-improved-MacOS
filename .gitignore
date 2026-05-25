@@ -81,3 +81,6 @@ Horosa_Desktop_Installer/assets/icon-base.png
 
 # Local review and profiling artifacts
 default.profraw
+
+# Claude Code machine-specific local settings (absolute paths, secrets)
+.claude/settings.local.json

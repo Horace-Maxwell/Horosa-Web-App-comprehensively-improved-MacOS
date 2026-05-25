@@ -76,6 +76,7 @@ Windows 复刻时要把这条经验直接放进 harness：
 - 如果某个 native 依赖当前是死代码，也要把“调用方追踪为零”的证据写进文档。未来一旦接入业务，必须重新评估，而不能沿用旧结论。
 - Windows 打包前要跑一遍 native 清单检查，等价于 macOS 的 `find ... '*.jnilib' '*.dylib' '*.so' + lipo -archs`。Windows 可用 `dumpbin /headers`、`sigcheck`、PowerShell 读取 PE machine type，至少确认目标架构和缺失 DLL。
 - 构建 / 安装自检不能只跑 `java -version` 或 Python import。发布 gate 必须真正启动安装后的 runtime，打 `/common/time`、chart health、kentang/kin 端点和多时间 `/chart`，这样才能抓到“启动后才加载”的 native 问题。
+- macOS 现在用 `Horosa_Desktop_Installer/scripts/verify_runtime_backend_boot.sh` 作为独立兜底脚本：解压打好的 runtime、强制使用内置 Java/Python、等待 chart `/` 与 backend `/common/time` 健康，再可选跑 kentang 端点。Windows 版要做等价的 `verify_runtime_backend_boot_windows.ps1`，不要把这一步混进普通打包脚本里；它应该作为发布前 gate 单独运行，失败就阻止发布。
 
 ## 启动服务时最容易漏的点
 
@@ -494,7 +495,7 @@ $env:PYTHONPATH = "$RuntimeRoot\Horosa-Web\flatlib-ctrad2;$RuntimeRoot\Horosa-We
 & "$RuntimeRoot\runtime\windows\python\python.exe" -c "import cherrypy,jsonpickle,swisseph; import websrv.webchartsrv; print('ok')"
 ```
 
-4. 启动安装后的 runtime，不是开发 checkout。
+4. 启动安装后的 runtime，不是开发 checkout。Windows 应提供等价于 macOS `verify_runtime_backend_boot.sh` 的独立脚本：从最终 runtime zip / 安装目录启动，强制使用 bundled Java/Python，等待 chart health 与 `/common/time`，并负责关停与日志保留。
 5. 先跑 kentang/kin 17 个端点。
 6. 再跑普通 `/chart` 多日期、多时间、多时区回归。
 7. 单独验证奇门/太乙/六壬边界：奇门和太乙走 Ken 后端，六壬继续走本地实现；奇门单页和三式合一都不能出现无后端支撑的月家奇门选项。

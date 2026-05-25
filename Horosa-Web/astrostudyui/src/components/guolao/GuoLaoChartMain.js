@@ -1665,6 +1665,23 @@ function buildHouseGodsSection(result, fields){
 	return lines.join('\n').trim();
 }
 
+// 供 AI 分析无头复算：按出生字段取七政四余盘并生成快照（命度/罗计沿用已保存设置，显示全部传统星曜）。
+export async function buildGuolaoSnapshotForFields(fields){
+	if(!fields){
+		return '';
+	}
+	const params = fieldsToParams(fields);
+	const data = await request(`${Constants.ServerRoot}/chart`, {
+		body: JSON.stringify({ ...params, cid: null }),
+		silent: true,
+	});
+	const result = data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
+	if(!result){
+		return '';
+	}
+	return buildGuolaoSnapshotTextV2(params, result, null, fields);
+}
+
 function buildGuolaoSnapshotTextV2(params, result, planetDisplay, fields){
 	const lines = [];
 	const chart = result && result.chart ? result.chart : {};

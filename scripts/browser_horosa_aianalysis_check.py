@@ -32,6 +32,11 @@ SCREENSHOT_PATH = RUNTIME_DIR / "browser_horosa_aianalysis_check.png"
 CHART_FIXTURE_CACHE = None
 
 
+def is_known_benign_console_error(text: str) -> bool:
+    """Filter project-wide legacy warnings that are not AIAnalysis regressions."""
+    return "Warning: [antd: Tabs] Tabs.TabPane is deprecated." in (text or "")
+
+
 def build_base_url(mock_server_root: str) -> str:
     web_port = os.environ.get("HOROSA_WEB_PORT", "8000")
     return os.environ.get(
@@ -613,7 +618,12 @@ def main() -> None:
                 )
                 page = context.new_page()
                 page.on("pageerror", lambda exc: result["pageErrors"].append(str(exc)))
-                page.on("console", lambda msg: result["consoleErrors"].append(msg.text) if msg.type == "error" else None)
+                page.on(
+                    "console",
+                    lambda msg: result["consoleErrors"].append(msg.text)
+                    if msg.type == "error" and not is_known_benign_console_error(msg.text)
+                    else None,
+                )
                 page.on("requestfailed", lambda req: result["requestFailures"].append({"url": req.url, "failure": req.failure}))
                 page.on(
                     "response",

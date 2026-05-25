@@ -101,7 +101,11 @@
    ```
    只出现 `x86_64` 而无 `arm64` 的，都是 arm64 隐患。
 
-2. **当前构建 / 安装自检抓不到这类问题。** `package_runtime_payload.sh` 与离线 `postinstall` 只跑了 `java -version` 和 `python -c "import swisseph"`，**从不真正启动 Spring Boot**，所以「启动后才加载的 JNI 架构问题」不会在发布前暴露。**建议**在自检里加一步：真正起一次后端并打一个 health 请求（参考现成的 `scripts/verify_kentang_runtime_endpoints.py` / `browser_*` 脚本），把这类问题挡在发布前。
+2. **构建 / 安装自检本身只跑 `java -version`，抓不到「启动后才加载」的问题。** `package_runtime_payload.sh` 与离线 `postinstall` 只跑 `java -version` 和 `python -c "import swisseph"`，**从不真正启动 Spring Boot**，所以这类 JNI 架构问题默认不会在发布前暴露。
+   - **已补：发布前兜底自检脚本** `Horosa_Desktop_Installer/scripts/verify_runtime_backend_boot.sh`。它用与桌面壳完全一致的方式（`HOROSA_REQUIRE_EMBEDDED_RUNTIME=1` + 内置 python/java）把打好的运行时**真正启动一次**，等待后端健康检查（chart `/` 与 backend `/common/time`）通过，再可选地跑一遍 `verify_kentang_runtime_endpoints.py` 的引擎端点冒烟，最后干净关停。
+   - **它是独立、按需运行的**：不会被 `build_desktop_release.sh` / `package_runtime_payload.sh` 自动调用，不改动正常发布流程；默认对 `dist/<runtimeAsset>.tar.gz` 解压到临时目录后启动，绝不触碰已安装的 `/Users/Shared/Horosa` 或正在运行的 app。
+   - 用法：`scripts/verify_runtime_backend_boot.sh [运行时.tar.gz | 运行时目录]`（不带参数自动探测 `dist/` 归档 → `build/runtime/runtime-payload`）；选项 `--skip-endpoints` / `--timeout <秒>` / `--keep-logs`；退出码 `0` 通过 / `1` 后端未启动健康 / `2` 端点冒烟失败 / `3` 输入错误。
+   - **建议接法（均可选）**：发布前手动跑一次；或在 `verify_public_distribution_readiness.sh` 末尾按需调用。
 
 3. **不要为了 arm64 随手升 OpenCV。** 3.4.2 → 4.x 是破坏性 API 变更，会波及 `ImageUtility` 大量调用，必须专门回归。
 
