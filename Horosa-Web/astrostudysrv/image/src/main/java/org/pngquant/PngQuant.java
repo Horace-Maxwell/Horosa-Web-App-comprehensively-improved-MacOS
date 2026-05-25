@@ -9,6 +9,16 @@ import java.awt.image.*;
 public class PngQuant extends LiqObject {
 
     /**
+     * @return true when the libimagequant native library is available on this
+     *         platform. When false, callers must avoid constructing PngQuant and
+     *         fall back, since the native methods would raise UnsatisfiedLinkError
+     *         (notably on arm64 / Apple Silicon, where no native binary ships).
+     */
+    public static boolean isNativeAvailable() {
+        return LiqObject.isNativeAvailable();
+    }
+
+    /**
      * Single instance can be "recycled" for many remappings.
      */
     public PngQuant() {

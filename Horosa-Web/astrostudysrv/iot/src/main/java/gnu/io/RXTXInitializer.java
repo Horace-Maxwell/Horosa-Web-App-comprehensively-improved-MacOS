@@ -75,6 +75,14 @@ public class RXTXInitializer {
         String suffix = RESOURCE_NAME.substring(RESOURCE_NAME.lastIndexOf(".") + 1, RESOURCE_NAME.length());
         outFile = new File(outFile, prefix + "-" + RXTXVersion.getVersion() + "." + suffix);
         if (!outFile.exists()) {
+            // No native library is bundled for every architecture (notably arm64 /
+            // Apple Silicon, where os.arch=aarch64 has no librxtxSerial binary).
+            // Fail with a clear IOException - which the static initializer already
+            // wraps - instead of letting a null stream become a NullPointerException.
+            if (RXTXVersion.class.getResource(RESOURCE_NAME) == null) {
+                throw new IOException("No bundled RXTX native library \"" + RESOURCE_NAME
+                        + "\" for os.arch=" + OSARCH + "; serial features are unavailable on this platform.");
+            }
             try (InputStream is = RXTXVersion.class.getResourceAsStream(RESOURCE_NAME);
                     FileOutputStream fos = new FileOutputStream(outFile)) {
                 copy(is, fos);

@@ -126,13 +126,27 @@ public class PNGUtility {
 		
 		try{
 			BufferedImage orgimg = ImageIO.read(fileIns);
-			
-			PngQuant pngquant = new PngQuant();
-			BufferedImage resimg = pngquant.getRemapped(orgimg);
-			
+
+			BufferedImage resimg = null;
+			// libimagequant ships no arm64 (Apple Silicon) binary. When the native
+			// library is unavailable, skip palette quantization and write the
+			// original image so a valid PNG is still produced at destFilename.
+			if(PngQuant.isNativeAvailable()){
+				try{
+					PngQuant pngquant = new PngQuant();
+					resimg = pngquant.getRemapped(orgimg);
+				}catch(Throwable nativeErr){
+					QueueLog.error(AppLoggers.DebugLogger, nativeErr);
+					resimg = null;
+				}
+			}
+			if(resimg == null){
+				resimg = orgimg;
+			}
+
 			File outputfile = new File(destFilename);
 			ImageIO.write(resimg, "png", outputfile);
-			
+
 			long deltams = System.currentTimeMillis() - start;
 			return deltams;
 		}catch(Exception e){
