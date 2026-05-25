@@ -12,6 +12,35 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-05-25
+
+### 14:25 - 准备 v2.1.2 beta：AI 分析上下文重算、Markdown 渲染与本地 kentang 启动链路加固
+
+- Scope:
+  - 将 AI 分析上下文挂载改为“命盘按当前出生数据重算、事盘只读保存 payload”的硬规则，并准备 `2.1.2 / 2.1.2-runtime1` 发布。
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/aiAnalysisContext.js`
+  - `Horosa-Web/astrostudyui/src/components/aianalysis/AIAnalysisMain.js`
+  - `Horosa-Web/astrostudyui/src/components/aianalysis/AIAnalysisMain.less`
+  - `Horosa-Web/astrostudyui/src/integrations/kentang/serviceRoot.js`
+  - `Horosa-Web/start_horosa_local.sh`
+  - `.claude/settings.json`
+  - `.claude/launch.json`
+  - `.claude/skills/horosa-dev/SKILL.md`
+  - `docs/ai-analysis-context-and-markdown.md`
+  - `Horosa_Desktop_Installer/scripts/verify_runtime_backend_boot.sh`
+  - `README.md`
+  - `README_EN.md`
+  - `README_ZH.md`
+- Details:
+  - AI 分析命盘侧新增 9 个 headless builder 路径，按当前命盘出生数据重算星盘、印度占星、八字、紫微、法达、主限法、七政四余、宿占、量化盘。
+  - 事盘侧不再从时间重新起盘，也不读全局模块缓存；泛 `payload.snapshot` 只在请求技法与 payload 主模块匹配时可用，避免把三式合一泛快照误挂到六爻等技法。
+  - AI 回复改为 `marked + DOMPurify` 安全渲染 Markdown，并重排系统提示、挂载上下文面板和底部操作按钮。
+  - 本地一键启动优先使用嵌入式 Python，补齐 `vendor` 到 `PYTHONPATH`，并把本地 kentang/kin 请求解析到图表服务 `8899`。
+  - 新增 Claude harness、Horosa dev skill、AI 分析技术 runbook，以及独立 packaged-runtime backend boot 自检脚本。
+- Verification:
+  - 将继续执行 harness JSON/嵌入式 Python 依赖检查、AIAnalysis 单测、kentang service-root 测试、顺序 `npm run build` / `npm run build:file`、浏览器 AIAnalysis smoke、packaged runtime boot、签名公证验包与 GitHub 回下载端到端验证。
+
 ## 2026-05-21
 
 ### 17:10 - 收紧 2.0.0 beta README 与 Release 文案，补齐真实新增能力

@@ -1,6 +1,7 @@
 import React from 'react';
 import {
 	Checkbox,
+	Collapse,
 	Empty,
 	Form,
 	Popconfirm,
@@ -16,6 +17,8 @@ import {
 import Mustache from 'mustache';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import styles from './AIAnalysisMain.less';
 import MonacoEditor from './MonacoField';
 import XQIcon from '../xq-icons';
@@ -542,21 +545,53 @@ function configureMonaco(monaco){
 	}
 }
 
-function filterByDateRange(item, start, end){
-	const ts = Date.parse(item.updatedAt || item.createdAt || '') || 0;
-	if(start){
-		const st = Date.parse(start);
-		if(!Number.isNaN(st) && ts < st){
-			return false;
-		}
+marked.setOptions({
+	gfm: true,
+	breaks: true,
+	headerIds: false,
+	mangle: false,
+});
+
+// 把 AI 输出的 Markdown 渲染为安全 HTML（GFM：标题/列表/表格/代码/引用/链接），再交给气泡渲染。
+function renderMarkdownToHtml(text){
+	const raw = `${text || ''}`;
+	if(!raw.trim()){
+		return '';
 	}
-	if(end){
-		const et = Date.parse(end);
-		if(!Number.isNaN(et) && ts > et + 24 * 3600 * 1000){
-			return false;
-		}
+	try{
+		const html = marked.parse(raw);
+		return DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel'] });
+	}catch(e){
+		return '';
 	}
-	return true;
+}
+
+const CONTEXT_STATUS_META = {
+	ready: { text: '已就绪', color: 'green' },
+	regenerated: { text: '已按盘重算', color: 'blue' },
+	missing: { text: '缺失', color: 'red' },
+	pending: { text: '待生成', color: 'default' },
+};
+
+function getContextStatusMeta(status){
+	return CONTEXT_STATUS_META[status] || CONTEXT_STATUS_META.pending;
+}
+
+// 从挂载层的 meta 里提取出生/起盘签名，方便核对「挂的是不是这张盘」。
+function buildContextSignatureText(meta){
+	if(!meta || typeof meta !== 'object'){
+		return '';
+	}
+	const date = `${meta.date || meta.birth || meta.divTime || ''}`.trim();
+	const zone = `${meta.zone || ''}`.trim();
+	const parts = [];
+	if(date){
+		parts.push(date);
+	}
+	if(zone){
+		parts.push(zone);
+	}
+	return parts.join(' · ');
 }
 
 function shallowEqualObject(a, b){
@@ -656,8 +691,6 @@ function AIAnalysisMain(props){
 		sourceType: '',
 		favorite: 'all',
 		archived: 'active',
-		startDate: '',
-		endDate: '',
 	});
 	const [selectedHistoryIds, setSelectedHistoryIds] = React.useState([]);
 	const [materialKeyword, setMaterialKeyword] = React.useState('');
@@ -786,9 +819,6 @@ function AIAnalysisMain(props){
 			if(historyFilter.sourceType && `${item.sourceRef && item.sourceRef.sourceType ? item.sourceRef.sourceType : ''}` !== historyFilter.sourceType){
 				return false;
 			}
-			if(!filterByDateRange(item, historyFilter.startDate, historyFilter.endDate)){
-				return false;
-			}
 			if(!keyword){
 				return true;
 			}
@@ -874,7 +904,10 @@ function AIAnalysisMain(props){
 				key: `source:${activeSource.id}`,
 				title: `案例前提 · ${activeSource.title}`,
 				type: activeSource.sourceType === 'chart' ? '命盘' : '事盘',
-				description: sourceContext && sourceContext.content ? `${sourceContext.content.slice(0, 180)}${sourceContext.content.length > 180 ? '...' : ''}` : '将自动读取案例快照',
+				content: sourceContext && sourceContext.content ? sourceContext.content : '',
+				meta: sourceContext && sourceContext.meta ? sourceContext.meta : null,
+				status: sourceContext && sourceContext.content ? 'ready' : 'pending',
+				emptyHint: '将自动读取案例快照',
 			});
 		}
 		if(sessionSystemPrompt){
@@ -882,7 +915,8 @@ function AIAnalysisMain(props){
 				key: 'session-system-prompt',
 				title: '本轮系统提示',
 				type: 'system',
-				description: sessionSystemPrompt,
+				content: sessionSystemPrompt,
+				status: 'ready',
 			});
 		}
 		(techniqueContexts || []).forEach((item)=>{
@@ -890,9 +924,12 @@ function AIAnalysisMain(props){
 				key: `technique:${item.key}`,
 				title: `技法 · ${item.title || item.key}`,
 				type: 'technique',
-				description: item.content
-					? `${item.content.slice(0, 180)}${item.content.length > 180 ? '...' : ''}`
-					: (item.status === 'missing' ? '当前未找到该技法可用快照，未挂载其他技法内容。' : '正在按已存案例/命盘数据自动补生成快照。'),
+				content: item.content || '',
+				meta: item.meta || null,
+				status: item.status || (item.content ? 'ready' : 'missing'),
+				emptyHint: item.status === 'missing'
+					? '当前未找到该技法可用快照，未挂载该技法内容。'
+					: '正在按已存案例/命盘数据自动补生成快照。',
 			});
 		});
 		resolved.materials.forEach((item)=>{
@@ -900,7 +937,8 @@ function AIAnalysisMain(props){
 				key: `material:${item.id}`,
 				title: `资料 · ${item.name}`,
 				type: item.kind || 'note',
-				description: `${(item.extractedText || '').slice(0, 120)}${(item.extractedText || '').length > 120 ? '...' : ''}`,
+				content: item.extractedText || '',
+				status: item.extractedText ? 'ready' : 'pending',
 			});
 		});
 		resolved.templates.forEach((item)=>{
@@ -908,11 +946,29 @@ function AIAnalysisMain(props){
 				key: `template:${item.id}`,
 				title: `模版 · ${item.name}`,
 				type: item.format || 'text',
-				description: `${(item.instructionText || item.jsonSchema || item.content || '').slice(0, 120)}${(item.instructionText || item.jsonSchema || item.content || '').length > 120 ? '...' : ''}`,
+				content: item.instructionText || item.jsonSchema || item.content || '',
+				status: 'ready',
 			});
 		});
 		return items;
 	}, [referenceIds, materials, bundles, templates, activeSource, sourceContext, sessionSystemPrompt, techniqueContexts]);
+
+	// 挂载面板：新出现的层默认展开（否则新加技法时面板看起来是空的）；用户手动收起的保持收起。
+	const [contextActiveKeys, setContextActiveKeys] = React.useState([]);
+	const seenContextKeysRef = React.useRef(new Set());
+	React.useEffect(()=>{
+		const keys = lockedContextItems.map((item)=>item.key);
+		setContextActiveKeys((prev)=>{
+			const next = new Set(prev.filter((k)=>keys.includes(k)));
+			keys.forEach((k)=>{
+				if(!seenContextKeysRef.current.has(k)){
+					next.add(k);
+				}
+				seenContextKeysRef.current.add(k);
+			});
+			return Array.from(next);
+		});
+	}, [lockedContextItems]);
 
 	const loadWorkspace = React.useCallback(async (options = {})=>{
 		setWorkspaceLoading(true);
@@ -2488,24 +2544,6 @@ function AIAnalysisMain(props){
 									))}
 								</Select>
 							</div>
-							<div className={styles.toolbarField}>
-								<div className={styles.toolbarLabel}>本轮系统提示</div>
-								<TextArea
-									value={sessionSystemPrompt}
-									rows={2}
-									placeholder="可留空；也可由组合一键带入"
-									onChange={(e)=>setSessionSystemPrompt(e.target.value)}
-								/>
-							</div>
-						</div>
-						<div className={styles.toolbarActions}>
-							<Space wrap>
-								<Button icon={<XQIcon name="refresh" />} onClick={()=>setSources(listAnalysisSources())}>刷新案例</Button>
-								<Button onClick={resetConversationDraft}>新对话</Button>
-								<Button icon={<XQIcon name="sync" />} onClick={handleRegenerateLastReply} disabled={!activeConversation || sending}>重新生成</Button>
-								<Button icon={<XQIcon name="edit" />} onClick={handleEditLastUserAndBranch} disabled={!activeConversation || sending}>编辑上一条并分支</Button>
-								<Button icon={<XQIcon name="stop" />} danger onClick={handleStopStreaming} disabled={!sending}>停止生成</Button>
-							</Space>
 						</div>
 					</Card>
 				</div>
@@ -2546,7 +2584,9 @@ function AIAnalysisMain(props){
 													</Tooltip>
 												</Space>
 											</div>
-											<div>{item.content}</div>
+											{item.role === 'user'
+												? <div className={styles.messageText}>{item.content}</div>
+												: <div className={styles.markdownBody} dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(item.content) }} />}
 										</div>
 									))}
 								</div>
@@ -2564,32 +2604,68 @@ function AIAnalysisMain(props){
 										}}
 									/>
 									<div className={styles.composerActions}>
-										<Text type="secondary">Enter 发送，Shift + Enter 换行</Text>
-										<Button type="primary" icon={<XQIcon name="send" />} loading={sending} onClick={handleSend}>发送分析</Button>
+										<Space wrap size={6} className={styles.composerTools}>
+											<Button size="small" icon={<XQIcon name="refresh" />} onClick={()=>setSources(listAnalysisSources())}>刷新案例</Button>
+											<Button size="small" onClick={resetConversationDraft}>新对话</Button>
+											<Button size="small" icon={<XQIcon name="sync" />} onClick={handleRegenerateLastReply} disabled={!activeConversation || sending}>重新生成</Button>
+											<Button size="small" icon={<XQIcon name="edit" />} onClick={handleEditLastUserAndBranch} disabled={!activeConversation || sending}>编辑上一条并分支</Button>
+											<Button size="small" icon={<XQIcon name="stop" />} danger onClick={handleStopStreaming} disabled={!sending}>停止生成</Button>
+										</Space>
+										<Space size={10} className={styles.composerSend}>
+											<Text type="secondary">Enter 发送，Shift + Enter 换行</Text>
+											<Button type="primary" icon={<XQIcon name="send" />} loading={sending} onClick={handleSend}>发送分析</Button>
+										</Space>
 									</div>
 								</div>
 							</div>
 						</Card>
-						<Card size="small" bordered={false} className={styles.contextCard} title="本轮挂载上下文" bodyStyle={{ height: 'calc(100% - 46px)', minHeight: 0 }}>
-							<div className={styles.contextScroll}>
-								{lockedContextItems.length === 0 ? (
-									<Empty description="还没有挂载任何前提" />
-								) : lockedContextItems.map((item)=>(
-									<div key={item.key} className={styles.contextItem}>
-										<div className={styles.contextTitle}>
-											{item.title} <Tag>{item.type}</Tag>
-										</div>
-										<div className={styles.contextDesc}>{item.description}</div>
-									</div>
-								))}
-								{sourceContext && sourceContext.content ? (
-									<div className={styles.summaryBlock}>
-										{sourceContext.content.slice(0, 900)}
-										{sourceContext.content.length > 900 ? '\n...' : ''}
-									</div>
-								) : null}
-							</div>
-						</Card>
+						<div className={styles.sideColumn}>
+							<Card size="small" bordered={false} className={styles.systemPromptCard} title="本轮系统提示">
+								<TextArea
+									value={sessionSystemPrompt}
+									rows={2}
+									placeholder="可留空；也可由组合一键带入"
+									onChange={(e)=>setSessionSystemPrompt(e.target.value)}
+								/>
+							</Card>
+							<Card size="small" bordered={false} className={styles.contextCard} title="本轮挂载上下文" bodyStyle={{ height: 'calc(100% - 46px)', minHeight: 0 }}>
+								<div className={styles.contextScroll}>
+									{lockedContextItems.length === 0 ? (
+										<Empty description="还没有挂载任何前提" />
+									) : (
+										<Collapse
+											activeKey={contextActiveKeys}
+											onChange={(ks)=>setContextActiveKeys(Array.isArray(ks) ? ks : [ks])}
+											className={styles.contextCollapse}
+										>
+											{lockedContextItems.map((item)=>{
+												const statusMeta = getContextStatusMeta(item.status);
+												const signature = buildContextSignatureText(item.meta);
+												return (
+													<Collapse.Panel
+														key={item.key}
+														header={(
+															<div className={styles.contextPanelHeader}>
+																<span className={styles.contextPanelTitle}>{item.title}</span>
+																<span className={styles.contextPanelTags}>
+																	<Tag>{item.type}</Tag>
+																	<Tag color={statusMeta.color}>{statusMeta.text}</Tag>
+																</span>
+																{signature ? <span className={styles.contextPanelSig}>{signature}</span> : null}
+															</div>
+														)}
+													>
+														{item.content
+															? <div className={styles.contextBody}>{item.content}</div>
+															: <div className={styles.contextEmptyHint}>{item.emptyHint || '暂无内容'}</div>}
+													</Collapse.Panel>
+												);
+											})}
+										</Collapse>
+									)}
+								</div>
+							</Card>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -2631,8 +2707,6 @@ function AIAnalysisMain(props){
 							<Select.Option value="archived">已归档</Select.Option>
 							<Select.Option value="all">全部</Select.Option>
 						</Select>
-						<Input value={historyFilter.startDate} onChange={(e)=>setHistoryFilter((prev)=>({ ...prev, startDate: e.target.value }))} style={{ width: 160 }} />
-						<Input value={historyFilter.endDate} onChange={(e)=>setHistoryFilter((prev)=>({ ...prev, endDate: e.target.value }))} style={{ width: 160 }} />
 					</div>
 					<div className={styles.historyBatchBar}>
 						<Space wrap>

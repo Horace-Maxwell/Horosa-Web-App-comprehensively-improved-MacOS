@@ -58,17 +58,17 @@ describe('kentang service root isolation', ()=>{
 		expect(serviceRoot.buildKentangEndpoint('qizhengkin', 'pan')).toBe('http://127.0.0.1:63967/qizhengkin/pan');
 	});
 
-	test('derives the local kentang port from the primary local server root', ()=>{
+	test('derives local kentang routes from the single chart service port', ()=>{
 		const serviceRoot = loadServiceRoot(
 			'http://127.0.0.1:3001/?srv=http%3A%2F%2F127.0.0.1%3A9999'
 		);
-		expect(serviceRoot.buildKentangEndpoint('jinkou', 'pan')).toBe('http://127.0.0.1:8898/jinkou/pan');
-		expect(serviceRoot.buildKentangEndpoint('taixuan', 'pan')).toBe('http://127.0.0.1:8895/taixuan/pan');
-		expect(serviceRoot.buildKentangEndpoint('jingjue', 'pan')).toBe('http://127.0.0.1:8894/jingjue/pan');
-		expect(serviceRoot.buildKentangEndpoint('shenyishu', 'pan')).toBe('http://127.0.0.1:8893/shenyishu/pan');
-		expect(serviceRoot.buildKentangEndpoint('shaozi', 'pan')).toBe('http://127.0.0.1:8892/shaozi/pan');
-		expect(serviceRoot.buildKentangEndpoint('xianqin', 'pan')).toBe('http://127.0.0.1:8892/xianqin/pan');
-		expect(serviceRoot.buildKentangEndpoint('cetian', 'pan')).toBe('http://127.0.0.1:8892/cetian/pan');
+		expect(serviceRoot.buildKentangEndpoint('jinkou', 'pan')).toBe('http://127.0.0.1:8899/jinkou/pan');
+		expect(serviceRoot.buildKentangEndpoint('taixuan', 'pan')).toBe('http://127.0.0.1:8899/taixuan/pan');
+		expect(serviceRoot.buildKentangEndpoint('jingjue', 'pan')).toBe('http://127.0.0.1:8899/jingjue/pan');
+		expect(serviceRoot.buildKentangEndpoint('shenyishu', 'pan')).toBe('http://127.0.0.1:8899/shenyishu/pan');
+		expect(serviceRoot.buildKentangEndpoint('shaozi', 'pan')).toBe('http://127.0.0.1:8899/shaozi/pan');
+		expect(serviceRoot.buildKentangEndpoint('xianqin', 'pan')).toBe('http://127.0.0.1:8899/xianqin/pan');
+		expect(serviceRoot.buildKentangEndpoint('cetian', 'pan')).toBe('http://127.0.0.1:8899/cetian/pan');
 	});
 
 	test('supports explicit engine aliases for future kentang modules', ()=>{

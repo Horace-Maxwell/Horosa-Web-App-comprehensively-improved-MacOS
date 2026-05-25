@@ -8,14 +8,14 @@
 
 **Western astrology and Chinese metaphysics, in one native macOS workstation**
 
-[![Version](https://img.shields.io/badge/version-2.1.1%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1)
+[![Version](https://img.shields.io/badge/version-2.1.2%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.2)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.2)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.2)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.1/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.2/Horosa-Installer-macos-arm64-offline.pkg) ·
 [Portal](README.md) ·
 [中文说明](README_ZH.md) ·
 [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -34,7 +34,7 @@ This repository is the macOS delivery of that app: the application source, the s
 
 Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.1/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.2/Horosa-Installer-macos-arm64-offline.pkg)**
 
 Best for:
 
@@ -93,19 +93,19 @@ Yi and Sanshi go past standalone tabs into a genuinely integrated surface.
 
 Charts and cases save locally with tags, snapshots, and raw backend payloads. Everything supports JSON import/export and restores its full state when you reopen it.
 
-## New in v2.1.1 beta
+## New in v2.1.2 beta
 
-This release takes a batch of newly wired traditional methods and makes them durable—properly managed, exportable, and persistent—rather than merely runnable.
+This release hardens AI Analysis and local runtime startup so chart/case context, Markdown replies, and kentang/kin methods are stable in day-to-day use.
 
-- **Broader traditional-method backends** — added and normalized engines for Taiyi, Jinkou, Huangji/Wangji, Wuzhao, Taixuan, Jingjue, Shenyishu, Kin Astro, Qizheng, and Qimen
-- **Fixed Sanshi-United routing** — Qimen and Taiyi now route through the kentang2017 backend while Liuren stays on the existing local implementation; the unsupported Qimen month-chart option was removed instead of silently falling back to the old calculation
-- **Full chart/case persistence** — new-method inputs, tags, snapshots, raw structured payloads, JSON import/export, and reopen behavior are all preserved
-- **Structured AI export** — export reads directly from structured backend data and exposes selectable groups per technique, tab, and page
-- **Apple-Silicon native-library hardening** — optional x86_64-only libimagequant / OpenCV / RXTX failure paths now degrade cleanly; normal install/startup, QR/captcha generation, pure-Java PNG compression, and core charting paths are unaffected
-- **State that survives restarts** — user settings and desktop window size persist across close, reopen, and app updates
-- **Desktop polish** — a shared Daily / Offline Ready / Failed startup console with live backend progress; window restoration validated from the first visible frame (no launch-size flash); the Ziwei Sihua chart hides star-brightness labels so transformation markers stay legible; and another pass over light/dark contrast, dropdowns, overlays, and management lists
+- **No cross-chart AI Analysis context** — chart techniques are recomputed from the selected chart's own birth data; stale global snapshots are rejected when their signature does not match
+- **Divination casts keep their original payload** — case sources only mount the technique payload saved at casting time; unrelated techniques show missing instead of being recast from time
+- **Nine chart techniques wired for headless context** — natal chart, Indian astrology, Bazi, Ziwei, Firdaria, Primary Directions, Qizheng/Guolao, SuZhan, and midpoint analysis
+- **Markdown AI replies** — headings, bold text, lists, tables, code, and quotes render safely through `marked + DOMPurify`
+- **AI Analysis layout cleanup** — context panels now show full expandable content, status, and birth signature; system prompt and composer actions have cleaner placement
+- **Local startup and kentang fixes** — one-click startup prefers the embedded Python, includes `vendor` on `PYTHONPATH`, and routes local kentang/kin calls to the chart service on `8899`
+- **Agent handoff harness** — `.claude` permissions, preview config, project skill, and a detailed AI Analysis runbook are included for safer future changes
 
-The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.1.1 / 2.1.1-runtime1`. Full log on the [v2.1.1 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1).
+The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.1.2 / 2.1.2-runtime1`. Full log on the [v2.1.2 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.2).
 
 ## Under the Hood
 

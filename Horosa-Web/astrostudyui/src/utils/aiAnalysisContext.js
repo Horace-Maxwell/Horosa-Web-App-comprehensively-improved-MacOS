@@ -17,6 +17,13 @@ import { resolveJinKouDiFen } from '../components/jinkou/JinKouState';
 import { buildLiuRengSnapshotText } from '../components/lrzhan/LiuRengMain';
 import { buildJinKouSnapshotText } from '../components/jinkou/JinKouMain';
 import { buildGuaSnapshotText } from '../components/guazhan/GuaZhanMain';
+import { buildBaziSnapshotForParams } from '../components/cntradition/BaZi';
+import { buildZiweiSnapshotForParams } from '../components/ziwei/ZiWeiMain';
+import { buildIndiaSnapshotForFields } from '../components/astro/IndiaChart';
+import { buildFirdariaSnapshotText, buildPrimaryDirectSnapshotText } from '../components/direction/AstroDirectMain';
+import { buildGuolaoSnapshotForFields } from '../components/guolao/GuoLaoChartMain';
+import { buildSuzhanSnapshotText } from '../components/suzhan/SuZhanMain';
+import { buildGermanySnapshotForFields } from '../components/germany/AstroMidpoint';
 
 const DEFAULT_PD_ASPECTS = [0, 60, 90, 120, 180];
 const DEFAULT_CONTEXT_CHAR_LIMIT = 18000;
@@ -519,7 +526,10 @@ function generateCaseTechniqueSnapshot(record, moduleName, payload){
 		);
 	}
 	case 'qimen':
-		return buildDunJiaSnapshotText(payload && (payload.pan || (payload.result && payload.result.dunjia)));
+		if(!payload || !(payload.pan || (payload.result && payload.result.dunjia) || payload.dunjia)){
+			return '';
+		}
+		return buildDunJiaSnapshotText(payload.pan || (payload.result && payload.result.dunjia) || payload.dunjia);
 	case 'tongshefa': {
 		const selection = payload && (payload.selection || (payload.tongshefa && payload.tongshefa.selection));
 		if(!selection){
@@ -528,10 +538,19 @@ function generateCaseTechniqueSnapshot(record, moduleName, payload){
 		return buildTongSheFaSnapshot(buildTongSheFaModel(selection));
 	}
 	case 'sixyao':
+		if(!payload || !payload.gua){
+			return '';
+		}
 		return buildGuaSnapshotText(buildCaseSnapshotFields(record), payload && payload.gua ? payload.gua : {});
 	case 'taiyi':
-		return buildTaiyiSnapshotText(payload && (payload.pan || (payload.result && payload.result.taiyi)));
+		if(!payload || !(payload.pan || (payload.result && payload.result.taiyi) || payload.taiyi)){
+			return '';
+		}
+		return buildTaiyiSnapshotText(payload.pan || (payload.result && payload.result.taiyi) || payload.taiyi);
 	case 'sanshiunited':
+		if(!payload || (!payload.moduleSnapshots && !payload.modules && !payload.snapshot && !payload.result)){
+			return '';
+		}
 		return buildSanshiUnifiedFallbackSnapshot(record, payload || {});
 	default:
 		return '';
@@ -555,6 +574,109 @@ async function regenerateCaseTechniqueSnapshot(record, moduleName, payload){
 	case 'sanshiunited':
 		return regenerateSanshiUnifiedSnapshot(record, payload);
 	default:
+		return '';
+	}
+}
+
+// 命盘技法的出生参数（形状对齐各组件 genParams：date 'YYYY-MM-DD' / time 'HH:mm:ss'）。
+function buildChartBaziParams(record){
+	const fields = buildFieldObject(record);
+	return {
+		date: fields.date.value.format('YYYY-MM-DD'),
+		time: fields.time.value.format('HH:mm:ss'),
+		zone: fields.zone.value,
+		lon: fields.lon.value,
+		lat: fields.lat.value,
+		gpsLat: fields.gpsLat.value,
+		gpsLon: fields.gpsLon.value,
+		gender: fields.gender.value,
+		timeAlg: fields.timeAlg.value,
+		phaseType: fields.phaseType.value,
+		godKeyPos: fields.godKeyPos.value,
+		after23NewDay: fields.after23NewDay.value,
+		adjustJieqi: fields.adjustJieqi.value,
+	};
+}
+
+function buildChartZiweiParams(record){
+	const fields = buildFieldObject(record);
+	return {
+		date: fields.date.value.format('YYYY-MM-DD'),
+		time: fields.time.value.format('HH:mm:ss'),
+		zone: fields.zone.value,
+		lon: fields.lon.value,
+		lat: fields.lat.value,
+		gpsLat: fields.gpsLat.value,
+		gpsLon: fields.gpsLon.value,
+		gender: fields.gender.value,
+		timeAlg: fields.timeAlg.value === 1 ? 1 : 0,
+		after23NewDay: fields.after23NewDay.value,
+	};
+}
+
+// 取该盘的西洋星盘原始结果（含 predictive 衍生数据，如 firdaria；可选含主限法）。
+async function fetchChartResultForRecord(record, options = {}){
+	const fields = buildFieldObject(record);
+	const rsp = await fetchChart({
+		...fieldParams(fields),
+		includePrimaryDirection: !!options.includePrimaryDirection,
+	}, {
+		silent: true,
+		timeoutMs: 20000,
+	});
+	return rsp && rsp.Result ? rsp.Result : null;
+}
+
+// 命盘侧：按该盘的出生数据无头复算指定技法的快照文本。占卜/事盘走 Part F，不在此列。
+async function regenerateChartTechniqueSnapshot(record, key){
+	if(!record){
+		return '';
+	}
+	try{
+		switch(normalizeTechniqueKey(key)){
+		case 'bazi':
+			return await buildBaziSnapshotForParams(buildChartBaziParams(record));
+		case 'ziwei':
+			return await buildZiweiSnapshotForParams(buildChartZiweiParams(record));
+		case 'indiachart':
+			return await buildIndiaSnapshotForFields(buildFieldObject(record), 1);
+		case 'firdaria': {
+			// 法达星限随西洋盘 predictive 一并返回，直接读取即可。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (buildFirdariaSnapshotText(chartObj) || '') : '';
+		}
+		case 'primarydirect': {
+			// 主限法：取含主限法的西洋盘（默认 Alchabitius 弧 / Ptolemy 时钥 / 显示界限）。
+			const chartObj = await fetchChartResultForRecord(record, { includePrimaryDirection: true });
+			if(!chartObj){
+				return '';
+			}
+			const snapshotChartObj = {
+				...chartObj,
+				params: {
+					...(chartObj.params || {}),
+					showPdBounds: 1,
+					pdMethod: 'astroapp_alchabitius',
+					pdTimeKey: 'Ptolemy',
+				},
+			};
+			return buildPrimaryDirectSnapshotText(snapshotChartObj) || '';
+		}
+		case 'guolao':
+			// 七政四余：命度/罗计沿用已保存设置，显示全部传统星曜。
+			return await buildGuolaoSnapshotForFields(buildFieldObject(record));
+		case 'suzhan': {
+			// 宿占：宿盘随标准西洋盘的二十八宿数据生成，显示全部传统星曜。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (buildSuzhanSnapshotText(chartObj, buildFieldObject(record), null) || '') : '';
+		}
+		case 'germany':
+			// 量化盘（中点盘）。
+			return await buildGermanySnapshotForFields(buildFieldObject(record));
+		default:
+			return '';
+		}
+	}catch(e){
 		return '';
 	}
 }
@@ -848,10 +970,8 @@ async function buildCaseContext(source){
 			},
 		};
 	}
-	let generated = generateCaseTechniqueSnapshot(record, extracted.moduleName, extracted.payload);
-	if(!generated){
-		generated = await regenerateCaseTechniqueSnapshot(record, extracted.moduleName, extracted.payload);
-	}
+	// Part F：事盘只从自身 payload 重建文本（用起盘结果，不碰时间），不按时间重新起盘。
+	const generated = generateCaseTechniqueSnapshot(record, extracted.moduleName, extracted.payload);
 	if(generated){
 		saveGeneratedTechniqueSnapshot(extracted.moduleName, generated, record);
 		return {
@@ -1109,7 +1229,9 @@ function extractSnapshotText(raw){
 }
 
 function pickSnapshotCandidate(candidates){
-	const valid = (candidates || []).filter((item)=>item && item.content);
+	// 拒绝与当前案例出生/起盘签名明确不匹配的候选，避免挂载到「上次看过的那张盘」。
+	// generated 候选恒为 compatible:true；payload/cache 候选由 isSnapshotMetaCompatible 判定（源签名为空时为 true，不误伤）。
+	const valid = (candidates || []).filter((item)=>item && item.content && item.compatible !== false);
 	if(!valid.length){
 		return null;
 	}
@@ -1141,6 +1263,15 @@ function getTechniqueSnapshotFromPayload(payload, moduleName, source){
 	}
 	const aliases = getTechniqueAliasList(moduleName);
 	const aliasSet = new Set(aliases);
+	const record = source && source.record ? source.record : null;
+	const primaryPayloadKey = normalizeTechniqueKey(
+		payload.module
+		|| payload.moduleName
+		|| payload.sourceModule
+		|| (record && (record.sourceModule || record.caseType || record.chartType))
+		|| ''
+	);
+	const genericSnapshotMatchesRequest = !primaryPayloadKey || aliasSet.has(primaryPayloadKey);
 	const candidates = [];
 	const pushCandidate = (raw, extra = {})=>{
 		const content = extractSnapshotText(raw);
@@ -1156,11 +1287,13 @@ function getTechniqueSnapshotFromPayload(payload, moduleName, source){
 			specificity: extra.specificity || 0,
 		});
 	};
-	pushCandidate(payload.snapshot, {
-		meta: payload.meta || {},
-		createdAt: payload.createdAt || '',
-		specificity: 0,
-	});
+	if(genericSnapshotMatchesRequest){
+		pushCandidate(payload.snapshot, {
+			meta: payload.meta || {},
+			createdAt: payload.createdAt || '',
+			specificity: 0,
+		});
+	}
 	if(payload.module && aliasSet.has(normalizeTechniqueKey(payload.module))){
 		pushCandidate(payload.snapshot, {
 			meta: payload.meta || {},
@@ -1259,14 +1392,12 @@ async function buildTechniqueContext(source, techniqueKey, baseSourceContext){
 	const record = source.record || null;
 	const payload = record && record.payload ? safeParseJson(record.payload, null) : null;
 	const fromPayload = getTechniqueSnapshotFromPayload(payload, key, source);
-	const fromCache = getTechniqueSnapshotFromCache(key, source);
 	let generated = null;
-	if(!(fromPayload && fromPayload.content) && !(fromCache && fromCache.content)){
-		if(source.sourceType === 'case'){
-			let generatedText = generateCaseTechniqueSnapshot(record, key, payload);
-			if(!generatedText){
-				generatedText = await regenerateCaseTechniqueSnapshot(record, key, payload);
-			}
+	if(source.sourceType === 'case'){
+		// Part F：事盘只认自身起盘那一刻保存的卦/课，绝不按时间重算，也不读全局模块缓存
+		// （那是「上次看过的某一卦」）。勾选的技法若不在本案例 payload 中则显示缺失。
+		if(!(fromPayload && fromPayload.content)){
+			const generatedText = generateCaseTechniqueSnapshot(record, key, payload);
 			if(generatedText){
 				saveGeneratedTechniqueSnapshot(key, generatedText, record, {
 					generatedFromStoredCase: true,
@@ -1282,6 +1413,37 @@ async function buildTechniqueContext(source, techniqueKey, baseSourceContext){
 					specificity: 4,
 				};
 			}
+		}
+		const pickedCase = pickSnapshotCandidate([fromPayload, generated]);
+		return {
+			key,
+			title: label,
+			module: key,
+			content: pickedCase && pickedCase.content ? pickedCase.content : '',
+			available: !!(pickedCase && pickedCase.content),
+			status: pickedCase && pickedCase.content ? 'ready' : 'missing',
+			meta: pickedCase && pickedCase.meta ? pickedCase.meta : {},
+		};
+	}
+	// 命盘（chart）：payload 命中优先；否则查兼容缓存（A1 已过滤掉不匹配的盘）；
+	// 仍无则按本盘出生数据无头复算（Part A）。
+	const fromCache = getTechniqueSnapshotFromCache(key, source);
+	if(!(fromPayload && fromPayload.content) && !(fromCache && fromCache.content)){
+		const generatedText = await regenerateChartTechniqueSnapshot(record, key);
+		if(generatedText){
+			saveGeneratedTechniqueSnapshot(key, generatedText, record, {
+				generatedFromChart: true,
+			});
+			generated = {
+				content: generatedText,
+				createdAt: new Date().toISOString(),
+				meta: buildSnapshotMetaFromRecord(record, {
+					generatedFromChart: true,
+				}),
+				compatible: true,
+				fromPayload: false,
+				specificity: 5,
+			};
 		}
 	}
 	const picked = pickSnapshotCandidate([fromPayload, fromCache, generated]);

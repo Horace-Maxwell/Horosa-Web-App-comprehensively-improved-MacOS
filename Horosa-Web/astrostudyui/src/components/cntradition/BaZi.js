@@ -197,6 +197,19 @@ function buildBaziSnapshotText(params, result){
 	return lines.join('\n');
 }
 
+// 供 AI 分析无头复算：按出生参数取数并生成八字快照文本（不依赖组件挂载）。
+export async function buildBaziSnapshotForParams(params){
+	if(!params){
+		return '';
+	}
+	const rawResult = await fetchBaziDirectCached(params, { silent: true });
+	const result = normalizeBaziResult(rawResult, params);
+	if(!result){
+		return '';
+	}
+	return buildBaziSnapshotText(params, result);
+}
+
 const BAZI_CACHE_MAX = 96;
 const baziMem = new Map();
 const baziInflight = new Map();

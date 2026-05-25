@@ -107,6 +107,13 @@ export const KENTANG_SERVICE_CONFIG = {
 
 const COMMON_QUERY_KEYS = ['kentangSrv', 'chartSrv', 'kinSrv'];
 
+// All kentang/kin engines (qimen/taiyi/jinkou/wangji/wuzhao/taixuan/jingjue/shenyishu/kinastro-*) are mounted
+// on the single chart service (CHART_PORT, default 8899) — see astropy/websrv/webchartsrv.py
+// `mount_kentang_services` and the release verifier `verify_kentang_runtime_endpoints.py --root CHART_PORT`.
+// The per-engine `defaultLocalPort` values below are legacy (from when engines were separate microservices);
+// for a local Java backend (:9999) every engine must resolve to the chart service port instead.
+const LOCAL_KENTANG_CHART_PORT = 8899;
+
 export function isValidHttpUrl(value){
 	return !!(value && /^https?:\/\/.+/i.test(`${value}`));
 }
@@ -144,7 +151,7 @@ export function resolveKentangServiceRoot(moduleKey){
 		return explicit;
 	}
 	if(/:9999(?:\/)?$/i.test(ServerRoot)){
-		return replacePort(ServerRoot, config.defaultLocalPort || 8898);
+		return replacePort(ServerRoot, LOCAL_KENTANG_CHART_PORT);
 	}
 	return ServerRoot;
 }
