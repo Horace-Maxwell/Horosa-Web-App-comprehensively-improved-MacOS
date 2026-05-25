@@ -244,6 +244,10 @@ class ZWHouse extends ZWCommHouse {
 		this.drawSihuaStars();
 	}
 
+	shouldShowStarLight(){
+		return ZWCont.ZWChart.chart !== ZWCont.ZWChart_SiHua;
+	}
+
 
 
 	drawSanghe(){
@@ -296,7 +300,7 @@ class ZWHouse extends ZWCommHouse {
 			};
 			this.genTooltip(starsvg, tipobj, star.name)
 		}
-		const metaText = [star.starlight, star.flyTo ? `→${star.flyTo}` : ''].filter(Boolean).join(' ');
+		const metaText = [this.shouldShowStarLight() ? star.starlight : '', star.flyTo ? `→${star.flyTo}` : ''].filter(Boolean).join(' ');
 		if(metaText){
 			this.svg.append('text')
 				.attr('x', x + w / 2)
@@ -439,7 +443,7 @@ class ZWHouse extends ZWCommHouse {
 			.attr('font-weight', nameWeight || 760);
 		cursorY += nameH + 1;
 
-		if(star.starlight){
+		if(this.shouldShowStarLight() && star.starlight){
 			group.append('text')
 				.attr('class', 'horosa-ziwei-kinastro-star-light')
 				.attr('x', x + w / 2)
