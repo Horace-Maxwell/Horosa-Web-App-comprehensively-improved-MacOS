@@ -18,7 +18,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
 [![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime3-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime3)
+[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime4-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime4)
 [![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY.md)
 [![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT.md)
 [![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
@@ -201,10 +201,11 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       - user settings, desktop window size, and necessary UI choices are persisted across close/reopen and app updates<br />
       - the desktop startup console was rebuilt around a shared Daily / Offline Ready / Failed state skeleton with real-time backend progress, consistent pipeline states, the final Xingque icon, and no duplicate status panels<br />
       - window restoration now targets the first visible frame instead of only the final size, preventing the previous launch-size flash on reopened apps<br />
+      - Ziwei Doushu Sihua charts now hide star brightness labels so transformation markers and star names remain legible<br />
       - local event management UI was simplified, with useful actions aligned in the same row as chart management<br />
       - app-wide light/dark mode contrast, dropdowns, overlays, loading states, management lists, and export controls were audited and polished<br />
       - Qimen Dunjia parity and the previous desktop delivery fixes remain preserved<br />
-      - notarized offline <code>.pkg</code>, app zip, runtime archive, and manifest are aligned as <code>2.1.0 / 2.1.0-runtime3</code>
+      - notarized offline <code>.pkg</code>, app zip, runtime archive, and manifest are aligned as <code>2.1.0 / 2.1.0-runtime4</code>
     </td>
     <td width="50%">
       - 新增并规范接入太乙、金口诀、皇极经世、五兆、太玄、荆诀、神易数、Kin Astro、七政四余、奇门等命法与卜法后端<br />
@@ -215,10 +216,11 @@ English: Controls for shaping, filtering, inspecting, and exporting analysis ses
       - 用户设置、桌面窗口大小与必要 UI 选项会在关闭、重开和版本更新后继续沿用<br />
       - 桌面启动控制台重做为 Daily / Offline Ready / Failed 共用骨架，进度实时跟随后端百分比与步骤，管线状态保持一致，并统一使用新版星阙 icon<br />
       - 窗口恢复改为验证首个可见帧，而不是只看最终大小，避免重开时先大后小或大小跳动<br />
+      - 紫微斗数四化盘隐藏星体亮度标签，避免亮度文字与星曜、四化标记重叠<br />
       - 本地事盘管理 UI 移除无效按钮，并把有效操作与命盘管理一样统一到同一行<br />
       - 全局明暗主题、下拉层、弹层、加载态、管理列表与导出控件再次检查并打磨可读性<br />
       - 保留此前奇门遁甲一致性与桌面交付修复<br />
-      - 公证离线 <code>.pkg</code>、app zip、runtime 包与 manifest 统一对齐到 <code>2.1.0 / 2.1.0-runtime3</code>
+      - 公证离线 <code>.pkg</code>、app zip、runtime 包与 manifest 统一对齐到 <code>2.1.0 / 2.1.0-runtime4</code>
     </td>
   </tr>
 </table>
