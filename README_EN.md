@@ -1,231 +1,148 @@
 <div align="center">
 
-简体中文 | [English](README_EN.md)
+[简体中文](README_ZH.md) · English
 
-<img src="Horosa_Desktop_Installer/assets/icon-source.png" alt="Horosa app icon" width="144" />
+<img src="Horosa_Desktop_Installer/assets/icon-source.png" alt="Horosa" width="128" />
 
-# Horosa for macOS
+# Horosa
 
-### A desktop metaphysics workstation for Apple Silicon, delivered through a signed offline installer and a notarized release channel
+**Western astrology and Chinese metaphysics, in one native macOS workstation**
 
-[![Version](https://img.shields.io/badge/version-v2.1.0%20beta-b45309)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626)](LICENSE)
-[![GitHub Repo stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
-[![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)
-[![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
-[![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
-[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime5-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime5)
-[![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY.md)
-[![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT.md)
-[![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
-[![Contributing](https://img.shields.io/badge/contributing-guide-0891b2)](CONTRIBUTING.md)
+[![Version](https://img.shields.io/badge/version-2.1.0%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
+[![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-3f3f46?logo=github&logoColor=white&labelColor=52525b)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS)
-[![GitHub Releases](https://img.shields.io/badge/GitHub-Releases-1d4ed8?logo=github&logoColor=white&labelColor=52525b)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
-[![Read In Chinese](https://img.shields.io/badge/Read%20In-Chinese-0f766e?labelColor=52525b)](README_ZH.md)
-[![Portal](https://img.shields.io/badge/Portal-Bilingual-0f766e?labelColor=52525b)](README.md)
-
-[Portal](README.md) | [Chinese Guide](README_ZH.md) | [v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-
-**Current release:** `v2.1.0 beta`
-
-**Release focus:** `v2.1.0 beta` broadens the traditional-method engine layer, hardens chart/case data management, expands structured AI export coverage, preserves user/window state across launches, and polishes light/dark desktop UI for release testing.
-
-**Licensing note:** the public repository is now distributed under `AGPL-3.0` because the released stack integrates Swiss Ephemeris / `pyswisseph`. Third-party subdirectories keep their own upstream notices.
+[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Portal](README.md) ·
+[中文说明](README_ZH.md) ·
+[All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 </div>
 
-## Why Horosa Feels Different
+---
 
-This repository certainly handles macOS delivery, but what it delivers is not a thin shell around one chart. Horosa on macOS already behaves like a layered metaphysics workstation: Western astrology, timing systems, relationship analysis, Chinese traditional methods, Yi and Sanshi workflows, Feng Shui, and export-oriented reading are organized as one desktop product rather than scattered tools.
+## What Horosa Is
 
-That is the main idea this README should communicate. The installer matters, the notarization matters, but the bigger story is that the release channel is carrying a broad and mature analysis surface.
+Horosa is a desktop workstation for traditional cosmology. Western astrology—natal reading, the full timing chain, and relationship work—sits beside Chinese systems like Bazi, Ziwei, Qimen, Liuren, and Taiyi, all inside one native macOS application. The point is that you stop juggling a dozen single-purpose web tools, and you never hand-assemble the Python, Java, and ephemeris pieces underneath. You download a signed, notarized, offline installer and open a finished app.
 
-## What You Can Actually Do
+This repository is the macOS delivery of that app: the application source, the shared runtime, the Tauri desktop shell, and the publishing flow that turns all of it into a single `.pkg`.
 
-<table>
-  <tr>
-    <td width="50%">
-      <strong>As an end user</strong><br />
-      Download the offline installer, open Horosa like a finished macOS application, and start working without manually assembling Python, Java, or supporting runtime pieces.
-    </td>
-    <td width="50%">
-      <strong>As a maintainer</strong><br />
-      Use the same repository to trace the installer project, runtime packaging, GitHub Release page, and publishing flow behind the public desktop delivery.
-    </td>
-  </tr>
-</table>
+## Download
 
-Primary entry:
+Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-- [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)**
 
-Best fit:
+Best for:
 
-- first-time installation
-- mainland China or weak-network environments
-- offline forwarding to another machine or another person
-- users who want a first open that does not depend on an extra runtime download
+- Apple Silicon Macs on macOS 12 or later
+- weak-network or fully offline environments
+- a first install, or forwarding the package to someone else
+- anyone who wants the first launch to work without a separate runtime download
 
-## Preview
+You do not need to install Python or Java yourself—the runtime ships inside the package. Updates replace the program and the shared runtime; they are not designed to touch your saved charts and cases.
+
+## Screenshots
 
 <div align="center">
-  <p><strong>Astrology Workspace</strong></p>
-  <img src="docs/assets/screenshots/horosa-astrology-workspace.png" alt="Horosa astrology workspace" width="1200" />
-  <p><em>A three-column astrology workspace with chart controls, a large wheel canvas, detail tabs, and quick actions.</em></p>
+<img src="docs/assets/screenshots/horosa-astrology-workspace.png" alt="Astrology workspace" width="900" />
+<p><em>Astrology workspace — chart controls on the left, the wheel canvas in the center, and detail tabs (info, aspects, planets, classical, patterns) on the right.</em></p>
+
+<img src="docs/assets/screenshots/horosa-sanshi-workspace.png" alt="Sanshi workspace" width="900" />
+<p><em>Sanshi workspace — setup panel, the nine-palace plate, and overview tabs all visible at once.</em></p>
+
+<img src="docs/assets/screenshots/horosa-navigation-overlay.png" alt="Navigation overlay" width="900" />
+<p><em>The command overlay groups charts, Yi & Sanshi, and tools, with search and recents for fast switching.</em></p>
 </div>
 
-<div align="center">
-  <p><strong>Sanshi Workspace</strong></p>
-  <img src="docs/assets/screenshots/horosa-sanshi-workspace.png" alt="Horosa Sanshi workspace" width="1200" />
-  <p><em>The Sanshi surface keeps the plate, setup panel, overview tabs, and quick-function rail visible in one desktop view.</em></p>
-</div>
+## What's Inside
 
-<div align="center">
-  <p><strong>Navigation Overlay</strong></p>
-  <img src="docs/assets/screenshots/horosa-navigation-overlay.png" alt="Horosa navigation overlay" width="1200" />
-  <p><em>The dark command overlay groups astrology, Yi/Sanshi, workbench tools, and recent modules for fast switching.</em></p>
-</div>
+The navigation organizes everything under three groups: **命** (charts & timing), **卜** (divination), and **工具** (tools). What follows is what each group actually ships—module names map directly to the in-app tabs.
 
-## Signature Workflows
+### Charts & Timing (命)
 
-### Natal To Timing
+The strength here is continuity: you can read a natal chart, walk it forward through time, and bring in a second person, without leaving the same surface.
 
-Horosa already supports a continuous timing workflow rather than a loose menu of techniques. Users can start with natal and 3D chart reading, then move into primary directions, zodiacal releasing, firdaria, profection, solar arc, returns, and annual methods inside the same desktop environment.
+- **Astrology (占星)** — natal chart plus a real-time 3D chart (Babylon.js), with multiple house systems and classical/modern planet sets
+- **Timing (星运)** — primary directions, zodiacal releasing, firdaria, profection, solar arc, solar and lunar returns, decennials, progressions, and an ephemeris
+- **Relationship (合盘)** — compare, composite, synastry, time-space midpoint, and Marks charts
+- **Specialty (辅盘)** — Hellenistic (bounds and lots), quantitative / midpoint trees (Hamburg / Uranian), astrocartography with interactive maps, and a harmonic lab
+- **Vedic (印占)** — North, South, and East Indian charts on the sidereal zodiac
+- **Qizheng (七政)** — Qizheng Siyu
+- **Bazi (八字) · Ziwei (紫微)** — four-pillar charting, and Purple Star including the Sihua chart
+- **Numerology & more (数算 · 其他)** — Shaozi, Tieban, Yanqin and related numeric methods
 
-### Relationship Analysis
+### Divination (卜)
 
-The relationship layer is broader than a single compare screen. It already includes compare, composite, synastry, time-space midpoint, and Marks charts as distinct ways to inspect the same relationship from different structural angles.
+Yi and Sanshi go past standalone tabs into a genuinely integrated surface.
 
-### Chinese Traditional Stack
+- **Sanshi United (三式)** — Qimen, Taiyi, and Liuren brought together: overview, Taiyi, shensha, Liuren, major patterns, sub-patterns, references, and the eight palaces
+- **Qimen (遁甲) · Liuren (六壬) · Taiyi (太乙)** — each of the three formulae also as its own standalone surface
+- **Liuyao (六爻) · Jieqi (分至) · Feng Shui (风水)** — najia hexagram casting, solar-term charts, and Feng Shui tools
+- **More (其他)** — Suzhao, Jinkou, Tongshefa, Huangji Jingshi, Wuzhao, Taixuan, Jingjue, and Shenyishu
 
-The Chinese traditional surface is presented as a system, not a decorative side module. Bazi, Ziwei, gua-symbol references, twelve-palace tools, calendar, and Feng Shui already live in the same workspace.
+### Tools (工具)
 
-### Yi And Sanshi Depth
+- **AI Analysis (AI 分析)** — connects to OpenAI, Anthropic, Gemini, Ollama, OpenRouter, or a custom endpoint; supports streaming chat, conversation history, a materials library with vector retrieval, and structured export grouped by technique and tab
+- **Planetarium (天文馆)** — a real-time 3D sky view built on Babylon.js
+- **Almanac (黄历)** — lunar calendar, solar terms, and date selection
+- **References (辅助)** — gua-symbol classes, the twelve palaces, and quick rule lookups
 
-Yi and Sanshi go beyond standalone tabs. Horosa already includes Su Zhan, Yi Gua, Liu Ren, Jin Kou, Dun Jia, Tai Yi, Tong She Fa, and a deeper Sanshi United surface.
+Charts and cases save locally with tags, snapshots, and raw backend payloads. Everything supports JSON import/export and restores its full state when you reopen it.
 
-## Implemented Disciplines
+## New in v2.1.0 beta
 
-### Western Astrology
+This release takes a batch of newly wired traditional methods and makes them durable—properly managed, exportable, and persistent—rather than merely runnable.
 
-The strength here is continuity from natal reading to timing and relationship work.
+- **Broader traditional-method backends** — added and normalized engines for Taiyi, Jinkou, Huangji/Wangji, Wuzhao, Taixuan, Jingjue, Shenyishu, Kin Astro, Qizheng, and Qimen
+- **Fixed Sanshi-United routing** — Qimen and Taiyi now route through the kentang2017 backend while Liuren stays on the existing local implementation; the unsupported Qimen month-chart option was removed instead of silently falling back to the old calculation
+- **Full chart/case persistence** — new-method inputs, tags, snapshots, raw structured payloads, JSON import/export, and reopen behavior are all preserved
+- **Structured AI export** — export reads directly from structured backend data and exposes selectable groups per technique, tab, and page
+- **State that survives restarts** — user settings and desktop window size persist across close, reopen, and app updates
+- **Desktop polish** — a shared Daily / Offline Ready / Failed startup console with live backend progress; window restoration validated from the first visible frame (no launch-size flash); the Ziwei Sihua chart hides star-brightness labels so transformation markers stay legible; and another pass over light/dark contrast, dropdowns, overlays, and management lists
 
-- natal chart and 3D chart
-- primary directions, zodiacal releasing, firdaria, profection, solar arc, returns, and annual methods
-- compare, composite, synastry, time-space midpoint, and Marks charts
+The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.1.0 / 2.1.0-runtime5`. Full log on the [v2.1.0 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0).
 
-### Global And Specialty Modules
+## Under the Hood
 
-Horosa goes beyond the default desktop astrology stack.
+- **Frontend** — React 17 + Umi 3 + TypeScript with Ant Design; D3 for chart drawing, Babylon.js / Three.js for 3D, Plotly for astrocartography maps, and Monaco for editing AI-export templates
+- **Backend** — Java 17 / Spring Boot 2.7 hosts the core astrology and Chinese-method services; a Python 3.9 service layer wraps Swiss Ephemeris (`pyswisseph`) and the vendored kentang2017 traditional-method engines
+- **Desktop shell** — Tauri 2 (Rust), Developer ID signed and Apple notarized, with the offline runtime bundled and an in-app update path
+- **Distribution** — an offline `.pkg` targeting Apple Silicon (`arm64`) on macOS 12+
 
-- Jieqi charts
-- astrocartography and planetary maps
-- Qizheng Siyu, Hellenistic, Indian, and quantitative views
-
-### Chinese Traditional Systems
-
-The Chinese traditional layer is arranged as a genuine system of entrypoints and references.
-
-- Bazi, Ziwei, gua-symbol references, twelve-palace tools, and rule references
-- calendar and Feng Shui as first-class modules
-- a workspace that allows cross-reading between different traditions
-
-### Yi And Sanshi
-
-This layer gains its depth from the jump between standalone methods and an integrated analysis surface.
-
-- Su Zhan, Yi Gua, Liu Ren, Jin Kou, Dun Jia, Tai Yi, and Tong She Fa
-- Sanshi United with overview, Tai Yi, shensha, Liu Ren, major patterns, sub-patterns, references, and Bagong details
-- integrated explanatory depth instead of placeholder tabs
-
-### Tools And Export Workflow
-
-Horosa is not only about calculation. It also provides the controls needed for desktop research and export-oriented interpretation.
-
-- chart configuration
-- aspect selection
-- planet selection
-- chart components
-- utility tools
-- AI export
-- AI export settings
-
-## New In v2.1.0
-
-`2.1.0 beta` is a broad update for the desktop release train. It keeps the signed offline installer path while bringing the newly integrated traditional-method engines into local data management, structured AI export, persistent settings, light/dark theme polish, and desktop delivery verification.
-
-Key additions in this release:
-
-- added and normalized backend integrations for Taiyi, Jin Kou, Huangji/Wangji, Wuzhao, Taixuan, Jingjue, Shenyishu, Kin Astro, Qizheng, Qimen, and related specialty methods
-- Sanshi United now routes Qimen and Taiyi through the kentang2017 backend while LiuReng remains on the existing local LiuReng implementation
-- unsupported Qimen month-chart selection was removed from Qimen and Sanshi surfaces instead of silently falling back to the old local calculation
-- chart management and case management now preserve new-method inputs, tags, snapshots, raw backend payloads, JSON import/export, and reopening behavior
-- AI export now reads from structured backend data and exposes selectable export groups for each supported technique, tab, and page
-- user settings, desktop window size, and necessary UI choices are persisted across close/reopen and app updates
-- the desktop startup console now uses one shared Daily / Offline Ready / Failed skeleton with real-time backend progress, consistent pipeline states, the final Xingque icon, and no duplicate status panels
-- window restoration is validated from the first visible frame, not only the final size, preventing the previous launch-size flash on reopened apps
-- Ziwei Doushu Sihua charts now hide star brightness labels so transformation markers and star names remain legible
-- local event management UI was simplified, with useful actions aligned in the same row as chart management
-- app-wide light/dark mode contrast, dropdowns, overlays, loading states, management lists, and export controls were audited and polished
-- Qimen Dunjia parity and the previous desktop delivery fixes remain preserved
-- `2.1.0 / 2.1.0-runtime5` aligned across package metadata, Tauri config, release config, README, manifest, app zip, offline pkg, and runtime archive
-- the notarized offline `.pkg` remains the primary install path for clean Apple Silicon machines
-
-## Desktop Delivery
-
-On macOS, the delivery layer is meant to feel native and finished rather than improvised.
-
-- Apple Silicon (`arm64`)
-- Developer ID signed
-- notarized by Apple
-- offline runtime path included in the install flow
-- native in-app update path for future releases
-
-The point is not “here is a codebase, please assemble it yourself.” The point is “here is Horosa as a finished desktop product.”
-
-## Current Beta Release
-
-- [GitHub Release v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-- [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
+Continuous integration builds and tests all three layers—frontend (Node 20), backend (Java 17 / Maven), and the Rust desktop shell—on every push.
 
 ## FAQ
 
-### Do I Need To Clone The Repo To Use Horosa
+**Do I need to clone the repo to use Horosa?**
+No. Download the offline installer from the latest release.
 
-No. Regular users should go straight to the latest release and download the offline installer package.
+**Do I need to install Python or Java myself?**
+No. The offline install path carries the required runtime for you.
 
-### Do I Need To Install Python Or Java Myself
+**Why are there other files in the release?**
+The installer, updater, notarization flow, and runtime publishing pipeline need them. For end users, the offline `.pkg` is the only thing that matters.
 
-No. The public offline install path is designed to carry the required runtime setup for you.
+**Will updates remove my data?**
+No. App replacement and runtime switching update the program and shared runtime; they are not designed to erase your saved charts and cases.
 
-### Why Are There Other Files In The Release
+## For Maintainers
 
-Because the installer, updater, notarization flow, and runtime publishing pipeline still need them. They are support assets, not the public recommendation.
+Start from the entry point that matches your goal:
 
-### Will Updates Remove My User Data
-
-No. App replacement and runtime switching are designed to update the program and shared runtime, not erase user data.
-
-## Developer Entry
-
-If you maintain this stack, start with the path that matches your goal:
-
-- understand the public-facing repository layout: [README.md](README.md)
-- read the full Chinese guide: [README_ZH.md](README_ZH.md)
-- inspect installer internals and publishing flow: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
-- plan a Windows port and release gate: [Windows porting checklist](docs/windows-porting-and-release-checklist.md)
-- read the current beta release page: [GitHub Release v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-- enter the application source tree: `Horosa-Web/`
-- inspect shared runtime and diagnostics: `runtime/` and `diagnostics/`
+- public-facing layout and bilingual portal: [README.md](README.md)
+- the full Chinese guide: [README_ZH.md](README_ZH.md)
+- installer internals and publishing flow: [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
+- a Windows port and release gate: [Windows porting checklist](docs/windows-porting-and-release-checklist.md)
+- third-party licensing: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- application source: `Horosa-Web/` — frontend in `astrostudyui`, backends in `astrostudysrv` and `astropy`, vendored engines in `vendor`
+- shared runtime and diagnostics: `runtime/` and `diagnostics/`
 
 ## Acknowledgements
 
-This macOS edition is an improved distribution and integration work based on the Horosa App and Web released by Horosa-荀爽（Herakleios）. The lineage matters: Horosa was originally created by 郑大哥, with auxiliary design work from 荀爽（Herakleios）, and their public release made later study, maintenance, and extension possible.
+The lineage matters. Horosa was originally created by **郑大哥**, with auxiliary design work by **荀爽 (Herakleios, 爽哥)**, who released the App and Web versions that made later study, maintenance, and extension possible. This macOS edition builds on that groundwork—adding the delivery layer, runtime packaging, integration, and a great deal of polish—and it would not exist without them. Thanks, too, to everyone who keeps testing, reporting, and fixing things to make Horosa more complete.
 
-Please do not forget the contributions of 爽哥 and 郑大哥. This repository continues from their groundwork with respect, gratitude, and the hope that Horosa can remain useful to more people over time.
-
-Special thanks also go to [kentang2017](https://github.com/kentang2017) for publicly sharing long-running Python projects for traditional Chinese methods. Horosa v2.1.0 integrates or adapts several of those calculation engines; upstream projects identified as MIT-licensed are documented in `THIRD_PARTY_NOTICES.md` and their vendored directories, while projects without an explicit open-source license declaration are listed separately to avoid mixing license assumptions.
+Special thanks to [kentang2017](https://github.com/kentang2017), whose long-running, openly shared Python projects power several of Horosa's calculation engines. Upstream projects identified as MIT-licensed are documented in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) alongside their vendored license texts; projects without an explicit open-source license are listed separately, so no license is assumed where none was declared.

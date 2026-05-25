@@ -1,237 +1,148 @@
 <div align="center">
 
-简体中文 | [English](README_EN.md)
+简体中文 · [English](README_EN.md)
 
-<img src="Horosa_Desktop_Installer/assets/icon-source.png" alt="星阙 Horosa 图标" width="144" />
+<img src="Horosa_Desktop_Installer/assets/icon-source.png" alt="星阙 Horosa" width="128" />
 
-# 星阙 Horosa for macOS
+# 星阙 Horosa
 
-### 面向 Apple Silicon 的桌面玄学工作站，以签名离线安装包和正式公证链路交付
+**把占星与中国术数，收进一个原生 macOS 工作站**
 
-[![Version](https://img.shields.io/badge/version-v2.1.0%20beta-b45309)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626)](LICENSE)
-[![GitHub Repo stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
-[![Platform](https://img.shields.io/badge/platform-macOS%2012%2B%20%7C%20Apple%20Silicon-black)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Distribution](https://img.shields.io/badge/distribution-Developer%20ID%20%2B%20Notarized-1f6feb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Primary Download](https://img.shields.io/badge/download-offline%20pkg-2ea043)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)
-[![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
-[![GitHub Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/discussions)
-[![AIAnalysis](https://img.shields.io/badge/AIAnalysis-streaming%20%7C%20history%20%7C%20materials-0f766e)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Runtime](https://img.shields.io/badge/runtime-2.1.0--runtime5-2563eb)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0-runtime5)
-[![Security](https://img.shields.io/badge/security-policy-dc2626)](SECURITY_ZH.md)
-[![Support](https://img.shields.io/badge/support-discussions%20%26%20email-4b5563)](SUPPORT_ZH.md)
-[![Citation](https://img.shields.io/badge/citation-CFF-a855f7)](CITATION.cff)
-[![Contributing](https://img.shields.io/badge/contributing-guide-0891b2)](CONTRIBUTING_ZH.md)
+[![Version](https://img.shields.io/badge/version-2.1.0%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
+[![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[![GitHub 仓库](https://img.shields.io/badge/GitHub-Repository-3f3f46?logo=github&logoColor=white&labelColor=52525b)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS)
-[![GitHub 发布](https://img.shields.io/badge/GitHub-Releases-1d4ed8?logo=github&logoColor=white&labelColor=52525b)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
-[![阅读英文版](https://img.shields.io/badge/阅读-英文版-0f766e?labelColor=52525b)](README_EN.md)
-[![返回入口页](https://img.shields.io/badge/返回-入口页-0f766e?labelColor=52525b)](README.md)
-
-[入口页](README.md) | [英文说明](README_EN.md) | [v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-
-**当前版本：** `v2.1.0 beta`
-
-**本次重点：** `v2.1.0 beta` 扩展传统命法与卜法后端，强化命盘/事盘数据管理，补齐结构化 AI 导出，保存用户设置与窗口大小，并继续打磨明暗主题桌面 UI。
-
-**许可证说明：** 当前公开仓库已切换为 `AGPL-3.0`，原因是发布栈中集成了 Swiss Ephemeris / `pyswisseph`。第三方子目录仍保持各自上游原始许可证说明。
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg) ·
+[入口页](README.md) ·
+[English Guide](README_EN.md) ·
+[所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
 
 </div>
 
-## 为什么 Horosa 与普通排盘器不同
+---
 
-这个仓库虽然承担的是 macOS 桌面分发层，但它交付出去的并不是一个单薄的安装器壳，而是一套已经相当成形的桌面玄学工作站。Horosa 在这里呈现出来的，是一个把西方占星、关系盘、推运体系、中国传统术数、易与三式、风水与 AI 导出工作流收进同一桌面工作面的产品。
+## 星阙是什么
 
-这个 README 要表达的重点不只是“下载哪个包”，而是让人清楚看见：Horosa 已经是一个功能密度很高、层次很深的桌面研究工具，而不是只有几张图盘的轻量应用。
+星阙 Horosa 是一套桌面端的玄学工作站。西方占星的本命、推运、关系盘，连同八字、紫微、奇门、六壬、太乙这些中国传统术数，被放进同一个原生 macOS 应用里。它要解决的事其实很朴素：不必在十几个网页排盘器之间来回切，也不必自己拼装底层的 Python、Java 与历表运行时——你下载一个签名、公证、离线的安装包，打开的就是一个成品。
 
-## 你可以直接拿它做什么
+这个仓库承担的是 macOS 这一侧的交付：应用源码、共享运行时、Tauri 桌面外壳，以及把这一切打成单个 `.pkg` 的发布链路。
 
-<table>
-  <tr>
-    <td width="50%">
-      <strong>普通用户</strong><br />
-      直接下载离线 <code>.pkg</code>，安装后就能像正常 macOS 桌面软件一样打开和使用 Horosa。
-    </td>
-    <td width="50%">
-      <strong>维护者</strong><br />
-      通过同一仓库继续理解发布链路、GitHub Release 页面、桌面安装器和共享运行时的组织方式。
-    </td>
-  </tr>
-</table>
+## 下载
 
-推荐入口：
+普通用户直接下载离线安装包，像任何 macOS 软件一样安装、打开即可。
 
-- [Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)**
 
 适合场景：
 
-- 第一次安装 Horosa
-- 中国大陆或弱网环境
-- 需要把安装包转发给别人
-- 希望首次打开不再额外联网拉运行时
+- Apple Silicon、macOS 12 及以上
+- 弱网或完全离线的环境
+- 第一次安装，或者要把安装包转发给别人
+- 希望首次打开就能用，不再额外联网拉运行时
 
-## 截图预览
+无需自备 Python 或 Java，运行时已随包交付。更新只替换程序与共享运行时，不会动你已经保存的命例与事盘数据。
 
-<div align="center">
-  <p><strong>占星工作区</strong></p>
-  <img src="docs/assets/screenshots/horosa-astrology-workspace.png" alt="星阙占星工作区" width="1200" />
-  <p><em>三栏占星工作区：左侧命盘设置，中间图盘画布，右侧信息页签，底部保留常用功能。</em></p>
-</div>
+## 截图
 
 <div align="center">
-  <p><strong>三式工作区</strong></p>
-  <img src="docs/assets/screenshots/horosa-sanshi-workspace.png" alt="星阙三式工作区" width="1200" />
-  <p><em>三式工作区把起盘参数、盘面、概要页签和快捷功能放在同一桌面视图里。</em></p>
+<img src="docs/assets/screenshots/horosa-astrology-workspace.png" alt="占星工作区" width="900" />
+<p><em>占星工作区 —— 左侧起盘参数，中间图盘画布，右侧信息 / 相位 / 行星 / 古典 / 格局页签。</em></p>
+
+<img src="docs/assets/screenshots/horosa-sanshi-workspace.png" alt="三式工作区" width="900" />
+<p><em>三式工作区 —— 起盘参数、九宫盘面、概览 / 太乙 / 神煞 / 六壬 / 八宫页签同屏呈现。</em></p>
+
+<img src="docs/assets/screenshots/horosa-navigation-overlay.png" alt="导航弹层" width="900" />
+<p><em>导航弹层 —— 命盘推运、易与三式、工具工作台分组，支持搜索与最近使用。</em></p>
 </div>
 
-<div align="center">
-  <p><strong>导航弹层</strong></p>
-  <img src="docs/assets/screenshots/horosa-navigation-overlay.png" alt="星阙导航弹层" width="1200" />
-  <p><em>深色导航弹层按命盘推运、易与三式、工具工作台和最近使用分组，方便快速切换模块。</em></p>
-</div>
+## 功能总览
 
-## 代表性工作流
+导航把所有模块归为三组：**命**（命盘与推运）、**卜**（易与三式）、**工具**。下面列的，是各组里真正能用的内容——名字与应用里的页签一一对应。
 
-### 本命到时运
+### 命 · 命盘与推运
 
-Horosa 已经把从本命盘阅读到推运体系的链路接成一体。你可以从本命盘和三维盘进入，再继续切到主/界限法、黄道星释、法达、小限、太阳弧、返照与流年法。
+这一层的强项是连贯：能读本命、把它沿时间推开、再带进第二个人，全程不离开同一个工作面。
 
-它不是把一堆方法名硬塞到菜单里，而是把“如何从本命走向时间展开”做成一条连续工作流。
+- **占星** —— 本命盘与三维盘（Babylon.js 实时 3D），多种宫位制、古典 / 现代行星集
+- **星运** —— 主限法、黄道星释、法达、小限、太阳弧、太阳 / 太阴返照、十年法、推运、星历
+- **合盘** —— 比较盘、组合盘、影响盘、时空中点盘、马克斯盘
+- **辅盘** —— 希腊星术（界限 / 阿拉伯点）、量化盘 / 中点树（汉堡学派）、星体地图（占星地理定位）、调波盘
+- **印占** —— 北 / 南 / 东印度盘，恒星黄道
+- **七政** —— 七政四余
+- **八字 · 紫微** —— 四柱排盘；紫微斗数含四化盘
+- **数算 · 其他** —— 邵子神数、铁板神数、演禽等数术方法
 
-### 关系分析
+### 卜 · 易与三式
 
-关系分析层不是单一的比较盘页面，而是比较盘、组合盘、影响盘、时空中点盘、马克斯盘并行存在。它更像一组围绕同一段关系的不同分析透镜，而不是单一算法结果页。
+易与三式不止是几个独立页签，三式合一已经做成一个真正能工作的整合面。
 
-### 中国传统术数栈
+- **三式（合一）** —— 奇门、太乙、六壬整合呈现：概览、太乙、神煞、六壬、大格、小局、参考、八宫
+- **遁甲 · 六壬 · 太乙** —— 三式各自的独立排盘入口
+- **六爻 · 分至 · 风水** —— 纳甲六爻、节气盘、风水工具
+- **其他** —— 宿盘、金口诀、统摄法、皇极经世、五兆、太玄、荆诀、神易数
 
-八字、紫微斗数、八卦类象、十二串宫、万年历与风水已经被放进同一桌面工作面中，所以 Horosa 呈现出来的是一整套中国传统术数栈，而不是只做了某一术的子集。
+### 工具 · 工具工作台
 
-### 易与三式纵深
+- **AI 分析** —— 可接入 OpenAI / Anthropic / Gemini / Ollama / OpenRouter / 自定义端点；支持流式对话、历史记录、资料库（向量检索），以及按技法 / 页签结构化导出
+- **天文馆** —— 基于 Babylon.js 的实时三维天象
+- **黄历** —— 农历、节气与择日
+- **辅助** —— 八卦类象、十二宫、规则速查
 
-易与三式这部分既有单术入口，也有更深的整合分析。宿盘、易卦、六壬、金口诀、遁甲、太乙、统摄法之外，三式合一已经形成一个真正能工作的综合面。
+命盘与事盘都能本地保存：带标签、快照与后端原始结构化数据，可 JSON 导入导出，重开后恢复现场。
 
-## 已实现功能矩阵
+## v2.1.0 beta 更新
 
-### 西方占星
+这一版的重点，是把一批新接入的传统命法 / 卜法做到“可以长期用”的状态——能管理、能导出、能持久化，而不只是“能跑”。
 
-这一层的强项不只是“能起盘”，而是从本命到推运再到关系分析的完整链路。
+- **更宽的传统术数后端** —— 新增并规范太乙、金口诀、皇极经世、五兆、太玄、荆诀、神易数、Kin Astro、七政、奇门等引擎
+- **三式合一口径固定** —— 奇门与太乙走 kentang2017 后端，六壬保留本地实现；移除后端不支持的月家奇门，不再静默回退旧算法
+- **数据管理补全** —— 命盘 / 事盘保留新技法输入、标签、快照、后端结构化数据、JSON 导入导出与重开恢复
+- **AI 导出结构化** —— 直接读取后端结构化数据，按技法 / 页签提供可勾选的导出分段
+- **状态持久化** —— 用户设置与窗口大小在关闭、重开、版本更新后保留
+- **桌面体验打磨** —— 统一的启动控制台（Daily / Offline Ready / Failed）实时跟随后端进度；窗口恢复改为验证首个可见帧，避免重开时尺寸跳动；紫微四化盘隐藏亮度标签，避免与星曜、四化标记重叠；全局明暗主题、下拉层、弹层与管理列表再次校对
 
-- 星盘、本命盘、三维盘构成主盘面
-- 推运盘覆盖主/界限法、黄道星释、法达、小限、太阳弧、返照与流年法
-- 关系盘覆盖比较盘、组合盘、影响盘、时空中点盘、马克斯盘
+公证离线 `.pkg`、app zip、runtime 包与 manifest 已统一对齐到 `2.1.0 / 2.1.0-runtime5`。完整改动见 [v2.1.0 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)。
 
-### 全球与专门模块
+## 技术构成
 
-Horosa 不只停留在常见西占模块，而是把更多专门工作面接进了同一产品。
+- **前端** —— React 17 + Umi 3 + TypeScript，Ant Design；D3 绘盘，Babylon.js / Three.js 三维，Plotly 星体地图，Monaco 编辑 AI 导出模板
+- **后端** —— Java 17 / Spring Boot 2.7 承载占星与中国术数核心服务；Python 3.9 服务层封装 Swiss Ephemeris（`pyswisseph`）与 vendored 的 kentang2017 传统术数引擎
+- **桌面壳** —— Tauri 2（Rust）原生外壳，Developer ID 签名 + Apple 公证，离线运行时随包交付，应用内更新
+- **发布** —— 面向 Apple Silicon（`arm64`）、macOS 12+ 的离线 `.pkg`
 
-- 节气盘
-- 星体地图
-- 七政四余
-- 希腊星术
-- 印度律盘
-- 量化盘
-
-### 中国传统体系
-
-中国传统部分走的是系统化入口，而不是单点拼装。
-
-- 八字、紫微斗数、八卦类象、十二串宫、规则参考
-- 万年历与风水作为正式模块，而不是附属脚本
-- 同一桌面环境下可以连续切换不同传统
-
-### 易与三式
-
-这一层的纵深来自“从单术到整合面”的连续组织。
-
-- 宿盘、易卦、六壬、金口诀、遁甲、太乙、统摄法
-- 三式合一已经覆盖概览、太乙、神煞、六壬、大格、小局、参考、八宫
-- 多种说明性内容已经进入综合工作区，而不是只停留在占位页
-
-### 工具与导出工作流
-
-Horosa 的价值不只在计算，还在把研究流程做成可操作的桌面工作面。
-
-- 星盘配置
-- 相位选择
-- 行星选择
-- 星盘组件
-- 小工具
-- AI 导出
-- AI 导出设置
-
-## v2.1.0 新增重点
-
-`2.1.0 beta` 是桌面发布线的一次扩展版。它继续保留签名离线安装路径，同时把新接入的传统命法与卜法纳入本地数据管理、结构化 AI 导出、设置持久化、明暗主题与桌面交付验证。
-
-这一版新增的关键能力包括：
-
-- 新增并规范接入太乙、金口诀、皇极经世、五兆、太玄、荆诀、神易数、Kin Astro、七政四余、奇门等命法与卜法后端
-- 三式合一中奇门与太乙已固定走 kentang2017 后端口径，六壬保留现有本地六壬实现，避免误接不该接入的后端
-- 奇门和三式合一页面已移除后端不支持的月家奇门选项，不再静默回退到旧本地算法
-- 管理命盘与管理事盘现在会保留新技法输入、标签、快照、后端原始结构化数据、JSON 导入导出与重开恢复行为
-- AI 导出改为直接读取结构化后端数据，并为每个支持技法、tab 与页面提供可勾选的导出分段
-- 用户设置、桌面窗口大小与必要 UI 选项会在关闭、重开和版本更新后继续沿用
-- 桌面启动控制台重做为 Daily / Offline Ready / Failed 共用骨架，进度实时跟随后端百分比与步骤，管线状态保持一致，并统一使用新版星阙 icon
-- 窗口恢复改为验证首个可见帧，而不是只看最终大小，避免重开时先大后小或大小跳动
-- 紫微斗数四化盘隐藏星体亮度标签，避免亮度文字与星曜、四化标记重叠
-- 本地事盘管理 UI 移除无效按钮，并把有效操作与命盘管理一样统一到同一行
-- 全局明暗主题、下拉层、弹层、加载态、管理列表与导出控件再次检查并打磨可读性
-- 保留此前奇门遁甲一致性与桌面交付修复
-- `2.1.0 / 2.1.0-runtime5` 在 package、Tauri、release_config、README、manifest、app zip、离线 pkg 与 runtime 包中统一对齐
-- 离线 `.pkg` 继续作为公开主安装入口，目标是全新 Apple Silicon 电脑安装后即可使用
-
-## 桌面交付体验
-
-macOS 这边强调的是正式桌面交付，而不是“把网页勉强包起来”。当前分发特点是：
-
-- 面向 Apple Silicon (`arm64`)
-- 采用 Developer ID 签名与 Apple 公证
-- 离线路径内置运行时，本机组件安装完成后即可直接打开
-- 应用内提供更新入口，不要求用户重新手动找包
-
-换句话说，这个仓库的目标不是“让你自己搭环境”，而是“让 Horosa 在 Mac 上像一个完整成品一样被下载、安装、更新和恢复”。
-
-## 当前 Beta 版本
-
-- [GitHub Release v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-- [所有 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
+持续集成（CI）在每次推送时构建并测试三层：前端（Node 20）、后端（Java 17 / Maven）与 Rust 桌面外壳。
 
 ## 常见问题
 
-### 我只是普通用户，需要克隆仓库吗
+**我只是普通用户，需要克隆仓库吗？**
+不需要。直接在最新 release 里下载离线 `.pkg` 即可。
 
-不需要。直接下载 release 里的离线 `.pkg` 即可。
+**安装完还要自己装 Python 或 Java 吗？**
+不需要。离线安装路径已经把运行所需内容纳入流程。
 
-### 安装完成后还要自己装 Python 或 Java 吗
+**为什么 release 里还有别的文件？**
+自动更新器、安装器、公证与运行时发布链路需要它们。对普通用户来说，真正要点的只有离线 `.pkg`。
 
-不需要。公开推荐的离线路径已经把运行所需内容纳入安装流程。
-
-### 为什么 release 里还有别的文件
-
-因为自动更新器、安装器、公证与运行时发布仍然需要这些资产。但对普通用户来说，真正要点的只有离线 `.pkg`。
-
-### 更新时会不会删掉我的用户数据
-
-不会。应用更新与运行时切换的目标是替换程序和共享组件，不是清空你的使用数据。
+**更新时会删掉我的数据吗？**
+不会。应用更新与运行时切换替换的是程序与共享运行时，不会清空你保存的命例与事盘。
 
 ## 开发者入口
 
-如果你是维护者或开发者，建议按这个路径进入：
+按你的目标选择入口：
 
-- 想理解产品首页与用户入口：先看 [README.md](README.md)
-- 想看英文完整说明：看 [README_EN.md](README_EN.md)
-- 想理解安装器与发布链路：看 [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
-- 想规划 Windows 复刻与发布验收：看 [Windows 复刻与发布自检指南](docs/windows-porting-and-release-checklist.md)
-- 想看当前 beta 版本页面：看 [GitHub Release v2.1.0 Beta](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-- 想进入主工程：看 `Horosa-Web/`
-- 想看共享运行时与诊断：看 `runtime/` 与 `diagnostics/`
+- 想理解产品首页与用户入口：[README.md](README.md)
+- 想看英文完整说明：[README_EN.md](README_EN.md)
+- 想理解安装器与发布链路：[Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
+- 想规划 Windows 复刻与发布验收：[Windows 复刻与发布自检指南](docs/windows-porting-and-release-checklist.md)
+- 想确认第三方许可证：[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- 应用源码：`Horosa-Web/` —— 前端 `astrostudyui`，后端 `astrostudysrv` / `astropy`，引擎 `vendor`
+- 共享运行时与诊断：`runtime/` 与 `diagnostics/`
 
 ## 致谢
 
-本项目为参考星阙 Horosa-荀爽（Herakleios）所发布的星阙 App 和 Web，并在 macOS 交付、运行时打包、功能整合与使用体验上继续改良制作。
+星阙的源流不能忘。最早的星阙 Horosa 由**郑大哥**一手创建，**荀爽（Herakleios，爽哥）**参与辅助设计，并把相关 App 与 Web 公开出来，后来者才有得研究、学习与延展。这个 macOS 版本的继续整理与发布，正是建立在他们已经搭起的星阙体系、术数工作流与公开分享精神之上——补的是 macOS 交付、运行时打包、功能整合与体验改良。没有他们，就没有今天这一版。也感谢每一位持续测试、反馈、修复，推动星阙变得更完整的人。
 
-源流不可忘：星阙 Horosa 最早由郑大哥一手创建，荀爽（Herakleios）曾参与辅助设计，并将相关 App 与 Web 版本公开出来供后来者研究、学习与延展。
-
-请不要忘记爽哥和郑大哥的贡献。这个 macOS 版本的继续整理与发布，建立在前人已经搭起的星阙体系、术数工作流和公开分享精神之上。也感谢所有持续测试、反馈、修复和推动 Horosa 变得更完整的人。
-
-也特别感谢 [kentang2017](https://github.com/kentang2017) 长期公开的传统术数 Python 项目。Horosa v2.1.0 接入或适配了其中多项计算引擎；已声明为 MIT License 的上游项目在 `THIRD_PARTY_NOTICES.md` 和对应 vendored 目录中保留许可证说明，未找到明确开源许可证声明的项目也在第三方声明中单独标注，避免混同。
+特别感谢 [kentang2017](https://github.com/kentang2017) 长期公开的传统术数 Python 项目。星阙接入或适配了其中多项计算引擎——已声明为 MIT 的上游项目在 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) 与对应 vendored 目录中保留许可证说明；未找到明确开源声明的项目则单独标注，避免在没有声明的地方擅自假定许可证。
