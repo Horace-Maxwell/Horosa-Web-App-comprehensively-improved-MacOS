@@ -38,7 +38,8 @@ For the full change history and the detailed release runbook, read
    intentionally-retained-but-unused 事盘 time-recompute helpers in `aiAnalysisContext.js`; safe to prune later.)
 6. **Umi builds are sequential.** Do not run `npm run build` and `npm run build:file` in parallel; both write
    `src/.umi-production` and can corrupt generated files. If generated syntax errors appear there, clear the cache
-   and rerun the builds one at a time.
+   and rerun the builds one at a time. Cache deletion is intentionally not auto-approved by the harness; ask before
+   using destructive cleanup commands.
 7. **Claude harness JSON is part of the project.** `settings.json`, `settings.local.json`, and `launch.json` must
    parse before handoff. `settings.local.json` stays ignored because it contains absolute machine paths.
 8. **Kentang/kin engines (奇门/太乙/金口/三式合一/术数) live on the chart service, not separate ports.** They're
@@ -57,28 +58,42 @@ For the full change history and the detailed release runbook, read
 
 ```bash
 # Frontend production build (the definitive compile check; ~30s)
-cd Horosa-Web/astrostudyui && npm run build
-cd Horosa-Web/astrostudyui && npm run build:file
+cd Horosa-Web/astrostudyui
+npm run build
+npm run build:file
+cd ../..
 
 # Claude harness sanity checks
 python3 -m json.tool .claude/settings.json >/dev/null
 python3 -m json.tool .claude/settings.local.json >/dev/null
 python3 -m json.tool .claude/launch.json >/dev/null
-test -x "$(python3 - <<'PY'
-import json
-print(json.load(open(".claude/settings.local.json"))["env"]["HOROSA_PYTHON"])
-PY
-)"
+test -x runtime/mac/python/bin/python3
+runtime/mac/python/bin/python3 -c 'import cn2an, kerykeion, sxtwl, cnlunar; print("embedded python ok")'
 
 # Syntax-only parse check of edited JS (fast, no full build)
-cd Horosa-Web/astrostudyui && node -e 'const p=require("@babel/parser");const fs=require("fs");
+cd Horosa-Web/astrostudyui
+node -e 'const p=require("@babel/parser");const fs=require("fs");
 ["src/utils/aiAnalysisContext.js"].forEach(f=>{p.parse(fs.readFileSync(f,"utf8"),{sourceType:"module",
 plugins:["jsx","classProperties","objectRestSpread","optionalChaining","nullishCoalescingOperator","dynamicImport"]});console.log("OK",f);});'
 
+# Focused automated tests for the current AI分析/kentang harness surface
+npm test -- --runInBand src/utils/__tests__/aiAnalysisContext.test.js
+npm test -- --runInBand src/integrations/kentang/__tests__/serviceRoot.test.js src/utils/__tests__/aiAnalysisSelection.test.js
+cd ../..
+
 # Local full stack (Java :9999 + Python :8899); HOROSA_PYTHON preset via settings.local.json
-cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh     # starts services then exits
-cd Horosa-Web && ./stop_horosa_local.sh                             # stop them
+cd Horosa-Web
+HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh                      # starts services then exits
+./stop_horosa_local.sh                                              # stop them
 lsof -nP -iTCP:9999 -sTCP:LISTEN && lsof -nP -iTCP:8899 -sTCP:LISTEN # confirm up
+
+# Clean-env local startup smoke: proves the launcher finds runtime/mac/python by itself.
+env -u HOROSA_PYTHON -u PYTHONPATH HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh
+./stop_horosa_local.sh
+cd ..
+
+# Browser AI分析 smoke (writes runtime/browser_horosa_aianalysis_check.json)
+python3 scripts/browser_horosa_aianalysis_check.py
 
 # In-app preview (dev server). Config: .claude/launch.json → name "horosa-ui" on :8000
 # Use the Claude Preview MCP tools: preview_start{name:"horosa-ui"}, preview_screenshot, preview_eval, preview_logs.
@@ -137,21 +152,26 @@ Compile is necessary but NOT sufficient — verify behavior in the running app.
 
 1. **Build green:** `npm run build` exits 0.
    If you are preparing a release, also run `npm run build:file` after `npm run build`, sequentially.
-2. **Bring up the stack:** start backend (above), confirm `:9999` + `:8899` listen. Start preview `horosa-ui`.
-3. **Point the preview at the backend:** via `preview_eval`, set `localStorage.horosaLocalServerRoot` +
+2. **Focused tests green:** run the AIAnalysis context tests and kentang service-root tests above. The kentang
+   local test must expect `:9999` → `:8899`, not legacy per-engine ports.
+3. **Harness green:** JSON parse `.claude/settings.json`, `.claude/settings.local.json`, and `.claude/launch.json`;
+   verify `.claude/settings.local.json` is ignored by git and its `HOROSA_PYTHON` points at an existing embedded
+   runtime interpreter.
+4. **Bring up the stack:** start backend (above), confirm `:9999` + `:8899` listen. Start preview `horosa-ui`.
+5. **Point the preview at the backend:** via `preview_eval`, set `localStorage.horosaLocalServerRoot` +
    `…Mode='manual'`, reload; switch to the AI分析 view.
-4. **Seed a known chart** (so birth data is controlled) into `localStorage['horosa.localCharts.v1']` (JSON array;
+6. **Seed a known chart** (so birth data is controlled) into `localStorage['horosa.localCharts.v1']` (JSON array;
    record needs `cid,name,birth:'YYYY-MM-DD HH:mm:ss',zone,lat,lon,gpsLat,gpsLon,gender,group:'[]',updateTime`).
    Click 刷新案例.
-5. **Select the chart + techniques.** Read the mounted panels via `preview_eval` over `.ant-collapse-item`
+7. **Select the chart + techniques.** Read the mounted panels via `preview_eval` over `.ant-collapse-item`
    (header = title+status+signature; expand to read `.ant-collapse-content-box`). **Assert every technique's
    signature matches the seeded birth date — this is the no-串盘 check.** Confirm non-empty content + "已就绪".
    For the current chart side this means the 9 wired techniques:
    `astrochart`, `indiachart`, `bazi`, `ziwei`, `firdaria`, `primarydirect`, `guolao`, `suzhan`, `germany`.
-6. **事盘 check:** a 六爻 case shows its卦; adding 奇门 shows "缺失"; never a fresh re-cast.
-7. **Markdown check:** assistant messages render through `marked` + `DOMPurify`; verify `<strong>/<h*>/<ul>/<table>`
+8. **事盘 check:** a 六爻 case shows its卦; adding 奇门 shows "缺失"; never a fresh re-cast.
+9. **Markdown check:** assistant messages render through `marked` + `DOMPurify`; verify `<strong>/<h*>/<ul>/<table>`
    appear and there are **zero literal `**`** markers in the rendered report. Do not remove sanitize.
-8. **Layout check:** 系统提示 sits in the right column above 挂载上下文; the toolbar buttons (刷新案例/新对话/…)
+10. **Layout check:** 系统提示 sits in the right column above 挂载上下文; the toolbar buttons (刷新案例/新对话/…)
    sit at the bottom-left of 发送分析.
 
 ## Release to GitHub
@@ -162,14 +182,22 @@ This is a **manual, macOS-signed** pipeline (no CI auto-release on tag). Full or
 1. Bump version in lockstep: `Horosa_Desktop_Installer/{package.json, src-tauri/Cargo.toml, src-tauri/tauri.conf.json}`
    + `CITATION.cff`; bump `Horosa_Desktop_Installer/config/release_config.json` `runtimeVersion` (`-runtime<N>`,
    reset to `-runtime1` on app bump). Append a `UPGRADE_LOG.md` entry.
-2. `git commit -m "release: prepare vX.Y.Z beta"`.
-3. `cd Horosa_Desktop_Installer && ./scripts/check_apple_signing_prereqs.sh`.
-4. `HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/build_desktop_release.sh` (build + sign + notarize + staple).
-5. `HOROSA_DESKTOP_SKIP_REBUILD=1 ./scripts/verify_desktop_packaging.sh` and
-   `./scripts/verify_runtime_backend_boot.sh`.
-6. `./scripts/verify_public_distribution_readiness.sh`.
-7. `./scripts/publish_github_release.sh` (needs `GITHUB_TOKEN`; creates/updates the release + uploads assets).
-8. Tag after the release is confirmed: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+2. Run the pre-release gates: harness JSON, focused tests, clean sequential `npm run build` then `npm run build:file`,
+   browser AIAnalysis smoke, clean-env local startup smoke.
+3. `git commit -m "release: prepare vX.Y.Z beta"` and push `main` after validation, unless the user explicitly asks
+   for an earlier main push.
+4. `cd Horosa_Desktop_Installer && ./scripts/check_apple_signing_prereqs.sh`.
+5. `HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/build_desktop_release.sh` (the single build + sign + notarize + staple step).
+6. `HOROSA_DESKTOP_SKIP_REBUILD=1 ./scripts/verify_desktop_packaging.sh`,
+   `./scripts/verify_runtime_backend_boot.sh --timeout 300`, and
+   `./scripts/verify_public_distribution_readiness.sh`.
+7. `HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh` (needs `GITHUB_TOKEN`; uploads existing assets
+   and creates/updates both the app tag/release and runtime tag/release). Do **not** manually `git tag` afterward
+   unless this script explicitly failed before creating tags.
+8. Post-publish verification is mandatory:
+   `git ls-remote --heads --tags origin main refs/tags/vX.Y.Z refs/tags/vX.Y.Z-runtimeN`,
+   `gh release view vX.Y.Z`, `gh release view vX.Y.Z-runtimeN`, fetch the latest
+   `horosa-latest.json`, then run `./scripts/verify_github_release_end_to_end.sh`.
 
 Build/sign/publish/push are consequential and deliberately NOT auto-approved in `.claude/settings.json` — confirm
 with the user before running them. Never `git push --force` to main.
