@@ -64,6 +64,19 @@ Horosa-Web/start_horosa_local.ps1
 Horosa-Web/stop_horosa_local.ps1
 ```
 
+## 原生库与 CPU 架构不能只靠启动通过
+
+macOS 2.1.1 的 Risk 1 复盘见 [`arm64-native-libs-hardening.md`](arm64-native-libs-hardening.md)。当时发现 Java 后端里有几个 x86_64-only JNI 原生库：`libimagequant`、OpenCV 3.4.2、RXTX 串口。它们不影响普通启动，但如果失败路径写错，可能在某个功能被点到时把类初始化污染成 `ExceptionInInitializerError`。
+
+Windows 复刻时要把这条经验直接放进 harness：
+
+- 每次新增或升级 JNI / DLL / `.pyd` / native JAR，都要列出 `x64`、`arm64`、Windows 版本、VC runtime 依赖和失败路径。
+- 不要在静态初始化块里把可选 native load 失败重新抛出。错误架构、缺 DLL、缺依赖时通常是 `UnsatisfiedLinkError` / `Error` 或平台异常，不是普通 `Exception`；可选能力要 `catch(Throwable)` 后设置 availability flag，再由调用方降级。
+- 如果某条 native 路径不是核心功能，例如 PNG 调色板压缩、OpenCV 文本检测、IoT 串口，要明确 fallback：写原图、跳过分析、提示该平台不可用，而不是让 app 崩。
+- 如果某个 native 依赖当前是死代码，也要把“调用方追踪为零”的证据写进文档。未来一旦接入业务，必须重新评估，而不能沿用旧结论。
+- Windows 打包前要跑一遍 native 清单检查，等价于 macOS 的 `find ... '*.jnilib' '*.dylib' '*.so' + lipo -archs`。Windows 可用 `dumpbin /headers`、`sigcheck`、PowerShell 读取 PE machine type，至少确认目标架构和缺失 DLL。
+- 构建 / 安装自检不能只跑 `java -version` 或 Python import。发布 gate 必须真正启动安装后的 runtime，打 `/common/time`、chart health、kentang/kin 端点和多时间 `/chart`，这样才能抓到“启动后才加载”的 native 问题。
+
 ## 启动服务时最容易漏的点
 
 Windows 启动脚本需要完成 macOS `start_horosa_local.sh` 的等价职责：

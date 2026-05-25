@@ -4,19 +4,38 @@ package org.pngquant;
 import boundless.utility.NativeUtils;
 
 abstract class LiqObject {
+    // Whether the libimagequant native library loaded on this platform.
+    // Only x86_64 (and legacy) binaries are shipped; there is no arm64/Apple
+    // Silicon build, so on arm64 this stays false. We catch Throwable (not just
+    // Exception) because a wrong-architecture library surfaces as
+    // UnsatisfiedLinkError (an Error), and we must NOT rethrow from the static
+    // initializer: doing so would poison this class with ExceptionInInitializerError
+    // and break unrelated image features that merely share the package. Callers
+    // check isNativeAvailable() and fall back when the native library is absent.
+    private static volatile boolean nativeAvailable = false;
+
     static {
         // libimagequant.jnilib or libimagequant.so must be in java.library.path
 //        System.loadLibrary("imagequant");
         try {
 			NativeUtils.loadLibraryFromJar("/org/pngquant/libimagequant.jnilib");
-		} catch (Exception e) {
+			nativeAvailable = true;
+		} catch (Throwable e) {
 			try{
 				NativeUtils.loadLibraryFromJar("/org/pngquant/libimagequant.so");
-			}catch(Exception err){
-				err.printStackTrace();
-				throw new RuntimeException(err);
+				nativeAvailable = true;
+			}catch(Throwable err){
+				nativeAvailable = false;
 			}
 		}
+    }
+
+    /**
+     * @return true when the libimagequant native library is loaded and native
+     *         quantization calls are safe to make on this platform.
+     */
+    public static boolean isNativeAvailable() {
+        return nativeAvailable;
     }
 
     long handle;

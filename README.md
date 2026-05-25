@@ -9,14 +9,14 @@
 **把占星与中国术数，收进一个原生 macOS 工作站**<br />
 *Western astrology and Chinese metaphysics, in one native macOS workstation*
 
-[![Version](https://img.shields.io/badge/version-2.1.0%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![Version](https://img.shields.io/badge/version-2.1.1%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.1/Horosa-Installer-macos-arm64-offline.pkg) ·
 [完整中文说明](README_ZH.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -35,7 +35,7 @@
 
 > Regular users grab the offline installer and open it like any finished macOS app. No Python or Java to install yourself—the runtime ships inside the package—and updates replace the program and shared runtime without wiping your saved charts.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.0/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.1/Horosa-Installer-macos-arm64-offline.pkg)**
 
 适合：Apple Silicon · 弱网 / 离线环境 · 首次安装 · 转发给他人。
 
@@ -93,7 +93,7 @@
 
 > Charts and cases save locally—tags, snapshots, raw backend payloads, JSON import/export, and full restore on reopen.
 
-## 本次更新 · What's New in v2.1.0 beta
+## 本次更新 · What's New in v2.1.1 beta
 
 这一版把一批新接入的传统命法 / 卜法做成了可以长期使用的状态，而不只是“能跑”：
 
@@ -101,12 +101,13 @@
 - **三式合一口径固定**：奇门与太乙走 kentang2017 后端，六壬保留本地实现；移除后端不支持的月家奇门，不再静默回退旧算法。
 - **数据管理补全**：命盘 / 事盘保留新技法输入、标签、快照、后端结构化数据与 JSON 导入导出。
 - **AI 导出结构化**：直接读取后端结构化数据，按技法 / 页签提供可勾选的导出分段。
+- **Apple Silicon 原生库加固**：x86_64-only 的 libimagequant / OpenCV / RXTX 失败路径改为干净降级；普通安装启动、二维码/验证码、纯 Java PNG 压缩与核心排盘路径不受影响。
 - **状态持久化**：用户设置、窗口大小在关闭、重开与版本更新后保留。
 - **桌面体验打磨**：统一的启动控制台（Daily / Offline Ready / Failed）、修正重开时的窗口尺寸跳动、紫微四化盘隐藏亮度标签、全局明暗主题再校对。
 
-完整改动见 [v2.1.0 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0)（离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.1.0 / 2.1.0-runtime5`）。
+完整改动见 [v2.1.1 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1)（离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.1.1 / 2.1.1-runtime1`）。
 
-> This release turns a batch of newly wired traditional methods into something durable rather than merely runnable: broader vendored engines, a fixed routing for the Sanshi-United surface, full chart/case persistence, structured AI export, settings that survive restarts, and a round of desktop polish. See the [v2.1.0 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.0) for the full log.
+> This release turns a batch of newly wired traditional methods into something durable rather than merely runnable, and adds Apple-Silicon hardening for optional x86_64-only native image/serial libraries. See the [v2.1.1 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.1) for the full log.
 
 ## 技术构成 · Under the Hood
 

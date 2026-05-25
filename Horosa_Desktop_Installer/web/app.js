@@ -79,6 +79,7 @@
   let showFullLog = false;
   let retryActionKind = 'repair_runtime';
   let progressIsIndeterminate = false;
+  const APP_VERSION = '2.1.1';
   let currentTone = 'launch';
 
   async function invoke(cmd, args) {
@@ -277,7 +278,7 @@
     if (direct) return String(direct);
     const sourceText = [payload?.detail, payload?.summary, payload?.rawError].filter(Boolean).join(' ');
     const match = sourceText.match(/(?:runtime|本机组件|版本)\s*(?:version|版本)?\s*([0-9]+\.[0-9]+\.[0-9]+(?:[-\w.]*)?)/i);
-    return match?.[1] || '2.1.0';
+    return match?.[1] || APP_VERSION;
   }
 
   function toTitleCase(value) {
@@ -769,12 +770,12 @@
         summarySessionTypeText: '离线安装',
         summaryRuntimeStrategyText: '复用共享 runtime',
         summaryThirdLabelText: '来源',
-        summaryBackendModeText: 'pkg 2.1.0',
+        summaryBackendModeText: `pkg ${APP_VERSION}`,
         summaryOutcomeText: '已完成',
         heroBadges: ['Offline', 'Trusted pkg', 'Ready'],
         statusLabel: 'Ready',
         progressPrefix: '离线安装已完成',
-        progressEmphasis: 'runtime 2.1.0',
+        progressEmphasis: `runtime ${APP_VERSION}`,
         progressSuffix: '下次打开直接进入',
         primaryCtaLabel: '进入主界面',
         guards: commonGuards,
@@ -1361,7 +1362,8 @@
     renderSteps(failedStep || phase.step, completeAll, failedStep);
     renderMilestones(clamped, failedStep, completeAll);
     if (currentTone === 'ready' && clamped >= 100) {
-      setProgressCopy('离线安装已完成', currentMode === 'offline' ? 'runtime 2.1.0' : text || '准备进入主界面', currentMode === 'offline' ? '下次打开直接进入' : '');
+      const runtimeVersion = runtimeVersionForPayload(currentStatePayload);
+      setProgressCopy('离线安装已完成', currentMode === 'offline' ? `runtime ${runtimeVersion}` : text || '准备进入主界面', currentMode === 'offline' ? '下次打开直接进入' : '');
     } else if (currentTone === 'error') {
       const message = text && text !== '这次准备没有按预期完成' ? text : 'runtime jar 哈希不符';
       setProgressCopy('本机组件', message, 'pipeline 已暂停');
@@ -1369,7 +1371,8 @@
       progressText.textContent = text;
       setProgressCopy('当前步骤', text, '');
     } else if (!indeterminate && clamped >= 100 && currentMode === 'offline') {
-      setProgressCopy('离线安装已完成', 'runtime 2.1.0', '下次打开直接进入');
+      const runtimeVersion = runtimeVersionForPayload(currentStatePayload);
+      setProgressCopy('离线安装已完成', `runtime ${runtimeVersion}`, '下次打开直接进入');
     }
   }
 

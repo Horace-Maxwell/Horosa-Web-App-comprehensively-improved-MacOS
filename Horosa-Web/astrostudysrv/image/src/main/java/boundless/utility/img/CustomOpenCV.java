@@ -435,6 +435,14 @@ public class CustomOpenCV {
 		QueueLog.info(logger, "Selected native binary \"{}\".", location);
 
 		final InputStream binary = OpenCV.class.getResourceAsStream(location);
+		// The bundled opencv artifact does not ship a binary for every platform
+		// (notably macOS arm64 / Apple Silicon is absent in this version). Surface
+		// that as a clear UnsupportedPlatformException instead of a NullPointerException
+		// from Files.copy below; callers already treat OpenCV as optional.
+		if (binary == null) {
+			QueueLog.error(logger, "No bundled OpenCV native binary at \"{}\" for os={}, arch={}.", location, os, arch);
+			throw new UnsupportedPlatformException(os, arch);
+		}
 		final Path destination;
 
 		// Do not try to delete the temporary directory on the close if Windows
