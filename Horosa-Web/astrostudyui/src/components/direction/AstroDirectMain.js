@@ -1057,5 +1057,5 @@ class AstroDirectMain extends Component{
 	}
 }
 
-export { AstroDirectMain, buildPrimaryDirectionFetchFields, buildPrimaryDirectSnapshotText, };
+export { AstroDirectMain, buildPrimaryDirectionFetchFields, buildPrimaryDirectSnapshotText, buildFirdariaSnapshotText, };
 export default AstroDirectMain;

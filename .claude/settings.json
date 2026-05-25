@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run build)",
+      "Bash(npm run build:*)",
+      "Bash(npm run start)",
+      "Bash(npm run start:*)",
+      "Bash(npm test:*)",
+      "Bash(npx umi:*)",
+      "Bash(node -e:*)",
+      "Bash(python3 -m json.tool:*)",
+      "Bash(bash -n:*)",
+      "Bash(./start_horosa_local.sh:*)",
+      "Bash(./stop_horosa_local.sh:*)",
+      "Bash(./verify_horosa_local.sh:*)",
+      "Bash(./scripts/verify_runtime_backend_boot.sh:*)",
+      "Bash(./scripts/verify_desktop_packaging.sh:*)",
+      "Bash(./scripts/check_apple_signing_prereqs.sh:*)",
+      "Bash(lsof:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git tag:*)",
+      "mcp__Claude_Preview__preview_start",
+      "mcp__Claude_Preview__preview_list",
+      "mcp__Claude_Preview__preview_logs",
+      "mcp__Claude_Preview__preview_screenshot",
+      "mcp__Claude_Preview__preview_eval",
+      "mcp__Claude_Preview__preview_stop"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(rm -rf:*)"
+    ]
+  }
+}

@@ -342,7 +342,7 @@ function buildHouseSuLines(rootObj, chart, planetDisplay, fields){
 	return lines;
 }
 
-function buildSuzhanSnapshotText(chartObj, fields, planetDisplay){
+export function buildSuzhanSnapshotText(chartObj, fields, planetDisplay){
 	const lines = [];
 	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
 

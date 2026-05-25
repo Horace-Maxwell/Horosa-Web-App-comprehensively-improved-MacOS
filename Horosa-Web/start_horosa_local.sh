@@ -13,7 +13,7 @@ JAVA_LOG="${LOG_DIR}/astrostudyboot.log"
 HTML_PATH="${UI_DIR}/dist-file/index.html"
 PYTHON_BIN="${HOROSA_PYTHON:-python3}"
 JAVA_BIN="${HOROSA_JAVA_BIN:-java}"
-PYTHONPATH_ASTRO="${ROOT}/flatlib-ctrad2:${ROOT}/astropy"
+PYTHONPATH_ASTRO="${ROOT}/flatlib-ctrad2:${ROOT}/astropy:${ROOT}/vendor"
 EXTRA_PY_SITE=""
 STARTUP_TIMEOUT="${HOROSA_STARTUP_TIMEOUT:-180}"
 SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
@@ -37,8 +37,14 @@ TRUSTED_RUNTIME="${HOROSA_TRUSTED_RUNTIME:-0}"
 ENABLE_STARTUP_CRON="${HOROSA_ENABLE_STARTUP_CRON:-0}"
 ENABLE_STARTUP_TRANSGROUP_INIT="${HOROSA_ENABLE_STARTUP_TRANSGROUP_INIT:-0}"
 
-if [ -z "${HOROSA_PYTHON:-}" ] && [ -x "${ROOT_PARENT}/.runtime/mac/venv/bin/python3" ]; then
-  PYTHON_BIN="${ROOT_PARENT}/.runtime/mac/venv/bin/python3"
+if [ -z "${HOROSA_PYTHON:-}" ]; then
+  # Prefer the complete embedded runtime (parallel to the embedded Java below); it ships every chart
+  # dependency. Only fall back to the prepared venv when the embedded interpreter is absent.
+  if [ -x "${ROOT_PARENT}/runtime/mac/python/bin/python3" ]; then
+    PYTHON_BIN="${ROOT_PARENT}/runtime/mac/python/bin/python3"
+  elif [ -x "${ROOT_PARENT}/.runtime/mac/venv/bin/python3" ]; then
+    PYTHON_BIN="${ROOT_PARENT}/.runtime/mac/venv/bin/python3"
+  fi
 fi
 if [ -z "${HOROSA_JAVA_BIN:-}" ] && [ -x "${ROOT_PARENT}/runtime/mac/java/bin/java" ]; then
   JAVA_BIN="${ROOT_PARENT}/runtime/mac/java/bin/java"
@@ -330,7 +336,9 @@ PY
 
   PYTHONPATH="${py_path}" PYTHONNOUSERSITE="$([ "${use_embedded_runtime}" = "1" ] && printf '1' || printf '%s' "${PYTHONNOUSERSITE:-}")" "${py_bin}" - <<'PY' >/dev/null 2>&1
 import importlib.util as iu
-mods = ("cherrypy", "jsonpickle", "swisseph")
+# Load-bearing imports for the chart service at boot. cn2an/sxtwl/cnlunar are imported eagerly, so a
+# python that has cherrypy/jsonpickle/swisseph but lacks these still crashes — reject it here.
+mods = ("cherrypy", "jsonpickle", "swisseph", "cn2an", "sxtwl", "cnlunar")
 missing = [m for m in mods if iu.find_spec(m) is None]
 raise SystemExit(1 if missing else 0)
 PY
@@ -371,8 +379,8 @@ resolve_python_bin() {
   root_parent="$(cd "${ROOT}/.." && pwd)"
   local candidates=(
     "${PYTHON_BIN}"
-    "${root_parent}/.runtime/mac/venv/bin/python3"
     "${root_parent}/runtime/mac/python/bin/python3"
+    "${root_parent}/.runtime/mac/venv/bin/python3"
   )
 
   if [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ]; then

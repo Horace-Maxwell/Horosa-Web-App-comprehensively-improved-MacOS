@@ -210,6 +210,22 @@ function buildIndiaSnapshotText(chartObj, fields, chartnum, hook){
 	return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// 供 AI 分析无头复算：按出生字段取印度盘（默认 D1 命盘）并生成快照文本。
+export async function buildIndiaSnapshotForFields(fields, chartnum){
+	if(!fields){
+		return '';
+	}
+	const params = fieldsToParams(fields, {});
+	if(chartnum){
+		params.chartnum = chartnum;
+	}
+	const result = await requestIndiaChartData(params);
+	if(!result || !result.chart){
+		return '';
+	}
+	return buildIndiaSnapshotText(result, fields, params.chartnum || 1, null);
+}
+
 class IndiaChart extends Component{
 	constructor(props) {
 		super(props);

@@ -98,6 +98,28 @@ function pickAstroSections(text, sectionNames){
 	return blocks.join('\n\n').trim();
 }
 
+// 供 AI 分析无头复算：取本命西洋盘 + 中点盘，生成量化盘快照（不依赖组件挂载）。
+export async function buildGermanySnapshotForFields(fields){
+	if(!fields){
+		return '';
+	}
+	const params = fieldsToParams(fields);
+	const chartData = await request(`${Constants.ServerRoot}/chart`, {
+		body: JSON.stringify({ ...params, cid: null }),
+		silent: true,
+	});
+	const chartObj = chartData && chartData[Constants.ResultKey] ? chartData[Constants.ResultKey] : null;
+	const mpData = await request(`${Constants.ServerRoot}/germany/midpoint`, {
+		body: JSON.stringify(params),
+		silent: true,
+	});
+	const result = mpData && mpData[Constants.ResultKey] ? mpData[Constants.ResultKey] : null;
+	if(!result){
+		return '';
+	}
+	return buildGermanySnapshotText(params, chartObj, result, fields);
+}
+
 function buildGermanySnapshotText(params, chartObj, result, fields){
 	const lines = [];
 	const midpoints = result && result.midpoints ? result.midpoints : [];

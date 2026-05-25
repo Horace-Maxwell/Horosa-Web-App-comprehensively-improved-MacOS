@@ -705,12 +705,12 @@ class DateTimeSelector extends Component{
 					<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 				</Col>
 				<Col span={5}>
-					<Button size='small' autoInsertSpace={false} onClick={this.clickNow} style={{width: '100%'}}>
+					<Button size='small' onClick={this.clickNow} style={{width: '100%'}}>
 						<span>此刻</span>
 					</Button>
 				</Col>
 				<Col span={5}>
-					<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+					<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
 						<span>确定</span>
 					</Button>
 				</Col>
@@ -729,7 +729,7 @@ class DateTimeSelector extends Component{
 						<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 					</Col>
 					<Col span={8}>
-						<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+						<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
 							<span>确定</span>
 						</Button>
 					</Col>
@@ -752,7 +752,7 @@ class DateTimeSelector extends Component{
 						<Button size='small' iconName='plus' onClick={this.clickPlus} style={{width: '100%'}} />
 					</Col>
 					<Col span={4}>
-						<Button size='small' autoInsertSpace={false} onClick={this.clickOk} style={{width: '100%'}}>
+						<Button size='small' onClick={this.clickOk} style={{width: '100%'}}>
 							<span>确定</span>
 						</Button>
 					</Col>

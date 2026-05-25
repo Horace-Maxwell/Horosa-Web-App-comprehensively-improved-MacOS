@@ -439,7 +439,7 @@ describe('aiAnalysisContext', ()=>{
 		);
 	});
 
-	test('getAnalysisTechniqueContexts regenerates case technique snapshot from stored case info when payload is empty', async ()=>{
+	test('getAnalysisTechniqueContexts does not recast case techniques when payload is empty', async ()=>{
 		const sources = listAnalysisSources();
 		const source = sources.find((item)=>item.id === 'case-3');
 		const contexts = await getAnalysisTechniqueContexts(source, ['liureng', 'qimen', 'taiyi']);
@@ -447,18 +447,21 @@ describe('aiAnalysisContext', ()=>{
 		expect(contexts).toEqual(expect.arrayContaining([
 			expect.objectContaining({
 				key: 'liureng',
-				available: true,
-				content: '自动生成的大六壬快照',
+				available: false,
+				content: '',
+				status: 'missing',
 			}),
 			expect.objectContaining({
 				key: 'qimen',
-				available: true,
-				content: '奇门遁甲结构化快照',
+				available: false,
+				content: '',
+				status: 'missing',
 			}),
 			expect.objectContaining({
 				key: 'taiyi',
-				available: true,
-				content: '太乙结构化快照',
+				available: false,
+				content: '',
+				status: 'missing',
 			}),
 		]));
 	});
@@ -522,6 +525,7 @@ describe('aiAnalysisContext', ()=>{
 			jieqi_dongzhi: '节气盘冬至快照',
 			primarydirect: '主限法结构化快照',
 			primarydirchart: '主限法结构化快照',
+			firdaria: '',
 			bazi: '八字结构化快照',
 			ziwei: '紫微斗数结构化快照',
 			suzhan: '宿占结构化快照',
@@ -535,9 +539,13 @@ describe('aiAnalysisContext', ()=>{
 			});
 			expect(contexts).toHaveLength(1);
 			expect(contexts[0].key).toBe(key);
-			if(expectedByTechnique[key]){
+			if(expectedByTechnique[key] !== undefined){
 				expect(contexts[0].available).toBe(true);
-				expect(contexts[0].content).toContain(expectedByTechnique[key]);
+				if(expectedByTechnique[key]){
+					expect(contexts[0].content).toContain(expectedByTechnique[key]);
+				}else{
+					expect(contexts[0].content).not.toBe('');
+				}
 			}else{
 				expect(contexts[0].available).toBe(false);
 				expect(contexts[0].status).toBe('missing');
@@ -545,18 +553,13 @@ describe('aiAnalysisContext', ()=>{
 		}
 	});
 
-	test('each case technique selection mounts only its own content', async ()=>{
+	test('each case technique selection mounts only explicitly stored payload content', async ()=>{
 		const sources = listAnalysisSources();
 		const caseSource = sources.find((item)=>item.id === 'case-1');
 		const expectedByTechnique = {
-			sixyao: '六爻结构化快照',
-			tongshefa: '统摄法结构化快照',
 			liureng: '大六壬结构化快照',
-			jinkou: '金口诀结构化快照',
 			qimen: '奇门遁甲结构化快照',
-			sanshiunited: '三式合一结构化快照',
-			taiyi: '太乙结构化快照',
-			suzhan: '宿占结构化快照',
+			sanshiunited: '这是缓存的 AI 导出文本',
 		};
 		for(const key of ANALYSIS_CASE_TECHNIQUES){
 			// eslint-disable-next-line no-await-in-loop
@@ -565,8 +568,13 @@ describe('aiAnalysisContext', ()=>{
 			});
 			expect(contexts).toHaveLength(1);
 			expect(contexts[0].key).toBe(key);
-			expect(contexts[0].available).toBe(true);
-			expect(contexts[0].content).toContain(expectedByTechnique[key]);
+			if(expectedByTechnique[key]){
+				expect(contexts[0].available).toBe(true);
+				expect(contexts[0].content).toContain(expectedByTechnique[key]);
+			}else{
+				expect(contexts[0].available).toBe(false);
+				expect(contexts[0].status).toBe('missing');
+			}
 		}
 	});
 

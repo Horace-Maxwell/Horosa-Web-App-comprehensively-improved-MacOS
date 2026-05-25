@@ -146,6 +146,22 @@ function buildZiWeiSnapshotText(params, result){
 	return lines.join('\n');
 }
 
+// 供 AI 分析无头复算：按出生参数取盘并生成紫微快照文本（不依赖组件挂载）。
+export async function buildZiweiSnapshotForParams(params){
+	if(!params){
+		return '';
+	}
+	const data = await request(`${Constants.ServerRoot}/ziwei/birth`, {
+		body: JSON.stringify(params),
+		silent: true,
+	});
+	const result = data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
+	if(!result || !result.chart){
+		return '';
+	}
+	return buildZiWeiSnapshotText(params, result);
+}
+
 function getFieldValue(fields, key, fallback = ''){
 	const field = fields && fields[key] ? fields[key] : null;
 	if(!field || field.value === undefined || field.value === null || field.value === ''){

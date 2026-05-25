@@ -309,7 +309,19 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px;
 	margin-top: 8px;
+}
+
+.composerTools {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.composerSend {
+	flex: 0 0 auto;
+	margin-left: auto;
 }
 
 .composerActions :global(.ant-typography-secondary) {
@@ -320,8 +332,11 @@
 	padding: 10px 12px;
 	border-radius: 8px;
 	margin-bottom: 10px;
-	white-space: pre-wrap;
 	line-height: 1.65;
+}
+
+.messageText {
+	white-space: pre-wrap;
 }
 
 .messageUser {
@@ -330,6 +345,128 @@
 
 .messageAssistant {
 	background: var(--horosa-panel-soft);
+}
+
+.markdownBody {
+	white-space: normal;
+	line-height: 1.7;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.markdownBody > :first-child {
+	margin-top: 0;
+}
+
+.markdownBody > :last-child {
+	margin-bottom: 0;
+}
+
+.markdownBody h1,
+.markdownBody h2,
+.markdownBody h3,
+.markdownBody h4,
+.markdownBody h5,
+.markdownBody h6 {
+	margin: 16px 0 8px;
+	font-weight: 600;
+	line-height: 1.35;
+}
+
+.markdownBody h1 { font-size: 1.5em; }
+.markdownBody h2 { font-size: 1.3em; }
+.markdownBody h3 { font-size: 1.15em; }
+.markdownBody h4 { font-size: 1.05em; }
+
+.markdownBody p {
+	margin: 8px 0;
+}
+
+.markdownBody ul,
+.markdownBody ol {
+	margin: 8px 0;
+	padding-left: 1.6em;
+}
+
+.markdownBody li {
+	margin: 4px 0;
+}
+
+.markdownBody li > ul,
+.markdownBody li > ol {
+	margin: 4px 0;
+}
+
+.markdownBody blockquote {
+	margin: 8px 0;
+	padding: 4px 12px;
+	border-left: 3px solid var(--horosa-border);
+	color: var(--horosa-muted);
+}
+
+.markdownBody code {
+	padding: 1px 5px;
+	border-radius: 4px;
+	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-size: 0.88em;
+	background: var(--horosa-panel-soft);
+	border: 1px solid var(--horosa-border);
+}
+
+.markdownBody pre {
+	margin: 10px 0;
+	padding: 12px;
+	border-radius: 8px;
+	overflow: auto;
+	background: var(--horosa-panel-soft);
+	border: 1px solid var(--horosa-border);
+}
+
+.markdownBody pre code {
+	padding: 0;
+	border: none;
+	background: transparent;
+	font-size: 0.86em;
+}
+
+.markdownBody table {
+	display: block;
+	width: max-content;
+	max-width: 100%;
+	overflow: auto;
+	border-collapse: collapse;
+	margin: 10px 0;
+}
+
+.markdownBody th,
+.markdownBody td {
+	border: 1px solid var(--horosa-border);
+	padding: 6px 10px;
+	text-align: left;
+}
+
+.markdownBody th {
+	background: var(--horosa-panel-soft);
+	font-weight: 600;
+}
+
+.markdownBody a {
+	color: var(--horosa-accent-strong);
+	text-decoration: none;
+}
+
+.markdownBody a:hover {
+	text-decoration: underline;
+}
+
+.markdownBody hr {
+	border: none;
+	border-top: 1px solid var(--horosa-border);
+	margin: 14px 0;
+}
+
+.markdownBody img {
+	max-width: 100%;
 }
 
 .messageMetaRow {
@@ -377,6 +514,66 @@
 	line-height: 1.6;
 	max-height: 240px;
 	overflow: auto;
+}
+
+.sideColumn {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	height: 100%;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.systemPromptCard {
+	flex: 0 0 auto;
+}
+
+.sideColumn .contextCard {
+	flex: 1 1 auto;
+	height: auto;
+	min-height: 0;
+}
+
+.contextCollapse :global(.ant-collapse-content-box) {
+	padding: 8px 12px;
+}
+
+.contextPanelHeader {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+}
+
+.contextPanelTitle {
+	font-weight: 500;
+}
+
+.contextPanelTags {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.contextPanelSig {
+	width: 100%;
+	font-size: 12px;
+	color: var(--horosa-muted);
+}
+
+.contextBody {
+	white-space: pre-wrap;
+	line-height: 1.6;
+	font-size: 12px;
+	color: var(--horosa-text-soft);
+	max-height: 320px;
+	overflow: auto;
+}
+
+.contextEmptyHint {
+	font-size: 12px;
+	color: var(--horosa-muted);
 }
 
 .emptyPane {
