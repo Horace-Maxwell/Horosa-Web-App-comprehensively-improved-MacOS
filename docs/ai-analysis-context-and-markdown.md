@@ -140,6 +140,10 @@ UI 侧：聊天气泡用 `<div>{item.content}</div>` 直出纯文本，从不解
 - `.claude/launch.json`：Claude Preview 的 `horosa-ui` dev server（`:8000`）。
 - `.claude/skills/horosa-dev/SKILL.md`：项目 dev/verify/release 操作技能（含上述注意点与验收流程）。
 
+> 2026-05-25 release 后补充：harness 需同时放行 `verify_public_distribution_readiness.sh`、
+> `verify_github_release_end_to_end.sh`、AI 分析浏览器验收脚本、kentang/icon 只读 verifier、`git ls-remote`
+> 与 `gh release view`。发布脚本会创建/更新 app tag 与 runtime tag；不要在脚本成功后再手动 `git tag`。
+
 ---
 
 ## 4. 变更文件清单
@@ -239,39 +243,61 @@ git status
 # 1) 改版本（上表）+ 追加 UPGRADE_LOG.md 条目（格式见文件顶部：日期/Scope/Files/Details/Verification，追加不改历史）
 #    可选：README.md/README_EN.md/README_ZH.md 版本徽章
 
-# 2) 提交
-git commit -m "release: prepare vX.Y.Z beta"
+# 2) 发布前门禁
+python3 -m json.tool .claude/settings.json >/dev/null
+python3 -m json.tool .claude/settings.local.json >/dev/null
+python3 -m json.tool .claude/launch.json >/dev/null
+cd Horosa-Web/astrostudyui
+npm test -- --runInBand src/utils/__tests__/aiAnalysisContext.test.js
+npm test -- --runInBand src/integrations/kentang/__tests__/serviceRoot.test.js src/utils/__tests__/aiAnalysisSelection.test.js
+npm run build
+npm run build:file
+cd ../..
+python3 scripts/browser_horosa_aianalysis_check.py
+cd Horosa-Web
+env -u HOROSA_PYTHON -u PYTHONPATH HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh
+./stop_horosa_local.sh
+cd ..
 
-# 3) 签名前置（Developer ID Application/Installer + notarytool profile）
+# 注：若 Umi 生成缓存损坏，需要清理 `src/.umi-production` / `.umi-production` / dist 输出时，
+#     先向用户确认；`.claude/settings.json` 默认 deny `rm -rf`。
+
+# 3) 提交；通常验证后推 main（若用户明确要求可提前推 main）
+git commit -m "release: prepare vX.Y.Z beta"
+git push origin main
+
+# 4) 签名前置（Developer ID Application/Installer + notarytool profile）
 cd Horosa_Desktop_Installer && ./scripts/check_apple_signing_prereqs.sh
 
-# 4) 构建 + 签名 + 公证 + staple
+# 5) 构建 + 签名 + 公证 + staple
 HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/build_desktop_release.sh
 #    产物 dist/: Horosa-Desktop-macos-arm64.zip, Horosa-Installer-macos-arm64-offline.pkg,
 #               horosa-runtime-macos-arm64.tar.gz, horosa-latest.json
 
-# 5) 验收产物（不重建）
+# 6) 验收产物（不重建）
 HOROSA_DESKTOP_SKIP_REBUILD=1 ./scripts/verify_desktop_packaging.sh
-./scripts/verify_runtime_backend_boot.sh                      # 隔离启动 runtime + 17+ kentang 端点冒烟
+./scripts/verify_runtime_backend_boot.sh --timeout 300         # 隔离启动 runtime + 17+ kentang 端点冒烟
 ./scripts/verify_public_distribution_readiness.sh             # 签名/公证/staple 校验
 
-# 6) 发布到 GitHub（需 GITHUB_TOKEN；按 release_config.json 决定 prerelease/make_latest）
+# 7) 发布到 GitHub（需 GITHUB_TOKEN；按 release_config.json 决定 prerelease/make_latest）
+#    publish 脚本负责创建/更新 vX.Y.Z 与 vX.Y.Z-runtime<N> 两个 tag/release；成功后不要再手动 git tag。
 GITHUB_TOKEN=... ./scripts/publish_github_release.sh
 
-# 7) 发布确认后再打 tag（约定 vX.Y.Z，仅 runtime 改动用 vX.Y.Z-runtime<N>）
-cd .. && git tag vX.Y.Z && git push origin vX.Y.Z
-
-# 8) 可选：下载产物端到端校验
-cd Horosa_Desktop_Installer && ./scripts/verify_github_release_end_to_end.sh
+# 8) 必做：远端发布确认 + 下载产物端到端校验
+git ls-remote --heads --tags origin main refs/tags/vX.Y.Z refs/tags/vX.Y.Z-runtime<N>
+gh release view vX.Y.Z --repo Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS
+gh release view vX.Y.Z-runtime<N> --repo Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS
+curl -fsSL https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/horosa-latest.json | python3 -m json.tool
+./scripts/verify_github_release_end_to_end.sh
 ```
 
 ### 8.3 检查单
 
-- 发布前：版本四文件同步 + runtime 版本 + UPGRADE_LOG 条目；`check_apple_signing_prereqs.sh` 通过。
+- 发布前：版本四文件同步 + runtime 版本 + UPGRADE_LOG 条目；harness JSON、AI 分析/kentang 测试、顺序 build/build:file、浏览器 AI 分析冒烟、clean-env 本地启动通过；`check_apple_signing_prereqs.sh` 通过。
 - 构建：`build_desktop_release.sh` exit 0；`dist/` 四件产物齐全。
 - 验收：`verify_desktop_packaging.sh` + `verify_runtime_backend_boot.sh`（+ readiness）通过。
 - 发布：`publish_github_release.sh` exit 0；Release 页 tag/版本/资产正确；`horosa-latest.json` 可达。
-- 发布后：`.pkg` 安装+启动正常、版本号正确、检查更新可拉取清单；`git tag` 已推。
+- 发布后：app tag 与 runtime tag 均已推；`.pkg` 安装+启动正常、版本号正确、检查更新可拉取清单；`verify_github_release_end_to_end.sh` 通过。
 
 ### 8.4 模糊点（执行者注意）
 
