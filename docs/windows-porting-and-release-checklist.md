@@ -383,7 +383,7 @@ Windows 不能只打前端 app。必须同时准备：
       "appSha256": "...",
       "pkgSha256": "...",
       "runtimeSha256": "...",
-      "runtimeVersion": "2.1.0-runtime3"
+      "runtimeVersion": "2.1.0-runtime4"
     }
   }
 }
@@ -397,7 +397,7 @@ Windows 不能只打前端 app。必须同时准备：
 
 Windows 版规则：
 
-- App 版本可以仍是 `2.1.0`，但 runtime 内容变了就要 bump runtime tag，例如 `2.1.0-runtime2` -> `2.1.0-runtime3`。
+- App 版本可以仍是 `2.1.0`，但 runtime 内容变了就要 bump runtime tag，例如 `2.1.0-runtime3` -> `2.1.0-runtime4`。
 - 如果只修桌面壳窗口、图标、菜单等 native shell 问题，不要重发 runtime。macOS 版为此加入了 `HOROSA_REUSE_REMOTE_RUNTIME=1`，从既有 runtime release 下载 asset 后只重打 app/pkg。
 - manifest 的 `runtimeVersion`、`runtimeUrl`、`runtimeSha256` 必须同步更新。
 - 安装器、修复流程、自动更新流程都必须比较 runtime manifest version；不匹配就替换 runtime。
@@ -409,8 +409,8 @@ Windows 版规则：
 这次 macOS 2.1.0 最终发布已经证明：本地构建通过不等于发布包可靠，GitHub 上的最终资产也必须被下载回来重验。Windows 复刻时要把这些规则直接写进 release gate。
 
 - App release 名称可以写 `v2.1.0 Beta`，但产品要求“不要放到 prerelease”时，GitHub release 的 `prerelease` 必须是 `false`。不要把名称里的 Beta 和 GitHub prerelease 状态混为一谈。
-- App release 和 runtime release 是两条线。macOS 最终是 app tag `v2.1.0`，runtime tag `v2.1.0-runtime3`；Windows 也要在发布总结里分别写清楚 app tag、runtime tag、manifest version、runtimeVersion。
-- 只要 frontend/backend/runtime payload 变了，旧 runtime asset 就视为过期。macOS 后期因为奇门/太乙/三式合一路由、启动页和 runtime 文件变化，必须从 `runtime2` bump 到 `runtime3`；Windows 不允许继续复用旧 runtime 版本号。
+- App release 和 runtime release 是两条线。macOS 最终是 app tag `v2.1.0`，runtime tag `v2.1.0-runtime4`；Windows 也要在发布总结里分别写清楚 app tag、runtime tag、manifest version、runtimeVersion。
+- 只要 frontend/backend/runtime payload 变了，旧 runtime asset 就视为过期。macOS 后期因为奇门/太乙/三式合一路由、启动页、runtime 文件和前端图盘渲染变化，必须持续 bump runtime tag；Windows 不允许继续复用旧 runtime 版本号。
 - 如果最后阶段只修 native shell，例如窗口大小恢复、图标、安装器 UI，可以复用远端 runtime；但必须在 manifest 和安装器里证明 runtime hash 没变。
 - 奇门遁甲单页和三式合一中的奇门必须走 kentang2017 / Ken 后端；太乙也走 Ken 后端；六壬不走 Ken 后端。这个边界要有单元测试和安装包 smoke，不要靠人工记忆。
 - 如果 Ken 后端没有某个排盘选项，例如当前没有可用的月家奇门完整盘，Windows UI 也必须从奇门单页和三式合一里移除该选项；旧保存数据遇到 `paiPanType: 1` 时归一到受支持选项，不能静默回退旧算法。
