@@ -245,7 +245,7 @@ class ZWHouse extends ZWCommHouse {
 	}
 
 	shouldShowStarLight(){
-		return ZWCont.ZWChart.chart !== ZWCont.ZWChart_SiHua;
+		return this.kinastroBorrowed || ZWCont.ZWChart.chart !== ZWCont.ZWChart_SiHua;
 	}
 
 
