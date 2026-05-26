@@ -203,9 +203,19 @@ This is a **manual, macOS-signed** pipeline (no CI auto-release on tag). Full or
 6. `HOROSA_DESKTOP_SKIP_REBUILD=1 ./scripts/verify_desktop_packaging.sh`,
    `./scripts/verify_runtime_backend_boot.sh --timeout 300`, and
    `./scripts/verify_public_distribution_readiness.sh`.
-7. `HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh` (needs `GITHUB_TOKEN`; uploads existing assets
-   and creates/updates both the app tag/release and runtime tag/release). Do **not** manually `git tag` afterward
-   unless this script explicitly failed before creating tags.
+   - **Gotcha:** `verify_desktop_packaging.sh` hard-exits (`exit 1`) unless it finds a python with Playwright
+     installed — it drives a headless chromium for the launcher console-state check. None of the default pythons
+     ship it. Make a throwaway venv (`python3 -m venv /tmp/pw && /tmp/pw/bin/pip install playwright &&
+     /tmp/pw/bin/python -m playwright install chromium`) and pass `HOROSA_PLAYWRIGHT_PYTHON=/tmp/pw/bin/python`.
+     The other two gates need no Playwright.
+7. `HOROSA_PUBLIC_DISTRIBUTION=1 ./scripts/publish_github_release.sh` (needs `GITHUB_TOKEN` **or** a working
+   `git credential` for github.com; uploads existing assets and creates/updates both the app tag/release and runtime
+   tag/release). Do **not** manually `git tag` afterward unless this script explicitly failed before creating tags.
+   - Publish **re-runs** `verify_desktop_packaging.sh` (so it needs Playwright again) unless you pass
+     `HOROSA_SKIP_VERIFY=1`. Safe to skip only when you just ran that gate on the same unmodified `dist/` bytes;
+     `HOROSA_PUBLIC_DISTRIBUTION=1` still enforces the fast signed-readiness check before upload.
+   - A brand-new `-runtimeN` tag uploads cleanly. `HOROSA_FORCE_RUNTIME_UPLOAD=1` is only needed when the
+     `release_config.json` runtime tag already exists remotely **and** its payload sha changed.
 8. Post-publish verification is mandatory:
    `git ls-remote --heads --tags origin main refs/tags/vX.Y.Z refs/tags/vX.Y.Z-runtimeN`,
    `gh release view vX.Y.Z`, `gh release view vX.Y.Z-runtimeN`, fetch the latest
