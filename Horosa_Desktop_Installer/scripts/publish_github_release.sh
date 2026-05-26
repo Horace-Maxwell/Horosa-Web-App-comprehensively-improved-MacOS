@@ -220,6 +220,7 @@ RELEASE_BODY="$(
   README_ZH_URL_ENV="${README_ZH_URL}" \
   INSTALLER_README_URL_ENV="${INSTALLER_README_URL}" \
   RELEASE_CHANNEL_LABEL_ENV="${RELEASE_CHANNEL_LABEL}" \
+  INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" \
   python3 - <<'PY'
 import os
 
@@ -232,6 +233,17 @@ readme_en_url = os.environ["README_EN_URL_ENV"]
 readme_zh_url = os.environ["README_ZH_URL_ENV"]
 installer_readme_url = os.environ["INSTALLER_README_URL_ENV"]
 
+# Per-version highlights: if config/release_notes/{version}.md exists, inject it as a
+# "本版更新 / What's new" block so the release page reflects the ACTUAL changes,
+# not just the generic product overview below. Absent file => unchanged behavior.
+import pathlib
+_notes_path = pathlib.Path(os.environ.get("INSTALLER_ROOT_ENV", ".")) / "config" / "release_notes" / f"{version}.md"
+per_version_lines = []
+if _notes_path.is_file():
+    _notes_text = _notes_path.read_text(encoding="utf-8").strip()
+    if _notes_text:
+        per_version_lines = ["", "### 本版更新 / What's new in this release", *_notes_text.splitlines()]
+
 sections = [
     f"# Horosa {version}{' Beta' if os.environ.get('RELEASE_CHANNEL_LABEL_ENV') == 'Beta' else ''}",
     "",
@@ -243,6 +255,7 @@ sections = [
     "",
     "## 当前版本亮点 / Release Highlights",
     f"- 当前发布版本 / Current release: `{tag_name}`{(' Beta' if os.environ.get('RELEASE_CHANNEL_LABEL_ENV') == 'Beta' else '')}",
+    *per_version_lines,
     f"- `{tag_name}` 是桌面发布线的 beta 扩展版，重点覆盖新命法/卜法后端、本地数据管理、结构化 AI 导出、设置持久化与明暗主题。",
     f"- `{tag_name}` is a beta expansion of the desktop release train, focused on new traditional-method engines, local data management, structured AI export, persistent settings, and light/dark UI polish.",
     "- 新增并规范接入太乙、金口诀、皇极经世、五兆、太玄、荆诀、神易数、Kin Astro、七政四余、奇门等命法与卜法后端。",
