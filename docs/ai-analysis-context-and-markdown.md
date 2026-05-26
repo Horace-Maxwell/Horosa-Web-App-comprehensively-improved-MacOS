@@ -226,11 +226,11 @@ docs/ai-analysis-context-and-markdown.md                         # 本文档
 
 | 文件 | 字段 | 示例 |
 | --- | --- | --- |
-| `Horosa_Desktop_Installer/package.json` | `version` | `2.1.2` |
-| `Horosa_Desktop_Installer/src-tauri/Cargo.toml` | `version` | `2.1.2` |
-| `Horosa_Desktop_Installer/src-tauri/tauri.conf.json` | `version` | `2.1.2` |
-| `CITATION.cff` | `version` | `"2.1.2"` |
-| `Horosa_Desktop_Installer/config/release_config.json` | `runtimeVersion` | `2.1.2-runtime1`（app 升版时重置 `-runtime1`，仅 runtime 改动时递增 `-runtime<N>`） |
+| `Horosa_Desktop_Installer/package.json` | `version` | `2.1.3` |
+| `Horosa_Desktop_Installer/src-tauri/Cargo.toml` | `version` | `2.1.3` |
+| `Horosa_Desktop_Installer/src-tauri/tauri.conf.json` | `version` | `2.1.3` |
+| `CITATION.cff` | `version` | `"2.1.3"` |
+| `Horosa_Desktop_Installer/config/release_config.json` | `runtimeVersion` | `2.1.3-runtime1`（app 升版时重置 `-runtime1`，仅 runtime 改动时递增 `-runtime<N>`） |
 
 > 前三者必须**完全一致**。`Cargo.lock`/`package-lock.json` 自动再生。前端 `astrostudyui/package.json` 无 version 字段（版本随桌面壳）。
 

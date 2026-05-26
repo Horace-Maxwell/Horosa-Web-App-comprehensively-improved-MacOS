@@ -12,6 +12,25 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-05-26
+
+### 准备 v2.1.3 beta：八字「直接时间 / 真太阳时」时间显示修复
+
+- Scope:
+  - 修复八字盘时间显示：始终同时给出「直接时间（钟表时间）」与「真太阳时」，切换「时间算法」不再跳动（只有「计算基准」随之变化）；出生经度偏离北京 +08:00 的 120°E 子午线时，真太阳时按真实日照差与直接时间不同。准备 `2.1.3 / 2.1.3-runtime1` 发布。
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/baziLunarLocal.js`（主修复：八字本地计算在 nongli 中加入与 timeAlg 无关的 `clockTime`/`solarTime`）
+  - `Horosa-Web/astrostudyui/src/components/cntradition/PaiBaZi.js` / `BaZiAppInfoPanel.js` / `BaZiLegacyView.js` / `BaZi.js`（四处显示统一为「直接时间 / 真太阳时 / 计算基准」，直接时间回退到表单输入）
+  - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/model/BaZi.java`（后端回退路径同款 `clockTime`/`solarTime`）
+  - 版本 bump：`Horosa_Desktop_Installer/{package.json, src-tauri/Cargo.toml, src-tauri/tauri.conf.json, config/release_config.json, web/app.js, scripts/verify_launcher_console_states.py}` + `CITATION.cff` + `README.md`/`README_EN.md`/`README_ZH.md`
+  - 文档/技能：`docs/bazi-time-display-fix.md`（新增）、`docs/ai-analysis-context-and-markdown.md` 版本表、`.claude/skills/horosa-dev/SKILL.md`
+- Details:
+  - 根因：八字盘默认走前端本地计算（`buildLocalBaziResult`，基于 lunar-javascript），不走后端；旧显示用的 `nongli.birth` 是计算基准时间、随 `timeAlg` 变，故会“跳”。
+  - 修复：本地计算与 Java 后端都始终额外输出 `clockTime`（输入原值）与 `solarTime`（强制真太阳时校正），两者与 `timeAlg` 无关；计算基准 `birth` 不变。详见 `docs/bazi-time-display-fix.md`。
+- Verification:
+  - 本地计算单测（多经度 87°E/116°E/119°E/120°E/135°E）：clock/solar 在 `timeAlg=0/1` 下完全一致，且偏离 120°E 时 solar≠clock。
+  - `npm run build` + `npm run build:file` 通过；经 `Horosa_OneClick_Mac.command` in-app 预览核对。
+
 ## 2026-05-25
 
 ### 14:25 - 准备 v2.1.2 beta：AI 分析上下文重算、Markdown 渲染与本地 kentang 启动链路加固

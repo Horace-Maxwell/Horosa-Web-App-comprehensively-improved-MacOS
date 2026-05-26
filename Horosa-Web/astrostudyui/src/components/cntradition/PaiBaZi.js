@@ -142,7 +142,12 @@ class PaiBaZi extends Component{
 		if(rec.nongli){
 			let leap = rec.nongli.leap ? '闰' : '';
 			nongli = `${rec.nongli.year}年${leap}${rec.nongli.month}${rec.nongli.day}`;
-			realtm = '真太阳时:' + rec.nongli.birth;
+			const timeAlgVal = fields.timeAlg ? fields.timeAlg.value : 0;
+			const timeAlgNames = { 0: '真太阳时', 1: '直接时间', 2: '春分定卯时', 3: '地方卯时' };
+			const formClock = (fields.date && fields.time) ? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}` : '';
+			const clockTm = rec.nongli.clockTime || formClock || rec.nongli.birth || '';
+			const solarTm = rec.nongli.solarTime || rec.nongli.birth || '';
+			realtm = `直接时间:${clockTm}　真太阳时:${solarTm}　计算基准:${timeAlgNames[timeAlgVal] || '真太阳时'}`;
 			chef = rec.nongli.chef || '';
 			jiedelta = rec.nongli.jiedelta || '';
 		}

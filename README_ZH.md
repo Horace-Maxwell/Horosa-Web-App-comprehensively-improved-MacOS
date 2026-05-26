@@ -8,14 +8,14 @@
 
 **把占星与中国术数，收进一个原生 macOS 工作站**
 
-[![Version](https://img.shields.io/badge/version-2.1.2%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.2)
+[![Version](https://img.shields.io/badge/version-2.1.3%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.3)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.2)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.2)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.3)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.3)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.2/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.3/Horosa-Installer-macos-arm64-offline.pkg) ·
 [入口页](README.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -34,7 +34,7 @@
 
 普通用户直接下载离线安装包，像任何 macOS 软件一样安装、打开即可。
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.2/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.3/Horosa-Installer-macos-arm64-offline.pkg)**
 
 适合场景：
 
@@ -93,10 +93,11 @@
 
 命盘与事盘都能本地保存：带标签、快照与后端原始结构化数据，可 JSON 导入导出，重开后恢复现场。
 
-## v2.1.2 beta 更新
+## v2.1.3 beta 更新
 
-这一版重点加固「AI 分析」与本地启动链路，让命盘/事盘上下文、Markdown 回复和本地 kentang 引擎都更可靠。
+这一版修复了八字「直接时间 / 真太阳时」时间显示，并继续加固「AI 分析」与本地启动链路。
 
+- **八字时间显示修复** —— 八字盘的「直接时间」与「真太阳时」两者都恒定显示，切换「时间算法」不再跳动（只有「计算基准」随之变化）；出生经度偏离北京 +08:00 的 120°E 子午线时，真太阳时按真实日照差与直接时间呈现不同值
 - **AI 分析不再串盘** —— 命盘技法按当前命盘出生数据重算；过期全局快照签名不匹配会被拒绝
 - **事盘保持起课原样** —— 只挂载起课时保存的技法 payload；其它技法显示缺失，不按时间重新起课
 - **九个命盘技法接入上下文重算** —— 星盘、印度占星、八字、紫微、法达、主限法、七政四余、宿占、量化盘
@@ -105,7 +106,7 @@
 - **本地启动和 kentang 修复** —— 一键启动优先使用嵌入式 Python，补齐 `vendor` 路径；奇门/太乙/三式合一等本地请求统一打到图表服务 `8899`
 - **Agent harness 补全** —— 新增 `.claude` 权限、预览、技能文档和 AI 分析技术 runbook，方便后续安全接手
 
-公证离线 `.pkg`、app zip、runtime 包与 manifest 已统一对齐到 `2.1.2 / 2.1.2-runtime1`。完整改动见 [v2.1.2 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.2)。
+公证离线 `.pkg`、app zip、runtime 包与 manifest 已统一对齐到 `2.1.3 / 2.1.3-runtime1`。完整改动见 [v2.1.3 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.3)。
 
 ## 技术构成
 

@@ -58,13 +58,20 @@ class BaZiAppInfoPanel extends Component{
 		const name = fields && fields.name ? fields.name.value : '';
 		const gender = BaZiMsg[bazi.gender] || '';
 		const lunarText = nongli.year ? `${nongli.year}年${nongli.leap ? '闰' : ''}${nongli.month || ''}${nongli.day || ''}` : '';
+		const timeAlgNames = { 0: '真太阳时', 1: '直接时间', 2: '春分定卯时', 3: '地方卯时' };
+		const timeAlgVal = fields && fields.timeAlg ? fields.timeAlg.value : 0;
+		const formClock = (fields && fields.date && fields.time) ? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}` : '';
+		const clockTime = nongli.clockTime || formClock || nongli.birth || '';
+		const solarTime = nongli.solarTime || nongli.birth || '';
 		return (
 			<section className="horosa-bazi-info-card horosa-bazi-info-card-hero">
 				<div className="horosa-bazi-info-name">{name || '无名氏'}{gender ? `（${gender}）` : ''}</div>
 				<div className="horosa-bazi-info-grid">
 					{infoPair('阳历', fields && fields.date && fields.time ? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm')}` : '')}
 					{infoPair('阴历', lunarText)}
-					{infoPair('真太阳时', nongli.birth)}
+					{infoPair('直接时间', clockTime)}
+					{infoPair('真太阳时', solarTime)}
+					{infoPair('计算基准', timeAlgNames[timeAlgVal] || '真太阳时')}
 					{infoPair('节气', nongli.jiedelta)}
 					{infoPair('起运', bazi.directInfo)}
 					{infoPair('交运', bazi.directTime)}

@@ -652,6 +652,18 @@ export function buildLocalBaziResult(params){
 		tiaohou: [],
 		source: 'lunar-local',
 	};
+	// Always expose both the clock/direct input time and the true solar time,
+	// independent of the selected timeAlg, so the UI can show both without the
+	// displayed value jumping when the user toggles the algorithm (the pillar
+	// calc above still follows timeAlg). Mirrors the Java backend (BaZi.java).
+	if(bazi.nongli){
+		try{
+			bazi.nongli.clockTime = solarFromParts(rawParts).toYmdHms();
+			bazi.nongli.solarTime = solarFromParts(applyApparentSolarTime(rawParts, { ...(params || {}), timeAlg: 0 })).toYmdHms();
+		}catch(e){
+			// keep going even if either time cannot be formatted for an edge-case date
+		}
+	}
 	return {
 		bazi,
 		gender: bazi.gender,
