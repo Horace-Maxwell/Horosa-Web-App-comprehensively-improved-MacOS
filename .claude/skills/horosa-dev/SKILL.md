@@ -65,6 +65,23 @@ For the full change history and the detailed release runbook, read
    时间算法 — read `clockTime`/`solarTime` instead. Off the +08:00 (120°E) meridian, `solarTime` ≠ `clockTime`.
    The 4 display sites are `cntradition/{PaiBaZi,BaZiAppInfoPanel,BaZiLegacyView,BaZi}.js`. Full detail +
    multi-longitude verification: `docs/bazi-time-display-fix.md`.
+10. **Backend Java changes require rebuilding `astrostudyboot.jar` — the release does NOT recompile it.**
+    `package_runtime_payload.sh` only *copies* `astrostudysrv/astrostudyboot/target/astrostudyboot.jar` (falling
+    back to the committed `runtime/mac/bundle/astrostudyboot.jar`); nothing in the release runs Maven. There is
+    **no root reactor pom** — modules are standalone with fixed versions (boundless `1.2.1.2`, astrostudy/
+    astrostudyboot `1.0.0`). To ship a backend change, with JDK 17 (`/usr/libexec/java_home -v 17`):
+    `cd Horosa-Web/astrostudysrv && mvn -f boundless/pom.xml install -DskipTests && mvn -f astrostudy/pom.xml
+    install -DskipTests && mvn -f astrostudyboot/pom.xml clean package -DskipTests`. **The `clean` is mandatory** —
+    a plain `package` sees astrostudyboot's own sources unchanged and reuses the stale fat jar without rebundling
+    the updated dependency jars. Verify with `unzip -p .../astrostudyboot.jar BOOT-INF/lib/astrostudy-1.0.0.jar |
+    ...` or just diff the jar mtime. (v2.1.3 was frontend-only so this didn't bite; v2.1.4 was backend-primary.)
+11. **AI 分析 provider rules (`AIAnalysisProxyService.java` + `AIAnalysisMain.js`).** (a) OpenAI reasoning models
+    (`gpt-5.x`/`o1`/`o3`/`o4`, detect via `isOpenAIReasoningModel`) reject non-default `temperature` and require
+    `max_completion_tokens` not `max_tokens` — omit/translate for those, leave `gpt-4.1` etc. untouched.
+    (b) Surface real upstream errors: backend `ensureSuccess` must include the response body; the frontend stream
+    `onEvent` must handle the `error` event (not only `delta`) or errors collapse into "模型未返回可用内容".
+    (c) Never echo credentials in errors/logs — `HttpUriRequestHystrixCommand` redacts auth headers + strips URL
+    query strings. Full detail: `docs/ai-provider-compat-and-error-surfacing.md`.
 
 ## Commands
 

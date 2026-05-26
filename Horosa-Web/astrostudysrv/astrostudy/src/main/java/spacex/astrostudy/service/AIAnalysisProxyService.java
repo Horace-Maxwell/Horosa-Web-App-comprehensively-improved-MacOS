@@ -657,14 +657,34 @@ public class AIAnalysisProxyService {
 		return String.join("\n", parts).trim();
 	}
 
-	private static Map<String, Object> buildOpenAIChatBody(String model, Map<String, Object> params, List<Map<String, Object>> messages, boolean stream){
+	// OpenAI 的 gpt-5.x / o-系列推理模型只接受默认 temperature(=1)，且用 max_completion_tokens 取代 max_tokens；
+	// 命中前缀即按推理模型口径构造请求体。去掉 provider 前缀以兼容 openrouter 的 "openai/gpt-5" 写法。
+	static boolean isOpenAIReasoningModel(String model){
+		if(model == null) {
+			return false;
+		}
+		String m = model.trim().toLowerCase();
+		int slash = m.lastIndexOf('/');
+		if(slash >= 0) {
+			m = m.substring(slash + 1);
+		}
+		return m.startsWith("gpt-5") || m.startsWith("gpt5")
+			|| m.startsWith("gpt-6") || m.startsWith("gpt6")
+			|| m.startsWith("o1") || m.startsWith("o3") || m.startsWith("o4");
+	}
+
+	static Map<String, Object> buildOpenAIChatBody(String model, Map<String, Object> params, List<Map<String, Object>> messages, boolean stream){
 		Map<String, Object> requestBody = new LinkedHashMap<String, Object>();
 		requestBody.put("model", model);
 		requestBody.put("messages", messages);
-		requestBody.put("temperature", numVal(params.get("temperature"), 0.7));
+		boolean reasoning = isOpenAIReasoningModel(model);
+		if(!reasoning) {
+			requestBody.put("temperature", numVal(params.get("temperature"), 0.7));
+		}
 		requestBody.put("stream", stream);
-		if(intVal(params.get("maxTokens"), 0) > 0) {
-			requestBody.put("max_tokens", intVal(params.get("maxTokens"), 0));
+		int maxTokens = intVal(params.get("maxTokens"), 0);
+		if(maxTokens > 0) {
+			requestBody.put(reasoning ? "max_completion_tokens" : "max_tokens", maxTokens);
 		}
 		requestBody.putAll(buildProviderBodyOptions(params));
 		return requestBody;
@@ -786,7 +806,29 @@ public class AIAnalysisProxyService {
 		if(status >= 200 && status < 300) {
 			return;
 		}
-		throw new ErrorCodeException(580021, "上游 provider 请求失败，状态码：" + status);
+		String detail = readErrorBody(response.body());
+		String msg = "上游 provider 请求失败，状态码：" + status;
+		if(!StringUtility.isNullOrEmpty(detail)) {
+			msg = msg + "；" + detail;
+		}
+		throw new ErrorCodeException(580021, msg);
+	}
+
+	// 仅在非 2xx 分支消费流式响应体，截断后并入错误信息，让上游真因(如 temperature/参数不支持)透传到 error 事件。
+	private static String readErrorBody(Object body){
+		if(!(body instanceof InputStream)) {
+			return "";
+		}
+		try(InputStream in = (InputStream) body){
+			byte[] buf = in.readNBytes(4096);
+			String text = new String(buf, StandardCharsets.UTF_8).trim();
+			if(text.length() > 1000) {
+				text = text.substring(0, 1000);
+			}
+			return text;
+		}catch(Exception e){
+			return "";
+		}
 	}
 
 	private void readSseStream(InputStream stream, SseLineHandler handler) throws IOException{

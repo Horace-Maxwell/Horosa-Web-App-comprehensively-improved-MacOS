@@ -175,6 +175,37 @@ public class AIAnalysisProxyServiceTest {
 		assertFalse(bodyOptions.containsKey("requestTimeoutMs"));
 	}
 
+	@Test
+	public void isOpenAIReasoningModelMatchesGpt5AndOSeries() {
+		assertTrue(AIAnalysisProxyService.isOpenAIReasoningModel("gpt-5.5"));
+		assertTrue(AIAnalysisProxyService.isOpenAIReasoningModel("gpt-5.5-2026-04-23"));
+		assertTrue(AIAnalysisProxyService.isOpenAIReasoningModel("o3-mini"));
+		assertTrue(AIAnalysisProxyService.isOpenAIReasoningModel("o1"));
+		assertTrue(AIAnalysisProxyService.isOpenAIReasoningModel("openai/gpt-5"));
+		assertFalse(AIAnalysisProxyService.isOpenAIReasoningModel("gpt-4.1"));
+		assertFalse(AIAnalysisProxyService.isOpenAIReasoningModel("gpt-4o"));
+		assertFalse(AIAnalysisProxyService.isOpenAIReasoningModel("deepseek-reasoner"));
+		assertFalse(AIAnalysisProxyService.isOpenAIReasoningModel(null));
+	}
+
+	@Test
+	public void buildOpenAIChatBodyAdaptsReasoningModels() {
+		List<Map<String, Object>> messages = AIAnalysisProxyService.getMessageList(Arrays.asList(
+			buildMap("role", "user", "content", "hi")
+		));
+		Map<String, Object> params = buildMap("maxTokens", 1024);
+
+		Map<String, Object> reasoning = AIAnalysisProxyService.buildOpenAIChatBody("gpt-5.5", params, messages, false);
+		assertFalse(reasoning.containsKey("temperature"));
+		assertFalse(reasoning.containsKey("max_tokens"));
+		assertEquals(Integer.valueOf(1024), reasoning.get("max_completion_tokens"));
+
+		Map<String, Object> classic = AIAnalysisProxyService.buildOpenAIChatBody("gpt-4.1", params, messages, false);
+		assertEquals(0.7d, classic.get("temperature"));
+		assertEquals(Integer.valueOf(1024), classic.get("max_tokens"));
+		assertFalse(classic.containsKey("max_completion_tokens"));
+	}
+
 	private static Map<String, Object> buildMap(Object... args){
 		Map<String, Object> map = new LinkedHashMap<String, Object>();
 		for(int i=0; i<args.length; i += 2) {
