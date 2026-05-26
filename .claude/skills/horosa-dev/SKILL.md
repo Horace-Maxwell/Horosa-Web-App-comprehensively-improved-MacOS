@@ -267,9 +267,11 @@ with the user before running them. Never `git push --force` to main.
   (verified by the e2e gate).
 - `main` is normally pushed after validation; for strict main/release consistency you may push it only after a
   successful publish.
-- GitCode mirror: source+tags auto-mirror from GitHub (with lag) and do NOT auto-create 发行版 entries; release
-  **binaries** must be uploaded to the GitCode 发行版 (web UI, ≤2G; the OpenAPI exposes no release-asset upload and
-  releases have no `id`).
+- GitCode mirror (`HoraceDong_C137/<repoName>`, a **read-only Pull mirror** — can't `git push`): after each release run
+  `scripts/mirror_to_gitcode.sh`. It (a) checks the tag landed on GitCode, (b) creates the 发行版 + real notes via API
+  (`private-token` header; create-only — no `id` so no update/delete). Two steps it CAN'T do (you do manually):
+  trigger the mirror "更新" to sync source+tags, and upload the `.pkg`/runtime binaries to the 发行版 (web UI, ≤2G —
+  no release-asset upload API). Token in `.claude/settings.local.json` env `GITCODE_TOKEN`.
 
 **Self-improvement — do this EVERY release (the harness must get more reliable, not drift):**
 After each release, spend a few minutes re-auditing the whole dev→release flow for gaps you have not seen before
