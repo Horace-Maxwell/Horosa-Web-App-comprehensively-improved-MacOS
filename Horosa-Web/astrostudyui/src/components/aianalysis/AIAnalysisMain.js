@@ -1382,6 +1382,7 @@ function AIAnalysisMain(props){
 		}
 		const abortController = new AbortController();
 		abortRef.current = abortController;
+		let streamError = null;
 		try{
 			await requestAIAnalysisChatStream({
 				providerType: profile.providerType,
@@ -1405,14 +1406,17 @@ function AIAnalysisMain(props){
 							streamStatus: 'streaming',
 							updatedAt: new Date().toISOString(),
 						} : item));
+					}else if(event.type === 'error'){
+						streamError = (event.json && event.json.message) ? `${event.json.message}` : (event.data || '上游服务返回错误');
 					}
 				},
 			});
 			const finalContent = `${streamBufferRef.current || ''}`.trim();
+			const resolvedContent = finalContent || (streamError ? `⚠️ ${streamError}` : '模型未返回可用内容');
 			const saved = await saveConversationMessage({
 				...assistantMessage,
-				content: finalContent || '模型未返回可用内容',
-				streamStatus: 'done',
+				content: resolvedContent,
+				streamStatus: (!finalContent && streamError) ? 'error' : 'done',
 				updatedAt: new Date().toISOString(),
 			});
 			setMessages((prev)=>prev.map((item)=>item.id === saved.id ? saved : item));
@@ -1422,9 +1426,10 @@ function AIAnalysisMain(props){
 			return saved;
 		}catch(e){
 			const aborted = e && e.name === 'AbortError';
+			const failMessage = streamError || (e && e.message ? `${e.message}` : '') || '生成失败。';
 			const saved = await saveConversationMessage({
 				...assistantMessage,
-				content: streamBufferRef.current || (aborted ? '已停止生成。' : '生成失败。'),
+				content: streamBufferRef.current || (aborted ? '已停止生成。' : `⚠️ ${failMessage}`),
 				streamStatus: aborted ? 'aborted' : 'error',
 				updatedAt: new Date().toISOString(),
 			});

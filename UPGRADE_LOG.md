@@ -14,6 +14,28 @@ Append new entries; do not rewrite history.
 
 ## 2026-05-26
 
+### 准备 v2.1.4 beta：AI 分析供应商兼容 + 错误透传 + 凭据脱敏
+
+- Scope:
+  - 全面修复「AI 分析」三类问题（GitHub issues #4/#5）：(A) OpenAI 推理系列(`gpt-5.x`/`o1`/`o3`/`o4`)因强制 `temperature` 与 `max_tokens` 被上游拒；(B) 流式错误被吞成「模型未返回可用内容」，看不到真因；(C) 出站请求失败时把 `Authorization`/`x-api-key`/`LocalIp` 等凭据回显到错误信息与日志。准备 `2.1.4 / 2.1.4-runtime1` 发布。
+- Files:
+  - `Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java`（新增 `isOpenAIReasoningModel`；`buildOpenAIChatBody` 推理模型省略 temperature、改用 `max_completion_tokens`；`ensureSuccess` 读取并透传上游错误体）
+  - `Horosa-Web/astrostudysrv/boundless/src/main/java/boundless/net/http/HttpUriRequestHystrixCommand.java`（错误信息脱敏敏感请求头；日志 URL 去查询串）
+  - `Horosa-Web/astrostudyui/src/components/aianalysis/AIAnalysisMain.js`（流式 `error` 事件透传真实错误，替代笼统兜底）
+  - 测试：`astrostudy/.../AIAnalysisProxyServiceTest.java`（+reasoning/body 用例）、`boundless/.../HttpUriRequestHystrixCommandTest.java`（新增脱敏/去查询串）
+  - 重建 `Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar`（fat jar 含新 astrostudy/boundless 类）
+  - 版本 bump：`Horosa_Desktop_Installer/{package.json, src-tauri/Cargo.toml, src-tauri/Cargo.lock, src-tauri/tauri.conf.json, config/release_config.json, web/app.js, scripts/verify_launcher_console_states.py}` + `CITATION.cff` + `README.md`/`README_EN.md`/`README_ZH.md`
+  - 文档/技能：`docs/ai-provider-compat-and-error-surfacing.md`（新增）、`.claude/skills/horosa-dev/SKILL.md`
+- Details:
+  - reasoning 检测：模型名去 `provider/` 前缀后命中 `gpt-5`/`gpt-6`/`o1`/`o3`/`o4`；命中则省略 `temperature`（服务端默认即 1），`maxTokens>0` 时发 `max_completion_tokens`；非推理模型（如 `gpt-4.1`）行为完全不变。
+  - 错误透传：后端 `ensureSuccess` 非 2xx 时截断并入上游响应体；前端 `onEvent` 处理 `error` 事件并显示真实原因（流正常结束与抛错两条路径都覆盖）。
+  - 凭据脱敏：`redactSensitiveHeaders` 屏蔽 authorization / x-api-key / api-key / x-goog-api-key / cookie / proxy-authorization / localip 等头的值；`stripQuery` 去掉日志 URL 的 `?...`。影响面仅限错误字符串/日志，不改请求/响应逻辑。
+  - 配置持久（issue #4 次症「每次配置完得重新配置」）经审计为非 bug：apiKey 已存 IndexedDB 并回填表单，系 `type=password` 视觉为空造成误解；未改代码，预览中复核。
+- Verification:
+  - 后端 JDK17 编译通过；JUnit：boundless 2、astrostudy 14（含新用例）全绿；boot fat jar 重建并确认内含 `max_completion_tokens` 与 `redacted` 两处修复。
+  - 前端 Jest 24 全绿；`npm run build` 然后 `npm run build:file` 通过。
+  - 应用内预览实测：错误透传（400 显示真因）、凭据脱敏（401 显示 `***redacted***`）、配置持久复核。
+
 ### 准备 v2.1.3 beta：八字「直接时间 / 真太阳时」时间显示修复
 
 - Scope:

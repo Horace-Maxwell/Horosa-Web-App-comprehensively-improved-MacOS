@@ -136,7 +136,7 @@ public class HttpUriRequestHystrixCommand extends HystrixCommand<String> {
 						status.phase = reason;
 					}
 					String jsonheads = JsonUtility.encode(repsheaders);
-					String requestjsonhead = JsonUtility.encode(headermap);
+					String requestjsonhead = JsonUtility.encode(redactSensitiveHeaders(headermap));
 					String str = "";
 					try{
 						str = EntityUtils.toString(response.getEntity(), "UTF-8");
@@ -163,7 +163,7 @@ public class HttpUriRequestHystrixCommand extends HystrixCommand<String> {
 				String str = EntityUtils.toString(response.getEntity(), charset);
 				return str;
 			}catch(Exception e){
-				HttpClientUtility.log.error("请求{}失败, cause:{}", request.getURI().toString(), e.getMessage());
+				HttpClientUtility.log.error("请求{}失败, cause:{}", stripQuery(request.getURI().toString()), e.getMessage());
 				throw e;
 			}finally{
 				try{
@@ -175,5 +175,31 @@ public class HttpUriRequestHystrixCommand extends HystrixCommand<String> {
 		}catch(Exception e){
 			throw new RuntimeException(e);
 		}
+	}
+
+	// 出站请求失败时不要把凭据回显到错误信息/日志：屏蔽敏感请求头的值，保留其余头与响应体。
+	static Map<String, String> redactSensitiveHeaders(Map<String, String> headers){
+		Map<String, String> copy = new HashMap<String, String>();
+		if(headers == null){
+			return copy;
+		}
+		for(Entry<String, String> entry : headers.entrySet()){
+			String key = entry.getKey() == null ? "" : entry.getKey().toLowerCase();
+			boolean sensitive = key.equals("authorization") || key.equals("x-api-key")
+				|| key.equals("api-key") || key.equals("apikey") || key.equals("x-goog-api-key")
+				|| key.equals("cookie") || key.equals("set-cookie") || key.equals("proxy-authorization")
+				|| key.equals("localip");
+			copy.put(entry.getKey(), sensitive ? "***redacted***" : entry.getValue());
+		}
+		return copy;
+	}
+
+	// 去掉 URL 查询串，避免把 Gemini 等放在 ?key= 里的密钥写进日志。
+	static String stripQuery(String uri){
+		if(uri == null){
+			return "";
+		}
+		int idx = uri.indexOf('?');
+		return idx >= 0 ? uri.substring(0, idx) : uri;
 	}
 }
