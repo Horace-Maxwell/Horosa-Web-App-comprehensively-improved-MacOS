@@ -128,8 +128,10 @@ function buildBaziSnapshotText(params, result){
 	appendIf('命造', baziGender);
 	const nongli = bazi && bazi.nongli ? bazi.nongli : {};
 	const nltxt = getNongliLine(nongli);
-	const realtm = nongli.birth || `${params.date} ${params.time}`;
-	lines.push(`农历：${nltxt || '未知'} 真太阳时：${realtm || '未知'}`);
+	const clockTm = nongli.clockTime || `${params.date} ${params.time}`;
+	const solarTm = nongli.solarTime || nongli.birth || `${params.date} ${params.time}`;
+	lines.push(`农历：${nltxt || '未知'}`);
+	lines.push(`直接时间：${clockTm || '未知'}　真太阳时：${solarTm || '未知'}`);
 	const jiedelta = nongli.jiedelta || '';
 	const chef = nongli.chef || '';
 	const tiaohou = Array.isArray(bazi.tiaohou) ? bazi.tiaohou.join('，') : '';

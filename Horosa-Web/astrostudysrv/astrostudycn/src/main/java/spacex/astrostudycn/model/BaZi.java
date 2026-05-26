@@ -177,7 +177,22 @@ public class BaZi {
 		this.oldBirthJdn = DateTimeUtility.getDateNum(this.oldBirth, this.zone);
 		this.oldBirthParts = DateTimeUtility.getDateTimeParts(this.oldBirth);
 		this.oldBirthAfter23 = DateTimeUtility.isAfter23Hour(this.oldBirth);
-		
+
+		// Always expose both the clock/direct input time and the true solar time,
+		// regardless of the selected timeAlg, so the UI can show both without
+		// changing the calculation basis (which still follows timeAlg below).
+		int realSunOffsetSeconds = RealSunTimeOffset.getOffset(
+			String.format("%02d-%02d", this.oldBirthParts[1], this.oldBirthParts[2]),
+			this.lon,
+			this.getBaseLonByZone()
+		);
+		String realSunBirth = JdnHelper.getDateFromJdn(
+			this.oldBirthJdn + realSunOffsetSeconds / 3600.0 / 24.0,
+			this.zone
+		);
+		this.nongli.put("clockTime", this.oldBirth);
+		this.nongli.put("solarTime", realSunBirth);
+
 		if(this.timeAlg == TimeZiAlg.RealSun) {
 			String monthday = String.format("%02d-%02d", this.oldBirthParts[1], this.oldBirthParts[2]);
 			int baseLon = this.getBaseLonByZone();

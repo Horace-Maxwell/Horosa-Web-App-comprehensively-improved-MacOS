@@ -447,6 +447,12 @@ export class BaZiLegacyMain extends Component{
 		const gong12 = bazi.gong12God || {};
 		const name = fields.name ? fields.name.value : '';
 		const gender = BaZiMsg[bazi.gender] || '';
+		const legacyNongli = bazi.nongli || {};
+		const timeAlgNames = { 0: '真太阳时', 1: '直接时间', 2: '春分定卯时', 3: '地方卯时' };
+		const timeAlgVal = fields.timeAlg ? fields.timeAlg.value : 0;
+		const formClock = (fields.date && fields.time) ? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}` : '';
+		const clockTime = legacyNongli.clockTime || formClock || legacyNongli.birth || '';
+		const solarTime = legacyNongli.solarTime || legacyNongli.birth || '';
 		return (
 			<div className="horosa-bazi-legacy-main">
 				<header className="horosa-bazi-legacy-header">
@@ -454,7 +460,9 @@ export class BaZiLegacyMain extends Component{
 						<strong>{gender}</strong>
 						<span>{name}</span>
 						<span>农历:{getNongliText(bazi)}</span>
-						<span>真太阳时:{bazi.nongli && bazi.nongli.birth ? bazi.nongli.birth : ''}</span>
+						<span>直接时间:{clockTime}</span>
+						<span>真太阳时:{solarTime}</span>
+						<span>计算基准:{timeAlgNames[timeAlgVal] || '真太阳时'}</span>
 						<p>{getExtraLine(bazi)}</p>
 					</div>
 					<button type="button">打印命盘</button>

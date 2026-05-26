@@ -53,6 +53,18 @@ For the full change history and the detailed release runbook, read
    `sanshi.qimen.kinqimen_unavailable` error). If a kentang technique shows "unavailable" locally, verify
    `curl -s -XPOST http://127.0.0.1:8899/qimen/pan -d '{...}'` returns `"source":"kinqimen"`, then check the
    frontend resolved to 8899 (not 8898). Production (`srv.horosa.com`) is unaffected — same host routes by path.
+9. **八字盘走前端本地计算，不是后端 (a bazi display fix must touch the frontend).** The 八字 chart is rendered
+   from a local JS calc — `utils/baziLunarLocal.js` → `buildLocalBaziResult` (lunar-javascript based), called by
+   `cntradition/BaZi.js` `fetchBaziCached`/`fetchBaziDirectCached`. The Java backend `/bazi/birth`
+   (`astrostudycn` `BaZi.java` / `BaZiDirect`) is **only an edge-case fallback** when the local calc throws.
+   So fixing what the bazi chart *displays* means changing `baziLunarLocal.js` (and the display components),
+   not just the backend. **Time-display contract** (mirrored in both the local calc and `BaZi.java`):
+   `nongli.clockTime` = raw input / clock time (stable); `nongli.solarTime` = apparent solar time
+   (longitude + equation-of-time corrected, **independent of `timeAlg`**); `nongli.birth` = the pillar calc
+   basis (changes with `timeAlg`). Any time row that reads `nongli.birth` will "jump" when the user toggles
+   时间算法 — read `clockTime`/`solarTime` instead. Off the +08:00 (120°E) meridian, `solarTime` ≠ `clockTime`.
+   The 4 display sites are `cntradition/{PaiBaZi,BaZiAppInfoPanel,BaZiLegacyView,BaZi}.js`. Full detail +
+   multi-longitude verification: `docs/bazi-time-display-fix.md`.
 
 ## Commands
 
