@@ -9,14 +9,14 @@
 **把占星与中国术数，收进一个原生 macOS 工作站**<br />
 *Western astrology and Chinese metaphysics, in one native macOS workstation*
 
-[![Version](https://img.shields.io/badge/version-2.1.4%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4)
+[![Version](https://img.shields.io/badge/version-2.1.5%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.4/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.5/Horosa-Installer-macos-arm64-offline.pkg) ·
 [完整中文说明](README_ZH.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -35,7 +35,7 @@
 
 > Regular users grab the offline installer and open it like any finished macOS app. No Python or Java to install yourself—the runtime ships inside the package—and updates replace the program and shared runtime without wiping your saved charts.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.4/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.5/Horosa-Installer-macos-arm64-offline.pkg)**
 
 适合：Apple Silicon · 弱网 / 离线环境 · 首次安装 · 转发给他人。
 
@@ -93,17 +93,18 @@
 
 > Charts and cases save locally—tags, snapshots, raw backend payloads, JSON import/export, and full restore on reopen.
 
-## 本次更新 · What's New in v2.1.4 beta
+## 本次更新 · What's New in v2.1.5 beta
 
-这一版集中、彻底地修复「AI 分析」的供应商兼容与错误处理：
+这一版是对「AI 分析」整页的全面打磨,把供应商切换、鉴权、发送与静默失败一次修到位:
 
-- **OpenAI 推理模型可用**：`gpt-5.5` / `o1` / `o3` / `o4` 等推理系列以前只回「模型未返回可用内容」——现在按其要求省略 `temperature`、改用 `max_completion_tokens`，可正常对话；`gpt-4.1` 等既有模型行为完全不变。
-- **真实错误透传**：上游 provider 报错（参数不被支持、401/404 等）不再被吞成笼统提示，会把真正的原因显示出来，便于自查配置。
-- **凭据不再外泄**：请求失败时错误信息与日志中的 `Authorization`、`x-api-key`、`LocalIp` 等敏感头一律脱敏，URL 里的 `?key=` 也不再写进日志。
+- **多供应商切换修复**:供应商卡片可点击、并有明确「设为当前」按钮,切换真正生效;切换 provider 类型会清空旧 API Key,避免「新 URL + 旧 Key」导致的 401。
+- **Gemini 直连修复**:不再为 Gemini 多加 `Authorization: Bearer`(消除 `ACCESS_TOKEN_TYPE_UNSUPPORTED`);自定义供应商可用 `authHeaderName`/`authPrefix` 自定义鉴权头。
+- **发送更稳**:流式中不再被回车/重复点击并发触发;停止与切换/删除对话会真正中止流;新消息自动滚到底;请求超时尊重你配置的 `requestTimeoutMs`。
+- **静默失败可见**:向量检索、资料分块失败会提示而非悄悄降级;Markdown 解析异常退回纯文本不丢内容。
 
-完整改动见 [v2.1.4 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4)（离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.1.4 / 2.1.4-runtime1`）。
+完整改动见 [v2.1.5 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)(离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.1.5 / 2.1.5-runtime1`)。
 
-> This release is a focused AI Analysis fix: OpenAI reasoning models (`gpt-5.x` / `o1` / `o3` / `o4`) now reply instead of returning empty content (temperature is omitted and `max_completion_tokens` is used), real upstream provider errors are surfaced instead of swallowed into a generic message, and credentials (`Authorization` / `x-api-key` / `LocalIp`, plus `?key=` in URLs) are redacted from error messages and logs. See the [v2.1.4 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4) for the full log.
+> This release is a thorough pass over the AI Analysis page: provider switching now works (clickable cards + a "set as current" button; changing provider type clears the old key to prevent "new URL + old key" 401s), Gemini direct connection no longer attaches a redundant `Authorization: Bearer` (custom providers can override the auth header), streaming can't be double-fired and stop/switch/delete truly aborts it, and previously-silent failures (embedding retrieval, material chunking, request timeout, markdown parse) are surfaced or recovered. See the [v2.1.5 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5) for the full log.
 
 ## 技术构成 · Under the Hood
 

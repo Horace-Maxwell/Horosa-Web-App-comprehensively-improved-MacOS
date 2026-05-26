@@ -562,7 +562,9 @@ function renderMarkdownToHtml(text){
 		const html = marked.parse(raw);
 		return DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel'] });
 	}catch(e){
-		return '';
+		console.warn('markdown render failed', e);
+		// 解析失败时退回纯文本(经 DOMPurify 中和),至少不丢内容
+		return DOMPurify.sanitize(raw);
 	}
 }
 
@@ -716,6 +718,7 @@ function AIAnalysisMain(props){
 	const [providerForm] = Form.useForm();
 	const abortRef = React.useRef(null);
 	const streamBufferRef = React.useRef('');
+	const chatLogRef = React.useRef(null);
 	const backupRestoreInputRef = React.useRef(null);
 	const desktopFileInputRef = React.useRef(null);
 	const desktopFolderInputRef = React.useRef(null);
@@ -1143,11 +1146,19 @@ function AIAnalysisMain(props){
 		}
 	}, [modelOptions, modelSelection]);
 
+	React.useEffect(()=>{
+		const el = chatLogRef.current;
+		if(el){
+			el.scrollTop = el.scrollHeight;
+		}
+	}, [visibleMessages]);
+
 	const applyProviderPresetToForm = React.useCallback((providerType)=>{
 		const preset = getProviderPreset(providerType);
 		const currentValues = providerForm.getFieldsValue(true);
 		providerForm.setFieldsValue({
 			...currentValues,
+			apiKey: '',
 			providerType,
 			name: preset.label,
 			baseUrl: preset.baseUrl,
@@ -1188,10 +1199,16 @@ function AIAnalysisMain(props){
 		if(!conversation){
 			return;
 		}
+		if(abortRef.current){
+			abortRef.current.abort();
+		}
 		setActiveConversationId(conversation.id);
 		setSelectedSourceId(conversation.sourceRef && conversation.sourceRef.id ? conversation.sourceRef.id : '');
 		setReferenceIds(conversation.referenceIds || []);
 		setSelectedTechniqueKeys(conversation.techniqueKeys || []);
+		if(conversation.providerProfileId && !providerProfiles.some((item)=>item.id === conversation.providerProfileId)){
+			message.info('该对话原用的接口配置已删除，已切换到可用配置，请确认模型后再发送。');
+		}
 		setModelSelection(encodeModelSelection(conversation.providerProfileId || '', conversation.model || ''));
 		setSessionSystemPrompt(conversation.systemPrompt || '');
 		setMessages(await listConversationMessages(conversation.id));
@@ -1306,11 +1323,16 @@ function AIAnalysisMain(props){
 		let chunks = [];
 		for(let i=0; i<ragMaterials.length; i++){
 			const material = ragMaterials[i];
-			const materialChunks = await ensureMaterialChunks(material);
-			chunks = chunks.concat(materialChunks.map((chunk)=>({
-				...chunk,
-				materialName: material.name,
-			})));
+			try{
+				const materialChunks = await ensureMaterialChunks(material);
+				chunks = chunks.concat(materialChunks.map((chunk)=>({
+					...chunk,
+					materialName: material.name,
+				})));
+			}catch(err){
+				console.warn('material chunking failed', material && material.name, err);
+				message.warning(`资料「${(material && material.name) || ''}」分块失败，本次检索已跳过`);
+			}
 		}
 		let ranked = rankChunksByKeyword(query, chunks).slice(0, 12);
 		const profileOptions = profile && profile.providerOptions ? profile.providerOptions : {};
@@ -1323,6 +1345,7 @@ function AIAnalysisMain(props){
 					baseUrl: profile.baseUrl,
 					model: embeddingModel,
 					embeddingModel,
+					providerOptions: profile.providerOptions || {},
 					input: [query],
 				});
 				const queryVector = queryEmbeddingRsp && queryEmbeddingRsp.Result && Array.isArray(queryEmbeddingRsp.Result.vectors)
@@ -1334,6 +1357,7 @@ function AIAnalysisMain(props){
 				}
 			}catch(e){
 				console.warn('embedding rerank skipped', e);
+				message.warning('向量检索失败，本次仅用关键词排序');
 			}
 		}
 		const retrievedChunks = mergeRetrievedChunks(ranked, 5200);
@@ -1395,6 +1419,9 @@ function AIAnalysisMain(props){
 				signal: abortController.signal,
 				onEvent: (event)=>{
 					if(event.type === 'delta'){
+						if(abortController.signal.aborted){
+							return;
+						}
 						const delta = event.json && event.json.delta ? `${event.json.delta}` : '';
 						if(!delta){
 							return;
@@ -1489,6 +1516,9 @@ function AIAnalysisMain(props){
 	}
 
 	async function handleSend(){
+		if(sending){
+			return;
+		}
 		const trimmed = `${prompt || ''}`.trim();
 		if(!trimmed){
 			message.warning('请输入要分析的问题');
@@ -1549,6 +1579,9 @@ function AIAnalysisMain(props){
 	}
 
 	async function handleDeleteConversation(conversationId){
+		if(activeConversationId === conversationId && abortRef.current){
+			abortRef.current.abort();
+		}
 		await deleteStoreRecord(AI_ANALYSIS_STORES.conversations, conversationId);
 		await deleteWhere(AI_ANALYSIS_STORES.messages, (item)=>item.conversationId === conversationId);
 		setConversations((prev)=>prev.filter((item)=>item.id !== conversationId));
@@ -2217,11 +2250,23 @@ function AIAnalysisMain(props){
 
 	async function deleteProvider(profileId){
 		await deleteStoreRecord(AI_ANALYSIS_STORES.providerProfiles, profileId);
-		setProviderProfiles((prev)=>prev.filter((item)=>item.id !== profileId));
+		const remaining = providerProfiles.filter((item)=>item.id !== profileId);
+		setProviderProfiles(remaining);
 		if(parseModelSelection(modelSelection).profileId === profileId){
-			setModelSelection('');
+			const next = remaining.find((item)=>item.enabled !== false) || remaining[0] || null;
+			setModelSelection(next ? encodeModelSelection(next.id, normalizeProfileModels(next)[0] || '') : '');
 		}
 		message.success('接口配置已删除');
+	}
+
+	function setProviderAsCurrent(profile){
+		if(!profile){
+			return;
+		}
+		const models = normalizeProfileModels(profile);
+		setModelSelection(encodeModelSelection(profile.id, models[0] || ''));
+		setProviderSwitchModalOpen(false);
+		message.success(`已切换到「${profile.name || getProviderDisplayName(profile.providerType)}」${models.length ? '' : '（该配置暂无模型，请先在编辑里补全）'}`);
 	}
 
 	async function fetchModelsAndEmbeddings(profile){
@@ -2563,7 +2608,7 @@ function AIAnalysisMain(props){
 							bodyStyle={{ height: 'calc(100% - 46px)', display: 'flex', flexDirection: 'column', minHeight: 0, paddingBottom: 0 }}
 						>
 							<div className={styles.chatColumn}>
-								<div className={styles.chatLog}>
+								<div className={styles.chatLog} ref={chatLogRef}>
 									{visibleMessages.length === 0 ? (
 										<div className={styles.emptyPane}>
 											<Empty description="选择案例、模型后即可开始流式分析对话" />
@@ -2604,7 +2649,9 @@ function AIAnalysisMain(props){
 										onPressEnter={(e)=>{
 											if(!e.shiftKey){
 												e.preventDefault();
-												handleSend();
+												if(!sending){
+													handleSend();
+												}
 											}
 										}}
 									/>
@@ -2618,7 +2665,7 @@ function AIAnalysisMain(props){
 										</Space>
 										<Space size={10} className={styles.composerSend}>
 											<Text type="secondary">Enter 发送，Shift + Enter 换行</Text>
-											<Button type="primary" icon={<XQIcon name="send" />} loading={sending} onClick={handleSend}>发送分析</Button>
+											<Button type="primary" icon={<XQIcon name="send" />} loading={sending} disabled={sending} onClick={handleSend}>发送分析</Button>
 										</Space>
 									</div>
 								</div>
@@ -3249,6 +3296,10 @@ function AIAnalysisMain(props){
 							return (
 								<div
 									key={profile.id}
+									role="button"
+									title={isCurrent ? '当前使用中' : '点击设为当前'}
+									style={{ cursor: isCurrent ? 'default' : 'pointer' }}
+									onClick={()=>{ if(!isCurrent){ setProviderAsCurrent(profile); } }}
 									className={[
 										styles.providerSwitchItem,
 										isCurrent ? styles.providerSwitchItemActive : '',
@@ -3269,16 +3320,27 @@ function AIAnalysisMain(props){
 											<div className={styles.providerSwitchUrl}>{profile.baseUrl}</div>
 										) : null}
 									</div>
-									<Button
-										type="primary"
-										icon={<XQIcon name="edit" />}
-										onClick={()=>{
-											setProviderSwitchModalOpen(false);
-											openProviderEditor(profile);
-										}}
-									>
-										编辑
-									</Button>
+									<Space>
+										<Button
+											size="small"
+											disabled={isCurrent}
+											onClick={(e)=>{ e.stopPropagation(); setProviderAsCurrent(profile); }}
+										>
+											{isCurrent ? '当前' : '设为当前'}
+										</Button>
+										<Button
+											type="primary"
+											size="small"
+											icon={<XQIcon name="edit" />}
+											onClick={(e)=>{
+												e.stopPropagation();
+												setProviderSwitchModalOpen(false);
+												openProviderEditor(profile);
+											}}
+										>
+											编辑
+										</Button>
+									</Space>
 								</div>
 							);
 						})}

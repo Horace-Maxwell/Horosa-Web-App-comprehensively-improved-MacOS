@@ -14,6 +14,23 @@ Append new entries; do not rewrite history.
 
 ## 2026-05-26
 
+### 准备 v2.1.5 beta：AI 分析页全面修复（供应商切换/鉴权 + 发送安全 + 静默失败透出）
+
+- Scope:
+  - issue #4 新评论(owner 已确认)暴露 v2.1.4 未覆盖的真 bug;并按要求全面审计整个 AI 分析页(3 个 Explore agent),分级修复高把握项。准备 `2.1.5 / 2.1.5-runtime1`。
+- Files:
+  - `AIAnalysisProxyService.java`:`buildAuthHeaders` gemini 不加 Bearer、custom 支持 `authHeaderName/authPrefix` 覆盖(并加入 body 保留键);reasoning 前缀加 `o5`。+ JUnit `buildAuthHeadersOmitsBearerForGeminiAndSupportsOverride`。
+  - `services/aianalysis.js`:所有请求/流式尊重 `providerOptions.requestTimeoutMs`(新增 `resolveRequestTimeout`);流式 catch 里 `parser.end()` flush。
+  - `components/aianalysis/AIAnalysisMain.js`:供应商卡片可点击 + 「设为当前」按钮、`setProviderAsCurrent`;`applyProviderPresetToForm` 切类型清空 apiKey;`deleteProvider` 删当前自动补选;`openConversation` 切换先 abort + provider 已删提示;`handleSend`/回车/按钮并发守卫;删活跃会话 abort;onEvent abort 后丢 delta;`chatLogRef` 自动滚到底;embedding 请求补 providerOptions + 失败提示;资料分块按材料容错;Markdown 解析失败退回纯文本。
+  - `utils/aiAnalysisStore.js`:`saveUiPrefs` 配额超限不再静默(console.warn)。
+  - 重建 `astrostudyboot.jar`;版本 lockstep → 2.1.5;`config/release_notes/2.1.5.md`;README×3 What's-New。
+- Details:
+  - Bug A(切换形同虚设/新URL+旧Key)、Bug B(强制 Bearer 致 Gemini `ACCESS_TOKEN_TYPE_UNSUPPORTED`)均坐实并修复;另修一批静默失败/并发/超时问题。
+  - 明确不做(误报/过度设计):ollama `/models`(OpenAI-compat 可用)、IndexedDB 乐观锁/定期回写、导出含上下文层;`isSnapshotMetaCompatible` 经核实确为 reject(不变量完好,未动)。
+- Verification:
+  - JDK17 编译;JUnit astrostudy 16(含新 auth 用例)全过;前端 Jest 全过 + build + build:file;boot jar 重建含改动。
+  - `release_preflight.sh` 通过;应用内预览实测(供应商切换/Gemini/并发/中止)。
+
 ### 准备 v2.1.4 beta：AI 分析供应商兼容 + 错误透传 + 凭据脱敏
 
 - Scope:
