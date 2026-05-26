@@ -206,6 +206,23 @@ public class AIAnalysisProxyServiceTest {
 		assertFalse(classic.containsKey("max_completion_tokens"));
 	}
 
+	@Test
+	public void readErrorBodyDecodesAndTruncatesUpstreamError() {
+		java.io.InputStream small = new java.io.ByteArrayInputStream(
+			"temperature does not support 0.7".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		assertEquals("temperature does not support 0.7", AIAnalysisProxyService.readErrorBody(small));
+
+		// non-InputStream input yields empty (no crash)
+		assertEquals("", AIAnalysisProxyService.readErrorBody("not a stream"));
+		assertEquals("", AIAnalysisProxyService.readErrorBody(null));
+
+		// oversized body is truncated to 1000 chars
+		byte[] big = new byte[2000];
+		java.util.Arrays.fill(big, (byte) 'x');
+		String truncated = AIAnalysisProxyService.readErrorBody(new java.io.ByteArrayInputStream(big));
+		assertEquals(1000, truncated.length());
+	}
+
 	private static Map<String, Object> buildMap(Object... args){
 		Map<String, Object> map = new LinkedHashMap<String, Object>();
 		for(int i=0; i<args.length; i += 2) {

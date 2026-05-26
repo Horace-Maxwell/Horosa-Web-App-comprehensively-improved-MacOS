@@ -134,6 +134,7 @@
 - 想看英文完整说明：[README_EN.md](README_EN.md)
 - 想理解安装器与发布链路：[Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
 - 想规划 Windows 复刻与发布验收：[Windows 复刻与发布自检指南](docs/windows-porting-and-release-checklist.md)
+- 想知道每次 macOS 发布后 Windows 端要同步什么：[Windows 同步交接台账](docs/windows-sync-handoff.md)
 - 想确认第三方许可证：[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - 应用源码：`Horosa-Web/` —— 前端 `astrostudyui`，后端 `astrostudysrv` / `astropy`，引擎 `vendor`
 - 共享运行时与诊断：`runtime/` 与 `diagnostics/`

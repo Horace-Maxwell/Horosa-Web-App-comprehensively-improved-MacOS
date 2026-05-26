@@ -108,6 +108,28 @@ rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/flatlib-ctrad2/flatlib" 
 if [ -f "${REPO_ROOT}/Horosa-Web/flatlib-ctrad2/LICENSE" ]; then
   rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/flatlib-ctrad2/LICENSE" "${STAGE_ROOT}/Horosa-Web/flatlib-ctrad2/"
 fi
+# --- 新鲜度 guard（v2.1.4 教训）---------------------------------------------------
+# 发布链路只 copy 预编译产物(dist-file / astrostudyboot.jar)、不重编。若源码比产物新，
+# 说明很可能忘了重建，会静默发布陈旧代码。这里在打包前显式拦截。
+# 确认确实无需重建(例如只动了文档/无关文件)可设 HOROSA_SKIP_FRESHNESS_GUARD=1 跳过。
+DIST_INDEX="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file/index.html"
+if [ "${HOROSA_SKIP_FRESHNESS_GUARD:-0}" != "1" ] && [ -f "${DIST_INDEX}" ]; then
+  if [ -n "$(find "${REPO_ROOT}/Horosa-Web/astrostudyui/src" -type f -newer "${DIST_INDEX}" -print -quit 2>/dev/null || true)" ]; then
+    echo "ERROR: dist-file 比前端源码旧——很可能忘了重建前端包。" >&2
+    echo "       cd Horosa-Web/astrostudyui && npm run build && npm run build:file" >&2
+    echo "       (确认无需重建可设 HOROSA_SKIP_FRESHNESS_GUARD=1)" >&2
+    exit 1
+  fi
+fi
+if [ "${HOROSA_SKIP_FRESHNESS_GUARD:-0}" != "1" ] && [ -f "${BOOT_JAR_SOURCE}" ]; then
+  if [ -n "$(find "${REPO_ROOT}"/Horosa-Web/astrostudysrv/*/src/main -type f -newer "${BOOT_JAR_SOURCE}" -print -quit 2>/dev/null || true)" ]; then
+    echo "ERROR: astrostudyboot.jar 比后端源码旧——很可能忘了重建后端 fat jar。" >&2
+    echo "       cd Horosa-Web/astrostudysrv && mvn -f boundless/pom.xml install -DskipTests && mvn -f astrostudy/pom.xml install -DskipTests && mvn -f astrostudyboot/pom.xml clean package -DskipTests" >&2
+    echo "       (确认无需重建可设 HOROSA_SKIP_FRESHNESS_GUARD=1)" >&2
+    exit 1
+  fi
+fi
+# -----------------------------------------------------------------------------------
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file" "${STAGE_ROOT}/Horosa-Web/astrostudyui/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/warmHorosaRuntime.js" "${STAGE_ROOT}/Horosa-Web/astrostudyui/scripts/"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" "${STAGE_ROOT}/Horosa-Web/scripts/"

@@ -815,7 +815,7 @@ public class AIAnalysisProxyService {
 	}
 
 	// 仅在非 2xx 分支消费流式响应体，截断后并入错误信息，让上游真因(如 temperature/参数不支持)透传到 error 事件。
-	private static String readErrorBody(Object body){
+	static String readErrorBody(Object body){
 		if(!(body instanceof InputStream)) {
 			return "";
 		}
