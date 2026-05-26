@@ -8,14 +8,14 @@
 
 **Western astrology and Chinese metaphysics, in one native macOS workstation**
 
-[![Version](https://img.shields.io/badge/version-2.1.4%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4)
+[![Version](https://img.shields.io/badge/version-2.1.5%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.4/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.5/Horosa-Installer-macos-arm64-offline.pkg) ·
 [Portal](README.md) ·
 [中文说明](README_ZH.md) ·
 [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -34,7 +34,7 @@ This repository is the macOS delivery of that app: the application source, the s
 
 Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.4/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.5/Horosa-Installer-macos-arm64-offline.pkg)**
 
 Best for:
 
@@ -93,15 +93,16 @@ Yi and Sanshi go past standalone tabs into a genuinely integrated surface.
 
 Charts and cases save locally with tags, snapshots, and raw backend payloads. Everything supports JSON import/export and restores its full state when you reopen it.
 
-## New in v2.1.4 beta
+## New in v2.1.5 beta
 
-This release is a focused, thorough AI Analysis fix for provider compatibility and error handling.
+This release is a thorough pass over the entire AI Analysis page — provider switching, auth, sending, and silent failures.
 
-- **OpenAI reasoning models work** — `gpt-5.x` / `o1` / `o3` / `o4` previously returned only "模型未返回可用内容"; the request now omits `temperature` and uses `max_completion_tokens` for these families, so they reply normally. Existing models like `gpt-4.1` are unchanged.
-- **Real upstream errors are surfaced** — provider failures (unsupported parameters, 401/404, etc.) are no longer swallowed into a generic message; the actual reason is shown so you can fix the configuration.
-- **Credentials no longer leak** — on a failed request, sensitive headers (`Authorization`, `x-api-key`, `LocalIp`) are redacted from error messages and logs, and `?key=` query strings are stripped from logged URLs.
+- **Multi-provider switching fixed** — provider cards are now clickable with an explicit "set as current" button so switching actually takes effect; changing the provider type in the editor clears the old API key to avoid "new URL + old key" 401s.
+- **Gemini direct connection fixed** — no longer attaches a redundant `Authorization: Bearer` for Gemini (eliminates `ACCESS_TOKEN_TYPE_UNSUPPORTED`); custom providers can override the auth header via `authHeaderName`/`authPrefix`.
+- **Steadier sending** — streaming can't be double-fired by Enter/clicks; stop/switch/delete truly aborts the stream; new messages auto-scroll; requests honor your configured `requestTimeoutMs`.
+- **Silent failures surfaced** — embedding-retrieval and material-chunking failures are reported instead of silently degrading; markdown parse errors fall back to plain text instead of blank.
 
-The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.1.4 / 2.1.4-runtime1`. Full log on the [v2.1.4 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.4).
+The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.1.5 / 2.1.5-runtime1`. Full log on the [v2.1.5 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5).
 
 ## Under the Hood
 

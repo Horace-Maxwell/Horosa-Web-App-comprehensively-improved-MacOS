@@ -223,6 +223,23 @@ public class AIAnalysisProxyServiceTest {
 		assertEquals(1000, truncated.length());
 	}
 
+	@Test
+	public void buildAuthHeadersOmitsBearerForGeminiAndSupportsOverride() {
+		Map<String, String> gemini = AIAnalysisProxyService.buildAuthHeaders("gemini", "AIza-key", buildMap());
+		assertFalse(gemini.containsKey("Authorization"));
+
+		Map<String, String> openai = AIAnalysisProxyService.buildAuthHeaders("openai", "sk-key", buildMap());
+		assertEquals("Bearer sk-key", openai.get("Authorization"));
+
+		Map<String, Object> overrideParams = buildMap("providerOptions", buildMap("authHeaderName", "x-api-key", "authPrefix", ""));
+		Map<String, String> custom = AIAnalysisProxyService.buildAuthHeaders("custom", "raw-key", overrideParams);
+		assertEquals("raw-key", custom.get("x-api-key"));
+		assertFalse(custom.containsKey("Authorization"));
+
+		Map<String, String> ollama = AIAnalysisProxyService.buildAuthHeaders("ollama", "", buildMap());
+		assertFalse(ollama.containsKey("Authorization"));
+	}
+
 	private static Map<String, Object> buildMap(Object... args){
 		Map<String, Object> map = new LinkedHashMap<String, Object>();
 		for(int i=0; i<args.length; i += 2) {

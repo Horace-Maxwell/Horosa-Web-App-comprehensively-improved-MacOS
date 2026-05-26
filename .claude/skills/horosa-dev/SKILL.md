@@ -84,6 +84,10 @@ For the full change history and the detailed release runbook, read
     `onEvent` must handle the `error` event (not only `delta`) or errors collapse into "模型未返回可用内容".
     (c) Never echo credentials in errors/logs — `HttpUriRequestHystrixCommand` redacts auth headers + strips URL
     query strings. Full detail: `docs/ai-provider-compat-and-error-surfacing.md`.
+    (v2.1.5) The active provider is driven by `modelSelection` (`profileId::model`); the provider card click +
+    "设为当前" set it — never assume `providerProfiles[0]`. `buildAuthHeaders` omits `Bearer` for gemini (it uses
+    `?key=`) and honors `providerOptions.authHeaderName`/`authPrefix`. Per-version sync detail is in
+    `docs/windows-sync-handoff.md` (a per-release Windows sync ledger — keep appending to it each release).
 
 ## Commands
 

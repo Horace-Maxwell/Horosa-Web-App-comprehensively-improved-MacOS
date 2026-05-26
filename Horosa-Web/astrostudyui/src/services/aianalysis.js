@@ -15,6 +15,15 @@ function safeParseJson(text, defVal = null){
 	}
 }
 
+// 尊重用户在 providerOptions.requestTimeoutMs 配置的超时(1s~10min),否则回退 120s。
+function resolveRequestTimeout(values){
+	const raw = values && values.providerOptions ? Number(values.providerOptions.requestTimeoutMs) : NaN;
+	if(Number.isFinite(raw) && raw >= 1000){
+		return Math.min(raw, 600000);
+	}
+	return 120000;
+}
+
 function unwrapServicePayload(payload){
 	if(!payload || typeof payload !== 'object'){
 		return payload;
@@ -168,31 +177,31 @@ async function requestJson(url, values, options = {}){
 
 export function fetchProviderModels(values){
 	return requestJson(`${ServerRoot}/aianalysis/providers/models`, values, {
-		timeoutMs: 120000,
+		timeoutMs: resolveRequestTimeout(values),
 	});
 }
 
 export function diagnoseProvider(values){
 	return requestJson(`${ServerRoot}/aianalysis/providers/diagnose`, values, {
-		timeoutMs: 120000,
+		timeoutMs: resolveRequestTimeout(values),
 	});
 }
 
 export function extractMaterialContent(values){
 	return requestJson(`${ServerRoot}/aianalysis/materials/extract`, values, {
-		timeoutMs: 120000,
+		timeoutMs: resolveRequestTimeout(values),
 	});
 }
 
 export function requestEmbeddingVectors(values){
 	return requestJson(`${ServerRoot}/aianalysis/embeddings`, values, {
-		timeoutMs: 120000,
+		timeoutMs: resolveRequestTimeout(values),
 	});
 }
 
 export function requestAIAnalysisChat(values){
 	return requestJson(`${ServerRoot}/aianalysis/chat`, values, {
-		timeoutMs: 120000,
+		timeoutMs: resolveRequestTimeout(values),
 	});
 }
 
@@ -215,7 +224,7 @@ export async function requestAIAnalysisChatStream(values, handlers = {}){
 			throw new Error(errorText || 'chat.stream.failed');
 		}
 		return rsp;
-	}, handlers.timeoutMs || 120000, handlers.signal);
+	}, handlers.timeoutMs || resolveRequestTimeout(values), handlers.signal);
 	const reader = response.body && response.body.getReader ? response.body.getReader() : null;
 	if(!reader){
 		throw new Error('chat.stream.not.supported');
@@ -239,6 +248,7 @@ export async function requestAIAnalysisChatStream(values, handlers = {}){
 			handlers.onDone();
 		}
 	}catch(e){
+		try{ parser.end(); }catch(_){ /* flush buffered SSE (e.g. a final error event) before propagating */ }
 		if(handlers.onError){
 			handlers.onError(e);
 		}

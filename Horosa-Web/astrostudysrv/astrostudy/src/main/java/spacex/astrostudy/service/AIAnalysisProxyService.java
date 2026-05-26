@@ -381,8 +381,22 @@ public class AIAnalysisProxyService {
 			headers.put("x-api-key", key);
 			String apiVersion = stringFromAny(providerOptionsMap(params).get("apiVersion"));
 			headers.put("anthropic-version", StringUtility.isNullOrEmpty(apiVersion) ? "2023-06-01" : apiVersion);
-		}else if(!StringUtility.isNullOrEmpty(key) && !"ollama".equals(providerType)) {
-			headers.put("Authorization", "Bearer " + key);
+		}else if(!StringUtility.isNullOrEmpty(key) && !"ollama".equals(providerType) && !"gemini".equals(providerType)) {
+			// Gemini 走 URL ?key=,不能再加 Authorization,否则原生接口报 ACCESS_TOKEN_TYPE_UNSUPPORTED。
+			// 其它默认 Authorization: Bearer;允许 custom 用 providerOptions.authHeaderName/authPrefix 覆盖,
+			// 以兼容要求非 Bearer 方案的官方原生 key(authPrefix 设为 "" 即发原始 key)。
+			String authHeaderName = stringFromAny(providerOptionsMap(params).get("authHeaderName"));
+			if(StringUtility.isNullOrEmpty(authHeaderName)) {
+				authHeaderName = "Authorization";
+			}
+			Object prefixObj = providerOptionsMap(params).get("authPrefix");
+			String authPrefix;
+			if(prefixObj == null) {
+				authPrefix = "Authorization".equalsIgnoreCase(authHeaderName) ? "Bearer " : "";
+			}else {
+				authPrefix = stringFromAny(prefixObj);
+			}
+			headers.put(authHeaderName, authPrefix + key);
 		}
 		if("openrouter".equals(providerType)) {
 			headers.put("HTTP-Referer", "https://www.horosa.com");
@@ -670,7 +684,7 @@ public class AIAnalysisProxyService {
 		}
 		return m.startsWith("gpt-5") || m.startsWith("gpt5")
 			|| m.startsWith("gpt-6") || m.startsWith("gpt6")
-			|| m.startsWith("o1") || m.startsWith("o3") || m.startsWith("o4");
+			|| m.startsWith("o1") || m.startsWith("o3") || m.startsWith("o4") || m.startsWith("o5");
 	}
 
 	static Map<String, Object> buildOpenAIChatBody(String model, Map<String, Object> params, List<Map<String, Object>> messages, boolean stream){
@@ -793,7 +807,9 @@ public class AIAnalysisProxyService {
 				|| "extraBody".equals(key)
 				|| "apiVersion".equals(key)
 				|| "requestTimeoutMs".equals(key)
-				|| "embeddingModel".equals(key)) {
+				|| "embeddingModel".equals(key)
+				|| "authHeaderName".equals(key)
+				|| "authPrefix".equals(key)) {
 				continue;
 			}
 			result.put(key, entry.getValue());
