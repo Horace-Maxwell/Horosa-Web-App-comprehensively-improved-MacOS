@@ -78,6 +78,8 @@ For the full change history and the detailed release runbook, read
 11. **AI 分析 provider rules (`AIAnalysisProxyService.java` + `AIAnalysisMain.js`).** (a) OpenAI reasoning models
     (`gpt-5.x`/`o1`/`o3`/`o4`, detect via `isOpenAIReasoningModel`) reject non-default `temperature` and require
     `max_completion_tokens` not `max_tokens` — omit/translate for those, leave `gpt-4.1` etc. untouched.
+    **Maintenance:** the prefix list in `isOpenAIReasoningModel` (gpt-5/gpt-6/o1/o3/o4) must be extended when OpenAI
+    ships new reasoning families (gpt-7, o5, …), or those models regress to sending `temperature` → 400.
     (b) Surface real upstream errors: backend `ensureSuccess` must include the response body; the frontend stream
     `onEvent` must handle the `error` event (not only `delta`) or errors collapse into "模型未返回可用内容".
     (c) Never echo credentials in errors/logs — `HttpUriRequestHystrixCommand` redacts auth headers + strips URL
@@ -208,9 +210,12 @@ Compile is necessary but NOT sufficient — verify behavior in the running app.
 This is a **manual, macOS-signed** pipeline (no CI auto-release on tag). Full ordered runbook + checklists are in
 `docs/ai-analysis-context-and-markdown.md` (§ Release runbook). Summary:
 
-1. Bump version in lockstep: `Horosa_Desktop_Installer/{package.json, src-tauri/Cargo.toml, src-tauri/tauri.conf.json}`
+1. Bump version in lockstep: `Horosa_Desktop_Installer/{package.json, src-tauri/Cargo.toml, src-tauri/Cargo.lock, src-tauri/tauri.conf.json}`
    + `CITATION.cff`; bump `Horosa_Desktop_Installer/config/release_config.json` `runtimeVersion` (`-runtime<N>`,
-   reset to `-runtime1` on app bump). Append a `UPGRADE_LOG.md` entry.
+   reset to `-runtime1` on app bump). Append a `UPGRADE_LOG.md` entry. **If the backend (`astrostudysrv/**`) changed,
+   rebuild `astrostudyboot.jar` (gotcha #10).** Write per-version highlights to
+   `Horosa_Desktop_Installer/config/release_notes/{version}.md` (e.g. `2.1.4.md`) — publish injects it into the
+   release page's "本版更新 / What's new" section; without it the page shows only the generic product overview.
 2. Run the pre-release gates: harness JSON, focused tests, clean sequential `npm run build` then `npm run build:file`,
    browser AIAnalysis smoke, clean-env local startup smoke.
 3. `git commit -m "release: prepare vX.Y.Z beta"` and push `main` after validation, unless the user explicitly asks
@@ -240,3 +245,18 @@ This is a **manual, macOS-signed** pipeline (no CI auto-release on tag). Full or
 
 Build/sign/publish/push are consequential and deliberately NOT auto-approved in `.claude/settings.json` — confirm
 with the user before running them. Never `git push --force` to main.
+
+**Safeguards & notes (added v2.1.4):**
+- `package_runtime_payload.sh` **fails if `astrostudyboot.jar` or `dist-file` is older than its sources** — prevents
+  silently shipping stale backend/frontend. Rebuild the stale artifact, or set `HOROSA_SKIP_FRESHNESS_GUARD=1` if
+  you're certain it's intentional.
+- Release gates cover signing/boot/install/kentang/chart, **not** feature behavior (bazi / AI analysis). Feature-logic
+  regressions are caught by **CI on push** (`mvn test` in `boundless` + `astrostudy`, `npm test` in `astrostudyui`) —
+  keep CI green; add tests there for new logic. True end-to-end feature checks still need ad-hoc testing (e.g. a real
+  provider key for AI).
+- The in-app auto-update path (vX→vY) is **not** exercised per release; only `horosa-latest.json` consistency is
+  (verified by the e2e gate).
+- `main` is normally pushed after validation; for strict main/release consistency you may push it only after a
+  successful publish.
+- GitCode mirror: source+tags auto-mirror from GitHub; release **binaries** must be uploaded to the GitCode 发行版
+  (web UI, ≤2G; the OpenAPI exposes no release-asset upload and releases have no `id`).
