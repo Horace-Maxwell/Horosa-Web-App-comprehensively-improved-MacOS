@@ -93,6 +93,16 @@ if [ -z "${GITHUB_TOKEN}" ]; then
   exit 1
 fi
 
+# Pre-flight self-check: encodes the process-review findings (version lockstep, per-version
+# release notes, secrets not tracked, harness JSON valid, artifact freshness, CI green).
+# HOROSA_SKIP_PREFLIGHT=1 overrides only when you are certain.
+if [ "${HOROSA_SKIP_PREFLIGHT:-0}" != "1" ]; then
+  "${INSTALLER_ROOT}/scripts/release_preflight.sh" || {
+    echo "release_preflight 失败,发布中止。修复后重试,或确认无误时设 HOROSA_SKIP_PREFLIGHT=1。" >&2
+    exit 1
+  }
+fi
+
 auth_header=( -H "Authorization: Bearer ${GITHUB_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' )
 
 api_json() {

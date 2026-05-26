@@ -247,6 +247,11 @@ Build/sign/publish/push are consequential and deliberately NOT auto-approved in 
 with the user before running them. Never `git push --force` to main.
 
 **Safeguards & notes (added v2.1.4):**
+- **Run `Horosa_Desktop_Installer/scripts/release_preflight.sh` before publishing** — `publish_github_release.sh`
+  now auto-runs it (`HOROSA_SKIP_PREFLIGHT=1` overrides). It encodes every gap from the v2.1.4 process review as
+  pass/fail checks: version lockstep across all files, per-version `config/release_notes/{version}.md` present,
+  `UPGRADE_LOG` entry, `.claude/settings.local.json` not git-tracked + all harness JSON parseable, `astrostudyboot.jar`
+  / `dist-file` newer than sources, and CI green for HEAD. **When you discover a new release gap, add a check here.**
 - `package_runtime_payload.sh` **fails if `astrostudyboot.jar` or `dist-file` is older than its sources** — prevents
   silently shipping stale backend/frontend. Rebuild the stale artifact, or set `HOROSA_SKIP_FRESHNESS_GUARD=1` if
   you're certain it's intentional.
@@ -258,5 +263,14 @@ with the user before running them. Never `git push --force` to main.
   (verified by the e2e gate).
 - `main` is normally pushed after validation; for strict main/release consistency you may push it only after a
   successful publish.
-- GitCode mirror: source+tags auto-mirror from GitHub; release **binaries** must be uploaded to the GitCode 发行版
-  (web UI, ≤2G; the OpenAPI exposes no release-asset upload and releases have no `id`).
+- GitCode mirror: source+tags auto-mirror from GitHub (with lag) and do NOT auto-create 发行版 entries; release
+  **binaries** must be uploaded to the GitCode 发行版 (web UI, ≤2G; the OpenAPI exposes no release-asset upload and
+  releases have no `id`).
+
+**Self-improvement — do this EVERY release (the harness must get more reliable, not drift):**
+After each release, spend a few minutes re-auditing the whole dev→release flow for gaps you have not seen before
+(stale artifacts, generic/boilerplate release notes, untested code paths, leaked secrets, missing CI coverage,
+inconsistent versions, …). For every new finding: **(a)** prefer a CODE GUARD over a doc note — a check in
+`release_preflight.sh` or a hard-fail in the relevant script beats relying on memory; **(b)** add the check to
+`release_preflight.sh`; **(c)** record the gotcha here and in the relevant `docs/*`. This section and the preflight
+script are the institutional memory — keep growing them.
