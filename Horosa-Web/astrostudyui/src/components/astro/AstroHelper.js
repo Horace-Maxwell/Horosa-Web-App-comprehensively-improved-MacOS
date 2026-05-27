@@ -311,7 +311,7 @@ export function signsBand(svg, r, rStep, flags, isDiurnal, house1Ang){
 			txts.push(AstroConst.SignsProp[sig].Trip[2]);
 		}
 		lblgroup.selectAll('text').data(txts).enter().append('text')
-			.attr("dominant-baseline","middle")
+			.attr("dominant-baseline","central")
 			.attr("text-anchor", "middle")
 			.attr('font-family', AstroConst.AstroChartFont)
 			.attr('font-size', function(d, idx){
@@ -401,7 +401,7 @@ export function termBand(svg, r, rStep, flags){
 				color = AstroConst.AstroColor[sig];
 			}
 			let lbl = lblgroup.append('text')
-					.attr("dominant-baseline","middle")
+					.attr("dominant-baseline","central")
 					.attr("text-anchor", "middle")
 					.attr('font-family', AstroConst.AstroChartFont)
 					.attr('font-size', 13).attr('font-weight', 100).attr('stroke', color)
@@ -447,7 +447,7 @@ export function su27Band(svg, r, rStep){
 		lblgroup.attr('transform', transtr);
 		let termtxt = sig;
 		let lbl = lblgroup.append('text')
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr('stroke', AstroConst.AstroColor.Stroke)
 				.attr("text-anchor", "middle")
 				.attr('font-size', 16).attr('font-weight', 100)
@@ -503,7 +503,7 @@ export function suRelationBand(svg, r, lifeSu, rStep){
 		lblgroup.attr('transform', transtr);
 		let termtxt = surelation;
 		let lbl = lblgroup.append('text')
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr('stroke', AstroConst.AstroColor.Stroke)
 				.attr("text-anchor", "middle")
 				.attr('font-size', 16).attr('font-weight', 100)
@@ -557,7 +557,7 @@ export function suSixhouses(svg, r, rStep, chartObj){
 			txts.push('(' + suObj.sixhouse + ')');
 		}
 		let lbl = lblgroup.selectAll('text').data(txts).enter().append('text')
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr('stroke', AstroConst.AstroColor.Stroke)
 				.attr("text-anchor", "middle")
 				.attr('font-size', 11).attr('font-weight', 100)
@@ -718,7 +718,7 @@ export function desposeStars(svg, chartObj, r, rStep, houses, objects, planetDis
 		}
 
 		lblgroup.selectAll('text').data(startxt).enter().append('text')
-			.attr("dominant-baseline","middle")
+			.attr("dominant-baseline","central")
 			.attr("text-anchor", "middle")
 			.attr('class', function(d, idx){
 				return idx === retrogradeTextIndex ? 'horosa-astro-retrograde-symbol' : null;
@@ -864,7 +864,7 @@ export function desposeAspects(svg, r, chartObj, planetDisplay, needThreePlanetA
 			path.attr('d', pathStr);	
 			let txt = AstroText.AstroMsg['Asp' + item.asp];
 			apsgroup.append('text')
-			.attr("dominant-baseline","middle")
+			.attr("dominant-baseline","central")
 			.attr("text-anchor", "middle").attr('stroke', color)
 			.attr('font-size', 10).attr('font-family', AstroConst.AstroChartFont)
 			.text(txt).attr('transform', 'translate(' + (x1+x2)/2 + ',' + (y1+y2)/2 + ')');	;
@@ -907,7 +907,7 @@ export function desposeHouses(svg, r, rStep, houses){
 		let termtxt = sig.substr(5);
 		let lbl = lblgroup.append('text')
 				.attr('stroke', AstroConst.AstroColor.Stroke)
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr("text-anchor", "middle")
 				.attr('font-size', 16)
 				.text(termtxt);
@@ -942,7 +942,7 @@ export function labelHousesDeg(svg, r, len, houses, flags){
 		let txts = [angleparts[0] + 'º', AstroText.AstroMsg[sig], angleparts[1]+"'"];
 		let lblgroup = labelHDgrp.append('g').attr("text-anchor", "middle");
 		lblgroup.selectAll('text').data(txts).enter().append('text')
-			.attr("dominant-baseline","middle")
+			.attr("dominant-baseline","central")
 			.attr("text-anchor", "middle")
 			.attr('font-size', 12)
 			.attr('stroke', AstroConst.AstroColor[sig])

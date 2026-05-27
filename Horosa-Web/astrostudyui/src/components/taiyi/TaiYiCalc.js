@@ -9,6 +9,7 @@ import {
 import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
+import buildLocalBaziResult from '../../utils/baziLunarLocal';
 
 export const STYLE_OPTIONS = [
 	...TAIYI_STYLE_OPTIONS.slice(),
@@ -122,20 +123,50 @@ function pickPillar(nongli, key, flatKey){
 	return safeText((item && (item.ganzi || item.ganZhi || item.text)) || '');
 }
 
-function applyNongliDisplay(pan, nongli){
-	if(!pan || !nongli){
+function pillarFromFourColumns(four, key){
+	const item = four && four[key] ? four[key] : null;
+	return safeText((item && (item.ganzi || item.ganZhi || item.text)) || '');
+}
+
+function buildTaiyiBaziLocal(fields, options){
+	if(!fields || !fields.date || !fields.time){
+		return null;
+	}
+	try{
+		return buildLocalBaziResult({
+			date: fields.date.value.format('YYYY-MM-DD'),
+			time: fields.time.value.format('HH:mm:ss'),
+			zone: fields.zone ? fields.zone.value : undefined,
+			lon: fields.lon ? fields.lon.value : undefined,
+			lat: fields.lat ? fields.lat.value : undefined,
+			gpsLat: fields.gpsLat ? fields.gpsLat.value : undefined,
+			gpsLon: fields.gpsLon ? fields.gpsLon.value : undefined,
+			gender: fields.gender ? fields.gender.value : 1,
+			timeAlg: options && options.timeBasis === 'trueSolar' ? 0 : 1,
+		});
+	}catch(e){
+		return null;
+	}
+}
+
+function applyNongliDisplay(pan, nongli, baziLocal){
+	if(!pan || (!nongli && !baziLocal)){
 		return pan;
 	}
+	const baziNongli = baziLocal && baziLocal.bazi ? baziLocal.bazi.nongli : null;
+	const four = baziLocal && baziLocal.bazi && baziLocal.bazi.fourColumns ? baziLocal.bazi.fourColumns : null;
 	return {
 		...pan,
-		lunarText: formatNongliText(nongli) || pan.lunarText,
-		realSunTime: safeText(nongli.birth) || pan.realSunTime,
-		jiedelta: safeText(nongli.jiedelta) || pan.jiedelta,
+		lunarText: (nongli && formatNongliText(nongli)) || pan.lunarText,
+		// 真太阳时 与 直接时间 都稳定显示(与所选时间基准无关);随基准变的只是四柱/计算基准 —— 和八字一致
+		realSunTime: (baziNongli && safeText(baziNongli.solarTime)) || (nongli && safeText(nongli.birth)) || pan.realSunTime,
+		clockTime: (baziNongli && safeText(baziNongli.clockTime)) || pan.clockTime,
+		jiedelta: (nongli && safeText(nongli.jiedelta)) || pan.jiedelta,
 		ganzhi: {
-			year: pickPillar(nongli, 'year', 'yearGanZi') || (pan.ganzhi && pan.ganzhi.year) || '',
-			month: pickPillar(nongli, 'month', 'monthGanZi') || (pan.ganzhi && pan.ganzhi.month) || '',
-			day: pickPillar(nongli, 'day', 'dayGanZi') || (pan.ganzhi && pan.ganzhi.day) || '',
-			time: pickPillar(nongli, 'time', 'timeGanZi') || safeText(nongli.time) || (pan.ganzhi && pan.ganzhi.time) || '',
+			year: pillarFromFourColumns(four, 'year') || pickPillar(nongli, 'year', 'yearGanZi') || (pan.ganzhi && pan.ganzhi.year) || '',
+			month: pillarFromFourColumns(four, 'month') || pickPillar(nongli, 'month', 'monthGanZi') || (pan.ganzhi && pan.ganzhi.month) || '',
+			day: pillarFromFourColumns(four, 'day') || pickPillar(nongli, 'day', 'dayGanZi') || (pan.ganzhi && pan.ganzhi.day) || '',
+			time: pillarFromFourColumns(four, 'time') || pickPillar(nongli, 'time', 'timeGanZi') || (nongli && safeText(nongli.time)) || (pan.ganzhi && pan.ganzhi.time) || '',
 			minute: (pan.ganzhi && pan.ganzhi.minute) || '',
 		},
 	};
@@ -147,13 +178,14 @@ export function calcTaiyi(fields, nongli, options){
 	if(!pan){
 		return null;
 	}
+	const baziLocal = buildTaiyiBaziLocal(fields, opt);
 	return applyNongliDisplay({
 		...pan,
 		tenching: opt.tenching !== undefined ? opt.tenching : 0,
 		rotation: opt.rotation || '固定',
 		options: buildOptions(opt, pan),
 		palaces: normalizePalaces(pan.palace16),
-	}, nongli);
+	}, nongli, baziLocal);
 }
 
 function parseFieldsDateTime(fields){
@@ -205,7 +237,7 @@ function resolveCalculationDateTime(fields, nongli, options){
 	return direct;
 }
 
-function normalizeBackendPan(pan, options, nongli){
+function normalizeBackendPan(pan, options, nongli, baziLocal){
 	if(!pan){
 		return null;
 	}
@@ -216,7 +248,7 @@ function normalizeBackendPan(pan, options, nongli){
 		rotation: opt.rotation || '固定',
 		options: buildOptions(opt, pan),
 		palaces: normalizePalaces(pan.palace16),
-	}, nongli);
+	}, nongli, baziLocal);
 }
 
 export async function fetchTaiyiPan(fields, nongli, options){
@@ -260,7 +292,8 @@ export async function fetchTaiyiPan(fields, nongli, options){
 		});
 	}
 	const pan = rsp && rsp[ResultKey] ? rsp[ResultKey] : rsp;
-	return normalizeBackendPan(pan, opt, nongli);
+	const baziLocal = buildTaiyiBaziLocal(fields, opt);
+	return normalizeBackendPan(pan, opt, nongli, baziLocal);
 }
 
 export function buildTaiyiSnapshotText(pan){

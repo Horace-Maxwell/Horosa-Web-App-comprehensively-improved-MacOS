@@ -43,7 +43,8 @@ public class SseHelper {
 			return emitters.get(id);
 		}
 		
-		SseEmitter emitter = new SseEmitter(120000L);
+		// no fixed timeout: a local LLM stream can run longer than any cap; rely on completion/error/client-disconnect
+		SseEmitter emitter = new SseEmitter(0L);
 		
 		emitters.put(id, emitter);
 		

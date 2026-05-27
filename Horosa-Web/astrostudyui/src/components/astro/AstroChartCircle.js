@@ -378,7 +378,7 @@ export default class AstroChartCircle {
 				txts.push(AstroConst.SignsProp[sig].Trip[2]);
 			}
 			lblgroup.selectAll('text').data(txts).enter().append('text')
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr("text-anchor", "middle")
 				.attr('font-family', AstroConst.AstroChartFont)
 				.attr('font-size', function(d, idx){
@@ -488,7 +488,7 @@ export default class AstroChartCircle {
 			let txts = [angleparts[0] + 'º', AstroText.AstroMsg[sig], angleparts[1] + "'"];
 			let lblgroup = band.append('g').attr("text-anchor", "middle");
 			const cuspTexts = lblgroup.selectAll('text').data(txts).enter().append('text')
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr("text-anchor", "middle")
 				.attr('font-size', function(d, idx){
 					if(idx === 1){
@@ -697,7 +697,7 @@ export default class AstroChartCircle {
 				lblgroup.attr('transform', transtr);
 				let termtxt = AstroText.AstroMsg[term[0]];
 				let lbl = lblgroup.append('text')
-						.attr("dominant-baseline","middle")
+						.attr("dominant-baseline","central")
 						.attr("text-anchor", "middle")
 						.attr('font-family', AstroConst.AstroChartFont)
 						.attr('font-size', fontSize).attr('font-weight', fontWeight).attr('stroke', labelColor)
@@ -743,7 +743,7 @@ export default class AstroChartCircle {
 			lblgroup.attr('transform', transtr);
 			let termtxt = sig;
 			let lbl = lblgroup.append('text')
-					.attr("dominant-baseline","middle")
+					.attr("dominant-baseline","central")
 					.attr('stroke', AstroConst.AstroColor.Stroke)
 					.attr("text-anchor", "middle")
 					.attr('font-size', 16).attr('font-weight', 100)
@@ -799,7 +799,7 @@ export default class AstroChartCircle {
 			lblgroup.attr('transform', transtr);
 			let termtxt = surelation;
 			let lbl = lblgroup.append('text')
-					.attr("dominant-baseline","middle")
+					.attr("dominant-baseline","central")
 					.attr('stroke', AstroConst.AstroColor.Stroke)
 					.attr("text-anchor", "middle")
 					.attr('font-size', 16).attr('font-weight', 100)
@@ -853,7 +853,7 @@ export default class AstroChartCircle {
 				txts.push('(' + suObj.sixhouse + ')');
 			}
 			let lbl = lblgroup.selectAll('text').data(txts).enter().append('text')
-					.attr("dominant-baseline","middle")
+					.attr("dominant-baseline","central")
 					.attr('stroke', AstroConst.AstroColor.Stroke)
 					.attr("text-anchor", "middle")
 					.attr('font-size', 11).attr('font-weight', 100)
@@ -1048,7 +1048,7 @@ export default class AstroChartCircle {
 			}
 	
 			const planetTexts = lblgroup.selectAll('text').data(startxt).enter().append('text')
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr("text-anchor", "middle")
 				.attr('class', function(d, idx){
 					return idx === retrogradeTextIndex ? 'horosa-astro-retrograde-symbol' : null;
@@ -1196,7 +1196,7 @@ export default class AstroChartCircle {
 				path.attr('d', pathStr);	
 				let txt = AstroText.AstroMsg['Asp' + item.asp];
 				aspitemgrp.append('text')
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr("text-anchor", "middle").attr('stroke', color)
 				.attr('font-size', 10).attr('font-family', AstroConst.AstroChartFont)
 				.text(txt).attr('transform', 'translate(' + (x1+x2)/2 + ',' + (y1+y2)/2 + ')');	;
@@ -1250,7 +1250,7 @@ export default class AstroChartCircle {
 			let termtxt = sig.substr(5);
 			let lbl = lblgroup.append('text')
 					.attr('stroke', AstroConst.AstroColor.Stroke)
-					.attr("dominant-baseline","middle")
+					.attr("dominant-baseline","central")
 					.attr("text-anchor", "middle")
 					.attr('font-size', 17)
 					.text(termtxt);
@@ -1284,7 +1284,7 @@ export default class AstroChartCircle {
 			let txts = [angleparts[0] + 'º', AstroText.AstroMsg[sig], angleparts[1]+"'"];
 			let lblgroup = labelHDgrp.append('g').attr("text-anchor", "middle");
 			lblgroup.selectAll('text').data(txts).enter().append('text')
-				.attr("dominant-baseline","middle")
+				.attr("dominant-baseline","central")
 				.attr("text-anchor", "middle")
 				.attr('font-size', 12)
 				.attr('stroke', AstroConst.AstroColor[sig])

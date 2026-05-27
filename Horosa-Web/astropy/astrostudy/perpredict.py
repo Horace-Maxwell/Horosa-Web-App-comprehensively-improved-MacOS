@@ -766,7 +766,7 @@ class PerPredict:
         )
         external-ref_asc_case_correction = 0.0 if external-ref_body_models_enabled else self._external-refAscCaseCorrection(chart)
 
-        max_arc = 100.0
+        max_arc = float(getattr(self.perchart, 'pdYears', 100) or 100)
         eps = 1e-12
         pdlist = []
         for prom in promissors:

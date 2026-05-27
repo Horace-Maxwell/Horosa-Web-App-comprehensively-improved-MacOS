@@ -76,6 +76,9 @@ public class PredictiveController {
 		if(TransData.containsParam("pdTimeKey")) {
 			params.put("pdTimeKey", TransData.get("pdTimeKey"));
 		}
+		if(TransData.containsParam("pdYears")) {
+			params.put("pdYears", TransData.get("pdYears"));
+		}
 		if(TransData.containsParam("startSign")) {
 			params.put("startSign", TransData.get("startSign"));
 		}
