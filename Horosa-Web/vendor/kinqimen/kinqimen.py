@@ -276,11 +276,12 @@ class Qimen:
                                           self.hour,
                                           self.minute)
         paiju = qmju
-        j_q = config.jq(self.year,
+        j_q = config.dingju_jieqi(self.year,
                         self.month,
                         self.day,
                         self.hour,
-                        self.minute)
+                        self.minute,
+                        option)
         zfzs = config.zhifu_n_zhishi(self.year,self.month,self.day,self.hour,self.minute,option)
         pan_star_result = config.pan_star(self.year,
                                           self.month,

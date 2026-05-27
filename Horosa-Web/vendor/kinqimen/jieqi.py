@@ -13,6 +13,8 @@ import ephem
 
 
 jqmc = ['小寒', '大寒', '立春', '雨水', '驚蟄', '春分', '清明', '穀雨', '立夏', '小滿', '芒種', '夏至', '小暑', '大暑', '立秋', '處暑', '白露', '秋分', '寒露', '霜降', '立冬', '小雪', '大雪', '冬至']
+# 12「節」(每月之首,逢之換月柱;立春兼換年柱)。其餘12「氣」不換月柱。
+JIE_TERMS = {'立春', '驚蟄', '清明', '立夏', '芒種', '小暑', '立秋', '白露', '寒露', '立冬', '大雪', '小寒'}
 tian_gan = '甲乙丙丁戊己庚辛壬癸'
 di_zhi = '子丑寅卯辰巳午未申酉戌亥'
 
@@ -162,6 +164,66 @@ def jq(year, month, day, hour, minute):
     except Exception as e:
         raise ValueError(f"Error in jq for {year}-{month}-{day} {hour}:{minute}: {str(e)}")
 
+# ===== 置閏轉盤：超神接氣置閏 定局所用節氣 =====
+# 奇門換局以「符頭日」(甲/己日)為基準,五日一元,上中下三元配節氣局數。符頭較節氣每月約早到
+# 10.5 小時(超神);於芒種/大雪累積≥9天時置閏(重複該節氣上中下三元一次)使符頭轉為落後(接氣)。
+# 故定局實際所用之節氣,超神時會提前換到下一節氣,與當日曆法節氣 jq() 未必相同(見上游 issue #62)。
+_SHANGYUAN_FUTOU = {'甲子', '甲午', '己卯', '己酉'}        # 上元符頭(甲己日且地支子午卯酉)
+_JIE_SEQ_ZHIRUN = {
+    '冬至': ['冬至', '小寒', '大寒', '立春', '雨水', '驚蟄', '春分', '清明', '穀雨', '立夏', '小滿', '芒種'],
+    '夏至': ['夏至', '小暑', '大暑', '立秋', '處暑', '白露', '秋分', '寒露', '霜降', '立冬', '小雪', '大雪'],
+}
+_RUN_REPEAT = {'冬至': '大雪', '夏至': '芒種'}             # 置閏時重複之節氣(冬至前大雪/夏至前芒種)
+
+def _day_gz(day):
+    return tian_gan[day.getDayGZ().tg] + di_zhi[day.getDayGZ().dz]
+
+def _solar_date(day):
+    return datetime.date(day.getSolarYear(), day.getSolarMonth(), day.getSolarDay())
+
+def _last_shangyuan_before(day_obj):
+    """day_obj 之前(不含當日)最近的上元符頭日。"""
+    cur = day_obj.before(1)
+    for _ in range(20):
+        if _day_gz(cur) in _SHANGYUAN_FUTOU:
+            return cur
+        cur = cur.before(1)
+    return None
+
+def _anchor_solstice(year, month, day):
+    """管轄當日之『至』(其上元符頭 F* ≤ 當日)。先檢未來(下一至的超神前窗),再回溯。"""
+    target = datetime.date(year, month, day)
+    d = fromSolar(year, month, day)
+    for _ in range(30):                       # 下一至若其 F* 已 ≤ 當日(當日落在其超神前窗)
+        d = d.after(1)
+        if d.hasJieQi() and jqmc[d.getJieQi() - 1] in ('冬至', '夏至'):
+            f = _last_shangyuan_before(d)
+            if f is not None and _solar_date(f) <= target:
+                return jqmc[d.getJieQi() - 1], d
+            break
+    d = fromSolar(year, month, day)
+    for _ in range(230):                      # 否則回溯最近一個其 F* ≤ 當日 的至
+        if d.hasJieQi() and jqmc[d.getJieQi() - 1] in ('冬至', '夏至'):
+            f = _last_shangyuan_before(d)
+            if f is not None and _solar_date(f) <= target:
+                return jqmc[d.getJieQi() - 1], d
+        d = d.before(1)
+    return None, None
+
+def zhirun_jieqi(year, month, day, hour, minute):
+    """置閏轉盤定局所用節氣(超神接氣置閏後);可能與當日曆法節氣 jq() 不同。"""
+    znm, zday = _anchor_solstice(year, month, day)
+    if znm is None:
+        return jq(year, month, day, hour, minute)             # 保底:回退曆法節氣
+    fstar = _last_shangyuan_before(zday)
+    dgap = (_solar_date(zday) - _solar_date(fstar)).days        # 至 − 上元符頭(超神距)
+    seq = _JIE_SEQ_ZHIRUN[znm]
+    if dgap >= 9:                                              # 置閏:F* 組重複大雪/芒種,至之上元順延
+        seq = [_RUN_REPEAT[znm]] + seq
+    n = (_solar_date(fromSolar(year, month, day)) - _solar_date(fstar)).days // 5   # 自 F* 起第 n 元
+    g = max(0, min(n // 3, len(seq) - 1))                      # 第 g 組節氣(每組三元)
+    return seq[g]
+
 def ke_jiazi_d(hour):
     t = [f"{h}:{m}0" for h in range(24) for m in range(6)]
     minutelist = dict(zip(t, cycle(repeat_list(1, find_lunar_ke(hour)))))
@@ -285,6 +347,19 @@ def gangzhi(year, month, day, hour, minute):
         mTG1 = find_lunar_month(yTG).get(lunar_date_d(year, month, day).get("月"))
     else:
         mTG1 = mTG
+    # 月柱按精確交節時刻校正：sxtwl 的 getMonthGZ 為日級，交節當日整日已跳入新月。
+    # 若該日交的是 12「節」之一，且給定時刻早於精確交節時刻，仍屬前一節 → 沿用前一日之月柱
+    # （立春兼換年柱）。其餘日不變。
+    if year >= 1900:
+        _sd = fromSolar(year, month, day)
+        if _sd.hasJieQi() and jqmc[_sd.getJieQi() - 1] in JIE_TERMS:
+            _t = sxtwl.JD2DD(_sd.getJieQiJD())
+            _crossing = datetime.datetime(_t.Y, _t.M, _t.D, int(_t.h), round(_t.m))
+            if datetime.datetime(year, month, day, hour, minute) < _crossing:
+                _prev = _sd.before(1)
+                mTG1 = tian_gan[_prev.getMonthGZ().tg] + di_zhi[_prev.getMonthGZ().dz]
+                if jqmc[_sd.getJieQi() - 1] == '立春':
+                    yTG = tian_gan[_prev.getYearGZ().tg] + di_zhi[_prev.getYearGZ().dz]
     hTG1 = find_lunar_hour(dTG).get(hTG[1])
     zi = gangzhi1(year, month, day, 0, 0)[3]
     if minute < 10 and minute >=0:

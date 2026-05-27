@@ -103,3 +103,13 @@ The MIT license text is preserved in the vendored snapshot at:
 The MIT license text is preserved in the vendored snapshot at:
 
 - `Horosa-Web/vendor/kinqimen/LICENSE`
+
+### v2.1.6 奇门历法修复 — 算法参考与对照标尺
+
+v2.1.6 对 vendored `kinqimen`（MIT）做了历法修复（月柱交节边界、置闰超神接气定局）。所采用的**超神接气置闰定局规则属古典公有算法**（非任何项目独有）。实现为本项目自写 Python；在研究与验证阶段参考过以下公开项目的结构、并将其作为对照标尺/参考，**未拷贝其任何源文件**：
+
+- **Taogram/taobi** — https://github.com/Taogram/taobi — License: **MPL-2.0**。基于 VSOP87D 的精确节气与拆补法在线排盘，作拆补法对照参考。
+- **redrockhorse/qimenpaipan** — https://github.com/redrockhorse/qimenpaipan — 置闰/拆补 Python 实现，作结构参考（其局数表部分条目与古典不符，未采用）。
+- **qfdk/qimen** — https://github.com/qfdk/qimen — License: **MIT**。奇门在线排盘参考。
+
+局数表、阴阳遁、三元规则以古典转盘文献及 vendored kinqimen 既有数据为准。本项目整体许可：AGPL-3.0-only。
