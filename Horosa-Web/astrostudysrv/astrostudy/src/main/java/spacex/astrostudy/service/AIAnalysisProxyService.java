@@ -772,11 +772,13 @@ public class AIAnalysisProxyService {
 
 	private HttpRequest buildJsonRequest(String url, Map<String, String> headers, String json, Map<String, Object> params){
 		int timeoutMs = intVal(providerOptionsMap(params).get("requestTimeoutMs"), 0);
-		Duration timeout = timeoutMs > 0 ? Duration.ofMillis(timeoutMs) : DEFAULT_TIMEOUT;
 		HttpRequest.Builder builder = HttpRequest.newBuilder()
 			.uri(URI.create(url))
-			.timeout(timeout)
 			.POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
+		// streaming exchanges: only cap when the user set an explicit timeout; otherwise let slow local LLMs run (connectTimeout still guards connect)
+		if(timeoutMs > 0){
+			builder.timeout(Duration.ofMillis(timeoutMs));
+		}
 		headers.forEach(builder::header);
 		return builder.build();
 	}

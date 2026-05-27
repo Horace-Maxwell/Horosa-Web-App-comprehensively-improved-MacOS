@@ -486,8 +486,13 @@
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        margin: 16px 0 0;
+        margin: 10px 0 0;
         color: var(--horosa-text-soft);
+    }
+
+    .horosa-workspace-shell .horosa-primary-direction-table .ant-table-thead > tr > th {
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
     }
 
     .horosa-workspace-shell .horosa-primary-direction-table .ant-pagination-item,
@@ -4801,7 +4806,7 @@
 
     .horosa-workspace-shell .horosa-time-adjust-inline .xq-datetime-adjust-only > .ant-col > .ant-row {
         display: grid !important;
-        grid-template-columns: 32px minmax(84px, 1fr) 32px 46px 46px;
+        grid-template-columns: 30px minmax(0, 1fr) 30px 46px 46px;
         gap: 4px;
         min-width: 0;
     }
@@ -4810,6 +4815,12 @@
         flex: initial !important;
         max-width: none !important;
         width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .horosa-workspace-shell .horosa-time-adjust-inline .xq-datetime-adjust-only .ant-select,
+    .horosa-workspace-shell .horosa-time-adjust-inline .xq-datetime-adjust-only .ant-btn {
+        min-width: 0 !important;
     }
 
     .horosa-workspace-shell .horosa-time-adjust-inline .ant-btn,
@@ -6645,6 +6656,15 @@
         box-shadow: none !important;
     }
 
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-relative-page :is(.ant-input, .ant-input-affix-wrapper, .ant-input-number, .ant-picker, textarea),
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-relative-page .ant-input-group-addon,
+    :root[data-horosa-appearance='light'] .horosa-workspace-shell .horosa-relative-page .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        border-color: var(--horosa-border) !important;
+        background: var(--horosa-surface-solid) !important;
+        background-color: var(--horosa-surface-solid) !important;
+        color: var(--horosa-text) !important;
+    }
+
     .horosa-workspace-shell :is(
         .horosa-bazi-page,
         .horosa-ziwei-page,
@@ -7225,9 +7245,10 @@
     .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-meta-scroll {
         align-content: start;
         grid-auto-rows: max-content;
-        height: 100%;
+        height: auto;
+        min-height: 100%;
         padding: 2px 0 12px;
-        overflow: auto;
+        overflow: visible;
     }
 
     .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-bazi-grid,

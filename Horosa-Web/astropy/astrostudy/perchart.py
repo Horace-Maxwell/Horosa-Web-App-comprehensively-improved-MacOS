@@ -229,6 +229,7 @@ class PerChart:
         self.pdtype = 0
         self.pdMethod = 'astroapp_alchabitius'
         self.pdTimeKey = 'Ptolemy'
+        self.pdYears = 100
 
         self.isBC = False
         if 'ad' in data.keys():
@@ -273,6 +274,12 @@ class PerChart:
 
         if 'pdTimeKey' in data.keys():
             self.pdTimeKey = data['pdTimeKey']
+
+        if 'pdYears' in data.keys():
+            try:
+                self.pdYears = max(1, min(180, int(round(float(data['pdYears'])))))
+            except (TypeError, ValueError):
+                self.pdYears = 100
 
         self.su28Mode = self.parseSu28Mode(data.get('doubingSu28', SU28_MODE_REAL))
         self.isZhengSidereal = self.su28Mode == SU28_MODE_ZHENG_SIDEREAL or data.get('guolaoZhengSidereal') == 1 or data.get('guolaoZhengSidereal') == '1'

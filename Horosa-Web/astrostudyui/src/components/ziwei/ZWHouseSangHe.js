@@ -96,7 +96,7 @@ class ZWHouseSangHe extends ZWCommHouse {
 					data[1] = taisui.substr(1, 1);
 				}	
 			}
-			GraphHelper.drawTextH(container.append('g'), data, x, sy, w, h/3, 1.5, ZWCont.ZWColor.StarSmallStroke, 520);
+			GraphHelper.drawTextH(container.append('g'), data, x, sy, w, h/3, 1.5, ZWCont.ZWColor.StarSmallStroke, 400);
 		}
 
 		let dirX = x + w;

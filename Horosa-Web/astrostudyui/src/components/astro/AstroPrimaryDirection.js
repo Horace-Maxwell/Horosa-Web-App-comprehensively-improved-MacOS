@@ -8,7 +8,7 @@ import { buildMeaningTipByCategory, } from './AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
 import {TableOddRowBgColor} from '../../utils/constants'
 import styles from '../../css/styles.less';
-import { XQButton as Button, XQInput as Input, XQSelect as Select, XQTable as Table } from '../xq-ui';
+import { XQButton as Button, XQInput as Input, XQInputNumber as InputNumber, XQSelect as Select, XQTable as Table } from '../xq-ui';
 import XQIcon from '../xq-icons';
 
 const Option = Select.Option;
@@ -42,6 +42,7 @@ class AstroPrimaryDirection extends Component{
 			searchYear: '',
 			pdMethodValue: props.pdMethod ? props.pdMethod : 'astroapp_alchabitius',
 			pdTimeKeyValue: props.pdTimeKey ? props.pdTimeKey : 'Ptolemy',
+			pdYearsValue: props.pdYears ? props.pdYears : 100,
 		}
 
 		this.searchInput = null;
@@ -73,6 +74,9 @@ class AstroPrimaryDirection extends Component{
 		this.getSelectedPdMethod = this.getSelectedPdMethod.bind(this);
 		this.getSelectedPdTimeKey = this.getSelectedPdTimeKey.bind(this);
 		this.getAppliedPdState = this.getAppliedPdState.bind(this);
+		this.handlePdYearsChange = this.handlePdYearsChange.bind(this);
+		this.normalizePdYears = this.normalizePdYears.bind(this);
+		this.getSelectedPdYears = this.getSelectedPdYears.bind(this);
 
 			this.objs = AstroConst.LIST_OBJECTS.slice(0);
 			this.objs.push(AstroConst.ASC);
@@ -83,10 +87,12 @@ class AstroPrimaryDirection extends Component{
 	componentDidUpdate(prevProps){
 		const nextMethod = this.normalizePdMethod(this.props.pdMethod);
 		const nextTimeKey = this.normalizePdTimeKey(this.props.pdTimeKey);
-		if(prevProps.pdMethod !== nextMethod || prevProps.pdTimeKey !== nextTimeKey){
+		const nextYears = this.normalizePdYears(this.props.pdYears);
+		if(prevProps.pdMethod !== nextMethod || prevProps.pdTimeKey !== nextTimeKey || this.normalizePdYears(prevProps.pdYears) !== nextYears){
 			this.setState({
 				pdMethodValue: nextMethod,
 				pdTimeKeyValue: nextTimeKey,
+				pdYearsValue: nextYears,
 			});
 		}
 	}
@@ -264,6 +270,12 @@ class AstroPrimaryDirection extends Component{
 		});
 	}
 
+	handlePdYearsChange(value){
+		this.setState({
+			pdYearsValue: this.normalizePdYears(value),
+		});
+	}
+
 	handlePdCalculate(){
 		if(!this.needsPdRecompute()){
 			return;
@@ -271,7 +283,8 @@ class AstroPrimaryDirection extends Component{
 		if(this.props.onPdConfigApply){
 			this.props.onPdConfigApply(
 				this.state.pdMethodValue,
-				this.state.pdTimeKeyValue
+				this.state.pdTimeKeyValue,
+				this.getSelectedPdYears()
 			);
 		}
 	}
@@ -306,6 +319,18 @@ class AstroPrimaryDirection extends Component{
 		return this.normalizePdTimeKey(this.state.pdTimeKeyValue);
 	}
 
+	normalizePdYears(value){
+		const n = Math.round(Number(value));
+		if(!Number.isFinite(n)){
+			return 100;
+		}
+		return Math.max(1, Math.min(180, n));
+	}
+
+	getSelectedPdYears(){
+		return this.normalizePdYears(this.state.pdYearsValue);
+	}
+
 	getAppliedPdState(){
 		const chart = this.props.value ? this.props.value : {};
 		const params = chart && chart.params ? chart.params : {};
@@ -319,6 +344,7 @@ class AstroPrimaryDirection extends Component{
 			pdMethod: this.normalizePdMethod(hasMethod ? params.pdMethod : this.props.pdMethod),
 			pdTimeKey: this.normalizePdTimeKey(hasTimeKey ? params.pdTimeKey : this.props.pdTimeKey),
 			pdtype: this.normalizePdType(hasPdType ? params.pdtype : DEFAULT_PD_TYPE),
+			pdYears: this.normalizePdYears(params.pdYears !== undefined && params.pdYears !== null ? params.pdYears : this.props.pdYears),
 			syncRev,
 		};
 	}
@@ -333,6 +359,9 @@ class AstroPrimaryDirection extends Component{
 		const appliedPdMethod = appliedPdState.pdMethod;
 		const appliedPdTimeKey = appliedPdState.pdTimeKey;
 		if(selectedPdMethod !== appliedPdMethod || selectedPdTimeKey !== appliedPdTimeKey){
+			return true;
+		}
+		if(this.getSelectedPdYears() !== appliedPdState.pdYears){
 			return true;
 		}
 		if(!appliedPdState.hasCompleteParams){
@@ -490,8 +519,8 @@ class AstroPrimaryDirection extends Component{
 		let height = this.props.height ? this.props.height : document.documentElement.clientHeight - 50;
 		const controlHeight = stackedControls ? 110 : (compactControls ? 82 : 54);
 		const controlBottom = 10;
-		const bottomSafeReserve = 64;
-		const tableReserve = controlHeight + controlBottom + 126 + bottomSafeReserve;
+		const bottomSafeReserve = 18;
+		const tableReserve = controlHeight + controlBottom + 60 + bottomSafeReserve;
 		let tblY = height - tableReserve;
 		if(tblY < 200){
 			tblY = 200;
@@ -518,6 +547,7 @@ class AstroPrimaryDirection extends Component{
 		const isPdConfigDirty = (
 			this.getSelectedPdMethod() !== appliedPdState.pdMethod
 			|| this.getSelectedPdTimeKey() !== appliedPdState.pdTimeKey
+			|| this.getSelectedPdYears() !== appliedPdState.pdYears
 			|| pdTypeOutOfSync
 			|| !appliedPdState.hasCompleteParams
 		);
@@ -614,7 +644,7 @@ class AstroPrimaryDirection extends Component{
 		return (
 			<div className={`${styles.scrollbar} horosa-primary-direction-page`} style={style}>
 				<Row className='horosa-primary-direction-toolbar' gutter={[8, 8]} style={{marginBottom: controlBottom, flex: '0 0 auto'}}>
-					<Col xs={24} md={12} lg={8}>
+					<Col xs={24} md={12} lg={7}>
 						<div style={controlBoxStyle}>
 							<span style={labelStyle}>推运方法</span>
 							<Select
@@ -624,11 +654,11 @@ class AstroPrimaryDirection extends Component{
 								onChange={this.handlePdMethodChange}
 							>
 								<Option value='horosa_legacy'>Horosa原方法</Option>
-								<Option value='astroapp_alchabitius'>AstroAPP-Alchabitius</Option>
+								<Option value='astroapp_alchabitius'>Alchabitius</Option>
 							</Select>
 						</div>
 					</Col>
-					<Col xs={24} sm={12} md={8} lg={6}>
+					<Col xs={24} sm={12} md={8} lg={5}>
 						<div style={controlBoxStyle}>
 							<span style={labelStyle}>度数换算</span>
 							<Select
@@ -641,7 +671,22 @@ class AstroPrimaryDirection extends Component{
 							</Select>
 						</div>
 					</Col>
-					<Col xs={24} sm={12} md={4} lg={10} style={buttonWrapStyle}>
+					<Col xs={24} sm={12} md={8} lg={5}>
+						<div style={controlBoxStyle}>
+							<span style={labelStyle}>推运年数</span>
+							<InputNumber
+								size='small'
+								min={1}
+								max={180}
+								step={1}
+								precision={0}
+								style={selectStyle}
+								value={this.getSelectedPdYears()}
+								onChange={this.handlePdYearsChange}
+							/>
+						</div>
+					</Col>
+					<Col xs={24} sm={12} md={4} lg={7} style={buttonWrapStyle}>
 						<Button
 							type='primary'
 							size='small'

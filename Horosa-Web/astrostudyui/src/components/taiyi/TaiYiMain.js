@@ -372,7 +372,7 @@ class TaiYiMain extends Component {
 			const panOptions = pan && pan.options ? pan.options : {};
 			const topLeftInfo = [
 				`农历：${pan.lunarText || '—'}`,
-				`真太阳时：${pan.realSunTime || '—'}`,
+				`直接时间：${pan.clockTime || '—'}　真太阳时：${pan.realSunTime || '—'}`,
 				`年柱：${pillars.year || '—'}　月柱：${pillars.month || '—'}`,
 				`日柱：${pillars.day || '—'}　时柱：${pillars.time || '—'}`,
 				`节气：${pan.jiedelta || '—'}`,
@@ -699,6 +699,8 @@ class TaiYiMain extends Component {
 		const geo = fields.lon && fields.lat ? `${fields.lon.value} ${fields.lat.value}` : '—';
 		const rows = [
 			['起盘时间', fieldTime],
+			['直接时间', pan ? (pan.clockTime || '—') : '—'],
+			['真太阳时', pan ? (pan.realSunTime || '—') : '—'],
 			['地点', geo],
 			['起盘方式', panOptions.styleLabel || getStyleLabel(opt.style)],
 			['历史年号', pan ? (pan.reignYear || this.getSectionValue('年號')) : '—'],

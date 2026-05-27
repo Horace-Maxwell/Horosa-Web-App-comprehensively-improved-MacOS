@@ -14,6 +14,28 @@ Append new entries; do not rewrite history.
 
 ## 2026-05-26
 
+### 准备 v2.1.8 beta：UI 几何/明暗修复 + 太乙四柱时间 + 主限推运年数 + Ollama 流式
+
+- Scope:
+  - UI 专轮:一批占星/术数显示问题与 AI 分析流式问题集中修复,叠加已提交的 A 级历法修复(`dfe4a97`,kinwuzhao/kinastro/kintaiyi 月柱交节级判定)。准备 `2.1.8 / 2.1.8-runtime1`。
+  - **本版 Java 改了 `boundless`(SseHelper)与 `astrostudy`(AIAnalysisProxyService、PredictiveController)**,已用 JDK17 重编 `astrostudyboot.jar` 并验证(`pdYears` 进 boot jar、SseEmitter=0L)。
+- Files:
+  - 占星各盘符号几何居中:`astrostudyui/src/components/astro/{AstroChartCircle,AstroHelper}.js` 全部 `dominant-baseline:"middle"`→`"central"`(共享渲染器,覆盖占星清简/经典、合盘、辅盘、主限法盘)。
+  - 太乙四柱随时间基准+两时间:`astrostudyui/src/components/taiyi/{TaiYiCalc,TaiYiMain}.js`,复用八字 `utils/baziLunarLocal.buildLocalBaziResult`(与八字同契约:clockTime/solarTime 稳定、四柱随 timeAlg)。
+  - 主限法推运年数(全栈):前端 `components/astro/AstroPrimaryDirection.js`+`components/direction/AstroDirectMain.js`(InputNumber 默认 100、1-180);Python `astropy/astrostudy/{perchart,perpredict}.py`(pdYears clamp→max_arc);Java `astrostudy/.../PredictiveController.java`(pdYears 白名单透传)。
+  - 主限法表头/页码/去 astroapp:`layouts/app.less`、`components/astro/{AstroPrimaryDirection,AstroPrimaryDirectionChart}.js`。
+  - Ollama 流式不中断:`astrostudysrv/boundless/.../SseHelper.java`(`SseEmitter(0L)`)、`astrostudy/.../AIAnalysisProxyService.java`(buildJsonRequest 条件超时)。
+  - 其它 UI:`layouts/app.less`(紫微空白条、合盘明亮选择条、配置溢出、主限表头)、`components/homepage/PageHeader.js`(去重复菜单 搜索/历史/收藏)、`components/ziwei/ZWHouseSangHe.js`(三合神煞字体变细 520→400)。
+  - 版本 lockstep(2.1.8)、`config/release_notes/2.1.8.md`、`docs/ui-and-time-fixes-v2.1.8.md`、`docs/windows-sync-handoff.md` v2.1.8 条目。
+- Details:
+  - `dominant-baseline:middle` 对天文符号字体对齐到 x-height 中线而非几何中心(实测 ~7.9px 上偏);改 `central` 后清简盘 12 星座质心 deltaY -7.9→0。
+  - 太乙原从 `/nongli/time`(加密、不回稳定两时间)取,切基准只重算盘四柱不动;改走本地八字计算后四柱随基准变、两显示时间恒定(90e26 验:日柱辛丑↔庚子、时柱戊子↔丁亥)。
+  - 推运年数上限 180:kernel `norm180` 把弧归一化到 ±180°,>180 无新方向(经用户确认不动 kernel、不扩展多圈)。
+  - Ollama:流式路径两处写死 120s(`SseEmitter(120000L)` 为主因 + `buildJsonRequest .timeout(120s)`),慢速本地模型超时被掐断;改 `SseEmitter(0L)`+条件超时。
+- Verification:
+  - `npm run build` + `npm run build:file` 通过;占星清简盘 deltaY 0、太乙四柱随基准、主限 InputNumber dirty 检测、jar 内 `pdYears`×3 + SseEmitter 0L 已核。
+  - 注:**本版需重编 `astrostudyboot.jar`(已做)**;Windows 端务必同步重编。Ollama 流式行为端到端需真模型实测。
+
 ### 准备 v2.1.7 beta：奇门/三式 真太阳时定盘修复
 
 - Scope:

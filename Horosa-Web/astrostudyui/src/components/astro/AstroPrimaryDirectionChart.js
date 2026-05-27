@@ -316,7 +316,7 @@ function buildSnapshotText(chartObj, currentDt, currentArc){
 	lines.push('');
 	lines.push('[主限法盘设置]');
 	lines.push(`时间选择：${currentDt ? currentDt.format('YYYY-MM-DD HH:mm:ss') : '无'}`);
-		lines.push(`推运方法：${params.pdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'AstroAPP-Alchabitius'}`);
+		lines.push(`推运方法：${params.pdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'Alchabitius'}`);
 		lines.push(`度数换算：${params.pdTimeKey || DEFAULT_PD_TIME_KEY}`);
 	lines.push(`当前Arc：${splitDegreeText(currentArc)}`);
 	lines.push('');
@@ -887,8 +887,8 @@ class AstroPrimaryDirectionChart extends Component{
 		const selectedPdMethod = this.getSelectedPdMethod();
 		const selectedPdTimeKey = this.getSelectedPdTimeKey();
 		const ascTermHighlight = buildAscTermHighlight(derived.dirChart);
-		const pdMethodLabel = selectedPdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'AstroAPP-Alchabitius';
-		const appliedMethodLabel = applied.pdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'AstroAPP-Alchabitius';
+		const pdMethodLabel = selectedPdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'Alchabitius';
+		const appliedMethodLabel = applied.pdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'Alchabitius';
 		const sectionGapStyle = {marginTop: 6};
 		const hintStyle = {
 			color: 'var(--horosa-text-soft)',
