@@ -177,6 +177,10 @@ class AuxChartMain extends Component{
 								<AstroHarmonicLab
 									value={this.props.chart}
 									height={childHeight}
+									chartDisplay={this.props.chartDisplay}
+									planetDisplay={this.props.planetDisplay}
+									lotsDisplay={this.props.lotsDisplay}
+									showAstroMeaning={this.props.showAstroMeaning}
 								/>
 							</TabPane>
 	

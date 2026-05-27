@@ -354,6 +354,8 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	...JIEQI_SETTING_PRESETS,
 	otherbu: ['起盘信息', '骰子结果', '骰子盘宫位与星体', '天象盘宫位与星体'],
 	fengshui: ['起盘信息', '标记判定', '冲突清单', '建议汇总', '纳气建议'],
+	canping: ['起盘', '本命', '大运', '流年'],
+	heluo: ['起命', '先天卦', '后天卦', '命运篇', '大限'],
 	generic: ['起盘信息'],
 };
 
@@ -2059,6 +2061,8 @@ const KINASTRO_EXPORT_CONTEXTS = {
 	chunzi: { key: 'chunzi', displayName: '蠢子数', domain: 'kentang_raw' },
 	xianqin: { key: 'xianqin', displayName: '万化仙禽', domain: 'kentang_raw' },
 	cetian: { key: 'cetian', displayName: '策天飞星', domain: 'kentang_raw' },
+	canping: { key: 'canping', displayName: '邵子参评数' },   // 原生·模块快照（非 kentang）
+	heluo: { key: 'heluo', displayName: '河洛理数' },
 };
 
 function getRuntimeKinAstroTechnique(group){
@@ -2521,6 +2525,14 @@ function getModuleAliasList(moduleName){
 	if(name === 'chunzi' || name === 'kinastro-chunzi'){
 		set.add('chunzi');
 		set.add('kinastro-chunzi');
+		set.add('shusuan');
+	}
+	if(name === 'canping'){
+		set.add('canping');
+		set.add('shusuan');
+	}
+	if(name === 'heluo'){
+		set.add('heluo');
 		set.add('shusuan');
 	}
 	if(name === 'xianqin' || name === 'kinastro-xianqin' || name === 'yanqin'){
