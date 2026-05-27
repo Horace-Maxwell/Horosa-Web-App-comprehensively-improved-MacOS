@@ -212,8 +212,9 @@ export function daYun(xian, hou, birthYear = 0) {
 	return { xian: a.segs, hou: b.segs, all: [...a.segs, ...b.segs], xianEndAge: a.endAge, endAge: b.endAge };
 }
 
-// 流年：在某大限爻内逐年起值年卦。阳爻管9年(遇阳年首年本卦不变、再变两次应爻、第4年起自初爻往上累变)；
-// 阴年首年先变本爻；阴爻管6年(先变大运爻再顺推)。每年返回 {age,year,ganzhi,gua,pos(动爻)}。
+// 流年：在某大限爻内逐年起值年卦。每年在「上一年的卦」上变一爻——動爻自上一年動爻「往上一爻」(到上爻则回初爻)累变。
+// 阳爻管9年：阳年首年本卦不变(動爻=元堂)、阴年首年先变元堂；第2、3年连变两次应爻(取上一年動爻之应)；第4年起从上一年動爻往上一爻累变。
+// 阴爻管6年：首年先变元堂(不分阴阳年、无应爻步)，其后逐年往上一爻累变。每年返回 {age,year,ganzhi,gua,pos(動爻)}。
 export function liuNian(seg, birthYear = 0) {
 	const g = NAME_TO_TRI[seg.gua];
 	if (!g) return [];
@@ -227,16 +228,19 @@ export function liuNian(seg, birthYear = 0) {
 			gua: linesToGua(ln).name, lines: ln.slice(), pos,
 		});
 	};
-	const firstYangYear = birthYear ? isYangYear(yearOf(0)) : true;
+	const up1 = (p) => (p % 6) + 1;   // 往上一爻：上爻(6)→初爻(1)
 	if (seg.yang) {
-		if (firstYangYear) { push(0, lines, seg.pos); }
-		else { lines = flipLine(lines, seg.pos); push(0, lines, seg.pos); }
-		const p1 = ying(seg.pos); lines = flipLine(lines, p1); push(1, lines, p1);
-		const p2 = ying(p1); lines = flipLine(lines, p2); push(2, lines, p2);
-		for (let i = 1; i <= 6; i += 1) { lines = flipLine(lines, i); push(2 + i, lines, i); }
+		const firstYangYear = birthYear ? isYangYear(yearOf(0)) : true;
+		if (!firstYangYear) { lines = flipLine(lines, seg.pos); }   // 阴年首年变元堂，阳年首年不变
+		push(0, lines, seg.pos);
+		const p1 = ying(seg.pos); lines = flipLine(lines, p1); push(1, lines, p1);   // 第2年变应爻
+		const p2 = ying(p1); lines = flipLine(lines, p2); push(2, lines, p2);        // 第3年再变(上一年動爻之)应爻
+		let prev = p2;
+		for (let i = 3; i < seg.years; i += 1) { prev = up1(prev); lines = flipLine(lines, prev); push(i, lines, prev); }
 	} else {
-		lines = flipLine(lines, seg.pos); push(0, lines, seg.pos);
-		for (let i = 1; i <= 5; i += 1) { lines = flipLine(lines, i); push(i, lines, i); }
+		lines = flipLine(lines, seg.pos); push(0, lines, seg.pos);   // 首年变元堂
+		let prev = seg.pos;
+		for (let i = 1; i < seg.years; i += 1) { prev = up1(prev); lines = flipLine(lines, prev); push(i, lines, prev); }
 	}
 	return out.slice(0, seg.years);
 }

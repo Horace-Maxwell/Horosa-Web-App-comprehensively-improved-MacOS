@@ -24,7 +24,7 @@ Append new entries; do not rewrite history.
   - **AI 分析修复（#6，前端+后端）**：测试连接/模型下拉只列聊天模型并用选中模型，Gemini 预设补默认聊天模型；后端 `/embeddings` 鉴权头补 `params`、chat/chatStream 拒收 Embedding 模型（错误码 580014）。**本版含 Java 改动，已重编 `astrostudyboot.jar`**。#7「拉取模型失败」判定为上报者网络/代理连不上外网（OpenAI/OpenRouter），本版不改码（见 GitHub issue 回复）。
   - 准备 `2.2.0 / 2.2.0-runtime1`。
 - Files:
-  - 数算引擎/数据：`astrostudyui/src/utils/{heluoLocal,canpingLocal}.js` + `src/utils/data/{heluoTiaowen,canpingTiaowen,heluoNihaixiaRaw}.json` + `scripts/buildHeluoData.js`、`scripts/_heluoTest.mjs`（59 断言）。
+  - 数算引擎/数据：`astrostudyui/src/utils/{heluoLocal,canpingLocal}.js` + `src/utils/data/{heluoTiaowen,canpingTiaowen,heluoNihaixiaRaw}.json` + `scripts/buildHeluoData.js`、`scripts/_heluoTest.mjs`（72 断言）。
   - 数算组件/接入：`src/components/shusuan/{HeLuoMain,CanPingMain}.js`、`components/kinastro/KinAstroMain.js`（既有金色 rail 加两入口、native 分支、左栏取法）、`layouts/app.less`（`:global .horosa-heluo-* / .horosa-canping-*`）。
   - 调波盘：`astropy/astrostudy/{thirteenthchart,astroextra}.py`（HarmonicChart/build_harmonic）+ `components/auxchart/{AstroHarmonicLab,AuxChartMain}.js`。
   - 风水：`components/fengshui/{fengshuiEngine,FengShuiMain}.js`。
@@ -34,7 +34,8 @@ Append new entries; do not rewrite history.
 - Details:
   - 河洛全链对照参考盘（丙戌·丁酉·丙寅·癸巳）逐项验证：先天否·上九→后天临·六三、大限先天1–45/后天46起、流年否→遯→咸→革→夬→兑→节→临→损、流月渐→家人→艮…、流日 30 日动爻初→上、理数含/藏/覆元气化工。
   - 代码/算例中不出现近现代政治人物（中性八字/卦标注；条文内古代创始人属源典正文保留）。
-- Verification: `scripts/_heluoTest.mjs` 59 断言全过；`aiAnalysisProviders.test.js` 4 断言过（含 Gemini 默认聊天模型）；preview 实测起盘/下钻/明暗/AI导出列出数算两技法+分段字段。**本版含 Java 改动（AIAnalysisProxyService），已 `mvn` 重编 `astrostudyboot.jar` 并过 preflight 新鲜度。**
+- Verification: `scripts/_heluoTest.mjs` 72 断言全过；`aiAnalysisProviders.test.js` 4 断言过（含 Gemini 默认聊天模型）；preview 实测起盘/下钻/明暗/AI导出列出数算两技法+分段字段。**本版含 Java 改动（AIAnalysisProxyService），已 `mvn` 重编 `astrostudyboot.jar` 并过 preflight 新鲜度。**
+- 修订（2.2.0 覆盖发布，用户核对董鴻煦盘后发现）：**河洛流年链式变爻 bug** —— `heluoLocal.liuNian` 初版动爻位写死从初爻数(阳 1..6/阴 1..5)，仅元堂=上九偶合，其余大限流年全错。按典籍重写为「**从上一年動爻往上一爻链式累变**」(阳爻另加首年阳年不变/阴年变元堂 + 第2、3年连变应爻)。`_heluoTest.mjs` 增至 72 断言：先天/后天 5 大限流年逐卦逐动爻 + 临初九后天阳爻大限(起阴年) + 5 个年份流月全对董盘截图。纯前端、无 Java、不重编 jar；**版本号仍 2.2.0，重建 dist+签名包覆盖 GitHub 发行版**。
 
 ---
 
