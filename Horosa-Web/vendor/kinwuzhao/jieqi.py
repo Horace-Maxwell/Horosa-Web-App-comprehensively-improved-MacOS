@@ -10,7 +10,7 @@ import re
 import math
 import ephem
 from ephem import Sun, Date, Ecliptic, Equatorial
-from sxtwl import fromSolar
+from sxtwl import fromSolar, JD2DD
 from datetime import datetime
 from itertools import cycle, repeat
 import config
@@ -21,6 +21,8 @@ dizhi = list('子丑寅卯辰巳午未申酉戌亥')
 jqmc = ["冬至", "小寒", "大寒", "立春", "雨水", "驚蟄", "春分", "清明", "谷雨", "立夏",
      "小滿", "芒種", "夏至", "小暑", "大暑", "立秋", "處暑","白露", "秋分", "寒露", "霜降", 
      "立冬", "小雪", "大雪"]
+# 12「節」(每月之首,逢之換月柱;立春兼換年柱)。其餘12「氣」不換月柱。
+JIE_TERMS = {"立春", "驚蟄", "清明", "立夏", "芒種", "小暑", "立秋", "白露", "寒露", "立冬", "大雪", "小寒"}
 jieqi_name = re.findall('..', '春分清明穀雨立夏小滿芒種夏至小暑大暑立秋處暑白露秋分寒露霜降立冬小雪大雪冬至小寒大寒立春雨水驚蟄')
 
 def multi_key_dict_get(d, k):
@@ -291,6 +293,18 @@ def gangzhi(year, month, day, hour, minute):
         mTG1 = find_lunar_month(yTG).get(lunar_date_d(year, month, day).get("月"))
     else:
         mTG1 = mTG
+    # 月柱按精確交節時刻校正(同 kinqimen,對應上游 #53/#9):當日交「節」且給定時刻早於精確交節 →
+    # 沿用前一日月柱(立春兼校年柱)。sxtwl 的 getMonthGZ 為日級,交節當日整日已跳新月。
+    if year >= 1900:
+        _sd = fromSolar(year, month, day)
+        if _sd.hasJieQi() and jqmc[_sd.getJieQi()] in JIE_TERMS:
+            _t = JD2DD(_sd.getJieQiJD())
+            _crossing = datetime(_t.Y, _t.M, _t.D, int(_t.h), round(_t.m))
+            if datetime(year, month, day, hour, minute) < _crossing:
+                _prev = _sd.before(1)
+                mTG1 = tiangan[_prev.getMonthGZ().tg] + dizhi[_prev.getMonthGZ().dz]
+                if jqmc[_sd.getJieQi()] == '立春':
+                    yTG = tiangan[_prev.getYearGZ().tg] + dizhi[_prev.getYearGZ().dz]
     hTG1 = find_lunar_hour(dTG).get(hTG[1])
     zi = gangzhi1(year, month, day, 0, 0)[3]
     if minute < 10 and minute >=0:
