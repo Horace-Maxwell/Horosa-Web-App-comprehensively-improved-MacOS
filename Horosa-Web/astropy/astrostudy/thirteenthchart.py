@@ -49,3 +49,45 @@ class ThirteenthChart:
             obj.relocate(newlon)
 
         self.perchart.reinit()
+
+
+class HarmonicChart:
+    """调波盘（谐波盘）：将各点黄经乘以调波数后取模 360，房宫按调波后 ASC 等宫排布。
+
+    与 ThirteenthChart 同构（relocate + reinit），仅把每点的变换换成
+    newlon = (lon * harmonic) % 360。
+    """
+
+    def __init__(self, perchart: PerChart, harmonic: int):
+        self.perchart = perchart
+        self.harmonic = max(1, min(int(harmonic), 360))
+
+    def harmonicObject(self, point):
+        newlon = (point.lon * self.harmonic) % 360
+        point.relocate(newlon)
+        return newlon
+
+    def apply(self):
+        for obj in self.perchart.chart.objects:
+            self.harmonicObject(obj)
+        for obj in self.perchart.chart.pars:
+            self.harmonicObject(obj)
+
+        asc = self.perchart.chart.getAngle(const.ASC)
+        mc = self.perchart.chart.getAngle(const.MC)
+        desc = self.perchart.chart.getAngle(const.DESC)
+        ic = self.perchart.chart.getAngle(const.IC)
+        asclon = self.harmonicObject(asc)
+        mclon = self.harmonicObject(mc)
+        desc.relocate((asclon + 180) % 360)
+        ic.relocate((mclon + 180) % 360)
+
+        house1lon = (int(asclon / 30) % 12) * 30
+
+        for obj in self.perchart.chart.houses:
+            hid = int(obj.id[5:7])
+            newlon = house1lon + 30*(hid - 1)
+            obj.size = 30
+            obj.relocate(newlon)
+
+        self.perchart.reinit()

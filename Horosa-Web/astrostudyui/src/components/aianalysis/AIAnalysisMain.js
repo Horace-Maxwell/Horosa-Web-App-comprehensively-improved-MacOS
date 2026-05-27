@@ -372,6 +372,15 @@ function normalizeProfileModels(profile){
 		.concat(profile.manualModels || []));
 }
 
+function normalizeProfileChatModels(profile){
+	if(!profile){
+		return [];
+	}
+	const all = normalizeProfileModels(profile);
+	const embedding = new Set(splitProviderModels(all, profile.providerType).embeddingModels);
+	return all.filter((model)=>!embedding.has(model));
+}
+
 function normalizeEmbeddingModels(profile){
 	if(!profile){
 		return [];
@@ -760,7 +769,7 @@ function AIAnalysisMain(props){
 			if(profile.enabled === false){
 				return;
 			}
-			normalizeProfileModels(profile).forEach((model)=>{
+			normalizeProfileChatModels(profile).forEach((model)=>{
 				result.push({
 					value: encodeModelSelection(profile.id, model),
 					label: `${profile.name || '未命名配置'} / ${model}`,
@@ -1279,6 +1288,7 @@ function AIAnalysisMain(props){
 				baseUrl: profile.baseUrl,
 				model: embeddingModel,
 				embeddingModel,
+				providerOptions: profile.providerOptions || {},
 				input: missing.map((item)=>item.content),
 			});
 			const vectors = rsp && rsp.Result && Array.isArray(rsp.Result.vectors) ? rsp.Result.vectors : [];
@@ -2318,10 +2328,11 @@ function AIAnalysisMain(props){
 		}
 	}
 
-	async function testProfileChat(profile){
-		const models = normalizeProfileModels(profile);
-		if(models.length === 0){
-			message.warning('请先配置至少一个模型');
+	async function testProfileChat(profile, preferredModel){
+		const chatModels = normalizeProfileChatModels(profile);
+		const model = `${preferredModel || ''}`.trim() || chatModels[0] || '';
+		if(!model){
+			message.warning('该配置还没有可用的对话模型，请在「配置 API」→「聊天模型列表」中填写（如 gemini-2.5-flash），或点「拉取模型」自动获取');
 			return;
 		}
 		try{
@@ -2329,7 +2340,7 @@ function AIAnalysisMain(props){
 				providerType: profile.providerType,
 				apiKey: profile.apiKey,
 				baseUrl: profile.baseUrl,
-				model: models[0],
+				model,
 				providerOptions: profile.providerOptions || {},
 				messages: [
 					{
@@ -2517,7 +2528,7 @@ function AIAnalysisMain(props){
 										size="small"
 										className={styles.quickApiButton}
 										disabled={!activeProviderProfile}
-										onClick={()=>activeProviderProfile && testProfileChat(activeProviderProfile)}
+										onClick={()=>activeProviderProfile && testProfileChat(activeProviderProfile, parseModelSelection(modelSelection).model)}
 									>
 										测试连接
 									</Button>
@@ -3052,7 +3063,7 @@ function AIAnalysisMain(props){
 								<div>类型：{getProviderDisplayName(item.providerType)}</div>
 								<div>协议族：{item.protocolFamily || getProviderProtocolFamily(item.providerType)}</div>
 								<div>Base URL：{item.baseUrl || '默认'}</div>
-								<div>聊天模型：{normalizeProfileModels(item).length ? normalizeProfileModels(item).join('、') : '未配置'}</div>
+								<div>聊天模型：{normalizeProfileChatModels(item).length ? normalizeProfileChatModels(item).join('、') : '未配置'}</div>
 								<div>Embedding：{normalizeEmbeddingModels(item).length ? normalizeEmbeddingModels(item).join('、') : '未配置'}</div>
 								<div>健康状态：<Tag color={item.healthStatus === 'healthy' ? 'green' : item.healthStatus === 'error' ? 'red' : 'default'}>{item.healthStatus || 'unknown'}</Tag></div>
 							</div>

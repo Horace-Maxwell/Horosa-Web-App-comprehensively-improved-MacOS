@@ -12,6 +12,7 @@ from flatlib.protocols.temperament import Temperament
 
 from astrostudy.perchart import PerChart
 from astrostudy.perpredict import dateSolarReturn, dateLunarReturn
+from astrostudy.thirteenthchart import HarmonicChart
 
 
 PLANET_SWISS_IDS = {
@@ -950,7 +951,40 @@ def build_harmonic(data):
         })
     aspects = aspects_between(positions, positions, [0], safe_float(data.get('orb', 2.0), 2.0))
     aspects = [a for a in aspects if a['a'] != a['b']]
-    return {'harmonic': harmonic, 'positions': positions, 'conjunctions': aspects[:120]}
+
+    # 调波盘本身：把命盘各点黄经乘以调波数，得到完整盘对象（与 /chart 同形），
+    # 供前端复用量化盘的 AstroChart 直接绘制。纯 Python，无需重编 jar。
+    chart_obj = None
+    try:
+        HarmonicChart(perchart, harmonic).apply()
+        chart_obj = {
+            'params': {
+                'birth': perchart.getBirthStr(),
+                'ad': -1 if getattr(perchart, 'isBC', False) else 1,
+                'lat': params.get('lat'),
+                'lon': params.get('lon'),
+                'hsys': params.get('hsys'),
+                'zone': params.get('zone'),
+                'tradition': perchart.tradition,
+                'zodiacal': perchart.zodiacal,
+                'harmonic': harmonic,
+            },
+            'chart': perchart.getChartObj(),
+            'aspects': {
+                'normalAsp': perchart.getAspects(),
+                'immediateAsp': perchart.getImmediateAspects(),
+                'signAsp': perchart.getSignAspects(),
+            },
+            'lots': perchart.getPars(perchart.chart),
+            'receptions': perchart.getReceptions(),
+            'mutuals': perchart.getMutuals(),
+            'declParallel': perchart.getParallel(),
+        }
+    except Exception:
+        traceback.print_exc()
+        chart_obj = None
+
+    return {'harmonic': harmonic, 'positions': positions, 'conjunctions': aspects[:120], 'chart': chart_obj}
 
 
 def build_relative_score(data):

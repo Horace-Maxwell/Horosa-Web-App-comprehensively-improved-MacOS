@@ -1,6 +1,8 @@
 import { Component } from 'react';
 import { Input, InputNumber, Modal, Spin } from 'antd';
 import DateTime from '../comp/DateTime';
+import CanPingMain from '../shusuan/CanPingMain';
+import HeLuoMain from '../shusuan/HeLuoMain';
 import SpaceTimePanel, { buildDateTimeFromFields, formatSpaceTime } from '../comp/SpaceTimePanel';
 import XQIcon from '../xq-icons';
 import { XQButton as Button, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
@@ -115,6 +117,28 @@ const TECHNIQUE_CONFIG = {
 			{ key: 'lookup', label: '查询' },
 			{ key: 'search', label: '检索' },
 		],
+	},
+	canping: {
+		pageTitle: '数算',
+		infoTitle: '数算信息',
+		infoSubTitle: '邵子参评数、金锁银匙与条文',
+		serviceKey: 'canping',
+		moduleKey: 'shusuan',
+		techniqueLabel: '邵子参评数',
+		native: true,
+		showRail: true,
+		tabs: [],
+	},
+	heluo: {
+		pageTitle: '数算',
+		infoTitle: '数算信息',
+		infoSubTitle: '河洛理数、先后天卦与爻辞',
+		serviceKey: 'heluo',
+		moduleKey: 'shusuan',
+		techniqueLabel: '河洛理数',
+		native: true,
+		showRail: true,
+		tabs: [],
 	},
 	xianqin: {
 		pageTitle: '演禽',
@@ -734,6 +758,8 @@ class KinAstroMain extends Component{
 				chunziMansion: '室',
 				chunziHourBranch: '子',
 				chunziResultLimit: '20',
+				canpingMethod: 'ming',
+				canpingLiunian: null,
 			};
 		this.unmounted = false;
 		this.timeHook = {};
@@ -946,6 +972,11 @@ class KinAstroMain extends Component{
 	}
 
 	async fetchPan(fields){
+		if(this.config.native){
+			this.requestSeq += 1;
+			this.setState({ loading: false, pan: null });
+			return;
+		}
 		const payload = this.buildPayload(fields);
 		if(!payload){
 			return;
@@ -1056,6 +1087,15 @@ class KinAstroMain extends Component{
 								</label>
 								{this.renderPillarOverrideFields()}
 							</>
+						) : null}
+						{this.config.serviceKey === 'canping' ? (
+							<label className="horosa-huangji-select-field is-wide">
+								<span>取法</span>
+								<Select value={this.state.canpingMethod} onChange={(value)=>this.setState({ canpingMethod: value })}>
+									<Option value="ming">明法（月支反向）</Option>
+									<Option value="gu">古法（八字日支）</Option>
+								</Select>
+							</label>
 						) : null}
 						{this.config.serviceKey === 'tieban' ? (
 							<>
@@ -1999,6 +2039,12 @@ class KinAstroMain extends Component{
 	}
 
 	renderCenter(){
+		if(this.config.serviceKey === 'canping'){
+			return <CanPingMain slot="center" fields={this.props.fields} method={this.state.canpingMethod} />;
+		}
+		if(this.config.serviceKey === 'heluo'){
+			return <HeLuoMain slot="center" fields={this.props.fields} />;
+		}
 		const pan = this.state.pan;
 		if(!pan){
 			return <div className="horosa-huangji-empty">暂无{this.config.techniqueLabel}数据</div>;
@@ -2161,6 +2207,12 @@ class KinAstroMain extends Component{
 	}
 
 	renderRightPanel(){
+		if(this.config.serviceKey === 'canping'){
+			return <div className="horosa-huangji-section-list"><CanPingMain slot="aux" fields={this.props.fields} method={this.state.canpingMethod} /></div>;
+		}
+		if(this.config.serviceKey === 'heluo'){
+			return <div className="horosa-huangji-section-list"><HeLuoMain slot="aux" fields={this.props.fields} /></div>;
+		}
 		const snapshot = buildSnapshotText(this.state.pan);
 		const visibleTabs = this.config.tabs.filter((item)=>{
 			if(!this.state.pan){
@@ -2269,6 +2321,8 @@ class KinAstroMain extends Component{
 					{ key: 'beiji', label: '北极神数' },
 					{ key: 'nanji', label: '南极神数' },
 					{ key: 'chunzi', label: '蠢子数' },
+					{ key: 'canping', label: '邵子参评数' },
+					{ key: 'heluo', label: '河洛理数' },
 				]
 			: [{ key: this.props.technique || this.config.serviceKey, label: this.config.techniqueLabel }];
 		return (

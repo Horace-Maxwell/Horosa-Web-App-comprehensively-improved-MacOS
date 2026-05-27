@@ -88,6 +88,8 @@ const ANALYSIS_TECHNIQUE_LABELS = {
 	qimen: '奇门遁甲',
 	sanshiunited: '三式合一',
 	taiyi: '太乙',
+	canping: '邵子参评数',
+	heluo: '河洛理数',
 };
 
 export const ANALYSIS_CHART_TECHNIQUES = [
