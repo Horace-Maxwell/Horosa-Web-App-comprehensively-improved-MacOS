@@ -102,6 +102,7 @@ describe('AstroDirectMain primary direction sync', ()=>{
 			payload: {
 				pdMethod: 'horosa_legacy',
 				pdTimeKey: 'Ptolemy',
+				pdYears: 100,
 			},
 		});
 		expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({

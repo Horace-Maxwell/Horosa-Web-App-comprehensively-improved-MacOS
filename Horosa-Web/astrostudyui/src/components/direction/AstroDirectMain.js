@@ -291,7 +291,15 @@ function buildFirdariaSnapshotText(chartObj){
 	return lines.join('\n');
 }
 
-function buildPrimaryDirectionFetchFields(baseFields, chartObj, pdMethod, pdTimeKey){
+function normalizePdYears(v){
+	const n = Math.round(Number(v));
+	if(!Number.isFinite(n)){
+		return 100;
+	}
+	return Math.max(1, Math.min(180, n));
+}
+
+function buildPrimaryDirectionFetchFields(baseFields, chartObj, pdMethod, pdTimeKey, pdYears){
 	const fields = {
 		...(baseFields || {}),
 	};
@@ -392,6 +400,12 @@ function buildPrimaryDirectionFetchFields(baseFields, chartObj, pdMethod, pdTime
 	fields.pdTimeKey = {
 		...(fields.pdTimeKey || { name: ['pdTimeKey'] }),
 		value: pdTimeKey,
+	};
+	fields.pdYears = {
+		...(fields.pdYears || { name: ['pdYears'] }),
+		value: normalizePdYears(pdYears !== undefined && pdYears !== null ? pdYears
+			: (params.pdYears !== undefined && params.pdYears !== null ? params.pdYears
+			: (fields.pdYears ? fields.pdYears.value : 100))),
 	};
 	fields.pdaspects = {
 		...(fields.pdaspects || { name: ['pdaspects'] }),
@@ -538,6 +552,9 @@ class AstroDirectMain extends Component{
 			pdTimeKey: override.pdTimeKey || (params.pdTimeKey
 				? params.pdTimeKey
 				: (fields.pdTimeKey ? fields.pdTimeKey.value : DEFAULT_PD_TIME_KEY)),
+			pdYears: normalizePdYears(override.pdYears !== undefined && override.pdYears !== null ? override.pdYears
+				: (params.pdYears !== undefined && params.pdYears !== null ? params.pdYears
+				: (fields.pdYears ? fields.pdYears.value : 100))),
 		};
 	}
 
@@ -548,7 +565,8 @@ class AstroDirectMain extends Component{
 			override.fields || this.props.fields,
 			chart,
 			desired.pdMethod,
-			desired.pdTimeKey
+			desired.pdTimeKey,
+			desired.pdYears
 		);
 		const dateValue = nextFields.date && nextFields.date.value;
 		const timeValue = nextFields.time && nextFields.time.value;
@@ -578,6 +596,7 @@ class AstroDirectMain extends Component{
 			pdtype: DEFAULT_PD_TYPE,
 			pdMethod: desired.pdMethod,
 			pdTimeKey: desired.pdTimeKey,
+			pdYears: desired.pdYears,
 			pdaspects: nextFields.pdaspects ? nextFields.pdaspects.value : [0, 60, 90, 120, 180],
 			name: nextFields.name ? nextFields.name.value : null,
 			pos: nextFields.pos ? nextFields.pos.value : null,
@@ -606,6 +625,9 @@ class AstroDirectMain extends Component{
 		if((params.pdTimeKey || desired.pdTimeKey) !== desired.pdTimeKey){
 			return true;
 		}
+		if(normalizePdYears(params.pdYears !== undefined && params.pdYears !== null ? params.pdYears : desired.pdYears) !== desired.pdYears){
+			return true;
+		}
 		if(!hasCompleteParams){
 			return true;
 		}
@@ -624,6 +646,7 @@ class AstroDirectMain extends Component{
 			showPdBounds: req.showPdBounds,
 			pdMethod: req.pdMethod,
 			pdTimeKey: req.pdTimeKey,
+			pdYears: req.pdYears,
 			name: req.name,
 			pos: req.pos,
 			chartId: options.chartId,
@@ -666,6 +689,7 @@ class AstroDirectMain extends Component{
 			zodiacal: req.zodiacal,
 			pdMethod: req.pdMethod,
 			pdTimeKey: req.pdTimeKey,
+			pdYears: req.pdYears,
 			showPdBounds: req.showPdBounds,
 			pdtype: req.pdtype,
 			pdaspects: req.pdaspects,
@@ -850,22 +874,27 @@ class AstroDirectMain extends Component{
 		});
 	}
 
-	applyPrimaryDirectionConfig(pdMethod, pdTimeKey){
+	applyPrimaryDirectionConfig(pdMethod, pdTimeKey, pdYears){
 		if(!this.props.dispatch || !this.props.fields){
 			return;
 		}
+		const resolvedPdYears = pdYears !== undefined && pdYears !== null
+			? normalizePdYears(pdYears)
+			: this.getDesiredPdConfig(this.props.chartObj).pdYears;
 		this.props.dispatch({
 			type: 'app/save',
 			payload: {
 				pdMethod,
 				pdTimeKey,
+				pdYears: resolvedPdYears,
 			},
 		});
 		const nextFields = buildPrimaryDirectionFetchFields(
 			this.props.fields,
 			this.props.chartObj,
 			pdMethod,
-			pdTimeKey
+			pdTimeKey,
+			resolvedPdYears
 		);
 		this.props.dispatch({
 			type: 'astro/save',
@@ -878,6 +907,7 @@ class AstroDirectMain extends Component{
 			fields: nextFields,
 			pdMethod,
 			pdTimeKey,
+			pdYears: resolvedPdYears,
 			runHook: true,
 		});
 	}
@@ -892,6 +922,9 @@ class AstroDirectMain extends Component{
 		const appliedPdTimeKey = chartParams.pdTimeKey
 			? chartParams.pdTimeKey
 			: (this.props.fields && this.props.fields.pdTimeKey ? this.props.fields.pdTimeKey.value : 'Ptolemy');
+		const appliedPdYears = normalizePdYears(chartParams.pdYears !== undefined && chartParams.pdYears !== null
+			? chartParams.pdYears
+			: (this.props.fields && this.props.fields.pdYears ? this.props.fields.pdYears.value : 100));
 
 		return (
 			<div className="horosa-direction-page xq-chart-renderer xq-chart-renderer-direction">
@@ -906,6 +939,7 @@ class AstroDirectMain extends Component{
 								showPdBounds={this.props.fields && this.props.fields.showPdBounds ? this.props.fields.showPdBounds.value : 1}
 								pdMethod={appliedPdMethod}
 								pdTimeKey={appliedPdTimeKey}
+								pdYears={appliedPdYears}
 								onPdConfigApply={this.applyPrimaryDirectionConfig}
 								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 								showAstroMeaning={this.props.showAstroMeaning}
