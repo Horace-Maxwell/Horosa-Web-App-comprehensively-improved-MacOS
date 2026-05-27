@@ -9,14 +9,14 @@
 **把占星与中国术数，收进一个原生 macOS 工作站**<br />
 *Western astrology and Chinese metaphysics, in one native macOS workstation*
 
-[![Version](https://img.shields.io/badge/version-2.1.5%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
+[![Version](https://img.shields.io/badge/version-2.1.6%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.5/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.6/Horosa-Installer-macos-arm64-offline.pkg) ·
 [完整中文说明](README_ZH.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -35,7 +35,7 @@
 
 > Regular users grab the offline installer and open it like any finished macOS app. No Python or Java to install yourself—the runtime ships inside the package—and updates replace the program and shared runtime without wiping your saved charts.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.5/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.6/Horosa-Installer-macos-arm64-offline.pkg)**
 
 适合：Apple Silicon · 弱网 / 离线环境 · 首次安装 · 转发给他人。
 
@@ -93,18 +93,17 @@
 
 > Charts and cases save locally—tags, snapshots, raw backend payloads, JSON import/export, and full restore on reopen.
 
-## 本次更新 · What's New in v2.1.5 beta
+## 本次更新 · What's New in v2.1.6 beta
 
-这一版是对「AI 分析」整页的全面打磨,把供应商切换、鉴权、发送与静默失败一次修到位:
+这一版修复奇门排盘的历法准确性,并修好印度盘的地图选点:
 
-- **多供应商切换修复**:供应商卡片可点击、并有明确「设为当前」按钮,切换真正生效;切换 provider 类型会清空旧 API Key,避免「新 URL + 旧 Key」导致的 401。
-- **Gemini 直连修复**:不再为 Gemini 多加 `Authorization: Bearer`(消除 `ACCESS_TOKEN_TYPE_UNSUPPORTED`);自定义供应商可用 `authHeaderName`/`authPrefix` 自定义鉴权头。
-- **发送更稳**:流式中不再被回车/重复点击并发触发;停止与切换/删除对话会真正中止流;新消息自动滚到底;请求超时尊重你配置的 `requestTimeoutMs`。
-- **静默失败可见**:向量检索、资料分块失败会提示而非悄悄降级;Markdown 解析异常退回纯文本不丢内容。
+- **奇门月柱交节边界**:月柱按精确交节时刻判定。交节当日、交节时刻之前不再被误算进新月(立春同时校正年柱)。例:2005-05-05 16:30 立夏(17:52)前 → 庚辰(原误作辛巳)。
+- **奇门置闰(超神接气置闰)定局**:置闰排盘改用超神/接气/置闰校正后的节气定局,符头超前节气时提前换局并正确标注节气。例:2027-10-31 → 立冬上元六局(原误标霜降)。拆补法不受影响。
+- **印度盘地图选点修复**:在地图上选定地点并确认不再报错,经纬度正常带入排盘。
 
-完整改动见 [v2.1.5 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5)(离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.1.5 / 2.1.5-runtime1`)。
+完整改动见 [v2.1.6 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6)(离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.1.6 / 2.1.6-runtime1`)。
 
-> This release is a thorough pass over the AI Analysis page: provider switching now works (clickable cards + a "set as current" button; changing provider type clears the old key to prevent "new URL + old key" 401s), Gemini direct connection no longer attaches a redundant `Authorization: Bearer` (custom providers can override the auth header), streaming can't be double-fired and stop/switch/delete truly aborts it, and previously-silent failures (embedding retrieval, material chunking, request timeout, markdown parse) are surfaced or recovered. See the [v2.1.5 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.5) for the full log.
+> This release fixes Qimen calendar accuracy and the India-chart map picker: the month pillar now switches at the exact solar-term instant (a time before the crossing is no longer pushed into the next month; Lichun also rolls the year pillar), the leap-method (超神接气置闰) chart now derives its ju from the term after 超神/接气/置闰 correction and labels it correctly (e.g. 2027-10-31 → 立冬 upper-yuan ju-6, previously mislabeled 霜降; the 拆补 method is unaffected), and picking a location on the India chart map no longer throws. See the [v2.1.6 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6) for the full log.
 
 ## 技术构成 · Under the Hood
 
