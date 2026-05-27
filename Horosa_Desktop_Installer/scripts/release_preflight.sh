@@ -40,6 +40,10 @@ echo "[2] 本版发布说明"
 echo "[3] UPGRADE_LOG 条目"
 grep -q "${VERSION}" "${REPO_ROOT}/UPGRADE_LOG.md" && ok "UPGRADE_LOG 提及 ${VERSION}" || bad "UPGRADE_LOG.md 没有 ${VERSION} 条目"
 
+# 3b. Windows 同步台账必须有本版条目(每个 Mac 修复都要让 Windows 端能读到 —— 流程硬性要求)
+echo "[3b] Windows 同步条目"
+grep -q "${VERSION}" "${REPO_ROOT}/docs/windows-sync-handoff.md" && ok "windows-sync-handoff 提及 ${VERSION}" || bad "docs/windows-sync-handoff.md 没有 ${VERSION} 条目 —— Windows 端无法同步本次修复(每个修复须随附技术文档+同步条目)"
+
 # 4. settings.local.json 绝不可被 git 跟踪(里面有 token / 机器路径 —— 本次复盘的泄露风险)
 echo "[4] 机密文件未入库"
 if git -C "${REPO_ROOT}" ls-files --error-unmatch .claude/settings.local.json >/dev/null 2>&1; then bad ".claude/settings.local.json 被 git 跟踪了(含 token,有泄露风险!)"; else ok ".claude/settings.local.json 未被跟踪"; fi

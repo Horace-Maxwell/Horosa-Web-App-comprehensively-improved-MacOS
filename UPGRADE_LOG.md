@@ -14,6 +14,23 @@ Append new entries; do not rewrite history.
 
 ## 2026-05-26
 
+### 准备 v2.1.7 beta：奇门/三式 真太阳时定盘修复
+
+- Scope:
+  - 用户在「三式合一」实测发现:选「真太阳时」时奇门盘按直接时间排(时柱错位)。根因为奇门后端请求 `fetchQimenPan` 漏用真太阳时校正。准备 `2.1.7 / 2.1.7-runtime1`。
+  - 流程新规(本版起执行):**每个 Mac 修复都随附技术文档 + windows-sync-handoff 条目并同步 main**,`release_preflight.sh` 加门禁(windows-sync-handoff 须提及当前版本)。
+- Files:
+  - `Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js`:`fetchQimenPan` 改用既有 `resolveCalcDateTime`(timeAlg=0→`nongli.birth` 真太阳时刻;=1→钟表时),与前端 `calcDunJia`、太乙 `resolveCalculationDateTime` 一致。
+  - `Horosa_Desktop_Installer/scripts/release_preflight.sh`:新增 [3b] windows-sync-handoff 版本条目门禁。
+  - `.claude/skills/horosa-dev/SKILL.md`:发布 runbook 写入「每个修复随附技术文档+同步条目」规则。
+  - 版本 lockstep(2.1.7)、`config/release_notes/2.1.7.md`、`docs/qimen-truesolar-time-fix-v2.1.7.md`、`docs/windows-sync-handoff.md`、README×3。
+- Details:
+  - `fetchQimenPan` 原用 `parseDateTime(fields)`(钟表时)发后端,后端 `webqimensrv` 只回显 `realSunTime` 不参与计算 → 真太阳时被当直接时间。改走 `resolveCalcDateTime` 后,奇门按所选口径排;三式六壬级联修复(`buildLrNongli` 取 `dunjia.ganzhi`);太乙(timeBasis)、紫微(传 timeAlg)本就正确。显示标签未动(本就正确)。
+  - 共享函数:独立遁甲页 + 三式合一一并修好。
+- Verification:
+  - `npm run build:file` 通过;逻辑核对 1993-02-01 真太阳时 10:46→巳时→丁巳時(原 戊午)。
+  - 注:**纯前端,无需重编 `astrostudyboot.jar`**;runtime 包因 dist-file 变化而 bump 到 2.1.7-runtime1。
+
 ### 准备 v2.1.6 beta：奇门历法修复（月柱交节边界 + 置闰超神接气定局）+ 印度盘地图选点修复
 
 - Scope:

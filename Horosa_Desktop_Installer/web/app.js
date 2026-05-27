@@ -79,7 +79,7 @@
   let showFullLog = false;
   let retryActionKind = 'repair_runtime';
   let progressIsIndeterminate = false;
-  const APP_VERSION = '2.1.6';
+  const APP_VERSION = '2.1.7';
   let currentTone = 'launch';
 
   async function invoke(cmd, args) {

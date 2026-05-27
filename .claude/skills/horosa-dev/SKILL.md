@@ -220,6 +220,11 @@ This is a **manual, macOS-signed** pipeline (no CI auto-release on tag). Full or
    rebuild `astrostudyboot.jar` (gotcha #10).** Write per-version highlights to
    `Horosa_Desktop_Installer/config/release_notes/{version}.md` (e.g. `2.1.4.md`) — publish injects it into the
    release page's "本版更新 / What's new" section; without it the page shows only the generic product overview.
+   **Every fix MUST also ship (process rule): a tech doc `docs/<topic>-v{version}.md`** (root cause + change +
+   verification; state whether `astrostudyboot.jar` needs rebuilding) **and a `docs/windows-sync-handoff.md` entry**
+   (top of file, newest first: what changed / what Windows must do / verification, linking the tech doc). The Windows
+   repo is a platform fork that syncs by reading these on `main`; `release_preflight.sh` gates the windows-sync entry
+   for the version (so a fix can't ship without Windows being able to read it).
 2. Run the pre-release gates: harness JSON, focused tests, clean sequential `npm run build` then `npm run build:file`,
    browser AIAnalysis smoke, clean-env local startup smoke.
 3. `git commit -m "release: prepare vX.Y.Z beta"` and push `main` after validation, unless the user explicitly asks
@@ -254,7 +259,8 @@ with the user before running them. Never `git push --force` to main.
 - **Run `Horosa_Desktop_Installer/scripts/release_preflight.sh` before publishing** — `publish_github_release.sh`
   now auto-runs it (`HOROSA_SKIP_PREFLIGHT=1` overrides). It encodes every gap from the v2.1.4 process review as
   pass/fail checks: version lockstep across all files, per-version `config/release_notes/{version}.md` present,
-  `UPGRADE_LOG` entry, `.claude/settings.local.json` not git-tracked + all harness JSON parseable, `astrostudyboot.jar`
+  `UPGRADE_LOG` entry, **`docs/windows-sync-handoff.md` has a `{version}` entry (every fix must be Windows-readable)**,
+  `.claude/settings.local.json` not git-tracked + all harness JSON parseable, `astrostudyboot.jar`
   / `dist-file` newer than sources, and CI green for HEAD. **When you discover a new release gap, add a check here.**
 - `package_runtime_payload.sh` **fails if `astrostudyboot.jar` or `dist-file` is older than its sources** — prevents
   silently shipping stale backend/frontend. Rebuild the stale artifact, or set `HOROSA_SKIP_FRESHNESS_GUARD=1` if
