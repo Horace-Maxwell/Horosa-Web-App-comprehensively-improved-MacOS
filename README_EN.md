@@ -8,14 +8,14 @@
 
 **Western astrology and Chinese metaphysics, in one native macOS workstation**
 
-[![Version](https://img.shields.io/badge/version-2.1.6%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6)
+[![Version](https://img.shields.io/badge/version-2.1.7%20beta-b45309?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.7)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.7)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.7)
 [![CI](https://img.shields.io/github/actions/workflow/status/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/stargazers)
 
-[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.6/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.7/Horosa-Installer-macos-arm64-offline.pkg) ·
 [Portal](README.md) ·
 [中文说明](README_ZH.md) ·
 [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -34,7 +34,7 @@ This repository is the macOS delivery of that app: the application source, the s
 
 Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.6/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.1.7/Horosa-Installer-macos-arm64-offline.pkg)**
 
 Best for:
 
@@ -93,15 +93,13 @@ Yi and Sanshi go past standalone tabs into a genuinely integrated surface.
 
 Charts and cases save locally with tags, snapshots, and raw backend payloads. Everything supports JSON import/export and restores its full state when you reopen it.
 
-## New in v2.1.6 beta
+## New in v2.1.7 beta
 
-This release fixes Qimen calendar accuracy and the India-chart map picker.
+This release fixes true-solar-time chart casting for Qimen / Sanshi.
 
-- **Qimen month-pillar boundary** — the month pillar now switches at the exact solar-term instant; a time before the crossing is no longer pushed into the next month (Lichun also rolls the year pillar). E.g. 2005-05-05 16:30, before Lixia (17:52) → 庚辰 (previously mis-set to 辛巳).
-- **Qimen leap-method (超神接气置闰) chart-setup** — the leap-method chart now derives its ju from the solar term after 超神/接气/置闰 correction, advancing when the lead-day precedes the term and labeling the term correctly. E.g. 2027-10-31 → 立冬 upper-yuan ju-6 (previously mislabeled 霜降); the 拆补 method is unaffected.
-- **India map location-pick fixed** — selecting a location on the map and confirming no longer throws; longitude/latitude flow into the chart correctly.
+- **True-solar-time chart fix** — when 真太阳时 (true solar time) is selected, Qimen Dunjia (and the Qimen + LiuRen panels inside Sanshi United) now cast from the true-solar instant instead of mistakenly using clock time. E.g. for 1993-02-01 11:24 (true solar 10:46) the Qimen hour pillar is corrected from 戊午 to 丁巳. 直接时间 (direct time) behavior is unchanged; Taiyi and Ziwei were already correct.
 
-The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.1.6 / 2.1.6-runtime1`. Full log on the [v2.1.6 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.6).
+The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.1.7 / 2.1.7-runtime1`. Full log on the [v2.1.7 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.1.7).
 
 ## Under the Hood
 

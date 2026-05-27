@@ -138,7 +138,7 @@ def check_ready(data: dict[str, Any], errors: list[str]) -> None:
         fail(errors, "ready state must mark every pipeline step complete")
     if "is-highlight" not in step(data, 4)["cls"]:
         fail(errors, "ready state must lightly highlight handoff step 4")
-    if "来源 pkg 2.1.6" not in data["session"]:
+    if "来源 pkg 2.1.7" not in data["session"]:
         fail(errors, "ready state must keep offline package source/version")
 
 
@@ -173,7 +173,7 @@ def run(url: str, screenshot_dir: pathlib.Path | None) -> list[dict[str, Any]]:
         ),
         (
             "offline-ready",
-            "window.__horosaState({ kind: 'offline_ready', installSource: 'pkg_offline', detail: '当前安装来源：离线安装包。本机组件版本 2.1.6 已可直接使用。' })",
+            "window.__horosaState({ kind: 'offline_ready', installSource: 'pkg_offline', detail: '当前安装来源：离线安装包。本机组件版本 2.1.7 已可直接使用。' })",
             check_ready,
         ),
         ("runtime-error", "window.__horosaError('runtime jar 哈希不符')", check_error),

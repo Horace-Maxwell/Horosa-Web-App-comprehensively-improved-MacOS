@@ -923,11 +923,14 @@ export function normalizeKinqimenData(backendPan, fallbackPan, options, nongli){
 }
 
 export async function fetchQimenPan(fields, nongli, options, context){
-	const dt = parseDateTime(fields);
-	if(!dt){
+	const baseDt = parseDateTime(fields);
+	if(!baseDt){
 		return null;
 	}
 	const opt = options || {};
+	// 按所选时间口径计算:真太阳时(timeAlg=0)用 nongli.birth 校正后的时刻,直接时间(=1)用钟表时。
+	// 与前端 calcDunJia(resolveCalcDateTime)、太乙(resolveCalculationDateTime)一致;此前后端漏用此校正,真太阳时被当直接时间排盘。
+	const dt = resolveCalcDateTime(baseDt, nongli, opt, context);
 	const payload = {
 		...dt,
 		zone: fields && fields.date && fields.date.value ? fields.date.value.zone : '',
