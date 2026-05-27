@@ -14,6 +14,28 @@ Append new entries; do not rewrite history.
 
 ## 2026-05-26
 
+### 准备 v2.1.6 beta：奇门历法修复（月柱交节边界 + 置闰超神接气定局）+ 印度盘地图选点修复
+
+- Scope:
+  - Windows 仓库 issue #4(奇门历法)+ #3(印度盘地图选点报错),均在共享 `Horosa-Web`,Mac/Win 同受益。根因为底层 `kentang2017/kinqimen`(我们 vendored 的引擎,与上游同版)已知未修缺陷:月柱日级判定(上游 #53/#9)、置闰未做超神接气校正(上游 #62/#43)。准备 `2.1.6 / 2.1.6-runtime1`。
+  - 全面审计上游 kinqimen 全部 open/closed issue:核心历法 bug(#62/#53/#9/#43)本版覆盖;余下中宫寄宫(#56/#54/#27/#23)属转盘惯例非崩溃、且 tuple 畸形我们版本已不复现,神煞类(#44/#12/#6)为功能增强不入本版,安装/用法类不适用(我们 vendor+服务)。
+- Files:
+  - `Horosa-Web/vendor/kinqimen/jieqi.py`:`gangzhi` 月柱按精确交节校正(立春兼校年柱);新增 `zhirun_jieqi`(超神接气置闰节气)。
+  - `Horosa-Web/vendor/kinqimen/config.py`:重写 `qimen_ju_name_zhirun`(用 `zhirun_jieqi` + findyuen + 局数表);新增 `dingju_jieqi`。
+  - `Horosa-Web/vendor/kinqimen/kinqimen.py`:`pan()` 节气标签改用 `dingju_jieqi`(按拆补/置闰区分)。
+  - `Horosa-Web/vendor/kinqimen/test_qimen_calendar.py`:新增 11 项回归测试。
+  - `Horosa-Web/astrostudyui/src/components/astro/IndiaChartMain.js`:`changeGeo` 改传扁平 `lon/lat/gpsLon/gpsLat`(+`tm`),对齐 `AstroChartMain`。
+  - 版本 lockstep(package.json / Cargo.toml / Cargo.lock / tauri.conf.json / CITATION.cff / web/app.js / release_config.json / verify_launcher_console_states.py)、`config/release_notes/2.1.6.md`、`docs/qimen-calendar-fix-v2.1.6.md`、`docs/windows-sync-handoff.md`、`THIRD_PARTY_NOTICES.md`、README×3。
+- Details:
+  - 月柱:`gangzhi` 取 sxtwl 日级 `getMonthGZ`,交节当日整日已跳新月;改为该日交「节」(12 节)且时刻早于精确交节 → 沿用前一日月柱(立春兼年柱)。
+  - 置闰:旧 `qimen_ju_name_zhirun` 用农历月/日启发式,约 45% 日期误用历法节气而非超神节气。新算法按古典转盘:以「至」前最后上元符头为锚,符头组顺序配节气,芒种/大雪超神≥9天置闰(重复该节气三元)。局数表/阴阳遁/三元(findyuen)未变,仅修符头↔节气配对。拆补法 0 改动(534 日期实测,本就正确)。
+  - 印度盘:`changeGeo` 原把经纬度包成 `{value:...}`,共用父级 `changeCond` 期望扁平字符串 → 报错;改传扁平值。
+- Verification:
+  - Python 单测 11/11 通过(月柱边界/立春、#62/#43/置闰闰、2018–2030 自洽)。
+  - 对照:置闰算法 vs 用户提供权威转盘文档 + 上游 #62/#43 基准点 + 手工核验超神漂移(2004 早春)全中;2018–2030 超神距呈干净周期(~1→15→置闰复位),无异常。
+  - 服务端 `webqimensrv._build_sections` 透出校正后 节气/排局;前端 `npm run build:file` 通过(dist-file 产物含 #3)。
+  - 注:#4 改 vendored Python(随 runtime 包 rsync),**无需重编 astrostudyboot.jar**。
+
 ### 准备 v2.1.5 beta：AI 分析页全面修复（供应商切换/鉴权 + 发送安全 + 静默失败透出）
 
 - Scope:

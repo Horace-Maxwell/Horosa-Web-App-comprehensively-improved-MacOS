@@ -726,32 +726,15 @@ class IndiaChartMain extends Component{
 	changeGeo(rec){
 		let dt = this.tmHook.getValue ? this.tmHook.getValue().value : null;
 		const patch = {
-			lon: {
-				value: convertLonToStr(rec.lng),
-			},
-			lat: {
-				value: convertLatToStr(rec.lat),
-			},
-			gpsLon: {
-				value: rec.gpsLng
-			},
-			gpsLat: {
-				value: rec.gpsLat
-			},
+			lon: convertLonToStr(rec.lng),
+			lat: convertLatToStr(rec.lat),
+			gpsLon: rec.gpsLng,
+			gpsLat: rec.gpsLat,
 		};
 		if(dt){
-			patch.date = {
-				value: dt.clone(),
-			};
-			patch.time = {
-				value: dt.clone(),
-			};
-			patch.ad = {
-				value: dt.ad,
-			};
-			patch.zone = {
-				value: dt.zone,
-			};
+			patch.tm = dt.clone();
+			patch.ad = dt.ad;
+			patch.zone = dt.zone;
 		}
 		this.onFieldsChange(patch);
 	}

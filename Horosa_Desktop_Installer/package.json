@@ -1,7 +1,7 @@
 {
   "name": "horosa-desktop-installer",
   "private": true,
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Horosa macOS desktop shell, installer, and release automation workspace.",
   "license": "AGPL-3.0-only",
   "keywords": [
