@@ -34,6 +34,7 @@ Append new entries; do not rewrite history.
   - Ollama:流式路径两处写死 120s(`SseEmitter(120000L)` 为主因 + `buildJsonRequest .timeout(120s)`),慢速本地模型超时被掐断;改 `SseEmitter(0L)`+条件超时。
 - Verification:
   - `npm run build` + `npm run build:file` 通过;占星清简盘 deltaY 0、太乙四柱随基准、主限 InputNumber dirty 检测、jar 内 `pdYears`×3 + SseEmitter 0L 已核。
+  - 打包链路:`scripts/verify_launcher_console_states.py` 的 launcher 版本断言(`来源 pkg <版本>` + 注入 detail `本机组件版本 <版本>`)2.1.7→2.1.8(launcher 用 `APP_VERSION` 渲染该行,漏改会在签名公证之后才暴露);`release_preflight.sh` 版本 lockstep 新增对该断言的门禁,以后在 preflight 阶段即拦截。`AstroDirectMain.test.js` 的 `app/save` 断言补 `pdYears:100`(全量 128 测试通过)。
   - 注:**本版需重编 `astrostudyboot.jar`(已做)**;Windows 端务必同步重编。Ollama 流式行为端到端需真模型实测。
 
 ### 准备 v2.1.7 beta：奇门/三式 真太阳时定盘修复
