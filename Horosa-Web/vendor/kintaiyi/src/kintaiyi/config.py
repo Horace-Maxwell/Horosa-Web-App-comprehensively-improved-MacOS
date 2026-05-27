@@ -16,9 +16,11 @@ from .ruler import ruler_data
 import cn2an
 from cn2an import an2cn
 from ephem import Date
-from sxtwl import fromSolar
+from sxtwl import fromSolar, JD2DD
 from . import jieqi
 from bidict import bidict
+# 12「節」(每月之首,逢之換月柱;立春兼換年柱)。其餘12「氣」不換月柱。
+JIE_TERMS = {'立春', '驚蟄', '清明', '立夏', '芒種', '小暑', '立秋', '白露', '寒露', '立冬', '大雪', '小寒'}
 
 base = os.path.abspath(os.path.dirname(__file__))
 path = os.path.join(base, 'data.pkl')
@@ -480,6 +482,17 @@ def gangzhi(year, month, day, hour, minute):
         mTG1 = find_lunar_month(yTG).get(lunar_date_d(year, month, day).get("月"))
     else:
         mTG1 = mTG
+    # 月柱按精確交節時刻校正(同 kinqimen):當日交「節」且給定時刻早於精確交節 → 沿用前一日月柱(立春兼校年柱)
+    if year >= 1900:
+        _sd = fromSolar(year, month, day)
+        if _sd.hasJieQi() and jieqi.jqmc[_sd.getJieQi() - 1] in JIE_TERMS:
+            _t = JD2DD(_sd.getJieQiJD())
+            _crossing = datetime.datetime(_t.Y, _t.M, _t.D, int(_t.h), round(_t.m))
+            if datetime.datetime(year, month, day, hour, minute) < _crossing:
+                _prev = _sd.before(1)
+                mTG1 = tian_gan[_prev.getMonthGZ().tg] + di_zhi[_prev.getMonthGZ().dz]
+                if jieqi.jqmc[_sd.getJieQi() - 1] == '立春':
+                    yTG = tian_gan[_prev.getYearGZ().tg] + di_zhi[_prev.getYearGZ().dz]
     hTG1 = find_lunar_hour(dTG).get(hTG[1])
     zi = gangzhi1(year, month, day, 0, 0)[3]
     hourminute = str(hour)+":"+str(minute)

@@ -31,7 +31,7 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache
 from typing import Dict, List, Optional, Set, Tuple
 
-from sxtwl import fromSolar
+from sxtwl import fromSolar, JD2DD
 
 from .constants import (
     CANGGAN,
@@ -374,6 +374,18 @@ def _compute_four_pillars(
     mgz_raw = cdate.getMonthGZ()
     m_stem = TIANGAN[mgz_raw.tg]
     m_branch = DIZHI[mgz_raw.dz]
+    # 按精確交節時刻校正：sxtwl getMonthGZ 為日級，交節當日整日已跳新月。當日若交「月令節」
+    # 且給定時刻早於精確交節時刻 → 仍屬前一節，沿用前一日月柱（立春兼校年柱）。
+    if cdate.hasJieQi() and cdate.getJieQi() in MONTH_JIE_INDICES:
+        _t = JD2DD(cdate.getJieQiJD())
+        _crossing = datetime(_t.Y, _t.M, _t.D, int(_t.h), round(_t.m))
+        if datetime(calc_year, calc_month, calc_day, calc_hour, minute) < _crossing:
+            _prev = cdate.before(1)
+            _mgz = _prev.getMonthGZ()
+            m_stem, m_branch = TIANGAN[_mgz.tg], DIZHI[_mgz.dz]
+            if cdate.getJieQi() == 3:  # 立春 → 年柱回退前一年
+                _ygz = _prev.getYearGZ(False)
+                y_stem, y_branch = TIANGAN[_ygz.tg], DIZHI[_ygz.dz]
 
     # 日柱
     dgz_raw = cdate.getDayGZ()
