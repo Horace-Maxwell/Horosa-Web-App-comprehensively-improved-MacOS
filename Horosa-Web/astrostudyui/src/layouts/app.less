@@ -14102,3 +14102,276 @@
         overflow: visible !important;
     }
 }
+
+/* ── 风水纳气盘（React 重写，去 iframe；明暗用 --horosa-* 变量） ── */
+:global {
+.horosa-fengshui-app {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    color: var(--horosa-text, #1f1f1f);
+    background: var(--horosa-bg, #fff);
+}
+.horosa-fengshui-quickbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
+}
+.horosa-fengshui-quickbar .horosa-fengshui-status {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--horosa-text-soft, #999);
+    max-width: 46%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.horosa-fengshui-layout {
+    flex: 1;
+    min-height: 0;
+    margin: 0 !important;
+    align-items: stretch;
+}
+.horosa-fengshui-side {
+    height: 100%;
+    min-height: 0;
+    overflow: auto;
+    border-right: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
+}
+.horosa-fengshui-workspace {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.horosa-fengshui-workspace-tabs {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.horosa-fengshui-workspace-tabs > .ant-tabs-content-holder {
+    flex: 1;
+    min-height: 0;
+}
+.horosa-fengshui-workspace-tabs > .ant-tabs-content-holder > .ant-tabs-content {
+    height: 100%;
+}
+.horosa-fengshui-workspace-tabs .ant-tabs-tabpane-active {
+    height: 100%;
+    min-height: 0;
+}
+.horosa-fengshui-canvas-wrap {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.horosa-fengshui-canvas-host {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    background: var(--horosa-panel-soft, rgba(148,163,184,.12));
+    border: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
+    border-radius: 8px;
+    overflow: hidden;
+}
+.horosa-fengshui-canvas {
+    display: block;
+    position: absolute;
+    inset: 0;
+}
+.horosa-fengshui-canvas-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--horosa-text-soft, #999);
+    pointer-events: none;
+}
+.horosa-fengshui-canvas-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 4px 2px 6px;
+}
+.horosa-fengshui-legend {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--horosa-text-muted, #888);
+}
+.horosa-fengshui-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.horosa-fengshui-legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.horosa-fengshui-legend .dot.wind { background: rgb(180, 30, 30); }
+.horosa-fengshui-legend .dot.water { background: rgb(20, 30, 100); }
+.horosa-fengshui-canvas-actions { display: flex; gap: 6px; align-items: center; }
+.horosa-fengshui-zoom { font-size: 12px; color: var(--horosa-text-muted, #888); min-width: 42px; text-align: center; }
+.horosa-fengshui-card {
+    background: var(--horosa-surface, rgba(255,255,255,.72));
+    border: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px;
+}
+.horosa-fengshui-card-title { font-weight: 600; margin-bottom: 8px; color: var(--horosa-text, #1f1f1f); }
+.horosa-fengshui-field { margin-bottom: 10px; }
+.horosa-fengshui-field > label { display: block; font-size: 12px; color: var(--horosa-text-muted, #888); margin-bottom: 4px; }
+.horosa-fengshui-dual { display: flex; gap: 8px; align-items: center; }
+.horosa-fengshui-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.horosa-fengshui-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--horosa-text-muted, #888); }
+.horosa-fengshui-stats strong { color: var(--horosa-text, #1f1f1f); }
+.horosa-fengshui-helper { font-size: 12px; color: var(--horosa-text-soft, #999); margin-top: 6px; }
+.horosa-fengshui-inline-val { color: var(--horosa-text-soft, #999); font-weight: 400; }
+.horosa-fengshui-judge { padding: 8px; }
+.horosa-fengshui-filterbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.horosa-fengshui-marker-list { display: flex; flex-direction: column; gap: 6px; }
+.horosa-fengshui-marker-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 8px;
+    border: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
+    border-radius: 8px;
+    cursor: pointer;
+}
+.horosa-fengshui-marker-row.active { border-color: var(--horosa-accent, #c9a86a); }
+.horosa-fengshui-marker-chip { display: flex; align-items: center; gap: 6px; }
+.horosa-fengshui-chip-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.horosa-fengshui-marker-meta { font-size: 12px; color: var(--horosa-text-muted, #888); }
+.horosa-fengshui-marker-status { font-size: 12px; }
+.horosa-fengshui-marker-status.ok { color: #2e9e6b; }
+.horosa-fengshui-marker-status.warn { color: #d0584a; }
+.horosa-fengshui-summary { margin-top: 10px; font-size: 12px; color: var(--horosa-text-muted, #888); }
+.horosa-fengshui-tips { padding-left: 18px; margin: 0; }
+.horosa-fengshui-tips li { margin-bottom: 6px; color: var(--horosa-text-muted, #888); }
+}
+
+/* ── 数算：邵子参评数(原生) ── */
+:global {
+.horosa-canping-center {
+    width: 100%;
+    align-self: flex-start;
+    padding: 4px 4px 16px;
+    color: var(--horosa-text, #1f1f1f);
+}
+.horosa-canping-aux { padding: 2px 0; }
+.horosa-canping-block {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
+}
+.horosa-canping-block:first-of-type { margin-top: 8px; border-top: 0; padding-top: 0; }
+.horosa-canping-block-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--horosa-accent-strong, var(--horosa-accent, #c9a86a));
+    margin-bottom: 8px;
+}
+.horosa-canping-center .horosa-huangji-info-card { margin-bottom: 14px; }
+.horosa-canping-toolbar {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    padding: 6px 0 10px;
+}
+.horosa-canping-part { font-size: 16px; font-weight: 700; color: var(--horosa-accent-strong, var(--horosa-accent, #c9a86a)); }
+.horosa-canping-sub { font-size: 12px; color: var(--horosa-text-muted, #888); }
+.horosa-canping-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.horosa-canping-table th, .horosa-canping-table td {
+    border: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+.horosa-canping-table thead th { color: var(--horosa-text-muted, #888); font-weight: 500; white-space: nowrap; background: var(--horosa-surface, rgba(148,163,184,.08)); }
+.horosa-canping-dayun, .horosa-canping-liunian { width: 100%; }
+.horosa-canping-liunian td:first-child, .horosa-canping-liunian td:nth-child(2), .horosa-canping-liunian td:nth-child(3) { white-space: nowrap; }
+.horosa-canping-verse-num { font-size: 12px; color: var(--horosa-text-muted, #888); margin-top: 10px; }
+.horosa-canping-verse-num:first-of-type { margin-top: 0; }
+.horosa-canping-verse-text { font-size: 16px; line-height: 1.8; color: var(--horosa-text, #1f1f1f); letter-spacing: 1px; }
+.horosa-canping-helper { font-size: 12px; color: var(--horosa-text-soft, #999); padding: 8px 0; }
+}
+
+/* ── 数算：河洛理数(原生) ── */
+:global {
+/* board-host 是 align-items:center 的 flex 行；内容超高时顶部会被居中挤出且无法上滑，故强制顶对齐 */
+.horosa-heluo-center { width: 100%; align-self: flex-start; padding: 4px 4px 16px; color: var(--horosa-text, #1f1f1f); }
+.horosa-heluo-aux { padding: 2px 0; }
+.horosa-heluo-toolbar {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 6px 0 10px;
+}
+.horosa-heluo-part { font-size: 16px; font-weight: 700; color: var(--horosa-accent-strong, var(--horosa-accent, #c9a86a)); }
+.horosa-heluo-sub { font-size: 12px; color: var(--horosa-text-muted, #888); }
+.horosa-heluo-center .horosa-huangji-info-card { margin-bottom: 14px; }
+.horosa-heluo-block-subtitle { font-size: 12px; font-weight: 600; color: var(--horosa-text-muted, #888); margin: 16px 0 6px; }
+/* 卦象 */
+.horosa-heluo-guahead { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px 20px; }
+.horosa-heluo-gua { display: inline-flex; flex-direction: column; gap: 3px; flex: none; }
+.horosa-heluo-yaorow { display: flex; align-items: center; gap: 8px; padding: 2px 5px; border-radius: 4px; }
+.horosa-heluo-yaorow.is-yuan { background: var(--horosa-accent-soft, rgba(201,168,106,.18)); outline: 1px solid var(--horosa-accent, #c9a86a); }
+.horosa-heluo-najia { width: 56px; font-size: 12px; color: var(--horosa-text-muted, #888); text-align: right; white-space: nowrap; }
+.horosa-heluo-shiying { font-style: normal; color: var(--horosa-accent-strong, var(--horosa-accent, #b07d20)); font-weight: 700; }
+.horosa-heluo-bar-wrap { display: inline-flex; }
+.horosa-heluo-yaolabel { font-size: 11px; color: var(--horosa-text-soft, #aaa); white-space: nowrap; min-width: 56px; }
+.horosa-heluo-bar { display: inline-flex; gap: 8px; width: 60px; height: 8px; }
+.horosa-heluo-bar.yang { background: var(--horosa-text, #1f1f1f); border-radius: 2px; }
+.horosa-heluo-bar.yin i { flex: 1; background: var(--horosa-text, #1f1f1f); border-radius: 2px; }
+.horosa-heluo-guameta { min-width: 180px; flex: 1; }
+.horosa-heluo-guaname { font-size: 17px; font-weight: 700; }
+.horosa-heluo-verdict { margin-left: 8px; font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: var(--horosa-surface, rgba(148,163,184,.12)); color: var(--horosa-accent-strong, var(--horosa-accent, #c9a86a)); }
+.horosa-heluo-yuanyao { font-size: 13px; color: var(--horosa-text-muted, #888); margin-top: 3px; }
+.horosa-heluo-gist { font-size: 13px; color: var(--horosa-text-soft, #999); margin-top: 4px; }
+.horosa-heluo-dui { font-size: 12px; color: var(--horosa-text-muted, #888); margin-top: 5px; }
+.horosa-heluo-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 5px; }
+/* 元气/化工 标签 */
+.horosa-heluo-tag { font-size: 11px; padding: 1px 7px; border-radius: 9px; background: var(--horosa-accent-soft, rgba(201,168,106,.20)); color: var(--horosa-accent-strong, var(--horosa-accent, #b07d20)); border: 1px solid var(--horosa-accent, rgba(201,168,106,.5)); }
+.horosa-heluo-tag.is-fan { background: transparent; color: var(--horosa-accent-strong, var(--horosa-accent, #b07d20)); border-style: dashed; opacity: .82; }
+/* 下钻箭头单元格 */
+.horosa-heluo-arrowcell { width: 26px; text-align: center; cursor: pointer; }
+.horosa-heluo-arrow { display: inline-block; color: var(--horosa-accent-strong, var(--horosa-accent, #b07d20)); transition: transform .15s; }
+.horosa-heluo-arrow.is-open { transform: rotate(180deg); }
+.horosa-heluo-arrowcell:hover .horosa-heluo-arrow { opacity: .7; }
+.horosa-heluo-tag-none { font-size: 12px; color: var(--horosa-text-soft, #aaa); }
+.horosa-heluo-tagcell { white-space: normal; }
+.horosa-heluo-tagcell .horosa-heluo-tag { display: inline-block; margin: 1px 2px; }
+/* 爻辞 */
+.horosa-heluo-yaoci { margin-top: 12px; }
+.horosa-heluo-yaoci-head { font-size: 14px; font-weight: 700; color: var(--horosa-accent-strong, var(--horosa-accent, #c9a86a)); margin-bottom: 8px; }
+.horosa-heluo-yaoci-rel { font-size: 12px; font-weight: 600; color: var(--horosa-accent-strong, var(--horosa-accent, #b07d20)); }
+/* 摘要/诗歌/倪海厦 各成一段，标签作小徽标，正文清晰可读 */
+.horosa-heluo-yaoci-detail, .horosa-heluo-yaoci-shige, .horosa-heluo-yaoci-simple { font-size: 14px; line-height: 1.95; color: var(--horosa-text, #1f1f1f); margin-top: 10px; }
+.horosa-heluo-yaoci-shige { white-space: pre-line; }
+.horosa-heluo-yaoci-simple { color: var(--horosa-text-muted, #777); }
+.horosa-heluo-yaoci-detail b, .horosa-heluo-yaoci-shige b, .horosa-heluo-yaoci-simple b {
+    display: inline-block; margin-right: 8px; padding: 0 8px; font-size: 12px; font-weight: 600; line-height: 1.7;
+    color: var(--horosa-accent-strong, var(--horosa-accent, #b07d20)); background: var(--horosa-accent-soft, rgba(201,168,106,.16));
+    border-radius: 4px; vertical-align: 1px;
+}
+.horosa-heluo-yaoci-expand { margin: 0; padding: 12px 14px; background: var(--horosa-surface, rgba(148,163,184,.07)); border-radius: 8px; border: 1px solid var(--horosa-border-soft, rgba(148,163,184,.22)); }
+.horosa-heluo-yaoci-expand .horosa-heluo-yaoci-detail:first-of-type { margin-top: 4px; }
+.horosa-heluo-tag.is-rel { background: var(--horosa-accent, rgba(201,168,106,.9)); color: #fff; border-color: transparent; font-weight: 600; }
+:root[data-horosa-appearance='dark'] .horosa-heluo-tag.is-rel { color: #1a1a1a; }
+/* 表格 */
+.horosa-heluo-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.horosa-heluo-table th, .horosa-heluo-table td { border: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28)); padding: 6px 10px; text-align: left; vertical-align: top; }
+.horosa-heluo-table thead th { background: var(--horosa-surface, rgba(148,163,184,.08)); color: var(--horosa-text-muted, #888); font-weight: 500; white-space: nowrap; }
+.horosa-heluo-table tbody tr { cursor: pointer; }
+.horosa-heluo-table tbody tr:hover { background: var(--horosa-surface, rgba(148,163,184,.08)); }
+.horosa-heluo-table tbody tr.is-active { background: var(--horosa-accent-soft, rgba(201,168,106,.18)); }
+.horosa-heluo-table tbody tr.is-open { background: var(--horosa-accent-soft, rgba(201,168,106,.12)); }
+.horosa-heluo-detailrow td { padding: 12px 14px; cursor: default; background: var(--horosa-surface, rgba(201,168,106,.05)); }
+.horosa-heluo-detailrow:hover { background: transparent; }
+.horosa-heluo-detailrow .horosa-heluo-yaoci { margin-top: 0; }
+/* 流月/流日 下钻面板 */
+.horosa-heluo-drill { margin-top: 10px; padding-left: 10px; border-left: 2px solid var(--horosa-accent-soft, rgba(201,168,106,.4)); }
+.horosa-heluo-ellip { color: var(--horosa-text-muted, #888); max-width: 220px; }
+}

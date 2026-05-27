@@ -47,7 +47,7 @@ export const PROVIDER_PRESETS = {
 		label: 'Gemini',
 		protocolFamily: 'gemini',
 		baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-		defaultChatModels: [],
+		defaultChatModels: ['gemini-2.5-flash', 'gemini-2.5-pro'],
 		defaultEmbeddingModels: ['text-embedding-004'],
 		requestTimeoutMs: 120000,
 	},

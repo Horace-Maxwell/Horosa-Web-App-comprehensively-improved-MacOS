@@ -23,6 +23,14 @@ describe('aiAnalysisProviders', ()=>{
 		expect(getProviderDefaultChatModels('moonshot')).toEqual(['kimi-k2.5', 'kimi-k2-turbo-preview']);
 	});
 
+	test('gemini preset exposes chat models distinct from embedding models', ()=>{
+		const preset = getProviderPreset('gemini');
+		expect(preset.baseUrl).toBe('https://generativelanguage.googleapis.com/v1beta');
+		expect(getProviderProtocolFamily('gemini')).toBe('gemini');
+		expect(getProviderDefaultChatModels('gemini')).toEqual(['gemini-2.5-flash', 'gemini-2.5-pro']);
+		expect(getProviderDefaultEmbeddingModels('gemini')).toEqual(['text-embedding-004']);
+	});
+
 	test('splitProviderModels separates embedding-like ids', ()=>{
 		expect(splitProviderModels(['deepseek-chat', 'text-embedding-3-small', 'bge-large-zh'], 'deepseek')).toEqual({
 			models: ['deepseek-chat', 'text-embedding-3-small', 'bge-large-zh'],

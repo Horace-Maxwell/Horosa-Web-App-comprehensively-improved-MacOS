@@ -88,6 +88,9 @@ public class AIAnalysisProxyService {
 	public Map<String, Object> chat(Map<String, Object> params){
 		String providerType = normalizedProviderType(params);
 		String model = requireModel(params);
+		if(isEmbeddingModel(model, providerType)){
+			throw new ErrorCodeException(580014, "所选模型是 Embedding 模型，不能用于对话，请选择聊天模型");
+		}
 		List<Map<String, Object>> messages = getMessageList(params.get("messages"));
 		String responseText = "";
 		Map<String, String> headers = buildAuthHeaders(providerType, stringVal(params, "apiKey"), params);
@@ -118,6 +121,9 @@ public class AIAnalysisProxyService {
 	public void chatStream(Map<String, Object> params, SseEmitter emitter){
 		String providerType = normalizedProviderType(params);
 		String model = requireModel(params);
+		if(isEmbeddingModel(model, providerType)){
+			throw new ErrorCodeException(580014, "所选模型是 Embedding 模型，不能用于对话，请选择聊天模型");
+		}
 		List<Map<String, Object>> messages = getMessageList(params.get("messages"));
 		try{
 			if(isOpenAICompatible(providerType)) {
@@ -204,7 +210,7 @@ public class AIAnalysisProxyService {
 			String url = joinUrl(resolveBaseUrl(providerType, stringVal(params, "baseUrl")), "/embeddings");
 			String rsp = HttpClientUtility.uploadString(
 				url,
-				buildAuthHeaders(providerType, stringVal(params, "apiKey")),
+				buildAuthHeaders(providerType, stringVal(params, "apiKey"), params),
 				"application/json; charset=UTF-8",
 				JsonUtility.encode(body)
 			);
@@ -222,7 +228,7 @@ public class AIAnalysisProxyService {
 				body.put("content", buildMap("parts", Arrays.asList(buildTextPart(input))));
 				String rsp = HttpClientUtility.uploadString(
 					url,
-					buildAuthHeaders(providerType, apiKey),
+					buildAuthHeaders(providerType, apiKey, params),
 					"application/json; charset=UTF-8",
 					JsonUtility.encode(body)
 				);

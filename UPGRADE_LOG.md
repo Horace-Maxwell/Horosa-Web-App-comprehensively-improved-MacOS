@@ -12,6 +12,32 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-05-27
+
+### 准备 v2.2.0 beta：数算两新技法（邵子参评数 / 河洛理数）+ 调波盘绘制 + 风水 React 化
+
+- Scope:
+  - **数算模块新增两技法，全前端本地推算（四柱用 `utils/baziLunarLocal`，不接 kentang/Python/Java 后端，无需重编 jar）**：
+    - 邵子参评数（金锁银匙）：古法/明法可切、本命+大运（命宫顺行）+1–120 岁全表流年。
+    - 河洛理数：起命（天地数→先天/后天卦+元堂，含三至尊换卦特例）/大限/流年→流月→流日下钻；纳甲六亲世应（复用 `gua/GuaConst` Gua64）、互卦/覆卦、含藏覆反「理数」、河洛爻辞 + 倪海厦易经推命（xlsx「易經推命資料」per-卦先/后/流年）。
+  - 调波盘（#9）：辅盘改用量化盘整盘渲染；风水（#11）：iframe→React 全重写 + 明暗 + 占屏。
+  - **AI 分析修复（#6，前端+后端）**：测试连接/模型下拉只列聊天模型并用选中模型，Gemini 预设补默认聊天模型；后端 `/embeddings` 鉴权头补 `params`、chat/chatStream 拒收 Embedding 模型（错误码 580014）。**本版含 Java 改动，已重编 `astrostudyboot.jar`**。#7「拉取模型失败」判定为上报者网络/代理连不上外网（OpenAI/OpenRouter），本版不改码（见 GitHub issue 回复）。
+  - 准备 `2.2.0 / 2.2.0-runtime1`。
+- Files:
+  - 数算引擎/数据：`astrostudyui/src/utils/{heluoLocal,canpingLocal}.js` + `src/utils/data/{heluoTiaowen,canpingTiaowen,heluoNihaixiaRaw}.json` + `scripts/buildHeluoData.js`、`scripts/_heluoTest.mjs`（59 断言）。
+  - 数算组件/接入：`src/components/shusuan/{HeLuoMain,CanPingMain}.js`、`components/kinastro/KinAstroMain.js`（既有金色 rail 加两入口、native 分支、左栏取法）、`layouts/app.less`（`:global .horosa-heluo-* / .horosa-canping-*`）。
+  - 调波盘：`astropy/astrostudy/{thirteenthchart,astroextra}.py`（HarmonicChart/build_harmonic）+ `components/auxchart/{AstroHarmonicLab,AuxChartMain}.js`。
+  - 风水：`components/fengshui/{fengshuiEngine,FengShuiMain}.js`。
+  - 稳定化：`utils/{aiExport,aiAnalysisContext}.js` 注册 canping/heluo（导出上下文+分段字段+别名集+标签）。
+  - AI 修复（#6）：`utils/aiAnalysisProviders.js`（Gemini 默认聊天模型）、`components/aianalysis/AIAnalysisMain.js`（`normalizeProfileChatModels` + 下拉/列表展示/测试连接选中模型 + chunk-embedding 补 `providerOptions`）、`astrostudy/.../service/AIAnalysisProxyService.java`（embeddings 鉴权头 3 参 + chat/chatStream Embedding 守卫）、`utils/__tests__/aiAnalysisProviders.test.js`（+Gemini 断言）；技术文档 `docs/ai-model-selection-fix.md`。
+  - 版本 lockstep(2.2.0)、`config/release_notes/2.2.0.md`、`docs/{shusuan-canping-heluo,harmonic-chart,fengshui-react-rewrite}-v2.1.9.md`、`docs/windows-sync-handoff.md` v2.2.0 条目。
+- Details:
+  - 河洛全链对照参考盘（丙戌·丁酉·丙寅·癸巳）逐项验证：先天否·上九→后天临·六三、大限先天1–45/后天46起、流年否→遯→咸→革→夬→兑→节→临→损、流月渐→家人→艮…、流日 30 日动爻初→上、理数含/藏/覆元气化工。
+  - 代码/算例中不出现近现代政治人物（中性八字/卦标注；条文内古代创始人属源典正文保留）。
+- Verification: `scripts/_heluoTest.mjs` 59 断言全过；`aiAnalysisProviders.test.js` 4 断言过（含 Gemini 默认聊天模型）；preview 实测起盘/下钻/明暗/AI导出列出数算两技法+分段字段。**本版含 Java 改动（AIAnalysisProxyService），已 `mvn` 重编 `astrostudyboot.jar` 并过 preflight 新鲜度。**
+
+---
+
 ## 2026-05-26
 
 ### 准备 v2.1.8 beta：UI 几何/明暗修复 + 太乙四柱时间 + 主限推运年数 + Ollama 流式
