@@ -52,7 +52,8 @@
 - **邵子参评数**（金锁银匙）：`utils/canpingLocal.js` + `utils/data/canpingTiaowen.json`（五部×78）；组件 `components/shusuan/CanPingMain.js`（古法/明法开关、本命/大运/流年）。
 - **河洛理数**：`utils/heluoLocal.js`（起命 天地数→卦→元堂→后天、起运 大限/流年、命运篇 元气/化工/得体等判断、爻辞查找）+ `utils/data/heluoTiaowen.json`（64卦×6爻，由 `scripts/buildHeluoData.js` 从 5 个条文 md 解析；脚本读 Obsidian 源 `~/Documents/Obsidianl Vault ABCDE/玄哲/4.条文/河洛理数/`，**仅生成的 JSON 入库**）；组件 `components/shusuan/HeLuoMain.js`（先天/后天卦象+元堂+爻辞、大限表点选联动流年、右栏命运篇判断）。
 - `layouts/app.less` 末尾 `:global { .horosa-canping-* }` 与 `:global { .horosa-heluo-* }` 布局+明暗。
-- 算法验证：`scripts/_heluoTest.mjs`（esbuild bundle 后 node 跑）共 59 断言全过——含算例 甲子丁卯庚申庚辰→天风姤·上九、董盘 丙戌丁酉丙寅癸巳→先天否上九/后天临六三、大限 1–45/46起、流年 9 卦序、流月 9 卦、流日 30 日动爻初→上、理数含/藏/覆。
+- 算法验证：`scripts/_heluoTest.mjs`（esbuild bundle 后 node 跑）共 72 断言全过——含算例 甲子丁卯庚申庚辰→天风姤·上九、董盘 丙戌丁酉丙寅癸巳→先天否上九/后天临六三、大限 1–45/46起、**先天/后天 5 个大限的流年逐卦逐动爻、含 临初九后天阳爻大限(起阴年)**、多年流月(2021/2052/2057/2075/2076)、流日 30 日动爻初→上、理数含/藏/覆。
+- **⚠️ v2.2.0 流年算法修订（覆盖发布）**：初版 `liuNian` 的动爻位写死从初爻数（阳爻 1..6、阴爻 1..5），**只在元堂=上九时偶合**，其余大限流年全错。已按典籍重写为**从上一年動爻往上一爻链式累变**（阳爻另加首年阳年不变/阴年变元堂 + 第2、3年连变应爻）。Windows 端**重新同步 `utils/heluoLocal.js`** 即可（纯前端，无 Java，不重编 jar）；对照本机 `_heluoTest.mjs` 72 断言。
 
 ### #6 AI 分析：模型选项不能覆盖（前端 + Java）⚠️ 本版唯一 Java 改动
 机制细节见 [`ai-model-selection-fix.md`](ai-model-selection-fix.md)。根因纯前端：测试连接/下拉用全量模型（含 embedding）首个、无视选中聊天模型 + Gemini 预设 `defaultChatModels: []` 导致唯一模型是 `text-embedding-004`，被当聊天模型送进 `:generateContent` → 404。后端无此 bug，加固为防御性。
