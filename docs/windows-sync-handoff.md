@@ -39,6 +39,8 @@
 ### Windows 要做
 同步上述 `Horosa-Web/` 改动 → 因含 Java 改动,**重编 `astrostudyboot.jar`**(boundless install → astrostudy install → astrostudyboot clean package,见通用清单)→ 重建前端(`build` 然后 `build:file`)。
 
+> 打包链路提示(`Horosa_Desktop_Installer/` 不共享,仅供参考):本版 macOS 端发现 `scripts/verify_launcher_console_states.py` 硬编码了 launcher 的 `来源 pkg <版本>` 断言(launcher 用 `APP_VERSION` 渲染该行),漏改会在「编译+签名+公证」之后才报 ready-state 失败。macOS 已把它纳入 `release_preflight.sh` 的版本 lockstep 门禁。Windows 打包链路如有同类「launcher 版本断言」,请同样每版同步、并在 preflight 里加门禁。
+
 ### 验证
 占星清简盘星座质心居中;太乙切基准时日/时柱变、两时间稳定;主限法推运年数改值表格行数随之变(≤180);Ollama 慢模型不再 120s 中断(需真 Ollama)。
 

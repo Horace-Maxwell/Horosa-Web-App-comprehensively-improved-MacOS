@@ -55,6 +55,7 @@
       "Bash(git tag)",
       "Bash(git tag -l:*)",
       "Bash(git ls-remote:*)",
+      "Bash(git push:*)",
       "Bash(gh release view:*)",
       "Bash(curl -fsSL https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/horosa-latest.json:*)",
       "mcp__Claude_Preview__preview_start",
@@ -65,7 +66,6 @@
       "mcp__Claude_Preview__preview_stop"
     ],
     "deny": [
-      "Bash(git push:*)",
       "Bash(git tag -d:*)",
       "Bash(git reset --hard:*)",
       "Bash(rm -rf:*)"
