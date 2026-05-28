@@ -15,6 +15,8 @@ import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.URI;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
@@ -99,6 +101,26 @@ public class HttpClientUtility {
     			}catch(Exception ex) {
     				// 端口非法则不设代理,回退原行为。
     			}
+    		}
+    	}
+
+    	// v2.2.1+ (#9):仍无显式代理时,回退到 JVM 默认 ProxySelector。
+    	// 配合启动器 -Djava.net.useSystemProxies=true,可自动取 macOS/Windows 系统代理;
+    	// 无系统代理则 select 返回 DIRECT、host 保持 null,行为不变(localhost 由调用方各自直连)。
+    	if(host == null) {
+    		try {
+    			List<Proxy> proxies = ProxySelector.getDefault().select(new URI("https://api.openai.com"));
+    			if(proxies != null) {
+    				for(Proxy p : proxies) {
+    					if(p.type() == Proxy.Type.HTTP && p.address() instanceof InetSocketAddress) {
+    						InetSocketAddress addr = (InetSocketAddress) p.address();
+    						host = new HttpHost(addr.getHostString(), addr.getPort());
+    						break;
+    					}
+    				}
+    			}
+    		}catch(Exception ex) {
+    			// 解析失败则不设代理,回退原行为。
     		}
     	}
 

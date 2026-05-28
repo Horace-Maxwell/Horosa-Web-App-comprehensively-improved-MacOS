@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ProxySelector;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -57,8 +58,12 @@ public class AIAnalysisProxyService {
 	private static final String DEFAULT_XAI_BASE = "https://api.x.ai/v1";
 	private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(120);
 
+	// #9:流式 AI 请求经系统代理(配合启动器 -Djava.net.useSystemProxies=true)。
+	// JDK HttpClient 不调用 .proxy() 时默认完全不走代理;此处显式取 ProxySelector.getDefault(),
+	// 无系统代理时返回 DIRECT、localhost 自动 bypass,行为不变。
 	private final HttpClient streamHttpClient = HttpClient.newBuilder()
 		.connectTimeout(Duration.ofSeconds(15))
+		.proxy(ProxySelector.getDefault())
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.build();
 

@@ -5259,6 +5259,15 @@
         overflow: hidden;
     }
 
+    /* 修复:占星右栏每个 tab 的内容容器原由组件按固定 px(AstroChartMain 的 tabHeight=height-100,
+       再被组件内部多减 ~78px)定高,比实际 pane 矮约 110px——内容下方留出一块空白,且内容较多时
+       被压在更小区域内滚动(后续内容被挡住)。这里让 tab 的内容容器填满 pane 高度:空白消失,
+       内容用满可视高度、超高仍由自身 overflow 滚动。pane 本身随视口高度自适应,故各屏幕尺寸通用。 */
+    .horosa-workspace-shell .horosa-content-tabs .ant-tabs-tabpane > * {
+        height: 100% !important;
+        max-height: 100% !important;
+    }
+
     .horosa-workspace-shell .horosa-astro-content-scroll {
         display: grid;
         gap: 8px;
@@ -5383,7 +5392,12 @@
 
     .horosa-workspace-shell .horosa-bottom-quick-actions {
         display: grid;
-        grid-template-columns: repeat(8, minmax(78px, 1fr));
+        /* 原写死 repeat(8)——但多数技法(太乙6~9动态/六壬5/镜诀6/金口…)都用这条基础规则,
+           动作数≠8 时右侧留空列或第9个被裁。改为按实际动作数自适应填满整行:
+           8 个时与原 repeat(8) 等价(占星/占卦不变),少于 8 个时按钮变宽填满、无空列,
+           且兼容太乙等条件式动态动作数。aux(5)/guolao(7) 各自有固定列覆盖,不受影响。 */
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(78px, 1fr);
         gap: 6px;
         align-self: stretch;
         align-items: center;
@@ -14115,9 +14129,9 @@
 .horosa-fengshui-quickbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
-    padding: 8px 10px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
 }
 .horosa-fengshui-quickbar .horosa-fengshui-status {
@@ -14139,7 +14153,18 @@
     height: 100%;
     min-height: 0;
     overflow: auto;
+    padding-top: 4px;
     border-right: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
+}
+/* 选择栏(基础/纳气盘/标注/导出)原贴左边框,与下方卡片(距边 16px)错位;给 tab 头加左右内边距,
+   与卡片对齐、留出安全距离。 */
+.horosa-fengshui-side .ant-tabs > .ant-tabs-nav {
+    padding: 0 14px;
+    margin-bottom: 6px;
+}
+/* 工作区 tab(画布/判定/要点)同样贴左,给安全距离。 */
+.horosa-fengshui-workspace-tabs > .ant-tabs-nav {
+    padding: 0 12px;
 }
 .horosa-fengshui-workspace {
     height: 100%;
@@ -14196,9 +14221,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
-    padding: 4px 2px 6px;
+    padding: 6px 10px 10px;
 }
 .horosa-fengshui-legend {
     display: flex;
@@ -14217,17 +14242,17 @@
     background: var(--horosa-surface, rgba(255,255,255,.72));
     border: 1px solid var(--horosa-border-soft, rgba(148,163,184,.28));
     border-radius: 8px;
-    padding: 12px;
-    margin: 8px;
+    padding: 14px;
+    margin: 8px 10px 10px;
 }
-.horosa-fengshui-card-title { font-weight: 600; margin-bottom: 8px; color: var(--horosa-text, #1f1f1f); }
-.horosa-fengshui-field { margin-bottom: 10px; }
-.horosa-fengshui-field > label { display: block; font-size: 12px; color: var(--horosa-text-muted, #888); margin-bottom: 4px; }
+.horosa-fengshui-card-title { font-weight: 600; margin-bottom: 10px; color: var(--horosa-text, #1f1f1f); letter-spacing: .2px; }
+.horosa-fengshui-field { margin-bottom: 14px; }
+.horosa-fengshui-field > label { display: block; font-size: 12px; line-height: 1.6; color: var(--horosa-text-muted, #888); margin-bottom: 6px; }
 .horosa-fengshui-dual { display: flex; gap: 8px; align-items: center; }
 .horosa-fengshui-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .horosa-fengshui-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--horosa-text-muted, #888); }
 .horosa-fengshui-stats strong { color: var(--horosa-text, #1f1f1f); }
-.horosa-fengshui-helper { font-size: 12px; color: var(--horosa-text-soft, #999); margin-top: 6px; }
+.horosa-fengshui-helper { font-size: 12px; line-height: 1.6; color: var(--horosa-text-soft, #999); margin-top: 8px; }
 .horosa-fengshui-inline-val { color: var(--horosa-text-soft, #999); font-weight: 400; }
 .horosa-fengshui-judge { padding: 8px; }
 .horosa-fengshui-filterbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }

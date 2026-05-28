@@ -179,6 +179,15 @@ class ChuangChart {
 	}
 
 	getSangCuang(){
+		// 发三传九法的判定顺序须严格按典籍(0.基石/2.九法)：
+		// 伏吟/返吟(式) → 贼克(贼/摄) → [比用/涉害,见 isJinKe*] → 遥克 → 八专 → 别责 → 昴星。
+		// 关键点：
+		//  · 遥克必须在八专之前——八专(干支同位)若四课无近克但日干与他课上神有遥克,
+		//    按九法应归遥克(第4法)而非八专(第9法)。原实现把 isBaZhuang 放在 isYaoKe 之前,
+		//    会把"八专结构 + 遥克"误判为八专课,故此处下移。
+		//  · 八专须在别责之前——八专(一课=三课)会令二课=四课,从而满足 isBieZe 的
+		//    "某两课相同",若先判别责会被误吞,故八专优先于别责。
+		//  · 昴星(isMaoXing)是无克且四课俱全的兜底(总会返回),必须最后判。
 		let cuang = this.isFuYin();
 		if(cuang){
 			return cuang;
@@ -189,7 +198,7 @@ class ChuangChart {
 			return cuang;
 		}
 
-		
+
 		cuang = this.isJinKe0();
 		if(cuang){
 			return cuang;
@@ -200,17 +209,17 @@ class ChuangChart {
 			return cuang;
 		}
 
-		cuang = this.isBaZhuang();
-		if(cuang){
-			return cuang;
-		}
-
 		cuang = this.isYaoKe0();
 		if(cuang){
 			return cuang;
 		}
 
 		cuang = this.isYaoKe1();
+		if(cuang){
+			return cuang;
+		}
+
+		cuang = this.isBaZhuang();
 		if(cuang){
 			return cuang;
 		}
