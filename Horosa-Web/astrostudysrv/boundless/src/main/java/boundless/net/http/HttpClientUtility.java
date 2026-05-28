@@ -81,7 +81,27 @@ public class HttpClientUtility {
     	}if(all_proxy != null) {
     		host = new HttpHost(all_proxy);
     	}
-    	
+
+    	// v2.2.1 (Win #9):GUI 启动的桌面应用通常拿不到 http_proxy 环境变量,用户「本地代理正常」
+    	// 但应用仍直连 api.openai.com 超时。仅当环境变量未提供代理时,回退到 JVM 系统属性
+    	// https.proxyHost/http.proxyHost(启动器或用户可设)。纯增量:无系统属性则返回 null,行为不变。
+    	if(host == null) {
+    		String sysHost = System.getProperty("https.proxyHost");
+    		String sysPort = System.getProperty("https.proxyPort");
+    		if(sysHost == null || sysHost.isEmpty()) {
+    			sysHost = System.getProperty("http.proxyHost");
+    			sysPort = System.getProperty("http.proxyPort");
+    		}
+    		if(sysHost != null && !sysHost.isEmpty()) {
+    			try {
+    				int port = (sysPort != null && !sysPort.isEmpty()) ? Integer.parseInt(sysPort) : -1;
+    				host = new HttpHost(sysHost, port);
+    			}catch(Exception ex) {
+    				// 端口非法则不设代理,回退原行为。
+    			}
+    		}
+    	}
+
     	return host;
 	}
 	

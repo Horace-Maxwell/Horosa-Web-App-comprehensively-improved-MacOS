@@ -8,6 +8,7 @@ import {detectPlatform} from '../utils/helper';
 import * as AstroConst from '../constants/AstroConst';
 import { setTmDelta } from '../utils/request';
 import { normalizeAppearanceMode } from '../utils/appearance';
+import { normalizeDayBoundary, DAY_BOUNDARY_AFTER23, normalizeLateZiHourMode, LATE_ZI_HOUR_NEXT_DAY } from '../utils/dayBoundary';
 
 const MinWorkspaceHeight = 660;
 const WorkspaceReservedHeight = 88;
@@ -96,6 +97,8 @@ function normalizeGlobalSetup(setup){
     }
     normalized.chartStyle = AstroConst.normalizeChartStyle(normalized.chartStyle);
     normalized.indiaChartStyle = AstroConst.normalizeIndiaChartStyle(normalized.indiaChartStyle);
+    normalized.dayBoundary = normalizeDayBoundary(normalized.dayBoundary);
+    normalized.lateZiHourMode = normalizeLateZiHourMode(normalized.lateZiHourMode);
     return normalized;
 }
 
@@ -189,6 +192,8 @@ export default {
         showPlanetHouseInfo: 0,
         showAstroMeaning: 0,
         showOnlyRulExaltReception: 0,
+        dayBoundary: DAY_BOUNDARY_AFTER23,
+        lateZiHourMode: LATE_ZI_HOUR_NEXT_DAY,
         chartDisplayDefaultsVersion: ChartDisplayDefaultsVersion,
         planetDisplayDefaultsVersion: PlanetDisplayDefaultsVersion,
 
@@ -261,6 +266,8 @@ export default {
                 showPlanetHouseInfo: st.showPlanetHouseInfo,
                 showAstroMeaning: st.showAstroMeaning,
                 showOnlyRulExaltReception: st.showOnlyRulExaltReception,
+                dayBoundary: st.dayBoundary,
+                lateZiHourMode: st.lateZiHourMode,
                 chartDisplayDefaultsVersion: ChartDisplayDefaultsVersion,
                 planetDisplayDefaultsVersion: PlanetDisplayDefaultsVersion,
             };

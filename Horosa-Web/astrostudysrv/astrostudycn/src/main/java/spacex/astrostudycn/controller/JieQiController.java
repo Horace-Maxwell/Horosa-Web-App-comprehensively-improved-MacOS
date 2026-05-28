@@ -16,6 +16,7 @@ import spacex.astrostudy.constants.PhaseType;
 import spacex.astrostudy.helper.AstroHelper;
 import spacex.astrostudy.helper.ParamHashCacheHelper;
 import spacex.astrostudy.model.godrule.GodRule;
+import spacex.astrostudycn.constants.BaZiGender;
 import spacex.astrostudycn.constants.TimeZiAlg;
 import spacex.astrostudycn.model.BaZi;
 import spacex.astrostudycn.model.OnlyFourColumns;
@@ -61,8 +62,9 @@ public class JieQiController {
 						String zone = (String) chartparams.get("zone");
 						String lat = (String) chartparams.get("lat");
 						String lon = (String) chartparams.get("lon");
-						boolean after23NewDay = false;
-						OnlyFourColumns bz = new OnlyFourColumns(ad, tm, zone, lon, lat, after23NewDay);
+						boolean after23NewDay = ConvertUtility.getValueAsInt(args.get("after23NewDay"), 1) == 1;
+						boolean lateZiHourUseNextDay = ConvertUtility.getValueAsInt(args.get("lateZiHourUseNextDay"), 1) == 1;
+						OnlyFourColumns bz = new OnlyFourColumns(ad, tm, zone, lon, lat, after23NewDay, BaZiGender.Male, TimeZiAlg.RealSun, false, lateZiHourUseNextDay);
 						Map<String, Object> map = bz.getNongli();
 						chart.put("nongli", ObjectUtility.toMap(map));
 					}
@@ -126,6 +128,12 @@ public class JieQiController {
 		params.put("zone", TransData.get("zone"));
 		params.put("lat", TransData.get("lat"));
 		params.put("lon", TransData.get("lon"));
+		if(TransData.containsParam("after23NewDay")) {
+			params.put("after23NewDay", TransData.getValueAsInt("after23NewDay", 1));
+		}
+		if(TransData.containsParam("lateZiHourUseNextDay")) {
+			params.put("lateZiHourUseNextDay", TransData.getValueAsInt("lateZiHourUseNextDay", 1));
+		}
 		params.put("hsys", TransData.getValueAsInt("hsys", 0));
 		params.put("doubingSu28", TransData.getValueAsBool("doubingSu28", false));
 		params.put("southchart", TransData.getValueAsBool("southchart", false));

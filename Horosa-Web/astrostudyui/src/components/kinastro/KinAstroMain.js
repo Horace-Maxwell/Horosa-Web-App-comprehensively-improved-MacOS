@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { Input, InputNumber, Modal, Spin } from 'antd';
 import DateTime from '../comp/DateTime';
 import CanPingMain from '../shusuan/CanPingMain';
@@ -796,6 +797,23 @@ class KinAstroMain extends Component{
 			nextState.chunziLunarMonth = dt.month;
 			nextState.chunziLunarDay = Math.min(30, dt.day);
 		}
+		// 全局日界点 / 晚子时·时柱起干 切换 → 重新 fetchPan (因为 buildPayload 用 defaultAfter23NewDay/defaultLateZiHourUseNextDay() 实时读 localStorage)
+		if(typeof window !== 'undefined'){
+			this._dayBoundaryListener = (ev) => {
+				const v = ev && ev.detail ? ev.detail.after23NewDay : null;
+				if((v === 0 || v === 1) && this.props.fields){
+					this.fetchPan(this.props.fields);
+				}
+			};
+			window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			this._lateZiHourListener = (ev) => {
+				const v = ev && ev.detail ? ev.detail.lateZiHourUseNextDay : null;
+				if((v === 0 || v === 1) && this.props.fields){
+					this.fetchPan(this.props.fields);
+				}
+			};
+			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 		this.setState(nextState, ()=>this.fetchPan(this.props.fields));
 	}
 
@@ -838,6 +856,12 @@ class KinAstroMain extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(typeof window !== 'undefined' && this._dayBoundaryListener){
+			window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+		}
+		if(typeof window !== 'undefined' && this._lateZiHourListener){
+			window.removeEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 	}
 
 	onFieldsChange(field){
@@ -897,6 +921,8 @@ class KinAstroMain extends Component{
 		}
 		const payload = {
 			...dt,
+			after23NewDay: defaultAfter23NewDay(),
+			lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 			gender: this.state.gender,
 			ke: this.state.ke,
 			useKey: this.state.useKey === '1',

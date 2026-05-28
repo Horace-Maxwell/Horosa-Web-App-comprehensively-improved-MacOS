@@ -238,7 +238,7 @@ class ChunZiSrv:
             dt = parse_datetime(data)
             timezone_value = timezone_to_float(data.get("zone") or data.get("timezone"), 8.0)
             gender = _gender_for_chunzi(data.get("gender"))
-            gz = calculate_ganzhi_from_datetime(dt)
+            gz = calculate_ganzhi_from_datetime(dt, data.get("after23NewDay", 1))
             pillars = [
                 {"key": "year", "label": "年柱", "ganzhi": display_text(gz["year"])},
                 {"key": "month", "label": "月柱", "ganzhi": display_text(gz["month"])},

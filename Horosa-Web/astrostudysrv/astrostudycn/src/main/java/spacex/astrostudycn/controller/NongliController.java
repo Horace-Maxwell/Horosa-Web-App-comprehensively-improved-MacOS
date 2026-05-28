@@ -35,12 +35,13 @@ public class NongliController {
 		TimeZiAlg timeAlg = TimeZiAlg.fromCode(timeAlgCode);
 		
 		boolean after23NewDay = (boolean) params.get("after23NewDay");
-		
+		boolean lateZiHourUseNextDay = (boolean) params.get("lateZiHourUseNextDay");
+
 		Object obj = CacheHelper.get("/nongli/time", params, (args)->{
-			OnlyFourColumns bz = new OnlyFourColumns(ad, dtstr, zone, lon, lat, after23NewDay, BaZiGender.Male, timeAlg, false);
+			OnlyFourColumns bz = new OnlyFourColumns(ad, dtstr, zone, lon, lat, after23NewDay, BaZiGender.Male, timeAlg, false, lateZiHourUseNextDay);
 			Map<String, Object> map = bz.getNongli();
 			if(timeAlg == TimeZiAlg.DirectTime) {
-				NongLi directNongli = NongliHelper.getNongLi(ad, dtstr, zone, lon, after23NewDay, true);
+				NongLi directNongli = NongliHelper.getNongLi(ad, dtstr, zone, lon, after23NewDay, true, lateZiHourUseNextDay);
 				if(directNongli != null) {
 					Map<String, Object> directMap = directNongli.toMap();
 					Object bazi = map.get("bazi");
@@ -84,8 +85,10 @@ public class NongliController {
 		map.put("zone", TransData.getValueAsString("zone"));
 		map.put("lon", TransData.getValueAsString("lon"));
 		map.put("lat", "0n00");
-		boolean after23NewDay = TransData.getValueAsBool("after23NewDay", false);
+		boolean after23NewDay = TransData.getValueAsInt("after23NewDay", 1) == 1;
 		map.put("after23NewDay", after23NewDay);
+		boolean lateZiHourUseNextDay = TransData.getValueAsInt("lateZiHourUseNextDay", 1) == 1;
+		map.put("lateZiHourUseNextDay", lateZiHourUseNextDay);
 		int timeAlg = TransData.getValueAsInt("timeAlg", 0);
 		if(timeAlg != 1) {
 			timeAlg = 0;

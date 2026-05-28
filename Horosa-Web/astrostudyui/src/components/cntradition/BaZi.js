@@ -426,6 +426,13 @@ class BaZi extends Component{
 			if(hasConfirmedFlag){
 				delete patch.__confirmed;
 			}
+			// v2.2.1: 左栏改过 after23NewDay / lateZiHourUseNextDay 后,全局事件不再覆盖(共享 dva fields 路径)。
+			if(field && Object.prototype.hasOwnProperty.call(field, 'after23NewDay')){
+				this.props.dispatch({ type: 'astro/setAfter23BoundaryUserOverrode', payload: { value: true } });
+			}
+			if(field && Object.prototype.hasOwnProperty.call(field, 'lateZiHourUseNextDay')){
+				this.props.dispatch({ type: 'astro/setLateZiHourUserOverrode', payload: { value: true } });
+			}
 			let flds = {
 				fields: {
 					...this.props.fields,
@@ -498,6 +505,7 @@ class BaZi extends Component{
 			phaseType: flds.phaseType.value,
 			godKeyPos: flds.godKeyPos.value,
 			after23NewDay: flds.after23NewDay.value,
+			lateZiHourUseNextDay: flds.lateZiHourUseNextDay && flds.lateZiHourUseNextDay.value !== undefined ? flds.lateZiHourUseNextDay.value : 1,
 			adjustJieqi: flds.adjustJieqi.value,
 		}
 		return params;

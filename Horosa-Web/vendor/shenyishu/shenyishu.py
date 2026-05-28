@@ -297,18 +297,34 @@ def get_bingzhan_jixiong(shensha, active_gua):
 
 
 class Shenyishu():
-    def __init__(self, year, month, day, hour):
+    def __init__(self, year, month, day, hour, after23_new_day=1):
         self.year = year
         self.month = month
         self.day = day
         self.hour = hour
-        self.cdate = sxtwl.fromSolar(year, month, day)
-    
+        self.after23_new_day = after23_new_day
+        # 用戶語義（拍板,字面直覺版）: after23_new_day=1「23点算第二天」= 23時起日柱進位次日(壬寅); =0「24点算第二天」= 23時仍守今、24時才換日柱(辛丑)。
+        _cy, _cm, _cd = year, month, day
+        if after23_new_day and hour == 23:
+            from datetime import date as _date, timedelta as _timedelta
+            _nd = _date(year, month, day) + _timedelta(days=1)
+            _cy, _cm, _cd = _nd.year, _nd.month, _nd.day
+        self.cdate = sxtwl.fromSolar(_cy, _cm, _cd)
+        # 時柱跨日：hour==23 時永遠按"次日日干"起子時，cdate_for_hour 為次日。
+        if hour == 23:
+            from datetime import date as _date2, timedelta as _timedelta2
+            _td = _date2(year, month, day) + _timedelta2(days=1)
+            self.cdate_for_hour = sxtwl.fromSolar(_td.year, _td.month, _td.day)
+        else:
+            self.cdate_for_hour = self.cdate
+
     def gangzhi(self):
         yTG = Gan[self.cdate.getYearGZ().tg] + Zhi[self.cdate.getYearGZ().dz]
         mTG = Gan[self.cdate.getMonthGZ().tg] + Zhi[self.cdate.getMonthGZ().dz]
         dTG = Gan[self.cdate.getDayGZ().tg] + Zhi[self.cdate.getDayGZ().dz]
-        hTG = Gan[self.cdate.getHourGZ(self.hour).tg] + Zhi[self.cdate.getHourGZ(self.hour).dz]
+        # 時柱跨日：用 cdate_for_hour（次日干）起子時；其他時辰 cdate_for_hour 與 cdate 相同。
+        hgz = self.cdate_for_hour.getHourGZ(self.hour)
+        hTG = Gan[hgz.tg] + Zhi[hgz.dz]
         return {"年": yTG, "月": mTG, "日": dTG, "時": hTG}
     
     def ymd_total(self):

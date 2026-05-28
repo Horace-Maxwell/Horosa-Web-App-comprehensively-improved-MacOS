@@ -37,8 +37,9 @@ public class QueryChartController {
 		String lon = (String)params.get("lon");
 		String lat = (String)params.get("lat");
 		String dtstr = (String) params.get("birth");
-		boolean after23NewDay = false;
-		OnlyFourColumns bz = new OnlyFourColumns(ad, dtstr, zone, lon, lat, after23NewDay);
+		boolean after23NewDay = ConvertUtility.getValueAsInt(params.get("after23NewDay"), 1) == 1;
+		boolean lateZiHourUseNextDay = ConvertUtility.getValueAsInt(params.get("lateZiHourUseNextDay"), 1) == 1;
+		OnlyFourColumns bz = new OnlyFourColumns(ad, dtstr, zone, lon, lat, after23NewDay, spacex.astrostudycn.constants.BaZiGender.Male, spacex.astrostudycn.constants.TimeZiAlg.RealSun, false, lateZiHourUseNextDay);
 		Map<String, Object> map = bz.getNongli();
 		if(res.containsKey("chart")) {
 			Map<String, Object> chart = (Map<String, Object>) res.get("chart");

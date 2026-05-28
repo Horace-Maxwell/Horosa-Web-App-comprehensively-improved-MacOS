@@ -27,22 +27,30 @@ public class LiuReng extends BaZi {
 	protected Map<String, Object> keCuang;
 	
 	public LiuReng(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay) {
-		this(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, null, true);
+		this(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, null, true, true);
+	}
+
+	public LiuReng(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay, boolean lateZiHourUseNextDay) {
+		this(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, null, true, lateZiHourUseNextDay);
 	}
 
 	public LiuReng(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay, String yue, boolean isDiurnal) {
-		super(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, false);
-		
+		this(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, yue, isDiurnal, true);
+	}
+
+	public LiuReng(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay, String yue, boolean isDiurnal, boolean lateZiHourUseNextDay) {
+		super(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, false, lateZiHourUseNextDay);
+
 		this.gods = new HashMap<String, Object>();
 		this.godsZi = new HashMap<String, Object>();
 		this.godsGan = new HashMap<String, Object>();
 		this.godsMonth = new HashMap<String, Object>();
 		this.godsYear = new HashMap<String, Object>();
 		this.xun = new HashMap<String, Object>();
-		
+
 		this.yue = yue;
 		this.isDiurnal = isDiurnal;
-		
+
 	}
 	
 	public void calculate(PhaseType phaseType) {

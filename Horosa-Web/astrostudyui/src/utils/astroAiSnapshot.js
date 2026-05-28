@@ -333,6 +333,16 @@ function buildBaseInfoLines(chartObj, fields){
 	if(chart.nongli && chart.nongli.birth){
 		lines.push(`真太阳时：${chart.nongli.birth}`);
 	}
+	// 用户拍板·v2.2.1: AI 必须明确知道排盘按哪种规则计算,否则可能用错语义解读四柱。
+	const after23 = fieldValue(fields, 'after23NewDay');
+	const lateZi = fieldValue(fields, 'lateZiHourUseNextDay');
+	if(after23 !== undefined || lateZi !== undefined){
+		const a23 = after23 === 0 || after23 === '0' || after23 === false ? 0 : 1;
+		const lzh = lateZi === 0 || lateZi === '0' || lateZi === false ? 0 : 1;
+		const dayLabel = a23 === 1 ? '23点算第二天(日柱进位次日)' : '24点算第二天(日柱守今、24点才换日柱)';
+		const hourLabel = lzh === 1 ? '晚子时按次日日柱计算(时干用次日日干起子时)' : '晚子时按当日柱计算(时干用今日日干起子时)';
+		lines.push(`排盘规则：日柱开关【${dayLabel}】+ 时柱开关【${hourLabel}】。本盘四柱按此规则计算。`);
+	}
 
 	const zodiacal = chart.zodiacal || AstroConst.ZODIACAL[fieldValue(fields, 'zodiacal')];
 	const hsys = chart.hsys || AstroConst.HouseSys[fieldValue(fields, 'hsys')];

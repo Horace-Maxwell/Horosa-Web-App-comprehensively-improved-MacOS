@@ -1,0 +1,175 @@
+# Horosa-Web · Agent Harness（坑点速查）
+
+> 给后续 Claude Code / 自动化 agent：进入这个仓做改动之前，**先读这份文档**。
+> 这里只记**会反复踩、文档没记会出错**的点。常规规范在
+> [`../docs/windows-porting-and-release-checklist.md`](../docs/windows-porting-and-release-checklist.md)
+> 和各版本 fix 文档（`Horosa-Web/docs/*.md`）。
+
+---
+
+## 日界点 + 晚子时·时柱起干（v2.2.1 起）
+
+**两个独立全局开关**，请务必先理解再改任何 day/time pillar 相关代码：
+
+| 全局偏好 | dva fields / 后端字段 | 默认值 | 作用范围 |
+|---|---|---|---|
+| `dayBoundary: 'after23' \| 'after24'` | `after23NewDay: 1 \| 0` | `1` | hour ∈ [23, 24): 控制**日柱**进位 |
+| `lateZiHourMode: 'nextDay' \| 'today'` | `lateZiHourUseNextDay: 1 \| 0` | `1` | hour ∈ [23, 24): 控制**时干**起算用今日 vs 次日 |
+
+**27日 23:30（直接时间）矩阵 — 跑 jest 必须命中这些**：
+
+```
+┌────────────────────────┬──────────────────┬──────────────────┐
+│                        │ 时柱=1（默认）   │ 时柱=0           │
+├────────────────────────┼──────────────────┼──────────────────┤
+│ 日柱=1（默认）         │ 壬寅 庚子        │ 壬寅 庚子（等价）│
+│ 日柱=0                 │ 辛丑 庚子        │ 辛丑 戊子 ← 新   │
+└────────────────────────┴──────────────────┴──────────────────┘
+```
+
+详细见 [`docs/global-day-boundary-v2.2.1.md`](docs/global-day-boundary-v2.2.1.md)。
+
+### 6 个坑（按踩过的顺序，请勿重蹈）
+
+#### 1. Java ChartController.getParams() 是**白名单**
+`ChartController.java:265 getParams()` 不会自动透传所有 TransData 字段。
+任何 chart-flow 新参数（如 `after23NewDay`、`lateZiHourUseNextDay`）必须显式：
+```java
+if(TransData.containsParam("xxxNewParam")) {
+    params.put("xxxNewParam", TransData.get("xxxNewParam"));
+}
+```
+否则后端永远拿默认值，前端 dropdown 切换看似无效。**所有 `getParams()`-style controller 都要审计**：
+`QueryChartController` / `IndiaChartController` / `JieQiController` / `LiuRengController` / `BaZiBirthController` / `PaiBaZiController` / `NongliController` / `ZiWeiController`。
+
+#### 2. Java jar 重编 ≠ 进程更新
+`mvn package` 替换 `runtime/mac/bundle/astrostudyboot.jar` 后，**进程不会自动重载**。
+必须：
+```bash
+lsof -ti :9999          # 找 Java PID
+ps -p <PID> -o lstart=  # 启动时间须 > jar mtime（否则是旧 class 残留在 JVM 内存）
+./stop_horosa_local.sh && rm -f .horosa*.pid && ./start_horosa_local.sh
+```
+如果 launcher 残留进程占着 :9999，本地 dev 重启的 java 也不会绑上来，永远是 stale。
+
+#### 3. lunar-javascript 时柱硬编码 Exact
+`EightChar.getTimeGan()` 内部 `timeGanIndex = (dayGanIndexExact % 5 * 2 + timeZhiIndex) % 10`。
+`setSect()` **只影响 day pillar，不影响 time pillar**。要自定义时干起算（如 v2.2.1 的 `lateZiHourUseNextDay=0`），必须绕开 `getTimeGan()`、用 `getDayGanIndexExact() / getDayGanIndexExact2() / getTimeZhiIndex()` 自算。前端 `utils/baziLunarLocal.js:computeOverrideTimeGan` 是参考实现。
+
+#### 4. Java 后端 cache：内存 + Redis + 本地文件
+`ParamHashCacheHelper`（`spacex/astrostudy/helper/`）三层 cache：
+- JVM 内存：重编 jar/重启进程自动清
+- Redis（`redis-cli ping` 验存活）：**不会自动清**，调试时 `redis-cli FLUSHALL` 或 `redis-cli KEYS "*chart*"`
+- 本地文件：`.horosa-cache/paramhash/`，按 hash 分目录
+
+新增 cache key 字段会自动 miss（key 不同），但改字段类型可能命中错误条目。**`keyparams` 包不包新字段决定是否能区分**——`ChartController:46 keyparams` 是 `params.putAll(params)` 然后 remove gps，所以新字段自动进 key。
+
+#### 5. 客户端 fetchChart in-memory cache
+`services/astro.js:5 chartMem` 用 `JSON.stringify(values)` 作 key。新增 values 字段自动 miss；要强制刷新 `requestOptions.cache = false`。
+
+#### 6. AI 必须看到排盘规则 metadata
+排盘规则不写进 AI snapshot，AI 模型会**按错误的默认语义**解读四柱。`utils/astroAiSnapshot.js:buildBaseInfoLines` 强制写一行：
+```
+排盘规则：日柱开关【...】+ 时柱开关【...】。本盘四柱按此规则计算。
+```
+任何新增的 chart-level 全局开关都要同样在这里加一行，否则 AI 分析结果会与 UI 显示对不上号。
+
+### 工程师级再审计 checklist（任何 day/time pillar 改动后必跑）
+
+```bash
+# 1. 前后端字段名全栈一致
+grep -rn "lateZiHourUseNextDay\|after23NewDay" Horosa-Web/astrostudyui/src/ Horosa-Web/astrostudysrv/ Horosa-Web/vendor/ Horosa-Web/astropy/
+
+# 2. 所有 Java Controller getParams() 白名单
+grep -rn "TransData.containsParam\|params.put" Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/
+
+# 3. 所有 if hour == 23 Python 是否含新开关
+grep -rn "if hour == 23\|hour==23" Horosa-Web/vendor/ Horosa-Web/astropy/
+
+# 4. AI snapshot 携带情况
+grep -n "after23NewDay\|lateZiHourUseNextDay\|排盘规则" Horosa-Web/astrostudyui/src/utils/aiAnalysisContext.js Horosa-Web/astrostudyui/src/utils/astroAiSnapshot.js
+
+# 5. 案例/命盘存储 schema
+grep -n "after23NewDay\|lateZiHourUseNextDay" Horosa-Web/astrostudyui/src/utils/localcharts.js Horosa-Web/astrostudyui/src/utils/kentangCaseSave.js Horosa-Web/astrostudyui/src/models/user.js
+```
+
+### 跨组件覆盖审计(v2.2.1 学到的教训)
+
+新增任何一个**全局开关**(类似 `dayBoundary` / `lateZiHourMode`)时,审计要点比修单个技法痛 — 必须**全栈对齐**才能"实时重算"真的生效:
+
+1. **`utils/dayBoundary.js`** — 加 helper(常量 + `default<X>()` + `read<X>FromGlobal()` + `normalize<X>()` + `<X>ToBit()`)。
+2. **`models/app.js`** — state 加字段 + `globalSetup` 序列化 + `normalizeGlobalSetup` 加规范化。
+3. **`components/homepage/PageHeader.js`** — Modal 加单选 + `change<X>()` dispatch + `window.dispatchEvent(new CustomEvent('horosa:<x>-changed', {detail: ...}))`。
+4. **`models/astro.js`** — fields schema + `fieldsToParams` 透传 + `sync<X>` reducer + `syncFromGlobal<X>` subscription。
+5. **`utils/preciseCalcBridge.js`** + **`utils/localCalcCache.js`** — `NONG_LI_KEYS` / `JIE_QI_YEAR_KEYS` 加字段。
+6. **`utils/localcharts.js`** + **`utils/kentangCaseSave.js`** + **`models/user.js`** — 命盘 / 案例 record 加字段。
+7. **`utils/aiAnalysisContext.js`** + **`utils/astroAiSnapshot.js`** — AI snapshot 携带 + 显式排盘规则前置行。
+8. **各技法组件**(grep `defaultAfter23NewDay` 找出全部 ~20 个):
+   - Payload:每处 `after23NewDay: ...` 后**同处加一行** `lateZiHourUseNextDay: ...`。
+   - 监听者(`grep horosa:day-boundary-changed`,大约 9 个 `<X>Main.js`):**镜像**写一份 `_<x>UserOverrode` flag + `_<x>Listener` + `addEventListener` + `componentWillUnmount` 解绑。**少一处都意味着该技法不会实时重算**。
+9. **Java 后端**(`grep getValueAsInt("after23NewDay"` + `params.get("after23NewDay")`):每个**chart-flow controller** 的 `getParams()` 白名单加,handler 读 + 传给 Model 构造重载。**所有**这类 controller(8+ 个)都要审计 — v2.2.1 有过先漏 7 个的教训。
+10. **Java Model**(`grep "boolean after23NewDay"`):BaZi / BaZiDirect / LiuReng / ZiWeiChart / OnlyFourColumns 等加新构造重载(保留旧签名默认值,向前兼容)。
+11. **每个时刻都应生效**:核心计算的最里层(`baziLunarLocal.computeOverrideTimeGan` / `BaZiHelper.getTimeColumn`)**必须有 `hour == 23` 守卫**,确保 lateZi=0 时只在晚子时段(23:00–23:59)改时干,其他 22 小时**完全无副作用**。
+
+工程师级 grep 自检命令:
+```bash
+# A. listener 对齐:after23 与 lateZi 监听者必须 1:1
+diff <(grep -rln "horosa:day-boundary-changed" Horosa-Web/astrostudyui/src/ | sort) \
+     <(grep -rln "horosa:late-zi-hour-mode-changed" Horosa-Web/astrostudyui/src/ | sort)
+
+# B. default helper 调用者对齐:defaultAfter23NewDay 与 defaultLateZiHourUseNextDay 必须 1:1
+diff <(grep -rln "defaultAfter23NewDay" Horosa-Web/astrostudyui/src/ | sort) \
+     <(grep -rln "defaultLateZiHourUseNextDay" Horosa-Web/astrostudyui/src/ | sort)
+
+# C. Java controller 白名单对齐
+for f in Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/*.java; do
+  a=$(grep -c "after23NewDay" "$f")
+  l=$(grep -c "lateZiHourUseNextDay" "$f")
+  if [ "$a" != "0" ] && [ "$l" = "0" ]; then echo "MISSING lateZi: $f (after23 hits=$a)"; fi
+done
+```
+
+### Preview 端到端验证模板
+
+```javascript
+// 在 preview MCP eval 内执行: 27日 23:30 直接时间 4 case 矩阵
+const cases = [[1,1],[1,0],[0,1],[0,0]];
+for(const [a23, lzh] of cases){
+  fields.date.value.date = 27;
+  fields.time.value.hour = 23;
+  fields.time.value.minute = 30;
+  fields.time.value.second = 20 + a23 * 2 + lzh; // 防 cache
+  // ... dispatch fetchByFields with after23=a23, lateZi=lzh
+  // 期望:
+  //  [1,1] → 壬寅 庚子
+  //  [1,0] → 壬寅 庚子（等价）
+  //  [0,1] → 辛丑 庚子
+  //  [0,0] → 辛丑 戊子 ← 核心新 case
+}
+```
+
+---
+
+## AI 分析 SSE 流 · Issue #8 双修复（v2.2.1）
+
+**症状**：本地 Ollama 跑 AI 分析,"GPU 加载完后划水,然后停止"。`java.log` 只看到 `ClientAbortException`,看不到上游真正的失败 — 因为根因被 catch 吞了。
+
+**两个独立的 bug,一起修才完整**：
+
+### Trap 7. catch 块吞掉一级异常(可观测性灾难)
+`AIAnalysisProxyService.chatStream` 的 catch 内,第一行就是 `sendEvent(emitter, "error", ...)`。一旦客户端已断,`sendEvent` 撞 `ClientAbortException` 并把它包成 `RuntimeException` 抛回 `ai-analysis-chat-stream` 线程 — **而原始一级异常 `e` 只通过 `safeErrorMessage(e)` 进了一个发不出去的 SSE 帧,从来没进日志**。修法:catch 第一步必须 `QueueLog.error(AppLoggers.ErrorLogger, e, "上下文")`,然后把 `sendEvent` / `completeWithError` 各自嵌套 `try`,任一抛出都不能再炸外层线程。
+
+### Trap 8. SSE 流零心跳 → 慢首 token 必断
+`streamOpenAICompatible` / `streamAnthropic` / `streamGemini` 顺序读上游 NDJSON,**首字节到达之前不向客户端写任何字节**。Ollama 本地慢模型首 token 要 10–60s,这段静默期 Electron/Chromium/中间件会按空闲门槛(常见 30–60s)切断 SSE socket。后端的 `SseEmitter(0L)`(v2.1.8)只是 server-side 上限,**不防 client 主动断**。修法:三个 `stream***` 方法全部包一层 `withHeartbeat`(本仓 `AIAnalysisProxyService.java` 内),每 15s 给 emitter 发 `: keep-alive` 注释帧;心跳本身 try-catch,撞到 ClientAbort 主动 `emitter.complete()` + 停 schedule。
+
+**release_preflight.sh [7] 哨兵**:`AIAnalysisProxyService.java` 必须同时含 `QueueLog.error(AppLoggers.ErrorLogger` 和 `keep-alive`,任一缺失 → 阻断发布。任何后续 agent 改 AI 分析后端,**先读这两段** 再动手。
+
+---
+
+## 其他长期注意（与日界点无关，但 agent 进来常错）
+
+- **GitCode 镜像已停用**（2026-05-27 起），不要跑 `mirror_to_gitcode.sh`，发布只发 GitHub。
+- **回复用简体中文**；代码/路径/命令保持原文。
+- **不在代码/测试/文档里使用近现代政治人物**作为命例（用 `邵康節` 等古人或中性八字/卦）。
+- **术数语义色**（格局/五行/天将/星曜）属用户拍板，不能因「夜间模式不一致」之类理由动；只能改结构/中性色。
+- **每个 Mac 修复都要配技术文档**（`Horosa-Web/docs/<topic>-v<ver>.md`）+ `docs/windows-sync-handoff.md` 顶部条目；`release_preflight.sh` 应当门禁版本号 + 同步条目。

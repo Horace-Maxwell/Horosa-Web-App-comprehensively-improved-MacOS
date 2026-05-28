@@ -266,7 +266,7 @@ class TieBanSrv:
             start_age = max(0, min(120, to_int(data.get("startAge"), 0)))
             dayun_steps = max(1, min(12, to_int(data.get("dayunSteps"), 8)))
 
-            gz = calculate_ganzhi_from_datetime(dt)
+            gz = calculate_ganzhi_from_datetime(dt, data.get("after23NewDay", 1))
             override_values = [data.get("yearGz"), data.get("monthGz"), data.get("dayGz"), data.get("hourGz")]
             pillar_override = any(clean_text(item) for item in override_values)
             year_gz = _normalize_ganzhi(data.get("yearGz"), gz["year"])

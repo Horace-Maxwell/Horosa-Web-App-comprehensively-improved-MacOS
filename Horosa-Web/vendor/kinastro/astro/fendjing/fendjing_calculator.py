@@ -115,6 +115,7 @@ def compute_fendjing_chart(
     year: int, month: int, day: int,
     hour: int, minute: int,
     timezone: float = 8.0,
+    after23_new_day: int = 1,
     **kwargs,
 ) -> dict:
     """計算鬼谷分定經排盤。
@@ -132,15 +133,28 @@ def compute_fendjing_chart(
         包含兩頭鉗判斷、命格、基業、兄弟、行藏、婚姻、子息、收成等完整排盤資訊。
     """
     import sxtwl
-    
-    # 計算干支
-    d = sxtwl.fromSolar(year, month, day)
+    from datetime import date as _date, timedelta as _timedelta
+
+    # 用戶語義（拍板,字面直覺版）：
+    #   after23_new_day=1「23点算第二天」= 23時起日柱進位次日(壬寅)
+    #   after23_new_day=0「24点算第二天」= 23時仍守今、24時才換日柱(辛丑)
+    _cy, _cm, _cd = year, month, day
+    if after23_new_day and hour == 23:
+        _nd = _date(year, month, day) + _timedelta(days=1)
+        _cy, _cm, _cd = _nd.year, _nd.month, _nd.day
+    d = sxtwl.fromSolar(_cy, _cm, _cd)
     gz_day = d.getDayGZ()
     day_gz = TIANGAN[gz_day.tg] + DIZHI[gz_day.dz]
-    
-    # 時干支
+
+    # 時干支：hour==23 時，子時跨日永遠按"次日日干"起（與 lunar.js Exact 一致）。
+    _ty, _tm, _td = year, month, day
+    if hour == 23:
+        _td_dt = _date(year, month, day) + _timedelta(days=1)
+        _ty, _tm, _td = _td_dt.year, _td_dt.month, _td_dt.day
+    _d_for_hour = sxtwl.fromSolar(_ty, _tm, _td)
+    _gz_for_hour = _d_for_hour.getDayGZ()
     hour_zhi_idx = ((hour + 1) // 2) % 12
-    hour_tg = (gz_day.tg * 2 + hour_zhi_idx) % 10
+    hour_tg = (_gz_for_hour.tg * 2 + hour_zhi_idx) % 10
     hour_gz = TIANGAN[hour_tg] + DIZHI[hour_zhi_idx]
     
     # 年干支

@@ -509,6 +509,13 @@ class TaiYiSrv:
             day = _to_int(data.get("day"), 1)
             hour = _to_int(data.get("hour"), 0)
             minute = _to_int(data.get("minute"), 0)
+            # v2.2.1: 全局日界 + 晚子时·时柱起干 通过 thread-local 传给 kintaiyi
+            # 默认均为 1=现行行为;仅 hour==23 时影响,其它 23 小时 NO-OP。
+            after23_new_day = _to_int(data.get("after23NewDay"), 1)
+            late_zi_hour_use_next_day = _to_int(data.get("lateZiHourUseNextDay"), 1)
+            from kintaiyi import jieqi as _ty_jieqi
+            _ty_jieqi.set_after23_new_day(after23_new_day)
+            _ty_jieqi.set_hour_gan_use_next_day(late_zi_hour_use_next_day)
             style = _to_int(data.get("style"), 3)
             tn = _to_int(data.get("tn"), 0)
             sex = "女" if data.get("sex") in ["女", "female", "Female", 0, "0"] else "男"

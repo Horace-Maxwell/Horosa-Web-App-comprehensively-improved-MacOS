@@ -57,6 +57,7 @@ import {
 	buildQimenBaGongPanelData,
 } from '../dunjia/DunJiaBaGongRules';
 import styles from './SanShiUnitedMain.less';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 const { Option } = Select;
 const TabPane = Tabs.TabPane;
@@ -238,10 +239,12 @@ const GUIRENG_OPTIONS = [
 	{ value: 2, label: '星占法贵人' },
 ];
 
+// 用户语义(拍板,字面直觉版): after23NewDay=1「23点算第二天」=日柱进位次日(壬寅)；=0「24点算第二天」=日柱守今(辛丑)。
 const DAY_SWITCH_OPTIONS = [
-	{ value: 1, label: '子初换日' },
-	{ value: 0, label: '子正换日' },
+	{ value: 1, label: '23点算第二天' },
+	{ value: 0, label: '24点算第二天' },
 ];
+
 
 const SANSHI_BOARD_MIN = 380;
 const SANSHI_BOARD_MAX = 820;
@@ -583,6 +586,7 @@ function getQimenOptionsKey(options){
 		safe(options.monthGanZhiType),
 		safe(options.dayGanZhiType),
 		safe(options.after23NewDay),
+		safe(options.lateZiHourUseNextDay),
 		safe(options.qijuMethod),
 		safe(options.kongMode),
 		safe(options.yimaMode),
@@ -981,7 +985,7 @@ export function buildSanShiUnitedSnapshotText(data){
 		liureng && liureng.nianMing,
 		(pillars.year && pillars.year.length > 1) ? pillars.year.substring(1, 2) : '—'
 	);
-	const daySwitchLabel = options && options.after23NewDay === 1 ? '子初换日' : '子正换日';
+	const daySwitchLabel = options && options.after23NewDay === 1 ? '23点算第二天' : '24点算第二天';
 	appendSection(lines, '起盘信息', [
 		`农历：${lunarText || '—'}`,
 		`直接时间：${directText || '—'}`,
@@ -1466,7 +1470,8 @@ class SanShiUnitedMain extends Component{
 				guireng: 2,
 				zodiacal: 0,
 				hsys: 0,
-				after23NewDay: 1,
+				after23NewDay: defaultAfter23NewDay(),
+				lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 				paiPanType: 3,
 				zhiShiType: 0,
 				yueJiaQiJuType: 1,
@@ -1669,7 +1674,8 @@ class SanShiUnitedMain extends Component{
 			tn: options && options.taiyiAccum !== undefined ? options.taiyiAccum : 0,
 			sex: options && options.sex === 0 ? '女' : '男',
 			timeBasis: normalizeTimeAlg(options && options.timeAlg) === 0 ? 'trueSolar' : 'direct',
-			after23NewDay: options && options.after23NewDay !== undefined ? options.after23NewDay : 1,
+			after23NewDay: options && options.after23NewDay !== undefined ? options.after23NewDay : defaultAfter23NewDay(),
+			lateZiHourUseNextDay: options && options.lateZiHourUseNextDay !== undefined ? options.lateZiHourUseNextDay : defaultLateZiHourUseNextDay(),
 			gameTheory: 0,
 		});
 		if(!pan || pan.source !== 'kintaiyi'){
@@ -1681,8 +1687,26 @@ class SanShiUnitedMain extends Component{
 	componentDidMount(){
 		this.unmounted = false;
 		this.restoreOptionsFromCurrentCase(true);
+		this._after23BoundaryUserOverrode = false; // 用户拍板:左栏改过 after23NewDay 后,全局事件不再覆盖
+		this._lateZiHourUserOverrode = false; // v2.2.1: 同款时柱开关局部覆盖语义
 		window.addEventListener('resize', this.handleWindowResize);
 		window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		this._dayBoundaryListener = (ev) => {
+			if(this._after23BoundaryUserOverrode) return;
+			const v = ev && ev.detail ? ev.detail.after23NewDay : null;
+			if((v === 0 || v === 1) && typeof this.onOptionChange === 'function'){
+				this.onOptionChange('after23NewDay', v, { fromGlobal: true });
+			}
+		};
+		window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+		this._lateZiHourListener = (ev) => {
+			if(this._lateZiHourUserOverrode) return;
+			const v = ev && ev.detail ? ev.detail.lateZiHourUseNextDay : null;
+			if((v === 0 || v === 1) && typeof this.onOptionChange === 'function'){
+				this.onOptionChange('lateZiHourUseNextDay', v, { fromGlobal: true });
+			}
+		};
+		window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
 		this.handleWindowResize();
 		const activeFields = this.state.localFields || this.props.fields;
 		this.prefetchJieqiSeedForFields(activeFields);
@@ -1707,6 +1731,12 @@ class SanShiUnitedMain extends Component{
 		this.unmounted = true;
 		window.removeEventListener('resize', this.handleWindowResize);
 		window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		if(this._dayBoundaryListener){
+			window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+		}
+		if(this._lateZiHourListener){
+			window.removeEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 		if(this.prefetchSeedTimer){
 			clearTimeout(this.prefetchSeedTimer);
 			this.prefetchSeedTimer = null;
@@ -2090,20 +2120,32 @@ class SanShiUnitedMain extends Component{
 		}, true);
 	}
 
-		onOptionChange(key, value){
+		onOptionChange(key, value, opts){
 			if(key === 'paiPanType' && value === 1){
 				message.warning('月家奇门暂未由 Ken 后端支持，已从排盘选项移除');
 				return;
+			}
+			// 用户拍板: 左栏改过 after23NewDay 后,全局事件不再覆盖。
+			if(key === 'after23NewDay' && !(opts && opts.fromGlobal)){
+				this._after23BoundaryUserOverrode = true;
+			}
+			// v2.2.1: 时柱开关同款局部覆盖
+			if(key === 'lateZiHourUseNextDay' && !(opts && opts.fromGlobal)){
+				this._lateZiHourUserOverrode = true;
 			}
 			const options = normalizeKenQimenOptions({
 				...(this.state.options || {}),
 				[key]: value,
 			});
 		this.setState({ options }, ()=>{
-			if(key === 'after23NewDay' || key === 'paiPanType' || key === 'qijuMethod'){
+			if(key === 'after23NewDay' || key === 'lateZiHourUseNextDay' || key === 'paiPanType' || key === 'qijuMethod'){
 				const flds = this.getActiveFields();
 				this.prefetchNongliForFields(flds);
 				this.prefetchJieqiSeedForFields(flds, options);
+				// after23NewDay / lateZi 切换必须真正重算(prefetch 只填 cache,不重画盘)
+				if((key === 'after23NewDay' || key === 'lateZiHourUseNextDay') && this.state.hasPlotted){
+					this.refreshAll(flds, true);
+				}
 			}
 		});
 	}
@@ -2322,6 +2364,8 @@ class SanShiUnitedMain extends Component{
 			gender: opt.sex,
 			timeAlg: normalizeTimeAlg(opt.timeAlg),
 			after23NewDay: opt.after23NewDay === 1 ? 1 : 0,
+			// v2.2.1: 透传时柱开关给后端 /nongli/time。
+			lateZiHourUseNextDay: opt.lateZiHourUseNextDay === 0 ? 0 : 1,
 		};
 	}
 
@@ -2376,6 +2420,8 @@ class SanShiUnitedMain extends Component{
 			monthGanZhiType: 1,
 			dayGanZhiType: 1,
 			after23NewDay: opt.after23NewDay === 1 ? 1 : 0,
+			// v2.2.1: 透传时柱开关给奇门后端引擎。
+			lateZiHourUseNextDay: opt.lateZiHourUseNextDay === 0 ? 0 : 1,
 		};
 	}
 
@@ -2542,6 +2588,7 @@ class SanShiUnitedMain extends Component{
 			`${safe(overrideOptions && overrideOptions.taiyiStyle !== undefined ? overrideOptions.taiyiStyle : stateOptions.taiyiStyle)}`,
 			`${safe(overrideOptions && overrideOptions.taiyiAccum !== undefined ? overrideOptions.taiyiAccum : stateOptions.taiyiAccum)}`,
 			`${safe(overrideOptions && overrideOptions.after23NewDay !== undefined ? overrideOptions.after23NewDay : stateOptions.after23NewDay)}`,
+			`${safe(overrideOptions && overrideOptions.lateZiHourUseNextDay !== undefined ? overrideOptions.lateZiHourUseNextDay : stateOptions.lateZiHourUseNextDay)}`,
 			`${safe(normalizeTimeAlg(overrideOptions && overrideOptions.timeAlg !== undefined ? overrideOptions.timeAlg : stateOptions.timeAlg))}`,
 			safe(flds && flds.zodiacal && flds.zodiacal.value),
 			safe(flds && flds.hsys && flds.hsys.value),
@@ -3852,7 +3899,7 @@ class SanShiUnitedMain extends Component{
 								<div>{pan && pan.yiMa ? pan.yiMa.text : '日马：无'}</div>
 								<div>阴阳遁：{pan ? pan.yinYangDun : '—'}</div>
 								<div>时间算法：{getTimeAlgLabel(opt.timeAlg)}</div>
-								<div>换日：{opt.after23NewDay === 1 ? '子初换日' : '子正换日'}</div>
+								<div>换日：{opt.after23NewDay === 1 ? '23点算第二天' : '24点算第二天'}</div>
 								<div>月将：{this.state.lrLayout ? this.state.lrLayout.yue : '—'}</div>
 							</div>
 						</Card>

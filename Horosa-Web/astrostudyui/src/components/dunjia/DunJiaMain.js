@@ -48,6 +48,7 @@ import {
 	formatQimenDocLineToHtml,
 } from './QimenXiangDoc';
 import { BaZiColor, ZhiColor } from '../../msg/bazimsg';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 const { Option } = Select;
 const TabPane = Tabs.TabPane;
@@ -72,7 +73,8 @@ const DEFAULT_OPTIONS = {
 	yimaMode: 'day',
 	timeAlg: 0,
 	shiftPalace: 0,
-	after23NewDay: 0,
+	after23NewDay: defaultAfter23NewDay(),
+	lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 	fengJu: false,
 };
 
@@ -342,6 +344,7 @@ function getQimenOptionsKey(options){
 		safe(options.yimaMode),
 		safe(options.shiftPalace),
 		getAfter23NewDayValue(options),
+		safe(options.lateZiHourUseNextDay),
 		getTimeAlgValue(options),
 		options.fengJu ? 1 : 0,
 	].join('|');
@@ -503,8 +506,26 @@ class DunJiaMain extends Component {
 
 	componentDidMount(){
 		this.unmounted = false;
+		this._after23BoundaryUserOverrode = false; // 用户改过左栏下拉后,全局事件不再覆盖(用户拍板:左栏最高权限)
+		this._lateZiHourUserOverrode = false; // v2.2.1: 同上 — 时柱开关也尊重左栏覆盖
 		if(typeof window !== 'undefined'){
 			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+			this._dayBoundaryListener = (ev) => {
+				if(this._after23BoundaryUserOverrode) return;
+				const v = ev && ev.detail ? ev.detail.after23NewDay : null;
+				if((v === 0 || v === 1) && typeof this.onOptionChange === 'function'){
+					this.onOptionChange('after23NewDay', v, { fromGlobal: true });
+				}
+			};
+			window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			this._lateZiHourListener = (ev) => {
+				if(this._lateZiHourUserOverrode) return;
+				const v = ev && ev.detail ? ev.detail.lateZiHourUseNextDay : null;
+				if((v === 0 || v === 1) && typeof this.onOptionChange === 'function'){
+					this.onOptionChange('lateZiHourUseNextDay', v, { fromGlobal: true });
+				}
+			};
+			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
 		}
 		this.restoreOptionsFromCurrentCase(true);
 		window.addEventListener('resize', this.handleWindowResize);
@@ -521,6 +542,12 @@ class DunJiaMain extends Component {
 		this.unmounted = true;
 		if(typeof window !== 'undefined'){
 			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+			if(this._dayBoundaryListener){
+				window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			}
+			if(this._lateZiHourListener){
+				window.removeEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+			}
 		}
 		window.removeEventListener('resize', this.handleWindowResize);
 		if(this.prefetchSeedTimer){
@@ -822,6 +849,8 @@ class DunJiaMain extends Component {
 			gender: genderValue,
 			timeAlg: normalizeTimeAlg(options.timeAlg),
 			after23NewDay: getAfter23NewDayValue(options),
+			// v2.2.1: 透传时柱开关给后端 /nongli/time;后端 NongliController 已读入并传给 OnlyFourColumns。
+			lateZiHourUseNextDay: options && options.lateZiHourUseNextDay !== undefined ? options.lateZiHourUseNextDay : 1,
 		};
 	}
 
@@ -1131,10 +1160,18 @@ class DunJiaMain extends Component {
 		return reqPromise;
 	}
 
-	onOptionChange(key, value){
+	onOptionChange(key, value, opts){
 		if(key === 'paiPanType' && value === 1){
 			message.warning('月家奇门暂未由 Ken 后端支持，已从排盘选项移除');
 			return;
+		}
+		// 用户拍板: 左栏改过 after23NewDay 后,全局事件不再覆盖(最高权限)。fromGlobal 时不打用户改过的标记。
+		if(key === 'after23NewDay' && !(opts && opts.fromGlobal)){
+			this._after23BoundaryUserOverrode = true;
+		}
+		// v2.2.1: 时柱开关同款局部覆盖语义
+		if(key === 'lateZiHourUseNextDay' && !(opts && opts.fromGlobal)){
+			this._lateZiHourUserOverrode = true;
 		}
 		const nextVal = key === 'timeAlg' ? normalizeTimeAlg(value) : value;
 		const options = normalizeKenQimenOptions({
@@ -1944,7 +1981,7 @@ class DunJiaMain extends Component {
 								<div>值使：{pan ? pan.zhiShi : '—'}</div>
 								<div>奇门演卦：{pan ? (fushiYiGua.text || '无') : '—'}</div>
 								<div>移星：{pan ? (pan.options.shiftLabel || '原宫') : '原宫'}</div>
-								<div>换日：{pan ? (pan.options.daySwitchLabel || '子初换日') : (opt.after23NewDay === 1 ? '子初换日' : '子正换日')}</div>
+								<div>换日：{pan ? (pan.options.daySwitchLabel || '23点算第二天') : (opt.after23NewDay === 1 ? '23点算第二天' : '24点算第二天')}</div>
 								<div>时间算法：{pan ? (pan.options.timeAlgLabel || getTimeAlgLabel(opt.timeAlg)) : getTimeAlgLabel(opt.timeAlg)}</div>
 								<div>奇门封局：{pan ? (pan.options.fengJuLabel || '未封局') : (opt.fengJu ? '已封局' : '未封局')}</div>
 								<div>六仪击刑：{pan && pan.liuYiJiXing.length ? pan.liuYiJiXing.join('；') : '无'}</div>

@@ -22,6 +22,7 @@ import {
 	setBirthGanzhiLocalCache,
 	setLiurengRunyearLocalCache,
 } from '../../utils/localCalcCache';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 
 const {Option} = Select;
@@ -63,7 +64,8 @@ function buildBirthFields(source, fallbackNow){
 		gpsLat: { value: src.gpsLat && src.gpsLat.value !== undefined ? src.gpsLat.value : Constants.DefGpsLat },
 		gpsLon: { value: src.gpsLon && src.gpsLon.value !== undefined ? src.gpsLon.value : Constants.DefGpsLon },
 		gender: { value: src.gender && src.gender.value !== undefined ? src.gender.value : 1 },
-		after23NewDay: { value: src.after23NewDay && src.after23NewDay.value !== undefined ? src.after23NewDay.value : 0 },
+		after23NewDay: { value: src.after23NewDay && src.after23NewDay.value !== undefined ? src.after23NewDay.value : defaultAfter23NewDay() },
+		lateZiHourUseNextDay: { value: src.lateZiHourUseNextDay && src.lateZiHourUseNextDay.value !== undefined ? src.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay() },
 	};
 }
 
@@ -4077,6 +4079,20 @@ class LiuRengMain extends Component{
 			delete patch.__confirmed;
 		}
 		this.pendingFields = null;
+		// 用户拍板: 左栏改过 after23NewDay/guaAfter23NewDay 后,全局事件不再覆盖。
+		if(field && (Object.prototype.hasOwnProperty.call(field, 'after23NewDay') || Object.prototype.hasOwnProperty.call(field, 'guaAfter23NewDay'))){
+			this._after23BoundaryUserOverrode = true;
+			if(this.props.dispatch){
+				this.props.dispatch({ type: 'astro/setAfter23BoundaryUserOverrode', payload: { value: true } });
+			}
+		}
+		// v2.2.1: 左栏改过 lateZiHourUseNextDay 后,全局事件不再覆盖。
+		if(field && Object.prototype.hasOwnProperty.call(field, 'lateZiHourUseNextDay')){
+			this._lateZiHourUserOverrode = true;
+			if(this.props.dispatch){
+				this.props.dispatch({ type: 'astro/setLateZiHourUserOverrode', payload: { value: true } });
+			}
+		}
 		if(this.props.dispatch && this.props.fields){
 			let flds = {
 				fields: {
@@ -4094,6 +4110,11 @@ class LiuRengMain extends Component{
 					nohook: !confirmed,
 				},
 			});
+		}
+		// 即时重算: after23NewDay/guaAfter23NewDay 改变时立即重新起课(不依赖用户手动点起课)
+		if(field && (Object.prototype.hasOwnProperty.call(field, 'after23NewDay') || Object.prototype.hasOwnProperty.call(field, 'guaAfter23NewDay'))){
+			const updatedFields = { ...(this.props.fields || {}), ...patch };
+			this.requestGods(updatedFields);
 		}
 	}
 
@@ -4298,6 +4319,7 @@ class LiuRengMain extends Component{
 			lat: flds.lat.value,
 			gender: flds.gender.value,
 			after23NewDay: flds.after23NewDay.value,
+			lateZiHourUseNextDay: flds.lateZiHourUseNextDay && flds.lateZiHourUseNextDay.value !== undefined ? flds.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 			guaYearGanZi: resolveGuaYearGanZi(this.state.liureng),
 			guaDate: guaDate,
 			guaTime: guaTime,
@@ -4320,7 +4342,7 @@ class LiuRengMain extends Component{
 				date: dtparts[0],
 				time: dtparts[1],
 			};
-	
+
 		}else{
 			params = {
 				date: flds.date.value.format('YYYY-MM-DD'),
@@ -4329,7 +4351,20 @@ class LiuRengMain extends Component{
 				ad: flds.date.value.ad,
 				lon: flds.lon.value,
 				lat: flds.lat.value,
-			};	
+			};
+		}
+		// 关键: backend liureng/gods 缺这个会用 默认值 1, 导致 dropdown 切换无效。
+		if(flds.after23NewDay && flds.after23NewDay.value !== undefined){
+			params.after23NewDay = flds.after23NewDay.value;
+		}
+		if(flds.guaAfter23NewDay && flds.guaAfter23NewDay.value !== undefined){
+			params.guaAfter23NewDay = flds.guaAfter23NewDay.value;
+		}
+		// v2.2.1 第二全局开关·晚子时·时柱起干
+		if(flds.lateZiHourUseNextDay && flds.lateZiHourUseNextDay.value !== undefined){
+			params.lateZiHourUseNextDay = flds.lateZiHourUseNextDay.value;
+		}else{
+			params.lateZiHourUseNextDay = defaultLateZiHourUseNextDay();
 		}
 
 		if(this.props.value){
@@ -4380,6 +4415,7 @@ class LiuRengMain extends Component{
 			lon: flds.lon.value,
 			lat: flds.lat.value,
 			after23NewDay: flds.after23NewDay.value,
+			lateZiHourUseNextDay: flds.lateZiHourUseNextDay && flds.lateZiHourUseNextDay.value !== undefined ? flds.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 		};
 		try{
 			const data = await request(`${Constants.ServerRoot}/liureng/gods`, {
@@ -4640,8 +4676,20 @@ class LiuRengMain extends Component{
 
 	componentDidMount(){
 		this.unmounted = false;
+		this._after23BoundaryUserOverrode = false; // 用户拍板:左栏改过 after23NewDay 后,全局事件不再覆盖
 		if(typeof window !== 'undefined'){
 			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
+		}
+	}
+
+	componentDidUpdate(prevProps){
+		// 即时重算: 当 props.fields.after23NewDay 通过全局设置 sync 改变时自动重新起课。
+		// 用户拍板: 左栏已改过则跳过(最高权限)。
+		if(this._after23BoundaryUserOverrode) return;
+		const prev = prevProps && prevProps.fields && prevProps.fields.after23NewDay;
+		const curr = this.props && this.props.fields && this.props.fields.after23NewDay;
+		if(prev && curr && prev.value !== curr.value){
+			this.requestGods(this.props.fields);
 		}
 	}
 

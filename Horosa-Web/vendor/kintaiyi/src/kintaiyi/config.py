@@ -410,18 +410,41 @@ def find_wx_relation(zhi1, zhi2):
 
 #換算干支
 def gangzhi1(year, month, day, hour, minute):
-    if hour == 23:
+    # v2.2.1: 共享 jieqi.py 的 thread-local 开关
+    from . import jieqi as _jq_module
+    _after23 = _jq_module._get_after23()
+    _hour_gan_next = _jq_module._get_hour_gan_next()
+    if hour == 23 and _after23:
         d = Date(round((Date("{}/{}/{} {}:00:00.00".format(str(year).zfill(4), str(month).zfill(2), str(day+1).zfill(2), str(0).zfill(2)))), 3))
     else:
         d = Date("{}/{}/{} {}:00:00.00".format(str(year).zfill(4), str(month).zfill(2), str(day).zfill(2), str(hour).zfill(2) ))
     dd = list(d.tuple())
     cdate = fromSolar(dd[0], dd[1], dd[2])
     yTG,mTG,dTG,hTG = "{}{}".format(tian_gan[cdate.getYearGZ().tg], di_zhi[cdate.getYearGZ().dz]), "{}{}".format(tian_gan[cdate.getMonthGZ().tg],di_zhi[cdate.getMonthGZ().dz]), "{}{}".format(tian_gan[cdate.getDayGZ().tg], di_zhi[cdate.getDayGZ().dz]), "{}{}".format(tian_gan[cdate.getHourGZ(dd[3]).tg], di_zhi[cdate.getHourGZ(dd[3]).dz])
+    # v2.2.1: hour==23 时按 lateZi 重写时柱(其它 22 小时 NO-OP)
+    # lateZi=1(默认):时干始终用次日日干。lateZi=0:跟随日柱所在 cdate 的日干(==跟日柱一致)。
+    _has_late_override = False
+    if hour == 23:
+        _has_late_override = True
+        if _hour_gan_next:
+            if _after23:
+                day_tg_idx = cdate.getDayGZ().tg
+            else:
+                d_next = Date(round((Date("{}/{}/{} 00:00:00.00".format(str(year).zfill(4), str(month).zfill(2), str(day+1).zfill(2)))), 3))
+                dd_next = list(d_next.tuple())
+                day_tg_idx = fromSolar(dd_next[0], dd_next[1], dd_next[2]).getDayGZ().tg
+        else:
+            # lateZi=0: 跟日柱一致
+            day_tg_idx = cdate.getDayGZ().tg
+        hTG = tian_gan[(day_tg_idx % 5 * 2 + 0) % 10] + di_zhi[0]
     if year < 1900:
         mTG1 = find_lunar_month(yTG).get(lunar_date_d(year, month, day).get("月"))
     else:
         mTG1 = mTG
-    hTG1 = find_lunar_hour(dTG).get(hTG[1])
+    if _has_late_override:
+        hTG1 = hTG  # v2.2.1: lateZi 直接生效
+    else:
+        hTG1 = find_lunar_hour(dTG).get(hTG[1])
     return [yTG, mTG1, dTG, hTG1]
 #金函玉鏡
 def gpan(year, month, day, hour, minute):
@@ -467,17 +490,37 @@ def gpan1(year, month, day, hour, minute):
 
 #換算干支
 def gangzhi(year, month, day, hour, minute):
+    # v2.2.1: 共享 jieqi.py 的 thread-local 开关
+    from . import jieqi as _jq_module
+    _after23 = _jq_module._get_after23()
+    _hour_gan_next = _jq_module._get_hour_gan_next()
     if year == 0:
         return ["無效"]
     if year < 0:
-        year = year + 1 
-    if hour == 23:
+        year = year + 1
+    if hour == 23 and _after23:
         d = Date(round((Date("{}/{}/{} {}:00:00.00".format(str(year).zfill(4), str(month).zfill(2), str(day+1).zfill(2), str(0).zfill(2)))), 3))
     else:
         d = Date("{}/{}/{} {}:00:00.00".format(str(year).zfill(4), str(month).zfill(2), str(day).zfill(2), str(hour).zfill(2) ))
     dd = list(d.tuple())
     cdate = fromSolar(dd[0], dd[1], dd[2])
     yTG,mTG,dTG,hTG = "{}{}".format(tian_gan[cdate.getYearGZ().tg], di_zhi[cdate.getYearGZ().dz]), "{}{}".format(tian_gan[cdate.getMonthGZ().tg],di_zhi[cdate.getMonthGZ().dz]), "{}{}".format(tian_gan[cdate.getDayGZ().tg], di_zhi[cdate.getDayGZ().dz]), "{}{}".format(tian_gan[cdate.getHourGZ(dd[3]).tg], di_zhi[cdate.getHourGZ(dd[3]).dz])
+    # v2.2.1: hour==23 时按 lateZi 重写时柱(其它 22 小时 NO-OP)
+    # lateZi=1(默认):时干始终用次日日干。lateZi=0:跟随日柱所在 cdate 的日干(==跟日柱一致)。
+    _has_late_override = False
+    if hour == 23:
+        _has_late_override = True
+        if _hour_gan_next:
+            if _after23:
+                day_tg_idx = cdate.getDayGZ().tg
+            else:
+                d_next = Date(round((Date("{}/{}/{} 00:00:00.00".format(str(year).zfill(4), str(month).zfill(2), str(day+1).zfill(2)))), 3))
+                dd_next = list(d_next.tuple())
+                day_tg_idx = fromSolar(dd_next[0], dd_next[1], dd_next[2]).getDayGZ().tg
+        else:
+            # lateZi=0: 跟日柱一致
+            day_tg_idx = cdate.getDayGZ().tg
+        hTG = tian_gan[(day_tg_idx % 5 * 2 + 0) % 10] + di_zhi[0]
     if year < 1900:
         mTG1 = find_lunar_month(yTG).get(lunar_date_d(year, month, day).get("月"))
     else:
@@ -493,7 +536,10 @@ def gangzhi(year, month, day, hour, minute):
                 mTG1 = tian_gan[_prev.getMonthGZ().tg] + di_zhi[_prev.getMonthGZ().dz]
                 if jieqi.jqmc[_sd.getJieQi() - 1] == '立春':
                     yTG = tian_gan[_prev.getYearGZ().tg] + di_zhi[_prev.getYearGZ().dz]
-    hTG1 = find_lunar_hour(dTG).get(hTG[1])
+    if _has_late_override:
+        hTG1 = hTG  # v2.2.1: lateZi 直接生效
+    else:
+        hTG1 = find_lunar_hour(dTG).get(hTG[1])
     zi = gangzhi1(year, month, day, 0, 0)[3]
     hourminute = str(hour)+":"+str(minute)
     gangzhi_minute = minutes_jiazi_d(zi).get(hourminute)

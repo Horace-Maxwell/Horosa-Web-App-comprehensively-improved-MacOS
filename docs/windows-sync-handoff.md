@@ -20,6 +20,105 @@
 
 ---
 
+## v2.2.1 — 日界点完成版（含晚子时·时柱起干第二开关）+ ChartController 白名单 bug + AI 分析 SSE 双修复 Issue #8
+
+**改动范围**：前端 + Java 后端（需重编 `astrostudyboot.jar`）；Python vendor 暂未动（Phase 2）。
+
+**关键变化**：
+1. **新增第二个独立全局开关「晚子时·时柱起干」**：
+   - `lateZiHourMode = 'nextDay' (默认) | 'today'` （后端字段 `lateZiHourUseNextDay = 1|0`）
+   - 只在 `hour ∈ [23:00, 24:00)` 影响时干；与日柱开关 `after23NewDay` 完全独立。
+   - 27日 23:30 矩阵详见 `Horosa-Web/docs/global-day-boundary-v2.2.1.md`。
+2. **修复 ChartController.getParams() 白名单丢字段 bug**：旧版 `getParams()` 不显式 `putAll("after23NewDay")` 导致 Java backend 永远拿默认值，本版本一并修复 + 加 `lateZiHourUseNextDay`。**Mac 端在审计中又发现 7 个同型 controller**（BaZiBirth/PaiBaZi/LiuReng/ZiWei/Nongli/JieQi/QueryChart）+ 3 个 Model（BaZiDirect/LiuReng/ZiWeiChart）也缺 `lateZiHourUseNextDay` 透传 → 全部修。Windows 同步 jar 时这一批控制器变更要一并带过去。
+3. **AI 挂载**：`buildAstroSnapshotContent` 加 "排盘规则" 行，AI snapshot/导出 markdown 显式标注两个开关状态。
+4. **持久化**：命盘 / 案例 schema 都加 `lateZiHourUseNextDay` 字段；保存/恢复时按用户实际选择走。
+5. **jest 自检**：新增 6 个时柱开关 case，含核心新 case `after23=0 + lateZi=0 → 辛丑 戊子`。
+6. **Windows Issue #8 / AI 分析"GPU 加载完后划水然后停止"修复**（`AIAnalysisProxyService.java`）：
+   - **Fix 1（必须）** — catch 块第一步必须 `QueueLog.error(AppLoggers.ErrorLogger, e)` 记录一级异常，`sendEvent` / `completeWithError` 各自嵌套 `try`。修了之前"上游 Ollama 抛错 → catch 内 sendEvent 撞 `ClientAbortException` 抛 `RuntimeException` 把 `ai-analysis-chat-stream` 线程炸了 → 原始一级异常被 `safeErrorMessage` 吞掉根因黑盒"的可观测性 bug。
+   - **Fix 2（治本）** — `streamOpenAICompatible` / `streamAnthropic` / `streamGemini` 三处全部包一层 `withHeartbeat`，每 15s 给 emitter 写 `: keep-alive` 注释帧，防止 Ollama 慢首 token（本地 10–60s）期间客户端/Chromium/中间件按空闲超时切断 SSE socket。心跳本身 try-catch；发现客户端断了主动 `emitter.complete()` 并停 schedule。
+   - **防回归** — `release_preflight.sh` 加 [7] 哨兵：grep `QueueLog.error(AppLoggers.ErrorLogger` 与 `keep-alive` 必须命中 `AIAnalysisProxyService.java`，任一丢失阻断发布。Windows 端 `release_selfcheck.py` 建议同步同款 grep 哨兵。
+
+**Windows 端必做**：
+- ✅ **重编 `astrostudyboot.jar`**（`BaZiHelper.java`、`BaZi.java`、`NongliHelper.java`、`OnlyFourColumns.java`、`ChartController.java` 都改了）。重编后**必须重启 Java 进程**（吸取 Mac v2.2.1 教训：旧 launcher 进程残留会让新 class 形同未上线 — 用 `lsof -ti :9999` + `ps -p PID -o lstart=` 确认）。
+- ✅ **重新 `npm run build`**（前端 baziLunarLocal / aiAnalysisContext / models 都改了）。
+- ⏸ Python runtime 包**不需要重打**（vendor 暂未动）。
+- 🔒 `release_preflight.sh` 版本门禁应升级到 2.2.1。
+- 🔒 launcher version assertion 升 2.2.1。
+
+**验证**：跑 `npx umi-test`（期望 139+ all green），preview 检查 27日 23:30 四 case 矩阵，重点验证 `after23=0 + lateZi=0 → 辛丑 戊子`（新行为）。
+
+**机制详见**：[`Horosa-Web/docs/global-day-boundary-v2.2.1.md`](../Horosa-Web/docs/global-day-boundary-v2.2.1.md)
+
+### v2.2.1 补充（发版前收尾这一轮——以下都要同步到 Windows）
+
+> 机制详见 [`docs/v2.2.1-session-addendum.md`](v2.2.1-session-addendum.md)。
+
+1. **`(1,0)` 边界四柱一致性（Java，必同步 + 重编 jar）**：`BaZiHelper.getTimeColumn`（两个重载）+ `getTimeGanziStr` + `getTimeStartGan` 共 **4 条**晚子时时柱分支,原来只写了 `after23=0 && lateZi=1` 一侧,**漏了对称的 `after23=1 && lateZi=0`**(日柱进位次日但时柱按今日干起 → 应退一位 `+9`)。补全后 `(1,0)=戊子`,与 baziLunarLocal/奇门/太乙一致(此前 Java 系技法返 庚子)。**钉定矩阵更新为 `(1,0)=壬寅 戊子`**(release notes 已改)。
+2. **Moira / 金口诀 / 太乙 切换后需刷新才生效（前端，必同步）**：根因是各自 fetch 把两开关漏在 payload / client cache key 外。`guolao/GuoLaoChartMain.js normalizeChartParams`(cache key 补两开关)、`jinkou/JinKouCalc.js fetchJinKouPan`(payload 补两开关 + genGodsParams)、`taiyi/TaiYiCalc.js fetchTaiyiPan`(payload 补 lateZi)、`dunjia/DunJiaCalc.js fetchQimenPan`+`DunJiaMain getQimenOptionsKey`(已含)。后端 webqimensrv/webtaiyisrv/webjinkousrv + Java `/liureng/gods` 都已读两开关。
+3. **AI 挂载之前是死代码（前端，必同步）**：`utils/aiAnalysisContext.js buildDayBoundaryMeta` 之前**定义了但从未被调用** → AI 实际看不到排盘规则。本轮在 `buildContextLayers` 加「排盘规则（日界点·晚子时）」上下文层 + `utils/aiExport.js` 导出头加同款行。之前 release notes 宣称的「AI 挂载排盘规则」现在才真正生效。
+4. **AI 供应商连通性（Java + 前端，必同步）**：① `AIAnalysisProxyService.buildAnthropicBody` 的 content 块过去复用 Gemini 的 `buildTextPart`(只有 `text`)→ Anthropic 报 `messages.content: missing field type`(503),对话+测试连接全挂;新增 `buildAnthropicTextPart` 补 `type:"text"`(Mac #9)。② 前端 `AIAnalysisMain.testProfileChat` catch 把 URL 编码的裸 401 解码 + 对未登录/未配置给可操作中文提示(Mac #8)。③ `boundless/HttpClientUtility.getHttpHost` 无代理环境变量时回退读 `http(s).proxyHost` 系统属性(Win #9,**需 Windows 实测**;纯增量无属性时行为不变)。④ **Win #8 Ollama「加载后不出字」已排查 = Ollama/Windows 环境问题**(端点 `/v1` 正确、心跳+无超时已在),非应用 bug,Windows 端核查环境/GPU。
+5. **软件内升级非阻塞 UX（macOS launcher 自研,Windows 壳自理；但前端 UpdateNotifier 共享）**：`main.rs` 新增 `update_check_silent`/`update_start_background`/`update_install_and_restart` + `horosa://update-*` 事件(不接管 launcher 界面);启动自动检测改 emit `update-available` 非阻塞。**前端共享件**:`components/update/UpdateNotifier.js`+`.less`(挂 `layouts/app.js`)、`utils/aiAnalysisDesktop.js` 三个 update 桥函数、`PageHeader` 设置菜单加「检查更新/关于星阙」。Windows Electron 壳的更新命令需 Win 端按同样事件/命令名自行接线。
+6. **偏好设置精修（前端,纯样式/文案,必同步）**：`xq-ui` 令牌下统一 `PageHeader.less` 的 `aiSetting*` 说明卡 + 新 `about*` 样式 + 关于弹窗;不动任何数据绑定/语义色。
+
+**本轮额外重编 jar**:Java 改了 `BaZiHelper`(getTimeColumn/getTimeGanziStr/getTimeStartGan)+ `AIAnalysisProxyService`(Anthropic type)+ `boundless/HttpClientUtility`(proxy)→ Windows 必须重编 `astrostudyboot.jar`。
+
+**验证**:`npx umi-test` 139 green;preview 27日23:30 跑 `(1,0)=戊子` 跨技法一致;桌面壳模拟 `horosa-latest.json` 更高版本验证非阻塞卡片→后台下载可最小化→重启更新;偏好弹窗亮/暗;AI 配 Anthropic key 测试连接应成功。
+
+---
+
+## v2.3.0 — 全局日界点（早/晚子时换日）+ 自动更新稳定化
+
+> 性质：**前端（`astrostudyui`）+ Java（`astrostudysrv`，4 个 Controller）+ Python（`astropy/websrv` + `vendor`，7 个引擎+service）+ macOS launcher（Tauri `main.rs`）**。
+> ⚠️ **本版含 Java 改动 → Windows 必须重编 `astrostudyboot.jar`**；含 Python vendor 改动 → 重新 rsync `Horosa-Web/vendor/` 到 runtime；自动更新 P0 修复在 macOS launcher（main.rs）—— Windows Electron 壳的自动检查更新接线**属 Win 端自理**（不同 OS、不同壳）。
+
+机制细节见 [`global-day-boundary-v2.3.0.md`](global-day-boundary-v2.3.0.md)。
+
+### 前端 + Java（共享 `Horosa-Web/`）
+- 新「设置 → 全局设置」Modal（`XQSegmented` 二选一：23点后次日 / 24点后次日），存 `app.dayBoundary`，复用 `globalSetup` localStorage。
+- 新建 `utils/dayBoundary.js`：`defaultAfter23NewDay()` 实时读全局，各技法回退使用（不依赖 React/dva，纯函数）。
+- **修核心 bug** `utils/baziLunarLocal.js:637` `setSect` 按 `after23NewDay` 决定（八字/河洛/参评/preciseCalcBridge 本地 nongli 受益，单测 + lunar setSect(1)/(2) 方向验证：23:30 → 己卯 / 戊寅）。
+- **修核心 bug** `components/dunjia/DunJiaCalc.js` 移除 `buildGanzhiForQimen` 二次进位（避免与后端 nongli 已换日叠加成双重换日，附注释防回退）。三式合一复用 `DunJiaCalc`，自动受益。
+- 各技法 `after23NewDay` 默认值统一接 `defaultAfter23NewDay()`：奇门/太乙/金口/六壬/六爻/紫微/三式/八字/河洛/参评 + `aiAnalysisContext`（3 处）。
+- `fieldsToParams` 补传 `after23NewDay`：主盘 `models/astro.js`、`hellenastro/AstroChart13`、`astro/IndiaChart`、`guolao/GuoLaoChartMain`、`jieqi/JieQiChartsMain` `genParams`、`utils/preciseCalcBridge.js` `JIE_QI_YEAR_KEYS`、`utils/aiAnalysisContext.js` `buildCaseSnapshotParams`。
+- `KinAstroMain.js buildPayload`（一处覆盖 shaozi/tieban/chunzi/fendjing/nanji/beiji/xianqin/cetian 等 kinastro 系）+ `WuZhaoMain` / `HuangJiMain` / `ShenYiShuMain` 各自 payload 补传。
+- **Java 4 处硬编码 `false` 改读参数 → 重编 jar**：`astrostudycn/.../ChartController.java:75`、`JieQiController.java:64`、`QueryChartController.java:40`，以及 `astrostudy/.../NongliHelper.java:680`（被 `chart13`/印度盘调用）。覆盖主盘/七政底盘/紫微底盘/28宿/印度/分至/历史/中点/推运。重编链：boundless（不变可跳）→ astrostudy install → **astrostudycn install** → astrostudyboot clean package（JDK17）。
+
+### 后端 Python vendor + websrv（rsync 同步，**无需重编 jar**，但需重打 runtime 包）
+
+7 个技法组（详细模式见 fix 文档）：
+
+| 技法 | 改造文件 |
+|---|---|
+| wuzhao（五兆） | `vendor/kinwuzhao/config.py`（gangzhi1/gangzhi 加 `after23_new_day=1` 参数 + `and` 条件）+ `astropy/websrv/webwuzhaosrv.py` 取参传引擎 |
+| nanji（南极神數） | `vendor/kinastro/astro/nanji/calculator.py:465 from_solar_datetime` 加参 + `webnanjisrv.py` 传 |
+| shaozi/tieban/chunzi | `vendor/kinastro/astro/shaozi/calculator.py:221 calculate_ganzhi_from_datetime` 加 `after23_new_day=1` 参数，模式 B：`if after23 and hour==23: 日期+1 算日柱`（时支保留原 hour）。一处引擎覆盖三个 service（webshaozisrv/webtiebansrv/webchunzisrv） |
+| fendjing（鬼谷分定经） | `vendor/kinastro/astro/fendjing/fendjing_calculator.py:114 compute_fendjing_chart` 加参 + `webfendjingsrv.py` 传 |
+| shenyishu（神易数，日柱进卦） | `vendor/shenyishu/shenyishu.py:300 Shenyishu.__init__` 加参 + `webshenyishusrv.py` 传 |
+| qizheng（七政四余 kin 版） | **service 层 jd 调整**（引擎不动）：`astropy/websrv/webqizhengkinsrv.py` 算日柱前 `jd_for_day = chart.julian_day + (1.0 if dt.hour==23 and after23 else 0.0)`，shensha/get_bazi_stems_branches 用 `jd_for_day`；compute_chart 的星历 jd 不动 |
+| wangji（皇极经世） | **thread-local 方案**避免深透传：`vendor/kinwangji/kinwangji/wanji.py` + `jieqi.py` 各加 `_AFTER23_LOCAL = threading.local()` + `set_after23_new_day`/`_is_after23_active`，3 处 `if hour==23 and _is_after23_active()`；`astropy/websrv/webwangjisrv.py` 在 `wanji_four_gua` 调用前 import 两个 set 函数并 set |
+
+**豁免**（不改，避免破坏已工作的主流）：
+- 奇门 kinqimen / 太乙 kintaiyi / 金口 kinjinkou 引擎内部的 `if hour==23` —— 前端 nongli/overlay 已决定日柱，引擎内部那处不影响展示。
+- 京房/荆诀 jingjue（纯 seed 起卦）、太玄 taixuan（cnlunar 第三方固定 23 点换日、不可参数化）、北极 beiji（不显示日柱）、演禽 xianqin（农历定宫）：不涉及/不可控。
+- 死代码/死副本：`kinastro/astro/bazi/calculator.py`、`damo`、`diqiyijue`、`liuyao_lifetime`、`kinwangji` 顶层副本、`kinastro/astro/wangji/*`（审计确认无 service import）。
+- `vendor/kinastro/astro/bazi/constants.py:571` 是**时支索引**（子时 23-01 点→0），不是日柱换日，**不要动**。
+
+### macOS launcher（`Horosa_Desktop_Installer/src-tauri/src/main.rs`）—— Windows 端不适用
+自动更新 P0：接线「自动检查更新」死开关——`auto_check_updates: bool` 在 `main.rs:257/286` 定义且默认 `true`，但 setup 闭包**从不消费它**（这就是体感「自动更新不工作/不稳定」的核心）。在 setup 闭包末尾、`Ok(())` 前加 `thread::spawn`：启动延迟 10 秒，若偏好启用则静默 `resolve_update_plan`，**仅当发现新版才调 `check_for_updates`** 弹更新框，无更新/网络失败静默 `eprintln!` 写日志（避免每次启动打扰）。**需重编 launcher**（`cargo build --release`，或走完整 `npm run tauri build`）。
+
+注：本仓自研 OTA（`reqwest` + GitHub Release + SHA256 + bash helper + `ditto` 替换 + Apple 公证装订）已确认**不迁** Tauri 官方 `tauri-plugin-updater`——自研方案承担 app + 独立 runtime.tar.gz 双更新 + 双向回滚 + 离线 pkg 兜底，官方做不到。
+
+Windows Electron 外壳的自动更新另算（不在本仓代码内）。
+
+### Windows 自检
+1. 同步 `Horosa-Web/` 全部改动（前端 + Python vendor + Python websrv + Java 源）。
+2. 重编 jar（JDK17，4 模块链：astrostudy → astrostudycn → astrostudyboot clean package）。
+3. 前端：`npm run build && npm run build:file`（顺序，不并行）。
+4. 启动栈，浏览器进「设置 → 全局设置」看 Modal（两个单选+当前态）；进八字页设 23:30 切换「23点算第二天/当天」下拉，日柱在 **己卯 / 戊寅**（次日 / 当天）跳变；任意命盘技法移动时间到 22:59→23:01，日柱按全局设置在 23 点边界跳变。
+5. 抽查 wangji/wuzhao/shaozi 的 23:30 日柱在两个设置下不同（embedded python 直调引擎可独立验证）。
+
+---
+
 ## v2.2.0 — 数算两新技法（邵子参评数 / 河洛理数）+ 调波盘绘制 + 风水 React 化
 
 > 发布版本号 **2.2.0**（开发期内部标记曾用 v2.1.9；下列技术文档文件名仍带 `-v2.1.9` 但即本版内容）。

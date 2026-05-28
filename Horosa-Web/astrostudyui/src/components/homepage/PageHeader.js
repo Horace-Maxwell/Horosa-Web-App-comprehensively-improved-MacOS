@@ -6,6 +6,7 @@ import {
 	getNextAppearanceMode,
 	normalizeAppearanceMode,
 } from '../../utils/appearance';
+import { isDesktopBridgeAvailable as hasUpdateBridge, updateCheckSilent } from '../../utils/aiAnalysisDesktop';
 import {
 	runAIExport,
 	loadAIExportSettings,
@@ -21,10 +22,12 @@ import {
 	XQIconButton,
 	XQModal,
 	XQSectionTitle,
+	XQSegmented,
 	XQSelect,
 	XQToolbar,
 } from '../xq-ui';
 import XQIcon from '../xq-icons';
+import { normalizeDayBoundary, DAY_BOUNDARY_AFTER23, DAY_BOUNDARY_AFTER24, normalizeLateZiHourMode, LATE_ZI_HOUR_NEXT_DAY, LATE_ZI_HOUR_TODAY, lateZiHourModeToBit } from '../../utils/dayBoundary';
 import styles from './PageHeader.less';
 
 const Option = XQSelect.Option;
@@ -58,7 +61,10 @@ const PAGE_LABELS = {
 
 function PageHeader(props){
 	const [aiSettingVisible, setAiSettingVisible] = React.useState(false);
+	const [globalSettingVisible, setGlobalSettingVisible] = React.useState(false);
 	const [astroHelpVisible, setAstroHelpVisible] = React.useState(false);
+	const [aboutVisible, setAboutVisible] = React.useState(false);
+	const [aboutVersion, setAboutVersion] = React.useState('');
 	const [aiSettingData, setAiSettingData] = React.useState(loadAIExportSettings());
 	const aiSettingDataRef = React.useRef(aiSettingData);
 	const [aiSettingTechs, setAiSettingTechs] = React.useState(listAIExportTechniqueSettings());
@@ -116,6 +122,47 @@ function PageHeader(props){
 
 	function cycleAppearanceMode(){
 		changeAppearanceMode(getNextAppearanceMode(props.appearanceMode));
+	}
+
+	function changeDayBoundary(value){
+		const normalized = normalizeDayBoundary(value);
+		if(props.dispatch){
+			props.dispatch({
+				type: 'app/save',
+				payload: { dayBoundary: normalized },
+			});
+		}
+		// 即时同步: 广播事件,让各技法立即更新自己的 after23NewDay(下拉/options 立即变,下次操作即取新值;不主动 re-fetch 已渲染盘)
+		try {
+			if(typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'){
+				const after23NewDay = normalized === 'after24' ? 0 : 1;
+				window.dispatchEvent(new CustomEvent('horosa:day-boundary-changed', {
+					detail: { dayBoundary: normalized, after23NewDay }
+				}));
+			}
+		} catch (e) {
+			// silently ignore
+		}
+	}
+
+	function changeLateZiHourMode(value){
+		const normalized = normalizeLateZiHourMode(value);
+		if(props.dispatch){
+			props.dispatch({
+				type: 'app/save',
+				payload: { lateZiHourMode: normalized },
+			});
+		}
+		try {
+			if(typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'){
+				const lateZiHourUseNextDay = lateZiHourModeToBit(normalized);
+				window.dispatchEvent(new CustomEvent('horosa:late-zi-hour-mode-changed', {
+					detail: { lateZiHourMode: normalized, lateZiHourUseNextDay }
+				}));
+			}
+		} catch (e) {
+			// silently ignore
+		}
 	}
 
     function openDrawer(key){
@@ -439,18 +486,46 @@ function PageHeader(props){
 	},{
 		key: 'aiExportSettings',
 		label: menuLabel('ai', 'AI导出设置')
-	}].concat(hasDesktopBridge() ? [{
+	},{
+		key: 'globalsettings',
+		label: menuLabel('settings', '全局设置')
+	}].concat(hasUpdateBridge() ? [{
+		key: 'checkUpdate',
+		label: menuLabel('newChart', '检查更新')
+	}] : []).concat([{
+		key: 'about',
+		label: menuLabel('help', '关于星阙')
+	}]).concat(hasDesktopBridge() ? [{
 		key: 'diagnostics',
 		label: menuLabel('diagnostics', '诊断报告')
 	}] : []);
 
 	function onAstroSettingsClick({key}){
+		if(key === 'globalsettings'){
+			setGlobalSettingVisible(true);
+			return;
+		}
 		if(key === 'aiExportSettings'){
 			openAIExportSettings();
 			return;
 		}
 		if(key === 'diagnostics'){
 			onExportDiagnosticsClick();
+			return;
+		}
+		if(key === 'checkUpdate'){
+			if(typeof window !== 'undefined' && typeof window.__horosaTriggerUpdateCheck === 'function'){
+				window.__horosaTriggerUpdateCheck();
+			}
+			return;
+		}
+		if(key === 'about'){
+			setAboutVisible(true);
+			if(hasUpdateBridge()){
+				updateCheckSilent().then((res)=>{
+					if(res && res.currentVersion){ setAboutVersion(res.currentVersion); }
+				}).catch(()=>{ /* noop */ });
+			}
 			return;
 		}
 		openDrawer(key);
@@ -615,6 +690,69 @@ function PageHeader(props){
 								>
 									{currentSettingMeaningCheckbox}
 								</XQCheckItem>
+							</div>
+						) : null}
+					</div>
+				</XQModal>
+				<XQModal
+					title="全局设置"
+					open={globalSettingVisible}
+					onCancel={()=>setGlobalSettingVisible(false)}
+					width={520}
+					footer={(
+						<XQToolbar className={styles.aiSettingFooter}>
+							<XQButton size="small" variant="primary" onClick={()=>setGlobalSettingVisible(false)}>完成</XQButton>
+						</XQToolbar>
+					)}
+				>
+					<div className={styles.aiSettingModal}>
+						<XQSectionTitle>日界点（日柱换日规则）</XQSectionTitle>
+						<XQSegmented
+							value={normalizeDayBoundary(props.dayBoundary)}
+							onChange={(e)=>changeDayBoundary(e && e.target ? e.target.value : e)}
+							options={[
+								{value: DAY_BOUNDARY_AFTER23, label: '23点算第二天'},
+								{value: DAY_BOUNDARY_AFTER24, label: '24点算第二天'},
+							]}
+						/>
+						<div className={styles.aiSettingEmpty}>作为所有技法的默认换日规则；个别技法仍可在其「排盘设置」中单独调整（左栏改过后全局不会覆盖）。「23点算第二天」=23点起日柱进位次日；「24点算第二天」=23点仍守今、24点才换日柱。</div>
+
+						<XQSectionTitle>晚子时·时柱起干（独立于日柱）</XQSectionTitle>
+						<XQSegmented
+							value={normalizeLateZiHourMode(props.lateZiHourMode)}
+							onChange={(e)=>changeLateZiHourMode(e && e.target ? e.target.value : e)}
+							options={[
+								{value: LATE_ZI_HOUR_NEXT_DAY, label: '晚子时按次日日柱计算'},
+								{value: LATE_ZI_HOUR_TODAY, label: '晚子时按当日柱计算'},
+							]}
+						/>
+						<div className={styles.aiSettingEmpty}>晚子时＝23:00–24:00。「按次日日柱计算」（默认）= 时干用次日日干起子时；「按当日柱计算」= 时干用今日日干起子时。这跟日柱开关独立——只在 23:00–23:59 时段影响时干。</div>
+					</div>
+				</XQModal>
+				<XQModal
+					title="关于星阙"
+					open={aboutVisible}
+					onCancel={()=>setAboutVisible(false)}
+					width={460}
+					footer={(
+						<XQToolbar className={styles.aiSettingFooter}>
+							<XQButton size="small" variant="primary" onClick={()=>setAboutVisible(false)}>完成</XQButton>
+						</XQToolbar>
+					)}
+				>
+					<div className={styles.aboutBody}>
+						<div className={styles.aboutHeadRow}>
+							<div className={styles.aboutLogo}><XQIcon name="astro" /></div>
+							<div>
+								<div className={styles.aboutName}>星阙 Horosa</div>
+								<div className={styles.aboutVersion}>{aboutVersion ? `版本 v${aboutVersion}` : '玄学与星座云平台'}</div>
+							</div>
+						</div>
+						<div className={styles.aboutDesc}>本地优先的玄学与星座桌面应用，涵盖占星、八字、紫微、七政四余、三式与数算等技法，并内置 AI 分析与挂载上下文。</div>
+						{hasUpdateBridge() ? (
+							<div className={styles.aboutActions}>
+								<XQButton size="small" variant="primary" onClick={()=>{ if(typeof window !== 'undefined' && typeof window.__horosaTriggerUpdateCheck === 'function'){ window.__horosaTriggerUpdateCheck(); } }}>检查更新</XQButton>
+								<span className={styles.aboutCheckState}>进入软件会自动检测，有新版会在右下角提示，可后台下载、随时重启更新。</span>
 							</div>
 						) : null}
 					</div>

@@ -8,6 +8,7 @@ import { DefLat, DefLon, DefGpsLat, DefGpsLon, } from '../utils/constants';
 import { saveAstroAISnapshot, } from '../utils/astroAiSnapshot';
 import { loadLocalFateEvents, saveLocalFateEvents, } from '../utils/localdeeplearn';
 import * as AstroConst from '../constants/AstroConst';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../utils/dayBoundary';
 
 let dtm = new DateTime();
 const DefaultHouseSystem = 1;
@@ -143,8 +144,13 @@ function newEmptyFields(){
 			name: ['godKeyPos'],
 		},
 		after23NewDay: {
-			value: 0,
+			value: defaultAfter23NewDay(),
 			name: ['after23NewDay'],
+		},
+		// v3 第二开关·晚子时·时柱起干模式 (与 after23NewDay 完全独立)
+		lateZiHourUseNextDay: {
+			value: defaultLateZiHourUseNextDay(),
+			name: ['lateZiHourUseNextDay'],
 		},
 		adjustJieqi: {
 			value: 0,
@@ -229,6 +235,8 @@ function fieldsToParams(fields){
 		name: fields.name.value,
 		pos: fields.pos.value,
 		group: fields.group ? fields.group.value : null,
+		after23NewDay: (fields.after23NewDay && fields.after23NewDay.value !== undefined) ? fields.after23NewDay.value : defaultAfter23NewDay(),
+		lateZiHourUseNextDay: (fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined) ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 	};
 
 	if(params.pdaspects && params.pdaspects instanceof String){
@@ -553,8 +561,12 @@ export default {
 				name: ['godKeyPos'],
 			},
 			after23NewDay: {
-				value: 0,
+				value: defaultAfter23NewDay(),
 				name: ['after23NewDay'],
+			},
+			lateZiHourUseNextDay: {
+				value: defaultLateZiHourUseNextDay(),
+				name: ['lateZiHourUseNextDay'],
 			},
 			adjustJieqi: {
 				value: 0,
@@ -707,6 +719,48 @@ export default {
 			}
 
 			return st;
+		},
+
+		syncAfter23NewDay(state, { payload }){
+			const value = payload && payload.after23NewDay;
+			if(value !== 0 && value !== 1) return state;
+			// 用户拍板: 左栏改过 after23NewDay 后,全局同步不再覆盖(最高权限)。
+			// _after23BoundaryUserOverrode 由各 Main 在用户改局部下拉时通过 setAfter23BoundaryUserOverrode reducer 写入。
+			if(state && state._after23BoundaryUserOverrode) return state;
+			const next = { ...state };
+			if(next.fields && next.fields.after23NewDay){
+				next.fields = {
+					...next.fields,
+					after23NewDay: { ...next.fields.after23NewDay, value },
+				};
+			}
+			return next;
+		},
+
+		syncLateZiHourMode(state, { payload }){
+			const value = payload && payload.lateZiHourUseNextDay;
+			if(value !== 0 && value !== 1) return state;
+			// v2.2.1: 用户拍板 — 左栏改过 lateZiHourUseNextDay 后,全局同步不再覆盖(最高权限)。
+			// _lateZiHourUserOverrode 由各 Main 在用户改局部下拉时通过 setLateZiHourUserOverrode reducer 写入。
+			if(state && state._lateZiHourUserOverrode) return state;
+			const next = { ...state };
+			if(next.fields && next.fields.lateZiHourUseNextDay){
+				next.fields = {
+					...next.fields,
+					lateZiHourUseNextDay: { ...next.fields.lateZiHourUseNextDay, value },
+				};
+			}
+			return next;
+		},
+
+		setAfter23BoundaryUserOverrode(state, { payload }){
+			// 由 Main 组件在用户改局部下拉时 dispatch,锁定主盘 fields 不被全局事件覆盖(共享 fields 路径)。
+			return { ...state, _after23BoundaryUserOverrode: !!(payload && payload.value) };
+		},
+
+		setLateZiHourUserOverrode(state, { payload }){
+			// v2.2.1 同款语义:左栏改过 lateZiHourUseNextDay 后,锁定不被全局事件覆盖。
+			return { ...state, _lateZiHourUserOverrode: !!(payload && payload.value) };
 		},
 	},
 
@@ -990,7 +1044,17 @@ export default {
 			if(values.group !== undefined && values.group !== null){
 				fields.group.value = values.group;
 			}
-			
+			// 日界点 + 晚子时·时柱起干 + 时间算法 回填: 命盘存档时保留的就用存档值,否则保留当前(已默认到全局)。
+			if(values.after23NewDay !== undefined && values.after23NewDay !== null){
+				fields.after23NewDay.value = parseInt(values.after23NewDay + '', 10);
+			}
+			if(values.lateZiHourUseNextDay !== undefined && values.lateZiHourUseNextDay !== null){
+				fields.lateZiHourUseNextDay.value = parseInt(values.lateZiHourUseNextDay + '', 10);
+			}
+			if(values.timeAlg !== undefined && values.timeAlg !== null){
+				fields.timeAlg.value = parseInt(values.timeAlg + '', 10);
+			}
+
 			const param = fieldsToParams(fields);
 			const astroState = yield select((allState)=>allState.astro);
 			param.includePrimaryDirection = shouldIncludePrimaryDirection(astroState);
@@ -1278,6 +1342,47 @@ export default {
 
 		},
 
-	}
+		*syncAndRecalcFromDayBoundary(_, { put, select }) {
+			const state = yield select(s => s.astro);
+			if(state && state.fields){
+				yield put({
+					type: 'fetchByFields',
+					payload: {
+						...state.fields,
+						__requestOptions: { silent: true },
+					},
+				});
+			}
+		},
+
+	},
+
+	subscriptions: {
+		syncFromGlobalDayBoundary({ dispatch }){
+			if(typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+			const handler = (ev) => {
+				const detail = ev && ev.detail ? ev.detail : {};
+				const value = detail.after23NewDay;
+				if(value === 0 || value === 1){
+					dispatch({ type: 'syncAfter23NewDay', payload: { after23NewDay: value } });
+					dispatch({ type: 'syncAndRecalcFromDayBoundary' });
+				}
+			};
+			window.addEventListener('horosa:day-boundary-changed', handler);
+		},
+
+		syncFromGlobalLateZiHour({ dispatch }){
+			if(typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+			const handler = (ev) => {
+				const detail = ev && ev.detail ? ev.detail : {};
+				const value = detail.lateZiHourUseNextDay;
+				if(value === 0 || value === 1){
+					dispatch({ type: 'syncLateZiHourMode', payload: { lateZiHourUseNextDay: value } });
+					dispatch({ type: 'syncAndRecalcFromDayBoundary' });
+				}
+			};
+			window.addEventListener('horosa:late-zi-hour-mode-changed', handler);
+		},
+	},
 
 }

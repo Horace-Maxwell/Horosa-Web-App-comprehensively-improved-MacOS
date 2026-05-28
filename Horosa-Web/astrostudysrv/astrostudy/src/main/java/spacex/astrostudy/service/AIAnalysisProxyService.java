@@ -24,10 +24,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import boundless.exception.ErrorCodeException;
+import boundless.log.AppLoggers;
+import boundless.log.QueueLog;
 import boundless.net.http.HttpClientUtility;
 import boundless.spring.help.interceptor.SseHelper;
 import boundless.utility.JsonUtility;
@@ -53,6 +61,50 @@ public class AIAnalysisProxyService {
 		.connectTimeout(Duration.ofSeconds(15))
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.build();
+
+	// Issue #8 Fix 2: 长时 SSE 流的心跳调度池。Ollama 慢首 token 时若全程零字节，
+	// 客户端/中间件会按空闲超时切断 socket → 后端首次 sendEvent 撞 ClientAbortException。
+	// 每 15s 给 emitter 写一个 ": keep-alive" 注释帧，防止空闲断连。15s 安全门槛
+	// 低于浏览器/中间件常见空闲阈值（30–60s）。
+	private static final long SSE_HEARTBEAT_SECONDS = 15L;
+	private static final ScheduledExecutorService SSE_HEARTBEAT_EXECUTOR = Executors.newScheduledThreadPool(2, r -> {
+		Thread t = new Thread(r, "ai-analysis-sse-heartbeat");
+		t.setDaemon(true);
+		return t;
+	});
+
+	@FunctionalInterface
+	private interface StreamBody {
+		void run() throws Exception;
+	}
+
+	private void withHeartbeat(SseEmitter emitter, StreamBody body) throws Exception {
+		final AtomicBoolean stopped = new AtomicBoolean(false);
+		ScheduledFuture<?> heartbeat = SSE_HEARTBEAT_EXECUTOR.scheduleAtFixedRate(() -> {
+			if (stopped.get()) {
+				return;
+			}
+			try {
+				SseHelper.markCurrentThread();
+				emitter.send(SseEmitter.event().comment("keep-alive"));
+			} catch (Exception e) {
+				// 客户端已断。停止后续心跳；上游读循环下次 sendEvent 也会撞同样异常 → 进 catch → 记日志。
+				stopped.set(true);
+				try {
+					emitter.complete();
+				} catch (Exception ignore) {
+					// 已是错误/完成状态
+				}
+			}
+		}, SSE_HEARTBEAT_SECONDS, SSE_HEARTBEAT_SECONDS, TimeUnit.SECONDS);
+
+		try {
+			body.run();
+		} finally {
+			stopped.set(true);
+			heartbeat.cancel(false);
+		}
+	}
 
 	public Map<String, Object> listModels(Map<String, Object> params){
 		String providerType = normalizedProviderType(params);
@@ -136,14 +188,40 @@ public class AIAnalysisProxyService {
 				throw new ErrorCodeException(580013, "暂不支持该 providerType");
 			}
 			sendEvent(emitter, "done", buildMap("providerType", providerType, "model", model));
-			emitter.complete();
+			try {
+				emitter.complete();
+			}catch(Exception ce){
+				// 客户端可能已经断了。emitter.complete() 也可能抛 ClientAbortException，
+				// 这种情况下流已经结束，无需再当成失败。
+			}
 		}catch(Exception e){
-			sendEvent(emitter, "error", buildMap(
-				"providerType", providerType,
-				"model", model,
-				"message", safeErrorMessage(e)
-			));
-			emitter.completeWithError(e);
+			// Issue #8 Fix 1: catch 第一件事必须是把"一级"异常写日志。
+			// 之前这一步缺失，导致 ClientAbort 二级异常掩盖了 Ollama 上游真实失败，
+			// 调试时只能看到 sendEvent 抛 RuntimeException 的镜像 stack，根因黑盒。
+			try {
+				QueueLog.error(AppLoggers.ErrorLogger, e, String.format(
+					"AIAnalysisProxyService.chatStream failed: providerType=%s, model=%s",
+					providerType, model));
+			}catch(Throwable logEx){
+				// 日志层异常永远不能让 catch 自己炸。
+			}
+			// sendEvent 给前端发"error"事件——如果客户端已断，这一步会再抛 ClientAbort，
+			// 但我们已经把根因记下来了，所以这里 swallow 即可，不能让线程炸退出。
+			try {
+				sendEvent(emitter, "error", buildMap(
+					"providerType", providerType,
+					"model", model,
+					"message", safeErrorMessage(e)
+				));
+			}catch(Exception sendEx){
+				// 客户端已断；放弃前端通知。
+			}
+			// completeWithError 必须有机会执行，它清理 SseEmitter 状态。
+			try {
+				emitter.completeWithError(e);
+			}catch(Exception ce){
+				// emitter 已经完成或客户端已断；忽略。
+			}
 		}
 	}
 
@@ -242,60 +320,66 @@ public class AIAnalysisProxyService {
 	}
 
 	private void streamOpenAICompatible(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseEmitter emitter) throws Exception{
-		Map<String, Object> body = buildOpenAIChatBody(model, params, messages, true);
-		String url = joinUrl(resolveBaseUrl(normalizedProviderType(params), stringVal(params, "baseUrl")), "/chat/completions");
-		HttpRequest request = buildJsonRequest(url, buildAuthHeaders(normalizedProviderType(params), stringVal(params, "apiKey"), params), JsonUtility.encode(body), params);
-		HttpResponse<InputStream> response = streamHttpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-		ensureSuccess(response);
-		readSseStream(response.body(), (eventName, dataText)->{
-			if(StringUtility.isNullOrEmpty(dataText)){
-				return;
-			}
-			if("[DONE]".equalsIgnoreCase(dataText.trim())) {
-				return;
-			}
-			Map<String, Object> payload = JsonUtility.toDictionary(dataText);
-			String delta = extractOpenAIStreamDelta(payload);
-			if(!StringUtility.isNullOrEmpty(delta)) {
-				sendEvent(emitter, "delta", buildMap("delta", delta));
-			}
+		withHeartbeat(emitter, () -> {
+			Map<String, Object> body = buildOpenAIChatBody(model, params, messages, true);
+			String url = joinUrl(resolveBaseUrl(normalizedProviderType(params), stringVal(params, "baseUrl")), "/chat/completions");
+			HttpRequest request = buildJsonRequest(url, buildAuthHeaders(normalizedProviderType(params), stringVal(params, "apiKey"), params), JsonUtility.encode(body), params);
+			HttpResponse<InputStream> response = streamHttpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+			ensureSuccess(response);
+			readSseStream(response.body(), (eventName, dataText)->{
+				if(StringUtility.isNullOrEmpty(dataText)){
+					return;
+				}
+				if("[DONE]".equalsIgnoreCase(dataText.trim())) {
+					return;
+				}
+				Map<String, Object> payload = JsonUtility.toDictionary(dataText);
+				String delta = extractOpenAIStreamDelta(payload);
+				if(!StringUtility.isNullOrEmpty(delta)) {
+					sendEvent(emitter, "delta", buildMap("delta", delta));
+				}
+			});
 		});
 	}
 
 	private void streamAnthropic(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseEmitter emitter) throws Exception{
-		Map<String, Object> body = buildAnthropicBody(model, params, messages, true);
-		String url = joinUrl(resolveBaseUrl("anthropic", stringVal(params, "baseUrl")), "/v1/messages");
-		HttpRequest request = buildJsonRequest(url, buildAuthHeaders("anthropic", stringVal(params, "apiKey"), params), JsonUtility.encode(body), params);
-		HttpResponse<InputStream> response = streamHttpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-		ensureSuccess(response);
-		readSseStream(response.body(), (eventName, dataText)->{
-			if(StringUtility.isNullOrEmpty(dataText)){
-				return;
-			}
-			Map<String, Object> payload = JsonUtility.toDictionary(dataText);
-			String delta = extractAnthropicStreamDelta(eventName, payload);
-			if(!StringUtility.isNullOrEmpty(delta)) {
-				sendEvent(emitter, "delta", buildMap("delta", delta));
-			}
+		withHeartbeat(emitter, () -> {
+			Map<String, Object> body = buildAnthropicBody(model, params, messages, true);
+			String url = joinUrl(resolveBaseUrl("anthropic", stringVal(params, "baseUrl")), "/v1/messages");
+			HttpRequest request = buildJsonRequest(url, buildAuthHeaders("anthropic", stringVal(params, "apiKey"), params), JsonUtility.encode(body), params);
+			HttpResponse<InputStream> response = streamHttpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+			ensureSuccess(response);
+			readSseStream(response.body(), (eventName, dataText)->{
+				if(StringUtility.isNullOrEmpty(dataText)){
+					return;
+				}
+				Map<String, Object> payload = JsonUtility.toDictionary(dataText);
+				String delta = extractAnthropicStreamDelta(eventName, payload);
+				if(!StringUtility.isNullOrEmpty(delta)) {
+					sendEvent(emitter, "delta", buildMap("delta", delta));
+				}
+			});
 		});
 	}
 
 	private void streamGemini(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseEmitter emitter) throws Exception{
-		String apiKey = stringVal(params, "apiKey");
-		String url = joinUrl(resolveBaseUrl("gemini", stringVal(params, "baseUrl")), String.format("/models/%s:streamGenerateContent?alt=sse&key=%s", urlEncode(model), urlEncode(apiKey)));
-		Map<String, Object> body = buildGeminiBody(params, messages);
-		HttpRequest request = buildJsonRequest(url, buildAuthHeaders("gemini", apiKey, params), JsonUtility.encode(body), params);
-		HttpResponse<InputStream> response = streamHttpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-		ensureSuccess(response);
-		readSseStream(response.body(), (eventName, dataText)->{
-			if(StringUtility.isNullOrEmpty(dataText)){
-				return;
-			}
-			Map<String, Object> payload = JsonUtility.toDictionary(dataText);
-			String delta = extractGeminiContent(payload);
-			if(!StringUtility.isNullOrEmpty(delta)) {
-				sendEvent(emitter, "delta", buildMap("delta", delta));
-			}
+		withHeartbeat(emitter, () -> {
+			String apiKey = stringVal(params, "apiKey");
+			String url = joinUrl(resolveBaseUrl("gemini", stringVal(params, "baseUrl")), String.format("/models/%s:streamGenerateContent?alt=sse&key=%s", urlEncode(model), urlEncode(apiKey)));
+			Map<String, Object> body = buildGeminiBody(params, messages);
+			HttpRequest request = buildJsonRequest(url, buildAuthHeaders("gemini", apiKey, params), JsonUtility.encode(body), params);
+			HttpResponse<InputStream> response = streamHttpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+			ensureSuccess(response);
+			readSseStream(response.body(), (eventName, dataText)->{
+				if(StringUtility.isNullOrEmpty(dataText)){
+					return;
+				}
+				Map<String, Object> payload = JsonUtility.toDictionary(dataText);
+				String delta = extractGeminiContent(payload);
+				if(!StringUtility.isNullOrEmpty(delta)) {
+					sendEvent(emitter, "delta", buildMap("delta", delta));
+				}
+			});
 		});
 	}
 
@@ -730,7 +814,10 @@ public class AIAnalysisProxyService {
 			}
 			Map<String, Object> item = new LinkedHashMap<String, Object>();
 			item.put("role", "assistant".equals(role) ? "assistant" : "user");
-			item.put("content", Arrays.asList(buildTextPart(content)));
+			// v2.2.1 (Mac #9):Anthropic /v1/messages 的 content 块必须带 type:"text",
+			// 否则上游报 "messages.content: missing field `type`"(503)。
+			// 旧代码复用了 Gemini 用的 buildTextPart(只有 text 字段)→ Anthropic 对话与测试连接全失败。
+			item.put("content", Arrays.asList(buildAnthropicTextPart(content)));
 			normalized.add(item);
 		}
 		if(!systemParts.isEmpty()) {
@@ -772,6 +859,14 @@ public class AIAnalysisProxyService {
 
 	private static Map<String, Object> buildTextPart(String content){
 		Map<String, Object> part = new LinkedHashMap<String, Object>();
+		part.put("text", content);
+		return part;
+	}
+
+	// v2.2.1 (Mac #9):Anthropic content block 需要 type:"text"(Gemini 的 parts 不需要,故单独一个)。
+	private static Map<String, Object> buildAnthropicTextPart(String content){
+		Map<String, Object> part = new LinkedHashMap<String, Object>();
+		part.put("type", "text");
 		part.put("text", content);
 		return part;
 	}

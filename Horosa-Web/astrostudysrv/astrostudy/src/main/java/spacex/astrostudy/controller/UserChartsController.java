@@ -152,6 +152,12 @@ public class UserChartsController {
 		if(TransData.containsParam("isPub")) {
 			params.put("isPub", TransData.get("isPub"));
 		}
+		if(TransData.containsParam("after23NewDay")) {
+			params.put("after23NewDay", TransData.getValueAsInt("after23NewDay", 1));
+		}
+		if(TransData.containsParam("lateZiHourUseNextDay")) {
+			params.put("lateZiHourUseNextDay", TransData.getValueAsInt("lateZiHourUseNextDay", 1));
+		}
 		if(TransData.containsParam("ad")) {
 			int ad = TransData.getValueAsInt("ad", 1);
 			params.put("ad", ad);

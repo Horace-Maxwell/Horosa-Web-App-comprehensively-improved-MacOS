@@ -340,8 +340,9 @@ class CnTraditionInput extends Component{
 					</div>
 					<div className="horosa-field-block">
 						<Select value={fields.after23NewDay.value} onChange={this.onAfter23NewDayChange} size='small' style={{width:'100%'}}>
-							<Option value={0}>23点算当天</Option>
+							{/* 用户拍板(见 baziLunarLocal:637): after23NewDay=1「23点算第二天」=日柱守今、时柱跨日; =0「24点算第二天」=日柱与时柱整体进位次日。 */}
 							<Option value={1}>23点算第二天</Option>
+							<Option value={0}>24点算第二天</Option>
 						</Select>
 					</div>
 					<div className="horosa-field-block">

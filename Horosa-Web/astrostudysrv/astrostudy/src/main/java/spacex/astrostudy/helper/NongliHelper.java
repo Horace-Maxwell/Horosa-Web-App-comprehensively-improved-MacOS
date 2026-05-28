@@ -402,9 +402,18 @@ public class NongliHelper {
 	public static NongLi getNongLi(int orgad, String birth, String zone, String lon, boolean after23NewDay){
 		return getNongLi(orgad, birth, zone, lon, after23NewDay, false);
 	}
-	
+
 	public static NongLi getNongLi(int orgad, String birth, String zone, String lon, boolean after23NewDay, boolean directTime){
 		return getNongLi(orgad, birth, zone, lon, after23NewDay, directTime, null, true);
+	}
+
+	public static NongLi getNongLi(int orgad, String birth, String zone, String lon, boolean after23NewDay, boolean directTime, NongliBatchContext ctx, boolean persistCache){
+		return getNongLi(orgad, birth, zone, lon, after23NewDay, directTime, ctx, persistCache, true);
+	}
+
+	// v3 第二开关 简便重载: 跨包(astrostudycn.BaZi) 调用入口, 不暴露内部 NongliBatchContext。
+	public static NongLi getNongLi(int orgad, String birth, String zone, String lon, boolean after23NewDay, boolean directTime, boolean lateZiHourUseNextDay){
+		return getNongLi(orgad, birth, zone, lon, after23NewDay, directTime, null, true, lateZiHourUseNextDay);
 	}
 
 	public static List<NongLi> getNongLiSeries(int orgad, List<String> births, String zone, String lon, boolean after23NewDay, boolean directTime){
@@ -416,7 +425,8 @@ public class NongliHelper {
 		return list;
 	}
 
-	private static NongLi getNongLi(int orgad, String birth, String zone, String lon, boolean after23NewDay, boolean directTime, NongliBatchContext ctx, boolean persistCache){
+	// v3 第二开关·晚子时·时柱起干: 注入 lateZiHourUseNextDay 透传到 BaZiHelper.getTimeGanziStr。
+	public static NongLi getNongLi(int orgad, String birth, String zone, String lon, boolean after23NewDay, boolean directTime, NongliBatchContext ctx, boolean persistCache, boolean lateZiHourUseNextDay){
 		int ad = orgad;
 		if(birth.startsWith("-")) {
 			ad = -1;
@@ -461,7 +471,7 @@ public class NongliHelper {
 		nongli.monthGanZi = BaZiHelper.getMonthGanziStr(nongli.yearJieqi, m);
 		boolean after23H = DateTimeUtility.isAfter23Hour(realBirth);
 		nongli.dayGanZi = BaZiHelper.getDayGanziStr(ad, realBirth, zone, after23H, after23NewDay);
-		nongli.time = BaZiHelper.getTimeGanziStr(nongli.dayGanZi, realBirth, after23NewDay);
+		nongli.time = BaZiHelper.getTimeGanziStr(nongli.dayGanZi, realBirth, after23NewDay, lateZiHourUseNextDay);
 		
 		nongli.yearNaying = StemBranch.getNaYing(nongli.year);
 		FiveElement fv = StemBranch.getNaYingElement(nongli.year);
@@ -677,7 +687,7 @@ public class NongliHelper {
 
 		NongLi nl = NongLi.emptyNongLi();
 		try {
-			nl = NongliHelper.getNongLi(ad, birth, zone, lon, false);			
+			nl = NongliHelper.getNongLi(ad, birth, zone, lon, ConvertUtility.getValueAsInt(params.get("after23NewDay"), 1) == 1);
 		}catch(Exception e) {
 			QueueLog.error(AppLoggers.ErrorLogger, e);
 		}

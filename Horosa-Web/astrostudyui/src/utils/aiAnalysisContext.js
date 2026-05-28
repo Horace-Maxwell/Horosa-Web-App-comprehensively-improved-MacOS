@@ -1,6 +1,23 @@
 import DateTime from '../components/comp/DateTime';
 import request from './request';
 import * as Constants from './constants';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from './dayBoundary';
+
+// 用户拍板·v2.2.1: 给 AI 看的"排盘规则"语义说明,作为 first-class metadata 显式标注。
+// 让 GPT/Claude/Ollama 看到 snapshot 时知道四柱按哪种规则计算,不会按错语义解读。
+function buildDayBoundaryMeta(after23NewDay, lateZiHourUseNextDay){
+	const a23 = after23NewDay === 0 || after23NewDay === '0' || after23NewDay === false ? 0 : 1;
+	const lzh = lateZiHourUseNextDay === 0 || lateZiHourUseNextDay === '0' || lateZiHourUseNextDay === false ? 0 : 1;
+	const dayLabel = a23 === 1 ? '23点算第二天(日柱进位次日)' : '24点算第二天(日柱守今、24点才换日柱)';
+	const hourLabel = lzh === 1 ? '晚子时按次日日柱计算(时干用次日日干起子时)' : '晚子时按当日柱计算(时干用今日日干起子时)';
+	return {
+		after23NewDay: a23,
+		lateZiHourUseNextDay: lzh,
+		dayBoundaryLabel: dayLabel,
+		lateZiHourLabel: hourLabel,
+		note: `本盘排盘规则：日柱开关【${dayLabel}】+ 时柱开关【${hourLabel}】。23:00–23:59 范围内,日柱与时柱按上述规则计算;其他时辰两个开关均不影响。`,
+	};
+}
 import { buildAstroSnapshotContent, loadAstroAISnapshot } from './astroAiSnapshot';
 import { getCaseTypeLabel, getCaseTypeMeta, listLocalCases } from './localcases';
 import { listLocalCharts } from './localcharts';
@@ -38,7 +55,8 @@ const DEFAULT_QIMEN_OPTIONS = {
 	yimaMode: 'day',
 	timeAlg: 0,
 	shiftPalace: 0,
-	after23NewDay: 0,
+	after23NewDay: defaultAfter23NewDay(),
+	lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 	fengJu: false,
 	paiPanType: 3,
 	zhiShiType: 0,
@@ -209,7 +227,8 @@ function buildFieldObject(record){
 		timeAlg: { value: 0 },
 		phaseType: { value: 0 },
 		godKeyPos: { value: '年' },
-		after23NewDay: { value: 0 },
+		after23NewDay: { value: defaultAfter23NewDay() },
+		lateZiHourUseNextDay: { value: defaultLateZiHourUseNextDay() },
 		adjustJieqi: { value: 0 },
 		gender: { value: record.gender !== undefined && record.gender !== null ? record.gender : 1 },
 		southchart: { value: 0 },
@@ -275,7 +294,8 @@ function buildCaseSnapshotFields(record){
 		gpsLon: { value: record && record.gpsLon !== undefined ? record.gpsLon : 0 },
 		gpsLat: { value: record && record.gpsLat !== undefined ? record.gpsLat : 0 },
 		gender: { value: record && record.gender !== undefined && record.gender !== null ? record.gender : 1 },
-		after23NewDay: { value: record && record.after23NewDay !== undefined ? record.after23NewDay : 0 },
+		after23NewDay: { value: record && record.after23NewDay !== undefined ? record.after23NewDay : defaultAfter23NewDay() },
+		lateZiHourUseNextDay: { value: record && record.lateZiHourUseNextDay !== undefined ? record.lateZiHourUseNextDay : defaultLateZiHourUseNextDay() },
 		timeAlg: { value: record && record.timeAlg !== undefined ? record.timeAlg : 0 },
 	};
 }
@@ -290,6 +310,8 @@ function buildCaseSnapshotParams(record){
 		lat: fields.lat.value,
 		gpsLat: fields.gpsLat.value,
 		gpsLon: fields.gpsLon.value,
+		after23NewDay: (fields.after23NewDay && fields.after23NewDay.value !== undefined) ? fields.after23NewDay.value : defaultAfter23NewDay(),
+		lateZiHourUseNextDay: (fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined) ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 	};
 }
 
@@ -366,6 +388,7 @@ async function requestLiurengGods(record){
 		gpsLat: fields.gpsLat.value,
 		gpsLon: fields.gpsLon.value,
 		after23NewDay: fields.after23NewDay.value,
+		lateZiHourUseNextDay: fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 	};
 	const data = await request(`${Constants.ServerRoot}/liureng/gods`, {
 		body: JSON.stringify(params),
@@ -596,6 +619,7 @@ function buildChartBaziParams(record){
 		phaseType: fields.phaseType.value,
 		godKeyPos: fields.godKeyPos.value,
 		after23NewDay: fields.after23NewDay.value,
+		lateZiHourUseNextDay: fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 		adjustJieqi: fields.adjustJieqi.value,
 	};
 }
@@ -613,6 +637,7 @@ function buildChartZiweiParams(record){
 		gender: fields.gender.value,
 		timeAlg: fields.timeAlg.value === 1 ? 1 : 0,
 		after23NewDay: fields.after23NewDay.value,
+		lateZiHourUseNextDay: fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 	};
 }
 
@@ -1551,6 +1576,22 @@ export function buildContextLayers({
 			title: `案例前提：${sourceContext.title || ''}`,
 			priority: 95,
 			content: sourceContext.content,
+		});
+	}
+	// v2.2.1:把「日界点·晚子时」排盘规则作为 first-class 上下文稳定挂载,
+	// 让 AI 知道四柱按哪种换日/起时干规则计算,不会误读 23:00–23:59 的日柱/时柱。
+	// 优先用案例自带的开关值(命盘 fields / 事盘 payload),否则回退全局设置。
+	{
+		const a23 = sourceContext && sourceContext.after23NewDay !== undefined
+			? sourceContext.after23NewDay : defaultAfter23NewDay();
+		const lzh = sourceContext && sourceContext.lateZiHourUseNextDay !== undefined
+			? sourceContext.lateZiHourUseNextDay : defaultLateZiHourUseNextDay();
+		const meta = buildDayBoundaryMeta(a23, lzh);
+		layers.push({
+			key: 'dayBoundaryRule',
+			title: '排盘规则（日界点·晚子时）',
+			priority: 94,
+			content: meta.note,
 		});
 	}
 	(techniqueContexts || []).forEach((item, idx)=>{

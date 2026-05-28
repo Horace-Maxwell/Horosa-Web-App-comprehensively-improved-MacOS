@@ -321,6 +321,9 @@ class WuZhaoSrv:
             day = _to_int(data.get("day"), 1)
             hour = _to_int(data.get("hour"), 0)
             minute = _to_int(data.get("minute"), 0)
+            after23 = _to_int(data.get("after23NewDay"), 1)
+            # v2.2.1 第二全局开关·晚子时·时柱起干。仅 hour==23 时影响时干;hour!=23 完全 NO-OP。
+            late_zi = _to_int(data.get("lateZiHourUseNextDay"), 1)
             mode = _clean_text(data.get("mode"), "ganzhi")
             if mode not in MODE_LABELS:
                 mode = "ganzhi"
@@ -329,7 +332,7 @@ class WuZhaoSrv:
                 number = number % 9
             manual_splits = _manual_splits(data)
 
-            ganzhi = _json_safe(wuzhao_config.gangzhi(year, month, day, hour, minute))
+            ganzhi = _json_safe(wuzhao_config.gangzhi(year, month, day, hour, minute, after23, late_zi))
             solar_term = wuzhao_jieqi.jq(year, month, day, hour, minute)
             lunar = _json_safe(wuzhao_config.lunar_date_d(year, month, day))
             lunar_month = _clean_text(lunar.get("農曆月", ""))[0] if lunar.get("農曆月") else "正"

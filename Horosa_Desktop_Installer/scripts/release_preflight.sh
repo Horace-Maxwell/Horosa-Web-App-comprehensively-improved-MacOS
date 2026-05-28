@@ -81,6 +81,40 @@ if command -v gh >/dev/null 2>&1; then
   esac
 else warn "未装 gh,跳过 CI 检查 —— 请手动确认 CI 绿"; fi
 
+# 7. Issue #8(AI 分析 SSE)修复哨兵:catch 必须先记原始异常,SSE 流必须心跳。
+#    Windows 端 v2.2.1 调试复盘:Ollama 慢首 token 时空闲断连,catch 块 sendEvent 撞 ClientAbort
+#    把 RuntimeException 抛回 ai-analysis-chat-stream 线程,且原始一级异常被 safeErrorMessage
+#    吞掉没记日志。本检查保证两个修复都不会被回退。
+echo "[7] Issue #8(AI 分析 SSE)修复哨兵"
+AIPROXY="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java"
+if [ -f "${AIPROXY}" ]; then
+  grep -q "QueueLog.error(AppLoggers.ErrorLogger" "${AIPROXY}" \
+    && ok "AIAnalysisProxyService catch 已记原始异常(Fix 1)" \
+    || bad "AIAnalysisProxyService catch 缺 QueueLog.error 记日志 —— Issue #8 一级异常会被吞掉"
+  grep -q "keep-alive" "${AIPROXY}" \
+    && ok "AIAnalysisProxyService SSE 心跳在位(Fix 2)" \
+    || bad "AIAnalysisProxyService 缺 SSE 心跳 keep-alive —— Issue #8 Ollama 慢首 token 会触发 ClientAbort"
+else
+  warn "AIAnalysisProxyService.java 不存在,跳过 #8 哨兵"
+fi
+
+# 8. v2.2.1 收尾哨兵:(a) Anthropic content 块必须带 type(否则对话/测试连接 503);
+#    (b) 晚子时时柱 (1,0) 对称分支必须在(否则 Java 系技法 (1,0) 回退到 庚子,与钉定 戊子 不一致)。
+echo "[8] v2.2.1 收尾修复哨兵(Anthropic type + 晚子时对称分支)"
+if [ -f "${AIPROXY}" ]; then
+  grep -q "buildAnthropicTextPart" "${AIPROXY}" \
+    && ok "Anthropic content 块带 type(buildAnthropicTextPart)" \
+    || bad "AIAnalysisProxyService 缺 buildAnthropicTextPart —— Anthropic content 会漏 type 触发 503(Mac #9)"
+fi
+BZHELPER="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/BaZiHelper.java"
+if [ -f "${BZHELPER}" ]; then
+  grep -q "after23NewDay && !lateZiHourUseNextDay" "${BZHELPER}" \
+    && ok "晚子时时柱 (1,0) 对称分支在位(BaZiHelper)" \
+    || bad "BaZiHelper 缺 (after23 && !lateZi) 对称分支 —— (1,0) 边界会回退 庚子,跨技法不一致"
+else
+  warn "BaZiHelper.java 不存在,跳过 (1,0) 对称分支哨兵"
+fi
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

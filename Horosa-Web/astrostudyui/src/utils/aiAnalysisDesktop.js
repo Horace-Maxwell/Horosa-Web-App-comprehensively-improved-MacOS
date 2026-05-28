@@ -77,3 +77,25 @@ export async function openDesktopBackup(){
 	const list = normalizeDesktopImportItems(payload);
 	return list.length ? list[0] : null;
 }
+
+// v2.2.1 软件内升级桥(非阻塞):静默检查 / 后台下载 / 重启安装。仅桌面端可用。
+export async function updateCheckSilent(){
+	if(!hasTauriInvoke()){
+		return null;
+	}
+	return invoke('update_check_silent');
+}
+
+export async function updateStartBackground(){
+	if(!hasTauriInvoke()){
+		throw new Error('desktop.bridge.unavailable');
+	}
+	return invoke('update_start_background');
+}
+
+export async function updateInstallAndRestart(){
+	if(!hasTauriInvoke()){
+		throw new Error('desktop.bridge.unavailable');
+	}
+	return invoke('update_install_and_restart');
+}

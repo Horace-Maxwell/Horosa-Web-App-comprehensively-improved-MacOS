@@ -2352,7 +2352,15 @@ function AIAnalysisMain(props){
 			const text = rsp && rsp.Result && rsp.Result.content ? rsp.Result.content : '';
 			message.success(text ? `测试成功：${text.slice(0, 24)}` : '测试成功');
 		}catch(e){
-			message.error(e && e.message ? `测试连接失败：${e.message}` : '测试连接失败');
+			// v2.2.1 (Mac #8):后端错误是 URL 编码的原始串,直接抛给用户既看不懂又吓人。
+			// 解码 + 对「未登录/未配置凭据」的 401 给出可操作的提示,而不是裸 401 dump。
+			let raw = e && e.message ? e.message : '';
+			try{ raw = decodeURIComponent(raw); }catch(_){ /* keep raw */ }
+			if(/No cookie auth credentials|need\.login|401|Unauthorized/i.test(raw)){
+				message.error('未检测到有效凭据：使用内置 AI 需先登录 horosa 账号；若使用自己的供应商，请在「配置 API」中填入正确的 Key 与 Base URL 后重试。');
+			}else{
+				message.error(raw ? `测试连接失败：${raw.slice(0, 200)}` : '测试连接失败');
+			}
 		}
 	}
 

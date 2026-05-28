@@ -273,11 +273,10 @@ with the user before running them. Never `git push --force` to main.
   (verified by the e2e gate).
 - `main` is normally pushed after validation; for strict main/release consistency you may push it only after a
   successful publish.
-- GitCode mirror (`HoraceDong_C137/<repoName>`, a **read-only Pull mirror** — can't `git push`): after each release run
-  `scripts/mirror_to_gitcode.sh`. It (a) checks the tag landed on GitCode, (b) creates the 发行版 + real notes via API
-  (`private-token` header; create-only — no `id` so no update/delete). Two steps it CAN'T do (you do manually):
-  trigger the mirror "更新" to sync source+tags, and upload the `.pkg`/runtime binaries to the 发行版 (web UI, ≤2G —
-  no release-asset upload API). Token in `.claude/settings.local.json` env `GITCODE_TOKEN`.
+- **GitCode mirror — DEPRECATED / DO NOT RUN (user decision 2026-05-27).** Releases go to **GitHub only**. Do
+  NOT run `scripts/mirror_to_gitcode.sh`, do not create GitCode 发行版, do not remind the user about GitCode sync.
+  (Historical: it was a read-only Pull mirror `HoraceDong_C137/<repoName>` with a create-only notes API; kept here
+  only so a future agent knows it was intentionally retired, not forgotten.)
 
 **Self-improvement — do this EVERY release (the harness must get more reliable, not drift):**
 After each release, spend a few minutes re-auditing the whole dev→release flow for gaps you have not seen before
@@ -286,3 +285,26 @@ inconsistent versions, …). For every new finding: **(a)** prefer a CODE GUARD 
 `release_preflight.sh` or a hard-fail in the relevant script beats relying on memory; **(b)** add the check to
 `release_preflight.sh`; **(c)** record the gotcha here and in the relevant `docs/*`. This section and the preflight
 script are the institutional memory — keep growing them.
+
+**Gotcha (v2.2.1) — 晚子时·时柱起干 has FOUR independent hour-stem code paths; a fix must touch all of them.**
+The late-zi hour-stem rule lives in `BaZiHelper.java` ×3 (`getTimeColumn` two overloads + `getTimeGanziStr` +
+`getTimeStartGan`) AND in each technique's frontend fetch payload/cache key. The 六壬/金口 *displayed* 时柱 comes from
+`NongliHelper.getNongLi` → `getTimeGanziStr` (NOT `getTimeColumn`, which feeds 八字/果老/`OnlyFourColumns`) — fixing only
+`getTimeColumn` leaves 六壬/金口 wrong. Frontend: each `fetchXxxPan`/cache-key must carry `after23NewDay` +
+`lateZiHourUseNextDay` or the switch needs a reload (`GuoLaoChartMain.normalizeChartParams`, `JinKouCalc.fetchJinKouPan`,
+`TaiYiCalc.fetchTaiyiPan`, `DunJiaCalc.fetchQimenPan`+`getQimenOptionsKey`). Pinned `(1,0)` 27日23:30 → **壬寅 戊子**
+across ALL techniques. Detail: `docs/v2.2.1-session-addendum.md`.
+
+**Gotcha (v2.2.1) — "AI mounts the rule" can be a lie if the helper is never called.** `aiAnalysisContext.js`
+`buildDayBoundaryMeta` was defined-but-never-invoked for a whole release cycle, so the day-boundary rule was NOT actually
+in the AI context despite release notes claiming it. Lesson: when wiring metadata into AI export/analysis, grep for the
+call site, not just the definition. Now wired in `buildContextLayers` + `aiExport.js` header.
+
+**Self-check additions (run these for any 排盘/AI/更新/偏好 change before release):**
+- **23:30 four-pillar matrix, ALL techniques consistent:** at 2026-05-27 23:30, `(after23,lateZi)` →
+  `(1,1)`壬寅庚子 `(1,0)`壬寅**戊子** `(0,1)`辛丑庚子 `(0,0)`辛丑戊子; verify 八字/六壬/金口/太乙/奇门/果老 agree
+  (Java techniques regressed to 庚子 on `(1,0)` before the `getTimeGanziStr`/`getTimeColumn` symmetric fix). NO-OP at 22:30/00:30.
+- **In-app update non-blocking:** desktop shell, simulate a higher version in `horosa-latest.json` → bottom-right
+  non-modal card → 更新 downloads in background, minimizable, app stays usable → "重启更新" is user-initiated. Web build: `UpdateNotifier` renders nothing (no `window.__TAURI__`).
+- **Preferences dialogs:** open 全局设置/AI导出设置/排盘设置/星盘参数/AI分析设置 + 关于星阙 in light AND dark; semantic colors unchanged.
+- **AI provider:** Anthropic (incl. relay) 测试连接 must succeed (content blocks carry `type:"text"`); unauthenticated 401 shows an actionable message, not a raw dump.

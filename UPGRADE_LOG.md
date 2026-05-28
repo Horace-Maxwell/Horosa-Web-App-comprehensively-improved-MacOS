@@ -12,6 +12,40 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-05-28
+
+### 准备 v2.2.1 beta：全局设置·日界点 + 晚子时·时柱起干（两个独立全局开关 + AI 排盘规则挂载 + ChartController 白名单加固 + AI 分析 SSE 双修复 Issue #8）
+
+- Scope:
+  - **新增第二个全局开关「晚子时·时柱起干模式」** —— 与既有「日界点」并列、独立生效；hour ∈ [23, 24) 时控制起子时时干用今日 / 次日的日干。默认值 = 当前行为（按次日起），不破坏现存命例。
+  - **Windows Issue #8（AI 分析"GPU 加载完后划水然后停止"）**：根因 = 长时 SSE 流零心跳 + catch 块吞掉一级异常。修法两处：① `AIAnalysisProxyService.chatStream` catch 第一步必须 `QueueLog.error(AppLoggers.ErrorLogger, e)` 记一级异常，`sendEvent` / `completeWithError` 各嵌套 `try`，防止 catch 内 `ClientAbortException` 把 `ai-analysis-chat-stream` 线程炸了把根因吞了；② 三个 `stream***` 方法包一层 `withHeartbeat`，每 15s 给 emitter 发 `: keep-alive` 注释帧，Ollama 慢首 token（本地 10–60s）时客户端/Chromium/中间件不再因空闲超时切断 SSE。`release_preflight.sh` 加哨兵 7（grep `QueueLog.error(AppLoggers.ErrorLogger` + `keep-alive`）防回退。
+  - **27 日 23:30 自检矩阵全栈对齐**：`(after23, lateZi)=(1,1)` 壬寅 庚子｜`(1,0)` 壬寅 庚子（等价）｜`(0,1)` 辛丑 庚子｜`(0,0)` 辛丑 戊子（核心新 case）。覆盖八字/紫微/六壬/六爻/奇门/太乙/三式/Moira/印度盘共 9 路。
+  - **AI 排盘规则显式挂载**：导出快照在四柱前置 `排盘规则：日柱开关【...】+ 时柱开关【...】。本盘四柱按此规则计算。` —— GPT/Claude/Ollama 不再凭默认语义猜，避免 AI 解读与 UI 显示对不上号。
+  - **Java 后端 `ChartController.getParams()` 白名单加固**：上一版同型 bug（任何 chart-flow 新字段不在白名单里 backend 永远拿默认）一并修复，并审计了所有 `getParams()`-style controllers。
+  - **Harness/skill 文档全部就位**：`Horosa-Web/AGENTS.md`（新建，6 大踩坑点 + 工程师级 grep checklist + preview e2e 模板）；`Horosa-Web/docs/global-day-boundary-v2.2.1.md`（机制 + 5 个根因 bug A–E）；`docs/windows-sync-handoff.md` 顶部 v2.2.1 条目；skill repo `~/Downloads/horosa-skill-repo/AGENTS.md` + `skills/horosa-agent/SKILL.md` 同步「日界点 + 晚子时·时柱」章节。
+  - 准备 `2.2.1 / 2.2.1-runtime1`。
+- Files:
+  - 前端开关基础设施：`Horosa-Web/astrostudyui/src/utils/dayBoundary.js`（加 `LATE_ZI_HOUR_NEXT_DAY/TODAY` 常量 + helpers）、`models/app.js`（state + `globalSetup` 序列化 + `normalizeGlobalSetup`）、`components/homepage/PageHeader.js`（Modal 第二段 XQSegmented + `changeLateZiHourMode` 广播 `horosa:late-zi-hour-mode-changed`）、`layouts/app.js`（mapStateToProps + 透传 PageHeader）。
+  - 前端时柱核心计算：`utils/baziLunarLocal.js`（绕开 lunar.js `getTimeGan()` 硬编码，按 `lateZiHourUseNextDay==0 + hour==23` 时用 `getDayGanIndexExact2()` 起子时；新增 `computeOverrideTimeGan` 内部 helper）。
+  - 前端 dva 持久化：`models/astro.js`（fields schema + fieldsToParams 透传 + `syncLateZiHourMode` reducer + `syncFromGlobalLateZiHour` subscription + `fetchByChartData` 回填）、`utils/preciseCalcBridge.js`、`utils/localCalcCache.js`（`NONG_LI_KEYS / JIE_QI_YEAR_KEYS` 加 `lateZiHourUseNextDay`）、`utils/localcharts.js`、`utils/kentangCaseSave.js`、`models/user.js`（命盘 / 案例记录 schema）。
+  - AI 挂载：`utils/aiAnalysisContext.js`（DEFAULT_DUNJIA_OPTIONS / loadFields / buildCaseSnapshotFields / buildChartLiuRengParams / buildChartZiweiParams 各 nongliParams + 新增 `buildDayBoundaryMeta()`）、`utils/astroAiSnapshot.js`（`buildBaseInfoLines` 写入「排盘规则」前置行）。
+  - Java：`astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/BaZiHelper.java`（`getTimeColumn/getTimeStartGan/getTimeGanZi/getTimeGanziStr` 加 `boolean lateZiHourUseNextDay`，shift 条件改为 `hour==23 && !after23NewDay && lateZiHourUseNextDay`）；`astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/NongliHelper.java`（新增 7-arg 跨包 public overload + 9-arg public overload + `getTimeGanziStr` 调用）；`astrostudycn/.../model/BaZi.java`（field + 构造重载 + `calculateFourColumn` 调用）；`astrostudycn/.../model/OnlyFourColumns.java`（10-arg 构造重载）；**`astrostudycn/.../controller/ChartController.java`（`getParams()` 白名单加 `lateZiHourUseNextDay`、`chart()` 读取并传 `OnlyFourColumns`）**。
+  - jest：`utils/__tests__/baziLunarLocal.dayBoundary.test.js` 加「v3 第二开关」组（6 新 case），含核心新 case `after23=0 + lateZi=0 → 辛丑 戊子`。`umi-test`: 139/139 PASS。
+  - 文档/同步：`Horosa-Web/AGENTS.md`、`Horosa-Web/docs/global-day-boundary-v2.2.1.md`、`docs/windows-sync-handoff.md`、`~/Downloads/horosa-skill-repo/AGENTS.md`、`~/Downloads/horosa-skill-repo/skills/horosa-agent/SKILL.md`。
+  - 版本号同步：`Horosa_Desktop_Installer/{package.json,src-tauri/Cargo.toml,src-tauri/Cargo.lock,src-tauri/tauri.conf.json,web/app.js,config/release_config.json,scripts/verify_launcher_console_states.py}` + `CITATION.cff` + 本 UPGRADE_LOG。
+  - AI 分析 SSE 双修复（Issue #8）：`astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java`（导入 `QueueLog`/`AppLoggers` + `ScheduledExecutorService`/`ScheduledFuture`/`AtomicBoolean`；catch 块改 3 段嵌套 try；新增 `SSE_HEARTBEAT_EXECUTOR` 守护池 + `withHeartbeat` 包装；`streamOpenAICompatible` / `streamAnthropic` / `streamGemini` 三处 body 移入 `withHeartbeat`）；`Horosa_Desktop_Installer/scripts/release_preflight.sh`（加 [7] Issue #8 哨兵）。
+- Verification:
+  - jest `npx umi-test --testPathPattern=baziLunarLocal.dayBoundary` → 全绿（4 日柱 + 6 时柱）。
+  - Java `mvn -pl astrostudy,astrostudycn,astrostudyboot -am package` → 三 module 链全过 + 替换 `runtime/mac/bundle/astrostudyboot.jar` + `lsof -ti :9999` kill 旧进程 + `./start_horosa_local.sh` 重启。
+  - preview MCP 实测 27 日 23:30 直接时间 4 case 矩阵全过；逐技法（八字/紫微/六壬/六爻/奇门/太乙/三式/Moira/印度盘）切换两开关、时柱跳变到位；命盘保存→重开持久化对齐。
+  - 跨栈字段名一致：`grep -rn "lateZiHourUseNextDay\|after23NewDay"` 前端 / Java / Python / AI 快照 / 案例存储 全部命中。
+- Notes:
+  - **重编 jar 必须重启 Java 进程**：`mvn package` 仅替换文件，旧 launcher 进程（持久占 `:9999`）保留旧 class 不会自动重载。`lsof -ti :9999` 找 PID + `ps -p <PID> -o lstart=` 确认启动时间晚于 jar mtime；否则 kill + `./start_horosa_local.sh` 重新拉起。harness 文档已写明。
+  - Python vendor 引擎（`vendor/{kinwuzhao,kinastro,shenyishu,kinwangji}`）的 `hour_gan_use_next_day` 参数本版未挪 —— 七政 Moira 等主流走 Java 已 OK；冷门 cnyibu 后端（五兆/太玄/京房/神易/皇极）若用户拍板纳入，留 Phase 2。
+  - GitCode 镜像已停用 (2026-05-27 起)，本版只发 GitHub。
+
+---
+
 ## 2026-05-27
 
 ### 准备 v2.2.0 beta：数算两新技法（邵子参评数 / 河洛理数）+ 调波盘绘制 + 风水 React 化

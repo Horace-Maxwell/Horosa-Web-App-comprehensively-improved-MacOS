@@ -178,7 +178,7 @@
 
 .aiSettingModal {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .aiSettingActions {
@@ -192,18 +192,85 @@
   padding-right: 3px;
 }
 
+// v2.2.1 偏好设置·说明卡:左侧强调条 + 柔和底,排版更像成熟桌面端。
 .aiSettingEmpty {
-  min-height: 56px;
-  padding: 14px;
-  border: 1px dashed var(--horosa-border);
-  border-radius: 8px;
+  min-height: 40px;
+  padding: 11px 13px 11px 14px;
+  border: 1px solid var(--horosa-border);
+  border-left: 3px solid var(--horosa-accent);
+  border-radius: 9px;
   background: var(--horosa-panel-soft);
   color: var(--horosa-text-soft);
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.62;
+  letter-spacing: 0.1px;
 }
 
 .aiSettingFooter {
   justify-content: flex-end;
+  gap: 8px;
+}
+
+// v2.2.1 偏好设置·分组:每组「段标题 + 控件 + 说明」更清晰。
+.settingsGroup {
+  display: grid;
+  gap: 9px;
+}
+
+// 关于弹窗
+.aboutBody {
+  display: grid;
+  gap: 14px;
+  padding: 4px 2px 2px;
+}
+
+.aboutHeadRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.aboutLogo {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: #fff;
+  background: linear-gradient(150deg, var(--horosa-accent), var(--horosa-accent-strong, #2666cf));
+  box-shadow: 0 8px 20px rgba(47, 125, 241, 0.3);
+}
+
+.aboutName {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--horosa-text);
+}
+
+.aboutVersion {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--horosa-text-soft);
+}
+
+.aboutDesc {
+  font-size: 12.5px;
+  line-height: 1.66;
+  color: var(--horosa-text-soft);
+}
+
+.aboutActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.aboutCheckState {
+  font-size: 12px;
+  color: var(--horosa-text-soft);
 }
 
 .action {

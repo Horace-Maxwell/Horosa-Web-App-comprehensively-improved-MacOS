@@ -22,6 +22,7 @@ import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import { setJieqiSeedLocalCache, } from '../../utils/localCalcCache';
 import { fetchPreciseJieqiYear } from '../../utils/preciseCalcBridge';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { appendPlanetHouseInfo, appendPlanetHouseInfoById, } from '../../utils/planetHouseInfo';
 
 const TabPane = Tabs.TabPane;
@@ -925,6 +926,8 @@ export class JieQiChartsMain extends Component{
 			gpsLat: this.state.gpsLat,
 			gpsLon: this.state.gpsLon,
 			doubingSu28: this.state.doubingSu28,
+			after23NewDay: defaultAfter23NewDay(),
+			lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 		}
 		if(includeJieqis){
 			params.jieqis = this.state.jieqis;

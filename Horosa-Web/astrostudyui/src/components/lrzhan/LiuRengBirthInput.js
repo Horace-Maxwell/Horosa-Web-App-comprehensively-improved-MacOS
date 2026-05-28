@@ -126,13 +126,6 @@ class LiuRengBirthInput extends Component{
 					</Select>
 				</Col>
 
-				<Col lg={12} xl={8}>
-					<Select value={fields.after23NewDay.value} onChange={this.onAfter23NewDayChange} size='small' style={{width:'100%'}}>
-						<Option value={0}>23点为当天</Option>
-						<Option value={1}>23点为第二天</Option>
-					</Select>				
-				</Col>
-
 			</Row>
 			</div>
 		);

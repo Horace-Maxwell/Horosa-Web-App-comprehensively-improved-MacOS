@@ -13,6 +13,7 @@ import * as ZiWeiHelper from './ZiWeiHelper';
 import * as ZWText from '../../constants/ZWText';
 import DateTime from '../comp/DateTime';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 const TabPane = Tabs.TabPane;
 
@@ -261,6 +262,11 @@ class ZiWeiMain extends Component{
 			if(Object.prototype.hasOwnProperty.call(patch, '__confirmed')){
 				delete patch.__confirmed;
 			}
+			// 用户拍板: 左栏改过 after23NewDay 后,全局事件不再覆盖。
+			if(field && Object.prototype.hasOwnProperty.call(field, 'after23NewDay')){
+				this._after23BoundaryUserOverrode = true;
+				this.props.dispatch({ type: 'astro/setAfter23BoundaryUserOverrode', payload: { value: true } });
+			}
 			let flds = {
 				fields: {
 					...this.props.fields,
@@ -302,7 +308,8 @@ class ZiWeiMain extends Component{
 			gpsLon: flds.gpsLon.value,
 			gender: flds.gender.value,
 			timeAlg: timeAlg === 1 ? 1 : 0,
-			after23NewDay: 0,
+			after23NewDay: defaultAfter23NewDay(),
+			lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 		}
 		return params;
 	}
@@ -537,6 +544,26 @@ class ZiWeiMain extends Component{
 
 	componentDidMount(){
 		this.unmounted = false;
+		this._after23BoundaryUserOverrode = false; // 用户拍板:左栏改过 after23NewDay 后,全局事件不再触发重新起盘
+		this._lateZiHourUserOverrode = false; // v2.2.1: 同上 — 左栏改过 lateZiHourUseNextDay 后,全局事件不再触发重新起盘
+		if(typeof window !== 'undefined'){
+			this._dayBoundaryListener = (ev) => {
+				if(this._after23BoundaryUserOverrode) return;
+				const v = ev && ev.detail ? ev.detail.after23NewDay : null;
+				if((v === 0 || v === 1) && this.props.fields){
+					this.requestZiWei(this.props.fields);
+				}
+			};
+			window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			this._lateZiHourListener = (ev) => {
+				if(this._lateZiHourUserOverrode) return;
+				const v = ev && ev.detail ? ev.detail.lateZiHourUseNextDay : null;
+				if((v === 0 || v === 1) && this.props.fields){
+					this.requestZiWei(this.props.fields);
+				}
+			};
+			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 		if(this.props.fields){
 			this.requestZiWei(this.props.fields);
 		}
@@ -544,6 +571,12 @@ class ZiWeiMain extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(typeof window !== 'undefined' && this._dayBoundaryListener){
+			window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+		}
+		if(typeof window !== 'undefined' && this._lateZiHourListener){
+			window.removeEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 	}
 
 	render(){

@@ -71,6 +71,19 @@ function newEmptyChartFields(){
 			value: null,
 			name: ['cid'],
 		},
+		// 日界点 + 晚子时·时柱起干 + 时间算法 必须随命盘存档(不存则下次打开按全局默认,日柱/时柱可能算错)。
+		after23NewDay:{
+			value: undefined,
+			name: ['after23NewDay'],
+		},
+		lateZiHourUseNextDay:{
+			value: undefined,
+			name: ['lateZiHourUseNextDay'],
+		},
+		timeAlg:{
+			value: undefined,
+			name: ['timeAlg'],
+		},
 		memoAstro:{
 			value: null,
 			name: ['memoAstro'],
@@ -307,6 +320,19 @@ export default {
 				value: null,
 				name: ['updateTime'],
 			},
+			// 日界点 + 晚子时·时柱起干 + 时间算法 随命盘持久化(用户拍板,见 dayBoundary.js)。
+			after23NewDay:{
+				value: undefined,
+				name: ['after23NewDay'],
+			},
+			lateZiHourUseNextDay:{
+				value: undefined,
+				name: ['lateZiHourUseNextDay'],
+			},
+			timeAlg:{
+				value: undefined,
+				name: ['timeAlg'],
+			},
 
 			memoZiWei:{
 				value: null,
@@ -468,6 +494,16 @@ export default {
 			chart.memoLiuReng.value = fld.memoLiuReng.value;
 			chart.memoQiMeng.value = fld.memoQiMeng.value;
 			chart.memoSuZhan.value = fld.memoSuZhan.value;
+			// 日界点 + 晚子时·时柱起干 + 时间算法 随命盘存档(用户拍板,见 dayBoundary.js)。
+			if(fld.after23NewDay && fld.after23NewDay.value !== undefined){
+				chart.after23NewDay.value = fld.after23NewDay.value;
+			}
+			if(fld.lateZiHourUseNextDay && fld.lateZiHourUseNextDay.value !== undefined){
+				chart.lateZiHourUseNextDay.value = fld.lateZiHourUseNextDay.value;
+			}
+			if(fld.timeAlg && fld.timeAlg.value !== undefined){
+				chart.timeAlg.value = fld.timeAlg.value;
+			}
 			if(values){
 				if(values.payload !== undefined){
 					chart.payload.value = values.payload;

@@ -437,8 +437,65 @@ function pillarFromGanzi(label, ganzi, dayGan){
 	});
 }
 
-function buildFourColumns(eightChar){
+// 用户拍板·v3 第二开关:
+// 算「按今日干起子时」的 timeGan/timeZhi 返回; 如 lateZi=1 (默认 = lunar.js 现行) 或非晚子时 (hour!=23),
+// 返回 null 让上游用 lunar.js 原始 eightChar.getTime()。
+function computeOverrideTimeGan(eightChar, lateZiHourUseNextDay){
+	if(lateZiHourUseNextDay !== 0 && lateZiHourUseNextDay !== '0' && lateZiHourUseNextDay !== false){
+		return null; // 默认: 按 lunar.js Exact 行为(用次日干起), 不覆盖
+	}
+	try{
+		const lunar = eightChar._p && eightChar._p.lunar;
+		if(!lunar){
+			return null;
+		}
+		const hour = lunar.getHour ? lunar.getHour() : null;
+		if(hour !== 23){
+			return null; // 仅在 hour∈[23,24) 即晚子时,时干起算才在两派间分歧
+		}
+		const timeZhiIdx = lunar.getTimeZhiIndex();
+		const dayGanIdxToday = lunar.getDayGanIndexExact2(); // 今日干 idx (不进位)
+		const timeGanIdx = (dayGanIdxToday % 5 * 2 + timeZhiIdx) % 10;
+		return {
+			gan: GANS[timeGanIdx],
+			zhi: ZHIS[timeZhiIdx],
+		};
+	}catch(e){
+		return null;
+	}
+}
+
+function buildFourColumns(eightChar, opts){
 	const dayGan = eightChar.getDayGan();
+	// 用户拍板·v3 第二开关「晚子时·时柱起干模式」(独立于 after23NewDay 日柱开关):
+	//   opts.lateZiHourUseNextDay=1 (默认, = lunar.js Exact 现行行为): 时干用次日日干起子时
+	//   opts.lateZiHourUseNextDay=0: 时干用今日日干起子时 (hour==23 子时跨日,但起干用今日)
+	// lunar.js EightChar.getTimeGan() 硬编码用 dayGanIndexExact(进位日干),
+	// 所以 lateZi=0 时,我们必须自己算 time.gan 并重算下游 hideGan/shishen/nayin。
+	let timeGanZhi = eightChar.getTime();
+	let timeShiShenGan = eightChar.getTimeShiShenGan();
+	let timeShiShenZhi = eightChar.getTimeShiShenZhi();
+	let timeHideGan = eightChar.getTimeHideGan();
+	let timeNaYin = eightChar.getTimeNaYin();
+	let timeDiShi = eightChar.getTimeDiShi();
+	let timeXunKong = eightChar.getTimeXunKong();
+	const lateZiHourUseNextDay = opts && opts.lateZiHourUseNextDay !== undefined ? opts.lateZiHourUseNextDay : 1;
+	const overrideTimeGan = computeOverrideTimeGan(eightChar, lateZiHourUseNextDay);
+	if(overrideTimeGan){
+		// 替换 time ganzi 的天干,zhi 保持(子时跨日,zhi 永远是子);
+		// 重算 nayin / shishen(都是基于 timeGan + timeZhi 的纯函数计算)
+		const newGanZhi = overrideTimeGan.gan + overrideTimeGan.zhi;
+		timeGanZhi = newGanZhi;
+		const newShiShenGanRaw = LunarUtil.SHI_SHEN && LunarUtil.SHI_SHEN[`${dayGan}${overrideTimeGan.gan}`];
+		if(newShiShenGanRaw){
+			timeShiShenGan = newShiShenGanRaw;
+		}
+		const newNaYin = (LunarUtil.NAYIN && LunarUtil.NAYIN[newGanZhi]) || (NaYin && NaYin[newGanZhi]);
+		if(newNaYin){
+			timeNaYin = newNaYin;
+		}
+		// hideGan/shishenZhi 仅由 zhi 决定(zhi 没变), diShi/xunKong 由 dayGan+zhi 决定(均不变), 故保持
+	}
 	const four = {
 		year: makePillar('年', eightChar.getYear(), {
 			stemRel: eightChar.getYearShiShenGan(),
@@ -464,13 +521,13 @@ function buildFourColumns(eightChar){
 			diShi: eightChar.getDayDiShi(),
 			xunKong: eightChar.getDayXunKong(),
 		}),
-		time: makePillar('时', eightChar.getTime(), {
-			stemRel: eightChar.getTimeShiShenGan(),
-			hideGan: eightChar.getTimeHideGan(),
-			hideRel: eightChar.getTimeShiShenZhi(),
-			nayin: eightChar.getTimeNaYin(),
-			diShi: eightChar.getTimeDiShi(),
-			xunKong: eightChar.getTimeXunKong(),
+		time: makePillar('时', timeGanZhi, {
+			stemRel: timeShiShenGan,
+			hideGan: timeHideGan,
+			hideRel: timeShiShenZhi,
+			nayin: timeNaYin,
+			diShi: timeDiShi,
+			xunKong: timeXunKong,
 		}),
 		tai: pillarFromGanzi('胎', eightChar.getTaiYuan(), dayGan),
 		ming: pillarFromGanzi('命', eightChar.getMingGong(), dayGan),
@@ -634,11 +691,18 @@ export function buildLocalBaziResult(params){
 	const solar = solarFromParts(apparentParts);
 	const lunar = solar.getLunar();
 	const eightChar = lunar.getEightChar();
-	eightChar.setSect(1);
+	// 用户语义（拍板，字面直觉版）:
+	//   after23NewDay=1「23点算第二天」= 23点起日柱进位次日 → setSect(1)=Exact 进位
+	//   after23NewDay=0「24点算第二天」= 23点仍属今日、24点才换日柱 → setSect(2)=Exact2 不进位
+	// 对应 lunar.js: setSect(1)在 hour∈[23,24) 时 dayGan+1；setSect(2) 不进位。
+	const dayPillarShift = params && (params.after23NewDay === 1 || params.after23NewDay === '1' || params.after23NewDay === true);
+	eightChar.setSect(dayPillarShift ? 1 : 2);
 	const gender = Number(params.gender) === 0 ? 0 : 1;
 	const yun = eightChar.getYun(gender);
 	const dayGan = eightChar.getDayGan();
-	const fourColumns = buildFourColumns(eightChar);
+	// v3 第二开关 lateZiHourUseNextDay: 默认 1 (跟现有 lunar.js Exact 行为一致, 时干用次日干起子时)。
+	const lateZiHourUseNextDay = (params && (params.lateZiHourUseNextDay === 0 || params.lateZiHourUseNextDay === '0' || params.lateZiHourUseNextDay === false)) ? 0 : 1;
+	const fourColumns = buildFourColumns(eightChar, { lateZiHourUseNextDay });
 	const bazi = {
 		gender: gender === 1 ? 'Male' : 'Female',
 		nongli: buildNongli(lunar, solar, solar),

@@ -25,13 +25,17 @@ public class BaZiDirect extends BaZi {
 	protected SmallFateDirect[] smallDirection = new SmallFateDirect[0];
 
 	public BaZiDirect(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay, boolean gender, boolean adjustJieqi) {
-		super(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, adjustJieqi);
+		this(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, gender, adjustJieqi, true);
+	}
+
+	public BaZiDirect(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay, boolean gender, boolean adjustJieqi, boolean lateZiHourUseNextDay) {
+		super(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, adjustJieqi, lateZiHourUseNextDay);
 		if(gender) {
 			this.gender = BaZiGender.Male;
 		}else {
 			this.gender = BaZiGender.Female;
 		}
-		
+
 	}
 
 	public BaZiGender getGender() {
