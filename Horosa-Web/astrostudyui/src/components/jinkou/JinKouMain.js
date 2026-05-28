@@ -23,6 +23,7 @@ import {
 	setLiurengRunyearLocalCache,
 } from '../../utils/localCalcCache';
 import XQIcon from '../xq-icons';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 const { Option } = Select;
 const TabPane = Tabs.TabPane;
@@ -52,7 +53,8 @@ function buildBirthFields(source, fallbackNow){
 		gpsLat: { value: src.gpsLat && src.gpsLat.value !== undefined ? src.gpsLat.value : Constants.DefGpsLat },
 		gpsLon: { value: src.gpsLon && src.gpsLon.value !== undefined ? src.gpsLon.value : Constants.DefGpsLon },
 		gender: { value: src.gender && src.gender.value !== undefined ? src.gender.value : 1 },
-		after23NewDay: { value: src.after23NewDay && src.after23NewDay.value !== undefined ? src.after23NewDay.value : 0 },
+		after23NewDay: { value: src.after23NewDay && src.after23NewDay.value !== undefined ? src.after23NewDay.value : defaultAfter23NewDay() },
+		lateZiHourUseNextDay: { value: src.lateZiHourUseNextDay && src.lateZiHourUseNextDay.value !== undefined ? src.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay() },
 	};
 }
 
@@ -587,6 +589,20 @@ class JinKouMain extends Component{
 		if(hasConfirmedFlag){
 			delete patch.__confirmed;
 		}
+		// 用户拍板: 左栏改过 after23NewDay 后,全局事件不再覆盖。
+		if(field && Object.prototype.hasOwnProperty.call(field, 'after23NewDay')){
+			this._after23BoundaryUserOverrode = true;
+			if(this.props.dispatch){
+				this.props.dispatch({ type: 'astro/setAfter23BoundaryUserOverrode', payload: { value: true } });
+			}
+		}
+		// v2.2.1: 时柱开关同款局部覆盖 — 同时设本地 flag 和 dva 中央 flag
+		if(field && Object.prototype.hasOwnProperty.call(field, 'lateZiHourUseNextDay')){
+			this._lateZiHourUserOverrode = true;
+			if(this.props.dispatch){
+				this.props.dispatch({ type: 'astro/setLateZiHourUserOverrode', payload: { value: true } });
+			}
+		}
 		if(this.props.dispatch && this.props.fields){
 			const flds = {
 				...this.props.fields,
@@ -723,6 +739,9 @@ class JinKouMain extends Component{
 		const guaAfter23 = calcFields && calcFields.after23NewDay && calcFields.after23NewDay.value !== undefined
 			? calcFields.after23NewDay.value
 			: 0;
+		const lateZiVal = flds.lateZiHourUseNextDay && flds.lateZiHourUseNextDay.value !== undefined
+			? flds.lateZiHourUseNextDay.value
+			: defaultLateZiHourUseNextDay();
 		return {
 			ad: flds.date.value.ad,
 			date: flds.date.value.format('YYYY-MM-DD'),
@@ -732,6 +751,7 @@ class JinKouMain extends Component{
 			lat: flds.lat.value,
 			gender: flds.gender.value,
 			after23NewDay: flds.after23NewDay.value,
+			lateZiHourUseNextDay: lateZiVal,
 			guaYearGanZi: resolveGuaYearGanZi(this.state.liureng),
 			guaDate: guaDate,
 			guaTime: guaTime,
@@ -746,12 +766,16 @@ class JinKouMain extends Component{
 	genGodsParams(fields){
 		let params = null;
 		const flds = fields ? fields : this.props.fields;
+		const after23 = flds.after23NewDay && flds.after23NewDay.value !== undefined ? flds.after23NewDay.value : defaultAfter23NewDay();
+		const lateZi = flds.lateZiHourUseNextDay && flds.lateZiHourUseNextDay.value !== undefined ? flds.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay();
 		if(flds.params){
 			const dtparts = flds.params.birth.split(' ');
 			params = {
 				...flds.params,
 				date: dtparts[0],
 				time: dtparts[1],
+				after23NewDay: flds.params.after23NewDay !== undefined ? flds.params.after23NewDay : after23,
+				lateZiHourUseNextDay: flds.params.lateZiHourUseNextDay !== undefined ? flds.params.lateZiHourUseNextDay : lateZi,
 			};
 		}else{
 			params = {
@@ -761,6 +785,8 @@ class JinKouMain extends Component{
 				ad: flds.date.value.ad,
 				lon: flds.lon.value,
 				lat: flds.lat.value,
+				after23NewDay: after23,
+				lateZiHourUseNextDay: lateZi,
 			};
 		}
 		return params;
@@ -796,6 +822,7 @@ class JinKouMain extends Component{
 			lon: flds.lon.value,
 			lat: flds.lat.value,
 			after23NewDay: flds.after23NewDay.value,
+			lateZiHourUseNextDay: flds.lateZiHourUseNextDay && flds.lateZiHourUseNextDay.value !== undefined ? flds.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 		};
 		try{
 			const data = await request(`${Constants.ServerRoot}/liureng/gods`, {
@@ -1121,6 +1148,35 @@ class JinKouMain extends Component{
 
 	componentDidMount(){
 		this.unmounted = false;
+		this._after23BoundaryUserOverrode = false; // 用户拍板:左栏改过 after23NewDay 后,全局事件不再触发重新起课
+		this._lateZiHourUserOverrode = false; // v2.2.1: 同款时柱开关局部覆盖语义
+		if(typeof window !== 'undefined'){
+			// v2.2.1: setTimeout 0 延迟到下一 macrotask,让 dva 的 syncFromGlobal subscription 先把
+			// fields.{after23NewDay,lateZiHourUseNextDay}.value 更新到 store + React 把新 props 透给本组件,再 fetch。
+			// 否则 this.props.fields 在 listener 同步触发时仍是旧 snapshot,fetch 用的还是旧值,全局开关切了不生效。
+			this._dayBoundaryListener = (ev) => {
+				if(this._after23BoundaryUserOverrode) return;
+				const v = ev && ev.detail ? ev.detail.after23NewDay : null;
+				if((v === 0 || v === 1) && this.props.fields){
+					setTimeout(() => {
+						if(this.unmounted) return;
+						this.requestGods(this.props.fields, this.props.value);
+					}, 0);
+				}
+			};
+			window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			this._lateZiHourListener = (ev) => {
+				if(this._lateZiHourUserOverrode) return;
+				const v = ev && ev.detail ? ev.detail.lateZiHourUseNextDay : null;
+				if((v === 0 || v === 1) && this.props.fields){
+					setTimeout(() => {
+						if(this.unmounted) return;
+						this.requestGods(this.props.fields, this.props.value);
+					}, 0);
+				}
+			};
+			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 		if(this.props.fields){
 			this.requestGods(this.props.fields, this.props.value);
 		}
@@ -1128,6 +1184,12 @@ class JinKouMain extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(typeof window !== 'undefined' && this._dayBoundaryListener){
+			window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+		}
+		if(typeof window !== 'undefined' && this._lateZiHourListener){
+			window.removeEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 	}
 
 	renderInfoTable(title, rows){

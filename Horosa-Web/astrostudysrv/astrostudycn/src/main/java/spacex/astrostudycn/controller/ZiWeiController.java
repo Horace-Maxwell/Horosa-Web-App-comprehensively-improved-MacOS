@@ -34,6 +34,7 @@ public class ZiWeiController {
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
 		
 		boolean after23NewDay = (boolean) params.get("after23NewDay");
+		boolean lateZiHourUseNextDay = (boolean) params.get("lateZiHourUseNextDay");
 		boolean genderval = (boolean) params.get("gender");
 		BaZiGender gender = BaZiGender.fromValue(genderval);
 		int timeAlgCode = ConvertUtility.getValueAsInt(params.get("timeAlg"), 0);
@@ -42,10 +43,10 @@ public class ZiWeiController {
 			parsedTimeAlg = TimeZiAlg.RealSun;
 		}
 		final TimeZiAlg useTimeAlg = parsedTimeAlg;
-		
+
 		Object obj = CacheHelper.get("/ziwei/birth", params, (args)->{
 			Map<String, Map<String, String>> sihua = (Map<String, Map<String, String>>) params.get("sihua");
-			ZiWeiChart chart = new ZiWeiChart(ad, gender, dtstr, zone, lon, lat, after23NewDay, sihua, useTimeAlg);
+			ZiWeiChart chart = new ZiWeiChart(ad, gender, dtstr, zone, lon, lat, after23NewDay, sihua, useTimeAlg, false, lateZiHourUseNextDay);
 			Map<String, Object> res = new HashMap<String, Object>();
 			
 			res.put("chart", chart);
@@ -80,8 +81,10 @@ public class ZiWeiController {
 		map.put("lat", TransData.getValueAsString("lat"));
 		map.put("lon", TransData.getValueAsString("lon"));
 		map.put("gender", TransData.getValueAsBool("gender", true));
-		boolean after23NewDay = TransData.getValueAsBool("after23NewDay", false);
+		boolean after23NewDay = TransData.getValueAsInt("after23NewDay", 1) == 1;
 		map.put("after23NewDay", after23NewDay);
+		boolean lateZiHourUseNextDay = TransData.getValueAsInt("lateZiHourUseNextDay", 1) == 1;
+		map.put("lateZiHourUseNextDay", lateZiHourUseNextDay);
 		int timeAlg = TransData.getValueAsInt("timeAlg", 0);
 		if(timeAlg != 1) {
 			timeAlg = 0;

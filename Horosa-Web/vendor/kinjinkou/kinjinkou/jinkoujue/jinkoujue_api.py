@@ -5,10 +5,27 @@ from ._paipan import Paipan
 from ._fenxi import Chuantongfenxi, Lianghuafenxi
 from sxtwl import fromSolar
 import ephem
+import threading as _threading
 
 
 tian_gan = '甲乙丙丁戊己庚辛壬癸'
 di_zhi = '子丑寅卯辰巳午未申酉戌亥'
+
+# v2.2.1: 全局日界 + 晚子时·时柱起干 thread-local 开关。
+# 由 webjinkousrv 每请求设定。默认均为 1(现行行为)。仅 hour==23 时影响,其它 NO-OP。
+_TLS_JK_API = _threading.local()
+
+def set_after23_new_day(value):
+    _TLS_JK_API.after23 = 1 if value else 0
+
+def set_hour_gan_use_next_day(value):
+    _TLS_JK_API.late_zi = 1 if value else 0
+
+def _get_after23_jk():
+    return getattr(_TLS_JK_API, 'after23', 1)
+
+def _get_late_zi_jk():
+    return getattr(_TLS_JK_API, 'late_zi', 1)
 
 def multi_key_dict_get(d, k):
     for keys, v in d.items():
@@ -70,7 +87,10 @@ def find_lunar_month(year):
     return dict(zip(range(1,13),new_list(jiazi(), result)[:12]))
 #換算干支
 def gangzhi1(year, month, day, hour, minute):
-    if hour == 23:
+    # v2.2.1: 用 thread-local 决定 hour==23 时是否进位日柱(after23)和起子时用哪日干(lateZi)。
+    _after23 = _get_after23_jk()
+    _late_zi = _get_late_zi_jk()
+    if hour == 23 and _after23:
         d = ephem.Date(round((ephem.Date("{}/{}/{} {}:00:00.00".format(
             str(year).zfill(4),
             str(month).zfill(2),
@@ -93,11 +113,28 @@ def gangzhi1(year, month, day, hour, minute):
                 di_zhi[cdate.getDayGZ().dz]), "{}{}".format(
                     tian_gan[cdate.getHourGZ(dd[3]).tg],
                     di_zhi[cdate.getHourGZ(dd[3]).dz])
+    # v2.2.1: hour==23 时按 lateZi 重写时柱
+    _h_late_override = False
+    if hour == 23:
+        _h_late_override = True
+        if _late_zi:
+            if _after23:
+                day_tg_idx = cdate.getDayGZ().tg
+            else:
+                _td = ephem.Date(round((ephem.Date("{}/{}/{} 00:00:00.00".format(str(year).zfill(4), str(month).zfill(2), str(day+1).zfill(2)))),3))
+                _tdd = list(_td.tuple())
+                day_tg_idx = fromSolar(_tdd[0], _tdd[1], _tdd[2]).getDayGZ().tg
+        else:
+            day_tg_idx = cdate.getDayGZ().tg
+        hTG = tian_gan[(day_tg_idx % 5 * 2 + 0) % 10] + di_zhi[0]
     if year < 1900:
         mTG1 = find_lunar_month(yTG).get(lunar_date_d(year, month, day).get("月"))
     else:
         mTG1 = mTG
-    hTG1 = find_lunar_hour(dTG).get(hTG[1])
+    if _h_late_override:
+        hTG1 = hTG  # v2.2.1: lateZi 直接生效
+    else:
+        hTG1 = find_lunar_hour(dTG).get(hTG[1])
     return {'类别': '干支', '年柱': yTG, '月柱': mTG1, '日柱': dTG, '时柱': hTG1, '五柱类型': '', '五柱内容': '', '文本': f"干支：{yTG} {mTG} {dTG} {hTG} 空亡："}
 
 

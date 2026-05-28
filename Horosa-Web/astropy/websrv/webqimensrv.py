@@ -188,6 +188,23 @@ class QiMenSrv:
             day = _to_int(data.get("day"), 1)
             hour = _to_int(data.get("hour"), 0)
             minute = _to_int(data.get("minute"), 0)
+            # v2.2.1: 全局日界 + 晚子时·时柱起干 两个开关。
+            # 默认均为 1(现行行为, hour==23 进位 + 时干用次日干起子时)。
+            # 仅 hour==23 时影响,其它 23 小时一律 NO-OP。
+            # 用 thread-local 设给 kinqimen 引擎,无需改 Qimen 类签名(每个请求独立设)。
+            after23_new_day = _to_int(data.get("after23NewDay"), 1)
+            late_zi_hour_use_next_day = _to_int(data.get("lateZiHourUseNextDay"), 1)
+            # v2.2.1: 通过 sys.modules 拿到已经被 config.py/kinqimen.py 加载的 jieqi 模块。
+            # 这是 vendor/kinqimen/jieqi.py (sys.path 加在 module load 时)。
+            try:
+                import sys as _sys
+                _qm_jieqi = _sys.modules.get('jieqi')
+                if _qm_jieqi is not None and hasattr(_qm_jieqi, 'set_after23_new_day'):
+                    _qm_jieqi.set_after23_new_day(after23_new_day)
+                if _qm_jieqi is not None and hasattr(_qm_jieqi, 'set_hour_gan_use_next_day'):
+                    _qm_jieqi.set_hour_gan_use_next_day(late_zi_hour_use_next_day)
+            except Exception:
+                pass
             option = 2 if _clean_text(data.get("qijuMethod")) == "zhirun" or _to_int(data.get("option"), 2) == 2 else 1
             mode = _clean_text(data.get("qimenMode"), "hour")
             if mode not in MODE_LABELS:

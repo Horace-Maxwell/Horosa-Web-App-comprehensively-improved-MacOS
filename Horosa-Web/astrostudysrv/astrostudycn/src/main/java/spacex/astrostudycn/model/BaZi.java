@@ -51,6 +51,10 @@ public class BaZi {
 	transient private boolean nextDay = false;
 	transient private boolean nextYear = false;
 	transient private boolean after23NewDay = false;
+	// v3 第二开关·晚子时·时柱起干 (与 after23NewDay 完全独立):
+	// true (默认) = 时干用次日日干起子时 (晚子时按次日日柱计算)
+	// false        = 时干用今日日干起子时 (晚子时按当日柱计算)
+	transient private boolean lateZiHourUseNextDay = true;
 
 	transient protected Map<String, Object>[] jieqiInfo;
 	transient protected String oldBirth;
@@ -93,8 +97,12 @@ public class BaZi {
 	public BaZi(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay) {
 		this(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, false);
 	}
-	
+
 	public BaZi(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay, boolean adjustJieqi) {
+		this(ad, birth, zone, lon, lat, timeAlg, useZodicalLon, godKeyPos, after23NewDay, adjustJieqi, true);
+	}
+
+	public BaZi(int ad, String birth, String zone, String lon, String lat, TimeZiAlg timeAlg, boolean useZodicalLon, String godKeyPos, boolean after23NewDay, boolean adjustJieqi, boolean lateZiHourUseNextDay) {
 		this.timeAlg = timeAlg;
 		this.useZodicalLon = useZodicalLon;
 		this.birth = birth.replace('/', '-');
@@ -105,16 +113,17 @@ public class BaZi {
 		this.fourColumns = new FourColumns();
 		this.godKeyPos = godKeyPos;
 		this.after23NewDay = after23NewDay;
+		this.lateZiHourUseNextDay = lateZiHourUseNextDay;
 		this.adjustJieqi = adjustJieqi;
 		this.ad = ad;
 		if(birth.startsWith("-")) {
 			this.ad = -1;
 		}
-		
-		
-		NongLi nl = NongliHelper.getNongLi(this.ad, this.birth, zone, lon, after23NewDay);
+
+
+		NongLi nl = NongliHelper.getNongLi(this.ad, this.birth, zone, lon, after23NewDay, false, lateZiHourUseNextDay);
 		this.nongli = nl.toMap();
-		
+
 		this.setup();
 	}
 	
@@ -332,14 +341,14 @@ public class BaZi {
 				GanZi dayCol = new GanZi(gan, zi, phaseType);
 				this.fourColumns.day = dayCol;
 			}
-			this.fourColumns.time = BaZiHelper.getTimeColumn(this.fourColumns.day, this.timezi, this.birth, phaseType, this.after23NewDay);			
+			this.fourColumns.time = BaZiHelper.getTimeColumn(this.fourColumns.day, this.timezi, this.birth, phaseType, this.after23NewDay, this.lateZiHourUseNextDay);
 		}else {
 			boolean afterHour23 = false;
 			if(this.timezi == 0 && this.oldBirthAfter23) {
 				afterHour23 = true;
 			}
 			this.fourColumns.day = BaZiHelper.getDayColumn(this.ad, this.oldBirth, this.zone, afterHour23, phaseType, this.after23NewDay);
-			this.fourColumns.time = BaZiHelper.getTimeColumn(this.fourColumns.day, this.oldBirth, phaseType, this.after23NewDay);	
+			this.fourColumns.time = BaZiHelper.getTimeColumn(this.fourColumns.day, this.oldBirth, phaseType, this.after23NewDay, this.lateZiHourUseNextDay);
 		}
 		
 		this.fourColumns.fillRelative();

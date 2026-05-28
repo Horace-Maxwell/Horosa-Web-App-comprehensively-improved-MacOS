@@ -266,6 +266,16 @@ export function buildLocalChartRecord(values){
 		payload: normalizePayload(values.payload),
 		sourceModule: sourceModule,
 		chartType: values.chartType ? values.chartType : sourceModule,
+		// 非地点/坐标参数: 必须随命盘存档,否则下次打开会被全局默认覆盖,导致日柱/时柱计算与保存时不一致。
+		after23NewDay: values.after23NewDay !== undefined && values.after23NewDay !== null
+			? parseInt(values.after23NewDay + '', 10)
+			: (values.after23NewDay === undefined ? undefined : 1),
+		lateZiHourUseNextDay: values.lateZiHourUseNextDay !== undefined && values.lateZiHourUseNextDay !== null
+			? parseInt(values.lateZiHourUseNextDay + '', 10)
+			: undefined,
+		timeAlg: values.timeAlg !== undefined && values.timeAlg !== null
+			? parseInt(values.timeAlg + '', 10)
+			: undefined,
 	};
 	return record;
 }

@@ -497,21 +497,52 @@ class QiZhengKinSrv:
                 location_name=location_name,
                 gender=gender_value,
             )
+            # 用戶語義（拍板,字面直覺版）:
+            #   after23NewDay=1「23点算第二天」=23時起日柱進位次日(jd+1)
+            #   after23NewDay=0「24点算第二天」=23時仍守今(jd 不變)
+            # v2.2.1 第二全局开关 lateZi(hour_gan_use_next_day):
+            #   lateZi=1(默认): 時柱跨日按"次日日干"起子時(=庚子,與 lunar.js Exact 一致)
+            #   lateZi=0: 時柱跟日柱一致(同一 cdate 的日干起子時)
+            # 仅 hour==23 时两开关生效,其它 23 小时一律 NO-OP。
+            after23 = to_int(data.get("after23NewDay"), 1)
+            late_zi = to_int(data.get("lateZiHourUseNextDay"), 1)
+            jd_for_day = chart.julian_day + (1.0 if dt.hour == 23 and after23 else 0.0)
+            if dt.hour == 23:
+                if late_zi:
+                    # lateZi=1: 时柱用次日日干起子时
+                    jd_for_hour = chart.julian_day + 1.0
+                else:
+                    # lateZi=0: 时柱跟日柱一致
+                    jd_for_hour = jd_for_day
+            else:
+                jd_for_hour = chart.julian_day
             shensha = compute_shensha(
                 dt.year,
                 chart.solar_month,
-                chart.julian_day,
+                jd_for_day,
                 chart.hour_branch,
                 timezone_value,
                 chart.ming_gong_branch,
             )
-            bazi = display_safe(get_bazi_stems_branches(
+            # 八字四柱:日柱用 jd_for_day,時柱用 jd_for_hour(獨立計算)。
+            bazi_day_part = get_bazi_stems_branches(
                 dt.year,
                 chart.solar_month,
-                chart.julian_day,
+                jd_for_day,
                 chart.hour_branch,
                 timezone_value,
-            ))
+            )
+            bazi_hour_part = get_bazi_stems_branches(
+                dt.year,
+                chart.solar_month,
+                jd_for_hour,
+                chart.hour_branch,
+                timezone_value,
+            )
+            # 覆蓋時柱: 用 jd_for_hour 算出的 hour_stem/hour_pillar 替換。
+            bazi_day_part["hour_stem"] = bazi_hour_part["hour_stem"]
+            bazi_day_part["hour_pillar"] = bazi_hour_part["hour_pillar"]
+            bazi = display_safe(bazi_day_part)
             current_year = max(1, to_int(data.get("qizhengKinCurrentYear") or data.get("currentYear"), datetime.now().year))
             dasha = compute_dasha(dt.year, chart.ming_gong_branch, gender_value, chart.houses, current_year=current_year)
             zhangguo = compute_zhangguo(chart.planets, chart.houses, gender=gender_value)

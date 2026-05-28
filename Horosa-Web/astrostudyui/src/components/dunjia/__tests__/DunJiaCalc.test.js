@@ -411,7 +411,8 @@ describe('DunJiaCalc options', ()=>{
 			timeAlg: 1,
 			after23NewDay: 0,
 		}), {});
-		expect(defaultPan.options.daySwitchLabel).toEqual('子正换日');
+		// 用户语义(拍板,见 DunJiaCalc:DAY_SWITCH_OPTIONS): after23NewDay=0「24点算第二天」=日柱进位次日。
+		expect(defaultPan.options.daySwitchLabel).toEqual('24点算第二天');
 		expect(defaultPan.juText).toEqual(ziZhengPan.juText);
 		expect(defaultPan.ganzhi.day).toEqual(ziZhengPan.ganzhi.day);
 		expect(defaultPan.ganzhi.time).toEqual(ziZhengPan.ganzhi.time);

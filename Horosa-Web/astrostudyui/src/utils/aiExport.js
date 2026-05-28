@@ -1,4 +1,5 @@
 import { getStore, } from './storageutil';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from './dayBoundary';
 import { getAstroAISnapshotForCurrent, saveAstroAISnapshot, loadAstroAISnapshot, } from './astroAiSnapshot';
 import { loadModuleAISnapshot, } from './moduleAiSnapshot';
 import * as AstroConst from '../constants/AstroConst';
@@ -5129,11 +5130,16 @@ async function buildPayload(){
 	const stamp = formatStamp(now);
 	const time = formatDateTime(now);
 	const filenameBase = `horosa_${safeFileName(displayName)}_${stamp}`;
+	// v2.2.1:把「日界点·晚子时」排盘规则写进导出头,让 AI 知道四柱按哪种换日/起时干规则计算。
+	const a23 = defaultAfter23NewDay();
+	const lzh = defaultLateZiHourUseNextDay();
+	const dayRule = `排盘规则: 日界点【${a23 === 0 ? '24点算第二天·日柱守今' : '23点算第二天·日柱进位次日'}】, 晚子时·时柱起干【${lzh === 0 ? '按当日柱·今日干起子时' : '按次日柱·次日干起子时'}】(仅 23:00–23:59 影响日柱/时柱)`;
 	const header = [
 		`技术: ${displayName}`,
 		`导出时间: ${time}`,
 		`页面: ${window.location.href}`,
 		'说明: 当前激活技术面板专属导出；符号已转为AI可识别文本。',
+		dayRule,
 		'',
 		'========== 内容开始 =========='
 	].join('\n');

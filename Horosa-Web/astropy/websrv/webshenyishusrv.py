@@ -427,7 +427,7 @@ class ShenYiShuSrv:
             season = _normalize_season(raw_season, month)
             date_str = data.get("date") or f"{year:04d}-{month:02d}-{day:02d}"
             time_str = data.get("time") or f"{hour:02d}:{minute:02d}:{second:02d}"
-            result = shenyishu_core.Shenyishu(year, month, day, hour).get_bingzhan_result()
+            result = shenyishu_core.Shenyishu(year, month, day, hour, _to_int(data.get("after23NewDay"), 1)).get_bingzhan_result()
             normalized = _normalize_result(result, year, month, day, hour, minute, second, date_str, time_str, hour_source, season_source, season)
             return jsonpickle.encode({"ResultCode": 0, "Result": normalized}, unpicklable=False)
         except Exception:

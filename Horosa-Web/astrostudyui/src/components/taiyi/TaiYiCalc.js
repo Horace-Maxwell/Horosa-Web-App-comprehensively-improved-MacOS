@@ -10,6 +10,7 @@ import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
 import buildLocalBaziResult from '../../utils/baziLunarLocal';
+import { defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 export const STYLE_OPTIONS = [
 	...TAIYI_STYLE_OPTIONS.slice(),
@@ -45,10 +46,12 @@ export const TIME_BASIS_OPTIONS = [
 	{ value: 'trueSolar', label: '真太阳时' },
 ];
 
+// 用户语义(拍板,字面直觉版): after23NewDay=1「23点算第二天」=日柱进位次日(壬寅)；=0「24点算第二天」=日柱守今(辛丑)。
 export const DAY_SWITCH_OPTIONS = [
-	{ value: 0, label: '子正换日' },
-	{ value: 1, label: '子初换日' },
+	{ value: 1, label: '23点算第二天' },
+	{ value: 0, label: '24点算第二天' },
 ];
+
 
 export const GAME_THEORY_OPTIONS = [
 	{ value: 0, label: '关闭' },
@@ -90,7 +93,7 @@ function buildOptions(opt, pan){
 		sexLabel: options.sex || (pan && pan.sex) || '男',
 		rotationLabel: options.rotation || '固定',
 		timeBasisLabel: options.timeBasis === 'trueSolar' ? '真太阳时' : '直接时间',
-		daySwitchLabel: options.after23NewDay === 1 ? '子初换日' : '子正换日',
+		daySwitchLabel: options.after23NewDay === 1 ? '23点算第二天' : '24点算第二天',
 		gameTheoryLabel: options.gameTheory === 1 ? '开启' : '关闭',
 	};
 }
@@ -143,6 +146,9 @@ function buildTaiyiBaziLocal(fields, options){
 			gpsLon: fields.gpsLon ? fields.gpsLon.value : undefined,
 			gender: fields.gender ? fields.gender.value : 1,
 			timeAlg: options && options.timeBasis === 'trueSolar' ? 0 : 1,
+			after23NewDay: options ? options.after23NewDay : undefined,
+			// v2.2.1: 太乙也要把时柱开关透传给 buildLocalBaziResult,否则 hour==23 + lateZi=0 时太乙的时柱会算错。
+			lateZiHourUseNextDay: options ? options.lateZiHourUseNextDay : undefined,
 		});
 	}catch(e){
 		return null;
@@ -266,6 +272,8 @@ export async function fetchTaiyiPan(fields, nongli, options){
 		rotation: opt.rotation || '固定',
 		timeBasis: opt.timeBasis || 'direct',
 		after23NewDay: opt.after23NewDay !== undefined ? opt.after23NewDay : 0,
+		// v2.2.1: 之前漏传 lateZi 给后端 → 太乙 23 点切晚子时·时柱起干不变。后端 webtaiyisrv.py 已支持。
+		lateZiHourUseNextDay: opt.lateZiHourUseNextDay !== undefined ? opt.lateZiHourUseNextDay : defaultLateZiHourUseNextDay(),
 		enableGameTheory: opt.gameTheory === 1,
 		realSunTime: nongli ? (nongli.birth || '') : '',
 		jiedelta: nongli ? (nongli.jiedelta || '') : '',

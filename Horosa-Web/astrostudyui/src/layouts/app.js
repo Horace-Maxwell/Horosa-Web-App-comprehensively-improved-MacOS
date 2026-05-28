@@ -3,6 +3,7 @@ import { connect  } from 'dva';
 import { Layout,  BackTop,  } from 'antd';
 import * as AstroConst from '../constants/AstroConst';
 import PageHeader from '../components/homepage/PageHeader';
+import UpdateNotifier from '../components/update/UpdateNotifier';
 import {
     APPEARANCE_DARK,
     applyAppearanceToDocument,
@@ -12,7 +13,7 @@ import styles from './app.less';
 
 const App = ({children, dispatch, app, user, astro, })=>{
     const { userInfo, admin, } = user;
-    const { chartDisplay, appearanceMode,} = app;
+    const { chartDisplay, appearanceMode, dayBoundary, lateZiHourMode,} = app;
     const currentTab = astro && astro.currentTab ? astro.currentTab : null;
     const { Header, Content } = Layout;
     const [prefersDark, setPrefersDark] = React.useState(()=>{
@@ -109,13 +110,15 @@ const App = ({children, dispatch, app, user, astro, })=>{
             style={mainstyle}
         >
             <Header className="horosa-astro-header" style={headerstyle}>
-                <PageHeader 
+                <PageHeader
                     admin={admin}
                     chartDisplay={chartDisplay}
                     appearanceMode={appearanceMode}
+                    dayBoundary={dayBoundary}
+                    lateZiHourMode={lateZiHourMode}
                     resolvedAppearance={resolvedAppearance}
                     currentTab={currentTab}
-                    userInfo={userInfo} 
+                    userInfo={userInfo}
                     onMenuClick={menuClick}
                     dispatch={dispatch}
                 />
@@ -131,6 +134,7 @@ const App = ({children, dispatch, app, user, astro, })=>{
             </Content>
 
             <div id='globalFooter' style={{height: 0, overflow: 'hidden'}} />
+            <UpdateNotifier />
         </Layout>
     );
 };

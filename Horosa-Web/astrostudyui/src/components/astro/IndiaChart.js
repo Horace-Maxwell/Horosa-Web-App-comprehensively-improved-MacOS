@@ -8,6 +8,7 @@ import * as Constants from '../../utils/constants';
 import * as AstroConst from '../../constants/AstroConst';
 import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
 import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 const indiaChartCache = new Map();
 const indiaChartInflight = new Map();
@@ -43,6 +44,8 @@ export function fieldsToParams(fields, overrides = {}){
 		predictive: 0,
 		name: fields.name.value,
 		pos: fields.pos.value,
+		after23NewDay: (fields.after23NewDay && fields.after23NewDay.value !== undefined) ? fields.after23NewDay.value : defaultAfter23NewDay(),
+		lateZiHourUseNextDay: (fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined) ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 	};
 
 	if(fields.chartnum){

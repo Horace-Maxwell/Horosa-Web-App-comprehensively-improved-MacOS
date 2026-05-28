@@ -445,6 +445,7 @@ class NanJiShenShu:
         hour: int,
         minute: int = 0,
         gender: str = '男',
+        after23_new_day: int = 1,
     ) -> "NanJiShenShu":
         """
         從公曆日期時間建立命盤，使用 sxtwl 精確計算四柱。
@@ -461,8 +462,11 @@ class NanJiShenShu:
             gender: 性別（男/女）
         """
         if _HAS_SXTWL:
+            # 用戶語義（拍板,字面直覺版）：
+            #   after23_new_day=1「23点算第二天」= 23時起日柱進位次日(壬寅)
+            #   after23_new_day=0「24点算第二天」= 23時仍守今、24時才換日柱(辛丑)
             calc_year, calc_month, calc_day, calc_hour = year, month, day, hour
-            if hour == 23:
+            if hour == 23 and after23_new_day:
                 dt = date(year, month, day) + timedelta(days=1)
                 calc_year, calc_month, calc_day = dt.year, dt.month, dt.day
                 calc_hour = 0
@@ -480,12 +484,24 @@ class NanJiShenShu:
             d_stem = TIANGAN[dgz.tg]
             d_branch = DIZHI[dgz.dz]
 
-            # 時支：子時 0, 丑時 1, …（23時已轉為 calc_hour=0 子時）
-            h_branch_idx = (calc_hour + 1) // 2 % 12
-            h_branch = DIZHI[h_branch_idx]
-            start_gan = WUSHU_DUN[d_stem]
-            h_stem_idx = (TIANGAN.index(start_gan) + h_branch_idx) % 10
-            h_stem = TIANGAN[h_stem_idx]
+            # 時柱跨日：hour==23 時永遠按"次日日干"起子時（與 lunar.js Exact 一致）。
+            if hour == 23 and not after23_new_day:
+                # after23=0 日柱守今但時柱用次日干起子時
+                _td = date(year, month, day) + timedelta(days=1)
+                _cdate_for_hour = _sxtwl_fromSolar(_td.year, _td.month, _td.day)
+                _hgz = _cdate_for_hour.getDayGZ()
+                _hour_start_gan = WUSHU_DUN[TIANGAN[_hgz.tg]]
+                h_branch_idx = 0  # 子時
+                h_branch = DIZHI[h_branch_idx]
+                h_stem_idx = (TIANGAN.index(_hour_start_gan) + h_branch_idx) % 10
+                h_stem = TIANGAN[h_stem_idx]
+            else:
+                # 時支：子時 0, 丑時 1, …（23時且 after23=1 已轉為 calc_hour=0 子時，d_stem 已是次日干）
+                h_branch_idx = (calc_hour + 1) // 2 % 12
+                h_branch = DIZHI[h_branch_idx]
+                start_gan = WUSHU_DUN[d_stem]
+                h_stem_idx = (TIANGAN.index(start_gan) + h_branch_idx) % 10
+                h_stem = TIANGAN[h_stem_idx]
         else:
             # sxtwl 不可用時退回簡化計算
             y_tg_idx = (year - 1984) % 10

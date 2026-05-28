@@ -22,6 +22,7 @@ import {
 	getMethodSource,
 } from './TaiYiCalc';
 import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -55,7 +56,8 @@ class TaiYiMain extends Component {
 				tn: 0,
 				sex: '男',
 				timeBasis: 'direct',
-				after23NewDay: 0,
+				after23NewDay: defaultAfter23NewDay(),
+				lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 				gameTheory: 0,
 			},
 			rightPanelTab: 'overview',
@@ -91,6 +93,26 @@ class TaiYiMain extends Component {
 
 	componentDidMount() {
 		this.unmounted = false;
+		this._after23BoundaryUserOverrode = false; // 用户拍板:左栏改过 after23NewDay 后,全局事件不再覆盖
+		this._lateZiHourUserOverrode = false; // v2.2.1: 同款时柱开关局部覆盖语义
+		if(typeof window !== 'undefined'){
+			this._dayBoundaryListener = (ev) => {
+				if(this._after23BoundaryUserOverrode) return;
+				const v = ev && ev.detail ? ev.detail.after23NewDay : null;
+				if((v === 0 || v === 1) && typeof this.onOptionChange === 'function'){
+					this.onOptionChange('after23NewDay', v, { fromGlobal: true });
+				}
+			};
+			window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			this._lateZiHourListener = (ev) => {
+				if(this._lateZiHourUserOverrode) return;
+				const v = ev && ev.detail ? ev.detail.lateZiHourUseNextDay : null;
+				if((v === 0 || v === 1) && typeof this.onOptionChange === 'function'){
+					this.onOptionChange('lateZiHourUseNextDay', v, { fromGlobal: true });
+				}
+			};
+			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 		if (this.restoreFromCurrentCase(true)) {
 			return;
 		}
@@ -110,6 +132,12 @@ class TaiYiMain extends Component {
 
 	componentWillUnmount() {
 		this.unmounted = true;
+		if(typeof window !== 'undefined' && this._dayBoundaryListener){
+			window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+		}
+		if(typeof window !== 'undefined' && this._lateZiHourListener){
+			window.removeEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 	}
 
 	onFieldsChange(field) {
@@ -280,7 +308,11 @@ class TaiYiMain extends Component {
 		await this.recalc(fields || this.props.fields, nongli, this.state.options);
 	}
 
-	onOptionChange(key, value) {
+	onOptionChange(key, value, opts) {
+		// 用户拍板: 左栏改过 after23NewDay 后,全局事件不再覆盖。fromGlobal 时不打标记。
+		if(key === 'after23NewDay' && !(opts && opts.fromGlobal)){
+			this._after23BoundaryUserOverrode = true;
+		}
 		const options = {
 			...this.state.options,
 			[key]: value,
@@ -706,7 +738,7 @@ class TaiYiMain extends Component {
 			['历史年号', pan ? (pan.reignYear || this.getSectionValue('年號')) : '—'],
 			['太乙纪元', pan ? (pan.calendarEra || pan.jiyuan || this.getSectionValue('紀元')) : '—'],
 			['时间基准', panOptions.timeBasisLabel || '直接时间'],
-			['换日', panOptions.daySwitchLabel || '子正换日'],
+			['换日', panOptions.daySwitchLabel || '23点算第二天'],
 		];
 		if (isLifeStyle) {
 			rows.push(

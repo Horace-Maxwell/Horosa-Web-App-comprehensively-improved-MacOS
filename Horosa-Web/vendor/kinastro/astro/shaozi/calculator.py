@@ -15,7 +15,7 @@ astro/shaozi/calculator.py — 邵子神數核心計算引擎
 import csv
 from pathlib import Path
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple
 
 from astro.shaozi.constants import (
@@ -218,12 +218,33 @@ def _hour_ganzhi(day_stem: str, hour: int) -> str:
     return HEAVENLY_STEMS[hour_stem_idx] + EARTHLY_BRANCHES[hour_branch_idx]
 
 
-def calculate_ganzhi_from_datetime(birth_dt: datetime) -> Dict[str, str]:
-    """從西曆日期時間計算四柱干支"""
-    year_gz = _year_ganzhi(birth_dt.year)
-    month_gz = _month_ganzhi(birth_dt.year, birth_dt.month)
-    day_gz = _day_ganzhi(birth_dt.year, birth_dt.month, birth_dt.day)
-    hour_gz = _hour_ganzhi(day_gz[0], birth_dt.hour)
+def calculate_ganzhi_from_datetime(birth_dt: datetime, after23_new_day: int = 1, hour_gan_use_next_day: int = 1) -> Dict[str, str]:
+    """從西曆日期時間計算四柱干支。
+
+    用戶語義（拍板，字面直覺版，配套自檢 27日23:30）：
+      after23_new_day=1「23点算第二天」= 23時起日柱進位次日（壬寅）
+      after23_new_day=0「24点算第二天」= 23時仍守今、24時才換日柱（辛丑）
+    v2.2.1 lateZi:
+      hour_gan_use_next_day=1（默认，lunar.js Exact）：時柱永遠用次日日干起子時
+      hour_gan_use_next_day=0：時柱用日柱所在 cdate 的日干（== 跟日柱一致）
+    只在 hour==23 時兩開關生效；其它 23 小時完全 NO-OP。
+    """
+    day_dt = birth_dt + timedelta(days=1) if (after23_new_day and birth_dt.hour == 23) else birth_dt
+    year_gz = _year_ganzhi(day_dt.year)
+    month_gz = _month_ganzhi(day_dt.year, day_dt.month)
+    day_gz = _day_ganzhi(day_dt.year, day_dt.month, day_dt.day)
+    # 時柱:
+    if birth_dt.hour == 23:
+        if hour_gan_use_next_day:
+            # 用次日日干起子时
+            hour_day_dt = birth_dt + timedelta(days=1)
+            hour_day_gz = _day_ganzhi(hour_day_dt.year, hour_day_dt.month, hour_day_dt.day)
+        else:
+            # lateZi=0: 跟日柱一致 (day_gz 已经反映 after23)
+            hour_day_gz = day_gz
+    else:
+        hour_day_gz = day_gz
+    hour_gz = _hour_ganzhi(hour_day_gz[0], birth_dt.hour)
     return {
         "year": year_gz,
         "month": month_gz,

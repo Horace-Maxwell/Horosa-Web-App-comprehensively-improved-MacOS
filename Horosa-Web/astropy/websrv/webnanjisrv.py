@@ -254,6 +254,7 @@ class NanJiSrv:
                     dt.hour,
                     dt.minute,
                     gender=gender,
+                    after23_new_day=to_int(data.get("after23NewDay"), 1),
                 )
                 mode = "solar"
                 mode_label = "公历精算"

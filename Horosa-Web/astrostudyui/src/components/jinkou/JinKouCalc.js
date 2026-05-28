@@ -2,6 +2,7 @@ import * as LRConst from '../liureng/LRConst';
 import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 export const JinKouElementColor = {
 	'木': '#2f9f68',
@@ -1488,6 +1489,9 @@ export async function fetchJinKouPan(fields, nongli, options){
 		timeBasis: opt.timeBasis || 'direct',
 		realSunTime: nongli ? (nongli.birth || '') : '',
 		jiedelta: nongli ? (nongli.jiedelta || '') : '',
+		// v2.2.1: 两个全局开关从事盘(起课)fields 透传给后端 /jinkou/pan,后端已读取应用。
+		after23NewDay: (fields && fields.after23NewDay && fields.after23NewDay.value !== undefined) ? fields.after23NewDay.value : defaultAfter23NewDay(),
+		lateZiHourUseNextDay: (fields && fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined) ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 	};
 	let rsp = null;
 	try{

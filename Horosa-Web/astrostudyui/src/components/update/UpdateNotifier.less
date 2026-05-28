@@ -1,0 +1,197 @@
+// v2.2.1 软件内升级·非模态卡片。用 --horosa-* 令牌,亮/暗自动适配。
+@radius: 14px;
+
+.card {
+	position: fixed;
+	right: 22px;
+	bottom: 22px;
+	z-index: 2600;
+	width: 340px;
+	max-width: calc(100vw - 32px);
+	padding: 16px 18px 15px;
+	border-radius: @radius;
+	border: 1px solid var(--horosa-border);
+	background:
+		radial-gradient(circle at 16% 0%, var(--horosa-cyan-soft, rgba(47, 125, 241, 0.12)), transparent 40%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.10), transparent 46%),
+		var(--horosa-surface-raised, var(--horosa-surface, #fff));
+	color: var(--horosa-text);
+	box-shadow: 0 18px 48px rgba(8, 18, 38, 0.22);
+	backdrop-filter: blur(2px);
+	animation: horosaUpdateIn 0.22s ease-out;
+}
+
+@keyframes horosaUpdateIn {
+	from { opacity: 0; transform: translateY(10px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+.titleRow {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.title {
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: 0.2px;
+	color: var(--horosa-text);
+}
+
+.sub {
+	margin-top: 6px;
+	font-size: 12.5px;
+	line-height: 1.5;
+	color: var(--horosa-text-muted, rgba(22, 32, 51, 0.62));
+}
+
+.notes {
+	margin-top: 10px;
+	padding: 9px 11px;
+	max-height: 132px;
+	overflow: auto;
+	font-size: 12px;
+	line-height: 1.6;
+	white-space: pre-wrap;
+	border-radius: 9px;
+	background: var(--horosa-panel-soft, rgba(76, 98, 134, 0.07));
+	color: var(--horosa-text-muted, rgba(22, 32, 51, 0.7));
+}
+
+.hint {
+	margin-top: 8px;
+	font-size: 11.5px;
+	color: var(--horosa-text-muted, rgba(22, 32, 51, 0.5));
+}
+
+.actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 14px;
+}
+
+.btnPrimary,
+.btnGhost,
+.btnLink {
+	font-size: 13px;
+	border-radius: 9px;
+	cursor: pointer;
+	transition: all 0.16s ease;
+	border: 1px solid transparent;
+	font-family: inherit;
+}
+
+.btnPrimary {
+	padding: 7px 16px;
+	color: #fff;
+	background: linear-gradient(180deg, var(--horosa-accent, #2f7df1), var(--horosa-accent-strong, #2666cf));
+	box-shadow: 0 6px 16px rgba(47, 125, 241, 0.32);
+
+	&:hover { filter: brightness(1.06); transform: translateY(-1px); }
+	&:active { transform: translateY(0); }
+}
+
+.btnGhost {
+	padding: 7px 14px;
+	color: var(--horosa-text);
+	background: transparent;
+	border-color: var(--horosa-border);
+
+	&:hover { background: var(--horosa-panel-soft, rgba(76, 98, 134, 0.08)); }
+}
+
+.btnLink {
+	margin-left: auto;
+	padding: 7px 4px;
+	color: var(--horosa-accent, #2f7df1);
+	background: transparent;
+
+	&:hover { text-decoration: underline; }
+}
+
+.iconBtn {
+	width: 26px;
+	height: 26px;
+	line-height: 22px;
+	text-align: center;
+	border-radius: 8px;
+	font-size: 16px;
+	color: var(--horosa-text-muted, rgba(22, 32, 51, 0.6));
+	background: transparent;
+	border: 1px solid transparent;
+	cursor: pointer;
+
+	&:hover { background: var(--horosa-panel-soft, rgba(76, 98, 134, 0.1)); color: var(--horosa-text); }
+}
+
+.progressTrack {
+	margin-top: 12px;
+	height: 8px;
+	border-radius: 999px;
+	overflow: hidden;
+	background: var(--horosa-panel-soft, rgba(76, 98, 134, 0.14));
+}
+
+.progressFill {
+	height: 100%;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--horosa-accent, #2f7df1), var(--horosa-accent-strong, #56a0ff));
+	transition: width 0.25s ease;
+}
+
+// 最小化药丸
+.pill {
+	position: fixed;
+	right: 22px;
+	bottom: 22px;
+	z-index: 2600;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 9px 14px;
+	border-radius: 999px;
+	border: 1px solid var(--horosa-border);
+	background: var(--horosa-surface-raised, var(--horosa-surface, #fff));
+	color: var(--horosa-text);
+	box-shadow: 0 10px 28px rgba(8, 18, 38, 0.2);
+	cursor: pointer;
+	font-family: inherit;
+
+	&:hover { transform: translateY(-1px); }
+}
+
+.pillSpinner {
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	border: 2px solid var(--horosa-border);
+	border-top-color: var(--horosa-accent, #2f7df1);
+	animation: horosaUpdateSpin 0.8s linear infinite;
+}
+
+@keyframes horosaUpdateSpin {
+	to { transform: rotate(360deg); }
+}
+
+.pillText {
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.toast {
+	position: fixed;
+	right: 22px;
+	bottom: 22px;
+	z-index: 2620;
+	padding: 9px 15px;
+	border-radius: 10px;
+	border: 1px solid var(--horosa-border);
+	background: var(--horosa-surface-raised, var(--horosa-surface, #fff));
+	color: var(--horosa-text);
+	box-shadow: 0 10px 28px rgba(8, 18, 38, 0.2);
+	font-size: 12.5px;
+	animation: horosaUpdateIn 0.2s ease-out;
+}

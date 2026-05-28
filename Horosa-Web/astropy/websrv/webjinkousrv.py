@@ -239,6 +239,18 @@ class JinKouSrv:
             hour = _to_int(data.get("hour"), 0)
             minute = _to_int(data.get("minute"), 0)
             second = _to_int(data.get("second"), 0)
+            # v2.2.1: 全局日界 + 晚子时·时柱起干 — 直接给 kinjinkou.jinkoujue.jinkoujue_api 设 thread-local。
+            # jinkoujue_api.py 是 kinjinkou 真正算 hour pillar 的地方。
+            after23_new_day = _to_int(data.get("after23NewDay"), 1)
+            late_zi_hour_use_next_day = _to_int(data.get("lateZiHourUseNextDay"), 1)
+            try:
+                from kinjinkou.jinkoujue import jinkoujue_api as _jk_api
+                if hasattr(_jk_api, 'set_after23_new_day'):
+                    _jk_api.set_after23_new_day(after23_new_day)
+                if hasattr(_jk_api, 'set_hour_gan_use_next_day'):
+                    _jk_api.set_hour_gan_use_next_day(late_zi_hour_use_next_day)
+            except Exception:
+                pass
             difen = _branch(data.get("difen"), "子")
             yuejiang = _branch(data.get("yuejiang")) or None
             zhanshi = _branch(data.get("zhanshi")) or None

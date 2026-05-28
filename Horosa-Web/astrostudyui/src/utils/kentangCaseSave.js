@@ -22,6 +22,17 @@ export function openKentangCaseDrawer({ dispatch, fields, module, label, payload
 		return;
 	}
 	const divTime = getCaseDateTime(fields);
+	// after23NewDay/lateZiHourUseNextDay/timeAlg 等"非字面坐标"参数必须随案例存档,
+	// 否则下次打开会被全局默认覆盖,造成日柱/时柱算错。
+	const after23NewDay = getFieldValue(fields, 'after23NewDay', null);
+	const lateZiHourUseNextDay = getFieldValue(fields, 'lateZiHourUseNextDay', null);
+	const guaAfter23NewDay = getFieldValue(fields, 'guaAfter23NewDay', null);
+	const timeAlg = getFieldValue(fields, 'timeAlg', null);
+	const extraFieldSnapshot = {};
+	if(after23NewDay !== null && after23NewDay !== '') extraFieldSnapshot.after23NewDay = after23NewDay;
+	if(lateZiHourUseNextDay !== null && lateZiHourUseNextDay !== '') extraFieldSnapshot.lateZiHourUseNextDay = lateZiHourUseNextDay;
+	if(guaAfter23NewDay !== null && guaAfter23NewDay !== '') extraFieldSnapshot.guaAfter23NewDay = guaAfter23NewDay;
+	if(timeAlg !== null && timeAlg !== '') extraFieldSnapshot.timeAlg = timeAlg;
 	dispatch({
 		type: 'astro/openDrawer',
 		payload: {
@@ -40,6 +51,7 @@ export function openKentangCaseDrawer({ dispatch, fields, module, label, payload
 					module,
 					version: 1,
 					savedAt: new Date().toISOString(),
+					fieldSnapshot: extraFieldSnapshot,
 					...(payload || {}),
 				},
 				sourceModule: module,

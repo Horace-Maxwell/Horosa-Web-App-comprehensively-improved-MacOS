@@ -38,17 +38,18 @@ public class LiuRengController {
 		PhaseType phaseType = (PhaseType) params.get("phaseType");
 		boolean zodiacalLon = (boolean) params.get("useZodicalLon");
 		boolean after23NewDay = (boolean) params.get("after23NewDay");
+		boolean lateZiHourUseNextDay = (boolean) params.get("lateZiHourUseNextDay");
 		String godKeyPos = (String) params.get("godKeyPos");
 		String yue = (String) params.get("yue");
 		Boolean isDiurnal = (Boolean) params.get("isDiurnal");
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
-		
+
 		Object obj = ParamHashCacheHelper.get("/liureng/gods", params, (args)->{
-			LiuReng bz = new LiuReng(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay);
+			LiuReng bz = new LiuReng(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, lateZiHourUseNextDay);
 			if(!StringUtility.isNullOrEmpty(yue) && isDiurnal != null) {
-				bz = new LiuReng(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, yue, isDiurnal);
+				bz = new LiuReng(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, yue, isDiurnal, lateZiHourUseNextDay);
 			}else{
-				bz = new LiuReng(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay);
+				bz = new LiuReng(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, lateZiHourUseNextDay);
 			}
 			bz.calculate(phaseType);
 			Map<String, Object> res = new HashMap<String, Object>();
@@ -91,9 +92,12 @@ public class LiuRengController {
 		map.put("useZodicalLon", false);
 		map.put("phaseType", PhaseType.ShuiTu);
 
-		boolean after23NewDay = TransData.getValueAsBool("after23NewDay", false);
+		boolean after23NewDay = TransData.getValueAsInt("after23NewDay", 1) == 1;
 		map.put("after23NewDay", after23NewDay);
-		
+
+		boolean lateZiHourUseNextDay = TransData.getValueAsInt("lateZiHourUseNextDay", 1) == 1;
+		map.put("lateZiHourUseNextDay", lateZiHourUseNextDay);
+
 		if(TransData.containsParam("yue")) {
 			map.put("yue", TransData.getValueAsString("yue"));
 		}
@@ -158,6 +162,7 @@ public class LiuRengController {
 		PhaseType phaseType = (PhaseType) params.get("phaseType");
 		boolean zodiacalLon = (boolean) params.get("useZodicalLon");
 		boolean after23NewDay = (boolean) params.get("after23NewDay");
+		boolean lateZiHourUseNextDay = (boolean) params.get("lateZiHourUseNextDay");
 		String godKeyPos = (String) params.get("godKeyPos");
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
 
@@ -167,7 +172,7 @@ public class LiuRengController {
 		String guaLon = TransData.getValueAsString("guaLon");
 		String guaLat = TransData.getValueAsString("guaLat");
 		int guaAd = TransData.getValueAsInt("guaAd", ad);
-		boolean guaAfter23NewDay = TransData.getValueAsBool("guaAfter23NewDay", after23NewDay);
+		boolean guaAfter23NewDay = TransData.getValueAsInt("guaAfter23NewDay", after23NewDay ? 1 : 0) == 1;
 
 		if(!StringUtility.isNullOrEmpty(guaDate)) {
 			if(guaAd != 1 && guaDate.indexOf('-') != 0) {
@@ -208,16 +213,16 @@ public class LiuRengController {
 		params.put("guaAfter23NewDay", reqGuaAfter23NewDay);
 		
 		Object obj = ParamHashCacheHelper.get("/liureng/runyear", params, (args)->{
-			BaZi bz = new BaZi(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay);
+			BaZi bz = new BaZi(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, false, lateZiHourUseNextDay);
 			bz.calculateFourColumn(phaseType);
 			FourColumns fourcols = bz.getFourColums();
-			
+
 			String useGuaYearGanZi = reqGuaYearGanZi;
 			if(!LiuRengHelper.isValidGanZi(useGuaYearGanZi)
 				&& !StringUtility.isNullOrEmpty(reqGuaDate)
 				&& !StringUtility.isNullOrEmpty(reqGuaTime)) {
 				String guaDtStr = String.format("%s %s", reqGuaDate, reqGuaTime);
-				BaZi guaBz = new BaZi(reqGuaAd, guaDtStr, reqGuaZone, reqGuaLon, reqGuaLat, timealg, zodiacalLon, godKeyPos, reqGuaAfter23NewDay);
+				BaZi guaBz = new BaZi(reqGuaAd, guaDtStr, reqGuaZone, reqGuaLon, reqGuaLat, timealg, zodiacalLon, godKeyPos, reqGuaAfter23NewDay, false, lateZiHourUseNextDay);
 				guaBz.calculateFourColumn(phaseType);
 				FourColumns guaCols = guaBz.getFourColums();
 				if(guaCols != null && guaCols.year != null) {

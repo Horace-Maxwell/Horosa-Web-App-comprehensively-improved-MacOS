@@ -64,6 +64,10 @@ public class ZiWeiChart {
 	}
 	
 	public ZiWeiChart(int ad, BaZiGender gender, String birth, String zone, String lon, String lat, boolean after23NewDay, Map<String, Map<String, String>> mysihua, TimeZiAlg timeAlg, boolean adjustJieqi) {
+		this(ad, gender, birth, zone, lon, lat, after23NewDay, mysihua, timeAlg, adjustJieqi, true);
+	}
+
+	public ZiWeiChart(int ad, BaZiGender gender, String birth, String zone, String lon, String lat, boolean after23NewDay, Map<String, Map<String, String>> mysihua, TimeZiAlg timeAlg, boolean adjustJieqi, boolean lateZiHourUseNextDay) {
 		this.gender = gender;
 		this.birth = birth.replace('/', '-');
 		this.zone = zone;
@@ -75,12 +79,12 @@ public class ZiWeiChart {
 		if(birth.startsWith("-")) {
 			this.ad = -1;
 		}
-		
+
 		this.mySihua = mysihua;
 		initSihuaGan();
-		
+
 		boolean directTime = useTimeAlg == TimeZiAlg.DirectTime;
-		this.nongli = resolveNongli(this.ad, birth, zone, lon, after23NewDay, directTime);
+		this.nongli = resolveNongli(this.ad, birth, zone, lon, after23NewDay, directTime, lateZiHourUseNextDay);
 		this.yearGan = this.nongli.year.substring(0, 1);
 		this.yearZi = this.nongli.year.substring(1);
 		this.timeZi = this.nongli.time.substring(1);
@@ -89,19 +93,19 @@ public class ZiWeiChart {
 		for(int i=0; i<this.houses.length; i++) {
 			this.houses[i] = new ZiWeiHouse();
 		}
-		
+
 		this.starsHouseIndex = new HashMap<String, Integer>();
 		this.lifeMaster = ZiWeiHelper.StarsLifeMaster.get(this.yearZi);
 		this.bodyMaster = ZiWeiHelper.StarsBodyMaster.get(this.yearZi);
 		this.zidou = ZiWeiHelper.getDouJun(this.nongli.month, this.timeZi);
 		int douidx = (StemBranch.BranchIndex.get(this.zidou) + StemBranch.BranchIndex.get(this.yearZi)) % 12;
 		this.doujun = StemBranch.Branches[douidx];
-		
+
 		setup();
-		
-		OnlyFourColumns bz = new OnlyFourColumns(ad, birth, zone, lon, lat, after23NewDay, gender, useTimeAlg, adjustJieqi);
+
+		OnlyFourColumns bz = new OnlyFourColumns(ad, birth, zone, lon, lat, after23NewDay, gender, useTimeAlg, adjustJieqi, lateZiHourUseNextDay);
 		this.bazi = bz.getNongli();
-		
+
 	}
 	
 	private static String getBaseLonByZone(String zone) {
@@ -123,8 +127,12 @@ public class ZiWeiChart {
 	}
 	
 	private static NongLi resolveNongli(int ad, String birth, String zone, String lon, boolean after23NewDay, boolean directTime) {
+		return resolveNongli(ad, birth, zone, lon, after23NewDay, directTime, true);
+	}
+
+	private static NongLi resolveNongli(int ad, String birth, String zone, String lon, boolean after23NewDay, boolean directTime, boolean lateZiHourUseNextDay) {
 		if(!directTime) {
-			return NongliHelper.getNongLi(ad, birth, zone, lon, after23NewDay);
+			return NongliHelper.getNongLi(ad, birth, zone, lon, after23NewDay, false, lateZiHourUseNextDay);
 		}
 		try {
 			Method method = NongliHelper.class.getMethod(
@@ -134,16 +142,17 @@ public class ZiWeiChart {
 				String.class,
 				String.class,
 				boolean.class,
+				boolean.class,
 				boolean.class
 			);
-			Object res = method.invoke(null, ad, birth, zone, lon, after23NewDay, true);
+			Object res = method.invoke(null, ad, birth, zone, lon, after23NewDay, true, lateZiHourUseNextDay);
 			if(res instanceof NongLi) {
 				return (NongLi)res;
 			}
 		}catch(Exception e) {
 		}
 		String fallbackLon = getBaseLonByZone(zone);
-		return NongliHelper.getNongLi(ad, birth, zone, fallbackLon, after23NewDay);
+		return NongliHelper.getNongLi(ad, birth, zone, fallbackLon, after23NewDay, false, lateZiHourUseNextDay);
 	}
 	
 	private void initSihuaGan() {

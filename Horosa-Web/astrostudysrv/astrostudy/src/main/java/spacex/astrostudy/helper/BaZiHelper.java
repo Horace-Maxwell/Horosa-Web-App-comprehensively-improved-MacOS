@@ -415,29 +415,42 @@ public class BaZiHelper {
 	public static String getDayGanziStr(int ad, String cal, String zone, boolean afterhHour23, boolean after23NewDay) {
 		long days = daysFromYuanYear(ad, cal, zone);
 		int remainder = (int) days % 60;
-		
+
 		int idx = (StartJiaziIndex + remainder - 1 + 60) % 60;
 		if(ad < 0) {
 			idx = (StartJiaziIndex - remainder + 60) % 60;
 		}
+		// 用户语义(拍板,字面直觉版): after23NewDay=1「23点算第二天」=日柱进位次日(壬寅); after23NewDay=0「24点算第二天」=日柱守今(辛丑)。
 		if(afterhHour23 && after23NewDay) {
 			idx = (idx + 1) % 60;
 		}
-		
+
 		String ganzi = StemBranch.JiaZi[idx];
 		return ganzi;
 	}
 	
+	// v3 第二开关·晚子时·时柱起干: lateZiHourUseNextDay=true(默认) 时干用次日干起子时; =false 用今日干起子时。
+	// shift 触发条件 = hour==23 && 日柱守今(!after23) && lateZi 按次日干起
+	// 因 after23=true 时 dayrCol 已是次日干,直接起即可; lateZi=false 时不 shift(用今日干)。
 	public static GanZi getTimeColumn(GanZi dayrCol, int timeziIdx, String birth, PhaseType phaseType, boolean after23NewDay) {
+		return getTimeColumn(dayrCol, timeziIdx, birth, phaseType, after23NewDay, true);
+	}
+
+	public static GanZi getTimeColumn(GanZi dayrCol, int timeziIdx, String birth, PhaseType phaseType, boolean after23NewDay, boolean lateZiHourUseNextDay) {
 		int[] tmparts = DateTimeUtility.getDateTimeParts(birth);
 		int hour = tmparts[3];
 		String startgan = TimeGanStart.get(dayrCol.stem.cell);
-		if(hour == 23 && !after23NewDay) {
+		if(hour == 23 && !after23NewDay && lateZiHourUseNextDay) {
 			int dayidx = (StemBranch.StemIndex.get(dayrCol.stem.cell) + 1) % 10;
 			String daygan = StemBranch.Stems[dayidx];
 			startgan = TimeGanStart.get(daygan);
+		} else if(hour == 23 && after23NewDay && !lateZiHourUseNextDay) {
+			// v2.2.1: 日柱进位次日 + 时柱按当日柱起子时 → 日干退一位(对称补全 (1,0) 边界,与 baziLunarLocal/奇门/太乙 一致)
+			int dayidx = (StemBranch.StemIndex.get(dayrCol.stem.cell) + 9) % 10;
+			String daygan = StemBranch.Stems[dayidx];
+			startgan = TimeGanStart.get(daygan);
 		}
-		
+
 		int idx = StemBranch.StemIndex.get(startgan);
 		String zi = StemBranch.Branches[timeziIdx];
 		int ganidx = (idx + timeziIdx) % 10;
@@ -447,11 +460,20 @@ public class BaZiHelper {
 	}
 
 	public static GanZi getTimeColumn(GanZi dayrCol, String birth, PhaseType phaseType, boolean after23NewDay) {
+		return getTimeColumn(dayrCol, birth, phaseType, after23NewDay, true);
+	}
+
+	public static GanZi getTimeColumn(GanZi dayrCol, String birth, PhaseType phaseType, boolean after23NewDay, boolean lateZiHourUseNextDay) {
 		int[] tmparts = DateTimeUtility.getDateTimeParts(birth);
 		int hour = tmparts[3];
 		String startgan = TimeGanStart.get(dayrCol.stem.cell);
-		if(hour == 23 && !after23NewDay) {
+		if(hour == 23 && !after23NewDay && lateZiHourUseNextDay) {
 			int dayidx = (StemBranch.StemIndex.get(dayrCol.stem.cell) + 1) % 10;
+			String daygan = StemBranch.Stems[dayidx];
+			startgan = TimeGanStart.get(daygan);
+		} else if(hour == 23 && after23NewDay && !lateZiHourUseNextDay) {
+			// v2.2.1: 日柱进位次日 + 时柱按当日柱起子时 → 日干退一位(对称补全 (1,0) 边界,与 baziLunarLocal/奇门/太乙 一致)
+			int dayidx = (StemBranch.StemIndex.get(dayrCol.stem.cell) + 9) % 10;
 			String daygan = StemBranch.Stems[dayidx];
 			startgan = TimeGanStart.get(daygan);
 		}
@@ -463,11 +485,20 @@ public class BaZiHelper {
 		GanZi tmCol = new GanZi(gan, zi, phaseType);
 		return tmCol;
 	}
-	
+
 	private static String getTimeStartGan(String dayGan, String timeZi, boolean after23NewDay) {
+		return getTimeStartGan(dayGan, timeZi, after23NewDay, true);
+	}
+
+	private static String getTimeStartGan(String dayGan, String timeZi, boolean after23NewDay, boolean lateZiHourUseNextDay) {
 		String startgan = TimeGanStart.get(dayGan);
-		if(!after23NewDay && timeZi.equals("子")) {
+		if(!after23NewDay && lateZiHourUseNextDay && timeZi.equals("子")) {
 			int dayidx = (StemBranch.StemIndex.get(dayGan) + 1) % 10;
+			String daygan = StemBranch.Stems[dayidx];
+			startgan = TimeGanStart.get(daygan);
+		} else if(after23NewDay && !lateZiHourUseNextDay && timeZi.equals("子")) {
+			// v2.2.1: 对称补全 (1,0) 边界,与 getTimeColumn 一致
+			int dayidx = (StemBranch.StemIndex.get(dayGan) + 9) % 10;
 			String daygan = StemBranch.Stems[dayidx];
 			startgan = TimeGanStart.get(daygan);
 		}
@@ -475,21 +506,34 @@ public class BaZiHelper {
 	}
 
 	public static String getTimeGanZi(String dayGan, String timeZi, boolean after23NewDay) {
-		String startgan = getTimeStartGan(dayGan, timeZi, after23NewDay);
+		return getTimeGanZi(dayGan, timeZi, after23NewDay, true);
+	}
+
+	public static String getTimeGanZi(String dayGan, String timeZi, boolean after23NewDay, boolean lateZiHourUseNextDay) {
+		String startgan = getTimeStartGan(dayGan, timeZi, after23NewDay, lateZiHourUseNextDay);
 		int idx = StemBranch.StemIndex.get(startgan);
 		int ziidx = StemBranch.BranchIndex.get(timeZi);
 		int ganidx = (idx + ziidx) % 10;
 		String gan = StemBranch.Stems[ganidx];
 		return gan + timeZi;
 	}
-		
+
 	public static String getTimeGanziStr(String dayGanzi, String birth, boolean after23NewDay) {
+		return getTimeGanziStr(dayGanzi, birth, after23NewDay, true);
+	}
+
+	public static String getTimeGanziStr(String dayGanzi, String birth, boolean after23NewDay, boolean lateZiHourUseNextDay) {
 		int[] dtparts = DateTimeUtility.getDateTimeParts(birth);
 		int hour = dtparts[3];
 		String dayGan = dayGanzi.substring(0, 1);
 		String startgan = TimeGanStart.get(dayGan);
-		if(hour == 23 && !after23NewDay) {
+		if(hour == 23 && !after23NewDay && lateZiHourUseNextDay) {
 			int dayidx = (StemBranch.StemIndex.get(dayGan) + 1) % 10;
+			dayGan = StemBranch.Stems[dayidx];
+			startgan = TimeGanStart.get(dayGan);
+		} else if(hour == 23 && after23NewDay && !lateZiHourUseNextDay) {
+			// v2.2.1: 日柱进位次日 + 时柱按当日柱起子时 → 日干退一位(对称补全 (1,0) 边界,与 baziLunarLocal/奇门/太乙 一致)
+			int dayidx = (StemBranch.StemIndex.get(dayGan) + 9) % 10;
 			dayGan = StemBranch.Stems[dayidx];
 			startgan = TimeGanStart.get(dayGan);
 		}

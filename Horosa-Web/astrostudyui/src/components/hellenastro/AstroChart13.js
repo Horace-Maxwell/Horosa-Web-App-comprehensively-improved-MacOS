@@ -4,6 +4,7 @@ import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import { randomStr, } from '../../utils/helper';
 import styles from '../../css/styles.less';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 function fieldsToParams(fields){
 	const params = {
@@ -24,6 +25,8 @@ function fieldsToParams(fields){
 		predictive: 0,
 		name: fields.name.value,
 		pos: fields.pos.value,
+		after23NewDay: (fields.after23NewDay && fields.after23NewDay.value !== undefined) ? fields.after23NewDay.value : defaultAfter23NewDay(),
+		lateZiHourUseNextDay: (fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined) ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 	};
 
 	return params;

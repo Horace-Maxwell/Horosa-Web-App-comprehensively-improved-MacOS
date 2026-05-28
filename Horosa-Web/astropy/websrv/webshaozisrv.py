@@ -162,7 +162,8 @@ class ShaoZiSrv:
                 ke = "初刻"
             use_key = bool(data.get("useKey", True))
             gender = gender_cn(data.get("gender"), "男")
-            gz = calculate_ganzhi_from_datetime(dt)
+            # v2.2.1: 同时传 after23 + lateZi 双开关
+            gz = calculate_ganzhi_from_datetime(dt, data.get("after23NewDay", 1), data.get("lateZiHourUseNextDay", 1))
             override_values = [data.get("yearGz"), data.get("monthGz"), data.get("dayGz"), data.get("hourGz")]
             pillar_override = any(clean_text(item) for item in override_values)
             year_gz = _normalize_ganzhi(data.get("yearGz"), gz["year"])

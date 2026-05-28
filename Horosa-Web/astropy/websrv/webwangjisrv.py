@@ -317,6 +317,24 @@ class WangJiSrv:
             minute = _to_int(data.get("minute"), 0)
             history_year = _to_int(data.get("historyYear"), year)
             classic_key = _clean_text(data.get("classicKey"), "huangji_jingshi_shu")
+            # 子初/子正換日：透過 thread-local 把全局換日設置注入 wangji 引擎（避免深透傳）
+            from kinwangji.wanji import set_after23_new_day as _wanji_set_a23
+            from kinwangji.jieqi import set_after23_new_day as _jieqi_set_a23
+            _a23 = _to_int(data.get("after23NewDay"), 1)
+            _wanji_set_a23(_a23)
+            _jieqi_set_a23(_a23)
+            # v2.2.1: 晚子时·时柱起干 thread-local 注入
+            _lz = _to_int(data.get("lateZiHourUseNextDay"), 1)
+            try:
+                from kinwangji.jieqi import set_hour_gan_use_next_day as _jieqi_set_lz
+                _jieqi_set_lz(_lz)
+            except (ImportError, AttributeError):
+                pass
+            try:
+                from kinwangji.wanji import set_hour_gan_use_next_day as _wanji_set_lz
+                _wanji_set_lz(_lz)
+            except (ImportError, AttributeError):
+                pass
             result = _json_safe(wanji_four_gua(year, month, day, hour, minute))
             solar_term = jq(year, month, day, hour, minute)
             wangxiang = gong_wangzhuai(solar_term)

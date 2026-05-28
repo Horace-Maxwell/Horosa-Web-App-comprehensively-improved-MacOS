@@ -530,6 +530,20 @@ struct AppState {
     zoom_level: Mutex<f64>,
     review: AssetReviewCoordinator,
     window_state_persistence_ready: AtomicBool,
+    // v2.2.1 非阻塞软件内升级:后台下载完成后暂存,等用户主动点「重启更新」时消费。
+    staged_update: Mutex<Option<StagedUpdate>>,
+}
+
+// v2.2.1 后台已下载并校验完成、等待用户重启安装的更新。
+#[derive(Clone)]
+struct StagedUpdate {
+    zip_path: Option<PathBuf>,
+    runtime_archive_path: Option<PathBuf>,
+    runtime_roots: Vec<PathBuf>,
+    runtime_version: Option<String>,
+    target_version: String,
+    app_should_update: bool,
+    runtime_should_update: bool,
 }
 
 fn default_supported_arch() -> String {
@@ -571,6 +585,7 @@ impl Default for AppState {
             zoom_level: Mutex::new(DEFAULT_ZOOM),
             review: AssetReviewCoordinator::default(),
             window_state_persistence_ready: AtomicBool::new(false),
+            staged_update: Mutex::new(None),
         }
     }
 }
@@ -1538,6 +1553,21 @@ if (window.__horosaProgress) {{ window.__horosaProgress({}, {}, false); }}",
         false,
         Some(false),
     );
+}
+
+// v2.2.1 非阻塞升级事件:发到主窗口的独立通道(不接管 launcher 界面)。
+// 镜像既有 __horosaPending* 模式:先存 pending,前端 UpdateNotifier 挂载时若已有 handler 立即调,否则挂载时补读 pending。
+fn emit_update_event_window(window: &WebviewWindow, json: &str) {
+    let _ = window.eval(&format!(
+        "window.__horosaPendingUpdateEvent = {json}; \
+if (window.__horosaUpdateEvent) {{ window.__horosaUpdateEvent({json}); }}"
+    ));
+}
+
+fn emit_update_event(app: &AppHandle, json: &str) {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        emit_update_event_window(&window, json);
+    }
 }
 
 fn emit_indeterminate_progress(window: &WebviewWindow, pct: u8, message: &str) {
@@ -4951,6 +4981,329 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
     Ok(())
 }
 
+// ============================================================================
+// v2.2.1 非阻塞软件内升级:JS 可调命令 + 独立进度事件通道。
+// 复用既有 resolve_update_plan / 下载校验 / install_downloaded_app 核心,只把交互层
+// 从原生阻塞 MessageDialog 换成主窗口内的非模态 UpdateNotifier(可最小化、可延后重启)。
+// ============================================================================
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateAvailability {
+    available: bool,
+    current_version: String,
+    latest_version: String,
+    runtime_needs_update: bool,
+    notes: String,
+    release_url: String,
+}
+
+fn compute_runtime_needs_update(plan: &UpdatePlan, local_runtime: &Option<String>) -> bool {
+    match (&plan.runtime_version, local_runtime) {
+        (Some(remote), Some(local)) => remote.trim() != local.trim(),
+        (Some(_), None) => true,
+        _ => false,
+    }
+}
+
+#[tauri::command]
+fn update_check_silent(app: AppHandle) -> std::result::Result<UpdateAvailability, String> {
+    (|| -> Result<UpdateAvailability> {
+        let client = build_github_client(90)?;
+        let plan = resolve_update_plan(&client, &app)?;
+        let current = Version::parse(env!("CARGO_PKG_VERSION"))?;
+        let local_runtime = local_runtime_version(&app);
+        let runtime_needs_update = compute_runtime_needs_update(&plan, &local_runtime);
+        Ok(UpdateAvailability {
+            available: plan.latest_version > current || runtime_needs_update,
+            current_version: current.to_string(),
+            latest_version: plan.latest_version.to_string(),
+            runtime_needs_update,
+            notes: summarize_update_notes(&plan.notes),
+            release_url: plan.release_url.clone(),
+        })
+    })()
+    .map_err(|e| format!("{e:#}"))
+}
+
+fn download_update_asset_once(
+    app: &AppHandle,
+    url: &str,
+    dest: &Path,
+    start_pct: u8,
+    end_pct: u8,
+    label: &str,
+) -> Result<()> {
+    let client = build_github_client(900)?;
+    let mut response = client
+        .get(url)
+        .header("User-Agent", "HorosaDesktop")
+        .header("Cache-Control", "no-cache")
+        .header("Pragma", "no-cache")
+        .send()
+        .with_context(|| format!("download {}", url))?;
+    if !response.status().is_success() {
+        return Err(anyhow!("download failed: {} -> {}", url, response.status()));
+    }
+    if let Some(parent) = dest.parent() {
+        ensure_dir(parent)?;
+    }
+    let total = response.content_length().unwrap_or(0);
+    let mut file = File::create(dest)?;
+    let mut downloaded: u64 = 0;
+    let mut buffer = [0u8; 64 * 1024];
+    let mut last_pct = start_pct;
+    emit_update_event(
+        app,
+        &serde_json::json!({"phase":"downloading","pct":start_pct,"message":label}).to_string(),
+    );
+    loop {
+        let read = response.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        file.write_all(&buffer[..read])?;
+        downloaded += read as u64;
+        if total > 0 {
+            let ratio = downloaded as f64 / total as f64;
+            let span = end_pct.saturating_sub(start_pct) as f64;
+            let pct = (start_pct as f64 + span * ratio).round() as u8;
+            if pct != last_pct {
+                last_pct = pct;
+                emit_update_event(
+                    app,
+                    &serde_json::json!({"phase":"downloading","pct":pct,"message":label}).to_string(),
+                );
+            }
+        }
+    }
+    emit_update_event(
+        app,
+        &serde_json::json!({"phase":"downloading","pct":end_pct,"message":label}).to_string(),
+    );
+    Ok(())
+}
+
+fn download_update_asset(
+    app: &AppHandle,
+    url: &str,
+    dest: &Path,
+    start_pct: u8,
+    end_pct: u8,
+    label: &str,
+) -> Result<()> {
+    let mut last_err = None;
+    for attempt in 1..=DOWNLOAD_MAX_ATTEMPTS {
+        if attempt > 1 {
+            emit_update_event(
+                app,
+                &serde_json::json!({
+                    "phase": "downloading",
+                    "pct": start_pct,
+                    "message": format!("{} 失败,正在重试({}/{})…", label, attempt, DOWNLOAD_MAX_ATTEMPTS),
+                })
+                .to_string(),
+            );
+            thread::sleep(Duration::from_secs((attempt as u64 - 1) * 2));
+        }
+        match download_update_asset_once(app, url, dest, start_pct, end_pct, label) {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                last_err = Some(err);
+                let _ = fs::remove_file(dest);
+            }
+        }
+    }
+    Err(wrap_download_error(
+        label,
+        url,
+        last_err.unwrap_or_else(|| anyhow!("download failed without error detail")),
+    ))
+}
+
+fn run_background_update_download(app: &AppHandle) -> Result<()> {
+    emit_update_event(
+        app,
+        &serde_json::json!({"phase":"checking","pct":2,"message":"正在检查更新…"}).to_string(),
+    );
+    let client = build_github_client(90)?;
+    let plan = resolve_update_plan(&client, app)?;
+    let current = Version::parse(env!("CARGO_PKG_VERSION"))?;
+    let local_runtime = local_runtime_version(app);
+    let runtime_needs_update = compute_runtime_needs_update(&plan, &local_runtime);
+
+    if plan.latest_version <= current && !runtime_needs_update {
+        emit_update_event(
+            app,
+            &serde_json::json!({"phase":"uptodate","message":"已是最新版本"}).to_string(),
+        );
+        return Ok(());
+    }
+    if plan.source == UpdateSource::Manifest
+        && plan.latest_version > current
+        && plan.app_sha256.is_none()
+    {
+        return Err(anyhow!("更新清单缺少桌面包 sha256,已停止自动更新"));
+    }
+    if plan.source == UpdateSource::Manifest && runtime_needs_update && plan.runtime_sha256.is_none()
+    {
+        return Err(anyhow!("更新清单缺少运行环境 sha256,已停止自动更新"));
+    }
+
+    let review_payload = build_asset_review_payload(
+        app,
+        AssetReviewMode::Update,
+        Some(plan.latest_version.clone()),
+        plan.runtime_version.clone(),
+    )?;
+    let decisions = review_payload.default_selections.clone();
+    let issues = validate_asset_review_payload(app, &review_payload, &decisions)?;
+    if !issues.is_empty() {
+        return Err(anyhow!("更新前检查发现阻断问题:\n{}", issues.join("\n")));
+    }
+    let app_should_update = plan.latest_version > current
+        && decision_for_kind(&decisions, DetectedAssetKind::InstalledApp) == AssetDecision::Replace;
+    let runtime_roots = if runtime_needs_update {
+        selected_runtime_roots(app, &decisions)?
+    } else {
+        Vec::new()
+    };
+    let runtime_should_update = runtime_needs_update && !runtime_roots.is_empty();
+    if !app_should_update && !runtime_should_update {
+        emit_update_event(
+            app,
+            &serde_json::json!({"phase":"uptodate","message":"没有需要替换的资产"}).to_string(),
+        );
+        return Ok(());
+    }
+
+    let config = load_release_config(app)?;
+    let zip_path = cached_app_update_path(app, &config)?;
+    if app_should_update {
+        download_update_asset(app, &plan.app_url, &zip_path, 10, 55, "下载桌面更新包")?;
+        verify_sha256(&zip_path, plan.app_sha256.as_deref(), "桌面更新包")?;
+    }
+    let mut runtime_archive_path = None;
+    if runtime_should_update {
+        if let Some(runtime_url) = plan.runtime_url.as_ref() {
+            let rp = cached_runtime_archive_path(app, &config)?;
+            let start = if app_should_update { 58 } else { 12 };
+            download_update_asset(app, runtime_url, &rp, start, 92, "下载本机组件更新")?;
+            verify_sha256(&rp, plan.runtime_sha256.as_deref(), "运行环境更新包")?;
+            runtime_archive_path = Some(rp);
+        }
+    }
+
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(mut slot) = state.staged_update.lock() {
+            *slot = Some(StagedUpdate {
+                zip_path: if app_should_update { Some(zip_path) } else { None },
+                runtime_archive_path,
+                runtime_roots,
+                runtime_version: plan.runtime_version.clone(),
+                target_version: plan.latest_version.to_string(),
+                app_should_update,
+                runtime_should_update,
+            });
+        }
+    }
+    emit_update_event(
+        app,
+        &serde_json::json!({
+            "phase": "ready",
+            "pct": 100,
+            "message": "更新已下载完成,可随时重启更新",
+            "version": plan.latest_version.to_string(),
+        })
+        .to_string(),
+    );
+    Ok(())
+}
+
+#[tauri::command]
+fn update_start_background(app: AppHandle) -> std::result::Result<(), String> {
+    thread::spawn(move || {
+        if let Err(err) = run_background_update_download(&app) {
+            emit_update_event(
+                &app,
+                &serde_json::json!({"phase":"error","message":format!("{err:#}")}).to_string(),
+            );
+        }
+    });
+    Ok(())
+}
+
+fn run_staged_install(app: &AppHandle) -> Result<()> {
+    let staged = {
+        let state = app
+            .try_state::<AppState>()
+            .context("应用状态不可用")?;
+        let slot = state
+            .staged_update
+            .lock()
+            .map_err(|_| anyhow!("更新暂存锁异常"))?;
+        slot.clone().context("没有已下载完成的更新,请先下载")?
+    };
+    if staged.app_should_update {
+        let zip = staged
+            .zip_path
+            .as_deref()
+            .context("已下载的桌面包丢失,请重新下载")?;
+        // 应用包安装会替换 + 重启(install_downloaded_app 内部 app.exit),runtime 随同处理。
+        install_downloaded_app(
+            app.clone(),
+            zip,
+            staged.runtime_archive_path.as_deref(),
+            &staged.runtime_roots,
+            staged.runtime_version.as_deref(),
+            &staged.target_version,
+        )?;
+        return Ok(());
+    }
+    if staged.runtime_should_update {
+        let window = app
+            .get_webview_window(MAIN_WINDOW_LABEL)
+            .context("缺少主窗口,无法完成本机组件更新")?;
+        let runtime_archive = staged
+            .runtime_archive_path
+            .as_deref()
+            .context("已下载的本机组件包丢失,请重新下载")?;
+        cleanup_state(app);
+        for root in &staged.runtime_roots {
+            ensure_dir(root)?;
+            extract_runtime_archive(runtime_archive, root)?;
+            clear_runtime_pending_marker(&root.join("current"))?;
+        }
+        let app_handle = app.clone();
+        let win = window.clone();
+        thread::spawn(
+            move || match runtime_bootstrap(app_handle.clone(), win.clone(), false) {
+                Ok(session) => {
+                    if let Some(state) = app_handle.try_state::<AppState>() {
+                        if let Ok(mut slot) = state.session.lock() {
+                            *slot = Some(session.clone());
+                        }
+                    }
+                    emit_ready_and_stabilize(
+                        &app_handle,
+                        &win,
+                        &frontend_url(session.web_port, session.backend_port, session.chart_port),
+                    );
+                }
+                Err(err) => {
+                    emit_launcher_error(&win, &build_launcher_error_payload(&app_handle, &err))
+                }
+            },
+        );
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn update_install_and_restart(app: AppHandle) -> std::result::Result<(), String> {
+    run_staged_install(&app).map_err(|e| format!("{e:#}"))
+}
+
 fn trigger_reinstall(app: AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let win = window.clone();
@@ -5134,7 +5487,10 @@ fn main() {
             pick_ai_analysis_files_command,
             pick_ai_analysis_folder_command,
             save_ai_analysis_file_command,
-            open_ai_analysis_backup_command
+            open_ai_analysis_backup_command,
+            update_check_silent,
+            update_start_background,
+            update_install_and_restart
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -5177,6 +5533,60 @@ fn main() {
                     ),
                 }
             });
+
+            // 自動檢查更新（若偏好啟用）：啟動延遲 10 秒，僅當發現新版時彈框；
+            // 無更新/網絡失敗 靜默寫日誌，避免每次啟動打擾用戶（修復 codex 版偏好定義但從不被消費的死開關）。
+            {
+                let app_handle = app.handle().clone();
+                thread::spawn(move || {
+                    thread::sleep(std::time::Duration::from_secs(10));
+                    if !load_preferences(&app_handle).auto_check_updates {
+                        return;
+                    }
+                    let client = match build_github_client(90) {
+                        Ok(c) => c,
+                        Err(err) => {
+                            eprintln!("[updater] auto check skipped (client): {err:#}");
+                            return;
+                        }
+                    };
+                    let plan = match resolve_update_plan(&client, &app_handle) {
+                        Ok(p) => p,
+                        Err(err) => {
+                            eprintln!("[updater] auto check skipped (plan): {err:#}");
+                            return;
+                        }
+                    };
+                    let current = match Version::parse(env!("CARGO_PKG_VERSION")) {
+                        Ok(v) => v,
+                        Err(_) => return,
+                    };
+                    let local_runtime = local_runtime_version(&app_handle);
+                    let runtime_needs_update = match (&plan.runtime_version, &local_runtime) {
+                        (Some(remote), Some(local)) => remote.trim() != local.trim(),
+                        (Some(_), None) => true,
+                        _ => false,
+                    };
+                    if plan.latest_version <= current && !runtime_needs_update {
+                        // 無更新：靜默
+                        return;
+                    }
+                    // v2.2.1 發現新版：非阻塞 —— 只向主窗口 emit update-available 事件,
+                    // 由前端 UpdateNotifier 显示右下角非模态卡片,用户自行选择下载/稍后;
+                    // 下载在后台、可最小化、不挡正常使用。不再启动原生阻塞弹框流程。
+                    let payload = serde_json::json!({
+                        "phase": "available",
+                        "currentVersion": current.to_string(),
+                        "latestVersion": plan.latest_version.to_string(),
+                        "runtimeNeedsUpdate": runtime_needs_update,
+                        "notes": summarize_update_notes(&plan.notes),
+                        "releaseUrl": plan.release_url.clone(),
+                    })
+                    .to_string();
+                    emit_update_event(&app_handle, &payload);
+                });
+            }
+
             Ok(())
         })
         .on_menu_event(|app, event| {

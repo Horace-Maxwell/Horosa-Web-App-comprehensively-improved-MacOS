@@ -37,7 +37,12 @@ public class OnlyFourColumns extends BaZi {
 	}
 	
 	public OnlyFourColumns(int ad, String birth, String zone, String lon, String lat, boolean after23NewDay, BaZiGender gender, TimeZiAlg timeAlg, boolean adjustJieqi) {
-		super(ad, birth, zone, lon, lat, timeAlg == null ? TimeZiAlg.RealSun : timeAlg, false, GodRule.ZhuRiZhu, after23NewDay, adjustJieqi);
+		this(ad, birth, zone, lon, lat, after23NewDay, gender, timeAlg, adjustJieqi, true);
+	}
+
+	// v3 第二开关·晚子时·时柱起干
+	public OnlyFourColumns(int ad, String birth, String zone, String lon, String lat, boolean after23NewDay, BaZiGender gender, TimeZiAlg timeAlg, boolean adjustJieqi, boolean lateZiHourUseNextDay) {
+		super(ad, birth, zone, lon, lat, timeAlg == null ? TimeZiAlg.RealSun : timeAlg, false, GodRule.ZhuRiZhu, after23NewDay, adjustJieqi, lateZiHourUseNextDay);
 		this.gender = gender;
 	}
 	

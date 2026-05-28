@@ -64,9 +64,12 @@ export const DAY_GZ_OPTIONS = [
 	{ value: 1, label: '日干支-晚子时按明天' },
 ];
 
+// 用户语义(拍板,字面直觉版):
+//   after23NewDay=1「23点算第二天」= 23点起日柱进位次日(壬寅)
+//   after23NewDay=0「24点算第二天」= 23点仍守今、24点才换日柱(辛丑)
 export const DAY_SWITCH_OPTIONS = [
-	{ value: 1, label: '子初换日' },
-	{ value: 0, label: '子正换日' },
+	{ value: 1, label: '23点算第二天' },
+	{ value: 0, label: '24点算第二天' },
 ];
 
 export const QIJU_METHOD_OPTIONS = [
@@ -867,7 +870,13 @@ export function normalizeKinqimenData(backendPan, fallbackPan, options, nongli){
 	});
 	const qimenModeLabel = normalizeText(backendPan.modeLabel || '');
 	const juText = normalizeText(getRawValue(raw, ['排局', '局'], fallbackPan.juText));
-	const ganzhi = parseKinqimenGanzhi(getRawValue(raw, ['干支'], ''), fallbackPan.ganzhi);
+	let ganzhi = parseKinqimenGanzhi(getRawValue(raw, ['干支'], ''), fallbackPan.ganzhi);
+	// v2.2.1: 本地 buildGanzhiForQimen 是 lateZi 语义的唯一可信来源(覆盖 4 case 矩阵)。
+	// 后端 kinqimen 引擎对 (after23=1 + lateZi=0 + hour==23) 不返回 戊子,而是仍按 shifted day 的壬给出 庚子;
+	// 这里以本地 fallback 的时柱为准,保证用户看到的 4 柱与设置一致。
+	if(fallbackPan && fallbackPan.ganzhi && fallbackPan.ganzhi.time && ganzhi.time !== fallbackPan.ganzhi.time){
+		ganzhi = { ...ganzhi, time: fallbackPan.ganzhi.time };
+	}
 	return {
 		...fallbackPan,
 		source: 'kinqimen',
@@ -939,6 +948,8 @@ export async function fetchQimenPan(fields, nongli, options, context){
 		option: normalizeQijuMethod(opt.qijuMethod) === 'zhirun' ? 2 : 1,
 		realSunTime: (context && context.displaySolarTime) || (nongli ? (nongli.birth || '') : ''),
 		jiedelta: nongli ? (nongli.jiedelta || '') : '',
+		after23NewDay: opt.after23NewDay !== undefined ? (opt.after23NewDay ? 1 : 0) : 1,
+		lateZiHourUseNextDay: opt.lateZiHourUseNextDay !== undefined ? (opt.lateZiHourUseNextDay ? 1 : 0) : 1,
 	};
 	let rsp = null;
 	try{
@@ -1033,20 +1044,50 @@ function buildGanzhiForQimen(nongli, dateParts, opts, context){
 		(bazi && bazi.day && bazi.day.ganzi)
 		|| (nongli ? nongli.dayGanZi : '甲子')
 	);
-	if(calcDateTime.hour === 23 && !!(opts && opts.after23NewDay)){
-		day = nextGanZhi(day);
-	}
+	// 日柱换日已由 nongli 来源(后端 /nongli/time 或本地 buildLocalBaziResult)按 after23NewDay 完成,此处不可再次进位。
+	// 用户语义(拍板,字面直觉版):
+	//   after23NewDay=1「23点算第二天」→ hour==23 时 day 已上移到次日(壬寅);
+	//   after23NewDay=0「24点算第二天」→ hour==23 时 day 守今(辛丑)。
+	// v2.2.1 第二全局开关 lateZiHourUseNextDay:
+	//   lateZi=1(默认):时柱永远按"次日日干"起子时(同 lunar.js Exact)
+	//   lateZi=0:时柱跟随日柱所在 cdate 的日干起子时(== 跟日柱一致)
+	// 仅 hour==23 时影响时柱;其它 22 小时一律 NO-OP。
 	const preciseTime = normalizeGanZhi(
 		(bazi && bazi.time && bazi.time.ganzi)
 		|| (nongli ? nongli.time : '')
 	);
 	const computedTime = getHourGanZhi(day, calcDateTime.hour);
-	const switchedLateZi = calcDateTime.hour === 23 && !!(opts && opts.after23NewDay);
-	const time = switchedLateZi
-		? (computedTime || preciseTime)
-		: (normalizeTimeAlg(opts && opts.timeAlg) === 0
-		? (computedTime || preciseTime)
-		: (preciseTime || computedTime));
+	const isLateZi = calcDateTime.hour === 23;
+	const dayShiftedByLateZi = isLateZi && !!(opts && opts.after23NewDay); // after23NewDay=1 → 进位
+	const lateZiUseNextDay = opts && opts.lateZiHourUseNextDay !== undefined
+		? (opts.lateZiHourUseNextDay !== 0 && opts.lateZiHourUseNextDay !== '0' && opts.lateZiHourUseNextDay !== false ? 1 : 0)
+		: 1;
+	const timeAlgIsTrueSolar = normalizeTimeAlg(opts && opts.timeAlg) === 0;
+	let time;
+	if(dayShiftedByLateZi){
+		// after23=1 + hour==23: day 已 shift 到次日(壬寅)。
+		// lateZi=1: 时柱用次日日干起子时 → getHourGanZhi(壬寅, 23) = 庚子
+		// lateZi=0: 时柱用今日(=prevDay)日干起子时 → getHourGanZhi(辛丑, 23) = 戊子
+		if(lateZiUseNextDay){
+			time = computedTime || preciseTime;
+		} else {
+			const todayDay = prevGanZhi(day);
+			time = getHourGanZhi(todayDay, calcDateTime.hour) || computedTime || preciseTime;
+		}
+	} else if(isLateZi){
+		// after23=0 + hour==23: day 守今(辛丑)
+		if(lateZiUseNextDay){
+			// lateZi=1 默认:时柱按次日干起 → preciseTime = lunar.js Exact 现行结果(庚子)
+			time = preciseTime || computedTime;
+		} else {
+			// lateZi=0:时柱跟日柱一致 → computedTime = getHourGanZhi(today_day, 23) = 戊子(核心新 case)
+			time = computedTime || preciseTime;
+		}
+	} else if(timeAlgIsTrueSolar){
+		time = computedTime || preciseTime;
+	} else {
+		time = preciseTime || computedTime;
+	}
 	return {
 		year: normalizeGanZhi(
 			(bazi && bazi.year && bazi.year.ganzi)
@@ -1589,7 +1630,8 @@ function qimenJuNameZhirun(dateParts, dayGanzhi, yearSeeds, fallbackJieqi, after
 		return qimenJuNameChaibu(fallbackJieqi || '', dayGanzhi);
 	}
 	let dkey = `${dateParts.year}${`${dateParts.month}`.padStart(2, '0')}${`${dateParts.day}`.padStart(2, '0')}`;
-	if(dateParts.hour === 23 && !!after23NewDay){
+	// 用户语义(拍板,字面直觉版): after23NewDay=1「23点算第二天」时 hour==23 进位到次日;after23NewDay=0 守今。
+	if(dateParts.hour === 23 && (after23NewDay === 1 || after23NewDay === '1' || after23NewDay === true)){
 		dkey = utcDayToKey(keyToUtcDay(dkey) + 1);
 	}
 	const jqrz = yyd[dkey];
@@ -1880,7 +1922,7 @@ export function buildDunJiaSnapshotText(pan){
 	lines.push(`命式：${pan.options.sexLabel}`);
 	lines.push(`移星：${pan.options.shiftLabel || '原宫'}`);
 	lines.push(`奇门封局：${pan.options.fengJuLabel || (pan.fengJu ? '已封局' : '未封局')}`);
-	lines.push(`换日：${pan.options.daySwitchLabel || '子初换日'}`);
+	lines.push(`换日：${pan.options.daySwitchLabel || '23点算第二天'}`);
 	lines.push(`时间算法：${timeAlgLabel}`);
 	lines.push(`节气：${pan.jieqiText}`);
 	lines.push(`局数：${pan.juText}`);

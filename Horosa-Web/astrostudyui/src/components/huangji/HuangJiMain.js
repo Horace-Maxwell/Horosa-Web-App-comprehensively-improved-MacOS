@@ -9,6 +9,7 @@ import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
 import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import { formatHumanValue } from '../../utils/humanReadableFields';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -43,6 +44,8 @@ function parseFieldsDateTime(fields){
 		date: dateStr,
 		time: timeStr,
 		zone: fields.zone && fields.zone.value ? fields.zone.value : '',
+		after23NewDay: defaultAfter23NewDay(),
+		lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 	};
 }
 

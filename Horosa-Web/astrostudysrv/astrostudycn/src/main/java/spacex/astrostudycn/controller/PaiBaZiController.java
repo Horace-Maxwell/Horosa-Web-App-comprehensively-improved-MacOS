@@ -36,13 +36,14 @@ public class PaiBaZiController {
 		PhaseType phaseType = (PhaseType) params.get("phaseType");
 		boolean zodiacalLon = (boolean) params.get("useZodicalLon");
 		boolean after23NewDay = (boolean) params.get("after23NewDay");
+		boolean lateZiHourUseNextDay = (boolean) params.get("lateZiHourUseNextDay");
 		boolean gender = (boolean) params.get("gender");
 		boolean adjustJieqi = (boolean) params.get("adjustJieqi");
 		String godKeyPos = (String) params.get("godKeyPos");
 		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
-		
+
 		Object obj = ParamHashCacheHelper.get("/bazi/direct", params, (args)->{
-			BaZiDirect bz = new BaZiDirect(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, gender, adjustJieqi);
+			BaZiDirect bz = new BaZiDirect(ad, dtstr, zone, lon, lat, timealg, zodiacalLon, godKeyPos, after23NewDay, gender, adjustJieqi, lateZiHourUseNextDay);
 			bz.calculate(phaseType);
 			Map<String, Object> res = new HashMap<String, Object>();
 			res.put("bazi", bz);
@@ -85,9 +86,12 @@ public class PaiBaZiController {
 		}else {
 			map.put("godKeyPos", GodRule.ZhuNianRi);	
 		}
-		boolean after23NewDay = TransData.getValueAsBool("after23NewDay", false);
+		boolean after23NewDay = TransData.getValueAsInt("after23NewDay", 1) == 1;
 		map.put("after23NewDay", after23NewDay);
-		
+
+		boolean lateZiHourUseNextDay = TransData.getValueAsInt("lateZiHourUseNextDay", 1) == 1;
+		map.put("lateZiHourUseNextDay", lateZiHourUseNextDay);
+
 		map.put("gender", TransData.getValueAsBool("gender", true));
 		map.put("adjustJieqi", TransData.getValueAsBool("adjustJieqi", false));
 		

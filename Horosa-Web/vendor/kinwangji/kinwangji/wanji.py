@@ -45,6 +45,21 @@ from datetime import timedelta
 from difflib import get_close_matches
 from functools import lru_cache
 from itertools import cycle, repeat
+import threading as _threading
+
+# 子初/子正換日 thread-local 開關（webwangjisrv 每請求設定，預設 1=子初換日 23點後次日）
+_AFTER23_LOCAL = _threading.local()
+def set_after23_new_day(value):
+    _AFTER23_LOCAL.after23 = 1 if value else 0
+def _is_after23_active():
+    return getattr(_AFTER23_LOCAL, 'after23', 1)
+
+# v2.2.1: 晚子时·时柱起干 thread-local (默认 1=用次日日干)
+_LATE_ZI_LOCAL = _threading.local()
+def set_hour_gan_use_next_day(value):
+    _LATE_ZI_LOCAL.late_zi = 1 if value else 0
+def _is_hour_gan_next_day():
+    return getattr(_LATE_ZI_LOCAL, 'late_zi', 1)
 from typing import Any, Dict, List, Optional, Tuple
 
 import cn2an
@@ -438,8 +453,8 @@ def gangzhi(
     if year < 0:
         year = year + 1
 
-    # Handle 23:00 crossover into the next day (子時前半)
-    if hour == 23:
+    # 用戶語義（拍板,字面直覺版）: after23=1「23点算第二天」=23時起日柱進位次日(壬寅); =0「24点算第二天」=23時仍守今、24時才換日柱(辛丑)。
+    if hour == 23 and _is_after23_active():
         d = Date(round(Date(f"{year:04d}/{month:02d}/{day + 1:02d} 00:00:00.00"), 3))
     else:
         d = Date(f"{year:04d}/{month:02d}/{day:02d} {hour:02d}:00:00.00")
@@ -447,11 +462,27 @@ def gangzhi(
     dd = list(d.tuple())
     cdate = fromSolar(dd[0], dd[1], dd[2])
 
-    # Year / month / day / hour stems-branches from sxtwl
+    # Year / month / day stems-branches from sxtwl
     yTG = f"{tian_gan[cdate.getYearGZ().tg]}{di_zhi[cdate.getYearGZ().dz]}"
     mTG = f"{tian_gan[cdate.getMonthGZ().tg]}{di_zhi[cdate.getMonthGZ().dz]}"
     dTG = f"{tian_gan[cdate.getDayGZ().tg]}{di_zhi[cdate.getDayGZ().dz]}"
-    hTG = f"{tian_gan[cdate.getHourGZ(dd[3]).tg]}{di_zhi[cdate.getHourGZ(dd[3]).dz]}"
+    # 時柱跨日: v2.2.1 双开关。lateZi=1(默认):用次日日干;lateZi=0:跟日柱一致。
+    _h_late_override = False
+    if hour == 23:
+        _h_late_override = True
+        if _is_hour_gan_next_day():
+            if _is_after23_active():
+                hTG = f"{tian_gan[cdate.getHourGZ(0).tg]}{di_zhi[cdate.getHourGZ(0).dz]}"
+            else:
+                _td = Date(round(Date(f"{year:04d}/{month:02d}/{day + 1:02d} 00:00:00.00"), 3))
+                _tdd = list(_td.tuple())
+                cdate_for_hour = fromSolar(_tdd[0], _tdd[1], _tdd[2])
+                hTG = f"{tian_gan[cdate_for_hour.getHourGZ(0).tg]}{di_zhi[cdate_for_hour.getHourGZ(0).dz]}"
+        else:
+            _day_tg = cdate.getDayGZ().tg
+            hTG = tian_gan[(_day_tg % 5 * 2 + 0) % 10] + di_zhi[0]
+    else:
+        hTG = f"{tian_gan[cdate.getHourGZ(dd[3]).tg]}{di_zhi[cdate.getHourGZ(dd[3]).dz]}"
 
     # For years before 1900, use Five Tigers derivation (五虎遁) for month
     if year < 1900:

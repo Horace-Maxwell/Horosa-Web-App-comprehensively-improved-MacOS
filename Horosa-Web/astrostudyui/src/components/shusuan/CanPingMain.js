@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { Empty } from 'antd';
 import { XQTabs as Tabs } from '../xq-ui';
 import { buildLocalBaziResult } from '../../utils/baziLunarLocal';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { calculate as canpingCalculate, liunianSeries, buildSnapshotText } from '../../utils/canpingLocal';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 
@@ -21,8 +22,28 @@ class CanPingMain extends Component {
 		this.lastSnapKey = '';
 	}
 
-	componentDidMount() { this.saveSnap(); }
+	componentDidMount() {
+		this.saveSnap();
+		// v2.2.1: 监听全局日界 / 晚子时·时柱起干切换 → 强制重渲(getModel 内部用 defaultAfter23NewDay/defaultLateZiHourUseNextDay 实时读 localStorage)。
+		if(typeof window !== 'undefined'){
+			this._dayBoundaryListener = () => { if(!this._unmounted) this.forceUpdate(); };
+			this._lateZiHourListener = () => { if(!this._unmounted) this.forceUpdate(); };
+			window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
+	}
 	componentDidUpdate() { this.saveSnap(); }
+	componentWillUnmount() {
+		this._unmounted = true;
+		if(typeof window !== 'undefined'){
+			if(this._dayBoundaryListener){
+				window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			}
+			if(this._lateZiHourListener){
+				window.removeEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+			}
+		}
+	}
 
 	curMethod() { return this.props.method !== undefined ? this.props.method : this.state.method; }
 
@@ -38,6 +59,8 @@ class CanPingMain extends Component {
 			lon: fieldVal(f, 'lon', ''),
 			gender: fieldVal(f, 'gender', 1),
 			timeAlg: fieldVal(f, 'timeAlg', 1),
+			after23NewDay: defaultAfter23NewDay(),
+			lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
 		};
 		let bazi;
 		try { bazi = buildLocalBaziResult(params).bazi; } catch (e) { return null; }

@@ -72,8 +72,9 @@ public class ChartController {
 			String lon = ConvertUtility.getValueAsString(args.get("lon"));
 			String lat = ConvertUtility.getValueAsString(args.get("lat"));
 			String dtstr = String.format("%s %s", args.get("date"), args.get("time"));
-			boolean after23NewDay = false;
-			OnlyFourColumns bz = new OnlyFourColumns(ad, dtstr, zone, lon, lat, after23NewDay);
+			boolean after23NewDay = ConvertUtility.getValueAsInt(args.get("after23NewDay"), 1) == 1;
+			boolean lateZiHourUseNextDay = ConvertUtility.getValueAsInt(args.get("lateZiHourUseNextDay"), 1) == 1;
+			OnlyFourColumns bz = new OnlyFourColumns(ad, dtstr, zone, lon, lat, after23NewDay, spacex.astrostudycn.constants.BaZiGender.Male, spacex.astrostudycn.constants.TimeZiAlg.RealSun, false, lateZiHourUseNextDay);
 			Map<String, Object> map = bz.getNongli();
 			if(res.containsKey("chart")) {
 				Map<String, Object> chart = (Map<String, Object>) res.get("chart");
@@ -340,7 +341,15 @@ public class ChartController {
 			params.put("gpsLat", TransData.get("gpsLat"));
 			params.put("gpsLon", TransData.get("gpsLon"));
 		}
-		
+		// 日界点 + 晚子时·时柱起干 参数:必须显式放进 params,否则下面 OnlyFourColumns 永远拿不到值,
+		// 全局/局部切换时日柱/时柱不会跳变(见用户拍板,baziLunarLocal.js + dayBoundary.js)。
+		if(TransData.containsParam("after23NewDay")) {
+			params.put("after23NewDay", TransData.get("after23NewDay"));
+		}
+		if(TransData.containsParam("lateZiHourUseNextDay")) {
+			params.put("lateZiHourUseNextDay", TransData.get("lateZiHourUseNextDay"));
+		}
+
 		return params;
 	}
 

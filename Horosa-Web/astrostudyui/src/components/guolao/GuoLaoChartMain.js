@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { XQModal, XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
 import * as Constants from '../../utils/constants';
@@ -1305,6 +1306,9 @@ function normalizeChartParams(input){
 		simpleAsp: normalizeNumText(src.simpleAsp, 0),
 		virtualPointReceiveAsp: normalizeNumText(src.virtualPointReceiveAsp, 0),
 		predictive: normalizeNumText(src.predictive, 0),
+		// v2.2.1: 两个全局开关必须进 cache key,否则切日界/晚子时后 key 不变 → 命中旧盘,刷新才生效。
+		after23NewDay: normalizeNumText(src.after23NewDay, defaultAfter23NewDay()),
+		lateZiHourUseNextDay: normalizeNumText(src.lateZiHourUseNextDay, defaultLateZiHourUseNextDay()),
 		_su28Rev: src._su28Rev || GUOLAO_SU28_CACHE_REV,
 	};
 }
@@ -1729,6 +1733,8 @@ function fieldsToParams(fields){
 		predictive: 0,
 		name: fields.name.value,
 		pos: fields.pos.value,
+		after23NewDay: (fields.after23NewDay && fields.after23NewDay.value !== undefined) ? fields.after23NewDay.value : defaultAfter23NewDay(),
+		lateZiHourUseNextDay: (fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined) ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
 		_su28Rev: GUOLAO_SU28_CACHE_REV,
 	};
 
@@ -2308,6 +2314,27 @@ class GuoLaoChartMain extends Component{
 
 	componentDidMount(){
 		this.unmounted = false;
+		// v2.2.1: 监听全局日界 / 晚子时·时柱起干切换 → 重新 fetch 七政四余/Moira 盘。
+		// 关键:用 setTimeout 0 延迟到下一 macrotask,让 dva 的 syncFromGlobalLateZiHour subscription
+		// 先把 fields.lateZiHourUseNextDay.value 更新到 store + React 把新 props 透给本组件,再 fetch。
+		// 否则 this.props.fields 在 listener 同步触发时仍是旧 snapshot,fetch 用的还是旧值,Moira 必须刷新页面才生效。
+		if(typeof window !== 'undefined'){
+			const refetch = () => {
+				if(this.unmounted) return;
+				setTimeout(() => {
+					if(this.unmounted) return;
+					if(this.state.engineMode === 'kinastro'){
+						this.requestKinastroQizheng();
+					} else if(this.props.fields){
+						this.requestChartObj();
+					}
+				}, 0);
+			};
+			this._dayBoundaryListener = refetch;
+			this._lateZiHourListener = refetch;
+			window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+		}
 		if(this.state.engineMode === 'kinastro'){
 			this.requestKinastroQizheng();
 			return;
@@ -2352,6 +2379,14 @@ class GuoLaoChartMain extends Component{
 		this.moiraReqSeq++;
 		this.moiraTransitReqSeq++;
 		this.qizhengKinReqSeq++;
+		if(typeof window !== 'undefined'){
+			if(this._dayBoundaryListener){
+				window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
+			}
+			if(this._lateZiHourListener){
+				window.removeEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
+			}
+		}
 		if(this.prefetchTimer){
 			clearTimeout(this.prefetchTimer);
 			this.prefetchTimer = null;

@@ -11,9 +11,9 @@ import {
 import { buildLocalBaziResult } from './baziLunarLocal';
 import { buildLocalJieqiYearSeed } from './localNongliAdapter';
 
-const NONG_LI_KEYS = ['date', 'time', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'ad', 'gender', 'after23NewDay', 'timeAlg'];
+const NONG_LI_KEYS = ['date', 'time', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'ad', 'gender', 'after23NewDay', 'lateZiHourUseNextDay', 'timeAlg'];
 const JIE_QI_SEED_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'jieqis', 'seedOnly'];
-const JIE_QI_YEAR_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'hsys', 'zodiacal', 'doubingSu28', 'jieqis', 'seedOnly', 'needBazi', 'needCharts'];
+const JIE_QI_YEAR_KEYS = ['year', 'ad', 'zone', 'lon', 'lat', 'gpsLat', 'gpsLon', 'timeAlg', 'hsys', 'zodiacal', 'doubingSu28', 'jieqis', 'seedOnly', 'needBazi', 'needCharts', 'after23NewDay', 'lateZiHourUseNextDay'];
 const MAX_CACHE_SIZE = 192;
 const DEFAULT_SEED_TERMS = ['大雪', '芒种'];
 const PRECISE_REQ_TIMEOUT_MS = 45000;
@@ -135,6 +135,8 @@ function normalizeNongliParams(params){
 		ad: normalizeAd(src.ad, src.date),
 		timeAlg: normalizeBit(src.timeAlg, 0),
 		after23NewDay: normalizeBit(src.after23NewDay, 0),
+		// v2.2.1: 默认 1 = 跟现行 lunar.js Exact 行为一致(用次日干起子时);=0 才是新行为(用今日干起子时)。
+		lateZiHourUseNextDay: normalizeBit(src.lateZiHourUseNextDay, 1),
 	};
 }
 
