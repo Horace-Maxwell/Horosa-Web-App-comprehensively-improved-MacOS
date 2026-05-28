@@ -60,6 +60,35 @@ function buildChartForXun(){
 	return chart;
 }
 
+// 八专结构(甲寅日,干支同位:甲寄寅=日支寅)+ 天盘=地盘+4。
+// 四课无近克,但日干甲遥克 2/4 课上神戌(木克土)。
+// 按《九法》遥克(第4法)优先于八专(第9法),正确应判"弹射课"(日干遥克),而非"八专课"。
+function buildChartBaZhuanYaoKe(){
+	const downZi = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+	const upZi   = ['辰', '巳', '午', '未', '申', '酉', '戌', '亥', '子', '丑', '寅', '卯'];
+	const ke = [
+		['贵人', '午', '甲'],
+		['贵人', '戌', '午'],
+		['贵人', '午', '寅'],
+		['贵人', '戌', '午'],
+	];
+	return new ChuangChart({
+		owner: null,
+		chartObj: { nongli: { dayGanZi: '甲寅' } },
+		nongli: { dayGanZi: '甲寅' },
+		ke,
+		liuRengChart: {
+			upZi,
+			downZi,
+			houseTianJiang: new Array(12).fill('贵人'),
+		},
+		x: 0,
+		y: 0,
+		width: 0,
+		height: 0,
+	});
+}
+
 describe('ChuangChart', ()=>{
 	it('counts duplicated 贼课 as one课 and sets 初传 to 卯', ()=>{
 		const chart = buildChart();
@@ -74,5 +103,12 @@ describe('ChuangChart', ()=>{
 		const chart = buildChartForXun();
 		chart.genCuangs();
 		expect(chart.cuangs.cuang[0]).toBe('丁未');
+	});
+
+	it('八专结构且日干遥克他课上神时,按九法优先遥克(弹射课)而非八专课', ()=>{
+		const chart = buildChartBaZhuanYaoKe();
+		const sangCuang = chart.getSangCuang();
+		expect(sangCuang.name).toBe('弹射课');
+		expect(sangCuang.cuang[0]).toBe('戌');
 	});
 });
