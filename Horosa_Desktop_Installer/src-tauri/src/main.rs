@@ -5072,7 +5072,8 @@ fn download_update_asset_once(
                 last_pct = pct;
                 emit_update_event(
                     app,
-                    &serde_json::json!({"phase":"downloading","pct":pct,"message":label}).to_string(),
+                    &serde_json::json!({"phase":"downloading","pct":pct,"message":label})
+                        .to_string(),
                 );
             }
         }
@@ -5145,7 +5146,9 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
     {
         return Err(anyhow!("更新清单缺少桌面包 sha256,已停止自动更新"));
     }
-    if plan.source == UpdateSource::Manifest && runtime_needs_update && plan.runtime_sha256.is_none()
+    if plan.source == UpdateSource::Manifest
+        && runtime_needs_update
+        && plan.runtime_sha256.is_none()
     {
         return Err(anyhow!("更新清单缺少运行环境 sha256,已停止自动更新"));
     }
@@ -5197,7 +5200,11 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(mut slot) = state.staged_update.lock() {
             *slot = Some(StagedUpdate {
-                zip_path: if app_should_update { Some(zip_path) } else { None },
+                zip_path: if app_should_update {
+                    Some(zip_path)
+                } else {
+                    None
+                },
                 runtime_archive_path,
                 runtime_roots,
                 runtime_version: plan.runtime_version.clone(),
@@ -5235,9 +5242,7 @@ fn update_start_background(app: AppHandle) -> std::result::Result<(), String> {
 
 fn run_staged_install(app: &AppHandle) -> Result<()> {
     let staged = {
-        let state = app
-            .try_state::<AppState>()
-            .context("应用状态不可用")?;
+        let state = app.try_state::<AppState>().context("应用状态不可用")?;
         let slot = state
             .staged_update
             .lock()
