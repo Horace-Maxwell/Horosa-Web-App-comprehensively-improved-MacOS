@@ -32,6 +32,7 @@ public class AstroHelper {
 	public static final String Nongli = PropertyPlaceholder.getProperty("nongli", "/jieqi/nongli");
 	public static final String JdnDate = PropertyPlaceholder.getProperty("jdndate", "/jdn/date");
 	public static final String Acg = PropertyPlaceholder.getProperty("acg", "/location/acg");
+	public static final String AcgPoint = PropertyPlaceholder.getProperty("acgpoint", "/location/acgpoint");
 	public static final String Azimuth = PropertyPlaceholder.getProperty("azimuth", "/calc/azimuth");
 	public static final String Cotrans = PropertyPlaceholder.getProperty("cotrans", "/calc/cotrans");
 	public static final String AstroExtraAnalysis = PropertyPlaceholder.getProperty("astroextra.analysis", "/astroextra/analysis");
@@ -137,7 +138,11 @@ public class AstroHelper {
 	}
 	
 	public static Map<String, Object> getAcg(Map<String, Object> params){
-		return request(Acg, params);
+		return requestNoCache(Acg, params);
+	}
+
+	public static Map<String, Object> getAcgPoint(Map<String, Object> params){
+		return requestNoCache(AcgPoint, params);
 	}
 	
 	public static Map<String, Object> getDice(Map<String, Object> params){

@@ -308,3 +308,29 @@ call site, not just the definition. Now wired in `buildContextLayers` + `aiExpor
   non-modal card → 更新 downloads in background, minimizable, app stays usable → "重启更新" is user-initiated. Web build: `UpdateNotifier` renders nothing (no `window.__TAURI__`).
 - **Preferences dialogs:** open 全局设置/AI导出设置/排盘设置/星盘参数/AI分析设置 + 关于星阙 in light AND dark; semantic colors unchanged.
 - **AI provider:** Anthropic (incl. relay) 测试连接 must succeed (content blocks carry `type:"text"`); unauthenticated 401 shows an actionable message, not a raw dump.
+
+**占星地图 / ACG（地理占星，辅盘→占星地图 `locastro`；分支 `feature/acg-map-upgrade`）。** Standard astrocartography
+rebuilt to **D3-geo + bundled GeoJSON + analytic RA/Dec lines** (replacing the old AMap + iterative search). Stack:
+`AstroAcg.js`→`/location/acg`(+`/location/acgpoint`)→Java `AcgController`/`AstroHelper`→Python `AcgSrv`→`acg/ACGraph.py`.
+Renderer `AcgD3Map.js` (no new npm deps — reuses `d3@7`'s d3-geo); world map = bundled `world.geo.json` (Natural Earth
+110m, open data). Full detail: `docs/acg-map-地理占星.md`. **Four traps that WILL bite (each cost a debugging round):**
+1. **Full-width horizontal lines render as nothing.** A `LineString [[-180,lat],[180,lat]]` is degenerate on the
+   antimeridian — `d3.geoPath` clips it to two zero-length dots, and a `Δlon=360` split computes `t=0/0=NaN`. Equator /
+   tropics / parans **must be multi-point sampled** (`-179..179`). Vertical 2-point MC/IC meridians are fine.
+2. **ASC/DSC curves break / don't close.** Near the rise/set cutoff (`|φ|=90-|δ|`) longitude changes very fast → 1°
+   sampling false-splits at ±180 and the rising/setting hooks don't meet the MC/IC meridians. Fix = 0.5° sampling +
+   exact band-edge endpoints (H=0→MC lon, H=180→IC lon) in `_ascDescLines`, and `splitAtDateline` **interpolates an
+   edge point at ±180** so segments reach the map edge (no gap).
+3. **SVG label glyphs inherit a global `text { stroke }` (≈1px #162033).** Chart glyphs share `ywastro`; a global rule
+   strokes all SVG text. A presentation attr (`attr('stroke','none')`) does NOT win — **must use inline
+   `style('stroke','none')`** on the label `<text>`, else glyphs look muddy/outlined. (Verify with computed style, not
+   the attribute.)
+4. **`getAcg` uses `requestNoCache`.** Default `request()` caches by params for a day, so editing `ACGraph.py` shows
+   stale results for the same chart. Because that's a Java change, **rebuild `astrostudyboot.jar`** (gotcha #10).
+- Theme: map reads `:root[data-horosa-appearance]` (light/dark) via `MutationObserver` → light=pale terrain+deepened
+  planet colours+white casing; dark=dark terrain+bright lines. Label chips flip (white-bg/dark-frame ↔ dark-bg/light-frame).
+- Parans default to **luminary (Sun/Moon) pairs**, 1°-deduped + faint; toolbar cycles 关/日月/全部. 4 basemap styles
+  (`STYLES`: 标准/简约/政区/单色) orthogonal to light/dark.
+- **Self-check:** 辅盘→占星地图 in light AND dark — lines smooth & connected (polar hooks close, no dateline gap),
+  chip glyphs crisp with **no stroke**, equator/黄道/回归线 visible, Parans 关/日月/全部, click→落点分析 with 迁移四轴 +
+  解读. Theme toggle: map follows instantly.
