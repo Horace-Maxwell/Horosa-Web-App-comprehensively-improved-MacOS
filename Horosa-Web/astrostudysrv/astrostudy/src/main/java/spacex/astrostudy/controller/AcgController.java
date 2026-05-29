@@ -23,7 +23,27 @@ public class AcgController {
 
 		TransData.set(res);
 	}
-	
+
+	@ResponseBody
+	@RequestMapping("/acgpoint")
+	public void acgpoint(){
+		Map<String, Object> params = getParams();
+		if(!TransData.containsParam("clickLat")) {
+			throw new ErrorCodeException(120006, "miss.clickLat");
+		}
+		if(!TransData.containsParam("clickLon")) {
+			throw new ErrorCodeException(120007, "miss.clickLon");
+		}
+		params.put("clickLat", TransData.get("clickLat"));
+		params.put("clickLon", TransData.get("clickLon"));
+		if(TransData.containsParam("orb")) {
+			params.put("orb", TransData.get("orb"));
+		}
+		Map<String, Object> res = AstroHelper.getAcgPoint(params);
+
+		TransData.set(res);
+	}
+
 	private Map<String, Object> getParams(){
 		Map<String, Object> params = new HashMap<String, Object>();
 		if(!TransData.containsParam("date")) {
