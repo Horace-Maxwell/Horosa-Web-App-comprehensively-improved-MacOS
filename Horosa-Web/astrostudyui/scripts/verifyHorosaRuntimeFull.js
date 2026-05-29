@@ -213,15 +213,19 @@ async function run() {
     ...BASE_PAYLOAD,
     predictive: 0,
   });
+  // /location/acg 新契约（acg D3-geo 重写）：{ meta, planets:{<id>:{lines:{asc:[],desc:[],mc:{lon},ic:{lon},ls}}}, geo, parans }
   ensureNonEmptyObject(acg, '/location/acg result');
-  const firstAcgKey = objectKeys(acg)[0];
-  const firstAcgVal = acg[firstAcgKey];
+  ensureNonEmptyObject(acg.planets, '/location/acg planets');
+  const firstAcgKey = objectKeys(acg.planets)[0];
+  const firstAcgVal = acg.planets[firstAcgKey];
   ensureObject(firstAcgVal, '/location/acg first planet');
-  ensureNonEmptyArray(firstAcgVal.asc, '/location/acg asc');
-  ensureNonEmptyArray(firstAcgVal.mc, '/location/acg mc');
+  ensureObject(firstAcgVal.lines, '/location/acg first planet lines');
+  ensureNonEmptyArray(firstAcgVal.lines.asc, '/location/acg asc');   // ASC 升线为多点采样数组
+  ensureObject(firstAcgVal.lines.mc, '/location/acg mc');            // MC 为子午线 {lon}
   summary.locastro = {
     firstPlanet: firstAcgKey,
-    lines: firstAcgVal.asc.length + firstAcgVal.mc.length,
+    ascPoints: firstAcgVal.lines.asc.length,
+    mcLon: firstAcgVal.lines.mc.lon,
   };
 
   const relative = await call('/modern/relative', {
