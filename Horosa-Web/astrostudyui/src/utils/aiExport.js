@@ -239,10 +239,14 @@ const AI_EXPORT_TECHNIQUES = [
 	...JIEQI_SPLIT_TECHNIQUES,
 	{ key: 'otherbu', label: '骰子' },
 	{ key: 'fengshui', label: '风水' },
+	{ key: 'horary', label: '卜卦盘' },
+	{ key: 'election', label: '择日盘' },
 	{ key: 'generic', label: '其他页面' },
 ];
 
 const AI_EXPORT_PRESET_SECTIONS = {
+	horary: ['起卦信息', '根本性', '征象星指派', '完成分析', '月亮的故事', '相位全览', '裁决', '应期方位', '描述'],
+	election: ['起盘信息', '总评', '红线', '分项', '用事专属', '应期', '建议'],
 	astrochart: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '可能性'],
 	indiachart: ['星盘信息', '起盘信息', '信息', '相位', '行星', '希腊点', '可能性'],
 	astrochart_like: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '可能性'],
@@ -1006,6 +1010,9 @@ function applyUserSectionFilter(content, key){
 	}else if(key === 'sanshiunited'){
 		// 新增三式合一分段：六壬格局参考与八宫详解。
 		picked.push('六壬大格', '六壬小局', '六壬参考', '六壬概览', '八宫详解');
+	}else if(key === 'horary'){
+		// 「月亮的故事 / 相位全览」为卜卦核心征象，避免被旧设置误过滤掉。
+		picked.push('月亮的故事', '相位全览');
 	}
 	const forbidden = getForbiddenSectionSet(key);
 	const normalizedPicked = picked
@@ -2206,7 +2213,7 @@ function getExtractorKindByExportKey(key){
 		|| exportKey === 'shenyishu' || exportKey === 'shaozi' || exportKey === 'tieban' || exportKey === 'fendjing'
 		|| exportKey === 'beiji' || exportKey === 'nanji' || exportKey === 'chunzi' || exportKey === 'xianqin'
 		|| exportKey === 'cetian' || exportKey === 'qizhengkin' || exportKey === 'guolao' || exportKey === 'suzhan'
-		|| exportKey === 'bazi' || exportKey === 'ziwei'){
+		|| exportKey === 'bazi' || exportKey === 'ziwei' || exportKey === 'horary' || exportKey === 'election'){
 		return `module:${snapshotModuleKeyByContextKey(exportKey)}`;
 	}
 	if(exportKey === 'taiyi'){
@@ -2261,7 +2268,9 @@ function getStructuredSnapshotKeysByExportKey(key){
 		|| exportKey === 'bazi'
 		|| exportKey === 'ziwei'
 		|| exportKey === 'otherbu'
-		|| exportKey === 'fengshui'){
+		|| exportKey === 'fengshui'
+		|| exportKey === 'horary'
+		|| exportKey === 'election'){
 		return [exportKey];
 	}
 	const moduleKey = snapshotModuleKeyByContextKey(exportKey);
