@@ -17,6 +17,15 @@ chart service `astropy/`). The desktop shell + release pipeline live in `Horosa_
 For the full change history and the detailed release runbook, read
 `docs/ai-analysis-context-and-markdown.md`. This skill is the quick operational guide.
 
+## 固定流程（process discipline — 每次进场必做）
+
+**强制，针对每一次改动 Horosa：**
+1. **先读这两份文档**，再动手：本 skill（`.claude/skills/horosa-dev/SKILL.md`）+ 仓内 harness 文档
+   `Horosa-Web/AGENTS.md`。两者是「会反复踩」的坑清单 + dev/release 流程；跳过 = 重付一轮 debug。
+2. **解决任何新问题后立刻回写**：根因 + 修法写进 `Horosa-Web/AGENTS.md`（机制坑）或本 skill（dev/发布坑），
+   并**优先在 `release_preflight.sh` 加 code guard**。institutional memory 只靠「每次回写」维持，不写就漂移。
+3. **发布**：严格按下面 runbook 顺序；build/sign/publish/push 是 consequential、需用户确认后再跑。
+
 ## Critical gotchas (read first)
 
 1. **Embedded Python, not the venv (now auto-handled by the launcher).** `runtime/mac/python/bin/python3` (note:
@@ -265,6 +274,12 @@ with the user before running them. Never `git push --force` to main.
 - `package_runtime_payload.sh` **fails if `astrostudyboot.jar` or `dist-file` is older than its sources** — prevents
   silently shipping stale backend/frontend. Rebuild the stale artifact, or set `HOROSA_SKIP_FRESHNESS_GUARD=1` if
   you're certain it's intentional.
+  - **⚠️ git checkout/merge 顶乱 mtime → freshness guard 误报 stale（v2.3.0 踩过）。** `git checkout <branch>` /
+    `git merge`（如发布前 ff `main`）会把切换涉及的文件 mtime 刷到「现在」。若 build 已做完、之后才做 branch 操作，
+    `dist-file` / `astrostudyboot.jar` 会**内容是新的、mtime 却比源旧** → guard 报「比源旧」。**正确顺序：所有 git
+    branch 操作（commit / ff main）做完后，再 `cd Horosa-Web/astrostudyui && npm run build && npm run build:file`
+    重建 dist-file**；jar 若在 branch 操作前 `find Horosa-Web/astrostudysrv -name '*.java' -newer <jar>` 为空（内容已确认当前），
+    `touch` target 与 `runtime/mac/bundle` 两个 jar 即可，否则按 gotcha #10 重编。**别无脑 `HOROSA_SKIP_FRESHNESS_GUARD=1` 跳过**（那会把真 stale 一起放过）。
 - Release gates cover signing/boot/install/kentang/chart, **not** feature behavior (bazi / AI analysis). Feature-logic
   regressions are caught by **CI on push** (`mvn test` in `boundless` + `astrostudy`, `npm test` in `astrostudyui`) —
   keep CI green; add tests there for new logic. True end-to-end feature checks still need ad-hoc testing (e.g. a real

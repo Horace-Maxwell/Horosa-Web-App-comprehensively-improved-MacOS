@@ -1,6 +1,9 @@
 # Horosa-Web · Agent Harness（坑点速查）
 
-> 给后续 Claude Code / 自动化 agent：进入这个仓做改动之前，**先读这份文档**。
+> 给后续 Claude Code / 自动化 agent：进入这个仓做改动之前，**先读这两份文档**——本文档 +
+> `horosa-dev` skill（`.claude/skills/horosa-dev/SKILL.md`，dev / 构建 / 发布流程与坑）。
+> **铁律：① 每次动手前先读这两份；② 解决任何新问题后立刻把根因 + 修法回写本文档（机制坑）或 skill（dev/release 坑），
+> 优先在 `release_preflight.sh` 加 code guard——institutional memory 靠「每次回写」维持，不写就漂移。**
 > 这里只记**会反复踩、文档没记会出错**的点。常规规范在
 > [`../docs/windows-porting-and-release-checklist.md`](../docs/windows-porting-and-release-checklist.md)
 > 和各版本 fix 文档（`Horosa-Web/docs/*.md`）。
@@ -172,4 +175,6 @@ for(const [a23, lzh] of cases){
 - **回复用简体中文**；代码/路径/命令保持原文。
 - **不在代码/测试/文档里使用近现代政治人物**作为命例（用 `邵康節` 等古人或中性八字/卦）。
 - **术数语义色**（格局/五行/天将/星曜）属用户拍板，不能因「夜间模式不一致」之类理由动；只能改结构/中性色。
-- **每个 Mac 修复都要配技术文档**（`Horosa-Web/docs/<topic>-v<ver>.md`）+ `docs/windows-sync-handoff.md` 顶部条目；`release_preflight.sh` 应当门禁版本号 + 同步条目。
+- **每个 Mac 修复都要配技术文档**（`docs/<topic>-v<ver>.md`）+ `docs/windows-sync-handoff.md` 顶部条目；`release_preflight.sh` 应当门禁版本号 + 同步条目。
+- **技法专属算法选项 → 放该技法左栏**（`KinAstroMain` per-技法 state + `<Select>` + prop，镜像参评数 `canpingMethod` / 河洛「取化工法」）；**全局设置 Modal 只放跨技法全局开关**（日界点 / 晚子时）。误放全局设置须回退（v2.3.0 河洛取化工法踩过）。
+- **发布前做过 `git checkout`/`merge`（如 ff `main`）→ 必先重建 `dist-file` + touch/重编 jar，再 `build_desktop_release.sh`**：git 会把切换文件的 mtime 顶到「现在」，让 `package_runtime_payload.sh` 的 freshness guard 误报「dist-file/jar 比源旧」（内容其实是新的）。正确顺序：git branch 操作做完→重建 dist-file→`touch` 两个 jar（内容已确认当前时）。详见 `horosa-dev` skill「Safeguards」章。
