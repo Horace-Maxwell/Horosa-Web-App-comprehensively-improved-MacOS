@@ -357,3 +357,23 @@ Renderer `AcgD3Map.js` (no new npm deps — reuses `d3@7`'s d3-geo); world map =
   `ACG alignment PASS` (worst < 1e-3°, actual 0.000000°; exit 0). It independently re-checks every four-axis line against
   `swisseph.azalt()` (its own sidereal time — same engine pro tools use): ASC/DESC points at true-altitude 0, MC/IC on the
   meridian. This is the precise "aligned with the standard" proof — far better than eyeballing any external map.
+
+**Gotcha (v2.3.0) — 更新后重启「卡在 100% 很久」= 更新后首启的全量慢路径 + 两个复发 bug。**
+症状:在线更新后第一次重启,进度停在 100% 很久才进主界面(平常重启很快)。根因:Tauri `main.rs runtime_bootstrap`
+检测到 `update-complete.txt` 标记就走**故意放慢的全量校验路径**(`trusted_runtime=0`/`fast_path=false`/300s 超时),
+且「100%」是进度最后一格、其后还要 `window.location.replace` 冷加载前端(更新后 .app 整包被换→OS 缓存冷 + Gatekeeper 重验)。
+再叠加两个 bug:① 标记**仅成功时**消费→首启一失败就残留→下次仍走 300s 慢路径反复卡;② pid **仅判存在**→死 pid 误拦截启动。
+实测:平常 6–8s vs 更新后首启 27–29s。修法(**纯 Tauri 外壳 `main.rs` + `start_horosa_local.sh`,无 Java、不重编 jar**):
+① 标记「读取即消费」`consume_update_complete_marker_into_state`(解析通知缓存进 `AppState.pending_update_notice` 后立即删标记,
+`show_post_update_notice_if_needed` 改从内存取);② `prune_stale_pid_file`(`kill -0` 判存活,死 pid 自动清);
+③ 首启 `emit_indeterminate_progress`(不确定动画 +「约 30–60 秒」文案,launcher `web/app.js` 已支持 `indeterminate`);
+④ warmup 后台非阻塞(`( … ) >/dev/null 2>&1 &`,外层重定向切断 stdout/stderr 继承否则卡住 `command.output()`)+ 轮询与 trusted
+解耦 0.2s + mongo 一律 skip ping。**完整校验(`fast_path=false`/全量 verify)原样保留不动。** 实测脚本慢路径 29s→14s。
+防回归:`release_preflight.sh` **[9] 哨兵**。详见 `docs/更新后启动卡顿修复-v2.3.1.md`。
+
+**Self-check (更新 / 启动 改动前后必跑):** 本地模拟更新后首启
+`env -u HOROSA_PYTHON HOROSA_SKIP_UI_BUILD=1 HOROSA_REQUIRE_EMBEDDED_RUNTIME=1 HOROSA_TRUSTED_RUNTIME=0 HOROSA_DESKTOP_MONGO_SKIP_PING=1 HOROSA_SKIP_RUNTIME_WARMUP=0 ./start_horosa_local.sh`
+应:diagnostics 日志为 `runtime warmup begin (background)` 且 `run end` 不等其 `done`;先 `echo 999999 > .horosa_py.pid` 再启动应被自动清除(rc=0)、服务在跑时再启动应被拦截(rc=1)。**功能零降级**靠这三套(在提速后 `trusted=0` 路径下):`verify_kentang_runtime_endpoints.py --root http://127.0.0.1:8899`(17 引擎全 200)、`HOROSA_SERVER_ROOT=http://127.0.0.1:9999 node astrostudyui/scripts/verifyHorosaRuntimeFull.js`(exit 0)、`… node astrostudyui/scripts/verifyPrimaryDirectionRuntime.js`(exit 0)。
+
+**Gotcha (v2.3.1, Win #10「服务不稳定」) — SSE 并发竞态 + SSE 标志跨请求污染,打挂 AI + 排盘 + predict。**
+两个独立的共享后端 bug:**(A)** `withHeartbeat` 心跳线程(每 15s `emitter.send(keep-alive)`+ 失败自行 `complete()`)与读流线程(`sendEvent→emitter.send`)并发写**非线程安全** `SseEmitter` → `ResponseBodyEmitter has already completed`(`sendEvent:995`)→ AI「几句话后停止」。**(B)** `TransData.setSSE(true)` 实为 `request.setAttribute("__sse__")`(**绑 request 对象、非 ThreadLocal**,`pureClearTransData` 只清 5 个 map、碰不到它),Tomcat 池化复用 `HttpServletRequest` 致 `__sse__=true` 残留 → 排盘/`predict` 在 `RequestHeaderInterceptor.complete():595`/`afterCompletion:744` 被 `isSSE()` 误判(且排在「handler 返回类型是否 SseEmitter」的可靠判定之前)走 event-stream → **间歇** `signature.error`/「本地排盘服务未就绪」/`predict 200 报错`。修法:**(A)** 线程安全内部类 `SseChannel` 收口所有 emitter 写(单锁+幂等)、心跳不再自行 complete;**(B)** `preHandle` 非 `REQUEST` dispatch 早返回(免 async re-dispatch 用空 body 重复验签)+ `REQUEST` 进来 `TransData.setSSE(false)` 归零。**纯 Java(`astrostudy` + `boundless`)→ 必重编 `astrostudyboot.jar`(gotcha #10)。** 验证:三套(kentang/Full/主限)全过证明验签未破坏+零降级(它们都过 `preHandle`);SSE 真实场景靠 Windows 真机实测。preflight **[10] 哨兵**。详见 `docs/服务不稳定-SSE并发与签名污染修复-v2.3.1.md`。

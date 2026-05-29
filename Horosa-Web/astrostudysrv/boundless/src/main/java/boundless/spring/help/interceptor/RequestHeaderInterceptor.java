@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.servlet.DispatcherType;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -521,7 +522,22 @@ public class RequestHeaderInterceptor implements HandlerInterceptor {
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		TransData.pureClearTransData();
 		TransData.setRequestObject(request, response);
-		
+
+		// 修复 #10(B):仅对最初的 REQUEST dispatch 做 body 解码 + 验签。SSE 等 async 请求完成后 Tomcat 会
+		// ASYNC re-dispatch 再次进入 preHandle,但此时 request body 已被首次读取消费(getInputStream 读空)→
+		// 用空 body 重算签名必然 signature.error(见 issue #10 日志:AsyncContextImpl.asyncDispatch → checkSignature)。
+		// re-dispatch 只需保留上面的 request 绑定供 afterCompletion 收尾(SSE 的 __sse__ 标志绑在同一 request
+		// 对象上,仍能正确读到),直接放行、不重复验签。
+		if (request.getDispatcherType() != DispatcherType.REQUEST) {
+			return true;
+		}
+
+		// 修复 #10(B):__sse__ 标志存在 request 对象 attribute 上,而 Tomcat 会池化复用 request 对象。上一个
+		// SSE 请求残留的 __sse__=true 可能被本请求(排盘/predict/普通 AI)复用到 → complete()/afterCompletion 的
+		// isSSE() 误判为 SSE → 响应被当 event-stream 返回 → 前端 signature.error/「本地服务未就绪」/predict 200 报错。
+		// 每个新请求进来先把 SSE 标志归零,堵死跨请求污染(真正的 SSE 端点之后会自行 SseHelper.push→setSSE(true))。
+		TransData.setSSE(false);
+
 		Map<String, Object> header = new HashMap<String, Object>();
 		Map<String, Object> args = genArgs(request, header);
 		String body = null;

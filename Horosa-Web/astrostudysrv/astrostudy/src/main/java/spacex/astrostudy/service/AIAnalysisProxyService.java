@@ -83,7 +83,70 @@ public class AIAnalysisProxyService {
 		void run() throws Exception;
 	}
 
-	private void withHeartbeat(SseEmitter emitter, StreamBody body) throws Exception {
+	/**
+	 * 修复 #10(A):SseEmitter.send()/complete() 非线程安全。心跳线程(每 15s)与读流线程并发写
+	 * 同一 emitter、且心跳失败时自行 complete,会与读流的 send 撞 "ResponseBodyEmitter has already
+	 * completed"(见 sendEvent)→ 断流(deepseek-reasoner 长流「几句话之后就停止」)。SseChannel 用
+	 * 单锁串行化所有写;complete/completeWithError 幂等;一旦关闭,后续 send 返回 false(不抛、也不再
+	 * complete),心跳与读流再不会互相踩。
+	 */
+	private static final class SseChannel {
+		private final SseEmitter emitter;
+		private final Object lock = new Object();
+		private boolean closed = false;
+
+		SseChannel(SseEmitter emitter) {
+			this.emitter = emitter;
+		}
+
+		/** 线程安全发送;已关闭返回 false(不抛)。底层发送失败(客户端已断)则标记关闭并上抛,供上层进 catch 记日志。 */
+		boolean send(SseEmitter.SseEventBuilder event) throws IOException {
+			synchronized (lock) {
+				if (closed) {
+					return false;
+				}
+				try {
+					emitter.send(event);
+					return true;
+				} catch (IOException | RuntimeException e) {
+					closed = true;
+					throw e;
+				}
+			}
+		}
+
+		/** 幂等完成:只会真正 complete 一次,重复调用静默返回。 */
+		void complete() {
+			synchronized (lock) {
+				if (closed) {
+					return;
+				}
+				closed = true;
+				try {
+					emitter.complete();
+				} catch (Exception ignore) {
+					// 已完成或客户端已断
+				}
+			}
+		}
+
+		/** 幂等错误完成。 */
+		void completeWithError(Throwable e) {
+			synchronized (lock) {
+				if (closed) {
+					return;
+				}
+				closed = true;
+				try {
+					emitter.completeWithError(e);
+				} catch (Exception ignore) {
+					// 已完成或客户端已断
+				}
+			}
+		}
+	}
+
+	private void withHeartbeat(SseChannel channel, StreamBody body) throws Exception {
 		final AtomicBoolean stopped = new AtomicBoolean(false);
 		ScheduledFuture<?> heartbeat = SSE_HEARTBEAT_EXECUTOR.scheduleAtFixedRate(() -> {
 			if (stopped.get()) {
@@ -91,15 +154,14 @@ public class AIAnalysisProxyService {
 			}
 			try {
 				SseHelper.markCurrentThread();
-				emitter.send(SseEmitter.event().comment("keep-alive"));
-			} catch (Exception e) {
-				// 客户端已断。停止后续心跳；上游读循环下次 sendEvent 也会撞同样异常 → 进 catch → 记日志。
-				stopped.set(true);
-				try {
-					emitter.complete();
-				} catch (Exception ignore) {
-					// 已是错误/完成状态
+				// 修复 #10(A):经 SseChannel 串行化写;已关闭则返回 false。心跳不再自行 complete,
+				// 收尾统一交给 chatStream 主流程,避免心跳 complete 与读流 send 竞态(keep-alive 帧本身不变)。
+				if (!channel.send(SseEmitter.event().comment("keep-alive"))) {
+					stopped.set(true);
 				}
+			} catch (Exception e) {
+				// 客户端已断。停止后续心跳;读流下次 send 也会返回 false/抛异常 → 进 catch → 记日志。
+				stopped.set(true);
 			}
 		}, SSE_HEARTBEAT_SECONDS, SSE_HEARTBEAT_SECONDS, TimeUnit.SECONDS);
 
@@ -176,6 +238,8 @@ public class AIAnalysisProxyService {
 	}
 
 	public void chatStream(Map<String, Object> params, SseEmitter emitter){
+		// 修复 #10(A):所有写经线程安全的 SseChannel,心跳与读流不再 race(详见 SseChannel)。
+		SseChannel channel = new SseChannel(emitter);
 		String providerType = normalizedProviderType(params);
 		String model = requireModel(params);
 		if(isEmbeddingModel(model, providerType)){
@@ -184,21 +248,16 @@ public class AIAnalysisProxyService {
 		List<Map<String, Object>> messages = getMessageList(params.get("messages"));
 		try{
 			if(isOpenAICompatible(providerType)) {
-				streamOpenAICompatible(params, model, messages, emitter);
+				streamOpenAICompatible(params, model, messages, channel);
 			}else if("anthropic".equals(providerType)) {
-				streamAnthropic(params, model, messages, emitter);
+				streamAnthropic(params, model, messages, channel);
 			}else if("gemini".equals(providerType)) {
-				streamGemini(params, model, messages, emitter);
+				streamGemini(params, model, messages, channel);
 			}else {
 				throw new ErrorCodeException(580013, "暂不支持该 providerType");
 			}
-			sendEvent(emitter, "done", buildMap("providerType", providerType, "model", model));
-			try {
-				emitter.complete();
-			}catch(Exception ce){
-				// 客户端可能已经断了。emitter.complete() 也可能抛 ClientAbortException，
-				// 这种情况下流已经结束，无需再当成失败。
-			}
+			sendEvent(channel, "done", buildMap("providerType", providerType, "model", model));
+			channel.complete();   // 幂等:SseChannel 保证只 complete 一次,客户端已断也不抛
 		}catch(Exception e){
 			// Issue #8 Fix 1: catch 第一件事必须是把"一级"异常写日志。
 			// 之前这一步缺失，导致 ClientAbort 二级异常掩盖了 Ollama 上游真实失败，
@@ -210,10 +269,9 @@ public class AIAnalysisProxyService {
 			}catch(Throwable logEx){
 				// 日志层异常永远不能让 catch 自己炸。
 			}
-			// sendEvent 给前端发"error"事件——如果客户端已断，这一步会再抛 ClientAbort，
-			// 但我们已经把根因记下来了，所以这里 swallow 即可，不能让线程炸退出。
+			// sendEvent 给前端发"error"事件——若客户端已断,SseChannel.send 返回 false 不抛;根因已记。
 			try {
-				sendEvent(emitter, "error", buildMap(
+				sendEvent(channel, "error", buildMap(
 					"providerType", providerType,
 					"model", model,
 					"message", safeErrorMessage(e)
@@ -221,12 +279,8 @@ public class AIAnalysisProxyService {
 			}catch(Exception sendEx){
 				// 客户端已断；放弃前端通知。
 			}
-			// completeWithError 必须有机会执行，它清理 SseEmitter 状态。
-			try {
-				emitter.completeWithError(e);
-			}catch(Exception ce){
-				// emitter 已经完成或客户端已断；忽略。
-			}
+			// 幂等错误完成(SseChannel 保证只 complete 一次,并清理 SseEmitter 状态)。
+			channel.completeWithError(e);
 		}
 	}
 
@@ -324,8 +378,8 @@ public class AIAnalysisProxyService {
 		throw new ErrorCodeException(580032, "当前 provider 暂不支持 embedding");
 	}
 
-	private void streamOpenAICompatible(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseEmitter emitter) throws Exception{
-		withHeartbeat(emitter, () -> {
+	private void streamOpenAICompatible(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseChannel channel) throws Exception{
+		withHeartbeat(channel, () -> {
 			Map<String, Object> body = buildOpenAIChatBody(model, params, messages, true);
 			String url = joinUrl(resolveBaseUrl(normalizedProviderType(params), stringVal(params, "baseUrl")), "/chat/completions");
 			HttpRequest request = buildJsonRequest(url, buildAuthHeaders(normalizedProviderType(params), stringVal(params, "apiKey"), params), JsonUtility.encode(body), params);
@@ -341,14 +395,14 @@ public class AIAnalysisProxyService {
 				Map<String, Object> payload = JsonUtility.toDictionary(dataText);
 				String delta = extractOpenAIStreamDelta(payload);
 				if(!StringUtility.isNullOrEmpty(delta)) {
-					sendEvent(emitter, "delta", buildMap("delta", delta));
+					sendEvent(channel, "delta", buildMap("delta", delta));
 				}
 			});
 		});
 	}
 
-	private void streamAnthropic(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseEmitter emitter) throws Exception{
-		withHeartbeat(emitter, () -> {
+	private void streamAnthropic(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseChannel channel) throws Exception{
+		withHeartbeat(channel, () -> {
 			Map<String, Object> body = buildAnthropicBody(model, params, messages, true);
 			String url = joinUrl(resolveBaseUrl("anthropic", stringVal(params, "baseUrl")), "/v1/messages");
 			HttpRequest request = buildJsonRequest(url, buildAuthHeaders("anthropic", stringVal(params, "apiKey"), params), JsonUtility.encode(body), params);
@@ -361,14 +415,14 @@ public class AIAnalysisProxyService {
 				Map<String, Object> payload = JsonUtility.toDictionary(dataText);
 				String delta = extractAnthropicStreamDelta(eventName, payload);
 				if(!StringUtility.isNullOrEmpty(delta)) {
-					sendEvent(emitter, "delta", buildMap("delta", delta));
+					sendEvent(channel, "delta", buildMap("delta", delta));
 				}
 			});
 		});
 	}
 
-	private void streamGemini(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseEmitter emitter) throws Exception{
-		withHeartbeat(emitter, () -> {
+	private void streamGemini(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseChannel channel) throws Exception{
+		withHeartbeat(channel, () -> {
 			String apiKey = stringVal(params, "apiKey");
 			String url = joinUrl(resolveBaseUrl("gemini", stringVal(params, "baseUrl")), String.format("/models/%s:streamGenerateContent?alt=sse&key=%s", urlEncode(model), urlEncode(apiKey)));
 			Map<String, Object> body = buildGeminiBody(params, messages);
@@ -382,7 +436,7 @@ public class AIAnalysisProxyService {
 				Map<String, Object> payload = JsonUtility.toDictionary(dataText);
 				String delta = extractGeminiContent(payload);
 				if(!StringUtility.isNullOrEmpty(delta)) {
-					sendEvent(emitter, "delta", buildMap("delta", delta));
+					sendEvent(channel, "delta", buildMap("delta", delta));
 				}
 			});
 		});
@@ -985,10 +1039,10 @@ public class AIAnalysisProxyService {
 		}
 	}
 
-	private void sendEvent(SseEmitter emitter, String eventName, Map<String, Object> payload){
+	private void sendEvent(SseChannel channel, String eventName, Map<String, Object> payload){
 		try{
 			SseHelper.markCurrentThread();
-			emitter.send(SseEmitter.event()
+			channel.send(SseEmitter.event()
 				.name(eventName)
 				.data(JsonUtility.encode(payload)));
 		}catch(Exception e){

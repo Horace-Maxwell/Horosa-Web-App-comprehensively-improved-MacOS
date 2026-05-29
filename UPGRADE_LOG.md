@@ -14,6 +14,27 @@ Append new entries; do not rewrite history.
 
 ## 2026-05-29
 
+### v2.3.1：更新后启动卡顿修复 + Windows #10「服务不稳定」(SSE 并发竞态 + SSE 标志跨请求污染)
+
+- Scope:
+  - **更新后重启「卡在 100% 很久」修复**(纯 Tauri 外壳 `main.rs` + `start_horosa_local.sh`,无 Java)：
+    - A 首启 indeterminate 等待提示(`emit_indeterminate_progress`,launcher 显流动动画+「约 30–60 秒」)；
+    - B 提速首启(轮询 0.2s 与 trusted 解耦、warmup 后台非阻塞、mongo 一律 skip ping；**完整校验 `fast_path=false` 保留不削**)——脚本慢路径实测 **29s→14s**；
+    - C① 更新标记「读取即消费」(`consume_update_complete_marker_into_state`,失败不残留→不再次次走 300s 慢路径)；C② pid「判存活」(`prune_stale_pid_file`,死 pid 自动清而非误拦)。
+  - **Windows issue #10「服务不稳定」修复**(共享后端 `astrostudysrv`,**已重编 `astrostudyboot.jar`**)：
+    - A `SseChannel` 线程安全收口所有 SSE emitter 写(心跳/读流不再 race、心跳不再自行 complete)→ 修「deepseek AI 几句话后停止」；
+    - B `RequestHeaderInterceptor.preHandle` 非 REQUEST dispatch 早返回(免 async re-dispatch 重复验签)+ REQUEST 进来 `TransData.setSSE(false)` 归零(堵 request 对象复用残留)→ 修 SSE 标志跨请求污染致的间歇 `signature.error`/排盘「本地服务未就绪」/`predict 200 报错`。
+  - 版本锁步 `2.3.1 / 2.3.1-runtime1`(app bump，已装 2.3.0 用户经软件内更新自动收到)。
+- Files:
+  - 外壳：`Horosa_Desktop_Installer/src-tauri/src/main.rs`、`Horosa-Web/start_horosa_local.sh`、`scripts/release_preflight.sh`([9] 更新卡顿哨兵)。
+  - 后端：`astrostudysrv/astrostudy/.../service/AIAnalysisProxyService.java`、`boundless/.../interceptor/RequestHeaderInterceptor.java`(用 `TransData.setSSE`)；重编 `astrostudyboot.jar` → 同步 `runtime/mac/bundle/`。
+  - 版本：`package.json`/`src-tauri/{Cargo.toml,Cargo.lock,tauri.conf.json}` + `CITATION.cff` + `web/app.js`(APP_VERSION) + `scripts/verify_launcher_console_states.py` + `config/release_config.json`(runtimeVersion) + `config/release_notes/2.3.1.md`。
+  - 文档：`docs/更新后启动卡顿修复-v2.3.1.md`、`docs/服务不稳定-SSE并发与签名污染修复-v2.3.1.md`、`docs/windows-sync-handoff.md`。
+- Verification:
+  - 更新卡顿：`cargo check` exit 0；脚本慢路径 e2e **29s→14s**；pid 判存活双向(死 pid 清除继续 rc=0 / 活进程拦截 rc=1)；warmup 后台化日志(`begin (background)`→`run end`→`done`)。
+  - #10：重编 3×BUILD SUCCESS，jar 内含 `AIAnalysisProxyService$SseChannel.class` + 新 `boundless-1.2.1.2.jar`；起新 jar 后 **kentang 17 引擎 + `verifyHorosaRuntimeFull` + 主限 `/predict/pd` 三套全过**(功能零降级，且这些请求都过 `preHandle` 验签链 → 证明 (B) 未破坏正常验签)。SSE 真实截断/污染场景本地无 provider key，靠代码逻辑 + Windows 真机实测兜底。
+  - 发布门禁：`release_preflight.sh` 全绿(含新 [9] 哨兵)、签名+公证+staple、发布后 e2e。
+
 ### 准备 v2.3.0 beta：占星地图(ACG)全面升级 + 辅盘卜卦/择日盘 + 河洛理数补全 + 多项修复（acg / task⑥ / ①–⑤ / heluo 四工作流合并发布）
 
 - Scope:
