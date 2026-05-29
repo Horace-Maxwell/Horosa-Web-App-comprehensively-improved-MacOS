@@ -20,6 +20,18 @@
 
 ---
 
+## （待发布·v2.3.0 同批·分支 `feature/heluo-school-interp`）河洛理数：取化工法（左栏选项）+ 运盘节气 label + 命运篇判断补全
+
+> ⚠️ macOS 端**已实现、尚未发布**（分支 `feature/heluo-school-interp`）。纯前端，机制细节见
+> [`河洛理数-流派与命运篇补全-v2.3.0.md`](河洛理数-流派与命运篇补全-v2.3.0.md)。先登记方便 Windows 同步。
+
+- **改了什么**：① 取化工法做成河洛**左栏 per-技法选项**（土王寄坤艮/直取四方伯，镜像参评数古法/明法；**不入全局设置**）；② 运盘流年/流月行加**精确节气交时 label**（纯展示·不改卦序）；③ 命运篇补 5 项「可算却未显示」判断——阴阳二数命名（二十四数名）、众宗/众疾、顺/反数+季节宜、正/反对体凶、看命大法命格综合。均依《河洛理数》原文逐条审计，**主链算法零改**。
+- **Windows 必须做什么**：重新同步前端 3 文件 `astrostudyui/src/utils/heluoLocal.js`、`src/components/shusuan/HeLuoMain.js`、`src/components/kinastro/KinAstroMain.js`（+ `scripts/_heluoTest.mjs`）；`npm run build` 然后 `npm run build:file`（顺序，勿并行）。**无 Java、不重编 `astrostudyboot.jar`、不重打 runtime。**
+- **验证**：本机 `scripts/_heluoTest.mjs`（esbuild bundle → node）**96 断言全过**；`npm run build` 绿；preview 左栏「取化工法」可切、流年立春/流月节气 label、数名/命格/命局对体/顺逆/众宗 各行渲染（均已实测）。
+- **典籍口径（已定稿）**：土用＝四立前 18 日（标准土王用事，采用·不改）；天数 39→4（「遇十用零数」规则正确）；A1 寄爻顺起**不做·已撤**（`yuanTang` 维持原始单一实现）。
+
+---
+
 ## （待发布·分支 `feature/acg-map-upgrade`）占星地图（ACG / 地理占星）全面升级
 
 > ⚠️ macOS 端**已本地提交、尚未发布**（分支 `feature/acg-map-upgrade`）。机制细节见
@@ -44,9 +56,9 @@
 
 ---
 
-## （待发布·v2.2.2 同批，与 ①–⑤ 合并）task⑥：辅盘新增「卜卦盘 + 择日盘」（西洋断事 + 事件盘存盘）
+## （待发布·v2.3.0 同批，与 ①–⑤ 合并）task⑥：辅盘新增「卜卦盘 + 择日盘」（西洋断事 + 事件盘存盘）
 
-> ⚠️ macOS 端**已完成、已本地提交、尚未发布**（commit `d2ef43b` @ 分支 `feature/round-tasks-1-5`，52 文件 +4191/−28）。与下面 ①–⑤（`ffd0312`）**合并为同一版本发布**（暂记 v2.2.2，以实际为准）。先登记方便 Windows 同步，不必等发布。
+> ⚠️ macOS 端**已完成、已本地提交、尚未发布**（commit `d2ef43b` @ 分支 `feature/round-tasks-1-5`，52 文件 +4191/−28）。与下面 ①–⑤（`ffd0312`）**合并为同一版本发布（v2.3.0）**。先登记方便 Windows 同步，不必等发布。
 
 **性质：纯前端（`astrostudyui/src`）零后端。** 本批里同步最简单的一项——**不动 Java/Python、不重编 `astrostudyboot.jar`、不重打 runtime**，只搬前端源码 + 重建前端包。引擎全部消费现成 `/chart` 端点字段（尊贵 / 相位含入出相 / 接纳 / 互容 / 映点 / 月空 / 日时主 / 逆行），前端只补算燃烧·角宫·月相·托勒密过滤 → 零新路由。
 
@@ -75,7 +87,7 @@
 
 ## （待发布·随 task⑥ 合并）①–⑤ 修复：AI代理 Issue #9 + 六壬发三传 + 占星右栏空白块 + 风水UI + 快捷dock
 
-> ⚠️ 本节是 macOS 端**已完成、已本地提交但尚未发布**的一轮修复（commit `ffd0312` @ 分支 `feature/round-tasks-1-5`），将与 **task⑥（辅盘加「卜卦盘」「择日盘」，另一 session 做）合并后一起发布**；**版本号待定（暂记 v2.2.2，以合并发布的实际版本为准）**。先在此登记，方便 Windows 同步，不必等发布。
+> ⚠️ 本节是 macOS 端**已完成、已本地提交但尚未发布**的一轮修复（commit `ffd0312` @ 分支 `feature/round-tasks-1-5`），将与 **task⑥（辅盘加「卜卦盘」「择日盘」，另一 session 做）合并后一起发布**；**随 v2.3.0 合并发布**。先在此登记，方便 Windows 同步，不必等发布。
 
 **改动范围**：前端（`astrostudyui`）+ Java 后端（`astrostudysrv`，**因 ① 需重编 `astrostudyboot.jar`**）+ 启动器 JVM 参数。
 

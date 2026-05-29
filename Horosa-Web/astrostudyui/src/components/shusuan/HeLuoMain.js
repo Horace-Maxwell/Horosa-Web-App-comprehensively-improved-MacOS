@@ -7,6 +7,7 @@ import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/d
 import calc, {
 	daYun, liuNian, liuYue, liuRi, judge, periodLiShu, guaRelations, chartExtras, duiGua, solarTermHuagong,
 	yaoText, guaInfo, yaoName, buildSnapshotText, NAME_TO_TRI, guaLines,
+	classifyErShu, zhongZong, shunFanShu, seasonFit, isXiongPair, mingGe,
 } from '../../utils/heluoLocal';
 import { Gua64 } from '../gua/GuaConst';   // 复用 六爻/统摄法 的纳甲六亲世应
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
@@ -73,8 +74,22 @@ class HeLuoMain extends Component {
 			const daysIn = Math.max(0, Math.floor(jd - prev.getSolar().getJulianDay()));
 			const hou = Math.min(3, Math.floor(daysIn / 5) + 1);
 			const houLabel = `${prevName}${['初候', '二候', '三候'][hou - 1]}·${prevName}後`;
-			return { ...solarTermHuagong(prevName, tuyong), term: prevName, hou, houLabel };
+			return { ...solarTermHuagong(prevName, tuyong, { quHuaGong: this.props.quHuaGong || 'tuWangKunGen' }), term: prevName, hou, houLabel };
 		} catch (e) { return null; }
+	}
+
+	// 某公历年某节气的交时 label（'MM-DD HH:mm'）；display-only、零回归，复用 lunar-javascript。
+	jieQiLabel(year, name) {
+		if (!year || !name) return '';
+		try {
+			if (!this._jqCache) this._jqCache = {};
+			let tbl = this._jqCache[year];
+			if (!tbl) { tbl = Solar.fromYmd(year, 6, 1).getLunar().getJieQiTable(); this._jqCache[year] = tbl; }
+			const t = tbl[name];
+			if (!t) return '';
+			const s = t.toYmdHms();
+			return s ? s.slice(5, 16) : '';
+		} catch (e) { return ''; }
 	}
 
 	getModel() {
@@ -198,7 +213,7 @@ class HeLuoMain extends Component {
 		const items = periodLiShu(lines, jg);
 		if (!rels.length && !items.length) return <span className="horosa-heluo-tag-none">—</span>;
 		return [
-			...rels.map((r) => <span key={r} className="horosa-heluo-tag is-rel">{r}</span>),
+			...rels.map((r) => { const xiong = r.indexOf('正對') >= 0 || r.indexOf('反對') >= 0; return <span key={r} className={`horosa-heluo-tag is-rel${xiong ? ' is-xiong' : ''}`}>{r}{xiong ? '·凶' : ''}</span>; }),
 			...items.map((it) => <span key={it.text} className={`horosa-heluo-tag${it.fan ? ' is-fan' : ''}`}>{it.text}</span>),
 		];
 	}
@@ -281,10 +296,11 @@ class HeLuoMain extends Component {
 							const lkey = `${cur.ageStart}:${y.age}`;
 							const open = this.state.openYao === `ln:${lkey}`;
 							const drilled = this.state.liunianKey === lkey;
+							const lichun = this.jieQiLabel(y.year, '立春');
 							return [
 								<tr key={y.age} className={`${drilled ? 'is-active' : ''}${open ? ' is-open' : ''}`} onClick={() => this.setState({ openYao: open ? '' : `ln:${lkey}` })}>
 									<td>{y.age}</td>
-									<td>{y.ganzhi}</td>
+									<td>{y.ganzhi}{lichun ? <div style={{ fontSize: '11px', opacity: 0.55, fontWeight: 'normal' }}>立春 {lichun}</div> : null}</td>
 									<td>{y.gua}</td>
 									<td>{yaoName(y.lines, y.pos)}</td>
 									<td className="horosa-heluo-tagcell">{this.liShuCell(y.lines, m.jg, m.chart)}</td>
@@ -305,6 +321,7 @@ class HeLuoMain extends Component {
 		const y = this.state.yearForMonth;
 		if (!this.state.liunianKey || !y) return null;
 		const months = liuYue(y.lines, y.pos);
+		const YUE_JIE = { 寅: '立春', 卯: '惊蛰', 辰: '清明', 巳: '立夏', 午: '芒种', 未: '小暑', 申: '立秋', 酉: '白露', 戌: '寒露', 亥: '立冬', 子: '大雪', 丑: '小寒' };
 		return (
 			<div className="horosa-heluo-drill">
 				<div className="horosa-heluo-block-subtitle">流月（{y.age}岁 {y.ganzhi}年 · {y.gua}）· 点行看爻辞、点▾看流日</div>
@@ -315,9 +332,11 @@ class HeLuoMain extends Component {
 							const mkey = `${y.age}:${mo.month}`;
 							const open = this.state.openYao === `ly:${mkey}`;
 							const drilled = this.state.liuyueKey === mkey;
+							const jieName = YUE_JIE[mo.zhi] || '';
+							const jieTs = this.jieQiLabel(mo.zhi === '丑' ? (y.year + 1) : y.year, jieName);
 							return [
 								<tr key={mo.month} className={`${drilled ? 'is-active' : ''}${open ? ' is-open' : ''}`} onClick={() => this.setState({ openYao: open ? '' : `ly:${mkey}` })}>
-									<td>{mo.label}月</td>
+									<td>{mo.label}月{jieTs ? <div style={{ fontSize: '11px', opacity: 0.55, fontWeight: 'normal' }}>{jieName} {jieTs}</div> : null}</td>
 									<td>{mo.gua}</td>
 									<td>{yaoName(mo.lines, mo.pos)}</td>
 									<td className="horosa-heluo-tagcell">{this.liShuCell(mo.lines, m.jg, m.chart)}</td>
@@ -365,14 +384,20 @@ class HeLuoMain extends Component {
 
 	renderCenter(m) {
 		const { chart, jg, extras } = m;
+		const eshu = classifyErShu(chart.tian, chart.di);
+		const mg = mingGe(chart, jg);
+		const xp = isXiongPair(chart.xian.lines, chart.hou.lines);
 		const rows = [
 			['簡斷', extras.jianDuan],
 			['數理', `天數 ${chart.tian}·${extras.shuLi.tian}　地數 ${chart.di}·${extras.shuLi.di}`],
+			['數名', `${eshu.primary || '—'}${eshu.severity.length ? `（${eshu.severity.join('·')}）` : ''}`],
 			['氣運', extras.sanhou || '—'],
 			['值月消息卦', extras.xiaoxi.gua ? `${extras.xiaoxi.monthLabel}月建${m.monthZhi}·${extras.xiaoxi.gua}` : '—'],
 			['元氣化工', `天元 ${jg.yuan.tian.gua}・地元 ${jg.yuan.di.gua}・化工 ${(jg.huagong.guas || []).join('/') || '—'}`],
 			['先後天八卦變化', extras.bianYi],
 			['五命', `${m.fourPillars.year}生人・${m.nayin || ''}${extras.benWei.length ? `（${extras.benWei.join('、')}）` : ''}`],
+			['命格', `吉${mg.jiCount}/12 ${mg.jiGe || '—'}　凶${mg.xiongCount}/12 ${mg.xiongGe || '—'}`],
+			['命局對體', xp ? `先後天${xp}（凶·防災咎）` : '—'],
 		];
 		return (
 			<div className="horosa-heluo-center">
@@ -424,6 +449,8 @@ class HeLuoMain extends Component {
 						{card('得失·二数·元堂', [
 							['得势', jg.deSheng ? '✓ 纳甲相逢' : '—'], ['得时', jg.deTime ? '✓ 卦月相逢' : '—'], ['得体', yq(jg.deTi)],
 							['二数', `天${jg.erShu.tian}·${jg.erShu.tianState}／地${jg.erShu.di}·${jg.erShu.diState}`],
+							['順逆', (() => { const sf = shunFanShu(chart.tian, chart.di, chart.yangLing); const sft = seasonFit(chart.tian, chart.di, m.extras && m.extras.season); return `${sf.label}${sft ? `／${sft.season}宜·天${sft.tian}地${sft.di}` : ''}`; })()],
+							['眾宗', zhongZong(chart.xian.lines, chart.xian.yuan) || '—'],
 							['元堂', `${jg.yuanTang.dangWei ? '当位' : '不当位'}·${jg.yuanTang.youYing ? '有应' : '无应'}·${jg.yuanTang.heLi ? '顺气' : '逆气'}`],
 							['判格', jg.xie ? '葉（藏元气/化工）' : '不葉'],
 						])}

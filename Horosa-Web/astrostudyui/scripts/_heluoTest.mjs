@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 // Fixture tests for heluoLocal 起命. Run via: esbuild bundle → node.
-import calc, { NAME_INDEX, daYun, liuNian, liuYue, liuRi, judge, transformHoutian, guaLines } from '../src/utils/heluoLocal.js';
+import calc, { NAME_INDEX, daYun, liuNian, liuYue, liuRi, judge, transformHoutian, guaLines, solarTermHuagong, classifyErShu, zhongZong, shunFanShu, isXiongPair, mingGe } from '../src/utils/heluoLocal.js';
 
 let pass = 0;
 let fail = 0;
@@ -145,6 +145,39 @@ const lrD = liuRi(guaLines('巽', '離'), 1);    // 风火家人, 元堂初九
 eq('董 流日30日', lrD.length, 30);
 eq('董 流日块1卦/块5卦', `${lrD[0].gua}/${lrD[24].gua}`, '風天小畜/水火既濟');
 eq('董 流日动爻初→上', `${lrD[0].pos}${lrD[5].pos}${lrD[6].pos}`, '161');   // 第1日初,第6日上,第7日(块2)初
+
+// ── 模块A 流派开关（默认=现状·零回归；新流派为典籍候选，待算例标定）──
+// A3 取化工法：立春→四方伯坎；土用期 土王寄坤艮(默认)补坤艮 / 直取四方伯仅坎
+eq('A3 默认(土王)立春土用 化工', solarTermHuagong('立春', true).hg.join(''), '坎坤艮');
+eq('A3 默认显式==缺省', solarTermHuagong('立春', true, { quHuaGong: 'tuWangKunGen' }).hg.join(''), solarTermHuagong('立春', true).hg.join(''));
+eq('A3 直取四方伯 仅坎', solarTermHuagong('立春', true, { quHuaGong: 'siFangBoOnly' }).hg.join(''), '坎');
+eq('A3 直取四方伯 tuyong置false', solarTermHuagong('立春', true, { quHuaGong: 'siFangBoOnly' }).tuyong, false);
+eq('A3 非土用时两法一致', solarTermHuagong('夏至', false).hg.join(''), solarTermHuagong('夏至', false, { quHuaGong: 'siFangBoOnly' }).hg.join(''));
+
+// ── Phase2 命运篇补充判断（G1 数名/G2 命格/G3 顺反数/G4 眾宗/G5 正反对凶）──
+// G1 阴阳二数命名分类（九宫：天-25 × 地-30 符号）
+eq('G1 31/34→陰陽相戰', classifyErShu(31, 34).primary, '陰陽相戰');
+eq('G1 25/30→安和自寧', classifyErShu(25, 30).primary, '安和自寧');
+eq('G1 25/36→孤陰背陽', classifyErShu(25, 36).primary, '孤陰背陽');
+eq('G1 31/30→孤陽背陰', classifyErShu(31, 30).primary, '孤陽背陰');
+eq('G1 18/36→以弱敵強', classifyErShu(18, 36).primary, '以弱敵強');
+eq('G1 18/36 severity 天数不足', classifyErShu(18, 36).severity.join(','), '天數不足');
+// G4 眾宗/眾疾（天风姤 5阳1阴=[0,1,1,1,1,1]）
+eq('G4 元堂坐独阴=眾宗', zhongZong([0, 1, 1, 1, 1, 1], 1), '眾宗');
+eq('G4 元堂非独阴=眾疾', zhongZong([0, 1, 1, 1, 1, 1], 6), '眾疾');
+eq('G4 非5:1不适用', zhongZong([1, 1, 0, 0, 1, 1], 3), '');
+// G3 顺/反数领命
+eq('G3 阳令天数领=顺', shunFanShu(40, 20, true).shun, true);
+eq('G3 阳令地数领=反', shunFanShu(20, 40, true).shun, false);
+eq('G3 阴令地数领=顺', shunFanShu(20, 40, false).shun, true);
+// G5 正/反对体凶
+eq('G5 乾↔坤=正對體', isXiongPair([1, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0]), '正對體');
+eq('G5 同卦不算', isXiongPair([1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1]), '');
+// G2 看命大法命格（复用壬子命运篇 caseChart + jg；smoke 结构 + 计数范围）
+const mg = mingGe(caseChart, jg);
+eq('G2 jiCount∈[0,12]', mg.jiCount >= 0 && mg.jiCount <= 12, true);
+eq('G2 xiongCount∈[0,12]', mg.xiongCount >= 0 && mg.xiongCount <= 12, true);
+eq('G2 命格档为字符串', typeof mg.jiGe === 'string' && typeof mg.xiongGe === 'string', true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

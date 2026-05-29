@@ -761,6 +761,7 @@ class KinAstroMain extends Component{
 				chunziResultLimit: '20',
 				canpingMethod: 'ming',
 				canpingLiunian: null,
+				heluoQuHuaGong: 'tuWangKunGen',
 			};
 		this.unmounted = false;
 		this.timeHook = {};
@@ -1123,7 +1124,16 @@ class KinAstroMain extends Component{
 								</Select>
 							</label>
 						) : null}
-						{this.config.serviceKey === 'tieban' ? (
+						{this.config.serviceKey === 'heluo' ? (
+								<label className="horosa-huangji-select-field is-wide">
+									<span>取化工法</span>
+									<Select value={this.state.heluoQuHuaGong} onChange={(value)=>this.setState({ heluoQuHuaGong: value })}>
+										<Option value="tuWangKunGen">土王寄坤艮</Option>
+										<Option value="siFangBoOnly">直取四方伯</Option>
+									</Select>
+								</label>
+							) : null}
+							{this.config.serviceKey === 'tieban' ? (
 							<>
 								<label className="horosa-huangji-select-field">
 									<span>算法</span>
@@ -2069,7 +2079,7 @@ class KinAstroMain extends Component{
 			return <CanPingMain slot="center" fields={this.props.fields} method={this.state.canpingMethod} />;
 		}
 		if(this.config.serviceKey === 'heluo'){
-			return <HeLuoMain slot="center" fields={this.props.fields} />;
+			return <HeLuoMain slot="center" fields={this.props.fields} quHuaGong={this.state.heluoQuHuaGong} />;
 		}
 		const pan = this.state.pan;
 		if(!pan){
@@ -2237,7 +2247,7 @@ class KinAstroMain extends Component{
 			return <div className="horosa-huangji-section-list"><CanPingMain slot="aux" fields={this.props.fields} method={this.state.canpingMethod} /></div>;
 		}
 		if(this.config.serviceKey === 'heluo'){
-			return <div className="horosa-huangji-section-list"><HeLuoMain slot="aux" fields={this.props.fields} /></div>;
+			return <div className="horosa-huangji-section-list"><HeLuoMain slot="aux" fields={this.props.fields} quHuaGong={this.state.heluoQuHuaGong} /></div>;
 		}
 		const snapshot = buildSnapshotText(this.state.pan);
 		const visibleTabs = this.config.tabs.filter((item)=>{

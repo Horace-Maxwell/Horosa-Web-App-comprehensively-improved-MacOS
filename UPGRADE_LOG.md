@@ -12,6 +12,25 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-05-29
+
+### 准备 v2.3.0 beta：占星地图(ACG)全面升级 + 辅盘卜卦/择日盘 + 河洛理数补全 + 多项修复（acg / task⑥ / ①–⑤ / heluo 四工作流合并发布）
+
+- Scope:
+  - **占星地图 ACG 全面升级**（分支 `feature/acg-map-upgrade`）：D3-geo + 内置 GeoJSON + 解析法赤经赤纬四轴线，替代旧 AMap+迭代搜索；落点分析(迁移四轴)/本地空间/Parans(关·日月·全部)/4 底图样式/明暗即时切换；`validate_acg.py` 金标准 PASS。含 Java(`AcgController`/`AstroHelper`)+ Python(`AcgSrv`/`ACGraph.py`)。
+  - **辅盘新增卜卦盘 + 择日盘**（task⑥）：西洋 Horary 断事规则库 + Election 盘 + 事件盘存盘/重开 + AI 挂载。纯前端。
+  - **河洛理数补全**（分支 `feature/heluo-school-interp`）：取化工法→**左栏 per-技法选项**（镜像参评数古法/明法，不入全局设置）；运盘流年/流月行显**精确节气交时 label**；命运篇补 5 判断（二十四数名 / 众宗-众疾 / 顺反数+季节宜 / 正反对体凶 / 看命大法命格）。主链零改、对古籍原文逐条审计。纯前端。**口径定稿**：土用=四立前18日(标准土王用事)；A1 寄爻顺起不做。
+  - **①–⑤ 修复**：#9 AI 模型代理(Java+启动器)、六壬发三传顺序、占星右栏空白块、风水 UI 重写、快捷 dock 自适应。
+  - 版本锁步 `2.3.0 / 2.3.0-runtime1`（自 2.2.1 起 minor 跳版，含上述全部）。
+- Files:
+  - 河洛：`astrostudyui/src/utils/heluoLocal.js`（`solarTermHuagong` opts + 新增 `classifyErShu`/`zhongZong`/`shunFanShu`/`seasonFit`/`isXiongPair`/`mingGe`）、`components/shusuan/HeLuoMain.js`、`components/kinastro/KinAstroMain.js`、`scripts/_heluoTest.mjs`（96 断言）。
+  - acg / task⑥ / ①–⑤：见各自 commit（`9e4bb80`/`0feeef3`、`d2ef43b`/`9b5c75e`、`ffd0312`/`2b6da5d`）与 `docs/` 技术文档。
+  - 版本：`Horosa_Desktop_Installer/{package.json, src-tauri/Cargo.toml, src-tauri/Cargo.lock, src-tauri/tauri.conf.json}` + `CITATION.cff` + `config/release_config.json`（runtimeVersion）+ `config/release_notes/2.3.0.md`。
+- Verification:
+  - 河洛 `_heluoTest.mjs` 96 断言全过；acg `validate_acg.py` → ACG alignment PASS；`npm run build` + `build:file` 绿。
+  - jar 新鲜度：target `astrostudyboot.jar`（5/28 21:46，含 acg/①–⑤ Java 改动）比所有 `.java` 新，**无需重编**。
+  - 发布门禁：harness JSON、browser AIAnalysis smoke、clean-env startup smoke、`release_preflight.sh`、签名+公证+staple、发布后 e2e。
+
 ## 2026-05-28
 
 ### 准备 v2.2.1 beta：全局设置·日界点 + 晚子时·时柱起干（两个独立全局开关 + AI 排盘规则挂载 + ChartController 白名单加固 + AI 分析 SSE 双修复 Issue #8）
