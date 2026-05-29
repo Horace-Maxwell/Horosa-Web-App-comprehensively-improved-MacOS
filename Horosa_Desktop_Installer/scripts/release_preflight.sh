@@ -128,9 +128,14 @@ if [ -f "${MAINRS}" ]; then
   else
     bad "main.rs 缺 consume_update_complete_marker_into_state 或未在 runtime_bootstrap 调用 —— 首启失败会残留标记致次次走 300s 慢路径"
   fi
-  grep -q "emit_indeterminate_progress(&window" "${MAINRS}" \
-    && ok "A 首启 indeterminate 等待提示在位" \
-    || bad "main.rs 首启缺 emit_indeterminate_progress —— 更新后首启进度停住会被当成卡死"
+  # 注:emit_indeterminate_progress 调用会被 cargo fmt 拆成多行(`(` 后换行),故不能 grep `(&window`(会漏报);
+  # 用「函数名存在」+「首启提示文案存在」双重确认 —— 两者 cargo fmt 都不会拆。(2.3.1 踩过此误报)
+  if grep -q "emit_indeterminate_progress" "${MAINRS}" \
+     && grep -q "更新后首次启动需完整校验" "${MAINRS}"; then
+    ok "A 首启 indeterminate 等待提示在位"
+  else
+    bad "main.rs 首启缺 emit_indeterminate_progress 调用或提示文案 —— 更新后首启进度停住会被当成卡死"
+  fi
 else
   warn "main.rs 不存在,跳过更新卡顿哨兵(C①/A)"
 fi
