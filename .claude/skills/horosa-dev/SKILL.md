@@ -225,7 +225,10 @@ This is a **manual, macOS-signed** pipeline (no CI auto-release on tag). Full or
 
 1. Bump version in lockstep: `Horosa_Desktop_Installer/{package.json, src-tauri/Cargo.toml, src-tauri/Cargo.lock, src-tauri/tauri.conf.json}`
    + `CITATION.cff`; bump `Horosa_Desktop_Installer/config/release_config.json` `runtimeVersion` (`-runtime<N>`,
-   reset to `-runtime1` on app bump). Append a `UPGRADE_LOG.md` entry. **If the backend (`astrostudysrv/**`) changed,
+   reset to `-runtime1` on app bump). **`release_preflight.sh` 还门禁两处易漏的版本（v2.3.0 踩过）：`Horosa_Desktop_Installer/web/app.js`
+   的 `const APP_VERSION = '<ver>'`（⚠ 它被打进 .app 启动器 UI + 显示「pkg/runtime <ver>」——必须在 `build_desktop_release.sh` 之前 bump，
+   否则要整包重建+重签+重公证）和 `Horosa_Desktop_Installer/scripts/verify_launcher_console_states.py` 的「来源 pkg <ver>」「本机组件版本 <ver>」断言。**
+   全量自检：`grep -rn "2\.2\.1" Horosa_Desktop_Installer/{package.json,src-tauri/Cargo.toml,src-tauri/Cargo.lock,src-tauri/tauri.conf.json,web/app.js,config/release_config.json,scripts/verify_launcher_console_states.py} CITATION.cff` 应为空。 Append a `UPGRADE_LOG.md` entry. **If the backend (`astrostudysrv/**`) changed,
    rebuild `astrostudyboot.jar` (gotcha #10).** Write per-version highlights to
    `Horosa_Desktop_Installer/config/release_notes/{version}.md` (e.g. `2.1.4.md`) — publish injects it into the
    release page's "本版更新 / What's new" section; without it the page shows only the generic product overview.
