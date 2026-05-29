@@ -97,6 +97,21 @@ Java 仅做**透明转发**，返回结构经 `TransData.set` 包成顶层 `Resu
 ---
 
 ## 六、改动文件清单（本次升级）
-- 后端：`astropy/astrostudy/acg/ACGraph.py`（重写为解析法 + ls/parans/pointReport + 多点横线 + 曲线平滑闭合）、`astropy/websrv/webacgsrv.py`（`acgpoint`）。
+- 后端：`astropy/astrostudy/acg/ACGraph.py`（重写为解析法 + ls/parans/pointReport + 多点横线 + 曲线平滑闭合）、`astropy/websrv/webacgsrv.py`（`acgpoint`）、`astropy/astrostudy/acg/validate_acg.py`（金标准回归自检，见 §七）。
 - Java：`AcgController.java`、`AstroHelper.java`（重编 jar）。
 - 前端：`AstroAcg.js`（开关/样式/落点接线）、新增 `AcgD3Map.js`/`AcgPointPanel.js`/`interpretations.zh.js`/`world.geo.json`。
+
+## 七、回归自检 / 算法对齐（金标准）
+
+四轴线是**天文学定义**：MC/IC=行星正在上/下中天（位于本地子午线）；ASC/DESC=行星正在升/落（真高度=0）。
+`validate_acg.py` 用 Swiss Ephemeris **权威的地平坐标函数 `swisseph.azalt()`** 反验 ACGraph 算出的线是否满足这些定义——
+`azalt` 内部用它自己的恒星时，**与 ACGraph 的 GMST/公式完全独立**，因此是对算法的独立精度校验；
+又因本项目与同类专业软件都用**同一套 Swiss Ephemeris**，本检验即"与业界标准对齐"（比肉眼对照地图精确得多）。
+
+运行（任意平台，路径自适配）：
+```
+runtime/mac/python/bin/python3 Horosa-Web/astropy/astrostudy/acg/validate_acg.py   # Windows 用对应运行时 python
+```
+覆盖 3 张盘（北京 / 圣保罗南半球 / 纽约）× 10 行星。**期望：worst < 1e-3°（实测 0.000000°），退出码 0=PASS。**
+改动 `ACGraph.py` 的解析法后**必跑此自检**；可接入 CI / 发布前 gate。
+（范围：金标准覆盖四轴线这一 ACG 定义性线条；Local Space/Parans/地理线由同一套球面天文公式与已校验的 RA/Dec·GMST 机制派生。）

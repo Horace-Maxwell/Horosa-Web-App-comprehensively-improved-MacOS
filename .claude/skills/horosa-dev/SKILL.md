@@ -331,6 +331,11 @@ Renderer `AcgD3Map.js` (no new npm deps — reuses `d3@7`'s d3-geo); world map =
   planet colours+white casing; dark=dark terrain+bright lines. Label chips flip (white-bg/dark-frame ↔ dark-bg/light-frame).
 - Parans default to **luminary (Sun/Moon) pairs**, 1°-deduped + faint; toolbar cycles 关/日月/全部. 4 basemap styles
   (`STYLES`: 标准/简约/政区/单色) orthogonal to light/dark.
-- **Self-check:** 辅盘→占星地图 in light AND dark — lines smooth & connected (polar hooks close, no dateline gap),
+- **Self-check (visual):** 辅盘→占星地图 in light AND dark — lines smooth & connected (polar hooks close, no dateline gap),
   chip glyphs crisp with **no stroke**, equator/黄道/回归线 visible, Parans 关/日月/全部, click→落点分析 with 迁移四轴 +
   解读. Theme toggle: map follows instantly.
+- **Self-check (algorithm gold standard):** after ANY change to `ACGraph.py` analytic math, run
+  `runtime/mac/python/bin/python3 Horosa-Web/astropy/astrostudy/acg/validate_acg.py` → must print
+  `ACG alignment PASS` (worst < 1e-3°, actual 0.000000°; exit 0). It independently re-checks every four-axis line against
+  `swisseph.azalt()` (its own sidereal time — same engine pro tools use): ASC/DESC points at true-altitude 0, MC/IC on the
+  meridian. This is the precise "aligned with the standard" proof — far better than eyeballing any external map.
