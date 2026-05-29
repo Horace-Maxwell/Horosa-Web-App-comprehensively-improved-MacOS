@@ -5435,7 +5435,11 @@ fn runtime_bootstrap(
         emit_status(&window, "检测到刚完成更新，正在执行更新后的首次恢复启动…");
         // 修复A(更新后卡顿):首启要对刚装好的运行时做完整校验(约 30–60s),用不确定进度
         // 动画 + 明确文案,避免进度停住被当成「卡死」。
-        emit_indeterminate_progress(&window, 78, "更新后首次启动需完整校验，约 30–60 秒，请稍候…");
+        emit_indeterminate_progress(
+            &window,
+            78,
+            "更新后首次启动需完整校验，约 30–60 秒，请稍候…",
+        );
         cleanup_state(&app);
         thread::sleep(Duration::from_secs(1));
     }
