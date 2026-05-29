@@ -94,6 +94,8 @@ export const CASE_TYPE_OPTIONS = [
 	{ value: 'jingjue', label: '荆诀', subTab: 'jingjue', tab: 'cnyibu', module: 'jingjue' },
 	{ value: 'shenyishu', label: '神易数', subTab: 'shenyishu', tab: 'cnyibu', module: 'shenyishu' },
 	{ value: 'sanshiunited', label: '三式合一', subTab: null, tab: 'sanshiunited', module: 'sanshiunited' },
+	{ value: 'horary', label: '卜卦', subTab: 'horary', tab: 'auxchart', module: 'horary' },
+	{ value: 'election', label: '择日', subTab: 'election', tab: 'auxchart', module: 'election' },
 ];
 
 const CASE_TYPE_ALIASES = {
@@ -108,6 +110,13 @@ const CASE_TYPE_ALIASES = {
 	'奇門': 'qimen',
 	'遁甲': 'qimen',
 	'三式合一': 'sanshiunited',
+	'卜卦': 'horary',
+	'卜卦盘': 'horary',
+	'卜卦盤': 'horary',
+	'择日': 'election',
+	'择日盘': 'election',
+	'擇日': 'election',
+	'擇日盤': 'election',
 	'统摄法': 'tongshefa',
 	'統攝法': 'tongshefa',
 	'皇极经世': 'huangji',

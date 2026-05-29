@@ -1,0 +1,118 @@
+// utils/divinationCaseSave.js
+// 卜卦盘 / 择日盘「存为事件盘」+ 重开时读回 payload。
+// 复用占星事件盘管道（astro/openDrawer caseadd → upsertLocalCase → user.currentCase），与六壬
+// kentangCaseSave 同款；区别在于卜卦/择日的「时间·地点」本身就是核心征象，故 record 完整存
+// divTime/zone/经纬，payload 再存技法设置（黄道/宫制/守护）与问题类别(horary)/用事类型(election)。
+import { getStore } from './storageutil';
+
+function fv(fields, key, fallback = ''){
+	if(!fields || !fields[key]){
+		return fallback;
+	}
+	const v = fields[key].value;
+	return v === undefined || v === null ? fallback : v;
+}
+
+function caseDateTime(fields){
+	const d = fv(fields, 'date', null);
+	const t = fv(fields, 'time', null);
+	if(d && t && d.format && t.format){
+		return `${d.format('YYYY-MM-DD')} ${t.format('HH:mm:ss')}`;
+	}
+	if(d && d.format){
+		return d.format('YYYY-MM-DD HH:mm:ss');
+	}
+	return '';
+}
+
+// 存为事件盘。module: 'horary' | 'election'；extra 取自 Shell 的 state.extra（questionCategory / topicId）。
+export function openDivinationCaseDrawer({ dispatch, fields, module, label, extra }){
+	if(!dispatch || !module){
+		return;
+	}
+	const divTime = caseDateTime(fields);
+	const ex = extra || {};
+	// 技法设置随案存档，重开还原，避免被全局默认覆盖。
+	const settings = {
+		zodiacal: fv(fields, 'zodiacal', 0),
+		hsys: fv(fields, 'hsys', 0),
+		tradition: fv(fields, 'tradition', 1),
+	};
+	dispatch({
+		type: 'astro/openDrawer',
+		payload: {
+			key: 'caseadd',
+			record: {
+				event: `${label || (module === 'election' ? '择日' : '卜卦')}${divTime ? ` ${divTime}` : ''}`,
+				caseType: module,
+				divTime,
+				zone: fv(fields, 'zone'),
+				lat: fv(fields, 'lat'),
+				lon: fv(fields, 'lon'),
+				gpsLat: fv(fields, 'gpsLat'),
+				gpsLon: fv(fields, 'gpsLon'),
+				pos: fv(fields, 'pos'),
+				payload: {
+					module,
+					version: 1,
+					savedAt: new Date().toISOString(),
+					settings,
+					questionCategory: ex.questionCategory || null,
+					topicId: ex.topicId || null,
+				},
+				sourceModule: module,
+			},
+		},
+	});
+}
+
+function parsePayload(raw){
+	if(!raw){
+		return null;
+	}
+	if(typeof raw === 'string'){
+		try{
+			return JSON.parse(raw);
+		}catch(e){
+			return null;
+		}
+	}
+	if(typeof raw === 'object'){
+		return raw;
+	}
+	return null;
+}
+
+// 重开：从 user.currentCase 拉回属于本技法的案例（含时间/地点 + 设置 + 类别）。
+// 技法页用 caseVersion 判断是否是「新」的待应用案例（变了才应用，避免重复灌入）。
+export function getDivinationSavedCasePayload(module){
+	const store = getStore();
+	const userState = store && store.user ? store.user : null;
+	const cc = userState && userState.currentCase ? userState.currentCase : null;
+	if(!cc || !cc.cid || !cc.cid.value){
+		return null;
+	}
+	const getV = (k) => (cc[k] && cc[k].value !== undefined ? cc[k].value : null);
+	const sourceModule = getV('sourceModule');
+	const caseType = getV('caseType');
+	const payload = parsePayload(getV('payload'));
+	const payloadModule = payload && payload.module ? payload.module : null;
+	if(sourceModule !== module && caseType !== module && payloadModule !== module){
+		return null;
+	}
+	const cid = `${cc.cid.value}`;
+	const updateTime = getV('updateTime') ? `${getV('updateTime')}` : '';
+	return {
+		payload,
+		caseVersion: `${module}|${cid}|${updateTime}`,
+		divTime: getV('divTime') || '',
+		zone: getV('zone') || '',
+		lat: getV('lat') || '',
+		lon: getV('lon') || '',
+		gpsLat: getV('gpsLat'),
+		gpsLon: getV('gpsLon'),
+		pos: getV('pos') || '',
+	};
+}
+
+export default openDivinationCaseDrawer;
