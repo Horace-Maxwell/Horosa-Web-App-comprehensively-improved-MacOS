@@ -20,6 +20,31 @@
 
 ---
 
+## （待发布·随 task⑥ 合并）①–⑤ 修复：AI代理 Issue #9 + 六壬发三传 + 占星右栏空白块 + 风水UI + 快捷dock
+
+> ⚠️ 本节是 macOS 端**已完成、已本地提交但尚未发布**的一轮修复（commit `ffd0312` @ 分支 `feature/round-tasks-1-5`），将与 **task⑥（辅盘加「卜卦盘」「择日盘」，另一 session 做）合并后一起发布**；**版本号待定（暂记 v2.2.2，以合并发布的实际版本为准）**。先在此登记，方便 Windows 同步，不必等发布。
+
+**改动范围**：前端（`astrostudyui`）+ Java 后端（`astrostudysrv`，**因 ① 需重编 `astrostudyboot.jar`**）+ 启动器 JVM 参数。
+
+**关键变化（逐条）**：
+1. **#9 内置 Java 走系统代理（治本）**：`boundless` `HttpClientUtility.getHttpHost()` 加 `ProxySelector.getDefault()` 回退；`astrostudy` `AIAnalysisProxyService.streamHttpClient` 加 `.proxy(ProxySelector.getDefault())`；启动器加 `-Djava.net.useSystemProxies=true`。**只加 flag 无效**（流式 JDK HttpClient 默认不走代理、`getHttpHost` 只读 `http.proxyHost` 系统属性而 flag 不填它）——三处缺一不可。
+2. **六壬 / 三式合一 发三传顺序**：`components/liureng/ChuangChart.js` `getSangCuang` 把八专(isBaZhuang)移到遥克(isYaoKe)之后（按典籍 `0.基石/2.九法`：遥克第4法→八专第9法）。**六壬引擎是我们自有前端 JS，非 ken**；标准六壬与三式合一共用 `ChuangChart`，一改两修。纯前端。
+3. **占星右栏 tab 下空白块**：`app.less` `.horosa-content-tabs .ant-tabs-tabpane > *{height:100%}`，内容容器填满 pane（覆盖占星/紫微/印度/果老 + 复用 AstroChartMain 的十三分盘/合盘/节气）。纯前端 CSS。
+4. **风水页 UI**：选择栏对齐 + 文字间距 + 安全距离精修（语义色不动）。纯前端 CSS。
+5. **快捷功能 dock**：基础 `.horosa-bottom-quick-actions` 列网格 `repeat(8)`→自适应 `grid-auto-flow:column`（兼容太乙等动态动作数）。纯前端 CSS。
+
+**Windows 端必做**：
+- ✅ **重编 `astrostudyboot.jar`**（仅 ①：`HttpClientUtility.java` + `AIAnalysisProxyService.java`），重编后**重启 Java 进程**。
+- ✅ **Windows 启动器加 `-Djava.net.useSystemProxies=true`**：macOS 在 `start_horosa_local.sh` 已加；Windows 外壳不共享，需在 Electron `service-manager.js` spawn Java 处各自加（① 才算完整修复）。
+- ✅ **重建前端**（`npm run build` → `npm run build:file`，顺序勿并行）：②③④⑤ 都是前端，一次重建即可。
+- ⏸ Python runtime 不需重打（vendor 未动）。
+
+**验证**：`npx umi-test src/components/liureng/ChuangChart.test.js` 期望 3/3；preview 检查 占星右栏内容填满（无 tab 下空白）/ 风水选择栏间距 / 太乙底部 dock 填满；① 真·代理需 Windows 开系统代理后在「测试连接」实测（无代理时回归不变）。
+
+**机制详见**：[`docs/round-tasks-1-5-fixes.md`](round-tasks-1-5-fixes.md)
+
+---
+
 ## v2.2.1 — 日界点完成版（含晚子时·时柱起干第二开关）+ ChartController 白名单 bug + AI 分析 SSE 双修复 Issue #8
 
 **改动范围**：前端 + Java 后端（需重编 `astrostudyboot.jar`）；Python vendor 暂未动（Phase 2）。
