@@ -115,6 +115,59 @@ else
   warn "BaZiHelper.java 不存在,跳过 (1,0) 对称分支哨兵"
 fi
 
+# 9. 更新后启动卡顿修复哨兵(本次复盘):防「更新后重启卡在 100% / 反复走 300s 全量慢路径」回归。
+#    根因复盘见 docs/更新后启动卡顿修复-v2.3.1.md:① 标记仅成功时消费→失败残留致次次慢;
+#    ② pid 仅判存在→残留死 pid 误拦截;③ 首启进度停住无反馈像死机;④ warmup 同步阻塞启动。
+echo "[9] 更新后启动卡顿修复哨兵"
+MAINRS="${INSTALLER_ROOT}/src-tauri/src/main.rs"
+STARTSH="${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"
+if [ -f "${MAINRS}" ]; then
+  if grep -q "fn consume_update_complete_marker_into_state" "${MAINRS}" \
+     && grep -q "consume_update_complete_marker_into_state(&app)" "${MAINRS}"; then
+    ok "C① 更新标记读取即消费(consume_update_complete_marker_into_state)"
+  else
+    bad "main.rs 缺 consume_update_complete_marker_into_state 或未在 runtime_bootstrap 调用 —— 首启失败会残留标记致次次走 300s 慢路径"
+  fi
+  grep -q "emit_indeterminate_progress(&window" "${MAINRS}" \
+    && ok "A 首启 indeterminate 等待提示在位" \
+    || bad "main.rs 首启缺 emit_indeterminate_progress —— 更新后首启进度停住会被当成卡死"
+else
+  warn "main.rs 不存在,跳过更新卡顿哨兵(C①/A)"
+fi
+if [ -f "${STARTSH}" ]; then
+  grep -q "prune_stale_pid_file" "${STARTSH}" \
+    && ok "C② pid 判存活(prune_stale_pid_file)" \
+    || bad "start_horosa_local.sh 缺 prune_stale_pid_file —— 残留死 pid 会误拦截启动(AGENTS.md 已记此坑)"
+  grep -q "runtime warmup begin (background)" "${STARTSH}" \
+    && ok "B warmup 后台非阻塞" \
+    || bad "start_horosa_local.sh warmup 未后台化 —— 更新后首启会多等预热阻塞"
+else
+  warn "start_horosa_local.sh 不存在,跳过更新卡顿哨兵(C②/B)"
+fi
+
+# 10. Issue #10「服务不稳定」修复哨兵(SSE 并发竞态 + SSE 标志跨请求污染)。
+#     根因复盘见 docs/服务不稳定-SSE并发与签名污染修复-v2.3.1.md:① 心跳/读流并发写非线程安全 SseEmitter→AI 断流;
+#     ② __sse__ 标志(绑 request 对象)被 Tomcat 复用残留→污染排盘/predict→间歇 signature.error。
+echo "[10] Issue #10(SSE 并发 + SSE 标志污染)修复哨兵"
+if [ -f "${AIPROXY}" ]; then
+  grep -q "class SseChannel" "${AIPROXY}" \
+    && ok "A SseChannel 线程安全收口 emitter" \
+    || bad "AIAnalysisProxyService 缺 SseChannel —— SSE 心跳/读流并发写 race 会让 AI 几句话后断流(#10)"
+else
+  warn "AIAnalysisProxyService.java 不存在,跳过 #10(A)哨兵"
+fi
+RHINTERCEPTOR="${REPO_ROOT}/Horosa-Web/astrostudysrv/boundless/src/main/java/boundless/spring/help/interceptor/RequestHeaderInterceptor.java"
+if [ -f "${RHINTERCEPTOR}" ]; then
+  if grep -q "getDispatcherType() != DispatcherType.REQUEST" "${RHINTERCEPTOR}" \
+     && grep -q "TransData.setSSE(false)" "${RHINTERCEPTOR}"; then
+    ok "B preHandle async 早返回 + setSSE(false) 归零(SSE 标志跨请求污染防护)"
+  else
+    bad "RequestHeaderInterceptor.preHandle 缺 async 早返回 或 setSSE(false) 归零 —— SSE 标志会污染排盘/predict 致间歇 signature.error(#10)"
+  fi
+else
+  warn "RequestHeaderInterceptor.java 不存在,跳过 #10(B)哨兵"
+fi
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

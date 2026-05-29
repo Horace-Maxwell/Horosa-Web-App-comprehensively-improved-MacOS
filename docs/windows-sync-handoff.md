@@ -20,6 +20,22 @@
 
 ---
 
+## v2.3.1（发布中）— 更新后启动卡顿修复 + #10「服务不稳定」(SSE 并发竞态 + SSE 标志跨请求污染)
+
+> 机制细节:[`服务不稳定-SSE并发与签名污染修复-v2.3.1.md`](服务不稳定-SSE并发与签名污染修复-v2.3.1.md)(#10)、[`更新后启动卡顿修复-v2.3.1.md`](更新后启动卡顿修复-v2.3.1.md)(更新卡顿)。
+
+**性质:#10 全在共享后端 `astrostudysrv`(Java)→ Windows 必须重编 `astrostudyboot.jar`。更新卡顿部分是 Mac 外壳/启动脚本,Windows 各自维护对应实现。**
+
+- **改了什么(#10 · 共享 · 必须同步)**:
+  - `astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java`:新增线程安全内部类 `SseChannel`,收口**所有** SSE emitter 写(`send`/`complete`/`completeWithError` 单锁串行化 + `closed` 幂等);心跳与读流不再 race、**心跳不再自行 complete**(收尾统一在 `chatStream`)。修 AI「几句话后停止」。**保留** #8 的 `QueueLog.error` 一级异常日志 + `keep-alive` 心跳帧。
+  - `boundless/src/main/java/boundless/spring/help/interceptor/RequestHeaderInterceptor.java`:`preHandle` ① 非 `REQUEST` dispatcher type **早返回**(免 async re-dispatch 用空 body 重复验签 → 消除 `signature.error`);② `REQUEST` 进来先 `TransData.setSSE(false)` **归零**(`__sse__` 存在 request 对象 attribute、Tomcat 复用 request 对象会残留 → 污染后续排盘/predict 的 `complete()`/`afterCompletion` 走 event-stream 分支)。需 `import javax.servlet.DispatcherType;`。
+- **Windows 必须做什么**:同步上面两个 `.java`(共享路径完全一致)→ **JDK17 重编 `astrostudyboot.jar`**(`mvn -f boundless install → astrostudy install → astrostudyboot clean package`;gotcha #10,`clean` 必须)→ 替换 Windows 运行时 bundle 的 jar。**前端无改动、不重建前端包。**
+- **更新卡顿部分(Mac 外壳/脚本 · Windows 自行对应)**:`Horosa_Desktop_Installer/src-tauri/src/main.rs`(更新标记「读取即消费」+ 首启 `emit_indeterminate_progress` 提示 + mongo 一律 skip ping)、`Horosa-Web/start_horosa_local.sh`(pid 判存活 `prune_stale_pid_file` + warmup 后台非阻塞 + 轮询 0.2s 与 trusted 解耦)。Windows 端若有相同的「更新后首启慢路径 / 残留 pid 误拦 / 更新标记残留」机制,在 Windows 对应启动器/脚本做同样修复;无对应实现则跳过。
+- **验证**:重编后起服务,三套全过 = 功能零降级且验签未破坏 —— `verify_kentang_runtime_endpoints.py --root http://127.0.0.1:8899`(17 引擎 200)、`HOROSA_SERVER_ROOT=http://127.0.0.1:9999 node astrostudyui/scripts/verifyHorosaRuntimeFull.js`(exit 0)、`… verifyPrimaryDirectionRuntime.js`(exit 0,即 `/predict/pd`)。有真实 provider key 时:AI 长流完整不截断、排盘与 AI 交错不再 `signature.error`。
+- **版本**:`2.3.1 / 2.3.1-runtime1`。
+
+---
+
 ## （待发布·v2.3.0 同批·分支 `feature/heluo-school-interp`）河洛理数：取化工法（左栏选项）+ 运盘节气 label + 命运篇判断补全
 
 > ⚠️ macOS 端**已实现、尚未发布**（分支 `feature/heluo-school-interp`）。纯前端，机制细节见

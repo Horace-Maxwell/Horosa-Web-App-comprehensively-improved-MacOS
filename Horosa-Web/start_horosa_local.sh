@@ -164,13 +164,19 @@ warm_runtime_routes() {
     return 0
   fi
 
-  diag_log "runtime warmup begin"
-  if HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${warmup_js}" >"${warmup_log}" 2>&1; then
-    diag_log "runtime warmup done"
-  else
-    diag_log "runtime warmup failed"
-    diag_tail "${warmup_log}" 120
-  fi
+  # 提速(更新后卡顿)B:预热改为后台非阻塞——首启不再为这 2–3s 多等。
+  # 外层 ( … ) >/dev/null 2>&1 & 让后台子进程不继承脚本的 stdout/stderr(否则它会持有
+  # Rust 端 command.output() 的 pipe 导致其迟迟不返回);node 自身另重定向到 warmup 日志,
+  # diag_log 写独立日志文件,均不碰该 pipe。
+  diag_log "runtime warmup begin (background)"
+  (
+    if HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${warmup_js}" >"${warmup_log}" 2>&1; then
+      diag_log "runtime warmup done"
+    else
+      diag_log "runtime warmup failed"
+      diag_tail "${warmup_log}" 120
+    fi
+  ) >/dev/null 2>&1 &
 }
 
 load_brew_env() {
@@ -494,9 +500,28 @@ ensure_frontend_build() {
   fi
 }
 
-if [ -f "${PY_PID_FILE}" ] || [ -f "${JAVA_PID_FILE}" ]; then
-  diag_log "blocked: pid files already exist"
-  echo "pid files already exist with running processes. run ./stop_horosa_local.sh first."
+# 修复(更新后卡顿)C②:pid 文件「判存活」而非「判存在」。
+# 旧逻辑只要 .horosa_*.pid 文件在就 exit 1,于是上次崩溃/强退/被 kill 残留的死 pid 会
+# 永久误拦截启动(AGENTS.md「6 个坑」已记此坑)。现读出 pid 用 kill -0 探测:仍存活才阻止,
+# 已死则清除残留文件继续,避免「次次启动被误拦」叠加更新后慢路径造成卡死。
+prune_stale_pid_file() {
+  local pid_file="$1"
+  [ -f "${pid_file}" ] || return 0
+  local pid
+  pid="$(tr -dc '0-9' <"${pid_file}" 2>/dev/null)"
+  if [ -n "${pid}" ] && kill -0 "${pid}" >/dev/null 2>&1; then
+    return 1
+  fi
+  diag_log "removing stale pid file (no live process): ${pid_file}"
+  rm -f "${pid_file}"
+  return 0
+}
+runtime_already_live=0
+prune_stale_pid_file "${PY_PID_FILE}" || runtime_already_live=1
+prune_stale_pid_file "${JAVA_PID_FILE}" || runtime_already_live=1
+if [ "${runtime_already_live}" = "1" ]; then
+  diag_log "blocked: live runtime process already running"
+  echo "horosa runtime is already running. run ./stop_horosa_local.sh first."
   exit 1
 fi
 
@@ -668,8 +693,10 @@ launch_detached "${JAVA_LOG}" env \
   "${JAVA_LAUNCH_CMD[@]}" >"${JAVA_PID_FILE}"
 
 ready=0
-poll_interval="1"
-progress_interval="10"
+# 提速(更新后卡顿)B:轮询间隔与 trusted 解耦——更新后首启(trusted=0)同样用 0.2s 快轮询,
+# 服务一就绪就被探测到,不再被旧的 1s 粒度白等近一秒。trusted 仍可用更细的 0.1s。
+poll_interval="0.2"
+progress_interval="50"
 if [ "${TRUSTED_RUNTIME}" = "1" ]; then
   poll_interval="0.1"
   progress_interval="100"

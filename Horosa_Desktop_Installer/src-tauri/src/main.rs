@@ -532,6 +532,10 @@ struct AppState {
     window_state_persistence_ready: AtomicBool,
     // v2.2.1 非阻塞软件内升级:后台下载完成后暂存,等用户主动点「重启更新」时消费。
     staged_update: Mutex<Option<StagedUpdate>>,
+    // 修复(更新后卡顿)C①:更新完成通知文本。runtime_bootstrap 开头对 update-complete 标记
+    // 「读取即消费」(解析后立刻删除磁盘标记),把通知缓存于此;本次首启成功后再弹窗。
+    // 失败时磁盘标记已删 → 下次启动不会再误走 300s 全量慢路径(杜绝「次次都慢」)。
+    pending_update_notice: Mutex<Option<String>>,
 }
 
 // v2.2.1 后台已下载并校验完成、等待用户重启安装的更新。
@@ -586,6 +590,7 @@ impl Default for AppState {
             review: AssetReviewCoordinator::default(),
             window_state_persistence_ready: AtomicBool::new(false),
             staged_update: Mutex::new(None),
+            pending_update_notice: Mutex::new(None),
         }
     }
 }
@@ -1609,7 +1614,7 @@ if (window.__horosaReady) {{ window.__horosaReady({url}); }} else {{ window.loca
         window,
         None,
         Some(100),
-        Some("更新准备完成，正在切回新版本。"),
+        Some("已准备就绪，正在进入主界面…"),
         None,
         true,
         Some(false),
@@ -2700,8 +2705,40 @@ fn has_update_complete_marker(app: &AppHandle) -> bool {
         .unwrap_or(false)
 }
 
+/// 修复(更新后卡顿)C①:对 update-complete 标记「读取即消费」。
+/// 检测到刚完成更新时:解析通知文本缓存进 AppState、并**立即删除磁盘标记**——
+/// 这样无论本次更新后首启成功或失败,标记都不会残留,杜绝「首启一旦失败 → 下次启动
+/// 又走 300s 全量校验慢路径」的复发。返回是否为「更新后首次启动」。
+fn consume_update_complete_marker_into_state(app: &AppHandle) -> bool {
+    if !has_update_complete_marker(app) {
+        return false;
+    }
+    // consume_update_complete_notice 在成功读取后会删除标记文件;把通知文本缓存起来,
+    // 待 show_post_update_notice_if_needed 在首启成功后弹窗。
+    let notice = consume_update_complete_notice(app);
+    // 兜底:即便上面解析失败而未删,这里强制再删一次,确保标记绝不残留。
+    if let Ok(marker) = update_complete_marker_path(app) {
+        let _ = fs::remove_file(&marker);
+    }
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(mut slot) = state.pending_update_notice.lock() {
+            *slot = notice;
+        }
+    }
+    true
+}
+
 fn show_post_update_notice_if_needed(app: &AppHandle) {
-    if let Some(message) = consume_update_complete_notice(app) {
+    // 修复(更新后卡顿)C①:通知文本已在 runtime_bootstrap 开头「读取即消费」并缓存进 AppState
+    // (磁盘标记同时删除)。此处从内存取出,保证即便标记早已删除,首启成功后仍能正常弹窗。
+    let cached_notice = app.try_state::<AppState>().and_then(|state| {
+        state
+            .pending_update_notice
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take())
+    });
+    if let Some(message) = cached_notice {
         if load_preferences(app).show_status_notifications {
             show_macos_notification("星阙 已完成更新", "新版已经安装完成，并已重新生效。");
         }
@@ -5378,20 +5415,27 @@ fn runtime_bootstrap(
         }
     }
 
-    let first_launch_after_update = has_update_complete_marker(&app);
+    // 修复(更新后卡顿)C①:标记「读取即消费」——检测到刚更新完即把通知缓存进内存并删除磁盘标记,
+    // 这样无论本次首启成功/失败,标记都不残留 → 杜绝「首启失败后次次都走 300s 全量慢路径」。
+    let first_launch_after_update = consume_update_complete_marker_into_state(&app);
     let first_launch_timeout = if first_launch_after_update {
         Some(300)
     } else {
         None
     };
+    // 提速(更新后卡顿)B:warmup 仅首启触发,且脚本内已改为后台非阻塞预热,不再卡启动;
+    // mongo 为可选服务,一律跳过启动期 ping(mongo 缺席时 ping 会拖满等待)。
+    // 运行时「完整校验」仍由 fast_path_enabled=false 保证(首启必为 false),不被削弱。
     let skip_runtime_warmup = !first_launch_after_update;
     let fast_path_enabled = !first_launch_after_update
         && !force_runtime_install
         && runtime_fast_path_allowed(&paths.runtime_dir);
-    let skip_mongo_ping = fast_path_enabled;
+    let skip_mongo_ping = true;
     if first_launch_after_update {
         emit_status(&window, "检测到刚完成更新，正在执行更新后的首次恢复启动…");
-        emit_progress(&window, 78, "更新后首次恢复启动");
+        // 修复A(更新后卡顿):首启要对刚装好的运行时做完整校验(约 30–60s),用不确定进度
+        // 动画 + 明确文案,避免进度停住被当成「卡死」。
+        emit_indeterminate_progress(&window, 78, "更新后首次启动需完整校验，约 30–60 秒，请稍候…");
         cleanup_state(&app);
         thread::sleep(Duration::from_secs(1));
     }

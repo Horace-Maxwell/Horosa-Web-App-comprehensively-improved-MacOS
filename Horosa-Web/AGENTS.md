@@ -167,6 +167,14 @@ for(const [a23, lzh] of cases){
 
 **release_preflight.sh [7] 哨兵**:`AIAnalysisProxyService.java` 必须同时含 `QueueLog.error(AppLoggers.ErrorLogger` 和 `keep-alive`,任一缺失 → 阻断发布。任何后续 agent 改 AI 分析后端,**先读这两段** 再动手。
 
+### Trap 9. SSE emitter 非线程安全 → 心跳/读流并发写 race(Issue #10,v2.3.1)
+v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,失败自行 `emitter.complete()`)与读流线程(`sendEvent→emitter.send(delta)`)**并发写非线程安全的 `SseEmitter`** → 撞 `ResponseBodyEmitter has already completed`(`sendEvent`)→ 断流(deepseek-reasoner「几句话后停止」)。修法:所有 emitter 写收口到线程安全 `SseChannel`(单锁串行化 + `closed` 幂等 + 关闭后 `send` 返回 false 不抛),**心跳不再自行 complete**(收尾统一在 `chatStream`)。保留 #8 的 `QueueLog.error` + `keep-alive`。
+
+### Trap 10. SSE 标志 `__sse__` 跨请求污染 → 间歇 signature.error 打挂排盘/predict(Issue #10,v2.3.1)
+`TransData.setSSE(true)` 实为 **`request.setAttribute("__sse__", true)`(绑 request 对象,不是 ThreadLocal)**,而 `pureClearTransData()` 只 `.clear()` 五个 ThreadLocal map、**碰不到 request attribute**。Tomcat 池化复用 `HttpServletRequest` 对象 → 上个 SSE 请求残留的 `__sse__=true` 被复用到排盘/`predict` 请求 → `RequestHeaderInterceptor.complete():595` / `afterCompletion:744` 的 `isSSE()` 误判(**且排在可靠的「handler 返回类型是否 `SseEmitter`」判定之前**)→ 响应被当 `text/event-stream` 返回、跳过正常 JSON → 前端 `signature.error`/「本地排盘服务未就绪」/`predict 200 报错`。间歇性取决于对象池复用(失败、一分钟后又成功)。修法:`preHandle` ① 非 `REQUEST` dispatch 早返回(免 async re-dispatch 用空 body 重复验签);② `REQUEST` 进来 `TransData.setSSE(false)` 归零。详见 [`../docs/服务不稳定-SSE并发与签名污染修复-v2.3.1.md`](../docs/服务不稳定-SSE并发与签名污染修复-v2.3.1.md)。
+
+**release_preflight.sh [10] 哨兵**:`AIAnalysisProxyService.java` 必须含 `SseChannel`;`RequestHeaderInterceptor.java` 必须含 `getDispatcherType() != DispatcherType.REQUEST` 早返回 + `TransData.setSSE(false)` 归零。
+
 ---
 
 ## 其他长期注意（与日界点无关，但 agent 进来常错）
@@ -179,3 +187,16 @@ for(const [a23, lzh] of cases){
 - **技法专属算法选项 → 放该技法左栏**（`KinAstroMain` per-技法 state + `<Select>` + prop，镜像参评数 `canpingMethod` / 河洛「取化工法」）；**全局设置 Modal 只放跨技法全局开关**（日界点 / 晚子时）。误放全局设置须回退（v2.3.0 河洛取化工法踩过）。
 - **发布前做过 `git checkout`/`merge`（如 ff `main`）→ 必先重建 `dist-file` + touch/重编 jar，再 `build_desktop_release.sh`**：git 会把切换文件的 mtime 顶到「现在」，让 `package_runtime_payload.sh` 的 freshness guard 误报「dist-file/jar 比源旧」（内容其实是新的）。正确顺序：git branch 操作做完→重建 dist-file→`touch` 两个 jar（内容已确认当前时）。详见 `horosa-dev` skill「Safeguards」章。
 - **改任何 runtime 端点的响应结构 → 必须同步更新 `astrostudyui/scripts/verifyHorosaRuntimeFull.js` 的对应检查**（v2.3.0 踩过：acg 把 `/location/acg` 重写成 `{meta, planets:{<id>:{lines:{asc:[],mc:{lon}}}}, geo, parans}`，但旧 verify 仍按旧 flat 结构取 `objectKeys(acg)[0].asc`→发布验证 `verify_desktop_packaging` 误报「asc 非数组」。端点本身没坏[已过 `validate_acg.py` ]，是验证脚本陈旧。改端点契约的 PR 务必连带更新此验证）。
+
+---
+
+## 桌面外壳 · 更新后启动（v2.3.0 起）
+
+> 机制细节 + 实测见 [`../docs/更新后启动卡顿修复-v2.3.1.md`](../docs/更新后启动卡顿修复-v2.3.0.md)。症状:更新后第一次重启「卡在 100% 很久才进」。
+
+- **`start_horosa_local.sh` 的 pid 检查必须「判存活」不是「判存在」。** 旧逻辑只要 `.horosa_*.pid` 文件在就 `exit 1` —— 上次崩溃/强退留下的死 pid 会**永久误拦截**启动(即坑#2「launcher 残留进程占 :9999」的另一面)。现用 `prune_stale_pid_file`:`kill -0` 探测,死 pid 自动清除再继续。**别把它退回成纯文件存在判断。**
+- **更新「首次启动」走一条故意放慢的全量校验路径**(Tauri `main.rs` `runtime_bootstrap`,由 `update-complete.txt` 标记触发):`trusted_runtime=0` + `fast_path=false` + 300s 超时。完整校验要留,但「等待提示 / warmup / mongo ping / 轮询粒度」是开销不是校验,可削:
+  - warmup 在脚本内**后台非阻塞**(`( … ) >/dev/null 2>&1 &`)——外层必须重定向切断对脚本 stdout/stderr 的继承,否则后台进程持有 Rust `command.output()` 的 pipe,脚本永远「返回不了」。
+  - 轮询 `poll_interval` 与 `trusted_runtime` **解耦**(非 trusted 也用 0.2s)。
+- **更新标记必须「读取即消费」。** `update-complete.txt` 若只在启动**成功**时删,首启一失败就残留 → 下次仍走 300s 慢路径,反复卡。现 `main.rs` 一进 `runtime_bootstrap` 就 `consume_update_complete_marker_into_state`(缓存通知到 `AppState` 后立即删标记),成功后从内存弹「更新完成」窗。
+- 以上四点有 `release_preflight.sh` **[9] 哨兵**兜底,别绕过。
