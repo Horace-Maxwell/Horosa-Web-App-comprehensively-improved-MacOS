@@ -20,6 +20,35 @@
 
 ---
 
+## （待发布·v2.2.2 同批，与 ①–⑤ 合并）task⑥：辅盘新增「卜卦盘 + 择日盘」（西洋断事 + 事件盘存盘）
+
+> ⚠️ macOS 端**已完成、已本地提交、尚未发布**（commit `d2ef43b` @ 分支 `feature/round-tasks-1-5`，52 文件 +4191/−28）。与下面 ①–⑤（`ffd0312`）**合并为同一版本发布**（暂记 v2.2.2，以实际为准）。先登记方便 Windows 同步，不必等发布。
+
+**性质：纯前端（`astrostudyui/src`）零后端。** 本批里同步最简单的一项——**不动 Java/Python、不重编 `astrostudyboot.jar`、不重打 runtime**，只搬前端源码 + 重建前端包。引擎全部消费现成 `/chart` 端点字段（尊贵 / 相位含入出相 / 接纳 / 互容 / 映点 / 月空 / 日时主 / 逆行），前端只补算燃烧·角宫·月相·托勒密过滤 → 零新路由。
+
+**新增 / 改动文件**：
+- 新增目录：`src/divination/{data(17)/engine(9)/horary(6)/election(8)}`、`src/components/{divination/DivinationChartShell, horary/{HoraryMain,HoraryJudgment}, election/{ElectionMain,ElectionJudgment}}`；新增 `src/utils/divinationCaseSave.js`。
+- 改动文件：`src/components/auxchart/AuxChartMain.js`（注册两子盘 TabPane+dock + `componentDidUpdate` 响应 `currentSubTab`）、`src/pages/index.js`（`auxChartTabs` 补全 `harmonic/horary/election`）、`src/utils/aiExport.js`（导出技法+设置+挂载+快照）、`src/utils/localcases.js`（`CASE_TYPE_OPTIONS`+别名加 horary/election）、`src/layouts/app.less`（`:global` 判断卡片 CSS）。
+
+**关键变化（逐条）**：
+1. **卜卦** 右栏 5 tab（裁决/征象/完成/时空/描述）：Sibly71+Dorotheus43+Sahl+Hephaistion+盗窃11步。完成 tab 把所有可能用到的征象摆出供用户自判：**光线传递明确写出「由谁在哪两星间传递」**、月亮的故事（刚离→将会）、相位全览（仅托勒密五相位）、三分法则白话解释。
+2. **择日** 右栏 5 tab（总评/红线/分项/应期/建议）：13 模块 + 红线**中文分级**（严重/较重/中等/轻微）+ 0–100 评分 + 27 用事专属 + 本日逐时/未来14日扫描择优；应期相位名中文化。
+3. **AI 四环节同步**：导出技法 / 导出设置（preset 含「月亮的故事」「相位全览」+ `applyUserSectionFilter` 防旧设置过滤）/ 分析挂载（`module:horary|election`）/ 快照。
+4. **事件盘双向存盘**：Shell「存为事件盘」→ 事件盘库（复用 `astro/openDrawer` caseadd 管道，同六壬）；`CASE_TYPE_OPTIONS`+别名加 horary/election（`tab=auxchart`，否则 `getCaseTypeMeta` 默认落 cnyibu 路由错）；列表 `user/applyCase`（**未改、现成**）→ Shell `applyRestoreIfAny` 拉 `currentCase` 还原时间/地点/类别/设置（caseVersion 防重，六壬式拉取）；**坑**：AuxChartMain 原 `findTab()` 只读 state→加 `componentDidUpdate`(照 CnYiBuMain) 才能被 applyCase 切子盘；`index.js auxChartTabs` 原漏 harmonic/horary/election 已补。Shell 加 `_mounted` 守卫消除异步 setState 告警。
+5. 删除择日右栏本命合参死代码（合参按需求归**中间栏叠盘**，属后续项）。
+
+**Windows 端必做**：
+- ✅ **同步前端源码**（上列新增目录 + 5 个改动文件 + `divinationCaseSave.js`）。纯 JS/LESS，无平台分支。
+- ✅ **重建前端**：`npm run build` 然后 `npm run build:file`（顺序勿并行）。
+- ⏸ **不需重编 `astrostudyboot.jar`**（没动 Java）。
+- ⏸ **不需重打 Python runtime**（没动 `astropy`/`vendor`）。
+
+**验证**：`npx umi-test src/utils/__tests__/localStorageManagement.test.js`（16/16，含覆盖新 case 类型的遍历测试）+ `aiAnalysisSelection.test.js`（3/3）；preview 辅盘 dock 出「卜卦盘/择日盘」→ 起盘出完整圆盘 + 右栏 5 tab；「存为事件盘」→ 事件盘列表见「卜卦/择日」类型 →「应用」切回对应子盘并还原时间/地点/类别；AI 导出选两盘时分段齐全（含月亮的故事/相位全览）。
+
+**机制详见**：[`docs/horary-election-charts.md`](horary-election-charts.md)
+
+---
+
 ## （待发布·随 task⑥ 合并）①–⑤ 修复：AI代理 Issue #9 + 六壬发三传 + 占星右栏空白块 + 风水UI + 快捷dock
 
 > ⚠️ 本节是 macOS 端**已完成、已本地提交但尚未发布**的一轮修复（commit `ffd0312` @ 分支 `feature/round-tasks-1-5`），将与 **task⑥（辅盘加「卜卦盘」「择日盘」，另一 session 做）合并后一起发布**；**版本号待定（暂记 v2.2.2，以合并发布的实际版本为准）**。先在此登记，方便 Windows 同步，不必等发布。
