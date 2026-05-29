@@ -1,16 +1,16 @@
 import { Component } from 'react';
 import { Row, Col } from 'antd';
-import ACG from '../amap/ACG';
+import AcgD3Map, { STYLES } from './AcgD3Map';
+import AcgPointPanel from './AcgPointPanel';
 import request from '../../utils/request';
 import DateTimeInfo from '../comp/DateTimeInfo';
 import * as Constants from '../../utils/constants';
-import { gpsToGcj02,} from '../../utils/helper';
 import AstroLinesSelector from './AstroLinesSelector';
-import { getAllLines, } from './AcgHelper';
+import { getAllLines } from './AcgHelper';
 import { XQButton, XQDrawer } from '../xq-ui';
 
-function fieldsToParams(fields){
-	const params = {
+function fieldsToParams(fields) {
+	return {
 		ad: fields.date.value.ad,
 		date: fields.date.value.format('YYYY/MM/DD'),
 		time: fields.time.value.format('HH:mm:ss'),
@@ -22,25 +22,28 @@ function fieldsToParams(fields){
 		name: fields.name.value,
 		pos: fields.pos.value,
 	};
-
-	return params;
 }
 
-class AstroAcg extends Component{
+class AstroAcg extends Component {
 	constructor(props) {
 		super(props);
-		let lines = getAllLines();
-		let lineset = new Set();
-		for(let i=0; i<lines.length; i++){
-			lineset.add(lines[i]);
-		}
+		const lines = getAllLines();
 
 		this.state = {
-			acgObj: null,
+			acgData: null,
 			drawerVisible: false,
 			lines: lines,
-			linesSet: lineset,
-			useSatellite: false,
+			linesSet: new Set(lines),
+			projection: 'equirect',
+			mapStyle: 'classic',
+			showGeo: true,
+			showLS: false,
+			paranMode: 'off',
+			showLabels: true,
+			pointReport: null,
+			pointOpen: false,
+			pointLoading: false,
+			clickMarker: null,
 		};
 
 		this.unmounted = false;
@@ -48,268 +51,150 @@ class AstroAcg extends Component{
 		this.requestAcg = this.requestAcg.bind(this);
 		this.genParams = this.genParams.bind(this);
 		this.onFieldsChange = this.onFieldsChange.bind(this);
-		this.genLinesData = this.genLinesData.bind(this);
-		this.genPlanetData = this.genPlanetData.bind(this);
-		this.genAscData = this.genAscData.bind(this);
-		this.genMcData = this.genMcData.bind(this);
-		this.getNewLon = this.getNewLon.bind(this);
 		this.closeDrawer = this.closeDrawer.bind(this);
 		this.openDrawer = this.openDrawer.bind(this);
 		this.changeLines = this.changeLines.bind(this);
-		this.changeMapType = this.changeMapType.bind(this);
+		this.toggleProjection = this.toggleProjection.bind(this);
+		this.cycleStyle = this.cycleStyle.bind(this);
+		this.cycleParan = this.cycleParan.bind(this);
+		this.toggle = this.toggle.bind(this);
+		this.onMapClick = this.onMapClick.bind(this);
+		this.closePoint = this.closePoint.bind(this);
 
-		if(this.props.hook){
-			this.props.hook.fun = (rec)=>{
-				if(this.unmounted){
-					return;
-				}
-				let params = this.genParams();
-				this.requestAcg(params);
+		if (this.props.hook) {
+			this.props.hook.fun = () => {
+				if (this.unmounted) return;
+				this.requestAcg(this.genParams());
 			};
 		}
-
 	}
 
-	changeMapType(){
-		let flag = ! this.state.useSatellite;
-		this.setState({
-			useSatellite: flag,
-		});
+	toggleProjection() {
+		this.setState({ projection: this.state.projection === 'equirect' ? 'mercator' : 'equirect' });
 	}
 
-	changeLines(vals){
-		let set = this.state.linesSet;
-		set.clear();
-		for(let i=0; i<vals.length; i++){
-			set.add(vals[i]);
+	cycleStyle() {
+		const keys = Object.keys(STYLES);
+		const i = keys.indexOf(this.state.mapStyle);
+		this.setState({ mapStyle: keys[(i + 1) % keys.length] });
+	}
+
+	cycleParan() {
+		const order = ['off', 'lum', 'all'];
+		const i = order.indexOf(this.state.paranMode);
+		this.setState({ paranMode: order[(i + 1) % order.length] });
+	}
+
+	toggle(key) {
+		this.setState({ [key]: !this.state[key] });
+	}
+
+	changeLines(vals) {
+		this.setState({ lines: vals, linesSet: new Set(vals) });
+	}
+
+	closeDrawer() { this.setState({ drawerVisible: false }); }
+	openDrawer() { this.setState({ drawerVisible: true }); }
+	closePoint() { this.setState({ pointOpen: false }); }
+
+	async requestAcg(params) {
+		const data = await request(`${Constants.ServerRoot}/location/acg`, { body: JSON.stringify(params) });
+		if (this.unmounted) return;
+		this.setState({ acgData: data[Constants.ResultKey] });
+	}
+
+	async onMapClick(lat, lon) {
+		this.setState({ clickMarker: { lat, lon }, pointOpen: true, pointLoading: true });
+		try {
+			const params = { ...this.genParams(), clickLat: lat, clickLon: lon, orb: 2 };
+			const data = await request(`${Constants.ServerRoot}/location/acgpoint`, { body: JSON.stringify(params) });
+			if (this.unmounted) return;
+			this.setState({ pointReport: data[Constants.ResultKey], pointLoading: false });
+		} catch (e) {
+			if (!this.unmounted) this.setState({ pointLoading: false });
 		}
-
-		this.setState({
-			lines: vals,
-			linesSet: set,
-		});
 	}
 
-	closeDrawer(){
-		this.setState({
-			drawerVisible: false,
-		});
-	}
+	genParams() { return fieldsToParams(this.props.fields); }
 
-	openDrawer(){
-		this.setState({
-			drawerVisible: true,
-		});
-	}
-
-	genMcData(ary){
-		let data = [];
-		for(let i=-90; i<=90; i++){
-			let pnt = gpsToGcj02(i, ary[0].lon);
-			let pt = [pnt.lon, pnt.lat];
-			data.push(pt);
+	onFieldsChange(values) {
+		if (this.props.onChange) {
+			const flds = this.props.onChange(values);
+			this.requestAcg(fieldsToParams(flds));
 		}
-		return [data];
 	}
 
-	getNewLon(pnt, org){
-		let lon = 0;
-		let delta = 0;
-		if((pnt.lon <= 0 && org.lon <= 0) || (pnt.lon >= 0 && org.lon >= 0)){
-			delta = pnt.lon - org.lon;
-		}else{
-			if(pnt.lon > 0){
-				delta = pnt.lon - org.lon;
-			}else{
-				delta = 360 + pnt.lon - org.lon;
-			}
-		}
-		lon = org.lon - delta;
-		if(Math.abs(lon) > 180){
-			if(lon < 0){
-				lon = 360 + lon;
-			}else{
-				lon = lon - 360;
-			}
-		}
-		return lon;
-	}
-
-	genAscData(ary){
-		let dt = [];
-		let sym = -1;
-		let ascdata = [];
-		let org = ary[1];
-		for(let i=ary.length - 1; i>1; i--){
-			let pnt = ary[i];
-			let lon = this.getNewLon(pnt, org);
-			let gdpnt = gpsToGcj02(-pnt.lat, lon);
-			if(Math.abs(gdpnt.lon) > 180){
-				if(gdpnt.lon < 0){
-					gdpnt.lon = 360 + gdpnt.lon;
-				}else{
-					gdpnt.lon = 360 - gdpnt.lon;
-				}
-			}
-			let pt = [gdpnt.lon, gdpnt.lat];
-			if(i === ary.length - 1){
-				if(pt[0] < 0){
-					sym = -1;
-				}else{
-					sym = 1;
-				}
-				ascdata.push(pt);
-			}else{
-				if((sym<0 && pt[0]<0) || (sym>0 && pt[0]>=0)){
-					ascdata.push(pt);
-				}else{
-					dt.push(ascdata);
-					sym = -1 * sym;
-					ascdata = [pt];
-				}
-			}
-		}
-		for(let i=1; i<ary.length; i++){
-			let pnt = ary[i];
-			let gdpnt = gpsToGcj02(pnt.lat, pnt.lon);
-			if(Math.abs(gdpnt.lon) > 180){
-				if(gdpnt.lon < 0){
-					gdpnt.lon = 360 + gdpnt.lon;
-				}else{
-					gdpnt.lon = 360 - gdpnt.lon;
-				}
-			}
-			let pt = [gdpnt.lon, gdpnt.lat];
-			if((sym<0 && pt[0]<0) || (sym>0 && pt[0]>=0)){
-				ascdata.push(pt);
-			}else{
-				dt.push(ascdata);
-				sym = -1 * sym;
-				ascdata = [pt];
-			}
-		}
-		dt.push(ascdata);
-		return dt;
-	}
-
-	genPlanetData(planet, key){
-		let ascdata = this.genAscData(planet.asc);
-		let descdata = this.genAscData(planet.desc);
-		let mcdata = this.genMcData(planet.mc);
-		let icdata = this.genMcData(planet.ic);
-		let res = {
-			asc: ascdata,
-			desc: descdata,
-			mc: mcdata,
-			ic: icdata,
-			key: key,
-		}
-		return res;
-	}
-
-	genLinesData(rec){
-		let res = {};
-		for(let key in rec){
-			let planet = rec[key]
-			res[key] = this.genPlanetData(planet, key);
-		}
-		return res;
-	}
-
-	async requestAcg(params){
-		const data = await request(`${Constants.ServerRoot}/location/acg`, {
-			body: JSON.stringify(params),
-		});
-		const result = data[Constants.ResultKey]
-		let lines = this.genLinesData(result);
-		const st = {
-			acgObj: lines,
-		};
-
-		this.setState(st);
-	}
-
-	genParams(){
-		let fields = this.props.fields;
-		let params = fieldsToParams(fields);
-		return params;
-	}
-
-	onFieldsChange(values){
-		if(this.props.onChange){
-			let flds = this.props.onChange(values);
-			let params = fieldsToParams(flds);
-			this.requestAcg(params);
-		}		
-	}
-
-	componentDidMount(){
+	componentDidMount() {
 		this.unmounted = false;
-
-		let params = this.genParams();
-		this.requestAcg(params);
+		this.requestAcg(this.genParams());
 	}
 
-	componentWillUnmount(){
-		this.unmounted = true;
-	}
+	componentWillUnmount() { this.unmounted = true; }
 
-	render(){
-		let acgObj = this.state.acgObj;
-		let fields = this.props.fields;
+	render() {
+		const fields = this.props.fields;
 		let height = this.props.height ? this.props.height : 760;
 		height = height - 50;
-
-		let dt = fields.date ? fields.date.value : null;
-
-		let btnSateTitle = '显示卫星地图';
-		if(this.state.useSatellite){
-			btnSateTitle = '隐藏卫星地图'
-		}
+		const dt = fields.date ? fields.date.value : null;
+		const s = this.state;
+		const btn = (label, onClick, active) => (
+			<XQButton size="small" type={active ? 'primary' : 'default'} style={{ marginLeft: 8 }} onClick={onClick}>{label}</XQButton>
+		);
 
 		return (
 			<div className="horosa-acg-page xq-chart-renderer xq-chart-renderer-locastro">
-				<Row>
-					<Col span={16}>
-						<DateTimeInfo  
-							value={dt} 
-						/>
+				<Row align="middle">
+					<Col span={7}>
+						<DateTimeInfo value={dt} />
 					</Col>
-					<Col span={4} style={{textAlign:'right', marginBottom: 10}}>
-						<XQButton size='small' onClick={this.openDrawer}>行星线选择</XQButton>
+					<Col span={17} style={{ textAlign: 'right', marginBottom: 10 }}>
+						<XQButton size="small" onClick={this.openDrawer}>行星线选择</XQButton>
+						{btn(s.showGeo ? '参考线开' : '参考线关', () => this.toggle('showGeo'), s.showGeo)}
+						{btn(s.showLS ? '本地空间开' : '本地空间', () => this.toggle('showLS'), s.showLS)}
+						{btn(s.paranMode === 'all' ? 'Parans·全部' : s.paranMode === 'lum' ? 'Parans·日月' : 'Parans', this.cycleParan, s.paranMode !== 'off')}
+						{btn(s.showLabels ? '标注开' : '标注关', () => this.toggle('showLabels'), s.showLabels)}
+						{btn(s.projection === 'equirect' ? '等距投影' : '墨卡托', this.toggleProjection, false)}
+						{btn('样式·' + ((STYLES[s.mapStyle] && STYLES[s.mapStyle].name) || ''), this.cycleStyle, false)}
 					</Col>
 				</Row>
 				<Row>
 					<Col span={24}>
-						<ACG 
-							value={acgObj} 
-							fields={fields} 
-							height={height} 
-							lines={this.state.linesSet}
-							useSatellite={this.state.useSatellite}
+						<AcgD3Map
+							value={s.acgData}
+							fields={fields}
+							height={height}
+							lines={s.linesSet}
+							projection={s.projection}
+							mapStyle={s.mapStyle}
+							showGeo={s.showGeo}
+							showLS={s.showLS}
+							showParans={s.paranMode !== 'off'}
+							paranAll={s.paranMode === 'all'}
+							showLabels={s.showLabels}
+							clickMarker={s.clickMarker}
+							onMapClick={this.onMapClick}
 						/>
 					</Col>
 				</Row>
 
 				<XQDrawer
-					title='行星线选择'
+					title="行星线选择"
 					width={500}
 					placement="left"
 					onClose={this.closeDrawer}
 					maskClosable={true}
-					open={this.state.drawerVisible}
-					style={{
-						height: 'calc(100% - 0px)',
-						overflow: 'auto',
-						paddingBottom: 53,
-						backgroundColor: 'transparent',
-					}}        
+					open={s.drawerVisible}
+					style={{ height: 'calc(100% - 0px)', overflow: 'auto', paddingBottom: 53, backgroundColor: 'transparent' }}
 				>
-					<AstroLinesSelector 
-						value={this.state.lines}
-						onChange={this.changeLines}
-					/>
+					<AstroLinesSelector value={s.lines} onChange={this.changeLines} />
 				</XQDrawer>
+
+				<AcgPointPanel
+					open={s.pointOpen}
+					loading={s.pointLoading}
+					report={s.pointReport}
+					onClose={this.closePoint}
+				/>
 			</div>
 		);
 	}

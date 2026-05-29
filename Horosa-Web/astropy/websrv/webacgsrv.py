@@ -29,4 +29,23 @@ class AcgSrv:
             }
             return jsonpickle.encode(obj, unpicklable=False)
 
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
+    def acgpoint(self):
+        enable_crossdomain()
+        try:
+            data = cherrypy.request.json
+            acg = ACGraph(data)
+            orb = float(data.get('orb', 2.0))
+            obj = acg.pointReport(float(data['clickLat']), float(data['clickLon']), orb)
+            res = jsonpickle.encode(obj, unpicklable=False)
+            return res
+        except:
+            traceback.print_exc()
+            obj = {
+                'err': 'param error'
+            }
+            return jsonpickle.encode(obj, unpicklable=False)
+
 

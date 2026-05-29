@@ -20,6 +20,30 @@
 
 ---
 
+## （待发布·分支 `feature/acg-map-upgrade`）占星地图（ACG / 地理占星）全面升级
+
+> ⚠️ macOS 端**已本地提交、尚未发布**（分支 `feature/acg-map-upgrade`）。机制细节见
+> [`acg-map-地理占星.md`](acg-map-地理占星.md)。先登记方便 Windows 同步。
+
+**性质：前端 + Python + Java 都动了 → Windows 必须重编 `astrostudyboot.jar`。**
+辅盘「占星地图」(`locastro`) 从旧的高德地图 + 迭代搜经度，整体换成 **D3-geo + 内置 GeoJSON + 赤经/赤纬解析法**。
+
+**改动文件（都在 `Horosa-Web/`）**：
+- Python：`astropy/astrostudy/acg/ACGraph.py`（重写为解析法：GMST=`sidtime`、RA/Dec=`cotrans` 真交角、四轴线全球连续+极区闭合到 MC/IC、地理参考线、Parans、Local Space、落点 `pointReport`；横线多点采样）；`astropy/websrv/webacgsrv.py`（新增 `acgpoint`）。
+- Java：`controller/AcgController.java`（新增 `/location/acgpoint`）、`helper/AstroHelper.java`（`getAcg` 改 `requestNoCache` + 新增 `getAcgPoint`）。
+- 前端：`astrostudyui/src/components/acg/` 改 `AstroAcg.js`，新增 `AcgD3Map.js`、`AcgPointPanel.js`、`interpretations.zh.js`、`world.geo.json`（Natural Earth 110m 开源国界，约 168KB，随源码走）。
+
+**Windows 必做**：
+1. **重编 `astrostudyboot.jar`**（动了 Java；JDK17：`mvn -f astrostudy/pom.xml install -DskipTests` → `mvn -f astrostudyboot/pom.xml clean package -DskipTests`，`clean` 必须）。
+2. **重建前端**：`npm run build` 然后 `npm run build:file`（顺序，勿并行）。`world.geo.json` 会被打进包。
+3. 无新增 npm/Python 依赖，无新端口（`acgpoint` 复用 `/location` 挂载）。
+
+**验证**：辅盘→占星地图：四轴线平滑连贯（极区钩子闭合、跨180°不留缝）、白底/深底胶囊标注随明暗主题反色且**字形无描边**、参考线（赤道/黄道/回归线）可见、Parans 三态（关/日月/全部）、点击地图出落点分析；明暗主题切换地图跟随。
+
+**关键坑（同步时照搬，勿"优化"掉）**：① 整宽横线必须多点采样（两点 `[-180..180]` 会被 d3 裁成点）；② 标注字形必须 inline `style('stroke','none')` 覆盖全局 `text{stroke}`（presentation 属性无效）；③ `getAcg` 必须 `requestNoCache`（否则改后端后同盘命中旧缓存）。详见技术文档。
+
+---
+
 ## （待发布·v2.2.2 同批，与 ①–⑤ 合并）task⑥：辅盘新增「卜卦盘 + 择日盘」（西洋断事 + 事件盘存盘）
 
 > ⚠️ macOS 端**已完成、已本地提交、尚未发布**（commit `d2ef43b` @ 分支 `feature/round-tasks-1-5`，52 文件 +4191/−28）。与下面 ①–⑤（`ffd0312`）**合并为同一版本发布**（暂记 v2.2.2，以实际为准）。先登记方便 Windows 同步，不必等发布。
