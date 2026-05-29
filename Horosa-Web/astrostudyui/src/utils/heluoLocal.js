@@ -79,6 +79,9 @@ function wuJiGong(minguoYear, yangGan, isMale) {
 	return isMale ? '離' : '兌';                               // 下元
 }
 
+// 爻位往上一爻（环行：上爻 6→初爻 1）。供 流年/流月 链式累变（liuNian/liuYue）用。
+function nextPos(p) { return (p % 6) + 1; }
+
 // ── 起元堂（动爻 1-6）──
 // 阳时数本卦阳爻、阴时数阴爻；自下而上，count≤3 重数(M+M)再寄(O)，count≥4 直排(M+O)。
 function yuanTang(lines, hourZhi, isMale, gua) {
@@ -228,7 +231,7 @@ export function liuNian(seg, birthYear = 0) {
 			gua: linesToGua(ln).name, lines: ln.slice(), pos,
 		});
 	};
-	const up1 = (p) => (p % 6) + 1;   // 往上一爻：上爻(6)→初爻(1)
+	const up1 = nextPos;   // 往上一爻：上爻(6)→初爻(1)
 	if (seg.yang) {
 		const firstYangYear = birthYear ? isYangYear(yearOf(0)) : true;
 		if (!firstYangYear) { lines = flipLine(lines, seg.pos); }   // 阴年首年变元堂，阳年首年不变
@@ -307,13 +310,15 @@ const JIEQI_QUARTER = {
 	冬至: '坎', 小寒: '坎', 大寒: '坎', 立春: '坎', 雨水: '坎', 驚蟄: '坎', 惊蛰: '坎',
 };
 // prevJieQiName=出生当下所处节气名；tuyong=是否在四立前18日土用内。返回 {hg:[],fh:[]} 化工/反化工候选。
-export function solarTermHuagong(prevJieQiName, tuyong) {
+export function solarTermHuagong(prevJieQiName, tuyong, opts = {}) {
 	const q = JIEQI_QUARTER[prevJieQiName] || null;
 	const base = (q && QUARTER_HG[q]) || { hg: '', fh: '' };
 	const hg = base.hg ? [base.hg] : [];
 	const fh = base.fh ? [base.fh] : [];
-	if (tuyong) { hg.push('坤', '艮'); fh.push('乾', '兌'); }
-	return { hg, fh, quarter: q, tuyong: !!tuyong };
+	// 取化工法：土王寄坤艮(默认)=土用期(四立前十八日)补 坤艮/反乾兑；直取四方伯=只取四方伯卦、不列坤艮。
+	const siFangBoOnly = opts.quHuaGong === 'siFangBoOnly';
+	if (!siFangBoOnly && tuyong) { hg.push('坤', '艮'); fh.push('乾', '兌'); }
+	return { hg, fh, quarter: q, tuyong: siFangBoOnly ? false : !!tuyong };
 }
 const MONTH_HG = { 卯: ['震'], 辰: ['震'], 午: ['離'], 未: ['離'], 酉: ['兌'], 戌: ['兌'], 子: ['坎'], 丑: ['坎'], 寅: ['坤', '艮'], 巳: ['坤', '艮'], 申: ['坤', '艮'], 亥: ['坤', '艮'] };
 const MONTH_FH = { 卯: ['巽'], 辰: ['巽'], 午: ['坎'], 未: ['坎'], 酉: ['艮'], 戌: ['艮'], 子: ['離'], 丑: ['離'], 寅: ['乾', '兌'], 巳: ['乾', '兌'], 申: ['乾', '兌'], 亥: ['乾', '兌'] };
@@ -506,6 +511,91 @@ export function chartExtras(chart, fourPillars, monthZhi, jg, opts = {}) {
 		duiHou: duiGua(chart.hou.name),
 		nayin, benWei, sanhou: opts.sanhou || '',
 	};
+}
+
+// ── 命运篇·补充判断（依《河洛理数》详论阴阳二数 / 看命大法 / 眾宗 / 顺反数）──
+// G1 阴阳二数·命名分类：以(天数-25, 地数-30)两符号定九宫主名，另附 per 轴轻重(至弱/不足/太过)。
+const ERSHU_GRID = {
+	'0,0': '安和自寧', '1,0': '孤陽背陰', '0,1': '孤陰背陽',
+	'-1,0': '有陰無陽', '0,-1': '有陽無陰', '-1,-1': '天地俱羸',
+	'1,1': '陰陽相戰', '1,-1': '以強扶弱', '-1,1': '以弱敵強',
+};
+function cmpSign(v, nat) { return v === nat ? 0 : (v > nat ? 1 : -1); }
+export function classifyErShu(tian, di) {
+	const primary = ERSHU_GRID[`${cmpSign(tian, 25)},${cmpSign(di, 30)}`] || '';
+	const severity = [];
+	if (tian <= 8) severity.push('天數至弱'); else if (tian < 25) severity.push('天數不足'); else if (tian >= 40) severity.push('天數太過');
+	if (di <= 12) severity.push('地數至弱'); else if (di < 30) severity.push('地數不足'); else if (di >= 50) severity.push('地數太過');
+	return { primary, severity };
+}
+
+// G4 眾宗/眾疾：先天卦若一爻独居(5:1)，元堂坐独爻=眾宗(吉)，否则眾疾(凶)；非 5:1 不适用。
+export function zhongZong(lines, yuanPos) {
+	const yang = lines.filter((b) => b === 1).length;
+	if (yang === 1) return lines[yuanPos - 1] === 1 ? '眾宗' : '眾疾';
+	if (yang === 5) return lines[yuanPos - 1] === 0 ? '眾宗' : '眾疾';
+	return '';
+}
+
+// G3 顺/反数领命：领命数=天地数较大者；阳令宜阳(天)数领、阴令宜阴(地)数领→顺，否则反。
+export function shunFanShu(tian, di, yangLing) {
+	const lingming = tian >= di ? '天' : '地';
+	const shun = yangLing ? (tian >= di) : (di > tian);
+	return { lingming, shun, label: `${lingming}數領命·${shun ? '順數' : '反數'}` };
+}
+// G3 季节适宜范围（《河洛理数》男女阴阳季节之别表）：季→天/地宜区间
+const SEASON_RANGE = {
+	春: { tian: [25, 35], di: [30, 35] }, 夏: { tian: [25, 50], di: [0, 30] },
+	秋: { tian: [0, 25], di: [30, 50] }, 冬: { tian: [0, 20], di: [35, 60] },
+};
+export function seasonFit(tian, di, season) {
+	const r = SEASON_RANGE[season];
+	if (!r) return null;
+	const fit = (v, lohi) => (v < lohi[0] ? '偏低' : (v > lohi[1] ? '偏高' : '合'));
+	return { season, tian: fit(tian, r.tian), di: fit(di, r.di), range: r };
+}
+
+// G5 正对/反对体 凶警示：两卦六爻全变(正对体·错)或综(反对体·覆) → 不吉。
+export function isXiongPair(linesA, linesB) {
+	if (!Array.isArray(linesA) || !Array.isArray(linesB)) return '';
+	const eq = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+	if (eq(linesA, linesB)) return '';   // 同卦不算正/反对体（乾坤坎离等自为综，须排除）
+	if (eq(linesA, cuoLines(linesB))) return '正對體';
+	if (eq(linesA, fuLines(linesB))) return '反對體';
+	return '';
+}
+
+// G2 看命大法·命格综合评分：吉项/凶项各 12，计数定命格档（依《河洛理数》看命大法三）。
+function jiGrade(n) {
+	if (n >= 12) return '富貴福壽·五福全'; if (n >= 10) return '將相命';
+	if (n >= 8) return '貴命'; if (n >= 6) return '富命'; if (n >= 4) return '吉命'; return '';
+}
+function xiongGrade(n) {
+	if (n >= 12) return '斬戮命'; if (n >= 10) return '夭橫凶禍命';
+	if (n >= 8) return '貧賤命'; if (n >= 6) return '孤獨命'; if (n >= 4) return '流枝藝命'; return '';
+}
+export function mingGe(chart, jg) {
+	const x = chart.xian;
+	const gv = ((guaInfo(x.name) || {}).verdict) || '';
+	const yt = yaoText(x.name, x.yuan) || {};
+	const yv = yt.verdict || '';
+	const zz = zhongZong(x.lines, x.yuan);
+	const shun = shunFanShu(chart.tian, chart.di, chart.yangLing).shun;
+	const ji = [
+		['卦義吉', gv === '吉'], ['爻辭吉', yv === '吉'], ['爻位吉', x.yuan === 2 || x.yuan === 5],
+		['當位', !!jg.yuanTang.dangWei], ['有應', !!jg.yuanTang.youYing], ['眾宗', zz === '眾宗'],
+		['得元氣', jg.yuan.tian.present || jg.yuan.di.present], ['得化氣', jg.huagong.present.length > 0],
+		['得時', !!jg.deTime], ['得勢', !!jg.deSheng], ['得體', !!jg.deTi.present], ['數順時', shun],
+	];
+	const xiong = [
+		['卦義凶', gv === '凶'], ['爻辭凶', yv === '凶'], ['爻位凶', x.yuan === 1 || x.yuan === 6],
+		['不當位', !jg.yuanTang.dangWei], ['無應', !jg.yuanTang.youYing], ['眾疾', zz === '眾疾'],
+		['反元氣', jg.fanYuan.tian.present || jg.fanYuan.di.present], ['反化氣', jg.fanhua.present.length > 0],
+		['不得時', !jg.deTime], ['不得勢', !jg.deSheng], ['不得體', !jg.deTi.present], ['數逆時', !shun],
+	];
+	const jiHit = ji.filter((r) => r[1]).map((r) => r[0]);
+	const xiongHit = xiong.filter((r) => r[1]).map((r) => r[0]);
+	return { jiHit, xiongHit, jiCount: jiHit.length, xiongCount: xiongHit.length, jiGe: jiGrade(jiHit.length), xiongGe: xiongGrade(xiongHit.length) };
 }
 
 // 爻辞查找：本卦元堂(动爻)之爻辞
