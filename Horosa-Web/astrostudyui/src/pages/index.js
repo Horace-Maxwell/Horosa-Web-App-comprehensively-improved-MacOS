@@ -218,7 +218,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
 
         const cnTraditionTabs = ['guasym', 'cuangong12', 'pithy'];
         const cnYiBuTabs = ['suzhan', 'jinkou', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu'];
-        const auxChartTabs = ['germanytech', 'hellenastro', 'locastro', 'otherbu'];
+        const auxChartTabs = ['germanytech', 'hellenastro', 'locastro', 'harmonic', 'otherbu', 'horary', 'election'];
         let nextSubTab = null;
         if(key === 'cntradition'){
             nextSubTab = cnTraditionTabs.indexOf(currentSubTab) >= 0 ? currentSubTab : 'guasym';

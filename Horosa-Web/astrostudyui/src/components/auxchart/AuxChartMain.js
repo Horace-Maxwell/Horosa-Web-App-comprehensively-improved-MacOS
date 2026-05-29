@@ -7,15 +7,19 @@ import HellenAstroMain from '../hellenastro/HellenAstroMain';
 import LocAstroMain from '../loc/LocAstroMain';
 import OtherBuMain from '../otherbu/OtherBuMain';
 import AstroHarmonicLab from './AstroHarmonicLab';
+import HoraryMain from '../horary/HoraryMain';
+import ElectionMain from '../election/ElectionMain';
 
 const TabPane = Tabs.TabPane;
-const AUX_TABS = ['germanytech', 'hellenastro', 'locastro', 'harmonic', 'otherbu'];
+const AUX_TABS = ['germanytech', 'hellenastro', 'locastro', 'harmonic', 'otherbu', 'horary', 'election'];
 const AUX_QUICK_ACTIONS = [
 	{ key: 'germanytech', label: '量化盘', icon: 'quickPrimary' },
 	{ key: 'hellenastro', label: '十三分盘', icon: 'astro' },
 	{ key: 'locastro', label: '占星地图', icon: 'locastro' },
 	{ key: 'harmonic', label: '调波盘', icon: 'quickTransit' },
 	{ key: 'otherbu', label: '骰子', icon: 'quickAi' },
+	{ key: 'horary', label: '卜卦盘', icon: 'liuyao' },
+	{ key: 'election', label: '择日盘', icon: 'calendar' },
 ];
 
 class AuxChartMain extends Component{
@@ -35,15 +39,21 @@ class AuxChartMain extends Component{
 				hellenastro:{
 					fun: null
 				},
-					locastro:{
-						fun: null
-					},
-					harmonic:{
-						fun: null
-					},
-					otherbu:{
-						fun: null
-					},
+				locastro:{
+					fun: null
+				},
+				harmonic:{
+					fun: null
+				},
+				otherbu:{
+					fun: null
+				},
+				horary:{
+					fun: null
+				},
+				election:{
+					fun: null
+				},
 			},
 		};
 
@@ -86,6 +96,18 @@ class AuxChartMain extends Component{
 				});
 			}
 		});
+	}
+
+	// 外部（如从事件盘列表 applyCase 还原卜卦/择日案例）改动 currentSubTab 时，切到对应子盘。
+	componentDidUpdate(prevProps){
+		if(prevProps.currentSubTab !== this.props.currentSubTab){
+			const key = this.props.currentSubTab;
+			if(AUX_TABS.indexOf(key) >= 0 && key !== this.state.currentTab){
+				this.setState({ currentTab: key }, ()=>{
+					this.callCurrentHook(this.props.fields, this.props.chart);
+				});
+			}
+		}
 	}
 
 	renderQuickDock(tab){
@@ -171,21 +193,21 @@ class AuxChartMain extends Component{
 								hook={this.state.hook.locastro}
 								dispatch={this.props.dispatch}
 							/>
-							</TabPane>
+						</TabPane>
 
-							<TabPane tab="调波盘" key="harmonic">
-								<AstroHarmonicLab
-									value={this.props.chart}
-									height={childHeight}
-									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									showAstroMeaning={this.props.showAstroMeaning}
-								/>
-							</TabPane>
-	
-							<TabPane tab="骰子" key="otherbu">
-								<OtherBuMain
+						<TabPane tab="调波盘" key="harmonic">
+							<AstroHarmonicLab
+								value={this.props.chart}
+								height={childHeight}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+						</TabPane>
+
+						<TabPane tab="骰子" key="otherbu">
+							<OtherBuMain
 								height={childHeight}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}
@@ -194,6 +216,34 @@ class AuxChartMain extends Component{
 								lotsDisplay={this.props.lotsDisplay}
 								showAstroMeaning={this.props.showAstroMeaning}
 								hook={this.state.hook.otherbu}
+								dispatch={this.props.dispatch}
+							/>
+						</TabPane>
+
+						<TabPane tab="卜卦盘" key="horary">
+							<HoraryMain
+								fields={this.props.fields}
+								fieldsAry={this.props.fieldsAry}
+								height={childHeight}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.horary}
+								dispatch={this.props.dispatch}
+							/>
+						</TabPane>
+
+						<TabPane tab="择日盘" key="election">
+							<ElectionMain
+								fields={this.props.fields}
+								fieldsAry={this.props.fieldsAry}
+								height={childHeight}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.election}
 								dispatch={this.props.dispatch}
 							/>
 						</TabPane>
