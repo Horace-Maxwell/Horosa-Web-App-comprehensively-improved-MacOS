@@ -147,8 +147,17 @@ if [ -f "${MAINRS}" ]; then
   else
     bad "main.rs 缺 v2.3.2 预写 fast-path 标记修复 —— 更新后首启回到冷全量、强退反复(见 docs/更新后自启修复-v2.3.2.md)"
   fi
+  # E (2.4.0 重发·真因哨兵):首启分支**删掉 cleanup_state** —— 它会 `web_shutdown.store(true)` 关掉本次刚
+  # `start_static_server` 起的静态服务器(web_port)→ `emit_ready` 导航的 `frontend_url` 连不上 → 卡启动页/
+  # 进不了主界面/按钮死(真机实测真因,前两次误诊弹框/慢校验都没修好)。grep 修复说明注释(cargo fmt 不拆)。
+  # 真因详见 docs/更新后卡启动页-真因cleanup_state误杀静态服务器-v2.4.0.md。**铁律:首启 start_static_server 后绝不调会触发 web_shutdown 的清理。**
+  if grep -q "误杀静态服务器" "${MAINRS}"; then
+    ok "E 首启分支不调 cleanup_state(真因修复·静态服务器不被误杀)"
+  else
+    bad "main.rs 缺「误杀静态服务器」修复说明/铁律 —— 首启分支若(再)调 cleanup_state 会关掉静态服务器致更新后卡启动页(见 docs/更新后卡启动页-真因cleanup_state误杀静态服务器-v2.4.0.md)"
+  fi
 else
-  warn "main.rs 不存在,跳过更新卡顿哨兵(C①/A/D)"
+  warn "main.rs 不存在,跳过更新卡顿哨兵(C①/A/D/E)"
 fi
 if [ -f "${STARTSH}" ]; then
   grep -q "prune_stale_pid_file" "${STARTSH}" \
