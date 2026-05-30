@@ -14,11 +14,13 @@ Append new entries; do not rewrite history.
 
 ## 2026-05-29
 
-### v2.4.1：热修「更新后卡启动页 / 不进主界面 /「进入主界面」按钮点不动」(模态弹框阻塞导航)
+### v2.4.0（重发补丁,版本号不变）：热修「更新后卡启动页 / 不进主界面 /「进入主界面」按钮点不动」(模态弹框阻塞导航)
+
+> 发布后真机发现 2.4.0 的弹框阻塞 bug,**版本号保持 2.4.0、覆盖重发原 GitHub release**(非 2.4.1)。
 
 - Scope: 真机发现 2.4.0 更新后卡在「正在进入主界面」、不导航、按钮死。真因:首启成功后 `emit_ready`(注入 `window.location.replace` 导航 JS)紧跟 `show_post_update_notice_if_needed` 的**阻塞式 `MessageDialog`**,macOS 上 NSAlert 在主线程抢嵌套 run loop、赶在导航 JS 前冻结 webview。**v2.4.0 快路径修复让首启时序变紧→这条 race 从偶发变必现**(原 v2.3.2 只修「慢」未碰「卡」)。修法:移除首启关键路径上的模态框,只留非阻塞 macOS 通知。**铁律:首启 emit_ready 后、导航完成前不做任何模态阻塞。**
-- Files: `Horosa_Desktop_Installer/src-tauri/src/main.rs`(`show_post_update_notice_if_needed`)。版本锁步 `2.4.1 / 2.4.1-runtime1`。文档 `docs/更新后卡启动页-模态弹窗阻塞导航修复-v2.4.1.md` + `config/release_notes/2.4.1.md` + `windows-sync-handoff.md`。**纯 Tauri 外壳,不涉 jar / 前端 / Python(无需重编)。**
-- Verification: `cargo fmt` + `cargo check` 绿;`MessageDialog` import 仍被错误框等其它路径用、无 unused 警告。需 mac 真机:装 2.4.0→发 2.4.1→更新后应直接自动进主界面。
+- Files: `Horosa_Desktop_Installer/src-tauri/src/main.rs`(`show_post_update_notice_if_needed`)。**版本号不变 2.4.0 / 2.4.0-runtime1**。文档 `docs/更新后卡启动页-模态弹窗阻塞导航修复-v2.4.0.md` + `config/release_notes/2.4.0.md`(补弹框修复条)+ `windows-sync-handoff.md`。**纯 Tauri 外壳,不涉 jar / 前端 / Python(无需重编)。**
+- Verification: `cargo fmt` + `cargo check` 绿;`MessageDialog` import 仍被错误框等其它路径用、无 unused 警告。需 mac 真机:覆盖重发 2.4.0→已装 2.4.0 用户经软件内更新(或重装)→更新后应直接自动进主界面。
 
 ### v2.4.0：西占技法批量补全(6 技法全链路 AI) + 更新后自启修复 + orbs 随命盘存档
 
