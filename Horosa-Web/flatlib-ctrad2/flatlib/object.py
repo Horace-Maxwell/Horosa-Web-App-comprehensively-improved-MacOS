@@ -135,7 +135,12 @@ class Object(GenericObject):
     
     def orb(self):
         """ Returns the orb of this object. """
-        return props.object.orb[self.id]
+        ov = getattr(self, '_orbOverride', None)
+        if ov is not None:
+            return ov
+        base = props.object.orb[self.id]
+        sc = getattr(self, '_orbScale', None)
+        return base * sc if sc is not None else base
     
     def meanMotion(self):
         """ Returns the mean daily motion of this object. """

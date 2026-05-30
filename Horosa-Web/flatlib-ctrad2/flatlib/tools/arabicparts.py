@@ -37,6 +37,12 @@ PARS_MERCURY = 'Pars Mercury'
 PARS_HORSEMANSHIP = 'Pars Horsemanship'  # aka Bravery
 PARS_LIFE = 'Pars Life'
 PARS_RADIX = 'Pars Radix'
+# 赫尔墨斯七界点（Hermetic Lots，除福点/精神点外）
+PARS_EROS = 'Pars Eros'
+PARS_NECESSITY = 'Pars Necessity'
+PARS_COURAGE = 'Pars Courage'
+PARS_VICTORY = 'Pars Victory'
+PARS_NEMESIS = 'Pars Nemesis'
 
 LIST_PARS = [
     PARS_SPIRIT,
@@ -60,7 +66,12 @@ LIST_PARS = [
     PARS_MERCURY,
     PARS_HORSEMANSHIP,
     PARS_LIFE,
-    PARS_RADIX
+    PARS_RADIX,
+    PARS_EROS,
+    PARS_NECESSITY,
+    PARS_COURAGE,
+    PARS_VICTORY,
+    PARS_NEMESIS
 ]
 
 
@@ -182,6 +193,33 @@ FORMULAS[PARS_LIFE] = [
 FORMULAS[PARS_RADIX] = [
     [const.MOON, const.SYZYGY, const.ASC],
     [const.MOON, const.SYZYGY, const.ASC]
+]
+
+# 赫尔墨斯界点（c + b − a；昼/夜反置）。标准公式（Paulus / R.Hand）：
+# 爱欲 Eros 日=Asc+精神−金星  夜=Asc+金星−精神
+FORMULAS[PARS_EROS] = [
+    [const.VENUS, PARS_SPIRIT, const.ASC],
+    [PARS_SPIRIT, const.VENUS, const.ASC]
+]
+# 必然 Necessity 日=Asc+福点−水星  夜=Asc+水星−福点
+FORMULAS[PARS_NECESSITY] = [
+    [const.MERCURY, const.PARS_FORTUNA, const.ASC],
+    [const.PARS_FORTUNA, const.MERCURY, const.ASC]
+]
+# 勇气 Courage 日=Asc+福点−火星  夜=Asc+火星−福点
+FORMULAS[PARS_COURAGE] = [
+    [const.MARS, const.PARS_FORTUNA, const.ASC],
+    [const.PARS_FORTUNA, const.MARS, const.ASC]
+]
+# 胜利 Victory 日=Asc+精神−木星  夜=Asc+木星−精神
+FORMULAS[PARS_VICTORY] = [
+    [const.JUPITER, PARS_SPIRIT, const.ASC],
+    [PARS_SPIRIT, const.JUPITER, const.ASC]
+]
+# 报应 Nemesis 日=Asc+福点−土星  夜=Asc+土星−福点
+FORMULAS[PARS_NEMESIS] = [
+    [const.SATURN, const.PARS_FORTUNA, const.ASC],
+    [const.PARS_FORTUNA, const.SATURN, const.ASC]
 ]
 
 # === Functions === #

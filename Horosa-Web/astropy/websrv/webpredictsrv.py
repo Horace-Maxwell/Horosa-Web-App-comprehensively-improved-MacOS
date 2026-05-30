@@ -291,6 +291,46 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    def dist(self):
+        enable_crossdomain()
+        try:
+            data = cherrypy.request.json
+            perchart = PerChart(data)
+            predict = perchart.getPredict()
+            obj = {
+                'dist': predict.getDistributions()
+            }
+            return jsonpickle.encode(obj, unpicklable=False)
+        except:
+            traceback.print_exc()
+            obj = {
+                'err': 'param error'
+            }
+            return jsonpickle.encode(obj, unpicklable=False)
+
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
+    def agepoint(self):
+        enable_crossdomain()
+        try:
+            data = cherrypy.request.json
+            perchart = PerChart(data)
+            predict = perchart.getPredict()
+            obj = {
+                'agepoint': predict.getAgePoint()
+            }
+            return jsonpickle.encode(obj, unpicklable=False)
+        except:
+            traceback.print_exc()
+            obj = {
+                'err': 'param error'
+            }
+            return jsonpickle.encode(obj, unpicklable=False)
+
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
     def zr(self):
         enable_crossdomain()
         try:

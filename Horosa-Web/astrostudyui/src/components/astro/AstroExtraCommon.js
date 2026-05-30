@@ -87,6 +87,8 @@ export function chartParams(chartObj){
 		zodiacal: params.zodiacal !== undefined ? params.zodiacal : 0,
 		tradition: false,
 		predictive: false,
+		orbs: params.orbs,
+		orbScale: params.orbScale,
 	};
 }
 
@@ -104,6 +106,8 @@ export function chartRequestKey(chartObj, extra = ''){
 		params.lon || '',
 		params.hsys !== undefined ? params.hsys : '',
 		params.zodiacal !== undefined ? params.zodiacal : '',
+		params.orbScale !== undefined ? params.orbScale : '',
+		params.orbs ? JSON.stringify(params.orbs) : '',
 		extra,
 	];
 	return parts.join('|');

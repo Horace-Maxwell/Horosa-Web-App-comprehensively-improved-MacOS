@@ -704,11 +704,6 @@ class AstroInfo extends Component{
 				['黄道', zodiacal],
 				['宫位制', hsys],
 			];
-			const angleRows = perchart && perchart.houses ? perchart.houses.slice(0, 4).map((item, idx)=>{
-				const labels = ['上升点 (ASC)', '二宫', '三宫', '天底 (IC)'];
-				const sign = item && item.sign ? (AstroText.AstroMsgCN[item.sign] || AstroText.AstroMsg[item.sign] || item.sign) : '';
-				return [labels[idx] || item.id, sign, item && item.lon !== undefined ? `${Math.round(item.lon * 100) / 100}°` : ''];
-			}) : [];
 			return (
 				<div className={`horosa-astro-info-scroll horosa-astro-content-scroll ${styles.scrollbar}`} style={astyle}>
 					<div className="horosa-info-card">
@@ -719,15 +714,6 @@ class AstroInfo extends Component{
 								<strong>{row[1] || '--'}</strong>
 							</div>
 						))}
-					</div>
-					<div className="horosa-info-card">
-						<div className="horosa-info-card-title">四轴与宫位</div>
-						{angleRows.length ? angleRows.map((row)=>(
-							<div className="horosa-info-row" key={row[0]}>
-								<span>{row[0]}</span>
-								<strong>{row[1]} {row[2]}</strong>
-							</div>
-						)) : <div className="horosa-empty-line">暂无宫位数据</div>}
 					</div>
 					<div className="horosa-info-card">
 						<div className="horosa-info-card-title">主星</div>

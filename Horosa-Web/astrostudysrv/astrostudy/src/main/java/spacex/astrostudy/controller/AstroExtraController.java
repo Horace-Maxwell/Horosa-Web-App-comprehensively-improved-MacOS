@@ -53,6 +53,13 @@ public class AstroExtraController {
 		return params;
 	}
 
+	private Map<String, Object> getGreatConjParams(){
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put("startYear", TransData.getValueAsInt("startYear", 1900));
+		params.put("endYear", TransData.getValueAsInt("endYear", 2100));
+		return params;
+	}
+
 	private Map<String, Object> getRelativeParams(){
 		Map<String, Object> params = new HashMap<String, Object>();
 		if(!TransData.containsParam("inner")) {
@@ -99,6 +106,18 @@ public class AstroExtraController {
 	@RequestMapping("/harmonic")
 	public void harmonic(){
 		TransData.set(AstroHelper.getAstroExtraHarmonic(getBaseParams()));
+	}
+
+	@ResponseBody
+	@RequestMapping("/draconic")
+	public void draconic(){
+		TransData.set(AstroHelper.getAstroExtraDraconic(getBaseParams()));
+	}
+
+	@ResponseBody
+	@RequestMapping("/greatconj")
+	public void greatconj(){
+		TransData.set(AstroHelper.getAstroExtraGreatConj(getGreatConjParams()));
 	}
 
 	@ResponseBody

@@ -21,6 +21,7 @@ import IndiaChartMain from '../components/astro/IndiaChartMain';
 import AstroRelative from '../components/astro/AstroRelative';
 import AstroDirectMain from '../components/direction/AstroDirectMain';
 import AspSelector from '../components/astro/AspSelector';
+import AstroOrbSetting from '../components/astro/AstroOrbSetting';
 import PlanetSelector from '../components/astro/PlanetSelector';
 import ChartDisplaySelector from '../components/astro/ChartDisplaySelector';
 import ChartsGps from '../components/user/ChartsGps';
@@ -1014,7 +1015,30 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             </Drawer>
 
             <Drawer
-                title='行星选择'
+                title='容许度设置'
+                width={280}
+                placement="left"
+                onClose={closeDrawer}
+                maskClosable={true}
+                destroyOnClose={true}
+                open={drawerVisible.selectorb}
+                style={{
+                    height: 'calc(100% - 0px)',
+                    overflow: 'auto',
+                    paddingBottom: 53,
+                    backgroundColor: 'transparent',
+                }}
+            >
+                <AstroOrbSetting
+                    fields={fields}
+                    chartObj={chartObj}
+                    dispatch={dispatch}
+                    onClose={closeDrawer}
+                />
+            </Drawer>
+
+            <Drawer
+                title='显示星体'
                 width={250}
                 placement="left"
                 onClose={closeDrawer}

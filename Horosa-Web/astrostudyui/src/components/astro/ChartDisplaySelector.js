@@ -112,7 +112,9 @@ class ChartDisplaySelector extends Component{
 		};
 		const currentDisplay = Array.isArray(this.props.value) ? this.props.value : [];
 
-		let allobjs = AstroConst.CHART_OPTIONS.filter((opt)=>opt !== AstroConst.CHART_INFOINCIRCLE).map((opt)=>{
+		// 三维盘已淘汰（改用天文馆），从星盘组件设置中清掉其 6 个选项；常量保留供旧 astro3d 组件引用。
+		const chart3dBits = [AstroConst.CHART_3D_SKYBALL_LATLINE, AstroConst.CHART_3D_EARTH_LATLINE, AstroConst.CHART_3D_EARTH_LONLINE, AstroConst.CHART_3D_EARTH_RADIUS_SAMESKY, AstroConst.CHART_3D_EARTH, AstroConst.CHART_3D_PLANET_SYM];
+		let allobjs = AstroConst.CHART_OPTIONS.filter((opt)=>opt !== AstroConst.CHART_INFOINCIRCLE && !chart3dBits.includes(opt)).map((opt)=>{
 			const checked = currentDisplay.includes(opt);
 			return (
 				<XQCheckItem

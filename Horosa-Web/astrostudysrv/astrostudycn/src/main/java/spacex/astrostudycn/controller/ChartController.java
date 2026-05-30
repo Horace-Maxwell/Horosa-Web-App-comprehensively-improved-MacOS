@@ -313,6 +313,12 @@ public class ChartController {
 		params.put("strongRecption", TransData.getValueAsBool("strongRecption", false));
 		params.put("virtualPointReceiveAsp", TransData.getValueAsBool("virtualPointReceiveAsp", false));
 		params.put("simpleAsp", TransData.getValueAsBool("simpleAsp", false));
+		if(TransData.containsParam("orbs")) {
+			params.put("orbs", TransData.get("orbs"));
+		}
+		if(TransData.containsParam("orbScale")) {
+			params.put("orbScale", TransData.get("orbScale"));
+		}
 		params.put("predictive", TransData.getValueAsBool("predictive", true));
 		params.put("includePrimaryDirection", TransData.getValueAsBool("includePrimaryDirection", false));
 		params.put("southchart", TransData.getValueAsBool("southchart", false));

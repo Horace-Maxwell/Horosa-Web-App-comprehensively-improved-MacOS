@@ -478,8 +478,17 @@ function PageHeader(props){
 	}];
 	const currentPageLabel = PAGE_LABELS[props.currentTab] || '导航';
 	const astroSettingsMenu = [{
-		key: 'changeparams',
-		label: menuLabel('aiSettings', '星盘参数')
+		key: 'selectchartdisplay',
+		label: menuLabel('settings', '星盘组件')
+	},{
+		key: 'selectplanet',
+		label: menuLabel('sidePlanets', '显示星体')
+	},{
+		key: 'selectasp',
+		label: menuLabel('aiSettings', '相位设置')
+	},{
+		key: 'selectorb',
+		label: menuLabel('aiSettings', '容许度')
 	},{
 		key: 'query',
 		label: menuLabel('astro', '排盘设置')

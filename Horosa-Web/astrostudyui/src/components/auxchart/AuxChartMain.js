@@ -7,19 +7,23 @@ import HellenAstroMain from '../hellenastro/HellenAstroMain';
 import LocAstroMain from '../loc/LocAstroMain';
 import OtherBuMain from '../otherbu/OtherBuMain';
 import AstroHarmonicLab from './AstroHarmonicLab';
+import AstroDraconicLab from './AstroDraconicLab';
 import HoraryMain from '../horary/HoraryMain';
 import ElectionMain from '../election/ElectionMain';
+import MundaneMain from '../mundane/MundaneMain';
 
 const TabPane = Tabs.TabPane;
-const AUX_TABS = ['germanytech', 'hellenastro', 'locastro', 'harmonic', 'otherbu', 'horary', 'election'];
+const AUX_TABS = ['germanytech', 'hellenastro', 'locastro', 'harmonic', 'draconic', 'otherbu', 'horary', 'election', 'mundane'];
 const AUX_QUICK_ACTIONS = [
 	{ key: 'germanytech', label: '量化盘', icon: 'quickPrimary' },
 	{ key: 'hellenastro', label: '十三分盘', icon: 'astro' },
 	{ key: 'locastro', label: '占星地图', icon: 'locastro' },
 	{ key: 'harmonic', label: '调波盘', icon: 'quickTransit' },
+	{ key: 'draconic', label: '龙盘', icon: 'astro' },
 	{ key: 'otherbu', label: '骰子', icon: 'quickAi' },
 	{ key: 'horary', label: '卜卦盘', icon: 'liuyao' },
 	{ key: 'election', label: '择日盘', icon: 'calendar' },
+	{ key: 'mundane', label: '世俗盘', icon: 'astro' },
 ];
 
 class AuxChartMain extends Component{
@@ -45,6 +49,9 @@ class AuxChartMain extends Component{
 				harmonic:{
 					fun: null
 				},
+				draconic:{
+					fun: null
+				},
 				otherbu:{
 					fun: null
 				},
@@ -52,6 +59,9 @@ class AuxChartMain extends Component{
 					fun: null
 				},
 				election:{
+					fun: null
+				},
+				mundane:{
 					fun: null
 				},
 			},
@@ -206,6 +216,17 @@ class AuxChartMain extends Component{
 							/>
 						</TabPane>
 
+						<TabPane tab="龙盘" key="draconic">
+							<AstroDraconicLab
+								value={this.props.chart}
+								height={childHeight}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+						</TabPane>
+
 						<TabPane tab="骰子" key="otherbu">
 							<OtherBuMain
 								height={childHeight}
@@ -244,6 +265,20 @@ class AuxChartMain extends Component{
 								lotsDisplay={this.props.lotsDisplay}
 								showAstroMeaning={this.props.showAstroMeaning}
 								hook={this.state.hook.election}
+								dispatch={this.props.dispatch}
+							/>
+						</TabPane>
+
+						<TabPane tab="世俗盘" key="mundane">
+							<MundaneMain
+								fields={this.props.fields}
+								fieldsAry={this.props.fieldsAry}
+								height={childHeight}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.mundane}
 								dispatch={this.props.dispatch}
 							/>
 						</TabPane>

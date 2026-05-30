@@ -5423,22 +5423,34 @@ fn runtime_bootstrap(
     } else {
         None
     };
+    // 修复(更新后卡住、需重启两三次 — v2.3.2):
+    // apply_update 在安装前已对 runtime 包做 sha256 校验(verify_sha256(runtime_sha256)),
+    // runtime 即「按官方清单逐字节验签过」的副本,故「更新后首启」再走 300s 全量慢校验属冗余,
+    // 反而让冷首启看起来卡死、用户强退 → 标记没写 → 下次又全量 → 反复重启。
+    // 这里对刚装好的(已验签)runtime **在 start_runtime 之前**预写 fast-path 标记:
+    //   ① 首启即走 trusted 快路径(实测 ~7s,远快于冷全量 22s+);
+    //   ② 标记在 warmup/导航之前就落盘 → 即便用户把冷首启当卡死强退,下次仍是快路径,
+    //      根除「每次强退都退回 300s 全量 → 要重启两三次才打开」。
+    // 兜底:若快路径在新 runtime 上失败,下方 first_launch_after_update 分支会 clear 标记并自动全量复检。
+    if first_launch_after_update {
+        if let Some(manifest) = read_runtime_manifest(&paths) {
+            write_runtime_fast_path_marker(&paths.runtime_dir, &manifest);
+        }
+    }
     // 提速(更新后卡顿)B:warmup 仅首启触发,且脚本内已改为后台非阻塞预热,不再卡启动;
     // mongo 为可选服务,一律跳过启动期 ping(mongo 缺席时 ping 会拖满等待)。
-    // 运行时「完整校验」仍由 fast_path_enabled=false 保证(首启必为 false),不被削弱。
     let skip_runtime_warmup = !first_launch_after_update;
-    let fast_path_enabled = !first_launch_after_update
-        && !force_runtime_install
+    let fast_path_enabled = !force_runtime_install
         && runtime_fast_path_allowed(&paths.runtime_dir);
     let skip_mongo_ping = true;
     if first_launch_after_update {
         emit_status(&window, "检测到刚完成更新，正在执行更新后的首次恢复启动…");
-        // 修复A(更新后卡顿):首启要对刚装好的运行时做完整校验(约 30–60s),用不确定进度
-        // 动画 + 明确文案,避免进度停住被当成「卡死」。
+        // 修复(更新后卡顿):runtime 已在安装前逐字节验签,首启走 trusted 快路径(通常 ~10 秒内,
+        // 冷启动略久)。用不确定进度动画 + 明确文案,避免冷启动的短暂停顿被当成「卡死」而被强退。
         emit_indeterminate_progress(
             &window,
             78,
-            "更新后首次启动需完整校验，约 30–60 秒，请稍候…",
+            "更新已完成，正在恢复启动,通常约 10 秒,请稍候…",
         );
         cleanup_state(&app);
         thread::sleep(Duration::from_secs(1));
