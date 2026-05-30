@@ -2738,16 +2738,13 @@ fn show_post_update_notice_if_needed(app: &AppHandle) {
             .ok()
             .and_then(|mut slot| slot.take())
     });
-    if let Some(message) = cached_notice {
-        if load_preferences(app).show_status_notifications {
-            show_macos_notification("星阙 已完成更新", "新版已经安装完成，并已重新生效。");
-        }
-        MessageDialog::new()
-            .set_level(MessageLevel::Info)
-            .set_title("更新完成")
-            .set_description(message)
-            .set_buttons(MessageButtons::Ok)
-            .show();
+    // 修复(v2.4.1:更新后卡在启动页 / 不进主界面 /「进入主界面」按钮点不动):
+    // 原先此处弹**阻塞式 MessageDialog**——它紧跟 emit_ready 注入的导航 JS 之后、从 spawn 出来的后台
+    // 线程触发;macOS 上 NSAlert 会在主线程跑嵌套 run loop,抢在排队的导航 JS 执行前冻结 webview 事件
+    // 循环 → 既不自动导航、「进入主界面」按钮也点不动。(v2.4.0 快路径修复让首启时序变紧后这条 race 才
+    // 稳定暴露。)改为**只发非阻塞 macOS 通知**,绝不在首启关键路径上做任何模态阻塞。
+    if cached_notice.is_some() && load_preferences(app).show_status_notifications {
+        show_macos_notification("星阙 已完成更新", "新版已经安装完成,并已重新生效。");
     }
 }
 
