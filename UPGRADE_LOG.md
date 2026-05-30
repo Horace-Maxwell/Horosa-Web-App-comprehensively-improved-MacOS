@@ -14,6 +14,29 @@ Append new entries; do not rewrite history.
 
 ## 2026-05-29
 
+### v2.4.0：西占技法批量补全(6 技法全链路 AI) + 更新后自启修复 + orbs 随命盘存档
+
+- Scope:
+  - **6 个古典西占技法 + 全链路 AI**(AI分析挂载 / AI导出 / AI导出设置 / 命盘·事盘储存 四套系统全同步)：
+    - 判读三段(12分度 / 主宰星链 / 寿命格局 Hyleg-Alcocoden)→ `astroAiSnapshot.js` 段 + `aiExport` preset(随 astrochart)。
+    - 预测两技法(界推运 / 年龄推进点 Huber)→ `aiAnalysisContext` wired technique + `aiExport` 六张登记表 + 组件监听 `horosa:refresh-module-snapshot`。
+    - 辅盘(世俗盘=入宫 + 木土大合相)→ 事盘 `payload.aiSnapshot`(`DivinationChartShell` buildAiSnapshot prop)+ `aiExport` auxchartMap。
+    - **工程师级复审发现「挂载≠导出」是两套独立系统**,界推运/Huber/世俗 原只接挂载、漏 AI导出 → 已补全;`aiExport.test getAIExportAuditMatrix` 自检(每技法六表齐)逮住并守护。
+  - **orbs/orbScale 随命盘存档**(镜像 after23NewDay 五点对称;默认 undefined 零回归,**未触 pdMethod/主限法**)。
+  - **更新后无法自动打开修复**(Mac 外壳 `main.rs`:对已验签 runtime 在 start_runtime 前预写 fast-path 标记 + 取消首启冗余全量)。
+  - 版本锁步 `2.4.0 / 2.4.0-runtime1`。
+- Files:
+  - 前端:`astrostudyui/src/utils/{astroAiSnapshot,aiAnalysisContext,aiExport,divinationCaseSave,localcharts}.js`、`models/{user,astro}.js`、`components/astro/{AstroDodeca,AstroDispositor,AstroLifespan,AstroDistributions,AstroAgePoint}.js`、`components/mundane/MundaneMain.js`、`components/divination/DivinationChartShell.js`。
+  - 后端:`astrostudysrv/astrostudy/.../controller/{PredictiveController,AstroExtraController}.java`+`helper/AstroHelper.java`、`astrostudycn/.../ChartController.java`(orbs 白名单)→ **重编 `astrostudyboot.jar`**(clean,内嵌 astrostudy/astrostudycn jar 经 javap 验含 dist/agepoint/greatconj)。Python:`astropy/astrostudy/{perpredict,agepoint(新),astroextra}.py`、`websrv/{webpredictsrv,webastroextrasrv}.py`。
+  - 外壳:`src-tauri/src/main.rs`、`scripts/release_preflight.sh`([9]D 哨兵)。
+  - 版本:`package.json`/`src-tauri/{Cargo.toml,Cargo.lock,tauri.conf.json}`/`CITATION.cff`/`web/app.js`/`scripts/verify_launcher_console_states.py`/`config/release_config.json` + `release_notes/2.4.0.md`。
+  - 文档:`docs/西占新技法-逐技法实现详解-v2.4.0.md`(逐技法实现,校对用)、`docs/西占新功能-AI导出与储存接入清单.md`、`docs/windows-sync-handoff.md`(v2.4.0 条)、`docs/更新后自启修复-v2.3.2.md`、skill `SKILL.md`(How to add a technique +6/+7 条)。
+- Verification:
+  - `npm run build` + `npm run build:file` exit 0；`npm test` **29 套 140 测试全过**(关键:`aiAnalysisContext.test` 技法 missing 契约、`aiExport.test getAIExportAuditMatrix` 六表齐、`aiAnalysisSelection.test`)。
+  - jar:3× mvn BUILD(astrostudy/astrostudycn install + astrostudyboot clean package)exit 0；`javap` 验内嵌 astrostudy 含 `dist()/agepoint()/greatconj()`。
+  - 判读三段 preview 真机读快照逐值核对(日→室女7°/月→金牛26°/水→水庙/夜生盘生命主上升射手);更新自启 `cargo check` 绿 + [9]D 哨兵;core 实测 12分度/Hyleg/福点/Huber/界推运 5 技法口径一致。
+  - 边界:界推运/Huber 真机 AI分析挂载验受 antd Select 合成事件限制未驱动(harness 局限),靠 build+测试+同名已验组件兜底。
+
 ### v2.3.1：更新后启动卡顿修复 + Windows #10「服务不稳定」(SSE 并发竞态 + SSE 标志跨请求污染)
 
 - Scope:

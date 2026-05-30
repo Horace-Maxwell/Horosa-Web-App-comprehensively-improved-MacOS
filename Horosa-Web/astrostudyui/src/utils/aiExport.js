@@ -103,8 +103,8 @@ const DOMAIN_REPLACERS = {
 
 const ENABLE_SVG_TEXT_EXPORT = false;
 const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
-export const AI_EXPORT_SETTINGS_VERSION = 9;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 9;
+export const AI_EXPORT_SETTINGS_VERSION = 11;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 11;
 const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	'bazi',
 	'ziwei',
@@ -198,11 +198,14 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'astrochart', label: '星盘' },
 	{ key: 'indiachart', label: '印度占星' },
 	{ key: 'astrochart_like', label: '十三分盘/占星地图' },
+	{ key: 'mundane', label: '世俗盘' },
 	{ key: 'relative', label: '合盘' },
 	{ key: 'primarydirect', label: '星运-主/界限法' },
 	{ key: 'primarydirchart', label: '星运-主限法盘' },
 	{ key: 'zodialrelease', label: '星运-黄道星释' },
 	{ key: 'firdaria', label: '星运-法达星限' },
+	{ key: 'distributions', label: '星运-界推运' },
+	{ key: 'agepoint', label: '星运-年龄推进点' },
 	{ key: 'profection', label: '星运-小限法' },
 	{ key: 'solararc', label: '星运-太阳弧' },
 	{ key: 'solarreturn', label: '星运-太阳返照' },
@@ -247,11 +250,14 @@ const AI_EXPORT_TECHNIQUES = [
 const AI_EXPORT_PRESET_SECTIONS = {
 	horary: ['起卦信息', '根本性', '征象星指派', '完成分析', '月亮的故事', '相位全览', '裁决', '应期方位', '描述'],
 	election: ['起盘信息', '总评', '红线', '分项', '用事专属', '应期', '建议'],
-	astrochart: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '可能性'],
+	astrochart: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '12分度', '主宰星链', '寿命格局', '可能性'],
 	indiachart: ['星盘信息', '起盘信息', '信息', '相位', '行星', '希腊点', '可能性'],
-	astrochart_like: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '可能性'],
+	astrochart_like: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '12分度', '主宰星链', '寿命格局', '可能性'],
+	mundane: ['世俗入宫', '起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '12分度', '主宰星链', '寿命格局', '可能性'],
 	relative: ['关系起盘信息', 'A对B相位', 'B对A相位', 'A对B中点相位', 'B对A中点相位', 'A对B映点', 'A对B反映点', 'B对A映点', 'B对A反映点', '合成图盘', '影响图盘-星盘A', '影响图盘-星盘B'],
 	primarydirect: ['出生时间', '星盘信息', '主/界限法设置', '主/界限法表格'],
+	distributions: ['界推运（分配法 / Distributions）'],
+	agepoint: ['年龄推进点（Age Point / Huber）'],
 	primarydirchart: ['出生时间', '星盘信息', '主限法盘设置', '主限法盘说明'],
 	zodialrelease: ['起盘信息', '星盘信息', '基于X点推运'],
 	firdaria: ['出生时间', '星盘信息', '法达星限表格'],
@@ -1553,6 +1559,8 @@ function resolveActiveContext(){
 		{ label: '主限法盘', key: 'primarydirchart', name: '星运-主限法盘' },
 		{ label: '黄道星释', key: 'zodialrelease', name: '星运-黄道星释' },
 		{ label: '法达星限', key: 'firdaria', name: '星运-法达星限' },
+		{ label: '界推运', key: 'distributions', name: '星运-界推运' },
+		{ label: '年龄推进点', key: 'agepoint', name: '星运-年龄推进点' },
 		{ label: '小限法', key: 'profection', name: '星运-小限法' },
 		{ label: '太阳弧', key: 'solararc', name: '星运-太阳弧' },
 		{ label: '太阳返照', key: 'solarreturn', name: '星运-太阳返照' },
@@ -1876,6 +1884,8 @@ function resolveContextByAstroState(){
 			primarydirchart: { key: 'primarydirchart', displayName: '星运-主限法盘', domain: 'predictive_raw' },
 			zodialrelease: { key: 'zodialrelease', displayName: '星运-黄道星释', domain: 'predictive_raw' },
 			firdaria: { key: 'firdaria', displayName: '星运-法达星限', domain: 'predictive_raw' },
+			distributions: { key: 'distributions', displayName: '星运-界推运', domain: 'predictive_raw' },
+			agepoint: { key: 'agepoint', displayName: '星运-年龄推进点', domain: 'predictive_raw' },
 			profection: { key: 'profection', displayName: '星运-小限法', domain: 'predictive_raw' },
 			solararc: { key: 'solararc', displayName: '星运-太阳弧', domain: 'predictive_raw' },
 			solarreturn: { key: 'solarreturn', displayName: '星运-太阳返照', domain: 'predictive_raw' },
@@ -1888,6 +1898,7 @@ function resolveContextByAstroState(){
 			hellenastro: { key: 'astrochart_like', displayName: '十三分盘' },
 			locastro: { key: 'astrochart_like', displayName: '占星地图' },
 			otherbu: { key: 'otherbu', displayName: '骰子' },
+			mundane: { key: 'mundane', displayName: '世俗盘' },
 		};
 		const cnyibuMap = {
 			suzhan: { key: 'suzhan', displayName: '宿盘' },
@@ -2182,6 +2193,10 @@ function getExtractorKindByExportKey(key){
 	if(exportKey === 'astrochart' || exportKey === 'astrochart_like' || exportKey === 'indiachart'){
 		return 'astro';
 	}
+	if(exportKey === 'mundane'){
+		// 世俗盘:走刷新事件抓取(DivinationChartShell 写 detail.snapshotText),与预测同机制。
+		return 'predictive';
+	}
 	if(exportKey === 'germany'){
 		return 'germany';
 	}
@@ -2238,6 +2253,9 @@ function getStructuredSnapshotKeysByExportKey(key){
 	const exportKey = normalizeExportKey(key);
 	if(exportKey === 'astrochart' || exportKey === 'astrochart_like'){
 		return ['astro'];
+	}
+	if(exportKey === 'mundane'){
+		return ['mundane'];
 	}
 	if(exportKey === 'indiachart'){
 		return ['indiachart_current', 'indiachart'];
@@ -4775,6 +4793,8 @@ function isPredictiveExportKey(key){
 		|| val === 'primarydirchart'
 		|| val === 'zodialrelease'
 		|| val === 'firdaria'
+		|| val === 'distributions'
+		|| val === 'agepoint'
 		|| val === 'profection'
 		|| val === 'solararc'
 		|| val === 'solarreturn'
@@ -4828,7 +4848,7 @@ function getCandidateExportKeys(context){
 		context && context.displayName ? context.displayName : '',
 		stateContext && stateContext.displayName ? stateContext.displayName : '',
 	].join(' ');
-	const predictiveKeys = ['primarydirect', 'primarydirchart', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials'];
+	const predictiveKeys = ['primarydirect', 'primarydirchart', 'zodialrelease', 'firdaria', 'distributions', 'agepoint', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials'];
 	const primaryIsPredictive = isPredictiveExportKey(primary);
 	const stateIsPredictive = isPredictiveExportKey(stateKey);
 	// 仅在上下文无法定位具体推运子模块时，才展开推运候选全量兜底；

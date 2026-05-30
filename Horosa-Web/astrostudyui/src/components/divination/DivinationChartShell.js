@@ -78,16 +78,24 @@ class DivinationChartShell extends Component{
 		if(!this.props.dispatch || !this.props.saveModule){
 			return;
 		}
+		// astro 类事盘(如世俗盘)可传 buildAiSnapshot(chart, fields) → 存档即带格式化 AI 快照,挂载更全面。
+		let aiSnapshot;
+		if(typeof this.props.buildAiSnapshot === 'function' && this.state.chart){
+			try{ aiSnapshot = this.props.buildAiSnapshot(this.state.chart, this.state.fields, this.state.extra); }catch(e){ aiSnapshot = undefined; }
+		}
 		openDivinationCaseDrawer({
 			dispatch: this.props.dispatch,
 			fields: this.state.fields,
 			module: this.props.saveModule,
 			extra: this.state.extra,
+			aiSnapshot,
 		});
 	}
 
 	componentDidMount(){
 		this._mounted = true;
+		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
+		if(typeof window !== 'undefined'){ window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest); }
 		if(!this.applyRestoreIfAny()){
 			this.refetch();
 		}
@@ -95,6 +103,15 @@ class DivinationChartShell extends Component{
 
 	componentWillUnmount(){
 		this._mounted = false;
+		if(typeof window !== 'undefined' && this.handleSnapshotRefreshRequest){ window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest); }
+	}
+
+	// AI导出:在本模块 tab(如世俗盘)导出时响应刷新事件,用 buildAiSnapshot 把格式化快照写回 detail.snapshotText。
+	handleSnapshotRefreshRequest(evt){
+		if(!evt || !evt.detail || !this.props.saveModule || evt.detail.module !== this.props.saveModule){ return; }
+		if(typeof this.props.buildAiSnapshot === 'function' && this.state.chart){
+			try{ evt.detail.snapshotText = this.props.buildAiSnapshot(this.state.chart, this.state.fields, this.state.extra) || ''; }catch(e){ /* keep empty */ }
+		}
 	}
 
 	componentDidUpdate(){
@@ -140,8 +157,8 @@ class DivinationChartShell extends Component{
 			if(settings.hsys !== undefined){ patch.hsys = settings.hsys; }
 			if(settings.tradition !== undefined){ patch.tradition = settings.tradition; }
 		}
-		// 问题类别(horary) / 用事类型(election) 还原到 extra。
-		const ex = {};
+		// 问题类别(horary) / 用事类型(election) + 通用 extra(世俗盘 ingress* 等) 还原到 extra。
+		const ex = (c.payload && c.payload.extra && typeof c.payload.extra === 'object') ? { ...c.payload.extra } : {};
 		if(c.payload && c.payload.questionCategory){ ex.questionCategory = c.payload.questionCategory; }
 		if(c.payload && c.payload.topicId){ ex.topicId = c.payload.topicId; }
 		if(Object.keys(ex).length){ this.setExtra(ex); }

@@ -25,6 +25,7 @@ from astrostudy import helper
 from astrostudy import solararc
 from astrostudy import firdaria
 from astrostudy import zreleasing
+from astrostudy.termdirection import TermDirection
 
 MAX_ERROR = 0.0003
 CORE_PD_DISPLAY_EPS = 3.0
@@ -205,6 +206,51 @@ class PerPredict:
         tdlist = td.getList(self.perchart.pdaspects)
         self.appendDateStr(tdlist, False)
         return tdlist
+
+    def getDistributions(self):
+        """ 界推运（Distributions）：上升点经主限运动依次穿过各埃及界。
+        分配星(distributor)=该界主星；其期间内上升点又触及某行星→该行星为参与星(participant)。
+        建于 TermDirection（与界限法同源、同 signasctime 时间换算）。 """
+        chart = self.perchart.getChart()
+        td = TermDirection(chart, True)
+        cusps = sorted(td._terms(), key=lambda c: c['dist'])
+        sigAsc = td.N(const.ASC, 0)
+        proms = td._elements(td.SIG_OBJECTS, td.N, [0])
+        contacts = []
+        for p in proms:
+            if p['id'] == sigAsc['id']:
+                continue
+            arc = td._arc(p, sigAsc)
+            if 0 < arc < td.MAX_ARC:
+                pid = p['id'].split('_')
+                contacts.append((arc, pid[1] if len(pid) >= 2 else p['id']))
+        contacts.sort()
+        rows = []
+        for c in cusps:
+            parts = c['id'].split('_')
+            lord = parts[1] if len(parts) >= 2 else c['id']
+            sign = parts[2] if len(parts) >= 3 else ''
+            rows.append([c['dist'], lord, sign, 'DIST'])
+        self.appendDateStr(rows, False)
+        res = []
+        for i, c in enumerate(cusps):
+            startArc = c['dist']
+            endArc = cusps[i + 1]['dist'] if i + 1 < len(cusps) else td.MAX_ARC
+            ppts = [pid for (a, pid) in contacts if startArc <= a < endArc]
+            res.append({
+                'startArc': round(startArc, 2),
+                'endArc': round(endArc, 2),
+                'distributor': rows[i][1],
+                'sign': rows[i][2],
+                'startDate': rows[i][4] if len(rows[i]) > 4 else '',
+                'endDate': rows[i + 1][4] if (i + 1 < len(rows) and len(rows[i + 1]) > 4) else '',
+                'participants': ppts,
+            })
+        return res
+
+    def getAgePoint(self):
+        from astrostudy import agepoint
+        return agepoint.compute(self.perchart, 72)
 
     def getPrimaryDirection(self):
         pdtype = self.perchart.pdtype

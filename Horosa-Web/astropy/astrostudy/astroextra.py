@@ -12,7 +12,7 @@ from flatlib.protocols.temperament import Temperament
 
 from astrostudy.perchart import PerChart
 from astrostudy.perpredict import dateSolarReturn, dateLunarReturn
-from astrostudy.thirteenthchart import HarmonicChart
+from astrostudy.thirteenthchart import HarmonicChart, DraconicChart
 
 
 PLANET_SWISS_IDS = {
@@ -985,6 +985,115 @@ def build_harmonic(data):
         chart_obj = None
 
     return {'harmonic': harmonic, 'positions': positions, 'conjunctions': aspects[:120], 'chart': chart_obj}
+
+
+def compute_great_conjunctions(data):
+    """ 木土大合相精算：扫描 [startYear, endYear] 区间内木星-土星黄经合相（含三重合相分列）。 """
+    try:
+        start_year = int(data.get('startYear', 1900))
+    except Exception:
+        start_year = 1900
+    try:
+        end_year = int(data.get('endYear', 2100))
+    except Exception:
+        end_year = 2100
+    if end_year < start_year:
+        start_year, end_year = end_year, start_year
+    if end_year - start_year > 3400:
+        end_year = start_year + 3400
+
+    def _lon(jd_, planet):
+        return swisseph.calc_ut(jd_, planet)[0][0]
+
+    def _signed_diff(jd_):
+        d = _lon(jd_, swisseph.JUPITER) - _lon(jd_, swisseph.SATURN)
+        return ((d + 180.0) % 360.0) - 180.0
+
+    jd = swisseph.julday(start_year, 1, 1, 0.0)
+    end_jd = swisseph.julday(end_year, 12, 31, 0.0)
+    step = 8.0
+    prev_jd = jd
+    prev_d = _signed_diff(jd)
+    results = []
+    cur = jd + step
+    while cur <= end_jd:
+        d = _signed_diff(cur)
+        # 合相 = 带符号黄经差过零（排除冲相 ±180 的环绕跳变）
+        if (prev_d < 0) != (d < 0) and abs(prev_d - d) < 180.0:
+            lo, hi, dlo = prev_jd, cur, prev_d
+            for _ in range(50):
+                mid = (lo + hi) / 2.0
+                dm = _signed_diff(mid)
+                if (dm < 0) == (dlo < 0):
+                    lo, dlo = mid, dm
+                else:
+                    hi = mid
+            cjd = (lo + hi) / 2.0
+            jl = _lon(cjd, swisseph.JUPITER) % 360.0
+            y, m, dd, hh = swisseph.revjul(cjd)
+            results.append({
+                'jd': round(cjd, 4),
+                'year': int(y), 'month': int(m), 'day': int(dd),
+                'lon': round(jl, 2),
+                'sign': int(jl / 30.0) % 12,
+            })
+        prev_jd, prev_d = cur, d
+        cur += step
+    return {'conjunctions': results, 'startYear': start_year, 'endYear': end_year}
+
+
+def build_draconic(data):
+    params = base_params(data)
+    perchart = PerChart(params)
+    node = perchart.chart.getObject(const.NORTH_NODE)
+    node_lon = norm360(node.lon)
+    positions = []
+    for p in chart_points(perchart, include_angles=True):
+        if p['id'] not in DEFAULT_EVENT_PLANETS and p['id'] not in (const.ASC, const.MC, const.PARS_FORTUNA):
+            continue
+        lon = norm360(p['lon'] - node_lon)
+        positions.append({
+            'id': p['id'],
+            'natalLon': p['lon'],
+            'lon': lon,
+            'sign': sign_name_from_lon(lon),
+            'signlon': lon % 30,
+        })
+    aspects = aspects_between(positions, positions, [0], safe_float(data.get('orb', 2.0), 2.0))
+    aspects = [a for a in aspects if a['a'] != a['b']]
+
+    # 龙盘本身：把命盘各点黄经减去北交点黄经，得到完整盘对象（与 /chart 同形），
+    # 供前端复用量化盘的 AstroChart 直接绘制。纯 Python，无需重编 jar 的计算逻辑。
+    chart_obj = None
+    try:
+        DraconicChart(perchart).apply()
+        chart_obj = {
+            'params': {
+                'birth': perchart.getBirthStr(),
+                'ad': -1 if getattr(perchart, 'isBC', False) else 1,
+                'lat': params.get('lat'),
+                'lon': params.get('lon'),
+                'hsys': params.get('hsys'),
+                'zone': params.get('zone'),
+                'tradition': perchart.tradition,
+                'zodiacal': perchart.zodiacal,
+            },
+            'chart': perchart.getChartObj(),
+            'aspects': {
+                'normalAsp': perchart.getAspects(),
+                'immediateAsp': perchart.getImmediateAspects(),
+                'signAsp': perchart.getSignAspects(),
+            },
+            'lots': perchart.getPars(perchart.chart),
+            'receptions': perchart.getReceptions(),
+            'mutuals': perchart.getMutuals(),
+            'declParallel': perchart.getParallel(),
+        }
+    except Exception:
+        traceback.print_exc()
+        chart_obj = None
+
+    return {'nodeLon': node_lon, 'positions': positions, 'conjunctions': aspects[:120], 'chart': chart_obj}
 
 
 def build_relative_score(data):

@@ -38,6 +38,8 @@ import { buildBaziSnapshotForParams } from '../components/cntradition/BaZi';
 import { buildZiweiSnapshotForParams } from '../components/ziwei/ZiWeiMain';
 import { buildIndiaSnapshotForFields } from '../components/astro/IndiaChart';
 import { buildFirdariaSnapshotText, buildPrimaryDirectSnapshotText } from '../components/direction/AstroDirectMain';
+import { buildDistributionsSnapshotText } from '../components/astro/AstroDistributions';
+import { buildAgePointSnapshotText } from '../components/astro/AstroAgePoint';
 import { buildGuolaoSnapshotForFields } from '../components/guolao/GuoLaoChartMain';
 import { buildSuzhanSnapshotText } from '../components/suzhan/SuZhanMain';
 import { buildGermanySnapshotForFields } from '../components/germany/AstroMidpoint';
@@ -87,6 +89,8 @@ const ANALYSIS_TECHNIQUE_LABELS = {
 	primarydirchart: '星运-主限法盘',
 	zodialrelease: '星运-黄道星释',
 	firdaria: '星运-法达星限',
+	distributions: '星运-界推运',
+	agepoint: '星运-年龄推进点',
 	profection: '星运-小限法',
 	solararc: '星运-太阳弧',
 	solarreturn: '星运-太阳返照',
@@ -127,6 +131,8 @@ export const ANALYSIS_CHART_TECHNIQUES = [
 	'primarydirchart',
 	'zodialrelease',
 	'firdaria',
+	'distributions',
+	'agepoint',
 	'profection',
 	'solararc',
 	'solarreturn',
@@ -671,6 +677,16 @@ async function regenerateChartTechniqueSnapshot(record, key){
 			// 法达星限随西洋盘 predictive 一并返回，直接读取即可。
 			const chartObj = await fetchChartResultForRecord(record);
 			return chartObj ? (buildFirdariaSnapshotText(chartObj) || '') : '';
+		}
+		case 'distributions': {
+			// 界推运：上升点经主限运动穿越埃及界，分配星(界主)+参与星。内部 fetch /predict/dist。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (await buildDistributionsSnapshotText(chartObj) || '') : '';
+		}
+		case 'agepoint': {
+			// 年龄推进点（Huber）：年龄点自上升点起沿 Koch 宫顺行。内部 fetch /predict/agepoint。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (await buildAgePointSnapshotText(chartObj) || '') : '';
 		}
 		case 'primarydirect': {
 			// 主限法：取含主限法的西洋盘（默认 Alchabitius 弧 / Ptolemy 时钥 / 显示界限）。

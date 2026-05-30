@@ -91,3 +91,46 @@ class HarmonicChart:
             obj.relocate(newlon)
 
         self.perchart.reinit()
+
+
+class DraconicChart:
+    """龙盘（黄道交点盘 / Draconic）：以月亮北交点为白羊 0° 起算，各点黄经减去北交点黄经后取模 360。
+
+    与 HarmonicChart 同构（relocate + reinit），仅把每点变换换成
+    newlon = (lon - 北交点黄经) % 360。北交点自身落 0° 白羊（定义不变量）。
+    """
+
+    def __init__(self, perchart: PerChart):
+        self.perchart = perchart
+        node = perchart.chart.getObject(const.NORTH_NODE)
+        self.nodeLon = node.lon
+
+    def draconicObject(self, point):
+        newlon = (point.lon - self.nodeLon) % 360
+        point.relocate(newlon)
+        return newlon
+
+    def apply(self):
+        for obj in self.perchart.chart.objects:
+            self.draconicObject(obj)
+        for obj in self.perchart.chart.pars:
+            self.draconicObject(obj)
+
+        asc = self.perchart.chart.getAngle(const.ASC)
+        mc = self.perchart.chart.getAngle(const.MC)
+        desc = self.perchart.chart.getAngle(const.DESC)
+        ic = self.perchart.chart.getAngle(const.IC)
+        asclon = self.draconicObject(asc)
+        mclon = self.draconicObject(mc)
+        desc.relocate((asclon + 180) % 360)
+        ic.relocate((mclon + 180) % 360)
+
+        house1lon = (int(asclon / 30) % 12) * 30
+
+        for obj in self.perchart.chart.houses:
+            hid = int(obj.id[5:7])
+            newlon = house1lon + 30*(hid - 1)
+            obj.size = 30
+            obj.relocate(newlon)
+
+        self.perchart.reinit()

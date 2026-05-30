@@ -2,6 +2,9 @@ import * as AstroConst from '../constants/AstroConst';
 import * as AstroText from '../constants/AstroText';
 import { appendPlanetHouseInfoById, } from './planetHouseInfo';
 import * as Constants from './constants';
+// 寿命格局段:复用本命引擎(纯函数,无 React;已验证不回 import 本文件,无环)。
+import buildFacts from '../divination/engine/chartFacts';
+import { runLifespan } from '../divination/lifespan/lifespanEngine';
 
 export const ASTRO_AI_SNAPSHOT_KEY = 'horosa.ai.snapshot.astro.v1';
 let ASTRO_AI_SNAPSHOT_MEMORY = null;
@@ -706,6 +709,184 @@ function buildLotsSection(chartObj){
 	return lines;
 }
 
+// 星座庙主(传统七政),按 0=白羊…11=双鱼 顺序。仅用于 12分度/主宰链段,使用 AstroConst 行星常量,
+// 不引 divination/data/signs(避免小写 key 与 chart id 格式失配)。
+const TRAD_SIGN_RULERS = [
+	AstroConst.MARS, AstroConst.VENUS, AstroConst.MERCURY, AstroConst.MOON,
+	AstroConst.SUN, AstroConst.MERCURY, AstroConst.VENUS, AstroConst.MARS,
+	AstroConst.JUPITER, AstroConst.SATURN, AstroConst.SATURN, AstroConst.JUPITER,
+];
+
+function norm360Lon(x){
+	let v = Number(x) % 360;
+	if(v < 0){
+		v += 360;
+	}
+	return v;
+}
+
+// 取星体绝对黄经:优先 obj.lon,缺则用 sign+signlon 还原(对序列化里没带 lon 的盘兜底)。
+function objAbsLon(obj){
+	if(obj && obj.lon !== undefined && obj.lon !== null && !Number.isNaN(Number(obj.lon))){
+		return Number(obj.lon);
+	}
+	if(obj && obj.sign !== undefined && obj.signlon !== undefined && obj.signlon !== null){
+		const idx = AstroConst.LIST_SIGNS.indexOf(obj.sign);
+		if(idx >= 0){
+			return idx * 30 + Number(obj.signlon);
+		}
+	}
+	return null;
+}
+
+function dodecaLonOf(lon){
+	const L = norm360Lon(lon);
+	return norm360Lon(Math.floor(L / 30) * 30 + (L % 30) * 12);
+}
+
+function rulerIdOfLon(lon){
+	return TRAD_SIGN_RULERS[Math.floor(norm360Lon(lon) / 30) % 12];
+}
+
+// 12 分度(Dodekatemoria):每星本命黄经 → floor(度/30)*30 + (度%30)*12 落入的分度座。
+function buildDodecaSection(chartObj){
+	const lines = [];
+	const objectMap = getObjectsMap(chartObj);
+	AstroConst.LIST_OBJECTS.forEach((id)=>{
+		const lon = objAbsLon(objectMap[id]);
+		if(lon === null){
+			return;
+		}
+		const natal = lonToSignDegree(lon);
+		const dodeca = lonToSignDegree(dodecaLonOf(lon));
+		if(!natal || !dodeca){
+			return;
+		}
+		lines.push(`${msg(id)}：本命 ${natal} → 12分度 ${dodeca}`);
+	});
+	return lines;
+}
+
+// 主宰星链(dispositor chains):七政各落星座的庙主,顺链至「落自家星座」的终极主宰(或互容成环)。
+function buildDispositorSection(chartObj){
+	const lines = [];
+	const objectMap = getObjectsMap(chartObj);
+	const TRAD = [AstroConst.SUN, AstroConst.MOON, AstroConst.MERCURY, AstroConst.VENUS, AstroConst.MARS, AstroConst.JUPITER, AstroConst.SATURN];
+	TRAD.forEach((id)=>{
+		if(objAbsLon(objectMap[id]) === null){
+			return;
+		}
+		const chain = [id];
+		let cur = id;
+		let guard = 0;
+		while(guard < 12){
+			const lon = objAbsLon(objectMap[cur]);
+			if(lon === null){
+				break;
+			}
+			const ruler = rulerIdOfLon(lon);
+			if(!ruler || ruler === cur){
+				break;
+			}
+			chain.push(ruler);
+			if(chain.indexOf(ruler) !== chain.length - 1){
+				break;
+			}
+			cur = ruler;
+			guard += 1;
+		}
+		lines.push(`${msg(id)}：${chain.map((k)=>msg(k)).join(' → ')}`);
+	});
+	return lines;
+}
+
+// 非破坏地补出 buildFacts 需要的 objectMap/houseMap(不改原 chartObj)。
+function chartObjWithFactsMaps(chartObj){
+	if(!chartObj || !chartObj.chart){
+		return chartObj;
+	}
+	let objectMap = chartObj.objectMap;
+	if(!objectMap && Array.isArray(chartObj.chart.objects)){
+		objectMap = {};
+		chartObj.chart.objects.forEach((o)=>{ if(o && o.id){ objectMap[o.id] = o; } });
+	}
+	let houseMap = chartObj.houseMap;
+	if(!houseMap && Array.isArray(chartObj.chart.houses)){
+		houseMap = {};
+		chartObj.chart.houses.forEach((h)=>{ if(h && h.id){ houseMap[h.id] = h; } });
+	}
+	return Object.assign({}, chartObj, { objectMap, houseMap });
+}
+
+// 寿命引擎产出的 key/sign 是小写(buildFacts 统一 toLowerCase),需映射回 chart id 供 msg 显示中文。
+const LIFESPAN_KEY_TO_ID = {
+	sun: AstroConst.SUN, moon: AstroConst.MOON, mercury: AstroConst.MERCURY,
+	venus: AstroConst.VENUS, mars: AstroConst.MARS, jupiter: AstroConst.JUPITER,
+	saturn: AstroConst.SATURN, asc: AstroConst.ASC, mc: AstroConst.MC,
+	fortune: AstroConst.PARS_FORTUNA, syzygy: AstroConst.SYZYGY,
+	north_node: AstroConst.NORTH_NODE, south_node: AstroConst.SOUTH_NODE,
+};
+
+function lifespanName(key){
+	if(!key){
+		return '-';
+	}
+	const lk = String(key).toLowerCase();
+	if(LIFESPAN_KEY_TO_ID[lk]){
+		return msg(LIFESPAN_KEY_TO_ID[lk]);
+	}
+	const cap = lk.charAt(0).toUpperCase() + lk.slice(1);
+	const m = msg(cap);
+	return (m && m !== cap) ? m : `${key}`;
+}
+
+// 寿命格局(Hyleg/Alcocoden):生命主 + 寿主星 + 预测寿数 + 盘主体系。默认 Ptolemy 取主法(与组件同)。
+// 位置统一用 lonToSignDegree(lon)(引擎 sign 是小写、term 取不到;用绝对黄经重算座度+界,得中文)。
+function buildLifespanSection(chartObj){
+	const lines = [];
+	let res = null;
+	try {
+		const facts = buildFacts(chartObjWithFactsMaps(chartObj));
+		res = facts ? runLifespan(facts, { method: 'ptolemy' }) : null;
+	} catch(e){
+		return lines;
+	}
+	if(!res){
+		return lines;
+	}
+	lines.push(`区分：${res.isDiurnal ? '昼生盘' : '夜生盘'}`);
+	const hy = res.hyleg;
+	if(hy){
+		const pos = (hy.lon !== undefined && hy.lon !== null) ? lonToSignDegree(hy.lon) : '';
+		lines.push(`生命主(Hyleg)：${lifespanName(hy.key)} ${pos}${hy.house ? `（第${hy.house}宫）` : ''}`);
+	} else {
+		lines.push('生命主(Hyleg)：未定');
+	}
+	const alc = res.alcocoden;
+	if(alc && alc.alcocoden){
+		lines.push(`寿主星(Alcocoden)：${lifespanName(alc.alcocoden)}`);
+		if(alc.aspectToHyleg){
+			lines.push(`与生命主相照：${alc.aspectToHyleg}`);
+		}
+		if(alc.predictedYears !== undefined && alc.predictedYears !== null){
+			lines.push(`预测寿数 ≈ ${alc.predictedYears} 年（基础 ${alc.baseYears} 年）`);
+		}
+	} else {
+		lines.push('寿主星(Alcocoden)：未能确定');
+	}
+	if(res.rulers){
+		const r = res.rulers;
+		const parts = [];
+		if(r.epikratetor){ parts.push(`占控星 ${lifespanName(r.epikratetor)}`); }
+		if(r.oikodespotes){ parts.push(`家主星 ${lifespanName(r.oikodespotes)}`); }
+		if(r.kurios){ parts.push(`盘主星 ${lifespanName(r.kurios)}`); }
+		if(parts.length){
+			lines.push(`盘主体系：${parts.join('；')}${r.concordant ? '（家主=盘主，格局相合）' : ''}`);
+		}
+	}
+	return lines;
+}
+
 function buildPossibilitySection(chartObj){
 	const lines = [];
 	const predict = chartObj && chartObj.predict ? chartObj.predict : {};
@@ -752,6 +933,9 @@ export function buildAstroSnapshotContent(chartObj, fields, options = {}){
 	sections.push(buildSectionText('相位', buildAspectSection(chartObj)));
 	sections.push(buildSectionText('行星', buildPlanetSection(chartObj)));
 	sections.push(buildSectionText('希腊点', buildLotsSection(chartObj)));
+	sections.push(buildSectionText('12分度', buildDodecaSection(chartObj)));
+	sections.push(buildSectionText('主宰星链', buildDispositorSection(chartObj)));
+	sections.push(buildSectionText('寿命格局', buildLifespanSection(chartObj)));
 	sections.push(buildSectionText('可能性', buildPossibilitySection(chartObj)));
 	return sections.filter(Boolean).join('\n\n').trim();
 }

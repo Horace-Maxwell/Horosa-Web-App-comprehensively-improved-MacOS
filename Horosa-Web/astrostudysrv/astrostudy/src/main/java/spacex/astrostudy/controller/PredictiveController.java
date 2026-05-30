@@ -117,6 +117,22 @@ public class PredictiveController {
 	}
 	
 	@ResponseBody
+	@RequestMapping("/dist")
+	public void dist(){
+		Map<String, Object> params = getParams();
+		Map<String, Object> res = AstroHelper.getDistribution(params);
+		TransData.set(res);
+	}
+
+	@ResponseBody
+	@RequestMapping("/agepoint")
+	public void agepoint(){
+		Map<String, Object> params = getParams();
+		Map<String, Object> res = AstroHelper.getAgePoint(params);
+		TransData.set(res);
+	}
+
+	@ResponseBody
 	@RequestMapping("/solarreturn")
 	public void solarreturn(){
 		Map<String, Object> params = getParams();		

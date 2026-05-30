@@ -281,6 +281,21 @@ class PerChart:
             except (TypeError, ValueError):
                 self.pdYears = 100
 
+        # 容许度自定义：orbs(逐星 id->度) / orbScale(全局倍数)。默认 None → 盘对象 orb() 回退默认表，零回归。
+        self.orbOverrides = None
+        self.orbScale = None
+        if isinstance(data.get('orbs'), dict):
+            try:
+                self.orbOverrides = {k: float(v) for k, v in data['orbs'].items() if v is not None and str(v) != ''}
+            except (TypeError, ValueError):
+                self.orbOverrides = None
+        if 'orbScale' in data.keys():
+            try:
+                sc = float(data['orbScale'])
+                self.orbScale = sc if sc > 0 else None
+            except (TypeError, ValueError):
+                self.orbScale = None
+
         self.su28Mode = self.parseSu28Mode(data.get('doubingSu28', SU28_MODE_REAL))
         self.isZhengSidereal = self.su28Mode == SU28_MODE_ZHENG_SIDEREAL or data.get('guolaoZhengSidereal') == 1 or data.get('guolaoZhengSidereal') == '1'
 
@@ -369,11 +384,24 @@ class PerChart:
         perchart = PerChart(data)
         return perchart
 
+    def applyOrbOverrides(self):
+        """ 把 orbs(逐星)/orbScale(全局倍数) 挂到盘对象上；默认无参直接返回，orb() 回退默认表，行为字节级不变。 """
+        ov = getattr(self, 'orbOverrides', None)
+        sc = getattr(self, 'orbScale', None)
+        if not ov and sc is None:
+            return
+        for obj in self.chart.objects:
+            if ov and obj.id in ov:
+                obj._orbOverride = ov[obj.id]
+            if sc is not None:
+                obj._orbScale = sc
+
     def reinit(self):
         self.orientOccident = None
         self.orientOccidentHouses = None
         self.dynchart = ChartDynamics(self.chart)
         self.dynchart.simpleAsp = self.simpleAsp
+        self.applyOrbOverrides()
         self.setupPlanets()
         self.setupDignities()
 

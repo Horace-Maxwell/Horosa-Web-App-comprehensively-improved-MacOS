@@ -130,14 +130,25 @@ if [ -f "${MAINRS}" ]; then
   fi
   # 注:emit_indeterminate_progress 调用会被 cargo fmt 拆成多行(`(` 后换行),故不能 grep `(&window`(会漏报);
   # 用「函数名存在」+「首启提示文案存在」双重确认 —— 两者 cargo fmt 都不会拆。(2.3.1 踩过此误报)
+  # (v2.3.2 文案已从「需完整校验 30-60 秒」改为快路径版「正在恢复启动」,哨兵同步跟改。)
   if grep -q "emit_indeterminate_progress" "${MAINRS}" \
-     && grep -q "更新后首次启动需完整校验" "${MAINRS}"; then
+     && grep -q "正在恢复启动" "${MAINRS}"; then
     ok "A 首启 indeterminate 等待提示在位"
   else
     bad "main.rs 首启缺 emit_indeterminate_progress 调用或提示文案 —— 更新后首启进度停住会被当成卡死"
   fi
+  # D (v2.3.2):更新后首启「预写 fast-path 标记 + 不再强制全量」修复哨兵。
+  # 根因:runtime 安装前已 sha256 验签,首启再走 300s 全量属冗余;且 fast-path 标记仅在「整轮成功」
+  # 后才写,用户把冷首启当卡死强退 → 标记没写 → 下次又全量 → 反复重启(实测 18:23/18:26/18:28 三启)。
+  # 修法:对已验签 runtime 在 start_runtime 之前预写标记,首启即走快路径,强退也不回退全量。
+  # 详见 docs/更新后自启修复-v2.3.2.md。哨兵 grep 注释 sentinel(comment,cargo fmt 不拆)。
+  if grep -q "需重启两三次" "${MAINRS}"; then
+    ok "D 更新后首启预写 fast-path 标记(已验签 runtime 不再 300s 全量)"
+  else
+    bad "main.rs 缺 v2.3.2 预写 fast-path 标记修复 —— 更新后首启回到冷全量、强退反复(见 docs/更新后自启修复-v2.3.2.md)"
+  fi
 else
-  warn "main.rs 不存在,跳过更新卡顿哨兵(C①/A)"
+  warn "main.rs 不存在,跳过更新卡顿哨兵(C①/A/D)"
 fi
 if [ -f "${STARTSH}" ]; then
   grep -q "prune_stale_pid_file" "${STARTSH}" \
