@@ -5440,18 +5440,13 @@ fn runtime_bootstrap(
     // 提速(更新后卡顿)B:warmup 仅首启触发,且脚本内已改为后台非阻塞预热,不再卡启动;
     // mongo 为可选服务,一律跳过启动期 ping(mongo 缺席时 ping 会拖满等待)。
     let skip_runtime_warmup = !first_launch_after_update;
-    let fast_path_enabled = !force_runtime_install
-        && runtime_fast_path_allowed(&paths.runtime_dir);
+    let fast_path_enabled = !force_runtime_install && runtime_fast_path_allowed(&paths.runtime_dir);
     let skip_mongo_ping = true;
     if first_launch_after_update {
         emit_status(&window, "检测到刚完成更新，正在执行更新后的首次恢复启动…");
         // 修复(更新后卡顿):runtime 已在安装前逐字节验签,首启走 trusted 快路径(通常 ~10 秒内,
         // 冷启动略久)。用不确定进度动画 + 明确文案,避免冷启动的短暂停顿被当成「卡死」而被强退。
-        emit_indeterminate_progress(
-            &window,
-            78,
-            "更新已完成，正在恢复启动,通常约 10 秒,请稍候…",
-        );
+        emit_indeterminate_progress(&window, 78, "更新已完成，正在恢复启动,通常约 10 秒,请稍候…");
         cleanup_state(&app);
         thread::sleep(Duration::from_secs(1));
     }
