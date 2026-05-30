@@ -96,6 +96,7 @@ export const CASE_TYPE_OPTIONS = [
 	{ value: 'sanshiunited', label: '三式合一', subTab: null, tab: 'sanshiunited', module: 'sanshiunited' },
 	{ value: 'horary', label: '卜卦', subTab: 'horary', tab: 'auxchart', module: 'horary' },
 	{ value: 'election', label: '择日', subTab: 'election', tab: 'auxchart', module: 'election' },
+	{ value: 'mundane', label: '世俗盘', subTab: 'mundane', tab: 'auxchart', module: 'mundane' },
 ];
 
 const CASE_TYPE_ALIASES = {

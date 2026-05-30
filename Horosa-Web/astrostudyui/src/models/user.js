@@ -72,6 +72,14 @@ function newEmptyChartFields(){
 			name: ['cid'],
 		},
 		// 日界点 + 晚子时·时柱起干 + 时间算法 必须随命盘存档(不存则下次打开按全局默认,日柱/时柱可能算错)。
+		orbs:{
+			value: undefined,
+			name: ['orbs'],
+		},
+		orbScale:{
+			value: undefined,
+			name: ['orbScale'],
+		},
 		after23NewDay:{
 			value: undefined,
 			name: ['after23NewDay'],
@@ -321,6 +329,14 @@ export default {
 				name: ['updateTime'],
 			},
 			// 日界点 + 晚子时·时柱起干 + 时间算法 随命盘持久化(用户拍板,见 dayBoundary.js)。
+			orbs:{
+				value: undefined,
+				name: ['orbs'],
+			},
+			orbScale:{
+				value: undefined,
+				name: ['orbScale'],
+			},
 			after23NewDay:{
 				value: undefined,
 				name: ['after23NewDay'],
@@ -498,6 +514,8 @@ export default {
 			if(fld.after23NewDay && fld.after23NewDay.value !== undefined){
 				chart.after23NewDay.value = fld.after23NewDay.value;
 			}
+			if(fld.orbs && fld.orbs.value){ chart.orbs.value = fld.orbs.value; }
+			if(fld.orbScale && fld.orbScale.value){ chart.orbScale.value = fld.orbScale.value; }
 			if(fld.lateZiHourUseNextDay && fld.lateZiHourUseNextDay.value !== undefined){
 				chart.lateZiHourUseNextDay.value = fld.lateZiHourUseNextDay.value;
 			}

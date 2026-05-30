@@ -82,6 +82,26 @@ class AstroExtraSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    def draconic(self, **params):
+        enable_crossdomain()
+        try:
+            return self._json(astroextra.build_draconic(self._payload(params)))
+        except Exception:
+            return self._error()
+
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
+    def greatconj(self, **params):
+        enable_crossdomain()
+        try:
+            return self._json(astroextra.compute_great_conjunctions(self._payload(params)))
+        except Exception:
+            return self._error()
+
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
     def relative(self, **params):
         enable_crossdomain()
         try:

@@ -183,6 +183,28 @@ correct cached data or "缺失" — never wrong data.
 3. For settings, prefer the user's stored prefs (e.g. 七政四余 reads `getStoredGuolao*`) or sensible code defaults.
 4. Parse-check, build, then verify live (below). Watch for circular imports (these components must not import
    `aiAnalysisContext`).
+5. **An async builder that fetches MUST `return ''` on empty/no data.** If it always pushes a table header, the
+   technique reads as `available: true`, and `aiAnalysisContext.test.js`'s "unwired/unselected techniques must be
+   `missing`" contract goes red. Register the new key in BOTH `ANALYSIS_CHART_TECHNIQUES` and the technique-label map.
+   (2026-05-29: 界推运/Huber added this way — `buildDistributionsSnapshotText`/`buildAgePointSnapshotText` fetch
+   `/predict/dist` & `/predict/agepoint`; empty → `''`. Run `npm test -- src/utils/__tests__/aiAnalysisContext.test.js`.)
+6. **Astro 事盘 / aux charts (世俗盘 etc.) do NOT use this recompute path** — they mount the case's stored
+   `payload.aiSnapshot` (`extractCaseSnapshotText` 'ready'), else a raw JSON dump. To give them a formatted snapshot,
+   store it at save time: pass an optional `buildAiSnapshot(chart,fields,extra)` prop to `DivinationChartShell`
+   (keeps the shell generic) → `divinationCaseSave` writes `payload.aiSnapshot`. `MundaneMain` passes
+   ingress-header + `buildAstroSnapshotContent`. Judgment sections (12分度/主宰星链/寿命格局) instead live in
+   `astroAiSnapshot.js` `buildAstroSnapshotContent` + `aiExport.js` preset lists (bump both version consts).
+7. **AI导出 (`aiExport.js`) is a SEPARATE system from AI分析挂载 — wiring挂载 does NOT wire导出.** A new technique that
+   should be exportable (predictions like primarydirect/firdaria are) must be added to **every** map or
+   `aiExport.test.js`'s `getAIExportAuditMatrix` goes red (it asserts each technique has presetSections + options +
+   extractionKind + structuredSnapshotKeys). For a `direction`-subtab prediction: `AI_EXPORT_TECHNIQUES`,
+   `AI_EXPORT_PRESET_SECTIONS`, `predictiveLabelMap`, `predictiveMap` (domain `predictive_raw`), `isPredictiveExportKey`,
+   and the `predictiveKeys` array (~L4842). Export text is captured via the `horosa:refresh-module-snapshot` window
+   event — the **component** must listen and write `evt.detail.snapshotText` (see AstroDistributions/AstroAgePoint;
+   AstroDirectMain does it for primarydirect). For an auxchart/事盘 (世俗盘): add to `auxchartMap` + presets, set
+   `getExtractorKindByExportKey`→`'predictive'` (NOT `'astro'`, which grabs the MAIN chart not the aux chart) +
+   `getStructuredSnapshotKeysByExportKey`→non-empty; the shell (`DivinationChartShell`) answers the refresh event via
+   its `buildAiSnapshot` prop. (2026-05-29: 界推运/Huber/世俗 all wired this way.) Run `npm test` — full 140 must pass.
 
 ### Chat Markdown rendering
 

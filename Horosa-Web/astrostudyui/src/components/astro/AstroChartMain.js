@@ -7,6 +7,9 @@ import AstroPlanet from './AstroPlanet';
 import AstroLots from './AstroLots';
 import AstroPredictPlanetSign from './AstroPredictPlanetSign';
 import AstroAnalysisLab from './AstroAnalysisLab';
+import AstroLifespan from './AstroLifespan';
+import AstroDodeca from './AstroDodeca';
+import AstroDispositor from './AstroDispositor';
 import AspSelector from './AspSelector';
 import ChartDisplaySelector from './ChartDisplaySelector';
 import PlanetSelector from './PlanetSelector';
@@ -625,7 +628,7 @@ class AstroChartMain extends Component{
 		};
 		const planetsContent = (
 			<div className="horosa-settings-popover-panel horosa-settings-popover-panel-large">
-				<div className="horosa-settings-popover-title">星体与容许度</div>
+				<div className="horosa-settings-popover-title">显示星体</div>
 				<PlanetSelector
 					value={this.props.planetDisplay}
 					lots={this.props.lotsDisplay}
@@ -741,7 +744,7 @@ class AstroChartMain extends Component{
 		return (
 			<div className="horosa-input-nav-stack">
 				<Popover {...popoverProps} content={planetsContent}>
-					<XQButton size="small" iconName="sidePlanets">星体与容许度</XQButton>
+					<XQButton size="small" iconName="sidePlanets">显示星体</XQButton>
 				</Popover>
 				<Popover {...popoverProps} content={zodiacContent}>
 					<XQButton size="small" iconName="sideHouses">宫位制与黄道</XQButton>
@@ -850,13 +853,18 @@ class AstroChartMain extends Component{
 						</div>
 					</TabPane>
 						<TabPane tab="古典" key="4">
-							<AstroInfo mode="classical" height={tabHeight}
-								value={chartObj} fields={fields}
-							planetDisplay={this.props.planetDisplay}
-							showPlanetHouseInfo={this.props.showPlanetHouseInfo}
-							showAstroMeaning={this.props.showAstroMeaning}
-							showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
-						/>
+							<div style={{ height: tabHeight, overflowY: 'auto', overflowX: 'hidden' }}>
+								<AstroInfo mode="classical" height={tabHeight}
+									value={chartObj} fields={fields}
+								planetDisplay={this.props.planetDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
+							/>
+							<AstroLifespan value={chartObj} />
+							<AstroDodeca value={chartObj} />
+							<AstroDispositor value={chartObj} />
+							</div>
 					</TabPane>
 						<TabPane tab="可能性" key="5">
 							<AstroPredictPlanetSign height={tabHeight}

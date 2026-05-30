@@ -26,7 +26,7 @@ function caseDateTime(fields){
 }
 
 // 存为事件盘。module: 'horary' | 'election'；extra 取自 Shell 的 state.extra（questionCategory / topicId）。
-export function openDivinationCaseDrawer({ dispatch, fields, module, label, extra }){
+export function openDivinationCaseDrawer({ dispatch, fields, module, label, extra, aiSnapshot }){
 	if(!dispatch || !module){
 		return;
 	}
@@ -57,6 +57,10 @@ export function openDivinationCaseDrawer({ dispatch, fields, module, label, extr
 					version: 1,
 					savedAt: new Date().toISOString(),
 					settings,
+					extra: ex,
+					// 世俗盘(入宫盘)等 astro 类事盘存档时带上格式化 astro 快照 →
+					// AI分析挂载直接读 payload.aiSnapshot(extractCaseSnapshotText 'ready'),不再退回 JSON 裸转。
+					aiSnapshot: (aiSnapshot && `${aiSnapshot}`.trim()) ? `${aiSnapshot}` : undefined,
 					questionCategory: ex.questionCategory || null,
 					topicId: ex.topicId || null,
 				},

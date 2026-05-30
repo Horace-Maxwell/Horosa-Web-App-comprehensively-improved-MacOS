@@ -143,6 +143,14 @@ function newEmptyFields(){
 			value: '年',
 			name: ['godKeyPos'],
 		},
+		orbs:{
+			value: undefined,
+			name: ['orbs'],
+		},
+		orbScale:{
+			value: undefined,
+			name: ['orbScale'],
+		},
 		after23NewDay: {
 			value: defaultAfter23NewDay(),
 			name: ['after23NewDay'],
@@ -237,6 +245,8 @@ function fieldsToParams(fields){
 		group: fields.group ? fields.group.value : null,
 		after23NewDay: (fields.after23NewDay && fields.after23NewDay.value !== undefined) ? fields.after23NewDay.value : defaultAfter23NewDay(),
 		lateZiHourUseNextDay: (fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined) ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
+		orbs: (fields.orbs && fields.orbs.value) ? fields.orbs.value : undefined,
+		orbScale: (fields.orbScale && fields.orbScale.value) ? fields.orbScale.value : undefined,
 	};
 
 	if(params.pdaspects && params.pdaspects instanceof String){
@@ -272,6 +282,7 @@ function closeAllDrawer(msg){
 		selectplanet: false,
 		selectchartdisplay: false,
 		selectasp: false,
+		selectorb: false,
 		register: false,
 		login: false,
 		resetpwd: false,
@@ -559,6 +570,14 @@ export default {
 			godKeyPos: {
 				value: '年',
 				name: ['godKeyPos'],
+			},
+			orbs:{
+				value: undefined,
+				name: ['orbs'],
+			},
+			orbScale:{
+				value: undefined,
+				name: ['orbScale'],
 			},
 			after23NewDay: {
 				value: defaultAfter23NewDay(),
@@ -1048,6 +1067,8 @@ export default {
 			if(values.after23NewDay !== undefined && values.after23NewDay !== null){
 				fields.after23NewDay.value = parseInt(values.after23NewDay + '', 10);
 			}
+			if(values.orbs && typeof values.orbs === 'object'){ if(!fields.orbs){ fields.orbs = { name: ['orbs'] }; } fields.orbs.value = values.orbs; }
+			if(values.orbScale !== undefined && values.orbScale !== null){ if(!fields.orbScale){ fields.orbScale = { name: ['orbScale'] }; } fields.orbScale.value = values.orbScale; }
 			if(values.lateZiHourUseNextDay !== undefined && values.lateZiHourUseNextDay !== null){
 				fields.lateZiHourUseNextDay.value = parseInt(values.lateZiHourUseNextDay + '', 10);
 			}
@@ -1154,6 +1175,8 @@ export default {
 			const Result = rsp.Result;
 			Result.params.name = fieldValues.name.value;
 			Result.params.pos = fieldValues.pos.value;
+			if(fieldValues.orbs && fieldValues.orbs.value){ Result.params.orbs = fieldValues.orbs.value; }
+			if(fieldValues.orbScale && fieldValues.orbScale.value){ Result.params.orbScale = fieldValues.orbScale.value; }
 			Result.chartId = randomStr(8);
 			saveAstroAISnapshot(Result, fieldValues);
 

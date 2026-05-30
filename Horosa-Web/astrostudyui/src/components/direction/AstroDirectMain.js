@@ -6,6 +6,8 @@ import AstroPrimaryDirection from '../astro/AstroPrimaryDirection';
 import AstroPrimaryDirectionChart from '../astro/AstroPrimaryDirectionChart';
 import AstroZR from '../astro/AstroZR';
 import AstroFirdaria from '../astro/AstroFirdaria';
+import AstroDistributions from '../astro/AstroDistributions';
+import AstroAgePoint from '../astro/AstroAgePoint';
 import AstroSolarReturn from '../astro/AstroSolarReturn';
 import AstroLunarReturn from '../astro/AstroLunarReturn';
 import AstroGivenYear from '../astro/AstroGivenYear';
@@ -460,6 +462,12 @@ class AstroDirectMain extends Component{
 					fun: null
 				},
 				firdaria:{
+					fun: null
+				},
+				distributions:{
+					fun: null
+				},
+				agepoint:{
 					fun: null
 				},
 				profection:{
@@ -985,6 +993,20 @@ class AstroDirectMain extends Component{
 								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 								showAstroMeaning={this.props.showAstroMeaning}
 							/>
+					</TabPane>
+
+					<TabPane tab="界推运" key="distributions">
+						<AstroDistributions
+							value={this.props.chartObj}
+							height={height}
+						/>
+					</TabPane>
+
+					<TabPane tab="年龄推进点" key="agepoint">
+						<AstroAgePoint
+							value={this.props.chartObj}
+							height={height}
+						/>
 					</TabPane>
 
 					<TabPane tab="小限法" key="profection">

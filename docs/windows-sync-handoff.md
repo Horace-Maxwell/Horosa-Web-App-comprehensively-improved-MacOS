@@ -20,6 +20,31 @@
 
 ---
 
+## v2.4.0（发布中）— 西占技法批量补全(6 技法全链路 AI) + 更新后自启修复 + orbs 存档
+
+> 逐技法实现详解(校对用):[`西占新技法-逐技法实现详解-v2.4.0.md`](西占新技法-逐技法实现详解-v2.4.0.md);更新自启:[`更新后自启修复-v2.3.2.md`](更新后自启修复-v2.3.2.md)(文件名沿用旧标签,实际随 2.4.0 发)。
+
+### A. 共享后端/前端(Windows **必须**同步,含**重编 `astrostudyboot.jar`**)
+
+- **Java `astrostudysrv`(改了 → Windows 必须重编 jar)**:
+  - `astrostudy/.../controller/PredictiveController.java`:新增 `/predict/dist`(界推运)、`/predict/agepoint`(年龄推进点)路由。
+  - `astrostudy/.../controller/AstroExtraController.java`:新增 `/astroextra/greatconj`(木土大合相,仅 startYear/endYear 参数,不走 getBaseParams)。
+  - `astrostudy/.../helper/AstroHelper.java`:加 AgePoint/Distribution/GreatConj 常量 + getter。
+  - `astrostudycn/.../controller/ChartController.java`:`getParams()` 白名单加 `orbs`/`orbScale`(容许度透传)。
+  - 重编(JDK17):`mvn -f astrostudy/pom.xml install -DskipTests && mvn -f astrostudycn/pom.xml install -DskipTests && mvn -f astrostudyboot/pom.xml clean package -DskipTests`。**`clean` 必须**(否则复用 5/28 旧 astrostudy/astrostudycn 依赖 jar——本轮真踩:fat jar 20:08 重打但内嵌 astrostudy-1.0.0.jar 还是 5/28,缺路由)。**验证用 `javap`(看 dist/agepoint/greatconj 方法在)而非内嵌 jar 的 mtime——内嵌 mtime 是 Maven reproducible-build 固定戳(5/28),不反映内容新旧。**
+- **Python `astropy`(共享,同步)**:`astrostudy/perpredict.py`(`getDistributions`/`getAgePoint`,模块级 `from astrostudy.termdirection import TermDirection`)、`astrostudy/agepoint.py`(**新建**,Koch 宫 `swisseph.houses_ex2(...,b'K')`)、`astrostudy/astroextra.py`(`compute_great_conjunctions`,cap≈3400年)、`websrv/webpredictsrv.py`(`dist`/`agepoint` 端点)、`websrv/webastroextrasrv.py`(`greatconj`)。`flatlib-ctrad2` 的 object.py/arabicparts.py 亦有改。
+- **前端 `astrostudyui`(共享,重建前端 `npm run build` + `build:file`)**:6 技法全链路 AI——`utils/astroAiSnapshot.js`(buildDodeca/Dispositor/LifespanSection)、`utils/aiAnalysisContext.js`(distributions/agepoint wired technique)、`utils/aiExport.js`(**六张登记表** + auxchartMap/extractor，见逐技法详解 §4-6)、`components/astro/{AstroDodeca,AstroDispositor,AstroLifespan,AstroDistributions,AstroAgePoint}.js`、`components/mundane/MundaneMain.js`、`components/divination/DivinationChartShell.js`(buildAiSnapshot prop + 刷新事件)、`utils/divinationCaseSave.js`(payload.aiSnapshot)、orbs 存档(`models/user.js`/`utils/localcharts.js`/`models/astro.js` 镜像 after23NewDay)。**勿改坏 pdMethod/主限法**。
+- **验证**:`npm run build` + `build:file` 绿;`npm test` 29 套 140 全过(关键自检 `aiAnalysisContext.test` 技法 missing 契约 + `aiExport.test getAIExportAuditMatrix` 每技法六表齐)。
+
+### B. Mac 专属(Windows N/A)— 更新后无法自动打开修复
+
+**性质:macOS 专属(Tauri 外壳 `src-tauri/src/main.rs`),Windows 更新流不同。**
+- **真因**:更新后首启被强制全量慢校验(`fast_path_enabled = !first_launch_after_update && …`),fast-path 标记只在整轮成功后才写;冷首启像卡死被强退→标记没写→下次又全量→反复(实测三启 trusted=0/0/1)。该全量冗余(`apply_update` 已 `verify_sha256`)。
+- **修法**:对已验签 runtime 在 `start_runtime` 前预写标记 + 取消首启强制全量。
+- **Windows 怎么办**:**只要无「更新后首启反复卡」症状,无需动作**;若有,按同思路改 Windows 自己 updater,**代码另写勿照搬 mac main.rs**。
+
+---
+
 ## v2.3.1（发布中）— 更新后启动卡顿修复 + #10「服务不稳定」(SSE 并发竞态 + SSE 标志跨请求污染)
 
 > 机制细节:[`服务不稳定-SSE并发与签名污染修复-v2.3.1.md`](服务不稳定-SSE并发与签名污染修复-v2.3.1.md)(#10)、[`更新后启动卡顿修复-v2.3.1.md`](更新后启动卡顿修复-v2.3.1.md)(更新卡顿)。

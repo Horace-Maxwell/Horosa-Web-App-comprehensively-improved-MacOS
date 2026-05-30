@@ -270,6 +270,8 @@ export function buildLocalChartRecord(values){
 		after23NewDay: values.after23NewDay !== undefined && values.after23NewDay !== null
 			? parseInt(values.after23NewDay + '', 10)
 			: (values.after23NewDay === undefined ? undefined : 1),
+		orbs: (values.orbs && typeof values.orbs === 'object' && Object.keys(values.orbs).length) ? values.orbs : undefined,
+		orbScale: (values.orbScale !== undefined && values.orbScale !== null && values.orbScale !== 1) ? values.orbScale : undefined,
 		lateZiHourUseNextDay: values.lateZiHourUseNextDay !== undefined && values.lateZiHourUseNextDay !== null
 			? parseInt(values.lateZiHourUseNextDay + '', 10)
 			: undefined,

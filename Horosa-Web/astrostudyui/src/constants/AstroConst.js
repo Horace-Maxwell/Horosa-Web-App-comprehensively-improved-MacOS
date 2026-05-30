@@ -98,8 +98,13 @@ export const PARS_MARS = 'Pars Mars'
 export const PARS_VENUS = 'Pars Venus'
 export const PARS_MERCURY = 'Pars Mercury'
 export const PARS_HORSEMANSHIP = 'Pars Horsemanship'  
-export const PARS_LIFE = 'Pars Life'  
-export const PARS_RADIX = 'Pars Radix'  
+export const PARS_LIFE = 'Pars Life'
+export const PARS_RADIX = 'Pars Radix'
+export const PARS_EROS = 'Pars Eros'
+export const PARS_NECESSITY = 'Pars Necessity'
+export const PARS_COURAGE = 'Pars Courage'
+export const PARS_VICTORY = 'Pars Victory'
+export const PARS_NEMESIS = 'Pars Nemesis'
 
 
 export const LOTS = [
@@ -124,7 +129,12 @@ export const LOTS = [
     PARS_TRAVEL,
     PARS_HORSEMANSHIP,
     PARS_LIFE,
-    PARS_RADIX
+    PARS_RADIX,
+    PARS_EROS,
+    PARS_NECESSITY,
+    PARS_COURAGE,
+    PARS_VICTORY,
+    PARS_NEMESIS
 ]
 
 export const LIST_SIGNS = [

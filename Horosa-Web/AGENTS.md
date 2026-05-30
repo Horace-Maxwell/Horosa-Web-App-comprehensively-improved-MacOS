@@ -199,4 +199,5 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
   - warmup 在脚本内**后台非阻塞**(`( … ) >/dev/null 2>&1 &`)——外层必须重定向切断对脚本 stdout/stderr 的继承,否则后台进程持有 Rust `command.output()` 的 pipe,脚本永远「返回不了」。
   - 轮询 `poll_interval` 与 `trusted_runtime` **解耦**(非 trusted 也用 0.2s)。
 - **更新标记必须「读取即消费」。** `update-complete.txt` 若只在启动**成功**时删,首启一失败就残留 → 下次仍走 300s 慢路径,反复卡。现 `main.rs` 一进 `runtime_bootstrap` 就 `consume_update_complete_marker_into_state`(缓存通知到 `AppState` 后立即删标记),成功后从内存弹「更新完成」窗。
-- 以上四点有 `release_preflight.sh` **[9] 哨兵**兜底,别绕过。
+- **更新后「首启」别再走「全量慢校验」——它是冗余的(v2.3.2 修)。** `apply_update` 装前已 `verify_sha256(runtime_sha256)`,装进去的 runtime 是逐字节验签过的;但 `runtime_bootstrap` 旧逻辑 `fast_path_enabled = !first_launch_after_update && …` **强制**首启全量,而让后续变快的 fast-path 标记**只在「整轮成功」后才写** → 冷首启 ~22s 像卡死被强退 → 标记没写 → 下次又全量 → **反复重启两三次才打开**(真机一次更新三启 trusted=0/0/1)。修法:对已验签 runtime 在 `start_runtime` **之前**就 `write_runtime_fast_path_marker` 预写标记 + 取消 `fast_path_enabled` 对首启的强制关闭 → 首启即快路径、强退也不回退全量。详见 [`../docs/更新后自启修复-v2.3.2.md`](../docs/更新后自启修复-v2.3.2.md)。**别把首启退回成无条件全量校验。** 注:`update-installer.log` 的 `[open] relaunch confirmed` 证明 helper 自动重开本身没坏,卡的一直是首启那段。
+- 以上各点有 `release_preflight.sh` **[9] 哨兵(C①/A/C②/B/D)**兜底,别绕过。
