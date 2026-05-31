@@ -293,9 +293,9 @@ class ZWLuckPanel extends Component {
 		const onClick = annualMode === 'liunian' ? (i) => this.pickLiunian(i) : (i) => this.pickXiaoxian(i);
 		return (
 			<div className="horosa-ziwei-luck-axis-row">
-				<div className="horosa-ziwei-luck-axis-toggle">
-					<button type="button" className={annualMode === 'liunian' ? 'on' : ''} onClick={() => this.setAnnualMode('liunian')}>流年</button>
-					<button type="button" className={annualMode === 'xiaoxian' ? 'on' : ''} onClick={() => this.setAnnualMode('xiaoxian')}>小限</button>
+				<div className="horosa-ziwei-luck-annual-toggle">
+					<button type="button" className={`horosa-ziwei-luck-toggle-btn ${annualMode === 'liunian' ? 'is-on' : ''}`} onClick={() => this.setAnnualMode('liunian')}>流年</button>
+					<button type="button" className={`horosa-ziwei-luck-toggle-btn ${annualMode === 'xiaoxian' ? 'is-on' : ''}`} onClick={() => this.setAnnualMode('xiaoxian')}>小限</button>
 				</div>
 				<div className="horosa-ziwei-luck-axis">
 					{(items || []).map((item) => (

@@ -14880,62 +14880,40 @@
 		background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.10));
 		border-radius: 7px;
 	}
-	/* 流年/小限 同级互斥 toggle */
-	/* 年级 pivot 块：流年/小限 横向分段切换 + chips（成熟药丸式，带滑块） */
-	.horosa-workspace-shell .horosa-ziwei-luck-annual {
+	/* 流年/小限 同级互斥 toggle —— 占左侧层名列(30px)、与 chip 同视觉语言(选中金渐变，一眼可辨) */
+	.horosa-workspace-shell .horosa-ziwei-luck-annual-toggle {
+		flex: 0 0 auto;
+		width: 30px;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-		padding: 9px 9px 5px;
-		border-radius: 10px;
-		background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.08));
-		border: 1px solid rgba(215, 173, 105, 0.18);
+		gap: 4px;
 	}
-	.horosa-workspace-shell .horosa-ziwei-luck-seg {
-		position: relative;
-		align-self: flex-start;
-		display: inline-flex;
-		padding: 3px;
-		border-radius: 999px;
-		background: var(--horosa-surface-solid, #fff);
+	.horosa-workspace-shell .horosa-ziwei-luck-toggle-btn {
+		flex: 1 1 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		writing-mode: vertical-lr;
+		letter-spacing: 3px;
+		padding: 6px 0;
 		border: 1px solid var(--horosa-border, rgba(76, 98, 134, 0.17));
-		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
-	}
-	.horosa-workspace-shell .horosa-ziwei-luck-seg-thumb {
-		position: absolute;
-		top: 3px;
-		left: 3px;
-		width: calc(50% - 3px);
-		height: calc(100% - 6px);
-		border-radius: 999px;
-		background: linear-gradient(180deg, #b5863a, #9a6a25);
-		box-shadow: 0 1px 4px rgba(154, 106, 37, 0.40);
-		transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-		pointer-events: none;
-	}
-	.horosa-workspace-shell .horosa-ziwei-luck-seg-thumb[data-mode='xiaoxian'] {
-		transform: translateX(100%);
-	}
-	.horosa-workspace-shell .horosa-ziwei-luck-seg button {
-		position: relative;
-		z-index: 1;
-		min-width: 60px;
-		padding: 4px 18px;
-		border: none;
-		border-radius: 999px;
-		background: transparent;
-		color: var(--horosa-text-soft, #52627a);
-		font-size: 13px;
-		font-weight: 600;
-		letter-spacing: 2px;
+		border-radius: 7px;
+		background: var(--horosa-surface-solid, #fff);
+		color: var(--horosa-muted, #68758a);
+		font-size: 12px;
+		font-weight: 700;
 		cursor: pointer;
-		transition: color 0.18s ease;
+		transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
 	}
-	.horosa-workspace-shell .horosa-ziwei-luck-seg button.is-on {
+	.horosa-workspace-shell .horosa-ziwei-luck-toggle-btn:hover {
+		border-color: var(--horosa-gold, #9a6a25);
+		color: var(--horosa-gold, #9a6a25);
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-toggle-btn.is-on {
+		background: linear-gradient(180deg, #b5863a, #9a6a25);
+		border-color: #9a6a25;
 		color: #fff;
-	}
-	.horosa-workspace-shell .horosa-ziwei-luck-annual .horosa-ziwei-luck-axis {
-		padding-bottom: 2px;
+		box-shadow: 0 1px 4px rgba(154, 106, 37, 0.35);
 	}
 	.horosa-workspace-shell .horosa-ziwei-luck-axis {
 		flex: 1 1 auto;
