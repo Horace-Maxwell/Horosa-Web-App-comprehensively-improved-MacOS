@@ -254,3 +254,17 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 6. **运限层级结构（v3 定稿，勿改回单卡/单链）。** 层级 = 大限 → **流年/小限同一 tier（竖向双键 toggle `.horosa-ziwei-luck-annual-toggle` > `.horosa-ziwei-luck-toggle-btn`，占左侧层名列、互斥、只显其一，各 10 槽=该大限的 10 虚岁/年）** → 流月 → 流日 → 流时。**toggle 与级联 chip 必须同视觉语言**：选中态都用金渐变 `.is-on`/`.is-selected`（曾因 JSX/CSS 类名不一致导致 toggle 无样式、看不出选中——改 JSX class 必同步改 app.less，二者都用 `.horosa-ziwei-luck-toggle-btn`）。详情区是**多层四化卡叠加**：每个已选层级各一张卡（`render()` 里 `cards=[daxian, activeAnnual(), liuyue?, liuri?, liushi?].filter`），不是只显最深层。`activeAnnual()` 按 `state.annualMode` 取 `liunian`/`xiaoxian`；`deepest()` 仍驱动流命环。改运限时务必保持「流年/小限互斥同级」+「全选层级各出一卡」两条语义。
 
 **自检（任何紫微运限/格局改动前后必跑）：** ① `npm test` 全绿（aiExport 9 / aiAnalysisContext 16 / 全 140）；② 预览董盘 `1985-02-13 22:38 女 +08:00 119e18 26n06`：运限 = 大限行 + 流年/小限 toggle 行 + 流月/日/时，逐层钻取；**选大限+流年+流月时详情区同时叠 3 张卡**（各带本层四化），切到流时时叠 5 张卡；toggle 切「小限」后年级行变虚岁链(女命逆行 12岁壬辰→13岁辛卯…)、卡片随之变小限；选中最深层流命环落位；格局命中「府相朝垣(富贵·破)」顶部起排；③ 本命/大限态盘面与改前像素级一致；④ 明暗双主题无重叠。完整记录见 `../docs/紫微斗数-深度增强-运限格局-v2.5.8.md`。
+
+## 六壬 起课法/换将/分昼夜（纯前端 castOverride 机制，不动 Java）
+
+**最关键认知：六壬天地盘/四课三传是前端算的，后端发三传休眠。** `LiuReng.calculate` 仅当传 `yue` 才算 `keCuang`，而前端不传（注释掉）→ 后端那条路是死代码。天地盘实由**两处前端**各自算（`delta=月将idx−时支idx`）：① 断辞侧 `LiuRengMain.buildLiuRengLayout`；② 渲染侧 `LRCommChart.genYueJiangIndex/genHouseTianJiang/getKe`（`RengChart` 经 LRTextSquareChart/LRCircleChart 用）。**故起课法/换将/分昼夜全前端、不动 Java、不重编 jar。**
+
+**统一 castOverride（零回归）。** `buildLiuRengCastOverride(chartObj, state)→{yue(天盘起支),timeZhi(地盘临位),isDiurnal}`，全默认返 null＝正时正将＝逐字现状。同喂两处：断辞侧作 `buildLiuRengLayout/...ReferenceBundle/buildLiuRengSnapshotText` 末参；渲染侧走 prop 链 `LiuRengChart(prop)→RengChart(opt×3)→LRCommChart`，**完全仿 `guireng` 接法**（含 `componentDidUpdate` 比较触发重绘）。`LRConst.getGuiZi(chartObj,guirengType,isDiurnalOverride)` 加可选昼夜覆盖（断辞/渲染共用）。
+
+**算法 `computeQiXY`（每法＝天盘起支 X 加 地盘临位 Y；天干用 `GanJiZi` 寄宫）。** 14 法：正时正将(默认)、八客①–⑧、四柱对齐(年日/年时/月日/月时＝直接对齐两柱地支)、选时(Y=所选时支，需 `xuanShiZhi` 输入)、演数(Y=正时宫±N 阳日顺/阴日逆，需 `yanShuNum` 输入)。换将：中气过宫(默认=`getSignZi(sun.sign)`)/节气换将(太阳黄经+15°取宫)。分昼夜：晨昏(默认=星历 isDiurnal)/卯酉/寅申。
+
+**坑：**(a) **贵人起法早已实现**(`guireng` 选择器+`GuiRengs[3]`)，勿重做。(b) retrograde 取 `obj.lonspeed<0`，**非** `obj.retrograde`(那是 GuoLao 重塑字段)。(c) 起课法/换将/分昼夜是**显示层**参数(不动 /chart)，同 guireng：`setState` 即重排、**不进 localCalcCache 键、不重新起课**。(d) **需输入的起课法(选时/演数)在选中后才条件渲染对应输入框**(`castMethod==='xuanshi'/'yanshu'`)——新起课法若需额外输入，务必同时加条件输入控件。(e) antd 起课法 Select 14 项虚拟化，e2e 验证需滚 `.rc-virtual-list-holder` 才见底部 选时/演数。
+
+**全链路(已接，改动须保持)：** 储存＝`clickSaveCase` payload 带 5 字段(castMethod/xuanShiZhi/yanShuNum/yueJiangMethod/fenZhouYe)；AI挂载＝`aiAnalysisContext.generateCaseTechniqueSnapshot('liureng')` 透传 castOpts(否则八客/选时案例挂成默认)+ `saveModuleAISnapshot` meta 记 5 字段；AI导出＝**自动**(同 `buildLiuRengSnapshotText`，已把起课法/换将/分昼夜记入起盘信息，无需改 aiExport)。七政＝右栏 TabPane，复用 `getPlanetObject`+`getSignZi`，顺逆 `lonspeed<0`。
+
+**自检(preflight [14] 哨兵)：** ① `npm test` 全 140 绿；② 预览切 八客/年日对齐/演数/选时——**中心盘三传 == 右栏大格断辞**(同源)、日干支不变；默认正时正将逐字复原(零回归)；选时/演数选中后出现输入框。

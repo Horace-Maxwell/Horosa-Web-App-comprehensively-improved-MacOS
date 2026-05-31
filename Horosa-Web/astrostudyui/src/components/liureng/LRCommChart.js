@@ -12,7 +12,9 @@ class LRCommChart {
 		this.owner = option.owner;
 		this.fields = option.fields;
 		this.chartObj = option.chartObj;
-		this.yue = option.yue;
+		// 起课法/换将覆盖：天盘起支(yue) 与 临位(timezi) 取 castOverride，缺省=月将/正时(现状)。
+		this.castOverride = option.castOverride || null;
+		this.yue = (this.castOverride && this.castOverride.yue) || option.yue;
 		this.nongli = option.nongli;
 		this.guireng = option.guireng;
 
@@ -41,7 +43,7 @@ class LRCommChart {
 			AstroConst.AstroChartFont,
 			AstroConst.NormalFont,
 		];
-		this.timezi = this.nongli.time.substr(1);
+		this.timezi = (this.castOverride && this.castOverride.timeZhi) || this.nongli.time.substr(1);
 		this.yueIndexs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 		this.tianJiangColor = LRConst.LRColor.tianJiangColor;
 		this.houseTianJiang = LRConst.TianJiang.slice(0);
@@ -114,7 +116,7 @@ class LRCommChart {
 	}
 
 	genHouseTianJiang(){
-		let guizi = LRConst.getGuiZi(this.chartObj, this.guireng);
+		let guizi = LRConst.getGuiZi(this.chartObj, this.guireng, this.castOverride ? this.castOverride.isDiurnal : undefined);
 		let houseidx = 0;
 		for(let i=0; i<12; i++){
 			let zi = LRConst.ZiList[this.yueIndexs[i]];

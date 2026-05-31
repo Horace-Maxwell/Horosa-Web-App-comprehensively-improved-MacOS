@@ -310,6 +310,19 @@ else
   warn "[12] 未找到 fat jar 或无 unzip,跳过 jar 内容校验"
 fi
 
+# 14. 六壬 起课法/换将/分昼夜(纯前端 castOverride 机制,不动 Java)
+echo "[14] 六壬 起课法/换将/分昼夜哨兵"
+LR_MAIN="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/lrzhan/LiuRengMain.js"
+LR_COMM="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/liureng/LRCommChart.js"
+LR_AICTX="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiAnalysisContext.js"
+LR_CONST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/liureng/LRConst.js"
+if grep -q "buildLiuRengCastOverride" "${LR_MAIN}" 2>/dev/null && grep -q "function computeQiXY" "${LR_MAIN}" 2>/dev/null; then ok "[14] LiuRengMain 含起课法引擎(buildLiuRengCastOverride/computeQiXY)"; else bad "[14] LiuRengMain 缺起课法引擎"; fi
+if grep -q "castOverride" "${LR_COMM}" 2>/dev/null; then ok "[14] LRCommChart 渲染侧读 castOverride(中心盘随起课法,与右栏断辞同源)"; else bad "[14] LRCommChart 未读 castOverride —— 中心盘不随起课法变,会与右栏断辞不一致"; fi
+if grep -q "isDiurnalOverride" "${LR_CONST}" 2>/dev/null; then ok "[14] LRConst.getGuiZi 接受昼夜覆盖(分昼夜法)"; else bad "[14] LRConst.getGuiZi 缺昼夜覆盖参 —— 分昼夜法失效"; fi
+if grep -q "castMethod: this.state.castMethod" "${LR_MAIN}" 2>/dev/null && grep -q "fenZhouYe: this.state.fenZhouYe" "${LR_MAIN}" 2>/dev/null; then ok "[14] 占案 payload 含起课法/换将/分昼夜(储存可复现)"; else bad "[14] 占案 payload 缺起课法字段 —— 存档不可复现"; fi
+if grep -q "yueJiangMethod: payload.yueJiangMethod" "${LR_AICTX}" 2>/dev/null; then ok "[14] AI挂载 事盘重建透传 castOpts(挂载与显示一致)"; else bad "[14] AI挂载 六壬事盘未透传 castOpts —— 八客/选时案例会挂成默认正时正将"; fi
+if grep -q "'xuanshi'" "${LR_MAIN}" 2>/dev/null && grep -q "'yanshu'" "${LR_MAIN}" 2>/dev/null && grep -q "'alnr'" "${LR_MAIN}" 2>/dev/null; then ok "[14] 起课法含 选时/演数/四柱对齐"; else bad "[14] 起课法缺 选时/演数/对齐 选项"; fi
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

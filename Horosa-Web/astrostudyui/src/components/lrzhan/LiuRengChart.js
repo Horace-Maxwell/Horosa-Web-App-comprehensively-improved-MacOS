@@ -32,6 +32,7 @@ class LiuRengChart extends Component{
 			gender: this.props.gender,
 			zhangshengElem: this.props.zhangshengElem,
 			guireng: this.props.guireng,
+			castOverride: this.props.castOverride,
 			panStyleName: this.props.panStyleName,
 			onMetaInfoClick: this.openMetaDialog,
 			chartType: this.props.chartType,
@@ -93,6 +94,7 @@ class LiuRengChart extends Component{
 		this.rengchart.gender = this.props.gender;
 		this.rengchart.zhangshengElem = this.props.zhangshengElem;
 		this.rengchart.guireng = this.props.guireng;
+		this.rengchart.castOverride = this.props.castOverride;
 		this.rengchart.panStyleName = this.props.panStyleName || '';
 		this.rengchart.onMetaInfoClick = this.openMetaDialog;
 		this.rengchart.chartType = this.props.chartType;
@@ -126,6 +128,7 @@ class LiuRengChart extends Component{
 			|| prevProps.gender !== this.props.gender
 			|| prevProps.zhangshengElem !== this.props.zhangshengElem
 			|| prevProps.guireng !== this.props.guireng
+			|| prevProps.castOverride !== this.props.castOverride
 			|| prevProps.panStyleName !== this.props.panStyleName
 			|| prevProps.chartType !== this.props.chartType
 			|| prevProps.compactPreview !== this.props.compactPreview){

@@ -79,6 +79,7 @@ class RengChart {
 		this.gender = options.gender;
 		this.zhangshengElem = options.zhangshengElem;
 		this.guireng = options.guireng;
+		this.castOverride = options.castOverride || null;
 		this.panStyleName = options.panStyleName || '';
 		this.onMetaInfoClick = options.onMetaInfoClick;
 		this.chartType = options.chartType !== undefined && options.chartType !== null ? options.chartType : LRChart_Square;
@@ -201,6 +202,7 @@ class RengChart {
 			yue: this.yue,
 			nongli: this.nongli,
 			guireng: this.guireng,
+			castOverride: this.castOverride,
 			panStyleName: this.panStyleName || this.getPanStyleName(),
 		};
 
@@ -294,6 +296,7 @@ class RengChart {
 			yue: this.yue,
 			nongli: this.nongli,
 			guireng: this.guireng,
+			castOverride: this.castOverride,
 			panStyleName: this.panStyleName || this.getPanStyleName(),
 		};
 		const circle = new LRCircleChart(opt);
@@ -862,6 +865,7 @@ class RengChart {
 			yue: this.yue,
 			nongli: this.nongli,
 			guireng: this.guireng,
+			castOverride: this.castOverride,
 			panStyleName: this.panStyleName || this.getPanStyleName(),
 		};
 		const circle = new LRCircleChart(opt);
