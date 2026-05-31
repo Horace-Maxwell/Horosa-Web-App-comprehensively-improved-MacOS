@@ -14,6 +14,13 @@ import AstroGivenYear from '../astro/AstroGivenYear';
 import AstroSolarArc from '../astro/AstroSolarArc';
 import AstroProfection from '../astro/AstroProfection';
 import AstroDecennials from '../astro/AstroDecennials';
+import AstroPlanetaryAges from '../astro/AstroPlanetaryAges';
+import AstroVedicProgressions from '../astro/AstroVedicProgressions';
+import AstroBalbillus from '../astro/AstroBalbillus';
+import AstroYearSystem129 from '../astro/AstroYearSystem129';
+import AstroPlanetaryArc from '../astro/AstroPlanetaryArc';
+import AstroPersianDirected from '../astro/AstroPersianDirected';
+import AstroJaynesProgressions from '../astro/AstroJaynesProgressions';
 import AstroEphemeris from '../astro/AstroEphemeris';
 import AstroProgressions from '../astro/AstroProgressions';
 import AstroReturnTimeline from '../astro/AstroReturnTimeline';
@@ -488,6 +495,27 @@ class AstroDirectMain extends Component{
 				decennials:{
 					fun: null
 				},
+				planetaryages:{
+					fun: null
+				},
+				vedicprog:{
+					fun: null
+				},
+				balbillus:{
+					fun: null
+				},
+				yearsystem129:{
+					fun: null
+				},
+				planetaryarc:{
+					fun: null
+				},
+				persiandirected:{
+					fun: null
+				},
+				jaynesprog:{
+					fun: null
+				},
 					zodialrelease:{
 						fun: null
 					},
@@ -941,6 +969,29 @@ class AstroDirectMain extends Component{
 					onChange={this.changeTab}
 					style={{ height: height }}
 				>
+					<TabPane tab="赤纬推运" key="jaynesprog">
+							<AstroJaynesProgressions
+								value={this.props.chartObj}
+								height={height}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+						</TabPane>
+
+					<TabPane tab="恒星推运" key="vedicprog">
+							<AstroVedicProgressions
+								value={this.props.chartObj}
+								height={height}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+						</TabPane>
+
+					<TabPane tab="推运" key="progressions">
+							<AstroProgressions
+								value={this.props.chartObj}
+								height={height}
+							/>
+						</TabPane>
+
 					<TabPane tab="主/界限法" key="primarydirect">
 							<AstroPrimaryDirection  
 								value={this.props.chartObj} height={height}
@@ -953,6 +1004,34 @@ class AstroDirectMain extends Component{
 								showAstroMeaning={this.props.showAstroMeaning}
 							/>
 					</TabPane>
+
+					<TabPane tab="界推运" key="distributions">
+						<AstroDistributions
+							value={this.props.chartObj}
+							height={height}
+						/>
+					</TabPane>
+
+					<TabPane tab="年龄推进点" key="agepoint">
+						<AstroAgePoint
+							value={this.props.chartObj}
+							height={height}
+						/>
+					</TabPane>
+
+					<TabPane tab="星历" key="ephemeris">
+							<AstroEphemeris
+								value={this.props.chartObj}
+								height={height}
+							/>
+						</TabPane>
+
+					<TabPane tab="回归轴" key="returntimeline">
+							<AstroReturnTimeline
+								value={this.props.chartObj}
+								height={height}
+							/>
+						</TabPane>
 
 					<TabPane tab="主限法盘" key="primarydirchart">
 							<AstroPrimaryDirectionChart
@@ -973,41 +1052,27 @@ class AstroDirectMain extends Component{
 							/>
 					</TabPane>
 
-					<TabPane tab="黄道星释" key="zodialrelease">
-						<AstroZR  
-							value={this.props.chartObj} 
-							height={this.props.height} 
-							chartDisplay={this.props.chartDisplay}
+					<TabPane tab="波斯向运" key="persiandirected">
+							<AstroPersianDirected
+								value={this.props.chartObj}
+								height={height}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
-								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								chartDisplay={this.props.chartDisplay}
 								showAstroMeaning={this.props.showAstroMeaning}
-								hook={this.state.hook.zodialrelease}
 							/>
-					</TabPane>
+						</TabPane>
 
-					<TabPane tab="法达星限" key="firdaria">
-						<AstroFirdaria 
-								value={this.props.chartObj} 
+					<TabPane tab="行星弧" key="planetaryarc">
+							<AstroPlanetaryArc
+								value={this.props.chartObj}
 								height={height}
-								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								chartDisplay={this.props.chartDisplay}
 								showAstroMeaning={this.props.showAstroMeaning}
 							/>
-					</TabPane>
-
-					<TabPane tab="界推运" key="distributions">
-						<AstroDistributions
-							value={this.props.chartObj}
-							height={height}
-						/>
-					</TabPane>
-
-					<TabPane tab="年龄推进点" key="agepoint">
-						<AstroAgePoint
-							value={this.props.chartObj}
-							height={height}
-						/>
-					</TabPane>
+						</TabPane>
 
 					<TabPane tab="小限法" key="profection">
 						<AstroProfection 
@@ -1076,6 +1141,15 @@ class AstroDirectMain extends Component{
 							/>
 					</TabPane>
 
+					<TabPane tab="法达星限" key="firdaria">
+						<AstroFirdaria 
+								value={this.props.chartObj} 
+								height={height}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+					</TabPane>
+
 					<TabPane tab="十年大运" key="decennials">
 						<AstroDecennials
 							value={this.props.chartObj}
@@ -1088,22 +1162,49 @@ class AstroDirectMain extends Component{
 							hook={this.state.hook.decennials}
 						/>
 						</TabPane>
-						<TabPane tab="星历" key="ephemeris">
-							<AstroEphemeris
+
+					<TabPane tab="黄道星释" key="zodialrelease">
+						<AstroZR  
+							value={this.props.chartObj} 
+							height={this.props.height} 
+							chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.zodialrelease}
+							/>
+					</TabPane>
+
+					<TabPane tab="行星年龄" key="planetaryages">
+							<AstroPlanetaryAges
 								value={this.props.chartObj}
 								height={height}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
 							/>
 						</TabPane>
-						<TabPane tab="推运" key="progressions">
-							<AstroProgressions
+
+					<TabPane tab="129年系统" key="yearsystem129">
+							<AstroYearSystem129
 								value={this.props.chartObj}
 								height={height}
+								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+								showAstroMeaning={this.props.showAstroMeaning}
 							/>
 						</TabPane>
-						<TabPane tab="回归轴" key="returntimeline">
-							<AstroReturnTimeline
+
+						<TabPane tab="Balbillus" key="balbillus">
+							<AstroBalbillus
 								value={this.props.chartObj}
 								height={height}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
 							/>
 						</TabPane>
 

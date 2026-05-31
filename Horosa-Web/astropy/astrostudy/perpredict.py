@@ -25,6 +25,7 @@ from astrostudy import helper
 from astrostudy import solararc
 from astrostudy import firdaria
 from astrostudy import zreleasing
+from astrostudy import yearsystem129
 from astrostudy.termdirection import TermDirection
 
 MAX_ERROR = 0.0003
@@ -1183,9 +1184,92 @@ class PerPredict:
         }
         return obj
 
+    def getPlanetaryArc(self, asporb, nodeRetrograde=False, arcSource=const.MOON):
+        res = []
+        for i in range(1, 100):
+            year = int(self.perchart.year) + i
+            date = '{0}/{1}/{2}'.format(year, self.perchart.month, self.perchart.day)
+            dt = Datetime(date, self.perchart.time, self.perchart.zone)
+            chart = solararc.compute(self.perchart.chart, dt, asporb, nodeRetrograde, arcSource)
+            objs = chart['objects']
+            objs.sort(key=takeLon)
+            obj = {
+                'date': '{0}-{1}-{2}'.format(year, self.perchart.month, self.perchart.day),
+                'chart': {
+                    'objects': objs,
+                    'aspects': chart['aspects']
+                },
+                'lots': self.perchart.getPars(chart['chart'])
+            }
+            res.append(obj)
+        return res
+
+    def getPlanetaryArcByDate(self, date, asporb, nodeRetrograde=False, arcSource=const.MOON):
+        parts = date.split(' ')
+        dt = helper.getChartDate(parts[0])
+        tm = parts[1] if len(parts) > 1 else '00:00'
+        saDate = Datetime(dt, tm, self.perchart.zone)
+        chart = solararc.compute(self.perchart.chart, saDate, asporb, nodeRetrograde, arcSource)
+        objs = chart['objects']
+        objs.sort(key=takeLon)
+        obj = {
+            'date': date,
+            'arcSource': arcSource,
+            'chart': {
+                'objects': objs,
+                'aspects': chart['aspects']
+            },
+            'natalChart': {
+                'chart': self.perchart.getChartOnlyObj(),
+                'aspects': {
+                    'normalAsp': self.perchart.getAspects(),
+                    'immediateAsp': self.perchart.getImmediateAspects(),
+                    'signAsp': self.perchart.getSignAspects()
+                }
+            },
+            'lots': self.perchart.getPars(chart['chart'])
+        }
+        return obj
+
+    def getPersianDirectedByDate(self, date, rateKey='persian', asporb=1, nodeRetrograde=False, direction='direct'):
+        # 波斯向运（Persian Directed）：黄经象征向运,所有行星/点每年 +rate 度,本命宫头不动。
+        # direction: direct(默认,逆时针) / converse(反向,顺时针,弧取负)。
+        from astrostudy import symbolicdir
+        parts = date.split(' ')
+        dt = helper.getChartDate(parts[0])
+        tm = parts[1] if len(parts) > 1 else '00:00'
+        target = Datetime(dt, tm, self.perchart.zone)
+        ageYears = (target.jd - self.perchart.chart.date.jd) / 365.2421904
+        res = symbolicdir.compute(self.perchart.chart, ageYears, rateKey, asporb, nodeRetrograde, direction)
+        objs = res['objects']
+        objs.sort(key=takeLon)
+        obj = {
+            'date': date,
+            'rateKey': rateKey,
+            'direction': direction,
+            'ageYears': round(ageYears, 4),
+            'chart': {
+                'objects': objs,
+                'aspects': res['aspects']
+            },
+            'natalChart': {
+                'chart': self.perchart.getChartOnlyObj(),
+                'aspects': {
+                    'normalAsp': self.perchart.getAspects(),
+                    'immediateAsp': self.perchart.getImmediateAspects(),
+                    'signAsp': self.perchart.getSignAspects()
+                }
+            },
+            'lots': self.perchart.getPars(res['chart'])
+        }
+        return obj
+
 
     def getFirdaria(self):
         return firdaria.compute(self.perchart.chart)
+
+    def getYearSystem129(self):
+        return yearsystem129.compute(self.perchart.chart)
 
     def getZodiacalRelease(self, startSign, stopLevelIdx=3):
         return zreleasing.compute(self.perchart, startSign, stopLevelIdx)

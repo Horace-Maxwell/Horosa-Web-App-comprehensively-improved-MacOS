@@ -103,8 +103,8 @@ const DOMAIN_REPLACERS = {
 
 const ENABLE_SVG_TEXT_EXPORT = false;
 const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
-export const AI_EXPORT_SETTINGS_VERSION = 11;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 11;
+export const AI_EXPORT_SETTINGS_VERSION = 12;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 12;
 const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	'bazi',
 	'ziwei',
@@ -134,6 +134,13 @@ const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	'xianqin',
 	'cetian',
 	'qizhengkin',
+	'planetaryages',
+	'vedicprog',
+	'jaynesprog',
+	'planetaryarc',
+	'persiandirected',
+	'yearsystem129',
+	'balbillus',
 ];
 const AI_EXPORT_PLANET_INFO_DEFAULT = {
 	showHouse: 1,
@@ -157,6 +164,13 @@ const AI_EXPORT_PLANET_INFO_TECHNIQUES = new Set([
 	'lunarreturn',
 	'givenyear',
 	'decennials',
+	'planetaryages',
+	'vedicprog',
+	'jaynesprog',
+	'planetaryarc',
+	'persiandirected',
+	'yearsystem129',
+	'balbillus',
 	'jieqi',
 	'jieqi_meta',
 	'jieqi_chunfen',
@@ -212,6 +226,13 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'lunarreturn', label: '星运-月亮返照' },
 	{ key: 'givenyear', label: '星运-流年法' },
 	{ key: 'decennials', label: '星运-十年大运' },
+	{ key: 'planetaryages', label: '星运-行星年龄' },
+	{ key: 'vedicprog', label: '星运-恒星推运' },
+	{ key: 'jaynesprog', label: '星运-赤纬推运' },
+	{ key: 'planetaryarc', label: '星运-行星弧' },
+	{ key: 'persiandirected', label: '星运-波斯向运' },
+	{ key: 'yearsystem129', label: '星运-129年系统' },
+	{ key: 'balbillus', label: '星运-Balbillus' },
 	{ key: 'bazi', label: '八字' },
 	{ key: 'ziwei', label: '紫微斗数' },
 	{ key: 'suzhan', label: '宿占' },
@@ -267,6 +288,13 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	lunarreturn: ['星盘信息', '起盘信息', '相位'],
 	givenyear: ['星盘信息', '起盘信息', '相位'],
 	decennials: ['起盘信息', '星盘信息', '十年大运设置', '基于X起运'],
+	planetaryages: ['行星年龄（Ages of Man）'],
+	vedicprog: ['恒星推运（Vedic Sidereal）'],
+	jaynesprog: ['赤纬推运（Jayne Declination）'],
+	planetaryarc: ['行星弧（Planetary Arc）'],
+	persiandirected: ['波斯向运（Persian Directed）'],
+	yearsystem129: ['129年系统表格'],
+	balbillus: ['Balbillus'],
 	bazi: ['起盘信息', '四柱与三元', '神煞（四柱与三元）', '大运', '流年行运概略'],
 	ziwei: ['起盘信息', '宫位总览'],
 	suzhan: ['起盘信息', '宿盘宫位与二十八宿星曜'],
@@ -1573,6 +1601,13 @@ function resolveActiveContext(){
 		{ label: '月亮返照', key: 'lunarreturn', name: '星运-月亮返照' },
 		{ label: '流年法', key: 'givenyear', name: '星运-流年法' },
 		{ label: '十年大运', key: 'decennials', name: '星运-十年大运' },
+		{ label: '行星年龄', key: 'planetaryages', name: '星运-行星年龄' },
+		{ label: '恒星推运', key: 'vedicprog', name: '星运-恒星推运' },
+		{ label: '赤纬推运', key: 'jaynesprog', name: '星运-赤纬推运' },
+		{ label: '行星弧', key: 'planetaryarc', name: '星运-行星弧' },
+		{ label: '波斯向运', key: 'persiandirected', name: '星运-波斯向运' },
+		{ label: '129年系统', key: 'yearsystem129', name: '星运-129年系统' },
+		{ label: 'Balbillus', key: 'balbillus', name: '星运-Balbillus' },
 	];
 	const predictiveByTop = predictiveLabelMap.find((item)=>topLabel && topLabel.includes(item.label));
 	if(predictiveByTop){
@@ -1898,6 +1933,13 @@ function resolveContextByAstroState(){
 			lunarreturn: { key: 'lunarreturn', displayName: '星运-月亮返照', domain: 'predictive_raw' },
 			givenyear: { key: 'givenyear', displayName: '星运-流年法', domain: 'predictive_raw' },
 			decennials: { key: 'decennials', displayName: '星运-十年大运', domain: 'predictive_raw' },
+			planetaryages: { key: 'planetaryages', displayName: '星运-行星年龄', domain: 'predictive_raw' },
+			vedicprog: { key: 'vedicprog', displayName: '星运-恒星推运', domain: 'predictive_raw' },
+			jaynesprog: { key: 'jaynesprog', displayName: '星运-赤纬推运', domain: 'predictive_raw' },
+			planetaryarc: { key: 'planetaryarc', displayName: '星运-行星弧', domain: 'predictive_raw' },
+			persiandirected: { key: 'persiandirected', displayName: '星运-波斯向运', domain: 'predictive_raw' },
+			yearsystem129: { key: 'yearsystem129', displayName: '星运-129年系统', domain: 'predictive_raw' },
+			balbillus: { key: 'balbillus', displayName: '星运-Balbillus', domain: 'predictive_raw' },
 		};
 		const auxchartMap = {
 			germanytech: { key: 'germany', displayName: '量化盘' },
@@ -3629,6 +3671,14 @@ async function extractGenericContent(context){
 			return cached;
 		}
 	}
+	if(context.key === 'planetaryages' || context.key === 'vedicprog' || context.key === 'jaynesprog'
+		|| context.key === 'planetaryarc' || context.key === 'persiandirected' || context.key === 'yearsystem129'
+		|| context.key === 'balbillus'){
+		const cached = getModuleCachedContent(context.key);
+		if(cached){
+			return cached;
+		}
+	}
 	if(context.key === 'relative'){
 		const cached = getModuleCachedContent('relative');
 		if(cached){
@@ -4806,7 +4856,14 @@ function isPredictiveExportKey(key){
 		|| val === 'solarreturn'
 		|| val === 'lunarreturn'
 		|| val === 'givenyear'
-		|| val === 'decennials';
+		|| val === 'decennials'
+		|| val === 'planetaryages'
+		|| val === 'vedicprog'
+		|| val === 'jaynesprog'
+		|| val === 'planetaryarc'
+		|| val === 'persiandirected'
+		|| val === 'yearsystem129'
+		|| val === 'balbillus';
 }
 
 function isAstroFamilyExportKey(key){
@@ -4854,7 +4911,7 @@ function getCandidateExportKeys(context){
 		context && context.displayName ? context.displayName : '',
 		stateContext && stateContext.displayName ? stateContext.displayName : '',
 	].join(' ');
-	const predictiveKeys = ['primarydirect', 'primarydirchart', 'zodialrelease', 'firdaria', 'distributions', 'agepoint', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials'];
+	const predictiveKeys = ['primarydirect', 'primarydirchart', 'zodialrelease', 'firdaria', 'distributions', 'agepoint', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials', 'planetaryages', 'vedicprog', 'jaynesprog', 'planetaryarc', 'persiandirected', 'yearsystem129', 'balbillus'];
 	const primaryIsPredictive = isPredictiveExportKey(primary);
 	const stateIsPredictive = isPredictiveExportKey(stateKey);
 	// 仅在上下文无法定位具体推运子模块时，才展开推运候选全量兜底；
@@ -4951,7 +5008,7 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 	}
 	if(topInfo.includes('星运') || topInfo.includes('推运盘') || topInfo.includes('主/界限法') || topInfo.includes('法达星限')
 		|| topInfo.includes('太阳弧') || topInfo.includes('太阳返照') || topInfo.includes('月亮返照')){
-		push('primarydirect', 'primarydirchart', 'firdaria', 'zodialrelease', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials');
+		push('primarydirect', 'primarydirchart', 'firdaria', 'zodialrelease', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials', 'planetaryages', 'vedicprog', 'jaynesprog', 'planetaryarc', 'persiandirected', 'yearsystem129', 'balbillus');
 	}
 	if(topInfo.includes('三式合一')){
 		push('sanshiunited', 'qimen', 'jinkou', 'liureng', 'sixyao', 'tongshefa', 'taiyi', 'astrochart');
@@ -4996,6 +5053,7 @@ function getRescueExportKeys(context, fallbackStateContext, triedKeys){
 		'astrochart', 'astrochart_like', 'indiachart',
 		'relative', 'germany', 'jieqi',
 		'primarydirect', 'primarydirchart', 'zodialrelease', 'firdaria', 'profection', 'solararc', 'solarreturn', 'lunarreturn', 'givenyear', 'decennials',
+		'planetaryages', 'vedicprog', 'jaynesprog', 'planetaryarc', 'persiandirected', 'yearsystem129', 'balbillus',
 		'sanshiunited', 'qimen', 'liureng', 'jinkou', 'sixyao', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu', 'taiyi', 'suzhan',
 		'guolao', 'qizhengkin', 'shaozi', 'tieban', 'fendjing', 'beiji', 'nanji', 'chunzi', 'xianqin', 'cetian', 'otherbu', 'fengshui',
 		'bazi', 'ziwei',
@@ -5042,6 +5100,11 @@ async function extractContentByKey(exportKey, context){
 	}
 	if(exportKey === 'decennials'){
 		return extractDecennialsContent(context);
+	}
+	if(exportKey === 'planetaryages' || exportKey === 'vedicprog' || exportKey === 'jaynesprog'
+		|| exportKey === 'planetaryarc' || exportKey === 'persiandirected' || exportKey === 'yearsystem129'
+		|| exportKey === 'balbillus'){
+		return extractSimpleModuleContent(exportKey);
 	}
 	if(exportKey === 'sixyao'){
 		return extractSixYaoContent(context);

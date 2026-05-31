@@ -223,6 +223,48 @@ class PredictSrv:
             }
             return jsonpickle.encode(obj, unpicklable=False)
 
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
+    def planetaryarc(self):
+        enable_crossdomain()
+        try:
+            data = cherrypy.request.json
+            data['tradition'] = False
+            perchart = PerChart(data)
+            predict = perchart.getPredict()
+            nodeRetrograde = data['nodeRetrograde'] if 'nodeRetrograde' in data.keys() else False
+            asporb = data['asporb'] if 'asporb' in data.keys() else 1
+            arcSource = data['arcSource'] if 'arcSource' in data.keys() else const.MOON
+            if 'datetime' in data.keys() and data['datetime'] != None and data['datetime'] != '':
+                res = predict.getPlanetaryArcByDate(data['datetime'], asporb, nodeRetrograde, arcSource)
+            else:
+                res = predict.getPlanetaryArc(asporb, nodeRetrograde, arcSource)
+            return jsonpickle.encode(res, unpicklable=False)
+        except:
+            traceback.print_exc()
+            return jsonpickle.encode({'err': 'param error'}, unpicklable=False)
+
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
+    def persianchart(self):
+        enable_crossdomain()
+        try:
+            data = cherrypy.request.json
+            data['tradition'] = False
+            perchart = PerChart(data)
+            predict = perchart.getPredict()
+            rateKey = data['rateKey'] if 'rateKey' in data.keys() else 'persian'
+            asporb = data['asporb'] if 'asporb' in data.keys() else 1
+            nodeRetrograde = data['nodeRetrograde'] if 'nodeRetrograde' in data.keys() else False
+            direction = data['direction'] if 'direction' in data.keys() else 'direct'
+            res = predict.getPersianDirectedByDate(data['datetime'], rateKey, asporb, nodeRetrograde, direction)
+            return jsonpickle.encode(res, unpicklable=False)
+        except:
+            traceback.print_exc()
+            return jsonpickle.encode({'err': 'param error'}, unpicklable=False)
+
 
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})

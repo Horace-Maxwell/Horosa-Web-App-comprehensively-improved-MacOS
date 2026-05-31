@@ -15,6 +15,16 @@ const VALID_DIRECTION_SUB_TABS = new Set([
 	'givenyear',
 	'decennials',
 	'zodialrelease',
+	'planetaryages',
+	'vedicprog',
+	'jaynesprog',
+	'planetaryarc',
+	'persiandirected',
+	'yearsystem129',
+	'balbillus',
+	'ephemeris',
+	'progressions',
+	'returntimeline',
 ]);
 
 export function normalizePrimaryDirectionSubTabKey(key){

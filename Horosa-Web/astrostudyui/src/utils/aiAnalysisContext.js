@@ -40,6 +40,13 @@ import { buildIndiaSnapshotForFields } from '../components/astro/IndiaChart';
 import { buildFirdariaSnapshotText, buildPrimaryDirectSnapshotText } from '../components/direction/AstroDirectMain';
 import { buildDistributionsSnapshotText } from '../components/astro/AstroDistributions';
 import { buildAgePointSnapshotText } from '../components/astro/AstroAgePoint';
+import { buildPlanetaryAgesSnapshotText } from './planetaryAges';
+import { buildVedicProgSnapshotText } from '../components/astro/AstroVedicProgressions';
+import { buildBalbillusSnapshotText } from './balbillus';
+import { buildYearSystem129SnapshotText } from '../components/astro/AstroYearSystem129';
+import { buildPlanetaryArcSnapshotText } from '../components/astro/AstroPlanetaryArc';
+import { buildPersianDirectedSnapshotText } from '../components/astro/AstroPersianDirected';
+import { buildJaynesProgSnapshotText } from '../components/astro/AstroJaynesProgressions';
 import { buildGuolaoSnapshotForFields } from '../components/guolao/GuoLaoChartMain';
 import { buildSuzhanSnapshotText } from '../components/suzhan/SuZhanMain';
 import { buildGermanySnapshotForFields } from '../components/germany/AstroMidpoint';
@@ -97,6 +104,13 @@ const ANALYSIS_TECHNIQUE_LABELS = {
 	lunarreturn: '星运-月亮返照',
 	givenyear: '星运-流年法',
 	decennials: '星运-十年大运',
+	planetaryages: '星运-行星年龄',
+	vedicprog: '星运-恒星推运',
+	balbillus: '星运-Balbillus',
+	yearsystem129: '星运-129年系统',
+	planetaryarc: '星运-行星弧',
+	persiandirected: '星运-波斯向运',
+	jaynesprog: '星运-赤纬推运',
 	cntradition: '辅助',
 	bazi: '八字',
 	ziwei: '紫微斗数',
@@ -139,6 +153,13 @@ export const ANALYSIS_CHART_TECHNIQUES = [
 	'lunarreturn',
 	'givenyear',
 	'decennials',
+	'planetaryages',
+	'vedicprog',
+	'balbillus',
+	'yearsystem129',
+	'planetaryarc',
+	'persiandirected',
+	'jaynesprog',
 	'cntradition',
 	'bazi',
 	'ziwei',
@@ -687,6 +708,41 @@ async function regenerateChartTechniqueSnapshot(record, key){
 			// 年龄推进点（Huber）：年龄点自上升点起沿 Koch 宫顺行。内部 fetch /predict/agepoint。
 			const chartObj = await fetchChartResultForRecord(record);
 			return chartObj ? (await buildAgePointSnapshotText(chartObj) || '') : '';
+		}
+		case 'planetaryages': {
+			// 行星年龄（托勒密人生七阶）：纯前端固定七阶表，读本命盘。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (buildPlanetaryAgesSnapshotText(chartObj) || '') : '';
+		}
+		case 'vedicprog': {
+			// 恒星推运（Vedic）：二/三/小限推运在恒星黄道下计算。内部 fetch /astroextra/progressions + zodiacal:1。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (await buildVedicProgSnapshotText(chartObj) || '') : '';
+		}
+		case 'balbillus': {
+			// Balbillus：十年大运月制族变体（旺距削减），纯前端独立引擎，读本命盘。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (buildBalbillusSnapshotText(chartObj) || '') : '';
+		}
+		case 'yearsystem129': {
+			// 129 年系统：七政小年序列（仿 firdaria），随盘 predictive 返回。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (buildYearSystem129SnapshotText(chartObj) || '') : '';
+		}
+		case 'planetaryarc': {
+			// 行星弧：solararc 引擎换弧源（默认月亮弧）。内部 fetch /predict/planetaryarc。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (await buildPlanetaryArcSnapshotText(chartObj) || '') : '';
+		}
+		case 'persiandirected': {
+			// 波斯向运：黄经象征向运(1°/年,宫头不动)，应期 hit-list 纯前端算术，读本命盘。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (buildPersianDirectedSnapshotText(chartObj) || '') : '';
+		}
+		case 'jaynesprog': {
+			// Jayne 赤纬推运：推运后看赤纬平行/反平行。内部 fetch /astroextra/jaynesprog。
+			const chartObj = await fetchChartResultForRecord(record);
+			return chartObj ? (await buildJaynesProgSnapshotText(chartObj) || '') : '';
 		}
 		case 'primarydirect': {
 			// 主限法：取含主限法的西洋盘（默认 Alchabitius 弧 / Ptolemy 时钥 / 显示界限）。

@@ -1,8 +1,15 @@
 import * as AstroText from '../../constants/AstroText';
 import * as AstroConst from '../../constants/AstroConst';
+import { buildMeaningTipByCategory } from './AstroMeaningData';
+import { isMeaningEnabled, wrapWithMeaning } from './AstroMeaningPopover';
 
 export function unwrapResult(data){
 	return data && data.Result ? data.Result : data;
+}
+
+// 字形 + 富「悬浮释义」弹窗（gated showAstroMeaning），供新推运技法与既有技法同步 hover 释义。
+export function symbolWithMeaning(id, showAstroMeaning, category = 'planet'){
+	return wrapWithMeaning(astroSymbol(id), isMeaningEnabled(showAstroMeaning), buildMeaningTipByCategory(category, id));
 }
 
 export function planetName(id){

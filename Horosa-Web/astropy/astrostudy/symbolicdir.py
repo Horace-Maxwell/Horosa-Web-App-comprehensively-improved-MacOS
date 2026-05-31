@@ -1,57 +1,47 @@
-"""
-    This file is part of flatlib - (C) FlatAngle
-    Author: João Ventura (flatangleweb@gmail.com)
 
-
-    This module provides useful functions for
-    handling profections.
-
-"""
-
-import math
+# 波斯向运 / 周期推运（Persian Directed / Symbolic Direction）。
+# 黄经象征向运：所有行星/点每年沿黄经前进固定速率，本命宫头(houses/angles)固定不动。
+# 镜像 solararc.py 的旋转+相位网逻辑，差异：弧=象征弧(age*rate)、houses/angles 不转、向运星对本命宫重挂。
 from flatlib import const
 from flatlib.chart import Chart
 from flatlib.datetime import Datetime
-from flatlib.ephem import ephem
+
+# 速率（度/年）。persian=1°/年(默认)；prophected=30°/年；naibod=0°59'08"≈0.9856473°/年。
+RATE = {
+    'persian': 1.0,
+    'prophected': 30.0,
+    'naibod': 0.9856473,
+}
 
 
-def compute(chart, date, asporb, nodeRetrograde=False, arcSource=const.SUN):
-    """ Returns a solararc chart for a given
-    date. arcSource 默认太阳(=太阳弧);改为月亮/任意行星 => 行星弧/月亮弧。
-    默认 const.SUN 与原行为字节级等价。
+def compute(chart, ageYears, rateKey='persian', asporb=1, nodeRetrograde=False, direction='direct'):
+    arc = ageYears * RATE.get(rateKey, 1.0)
+    # converse(反向向运)：弧取负 => 外盘顺时针转;direct(默认)=> 逆时针。
+    if direction == 'converse':
+        arc = -arc
 
-    """
-
-    #
-    deltadays = (date.jd - chart.date.jd) / 365.2421904
-    jddate = chart.date.jd + deltadays
-    date = Datetime.fromJD(jddate, chart.date.utcoffset)
-
-    daychart = Chart(date, chart.pos, chart.zodiacal)
-    sun = daychart.get(arcSource)
-    orgsun = chart.get(arcSource)
-
-    rotation = sun.lon - orgsun.lon;
-
-    # Create a copy of the chart and rotate content
     pChart = chart.copy()
-    for obj in pChart.objects:
+    for obj in pChart.objects:                      # 行星/点 +arc
         if nodeRetrograde and (obj.id == const.NORTH_NODE or obj.id == const.SOUTH_NODE):
-            obj.relocate(obj.lon - rotation)
+            obj.relocate(obj.lon - arc)
         else:
-            obj.relocate(obj.lon + rotation)
-    for house in pChart.houses:
-        house.relocate(house.lon + rotation)
-    for angle in pChart.angles:
-        angle.relocate(angle.lon + rotation)
-    for par in pChart.pars:
-        par.relocate(par.lon + rotation)
+            obj.relocate(obj.lon + arc)
+    for par in pChart.pars:                         # 阿拉伯点也作为「点」向运 +arc
+        par.relocate(par.lon + arc)
+    # houses / angles 不旋转 —— 宫头/ASC/MC 固定本命（与 solararc 唯一差异）。
+    # 向运星 house 对「本命」宫头重挂（供入宫判定/AI；flatlib relocate 不改 house）。
+    try:
+        for obj in pChart.objects:
+            h = chart.houses.getHouseByLon(obj.lon)
+            if h is not None:
+                obj.house = h.id
+    except Exception:
+        pass
 
     natalObjs = [obj for obj in chart.objects]
     natalObjs.extend([obj for obj in chart.angles])
 
-    objs = [obj for obj in pChart.objects]
-    objs.extend([obj for obj in pChart.angles])
+    objs = [obj for obj in pChart.objects]          # 向运角不入（角不动）
 
     orb = 1 if asporb < 0 else asporb
     res = []
@@ -94,9 +84,8 @@ def compute(chart, date, asporb, nodeRetrograde=False, arcSource=const.SUN):
                 asp['objects'].append(natasp)
         res.append(asp)
 
-    resobj = {
+    return {
         'objects': objs,
         'aspects': res,
         'chart': pChart
     }
-    return resobj

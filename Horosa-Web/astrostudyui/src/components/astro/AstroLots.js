@@ -92,10 +92,11 @@ class AstroLots extends Component{
 			let dom = (
 				<Row key={objid}>
 					<Col span={24}>
-						<Card title={this.renderTitle(objid)} 
-							bordered={true} 
+						<Card title={this.renderTitle(objid)}
+							bordered={true}
+							className="horosa-astro-data-card"
 							style={{
-								background: AstroConst.AstroColor.Backgroud
+								background: 'var(--horosa-astro-panel, transparent)'
 							}}>
 							<Row gutter={12}>
 								<Col span={titleSpan}>落座</Col>
@@ -145,12 +146,14 @@ class AstroLots extends Component{
 		let chart = this.props.value;
 		let dom = this.genLotsDom(chart);
 
-		let height = this.props.height ? this.props.height : '100%';
-		let style = {
-			height: (height-130) + 'px',
-			overflowY:'auto', 
-			overflowX:'hidden',
-		};
+		let style;
+		if(this.props.fill){
+			// fill 模式:占满「希腊点块」的 flex 槽(小而有界),内部自滚;不用内容高(否则希腊点条目一多就会把主星挤没)。
+			style = { flex: '1 1 0', minHeight: 0, overflowY: 'auto', overflowX: 'hidden' };
+		}else{
+			let height = this.props.height ? this.props.height : '100%';
+			style = { height: (height-130) + 'px', overflowY:'auto', overflowX:'hidden' };
+		}
 
 		return (
 			<div className={styles.scrollbar} style={style}>

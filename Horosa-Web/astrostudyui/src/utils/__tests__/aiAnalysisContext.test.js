@@ -526,6 +526,8 @@ describe('aiAnalysisContext', ()=>{
 			primarydirect: '主限法结构化快照',
 			primarydirchart: '主限法结构化快照',
 			firdaria: '',
+			planetaryages: '',
+			balbillus: '',
 			bazi: '八字结构化快照',
 			ziwei: '紫微斗数结构化快照',
 			suzhan: '宿占结构化快照',

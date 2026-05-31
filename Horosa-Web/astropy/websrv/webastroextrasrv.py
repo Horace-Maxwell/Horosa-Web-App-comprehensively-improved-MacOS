@@ -62,6 +62,16 @@ class AstroExtraSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    def jaynesprog(self, **params):
+        enable_crossdomain()
+        try:
+            return self._json(astroextra.build_declination_progressions(self._payload(params)))
+        except Exception:
+            return self._error()
+
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
+    @cherrypy.tools.json_in()
     def returns(self, **params):
         enable_crossdomain()
         try:

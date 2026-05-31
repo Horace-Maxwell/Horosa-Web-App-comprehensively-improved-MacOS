@@ -22,7 +22,8 @@ def getPredictivesObj(data, perchart):
 
     perpredict = perchart.getPredict()
     predictives = {
-        'firdaria': perpredict.getFirdaria()
+        'firdaria': perpredict.getFirdaria(),
+        'yearsystem129': perpredict.getYearSystem129()
     }
     if includePrimaryDirection(data):
         predictives['primaryDirection'] = perpredict.getPrimaryDirection()

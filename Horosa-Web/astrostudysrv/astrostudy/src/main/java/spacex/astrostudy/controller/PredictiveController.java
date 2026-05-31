@@ -104,15 +104,40 @@ public class PredictiveController {
 		if(TransData.containsParam("virtualPointReceiveAsp")) {
 			params.put("virtualPointReceiveAsp", TransData.get("virtualPointReceiveAsp"));
 		}
-		
+		if(TransData.containsParam("arcSource")) {
+			params.put("arcSource", TransData.get("arcSource"));
+		}
+		if(TransData.containsParam("rateKey")) {
+			params.put("rateKey", TransData.get("rateKey"));
+		}
+		if(TransData.containsParam("direction")) {
+			params.put("direction", TransData.get("direction"));
+		}
+
 		return params;
 	}
 	
 	@ResponseBody
 	@RequestMapping("/solararc")
 	public void solararc(){
-		Map<String, Object> params = getParams();		
-		Map<String, Object> res = AstroHelper.getSolarArc(params);		
+		Map<String, Object> params = getParams();
+		Map<String, Object> res = AstroHelper.getSolarArc(params);
+		TransData.set(res);
+	}
+
+	@ResponseBody
+	@RequestMapping("/planetaryarc")
+	public void planetaryarc(){
+		Map<String, Object> params = getParams();
+		Map<String, Object> res = AstroHelper.getPlanetaryArc(params);
+		TransData.set(res);
+	}
+
+	@ResponseBody
+	@RequestMapping("/persianchart")
+	public void persianchart(){
+		Map<String, Object> params = getParams();
+		Map<String, Object> res = AstroHelper.getPersianChart(params);
 		TransData.set(res);
 	}
 	

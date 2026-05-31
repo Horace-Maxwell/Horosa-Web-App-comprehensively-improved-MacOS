@@ -897,6 +897,76 @@ def build_progressions(data):
     }
 
 
+# Charles Jayne 赤纬推运（Progressions in Declination）：推运后看赤纬平行/反平行。
+DECLINATION_BODIES = [
+    const.SUN, const.MOON, const.MERCURY, const.VENUS, const.MARS,
+    const.JUPITER, const.SATURN, const.URANUS, const.NEPTUNE, const.PLUTO,
+]
+
+
+def swe_decl(body, jd):
+    xx, _ = swisseph.calc_ut(jd, PLANET_SWISS_IDS[body], swisseph.FLG_SWIEPH | swisseph.FLG_EQUATORIAL)
+    return xx[1]
+
+
+def _decls_at(jd):
+    decls = []
+    for b in DECLINATION_BODIES:
+        try:
+            decls.append({'id': b, 'decl': round(swe_decl(b, jd), 4)})
+        except Exception:
+            pass
+    return decls
+
+
+def decl_parallels(p_decls, n_decls, orb=1.0):
+    rows = []
+    for pa in p_decls:
+        for nb in n_decls:
+            d = abs(pa['decl'] - nb['decl'])
+            if d <= orb:
+                rows.append({'a': pa['id'], 'b': nb['id'], 'type': 'parallel', 'orb': round(d, 3)})
+            dc = abs(pa['decl'] + nb['decl'])
+            if dc <= orb:
+                rows.append({'a': pa['id'], 'b': nb['id'], 'type': 'contraparallel', 'orb': round(dc, 3)})
+    return sorted(rows, key=lambda item: item['orb'])
+
+
+def build_declination_progressions(data):
+    params = base_params(data)
+    target_date = data.get('targetDate') or data.get('datetime') or data.get('date')
+    target_time = data.get('targetTime') or '12:00:00'
+    if ' ' in target_date:
+        date_part, time_part = target_date.split(' ', 1)
+        target_date = date_part
+        target_time = time_part
+    natal_dt = dt_from_data(params)
+    target_dt = Datetime(target_date, target_time, params.get('zone', '+00:00'))
+    natal_decls = _decls_at(natal_dt.jd)
+    orb = safe_float(data.get('orb', 1.0), 1.0)
+    methods = []
+    for method, label in (
+        ('secondary', 'Secondary Progression'),
+        ('tertiary', 'Tertiary Progression'),
+        ('minor', 'Minor Progression'),
+    ):
+        jd = progression_date(natal_dt, target_dt, method)
+        p_decls = _decls_at(jd)
+        methods.append({
+            'method': method,
+            'label': label,
+            'progressedDate': date_time_from_jd(jd, params.get('zone', '+00:00')),
+            'declinations': p_decls,
+            'parallels': decl_parallels(p_decls, natal_decls, orb),
+        })
+    return {
+        'target': date_time_from_jd(target_dt.jd, params.get('zone', '+00:00')),
+        'ageDays': target_dt.jd - natal_dt.jd,
+        'natalDeclinations': natal_decls,
+        'methods': methods,
+    }
+
+
 def build_return_timeline(data):
     params = base_params(data)
     count = max(1, min(int(data.get('count', 10)), 40))

@@ -6,6 +6,8 @@ import DateTimeSelector from '../comp/DateTimeSelector';
 import EditableTags from '../comp/EditableTags';
 import * as AstroHelper from '../astro/AstroHelper';
 import GeoCoordModal from '../amap/GeoCoordModal';
+import { applyDstToFields } from '../../utils/timezone';
+import DstZoneIndicator from '../comp/DstZoneIndicator';
 import { XQButton, XQInput, XQSelect } from '../xq-ui';
 
 const Option = XQSelect.Option;
@@ -21,6 +23,7 @@ export default class ChartData extends Component{
 		}
 
 		this.submitted = false;
+		this.zoneManual = false;
 
 		this.setValue = this.setValue.bind(this);
 		this.changeBirth = this.changeBirth.bind(this);
@@ -32,6 +35,7 @@ export default class ChartData extends Component{
 		this.changeLat = this.changeLat.bind(this);
 		this.changeLon = this.changeLon.bind(this);
 		this.changeGeo = this.changeGeo.bind(this);
+		this.applySuggestedZone = this.applySuggestedZone.bind(this);
 		this.clickOk = this.clickOk.bind(this);
 		this.clickReturn = this.clickReturn.bind(this);
 
@@ -49,8 +53,19 @@ export default class ChartData extends Component{
 	changeBirth(val){
 		let tm = val.value;
 		let flds = this.state.fields;
+		const prevZone = flds.zone.value;
+		const prevDate = (flds.birth.value && flds.birth.value.format) ? flds.birth.value.format('YYYY-MM-DD') : null;
+		const newZone = tm.zone;
+		const newDate = tm.format ? tm.format('YYYY-MM-DD') : null;
 		flds.birth.value = tm.clone();
-		flds.zone.value = tm.zone;
+		flds.zone.value = newZone;
+		if(newZone !== prevZone){
+			// 用户手动改了时区 → 标记手动,后续不再自动覆盖
+			this.zoneManual = true;
+		}else if(newDate !== prevDate && !this.zoneManual){
+			// 仅日期变化(可能跨夏令时边界)→ 按新日期重算时区偏移
+			applyDstToFields(flds);
+		}
 		this.setState({
 			fields: flds,
 		});
@@ -87,6 +102,9 @@ export default class ChartData extends Component{
 		flds.lat.value = lat;
 		flds.gpsLat.value = latdeg;
 		flds.gpsLon.value = londeg;
+		if(!this.zoneManual){
+			applyDstToFields(flds);
+		}
 		this.setState({
 			fields: flds,
 		});
@@ -101,6 +119,9 @@ export default class ChartData extends Component{
 		flds.lon.value = lon;
 		flds.gpsLat.value = latdeg;
 		flds.gpsLon.value = londeg;
+		if(!this.zoneManual){
+			applyDstToFields(flds);
+		}
 		this.setState({
 			fields: flds,
 		});
@@ -133,7 +154,19 @@ export default class ChartData extends Component{
 		flds.lon.value = lon;
 		flds.gpsLat.value = gps.lat;
 		flds.gpsLon.value = gps.lon;
+		this.zoneManual = false;        // 地图选点 = 明确换地点,恢复自动时区校正
+		applyDstToFields(flds);
 
+		this.setState({
+			fields: flds,
+		});
+	}
+
+	// 「改用建议」按钮:恢复自动模式并按地点+日期重算回填(共享 applyDstToFields)。
+	applySuggestedZone(){
+		let flds = this.state.fields;
+		this.zoneManual = false;
+		applyDstToFields(flds);
 		this.setState({
 			fields: flds,
 		});
@@ -183,6 +216,7 @@ export default class ChartData extends Component{
 						/>
 					</Col>
 				</Row>
+				<DstZoneIndicator fields={flds} marginTop={10} onApply={this.applySuggestedZone} />
 				<Row gutter={12} style={{marginTop: margintop}}>
 					<Col span={8}>
 						<Row>

@@ -97,6 +97,12 @@ public class AstroExtraController {
 	}
 
 	@ResponseBody
+	@RequestMapping("/jaynesprog")
+	public void jaynesprog(){
+		TransData.set(AstroHelper.getAstroExtraJaynesProg(getBaseParams()));
+	}
+
+	@ResponseBody
 	@RequestMapping("/returns")
 	public void returns(){
 		TransData.set(AstroHelper.getAstroExtraReturns(getBaseParams()));

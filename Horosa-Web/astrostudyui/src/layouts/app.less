@@ -383,6 +383,21 @@
         color: var(--horosa-accent-strong);
     }
 
+    // show-line 树:antd 给 switcher 一个不透明底色去遮挡连线,暗色下就成了一排刺眼的白方块。
+    // 把这个「底」去掉,只留「方框 + 号」图标本身(随文本色:暗→白、亮→深),即用户要的效果。
+    // (v2.5.0 Balbillus / 各推运树暗色实测踩过 —— 根因是 switcher 背景,不是图标 currentColor。)
+    .horosa-workspace-shell .ant-tree .ant-tree-switcher,
+    .horosa-workspace-shell .ant-tree .ant-tree-switcher-line-icon,
+    .horosa-workspace-shell .ant-tree.ant-tree-show-line .ant-tree-switcher {
+        background: transparent !important;
+    }
+    .horosa-workspace-shell .ant-tree .ant-tree-switcher .anticon {
+        color: var(--horosa-text);
+    }
+    .horosa-workspace-shell .ant-tree .ant-tree-switcher:hover .anticon {
+        color: var(--horosa-accent);
+    }
+
     .horosa-workspace-shell .horosa-direction-tree-scroll {
         border: 1px solid rgba(184, 137, 63, 0.14);
         border-radius: 8px;
@@ -5268,6 +5283,158 @@
         max-height: 100% !important;
     }
 
+    /* === 相位面板美化（AstroAspect：标准/立即/星座相位 + 映点/反映点）。纯结构色，相位语义色不改。 === */
+    .horosa-aspect-panel {
+        padding: 4px 2px 12px;
+    }
+    .horosa-aspect-panel .horosa-aspect-section {
+        margin-bottom: 12px;
+        padding: 8px 10px 10px;
+        border: 1px solid var(--horosa-border, #e3e6ea);
+        border-radius: 10px;
+        background: var(--horosa-astro-panel, rgba(127, 127, 127, 0.03));
+    }
+    .horosa-aspect-panel .horosa-aspect-section:last-child {
+        margin-bottom: 4px;
+    }
+    .horosa-aspect-panel .horosa-aspect-section-title {
+        font-size: 13px;
+        font-weight: 650;
+        color: var(--horosa-astro-gold, #b8860b);
+        letter-spacing: 0.5px;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid var(--horosa-border, #e3e6ea);
+    }
+    .horosa-aspect-panel .horosa-aspect-group {
+        margin-bottom: 8px;
+    }
+    .horosa-aspect-panel .horosa-aspect-group--sign {
+        margin-bottom: 0;
+    }
+    .horosa-aspect-panel .horosa-aspect-group-title {
+        display: inline-block;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 1px 8px;
+        margin-bottom: 5px;
+        border-radius: 6px;
+        background: var(--horosa-accent-soft, rgba(184, 134, 11, 0.1));
+    }
+    .horosa-aspect-panel .horosa-aspect-group-title--plain {
+        background: transparent;
+        padding-left: 0;
+        color: var(--horosa-astro-muted, #8a8f98);
+    }
+    .horosa-aspect-panel .horosa-aspect-rows {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .horosa-aspect-panel .horosa-aspect-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: var(--horosa-surface-solid, rgba(127, 127, 127, 0.06));
+        border: 1px solid var(--horosa-border, #e3e6ea);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .horosa-aspect-panel .horosa-aspect-orb {
+        font-size: 11px;
+        color: var(--horosa-astro-muted, #8a8f98);
+    }
+    .horosa-aspect-panel .horosa-aspect-phase {
+        font-size: 11px;
+        padding: 0 5px;
+        border-radius: 4px;
+        line-height: 1.7;
+    }
+    .horosa-aspect-panel .horosa-aspect-phase--applying {
+        color: var(--horosa-success, #2f9e44);
+        background: var(--horosa-success-soft, rgba(47, 158, 68, 0.12));
+    }
+    .horosa-aspect-panel .horosa-aspect-phase--separating {
+        color: var(--horosa-astro-muted, #8a8f98);
+        background: var(--horosa-surface-solid, rgba(127, 127, 127, 0.12));
+    }
+    .horosa-aspect-panel .horosa-aspect-phase--anti,
+    .horosa-aspect-panel .horosa-aspect-phase--canti {
+        color: var(--horosa-astro-gold, #b8860b);
+        background: var(--horosa-accent-soft, rgba(184, 134, 11, 0.12));
+    }
+    .horosa-aspect-panel .horosa-aspect-empty {
+        font-size: 12px;
+        color: var(--horosa-astro-muted, #8a8f98);
+        padding: 2px 0;
+    }
+
+    /* === 行星/希腊点/可能性 等数据卡片：暗黑适配（原内联固定背景不随主题）。 === */
+    .horosa-astro-data-card.ant-card,
+    .horosa-astro-data-card.ant-card .ant-card {
+        background: transparent;
+        border-color: var(--horosa-border, rgba(127, 127, 127, 0.18));
+    }
+    .horosa-astro-data-card .ant-card-head {
+        background: transparent;
+        border-bottom-color: var(--horosa-border, rgba(127, 127, 127, 0.18));
+        color: inherit;
+        min-height: 38px;
+    }
+    .horosa-astro-data-card .ant-card-head-title {
+        padding: 8px 0;
+    }
+    .horosa-astro-data-card .ant-card-body {
+        color: inherit;
+        padding: 10px 14px;
+    }
+
+    /* === 新推运技法面板美化（行星年龄 band / 原生日期时间输入主题化） === */
+    .horosa-content-tabs input[type="date"],
+    .horosa-content-tabs input[type="time"] {
+        background: var(--horosa-astro-panel, transparent);
+        color: inherit;
+        border: 1px solid var(--horosa-border, rgba(127, 127, 127, 0.25));
+        border-radius: 6px;
+        padding: 2px 6px;
+        font-size: 12px;
+    }
+    .horosa-content-tabs input[type="date"]::-webkit-calendar-picker-indicator,
+    .horosa-content-tabs input[type="time"]::-webkit-calendar-picker-indicator {
+        filter: var(--horosa-input-icon-filter, none);
+        opacity: 0.7;
+    }
+    .horosa-age-band {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        margin-bottom: 6px;
+        border-radius: 8px;
+        border: 1px solid var(--horosa-border, rgba(127, 127, 127, 0.16));
+        background: var(--horosa-astro-panel, transparent);
+        line-height: 1.5;
+    }
+    .horosa-age-band--active {
+        border-color: var(--horosa-astro-gold, #b8860b);
+        background: var(--horosa-accent-soft, rgba(184, 134, 11, 0.12));
+        font-weight: 600;
+    }
+    .horosa-age-band .horosa-age-range {
+        min-width: 66px;
+        font-size: 13px;
+    }
+    .horosa-age-band .horosa-age-glyph {
+        font-size: 16px;
+    }
+    .horosa-age-band .horosa-age-pos {
+        color: var(--horosa-astro-muted, #888);
+        font-size: 12px;
+        margin-left: auto;
+    }
+
     .horosa-workspace-shell .horosa-astro-content-scroll {
         display: grid;
         gap: 8px;
@@ -5345,16 +5512,149 @@
 
     .horosa-workspace-shell .horosa-planet-with-lots {
         height: 100%;
-        overflow: auto;
+        overflow: hidden;
         padding-right: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    // 主星(七政)块=第一个直接子(AstroPlanet 的 scrollbar div):占满剩余高度、可滚、大。
+    .horosa-workspace-shell .horosa-planet-with-lots > div:first-child {
+        flex: 1 1 0;
+        min-height: 0;
     }
 
     .horosa-workspace-shell .horosa-lots-under-planets {
-        margin-top: 8px;
+        flex: 0 0 30%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
         padding: 11px;
         border: 1px solid rgba(215, 173, 105, 0.16);
         border-radius: 6px;
         background: rgba(255, 255, 255, 0.018);
+    }
+
+    .horosa-workspace-shell .horosa-lots-under-planets > .horosa-info-card-title {
+        flex: 0 0 auto;
+        margin-bottom: 6px;
+    }
+
+    // ===== Balbillus 树（v2.5.0 高标准美化）=====
+    .horosa-workspace-shell .horosa-balbillus-shell {
+        padding: 2px 12px 14px;
+    }
+    .horosa-workspace-shell .horosa-balbillus-head {
+        padding: 13px 15px;
+        margin-bottom: 10px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 10px;
+        background: var(--horosa-panel-soft);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    .horosa-workspace-shell .horosa-balbillus-title {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--horosa-text);
+    }
+    .horosa-workspace-shell .horosa-balbillus-sub {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--horosa-muted, #888);
+    }
+    .horosa-workspace-shell .horosa-balbillus-desc {
+        margin: 7px 0 13px;
+        font-size: 12px;
+        line-height: 1.65;
+        color: var(--horosa-muted, #888);
+    }
+    .horosa-workspace-shell .horosa-balbillus-label {
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: var(--horosa-muted, #888);
+    }
+    .horosa-workspace-shell .horosa-balbillus-colhead {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        padding: 0 12px 7px 34px;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--horosa-muted, #888);
+        opacity: 0.85;
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree {
+        padding: 7px 8px 8px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 10px;
+        background: var(--horosa-panel-bg);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree .ant-tree-node-content-wrapper {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 4px 8px;
+        border-radius: 7px;
+        min-height: 30px;
+        display: flex;
+        align-items: center;
+        transition: background 0.15s ease;
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree .ant-tree-node-content-wrapper > .ant-tree-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree .ant-tree-list-holder-inner {
+        width: 100% !important;
+        align-items: stretch !important;
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree .ant-tree-treenode {
+        padding-bottom: 3px;
+        width: 100%;
+        align-items: center;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        width: 100%;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node .bb-planet,
+    .horosa-workspace-shell .horosa-balbillus-colhead .bb-planet {
+        flex: 0 0 110px;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 5px;
+        white-space: nowrap;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node .bb-name {
+        font-size: 13px;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node .bb-date,
+    .horosa-workspace-shell .horosa-balbillus-colhead .bb-date {
+        flex: 0 0 102px;
+        color: var(--horosa-muted, #888);
+        font-variant-numeric: tabular-nums;
+        font-size: 12.5px;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node .bb-dur,
+    .horosa-workspace-shell .horosa-balbillus-colhead .bb-dur {
+        flex: 1 1 auto;
+        text-align: right;
+        color: var(--horosa-muted, #888);
+        font-variant-numeric: tabular-nums;
+        font-size: 12.5px;
+        padding-right: 6px;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node--l1 .bb-name {
+        font-weight: 600;
     }
 
     .horosa-workspace-shell .horosa-bottom-quick-dock {
@@ -14473,4 +14773,72 @@
 	.horosa-divi-verdict-big.lean-no { background: rgba(207,91,69,.12); border-color: rgba(207,91,69,.4); }
 	.horosa-divi-verdict-big.lean-even { background: rgba(210,160,31,.12); border-color: rgba(210,160,31,.4); }
 	.horosa-divi-kv .tag { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--horosa-accent-soft, rgba(148,163,184,.18)); font-size: 12px; margin: 0 2px; }
+}
+
+/* ===== 出生信息表单 · 时区/夏令时(DST)自动校正指示（结构/中性色，明暗双色走 token）===== */
+:global {
+	.horosa-dst-indicator {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 9px;
+		padding: 7px 13px;
+		border-radius: 9px;
+		background: var(--horosa-panel-soft, rgba(242, 247, 254, 0.78));
+		border: 1px solid var(--horosa-border, rgba(76, 98, 134, 0.17));
+		font-size: 12.5px;
+		line-height: 1.5;
+		color: var(--horosa-text-soft, #52627a);
+	}
+	.horosa-dst-indicator .horosa-dst-icon {
+		font-size: 14px;
+		line-height: 1;
+		opacity: 0.9;
+	}
+	.horosa-dst-indicator .horosa-dst-zone {
+		font-weight: 600;
+		letter-spacing: 0.2px;
+		color: var(--horosa-text, #162033);
+	}
+	.horosa-dst-indicator .horosa-dst-state {
+		display: inline-flex;
+		align-items: center;
+		padding: 1px 9px;
+		border-radius: 10px;
+		font-size: 11.5px;
+		font-weight: 600;
+		background: var(--horosa-accent-soft, rgba(120, 134, 156, 0.14));
+		color: var(--horosa-muted, #68758a);
+	}
+	.horosa-dst-indicator.is-dst .horosa-dst-state {
+		background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.16));
+		color: var(--horosa-gold, #9a6a25);
+	}
+	.horosa-dst-indicator .horosa-dst-offset {
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.3px;
+		color: var(--horosa-text, #162033);
+	}
+	.horosa-dst-indicator .horosa-dst-meta {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		color: var(--horosa-muted, #68758a);
+	}
+	.horosa-dst-indicator .horosa-dst-apply {
+		display: inline-flex;
+		align-items: center;
+		padding: 1px 9px;
+		border-radius: 8px;
+		font-weight: 600;
+		cursor: pointer;
+		color: var(--horosa-accent, #2f7df1);
+		background: var(--horosa-accent-soft, rgba(47, 125, 241, 0.12));
+		transition: background 0.15s ease, color 0.15s ease;
+	}
+	.horosa-dst-indicator .horosa-dst-apply:hover {
+		text-decoration: underline;
+		filter: brightness(1.04);
+	}
 }

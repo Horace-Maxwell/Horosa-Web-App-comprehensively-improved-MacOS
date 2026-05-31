@@ -18,6 +18,8 @@ public class AstroHelper {
 	public static final String LunarReturn = PropertyPlaceholder.getProperty("lunarreturn", "/predict/lunarreturn");
 	public static final String GivenYear = PropertyPlaceholder.getProperty("givenyear", "/predict/givenyear");
 	public static final String SolarArc = PropertyPlaceholder.getProperty("solararc", "/predict/solararc");
+	public static final String PlanetaryArc = PropertyPlaceholder.getProperty("planetaryarc", "/predict/planetaryarc");
+	public static final String PersianChart = PropertyPlaceholder.getProperty("persianchart", "/predict/persianchart");
 	public static final String Distribution = PropertyPlaceholder.getProperty("dist", "/predict/dist");
 	public static final String AgePoint = PropertyPlaceholder.getProperty("agepoint", "/predict/agepoint");
 	public static final String Profection = PropertyPlaceholder.getProperty("profection", "/predict/profection");
@@ -40,6 +42,7 @@ public class AstroHelper {
 	public static final String AstroExtraAnalysis = PropertyPlaceholder.getProperty("astroextra.analysis", "/astroextra/analysis");
 	public static final String AstroExtraEphemeris = PropertyPlaceholder.getProperty("astroextra.ephemeris", "/astroextra/ephemeris");
 	public static final String AstroExtraProgressions = PropertyPlaceholder.getProperty("astroextra.progressions", "/astroextra/progressions");
+	public static final String AstroExtraJaynesProg = PropertyPlaceholder.getProperty("astroextra.jaynesprog", "/astroextra/jaynesprog");
 	public static final String AstroExtraReturns = PropertyPlaceholder.getProperty("astroextra.returns", "/astroextra/returns");
 	public static final String AstroExtraHarmonic = PropertyPlaceholder.getProperty("astroextra.harmonic", "/astroextra/harmonic");
 	public static final String AstroExtraDraconic = PropertyPlaceholder.getProperty("astroextra.draconic", "/astroextra/draconic");
@@ -90,6 +93,14 @@ public class AstroHelper {
 	
 	public static Map<String, Object> getSolarArc(Map<String, Object> params){
 		return request(SolarArc, params);
+	}
+
+	public static Map<String, Object> getPlanetaryArc(Map<String, Object> params){
+		return request(PlanetaryArc, params);
+	}
+
+	public static Map<String, Object> getPersianChart(Map<String, Object> params){
+		return requestNoCache(PersianChart, params);
 	}
 	
 	public static Map<String, Object> getProfection(Map<String, Object> params){
@@ -179,6 +190,10 @@ public class AstroHelper {
 
 	public static Map<String, Object> getAstroExtraProgressions(Map<String, Object> params){
 		return requestNoCache(AstroExtraProgressions, params);
+	}
+
+	public static Map<String, Object> getAstroExtraJaynesProg(Map<String, Object> params){
+		return requestNoCache(AstroExtraJaynesProg, params);
 	}
 
 	public static Map<String, Object> getAstroExtraReturns(Map<String, Object> params){

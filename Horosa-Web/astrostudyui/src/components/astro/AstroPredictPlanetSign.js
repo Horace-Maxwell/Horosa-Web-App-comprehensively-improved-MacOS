@@ -61,11 +61,12 @@ class AstroPredictPlanetSign extends Component{
 			});
 			let dom = (
 				<Row key={key}>
-					<Card title={this.renderTitle(key, chartObj)} 
-						bordered={true} 
+					<Card title={this.renderTitle(key, chartObj)}
+						bordered={true}
+						className="horosa-astro-data-card"
 						style={{
 							fontFamily: AstroConst.AstroFont,
-							background: AstroConst.AstroColor.Backgroud
+							background: 'var(--horosa-astro-panel, transparent)'
 						}}>
 							<ul style={{fontFamily: AstroConst.NormalFont}}>
 								{desc}

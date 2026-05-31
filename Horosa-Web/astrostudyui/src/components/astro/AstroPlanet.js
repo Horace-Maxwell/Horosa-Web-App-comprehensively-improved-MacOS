@@ -153,9 +153,10 @@ class AstroPlanet extends Component{
 					<Col span={24}>
 						<Card title={this.renderTitle(objid, chartObj)} 
 							bordered={true} 
+							className="horosa-astro-data-card"
 							style={{
 								fontFamily: AstroConst.AstroFont,
-								background: AstroConst.AstroColor.Backgroud
+								background: 'var(--horosa-astro-panel, transparent)'
 							}}
 						>
 							<Row gutter={12}>
@@ -390,12 +391,14 @@ class AstroPlanet extends Component{
 		let chart = this.props.value;
 		let dom = this.genPlanetsDom(chart);
 
-		let height = this.props.height ? this.props.height : '100%';
-		let style = {
-			height: (height-130) + 'px',
-			overflowY:'auto', 
-			overflowX:'hidden',
-		};
+		let style;
+		if(this.props.fill){
+			// fill 模式:在 flex column 容器里占满「剩余」空间(七政/主星卡片大且可滚),flex-basis:0 让它吃掉希腊点块以外的全部高度。
+			style = { flex: '1 1 0', minHeight: 0, overflowY: 'auto', overflowX: 'hidden' };
+		}else{
+			let height = this.props.height ? this.props.height : '100%';
+			style = { height: (height-130) + 'px', overflowY:'auto', overflowX:'hidden' };
+		}
 
 		return (
 			<div className={styles.scrollbar} style={style}>
