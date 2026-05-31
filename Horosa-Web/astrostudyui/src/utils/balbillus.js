@@ -96,11 +96,23 @@ export function balbillusDistance(lon, exalt, mode){
 	return Math.min(raw, 360 - raw);
 }
 
+// core 校准（6 张盘最小二乘，残差 < 0.8°）：日/月/火这 3 星 core 用的不是黄经距
+// （dcn_method_id=2 内部度量；已排除 RA/OA），但等价于「黄经最近角距的线性变换」d = a×ecl + b——
+// 即便在擢升处也有基础削减 b。其余四星 a=1/b=0（纯黄经最近角距，6 盘实测精确）。仅 nearest 口径生效。
+const BALBILLUS_REDUCTION_FIT = {
+	[AstroConst.SUN]: { a: 0.9431, b: 19.47 },
+	[AstroConst.MOON]: { a: 0.9592, b: 14.76 },
+	[AstroConst.MARS]: { a: 0.9268, b: 24.39 },
+};
+
 // 主限长度（年）= N × (1 − d/360)。
 export function balbillusPeriodYears(planet, lon, mode){
 	const N = BALBILLUS_YEARS[planet];
 	if(lon === null || lon === undefined || BALBILLUS_EXALT[planet] === undefined){ return N; }
-	const d = balbillusDistance(lon, BALBILLUS_EXALT[planet], mode);
+	let d = balbillusDistance(lon, BALBILLUS_EXALT[planet], mode);
+	const fit = BALBILLUS_REDUCTION_FIT[planet];
+	if(fit && mode === 'nearest'){ d = fit.a * d + fit.b; }
+	d = Math.max(0, Math.min(360, d));
 	return N * (1 - d / 360);
 }
 
@@ -150,12 +162,10 @@ function makeNode(ctx, planet, level, startDays, durDays){
 	};
 }
 
-// 各层时间单位（天）。core 实测：L1=年(timeUnitInDays=365.2422)、L2=月=年/12(30.4368)。
-// L3+ = 日及更细（月/30，古典 年/月/日）；core 仅抓到 L1-L2，L3+ 沿古典推断、待 level-3 数据校。
+// 各层时间单位（天），core 实测逐层 /12：L1=年(365.2422)、L2=年/12(月,30.4368)、L3=年/144(2.5364)…
 function timeUnitDays(ctx, level){
 	const y = BALBILLUS_YEAR_TYPES[ctx.opts.yearType].days;
-	if(level <= 1){ return y; }
-	return (y / 12) / Math.pow(30, Math.max(0, level - 2));
+	return y / Math.pow(12, Math.max(0, level - 1));
 }
 
 // 一级主限：按旺距削减后的长度，循环行进序铺开到 maxAge。
