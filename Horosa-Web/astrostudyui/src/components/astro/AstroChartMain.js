@@ -837,17 +837,17 @@ class AstroChartMain extends Component{
 						/>
 					</TabPane>
 					<TabPane tab="行星" key="3">
-						<div className="horosa-planet-with-lots">
+						<div className="horosa-planet-with-lots" style={{ height: tabHeight }}>
 							<AstroPlanet
 								value={chartObj}
-								height={showlots ? Math.max(360, tabHeight * 0.68) : tabHeight}
+								fill={true}
 								showPlanetHouseInfo={this.props.showPlanetHouseInfo}
 								showAstroMeaning={this.props.showAstroMeaning}
 							/>
 							{showlots ? (
 								<div className="horosa-lots-under-planets">
 									<div className="horosa-info-card-title">希腊点</div>
-									<AstroLots value={chartObj} height={Math.max(180, tabHeight * 0.32)} showAstroMeaning={this.props.showAstroMeaning}/>
+									<AstroLots value={chartObj} fill={true} showAstroMeaning={this.props.showAstroMeaning}/>
 								</div>
 							) : null}
 						</div>

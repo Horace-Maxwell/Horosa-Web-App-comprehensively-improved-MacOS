@@ -85,6 +85,9 @@ def isStrongGood(x):
     return x == 'exalt' or x == 'ruler'
 
 custHouse_Equal_MC_Middle = 'Equal_MC_Middle'
+# 福点整宫制：以本命福点(Part of Fortune)所在星座为第一宫的整宫制(whole-sign from Fortune)。
+# 自定义标记，底盘走 WHOLE_SIGN(取真实 ASC/MC 角)，再在 custHouse() 把 12 宫头重定位到福点星座 0°起。
+custHouse_Fortuna_Whole = 'Fortuna_Whole'
 
 hsys=[
     const.HOUSES_WHOLE_SIGN,
@@ -110,7 +113,8 @@ hsys=[
     const.HOUSES_PULLEN_SD,
     const.HOUSES_PULLEN_SR,
     const.HOUSES_APC,
-    const.HOUSES_SAVARD_A
+    const.HOUSES_SAVARD_A,
+    custHouse_Fortuna_Whole
 ]
 
 LOTS = [
@@ -258,6 +262,9 @@ class PerChart:
             if self.house == custHouse_Equal_MC_Middle:
                 self.house = const.HOUSES_ALCABITUS
                 self.houseCust = custHouse_Equal_MC_Middle
+            elif self.house == custHouse_Fortuna_Whole:
+                self.house = const.HOUSES_WHOLE_SIGN
+                self.houseCust = custHouse_Fortuna_Whole
 
         if 'pdaspects' in data.keys():
             self.pdaspects = data['pdaspects']
@@ -371,6 +378,47 @@ class PerChart:
                 house.relocate(startlon)
                 house.size = 30
                 house.hsys = custHouse_Equal_MC_Middle
+                ra, decl = utils.eqCoords(house.lon, house.lat)
+                house.ra = ra
+                house.decl = decl
+                startlon = (startlon + 30) % 360
+
+        if self.houseCust == custHouse_Fortuna_Whole:
+            flon = None
+            try:
+                fortuna = self.chart.getObject(const.PARS_FORTUNA)
+                if fortuna is not None and getattr(fortuna, 'lon', None) is not None:
+                    flon = fortuna.lon
+            except Exception:
+                flon = None
+            if flon is None:
+                # 回退：自 ASC + 昼夜光体手算福点（昼: ASC+Moon-Sun / 夜: ASC+Sun-Moon）
+                try:
+                    asc = self.chart.getAngle(const.ASC)
+                    sun = self.chart.getObject(const.SUN)
+                    moon = self.chart.getObject(const.MOON)
+                    if asc is None or sun is None or moon is None:
+                        return
+                    if self.chart.isDiurnal():
+                        flon = (asc.lon + moon.lon - sun.lon) % 360
+                    else:
+                        flon = (asc.lon + sun.lon - moon.lon) % 360
+                except Exception:
+                    return
+            startlon = (int(flon // 30) * 30) % 360
+            houses_list = [
+                const.HOUSE1, const.HOUSE2, const.HOUSE3,
+                const.HOUSE4, const.HOUSE5, const.HOUSE6,
+                const.HOUSE7, const.HOUSE8, const.HOUSE9,
+                const.HOUSE10, const.HOUSE11, const.HOUSE12
+            ]
+            for obj in houses_list:
+                house = self.chart.getHouse(obj)
+                house.relocate(startlon)
+                house.size = 30
+                # 用 WHOLE_SIGN 让 inHouse 走整宫分支(无 -5° 偏移)→ 落宫判定正确;
+                # 「福点整宫制」标签由盘级 hsys 参数(24)驱动,不靠逐宫 house.hsys。
+                house.hsys = const.HOUSES_WHOLE_SIGN
                 ra, decl = utils.eqCoords(house.lon, house.lat)
                 house.ra = ra
                 house.decl = decl

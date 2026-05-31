@@ -193,6 +193,62 @@ else
   warn "RequestHeaderInterceptor.java 不存在,跳过 #10(B)哨兵"
 fi
 
+echo "[11] 西占推运 + 宫制修复哨兵(v2.5.0)"
+PERCHART="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/perchart.py"
+ASTROCONST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/constants/AstroConst.js"
+PERSIAN="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/astro/AstroPersianDirected.js"
+BALB="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/balbillus.js"
+# A. 宫制数量前后端同步(后端 hsys[] vs 前端 HOUSE_SYSTEM_OPTIONS):改一处必改另一处,否则 index 错位读错宫制
+if [ -f "${PERCHART}" ] && [ -f "${ASTROCONST}" ]; then
+  HSYS_BE="$(python3 -c "import re;t=open('${PERCHART}').read();m=re.search(r'hsys=\[(.*?)\]',t,re.S);print(len([x for x in m.group(1).split(',') if x.strip()]) if m else -1)" 2>/dev/null || echo -2)"
+  HSYS_FE="$(python3 -c "import re;t=open('${ASTROCONST}').read();m=re.search(r'HOUSE_SYSTEM_OPTIONS = \[(.*?)\];',t,re.S);print(len(re.findall(r'value:',m.group(1))) if m else -1)" 2>/dev/null || echo -3)"
+  if [ "${HSYS_BE}" = "${HSYS_FE}" ] && [ "${HSYS_BE}" -gt 0 ] 2>/dev/null; then
+    ok "A 宫制数量前后端同步(${HSYS_BE})"
+  else
+    bad "A 宫制数量不同步:后端 hsys[]=${HSYS_BE} vs 前端 HOUSE_SYSTEM_OPTIONS=${HSYS_FE} —— index 错位会读错宫制"
+  fi
+else
+  warn "perchart.py / AstroConst.js 不存在,跳过宫制同步哨兵"
+fi
+# B. 福点整宫制:自定义整宫制宫头必须 house.hsys=const.HOUSES_WHOLE_SIGN,否则 flatlib inHouse 加 -5° 偏移致落宫差一宫
+if [ -f "${PERCHART}" ] && grep -q "custHouse_Fortuna_Whole" "${PERCHART}"; then
+  if grep -q "house.hsys = const.HOUSES_WHOLE_SIGN" "${PERCHART}" && ! grep -q "house.hsys = custHouse_Fortuna_Whole" "${PERCHART}"; then
+    ok "B 福点整宫制宫头走 HOUSES_WHOLE_SIGN(inHouse 无 -5° 偏移)"
+  else
+    bad "B 福点整宫制宫头未设 const.HOUSES_WHOLE_SIGN(或回退自定义标记) —— inHouse -5° 偏移致落宫 off-by-one"
+  fi
+fi
+# C. 双圈盘内圈本命冻结修复:AstroPersianDirected.requestData 每次从 props.value 重算 natalParams
+if [ -f "${PERSIAN}" ]; then
+  grep -q "natalParams(this.props.value)" "${PERSIAN}" \
+    && ok "C 波斯向运 requestData 重算 natalParams(内圈本命不冻结)" \
+    || bad "C AstroPersianDirected 未从 props.value 重算 natalParams —— 换盘后内圈本命会冻结成旧盘"
+fi
+# D. Balbillus 旺距削减公式 N×(1−d/360) + 七星小年表(独立引擎,勿退回 k 标度实验版)
+if [ -f "${BALB}" ]; then
+  grep -q "1 - d / 360" "${BALB}" && grep -q "BALBILLUS_YEARS" "${BALB}" \
+    && ok "D Balbillus 旺距削减公式在位" \
+    || bad "D balbillus.js 缺 N×(1−d/360) 削减公式 或 BALBILLUS_YEARS"
+fi
+
+echo "[12] 本地服务端口健壮性哨兵(v2.5.0)"
+WEBCHART="${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"
+STARTSH="${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"
+if [ -f "${WEBCHART}" ]; then
+  if grep -q "def ensure_chart_port_free" "${WEBCHART}" && grep -q "ensure_chart_port_free('127.0.0.1', chart_port)" "${WEBCHART}"; then
+    ok "A webchartsrv.py 绑定前回收僵尸端口(ensure_chart_port_free)"
+  else
+    bad "A webchartsrv.py 缺 ensure_chart_port_free —— 僵尸占 8899 会让排盘服务起不来(portend code 70)"
+  fi
+else
+  warn "webchartsrv.py 不存在,跳过端口健壮性哨兵"
+fi
+if [ -f "${STARTSH}" ]; then
+  grep -q "reclaim_stale_port" "${STARTSH}" \
+    && ok "B start_horosa_local.sh 回收自己的僵尸端口(reclaim_stale_port)" \
+    || bad "B start_horosa_local.sh 缺 reclaim_stale_port —— 端口被自己僵尸占住会阻死启动"
+fi
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

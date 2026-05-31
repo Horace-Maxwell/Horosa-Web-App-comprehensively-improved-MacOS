@@ -302,6 +302,7 @@ AstroMsg[AstroConst.HSYS_Pullen_SD] = 'Pullen SD';
 AstroMsg[AstroConst.HSYS_Pullen_SR] = 'Pullen SR';
 AstroMsg[AstroConst.HSYS_APC] = 'APC Houses';
 AstroMsg[AstroConst.HSYS_Savard_A] = 'Savard-A';
+AstroMsg[AstroConst.HSYS_Fortuna_Whole] = '福点整宫制';
 
 export const AstroZiMsg = {};
 AstroZiMsg[AstroConst.ARIES] = '戌';

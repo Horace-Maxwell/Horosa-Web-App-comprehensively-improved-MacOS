@@ -1197,8 +1197,7 @@ class AstroDirectMain extends Component{
 							/>
 						</TabPane>
 
-					{/* Balbillus 暂未成熟(k 标度待校准)，发布前临时隐去；组件/hook/AI接线均保留，校准后取消 false 即恢复 */}
-						{false && (<TabPane tab="Balbillus" key="balbillus">
+						<TabPane tab="Balbillus" key="balbillus">
 							<AstroBalbillus
 								value={this.props.chartObj}
 								height={height}
@@ -1207,7 +1206,7 @@ class AstroDirectMain extends Component{
 								lotsDisplay={this.props.lotsDisplay}
 								showAstroMeaning={this.props.showAstroMeaning}
 							/>
-						</TabPane>)}
+						</TabPane>
 
 					</Tabs>
 			</div>

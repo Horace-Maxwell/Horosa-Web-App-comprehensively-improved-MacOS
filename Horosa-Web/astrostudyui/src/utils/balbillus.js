@@ -2,13 +2,19 @@ import moment from 'moment';
 import * as AstroConst from '../constants/AstroConst';
 import * as AstroText from '../constants/AstroText';
 
-// Balbillus 法（时间主）：与 129 年系统同结构（七政小年→主限+子限），但各行星期按「距旺度的度数」削减。
-// Schmidt：129 系统是本法的理想化版本。**始终用 Hellenistic 年(360日)/月(30日)。** 独立引擎，不碰 decennials.js。
-// 削减标度 k 为实验性（参考资料「circular period in days per degree」口径不一），待 core 实测校准。
-const HELLENISTIC_YEAR_DAYS = 360;
+// Balbillus 法（129 年系统 · 旺距削减变体）。还原自经典占星 Balbillus / 129-year Time-Lord 体系：
+//  ① 七星各有「Balbillus 小年」(Σ=129)；
+//  ② 主限长度 = N × (1 − d/360)，d = 本命星黄经离其「擢升度」的角距（每差 1 星座扣 N 月、每差 1 度扣 N 日，等价式）；
+//  ③ 主限序 = 七星按本命黄经升序、从起始星旋转铺开；
+//  ④ 每主限期再以该期主星为起点、按 129 权重递归切分子限（可至 5 层）；
+//  ⑤ 始终用 Hellenistic 年（默认 360 日 / 30 日月），可切 solar(365.2422 日)。
+//  距离口径 d 有 nearest（最近角距）/ forward（自擢升度顺黄道到本命星）两解 → 做成参数。
+//  独立引擎，不碰 decennials.js / yearsystem129.js。
 
-// 各行星小年（年）——同 129 系统。Σ = 129。
-export const BALBILLUS_MINOR_YEARS = {
+export const BALBILLUS_TOTAL = 129;
+
+// 七星 Balbillus 小年（年）。Σ = 129。
+export const BALBILLUS_YEARS = {
 	[AstroConst.SUN]: 19,
 	[AstroConst.MOON]: 25,
 	[AstroConst.SATURN]: 30,
@@ -18,30 +24,45 @@ export const BALBILLUS_MINOR_YEARS = {
 	[AstroConst.MERCURY]: 20,
 };
 
-// 主限/子限行进序列（同 129，实验性待校）。
-const SEQUENCE = [
+// 传统擢升度（绝对黄经 0–360）：日 白羊19° / 月 金牛3° / 土 天秤21° / 木 巨蟹15° / 火 摩羯28° / 金 双鱼27° / 水 室女15°。
+export const BALBILLUS_EXALT = {
+	[AstroConst.SUN]: 0 + 19,
+	[AstroConst.MOON]: 30 + 3,
+	[AstroConst.SATURN]: 180 + 21,
+	[AstroConst.JUPITER]: 90 + 15,
+	[AstroConst.MARS]: 270 + 28,
+	[AstroConst.VENUS]: 330 + 27,
+	[AstroConst.MERCURY]: 150 + 15,
+};
+
+const PLANETS = [
 	AstroConst.SUN, AstroConst.MOON, AstroConst.SATURN, AstroConst.JUPITER,
 	AstroConst.MARS, AstroConst.VENUS, AstroConst.MERCURY,
 ];
-const SEQ_LEN = SEQUENCE.length;
 
-// 各行星旺度（绝对黄经）：日19°白羊 月3°金牛 水15°室女 金27°双鱼 火28°摩羯 木15°巨蟹 土21°天秤。
-const EXALT_LON = {
-	[AstroConst.SUN]: 19,
-	[AstroConst.MOON]: 33,
-	[AstroConst.MERCURY]: 165,
-	[AstroConst.VENUS]: 357,
-	[AstroConst.MARS]: 298,
-	[AstroConst.JUPITER]: 105,
-	[AstroConst.SATURN]: 201,
+// 年制：core 实测 Balbillus 用回归年 365.24219879 日（抓包 timeUnitInDays）——其
+// 「Egyptian/Hellenistic(360)」选项只是标签、不影响周期数学；故默认 solar 对齐 core，
+// 真 360 日年保留给想要古典 Hellenistic 的用户。
+export const BALBILLUS_YEAR_TYPES = {
+	solar: { days: 365.24219879, label: 'Solar 回归年（365.2422 日 · 对齐 core）' },
+	hellenistic: { days: 360, label: 'Egyptian/Hellenistic（360 日）' },
 };
 
-export const BALBILLUS_DEFAULT_K = 0.5;
+// 距离口径：nearest 最近角距；forward 自擢升度顺黄道到本命星。
+export const BALBILLUS_MODES = {
+	nearest: '最近角距（nearest）',
+	forward: '顺黄道距（forward）',
+};
 
-function angDist(a, b){
-	let d = Math.abs((((a - b) % 360) + 360) % 360);
-	return d > 180 ? 360 - d : d;
-}
+export const BALBILLUS_DEFAULT_OPTS = {
+	startPlanet: AstroConst.SUN,
+	mode: 'nearest',
+	yearType: 'solar',
+	maxDepth: 5,
+	maxAge: 120,
+};
+
+function norm360(v){ let n = Number(v) % 360; if(n < 0){ n += 360; } return n; }
 
 function parseBirthMoment(chartObj){
 	const p = (chartObj && chartObj.params) ? chartObj.params : {};
@@ -68,45 +89,120 @@ function rotate(list, start){
 	return list.slice(i).concat(list.slice(0, i));
 }
 
-// 各行星削减后小年：reduced = base * (1 - k * dist/180)，下限 0.5 年。
-export function computeBalbillusYears(chartObj, kFrac = BALBILLUS_DEFAULT_K){
-	const k = Number.isFinite(kFrac) ? kFrac : BALBILLUS_DEFAULT_K;
-	const result = {};
-	SEQUENCE.forEach((p) => {
-		const lon = natalLon(chartObj, p);
-		const dist = (lon !== null && EXALT_LON[p] !== undefined) ? angDist(lon, EXALT_LON[p]) : 0;
-		result[p] = Math.max(0.5, BALBILLUS_MINOR_YEARS[p] * (1 - k * (dist / 180)));
-	});
-	return result;
+// d = 本命星黄经离其擢升度的角距。nearest=最近角距；forward=自擢升度顺黄道到本命星。
+export function balbillusDistance(lon, exalt, mode){
+	const raw = norm360(lon - exalt);
+	if(mode === 'forward'){ return raw; }
+	return Math.min(raw, 360 - raw);
 }
 
-// 从出生起、按 sect 起始(日昼/月夜)、SEQUENCE 序铺开；每主限期(削减后)等分 7 段子限。360 日年换算。
-export function buildBalbillus(chartObj, kFrac = BALBILLUS_DEFAULT_K){
+// 主限长度（年）= N × (1 − d/360)。
+export function balbillusPeriodYears(planet, lon, mode){
+	const N = BALBILLUS_YEARS[planet];
+	if(lon === null || lon === undefined || BALBILLUS_EXALT[planet] === undefined){ return N; }
+	const d = balbillusDistance(lon, BALBILLUS_EXALT[planet], mode);
+	return N * (1 - d / 360);
+}
+
+// 七星按本命黄经升序、旋转到起始星 → 主限/子限统一行进序。
+export function zodiacalOrder(longitudes, startPlanet){
+	const planets = PLANETS.filter((p) => longitudes[p] !== null && longitudes[p] !== undefined);
+	planets.sort((a, b) => norm360(longitudes[a]) - norm360(longitudes[b]));
+	const list = planets.length ? planets : PLANETS.slice();
+	return rotate(list, startPlanet);
+}
+
+function resolveOpts(opts){
+	const o = { ...BALBILLUS_DEFAULT_OPTS, ...(opts || {}) };
+	if(!BALBILLUS_YEAR_TYPES[o.yearType]){ o.yearType = 'solar'; }
+	if(!BALBILLUS_MODES[o.mode]){ o.mode = 'nearest'; }
+	if(BALBILLUS_YEARS[o.startPlanet] === undefined){ o.startPlanet = AstroConst.SUN; }
+	if(!(o.maxDepth >= 1)){ o.maxDepth = 5; }
+	if(!(o.maxAge > 0)){ o.maxAge = 120; }
+	return o;
+}
+
+// 构造上下文：本命七星黄经 + 行进序 + 出生 + 选项。前端组件持有 ctx 后即可懒构造树。
+export function buildBalbillusContext(chartObj, opts){
+	const o = resolveOpts(opts);
+	const longitudes = {};
+	PLANETS.forEach((p) => { longitudes[p] = natalLon(chartObj, p); });
+	const order = zodiacalOrder(longitudes, o.startPlanet);
 	const birth = parseBirthMoment(chartObj);
-	const isDiurnal = !!(chartObj && chartObj.chart && chartObj.chart.isDiurnal);
-	const startPlanet = isDiurnal ? AstroConst.SUN : AstroConst.MOON;
-	const order = rotate(SEQUENCE, startPlanet);
-	const years = computeBalbillusYears(chartObj, kFrac);
-	const rows = [];
-	let cursor = birth ? birth.clone() : null;
-	order.forEach((p) => {
-		const redYears = years[p];
-		const subAvgDays = (redYears / SEQ_LEN) * HELLENISTIC_YEAR_DAYS;
-		const subs = [];
-		let j = SEQUENCE.indexOf(p);
-		for(let k = 0; k < SEQ_LEN; k++){
-			subs.push({ subDirect: SEQUENCE[j], date: cursor ? cursor.format('YYYY-MM-DD') : '' });
-			if(cursor){ cursor = cursor.clone().add(Math.round(subAvgDays), 'days'); }
-			j = (j + 1) % SEQ_LEN;
+	return { longitudes, order, birthMs: birth ? birth.valueOf() : null, opts: o };
+}
+
+function dateOf(ctx, days){
+	if(ctx.birthMs === null || ctx.birthMs === undefined){ return ''; }
+	return moment(ctx.birthMs).add(days, 'days').format('YYYY-MM-DD');
+}
+
+function makeNode(ctx, planet, level, startDays, durDays){
+	return {
+		key: `${level}|${planet}|${Math.round(startDays * 100)}`,
+		planet,
+		level,
+		startDays,
+		durDays,
+		startDate: dateOf(ctx, startDays),
+		durYears: durDays / BALBILLUS_YEAR_TYPES[ctx.opts.yearType].days,
+		isLeaf: level >= ctx.opts.maxDepth,
+	};
+}
+
+// 各层时间单位（天）。core 实测：L1=年(timeUnitInDays=365.2422)、L2=月=年/12(30.4368)。
+// L3+ = 日及更细（月/30，古典 年/月/日）；core 仅抓到 L1-L2，L3+ 沿古典推断、待 level-3 数据校。
+function timeUnitDays(ctx, level){
+	const y = BALBILLUS_YEAR_TYPES[ctx.opts.yearType].days;
+	if(level <= 1){ return y; }
+	return (y / 12) / Math.pow(30, Math.max(0, level - 2));
+}
+
+// 一级主限：按旺距削减后的长度，循环行进序铺开到 maxAge。
+export function buildBalbillusRoots(ctx){
+	const { order, longitudes, opts } = ctx;
+	const yearDays = BALBILLUS_YEAR_TYPES[opts.yearType].days;
+	const maxDays = opts.maxAge * yearDays;
+	const roots = [];
+	let tDays = 0;
+	let i = 0;
+	while(tDays < maxDays && i < 200){
+		const p = order[i % order.length];
+		const durYears = balbillusPeriodYears(p, longitudes[p], opts.mode);
+		const durDays = Math.max(0, durYears) * yearDays;
+		roots.push(makeNode(ctx, p, 1, tDays, durDays));
+		if(durDays <= 0){ break; }
+		tDays += durDays;
+		i++;
+	}
+	return roots;
+}
+
+// 子限（core 实测结构）：时间单位逐级降级——每子段时长 = 削减年数(子星) × 当前层时间单位
+// (L2=月)，自父星起按行进序铺开；**末段填满父期剩余**（core 实测：最后一颗星被拉长到父期末），
+// 自然长度溢出父期则截断。**不是**原先的「129 权重切父期」。
+export function buildBalbillusChildren(ctx, node){
+	if(!node || node.level >= ctx.opts.maxDepth){ return []; }
+	const seq = rotate(ctx.order, node.planet);
+	const unit = timeUnitDays(ctx, node.level + 1);
+	const parentEnd = node.startDays + node.durDays;
+	const children = [];
+	let t = node.startDays;
+	for(let i = 0; i < seq.length; i++){
+		const p = seq[i];
+		const isLast = i === seq.length - 1;
+		let dur;
+		if(isLast){
+			dur = Math.max(0, parentEnd - t);
+		}else{
+			dur = balbillusPeriodYears(p, ctx.longitudes[p], ctx.opts.mode) * unit;
+			if(t + dur > parentEnd){ dur = parentEnd - t; }
 		}
-		rows.push({
-			mainDirect: p,
-			baseYears: BALBILLUS_MINOR_YEARS[p],
-			redYears: Math.round(redYears * 100) / 100,
-			subDirect: subs,
-		});
-	});
-	return { rows, startPlanet, kFrac, isDiurnal };
+		if(dur <= 0){ break; }
+		children.push(makeNode(ctx, p, node.level + 1, t, dur));
+		t += dur;
+	}
+	return children;
 }
 
 function planetTxt(id){
@@ -114,25 +210,28 @@ function planetTxt(id){
 	return AstroText.AstroTxtMsg[id] || `${id}`;
 }
 
-export function buildBalbillusSnapshotText(chartObj){
+// AI 快照：展平一级主限 + 二级子限（够 AI 用，避免深递归爆量）。section 头与 aiExport preset 对齐。
+export function buildBalbillusSnapshotText(chartObj, opts){
 	if(!chartObj){ return ''; }
-	const { rows } = buildBalbillus(chartObj);
-	if(!rows || !rows.length){ return ''; }
+	const ctx = buildBalbillusContext(chartObj, opts);
+	const roots = buildBalbillusRoots(ctx);
+	if(!roots.length){ return ''; }
+	const o = ctx.opts;
 	const lines = [];
 	lines.push('[Balbillus]');
-	lines.push('129 年系统的旺距削减变体：各行星小年按距旺度削减后铺开主限+子限（Hellenistic 360 日年）。（k 标度实验性，待校准）');
+	lines.push(`Balbillus 法（129 年系统 · 旺距削减）：主限长度 = 小年 × (1 − 离擢升度角距/360)，七星按本命黄经序从 ${planetTxt(o.startPlanet)} 起铺开，再按 129 权重递归切子限。年制=${BALBILLUS_YEAR_TYPES[o.yearType].label}、距离口径=${BALBILLUS_MODES[o.mode]}。`);
 	lines.push('');
-	lines.push('| 主限 | 子限 | 日期 |');
-	lines.push('| --- | --- | --- |');
-	rows.forEach((main) => {
-		const subs = Array.isArray(main.subDirect) ? main.subDirect : [];
-		if(subs.length === 0){
-			lines.push(`| ${planetTxt(main.mainDirect)}(${main.baseYears}→${main.redYears}年) | - | - |`);
+	lines.push('| 主限 | 子限 | 起始日期 | 时长(年) |');
+	lines.push('| --- | --- | --- | --- |');
+	roots.forEach((main) => {
+		const subs = buildBalbillusChildren(ctx, main);
+		if(!subs.length){
+			lines.push(`| ${planetTxt(main.planet)} | - | ${main.startDate || '-'} | ${main.durYears.toFixed(2)} |`);
 			return;
 		}
 		subs.forEach((sub, i) => {
-			const mainLabel = i === 0 ? `${planetTxt(main.mainDirect)}(${main.baseYears}→${main.redYears}年)` : planetTxt(main.mainDirect);
-			lines.push(`| ${mainLabel} | ${planetTxt(sub.subDirect)} | ${sub.date || '-'} |`);
+			const mainLabel = i === 0 ? `${planetTxt(main.planet)}(${main.durYears.toFixed(2)}年)` : '';
+			lines.push(`| ${mainLabel} | ${planetTxt(sub.planet)} | ${sub.startDate || '-'} | ${sub.durYears.toFixed(2)} |`);
 		});
 	});
 	return lines.join('\n');

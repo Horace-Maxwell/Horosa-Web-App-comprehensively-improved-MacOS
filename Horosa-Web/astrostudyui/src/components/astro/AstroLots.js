@@ -146,12 +146,14 @@ class AstroLots extends Component{
 		let chart = this.props.value;
 		let dom = this.genLotsDom(chart);
 
-		let height = this.props.height ? this.props.height : '100%';
-		let style = {
-			height: (height-130) + 'px',
-			overflowY:'auto', 
-			overflowX:'hidden',
-		};
+		let style;
+		if(this.props.fill){
+			// fill 模式:占满「希腊点块」的 flex 槽(小而有界),内部自滚;不用内容高(否则希腊点条目一多就会把主星挤没)。
+			style = { flex: '1 1 0', minHeight: 0, overflowY: 'auto', overflowX: 'hidden' };
+		}else{
+			let height = this.props.height ? this.props.height : '100%';
+			style = { height: (height-130) + 'px', overflowY:'auto', overflowX:'hidden' };
+		}
 
 		return (
 			<div className={styles.scrollbar} style={style}>

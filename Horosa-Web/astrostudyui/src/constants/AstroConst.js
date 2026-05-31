@@ -828,6 +828,7 @@ export const HOUSE_SYSTEM_OPTIONS = [
     { value: 21, label: 'Pullen SR' },
     { value: 22, label: 'APC Houses' },
     { value: 23, label: 'Savard-A' },
+    { value: 24, label: '福点整宫制' },
 ];
 
 export const HouseSys = HOUSE_SYSTEM_OPTIONS.reduce((result, item)=>{
@@ -887,6 +888,7 @@ export const HSYS_Pullen_SD = 'Pullen SD';
 export const HSYS_Pullen_SR = 'Pullen SR';
 export const HSYS_APC = 'APC Houses';
 export const HSYS_Savard_A = 'Savard-A';
+export const HSYS_Fortuna_Whole = 'Fortuna_Whole';
 
 export const STAR_ALGENIB = 'Algenib'
 export const STAR_ALPHERATZ = 'Alpheratz'

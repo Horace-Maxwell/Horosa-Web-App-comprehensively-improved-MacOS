@@ -383,6 +383,21 @@
         color: var(--horosa-accent-strong);
     }
 
+    // show-line 树:antd 给 switcher 一个不透明底色去遮挡连线,暗色下就成了一排刺眼的白方块。
+    // 把这个「底」去掉,只留「方框 + 号」图标本身(随文本色:暗→白、亮→深),即用户要的效果。
+    // (v2.5.0 Balbillus / 各推运树暗色实测踩过 —— 根因是 switcher 背景,不是图标 currentColor。)
+    .horosa-workspace-shell .ant-tree .ant-tree-switcher,
+    .horosa-workspace-shell .ant-tree .ant-tree-switcher-line-icon,
+    .horosa-workspace-shell .ant-tree.ant-tree-show-line .ant-tree-switcher {
+        background: transparent !important;
+    }
+    .horosa-workspace-shell .ant-tree .ant-tree-switcher .anticon {
+        color: var(--horosa-text);
+    }
+    .horosa-workspace-shell .ant-tree .ant-tree-switcher:hover .anticon {
+        color: var(--horosa-accent);
+    }
+
     .horosa-workspace-shell .horosa-direction-tree-scroll {
         border: 1px solid rgba(184, 137, 63, 0.14);
         border-radius: 8px;
@@ -5497,16 +5512,149 @@
 
     .horosa-workspace-shell .horosa-planet-with-lots {
         height: 100%;
-        overflow: auto;
+        overflow: hidden;
         padding-right: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    // 主星(七政)块=第一个直接子(AstroPlanet 的 scrollbar div):占满剩余高度、可滚、大。
+    .horosa-workspace-shell .horosa-planet-with-lots > div:first-child {
+        flex: 1 1 0;
+        min-height: 0;
     }
 
     .horosa-workspace-shell .horosa-lots-under-planets {
-        margin-top: 8px;
+        flex: 0 0 30%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
         padding: 11px;
         border: 1px solid rgba(215, 173, 105, 0.16);
         border-radius: 6px;
         background: rgba(255, 255, 255, 0.018);
+    }
+
+    .horosa-workspace-shell .horosa-lots-under-planets > .horosa-info-card-title {
+        flex: 0 0 auto;
+        margin-bottom: 6px;
+    }
+
+    // ===== Balbillus 树（v2.5.0 高标准美化）=====
+    .horosa-workspace-shell .horosa-balbillus-shell {
+        padding: 2px 12px 14px;
+    }
+    .horosa-workspace-shell .horosa-balbillus-head {
+        padding: 13px 15px;
+        margin-bottom: 10px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 10px;
+        background: var(--horosa-panel-soft);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    .horosa-workspace-shell .horosa-balbillus-title {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--horosa-text);
+    }
+    .horosa-workspace-shell .horosa-balbillus-sub {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--horosa-muted, #888);
+    }
+    .horosa-workspace-shell .horosa-balbillus-desc {
+        margin: 7px 0 13px;
+        font-size: 12px;
+        line-height: 1.65;
+        color: var(--horosa-muted, #888);
+    }
+    .horosa-workspace-shell .horosa-balbillus-label {
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: var(--horosa-muted, #888);
+    }
+    .horosa-workspace-shell .horosa-balbillus-colhead {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        padding: 0 12px 7px 34px;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--horosa-muted, #888);
+        opacity: 0.85;
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree {
+        padding: 7px 8px 8px;
+        border: 1px solid var(--horosa-border);
+        border-radius: 10px;
+        background: var(--horosa-panel-bg);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree .ant-tree-node-content-wrapper {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 4px 8px;
+        border-radius: 7px;
+        min-height: 30px;
+        display: flex;
+        align-items: center;
+        transition: background 0.15s ease;
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree .ant-tree-node-content-wrapper > .ant-tree-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree .ant-tree-list-holder-inner {
+        width: 100% !important;
+        align-items: stretch !important;
+    }
+    .horosa-workspace-shell .horosa-balbillus-tree .ant-tree-treenode {
+        padding-bottom: 3px;
+        width: 100%;
+        align-items: center;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        width: 100%;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node .bb-planet,
+    .horosa-workspace-shell .horosa-balbillus-colhead .bb-planet {
+        flex: 0 0 110px;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 5px;
+        white-space: nowrap;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node .bb-name {
+        font-size: 13px;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node .bb-date,
+    .horosa-workspace-shell .horosa-balbillus-colhead .bb-date {
+        flex: 0 0 102px;
+        color: var(--horosa-muted, #888);
+        font-variant-numeric: tabular-nums;
+        font-size: 12.5px;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node .bb-dur,
+    .horosa-workspace-shell .horosa-balbillus-colhead .bb-dur {
+        flex: 1 1 auto;
+        text-align: right;
+        color: var(--horosa-muted, #888);
+        font-variant-numeric: tabular-nums;
+        font-size: 12.5px;
+        padding-right: 6px;
+    }
+    .horosa-workspace-shell .horosa-balbillus-node--l1 .bb-name {
+        font-weight: 600;
     }
 
     .horosa-workspace-shell .horosa-bottom-quick-dock {

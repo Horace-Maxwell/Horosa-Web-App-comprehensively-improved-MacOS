@@ -529,14 +529,37 @@ if ! [[ "${STARTUP_TIMEOUT}" =~ ^[0-9]+$ ]] || [ "${STARTUP_TIMEOUT}" -lt 30 ]; 
   STARTUP_TIMEOUT=180
 fi
 
-if port_listening "${CHART_PORT}"; then
-  diag_log "blocked: port ${CHART_PORT} already in use"
-  echo "port ${CHART_PORT} is already in use."
+# 端口被占时:仅当占用者是「我们自己的僵尸」(命令行含 tag)才回收,绝不误杀第三方应用;回收后等端口释放再继续。
+# 消除「上次崩溃/强退残留进程占住 8899/9999 → 本地排盘服务起不来」反复卡死。
+reclaim_stale_port() {
+  local port="$1" tag="$2" pids pid cmd killed=0
+  port_listening "${port}" || return 0
+  pids="$(lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null)"
+  for pid in ${pids}; do
+    cmd="$(ps -p "${pid}" -o command= 2>/dev/null | tr 'A-Z' 'a-z')"
+    case "${cmd}" in
+      *"${tag}"*)
+        diag_log "reclaiming stale ${tag} pid=${pid} on port ${port}"
+        kill -9 "${pid}" >/dev/null 2>&1 && killed=1 ;;
+    esac
+  done
+  if [ "${killed}" = "1" ]; then
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+      port_listening "${port}" || return 0
+      sleep 0.3
+    done
+  fi
+  port_listening "${port}" && return 1 || return 0
+}
+
+if ! reclaim_stale_port "${CHART_PORT}" "webchartsrv"; then
+  diag_log "blocked: port ${CHART_PORT} held by non-Horosa process"
+  echo "port ${CHART_PORT} is already in use (非 Horosa 进程占用)。请关闭占用该端口的程序后重试。"
   exit 1
 fi
-if port_listening "${BACKEND_PORT}"; then
-  diag_log "blocked: port ${BACKEND_PORT} already in use"
-  echo "port ${BACKEND_PORT} is already in use."
+if ! reclaim_stale_port "${BACKEND_PORT}" "astrostudyboot"; then
+  diag_log "blocked: port ${BACKEND_PORT} held by non-Horosa process"
+  echo "port ${BACKEND_PORT} is already in use (非 Horosa 进程占用)。请关闭占用该端口的程序后重试。"
   exit 1
 fi
 
