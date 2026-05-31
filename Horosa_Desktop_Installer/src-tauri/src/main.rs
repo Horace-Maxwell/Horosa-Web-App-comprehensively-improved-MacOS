@@ -64,6 +64,8 @@ const DEFAULT_SUPPORTED_ARCH: &str = "arm64";
 const DEFAULT_RELEASE_TAG_PREFIX: &str = "v";
 const DOWNLOAD_MAX_ATTEMPTS: usize = 4;
 const DEFAULT_FRONTEND_PORT: u16 = 38991;
+// 修法1:backend/chart 端口冲突时最多换口重试的总尝试次数。
+const PORT_RETRY_MAX: u32 = 5;
 const UPDATE_COMPLETE_MARKER_NAME: &str = "update-complete.txt";
 const PREFERENCES_FILE_NAME: &str = "preferences.json";
 const WINDOW_STATE_FILE_NAME: &str = "window-state.json";
@@ -4321,16 +4323,74 @@ fn start_runtime(
     }
     let output = command.output().context("launch start_horosa_local.sh")?;
     if !output.status.success() {
+        let code = output.status.code().unwrap_or(-1);
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
+        // 退出码 3 = 脚本判定为「端口被占 / bind 冲突」(可重试);其它码 = 真实故障(不重试)。
+        // 把 (exit N) 写进错误消息,既供诊断也作为 error_is_port_conflict 的识别信号。
         return Err(anyhow!(
-            "星阙 backend start failed\nstdout:\n{}\nstderr:\n{}",
+            "星阙 backend start failed (exit {})\nstdout:\n{}\nstderr:\n{}",
+            code,
             stdout,
             stderr
         ));
     }
     emit_progress(window, 92, "本地服务已就绪");
     Ok(())
+}
+
+/// 修法1:脚本以 exit 3 表示「端口被占 / bind 冲突」,可换口重试。
+/// 仅匹配本函数上方自己生成的固定前缀,避免脚本输出里偶然出现的同形文本误判。
+fn error_is_port_conflict(e: &anyhow::Error) -> bool {
+    format!("{:#}", e).contains("start failed (exit 3)")
+}
+
+/// 修法1:backend/chart 端口冲突自动重试。
+/// 铁律:web 端口 / 静态服务器完全不参与本环(在 runtime_bootstrap 中已先于此起好并由 Rust 持有),
+/// 这里只重选 backend/chart 一对端口;`AppState.web_shutdown` 绝不在此被读写。
+/// - 失败码 == 端口冲突(exit 3)且仍有重试次数 → stop_runtime + 退避 + 换一对全新空闲端口重试;
+/// - 非端口类错误,或端口重试已耗尽 → 原样返回错误,交回上层既有的「更新后首启 / 快路径回退」分支处理。
+/// 成功时 `*backend_port`/`*chart_port` 持有真正生效的那对端口(供 frontend_url 使用)。
+#[allow(clippy::too_many_arguments)]
+fn start_runtime_with_port_retry(
+    paths: &RuntimePaths,
+    window: &WebviewWindow,
+    backend_port: &mut u16,
+    chart_port: &mut u16,
+    startup_timeout_secs: Option<u64>,
+    skip_runtime_warmup: bool,
+    skip_mongo_ping: bool,
+    trusted_runtime: bool,
+) -> Result<()> {
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 0..PORT_RETRY_MAX {
+        match start_runtime(
+            paths,
+            window,
+            *backend_port,
+            *chart_port,
+            startup_timeout_secs,
+            skip_runtime_warmup,
+            skip_mongo_ping,
+            trusted_runtime,
+        ) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                let is_port = error_is_port_conflict(&e);
+                last_err = Some(e);
+                if is_port && attempt + 1 < PORT_RETRY_MAX {
+                    emit_status(window, "检测到端口被占用，正在自动重选端口重试…");
+                    stop_runtime(paths);
+                    thread::sleep(Duration::from_millis(400));
+                    *backend_port = choose_free_port()?;
+                    *chart_port = choose_free_port()?;
+                    continue;
+                }
+                break;
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow!("星阙 backend start failed (port retry exhausted)")))
 }
 
 fn frontend_url(web_port: u16, backend_port: u16, chart_port: u16) -> String {
@@ -5454,11 +5514,13 @@ fn runtime_bootstrap(
         // 故直接去掉,只保留 1s 缓冲。
         thread::sleep(Duration::from_secs(1));
     }
-    if let Err(first_err) = start_runtime(
+    // 修法1:首次启动走带「端口冲突重试」的封装(web/静态服务器不参与本环;仅 backend/chart 换口重试)。
+    // 非端口类错误 / 端口重试耗尽时,原样落入下方既有的「更新后首启 / 快路径回退」分支(逻辑保持不变)。
+    if let Err(first_err) = start_runtime_with_port_retry(
         &paths,
         &window,
-        backend_port,
-        chart_port,
+        &mut backend_port,
+        &mut chart_port,
         first_launch_timeout,
         skip_runtime_warmup,
         skip_mongo_ping,

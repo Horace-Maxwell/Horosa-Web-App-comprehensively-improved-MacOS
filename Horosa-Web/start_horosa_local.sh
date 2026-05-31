@@ -115,36 +115,60 @@ port_listening() {
 
 http_responding() {
   local url="$1"
-  if ! command -v curl >/dev/null 2>&1; then
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(curl -s -o /dev/null -m 2 -w '%{http_code}' "${url}" || true)"
+    if [ -z "${code}" ] || [ "${code}" = "000" ]; then
+      return 1
+    fi
     return 0
   fi
-  local code
-  code="$(curl -s -o /dev/null -m 2 -w '%{http_code}' "${url}" || true)"
-  if [ -z "${code}" ] || [ "${code}" = "000" ]; then
-    return 1
-  fi
-  return 0
+  # 修法4:curl 缺失时改用内置 python urllib 探测,绝不静默放行(旧逻辑此处 return 0 会让就绪
+  # 坍缩成「仅端口监听」,热身/就绪判定形同空转)。任何 HTTP 响应(含 4xx)即视为在监听。
+  "${PYTHON_BIN}" - "${url}" <<'PY' >/dev/null 2>&1
+import sys, urllib.request, urllib.error
+try:
+    urllib.request.urlopen(sys.argv[1], timeout=2)
+except urllib.error.HTTPError:
+    pass
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0)
+PY
 }
 
 signed_backend_http_responding() {
   local url="$1"
-  if ! command -v curl >/dev/null 2>&1; then
+  local sig="9947b25d6400dac3e74fea88ec1a2308a2c9abf5f3a0cda32b7655717fa86278"
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(
+      curl -s -o /dev/null -m 2 -w '%{http_code}' \
+        -H "ClientChannel: 1" \
+        -H "ClientApp: 1" \
+        -H "ClientVer: 1.0" \
+        -H "Signature: ${sig}" \
+        "${url}" || true
+    )"
+    if [ -z "${code}" ] || [ "${code}" = "000" ] || [ "${code}" -ge 500 ]; then
+      return 1
+    fi
     return 0
   fi
-  local sig="9947b25d6400dac3e74fea88ec1a2308a2c9abf5f3a0cda32b7655717fa86278"
-  local code
-  code="$(
-    curl -s -o /dev/null -m 2 -w '%{http_code}' \
-      -H "ClientChannel: 1" \
-      -H "ClientApp: 1" \
-      -H "ClientVer: 1.0" \
-      -H "Signature: ${sig}" \
-      "${url}" || true
-  )"
-  if [ -z "${code}" ] || [ "${code}" = "000" ] || [ "${code}" -ge 500 ]; then
-    return 1
-  fi
-  return 0
+  # 修法4:curl 缺失时用内置 python urllib 携同样签名头探测,绝不静默放行。>=500 视为未就绪。
+  "${PYTHON_BIN}" - "${url}" "${sig}" <<'PY' >/dev/null 2>&1
+import sys, urllib.request, urllib.error
+url, sig = sys.argv[1], sys.argv[2]
+req = urllib.request.Request(url, headers={'ClientChannel': '1', 'ClientApp': '1', 'ClientVer': '1.0', 'Signature': sig})
+try:
+    resp = urllib.request.urlopen(req, timeout=2)
+    code = getattr(resp, 'status', 200) or 200
+except urllib.error.HTTPError as e:
+    code = e.code
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0 if code < 500 else 1)
+PY
 }
 
 warm_runtime_routes() {
@@ -177,6 +201,40 @@ warm_runtime_routes() {
       diag_tail "${warmup_log}" 120
     fi
   ) >/dev/null 2>&1 &
+}
+
+# 修法4:就绪后、导航前的「最小同步热身」——预热 Spring 懒加载的排盘 bean,让用户第一次排盘
+# 不再打到冷 bean(否则首个 /chart 慢/报错 → 前端弹「本地排盘服务未就绪」)。
+# 严格「非致命 + 有界」:后台跑 node 最小热身(仅 /chart),最多等 cap 秒,超时即杀并照常导航;
+# 任何失败/缺 node/缺依赖只记日志、return 0,绝不拖慢或卡住启动(最坏=今天的冷启动行为)。
+# 子进程 stdout/stderr 全部重定向到独立日志,绝不继承 Rust command.output() 的 pipe(同 warm_runtime_routes)。
+warm_runtime_routes_min_sync() {
+  local warmup_js="${UI_DIR}/scripts/warmHorosaRuntime.js"
+  local warmup_log="${LOG_DIR}/runtime-warmup-min.log"
+  local cap="${HOROSA_WARM_MIN_TIMEOUT:-5}"
+  if [ ! -f "${warmup_js}" ] || ! command -v node >/dev/null 2>&1; then
+    diag_log "min sync warmup skipped (no script/node)"
+    return 0
+  fi
+  diag_log "min sync warmup begin (cap=${cap}s)"
+  (
+    HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" HOROSA_WARM_MINIMAL=1 \
+      node "${warmup_js}" >"${warmup_log}" 2>&1
+  ) >/dev/null 2>&1 &
+  local wpid=$!
+  local waited=0
+  while kill -0 "${wpid}" >/dev/null 2>&1; do
+    if [ "${waited}" -ge "${cap}" ]; then
+      diag_log "min sync warmup exceeded ${cap}s -> kill, proceed anyway"
+      kill "${wpid}" >/dev/null 2>&1 || true
+      break
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "${wpid}" 2>/dev/null || true
+  diag_log "min sync warmup done (waited ${waited}s)"
+  return 0
 }
 
 load_brew_env() {
@@ -500,28 +558,40 @@ ensure_frontend_build() {
   fi
 }
 
-# 修复(更新后卡顿)C②:pid 文件「判存活」而非「判存在」。
-# 旧逻辑只要 .horosa_*.pid 文件在就 exit 1,于是上次崩溃/强退/被 kill 残留的死 pid 会
-# 永久误拦截启动(AGENTS.md「6 个坑」已记此坑)。现读出 pid 用 kill -0 探测:仍存活才阻止,
-# 已死则清除残留文件继续,避免「次次启动被误拦」叠加更新后慢路径造成卡死。
-prune_stale_pid_file() {
+# 修法3:卡死的「自己人」后端精准清除（取代旧 prune_stale_pid_file「判存活」逻辑:
+# 旧逻辑见自家 pid 存活即 exit 1「已在运行」,会被上次没杀净的自家残留后端永久拦住启动）。
+# 当 pid 文件里的进程仍存活时,旧逻辑直接 exit 1「已在运行」——但若那是上次 stop 没杀干净的
+# 「我们自己的」残留后端(stop_runtime 偶发失败/被 kill -9 中断),会永久拦住本次启动。
+# 这里在「确实存活」时,用 cmdline 签名核实它是不是我们自己的后端:
+#   是 → kill -9 它并清文件、继续启动(窄而稳:只杀这一个、经 pid 文件 + 签名双重核实);
+#   不是(pid 被系统回收给了别的无关进程)→ 维持今天的 exit 1,绝不误杀。
+reclaim_or_block_pid_file() {
   local pid_file="$1"
+  local sig="$2"
   [ -f "${pid_file}" ] || return 0
   local pid
   pid="$(tr -dc '0-9' <"${pid_file}" 2>/dev/null)"
-  if [ -n "${pid}" ] && kill -0 "${pid}" >/dev/null 2>&1; then
-    return 1
+  if [ -z "${pid}" ] || ! kill -0 "${pid}" >/dev/null 2>&1; then
+    rm -f "${pid_file}"
+    return 0
   fi
-  diag_log "removing stale pid file (no live process): ${pid_file}"
-  rm -f "${pid_file}"
-  return 0
+  local cmd
+  cmd="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
+  if printf '%s\n' "${cmd}" | grep -Eq "${sig}"; then
+    diag_log "reclaim own live backend pid=${pid} (${pid_file}) sig=${sig}"
+    kill -9 "${pid}" >/dev/null 2>&1 || true
+    rm -f "${pid_file}"
+    return 0
+  fi
+  diag_log "pid ${pid} alive but NOT our backend; refuse to kill (cmd: ${cmd})"
+  return 1
 }
 runtime_already_live=0
-prune_stale_pid_file "${PY_PID_FILE}" || runtime_already_live=1
-prune_stale_pid_file "${JAVA_PID_FILE}" || runtime_already_live=1
+reclaim_or_block_pid_file "${PY_PID_FILE}" 'webchartsrv\.py' || runtime_already_live=1
+reclaim_or_block_pid_file "${JAVA_PID_FILE}" 'astrostudyboot\.jar|-Dhorosa\.runtime\.owner=horosa-desktop' || runtime_already_live=1
 if [ "${runtime_already_live}" = "1" ]; then
-  diag_log "blocked: live runtime process already running"
-  echo "horosa runtime is already running. run ./stop_horosa_local.sh first."
+  diag_log "blocked: a non-horosa live process holds our pid file"
+  echo "horosa runtime pid is held by a foreign process. run ./stop_horosa_local.sh first."
   exit 1
 fi
 
@@ -529,8 +599,10 @@ if ! [[ "${STARTUP_TIMEOUT}" =~ ^[0-9]+$ ]] || [ "${STARTUP_TIMEOUT}" -lt 30 ]; 
   STARTUP_TIMEOUT=180
 fi
 
-# 端口被占时:仅当占用者是「我们自己的僵尸」(命令行含 tag)才回收,绝不误杀第三方应用;回收后等端口释放再继续。
-# 消除「上次崩溃/强退残留进程占住 8899/9999 → 本地排盘服务起不来」反复卡死。
+# 端口被占(合并 astro-progression 的 reclaim_stale_port + 修法2 的 exit 3):
+# 先回收「我们自己的僵尸」(命令行含 tag,绝不误杀第三方),回收后等端口释放;
+# 若回收后仍被占(非 Horosa 进程 / 回收失败)→ exit 3(可重试),让 Rust 端换一对全新空闲端口重试,
+# 而非直接 exit 1 报死(两套端口健壮性合一:先清自家僵尸,清不掉再换口)。
 reclaim_stale_port() {
   local port="$1" tag="$2" pids pid cmd killed=0
   port_listening "${port}" || return 0
@@ -553,14 +625,14 @@ reclaim_stale_port() {
 }
 
 if ! reclaim_stale_port "${CHART_PORT}" "webchartsrv"; then
-  diag_log "blocked: port ${CHART_PORT} held by non-Horosa process"
-  echo "port ${CHART_PORT} is already in use (非 Horosa 进程占用)。请关闭占用该端口的程序后重试。"
-  exit 1
+  diag_log "blocked: port ${CHART_PORT} still in use after reclaim -> exit 3 (retryable)"
+  echo "port ${CHART_PORT} is already in use."
+  exit 3
 fi
 if ! reclaim_stale_port "${BACKEND_PORT}" "astrostudyboot"; then
-  diag_log "blocked: port ${BACKEND_PORT} held by non-Horosa process"
-  echo "port ${BACKEND_PORT} is already in use (非 Horosa 进程占用)。请关闭占用该端口的程序后重试。"
-  exit 1
+  diag_log "blocked: port ${BACKEND_PORT} still in use after reclaim -> exit 3 (retryable)"
+  echo "port ${BACKEND_PORT} is already in use."
+  exit 3
 fi
 
 ensure_frontend_build
@@ -705,7 +777,7 @@ fi
 JAVA_LAUNCH_CMD+=(
   # #9:让内置 Java 自动走 macOS/Windows 系统代理(getHttpHost/流式 client 经 ProxySelector 取用)。
   # localhost/127.0.0.1 默认 bypass,本地 :9999/:8899 不受影响;无系统代理则等同直连。
-  "${JAVA_BIN}" -Djava.net.useSystemProxies=true -jar "${JAR}"
+  "${JAVA_BIN}" -Djava.net.useSystemProxies=true -Dhorosa.runtime.owner=horosa-desktop -jar "${JAR}"
   --server.port="${BACKEND_PORT}"
   --astrosrv=http://127.0.0.1:${CHART_PORT}
   --mongodb.ip=127.0.0.1
@@ -767,11 +839,20 @@ if [ "${ready}" -ne 1 ]; then
   tail -n 40 "${JAVA_LOG}" || true
   diag_tail "${PY_LOG}" 120
   diag_tail "${JAVA_LOG}" 120
+  # 修法2(b):若起不来是因端口被占(bind 失败),给「可重试」的 exit 3,让 Rust 端换口重试。
+  # set -euo pipefail 下 grep 无匹配返回 1 会提前中止脚本,故必须用 if 守卫;仅匹配明确的 bind
+  # 错,绝不用裸 'port'(否则 Spring banner / --server.port= 这类正常输出会被误判为端口冲突)。
+  bind_err_re='Address already in use|Errno 48|BindException|Port [0-9]+ was already in use'
+  if { tail -n 160 "${PY_LOG}" 2>/dev/null || true; tail -n 160 "${JAVA_LOG}" 2>/dev/null || true; } | grep -Eq "${bind_err_re}"; then
+    diag_log "===== run end (failed: port bind conflict, exit 3 retryable) ====="
+    exit 3
+  fi
   diag_log "===== run end (failed) ====="
   exit 1
 fi
 
 trap - EXIT
+warm_runtime_routes_min_sync
 warm_runtime_routes
 
 diag_log "services ready: backend=${BACKEND_PORT} chartpy=${CHART_PORT}"

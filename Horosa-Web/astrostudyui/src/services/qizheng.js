@@ -1,6 +1,7 @@
 import request from '../utils/request';
 import { ServerRoot, ResultKey } from '../utils/constants';
 import { buildKentangEndpoint } from '../integrations/kentang/serviceRoot';
+import { fetchChartWithRetry } from '../utils/chartFetch';
 
 export function fetchMoiraQizhengRules(values, requestOptions){
 	return request(`${ServerRoot}/qizheng/moira`, {
@@ -12,7 +13,7 @@ export function fetchMoiraQizhengRules(values, requestOptions){
 export async function fetchKinastroQizheng(values){
 	let rsp = null;
 	try{
-		const response = await fetch(buildKentangEndpoint('qizhengkin', 'pan'), {
+		const response = await fetchChartWithRetry(buildKentangEndpoint('qizhengkin', 'pan'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json; charset=UTF-8' },
 			body: JSON.stringify(values || {}),
@@ -23,7 +24,7 @@ export async function fetchKinastroQizheng(values){
 			throw new Error(rsp && rsp[ResultKey] ? `${rsp[ResultKey]}` : 'qizhengkin.local.fetch.failed');
 		}
 	}catch(e){
-		const response = await fetch(`${ServerRoot}/qizhengkin/pan`, {
+		const response = await fetchChartWithRetry(`${ServerRoot}/qizhengkin/pan`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json; charset=UTF-8' },
 			body: JSON.stringify(values || {}),

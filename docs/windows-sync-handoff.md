@@ -20,6 +20,33 @@
 
 ---
 
+## 启动机制稳健化（端口 / 就绪根治 · 分支 `feature/startup-port-readiness-hardening` · 版本待定）
+
+> 机制详解:[`启动机制稳健化-端口与就绪.md`](启动机制稳健化-端口与就绪.md)。根治两个反复症状:①端口被占用→用不了;②打开后「后端未启动 / 本地排盘服务未就绪」。**设计铁律:全部增量式,只在「今天本来就会坏」的失败路径触发,启动/排盘成功路径与今天逐字节一致。** **无 Java 改动 → 不需重编 jar。**
+
+### A. 共享前端(Windows **必须**同步 + 重建前端包:`npm run build` 然后 `npm run build:file`)
+- **新增** `astrostudyui/src/utils/serviceStatus.js`(全局在线/离线态 + 严格离线判定)、`astrostudyui/src/utils/chartFetch.js`(排盘裸 fetch 透明重试薄包装)、`astrostudyui/src/components/common/ServiceStatusBanner.js`(非阻塞重连横幅)。
+- **改** `astrostudyui/src/utils/request.js`:加 `fetchWithRetryConnRefused`(`request()`/`requestRaw()` 的 fetch 经它——拿到响应即置在线;仅当传 `opts.retry` 且「后端不可达」(`TypeError`)时退避重试;最终不可达置离线)。**SSE `requestStream` 绝不接入重试**(防双发 / 重复计费)。
+- **改** 四引擎排盘主路径:`components/dunjia/DunJiaCalc.js`、`components/taiyi/TaiYiCalc.js`、`components/jinkou/JinKouCalc.js`、`services/qizheng.js` 的裸 `fetch(buildKentangEndpoint…)` → `fetchChartWithRetry(…)`;其 `request()` 兜底加 `retry: { retries: 2 }`。
+- **改** `layouts/app.js`:挂载 `<ServiceStatusBanner />`(与现有 `<UpdateNotifier />` 并列)。
+- **改** `astrostudyui/scripts/warmHorosaRuntime.js`:加 `HOROSA_WARM_MINIMAL=1` 最小热身模式(仅 `/chart`,供启动期有界同步热身)。
+- **验证**:`npm run test`(或 `umi-test`)全绿(mac 端本轮 140/140);构建后随便排个盘正常;杀掉本地后端→顶部出现「服务连接中断…」横幅、恢复请求后自动消失;save / AI / SSE 故意失败时**不**重试(无双提交/双计费)。
+
+### B. 启动器 / 脚本逻辑(Windows 在自己的启动器里**镜像同等语义**,代码不共享)
+> macOS 端落在 `Horosa-Web/start_horosa_local.sh` + Tauri `main.rs`;Windows 启动器是独立实现,需把下列语义搬过去。
+- **端口冲突可重试**:端口被占 / 子进程 bind 失败 → 启动器以**可区分的失败信号**(mac 用 `exit 3`)上报;外层(mac 在 `main.rs`)**换一对全新空闲端口重试,最多 5 次**;**web / 静态服务器端口绝不参与重试环**(铁律:否则会关掉刚起的静态服务器→导航连不上,即 v2.4.0 `[9]E` 同类回归)。
+- **卡死自家后端精准回收**:启动前若自家 PID 文件指向的进程仍存活,**经命令行签名核实是自家后端**(含 `astrostudyboot.jar` / `webchartsrv.py` + `-Dhorosa.runtime.owner` 标记)才 `kill -9` 续启,否则维持失败、**绝不误杀**。Windows 用 `tasklist`/`wmic` 查命令行。
+- **就绪前最小同步热身**:就绪后、导航前同步跑一次最小 `/chart` 预热(`HOROSA_WARM_MINIMAL=1`),**严格非致命 + 有界**(超时即照常导航)。防 Spring 懒加载下首次排盘打冷 bean 弹「未就绪」。
+- **Java 启动加** `-Dhorosa.runtime.owner=horosa-desktop`(供回收识别)。
+- **curl 缺失兜底**:就绪 HTTP 探测在无 curl 时改用内置 python urllib,**绝不静默放行**(否则就绪坍缩成「仅端口监听」)。
+- **铁律**:bind 错匹配只用精确 token(`Address already in use` / `Errno 48` / `BindException` / `Port N was already in use`),**绝不用裸 `port`**(否则 Spring banner / `--server.port=` 等正常输出会被误判为端口冲突)。
+
+### C. macOS 专属(Windows 不照搬代码,只镜像语义)
+- `Horosa_Desktop_Installer/src-tauri/src/main.rs`:`start_runtime_with_port_retry` / `error_is_port_conflict` / `PORT_RETRY_MAX` + 调用处。Windows 在其等价启动器里实现「失败→换口重试、web 不入环」。
+- 单实例:**Mac 不加插件 / 不设 `LSMultipleInstancesProhibited`**(会破坏更新换版);若 Windows 双开是真问题,用 handoff-aware 的 `requestSingleInstanceLock`(更新换版时放行)。
+
+---
+
 ## v2.4.0（重发补丁,版本号不变）— 热修「更新后卡启动页 / 不进主界面」(真因 cleanup_state 误杀静态服务器)
 
 > 发布后真机发现此 bug,**版本号保持 2.4.0、覆盖重发原 GitHub release**(非 2.4.1)。**前两次误诊(快路径、模态弹框)没修好,靠真机实测定位。** 机制:[`更新后卡启动页-真因cleanup_state误杀静态服务器-v2.4.0.md`](更新后卡启动页-真因cleanup_state误杀静态服务器-v2.4.0.md)。

@@ -2,6 +2,7 @@ import * as LRConst from '../liureng/LRConst';
 import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
+import { fetchChartWithRetry } from '../../utils/chartFetch';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import {
 	JINKOU_SHENSHA_DOC,
@@ -1664,7 +1665,7 @@ export async function fetchJinKouPan(fields, nongli, options){
 	};
 	let rsp = null;
 	try{
-		const rawResponse = await fetch(buildKentangEndpoint('jinkou', 'pan'), {
+		const rawResponse = await fetchChartWithRetry(buildKentangEndpoint('jinkou', 'pan'), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',
@@ -1681,6 +1682,7 @@ export async function fetchJinKouPan(fields, nongli, options){
 			body: JSON.stringify(payload),
 			silent: true,
 			timeoutMs: 45000,
+			retry: { retries: 2 },
 		});
 	}
 	return rsp && rsp[ResultKey] ? rsp[ResultKey] : rsp;

@@ -144,6 +144,10 @@ async function run() {
     pdTimeKey: 'Ptolemy',
     pdaspects: [0, 60, 90, 120, 180],
   });
+  // 修法4:最小热身模式只预热核心排盘 bean(/chart),用于启动期的有界同步热身。
+  if (process.env.HOROSA_WARM_MINIMAL === '1') {
+    return;
+  }
   await warmOne('jieqi24', '/jieqi/year', {
     year: '2032',
     ad: BASE_PAYLOAD.ad,

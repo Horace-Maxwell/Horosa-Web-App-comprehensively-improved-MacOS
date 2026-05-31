@@ -160,9 +160,9 @@ else
   warn "main.rs 不存在,跳过更新卡顿哨兵(C①/A/D/E)"
 fi
 if [ -f "${STARTSH}" ]; then
-  grep -q "prune_stale_pid_file" "${STARTSH}" \
-    && ok "C② pid 判存活(prune_stale_pid_file)" \
-    || bad "start_horosa_local.sh 缺 prune_stale_pid_file —— 残留死 pid 会误拦截启动(AGENTS.md 已记此坑)"
+  grep -q "reclaim_or_block_pid_file" "${STARTSH}" \
+    && ok "C② pid 判存活 + 精准回收自家残留(reclaim_or_block_pid_file,取代 prune_stale_pid_file)" \
+    || bad "start_horosa_local.sh 缺 reclaim_or_block_pid_file —— 残留死 pid / 卡死自家后端会误拦截启动(修法3)"
   grep -q "runtime warmup begin (background)" "${STARTSH}" \
     && ok "B warmup 后台非阻塞" \
     || bad "start_horosa_local.sh warmup 未后台化 —— 更新后首启会多等预热阻塞"
@@ -280,6 +280,115 @@ for f in "components/comp/ChartFormData.js" "components/user/ChartData.js" "comp
   fi
 done
 [ "${dst_forms_ok}" -eq 1 ] && ok "D 三表单(ChartFormData/ChartData/CaseData)均接 DST 自动校正"
+
+# 14-19. 启动机制稳健化哨兵(端口被占/后端未启动 根治,详见 docs/启动机制稳健化-端口与就绪.md)。
+UISRC="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+WARMJS="${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/warmHorosaRuntime.js"
+
+echo "[14] 端口冲突重试哨兵(修法1:backend/chart 换口重试;web 不入环)"
+if [ -f "${MAINRS}" ]; then
+  if grep -q "fn start_runtime_with_port_retry" "${MAINRS}" \
+     && grep -q "start_runtime_with_port_retry(" "${MAINRS}" \
+     && grep -q "fn error_is_port_conflict" "${MAINRS}"; then
+    ok "修法1 端口冲突重试封装在位(start_runtime_with_port_retry + error_is_port_conflict)"
+  else
+    bad "main.rs 缺端口冲突重试封装 —— 端口被瞬时抢走会一次失败即报死(修法1)"
+  fi
+  # 铁律(防 v2.4.0 [9]E 重演):重试环只重选 backend/chart,绝不读写 web_shutdown / 不重起静态服务器。
+  grep -q "绝不在此被读写" "${MAINRS}" \
+    && ok "修法1 铁律注释在位(web 端口/web_shutdown 不入重试环)" \
+    || bad "main.rs 缺「web_shutdown 绝不在此被读写」铁律注释 —— 重试环若动 web_shutdown 会重演 [9]E 静态服务器误杀"
+else
+  warn "main.rs 不存在,跳过修法1 哨兵"
+fi
+
+echo "[15] 脚本端口冲突退出码哨兵(修法2:exit 3 + bind 错精确匹配)"
+if [ -f "${STARTSH}" ]; then
+  if grep -q "bind_err_re=" "${STARTSH}" \
+     && grep -q "Address already in use" "${STARTSH}" \
+     && grep -q "BindException" "${STARTSH}" \
+     && grep -q "exit 3" "${STARTSH}"; then
+    ok "修法2 端口冲突 exit 3 + bind 错精确匹配(Address already in use / BindException)"
+  else
+    bad "start_horosa_local.sh 缺 exit 3 / bind_err_re 精确 token —— 端口竞态无法被 Rust 识别重试(修法2)"
+  fi
+  # 防回归(红队 C2):bind 错正则绝不能含裸小写 'port' 分支(否则 Spring banner/--server.port= 会被误判)。
+  if grep "bind_err_re=" "${STARTSH}" | grep -qF "|port"; then
+    bad "bind_err_re 含裸 'port' 分支 —— 会把正常输出误判为端口冲突(红队 C2),请改回精确 token"
+  else
+    ok "修法2 bind_err_re 不含裸 port(精确匹配,无误判)"
+  fi
+else
+  warn "start_horosa_local.sh 不存在,跳过修法2 哨兵"
+fi
+
+echo "[16] 卡死自家后端精准回收哨兵(修法3:仅杀签名核实的自家 PID)"
+if [ -f "${STARTSH}" ]; then
+  if grep -q "reclaim_or_block_pid_file" "${STARTSH}" \
+     && grep -q "refuse to kill" "${STARTSH}" \
+     && grep -q "horosa.runtime.owner" "${STARTSH}"; then
+    ok "修法3 仅在 cmdline 签名核实为自家后端时 kill 续启,否则维持 exit 1(不误杀)"
+  else
+    bad "start_horosa_local.sh 缺修法3 精准回收(reclaim_or_block_pid_file + 签名核实 + refuse to kill)—— 可能误杀或拦死启动"
+  fi
+fi
+
+echo "[17] 就绪前最小热身 + curl 兜底哨兵(修法4)"
+if [ -f "${STARTSH}" ]; then
+  if grep -q "warm_runtime_routes_min_sync" "${STARTSH}" \
+     && grep -q "HOROSA_WARM_MINIMAL" "${STARTSH}"; then
+    ok "修法4 就绪前最小同步热身在位(非致命有界,预热排盘冷 bean)"
+  else
+    bad "start_horosa_local.sh 缺 warm_runtime_routes_min_sync/HOROSA_WARM_MINIMAL —— 首次排盘会打到冷 bean 弹「未就绪」(修法4)"
+  fi
+  grep -q "urllib.request" "${STARTSH}" \
+    && ok "修法4 curl 缺失时用内置 python urllib 探测(不静默放行)" \
+    || bad "start_horosa_local.sh 缺 curl 缺失的 python urllib 兜底 —— 无 curl 时就绪判定会静默空转(红队 M5)"
+fi
+if [ -f "${WARMJS}" ]; then
+  grep -q "HOROSA_WARM_MINIMAL" "${WARMJS}" \
+    && ok "修法4 warmHorosaRuntime.js 支持最小热身模式(仅 /chart)" \
+    || bad "warmHorosaRuntime.js 缺 HOROSA_WARM_MINIMAL 最小模式 —— 同步热身会跑全量拖慢启动(修法4)"
+fi
+
+echo "[18] 前端排盘透明重试哨兵(修法5:幂等 raw-fetch 重试,SSE/AI 排除)"
+CHARTFETCH="${UISRC}/utils/chartFetch.js"
+REQJS="${UISRC}/utils/request.js"
+if [ -f "${CHARTFETCH}" ] && [ -f "${REQJS}" ]; then
+  if grep -q "export async function fetchChartWithRetry" "${CHARTFETCH}" \
+     && grep -q "fetchChartWithRetry" "${UISRC}/components/dunjia/DunJiaCalc.js" \
+     && grep -q "fetchChartWithRetry" "${UISRC}/components/taiyi/TaiYiCalc.js" \
+     && grep -q "fetchChartWithRetry" "${UISRC}/components/jinkou/JinKouCalc.js" \
+     && grep -q "fetchChartWithRetry" "${UISRC}/services/qizheng.js"; then
+    ok "修法5 fetchChartWithRetry 接入四引擎 raw-fetch 主路径"
+  else
+    bad "排盘 raw-fetch 站点未全部接入 fetchChartWithRetry —— 冷启动首个排盘无重试会弹「未就绪」(修法5)"
+  fi
+  # SSE 必须排除重试:requestStream 函数体内不得出现重试封装(防双发/重复计费)。
+  if grep -q "export async function requestStream" "${REQJS}" \
+     && ! awk '/export async function requestStream/,/^}/' "${REQJS}" | grep -q "fetchWithRetryConnRefused"; then
+    ok "修法5 SSE(requestStream)未接入重试(防双发/重复计费)"
+  else
+    bad "requestStream 疑似接入重试封装 —— SSE/AI 流绝不可重试(会双发/重复计费,红队)"
+  fi
+else
+  warn "chartFetch.js/request.js 不存在,跳过修法5 哨兵"
+fi
+
+echo "[19] 离线判定精准性哨兵(修法6:只认 TypeError,排除超时/签名/业务错误)"
+SVCSTATUS="${UISRC}/utils/serviceStatus.js"
+if [ -f "${SVCSTATUS}" ]; then
+  if grep -q "isBackendUnreachableError" "${SVCSTATUS}" \
+     && grep -q "instanceof TypeError" "${SVCSTATUS}" \
+     && grep -q "err.headers" "${SVCSTATUS}" \
+     && grep -q "TimeoutError" "${SVCSTATUS}"; then
+    ok "修法6 离线判定只认网络级 TypeError,排除超时/带响应头业务错误(含 signature.error)"
+  else
+    bad "serviceStatus.isBackendUnreachableError 判定不严 —— 可能把超时/signature.error 误判离线乱弹横幅(红队 H2)"
+  fi
+else
+  warn "serviceStatus.js 不存在,跳过修法6 哨兵"
+fi
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

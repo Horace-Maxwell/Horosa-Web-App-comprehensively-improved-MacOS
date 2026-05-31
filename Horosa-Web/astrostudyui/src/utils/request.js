@@ -5,6 +5,7 @@ import * as Constants from './constants';
 import { getUserIP, isObject, } from './helper';
 import { encryptRSA, decryptRSA, } from './rsahelper';
 import { getErrMsg } from '../msg/errmsg';
+import { markServiceOnline, markServiceOffline, isBackendUnreachableError } from './serviceStatus';
 
 var tmDelta = 0;
 export function setTmDelta(val){
@@ -286,6 +287,9 @@ export function buildSignedFetchOptions(options) {
     if(opts && opts.timeoutMs !== undefined){
         delete opts.timeoutMs;
     }
+    if(opts && opts.retry !== undefined){
+        delete opts.retry;
+    }
     normalizeFetchCacheOption(opts);
     let headers = opts.headers;
     if(headers === undefined || headers === null){
@@ -423,6 +427,38 @@ function fetchWithTimeout(url, opts, timeoutMs){
 	});
 }
 
+// 修法5/6:request() 专用的 fetch 封装。
+// · 拿到任何响应即 markServiceOnline()(清除重连横幅);
+// · 仅当 opts.retry 提供时,对「后端不可达」(连接被拒/断网,见 isBackendUnreachableError)做有界退避重试
+//   —— 仅用于幂等排盘(mundane 主调用 / 各引擎 request 兜底);默认 retries=0,对其余请求零行为变化;
+// · 重试耗尽仍不可达 → markServiceOffline()(显示重连横幅)后抛出,交既有 catch/innerHandleError。
+// 注:连接被拒表示请求未达后端,短退避(300/600ms)内复用同一已加密 body 仍在后端解密时限内,安全;
+//     超时不在重试之列(可能已到达、避免对非幂等场景双发——本封装本就只在 opts.retry 时重试)。
+async function fetchWithRetryConnRefused(url, opts, timeoutMs, retryCfg){
+	const retries = retryCfg && retryCfg.retries != null ? retryCfg.retries : 0;
+	const backoff = (retryCfg && retryCfg.backoff) || [300, 600];
+	let lastErr = null;
+	for(let attempt = 0; attempt <= retries; attempt += 1){
+		try{
+			const resp = await fetchWithTimeout(url, opts, timeoutMs);
+			markServiceOnline();
+			return resp;
+		}catch(err){
+			lastErr = err;
+			if(isBackendUnreachableError(err) && attempt < retries){
+				// eslint-disable-next-line no-await-in-loop
+				await new Promise((r)=>setTimeout(r, backoff[Math.min(attempt, backoff.length - 1)]));
+				continue;
+			}
+			if(isBackendUnreachableError(err)){
+				markServiceOffline();
+			}
+			throw err;
+		}
+	}
+	throw lastErr;
+}
+
 /**
  * Requests a URL, returning a promise.
  *
@@ -461,10 +497,15 @@ export default async function request(url, options) {
 			timeoutMs = opts.timeoutMs;
 			delete opts.timeoutMs;
 		}
+		let retryCfg = null;
+		if(opts && opts.retry !== undefined){
+			retryCfg = opts.retry;
+			delete opts.retry;
+		}
         opts = buildSignedFetchOptions(opts);
     
         const st = new Date().getTime();
-        const response = await fetchWithTimeout(url, opts, timeoutMs);
+        const response = await fetchWithRetryConnRefused(url, opts, timeoutMs, retryCfg);
         const endt = new Date().getTime();
         const delta = endt - st;
         if(delta > 1000){
@@ -574,10 +615,15 @@ export async function requestRaw(url, options) {
 			timeoutMs = opts.timeoutMs;
 			delete opts.timeoutMs;
 		}
+		let retryCfg = null;
+		if(opts && opts.retry !== undefined){
+			retryCfg = opts.retry;
+			delete opts.retry;
+		}
         opts = buildSignedFetchOptions(opts);
     
         const st = new Date().getTime();
-        const response = await fetchWithTimeout(url, opts, timeoutMs);
+        const response = await fetchWithRetryConnRefused(url, opts, timeoutMs, retryCfg);
         const endt = new Date().getTime();
         const delta = endt - st;
         if(delta > 1000){
