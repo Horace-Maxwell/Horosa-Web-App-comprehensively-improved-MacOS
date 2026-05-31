@@ -101,6 +101,8 @@ A large feature + startup-robustness release.
 - **Automatic timezone / DST correction** — all three forms resolve the IANA zone from latitude/longitude offline and auto-correct daylight saving.
 - **Jin Kou Jue interpretation layer** — shensha verdicts, four-position generation/control, timing, categorized use-gods, xing/chong/he/hai/po, and Taixuan numbers.
 - **Qi Zheng (Moira fidelity)** — 28-mansion ring, display options, multi-tab, major periods, shensha verdicts.
+- **Zi Wei Dou Shu — progression depth** — new "运限/格局" tabs: BaZi-style cascading periods (major ▸ annual ▸ monthly ▸ daily ▸ hourly, with annual/minor on the same tier), stacked four-transformation cards, and automatic pattern (格局) detection.
+- **Liu Ren — casting-method enhancements (Phase 4)** — Qi Zheng integration plus casting methods (八客 / four-pillar alignment / chosen-hour / derived-number), general-swap (mid-/solar-term), and day/night division.
 - **Hardened local-service launch** — reclaims our own stale port holders / retries on fresh ports, precisely reclaims a wedged backend (no false kills), warms the chart service before navigation, auto-retries chart requests, and shows a non-blocking reconnect banner — fixing "port already in use" and "backend not started".
 
 The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.5.0 / 2.5.0-runtime1`. Full log on the [v2.5.0 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.0).

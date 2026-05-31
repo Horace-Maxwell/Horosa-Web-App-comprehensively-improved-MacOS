@@ -101,11 +101,13 @@
 - **时区/夏令时(DST)自动校正** —— 三处表单按经纬度离线求 IANA 时区并自动校正夏令时。
 - **金口诀解读层** —— 神煞判语、四位生克、应期、分类用神、刑冲合害破、太玄数。
 - **七政四余(Moira 还原度)** —— 28 宿环、显示选项、多 tab、大限、神煞判语。
+- **紫微斗数·运限深化** —— 新增「运限」「格局」两 Tab:八字大运式级联运限(大限▸流年▸流月▸流日▸流时,流年/小限同级)、多层四化卡叠加、格局自动识别。
+- **六壬·起课法增强(Phase4)** —— 七政接入 + 起课法(八客/四柱对齐/选时/演数)、换将(中气/节气)、分昼夜。
 - **启动机制稳健化** —— 端口被占用时自动回收自家僵尸 / 换口重试,卡死后端精准回收(不误杀),就绪前预热排盘服务,排盘请求自动重试,断线非阻塞重连横幅;根治「端口被占用用不了 / 打开后显示后端未启动」。
 
 完整改动见 [v2.5.0 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.0)(离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.5.0 / 2.5.0-runtime1`)。
 
-> v2.5.0 is a large feature + startup-robustness release: Western progression/direction techniques (Persian double-wheel directions, planetary arc, Vedic, Jayne declination, planetary ages, true-129-year, Balbillus), a Part-of-Fortune whole-sign house system, automatic timezone/DST correction, the Jin Kou Jue interpretation layer, Qi Zheng (Moira-fidelity) enhancements, and a hardened local-service launch path that fixes "port already in use" and "backend not started". See the [v2.5.0 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.0) for the full log.
+> v2.5.0 is a large feature + startup-robustness release: Western progression/direction techniques (Persian double-wheel directions, planetary arc, Vedic, Jayne declination, planetary ages, true-129-year, Balbillus), a Part-of-Fortune whole-sign house system, automatic timezone/DST correction, the Jin Kou Jue interpretation layer, Qi Zheng (Moira-fidelity) enhancements, Zi Wei Dou Shu progression depth + pattern detection, Liu Ren casting-method enhancements, and a hardened local-service launch path that fixes "port already in use" and "backend not started". See the [v2.5.0 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.0) for the full log.
 
 ## 技术构成 · Under the Hood
 
