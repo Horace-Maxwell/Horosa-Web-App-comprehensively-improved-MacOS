@@ -8,6 +8,8 @@ import {randomStr,} from '../../utils/helper';
 import ZiWeiInput from './ZiWeiInput';
 import ZiWeiChart from './ZiWeiChart';
 import ZWRuleMain from '../ruleziwei/ZWRuleMain';
+import ZWLuckPanel from './ZWLuckPanel';
+import ZWPatternPanel from './ZWPatternPanel';
 import TipsBoard from '../comp/TipsBoard';
 import * as ZiWeiHelper from './ZiWeiHelper';
 import * as ZWText from '../../constants/ZWText';
@@ -144,6 +146,26 @@ function buildZiWeiSnapshotText(params, result){
 		}
 		lines.push('');
 	});
+
+	if(yearGan){
+		const laiyin = houses.filter((house)=> house.ganzi && house.ganzi.charAt(0) === yearGan)
+			.map((house)=> `${house.name || ''}（${house.ganzi}）`);
+		if(laiyin.length > 0){
+			lines.push('[来因宫]');
+			lines.push(laiyin.join('、'));
+			lines.push('');
+		}
+	}
+
+	const patterns = result && result.patterns ? result.patterns : [];
+	if(patterns.length > 0){
+		lines.push('[命中格局]');
+		patterns.forEach((p)=>{
+			lines.push(`${p.name}（${p.category || ''}${p.broken ? '·破' : ''}）：${p.duanyi || ''}`);
+		});
+		lines.push('');
+	}
+
 	return lines.join('\n');
 }
 
@@ -224,6 +246,7 @@ class ZiWeiMain extends Component{
 			cnt: 0,
 			tips: null,
 			centerInfoVisible: false,
+			luckMingIndex: null,
 		};
 
 		this.unmounted = false;
@@ -242,6 +265,7 @@ class ZiWeiMain extends Component{
 		this.navigateFeature = this.navigateFeature.bind(this);
 		this.navigateDirectionTool = this.navigateDirectionTool.bind(this);
 		this.renderBottomQuickDock = this.renderBottomQuickDock.bind(this);
+		this.onLuckChange = this.onLuckChange.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields)=>{
@@ -335,6 +359,7 @@ class ZiWeiMain extends Component{
 			result: result,
 			rules: rules[Constants.ResultKey],
 			currentDirectionIndex: currentIdx,
+			luckMingIndex: null,
 		};
 
 
@@ -431,6 +456,12 @@ class ZiWeiMain extends Component{
 	closeCenterInfo(){
 		this.setState({
 			centerInfoVisible: false,
+		});
+	}
+
+	onLuckChange(idx){
+		this.setState({
+			luckMingIndex: (idx === undefined || idx === null) ? null : idx,
 		});
 	}
 
@@ -592,6 +623,13 @@ class ZiWeiMain extends Component{
 		let doms = this.genDirectionDom(chart);
 		let infoData = buildZiWeiInfoData(chart, this.props.fields);
 
+		let luckParams = {};
+		try {
+			luckParams = this.genParams(this.props.fields);
+		} catch (e) {
+			luckParams = {};
+		}
+
 		let tipheight = 270;
 		let docwid = document.documentElement.clientWidth;
 		if(docwid <= 1440){
@@ -615,6 +653,7 @@ class ZiWeiMain extends Component{
 									height="100%"
 									fields={this.props.fields}
 									dirIndex={dirIndex}
+									luckMingIndex={this.state.luckMingIndex}
 									indicate={this.indicate}
 									rules={this.state.rules}
 									onTipClick={this.onTipClick}
@@ -626,6 +665,17 @@ class ZiWeiMain extends Component{
 							<Tabs defaultActiveKey="info" tabPosition='top' className="horosa-content-tabs horosa-ziwei-tabs">
 								<TabPane tab="命盘" key="info">
 									{this.renderZiWeiInfoPanel(infoData, doms, tipheight)}
+								</TabPane>
+								<TabPane tab="运限" key="luck">
+									<ZWLuckPanel
+										chart={chart}
+										params={luckParams}
+										onLuckChange={this.onLuckChange}
+										onAi={()=>this.navigateFeature('aianalysis')}
+									/>
+								</TabPane>
+								<TabPane tab="格局" key="patterns">
+									<ZWPatternPanel patterns={this.state.result ? this.state.result.patterns : []} />
 								</TabPane>
 								<TabPane tab="资料参考" key="2">
 									<ZWRuleMain height={height} rules={this.state.rules} />

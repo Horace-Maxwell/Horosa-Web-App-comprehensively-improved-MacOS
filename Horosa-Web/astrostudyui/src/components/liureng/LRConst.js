@@ -520,14 +520,16 @@ export function getSignZi(sign){
 	return SignZiList[idx];
 }
 
-export function getGuiZi(chartObj, guirengType){
+export function getGuiZi(chartObj, guirengType, isDiurnalOverride){
 	let guirengobj = GuiRengs[guirengType];
 	let dayGui = guirengobj.day;
 	let nightGui = guirengobj.night;
 
 	let gan = chartObj.nongli.dayGanZi.substr(0, 1);
+	// 昼夜默认取星历 isDiurnal；六壬「换日/分昼夜法」可显式覆盖（缺省=现状，零回归）。
+	let diurnal = (typeof isDiurnalOverride === 'boolean') ? isDiurnalOverride : chartObj.isDiurnal;
 	let guizi = null;
-	if(chartObj.isDiurnal){
+	if(diurnal){
 		guizi = dayGui[gan];
 	}else{
 		guizi = nightGui[gan];

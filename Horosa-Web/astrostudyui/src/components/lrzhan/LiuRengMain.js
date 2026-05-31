@@ -2545,6 +2545,67 @@ function getPlanetBranch(chartObj, planetId){
 	return LRConst.getSignZi(obj.sign) || '';
 }
 
+const QIZHENG_DEFS = [
+	{ id: AstroConst.SUN, name: '日' },
+	{ id: AstroConst.MOON, name: '月' },
+	{ id: AstroConst.MERCURY, name: '水' },
+	{ id: AstroConst.VENUS, name: '金' },
+	{ id: AstroConst.MARS, name: '火' },
+	{ id: AstroConst.JUPITER, name: '木' },
+	{ id: AstroConst.SATURN, name: '土' },
+];
+
+// 七政星曜色（自带 fallback，不依赖外部样式表）。
+const QIZHENG_PLANET_COLOR = {
+	'日': '#e0a93b',
+	'月': '#cfd2d6',
+	'水': '#5fb3c9',
+	'金': '#d98fb0',
+	'火': '#c9483e',
+	'木': '#73b36b',
+	'土': '#c19a57',
+};
+
+// 五行语义色：与六壬盘面 RengChart.getBranchColor 同口径（CSS 变量 + hex fallback）。
+const QIZHENG_WUXING_COLOR = {
+	'木': 'var(--horosa-liureng-stem-wood, #73b36b)',
+	'火': 'var(--horosa-liureng-stem-fire, #c9483e)',
+	'土': 'var(--horosa-liureng-stem-earth, #c19a57)',
+	'金': 'var(--horosa-liureng-stem-metal, #d8d2c7)',
+	'水': 'var(--horosa-liureng-stem-water, #8f9694)',
+};
+
+// 七政：复用现成 getPlanetObject + getSignZi；顺逆按 lonspeed<0（与主星盘一致，见 AstroHelper）。
+function buildQiZhengItems(chartObj){
+	if(!chartObj || !chartObj.objects){
+		return [];
+	}
+	const sunBranch = getPlanetBranch(chartObj, AstroConst.SUN);
+	const items = [];
+	for(let i=0; i<QIZHENG_DEFS.length; i++){
+		const def = QIZHENG_DEFS[i];
+		const obj = getPlanetObject(chartObj, def.id);
+		if(!obj){
+			continue;
+		}
+		const branch = LRConst.getSignZi(obj.sign) || '';
+		let deg = null;
+		if(typeof obj.lon === 'number' && isFinite(obj.lon)){
+			deg = ((obj.lon % 30) + 30) % 30;
+		}
+		items.push({
+			key: def.id,
+			name: def.name,
+			branch,
+			wx: branch ? (LRConst.GanZiWuXing[branch] || '') : '',
+			deg,
+			retro: typeof obj.lonspeed === 'number' && obj.lonspeed < 0,
+			isYue: !!branch && branch === sunBranch,
+		});
+	}
+	return items;
+}
+
 function extractSuName(raw){
 	const txt = `${raw || ''}`;
 	for(let i=0; i<txt.length; i++){
@@ -2771,8 +2832,8 @@ function collectTianHeEvidence(context, a, b){
 	return uniqueStrings(evidence);
 }
 
-function buildLiuRengReferenceContext(liureng, chartObj, guirengType, runyear){
-	const layout = buildLiuRengLayout(chartObj, guirengType);
+function buildLiuRengReferenceContext(liureng, chartObj, guirengType, runyear, castOverride){
+	const layout = buildLiuRengLayout(chartObj, guirengType, castOverride);
 	const keData = buildKeData(layout, chartObj);
 	const sanChuan = buildSanChuanData(layout, keData.raw, chartObj);
 	const nongli = chartObj && chartObj.nongli ? chartObj.nongli : {};
@@ -3631,8 +3692,8 @@ function matchXiaoJuReferences(context){
 	});
 }
 
-function buildLiuRengReferenceBundle(liureng, chartObj, guirengType, runyear){
-	const context = buildLiuRengReferenceContext(liureng, chartObj, guirengType, runyear);
+function buildLiuRengReferenceBundle(liureng, chartObj, guirengType, runyear, castOverride){
+	const context = buildLiuRengReferenceContext(liureng, chartObj, guirengType, runyear, castOverride);
 	const dage = matchDaGeReferences(context);
 	const xiaoju = matchXiaoJuReferences(context);
 	const overview = matchLiuRengOverviewReferences(context);
@@ -3682,18 +3743,140 @@ function getChartYue(chartObj){
 	return '';
 }
 
-function buildLiuRengLayout(chartObj, guirengType){
+// 起课法：正时正将 + 八客①–⑧ + 四柱对齐(年日/年时/月日/月时) + 选时 + 演数。
+// 古法：每法＝一对「天盘起支 X 加于 地盘临位 Y」；天干用寄宫(GanJiZi)；对齐法直接取两柱地支。
+const QI_METHODS = [
+	{ key: 'zheng', name: '正时正将' },
+	{ key: 'bake2', name: '八客·月建加太岁' },
+	{ key: 'bake3', name: '八客·太岁加月建' },
+	{ key: 'bake4', name: '八客·月建加日干' },
+	{ key: 'bake5', name: '八客·岁干加正时' },
+	{ key: 'bake6', name: '八客·月将加日干' },
+	{ key: 'bake7', name: '八客·月将加太岁' },
+	{ key: 'bake8', name: '八客·太岁加月将' },
+	{ key: 'alnr', name: '年日对齐·陈旧事' },
+	{ key: 'alns', name: '年时对齐·深远事' },
+	{ key: 'alyr', name: '月日对齐·催迫事' },
+	{ key: 'alys', name: '月时对齐·灵活事' },
+	{ key: 'xuanshi', name: '选时·事发之时' },
+	{ key: 'yanshu', name: '演数·随感之数' },
+];
+const YUE_JIANG_METHODS = [
+	{ key: 'zhongqi', name: '中气过宫（默认）' },
+	{ key: 'jieqi', name: '节气换将' },
+];
+const FEN_ZHOU_YE_METHODS = [
+	{ key: 'chenhun', name: '晨昏分昼夜（默认）' },
+	{ key: 'maoyou', name: '卯酉分昼夜' },
+	{ key: 'yinshen', name: '寅申分昼夜' },
+];
+const MAOYOU_DAY_BRANCHES = ['卯', '辰', '巳', '午', '未', '申'];
+const YINSHEN_DAY_BRANCHES = ['寅', '卯', '辰', '巳', '午', '未'];
+
+// 月将：中气过宫(默认=getChartYue) 或 节气换将（节气提前半月，太阳黄经+15°取宫）。
+function getYueJiangByMethod(chartObj, yueJiangMethod){
+	if(yueJiangMethod !== 'jieqi'){
+		return getChartYue(chartObj);
+	}
+	const sun = getPlanetObject(chartObj, AstroConst.SUN);
+	if(!sun || typeof sun.lon !== 'number' || !isFinite(sun.lon)){
+		return getChartYue(chartObj);
+	}
+	const lon = (((sun.lon + 15) % 360) + 360) % 360;
+	return LRConst.SignZiList[Math.floor(lon / 30) % 12] || getChartYue(chartObj);
+}
+
+// 分昼夜 → isDiurnal 覆盖；晨昏(默认)返回 undefined（沿用星历 isDiurnal）。
+function computeFenZhouYe(fenZhouYe, chartObj){
+	if(fenZhouYe !== 'maoyou' && fenZhouYe !== 'yinshen'){
+		return undefined;
+	}
+	const tb = chartObj && chartObj.nongli && chartObj.nongli.time ? chartObj.nongli.time.substr(1) : '';
+	const set = fenZhouYe === 'maoyou' ? MAOYOU_DAY_BRANCHES : YINSHEN_DAY_BRANCHES;
+	return set.indexOf(tb) >= 0;
+}
+
+// 起课法 → 天盘起支 X 与 地盘临位 Y（yueEff＝换将后月将）。
+function computeQiXY(castMethod, chartObj, yueEff, opts){
+	opts = opts || {};
+	const nongli = chartObj.nongli || {};
+	const timeBranch = nongli.time ? nongli.time.substr(1) : '';
+	const dayBranch = nongli.dayGanZi ? nongli.dayGanZi.substr(1) : '';
+	const monthBranch = nongli.monthGanZi ? nongli.monthGanZi.substr(1) : '';
+	const yearGz = nongli.yearGanZi || nongli.yearJieqi || '';
+	const yearBranch = yearGz ? yearGz.substr(1) : '';
+	const yearGan = yearGz ? yearGz.substr(0, 1) : '';
+	const dayGan = nongli.dayGanZi ? nongli.dayGanZi.substr(0, 1) : '';
+	const jiDayGan = LRConst.GanJiZi[dayGan] || '';
+	const jiYearGan = LRConst.GanJiZi[yearGan] || '';
+	let X = yueEff;
+	let Y = timeBranch;
+	switch(castMethod){
+		case 'bake2': X = monthBranch; Y = yearBranch; break;
+		case 'bake3': X = yearBranch; Y = monthBranch; break;
+		case 'bake4': X = monthBranch; Y = jiDayGan; break;
+		case 'bake5': X = jiYearGan; Y = timeBranch; break;
+		case 'bake6': X = yueEff; Y = jiDayGan; break;
+		case 'bake7': X = yueEff; Y = yearBranch; break;
+		case 'bake8': X = yearBranch; Y = yueEff; break;
+		case 'alnr': X = yearBranch; Y = dayBranch; break;   // 年日对齐
+		case 'alns': X = yearBranch; Y = timeBranch; break;  // 年时对齐
+		case 'alyr': X = monthBranch; Y = dayBranch; break;  // 月日对齐
+		case 'alys': X = monthBranch; Y = timeBranch; break; // 月时对齐
+		case 'xuanshi': X = yueEff; Y = (opts.xuanShiZhi && LRConst.ZiList.indexOf(opts.xuanShiZhi) >= 0) ? opts.xuanShiZhi : timeBranch; break;
+		case 'yanshu': {
+			X = yueEff;
+			const ti = LRConst.ZiList.indexOf(timeBranch);
+			const N = parseInt(opts.yanShuNum, 10);
+			if(ti < 0 || !isFinite(N)){ Y = timeBranch; break; }
+			const step = ((N % 12) + 12) % 12;
+			const forward = LRConst.YangGan.indexOf(dayGan) >= 0; // 阳日顺、阴日逆
+			Y = LRConst.ZiList[forward ? (ti + step) % 12 : (ti - step + 12) % 12];
+			break;
+		}
+		default: break; // zheng / 未知 → X=月将, Y=正时
+	}
+	return { X, Y };
+}
+
+// 汇总：起课法 + 换将 + 分昼夜 → castOverride {yue,timeZhi,isDiurnal}；全默认返回 null（零回归）。
+function buildLiuRengCastOverride(chartObj, opts){
+	opts = opts || {};
+	if(!chartObj || !chartObj.nongli){
+		return null;
+	}
+	const castMethod = opts.castMethod || 'zheng';
+	const yueJiangMethod = opts.yueJiangMethod || 'zhongqi';
+	const fenZhouYe = opts.fenZhouYe || 'chenhun';
+	const isDiurnal = computeFenZhouYe(fenZhouYe, chartObj);
+	const allDefault = castMethod === 'zheng' && yueJiangMethod !== 'jieqi' && isDiurnal === undefined;
+	if(allDefault){
+		return null;
+	}
+	const yueEff = getYueJiangByMethod(chartObj, yueJiangMethod);
+	const xy = computeQiXY(castMethod, chartObj, yueEff, opts);
+	const tFallback = chartObj.nongli.time ? chartObj.nongli.time.substr(1) : '';
+	const X = (xy.X && LRConst.ZiList.indexOf(xy.X) >= 0) ? xy.X : (yueEff || getChartYue(chartObj));
+	const Y = (xy.Y && LRConst.ZiList.indexOf(xy.Y) >= 0) ? xy.Y : tFallback;
+	if(!X || !Y){
+		return null;
+	}
+	return { yue: X, timeZhi: Y, isDiurnal };
+}
+
+function buildLiuRengLayout(chartObj, guirengType, castOverride){
 	if(!chartObj || !chartObj.nongli || !chartObj.nongli.time){
 		return null;
 	}
-	const yue = getChartYue(chartObj);
+	// 起课法/换将：月将(yue=天盘起支) 与 临位(timezi=地盘临位) 可被 castOverride 覆盖；缺省=正时正将(现状)。
+	const yue = (castOverride && castOverride.yue) || getChartYue(chartObj);
 	if(!yue){
 		return null;
 	}
 	const downZi = LRConst.ZiList.slice(0);
 	const upZi = LRConst.ZiList.slice(0);
 	const yueIndexs = [];
-	const timezi = chartObj.nongli.time.substr(1);
+	const timezi = (castOverride && castOverride.timeZhi) || chartObj.nongli.time.substr(1);
 	const yueIdx = LRConst.ZiList.indexOf(yue);
 	const tmIdx = LRConst.ZiList.indexOf(timezi);
 	if(yueIdx < 0 || tmIdx < 0){
@@ -3707,7 +3890,7 @@ function buildLiuRengLayout(chartObj, guirengType){
 	}
 
 	const houseTianJiang = LRConst.TianJiang.slice(0);
-	const guizi = LRConst.getGuiZi(chartObj, guirengType);
+	const guizi = LRConst.getGuiZi(chartObj, guirengType, castOverride ? castOverride.isDiurnal : undefined);
 	let houseidx = 0;
 	for(let i=0; i<12; i++){
 		const zi = LRConst.ZiList[yueIndexs[i]];
@@ -3850,10 +4033,12 @@ function buildSanChuanData(layout, keRaw, chartObj){
 	}
 }
 
-export function buildLiuRengSnapshotText(params, liureng, runyear, chartObj, guirengType, zhangshengElem, gender){
+export function buildLiuRengSnapshotText(params, liureng, runyear, chartObj, guirengType, zhangshengElem, gender, castOpts){
 	const lines = [];
+	const _castOpts = castOpts || {};
 	const nongli = liureng && liureng.nongli ? liureng.nongli : (chartObj && chartObj.nongli ? chartObj.nongli : {});
-	const refs = buildLiuRengReferenceBundle(liureng, chartObj, guirengType, runyear);
+	const castOverride = buildLiuRengCastOverride(chartObj, _castOpts);
+	const refs = buildLiuRengReferenceBundle(liureng, chartObj, guirengType, runyear, castOverride);
 	const layout = refs.layout;
 	const panStyle = refs && refs.context ? refs.context.panStyle : null;
 	const keData = refs.keData;
@@ -3874,6 +4059,11 @@ export function buildLiuRengSnapshotText(params, liureng, runyear, chartObj, gui
 		lines.push(`四柱：${fmtValue(cols.year && cols.year.ganzi)}年 ${fmtValue(cols.month && cols.month.ganzi)}月 ${fmtValue(cols.day && cols.day.ganzi)}日 ${fmtValue(cols.time && cols.time.ganzi)}时`);
 	}
 	lines.push(`贵人体系：${guirengType === 0 ? '六壬法贵人' : (guirengType === 1 ? '遁甲法贵人' : '星占法贵人')}`);
+	lines.push(`起课法：${(QI_METHODS.find((m)=>m.key === (_castOpts.castMethod || 'zheng')) || QI_METHODS[0]).name}`);
+	if(_castOpts.castMethod === 'xuanshi' && _castOpts.xuanShiZhi){ lines.push(`选时：${_castOpts.xuanShiZhi}时`); }
+	if(_castOpts.castMethod === 'yanshu' && (_castOpts.yanShuNum || _castOpts.yanShuNum === 0)){ lines.push(`演数：${_castOpts.yanShuNum}`); }
+	lines.push(`换将：${(YUE_JIANG_METHODS.find((m)=>m.key === (_castOpts.yueJiangMethod || 'zhongqi')) || YUE_JIANG_METHODS[0]).name}`);
+	lines.push(`分昼夜：${(FEN_ZHOU_YE_METHODS.find((m)=>m.key === (_castOpts.fenZhouYe || 'chenhun')) || FEN_ZHOU_YE_METHODS[0]).name}`);
 	lines.push(`十二长生五行：${fmtValue(zhangshengElem)}`);
 	lines.push(`十二盘式：${fmtValue(panStyle && panStyle.name ? panStyle.name : '')}`);
 	lines.push(`问测人性别：${xingbie}`);
@@ -4003,6 +4193,11 @@ class LiuRengMain extends Component{
 			runyear: null,
 			wuxing: '土',
 			guireng: 2,
+			castMethod: 'zheng',
+			xuanShiZhi: '',
+			yanShuNum: '',
+			yueJiangMethod: 'zhongqi',
+			fenZhouYe: 'chenhun',
 			calcFields: null,
 			calcChart: null,
 			rightPanelTab: 'dage',
@@ -4023,6 +4218,8 @@ class LiuRengMain extends Component{
 		this.onBirthChange = this.onBirthChange.bind(this);
 		this.onWuXingChange = this.onWuXingChange.bind(this);
 		this.onGuiRengChange = this.onGuiRengChange.bind(this);
+		this.onCastMethodChange = this.onCastMethodChange.bind(this);
+		this.handleCastField = this.handleCastField.bind(this);
 		this.onChartTypeChange = this.onChartTypeChange.bind(this);
 		this.genWuXingDoms = this.genWuXingDoms.bind(this);
 		this.genGodsParams = this.genGodsParams.bind(this);
@@ -4252,6 +4449,22 @@ class LiuRengMain extends Component{
 		});
 	}
 
+	onCastMethodChange(val){
+		// 起课法仅改天地盘加临（不动 /chart 计算），同贵人体系：setState 触发重渲染即重排，无需重新起课。
+		this.setState({
+			castMethod: val,
+		}, ()=>{
+			this.saveLiuRengAISnapshot(null, this.state.liureng, this.state.runyear, this.state.wuxing, this.state.guireng);
+		});
+	}
+
+	handleCastField(field, val){
+		// 选时/演数/换将/分昼夜：同起课法，皆只改天地盘加临或昼夜，不重新起课。
+		this.setState({ [field]: val }, ()=>{
+			this.saveLiuRengAISnapshot(null, this.state.liureng, this.state.runyear, this.state.wuxing, this.state.guireng);
+		});
+	}
+
 	saveLiuRengAISnapshot(params, liureng, runyear, wuxing, guirengType){
 		if(!liureng){
 			return '';
@@ -4279,7 +4492,14 @@ class LiuRengMain extends Component{
 			chartObj,
 			guirengType,
 			wuxing,
-			appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : 1
+			appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : 1,
+			{
+				castMethod: this.state.castMethod,
+				xuanShiZhi: this.state.xuanShiZhi,
+				yanShuNum: this.state.yanShuNum,
+				yueJiangMethod: this.state.yueJiangMethod,
+				fenZhouYe: this.state.fenZhouYe,
+			}
 		);
 		if(typeof window !== 'undefined'){
 			window.__horosa_liureng_snapshot_text = snapshotText;
@@ -4290,6 +4510,11 @@ class LiuRengMain extends Component{
 			zone: saveParams.zone,
 			lon: saveParams.lon,
 			lat: saveParams.lat,
+			castMethod: this.state.castMethod,
+			xuanShiZhi: this.state.xuanShiZhi || '',
+			yanShuNum: `${this.state.yanShuNum || ''}`,
+			yueJiangMethod: this.state.yueJiangMethod,
+			fenZhouYe: this.state.fenZhouYe,
 		});
 		return snapshotText;
 	}
@@ -4640,6 +4865,11 @@ class LiuRengMain extends Component{
 			runyear: displayRunYear,
 			wuxing: this.state.wuxing,
 			guireng: this.state.guireng,
+			castMethod: this.state.castMethod,
+			xuanShiZhi: this.state.xuanShiZhi,
+			yanShuNum: this.state.yanShuNum,
+			yueJiangMethod: this.state.yueJiangMethod,
+			fenZhouYe: this.state.fenZhouYe,
 		};
 		if(this.props.dispatch){
 			this.props.dispatch({
@@ -4764,6 +4994,45 @@ class LiuRengMain extends Component{
 								<Option value={2}>星占法贵人</Option>
 							</Select>
 						</label>
+						<label className="horosa-liureng-select-field horosa-liureng-select-field-wide">
+							<span>起课法</span>
+							<Select value={this.state.castMethod} onChange={this.onCastMethodChange}>
+								{QI_METHODS.map((m)=>(<Option key={m.key} value={m.key}>{m.name}</Option>))}
+							</Select>
+						</label>
+						{this.state.castMethod === 'xuanshi' ? (
+							<label className="horosa-liureng-select-field horosa-liureng-select-field-wide">
+								<span>选时·时辰</span>
+								<Select value={this.state.xuanShiZhi || ''} onChange={(v)=>this.handleCastField('xuanShiZhi', v)}>
+									<Option value=''>用正时</Option>
+									{LRConst.ZiList.map((z)=>(<Option key={z} value={z}>{z}时</Option>))}
+								</Select>
+							</label>
+						) : null}
+						{this.state.castMethod === 'yanshu' ? (
+							<label className="horosa-liureng-select-field horosa-liureng-select-field-wide">
+								<span>演数·随感之数</span>
+								<input
+									type='number'
+									value={this.state.yanShuNum}
+									onChange={(e)=>this.handleCastField('yanShuNum', e.target.value)}
+									placeholder='输入数字'
+									style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--horosa-border, rgba(255,255,255,0.18))', background: 'transparent', color: 'var(--horosa-text, inherit)' }}
+								/>
+							</label>
+						) : null}
+						<label className="horosa-liureng-select-field horosa-liureng-select-field-wide">
+							<span>换将</span>
+							<Select value={this.state.yueJiangMethod} onChange={(v)=>this.handleCastField('yueJiangMethod', v)}>
+								{YUE_JIANG_METHODS.map((m)=>(<Option key={m.key} value={m.key}>{m.name}</Option>))}
+							</Select>
+						</label>
+						<label className="horosa-liureng-select-field horosa-liureng-select-field-wide">
+							<span>分昼夜</span>
+							<Select value={this.state.fenZhouYe} onChange={(v)=>this.handleCastField('fenZhouYe', v)}>
+								{FEN_ZHOU_YE_METHODS.map((m)=>(<Option key={m.key} value={m.key}>{m.name}</Option>))}
+							</Select>
+						</label>
 					</div>
 					<div className="horosa-liureng-action-row">
 						<Button type='primary' onClick={this.clickStartPaiPan}>起课</Button>
@@ -4781,6 +5050,7 @@ class LiuRengMain extends Component{
 			xiaojuMainItems,
 			xiaojuReferenceItems,
 			overviewItems,
+			qizhengItems,
 		} = refData;
 		return (
 			<Tabs
@@ -4880,6 +5150,61 @@ class LiuRengMain extends Component{
 						)) : (
 							<Card size='small'>
 								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘未命中“天将发用来意诀/天将杂主吉凶”条目。</div>
+							</Card>
+						)}
+					</div>
+				</TabPane>
+				<TabPane tab="七政" key="qizheng">
+					<div className="horosa-liureng-reference-tab-body">
+						{qizhengItems && qizhengItems.length ? (
+							<Card size='small'>
+								<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(74px, 1fr))', gap: 8 }}>
+									{qizhengItems.map((item)=>{
+										const wxColor = QIZHENG_WUXING_COLOR[item.wx] || 'var(--horosa-text, #d8d2c7)';
+										const pColor = QIZHENG_PLANET_COLOR[item.name] || 'var(--horosa-text, #d8d2c7)';
+										return (
+											<div
+												key={`qz_${item.key}`}
+												style={{
+													position: 'relative',
+													display: 'flex',
+													flexDirection: 'column',
+													alignItems: 'center',
+													gap: 1,
+													padding: '9px 4px 7px',
+													borderRadius: 10,
+													background: item.isYue
+														? 'linear-gradient(180deg, rgba(212,160,23,0.18), rgba(212,160,23,0.04))'
+														: 'var(--horosa-panel-soft, rgba(255,255,255,0.035))',
+													border: item.isYue
+														? '1px solid var(--horosa-accent, #d4a017)'
+														: '1px solid var(--horosa-border, rgba(255,255,255,0.08))',
+													boxShadow: item.isYue ? 'inset 0 0 0 2px rgba(212,160,23,0.12)' : 'none',
+												}}
+											>
+												{item.isYue ? (
+													<span style={{ position: 'absolute', top: -7, right: -5, fontSize: 10, lineHeight: '15px', padding: '0 5px', borderRadius: 7, background: 'var(--horosa-accent, #d4a017)', color: '#1a1206', fontWeight: 700, whiteSpace: 'nowrap' }}>月将</span>
+												) : null}
+												<span style={{ fontSize: 12, fontWeight: 700, color: pColor, letterSpacing: 1 }}>
+													{item.name}
+													{item.retro ? <span style={{ color: '#e2574c', marginInlineStart: 2, fontWeight: 800 }}>℞</span> : null}
+												</span>
+												<span style={{ fontSize: 21, fontWeight: 800, color: wxColor, lineHeight: '26px' }}>{item.branch || '—'}</span>
+												<span style={{ fontSize: 11, color: 'var(--horosa-muted, #8c8c8c)' }}>
+													{item.wx || ''}{item.deg != null ? ` ${item.deg.toFixed(0)}°` : ''}
+												</span>
+											</div>
+										);
+									})}
+								</div>
+								<div style={{ color: 'var(--horosa-muted, #8c8c8c)', fontSize: 12, marginTop: 10, lineHeight: '18px' }}>
+									七政所临之宫，色按五行。<span style={{ color: '#e2574c', fontWeight: 700 }}>℞</span> 为逆行；
+									<span style={{ color: 'var(--horosa-accent, #d4a017)', fontWeight: 700 }}>月将</span>即太阳过宫之神。
+								</div>
+							</Card>
+						) : (
+							<Card size='small'>
+								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂无七政数据（需含日月五星之星历）。</div>
 							</Card>
 						)}
 					</div>
@@ -5001,7 +5326,8 @@ class LiuRengMain extends Component{
 		let chartFields = this.state.calcFields ? this.state.calcFields : this.props.fields;
 		const appliedBirth = getAppliedBirth(this.state);
 		const displayRunYear = resolveDisplayRunYear(this.state.runyear, appliedBirth, chartFields);
-		const refBundle = buildLiuRengReferenceBundle(this.state.liureng, chart, this.state.guireng, displayRunYear);
+		const castOverride = buildLiuRengCastOverride(chart, this.state);
+		const refBundle = buildLiuRengReferenceBundle(this.state.liureng, chart, this.state.guireng, displayRunYear, castOverride);
 		const refContext = refBundle.context || {};
 		const panStyleName = refContext.panStyle && refContext.panStyle.name ? refContext.panStyle.name : '';
 		const xiaojuAllItems = Array.isArray(refBundle.xiaoju) ? refBundle.xiaoju : [];
@@ -5034,6 +5360,7 @@ class LiuRengMain extends Component{
 									gender={appliedBirth && appliedBirth.gender ? appliedBirth.gender.value : -1}
 									zhangshengElem={this.state.wuxing}
 									guireng={this.state.guireng}
+									castOverride={castOverride}
 									height={height}
 									fields={chartFields}
 									chartType={this.state.chartType}
@@ -5055,6 +5382,7 @@ class LiuRengMain extends Component{
 								xiaojuMainItems,
 								xiaojuReferenceItems,
 								overviewItems,
+								qizhengItems: buildQiZhengItems(chart),
 							})}
 						</div>
 					</div>

@@ -14842,3 +14842,243 @@
 		filter: brightness(1.04);
 	}
 }
+
+/* ===== 紫微深度增强 v3：运限(级联条+流年/小限同级toggle+多层卡叠加) + 格局(顶部起排) — 成熟方案、零重叠、明暗双主题 ===== */
+:global {
+	.horosa-workspace-shell .horosa-ziwei-luck {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 8px 2px 4px;
+		align-self: stretch;
+		width: 100%;
+		min-height: 0;
+		max-height: 100%;
+		overflow-y: auto;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-axes {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-axis-row {
+		display: flex;
+		align-items: stretch;
+		gap: 8px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-axis-label {
+		flex: 0 0 auto;
+		width: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		writing-mode: vertical-lr;
+		letter-spacing: 3px;
+		font-size: 12px;
+		font-weight: 700;
+		color: var(--horosa-gold, #9a6a25);
+		background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.10));
+		border-radius: 7px;
+	}
+	/* 流年/小限 同级互斥 toggle —— 占左侧层名列(30px)、与 chip 同视觉语言(选中金渐变，一眼可辨) */
+	.horosa-workspace-shell .horosa-ziwei-luck-annual-toggle {
+		flex: 0 0 auto;
+		width: 46px;
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-toggle-btn {
+		flex: 1 1 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		writing-mode: vertical-lr;
+		letter-spacing: 0;
+		padding: 10px 0;
+		border: 1px solid var(--horosa-border, rgba(76, 98, 134, 0.17));
+		border-radius: 7px;
+		background: var(--horosa-surface-solid, #fff);
+		color: var(--horosa-muted, #68758a);
+		font-size: 12px;
+		font-weight: 700;
+		cursor: pointer;
+		transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-toggle-btn:hover {
+		border-color: var(--horosa-gold, #9a6a25);
+		color: var(--horosa-gold, #9a6a25);
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-toggle-btn.is-on {
+		background: linear-gradient(180deg, #b5863a, #9a6a25);
+		border-color: #9a6a25;
+		color: #fff;
+		box-shadow: 0 1px 4px rgba(154, 106, 37, 0.35);
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-axis {
+		flex: 1 1 auto;
+		min-width: 0;
+		display: flex;
+		gap: 6px;
+		overflow-x: auto;
+		padding: 3px 2px 6px;
+		scrollbar-width: thin;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-axis::-webkit-scrollbar { height: 5px; }
+	.horosa-workspace-shell .horosa-ziwei-luck-axis::-webkit-scrollbar-thumb {
+		background: var(--horosa-border, rgba(76, 98, 134, 0.30));
+		border-radius: 3px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-chip {
+		flex: 0 0 auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 2px;
+		min-width: 50px;
+		padding: 5px 9px;
+		border: 1px solid var(--horosa-border, rgba(76, 98, 134, 0.17));
+		border-radius: 8px;
+		background: var(--horosa-surface-solid, #fff);
+		color: var(--horosa-text, #162033);
+		cursor: pointer;
+		transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-chip:hover { border-color: var(--horosa-gold, #9a6a25); }
+	.horosa-workspace-shell .horosa-ziwei-luck-chip .chip-top {
+		font-size: 12px; line-height: 1.2; color: var(--horosa-muted, #68758a); white-space: nowrap;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-chip .chip-sub {
+		font-size: 13px; font-weight: 700; line-height: 1.2; letter-spacing: 1px; white-space: nowrap;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-chip.is-selected {
+		background: linear-gradient(180deg, #b5863a, #9a6a25);
+		border-color: #9a6a25;
+		box-shadow: 0 1px 4px rgba(154, 106, 37, 0.35);
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-chip.is-selected .chip-top,
+	.horosa-workspace-shell .horosa-ziwei-luck-chip.is-selected .chip-sub { color: #fff; }
+	/* 多层四化卡叠加 */
+	.horosa-workspace-shell .horosa-ziwei-luck-cards {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-card {
+		padding: 11px 12px;
+		border: 1px solid rgba(215, 173, 105, 0.20);
+		border-left-width: 3px;
+		border-radius: 9px;
+		background: linear-gradient(180deg, rgba(154, 106, 37, 0.05), rgba(154, 106, 37, 0.012));
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-card.cat-daxian { border-left-color: #9a6a25; }
+	.horosa-workspace-shell .horosa-ziwei-luck-card.cat-liunian { border-left-color: #2868d8; }
+	.horosa-workspace-shell .horosa-ziwei-luck-card.cat-xiaoxian { border-left-color: #1497a8; }
+	.horosa-workspace-shell .horosa-ziwei-luck-card.cat-liuyue { border-left-color: #3d8f74; }
+	.horosa-workspace-shell .horosa-ziwei-luck-card.cat-liuri { border-left-color: #a9473f; }
+	.horosa-workspace-shell .horosa-ziwei-luck-card.cat-liushi { border-left-color: #8a5cc0; }
+	.horosa-workspace-shell .horosa-ziwei-luck-card-head {
+		display: flex;
+		align-items: baseline;
+		flex-wrap: wrap;
+		gap: 7px;
+		margin-bottom: 9px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-badge {
+		flex-shrink: 0;
+		padding: 2px 9px;
+		border-radius: 6px;
+		background: linear-gradient(180deg, #b5863a, #9a6a25);
+		color: #fff;
+		font-size: 12px;
+		font-weight: 600;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-ganzi {
+		font-size: 18px; font-weight: 700; letter-spacing: 2px;
+		color: var(--horosa-ziwei-house-name, #9b6a2d);
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-sub-tag {
+		font-size: 12px; color: var(--horosa-text-soft, #52627a);
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-pal-inline {
+		margin-left: auto; font-size: 12px; color: var(--horosa-ziwei-house-age, #6f7d8d); white-space: nowrap;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-sihua {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 7px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-sihua .hua {
+		display: flex; align-items: center; gap: 4px;
+		padding: 5px 9px; border-radius: 7px;
+		font-size: 13px; color: #fff;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+		overflow-wrap: anywhere;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-sihua .hua b { font-size: 14px; font-weight: 800; }
+	.horosa-workspace-shell .horosa-ziwei-luck-sihua .hua i { margin-left: auto; font-style: normal; font-size: 11px; opacity: 0.85; }
+	.horosa-workspace-shell .horosa-ziwei-luck-flow {
+		display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-flow .flow-chip {
+		display: inline-flex; align-items: center; gap: 3px;
+		padding: 3px 9px; border-radius: 12px;
+		border: 1px solid rgba(215, 173, 105, 0.30);
+		background: var(--horosa-surface-solid, #fff);
+		font-size: 12px; color: var(--horosa-text-soft, #52627a);
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-flow .flow-chip i { font-style: normal; font-weight: 600; color: var(--horosa-gold, #9a6a25); }
+	.horosa-workspace-shell .horosa-ziwei-luck-note {
+		display: flex; justify-content: space-between; align-items: center; gap: 8px;
+		padding-top: 4px;
+		font-size: 12px; color: var(--horosa-muted, #68758a);
+	}
+	.horosa-workspace-shell .horosa-ziwei-luck-note a {
+		white-space: nowrap; font-weight: 600; color: var(--horosa-accent, #2f7df1); cursor: pointer;
+	}
+	/* 格局：从顶部起排（覆盖 tabpane flex 居中） */
+	.horosa-workspace-shell .horosa-ziwei-pattern-scroll {
+		display: block;
+		align-self: stretch;
+		width: 100%;
+		min-height: 0;
+		max-height: 100%;
+		overflow-y: auto;
+		padding: 8px 2px 4px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-pattern-count {
+		margin-bottom: 10px; font-size: 12px; font-weight: 600; letter-spacing: 1px; color: var(--horosa-muted, #68758a);
+	}
+	.horosa-workspace-shell .horosa-ziwei-pattern-list { display: flex; flex-direction: column; gap: 8px; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-item {
+		padding: 10px 12px 10px 13px;
+		border-radius: 8px;
+		background: var(--horosa-surface-solid, #fff);
+		border: 1px solid var(--horosa-border, rgba(76, 98, 134, 0.14));
+		border-left-width: 3px;
+	}
+	.horosa-workspace-shell .horosa-ziwei-pattern-item.cat-fugui { border-left-color: #c0883a; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-item.cat-wengui { border-left-color: #1497a8; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-item.cat-wugui { border-left-color: #a9473f; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-item.cat-poge { border-left-color: #68758a; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-name {
+		font-size: 15px; font-weight: 700; letter-spacing: 1px; color: var(--horosa-ziwei-house-name, #9b6a2d);
+	}
+	.horosa-workspace-shell .horosa-ziwei-pattern-cat { padding: 1px 8px; border-radius: 9px; font-size: 11px; font-weight: 600; color: #fff; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-cat.cat-fugui { background: #c0883a; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-cat.cat-wengui { background: #1497a8; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-cat.cat-wugui { background: #a9473f; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-cat.cat-poge { background: #68758a; }
+	.horosa-workspace-shell .horosa-ziwei-pattern-broken {
+		padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 700; color: #fff; background: var(--horosa-danger, #cf1322);
+	}
+	.horosa-workspace-shell .horosa-ziwei-pattern-duanyi {
+		margin-top: 6px; font-size: 13px; line-height: 1.6; color: var(--horosa-text-soft, #52627a); overflow-wrap: anywhere;
+	}
+	.horosa-workspace-shell .horosa-ziwei-pattern-src { margin-top: 4px; font-size: 11px; text-align: right; color: var(--horosa-muted, #68758a); }
+	@media (max-width: 1360px) {
+		.horosa-workspace-shell .horosa-ziwei-luck-sihua { grid-template-columns: 1fr; }
+	}
+}

@@ -20,7 +20,7 @@
 
 ---
 
-## v2.5.0（已发）— 推运补全 + 金口诀解读层 + 七政四余Moira + 时区/DST 自动校正 + 启动机制稳健化（4 分支收敛）
+## v2.5.0（已发）— 推运补全 + 紫微运限深化 + 金口诀解读层 + 七政四余Moira + 六壬Phase4 + 时区/DST + 启动机制稳健化（5 分支收敛）
 
 > 本版由 4 个 macOS 分支收敛发布。**关键:含后端 Java/Python 改动(推运补全)→ Windows 必须重编 `astrostudyboot.jar`**(见总则第 2 条);前端改动多,必须 `npm run build` 然后 `npm run build:file`(顺序勿并行)。下面先列各功能同步要点,「启动机制稳健化」细节在 A/B/C 段。
 
@@ -28,6 +28,7 @@
 - **西占推运补全 7 技法 + Balbillus + 福点整宫制**:**含后端 Java + Python 改动 → Windows 必须重编 jar**。文件:`astropy/astrostudy/{symbolicdir,yearsystem129}.py`、`astropy/astrostudy/perchart.py`(福点整宫制:`house.hsys` 须设 `const.HOUSES_WHOLE_SIGN`,否则 flatlib `inHouse` 加 -5° 偏移致落宫差一)、`astrostudysrv/**`(Java,**重编 jar**)、`astrostudyui/src/components/astro/Astro*.js`、`utils/{balbillus,planetaryAges}.js`。详解:`docs/西占新技法-逐技法实现详解-v2.5.0.md`。
 - **时区/夏令时(DST)自动校正**:**新增前端依赖 `tz-lookup`**(`astrostudyui/package.json` → Windows `npm install` 会带上);`utils/timezone.js` + `components/comp/DstZoneIndicator.js` + 三表单(ChartFormData / ChartData / CaseData)。纯前端,重建前端包即可。
 - **金口诀解读层 / 七政四余 Moira**:纯前端(`components/jinkou/**`、`components/guolao/**`、`components/taiyi/**`、`components/liureng/LRConst.js`),重建前端包即可。
+- **紫微运限深化(运限/格局两 Tab)+ 六壬 Phase4(起课法/换将/分昼夜)**:**紫微含后端 `astrostudycn` Java 改动 → Windows 必须重编 jar**;六壬纯前端。完整同步清单见下 D 段。
 - **启动机制稳健化**:根治「端口被占用→用不了 / 打开后显示后端未启动」。机制详解 [`启动机制稳健化-端口与就绪.md`](启动机制稳健化-端口与就绪.md)。**设计铁律:全部增量式,只在「今天本来就会坏」的失败路径触发,成功路径与今天逐字节一致。** 详见下 A/B/C 段。
 
 ### A. 启动稳健化·共享前端(随上面前端包一起重建)
@@ -50,6 +51,28 @@
 ### C. macOS 专属(Windows 不照搬代码,只镜像语义)
 - `Horosa_Desktop_Installer/src-tauri/src/main.rs`:`start_runtime_with_port_retry` / `error_is_port_conflict` / `PORT_RETRY_MAX` + 调用处。Windows 在其等价启动器里实现「失败→换口重试、web 不入环」。
 - 单实例:**Mac 不加插件 / 不设 `LSMultipleInstancesProhibited`**(会破坏更新换版);若 Windows 双开是真问题,用 handoff-aware 的 `requestSingleInstanceLock`(更新换版时放行)。
+### D. 紫微深度增强(运限/格局) + 六壬 Phase4 —— 共享 Horosa-Web(前端 + 紫微后端 astrostudycn,需重编 jar)
+
+> 机制细节：[`紫微斗数-深度增强-运限格局-v2.5.8.md`](紫微斗数-深度增强-运限格局-v2.5.8.md)。
+> **性质：共享 `Horosa-Web/` 改动（前端 `astrostudyui` + 后端 `astrostudycn`）→ Windows 必须同步，且因动了 Java 必须重编 `astrostudyboot.jar`。** 另含六壬 Phase4(纯前端 castOverride:起课法/换将/分昼夜,文件 `components/lrzhan/LiuRengMain.js`、`components/liureng/{LRCommChart,LRConst}.js`、`utils/aiAnalysisContext.js`)。
+
+### 改了什么
+- 紫微右栏新增 **「运限」「格局」两个 Tab**。运限做成**八字大运式级联横滑条**（大限▸流年▸流月▸流日▸流时 + 小限独立段），逐层点击向下钻取；选中层在中宫盘的「流命宫」外宫加金色描边环（**本命/大限态盘面像素级不变**）。格局=自动识别命中格局（34 格，公版古籍原创短义），卡片从顶部起排。
+- 后端 `/ziwei/birth` 现返回 `patterns[]`；新增 `/ziwei/luck`（服务端等价实现，UI 当前走前端计算、此端点作 API/AI 备用）。
+- 修 `ZiWeiHelper.getSmallDirectioinHouse` 女命分支历史 bug（`(idx-startidx)`→`(startidx-idx)`）。
+- AI 挂载/导出/命盘储存均带 `[来因宫]`+`[命中格局]`（`buildZiWeiSnapshotText` + `aiExport.js` ziwei 预设）。
+
+### Windows 必须做什么
+1. 同步 `Horosa-Web/astrostudysrv/astrostudycn` 的：**新增** `model/ZiWeiLuck.java`、`model/ZiWeiPattern.java`、`helper/ziweige.json`、`helper/ziweiliuchangqu.json`；**改动** `controller/ZiWeiController.java`、`helper/ZiWeiHelper.java`。
+2. 同步 `Horosa-Web/astrostudyui/src` 的：**新增** `components/ziwei/ZWLuckPanel.js`、`components/ziwei/ZWPatternPanel.js`；**改动** `components/ziwei/{ZiWeiMain,ZWChart,ZWHouse,ZWHouseSangHe,ZWCommHouse,ZiWeiChart,ZiWeiHelper}.js`、`utils/aiExport.js`、`layouts/app.less`。
+3. **重编 `astrostudyboot.jar`**（动了 Java，铁律）：`cd Horosa-Web/astrostudysrv && mvn -f boundless/pom.xml install -DskipTests && mvn -f astrostudy/pom.xml install -DskipTests && mvn -f astrostudycn/pom.xml install -DskipTests && mvn -f astrostudyboot/pom.xml clean package -DskipTests`，`javap` 验 `ZiWeiController.luck()` / `ZiWeiLuck.build` / `ZiWeiPattern.detect` + 两 JSON 进 `BOOT-INF/lib/astrostudycn-*.jar`。
+4. 重建前端：`npm run build` 然后 `npm run build:file`。
+
+### 验证
+- `release_preflight.sh [12]` 全 PASS（源齐全 + 女命分支修正 + 两 TabPane 已挂 + jar 含三新类两 JSON）。
+- `npm test` 140 全绿（含 aiExport / aiAnalysisContext）。
+- 预览董盘 `1985-02-13 22:38 女 +08:00 119e18 26n06`：运限 大限12·流年10·流月12·小限90 级联钻取、选中层流命环落位；格局命中「府相朝垣(富贵·破)」顶部起排；本命/大限态盘面与改前像素级一致；明暗双主题均无重叠。
+- ⚠️ 紫微坑：① 后端 `getDouJun(month,timezi)` 是月名查表，斗君宫 index 用 `(子斗支+流年支)%12`，传地支会 NPE；② 紫微 `houses[]` 下标≠固定地支位，「地支→houses 下标」必须搜 `houses[].ganzi.charAt(1)`，禁用 `DIZI.indexOf`。
 
 ---
 

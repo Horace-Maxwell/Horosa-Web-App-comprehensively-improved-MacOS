@@ -549,7 +549,14 @@ function generateCaseTechniqueSnapshot(record, moduleName, payload){
 			null,
 			payload.guireng !== undefined && payload.guireng !== null ? payload.guireng : 2,
 			payload.wuxing || '土',
-			record.gender !== undefined && record.gender !== null ? record.gender : 1
+			record.gender !== undefined && record.gender !== null ? record.gender : 1,
+			{
+				castMethod: payload.castMethod,
+				xuanShiZhi: payload.xuanShiZhi,
+				yanShuNum: payload.yanShuNum,
+				yueJiangMethod: payload.yueJiangMethod,
+				fenZhouYe: payload.fenZhouYe,
+			}
 		);
 	case 'jinkou': {
 		if(!payload || !payload.liureng){

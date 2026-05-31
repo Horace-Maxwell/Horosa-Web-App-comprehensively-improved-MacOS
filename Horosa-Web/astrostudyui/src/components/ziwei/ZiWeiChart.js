@@ -130,6 +130,9 @@ class ZiWeiChart extends Component{
 			}
 		}
 
+		this.zwchart.luckMingIndex = (this.props.luckMingIndex !== undefined && this.props.luckMingIndex !== null)
+			? this.props.luckMingIndex : null;
+
 		this.zwchart.draw();
 	}
 
