@@ -20,11 +20,17 @@
 
 ---
 
-## 启动机制稳健化（端口 / 就绪根治 · 分支 `feature/startup-port-readiness-hardening` · 版本待定）
+## v2.5.0（已发）— 推运补全 + 金口诀解读层 + 七政四余Moira + 时区/DST 自动校正 + 启动机制稳健化（4 分支收敛）
 
-> 机制详解:[`启动机制稳健化-端口与就绪.md`](启动机制稳健化-端口与就绪.md)。根治两个反复症状:①端口被占用→用不了;②打开后「后端未启动 / 本地排盘服务未就绪」。**设计铁律:全部增量式,只在「今天本来就会坏」的失败路径触发,启动/排盘成功路径与今天逐字节一致。** **无 Java 改动 → 不需重编 jar。**
+> 本版由 4 个 macOS 分支收敛发布。**关键:含后端 Java/Python 改动(推运补全)→ Windows 必须重编 `astrostudyboot.jar`**(见总则第 2 条);前端改动多,必须 `npm run build` 然后 `npm run build:file`(顺序勿并行)。下面先列各功能同步要点,「启动机制稳健化」细节在 A/B/C 段。
 
-### A. 共享前端(Windows **必须**同步 + 重建前端包:`npm run build` 然后 `npm run build:file`)
+### 0. 本版各功能同步要点
+- **西占推运补全 7 技法 + Balbillus + 福点整宫制**:**含后端 Java + Python 改动 → Windows 必须重编 jar**。文件:`astropy/astrostudy/{symbolicdir,yearsystem129}.py`、`astropy/astrostudy/perchart.py`(福点整宫制:`house.hsys` 须设 `const.HOUSES_WHOLE_SIGN`,否则 flatlib `inHouse` 加 -5° 偏移致落宫差一)、`astrostudysrv/**`(Java,**重编 jar**)、`astrostudyui/src/components/astro/Astro*.js`、`utils/{balbillus,planetaryAges}.js`。详解:`docs/西占新技法-逐技法实现详解-v2.5.0.md`。
+- **时区/夏令时(DST)自动校正**:**新增前端依赖 `tz-lookup`**(`astrostudyui/package.json` → Windows `npm install` 会带上);`utils/timezone.js` + `components/comp/DstZoneIndicator.js` + 三表单(ChartFormData / ChartData / CaseData)。纯前端,重建前端包即可。
+- **金口诀解读层 / 七政四余 Moira**:纯前端(`components/jinkou/**`、`components/guolao/**`、`components/taiyi/**`、`components/liureng/LRConst.js`),重建前端包即可。
+- **启动机制稳健化**:根治「端口被占用→用不了 / 打开后显示后端未启动」。机制详解 [`启动机制稳健化-端口与就绪.md`](启动机制稳健化-端口与就绪.md)。**设计铁律:全部增量式,只在「今天本来就会坏」的失败路径触发,成功路径与今天逐字节一致。** 详见下 A/B/C 段。
+
+### A. 启动稳健化·共享前端(随上面前端包一起重建)
 - **新增** `astrostudyui/src/utils/serviceStatus.js`(全局在线/离线态 + 严格离线判定)、`astrostudyui/src/utils/chartFetch.js`(排盘裸 fetch 透明重试薄包装)、`astrostudyui/src/components/common/ServiceStatusBanner.js`(非阻塞重连横幅)。
 - **改** `astrostudyui/src/utils/request.js`:加 `fetchWithRetryConnRefused`(`request()`/`requestRaw()` 的 fetch 经它——拿到响应即置在线;仅当传 `opts.retry` 且「后端不可达」(`TypeError`)时退避重试;最终不可达置离线)。**SSE `requestStream` 绝不接入重试**(防双发 / 重复计费)。
 - **改** 四引擎排盘主路径:`components/dunjia/DunJiaCalc.js`、`components/taiyi/TaiYiCalc.js`、`components/jinkou/JinKouCalc.js`、`services/qizheng.js` 的裸 `fetch(buildKentangEndpoint…)` → `fetchChartWithRetry(…)`;其 `request()` 兜底加 `retry: { retries: 2 }`。

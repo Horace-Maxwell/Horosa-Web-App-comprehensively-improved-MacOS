@@ -12,6 +12,16 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-05-31
+
+### v2.5.0：西占推运补全7技法 + 金口诀解读层 + 七政四余Moira还原 + 时区/DST自动校正 + 启动机制稳健化（端口/就绪根治）
+
+> 四分支收敛发布（astro-progression-v250 + jinkou-interp-layer + guolao-moira-fidelity + startup-port-readiness-hardening）。**含 Java/Python 改动,已重编 `astrostudyboot.jar`。** 先推 main 供 Windows 同步,再走全量签名/公证 release。
+
+- Scope: (1) 西占推运补全7技法(波斯向运双圈/行星弧/Vedic/Jayne赤纬/行星年龄/真129年/Balbillus校准)+福点整宫制+相位美化+映点反映点恢复;(2) 时区/夏令时(DST)三表单自动校正(离线 IANA);(3) 金口诀解读层(神煞判语/四位生克/应期/分类用神/刑冲合害破/太玄数);(4) 七政四余 Moira 还原度(28宿环/显示选项/多tab/大限/神煞);(5) 启动机制稳健化——端口被占先回收自家僵尸+换口重试(脚本 exit3 ↔ Rust 换口,**web 不入环防 [9]E**)、卡死自家后端签名核实精准回收(不误杀)、就绪前最小同步热身(非致命有界)、排盘请求透明重试(SSE/AI/SAVE 排除防双计费)、非阻塞重连横幅(严格离线判定)。**根治「端口被占用用不了 / 打开后显示后端未启动」。**
+- Files: 启动 `Horosa_Desktop_Installer/src-tauri/src/main.rs` + `Horosa-Web/start_horosa_local.sh` + 前端 `astrostudyui/src/utils/{request,chartFetch,serviceStatus}.js` + 四引擎 calc + `layouts/app.js` + `components/common/ServiceStatusBanner.js` + `scripts/warmHorosaRuntime.js`;推运 `astropy/astrostudy/{symbolicdir,yearsystem129}.py` + `perchart.py` + `astrostudyui` 多组件 + `utils/{balbillus,timezone,planetaryAges}.js`;jinkou/Moira `components/{jinkou,guolao,taiyi}`。preflight 哨兵 [11]–[19]。版本号 **2.5.0 / 2.5.0-runtime1** 全文件 lockstep(三 README + CITATION.cff + Cargo.toml/lock + tauri.conf + package.json + release_config + web/app.js + verify_launcher_console_states)。
+- Verification: 前端 `umi build` 绿;`umi-test` 29 套件 140 测试全绿;`cargo fmt`+`cargo check` 绿;真起本地栈 smoke(services ready / chart `{ok:true}` / 占端口 exit3 / 最小热身 4s / java owner 标记);`release_preflight.sh` [1]–[19] 全绿(发布前跑)。
+
 ## 2026-05-29
 
 ### v2.4.0（重发补丁,版本号不变）：热修「更新后卡启动页 / 不进主界面 /「进入主界面」按钮点不动」(真因 cleanup_state 误杀静态服务器)
