@@ -3,6 +3,12 @@ import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
+import {
+	JINKOU_SHENSHA_DOC,
+	JINKOU_RELATION_DOC,
+	JINKOU_DIZHI_DOC,
+	JINKOU_CATEGORY_RULES,
+} from './JinKouDoc';
 
 export const JinKouElementColor = {
 	'木': '#2f9f68',
@@ -154,7 +160,7 @@ const WuZiDunStart = {
 };
 const DayTimeZi = ['卯', '辰', '巳', '午', '未', '申'];
 const GuiReverseStartZi = ['巳', '午', '未', '申', '酉'];
-const JinKouShenShaOrder = [
+export const JinKouShenShaOrder = [
 	'天德',
 	'天德合',
 	'月德',
@@ -1193,6 +1199,138 @@ function buildRow(option){
 	};
 }
 
+// —— 解读层：五行生克 / 地支关系 / 四位生克 / 太玄数 / 用神强弱 / 应期 / 神煞判语 ——
+function wuxingRelation(a, b){
+	if(!a || !b){ return ''; }
+	if(a === b){ return '比和'; }
+	if(JinKouWuXingSheng[a] === b){ return '生'; }
+	if(JinKouWuXingSheng[b] === a){ return '被生'; }
+	if(JinKouWuXingKe[a] === b){ return '克'; }
+	if(JinKouWuXingKe[b] === a){ return '被克'; }
+	return '';
+}
+
+function branchRelTypes(a, b){
+	if(!a || !b){ return []; }
+	const res = [];
+	const both = (map)=>map && (map[a] === b || map[b] === a);
+	const bothArr = (map)=>map && ((map[a] && map[a].indexOf(b) >= 0) || (map[b] && map[b].indexOf(a) >= 0));
+	if(both(LRConst.ZiCong)){ res.push('冲'); }
+	if(both(LRConst.ZiHe)){ res.push('合'); }
+	if(bothArr(LRConst.ZiSangHe)){ res.push('三合'); }
+	if(both(LRConst.ZiHai)){ res.push('害'); }
+	if(both(LRConst.ZiPo)){ res.push('破'); }
+	if(both(LRConst.ZiXing)){ res.push('刑'); }
+	return res;
+}
+
+function buildJinKouRelations(rows){
+	const byLabel = {};
+	rows.forEach((r)=>{ byLabel[r.label] = r; });
+	const pairs = [['贵神', '人元'], ['将神', '贵神'], ['地分', '将神'], ['地分', '人元'], ['地分', '贵神'], ['将神', '人元']];
+	const out = [];
+	pairs.forEach((pair)=>{
+		const a = byLabel[pair[0]];
+		const b = byLabel[pair[1]];
+		if(!a || !b || !a.elem || !b.elem){ return; }
+		const rel = wuxingRelation(a.elem, b.elem);
+		if(!rel){ return; }
+		const key = `${pair[0]}_${rel}_${pair[1]}`;
+		const text = JINKOU_RELATION_DOC[key] || JINKOU_RELATION_DOC[`_${rel}_`] || '';
+		out.push({ from: pair[0], to: pair[1], rel: rel, fromElem: a.elem, toElem: b.elem, text: text });
+	});
+	return out;
+}
+
+function rowZhi(r){
+	if(!r){ return ''; }
+	if(r.branch){ return r.branch; }
+	return LRConst.ZiList.indexOf(r.content) >= 0 ? r.content : '';
+}
+
+function buildJinKouBranchRelations(rows, dayZi){
+	const points = [];
+	rows.forEach((r)=>{ const zhi = rowZhi(r); if(zhi){ points.push({ label: r.label, branch: zhi }); } });
+	if(dayZi){ points.push({ label: '日辰', branch: dayZi }); }
+	const out = [];
+	const seen = {};
+	for(let i=0; i<points.length; i++){
+		for(let j=i + 1; j<points.length; j++){
+			const types = branchRelTypes(points[i].branch, points[j].branch);
+			types.forEach((type)=>{
+				const k = `${type}_${points[i].branch}_${points[j].branch}`;
+				if(seen[k]){ return; }
+				seen[k] = true;
+				out.push({ type: type, a: points[i].branch, b: points[j].branch, aLabel: points[i].label, bLabel: points[j].label, desc: JINKOU_DIZHI_DOC[type] || '' });
+			});
+		}
+	}
+	return out;
+}
+
+function buildJinKouTaixuan(rows){
+	return rows.map((r)=>{
+		const tokens = [];
+		if(r.gan && r.gan !== '-' && LRConst.TaiXuanNum[r.gan] !== undefined){ tokens.push(r.gan); }
+		if(r.content && LRConst.TaiXuanNum[r.content] !== undefined && tokens.indexOf(r.content) < 0){ tokens.push(r.content); }
+		const nums = tokens.map((t)=>LRConst.TaiXuanNum[t]);
+		const sum = nums.reduce((s, n)=>s + n, 0);
+		return { label: r.label, tokens: tokens.join(''), nums: nums, num: sum };
+	});
+}
+
+function buildJinKouYongStrength(yongYao, rows, wangShuaiMap){
+	if(!yongYao || !yongYao.label){ return null; }
+	const row = rows.find((r)=>r.label === yongYao.label);
+	const elem = row ? row.elem : '';
+	const state = elem && wangShuaiMap ? wangShuaiMap[elem] : '';
+	let level = '中';
+	if(state === '旺' || state === '相'){ level = '强'; }
+	else if(state === '囚' || state === '死'){ level = '弱'; }
+	const tail = level === '强' ? '所谋易成' : (level === '弱' ? '力弱难成' : '平平');
+	const text = `用神${yongYao.label}（${elem || '—'}）当令${state || '—'}，主${tail}。`;
+	return { label: yongYao.label, elem: elem, state: state, level: level, text: text };
+}
+
+function buildJinKouYingQi(ctx){
+	const yongRow = ctx.yongRow;
+	if(!yongRow){ return null; }
+	const yBranch = yongRow.branch || (LRConst.ZiList.indexOf(yongRow.content) >= 0 ? yongRow.content : '');
+	const yGan = (yongRow.gan && yongRow.gan !== '-') ? yongRow.gan : (LRConst.GanList.indexOf(yongRow.content) >= 0 ? yongRow.content : '');
+	let scope = '月内';
+	if(yGan && yGan === ctx.dayGan){ scope = '旬内'; }
+	else if(yBranch && yBranch === ctx.dayZi){ scope = '月内'; }
+	else if(yBranch && yBranch === ctx.timeZi){ scope = '即刻'; }
+	else if(yBranch && yBranch === ctx.yearZi){ scope = '年内'; }
+	if(ctx.guiGan && ctx.guiZi && ctx.guiGan === ctx.dayGan && ctx.guiZi === ctx.dayZi){ scope = '即日'; }
+	const state = ctx.wangShuaiMap && yongRow.elem ? ctx.wangShuaiMap[yongRow.elem] : '';
+	const empty = yBranch && ctx.xunKongBranches && ctx.xunKongBranches.indexOf(yBranch) >= 0;
+	let text = scope === '即日' ? '贵神与日柱相同，可即日得验。' : `用神所临，约主${scope}应。`;
+	if(state === '旺' || state === '相'){ text += '用神旺相，应之宜速（取近）。'; }
+	else if(state === '休' || state === '囚' || state === '死'){ text += '用神休囚，应之多迟（取远）。'; }
+	if(empty){ scope = '出空后'; text += '用神逢空，须俟出空之日方应。'; }
+	return { scope: scope, text: text };
+}
+
+function buildJinKouShenshaDoc(shenshaRows, yongLabel){
+	const rows = [];
+	const relevant = [];
+	(shenshaRows || []).forEach((r)=>{
+		const position = `${r.label || ''}`.replace(/神煞$/, '');
+		const names = `${r.value || ''}`.split(/[、，,\s]+/).filter((n)=>n && n !== '无');
+		const items = names.map((name)=>{
+			const doc = JINKOU_SHENSHA_DOC[name];
+			return { name: name, jx: doc ? doc.jx : 'zhong', desc: doc ? doc.desc : '' };
+		});
+		rows.push({ label: r.label, position: position, items: items });
+		items.forEach((it)=>relevant.push({ name: it.name, jx: it.jx, desc: it.desc, position: position }));
+	});
+	if(yongLabel){
+		relevant.sort((a, b)=>(a.position === yongLabel ? 0 : 1) - (b.position === yongLabel ? 0 : 1));
+	}
+	return { rows: rows, relevant: relevant };
+}
+
 export function buildJinKouData(liureng, options){
 	const opt = options ? options : {};
 	if(!liureng || !liureng.nongli){
@@ -1317,6 +1455,17 @@ export function buildJinKouData(liureng, options){
 		jiangElem: jiangElem,
 	});
 
+	// 解读层派生字段（确定性纯计算；五动/三动规则待底本，dong 预留空）
+	const dayZi = getDayZi(liureng);
+	const yearZi = getYearZi(liureng);
+	const yongRow = yongYao && yongYao.label ? rows.find((r)=>r.label === yongYao.label) : null;
+	const shenshaDoc = buildJinKouShenshaDoc(shenshaRows, yongYao ? yongYao.label : '');
+	const jkRelations = buildJinKouRelations(rows);
+	const jkBranchRelations = buildJinKouBranchRelations(rows, dayZi);
+	const jkTaixuan = buildJinKouTaixuan(rows);
+	const jkYongStrength = buildJinKouYongStrength(yongYao, rows, wangShuaiMap);
+	const jkYingQi = buildJinKouYingQi({ yongRow: yongRow, dayGan: dayGan, dayZi: dayZi, timeZi: timeZi, yearZi: yearZi, guiGan: guiGan, guiZi: guiZi, wangShuaiMap: wangShuaiMap, xunKongBranches: xunKongBranches });
+
 	return {
 		ready: true,
 		diFen: diFen,
@@ -1341,6 +1490,17 @@ export function buildJinKouData(liureng, options){
 		yongYao: yongYao,
 		rows: rows,
 		shenshaRows: shenshaRows,
+		dayZi: dayZi,
+		yearZi: yearZi,
+		yongStrength: jkYongStrength,
+		relations: jkRelations,
+		branchRelations: jkBranchRelations,
+		taixuan: jkTaixuan,
+		yingQi: jkYingQi,
+		shenshaDocRows: shenshaDoc.rows,
+		relevantShensha: shenshaDoc.relevant,
+		categoryRules: JINKOU_CATEGORY_RULES,
+		dong: { san: [], wu: [] },
 		topInfo: {
 			diFen: diFen,
 			xunKong: xunKongBranches.length ? xunKongBranches.join('') : '无',
@@ -1443,6 +1603,10 @@ export function normalizeKinjinkouData(backendPan, fallbackData){
 	const fallbackRows = fallback.rows || [];
 	const rows = backendPan.rows.map((row, idx)=>normalizeBackendRow(row, fallbackRows[idx]));
 	const yongRow = rows.find((row)=>row.isYong);
+	// 解读层随「显示行(后端)」重算，避免与本地 fallback 行（月将/将神可能不同）不一致
+	const reYongLabel = (yongRow && yongRow.label) || (backendPan.yongYao && backendPan.yongYao.label) || (fallback.yongYao && fallback.yongYao.label) || '';
+	const reYongRow = reYongLabel ? rows.find((row)=>row.label === reYongLabel) : null;
+	const reGuiRow = rows.find((row)=>row.label === '贵神');
 	return {
 		...fallback,
 		ready: true,
@@ -1460,6 +1624,11 @@ export function normalizeKinjinkouData(backendPan, fallbackData){
 			sign: yongRow ? yongRow.sign : (backendPan.yongYao ? backendPan.yongYao.sign : ''),
 		},
 		rows: rows,
+		relations: buildJinKouRelations(rows),
+		branchRelations: buildJinKouBranchRelations(rows, fallback.dayZi),
+		taixuan: buildJinKouTaixuan(rows),
+		yongStrength: reYongRow ? buildJinKouYongStrength({ label: reYongRow.label }, rows, fallback.wangShuai) : fallback.yongStrength,
+		yingQi: buildJinKouYingQi({ yongRow: reYongRow, dayGan: fallback.dayGan, dayZi: fallback.dayZi, timeZi: fallback.timeZi, yearZi: fallback.yearZi, guiGan: reGuiRow ? reGuiRow.gan : fallback.guiGan, guiZi: reGuiRow ? rowZhi(reGuiRow) : fallback.guiZi, wangShuaiMap: fallback.wangShuai, xunKongBranches: fallback.xunKongBranches }),
 		plates: backendPan.plates || [],
 		sections: backendPan.sections || [],
 		shenshaRows: fallback.shenshaRows || [],

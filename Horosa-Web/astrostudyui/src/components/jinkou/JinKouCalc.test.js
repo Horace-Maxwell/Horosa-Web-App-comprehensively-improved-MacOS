@@ -1,4 +1,5 @@
-import { buildJinKouData, calcJinKouWangElem, buildJinKouWangShuaiMap } from './JinKouCalc';
+import { buildJinKouData, calcJinKouWangElem, buildJinKouWangShuaiMap, JinKouShenShaOrder } from './JinKouCalc';
+import { JINKOU_SHENSHA_DOC } from './JinKouDoc';
 
 function mockLiuReng(data){
 	return {
@@ -266,5 +267,38 @@ describe('JinKouCalc', ()=>{
 		expect(map['金']).toBe('休');
 		expect(map['土']).toBe('囚');
 		expect(map['火']).toBe('死');
+	});
+
+	it('derives 解读层 fields (relations / 应期 / 太玄数 / 神煞判语)', ()=>{
+		const data = buildJinKouData(mockLiuReng(), {
+			diFen: '午',
+			guirengType: 0,
+		});
+		expect(Array.isArray(data.taixuan)).toBe(true);
+		expect(data.taixuan.length).toBe(4);
+		const diTx = data.taixuan.find((t)=>t.label === '地分');
+		expect(diTx.num).toBe(9);
+		expect(Array.isArray(data.relations)).toBe(true);
+		expect(Array.isArray(data.branchRelations)).toBe(true);
+		expect(data.yongStrength).toBeTruthy();
+		expect(typeof data.yongStrength.text).toBe('string');
+		expect(data.yingQi).toBeTruthy();
+		expect(typeof data.yingQi.scope).toBe('string');
+		expect(data.shenshaDocRows.length).toBe(4);
+		expect(Array.isArray(data.relevantShensha)).toBe(true);
+		data.relevantShensha.forEach((item)=>{
+			expect(['ji', 'xiong', 'zhong']).toContain(item.jx);
+		});
+		const qc = data.categoryRules.filter((c)=>c.texts && c.texts.length);
+		expect(qc.length).toBeGreaterThanOrEqual(1);
+		expect(data.dong).toEqual({ san: [], wu: [] });
+	});
+
+	it('covers every 起例 神煞 with a judgment + valid 吉凶色 (guards the 天德合 gap)', ()=>{
+		const missing = JinKouShenShaOrder.filter((name)=>!JINKOU_SHENSHA_DOC[name] || !JINKOU_SHENSHA_DOC[name].desc);
+		expect(missing).toEqual([]);
+		JinKouShenShaOrder.forEach((name)=>{
+			expect(['ji', 'xiong', 'zhong']).toContain(JINKOU_SHENSHA_DOC[name].jx);
+		});
 	});
 });
