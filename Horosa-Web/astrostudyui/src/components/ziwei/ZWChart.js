@@ -17,6 +17,7 @@ class ZWChart {
 		this.svgTopgroup = null;
 		this.svg = null;
 		this.flyHouse = null;
+		this.luckMingIndex = null;
 		this.zwindicator = new ZWIndicator({
 			zwchart: this,
 		});
@@ -175,6 +176,8 @@ class ZWChart {
 				chartObj: this.chartObj,
 				zwchart: this,
 				dirIndex: this.dirIndex,
+				houseIndex: i,
+				luckMingIndex: this.luckMingIndex,
 				divTooltip: d3.select('#' + this.tooltipId),
 				divTooltipId: this.tooltipId,
 				rules: this.rules,

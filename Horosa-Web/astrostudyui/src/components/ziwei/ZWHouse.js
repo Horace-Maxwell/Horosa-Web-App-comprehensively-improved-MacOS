@@ -39,6 +39,17 @@ class ZWHouse extends ZWCommHouse {
 		this.svg = container;
 		this.bindClick();
 
+		if(this.luckMingIndex !== undefined && this.luckMingIndex !== null && this.luckMingIndex === this.houseIndex){
+			container.append('rect')
+				.attr('x', this.x + 1.5).attr('y', this.y + 1.5)
+				.attr('width', this.width - 3).attr('height', this.height - 3)
+				.attr('fill', 'none')
+				.attr('stroke', 'var(--horosa-gold, #9a6a25)')
+				.attr('stroke-width', 2)
+				.attr('rx', 3)
+				.attr('pointer-events', 'none');
+		}
+
 		if(ZWCont.ZWChart.chart === ZWCont.ZWChart_FeiXing){
 			this.drawFeixing();
 		}else if(ZWCont.ZWChart.chart === ZWCont.ZWChart_SangHe){

@@ -56,6 +56,9 @@ public class ZiWeiHelper {
 	
 	public final static String[] SiHua = new String[4];
 
+	public final static Map<String, Map<String, String>> LiuChangQu = new HashMap<String, Map<String, String>>();
+	public final static Map<String, String[]> GanSihuaStars = new HashMap<String, String[]>();
+
 	
 	static {
 		LifeHouseStart.put("正月", StemBranch.BRANCH_YIN);
@@ -120,6 +123,7 @@ public class ZiWeiHelper {
 		initStarsMaster();
 		initDouJun();
 		initXiaoXian();
+		initLiuChangQu();
 	}
 	
 	private static void initSihua() {
@@ -139,6 +143,7 @@ public class ZiWeiHelper {
 			sihua.put(stars[2], SiHua[2]);
 			sihua.put(stars[3], SiHua[3]);
 			StarSihua.put(gan, sihua);
+			GanSihuaStars.put(gan, stars);
 			setupSihuaGan(gan, stars, SiHua);
 		}
 	}
@@ -299,6 +304,14 @@ public class ZiWeiHelper {
 		
 	}
 		
+	private static void initLiuChangQu() {
+		String json = FileUtility.getStringFromClassPath("spacex/astrostudycn/helper/ziweiliuchangqu.json");
+		Map<String, Object> map = JsonUtility.toDictionary(json);
+		for(Map.Entry<String, Object> entry : map.entrySet()) {
+			LiuChangQu.put(entry.getKey(), (Map<String, String>) entry.getValue());
+		}
+	}
+
 	public static void setupSihua(String yeargan, ZiWeiStar star, Map<String, Map<String, String>> mySihua) {
 		Map<String, String> map = null;
 		if(mySihua != null) {
@@ -353,7 +366,7 @@ public class ZiWeiHelper {
 		if(gender == BaZiGender.Male) {
 			idx = (idx + startidx) % 12;
 		}else {
-			idx = (idx - startidx + 12) % 12;
+			idx = (startidx - idx + 12) % 12;
 		}
 		return idx;
 	}

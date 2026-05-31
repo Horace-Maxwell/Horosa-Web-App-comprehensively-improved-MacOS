@@ -19,6 +19,8 @@ export default class ZWCommHouse {
 		this.flyGanzi = option.flyGanzi;
 		this.zwchart = option.zwchart;
 		this.dirIndex = option.dirIndex;
+		this.houseIndex = option.houseIndex;
+		this.luckMingIndex = option.luckMingIndex;
 		if(this.houseObj){
 			this.houseObj.houseChart = this;
 		}

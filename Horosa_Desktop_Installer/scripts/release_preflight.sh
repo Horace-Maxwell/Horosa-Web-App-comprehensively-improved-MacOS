@@ -281,6 +281,35 @@ for f in "components/comp/ChartFormData.js" "components/user/ChartData.js" "comp
 done
 [ "${dst_forms_ok}" -eq 1 ] && ok "D 三表单(ChartFormData/ChartData/CaseData)均接 DST 自动校正"
 
+# 12. 紫微 运限(ZiWeiLuck)/格局(ZiWeiPattern) 深度增强完整性(v2.5.8)
+echo "[12] 紫微 运限/格局深度增强"
+ZW_HELPER_DIR="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/helper"
+ZW_MODEL_DIR="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/model"
+ZW_FAT_JAR="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
+ZW_MAIN="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/ziwei/ZiWeiMain.js"
+zw_src_ok=1
+for f in "${ZW_MODEL_DIR}/ZiWeiLuck.java" "${ZW_MODEL_DIR}/ZiWeiPattern.java" "${ZW_HELPER_DIR}/ziweige.json" "${ZW_HELPER_DIR}/ziweiliuchangqu.json"; do
+  [ -f "$f" ] || { bad "[12] 缺文件 $(basename "$f")"; zw_src_ok=0; }
+done
+[ "$zw_src_ok" -eq 1 ] && ok "[12] ZiWeiLuck/ZiWeiPattern + ziweige/ziweiliuchangqu 源齐全"
+if grep -q "startidx - idx" "${ZW_HELPER_DIR}/ZiWeiHelper.java" 2>/dev/null; then ok "[12] getSmallDirectioinHouse 女命分支已修正(startidx - idx)"; else bad "[12] getSmallDirectioinHouse 女命分支疑似未修正(应为 startidx - idx)"; fi
+if grep -q "ZWLuckPanel" "${ZW_MAIN}" 2>/dev/null && grep -q "ZWPatternPanel" "${ZW_MAIN}" 2>/dev/null; then ok "[12] ZiWeiMain 已挂 ZWLuckPanel/ZWPatternPanel"; else bad "[12] ZiWeiMain 未挂 运限/格局 TabPane"; fi
+if [ -f "${ZW_FAT_JAR}" ] && command -v unzip >/dev/null 2>&1; then
+  zw_cn="$(unzip -Z1 "${ZW_FAT_JAR}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
+  if [ -n "${zw_cn}" ]; then
+    zw_list="$(cd "$(mktemp -d)" && unzip -oq "${ZW_FAT_JAR}" "${zw_cn}" 2>/dev/null && unzip -Z1 "${zw_cn}" 2>/dev/null)"
+    if echo "${zw_list}" | grep -q "ZiWeiLuck.class" && echo "${zw_list}" | grep -q "ZiWeiPattern.class" && echo "${zw_list}" | grep -q "ziweige.json" && echo "${zw_list}" | grep -q "ziweiliuchangqu.json"; then
+      ok "[12] fat jar 已含 ZiWeiLuck/ZiWeiPattern + ziweige/ziweiliuchangqu(gotcha #10)"
+    else
+      bad "[12] fat jar 缺紫微运限/格局类或数据 —— 需 astrostudycn install + astrostudyboot clean package"
+    fi
+  else
+    warn "[12] fat jar 内未找到 astrostudycn dep jar,跳过内容校验"
+  fi
+else
+  warn "[12] 未找到 fat jar 或无 unzip,跳过 jar 内容校验"
+fi
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

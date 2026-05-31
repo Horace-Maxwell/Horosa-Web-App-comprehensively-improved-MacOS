@@ -17,6 +17,8 @@ import spacex.astrostudycn.constants.TimeZiAlg;
 import spacex.astrostudycn.helper.ZWRulesHelper;
 import spacex.astrostudycn.helper.ZiWeiHelper;
 import spacex.astrostudycn.model.ZiWeiChart;
+import spacex.astrostudycn.model.ZiWeiLuck;
+import spacex.astrostudycn.model.ZiWeiPattern;
 
 @Controller
 @RequestMapping("/ziwei")
@@ -50,7 +52,8 @@ public class ZiWeiController {
 			Map<String, Object> res = new HashMap<String, Object>();
 			
 			res.put("chart", chart);
-			return res;			
+			res.put("patterns", ZiWeiPattern.detect(chart));
+			return res;
 		});
 		
 		Map<String, Object> res = (Map<String, Object>)obj;		
@@ -134,5 +137,41 @@ public class ZiWeiController {
 	public void rules() {
 		Map<String, Object> map = ZWRulesHelper.getRules();
 		TransData.set(map);
+	}
+
+	@ResponseBody
+	@RequestMapping("/luck")
+	public void luck() {
+		Map<String, Object> params = checkParams();
+
+		String zone = TransData.getValueAsString("zone");
+		String lat = TransData.getValueAsString("lat");
+		String lon = TransData.getValueAsString("lon");
+		String dtstr = String.format("%s %s", params.get("date"), params.get("time"));
+		int ad = ConvertUtility.getValueAsInt(params.get("ad"), 1);
+
+		boolean after23NewDay = (boolean) params.get("after23NewDay");
+		boolean lateZiHourUseNextDay = (boolean) params.get("lateZiHourUseNextDay");
+		boolean genderval = (boolean) params.get("gender");
+		BaZiGender gender = BaZiGender.fromValue(genderval);
+		int timeAlgCode = ConvertUtility.getValueAsInt(params.get("timeAlg"), 0);
+		TimeZiAlg parsedTimeAlg = TimeZiAlg.fromCode(timeAlgCode);
+		if (parsedTimeAlg != TimeZiAlg.DirectTime) {
+			parsedTimeAlg = TimeZiAlg.RealSun;
+		}
+
+		Map<String, Map<String, String>> sihua = (Map<String, Map<String, String>>) params.get("sihua");
+		ZiWeiChart chart = new ZiWeiChart(ad, gender, dtstr, zone, lon, lat, after23NewDay, sihua, parsedTimeAlg,
+				false, lateZiHourUseNextDay);
+
+		Map<String, Object> target = null;
+		if (TransData.containsParam("target")) {
+			target = (Map<String, Object>) TransData.get("target");
+		}
+
+		Map<String, Object> layers = ZiWeiLuck.build(chart, target, after23NewDay, lateZiHourUseNextDay);
+		Map<String, Object> res = new HashMap<String, Object>();
+		res.put("layers", layers);
+		TransData.set(res);
 	}
 }

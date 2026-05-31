@@ -236,3 +236,21 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 - **更新标记必须「读取即消费」。** `update-complete.txt` 若只在启动**成功**时删,首启一失败就残留 → 下次仍走 300s 慢路径,反复卡。现 `main.rs` 一进 `runtime_bootstrap` 就 `consume_update_complete_marker_into_state`(缓存通知到 `AppState` 后立即删标记),成功后从内存弹「更新完成」窗。
 - **更新后「首启」别再走「全量慢校验」——它是冗余的(v2.3.2 修)。** `apply_update` 装前已 `verify_sha256(runtime_sha256)`,装进去的 runtime 是逐字节验签过的;但 `runtime_bootstrap` 旧逻辑 `fast_path_enabled = !first_launch_after_update && …` **强制**首启全量,而让后续变快的 fast-path 标记**只在「整轮成功」后才写** → 冷首启 ~22s 像卡死被强退 → 标记没写 → 下次又全量 → **反复重启两三次才打开**(真机一次更新三启 trusted=0/0/1)。修法:对已验签 runtime 在 `start_runtime` **之前**就 `write_runtime_fast_path_marker` 预写标记 + 取消 `fast_path_enabled` 对首启的强制关闭 → 首启即快路径、强退也不回退全量。详见 [`../docs/更新后自启修复-v2.3.2.md`](../docs/更新后自启修复-v2.3.2.md)。**别把首启退回成无条件全量校验。** 注:`update-installer.log` 的 `[open] relaunch confirmed` 证明 helper 自动重开本身没坏,卡的一直是首启那段。
 - 以上各点有 `release_preflight.sh` **[9] 哨兵(C①/A/C②/B/D)**兜底,别绕过。
+
+## 紫微 运限/格局深度增强（v2.5.8）— 5 个会反复踩的坑
+
+紫微补「运限体系(八字式级联条) + 格局自动识别」时踩到的坑，逐条都做了 code guard / 自检：
+
+1. **新后端路由必须重编 `astrostudyboot.jar`（gotcha #10）。** `/ziwei/luck` 与 `/ziwei/birth` 的 `patterns` 在 `astrostudycn`；本地/发布都不自动重编 fat jar。须 `mvn -o -f astrostudycn/pom.xml install -DskipTests && mvn -o -f astrostudyboot/pom.xml clean package -DskipTests`，`javap` 验 `ZiWeiController.luck()`/`ZiWeiLuck.build`/`ZiWeiPattern.detect` + `ziweige.json`/`ziweiliuchangqu.json` 进 jar，再 `stop+start` 重启。不重启 → /ziwei/luck 500。
+
+2. **`ZiWeiHelper.getDouJun(month,timezi)` 后端是「月名」查表，传地支必 NPE**（`Cannot invoke "java.util.Map.get" because "map" is null`）。斗君宫 index = `(子斗支idx + 流年支idx)%12`（同 `ZiWeiChart` 构造法），用 `ZiWeiLuck.doujunIdx()`，勿调 `getDouJun(地支)`。⚠️ 前端 `ZiWeiHelper.getDouJun` 是 index-add 版（与后端同名不同义），勿混用。
+
+3. **`getSmallDirectioinHouse` 女命分支历史 bug**：`(idx-startidx)` 应为 `(startidx-idx)`（女命亦从辰/戌/丑/未起再逆行）。小限无前端呈现故长期未暴露。
+
+4. **紫微 `houses[]` 数组下标 ≠ 固定地支位置（最易翻车）。** `houses[0]` 地支随盘而变。任何「地支→houses 下标」必须按 `houses[].ganzi.charAt(1)` 搜索（前端 `houseIdxByBranch`），**绝不能用 `DIZI.indexOf`**，否则流命环/四化落宫/小限起宫全部差位。
+
+5. **运限/格局面板在 ziwei tabpane 会被 flex 居中。** 新面板根需 `display:block; align-self:stretch; overflow-y:auto`，**不要**复用 `horosa-astro-content-scroll`（它是 grid 居中），否则卡片整体垂直居中而非顶部起排。
+
+6. **运限层级结构（v3 定稿，勿改回单卡/单链）。** 层级 = 大限 → **流年/小限同一 tier（横向分段药丸 toggle `.horosa-ziwei-luck-seg`，带滑块、互斥、只显其一，各 10 槽=该大限的 10 虚岁/年）** → 流月 → 流日 → 流时。详情区是**多层四化卡叠加**：每个已选层级各一张卡（`render()` 里 `cards=[daxian, activeAnnual(), liuyue?, liuri?, liushi?].filter`），不是只显最深层。`activeAnnual()` 按 `state.annualMode` 取 `liunian`/`xiaoxian`；`deepest()` 仍驱动流命环。改运限时务必保持「流年/小限互斥同级」+「全选层级各出一卡」两条语义。
+
+**自检（任何紫微运限/格局改动前后必跑）：** ① `npm test` 全绿（aiExport 9 / aiAnalysisContext 16 / 全 140）；② 预览董盘 `1985-02-13 22:38 女 +08:00 119e18 26n06`：运限 = 大限行 + 流年/小限 toggle 行 + 流月/日/时，逐层钻取；**选大限+流年+流月时详情区同时叠 3 张卡**（各带本层四化），切到流时时叠 5 张卡；toggle 切「小限」后年级行变虚岁链(女命逆行 12岁壬辰→13岁辛卯…)、卡片随之变小限；选中最深层流命环落位；格局命中「府相朝垣(富贵·破)」顶部起排；③ 本命/大限态盘面与改前像素级一致；④ 明暗双主题无重叠。完整记录见 `../docs/紫微斗数-深度增强-运限格局-v2.5.8.md`。
