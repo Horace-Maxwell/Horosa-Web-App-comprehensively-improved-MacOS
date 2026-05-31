@@ -1,0 +1,154 @@
+// 时区 / 夏令时(DST)工具
+// 成熟方案:经纬度 → IANA 时区名(离线 tz-lookup) + 浏览器原生 Intl 求含夏令时的 UTC 偏移。
+// 全程离线、零网络依赖,适配桌面端断网场景。
+
+import tzLookup from 'tz-lookup';
+
+// 经纬度 → IANA 时区名(离线 tz-lookup)。无效/越界坐标返回 null。
+export function ianaTimezoneAt(lat, lng){
+	const la = Number(lat);
+	const ln = Number(lng);
+	if(!Number.isFinite(la) || !Number.isFinite(ln)){
+		return null;
+	}
+	if(la < -90 || la > 90 || ln < -180 || ln > 180){
+		return null;
+	}
+	// (0,0) 海面无意义,视作未选地点
+	if(la === 0 && ln === 0){
+		return null;
+	}
+	try{
+		return tzLookup(la, ln);
+	}catch(e){
+		return null;
+	}
+}
+
+// IANA 时区 + 日期(YYYY-MM-DD) → 含夏令时的 UTC 偏移字符串 "+HH:mm"。
+// 用浏览器原生 Intl(内置完整 IANA tz 历史库,含 1918 等历史夏令时规则),无需任何 tz 数据库依赖。
+export function offsetForZoneAtDate(zone, dateStr){
+	if(!zone || !dateStr){
+		return null;
+	}
+	try{
+		// 取当日正午 UTC 作判定锚点,避开 DST 切换瞬间(凌晨)的歧义
+		const d = new Date(`${dateStr}T12:00:00Z`);
+		if(isNaN(d.getTime())){
+			return null;
+		}
+		const parts = new Intl.DateTimeFormat('en-US', {
+			timeZone: zone,
+			timeZoneName: 'longOffset',
+		}).formatToParts(d);
+		const tn = parts.find((p) => p.type === 'timeZoneName');
+		if(!tn || !tn.value){
+			return null;
+		}
+		const m = /GMT\s*([+-])(\d{1,2})(?::?(\d{2}))?/.exec(tn.value);
+		if(!m){
+			return /GMT/i.test(tn.value) ? '+00:00' : null; // 纯 "GMT" = UTC
+		}
+		const sign = m[1];
+		const hh = m[2].padStart(2, '0');
+		const mm = (m[3] || '00').padStart(2, '0');
+		return `${sign}${hh}:${mm}`;
+	}catch(e){
+		return null;
+	}
+}
+
+// 偏移字符串 "+HH:mm" → 分钟数(用于比较)。失败返回 null。
+function offsetToMinutes(s){
+	const m = /([+-])(\d{2}):(\d{2})/.exec(s || '');
+	if(!m){
+		return null;
+	}
+	return (m[1] === '-' ? -1 : 1) * (parseInt(m[2], 10) * 60 + parseInt(m[3], 10));
+}
+
+// 某时区某日期是否处于夏令时(与同年 1 月 / 7 月偏移对比)。
+// 夏令时 = 更靠东(更大)的那个偏移;两者相等 = 该地不实行夏令时。南北半球皆成立。
+export function isDstActiveAt(zone, dateStr){
+	try{
+		const o = offsetForZoneAtDate(zone, dateStr);
+		if(!o){
+			return false;
+		}
+		const yr = (dateStr || '').slice(0, 4);
+		const oJan = offsetForZoneAtDate(zone, `${yr}-01-15`);
+		const oJul = offsetForZoneAtDate(zone, `${yr}-07-15`);
+		if(!oJan || !oJul || oJan === oJul){
+			return false;
+		}
+		const cur = offsetToMinutes(o);
+		const mx = Math.max(offsetToMinutes(oJan), offsetToMinutes(oJul));
+		return cur !== null && cur === mx;
+	}catch(e){
+		return false;
+	}
+}
+
+// 一站式:经纬度 + 日期 → { zone, offset, dst } 或 null(坐标无效/无法解析)。
+export function dstAwareZoneAt(lat, lng, dateStr){
+	const zone = ianaTimezoneAt(lat, lng);
+	if(!zone){
+		return null;
+	}
+	const offset = offsetForZoneAtDate(zone, dateStr);
+	if(!offset){
+		return null;
+	}
+	return {
+		zone: zone,
+		offset: offset,
+		dst: isDstActiveAt(zone, dateStr),
+	};
+}
+
+// 表单里「日期/时间」字段的兼容取值:ChartFormData=date、ChartData=birth、CaseData=divTime。
+export function dstDateField(flds){
+	if(!flds){
+		return null;
+	}
+	return flds.date || flds.birth || flds.divTime || null;
+}
+
+// 依表单经纬度 + 日期回填含夏令时的时区偏移(保留本地钟点,仅改偏移)。
+// 三类表单通吃(date/birth/divTime + 可选 time)。返回 { zone, offset, dst } 或 null。
+// 注:直接 mutate flds(原地写 zone + 换 DateTime 新引用),调用方随后 setState 即可。
+export function applyDstToFields(flds){
+	const df = dstDateField(flds);
+	if(!flds || !flds.zone || !df || !df.value || !df.value.format){
+		return null;
+	}
+	const dateStr = df.value.format('YYYY-MM-DD');
+	const gpsLat = flds.gpsLat ? flds.gpsLat.value : null;
+	const gpsLon = flds.gpsLon ? flds.gpsLon.value : null;
+	const info = dstAwareZoneAt(gpsLat, gpsLon, dateStr);
+	if(!info){
+		return null;
+	}
+	flds.zone.value = info.offset;
+	// 换新 DateTime 引用(克隆 + setZone),触发 DateTimeSelector 从 props 重新同步时区显示
+	if(df.value.clone){
+		const d = df.value.clone();
+		d.setZone(info.offset);
+		df.value = d;
+	}
+	if(flds.time && flds.time.value && flds.time.value.clone){
+		const t = flds.time.value.clone();
+		t.setZone(info.offset);
+		flds.time.value = t;
+	}
+	return info;
+}
+
+// 友好显示名:取 IANA 末段、下划线换空格(如 "America/New_York" → "New York")。
+export function friendlyZoneName(zone){
+	if(!zone){
+		return '';
+	}
+	const seg = String(zone).split('/');
+	return seg[seg.length - 1].replace(/_/g, ' ');
+}

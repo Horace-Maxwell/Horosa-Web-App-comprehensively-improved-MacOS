@@ -210,6 +210,21 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 
 ---
 
+## 时区 / 夏令时（DST）自动校正（v2.5.0 起）
+
+> 背景：出生时间的时区原本是 `DateTimeSelector.genZone()` 的**手动固定偏移下拉**（东0区…），**全程零 DST**。夏令时地区的夏季/DST 出生盘若选了标准偏移，盘会差 1 小时（月亮 ~0.5°、ASC/宫位整体偏）。成熟方案 = 依出生地经纬度 + 日期自动求**含夏令时**的 UTC 偏移并回填。
+
+- **方案 = `tz-lookup`(经纬度→IANA 时区名，离线 ~1.5MB) + 浏览器原生 `Intl.DateTimeFormat({timeZoneName:'longOffset'})`(IANA+日期→含夏令时偏移)。** 全离线、零网络（桌面断网可用）；`Intl` 内置完整 IANA 历史库（含 1918 等历史 DST 规则，Hamburg 1918-12 正确给 +01:00）。引擎在 `utils/timezone.js`：`ianaTimezoneAt` / `offsetForZoneAtDate` / `isDstActiveAt` / `dstAwareZoneAt`，外加**共享回填** `applyDstToFields(flds)` + 日期字段兼容取值 `dstDateField(flds)`。
+- **🔴 三个表单共用一套，缺一即「在那个位置没啥用」。** 用户实测：只接 `ChartFormData`(星盘配置/query) 不够——真正建盘/改盘的是**命盘库表单 `user/ChartData.js`**(新增/编辑命盘 chartadd/chartedit，经 ChartAdd/ChartEditFormComp) 和**事盘库表单 `user/CaseData.js`**(添加/编辑起课 caseadd/caseedit，经 CaseAdd/CaseEditFormComp)。三者**日期字段名不同**：ChartFormData=`flds.date`(+`flds.time`)、ChartData=`flds.birth`、CaseData=`flds.divTime` → 故用共享 `dstDateField` 兼容、共享 `applyDstToFields` 回填、共享 `<DstZoneIndicator>` 渲染。新增任何带「时间+经纬度」的表单都照接这三件套。
+- **回填三件套（每个表单都接）**：① `changeGeo`(地图选点，重置 `zoneManual=false`) / `changeLat` / `changeLon`(手填坐标，仅 `!zoneManual`) / `changeBirth`|`changeDivTime`(改日期，仅 `!zoneManual`) 调 `applyDstToFields(flds)` —— 算偏移 → 写 `flds.zone.value` + **克隆 DateTime 换新引用** `setZone()`(保留本地钟点、只改偏移)。**坑：必须换新 DateTime 引用**，否则 `DateTimeSelector.render()`(line 765-773「`this.changing===false` 时 `this.datetime=this.props.value`」) 不从 props 重同步、下拉时区不更新（实测「东1区→东8区」靠此生效）。② 渲染 `<DstZoneIndicator fields={flds} onApply={this.applySuggestedZone}/>` 紧贴时间行下。③ `applySuggestedZone()` = `zoneManual=false`+`applyDstToFields`+`setState`。
+- **手动覆盖优先（防回归）**：`this.zoneManual`——`changeBirth/changeDivTime` 里 `newZone !== prevZone`（用户手动改时区下拉）置 `true`，此后日期变化**不再**自动覆盖；`changeGeo`(明确换地点)重置 `false`。**载入已存盘不触发自动**（只 user change 动作触发）→ 老盘时区零改动。
+- **指示 UI = `components/comp/DstZoneIndicator.js`**（可复用，自带 `(lat|lon|date)` 缓存）：渲染 `.horosa-dst-indicator`（`app.less` 末尾 `:global` 段，结构/中性色走 token、明暗双适配）：`🌐 IANA名 · [夏令时/标准时 chip] · UTC±HH:mm · 已自动校正`；当前盘偏移 ≠ DST 正确值时显示「当前 X · **改用 Y**」可点 pill（opt-in 不强改）——专治已存的错时区老盘。
+- **储存/AI 全链路同步是「天然」的（zone 一等公民）**：三表单保存都走 `for(key in flds){ params[key]=flds[key].value }`(ChartEdit/CaseEditFormComp 等) → 校正后的 `flds.zone.value` 直接存为 `record.zone`；AI 挂载重算读 `record.zone`（`aiAnalysisContext.js` `parseBirthString(record.birth, record.zone)` + 重算 fields `zone:record.zone`）；AI 导出快照含 `时区：${record.zone}`。**故无需为 DST 单独接导出/挂载——只要校正值落进 `flds.zone` 即全链路一致**（DST 非技法、不新增导出 section）。
+- **Horosa 排盘引擎本身的 DST 处理是正确的**（zone 偏移直接进 jd），gap 只在「APP 让用户选了错 offset」；本方案补**输入端自动给对 offset**，不动任何排盘/已发推运算法。地点选择器仍是高德 amap（只给 lat/lng），DST 全由前端 `tz-lookup`+`Intl` 兜。事盘的中式技法(六爻/奇门…)干支按本地钟点算、`setZone` 保钟点 → 校正 zone 对其无副作用，对卜卦/世俗等占星事盘则更准。
+- `release_preflight.sh [13]` 哨兵守 `tz-lookup` 依赖 + `timezone.js`(`applyDstToFields`) + `DstZoneIndicator.js` + 三表单(`ChartFormData`/`ChartData`/`CaseData`)均接 `applyDstToFields`+`DstZoneIndicator` 在位。
+
+---
+
 ## 桌面外壳 · 更新后启动（v2.3.0 起）
 
 > 机制细节 + 实测见 [`../docs/更新后启动卡顿修复-v2.3.1.md`](../docs/更新后启动卡顿修复-v2.3.0.md)。症状:更新后第一次重启「卡在 100% 很久才进」。

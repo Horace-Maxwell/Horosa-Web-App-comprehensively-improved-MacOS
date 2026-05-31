@@ -14774,3 +14774,71 @@
 	.horosa-divi-verdict-big.lean-even { background: rgba(210,160,31,.12); border-color: rgba(210,160,31,.4); }
 	.horosa-divi-kv .tag { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--horosa-accent-soft, rgba(148,163,184,.18)); font-size: 12px; margin: 0 2px; }
 }
+
+/* ===== 出生信息表单 · 时区/夏令时(DST)自动校正指示（结构/中性色，明暗双色走 token）===== */
+:global {
+	.horosa-dst-indicator {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 9px;
+		padding: 7px 13px;
+		border-radius: 9px;
+		background: var(--horosa-panel-soft, rgba(242, 247, 254, 0.78));
+		border: 1px solid var(--horosa-border, rgba(76, 98, 134, 0.17));
+		font-size: 12.5px;
+		line-height: 1.5;
+		color: var(--horosa-text-soft, #52627a);
+	}
+	.horosa-dst-indicator .horosa-dst-icon {
+		font-size: 14px;
+		line-height: 1;
+		opacity: 0.9;
+	}
+	.horosa-dst-indicator .horosa-dst-zone {
+		font-weight: 600;
+		letter-spacing: 0.2px;
+		color: var(--horosa-text, #162033);
+	}
+	.horosa-dst-indicator .horosa-dst-state {
+		display: inline-flex;
+		align-items: center;
+		padding: 1px 9px;
+		border-radius: 10px;
+		font-size: 11.5px;
+		font-weight: 600;
+		background: var(--horosa-accent-soft, rgba(120, 134, 156, 0.14));
+		color: var(--horosa-muted, #68758a);
+	}
+	.horosa-dst-indicator.is-dst .horosa-dst-state {
+		background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.16));
+		color: var(--horosa-gold, #9a6a25);
+	}
+	.horosa-dst-indicator .horosa-dst-offset {
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.3px;
+		color: var(--horosa-text, #162033);
+	}
+	.horosa-dst-indicator .horosa-dst-meta {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		color: var(--horosa-muted, #68758a);
+	}
+	.horosa-dst-indicator .horosa-dst-apply {
+		display: inline-flex;
+		align-items: center;
+		padding: 1px 9px;
+		border-radius: 8px;
+		font-weight: 600;
+		cursor: pointer;
+		color: var(--horosa-accent, #2f7df1);
+		background: var(--horosa-accent-soft, rgba(47, 125, 241, 0.12));
+		transition: background 0.15s ease, color 0.15s ease;
+	}
+	.horosa-dst-indicator .horosa-dst-apply:hover {
+		text-decoration: underline;
+		filter: brightness(1.04);
+	}
+}

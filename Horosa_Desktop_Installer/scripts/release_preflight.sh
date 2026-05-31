@@ -249,6 +249,38 @@ if [ -f "${STARTSH}" ]; then
     || bad "B start_horosa_local.sh 缺 reclaim_stale_port —— 端口被自己僵尸占住会阻死启动"
 fi
 
+echo "[13] 时区/夏令时(DST)自动校正哨兵(v2.5.0)"
+UI_SRC="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+UI_PKG="${REPO_ROOT}/Horosa-Web/astrostudyui/package.json"
+TZUTIL="${UI_SRC}/utils/timezone.js"
+DSTIND="${UI_SRC}/components/comp/DstZoneIndicator.js"
+if [ -f "${UI_PKG}" ]; then
+  grep -q '"tz-lookup"' "${UI_PKG}" \
+    && ok "A package.json 含 tz-lookup 依赖(经纬度→IANA 时区,离线)" \
+    || bad "A package.json 缺 tz-lookup —— DST 自动校正无法离线求时区"
+fi
+if [ -f "${TZUTIL}" ]; then
+  grep -q "applyDstToFields" "${TZUTIL}" && grep -q "dstAwareZoneAt" "${TZUTIL}" && grep -q "longOffset" "${TZUTIL}" \
+    && ok "B timezone.js 在位(applyDstToFields + dstAwareZoneAt + Intl longOffset)" \
+    || bad "B timezone.js 缺 applyDstToFields/dstAwareZoneAt/longOffset —— DST 引擎不完整"
+else
+  bad "B timezone.js 不存在 —— DST 自动校正引擎缺失"
+fi
+[ -f "${DSTIND}" ] \
+  && ok "C DstZoneIndicator.js 共享指示器组件在位" \
+  || bad "C DstZoneIndicator.js 不存在 —— 三表单 DST 指示器缺失"
+dst_forms_ok=1
+for f in "components/comp/ChartFormData.js" "components/user/ChartData.js" "components/user/CaseData.js"; do
+  fp="${UI_SRC}/${f}"
+  if [ -f "${fp}" ]; then
+    grep -q "applyDstToFields" "${fp}" && grep -q "DstZoneIndicator" "${fp}" && grep -q "zoneManual" "${fp}" \
+      || { bad "D ${f} 未接 DST(applyDstToFields/DstZoneIndicator/zoneManual) —— 该表单时区不自动校正"; dst_forms_ok=0; }
+  else
+    bad "D ${f} 不存在"; dst_forms_ok=0
+  fi
+done
+[ "${dst_forms_ok}" -eq 1 ] && ok "D 三表单(ChartFormData/ChartData/CaseData)均接 DST 自动校正"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"
