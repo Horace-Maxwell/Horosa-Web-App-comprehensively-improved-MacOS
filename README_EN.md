@@ -97,7 +97,7 @@ Charts and cases save locally with tags, snapshots, and raw backend payloads. Ev
 
 A large feature + startup-robustness release.
 
-- **Western progression & direction techniques** — Persian double-wheel primary directions, planetary arc, Vedic progressions, Jayne declination directions, planetary ages, true-129-year, and Balbillus (calibrated against core gold-standard charts); plus a Part-of-Fortune whole-sign house system, aspect-rendering polish, and antiscia / contra-antiscia restored.
+- **Western progression & direction techniques** — Persian double-wheel primary directions, planetary arc, Vedic progressions, Jayne declination directions, planetary ages, true-129-year, and Balbillus (calibrated against gold-standard reference charts); plus a Part-of-Fortune whole-sign house system, aspect-rendering polish, and antiscia / contra-antiscia restored.
 - **Automatic timezone / DST correction** — all three forms resolve the IANA zone from latitude/longitude offline and auto-correct daylight saving.
 - **Jin Kou Jue interpretation layer** — shensha verdicts, four-position generation/control, timing, categorized use-gods, xing/chong/he/hai/po, and Taixuan numbers.
 - **Qi Zheng (Moira fidelity)** — 28-mansion ring, display options, multi-tab, major periods, shensha verdicts.

@@ -100,7 +100,7 @@
   - `astrostudycn/.../controller/ChartController.java`:`getParams()` 白名单加 `orbs`/`orbScale`(容许度透传)。
   - 重编(JDK17):`mvn -f astrostudy/pom.xml install -DskipTests && mvn -f astrostudycn/pom.xml install -DskipTests && mvn -f astrostudyboot/pom.xml clean package -DskipTests`。**`clean` 必须**(否则复用 5/28 旧 astrostudy/astrostudycn 依赖 jar——本轮真踩:fat jar 20:08 重打但内嵌 astrostudy-1.0.0.jar 还是 5/28,缺路由)。**验证用 `javap`(看 dist/agepoint/greatconj 方法在)而非内嵌 jar 的 mtime——内嵌 mtime 是 Maven reproducible-build 固定戳(5/28),不反映内容新旧。**
 - **Python `astropy`(共享,同步)**:`astrostudy/perpredict.py`(`getDistributions`/`getAgePoint`,模块级 `from astrostudy.termdirection import TermDirection`)、`astrostudy/agepoint.py`(**新建**,Koch 宫 `swisseph.houses_ex2(...,b'K')`)、`astrostudy/astroextra.py`(`compute_great_conjunctions`,cap≈3400年)、`websrv/webpredictsrv.py`(`dist`/`agepoint` 端点)、`websrv/webastroextrasrv.py`(`greatconj`)。`flatlib-ctrad2` 的 object.py/arabicparts.py 亦有改。
-- **前端 `astrostudyui`(共享,重建前端 `npm run build` + `build:file`)**:6 技法全链路 AI——`utils/astroAiSnapshot.js`(buildDodeca/Dispositor/LifespanSection)、`utils/aiAnalysisContext.js`(distributions/agepoint wired technique)、`utils/aiExport.js`(**六张登记表** + auxchartMap/extractor，见逐技法详解 §4-6)、`components/astro/{AstroDodeca,AstroDispositor,AstroLifespan,AstroDistributions,AstroAgePoint}.js`、`components/mundane/MundaneMain.js`、`components/divination/DivinationChartShell.js`(buildAiSnapshot prop + 刷新事件)、`utils/divinationCaseSave.js`(payload.aiSnapshot)、orbs 存档(`models/user.js`/`utils/localcharts.js`/`models/astro.js` 镜像 after23NewDay)。**勿改坏 pdMethod/主限法**。
+- **前端 `astrostudyui`(共享,重建前端 `npm run build` + `build:file`)**:6 技法全链路 AI——`utils/astroAiSnapshot.js`(buildDodeca/Dispositor/LifespanSection)、`utils/aiAnalysisContext.js`(distributions/agepoint wired technique)、`utils/aiExport.js`(**六张登记表** + auxchartMap/extractor，见逐技法详解 §4-6)、`components/astro/{AstroDodeca,AstroDispositor,古典寿命引擎,AstroDistributions,AstroAgePoint}.js`、`components/mundane/MundaneMain.js`、`components/divination/DivinationChartShell.js`(buildAiSnapshot prop + 刷新事件)、`utils/divinationCaseSave.js`(payload.aiSnapshot)、orbs 存档(`models/user.js`/`utils/localcharts.js`/`models/astro.js` 镜像 after23NewDay)。**勿改坏 pdMethod/主限法**。
 - **验证**:`npm run build` + `build:file` 绿;`npm test` 29 套 140 全过(关键自检 `aiAnalysisContext.test` 技法 missing 契约 + `aiExport.test getAIExportAuditMatrix` 每技法六表齐)。
 
 ### B. Mac 专属(Windows N/A)— 更新后无法自动打开修复
@@ -385,7 +385,7 @@ OpenAI/OpenRouter 同时「拉取模型失败」。后端 `listModels` 链路（
 - 前端(`astrostudyui` → `npm run build` 然后 `npm run build:file`):
   - 各西洋盘符号几何居中(`components/astro/{AstroChartCircle,AstroHelper}.js`:`dominant-baseline` middle→central)。
   - 太乙四柱随时间基准重算 + 同显直接/真太阳两时间(`components/taiyi/{TaiYiCalc,TaiYiMain}.js`,复用 `utils/baziLunarLocal`)。
-  - 主限法:推运年数控件 + 表头/页码/去 core(`components/direction/AstroDirectMain.js`、`components/astro/AstroPrimaryDirection(Chart).js`、`layouts/app.less`)。
+  - 主限法:推运年数控件 + 表头/页码/去 参考(`components/direction/AstroDirectMain.js`、`components/astro/AstroPrimaryDirection(Chart).js`、`layouts/app.less`)。
   - 紫微右栏空白/三合神煞字重/合盘选择条明亮/配置面板溢出/菜单精简(`layouts/app.less` + 相应组件、`components/homepage/PageHeader.js`)。
 - 后端 Java(**重编 jar**):
   - `boundless/.../interceptor/SseHelper.java`:`new SseEmitter(120000L)` → `new SseEmitter(0L)`(去 AI 流式 120s 硬上限,修 Windows #6 Ollama「停止生成」)。

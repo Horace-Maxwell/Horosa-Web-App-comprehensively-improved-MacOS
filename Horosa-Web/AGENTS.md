@@ -10,6 +10,22 @@
 
 ---
 
+## ⛔ 两条最高优先级铁律（2026-05-31 各踩一次，用户最严重警告——再犯即停用本工具；preflight [22]/[23] 硬门禁）
+
+1. **发布/收敛范围必枚举所有本地分支，绝不凭记忆或部分列表。** 判断「本版要收敛哪些分支 / 哪些 ready」时，**必先**
+   `git for-each-ref --format='%(refname:short)' refs/heads/` 列全本地分支，再逐个 `git rev-list --count main..<b>`
+   看领先 main 的提交，对每个领先分支显式确认纳入与否。**「漏看本地文件/分支」是大忌**——v2.5.0 险漏 `feature/ziwei-depth`
+   （紫微运限深化 + 六壬Phase4）、差点发出残缺版本。preflight **[22]** 有 `feature/*` 领先 main 即硬 fail。
+
+2. **§保密 — 公开文档绝不出现除 `Moira` 外的任何借鉴来源 App 名。** README / `Horosa_Desktop_Installer/config/release_notes/**` /
+   `docs/**` / AGENTS / SKILL **不得出现** `core`、`AstroLifespan`、``、``、`` 等借鉴 App 名
+   （**唯一允许 `Moira`**）；校准/对标一律写「实例 / 权威星历库 / 多款外部专业排盘软件」等中性词。preflight **[23]** 扫公开文档命中即硬 fail。
+   - **代码层去痕是单独大改事项（未完成）：** `astropy/astrostudy/perpredict.py`（~200 个 `CORE_PD_*` 标识符 + `getPrimaryDirectionByZCoreKernel`
+     + `core_pd_*.joblib` 模型名）、`perchart.py` `pdMethod='core_alchabitius'` 仍含 `core`，且随 python 运行时打包进发行物。
+     彻底去痕须**重命名标识符 + 改模型文件名 + 重编 jar/python + 全量重测**——**勿在发布途中仓促做**；作为独立任务排期。
+
+---
+
 ## 日界点 + 晚子时·时柱起干（v2.2.1 起）
 
 **两个独立全局开关**，请务必先理解再改任何 day/time pillar 相关代码：
@@ -196,7 +212,7 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 - **自定义「整宫家族」宫制的 `inHouse` -5° 偏移坑（落宫 off-by-one）。** flatlib `House.inHouse` 只在 `self.hsys == const.HOUSES_WHOLE_SIGN` 时用 `distance(self.lon, lon)`；**否则**用 `distance(self.lon + House._OFFSET, lon)`(`_OFFSET=-5.0`)。所以「福点整宫制」这类自定义整宫制，重定位宫头后**每个 `house.hsys` 必须设成 `const.HOUSES_WHOLE_SIGN`**（不是自定义标记 `'Fortuna_Whole'`），否则福点/行星落宫整体差一宫。**盘级宫制中文名靠盘的 `hsys` 参数(24→福点整宫制)驱动，不靠逐宫 `house.hsys`**，所以这样设不影响显示。
 - **新增 house system 三处同步（缺一即错位）。** ①后端 `astropy/astrostudy/perchart.py` 的 `hsys[]` 列表——**只能追加到末尾**(新 index)，**勿插中间**否则所有后续宫制 index 全错位、老盘读错宫制；自定义算法的再加 `custHouse_*` 常量 + `__init__` 里 `houseCust` 检测(底盘退化成某标准制) + `custHouse()` 分支重算 12 宫头。②前端 `constants/AstroConst.js` `HOUSE_SYSTEM_OPTIONS` 追加 `{value:<同后端index>, label}` + `HSYS_* ` 常量。③`constants/AstroText.js` 加 `AstroMsg[HSYS_*]` 标签。
 - **改 `astropy/**/*.py` 后必须重启 Python chart 服务**(CherryPy 不热重载)：`./stop_horosa_local.sh && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh`，否则 preview 仍跑旧码(直接 `python -c 'from astrostudy.perchart import PerChart'` 跑临时脚本验证逻辑则用的是新码——别被「脚本对、preview 错」误导)。注：curl 直打 `/predict/*` 会得 `no.register.app.in.sys.forapp:`(缺前端注册头)，**不代表后端坏**，要从前端 UI 验证。
-- **Balbillus 算法口径**(还原自 129-year Balbillus 变体，独立 `utils/balbillus.js`，**不碰** decennials.js)：七星 Balbillus 小年(日19/月25/土30/木12/火15/金8/水20=129) → 主限长度 `= N×(1 − d/360)`，d=本命星黄经离其**擢升度**的角距(`nearest` 最近角距 / `forward` 顺黄道距，做成参数) → 主限序=七星按本命黄经升序、从**起始星**旋转 → 每主限再以该期主星为起点按 **129 权重**递归切子限(可 5 层) → 日期用 Hellenistic **360 日年**(可切 solar)。UI=antd `Tree` 懒加载(`loadData`)。起始星/年制/距离口径做成左栏选项；mode 默认 nearest，精校需对 core 同**本命**盘(其面板经度是 transit 盘、勿误用)。
+- **Balbillus 算法口径**(还原自 129-year Balbillus 变体，独立 `utils/balbillus.js`，**不碰** decennials.js)：七星 Balbillus 小年(日19/月25/土30/木12/火15/金8/水20=129) → 主限长度 `= N×(1 − d/360)`，d=本命星黄经离其**擢升度**的角距(`nearest` 最近角距 / `forward` 顺黄道距，做成参数) → 主限序=七星按本命黄经升序、从**起始星**旋转 → 每主限再以该期主星为起点按 **129 权重**递归切子限(可 5 层) → 日期用 Hellenistic **360 日年**(可切 solar)。UI=antd `Tree` 懒加载(`loadData`)。起始星/年制/距离口径做成左栏选项；mode 默认 nearest，精校需对 参考 同**本命**盘(其面板经度是 transit 盘、勿误用)。
 - **行星 tab 底部空白 + 七政卡片矮**根因：`AstroPlanet`/`AstroLots` render 内部 `height-130` 过减 → `0.68t+0.32t` 只渲染 `t−202px` 内容、容器满高 `t` → 底部空白。**修法=`.horosa-planet-with-lots` 改 `display:flex;flex-direction:column`，`AstroPlanet` 加 `fill` 模式(`flex:1;height:100%`)撑满、`AstroLots` 加 `natural` 模式(内容高)**。别再用「固定百分比 height」拼两块。
 
 ---

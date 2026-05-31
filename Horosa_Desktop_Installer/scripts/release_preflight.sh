@@ -431,6 +431,35 @@ if grep -q "castMethod: this.state.castMethod" "${LR_MAIN}" 2>/dev/null && grep 
 if grep -q "yueJiangMethod: payload.yueJiangMethod" "${LR_AICTX}" 2>/dev/null; then ok "[21] AI挂载 事盘重建透传 castOpts(挂载与显示一致)"; else bad "[21] AI挂载 六壬事盘未透传 castOpts —— 八客/选时案例会挂成默认正时正将"; fi
 if grep -q "'xuanshi'" "${LR_MAIN}" 2>/dev/null && grep -q "'yanshu'" "${LR_MAIN}" 2>/dev/null && grep -q "'alnr'" "${LR_MAIN}" 2>/dev/null; then ok "[21] 起课法含 选时/演数/四柱对齐"; else bad "[21] 起课法缺 选时/演数/对齐 选项"; fi
 
+# 22. 发布范围完整性（防漏合本地分支）—— **铁律**：判断「发布收敛哪些分支 / 哪些 ready」时,绝不凭记忆或部分列表,
+#     必枚举所有本地分支并逐个查领先 main 的提交。v2.5.0 险些漏合 feature/ziwei-depth(紫微运限深化 + 六壬Phase4)→ 差点发出残缺版本。
+echo "[22] 发布范围完整性(本地分支全枚举,防漏合)"
+AHEAD_FEAT=""
+while read -r b; do
+  [ -n "$b" ] || continue
+  n="$(git -C "${REPO_ROOT}" rev-list --count "main..${b}" 2>/dev/null || echo 0)"
+  [ "${n:-0}" -gt 0 ] && AHEAD_FEAT="${AHEAD_FEAT} ${b}(+${n})"
+done < <(git -C "${REPO_ROOT}" for-each-ref --format='%(refname:short)' refs/heads/ | grep -E '^feature/' || true)
+if [ -n "${AHEAD_FEAT}" ]; then
+  if [ "${HOROSA_KNOWN_UNMERGED:-}" = "1" ]; then
+    warn "feature/* 领先 main,但已 HOROSA_KNOWN_UNMERGED=1 确认非本版:${AHEAD_FEAT}"
+  else
+    bad "feature/* 分支领先 main,可能漏入本版:${AHEAD_FEAT} —— 必逐个确认应否合并(漏 ziwei-depth 教训);确属未来版本则 HOROSA_KNOWN_UNMERGED=1 跳过"
+  fi
+else
+  ok "无 feature/* 分支领先 main(本地 feature 分支均已纳入/合并)"
+fi
+
+# 23. 保密:公开文档(README/release_notes/docs/AGENTS/SKILL)绝不得出现除 **Moira** 外的任何借鉴 App 名。
+#     (排除 ZCoreKernel —— 那是代码标识符引用,属「代码层去痕」的单独事项,见 AGENTS §保密。)
+echo "[23] 保密:公开文档无借鉴 App 名泄露(Moira 除外)"
+SECRET_HITS="$(git -C "${REPO_ROOT}" grep -inE "core|astrolifespan|astrogold|solar ?fire|astro-?seek|" -- 'README*' 'Horosa_Desktop_Installer/config/release_notes/*.md' 'docs/*.md' 'Horosa-Web/AGENTS.md' '.claude/skills/horosa-dev/SKILL.md' 2>/dev/null | grep -v "ZCoreKernel" || true)"
+if [ -n "${SECRET_HITS}" ]; then
+  bad "公开文档现借鉴 App 名(除 Moira 外禁现),先清再发:${SECRET_HITS}"
+else
+  ok "公开文档无借鉴 App 名泄露(Moira 除外)"
+fi
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"
