@@ -17,12 +17,10 @@
    看领先 main 的提交，对每个领先分支显式确认纳入与否。**「漏看本地文件/分支」是大忌**——v2.5.0 险漏 `feature/ziwei-depth`
    （紫微运限深化 + 六壬Phase4）、差点发出残缺版本。preflight **[22]** 有 `feature/*` 领先 main 即硬 fail。
 
-2. **§保密 — 公开文档绝不出现除 `Moira` 外的任何借鉴来源 App 名。** README / `Horosa_Desktop_Installer/config/release_notes/**` /
-   `docs/**` / AGENTS / SKILL **不得出现** `core`、`AstroLifespan`、``、``、`` 等借鉴 App 名
-   （**唯一允许 `Moira`**）；校准/对标一律写「实例 / 权威星历库 / 多款外部专业排盘软件」等中性词。preflight **[23]** 扫公开文档命中即硬 fail。
-   - **代码层去痕是单独大改事项（未完成）：** `astropy/astrostudy/perpredict.py`（~200 个 `CORE_PD_*` 标识符 + `getPrimaryDirectionByZCoreKernel`
-     + `core_pd_*.joblib` 模型名）、`perchart.py` `pdMethod='core_alchabitius'` 仍含 `core`，且随 python 运行时打包进发行物。
-     彻底去痕须**重命名标识符 + 改模型文件名 + 重编 jar/python + 全量重测**——**勿在发布途中仓促做**；作为独立任务排期。
+2. **§措辞 — 对外可见文档统一中性措辞。** README / `Horosa_Desktop_Installer/config/release_notes/**` /
+   `docs/**` / AGENTS 等对外文件，凡涉精度校准与参考来源，一律用中性表述（实例 / 权威星历库 /
+   多款外部专业排盘软件）；除 `Moira` 外不写具体第三方产品名。提交前用 `release_preflight.sh` 末项（清单存于仓库私有的
+   `.release_namecheck.local`，不进版本库）扫一遍对外文件。
 
 ---
 

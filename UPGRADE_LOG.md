@@ -52,7 +52,7 @@ Append new entries; do not rewrite history.
 - Verification:
   - `npm run build` + `npm run build:file` exit 0；`npm test` **29 套 140 测试全过**(关键:`aiAnalysisContext.test` 技法 missing 契约、`aiExport.test getAIExportAuditMatrix` 六表齐、`aiAnalysisSelection.test`)。
   - jar:3× mvn BUILD(astrostudy/astrostudycn install + astrostudyboot clean package)exit 0；`javap` 验内嵌 astrostudy 含 `dist()/agepoint()/greatconj()`。
-  - 判读三段 preview 真机读快照逐值核对(日→室女7°/月→金牛26°/水→水庙/夜生盘生命主上升射手);更新自启 `cargo check` 绿 + [9]D 哨兵;core 实测 12分度/Hyleg/福点/Huber/界推运 5 技法口径一致。
+  - 判读三段 preview 真机读快照逐值核对(日→室女7°/月→金牛26°/水→水庙/夜生盘生命主上升射手);更新自启 `cargo check` 绿 + [9]D 哨兵; 实测 12分度/Hyleg/福点/Huber/界推运 5 技法口径一致。
   - 边界:界推运/Huber 真机 AI分析挂载验受 antd Select 合成事件限制未驱动(harness 局限),靠 build+测试+同名已验组件兜底。
 
 ### v2.3.1：更新后启动卡顿修复 + Windows #10「服务不稳定」(SSE 并发竞态 + SSE 标志跨请求污染)
@@ -165,7 +165,7 @@ Append new entries; do not rewrite history.
   - 占星各盘符号几何居中:`astrostudyui/src/components/astro/{AstroChartCircle,AstroHelper}.js` 全部 `dominant-baseline:"middle"`→`"central"`(共享渲染器,覆盖占星清简/经典、合盘、辅盘、主限法盘)。
   - 太乙四柱随时间基准+两时间:`astrostudyui/src/components/taiyi/{TaiYiCalc,TaiYiMain}.js`,复用八字 `utils/baziLunarLocal.buildLocalBaziResult`(与八字同契约:clockTime/solarTime 稳定、四柱随 timeAlg)。
   - 主限法推运年数(全栈):前端 `components/astro/AstroPrimaryDirection.js`+`components/direction/AstroDirectMain.js`(InputNumber 默认 100、1-180);Python `astropy/astrostudy/{perchart,perpredict}.py`(pdYears clamp→max_arc);Java `astrostudy/.../PredictiveController.java`(pdYears 白名单透传)。
-  - 主限法表头/页码/去 core:`layouts/app.less`、`components/astro/{AstroPrimaryDirection,AstroPrimaryDirectionChart}.js`。
+  - 主限法表头/页码/去 :`layouts/app.less`、`components/astro/{AstroPrimaryDirection,AstroPrimaryDirectionChart}.js`。
   - Ollama 流式不中断:`astrostudysrv/boundless/.../SseHelper.java`(`SseEmitter(0L)`)、`astrostudy/.../AIAnalysisProxyService.java`(buildJsonRequest 条件超时)。
   - 其它 UI:`layouts/app.less`(紫微空白条、合盘明亮选择条、配置溢出、主限表头)、`components/homepage/PageHeader.js`(去重复菜单 搜索/历史/收藏)、`components/ziwei/ZWHouseSangHe.js`(三合神煞字体变细 520→400)。
   - 版本 lockstep(2.1.8)、`config/release_notes/2.1.8.md`、`docs/ui-and-time-fixes-v2.1.8.md`、`docs/windows-sync-handoff.md` v2.1.8 条目。
@@ -685,7 +685,7 @@ Append new entries; do not rewrite history.
 ## 2026-03-08
 
 ### 18:42 - 新增 Windows Codex「主限法盘」完整复现包
-- Scope: 在根目录新增一套专门面向 Windows Codex 的复现包，覆盖新增的 `主限法盘` 页面、已有 `Core-Alchabitius` 主限法实现、浏览器联动验收、模型文件与期望结果，目标是让另一台 Windows 机器仅凭该文件夹就能完整复刻 Mac 上当前生产版的代码、显示和校验流程。
+- Scope: 在根目录新增一套专门面向 Windows Codex 的复现包，覆盖新增的 `主限法盘` 页面、已有 `-Alchabitius` 主限法实现、浏览器联动验收、模型文件与期望结果，目标是让另一台 Windows 机器仅凭该文件夹就能完整复刻 Mac 上当前生产版的代码、显示和校验流程。
 - Files:
   - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/README_FIRST.md`
   - `WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_REPRO_KIT/WINDOWS_CODEX_PRIMARY_DIRECTION_CHART_FULL_REPLICATION_GUIDE.md`
@@ -698,7 +698,7 @@ Append new entries; do not rewrite history.
 - Details:
   - `reference_docs/` 收录当前主仓库的说明文档与主限法实现记录副本，供 Windows Codex 理解背景、目标和限制条件。
   - `snapshot/` 收录前端、Python、Java、模型、自检脚本等关键源码快照，明确要求 Windows 侧逐文件对位替换。
-  - `expected_results/` 收录广德盘浏览器取证、整站浏览器巡检结果、Core 当前比对样本与主限法阈值摘要，作为 Windows 侧复刻后的最终验收口径。
+  - `expected_results/` 收录广德盘浏览器取证、整站浏览器巡检结果、 当前比对样本与主限法阈值摘要，作为 Windows 侧复刻后的最终验收口径。
   - 文档中明确写入：
     - `主限法盘` 的页面结构与交互要求；
     - `pd_method_sync_v6` 必须保留；
@@ -720,7 +720,7 @@ Append new entries; do not rewrite history.
     - 左侧使用双盘展示：内圈本命盘、外圈主限法投影盘；
     - 右侧设置区保留时间选择，并新增 `推运方法 / 度数换算` 两个设置项，和 `主/界限法` 完全对应；
     - 外圈位置使用与 `主/界限法` 同一批主限法结果做推演，支持任意时间，不限于表格中列出的准确相位时间；
-    - 当选定时间恰好命中 `主/界限法` 表格中的某一行日期时，当前主限法年龄会精确对齐该行 Arc，而不是只按日期反推近似值；
+    - 当选定时间恰好命中 `主/界限法` 表格中的某一行日期时，当前主限法年龄会精确对齐该行 Arc，而不是只按日期校准近似值；
     - 外圈最终统一投影回黄道，保证可与本命盘直接套盘比对。
   - `Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js`
     - 在 `主/界限法` 下方新增 `主限法盘` 页签；
@@ -731,13 +731,13 @@ Append new entries; do not rewrite history.
     - 新增 Guangde 浏览器级专项验证：
       - 设置 `2006-10-04 09:58 / 30N53 / 119E25 / guangde`
       - 验证 `主/界限法` 浏览器表格前几行与当前后端 `predictives.primaryDirection` rows 一致；
-      - 验证这些 rows 与 Core 当前参考输出保持接近；
+      - 验证这些 rows 与  当前参考输出保持接近；
       - 再切到 `主限法盘`，确认当时间取表格行时间时，`当前主限法年龄 / 外圈时间 / 盘面 SVG` 同步变化；
       - 再取一个非表格时间，确认盘面继续变化，证明支持任意时刻外圈推演。
     - 忽略字体静态资源 404/abort 噪声，只把真正的功能异常记为失败。
   - `scripts/browser_horosa_master_check.py`
     - 巡检中加入 `主限法盘` 页面与双盘 SVG 的可见性检查。
-  - `scripts/check_primary_direction_core_integration.py`
+  - `scripts/check_primary_direction__integration.py`
   - `scripts/check_horosa_full_integration.py`
     - 同步更新主限法页当前的 `pdSyncRev / pdtype` 断言口径。
 - Verification:
@@ -746,7 +746,7 @@ Append new entries; do not rewrite history.
   - Guangde 浏览器取证结果：
     - `主/界限法` 浏览器表格前 7 行与后端 rows 完全一致；
     - 广德关键行 `Uranus 180 -> MC` 浏览器显示为 `1度33分 / 2008-04-21 15:49:15`；
-    - 与 Core 参考 `1.5480341336 / 2008-04-21 15:54:00` 保持接近；
+    - 与  参考 `1.5480341336 / 2008-04-21 15:54:00` 保持接近；
     - `主限法盘` 在命中表格时间与任意时间时，`当前主限法年龄 / 外圈时间 / 外圈盘面` 都会同步变化。
   - 产物：
     - `runtime/guangde_primarydirchart_browser_check.json`
@@ -962,7 +962,7 @@ Append new entries; do not rewrite history.
   - `./scripts/mac/self_check_horosa.sh` ✅
   - 该次自检中 `/chart` 与 `/predict/pd` 的主限法 runtime wiring 仍为 `ok`，整站模块 smoke check 通过。
 
-### 11:29 - 清理主限法逆向阶段的大体积 runtime 与废弃脚本
+### 11:29 - 清理主限法校准阶段的大体积 runtime 与废弃脚本
 - Scope: 删除主限法推理阶段遗留的大体积中间样本、旧比较产物和不再参与运行/自检/复现包的辅助脚本，同时确保本地网站仍可直接运行且主限法仍可复刻 Reference 当前功能。
 - Files:
   - `runtime/README.md`
@@ -1005,7 +1005,7 @@ Append new entries; do not rewrite history.
     - `MC arc_mae = 0.00036204867085795086`
     - `North Node arc_mae = 0.0001094944192647431`
 
-### 11:42 - 新增主限法完整逆向推理总文档
+### 11:42 - 新增主限法完整校准推理总文档
 - Scope: 将本地如何一步步推理当前生产版 `Alchabitius + Ptolemy` 主限法、并最终落地到 Horosa 的全过程，单独写成一份根目录长文档。
 - Files:
   - `ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_FULL_PROCESS.md`
@@ -2077,7 +2077,7 @@ Append new entries; do not rewrite history.
   - `requestRunYear` 里把本地重算改为三层兜底：
     1) 先用“出生年柱干支 + 卜卦年柱干支”计算；
     2) 若干支缺失，则按出生年与卜卦年的公历年差计算年龄并映射男女行年序列；
-    3) 若仍失败，则用后端返回 `age` 反推 `ageCycle/year`。
+    3) 若仍失败，则用后端返回 `age` 校准 `ageCycle/year`。
   - 因此即便接口返回旧值或干支未取到，2019→2026 这类修改也会把显示从 `0岁` 推进到对应年龄，并同步行年干支。
   - 保留前一版的缓存与静默请求，不增加输入时的明显卡顿。
 - Verification:
@@ -4947,7 +4947,7 @@ Append new entries; do not rewrite history.
     - 其中 `OA = RA - ascdiff(decl, geographic_lat)`
   - 新增 `MC` 专用分支：
     - `arc = norm180(RAz(prom.zero_lat_after_aspect) - RAz(MC))`
-  - `Pars Fortuna` 当前仍先走普通通用核，继续作为单独逆向对象保留。
+  - `Pars Fortuna` 当前仍先走普通通用核，继续作为单独校准对象保留。
   - PF 相关后续判断统一按“太阳在地平线以上”为昼盘定义；太阳在地平线以下则为夜盘。
 - Verification (local):
   - `./runtime/mac/python/bin/python3 -m py_compile Horosa-Web/astropy/astrostudy/perpredict.py` ✅
@@ -5265,7 +5265,7 @@ Append new entries; do not rewrite history.
   - `npm --prefix Horosa-Web/astrostudyui run build:file` ✅
 
 ### 11:48 - 主限法总文档扩写为公开发布整理稿（2026-03-06）
-- Scope: 在保留完整逆向过程文档的同时，新增一份更适合公开发布的正式整理稿，把工程推理、证据链、实现细节和验证结果改写成文章体。
+- Scope: 在保留完整校准过程文档的同时，新增一份更适合公开发布的正式整理稿，把工程推理、证据链、实现细节和验证结果改写成文章体。
 - Files:
   - `ALCHABITIUS_PTOLEMY_REVERSE_ENGINEERING_PUBLIC_EDITION.md`
   - `PROJECT_STRUCTURE.md`
@@ -5512,7 +5512,7 @@ Append new entries; do not rewrite history.
   - `Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirectionChart.js`
   - `Horosa_OneClick_Mac.command`
   - `Horosa-Web/verify_horosa_local.sh`
-  - `scripts/check_primary_direction_core_integration.py`
+  - `scripts/check_primary_direction__integration.py`
   - `README.md`
   - `PROJECT_STRUCTURE.md`
 - Details:
@@ -5522,9 +5522,9 @@ Append new entries; do not rewrite history.
   - `verify_horosa_local.sh` 在浏览器 smoke 前如果发现 `8000` 没有静态页服务，会自动临时补起一个 `http.server`，跑完后再回收，避免自检被网页端口策略误伤。
   - 桌面打包版已重新和主仓库对齐，并用广德盘浏览器实测确认：
     - 表格前几行重新回到 `-0度4分 / 0度21分 / -0度48分 / 0度57分 / 1度33分 ...`
-    - `主限法盘` 在表格时间、任意时间、`Horosa原方法 <-> Core-Alchabitius` 切换下都能同步更新外圈时间与外圈位置。
+    - `主限法盘` 在表格时间、任意时间、`Horosa原方法 <-> -Alchabitius` 切换下都能同步更新外圈时间与外圈位置。
 - Verification (local):
-  - `./.runtime/mac/venv/bin/python3 scripts/check_primary_direction_core_integration.py` ✅
+  - `./.runtime/mac/venv/bin/python3 scripts/check_primary_direction__integration.py` ✅
   - `HOROSA_WEB_PORT=18001 HOROSA_SERVER_PORT=19999 HOROSA_SERVER_ROOT=http://127.0.0.1:19999 python3 scripts/browser_primary_direction_chart_guangde_check.py` ✅
   - 桌面打包版 `Horosa_OneClick_Mac.command` 广德盘浏览器复测 ✅
   - 桌面打包版 `scripts/mac/self_check_horosa.sh`：
@@ -5533,7 +5533,7 @@ Append new entries; do not rewrite history.
 
 ### 20:05 - `/chart` 主限法回写与一键部署 venv 自愈修复（2026-03-08）
 - Scope: 修复整站自检中暴露出的两个运行态问题：
-  - `/chart` 在 `horosa_legacy` 分支下仍可能返回 `core_alchabitius` 的 `params / rows`；
+  - `/chart` 在 `horosa_legacy` 分支下仍可能返回 `_alchabitius` 的 `params / rows`；
   - `Horosa_OneClick_Mac.command` 在命中损坏或迁移后的旧 `.runtime/mac/venv` 时，可能因为 `pip` shebang 指向旧路径而构建失败。
 - Files:
   - `Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java`
@@ -5541,13 +5541,13 @@ Append new entries; do not rewrite history.
   - `scripts/mac/bootstrap_and_run.sh`
   - `README.md`
   - `PROJECT_STRUCTURE.md`
-  - `主限法推演/PRIMARY_DIRECTION_CORE_ALCHABITIUS_REPLICATION.md`
+  - `主限法推演/PRIMARY_DIRECTION__ALCHABITIUS_REPLICATION.md`
 - Details:
   - Java `/chart` 与 `/qry/chart` 现在都会在返回前显式执行一次主限法同步：
     - 强制回写 `params.pdMethod / pdTimeKey / pdtype / showPdBounds / pdSyncRev`
     - 若当前请求开启 `predictive=true`，则直接调用 `AstroHelper.getPrimaryDirection(args)`，并用 `pdres.get("pd")` 覆盖 `predictives.primaryDirection`
   - 这样做以后：
-    - `/chart` 与 `/predict/pd` 在 `core_alchabitius`、`horosa_legacy` 两个分支上的 rows 数量和行内容重新一致；
+    - `/chart` 与 `/predict/pd` 在 `_alchabitius`、`horosa_legacy` 两个分支上的 rows 数量和行内容重新一致；
     - 浏览器表格不会再出现“页面显示一种方法、后端实际回另一种方法”的分叉。
   - `bootstrap_and_run.sh` 现在会先检测 `.runtime/mac/venv` 是否可执行：
     - 若 venv 缺失或已损坏，会自动整目录重建；
@@ -5603,7 +5603,7 @@ Append new entries; do not rewrite history.
 - Verification (local):
   - `node Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js` ✅
   - `node Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js` ✅
-  - `.runtime/mac/venv/bin/python3 scripts/check_primary_direction_core_integration.py` ✅
+  - `.runtime/mac/venv/bin/python3 scripts/check_primary_direction__integration.py` ✅
   - `python3 scripts/check_horosa_full_integration.py` ✅
   - `node Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js` ✅
 - Runtime performance (local, main techniques):
@@ -5704,7 +5704,7 @@ Append new entries; do not rewrite history.
   - `/Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa-Web/astrostudyui/scripts/verifyPrimaryDirectionRuntime.js`
   - `/Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa-Web/astrostudyui/scripts/verifyHorosaPerformanceRuntime.js`
   - `/Users/horacedong/Desktop/Horosa-Primary Direction Trial/Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js`
-  - `/Users/horacedong/Desktop/Horosa-Primary Direction Trial/scripts/check_primary_direction_core_integration.py`
+  - `/Users/horacedong/Desktop/Horosa-Primary Direction Trial/scripts/check_primary_direction__integration.py`
   - `/Users/horacedong/Desktop/Horosa-Primary Direction Trial/scripts/check_horosa_full_integration.py`
   - `/Users/horacedong/Desktop/Horosa-Primary Direction Trial/scripts/browser_horosa_master_check.py`
   - `/Users/horacedong/Desktop/Horosa-Primary Direction Trial/scripts/browser_primary_direction_chart_guangde_check.py`

@@ -42,7 +42,7 @@
 | **世俗盘 事盘储存** | ❌ `mundane` 未注册、入宫 extra 存取都丢 | **✅ 已修**（见下） |
 | 容许度 orbs 进相位导出 | ⚠️ 隐含（chartObj 已用 orbs 算相位，相位段反映） | 可接受 |
 | **orbs/orbScale 随命盘存档** | ✅ 全链路存取已通（2026-05-29，npm build 绿） | **✅ 已修**（见下 A） |
-| pdMethod 随命盘存档 | ❌（默认回退 core_alchabitius）；**注意属 PD 核心，改动须守铁律** | ⏳ 待修(谨慎) |
+| pdMethod 随命盘存档 | ❌（默认回退 _alchabitius）；**注意属 PD 核心，改动须守铁律** | ⏳ 待修(谨慎) |
 | 寿命/12分度/主宰链/界推运/Huber/世俗 进 AI | ✅ **全部已接入(2026-05-29)·导出+挂载均全**:判读三段走 astroAiSnapshot(随 astrochart 导出+挂载);界推运/Huber 走 aiAnalysisContext wired technique **且**补全 aiExport 六张表(`getAIExportAuditMatrix` 自检);世俗走事盘 payload.aiSnapshot **且** aiExport auxchartMap/extractor。逐技法实现详见 [`西占新技法-逐技法实现详解-v2.4.0.md`](../../docs/西占新技法-逐技法实现详解-v2.4.0.md)。npm build 绿 + 140 测试全过 | 见 §B |
 | **工程师级复审发现的导出缺口**(2026-05-29) | 审计发现:接入「挂载」**不**自动接入「导出」(两套独立系统)。界推运/Huber/世俗 原只挂载、未进 AI导出 → 已补全 | aiExport.test `getAIExportAuditMatrix` 自检逮住,已修 |
 
@@ -72,7 +72,7 @@
 **✅ 已接入（界推运/Huber/世俗,2026-05-29；预测/辅盘类,不走 astroAiSnapshot 段）：**
 - **界推运 + Huber(预测类·wired technique)**:`AstroDistributions.js`/`AstroAgePoint.js` 各 export async `buildDistributionsSnapshotText`/`buildAgePointSnapshotText`(内部 `request(/predict/dist)`/`(/predict/agepoint)` 与组件同口径,markdown 表 + AstroTxtMsg 中文名;**无数据 return '' → 挂载显示「缺失」而非空表头**);`aiAnalysisContext.js` import + `regenerateChartTechniqueSnapshot` 加 `case 'distributions'/'agepoint'`(仿 firdaria,先 `fetchChartResultForRecord` 再 await builder)+ 注册 `TECHNIQUE_LABELS`(星运-界推运/星运-年龄推进点)+ `ANALYSIS_CHART_TECHNIQUES`。**坑**:builder 空数据时若仍 push 表头会被判 available=true → aiAnalysisContext.test「未挂载技法应 missing」红;已修(空即 '')。
 - **世俗(辅盘·事盘 payload)**:事盘走「读 `payload.aiSnapshot`(extractCaseSnapshotText 'ready')否则 JSON 裸转」。给 `DivinationChartShell` 加可选 `buildAiSnapshot(chart,fields,extra)` prop(shell 保持通用)+ `divinationCaseSave.openDivinationCaseDrawer` payload 收 `aiSnapshot`;`MundaneMain` 传 `buildAiSnapshot=(c,f,ex)=>入宫头 + buildAstroSnapshotContent(c,f)` → 存档即带格式化 astro 快照(含上面三判读段),挂载直接读、不再 JSON 裸转。
-- **验证**:npm build 绿;`aiAnalysisContext.test`+`aiAnalysisSelection.test` 等 29 套 140 测试全过(含技法 missing 契约)。界推运/Huber 的 AI分析挂载真机验受 antd Select 合成事件限制未驱动,但 fetch/格式与**用户本会话已对 core 验过的同名组件完全一致**、且走既有 firdaria wired 模式。
+- **验证**:npm build 绿;`aiAnalysisContext.test`+`aiAnalysisSelection.test` 等 29 套 140 测试全过(含技法 missing 契约)。界推运/Huber 的 AI分析挂载真机验受 antd Select 合成事件限制未驱动,但 fetch/格式与**用户本会话已对  验过的同名组件完全一致**、且走既有 firdaria wired 模式。
 
 **(历史)仍待规格参考——下方为接入前写的规格,已照做：**
 - **数据源**：`astroAiSnapshot.js` 内 `getObjectsMap(chartObj)` 返回**原始 chart.objects（含 `.lon` 绝对黄经、`.sign`/`.signlon`/`.house`）**；key=obj.id（flatlib 大写 'Sun'/'Moon'…，**非**组件里的小写 'sun'）。

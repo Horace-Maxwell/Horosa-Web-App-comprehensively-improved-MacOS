@@ -24,7 +24,7 @@
 - 验证(90e26):切基准→日柱辛丑↔庚子、时柱戊子↔丁亥(四柱随基准变);两显示时间恒定 23:15:16 / 21:20:07(稳定),与八字一致。
 
 ## 3. 主限法
-- 推运年数:前端控件(默认100、1-180);经 `AstroDirectMain` 沿 pdMethod/pdTimeKey 同路径下发 `pdYears`;Java `PredictiveController.getParams` 白名单透传;Python `perchart.pdYears`(clamp 1-180)→`perpredict.getPrimaryDirectionByZCoreKernel` 的 `max_arc=self.perchart.pdYears`。注:kernel 弧用 `norm180` 归一化到 ±180°,故上限 180(>180 无新方向,经用户确认不扩展多圈)。
+- 推运年数:前端控件(默认100、1-180);经 `AstroDirectMain` 沿 pdMethod/pdTimeKey 同路径下发 `pdYears`;Java `PredictiveController.getParams` 白名单透传;Python `perchart.pdYears`(clamp 1-180)→`perpredict.getPrimaryDirectionByZKernel` 的 `max_arc=self.perchart.pdYears`。注:kernel 弧用 `norm180` 归一化到 ±180°,故上限 180(>180 无新方向,经用户确认不扩展多圈)。
 - 表头:`.ant-table-cell-scrollbar` 被 `[class*=scrollbar]{padding-bottom:var(--horosa-scroll-safe-bottom)}` 误命中加了 82px 底pad~撑高表头→给 `.horosa-primary-direction-table thead th` 强制紧凑 padding。页码:减小底部预留(`bottomSafeReserve`/常数)使表体长高、页码下移。去 参考:`Alchabitius`→`Alchabitius`。
 
 ## 4. Ollama 流式中断

@@ -68,8 +68,7 @@ Horosa-Web/astrostudyui/.tmp_horosa_*.js
 .vscode/
 .idea/
 
-# Local private research docs
-.private_core_docs/
+# Local-only working paths are kept in .git/info/exclude (repo-private, never pushed)
 
 # Horosa desktop installer generated artifacts
 Horosa_Desktop_Installer/build/

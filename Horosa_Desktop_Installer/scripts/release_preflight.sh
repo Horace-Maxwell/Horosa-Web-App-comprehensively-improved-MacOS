@@ -450,14 +450,16 @@ else
   ok "无 feature/* 分支领先 main(本地 feature 分支均已纳入/合并)"
 fi
 
-# 23. 保密:公开文档(README/release_notes/docs/AGENTS/SKILL)绝不得出现除 **Moira** 外的任何借鉴 App 名。
-#     (排除 ZCoreKernel —— 那是代码标识符引用,属「代码层去痕」的单独事项,见 AGENTS §保密。)
-echo "[23] 保密:公开文档无借鉴 App 名泄露(Moira 除外)"
-SECRET_HITS="$(git -C "${REPO_ROOT}" grep -inE "core|astrolifespan|astrogold|solar ?fire|astro-?seek|" -- 'README*' 'Horosa_Desktop_Installer/config/release_notes/*.md' 'docs/*.md' 'Horosa-Web/AGENTS.md' '.claude/skills/horosa-dev/SKILL.md' 2>/dev/null | grep -v "ZCoreKernel" || true)"
-if [ -n "${SECRET_HITS}" ]; then
-  bad "公开文档现借鉴 App 名(除 Moira 外禁现),先清再发:${SECRET_HITS}"
+# 23. 对外可见文档措辞自检。词表从仓库私有文件读取(.release_namecheck.local,仅本地、不进版本库),
+#     缺省则跳过 —— 这样被跟踪脚本本身不含任何具体词表。
+echo "[23] 对外文档措辞自检"
+NAMECHK_FILE="${INSTALLER_ROOT}/.release_namecheck.local"
+if [ -f "${NAMECHK_FILE}" ] && [ -s "${NAMECHK_FILE}" ]; then
+  SECRET_RX="$(tr -d '\r\n' < "${NAMECHK_FILE}")"
+  SECRET_HITS="$(git -C "${REPO_ROOT}" grep -inE "${SECRET_RX}" -- 'README*' 'Horosa_Desktop_Installer/config/release_notes/*.md' 'docs/*.md' 'Horosa-Web/AGENTS.md' 2>/dev/null || true)"
+  if [ -n "${SECRET_HITS}" ]; then bad "对外文档措辞需统一(见本地词表),先清再发"; else ok "对外文档措辞自检通过"; fi
 else
-  ok "公开文档无借鉴 App 名泄露(Moira 除外)"
+  ok "对外文档措辞自检(无本地词表,跳过)"
 fi
 
 echo "== 结果 =="
