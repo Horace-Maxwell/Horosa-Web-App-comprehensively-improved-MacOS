@@ -38,6 +38,7 @@ import GeoCoordModal from '../amap/GeoCoordModal';
 import * as AstroHelper from '../astro/AstroHelper';
 import { upsertLocalChart } from '../../utils/localcharts';
 import { upsertLocalCase } from '../../utils/localcases';
+import { dstAwareZoneAt } from '../../utils/timezone';
 import {
 	AI_ANALYSIS_SCHEMA_VERSION,
 	AI_ANALYSIS_STORES,
@@ -683,17 +684,19 @@ function mergeTechniqueState(list, nextItem, keys, labelMap){
 const TIMEPOINT_SOURCE_ID = 'timepoint:current';
 const NATAL_SOURCE_ID = 'natal:current';
 
-// gps 十进制经纬 → 命盘录入用的 'NNeMM'/'NNnMM' 紧凑串(镜像 ChartData.changeGeo 的转换,供「快速起盘」抽屉地图选点回填)。
+// gps 十进制经纬 → 命盘录入用的 'NNeMM'/'NNwMM' 紧凑串(供「快速起盘」抽屉地图选点回填)。
+// splitDegree 对负值只把 res[0](度)取负、res[1]/res[2](分/秒)仍是正绝对值;
+// 故方向按原始符号判、度分一律取绝对值。此前手抄版把分数也取负 → 西经/南纬产出畸形串「121w0-44」
+// → 后端 param error、技法挂载「缺失」(用户在美西 121°W 实测命中)。
 function gpsToLonLatStrings(gpsLat, gpsLng){
-	const latdeg = AstroHelper.splitDegree(gpsLat);
-	const londeg = AstroHelper.splitDegree(gpsLng);
-	let latdir = 'n';
-	let londir = 'e';
-	if(londeg[0] < 0){ londir = 'w'; londeg[0] = -londeg[0]; londeg[1] = -londeg[1]; }
-	if(latdeg[0] < 0){ latdir = 's'; latdeg[0] = -latdeg[0]; latdeg[1] = -latdeg[1]; }
-	const lat = `${latdeg[0]}${latdir}${latdeg[1] < 10 ? '0' + latdeg[1] : latdeg[1]}`;
-	const lon = `${londeg[0]}${londir}${londeg[1] < 10 ? '0' + londeg[1] : londeg[1]}`;
-	return { lat, lon };
+	function fmt(v, posDir, negDir){
+		const d = AstroHelper.splitDegree(v);
+		const deg = Math.abs(d[0] || 0);
+		const min = Math.abs(d[1] || 0);
+		const dir = (parseFloat(`${v}`) < 0) ? negDir : posDir;
+		return `${deg}${dir}${min < 10 ? '0' + min : min}`;
+	}
+	return { lat: fmt(gpsLat, 'n', 's'), lon: fmt(gpsLng, 'e', 'w') };
 }
 
 function formatTimepointNow(){
@@ -2793,58 +2796,61 @@ function AIAnalysisMain(props){
 					const timeKey = isNatal ? 'birth' : 'divTime';
 					return (
 						<div className={styles.mountSection}>
-							<div className={styles.mountSectionLabel}>{isNatal ? '命盘时间设置' : '起课时间设置'}</div>
-							<Space direction="vertical" style={{ width: '100%' }} size={8}>
-								<Input
-									addonBefore="时间"
-									value={draft[timeKey]}
-									placeholder="YYYY-MM-DD HH:mm:ss"
-									onChange={(e)=>setDraft((prev)=>({ ...prev, [timeKey]: e.target.value }))}
-								/>
-								<Space size={8} wrap>
-									<Input addonBefore="经度" value={draft.lon} style={{ width: 150 }} onChange={(e)=>setDraft((prev)=>({ ...prev, lon: e.target.value }))} />
-									<Input addonBefore="纬度" value={draft.lat} style={{ width: 150 }} onChange={(e)=>setDraft((prev)=>({ ...prev, lat: e.target.value }))} />
-								</Space>
-								<Space size={8} wrap>
-									<GeoCoordModal
-										lat={draft.gpsLat}
-										lng={draft.gpsLon}
-										date={draft[timeKey]}
-										onOk={(geo)=>{
-											const ll = gpsToLonLatStrings(geo.gpsLat, geo.gpsLng);
-											setDraft((prev)=>({
-												...prev,
-												gpsLat: geo.gpsLat,
-												gpsLon: geo.gpsLng,
-												lat: ll.lat,
-												lon: ll.lon,
-												zone: (geo.zone !== undefined && geo.zone !== null) ? geo.zone : prev.zone,
-											}));
-										}}
-									>
-										<Button size="small">经纬度选择 · atlas</Button>
-									</GeoCoordModal>
-									<Input addonBefore="时区" value={draft.zone} style={{ width: 150 }} onChange={(e)=>setDraft((prev)=>({ ...prev, zone: e.target.value }))} />
-								</Space>
-								<Space size={8} wrap>
-									<Input addonBefore={isNatal ? '姓名' : '事由'} value={draft.name} placeholder="可留空" style={{ width: 190 }} onChange={(e)=>setDraft((prev)=>({ ...prev, name: e.target.value }))} />
-									<Select value={draft.gender} style={{ width: 110 }} onChange={(val)=>setDraft((prev)=>({ ...prev, gender: val }))}>
-										<Select.Option value={1}>男</Select.Option>
-										<Select.Option value={0}>女</Select.Option>
-										<Select.Option value={-1}>未知</Select.Option>
-									</Select>
-								</Space>
-								<Space size={8} wrap>
-									<Button size="small" onClick={()=>setDraft((prev)=>({ ...prev, [timeKey]: formatTimepointNow() }))}>重置为此刻</Button>
-									{isNatal ? null : <Button size="small" type="primary" onClick={()=>setSelectedTechniqueKeys(TIME_CASTABLE_DIVINATION.slice())}>一键挂载全部式法</Button>}
-									<Button size="small" onClick={handleSaveQuickDraftAsSource}>{isNatal ? '保存为命盘' : '保存为事盘'}</Button>
-								</Space>
-								<Text type="secondary" style={{ fontSize: 12 }}>
-									{isNatal
-										? '默认设置即时起命盘（八字/紫微/星盘/各推运），可改时间·地点·时区；保存后进入案例列表复用。'
-										: '六爻 / 统摄法需手动起卦后存为事盘再挂载（不能凭时间凭空起）。'}
-								</Text>
-							</Space>
+							<div className={styles.qcForm}>
+									<div className={styles.qcHead}>
+										<XQIcon name={isNatal ? 'ai' : 'calendar'} />
+										<span>{isNatal ? '命盘时间 · 即时起命盘' : '起课时间 · 即时起式盘'}</span>
+									</div>
+									<div className={styles.qcRow}>
+										<label className={styles.qcLabel}>时间</label>
+										<Input className={styles.qcInput} value={draft[timeKey]} placeholder="YYYY-MM-DD HH:mm:ss" onChange={(e)=>setDraft((prev)=>({ ...prev, [timeKey]: e.target.value }))} />
+										<Button size="small" className={styles.qcNow} onClick={()=>setDraft((prev)=>({ ...prev, [timeKey]: formatTimepointNow() }))}>此刻</Button>
+									</div>
+									<div className={styles.qcRow}>
+										<label className={styles.qcLabel}>地点</label>
+										<div className={styles.qcLocWrap}>
+											<GeoCoordModal lat={draft.gpsLat} lng={draft.gpsLon} date={draft[timeKey]} onOk={(geo)=>{
+												const ll = gpsToLonLatStrings(geo.gpsLat, geo.gpsLng);
+												let zone = (geo.zone !== undefined && geo.zone !== null) ? geo.zone : null;
+												if(!zone){
+													try{
+														const ds = (typeof draft[timeKey] === 'string') ? draft[timeKey].slice(0, 10) : null;
+														const z = dstAwareZoneAt(geo.gpsLat, geo.gpsLng, ds);
+														if(z && z.offset){ zone = z.offset; }
+													}catch(e){ /* 保底用旧时区 */ }
+												}
+												setDraft((prev)=>({ ...prev, gpsLat: geo.gpsLat, gpsLon: geo.gpsLng, lat: ll.lat, lon: ll.lon, zone: zone || prev.zone }));
+											}}>
+												<Button size="small" className={styles.qcLocBtn}>📍 选择地点 · atlas</Button>
+											</GeoCoordModal>
+											<span className={styles.qcLocInfo}>{`${AstroHelper.formatLonDms(draft.gpsLon) || draft.lon} · ${AstroHelper.formatLatDms(draft.gpsLat) || draft.lat} · UTC${draft.zone}`}</span>
+										</div>
+									</div>
+									<div className={styles.qcRow}>
+										<label className={styles.qcLabel}>微调</label>
+										<div className={styles.qcInline}>
+											<Input addonBefore="经" value={draft.lon} onChange={(e)=>setDraft((prev)=>({ ...prev, lon: e.target.value }))} />
+											<Input addonBefore="纬" value={draft.lat} onChange={(e)=>setDraft((prev)=>({ ...prev, lat: e.target.value }))} />
+											<Input addonBefore="时区" value={draft.zone} onChange={(e)=>setDraft((prev)=>({ ...prev, zone: e.target.value }))} />
+										</div>
+									</div>
+									<div className={styles.qcRow}>
+										<label className={styles.qcLabel}>{isNatal ? '姓名' : '事由'}</label>
+										<div className={styles.qcInline}>
+											<Input value={draft.name} placeholder="可留空" onChange={(e)=>setDraft((prev)=>({ ...prev, name: e.target.value }))} />
+											<Select value={draft.gender} style={{ minWidth: 92 }} onChange={(val)=>setDraft((prev)=>({ ...prev, gender: val }))}>
+												<Select.Option value={1}>男</Select.Option>
+												<Select.Option value={0}>女</Select.Option>
+												<Select.Option value={-1}>未知</Select.Option>
+											</Select>
+										</div>
+									</div>
+									<div className={styles.qcActions}>
+										{isNatal ? null : <Button size="small" type="primary" onClick={()=>setSelectedTechniqueKeys(TIME_CASTABLE_DIVINATION.slice())}>一键挂载全部式法</Button>}
+										<Button size="small" onClick={handleSaveQuickDraftAsSource}>{isNatal ? '保存为命盘' : '保存为事盘'}</Button>
+									</div>
+									<div className={styles.qcHint}>{isNatal ? '默认设置即时起命盘（八字 / 紫微 / 星盘 / 各推运），可改时间·地点·时区；保存后进入案例列表复用。' : '六爻 / 统摄法需手动起卦后存为事盘再挂载（不能凭时间凭空起）。'}</div>
+								</div>
 						</div>
 					);
 				})() : null}
