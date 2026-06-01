@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import {convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
+import { dstAwareZoneAt } from '../../utils/timezone';
 import DateTime from '../comp/DateTime';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as SZConst from '../suzhan/SZConst';
@@ -226,6 +227,19 @@ class GuoLaoInput extends Component{
 	changeGeo(rec){
 		if(this.props.onFieldsChange){
 			let dt = this.tmHook.getValue().value;
+			// 选新地点时按新坐标自动校正时区(未在 atlas 内手改时区时)。
+			// setZone 仅改时区标签、保留出生钟面时刻(见 DateTime.setZone),不移位时间。
+			if(dt && dt.setZone){
+				try{
+					if(rec.zone){
+						dt.setZone(rec.zone);
+					}else{
+						const ds = dt.format ? dt.format('YYYY-MM-DD') : null;
+						const z = dstAwareZoneAt(rec.gpsLat, rec.gpsLng, ds);
+						if(z && z.offset){ dt.setZone(z.offset); }
+					}
+				}catch(e){ /* 推断失败保留原时区 */ }
+			}
 			this.props.onFieldsChange({
 				lon: {
 					value: convertLonToStr(rec.lng),

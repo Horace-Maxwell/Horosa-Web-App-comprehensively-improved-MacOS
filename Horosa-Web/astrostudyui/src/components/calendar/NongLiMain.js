@@ -5,6 +5,7 @@ import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import DateTimeSelector from '../comp/DateTimeSelector';
 import { convertLonToStr, convertLatToStr } from '../astro/AstroHelper';
+import { dstAwareZoneAt } from '../../utils/timezone';
 import { randomStr, } from '../../utils/helper';
 import DateTime from '../comp/DateTime';
 import NongLi from './NongLi';
@@ -97,12 +98,29 @@ class NongLiMain extends Component{
 	}
 
 	changeGeo(rec){
-		this.setState({
+		// 选新地点时按新坐标自动校正时区(未在 atlas 内手改时区时),genParams 读 this.state.date.zone。
+		// setZone 仅改时区标签、保留钟面时刻(见 DateTime.setZone),不移位时间。
+		const patch = {
 			lat: convertLatToStr(rec.lat),
 			lon: convertLonToStr(rec.lng),
 			gpsLat: rec.gpsLat,
 			gpsLon: rec.gpsLng,
-		}, ()=>{
+		};
+		const cur = this.state.date;
+		if(cur && cur.clone){
+			const d = cur.clone();
+			try{
+				if(rec.zone){
+					d.setZone(rec.zone);
+					patch.date = d;
+				}else{
+					const ds = d.format ? d.format('YYYY-MM-DD') : null;
+					const z = dstAwareZoneAt(rec.gpsLat, rec.gpsLng, ds);
+					if(z && z.offset){ d.setZone(z.offset); patch.date = d; }
+				}
+			}catch(e){ /* 推断失败保留原时区 */ }
+		}
+		this.setState(patch, ()=>{
 			this.requestNongli();
 		});
 	}

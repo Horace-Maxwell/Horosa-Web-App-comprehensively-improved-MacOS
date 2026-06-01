@@ -11,6 +11,7 @@ import * as AstroConst from '../../constants/AstroConst';
 import request from '../../utils/request';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
+import { dstAwareZoneAt } from '../../utils/timezone';
 import styles from '../../css/styles.less';
 import DateTime from '../comp/DateTime';
 import DateTimeSelector from '../comp/DateTimeSelector';
@@ -1259,12 +1260,29 @@ export class JieQiChartsMain extends Component{
 	}
 
 	changeGeo(rec){
-		this.setState({
+		// 选新地点时按新坐标自动校正时区(未在 atlas 内手改时区时),genParams 读 this.state.zone。
+		// setZone 仅改时区标签、保留钟面时刻(见 DateTime.setZone),不移位时间。
+		const patch = {
 			lon: convertLonToStr(rec.lng),
 			lat: convertLatToStr(rec.lat),
 			gpsLon: rec.gpsLng,
 			gpsLat: rec.gpsLat,
-		}, ()=>{
+		};
+		const cur = this.state.time;
+		try{
+			if(rec.zone){
+				patch.zone = rec.zone;
+				if(cur && cur.clone){ const d = cur.clone(); d.setZone(rec.zone); patch.time = d; }
+			}else{
+				const ds = (cur && cur.format) ? cur.format('YYYY-MM-DD') : null;
+				const z = dstAwareZoneAt(rec.gpsLat, rec.gpsLng, ds);
+				if(z && z.offset){
+					patch.zone = z.offset;
+					if(cur && cur.clone){ const d = cur.clone(); d.setZone(z.offset); patch.time = d; }
+				}
+			}
+		}catch(e){ /* 推断失败保留原时区 */ }
+		this.setState(patch, ()=>{
 			this.requestJieQi()
 		});
 	}
