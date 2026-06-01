@@ -20,6 +20,18 @@
 
 ---
 
+## v2.5.1 — AI 分析页系统性翻新 + 13 技法接入 + 起课/命盘时间入口 + 卜卦/择日挂载 + 数算流年 + atlas 全量城市 + 紫微两 bug + 天文馆沉浸（**纯前端，无需重编 jar**）
+
+> **本版纯前端**（`astrostudyui/**` + 一个数据资产 + 文档），**无 Java/Python 后端改动 → Windows 不需重编 `astrostudyboot.jar`**（总则第 2 条）；只需 `npm run build` 然后 `npm run build:file`（顺序勿并行）。含两轮：① AI 分析页大改（挂载正确性 / 13 技法接入 / 对话 Chat 化 / 地点 atlas / 起课时间入口）；② 复审整改（下列）。详细口径见 `Horosa-Web/AGENTS.md`「AI 分析页 大改」§1–§6。
+
+### 同步要点
+- **新数据资产 `astrostudyui/src/data/citiesFull.json`（~2.27MB，34299 城）**：由 `astrostudyui/scripts/build-cities.js` 从 `vendor/kinastro/tools/cities/{cities.json,china_cities.json}` 生成，已随本版 commit（Windows 直接拿到）；若 Windows 仓缺该文件，在 `astrostudyui/` 跑 `node scripts/build-cities.js` 重新生成。`GeoCoordSelector` 动态 `import()` 懒加载它（不进主 chunk）。
+- **改动文件（全 `astrostudyui/**`）**：`utils/{aiAnalysisContext,aiExport,preciseCalcBridge,heluoLocal,canpingLocal}.js`、`components/aianalysis/AIAnalysisMain.{js,less}`、`components/amap/{GeoCoordSelector,GeoCoordModal}.js`、`components/user/{ChartData,CaseData}.js`、`components/comp/ChartFormData.js`、`components/astro/AstroHelper.js`、`components/ziwei/ZWHouseSangHe.js`、`components/planetarium/{PlanetariumBabylon.js,planetarium.less}`、`components/shusuan/CanPingMain.js`、`components/xq-icons/index.js`、`layouts/app.less`。**重建前端包即可**。
+- **关键不变量（改前读 AGENTS §6）**：起课时间软失败走本地兜底（奇门/太乙离线不缺失）、卜卦/择日 `divTime→birth` 映射、**六爻永不按时间重算**、canping/heluo 必在 `AI_EXPORT_TECHNIQUES`、河洛 `buildSnapshotText` 须调 `liuNian`、三处 `changeGeo` 对称改、紫微 redesign 皮肤更高特异性覆盖右栏空白。
+- **验证**：`npm test`（147 绿，含 horary/election mock + preset⊆techniques 断言）+ `npm run build` + `npm run build:file`；preview 起后端实测 AI 分析起课时间 7 式法就绪 / 命盘时间星盘就绪 / atlas 搜 paris+度分秒 / 紫微无空块 / 天文馆沉浸。
+
+---
+
 ## v2.5.0（已发）— 推运补全 + 紫微运限深化 + 金口诀解读层 + 七政四余Moira + 六壬Phase4 + 时区/DST + 启动机制稳健化（5 分支收敛）
 
 > 本版由 4 个 macOS 分支收敛发布。**关键:含后端 Java/Python 改动(推运补全)→ Windows 必须重编 `astrostudyboot.jar`**(见总则第 2 条);前端改动多,必须 `npm run build` 然后 `npm run build:file`(顺序勿并行)。下面先列各功能同步要点,「启动机制稳健化」细节在 A/B/C 段。
