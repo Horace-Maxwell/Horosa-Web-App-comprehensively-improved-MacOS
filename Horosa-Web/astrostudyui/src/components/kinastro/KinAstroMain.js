@@ -260,6 +260,28 @@ function buildSnapshotText(pan){
 	return lines.join('\n').trim();
 }
 
+// 演禽(xianqin)/ 策天飞星(cetian) AI 快照(无头):按出生 fields 经 ken 后端起盘 → buildSnapshotText。
+// aiAnalysisContext 复算用;无 pan 或后端不可达即返 '' → 挂载显示「缺失」而非占位语。
+export async function buildKinAstroSnapshotForFields(fields, serviceKey){
+	if(!serviceKey){
+		return '';
+	}
+	try{
+		const payload = parseFieldsDateTime(fields);
+		if(!payload){
+			return '';
+		}
+		const pan = await postKinAstro(serviceKey, payload);
+		if(!pan){
+			return '';
+		}
+		const text = buildSnapshotText(pan);
+		return (text && text !== '暂无 kinastro 数据') ? text : '';
+	}catch(e){
+		return '';
+	}
+}
+
 function kinAstroSnapshotKey(serviceKey){
 	return `kinastro-${serviceKey || 'unknown'}`;
 }

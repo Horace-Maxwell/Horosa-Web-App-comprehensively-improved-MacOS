@@ -57,6 +57,17 @@ const DIGNITY_STRONG = ['庙', '旺', '入垣', '得地', '入庙'];
 const DIGNITY_WEAK = ['陷', '失', '落'];
 const DIGNITY_GOLD = 'var(--moira-dignity-strong, #c9912e)';
 const DIGNITY_WEAK_COLOR = 'var(--moira-dignity-weak, #b06a5e)';
+// 庙旺标注徽标取单字：入庙/庙→庙、入垣→垣、得地→得，旺/陷/失/落 原样。
+// （原 dignity.slice(0,1) 把「入庙/入垣」一律截成「入」，致庙旺星显示成「入」。）
+const DIGNITY_BADGE_CHAR = {
+	'入庙': '庙', '庙': '庙', '入垣': '垣', '垣': '垣',
+	'旺': '旺', '得地': '得', '得': '得',
+	'陷': '陷', '失': '失', '落': '落', '平': '平', '不': '不',
+};
+function dignityBadgeChar(dignity){
+	const key = `${dignity || ''}`.trim();
+	return DIGNITY_BADGE_CHAR[key] || key.slice(0, 1);
+}
 // 相位（會衝刑合半合半刑四合）：度 / 容许度 / 色 / 线型，照 Moira aspects 表
 const MOIRA_ASPECTS = [
 	{key: '會', angle: 0, orb: 12, color: '#00b35a', dash: '5 3'},
@@ -750,19 +761,14 @@ function planetPlacements(chart, inner, outer, dir, size, preferLon = false){
 	const safeRadius = Math.max(inner + pad, Math.min(outer - pad, preferredRadius));
 	const minGap = Math.max(5.6, Math.min(12.5, (size || 30) / Math.max(180, safeRadius) * 180 / Math.PI * 1.35));
 	const groups = clusterPlanetItems(items, minGap);
-	// 防重叠：保持真黄经角（labelDegree=degree，落点精确），同簇沿径向分层，避免靠改角度致位移失真。
+	// 防重叠 + 居中：星体一律落在两环线的【几何中心半径 center】；同簇沿【切向】用 resolveLabelDegrees 错开
+	// labelDegree（文字不重叠），真实黄经度数由 connectorLine(markTheta→labelTheta) 的径向连线指回圆环体现。
+	// 不再沿径向分层（那会让星体偏离环带正中，且文字仍叠在同一角度）。
 	return groups.reduce((list, group)=>{
-		const n = group.length;
-		const step = n <= 1 ? 0 : Math.min(size * 0.62, Math.max(8, (band - pad) / n));
-		return list.concat(group.map((item, k)=>{
-			let radius = safeRadius + dir * (k - (n - 1) / 2) * step;
-			radius = Math.max(inner + pad * 0.6, Math.min(outer - pad * 0.6, radius));
-			return {
-				...item,
-				labelDegree: item.degree,
-				radius,
-			};
-		}));
+		return list.concat(resolveLabelDegrees(group, minGap).map((item)=>({
+			...item,
+			radius: center,
+		})));
 	}, []).sort((a, b)=>a.degree - b.degree || a.order - b.order);
 }
 
@@ -1312,7 +1318,7 @@ class GuoLaoMoiraWheel extends Component{
 						weight: 600,
 					})}
 					{showBadge ? (
-						<text x={p.x + opt.size * 0.6} y={p.y - opt.size * 0.5} fill={color} fontSize={opt.size * 0.44} fontWeight="700" textAnchor="middle" dominantBaseline="central">{dignity.slice(0, 1)}</text>
+						<text x={p.x + opt.size * 0.6} y={p.y - opt.size * 0.5} fill={color} fontSize={opt.size * 0.44} fontWeight="700" textAnchor="middle" dominantBaseline="central">{dignityBadgeChar(dignity)}</text>
 					) : null}
 				</g>
 			);

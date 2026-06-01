@@ -1,0 +1,175 @@
+.atlas {
+	display: flex;
+	flex-direction: column;
+	height: 460px;
+	color: var(--horosa-text);
+}
+
+.head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 8px 12px;
+	margin-bottom: 10px;
+	border: 1px solid var(--horosa-border);
+	border-radius: 10px;
+	background: var(--horosa-panel-soft);
+}
+
+.coord {
+	font-size: 14px;
+	color: var(--horosa-text);
+}
+
+.coord b {
+	color: var(--horosa-muted);
+	font-weight: 500;
+	margin-right: 2px;
+}
+
+.coordNone {
+	color: var(--horosa-muted);
+}
+
+.tz {
+	font-size: 13px;
+}
+
+.tzNone {
+	color: var(--horosa-muted);
+}
+
+.tzInfo {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.tzZone {
+	color: var(--horosa-text);
+	font-weight: 500;
+}
+
+.tzOffset {
+	color: var(--horosa-accent-strong);
+}
+
+.tzDst {
+	padding: 1px 7px;
+	border-radius: 999px;
+	font-size: 12px;
+	color: var(--horosa-gold, #c9912e);
+	border: 1px solid var(--horosa-gold, #c9912e);
+}
+
+.body {
+	display: flex;
+	gap: 12px;
+	flex: 1;
+	min-height: 0;
+}
+
+.side {
+	width: 256px;
+	flex: 0 0 256px;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.sideLabel {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--horosa-muted);
+	margin: 0 0 6px;
+}
+
+.sideLabel + .sideLabel,
+.cityList + .sideLabel {
+	margin-top: 12px;
+}
+
+.cityList {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	margin-top: 8px;
+	border: 1px solid var(--horosa-border);
+	border-radius: 10px;
+	background: var(--horosa-surface-raised, var(--horosa-panel-bg));
+}
+
+.cityItem {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
+	padding: 7px 10px;
+	border: none;
+	border-bottom: 1px solid var(--horosa-border);
+	background: transparent;
+	color: var(--horosa-text);
+	cursor: pointer;
+	text-align: left;
+	transition: background 0.12s;
+}
+
+.cityItem:last-child {
+	border-bottom: none;
+}
+
+.cityItem:hover {
+	background: var(--horosa-accent-soft);
+}
+
+.cityName {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.cityRegion {
+	font-size: 12px;
+	color: var(--horosa-muted);
+	white-space: nowrap;
+}
+
+.cityEmpty {
+	padding: 16px 10px;
+	font-size: 12px;
+	color: var(--horosa-muted);
+	text-align: center;
+}
+
+.manualRow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.manualRow :global(.xq-input) {
+	flex: 1;
+	min-width: 0;
+}
+
+.mapWrap {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.mapSearch {
+	flex: 0 0 auto;
+}
+
+.map {
+	flex: 1;
+	min-height: 0;
+	border-radius: 10px;
+	overflow: hidden;
+	border: 1px solid var(--horosa-border);
+}

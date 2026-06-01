@@ -216,6 +216,212 @@
 	min-height: 0;
 }
 
+/* —— 面向用户的新版顶栏：① 配置 → ② 测试连接 → ③ 对话 —— */
+.topBar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	padding: 2px 2px 10px;
+	border-bottom: 1px solid var(--horosa-border);
+	flex: 0 0 auto;
+}
+
+.topGroup {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.topDivider {
+	width: 1px;
+	height: 20px;
+	background: var(--horosa-border);
+	flex: 0 0 auto;
+}
+
+.topBtn {
+	flex: 0 0 auto;
+}
+
+.modelSelect {
+	min-width: 200px;
+}
+
+.sourceSelect {
+	min-width: 220px;
+}
+
+.connChip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 12px;
+	border-radius: 999px;
+	border: 1px solid var(--horosa-border);
+	background: var(--horosa-panel-soft);
+	color: var(--horosa-text-soft);
+	font-size: 13px;
+	line-height: 1;
+	cursor: pointer;
+	transition: border-color 0.15s, background 0.15s;
+	flex: 0 0 auto;
+}
+
+.connChip:hover {
+	border-color: var(--horosa-accent);
+}
+
+.connDot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: currentColor;
+	flex: 0 0 auto;
+}
+
+.connOk {
+	color: var(--horosa-jade, #2e7d5b);
+}
+
+.connOk:hover {
+	border-color: var(--horosa-jade, #2e7d5b);
+}
+
+.connErr {
+	color: var(--horosa-danger, #cf1322);
+}
+
+.connErr:hover {
+	border-color: var(--horosa-danger, #cf1322);
+}
+
+.connIdle {
+	color: var(--horosa-muted);
+}
+
+/* 对话区：主流 Chat 式——占满竖向空间；空态居中气泡输入，出文后展开为消息流 + 底部停靠输入，消息居中限宽便于阅读 */
+.chatStage {
+	height: 100%;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* 空态：垂直居中的问候 + 气泡输入（仿主流 Chat landing） */
+.chatLanding {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px 16px;
+	overflow: auto;
+}
+
+.chatLandingInner {
+	width: 100%;
+	max-width: 720px;
+	text-align: center;
+}
+
+.chatLandingTitle {
+	font-size: 24px;
+	font-weight: 600;
+	color: var(--horosa-text);
+	margin-bottom: 8px;
+}
+
+.chatLandingHint {
+	font-size: 13px;
+	color: var(--horosa-muted);
+	margin-bottom: 20px;
+}
+
+.chatLanding .composerBubble {
+	text-align: left;
+}
+
+/* 活动态：消息流（居中列）+ 底部停靠输入 */
+.chatThread {
+	width: 100%;
+	max-width: 768px;
+	margin: 0 auto;
+}
+
+.chatThreadHead {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 2px 2px 12px;
+	margin-bottom: 8px;
+	border-bottom: 1px solid var(--horosa-border);
+}
+
+.chatThreadTitle {
+	font-weight: 600;
+	color: var(--horosa-text);
+}
+
+.composerDock {
+	flex: 0 0 auto;
+	padding: 10px 12px 6px;
+}
+
+/* 主流 Chat 式圆角气泡输入框 */
+.composerBubble {
+	border: 1px solid var(--horosa-border);
+	border-radius: 16px;
+	background: var(--horosa-surface-raised, var(--horosa-panel-bg));
+	padding: 6px 10px 6px;
+	box-shadow: 0 2px 14px rgba(15, 28, 53, 0.06);
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.composerBubble:focus-within {
+	border-color: var(--horosa-accent);
+	box-shadow: 0 4px 18px rgba(47, 125, 241, 0.12);
+}
+
+.composerInput.composerInput {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	padding: 6px 6px !important;
+	resize: none;
+}
+
+.composerBar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 2px;
+}
+
+.composerHint {
+	font-size: 12px;
+}
+
+@media (max-width: 560px) {
+	.composerHint { display: none; }
+}
+
+/* 挂载设置抽屉分区 */
+.mountSection {
+	margin-bottom: 18px;
+}
+
+.mountSectionLabel {
+	margin-bottom: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--horosa-text-soft);
+}
+
 .chatCard,
 .contextCard {
 	height: 100%;
@@ -256,6 +462,7 @@
 	.templateGrid :global(.ant-card),
 	.settingsGrid :global(.ant-card),
 	.composer,
+	.composerBubble,
 	.previewCode,
 	.summaryBlock,
 	.messageAssistant {

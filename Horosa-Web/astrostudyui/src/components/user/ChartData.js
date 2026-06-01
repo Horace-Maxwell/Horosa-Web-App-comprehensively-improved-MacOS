@@ -280,6 +280,7 @@ export default class ChartData extends Component{
 								<GeoCoordModal
 									onOk={this.changeGeo}
 									lat={flds.gpsLat.value} lng={flds.gpsLon.value}
+									date={flds.birth ? flds.birth.value : undefined}
 								>
 									<XQButton>经纬度选择</XQButton>
 								</GeoCoordModal>

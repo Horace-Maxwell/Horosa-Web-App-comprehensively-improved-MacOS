@@ -22,6 +22,12 @@
 
 ---
 
+> **更新（AI 分析页大改之后）**：本文以下若干结论已被后续一轮覆盖，**以 `Horosa-Web/AGENTS.md`「AI 分析页 大改」节为准**：
+> - §3.F 称 `regenerateCaseTechniqueSnapshot` 及 5 引擎为"死代码"——**已复活**：用于新「起课时间(timepoint)」入口 + 已存时间确定式法事盘(`TIME_CASTABLE_DIVINATION`=六壬/金口诀/奇门/太乙/三式)按时间自动补算。**六爻/统摄法仍永不按时间重算**（白名单硬隔离，护栏断言在 `aiAnalysisContext.test`）。
+> - §3/§6「未接入」表(profection/solararc/返照/givenyear/zodialrelease/decennials/primarydirchart + 数算 + 演禽/策天/皇极)——**已全部接入挂载**(各有 `build*SnapshotText`，详见 AGENTS)。
+> - A1 兼容过滤仍是命脉，但缓存复用已收紧为 `isCacheSnapshotConfidentMatch`(date 确凿匹配才用)，`buildCaseContext` 不再读全局缓存。
+> - 面板/布局已重构：对话居中 + 顶栏「配置→测试→对话」+ 挂载收进抽屉(`XQDrawer`)。
+
 ## 1. 背景与问题
 
 用户在「AI 分析」选中命盘「李」并勾选八字/紫微时，挂载的八字显示当天日期（2026-05-25）、紫微显示当前默认丙年——都不是李的出生数据。另外提出：面板信息看不全/滑不动、系统提示占位浪费、顶部按钮行占位、历史页两个空白框无用、AI 输出的 Markdown 无法正常渲染。

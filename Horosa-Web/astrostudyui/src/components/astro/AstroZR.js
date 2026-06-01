@@ -244,6 +244,59 @@ function buildZRAISnapshot(chartObj, params, basePoint, list, aiState){
 	return lines.join('\n');
 }
 
+// 黄道星释（zodiacal releasing）AI 快照(无头):内部 fetch /predict/zr,默认福点(Pars Fortuna)基点 + L1 全列概览。
+// aiAnalysisContext 复算用;无 zr 数据即返 '' → 挂载显示「缺失」。
+function zrNatalParamsStandalone(chartObj){
+	const qp = (chartObj && chartObj.params) ? chartObj.params : {};
+	let date = qp.date;
+	let time = qp.time;
+	if(qp.birth){
+		const parts = `${qp.birth}`.split(' ');
+		date = date || parts[0];
+		time = time || parts[1];
+	}
+	return {
+		date,
+		time,
+		zone: qp.zone,
+		lon: qp.lon,
+		lat: qp.lat,
+		hsys: qp.hsys,
+		tradition: qp.tradition,
+		birth: qp.birth,
+		zodiacal: qp.zodiacal,
+		startSign: null,
+		stopLevelIdx: 3,
+	};
+}
+
+export async function buildZodialReleaseSnapshotText(chartObj){
+	if(!chartObj){
+		return '';
+	}
+	try{
+		const params = zrNatalParamsStandalone(chartObj);
+		const data = await request(`${Constants.ServerRoot}/predict/zr`, {
+			body: JSON.stringify(params),
+			timeoutMs: 60000,
+		});
+		const result = (data && data[Constants.ResultKey]) || {};
+		const list = Array.isArray(result.zr) ? result.zr : [];
+		if(!list.length){
+			return '';
+		}
+		return buildZRAISnapshot(
+			chartObj,
+			params,
+			AstroConst.PARS_FORTUNA,
+			list,
+			{ aiMode: AI_MODE_L1_ALL, aiL1Idx: 0, aiL2Idx: 0, aiL3Idx: 0 }
+		) || '';
+	}catch(e){
+		return '';
+	}
+}
+
 class AstroZR extends Component{
 	constructor(props) {
 		super(props);

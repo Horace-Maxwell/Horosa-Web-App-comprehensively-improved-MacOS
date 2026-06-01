@@ -12,6 +12,27 @@ Append new entries; do not rewrite history.
 
 ---
 
+## 2026-06-01
+
+### v2.5.1：AI 分析页系统性翻新 + 13 技法接入 AI 挂载/导出 + 起课时间入口 + UI 美化（对话 Chat 化 / 地点 atlas）+ 多项 UI 修复
+- Date: 2026-06-01
+- Scope: AI 分析页（aianalysis）+ 占星/紫微/七政四余/地点选择 UI + 技法挂载/导出
+- Files:
+  - `Horosa-Web/astrostudyui/src/utils/aiAnalysisContext.js`（挂载正确性 + 13 技法 builder + timepoint）
+  - `Horosa-Web/astrostudyui/src/components/aianalysis/AIAnalysisMain.{js,less}`（三步顶栏 + 挂载抽屉 + 对话 Chat 化 + 起课时间入口）
+  - `Horosa-Web/astrostudyui/src/components/astro/{AstroZR,AstroDecennials,AstroChartMain}.js`、`kinastro/KinAstroMain.js`、`huangji/HuangJiMain.js`（导出技法 builder + 删收合死按钮）
+  - `Horosa-Web/astrostudyui/src/components/guolao/GuoLaoMoiraWheel.js`（星体居中/切向防重叠/庙旺标注）
+  - `Horosa-Web/astrostudyui/src/components/planetarium/PlanetariumBabylon.js`（全屏 engine.resize）
+  - `Horosa-Web/astrostudyui/src/components/amap/{GeoCoordSelector.js,GeoCoordSelector.less}` + `src/data/cities.json`（地点 atlas：城市快搜/手输经纬/时区预览/地图）
+  - `Horosa-Web/astrostudyui/src/layouts/app.less`（星运 tab 滚动 + 紫微右栏底部空块清除）
+  - 文档：`Horosa-Web/AGENTS.md`「AI 分析页 大改」节、`docs/ai-analysis-context-and-markdown.md` 覆盖说明
+- Details:
+  - 修挂载「对不上」：全局缓存严格签名匹配 `isCacheSnapshotConfidentMatch` + `buildCaseContext` 去缓存（六爻仍只认存盘）。
+  - 13 技法接入 AI 挂载：8 推运（主限法盘/小限/太阳弧/太阳·太阴返照/黄道释放/十年大运/流年/+ primarydirect）+ 数算（参评数/河洛理数）+ ken 后端（演禽/策天飞星/皇极经世）；下拉清理空壳（节气盘×6/风水/骰子/辅助/合盘）。
+  - 起课时间入口：复活 `regenerateCaseTechniqueSnapshot`，timepoint 源即时起盘 + 时间确定式法事盘自动补算（白名单硬隔离六爻）。
+  - UI：AI 对话改主流 Chat 式（居中气泡输入/消息居中/占满）；地点弹窗内置 atlas；紫微右栏底部空块清除；七政四余星体居中+防重叠+庙旺标注（庙/旺/垣，非「入」）；占星收合死按钮移除；天文馆全屏修复；星运技法 tab 可滚动。
+- Verification: `npm run build` 绿 + `npm test` 146 全绿（含「六爻永不重算」护栏 + 导出审计矩阵）；preview 真后端 live-verify：13 技法挂载 ready 非空、签名对得上 birth（no-串盘）；AI 对话/地点 atlas/紫微/七政四余 明暗双主题实测。分支 feature/ai-analysis-overhaul。
+
 ## 2026-05-31
 
 ### v2.5.0：西占推运补全7技法 + 紫微运限深化 + 金口诀解读层 + 七政四余Moira还原 + 六壬Phase4 + 时区/DST自动校正 + 启动机制稳健化（端口/就绪根治）

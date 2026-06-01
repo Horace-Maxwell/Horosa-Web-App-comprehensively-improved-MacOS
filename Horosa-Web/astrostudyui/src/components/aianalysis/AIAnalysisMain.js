@@ -1,7 +1,9 @@
 import React from 'react';
 import {
+	Badge,
 	Checkbox,
 	Collapse,
+	Dropdown,
 	Empty,
 	Form,
 	Popconfirm,
@@ -52,6 +54,7 @@ import {
 	saveUiPrefs,
 } from '../../utils/aiAnalysisStore';
 import {
+	TIME_CASTABLE_DIVINATION,
 	buildContextLayers,
 	buildPromptContext,
 	clipContextLayers,
@@ -60,6 +63,7 @@ import {
 	listAnalysisSources,
 	listAnalysisTechniqueOptions,
 } from '../../utils/aiAnalysisContext';
+import * as Constants from '../../utils/constants';
 import { parseMaterialFile } from '../../utils/aiAnalysisMaterial';
 import {
 	diagnoseProvider,
@@ -671,6 +675,15 @@ function mergeTechniqueState(list, nextItem, keys, labelMap){
 	});
 }
 
+// 「起课时间」入口：一个合成的 source（非持久化），让用户对任一时刻即时起所有时间确定式法。
+const TIMEPOINT_SOURCE_ID = 'timepoint:current';
+
+function formatTimepointNow(){
+	const d = new Date();
+	const p = (n)=>`${n}`.padStart(2, '0');
+	return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
 function AIAnalysisMain(props){
 	const defaultUi = loadUiPrefs();
 	const [innerTab, setInnerTab] = React.useState('analysis');
@@ -695,6 +708,16 @@ function AIAnalysisMain(props){
 	const [techniqueContexts, setTechniqueContexts] = React.useState([]);
 	const [prompt, setPrompt] = React.useState('');
 	const [sessionSystemPrompt, setSessionSystemPrompt] = React.useState(defaultUi.sessionSystemPrompt || '');
+	const [mountDrawerOpen, setMountDrawerOpen] = React.useState(false);
+	const [timepointDraft, setTimepointDraft] = React.useState(()=>({
+		divTime: formatTimepointNow(),
+		zone: '+08:00',
+		lon: Constants.DefLon,
+		lat: Constants.DefLat,
+		gpsLon: Constants.DefGpsLon,
+		gpsLat: Constants.DefGpsLat,
+		gender: 1,
+	}));
 	const [historyKeyword, setHistoryKeyword] = React.useState('');
 	const [historyFilter, setHistoryFilter] = React.useState({
 		provider: '',
@@ -740,16 +763,47 @@ function AIAnalysisMain(props){
 	}, [conversations, activeConversationId]);
 
 	const activeSource = React.useMemo(()=>{
+		if(selectedSourceId === TIMEPOINT_SOURCE_ID){
+			// 合成的「起课时间」源（不持久化）：record 仅含时间 + 地点，即可驱动各式法起盘。
+			return {
+				id: TIMEPOINT_SOURCE_ID,
+				sourceType: 'timepoint',
+				title: `起课时间 · ${timepointDraft.divTime}`,
+				module: 'sanshiunited',
+				time: timepointDraft.divTime,
+				zone: timepointDraft.zone,
+				tags: [],
+				snapshotStatus: 'lazy',
+				updatedAt: timepointDraft.divTime,
+				record: {
+					divTime: timepointDraft.divTime,
+					zone: timepointDraft.zone,
+					lon: timepointDraft.lon,
+					lat: timepointDraft.lat,
+					gpsLon: timepointDraft.gpsLon,
+					gpsLat: timepointDraft.gpsLat,
+					gender: timepointDraft.gender,
+					sourceModule: '',
+				},
+			};
+		}
 		return sources.find((item)=>item.id === selectedSourceId) || null;
-	}, [sources, selectedSourceId]);
+	}, [sources, selectedSourceId, timepointDraft]);
 
 	const sourceOptions = React.useMemo(()=>{
-		return sources.map((item)=>({
+		const opts = sources.map((item)=>({
 			value: item.id,
 			label: `${item.sourceType === 'chart' ? '命盘' : '事盘'} · ${item.title}`,
 			searchText: `${item.title} ${item.module || ''} ${(item.tags || []).join(' ')}`.toLowerCase(),
 			item,
 		}));
+		opts.unshift({
+			value: TIMEPOINT_SOURCE_ID,
+			label: '⏱ 起课时间（此刻 / 自定义）',
+			searchText: '起课时间 时间盘 占时 此刻 timepoint',
+			item: null,
+		});
+		return opts;
 	}, [sources]);
 
 	const techniqueOptions = React.useMemo(()=>{
@@ -2508,235 +2562,309 @@ function AIAnalysisMain(props){
 		message.success('已从该轮次创建分支');
 	}
 
+	function renderConnChip(){
+		const profile = activeProviderProfile;
+		let toneClass = styles.connIdle;
+		let text = '点击测试';
+		if(!profile){
+			toneClass = styles.connIdle;
+			text = '未配置接口';
+		}else if(profile.healthStatus === 'healthy'){
+			toneClass = styles.connOk;
+			text = '已连通';
+		}else if(profile.healthStatus === 'error'){
+			toneClass = styles.connErr;
+			text = '连接失败';
+		}
+		return (
+			<button
+				type="button"
+				className={`${styles.connChip} ${toneClass}`}
+				title={profile ? '点击测试与该接口的连通性' : '尚未配置接口，点击去配置'}
+				onClick={()=>{
+					if(!profile){ openProviderEditor(null); return; }
+					testProfileChat(profile, parseModelSelection(modelSelection).model);
+				}}
+			>
+				<span className={styles.connDot} />
+				<span>{text}</span>
+			</button>
+		);
+	}
+
+	function renderMountDrawer(){
+		return (
+			<Drawer
+				title="挂载设置"
+				placement="right"
+				width={460}
+				open={mountDrawerOpen}
+				onClose={()=>setMountDrawerOpen(false)}
+				className={styles.mountDrawer}
+			>
+				{activeSource && activeSource.sourceType === 'timepoint' ? (
+					<div className={styles.mountSection}>
+						<div className={styles.mountSectionLabel}>起课时间设置</div>
+						<Space direction="vertical" style={{ width: '100%' }} size={8}>
+							<Input
+								addonBefore="时间"
+								value={timepointDraft.divTime}
+								placeholder="YYYY-MM-DD HH:mm:ss"
+								onChange={(e)=>setTimepointDraft((prev)=>({ ...prev, divTime: e.target.value }))}
+							/>
+							<Space size={8}>
+								<Input addonBefore="经度" value={timepointDraft.lon} style={{ width: 156 }} onChange={(e)=>setTimepointDraft((prev)=>({ ...prev, lon: e.target.value }))} />
+								<Input addonBefore="纬度" value={timepointDraft.lat} style={{ width: 156 }} onChange={(e)=>setTimepointDraft((prev)=>({ ...prev, lat: e.target.value }))} />
+							</Space>
+							<Space size={8}>
+								<Button size="small" onClick={()=>setTimepointDraft((prev)=>({ ...prev, divTime: formatTimepointNow() }))}>重置为此刻</Button>
+								<Button size="small" type="primary" onClick={()=>setSelectedTechniqueKeys(TIME_CASTABLE_DIVINATION.slice())}>一键挂载全部式法</Button>
+							</Space>
+							<Text type="secondary" style={{ fontSize: 12 }}>六爻 / 统摄法需手动起卦后存为事盘再挂载（不能凭时间凭空起）。</Text>
+						</Space>
+					</div>
+				) : null}
+				{activeSource ? (
+					<div className={styles.mountSection}>
+						<div className={styles.mountSectionLabel}>使用技法</div>
+						<Select
+							mode="multiple"
+							allowClear
+							value={activeTechniqueKeys}
+							placeholder={`选择${activeSource.sourceType === 'chart' ? '命盘' : '事盘'}技法`}
+							style={{ width: '100%' }}
+							onChange={(vals)=>setSelectedTechniqueKeys(vals || [])}
+						>
+							{techniqueOptions.map((item)=>(
+								<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
+							))}
+						</Select>
+					</div>
+				) : null}
+				<div className={styles.mountSection}>
+					<div className={styles.mountSectionLabel}>参考组合 / 资料（多选）</div>
+					<Select
+						mode="multiple"
+						showSearch
+						allowClear
+						value={referenceIds}
+						placeholder="选择固定资料、组合"
+						style={{ width: '100%' }}
+						onChange={(vals)=>setReferenceIds(vals || [])}
+					>
+						{referenceOptions.map((item)=>(
+							<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
+						))}
+					</Select>
+				</div>
+				<div className={styles.mountSection}>
+					<div className={styles.mountSectionLabel}>本轮系统提示</div>
+					<TextArea
+						value={sessionSystemPrompt}
+						rows={3}
+						placeholder="可留空；也可由组合一键带入"
+						onChange={(e)=>setSessionSystemPrompt(e.target.value)}
+					/>
+				</div>
+				<div className={styles.mountSection}>
+					<div className={styles.mountSectionLabel}>本轮挂载上下文（预览）</div>
+					{lockedContextItems.length === 0 ? (
+						<Empty description="还没有挂载任何前提" />
+					) : (
+						<Collapse
+							activeKey={contextActiveKeys}
+							onChange={(ks)=>setContextActiveKeys(Array.isArray(ks) ? ks : [ks])}
+							className={styles.contextCollapse}
+						>
+							{lockedContextItems.map((item)=>{
+								const statusMeta = getContextStatusMeta(item.status);
+								const signature = buildContextSignatureText(item.meta);
+								return (
+									<Collapse.Panel
+										key={item.key}
+										header={(
+											<div className={styles.contextPanelHeader}>
+												<span className={styles.contextPanelTitle}>{item.title}</span>
+												<span className={styles.contextPanelTags}>
+													<Tag>{item.type}</Tag>
+													<Tag color={statusMeta.color}>{statusMeta.text}</Tag>
+												</span>
+												{signature ? <span className={styles.contextPanelSig}>{signature}</span> : null}
+											</div>
+										)}
+									>
+										{item.content
+											? <div className={styles.contextBody}>{item.content}</div>
+											: <div className={styles.contextEmptyHint}>{item.emptyHint || '暂无内容'}</div>}
+									</Collapse.Panel>
+								);
+							})}
+						</Collapse>
+					)}
+				</div>
+			</Drawer>
+		);
+	}
+
+	// 主流 Chat 式气泡输入：空态居中、活动态停靠底部，两处共用同一气泡。
+	function renderComposer(){
+		const canSend = !sending && !!`${prompt || ''}`.trim();
+		return (
+			<div className={styles.composerBubble}>
+				<TextArea
+					value={prompt}
+					autoSize={{ minRows: 1, maxRows: 8 }}
+					bordered={false}
+					className={styles.composerInput}
+					placeholder="输入你的分析问题…会自动带上案例、资料、组合与模版约束"
+					onChange={(e)=>setPrompt(e.target.value)}
+					onPressEnter={(e)=>{
+						if(!e.shiftKey){
+							e.preventDefault();
+							if(!sending){
+								handleSend();
+							}
+						}
+					}}
+				/>
+				<div className={styles.composerBar}>
+					<Space size={2} className={styles.composerTools}>
+						<Tooltip title="新对话"><Button size="small" type="text" icon={<XQIcon name="plus" />} onClick={resetConversationDraft} /></Tooltip>
+						<Tooltip title="重新生成"><Button size="small" type="text" icon={<XQIcon name="sync" />} onClick={handleRegenerateLastReply} disabled={!activeConversation || sending} /></Tooltip>
+						<Tooltip title="编辑上一条并分支"><Button size="small" type="text" icon={<XQIcon name="edit" />} onClick={handleEditLastUserAndBranch} disabled={!activeConversation || sending} /></Tooltip>
+						<Tooltip title="刷新案例"><Button size="small" type="text" icon={<XQIcon name="refresh" />} onClick={()=>setSources(listAnalysisSources())} /></Tooltip>
+						{sending ? <Tooltip title="停止生成"><Button size="small" type="text" danger icon={<XQIcon name="stop" />} onClick={handleStopStreaming} /></Tooltip> : null}
+					</Space>
+					<div className={styles.composerSend}>
+						<Text type="secondary" className={styles.composerHint}>Enter 发送 · Shift+Enter 换行</Text>
+						<Button type="primary" shape="circle" icon={<XQIcon name="send" />} loading={sending} disabled={!canSend} onClick={handleSend} />
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	function renderAnalysisPane(){
 		return (
 			<div className={styles.paneShell}>
 				<div className={styles.paneHeader}>
-					<Card size="small" className={styles.toolbarCard} bordered={false}>
-						<div className={styles.toolbarRow}>
-							<div className={styles.toolbarField}>
-								<div className={`${styles.toolbarLabel} ${styles.toolbarLabelInline}`}>
-									<span>本次分析模型</span>
-									<Button
-										size="small"
-										className={styles.quickApiButton}
-										onClick={()=>openProviderEditor(null)}
-									>
-										配置 API
-									</Button>
-									<Button
-										size="small"
-										className={styles.quickApiButton}
-										disabled={!activeProviderProfile}
-										onClick={()=>activeProviderProfile && fetchModelsAndEmbeddings(activeProviderProfile)}
-									>
-										拉取模型
-									</Button>
-									<Button
-										size="small"
-										className={styles.quickApiButton}
-										disabled={!activeProviderProfile}
-										onClick={()=>activeProviderProfile && testProfileChat(activeProviderProfile, parseModelSelection(modelSelection).model)}
-									>
-										测试连接
-									</Button>
-									<Button
-										size="small"
-										className={styles.quickApiButton}
-										onClick={()=>setProviderSwitchModalOpen(true)}
-									>
-										生效 API
-									</Button>
-								</div>
-								<Select
-									showSearch
-									value={modelSelection || undefined}
-									placeholder="选择已启用的模型"
-									style={{ width: '100%' }}
-									optionFilterProp="children"
-									onChange={(val)=>setModelSelection(val || '')}
-								>
-									{modelOptions.map((item)=>(
-										<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
-									))}
-								</Select>
-							</div>
-							<div className={styles.toolbarField}>
-								<div className={styles.toolbarLabel}>案例选择（命盘 / 事盘）</div>
-								<Select
-									showSearch
-									allowClear
-									value={selectedSourceId || undefined}
-									placeholder="搜索并选择案例"
-									style={{ width: '100%' }}
-									filterOption={(input, option)=>{
-										const source = sourceOptions.find((item)=>item.value === option.value);
-										return source ? source.searchText.indexOf(`${input || ''}`.trim().toLowerCase()) >= 0 : false;
-									}}
-									onChange={(val)=>setSelectedSourceId(val || '')}
-								>
-									{sourceOptions.map((item)=>(
-										<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
-									))}
-								</Select>
-							</div>
-							{activeSource ? (
-								<div className={styles.toolbarField}>
-									<div className={styles.toolbarLabel}>使用技法</div>
-									<Select
-										mode="multiple"
-										allowClear
-										value={activeTechniqueKeys}
-										placeholder={`选择${activeSource.sourceType === 'chart' ? '命盘' : '事盘'}技法`}
-										style={{ width: '100%' }}
-										onChange={(vals)=>setSelectedTechniqueKeys(vals || [])}
-									>
-										{techniqueOptions.map((item)=>(
-											<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
-										))}
-									</Select>
-								</div>
-							) : null}
-							<div className={styles.toolbarField}>
-								<div className={styles.toolbarLabel}>参考组合 / 资料（多选）</div>
-								<Select
-									mode="multiple"
-									showSearch
-									allowClear
-									value={referenceIds}
-									placeholder="选择固定资料、组合"
-									style={{ width: '100%' }}
-									onChange={(vals)=>setReferenceIds(vals || [])}
-								>
-									{referenceOptions.map((item)=>(
-										<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
-									))}
-								</Select>
-							</div>
+					<div className={styles.topBar}>
+						<div className={styles.topGroup}>
+							<Select
+								showSearch
+								value={modelSelection || undefined}
+								placeholder="选择模型"
+								className={styles.modelSelect}
+								optionFilterProp="children"
+								onChange={(val)=>setModelSelection(val || '')}
+							>
+								{modelOptions.map((item)=>(
+									<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
+								))}
+							</Select>
+							<Dropdown
+								trigger={['click']}
+								placement="bottomLeft"
+								menu={{
+									items: [
+										{ key: 'edit', label: '配置当前接口' },
+										{ key: 'fetch', label: '拉取模型', disabled: !activeProviderProfile },
+										{ key: 'switch', label: '切换生效接口' },
+										{ type: 'divider' },
+										{ key: 'manage', label: '管理全部接口…' },
+									],
+									onClick: ({ key })=>{
+										if(key === 'edit'){ openProviderEditor(activeProviderProfile || null); }
+										else if(key === 'fetch'){ if(activeProviderProfile){ fetchModelsAndEmbeddings(activeProviderProfile); } }
+										else if(key === 'switch'){ setProviderSwitchModalOpen(true); }
+										else if(key === 'manage'){ setInnerTab('settings'); }
+									},
+								}}
+							>
+								<Button size="small" className={styles.topBtn} icon={<XQIcon name="setting" />}>配置</Button>
+							</Dropdown>
 						</div>
-					</Card>
+						<span className={styles.topDivider} />
+						{renderConnChip()}
+						<span className={styles.topDivider} />
+						<div className={styles.topGroup}>
+							<Select
+								showSearch
+								allowClear
+								value={selectedSourceId || undefined}
+								placeholder="选择案例（命盘 / 事盘）"
+								className={styles.sourceSelect}
+								filterOption={(input, option)=>{
+									const source = sourceOptions.find((item)=>item.value === option.value);
+									return source ? source.searchText.indexOf(`${input || ''}`.trim().toLowerCase()) >= 0 : false;
+								}}
+								onChange={(val)=>setSelectedSourceId(val || '')}
+							>
+								{sourceOptions.map((item)=>(
+									<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
+								))}
+							</Select>
+							<Badge count={lockedContextItems.length} size="small" offset={[-2, 2]}>
+								<Button size="small" className={styles.topBtn} icon={<XQIcon name="tool" />} onClick={()=>setMountDrawerOpen(true)}>挂载</Button>
+							</Badge>
+						</div>
+					</div>
 				</div>
 				<div className={styles.paneBody}>
-					<div className={styles.chatSplit}>
-						<Card
-							size="small"
-							bordered={false}
-							className={styles.chatCard}
-							title={activeConversation ? activeConversation.title : '分析对话'}
-							extra={activeConversation ? <Text type="secondary">{buildTimestampLabel(activeConversation.updatedAt)}</Text> : null}
-							bodyStyle={{ height: 'calc(100% - 46px)', display: 'flex', flexDirection: 'column', minHeight: 0, paddingBottom: 0 }}
-						>
-							<div className={styles.chatColumn}>
-								<div className={styles.chatLog} ref={chatLogRef}>
-									{visibleMessages.length === 0 ? (
-										<div className={styles.emptyPane}>
-											<Empty description="选择案例、模型后即可开始流式分析对话" />
-										</div>
-									) : visibleMessages.map((item)=>(
-										<div
-											key={item.id}
-											className={[
-												styles.messageBubble,
-												item.role === 'user' ? styles.messageUser : styles.messageAssistant,
-											].join(' ')}
-										>
-											<div className={styles.messageMetaRow}>
-												<div className={styles.messageMeta}>
-													{item.role === 'user' ? '你' : 'AI'}
-													{item.createdAt ? ` · ${buildTimestampLabel(item.createdAt)}` : ''}
-													{item.streamStatus === 'streaming' ? ' · 生成中' : ''}
-													{item.streamStatus === 'aborted' ? ' · 已停止' : ''}
-												</div>
-												<Space size={4}>
-													<Tooltip title="从此轮次分支">
-														<Button size="small" type="link" onClick={()=>handleBranchFromMessage(item)}>分支</Button>
-													</Tooltip>
-												</Space>
-											</div>
-											{item.role === 'user'
-												? <div className={styles.messageText}>{item.content}</div>
-												: <div className={styles.markdownBody} dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(item.content) }} />}
-										</div>
-									))}
-								</div>
-								<div className={styles.composer}>
-									<TextArea
-										value={prompt}
-										rows={4}
-										placeholder="输入你的分析问题，系统会自动带上案例、资料、组合与模版约束。"
-										onChange={(e)=>setPrompt(e.target.value)}
-										onPressEnter={(e)=>{
-											if(!e.shiftKey){
-												e.preventDefault();
-												if(!sending){
-													handleSend();
-												}
-											}
-										}}
-									/>
-									<div className={styles.composerActions}>
-										<Space wrap size={6} className={styles.composerTools}>
-											<Button size="small" icon={<XQIcon name="refresh" />} onClick={()=>setSources(listAnalysisSources())}>刷新案例</Button>
-											<Button size="small" onClick={resetConversationDraft}>新对话</Button>
-											<Button size="small" icon={<XQIcon name="sync" />} onClick={handleRegenerateLastReply} disabled={!activeConversation || sending}>重新生成</Button>
-											<Button size="small" icon={<XQIcon name="edit" />} onClick={handleEditLastUserAndBranch} disabled={!activeConversation || sending}>编辑上一条并分支</Button>
-											<Button size="small" icon={<XQIcon name="stop" />} danger onClick={handleStopStreaming} disabled={!sending}>停止生成</Button>
-										</Space>
-										<Space size={10} className={styles.composerSend}>
-											<Text type="secondary">Enter 发送，Shift + Enter 换行</Text>
-											<Button type="primary" icon={<XQIcon name="send" />} loading={sending} disabled={sending} onClick={handleSend}>发送分析</Button>
-										</Space>
-									</div>
+					<div className={styles.chatStage}>
+						{visibleMessages.length === 0 ? (
+							<div className={styles.chatLanding}>
+								<div className={styles.chatLandingInner}>
+									<div className={styles.chatLandingTitle}>开始你的分析</div>
+									<div className={styles.chatLandingHint}>选择案例与模型，输入问题即可开始流式分析对话。</div>
+									{renderComposer()}
 								</div>
 							</div>
-						</Card>
-						<div className={styles.sideColumn}>
-							<Card size="small" bordered={false} className={styles.systemPromptCard} title="本轮系统提示">
-								<TextArea
-									value={sessionSystemPrompt}
-									rows={2}
-									placeholder="可留空；也可由组合一键带入"
-									onChange={(e)=>setSessionSystemPrompt(e.target.value)}
-								/>
-							</Card>
-							<Card size="small" bordered={false} className={styles.contextCard} title="本轮挂载上下文" bodyStyle={{ height: 'calc(100% - 46px)', minHeight: 0 }}>
-								<div className={styles.contextScroll}>
-									{lockedContextItems.length === 0 ? (
-										<Empty description="还没有挂载任何前提" />
-									) : (
-										<Collapse
-											activeKey={contextActiveKeys}
-											onChange={(ks)=>setContextActiveKeys(Array.isArray(ks) ? ks : [ks])}
-											className={styles.contextCollapse}
-										>
-											{lockedContextItems.map((item)=>{
-												const statusMeta = getContextStatusMeta(item.status);
-												const signature = buildContextSignatureText(item.meta);
-												return (
-													<Collapse.Panel
-														key={item.key}
-														header={(
-															<div className={styles.contextPanelHeader}>
-																<span className={styles.contextPanelTitle}>{item.title}</span>
-																<span className={styles.contextPanelTags}>
-																	<Tag>{item.type}</Tag>
-																	<Tag color={statusMeta.color}>{statusMeta.text}</Tag>
-																</span>
-																{signature ? <span className={styles.contextPanelSig}>{signature}</span> : null}
-															</div>
-														)}
-													>
-														{item.content
-															? <div className={styles.contextBody}>{item.content}</div>
-															: <div className={styles.contextEmptyHint}>{item.emptyHint || '暂无内容'}</div>}
-													</Collapse.Panel>
-												);
-											})}
-										</Collapse>
-									)}
+						) : (
+							<React.Fragment>
+								<div className={styles.chatLog} ref={chatLogRef}>
+									<div className={styles.chatThread}>
+										{activeConversation ? (
+											<div className={styles.chatThreadHead}>
+												<span className={styles.chatThreadTitle}>{activeConversation.title}</span>
+												{activeConversation.updatedAt ? <Text type="secondary">{buildTimestampLabel(activeConversation.updatedAt)}</Text> : null}
+											</div>
+										) : null}
+										{visibleMessages.map((item)=>(
+											<div
+												key={item.id}
+												className={[
+													styles.messageBubble,
+													item.role === 'user' ? styles.messageUser : styles.messageAssistant,
+												].join(' ')}
+											>
+												<div className={styles.messageMetaRow}>
+													<div className={styles.messageMeta}>
+														{item.role === 'user' ? '你' : 'AI'}
+														{item.createdAt ? ` · ${buildTimestampLabel(item.createdAt)}` : ''}
+														{item.streamStatus === 'streaming' ? ' · 生成中' : ''}
+														{item.streamStatus === 'aborted' ? ' · 已停止' : ''}
+													</div>
+													<Space size={4}>
+														<Tooltip title="从此轮次分支">
+															<Button size="small" type="link" onClick={()=>handleBranchFromMessage(item)}>分支</Button>
+														</Tooltip>
+													</Space>
+												</div>
+												{item.role === 'user'
+													? <div className={styles.messageText}>{item.content}</div>
+													: <div className={styles.markdownBody} dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(item.content) }} />}
+											</div>
+										))}
+									</div>
 								</div>
-							</Card>
-						</div>
+								<div className={styles.composerDock}>
+									<div className={styles.chatThread}>
+										{renderComposer()}
+									</div>
+								</div>
+							</React.Fragment>
+						)}
 					</div>
 				</div>
 			</div>
@@ -3160,6 +3288,8 @@ function AIAnalysisMain(props){
 					</TabPane>
 				</Tabs>
 			</Spin>
+
+			{renderMountDrawer()}
 
 			<Modal
 				title={editingMaterial ? '编辑资料' : '新建资料'}

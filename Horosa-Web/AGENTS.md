@@ -308,3 +308,39 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 **全链路(已接，改动须保持)：** 储存＝`clickSaveCase` payload 带 5 字段(castMethod/xuanShiZhi/yanShuNum/yueJiangMethod/fenZhouYe)；AI挂载＝`aiAnalysisContext.generateCaseTechniqueSnapshot('liureng')` 透传 castOpts(否则八客/选时案例挂成默认)+ `saveModuleAISnapshot` meta 记 5 字段；AI导出＝**自动**(同 `buildLiuRengSnapshotText`，已把起课法/换将/分昼夜记入起盘信息，无需改 aiExport)。七政＝右栏 TabPane，复用 `getPlanetObject`+`getSignZi`，顺逆 `lonspeed<0`。
 
 **自检(preflight [14] 哨兵)：** ① `npm test` 全 140 绿；② 预览切 八客/年日对齐/演数/选时——**中心盘三传 == 右栏大格断辞**(同源)、日干支不变；默认正时正将逐字复原(零回归)；选时/演数选中后出现输入框。
+
+## AI 分析页 大改(挂载正确性 / 技法全接入 / UI 重构 / 起课时间入口)
+
+本轮把 AI 分析页系统性翻新。**改 `aiAnalysisContext.js` / `AIAnalysisMain.js` 前先读本节**，多处口径已变（含复活旧文档标注的"死代码"）：
+
+### 1. 挂载"对不上"根因 + 修法（正确性，勿回退）
+- **全局模块缓存**(`horosa.ai.snapshot.module.v1.<module>`)本质=「上次算过的那张盘/卦」，key 不含出生时间。原 `isSnapshotMetaCompatible`「任一方签名字段为空就判兼容」+ `buildCaseContext` 读全局缓存 → 换盘/事盘挂出旧内容。
+- **修法**：① 新增 `isCacheSnapshotConfidentMatch`（**date 双方都有且相等**才复用缓存，缺签名一律 false→回退重算），`getTechniqueSnapshotFromCache` 改用它（**勿把它换回宽松的 `isSnapshotMetaCompatible`**——后者仍用于 payload 候选，payload 是源自身数据可宽松）。② `buildCaseContext` **移除全局缓存读取**，事盘源上下文只走 payload + `generateCaseTechniqueSnapshot`（遵 Part F）。③ `pickSnapshotCandidate` 的 `compatible!==false` 过滤是 A1 命脉，**勿动**。
+- 自检：`aiAnalysisContext.test`「换盘后签名必匹配 / 缺签名不挂」；preview 两盘交替选同技法→签名各异(no-串盘)。
+
+### 2. 「起课时间」入口 + 时间确定式法自动补算（复活了死代码！）
+- `regenerateCaseTechniqueSnapshot`(619)+5 引擎曾被 `ai-analysis-context-and-markdown.md §F` 标为"死代码"，本轮**复活**：
+  - **`TIME_CASTABLE_DIVINATION = ['liureng','jinkou','qimen','taiyi','sanshiunited']`**（时间完全确定的式法）。
+  - 新增 `sourceType==='timepoint'` 分支：合成的「起课时间」源（`AIAnalysisMain` 的 `timepointDraft`，**不持久化**，默认此刻+`Constants.DefLon/Lat`），对白名单技法即时起盘。
+  - 事盘分支(case)：payload 缺该技法且 **key∈白名单** 时，按本案例 `divTime`+默认 `await regenerateCaseTechniqueSnapshot` 补算（meta 带 `regeneratedFromCaseTime`）。
+- **🔒 铁律：六爻 / 统摄法 / 宿占 不在白名单 → 永不按时间重算。** 六爻是摇钱/报数起卦，按时间重算 = 伪造一个不同的卦。`aiAnalysisContext.test` 有「never recasts 六爻」护栏断言，**勿删**。
+- `listAnalysisTechniqueOptions` timepoint 分支只 offer 白名单 5 式法。
+
+### 3. 命盘类技法全接入 AI 挂载（13 个新 builder，规律照抄）
+`regenerateChartTechniqueSnapshot`(switch) 新增：
+- **推运**：`primarydirect`+`primarydirchart`(同主限方向数据，fall-through)、`profection/solararc/solarreturn/lunarreturn/givenyear`(共享 `buildPredictivePeriodSnapshot(chartObj,key)`→`/predict/<key>`+`buildPredictiveSnapshotText`，**目标时刻默认「此刻」**)、`zodialrelease`(AstroZR 导出 `buildZodialReleaseSnapshotText`,福点基点+L1全列)、`decennials`(AstroDecennials 导出 `buildDecennialsSnapshotText`,纯前端默认设置+L1全列)。
+- **数算**：`canping`/`heluo`——先 `buildLocalBaziResult(buildChartBaziParams(record))` 排四柱(镜像 `HeLuoMain.getModel` 取数:`gz=p.ganzi||p.ganZhi`、月/时支=`.charAt(1)`)，再喂 `canpingLocal`/`heluoLocal` 的 `calculate`+`buildSnapshotText`(import 须 **alias**,两库同名导出 `calculate`/`buildSnapshotText`)。
+- **后端 ken**：`xianqin`(演禽)/`cetian`(策天飞星)——`KinAstroMain` 导出 `buildKinAstroSnapshotForFields(fields,serviceKey)`(`parseFieldsDateTime`+`postKinAstro`+`buildSnapshotText`)；`huangji`(皇极经世)——`HuangJiMain` 导出 `buildHuangJiSnapshotForFields(fields)`(`postWangJi('pan',{...dt,historyYear,classicKey:DEFAULT_CLASSIC})`)。
+- **接入即检**：`aiExport.test getAIExportAuditMatrix` 强制「挂载已注册技法必须在 aiExport 段表+提取器有对应」。这 13 个的 `AI_EXPORT_PRESET_SECTIONS` 段+结构化键**早已存在**(技法各有独立页),故只补挂载侧；**新增其它技法务必两侧都补**否则审计红。**无数据一律返 ''**(挂载显「缺失」,勿返空段头/占位语)。
+- **下拉清理**：`ANALYSIS_CHART_TECHNIQUES` 移除真空壳 `relative/jieqi×6/cntradition/otherbu/fengshui`(标签表保留)。
+
+### 4. AI 页 UI 重构（面向用户）
+- `renderAnalysisPane`：顶栏 `.topBar` 三组(配置→测试→对话)：模型 Select+`Dropdown`(配置当前接口/拉取模型/切换生效接口/管理全部接口)、连接 chip 四态(`.connChip` 读 `activeProviderProfile?.healthStatus`，**全程 `?.` 守空防白屏**，无接口显「未配置」)、案例 Select+`Badge`「挂载」。
+- 对话**保留 chatCard 只居中**(`.chatStage .chatCard{max-width:960px;margin:0 auto}`)；技法/资料/系统提示/挂载预览迁入 `XQDrawer`「挂载设置」。**只增 `.less` 类**，未碰共享阴影组/暗色块/死规则。
+
+### 5. 三个 UI bug
+- 占星「收合」死占位符(`AstroChartMain.js` `renderInputPanel` 的无 onClick `XQIconButton tooltip="收合"`)→ **删除**。
+- 天文馆全屏失效真因=进全屏未 `engine.resize()`：`PlanetariumBabylon` `componentDidMount` 加 `fullscreenchange`→`this.renderer.engine.resize()`(延一帧)，`componentWillUnmount` 解绑。
+- 星运页右侧技法 tab(22个纵排)末尾被裁：`app.less` **仅** `.horosa-direction-page > .ant-tabs.ant-tabs-right > .ant-tabs-nav` 加 `.ant-tabs-nav-wrap{overflow-y:auto}` + 收紧 tab(`min-height:30/margin:1`)——**勿改多页共享的 `.ant-tabs-nav` 规则**。
+
+**自检**：`npm run build` 绿 + `npm test` 146 绿；preview 起后端(`start_horosa_local.sh`)→ AI分析选盘+开挂载抽屉→各技法「已就绪」非空、签名对得上 birth(实测 13 技法含演禽/策天/皇极对 ken 后端均 OK)。**改大段 JSX 后必 `npm run build`**(jest 过≠能编译)。

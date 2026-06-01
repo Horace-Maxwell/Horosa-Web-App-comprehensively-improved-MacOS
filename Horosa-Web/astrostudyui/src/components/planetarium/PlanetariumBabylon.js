@@ -2699,6 +2699,16 @@ class PlanetariumBabylon extends Component{
 
 	componentDidMount(){
 		this._isUnmounted = false;
+		// 进/出全屏后浏览器改了视口尺寸，但 Babylon 引擎不会自动重算 canvas → 画面不铺满（即「全屏按钮失效」真因）。
+		// 监听 fullscreenchange，进/出全屏都触发 engine.resize()（延后一帧等布局稳定）。
+		this._onFullscreenChange = ()=>{
+			setTimeout(()=>{
+				if(this.renderer && this.renderer.engine){
+					this.renderer.engine.resize();
+				}
+			}, 60);
+		};
+		document.addEventListener('fullscreenchange', this._onFullscreenChange);
 		this.renderer = new PlanetariumRenderer(
 			this.canvasRef.current,
 			(selected)=>this.setState({ selected }),
@@ -2742,6 +2752,10 @@ class PlanetariumBabylon extends Component{
 
 	componentWillUnmount(){
 		this._isUnmounted = true;
+		if(this._onFullscreenChange){
+			document.removeEventListener('fullscreenchange', this._onFullscreenChange);
+			this._onFullscreenChange = null;
+		}
 		this.pushPerfLog('release', { canvasReleased: true });
 		if(this.playTimer){
 			cancelAnimationFrame(this.playTimer);

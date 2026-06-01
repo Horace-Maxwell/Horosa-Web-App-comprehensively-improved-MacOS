@@ -103,8 +103,9 @@ class GeoCoordModal extends Component{
 					width={800} title='经纬度查找'
 					bodyStyle={{height: 500, width:800}}
 					>
-					<GeoCoordSelector onChange={this.onChange} height={400} 
-						lat={lat} lng={lon} gpsLat={gpslat} gpsLng={gpslng}					
+					<GeoCoordSelector onChange={this.onChange} height={400}
+						lat={lat} lng={lon} gpsLat={gpslat} gpsLng={gpslng}
+						date={this.props.date}
 					/>
 				</Modal>
 			</span>

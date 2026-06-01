@@ -106,6 +106,28 @@ function buildSnapshotText(pan, xinyi){
 	return lines.join('\n').trim();
 }
 
+// 皇极经世 AI 快照(无头):按出生 fields 经 ken 后端起元会运世盘(默认皇极经世书)→ buildSnapshotText。
+// aiAnalysisContext 复算用;心易发微(xinyi)属占断叠加,挂载默认不带(传 null);无 pan 即返 ''。
+export async function buildHuangJiSnapshotForFields(fields){
+	try{
+		const dt = parseFieldsDateTime(fields);
+		if(!dt){
+			return '';
+		}
+		const pan = await postWangJi('pan', {
+			...dt,
+			historyYear: dt.year,
+			classicKey: DEFAULT_CLASSIC,
+		});
+		if(!pan){
+			return '';
+		}
+		return buildSnapshotText(pan, null) || '';
+	}catch(e){
+		return '';
+	}
+}
+
 class HuangJiMain extends Component{
 	constructor(props){
 		super(props);

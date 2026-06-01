@@ -275,7 +275,7 @@ export default class CaseData extends Component{
 						<Row>
 							<Col span={24}>从地图选取经纬度：</Col>
 							<Col span={24}>
-								<GeoCoordModal onOk={this.changeGeo} lat={flds.gpsLat.value} lng={flds.gpsLon.value}>
+								<GeoCoordModal onOk={this.changeGeo} lat={flds.gpsLat.value} lng={flds.gpsLon.value} date={flds.divTime ? flds.divTime.value : undefined}>
 									<XQButton>经纬度选择</XQButton>
 								</GeoCoordModal>
 							</Col>

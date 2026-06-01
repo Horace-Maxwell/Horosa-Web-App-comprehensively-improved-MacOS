@@ -228,6 +228,37 @@ function buildDecennialAISnapshot(chartObj, params, settings, timelineMeta, list
 	return lines.join('\n');
 }
 
+// 十年大运 AI 快照(无头):纯前端 buildDecennialTimeline + 默认设置(本光起运/黄道序/Valens日限/传统历)+ L1 全列概览。
+// aiAnalysisContext 复算用;无 timeline 即返 '' → 挂载显示「缺失」。
+export function buildDecennialsSnapshotText(chartObj){
+	if(!chartObj){
+		return '';
+	}
+	try{
+		const settings = {
+			startMode: DECENNIAL_START_MODE_SECT_LIGHT,
+			orderType: DECENNIAL_ORDER_ZODIACAL,
+			dayMethod: DECENNIAL_DAY_METHOD_VALENS,
+			calendarType: DECENNIAL_CALENDAR_TRADITIONAL,
+		};
+		const timelineMeta = buildDecennialTimeline(chartObj, settings);
+		const list = timelineMeta && Array.isArray(timelineMeta.list) ? timelineMeta.list : [];
+		if(!list.length){
+			return '';
+		}
+		return buildDecennialAISnapshot(
+			chartObj,
+			(chartObj.params || {}),
+			settings,
+			timelineMeta,
+			list,
+			{ aiMode: AI_MODE_L1_ALL, aiL1Idx: 0, aiL2Idx: 0, aiL3Idx: 0 }
+		) || '';
+	}catch(e){
+		return '';
+	}
+}
+
 class AstroDecennials extends Component{
 	constructor(props) {
 		super(props);

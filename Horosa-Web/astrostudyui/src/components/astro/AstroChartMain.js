@@ -465,7 +465,6 @@ class AstroChartMain extends Component{
 						<div className="horosa-panel-kicker">命盘设置</div>
 						<div className="horosa-panel-title">{meta.title}</div>
 					</div>
-					<XQIconButton size="small" iconName="chevronDown" tooltip="收合" />
 				</div>
 				<div className="horosa-chart-mode-switch">
 					<button type="button" className="is-active">单盘</button>
@@ -492,6 +491,7 @@ class AstroChartMain extends Component{
 						<GeoCoordModal
 							onOk={this.changeGeo}
 							lat={this.props.fields.gpsLat.value} lng={this.props.fields.gpsLon.value}
+							date={this.props.fields.date ? this.props.fields.date.value : undefined}
 						>
 							<button type="button" className="horosa-unified-field horosa-place-field">
 								<XQIcon name="locastro" />

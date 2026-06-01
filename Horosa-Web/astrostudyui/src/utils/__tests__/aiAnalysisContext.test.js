@@ -239,6 +239,7 @@ jest.mock('../../components/comp/DateTime', ()=> jest.fn().mockImplementation(()
 import {
 	ANALYSIS_CASE_TECHNIQUES,
 	ANALYSIS_CHART_TECHNIQUES,
+	TIME_CASTABLE_DIVINATION,
 	buildPromptContext,
 	getAnalysisTechniqueContexts,
 	getAnalysisSourceContext,
@@ -330,8 +331,13 @@ describe('aiAnalysisContext', ()=>{
 		expect(chartOptions).toContain('astrochart');
 		expect(chartOptions).toContain('primarydirect');
 		expect(chartOptions).toContain('guolao');
-		expect(chartOptions).toContain('cntradition');
 		expect(chartOptions).not.toContain('liureng');
+		// 真空壳技法已从下拉移除（选了挂不出内容）：合盘/节气盘×6/辅助(cntradition)/骰子(otherbu)/风水
+		expect(chartOptions).not.toContain('cntradition');
+		expect(chartOptions).not.toContain('relative');
+		expect(chartOptions).not.toContain('jieqi');
+		expect(chartOptions).not.toContain('otherbu');
+		expect(chartOptions).not.toContain('fengshui');
 	});
 
 	test('getAnalysisTechniqueContexts resolves case technique snapshots from payload', async ()=>{
@@ -439,31 +445,21 @@ describe('aiAnalysisContext', ()=>{
 		);
 	});
 
-	test('getAnalysisTechniqueContexts does not recast case techniques when payload is empty', async ()=>{
+	test('recasts time-castable case techniques from case time when payload empty; never recasts 六爻', async ()=>{
 		const sources = listAnalysisSources();
 		const source = sources.find((item)=>item.id === 'case-3');
-		const contexts = await getAnalysisTechniqueContexts(source, ['liureng', 'qimen', 'taiyi']);
+		const contexts = await getAnalysisTechniqueContexts(source, ['liureng', 'qimen', 'taiyi', 'sixyao']);
+		const byKey = Object.fromEntries(contexts.map((c)=>[c.key, c]));
 
-		expect(contexts).toEqual(expect.arrayContaining([
-			expect.objectContaining({
-				key: 'liureng',
-				available: false,
-				content: '',
-				status: 'missing',
-			}),
-			expect.objectContaining({
-				key: 'qimen',
-				available: false,
-				content: '',
-				status: 'missing',
-			}),
-			expect.objectContaining({
-				key: 'taiyi',
-				available: false,
-				content: '',
-				status: 'missing',
-			}),
-		]));
+		// 时间确定式法（六壬/奇门/太乙）：payload 缺失时按本案例起课时间 + 默认【即时补算】，
+		// 像命盘一样而非显示「未挂载」。
+		expect(byKey.liureng).toEqual(expect.objectContaining({ available: true, status: 'ready' }));
+		expect(byKey.qimen).toEqual(expect.objectContaining({ available: true, status: 'ready' }));
+		expect(byKey.taiyi).toEqual(expect.objectContaining({ available: true, status: 'ready' }));
+		// 补算的快照 meta 带 regeneratedFromCaseTime 标记（来源可追溯）
+		expect(byKey.liureng.meta).toEqual(expect.objectContaining({ regeneratedFromCaseTime: true }));
+		// 🔒 六爻是摇钱/报数起卦，不在白名单 → 绝不按时间重算（否则伪造一个不同的卦），无 payload 即缺失。
+		expect(byKey.sixyao).toEqual(expect.objectContaining({ available: false, status: 'missing', content: '' }));
 	});
 
 	test('getAnalysisTechniqueContexts uses only the selected chart technique snapshot', async ()=>{
@@ -571,9 +567,15 @@ describe('aiAnalysisContext', ()=>{
 			expect(contexts).toHaveLength(1);
 			expect(contexts[0].key).toBe(key);
 			if(expectedByTechnique[key]){
+				// 本案例 payload 显式存了该技法 → 用存盘内容
 				expect(contexts[0].available).toBe(true);
 				expect(contexts[0].content).toContain(expectedByTechnique[key]);
+			}else if(TIME_CASTABLE_DIVINATION.includes(key)){
+				// 时间确定式法未存 payload → 按本案例起课时间自动补算
+				expect(contexts[0].available).toBe(true);
+				expect(contexts[0].status).toBe('ready');
 			}else{
+				// 六爻/统摄法/宿占等非纯时间可推 → 无 payload 即缺失（不伪造卦象）
 				expect(contexts[0].available).toBe(false);
 				expect(contexts[0].status).toBe('missing');
 			}

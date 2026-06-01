@@ -1812,7 +1812,11 @@
     .horosa-workspace-shell .horosa-inspector-tabs,
     .horosa-workspace-shell .horosa-bazi-tabs,
     .horosa-workspace-shell .horosa-ziwei-tabs {
-        height: calc(100% - 132px);
+        /* 右栏面板为 flex column，tab 应填满剩余空间（原 calc(100% - 132px) 会在底部凭空留 132px 空白挡住显示）。
+           对齐已正常的 astro inspector-tabs：flex 撑满 + min-height:0，内容由各 tabpane 面板自行滚动。 */
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
         padding: 0 8px 8px;
     }
 
@@ -6789,6 +6793,25 @@
     .horosa-workspace-shell .horosa-taiyi-page .ant-tabs-nav,
     .horosa-workspace-shell .horosa-aianalysis-page .ant-tabs-nav {
         margin-bottom: 8px;
+    }
+
+    /* 星运（推运）页右侧技法 tab 多达 20+ 个，纵排易顶到底、末尾按钮被裁：
+       整体收紧（行高/间距/上下内距）把它们往上收一收，并允许纵向滚动，确保全部可见可点。
+       仅作用于 .horosa-direction-page，不影响其它页签较少的页面。 */
+    .horosa-workspace-shell .horosa-direction-page > .ant-tabs.ant-tabs-right > .ant-tabs-nav {
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+
+    .horosa-workspace-shell .horosa-direction-page > .ant-tabs.ant-tabs-right > .ant-tabs-nav .ant-tabs-nav-wrap {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .horosa-workspace-shell .horosa-direction-page > .ant-tabs.ant-tabs-right > .ant-tabs-nav .ant-tabs-tab {
+        min-height: 30px;
+        margin: 1px 0;
+        padding: 0 10px;
     }
 
     .horosa-workspace-shell .horosa-module-page .ant-tabs-tab,
