@@ -7583,9 +7583,22 @@
         align-content: start;
         grid-auto-rows: max-content;
         height: auto;
-        min-height: 100%;
+        min-height: 0;
         padding: 2px 0 12px;
         overflow: visible;
+    }
+
+    /* BUG-G 根治(第二次):上次只改了 .horosa-ziwei-tabs(2 类),被 redesign 皮肤的
+       .horosa-ziwei-redesign .horosa-ziwei-tabs(3 类,见 :7536)按特异性压过,故无效。
+       真正病灶是全局规则 .horosa-content-tabs .ant-tabs-tabpane > * { height:100% !important }(见 :5285)
+       把每个 tab 的内容根强行撑满 pane 高度,配合 meta-scroll 的 align-content:start
+       在底部留出一整块空网格轨道 = 用户反复看到的「右栏三 tab 下方空白」。
+       这里在 ziwei 作用域内用更高特异性(4 类)把内容根改回「按内容高」,
+       滚动交回已 overflow:auto 的 .ant-tabs-content-holder。仅作用紫微,不动占星右栏。 */
+    .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-tabs .ant-tabs-tabpane > * {
+        height: auto !important;
+        max-height: none !important;
+        min-height: 0 !important;
     }
 
     .horosa-workspace-shell .horosa-ziwei-redesign .horosa-ziwei-bazi-grid,

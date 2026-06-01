@@ -1,6 +1,7 @@
 import {
 	AI_EXPORT_SETTINGS_VERSION,
 	getAIExportAuditMatrix,
+	getAIExportPresetKeys,
 	getAIExportEffectiveSectionsForTechnique,
 	listAIExportTechniqueSettings,
 	loadAIExportSettings,
@@ -92,6 +93,14 @@ describe('aiExport settings', ()=>{
 			expect(item.extractionKind).toBe('jieqi');
 			expect(item.presetSections.length).toBeLessThanOrEqual(2);
 		});
+	});
+
+	it('registers every preset-section technique in AI_EXPORT_TECHNIQUES (no hidden/un-audited technique like canping/heluo)', ()=>{
+		// 回归哨兵:有 preset 却没登记进 AI_EXPORT_TECHNIQUES 的技法,会在「AI导出设置」下拉隐身、且不被
+		// getAIExportAuditMatrix 覆盖(canping 参评数 / heluo 河洛理数 此前正是此坑)。断言 preset key ⊆ 已登记技法。
+		const matrixKeys = new Set(getAIExportAuditMatrix().map((item)=>item.key));
+		const missing = getAIExportPresetKeys().filter((key)=>!matrixKeys.has(key));
+		expect(missing).toEqual([]);
 	});
 
 	it('uses backend snapshot aliases for newly added structured techniques', ()=>{

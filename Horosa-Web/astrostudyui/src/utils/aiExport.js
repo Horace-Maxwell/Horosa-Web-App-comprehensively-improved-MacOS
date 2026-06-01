@@ -103,8 +103,8 @@ const DOMAIN_REPLACERS = {
 
 const ENABLE_SVG_TEXT_EXPORT = false;
 const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
-export const AI_EXPORT_SETTINGS_VERSION = 12;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 12;
+export const AI_EXPORT_SETTINGS_VERSION = 13;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 13;
 const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	'bazi',
 	'ziwei',
@@ -141,6 +141,8 @@ const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	'persiandirected',
 	'yearsystem129',
 	'balbillus',
+	'canping',
+	'heluo',
 ];
 const AI_EXPORT_PLANET_INFO_DEFAULT = {
 	showHouse: 1,
@@ -256,6 +258,8 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'beiji', label: '北极神数' },
 	{ key: 'nanji', label: '南极神数' },
 	{ key: 'chunzi', label: '蠢子数' },
+	{ key: 'canping', label: '邵子参评数' },
+	{ key: 'heluo', label: '河洛理数' },
 	{ key: 'xianqin', label: '万化仙禽' },
 	{ key: 'cetian', label: '策天飞星' },
 	{ key: 'germany', label: '量化盘' },
@@ -279,7 +283,7 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	primarydirect: ['出生时间', '星盘信息', '主/界限法设置', '主/界限法表格'],
 	distributions: ['界推运（分配法 / Distributions）'],
 	agepoint: ['年龄推进点（Age Point / Huber）'],
-	primarydirchart: ['出生时间', '星盘信息', '主限法盘设置', '主限法盘说明'],
+	primarydirchart: ['出生时间', '星盘信息', '主/界限法设置', '主/界限法表格'],
 	zodialrelease: ['起盘信息', '星盘信息', '基于X点推运'],
 	firdaria: ['出生时间', '星盘信息', '法达星限表格'],
 	profection: ['星盘信息', '起盘信息', '相位'],
@@ -296,7 +300,7 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	yearsystem129: ['129年系统表格'],
 	balbillus: ['Balbillus'],
 	bazi: ['起盘信息', '四柱与三元', '神煞（四柱与三元）', '大运', '流年行运概略'],
-	ziwei: ['起盘信息', '宫位总览'],
+	ziwei: ['起盘信息', '宫位总览', '来因宫', '命中格局'],
 	suzhan: ['起盘信息', '宿盘宫位与二十八宿星曜'],
 	sixyao: ['起盘信息', '卦象', '六爻与动爻', '卦辞与断语'],
 	tongshefa: ['本卦', '六爻', '潜藏', '亲和'],
@@ -399,10 +403,17 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	...JIEQI_SETTING_PRESETS,
 	otherbu: ['起盘信息', '骰子结果', '骰子盘宫位与星体', '天象盘宫位与星体'],
 	fengshui: ['起盘信息', '标记判定', '冲突清单', '建议汇总', '纳气建议'],
-	canping: ['起盘', '本命', '大运', '流年'],
-	heluo: ['起命', '先天卦', '后天卦', '命运篇', '大限'],
+	canping: ['起盘', '本命', '大运·歲運', '流年·歲運'],
+	heluo: ['起命', '先天卦·元堂爻辞', '后天卦·元堂爻辞', '命运篇', '大限·岁运', '流年·岁运'],
 	generic: ['起盘信息'],
 };
+
+// 自检用:返回所有「有 preset 段表」的技法 key。配合测试断言 preset key ⊆ AI_EXPORT_TECHNIQUES,
+// 堵住「有 preset 却没登记进 AI_EXPORT_TECHNIQUES → 在导出设置下拉隐身 + 不被 getAIExportAuditMatrix 自检」的回归
+// (canping 参评数 / heluo 河洛理数 此前正是踩了此坑)。
+export function getAIExportPresetKeys(){
+	return Object.keys(AI_EXPORT_PRESET_SECTIONS);
+}
 
 const AI_EXPORT_FORBIDDEN_SECTIONS = {
 	liureng: ['右侧栏目'],
@@ -2276,7 +2287,8 @@ function getExtractorKindByExportKey(key){
 		|| exportKey === 'shenyishu' || exportKey === 'shaozi' || exportKey === 'tieban' || exportKey === 'fendjing'
 		|| exportKey === 'beiji' || exportKey === 'nanji' || exportKey === 'chunzi' || exportKey === 'xianqin'
 		|| exportKey === 'cetian' || exportKey === 'qizhengkin' || exportKey === 'guolao' || exportKey === 'suzhan'
-		|| exportKey === 'bazi' || exportKey === 'ziwei' || exportKey === 'horary' || exportKey === 'election'){
+		|| exportKey === 'bazi' || exportKey === 'ziwei' || exportKey === 'horary' || exportKey === 'election'
+		|| exportKey === 'canping' || exportKey === 'heluo'){
 		return `module:${snapshotModuleKeyByContextKey(exportKey)}`;
 	}
 	if(exportKey === 'taiyi'){
@@ -5156,6 +5168,12 @@ async function extractContentByKey(exportKey, context){
 	}
 	if(exportKey === 'fengshui'){
 		return extractFengShuiContent(context);
+	}
+	if(exportKey === 'canping'){
+		return extractSimpleModuleContent('canping');
+	}
+	if(exportKey === 'heluo'){
+		return extractSimpleModuleContent('heluo');
 	}
 	return extractGenericContent(context);
 }

@@ -55,8 +55,12 @@ import { buildGuolaoSnapshotForFields } from '../components/guolao/GuoLaoChartMa
 import { buildSuzhanSnapshotText } from '../components/suzhan/SuZhanMain';
 import { buildGermanySnapshotForFields } from '../components/germany/AstroMidpoint';
 import { buildPredictiveSnapshotText } from './predictiveAiSnapshot';
+import { runHorary } from '../divination/horary/horaryEngine';
+import { buildHorarySnapshot } from '../divination/horary/horarySnapshot';
+import { runElection } from '../divination/election/electionEngine';
+import { buildElectionSnapshot } from '../divination/election/electionSnapshot';
 import { buildLocalBaziResult } from './baziLunarLocal';
-import { calculate as canpingCalculate, buildSnapshotText as buildCanpingSnapshotText } from './canpingLocal';
+import { calculate as canpingCalculate, buildSnapshotText as buildCanpingSnapshotText, liunianSeries as canpingLiunianSeries } from './canpingLocal';
 import { calculate as heluoCalc, daYun as heluoDaYun, judge as heluoJudge, buildSnapshotText as buildHeluoSnapshotText } from './heluoLocal';
 
 const DEFAULT_PD_ASPECTS = [0, 60, 90, 120, 180];
@@ -132,6 +136,8 @@ const ANALYSIS_TECHNIQUE_LABELS = {
 	qimen: '奇门遁甲',
 	sanshiunited: '三式合一',
 	taiyi: '太乙',
+	horary: '卜卦盘',
+	election: '择日盘',
 	canping: '邵子参评数',
 	heluo: '河洛理数',
 	xianqin: '演禽',
@@ -188,12 +194,15 @@ export const ANALYSIS_CASE_TECHNIQUES = [
 	'sanshiunited',
 	'taiyi',
 	'suzhan',
+	'horary',
+	'election',
 ];
 
-// 「时间确定式法」：盘面完全由起课时间 + 默认设置决定，可即时起盘。
+// 「时间确定式法」：盘面完全由起课时间 + 默认设置(含地点)决定，可即时起盘。
 // 用途：① 新的「起课时间」入口对它们即时起盘；② 已存事盘若 payload 缺该技法，按其起课时间自动补算。
+// 含西洋卜卦盘 horary / 择日盘 election——二者仅凭时间+地点即可起西洋盘、引擎默认类别(general/marriage)即出结构化裁决/评分。
 // 六爻/统摄法/宿占等【不在此列】——六爻是摇钱/报数起卦，按时间重算 = 伪造一个不同的卦，永远只认存盘。
-export const TIME_CASTABLE_DIVINATION = ['liureng', 'jinkou', 'qimen', 'taiyi', 'sanshiunited'];
+export const TIME_CASTABLE_DIVINATION = ['liureng', 'jinkou', 'qimen', 'taiyi', 'sanshiunited', 'horary', 'election'];
 const TIME_CASTABLE_SET = new Set(TIME_CASTABLE_DIVINATION);
 
 function safeParseJson(txt, defVal = null){
@@ -649,6 +658,10 @@ async function regenerateCaseTechniqueSnapshot(record, moduleName, payload){
 		return regenerateTaiyiSnapshot(record, payload);
 	case 'sanshiunited':
 		return regenerateSanshiUnifiedSnapshot(record, payload);
+	case 'horary':
+		return regenerateHorarySnapshot(record);
+	case 'election':
+		return regenerateElectionSnapshot(record);
 	default:
 		return '';
 	}
@@ -731,7 +744,24 @@ async function buildCanpingSnapshotForRecord(record){
 			method: 'ming',
 			qiyunAge: 1,
 		});
-		return buildCanpingSnapshotText(result) || '';
+		// 补全生涯流年表:此前不传 liunianRows → result.liunian 恒 null、快照缺整层流年(用户反馈数算缺流年)。
+		let liunianRows = null;
+		try{
+			const series = canpingLiunianSeries({
+				yearGz: b.yearGz,
+				monthBranch: b.monthZhi,
+				dayBranch: b.dayZhi,
+				hourBranch: b.hourZhi,
+				gender: b.gender,
+				method: 'ming',
+				qiyunAge: 1,
+				birthYear: b.birthYear,
+				startAge: 1,
+				endAge: 120,
+			});
+			liunianRows = (series && series.rows) || null;
+		}catch(e){ liunianRows = null; }
+		return buildCanpingSnapshotText(result, { liunianRows }) || '';
 	}catch(e){
 		return '';
 	}
@@ -770,6 +800,39 @@ async function fetchChartResultForRecord(record, options = {}){
 		timeoutMs: 20000,
 	});
 	return rsp && rsp.Result ? rsp.Result : null;
+}
+
+// 卜卦盘 horary：仅凭起课时间+地点起西洋盘(无需人工摇卦),用引擎默认类别 general 出结构化裁决快照。
+// 与 DivinationChartShell 同源(fetchChart→Result→runHorary);后端不可达 → 无盘返 '' → 显「缺失」(西洋盘必后端)。
+async function regenerateHorarySnapshot(record){
+	// 起课/事盘记录用 divTime,但西洋盘 fetch 走 buildFieldObject(读 record.birth)→ 须把起课时刻映射为 birth 才能起盘。
+	const chartRecord = (record && record.birth) ? record : { ...record, birth: (record && (record.divTime || record.updateTime)) || '' };
+	const chart = await fetchChartResultForRecord(chartRecord);
+	if(!chart){
+		return '';
+	}
+	try{
+		const j = runHorary(chart, 'general');
+		return j ? (buildHorarySnapshot(j) || '') : '';
+	}catch(e){
+		return '';
+	}
+}
+
+// 择日盘 election：同理,引擎默认 topicId=marriage(runElection 自带兜底)出总评/红线/分项/应期/建议快照。
+async function regenerateElectionSnapshot(record){
+	// 同 horary:起课/事盘记录用 divTime,映射为 birth 后才能起西洋盘。
+	const chartRecord = (record && record.birth) ? record : { ...record, birth: (record && (record.divTime || record.updateTime)) || '' };
+	const chart = await fetchChartResultForRecord(chartRecord);
+	if(!chart){
+		return '';
+	}
+	try{
+		const j = runElection(chart, 'marriage');
+		return j ? (buildElectionSnapshot(j) || '') : '';
+	}catch(e){
+		return '';
+	}
 }
 
 // 5 个「目标时刻型」推运（小限 profection / 太阳弧 solararc / 太阳返照 solarreturn /

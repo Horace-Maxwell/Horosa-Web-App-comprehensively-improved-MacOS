@@ -14,6 +14,19 @@ Append new entries; do not rewrite history.
 
 ## 2026-06-01
 
+### v2.5.1（复审整改第二轮：起课兜底 / 卜卦择日挂载 / 命盘时间入口 / 数算流年 / 导出注册 / atlas 全量城市 / 紫微两 bug / 天文馆沉浸）
+- Date: 2026-06-01
+- Scope: AI 分析页 + 导出 + atlas + 紫微 + 天文馆（用户验收 v2.5.1 后追加，仍属 v2.5.1，不升版）
+- Files: `utils/{aiAnalysisContext,aiExport,preciseCalcBridge,heluoLocal,canpingLocal}.js`、`components/aianalysis/AIAnalysisMain.{js,less}`、`components/amap/{GeoCoordSelector,GeoCoordModal}.js` + `scripts/build-cities.js` + `src/data/citiesFull.json`、`components/user/{ChartData,CaseData}.js` + `components/comp/ChartFormData.js`、`components/astro/AstroHelper.js`、`components/ziwei/ZWHouseSangHe.js`、`layouts/app.less`、`components/planetarium/{PlanetariumBabylon.js,planetarium.less}`、`components/xq-icons/index.js`、`__tests__/{aiAnalysisContext,aiExport}.test.js`
+- Details:
+  - B1 起课「缺失」：preciseCalcBridge 软失败也走本地兜底（奇门/太乙离线 / 改经纬度不再缺失）。
+  - New3：卜卦盘/择日盘进 TIME_CASTABLE（fetchChart→runHorary/runElection，divTime→birth 映射）；六爻仍永不入（护栏在）。
+  - 命盘时间入口（合成 chart 源）+ 起课/命盘两抽屉完整设置（GeoCoordModal atlas / 时区 / 命名 / 性别 / 保存为命盘·事盘）。
+  - AI 消息复制全文 / 重新生成（按 messageId 截断，不误删末条）；测试连接状态机（切模型回灰、成功变绿「测试成功」）。
+  - 河洛补流年/流月日 + 参评数补流年；canping/heluo 进 AI_EXPORT_TECHNIQUES + 段名对齐 + 新增 preset⊆techniques 自检；ziwei 补来因宫/命中格局。
+  - atlas 全量城市（citiesFull.json 34299 懒加载 + 中英搜）+ 时区手改持久化（三处 changeGeo 对称）+ 坐标度分秒；紫微右栏空白根治（特异性覆盖）+ 点宫神煞恒定；天文馆全屏沉浸（隐双栏 + 动画返回）+ 箭头收合。
+- Verification: `npm test` 147 绿 + `npm run build` 绿；preview 实测 7 式法就绪 / 命盘时间星盘就绪 / 紫微无空块 / atlas paris+度分秒+时区下拉 / 天文馆沉浸+箭头。preflight 新增 [24] 哨兵。
+
 ### v2.5.1：AI 分析页系统性翻新 + 13 技法接入 AI 挂载/导出 + 起课时间入口 + UI 美化（对话 Chat 化 / 地点 atlas）+ 多项 UI 修复
 - Date: 2026-06-01
 - Scope: AI 分析页（aianalysis）+ 占星/紫微/七政四余/地点选择 UI + 技法挂载/导出

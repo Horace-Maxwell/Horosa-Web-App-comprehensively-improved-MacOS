@@ -83,6 +83,28 @@ export function convertLonToStr(degree){
 	return londeg + dir + lonmin;
 }
 
+// 十进制经度 → 度分秒展示字符串(如 116°24′27″E),按原始符号判东西。
+export function formatLonDms(lng){
+	const v = parseFloat(lng + '');
+	if(!Number.isFinite(v)){
+		return '';
+	}
+	const dir = v < 0 ? 'W' : 'E';
+	const dms = splitDegree(Math.abs(v));
+	return `${dms[0]}°${dms[1]}′${dms[2]}″${dir}`;
+}
+
+// 十进制纬度 → 度分秒展示字符串(如 39°54′15″N),按原始符号判南北。
+export function formatLatDms(lat){
+	const v = parseFloat(lat + '');
+	if(!Number.isFinite(v)){
+		return '';
+	}
+	const dir = v < 0 ? 'S' : 'N';
+	const dms = splitDegree(Math.abs(v));
+	return `${dms[0]}°${dms[1]}′${dms[2]}″${dir}`;
+}
+
 export function convertLatStrToDegree(lat){
 	if(lat === undefined || lat === null){
 		return null;

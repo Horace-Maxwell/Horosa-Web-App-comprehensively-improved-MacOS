@@ -219,6 +219,20 @@ jest.mock('../../components/guazhan/GuaZhanMain', ()=>({
 	buildGuaSnapshotText: jest.fn(()=> '自动生成的六爻快照'),
 }));
 
+jest.mock('../../divination/horary/horaryEngine', ()=>({
+	runHorary: jest.fn(()=>({ verdict: { leaning: 'even' } })),
+	ASPECT_CN: {},
+}));
+jest.mock('../../divination/horary/horarySnapshot', ()=>({
+	buildHorarySnapshot: jest.fn(()=> '自动生成的卜卦盘快照'),
+}));
+jest.mock('../../divination/election/electionEngine', ()=>({
+	runElection: jest.fn(()=>({ overall: { score: 80 } })),
+}));
+jest.mock('../../divination/election/electionSnapshot', ()=>({
+	buildElectionSnapshot: jest.fn(()=> '自动生成的择日盘快照'),
+}));
+
 jest.mock('../../components/comp/DateTime', ()=> jest.fn().mockImplementation(()=>({
 	ad: 1,
 	zone: '+08:00',

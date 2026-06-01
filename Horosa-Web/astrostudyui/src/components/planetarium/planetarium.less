@@ -6,6 +6,7 @@
 	background: #050812;
 	color: #edf4ff;
 	overflow: hidden;
+	transition: grid-template-columns 0.28s ease;
 }
 
 .horosa-planetarium-page.is-left-collapsed {
@@ -41,6 +42,7 @@
 	background: rgba(7, 11, 24, 0.9);
 	border-color: rgba(128, 154, 190, 0.2);
 	overflow: auto;
+	transition: transform 0.28s ease, opacity 0.28s ease;
 }
 
 .planetarium-left {
@@ -68,13 +70,41 @@
 	color: #f4f8ff;
 }
 
+.planetarium-title {
+	position: relative;
+	padding-right: 34px;
+}
+
 .planetarium-collapse {
-	min-height: 28px;
+	position: absolute;
+	top: 0;
+	right: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
 	border: 1px solid rgba(145, 170, 210, 0.22);
 	background: rgba(18, 27, 47, 0.9);
 	color: #dce8ff;
 	border-radius: 7px;
 	cursor: pointer;
+	font-size: 16px;
+	transition: transform 0.18s ease, border-color 0.18s, background 0.18s;
+}
+
+.planetarium-collapse:hover {
+	border-color: rgba(117, 177, 255, 0.68);
+	background: rgba(31, 48, 82, 0.95);
+}
+
+.planetarium-collapse .xq-icon {
+	transition: transform 0.2s ease;
+}
+
+.horosa-planetarium-page.is-left-collapsed .planetarium-collapse .xq-icon {
+	transform: rotate(180deg);
 }
 
 .planetarium-time {
@@ -326,6 +356,61 @@
 	line-height: 1.7;
 }
 
+.horosa-planetarium-page.is-immersive {
+	grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+
+.horosa-planetarium-page.is-immersive .planetarium-left {
+	opacity: 0;
+	pointer-events: none;
+	transform: translateX(-100%);
+}
+
+.horosa-planetarium-page.is-immersive .planetarium-right {
+	opacity: 0;
+	pointer-events: none;
+	transform: translateX(100%);
+}
+
+.planetarium-immersive-exit {
+	position: absolute;
+	top: 18px;
+	right: 18px;
+	z-index: 6;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 14px;
+	border-radius: 999px;
+	border: 1px solid rgba(155, 181, 230, 0.28);
+	background: rgba(8, 13, 26, 0.62);
+	backdrop-filter: blur(8px);
+	color: #dce8ff;
+	font-size: 13px;
+	cursor: pointer;
+	opacity: 0;
+	transform: translateY(-6px);
+	animation: planetarium-exit-in 0.32s ease forwards 0.05s;
+	transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+
+.planetarium-immersive-exit:hover {
+	border-color: rgba(117, 177, 255, 0.7);
+	background: rgba(31, 48, 82, 0.85);
+	transform: translateY(-6px) scale(1.04);
+}
+
+.planetarium-immersive-exit .xq-icon {
+	font-size: 15px;
+}
+
+@keyframes planetarium-exit-in {
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
 @media (max-width: 1100px) {
 	.horosa-planetarium-page {
 		grid-template-columns: 236px minmax(0, 1fr);
@@ -333,5 +418,9 @@
 
 	.planetarium-right {
 		display: none;
+	}
+
+	.horosa-planetarium-page.is-immersive {
+		grid-template-columns: 0 minmax(0, 1fr);
 	}
 }

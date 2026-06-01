@@ -90,7 +90,7 @@ class CanPingMain extends Component {
 		const key = `${r.fourPillars.yearGz}|${r.method}`;
 		if (key === this.lastSnapKey) return;
 		this.lastSnapKey = key;
-		const text = buildSnapshotText(r);
+		const text = buildSnapshotText(r, { liunianRows: (m.series && m.series.rows) || null });
 		if (text) saveModuleAISnapshot('canping', text, { source: 'react', savedAt: Date.now() });
 	}
 

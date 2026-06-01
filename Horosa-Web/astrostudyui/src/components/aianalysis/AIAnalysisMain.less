@@ -689,6 +689,27 @@
 	color: var(--horosa-muted);
 }
 
+/* A: 每条 AI 回复左下角的操作按钮(复制全文 / 重新生成)。默认低调,悬停整条气泡时增亮。 */
+.messageActions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-top: 6px;
+	opacity: 0.5;
+	transition: opacity 0.15s ease;
+}
+.messageBubble:hover .messageActions {
+	opacity: 1;
+}
+.messageActionBtn {
+	width: 26px;
+	height: 26px;
+	color: var(--horosa-muted);
+}
+.messageActionBtn:hover {
+	color: var(--horosa-jade, #2f9e8f);
+}
+
 .contextScroll {
 	height: 100%;
 	overflow: auto;

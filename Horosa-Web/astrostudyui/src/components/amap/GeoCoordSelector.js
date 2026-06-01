@@ -1,12 +1,28 @@
 import { Component } from 'react';
+import { Select } from 'antd';
 import MapV2 from './MapV2';
 import PropTypes from 'prop-types';
 import { XQInput as Input, XQButton as Button } from '../xq-ui';
 import { uuid, randomStr, gcj02ToGps, gpsToGcj02 } from '../../utils/helper';
 import { safeLoadAMapUI } from './amapUIHelper';
 import { dstAwareZoneAt } from '../../utils/timezone';
+import { formatLonDms, formatLatDms } from '../astro/AstroHelper';
 import CITIES from '../../data/cities.json';
 import styles from './GeoCoordSelector.less';
+
+const { Option } = Select;
+
+// 固定 UTC 偏移选项(照搬 DateTimeSelector.genZone,含半区 +05:30 等)。
+const ZONE_OPTIONS = [
+	['+00:00', '东0区'], ['+01:00', '东1区'], ['+02:00', '东2区'], ['+03:00', '东3区'],
+	['+04:00', '东4区'], ['+04:30', '东4.5'], ['+05:00', '东5区'], ['+05:30', '东5.5'],
+	['+06:00', '东6区'], ['+07:00', '东7区'], ['+08:00', '东8区'], ['+09:00', '东9区'],
+	['+10:00', '东10'], ['+11:00', '东11'], ['+12:00', '东12'],
+	['-01:00', '西1区'], ['-02:00', '西2区'], ['-03:00', '西3区'], ['-04:00', '西4区'],
+	['-05:00', '西5区'], ['-05:30', '西5.5'], ['-06:00', '西6区'], ['-07:00', '西7区'],
+	['-07:30', '西7.5'], ['-08:00', '西8区'], ['-09:00', '西9区'], ['-10:00', '西10'],
+	['-11:00', '西11'],
+];
 
 // 成熟 atlas 地点选择：左栏「城市快搜 + 手输经纬」+ 右栏「高德地图选点/地名搜索」，
 // 顶部实时显示当前 GPS 经纬度 + 依经纬度+日期自动推算的时区（含夏令时）。城市库离线可用，地图需联网。
@@ -20,16 +36,61 @@ class GeoCoordSelector extends Component{
 			autoCompleteInputId: 'auinput_' + uuid(16, 16),
 			autoSearch: null,
 			marker: null,
-			cityKeyword: '',
+			cityKeyword: '',       // 输入框即时值
+			cityQuery: '',         // 防抖后用于过滤的值
+			fullCities: null,      // 懒加载的大库(数组),未加载/失败为 null
+			zoneOverride: null,    // 用户手动选的时区偏移(null = 跟随自动推断)
 			manualLat: props.gpsLat !== undefined && props.gpsLat !== null ? `${props.gpsLat}` : '',
 			manualLng: props.gpsLng !== undefined && props.gpsLng !== null ? `${props.gpsLng}` : '',
 		};
+		this._debounceTimer = null;
 		this.handleMapCreated = this.handleMapCreated.bind(this);
 		this.handleSearchSelect = this.handleSearchSelect.bind(this);
 		this.handleMapClick = this.handleMapClick.bind(this);
 		this.changePos = this.changePos.bind(this);
 		this.applyGps = this.applyGps.bind(this);
 		this.onManualApply = this.onManualApply.bind(this);
+		this.onCityKeyword = this.onCityKeyword.bind(this);
+		this.onZoneChange = this.onZoneChange.bind(this);
+		this.onZoneAuto = this.onZoneAuto.bind(this);
+	}
+
+	componentDidMount(){
+		// 动态懒加载全量城市库(避免进主 chunk / 拖慢首屏);失败则静默兜底仅用小库。
+		import('../../data/citiesFull.json')
+			.then((mod)=>{
+				const arr = mod && mod.default ? mod.default : mod;
+				if(Array.isArray(arr)){
+					this.setState({ fullCities: arr });
+				}
+			})
+			.catch(()=>{ /* 加载失败:仅用内置小库,功能不受影响 */ });
+	}
+
+	componentWillUnmount(){
+		if(this._debounceTimer){
+			clearTimeout(this._debounceTimer);
+		}
+	}
+
+	// 关键词输入:即时回显 + 防抖(180ms)后再触发大库过滤,避免每键扫 3 万条卡顿。
+	onCityKeyword(e){
+		const v = e.target.value;
+		this.setState({ cityKeyword: v });
+		if(this._debounceTimer){
+			clearTimeout(this._debounceTimer);
+		}
+		this._debounceTimer = setTimeout(()=>{
+			this.setState({ cityQuery: v });
+		}, 180);
+	}
+
+	// 把当前时区 override 附加到回传 info(无 override 则不带 zone,上层走自动推断)。
+	withZone(info){
+		if(this.state.zoneOverride){
+			info.zone = this.state.zoneOverride;
+		}
+		return info;
 	}
 
 	// info.lat/lng 为高德 GCJ-02 坐标 → 转 GPS 回填。
@@ -38,7 +99,7 @@ class GeoCoordSelector extends Component{
 			const geo = gcj02ToGps(info.lat, info.lng);
 			info.gpsLat = geo.lat;
 			info.gpsLng = geo.lon;
-			this.props.onChange(info);
+			this.props.onChange(this.withZone(info));
 		}
 	}
 
@@ -52,7 +113,26 @@ class GeoCoordSelector extends Component{
 		const gcj = gpsToGcj02(lat, lng);
 		this.setState({ manualLat: `${lat}`, manualLng: `${lng}` });
 		if(this.props.onChange){
-			this.props.onChange({ lat: gcj.lat, lng: gcj.lon, gpsLat: lat, gpsLng: lng });
+			this.props.onChange(this.withZone({ lat: gcj.lat, lng: gcj.lon, gpsLat: lat, gpsLng: lng }));
+		}
+	}
+
+	// 用户手选时区:存 override 并回传(连同当前坐标,让上层立即生效)。
+	onZoneChange(val){
+		this.setState({ zoneOverride: val });
+		const { lat, lng, gpsLat, gpsLng } = this.props;
+		if(this.props.onChange && gpsLat !== undefined && gpsLat !== null && gpsLng !== undefined && gpsLng !== null){
+			this.props.onChange({ lat: lat, lng: lng, gpsLat: gpsLat, gpsLng: gpsLng, zone: val });
+		}
+	}
+
+	// 「自动」按钮:清除 override,回到按地点+日期自动推断的时区。
+	onZoneAuto(){
+		this.setState({ zoneOverride: null });
+		const { lat, lng, gpsLat, gpsLng } = this.props;
+		if(this.props.onChange && gpsLat !== undefined && gpsLat !== null && gpsLng !== undefined && gpsLng !== null){
+			// 回传不带 zone:上层 changeGeo 见 geo.zone 缺失 → 恢复自动校正。
+			this.props.onChange({ lat: lat, lng: lng, gpsLat: gpsLat, gpsLng: gpsLng });
 		}
 	}
 
@@ -91,16 +171,56 @@ class GeoCoordSelector extends Component{
 		this.changePos({ lat: e.lnglat.lat, lng: e.lnglat.lng });
 	}
 
-	filteredCities(){
-		const kw = `${this.state.cityKeyword || ''}`.trim().toLowerCase();
-		if(!kw){
-			return CITIES.slice(0, 60);
+	// 统一城市条目形状(小库 {name,en,region,lat,lng} / 大库 {n,e,r,y,x})→ {name,en,region,lat,lng}。
+	normCity(c){
+		if(c.n !== undefined){
+			return { name: c.n, en: c.e || '', region: c.r || '', lat: c.y, lng: c.x };
 		}
-		return CITIES.filter((c)=>{
-			return `${c.name}`.toLowerCase().indexOf(kw) >= 0
-				|| `${c.en || ''}`.toLowerCase().indexOf(kw) >= 0
-				|| `${c.region || ''}`.toLowerCase().indexOf(kw) >= 0;
-		}).slice(0, 60);
+		return { name: c.name, en: c.en || '', region: c.region || '', lat: c.lat, lng: c.lng };
+	}
+
+	filteredCities(){
+		const kw = `${this.state.cityQuery || ''}`.trim().toLowerCase();
+		// 无关键词:仅显示内置小库常用城市(即时,无需等大库)。
+		if(!kw){
+			return CITIES.map((c)=>this.normCity(c));
+		}
+		const RESULT_LIMIT = 80;
+		const starts = [];
+		const contains = [];
+		const seen = new Set();
+		const scan = (list)=>{
+			for(let i = 0; i < list.length; i++){
+				// startsWith 已满 / 两类都已满 → 提前停,避免全表扫。
+				if(starts.length >= RESULT_LIMIT || (starts.length + contains.length) >= RESULT_LIMIT * 2){
+					return;
+				}
+				const c = this.normCity(list[i]);
+				const n = `${c.name}`.toLowerCase();
+				const e = `${c.en}`.toLowerCase();
+				const r = `${c.region}`.toLowerCase();
+				const hit = n.indexOf(kw) >= 0 || e.indexOf(kw) >= 0 || r.indexOf(kw) >= 0;
+				if(!hit){
+					continue;
+				}
+				const key = `${c.name}|${c.lat}|${c.lng}`;
+				if(seen.has(key)){
+					continue;
+				}
+				seen.add(key);
+				if(n.startsWith(kw) || e.startsWith(kw)){
+					starts.push(c);
+				}else if(contains.length < RESULT_LIMIT){
+					contains.push(c);
+				}
+			}
+		};
+		// 先扫小库(常用优先),再扫大库(已懒加载才有)。
+		scan(CITIES);
+		if(Array.isArray(this.state.fullCities)){
+			scan(this.state.fullCities);
+		}
+		return starts.concat(contains).slice(0, RESULT_LIMIT);
 	}
 
 	resolveDateStr(){
@@ -124,14 +244,32 @@ class GeoCoordSelector extends Component{
 		}
 		let info = null;
 		try{ info = dstAwareZoneAt(Number(gpsLat), Number(gpsLng), this.resolveDateStr()); }catch(e){ info = null; }
-		if(!info || !info.zone){
-			return <span className={styles.tzNone}>时区：未知</span>;
-		}
+		const autoOffset = info && info.offset ? info.offset : null;
+		const isManual = !!this.state.zoneOverride;
+		const selectVal = isManual ? this.state.zoneOverride : autoOffset;
 		return (
 			<span className={styles.tzInfo}>
-				<span className={styles.tzZone}>{info.zone}</span>
-				<span className={styles.tzOffset}>UTC{info.offset}</span>
-				{info.dst ? <span className={styles.tzDst}>夏令时</span> : null}
+				{info && info.zone
+					? <span className={styles.tzZone}>{info.zone}</span>
+					: <span className={styles.tzNone}>时区</span>}
+				{info && info.dst && !isManual ? <span className={styles.tzDst}>夏令时</span> : null}
+				<Select
+					size="small"
+					className={styles.tzSelect}
+					value={selectVal || undefined}
+					placeholder="时区"
+					onChange={this.onZoneChange}
+				>
+					{ZONE_OPTIONS.map(([v, label])=>(
+						<Option key={v} value={v}>{`UTC${v} ${label}`}</Option>
+					))}
+				</Select>
+				<Button
+					size="small"
+					className={styles.tzAuto}
+					disabled={!isManual}
+					onClick={this.onZoneAuto}
+				>自动</Button>
 			</span>
 		);
 	}
@@ -151,7 +289,7 @@ class GeoCoordSelector extends Component{
 				<div className={styles.head}>
 					<div className={styles.coord}>
 						{hasPos
-							? <span><b>经</b> {Number(this.props.gpsLng).toFixed(4)} · <b>纬</b> {Number(this.props.gpsLat).toFixed(4)}</span>
+							? <span>{formatLonDms(Number(this.props.gpsLng))} · {formatLatDms(Number(this.props.gpsLat))}</span>
 							: <span className={styles.coordNone}>尚未选择地点</span>}
 					</div>
 					<div className={styles.tz}>{this.renderTzPreview()}</div>
@@ -162,8 +300,8 @@ class GeoCoordSelector extends Component{
 						<Input
 							allowClear
 							value={this.state.cityKeyword}
-							placeholder="搜城市 / 拼音 / 地区"
-							onChange={(e)=>this.setState({ cityKeyword: e.target.value })}
+							placeholder="搜城市（中/英文 / 地区）"
+							onChange={this.onCityKeyword}
 						/>
 						<div className={styles.cityList}>
 							{cities.length === 0 ? (

@@ -374,8 +374,17 @@ export async function fetchPreciseNongli(params){
 			if(result){
 				pushCache(nongliMem, key, result);
 				setNongliLocalCache(reqParams, result);
+				return result;
 			}
-			return result;
+			// 软失败:后端返非 0 码 / 网络抖动会让 request 返回 undefined(不抛异常),
+			// 原本写在下面 catch 里的本地兜底永不触发 → 奇门/太乙离线即空、改经纬度(缓存未命中)即暴露。
+			// 故对 !result 的软失败也走一次本地兜底,与 /liureng/gods 行为对齐。
+			const softFallback = buildLocalNongliFallback(reqParams);
+			if(softFallback){
+				pushCache(nongliMem, key, softFallback);
+				setNongliLocalCache(reqParams, softFallback);
+			}
+			return softFallback;
 		}catch(e){
 			const fallback = buildLocalNongliFallback(reqParams);
 			if(fallback){

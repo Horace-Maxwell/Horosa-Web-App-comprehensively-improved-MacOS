@@ -21,6 +21,8 @@
 .coord {
 	font-size: 14px;
 	color: var(--horosa-text);
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
 }
 
 .coord b {
@@ -50,6 +52,7 @@
 .tzZone {
 	color: var(--horosa-text);
 	font-weight: 500;
+	white-space: nowrap;
 }
 
 .tzOffset {
@@ -62,6 +65,14 @@
 	font-size: 12px;
 	color: var(--horosa-gold, #c9912e);
 	border: 1px solid var(--horosa-gold, #c9912e);
+}
+
+.tzSelect {
+	min-width: 130px;
+}
+
+.tzAuto {
+	flex: 0 0 auto;
 }
 
 .body {

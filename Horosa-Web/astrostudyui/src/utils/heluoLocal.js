@@ -622,8 +622,10 @@ export function buildSnapshotText(chart, jg, dy) {
 	lines.push(`后天卦：${chart.hou.name}　元堂 ${yaoName(chart.hou.lines, chart.hou.yuan)}`);
 	const xt = yaoText(chart.xian.name, chart.xian.yuan);
 	const ht = yaoText(chart.hou.name, chart.hou.yuan);
-	if (xt) { lines.push(''); lines.push(`[先天·${chart.xian.name} 元堂爻辞]`); lines.push(`摘要：${xt.detail}`); lines.push(`诗歌：${xt.shige}`); }
-	if (ht) { lines.push(''); lines.push(`[后天·${chart.hou.name} 元堂爻辞]`); lines.push(`摘要：${ht.detail}`); lines.push(`诗歌：${ht.shige}`); }
+	// 段名改固定(卦名移入正文):动态卦名头 [先天·乾 元堂爻辞] 无法被 AI 导出 preset 精确命中
+	// (见 aiExport normalizeSectionTitle 只归一「基于…推运/起运」),固定后导出设置才能单独勾选。
+	if (xt) { lines.push(''); lines.push('[先天卦·元堂爻辞]'); lines.push(`${chart.xian.name}　元堂 ${yaoName(chart.xian.lines, chart.xian.yuan)}`); lines.push(`摘要：${xt.detail}`); lines.push(`诗歌：${xt.shige}`); }
+	if (ht) { lines.push(''); lines.push('[后天卦·元堂爻辞]'); lines.push(`${chart.hou.name}　元堂 ${yaoName(chart.hou.lines, chart.hou.yuan)}`); lines.push(`摘要：${ht.detail}`); lines.push(`诗歌：${ht.shige}`); }
 	if (jg) {
 		lines.push('');
 		lines.push('[命运篇]');
@@ -637,6 +639,19 @@ export function buildSnapshotText(chart, jg, dy) {
 		lines.push('');
 		lines.push('[大限·岁运]');
 		dy.all.forEach((s) => { lines.push(`${s.ageStart}-${s.ageEnd}岁 ${s.gua} ${yaoName(s.lines, s.pos)}（${s.yang ? '阳9' : '阴6'}）`); });
+		// 流年卦(全生涯):此前 buildSnapshotText 从不调用 liuNian → 挂载/导出都丢了整层流年卦(用户反馈「缺一大部分流年卦」)。
+		// birthYear 由 dy.all[0].yearStart 反推(daYun 传 birthYear 时 segs 带 yearStart);缺则流年仍出 岁/卦/动爻(year/干支为空)。
+		const birthYear = (dy.all[0] && dy.all[0].yearStart) ? (dy.all[0].yearStart - dy.all[0].ageStart + 1) : 0;
+		const ynRows = [];
+		dy.all.forEach((s) => { liuNian(s, birthYear).forEach((r) => { ynRows.push(r); }); });
+		if (ynRows.length) {
+			lines.push('');
+			lines.push('[流年·岁运]');
+			ynRows.forEach((r) => {
+				const yzz = r.year ? `${r.year}·${r.ganzhi}` : (r.ganzhi || '');
+				lines.push(`${r.age}岁${yzz ? ` ${yzz}` : ''} ${r.gua} ${yaoName(r.lines, r.pos)}`);
+			});
+		}
 	}
 	return lines.join('\n');
 }

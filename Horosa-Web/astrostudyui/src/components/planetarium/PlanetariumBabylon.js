@@ -3,6 +3,7 @@ import DateTime from '../comp/DateTime';
 import { fetchPlanetariumState } from '../../services/planetarium';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import XQIcon from '../xq-icons';
 
 const BABYLON = typeof window !== 'undefined' ? window.BABYLON : null;
 
@@ -2638,6 +2639,7 @@ class PlanetariumBabylon extends Component{
 			searchQuery: '',
 			searchMessage: '',
 			leftCollapsed: false,
+			immersive: false,
 			observerOverride: null,
 			loading: false,
 			syncing: false,
@@ -2688,6 +2690,7 @@ class PlanetariumBabylon extends Component{
 		this.changeSpeed = this.changeSpeed.bind(this);
 		this.jumpNow = this.jumpNow.bind(this);
 		this.toggleFullscreen = this.toggleFullscreen.bind(this);
+		this.toggleImmersive = this.toggleImmersive.bind(this);
 		this.searchTarget = this.searchTarget.bind(this);
 		this.setSearchQuery = this.setSearchQuery.bind(this);
 		this.stepTime = this.stepTime.bind(this);
@@ -3368,6 +3371,14 @@ class PlanetariumBabylon extends Component{
 		}
 	}
 
+	toggleImmersive(){
+		this.setState((prev)=>({ immersive: !prev.immersive }), ()=>{
+			if(this.renderer && this.renderer.engine){
+				setTimeout(()=>this.renderer.engine.resize(), 320); // 等 .28s CSS 过渡结束后再 resize，避免按中间尺寸算
+			}
+		});
+	}
+
 	renderLayerButton(key, label){
 		return (
 			<button
@@ -3413,12 +3424,14 @@ class PlanetariumBabylon extends Component{
 		const observerGpsLon = effectiveFields && effectiveFields.gpsLon ? effectiveFields.gpsLon.value : null;
 		const observerGpsLat = effectiveFields && effectiveFields.gpsLat ? effectiveFields.gpsLat.value : null;
 		return (
-			<div className={`horosa-planetarium-page ${this.state.leftCollapsed ? 'is-left-collapsed' : ''}`}>
+			<div className={`horosa-planetarium-page ${this.state.leftCollapsed ? 'is-left-collapsed' : ''} ${this.state.immersive ? 'is-immersive' : ''}`}>
 				<aside className="planetarium-side planetarium-left">
 					<div className="planetarium-title">
 						<small>地表观测天空</small>
 						<h2>天文馆</h2>
-						<button type="button" className="planetarium-collapse" onClick={this.toggleLeftPanel}>{this.state.leftCollapsed ? '展开' : '收合'}</button>
+						<button type="button" className="planetarium-collapse" onClick={this.toggleLeftPanel} aria-label={this.state.leftCollapsed ? '展开' : '收合'}>
+							<XQIcon name="prev" />
+						</button>
 					</div>
 					<div className="planetarium-time">
 						<div>{this.state.time.format('YYYY-MM-DD HH:mm:ss')}</div>
@@ -3467,7 +3480,7 @@ class PlanetariumBabylon extends Component{
 						</div>
 						<div className="planetarium-actions">
 							<button type="button" onClick={this.jumpNow}>回到命盘时间</button>
-							<button type="button" onClick={this.toggleFullscreen}>全屏</button>
+							<button type="button" onClick={this.toggleImmersive}>{this.state.immersive ? '退出沉浸' : '全屏'}</button>
 						</div>
 						<div className="planetarium-step-grid">
 							<button type="button" onClick={()=>this.stepTime(-1, 'h')}>-1时</button>
@@ -3494,6 +3507,11 @@ class PlanetariumBabylon extends Component{
 				</aside>
 				<main className="planetarium-stage">
 					<canvas ref={this.canvasRef} className="planetarium-canvas" />
+					{this.state.immersive ? (
+						<button type="button" className="planetarium-immersive-exit" onClick={this.toggleImmersive} aria-label="退出沉浸">
+							<XQIcon name="prev" /><span>退出沉浸</span>
+						</button>
+					) : null}
 					{this.state.syncing ? <div className="planetarium-status is-syncing">{this.state.syncLabel || '更新天空...'}</div> : null}
 					{this.state.error ? <div className="planetarium-status is-error">{this.state.error}</div> : null}
 				</main>

@@ -440,6 +440,12 @@ const iconMap = {
 			<path {...lineProps} d="m14 19.2 2.8-2.7L14 13.8" />
 		</Svg>
 	),
+	copy: (
+		<Svg>
+			<rect {...lineProps} x="9" y="9" width="10" height="11" rx="2" />
+			<path {...lineProps} d="M6.5 15H5.5A1.5 1.5 0 0 1 4 13.5v-8A1.5 1.5 0 0 1 5.5 4h8A1.5 1.5 0 0 1 15 5.5v1" />
+		</Svg>
+	),
 	delete: (
 		<Svg>
 			<path {...lineProps} d="M5 7h14M9 7V4.8h6V7M8 10v8.5h8V10" />

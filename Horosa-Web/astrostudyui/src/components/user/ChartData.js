@@ -154,8 +154,14 @@ export default class ChartData extends Component{
 		flds.lon.value = lon;
 		flds.gpsLat.value = gps.lat;
 		flds.gpsLon.value = gps.lon;
-		this.zoneManual = false;        // 地图选点 = 明确换地点,恢复自动时区校正
-		applyDstToFields(flds);
+		if(geo.zone){
+			// 用户在选择器内手改了时区 → 尊重覆盖值,不再自动校正。
+			flds.zone.value = geo.zone;
+			this.zoneManual = true;
+		}else{
+			this.zoneManual = false;        // 地图选点 = 明确换地点,恢复自动时区校正
+			applyDstToFields(flds);
+		}
 
 		this.setState({
 			fields: flds,

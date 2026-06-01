@@ -6,7 +6,8 @@ import * as GraphHelper from '../graph/GraphHelper';
 import ZWCommHouse from './ZWCommHouse';
 import D3Arrow from '../graph/D3Arrow';
 import {randomStr,} from '../../utils/helper';
-import { getYearJiang, getTaisui, } from './ZiWeiJiangStar'
+// 注:getYearJiang/getTaisui 原用于「点宫后把本命将前/岁前十二神改写成流年神煞」,
+// 该逻辑已按 BUG-H 移除(本命神煞应恒定),故不再 import。
 
 class ZWHouseSangHe extends ZWCommHouse {
 	constructor(option){
@@ -93,20 +94,9 @@ class ZWHouseSangHe extends ZWCommHouse {
 			let sy = y + i*h/3;
 			data[0] = star.name.substr(0,1);
 			data[1] = star.name.substr(1,1);
-			if(this.zwchart.flyHouse && i){
-				let yearzi = this.zwchart.flyHouse.ganzi.substr(1,1);
-				let housezi = this.houseObj.ganzi.substr(1, 1);
-				if(i === 1){ // 流年将星
-					let jiangstarsmap = getYearJiang(yearzi);
-					let jiangstar = jiangstarsmap[housezi];
-					data[0] = jiangstar.substr(0, 1);
-					data[1] = jiangstar.substr(1, 1);
-				}else if(i === 2){ // 流年太岁
-					let taisui = getTaisui(yearzi, housezi);
-					data[0] = taisui.substr(0, 1);
-					data[1] = taisui.substr(1, 1);
-				}	
-			}
+			// BUG-H 修复:此前在点过任意宫位(flyHouse 非空)后,会把本命「将前十二神(i===1)/
+			// 岁前十二神(i===2)」改写成以被点宫地支为流年支重新起算的流年将星/流年太岁,
+			// 导致本命神煞随点击变化。本命神煞应恒定不变,故移除该改写;flyHouse 仍只驱动三方四正高亮。
 			GraphHelper.drawTextH(container.append('g'), data, x, sy, w, h/3, 1.5, ZWCont.ZWColor.StarSmallStroke, 400);
 		}
 

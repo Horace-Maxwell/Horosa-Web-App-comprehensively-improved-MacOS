@@ -11,6 +11,7 @@ class GeoCoordModal extends Component{
 		this.state = {
 			visible: false,
 			record: null,
+			openSeq: 0,   // 每次打开自增,作选择器 key 强制重新挂载 → 清掉上次的时区 override 残留
 		}
 
 		this.showModalHandler = this.showModalHandler.bind(this);
@@ -24,22 +25,24 @@ class GeoCoordModal extends Component{
 			e.preventDefault();
 		}
 		let lat = this.props.lat;
-		let lng = this.props.lng;	
+		let lng = this.props.lng;
 		if(lat){
 			let gcj = gpsToGcj02(lat, lng);
 			this.setState({
 				visible: true,
+				openSeq: this.state.openSeq + 1,
 				record:{
 					lat: gcj.lat,
 					lng: gcj.lon,
 					gpsLat: lat,
 					gpsLng: lng,
 				}
-			});	
+			});
 		}else{
 			this.setState({
 				visible: true,
-			});	
+				openSeq: this.state.openSeq + 1,
+			});
 		}
 	}
 
@@ -67,6 +70,8 @@ class GeoCoordModal extends Component{
 			rec.gpsLat = geo.lat;
 			rec.gpsLng = geo.lon;
 		}
+		// rec.zone(若用户在选择器内手改时区)随 ...record 透传给上层 changeGeo;
+		// 未改则无 zone 字段,上层走自动推断。
 		
 		this.setState({
 			record: null,
@@ -103,7 +108,7 @@ class GeoCoordModal extends Component{
 					width={800} title='经纬度查找'
 					bodyStyle={{height: 500, width:800}}
 					>
-					<GeoCoordSelector onChange={this.onChange} height={400}
+					<GeoCoordSelector key={this.state.openSeq} onChange={this.onChange} height={400}
 						lat={lat} lng={lon} gpsLat={gpslat} gpsLng={gpslng}
 						date={this.props.date}
 					/>

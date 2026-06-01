@@ -34,6 +34,10 @@ import {
 	XQSwitch as Switch,
 	XQTabs as Tabs,
 } from '../xq-ui';
+import GeoCoordModal from '../amap/GeoCoordModal';
+import * as AstroHelper from '../astro/AstroHelper';
+import { upsertLocalChart } from '../../utils/localcharts';
+import { upsertLocalCase } from '../../utils/localcases';
 import {
 	AI_ANALYSIS_SCHEMA_VERSION,
 	AI_ANALYSIS_STORES,
@@ -677,6 +681,20 @@ function mergeTechniqueState(list, nextItem, keys, labelMap){
 
 // 「起课时间」入口：一个合成的 source（非持久化），让用户对任一时刻即时起所有时间确定式法。
 const TIMEPOINT_SOURCE_ID = 'timepoint:current';
+const NATAL_SOURCE_ID = 'natal:current';
+
+// gps 十进制经纬 → 命盘录入用的 'NNeMM'/'NNnMM' 紧凑串(镜像 ChartData.changeGeo 的转换,供「快速起盘」抽屉地图选点回填)。
+function gpsToLonLatStrings(gpsLat, gpsLng){
+	const latdeg = AstroHelper.splitDegree(gpsLat);
+	const londeg = AstroHelper.splitDegree(gpsLng);
+	let latdir = 'n';
+	let londir = 'e';
+	if(londeg[0] < 0){ londir = 'w'; londeg[0] = -londeg[0]; londeg[1] = -londeg[1]; }
+	if(latdeg[0] < 0){ latdir = 's'; latdeg[0] = -latdeg[0]; latdeg[1] = -latdeg[1]; }
+	const lat = `${latdeg[0]}${latdir}${latdeg[1] < 10 ? '0' + latdeg[1] : latdeg[1]}`;
+	const lon = `${londeg[0]}${londir}${londeg[1] < 10 ? '0' + londeg[1] : londeg[1]}`;
+	return { lat, lon };
+}
 
 function formatTimepointNow(){
 	const d = new Date();
@@ -702,6 +720,9 @@ function AIAnalysisMain(props){
 	const [messages, setMessages] = React.useState([]);
 	const [selectedSourceId, setSelectedSourceId] = React.useState('');
 	const [modelSelection, setModelSelection] = React.useState(defaultUi.modelSelection || '');
+	// C: 测试连接状态机——key = 当前 modelSelection 指纹。切模型/接口后 key 失配 → chip 自动回灰「点击测试」;
+	// 在当前选择下测试成功/失败 → 置绿「测试成功」/ 红「测试失败」。不再读 profile.healthStatus(避免历史诊断残留绿)。
+	const [connState, setConnState] = React.useState({ key: '', status: 'idle' });
 	const [referenceIds, setReferenceIds] = React.useState(defaultUi.referenceIds || []);
 	const [sourceContext, setSourceContext] = React.useState(null);
 	const [selectedTechniqueKeys, setSelectedTechniqueKeys] = React.useState(defaultUi.selectedTechniqueKeys || []);
@@ -717,6 +738,18 @@ function AIAnalysisMain(props){
 		gpsLon: Constants.DefGpsLon,
 		gpsLat: Constants.DefGpsLat,
 		gender: 1,
+		name: '',
+	}));
+	// B2:「命盘时间」入口——与起课时间同思路,但合成 chart 型源(record 带 birth)→ 走命盘技法,默认设置即时起命盘。
+	const [natalDraft, setNatalDraft] = React.useState(()=>({
+		birth: formatTimepointNow(),
+		zone: '+08:00',
+		lon: Constants.DefLon,
+		lat: Constants.DefLat,
+		gpsLon: Constants.DefGpsLon,
+		gpsLat: Constants.DefGpsLat,
+		gender: 1,
+		name: '',
 	}));
 	const [historyKeyword, setHistoryKeyword] = React.useState('');
 	const [historyFilter, setHistoryFilter] = React.useState({
@@ -787,8 +820,32 @@ function AIAnalysisMain(props){
 				},
 			};
 		}
+		if(selectedSourceId === NATAL_SOURCE_ID){
+			// 合成的「命盘时间」源(不持久化):record 含 birth + 地点 → 走命盘技法(八字/紫微/星盘/各推运)即时起盘。
+			return {
+				id: NATAL_SOURCE_ID,
+				sourceType: 'chart',
+				title: `命盘时间 · ${natalDraft.birth}`,
+				module: 'astrochart',
+				time: natalDraft.birth,
+				zone: natalDraft.zone,
+				tags: [],
+				snapshotStatus: 'lazy',
+				updatedAt: natalDraft.birth,
+				record: {
+					birth: natalDraft.birth,
+					zone: natalDraft.zone,
+					lon: natalDraft.lon,
+					lat: natalDraft.lat,
+					gpsLon: natalDraft.gpsLon,
+					gpsLat: natalDraft.gpsLat,
+					gender: natalDraft.gender,
+					name: natalDraft.name || '命盘时间',
+				},
+			};
+		}
 		return sources.find((item)=>item.id === selectedSourceId) || null;
-	}, [sources, selectedSourceId, timepointDraft]);
+	}, [sources, selectedSourceId, timepointDraft, natalDraft]);
 
 	const sourceOptions = React.useMemo(()=>{
 		const opts = sources.map((item)=>({
@@ -797,6 +854,12 @@ function AIAnalysisMain(props){
 			searchText: `${item.title} ${item.module || ''} ${(item.tags || []).join(' ')}`.toLowerCase(),
 			item,
 		}));
+		opts.unshift({
+			value: NATAL_SOURCE_ID,
+			label: '🌐 命盘时间（此刻 / 自定义）',
+			searchText: '命盘时间 本命 出生 natal 即时起盘',
+			item: null,
+		});
 		opts.unshift({
 			value: TIMEPOINT_SOURCE_ID,
 			label: '⏱ 起课时间（此刻 / 自定义）',
@@ -2389,6 +2452,8 @@ function AIAnalysisMain(props){
 			message.warning('该配置还没有可用的对话模型，请在「配置 API」→「聊天模型列表」中填写（如 gemini-2.5-flash），或点「拉取模型」自动获取');
 			return;
 		}
+		const connKey = modelSelection;   // C: 把本次测试绑定到「当前选择」指纹,切模型/接口后即失配回灰
+		setConnState({ key: connKey, status: 'testing' });
 		try{
 			const rsp = ensureServiceResponse(await requestAIAnalysisChat({
 				providerType: profile.providerType,
@@ -2405,6 +2470,7 @@ function AIAnalysisMain(props){
 			}), '测试连接失败');
 			const text = rsp && rsp.Result && rsp.Result.content ? rsp.Result.content : '';
 			message.success(text ? `测试成功：${text.slice(0, 24)}` : '测试成功');
+			setConnState({ key: connKey, status: 'healthy' });
 		}catch(e){
 			// v2.2.1 (Mac #8):后端错误是 URL 编码的原始串,直接抛给用户既看不懂又吓人。
 			// 解码 + 对「未登录/未配置凭据」的 401 给出可操作的提示,而不是裸 401 dump。
@@ -2415,6 +2481,7 @@ function AIAnalysisMain(props){
 			}else{
 				message.error(raw ? `测试连接失败：${raw.slice(0, 200)}` : '测试连接失败');
 			}
+			setConnState({ key: connKey, status: 'error' });
 		}
 	}
 
@@ -2456,6 +2523,117 @@ function AIAnalysisMain(props){
 			message.error('重新生成失败');
 		}finally{
 			setSending(false);
+		}
+	}
+
+	function fallbackCopyText(text){
+		try{
+			const ta = document.createElement('textarea');
+			ta.value = text;
+			ta.style.position = 'fixed';
+			ta.style.left = '-9999px';
+			document.body.appendChild(ta);
+			ta.select();
+			document.execCommand('copy');
+			document.body.removeChild(ta);
+			message.success('已复制全文');
+		}catch(e){
+			message.error('复制失败，请手动选择文本复制');
+		}
+	}
+
+	// A: 复制该条消息全文。navigator.clipboard 在桌面壳/非 HTTPS 可能不可用 → execCommand 兜底。
+	function handleCopyMessage(item){
+		const text = item && item.content ? `${item.content}` : '';
+		if(!text){ return; }
+		if(typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText){
+			navigator.clipboard.writeText(text).then(()=>message.success('已复制全文')).catch(()=>fallbackCopyText(text));
+		}else{
+			fallbackCopyText(text);
+		}
+	}
+
+	// A: 重新生成「任意一条」AI 回复——删除该条及其之后的所有消息,以它之前最近的用户提问重答。
+	// (不能像 handleRegenerateLastReply 那样硬 pop 末条,否则点中间某条会误删真正的末条。)
+	async function handleRegenerateMessage(targetMessage){
+		if(!targetMessage || targetMessage.role !== 'assistant'){ return; }
+		const { profileId, model } = parseModelSelection(modelSelection || encodeModelSelection(activeConversation && activeConversation.providerProfileId, activeConversation && activeConversation.model));
+		const profile = providerProfiles.find((item)=>item.id === profileId);
+		if(!activeConversation || !profile || !model){
+			message.warning('请先选择一段对话和模型');
+			return;
+		}
+		const list = await listConversationMessages(activeConversation.id);
+		const idx = list.findIndex((item)=>item.id === targetMessage.id);
+		if(idx < 0){ return; }
+		const keep = list.slice(0, idx);
+		const removeList = list.slice(idx);
+		await Promise.all(removeList.map((m)=>deleteStoreRecord(AI_ANALYSIS_STORES.messages, m.id)));
+		setMessages(keep);
+		const lastUser = [...keep].reverse().find((item)=>item.role === 'user');
+		if(!lastUser){
+			message.warning('没有可重新生成的用户提问');
+			return;
+		}
+		setSending(true);
+		try{
+			const promptResult = await buildResolvedPrompt(lastUser.content || '', profile);
+			await streamReply({
+				conversation: activeConversation,
+				profile,
+				model,
+				chatMessages: [
+					{ role: 'system', content: promptResult.systemPrompt },
+				].concat(keep.map((item)=>({
+					role: item.role,
+					content: item.content,
+				}))),
+			});
+		}catch(e){
+			console.error(e);
+			message.error('重新生成失败');
+		}finally{
+			setSending(false);
+		}
+	}
+
+	// B3:把「起课时间 / 命盘时间」快速草稿保存为正式 事盘 / 命盘(进案例列表复用),保存后自动选中。
+	function handleSaveQuickDraftAsSource(){
+		const isNatal = selectedSourceId === NATAL_SOURCE_ID;
+		const draft = isNatal ? natalDraft : timepointDraft;
+		try{
+			let saved;
+			if(isNatal){
+				saved = upsertLocalChart({
+					name: draft.name || '命盘时间',
+					birth: draft.birth,
+					zone: draft.zone,
+					lat: draft.lat,
+					lon: draft.lon,
+					gpsLat: draft.gpsLat,
+					gpsLon: draft.gpsLon,
+					gender: draft.gender,
+				});
+			}else{
+				saved = upsertLocalCase({
+					event: draft.name || '起课时间',
+					divTime: draft.divTime,
+					zone: draft.zone,
+					lat: draft.lat,
+					lon: draft.lon,
+					gpsLat: draft.gpsLat,
+					gpsLon: draft.gpsLon,
+					sourceModule: 'sanshiunited',
+				});
+			}
+			setSources(listAnalysisSources());
+			if(saved && saved.cid){
+				setSelectedSourceId(saved.cid);
+			}
+			message.success(isNatal ? '已保存为命盘并选中' : '已保存为事盘并选中');
+		}catch(e){
+			console.error(e);
+			message.error('保存失败');
 		}
 	}
 
@@ -2564,17 +2742,23 @@ function AIAnalysisMain(props){
 
 	function renderConnChip(){
 		const profile = activeProviderProfile;
+		// C: chip 只反映「当前选择」下的测试结果(connState.key === 当前 modelSelection 才算数),
+		// 切模型/接口后 key 失配 → 回灰「点击测试」;不读 profile.healthStatus(那是历史诊断,会残留过期的绿)。
+		const tested = (connState.key && connState.key === modelSelection) ? connState.status : 'idle';
 		let toneClass = styles.connIdle;
 		let text = '点击测试';
 		if(!profile){
 			toneClass = styles.connIdle;
 			text = '未配置接口';
-		}else if(profile.healthStatus === 'healthy'){
+		}else if(tested === 'testing'){
+			toneClass = styles.connIdle;
+			text = '测试中…';
+		}else if(tested === 'healthy'){
 			toneClass = styles.connOk;
-			text = '已连通';
-		}else if(profile.healthStatus === 'error'){
+			text = '测试成功';
+		}else if(tested === 'error'){
 			toneClass = styles.connErr;
-			text = '连接失败';
+			text = '测试失败';
 		}
 		return (
 			<button
@@ -2602,28 +2786,68 @@ function AIAnalysisMain(props){
 				onClose={()=>setMountDrawerOpen(false)}
 				className={styles.mountDrawer}
 			>
-				{activeSource && activeSource.sourceType === 'timepoint' ? (
-					<div className={styles.mountSection}>
-						<div className={styles.mountSectionLabel}>起课时间设置</div>
-						<Space direction="vertical" style={{ width: '100%' }} size={8}>
-							<Input
-								addonBefore="时间"
-								value={timepointDraft.divTime}
-								placeholder="YYYY-MM-DD HH:mm:ss"
-								onChange={(e)=>setTimepointDraft((prev)=>({ ...prev, divTime: e.target.value }))}
-							/>
-							<Space size={8}>
-								<Input addonBefore="经度" value={timepointDraft.lon} style={{ width: 156 }} onChange={(e)=>setTimepointDraft((prev)=>({ ...prev, lon: e.target.value }))} />
-								<Input addonBefore="纬度" value={timepointDraft.lat} style={{ width: 156 }} onChange={(e)=>setTimepointDraft((prev)=>({ ...prev, lat: e.target.value }))} />
+				{activeSource && (activeSource.sourceType === 'timepoint' || selectedSourceId === NATAL_SOURCE_ID) ? (() => {
+					const isNatal = selectedSourceId === NATAL_SOURCE_ID;
+					const draft = isNatal ? natalDraft : timepointDraft;
+					const setDraft = isNatal ? setNatalDraft : setTimepointDraft;
+					const timeKey = isNatal ? 'birth' : 'divTime';
+					return (
+						<div className={styles.mountSection}>
+							<div className={styles.mountSectionLabel}>{isNatal ? '命盘时间设置' : '起课时间设置'}</div>
+							<Space direction="vertical" style={{ width: '100%' }} size={8}>
+								<Input
+									addonBefore="时间"
+									value={draft[timeKey]}
+									placeholder="YYYY-MM-DD HH:mm:ss"
+									onChange={(e)=>setDraft((prev)=>({ ...prev, [timeKey]: e.target.value }))}
+								/>
+								<Space size={8} wrap>
+									<Input addonBefore="经度" value={draft.lon} style={{ width: 150 }} onChange={(e)=>setDraft((prev)=>({ ...prev, lon: e.target.value }))} />
+									<Input addonBefore="纬度" value={draft.lat} style={{ width: 150 }} onChange={(e)=>setDraft((prev)=>({ ...prev, lat: e.target.value }))} />
+								</Space>
+								<Space size={8} wrap>
+									<GeoCoordModal
+										lat={draft.gpsLat}
+										lng={draft.gpsLon}
+										date={draft[timeKey]}
+										onOk={(geo)=>{
+											const ll = gpsToLonLatStrings(geo.gpsLat, geo.gpsLng);
+											setDraft((prev)=>({
+												...prev,
+												gpsLat: geo.gpsLat,
+												gpsLon: geo.gpsLng,
+												lat: ll.lat,
+												lon: ll.lon,
+												zone: (geo.zone !== undefined && geo.zone !== null) ? geo.zone : prev.zone,
+											}));
+										}}
+									>
+										<Button size="small">经纬度选择 · atlas</Button>
+									</GeoCoordModal>
+									<Input addonBefore="时区" value={draft.zone} style={{ width: 150 }} onChange={(e)=>setDraft((prev)=>({ ...prev, zone: e.target.value }))} />
+								</Space>
+								<Space size={8} wrap>
+									<Input addonBefore={isNatal ? '姓名' : '事由'} value={draft.name} placeholder="可留空" style={{ width: 190 }} onChange={(e)=>setDraft((prev)=>({ ...prev, name: e.target.value }))} />
+									<Select value={draft.gender} style={{ width: 110 }} onChange={(val)=>setDraft((prev)=>({ ...prev, gender: val }))}>
+										<Select.Option value={1}>男</Select.Option>
+										<Select.Option value={0}>女</Select.Option>
+										<Select.Option value={-1}>未知</Select.Option>
+									</Select>
+								</Space>
+								<Space size={8} wrap>
+									<Button size="small" onClick={()=>setDraft((prev)=>({ ...prev, [timeKey]: formatTimepointNow() }))}>重置为此刻</Button>
+									{isNatal ? null : <Button size="small" type="primary" onClick={()=>setSelectedTechniqueKeys(TIME_CASTABLE_DIVINATION.slice())}>一键挂载全部式法</Button>}
+									<Button size="small" onClick={handleSaveQuickDraftAsSource}>{isNatal ? '保存为命盘' : '保存为事盘'}</Button>
+								</Space>
+								<Text type="secondary" style={{ fontSize: 12 }}>
+									{isNatal
+										? '默认设置即时起命盘（八字/紫微/星盘/各推运），可改时间·地点·时区；保存后进入案例列表复用。'
+										: '六爻 / 统摄法需手动起卦后存为事盘再挂载（不能凭时间凭空起）。'}
+								</Text>
 							</Space>
-							<Space size={8}>
-								<Button size="small" onClick={()=>setTimepointDraft((prev)=>({ ...prev, divTime: formatTimepointNow() }))}>重置为此刻</Button>
-								<Button size="small" type="primary" onClick={()=>setSelectedTechniqueKeys(TIME_CASTABLE_DIVINATION.slice())}>一键挂载全部式法</Button>
-							</Space>
-							<Text type="secondary" style={{ fontSize: 12 }}>六爻 / 统摄法需手动起卦后存为事盘再挂载（不能凭时间凭空起）。</Text>
-						</Space>
-					</div>
-				) : null}
+						</div>
+					);
+				})() : null}
 				{activeSource ? (
 					<div className={styles.mountSection}>
 						<div className={styles.mountSectionLabel}>使用技法</div>
@@ -2854,6 +3078,16 @@ function AIAnalysisMain(props){
 												{item.role === 'user'
 													? <div className={styles.messageText}>{item.content}</div>
 													: <div className={styles.markdownBody} dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(item.content) }} />}
+												{item.role === 'assistant' && item.streamStatus !== 'streaming' && item.content ? (
+													<div className={styles.messageActions}>
+														<Tooltip title="复制全文">
+															<Button size="small" type="text" className={styles.messageActionBtn} icon={<XQIcon name="copy" />} onClick={()=>handleCopyMessage(item)} />
+														</Tooltip>
+														<Tooltip title="重新生成">
+															<Button size="small" type="text" className={styles.messageActionBtn} icon={<XQIcon name="sync" />} onClick={()=>handleRegenerateMessage(item)} disabled={sending} />
+														</Tooltip>
+													</div>
+												) : null}
 											</div>
 										))}
 									</div>
