@@ -66,21 +66,21 @@ export function splitDegree(degree){
 }
 
 export function convertLatToStr(degree){
-	let deg = splitDegree(degree);
-	let latdeg = deg[0] >= 0 ? deg[0] : -deg[0];
-	let latmin = deg[1] >= 0 ? deg[1] : -deg[1];
-	let dir = deg[0] >= 0 ? 'n' : 's';
-	latmin = latmin > 10 ? latmin : '0' + latmin;
-	return latdeg + dir + latmin;
+	// 方向按【原始值符号】判:|值|<1 时 splitDegree 的度部分=0、负号会丢(-0 === 0),
+	// 若用 deg[0]>=0 判向会把 -0.12° 误判成北/东。度分一律取绝对值,补两位。
+	const v = parseFloat(degree + '');
+	const dir = (Number.isFinite(v) && v < 0) ? 's' : 'n';
+	const deg = splitDegree(Math.abs(Number.isFinite(v) ? v : 0));
+	const min = Math.abs(deg[1] || 0);
+	return (Math.abs(deg[0] || 0)) + dir + (min >= 10 ? min : '0' + min);
 }
 
 export function convertLonToStr(degree){
-	let deg = splitDegree(degree);
-	let londeg = deg[0] >= 0 ? deg[0] : -deg[0];
-	let lonmin = deg[1] >= 0 ? deg[1] : -deg[1];
-	let dir = deg[0] >= 0 ? 'e' : 'w';
-	lonmin = lonmin > 10 ? lonmin : '0' + lonmin;
-	return londeg + dir + lonmin;
+	const v = parseFloat(degree + '');
+	const dir = (Number.isFinite(v) && v < 0) ? 'w' : 'e';
+	const deg = splitDegree(Math.abs(Number.isFinite(v) ? v : 0));
+	const min = Math.abs(deg[1] || 0);
+	return (Math.abs(deg[0] || 0)) + dir + (min >= 10 ? min : '0' + min);
 }
 
 // 十进制经度 → 度分秒展示字符串(如 116°24′27″E),按原始符号判东西。

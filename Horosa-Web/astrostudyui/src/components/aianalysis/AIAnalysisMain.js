@@ -2784,7 +2784,7 @@ function AIAnalysisMain(props){
 			<Drawer
 				title="挂载设置"
 				placement="right"
-				width={460}
+				width={560}
 				open={mountDrawerOpen}
 				onClose={()=>setMountDrawerOpen(false)}
 				className={styles.mountDrawer}

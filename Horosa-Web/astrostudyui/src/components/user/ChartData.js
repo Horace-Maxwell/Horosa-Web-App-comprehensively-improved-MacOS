@@ -136,15 +136,15 @@ export default class ChartData extends Component{
         let londeg = AstroHelper.splitDegree(gps.lon);
         let latdir = 'n';
         let londir = 'e';
-        if(londeg[0] < 0){
+        if(londeg[0] < 0 || (londeg[3] && londeg[3].length)){
             londir = 'w';
             londeg[0] = -londeg[0];
-            londeg[1] = -londeg[1];
+            londeg[1] = Math.abs(londeg[1]);
         }
-        if(latdeg[0] < 0){
+        if(latdeg[0] < 0 || (latdeg[3] && latdeg[3].length)){
             latdir = 's';
             latdeg[0] = -latdeg[0];
-            latdeg[1] = -latdeg[1];
+            latdeg[1] = Math.abs(latdeg[1]);
         }
         let lat = latdeg[0] + latdir + (latdeg[1] < 10 ? '0' + latdeg[1] : latdeg[1]);
         let lon = londeg[0] + londir + (londeg[1] < 10 ? '0' + londeg[1] : londeg[1]);
