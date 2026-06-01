@@ -1,0 +1,135 @@
+{
+  "planets": {
+    "Sun": {
+      "pahlavi": "Khwarshid",
+      "transliteration": "Xwaršīd",
+      "glyph": "☉",
+      "sassanian_symbol": "𐭧𐭥𐭫𐭱𐭩𐭣"
+    },
+    "Moon": {
+      "pahlavi": "Mah",
+      "transliteration": "Māh",
+      "glyph": "☽",
+      "sassanian_symbol": "𐭬𐭠𐭧"
+    },
+    "Mercury": {
+      "pahlavi": "Tir",
+      "transliteration": "Tīr",
+      "glyph": "☿",
+      "sassanian_symbol": "𐭲𐭩𐭫"
+    },
+    "Venus": {
+      "pahlavi": "Anahid",
+      "transliteration": "Anāhīd",
+      "glyph": "♀",
+      "sassanian_symbol": "𐭠𐭭𐭠𐭧𐭩𐭣"
+    },
+    "Mars": {
+      "pahlavi": "Warhran",
+      "transliteration": "Warhrān",
+      "glyph": "♂",
+      "sassanian_symbol": "𐭥𐭫𐭧𐭫𐭠𐭭"
+    },
+    "Jupiter": {
+      "pahlavi": "Ohrmazd",
+      "transliteration": "Ohrmazd",
+      "glyph": "♃",
+      "sassanian_symbol": "𐭠𐭧𐭥𐭬𐭦𐭣"
+    },
+    "Saturn": {
+      "pahlavi": "Keyvan",
+      "transliteration": "Kēvān",
+      "glyph": "♄",
+      "sassanian_symbol": "𐭪𐭩𐭥𐭠𐭭"
+    }
+  },
+  "zodiac_signs": {
+    "Aries": {
+      "pahlavi": "Warz",
+      "transliteration": "Warz",
+      "glyph": "♈",
+      "sassanian_symbol": "𐭥𐭫𐭮"
+    },
+    "Taurus": {
+      "pahlavi": "Gaw",
+      "transliteration": "Gaw",
+      "glyph": "♉",
+      "sassanian_symbol": "𐭢𐭥"
+    },
+    "Gemini": {
+      "pahlavi": "Dwypkly",
+      "transliteration": "Dwīpkar",
+      "glyph": "♊",
+      "sassanian_symbol": "𐭣𐭥𐭩𐭯𐭪𐭫"
+    },
+    "Cancer": {
+      "pahlavi": "Karkas",
+      "transliteration": "Karkas",
+      "glyph": "♋",
+      "sassanian_symbol": "𐭪𐭫𐭪𐭮"
+    },
+    "Leo": {
+      "pahlavi": "Sher",
+      "transliteration": "Šēr",
+      "glyph": "♌",
+      "sassanian_symbol": "𐭱𐭫"
+    },
+    "Virgo": {
+      "pahlavi": "Khushak",
+      "transliteration": "Xušak",
+      "glyph": "♍",
+      "sassanian_symbol": "𐭧𐭥𐭱𐭪"
+    },
+    "Libra": {
+      "pahlavi": "Tarazug",
+      "transliteration": "Tarāzug",
+      "glyph": "♎",
+      "sassanian_symbol": "𐭲𐭫𐭠𐭦𐭥𐭢"
+    },
+    "Scorpio": {
+      "pahlavi": "Kazdum",
+      "transliteration": "Kazdum",
+      "glyph": "♏",
+      "sassanian_symbol": "𐭪𐭦𐭣𐭥𐭬"
+    },
+    "Sagittarius": {
+      "pahlavi": "Kaman",
+      "transliteration": "Kamān",
+      "glyph": "♐",
+      "sassanian_symbol": "𐭪𐭬𐭠𐭭"
+    },
+    "Capricorn": {
+      "pahlavi": "Wahik",
+      "transliteration": "Wahīk",
+      "glyph": "♑",
+      "sassanian_symbol": "𐭥𐭧𐭩𐭪"
+    },
+    "Aquarius": {
+      "pahlavi": "Aban",
+      "transliteration": "Ābān",
+      "glyph": "♒",
+      "sassanian_symbol": "𐭠𐭡𐭠𐭭"
+    },
+    "Pisces": {
+      "pahlavi": "Mahik",
+      "transliteration": "Māhīk",
+      "glyph": "♓",
+      "sassanian_symbol": "𐭬𐭠𐭧𐭩𐭪"
+    }
+  },
+  "houses": {
+    "1": {"pahlavi": "Jan", "meaning": "Life, Body"},
+    "2": {"pahlavi": "Darah", "meaning": "Wealth"},
+    "3": {"pahlavi": "Bradar", "meaning": "Siblings"},
+    "4": {"pahlavi": "Pidar", "meaning": "Father, Home"},
+    "5": {"pahlavi": "Farzand", "meaning": "Children"},
+    "6": {"pahlavi": "Bimar", "meaning": "Illness"},
+    "7": {"pahlavi": "Zan", "meaning": "Spouse"},
+    "8": {"pahlavi": "Marg", "meaning": "Death"},
+    "9": {"pahlavi": "Keshvar", "meaning": "Travel"},
+    "10": {"pahlavi": "Kar", "meaning": "Career"},
+    "11": {"pahlavi": "Dust", "meaning": "Friends"},
+    "12": {"pahlavi": "Dushman", "meaning": "Enemies"}
+  },
+  "source": "Pahlavi names reconstructed from Dorotheus Pahlavi translation (Pingree, 1976) and Greater Bundahishn."
+}

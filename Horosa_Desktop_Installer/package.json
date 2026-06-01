@@ -1,0 +1,21 @@
+{
+  "name": "horosa-desktop-installer",
+  "private": true,
+  "version": "2.5.0",
+  "description": "Horosa macOS desktop shell, installer, and release automation workspace.",
+  "license": "AGPL-3.0-only",
+  "keywords": [
+    "horosa",
+    "tauri",
+    "macos",
+    "desktop",
+    "local-first"
+  ],
+  "scripts": {
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

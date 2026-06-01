@@ -1,0 +1,107 @@
+{
+  "source": "Picatrix (Greer & Warnock 英譯本, Book II Chapter 6 「如何製作星辰熏香」)",
+  "description": "Picatrix 完整星辰熏香與藥膏配方（7大行星複合熏香 + 特殊膏油 + 太陽膏）。可直接與 Talisman Generator、Mansions、Correspondences 結合使用。",
+  "planets": [
+    {
+      "planet": "Saturn",
+      "name_zh": "土星",
+      "primary_incense": "沒藥、硫磺、阿薩福提達",
+      "ingredients": "曼德拉草果實與乾燥橄欖葉各100盎司；黑米羅巴蘭籽與乾燥黑胡椒各10盎司；烏鴉與鶴之乾燥腦髓各30盎司；豬與猿之乾燥血液各40盎司",
+      "procedure": "全部細磨混合，製成每顆半盎司重的藥丸。製作時須召喚土星之靈力（第三冊第六章所述），並持續誦唸土星禱文。壓緊保存於鉛製容器中。",
+      "notes": "用於惡行、摧毀、監禁。不可暴露陽光或月光下。",
+      "source": "Book II Ch.6"
+    },
+    {
+      "planet": "Jupiter",
+      "name_zh": "木星",
+      "primary_incense": "藏紅花、蘆薈木、乳香",
+      "ingredients": "乾燥沒藥花與桃金孃花各10盎司；乾燥帶殼堅果與榛子各4盎司；雞、鴿、鵝之乾燥腦髓各40盎司；孔雀與駱駝之乾燥血液各20盎司；肉豆蔻與樟腦各半盎司",
+      "procedure": "細磨混合，製成藥丸。製作時召喚木星之靈力並誦唸木星禱文。保存於錫製容器。",
+      "notes": "用於善行、財富、榮譽、治療。",
+      "source": "Book II Ch.6"
+    },
+    {
+      "planet": "Mars",
+      "name_zh": "火星",
+      "primary_incense": "硫磺、沒藥樹脂、龍血",
+      "ingredients": "紅阿魏、沒藥、特雷賓斯各40粒；巨茴香與紅朱砂各4盎司；麻雀腦髓與乾燥蠍子各20盎司；豹血40盎司；紅蛇脂10盎司",
+      "procedure": "細磨混合，製成藥丸。製作時召喚火星之靈力並誦唸火星禱文。保存於鐵製容器。",
+      "notes": "用於戰爭、復仇、力量。",
+      "source": "Book II Ch.6"
+    },
+    {
+      "planet": "Sun",
+      "name_zh": "太陽",
+      "primary_incense": "藏紅花、肉桂、乳香",
+      "ingredients": "荊棘花與紅黃檀香木各10盎司；柏樹、百里香與紅 cassia 木各6盎司；Costus 2盎司；鷹腦與鷹血、貓腦與貓血各20盎司",
+      "procedure": "風乾後細磨混合，製成藥丸。製作時召喚太陽之靈力並誦唸太陽禱文。保存於金製容器。",
+      "notes": "用於榮譽、權力、健康、勝利。",
+      "source": "Book II Ch.6"
+    },
+    {
+      "planet": "Venus",
+      "name_zh": "金星",
+      "primary_incense": "麝香、龍涎香、玫瑰、檀香",
+      "ingredients": "月桂枝、石榴籽與乳香籽各8盎司；沒藥與波勒莖各20盎司；何首烏莖與沒藥各4盎司；碳酸鈉2盎司；麻雀腦與隼腦各16盎司；乾燥馬腦40盎司",
+      "procedure": "細磨混合，製成藥丸。製作時召喚金星之靈力並誦唸金星禱文。保存於銅製容器。",
+      "notes": "用於愛情、友誼、歡愉。",
+      "source": "Book II Ch.6"
+    },
+    {
+      "planet": "Mercury",
+      "name_zh": "水星",
+      "primary_incense": "乳香、肉桂、安息香",
+      "ingredients": "20盎司 henbane 花、靛藍葉與 assari；各4盎司琥珀與蟾蜍睾丸；2盎司紅氨水；各20盎司喜鵲、鴻雁與烏龜大腦；40盎司驢血",
+      "procedure": "充分乾燥並細磨，混合後製成藥丸。製作時召喚水星之靈力並誦唸水星禱文。保存於水銀或固定汞製容器。",
+      "notes": "用於知識、商業、醫術。",
+      "source": "Book II Ch.6"
+    },
+    {
+      "planet": "Moon",
+      "name_zh": "月亮",
+      "primary_incense": "樟腦、桃金娘、茉莉",
+      "ingredients": "100盎司柿葉與肉桂葉；20盎司乾燥 Orris 根與膠質；10盎司孜然；4盎司白蛇脂肪；各20盎司白兔與黑貓大腦（乾燥）；40盎司狐狸血",
+      "procedure": "充分研磨混合，製成藥丸。製作時召喚月亮之靈力並誦唸月亮禱文。保存於銀製容器。",
+      "notes": "配合28月宮使用效果最佳。",
+      "source": "Book II Ch.6"
+    }
+  ],
+  "special_ointments": [
+    {
+      "name": "Mercury Teaching Ointment",
+      "title_zh": "水星傳道膏油",
+      "purpose": "使講道者獲得超越眾人的恩典、德行與堅毅，民眾樂於服從",
+      "ingredients": "40盎司喜鵲脂肪、海蟹脂肪、牛肉脂肪與乾燥鴻雁血；20盎司琥珀；各10盎司乾石榴籽與紫檀籽；50盎司 Costus",
+      "procedure": "充分研磨混合，製作時持續召喚水星之靈並誦唸水星禱文。存於固定汞製容器中，使用時塗抹身體。",
+      "notes": "印度智者用於向民眾傳道之奇蹟配方",
+      "source": "Book II Ch.6"
+    },
+    {
+      "name": "Saturn Protection Ointment",
+      "title_zh": "土星保護膏油",
+      "purpose": "保護施行者免受行星靈體傷害，並具強大解毒之力",
+      "ingredients": "40盎司豬油與熊油；各20盎司紅辣椒與羽扇豆籽；10盎司沒藥籽；30盎司乾象血",
+      "procedure": "充分研磨混合，製作時吸引土星天使靈力並誦唸土星禱文。存於鉛製容器。",
+      "notes": "用於所有涉及行星靈體之儀式",
+      "source": "Book II Ch.6"
+    },
+    {
+      "name": "Solar Favor Ointment",
+      "title_zh": "太陽膏（獲得君王恩寵）",
+      "purpose": "獲得君王、士兵、貴族之恩寵、榮譽、尊崇與愛戴",
+      "ingredients": "純淨上等玫瑰油（玻璃瓶）",
+      "procedure": "火星日，面向太陽（太陽在白羊或獅子座上升），右手持瓶，誦念太陽長禱文12遍。誦畢保存，使用時塗抹面容。",
+      "notes": "禱文極長，需完整誦念（見原文）",
+      "source": "Book II Ch.6"
+    }
+  ],
+  "general_rules": [
+    "製作所有熏香與藥膏時，須同時召喚該行星之靈力（第三冊第六章）並持續誦唸對應禱文",
+    "不可讓他人看見製作過程",
+    "成品不得暴露陽光或月光下，須存於該行星對應金屬容器中",
+    "所有配方最後均需與打發蜂蜜混合製成藥丸",
+    "血液與腦髓需以祭獻方式取得，方能增強吸引力"
+  ],
+  "usage_notes": "這些熏香與膏油是 Picatrix 魔法圖像製作的關鍵步驟。善行使用吉星配方＋月亮盈滿；惡行使用凶星配方＋月亮虧損。建議與 picatrix_planetary_correspondences.json 及 picatrix_talismans.json 結合使用。",
+  "license_suggestion": "MIT（僅供歷史、學術、研究用途）"
+}

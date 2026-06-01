@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>诊断中心</title>
+    <link rel="stylesheet" href="./diagnostics.css" />
+  </head>
+  <body>
+    <main class="diag-shell">
+      <header class="diag-header">
+        <div>
+          <div class="diag-eyebrow">Diagnostics</div>
+          <h1>诊断中心</h1>
+          <p>查看当前日志、本机组件位置和应用数据目录，定位启动、更新和组件问题。</p>
+        </div>
+        <div class="diag-actions">
+          <button id="openLogsBtn" class="secondary-button">显示日志目录</button>
+          <button id="refreshBtn" class="primary-button">刷新</button>
+        </div>
+      </header>
+
+      <section class="diag-grid">
+        <article class="diag-card">
+          <div class="card-title">路径信息</div>
+          <div class="path-block">
+            <div>
+              <div class="path-label">日志文件</div>
+              <div class="path-value" id="logPath">读取中…</div>
+            </div>
+            <div>
+              <div class="path-label">数据目录</div>
+              <div class="path-value" id="appDataDir">读取中…</div>
+            </div>
+            <div>
+              <div class="path-label">本机组件</div>
+              <div class="path-value" id="runtimeDir">读取中…</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="diag-card">
+          <div class="card-title">当前已检测资产</div>
+          <div id="assetList" class="asset-list">读取中…</div>
+        </article>
+
+        <article class="diag-card diag-card--log">
+          <div class="card-title">最近日志</div>
+          <pre id="logOutput">读取中…</pre>
+        </article>
+      </section>
+    </main>
+    <script src="./diagnostics.js"></script>
+  </body>
+</html>

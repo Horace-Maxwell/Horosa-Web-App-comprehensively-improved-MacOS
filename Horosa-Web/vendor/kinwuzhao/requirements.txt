@@ -1,0 +1,9 @@
+pendulum>=3.0.0
+streamlit>=1.33.0
+sxtwl>=2.0.6
+streamlit-aggrid>=1.0.0
+kinliuren==0.1.2.9
+ephem>=4.1.6
+altair>=5.0.0
+bidict>=0.23.1
+pytz==2022.4

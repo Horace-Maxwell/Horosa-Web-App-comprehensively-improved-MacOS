@@ -1,0 +1,1058 @@
+import * as AstroConst from '../constants/AstroConst';
+import * as AstroText from '../constants/AstroText';
+import { appendPlanetHouseInfoById, } from './planetHouseInfo';
+import * as Constants from './constants';
+// 寿命格局段:复用本命引擎(纯函数,无 React;已验证不回 import 本文件,无环)。
+import buildFacts from '../divination/engine/chartFacts';
+import { runLifespan } from '../divination/lifespan/lifespanEngine';
+
+export const ASTRO_AI_SNAPSHOT_KEY = 'horosa.ai.snapshot.astro.v1';
+let ASTRO_AI_SNAPSHOT_MEMORY = null;
+const ASTRO_AI_SNAPSHOT_GLOBAL_KEY = '__horosa_astro_ai_snapshot';
+const DEFAULT_PLANET_INFO_EXPORT = {
+	showHouse: 1,
+	showRuler: 1,
+};
+const PLANET_HOUSE_INFO_NOTE = '说明：行星名后括号中的 nR 为宫主宫位标记；逆行会明确写为“逆行”。';
+
+function isEncodedToken(text){
+	return /^[A-Za-z0-9${}]$/.test((text || '').trim());
+}
+
+function msg(id){
+	if(id === undefined || id === null){
+		return '';
+	}
+	if(AstroText.AstroTxtMsg[id]){
+		return AstroText.AstroTxtMsg[id];
+	}
+	if(AstroText.AstroMsg[id]){
+		const val = AstroText.AstroMsg[id];
+		if(isEncodedToken(val)){
+			return `${id}`;
+		}
+		return `${val}`;
+	}
+	return `${id}`;
+}
+
+function normalizeAiPlanetLabel(text){
+	return `${text || ''}`.replace(/(\d+)R\s*\(宫主\)/g, '$1R');
+}
+
+function normalizeAiExportText(text){
+	return `${text || ''}`.replace(/(\d+)R\s*\(宫主\)/g, '$1R');
+}
+
+function saveAstroSnapshotToGlobal(payload){
+	try{
+		if(typeof window !== 'undefined'){
+			window[ASTRO_AI_SNAPSHOT_GLOBAL_KEY] = payload || null;
+		}
+	}catch(e){
+		// ignore
+	}
+}
+
+function loadAstroSnapshotFromGlobal(){
+	try{
+		if(typeof window === 'undefined'){
+			return null;
+		}
+		const obj = window[ASTRO_AI_SNAPSHOT_GLOBAL_KEY];
+		if(obj && obj.content){
+			return {
+				...obj,
+				content: normalizeAiExportText(obj.content),
+			};
+		}
+		return null;
+	}catch(e){
+		return null;
+	}
+}
+
+function msgWithHouse(id, chartObj, enabled = DEFAULT_PLANET_INFO_EXPORT){
+	const text = appendPlanetHouseInfoById(msg(id), chartObj, id, enabled);
+	return normalizeAiPlanetLabel(text);
+}
+
+function round3(val){
+	if(val === undefined || val === null || Number.isNaN(Number(val))){
+		return '';
+	}
+	return `${Math.round(Number(val) * 1000) / 1000}`;
+}
+
+function splitDegree(degree){
+	let deg = Number(degree);
+	if(Number.isNaN(deg)){
+		return [0, 0];
+	}
+	const negative = deg < 0;
+	deg = Math.abs(deg);
+	let d = Math.floor(deg);
+	let minute = Math.floor((deg - d) * 60);
+	if(minute >= 60){
+		d += 1;
+		minute = 0;
+	}
+	if(negative){
+		d = -d;
+	}
+	return [d, minute];
+}
+
+function whichTerm(sign, deg){
+	const terms = AstroConst.EGYPTIAN_TERMS[sign];
+	if(!terms || terms.length === 0){
+		return '';
+	}
+	for(let i=0; i<terms.length; i++){
+		const item = terms[i];
+		if(item[1] <= deg && item[2] > deg){
+			return msg(item[0]);
+		}
+	}
+	return '';
+}
+
+function formatSignDegree(sign, signlon){
+	if(signlon === undefined || signlon === null || sign === undefined || sign === null){
+		return '';
+	}
+	const sd = splitDegree(signlon);
+	const deg = Math.abs(sd[0]);
+	const minute = Math.abs(sd[1]);
+	const term = whichTerm(sign, deg);
+	return `${deg}˚${msg(sign)}${minute}分；位于 ${term} 界`;
+}
+
+function formatRetrogradeText(obj){
+	if(!obj || obj.lonspeed === undefined || obj.lonspeed === null){
+		return '';
+	}
+	const speed = Number(obj.lonspeed);
+	if(Number.isNaN(speed) || speed >= 0){
+		return '';
+	}
+	return '；逆行';
+}
+
+function lonToSignDegree(lon){
+	if(lon === undefined || lon === null || Number.isNaN(Number(lon))){
+		return '';
+	}
+	let value = Number(lon) % 360;
+	if(value < 0){
+		value += 360;
+	}
+	const signIdx = Math.floor(value / 30) % 12;
+	const sign = AstroConst.LIST_SIGNS[signIdx];
+	const signlon = value - signIdx * 30;
+	return formatSignDegree(sign, signlon);
+}
+
+function fieldValue(fields, key){
+	if(!fields){
+		return null;
+	}
+	const f = fields[key];
+	if(f && f.value !== undefined){
+		return f.value;
+	}
+	return f !== undefined ? f : null;
+}
+
+function resolveOnlyRulerExaltReception(options = {}){
+	if(options.onlyRulerExaltReception !== undefined && options.onlyRulerExaltReception !== null){
+		return !!options.onlyRulerExaltReception;
+	}
+	try{
+		if(typeof window === 'undefined' || !window.localStorage){
+			return false;
+		}
+		const raw = window.localStorage.getItem(Constants.GlobalSetupKey);
+		if(!raw){
+			return false;
+		}
+		const setup = JSON.parse(raw);
+		return !!(setup && (setup.showOnlyRulExaltReception === 1 || setup.showOnlyRulExaltReception === true));
+	}catch(e){
+		return false;
+	}
+}
+
+function hasRulerOrExalt(ary){
+	if(!ary || !Array.isArray(ary) || ary.length === 0){
+		return false;
+	}
+	for(let i=0; i<ary.length; i++){
+		if(ary[i] === 'ruler' || ary[i] === 'exalt'){
+			return true;
+		}
+	}
+	return false;
+}
+
+function keepReceptionLine(item, abnormal = false, onlyRulerExaltReception = false){
+	if(!onlyRulerExaltReception){
+		return true;
+	}
+	if(!item){
+		return false;
+	}
+	const supplierOk = hasRulerOrExalt(item.supplierRulerShip);
+	if(!abnormal){
+		return supplierOk;
+	}
+	const beneficiaryOk = hasRulerOrExalt(item.beneficiaryDignity);
+	return supplierOk || beneficiaryOk;
+}
+
+function keepMutualLine(item, onlyRulerExaltReception = false){
+	if(!onlyRulerExaltReception){
+		return true;
+	}
+	if(!item || !item.planetA || !item.planetB){
+		return false;
+	}
+	return hasRulerOrExalt(item.planetA.rulerShip) && hasRulerOrExalt(item.planetB.rulerShip);
+}
+
+function asNameList(ids){
+	if(!ids || ids.length === 0){
+		return '';
+	}
+	return ids.map((id)=>msg(id)).filter(Boolean).join(' , ');
+}
+
+function getObjectsMap(chartObj){
+	const map = {};
+	const chart = chartObj && chartObj.chart ? chartObj.chart : null;
+	if(chart && chart.objects){
+		for(let i=0; i<chart.objects.length; i++){
+			const obj = chart.objects[i];
+			map[obj.id] = obj;
+		}
+	}
+	if(chartObj && chartObj.lots){
+		for(let i=0; i<chartObj.lots.length; i++){
+			const obj = chartObj.lots[i];
+			map[obj.id] = obj;
+		}
+	}
+	return map;
+}
+
+function getStarsMap(chartObj){
+	const map = {};
+	const chart = chartObj && chartObj.chart ? chartObj.chart : null;
+	if(!chart || !chart.stars){
+		return map;
+	}
+	for(let i=0; i<chart.stars.length; i++){
+		const star = chart.stars[i];
+		map[star.id] = star.stars || [];
+	}
+	return map;
+}
+
+function dignityText(ary){
+	if(!ary || ary.length === 0){
+		return '游走';
+	}
+	return ary.map((item)=>msg(item)).join('，');
+}
+
+function formatSpeed(obj){
+	if(!obj){
+		return '';
+	}
+	let speed = `${round3(obj.lonspeed)}度`;
+	if(obj.lonspeed < 0){
+		speed += '；逆行';
+	}
+	const deltaSpeed = Math.abs((obj.lonspeed || 0) - (obj.meanSpeed || 0));
+	if(deltaSpeed > 1){
+		speed += obj.lonspeed > obj.meanSpeed ? '; 快速' : '; 慢速';
+	}else if(obj.lonspeed < 0.003 && obj.lonspeed > 0){
+		speed += '; 停滞';
+	}else{
+		speed += '; 平均';
+	}
+	return speed;
+}
+
+function ruleshipText(arr){
+	if(!arr || arr.length === 0){
+		return '';
+	}
+	return arr.map((item)=>msg(item)).join('+');
+}
+
+function aspectText(asp){
+	if(asp === undefined || asp === null){
+		return '';
+	}
+	const n = Number(asp);
+	if(Number.isNaN(n)){
+		return `${asp}`;
+	}
+	return `${n}˚`;
+}
+
+function formatStarsLines(stars){
+	if(!stars || stars.length === 0){
+		return [];
+	}
+	const lines = [];
+	for(let i=0; i<stars.length; i++){
+		const item = stars[i];
+		const sname = item.length > 4 ? item[4] : msg(item[0]);
+		const deg = splitDegree(item[2]);
+		lines.push(`${sname}：${Math.abs(deg[0])}˚${msg(item[1])}${Math.abs(deg[1])}分`);
+	}
+	return lines;
+}
+
+function buildBaseInfoLines(chartObj, fields){
+	const lines = [];
+	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
+	const params = chartObj && chartObj.params ? chartObj.params : {};
+	const lon = fieldValue(fields, 'lon') || params.lon || '';
+	const lat = fieldValue(fields, 'lat') || params.lat || '';
+	const zone = params.zone !== undefined && params.zone !== null ? params.zone : fieldValue(fields, 'zone');
+
+	if(lon || lat){
+		lines.push(`经度：${lon}， 纬度：${lat}`);
+	}
+	if(params.birth){
+		lines.push(params.birth + (chart.dayofweek ? ` ${chart.dayofweek}` : ''));
+	}
+	if(zone !== undefined && zone !== null){
+		lines.push(`时区：${zone} ，${chart.isDiurnal ? '日生盘' : '夜生盘'}`);
+	}
+	if(chart.nongli && chart.nongli.birth){
+		lines.push(`真太阳时：${chart.nongli.birth}`);
+	}
+	// 用户拍板·v2.2.1: AI 必须明确知道排盘按哪种规则计算,否则可能用错语义解读四柱。
+	const after23 = fieldValue(fields, 'after23NewDay');
+	const lateZi = fieldValue(fields, 'lateZiHourUseNextDay');
+	if(after23 !== undefined || lateZi !== undefined){
+		const a23 = after23 === 0 || after23 === '0' || after23 === false ? 0 : 1;
+		const lzh = lateZi === 0 || lateZi === '0' || lateZi === false ? 0 : 1;
+		const dayLabel = a23 === 1 ? '23点算第二天(日柱进位次日)' : '24点算第二天(日柱守今、24点才换日柱)';
+		const hourLabel = lzh === 1 ? '晚子时按次日日柱计算(时干用次日日干起子时)' : '晚子时按当日柱计算(时干用今日日干起子时)';
+		lines.push(`排盘规则：日柱开关【${dayLabel}】+ 时柱开关【${hourLabel}】。本盘四柱按此规则计算。`);
+	}
+
+	const zodiacal = chart.zodiacal || AstroConst.ZODIACAL[fieldValue(fields, 'zodiacal')];
+	const hsys = chart.hsys || AstroConst.HouseSys[fieldValue(fields, 'hsys')];
+	if(zodiacal || hsys){
+		lines.push(`${msg(zodiacal)}，${msg(hsys)}`);
+	}
+	lines.push(PLANET_HOUSE_INFO_NOTE);
+
+	if(chart.dayerStar){
+		lines.push(`日主星：${msg(chart.dayerStar)}`);
+	}
+	if(chart.timerStar){
+		lines.push(`时主星：${msg(chart.timerStar)}`);
+	}
+	return lines;
+}
+
+export function buildHouseCuspLines(chartObj){
+	const lines = [];
+	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
+	const houses = chart.houses || [];
+	for(let i=0; i<houses.length; i++){
+		const h = houses[i];
+		if(!h || h.lon === undefined || h.lon === null){
+			continue;
+		}
+		lines.push(`${msg(h.id)} 宫头：${lonToSignDegree(h.lon)}`);
+	}
+	return lines;
+}
+
+export function buildStarAndLotPositionLines(chartObj){
+	const lines = [];
+	const objectMap = getObjectsMap(chartObj);
+	const pushOne = (id)=>{
+		const obj = objectMap[id];
+		if(!obj || obj.sign === undefined || obj.signlon === undefined){
+			return;
+		}
+		lines.push(`${msgWithHouse(id, chartObj)}：${formatSignDegree(obj.sign, obj.signlon)}${formatRetrogradeText(obj)}`);
+	};
+
+	AstroConst.LIST_OBJECTS.forEach((id)=>pushOne(id));
+	AstroConst.LOTS.forEach((id)=>pushOne(id));
+
+	return lines;
+}
+
+export function buildInfoSection(chartObj, fields, options = {}){
+	const lines = [];
+	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
+	const chartData = chartObj || {};
+	const planetMap = getObjectsMap(chartObj);
+	const onlyRulerExaltReception = resolveOnlyRulerExaltReception(options);
+
+	lines.push(...buildBaseInfoLines(chartObj, fields));
+
+	const anti = chart.antiscias || {};
+	const antiLines = [];
+	(anti.antiscia || []).forEach((item)=>{
+		antiLines.push(`${msg(item[0])} 与 ${msg(item[1])} 成映点 误差${round3(item[2])}`);
+	});
+	(anti.cantiscia || []).forEach((item)=>{
+		antiLines.push(`${msg(item[0])} 与 ${msg(item[1])} 成反映点 误差${round3(item[2])}`);
+	});
+	if(antiLines.length){
+		lines.push('映点/反映点');
+		lines.push(...antiLines);
+	}
+
+	const receptions = chartData.receptions || {};
+	const normalReceptions = (receptions.normal || []).filter((item)=>keepReceptionLine(item, false, onlyRulerExaltReception));
+	const abnormalReceptions = (receptions.abnormal || []).filter((item)=>keepReceptionLine(item, true, onlyRulerExaltReception));
+	if(normalReceptions.length || abnormalReceptions.length){
+		lines.push('接纳');
+		lines.push('正接纳：');
+		normalReceptions.forEach((item)=>{
+			lines.push(`${msgWithHouse(item.beneficiary, chartObj)} 被 ${msgWithHouse(item.supplier, chartObj)} 接纳 (${ruleshipText(item.supplierRulerShip)})`);
+		});
+		lines.push('邪接纳：');
+		abnormalReceptions.forEach((item)=>{
+			lines.push(`${msgWithHouse(item.beneficiary, chartObj)} (${ruleshipText(item.beneficiaryDignity)}) 被 ${msgWithHouse(item.supplier, chartObj)} 接纳 (${ruleshipText(item.supplierRulerShip)})`);
+		});
+	}
+
+	const mutuals = chartData.mutuals || {};
+	const normalMutuals = (mutuals.normal || []).filter((item)=>keepMutualLine(item, onlyRulerExaltReception));
+	const abnormalMutuals = (mutuals.abnormal || []).filter((item)=>keepMutualLine(item, onlyRulerExaltReception));
+	if(normalMutuals.length || abnormalMutuals.length){
+		lines.push('互容');
+		lines.push('正互容：');
+		normalMutuals.forEach((item)=>{
+			lines.push(`${msgWithHouse(item.planetA.id, chartObj)} (${ruleshipText(item.planetA.rulerShip)}) 与 ${msgWithHouse(item.planetB.id, chartObj)} (${ruleshipText(item.planetB.rulerShip)}) 互容`);
+		});
+		lines.push('邪互容：');
+		abnormalMutuals.forEach((item)=>{
+			lines.push(`${msgWithHouse(item.planetA.id, chartObj)} (${ruleshipText(item.planetA.rulerShip)}) 与 ${msgWithHouse(item.planetB.id, chartObj)} (${ruleshipText(item.planetB.rulerShip)}) 互容`);
+		});
+	}
+
+	const surround = chartData.surround || {};
+	const attacks = surround.attacks || {};
+	const attackLines = [];
+	Object.keys(attacks).forEach((key)=>{
+		const planet = attacks[key];
+		const candidates = [];
+		if(planet.MinDelta && planet.MinDelta.length === 2){
+			candidates.push(planet.MinDelta);
+		}
+		if(planet.MarsSaturn && planet.MarsSaturn.length === 2){
+			candidates.push(planet.MarsSaturn);
+		}
+		if(planet.SunMoon && planet.SunMoon.length === 2){
+			candidates.push(planet.SunMoon);
+		}
+		if(planet.VenusJupiter && planet.VenusJupiter.length === 2){
+			candidates.push(planet.VenusJupiter);
+		}
+		candidates.forEach((pair)=>{
+			attackLines.push(
+				`${msgWithHouse(key, chartObj)} 被 ${msgWithHouse(pair[0].id, chartObj)} (通过${aspectText(pair[0].aspect)}相位) 与 ${msgWithHouse(pair[1].id, chartObj)} (通过${aspectText(pair[1].aspect)}相位) 围攻`
+			);
+		});
+	});
+	if(attackLines.length){
+		lines.push('光线围攻');
+		lines.push(...attackLines);
+	}
+
+	const houses = surround.houses || {};
+	const houseLines = [];
+	Object.keys(houses).forEach((key)=>{
+		const pair = houses[key];
+		if(pair && pair.length === 2){
+			houseLines.push(`${msgWithHouse(pair[0].id, chartObj)} 与 ${msgWithHouse(pair[1].id, chartObj)} 夹 ${msg(key)}`);
+		}
+	});
+	if(houseLines.length){
+		lines.push('夹宫');
+		lines.push(...houseLines);
+	}
+
+	const planets = surround.planets || {};
+	const planetLines = [];
+	Object.keys(planets).forEach((key)=>{
+		const pair = planets[key];
+		if(key === 'BySunMoon' && pair && pair.id){
+			planetLines.push(`${msgWithHouse(AstroConst.MOON, chartObj)} 与 ${msgWithHouse(AstroConst.SUN, chartObj)} 夹 ${msgWithHouse(pair.id, chartObj)}`);
+			return;
+		}
+		if(pair && pair.SunMoon && pair.SunMoon.length === 2){
+			planetLines.push(`${msgWithHouse(pair.SunMoon[0].id, chartObj)} 与 ${msgWithHouse(pair.SunMoon[1].id, chartObj)} 夹 ${msgWithHouse(key, chartObj)}`);
+			return;
+		}
+		if(pair && pair.length === 2){
+			planetLines.push(`${msgWithHouse(pair[0].id, chartObj)} 与 ${msgWithHouse(pair[1].id, chartObj)} 夹 ${msgWithHouse(key, chartObj)}`);
+		}
+	});
+	if(planetLines.length){
+		lines.push('夹星');
+		lines.push(...planetLines);
+	}
+
+	const declParallel = chartData.declParallel || {};
+	const parallelLines = [];
+	(declParallel.parallel || []).forEach((ids, idx)=>{
+		parallelLines.push(`平行星体${idx + 1}：${asNameList(ids)}`);
+	});
+	Object.keys(declParallel.contraParallel || {}).forEach((id)=>{
+		const ids = declParallel.contraParallel[id] || [];
+		if(ids.length){
+			parallelLines.push(`相对 ${msg(id)} 星体：${asNameList(ids)}`);
+		}
+	});
+	if(parallelLines.length){
+		lines.push('纬照');
+		lines.push(...parallelLines);
+	}
+
+	Object.keys(planetMap).forEach((id)=>{
+		planetMap[id].__name = msg(id);
+	});
+	return lines;
+}
+
+function buildAspectSection(chartObj){
+	const lines = [];
+	const aspects = chartObj && chartObj.aspects ? chartObj.aspects : {};
+	const normal = aspects.normalAsp || {};
+	const immediate = aspects.immediateAsp || {};
+	const signAsp = aspects.signAsp || {};
+
+	lines.push('标准相位');
+	AstroConst.LIST_POINTS.forEach((id)=>{
+		const one = normal[id];
+		if(!one){
+			return;
+		}
+		lines.push(msgWithHouse(id, chartObj));
+		(one.Applicative || []).forEach((asp)=>{
+			lines.push(`${aspectText(asp.asp)} ${msgWithHouse(asp.id, chartObj)} 入相 误差${round3(asp.orb)}`);
+		});
+		(one.Exact || []).forEach((asp)=>{
+			lines.push(`${aspectText(asp.asp)} ${msgWithHouse(asp.id, chartObj)} 离相 误差${round3(asp.orb)}`);
+		});
+		(one.Separative || []).forEach((asp)=>{
+			lines.push(`${aspectText(asp.asp)} ${msgWithHouse(asp.id, chartObj)} 离相 误差${round3(asp.orb)}`);
+		});
+		(one.None || []).forEach((asp)=>{
+			lines.push(`${aspectText(asp.asp)} ${msgWithHouse(asp.id, chartObj)} 误差${round3(asp.orb)}`);
+		});
+	});
+
+	lines.push('立即相位');
+	AstroConst.LIST_OBJECTS.forEach((id)=>{
+		const one = immediate[id];
+		if(!one || one.length < 2){
+			return;
+		}
+		lines.push(`${msgWithHouse(id, chartObj)} ${aspectText(one[0].asp)} ${msgWithHouse(one[0].id, chartObj)} 离相 误差${round3(one[0].orb)}；${aspectText(one[1].asp)} ${msgWithHouse(one[1].id, chartObj)} 入相 误差${round3(one[1].orb)}`);
+	});
+
+	lines.push('星座相位');
+	AstroConst.LIST_OBJECTS.forEach((id)=>{
+		const one = signAsp[id];
+		if(!one || !one.length){
+			return;
+		}
+		lines.push(`主体：${msgWithHouse(id, chartObj)}`);
+		one.forEach((asp)=>{
+			lines.push(`与 ${msgWithHouse(asp.id, chartObj)} 成 ${aspectText(asp.asp)} 相位`);
+		});
+	});
+
+	return lines;
+}
+
+function buildPlanetSection(chartObj){
+	const lines = [];
+	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
+	const objectMap = getObjectsMap(chartObj);
+	const starsMap = getStarsMap(chartObj);
+	const orientOccident = chart.orientOccident || {};
+
+	AstroConst.LIST_OBJECTS.forEach((id)=>{
+		const obj = objectMap[id];
+		if(!obj){
+			return;
+		}
+		lines.push(msgWithHouse(id, chartObj));
+		lines.push(`落座：${formatSignDegree(obj.sign, obj.signlon)}`);
+		if(obj.house){
+			lines.push(`落宫：${msg(obj.house)}`);
+		}
+		if(obj.antisciaPoint){
+			lines.push(`映点：${formatSignDegree(obj.antisciaPoint.sign, obj.antisciaPoint.signlon)}`);
+		}
+		if(obj.cantisciaPoint){
+			lines.push(`反映点：${formatSignDegree(obj.cantisciaPoint.sign, obj.cantisciaPoint.signlon)}`);
+		}
+		if(obj.meanSpeed !== undefined){
+			lines.push(`平均速度：${round3(obj.meanSpeed)}`);
+		}
+		if(obj.lonspeed !== undefined){
+			lines.push(`当前速度：${formatSpeed(obj)}`);
+		}
+		if(obj.selfDignity){
+			let dg = dignityText(obj.selfDignity);
+			if(obj.hayyiz && obj.hayyiz !== 'None'){
+				dg += `，${msg(obj.hayyiz)}`;
+			}
+			if(obj.isVOC){
+				dg += '，空亡';
+			}
+			lines.push(`禀赋：${dg}`);
+		}
+		if(obj.score !== undefined){
+			lines.push(`分值：${obj.score}`);
+		}
+		if(obj.altitudeTrue !== undefined){
+			lines.push(`真地平纬度：${round3(obj.altitudeTrue)}˚`);
+		}
+		if(obj.altitudeAppa !== undefined){
+			lines.push(`视地平纬度：${round3(obj.altitudeAppa)}˚`);
+		}
+		if(obj.azimuth !== undefined){
+			lines.push(`地坪经度：${round3(obj.azimuth)}˚`);
+		}
+		if(obj.lon !== undefined){
+			lines.push(`黄经：${round3(obj.lon)}˚`);
+		}
+		if(obj.lat !== undefined){
+			lines.push(`黄纬：${round3(obj.lat)}˚`);
+		}
+		if(obj.ra !== undefined){
+			lines.push(`赤经：${round3(obj.ra)}˚`);
+		}
+		if(obj.decl !== undefined){
+			lines.push(`赤纬：${round3(obj.decl)}˚`);
+		}
+		if(obj.moonPhase !== undefined){
+			lines.push(`月限：${msg(obj.moonPhase)}`);
+		}
+		if(obj.sunPos !== undefined){
+			lines.push(`太阳关系：${msg(obj.sunPos)}`);
+		}
+		if(obj.ruleHouses && obj.ruleHouses.length){
+			lines.push(`入垣宫：${asNameList(obj.ruleHouses)}`);
+		}
+		if(obj.exaltHouse){
+			lines.push(`擢升宫：${msg(obj.exaltHouse)}`);
+		}
+		if(obj.governSign){
+			let govern = msg(obj.governSign);
+			if(obj.governPlanets && obj.governPlanets.length){
+				govern += ` , ${asNameList(obj.governPlanets)}`;
+			}
+			lines.push(`宰制星座：${govern}`);
+		}
+
+		const occ = orientOccident[id];
+		if(occ){
+			const oc = (occ.occidental || []).map((x)=>x.id);
+			const or = (occ.oriental || []).map((x)=>x.id);
+			lines.push(`东出星：${asNameList(or)}`);
+			lines.push(`西入星：${asNameList(oc)}`);
+		}
+
+		const stars = starsMap[id] || [];
+		if(stars.length){
+			lines.push('汇合恒星：');
+			lines.push(...formatStarsLines(stars));
+		}
+	});
+
+	return lines;
+}
+
+function buildLotsSection(chartObj){
+	const lines = [];
+	const objectMap = getObjectsMap(chartObj);
+	const starsMap = getStarsMap(chartObj);
+
+	AstroConst.LOTS.forEach((id)=>{
+		const obj = objectMap[id];
+		if(!obj){
+			return;
+		}
+		lines.push(msgWithHouse(id, chartObj));
+		lines.push(`落座：${formatSignDegree(obj.sign, obj.signlon)}`);
+		if(obj.house){
+			lines.push(`落宫：${msg(obj.house)}`);
+		}
+		const stars = starsMap[id] || [];
+		if(stars.length){
+			lines.push('汇合恒星：');
+			lines.push(...formatStarsLines(stars));
+		}
+	});
+
+	return lines;
+}
+
+// 星座庙主(传统七政),按 0=白羊…11=双鱼 顺序。仅用于 12分度/主宰链段,使用 AstroConst 行星常量,
+// 不引 divination/data/signs(避免小写 key 与 chart id 格式失配)。
+const TRAD_SIGN_RULERS = [
+	AstroConst.MARS, AstroConst.VENUS, AstroConst.MERCURY, AstroConst.MOON,
+	AstroConst.SUN, AstroConst.MERCURY, AstroConst.VENUS, AstroConst.MARS,
+	AstroConst.JUPITER, AstroConst.SATURN, AstroConst.SATURN, AstroConst.JUPITER,
+];
+
+function norm360Lon(x){
+	let v = Number(x) % 360;
+	if(v < 0){
+		v += 360;
+	}
+	return v;
+}
+
+// 取星体绝对黄经:优先 obj.lon,缺则用 sign+signlon 还原(对序列化里没带 lon 的盘兜底)。
+function objAbsLon(obj){
+	if(obj && obj.lon !== undefined && obj.lon !== null && !Number.isNaN(Number(obj.lon))){
+		return Number(obj.lon);
+	}
+	if(obj && obj.sign !== undefined && obj.signlon !== undefined && obj.signlon !== null){
+		const idx = AstroConst.LIST_SIGNS.indexOf(obj.sign);
+		if(idx >= 0){
+			return idx * 30 + Number(obj.signlon);
+		}
+	}
+	return null;
+}
+
+function dodecaLonOf(lon){
+	const L = norm360Lon(lon);
+	return norm360Lon(Math.floor(L / 30) * 30 + (L % 30) * 12);
+}
+
+function rulerIdOfLon(lon){
+	return TRAD_SIGN_RULERS[Math.floor(norm360Lon(lon) / 30) % 12];
+}
+
+// 12 分度(Dodekatemoria):每星本命黄经 → floor(度/30)*30 + (度%30)*12 落入的分度座。
+function buildDodecaSection(chartObj){
+	const lines = [];
+	const objectMap = getObjectsMap(chartObj);
+	AstroConst.LIST_OBJECTS.forEach((id)=>{
+		const lon = objAbsLon(objectMap[id]);
+		if(lon === null){
+			return;
+		}
+		const natal = lonToSignDegree(lon);
+		const dodeca = lonToSignDegree(dodecaLonOf(lon));
+		if(!natal || !dodeca){
+			return;
+		}
+		lines.push(`${msg(id)}：本命 ${natal} → 12分度 ${dodeca}`);
+	});
+	return lines;
+}
+
+// 主宰星链(dispositor chains):七政各落星座的庙主,顺链至「落自家星座」的终极主宰(或互容成环)。
+function buildDispositorSection(chartObj){
+	const lines = [];
+	const objectMap = getObjectsMap(chartObj);
+	const TRAD = [AstroConst.SUN, AstroConst.MOON, AstroConst.MERCURY, AstroConst.VENUS, AstroConst.MARS, AstroConst.JUPITER, AstroConst.SATURN];
+	TRAD.forEach((id)=>{
+		if(objAbsLon(objectMap[id]) === null){
+			return;
+		}
+		const chain = [id];
+		let cur = id;
+		let guard = 0;
+		while(guard < 12){
+			const lon = objAbsLon(objectMap[cur]);
+			if(lon === null){
+				break;
+			}
+			const ruler = rulerIdOfLon(lon);
+			if(!ruler || ruler === cur){
+				break;
+			}
+			chain.push(ruler);
+			if(chain.indexOf(ruler) !== chain.length - 1){
+				break;
+			}
+			cur = ruler;
+			guard += 1;
+		}
+		lines.push(`${msg(id)}：${chain.map((k)=>msg(k)).join(' → ')}`);
+	});
+	return lines;
+}
+
+// 非破坏地补出 buildFacts 需要的 objectMap/houseMap(不改原 chartObj)。
+function chartObjWithFactsMaps(chartObj){
+	if(!chartObj || !chartObj.chart){
+		return chartObj;
+	}
+	let objectMap = chartObj.objectMap;
+	if(!objectMap && Array.isArray(chartObj.chart.objects)){
+		objectMap = {};
+		chartObj.chart.objects.forEach((o)=>{ if(o && o.id){ objectMap[o.id] = o; } });
+	}
+	let houseMap = chartObj.houseMap;
+	if(!houseMap && Array.isArray(chartObj.chart.houses)){
+		houseMap = {};
+		chartObj.chart.houses.forEach((h)=>{ if(h && h.id){ houseMap[h.id] = h; } });
+	}
+	return Object.assign({}, chartObj, { objectMap, houseMap });
+}
+
+// 寿命引擎产出的 key/sign 是小写(buildFacts 统一 toLowerCase),需映射回 chart id 供 msg 显示中文。
+const LIFESPAN_KEY_TO_ID = {
+	sun: AstroConst.SUN, moon: AstroConst.MOON, mercury: AstroConst.MERCURY,
+	venus: AstroConst.VENUS, mars: AstroConst.MARS, jupiter: AstroConst.JUPITER,
+	saturn: AstroConst.SATURN, asc: AstroConst.ASC, mc: AstroConst.MC,
+	fortune: AstroConst.PARS_FORTUNA, syzygy: AstroConst.SYZYGY,
+	north_node: AstroConst.NORTH_NODE, south_node: AstroConst.SOUTH_NODE,
+};
+
+function lifespanName(key){
+	if(!key){
+		return '-';
+	}
+	const lk = String(key).toLowerCase();
+	if(LIFESPAN_KEY_TO_ID[lk]){
+		return msg(LIFESPAN_KEY_TO_ID[lk]);
+	}
+	const cap = lk.charAt(0).toUpperCase() + lk.slice(1);
+	const m = msg(cap);
+	return (m && m !== cap) ? m : `${key}`;
+}
+
+// 寿命格局(Hyleg/Alcocoden):生命主 + 寿主星 + 预测寿数 + 盘主体系。默认 Ptolemy 取主法(与组件同)。
+// 位置统一用 lonToSignDegree(lon)(引擎 sign 是小写、term 取不到;用绝对黄经重算座度+界,得中文)。
+function buildLifespanSection(chartObj){
+	const lines = [];
+	let res = null;
+	try {
+		const facts = buildFacts(chartObjWithFactsMaps(chartObj));
+		res = facts ? runLifespan(facts, { method: 'ptolemy' }) : null;
+	} catch(e){
+		return lines;
+	}
+	if(!res){
+		return lines;
+	}
+	lines.push(`区分：${res.isDiurnal ? '昼生盘' : '夜生盘'}`);
+	const hy = res.hyleg;
+	if(hy){
+		const pos = (hy.lon !== undefined && hy.lon !== null) ? lonToSignDegree(hy.lon) : '';
+		lines.push(`生命主(Hyleg)：${lifespanName(hy.key)} ${pos}${hy.house ? `（第${hy.house}宫）` : ''}`);
+	} else {
+		lines.push('生命主(Hyleg)：未定');
+	}
+	const alc = res.alcocoden;
+	if(alc && alc.alcocoden){
+		lines.push(`寿主星(Alcocoden)：${lifespanName(alc.alcocoden)}`);
+		if(alc.aspectToHyleg){
+			lines.push(`与生命主相照：${alc.aspectToHyleg}`);
+		}
+		if(alc.predictedYears !== undefined && alc.predictedYears !== null){
+			lines.push(`预测寿数 ≈ ${alc.predictedYears} 年（基础 ${alc.baseYears} 年）`);
+		}
+	} else {
+		lines.push('寿主星(Alcocoden)：未能确定');
+	}
+	if(res.rulers){
+		const r = res.rulers;
+		const parts = [];
+		if(r.epikratetor){ parts.push(`占控星 ${lifespanName(r.epikratetor)}`); }
+		if(r.oikodespotes){ parts.push(`家主星 ${lifespanName(r.oikodespotes)}`); }
+		if(r.kurios){ parts.push(`盘主星 ${lifespanName(r.kurios)}`); }
+		if(parts.length){
+			lines.push(`盘主体系：${parts.join('；')}${r.concordant ? '（家主=盘主，格局相合）' : ''}`);
+		}
+	}
+	return lines;
+}
+
+function buildPossibilitySection(chartObj){
+	const lines = [];
+	const predict = chartObj && chartObj.predict ? chartObj.predict : {};
+	const planetSign = predict.PlanetSign || {};
+	Object.keys(planetSign).forEach((key)=>{
+		lines.push(msg(key));
+		const items = planetSign[key] || [];
+		items.forEach((txt)=>lines.push(`${txt}`));
+	});
+	return lines;
+}
+
+function buildSectionText(title, lines){
+	const clean = (lines || []).map((line)=>`${line}`.trim()).filter(Boolean);
+	if(clean.length === 0){
+		return '';
+	}
+	return `[${title}]\n${clean.join('\n')}`;
+}
+
+export function createAstroSnapshotSignature(chartObj, fields, options = {}){
+	const chart = chartObj && chartObj.chart ? chartObj.chart : {};
+	const params = chartObj && chartObj.params ? chartObj.params : {};
+	const lon = fieldValue(fields, 'lon') || params.lon || '';
+	const lat = fieldValue(fields, 'lat') || params.lat || '';
+	const zone = params.zone !== undefined && params.zone !== null ? params.zone : fieldValue(fields, 'zone');
+	const birth = params.birth || '';
+	const zodiacal = chart.zodiacal || AstroConst.ZODIACAL[fieldValue(fields, 'zodiacal')] || '';
+	const hsys = chart.hsys || AstroConst.HouseSys[fieldValue(fields, 'hsys')] || '';
+	const chartId = chartObj && chartObj.chartId ? chartObj.chartId : '';
+	const onlyRulerExaltReception = resolveOnlyRulerExaltReception(options);
+	return [chartId, birth, zone, lon, lat, zodiacal, hsys, chart.isDiurnal ? '1' : '0', onlyRulerExaltReception ? '1' : '0'].join('|');
+}
+
+export function buildAstroSnapshotContent(chartObj, fields, options = {}){
+	if(!chartObj || !chartObj.chart){
+		return '';
+	}
+	const sections = [];
+	sections.push(buildSectionText('起盘信息', buildBaseInfoLines(chartObj, fields)));
+	sections.push(buildSectionText('宫位宫头', buildHouseCuspLines(chartObj)));
+	sections.push(buildSectionText('星与虚点', buildStarAndLotPositionLines(chartObj)));
+	sections.push(buildSectionText('信息', buildInfoSection(chartObj, fields, options)));
+	sections.push(buildSectionText('相位', buildAspectSection(chartObj)));
+	sections.push(buildSectionText('行星', buildPlanetSection(chartObj)));
+	sections.push(buildSectionText('希腊点', buildLotsSection(chartObj)));
+	sections.push(buildSectionText('12分度', buildDodecaSection(chartObj)));
+	sections.push(buildSectionText('主宰星链', buildDispositorSection(chartObj)));
+	sections.push(buildSectionText('寿命格局', buildLifespanSection(chartObj)));
+	sections.push(buildSectionText('可能性', buildPossibilitySection(chartObj)));
+	return sections.filter(Boolean).join('\n\n').trim();
+}
+
+export function saveAstroAISnapshot(chartObj, fields, options = {}){
+	try{
+		const content = buildAstroSnapshotContent(chartObj, fields, options);
+		if(!content){
+			return null;
+		}
+		const payload = {
+			version: 1,
+			createdAt: new Date().toISOString(),
+			signature: createAstroSnapshotSignature(chartObj, fields, options),
+			chartId: chartObj && chartObj.chartId ? chartObj.chartId : null,
+			content: normalizeAiExportText(content),
+		};
+		ASTRO_AI_SNAPSHOT_MEMORY = payload;
+		saveAstroSnapshotToGlobal(payload);
+		if(typeof window !== 'undefined' && window.localStorage){
+			window.localStorage.setItem(ASTRO_AI_SNAPSHOT_KEY, JSON.stringify(payload));
+		}
+		return payload;
+	}catch(e){
+		// localStorage 写入异常时，仍保留内存快照，避免导出链路整体失效。
+		try{
+			const content = buildAstroSnapshotContent(chartObj, fields, options);
+			if(!content){
+				return null;
+			}
+			ASTRO_AI_SNAPSHOT_MEMORY = {
+				version: 1,
+				createdAt: new Date().toISOString(),
+				signature: createAstroSnapshotSignature(chartObj, fields, options),
+				chartId: chartObj && chartObj.chartId ? chartObj.chartId : null,
+				content: normalizeAiExportText(content),
+			};
+			saveAstroSnapshotToGlobal(ASTRO_AI_SNAPSHOT_MEMORY);
+			return ASTRO_AI_SNAPSHOT_MEMORY;
+		}catch(inner){
+			// ignore
+		}
+		return null;
+	}
+}
+
+export function loadAstroAISnapshot(){
+	try{
+		if(typeof window !== 'undefined' && window.localStorage){
+			const raw = window.localStorage.getItem(ASTRO_AI_SNAPSHOT_KEY);
+			if(raw){
+				try{
+					const obj = JSON.parse(raw);
+					if(obj && obj.content){
+						obj.content = normalizeAiExportText(obj.content);
+						ASTRO_AI_SNAPSHOT_MEMORY = obj;
+						saveAstroSnapshotToGlobal(obj);
+						return obj;
+					}
+				}catch(parseErr){
+					// 兼容旧版本：astro 快照可能是纯文本直接存储。
+					const txt = normalizeAiExportText(`${raw}`.trim());
+					if(txt){
+						const legacy = {
+							version: 1,
+							createdAt: '',
+							signature: '',
+							chartId: null,
+							content: txt,
+						};
+						ASTRO_AI_SNAPSHOT_MEMORY = legacy;
+						saveAstroSnapshotToGlobal(legacy);
+						return legacy;
+					}
+				}
+			}
+		}
+		const global = loadAstroSnapshotFromGlobal();
+		if(global){
+			ASTRO_AI_SNAPSHOT_MEMORY = global;
+			return global;
+		}
+		if(ASTRO_AI_SNAPSHOT_MEMORY && ASTRO_AI_SNAPSHOT_MEMORY.content){
+			const mem = {
+				...ASTRO_AI_SNAPSHOT_MEMORY,
+				content: normalizeAiExportText(ASTRO_AI_SNAPSHOT_MEMORY.content),
+			};
+			return mem;
+		}
+		return null;
+	}catch(e){
+		const global = loadAstroSnapshotFromGlobal();
+		if(global){
+			ASTRO_AI_SNAPSHOT_MEMORY = global;
+			return global;
+		}
+		if(ASTRO_AI_SNAPSHOT_MEMORY && ASTRO_AI_SNAPSHOT_MEMORY.content){
+			return {
+				...ASTRO_AI_SNAPSHOT_MEMORY,
+				content: normalizeAiExportText(ASTRO_AI_SNAPSHOT_MEMORY.content),
+			};
+		}
+		return null;
+	}
+}
+
+export function getAstroAISnapshotForCurrent(chartObj, fields, options = {}){
+	const snap = loadAstroAISnapshot();
+	if(!snap){
+		return null;
+	}
+	if(!chartObj){
+		return snap;
+	}
+	const sig = createAstroSnapshotSignature(chartObj, fields, options);
+	if(snap.signature !== sig){
+		return null;
+	}
+	return snap;
+}

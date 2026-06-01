@@ -1,0 +1,506 @@
+
+.scrollbar::-webkit-scrollbar {
+	width: 3px;
+	height: 3px;
+	background-color: var(--horosa-bg, #f5f5f5);
+}
+  
+.scrollbar::-webkit-scrollbar-track {
+	-webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
+	box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
+	border-radius: 10px;
+	background-color: var(--horosa-surface-solid, #ffffff);
+}
+  
+.scrollbar::-webkit-scrollbar-thumb {
+	border-radius: 10px;
+	-webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
+	box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
+	background-color: var(--horosa-border-strong, #D2D7DD);
+}
+
+:global {
+	.horosa-india-chart-main,
+	.horosa-india-chart-instance {
+		width: 100%;
+		height: 100%;
+		min-height: 0;
+	}
+
+	.horosa-india-chart-main > .ant-tabs,
+	.horosa-india-chart-main > .ant-tabs > .ant-tabs-content-holder,
+	.horosa-india-chart-main > .ant-tabs > .ant-tabs-content-holder > .ant-tabs-content,
+	.horosa-india-chart-main > .ant-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane,
+	.horosa-india-chart-main > .ant-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane > div {
+		height: 100%;
+		min-height: 0;
+	}
+
+	.horosa-india-square-shell {
+		width: 100%;
+		height: 100%;
+		min-height: 0;
+		box-sizing: border-box;
+		padding: 18px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		color: var(--horosa-text, #162033);
+		overflow: hidden;
+	}
+
+	.horosa-india-square-placeholder {
+		width: ~"min(720px, calc(100% - 32px))";
+		height: ~"min(420px, calc(100% - 32px))";
+		min-height: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--horosa-border, rgba(76, 98, 134, 0.17));
+		border-radius: 8px;
+		background: var(--horosa-panel-soft, rgba(242, 247, 254, 0.78));
+		color: var(--horosa-muted, #8794a8);
+		font-size: 15px;
+	}
+
+	.horosa-india-square-meta {
+		width: ~"min(960px, 100%)";
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-end;
+		gap: 18px;
+		padding: 0 2px;
+	}
+
+	.horosa-india-square-kicker {
+		display: block;
+		margin-bottom: 3px;
+		color: var(--horosa-muted, #8794a8);
+		font-size: 12px;
+		line-height: 16px;
+	}
+
+	.horosa-india-square-title {
+		color: var(--horosa-text, #162033);
+		font-size: 20px;
+		line-height: 26px;
+		font-weight: 700;
+	}
+
+	.horosa-india-square-subtitle {
+		color: var(--horosa-text-soft, #52627a);
+		font-size: 13px;
+		line-height: 18px;
+		text-align: right;
+	}
+
+	.horosa-india-square-board {
+		width: ~"min(900px, calc(100% - 44px), calc(var(--india-chart-height, 720px) - 44px))";
+		max-width: ~"calc(100% - 44px)";
+		max-height: ~"calc(100% - 44px)";
+		aspect-ratio: 1 / 1;
+		position: relative;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-template-rows: repeat(4, minmax(0, 1fr));
+		border: 1.5px solid var(--horosa-border-strong, rgba(51, 111, 201, 0.30));
+		background: var(--horosa-surface-solid, #ffffff);
+		box-shadow: var(--horosa-small-shadow, 0 8px 24px rgba(39, 59, 91, 0.08));
+		overflow: hidden;
+	}
+
+	.horosa-india-diagram-board {
+		display: block;
+	}
+
+	.horosa-india-diagram-lines {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		width: 100%;
+		height: 100%;
+		fill: none;
+		stroke: var(--horosa-border-strong, rgba(51, 111, 201, 0.30));
+		stroke-width: 0.34;
+		vector-effect: non-scaling-stroke;
+		pointer-events: none;
+	}
+
+	.horosa-india-diagram-layer {
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+		pointer-events: none;
+	}
+
+	.horosa-india-diagram-house,
+	.horosa-india-diagram-sign,
+	.horosa-india-diagram-object-anchor {
+		position: absolute;
+		transform: translate(-50%, -50%);
+		pointer-events: auto;
+	}
+
+	.horosa-india-diagram-house {
+		min-width: 44px;
+		text-align: left;
+		z-index: 4;
+	}
+
+	.horosa-india-diagram-house-corner {
+		min-width: 34px;
+		text-align: center;
+	}
+
+	.horosa-india-diagram-sign {
+		width: 24px;
+		min-width: 0;
+		height: 24px;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+		color: var(--horosa-accent-strong, #2167d4);
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 800;
+		z-index: 4;
+	}
+
+	.horosa-india-diagram-sign-corner {
+		width: 24px;
+		min-width: 0;
+		height: 24px;
+		padding: 0;
+		border-radius: 0;
+		font-size: 15px;
+		line-height: 22px;
+	}
+
+	.horosa-india-diagram-object-anchor {
+		width: 18%;
+		min-height: 34px;
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		z-index: 3;
+	}
+
+	.horosa-india-diagram-object-anchor-roomy {
+		min-height: 46px;
+	}
+
+	.horosa-india-diagram-objects {
+		width: 100%;
+		display: grid;
+		grid-template-columns: max-content;
+		align-content: center;
+		align-items: baseline;
+		justify-content: center;
+		justify-items: center;
+		gap: 1px;
+		max-width: 100%;
+		transform-origin: 50% 50%;
+	}
+
+	.horosa-india-diagram-objects-single {
+		grid-template-columns: max-content;
+	}
+
+	.horosa-india-diagram-objects-very-dense {
+		gap: 0;
+		transform: scale(0.86);
+	}
+
+	.horosa-india-diagram-center {
+		position: absolute;
+		z-index: 3;
+		left: 50%;
+		top: 50%;
+		width: 22%;
+		height: 22%;
+		transform: translate(-50%, -50%);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 5px;
+		text-align: center;
+		pointer-events: none;
+	}
+
+	.horosa-india-diagram-center .horosa-india-square-center-d {
+		min-width: 54px;
+		height: 54px;
+		font-size: 21px;
+	}
+
+	.horosa-india-diagram-center .horosa-india-square-center-note {
+		font-size: 11px;
+		line-height: 14px;
+	}
+
+	.horosa-india-diagram-center-compact {
+		width: 11%;
+		height: 11%;
+	}
+
+	.horosa-india-diagram-center-compact .horosa-india-square-center-d {
+		min-width: 44px;
+		height: 44px;
+		font-size: 20px;
+	}
+
+	.horosa-india-north-board {
+		background:
+			radial-gradient(circle at 50% 50%, var(--horosa-accent-soft, rgba(47, 125, 241, 0.12)), transparent 26%),
+			var(--horosa-surface-solid, #ffffff);
+	}
+
+	.horosa-india-north-board .horosa-india-diagram-objects {
+		gap: 0;
+	}
+
+	.horosa-india-north-board .horosa-india-square-object {
+		line-height: 15px;
+	}
+
+	.horosa-india-north-board .horosa-india-square-object-name {
+		font-size: 15px;
+	}
+
+	.horosa-india-north-board .horosa-india-square-object,
+	.horosa-india-east-board .horosa-india-square-object {
+		padding: 0;
+		border-radius: 0;
+		background: transparent;
+		box-shadow: none;
+		text-shadow:
+			0 1px 0 var(--horosa-surface-solid, #ffffff),
+			0 0 8px var(--horosa-surface-solid, #ffffff);
+	}
+
+	.horosa-india-east-board .horosa-india-square-object-name {
+		font-size: 15px;
+	}
+
+	.horosa-india-north-board .horosa-india-square-object-degree,
+	.horosa-india-north-board .horosa-india-square-retro,
+	.horosa-india-east-board .horosa-india-square-object-degree,
+	.horosa-india-east-board .horosa-india-square-retro {
+		font-size: 10px;
+	}
+
+	.horosa-india-east-board {
+		background:
+			linear-gradient(90deg, transparent 33.333%, var(--horosa-panel-soft, rgba(242, 247, 254, 0.78)) 33.333%, var(--horosa-panel-soft, rgba(242, 247, 254, 0.78)) 66.667%, transparent 66.667%),
+			var(--horosa-surface-solid, #ffffff);
+	}
+
+	.horosa-india-square-cell,
+	.horosa-india-square-center {
+		position: relative;
+		border: 1px solid var(--horosa-border-strong, rgba(51, 111, 201, 0.30));
+		background:
+			linear-gradient(180deg, rgba(47, 125, 241, 0.035), transparent 42%),
+			var(--horosa-surface-solid, #ffffff);
+	}
+
+	.horosa-india-square-cell-asc {
+		background:
+			linear-gradient(135deg, var(--horosa-accent-soft, rgba(47, 125, 241, 0.12)), transparent 56%),
+			var(--horosa-surface-solid, #ffffff);
+	}
+
+	.horosa-india-square-house {
+		position: absolute;
+		top: 8px;
+		left: 10px;
+		z-index: 2;
+	}
+
+	.horosa-india-square-roman {
+		color: var(--horosa-gold, #b8893f);
+		font-size: 18px;
+		line-height: 18px;
+		font-weight: 700;
+		letter-spacing: 0;
+	}
+
+	.horosa-india-square-cusp {
+		margin-top: 2px;
+		color: var(--horosa-text-soft, #52627a);
+		font-size: 12px;
+		line-height: 13px;
+		font-weight: 600;
+	}
+
+	.horosa-india-square-objects {
+		position: absolute;
+		inset: 38px 12px 30px;
+		display: flex;
+		flex-wrap: wrap;
+		align-content: center;
+		align-items: center;
+		justify-content: center;
+		gap: 6px 10px;
+		overflow: hidden;
+	}
+
+	.horosa-india-square-object {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 3px;
+		color: var(--india-object-color, var(--horosa-accent-strong, #2167d4));
+		font-size: 16px;
+		line-height: 18px;
+		white-space: nowrap;
+		text-shadow: 0 1px 0 rgba(255, 255, 255, 0.38);
+	}
+
+	.horosa-india-square-object-name {
+		font-size: 19px;
+		font-weight: 800;
+		letter-spacing: 0;
+	}
+
+	.horosa-india-square-object-degree,
+	.horosa-india-square-retro {
+		font-size: 12px;
+		font-weight: 700;
+	}
+
+	.horosa-india-square-retro {
+		color: var(--horosa-cinnabar, #bf3c36);
+	}
+
+	.horosa-india-square-sign {
+		position: absolute;
+		right: 8px;
+		bottom: 8px;
+		width: 24px;
+		min-width: 0;
+		height: 24px;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+		color: var(--horosa-accent-strong, #2167d4);
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 800;
+	}
+
+	.horosa-india-square-sign-symbol {
+		display: block;
+		font-family: 'ywastro';
+		font-size: 20px;
+		line-height: 1;
+		font-weight: 400;
+		letter-spacing: 0;
+	}
+
+	.horosa-india-diagram-sign-corner .horosa-india-square-sign-symbol {
+		font-size: 18px;
+	}
+
+	.horosa-india-square-center {
+		grid-column: 2 / span 2;
+		grid-row: 2 / span 2;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		background:
+			radial-gradient(circle at 50% 45%, var(--horosa-accent-soft, rgba(47, 125, 241, 0.12)), transparent 52%),
+			var(--horosa-panel-soft, rgba(242, 247, 254, 0.78));
+		text-align: center;
+	}
+
+	.horosa-india-square-center-d {
+		min-width: 66px;
+		height: 66px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 8px;
+		background: var(--horosa-accent, #2f7df1);
+		color: #ffffff;
+		font-size: 24px;
+		line-height: 1;
+		font-weight: 800;
+		box-shadow: 0 12px 28px var(--horosa-accent-soft, rgba(47, 125, 241, 0.12));
+	}
+
+	.horosa-india-square-center-label {
+		color: var(--horosa-text, #162033);
+		font-size: 15px;
+		line-height: 20px;
+		font-weight: 700;
+	}
+
+	.horosa-india-square-center-note {
+		color: var(--horosa-muted, #8794a8);
+		font-size: 12px;
+		line-height: 16px;
+	}
+
+	:root[data-horosa-appearance='dark'] .horosa-india-square-board {
+		background: var(--horosa-surface-solid, #0a1621);
+	}
+
+	:root[data-horosa-appearance='dark'] .horosa-india-square-cell,
+	:root[data-horosa-appearance='dark'] .horosa-india-square-center {
+		background:
+			linear-gradient(180deg, rgba(34, 211, 238, 0.035), transparent 48%),
+			var(--horosa-surface-solid, #0a1621);
+	}
+
+	:root[data-horosa-appearance='dark'] .horosa-india-square-cell-asc {
+		background:
+			linear-gradient(135deg, rgba(34, 211, 238, 0.16), transparent 58%),
+			var(--horosa-surface-solid, #0a1621);
+	}
+
+	:root[data-horosa-appearance='dark'] .horosa-india-square-object {
+		text-shadow: 0 0 14px rgba(255, 255, 255, 0.08);
+	}
+
+	:root[data-horosa-appearance='dark'] .horosa-india-north-board .horosa-india-square-object,
+	:root[data-horosa-appearance='dark'] .horosa-india-east-board .horosa-india-square-object {
+		text-shadow:
+			0 1px 0 var(--horosa-surface-solid, #0a1621),
+			0 0 8px var(--horosa-surface-solid, #0a1621);
+	}
+
+	@media (max-width: 1180px) {
+		.horosa-india-square-shell {
+			padding: 18px;
+		}
+
+		.horosa-india-square-meta {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 6px;
+		}
+
+		.horosa-india-square-subtitle {
+			text-align: left;
+		}
+
+		.horosa-india-square-object-name {
+			font-size: 17px;
+		}
+	}
+}

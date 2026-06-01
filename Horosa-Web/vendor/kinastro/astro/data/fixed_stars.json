@@ -1,0 +1,1032 @@
+[
+  {
+    "name": "Algol",
+    "swe_name": "Algol",
+    "magnitude": 2.12,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Perseus",
+    "meaning_en": "Violence but also creative power",
+    "meaning_cn": "暴力但也有創造力",
+    "cn_name": "大陵五"
+  },
+  {
+    "name": "Aldebaran",
+    "swe_name": "Aldebaran",
+    "magnitude": 0.85,
+    "nature": "Mars",
+    "constellation": "Taurus",
+    "meaning_en": "Honour, courage, eloquence",
+    "meaning_cn": "榮譽、勇氣、口才",
+    "cn_name": "畢宿五"
+  },
+  {
+    "name": "Rigel",
+    "swe_name": "Rigel",
+    "magnitude": 0.13,
+    "nature": "Jupiter/Saturn",
+    "constellation": "Orion",
+    "meaning_en": "Education, wealth, good fortune",
+    "meaning_cn": "教育、財富、好運",
+    "cn_name": "參宿七"
+  },
+  {
+    "name": "Sirius",
+    "swe_name": "Sirius",
+    "magnitude": -1.46,
+    "nature": "Jupiter/Mars",
+    "constellation": "Canis Major",
+    "meaning_en": "Fame, honour, passion",
+    "meaning_cn": "名望、榮譽、熱情",
+    "cn_name": "天狼星"
+  },
+  {
+    "name": "Capella",
+    "swe_name": "Capella",
+    "magnitude": 0.08,
+    "nature": "Jupiter/Mars",
+    "constellation": "Auriga",
+    "meaning_en": "Curiosity, honour",
+    "meaning_cn": "好奇心、榮譽",
+    "cn_name": "五車二"
+  },
+  {
+    "name": "Castor",
+    "swe_name": "Castor",
+    "magnitude": 1.58,
+    "nature": "Mercury",
+    "constellation": "Gemini",
+    "meaning_en": "Sudden fame but also ruin",
+    "meaning_cn": "突然成名但也有毀滅",
+    "cn_name": "北河二"
+  },
+  {
+    "name": "Pollux",
+    "swe_name": "Pollux",
+    "magnitude": 1.14,
+    "nature": "Mars",
+    "constellation": "Gemini",
+    "meaning_en": "Subtlety, daring, cruelty",
+    "meaning_cn": "微妙、大膽、殘酷",
+    "cn_name": "北河三"
+  },
+  {
+    "name": "Procyon",
+    "swe_name": "Procyon",
+    "magnitude": 0.34,
+    "nature": "Mercury/Mars",
+    "constellation": "Canis Minor",
+    "meaning_en": "Activity, quick temper",
+    "meaning_cn": "活躍、急躁",
+    "cn_name": "南河三"
+  },
+  {
+    "name": "Regulus",
+    "swe_name": "Regulus",
+    "magnitude": 1.35,
+    "nature": "Mars/Jupiter",
+    "constellation": "Leo",
+    "meaning_en": "Power, authority, success",
+    "meaning_cn": "權力、權威、成功",
+    "cn_name": "軒轅十四"
+  },
+  {
+    "name": "Spica",
+    "swe_name": "Spica",
+    "magnitude": 0.97,
+    "nature": "Venus/Mars",
+    "constellation": "Virgo",
+    "meaning_en": "Success, renown, wealth",
+    "meaning_cn": "成功、聲望、財富",
+    "cn_name": "角宿一"
+  },
+  {
+    "name": "Arcturus",
+    "swe_name": "Arcturus",
+    "magnitude": -0.05,
+    "nature": "Mars/Jupiter",
+    "constellation": "Bootes",
+    "meaning_en": "Prosperity through navigation",
+    "meaning_cn": "通過航行致富",
+    "cn_name": "大角"
+  },
+  {
+    "name": "Antares",
+    "swe_name": "Antares",
+    "magnitude": 0.96,
+    "nature": "Mars/Jupiter",
+    "constellation": "Scorpio",
+    "meaning_en": "Obsession, malice but also success in war",
+    "meaning_cn": "執念、惡意但也戰爭中的成功",
+    "cn_name": "心宿二"
+  },
+  {
+    "name": "Vega",
+    "swe_name": "Vega",
+    "magnitude": 0.03,
+    "nature": "Venus/Mercury",
+    "constellation": "Lyra",
+    "meaning_en": "Idealism, hope, artistic ability",
+    "meaning_cn": "理想主義、希望、藝術能力",
+    "cn_name": "織女一"
+  },
+  {
+    "name": "Altair",
+    "swe_name": "Altair",
+    "magnitude": 0.77,
+    "nature": "Mars/Jupiter",
+    "constellation": "Aquila",
+    "meaning_en": "Bold, confident, valiant",
+    "meaning_cn": "大膽、自信、英勇",
+    "cn_name": "河鼓二"
+  },
+  {
+    "name": "Fomalhaut",
+    "swe_name": "Fomalhaut",
+    "magnitude": 1.16,
+    "nature": "Venus/Mercury",
+    "constellation": "Piscis Austrinus",
+    "meaning_en": "Fame, strong character, occult interest",
+    "meaning_cn": "名望、強烈性格、神秘興趣",
+    "cn_name": "北落師門"
+  },
+  {
+    "name": "Deneb Algedi",
+    "swe_name": "Deneb Algedi",
+    "magnitude": 2.81,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Capricornus",
+    "meaning_en": "Justice, law, authority",
+    "meaning_cn": "正義、法律、權威",
+    "cn_name": "壘壁陣四"
+  },
+  {
+    "name": "Achernar",
+    "swe_name": "Achernar",
+    "magnitude": 0.46,
+    "nature": "Jupiter",
+    "constellation": "Eridanus",
+    "meaning_en": "Success, happiness in later life",
+    "meaning_cn": "晚年成功、幸福",
+    "cn_name": "水委一"
+  },
+  {
+    "name": "Betelgeuse",
+    "swe_name": "Betelgeuse",
+    "magnitude": 0.5,
+    "nature": "Mars/Mercury",
+    "constellation": "Orion",
+    "meaning_en": "Martial honours, preferment",
+    "meaning_cn": "軍事榮譽、晉升",
+    "cn_name": "參宿四"
+  },
+  {
+    "name": "Canopus",
+    "swe_name": "Canopus",
+    "magnitude": -0.74,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Carina",
+    "meaning_en": "Piety, voyages, education",
+    "meaning_cn": "虔誠、航行、教育",
+    "cn_name": "老人星"
+  },
+  {
+    "name": "Denebola",
+    "swe_name": "Denebola",
+    "magnitude": 2.14,
+    "nature": "Saturn/Venus",
+    "constellation": "Leo",
+    "meaning_en": "Swift judgment, despair, misfortune",
+    "meaning_cn": "迅速判斷、絕望、不幸",
+    "cn_name": "五帝座一"
+  },
+  {
+    "name": "Alphard",
+    "swe_name": "Alphard",
+    "magnitude": 1.98,
+    "nature": "Saturn/Venus",
+    "constellation": "Hydra",
+    "meaning_en": "Wisdom but also danger from poison",
+    "meaning_cn": "智慧但也有毒藥的危險",
+    "cn_name": "星宿一"
+  },
+  {
+    "name": "Alphecca",
+    "swe_name": "Alphecca",
+    "magnitude": 2.24,
+    "nature": "Venus/Mercury",
+    "constellation": "Corona Borealis",
+    "meaning_en": "Artistic ability, love of flowers",
+    "meaning_cn": "藝術能力、愛花",
+    "cn_name": "貫索四"
+  },
+  {
+    "name": "Markab",
+    "swe_name": "Markab",
+    "magnitude": 2.49,
+    "nature": "Mars/Mercury",
+    "constellation": "Pegasus",
+    "meaning_en": "Danger from fire, violence",
+    "meaning_cn": "火災和暴力的危險",
+    "cn_name": "室宿一"
+  },
+  {
+    "name": "Scheat",
+    "swe_name": "Scheat",
+    "magnitude": 2.42,
+    "nature": "Mars/Mercury",
+    "constellation": "Pegasus",
+    "meaning_en": "Misfortune, imprisonment",
+    "meaning_cn": "不幸、監禁",
+    "cn_name": "壁宿一"
+  },
+  {
+    "name": "Alcyone",
+    "swe_name": "Alcyone",
+    "magnitude": 2.87,
+    "nature": "Moon/Mars",
+    "constellation": "Taurus",
+    "meaning_en": "Ambition, eminence, sorrow",
+    "meaning_cn": "野心、卓越、悲傷",
+    "cn_name": "昴宿六"
+  },
+  {
+    "name": "Hamal",
+    "swe_name": "Hamal",
+    "magnitude": 2.01,
+    "nature": "Mars/Saturn",
+    "constellation": "Aries",
+    "meaning_en": "Violence, brutality, premeditated crime",
+    "meaning_cn": "暴力、殘忍、預謀犯罪",
+    "cn_name": "婁宿三"
+  },
+  {
+    "name": "Sheratan",
+    "swe_name": "Sheratan",
+    "magnitude": 2.64,
+    "nature": "Mars/Saturn",
+    "constellation": "Aries",
+    "meaning_en": "Deceit, lies, theft, danger",
+    "meaning_cn": "欺騙、謊言、偷盜、危險",
+    "cn_name": "婁宿一"
+  },
+  {
+    "name": "Mirach",
+    "swe_name": "Mirach",
+    "magnitude": 2.07,
+    "nature": "Venus",
+    "constellation": "Andromeda",
+    "meaning_en": "Friendliness, harmony, psychic gifts",
+    "meaning_cn": "友善、和諧、直覺天賦",
+    "cn_name": "奎宿九"
+  },
+  {
+    "name": "Ras Algethi",
+    "swe_name": "Ras Algethi",
+    "magnitude": 2.78,
+    "nature": "Mars/Venus",
+    "constellation": "Hercules",
+    "meaning_en": "Strength, boldness, immorality",
+    "meaning_cn": "力量、大膽、不道德",
+    "cn_name": "帝座"
+  },
+  {
+    "name": "Ras Alhague",
+    "swe_name": "Ras Alhague",
+    "magnitude": 2.08,
+    "nature": "Saturn/Venus",
+    "constellation": "Ophiuchus",
+    "meaning_en": "Misfortune, abuse of trust, passionate",
+    "meaning_cn": "不幸、信任濫用、熱情",
+    "cn_name": "侯"
+  },
+  {
+    "name": "Sabik",
+    "swe_name": "Sabik",
+    "magnitude": 2.43,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Ophiuchus",
+    "meaning_en": "Wastefulness, dishonesty, occult",
+    "meaning_cn": "浪費、不誠實、神秘",
+    "cn_name": "宗正一"
+  },
+  {
+    "name": "Shaula",
+    "swe_name": "Shaula",
+    "magnitude": 1.63,
+    "nature": "Mars/Mercury",
+    "constellation": "Scorpius",
+    "meaning_en": "Sudden catastrophe, rash action",
+    "meaning_cn": "突發災難、魯莽行動",
+    "cn_name": "尾宿八"
+  },
+  {
+    "name": "Nunki",
+    "swe_name": "Nunki",
+    "magnitude": 2.05,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Sagittarius",
+    "meaning_en": "Authority, truth in religion",
+    "meaning_cn": "權威、宗教中的真理",
+    "cn_name": "斗宿四"
+  },
+  {
+    "name": "Kaus Australis",
+    "swe_name": "Kaus Australis",
+    "magnitude": 1.85,
+    "nature": "Jupiter/Mars",
+    "constellation": "Sagittarius",
+    "meaning_en": "Sharp mind, military success",
+    "meaning_cn": "聰明、軍事成功",
+    "cn_name": "箕宿三"
+  },
+  {
+    "name": "Sadalsuud",
+    "swe_name": "Sadalsuud",
+    "magnitude": 2.9,
+    "nature": "Saturn/Mercury",
+    "constellation": "Aquarius",
+    "meaning_en": "Luck, broad knowledge, occultism",
+    "meaning_cn": "好運、廣博知識、神秘主義",
+    "cn_name": "虛宿一"
+  },
+  {
+    "name": "Sadalmelik",
+    "swe_name": "Sadalmelik",
+    "magnitude": 2.96,
+    "nature": "Saturn/Mercury",
+    "constellation": "Aquarius",
+    "meaning_en": "Favouritism, luck in public affairs",
+    "meaning_cn": "偏愛、公眾事務的運氣",
+    "cn_name": "危宿一"
+  },
+  {
+    "name": "Skat",
+    "swe_name": "Skat",
+    "magnitude": 3.27,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Aquarius",
+    "meaning_en": "Good fortune, lasting happiness",
+    "meaning_cn": "好運、持久幸福",
+    "cn_name": "壘壁陣一"
+  },
+  {
+    "name": "Deneb Adige",
+    "swe_name": "Deneb Adige",
+    "magnitude": 1.25,
+    "nature": "Venus/Mercury",
+    "constellation": "Cygnus",
+    "meaning_en": "Artistic talent, intelligence, dignity",
+    "meaning_cn": "藝術才華、智慧、尊嚴",
+    "cn_name": "天津四"
+  },
+  {
+    "name": "Enif",
+    "swe_name": "Enif",
+    "magnitude": 2.38,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Pegasus",
+    "meaning_en": "Rashness, honour, violence",
+    "meaning_cn": "魯莽、榮譽、暴力",
+    "cn_name": "危宿三"
+  },
+  {
+    "name": "Alpheratz",
+    "swe_name": "Alpheratz",
+    "magnitude": 2.07,
+    "nature": "Jupiter/Venus",
+    "constellation": "Andromeda",
+    "meaning_en": "Freedom, beauty, grace, honour",
+    "meaning_cn": "自由、美麗、優雅、榮譽",
+    "cn_name": "壁宿二"
+  },
+  {
+    "name": "Caph",
+    "swe_name": "Caph",
+    "magnitude": 2.27,
+    "nature": "Saturn/Venus",
+    "constellation": "Cassiopeia",
+    "meaning_en": "Adaptability, luck, good fortune",
+    "meaning_cn": "適應力、運氣、好運",
+    "cn_name": "王良四"
+  },
+  {
+    "name": "Schedar",
+    "swe_name": "Schedar",
+    "magnitude": 2.24,
+    "nature": "Saturn/Venus",
+    "constellation": "Cassiopeia",
+    "meaning_en": "Honour, compassion, skill",
+    "meaning_cn": "榮譽、同情、技能",
+    "cn_name": "王良一"
+  },
+  {
+    "name": "Mirfak",
+    "swe_name": "Mirfak",
+    "magnitude": 1.79,
+    "nature": "Jupiter/Saturn",
+    "constellation": "Perseus",
+    "meaning_en": "Energy, ambition, power, violence",
+    "meaning_cn": "能量、野心、力量、暴力",
+    "cn_name": "天船三"
+  },
+  {
+    "name": "El Nath",
+    "swe_name": "El Nath",
+    "magnitude": 1.65,
+    "nature": "Mars/Jupiter",
+    "constellation": "Taurus",
+    "meaning_en": "Honour, fortune, bravery, eminence",
+    "meaning_cn": "榮譽、財富、勇敢、卓越",
+    "cn_name": "五車五"
+  },
+  {
+    "name": "Bellatrix",
+    "swe_name": "Bellatrix",
+    "magnitude": 1.64,
+    "nature": "Mars/Mercury",
+    "constellation": "Orion",
+    "meaning_en": "Eminence, success in martial arts",
+    "meaning_cn": "卓越、武術成功",
+    "cn_name": "參宿五"
+  },
+  {
+    "name": "Saiph",
+    "swe_name": "Saiph",
+    "magnitude": 2.07,
+    "nature": "Saturn/Mars",
+    "constellation": "Orion",
+    "meaning_en": "Fierce, rash, turbulent, destructive",
+    "meaning_cn": "兇猛、魯莽、動盪、破壞性",
+    "cn_name": "參宿六"
+  },
+  {
+    "name": "Mintaka",
+    "swe_name": "Mintaka",
+    "magnitude": 2.23,
+    "nature": "Saturn/Mercury",
+    "constellation": "Orion",
+    "meaning_en": "Careful, cautious, wise to accept changes",
+    "meaning_cn": "謹慎、注意接受變化",
+    "cn_name": "參宿三"
+  },
+  {
+    "name": "Alnilam",
+    "swe_name": "Alnilam",
+    "magnitude": 1.7,
+    "nature": "Jupiter/Saturn",
+    "constellation": "Orion",
+    "meaning_en": "Transient honours, public favours",
+    "meaning_cn": "短暫的榮譽、公眾恩惠",
+    "cn_name": "參宿二"
+  },
+  {
+    "name": "Alnitak",
+    "swe_name": "Alnitak",
+    "magnitude": 1.77,
+    "nature": "Jupiter/Saturn",
+    "constellation": "Orion",
+    "meaning_en": "Notoriety, sudden reversal",
+    "meaning_cn": "惡名昭彰、突然逆轉",
+    "cn_name": "參宿一"
+  },
+  {
+    "name": "Murzim",
+    "swe_name": "Murzim",
+    "magnitude": 1.98,
+    "nature": "Mars/Mercury",
+    "constellation": "Canis Major",
+    "meaning_en": "Authority, domination, initiative",
+    "meaning_cn": "權威、統治、主動性",
+    "cn_name": "軍市一"
+  },
+  {
+    "name": "Wezen",
+    "swe_name": "Wezen",
+    "magnitude": 1.83,
+    "nature": "Saturn/Mars",
+    "constellation": "Canis Major",
+    "meaning_en": "Loyalty, tenacity, ambition",
+    "meaning_cn": "忠誠、堅韌、野心",
+    "cn_name": "弧矢一"
+  },
+  {
+    "name": "Adhara",
+    "swe_name": "Adhara",
+    "magnitude": 1.5,
+    "nature": "Venus/Jupiter",
+    "constellation": "Canis Major",
+    "meaning_en": "Good looks, successful career",
+    "meaning_cn": "美貌、事業成功",
+    "cn_name": "弧矢七"
+  },
+  {
+    "name": "Alhena",
+    "swe_name": "Alhena",
+    "magnitude": 1.93,
+    "nature": "Mercury/Venus",
+    "constellation": "Gemini",
+    "meaning_en": "Sensitivity, artistry, high ideals",
+    "meaning_cn": "敏感性、藝術性、高理想",
+    "cn_name": "井宿三"
+  },
+  {
+    "name": "Acubens",
+    "swe_name": "Acubens",
+    "magnitude": 4.25,
+    "nature": "Saturn/Mercury",
+    "constellation": "Cancer",
+    "meaning_en": "Dishonesty, deceit, cunning",
+    "meaning_cn": "不誠實、欺騙、狡猾",
+    "cn_name": "鬼宿一"
+  },
+  {
+    "name": "Adhafera",
+    "swe_name": "Adhafera",
+    "magnitude": 3.44,
+    "nature": "Saturn/Mercury",
+    "constellation": "Leo",
+    "meaning_en": "Suicide, poisoning, cunning",
+    "meaning_cn": "自殺、中毒、狡猾",
+    "cn_name": "軒轅十六"
+  },
+  {
+    "name": "Zosma",
+    "swe_name": "Zosma",
+    "magnitude": 2.56,
+    "nature": "Saturn/Venus",
+    "constellation": "Leo",
+    "meaning_en": "Disgrace, trouble, selfishness",
+    "meaning_cn": "恥辱、麻煩、自私",
+    "cn_name": "西上相"
+  },
+  {
+    "name": "Porrima",
+    "swe_name": "Porrima",
+    "magnitude": 2.74,
+    "nature": "Mercury/Venus",
+    "constellation": "Virgo",
+    "meaning_en": "Poetic talent, prophecy, good fortune",
+    "meaning_cn": "詩意才華、預言、好運",
+    "cn_name": "角宿二"
+  },
+  {
+    "name": "Vindemiatrix",
+    "swe_name": "Vindemiatrix",
+    "magnitude": 2.83,
+    "nature": "Saturn/Mercury",
+    "constellation": "Virgo",
+    "meaning_en": "Widowhood, dishonour, sorrow",
+    "meaning_cn": "守寡、恥辱、悲傷",
+    "cn_name": "東次將"
+  },
+  {
+    "name": "Zubenelgenubi",
+    "swe_name": "Zubenelgenubi",
+    "magnitude": 2.75,
+    "nature": "Saturn/Mars",
+    "constellation": "Libra",
+    "meaning_en": "Treachery, poison, disgrace",
+    "meaning_cn": "背叛、毒藥、恥辱",
+    "cn_name": "氐宿四"
+  },
+  {
+    "name": "Zubeneschamali",
+    "swe_name": "Zubeneschamali",
+    "magnitude": 2.61,
+    "nature": "Jupiter/Mercury",
+    "constellation": "Libra",
+    "meaning_en": "Generous, wealth, riches",
+    "meaning_cn": "慷慨、財富、富裕",
+    "cn_name": "房宿一"
+  },
+  {
+    "name": "Dschubba",
+    "swe_name": "Dschubba",
+    "magnitude": 2.32,
+    "nature": "Mars/Saturn",
+    "constellation": "Scorpius",
+    "meaning_en": "Malice, obsession, shamelessness",
+    "meaning_cn": "惡意、執念、無恥",
+    "cn_name": "房宿三"
+  },
+  {
+    "name": "Lesath",
+    "swe_name": "Lesath",
+    "magnitude": 2.69,
+    "nature": "Mars/Mercury",
+    "constellation": "Scorpius",
+    "meaning_en": "Danger, desperation, immorality",
+    "meaning_cn": "危險、絕望、不道德",
+    "cn_name": "尾宿九"
+  },
+  {
+    "name": "Phecda",
+    "swe_name": "Phecda",
+    "magnitude": 2.44,
+    "nature": "Mars/Moon",
+    "constellation": "Ursa Major",
+    "meaning_en": "Volatile, violent, insatiable",
+    "meaning_cn": "善變、暴力、貪得無厭",
+    "cn_name": "天璣"
+  },
+  {
+    "name": "Alioth",
+    "swe_name": "Alioth",
+    "magnitude": 1.77,
+    "nature": "Mars/Moon",
+    "constellation": "Ursa Major",
+    "meaning_en": "Bold, strong, passionate in war",
+    "meaning_cn": "大膽、強壯、戰爭中的熱情",
+    "cn_name": "玉衡"
+  },
+  {
+    "name": "Mizar",
+    "swe_name": "Mizar",
+    "magnitude": 2.27,
+    "nature": "Mars/Moon",
+    "constellation": "Ursa Major",
+    "meaning_en": "Catastrophe, death, fire",
+    "meaning_cn": "災難、死亡、火災",
+    "cn_name": "開陽"
+  },
+  {
+    "name": "Alkaid",
+    "swe_name": "Alkaid",
+    "magnitude": 1.86,
+    "nature": "Mars/Moon",
+    "constellation": "Ursa Major",
+    "meaning_en": "Disasters, treachery, homicide",
+    "meaning_cn": "災難、背叛、殺人",
+    "cn_name": "搖光"
+  },
+  {
+    "name": "Unukalhai",
+    "swe_name": "Unukalhai",
+    "magnitude": 2.65,
+    "nature": "Saturn/Mars",
+    "constellation": "Serpens",
+    "meaning_en": "Immorality, greed, accidents",
+    "meaning_cn": "不道德、貪婪、事故",
+    "cn_name": "天市右垣七"
+  },
+  {
+    "name": "Agena",
+    "swe_name": "Agena",
+    "magnitude": 0.61,
+    "nature": "Venus/Jupiter",
+    "constellation": "Centaurus",
+    "meaning_en": "Wisdom, friends, success",
+    "meaning_cn": "智慧、朋友、成功",
+    "cn_name": "馬腹一"
+  },
+  {
+    "name": "Toliman",
+    "swe_name": "Toliman",
+    "magnitude": -0.01,
+    "nature": "Venus/Jupiter",
+    "constellation": "Centaurus",
+    "meaning_en": "Refinement, honour, generosity",
+    "meaning_cn": "精緻、榮譽、慷慨",
+    "cn_name": "南門二"
+  },
+  {
+    "name": "Etamin",
+    "swe_name": "Etamin",
+    "magnitude": 2.23,
+    "nature": "Saturn/Mars",
+    "constellation": "Draco",
+    "meaning_en": "Malice, aggression, revenge",
+    "meaning_cn": "惡意、攻擊性、復仇",
+    "cn_name": "天棓四"
+  },
+  {
+    "name": "Rastaban",
+    "swe_name": "Rastaban",
+    "magnitude": 2.79,
+    "nature": "Saturn/Mars",
+    "constellation": "Draco",
+    "meaning_en": "Violence, impulsiveness",
+    "meaning_cn": "暴力、衝動",
+    "cn_name": "天棓二"
+  },
+  {
+    "name": "Thuban",
+    "swe_name": "Thuban",
+    "magnitude": 3.65,
+    "nature": "Saturn/Mars",
+    "constellation": "Draco",
+    "meaning_en": "Spiritual protection, ancient authority",
+    "meaning_cn": "靈性保護、古老權威",
+    "cn_name": "右樞"
+  },
+  {
+    "name": "Deneb",
+    "swe_name": "Deneb Kaitos",
+    "magnitude": 2.04,
+    "nature": "Saturn",
+    "constellation": "Cetus",
+    "meaning_en": "Restraint, depression, self-undoing",
+    "meaning_cn": "束縛、抑鬱、自我毀滅",
+    "cn_name": "土司空"
+  },
+  {
+    "name": "Acamar",
+    "swe_name": "Acamar",
+    "magnitude": 3.24,
+    "nature": "Jupiter",
+    "constellation": "Eridanus",
+    "meaning_en": "Ambition, success, prominence",
+    "meaning_cn": "野心、成功、卓越",
+    "cn_name": "天苑六"
+  },
+  {
+    "name": "Acrux",
+    "swe_name": "Acrux",
+    "magnitude": 0.77,
+    "nature": "Jupiter",
+    "constellation": "Crux",
+    "meaning_en": "Ceremony, mystic, psychic abilities",
+    "meaning_cn": "儀式、神秘、靈性",
+    "cn_name": "十字架一"
+  },
+  {
+    "name": "Phact",
+    "swe_name": "Phact",
+    "magnitude": 2.64,
+    "nature": "Venus/Mercury",
+    "constellation": "Columba",
+    "meaning_en": "Hope, refinement, charitable",
+    "meaning_cn": "希望、精緻、慈善",
+    "cn_name": "屎一"
+  },
+  {
+    "name": "Muphrid",
+    "swe_name": "Muphrid",
+    "magnitude": 2.68,
+    "nature": "Sun/Mars",
+    "constellation": "Bootes",
+    "meaning_en": "Courage, honour, new beginnings",
+    "meaning_cn": "勇氣、榮譽、新開始",
+    "cn_name": "右攝提格三"
+  },
+  {
+    "name": "Seginus",
+    "swe_name": "Seginus",
+    "magnitude": 3.04,
+    "nature": "Mercury/Saturn",
+    "constellation": "Bootes",
+    "meaning_en": "Ruin through associates, dishonour",
+    "meaning_cn": "因同伴導致的毀滅、恥辱",
+    "cn_name": "招搖"
+  },
+  {
+    "name": "Izar",
+    "swe_name": "Izar",
+    "magnitude": 2.37,
+    "nature": "Saturn/Mercury",
+    "constellation": "Bootes",
+    "meaning_en": "Honour, lasting endurance",
+    "meaning_cn": "榮譽、持久耐力",
+    "cn_name": "梗河一"
+  },
+  {
+    "name": "Alphekka",
+    "swe_name": "Alphekka",
+    "magnitude": 2.23,
+    "nature": "Venus/Mercury",
+    "constellation": "Corona Borealis",
+    "meaning_en": "Dignity, honour, grace, artistic talent",
+    "meaning_cn": "尊嚴、榮譽、優雅、藝術才華",
+    "cn_name": "貫索四"
+  },
+  {
+    "name": "Nusakan",
+    "swe_name": "Nusakan",
+    "magnitude": 3.66,
+    "nature": "Mercury/Venus",
+    "constellation": "Corona Borealis",
+    "meaning_en": "Healing, diplomacy, eloquence",
+    "meaning_cn": "療癒、外交、口才",
+    "cn_name": "貫索三"
+  },
+  {
+    "name": "Sinistra",
+    "swe_name": "Sinistra",
+    "magnitude": 2.45,
+    "nature": "Saturn/Venus",
+    "constellation": "Ophiuchus",
+    "meaning_en": "Perverse, immoral, seductive",
+    "meaning_cn": "乖張、不道德、誘惑",
+    "cn_name": "右攝提格一"
+  },
+  {
+    "name": "Acrab",
+    "swe_name": "Acrab",
+    "magnitude": 2.56,
+    "nature": "Mars/Saturn",
+    "constellation": "Scorpius",
+    "meaning_en": "Extreme, sudden success or downfall",
+    "meaning_cn": "極端、突然的成功或垮台",
+    "cn_name": "房宿四"
+  },
+  {
+    "name": "Graffias",
+    "swe_name": "Graffias",
+    "magnitude": 2.62,
+    "nature": "Mars/Saturn",
+    "constellation": "Scorpius",
+    "meaning_en": "Disease, depression, selfishness",
+    "meaning_cn": "疾病、抑鬱、自私",
+    "cn_name": "房宿四"
+  },
+  {
+    "name": "Terebellum",
+    "swe_name": "Terebellum",
+    "magnitude": 4.63,
+    "nature": "Venus/Saturn",
+    "constellation": "Sagittarius",
+    "meaning_en": "Craftiness, dishonour, selfishness",
+    "meaning_cn": "狡猾、不名譽、自私",
+    "cn_name": "建星一"
+  },
+  {
+    "name": "Dabih",
+    "swe_name": "Dabih",
+    "magnitude": 3.05,
+    "nature": "Saturn/Venus",
+    "constellation": "Capricornus",
+    "meaning_en": "Cautious, mistrustful, self-reliant",
+    "meaning_cn": "謹慎、多疑、自立",
+    "cn_name": "牛宿二"
+  },
+  {
+    "name": "Albali",
+    "swe_name": "Albali",
+    "magnitude": 3.77,
+    "nature": "Saturn/Mercury",
+    "constellation": "Aquarius",
+    "meaning_en": "Good fortune but danger from water",
+    "meaning_cn": "好運但也有水的危險",
+    "cn_name": "女宿一"
+  },
+  {
+    "name": "Sadalabbia",
+    "swe_name": "Sadalabbia",
+    "magnitude": 4.05,
+    "nature": "Saturn/Mercury",
+    "constellation": "Aquarius",
+    "meaning_en": "Secretive, occult, spirituality",
+    "meaning_cn": "神秘、神秘主義、靈性",
+    "cn_name": "女宿二"
+  },
+  {
+    "name": "Menkar",
+    "swe_name": "Menkar",
+    "magnitude": 2.53,
+    "nature": "Saturn",
+    "constellation": "Cetus",
+    "meaning_en": "Disease, throat trouble, disgrace",
+    "meaning_cn": "疾病、咽喉疾患、恥辱",
+    "cn_name": "天囷一"
+  },
+  {
+    "name": "Mira",
+    "swe_name": "Mira",
+    "magnitude": 6.47,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Cetus",
+    "meaning_en": "Extraordinary, prophetic, erratic power",
+    "meaning_cn": "非凡、預言、不穩定的力量",
+    "cn_name": "蒭藁增二"
+  },
+  {
+    "name": "Cursa",
+    "swe_name": "Cursa",
+    "magnitude": 2.79,
+    "nature": "Saturn/Venus",
+    "constellation": "Eridanus",
+    "meaning_en": "Immorality, violence, pessimism",
+    "meaning_cn": "不道德、暴力、悲觀",
+    "cn_name": "玉井三"
+  },
+  {
+    "name": "Zaurak",
+    "swe_name": "Zaurak",
+    "magnitude": 2.95,
+    "nature": "Saturn",
+    "constellation": "Eridanus",
+    "meaning_en": "Danger, disgrace, depression",
+    "meaning_cn": "危險、恥辱、抑鬱",
+    "cn_name": "天苑三"
+  },
+  {
+    "name": "Haedi",
+    "swe_name": "Haedi",
+    "magnitude": 2.99,
+    "nature": "Mars/Mercury",
+    "constellation": "Auriga",
+    "meaning_en": "Immorality, boldness, political influence",
+    "meaning_cn": "不道德、大膽、政治影響",
+    "cn_name": "五車三"
+  },
+  {
+    "name": "Hassaleh",
+    "swe_name": "Hassaleh",
+    "magnitude": 2.69,
+    "nature": "Saturn",
+    "constellation": "Auriga",
+    "meaning_en": "Cruel, cowardly, evil, loss",
+    "meaning_cn": "殘忍、懦弱、邪惡、失去",
+    "cn_name": "五車五"
+  },
+  {
+    "name": "Ain",
+    "swe_name": "Ain",
+    "magnitude": 3.53,
+    "nature": "Venus/Moon",
+    "constellation": "Taurus",
+    "meaning_en": "Intuition, pleasant nature, love of beauty",
+    "meaning_cn": "直覺、宜人的天性、愛美",
+    "cn_name": "畢宿一"
+  },
+  {
+    "name": "Atlas",
+    "swe_name": "Atlas",
+    "magnitude": 3.63,
+    "nature": "Moon/Mars",
+    "constellation": "Taurus",
+    "meaning_en": "Endurance under burdens, restlessness",
+    "meaning_cn": "承受重擔的毅力、坐立不安",
+    "cn_name": "昴宿七"
+  },
+  {
+    "name": "Gamma Cas",
+    "swe_name": "Gamma Cas",
+    "magnitude": 2.15,
+    "nature": "Mars/Saturn",
+    "constellation": "Cassiopeia",
+    "meaning_en": "Egotism, success through daring",
+    "meaning_cn": "自我中心、通過大膽取得成功",
+    "cn_name": "策"
+  },
+  {
+    "name": "Almaak",
+    "swe_name": "Almaak",
+    "magnitude": 2.1,
+    "nature": "Venus",
+    "constellation": "Andromeda",
+    "meaning_en": "Popularity, artistic sensibility",
+    "meaning_cn": "受歡迎、藝術敏感性",
+    "cn_name": "天大將軍一"
+  },
+  {
+    "name": "Sadr",
+    "swe_name": "Sadr",
+    "magnitude": 2.2,
+    "nature": "Venus/Jupiter",
+    "constellation": "Cygnus",
+    "meaning_en": "Optimism, idealism, good fortune",
+    "meaning_cn": "樂觀、理想主義、好運",
+    "cn_name": "天津一"
+  },
+  {
+    "name": "Albireo",
+    "swe_name": "Albireo",
+    "magnitude": 3.09,
+    "nature": "Venus/Mercury",
+    "constellation": "Cygnus",
+    "meaning_en": "Refinement, artistry, harmony",
+    "meaning_cn": "精緻、藝術、和諧",
+    "cn_name": "輦道增七"
+  },
+  {
+    "name": "Algenib",
+    "swe_name": "Algenib",
+    "magnitude": 2.83,
+    "nature": "Mars/Mercury",
+    "constellation": "Pegasus",
+    "meaning_en": "Notoriety, violence, rashness",
+    "meaning_cn": "惡名、暴力、魯莽",
+    "cn_name": "壁宿二"
+  },
+  {
+    "name": "Deneb Kaitos",
+    "swe_name": "Deneb Kaitos",
+    "magnitude": 2.04,
+    "nature": "Saturn",
+    "constellation": "Cetus",
+    "meaning_en": "Restraint, depression, self-undoing",
+    "meaning_cn": "束縛、抑鬱、自我毀滅",
+    "cn_name": "土司空"
+  },
+  {
+    "name": "Alderamin",
+    "swe_name": "Alderamin",
+    "magnitude": 2.45,
+    "nature": "Saturn/Jupiter",
+    "constellation": "Cepheus",
+    "meaning_en": "Dignity, slowness, success in later life",
+    "meaning_cn": "尊嚴、緩慢、晚年成功",
+    "cn_name": "天鉤五"
+  }
+]

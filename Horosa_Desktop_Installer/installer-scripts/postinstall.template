@@ -1,0 +1,241 @@
+#!/bin/bash
+set -euo pipefail
+
+TARGET_VOLUME="${3:-/}"
+APP_NAME="__APP_NAME__"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_PATH="${HOROSA_APP_PATH:-${TARGET_VOLUME%/}/Applications/${APP_NAME}.app}"
+SHARED_ROOT="${HOROSA_RUNTIME_SHARED_ROOT:-${TARGET_VOLUME%/}/Users/Shared/Horosa}"
+RUNTIME_ROOT="${SHARED_ROOT}/runtime"
+CURRENT_DIR="${RUNTIME_ROOT}/current"
+WORK_DIR="${RUNTIME_ROOT}/_install"
+DOWNLOAD_DIR="${SHARED_ROOT}/downloads"
+LOG_PATH="${SHARED_ROOT}/installer.log"
+PENDING_PATH="${SHARED_ROOT}/runtime-install-pending.txt"
+ARCHIVE_NAME="__RUNTIME_ASSET__"
+ARCHIVE_PATH="${DOWNLOAD_DIR}/${ARCHIVE_NAME}"
+LOCAL_ARCHIVE_PATH="${HOROSA_RUNTIME_LOCAL_ARCHIVE:-${SCRIPT_DIR}/${ARCHIVE_NAME}}"
+RUNTIME_URL="${HOROSA_RUNTIME_URL:-https://github.com/__REPO_OWNER__/__REPO_NAME__/releases/download/__RUNTIME_RELEASE_TAG__/__RUNTIME_ASSET__}"
+EXPECTED_VERSION="__VERSION__"
+EXPECTED_SHA256="__RUNTIME_SHA256__"
+INSTALL_MODE="__INSTALL_MODE__"
+REVIEW_PLAN_PATH="${HOROSA_INSTALL_REVIEW_PLAN_PATH:-${SHARED_ROOT}/install-review-plan.json}"
+INSTALL_SOURCE_PATH="${HOROSA_INSTALL_SOURCE_PATH:-${SHARED_ROOT}/install-source.json}"
+ALLOW_REPLACE_SHARED_RUNTIME=0
+DECISION_PENDING_MARKER="keep"
+DECISION_CACHED_RUNTIME_ARCHIVE="keep"
+
+mkdir -p "${DOWNLOAD_DIR}" "${RUNTIME_ROOT}"
+
+log_line() {
+  printf '[%s] %s\n' "$(/bin/date '+%Y-%m-%d %H:%M:%S')" "$1" >> "${LOG_PATH}"
+}
+
+mark_pending() {
+  printf '%s\n' "$1" > "${PENDING_PATH}"
+  /bin/chmod a+r "${PENDING_PATH}" >/dev/null 2>&1 || true
+}
+
+clear_pending() {
+  rm -f "${PENDING_PATH}"
+}
+
+current_app_version() {
+  /usr/bin/plutil -extract CFBundleShortVersionString raw -o - "${APP_PATH}/Contents/Info.plist" 2>/dev/null || true
+}
+
+write_install_source() {
+  local source="$1"
+  local runtime_version="$2"
+  local app_version
+  app_version="$(current_app_version)"
+  mkdir -p "$(dirname "${INSTALL_SOURCE_PATH}")"
+  INSTALL_SOURCE_PATH_ENV="${INSTALL_SOURCE_PATH}" \
+  INSTALL_SOURCE_ENV="${source}" \
+  RUNTIME_VERSION_ENV="${runtime_version}" \
+  APP_VERSION_ENV="${app_version}" \
+  /usr/bin/python3 - <<'PY'
+import json
+import os
+import time
+from pathlib import Path
+
+payload = {
+    'source': os.environ.get('INSTALL_SOURCE_ENV', 'unknown'),
+    'installedAt': int(time.time()),
+    'runtimeVersion': os.environ.get('RUNTIME_VERSION_ENV', '').strip(),
+    'appVersion': os.environ.get('APP_VERSION_ENV', '').strip(),
+}
+path = Path(os.environ['INSTALL_SOURCE_PATH_ENV'])
+path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+PY
+  /bin/chmod a+r "${INSTALL_SOURCE_PATH}" >/dev/null 2>&1 || true
+}
+
+cleanup_install_state() {
+  rm -rf "${WORK_DIR}"
+  rm -f "${REVIEW_PLAN_PATH}"
+}
+
+cleanup_work_dir() {
+  rm -rf "${WORK_DIR}"
+}
+
+runtime_payload_is_usable() {
+  runtime_dir_is_usable "${CURRENT_DIR}"
+}
+
+runtime_dir_is_usable() {
+  local runtime_dir="$1"
+  [ -f "${runtime_dir}/runtime-manifest.json" ] \
+    && [ -f "${runtime_dir}/Horosa-Web/start_horosa_local.sh" ] \
+    && [ -f "${runtime_dir}/Horosa-Web/astrostudyui/dist-file/index.html" ] \
+    && [ -x "${runtime_dir}/runtime/mac/python/bin/python3" ] \
+    && [ -x "${runtime_dir}/runtime/mac/java/bin/java" ] \
+    && PATH="/usr/bin:/bin:/usr/sbin:/sbin" PYTHONNOUSERSITE=1 "${runtime_dir}/runtime/mac/python/bin/python3" -c 'import cherrypy, jsonpickle, swisseph' >/dev/null 2>&1 \
+    && PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${runtime_dir}/runtime/mac/java/bin/java" -version >/dev/null 2>&1
+}
+
+current_runtime_version() {
+  if [ ! -f "${CURRENT_DIR}/runtime-manifest.json" ]; then
+    return 0
+  fi
+  /usr/bin/plutil -extract version raw -o - "${CURRENT_DIR}/runtime-manifest.json" 2>/dev/null || true
+}
+
+load_review_plan() {
+  if [ ! -f "${REVIEW_PLAN_PATH}" ]; then
+    return 0
+  fi
+  eval "$(
+    /usr/bin/python3 - "${REVIEW_PLAN_PATH}" <<'PY'
+import json
+import shlex
+import sys
+
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as fh:
+    payload = json.load(fh)
+decisions = payload.get('decisions', {}) or {}
+print(f"ALLOW_REPLACE_SHARED_RUNTIME={'1' if payload.get('allowReplaceSharedRuntime') else '0'}")
+print(f"DECISION_PENDING_MARKER={shlex.quote(decisions.get('pending_marker', 'keep'))}")
+print(f"DECISION_CACHED_RUNTIME_ARCHIVE={shlex.quote(decisions.get('cached_runtime_archive', 'keep'))}")
+PY
+  )"
+}
+
+defer_runtime_install() {
+  local reason="$1"
+  log_line "runtime bootstrap deferred: ${reason}"
+  mark_pending "${reason}"
+  cleanup_install_state
+  /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+  /bin/chmod -R a+rX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  exit 0
+}
+
+fail_offline_install() {
+  local reason="$1"
+  log_line "offline runtime bootstrap failed: ${reason}"
+  cleanup_install_state
+  echo "${reason}" >&2
+  exit 1
+}
+
+cleanup_work_dir
+
+if [ "${INSTALL_MODE}" = "defer-runtime-bootstrap" ]; then
+  load_review_plan
+
+  if [ "${DECISION_PENDING_MARKER}" = "replace" ]; then
+    clear_pending
+  fi
+
+  if [ "${DECISION_CACHED_RUNTIME_ARCHIVE}" = "replace" ]; then
+    rm -f "${ARCHIVE_PATH}"
+  fi
+fi
+
+if [ "${INSTALL_MODE}" = "defer-runtime-bootstrap" ]; then
+  log_line "runtime bootstrap deferred to first app launch"
+  mark_pending "runtime bootstrap deferred to first app launch"
+  write_install_source "pkg_online" "${EXPECTED_VERSION}"
+  cleanup_install_state
+  /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+  /bin/chmod -R a+rX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  exit 0
+fi
+
+mkdir -p "${WORK_DIR}"
+
+if [ -f "${LOCAL_ARCHIVE_PATH}" ]; then
+  log_line "using bundled runtime archive ${LOCAL_ARCHIVE_PATH}"
+  cp -f "${LOCAL_ARCHIVE_PATH}" "${ARCHIVE_PATH}"
+else
+  fail_offline_install "离线安装包缺少内置运行环境归档，请重新下载离线安装包。"
+fi
+
+if [ -n "${EXPECTED_SHA256}" ]; then
+  ACTUAL_SHA256="$(/usr/bin/shasum -a 256 "${ARCHIVE_PATH}" | awk '{print $1}')"
+  if [ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]; then
+    fail_offline_install "离线安装包内置运行环境校验失败，请重新下载离线安装包。"
+  fi
+fi
+
+if ! COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar -xzf "${ARCHIVE_PATH}" -C "${WORK_DIR}"; then
+  fail_offline_install "离线安装包内置运行环境解压失败，请重新下载离线安装包。"
+fi
+
+if [ ! -f "${WORK_DIR}/runtime-payload/runtime-manifest.json" ]; then
+  fail_offline_install "离线安装包缺少运行环境清单，请重新下载离线安装包。"
+fi
+
+MANIFEST_VERSION="$(/usr/bin/plutil -extract version raw -o - "${WORK_DIR}/runtime-payload/runtime-manifest.json" 2>/dev/null || true)"
+if [ "${MANIFEST_VERSION}" != "${EXPECTED_VERSION}" ]; then
+  fail_offline_install "离线安装包内置运行环境版本不匹配，请重新下载离线安装包。"
+fi
+
+PREVIOUS_DIR="${RUNTIME_ROOT}/previous"
+HAD_PREVIOUS=0
+rm -rf "${PREVIOUS_DIR}"
+if [ -d "${CURRENT_DIR}" ]; then
+  EXISTING_VERSION="$(current_runtime_version)"
+  if [ "${EXISTING_VERSION}" = "${EXPECTED_VERSION}" ] && runtime_payload_is_usable; then
+    log_line "shared runtime already matches ${EXPECTED_VERSION}; keeping current runtime"
+    clear_pending
+    cleanup_install_state
+    write_install_source "pkg_offline" "${EXPECTED_VERSION}"
+    /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+    /bin/chmod -R a+rX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+    exit 0
+  fi
+  mv "${CURRENT_DIR}" "${PREVIOUS_DIR}"
+  HAD_PREVIOUS=1
+fi
+
+if mv "${WORK_DIR}/runtime-payload" "${CURRENT_DIR}"; then
+  if runtime_dir_is_usable "${CURRENT_DIR}"; then
+    rm -rf "${WORK_DIR}" "${PREVIOUS_DIR}"
+  else
+    rm -rf "${CURRENT_DIR}"
+    if [ "${HAD_PREVIOUS}" = "1" ] && [ -d "${PREVIOUS_DIR}" ]; then
+      mv "${PREVIOUS_DIR}" "${CURRENT_DIR}"
+    fi
+    fail_offline_install "离线安装包内置运行环境无法直接运行，请重新下载安装最新离线安装包。"
+  fi
+else
+  rm -rf "${CURRENT_DIR}"
+  if [ "${HAD_PREVIOUS}" = "1" ] && [ -d "${PREVIOUS_DIR}" ]; then
+    mv "${PREVIOUS_DIR}" "${CURRENT_DIR}"
+  fi
+  fail_offline_install "离线安装包切换运行环境失败，请重新安装离线包。"
+fi
+
+clear_pending
+log_line "runtime bootstrap installed successfully"
+write_install_source "pkg_offline" "${EXPECTED_VERSION}"
+/usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+/usr/bin/xattr -dr com.apple.quarantine "${CURRENT_DIR}" >/dev/null 2>&1 || true
+/bin/chmod -R a+rX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+cleanup_install_state
+exit 0

@@ -1,0 +1,18 @@
+{
+  "system": "Armenian Astrology",
+  "zodiac_type": "tropical_remapped",
+  "signs": [
+    {"index": 0, "en": "Aries", "hy": "Խոյ", "translit": "Khoi", "date_range": "03-21/04-19", "symbol_svg": "aries_armenian.svg", "keywords": ["valor", "initiation"]},
+    {"index": 1, "en": "Taurus", "hy": "Ցուլ", "translit": "Tsul", "date_range": "04-20/05-20", "symbol_svg": "taurus_armenian.svg", "keywords": ["earth", "continuity"]},
+    {"index": 2, "en": "Gemini", "hy": "Երկվորյակ", "translit": "Erkuvoryak", "date_range": "05-21/06-20", "symbol_svg": "gemini_armenian.svg", "keywords": ["speech", "memory"]},
+    {"index": 3, "en": "Cancer", "hy": "Խեցգետին", "translit": "Khetsgetin", "date_range": "06-21/07-22", "symbol_svg": "cancer_armenian.svg", "keywords": ["clan", "hearth"]},
+    {"index": 4, "en": "Leo", "hy": "Առյուծ", "translit": "Aryuts", "date_range": "07-23/08-22", "symbol_svg": "leo_armenian.svg", "keywords": ["solar", "authority"]},
+    {"index": 5, "en": "Virgo", "hy": "Կույս", "translit": "Kuys", "date_range": "08-23/09-22", "symbol_svg": "virgo_armenian.svg", "keywords": ["ritual", "craft"]},
+    {"index": 6, "en": "Libra", "hy": "Կշեռք", "translit": "Ksherk", "date_range": "09-23/10-22", "symbol_svg": "libra_armenian.svg", "keywords": ["balance", "oath"]},
+    {"index": 7, "en": "Scorpio", "hy": "Կարիճ", "translit": "Karich", "date_range": "10-23/11-21", "symbol_svg": "scorpio_armenian.svg", "keywords": ["depth", "inheritance"]},
+    {"index": 8, "en": "Sagittarius", "hy": "Աղեղնավոր", "translit": "Agheghnavor", "date_range": "11-22/12-21", "symbol_svg": "sagittarius_armenian.svg", "keywords": ["pilgrimage", "truth"]},
+    {"index": 9, "en": "Capricorn", "hy": "Այծեղջյուր", "translit": "Ayts'eghjyur", "date_range": "12-22/01-19", "symbol_svg": "capricorn_armenian.svg", "keywords": ["mountain", "discipline"]},
+    {"index": 10, "en": "Aquarius", "hy": "Ջրհոս", "translit": "Jrhos", "date_range": "01-20/02-18", "symbol_svg": "aquarius_armenian.svg", "keywords": ["collective", "renewal"]},
+    {"index": 11, "en": "Pisces", "hy": "Ձկներ", "translit": "Dzkners", "date_range": "02-19/03-20", "symbol_svg": "pisces_armenian.svg", "keywords": ["mystic", "compassion"]}
+  ]
+}

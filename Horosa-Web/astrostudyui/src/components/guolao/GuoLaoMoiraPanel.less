@@ -1,0 +1,436 @@
+.horosa-guolao-moira {
+	height: 100%;
+	overflow: visible;
+	padding-right: 4px;
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-moira-summary,
+.horosa-guolao-moira-section {
+	border: 1px solid var(--horosa-border-soft, rgba(231, 189, 117, 0.16));
+	background: var(--horosa-panel-soft, rgba(255, 255, 255, 0.035));
+	border-radius: 6px;
+	padding: 7px 9px;
+	margin-bottom: 8px;
+}
+
+.horosa-guolao-moira-summary-title,
+.horosa-guolao-moira-section-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--horosa-astro-gold, #e7bd75);
+	margin-bottom: 7px;
+}
+
+.horosa-guolao-moira-summary-text,
+.horosa-guolao-moira-pattern-detail,
+.horosa-guolao-moira-empty {
+	font-size: 12px;
+	line-height: 18px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-warning {
+	margin-bottom: 8px;
+	padding: 8px 10px;
+	border: 1px solid rgba(205, 154, 65, 0.24);
+	border-radius: 6px;
+	background: rgba(205, 154, 65, 0.08);
+	color: var(--horosa-text-soft, #c8c0b2);
+	font-size: 12px;
+	line-height: 18px;
+}
+
+.horosa-guolao-moira-note {
+	margin-top: 8px;
+	padding: 8px 10px;
+	border: 1px dashed var(--horosa-border-soft, rgba(231, 189, 117, 0.18));
+	border-radius: 6px;
+	color: var(--horosa-text-soft, #c8c0b2);
+	background: rgba(231, 189, 117, 0.045);
+	font-size: 12px;
+	line-height: 18px;
+}
+
+.horosa-guolao-moira-subtitle {
+	margin: 10px 0 6px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-moira-anchor-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+}
+
+.horosa-guolao-moira-su-anchor-grid {
+	margin-top: 8px;
+}
+
+.horosa-guolao-moira-anchor {
+	min-width: 0;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 6px;
+	padding: 5px 7px;
+	background: rgba(0, 0, 0, 0.12);
+}
+
+.horosa-guolao-moira-kv-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.horosa-guolao-moira-kv {
+	min-width: 0;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 6px;
+	padding: 5px 7px;
+	background: rgba(0, 0, 0, 0.12);
+}
+
+.horosa-guolao-moira-anchor span,
+.horosa-guolao-moira-planet span,
+.horosa-guolao-moira-god span {
+	display: block;
+	font-size: 11px;
+	color: var(--horosa-muted, #958b7a);
+}
+
+.horosa-guolao-moira-anchor strong,
+.horosa-guolao-moira-planet strong,
+.horosa-guolao-moira-god strong {
+	display: block;
+	font-size: 13px;
+	color: var(--horosa-text, #f0eee7);
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+	word-break: break-word;
+}
+
+.horosa-guolao-moira-anchor em,
+.horosa-guolao-moira-planet em {
+	display: block;
+	margin-top: 4px;
+	font-style: normal;
+	font-size: 11px;
+	color: var(--horosa-astro-muted, #a99b83);
+}
+
+.horosa-guolao-moira-patterns,
+.horosa-guolao-moira-planet-list,
+.horosa-guolao-moira-gods {
+	display: grid;
+	gap: 6px;
+}
+
+.horosa-guolao-moira-pattern,
+.horosa-guolao-moira-house-list > div,
+.horosa-guolao-moira-year-groups > div,
+.horosa-guolao-moira-planet,
+.horosa-guolao-moira-god {
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 6px;
+	padding: 5px 7px;
+	background: rgba(0, 0, 0, 0.12);
+}
+
+.horosa-guolao-moira-pattern-head {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-bottom: 5px;
+}
+
+.horosa-guolao-moira-pattern-head span {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	font-size: 12px;
+	color: var(--horosa-surface-solid, #111);
+	background: var(--horosa-astro-gold, #e7bd75);
+	flex: 0 0 auto;
+}
+
+.horosa-guolao-moira-pattern-bad .horosa-guolao-moira-pattern-head span {
+	background: #d98672;
+}
+
+.horosa-guolao-moira-pattern-notice .horosa-guolao-moira-pattern-head span {
+	background: #8fb6c9;
+}
+
+.horosa-guolao-moira-pattern-neutral .horosa-guolao-moira-pattern-head span {
+	background: #a7a59c;
+}
+
+.horosa-guolao-moira-pattern-head strong {
+	font-size: 13px;
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-moira-planet {
+	display: grid;
+	grid-template-columns: 52px minmax(0, 1fr) 52px;
+	gap: 6px;
+	align-items: center;
+	font-size: 12px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-planet em {
+	text-align: right;
+}
+
+.horosa-guolao-moira-table {
+	display: grid;
+	gap: 4px;
+	font-size: 12px;
+}
+
+.horosa-guolao-moira-table-row {
+	display: grid;
+	grid-template-columns: 28px minmax(66px, 1fr) minmax(58px, 0.86fr) minmax(70px, 0.95fr);
+	gap: 6px;
+	align-items: center;
+	min-height: 22px;
+	padding: 3px 7px;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 5px;
+	background: rgba(0, 0, 0, 0.10);
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-stellar-table .horosa-guolao-moira-table-row {
+	grid-template-columns: 34px minmax(58px, 0.8fr) minmax(76px, 1fr) minmax(92px, 1.1fr);
+}
+
+.horosa-guolao-moira-table-row > * {
+	min-width: 0;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: normal;
+	word-break: break-word;
+}
+
+.horosa-guolao-moira-table-row strong {
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-moira-table-head {
+	min-height: 24px;
+	background: rgba(231, 189, 117, 0.10);
+	color: var(--horosa-astro-gold, #e7bd75);
+	font-weight: 600;
+}
+
+.horosa-guolao-moira-house-list,
+.horosa-guolao-moira-year-groups {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+}
+
+.horosa-guolao-moira-god {
+	font-size: 12px;
+	line-height: 18px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-kv span,
+.horosa-guolao-moira-house-list span,
+.horosa-guolao-moira-year-groups span,
+.horosa-guolao-moira-chip-list em {
+	display: block;
+	font-size: 11px;
+	font-style: normal;
+	color: var(--horosa-muted, #958b7a);
+}
+
+.horosa-guolao-moira-kv strong,
+.horosa-guolao-moira-house-list strong,
+.horosa-guolao-moira-year-groups strong {
+	display: block;
+	min-width: 0;
+	font-size: 13px;
+	color: var(--horosa-text, #f0eee7);
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+	word-break: break-word;
+}
+
+.horosa-guolao-moira-house-list > div,
+.horosa-guolao-moira-year-groups > div {
+	min-width: 0;
+	font-size: 12px;
+	line-height: 19px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-house-list em,
+.horosa-guolao-moira-year-groups em {
+	display: block;
+	margin-top: 3px;
+	font-size: 11px;
+	font-style: normal;
+	color: var(--horosa-astro-gold, #e7bd75);
+}
+
+.horosa-guolao-moira-chip-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.horosa-guolao-moira-chip-list span {
+	display: inline-flex;
+	align-items: center;
+	min-height: 22px;
+	padding: 2px 7px;
+	border-radius: 999px;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	background: rgba(0, 0, 0, 0.12);
+	font-size: 11px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-moira {
+	color: var(--horosa-text, #2f2a22);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-summary,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-section,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-anchor,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-kv,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-table-row,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-house-list > div,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-year-groups > div,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-chip-list span,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-pattern,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-planet,
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-god {
+	background: rgba(255, 255, 255, 0.62);
+}
+
+@keyframes horosaGuolaoShimmer {
+	0% { opacity: 0.42; }
+	50% { opacity: 0.82; }
+	100% { opacity: 0.42; }
+}
+
+.horosa-guolao-moira-skeleton {
+	display: grid;
+	gap: 10px;
+	padding: 6px 2px;
+}
+
+.horosa-guolao-moira-skeleton-row {
+	height: 46px;
+	border-radius: 6px;
+	background: var(--horosa-panel-soft, rgba(255, 255, 255, 0.05));
+	border: 1px solid var(--horosa-border-soft, rgba(231, 189, 117, 0.14));
+	animation: horosaGuolaoShimmer 1.1s ease-in-out infinite;
+}
+
+.horosa-guolao-chart-skeleton {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	min-height: 420px;
+}
+
+.horosa-guolao-chart-skeleton-ring {
+	position: absolute;
+	width: ~"min(72%, 560px)";
+	height: ~"min(72%, 560px)";
+	border-radius: 50%;
+	border: 1.5px solid var(--horosa-border-soft, rgba(231, 189, 117, 0.18));
+	animation: horosaGuolaoShimmer 1.3s ease-in-out infinite;
+}
+
+.horosa-guolao-chart-skeleton-ring.is-mid {
+	width: ~"min(50%, 388px)";
+	height: ~"min(50%, 388px)";
+}
+
+.horosa-guolao-chart-skeleton-ring.is-core {
+	width: ~"min(26%, 202px)";
+	height: ~"min(26%, 202px)";
+}
+
+.horosa-guolao-chart-skeleton-hint {
+	position: relative;
+	font-size: 13px;
+	color: var(--horosa-text-soft, #c8c0b2);
+}
+
+.horosa-guolao-moira-limit-current {
+	border-color: var(--horosa-astro-gold, #e7bd75) !important;
+	background: rgba(231, 189, 117, 0.14) !important;
+}
+
+.horosa-guolao-moira-limit-current strong,
+.horosa-guolao-moira-limit-current em {
+	color: var(--horosa-astro-gold, #e7bd75) !important;
+}
+
+.horosa-guolao-moira-tabs .ant-tabs-nav {
+	margin-bottom: 10px;
+}
+
+/* horosa-content-tabs（app.less 5256/5266）原为「单个满高面板」设计：tabpane 满高 + overflow:hidden、
+   且 `tabpane > * { height:100% !important }` 把直接子元素撑满。本面板每个 tab 是多张内容卡，会被撑成大留白。
+   用更高特异度（`.horosa-guolao-moira-tabs.ant-tabs` = 0,4,0 > app.less 的 0,3,0）覆盖：tabpane 仍满高但自身滚动，
+   各卡片按内容高、顶端对齐、不撑高。改 tab 结构勿回退此覆盖。 */
+.horosa-workspace-shell .horosa-guolao-moira-tabs.ant-tabs .ant-tabs-tabpane {
+	overflow-y: auto !important;
+	overflow-x: hidden !important;
+}
+
+.horosa-workspace-shell .horosa-guolao-moira-tabs.ant-tabs .ant-tabs-tabpane > * {
+	height: auto !important;
+	max-height: none !important;
+	min-height: 0 !important;
+}
+
+.horosa-guolao-moira-tabs .ant-tabs-tab {
+	padding: 6px 4px;
+	font-size: 13px;
+}
+
+.horosa-guolao-moira-tabs .ant-tabs-tab + .ant-tabs-tab {
+	margin-left: 14px;
+}
+
+/* 神煞卡：曜名为长串、易挤；放宽行高 + 宫名/支/曜之间留间距（卡片仍按内容紧凑高）。 */
+.horosa-guolao-moira-gods .horosa-guolao-moira-god {
+	line-height: 20px;
+}
+
+.horosa-guolao-moira-god strong {
+	display: block;
+	margin-bottom: 2px;
+}
+
+.horosa-guolao-moira-god span {
+	margin-bottom: 3px;
+}
+
+.horosa-guolao-moira-god > div {
+	line-height: 20px;
+}
+
+.horosa-guolao-moira-god > div + div {
+	margin-top: 1px;
+}

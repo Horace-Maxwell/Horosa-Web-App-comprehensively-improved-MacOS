@@ -1,0 +1,62 @@
+[
+  {
+    "year": 1929,
+    "month": 10,
+    "day": 24,
+    "label_zh": "1929 大蕭條（黑色星期四）",
+    "label_en": "1929 Great Depression (Black Thursday)",
+    "jup_lon_approx": 60.0,
+    "sat_lon_approx": 240.0,
+    "note_zh": "木土呈120度，但景氣後期泡沫破裂",
+    "note_en": "Jupiter-Saturn trine, but late-cycle bubble burst",
+    "market_impact": "crash"
+  },
+  {
+    "year": 2000,
+    "month": 3,
+    "day": 10,
+    "label_zh": "2000 科技泡沫破裂（納斯達克高點）",
+    "label_en": "2000 Dot-com Bubble Peak (NASDAQ High)",
+    "jup_lon_approx": 25.0,
+    "sat_lon_approx": 60.0,
+    "note_zh": "木土合相（雙魚→金牛）後不久，科技股崩潰",
+    "note_en": "Shortly after Jupiter-Saturn conjunction, tech stocks crashed",
+    "market_impact": "crash"
+  },
+  {
+    "year": 2008,
+    "month": 9,
+    "day": 15,
+    "label_zh": "2008 金融海嘯（雷曼兄弟倒閉）",
+    "label_en": "2008 Financial Crisis (Lehman Brothers Collapse)",
+    "jup_lon_approx": 290.0,
+    "sat_lon_approx": 150.0,
+    "note_zh": "土星天秤，木星摩羯，呈90度壓力",
+    "note_en": "Saturn in Libra, Jupiter in Capricorn, forming square",
+    "market_impact": "crash"
+  },
+  {
+    "year": 2020,
+    "month": 3,
+    "day": 23,
+    "label_zh": "2020 疫情崩盤（市場低點）",
+    "label_en": "2020 COVID Crash (Market Bottom)",
+    "jup_lon_approx": 295.0,
+    "sat_lon_approx": 300.0,
+    "note_zh": "木土緊密合相（摩羯），疫情引爆崩盤",
+    "note_en": "Jupiter-Saturn tight conjunction in Capricorn, pandemic triggered crash",
+    "market_impact": "crash"
+  },
+  {
+    "year": 2020,
+    "month": 12,
+    "day": 21,
+    "label_zh": "2020 木星土星合相（水瓶座）",
+    "label_en": "2020 Great Conjunction (Aquarius) — New Cycle",
+    "jup_lon_approx": 300.1,
+    "sat_lon_approx": 300.1,
+    "note_zh": "進入風象時代，科技股、加密貨幣大牛市",
+    "note_en": "Air Age begins: Tech & Crypto bull market surge",
+    "market_impact": "expansion"
+  }
+]

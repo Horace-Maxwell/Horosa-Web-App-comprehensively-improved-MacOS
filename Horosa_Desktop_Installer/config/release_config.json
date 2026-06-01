@@ -1,0 +1,19 @@
+{
+  "repoOwner": "Horace-Maxwell",
+  "repoName": "Horosa-Web-App-comprehensively-improved-MacOS",
+  "runtimeVersion": "2.5.0-runtime1",
+  "runtimeAssetName": "horosa-runtime-macos-arm64.tar.gz",
+  "desktopAssetName": "Horosa-Desktop-macos-arm64.zip",
+  "desktopPkgName": "Horosa-Installer-macos-arm64.pkg",
+  "desktopPkgZipName": "Horosa-Installer-macos-arm64-pkg.zip",
+  "desktopOfflinePkgName": "Horosa-Installer-macos-arm64-offline.pkg",
+  "desktopOfflinePkgZipName": "Horosa-Installer-macos-arm64-offline-pkg.zip",
+  "updateManifestName": "horosa-latest.json",
+  "primaryDownload": "Horosa-Installer-macos-arm64-offline.pkg",
+  "supportedArch": "arm64",
+  "releaseChannel": "beta",
+  "releasePrerelease": false,
+  "releaseMakeLatest": true,
+  "releaseTagPrefix": "v",
+  "appName": "星阙"
+}

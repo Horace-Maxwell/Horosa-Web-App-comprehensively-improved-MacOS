@@ -1,0 +1,395 @@
+import { Component } from 'react';
+import { Popover, Modal } from 'antd';
+import AstroChart from '../astro/AstroChart';
+import PlusMinusTime from '../astro/PlusMinusTime';
+import GeoCoordModal from '../amap/GeoCoordModal';
+import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import { getHousesOption } from '../comp/CompHelper';
+import { XQButton, XQSegmented, XQSelect, XQTabs } from '../xq-ui';
+import XQIcon from '../xq-icons';
+import * as AstroConst from '../../constants/AstroConst';
+import { fetchChart } from '../../services/astro';
+import { buildChartParams } from '../../divination/engine/chartRequest';
+import DateTime from '../comp/DateTime';
+import { GLOSSARY } from '../../divination/data/glossary';
+import { openDivinationCaseDrawer, getDivinationSavedCasePayload } from '../../utils/divinationCaseSave';
+
+const Option = XQSelect.Option;
+
+// 卜卦盘 / 择日盘 共用的自包含三栏页（左设置+调时 / 中圆盘 / 右判断）。
+// 时间/地点/设置全部用本地 state，独立于「占星」主盘，不回灌父级 astro model。
+class DivinationChartShell extends Component{
+
+	constructor(props){
+		super(props);
+
+		// 以父级 fields 为种子，覆盖本技法默认（传统守护 + 整宫制 + 回归黄道）。
+		// 只新建被覆盖/会变更的 wrapper，绝不修改父级共享对象。
+		const seed = { ...(props.fields || {}) };
+		const defs = props.defaults || {};
+		seed.tradition = { value: defs.tradition !== undefined ? defs.tradition : 1, name: ['tradition'] };
+		seed.zodiacal = { value: defs.zodiacal !== undefined ? defs.zodiacal : 0, name: ['zodiacal'] };
+		if(defs.hsys !== undefined){
+			seed.hsys = { value: defs.hsys, name: ['hsys'] };
+		}
+
+		// 卜卦/择日默认起盘时刻 = 此刻（保留父级地点/时区）。父级 date.value 常为当日 0 点、
+		// time.value 才含真实时分，两者分离；这里统一用一个完整的「此刻」DateTime，避免错位。
+		const now = new DateTime();
+		const pdate = props.fields && props.fields.date && props.fields.date.value;
+		const pzone = (pdate && pdate.zone) || (props.fields && props.fields.zone && props.fields.zone.value);
+		if(pzone){ now.setZone(pzone); }
+		seed.date = { value: now, name: ['date'] };
+		seed.time = { value: now.clone(), name: ['time'] };
+		seed.ad = { value: now.ad, name: ['ad'] };
+		seed.zone = { value: now.zone, name: ['zone'] };
+
+		this.state = {
+			fields: seed,
+			chart: null,
+			busy: false,
+			err: null,
+			chartStyle: AstroConst.normalizeChartStyle ? AstroConst.normalizeChartStyle(undefined) : 'current',
+			extra: props.initialExtra || {},
+			glossaryOpen: false,
+		};
+
+		this._reqSeq = 0;
+		this._appliedCaseVersion = null;
+
+		this.refetch = this.refetch.bind(this);
+		this.saveCase = this.saveCase.bind(this);
+		this.changeTime = this.changeTime.bind(this);
+		this.changeGeo = this.changeGeo.bind(this);
+		this.changeField = this.changeField.bind(this);
+		this.changeChartStyle = this.changeChartStyle.bind(this);
+		this.castNow = this.castNow.bind(this);
+		this.setExtra = this.setExtra.bind(this);
+		this.setTimeDt = this.setTimeDt.bind(this);
+	}
+
+	setTimeDt(dt){
+		if(!dt){ return; }
+		this.changeTime({ time: dt, ad: dt.ad });
+	}
+
+	// 「存为事件盘」：把当前时间/地点/设置/类别写进 App 事件盘库（与占星盘同一管道）。
+	saveCase(){
+		if(!this.props.dispatch || !this.props.saveModule){
+			return;
+		}
+		// astro 类事盘(如世俗盘)可传 buildAiSnapshot(chart, fields) → 存档即带格式化 AI 快照,挂载更全面。
+		let aiSnapshot;
+		if(typeof this.props.buildAiSnapshot === 'function' && this.state.chart){
+			try{ aiSnapshot = this.props.buildAiSnapshot(this.state.chart, this.state.fields, this.state.extra); }catch(e){ aiSnapshot = undefined; }
+		}
+		openDivinationCaseDrawer({
+			dispatch: this.props.dispatch,
+			fields: this.state.fields,
+			module: this.props.saveModule,
+			extra: this.state.extra,
+			aiSnapshot,
+		});
+	}
+
+	componentDidMount(){
+		this._mounted = true;
+		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
+		if(typeof window !== 'undefined'){ window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest); }
+		if(!this.applyRestoreIfAny()){
+			this.refetch();
+		}
+	}
+
+	componentWillUnmount(){
+		this._mounted = false;
+		if(typeof window !== 'undefined' && this.handleSnapshotRefreshRequest){ window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest); }
+	}
+
+	// AI导出:在本模块 tab(如世俗盘)导出时响应刷新事件,用 buildAiSnapshot 把格式化快照写回 detail.snapshotText。
+	handleSnapshotRefreshRequest(evt){
+		if(!evt || !evt.detail || !this.props.saveModule || evt.detail.module !== this.props.saveModule){ return; }
+		if(typeof this.props.buildAiSnapshot === 'function' && this.state.chart){
+			try{ evt.detail.snapshotText = this.props.buildAiSnapshot(this.state.chart, this.state.fields, this.state.extra) || ''; }catch(e){ /* keep empty */ }
+		}
+	}
+
+	componentDidUpdate(){
+		this.applyRestoreIfAny();
+	}
+
+	// 从事件盘列表「应用」一条卜卦/择日案例后，把保存的时间/地点/设置/类别还原到本盘。
+	// 用 caseVersion 防重复灌入（之后手动调时间不会被反复覆盖）。
+	applyRestoreIfAny(){
+		const mod = this.props.saveModule;
+		if(!mod){
+			return false;
+		}
+		let c = null;
+		try{ c = getDivinationSavedCasePayload(mod); }catch(e){ c = null; }
+		if(!c || !c.caseVersion || c.caseVersion === this._appliedCaseVersion){
+			return false;
+		}
+		this._appliedCaseVersion = c.caseVersion;
+		const patch = {};
+		// 时间：保存为 'YYYY-MM-DD HH:mm:ss' 字符串，按 user/applyCase 同法解析回 DateTime。
+		if(c.divTime){
+			const dt = new DateTime();
+			const zone = c.zone || (this.state.fields.zone && this.state.fields.zone.value);
+			if(zone){ dt.setZone(zone); }
+			const parsed = dt.parse ? dt.parse(c.divTime, 'YYYY-MM-DD HH:mm:ss') : null;
+			if(parsed){
+				patch.date = parsed;
+				patch.time = parsed.clone ? parsed.clone() : parsed;
+				patch.ad = parsed.ad;
+				if(zone){ patch.zone = zone; }
+			}
+		}
+		if(c.lon !== undefined && c.lon !== null && c.lon !== ''){ patch.lon = c.lon; }
+		if(c.lat !== undefined && c.lat !== null && c.lat !== ''){ patch.lat = c.lat; }
+		if(c.gpsLon !== undefined && c.gpsLon !== null){ patch.gpsLon = c.gpsLon; }
+		if(c.gpsLat !== undefined && c.gpsLat !== null){ patch.gpsLat = c.gpsLat; }
+		if(c.pos){ patch.pos = c.pos; }
+		// 技法设置（黄道/宫制/守护）随案还原。
+		const settings = (c.payload && c.payload.settings) || null;
+		if(settings){
+			if(settings.zodiacal !== undefined){ patch.zodiacal = settings.zodiacal; }
+			if(settings.hsys !== undefined){ patch.hsys = settings.hsys; }
+			if(settings.tradition !== undefined){ patch.tradition = settings.tradition; }
+		}
+		// 问题类别(horary) / 用事类型(election) + 通用 extra(世俗盘 ingress* 等) 还原到 extra。
+		const ex = (c.payload && c.payload.extra && typeof c.payload.extra === 'object') ? { ...c.payload.extra } : {};
+		if(c.payload && c.payload.questionCategory){ ex.questionCategory = c.payload.questionCategory; }
+		if(c.payload && c.payload.topicId){ ex.topicId = c.payload.topicId; }
+		if(Object.keys(ex).length){ this.setExtra(ex); }
+		if(Object.keys(patch).length){
+			this.patchFields(patch);
+			return true;
+		}
+		return false;
+	}
+
+	refetch(){
+		const params = buildChartParams(this.state.fields);
+		const seq = ++this._reqSeq;
+		this.setState({ busy: true, err: null });
+		fetchChart(params, { cache: true }).then((rsp)=>{
+			if(seq !== this._reqSeq || !this._mounted){
+				return; // 过期请求或已卸载，丢弃
+			}
+			const chart = (rsp && rsp.Result) ? rsp.Result : null;
+			this.setState({ chart, busy: false, err: chart ? null : 'no-result' });
+		}).catch((e)=>{
+			if(seq !== this._reqSeq || !this._mounted){
+				return;
+			}
+			console.error('DivinationChartShell fetchChart failed', e);
+			this.setState({ busy: false, err: 'fetch-failed' });
+		});
+	}
+
+	// 替换 fields 中若干 wrapper（新对象），再重算。
+	patchFields(patch, cb){
+		this.setState((s)=>{
+			const fields = { ...s.fields };
+			Object.keys(patch).forEach((k)=>{
+				fields[k] = { value: patch[k], name: [k] };
+			});
+			return { fields };
+		}, ()=>{ this.refetch(); if(cb){ cb(); } });
+	}
+
+	changeTime(res){
+		const dt = res.time;
+		if(!dt){ return; }
+		this.patchFields({
+			date: dt,
+			time: dt.clone ? dt.clone() : dt,
+			zone: dt.zone,
+			ad: res.ad,
+		});
+	}
+
+	castNow(){
+		// 「此刻起卦」：取当前时刻，保留当前时区。
+		const now = new DateTime();
+		const z = this.state.fields.zone && this.state.fields.zone.value;
+		if(z){ now.setZone(z); }
+		this.changeTime({ time: now, ad: now.ad });
+	}
+
+	changeGeo(rec){
+		this.patchFields({
+			lon: convertLonToStr(rec.lng),
+			lat: convertLatToStr(rec.lat),
+			gpsLon: rec.gpsLng,
+			gpsLat: rec.gpsLat,
+		});
+	}
+
+	changeField(key, val){
+		this.patchFields({ [key]: val });
+	}
+
+	changeChartStyle(val){
+		this.setState({ chartStyle: val });
+	}
+
+	setExtra(patch, cb){
+		this.setState((s)=>({ extra: { ...s.extra, ...patch } }), cb);
+	}
+
+	renderInputPanel(){
+		const fields = this.state.fields;
+		const dt = fields.date ? fields.date.value : null;
+		const timeText = dt && dt.format ? dt.format('YYYY-MM-DD HH:mm:ss') : '—';
+		const lon = fields.lon ? fields.lon.value : '';
+		const lat = fields.lat ? fields.lat.value : '';
+		const pos = fields.pos && fields.pos.value ? fields.pos.value : '当地时间';
+		const timeEditor = (
+			<div className="horosa-time-popover">
+				<PlusMinusTime value={dt} onChange={this.changeTime} />
+			</div>
+		);
+		return (
+			<div className="horosa-astro-context-panel horosa-astro-input-panel">
+				<div className="horosa-panel-head">
+					<div>
+						<div className="horosa-panel-kicker">{this.props.kicker || '起盘设置'}</div>
+						<div className="horosa-panel-title">{this.props.title}</div>
+					</div>
+				</div>
+
+				<div className="horosa-field-block">
+					<div className="horosa-field-label">时间</div>
+					<Popover content={timeEditor} trigger="click" placement="rightTop" overlayClassName="horosa-time-adjust-popover">
+						<button type="button" className="horosa-unified-field">
+							<XQIcon name="clock" />
+							<span>{timeText}</span>
+						</button>
+					</Popover>
+					<div className="horosa-time-adjust-inline">
+						<PlusMinusTime value={dt} onChange={this.changeTime} adjustOnly />
+					</div>
+					{this.props.castNowLabel ? (
+						<XQButton size="small" iconName="refresh" onClick={this.castNow} style={{ marginTop: 6 }}>
+							{this.props.castNowLabel}
+						</XQButton>
+					) : null}
+				</div>
+
+				<div className="horosa-field-block">
+					<div className="horosa-field-label">地点</div>
+					<GeoCoordModal
+						onOk={this.changeGeo}
+						lat={fields.gpsLat ? fields.gpsLat.value : null}
+						lng={fields.gpsLon ? fields.gpsLon.value : null}
+					>
+						<button type="button" className="horosa-unified-field horosa-place-field">
+							<XQIcon name="locastro" />
+							<span>
+								<strong>{pos}</strong>
+								<small>{lon} · {lat}</small>
+							</span>
+							<XQIcon name="globe" />
+						</button>
+					</GeoCoordModal>
+				</div>
+
+				{typeof this.props.renderLeftExtra === 'function'
+					? this.props.renderLeftExtra({ extra: this.state.extra, setExtra: this.setExtra, fields, chart: this.state.chart, setTime: this.setTimeDt })
+					: null}
+
+				<div className="horosa-field-grid">
+					<div className="horosa-field-block">
+						<div className="horosa-field-label">黄道</div>
+						<XQSelect style={{ width: '100%' }} size="small"
+							value={fields.zodiacal ? fields.zodiacal.value : 0}
+							onChange={(val)=>this.changeField('zodiacal', val)}>
+							<Option value={0}>回归黄道</Option>
+							<Option value={1}>恒星黄道</Option>
+						</XQSelect>
+					</div>
+					<div className="horosa-field-block">
+						<div className="horosa-field-label">宫制</div>
+						<XQSelect style={{ width: '100%' }} size="small"
+							value={fields.hsys ? fields.hsys.value : 0}
+							onChange={(val)=>this.changeField('hsys', val)}>
+							{getHousesOption(true)}
+						</XQSelect>
+					</div>
+				</div>
+
+				<div className="horosa-chart-style-block">
+					<div className="horosa-side-section-title">星盘样式</div>
+					<XQSegmented
+						value={this.state.chartStyle}
+						onChange={this.changeChartStyle}
+						options={AstroConst.CHART_STYLE_OPTIONS}
+					/>
+				</div>
+
+				<XQButton className="horosa-recalculate-button" size="small" iconName="refresh"
+					onClick={this.refetch} loading={this.state.busy}>
+					重算星盘
+				</XQButton>
+				<XQButton size="small" iconName="help" onClick={() => this.setState({ glossaryOpen: true })} style={{ marginTop: 6 }}>
+					术语速查
+				</XQButton>
+				{(this.props.dispatch && this.props.saveModule) ? (
+					<XQButton size="small" iconName="save" onClick={this.saveCase} style={{ marginTop: 6 }}>
+						存为事件盘
+					</XQButton>
+				) : null}
+			</div>
+		);
+	}
+
+	render(){
+		const rootClass = `horosa-astro-page horosa-astro-redesign horosa-astro-no-bottom-dock ${this.props.pageClass || ''}`.trim();
+		const chartObj = this.state.chart;
+		return (
+			<div className={rootClass} style={{ width: '100%', flex: '1 1 auto', minWidth: 0, ...(this.props.height ? { height: this.props.height } : {}) }}>
+				<div className="horosa-astro-layout horosa-astro-redesign-layout">
+					<div className="horosa-astro-redesign-grid">
+						{this.renderInputPanel()}
+						<div className="horosa-chart-stage horosa-chart-stage-redesign">
+							{chartObj ? (
+								<AstroChart value={chartObj}
+									chartDisplay={this.props.chartDisplay}
+									chartStyle={this.state.chartStyle}
+									planetDisplay={this.props.planetDisplay}
+									lotsDisplay={this.props.lotsDisplay}
+									showAstroMeaning={this.props.showAstroMeaning}
+									height="100%"
+								/>
+							) : (
+								<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 320, opacity: 0.65, fontSize: 13, padding: 16, textAlign: 'center' }}>
+									{this.state.busy ? '排盘中…' : (this.state.err ? '排盘失败：请确认本地服务运行后点「重算星盘」。' : '排盘中…')}
+								</div>
+							)}
+						</div>
+						<div className="horosa-inspector-panel horosa-astro-content-panel">
+							{typeof this.props.renderRight === 'function'
+								? this.props.renderRight({ chart: chartObj, fields: this.state.fields, extra: this.state.extra, setExtra: this.setExtra, busy: this.state.busy, setTime: this.setTimeDt })
+								: null}
+						</div>
+					</div>
+				</div>
+				{this.state.glossaryOpen ? (
+					<Modal title="术语速查（西洋卜卦/择日）" open={this.state.glossaryOpen} onCancel={() => this.setState({ glossaryOpen: false })} footer={null} width={480}>
+						<div style={{ maxHeight: '62vh', overflow: 'auto' }}>
+							{Object.keys(GLOSSARY).map((id) => (
+								<div key={id} style={{ padding: '6px 2px', borderBottom: '1px dashed rgba(148,163,184,.2)', fontSize: 13, lineHeight: 1.65 }}>
+									<b>{GLOSSARY[id].cn}</b>：{GLOSSARY[id].def}
+								</div>
+							))}
+						</div>
+					</Modal>
+				) : null}
+			</div>
+		);
+	}
+}
+
+export default DivinationChartShell;

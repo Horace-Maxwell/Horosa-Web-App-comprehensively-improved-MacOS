@@ -1,0 +1,13 @@
+target/
+.idea/
+/idea/
+.DS_Store
+*.class
+*.ipr
+*.iml
+*.iws
+*.log
+*.cache
+*.diff
+*.patch
+*.tmp

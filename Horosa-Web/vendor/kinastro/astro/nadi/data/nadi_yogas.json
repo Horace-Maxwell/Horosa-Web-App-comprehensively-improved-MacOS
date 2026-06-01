@@ -1,0 +1,146 @@
+{
+  "title": "納迪占星術（Meena 版） - 所有瑜伽組合最終完整列表",
+  "source": "第一部 Yoga Karakas + 第二部 Yoga Kanda + 全書各章提及的瑜伽與格局",
+  "description": "本檔案收錄 Meena 版納迪占星術中出現的全部瑜伽、特殊格局與星象組合，包含各 Lagna 專屬 Yoga Karakas、Guna 影響、Sookshma 變化及實際命盤例子。每條說明均為完整句子。",
+  "yogas": {
+    "neecha_bhanga": {
+      "name": "尼恰班加瑜伽",
+      "conditions": "一顆行星處於尼恰（落陷）狀態，但同時位於烏查克舍特拉、斯瓦克舍特拉，或從月球算起的肯德拉宮位。",
+      "effect": "此瑜伽能化解行星落陷的負面影響，使該行星恢復力量並帶來正面結果。",
+      "notes": "行星必須在命盤中具備足夠的力量，才能完全發揮化解作用。",
+      "related_bhavas": ["該行星所主宮位"],
+      "guna_influence": "若該行星同時具備 Satwika Guna，效果更強。",
+      "examples": []
+    },
+    "kala_sarpa": {
+      "name": "卡拉薩帕瑜伽",
+      "conditions": "命盤中其餘所有行星全部位於羅睺與計都之間的黃道區域。",
+      "effect": "此瑜伽被視為極為凶險的格局，會帶來極大的阻礙、困難與波折。",
+      "notes": "若羅睺與計都受到吉星強力掌控，則形成卡拉薩帕瑜伽布杭嘎，可大幅化解凶性。",
+      "related_bhavas": ["全盤"],
+      "examples": []
+    },
+    "dharma_karma": {
+      "name": "達摩業力瑜伽",
+      "conditions": "第九宮主星與第十宮主星形成合相。",
+      "effect": "此瑜伽為極強吉相，能使命主事業順遂、受人尊敬，並在人生中獲得崇高地位。",
+      "notes": "必須在命主一生的大運中實際運行到相關行星的大運，瑜伽效果才會完全顯現。",
+      "related_bhavas": ["9", "10"],
+      "examples": []
+    },
+    "parivarthana": {
+      "name": "行星互換瑜伽",
+      "conditions": "兩顆行星彼此互居對方所主宰的星座。",
+      "effect": "這是最強力的瑜伽之一。吉星互換會帶來極佳結果，凶星互換仍會產生反制效果，能抑制凶性並帶來緩解。",
+      "notes": "會發生相互抑制、讓步與再制約的動態過程。",
+      "related_bhavas": ["涉及的兩個宮位"],
+      "examples": []
+    },
+    "sookshma_parivarthana": {
+      "name": "細相互換瑜伽",
+      "conditions": "兩顆行星雖然不在對方星座，但透過星宿主星的連結而形成實質互換。",
+      "effect": "此瑜伽同樣具有強大力量，效果類似行星互換瑜伽，但更注重 Sookshma 層面的細微變化。",
+      "notes": "常用於解釋表面無互換但實際效果強烈的案例。",
+      "related_bhavas": ["涉及的兩個宮位"],
+      "examples": []
+    },
+    "chandra_mangala": {
+      "name": "月芒伽拉瑜伽",
+      "conditions": "月亮與火星同處於四角宮位。",
+      "effect": "一般認為此瑜伽能帶來財富與好運，但必須同時考慮兩顆行星的 Guna 變化。",
+      "notes": "若月亮或火星轉為凶性，效果會大幅減弱。",
+      "related_bhavas": ["4", "7", "10", "1"],
+      "examples": []
+    },
+    "gaja_kesari": {
+      "name": "迦耶凱薩里瑜伽",
+      "conditions": "木星與月亮同處於四角宮位。",
+      "effect": "此瑜伽被認為能帶來智慧、名聲與財富，但同樣必須檢視兩顆行星的 Guna 變化。",
+      "notes": "若月亮或木星轉為塔瑪薩性質，效果會大幅減弱。",
+      "related_bhavas": ["4", "7", "10", "1"],
+      "examples": []
+    },
+    "chamara": {
+      "name": "恰瑪拉瑜伽",
+      "conditions": "一顆行星位於兩顆吉星之間。",
+      "effect": "此瑜伽能為命主帶來極佳的結果。",
+      "notes": "兩側的吉星本身必須具備良好的宮位主宰性與 Guna 特質，否則仍可能帶來不良結果。",
+      "related_bhavas": ["該行星所在宮位"],
+      "examples": []
+    },
+    "raja_yoga": {
+      "name": "王瑜伽",
+      "conditions": "命主、第九宮與第十宮的主宰星在各方面都非常強旺，且佔據有利位置。",
+      "effect": "命主一生將極為顯赫，若同時具備迪格巴拉之勢且毫無缺陷，有機會成為君王或首相。",
+      "notes": "王瑜伽的強度取決於相關行星的 Guna、宮位力量與是否受到凶星干擾。",
+      "related_bhavas": ["1", "9", "10"],
+      "examples": []
+    },
+    "digbala": {
+      "name": "迪格巴拉瑜伽",
+      "conditions": "行星落在特定宮位而獲得方位力量（Digbala）。",
+      "effect": "獲得迪格巴拉之力的行星，其力量會大幅增強，能對相關宮位產生強烈的正面或負面影響。",
+      "notes": "第二宮、第四宮、第七宮、第十宮的主星最容易獲得迪格巴拉。",
+      "related_bhavas": ["2", "4", "7", "10"],
+      "examples": []
+    },
+    "single_star_dominance": {
+      "name": "單星主宰",
+      "conditions": "命盤中僅有一顆行星主宰其餘所有行星。",
+      "effect": "此格局極為強大。若主宰行星為吉星且力量強大，命主可獲得極高地位；若為凶星，則命主一生將充滿波折。",
+      "notes": "判斷時必須同時檢視該主宰行星所處的星座、宮位、相位與 Guna 變化。",
+      "related_bhavas": ["全盤"],
+      "examples": []
+    },
+    "vargothama_lagna": {
+      "name": "瓦戈塔瑪命宮",
+      "conditions": "命宮在本命盤（Rasi）與分盤（Navamsa）中落在同一宮位。",
+      "effect": "瓦戈塔瑪命宮能增強命宮的力量，但僅命宮為瓦戈塔瑪仍不足夠，必須同時檢視命宮主星的力量。",
+      "notes": "若命宮主星衰弱或受凶星相剋，則無法帶來顯赫地位。",
+      "related_bhavas": ["1"],
+      "examples": []
+    },
+    "satru_yoga": {
+      "name": "薩圖魯瑜伽（敵對格局）",
+      "conditions": "兩顆互為敵星的行星形成合相、相位或同宮。",
+      "effect": "此格局通常帶來不幸、衝突與阻礙，特別容易影響相關宮位的事務。",
+      "notes": "常見於第二宮、第五宮、第七宮，會導致財富、子女、婚姻等方面的問題。",
+      "related_bhavas": ["2", "5", "7"],
+      "examples": []
+    },
+    "guru_chandra": {
+      "name": "古魯錢德拉瑜伽",
+      "conditions": "古魯與月亮形成良好相位或同宮。",
+      "effect": "此瑜伽能帶來智慧、榮譽與心智上的滿足。",
+      "notes": "第二宮例子中常見，可強化財富與名聲。",
+      "related_bhavas": ["2", "9"],
+      "examples": []
+    },
+    "brahma": {
+      "name": "婆羅門瑜伽",
+      "conditions": "命盤中形成特定婆羅門格局（通常與古魯、蘇克拉、布達相關）。",
+      "effect": "此瑜伽使命主具備崇高靈性天賦，傾向苦行主義或宗教生活。",
+      "notes": "常見於聖者、哲學家、宗教領袖的命盤。",
+      "related_bhavas": ["1", "9", "12"],
+      "examples": []
+    }
+  },
+  "lagna_specific_yoga_karakas": {
+    "mesha": "導師星（古魯）",
+    "vrishabha": "導師星（古魯）",
+    "mithuna": "金星",
+    "karka": "土星、北交點、木星與月亮",
+    "simha": "太陽、月亮與導師星",
+    "kanya": "太陽",
+    "thula": "金星與木星",
+    "vrischika": "木星與金星",
+    "dhanus": "導師星與月亮",
+    "makara": "太陽、導師星與月亮",
+    "kumbha": "木星、土星與北交點",
+    "meena": "金星"
+  },
+  "guna_influence": {
+    "description": "書中特別強調：即使形成相同瑜伽，若行星的 Guna（三德）不同，效果也會有明顯差異。Satwika Guna 最吉，Rajasa 次之，Thamasa 最凶。",
+    "note": "在判斷任何瑜伽時，必須同時檢視相關行星落在哪個星宿，以及該星宿主星所帶來的 Guna 變化。"
+  }
+}

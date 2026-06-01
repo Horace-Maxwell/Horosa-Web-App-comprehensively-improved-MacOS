@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="紫微斗数" />
+    <title>紫微斗数</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 24 24' fill='none' stroke='%23AF52DE' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ziwei: {
+                bg: '#ffffff', // White background
+                panel: '#ffffff', // White panels
+                grid: '#9ca3af', // Darker Grey grid lines (Fixed visibility)
+                red: '#FF3B30', // Ji / Main Stars
+                green: '#34C759', // Lu
+                blue: '#007AFF', // Ke
+                purple: '#AF52DE', // Quan
+                text: '#1f2937', // Dark grey text
+                subtext: '#6b7280', // Light grey text
+                gold: '#f59e0b', // Accent
+                highlight: '#e5e7eb' // Hover state
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #f3f4f6;
+        color: #1f2937;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
+      }
+      /* Custom Scrollbar - Minimalist */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #94a3b8; 
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #64748b; 
+      }
+      
+      /* Toggle Switch CSS */
+      .toggle-checkbox:checked {
+        right: 0;
+        border-color: #34C759;
+      }
+      .toggle-checkbox:checked + .toggle-label {
+        background-color: #34C759;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+    "react/": "https://esm.sh/react@18.2.0/",
+    "lunar-javascript": "https://esm.sh/lunar-javascript@1.6.11",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0"
+  }
+}
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      // Register SW
+      navigator.serviceWorker.register('./sw.js')
+        .then(registration => {
+          console.log('SW registered:', registration.scope);
+        })
+        .catch(err => {
+          console.log('SW registration failed:', err);
+        });
+    });
+  }
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

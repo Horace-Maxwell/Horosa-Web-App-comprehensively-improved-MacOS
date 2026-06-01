@@ -1,0 +1,133 @@
+.horosa-guolao-moira-wheel {
+	--moira-bg: var(--horosa-surface-solid, #ffffff);
+	--moira-ink: var(--horosa-text, #000000);
+	--moira-line: var(--horosa-text, #111111);
+	--moira-tooltip-bg: var(--horosa-surface-raised, #ffffed);
+	--moira-tooltip-text: var(--horosa-text, #000000);
+	--moira-tooltip-border: var(--horosa-border-strong, #333333);
+	--moira-green: #008000;
+	--moira-blue: #000080;
+	--moira-red: #ff0000;
+	--moira-magenta: #ff00ff;
+	--moira-now-mark: #804040;
+	--moira-pale: #b5d8c7;
+	--moira-muted-planet: #8a8a8a;
+	--moira-dignity-strong: #c9912e;
+	--moira-dignity-weak: #b06a5e;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	overflow: visible;
+	background: var(--moira-bg);
+	border: 0;
+	box-sizing: border-box;
+}
+
+.horosa-guolao-moira-wheel svg {
+	flex: 0 0 auto;
+	display: block;
+	max-width: 100%;
+	max-height: 100%;
+	min-width: 0;
+	min-height: 0;
+	background: var(--moira-bg);
+	overflow: visible;
+	font-family: "Songti SC", "STSong", "SimSun", serif;
+	letter-spacing: 0;
+	text-rendering: geometricPrecision;
+}
+
+.horosa-guolao-moira-wheel text {
+	pointer-events: none;
+	user-select: none;
+	stroke: none;
+}
+
+.horosa-guolao-moira-wheel .moira-hover-zone {
+	fill: rgba(255, 255, 255, 0);
+	stroke: none;
+	pointer-events: all;
+	cursor: default;
+}
+
+.horosa-guolao-moira-tooltip {
+	position: fixed;
+	z-index: 12;
+	width: max-content;
+	min-width: 220px;
+	max-width: min(420px, calc(100vw - 32px));
+	padding: 5px 9px;
+	border: 1px solid var(--moira-tooltip-border);
+	background: var(--moira-tooltip-bg);
+	color: var(--moira-tooltip-text);
+	box-shadow: var(--horosa-small-shadow, 1px 1px 3px rgba(0, 0, 0, 0.26));
+	font-family: "Songti SC", "STSong", "SimSun", serif;
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 1.36;
+	letter-spacing: 0;
+	white-space: pre-line;
+	pointer-events: none;
+}
+
+.horosa-guolao-moira-wheel .moira-rings circle {
+	fill: none;
+	stroke: var(--moira-line);
+	stroke-width: 0.9;
+}
+
+.horosa-guolao-moira-wheel .moira-rings .moira-ring-major {
+	stroke-width: 1.15;
+}
+
+.horosa-guolao-moira-wheel .moira-rings .moira-ring-minor {
+	stroke-width: 0.8;
+}
+
+.horosa-guolao-moira-wheel .moira-rings .moira-outer-circle,
+.horosa-guolao-moira-wheel .moira-rings circle:last-child {
+	stroke-width: 1.35;
+}
+
+.horosa-guolao-moira-wheel .moira-main-divider line {
+	stroke: var(--moira-line);
+	stroke-width: 1;
+}
+
+.horosa-guolao-moira-wheel .moira-inner-lines line {
+	stroke: var(--moira-line);
+	stroke-width: 1;
+}
+
+.horosa-guolao-moira-wheel .moira-side-text {
+	font-family: "Songti SC", "STSong", "SimSun", serif;
+}
+
+.horosa-guolao-moira-wheel .moira-degree-ticks text,
+.horosa-guolao-moira-wheel .moira-limit-layer text {
+	font-family: Georgia, "Times New Roman", serif;
+}
+
+:root[data-horosa-appearance='dark'] .horosa-guolao-moira-wheel {
+	--moira-bg: var(--horosa-surface-solid, #090b0e);
+	--moira-ink: var(--horosa-text, #edf5f2);
+	--moira-line: rgba(237, 245, 242, 0.74);
+	--moira-tooltip-bg: var(--horosa-surface-raised, #11100d);
+	--moira-tooltip-text: var(--horosa-text, #edf5f2);
+	--moira-tooltip-border: var(--horosa-border-strong, rgba(231, 189, 117, 0.42));
+	--moira-green: #82d28e;
+	--moira-blue: #8aa7ff;
+	--moira-red: #ff766f;
+	--moira-magenta: #ff7df4;
+	--moira-now-mark: #d38a7e;
+	--moira-pale: rgba(188, 218, 207, 0.72);
+	--moira-muted-planet: var(--horosa-muted, #80939b);
+	--moira-dignity-strong: #f1c879;
+	--moira-dignity-weak: #d98a7e;
+}

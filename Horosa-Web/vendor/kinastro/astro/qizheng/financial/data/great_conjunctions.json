@@ -1,0 +1,47 @@
+[
+  {
+    "year": 1940,
+    "month": 8,
+    "day": 8,
+    "lon": 117.0,
+    "sign": "巨蟹/Cancer",
+    "note_zh": "二戰戰時經濟",
+    "note_en": "WWII War Economy"
+  },
+  {
+    "year": 1961,
+    "month": 2,
+    "day": 18,
+    "lon": 301.0,
+    "sign": "摩羯/Capricorn",
+    "note_zh": "冷戰軍備擴張",
+    "note_en": "Cold War Arms Expansion"
+  },
+  {
+    "year": 1981,
+    "month": 12,
+    "day": 31,
+    "lon": 195.0,
+    "sign": "天秤/Libra",
+    "note_zh": "雷根經濟學牛市",
+    "note_en": "Reagan Bull Market"
+  },
+  {
+    "year": 2000,
+    "month": 5,
+    "day": 28,
+    "lon": 23.0,
+    "sign": "金牛/Taurus",
+    "note_zh": "科技泡沫頂峰",
+    "note_en": "Dot-com Peak"
+  },
+  {
+    "year": 2020,
+    "month": 12,
+    "day": 21,
+    "lon": 300.1,
+    "sign": "水瓶/Aquarius",
+    "note_zh": "風象時代新週期",
+    "note_en": "Air Age New Cycle"
+  }
+]
