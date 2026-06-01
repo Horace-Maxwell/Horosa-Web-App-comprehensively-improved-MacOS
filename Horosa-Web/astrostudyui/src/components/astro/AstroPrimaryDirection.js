@@ -88,7 +88,9 @@ class AstroPrimaryDirection extends Component{
 		const nextMethod = this.normalizePdMethod(this.props.pdMethod);
 		const nextTimeKey = this.normalizePdTimeKey(this.props.pdTimeKey);
 		const nextYears = this.normalizePdYears(this.props.pdYears);
-		if(prevProps.pdMethod !== nextMethod || prevProps.pdTimeKey !== nextTimeKey || this.normalizePdYears(prevProps.pdYears) !== nextYears){
+		// 与当前 state（已规范化）比较，且仅在确有变化时 setState，
+		// 否则旧存盘里的未知/历史 pdMethod 规范化后与原始 prop 永不相等会造成无限 setState 循环。
+		if(this.state.pdMethodValue !== nextMethod || this.state.pdTimeKeyValue !== nextTimeKey || this.state.pdYearsValue !== nextYears){
 			this.setState({
 				pdMethodValue: nextMethod,
 				pdTimeKeyValue: nextTimeKey,
