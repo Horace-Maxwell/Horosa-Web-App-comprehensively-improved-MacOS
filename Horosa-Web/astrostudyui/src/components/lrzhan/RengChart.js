@@ -431,6 +431,18 @@ class RengChart {
 		});
 	}
 
+	formatTrueSolarTime(){
+		// 真太阳时 = 后端按经度校正后的起课时刻(this.nongli.birth);六壬默认按真太阳时定时辰/三传。
+		if(this.nongli && this.nongli.birth){
+			const m = `${this.nongli.birth}`.match(/(-?\d{1,4})-(\d{1,2})-(\d{1,2}).*?(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+			if(m){
+				return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')} ${m[4].padStart(2, '0')}:${m[5].padStart(2, '0')}:${m[6] ? m[6].padStart(2, '0') : '00'}`;
+			}
+			return `${this.nongli.birth}`.substr(0, 19);
+		}
+		return '';
+	}
+
 	drawLiuRengInfoHeader(cord){
 		if(!cord || cord.h <= 0 || !this.liureng){
 			return;
@@ -441,11 +453,15 @@ class RengChart {
 		const dividerY = cord.y + cord.h - Math.max(8, cord.h * 0.055);
 		const summarySize = Math.max(16, Math.min(24, cord.w * 0.028));
 		const solarTime = this.formatSolarTime();
+		const trueSolar = this.formatTrueSolarTime();
 		const pillars = this.getFourPillars();
 		const pillarText = pillars
 			.map((pillar)=>`${pillar.value || '—'}${pillar.label}`)
 			.join(' ');
-		const summaryText = `公历：${solarTime || '—'}；八字：${pillarText}`;
+		// 六壬默认真太阳时:有真太阳时则以它为准显示(决定时辰/三传),否则回退公历钟表时。
+		const summaryText = trueSolar
+			? `真太阳时：${trueSolar}；八字：${pillarText}`
+			: `公历：${solarTime || '—'}；八字：${pillarText}`;
 
 		this.drawInfoText(group, summaryText, cord.x + cord.w / 2, topY, {
 			fill: 'var(--horosa-liureng-square-main, #f0eee7)',

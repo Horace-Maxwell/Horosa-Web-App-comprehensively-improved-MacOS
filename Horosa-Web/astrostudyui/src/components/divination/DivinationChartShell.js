@@ -4,6 +4,7 @@ import AstroChart from '../astro/AstroChart';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import { getHousesOption } from '../comp/CompHelper';
 import { XQButton, XQSegmented, XQSelect, XQTabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
@@ -219,12 +220,26 @@ class DivinationChartShell extends Component{
 	}
 
 	changeGeo(rec){
-		this.patchFields({
+		const patch = {
 			lon: convertLonToStr(rec.lng),
 			lat: convertLatToStr(rec.lat),
 			gpsLon: rec.gpsLng,
 			gpsLat: rec.gpsLat,
-		});
+		};
+		// 选地点 → 时区自动校正:重锚 date/time 到新偏移(setZone 只改时区标签、保留钟面时刻);
+		// 手动改过时区则沿用 rec.zone。卜卦/择日按当地民用时起盘,选异地后时刻随之归入当地时区。
+		const cur = this.state.fields.date && this.state.fields.date.value;
+		const ds = (cur && cur.format) ? cur.format('YYYY-MM-DD') : null;
+		const z = resolveGeoZone(rec, ds);
+		if(z && cur && cur.setZone){
+			const nd = cur.clone ? cur.clone() : cur;
+			nd.setZone(z);
+			patch.date = nd;
+			patch.time = nd.clone ? nd.clone() : nd;
+			patch.ad = nd.ad;
+			patch.zone = z;
+		}
+		this.patchFields(patch);
 	}
 
 	changeField(key, val){

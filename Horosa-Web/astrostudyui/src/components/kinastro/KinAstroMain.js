@@ -2,6 +2,8 @@ import { Component } from 'react';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { Input, InputNumber, Modal, Spin } from 'antd';
 import DateTime from '../comp/DateTime';
+import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import CanPingMain from '../shusuan/CanPingMain';
 import HeLuoMain from '../shusuan/HeLuoMain';
 import SpaceTimePanel, { buildDateTimeFromFields, formatSpaceTime } from '../comp/SpaceTimePanel';
@@ -789,6 +791,7 @@ class KinAstroMain extends Component{
 		this.timeHook = {};
 		this.requestSeq = 0;
 		this.onTimeChanged = this.onTimeChanged.bind(this);
+		this.changeGeo = this.changeGeo.bind(this);
 		this.clickPlot = this.clickPlot.bind(this);
 		this.fetchPan = this.fetchPan.bind(this);
 		this.setRightPanelTab = this.setRightPanelTab.bind(this);
@@ -892,6 +895,28 @@ class KinAstroMain extends Component{
 			const flds = { ...(this.props.fields || {}), ...field };
 			this.props.dispatch({ type: 'astro/fetchByFields', payload: flds });
 		}
+	}
+
+	changeGeo(rec){
+		// 策天飞星(cetian)选地点 → 坐标 + 时区自动校正 → onFieldsChange → fetchByFields 实时重排
+		const f = this.props.fields || {};
+		const dDt = f.date && f.date.value;
+		const tDt = f.time && f.time.value;
+		const ds = (dDt && dDt.format) ? dDt.format('YYYY-MM-DD') : null;
+		const z = resolveGeoZone(rec, ds);
+		const payload = {
+			lon: { value: convertLonToStr(rec.lng) },
+			lat: { value: convertLatToStr(rec.lat) },
+			gpsLon: { value: rec.gpsLng },
+			gpsLat: { value: rec.gpsLat },
+		};
+		if(z){
+			payload.zone = { value: z };
+			// 重锚 date/time 到新时区(保留钟面时刻、瞬时随之偏移),否则排盘仍用旧时区算瞬时
+			if(dDt && dDt.clone){ const nd = dDt.clone(); nd.setZone(z); payload.date = { value: nd }; payload.ad = { value: nd.ad }; }
+			if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); payload.time = { value: nt }; }
+		}
+		this.onFieldsChange(payload);
 	}
 
 	onTimeChanged(value){
@@ -1097,6 +1122,7 @@ class KinAstroMain extends Component{
 					value={datetm}
 					timeText={formatSpaceTime(fields, '---- -- -- --:--:--')}
 					onTimeChange={this.onTimeChanged}
+					onGeoChange={this.changeGeo}
 					timeHook={this.timeHook}
 					showLocation={this.config.serviceKey === 'cetian'}
 				/>

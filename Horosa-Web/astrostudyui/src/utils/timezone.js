@@ -144,6 +144,32 @@ export function applyDstToFields(flds){
 	return info;
 }
 
+// 选地点(各技法页 changeGeo)时求时区偏移的单一真源:
+//   - 手动改过时区(rec.zone,来自 GeoCoordSelector.withZone)→ 直接沿用;
+//   - 否则按新坐标 + 当前盘日期推断含夏令时的 UTC 偏移。
+// 只决定时区「标签」(配合 DateTime.setZone 保留输入的钟面时刻),不做真太阳时经度校正
+//(后者在后端按 timeAlg 控,直接时间盘不应被经度移位)。无法判定返回 null。
+export function resolveGeoZone(rec, dateStr){
+	if(!rec){
+		return null;
+	}
+	if(rec.zone){
+		return rec.zone;
+	}
+	try{
+		let ds = dateStr;
+		if(!ds){
+			// 取不到盘期时兜底「今天」作 DST 判定锚点(选点多在当前时段,偏差仅限夏令时切换日附近)
+			const now = new Date();
+			ds = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+		}
+		const info = dstAwareZoneAt(rec.gpsLat, rec.gpsLng, ds);
+		return info && info.offset ? info.offset : null;
+	}catch(e){
+		return null;
+	}
+}
+
 // 友好显示名:取 IANA 末段、下划线换空格(如 "America/New_York" → "New York")。
 export function friendlyZoneName(zone){
 	if(!zone){

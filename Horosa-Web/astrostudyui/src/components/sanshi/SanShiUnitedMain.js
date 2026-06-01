@@ -5,6 +5,7 @@ import XQIcon from '../xq-icons';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { splitDegree, convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import * as LRConst from '../liureng/LRConst';
 import ChuangChart from '../liureng/ChuangChart';
@@ -2271,12 +2272,26 @@ class SanShiUnitedMain extends Component{
 	}
 
 	changeGeo(rec){
-		this.onFieldsChange({
+		const base = this.state.localFields || this.props.fields || {};
+		const dDt = base.date && base.date.value;
+		const tDt = base.time && base.time.value;
+		const ds = (dDt && dDt.format) ? dDt.format('YYYY-MM-DD') : null;
+		// 选地点 → 时区自动校正 + 重锚 date/time 到新时区(保留钟面时刻、瞬时随之偏移);手动改过时区则沿用 rec.zone。
+		const z = resolveGeoZone(rec, ds);
+		const geoPatch = {
 			lon: { value: convertLonToStr(rec.lng) },
 			lat: { value: convertLatToStr(rec.lat) },
 			gpsLon: { value: rec.gpsLng },
 			gpsLat: { value: rec.gpsLat },
-		}, true);
+		};
+		if(z){
+			geoPatch.zone = { value: z };
+			if(dDt && dDt.clone){ const nd = dDt.clone(); nd.setZone(z); geoPatch.date = { value: nd }; geoPatch.ad = { value: nd.ad }; }
+			if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); geoPatch.time = { value: nt }; }
+		}
+		// 🔑 刷新左栏显示(localFields)+ 实时重算(silent fetchByFields):改地点/时区即重排三式
+		this.setState({ localFields: { ...base, ...geoPatch } });
+		this.onFieldsChange(geoPatch, true);
 	}
 
 	clickSave(){

@@ -19,6 +19,7 @@ import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import { getStore } from '../../utils/storageutil';
 import {
 	SEX_OPTIONS,
@@ -813,12 +814,38 @@ class DunJiaMain extends Component {
 	}
 
 	changeGeo(rec){
-		this.onFieldsChange({
+		const base = this.state.localFields || this.props.fields || {};
+		const dDt = base.date && base.date.value;
+		const tDt = base.time && base.time.value;
+		const ds = (dDt && dDt.format) ? dDt.format('YYYY-MM-DD') : null;
+		// 选地点 → 时区自动校正 + 重锚 date/time 到新时区(保留钟面时刻、瞬时随之偏移);手动改过时区则沿用 rec.zone。
+		const z = resolveGeoZone(rec, ds);
+		const geoPatch = {
 			lon: { value: convertLonToStr(rec.lng) },
 			lat: { value: convertLatToStr(rec.lat) },
 			gpsLon: { value: rec.gpsLng },
 			gpsLat: { value: rec.gpsLat },
-		}, true);
+		};
+		if(z){
+			geoPatch.zone = { value: z };
+			if(dDt && dDt.clone){ const nd = dDt.clone(); nd.setZone(z); geoPatch.date = { value: nd }; geoPatch.ad = { value: nd.ad }; }
+			if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); geoPatch.time = { value: nt }; }
+		}
+		// 🔑 刷新左栏 + 让时间选择器(datetm 由 localFields 派生 + setZone)同步到新经度/时区,再走 clickPlot 重排。
+		// 注意:此处【不】调 onFieldsChange(save)——save 会触发 hook 预取竞态、以旧盘(旧经纬/时区)以更高 seq 覆盖重算,
+		// 导致真太阳时/四柱/局停在旧值;clickPlot 内部会在 key 变化时自行 save(顺序正确,无竞态)。
+		const nextFields = { ...base, ...geoPatch };
+		this.setState({ localFields: nextFields, hasPlotted: true }, ()=>{
+			if(this._geoRecalcTimer){ clearTimeout(this._geoRecalcTimer); }
+			// 直接用捕获的重锚 NY fields 强制重排(绕过时间选择器同步竞态);延后让 setState 提交后再跑。
+			this._geoRecalcTimer = setTimeout(()=>{
+				this._geoRecalcTimer = null;
+				if(this.unmounted){ return; }
+				this.requestNongli(nextFields, true);
+				// 重排发起后再异步存盘(redux props.fields 同步供储存/AI),此时不再与重排抢 seq。
+				this.onFieldsChange(geoPatch, true);
+			}, 320);
+		});
 	}
 
 	genParams(fields){

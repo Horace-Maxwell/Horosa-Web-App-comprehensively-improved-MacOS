@@ -8,6 +8,7 @@ import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import XQIcon from '../xq-icons';
 import {
 	STYLE_OPTIONS,
@@ -210,12 +211,25 @@ class TaiYiMain extends Component {
 	}
 
 	changeGeo(rec) {
-		this.onFieldsChange({
+		const payload = {
 			lon: { value: convertLonToStr(rec.lng) },
 			lat: { value: convertLatToStr(rec.lat) },
 			gpsLon: { value: rec.gpsLng },
 			gpsLat: { value: rec.gpsLat },
-		});
+		};
+		// 选地点 → 时区自动校正 + 重锚 date/time 到新时区(clone+setZone:保留钟面时刻、瞬时随之偏移);
+		// 否则排盘仍用 date 实例残留的旧时区算瞬时/真太阳时。手动改过时区则沿用 rec.zone。
+		const f = this.props.fields || {};
+		const dDt = f.date && f.date.value;
+		const tDt = f.time && f.time.value;
+		const ds = (dDt && dDt.format) ? dDt.format('YYYY-MM-DD') : null;
+		const z = resolveGeoZone(rec, ds);
+		if(z){
+			payload.zone = { value: z };
+			if(dDt && dDt.clone){ const nd = dDt.clone(); nd.setZone(z); payload.date = { value: nd }; payload.ad = { value: nd.ad }; }
+			if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); payload.time = { value: nt }; }
+		}
+		this.onFieldsChange(payload);
 	}
 
 	genParams(fields) {

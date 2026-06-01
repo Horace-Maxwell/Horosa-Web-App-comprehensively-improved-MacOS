@@ -8,6 +8,7 @@ import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import { getHousesOption } from '../comp/CompHelper'
 import {
 	XQButton,
@@ -82,12 +83,31 @@ class AstroChartMain3D extends Component{
 
 	changeGeo(rec){
 		if(this.props.onChange){
-			this.props.onChange({
+			const payload = {
 				lon: convertLonToStr(rec.lng),
 				lat: convertLatToStr(rec.lat),
 				gpsLon: rec.gpsLng,
 				gpsLat: rec.gpsLat
-			});
+			};
+			// 选地点 → 时区自动校正(与 2D 占星一致:重锚出生时刻到新偏移、保留钟面时刻;手动改过则用 rec.zone)
+			const chartObj = this.props.value;
+			const f = this.props.fields || {};
+			const curZone = (chartObj && chartObj.params) ? chartObj.params.zone : (f.zone ? f.zone.value : null);
+			const birth = (chartObj && chartObj.params) ? chartObj.params.birth : null;
+			if(birth){
+				const dt = new DateTime();
+				if(curZone){ dt.setZone(curZone); }
+				if(birth.length > 11){ dt.parse(birth, 'YYYY-MM-DD HH:mm:ss'); }else{ dt.parse(birth, 'YYYY-MM-DD'); }
+				const z = resolveGeoZone(rec, dt.format ? dt.format('YYYY-MM-DD') : null);
+				if(z && dt.setZone){ dt.setZone(z); }
+				payload.tm = dt;
+				payload.ad = dt.ad;
+				payload.zone = dt.zone;
+			}else{
+				const z = resolveGeoZone(rec, null);
+				if(z){ payload.zone = z; }
+			}
+			this.props.onChange(payload);
 		}
 	}
 

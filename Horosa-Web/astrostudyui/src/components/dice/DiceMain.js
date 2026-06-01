@@ -11,6 +11,7 @@ import {
 	XQTabs as Tabs,
 } from '../xq-ui';
 import * as AstroHelper from '../astro/AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import request from '../../utils/request';
@@ -336,7 +337,11 @@ class DiceMain extends Component{
         let lat = latdeg[0] + latdir + (latdeg[1] < 10 ? '0' + latdeg[1] : latdeg[1]);
         let lon = londeg[0] + londir + (londeg[1] < 10 ? '0' + londeg[1] : londeg[1]);
 
+        // 选地点 → 时区自动校正(骰子按此刻起盘、以今天作 DST 锚点;手动改过时区则沿用 geo.zone)
+        const nextZone = resolveGeoZone(geo, null);
+
         this.setState({
+            zone: nextZone || this.state.zone,
             lat: lat,
 			lon: lon,
 			gpsLat: gps.lat,

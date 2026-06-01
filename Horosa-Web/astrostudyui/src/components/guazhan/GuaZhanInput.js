@@ -3,6 +3,7 @@ import { Row, Col } from 'antd';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import DateTime from '../comp/DateTime';
 import { XQSelect as Select } from '../xq-ui';
 
@@ -63,7 +64,7 @@ class GuaZhanInput extends Component{
 
 	changeGeo(rec){
 		if(this.props.onFieldsChange){
-			this.props.onFieldsChange({
+			const payload = {
 				lon: {
 					value: convertLonToStr(rec.lng),
 				},
@@ -76,7 +77,20 @@ class GuaZhanInput extends Component{
 				gpsLat: {
 					value: rec.gpsLat
 				}
-			});
+			};
+			// 选地点 → 时区自动校正 + 重锚 date/time 到新时区(clone+setZone:保留钟面时刻、瞬时随之偏移);
+			// 六爻只改起卦时刻的时区/经度(供真太阳时/神煞),不重摇卦象。手动改过时区则沿用 rec.zone。
+			const f = this.props.fields || {};
+			const dDt = f.date && f.date.value;
+			const tDt = f.time && f.time.value;
+			const ds = (dDt && dDt.format) ? dDt.format('YYYY-MM-DD') : null;
+			const z = resolveGeoZone(rec, ds);
+			if(z){
+				payload.zone = { value: z };
+				if(dDt && dDt.clone){ const nd = dDt.clone(); nd.setZone(z); payload.date = { value: nd }; payload.ad = { value: nd.ad }; }
+				if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); payload.time = { value: nt }; }
+			}
+			this.props.onFieldsChange(payload);
 		}
 	}
 

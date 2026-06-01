@@ -5,6 +5,7 @@ import IndiaChart, { fieldsToParams, requestIndiaChartData } from './IndiaChart'
 import DateTime from '../comp/DateTime';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import {convertLatToStr, convertLonToStr} from './AstroHelper';
+import { resolveGeoZone } from '../../utils/timezone';
 import * as AstroConst from '../../constants/AstroConst';
 import { XQSegmented as Segmented, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
@@ -732,9 +733,14 @@ class IndiaChartMain extends Component{
 			gpsLat: rec.gpsLat,
 		};
 		if(dt){
-			patch.tm = dt.clone();
-			patch.ad = dt.ad;
-			patch.zone = dt.zone;
+			// 选地点 → 时区自动校正(只改时区标签、保留输入的钟面时刻;手动改过时区则沿用 rec.zone)
+			const ds = dt.format ? dt.format('YYYY-MM-DD') : null;
+			const z = resolveGeoZone(rec, ds);
+			const nd = dt.clone();
+			if(z && nd.setZone){ nd.setZone(z); }
+			patch.tm = nd;
+			patch.ad = nd.ad;
+			patch.zone = nd.zone;
 		}
 		this.onFieldsChange(patch);
 	}
