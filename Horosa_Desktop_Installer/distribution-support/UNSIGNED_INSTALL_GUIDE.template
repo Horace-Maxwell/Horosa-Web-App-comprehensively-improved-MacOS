@@ -1,0 +1,22 @@
+星阙未签名安装说明 / Unsigned Install Guide
+
+适用范围 / Scope
+- 仅适合开发者自用或少量熟人机器。
+- 仅支持 Apple Silicon Mac。
+- 需要 macOS 12 或更高版本。
+- 这是未签名发布包，第一次安装或打开时可能被 Gatekeeper 拦截。
+
+推荐流程 / Recommended Flow
+1. 先双击 Open-XingQue-Unsigned.command。
+2. 它会尝试移除同目录 .pkg 的 quarantine，并打开安装器。
+3. 如果系统仍然拦截，请对 .pkg 点右键 -> 打开。
+4. 安装完成后，如果 /Applications/__APP_NAME__.app 第一次仍被拦截，再次运行同一个 .command。
+5. 如果仍不行，请前往 系统设置 -> 隐私与安全性，允许本次被拦截的项目。
+
+Manual fallback commands
+- /usr/bin/xattr -dr com.apple.quarantine "/Applications/__APP_NAME__.app"
+- /usr/bin/xattr -dr com.apple.quarantine "./__PKG_NAME__"
+
+Notes
+- 运行这个 .command 时会短暂打开 Terminal，但 __APP_NAME__ 正常启动后不会长期挂着 Terminal 窗口。
+- 如果你是首次分发给陌生用户，这不是正式商业签名方案；它只是未签名自用/熟人分发方案。

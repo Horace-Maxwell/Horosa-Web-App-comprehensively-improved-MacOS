@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kinwuzhao"
+version = "0.2.0"
+description = "堅五兆 — 唐宋官方五兆卜法 Python 復原套件"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    {name = "kentang"},
+]
+keywords = ["divination", "wuzhao", "五兆", "dunhuang", "敦煌"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+]
+dependencies = [
+    "pendulum>=3.0.0",
+    "sxtwl>=2.0.6",
+    "kinliuren>=0.1.2.9",
+    "ephem>=4.1.6",
+    "bidict>=0.23.1",
+]
+
+[project.optional-dependencies]
+app = [
+    "streamlit>=1.24.0",
+    "streamlit-aggrid>=1.0.0",
+    "altair>=5.0.0",
+    "pytz>=2022.4",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["kinwuzhao*"]
+
+[tool.setuptools]
+py-modules = ["kinwuzhao", "config", "jieqi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

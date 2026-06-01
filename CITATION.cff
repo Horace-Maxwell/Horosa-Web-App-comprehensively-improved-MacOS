@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use Horosa in research, software evaluation, or workflow comparison, please cite the project."
+title: "Horosa"
+type: software
+version: "2.5.0"
+abstract: "Horosa is a local-first metaphysics workstation that combines a shared web/app workspace, local services, AI-assisted analysis, and a desktop delivery layer."
+license: "AGPL-3.0-only"
+authors:
+  - family-names: "Maxwell"
+    given-names: "Horace"
+url: "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS"
+repository-code: "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS"
+keywords:
+  - astrology
+  - metaphysics
+  - chinese-traditional-systems
+  - local-first
+  - ai-analysis
+  - desktop
+  - tauri

@@ -1,0 +1,420 @@
+import { Component } from 'react';
+import AstroChartMain from './AstroChartMain';
+import IndiaEastChart from './IndiaEastChart';
+import IndiaNorthChart from './IndiaNorthChart';
+import IndiaSouthChart from './IndiaSouthChart';
+import request from '../../utils/request';
+import * as Constants from '../../utils/constants';
+import * as AstroConst from '../../constants/AstroConst';
+import { buildAstroSnapshotContent, } from '../../utils/astroAiSnapshot';
+import { saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
+import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
+
+const indiaChartCache = new Map();
+const indiaChartInflight = new Map();
+const INDIA_CHART_CACHE_REV = 'india_kernel_varga_v2_yoga_v1';
+
+export function fieldsToParams(fields, overrides = {}){
+	const indiaHsys = overrides.indiaHsys !== undefined && overrides.indiaHsys !== null
+		? AstroConst.normalizeIndiaHouseSystem(overrides.indiaHsys)
+		: (fields.indiaHsys ? AstroConst.normalizeIndiaHouseSystem(fields.indiaHsys.value) : AstroConst.INDIA_HOUSE_SYSTEM_DEFAULT);
+	const indiaAyanamsa = overrides.indiaAyanamsa !== undefined && overrides.indiaAyanamsa !== null
+		? AstroConst.normalizeIndiaAyanamsa(overrides.indiaAyanamsa)
+		: (fields.indiaAyanamsa ? AstroConst.normalizeIndiaAyanamsa(fields.indiaAyanamsa.value) : AstroConst.INDIA_AYANAMSA_DEFAULT);
+	const params = {
+		date: fields.date.value.format('YYYY/MM/DD'),
+		time: fields.time.value.format('HH:mm:ss'),
+		ad: fields.ad.value,
+		zone: fields.zone.value,
+		lat: fields.lat.value,
+		lon: fields.lon.value,
+		gpsLat: fields.gpsLat.value,
+		gpsLon: fields.gpsLon.value,
+		hsys: indiaHsys,
+		indiaHsys,
+		indiaAyanamsa,
+		ayanamsa: indiaAyanamsa,
+		siderealMode: indiaAyanamsa,
+		_jyotishRev: INDIA_CHART_CACHE_REV,
+		zodiacal: 1,
+		tradition: fields.tradition.value,
+		strongRecption: fields.strongRecption.value,
+		simpleAsp: fields.simpleAsp.value,
+		virtualPointReceiveAsp: fields.virtualPointReceiveAsp.value,
+		predictive: 0,
+		name: fields.name.value,
+		pos: fields.pos.value,
+		after23NewDay: (fields.after23NewDay && fields.after23NewDay.value !== undefined) ? fields.after23NewDay.value : defaultAfter23NewDay(),
+		lateZiHourUseNextDay: (fields.lateZiHourUseNextDay && fields.lateZiHourUseNextDay.value !== undefined) ? fields.lateZiHourUseNextDay.value : defaultLateZiHourUseNextDay(),
+	};
+
+	if(fields.chartnum){
+		params.chartnum = fields.chartnum.value;
+	}
+
+	return params;
+}
+
+function resolveIndiaFractal(chartnum, hook){
+	let fractal = parseInt(chartnum, 10);
+	if(Number.isNaN(fractal) || fractal <= 0){
+		if(hook && hook.fractal){
+			fractal = parseInt(hook.fractal, 10);
+		}
+	}
+	if(Number.isNaN(fractal) || fractal <= 0){
+		fractal = 1;
+	}
+	return fractal;
+}
+
+function resolveIndiaLabel(fractal, hook){
+	if(hook && hook.txt){
+		return hook.txt;
+	}
+	if(fractal === 1){
+		return '命盘';
+	}
+	return `${fractal}分盘`;
+}
+
+function buildIndiaChartCacheKey(params){
+	if(!params){
+		return '';
+	}
+	const normalized = {
+		date: params.date || '',
+		time: params.time || '',
+		ad: params.ad,
+		zone: params.zone,
+		lat: params.lat,
+		lon: params.lon,
+		gpsLat: params.gpsLat,
+		gpsLon: params.gpsLon,
+		hsys: params.hsys,
+		indiaHsys: params.indiaHsys,
+		indiaAyanamsa: params.indiaAyanamsa || AstroConst.INDIA_AYANAMSA_DEFAULT,
+		jyotishRev: params._jyotishRev || INDIA_CHART_CACHE_REV,
+		zodiacal: params.zodiacal,
+		tradition: params.tradition,
+		strongRecption: params.strongRecption,
+		simpleAsp: params.simpleAsp,
+		virtualPointReceiveAsp: params.virtualPointReceiveAsp,
+		predictive: params.predictive,
+		name: params.name || '',
+		pos: params.pos || '',
+		chartnum: params.chartnum || 1,
+	};
+	return JSON.stringify(normalized);
+}
+
+function hasCurrentJyotishPayload(result){
+	return !!(result && result.jyotish && result.jyotish.yogas);
+}
+
+export async function requestIndiaChartData(params){
+	const cacheKey = buildIndiaChartCacheKey(params);
+	let result = indiaChartCache.get(cacheKey);
+	if(result && !hasCurrentJyotishPayload(result)){
+		indiaChartCache.delete(cacheKey);
+		result = null;
+	}
+	if(!result){
+		let inflight = indiaChartInflight.get(cacheKey);
+		if(!inflight){
+			inflight = request(`${Constants.ServerRoot}/india/chart`, {
+				body: JSON.stringify(params),
+			}).then((data)=>{
+				if(!data || data[Constants.ResultKey] === undefined || data[Constants.ResultKey] === null){
+					return null;
+				}
+				const resolved = data[Constants.ResultKey];
+				if(resolved && hasCurrentJyotishPayload(resolved)){
+					indiaChartCache.set(cacheKey, resolved);
+				}
+				return resolved;
+			}).finally(()=>{
+				indiaChartInflight.delete(cacheKey);
+			});
+			indiaChartInflight.set(cacheKey, inflight);
+		}
+		result = await inflight;
+	}
+	return result;
+}
+
+function splitSections(text){
+	const lines = `${text || ''}`.split('\n');
+	const map = {};
+	let current = '';
+	lines.forEach((line)=>{
+		const trimmed = `${line || ''}`.trim();
+		const matched = trimmed.match(/^\[(.+)\]$/);
+		if(matched && matched[1]){
+			current = matched[1].trim();
+			if(!map[current]){
+				map[current] = [];
+			}
+			return;
+		}
+		if(!current){
+			return;
+		}
+		map[current].push(line);
+	});
+	return map;
+}
+
+function ensureSection(lines, title, body){
+	const clean = (body || []).map((line)=>`${line || ''}`.trimEnd()).filter((line)=>line.trim());
+	lines.push(`[${title}]`);
+	if(clean.length){
+		lines.push(...clean);
+	}else{
+		lines.push('无数据');
+	}
+	lines.push('');
+}
+
+function buildIndiaSnapshotText(chartObj, fields, chartnum, hook){
+	if(!chartObj || !chartObj.chart){
+		return '';
+	}
+	const fractal = resolveIndiaFractal(chartnum, hook);
+	const label = resolveIndiaLabel(fractal, hook);
+	const astroText = buildAstroSnapshotContent(chartObj, fields) || '';
+	const sections = splitSections(astroText);
+	const baseInfo = sections['起盘信息'] || [];
+	const houseCusps = sections['宫位宫头'] || [];
+	const starsAndPoints = sections['星与虚点'] || [];
+	const info = sections['信息'] || [];
+	const aspects = sections['相位'] || [];
+	const planets = sections['行星'] || [];
+	const lots = sections['希腊点'] || [];
+	const possibility = sections['可能性'] || [];
+	const starInfo = [
+		...houseCusps,
+		...starsAndPoints,
+		...info,
+	];
+
+	const lines = [];
+	ensureSection(lines, '起盘信息', [
+		`当前分盘：${label}`,
+		`分盘：D${fractal}`,
+		...baseInfo,
+	]);
+	ensureSection(lines, '星盘信息', starInfo);
+	ensureSection(lines, '信息', info);
+	ensureSection(lines, '相位', aspects);
+	ensureSection(lines, '行星', planets);
+	ensureSection(lines, '希腊点', lots);
+	ensureSection(lines, '可能性', possibility);
+	return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// 供 AI 分析无头复算：按出生字段取印度盘（默认 D1 命盘）并生成快照文本。
+export async function buildIndiaSnapshotForFields(fields, chartnum){
+	if(!fields){
+		return '';
+	}
+	const params = fieldsToParams(fields, {});
+	if(chartnum){
+		params.chartnum = chartnum;
+	}
+	const result = await requestIndiaChartData(params);
+	if(!result || !result.chart){
+		return '';
+	}
+	return buildIndiaSnapshotText(result, fields, params.chartnum || 1, null);
+}
+
+class IndiaChart extends Component{
+	constructor(props) {
+		super(props);
+		this.state = {
+			chartObj: null,
+		};
+
+		this.requestChart = this.requestChart.bind(this);
+		this.genParams = this.genParams.bind(this);
+		this.onFieldsChange = this.onFieldsChange.bind(this);
+		this.requestChartObj = this.requestChartObj.bind(this);
+		this.getIndiaOptionOverrides = this.getIndiaOptionOverrides.bind(this);
+
+		if(this.props.hook){
+			this.props.hook.fun = (fields)=>{
+				this.requestChartObj(fields);
+			};
+		}
+
+	}
+
+	getIndiaOptionOverrides(){
+		const overrides = {};
+		if(this.props.indiaHsys !== undefined && this.props.indiaHsys !== null){
+			overrides.indiaHsys = this.props.indiaHsys;
+		}
+		if(this.props.indiaAyanamsa !== undefined && this.props.indiaAyanamsa !== null){
+			overrides.indiaAyanamsa = this.props.indiaAyanamsa;
+		}
+		return overrides;
+	}
+
+	async requestChart(params, sourceFields){
+		let result = null;
+		try{
+			result = await requestIndiaChartData(params);
+		}catch(e){
+			result = null;
+		}
+
+		const st = {
+			chartObj: result,
+		};
+
+		this.setState(st);
+		if(this.props.onChartLoad){
+			this.props.onChartLoad(result, params);
+		}
+		const snapshotFields = sourceFields || this.props.fields;
+		const snapshotText = buildIndiaSnapshotText(result, snapshotFields, params ? params.chartnum : null, this.props.hook);
+		if(snapshotText){
+			const fractal = resolveIndiaFractal(params ? params.chartnum : null, this.props.hook);
+			const label = resolveIndiaLabel(fractal, this.props.hook);
+			const meta = {
+				fractal,
+				label,
+			};
+			saveModuleAISnapshot('indiachart', snapshotText, meta);
+			saveModuleAISnapshot('indiachart_current', snapshotText, meta);
+			saveModuleAISnapshot(`indiachart_${fractal}`, snapshotText, meta);
+		}
+	}
+
+	requestChartObj(fields){
+		let params = null;
+		try{
+			if(fields){
+				params = fieldsToParams(fields, this.getIndiaOptionOverrides());
+				if(params.chartnum === undefined || params.chartnum === null){
+					params.chartnum = 1;
+				}
+			}else{
+				params = this.genParams();
+			}
+		}catch(e){
+			this.setState({
+				chartObj: null,
+			});
+			return;
+		}
+		this.requestChart(params, fields || this.props.fields);
+	}
+
+	genParams(){
+		let fields = this.props.fields;
+		let params = fieldsToParams(fields, this.getIndiaOptionOverrides());
+		if(this.props.chartnum){
+			params.chartnum = this.props.chartnum;
+		}
+		return params;
+	}
+
+	onFieldsChange(values){
+		if(this.props.onChange){
+			this.props.onChange(values);
+		}		
+	}
+
+	componentDidMount(){
+		this.requestChartObj();
+	}
+
+	componentDidUpdate(prevProps){
+		let prevKey = '';
+		let nextKey = '';
+		try{
+			const prevOverrides = {};
+			if(prevProps.indiaHsys !== undefined && prevProps.indiaHsys !== null){
+				prevOverrides.indiaHsys = prevProps.indiaHsys;
+			}
+			if(prevProps.indiaAyanamsa !== undefined && prevProps.indiaAyanamsa !== null){
+				prevOverrides.indiaAyanamsa = prevProps.indiaAyanamsa;
+			}
+			const prevParams = fieldsToParams(prevProps.fields, prevOverrides);
+			if(prevProps.chartnum){
+				prevParams.chartnum = prevProps.chartnum;
+			}
+			prevKey = buildIndiaChartCacheKey(prevParams);
+			nextKey = buildIndiaChartCacheKey(this.genParams());
+		}catch(e){
+			return;
+		}
+		if(prevKey !== nextKey){
+			this.requestChartObj();
+		}
+	}
+
+	render(){
+		let fields = this.props.fields;
+		let chartObj = this.state.chartObj;
+		let height = this.props.height ? this.props.height : 760;
+		let fractal = resolveIndiaFractal(this.props.chartnum, this.props.hook);
+		let label = resolveIndiaLabel(fractal, this.props.hook);
+		let indiaChartStyle = AstroConst.normalizeIndiaChartStyle(this.props.indiaChartStyle);
+		const IndiaChartRenderer = indiaChartStyle === AstroConst.INDIA_CHART_STYLE_NORTH
+			? IndiaNorthChart
+			: (indiaChartStyle === AstroConst.INDIA_CHART_STYLE_EAST ? IndiaEastChart : IndiaSouthChart);
+
+		if(this.props.chartOnly){
+			return (
+				<div className="horosa-india-chart-instance horosa-india-chart-only">
+					<IndiaChartRenderer
+						value={chartObj}
+						chartnum={fractal}
+						label={label}
+						height={height}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						degreeDisplayMode={this.props.degreeDisplayMode}
+					/>
+				</div>
+			);
+		}
+
+		return (
+			<div className="horosa-india-chart-instance">
+					<AstroChartMain 
+						value={chartObj} 
+					onChange={this.onFieldsChange}
+					fields={fields} 
+					hidezodiacal={1}
+					hidehsys={1}
+					indiahsys={1}
+					height={height} 
+					chartRenderer={({chartObj: currentChartObj, height: chartHeight})=>(
+						<IndiaChartRenderer
+							value={currentChartObj}
+							chartnum={fractal}
+							label={label}
+							height={chartHeight}
+							planetDisplay={this.props.planetDisplay}
+							lotsDisplay={this.props.lotsDisplay}
+							degreeDisplayMode={this.props.degreeDisplayMode}
+						/>
+					)}
+						chartDisplay={this.props.chartDisplay}
+						indiaChartStyle={indiaChartStyle}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						showPlanetHouseInfo={this.props.showPlanetHouseInfo}
+						showAstroMeaning={this.props.showAstroMeaning}
+						dispatch={this.props.dispatch}
+					/>
+			</div>
+		);
+	}
+}
+
+export default IndiaChart;

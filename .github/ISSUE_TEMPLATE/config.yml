@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support Guidance
+    url: https://example.com/founder-decision-required/support
+    about: Replace this placeholder with the real support path before publishing.
+  - name: Security Reporting Guidance
+    url: https://example.com/founder-decision-required/security
+    about: Replace this placeholder with the real private security reporting path before publishing.

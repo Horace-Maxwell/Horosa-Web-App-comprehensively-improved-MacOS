@@ -1,0 +1,299 @@
+import math
+from datetime import datetime, timedelta, timezone
+
+from flatlib.datetime import Datetime
+from flatlib import const
+from astrostudy import helper
+
+# table of ascensional arcs of zodiacal signs
+
+SignsAscTimeZ = [
+    [27 + 55 / 60, 29 + 54 / 60, 32 + 11 / 60, 32 + 11 / 60, 29 + 54 / 60, 27 + 55 / 60],  # 0
+    [27 + 55 / 60, 29 + 54 / 60, 32 + 11 / 60, 32 + 11 / 60, 29 + 54 / 60, 27 + 55 / 60],  # 1
+    [27 + 55 / 60, 29 + 54 / 60, 32 + 11 / 60, 32 + 11 / 60, 29 + 54 / 60, 27 + 55 / 60],  # 2
+    [27 + 55 / 60, 29 + 54 / 60, 32 + 11 / 60, 32 + 11 / 60, 29 + 54 / 60, 27 + 55 / 60],  # 3
+    [27 + 55 / 60, 29 + 54 / 60, 32 + 11 / 60, 32 + 11 / 60, 29 + 54 / 60, 27 + 55 / 60],  # 4
+
+    [26 + 54 / 60, 29 + 5 / 60, 31 + 51 / 60, 32 + 31 / 60, 30 + 44 / 60, 28 + 56 / 60],  # 5
+    [26 + 54 / 60, 29 + 5 / 60, 31 + 51 / 60, 32 + 31 / 60, 30 + 44 / 60, 28 + 56 / 60],  # 6
+    [26 + 54 / 60, 29 + 5 / 60, 31 + 51 / 60, 32 + 31 / 60, 30 + 44 / 60, 28 + 56 / 60],  # 7
+    [26 + 54 / 60, 29 + 5 / 60, 31 + 51 / 60, 32 + 31 / 60, 30 + 44 / 60, 28 + 56 / 60],  # 8
+    [26 + 54 / 60, 29 + 5 / 60, 31 + 51 / 60, 32 + 31 / 60, 30 + 44 / 60, 28 + 56 / 60],  # 9
+
+    [25 + 51 / 60, 28 + 15 / 60, 31 + 30 / 60, 32 + 51 / 60, 31 + 34 / 60, 29 + 58 / 60],  # 10
+    [25 + 51 / 60, 28 + 15 / 60, 31 + 30 / 60, 32 + 51 / 60, 31 + 34 / 60, 29 + 58 / 60],  # 11
+    [25 + 51 / 60, 28 + 15 / 60, 31 + 30 / 60, 32 + 51 / 60, 31 + 34 / 60, 29 + 58 / 60],  # 12
+    [25 + 51 / 60, 28 + 15 / 60, 31 + 30 / 60, 32 + 51 / 60, 31 + 34 / 60, 29 + 58 / 60],  # 13
+    [25 + 51 / 60, 28 + 15 / 60, 31 + 30 / 60, 32 + 51 / 60, 31 + 34 / 60, 29 + 58 / 60],  # 14
+
+    [24 + 47 / 60, 27 + 23 / 60, 31 + 9 / 60, 33 + 13 / 60, 32 + 26 / 60, 31 + 2 / 60],  # 15
+    [24 + 47 / 60, 27 + 23 / 60, 31 + 9 / 60, 33 + 13 / 60, 32 + 26 / 60, 31 + 2 / 60],  # 16
+    [24 + 47 / 60, 27 + 23 / 60, 31 + 9 / 60, 33 + 13 / 60, 32 + 26 / 60, 31 + 2 / 60],  # 17
+    [24 + 47 / 60, 27 + 23 / 60, 31 + 9 / 60, 33 + 13 / 60, 32 + 26 / 60, 31 + 2 / 60],  # 18
+    [24 + 47 / 60, 27 + 23 / 60, 31 + 9 / 60, 33 + 13 / 60, 32 + 26 / 60, 31 + 2 / 60],  # 19
+
+    [23 + 40 / 60, 26 + 28 / 60, 30 + 47 / 60, 33 + 35 / 60, 33 + 21 / 60, 32 + 9 / 60],  # 20
+    [23 + 26 / 60, 26 + 17 / 60, 30 + 42 / 60, 33 + 40 / 60, 33 + 32 / 60, 33 + 23 / 60],  # 21
+    [23 + 12 / 60, 26 + 5 / 60, 30 + 37 / 60, 33 + 45 / 60, 33 + 44 / 60, 32 + 37 / 60],  # 22
+
+    [22 + 58 / 60, 25 + 53 / 60, 30 + 32 / 60, 33 + 50 / 60, 33 + 56 / 60, 32 + 51 / 60],  # 23
+    [22 + 43 / 60, 25 + 41 / 60, 30 + 27 / 60, 33 + 55 / 60, 34 + 8 / 60, 33 + 6 / 60],  # 24
+    [22 + 29 / 60, 25 + 29 / 60, 30 + 22 / 60, 34 + 0 / 60, 34 + 20 / 60, 33 + 20 / 60],  # 25
+    [22 + 14 / 60, 25 + 17 / 60, 30 + 17 / 60, 34 + 5 / 60, 34 + 32 / 60, 33 + 35 / 60],  # 26
+
+    [21 + 58 / 60, 25 + 4 / 60, 30 + 12 / 60, 34 + 10 / 60, 34 + 45 / 60, 33 + 51 / 60],  # 27
+    [21 + 43 / 60, 24 + 51 / 60, 30 + 6 / 60, 34 + 16 / 60, 34 + 58 / 60, 34 + 6 / 60],  # 28
+    [21 + 27 / 60, 24 + 38 / 60, 30 + 1 / 60, 34 + 21 / 60, 35 + 11 / 60, 34 + 22 / 60],  # 29
+    [21 + 11 / 60, 24 + 24 / 60, 29 + 55 / 60, 34 + 27 / 60, 35 + 25 / 60, 34 + 38 / 60],  # 30
+
+    [20 + 54 / 60, 24 + 10 / 60, 29 + 49 / 60, 34 + 33 / 60, 35 + 39 / 60, 34 + 55 / 60],  # 31
+    [20 + 37 / 60, 23 + 56 / 60, 29 + 43 / 60, 34 + 39 / 60, 35 + 53 / 60, 35 + 12 / 60],  # 32
+    [20 + 20 / 60, 23 + 42 / 60, 29 + 37 / 60, 34 + 45 / 60, 36 + 7 / 60, 35 + 29 / 60],  # 33
+    [20 + 2 / 60, 23 + 27 / 60, 29 + 30 / 60, 34 + 51 / 60, 36 + 22 / 60, 35 + 47 / 60],  # 34
+
+    [19 + 44 / 60, 23 + 11 / 60, 29 + 24 / 60, 34 + 58 / 60, 36 + 38 / 60, 36 + 5 / 60],  # 35
+    [19 + 26 / 60, 22 + 55 / 60, 29 + 17 / 60, 35 + 5 / 60, 36 + 54 / 60, 36 + 23 / 60],  # 36
+    [19 + 7 / 60, 22 + 39 / 60, 29 + 10 / 60, 35 + 12 / 60, 37 + 10 / 60, 36 + 43 / 60],  # 37
+
+    [18 + 47 / 60, 22 + 22 / 60, 29 + 2 / 60, 35 + 19 / 60, 37 + 27 / 60, 37 + 2 / 60],  # 38
+    [18 + 27 / 60, 22 + 5 / 60, 28 + 55 / 60, 35 + 27 / 60, 37 + 44 / 60, 37 + 22 / 60],  # 39
+    [18 + 6 / 60, 21 + 47 / 60, 28 + 47 / 60, 35 + 35 / 60, 38 + 20 / 60, 37 + 43 / 60],  # 40
+
+    [17 + 45 / 60, 21 + 28 / 60, 28 + 38 / 60, 35 + 43 / 60, 38 + 21 / 60, 38 + 4 / 60],  # 41
+    [17 + 23 / 60, 21 + 8 / 60, 28 + 30 / 60, 35 + 52 / 60, 38 + 41 / 60, 38 + 26 / 60],  # 42
+    [17 + 0 / 60, 20 + 48 / 60, 28 + 21 / 60, 36 + 1 / 60, 39 + 1 / 60, 38 + 49 / 60],  # 43
+
+    [16 + 36 / 60, 20 + 27 / 60, 28 + 11 / 60, 36 + 11 / 60, 39 + 22 / 60, 39 + 13 / 60],  # 44
+    [16 + 12 / 60, 20 + 5 / 60, 28 + 1 / 60, 36 + 21 / 60, 39 + 44 / 60, 39 + 37 / 60],  # 45
+
+    [15 + 46 / 60, 19 + 42 / 60, 27 + 50 / 60, 36 + 32 / 60, 40 + 7 / 60, 40 + 3 / 60],  # 46
+    [15 + 20 / 60, 19 + 18 / 60, 27 + 39 / 60, 36 + 43 / 60, 40 + 31 / 60, 40 + 29 / 60],  # 47
+
+    [14 + 53 / 60, 18 + 53 / 60, 27 + 27 / 60, 36 + 55 / 60, 40 + 56 / 60, 40 + 56 / 60],  # 48
+    [14 + 24 / 60, 18 + 26 / 60, 27 + 14 / 60, 37 + 8 / 60, 41 + 23 / 60, 41 + 25 / 60],  # 49
+
+    [13 + 55 / 60, 17 + 58 / 60, 27 + 0 / 60, 37 + 22 / 60, 41 + 51 / 60, 41 + 55 / 60],  # 50
+    [13 + 23 / 60, 17 + 28 / 60, 26 + 45 / 60, 37 + 37 / 60, 42 + 21 / 60, 42 + 26 / 60],  # 51
+
+    [12 + 51 / 60, 16 + 57 / 60, 26 + 29 / 60, 37 + 53 / 60, 42 + 52 / 60, 42 + 58 / 60],  # 52
+    [12 + 17 / 60, 16 + 23 / 60, 26 + 12 / 60, 38 + 10 / 60, 43 + 26 / 60, 43 + 32 / 60],  # 53
+
+    [11 + 41 / 60, 15 + 47 / 60, 25 + 53 / 60, 38 + 29 / 60, 44 + 2 / 60, 44 + 8 / 60],  # 54
+    [11 + 3 / 60, 15 + 9 / 60, 25 + 32 / 60, 38 + 50 / 60, 44 + 40 / 60, 44 + 46 / 60],  # 55
+
+    [10 + 24 / 60, 14 + 27 / 60, 25 + 8 / 60, 39 + 14 / 60, 45 + 22 / 60, 45 + 25 / 60],  # 56
+    [9 + 42 / 60, 13 + 42 / 60, 24 + 42 / 60, 39 + 40 / 60, 46 + 7 / 60, 46 + 7 / 60],  # 57
+
+    [8 + 57 / 60, 12 + 54 / 60, 24 + 12 / 60, 40 + 10 / 60, 46 + 55 / 60, 46 + 52 / 60],  # 58
+    [8 + 10 / 60, 12 + 0 / 60, 23 + 38 / 60, 40 + 44 / 60, 47 + 49 / 60, 47 + 39 / 60],  # 59
+
+    [7 + 19 / 60, 11 + 1 / 60, 22 + 58 / 60, 41 + 24 / 60, 48 + 48 / 60, 48 + 30 / 60],  # 60
+    [6 + 26 / 60, 9 + 55 / 60, 22 + 10 / 60, 42 + 12 / 60, 49 + 54 / 60, 49 + 24 / 60],  # 61
+    [5 + 28 / 60, 8 + 42 / 60, 21 + 11 / 60, 43 + 11 / 60, 51 + 7 / 60, 50 + 21 / 60],  # 62
+    [4 + 26 / 60, 7 + 18 / 60, 19 + 56 / 60, 44 + 26 / 60, 52 + 31 / 60, 51 + 23 / 60],  # 63
+    [3 + 19 / 60, 5 + 41 / 60, 18 + 13 / 60, 48 + 8 / 60, 54 + 8 / 60, 52 + 30 / 60],  # 64
+    [2 + 6 / 60, 3 + 48 / 60, 15 + 40 / 60, 48 + 42 / 60, 56 + 1 / 60, 53 + 43 / 60],  # 65
+    [0 + 47 / 60, 1 + 30 / 60, 10 + 47 / 60, 53 + 35 / 60, 58 + 19 / 60, 55 + 2 / 60]  # 66
+]
+
+SignsAscTimeIndex={
+    'Aries': 0,
+    'Taurus': 1,
+    'Gemini': 2,
+    'Cancer': 3,
+    'Leo': 4,
+    'Virgo': 5,
+    'Libra': 5,
+    'Scorpio': 4,
+    'Sagittarius': 3,
+    'Capricorn': 2,
+    'Aquarius': 1,
+    'Pisces': 0
+}
+
+def getAscSignTime(lat, fromLon, toLon):
+    if fromLon >= toLon:
+        return 0
+
+    toIdx = int(toLon / 30)
+    fromIdx = int(fromLon / 30)
+    fromSignLon = fromLon % 30
+    toSignLon = toLon % 30
+    toSignLon = 30 if toSignLon == 0 else toSignLon
+    latIdx = abs(int(lat))
+    latIdx = 66 if latIdx > 66 else latIdx
+    ary = SignsAscTimeZ[latIdx]
+    cnt = 0
+    if fromIdx == toIdx:
+        sig = const.LIST_SIGNS[fromIdx]
+        aryidx = SignsAscTimeIndex[sig]
+        factor = ary[aryidx] / 30
+        cnt = cnt + (toSignLon - fromSignLon) * factor
+    else:
+        for i in range(fromIdx, toIdx):
+            sig = const.LIST_SIGNS[i]
+            aryidx = SignsAscTimeIndex[sig]
+            factor = ary[aryidx] / 30
+            if i == fromIdx:
+                cnt = cnt + (30 - fromSignLon) * factor
+            else:
+                cnt = cnt + ary[aryidx]
+
+        toIdx = toIdx if toIdx < 12 else 11
+        sig = const.LIST_SIGNS[toIdx]
+        aryidx = SignsAscTimeIndex[sig]
+        factor = ary[aryidx] / 30
+        cnt = cnt + toSignLon * factor
+
+    return cnt
+
+
+def getSignAscTimeFactor(lat, ascSign):
+    """ get signs ascendant time factor
+    :param lat:
+    :param ascSign:
+    :return:
+    """
+    parts = lat.split('n')
+    if len(parts) == 1:
+        parts = lat.split('N')
+
+    latInt = int(parts[0])
+    if latInt >= len(SignsAscTimeZ):
+        latInt = len(SignsAscTimeZ) - 1
+
+    factorIdx = SignsAscTimeIndex[ascSign]
+    ascTime = SignsAscTimeZ[latInt][factorIdx]
+    return ascTime / 30
+
+def getYearAndDateByAscTimeFactor(arc, lat, ascSign):
+    basearc = arc * getSignAscTimeFactor(lat, ascSign)
+    year = int(basearc)
+    dayInYear = int((basearc - year)*365.2421904)
+    return (year, dayInYear)
+
+def getDaysByAscTimeFactor(arc, lat, ascSign):
+    basearc = arc * getSignAscTimeFactor(lat, ascSign)
+    return basearc * 365.2421904
+
+
+class SignAscTime:
+
+    def __init__(self, birthday, birthtime, ascSign, lat, zone):
+        self.birth = Datetime(birthday, birthtime, zone)
+        self.ascSign = ascSign
+        self.lat = lat
+        self.zone = zone
+        self._birth_local = self._build_local_birth_datetime(birthday, birthtime, zone)
+
+    def _parse_offset_tz(self, zone):
+        if isinstance(zone, (int, float)):
+            return timezone(timedelta(hours=float(zone)))
+
+        txt = '{0}'.format(zone if zone is not None else '').strip()
+        if txt in ['', 'UTC', 'utc', 'Z', 'z']:
+            return timezone.utc
+
+        sign = 1
+        if txt[0] == '-':
+            sign = -1
+        txt = txt[1:] if txt[0] in ['+', '-'] else txt
+        parts = txt.split(':')
+        hour = int(parts[0]) if len(parts) > 0 and parts[0] != '' else 0
+        minute = int(parts[1]) if len(parts) > 1 and parts[1] != '' else 0
+        delta = timedelta(hours=hour, minutes=minute)
+        return timezone(sign * delta)
+
+    def _build_local_birth_datetime(self, birthday, birthtime, zone):
+        parts = birthday.split('/')
+        if len(parts) == 1:
+            parts = birthday.split('-')
+        if len(parts) != 3:
+            return None
+
+        year = int(parts[0])
+        month = int(parts[1])
+        day = int(parts[2])
+        if year <= 0 or year > 9999:
+            return None
+
+        if isinstance(birthtime, (int, float)):
+            total_seconds = int(round(float(birthtime) * 3600.0))
+            hour = (total_seconds // 3600) % 24
+            minute = (total_seconds % 3600) // 60
+            second = total_seconds % 60
+        else:
+            tm = '{0}'.format(birthtime if birthtime is not None else '00:00:00').split('.')[0]
+            tparts = tm.split(':')
+            hour = int(tparts[0]) if len(tparts) > 0 and tparts[0] != '' else 0
+            minute = int(tparts[1]) if len(tparts) > 1 and tparts[1] != '' else 0
+            second = int(tparts[2]) if len(tparts) > 2 and tparts[2] != '' else 0
+        return datetime(year, month, day, hour, minute, second, tzinfo=self._parse_offset_tz(zone))
+
+    def _add_years_safe(self, dt, years):
+        try:
+            return dt.replace(year=dt.year + years)
+        except ValueError:
+            # Feb 29 fallback for non-leap years.
+            return dt.replace(month=2, day=28, year=dt.year + years)
+
+    def getJDFromPDArc(self, arc):
+        # Core is closer to symbolic-year interpolation than a tropical-year
+        # constant: split the age by whole years, move to the local anniversary,
+        # then interpolate across the next anniversary span.
+        magnitude = abs(float(arc))
+        if self._birth_local is None or not math.isfinite(magnitude):
+            return self.birth.jd + magnitude * 365.2421904
+
+        years = int(math.floor(magnitude + 1e-12))
+        fraction = magnitude - years
+
+        birth_utc = self._birth_local.astimezone(timezone.utc)
+        current_local = self._add_years_safe(self._birth_local, years)
+        next_local = self._add_years_safe(self._birth_local, years + 1)
+
+        whole_days = (current_local.astimezone(timezone.utc) - birth_utc).total_seconds() / 86400.0
+        span_days = (next_local.astimezone(timezone.utc) - current_local.astimezone(timezone.utc)).total_seconds() / 86400.0
+        return self.birth.jd + whole_days + fraction * span_days
+
+    def getPDArcFromDate(self, date_or_jd):
+        if isinstance(date_or_jd, (int, float)):
+            target_jd = float(date_or_jd)
+        elif hasattr(date_or_jd, 'jd'):
+            target_jd = float(date_or_jd.jd)
+        else:
+            return 0.0
+
+        birth_jd = float(self.birth.jd)
+        if not math.isfinite(target_jd) or target_jd <= birth_jd:
+            return 0.0
+
+        low = 0.0
+        high = max(1.0, math.ceil((target_jd - birth_jd) / 365.0) + 2.0)
+        for _ in range(16):
+            if self.getJDFromPDArc(high) >= target_jd:
+                break
+            high *= 2.0
+
+        for _ in range(64):
+            mid = (low + high) / 2.0
+            mid_jd = self.getJDFromPDArc(mid)
+            if mid_jd < target_jd:
+                low = mid
+            else:
+                high = mid
+
+        return (low + high) / 2.0
+
+    def getDateFromPDArc(self, arc):
+        jd = self.getJDFromPDArc(arc)
+        # Core dirs.csv exports dirDate in UTC-like display, not local chart time.
+        dt = Datetime.fromJD(jd, 0)
+        return dt.toCNString()
+
+
+    def getDateFromTermDirArc(self, arc):
+        days = arc * 365.2421904
+        jd = self.birth.jd + days
+        dt = Datetime.fromJD(jd, self.zone)
+        return dt.toCNString()

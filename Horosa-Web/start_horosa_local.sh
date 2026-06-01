@@ -1,0 +1,867 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+LOG_ROOT="${HOROSA_LOG_ROOT:-${ROOT}/.horosa-local-logs}"
+RUN_TAG="$(date +%Y%m%d_%H%M%S)"
+LOG_DIR="${LOG_ROOT}/${RUN_TAG}"
+PY_PID_FILE="${ROOT}/.horosa_py.pid"
+JAVA_PID_FILE="${ROOT}/.horosa_java.pid"
+UI_DIR="${ROOT}/astrostudyui"
+PY_LOG="${LOG_DIR}/astropy.log"
+JAVA_LOG="${LOG_DIR}/astrostudyboot.log"
+HTML_PATH="${UI_DIR}/dist-file/index.html"
+PYTHON_BIN="${HOROSA_PYTHON:-python3}"
+JAVA_BIN="${HOROSA_JAVA_BIN:-java}"
+PYTHONPATH_ASTRO="${ROOT}/flatlib-ctrad2:${ROOT}/astropy:${ROOT}/vendor"
+EXTRA_PY_SITE=""
+STARTUP_TIMEOUT="${HOROSA_STARTUP_TIMEOUT:-180}"
+SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
+SKIP_RUNTIME_WARMUP="${HOROSA_SKIP_RUNTIME_WARMUP:-0}"
+CHART_PORT="${HOROSA_CHART_PORT:-8899}"
+BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
+DESKTOP_MONGO_OPTIONAL="${HOROSA_DESKTOP_MONGO_OPTIONAL:-1}"
+MONGO_FALLBACK_DIR="${HOROSA_MONGO_FALLBACK_DIR:-${ROOT}/.horosa-cache/mongo-fallback}"
+NEED_TRANSLOG="${HOROSA_NEED_TRANSLOG:-false}"
+ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
+DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
+DIAG_FILE="${HOROSA_DIAG_FILE:-${DIAG_DIR}/horosa-run-issues.log}"
+EMBEDDED_PY_REPAIR_HELPER="${ROOT}/scripts/repairEmbeddedPythonRuntime.py"
+PYTHON_LAUNCH_NOUSERSITE="${PYTHONNOUSERSITE:-}"
+REQUIRE_EMBEDDED_RUNTIME="${HOROSA_REQUIRE_EMBEDDED_RUNTIME:-0}"
+DESKTOP_MONGO_SKIP_PING="${HOROSA_DESKTOP_MONGO_SKIP_PING:-0}"
+DESKTOP_SPRING_LAZY_INIT="${HOROSA_DESKTOP_SPRING_LAZY_INIT:-1}"
+DESKTOP_JAVA_FAST_START="${HOROSA_DESKTOP_JAVA_FAST_START:-1}"
+DESKTOP_JAVA_EXTRA_TOOL_OPTIONS="${HOROSA_DESKTOP_JAVA_EXTRA_TOOL_OPTIONS:--XX:+UseSerialGC -Xverify:none -Xms128m -Xmx512m}"
+TRUSTED_RUNTIME="${HOROSA_TRUSTED_RUNTIME:-0}"
+ENABLE_STARTUP_CRON="${HOROSA_ENABLE_STARTUP_CRON:-0}"
+ENABLE_STARTUP_TRANSGROUP_INIT="${HOROSA_ENABLE_STARTUP_TRANSGROUP_INIT:-0}"
+
+if [ -z "${HOROSA_PYTHON:-}" ]; then
+  # Prefer the complete embedded runtime (parallel to the embedded Java below); it ships every chart
+  # dependency. Only fall back to the prepared venv when the embedded interpreter is absent.
+  if [ -x "${ROOT_PARENT}/runtime/mac/python/bin/python3" ]; then
+    PYTHON_BIN="${ROOT_PARENT}/runtime/mac/python/bin/python3"
+  elif [ -x "${ROOT_PARENT}/.runtime/mac/venv/bin/python3" ]; then
+    PYTHON_BIN="${ROOT_PARENT}/.runtime/mac/venv/bin/python3"
+  fi
+fi
+if [ -z "${HOROSA_JAVA_BIN:-}" ] && [ -x "${ROOT_PARENT}/runtime/mac/java/bin/java" ]; then
+  JAVA_BIN="${ROOT_PARENT}/runtime/mac/java/bin/java"
+fi
+
+if [ ! -f "${HTML_PATH}" ]; then
+  HTML_PATH="${UI_DIR}/dist/index.html"
+fi
+
+mkdir -p "${LOG_DIR}"
+mkdir -p "${DIAG_DIR}"
+mkdir -p "$(dirname "${DIAG_FILE}")"
+
+diag_log() {
+  local msg="$1"
+  printf '[%s] [start_horosa_local] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${msg}" >>"${DIAG_FILE}" 2>/dev/null || true
+}
+
+diag_tail() {
+  local file="$1"
+  local lines="${2:-80}"
+  if [ ! -f "${file}" ]; then
+    return
+  fi
+  diag_log "tail ${lines} lines: ${file}"
+  while IFS= read -r line; do
+    printf '[%s] [tail] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${line}" >>"${DIAG_FILE}" 2>/dev/null || true
+  done < <(tail -n "${lines}" "${file}" 2>/dev/null || true)
+}
+
+diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
+diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR} mongo_optional=${DESKTOP_MONGO_OPTIONAL} mongo_skip_ping=${DESKTOP_MONGO_SKIP_PING} trusted_runtime=${TRUSTED_RUNTIME} needtranslog=${NEED_TRANSLOG} require_embedded_runtime=${REQUIRE_EMBEDDED_RUNTIME} lazy_spring=${DESKTOP_SPRING_LAZY_INIT} java_fast_start=${DESKTOP_JAVA_FAST_START} startup_cron=${ENABLE_STARTUP_CRON} startup_transgroup=${ENABLE_STARTUP_TRANSGROUP_INIT}"
+
+cleanup_metadata_files() {
+  local root="$1"
+  local cleaned="0"
+  if [ ! -d "${root}" ]; then
+    return 0
+  fi
+  cleaned="$(find "${root}" \( -name '._*' -o -name '.DS_Store' \) -print 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "${cleaned}" = "0" ]; then
+    return 0
+  fi
+  find "${root}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
+  diag_log "removed ${cleaned} metadata junk entries under ${root}"
+}
+
+cleanup_stale_pid_file() {
+  local pid_file="$1"
+  if [ ! -f "${pid_file}" ]; then
+    return
+  fi
+  local pid
+  pid="$(cat "${pid_file}")"
+  if [ -z "${pid}" ] || ! kill -0 "${pid}" >/dev/null 2>&1; then
+    rm -f "${pid_file}"
+  fi
+}
+
+cleanup_stale_pid_file "${PY_PID_FILE}"
+cleanup_stale_pid_file "${JAVA_PID_FILE}"
+cleanup_metadata_files "${ROOT_PARENT}"
+
+port_listening() {
+  local port="$1"
+  lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+http_responding() {
+  local url="$1"
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(curl -s -o /dev/null -m 2 -w '%{http_code}' "${url}" || true)"
+    if [ -z "${code}" ] || [ "${code}" = "000" ]; then
+      return 1
+    fi
+    return 0
+  fi
+  # 修法4:curl 缺失时改用内置 python urllib 探测,绝不静默放行(旧逻辑此处 return 0 会让就绪
+  # 坍缩成「仅端口监听」,热身/就绪判定形同空转)。任何 HTTP 响应(含 4xx)即视为在监听。
+  "${PYTHON_BIN}" - "${url}" <<'PY' >/dev/null 2>&1
+import sys, urllib.request, urllib.error
+try:
+    urllib.request.urlopen(sys.argv[1], timeout=2)
+except urllib.error.HTTPError:
+    pass
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0)
+PY
+}
+
+signed_backend_http_responding() {
+  local url="$1"
+  local sig="9947b25d6400dac3e74fea88ec1a2308a2c9abf5f3a0cda32b7655717fa86278"
+  if command -v curl >/dev/null 2>&1; then
+    local code
+    code="$(
+      curl -s -o /dev/null -m 2 -w '%{http_code}' \
+        -H "ClientChannel: 1" \
+        -H "ClientApp: 1" \
+        -H "ClientVer: 1.0" \
+        -H "Signature: ${sig}" \
+        "${url}" || true
+    )"
+    if [ -z "${code}" ] || [ "${code}" = "000" ] || [ "${code}" -ge 500 ]; then
+      return 1
+    fi
+    return 0
+  fi
+  # 修法4:curl 缺失时用内置 python urllib 携同样签名头探测,绝不静默放行。>=500 视为未就绪。
+  "${PYTHON_BIN}" - "${url}" "${sig}" <<'PY' >/dev/null 2>&1
+import sys, urllib.request, urllib.error
+url, sig = sys.argv[1], sys.argv[2]
+req = urllib.request.Request(url, headers={'ClientChannel': '1', 'ClientApp': '1', 'ClientVer': '1.0', 'Signature': sig})
+try:
+    resp = urllib.request.urlopen(req, timeout=2)
+    code = getattr(resp, 'status', 200) or 200
+except urllib.error.HTTPError as e:
+    code = e.code
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0 if code < 500 else 1)
+PY
+}
+
+warm_runtime_routes() {
+  local warmup_js="${UI_DIR}/scripts/warmHorosaRuntime.js"
+  local warmup_log="${LOG_DIR}/runtime-warmup.log"
+
+  if [ "${SKIP_RUNTIME_WARMUP}" = "1" ]; then
+    diag_log "runtime warmup skipped by env"
+    return 0
+  fi
+  if [ ! -f "${warmup_js}" ]; then
+    diag_log "runtime warmup script missing: ${warmup_js}"
+    return 0
+  fi
+  if ! command -v node >/dev/null 2>&1; then
+    diag_log "runtime warmup skipped: node missing"
+    return 0
+  fi
+
+  # 提速(更新后卡顿)B:预热改为后台非阻塞——首启不再为这 2–3s 多等。
+  # 外层 ( … ) >/dev/null 2>&1 & 让后台子进程不继承脚本的 stdout/stderr(否则它会持有
+  # Rust 端 command.output() 的 pipe 导致其迟迟不返回);node 自身另重定向到 warmup 日志,
+  # diag_log 写独立日志文件,均不碰该 pipe。
+  diag_log "runtime warmup begin (background)"
+  (
+    if HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${warmup_js}" >"${warmup_log}" 2>&1; then
+      diag_log "runtime warmup done"
+    else
+      diag_log "runtime warmup failed"
+      diag_tail "${warmup_log}" 120
+    fi
+  ) >/dev/null 2>&1 &
+}
+
+# 修法4:就绪后、导航前的「最小同步热身」——预热 Spring 懒加载的排盘 bean,让用户第一次排盘
+# 不再打到冷 bean(否则首个 /chart 慢/报错 → 前端弹「本地排盘服务未就绪」)。
+# 严格「非致命 + 有界」:后台跑 node 最小热身(仅 /chart),最多等 cap 秒,超时即杀并照常导航;
+# 任何失败/缺 node/缺依赖只记日志、return 0,绝不拖慢或卡住启动(最坏=今天的冷启动行为)。
+# 子进程 stdout/stderr 全部重定向到独立日志,绝不继承 Rust command.output() 的 pipe(同 warm_runtime_routes)。
+warm_runtime_routes_min_sync() {
+  local warmup_js="${UI_DIR}/scripts/warmHorosaRuntime.js"
+  local warmup_log="${LOG_DIR}/runtime-warmup-min.log"
+  local cap="${HOROSA_WARM_MIN_TIMEOUT:-5}"
+  if [ ! -f "${warmup_js}" ] || ! command -v node >/dev/null 2>&1; then
+    diag_log "min sync warmup skipped (no script/node)"
+    return 0
+  fi
+  diag_log "min sync warmup begin (cap=${cap}s)"
+  (
+    HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" HOROSA_WARM_MINIMAL=1 \
+      node "${warmup_js}" >"${warmup_log}" 2>&1
+  ) >/dev/null 2>&1 &
+  local wpid=$!
+  local waited=0
+  while kill -0 "${wpid}" >/dev/null 2>&1; do
+    if [ "${waited}" -ge "${cap}" ]; then
+      diag_log "min sync warmup exceeded ${cap}s -> kill, proceed anyway"
+      kill "${wpid}" >/dev/null 2>&1 || true
+      break
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "${wpid}" 2>/dev/null || true
+  diag_log "min sync warmup done (waited ${waited}s)"
+  return 0
+}
+
+load_brew_env() {
+  if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+}
+
+detect_brew_java_home() {
+  local formula=""
+  local prefix=""
+  local candidate=""
+
+  load_brew_env
+  if command -v brew >/dev/null 2>&1; then
+    for formula in openjdk@17 openjdk; do
+      if brew list --formula "${formula}" >/dev/null 2>&1; then
+        prefix="$(brew --prefix "${formula}" 2>/dev/null || true)"
+        candidate="${prefix}/libexec/openjdk.jdk/Contents/Home"
+        if [ -x "${candidate}/bin/java" ]; then
+          echo "${candidate}"
+          return 0
+        fi
+      fi
+    done
+  fi
+
+  for candidate in \
+    /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home; do
+    if [ -x "${candidate}/bin/java" ]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+java_bin_ready() {
+  local java_bin="$1"
+  if [ ! -x "${java_bin}" ]; then
+    return 1
+  fi
+  if [ -x /usr/bin/python3 ]; then
+    /usr/bin/python3 - "${java_bin}" <<'PY' >/dev/null 2>&1
+import subprocess
+import sys
+
+try:
+    completed = subprocess.run(
+        [sys.argv[1], "-version"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+except Exception:
+    raise SystemExit(1)
+
+raise SystemExit(0 if completed.returncode == 0 else 1)
+PY
+    return $?
+  fi
+  "${java_bin}" -version >/dev/null 2>&1
+}
+
+resolve_java_bin() {
+  local java_home=""
+  local resolved_bin=""
+
+  if [ "${TRUSTED_RUNTIME}" = "1" ] && [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ] && [ -x "${JAVA_BIN}" ]; then
+    return 0
+  fi
+
+  if java_bin_ready "${JAVA_BIN}"; then
+    return 0
+  fi
+
+  if [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ]; then
+    diag_log "java strict mode enabled; refusing fallback away from ${JAVA_BIN}"
+    return 1
+  fi
+
+  if command -v "${JAVA_BIN}" >/dev/null 2>&1; then
+    resolved_bin="$(command -v "${JAVA_BIN}")"
+    if java_bin_ready "${resolved_bin}"; then
+      JAVA_BIN="${resolved_bin}"
+      return 0
+    fi
+  fi
+
+  if [ -n "${JAVA_HOME:-}" ] && java_bin_ready "${JAVA_HOME}/bin/java"; then
+    JAVA_BIN="${JAVA_HOME}/bin/java"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+    return 0
+  fi
+
+  if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    java_home="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+    if [ -n "${java_home}" ] && java_bin_ready "${java_home}/bin/java"; then
+      export JAVA_HOME="${java_home}"
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+      JAVA_BIN="${JAVA_HOME}/bin/java"
+      return 0
+    fi
+  fi
+
+  java_home="$(detect_brew_java_home 2>/dev/null || true)"
+  if [ -n "${java_home}" ] && java_bin_ready "${java_home}/bin/java"; then
+    export JAVA_HOME="${java_home}"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+    JAVA_BIN="${JAVA_HOME}/bin/java"
+    return 0
+  fi
+
+  if command -v java >/dev/null 2>&1; then
+    resolved_bin="$(command -v java)"
+    if java_bin_ready "${resolved_bin}"; then
+      JAVA_BIN="${resolved_bin}"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+python_runtime_ready() {
+  local py_bin="$1"
+  local py_minor=""
+  local extra_site=""
+  local py_path="${PYTHONPATH_ASTRO}"
+  local py_root=""
+  local use_embedded_runtime="0"
+
+  if [ ! -x "${py_bin}" ]; then
+    return 1
+  fi
+
+  py_root="$(cd "$(dirname "${py_bin}")/.." 2>/dev/null && pwd)"
+  if [ -n "${py_root}" ] && [ -f "${py_root}/Python" ] && [ -d "${py_root}/lib" ]; then
+    use_embedded_runtime="1"
+  fi
+
+  py_minor="$("${py_bin}" - <<'PY'
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)" || return 1
+
+  if [ "${use_embedded_runtime}" != "1" ]; then
+    extra_site="${HOME}/Library/Python/${py_minor}/lib/python/site-packages"
+    if [ -d "${extra_site}" ]; then
+      py_path="${py_path}:${extra_site}"
+    fi
+    if [ -n "${PYTHONPATH:-}" ]; then
+      py_path="${py_path}:${PYTHONPATH}"
+    fi
+  fi
+
+  PYTHONPATH="${py_path}" PYTHONNOUSERSITE="$([ "${use_embedded_runtime}" = "1" ] && printf '1' || printf '%s' "${PYTHONNOUSERSITE:-}")" "${py_bin}" - <<'PY' >/dev/null 2>&1
+import importlib.util as iu
+# Load-bearing imports for the chart service at boot. cn2an/sxtwl/cnlunar are imported eagerly, so a
+# python that has cherrypy/jsonpickle/swisseph but lacks these still crashes — reject it here.
+mods = ("cherrypy", "jsonpickle", "swisseph", "cn2an", "sxtwl", "cnlunar")
+missing = [m for m in mods if iu.find_spec(m) is None]
+raise SystemExit(1 if missing else 0)
+PY
+}
+
+repair_embedded_python_runtime() {
+  local py_bin="$1"
+  local py_root=""
+
+  if [ ! -f "${EMBEDDED_PY_REPAIR_HELPER}" ]; then
+    return 1
+  fi
+  if [ ! -x /usr/bin/python3 ]; then
+    return 1
+  fi
+  if [ ! -x "${py_bin}" ]; then
+    return 1
+  fi
+
+  py_root="$(cd "$(dirname "${py_bin}")/.." 2>/dev/null && pwd)"
+  if [ -z "${py_root}" ] || [ ! -f "${py_root}/Python" ] || [ ! -d "${py_root}/lib" ]; then
+    return 1
+  fi
+
+  diag_log "repair embedded python runtime links: ${py_root}"
+  /usr/bin/python3 "${EMBEDDED_PY_REPAIR_HELPER}" --repair "${py_root}" >>"${DIAG_FILE}" 2>&1
+}
+
+resolve_python_bin() {
+  local root_parent=""
+  local candidate=""
+  local resolved=""
+
+  if [ "${TRUSTED_RUNTIME}" = "1" ] && [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ] && [ -x "${PYTHON_BIN}" ]; then
+    return 0
+  fi
+
+  root_parent="$(cd "${ROOT}/.." && pwd)"
+  local candidates=(
+    "${PYTHON_BIN}"
+    "${root_parent}/runtime/mac/python/bin/python3"
+    "${root_parent}/.runtime/mac/venv/bin/python3"
+  )
+
+  if [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ]; then
+    candidates=("${PYTHON_BIN}")
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    candidates+=("$(command -v python3)")
+  fi
+  if command -v python >/dev/null 2>&1; then
+    candidates+=("$(command -v python)")
+  fi
+
+  for candidate in "${candidates[@]}"; do
+    if [ -z "${candidate}" ]; then
+      continue
+    fi
+
+    resolved="${candidate}"
+    if [ ! -x "${resolved}" ]; then
+      if command -v "${resolved}" >/dev/null 2>&1; then
+        resolved="$(command -v "${resolved}")"
+      else
+        continue
+      fi
+    fi
+
+    if python_runtime_ready "${resolved}"; then
+      PYTHON_BIN="${resolved}"
+      return 0
+    fi
+
+    if repair_embedded_python_runtime "${resolved}" && python_runtime_ready "${resolved}"; then
+      diag_log "python runtime recovered after relink repair: ${resolved}"
+      PYTHON_BIN="${resolved}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+frontend_needs_build() {
+  local dist_index="${UI_DIR}/dist-file/index.html"
+  if [ ! -f "${dist_index}" ]; then
+    return 0
+  fi
+  if [ -n "$(find "${UI_DIR}/src" -type f -newer "${dist_index}" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  if [ -d "${UI_DIR}/public" ] && [ -n "$(find "${UI_DIR}/public" -type f -newer "${dist_index}" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  if [ -f "${UI_DIR}/package.json" ] && [ "${UI_DIR}/package.json" -nt "${dist_index}" ]; then
+    return 0
+  fi
+  if [ -f "${UI_DIR}/.umirc.js" ] && [ "${UI_DIR}/.umirc.js" -nt "${dist_index}" ]; then
+    return 0
+  fi
+  if [ -f "${UI_DIR}/.umirc.ts" ] && [ "${UI_DIR}/.umirc.ts" -nt "${dist_index}" ]; then
+    return 0
+  fi
+  return 1
+}
+
+ensure_frontend_build() {
+  local dist_file_index="${UI_DIR}/dist-file/index.html"
+  local dist_index="${UI_DIR}/dist/index.html"
+
+  if [ "${SKIP_UI_BUILD}" = "1" ]; then
+    if [ -f "${dist_file_index}" ]; then
+      HTML_PATH="${dist_file_index}"
+      return
+    fi
+    if [ -f "${dist_index}" ]; then
+      HTML_PATH="${dist_index}"
+      return
+    fi
+    echo "missing frontend index.html under ${UI_DIR}/dist-file or ${UI_DIR}/dist."
+    echo "HOROSA_SKIP_UI_BUILD=1 is set, but no prebuilt frontend bundle is available."
+    exit 1
+  fi
+
+  if frontend_needs_build; then
+    if ! command -v npm >/dev/null 2>&1; then
+      if [ -f "${dist_file_index}" ] || [ -f "${dist_index}" ]; then
+        echo "warning: frontend source changed but npm is unavailable; using existing bundle."
+      else
+        echo "missing frontend bundle and npm is unavailable."
+        exit 1
+      fi
+    else
+      echo "frontend source changed, rebuilding dist-file ..."
+      (
+        cd "${UI_DIR}"
+        if [ ! -d node_modules ]; then
+          npm install --legacy-peer-deps
+        fi
+        npm run build:file
+      )
+    fi
+  fi
+
+  if [ -f "${dist_file_index}" ]; then
+    HTML_PATH="${dist_file_index}"
+  elif [ -f "${dist_index}" ]; then
+    HTML_PATH="${dist_index}"
+  else
+    echo "missing frontend index.html under ${UI_DIR}/dist-file or ${UI_DIR}/dist."
+    exit 1
+  fi
+}
+
+# 修法3:卡死的「自己人」后端精准清除（取代旧 prune_stale_pid_file「判存活」逻辑:
+# 旧逻辑见自家 pid 存活即 exit 1「已在运行」,会被上次没杀净的自家残留后端永久拦住启动）。
+# 当 pid 文件里的进程仍存活时,旧逻辑直接 exit 1「已在运行」——但若那是上次 stop 没杀干净的
+# 「我们自己的」残留后端(stop_runtime 偶发失败/被 kill -9 中断),会永久拦住本次启动。
+# 这里在「确实存活」时,用 cmdline 签名核实它是不是我们自己的后端:
+#   是 → kill -9 它并清文件、继续启动(窄而稳:只杀这一个、经 pid 文件 + 签名双重核实);
+#   不是(pid 被系统回收给了别的无关进程)→ 维持今天的 exit 1,绝不误杀。
+reclaim_or_block_pid_file() {
+  local pid_file="$1"
+  local sig="$2"
+  [ -f "${pid_file}" ] || return 0
+  local pid
+  pid="$(tr -dc '0-9' <"${pid_file}" 2>/dev/null)"
+  if [ -z "${pid}" ] || ! kill -0 "${pid}" >/dev/null 2>&1; then
+    rm -f "${pid_file}"
+    return 0
+  fi
+  local cmd
+  cmd="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
+  if printf '%s\n' "${cmd}" | grep -Eq "${sig}"; then
+    diag_log "reclaim own live backend pid=${pid} (${pid_file}) sig=${sig}"
+    kill -9 "${pid}" >/dev/null 2>&1 || true
+    rm -f "${pid_file}"
+    return 0
+  fi
+  diag_log "pid ${pid} alive but NOT our backend; refuse to kill (cmd: ${cmd})"
+  return 1
+}
+runtime_already_live=0
+reclaim_or_block_pid_file "${PY_PID_FILE}" 'webchartsrv\.py' || runtime_already_live=1
+reclaim_or_block_pid_file "${JAVA_PID_FILE}" 'astrostudyboot\.jar|-Dhorosa\.runtime\.owner=horosa-desktop' || runtime_already_live=1
+if [ "${runtime_already_live}" = "1" ]; then
+  diag_log "blocked: a non-horosa live process holds our pid file"
+  echo "horosa runtime pid is held by a foreign process. run ./stop_horosa_local.sh first."
+  exit 1
+fi
+
+if ! [[ "${STARTUP_TIMEOUT}" =~ ^[0-9]+$ ]] || [ "${STARTUP_TIMEOUT}" -lt 30 ]; then
+  STARTUP_TIMEOUT=180
+fi
+
+# 端口被占(合并 astro-progression 的 reclaim_stale_port + 修法2 的 exit 3):
+# 先回收「我们自己的僵尸」(命令行含 tag,绝不误杀第三方),回收后等端口释放;
+# 若回收后仍被占(非 Horosa 进程 / 回收失败)→ exit 3(可重试),让 Rust 端换一对全新空闲端口重试,
+# 而非直接 exit 1 报死(两套端口健壮性合一:先清自家僵尸,清不掉再换口)。
+reclaim_stale_port() {
+  local port="$1" tag="$2" pids pid cmd killed=0
+  port_listening "${port}" || return 0
+  pids="$(lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null)"
+  for pid in ${pids}; do
+    cmd="$(ps -p "${pid}" -o command= 2>/dev/null | tr 'A-Z' 'a-z')"
+    case "${cmd}" in
+      *"${tag}"*)
+        diag_log "reclaiming stale ${tag} pid=${pid} on port ${port}"
+        kill -9 "${pid}" >/dev/null 2>&1 && killed=1 ;;
+    esac
+  done
+  if [ "${killed}" = "1" ]; then
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+      port_listening "${port}" || return 0
+      sleep 0.3
+    done
+  fi
+  port_listening "${port}" && return 1 || return 0
+}
+
+if ! reclaim_stale_port "${CHART_PORT}" "webchartsrv"; then
+  diag_log "blocked: port ${CHART_PORT} still in use after reclaim -> exit 3 (retryable)"
+  echo "port ${CHART_PORT} is already in use."
+  exit 3
+fi
+if ! reclaim_stale_port "${BACKEND_PORT}" "astrostudyboot"; then
+  diag_log "blocked: port ${BACKEND_PORT} still in use after reclaim -> exit 3 (retryable)"
+  echo "port ${BACKEND_PORT} is already in use."
+  exit 3
+fi
+
+ensure_frontend_build
+
+JAR="${ROOT}/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
+BUNDLE_JAR="${ROOT}/../runtime/mac/bundle/astrostudyboot.jar"
+if [ -f "${BUNDLE_JAR}" ]; then
+  if [ ! -f "${JAR}" ]; then
+    diag_log "target jar missing, fallback to bundled jar: ${BUNDLE_JAR}"
+    echo "backend target jar missing, using bundled jar fallback."
+    mkdir -p "$(dirname "${JAR}")"
+    cp -f "${BUNDLE_JAR}" "${JAR}"
+  elif [ "${BUNDLE_JAR}" -nt "${JAR}" ] && ! cmp -s "${BUNDLE_JAR}" "${JAR}"; then
+    diag_log "bundled jar newer than target jar, refreshing target from bundle"
+    cp -f "${BUNDLE_JAR}" "${JAR}"
+  fi
+fi
+if [ ! -f "${JAR}" ]; then
+  diag_log "missing jar after fallback: ${JAR}"
+  echo "missing ${JAR}"
+  echo "请先回到仓库根目录执行："
+  echo "  ../Horosa_OneClick_Mac.command"
+  echo "高级离线打包工具："
+  echo "  ../tools/mac/Prepare_Runtime_Mac.command"
+  exit 1
+fi
+
+if ! resolve_java_bin; then
+  diag_log "java resolve failed: ${JAVA_BIN}"
+  echo "java runtime not found: ${JAVA_BIN}"
+  echo "install java 17+ or run ../Horosa_OneClick_Mac.command"
+  exit 1
+fi
+if [ "${TRUSTED_RUNTIME}" = "1" ] && [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ] && [ -x "${JAVA_BIN}" ]; then
+  diag_log "java trusted-runtime fast path enabled: ${JAVA_BIN}"
+fi
+diag_log "java resolved: ${JAVA_BIN}"
+
+if ! resolve_python_bin; then
+  diag_log "python resolve failed: ${PYTHON_BIN}"
+  echo "python runtime not ready: ${PYTHON_BIN}"
+  echo "install runtime deps or run ../Horosa_OneClick_Mac.command"
+  exit 1
+fi
+if [ "${TRUSTED_RUNTIME}" = "1" ] && [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ] && [ -x "${PYTHON_BIN}" ]; then
+  diag_log "python trusted-runtime fast path enabled: ${PYTHON_BIN}"
+fi
+diag_log "python resolved: ${PYTHON_BIN}"
+
+PY_ROOT="$(cd "$(dirname "${PYTHON_BIN}")/.." 2>/dev/null && pwd || true)"
+if [ -n "${PY_ROOT}" ] && [ -f "${PY_ROOT}/Python" ] && [ -d "${PY_ROOT}/lib" ]; then
+  PYTHON_LAUNCH_NOUSERSITE="1"
+  diag_log "python launch isolation enabled for embedded runtime: ${PY_ROOT}"
+fi
+
+PY_MINOR="$("${PYTHON_BIN}" - <<'PY'
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)"
+EXTRA_PY_SITE="${HOME}/Library/Python/${PY_MINOR}/lib/python/site-packages"
+
+if [ "${PYTHON_LAUNCH_NOUSERSITE}" != "1" ] && [ -d "${EXTRA_PY_SITE}" ]; then
+  PYTHONPATH_ASTRO="${PYTHONPATH_ASTRO}:${EXTRA_PY_SITE}"
+fi
+if [ "${PYTHON_LAUNCH_NOUSERSITE}" != "1" ] && [ -n "${PYTHONPATH:-}" ]; then
+  PYTHONPATH_ASTRO="${PYTHONPATH_ASTRO}:${PYTHONPATH}"
+fi
+
+cleanup_on_fail() {
+  local code=$?
+  if [ "${code}" -ne 0 ]; then
+    if [ -f "${JAVA_PID_FILE}" ]; then
+      kill "$(cat "${JAVA_PID_FILE}")" >/dev/null 2>&1 || true
+      rm -f "${JAVA_PID_FILE}"
+    fi
+    if [ -f "${PY_PID_FILE}" ]; then
+      kill "$(cat "${PY_PID_FILE}")" >/dev/null 2>&1 || true
+      rm -f "${PY_PID_FILE}"
+    fi
+  fi
+  return "${code}"
+}
+trap cleanup_on_fail EXIT
+
+launch_detached() {
+  local log_file="$1"
+  shift
+  "${PYTHON_BIN}" - "${log_file}" "$@" <<'PY'
+import subprocess
+import sys
+
+log_path = sys.argv[1]
+cmd = sys.argv[2:]
+
+with open(log_path, "ab", buffering=0) as fh:
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=fh,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        close_fds=True,
+    )
+
+print(proc.pid)
+PY
+}
+
+cd "${ROOT}"
+PYTHON_LAUNCH_CMD=(env PYTHONPATH="${PYTHONPATH_ASTRO}" HOROSA_CHART_PORT="${CHART_PORT}")
+if [ "${PYTHON_LAUNCH_NOUSERSITE}" = "1" ]; then
+  PYTHON_LAUNCH_CMD+=(PYTHONNOUSERSITE=1)
+fi
+PYTHON_LAUNCH_CMD+=("${PYTHON_BIN}" "${ROOT}/astropy/websrv/webchartsrv.py")
+launch_detached "${PY_LOG}" "${PYTHON_LAUNCH_CMD[@]}" >"${PY_PID_FILE}"
+
+JAVA_LAUNCH_CMD=(env \
+  HOROSA_DESKTOP_MONGO_OPTIONAL="${DESKTOP_MONGO_OPTIONAL}" \
+  HOROSA_DESKTOP_MONGO_SKIP_PING="${DESKTOP_MONGO_SKIP_PING}" \
+  HOROSA_MONGO_FALLBACK_DIR="${MONGO_FALLBACK_DIR}" \
+  HOROSA_ENABLE_STARTUP_CRON="${ENABLE_STARTUP_CRON}" \
+  HOROSA_ENABLE_STARTUP_TRANSGROUP_INIT="${ENABLE_STARTUP_TRANSGROUP_INIT}" \
+  needtranslog="${NEED_TRANSLOG}")
+
+if [ "${DESKTOP_JAVA_FAST_START}" = "1" ]; then
+  JAVA_FAST_TOOL_OPTIONS="-Dlog4j2.statusLevel=WARN -Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom -Dspring.backgroundpreinitializer.ignore=true -XX:TieredStopAtLevel=1"
+  if [ -n "${DESKTOP_JAVA_EXTRA_TOOL_OPTIONS}" ]; then
+    JAVA_FAST_TOOL_OPTIONS="${JAVA_FAST_TOOL_OPTIONS} ${DESKTOP_JAVA_EXTRA_TOOL_OPTIONS}"
+  fi
+  JAVA_LAUNCH_CMD+=(
+    JAVA_TOOL_OPTIONS="${JAVA_FAST_TOOL_OPTIONS}"
+  )
+fi
+
+if [ "${DESKTOP_SPRING_LAZY_INIT}" = "1" ]; then
+  JAVA_LAUNCH_CMD+=(
+    SPRING_MAIN_LAZY_INITIALIZATION=true
+  )
+fi
+
+JAVA_LAUNCH_CMD+=(
+  # #9:让内置 Java 自动走 macOS/Windows 系统代理(getHttpHost/流式 client 经 ProxySelector 取用)。
+  # localhost/127.0.0.1 默认 bypass,本地 :9999/:8899 不受影响;无系统代理则等同直连。
+  "${JAVA_BIN}" -Djava.net.useSystemProxies=true -Dhorosa.runtime.owner=horosa-desktop -jar "${JAR}"
+  --server.port="${BACKEND_PORT}"
+  --astrosrv=http://127.0.0.1:${CHART_PORT}
+  --mongodb.ip=127.0.0.1
+  --redis.ip=127.0.0.1
+)
+
+launch_detached "${JAVA_LOG}" env \
+  "${JAVA_LAUNCH_CMD[@]}" >"${JAVA_PID_FILE}"
+
+ready=0
+# 提速(更新后卡顿)B:轮询间隔与 trusted 解耦——更新后首启(trusted=0)同样用 0.2s 快轮询,
+# 服务一就绪就被探测到,不再被旧的 1s 粒度白等近一秒。trusted 仍可用更细的 0.1s。
+poll_interval="0.2"
+progress_interval="50"
+if [ "${TRUSTED_RUNTIME}" = "1" ]; then
+  poll_interval="0.1"
+  progress_interval="100"
+fi
+elapsed_checks=0
+deadline_epoch=$(( $(date +%s) + STARTUP_TIMEOUT ))
+while true; do
+  elapsed_checks=$((elapsed_checks + 1))
+  if ! kill -0 "$(cat "${PY_PID_FILE}")" >/dev/null 2>&1; then
+    echo "astropy process exited during startup."
+    break
+  fi
+  if ! kill -0 "$(cat "${JAVA_PID_FILE}")" >/dev/null 2>&1; then
+    echo "astrostudyboot process exited during startup."
+    break
+  fi
+
+  if [ "${TRUSTED_RUNTIME}" = "1" ]; then
+    if http_responding "http://127.0.0.1:${CHART_PORT}/" && signed_backend_http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
+      ready=1
+      break
+    fi
+  elif port_listening "${CHART_PORT}" && port_listening "${BACKEND_PORT}"; then
+    if http_responding "http://127.0.0.1:${CHART_PORT}/" && signed_backend_http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
+      ready=1
+      break
+    fi
+  fi
+  if [ $((elapsed_checks % progress_interval)) -eq 0 ]; then
+    echo "waiting services... ${elapsed_checks} checks (${CHART_PORT}:$(port_listening "${CHART_PORT}" && echo up || echo down), ${BACKEND_PORT}:$(port_listening "${BACKEND_PORT}" && echo up || echo down))"
+  fi
+  if [ "$(date +%s)" -ge "${deadline_epoch}" ]; then
+    break
+  fi
+  sleep "${poll_interval}"
+done
+
+if [ "${ready}" -ne 1 ]; then
+  diag_log "startup timeout after ${STARTUP_TIMEOUT}s"
+  echo "services did not become ready in ${STARTUP_TIMEOUT}s (need both ${CHART_PORT} and ${BACKEND_PORT})."
+  echo "tip: increase timeout by setting HOROSA_STARTUP_TIMEOUT=300 if this machine is slow on first run."
+  echo "--- python log tail ---"
+  tail -n 40 "${PY_LOG}" || true
+  echo "--- java log tail ---"
+  tail -n 40 "${JAVA_LOG}" || true
+  diag_tail "${PY_LOG}" 120
+  diag_tail "${JAVA_LOG}" 120
+  # 修法2(b):若起不来是因端口被占(bind 失败),给「可重试」的 exit 3,让 Rust 端换口重试。
+  # set -euo pipefail 下 grep 无匹配返回 1 会提前中止脚本,故必须用 if 守卫;仅匹配明确的 bind
+  # 错,绝不用裸 'port'(否则 Spring banner / --server.port= 这类正常输出会被误判为端口冲突)。
+  bind_err_re='Address already in use|Errno 48|BindException|Port [0-9]+ was already in use'
+  if { tail -n 160 "${PY_LOG}" 2>/dev/null || true; tail -n 160 "${JAVA_LOG}" 2>/dev/null || true; } | grep -Eq "${bind_err_re}"; then
+    diag_log "===== run end (failed: port bind conflict, exit 3 retryable) ====="
+    exit 3
+  fi
+  diag_log "===== run end (failed) ====="
+  exit 1
+fi
+
+trap - EXIT
+warm_runtime_routes_min_sync
+warm_runtime_routes
+
+diag_log "services ready: backend=${BACKEND_PORT} chartpy=${CHART_PORT}"
+diag_log "===== run end (success) ====="
+
+echo "services are ready."
+echo "backend:  http://127.0.0.1:${BACKEND_PORT}"
+echo "chartpy:  http://127.0.0.1:${CHART_PORT}"
+echo "html:     ${HTML_PATH}"
+echo "logs:     ${LOG_DIR}"
+echo ""
+echo "stop:     ${ROOT}/stop_horosa_local.sh"

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>xuan</groupId>
+    <artifactId>xuan-utils-pro</artifactId>
+    <version>2.0-SNAPSHOT</version>
+
+    <!-- 依赖版本 -->
+    <properties>
+        <!-- 项目编译版本 -->
+        <java.version>1.8</java.version>
+        <maven.version>2.4.5</maven.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <!-- 项目源码、编译输出的编码格式 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- 依赖版本管理 -->
+        <spring.core.version>5.3.29</spring.core.version> <!-- spring -->
+        <tomcat.embed.core.version>9.0.78</tomcat.embed.core.version> <!-- tomcat -->
+        <junit.version>4.13.2</junit.version> <!-- junit -->
+        <alibaba.fastjson.version>1.2.58</alibaba.fastjson.version> <!-- 阿里巴巴相关工具包 -->
+        <commons.io.version>2.6</commons.io.version> <!-- Apache相关工具包-->
+        <commons.lang.version>2.6</commons.lang.version> <!-- Apache相关工具包 -->
+        <commons.validator.version>1.6</commons.validator.version> <!-- Apache相关工具包 -->
+        <commons.lang3.version>3.8.1</commons.lang3.version> <!-- Apache相关工具包-->
+        <ip2region.versoin>1.7.2</ip2region.versoin> <!-- ip2region离线定位库 -->
+        <lunar.version>1.7.6</lunar.version> <!-- lunar日期工具包 -->
+        <jackson.databind.version>2.17.1</jackson.databind.version> <!-- jackson -->
+    </properties>
+
+    <!-- 依赖 -->
+    <dependencies>
+        <!-- spring -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>${spring.core.version}</version>
+        </dependency>
+        <!-- tomcat -->
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+            <version>${tomcat.embed.core.version}</version>
+        </dependency>
+        <!-- junit -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+        </dependency>
+        <!-- lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>RELEASE</version>
+            <scope>compile</scope>
+        </dependency>
+        <!-- 阿里巴巴相关工具包 -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>${alibaba.fastjson.version}</version>
+        </dependency>
+        <!-- Apache相关工具包 -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>${commons.io.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>${commons.lang.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-validator</groupId>
+            <artifactId>commons-validator</artifactId>
+            <version>${commons.validator.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>${commons.lang3.version}</version>
+        </dependency>
+        <!-- ip2region离线IP地址定位库 -->
+        <dependency>
+            <groupId>org.lionsoul</groupId>
+            <artifactId>ip2region</artifactId>
+            <version>${ip2region.versoin}</version>
+        </dependency>
+        <!-- lunar日期工具包 -->
+        <dependency>
+            <groupId>cn.6tail</groupId>
+            <artifactId>lunar</artifactId>
+            <version>${lunar.version}</version>
+        </dependency>
+        <!-- jackson -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.databind.version}</version>
+        </dependency>
+    </dependencies>
+
+</project>

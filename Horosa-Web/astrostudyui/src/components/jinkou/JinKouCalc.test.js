@@ -1,0 +1,304 @@
+import { buildJinKouData, calcJinKouWangElem, buildJinKouWangShuaiMap, JinKouShenShaOrder } from './JinKouCalc';
+import { JINKOU_SHENSHA_DOC } from './JinKouDoc';
+
+function mockLiuReng(data){
+	return {
+		nongli: {
+			dayGanZi: '甲辰',
+			time: '申时',
+			monthGanZi: '丙申',
+			...(data && data.nongli ? data.nongli : {}),
+		},
+		fourColumns: {
+			month: { ganzi: '丙申' },
+			...(data && data.fourColumns ? data.fourColumns : {}),
+		},
+		xun: {
+			'旬空': '寅卯',
+			'旬首': '甲辰',
+			...(data && data.xun ? data.xun : {}),
+		},
+		season: {
+			'金': '囚',
+			'木': '旺',
+			'水': '休',
+			'火': '相',
+			'土': '死',
+			...(data && data.season ? data.season : {}),
+		},
+		gods: data && data.gods ? data.gods : {},
+		godsGan: data && data.godsGan ? data.godsGan : {},
+		godsMonth: data && data.godsMonth ? data.godsMonth : {},
+		godsZi: data && data.godsZi ? data.godsZi : {},
+		godsYear: data && data.godsYear ? data.godsYear : { taisui1: {} },
+	};
+}
+
+describe('JinKouCalc', ()=>{
+	it('matches textbook sample for 甲日申时 with 地分午', ()=>{
+		const data = buildJinKouData(mockLiuReng(), {
+			diFen: '午',
+			guirengType: 0,
+		});
+		expect(data.ready).toBe(true);
+		expect(data.diFen).toBe('午');
+		expect(data.renYuanGan).toBe('庚');
+		expect(data.guiName).toBe('青龙');
+		expect(data.guiZi).toBe('寅');
+		expect(data.jiangZi).toBe('卯');
+		expect(data.jiangName).toBe('太冲');
+	});
+
+	it('matches textbook table for 甲日申时 with 地分子', ()=>{
+		const data = buildJinKouData(mockLiuReng(), {
+			diFen: '子',
+			guirengType: 0,
+		});
+		expect(data.renYuanGan).toBe('甲');
+		expect(data.guiZi).toBe('亥');
+		expect(data.jiangZi).toBe('酉');
+	});
+
+	it('matches manual sample for 戊戌日未时午位', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			nongli: {
+				dayGanZi: '戊戌',
+				time: '未时',
+				monthGanZi: '丁卯',
+			},
+			fourColumns: {
+				month: { ganzi: '丁卯' },
+			},
+		}), {
+			diFen: '午',
+			guirengType: 0,
+		});
+		expect(data.renYuanGan).toBe('戊');
+		expect(data.guiZi).toBe('寅');
+		expect(data.jiangZi).toBe('酉');
+		expect(data.yongYao.label).toBe('将神');
+	});
+
+	it('matches app case for 丙寅日丑时丑位', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			nongli: {
+				dayGanZi: '丙寅',
+				time: '丑时',
+				monthGanZi: '庚寅',
+			},
+			fourColumns: {
+				month: { ganzi: '庚寅' },
+			},
+		}), {
+			diFen: '丑',
+			guirengType: 0,
+		});
+		expect(data.renYuanGan).toBe('己');
+		expect(data.guiZi).toBe('未');
+		expect(data.guiName).toBe('太常');
+		expect(data.jiangZi).toBe('亥');
+		expect(data.jiangGan).toBe('己');
+		expect(data.yongYao.label).toBe('人元');
+	});
+
+	it('prefers 节气段月将 over conflicting 六壬月将 fallback', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			yue: '戌',
+			nongli: {
+				dayGanZi: '癸未',
+				time: '戌时',
+				monthGanZi: '辛卯',
+				jieqi: '惊蛰',
+			},
+			fourColumns: {
+				month: { ganzi: '辛卯' },
+			},
+		}), {
+			diFen: '戌',
+			guirengType: 0,
+		});
+		expect(data.yuejiang).toBe('亥');
+		expect(data.jiangZi).toBe('亥');
+		expect(data.jiangName).toBe('登明');
+		expect(data.jiangGan).toBe('癸');
+	});
+
+	it('falls back to 节气段月将 when 六壬月将缺失', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			nongli: {
+				dayGanZi: '癸未',
+				time: '戌时',
+				monthGanZi: '辛卯',
+				jieqi: '惊蛰',
+			},
+			fourColumns: {
+				month: { ganzi: '辛卯' },
+			},
+		}), {
+			diFen: '戌',
+			guirengType: 0,
+		});
+		expect(data.yuejiang).toBe('亥');
+		expect(data.jiangZi).toBe('亥');
+		expect(data.jiangName).toBe('登明');
+		expect(data.jiangGan).toBe('癸');
+	});
+
+	it('falls back to jiedelta text when jieqi field is missing', ()=>{
+		const data = buildJinKouData(mockLiuReng({
+			nongli: {
+				dayGanZi: '癸未',
+				time: '癸亥',
+				monthGanZi: '辛卯',
+				jieqi: null,
+				jiedelta: '惊蛰后第5天',
+			},
+			fourColumns: {
+				month: { ganzi: '辛卯' },
+			},
+		}), {
+			diFen: '亥',
+			guirengType: 0,
+		});
+		expect(data.yuejiang).toBe('亥');
+		expect(data.jiangZi).toBe('亥');
+		expect(data.jiangName).toBe('登明');
+		expect(data.jiangGan).toBe('癸');
+	});
+
+	it('uses explicit diurnal flag to determine day/night branch', ()=>{
+		const base = mockLiuReng({
+			nongli: {
+				dayGanZi: '丙寅',
+				time: '丑时',
+				monthGanZi: '庚寅',
+			},
+			fourColumns: {
+				month: { ganzi: '庚寅' },
+			},
+		});
+		const dayData = buildJinKouData(base, {
+			diFen: '丑',
+			guirengType: 0,
+			isDiurnal: true,
+		});
+		const nightData = buildJinKouData(base, {
+			diFen: '丑',
+			guirengType: 0,
+			isDiurnal: false,
+		});
+		expect(dayData.guiName).toBe('朱雀');
+		expect(dayData.guiZi).toBe('午');
+		expect(nightData.guiName).toBe('太常');
+		expect(nightData.guiZi).toBe('未');
+	});
+
+	it('calculates 四大空亡 from 旬首', ()=>{
+		const dataZi = buildJinKouData(mockLiuReng({
+			xun: {
+				'旬空': '戌亥',
+				'旬首': '甲子',
+			},
+		}), {
+			diFen: '子',
+			guirengType: 0,
+		});
+		expect(dataZi.siDaKong).toBe('水');
+
+		const dataWu = buildJinKouData(mockLiuReng({
+			xun: {
+				'旬空': '辰巳',
+				'旬首': '甲午',
+			},
+		}), {
+			diFen: '午',
+			guirengType: 0,
+		});
+		expect(dataWu.siDaKong).toBe('水');
+
+		const dataYin = buildJinKouData(mockLiuReng({
+			xun: {
+				'旬空': '子丑',
+				'旬首': '甲寅',
+			},
+		}), {
+			diFen: '寅',
+			guirengType: 0,
+		});
+		expect(dataYin.siDaKong).toBe('金');
+
+		const dataShen = buildJinKouData(mockLiuReng({
+			xun: {
+				'旬空': '午未',
+				'旬首': '甲申',
+			},
+		}), {
+			diFen: '申',
+			guirengType: 0,
+		});
+		expect(dataShen.siDaKong).toBe('金');
+
+		const dataOther = buildJinKouData(mockLiuReng({
+			xun: {
+				'旬空': '寅卯',
+				'旬首': '甲辰',
+			},
+		}), {
+			diFen: '辰',
+			guirengType: 0,
+		});
+		expect(dataOther.siDaKong).toBe('');
+	});
+
+	it('calculates 旺 element by textbook rules', ()=>{
+		expect(calcJinKouWangElem(['金', '木', '水', '火'])).toBe('水');
+		expect(calcJinKouWangElem(['木', '火', '水', '土'])).toBe('木');
+		expect(calcJinKouWangElem(['金', '木', '火', '土'])).toBe('火');
+		expect(calcJinKouWangElem(['木', '木', '火', '火'])).toBe('火');
+		expect(calcJinKouWangElem(['木', '木', '土', '土'])).toBe('木');
+		expect(calcJinKouWangElem(['水', '水', '金', '金'])).toBe('水');
+		expect(calcJinKouWangElem(['金', '金', '木', '水'])).toBe('金');
+	});
+
+	it('builds 旺相休囚死 map from 旺 element', ()=>{
+		const map = buildJinKouWangShuaiMap('水');
+		expect(map['水']).toBe('旺');
+		expect(map['木']).toBe('相');
+		expect(map['金']).toBe('休');
+		expect(map['土']).toBe('囚');
+		expect(map['火']).toBe('死');
+	});
+
+	it('derives 解读层 fields (relations / 应期 / 太玄数 / 神煞判语)', ()=>{
+		const data = buildJinKouData(mockLiuReng(), {
+			diFen: '午',
+			guirengType: 0,
+		});
+		expect(Array.isArray(data.taixuan)).toBe(true);
+		expect(data.taixuan.length).toBe(4);
+		const diTx = data.taixuan.find((t)=>t.label === '地分');
+		expect(diTx.num).toBe(9);
+		expect(Array.isArray(data.relations)).toBe(true);
+		expect(Array.isArray(data.branchRelations)).toBe(true);
+		expect(data.yongStrength).toBeTruthy();
+		expect(typeof data.yongStrength.text).toBe('string');
+		expect(data.yingQi).toBeTruthy();
+		expect(typeof data.yingQi.scope).toBe('string');
+		expect(data.shenshaDocRows.length).toBe(4);
+		expect(Array.isArray(data.relevantShensha)).toBe(true);
+		data.relevantShensha.forEach((item)=>{
+			expect(['ji', 'xiong', 'zhong']).toContain(item.jx);
+		});
+		const qc = data.categoryRules.filter((c)=>c.texts && c.texts.length);
+		expect(qc.length).toBeGreaterThanOrEqual(1);
+		expect(data.dong).toEqual({ san: [], wu: [] });
+	});
+
+	it('covers every 起例 神煞 with a judgment + valid 吉凶色 (guards the 天德合 gap)', ()=>{
+		const missing = JinKouShenShaOrder.filter((name)=>!JINKOU_SHENSHA_DOC[name] || !JINKOU_SHENSHA_DOC[name].desc);
+		expect(missing).toEqual([]);
+		JinKouShenShaOrder.forEach((name)=>{
+			expect(['ji', 'xiong', 'zhong']).toContain(JINKOU_SHENSHA_DOC[name].jx);
+		});
+	});
+});

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>星阙</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <svg class="svg-defs" aria-hidden="true" focusable="false">
+      <symbol id="xq-check" viewBox="0 0 10 10">
+        <path d="M2 5.2 4 7 8 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      </symbol>
+      <symbol id="xq-x" viewBox="0 0 10 10">
+        <path d="M2.5 2.5 7.5 7.5M7.5 2.5 2.5 7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      </symbol>
+      <symbol id="xq-arrow" viewBox="0 0 10 10">
+        <path d="M2 5h6M5.5 2 8 5 5.5 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      </symbol>
+      <symbol id="xq-folder" viewBox="0 0 24 24">
+        <path d="M3.8 7.4c0-1 .8-1.8 1.8-1.8h4l2 2.2h6.8c1 0 1.8.8 1.8 1.8v7.2c0 1-.8 1.8-1.8 1.8H5.6c-1 0-1.8-.8-1.8-1.8V7.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+      </symbol>
+      <symbol id="xq-cube" viewBox="0 0 24 24">
+        <path d="m12 3.8 7 4.1v8.2l-7 4.1-7-4.1V7.9l7-4.1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+        <path d="M5.4 8.2 12 12l6.6-3.8M12 12v7.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+      </symbol>
+      <symbol id="xq-refresh" viewBox="0 0 24 24">
+        <path d="M19 7v5h-5M5 17v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M18 12a6.5 6.5 0 0 0-11.1-4.6L5 9M6 12a6.5 6.5 0 0 0 11.1 4.6L19 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </symbol>
+      <symbol id="xq-shield" viewBox="0 0 24 24">
+        <path d="M12 3.5 19 6v5.2c0 4.4-2.7 7.5-7 9.3-4.3-1.8-7-4.9-7-9.3V6l7-2.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        <path d="m8.8 12 2.1 2.1 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </symbol>
+    </svg>
+
+    <main class="launcher-shell">
+      <section class="launcher-window">
+        <header class="window-bar">
+          <div class="traffic-lights" aria-hidden="true">
+            <span class="traffic-light traffic-light--red"></span>
+            <span class="traffic-light traffic-light--yellow"></span>
+            <span class="traffic-light traffic-light--green"></span>
+          </div>
+          <div class="window-title-group">
+            <img class="window-appicon" src="./horosa-icon.png" alt="" aria-hidden="true" />
+            <span class="window-title">星阙</span>
+            <span class="window-subtitle">Xingque control</span>
+          </div>
+          <div class="window-actions">
+            <button class="toolbar-button toolbar-button--ghost" id="openDiagnosticsBtn">
+              诊断
+              <span class="attention-dot hidden" id="diagnosticDot" aria-hidden="true"></span>
+            </button>
+            <button class="toolbar-button" id="openPreferencesBtn">偏好</button>
+          </div>
+        </header>
+
+        <div class="window-body">
+          <aside class="context-column">
+            <section class="brand-card">
+              <div class="mode-pill" id="heroModeTag">
+                <span class="mode-dot mode-dot--live"></span>
+                Daily launch
+              </div>
+              <div class="brand-card__main">
+                <img class="brand-icon" src="./horosa-icon.png" alt="" aria-hidden="true" />
+                <div>
+                  <h1 id="heroTitle">检查本机环境</h1>
+                  <p id="heroCopy">完成后自动进入主界面</p>
+                </div>
+              </div>
+              <div class="brand-meta" id="heroModeHint">复用本机组件</div>
+            </section>
+
+            <section class="sidebar-card session-card">
+              <div class="card-label">Session</div>
+              <dl class="summary-list">
+                <div>
+                  <dt>类型</dt>
+                  <dd id="summarySessionType">日常启动</dd>
+                </div>
+                <div>
+                  <dt>组件</dt>
+                  <dd id="summaryRuntimeStrategy">复用 runtime</dd>
+                </div>
+                <div>
+                  <dt id="summaryThirdLabel">预计</dt>
+                  <dd id="summaryBackendMode">~ 4s</dd>
+                </div>
+                <div class="summary-row--hidden">
+                  <dt>结果</dt>
+                  <dd id="summaryOutcome">待进入主界面</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section class="sidebar-card pipeline-card">
+              <div class="card-label">Pipeline</div>
+              <ol class="step-list">
+                <li class="step-item is-active" data-step="1">
+                  <span class="step-marker"></span>
+                  <div class="step-copy">
+                    <div class="step-name">安装状态</div>
+                    <div class="step-desc">app · marker</div>
+                  </div>
+                </li>
+                <li class="step-item" data-step="2">
+                  <span class="step-marker"></span>
+                  <div class="step-copy">
+                    <div class="step-name">本机组件</div>
+                    <div class="step-desc">runtime · jar</div>
+                  </div>
+                </li>
+                <li class="step-item" data-step="3">
+                  <span class="step-marker"></span>
+                  <div class="step-copy">
+                    <div class="step-name">后台服务</div>
+                    <div class="step-desc">backend · chartpy</div>
+                  </div>
+                </li>
+                <li class="step-item" data-step="4">
+                  <span class="step-marker"></span>
+                  <div class="step-copy">
+                    <div class="step-name">主界面</div>
+                    <div class="step-desc">handoff</div>
+                  </div>
+                </li>
+              </ol>
+            </section>
+          </aside>
+
+          <section class="content-column">
+            <section class="progress-card">
+              <div class="progress-head">
+                <div class="progress-title-group">
+                  <div class="progress-number"><span id="progressPct">8%</span></div>
+                  <div class="progress-status hero-badge hero-badge--live" id="heroBadgeTertiary">
+                    <span class="status-dot"></span>
+                    Live
+                  </div>
+                </div>
+                <button class="primary-cta hidden" id="primaryCtaBtn">
+                  <span id="primaryCtaLabel">进入主界面</span>
+                  <svg><use href="#xq-arrow"></use></svg>
+                </button>
+              </div>
+              <div class="progress-copy" id="progressSubtitle">
+                当前步骤 · <span id="progressText">检查 App 签名</span>
+                <span class="visually-hidden" id="phaseLabel">安装检查</span>
+              </div>
+              <div class="milestone-wrap">
+                <div class="progress-track"><span id="progressFill" style="width: 8%"></span></div>
+                <span class="milestone is-active" data-milestone="1"></span>
+                <span class="milestone" data-milestone="2"></span>
+                <span class="milestone" data-milestone="3"></span>
+                <span class="milestone" data-milestone="4"></span>
+              </div>
+              <div class="phase-strip">
+                <span data-phase-step="1">安装</span>
+                <span data-phase-step="2">组件</span>
+                <span data-phase-step="3">服务</span>
+                <span data-phase-step="4">进入</span>
+              </div>
+            </section>
+
+            <section class="action-grid">
+              <button class="action-card" id="openDataBtn">
+                <span class="action-icon"><svg><use href="#xq-folder"></use></svg></span>
+                <span>
+                  <span class="action-title">数据目录</span>
+                  <span class="action-copy">Library / logs</span>
+                </span>
+              </button>
+              <button class="action-card" id="openRuntimeBtn">
+                <span class="action-icon"><svg><use href="#xq-cube"></use></svg></span>
+                <span>
+                  <span class="action-title">本机组件</span>
+                  <span class="action-copy">runtime / java</span>
+                </span>
+              </button>
+              <button class="action-card" id="retryBtn">
+                <span class="action-icon"><svg><use href="#xq-refresh"></use></svg></span>
+                <span>
+                  <span class="action-title" id="retryActionTitle">重装组件</span>
+                  <span class="action-copy" id="retryActionCopy">repair runtime</span>
+                </span>
+              </button>
+            </section>
+
+            <section id="assetReviewPanel" class="review-panel hidden">
+              <div class="panel-header panel-header--review">
+                <div>
+                  <div class="panel-kicker">Asset review</div>
+                  <div class="panel-title">资产审查</div>
+                </div>
+                <div class="review-header-actions">
+                  <button class="toolbar-button toolbar-button--ghost" id="reviewCancelBtn">取消</button>
+                  <button class="toolbar-button" id="reviewContinueBtn">继续</button>
+                </div>
+              </div>
+              <div id="reviewIntro" class="review-intro">等待资产清单...</div>
+              <div id="reviewBlocking" class="review-blocking hidden"></div>
+              <div id="reviewItems" class="review-list"></div>
+            </section>
+
+            <section class="detail-grid">
+              <article class="detail-card log-card">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-kicker">Recent events</div>
+                    <div class="panel-title">日志</div>
+                  </div>
+                  <button class="detail-button" id="toggleLogBtn">展开详情</button>
+                </div>
+                <div id="logSummaryNote" class="log-summary-note">最近 3 条</div>
+                <div id="statusLog" class="log-list" aria-live="polite"></div>
+              </article>
+
+              <article class="detail-card guard-card">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-kicker">Protected</div>
+                    <div class="panel-title">保护项</div>
+                  </div>
+                </div>
+                <div class="guard-list">
+                  <div class="guard-item">
+                    <svg class="guard-icon"><use href="#xq-shield"></use></svg>
+                    <div><div class="guard-key" id="guardKeyOne">App</div><div class="guard-value" id="guardValueOne">校验后替换</div></div>
+                  </div>
+                  <div class="guard-item">
+                    <svg class="guard-icon"><use href="#xq-shield"></use></svg>
+                    <div><div class="guard-key" id="guardKeyTwo">Runtime</div><div class="guard-value" id="guardValueTwo">不符才重建</div></div>
+                  </div>
+                  <div class="guard-item">
+                    <svg class="guard-icon"><use href="#xq-shield"></use></svg>
+                    <div><div class="guard-key" id="guardKeyThree">Logs</div><div class="guard-value" id="guardValueThree">失败时保留</div></div>
+                  </div>
+                  <div class="guard-item">
+                    <svg class="guard-icon"><use href="#xq-shield"></use></svg>
+                    <div><div class="guard-key" id="guardKeyFour">Data</div><div class="guard-value" id="guardValueFour">不删用户数据</div></div>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            <section id="statePanel" class="state-panel hidden" aria-hidden="true">
+              <span id="stateBadge"></span>
+              <span id="stateInstallSource" class="hidden"></span>
+              <span id="stateTitle"></span>
+              <span id="stateSummary"></span>
+              <span id="stateDetail"></span>
+              <span id="stateRecommendation" class="hidden"></span>
+              <span id="sceneTitle"></span>
+              <span id="sceneCopy"></span>
+              <span id="sessionInline"></span>
+              <span id="heroBadgePrimary"></span>
+              <span id="heroBadgeSecondary"></span>
+            </section>
+
+            <section id="recoveryPanel" class="recovery-panel hidden">
+              <div class="recovery-panel__head">
+                <span id="recoveryBadge" class="state-badge state-badge--danger">需要处理</span>
+                <span id="recoveryInstallSource" class="state-meta hidden">当前安装</span>
+              </div>
+              <h3 id="recoveryTitle" class="recovery-title">runtime 未就绪</h3>
+              <p id="recoverySummary" class="recovery-summary">按推荐动作恢复。</p>
+              <p id="recoveryDetail" class="recovery-detail">诊断细节已保留。</p>
+              <p id="recoveryRecommendation" class="recovery-recommendation hidden"></p>
+              <div class="recovery-actions">
+                <button id="recoveryPrimaryBtn" class="toolbar-button toolbar-button--primary hidden">重新安装离线包</button>
+                <div id="recoverySecondaryActions" class="recovery-secondary-actions"></div>
+              </div>
+              <details id="recoveryDetails" class="technical-details">
+                <summary>原始错误</summary>
+                <pre id="recoveryRawError">当前没有额外技术细节。</pre>
+              </details>
+            </section>
+
+            <footer class="footer-note">
+              <span id="footerNote">窗口大小随上次关闭状态恢复</span>
+            </footer>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "system": {
+    "id": "astronomical_geomancy",
+    "name_zh": "地占占星",
+    "name_en": "Astronomical Geomancy",
+    "author": "Gerardus Cremonensis",
+    "period": "12th century",
+    "period_zh": "12世紀",
+    "description_zh": "源自 Gerardus Cremonensis（約1114–1187）的阿拉伯－拉丁地占占星系統，結合傳統幾何占卜與古典占星十二宮位體系。",
+    "description_en": "A geomantic-astrological system attributed to Gerardus Cremonensis (c. 1114–1187), combining traditional geomantic figure generation with classical 12-house astrology."
+  },
+  "gerard_general_rules": {
+    "lifespan_zh": "壽命判斷：若上升圖形為吉象（Fortuna Major、Laetitia、Acquisitio、Puella、Albus、Conjunctio），且第1宮無凶星，則問卜者壽命充足。若第8宮有龍尾或凶星，則壽命有虞。",
+    "lifespan_en": "Lifespan: If the ascending figure is fortunate and House 1 contains no malefics, the querent's lifespan is adequate. If House 8 holds Cauda Draconis or a malefic, lifespan is threatened.",
+    "wealth_zh": "財富判斷：以第2宮為主。木星在第2宮或第10宮大吉；Acquisitio 出現時財運最佳；Amissio、Tristitia 出現時財運最差。",
+    "wealth_en": "Wealth: Judged primarily from House 2. Jupiter in Houses 2 or 10 is very auspicious; Acquisitio is best for wealth; Amissio and Tristitia are worst.",
+    "marriage_zh": "婚姻判斷：以第7宮為主，觀第1宮與第7宮行星的友敵關係。友星預示和諧婚姻；敵星預示爭吵。",
+    "marriage_en": "Marriage: Judged from House 7, examining the friendship or enmity between planets in Houses 1 and 7.",
+    "career_zh": "事業判斷：以第10宮為主。太陽、木星在第10宮大吉；土星在此阻礙晉升。",
+    "career_en": "Career: Judged from House 10. Sun and Jupiter in House 10 are very auspicious; Saturn obstructs advancement.",
+    "journey_zh": "旅行判斷：短途觀第3宮，長途觀第9宮。月亮在旅行宮表示旅途平安；火星在此表示危險。",
+    "journey_en": "Travel: Short journeys from House 3, long journeys from House 9. Moon in the travel house indicates safe passage; Mars there indicates danger."
+  }
+}
