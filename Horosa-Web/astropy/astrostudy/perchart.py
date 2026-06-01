@@ -278,6 +278,8 @@ class PerChart:
 
         if 'pdMethod' in data.keys():
             self.pdMethod = data['pdMethod']
+            if self.pdMethod not in ('core_alchabitius', 'horosa_legacy'):
+                self.pdMethod = 'core_alchabitius'
 
         if 'pdTimeKey' in data.keys():
             self.pdTimeKey = data['pdTimeKey']

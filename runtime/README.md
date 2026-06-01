@@ -13,7 +13,7 @@
 - `runtime/mac/`
   - 供本地启动/自检脚本复用的一键部署 runtime
 - `runtime/pd_auto/run_geo_current540_v1`
-  - 主限法自检脚本当前默认使用的  case 集
+  - 主限法自检脚本当前默认使用的 case 集
 - `runtime/pd_reverse/shared_core_geo_current540_s100_exact_rows_bodycorr.csv`
   - 主限法精度阈值自检所需逐行结果
 - `runtime/pd_reverse/shared_core_geo_current540_s100_exact_summary_bodycorr.json`

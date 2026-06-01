@@ -1,7 +1,7 @@
 
 # 129 年系统（129 Year System）：七政各管其「小年」，一轮共 129 年。
 # 真正的「129 年」体系（非十年大运的 129 月递归）。镜像 firdaria.py 的主限 + 等分子限结构。
-# succession 序为实验性，待 core 实测校准。
+# succession 序为实验性，待进一步核验。
 from flatlib import const
 from flatlib.datetime import Datetime
 

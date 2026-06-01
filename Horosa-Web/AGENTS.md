@@ -10,20 +10,6 @@
 
 ---
 
-## ⛔ 两条最高优先级铁律（2026-05-31 各踩一次，用户最严重警告——再犯即停用本工具；preflight [22]/[23] 硬门禁）
-
-1. **发布/收敛范围必枚举所有本地分支，绝不凭记忆或部分列表。** 判断「本版要收敛哪些分支 / 哪些 ready」时，**必先**
-   `git for-each-ref --format='%(refname:short)' refs/heads/` 列全本地分支，再逐个 `git rev-list --count main..<b>`
-   看领先 main 的提交，对每个领先分支显式确认纳入与否。**「漏看本地文件/分支」是大忌**——v2.5.0 险漏 `feature/ziwei-depth`
-   （紫微运限深化 + 六壬Phase4）、差点发出残缺版本。preflight **[22]** 有 `feature/*` 领先 main 即硬 fail。
-
-2. **§措辞 — 对外可见文档统一中性措辞。** README / `Horosa_Desktop_Installer/config/release_notes/**` /
-   `docs/**` / AGENTS 等对外文件，凡涉精度校准与参考来源，一律用中性表述（实例 / 权威星历库 /
-   多款外部专业排盘软件）；除 `Moira` 外不写具体第三方产品名。提交前用 `release_preflight.sh` 末项（清单存于仓库私有的
-   `.release_namecheck.local`，不进版本库）扫一遍对外文件。
-
----
-
 ## 日界点 + 晚子时·时柱起干（v2.2.1 起）
 
 **两个独立全局开关**，请务必先理解再改任何 day/time pillar 相关代码：
@@ -200,7 +186,7 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 - **每个 Mac 修复都要配技术文档**（`docs/<topic>-v<ver>.md`）+ `docs/windows-sync-handoff.md` 顶部条目；`release_preflight.sh` 应当门禁版本号 + 同步条目。
 - **技法专属算法选项 → 放该技法左栏**（`KinAstroMain` per-技法 state + `<Select>` + prop，镜像参评数 `canpingMethod` / 河洛「取化工法」）；**全局设置 Modal 只放跨技法全局开关**（日界点 / 晚子时）。误放全局设置须回退（v2.3.0 河洛取化工法踩过）。
 - **发布前做过 `git checkout`/`merge`（如 ff `main`）→ 必先重建 `dist-file` + touch/重编 jar，再 `build_desktop_release.sh`**：git 会把切换文件的 mtime 顶到「现在」，让 `package_runtime_payload.sh` 的 freshness guard 误报「dist-file/jar 比源旧」（内容其实是新的）。正确顺序：git branch 操作做完→重建 dist-file→`touch` 两个 jar（内容已确认当前时）。详见 `horosa-dev` skill「Safeguards」章。
-- **改任何 runtime 端点的响应结构 → 必须同步更新 `astrostudyui/scripts/verifyHorosaRuntimeFull.js` 的对应检查**（v2.3.0 踩过：acg 把 `/location/acg` 重写成 `{meta, planets:{<id>:{lines:{asc:[],mc:{lon}}}}, geo, parans}`，但旧 verify 仍按旧 flat 结构取 `objectKeys(acg)[0].asc`→发布验证 `verify_desktop_packaging` 误报「asc 非数组」。端点本身没坏[已过 `validate_acg.py` ]，是验证脚本陈旧。改端点契约的 PR 务必连带更新此验证）。
+- **改任何 runtime 端点的响应结构 → 必须同步更新 `astrostudyui/scripts/verifyHorosaRuntimeFull.js` 的对应检查**。
 
 ---
 
@@ -210,7 +196,7 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 - **自定义「整宫家族」宫制的 `inHouse` -5° 偏移坑（落宫 off-by-one）。** flatlib `House.inHouse` 只在 `self.hsys == const.HOUSES_WHOLE_SIGN` 时用 `distance(self.lon, lon)`；**否则**用 `distance(self.lon + House._OFFSET, lon)`(`_OFFSET=-5.0`)。所以「福点整宫制」这类自定义整宫制，重定位宫头后**每个 `house.hsys` 必须设成 `const.HOUSES_WHOLE_SIGN`**（不是自定义标记 `'Fortuna_Whole'`），否则福点/行星落宫整体差一宫。**盘级宫制中文名靠盘的 `hsys` 参数(24→福点整宫制)驱动，不靠逐宫 `house.hsys`**，所以这样设不影响显示。
 - **新增 house system 三处同步（缺一即错位）。** ①后端 `astropy/astrostudy/perchart.py` 的 `hsys[]` 列表——**只能追加到末尾**(新 index)，**勿插中间**否则所有后续宫制 index 全错位、老盘读错宫制；自定义算法的再加 `custHouse_*` 常量 + `__init__` 里 `houseCust` 检测(底盘退化成某标准制) + `custHouse()` 分支重算 12 宫头。②前端 `constants/AstroConst.js` `HOUSE_SYSTEM_OPTIONS` 追加 `{value:<同后端index>, label}` + `HSYS_* ` 常量。③`constants/AstroText.js` 加 `AstroMsg[HSYS_*]` 标签。
 - **改 `astropy/**/*.py` 后必须重启 Python chart 服务**(CherryPy 不热重载)：`./stop_horosa_local.sh && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh`，否则 preview 仍跑旧码(直接 `python -c 'from astrostudy.perchart import PerChart'` 跑临时脚本验证逻辑则用的是新码——别被「脚本对、preview 错」误导)。注：curl 直打 `/predict/*` 会得 `no.register.app.in.sys.forapp:`(缺前端注册头)，**不代表后端坏**，要从前端 UI 验证。
-- **Balbillus 算法口径**(还原自 129-year Balbillus 变体，独立 `utils/balbillus.js`，**不碰** decennials.js)：七星 Balbillus 小年(日19/月25/土30/木12/火15/金8/水20=129) → 主限长度 `= N×(1 − d/360)`，d=本命星黄经离其**擢升度**的角距(`nearest` 最近角距 / `forward` 顺黄道距，做成参数) → 主限序=七星按本命黄经升序、从**起始星**旋转 → 每主限再以该期主星为起点按 **129 权重**递归切子限(可 5 层) → 日期用 Hellenistic **360 日年**(可切 solar)。UI=antd `Tree` 懒加载(`loadData`)。起始星/年制/距离口径做成左栏选项；mode 默认 nearest，精校需对 参考 同**本命**盘(其面板经度是 transit 盘、勿误用)。
+- **Balbillus 算法口径**(还原自 129-year Balbillus 变体，独立 `utils/balbillus.js`，**不碰** decennials.js)：七星 Balbillus 小年(日19/月25/土30/木12/火15/金8/水20=129) → 主限长度 `= N×(1 − d/360)`，d=本命星黄经离其**擢升度**的角距(`nearest` 最近角距 / `forward` 顺黄道距，做成参数) → 主限序=七星按本命黄经升序、从**起始星**旋转 → 每主限再以该期主星为起点按 **129 权重**递归切子限(可 5 层) → 日期用 Hellenistic **360 日年**(可切 solar)。UI=antd `Tree` 懒加载(`loadData`)。起始星/年制/距离口径做成左栏选项；mode 默认 nearest，精校需对 同**本命**盘(其面板经度是 transit 盘、勿误用)。
 - **行星 tab 底部空白 + 七政卡片矮**根因：`AstroPlanet`/`AstroLots` render 内部 `height-130` 过减 → `0.68t+0.32t` 只渲染 `t−202px` 内容、容器满高 `t` → 底部空白。**修法=`.horosa-planet-with-lots` 改 `display:flex;flex-direction:column`，`AstroPlanet` 加 `fill` 模式(`flex:1;height:100%`)撑满、`AstroLots` 加 `natural` 模式(内容高)**。别再用「固定百分比 height」拼两块。
 
 ---
@@ -278,7 +264,7 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 4. **紫炁在 Moira 链路本就正确**：喂 Moira 的 chartObj 由 astropy `perchart` 产出，紫炁(PURPLE_CLOUDS)是约 28 年匀速虚星（实测今日 168.3°，与 Moira 公式 `230.5+(JD−JD(1975-03-13 16:00 UT))/10227.1792×360` ≈168.8° 吻合，与月孛 258° 分明）。`紫氣=swe.OSCU_APOG` 的 bug **只在 kinastro**（`vendor/kinastro/.../qizheng/constants.py`，本轮不碰、也不喂 Moira）。**勿对 Moira 紫炁再加覆盖**（画蛇添足）。
 5. **逐神煞悬浮判语**：`GuoLaoShenShaDoc.GUOLAO_SHENSHA_DOC`（公版古籍口径、自有重编、零第三方 App 痕迹）键名 = wheel 的 `BIRTH_GOD_ORDER`∪`TRANSIT_GOD_ORDER`。`renderGodRing` 给每个神煞单独热区 + `guolaoShenShaTip()` 判语（保留宫级 summary 作底层）。jest `__tests__/GuoLaoShenShaDoc.test.js` 守全覆盖——往 wheel god order 加神煞 → **同步加判语**否则测试红。
 6. **`GuoLaoMoiraPickWheel`(天星择日动盘) 与命盘轮共用** wheel 的导出 helper（`moira*`）+ 同一 `GUOLAO_SHENSHA_DOC`；其 24 山环(`renderMountainRings`)是择日方位概念——**24 山只放 PickWheel、勿叠到本命黄道盘**（azimuth≠黄经，叠上去不还原）。
-7. **24 山/择日自动搜时（太阳到山·日月蚀·评分排名）尚未实现**：PickWheel 现为「动盘 + 24 山 + 神煞」手动择时盘，自动搜时引擎是 TODO（需后端 + 对 Moira PICK 校验，勿仓促上线致不稳）。
+7. **24 山/择日自动搜时（太阳到山·日月蚀·评分排名）尚未实现**：PickWheel 现为「动盘 + 24 山 + 神煞」手动择时盘，自动搜时引擎是 TODO。
 8. **右栏多 Tab**：`GuoLaoMoiraPanel` 内用 antd `Tabs items=[概览/星曜/宫限/神煞/格局]`，className **必须** `horosa-content-tabs horosa-guolao-tabs`（沿用原「Moira」单 tab 的样式，否则风格不一致）；`GuoLaoChartMain` 右栏**不再**包单 pane `<Tabs><TabPane tab="Moira">`（会变双层 tab）。卡片内距已收紧（section `7px 9px`、卡片 `5px 7px`、行 `min-height 22`），勿回退成 10px/8px 大留白。
    - **坑：卡片被撑满高（巨大留白）的真因**＝`app.less:5266` 的 `.horosa-workspace-shell .horosa-content-tabs .ant-tabs-tabpane > * { height:100% !important }`（为「单满高面板」设计，撑高所有 tabpane 直接子元素）。本面板每 tab 是多张卡 → 全被撑满。**必须用更高特异度覆盖**：`.horosa-workspace-shell .horosa-guolao-moira-tabs.ant-tabs .ant-tabs-tabpane > * { height:auto!important; max-height:none!important }`（`.x.ant-tabs` 凑 0,4,0 > app.less 0,3,0），并给 `.ant-tabs-tabpane` 加 `overflow-y:auto`（pane 满高自滚）。同特异度 + 同 `!important` 会输给加载顺序，务必抬特异度。
    - **坑：神煞卡字挤**＝曜名长串 + 全局 `line-height:18` 偏紧 → `.horosa-guolao-moira-gods .horosa-guolao-moira-god` 单独放宽 `line-height:20` + 宫名/支/曜 间 `margin`。

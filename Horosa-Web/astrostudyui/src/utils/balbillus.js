@@ -40,11 +40,11 @@ const PLANETS = [
 	AstroConst.MARS, AstroConst.VENUS, AstroConst.MERCURY,
 ];
 
-// 年制：core 实测 Balbillus 用回归年 365.24219879 日（抓包 timeUnitInDays）——其
-// 「Egyptian/Hellenistic(360)」选项只是标签、不影响周期数学；故默认 solar 对齐 core，
+// 年制：Balbillus 用回归年 365.24219879 日。
+// 「Egyptian/Hellenistic(360)」选项只是标签、不影响周期数学；故默认 solar，
 // 真 360 日年保留给想要古典 Hellenistic 的用户。
 export const BALBILLUS_YEAR_TYPES = {
-	solar: { days: 365.24219879, label: 'Solar 回归年（365.2422 日 · 对齐 core）' },
+	solar: { days: 365.24219879, label: 'Solar 回归年（365.2422 日）' },
 	hellenistic: { days: 360, label: 'Egyptian/Hellenistic（360 日）' },
 };
 
@@ -96,9 +96,8 @@ export function balbillusDistance(lon, exalt, mode){
 	return Math.min(raw, 360 - raw);
 }
 
-// core 校准（6 张盘最小二乘，残差 < 0.8°）：日/月/火这 3 星 core 用的不是黄经距
-// （dcn_method_id=2 内部度量；已排除 RA/OA），但等价于「黄经最近角距的线性变换」d = a×ecl + b——
-// 即便在擢升处也有基础削减 b。其余四星 a=1/b=0（纯黄经最近角距，6 盘实测精确）。仅 nearest 口径生效。
+// 削减拟合：日/月/火这 3 星用的不是黄经距，但等价于「黄经最近角距的线性变换」d = a×ecl + b——
+// 即便在擢升处也有基础削减 b。其余四星 a=1/b=0（纯黄经最近角距）。仅 nearest 口径生效。
 const BALBILLUS_REDUCTION_FIT = {
 	[AstroConst.SUN]: { a: 0.9431, b: 19.47 },
 	[AstroConst.MOON]: { a: 0.9592, b: 14.76 },
@@ -162,7 +161,7 @@ function makeNode(ctx, planet, level, startDays, durDays){
 	};
 }
 
-// 各层时间单位（天），core 实测逐层 /12：L1=年(365.2422)、L2=年/12(月,30.4368)、L3=年/144(2.5364)…
+// 各层时间单位（天），逐层 /12：L1=年(365.2422)、L2=年/12(月,30.4368)、L3=年/144(2.5364)…
 function timeUnitDays(ctx, level){
 	const y = BALBILLUS_YEAR_TYPES[ctx.opts.yearType].days;
 	return y / Math.pow(12, Math.max(0, level - 1));
@@ -188,8 +187,8 @@ export function buildBalbillusRoots(ctx){
 	return roots;
 }
 
-// 子限（core 实测结构）：时间单位逐级降级——每子段时长 = 削减年数(子星) × 当前层时间单位
-// (L2=月)，自父星起按行进序铺开；**末段填满父期剩余**（core 实测：最后一颗星被拉长到父期末），
+// 子限结构：时间单位逐级降级——每子段时长 = 削减年数(子星) × 当前层时间单位
+// (L2=月)，自父星起按行进序铺开；**末段填满父期剩余**（最后一颗星被拉长到父期末），
 // 自然长度溢出父期则截断。**不是**原先的「129 权重切父期」。
 export function buildBalbillusChildren(ctx, node){
 	if(!node || node.level >= ctx.opts.maxDepth){ return []; }

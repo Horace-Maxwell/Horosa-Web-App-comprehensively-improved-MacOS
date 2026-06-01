@@ -18,7 +18,7 @@ Append new entries; do not rewrite history.
 
 > 五分支收敛发布（astro-progression-v250 + jinkou-interp-layer + guolao-moira-fidelity + ziwei-depth + startup-port-readiness-hardening）。**含 Java(astrostudy 推运 + astrostudycn 紫微)/Python 改动,已重编 `astrostudyboot.jar`。** 先推 main 供 Windows 同步,再走全量签名/公证 release。
 
-- Scope: (1) 西占推运补全7技法(波斯向运双圈/行星弧/Vedic/Jayne赤纬/行星年龄/真129年/Balbillus校准)+福点整宫制+相位美化+映点反映点恢复;(2) 时区/夏令时(DST)三表单自动校正(离线 IANA);(3) 金口诀解读层(神煞判语/四位生克/应期/分类用神/刑冲合害破/太玄数);(4) 七政四余 Moira 还原度(28宿环/显示选项/多tab/大限/神煞);(5) 启动机制稳健化——端口被占先回收自家僵尸+换口重试(脚本 exit3 ↔ Rust 换口,**web 不入环防 [9]E**)、卡死自家后端签名核实精准回收(不误杀)、就绪前最小同步热身(非致命有界)、排盘请求透明重试(SSE/AI/SAVE 排除防双计费)、非阻塞重连横幅(严格离线判定)。**根治「端口被占用用不了 / 打开后显示后端未启动」。** (6) 紫微运限深化(运限/格局两 Tab:八字大运式级联/流年小限同级/多层四化叠加/格局自动识别;后端 astrostudycn 新增 /ziwei/luck + /ziwei/birth 返回 patterns);(7) 六壬 Phase4(七政接入 + 起课法/换将/分昼夜,纯前端 castOverride)。
+- Scope: (1) 西占推运补全7技法+福点整宫制+相位美化+映点反映点恢复;(2) 时区/夏令时(DST)三表单自动校正(离线 IANA);(3) 金口诀解读层(神煞判语/四位生克/应期/分类用神/刑冲合害破/太玄数);(4) 七政四余 Moira 还原度(28宿环/显示选项/多tab/大限/神煞);(5) 启动机制稳健化——端口被占先回收自家僵尸+换口重试(脚本 exit3 ↔ Rust 换口,**web 不入环防 [9]E**)、卡死自家后端签名核实精准回收(不误杀)、就绪前最小同步热身(非致命有界)、排盘请求透明重试(SSE/AI/SAVE 排除防双计费)、非阻塞重连横幅(严格离线判定)。**根治「端口被占用用不了 / 打开后显示后端未启动」。** (6) 紫微运限深化(运限/格局两 Tab:八字大运式级联/流年小限同级/多层四化叠加/格局自动识别;后端 astrostudycn 新增 /ziwei/luck + /ziwei/birth 返回 patterns);(7) 六壬 Phase4(七政接入 + 起课法/换将/分昼夜,纯前端 castOverride)。
 - Files: 启动 `Horosa_Desktop_Installer/src-tauri/src/main.rs` + `Horosa-Web/start_horosa_local.sh` + 前端 `astrostudyui/src/utils/{request,chartFetch,serviceStatus}.js` + 四引擎 calc + `layouts/app.js` + `components/common/ServiceStatusBanner.js` + `scripts/warmHorosaRuntime.js`;推运 `astropy/astrostudy/{symbolicdir,yearsystem129}.py` + `perchart.py` + `astrostudyui` 多组件 + `utils/{balbillus,timezone,planetaryAges}.js`;jinkou/Moira `components/{jinkou,guolao,taiyi}`;紫微 `astrostudycn/{controller/ZiWeiController,helper/ZiWeiHelper,model/ZiWeiLuck,model/ZiWeiPattern}.java` + ziweige/ziweiliuchangqu.json + `components/ziwei/{ZWLuckPanel,ZWPatternPanel,…}.js`;六壬 `components/{lrzhan/LiuRengMain,liureng/LRCommChart,liureng/LRConst}.js`。preflight 哨兵 [11]–[21]。版本号 **2.5.0 / 2.5.0-runtime1** 全文件 lockstep(三 README + CITATION.cff + Cargo.toml/lock + tauri.conf + package.json + release_config + web/app.js + verify_launcher_console_states)。
 - Verification: 前端 `umi build` 绿;`umi-test` 29 套件 140 测试全绿;`cargo fmt`+`cargo check` 绿;真起本地栈 smoke(services ready / chart `{ok:true}` / 占端口 exit3 / 最小热身 4s / java owner 标记);`release_preflight.sh` [1]–[19] 全绿(发布前跑)。
 
@@ -79,7 +79,7 @@ Append new entries; do not rewrite history.
 ### 准备 v2.3.0 beta：占星地图(ACG)全面升级 + 辅盘卜卦/择日盘 + 河洛理数补全 + 多项修复（acg / task⑥ / ①–⑤ / heluo 四工作流合并发布）
 
 - Scope:
-  - **占星地图 ACG 全面升级**（分支 `feature/acg-map-upgrade`）：D3-geo + 内置 GeoJSON + 解析法赤经赤纬四轴线，替代旧 AMap+迭代搜索；落点分析(迁移四轴)/本地空间/Parans(关·日月·全部)/4 底图样式/明暗即时切换；`validate_acg.py`  PASS。含 Java(`AcgController`/`AstroHelper`)+ Python(`AcgSrv`/`ACGraph.py`)。
+  - **占星地图 ACG 全面升级**（分支 `feature/acg-map-upgrade`）：D3-geo + 内置 GeoJSON + 解析法赤经赤纬四轴线，替代旧 AMap+迭代搜索；落点分析(迁移四轴)/本地空间/Parans(关·日月·全部)/4 底图样式/明暗即时切换；`validate_acg.py` PASS。含 Java(`AcgController`/`AstroHelper`)+ Python(`AcgSrv`/`ACGraph.py`)。
   - **辅盘新增卜卦盘 + 择日盘**（task⑥）：西洋 Horary 断事规则库 + Election 盘 + 事件盘存盘/重开 + AI 挂载。纯前端。
   - **河洛理数补全**（分支 `feature/heluo-school-interp`）：取化工法→**左栏 per-技法选项**（镜像参评数古法/明法，不入全局设置）；运盘流年/流月行显**精确节气交时 label**；命运篇补 5 判断（二十四数名 / 众宗-众疾 / 顺反数+季节宜 / 正反对体凶 / 看命大法命格）。主链零改、对古籍原文逐条审计。纯前端。**口径定稿**：土用=四立前18日(标准土王用事)；A1 寄爻顺起不做。
   - **①–⑤ 修复**：#9 AI 模型代理(Java+启动器)、六壬发三传顺序、占星右栏空白块、风水 UI 重写、快捷 dock 自适应。
@@ -165,7 +165,7 @@ Append new entries; do not rewrite history.
   - 占星各盘符号几何居中:`astrostudyui/src/components/astro/{AstroChartCircle,AstroHelper}.js` 全部 `dominant-baseline:"middle"`→`"central"`(共享渲染器,覆盖占星清简/经典、合盘、辅盘、主限法盘)。
   - 太乙四柱随时间基准+两时间:`astrostudyui/src/components/taiyi/{TaiYiCalc,TaiYiMain}.js`,复用八字 `utils/baziLunarLocal.buildLocalBaziResult`(与八字同契约:clockTime/solarTime 稳定、四柱随 timeAlg)。
   - 主限法推运年数(全栈):前端 `components/astro/AstroPrimaryDirection.js`+`components/direction/AstroDirectMain.js`(InputNumber 默认 100、1-180);Python `astropy/astrostudy/{perchart,perpredict}.py`(pdYears clamp→max_arc);Java `astrostudy/.../PredictiveController.java`(pdYears 白名单透传)。
-  - 主限法表头/页码/去 :`layouts/app.less`、`components/astro/{AstroPrimaryDirection,AstroPrimaryDirectionChart}.js`。
+  - 主限法表头/页码/去:`layouts/app.less`、`components/astro/{AstroPrimaryDirection,AstroPrimaryDirectionChart}.js`。
   - Ollama 流式不中断:`astrostudysrv/boundless/.../SseHelper.java`(`SseEmitter(0L)`)、`astrostudy/.../AIAnalysisProxyService.java`(buildJsonRequest 条件超时)。
   - 其它 UI:`layouts/app.less`(紫微空白条、合盘明亮选择条、配置溢出、主限表头)、`components/homepage/PageHeader.js`(去重复菜单 搜索/历史/收藏)、`components/ziwei/ZWHouseSangHe.js`(三合神煞字体变细 520→400)。
   - 版本 lockstep(2.1.8)、`config/release_notes/2.1.8.md`、`docs/ui-and-time-fixes-v2.1.8.md`、`docs/windows-sync-handoff.md` v2.1.8 条目。
@@ -731,7 +731,7 @@ Append new entries; do not rewrite history.
     - 新增 Guangde 浏览器级专项验证：
       - 设置 `2006-10-04 09:58 / 30N53 / 119E25 / guangde`
       - 验证 `主/界限法` 浏览器表格前几行与当前后端 `predictives.primaryDirection` rows 一致；
-      - 验证这些 rows 与  当前参考输出保持接近；
+      - 验证这些 rows 与 当前参考输出保持接近；
       - 再切到 `主限法盘`，确认当时间取表格行时间时，`当前主限法年龄 / 外圈时间 / 盘面 SVG` 同步变化；
       - 再取一个非表格时间，确认盘面继续变化，证明支持任意时刻外圈推演。
     - 忽略字体静态资源 404/abort 噪声，只把真正的功能异常记为失败。
@@ -746,7 +746,7 @@ Append new entries; do not rewrite history.
   - Guangde 浏览器取证结果：
     - `主/界限法` 浏览器表格前 7 行与后端 rows 完全一致；
     - 广德关键行 `Uranus 180 -> MC` 浏览器显示为 `1度33分 / 2008-04-21 15:49:15`；
-    - 与  参考 `1.5480341336 / 2008-04-21 15:54:00` 保持接近；
+    - 与 参考 `1.5480341336 / 2008-04-21 15:54:00` 保持接近；
     - `主限法盘` 在命中表格时间与任意时间时，`当前主限法年龄 / 外圈时间 / 外圈盘面` 都会同步变化。
   - 产物：
     - `runtime/guangde_primarydirchart_browser_check.json`
@@ -5522,7 +5522,7 @@ Append new entries; do not rewrite history.
   - `verify_horosa_local.sh` 在浏览器 smoke 前如果发现 `8000` 没有静态页服务，会自动临时补起一个 `http.server`，跑完后再回收，避免自检被网页端口策略误伤。
   - 桌面打包版已重新和主仓库对齐，并用广德盘浏览器实测确认：
     - 表格前几行重新回到 `-0度4分 / 0度21分 / -0度48分 / 0度57分 / 1度33分 ...`
-    - `主限法盘` 在表格时间、任意时间、`Horosa原方法 <-> -Alchabitius` 切换下都能同步更新外圈时间与外圈位置。
+    - `主限法盘` 在表格时间、任意时间、`Horosa原方法 <->-Alchabitius` 切换下都能同步更新外圈时间与外圈位置。
 - Verification (local):
   - `./.runtime/mac/venv/bin/python3 scripts/check_primary_direction__integration.py` ✅
   - `HOROSA_WEB_PORT=18001 HOROSA_SERVER_PORT=19999 HOROSA_SERVER_ROOT=http://127.0.0.1:19999 python3 scripts/browser_primary_direction_chart_guangde_check.py` ✅

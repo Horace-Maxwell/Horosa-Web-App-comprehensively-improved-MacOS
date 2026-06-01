@@ -6,7 +6,7 @@
 |---|---|---|
 | 各盘符号几何居中 | `astrostudyui/src/components/astro/{AstroChartCircle,AstroHelper}.js` | 否(纯前端) |
 | 太乙四柱随时间基准+两时间 | `astrostudyui/src/components/taiyi/{TaiYiCalc,TaiYiMain}.js` | 否(纯前端) |
-| 主限法 表头/页码/去参考 | `astrostudyui/src/layouts/app.less`、`components/astro/{AstroPrimaryDirection,AstroPrimaryDirectionChart}.js` | 否 |
+| 主限法 表头/页码/去 | `astrostudyui/src/layouts/app.less`、`components/astro/{AstroPrimaryDirection,AstroPrimaryDirectionChart}.js` | 否 |
 | 主限法 推运年数控件 | 前端 `AstroDirectMain.js`/`AstroPrimaryDirection.js`;后端 `astropy/.../perchart.py`+`perpredict.py`;Java `PredictiveController.java` | **是**(Java 白名单 pdYears) |
 | Ollama 流式不中断 | Java `boundless/.../SseHelper.java`、`astrostudy/.../AIAnalysisProxyService.java` | **是** |
 | 紫微空白条/三合神煞/合盘明亮/配置溢出/菜单精简 | `astrostudyui/src/layouts/app.less`、各前端组件 | 否 |
@@ -25,7 +25,7 @@
 
 ## 3. 主限法
 - 推运年数:前端控件(默认100、1-180);经 `AstroDirectMain` 沿 pdMethod/pdTimeKey 同路径下发 `pdYears`;Java `PredictiveController.getParams` 白名单透传;Python `perchart.pdYears`(clamp 1-180)→`perpredict.getPrimaryDirectionByZKernel` 的 `max_arc=self.perchart.pdYears`。注:kernel 弧用 `norm180` 归一化到 ±180°,故上限 180(>180 无新方向,经用户确认不扩展多圈)。
-- 表头:`.ant-table-cell-scrollbar` 被 `[class*=scrollbar]{padding-bottom:var(--horosa-scroll-safe-bottom)}` 误命中加了 82px 底pad~撑高表头→给 `.horosa-primary-direction-table thead th` 强制紧凑 padding。页码:减小底部预留(`bottomSafeReserve`/常数)使表体长高、页码下移。去 参考:`Alchabitius`→`Alchabitius`。
+- 表头:`.ant-table-cell-scrollbar` 被 `[class*=scrollbar]{padding-bottom:var(--horosa-scroll-safe-bottom)}` 误命中加了 82px 底pad~撑高表头→给 `.horosa-primary-direction-table thead th` 强制紧凑 padding。页码:减小底部预留(`bottomSafeReserve`/常数)使表体长高、页码下移。去:`Alchabitius`→`Alchabitius`。
 
 ## 4. Ollama 流式中断
 - 根因:流式路径两个写死 120s 上限——`SseHelper.java` `new SseEmitter(120000L)`(用户超时设置改不到它,主因)与 `AIAnalysisProxyService.buildJsonRequest` 的 `.timeout(120s)`。慢速本地模型超 120s 即被掐断「停止生成」。

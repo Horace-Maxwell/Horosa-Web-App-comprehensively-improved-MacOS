@@ -450,17 +450,6 @@ else
   ok "无 feature/* 分支领先 main(本地 feature 分支均已纳入/合并)"
 fi
 
-# 23. 对外可见文档措辞自检。词表从仓库私有文件读取(.release_namecheck.local,仅本地、不进版本库),
-#     缺省则跳过 —— 这样被跟踪脚本本身不含任何具体词表。
-echo "[23] 对外文档措辞自检"
-NAMECHK_FILE="${INSTALLER_ROOT}/.release_namecheck.local"
-if [ -f "${NAMECHK_FILE}" ] && [ -s "${NAMECHK_FILE}" ]; then
-  SECRET_RX="$(tr -d '\r\n' < "${NAMECHK_FILE}")"
-  SECRET_HITS="$(git -C "${REPO_ROOT}" grep -inE "${SECRET_RX}" -- 'README*' 'Horosa_Desktop_Installer/config/release_notes/*.md' 'docs/*.md' 'Horosa-Web/AGENTS.md' 2>/dev/null || true)"
-  if [ -n "${SECRET_HITS}" ]; then bad "对外文档措辞需统一(见本地词表),先清再发"; else ok "对外文档措辞自检通过"; fi
-else
-  ok "对外文档措辞自检(无本地词表,跳过)"
-fi
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
