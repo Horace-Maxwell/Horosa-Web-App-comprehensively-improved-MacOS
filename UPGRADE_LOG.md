@@ -14,6 +14,17 @@ Append new entries; do not rewrite history.
 
 ## 2026-06-01
 
+### v2.5.1 re-issue（#14 本地回环不走系统代理；runtime bump `2.5.1-runtime1`→`2.5.1-runtime2`，覆盖重发 v2.5.1）
+- Date: 2026-06-01
+- Scope: 后端 `boundless` 出站代理（**含 Java 改动 → 重编 jar**）；app 版本不变 **2.5.1**（对齐 Windows），仅内部 runtimeVersion 升 `runtime2` 让存量用户经软件内更新拿到新 runtime。
+- Files: `Horosa-Web/astrostudysrv/boundless/src/main/java/boundless/net/http/HttpUriRequestHystrixCommand.java`（`doCmd` 回环 `setProxy(null)` + 新增 `isLoopbackTarget`）；`config/release_config.json`（runtimeVersion）；文档 `Horosa-Web/AGENTS.md §8` + `docs/windows-sync-handoff.md` + `config/release_notes/2.5.1.md`；preflight `[27]` 哨兵。前端半已在首版 v2.5.1：`services/astro.js` fetchChart 透明重试。
+- Details:
+  - 根因（跨平台）：启动器 `-Djava.net.useSystemProxies=true` 使 JVM 把 `127.0.0.1`/`localhost` 本地排盘出站也走系统代理 → 开 Clash/V2Ray 时代理转发回环卡顿/超时 →「本地排盘服务未就绪」、重启无效。
+  - 修法：`doCmd` 对回环目标直连（`setProxy(null)`，`HttpClientBuilder.create()` 不开 useSystemProperties 即 DIRECT），外部请求仍 `getHttpHost` 走代理（AI #9/#10 不受影响）。
+  - 分工：**Windows 端 Claude 先定位并随 Windows v2.5.1 修复关闭 #14（isLoopbackTarget）→ Windows 无需再动**；本条为 Mac 同步同款（跨平台 bug）。
+  - 遗留（下版）：Win #14 日志另现 React #130（undefined 组件，排盘后交互崩），非本体，已向报告者要复现。
+- Verification: `mvn` 重编 boundless+astrostudyboot，`javap` 验 fat jar 内嵌 boundless 含 `isLoopbackTarget` + `invokestatic`；整包重建（runtime2）+ preflight + verify_desktop_packaging + 覆盖重发（`HOROSA_FORCE_RUNTIME_UPLOAD=1`）。
+
 ### v2.5.1（复审整改第二轮：起课兜底 / 卜卦择日挂载 / 命盘时间入口 / 数算流年 / 导出注册 / atlas 全量城市 / 紫微两 bug / 天文馆沉浸）
 - Date: 2026-06-01
 - Scope: AI 分析页 + 导出 + atlas + 紫微 + 天文馆（用户验收 v2.5.1 后追加，仍属 v2.5.1，不升版）

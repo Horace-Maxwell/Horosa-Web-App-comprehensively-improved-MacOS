@@ -526,6 +526,22 @@ else
 fi
 
 
+# 27. #14（跨平台）本地回环不走系统代理 —— Mac 与 Windows 同因：启动器设 -Djava.net.useSystemProxies=true,
+#     开 Clash/v2ray 时 JVM 会把 127.0.0.1/localhost 出站也塞进代理 → 代理转发回环卡顿/超时 →「本地排盘服务未就绪」。
+#     修法：doCmd 对回环目标 setProxy(null) 直连；外部请求(api.openai.com 等)仍 getHttpHost 走代理。
+echo "[27] #14 本地回环不走系统代理哨兵(跨平台:Mac 同步 Windows)"
+HYSTRIX_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/boundless/src/main/java/boundless/net/http/HttpUriRequestHystrixCommand.java"
+if [ -f "${HYSTRIX_JAVA}" ]; then
+  if grep -q "isLoopbackTarget" "${HYSTRIX_JAVA}" && grep -q "setProxy(isLoopbackTarget(request) ? null :" "${HYSTRIX_JAVA}"; then
+    ok "[27] doCmd 回环目标直连(isLoopbackTarget→setProxy(null)),外部请求仍走 getHttpHost(开系统代理时本地排盘不再被代理转发卡顿)"
+  else
+    bad "[27] HttpUriRequestHystrixCommand 缺 isLoopbackTarget 回环旁路 —— 开 Clash/v2ray 时本地排盘会被代理转发超时(Win #14 同因,跨平台);务必先补回 doCmd"
+  fi
+else
+  warn "[27] 未找到 HttpUriRequestHystrixCommand.java(boundless 结构变动?手动核实回环旁路仍在)"
+fi
+
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

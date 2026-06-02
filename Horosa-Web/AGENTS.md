@@ -374,3 +374,11 @@ v2.2.1 给 #8 加的 keep-alive 心跳线程(每 15s `emitter.send(keep-alive)`,
 - **经纬度+时区 四同步**:`buildChartBaziParams` 透传 `zone/lon/lat/gps/timeAlg`;`localcharts.js:246` 存 zone;`astroAiSnapshot`/`aiAnalysisContext` 读 zone → 挂载/导出/储存一致。
 - AI 挂载抽屉宽 460→**560**(经纬度/时区输入不被裁)。
 - **自检**:`AstroHelperGeo.test`(18 例,坐标正反转换)+ `timezone.resolveGeoZone.test`(8 例:四半球+DST 随日期变+手改优先+无效返 null+兜底今天)+ `release_preflight.sh [25]`(坐标转换/timeAlg 哨兵)+ `[26]`(11 个占卜/星盘页 changeGeo 均 import+调 `resolveGeoZone` 哨兵)。改坐标/时区/timeAlg/任一页 changeGeo 后必跑 + preview 实测「选异地(美西/伦敦)→坐标干净、时区自动、无 param error」。
+
+### 8. #14 本地回环不走系统代理(跨平台:Mac 同步 Windows;**改 boundless 出站/排盘连通前先读**)
+- **症状**:用户开着系统代理(Clash/v2ray 等)时,排盘间歇/持续报「排盘失败:本地排盘服务未就绪」,重启 App / 修复无效(代理配置持久)。Windows #14 即此;**Mac 同因**(同一套出站 HTTP 代码 + 启动器同样设系统代理)。
+- **根因**:启动器 `Horosa-Web/start_horosa_local.sh`(:780 附近)+ `HttpClientUtility.java` 设了 `-Djava.net.useSystemProxies=true`,JVM 的 `ProxySelector` 会把**本地回环出站**(内置排盘服务 `127.0.0.1:8899` 等)也按系统代理走 → 代理尝试转发 `127.0.0.1` 卡顿/超时(实测 12–17s)→ 上层判定「本地服务未就绪」。
+- **修法**(`boundless/.../net/http/HttpUriRequestHystrixCommand.java`):`doCmd` 构造 `RequestConfig` 时,**回环目标 `setProxy(null)` 直连**、非回环仍 `setProxy(HttpClientUtility.getHttpHost())`。判定靠新增静态 `isLoopbackTarget(request)`(host ∈ `localhost`/`127.*`/`::1`/`[::1]`/`0:0:0:0:0:0:0:1`)。**外部请求(api.openai.com / generativelanguage 等)照常走代理 → AI 流式 #9/#10 不受影响**。`HttpClientBuilder.create()` 不开 `useSystemProperties`,故 `setProxy(null)` = DIRECT。
+- **来源/分工**:Windows 端 Claude 先定位并随 **Windows v2.5.1** 修复关闭 #14;本条是 **Mac 同步同款**(跨平台 bug,非 Mac 独有)。前端另有一半兜底:`services/astro.js` 主 `fetchChart` 加透明重试(`retry:{retries:6,backoff:[...]}`,见 §port 健壮性),应对慢启动;两半合起来治 #14。
+- **⚠️ Java 改动 → 必重编 jar**:`cd Horosa-Web/astrostudysrv && mvn -f boundless/pom.xml clean install -DskipTests`(boundless→.m2)`&& mvn -f astrostudyboot/pom.xml clean package -DskipTests`(repackage,把新 `BOOT-INF/lib/boundless-1.2.1.2.jar` 嵌进 fat jar)。验证:`unzip` fat jar → 取嵌套 boundless → `javap -p` 看 `isLoopbackTarget`。打包主取 `astrostudyboot/target/astrostudyboot.jar`(bundle 仅 fallback,记得一并刷新)。
+- **自检**:`release_preflight.sh [27]`(grep `isLoopbackTarget` + `setProxy(isLoopbackTarget(request) ? null :` 同时在)。**深层遗留**:Win #14 日志另现 React #130(undefined 组件,排盘后交互崩),**非本体**,留下版本(已向报告者要复现)。

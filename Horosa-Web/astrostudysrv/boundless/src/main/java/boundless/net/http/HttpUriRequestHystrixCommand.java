@@ -71,6 +71,21 @@ public class HttpUriRequestHystrixCommand extends HystrixCommand<String> {
         return "";  
     }  
 	
+	// #14(跨平台):请求目标是否本地回环(loopback)。回环一律直连、不走系统代理(见 doCmd setProxy)。
+	private static boolean isLoopbackTarget(HttpUriRequest request){
+		try{
+			if(request == null || request.getURI() == null){ return false; }
+			String host = request.getURI().getHost();
+			if(host == null){ return false; }
+			host = host.trim().toLowerCase();
+			return host.equals("localhost")
+				|| host.equals("127.0.0.1") || host.startsWith("127.")
+				|| host.equals("::1") || host.equals("[::1]") || host.equals("0:0:0:0:0:0:0:1");
+		}catch(Exception e){
+			return false;
+		}
+	}
+
 	public static String doCmd(String user, String password, HttpUriRequest request,
 			Map<String, String> headers, String contenttype, int timeoutMS, HttpStatusCode status, SSLConnectionSocketFactory sslFactory) {
 		return doCmd(user, password, request, headers, contenttype, timeoutMS, status, null, sslFactory);
@@ -80,7 +95,11 @@ public class HttpUriRequestHystrixCommand extends HystrixCommand<String> {
 			Map<String, String> headers, String contenttype, int timeoutMS, HttpStatusCode status, Map<String, String> respHeadMap, 
 			SSLConnectionSocketFactory sslFactory){
 		try{
-			RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(timeoutMS).setSocketTimeout(timeoutMS).setProxy(HttpClientUtility.getHttpHost()).build();
+			// #14(跨平台):本地回环目标(127.0.0.1/localhost/::1,如内置排盘服务 :8899)一律直连、不走系统代理。
+			// 开系统代理(Clash/v2ray 等)时 JVM -Djava.net.useSystemProxies=true 会把回环调用也塞进代理 →
+			// 代理转发 127.0.0.1 卡顿/超时(12–17s)→「排盘失败:本地排盘服务未就绪」;重启/修复无效(代理配置持久)。
+			// 外部请求(api.openai.com 等)仍照常走代理(getHttpHost),AI 流式 #9 不受影响。
+			RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(timeoutMS).setSocketTimeout(timeoutMS).setProxy(isLoopbackTarget(request) ? null : HttpClientUtility.getHttpHost()).build();
 			HttpClientBuilder builder = null;
 			if(BraveHelper.existZipkin()){
 				builder = BraveHelper.getHttpClientBuilder(request.getURI().toString());
