@@ -8,12 +8,12 @@
 
 **Western astrology and Chinese metaphysics, in one native macOS workstation**
 
-[![Version](https://img.shields.io/badge/version-2.5.0-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.0)
+[![Version](https://img.shields.io/badge/version-2.5.1-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.0)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.0)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
 
-[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.0/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.1/Horosa-Installer-macos-arm64-offline.pkg) ·
 [Portal](README.md) ·
 [中文说明](README_ZH.md) ·
 [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -32,7 +32,7 @@ This repository is the macOS delivery of that app: the application source, the s
 
 Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.0/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.1/Horosa-Installer-macos-arm64-offline.pkg)**
 
 Best for:
 
@@ -91,19 +91,18 @@ Yi and Sanshi go past standalone tabs into a genuinely integrated surface.
 
 Charts and cases save locally with tags, snapshots, and raw backend payloads. Everything supports JSON import/export and restores its full state when you reopen it.
 
-## New in v2.5.0 beta
+## New in v2.5.1 beta
 
-A large feature + startup-robustness release.
+This release focuses on the AI-analysis and location/timezone experience, plus one proxy-environment charting-stability fix.
 
-- **Western progression & direction techniques** — Persian double-wheel primary directions, planetary arc, Vedic progressions, Jayne declination directions, planetary ages, true-129-year, and Balbillus (calibrated against gold-standard reference charts); plus a Part-of-Fortune whole-sign house system, aspect-rendering polish, and antiscia / contra-antiscia restored.
-- **Automatic timezone / DST correction** — all three forms resolve the IANA zone from latitude/longitude offline and auto-correct daylight saving.
-- **Jin Kou Jue interpretation layer** — shensha verdicts, four-position generation/control, timing, categorized use-gods, xing/chong/he/hai/po, and Taixuan numbers.
-- **Qi Zheng (Moira fidelity)** — 28-mansion ring, display options, multi-tab, major periods, shensha verdicts.
-- **Zi Wei Dou Shu — progression depth** — new "运限/格局" tabs: BaZi-style cascading periods (major ▸ annual ▸ monthly ▸ daily ▸ hourly, with annual/minor on the same tier), stacked four-transformation cards, and automatic pattern (格局) detection.
-- **Liu Ren — casting-method enhancements (Phase 4)** — Qi Zheng integration plus casting methods (八客 / four-pillar alignment / chosen-hour / derived-number), general-swap (mid-/solar-term), and day/night division.
-- **Hardened local-service launch** — reclaims our own stale port holders / retries on fresh ports, precisely reclaims a wedged backend (no false kills), warms the chart service before navigation, auto-retries chart requests, and shows a non-blocking reconnect banner — fixing "port already in use" and "backend not started".
+- **AI Analysis page — full UX overhaul** — a mainstream chat flow (three-step top bar: configure → test connection → chat), with techniques / materials / system prompt / mount preview collapsed into a "Mount settings" drawer; after switching chart/case the mounted content strictly matches the selected chart (no more mounting the wrong one).
+- **13 techniques wired into AI mount / export** — the full Western progression set, numerology (Shao-zi Can-ping / He-luo Li-shu, with annual hexagrams now included), Yan-qin / Ce-tian / Huang-ji — all mountable and exportable, with per-technique per-section toggles.
+- **Two new instant-cast entries — "Cast time" and "Natal time"** — cast from just time + location (coin/number-cast methods like Liu-yao are never fabricated from time alone); each embeds a built-in atlas picker / timezone / naming / one-click save as chart·case.
+- **Coordinate & timezone calibration** — a built-in offline atlas of 34k+ world cities (Chinese / English search + standard DMS); every natal & divination technique re-casts live when you pick a location or change timezone, and Liu-ren shows apparent solar time by default.
+- **Proxy-environment charting stability (#14)** — when a system proxy (Clash / V2Ray, etc.) is on, local charting-service calls now go direct and bypass the proxy, fixing "local charting service not ready" (synchronized with the Windows build).
+- **More** — Qi-Zheng (Moira mode) centered-with-leader-line dignity scaling; two Zi-wei fixes (right-panel gap / palace-click shensha); planetarium immersive fullscreen.
 
-The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.5.0 / 2.5.0-runtime1`. Full log on the [v2.5.0 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.0).
+The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.5.1 / 2.5.1-runtime2`. Full log on the [v2.5.1 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1).
 
 ## Under the Hood
 
