@@ -8,12 +8,12 @@
 
 **Western astrology and Chinese metaphysics, in one native macOS workstation**
 
-[![Version](https://img.shields.io/badge/version-2.5.1-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
+[![Version](https://img.shields.io/badge/version-2.5.2-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2)
 
-[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.1/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.2/Horosa-Installer-macos-arm64-offline.pkg) ·
 [Portal](README.md) ·
 [中文说明](README_ZH.md) ·
 [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -32,7 +32,7 @@ This repository is the macOS delivery of that app: the application source, the s
 
 Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.1/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.2/Horosa-Installer-macos-arm64-offline.pkg)**
 
 Best for:
 
@@ -91,18 +91,17 @@ Yi and Sanshi go past standalone tabs into a genuinely integrated surface.
 
 Charts and cases save locally with tags, snapshots, and raw backend payloads. Everything supports JSON import/export and restores its full state when you reopen it.
 
-## New in v2.5.1 beta
+## What's New in v2.5.2 beta
 
-This release focuses on the AI-analysis and location/timezone experience, plus one proxy-environment charting-stability fix.
+This release ships a new midpoint-dial (Hamburg-school) technique, a new option on the primary-direction table, decoupled chat / embedding models for AI with native `num_ctx` support, and an astronomical correction on the primary-direction chart.
 
-- **AI Analysis page — full UX overhaul** — a mainstream chat flow (three-step top bar: configure → test connection → chat), with techniques / materials / system prompt / mount preview collapsed into a "Mount settings" drawer; after switching chart/case the mounted content strictly matches the selected chart (no more mounting the wrong one).
-- **13 techniques wired into AI mount / export** — the full Western progression set, numerology (Shao-zi Can-ping / He-luo Li-shu, with annual hexagrams now included), Yan-qin / Ce-tian / Huang-ji — all mountable and exportable, with per-technique per-section toggles.
-- **Two new instant-cast entries — "Cast time" and "Natal time"** — cast from just time + location (coin/number-cast methods like Liu-yao are never fabricated from time alone); each embeds a built-in atlas picker / timezone / naming / one-click save as chart·case.
-- **Coordinate & timezone calibration** — a built-in offline atlas of 34k+ world cities (Chinese / English search + standard DMS); every natal & divination technique re-casts live when you pick a location or change timezone, and Liu-ren shows apparent solar time by default.
-- **Proxy-environment charting stability (#14)** — when a system proxy (Clash / V2Ray, etc.) is on, local charting-service calls now go direct and bypass the proxy, fixing "local charting service not ready" (synchronized with the Windows build).
-- **More** — Qi-Zheng (Moira mode) centered-with-leader-line dignity scaling; two Zi-wei fixes (right-panel gap / palace-click shensha); planetarium immersive fullscreen.
+- **New "90° midpoint dial" technique** (Aux → Quantitative) — folded and multi-ring modulus forms, three stacked rings (natal / transit / solar arc), eight hypothetical points (Cu / Ha / Ze / Kr / Ap / Ad / Vu / Po), harmonic bases H1..H512, and a draggable red pointer that emits live planet / midpoint / planetary-picture readouts plus a midpoint tree. Transit / solar-arc time and location are independently adjustable; the natal ring is locked as the innermost.
+- **Naibod added to the primary-direction table** — the verified Ptolemy / Alcabitius paths stay byte-identical; with Naibod selected the table scales the date by 0.9856473, the chart projection scales accordingly, and converse reuses the same parameter chain. The four-angle declination bug on the primary-direction chart (ASC / MC / DESC / IC mistakenly treating geographic latitude as ecliptic latitude) is fixed at the root.
+- **AI Analysis: chat / embedding model decoupling + advanced parameters** — the top bar lets you pick chat and embedding models independently, and a "Parameters" drawer exposes thinking level / temperature / top_p. Ollama now uses native `/api/chat` and `/api/embed` so `num_ctx` actually applies — long astrology context no longer truncates at the default 4096 (#15).
+- **Da-Liu-Ren / Three-style-united AI mount fix + Liu-yao added to the time-cast whitelist** — Liu-yao still honours the "never recast saved hexagrams from time alone" rule; the new time entry only casts a fresh hexagram for a new timepoint.
+- **Midpoint-dial AI four-way sync** — the AI export presets, export-settings version, AI analysis mount, and chart / case storage all carry the new 90°-dial section.
 
-The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.5.1 / 2.5.1-runtime2`. Full log on the [v2.5.1 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1).
+The notarized offline `.pkg`, app zip, runtime archive, and manifest are aligned to `2.5.2 / 2.5.2-runtime1`. Full log on the [v2.5.2 release page](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2).
 
 ## Under the Hood
 

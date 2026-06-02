@@ -264,9 +264,11 @@ async function run() {
   });
   ensureNonEmptyArray(germany.midpoints, '/germany/midpoint midpoints');
   ensureNonEmptyObject(germany.aspects, '/germany/midpoint aspects');
+  ensureNonEmptyArray(germany.tnp, '/germany/midpoint tnp');
   summary.germany = {
     midpoints: germany.midpoints.length,
     aspectGroups: objectKeys(germany.aspects).length,
+    tnp: germany.tnp.length,
   };
 
   const pd = await call('/predict/pd', {

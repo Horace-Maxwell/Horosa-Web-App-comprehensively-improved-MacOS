@@ -318,6 +318,7 @@ function buildSnapshotText(chartObj, currentDt, currentArc){
 	lines.push(`时间选择：${currentDt ? currentDt.format('YYYY-MM-DD HH:mm:ss') : '无'}`);
 		lines.push(`推运方法：${params.pdMethod === 'horosa_legacy' ? 'Horosa原方法' : 'Alchabitius'}`);
 		lines.push(`度数换算：${params.pdTimeKey || DEFAULT_PD_TIME_KEY}`);
+		lines.push(`向运方向：${params.direction === 'converse' ? '逆向 Converse' : '顺向 Direct'}`);
 	lines.push(`当前Arc：${splitDegreeText(currentArc)}`);
 	lines.push('');
 	lines.push('[主限法盘说明]');
@@ -412,12 +413,14 @@ class AstroPrimaryDirectionChart extends Component{
 			birthKey: this.buildBirthKey(props.value),
 			pdMethodValue: this.normalizePdMethod(props.pdMethod),
 			pdTimeKeyValue: this.normalizePdTimeKey(props.pdTimeKey),
+			pdDirectionValue: 'direct', // 向运方向：direct(默认) / converse
 			dirChart: null,
 		};
 
 		this.handleTimeChanged = this.handleTimeChanged.bind(this);
 		this.handlePdMethodChange = this.handlePdMethodChange.bind(this);
 		this.handlePdTimeKeyChange = this.handlePdTimeKeyChange.bind(this);
+		this.handlePdDirectionChange = this.handlePdDirectionChange.bind(this);
 		this.handlePdCalculate = this.handlePdCalculate.bind(this);
 		this.normalizePdMethod = this.normalizePdMethod.bind(this);
 		this.normalizePdTimeKey = this.normalizePdTimeKey.bind(this);
@@ -500,6 +503,7 @@ class AstroPrimaryDirectionChart extends Component{
 			|| prevState.datetime !== this.state.datetime
 			|| prevState.pdMethodValue !== this.state.pdMethodValue
 			|| prevState.pdTimeKeyValue !== this.state.pdTimeKeyValue
+			|| prevState.pdDirectionValue !== this.state.pdDirectionValue
 		){
 			this.requestDirectedChart();
 		}
@@ -556,7 +560,7 @@ class AstroPrimaryDirectionChart extends Component{
 	}
 
 	normalizePdTimeKey(value){
-		if(value === 'Ptolemy'){
+		if(value === 'Ptolemy' || value === 'Naibod'){
 			return value;
 		}
 		return DEFAULT_PD_TIME_KEY;
@@ -576,6 +580,13 @@ class AstroPrimaryDirectionChart extends Component{
 
 	getSelectedPdTimeKey(){
 		return this.normalizePdTimeKey(this.state.pdTimeKeyValue);
+	}
+
+	// 度数换算 Naibod 是「主限法盘投射」专用 key，只走 /predict/pdchart；表格(/predict/pd)、全局 pdTimeKey
+	// 与存盘 fields 一律回退 Ptolemy，绝不让 Naibod 触碰已验证的 Ptolemy+Alchabitius 主/界限法表格。
+	getTablePdTimeKey(){
+		const key = this.getSelectedPdTimeKey();
+		return key === 'Naibod' ? DEFAULT_PD_TIME_KEY : key;
 	}
 
 	getAppliedPdState(){
@@ -599,7 +610,7 @@ class AstroPrimaryDirectionChart extends Component{
 		const predictives = chart.predictives ? chart.predictives : {};
 		const pds = predictives.primaryDirection ? predictives.primaryDirection : [];
 		const applied = this.getAppliedPdState();
-		if(this.getSelectedPdMethod() !== applied.pdMethod || this.getSelectedPdTimeKey() !== applied.pdTimeKey){
+		if(this.getSelectedPdMethod() !== applied.pdMethod || this.getTablePdTimeKey() !== applied.pdTimeKey){
 			return true;
 		}
 		if(!applied.hasCompleteParams){
@@ -635,6 +646,12 @@ class AstroPrimaryDirectionChart extends Component{
 		});
 	}
 
+	handlePdDirectionChange(value){
+		this.setState({
+			pdDirectionValue: value === 'converse' ? 'converse' : 'direct',
+		});
+	}
+
 	handlePdCalculate(){
 		if(!this.needsPdRecompute()){
 			return;
@@ -645,8 +662,8 @@ class AstroPrimaryDirectionChart extends Component{
 		}
 		if(this.props.onPdConfigApply){
 			this.props.onPdConfigApply(
-				this.state.pdMethodValue,
-				this.state.pdTimeKeyValue
+				this.getSelectedPdMethod(),
+				this.getTablePdTimeKey()
 			);
 		}
 	}
@@ -680,7 +697,7 @@ class AstroPrimaryDirectionChart extends Component{
 			showPdBounds: params.showPdBounds === 0 ? 0 : 1,
 			pdtype: DEFAULT_PD_TYPE,
 			pdMethod: this.getSelectedPdMethod(),
-			pdTimeKey: this.getSelectedPdTimeKey(),
+			pdTimeKey: this.getTablePdTimeKey(),
 			pdaspects: params.pdaspects || [0, 60, 90, 120, 180],
 			name: params.name,
 			pos: params.pos,
@@ -701,7 +718,7 @@ class AstroPrimaryDirectionChart extends Component{
 			this.props.fields,
 			chartObj,
 			this.getSelectedPdMethod(),
-			this.getSelectedPdTimeKey()
+			this.getTablePdTimeKey()
 		);
 		if(!nextFields || !nextFields.date || !nextFields.time || !nextFields.zone || !nextFields.lat || !nextFields.lon){
 			return;
@@ -724,7 +741,7 @@ class AstroPrimaryDirectionChart extends Component{
 			pdRows,
 			showPdBounds: req.showPdBounds,
 			pdMethod: this.getSelectedPdMethod(),
-			pdTimeKey: this.getSelectedPdTimeKey(),
+			pdTimeKey: this.getTablePdTimeKey(),
 			name: req.name,
 			pos: req.pos,
 		});
@@ -733,7 +750,7 @@ class AstroPrimaryDirectionChart extends Component{
 			type: 'app/save',
 			payload: {
 				pdMethod: this.getSelectedPdMethod(),
-				pdTimeKey: this.getSelectedPdTimeKey(),
+				pdTimeKey: this.getTablePdTimeKey(),
 			},
 		});
 		this.props.dispatch({
@@ -778,6 +795,7 @@ class AstroPrimaryDirectionChart extends Component{
 			pdTimeKey: this.getSelectedPdTimeKey(),
 			showPdBounds: params.showPdBounds,
 			datetime: currentDt.format('YYYY-MM-DD HH:mm:ss'),
+			direction: this.state.pdDirectionValue, // 向运方向：direct / converse（复用已白名单的 direction 参）
 		};
 	}
 
@@ -839,6 +857,7 @@ class AstroPrimaryDirectionChart extends Component{
 				...(chartObj.params || {}),
 				pdMethod: this.getSelectedPdMethod(),
 				pdTimeKey: this.getSelectedPdTimeKey(),
+				direction: this.state.pdDirectionValue,
 			},
 		};
 		const txt = buildSnapshotText(snapshotChartObj, derived.currentDt, derived.currentArc);
@@ -849,6 +868,7 @@ class AstroPrimaryDirectionChart extends Component{
 			tab: 'primarydirchart',
 			pdMethod: this.getAppliedPdState().pdMethod,
 			pdTimeKey: this.getAppliedPdState().pdTimeKey,
+			direction: this.state.pdDirectionValue,
 			datetime: derived.currentDt ? derived.currentDt.format('YYYY-MM-DD HH:mm:ss') : '',
 		});
 		return txt;
@@ -925,19 +945,27 @@ class AstroPrimaryDirectionChart extends Component{
 							</Row>
 							<Divider orientation='left'>主限法设置</Divider>
 							<Row gutter={12} style={sectionGapStyle}>
-								<Col span={24}>
+								<Col span={12}>
 									<div style={{marginBottom: 8}}>推运方法</div>
 									<Select value={this.state.pdMethodValue} onChange={this.handlePdMethodChange} style={{width: '100%'}}>
 										<Option value='core_alchabitius'>Core-Alchabitius</Option>
 										<Option value='horosa_legacy'>Horosa原方法</Option>
 									</Select>
 								</Col>
-							</Row>
-							<Row gutter={12} style={{marginTop: 16}}>
-								<Col span={24}>
+								<Col span={12}>
 									<div style={{marginBottom: 8}}>度数换算</div>
 									<Select value={this.state.pdTimeKeyValue} onChange={this.handlePdTimeKeyChange} style={{width: '100%'}}>
 										<Option value='Ptolemy'>Ptolemy</Option>
+										<Option value='Naibod'>Naibod</Option>
+									</Select>
+								</Col>
+							</Row>
+							<Row gutter={12} style={{marginTop: 16}}>
+								<Col span={24}>
+									<div style={{marginBottom: 8}}>向运方向</div>
+									<Select value={this.state.pdDirectionValue} onChange={this.handlePdDirectionChange} style={{width: '100%'}}>
+										<Option value='direct'>顺向 Direct（随时间正推）</Option>
+										<Option value='converse'>逆向 Converse（反推）</Option>
 									</Select>
 								</Col>
 							</Row>
@@ -952,6 +980,7 @@ class AstroPrimaryDirectionChart extends Component{
 							<div style={{lineHeight: 1.9}}>
 								<div>当前盘面方法：{pdMethodLabel}</div>
 								<div>当前盘面度数换算：{selectedPdTimeKey}</div>
+								<div>当前向运方向：{this.state.pdDirectionValue === 'converse' ? '逆向 Converse' : '顺向 Direct'}</div>
 								{dirty ? <div>主/界限法表格已应用方法：{appliedMethodLabel} / {applied.pdTimeKey}</div> : null}
 								<div>当前主限法年龄：{splitDegreeText(derived.currentArc)}</div>
 								<div>外圈时间：{derived.currentDt ? derived.currentDt.format('YYYY-MM-DD HH:mm:ss') : '无'}</div>

@@ -154,6 +154,17 @@ function buildGermanySnapshotText(params, chartObj, result, fields){
 	}
 
 	lines.push('');
+	lines.push('[TNP星体]');
+	const tnpList = result && Array.isArray(result.tnp) ? result.tnp : [];
+	if(tnpList.length === 0){
+		lines.push('暂无 TNP 数据');
+	}else{
+		tnpList.forEach((item)=>{
+			lines.push(`${msg(item.id)} = ${formatSignDegree(item.sign, item.signlon)}`);
+		});
+	}
+
+	lines.push('');
 	lines.push('[中点相位]');
 	const aspectKeys = Object.keys(aspects || {});
 	if(aspectKeys.length === 0){
@@ -173,6 +184,29 @@ function buildGermanySnapshotText(params, chartObj, result, fields){
 				lines.push(`与中点(${msg(idA)} | ${msg(idB)}) 成 ${aspectText(asp.aspect)} 相位，误差${round3(asp.delta)}`);
 			});
 			lines.push('');
+		});
+	}
+
+	// [90°中点盘]：把行星/三王/角点/TNP 折叠到 0–90°，度数相近者即互成硬相位(0/90/180/270)，供 AI 读盘。
+	lines.push('');
+	lines.push('[90°中点盘]');
+	const DIAL_IDS = new Set([
+		AstroConst.SUN, AstroConst.MOON, AstroConst.MERCURY, AstroConst.VENUS, AstroConst.MARS,
+		AstroConst.JUPITER, AstroConst.SATURN, AstroConst.URANUS, AstroConst.NEPTUNE, AstroConst.PLUTO,
+		AstroConst.NORTH_NODE, AstroConst.SOUTH_NODE, AstroConst.ASC, AstroConst.MC,
+	]);
+	const innerChart = (chartObj && chartObj.chart) ? chartObj.chart : (chartObj || {});
+	const dialFactors = [];
+	const pushFactor = (id, lon) => { const n = Number(lon); if (id && Number.isFinite(n)) dialFactors.push({ id, fold: ((n % 90) + 90) % 90 }); };
+	(innerChart.objects || []).forEach((o)=>{ if(DIAL_IDS.has(o.id)) pushFactor(o.id, o.lon); });
+	(innerChart.angles || []).forEach((o)=>{ if(DIAL_IDS.has(o.id)) pushFactor(o.id, o.lon); });
+	tnpList.forEach((t)=>pushFactor(t.id, t.lon));
+	if(dialFactors.length === 0){
+		lines.push('暂无可折叠因子');
+	}else{
+		lines.push('（盘基 90°；各因子折叠位相近者互成硬相位 0/90/180/270）');
+		dialFactors.sort((a, b)=>a.fold - b.fold).forEach((f)=>{
+			lines.push(`${msg(f.id)} = ${f.fold.toFixed(2)}°`);
 		});
 	}
 

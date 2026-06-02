@@ -89,6 +89,13 @@ class WebChartSrv:
             }, unpicklable=False)
         try:
             data = cherrypy.request.json
+
+            # 畸形日期护栏：前端 PD-sync 偶发会发来 date/time='NaN...'（旧 bug，前端亦已多处拦截）。
+            # 此处干净返回、不进 PerChart（避免 Datetime 抛栈刷日志），前端按空响应处理、不弹 param error。
+            _dprobe = '{0}'.format(data.get('date', ''))
+            _tprobe = '{0}'.format(data.get('time', ''))
+            if 'NaN' in _dprobe or 'NaN' in _tprobe or _dprobe.strip() == '':
+                return jsonpickle.encode({'err': 'invalid_date'}, unpicklable=False)
             print(data)
 
             perchart = PerChart(data)

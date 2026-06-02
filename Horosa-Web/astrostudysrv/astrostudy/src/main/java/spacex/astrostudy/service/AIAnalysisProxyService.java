@@ -247,7 +247,11 @@ public class AIAnalysisProxyService {
 		}
 		List<Map<String, Object>> messages = getMessageList(params.get("messages"));
 		try{
-			if(isOpenAICompatible(providerType)) {
+			if("ollama".equals(providerType)) {
+				// Ollama 必须走原生 /api/chat 才能让 num_ctx 等 options 生效(OpenAI 兼容口 /v1/chat/completions
+				// 会忽略 num_ctx → 默认 4096 截断,即 Windows #15)。其它 OpenAI 兼容 provider 不变。
+				streamOllamaNative(params, model, messages, channel);
+			}else if(isOpenAICompatible(providerType)) {
 				streamOpenAICompatible(params, model, messages, channel);
 			}else if("anthropic".equals(providerType)) {
 				streamAnthropic(params, model, messages, channel);
@@ -340,6 +344,12 @@ public class AIAnalysisProxyService {
 		Map<String, Object> result = new LinkedHashMap<String, Object>();
 		result.put("providerType", providerType);
 		result.put("model", model);
+		// Ollama 嵌入走原生 /api/embed（含 options.num_ctx）—— 修 Windows #15 的「embedding 仍走 OpenAI 兼容口
+		// → 忽略 num_ctx → 4096 截断」。须前置于 isOpenAICompatible 分支，因为 ollama 也满足兼容口分类。
+		if("ollama".equals(providerType)) {
+			result.put("vectors", embeddingsOllamaNative(params, model, inputs));
+			return result;
+		}
 		if(isOpenAICompatible(providerType)) {
 			Map<String, Object> body = new LinkedHashMap<String, Object>();
 			body.put("model", model);
@@ -400,6 +410,113 @@ public class AIAnalysisProxyService {
 			});
 		});
 	}
+
+	// Ollama 原生 /api/chat 流式（NDJSON）。让 options.num_ctx 等真正生效（修 Windows #15：OpenAI 兼容口忽略
+	// num_ctx → 默认 4096 截断长玄学上下文）。其它 provider 不受影响。
+	private void streamOllamaNative(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseChannel channel) throws Exception{
+		withHeartbeat(channel, () -> {
+			Map<String, Object> body = buildOllamaNativeBody(model, params, messages, true);
+			String url = joinUrl(ollamaNativeBase(params), "/api/chat");
+			HttpRequest request = buildJsonRequest(url, buildAuthHeaders("ollama", stringVal(params, "apiKey"), params), JsonUtility.encode(body), params);
+			HttpResponse<InputStream> response = streamHttpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+			ensureSuccess(response);
+			readNdjsonStream(response.body(), (dataText) -> {
+				if(StringUtility.isNullOrEmpty(dataText)) { return; }
+				Map<String, Object> payload = JsonUtility.toDictionary(dataText);
+				Object msg = payload.get("message");
+				if(msg instanceof Map) {
+					Object c = ((Map) msg).get("content");
+					if(c != null && !StringUtility.isNullOrEmpty(c.toString())) {
+						sendEvent(channel, "delta", buildMap("delta", c.toString()));
+					}
+				}
+			});
+		});
+	}
+
+	// Ollama 原生 body：messages 同 OpenAI({role,content})；num_ctx/num_predict/top_k/top_p/repeat_penalty/temperature
+	// 一律嵌入 options:{}（原生口才读 options），keep_alive 留顶层。
+	Map<String, Object> buildOllamaNativeBody(String model, Map<String, Object> params, List<Map<String, Object>> messages, boolean stream){
+		Map<String, Object> body = new LinkedHashMap<String, Object>();
+		body.put("model", model);
+		List<Map<String, Object>> norm = new ArrayList<Map<String, Object>>();
+		if(messages != null) {
+			for(Map<String, Object> m : messages) {
+				if(m == null) { continue; }
+				norm.add(buildMap("role", stringVal(m, "role"), "content", stringVal(m, "content")));
+			}
+		}
+		body.put("messages", norm);
+		body.put("stream", stream);
+		Map<String, Object> opts = new LinkedHashMap<String, Object>();
+		opts.put("temperature", numVal(params.get("temperature"), 0.7));
+		if(params.get("maxTokens") != null) { opts.put("num_predict", intVal(params.get("maxTokens"), 1024)); }
+		Map<String, Object> prov = buildProviderBodyOptions(params);
+		for(Map.Entry<String, Object> e : prov.entrySet()) {
+			if("keep_alive".equals(e.getKey())) { body.put("keep_alive", e.getValue()); }
+			else { opts.put(e.getKey(), e.getValue()); } // num_ctx/num_predict/top_k/top_p/repeat_penalty
+		}
+		body.put("options", opts);
+		return body;
+	}
+
+	// Ollama 原生 base：去掉 OpenAI 兼容口的末尾 /v1（DEFAULT_OLLAMA_BASE 带 /v1，原生 /api 路径不带）。
+	String ollamaNativeBase(Map<String, Object> params){
+		String b = trimTrailingSlash(resolveBaseUrl("ollama", stringVal(params, "baseUrl")));
+		if(b.endsWith("/v1")) { b = b.substring(0, b.length() - 3); }
+		return trimTrailingSlash(b);
+	}
+
+	// Ollama 原生嵌入 /api/embed（批量；新 API，0.2+ 起官方推荐替代旧 /api/embeddings 单 prompt 口）。
+	// body = {model, input:[...], options:{num_ctx,...}, keep_alive}，返回 {embeddings:[[...]]}.
+	// 让 num_ctx 真正生效（修 Windows #15 的 embedding 子项；其它 provider 不受影响）。
+	private List<List<Double>> embeddingsOllamaNative(Map<String, Object> params, String model, List<String> inputs){
+		Map<String, Object> body = new LinkedHashMap<String, Object>();
+		body.put("model", model);
+		body.put("input", inputs);
+		Map<String, Object> opts = new LinkedHashMap<String, Object>();
+		Map<String, Object> prov = buildProviderBodyOptions(params);
+		for(Map.Entry<String, Object> e : prov.entrySet()) {
+			if("keep_alive".equals(e.getKey())) { body.put("keep_alive", e.getValue()); }
+			else if("temperature".equals(e.getKey()) || "num_predict".equals(e.getKey())) {
+				// 嵌入不需要 temperature/num_predict，过滤掉。
+			} else { opts.put(e.getKey(), e.getValue()); } // num_ctx/top_k/top_p/repeat_penalty
+		}
+		if(!opts.isEmpty()) { body.put("options", opts); }
+		String url = joinUrl(ollamaNativeBase(params), "/api/embed");
+		String rsp = HttpClientUtility.uploadString(
+			url,
+			buildAuthHeaders("ollama", stringVal(params, "apiKey"), params),
+			"application/json; charset=UTF-8",
+			JsonUtility.encode(body)
+		);
+		Map<String, Object> payload = JsonUtility.toDictionary(rsp);
+		return extractOllamaEmbedVectors(payload);
+	}
+
+	// Ollama /api/embed 响应：{model, embeddings:[[...]]}（数组式;与 OpenAI 的 data:[{embedding:[...]}] 不同）。
+	static List<List<Double>> extractOllamaEmbedVectors(Map<String, Object> payload){
+		List<List<Double>> result = new ArrayList<List<Double>>();
+		if(payload == null) { return result; }
+		Object embsObj = payload.get("embeddings");
+		if(embsObj instanceof List) {
+			for(Object v : (List)embsObj) { result.add(numberList(v)); }
+		}
+		return result;
+	}
+
+	// NDJSON 流：每行一个 JSON 对象（Ollama 原生流式），逐行回调。
+	private void readNdjsonStream(InputStream stream, NdjsonLineHandler handler) throws IOException{
+		BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
+		String line;
+		while((line = reader.readLine()) != null) {
+			String t = line.trim();
+			if(!t.isEmpty()) { handler.onLine(t); }
+		}
+	}
+
+	@FunctionalInterface
+	private interface NdjsonLineHandler { void onLine(String line); }
 
 	private void streamAnthropic(Map<String, Object> params, String model, List<Map<String, Object>> messages, SseChannel channel) throws Exception{
 		withHeartbeat(channel, () -> {

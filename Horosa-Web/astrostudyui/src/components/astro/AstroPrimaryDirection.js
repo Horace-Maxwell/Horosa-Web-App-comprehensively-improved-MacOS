@@ -85,11 +85,19 @@ class AstroPrimaryDirection extends Component{
 		}
 
 	componentDidUpdate(prevProps){
+		// 仅当 props 真正变化时才从 props 同步本地 state（镜像 AstroPrimaryDirectionChart 的口径）。
+		// 旧逻辑「state≠normalize(props) 就 setState」会把用户对 度数换算/推运方法 的本地改选（如选 Naibod）
+		// 立刻反弹回全局旧值，导致表格上方的选项形同只读。改为 prevProps 守卫后：props 稳定→不同步（本地改选保留），
+		// 用户点「计算」经 onPdConfigApply 落全局后 props 才变、再同步。仍比旧 state-diff 守卫更严格，绝不重新引入
+		// 「旧存盘 pdMethod 规范化≠原 prop → 无限 setState 白屏」（内层 state-diff 守卫亦保留作双保险）。
+		if(prevProps.pdMethod === this.props.pdMethod
+			&& prevProps.pdTimeKey === this.props.pdTimeKey
+			&& prevProps.pdYears === this.props.pdYears){
+			return;
+		}
 		const nextMethod = this.normalizePdMethod(this.props.pdMethod);
 		const nextTimeKey = this.normalizePdTimeKey(this.props.pdTimeKey);
 		const nextYears = this.normalizePdYears(this.props.pdYears);
-		// 与当前 state（已规范化）比较，且仅在确有变化时 setState，
-		// 否则旧存盘里的未知/历史 pdMethod 规范化后与原始 prop 永不相等会造成无限 setState 循环。
 		if(this.state.pdMethodValue !== nextMethod || this.state.pdTimeKeyValue !== nextTimeKey || this.state.pdYearsValue !== nextYears){
 			this.setState({
 				pdMethodValue: nextMethod,
@@ -299,7 +307,7 @@ class AstroPrimaryDirection extends Component{
 	}
 
 	normalizePdTimeKey(value){
-		if(value === 'Ptolemy'){
+		if(value === 'Ptolemy' || value === 'Naibod'){
 			return value;
 		}
 		return DEFAULT_PD_TIME_KEY;
@@ -670,6 +678,7 @@ class AstroPrimaryDirection extends Component{
 								onChange={this.handlePdTimeKeyChange}
 							>
 								<Option value='Ptolemy'>Ptolemy</Option>
+								<Option value='Naibod'>Naibod</Option>
 							</Select>
 						</div>
 					</Col>

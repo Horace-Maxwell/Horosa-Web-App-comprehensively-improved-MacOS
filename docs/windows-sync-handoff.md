@@ -20,6 +20,27 @@
 
 ---
 
+## v2.5.2 — 汉堡 90°中点盘(双形态+8虚星) + 主限法 Naibod 选项 + 主限法盘四角赤纬归正 + AI 聊天/嵌入解耦+Ollama 原生 num_ctx + 大六壬挂载修复(**Java 改 → Windows 必重编 jar**)
+
+> 本版**有 Java 改动**(`AIAnalysisProxyService.java` 新增 `streamOllamaNative` + `embeddingsOllamaNative` + `extractOllamaEmbedVectors`),Windows **必须重编 `astrostudyboot.jar`**(总则第 2 条)。Python 端也有 `perpredict.py` / `webchartsrv.py` / `webgermanysrv.py` / `webpredictsrv.py` 改动(主限法 A2-A5 + NaN 护栏)。前端涉及新增 6 个文件(`components/germany/UranianDial*.js` + `utils/uranianDial.js` + `utils/__tests__/uranianDial.test.js`)+ AGENTS.md §9/§10 + preflight `[29]`/`[30]`/`[31]`。
+
+### 同步要点
+- **新增汉堡 90°中点盘技法**(`components/germany/UranianDialMain.js` + `UranianDial.js`(折叠盘)+ `UranianModulusDial.js`(多环模数盘)+ `UranianDialStyle.js` + `utils/uranianDial.js` 引擎)。`AstroGermany.js` 增加 "90°中点盘" tab。**关键不变量**(改前读 AGENTS.md §9 全部 6 点):字形用 `AstroChartFont`+`AstroMsg[名]`、单一透明 hit 圈 + `pointerdown`/`pointermove`/`pointerup` + `setPointerCapture`、`getBoundingClientRect` 求中心 + 缩放比、本命环锁定、`onSaArc` 仅在 `emit=true` 才回调防死循环、TNP 关时 `filterByTnp` 出口过滤。
+- **主限法表格新增 Naibod**:`AstroPrimaryDirection.js` 增加 Naibod option;`AstroPrimaryDirectionChart.js` 新增 `getTablePdTimeKey()`(Naibod→Ptolemy 钳位);`perpredict.appendDateStr` Naibod 时 `arc/0.9856473354`;`getPrimaryDirectionChartByDate` Naibod `arc*0.9856473354`(互逆,表格 byte-identical)。
+- **主限法盘四角赤纬归正**(`perpredict._pdChartBuildAnglesAndHouses`):ASC/MC/DESC/IC 一律 `_pdChartEqCoords(lon, 0.0, obliquity)`(原误用地理纬度作黄纬,赤纬越界)。
+- **converse**: `webpredictsrv.pdchart` 读 `data['direction']=='converse'`→`getPrimaryDirectionChartByDate(..., converse)`→`directed_arc=-current_arc`。
+- **Ollama 聊天+嵌入原生口**:`AIAnalysisProxyService.chatStream` 分支前置 `"ollama"`→`streamOllamaNative`(`/api/chat`+NDJSON+`options.num_ctx`);`AIAnalysisProxyService.embeddings` 同前置→`embeddingsOllamaNative`(`/api/embed`+`options.num_ctx`);新增 `ollamaNativeBase`(去 `/v1`)+ `readNdjsonStream` + `extractOllamaEmbedVectors`。其它 provider 不变。
+- **大六壬/三式合一 AI 挂载修复**:`aiAnalysisContext.regenerateLiurengSnapshot` 传 `result.liureng`+`/chart` 合并(原传 null chartObj→`buildLiuRengLayout` 返 null)。
+- **六爻接入时间起卦**:进入 `TIMEPOINT_CASTABLE_SET` + 新增 `regenerateSixyaoSnapshot`+`buildTimeGua`;**仍守「永不按时间重算已存卦」铁律**(只对新时点起卦)。
+- **AI 四同步**:`aiExport.js` `AI_EXPORT_SETTINGS_VERSION` 14→15 + germany 预设加 `'90°中点盘'`;`AstroMidpoint.buildGermanySnapshotText` 补 `[90°中点盘]` 段(各因子 `lon mod 90` 折叠位)。
+- **NaN 护栏**:`webchartsrv` 顶部 NaN 日期→`{err:invalid_date}`;`webgermanysrv` 缺参→`{err:missing_param}`;前端 `AstroDirectMain.buildPrimaryDirectionFetchFields/buildPrimaryDirectionRequest` 也加 NaN 守。
+- **AI 分析 #13(聊天/嵌入解耦)+ 高级参数**:`AIAnalysisMain.js` 顶栏加嵌入模型 Select +「参数」Popover(THINKING_LEVELS/temperature/top_p);`aiAnalysisProviders.js` 加 `applyThinkingLevel`/`isReasoningModel`。
+- **中点盘 UI 收尾**(用户验收口径):Δ→`-`、TNP 全链路过滤(`filterByTnp` 在 `natalPoints/buildRings` 出口而非 request 入口)、行运/SA `renderLocOverride`、删「拖动定向」废话、saKey 入 `UranianDialStyle.DEFAULTS`。
+- **验证**:`npm test`(184 绿,含 11 例 `uranianDial.test.js` + §11.2 1975 金标对拍) + `npm run build` + `npm run build:file` + 重编 jar(`mvn -f astrostudy/pom.xml install -DskipTests && mvn -f astrostudyboot/pom.xml clean package -DskipTests`,`javap` 验内嵌 `astrostudy-1.0.0.jar` 含 `streamOllamaNative`+`embeddingsOllamaNative`+`extractOllamaEmbedVectors`) + `node scripts/verifyPrimaryDirectionRuntime.js`(表格 Naibod 弧同日期异、Ptolemy 不变、四角赤纬≤23.5、converse 翻转) + preview 实测「90°中点盘 tab + 两种盘式切换 + TNP 关同步隐藏读数/中点树 + Δ 全消 + 行运地点可改 + Ollama 长上下文不截」。
+- **runtimeVersion 必 bump**:Java 改 → `2.5.1-runtime2`→`2.5.2-runtime1`,否则 updater 不重下 runtime。发布命令需 `HOROSA_FORCE_RUNTIME_UPLOAD=1`(若旧 runtime 已上传同 tag)。
+
+---
+
 ## v2.5.1 — AI 分析页系统性翻新 + 13 技法接入 + 起课/命盘时间入口 + 卜卦/择日挂载 + 数算流年 + atlas 全量城市 + 紫微两 bug + 天文馆沉浸（**纯前端，无需重编 jar**）
 
 > **本版前端部分纯前端**（`astrostudyui/**` + 一个数据资产 + 文档），**前端部分无 Java/Python 后端改动 → Windows 不需为前端重编 `astrostudyboot.jar`**（总则第 2 条）；只需 `npm run build` 然后 `npm run build:file`（顺序勿并行）。含两轮：① AI 分析页大改（挂载正确性 / 13 技法接入 / 对话 Chat 化 / 地点 atlas / 起课时间入口）；② 复审整改（下列）。详细口径见 `Horosa-Web/AGENTS.md`「AI 分析页 大改」§1–§6。

@@ -103,8 +103,8 @@ const DOMAIN_REPLACERS = {
 
 const ENABLE_SVG_TEXT_EXPORT = false;
 const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
-export const AI_EXPORT_SETTINGS_VERSION = 13;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 13;
+export const AI_EXPORT_SETTINGS_VERSION = 15;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 15;
 const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	'bazi',
 	'ziwei',
@@ -398,7 +398,7 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	chunzi: ['起盘', '四柱', '代码来源', '结构解析', '候选条文', '代码查询', '批量代码查询', '关键词检索', '多标签检索', '宿名检索', '时辰检索'],
 	xianqin: ['起盘', '三宫', '三星', '衍生星', '十二宫', '吞啖合战', '情性与格局', '二十八宿禽', '十二宫顺序', '三元起宿', '合宿表', '科名月宿', '四季得时', '情性赋全表', '二十八宿正像', '吞啖合战规则', '贵贱赋摘要'],
 	cetian: ['起盘', '农历与命身', '四化', '飞星', '格局', '命宮', '兄弟宮', '夫妻宮', '子女宮', '財帛宮', '疾厄宮', '遷移宮', '交友宮', '官祿宮', '田宅宮', '福德宮', '父母宮', '星曜属性', '正曜副曜', '宫干四化表', '飞化规则', '古法格局规则', '三合组'],
-	germany: ['起盘信息', '宫位宫头', '行星', '中点', '中点相位'],
+	germany: ['起盘信息', '宫位宫头', '行星', '中点', 'TNP星体', '中点相位', '90°中点盘'],
 	jieqi: ['节气盘参数', '春分星盘', '春分宿盘', '夏至星盘', '夏至宿盘', '秋分星盘', '秋分宿盘', '冬至星盘', '冬至宿盘'],
 	...JIEQI_SETTING_PRESETS,
 	otherbu: ['起盘信息', '骰子结果', '骰子盘宫位与星体', '天象盘宫位与星体'],

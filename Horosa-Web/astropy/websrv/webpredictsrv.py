@@ -297,7 +297,9 @@ class PredictSrv:
             perchart = PerChart(data)
             predict = perchart.getPredict()
             zone = data['dirZone'] if 'dirZone' in data.keys() and data['dirZone'] else perchart.zone
-            res = predict.getPrimaryDirectionChartByDate(data.get('datetime'), zone)
+            # 向运方向：复用已在 Java 白名单的 direction 参（'converse' 即逆向，默认 direct）——零 Java 改动。
+            converse = ('{0}'.format(data.get('direction', '')).lower() == 'converse')
+            res = predict.getPrimaryDirectionChartByDate(data.get('datetime'), zone, converse)
             return jsonpickle.encode(res, unpicklable=False)
         except:
             traceback.print_exc()

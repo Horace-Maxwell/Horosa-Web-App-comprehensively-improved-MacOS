@@ -322,6 +322,12 @@ function buildPrimaryDirectionFetchFields(baseFields, chartObj, pdMethod, pdTime
 				birthDt.zone = params.zone;
 				birthDt.calcJdn();
 			}
+			// 护栏：parse 对畸形 birth 不抛错却得到 NaN 的 DateTime，若不校验会让后续 /chart 收到
+			// date:'NaN/NaN/NaN' → 抛错弹「param error」。此时保留 baseFields 原有日期、不写入 NaN。
+			const probe = `${birthDt.format ? birthDt.format('YYYY/MM/DD') : ''}`;
+			if(!Number.isFinite(birthDt.jdn) || probe.indexOf('NaN') >= 0){
+				throw new Error('invalid birth datetime');
+			}
 			fields.date = {
 				...(fields.date || { name: ['date'] }),
 				value: birthDt.clone(),
@@ -609,9 +615,15 @@ class AstroDirectMain extends Component{
 		if(!dateValue || !timeValue || !dateValue.format || !timeValue.format){
 			return null;
 		}
+		const dateStr = dateValue.format('YYYY/MM/DD');
+		const timeStr = timeValue.format('HH:mm:ss');
+		// 畸形日期(NaN)绝不发请求——否则后端 Datetime 抛错弹「param error」。
+		if(`${dateStr}`.indexOf('NaN') >= 0 || `${timeStr}`.indexOf('NaN') >= 0){
+			return null;
+		}
 		return {
-			date: dateValue.format('YYYY/MM/DD'),
-			time: timeValue.format('HH:mm:ss'),
+			date: dateStr,
+			time: timeStr,
 			ad: nextFields.ad && nextFields.ad.value !== undefined ? nextFields.ad.value : (dateValue.ad !== undefined ? dateValue.ad : 1),
 			zone: nextFields.zone ? nextFields.zone.value : undefined,
 			lat: nextFields.lat ? nextFields.lat.value : undefined,

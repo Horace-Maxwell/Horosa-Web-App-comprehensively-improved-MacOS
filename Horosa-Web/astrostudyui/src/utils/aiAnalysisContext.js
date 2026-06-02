@@ -33,7 +33,7 @@ import { buildJinKouData } from '../components/jinkou/JinKouCalc';
 import { resolveJinKouDiFen } from '../components/jinkou/JinKouState';
 import { buildLiuRengSnapshotText } from '../components/lrzhan/LiuRengMain';
 import { buildJinKouSnapshotText } from '../components/jinkou/JinKouMain';
-import { buildGuaSnapshotText } from '../components/guazhan/GuaZhanMain';
+import { buildGuaSnapshotText, buildTimeGua } from '../components/guazhan/GuaZhanMain';
 import { buildBaziSnapshotForParams } from '../components/cntradition/BaZi';
 import { buildZiweiSnapshotForParams } from '../components/ziwei/ZiWeiMain';
 import { buildIndiaSnapshotForFields } from '../components/astro/IndiaChart';
@@ -204,6 +204,9 @@ export const ANALYSIS_CASE_TECHNIQUES = [
 // 六爻/统摄法/宿占等【不在此列】——六爻是摇钱/报数起卦，按时间重算 = 伪造一个不同的卦，永远只认存盘。
 export const TIME_CASTABLE_DIVINATION = ['liureng', 'jinkou', 'qimen', 'taiyi', 'sanshiunited', 'horary', 'election'];
 const TIME_CASTABLE_SET = new Set(TIME_CASTABLE_DIVINATION);
+// 「起课时间」源额外允许六爻——时间起卦是确定性式法（时间即输入，非伪造摇卦）；
+// 但「已存事盘」源仍不按时间重算六爻（保持 case 护栏，见 getAnalysisTechniqueContexts）。
+const TIMEPOINT_CASTABLE_SET = new Set([...TIME_CASTABLE_DIVINATION, 'sixyao']);
 
 function safeParseJson(txt, defVal = null){
 	if(!txt){
@@ -465,11 +468,28 @@ async function regenerateLiurengSnapshot(record){
 	if(!result || !result.liureng){
 		return '';
 	}
+	// buildLiuRengSnapshotText 内部用 chartObj 经 buildLiuRengLayout 算「天地盘/四课/三传」——
+	// 需 chartObj.nongli.time + nongli.dayGanZi + objects(月将=太阳座) + isDiurnal。
+	// 旧实现第 4 参传 null → 布局为空 → 起课时间/三式合一的大六壬不出。修法：以 result.liureng 为底，
+	// 若缺 objects 则补一份 /chart（含太阳座与昼夜）。
+	let chartObj = result.liureng;
+	if(!chartObj.objects || !chartObj.objects.length){
+		try{
+			const p = result.params || {};
+			const chartParams = { ...p, date: ('' + (p.date || '')).replace(/-/g, '/'), hsys: 0, zodiacal: 0, cid: null };
+			const co = await request(`${Constants.ServerRoot}/chart`, { body: JSON.stringify(chartParams), silent: true });
+			const r = co && co[Constants.ResultKey] ? co[Constants.ResultKey] : null;
+			const inner = r && r.chart ? r.chart : r;
+			if(inner && Array.isArray(inner.objects)){
+				chartObj = { ...result.liureng, objects: inner.objects, isDiurnal: inner.isDiurnal !== undefined ? inner.isDiurnal : result.liureng.isDiurnal };
+			}
+		}catch(e){ /* 取不到则退回 result.liureng */ }
+	}
 	return buildLiuRengSnapshotText(
 		result.params,
 		result.liureng,
 		null,
-		null,
+		chartObj,
 		2,
 		'土',
 		record && record.gender !== undefined && record.gender !== null ? record.gender : 1
@@ -664,9 +684,26 @@ async function regenerateCaseTechniqueSnapshot(record, moduleName, payload){
 		return regenerateHorarySnapshot(record);
 	case 'election':
 		return regenerateElectionSnapshot(record);
+	case 'sixyao':
+		return regenerateSixyaoSnapshot(record);
 	default:
 		return '';
 	}
+}
+
+// 六爻「时间起卦」——仅「起课时间」入口走到（确定性时间式法，非伪造摇卦；已存事盘仍读 payload.gua、不按时间重算）。
+async function regenerateSixyaoSnapshot(record){
+	const fields = buildCaseSnapshotFields(record);
+	const params = buildCaseSnapshotParams(record);
+	const nongli = await fetchPreciseNongli(params);
+	if(!nongli){
+		return '';
+	}
+	const gua = buildTimeGua(nongli);
+	if(!gua){
+		return '';
+	}
+	return buildGuaSnapshotText(fields, gua);
 }
 
 // 命盘技法的出生参数（形状对齐各组件 genParams：date 'YYYY-MM-DD' / time 'HH:mm:ss'）。
@@ -1756,9 +1793,9 @@ async function buildTechniqueContext(source, techniqueKey, baseSourceContext){
 	let generated = null;
 	if(source.sourceType === 'timepoint'){
 		// 「起课时间」入口：纯时间 + 地点，没有「已存的卦」→ 时间确定式法按默认设置即时起盘；
-		// 非纯时间可推的（六爻/统摄法）不在白名单（界面也只提供白名单技法，正常走不到这里）。
+		// 六爻在此入口走「时间起卦」(确定性，时间即输入)；统摄法等非纯时间可推的不在白名单。
 		let timeText = '';
-		if(TIME_CASTABLE_SET.has(key)){
+		if(TIMEPOINT_CASTABLE_SET.has(key)){
 			timeText = await regenerateCaseTechniqueSnapshot(record, key, payload);
 			if(timeText){
 				saveGeneratedTechniqueSnapshot(key, timeText, record, { generatedFromTimepoint: true });
@@ -1844,7 +1881,7 @@ async function buildTechniqueContext(source, techniqueKey, baseSourceContext){
 export function listAnalysisTechniqueOptions(source){
 	let keys;
 	if(source && source.sourceType === 'timepoint'){
-		keys = TIME_CASTABLE_DIVINATION;
+		keys = [...TIME_CASTABLE_DIVINATION, 'sixyao']; // 起课时间额外提供六爻(时间起卦)
 	}else if(source && source.sourceType === 'case'){
 		keys = ANALYSIS_CASE_TECHNIQUES;
 	}else{

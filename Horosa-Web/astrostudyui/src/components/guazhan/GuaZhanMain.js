@@ -36,6 +36,33 @@ function lineText(line){
 	return `${line}`.trim();
 }
 
+// 时间起卦（梅花/时间确定式法）——纯函数，供 AI 挂载「起课时间」无头复用（与 genTimeGua 同口径）。
+export function buildTimeGua(nongli){
+	if(!nongli || !nongli.year || !nongli.time || nongli.monthInt === undefined || nongli.dayInt === undefined){
+		return null;
+	}
+	const y = ZiList.indexOf(('' + nongli.year).substr(1)) + 1;
+	const m = nongli.monthInt;
+	const d = nongli.dayInt;
+	const t = ZiList.indexOf(('' + nongli.time).substr(1)) + 1;
+	let up = (y + m + d) % 8 - 1; up = up < 0 ? 7 : up;
+	let down = (y + m + d + t) % 8 - 1; down = down < 0 ? 7 : down;
+	let cyao = (y + m + d + t) % 6 - 1; cyao = cyao < 0 ? 5 : cyao;
+	const upGua = Gua8[up];
+	const downGua = Gua8[down];
+	if(!upGua || !downGua){ return null; }
+	const yao = [0, 0, 0, 0, 0, 0].map(() => ({ value: -1, change: false, color: AstroConst.AstroColor.Stroke, name: null }));
+	for(let i = 0; i < downGua.value.length; i++){ yao[i].value = downGua.value[i]; }
+	for(let i = 0; i < upGua.value.length; i++){ yao[i + 3].value = upGua.value[i]; }
+	yao[cyao].change = true;
+	const gua = getGua64(littleEndian(yao.map((x) => x.value)));
+	const guaidx = gua ? gua.index : null;
+	if(guaidx !== null && Gua64[guaidx]){
+		for(let i = 0; i < yao.length; i++){ yao[i].name = Gua64[guaidx].yaoname[i]; }
+	}
+	return { yao, currentGua: guaidx, nongli };
+}
+
 export function buildGuaSnapshotText(fields, st){
 	const lines = [];
 	const nowGua = st && st.currentGua !== null && Gua64[st.currentGua] ? Gua64[st.currentGua] : null;

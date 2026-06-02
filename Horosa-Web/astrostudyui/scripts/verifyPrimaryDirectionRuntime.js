@@ -224,6 +224,26 @@ async function run() {
   verifyPdResult(pdAstro, 'core_alchabitius');
   verifyPdResult(pdLegacy, 'horosa_legacy');
 
+  // 表格 Naibod 度数换算（加性）：弧/动星/应星与 Ptolemy 逐字节相同，仅日期列(item[4])因换算 key 改变。
+  // 护住已验证的 Ptolemy+Alchabitius 表格——Naibod 绝不改弧、只改弧↔日期映射。
+  const pdNaibod = await call('/predict/pd', {
+    ...BASE_PAYLOAD,
+    pdMethod: 'core_alchabitius',
+    pdTimeKey: 'Naibod',
+  });
+  verifyPdResult(pdNaibod, 'core_alchabitius Naibod');
+  const pdNaibodRows = pdNaibod.pd;
+  const naibodArcCol = (rows) => rows.slice(0, 40).map((r) => Number(Number(r[0]).toFixed(12)));
+  assert(
+    JSON.stringify(naibodArcCol(pdNaibodRows)) === JSON.stringify(naibodArcCol(pdAstro.pd)),
+    'Naibod table arcs must be byte-identical to Ptolemy (only dates may differ)',
+  );
+  const dateCol = (rows) => rows.slice(0, 40).map((r) => `${r[4] || ''}`);
+  assert(
+    JSON.stringify(dateCol(pdNaibodRows)) !== JSON.stringify(dateCol(pdAstro.pd)),
+    'Naibod table dates must differ from Ptolemy (key changes arc→date mapping)',
+  );
+
   const chartAstroRows = chartAstro.predictives.primaryDirection;
   const chartLegacyRows = chartLegacy.predictives.primaryDirection;
   const pdAstroRows = pdAstro.pd;
@@ -242,6 +262,39 @@ async function run() {
     'core_alchabitius and horosa_legacy rows are unexpectedly identical',
   );
 
+  // 主限法盘 /predict/pdchart 投射回归（与表格完全独立）：A2 角点赤纬归正 + A3 Naibod 度数换算 + A5 向运方向。
+  // 关键护栏：Naibod 只缩放盘投射弧、绝不入表格(上面 /predict/pd 恒 Ptolemy 已校)。
+  const PDCHART_BASE = {
+    ...BASE_PAYLOAD,
+    gpsLat: BASE_PAYLOAD.lat,
+    gpsLon: BASE_PAYLOAD.lon,
+    dirZone: BASE_PAYLOAD.zone,
+    pdMethod: 'core_alchabitius',
+    datetime: '2068-04-06 09:33:00',
+  };
+  const PDCHART_ANGLE_IDS = new Set(['Asc', 'Desc', 'MC', 'IC']);
+  function assertPdchartShape(res, label) {
+    assert(res && res.chart && Array.isArray(res.chart.objects) && res.chart.objects.length > 0, `/predict/pdchart ${label} missing chart.objects`);
+    assert(typeof res.arc === 'number' && isFinite(res.arc), `/predict/pdchart ${label} arc not numeric`);
+    const angles = res.chart.objects.filter((o) => PDCHART_ANGLE_IDS.has(`${o.id}`));
+    assert(angles.length === 4, `/predict/pdchart ${label} expected 4 angles, got ${angles.length}`);
+    for (const a of angles) {
+      // 角点皆在黄道(黄纬=0) → 赤纬必落 ±黄赤交角(~23.45)内；旧 bug 误用地理纬度致越界(如 43°)。
+      assert(Math.abs(Number(a.decl)) <= 23.5, `/predict/pdchart ${label} angle ${a.id} decl out of range: ${a.decl}`);
+    }
+  }
+  const pdchartDirect = await call('/predict/pdchart', { ...PDCHART_BASE, pdTimeKey: 'Ptolemy', direction: 'direct' });
+  const pdchartConverse = await call('/predict/pdchart', { ...PDCHART_BASE, pdTimeKey: 'Ptolemy', direction: 'converse' });
+  const pdchartNaibod = await call('/predict/pdchart', { ...PDCHART_BASE, pdTimeKey: 'Naibod', direction: 'direct' });
+  assertPdchartShape(pdchartDirect, 'direct/Ptolemy');
+  assertPdchartShape(pdchartConverse, 'converse/Ptolemy');
+  assertPdchartShape(pdchartNaibod, 'direct/Naibod');
+  assert(pdchartDirect.converse === false, '/predict/pdchart direct must report converse=false');
+  assert(pdchartConverse.converse === true, '/predict/pdchart converse must report converse=true');
+  assert(pdchartNaibod.arc > 0 && pdchartNaibod.arc < pdchartDirect.arc, `/predict/pdchart Naibod arc must be < Ptolemy arc (naibod=${pdchartNaibod.arc} ptolemy=${pdchartDirect.arc})`);
+  const naibodRatio = pdchartNaibod.arc / pdchartDirect.arc;
+  assert(Math.abs(naibodRatio - 0.9856473354) < 2e-3, `/predict/pdchart Naibod arc ratio off (太阳平均周日运动): ${naibodRatio}`);
+
   console.log(JSON.stringify({
     chart_core_default_firdaria: chartAstroDefault.predictives.firdaria.length,
     chart_legacy_default_firdaria: chartLegacyDefault.predictives.firdaria.length,
@@ -251,8 +304,13 @@ async function run() {
     pd_legacy_rows: pdLegacyRows.length,
     chart_core_first: normalizeRow(chartAstroRows[0]),
     chart_legacy_first: normalizeRow(chartLegacyRows[0]),
+    pdchart_arc_ptolemy: Number(pdchartDirect.arc.toFixed(4)),
+    pdchart_arc_naibod: Number(pdchartNaibod.arc.toFixed(4)),
+    pdchart_naibod_ratio: Number((pdchartNaibod.arc / pdchartDirect.arc).toFixed(6)),
+    pdchart_converse_flag: pdchartConverse.converse,
   }, null, 2));
   console.log('verify ok: /chart lazy-loads primaryDirection by default, and /predict/pd stays aligned when includePrimaryDirection=true');
+  console.log('verify ok: /predict/pdchart angles within obliquity, Naibod scales arc (~0.9857x, table stays Ptolemy), converse flips arc');
 }
 
 run().catch((err) => {

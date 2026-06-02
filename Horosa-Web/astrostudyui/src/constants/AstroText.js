@@ -88,6 +88,15 @@ AstroMsgCN[AstroConst.URANUS] = '天王星';
 AstroMsgCN[AstroConst.NEPTUNE] = '海王星';
 AstroMsgCN[AstroConst.PLUTO] = '冥王星';
 AstroMsgCN[AstroConst.CHIRON] = '凯龙星';
+AstroMsgCN[AstroConst.CUPIDO] = '丘比特';
+AstroMsgCN[AstroConst.HADES] = '哈迪斯';
+AstroMsgCN[AstroConst.ZEUS] = '宙斯';
+AstroMsgCN[AstroConst.KRONOS] = '克洛诺斯';
+AstroMsgCN[AstroConst.APOLLON] = '阿波罗';
+AstroMsgCN[AstroConst.ADMETOS] = '阿德墨托斯';
+AstroMsgCN[AstroConst.VULCANUS] = '伏尔甘';
+AstroMsgCN[AstroConst.POSEIDON] = '波塞冬';
+AstroMsgCN[AstroConst.ARIES_POINT] = '白羊点';
 AstroMsgCN[AstroConst.NORTH_NODE] = '北交';
 AstroMsgCN[AstroConst.SOUTH_NODE] = '南交';
 AstroMsgCN[AstroConst.SYZYGY] = '月亮朔望点';
@@ -407,3 +416,33 @@ AstroTxtMsg[AstroConst.PARS_NECESSITY] = '必然点';
 AstroTxtMsg[AstroConst.PARS_COURAGE] = '勇气点';
 AstroTxtMsg[AstroConst.PARS_VICTORY] = '胜利点';
 AstroTxtMsg[AstroConst.PARS_NEMESIS] = '报应点';
+
+// 汉堡学派 8 颗虚星 TNP。自带星图字体无虚星字形 → 盘面/列表用 2 字母拉丁缩写 + 中文名 tooltip。
+AstroTxtMsg[AstroConst.CUPIDO] = '丘比特';
+AstroTxtMsg[AstroConst.HADES] = '哈迪斯';
+AstroTxtMsg[AstroConst.ZEUS] = '宙斯';
+AstroTxtMsg[AstroConst.KRONOS] = '克洛诺斯';
+AstroTxtMsg[AstroConst.APOLLON] = '阿波罗';
+AstroTxtMsg[AstroConst.ADMETOS] = '阿德墨托斯';
+AstroTxtMsg[AstroConst.VULCANUS] = '伏尔甘';
+AstroTxtMsg[AstroConst.POSEIDON] = '波塞冬';
+
+AstroTxtMsg[AstroConst.ARIES_POINT] = '白羊点';
+export const UranianAbbr = {
+	[AstroConst.CUPIDO]: 'Cu', [AstroConst.HADES]: 'Ha', [AstroConst.ZEUS]: 'Ze', [AstroConst.KRONOS]: 'Kr',
+	[AstroConst.APOLLON]: 'Ap', [AstroConst.ADMETOS]: 'Ad', [AstroConst.VULCANUS]: 'Vu', [AstroConst.POSEIDON]: 'Po',
+	[AstroConst.ARIES_POINT]: '♈',
+};
+export function isUranian(id){ return UranianAbbr[id] !== undefined; }
+export function uranianGlyph(id){ return UranianAbbr[id] || AstroMsg[id] || id; }
+// 实义据 Witte《Rules for Planetary Pictures》本源典籍（汉堡学派源头文献）。
+export const URANIAN_MEANING = {
+	[AstroConst.CUPIDO]: '社群·家庭·婚姻·艺术·团体/法人',
+	[AstroConst.HADES]: '衰朽·匮乏·污秽·隐秘·过去·疾病',
+	[AstroConst.ZEUS]: '受控之火·创造·领导·导向能量·生育',
+	[AstroConst.KRONOS]: '权威·高位·政府·卓越·独立',
+	[AstroConst.APOLLON]: '扩展·成功·科学贸易·众多·广远',
+	[AstroConst.ADMETOS]: '凝滞·原料·收缩·专注·死亡·原始',
+	[AstroConst.VULCANUS]: '强力·能量·支配·巨大势能',
+	[AstroConst.POSEIDON]: '精神·理念·启迪·灵性·光',
+};

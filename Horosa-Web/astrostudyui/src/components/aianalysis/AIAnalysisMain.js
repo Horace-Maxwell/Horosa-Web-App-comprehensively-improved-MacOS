@@ -7,6 +7,8 @@ import {
 	Empty,
 	Form,
 	Popconfirm,
+	Popover,
+	Slider,
 	Space,
 	Spin,
 	Table,
@@ -114,6 +116,9 @@ import {
 	getProviderPreset,
 	getProviderProtocolFamily,
 	splitProviderModels,
+	THINKING_LEVELS,
+	applyThinkingLevel,
+	isReasoningModel,
 } from '../../utils/aiAnalysisProviders';
 
 const { TextArea, Search } = Input;
@@ -723,6 +728,11 @@ function AIAnalysisMain(props){
 	const [messages, setMessages] = React.useState([]);
 	const [selectedSourceId, setSelectedSourceId] = React.useState('');
 	const [modelSelection, setModelSelection] = React.useState(defaultUi.modelSelection || '');
+	// issue #13：嵌入(向量)模型独立选择 + 聊天高级参数（全局，存 UI prefs）
+	const [embeddingSelection, setEmbeddingSelection] = React.useState(defaultUi.embeddingSelection || '');
+	const [chatTemperature, setChatTemperature] = React.useState(defaultUi.chatTemperature === undefined ? null : defaultUi.chatTemperature);
+	const [chatTopP, setChatTopP] = React.useState(defaultUi.chatTopP === undefined ? null : defaultUi.chatTopP);
+	const [thinkingLevel, setThinkingLevel] = React.useState(defaultUi.thinkingLevel || 'off');
 	// C: 测试连接状态机——key = 当前 modelSelection 指纹。切模型/接口后 key 失配 → chip 自动回灰「点击测试」;
 	// 在当前选择下测试成功/失败 → 置绿「测试成功」/ 红「测试失败」。不再读 profile.healthStatus(避免历史诊断残留绿)。
 	const [connState, setConnState] = React.useState({ key: '', status: 'idle' });
@@ -890,6 +900,21 @@ function AIAnalysisMain(props){
 				return;
 			}
 			normalizeProfileChatModels(profile).forEach((model)=>{
+				result.push({
+					value: encodeModelSelection(profile.id, model),
+					label: `${profile.name || '未命名配置'} / ${model}`,
+				});
+			});
+		});
+		return result;
+	}, [providerProfiles]);
+
+	// issue #13：嵌入(向量)模型下拉——各 provider 的 embeddingModels，与聊天模型独立。
+	const embeddingOptions = React.useMemo(()=>{
+		const result = [];
+		providerProfiles.forEach((profile)=>{
+			if(profile.enabled === false){ return; }
+			normalizeEmbeddingModels(profile).forEach((model)=>{
 				result.push({
 					value: encodeModelSelection(profile.id, model),
 					label: `${profile.name || '未命名配置'} / ${model}`,
@@ -1433,7 +1458,18 @@ function AIAnalysisMain(props){
 		return enriched;
 	}
 
-	async function retrieveMaterialContext(query, resolvedRefs, profile){
+	// issue #13：解析「嵌入(向量)模型」目标——三态向后兼容，避免老用户回归。
+	function resolveEmbeddingTarget(chatProfile){
+		// 1) 显式选了独立嵌入模型 → 用它（新能力：聊天=DeepSeek + 嵌入=Ollama bge-m3）
+		const parsed = parseModelSelection(embeddingSelection);
+		const explicit = providerProfiles.find((p)=>p.id === parsed.profileId && p.enabled !== false);
+		if(explicit && parsed.model){ return { profile: explicit, model: parsed.model }; }
+		// 2) 未选 → 沿用聊天 profile 自带嵌入模型（旧行为，零回归）；聊天 provider 无嵌入(如 DeepSeek) → null 退关键词
+		const m = chatProfile ? (normalizeEmbeddingModels(chatProfile)[0] || '') : '';
+		return (chatProfile && m) ? { profile: chatProfile, model: m } : null;
+	}
+
+	async function retrieveMaterialContext(query, resolvedRefs, embeddingTarget){
 		const directMaterials = [];
 		const ragMaterials = [];
 		(resolvedRefs.materials || []).forEach((item)=>{
@@ -1465,24 +1501,25 @@ function AIAnalysisMain(props){
 			}
 		}
 		let ranked = rankChunksByKeyword(query, chunks).slice(0, 12);
-		const profileOptions = profile && profile.providerOptions ? profile.providerOptions : {};
-		const embeddingModel = profileOptions.embeddingModel || (normalizeEmbeddingModels(profile)[0] || '');
-		if(profile && embeddingModel && ranked.length){
+		// issue #13：嵌入用「独立选择的嵌入 provider」，与聊天 provider 解耦（embeddingTarget = {profile, model}）。
+		const eProfile = embeddingTarget && embeddingTarget.profile ? embeddingTarget.profile : null;
+		const embeddingModel = embeddingTarget && embeddingTarget.model ? embeddingTarget.model : '';
+		if(eProfile && embeddingModel && ranked.length){
 			try{
 				const queryEmbeddingRsp = await requestEmbeddingVectors({
-					providerType: profile.providerType,
-					apiKey: profile.apiKey,
-					baseUrl: profile.baseUrl,
+					providerType: eProfile.providerType,
+					apiKey: eProfile.apiKey,
+					baseUrl: eProfile.baseUrl,
 					model: embeddingModel,
 					embeddingModel,
-					providerOptions: profile.providerOptions || {},
+					providerOptions: eProfile.providerOptions || {},
 					input: [query],
 				});
 				const queryVector = queryEmbeddingRsp && queryEmbeddingRsp.Result && Array.isArray(queryEmbeddingRsp.Result.vectors)
 					? queryEmbeddingRsp.Result.vectors[0]
 					: [];
 				if(Array.isArray(queryVector) && queryVector.length){
-					const enriched = await ensureChunkEmbeddings(profile, embeddingModel, ranked);
+					const enriched = await ensureChunkEmbeddings(eProfile, embeddingModel, ranked);
 					ranked = rerankChunksWithVector(queryVector, enriched).slice(0, 6);
 				}
 			}catch(e){
@@ -1537,13 +1574,17 @@ function AIAnalysisMain(props){
 		const abortController = new AbortController();
 		abortRef.current = abortController;
 		let streamError = null;
+		// issue #13：把聊天高级参数（思考档/温度/top_p）并入 providerOptions（reasoning 模型不发 temperature）。
+		const chatProviderOptions = applyThinkingLevel({ ...(profile.providerOptions || {}) }, thinkingLevel, profile.providerType, model);
+		if(!isReasoningModel(model) && chatTemperature != null){ chatProviderOptions.temperature = chatTemperature; }
+		if(chatTopP != null){ chatProviderOptions.top_p = chatTopP; }
 		try{
 			await requestAIAnalysisChatStream({
 				providerType: profile.providerType,
 				apiKey: profile.apiKey,
 				baseUrl: profile.baseUrl,
 				model,
-				providerOptions: profile.providerOptions || {},
+				providerOptions: chatProviderOptions,
 				messages: chatMessages,
 			}, {
 				signal: abortController.signal,
@@ -1613,7 +1654,7 @@ function AIAnalysisMain(props){
 			setSourceContext(ctx);
 		}
 		setTechniqueContexts(resolvedTechniqueContexts);
-		const retrieval = await retrieveMaterialContext(currentPrompt, resolvedRefs, profile);
+		const retrieval = await retrieveMaterialContext(currentPrompt, resolvedRefs, resolveEmbeddingTarget(profile));
 		const layers = buildContextLayers({
 			sourceContext: ctx,
 			techniqueContexts: resolvedTechniqueContexts,
@@ -3013,6 +3054,47 @@ function AIAnalysisMain(props){
 							>
 								<Button size="small" className={styles.topBtn} icon={<XQIcon name="setting" />}>配置</Button>
 							</Dropdown>
+							<Select
+								showSearch
+								allowClear
+								value={embeddingSelection || undefined}
+								placeholder="嵌入/向量模型（资料库检索·可选）"
+								className={styles.modelSelect}
+								optionFilterProp="children"
+								onChange={(val)=>{ setEmbeddingSelection(val || ''); saveUiPrefs({ embeddingSelection: val || '' }); }}
+							>
+								{embeddingOptions.map((item)=>(
+									<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
+								))}
+							</Select>
+							<Popover
+								trigger="click"
+								placement="bottomLeft"
+								title="聊天高级参数"
+								content={(
+									<div style={{ width: 240 }}>
+										<div style={{ display: 'flex', justifyContent: 'space-between' }}><span>思考档</span></div>
+										<Select size="small" style={{ width: '100%', marginBottom: 12 }} value={thinkingLevel}
+											onChange={(v)=>{ setThinkingLevel(v); saveUiPrefs({ thinkingLevel: v }); }}>
+											{THINKING_LEVELS.map((t)=><Select.Option key={t.value} value={t.value}>{t.label}</Select.Option>)}
+										</Select>
+										{isReasoningModel(parseModelSelection(modelSelection).model)
+											? <div style={{ color: 'var(--horosa-text-soft)', fontSize: 12, marginBottom: 8 }}>推理模型自带思考，已隐藏 temperature</div>
+											: (<div style={{ marginBottom: 8 }}>
+												<div style={{ display: 'flex', justifyContent: 'space-between' }}><span>温度 temperature</span><span>{chatTemperature == null ? '默认' : chatTemperature}</span></div>
+												<Slider min={0} max={2} step={0.1} value={chatTemperature == null ? 0.7 : chatTemperature}
+													onChange={(v)=>{ setChatTemperature(v); saveUiPrefs({ chatTemperature: v }); }} />
+											</div>)}
+										<div>
+											<div style={{ display: 'flex', justifyContent: 'space-between' }}><span>top_p</span><span>{chatTopP == null ? '默认' : chatTopP}</span></div>
+											<Slider min={0} max={1} step={0.05} value={chatTopP == null ? 1 : chatTopP}
+												onChange={(v)=>{ setChatTopP(v); saveUiPrefs({ chatTopP: v }); }} />
+										</div>
+									</div>
+								)}
+							>
+								<Button size="small" className={styles.topBtn} icon={<XQIcon name="setting" />}>参数</Button>
+							</Popover>
 						</div>
 						<span className={styles.topDivider} />
 						{renderConnChip()}
@@ -3034,6 +3116,21 @@ function AIAnalysisMain(props){
 									<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
 								))}
 							</Select>
+							{activeSource ? (
+								<Select
+									mode="multiple"
+									allowClear
+									maxTagCount="responsive"
+									value={activeTechniqueKeys}
+									placeholder={`选择${activeSource.sourceType === 'chart' ? '命盘' : '事盘'}技法`}
+									className={styles.sourceSelect}
+									onChange={(vals)=>setSelectedTechniqueKeys(vals || [])}
+								>
+									{techniqueOptions.map((item)=>(
+										<Select.Option key={item.value} value={item.value}>{item.label}</Select.Option>
+									))}
+								</Select>
+							) : null}
 							<Badge count={lockedContextItems.length} size="small" offset={[-2, 2]}>
 								<Button size="small" className={styles.topBtn} icon={<XQIcon name="tool" />} onClick={()=>setMountDrawerOpen(true)}>挂载</Button>
 							</Badge>

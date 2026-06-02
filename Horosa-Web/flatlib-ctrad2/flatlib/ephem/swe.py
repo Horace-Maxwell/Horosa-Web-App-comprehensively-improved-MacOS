@@ -150,7 +150,16 @@ SWE_OBJECTS = {
     const.JUNO: 19,
     const.VESTA: 20,
     const.INTP_APOG: 21,
-    const.INTP_PERG: 22
+    const.INTP_PERG: 22,
+    # Uranian / 汉堡学派 trans-Neptunian points (Swiss Ephemeris hypothetical bodies 40-47)
+    const.CUPIDO: 40,
+    const.HADES: 41,
+    const.ZEUS: 42,
+    const.KRONOS: 43,
+    const.APOLLON: 44,
+    const.ADMETOS: 45,
+    const.VULCANUS: 46,
+    const.POSEIDON: 47
 }
 
 # Map house systems

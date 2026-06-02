@@ -9,12 +9,12 @@
 **把占星与中国术数，收进一个原生 macOS 工作站**<br />
 *Western astrology and Chinese metaphysics, in one native macOS workstation*
 
-[![Version](https://img.shields.io/badge/version-2.5.1-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
+[![Version](https://img.shields.io/badge/version-2.5.2-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.1/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.2/Horosa-Installer-macos-arm64-offline.pkg) ·
 [完整中文说明](README_ZH.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -33,7 +33,7 @@
 
 > Regular users grab the offline installer and open it like any finished macOS app. No Python or Java to install yourself—the runtime ships inside the package—and updates replace the program and shared runtime without wiping your saved charts.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.1/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v2.5.2/Horosa-Installer-macos-arm64-offline.pkg)**
 
 适合：Apple Silicon · 弱网 / 离线环境 · 首次安装 · 转发给他人。
 
@@ -91,20 +91,19 @@
 
 > Charts and cases save locally—tags, snapshots, raw backend payloads, JSON import/export, and full restore on reopen.
 
-## 本次更新 · What's New in v2.5.1 beta
+## 本次更新 · What's New in v2.5.2 beta
 
-这一版聚焦 AI 分析与地点 / 时区的体验补全,并修一处代理环境下的排盘稳定性问题:
+这一版聚焦量化盘(汉堡学派)新技法、主限法新选项、AI 模型解耦与本地推理上下文,以及主限法盘的天文修正:
 
-- **AI 分析页系统性翻新** —— 对话改为主流 Chat 式(顶栏三步:配置 → 测试连接 → 对话),技法 / 资料 / 系统提示 / 挂载预览收进「挂载设置」抽屉;换命盘 / 事盘后挂载内容严格对应所选盘,杜绝挂错。
-- **13 技法全面接入 AI 挂载 / 导出** —— 西占全套推运、数算(邵子参评数 / 河洛理数,补逐年流年卦)、演禽 / 策天飞星 / 皇极经世,均可挂载与导出,可逐技法逐段勾选。
-- **新增「起课时间」「命盘时间」两个即时起盘入口** —— 仅凭时间 + 地点即时起盘(六爻等摇卦类永不按时间凭空起);内置 atlas 选点 / 时区 / 命名 / 一键保存为命盘·事盘。
-- **地点与时区全面校准** —— 内置全球 3.4 万城市离线 atlas(中 / 英搜索 + 标准度分秒);所有命 / 卜技法选地点或改时区即实时重排,六壬中间盘默认显示「真太阳时」。
-- **代理环境排盘稳定性(#14)** —— 开启系统代理(Clash / V2Ray 等)时,本地排盘服务调用一律直连、不经代理,修复「本地排盘服务未就绪」(与 Windows 端同步)。
-- **其它** —— 七政四余(Moira 模式)星体居中标度;紫微右栏空白 / 点宫神煞两处修复;天文馆沉浸全屏。
+- **新增「90°中点盘」技法**(辅盘 → 量化盘)—— 折叠盘与多环模数盘双形态、三层叠盘(本命 / 行运 / 太阳弧)、八虚星(Cu / Ha / Ze / Kr / Ap / Ad / Vu / Po)、谐波盘基 H1..H512、可拖动的红色指针即时输出星体 / 中点 / 行星图读数与中点树。行运 / 太阳弧时刻与地点可独立调节,本命环锁定为最内圈。
+- **主限法表格新增 Naibod 度数换算选项** —— 既有 Ptolemy / Alcabitius 链路完全不变;选 Naibod 时表格按 0.9856473 缩放日期、盘投射同步缩放、converse 复用同一参数链。同时修复主限法盘 ASC / MC / DESC / IC 四角赤纬(原误以地理纬度作黄纬,赤纬偏差被根治)。
+- **AI 分析:聊天 / 嵌入模型解耦 + 高级参数** —— 顶栏可独立指定聊天与嵌入模型,「参数」抽屉提供思考档位 / temperature / top_p;Ollama 改走原生 `/api/chat` 与 `/api/embed`,`num_ctx` 等真正生效,长玄学上下文不再默认 4096 截断(#15)。
+- **大六壬 / 三式合一 AI 挂载修复 + 六爻接入时间起卦白名单** —— 六爻仍守「永不按时间重算已存卦」铁律,新增的时间入口仅为新时点起卦。
+- **量化盘 AI 四同步** —— AI 导出预设、导出设置版本、AI 分析挂载、命盘 / 事盘储存全部接入 90°中点盘段。
 
-完整改动见 [v2.5.1 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1)(离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.5.1 / 2.5.1-runtime2`)。
+完整改动见 [v2.5.2 Release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2)(离线 `.pkg`、app zip、runtime 包与 manifest 对齐到 `2.5.2 / 2.5.2-runtime1`)。
 
-> v2.5.1 focuses on the AI-analysis and location/timezone experience, plus one proxy-environment charting fix: a full AI Analysis UX overhaul (mainstream chat flow with strict per-chart mount matching), 13 techniques wired into AI mount/export, two new instant-cast entries ("Cast time" / "Natal time") with a built-in 34k-city atlas, full coordinate/timezone calibration with live re-cast on location change (Liu-ren shows apparent solar time by default), a proxy-environment fix (#14 — loopback charting calls bypass the system proxy, synchronized with the Windows build), plus Qi-Zheng (Moira) / Zi-wei / planetarium polish. See the [v2.5.1 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.1) for the full log.
+> v2.5.2 ships the 90°-dial (Hamburg-school) technique with eight hypothetical points and harmonic bases H1..H512, adds Naibod to the primary-direction table (keeping the verified Ptolemy / Alcabitius paths byte-identical), fixes the four-angle declination bug in the primary-direction chart, decouples chat / embedding models in the AI panel with a thinking-level / temperature / top-p drawer, switches Ollama to native `/api/chat` and `/api/embed` so `num_ctx` actually applies (long astrology context no longer truncates at 4096, #15), repairs the AI snapshot mount for Da-Liu-Ren and the unified three-style chart, and propagates the new dial section through all four AI surfaces (export, export settings, analysis mount, chart/event storage). See the [v2.5.2 release](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v2.5.2) for the full log.
 
 ## 技术构成 · Under the Hood
 

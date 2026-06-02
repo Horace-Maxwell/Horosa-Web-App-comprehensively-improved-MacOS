@@ -23,6 +23,18 @@ export const URANUS = 'Uranus'
 export const NEPTUNE = 'Neptune'
 export const PLUTO = 'Pluto'
 export const CHIRON = 'Chiron'
+// 汉堡学派（Uranian）8 颗虚星 TNP —— 仅经汉堡 dial 读取 /germany/midpoint 的 tnp 字段进入显示，绝不进 DEFAULT_OBJECTS
+export const CUPIDO = 'Cupido'
+export const HADES = 'Hades'
+export const ZEUS = 'Zeus'
+export const KRONOS = 'Kronos'
+export const APOLLON = 'Apollon'
+export const ADMETOS = 'Admetos'
+export const VULCANUS = 'Vulcanus'
+export const POSEIDON = 'Poseidon'
+export const LIST_URANIAN = [CUPIDO, HADES, ZEUS, KRONOS, APOLLON, ADMETOS, VULCANUS, POSEIDON]
+// 白羊点 / 世界轴（World Axis）——恒为黄经 0°，汉堡学派与 AS/MC 同级的个人点；90°盘上 0/90/180/270 等价。
+export const ARIES_POINT = 'AriesPoint'
 export const NORTH_NODE = 'North Node'
 export const SOUTH_NODE = 'South Node'
 export const SYZYGY = 'Syzygy'
@@ -413,6 +425,7 @@ export const LIST_POINTS = [
     INTP_APOG, INTP_PERG,
     MOONSUN, SATURNMARS, JUPITERVENUS,
     LIFEMASTERDEG74,
+    CUPIDO, HADES, ZEUS, KRONOS, APOLLON, ADMETOS, VULCANUS, POSEIDON,
 ]
 
 export const LIST_SMALL_PLANETS = [

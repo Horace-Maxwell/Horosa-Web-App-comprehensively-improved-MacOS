@@ -649,8 +649,8 @@ class PerPredict:
         if base_id == const.MOON:
             point = self._rebuildCoreTruePosMoonPoint(pd, chart, point)
 
-        point = self._applyCorePromissorBodyModelCorrection(pd, chart, point) or point
-        point = self._applyCorePromissorLonCorrection(pd, chart, point)
+        # 主限法「盘」的投射是 RA+arc 整体推进，与表格的 OA-差公式不同口径；
+        # 原来把为表格拟合的 promissor 多项式/ML 修正套到盘上是错配，已停用（仅盘路径，不动表格 getPrimaryDirectionByZ*）。
         return point
 
     def _pdChartProjectPoint(self, pd, chart, payload, arc, obliquity, pd_method):
@@ -693,14 +693,18 @@ class PerPredict:
         mc_lon = self._pdChartNormalizeLon(dir_ascmc[1], chart.date.jd)
         desc_lon = angle.norm(asc_lon + 180.0)
         ic_lon = angle.norm(mc_lon + 180.0)
-        asc_lat = swisseph.cotrans([float(dir_ascmc[4]), lat, 1.0], float(obliquity))[1]
-        asc = self._pdChartSetLonLat({'id': const.ASC, 'type': 'Generic'}, asc_lon, asc_lat, ra=float(dir_ascmc[4]), decl=float(lat), jd=chart.date.jd)
-        desc_ra, desc_decl = self._pdChartEqCoords(desc_lon, asc_lat, obliquity)
-        desc = self._pdChartSetLonLat({'id': const.DESC, 'type': 'Generic'}, desc_lon, asc_lat, ra=desc_ra, decl=desc_decl, jd=chart.date.jd)
-        mc_ra, mc_decl = self._pdChartEqCoords(mc_lon, asc_lat, obliquity)
-        mc = self._pdChartSetLonLat({'id': const.MC, 'type': 'Generic'}, mc_lon, asc_lat, ra=mc_ra, decl=mc_decl, jd=chart.date.jd)
-        ic_ra, ic_decl = self._pdChartEqCoords(ic_lon, asc_lat, obliquity)
-        ic = self._pdChartSetLonLat({'id': const.IC, 'type': 'Generic'}, ic_lon, asc_lat, ra=ic_ra, decl=ic_decl, jd=chart.date.jd)
+        # ASC/DESC/MC/IC 皆位于黄道（黄纬=0），赤经赤纬一律按各自黄经真算，与上面 houses 口径完全一致。
+        # 原 asc_lat 误用 cotrans 把地理纬度当作黄纬代入，致四角赤纬越界（如 43°，超过黄赤交角物理不可能）；
+        # 且原 ASC 赤经直取 dir_ascmc[4]（equatorial ascendant，非黄道升点赤经）亦口径不符——一并归正。
+        ang_lat = 0.0
+        asc_ra, asc_decl = self._pdChartEqCoords(asc_lon, ang_lat, obliquity)
+        asc = self._pdChartSetLonLat({'id': const.ASC, 'type': 'Generic'}, asc_lon, ang_lat, ra=asc_ra, decl=asc_decl, jd=chart.date.jd)
+        desc_ra, desc_decl = self._pdChartEqCoords(desc_lon, ang_lat, obliquity)
+        desc = self._pdChartSetLonLat({'id': const.DESC, 'type': 'Generic'}, desc_lon, ang_lat, ra=desc_ra, decl=desc_decl, jd=chart.date.jd)
+        mc_ra, mc_decl = self._pdChartEqCoords(mc_lon, ang_lat, obliquity)
+        mc = self._pdChartSetLonLat({'id': const.MC, 'type': 'Generic'}, mc_lon, ang_lat, ra=mc_ra, decl=mc_decl, jd=chart.date.jd)
+        ic_ra, ic_decl = self._pdChartEqCoords(ic_lon, ang_lat, obliquity)
+        ic = self._pdChartSetLonLat({'id': const.IC, 'type': 'Generic'}, ic_lon, ang_lat, ra=ic_ra, decl=ic_decl, jd=chart.date.jd)
         angles = {
             const.ASC: asc,
             const.DESC: desc,
@@ -709,7 +713,7 @@ class PerPredict:
         }
         return houses, angles
 
-    def getPrimaryDirectionChartByDate(self, datetime_text, zone=None):
+    def getPrimaryDirectionChartByDate(self, datetime_text, zone=None, converse=False):
         zone = zone if zone is not None else self.perchart.zone
         parts = '{0}'.format(datetime_text if datetime_text is not None else '').split(' ')
         if len(parts) == 0 or parts[0] == '':
@@ -721,10 +725,16 @@ class PerPredict:
         asc = chart.get(const.ASC)
         asctime = SignAscTime(self.perchart.date, self.perchart.time, asc.sign, self.perchart.lat, self.perchart.zone)
         current_arc = asctime.getPDArcFromDate(current_dt)
+        # 度数换算 key：Ptolemy=符号年 1°/年(现状)；Naibod=太阳平均周日运动 0.9856473°/年（仅缩放弧、不碰表格）。
+        pd_time_key = '{0}'.format(getattr(self.perchart, 'pdTimeKey', 'Ptolemy') or 'Ptolemy')
+        if pd_time_key.lower() == 'naibod':
+            current_arc = current_arc * 0.9856473354
+        # 向运方向：direct=随时间逆时针(默认现状)；converse=按时间反向(顺时针)推进，即弧反号。
+        directed_arc = -current_arc if converse else current_arc
         obliquity = self._coreMeanObliquity(chart) if getattr(self.perchart, 'pdMethod', 'core_alchabitius') == 'core_alchabitius' else const.EQ2ECLI_OBLIQUITY
 
         pd = PrimaryDirections(chart)
-        houses, angle_map = self._pdChartBuildAnglesAndHouses(chart, current_arc, obliquity)
+        houses, angle_map = self._pdChartBuildAnglesAndHouses(chart, directed_arc, obliquity)
 
         directed_objects = []
         for obj in self.perchart.getChartObj()['objects']:
@@ -738,7 +748,7 @@ class PerPredict:
                     pd,
                     chart,
                     payload,
-                    current_arc,
+                    directed_arc,
                     obliquity,
                     getattr(self.perchart, 'pdMethod', 'core_alchabitius'),
                 )
@@ -752,7 +762,7 @@ class PerPredict:
                     pd,
                     chart,
                     payload,
-                    current_arc,
+                    directed_arc,
                     obliquity,
                     getattr(self.perchart, 'pdMethod', 'core_alchabitius'),
                 )
@@ -764,6 +774,7 @@ class PerPredict:
         return {
             'date': current_dt.toCNString(),
             'arc': float(current_arc),
+            'converse': bool(converse),
             'pos': {
                 'lat': self._coreParseCoord(getattr(self.perchart, 'lat', 0.0)),
                 'lon': self._coreParseCoord(getattr(self.perchart, 'lon', 0.0)),
@@ -922,12 +933,19 @@ class PerPredict:
 
     def appendDateStr(self, pdlist, usePD=True):
         chart = self.perchart.getChart()
+        # 度数换算 key：Ptolemy=符号年 1°/年(现状)；Naibod=太阳平均周日运动 0.9856473°/年。
+        # 表格是「弧→日期」(盘是「日期→弧」的逆)，故 Naibod 须把弧除以 0.9856473（同弧需更多年），
+        # 与盘的 getPrimaryDirectionChartByDate 缩放互逆、可round-trip。仅缩放日期、不动弧/动星/应星；
+        # Ptolemy 分支逐字节不变，护住已验证的 Ptolemy+Alchabitius 表格。
+        pd_time_key = '{0}'.format(getattr(self.perchart, 'pdTimeKey', 'Ptolemy') or 'Ptolemy')
+        naibod = pd_time_key.lower() == 'naibod'
         for item in pdlist:
             asc = chart.angles.get(const.ASC)
             asctime = SignAscTime(self.perchart.date, self.perchart.time, asc.sign, self.perchart.lat, self.perchart.zone)
             datestr = None
             if usePD:
-                datestr = asctime.getDateFromPDArc(item[0])
+                arc_for_date = (item[0] / 0.9856473354) if naibod else item[0]
+                datestr = asctime.getDateFromPDArc(arc_for_date)
             else:
                 datestr = asctime.getDateFromTermDirArc(item[0])
             item.append(datestr)
