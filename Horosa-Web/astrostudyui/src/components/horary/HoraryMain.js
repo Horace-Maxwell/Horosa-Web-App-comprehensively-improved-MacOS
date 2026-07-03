@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { XQSelect } from '../xq-ui';
 import DivinationChartShell from '../divination/DivinationChartShell';
 import HoraryJudgment from './HoraryJudgment';
+import { HORARY_SCHOOLS, HORARY_SCHOOL_ORDER, horaryBackendFields, presetOf, schoolOf } from '../../divination/horary/horarySchools';
 
 const Option = XQSelect.Option;
 
@@ -23,23 +24,54 @@ export const HORARY_CATEGORIES = [
 	{ value: 'enemy', label: '私敌 · 囚禁（十二宫）' },
 ];
 
+// 当前生效流派：优先用户显式所选(extra.horarySchool)；否则据当前宫制反推(老盘 hsys:0 → 希腊化，不误标)。
+function activeSchoolId(extra, fields){
+	if(extra && extra.horarySchool && HORARY_SCHOOLS[extra.horarySchool]){ return extra.horarySchool; }
+	return presetOf(fields);
+}
+
 class HoraryMain extends Component{
 
-	renderLeftExtra({ extra, setExtra }){
+	renderLeftExtra({ extra, setExtra, fields, patchFields }){
+		const schoolId = activeSchoolId(extra, fields);
+		const sch = schoolOf(schoolId);
 		return (
-			<div className="horosa-field-block">
-				<div className="horosa-field-label">问题类别</div>
-				<XQSelect style={{ width: '100%' }} size="small"
-					value={extra.questionCategory || 'general'}
-					onChange={(val)=>setExtra({ questionCategory: val })}>
-					{HORARY_CATEGORIES.map((c)=>(<Option key={c.value} value={c.value}>{c.label}</Option>))}
-				</XQSelect>
+			<div>
+				<div className="horosa-field-block">
+					<div className="horosa-field-label">流派</div>
+					<XQSelect style={{ width: '100%' }} size="small"
+						value={schoolId}
+						onChange={(val)=>{
+							setExtra({ horarySchool: val });
+							// 后端字段联动:换宫制/界/星历口径 → patchFields 自动重排盘;
+							// 仅当与当前值不同才 patch(避免无谓重取)。tripSystem 前端判读消费,不下发。
+							const bf = horaryBackendFields(val);
+							const patch = {};
+							Object.keys(bf).forEach((k) => {
+								const cur = fields && fields[k] && fields[k].value !== undefined ? fields[k].value : undefined;
+								if(cur !== bf[k]){ patch[k] = bf[k]; }
+							});
+							if(Object.keys(patch).length){ patchFields(patch); }
+						}}>
+						{HORARY_SCHOOL_ORDER.map((id)=>(<Option key={id} value={id}>{HORARY_SCHOOLS[id].cn}</Option>))}
+					</XQSelect>
+					{sch.desc ? <div className="horosa-field-hint" style={{ marginTop: 4, opacity: 0.72, fontSize: 12, lineHeight: 1.5 }}>{sch.desc}</div> : null}
+				</div>
+				<div className="horosa-field-block">
+					<div className="horosa-field-label">问题类别</div>
+					<XQSelect style={{ width: '100%' }} size="small"
+						value={extra.questionCategory || 'general'}
+						onChange={(val)=>setExtra({ questionCategory: val })}>
+						{HORARY_CATEGORIES.map((c)=>(<Option key={c.value} value={c.value}>{c.label}</Option>))}
+					</XQSelect>
+				</div>
 			</div>
 		);
 	}
 
-	renderRight({ chart, extra }){
-		return <HoraryJudgment chart={chart} category={extra.questionCategory || 'general'} />;
+	renderRight({ chart, extra, fields }){
+		return <HoraryJudgment chart={chart} category={extra.questionCategory || 'general'}
+			schoolId={activeSchoolId(extra, fields)} />;
 	}
 
 	render(){
@@ -49,7 +81,7 @@ class HoraryMain extends Component{
 				kicker="起卦设置"
 				pageClass="horosa-horary-page"
 				castNowLabel="此刻起卦"
-				defaults={{ tradition: 1, zodiacal: 0, hsys: 0 }}
+				defaults={{ tradition: 1, zodiacal: 0, hsys: 2 }}
 				initialExtra={{ questionCategory: 'general' }}
 				fields={this.props.fields}
 				height={this.props.height}

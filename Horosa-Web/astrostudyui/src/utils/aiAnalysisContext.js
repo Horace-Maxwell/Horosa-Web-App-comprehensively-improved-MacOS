@@ -80,6 +80,7 @@ import { buildRelativeSnapshotText } from '../components/astro/AstroRelative';
 import { buildPredictiveSnapshotText } from './predictiveAiSnapshot';
 import { runHorary } from '../divination/horary/horaryEngine';
 import { buildHorarySnapshot } from '../divination/horary/horarySnapshot';
+import { horaryJudgeOpts } from '../divination/horary/horarySchools';
 import { runElection } from '../divination/election/electionEngine';
 import { buildElectionSnapshot } from '../divination/election/electionSnapshot';
 import { buildLocalBaziResult } from './baziLunarLocal';
@@ -1321,7 +1322,11 @@ async function regenerateHorarySnapshot(record, options){
 	try{
 		// AI 挂载「每技法设置」:问卜类别经 options.topicId 透传（缺省 general=现状）。
 		const topicId = (options && typeof options === 'object' && options.topicId) ? options.topicId : 'general';
-		const j = runHorary(chart, topicId);
+		// 流派:齿轮「每技法设置」落顶层 options.horarySchool;储存记录落 payload.extra.horarySchool。
+		// 两处都查（缺省 undefined → horaryJudgeOpts 兜底经典主流 = 现状）。页面 school 即 AI school。
+		const horarySchool = (options && typeof options === 'object'
+			&& (options.horarySchool || (options.extra && options.extra.horarySchool))) || undefined;
+		const j = runHorary(chart, topicId, horaryJudgeOpts(horarySchool));
 		return j ? (buildHorarySnapshot(j) || '') : '';
 	}catch(e){
 		return '';

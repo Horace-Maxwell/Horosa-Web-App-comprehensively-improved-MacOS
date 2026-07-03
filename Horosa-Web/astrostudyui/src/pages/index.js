@@ -83,6 +83,7 @@ const JieQiChartsMain = lazyPreloadable(() => import('../components/jieqi/JieQiC
 const CnTraditionMain = lazyPreloadable(() => import('../components/cntradition/CnTraditionMain'));
 const CnYiBuMain = lazyPreloadable(() => import('../components/cnyibu/CnYiBuMain'));
 const XuanShiMain = lazyPreloadable(() => import('../components/xuanshi/XuanShiMain'));
+const AstrodataPage = lazyPreloadable(() => import('../components/astrodata/AstrodataPage'));
 const CalendarMain = lazyPreloadable(() => import('../components/calendar/CalendarMain'));
 const FengShuiMain = lazyPreloadable(() => import('../components/fengshui/FengShuiMain'));
 const SanShiUnitedMain = lazyPreloadable(() => import('../components/sanshi/SanShiUnitedMain'));
@@ -141,6 +142,7 @@ const mainTabIcons = {
     AI分析: <XQIcon name="ai" />,
     黄历: <XQIcon name="calendar" />,
     玄学史: <XQIcon name="other" />,
+    数据库: <XQIcon name="database" />,
     '3D星盘': <XQIcon name="sphere3d" />,
     辅助: <XQIcon name="support" />,
     书籍阅读: <XQIcon name="book" />,
@@ -175,6 +177,7 @@ const navigationPages = [
     { label: '辅助', key: 'cntradition', icon: 'support', group: '工具', keywords: '辅助 工具 真太阳时' },
     { label: '玄学史', key: 'xuanshi', icon: 'other', group: '工具', keywords: '玄学史 历史 星象 天象 列传 朝代 地图 关系 二十四史 野载 正史 omen 玄史 中国玄学史' },
     { label: '3D星盘', key: 'astrochart3D', icon: 'sphere3d', group: '工具', keywords: '3D 星盘 三维 天球 立体 球面 星空 相位 映点 接纳 互容 围攻 夹宫 希腊点 3d' },
+    { label: '数据库', key: 'astrodata', icon: 'database', group: '工具', keywords: '数据库 名人 命例 名人星盘 星盘库 案例库 出生数据 Rodden AstroDatabank 名人库 celebrity 星盘目录' },
 ];
 
 // 占星主面板「相关技法」快捷入口 —— 纯静态数据,hoist 到模块级(每次 render 复用同一引用),
@@ -211,6 +214,7 @@ const fullHeightWorkspaceTabs = new Set([
     'calendar',
     'cntradition',
     'xuanshi',
+    'astrodata',
 ]);
 
 function mainTab(label, group, options = {}){
@@ -858,6 +862,12 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         dispatch={dispatch}
                         predictHook={predictHook}
                     />
+                  </FreezeInactive>
+                </TabPane>
+
+                <TabPane tab={mainTab('数据库', '工具')} key="astrodata">
+                  <FreezeInactive active={activeMainTab === "astrodata"}>
+                    <AstrodataPage dispatch={dispatch} resolvedAppearance={resolvedAppearance} />
                   </FreezeInactive>
                 </TabPane>
 

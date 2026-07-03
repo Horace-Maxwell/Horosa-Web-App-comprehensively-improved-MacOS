@@ -415,6 +415,14 @@ const JINKOU_FIELDS = [
 // 原 schema 仅列 8/6 类且含不存在的假值（horary 'lost' 实为 'theft'；election 'construction/medical' 实为 'renovation/surgery'）。
 const HORARY_FIELDS = [
 	{ name: 'topicId', label: '问卜类别', type: 'select', default: 'general', group: '裁决', options: HORARY_CATEGORIES },
+	// 卜卦流派(horarySchools 五档;默认经典主流=页面默认口径)。储存记录另经 payload.extra.horarySchool 自动还原。
+	{ name: 'horarySchool', label: '判读流派', type: 'select', default: 'classical', group: '裁决', options: [
+		{ value: 'classical', label: '经典主流' },
+		{ value: 'strict', label: '当代严谨' },
+		{ value: 'hellenistic', label: '希腊化' },
+		{ value: 'medieval', label: '中世纪' },
+		{ value: 'modern', label: '现代心理' },
+	] },
 ];
 const ELECTION_FIELDS = [
 	{ name: 'topicId', label: '用事类别', type: 'select', default: 'marriage', group: '择日', options: ELECTION_TOPICS },

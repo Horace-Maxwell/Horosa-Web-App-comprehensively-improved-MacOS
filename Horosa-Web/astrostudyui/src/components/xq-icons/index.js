@@ -37,6 +37,13 @@ const iconMap = {
 			<path {...lineProps} d="M9.5 20v-6h5v6" />
 		</Svg>
 	),
+	database: (
+		<Svg>
+			<ellipse {...lineProps} cx="12" cy="6" rx="7" ry="2.6" />
+			<path {...lineProps} d="M5 6v12c0 1.44 3.13 2.6 7 2.6s7-1.16 7-2.6V6" />
+			<path {...lineProps} d="M5 12c0 1.44 3.13 2.6 7 2.6s7-1.16 7-2.6" />
+		</Svg>
+	),
 	note: (
 		<Svg>
 			<path {...lineProps} d="M5 5.5h14v10.2H9.6L5 19.4z" />

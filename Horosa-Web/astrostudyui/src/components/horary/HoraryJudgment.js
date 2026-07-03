@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import { XQTabs } from '../xq-ui';
 import { runHorary, ASPECT_CN } from '../../divination/horary/horaryEngine';
+import { horaryJudgeOpts, schoolOf } from '../../divination/horary/horarySchools';
 import { buildHorarySnapshot } from '../../divination/horary/horarySnapshot';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { PLANETS } from '../../divination/data/planets';
@@ -56,9 +57,11 @@ class HoraryJudgment extends Component{
 		try{ const t = buildHorarySnapshot(this._j); if(t && t !== _lastHorarySnap){ _lastHorarySnap = t; saveModuleAISnapshot('horary', t, {}); } }catch(e){ /* noop */ }
 	}
 	render(){
-		const { chart, category } = this.props;
+		const { chart, category, schoolId } = this.props;
+		const opts = horaryJudgeOpts(schoolId);
+		const school = schoolOf(schoolId);
 		let j = null; let err = null;
-		try{ j = chart ? runHorary(chart, category) : null; }catch(e){ err = e; console.error('runHorary failed', e); }
+		try{ j = chart ? runHorary(chart, category, opts) : null; }catch(e){ err = e; console.error('runHorary failed', e); }
 		this._j = j;
 		if(!chart) return <div className="horosa-divi-judge"><div className="horosa-divi-note">排盘中…</div></div>;
 		if(err || !j) return <div className="horosa-divi-judge"><div className="horosa-divi-note">判断生成失败：{String((err && err.message) || err || '无结果')}</div></div>;
@@ -82,12 +85,23 @@ class HoraryJudgment extends Component{
 							{lean.word}
 							<div className="sub">{lean.sub}</div>
 						</div>
+						<div className="horosa-divi-muted" style={{ marginBottom: 6 }}>判读流派：<b>{school.cn}</b> · {school.desc}</div>
 						{guide ? (
 							<div className="horosa-divi-card">
 								<div className="horosa-divi-card-head">断法要点 · {guide.title}</div>
 								<div className="horosa-divi-kv" style={{ opacity: 0.85 }}>{guide.focus}</div>
 								<div className="horosa-divi-testi is-pos"><span className="dot">▲</span><span>偏成之征：{guide.yes}</span></div>
 								<div className="horosa-divi-testi is-neg"><span className="dot">▼</span><span>偏阻之征：{guide.no}</span></div>
+							</div>
+						) : null}
+						{j.topic ? (
+							<div className="horosa-divi-card">
+								<div className="horosa-divi-card-head">专题深化 · {j.topic.title}</div>
+								{j.topic.lines.map((t, i) => (
+									<div key={i} className={'horosa-divi-testi ' + (t.polarity === 'positive' ? 'is-pos' : (t.polarity === 'negative' ? 'is-neg' : ''))}>
+										<span className="dot">{t.polarity === 'positive' ? '▲' : (t.polarity === 'negative' ? '▼' : '·')}</span><span>{t.text}</span>
+									</div>
+								))}
 							</div>
 						) : null}
 						<div className="horosa-divi-card">
@@ -225,6 +239,7 @@ class HoraryJudgment extends Component{
 								] : <div className="horosa-divi-line">无互容。</div>}
 							</div>
 							<div className="horosa-divi-muted">接纳/互容由排盘引擎按庙旺三分界面尊贵自动判定（与「占星·古典」同源）；正接纳＝居对方庙旺等强位，邪接纳＝借次尊贵或弱位，供方落陷则标「拒绝」。</div>
+							<div className="horosa-divi-muted" style={{ marginTop: 4 }}>本档三分制口径：<b>{j.tripSystem === 'dorothean' ? '三主制（含参与主，水象日主取金星）' : '简约制（水象三分主取火星）'}</b>。三分尊贵按此判力量强弱。</div>
 						</div>
 					</TabPane>
 
@@ -238,6 +253,14 @@ class HoraryJudgment extends Component{
 							<div className="horosa-divi-card-head">何处（方位）</div>
 							<div className="horosa-divi-line">{j.queries.where ? `${j.queries.where.dir}（${j.queries.where.terrain}），距离${j.queries.where.distance}` : '本问题无方位指示。'}</div>
 						</div>
+						{j.lots ? (
+							<div className="horosa-divi-card">
+								<div className="horosa-divi-card-head">阿拉伯点（福点 / 精神点）</div>
+								<div className="horosa-divi-legend">福点＝财物 / 失物 / 身体安顿之所；其<b>定位星</b>为该类问题的关键征象。福点昼夜公式按流派取（{j.lots.convention}）。</div>
+								<div className="horosa-divi-kv">福点：{j.lots.fortune.signCn}座 {j.lots.fortune.signlon.toFixed(1)}°{j.lots.fortune.dispCn ? <span>，定位星 <span className="tag">{j.lots.fortune.dispCn}</span></span> : null}</div>
+								<div className="horosa-divi-kv">精神点：{j.lots.spirit.signCn}座 {j.lots.spirit.signlon.toFixed(1)}°{j.lots.spirit.dispCn ? <span>，定位星 <span className="tag">{j.lots.spirit.dispCn}</span></span> : null}</div>
+							</div>
+						) : null}
 					</div>
 				</TabPane>
 

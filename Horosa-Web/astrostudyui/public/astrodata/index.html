@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="zh" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astrodata · 名人星盘目录</title>
+<style>
+:root{
+  --serif:"Hoefler Text","Iowan Old Style","Palatino Linotype",Georgia,"Songti SC",serif;
+  --sans:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --glyph:"Apple Symbols","Segoe UI Symbol",var(--serif);
+  --fire:#e8804f; --earth:#c8a94e; --air:#5cb4cf; --water:#7b8ff0; --gold:#e7c66b;
+  --r:16px;
+}
+:root[data-theme="dark"]{
+  --bg:#0b0e1c; --bg2:#0e1226; --panel:#141936; --panel2:#1a2044; --line:#28305c;
+  --ink:#eef1ff; --mut:#9aa3cf; --mut2:#6f78a8; --accent:#b8a6e6; --accentink:#0b0e1c;
+  --card:#141936; --cardh:#1a2044; --chip:#1c2247; --shadow:0 12px 40px rgba(0,0,0,.45);
+  --glow:0 0 0 1px rgba(231,198,107,.0);
+  --wheelbg:#0a0d1e;
+}
+:root[data-theme="light"]{
+  --bg:#f6f4ee; --bg2:#efece3; --panel:#ffffff; --panel2:#faf8f2; --line:#e3ddcf;
+  --ink:#20233a; --mut:#6b6f86; --mut2:#9a9db2; --accent:#6d5bb5; --accentink:#fff;
+  --card:#ffffff; --cardh:#faf8f2; --chip:#f0ece1; --shadow:0 10px 30px rgba(40,36,20,.10);
+  --wheelbg:#fbfaf5;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--sans);color:var(--ink);background:var(--bg);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(1200px 700px at 82% -8%, rgba(184,166,230,.14), transparent 60%),
+  radial-gradient(900px 600px at 5% 8%, rgba(231,198,107,.08), transparent 55%),
+  var(--bg);}
+a{color:var(--accent);text-decoration:none} a:hover{opacity:.85}
+::selection{background:rgba(231,198,107,.3)}
+
+/* header */
+header{padding:22px 34px 4px;max-width:1500px;margin:0 auto}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:16px 22px;flex-wrap:wrap}
+.titleblock{flex:0 1 auto;min-width:0}
+.kicker{color:var(--gold);letter-spacing:.28em;font-size:11.5px;font-weight:600;text-transform:uppercase;opacity:.9}
+h1.brand{font-family:var(--serif);font-size:42px;line-height:1.02;margin:6px 0 4px;font-weight:600;letter-spacing:.01em}
+h1.brand .dot{color:var(--gold)}
+.tag{color:var(--mut);margin:0;font-size:14px;max-width:560px}
+.controls{display:flex;gap:8px;align-items:center}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:none;background:transparent;color:var(--mut);padding:6px 13px;border-radius:999px;cursor:pointer;font-size:13px;font-family:var(--sans)}
+.seg button.on{background:var(--accent);color:var(--accentink);font-weight:600}
+.iconbtn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;font-size:17px;display:grid;place-items:center}
+.iconbtn:hover{background:var(--panel2)}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin:0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:9px 16px;min-width:108px;position:relative;overflow:hidden}
+.stat b{display:block;color:var(--ink);font-size:23px;font-family:var(--serif);font-weight:600;letter-spacing:.02em}
+.stat span{color:var(--mut);font-size:11.5px}
+.stat::after{content:"";position:absolute;right:-18px;top:-18px;width:60px;height:60px;border-radius:50%;background:radial-gradient(circle,rgba(231,198,107,.16),transparent 70%)}
+
+/* layout */
+.wrap{display:grid;grid-template-columns:296px 1fr;gap:22px;padding:14px 34px 40px;max-width:1500px;margin:0 auto;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.panel.sticky{position:sticky;top:16px}
+.panel h2{font-family:var(--serif);font-size:18px;margin:0 0 4px;font-weight:600}
+.panel .hint{color:var(--mut2);font-size:12px;margin:0 0 12px}
+label.f{display:block;color:var(--mut);font-size:11.5px;margin:14px 0 5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:var(--panel2);color:var(--ink);font-family:var(--sans)}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(184,166,230,.18)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.searchbox{position:relative}
+.searchbox .kbd{position:absolute;right:9px;top:9px;color:var(--mut2);font-size:11px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;pointer-events:none}
+/* zodiac glyph pickers */
+.signpick{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:5px}
+.signpick button{aspect-ratio:1;border:1px solid var(--line);background:var(--panel2);border-radius:9px;cursor:pointer;font-family:var(--glyph);font-size:16px;color:var(--ink);display:grid;place-items:center;position:relative}
+.signpick button:hover{background:var(--cardh)}
+.signpick button.on{border-color:transparent;color:#fff}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:11px;color:var(--mut)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.facetwrap{margin-top:6px;border-top:1px solid var(--line);padding-top:8px}
+.facet{max-height:230px;overflow:auto}
+.facet .cat{display:flex;justify-content:space-between;gap:8px;padding:7px 5px;cursor:pointer;border-radius:8px;font-size:13px}
+.facet .cat:hover{background:var(--cardh)} .facet .cat.on{background:rgba(184,166,230,.14);color:var(--accent)}
+.facet .cnt{color:var(--mut2);font-variant-numeric:tabular-nums;font-size:12px}
+.selcats{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 2px}
+.selcats .chip{background:rgba(184,166,230,.16);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--accent)}
+.reset{margin-top:12px;width:100%;padding:9px;border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:10px;cursor:pointer;font-size:13px}
+.reset:hover{color:var(--ink);border-color:var(--accent)}
+
+/* results */
+.rhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.rhead .meta{color:var(--mut)}
+.rhead .meta b{color:var(--ink);font-family:var(--serif)}
+.rhead-right{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.psize-lab{color:var(--mut2);font-size:12.5px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.psize-lab select{width:auto;padding:6px 8px;font-size:13px}
+.pager{display:flex;gap:6px;align-items:center}
+.pgind{color:var(--mut);font-size:13px;font-variant-numeric:tabular-nums;padding:0 2px;white-space:nowrap}
+.pgbtn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;min-width:36px;height:36px;padding:0 10px;cursor:pointer;font-size:13.5px;font-family:var(--sans);font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;justify-content:center}
+.pgbtn:hover:not(:disabled):not(.on){border-color:var(--accent)}
+.pgbtn.on{background:var(--accent);color:var(--accentink);border-color:transparent;font-weight:700;cursor:default}
+.pgbtn:disabled{opacity:.35;cursor:default}
+.pgdots{color:var(--mut2);padding:0 3px;align-self:flex-end}
+.pagerbar{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;margin:26px 0 6px}
+.pgjump{color:var(--mut2);font-size:12.5px;display:inline-flex;align-items:center;gap:6px;margin-left:8px;white-space:nowrap}
+.pgjump input{width:58px;padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;cursor:pointer;transition:transform .16s,border-color .16s,box-shadow .16s;position:relative;overflow:hidden}
+.card:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:var(--shadow)}
+.card .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card h3{font-family:var(--serif);font-size:21px;margin:0;font-weight:600;line-height:1.15}
+.card .sub{color:var(--mut2);font-size:12px;margin:2px 0 0}
+.rr{display:inline-flex;align-items:center;gap:4px;background:rgba(231,198,107,.14);color:var(--gold);border:1px solid rgba(231,198,107,.35);border-radius:8px;padding:2px 9px;font-size:11.5px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.triad{display:flex;gap:14px;margin:12px 0 8px;flex-wrap:wrap}
+.triad .pt{display:flex;align-items:center;gap:6px;font-size:13px}
+.triad .g{font-family:var(--glyph);font-size:16px}
+.triad .s{font-family:var(--glyph);font-size:15px}
+.meta-line{display:flex;gap:16px;flex-wrap:wrap;color:var(--mut);font-size:12.5px;margin-bottom:2px}
+.meta-line b{color:var(--ink);font-weight:600}
+.bio{margin:10px 0 4px;color:var(--ink);opacity:.86;font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chips .chip{background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:11.5px;color:var(--mut)}
+.notime{color:var(--fire);font-size:11px;border:1px solid rgba(232,128,79,.4);border-radius:6px;padding:0 6px;background:rgba(232,128,79,.1)}
+.empty{padding:60px 20px;text-align:center;color:var(--mut)}
+.empty .big{font-family:var(--glyph);font-size:40px;opacity:.5;display:block;margin-bottom:10px}
+/* skeleton */
+.sk{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.sk .l{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--panel2),var(--cardh),var(--panel2));background-size:200% 100%;animation:sh 1.3s infinite;margin:8px 0}
+@keyframes sh{to{background-position:-200% 0}}
+
+/* modal */
+.mask{position:fixed;inset:0;background:rgba(5,7,18,.62);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.mask.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(780px,96vw);background:var(--bg2);border-left:1px solid var(--line);box-shadow:var(--shadow);transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);z-index:50;display:flex;flex-direction:column}
+.drawer.on{transform:none}
+.dh{padding:22px 26px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.dh h2{font-family:var(--serif);margin:0;font-size:28px;font-weight:600;line-height:1.1}
+.dh .sub{color:var(--mut2);font-size:12.5px;margin-top:3px}
+.x{border:1px solid var(--line);background:var(--panel);color:var(--mut);width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer;line-height:1;flex:none}
+.x:hover{color:var(--ink)}
+.dbody{padding:22px 26px;overflow:auto}
+.wheelwrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center;background:var(--wheelbg);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:20px}
+.wheelwrap svg{flex:none}
+.placements{display:flex;flex-direction:column;gap:10px;min-width:150px}
+.plc{display:flex;align-items:center;gap:10px}
+.plc .icn{font-family:var(--glyph);font-size:22px;width:26px;text-align:center}
+.plc .txt b{font-family:var(--serif);font-size:15px}
+.plc .txt small{display:block;color:var(--mut);font-size:11.5px}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 18px}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accentink);border-radius:10px;padding:9px 16px;cursor:pointer;font-size:13px;font-weight:600;font-family:var(--sans)}
+.btn:hover{opacity:.9}
+.btn.ghost{background:transparent;color:var(--accent)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13.5px}
+.kv .k{color:var(--gold);font-weight:600}
+.cred{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--mut);margin:12px 0}
+.cred b{color:var(--ink)}
+.sect{margin:20px 0}
+.sect h4{margin:0 0 10px;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+.wiki-sum{font-size:14px;line-height:1.65}
+.wiki-cred{color:var(--mut2);font-size:11.5px;margin-top:6px}
+.rel,.evt{padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.rel b,.evt b{font-weight:600}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:12px;z-index:99;font-size:13.5px;font-weight:600;box-shadow:var(--shadow)}
+
+/* loading */
+.loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);flex-direction:column;gap:18px;z-index:60}
+.orbit{width:56px;height:56px;position:relative}
+.orbit::before,.orbit::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:var(--gold);animation:spin 1.1s linear infinite}
+.orbit::after{inset:12px;border-top-color:var(--accent);animation-duration:.8s;animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading .msg{color:var(--mut)}
+.picker{background:var(--panel);border:1px dashed var(--accent);border-radius:var(--r);padding:26px;text-align:center;max-width:440px}
+
+footer{border-top:1px solid var(--line);padding:22px 34px;color:var(--mut2);font-size:12px;line-height:1.7;max-width:1500px;margin:0 auto}
+footer b{color:var(--mut)}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}.panel.sticky{position:static}h1.brand{font-size:38px}.wheelwrap{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="loading" id="loading">
+  <div class="orbit"></div>
+  <div class="msg" id="loadmsg">正在加载星盘数据集…</div>
+  <div class="picker" id="picker" style="display:none">
+    <p style="margin:0 0 6px"><b>请选择数据文件</b></p>
+    <p style="color:var(--mut);margin:0 0 14px">直接双击打开时浏览器不允许自动读取本地文件,选一次 <code>astrodata-aa.sqlite.gz</code> 即可。</p>
+    <input type="file" id="fileinput" accept=".sqlite,.gz,.db">
+  </div>
+</div>
+
+<header>
+  <div class="toprow">
+    <div class="titleblock">
+      <div class="kicker">Astro-Databank · Rodden A / AA</div>
+      <h1 class="brand">Astrodata<span class="dot">.</span></h1>
+      <p class="tag" id="tag">高可信名人出生数据与星盘目录 —— 可搜索、按星座与分类筛选、直达含黄道星盘轮的详情。</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="s1">–</b><span id="l1">人物 (A/AA)</span></div>
+      <div class="stat"><b id="s2">–</b><span id="l2">含 Wikipedia 传记</span></div>
+      <div class="stat"><b id="s3">–</b><span id="l3">分类维度</span></div>
+    </div>
+    <div class="controls">
+      <div class="seg" id="langseg"><button data-l="zh" class="on">中文</button><button data-l="en">EN</button></div>
+      <button class="iconbtn" id="themebtn" title="主题 / Theme" aria-label="Toggle theme">◑</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="panel sticky">
+    <h2 id="h-filter">检索筛选</h2>
+    <p class="hint" id="h-hint">59,199 位 · 全部离线</p>
+    <label class="f" id="l-kw">关键词</label>
+    <div class="searchbox"><input id="q" placeholder="姓名 / 职业 / 出生地…"><span class="kbd">/</span></div>
+    <div class="row2">
+      <div><label class="f" id="l-mode">模式</label><select id="mode"><option value="contains">包含</option><option value="prefix">前缀</option><option value="exact">精确</option></select></div>
+      <div><label class="f" id="l-scope">范围</label><select id="scope"><option value="any">全部</option><option value="name">姓名</option><option value="title">标题</option><option value="bio">传记</option></select></div>
+    </div>
+    <div class="row2">
+      <div><label class="f" id="l-gender">性别</label><select id="gender"><option value="">全部</option><option value="1">男</option><option value="0">女</option><option value="-1">未知</option></select></div>
+      <div><label class="f" id="l-year">出生年</label><input id="year" placeholder="1879" inputmode="numeric"></div>
+    </div>
+    <div class="row2">
+      <div><label class="f" id="l-rod">Rodden</label><select id="rod"><option value="">A + AA</option><option value="AA">AA</option><option value="A">A</option></select></div>
+      <div><label class="f" id="l-sort">排序</label><select id="sort"><option value="rel">相关度</option><option value="name">姓名</option><option value="birth_asc">生日 ↑</option><option value="birth_desc">生日 ↓</option></select></div>
+    </div>
+    <label class="f" id="l-sun">太阳星座 ☉</label>
+    <div class="signpick" id="sunpick"></div>
+    <div class="legend" id="legend"></div>
+    <label class="f" id="l-cat" style="margin-top:16px">分类</label>
+    <input id="catq" placeholder="Nobel / 出生地 / 1946 births…">
+    <div class="selcats" id="selcats"></div>
+    <div class="facetwrap"><div class="facet" id="facet"></div></div>
+    <button class="reset" id="reset">清空全部筛选</button>
+  </aside>
+
+  <main>
+    <div class="rhead">
+      <div class="meta" id="meta">–</div>
+      <div class="rhead-right">
+        <label class="psize-lab" id="psize-lab">每页 <select id="psize"><option value="24">24</option><option value="48">48</option><option value="96">96</option></select></label>
+        <div class="pager" id="pagerTop"></div>
+      </div>
+    </div>
+    <div class="grid" id="results"></div>
+    <div class="pagerbar" id="pagerBottom"></div>
+  </main>
+</div>
+
+<footer id="footer"></footer>
+
+<div class="mask" id="mask"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="dh"><div><h2 id="d-name"></h2><div class="sub" id="d-sub"></div></div><button class="x" id="dclose" aria-label="Close">×</button></div>
+  <div class="dbody" id="dbody"></div>
+</aside>
+
+<script src="vendor/sql-wasm.js"></script>
+<script src="vendor/fflate.min.js"></script>
+<script>
+/* ---------- constants ---------- */
+const SIGN_ORDER=['ari','tau','gem','can','leo','vir','lib','sco','sag','cap','aqu','pis'];
+const SIGN_GLYPH={ari:'♈',tau:'♉',gem:'♊',can:'♋',leo:'♌',vir:'♍',lib:'♎',sco:'♏',sag:'♐',cap:'♑',aqu:'♒',pis:'♓'};
+const SIGN_NAME={ari:['Aries','白羊'],tau:['Taurus','金牛'],gem:['Gemini','双子'],can:['Cancer','巨蟹'],leo:['Leo','狮子'],vir:['Virgo','处女'],lib:['Libra','天秤'],sco:['Scorpio','天蝎'],sag:['Sagittarius','射手'],cap:['Capricorn','摩羯'],aqu:['Aquarius','水瓶'],pis:['Pisces','双鱼']};
+const ELEMENT={ari:'fire',leo:'fire',sag:'fire',tau:'earth',vir:'earth',cap:'earth',gem:'air',lib:'air',aqu:'air',can:'water',sco:'water',pis:'water'};
+const EL_COLOR={fire:'#e8804f',earth:'#c8a94e',air:'#5cb4cf',water:'#7b8ff0'};
+const EL_NAME={fire:['Fire','火'],earth:['Earth','土'],air:['Air','风'],water:['Water','水']};
+const GENDER={'1':['Male','男'],'0':['Female','女'],'-1':['Unknown','未知']};
+const I18N={
+ zh:{filter:'检索筛选',kw:'关键词',mode:'模式',scope:'范围',gender:'性别',year:'出生年',rod:'Rodden',sort:'排序',sun:'太阳星座 ☉',cat:'分类',reset:'清空全部筛选',prev:'‹ 上一页',next:'下一页 ›',
+   s1:'人物 (A/AA)',s2:'含 Wikipedia 传记',s3:'分类维度',tag:'高可信名人出生数据与星盘目录 —— 可搜索、按星座与分类筛选、直达含黄道星盘轮的详情。',hint:t=>`${t} 位 · 全部离线`,
+   born:'出生',place:'地点',coord:'坐标',zone:'时区',source:'数据来源',collector:'采集者',acc:'时间精度',chart:'星盘',sun2:'太阳',moon:'月亮',asc:'上升',
+   viewAdb:'Astro-Databank 原页',viewWiki:'Wikipedia',imp:'复制命盘数据',impHost:'导入为命盘',rel:'关系',evt:'生平事件',cats:'分类标签',notime:'出生时间未知,上升/宫位不可用',
+   any:'不限',none:'没有符合条件的记录',adjust:'试试放宽筛选条件',showing:(t,a,b)=>`共 <b>${t}</b> 位 · 显示 ${a}–${b}`,wikicred:'传记摘要来自 Wikipedia,CC BY-SA 4.0',copied:'命盘数据已复制',imported:'已加入命盘列表',psize:'每页',jump:'跳至',pageInd:(k,n)=>`第 ${k} / ${n} 页`,
+   opt:{mode:['包含','前缀','精确'],scope:['全部','姓名','标题','传记'],gender:['全部','男','女','未知'],sort:['相关度','姓名','生日 ↑','生日 ↓']},phkw:'姓名 / 职业 / 出生地…',phcat:'Nobel / 出生地 / 1946 births…'},
+ en:{filter:'Filters',kw:'Keyword',mode:'Mode',scope:'Scope',gender:'Gender',year:'Birth yr',rod:'Rodden',sort:'Sort',sun:'Sun sign ☉',cat:'Categories',reset:'Clear all filters',prev:'‹ Prev',next:'Next ›',
+   s1:'People (A/AA)',s2:'With Wikipedia bio',s3:'Category facets',tag:'A directory of high-reliability celebrity birth data & charts — search, filter by sign & category, open a detail view with a zodiac wheel.',hint:t=>`${t} people · fully offline`,
+   born:'Born',place:'Place',coord:'Coords',zone:'Zone',source:'Data source',collector:'Collector',acc:'Time accuracy',chart:'Chart',sun2:'Sun',moon:'Moon',asc:'Asc',
+   viewAdb:'Astro-Databank page',viewWiki:'Wikipedia',imp:'Copy chart data',impHost:'Add to charts',rel:'Relationships',evt:'Life events',cats:'Category tags',notime:'Birth time unknown — Ascendant/houses unavailable',
+   any:'Any',none:'No matching records',adjust:'Try relaxing the filters',showing:(t,a,b)=>`<b>${t}</b> people · showing ${a}–${b}`,wikicred:'Biography summary from Wikipedia, CC BY-SA 4.0',copied:'Chart data copied',imported:'Added to chart list',psize:'Per page',jump:'Go to',pageInd:(k,n)=>`Page ${k} / ${n}`,
+   opt:{mode:['Contains','Prefix','Exact'],scope:['All','Name','Title','Bio'],gender:['All','Male','Female','Unknown'],sort:['Relevance','Name','Birth ↑','Birth ↓']},phkw:'Name / profession / birthplace…',phcat:'Nobel / birthplace / 1946 births…'}
+};
+let db=null,lang='zh',page=0,pageSize=24,total=0,selectedCats=[];
+const EMBEDDED=(window.parent&&window.parent!==window);
+const $=id=>document.getElementById(id);
+function qy(sql,p){const st=db.prepare(sql);if(p)st.bind(p);const o=[];while(st.step())o.push(st.getAsObject());st.free();return o;}
+function one(sql,p){const r=qy(sql,p);return r.length?Object.values(r[0])[0]:null;}
+function esc(s){return(s==null?'':''+s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const T=()=>I18N[lang];
+
+/* ---------- load ---------- */
+function gunzipAsync(u8){return new Promise((res,rej)=>{if(!(u8[0]===0x1f&&u8[1]===0x8b))return res(u8);try{fflate.gunzip(u8,(e,d)=>e?rej(e):res(d));}catch(e){try{res(fflate.gunzipSync(u8));}catch(e2){rej(e2);}}});}
+function safeUrl(u){return /^https?:\/\//i.test(u||'')?u:'#';}
+async function boot(buf){
+  const SQL=await initSqlJs({locateFile:f=>'vendor/'+f});
+  db=new SQL.Database(await gunzipAsync(new Uint8Array(buf)));
+  $('loading').style.display='none';
+  const g=(k)=>+one("SELECT value FROM meta WHERE key=?",[k]);
+  animateCount($('s1'),g('persons'));animateCount($('s2'),g('with_wikipedia'));animateCount($('s3'),g('categories'));
+  buildSunPick();buildLegend();wireEvents();setLang('zh');renderFacet();search();
+}
+function fetchDb(u){return fetch(u).then(r=>{if(!r.ok)throw 0;$('loadmsg').textContent='正在解析…';return r.arrayBuffer();});}
+function tryLoad(){fetchDb('astrodata-aa.sqlite.gz').then(boot).catch(()=>fetchDb('astrodata-aa.sqlite').then(boot)).catch(()=>{$('loadmsg').textContent='';$('picker').style.display='block';});}
+$('fileinput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;$('picker').style.display='none';$('loadmsg').textContent='正在解析…';f.arrayBuffer().then(boot);});
+function animateCount(el,to){let s=null;const d=900;function step(t){if(!s)s=t;const p=Math.min(1,(t-s)/d);el.textContent=Math.floor((1-Math.pow(1-p,3))*to).toLocaleString();if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
+
+/* ---------- sun-sign picker + legend ---------- */
+function buildSunPick(){
+  $('sunpick').innerHTML=SIGN_ORDER.map(s=>`<button data-sun="${s}" title="${SIGN_NAME[s][lang==='zh'?1:0]}" style="--e:${EL_COLOR[ELEMENT[s]]}">${SIGN_GLYPH[s]}</button>`).join('');
+  $('sunpick').querySelectorAll('button').forEach(b=>b.onclick=()=>{const s=b.dataset.sun;const on=b.classList.toggle('on');$('sunpick').querySelectorAll('button').forEach(o=>{if(o!==b){o.classList.remove('on');o.style.background='';}});b.style.background=on?EL_COLOR[ELEMENT[s]]:'';window._sun=on?s:'';page=0;search();});
+}
+function buildLegend(){$('legend').innerHTML=['fire','earth','air','water'].map(e=>`<span><i style="background:${EL_COLOR[e]}"></i>${EL_NAME[e][lang==='zh'?1:0]}</span>`).join('');}
+
+/* ---------- facet ---------- */
+function renderFacet(){
+  const kw=$('catq').value.trim();let sql="SELECT category,COUNT(*) c FROM category",p=[];
+  if(kw){sql+=" WHERE category LIKE ? COLLATE NOCASE";p=['%'+kw+'%'];}
+  sql+=" GROUP BY category ORDER BY c DESC, category LIMIT 40";
+  const rows=qy(sql,p.length?p:null);
+  $('facet').innerHTML=rows.map(r=>`<div class="cat${selectedCats.includes(r.category)?' on':''}" data-c="${esc(r.category)}"><span>${esc(r.category)}</span><span class="cnt">${r.c.toLocaleString()}</span></div>`).join('')||`<div class="empty" style="padding:20px">—</div>`;
+  $('facet').querySelectorAll('.cat').forEach(el=>el.onclick=()=>toggleCat(el.dataset.c));
+  $('selcats').innerHTML=selectedCats.map(c=>`<span class="chip" data-c="${esc(c)}">${esc(c)} ✕</span>`).join('');
+  $('selcats').querySelectorAll('.chip').forEach(el=>el.onclick=()=>toggleCat(el.dataset.c));
+}
+function toggleCat(c){const i=selectedCats.indexOf(c);if(i>=0)selectedCats.splice(i,1);else selectedCats.push(c);page=0;renderFacet();search();}
+
+/* ---------- search ---------- */
+function buildWhere(){
+  const w=[],p=[];const kw=$('q').value.trim();
+  if(kw){const mode=$('mode').value,scope=$('scope').value;
+    const cols={any:['name','title','pos','wiki_summary'],name:['name'],title:['title'],bio:['wiki_summary']}[scope];
+    const pat=mode==='exact'?kw:mode==='prefix'?kw+'%':'%'+kw+'%';const op=mode==='exact'?'= ? COLLATE NOCASE':'LIKE ? COLLATE NOCASE';
+    w.push('('+cols.map(c=>{p.push(pat);return `${c} ${op}`;}).join(' OR ')+')');}
+  const g=$('gender').value;if(g!==''){w.push('gender=?');p.push(+g);}
+  const yr=$('year').value.trim();if(/^\d{1,4}$/.test(yr)){w.push('birth_year=?');p.push(+yr);}
+  const rod=$('rod').value;if(rod){w.push('rodden=?');p.push(rod);}
+  if(window._sun){w.push('sun=?');p.push(window._sun);}
+  if(selectedCats.length){const ph=selectedCats.map(()=>'?').join(',');
+    w.push(`id IN (SELECT p2.id FROM person p2 JOIN category c ON c.person_title=p2.title WHERE c.category IN (${ph}) GROUP BY p2.id HAVING COUNT(DISTINCT c.category)=${selectedCats.length})`);
+    selectedCats.forEach(c=>p.push(c));}
+  return{where:w.length?' WHERE '+w.join(' AND '):'',p};
+}
+function orderBy(){switch($('sort').value){case 'name':return ' ORDER BY name COLLATE NOCASE';case 'birth_asc':return ' ORDER BY birth_year, name COLLATE NOCASE';case 'birth_desc':return ' ORDER BY birth_year DESC, name COLLATE NOCASE';default:return " ORDER BY (wiki_summary<>'') DESC, name COLLATE NOCASE";}}
+function search(){
+  const{where,p}=buildWhere();
+  total=+one('SELECT COUNT(*) FROM person'+where,p.length?p:null);
+  const pages=Math.max(1,Math.ceil(total/pageSize));if(page>=pages)page=pages-1;if(page<0)page=0;
+  const rows=qy('SELECT id,name,title,born_display,pos,gender,rodden,sun,moon,asc,has_time,wiki_summary,rel_count,evt_count,cat_preview FROM person'+where+orderBy()+` LIMIT ${pageSize} OFFSET ${page*pageSize}`,p.length?p:null);
+  const from=total?page*pageSize+1:0,to=Math.min(total,(page+1)*pageSize);
+  $('meta').innerHTML=T().showing(total.toLocaleString(),from,to);
+  renderPagers();
+  if(!rows.length){$('results').innerHTML=`<div class="empty" style="grid-column:1/-1"><span class="big">☾</span>${T().none}<div style="margin-top:6px;font-size:13px">${T().adjust}</div></div>`;return;}
+  $('results').innerHTML=rows.map(card).join('');
+  $('results').querySelectorAll('.card').forEach(el=>el.onclick=()=>openDetail(+el.dataset.id));
+}
+function triadHtml(r){
+  const pts=[['☉',r.sun],['☽',r.moon],['↑',r.asc]];const labels=[T().sun2,T().moon,T().asc];
+  return pts.map((x,i)=>{const s=x[1];if(!s||!SIGN_GLYPH[s])return '';const col=EL_COLOR[ELEMENT[s]];
+    return `<span class="pt" title="${labels[i]}"><span class="g" style="color:${col}">${x[0]}</span><span class="s" style="color:${col}">${SIGN_GLYPH[s]}</span></span>`;}).join('');
+}
+function card(r){
+  let cats=[];try{cats=JSON.parse(r.cat_preview||'[]');}catch(e){}
+  return `<article class="card" data-id="${r.id}">
+    <div class="top"><div><h3>${esc(r.name)}</h3><div class="sub">${esc(r.title)}</div></div><span class="rr">✦ ${esc(r.rodden)}</span></div>
+    <div class="triad">${triadHtml(r)}</div>
+    <div class="meta-line"><span><b>${T().born}</b> ${esc(r.born_display)||'—'}${r.has_time?'':` <span class="notime">?</span>`}</span></div>
+    <div class="meta-line"><span><b>${T().place}</b> ${esc(r.pos)||'—'}</span><span>${r.rel_count} rel · ${r.evt_count} evt</span></div>
+    ${r.wiki_summary?`<p class="bio">${esc(r.wiki_summary)}</p>`:''}
+    ${cats.length?`<div class="chips">${cats.slice(0,5).map(c=>`<span class="chip">${esc(c)}</span>`).join('')}</div>`:''}
+  </article>`;
+}
+function pageCount(){return Math.max(1,Math.ceil(total/pageSize));}
+function gotoPage(p){const n=pageCount();const np=Math.min(Math.max(0,p),n-1);if(np===page)return;page=np;search();const g=$('results');if(g)g.scrollIntoView({behavior:'smooth',block:'start'});}
+function go(d){gotoPage(page+d);}
+function pageWindowList(cur,n){if(n<=7){const a=[];for(let i=0;i<n;i++)a.push(i);return a;}const a=[0];let l=Math.max(1,cur-1),r=Math.min(n-2,cur+1);if(l>1)a.push('…');for(let i=l;i<=r;i++)a.push(i);if(r<n-2)a.push('…');a.push(n-1);return a;}
+function pgBtn(label,tp,o){o=o||{};return `<button class="pgbtn${o.on?' on':''}" data-p="${tp}"${o.disabled?' disabled':''}${o.title?` title="${o.title}"`:''}>${label}</button>`;}
+function wirePg(el){el.querySelectorAll('.pgbtn[data-p]').forEach(b=>{if(!b.disabled)b.onclick=()=>gotoPage(+b.dataset.p);});}
+function renderPagers(){
+  const n=pageCount(),cur=page;
+  if(total===0){if($('pagerTop'))$('pagerTop').innerHTML='';if($('pagerBottom'))$('pagerBottom').innerHTML='';return;}
+  const top=$('pagerTop');
+  if(top){top.innerHTML=pgBtn('‹',cur-1,{disabled:cur<=0,title:T().prev})+`<span class="pgind">${T().pageInd((cur+1).toLocaleString(),n.toLocaleString())}</span>`+pgBtn('›',cur+1,{disabled:cur>=n-1,title:T().next});wirePg(top);}
+  const bot=$('pagerBottom');
+  if(bot){
+    let h=pgBtn('«',0,{disabled:cur<=0})+pgBtn('‹',cur-1,{disabled:cur<=0});
+    pageWindowList(cur,n).forEach(x=>{h+=(x==='…')?'<span class="pgdots">…</span>':pgBtn((x+1).toLocaleString(),x,{on:x===cur});});
+    h+=pgBtn('›',cur+1,{disabled:cur>=n-1})+pgBtn('»',n-1,{disabled:cur>=n-1});
+    h+=`<span class="pgjump">${T().jump} <input id="pgjumpinput" type="text" inputmode="numeric" value="${cur+1}"> / ${n.toLocaleString()}</span>`;
+    bot.innerHTML=h;wirePg(bot);
+    const ji=$('pgjumpinput');
+    if(ji)ji.onkeydown=(e)=>{if(e.key==='Enter'){const v=parseInt(ji.value.replace(/[^0-9]/g,''),10);if(v>=1&&v<=n)gotoPage(v-1);else ji.value=cur+1;}};
+  }
+}
+
+/* ---------- zodiac wheel ---------- */
+function wheel(sun,moon,asc,ssun,smoon,sasc){
+  const C=150,Rout=140,Rin=104,Rglyph=122,Rtick=100,Rmark=88;
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  const stroke=isDark?'#28305c':'#e3ddcf';
+  const line=isDark?'rgba(255,255,255,.10)':'rgba(0,0,0,.08)';
+  // 黄道逆时针、经度递增(占星惯例):0°白羊在左(9 点钟),lon 增大 → 逆时针。故 a=(180+lon)。
+  const pol=(lon,r)=>{const a=(180+lon)*Math.PI/180;return[C+r*Math.cos(a),C-r*Math.sin(a)];};
+  let s=`<svg width="300" height="300" viewBox="0 0 300 300" font-family="'Apple Symbols','Segoe UI Symbol','Noto Sans Symbols2',serif">`;
+  s+=`<circle cx="${C}" cy="${C}" r="${Rout}" fill="none" stroke="${stroke}" stroke-width="1.2"/>`;
+  s+=`<circle cx="${C}" cy="${C}" r="${Rin}" fill="none" stroke="${stroke}" stroke-width="1"/>`;
+  // sign ring segments + glyphs + boundaries
+  for(let i=0;i<12;i++){
+    const sc=SIGN_ORDER[i],col=EL_COLOR[ELEMENT[sc]];
+    let d='',first=true;
+    for(let l=i*30;l<=i*30+30+0.001;l+=2.5){const[x,y]=pol(l,(Rout+Rin)/2);d+=(first?'M':'L')+x.toFixed(1)+' '+y.toFixed(1)+' ';first=false;}
+    s+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="${Rout-Rin}" stroke-opacity="${isDark?.16:.14}"/>`;
+    const[bx,by]=pol(i*30,Rin);const[bo,bo2]=pol(i*30,Rout);s+=`<line x1="${bx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${bo.toFixed(1)}" y2="${bo2.toFixed(1)}" stroke="${line}" stroke-width="1"/>`;
+    const[gx,gy]=pol(i*30+15,Rglyph);s+=`<text x="${gx.toFixed(1)}" y="${(gy+6).toFixed(1)}" text-anchor="middle" font-size="18" fill="${col}">${SIGN_GLYPH[sc]}</text>`;
+  }
+  // degree ticks every 5°
+  for(let l=0;l<360;l+=5){const[a1,b1]=pol(l,Rin);const[a2,b2]=pol(l,l%30===0?Rin-8:Rin-4);s+=`<line x1="${a1.toFixed(1)}" y1="${b1.toFixed(1)}" x2="${a2.toFixed(1)}" y2="${b2.toFixed(1)}" stroke="${line}" stroke-width="${l%30===0?1.2:.7}"/>`;}
+  // markers
+  function marker(lon,glyph,color){
+    if(lon==null)return '';
+    const[mx,my]=pol(lon,Rmark);const[t1,t2]=pol(lon,Rin);const[t3,t4]=pol(lon,Rmark+9);
+    return `<line x1="${t1.toFixed(1)}" y1="${t2.toFixed(1)}" x2="${t3.toFixed(1)}" y2="${t4.toFixed(1)}" stroke="${color}" stroke-width="1.4" stroke-opacity=".6"/>
+    <circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="13" fill="var(--wheelbg)" stroke="${color}" stroke-width="1.6"/>
+    <text x="${mx.toFixed(1)}" y="${(my+6).toFixed(1)}" text-anchor="middle" font-size="15" fill="${color}">${glyph}</text>`;
+  }
+  // asc as a horizon line + arrow if present
+  if(asc!=null){const[ax,ay]=pol(asc,Rout);s+=`<line x1="${C}" y1="${C}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="${EL_COLOR[ELEMENT[sasc]]||'#888'}" stroke-width="1.3" stroke-dasharray="3 3" stroke-opacity=".55"/>`;}
+  s+=marker(sun,'☉','#e7c66b');
+  s+=marker(moon,'☽',isDark?'#cfd3ff':'#8a7fce');
+  s+=marker(asc,'Asc',EL_COLOR[ELEMENT[sasc]]||'#8aa');
+  // center
+  s+=`<circle cx="${C}" cy="${C}" r="2.5" fill="${stroke}"/>`;
+  s+=`</svg>`;
+  return s;
+}
+function degStr(lon,sign){if(lon==null||!sign)return '—';const d=lon-SIGN_ORDER.indexOf(sign)*30;const deg=Math.floor(d),mn=Math.round((d-deg)*60);return `${deg}°${String(mn).padStart(2,'0')}′ ${SIGN_NAME[sign][lang==='zh'?1:0]}${lang==='zh'?'座':''}`;}
+
+/* ---------- detail ---------- */
+function openDetail(id){
+  const r=qy('SELECT * FROM person WHERE id=?',[id])[0];if(!r)return;const L=T();
+  $('d-name').textContent=r.name;$('d-sub').innerHTML=`${esc(r.title)} · <span class="rr">✦ ${esc(r.rodden)}</span>`;
+  let rels=[],evts=[];try{rels=JSON.parse(r.rel_json||'[]');}catch(e){}try{evts=JSON.parse(r.evt_json||'[]');}catch(e){}
+  const cats=qy('SELECT category FROM category WHERE person_title=? ORDER BY category',[r.title]).map(x=>x.category);
+  const plc=(g,lab,sign,lon,col)=>`<div class="plc"><span class="icn" style="color:${col}">${g}</span><div class="txt"><b>${lab}</b><small>${degStr(lon,sign)}</small></div></div>`;
+  const html=`
+    <div class="wheelwrap">
+      ${wheel(r.sun_lon,r.moon_lon,r.asc_lon,r.sun,r.moon,r.asc)}
+      <div class="placements">
+        ${plc('☉',L.sun2,r.sun,r.sun_lon,'#e7c66b')}
+        ${plc('☽',L.moon,r.moon,r.moon_lon,'var(--accent)')}
+        ${plc('↑',L.asc,r.asc,r.asc_lon,EL_COLOR[ELEMENT[r.asc]]||'var(--mut)')}
+        ${!r.has_time?`<div class="notime" style="margin-top:4px">${L.notime}</div>`:''}
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn" id="impbtn">${EMBEDDED?L.impHost:L.imp}</button>
+      ${r.adb_url?`<a class="btn ghost" href="${esc(safeUrl(r.adb_url))}" target="_blank" rel="noopener">${L.viewAdb} ↗</a>`:''}
+      ${r.wiki_url?`<a class="btn ghost" href="${esc(safeUrl(r.wiki_url))}" target="_blank" rel="noopener">${L.viewWiki} ↗</a>`:''}
+    </div>
+    <div class="kv">
+      <span class="k">${L.born}</span><span>${esc(r.born_display)||'—'}</span>
+      <span class="k">${L.place}</span><span>${esc(r.pos)||'—'}</span>
+      <span class="k">${L.coord}</span><span>${esc(r.lat)} ${esc(r.lon)} · ${L.zone} ${esc(r.zone)}${r.tz_abbr?` (${esc(r.tz_abbr)})`:''}${r.time_type?` · ${esc(r.time_type)}`:''}</span>
+      <span class="k">${L.gender}</span><span>${GENDER[r.gender]?GENDER[r.gender][lang==='zh'?1:0]:'—'}</span>
+    </div>
+    <div class="cred">Rodden <b>${esc(r.rodden)}</b> · ${L.source}: <b>${esc(r.data_source)||'—'}</b>${r.collector?` · ${L.collector}: ${esc(r.collector)}`:''}${r.time_accuracy?` · ${L.acc}: ${esc(r.time_accuracy)}`:''}</div>
+    ${r.wiki_summary?`<div class="sect"><h4>Wikipedia</h4><div class="wiki-sum">${esc(r.wiki_summary)}</div><div class="wiki-cred">${L.wikicred} · <a href="${esc(safeUrl(r.wiki_url))}" target="_blank" rel="noopener">${esc(r.wiki_url)}</a></div></div>`:''}
+    ${rels.length?`<div class="sect"><h4>${L.rel} · ${rels.length}</h4>${rels.map(x=>`<div class="rel"><b>${esc(x.name)}</b> — ${esc(x.rel)}${x.date?` · ${esc(x.date)}`:''}${x.cat?` <span style="color:var(--mut2)">[${esc(x.cat)}]</span>`:''}</div>`).join('')}</div>`:''}
+    ${evts.length?`<div class="sect"><h4>${L.evt} · ${evts.length}</h4>${evts.map(x=>`<div class="evt"><b>${esc(x.type)}</b>${x.date?` · ${esc(x.date)}`:''}${x.notes?`<br><span style="color:var(--mut)">${esc(x.notes)}</span>`:''}</div>`).join('')}</div>`:''}
+    ${cats.length?`<div class="sect"><h4>${L.cats} · ${cats.length}</h4><div class="chips">${cats.map(c=>`<span class="chip">${esc(c)}</span>`).join('')}</div></div>`:''}
+  `;
+  $('dbody').innerHTML=html;
+  $('impbtn').onclick=()=>importChart(r);
+  $('mask').classList.add('on');$('drawer').classList.add('on');$('drawer').setAttribute('aria-hidden','false');
+}
+function closeDetail(){$('mask').classList.remove('on');$('drawer').classList.remove('on');$('drawer').setAttribute('aria-hidden','true');}
+function importChart(r){
+  const chart={cid:r.cid,name:r.name,birth:r.birth_chart,zone:r.zone,lat:r.lat,lon:r.lon,gpsLat:r.gpsLat,gpsLon:r.gpsLon,pos:r.pos,gender:r.gender,isPub:0,doubingSu28:0,group:['Astrodatabank',r.rodden||''],creator:'local'};
+  if(EMBEDDED){window.parent.postMessage({type:'astrodata:importChart',chart},'*');toast(T().imported);return;}
+  navigator.clipboard.writeText(JSON.stringify({format:'horosa-local-charts',version:1,total:1,charts:[chart]},null,2)).then(()=>toast(T().copied)).catch(()=>toast(T().copied));
+}
+function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},1600);}
+
+/* ---------- i18n / theme / events ---------- */
+function setLang(l){
+  lang=l;const L=I18N[l];document.documentElement.lang=l==='zh'?'zh':'en';
+  $('langseg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.l===l));
+  const m={'h-filter':'filter','l-kw':'kw','l-mode':'mode','l-scope':'scope','l-gender':'gender','l-year':'year','l-rod':'rod','l-sort':'sort','l-sun':'sun','l-cat':'cat','reset':'reset','l1':'s1','l2':'s2','l3':'s3','tag':'tag'};
+  for(const id in m){const e=$(id);if(e)e.textContent=L[m[id]];}
+  ['mode','scope','gender','sort'].forEach(id=>{const el=$(id);if(el&&L.opt[id])L.opt[id].forEach((t,i)=>{if(el.options[i])el.options[i].text=t;});});
+  $('q').placeholder=L.phkw;$('catq').placeholder=L.phcat;
+  $('h-hint').textContent=L.hint((59199).toLocaleString());
+  {const pl=$('psize-lab');if(pl&&pl.firstChild)pl.firstChild.nodeValue=L.psize+' ';}
+  $('footer').innerHTML=l==='zh'
+   ?`占星数据来源 <a href="https://www.astro.com/astro-databank" target="_blank" rel="noopener"><b>Astro-Databank / Astrodienst AG</b></a> —— 依其版权条款,出生/事件数据记录仅供<b>非商业</b>占星研究使用,Rodden Rating 随数据保留,每条附回源页链接。传记摘要来自 <a href="https://en.wikipedia.org" target="_blank" rel="noopener">English Wikipedia</a>(<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>),各附原文链接。本页不含 Astro-Databank 传记正文与任何图片。`
+   :`Astrological data from <a href="https://www.astro.com/astro-databank" target="_blank" rel="noopener"><b>Astro-Databank / Astrodienst AG</b></a> — birth/event data records reused for <b>non-commercial</b> research under their terms, Rodden Rating retained, each linked to its source page. Biography summaries from <a href="https://en.wikipedia.org" target="_blank" rel="noopener">English Wikipedia</a> (<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>), each linked. No Astro-Databank article text or images are included.`;
+  buildSunPick();buildLegend();if(window._sun){const b=$('sunpick').querySelector(`[data-sun="${window._sun}"]`);if(b){b.classList.add('on');b.style.background=EL_COLOR[ELEMENT[window._sun]];}}
+  if(db){renderFacet();search();}
+}
+function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('astrodata-theme',t);}
+function wireEvents(){
+  $('langseg').querySelectorAll('button').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
+  $('themebtn').onclick=()=>setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+  const deb=(fn,ms)=>{let t;return()=>{clearTimeout(t);t=setTimeout(fn,ms);};};
+  $('q').addEventListener('input',deb(()=>{page=0;search();},220));
+  $('year').addEventListener('input',deb(()=>{page=0;search();},220));
+  $('catq').addEventListener('input',deb(renderFacet,220));
+  ['mode','scope','gender','rod','sort'].forEach(id=>$(id).onchange=()=>{page=0;search();});
+  $('psize').onchange=()=>{const v=parseInt($('psize').value,10);pageSize=(v===24||v===48||v===96)?v:24;page=0;search();};
+  $('reset').onclick=()=>{['q','year','catq'].forEach(id=>$(id).value='');['mode','scope','gender','rod','sort'].forEach(id=>$(id).selectedIndex=0);selectedCats=[];window._sun='';buildSunPick();page=0;renderFacet();search();};
+  $('dclose').onclick=closeDetail;$('mask').onclick=closeDetail;
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')closeDetail();
+    if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){e.preventDefault();$('q').focus();}
+    if(!$('drawer').classList.contains('on')&&document.activeElement.tagName!=='INPUT'){if(e.key==='ArrowRight')go(1);if(e.key==='ArrowLeft')go(-1);}
+  });
+}
+(function initTheme(){
+  var url=new URLSearchParams(location.search);
+  if(EMBEDDED){
+    // 内嵌:主题跟随宿主 app 明暗(URL 初值防闪 + postMessage 实时更新),隐藏自带切换按钮(不做多余控件)。
+    var t=url.get('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);
+    window.addEventListener('message',function(e){var d=e&&e.data;if(d&&d.type==='astrodata:setTheme'&&(d.theme==='light'||d.theme==='dark'))document.documentElement.setAttribute('data-theme',d.theme);});
+    var tb=document.getElementById('themebtn');if(tb)tb.style.display='none';
+  }else{
+    var saved=localStorage.getItem('astrodata-theme');if(saved)document.documentElement.setAttribute('data-theme',saved);
+  }
+})();
+tryLoad();
+</script>
+</body>
+</html>

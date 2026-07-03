@@ -1042,6 +1042,19 @@ export default {
 			
 		},
 
+		*addLocalChartQuiet({ payload: values }, { put }){
+			// 静默入库(名人库「加入命盘」等场景):不弹「星盘列表」抽屉、不导航,仅落库 + 刷新列表 state。
+			// addChart 面向保存表单(打开列表抽屉且假定 birth 为 moment);此处 payload.birth 多为字符串
+			// ("YYYY-MM-DD HH:mm:ss"),upsertLocalChart/buildLocalChartRecord 本就容忍字符串,直接落库。
+			try{
+				upsertLocalChart(values);
+				yield put({ type: 'fetchCharts', payload: {} });
+			}catch(e){
+				// localStorage 满/不可用:静默失败(调用方 iframe 已给乐观提示);不打断当前页。
+			}
+			return;
+		},
+
 		*updateChart({ payload: values }, { call, put }){
 			const param = {
 				...values,
