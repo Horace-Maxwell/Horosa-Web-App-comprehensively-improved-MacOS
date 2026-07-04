@@ -91,6 +91,29 @@ export async function openDesktopBackup(){
 	return list.length ? list[0] : null;
 }
 
+// 在系统默认浏览器打开外链(通用):桌面端 webview 里 <a target="_blank">/window.open 无新标签页→点了没反应,
+// 走 Rust `open` 命令;非桌面(浏览器/dev)回落 window.open。仅放行 http(s)。返回是否已发起打开。
+export async function openExternalUrl(url){
+	const u = `${url == null ? '' : url}`.trim();
+	if(!/^https?:\/\//i.test(u)){
+		return false;
+	}
+	if(hasTauriInvoke()){
+		try{
+			await invoke('open_external_url_command', { url: u });
+			return true;
+		}catch(e){
+			// 命令失败(极少)→ 回落浏览器 window.open,尽量别让用户点了完全没反应。
+		}
+	}
+	try{
+		window.open(u, '_blank', 'noopener,noreferrer');
+		return true;
+	}catch(e){
+		return false;
+	}
+}
+
 // v2.2.1 软件内升级桥(非阻塞):静默检查 / 后台下载 / 重启安装。仅桌面端可用。
 export async function updateCheckSilent(){
 	if(!hasTauriInvoke()){

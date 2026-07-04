@@ -593,7 +593,7 @@ export function buildJyotishSnapshotLines(chartObj){
 		if(kl.length){ out['KP 六级细分 / 当令星'] = kl; }
 	}
 
-	// WP-G 敌友 复合五分(Pañcadhā Maitrī,非对称) — 手册第6章。
+	// WP-G 敌友 复合五分(Pañcadhā Maitrī,非对称) — 古籍第6章。
 	const gm = j.grahaMaitri;
 	if(gm && gm.available && Array.isArray(gm.matrix) && gm.matrix.length){
 		out['敌友（复合五分）'] = gm.matrix.map((row)=>{

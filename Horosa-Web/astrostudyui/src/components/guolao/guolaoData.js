@@ -135,7 +135,7 @@ export const EQ_TROPICAL_ANCHOR_OPTIONS = [
 export const MINOR_LIMIT_TYPE_OPTIONS = [
 	{ value: 'minor', label: '小限' }, { value: 'month', label: '月限' }, { value: 'tong', label: '童限' }, { value: 'dongwei', label: '洞微大限' },
 ];
-// 童限基数分歧(手册 ch.4 论辩;坊间排盘软件即出 9/10 两版)做成可选。默认 tong10=现状零回归。
+// 童限基数分歧(古籍 ch.4 论辩;坊间排盘软件即出 9/10 两版)做成可选。默认 tong10=现状零回归。
 export const TONGXIAN_BASE_OPTIONS = [
 	{ value: 'tong10', label: '通行十年(默认)' }, { value: 'gu9', label: '古九岁' }, { value: 'xu11', label: '虚十一·早不过11岁' },
 ];

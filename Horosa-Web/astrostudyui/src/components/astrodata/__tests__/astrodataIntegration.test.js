@@ -6,6 +6,7 @@
 //      忽略无关类型与伪造来源。
 import AstrodataPage from '../AstrodataPage';
 import { buildLocalChartRecord, upsertLocalChart } from '../../../utils/localcharts';
+import { openExternalUrl } from '../../../utils/aiAnalysisDesktop';
 
 describe('数据库导入命盘 · 字符串 birth 数据路径', () => {
 	// 名人库详情 postMessage 的 chart:birth 是 "YYYY-MM-DD HH:mm:ss" 字符串、group 为数组。
@@ -76,5 +77,33 @@ describe('AstrodataPage.onMsg 接线', () => {
 		expect(calls.length).toBe(0);
 		inst.onMsg({ data: { type: 'astrodata:importChart', chart }, source: frameWin }); // 本页 iframe
 		expect(calls.length).toBe(1);
+	});
+});
+
+describe('数据库外链 · 系统浏览器打开(桌面 target=_blank 无反应修复)', () => {
+	const realOpen = window.open;
+	afterEach(() => { window.open = realOpen; });
+
+	test('openExternalUrl 仅放行 http(s),挡 javascript:/file:/空', async () => {
+		const opened = [];
+		window.open = (u) => { opened.push(u); return {}; };
+		expect(await openExternalUrl('https://www.astro.com/astro-databank')).toBe(true);
+		expect(await openExternalUrl('http://en.wikipedia.org/')).toBe(true);
+		expect(await openExternalUrl('javascript:alert(1)')).toBe(false);
+		expect(await openExternalUrl('file:///etc/passwd')).toBe(false);
+		expect(await openExternalUrl('')).toBe(false);
+		expect(await openExternalUrl(null)).toBe(false);
+		expect(opened).toEqual(['https://www.astro.com/astro-databank', 'http://en.wikipedia.org/']);
+	});
+
+	test('onMsg 收 astrodata:openExternal → 走系统浏览器(不误入命盘 dispatch)', async () => {
+		const calls = [];
+		const inst = new AstrodataPage({ dispatch: (a) => calls.push(a) });
+		const opened = [];
+		window.open = (u) => { opened.push(u); return {}; };
+		inst.onMsg({ data: { type: 'astrodata:openExternal', url: 'https://en.wikipedia.org/wiki/Einstein' }, source: null });
+		await new Promise((r) => setTimeout(r, 0));
+		expect(calls.length).toBe(0);
+		expect(opened).toEqual(['https://en.wikipedia.org/wiki/Einstein']);
 	});
 });

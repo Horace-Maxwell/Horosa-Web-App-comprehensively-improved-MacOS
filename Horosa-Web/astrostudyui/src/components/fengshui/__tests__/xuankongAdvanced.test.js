@@ -1,9 +1,9 @@
-// 玄空进阶 M4：替卦兼向 / 城门 / 七星打劫 / 流月。手册 4.5/4.12–4.14 + 4.10 实例 byte 锚。
+// 玄空进阶 M4：替卦兼向 / 城门 / 七星打劫 / 流月。正统古法 + 4.10 实例 byte 锚。
 import { xuankong } from '../xuankong';
 import { flyChart, flyChartTi, tixingOf } from '../liqiCore';
 import { SHAN_ORDER, TIXING_SHEN } from '../fengshuiData';
 
-describe('替星表 tixingOf（手册4.5）', ()=>{
+describe('替星表 tixingOf（正统古法）', ()=>{
 	it('口诀确定12山无争议：巨2坤壬乙 / 破7艮丙辛 / 武6巽辰亥 / 贪1甲癸申', ()=>{
 		['坤', '壬', '乙'].forEach((s)=>expect(tixingOf(s)).toBe(2));
 		['艮', '丙', '辛'].forEach((s)=>expect(tixingOf(s)).toBe(7));
@@ -20,7 +20,7 @@ describe('替星表 tixingOf（手册4.5）', ()=>{
 	});
 });
 
-describe('替卦 flyChartTi（手册4.12）', ()=>{
+describe('替卦 flyChartTi（正统古法）', ()=>{
 	it('8运向午兼：向盘运星3→震宫天元卯→替星2入中(逆飞)→中宫向星=2', ()=>{
 		const c = flyChartTi(8, '午', 'shen');
 		expect(c.method).toBe('替卦');
@@ -53,7 +53,7 @@ describe('替卦 flyChartTi（手册4.12）', ()=>{
 	});
 });
 
-describe('七星打劫 / 城门（手册4.13/4.14, 4.10实例锚）', ()=>{
+describe('七星打劫 / 城门（正统古法实例锚）', ()=>{
 	it('8运坐子向午：向星离震乾=8/5/2(258)→离宫真打劫；坎巽兑=7/4/1(147)→坎宫假打劫', ()=>{
 		const r = xuankong(8, '午');
 		const keys = r.rob.map((x)=>x.key);

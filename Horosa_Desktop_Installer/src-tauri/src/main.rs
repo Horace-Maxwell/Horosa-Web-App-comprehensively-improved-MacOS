@@ -2449,6 +2449,24 @@ fn copy_text_to_clipboard_command(text: String) -> std::result::Result<(), Strin
     }
 }
 
+// 桌面外链:webview 里 <a target="_blank"> / window.open 无新标签页可开 → 点了没反应;
+// 走系统 `open` 在默认浏览器打开(macOS 自带、无新依赖,同 pbcopy 范式)。
+// 安全:仅放行 http/https(挡 file:// javascript: 及以 - 开头的伪 flag),URL 作独立 arg 传入(不经 shell,免注入)。
+#[tauri::command]
+fn open_external_url_command(url: String) -> std::result::Result<(), String> {
+    let target = url.trim();
+    let lower = target.to_ascii_lowercase();
+    if !(lower.starts_with("https://") || lower.starts_with("http://")) {
+        return Err(format!("拒绝打开非 http(s) 链接: {target}"));
+    }
+    std::process::Command::new("open")
+        .arg("--")
+        .arg(target)
+        .spawn()
+        .map_err(|err| format!("open 外链失败: {err}"))?;
+    Ok(())
+}
+
 #[tauri::command]
 fn trigger_update_check_command(app: AppHandle) -> std::result::Result<(), String> {
     thread::spawn(move || {
@@ -6370,7 +6388,8 @@ fn main() {
             update_check_silent,
             update_start_background,
             update_install_and_restart,
-            copy_text_to_clipboard_command
+            copy_text_to_clipboard_command,
+            open_external_url_command
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();

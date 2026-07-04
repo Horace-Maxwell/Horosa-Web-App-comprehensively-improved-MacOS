@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""敌友 Pañcadhā Maitrī 单元测试（手册第 6 章）。
+"""敌友 Pañcadhā Maitrī 单元测试（古籍第 6 章）。
 
-钉定（手册 §6.1/§6.2/§6.3 + 示例盘 2000-03-01）：
+钉定（古籍 §6.1/§6.2/§6.3 + 示例盘 2000-03-01）：
 - 自然敌友表 §6.1 逐曜友/敌/中；
 - 复合五分 §6.3：Su→Mo=大友(adhimitra) / Sa→Mo=大敌(adhisatru)；
 - 非对称：Su→Me=敌(satru) 而 Me→Su=中立(sama)；
 - 临时 §6.2：对方在本星 2/3/4/10/11/12 宫=临友，其余=临敌。
-真值来自手册数表（法律），失败=重核手册勿改测试将就。
+真值来自古籍数表（法律），失败=重核古籍勿改测试将就。
 """
 import os
 import sys
@@ -34,7 +34,7 @@ def test_natural_relation_matches_manual_table7():
     assert P.natural_relation(const.MOON, const.MARS) == 'neutral'
 
 
-# 示例盘 2000-03-01 星座：Su/Me 水瓶、Mo 射手、Sa 白羊（手册卷首速查表）。
+# 示例盘 2000-03-01 星座：Su/Me 水瓶、Mo 射手、Sa 白羊（古籍卷首速查表）。
 _SIGNS = {
     const.SUN: const.AQUARIUS,
     const.MOON: const.SAGITTARIUS,

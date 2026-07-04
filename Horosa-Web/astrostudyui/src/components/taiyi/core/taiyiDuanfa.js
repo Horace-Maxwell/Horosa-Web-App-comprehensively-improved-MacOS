@@ -160,7 +160,7 @@ export function computeVictory(pan, geju){
 	if(home > away){ side = '主胜'; verdict = `主算 ${home} > 客算 ${away},主方得算、利主(先动/我方)。`; }
 	else if(away > home){ side = '客胜'; verdict = `客算 ${away} > 主算 ${home},客方得算、利客(后应/彼方)。`; }
 	else { verdict = `主算 ${home} = 客算 ${away},势均力敌、宜静待时。`; }
-	const reasons = [`§11.4 主客算总则:${verdict}`];
+	const reasons = [`主客算总则:${verdict}`];
 	// 太乙宫气(旺衰底色)
 	const tNum = Number(pan.taiyiNum);
 	if(tNum && TAIYI_GONG_INFO[tNum]){ const g = TAIYI_GONG_INFO[tNum]; reasons.push(`太乙临${g.gong}${g.gua}·${g.qi}(${g.men}),${QI_OMEN[g.qi] || ''}。`); }

@@ -14,8 +14,8 @@ const MODE_OPTIONS = [
 	{ value: 'bagua', label: '八卦阳宅法' },
 ];
 
-// 理气起盘六派（纯坐向/元运排盘，不依赖户型图）。
-const LIQI_SCHOOLS = ['bazhai', 'xuankong', 'sanhe', 'jinsuo', 'qiankun', 'zibai'];
+// 理气/水法/大卦/形势/择日 —— 纯前端流派（不依赖户型图，走 LiqiWorkspace）。
+const LIQI_SCHOOLS = ['bazhai', 'xuankong', 'sanhe', 'jinsuo', 'qiankun', 'zibai', 'fuxing', 'jingyin', 'dagua', 'xingshi', 'zeri'];
 const LIQI_SET = new Set(LIQI_SCHOOLS);
 const SCHOOL_GROUPS = [
 	{ label: '户型图阳宅（标注）', items: [
@@ -29,6 +29,15 @@ const SCHOOL_GROUPS = [
 		{ value: 'jinsuo', label: '金锁玉关' },
 		{ value: 'qiankun', label: '乾坤国宝' },
 		{ value: 'zibai', label: '紫白飞星' },
+	] },
+	{ label: '水法 · 翻卦', items: [
+		{ value: 'fuxing', label: '辅星水法 · 翻卦九星' },
+		{ value: 'jingyin', label: '净阴净阳 · 纳甲水法' },
+	] },
+	{ label: '易卦 · 形势 · 择日', items: [
+		{ value: 'dagua', label: '玄空大卦 · 六十四卦' },
+		{ value: 'xingshi', label: '形势 · 龙穴砂水向' },
+		{ value: 'zeri', label: '择日 · 年神/造命' },
 	] },
 ];
 
@@ -128,7 +137,9 @@ class FengShuiMain extends Component {
 
 	onVm(vm) {
 		this.setState({ vm });
-		if (vm && vm.snapshotText) {
+		// 🔴 理气/新派激活时，画布引擎(display:none 仍挂载)因 ResizeObserver 等仍会 emit vm；
+		// 不可让其画布快照覆盖 LiqiWorkspace 维护的当前流派快照(否则 AI 导出取到纳气盘而非当前理气派)。
+		if (vm && vm.snapshotText && !LIQI_SET.has(this.state.school)) {
 			saveModuleAISnapshot('fengshui', vm.snapshotText, { source: 'react', savedAt: Date.now() });
 		}
 	}

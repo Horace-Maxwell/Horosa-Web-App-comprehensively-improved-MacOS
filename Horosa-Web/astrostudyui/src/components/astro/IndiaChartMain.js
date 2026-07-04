@@ -1819,7 +1819,7 @@ class IndiaChartMain extends Component{
 					<div className="horosa-india-maitri-legend">
 						{(gm.legend || []).map((lg)=>(<span key={lg.key} className={`horosa-india-maitri-chip ${COMP_CLASS[lg.label] || ''}`}>{lg.label}</span>))}
 					</div>
-					<div className="horosa-india-maitri-note">悬停格子见 自然·临时·复合 三层；本星看对方 ≠ 对方看本星（手册第6章 Pañcadhā）。</div>
+					<div className="horosa-india-maitri-note">悬停格子见 自然·临时·复合 三层；本星看对方 ≠ 对方看本星（古籍第6章 Pañcadhā）。</div>
 				</div>
 				{rasi.length ? (
 					<div className="horosa-info-card">

@@ -11,13 +11,13 @@ describe('三合 sanhe', ()=>{
 		expect(juByShuiKou('未')).toBe('木局');
 		expect(juByShuiKou('子')).toBe(null);   // 非墓库山
 	});
-	it('火局长生环 == golden(out_sanhe 火局列)：双山逐位长生阶 + 吉凶', ()=>{
+	it('火局长生环 == golden(golden 基准 火局列)：双山逐位长生阶 + 吉凶', ()=>{
 		const r = sanhe({ shuiKou: '戌', waterFlow: 'leftToRight' });
 		expect(r.available).toBe(true);
 		expect(r.ju).toBe('火局');
 		const byShuang = {};
 		r.ring.forEach((c)=>{ byShuang[c.shuangshan] = c.stage; });
-		// out_sanhe 火局列：壬子胎/丙午帝旺/艮寅长生/坤申病…
+		// golden 基准 火局列：壬子胎/丙午帝旺/艮寅长生/坤申病…
 		expect(byShuang['丙午']).toBe('帝旺');
 		expect(byShuang['艮寅']).toBe('长生');
 		expect(byShuang['壬子']).toBe('胎');
@@ -47,13 +47,13 @@ describe('紫白 zibai', ()=>{
 });
 
 describe('乾坤国宝 qiankun', ()=>{
-	it('坐坎 先后天位 == golden(out_qkgb)：先天兑(西)、后天坤(西南)', ()=>{
-		const r = qiankun({ zuoGua: '坎', waters: { xianTian: 'come', houTian: 'come', anJie: 'go' } });
+	it('坐坎 先后天位 == golden(golden 基准)：先天兑(西)、后天坤(西南)', ()=>{
+		const r = qiankun({ zuoGua: '坎', waters: { xianTian: 'come', houTian: 'come', anJie: 'go', tianJie: 'go' } });
 		expect(r.available).toBe(true);
 		expect(r.xianTian).toBe('兑(西)');
 		expect(r.houTian).toBe('坤(西南)');
-		// 来去水断 + 合局。
-		expect(r.heJu).toBe(true);   // 先后天皆来水
+		// 来去水断 + 合局(7.B.10：先后天来水+案劫天劫去水+地刑无水)。
+		expect(r.heJu).toBe(true);
 		const xt = r.positions.find((p)=>p.key === 'xianTian');
 		expect(xt.result).toMatch(/得水|旺/);
 	});

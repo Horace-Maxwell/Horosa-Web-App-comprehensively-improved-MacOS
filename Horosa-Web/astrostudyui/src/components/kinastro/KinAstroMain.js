@@ -819,7 +819,7 @@ class KinAstroMain extends Component{
 				canpingLiunian: null,
 				heluoQuHuaGong: 'tuWangKunGen',
 				heluoZiShu: 'pair',            // 取数法【分歧B】pair 成对全取★ / single 每支阴阳取一
-				heluoJiGong: 'manualSanYuan',  // 五寄中宫【分歧D】manualSanYuan 手册三元表★ / legacy 旧代码
+				heluoJiGong: 'manualSanYuan',  // 五寄中宫【分歧D】manualSanYuan 三元表★ / legacy 旧代码
 				heluoZhiZun: true,             // 三至尊卦【分歧E】坎屯蹇 实现★ / 忽略
 				heluoPureGanKun: 'current',    // 纯乾坤落爻【分歧F】current★ / alt 抄本异
 				heluoLiunianStep2: 'ying',     // 流年第二步【分歧H】ying 应爻法★ / sequential 顺行
@@ -1323,7 +1323,7 @@ class KinAstroMain extends Component{
 									<label className="horosa-huangji-select-field">
 										<span>五寄中宫</span>
 										<Select value={this.state.heluoJiGong} dropdownMatchSelectWidth={false} onChange={(value)=>this.setState({ heluoJiGong: value })}>
-											<Option value="manualSanYuan">手册三元表</Option>
+											<Option value="manualSanYuan">三元表</Option>
 											<Option value="legacy">旧法·性别</Option>
 										</Select>
 									</label>
@@ -1360,7 +1360,7 @@ class KinAstroMain extends Component{
 										<span>纪年基准（黄帝纪元差，默认 2697）</span>
 										<InputNumber min={0} max={9999} value={parseInt(this.state.heluoHuangdiOffset, 10) || 2697} onChange={(v)=>this.setState({ heluoHuangdiOffset: `${v || 2697}` })} />
 									</label>
-									<div className="horosa-cetian-settings-hint horosa-heluo-diverge-hint">诸法分歧：默认取「成对全取 · 手册三元表」（古本/手册主流）。改设置即时重排先后天卦、元堂图、旺相休囚死、十吉与纪年。占事卦/日课本轮未开，命卦为唯一用途。</div>
+									<div className="horosa-cetian-settings-hint horosa-heluo-diverge-hint">诸法分歧：默认取「成对全取 · 三元表」（古本/经典主流）。改设置即时重排先后天卦、元堂图、旺相休囚死、十吉与纪年。占事卦/日课本轮未开，命卦为唯一用途。</div>
 								</>
 							) : null}
 							{this.config.serviceKey === 'tieban' ? (

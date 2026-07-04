@@ -1,5 +1,6 @@
 import React from 'react';
 import { APPEARANCE_DARK } from '../../utils/appearance';
+import { openExternalUrl } from '../../utils/aiAnalysisDesktop';
 
 /**
  * Astrodata —— A/AA 名人星盘目录(内嵌「工具 · 数据库」页)。
@@ -50,11 +51,18 @@ class AstrodataPage extends React.Component {
 
 	onMsg = (e) => {
 		const d = e && e.data;
-		if(!d || d.type !== 'astrodata:importChart' || !d.chart){ return; }
+		if(!d || !d.type){ return; }
 		// 同源健壮性:仅接受本页 iframe 发来的消息,忽略其它窗口伪造的同类型消息。
 		const frame = this.iframeRef.current;
 		if(frame && e.source && e.source !== frame.contentWindow){ return; }
-		this.props.dispatch({ type: 'user/addLocalChartQuiet', payload: d.chart });
+		if(d.type === 'astrodata:importChart' && d.chart){
+			this.props.dispatch({ type: 'user/addLocalChartQuiet', payload: d.chart });
+			return;
+		}
+		// 外链(来源 Astro-Databank / Wikipedia / CC 等):桌面 webview 里 target=_blank 无反应 → 交宿主在系统浏览器打开。
+		if(d.type === 'astrodata:openExternal' && d.url){
+			openExternalUrl(d.url);
+		}
 	};
 
 	render(){

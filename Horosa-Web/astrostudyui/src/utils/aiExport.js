@@ -141,8 +141,11 @@ const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
 //        补齐:太乙7段(加「太乙」前缀)/六壬断卦12段/奇门派生10段(加「奇门」前缀避与六壬「概览」碰撞)。这些段此前未登记
 //        sanshiunited PRESET_SECTIONS → 自定义过三式合一导出段的用户会被 filterContentByWantedSections 静默删、且导出设置勾不到。
 //        sanshiunited 已在 MIGRATION_KEYS → 同 v22-v29 范式(补 preset 末尾段 + 升版 union 并入,不删用户项)。
-export const AI_EXPORT_SETTINGS_VERSION = 31;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 30;
+// v32 补:风水新增五流派导出段(辅星水法/净阴净阳/玄空大卦/形势峦头/择日选择)登记进 fengshui PRESET_SECTIONS。
+//        fengshui 已在 MIGRATION_KEYS → 同 v22-v31 范式(补 preset 末尾段 + 升版 union 并入,不删用户项);
+//        MIGRATION_VERSION 升至 == SETTINGS_VERSION 以覆盖曾在 v31 自定义过风水导出段的老用户(否则五新段被 filterContentByWantedSections 静默删)。
+export const AI_EXPORT_SETTINGS_VERSION = 32;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 32;
 const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	// v18 补:占星/星运核心 + 卜卦/择日(此前漏登记)。务必与新增「有 preset 的技法」同步(aiExport.test 跨系统自检守)。
 	'astrochart',
@@ -534,7 +537,7 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	jieqi: ['节气盘参数', '春分星盘', '春分宿盘', '夏至星盘', '夏至宿盘', '秋分星盘', '秋分宿盘', '冬至星盘', '冬至宿盘'],
 	...JIEQI_SETTING_PRESETS,
 	otherbu: ['起盘信息', '骰子结果', '骰子盘宫位与星体', '天象盘宫位与星体'],
-	fengshui: ['起盘信息', '标记判定', '冲突清单', '未定位标注', '破局危害', '龙虎灶台', '移动盘', '吉凶评分', '缓解建议', '使用要点', '建议汇总', '纳气建议', '八卦定位', '成員卦象', '四类象格局', '应期成格', '改运建议', '风水·纳气盘', '风水·八卦阳宅', '风水·八宅大游年', '风水·玄空飞星', '风水·三合水法', '风水·金锁玉关', '风水·乾坤国宝', '风水·紫白飞星'],
+	fengshui: ['起盘信息', '标记判定', '冲突清单', '未定位标注', '破局危害', '龙虎灶台', '移动盘', '吉凶评分', '缓解建议', '使用要点', '建议汇总', '纳气建议', '八卦定位', '成員卦象', '四类象格局', '应期成格', '改运建议', '风水·纳气盘', '风水·八卦阳宅', '风水·八宅大游年', '风水·玄空飞星', '风水·三合水法', '风水·金锁玉关', '风水·乾坤国宝', '风水·紫白飞星', '风水·辅星水法', '风水·净阴净阳', '风水·玄空大卦', '风水·形势峦头', '风水·择日选择'],
 	canping: ['起盘', '本命', '大运·歲運', '流年·歲運'],
 	heluo: ['起命', '先天卦·元堂爻辞', '后天卦·元堂爻辞', '命运篇', '大限·岁运', '流年·岁运', '断验'],
 	generic: ['起盘信息'],

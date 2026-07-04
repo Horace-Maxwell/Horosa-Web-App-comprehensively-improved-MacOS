@@ -43,13 +43,13 @@ describe('六爻引擎·WP-B 装卦结构', () => {
 	test('卦身:火水未济 → 申(不上卦);乾为天 → 巳(不上卦)', () => {
 		const wj = guaShenOf(byName('火水未济'));
 		expect(wj.body).toBe('申');
-		expect(wj.onChart).toBe(false); // 手册§3.16:卦身申不上卦
+		expect(wj.onChart).toBe(false); // 古籍§3.16:卦身申不上卦
 		const qian = guaShenOf(byName('乾为天'));
 		expect(qian.body).toBe('巳');
 		expect(qian.onChart).toBe(false);
 	});
 
-	test('飞伏:火水未济 缺官鬼 → 第3爻伏亥水官鬼(手册§3.16)', () => {
+	test('飞伏:火水未济 缺官鬼 → 第3爻伏亥水官鬼(古籍§3.16)', () => {
 		const fu = fushenForGua(byName('火水未济'));
 		const pos3 = fu[2];
 		expect(pos3.liuqin).toBe('官鬼');

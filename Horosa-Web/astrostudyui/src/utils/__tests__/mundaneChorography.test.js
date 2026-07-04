@@ -12,7 +12,7 @@ describe('世运盘 分野 数据完整性', () => {
 			expect(SIGN_CHOROGRAPHY[k].countries.length).toBeGreaterThan(0);
 			expect(SIGN_CHOROGRAPHY[k].cities.length).toBeGreaterThan(0);
 		});
-		// 抽样字节核对手册 §12.2
+		// 抽样字节核对古籍 §12.2
 		expect(SIGN_CHOROGRAPHY.aries.countries).toContain('英格兰');
 		expect(SIGN_CHOROGRAPHY.gemini.countries).toContain('美国(现代)');
 		expect(SIGN_CHOROGRAPHY.libra.cities).toContain('Vienna');

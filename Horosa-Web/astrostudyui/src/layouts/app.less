@@ -17488,6 +17488,9 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    /* 建立高度收束:令 height:100% 稳定解析、内部 flex 列(理气工作区)被约束到可视高而非撑到内容高
+       (否则多选项派如三合/形势左栏溢出被 tabpane overflow:hidden 裁掉、末项不可达)。 */
+    overflow: hidden;
     color: var(--horosa-text, #1f1f1f);
     background: var(--horosa-bg, #fff);
 }
@@ -17745,18 +17748,18 @@
 .horosa-fengshui-liqi-quickhint { font-size: 12px; color: var(--horosa-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
 .horosa-fengshui-liqi { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 244px minmax(300px, 1fr) 356px; gap: 12px; padding: 12px 14px 16px; overflow: hidden; }
 /* 左 · 排盘参数卡 */
-.horosa-fengshui-liqi-params { overflow-y: auto; display: flex; flex-direction: column; gap: 13px; padding: 15px 13px; border: 1px solid var(--horosa-border); border-radius: 12px; background: var(--horosa-surface-raised); box-shadow: 0 1px 4px rgba(0,0,0,.05); align-content: flex-start; }
+.horosa-fengshui-liqi-params { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 13px; padding: 15px 13px; border: 1px solid var(--horosa-border); border-radius: 12px; background: var(--horosa-surface-raised); box-shadow: 0 1px 4px rgba(0,0,0,.05); align-content: flex-start; }
 .horosa-fengshui-liqi-field { display: flex; flex-direction: column; gap: 6px; }
 .horosa-fengshui-liqi-field > span { font-size: 11.5px; font-weight: 600; letter-spacing: .02em; color: var(--horosa-muted); }
 .horosa-fengshui-liqi-field .xq-select, .horosa-fengshui-liqi-field .xq-segmented { width: 100%; }
 .horosa-fengshui-liqi-field input[type='number'] { width: 100%; box-sizing: border-box; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--horosa-border); background: var(--horosa-panel-soft); color: var(--horosa-text); font-size: 13px; transition: border-color .15s ease; }
 .horosa-fengshui-liqi-field input[type='number']:focus { border-color: var(--horosa-border-strong); outline: none; }
 /* 中 · 盘面舞台 */
-.horosa-fengshui-liqi-chart { display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 8px 6px; }
+.horosa-fengshui-liqi-chart { min-height: 0; display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 8px 6px; }
 /* 理气盘 SVG 文字去描边:上层 stroke 经 SVG 继承泄漏到 <text>(字体外暗色描边)→ 逐盘重置无描边 + fill 优先;瓦片/环线 path 自带 stroke 属性不受影响。 */
 .horosa-fengshui-app svg text { stroke: none; paint-order: fill; }
 /* 右 · 断事卡 */
-.horosa-fengshui-liqi-panel { overflow-y: auto; display: flex; flex-direction: column; gap: 11px; padding-right: 3px; }
+.horosa-fengshui-liqi-panel { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; padding-right: 3px; }
 .horosa-fengshui-liqi-card { padding: 12px 14px 13px; border-radius: 12px; border: 1px solid var(--horosa-border); background: var(--horosa-surface-raised); box-shadow: 0 1px 4px rgba(0,0,0,.05); }
 .horosa-fengshui-liqi-card-title { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 720; letter-spacing: .01em; color: var(--horosa-gold); margin: 0 0 9px; padding-bottom: 8px; border-bottom: 1px solid var(--horosa-border); }
 .horosa-fengshui-liqi-card-title::before { content: ''; width: 3px; height: 13px; border-radius: 2px; background: var(--horosa-gold); flex: 0 0 auto; }
@@ -17767,6 +17770,21 @@
 .horosa-fengshui-liqi-row > strong.is-good { color: var(--fs-good); }
 .horosa-fengshui-liqi-row > strong.is-warn { color: var(--fs-bad); }
 .horosa-fengshui-liqi-note { font-size: 12px; line-height: 1.65; color: var(--horosa-text-soft); padding: 2px 0; }
+/* 左栏分组小标题（拨砂/九水位/门主灶/形势各纲） */
+.horosa-fengshui-liqi-subhead { font-size: 11px; font-weight: 720; letter-spacing: .04em; color: var(--horosa-gold); margin: 5px 0 -3px; padding-bottom: 4px; border-bottom: 1px dashed var(--horosa-border); }
+/* 形势派 五诀评分盘（中栏，非 SVG） */
+.horosa-fengshui-xingshi-board { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 24px 12px; }
+.horosa-fengshui-xingshi-total { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 150px; height: 150px; border-radius: 50%; justify-content: center; border: 3px solid var(--fs-grid, rgba(127,140,170,.3)); background: var(--fs-tile, rgba(127,140,170,.06)); }
+.horosa-fengshui-xingshi-total.is-good { border-color: var(--fs-good, #2e9c5a); }
+.horosa-fengshui-xingshi-total.is-warn { border-color: var(--fs-bad, #c0392b); }
+.horosa-fengshui-xingshi-total .xt-num { font-size: 40px; font-weight: 800; color: var(--horosa-text); line-height: 1; }
+.horosa-fengshui-xingshi-total .xt-lbl { font-size: 12px; color: var(--horosa-muted); text-align: center; padding: 0 8px; }
+.horosa-fengshui-xingshi-bars { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.horosa-fengshui-xingshi-bar { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--horosa-border); background: var(--horosa-surface-raised); }
+.horosa-fengshui-xingshi-bar .xb-key { font-size: 14px; font-weight: 700; color: var(--horosa-text); }
+.horosa-fengshui-xingshi-bar .xb-score { font-size: 15px; font-weight: 800; color: var(--horosa-muted); }
+.horosa-fengshui-xingshi-bar .xb-score.is-good { color: var(--fs-good, #2e9c5a); }
+.horosa-fengshui-xingshi-bar .xb-score.is-warn { color: var(--fs-bad, #c0392b); }
 @media (max-width: 1280px) {
 	.horosa-fengshui-liqi { grid-template-columns: 224px minmax(260px, 1fr); grid-auto-rows: min-content; overflow-y: auto; }
 	.horosa-fengshui-liqi-panel { grid-column: 1 / -1; max-height: 360px; }

@@ -1,9 +1,9 @@
-// 玄空飞星 下卦 + 结构断 golden（对齐 out_grid9.md 的反吟/伏吟标注）。
+// 玄空飞星 下卦 + 结构断 golden（对齐 golden 基准 的反吟/伏吟标注）。
 import { xuankong } from '../xuankong';
 import { SHAN_ORDER } from '../fengshuiData';
 
 describe('玄空飞星 xuankong', ()=>{
-	it('坐子向午(9运)：双星到坐 + 山盘反吟（== out_grid9 标注）', ()=>{
+	it('坐子向午(9运)：双星到坐 + 山盘反吟（== golden 基准 标注）', ()=>{
 		const r = xuankong(9, '午');
 		expect(r.available).toBe(true);
 		expect(r.zuoShan).toBe('子');
@@ -19,7 +19,7 @@ describe('玄空飞星 xuankong', ()=>{
 		});
 	});
 
-	it('坐壬向丙(9运)：双星到向 + 山盘伏吟（== out_grid9 标注）', ()=>{
+	it('坐壬向丙(9运)：双星到向 + 山盘伏吟（== golden 基准 标注）', ()=>{
 		const r = xuankong(9, '丙');
 		expect(r.ge).toBe('双星到向');
 		const fk = r.flags.map((f)=>f.key);

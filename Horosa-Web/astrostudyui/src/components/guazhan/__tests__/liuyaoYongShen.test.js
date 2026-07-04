@@ -8,8 +8,8 @@ import { Gua64 } from '../../gua/GuaConst';
 function byName(n){ return Gua64.find((g) => g.name === n); }
 
 describe('六爻用神体系·WP-E', () => {
-	test('原神/忌神/仇神(手册§5.2 五六亲全验)', () => {
-		expect(relativeRoles('妻财')).toEqual({ yuan: '子孙', ji: '兄弟', chou: '父母' }); // 手册例
+	test('原神/忌神/仇神(古籍§5.2 五六亲全验)', () => {
+		expect(relativeRoles('妻财')).toEqual({ yuan: '子孙', ji: '兄弟', chou: '父母' }); // 古籍例
 		expect(relativeRoles('父母')).toEqual({ yuan: '官鬼', ji: '妻财', chou: '子孙' });
 		expect(relativeRoles('子孙')).toEqual({ yuan: '兄弟', ji: '父母', chou: '官鬼' });
 		expect(relativeRoles('官鬼')).toEqual({ yuan: '妻财', ji: '子孙', chou: '兄弟' });
@@ -65,7 +65,7 @@ describe('六爻用神体系·WP-E', () => {
 		const ay = analyzeYongShen(res.yaos, 'career', { monthZhi: '午', dayZhi: '子' });
 		expect(ay.yong).toBe('官鬼');
 		expect(ay.located.yong.candidates.length).toBe(0); // 官鬼不上卦
-		// 第3爻伏神为官鬼(手册§3.16)
+		// 第3爻伏神为官鬼(古籍§3.16)
 		expect(res.yaos[2].fushen).toMatchObject({ liuqin: '官鬼', zhi: '亥' });
 	});
 

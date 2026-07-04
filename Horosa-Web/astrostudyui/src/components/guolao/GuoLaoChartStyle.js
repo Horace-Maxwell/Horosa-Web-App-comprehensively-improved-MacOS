@@ -208,7 +208,7 @@ export function setStoredGuolaoEqTropicalAnchor(val){
 	return v;
 }
 
-// G34 流派预设(一键套各开关组合,依手册各派特征 §1.3/§11;选后回 custom 可微调)。
+// G34 流派预设(一键套各开关组合,依古籍各派特征 §1.3/§11;选后回 custom 可微调)。
 // fields=类A(透传重算) display=类B(纯显示)。琴堂逢酉重八字/果老专度主洞微/天官化曜年干/弧角天星赤道真太阳。
 export const GUOLAO_SCHOOL_PRESETS = {
 	qintang: { fields: { guolaoLifeMode: 'yumao', guolaoBodyMode: 'youjin', guolaoTrueSolarTime: 'mean', doubingSu28: 2 }, display: { lifeMasterMode: 'gong', minorLimitType: '' } },

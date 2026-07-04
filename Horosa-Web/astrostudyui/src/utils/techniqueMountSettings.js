@@ -942,7 +942,7 @@ export const TECHNIQUE_SETTINGS_SCHEMA = {
 			{ value: 'single', label: '每支阴阳取一（实验）' },
 		] },
 		{ name: 'jiGongMode', label: '五寄中宫', type: 'select', default: 'manualSanYuan', group: '起卦分歧', options: [
-			{ value: 'manualSanYuan', label: '手册三元表（默认）' },
+			{ value: 'manualSanYuan', label: '三元表（默认）' },
 			{ value: 'legacy', label: '旧法（上下元性别）' },
 		] },
 		{ name: 'pureGanKunVariant', label: '纯乾坤落爻', type: 'select', default: 'current', group: '起卦分歧', options: [

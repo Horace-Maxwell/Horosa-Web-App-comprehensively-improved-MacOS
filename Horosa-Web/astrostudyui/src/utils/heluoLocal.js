@@ -70,7 +70,7 @@ function reduceDi(d) {
 }
 
 // 5 寄中宫【分歧 D】。mode:
-//  'manualSanYuan'(手册§3.4 三元表·默认)——统一按「阳男阴女→艮/阴男阳女→坤(上中元);阳男阴女→离/阴男阳女→兑(下元)」;
+//  'manualSanYuan'(古籍§3.4 三元表·默认)——统一按「阳男阴女→艮/阴男阳女→坤(上中元);阳男阴女→离/阴男阳女→兑(下元)」;
 //  'legacy'(旧代码)——上下元按性别、中元按阳男阴女(自相不一致)。三元界按民国年(甲子起60年一元)。
 function wuJiGong(minguoYear, yangGan, isMale, mode = 'manualSanYuan') {
 	const ay = (yangGan && isMale) || (!yangGan && !isMale); // 阳男 or 阴女(=阳男阴女组)
@@ -121,9 +121,9 @@ function flipLine(lines, pos) { const l = lines.slice(); l[pos - 1] = l[pos - 1]
 export function nodeFromYao(lines, pos) { return flipLine(lines, pos); }
 
 // ── 起命 ──
-// opts【分歧参数,默认=现状零回归,唯 jiGongMode 默认手册表(§3.4)会动到「取卦数=5」的盘】:
-//   ziShuMode 'pair'(成对全取★)|'single'(每支阴阳取一数·手册未给精确式·实验)
-//   jiGongMode 'manualSanYuan'(手册三元表★)|'legacy'(旧代码)
+// opts【分歧参数,默认=现状零回归,唯 jiGongMode 默认古籍表(§3.4)会动到「取卦数=5」的盘】:
+//   ziShuMode 'pair'(成对全取★)|'single'(每支阴阳取一数·古籍未给精确式·实验)
+//   jiGongMode 'manualSanYuan'(三元表★)|'legacy'(旧代码)
 //   zhiZunEnabled true★(实现三至尊卦)|false(忽略)
 //   pureGanKunVariant 'current'★|'alt'(纯卦乾坤落爻反向·抄本异·待核)
 export function calculate({ fourPillars, gender = '男', hourZhi, birthYear, monthZhi, monthYangLing, opts = {} }) {
@@ -142,7 +142,7 @@ export function calculate({ fourPillars, gender = '男', hourZhi, birthYear, mon
 		if (gn % 2 === 1) tian += gn; else di += gn;
 		const [odd, even] = ZHI_PAIR[z] || [0, 0];
 		if (ziShuMode === 'single') {
-			// 【异说 B·实验】每支按阴阳取一数:阳支(子寅辰午申戌)取奇入天数、阴支取偶入地数。手册未给精确式。
+			// 【异说 B·实验】每支按阴阳取一数:阳支(子寅辰午申戌)取奇入天数、阴支取偶入地数。古籍未给精确式。
 			if (YANG_ZHI.has(z)) tian += odd; else di += even;
 		} else {
 			tian += odd; di += even;   // 成对全取(古本/实证)
@@ -653,7 +653,7 @@ export function jiNian(birthYear, opts = {}) {
 	return { huangdi: birthYear + offset, huangdiOffset: offset, yuan, yunNo, ganzhi: yearGanzhi(birthYear) };
 }
 
-// ── §6.3 河洛十吉判据（结构化，复用 judge/mingGe 内部判据，按手册十项命名）──
+// ── §6.3 河洛十吉判据（结构化，复用 judge/mingGe 内部判据，按古籍十项命名）──
 export function shiJi(chart, jg) {
 	if (!chart || !jg) return null;
 	const x = chart.xian;

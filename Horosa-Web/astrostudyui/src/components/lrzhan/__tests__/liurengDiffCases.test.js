@@ -1,4 +1,4 @@
-// 大六壬 各选项「真正差异化案例」验证:同一盘,切换选项 → 引擎输出确实不同且符合手册。
+// 大六壬 各选项「真正差异化案例」验证:同一盘,切换选项 → 引擎输出确实不同且符合古籍。
 // 此文件即「逐技术差异化」报告的可执行凭证。
 import { getYueJiangByMethod, liurengAyanamsa } from '../LiuRengMain';
 import ChuangChart from '../../liureng/ChuangChart';

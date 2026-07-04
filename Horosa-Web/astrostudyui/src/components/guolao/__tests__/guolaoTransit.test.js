@@ -1,4 +1,4 @@
-// 七政四余 行运 golden(guolaoTransit,据手册 §10):洞微大限/小限/月限/童限。
+// 七政四余 行运 golden(guolaoTransit,据古籍 §10):洞微大限/小限/月限/童限。
 import { computeDongwei, computeXiaoxian, computeYuexian, computeTongxian } from '../guolaoTransit';
 
 describe('洞微大限(§10.1 · WP-E 捷法重生成)', () => {

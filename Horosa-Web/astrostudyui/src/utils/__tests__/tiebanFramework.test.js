@@ -1,4 +1,4 @@
-// 铁板神数框架层引擎测试:§5.5.3 八卦滚 golden(手册完整算例逐卦)+ §4 配数点检 +
+// 铁板神数框架层引擎测试:§5.5.3 八卦滚 golden(古籍完整算例逐卦)+ §4 配数点检 +
 //   §11.3 96局 + §5.4.2 六亲 + 穷举不抛 + 确定性 + 反臆造秘数护栏。
 import {
 	buildTiebanFramework, baguaGun, taixuanPeishu, eightKeGan, keOfFen, ninetySixJu,
@@ -15,7 +15,7 @@ const FP_CASES = [
 	{ fourPillars: { year: '癸酉', month: '辛酉', day: '乙卯', hour: '丁丑' }, birthYear: 1993 },
 ];
 
-describe('§5.5.3 八卦滚法 golden(手册完整算例·逐卦锁定)', () => {
+describe('§5.5.3 八卦滚法 golden(古籍完整算例·逐卦锁定)', () => {
 	test('基本卦 天地否 / 数序 4410 / 下元乙丑 → 8 卦 = 渐·同人·归妹·师·大畜·鼎·萃·屯', () => {
 		const base = linesOfGua('乾', '坤'); // 天地否 [0,0,0,1,1,1]
 		const roll = baguaGun(base, 4410, '乙丑', { sanyuan: 'xia', isYangManYinNv: true });
@@ -30,7 +30,7 @@ describe('§5.5.3 八卦滚法 golden(手册完整算例·逐卦锁定)', () => 
 		expect(roll.verseCount).toBe(48); // 每卦 6 条 × 8 卦
 	});
 
-	test('互体/错卦/对调 分步与手册一致', () => {
+	test('互体/错卦/对调 分步与古籍一致', () => {
 		const pi = linesOfGua('乾', '坤');
 		expect(huTiGua(pi).name).toBe('風山漸');            // 互体(否)
 		const jian = linesOfGua('巽', '艮');

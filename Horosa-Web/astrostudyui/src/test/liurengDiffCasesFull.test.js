@@ -1,4 +1,4 @@
-// 大六壬 全选项「差异化案例」综合验证(引擎实算·多案例·逐条锁值)。同盘切选项 → 输出确不同且合手册。
+// 大六壬 全选项「差异化案例」综合验证(引擎实算·多案例·逐条锁值)。同盘切选项 → 输出确不同且合古籍。
 import { getYueJiangByMethod, liurengAyanamsa } from '../components/lrzhan/LiuRengMain';
 import ChuangChart from '../components/liureng/ChuangChart';
 import * as LRConst from '../components/liureng/LRConst';

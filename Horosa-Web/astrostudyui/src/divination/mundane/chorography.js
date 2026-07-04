@@ -17,7 +17,7 @@ export const MUNDANE_QUADRANTS = [
 		rulers: { day: 'venus', night: 'mars', partner: 'moon' }, region: '海洋·北方·北非(苏格兰·挪威·北非)为主' },
 ];
 
-// §12.2 星座→代表性国家/地区 · 代表性城市(⚠️多源综合,逐字照录手册,含「(现代)」等时代标注)。
+// §12.2 星座→代表性国家/地区 · 代表性城市(⚠️多源综合,逐字照录古籍,含「(现代)」等时代标注)。
 export const SIGN_CHOROGRAPHY = {
 	aries: { countries: ['英格兰', '法国(高卢)', '德国', '叙利亚', '巴勒斯坦', '丹麦'], cities: ['Naples', 'Florence', 'Marseille', 'Birmingham'] },
 	taurus: { countries: ['波斯(伊朗)', '爱尔兰', '塞浦路斯', '小亚细亚', '(波兰/俄南)'], cities: ['Dublin', 'Mantua', 'Leipzig', 'St. Louis'] },
@@ -36,7 +36,7 @@ export const SIGN_CHOROGRAPHY = {
 export const CHOROGRAPHY_DISCLAIMER =
 	'多源综合·各家有别:托勒密原文仅含古代地域,美洲/澳洲/现代国家系 19–20 世纪占星家(Sepharial·Raphael·Carter)增补,互有出入。此为传统占星学术参考,非现实地缘断言;严谨使用请回各自原典核对。';
 
-// 数据集标签(随规则集 chorographyDataset 显示;手册建议「可切数据集」,此处以标签+免责呈现多源性质)。
+// 数据集标签(随规则集 chorographyDataset 显示;古籍建议「可切数据集」,此处以标签+免责呈现多源性质)。
 export const CHOROGRAPHY_DATASETS = {
 	classical: { label: '托勒密古典', note: '托勒密 II.3 四象限三方框架;仅古代地域为本源,现代条目仅作参照。' },
 	classical_medieval: { label: '古典+中世纪', note: '托勒密框架 + 中世纪阿拉伯/拉丁扩写;现代条目仅作参照。' },

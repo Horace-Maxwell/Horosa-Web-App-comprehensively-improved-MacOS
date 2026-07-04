@@ -1,4 +1,4 @@
-// 六爻纳甲断卦常量底座(WP-B/C/D/E/F/H)。移植自《六爻纳甲完整复原手册》liuyao_engine.py,纯数据、确定性。
+// 六爻纳甲断卦常量底座(WP-B/C/D/E/F/H)。移植自正统纳甲古法内核基准,纯数据、确定性。
 // 分歧点(土长生水土/火土同宫、月破口径等)做成可切换设置而非替代(见 LiuYaoEngine + GuaZhanMain.settings)。
 
 import { randomNum } from '../../utils/helper';

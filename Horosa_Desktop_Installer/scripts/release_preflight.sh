@@ -1532,6 +1532,60 @@ grep -q "hasMapConsent" "${S57_UI}/components/amap/MapV2.js" 2>/dev/null || { ba
 grep -rq "chart3d\.horosa\.com" "${S57_UI}" 2>/dev/null && { bad "[57] 前端出现 chart3d 历史域名回流(网络说明将失实)"; S57_BAD=1; }
 [ "${S57_BAD}" = "0" ] && ok "[57] 法律文档与一致性 全在位" || bad "[57] 法律文档与一致性 有缺失"
 
+# ============================================================================
+# [61] 风水 十三派:理气六派(八宅/玄空/三合/金锁/乾坤/紫白)+ 水法(辅星/净阴净阳)+ 玄空大卦 + 形势 + 择日
+#      纯计算引擎 + 流派选择器 UI + 户型图两法(纳气盘/八卦阳宅)画布引擎零回归
+# ============================================================================
+S61_BAD=0
+S61_FS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/fengshui"
+echo "[61] 风水 十三派 引擎+流派UI+玄空进阶(替卦/城门/打劫)+深化(黄泉/拨砂/线法/九水位/门主灶/日时紫白)+新派+户型图两法零回归"
+for f in fengshuiData.js liqiCore.js xuankong.js sanhe.js zibai.js qiankun.js bazhai.js jinsuo.js LiqiWorkspace.js; do
+  [ -f "${S61_FS}/${f}" ] || { bad "[61] 缺风水理气 ${f}"; S61_BAD=1; }
+done
+# 新增五派引擎(辅星/净阴净阳/玄空大卦/形势/择日)
+for f in fuxing.js jingyin.js dagua.js xingshi.js zeri.js; do
+  [ -f "${S61_FS}/${f}" ] || { bad "[61] 缺风水新派 ${f}"; S61_BAD=1; }
+done
+for f in charts/LuoshuGrid.js charts/TwentyFourShanRing.js charts/EightPalaceDisk.js charts/SixtyFourGuaRing.js; do
+  [ -f "${S61_FS}/${f}" ] || { bad "[61] 缺风水盘面 ${f}"; S61_BAD=1; }
+done
+# 六派深化 + 新派核心纯函数(仅核对导出符号在位)
+grep -qE "export function sanheXiangFaAll" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺三合十二向 sanheXiangFaAll"; S61_BAD=1; }
+grep -qE "export function boshaWuGe" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺拨砂五格 boshaWuGe"; S61_BAD=1; }
+grep -qE "export function huangquanBaYao" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺黄泉八煞 huangquanBaYao"; S61_BAD=1; }
+grep -qE "export function (chuanshanAt|toudiAt|fenjinAt)" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺线法穿山透地分金"; S61_BAD=1; }
+grep -qE "export function qkgbFullPositions" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺乾坤九水位 qkgbFullPositions"; S61_BAD=1; }
+grep -qE "export function jianXiangByDeg" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺玄空兼向度数判别 jianXiangByDeg"; S61_BAD=1; }
+grep -qE "export function gua64Of" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺玄空大卦识卦 gua64Of"; S61_BAD=1; }
+grep -qE "export function guaRelation" "${S61_FS}/bazhai.js" 2>/dev/null || { bad "[61] 缺八宅门主灶 guaRelation"; S61_BAD=1; }
+grep -qE "export function dayCenter" "${S61_FS}/zibai.js" 2>/dev/null || { bad "[61] 缺日紫白 dayCenter"; S61_BAD=1; }
+grep -qE "export function yearGods" "${S61_FS}/zeri.js" 2>/dev/null || { bad "[61] 缺择日年神 yearGods"; S61_BAD=1; }
+# 数据底座(纳甲/纳音/64卦/黄泉/三煞)
+grep -qE "NAJIA_GUA|NAYIN_60|GUA64_TABLE|BA_YAO_SHA|SANSHA_BY_JU" "${S61_FS}/fengshuiData.js" 2>/dev/null || { bad "[61] 缺数据底座(纳甲/纳音/64卦/黄泉/三煞)"; S61_BAD=1; }
+# 玄空进阶:替卦/替星/城门/七星打劫
+grep -qE "export function flyChartTi" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺替卦 flyChartTi"; S61_BAD=1; }
+grep -qE "export function tixingOf" "${S61_FS}/liqiCore.js" 2>/dev/null || { bad "[61] 缺替星 tixingOf"; S61_BAD=1; }
+grep -qE "TIXING_VARIANTS" "${S61_FS}/fengshuiData.js" 2>/dev/null || { bad "[61] 缺替星3方案"; S61_BAD=1; }
+grep -qE "function cityGate" "${S61_FS}/xuankong.js" 2>/dev/null || { bad "[61] 缺城门诀 cityGate"; S61_BAD=1; }
+grep -qE "function sevenStarRob" "${S61_FS}/xuankong.js" 2>/dev/null || { bad "[61] 缺七星打劫 sevenStarRob"; S61_BAD=1; }
+# 下卦默认零回归:替卦必须 opt-in(默认走 flyChart 非 flyChartTi)
+grep -qE "jian \? flyChartTi" "${S61_FS}/xuankong.js" 2>/dev/null || { bad "[61] xuankong 替卦未 opt-in(下卦零回归风险)"; S61_BAD=1; }
+# FengShuiMain:流派选择器 + 户型图两法画布引擎保活(理气派 display:none 零回归)
+grep -qE "import FengShuiEngine" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] FengShuiMain 丢画布引擎(户型图两法回归)"; S61_BAD=1; }
+grep -qE "LIQI_SET|SCHOOL_GROUPS" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] FengShuiMain 缺流派选择器"; S61_BAD=1; }
+grep -qE "canvas-body" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] FengShuiMain 缺 canvas 保活(零回归)"; S61_BAD=1; }
+# onVm 守:理气/新派激活时画布引擎 vm 不得覆盖当前流派快照(否则 AI 导出取到纳气盘)
+grep -qE "snapshotText && !LIQI_SET.has" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] FengShuiMain onVm 缺理气快照防覆盖守(AI导出会取错派)"; S61_BAD=1; }
+# 测试在位(下卦 byte 守 + 深化/新派锚 + 压测)
+for t in liqiCore.test.js xuankong.test.js schools.test.js xuankongAdvanced.test.js charts.test.js fengshuiOptionMatrix.test.js fengshuiQaRound2.test.js fengshuiManualAnchor.test.js \
+         sanheAugment.test.js qiankunAugment.test.js bazhaiAugment.test.js xuankongAugment.test.js zibaiAugment.test.js newSchools.test.js fengshuiStress.test.js; do
+  [ -f "${S61_FS}/__tests__/${t}" ] || { bad "[61] 缺风水测试 ${t}"; S61_BAD=1; }
+done
+# nav 可发现十三派(理气六派 + 新派关键词)
+grep -qE "key: 'fengshui'.*金锁玉关.*乾坤国宝" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js" 2>/dev/null || { bad "[61] nav 缺理气六派关键词"; S61_BAD=1; }
+grep -qE "key: 'fengshui'.*玄空大卦.*形势.*择日" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js" 2>/dev/null || { bad "[61] nav 缺新派关键词(大卦/形势/择日)"; S61_BAD=1; }
+[ "${S61_BAD}" = "0" ] && ok "[61] 风水 十三派 引擎+玄空进阶(替卦/城门/打劫)+深化(黄泉/拨砂/线法/九水位/门主灶/日时紫白)+新派(辅星/净阴净阳/大卦/形势/择日)+盘面+测试+户型图两法零回归 在位" || bad "[61] 风水 有缺失"
+
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

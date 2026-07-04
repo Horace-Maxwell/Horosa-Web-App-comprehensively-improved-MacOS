@@ -1015,7 +1015,7 @@ class JyotishEngine:
 
     def graha_maitri(self):
         """敌友 Pañcadhā Maitrī(复合五分敌友 7×7 矩阵,非对称)+ Jaimini Rāśi Dṛṣṭi 座相(12×12)。
-        恒 D1。手册第 6 章:自然(§6.1 Table7)×临时(§6.2 2/3/4/10/11/12宫=友)→ 复合 5 档(§6.3)。
+        恒 D1。古籍第 6 章:自然(§6.1 Table7)×临时(§6.2 2/3/4/10/11/12宫=友)→ 复合 5 档(§6.3)。
         算法在 primitives(natural/tatkalika/compound_relation),此处只组矩阵。"""
         try:
             from astrostudy.india.primitives import (
@@ -1076,7 +1076,7 @@ class JyotishEngine:
             return {'available': False}
 
     def outer_planets(self):
-        """外行星 Ur/Ne/Pl(虚星,手册§3.1)。内核已算,补输出供副星面板;以当前显示盘算。"""
+        """外行星 Ur/Ne/Pl(虚星,古籍§3.1)。内核已算,补输出供副星面板;以当前显示盘算。"""
         try:
             out = []
             for pid, label in [(const.URANUS, '天王 Ur'), (const.NEPTUNE, '海王 Ne'), (const.PLUTO, '冥王 Pl')]:

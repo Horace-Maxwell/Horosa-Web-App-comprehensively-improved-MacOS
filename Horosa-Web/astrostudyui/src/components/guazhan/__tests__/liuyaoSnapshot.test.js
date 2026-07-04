@@ -17,7 +17,7 @@ describe('六爻断卦结构快照(WP-M)', () => {
 		expect(lines).toContain('[断卦结构');
 		expect(lines).toContain('卦序：离宫·三世');
 		expect(lines).toContain('用神');
-		expect(lines).toContain('卦身：申(不上卦)'); // 手册§3.16
+		expect(lines).toContain('卦身：申(不上卦)'); // 古籍§3.16
 		expect(lines).toContain('变卦：');
 		expect(lines).toMatch(/第3爻动：/);
 	});

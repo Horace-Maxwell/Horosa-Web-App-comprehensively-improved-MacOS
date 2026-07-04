@@ -1,5 +1,5 @@
 // 玄空飞星派（沈氏）· 下卦/替卦全盘 + 结构断（合十/反吟/伏吟/入囚/三般卦/零正/城门/七星打劫/流年月）。
-import { flyChart, flyChartTi } from './liqiCore';
+import { flyChart, flyChartTi, jianXiangByDeg } from './liqiCore';
 import { GONG_NAME, GONG_GUA, OPP_GONG, NINE_STAR_MEANING, YUN_YEARS, ROB_GROUPS, FANGWEI_RING } from './fengshuiData';
 import { monthCenter } from './zibai';
 
@@ -15,7 +15,7 @@ function timeliness(star, yun) {
 	return '失令';
 }
 
-// 双星组合断（山·向）：经典凶吉组合(手册4.8)优先，余以九星本义 + 五行生克。
+// 双星组合断（山·向）：经典凶吉组合(正统古法)优先，余以九星本义 + 五行生克。
 const BAD_PAIR = {
 	'2·5': '二五交加·疾病损主', '5·2': '五二·重病死亡', '3·7': '斗牛煞·穿心·盗劫官非',
 	'7·3': '穿心·口舌劫盗', '6·7': '交剑煞·斗争', '7·6': '交剑·争讼', '2·3': '斗牛·是非官讼',
@@ -28,7 +28,10 @@ const GOOD_PAIR = {
 	'6·8': '富贵·武曲生土', '8·6': '财官并茂', '8·9': '婚喜·进财', '9·8': '喜庆·田产',
 	'1·8': '一八·进田富', '8·1': '财丁·少男中男', '4·9': '木火通明·文章', '9·4': '文明·科甲',
 	'8·8': '当令双旺·财气', '9·9': '双九·喜庆', '1·1': '双一·文秀', '6·6': '双六·武权', '4·6': '四六·文武',
+	'9·1': '水火既济·婚喜贵', '1·9': '既济·桃花贵', '6·9': '六九·火照天门(当令荣显)', '9·6': '九六·官贵',
 };
+// 桃花组（4.21：当令异性缘、失令酒色破败）。
+const TAOHUA = new Set(['4·7', '7·4', '1·7', '7·1']);
 
 function comboBrief(shan, xiang) {
 	const s = NINE_STAR_MEANING[shan];
@@ -36,6 +39,7 @@ function comboBrief(shan, xiang) {
 	const pair = `${shan}·${xiang}`;
 	if (BAD_PAIR[pair]) { return { pair, note: BAD_PAIR[pair], badge: 'bad' }; }
 	if (GOOD_PAIR[pair]) { return { pair, note: GOOD_PAIR[pair], badge: 'good' }; }
+	if (TAOHUA.has(pair)) { return { pair, note: '桃花·异性缘(失令酒色破败)', badge: 'mild' }; }
 	if (!s || !x) { return { pair, note: '', badge: '' }; }
 	// 五行生克（山→向）。
 	let rel = '比和';
@@ -99,12 +103,35 @@ function yearCenter(year) {
 	let c = 11 - s; if (c > 9) { c -= 9; } if (c <= 0) { c += 9; }
 	return c;
 }
+// 流年/月会断（4.20）：流年星入宫与宅山向星相会引动。
+function huiOf(shanPan, xiangPan, flyPan, label) {
+	if (!flyPan) { return []; }
+	const out = [];
+	for (let g = 1; g <= 9; g++) {
+		const set = [shanPan[g], xiangPan[g], flyPan[g]];
+		const has = (n)=>set.indexOf(n) >= 0;
+		if (flyPan[g] === 5) { out.push({ gong: g, warn: `${label}五黄到·忌动土修造`, jx: 'bad' }); }
+		if (has(2) && has(5)) { out.push({ gong: g, warn: `${label}二五交加·病符损主`, jx: 'bad' }); }
+		else if (has(3) && has(7)) { out.push({ gong: g, warn: `${label}三七叠临·盗劫官灾`, jx: 'bad' }); }
+		else if (has(6) && has(7)) { out.push({ gong: g, warn: `${label}交剑煞·争斗`, jx: 'bad' }); }
+		else if (has(1) && has(4)) { out.push({ gong: g, warn: `${label}一四同宫·科名文喜`, jx: 'good' }); }
+		else if (has(8) && has(9)) { out.push({ gong: g, warn: `${label}八九·进财添丁婚喜`, jx: 'good' }); }
+	}
+	return out;
+}
 
-// 玄空飞星 排盘 + 结构断。opts: {year, month, jian(兼向起替), tiVariant(替星方案)}。
+// 玄空飞星 排盘 + 结构断。
+//   opts: {year, month, jian(兼向起替), tiVariant(替星方案), deg(向首度数自动判别), yinYangZhai('yang'|'yin')}。
 export function xuankong(yun, xiangShan, opts = {}) {
-	const jian = !!opts.jian;
 	const tiVariant = opts.tiVariant || 'shen';
-	const c = jian ? flyChartTi(yun, xiangShan, tiVariant) : flyChart(yun, xiangShan);
+	// 兼向度数自动判别(4.5/4.12)：给 deg 则由度数定向首;起卦法(替/下)仍由 opts.jian 主控(下卦零回归)。
+	let effXiang = xiangShan; let jianInfo = null;
+	if (opts.deg != null && opts.deg !== '' && !Number.isNaN(Number(opts.deg))) {
+		jianInfo = jianXiangByDeg(opts.deg);
+		effXiang = jianInfo.xiangShan;
+	}
+	const jian = !!opts.jian;
+	const c = jian ? flyChartTi(yun, effXiang, tiVariant) : flyChart(yun, effXiang);
 	if (!c) { return { available: false }; }
 	const { yunPan, shanPan, xiangPan, gZuo, gXiang, ge, zuoShan } = c;
 
@@ -160,15 +187,18 @@ export function xuankong(yun, xiangShan, opts = {}) {
 	const rob = sevenStarRob(xiangPan);
 	rob.forEach((r)=>flags.push({ key: `rob_${r.key}`, label: r.name, nature: r.nature === 'good' ? 'good' : 'good' }));
 
-	// 流年 / 流月飞星。
-	let yearPan = null; let monthPan = null;
-	if (opts.year) { yearPan = flyStar(yearCenter(opts.year)); }
-	if (opts.year && opts.month) { monthPan = flyStar(monthCenter(opts.year, opts.month)); }
+	// 流年 / 流月飞星 + 会断（4.20）。
+	let yearPan = null; let monthPan = null; let yearHui = null; let monthHui = null;
+	if (opts.year) { yearPan = flyStar(yearCenter(opts.year)); yearHui = huiOf(shanPan, xiangPan, yearPan, '流年'); }
+	if (opts.year && opts.month) { monthPan = flyStar(monthCenter(opts.year, opts.month)); monthHui = huiOf(shanPan, xiangPan, monthPan, '流月'); }
+
+	// 阴阳宅（4.19）：立向口径提示。
+	const yinYangZhai = opts.yinYangZhai === 'yin' ? 'yin' : 'yang';
 
 	return {
-		available: true, yun, yunRange: YUN_YEARS[yun], xiangShan, zuoShan, ge,
+		available: true, yun, yunRange: YUN_YEARS[yun], xiangShan: effXiang, zuoShan, ge,
 		gZuo, gXiang, yunPan, shanPan, xiangPan, palaces, flags,
-		zhengShen, lingShen, fuMuSanBan, lianZhuSanBan, yearPan, monthPan,
-		gate, rob, jian, tiVariant, sameAsXiaGua: c.sameAsXiaGua, method: c.method || '下卦',
+		zhengShen, lingShen, fuMuSanBan, lianZhuSanBan, yearPan, monthPan, yearHui, monthHui,
+		gate, rob, jian, tiVariant, jianInfo, yinYangZhai, sameAsXiaGua: c.sameAsXiaGua, method: c.method || '下卦',
 	};
 }

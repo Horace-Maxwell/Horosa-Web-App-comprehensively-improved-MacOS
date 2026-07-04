@@ -1,5 +1,5 @@
 // 各技法「操作手册」帮助文档注册表:currentTab → HelpDoc 组件。
-// PageHeader 帮助弹窗按当前页查本表渲染对应手册;新增技法手册=加一行,无需改 PageHeader。
+// PageHeader 帮助弹窗按当前页查本表渲染对应古籍;新增技法手册=加一行,无需改 PageHeader。
 import GuoLaoHelpDoc from '../guolao/GuoLaoHelpDoc';
 import AstroHelpDoc from './AstroHelpDoc';
 import GermanyHelpDoc from './GermanyHelpDoc';

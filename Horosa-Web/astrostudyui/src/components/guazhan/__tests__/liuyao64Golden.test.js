@@ -2,11 +2,11 @@ import golden from './liuyao64.golden.json';
 import { Gua64 } from '../../gua/GuaConst';
 import { parseYaoName, palaceTypeOf } from '../../gua/LiuYaoEngine';
 
-// WP-0 真值 golden:前端 Gua64 + 引擎派生 逐爻对照文档 liuyao_engine.py build_all_64() 字节一致。
+// WP-0 真值 golden:前端 Gua64 + 引擎派生 逐爻对照文档 内核基准 build_all_64() 字节一致。
 // 文档卦序类型「本宫(八纯)」↔ 前端「本宫」。
 function normType(t){ return t.replace('(八纯)', ''); }
 
-describe('六爻 WP-0 · 64卦纳甲 golden(对文档 liuyao_engine.py)', () => {
+describe('六爻 WP-0 · 64卦纳甲 golden(对文档 内核基准)', () => {
 	test('golden 含 64 卦', () => {
 		expect(Object.keys(golden).length).toBe(64);
 	});

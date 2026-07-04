@@ -1,4 +1,4 @@
-// 风水 理气核心 · 字节级 golden（对齐 玄学技术文档/风水 的 out_*.md 生成器输出）。
+// 风水 理气核心 · 字节级 golden 基准。
 import {
 	flyChart, sanheChangshengTable, qkgbPositions, zibaiYearStar, mingGua, mingGroup, val, idx,
 } from '../liqiCore';
@@ -10,7 +10,7 @@ describe('风水 理气核心 golden', ()=>{
 		expect(val(9, 5, true)).toBe(9);   // 9 入中顺飞，中宫=9（对照 grid「中 5 4／9」运盘 9）
 	});
 
-	it('玄空飞星 下卦：坐子向午(9运) == out_grid9.md（双星到坐·山反吟）', ()=>{
+	it('玄空飞星 下卦：坐子向午(9运) == golden 基准（双星到坐·山反吟）', ()=>{
 		const c = flyChart(9, '午');
 		expect(c.zuoShan).toBe('子');
 		expect(c.ge).toBe('双星到坐');
@@ -23,7 +23,7 @@ describe('风水 理气核心 golden', ()=>{
 		expect(c.yunPan[4]).toBe(8); expect(c.yunPan[9]).toBe(4); expect(c.yunPan[5]).toBe(9);
 	});
 
-	it('玄空飞星：坐壬向丙(9运)=双星到向·山伏吟（out_grid9）', ()=>{
+	it('玄空飞星：坐壬向丙(9运)=双星到向·山伏吟（golden 基准）', ()=>{
 		const c = flyChart(9, '丙');
 		expect(c.zuoShan).toBe('壬');   // 向丙→坐壬
 		expect(c.ge).toBe('双星到向');
@@ -45,7 +45,7 @@ describe('风水 理气核心 golden', ()=>{
 		}
 	});
 
-	it('三合 十二长生四局全周 == out_sanhe.md（12×4 字节级）', ()=>{
+	it('三合 十二长生四局全周 == golden 基准（12×4 字节级）', ()=>{
 		const t = sanheChangshengTable();
 		const got = t.map((r)=>`${r.shuangshan} ${r.火局} ${r.金局} ${r.水局} ${r.木局}`);
 		expect(got).toEqual([
@@ -55,7 +55,7 @@ describe('风水 理气核心 golden', ()=>{
 		]);
 	});
 
-	it('乾坤国宝 先后天位(八坐) == out_qkgb.md（字节级）', ()=>{
+	it('乾坤国宝 先后天位(八坐) == golden 基准（字节级）', ()=>{
 		const exprows = {
 			坎: ['坎(北)', '兑(西)', '坤(西南)'], 坤: ['坤(西南)', '坎(北)', '巽(东南)'],
 			震: ['震(东)', '艮(东北)', '离(南)'], 巽: ['巽(东南)', '坤(西南)', '兑(西)'],
@@ -68,7 +68,7 @@ describe('风水 理气核心 golden', ()=>{
 		});
 	});
 
-	it('紫白 年入中 2014–2043 == out_zibai.md（字节级）', ()=>{
+	it('紫白 年入中 2014–2043 == golden 基准（字节级）', ()=>{
 		const exp = { 2014: '四绿', 2015: '三碧', 2016: '二黑', 2017: '一白', 2018: '九紫', 2019: '八白',
 			2020: '七赤', 2021: '六白', 2022: '五黄', 2023: '四绿', 2024: '三碧', 2025: '二黑',
 			2026: '一白', 2027: '九紫', 2028: '八白', 2029: '七赤', 2030: '六白', 2031: '五黄',
@@ -77,7 +77,7 @@ describe('风水 理气核心 golden', ()=>{
 		Object.keys(exp).forEach((y)=>{ expect(zibaiYearStar(+y).star).toBe(exp[y]); });
 	});
 
-	it('八宅 命卦（手册 3.3 算例）+ 东西四命组', ()=>{
+	it('八宅 命卦（正统古法 算例）+ 东西四命组', ()=>{
 		// 1984(甲子) 男=七赤兑(西四) / 女=八白艮(西四)；2000 男=九紫离(东四)/女=六白乾(西四)。
 		expect(mingGua(1984, true)).toBe(7);
 		expect(mingGua(1984, false)).toBe(8);

@@ -518,6 +518,12 @@ function wireEvents(){
     var t=url.get('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);
     window.addEventListener('message',function(e){var d=e&&e.data;if(d&&d.type==='astrodata:setTheme'&&(d.theme==='light'||d.theme==='dark'))document.documentElement.setAttribute('data-theme',d.theme);});
     var tb=document.getElementById('themebtn');if(tb)tb.style.display='none';
+    // 外链:桌面 webview 里 <a target="_blank"> 无新标签页可开 → 点了没反应。拦截外链点击,交宿主在系统默认浏览器打开。
+    document.addEventListener('click',function(e){
+      var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;
+      var href=a.href||'';if(!/^https?:\/\//i.test(href))return;
+      e.preventDefault();try{parent.postMessage({type:'astrodata:openExternal',url:href},'*');}catch(_){}
+    },true);
   }else{
     var saved=localStorage.getItem('astrodata-theme');if(saved)document.documentElement.setAttribute('data-theme',saved);
   }

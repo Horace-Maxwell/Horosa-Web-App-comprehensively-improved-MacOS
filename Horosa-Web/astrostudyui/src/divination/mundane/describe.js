@@ -264,7 +264,7 @@ export const SIGN_MUNDANE_TEMPER = {
 const _SIGN_BASE = { aries: 0, taurus: 30, gemini: 60, cancer: 90, leo: 120, virgo: 150, libra: 180, scorpio: 210, sagittarius: 240, capricorn: 270, aquarius: 300, pisces: 330 };
 
 // §13.4 世运恒星(22 主星;sign+signlon 为 ≈2000 回归黄经位置;royal=四王星方位。lon2000 = 座基+座内度)。
-// ⚠ 高转录风险:黄经按手册 ≈2000 现值,用时以 mundaneStarLon 按盘日岁差(~50.29″/yr)校正。
+// ⚠ 高转录风险:黄经按古籍 ≈2000 现值,用时以 mundaneStarLon 按盘日岁差(~50.29″/yr)校正。
 export const MUNDANE_FIXED_STARS = [
 	{ key: 'algol', nameCn: '大陵五', name: 'Algol', sign: 'taurus', signlon: 26 + 10 / 60, nature: '♄/♃', meaning: '最凶之星;失首、暴力、群体灾祸', royal: null },
 	{ key: 'alcyone', nameCn: '昴宿(七姊妹)', name: 'Alcyone', sign: 'gemini', signlon: 0, nature: '☽/♂', meaning: '哭泣、失明、悲伤、群体之殇', royal: null },

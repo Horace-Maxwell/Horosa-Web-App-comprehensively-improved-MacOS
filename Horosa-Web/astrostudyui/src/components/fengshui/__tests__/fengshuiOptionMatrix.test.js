@@ -129,13 +129,16 @@ describe('八宅 穷举：8坐山×男女×命年', ()=>{
 });
 
 describe('乾坤国宝 穷举：8坐山', ()=>{
-	it('每坐山:先后天位+案劫齐、来去水断3条', ()=>{
+	it('每坐山:九大水位齐(先后天/案劫/天劫/地刑/宾/客/辅/正窍)、来去水断9条', ()=>{
 		GUA8.forEach((g)=>{
 			const r = qiankun({ zuoGua: g });
 			expect(r.available).toBe(true);
 			expect(r.xianTian).toBeTruthy();
 			expect(r.houTian).toBeTruthy();
-			expect(r.positions.length).toBe(3);
+			expect(r.positions.length).toBe(9);
+			// 天劫=向左前·地刑=向右前(几何确定,有落宫);宾客辅正窍依局图(pos=null)。
+			expect(r.positions.find((p)=>p.name === '天劫位').pos).toBeGreaterThan(0);
+			expect(r.positions.find((p)=>p.name === '地刑位').pos).toBeGreaterThan(0);
 		});
 	});
 });
