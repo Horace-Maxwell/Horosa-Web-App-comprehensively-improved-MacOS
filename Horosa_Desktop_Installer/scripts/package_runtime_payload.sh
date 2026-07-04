@@ -78,6 +78,13 @@ build_embedded_java_runtime() {
       --no-header-files \
       --no-man-pages \
       --output "${dest_java}"
+    # [WS-3e·CDS修复] jlink 默认不生成 base CDS archive(lib/server/classes.jsa)——
+    # 缺 base 时 -XX:ArchiveClassesAtExit 动态 dump 直接拒绝("base CDS archive is not
+    # loaded"),首启后台自训链自上线以来一直静默失败、用户从未享受过 AppCDS。
+    # 此处就地补 dump(~11MB,随 jdk-runtime 部件;实测 zulu17 一次 ~15s)。
+    if ! "${dest_java}/bin/java" -Xshare:dump >/dev/null 2>&1; then
+      echo "WARN: base CDS archive dump failed (jdk-runtime 将无 classes.jsa,自训/预置链退化为无 CDS)" >&2
+    fi
     return 0
   fi
 
@@ -165,6 +172,53 @@ if [ ! -f "${STAGE_BOOT_EXPLODED}/org/springframework/boot/loader/JarLauncher.cl
 fi
 shasum -a 256 "${STAGE_BOOT_JAR}" | awk '{print $1}' > "${STAGE_BOOT_EXPLODED}/.source-jar.sha256"
 rm -f "${STAGE_BOOT_JAR}"
+
+# ── [WS-3e] AppCDS 预训练进 payload:打包机在 stage exploded 上训练动态 .jsa(~42MB),
+# 随【全量 tar】分发 → 用户首启即享 CDS(免首启训练副本 CPU 峰 + 温启 -0.3~0.4s)。
+# 跨路径可用性已实证:训练/运行都是 `cd exploded && java -cp . JarLauncher`(相对
+# classpath,CDS 豁免绝对路径校验;A 路径训练 → B 路径 -Xshare:on 强制加载存活)。
+# 增量语义:.app-cds.jsa 不进任何部件清单(见下 java_app_files 排除)——增量更新后
+# exploded 换新、旧 .jsa 失配被 JVM 自动忽略 → 首启后台自训重新生成(base 已随
+# jdk-runtime 在位,自训链本轮起真实可用)。失败=警告继续(用户侧自训兜底)。
+# 逃生阀:HOROSA_SKIP_CDS_PRESEED=1。
+if [ "${HOROSA_SKIP_CDS_PRESEED:-0}" != "1" ]; then
+  STAGE_JAVA="${STAGE_ROOT}/runtime/mac/java/bin/java"
+  CDS_TRAIN_PORT=39993
+  if [ -x "${STAGE_JAVA}" ] && [ -s "${STAGE_ROOT}/runtime/mac/java/lib/server/classes.jsa" ]; then
+    echo "cds preseed: training dynamic archive (~40s)…"
+    CDS_TMP_JSA="${STAGE_BOOT_EXPLODED}/.app-cds.jsa.train.$$"
+    (
+      cd "${STAGE_BOOT_EXPLODED}" && exec env         HOROSA_DESKTOP_MONGO_OPTIONAL=1 HOROSA_DESKTOP_MONGO_SKIP_PING=1         SPRING_MAIN_LAZY_INITIALIZATION=true         "${STAGE_JAVA}" -XX:ArchiveClassesAtExit="${CDS_TMP_JSA}"         -Dlog4j2.statusLevel=WARN -Djava.awt.headless=true         -Dspring.backgroundpreinitializer.ignore=true         -Dhorosa.runtime.owner=horosa-cds-preseed         -cp . org.springframework.boot.loader.JarLauncher         --server.port="${CDS_TRAIN_PORT}" --server.address=127.0.0.1         --astrosrv=http://127.0.0.1:39992 --mongodb.ip=127.0.0.1 --redis.ip=127.0.0.1
+    ) >/dev/null 2>&1 &
+    CDS_TRAIN_PID=$!
+    CDS_WAITED=0
+    while [ "${CDS_WAITED}" -lt 60 ]; do
+      if curl -s -o /dev/null -m 1 "http://127.0.0.1:${CDS_TRAIN_PORT}/heartbeat" 2>/dev/null; then break; fi
+      kill -0 "${CDS_TRAIN_PID}" 2>/dev/null || break
+      CDS_WAITED=$((CDS_WAITED + 1)); sleep 1
+    done
+    # 触达补全:lazy-init 下 heartbeat 只初始化极小 bean 集;补一发 /chart POST
+    # (400/失败均可——目的只是把 controller/序列化链的类拉进本次 dump 的档)。
+    curl -s -o /dev/null -m 3 -X POST -H 'Content-Type: application/json' -d '{}' \
+      "http://127.0.0.1:${CDS_TRAIN_PORT}/chart" 2>/dev/null || true
+    kill -TERM "${CDS_TRAIN_PID}" 2>/dev/null || true
+    CDS_WAITED=0
+    while [ "${CDS_WAITED}" -lt 90 ]; do
+      [ -s "${CDS_TMP_JSA}" ] && ! kill -0 "${CDS_TRAIN_PID}" 2>/dev/null && break
+      CDS_WAITED=$((CDS_WAITED + 1)); sleep 1
+    done
+    wait "${CDS_TRAIN_PID}" 2>/dev/null || true
+    if [ -s "${CDS_TMP_JSA}" ]; then
+      mv -f "${CDS_TMP_JSA}" "${STAGE_BOOT_EXPLODED}/.app-cds.jsa"
+      echo "cds preseed ready: $(du -h "${STAGE_BOOT_EXPLODED}/.app-cds.jsa" | cut -f1)"
+    else
+      rm -f "${CDS_TMP_JSA}"
+      echo "WARN: cds preseed 训练未产出 .jsa(payload 无预置,用户侧自训兜底)" >&2
+    fi
+  else
+    echo "WARN: cds preseed 跳过(stage java 或 base classes.jsa 缺失)" >&2
+  fi
+fi
 rm -rf \
   "${STAGE_ROOT}/runtime/mac/python/lib/python3.12/ensurepip" \
   "${STAGE_ROOT}/runtime/mac/python/include" \
@@ -308,7 +362,11 @@ lib_files = sorted(str((lib_root / f).relative_to(stage)) for f in os.listdir(li
 java_lib_files = [f for f in lib_files
                   if not pathlib.Path(f).name.startswith(OWN_JAR_PREFIXES)]
 bundle_all = rel_files(stage / 'runtime/mac/bundle')
-java_app_files = [f for f in bundle_all if f not in set(java_lib_files)]
+# .app-cds.jsa 豁免出部件清单(WS-3e):只随全量 tar 分发;增量更新后旧档失配由
+# JVM 忽略、首启自训再生——否则 42MB 预置档会把每版增量撑大 ~67%。
+java_app_files = [f for f in bundle_all
+                  if f not in set(java_lib_files)
+                  and not f.endswith('/.app-cds.jsa')]
 root_files = sorted(str(p.relative_to(stage)) for p in stage.iterdir() if p.is_file())
 java_app_files += root_files
 
@@ -374,6 +432,8 @@ for name, sub in covered:
         overlap.append((name, sorted(dup)[:5]))
     union |= sub
 missing = all_stage - union
+# 部件豁免文件(全量 tar 带、增量部件不带,语义见各自注释):
+missing = {f for f in missing if not f.endswith('/.app-cds.jsa')}
 extra = union - all_stage
 if overlap or missing or extra:
     raise SystemExit(f'component split drift: overlap={overlap[:2]} missing={sorted(missing)[:5]} extra={sorted(extra)[:5]}')

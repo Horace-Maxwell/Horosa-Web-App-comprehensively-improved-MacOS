@@ -19,10 +19,15 @@ import TechniqueErrorBoundary from '../components/common/TechniqueErrorBoundary'
 
 // 流畅度:可预取的 lazy —— 启动仍只载首包(快),首屏就绪后空闲时段后台预载全部技法 chunk,
 // 用户切任何技法时模块早已就绪(零等待)。preload 引用同一 factory,React.lazy 缓存同一 promise。
-const LAZY_PRELOAD_QUEUE = [];
-function lazyPreloadable(factory){
+const LAZY_PRELOAD_QUEUE = [];   // {factory, order}
+const NAV_PRELOAD_FACTORIES = new Map();   // navKey -> factory(悬停预取)
+// order: 1=hot(高频技法,先预载) 2=normal 3=heavy(3D/天文馆等重可视化,殿后)
+function lazyPreloadable(factory, opts = {}){
 	const C = React.lazy(factory);
-	LAZY_PRELOAD_QUEUE.push(factory);
+	LAZY_PRELOAD_QUEUE.push({ factory, order: opts.order || 2 });
+	if(opts.navKey){
+		NAV_PRELOAD_FACTORIES.set(opts.navKey, factory);
+	}
 	// 🔒 黑屏根因修复:外层 <React.Suspense>(本文件 ~541 行)仅罩住主工作区,而抽屉(小工具/辅助/
 	//   印度盘等,渲染于 1400+ 行)在其作用域之外 → lazy chunk 尚未空闲预载完就打开抽屉时,组件 suspend
 	//   却无 Suspense 兜底 → 抛 "A React component suspended while rendering, but no fallback UI was
@@ -43,7 +48,11 @@ let lazyPreloadStarted = false;
 function startIdlePreload(){
 	if(lazyPreloadStarted) return;
 	lazyPreloadStarted = true;
-	const queue = LAZY_PRELOAD_QUEUE.slice();
+	// 概率序:hot(高频技法)→normal→heavy(重可视化);同档保声明序。
+	// 此前按 import 声明序(3D/天文馆最先)与真实使用频率倒挂,高频技法反而最后就绪。
+	const queue = LAZY_PRELOAD_QUEUE.slice()
+		.sort((a, b) => a.order - b.order)
+		.map((e) => e.factory);
 	const next = ()=>{
 		const f = queue.shift();
 		if(!f) return;
@@ -55,23 +64,24 @@ function startIdlePreload(){
 			}
 		});
 	};
-	// 首帧后 2s 再开始,确保不影响启动与首屏交互。
+	// 首帧后 1s 再开始(原 2s;预载走 requestIdleCallback 空闲档,不与首屏交互抢主线程,
+	// 提前 1s = 高频技法更早就绪;首屏回归由 ladder 账本把关)。
 	setTimeout(()=>{
 		if(typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function'){
 			window.requestIdleCallback(next, { timeout: 3000 });
 		}else{
 			setTimeout(next, 300);
 		}
-	}, 2000);
+	}, 1000);
 }
 
 // 3D 星盘动态化(首包瘦身):babylon 系重组件不入主包;lazyPreloadable 自带 Suspense+错误边界,并进 idle 预取队列(用户点击时通常已就绪)。
-const AstroChartMain3D = lazyPreloadable(() => import('../components/astro3d/AstroChartMain3D'));
-const PlanetariumMain = lazyPreloadable(() => import('../components/planetarium/PlanetariumMain'));
-const AuxChartMain = lazyPreloadable(() => import('../components/auxchart/AuxChartMain'));
-const IndiaChartMain = lazyPreloadable(() => import('../components/astro/IndiaChartMain'));
+const AstroChartMain3D = lazyPreloadable(() => import('../components/astro3d/AstroChartMain3D'), { order: 3, navKey: 'astrochart3D' });
+const PlanetariumMain = lazyPreloadable(() => import('../components/planetarium/PlanetariumMain'), { order: 3, navKey: 'planetarium' });
+const AuxChartMain = lazyPreloadable(() => import('../components/auxchart/AuxChartMain'), { order: 1, navKey: 'auxchart' });
+const IndiaChartMain = lazyPreloadable(() => import('../components/astro/IndiaChartMain'), { order: 1, navKey: 'indiachart' });
 import AstroRelative from '../components/astro/AstroRelative';
-const AstroDirectMain = lazyPreloadable(() => import('../components/direction/AstroDirectMain'));
+const AstroDirectMain = lazyPreloadable(() => import('../components/direction/AstroDirectMain'), { order: 1, navKey: 'direction' });
 import AspSelector from '../components/astro/AspSelector';
 import AstroOrbSetting from '../components/astro/AstroOrbSetting';
 import PlanetSelector from '../components/astro/PlanetSelector';
@@ -79,30 +89,30 @@ import ChartDisplaySelector from '../components/astro/ChartDisplaySelector';
 import ChartsGps from '../components/user/ChartsGps';
 import ChartMemo from '../components/comp/ChartMemo';
 import FreezeInactive from '../components/comp/FreezeInactive';
-const JieQiChartsMain = lazyPreloadable(() => import('../components/jieqi/JieQiChartsMain'));
-const CnTraditionMain = lazyPreloadable(() => import('../components/cntradition/CnTraditionMain'));
-const CnYiBuMain = lazyPreloadable(() => import('../components/cnyibu/CnYiBuMain'));
-const XuanShiMain = lazyPreloadable(() => import('../components/xuanshi/XuanShiMain'));
-const AstrodataPage = lazyPreloadable(() => import('../components/astrodata/AstrodataPage'));
-const CalendarMain = lazyPreloadable(() => import('../components/calendar/CalendarMain'));
-const FengShuiMain = lazyPreloadable(() => import('../components/fengshui/FengShuiMain'));
-const SanShiUnitedMain = lazyPreloadable(() => import('../components/sanshi/SanShiUnitedMain'));
-const AIAnalysisMain = lazyPreloadable(() => import('../components/aianalysis/AIAnalysisMain'));
-const BookMain = lazyPreloadable(() => import('../components/reader/BookMain'));
-const MediaMain = lazyPreloadable(() => import('../components/multimedia/MediaMain'));
-const AdminToolsMain = lazyPreloadable(() => import('../components/admintools/AdminToolsMain'));
-const GuoLaoChartMain = lazyPreloadable(() => import('../components/guolao/GuoLaoChartMain'));
-const CommToolsMain = lazyPreloadable(() => import('../components/commtools/CommToolsMain'));
+const JieQiChartsMain = lazyPreloadable(() => import('../components/jieqi/JieQiChartsMain'), { order: 2, navKey: 'jieqichart' });
+const CnTraditionMain = lazyPreloadable(() => import('../components/cntradition/CnTraditionMain'), { order: 2, navKey: 'cntradition' });
+const CnYiBuMain = lazyPreloadable(() => import('../components/cnyibu/CnYiBuMain'), { order: 2, navKey: 'cnyibu' });
+const XuanShiMain = lazyPreloadable(() => import('../components/xuanshi/XuanShiMain'), { order: 3, navKey: 'xuanshi' });
+const AstrodataPage = lazyPreloadable(() => import('../components/astrodata/AstrodataPage'), { order: 3, navKey: 'astrodata' });
+const CalendarMain = lazyPreloadable(() => import('../components/calendar/CalendarMain'), { order: 2, navKey: 'calendar' });
+const FengShuiMain = lazyPreloadable(() => import('../components/fengshui/FengShuiMain'), { order: 2, navKey: 'fengshui' });
+const SanShiUnitedMain = lazyPreloadable(() => import('../components/sanshi/SanShiUnitedMain'), { order: 2, navKey: 'sanshiunited' });
+const AIAnalysisMain = lazyPreloadable(() => import('../components/aianalysis/AIAnalysisMain'), { order: 1, navKey: 'aianalysis' });
+const BookMain = lazyPreloadable(() => import('../components/reader/BookMain'), { order: 3 });
+const MediaMain = lazyPreloadable(() => import('../components/multimedia/MediaMain'), { order: 3 });
+const AdminToolsMain = lazyPreloadable(() => import('../components/admintools/AdminToolsMain'), { order: 3 });
+const GuoLaoChartMain = lazyPreloadable(() => import('../components/guolao/GuoLaoChartMain'), { order: 1, navKey: 'guolao' });
+const CommToolsMain = lazyPreloadable(() => import('../components/commtools/CommToolsMain'), { order: 2 });
 import DLFeature from '../components/deeplearn/DLFeature';
 import HomePageSetup from '../components/HomePageSetup';
 import BaZi from '../components/cntradition/BaZi';
-const ZiWeiMain = lazyPreloadable(() => import('../components/ziwei/ZiWeiMain'));
-const GuaZhanMain = lazyPreloadable(() => import('../components/guazhan/GuaZhanMain'));
-const LiuRengMain = lazyPreloadable(() => import('../components/lrzhan/LiuRengMain'));
-const DunJiaMain = lazyPreloadable(() => import('../components/dunjia/DunJiaMain'));
-const TaiYiMain = lazyPreloadable(() => import('../components/taiyi/TaiYiMain'));
-const ShuSuanMain = lazyPreloadable(() => import('../components/shusuan/ShuSuanMain'));
-const MingOtherMain = lazyPreloadable(() => import('../components/mingother/MingOtherMain'));
+const ZiWeiMain = lazyPreloadable(() => import('../components/ziwei/ZiWeiMain'), { order: 1, navKey: 'ziwei' });
+const GuaZhanMain = lazyPreloadable(() => import('../components/guazhan/GuaZhanMain'), { order: 1, navKey: 'guazhan' });
+const LiuRengMain = lazyPreloadable(() => import('../components/lrzhan/LiuRengMain'), { order: 1, navKey: 'liureng' });
+const DunJiaMain = lazyPreloadable(() => import('../components/dunjia/DunJiaMain'), { order: 1, navKey: 'dunjia' });
+const TaiYiMain = lazyPreloadable(() => import('../components/taiyi/TaiYiMain'), { order: 1, navKey: 'taiyi' });
+const ShuSuanMain = lazyPreloadable(() => import('../components/shusuan/ShuSuanMain'), { order: 2, navKey: 'shusuan' });
+const MingOtherMain = lazyPreloadable(() => import('../components/mingother/MingOtherMain'), { order: 2, navKey: 'mingother' });
 import * as AstroConst from '../constants/AstroConst';
 import {convertToArray} from '../utils/helper';
 import { APPEARANCE_DARK } from '../utils/appearance';
@@ -180,6 +190,28 @@ const navigationPages = [
     { label: '数据库', key: 'astrodata', icon: 'database', group: '工具', keywords: '数据库 名人 命例 名人星盘 星盘库 案例库 出生数据 Rodden AstroDatabank 名人库 celebrity 星盘目录' },
 ];
 
+// 悬停预取:鼠标掠过导航项即预载对应 lazy chunk(React.lazy 幂等,重复调用零成本;
+// 已预载/主包组件 = no-op)。「其他」在命/卜两组重名 → 两个 key 都取。
+const NAV_LABEL_TO_KEYS = {};
+for(const page of navigationPages){
+	if(!NAV_LABEL_TO_KEYS[page.label]){
+		NAV_LABEL_TO_KEYS[page.label] = [];
+	}
+	NAV_LABEL_TO_KEYS[page.label].push(page.key);
+}
+function preloadNavByLabel(label){
+	const keys = NAV_LABEL_TO_KEYS[label];
+	if(!keys){
+		return;
+	}
+	for(const key of keys){
+		const factory = NAV_PRELOAD_FACTORIES.get(key);
+		if(factory){
+			Promise.resolve().then(factory).catch(()=>{});
+		}
+	}
+}
+
 // 占星主面板「相关技法」快捷入口 —— 纯静态数据,hoist 到模块级(每次 render 复用同一引用),
 // 避免内联字面量每帧换引用击穿下游 sCU/memo(配合 B 层重组件 sCU 真生效)。
 const ASTROCHART_FEATURE_LINKS = [
@@ -224,6 +256,7 @@ function mainTab(label, group, options = {}){
             className={`horosa-main-tab-label${options.hidden ? ' horosa-main-tab-hidden' : ''}`}
             title={label}
             aria-label={label}
+            onMouseEnter={() => preloadNavByLabel(label)}
         >
             <span className="horosa-main-tab-icon">{icon}</span>
             <span className="horosa-main-tab-copy">
@@ -281,7 +314,13 @@ function computeRefreshSignature(fields, chartObj){
 
 function AstroIndex({dispatch, astro, app, user, rules, }){
     // 首屏就绪后空闲预载全部技法 chunk(不影响启动;切技法零等待)。
-    React.useEffect(()=>{ startIdlePreload(); }, []);
+    React.useEffect(()=>{
+        startIdlePreload();
+        // WS-3c 空闲预热队列:chunk 预载(上行,1s 起步)之后错峰启动(4s 起步),
+        // 动态 import 高频本地引擎模块(常量表/JIT 挪进空闲)——暖后任意技法首点亚秒;
+        // 用户任何交互即让路;kill-switch horosa.perf.idleWarmQueue。
+        import('../utils/idleWarmQueue').then((m)=>{ m.startIdleWarmQueue(); }).catch(()=>{});
+    }, []);
     // 每个 tab「上次刷新时的输入签名」(脏标记)。用 ref:可变、跨渲染留存、改它不触发重渲。
     const tabRefreshSigRef = React.useRef({});
     const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, chartStyle, indiaChartStyle, aspects, planetDisplay, lotsDisplay, resolvedAppearance, showPdBounds, showPlanetHouseInfo, showAstroMeaning, showOnlyRulExaltReception, schoolPreset, tripSystem, voidClassical} = app;

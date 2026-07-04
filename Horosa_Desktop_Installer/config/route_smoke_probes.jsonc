@@ -1,0 +1,72 @@
+// route_smoke_probes.jsonc — 打包产物全路由真实冒烟门的探针清单(单一真源,数据非代码)。
+// 规则:
+//   - Python 侧每个挂载点(webchartsrv 直挂 + kentang registry)至少一条真实计算探针;
+//   - 新增挂载而不加探针 → check_route_probe_drift.py 直接 FAIL(发布拦截);
+//   - 断言三层:HTTP<500 且 JSON 可解析 → 业务码(result_code0 / no_err) → 真实计算特征(expect);
+//   - payload_ref 指向 payloads 库;字段可按探针以 payload_extra 覆盖/追加;
+//   - 加载器忽略以 // 开头的行(JSONC-lite),以便私有条目用剥离标记包裹。
+{
+  "version": 1,
+  "payloads": {
+    "kentang": {
+      "year": 2026, "month": 5, "day": 24, "hour": 9, "minute": 30,
+      "date": "2026/05/24", "time": "09:30:00", "zone": "+08:00", "timezone": 8,
+      "lat": "31n14", "lon": "121e28", "gpsLat": 31.2304, "gpsLon": 121.4737,
+      "pos": "上海", "location": "上海", "locationName": "上海",
+      "gender": "male", "sex": "男", "question": "测试", "seed": 123456,
+      "style": 3, "tn": 0, "method": "auto"
+    },
+    "chart": {
+      "date": "2026/05/24", "time": "09:30:00", "zone": "+08:00",
+      "lat": "31n14", "lon": "121e28", "gpsLat": 31.2304, "gpsLon": 121.4737,
+      "pos": "上海", "hsys": 1, "tradition": false, "predictive": true,
+      "zodiacal": 0, "simpleAsp": false, "strongRecption": false,
+      "virtualPointReceiveAsp": false, "southchart": false, "ad": 1,
+      "pdtype": 0, "pdMethod": "core_alchabitius", "pdTimeKey": "Ptolemy",
+      "pdaspects": [0, 60, 90, 120, 180], "doubingSu28": 2
+    }
+  },
+  "python": [
+    // ── kentang registry(/pan 协议,ResultCode==0 且 Result 非空)────────────
+    { "id": "taiyi",      "mount": "/taiyi",      "path": "/taiyi/pan",      "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "jinkou",     "mount": "/jinkou",     "path": "/jinkou/pan",     "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "qimen",      "mount": "/qimen",      "path": "/qimen/pan",      "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "wangji",     "mount": "/wangji",     "path": "/wangji/pan",     "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "wuzhao",     "mount": "/wuzhao",     "path": "/wuzhao/pan",     "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "taixuan",    "mount": "/taixuan",    "path": "/taixuan/pan",    "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "jingjue",    "mount": "/jingjue",    "path": "/jingjue/pan",    "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "shenyishu",  "mount": "/shenyishu",  "path": "/shenyishu/pan",  "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "shaozi",     "mount": "/shaozi",     "path": "/shaozi/pan",     "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "tieban",     "mount": "/tieban",     "path": "/tieban/pan",     "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "fendjing",   "mount": "/fendjing",   "path": "/fendjing/pan",   "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "beiji",      "mount": "/beiji",      "path": "/beiji/pan",      "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "nanji",      "mount": "/nanji",      "path": "/nanji/pan",      "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "chunzi",     "mount": "/chunzi",     "path": "/chunzi/pan",     "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "xianqin",    "mount": "/xianqin",    "path": "/xianqin/pan",    "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "qizhengkin", "mount": "/qizhengkin", "path": "/qizhengkin/pan", "payload_ref": "kentang", "assert": { "result_code0": true } },
+    // geomancy/xuanshi 属 registry 但非 /pan 协议(v3.2.x 前无人冒烟的历史盲区,本清单封死)
+    { "id": "geomancy",   "mount": "/geomancy",   "path": "/geomancy/reading", "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "xuanshi",    "mount": "/xuanshi",    "path": "/xuanshi/summary",  "payload_ref": null, "method": "GET", "assert": { "no_err": true, "nonempty": true } },
+    // ── webchartsrv 直挂 ────────────────────────────────────────────────────
+    { "id": "chart",       "mount": "/",            "path": "/",                  "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
+    { "id": "chart13",     "mount": "/",            "path": "/chart13",           "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
+    { "id": "predict",     "mount": "/predict",     "path": "/predict/solarreturn", "payload_ref": "chart", "payload_extra": { "year": 2026 }, "assert": { "no_err": true, "nonempty": true } },
+    { "id": "india",       "mount": "/india",       "path": "/india/chart",       "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
+    { "id": "modern",      "mount": "/modern",      "path": "/modern/relative",   "payload_ref": "chart", "payload_extra": { "inner": { "date": "2026/05/24", "time": "09:30:00", "zone": "+08:00", "lat": "31n14", "lon": "121e28" }, "outer": { "date": "1994/01/17", "time": "23:15:00", "zone": "-08:00", "lat": "34n03", "lon": "118w15" } }, "assert": { "no_err": true, "nonempty": true } },
+    { "id": "germany",     "mount": "/germany",     "path": "/germany/midpoint",  "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["midpoints"] } },
+    { "id": "jieqi",       "mount": "/jieqi",       "path": "/jieqi/year",        "payload_ref": "chart", "payload_extra": { "year": 2026 }, "assert": { "no_err": true, "nonempty": true } },
+    { "id": "jdn",         "mount": "/jdn",         "path": "/jdn/num",           "payload_ref": "chart", "assert": { "no_err": true, "numeric_keys": ["jdn"] } },
+    { "id": "calc",        "mount": "/calc",        "path": "/calc/azimuth",      "payload_ref": null, "payload_extra": { "jdn": 2461600.5, "lat": 31.2304, "lon": 121.4737, "height": 0, "temp": 20, "press": 1013.25, "coordType": 0, "coordLon": 120.0, "coordLat": 10.0 }, "assert": { "no_err": true, "numeric_keys": ["azimuth"] } },
+    { "id": "location",    "mount": "/location",    "path": "/location/acg",      "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["planets"] } },
+    { "id": "cetian",      "mount": "/cetian",      "path": "/cetian/pan",        "payload_ref": "kentang", "assert": { "result_code0": true } },
+    { "id": "astroextra",  "mount": "/astroextra",  "path": "/astroextra/analysis", "payload_ref": "chart", "payload_extra": { "fixedStarOrb": 1 }, "assert": { "no_err": true, "nonempty": true } },
+    { "id": "planetarium", "mount": "/planetarium", "path": "/planetarium/state", "payload_ref": "chart", "payload_extra": { "starLimit": 50 }, "assert": { "no_err": true, "expect_keys": ["bodies"] } },
+    // chart 四变体(时区/纪元边界,平移自既有 kentang 冒烟)
+    { "id": "chart-past",   "mount": "/", "path": "/", "payload_ref": "chart", "payload_extra": { "date": "2023/05/24", "time": "08:41:55", "lat": "26n04", "lon": "119e19", "gpsLat": 26.0666, "gpsLon": 119.3166 }, "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
+    { "id": "chart-future", "mount": "/", "path": "/", "payload_ref": "chart", "payload_extra": { "date": "2027/05/24", "time": "20:41:55", "lat": "26n04", "lon": "119e19", "gpsLat": 26.0666, "gpsLon": 119.3166 }, "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
+    { "id": "chart-west",   "mount": "/", "path": "/", "payload_ref": "chart", "payload_extra": { "date": "1994/01/17", "time": "23:15:00", "zone": "-08:00", "lat": "34n03", "lon": "118w15", "gpsLat": 34.05, "gpsLon": -118.25 }, "assert": { "no_err": true, "expect_keys": ["chart", "params"] } }
+  ],
+  // Java :9999 表面由既有 astrostudyui/scripts/verifyHorosaRuntimeFull.js 全量覆盖
+  // (24 条真实请求,node 于构建机执行);此处登记其存在供漂移器与编排壳引用。
+  "java_runner": "Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js"
+}

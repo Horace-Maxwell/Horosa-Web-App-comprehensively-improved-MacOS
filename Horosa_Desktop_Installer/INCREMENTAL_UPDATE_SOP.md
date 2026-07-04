@@ -73,13 +73,28 @@
 
 manifest 的 `platforms` 按 key 隔离(`darwin-aarch64` 等)。其他平台接入=平台侧打包脚本按同一边界表切部件、产同构 lock、manifest 平台条目加 `components`;客户端逻辑同构移植(diff/下载/应用/回退)。部件边界表(§2)是跨平台共同真值源。
 
-## 7. 护栏清单
+## 7. 八不变量 I1-I8(制度核心:谁强制/违反看什么/如何放行)
+
+任何人改增量链(打包边界/manifest/发布/客户端),以下八条不变量由**可执行护栏自动强制**——
+不懂机制也会被门拦下并被迫说明。改边界前先读 §4;门红了先看「违反时看什么」,别绕门。
+
+| # | 不变量 | 谁强制(可执行) | 违反时看什么 | 如何放行 |
+|---|---|---|---|---|
+| I1 | 部件合成树 ≡ 全量树(逐条目内容/symlink) | `verify_component_release.sh`;打包内建零遗漏零重叠校验(`component split drift`) | 校验输出的差异条目;打包日志 | 不可放行:修边界数组直到零差异 |
+| I2 | 部件边界三处 lockstep(打包数组/本文 §2/preflight[74] 锚) | preflight[74] 名单锚 | `[74]` 红名单缺哪个部件 | 三处同步改齐,无旁路 |
+| I3 | manifest ↔ lock ↔ 实物 逐名 sha 三方一致 | preflight[74](lock↔实物)+ [86](manifest↔lock) | 红字里的部件名与两侧 sha | 不可放行:重跑打包(漂移=产物不同源) |
+| I4 | 差分效率下限:待上传部件总量 ≤ HOROSA_DELTA_BUDGET_MB(默认 200)且稳定部件(py-runtime/jdk-runtime/ephe-data/xuanshi-data/java-lib)不得变 | `publish_github_release.sh` 差分门(PYDELTAGATE,拦在上传前) | 门打印的逐部件体积/VERDICT(OVER_BUDGET / STABLE_CHANGED) | 确属预期(JDK/星历升级):`HOROSA_ALLOW_LARGE_DELTA=1` 重跑;否则=打包/边界被无意改动,修根因 |
+| I5 | 全量回退路径必存:manifest v2 必含 v1 全字段(appUrl/appSha256/runtimeUrl/runtimeSha256/runtimeVersion) | preflight[86] | 红字缺哪个字段 | 不可放行:v1 字段是老壳与降级路径的生命线 |
+| I6 | components-lock.json 随全量 tar(客户端增量基准) | preflight[74](`lock 同步进 stage 根` 锚) | 打包脚本对应段 | 不可放行 |
+| I7 | 尺寸字段完备且与实物一致(appSizeBytes/runtimeSizeBytes/components[].size) | preflight[86](dist 实物 stat 逐项核) | 红字里的字段/声明值/实测值 | 不可放行:重跑打包(尺寸是「要下多大」显示真值) |
+| I8 | kill-switch 矩阵在位:HOROSA_UPDATE_FULL_ONLY / DOWNLOAD_NO_RESUME / EXTRACT_NATIVE / MENU_UPDATE_LEGACY | preflight[86] 静态锚 | 红字缺哪个开关 | 不可放行:每层新机制必须带独立退路 |
+
+辅助护栏(不变量之下的具体防线):
 
 | 护栏 | 拦什么 |
 |---|---|
-| 打包内建零遗漏零重叠校验 | 切分边界漂移漏文件/重复覆盖(打包即失败) |
-| preflight [74] | 机制五件套锚缺失;lock 与部件实物 sha 漂移;部件名单变更未过三处 lockstep |
-| `verify_component_release.sh` | 部件合成树 ≠ 全量树(逐条目内容 sha+symlink);发布资产 sha/结构损坏 |
 | `cargo test component_` | tree/preserve/files 应用语义回归;失败原子性;diff 门控矩阵 |
+| `cargo test download_resume` / `native_extract` | 断点续传协议回归;native 解压 parity/路径逃逸 |
 | build 脚本 lock 漂移闸 | 旧部件残留混入新版本 manifest(runtimeVersion/appName 不符即失败) |
 | publish digest 幂等 | 同名异 sha 资产残留(删旧重传,防客户端校验失败) |
+| 启动健康看门狗(preflight[85]) | 更新到起不来的版本:连续 2 次未 ready 自动回滚 previous 槽 |

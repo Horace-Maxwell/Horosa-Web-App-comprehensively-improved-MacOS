@@ -1,0 +1,94 @@
+// 更新可视化 v2:事件 reducer 与格式化器哨兵。
+// 兼容矩阵纪律:壳与前端可能不同版(runtime-only 更新不换壳),v2 字段全部 optional——
+// 「旧壳零字段」与「新壳全字段」两个极端都必须正确退化/呈现。
+jest.mock('../../../utils/aiAnalysisDesktop', ()=>({
+	isDesktopBridgeAvailable: ()=>false,
+	updateCheckSilent: jest.fn(),
+	updateStartBackground: jest.fn(),
+	updateInstallAndRestart: jest.fn(),
+}));
+jest.mock('../UpdateNotifier.less', ()=>({}), { virtual: true });
+
+import { reduceUpdateEvent, fmtMB, fmtSpeed, fmtEta, modeBadgeText } from '../UpdateNotifier';
+
+const BASE = { pct: 0, message: '', mode: '', reusePct: null, latestVersion: '' };
+
+describe('reduceUpdateEvent 兼容矩阵', ()=>{
+	test('新壳全字段:available 带模式/预计体积/复用率', ()=>{
+		const patch = reduceUpdateEvent(BASE, {
+			phase: 'available', latestVersion: '3.3.0', currentVersion: '3.2.1',
+			notes: 'n', releaseUrl: 'u', mode: 'incremental', downloadBytes: 66060288, reusePct: 90,
+		});
+		expect(patch.phase).toBe('available');
+		expect(patch.mode).toBe('incremental');
+		expect(patch.estimateBytes).toBe(66060288);
+		expect(patch.reusePct).toBe(90);
+	});
+
+	test('旧壳零字段:available 不炸且 v2 态为空(渲染退回老样式)', ()=>{
+		const patch = reduceUpdateEvent(BASE, {
+			phase: 'available', latestVersion: '3.3.0', currentVersion: '3.2.1',
+		});
+		expect(patch.phase).toBe('available');
+		expect(patch.mode).toBe('');
+		expect(patch.estimateBytes).toBeNull();
+		expect(patch.reusePct).toBeNull();
+	});
+
+	test('downloading 合并字节账本字段,缺字段不覆盖既有值', ()=>{
+		const full = reduceUpdateEvent(BASE, {
+			phase: 'downloading', pct: 42, message: 'm',
+			mode: 'incremental', totalBytes: 649 * 1048576, downloadedBytes: 214 * 1048576,
+			speedBps: 6.4 * 1048576, etaSecs: 70, component: 'web-app', componentIndex: 2, componentTotal: 3,
+		});
+		expect(full.downloadedBytes).toBe(214 * 1048576);
+		expect(full.component).toBe('web-app');
+		const sparse = reduceUpdateEvent({ ...BASE, pct: 42 }, { phase: 'downloading' });
+		expect(sparse.pct).toBe(42);
+		expect(sparse).not.toHaveProperty('downloadedBytes');
+	});
+
+	test('planning 锁定模式与总量;downloading 带 mode=full 可覆盖(增量降级全量)', ()=>{
+		const plan = reduceUpdateEvent(BASE, { phase: 'planning', pct: 8, mode: 'incremental', totalBytes: 100, reusePct: 88 });
+		expect(plan.mode).toBe('incremental');
+		expect(plan.totalBytes).toBe(100);
+		const degraded = reduceUpdateEvent({ ...BASE, mode: 'incremental' }, { phase: 'downloading', pct: 10, mode: 'full' });
+		expect(degraded.mode).toBe('full');
+	});
+
+	test('ready 带实际下载量与模式;uptodate 出 toast;error 兜底文案', ()=>{
+		const ready = reduceUpdateEvent({ ...BASE, mode: 'incremental' }, { phase: 'ready', version: '3.3.0', downloadedBytes: 123, mode: 'incremental' });
+		expect(ready.readyBytes).toBe(123);
+		expect(ready.pct).toBe(100);
+		expect(reduceUpdateEvent(BASE, { phase: 'uptodate' }).toast).toBe('已是最新版本');
+		expect(reduceUpdateEvent(BASE, { phase: 'error' }).message).toBe('更新失败');
+		expect(reduceUpdateEvent(BASE, null)).toBeNull();
+	});
+
+	test('applying 安装阶段:带消息/缺消息兜底;未知 phase 返回 null', ()=>{
+		const applying = reduceUpdateEvent(BASE, { phase: 'applying', message: '部件 2/7·web-app:解压 43% · 1024 个文件' });
+		expect(applying.phase).toBe('applying');
+		expect(applying.minimized).toBe(false);
+		expect(applying.message).toContain('web-app');
+		expect(reduceUpdateEvent(BASE, { phase: 'applying' }).message).toBe('正在安装更新…');
+		expect(reduceUpdateEvent(BASE, { phase: 'phase-from-a-newer-shell' })).toBeNull();
+	});
+});
+
+describe('格式化器', ()=>{
+	test('fmtMB/fmtSpeed/fmtEta 数值与空值', ()=>{
+		expect(fmtMB(649 * 1048576)).toBe('649');
+		expect(fmtMB(63.4 * 1048576)).toBe('63.4');
+		expect(fmtMB(null)).toBe('');
+		expect(fmtSpeed(6.1 * 1048576)).toBe('6.1 MB/s');
+		expect(fmtSpeed(0)).toBe('');
+		expect(fmtEta(70)).toBe('约剩 1 分 10 秒');
+		expect(fmtEta(42)).toBe('约剩 42 秒');
+		expect(fmtEta(null)).toBe('');
+	});
+	test('模式徽标', ()=>{
+		expect(modeBadgeText('incremental')).toBe('增量');
+		expect(modeBadgeText('full')).toBe('完整');
+		expect(modeBadgeText('')).toBe('');
+	});
+});

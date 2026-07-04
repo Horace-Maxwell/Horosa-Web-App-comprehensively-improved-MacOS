@@ -1,4 +1,7 @@
 
+import time as _ledger_time
+_PY_T0 = _ledger_time.perf_counter()  # 启动账本基准:必须在一切重导入之前
+
 import os
 import sys
 import traceback
@@ -8,6 +11,11 @@ import socket
 import signal
 import subprocess
 import threading
+
+from websrv.startup_ledger import ledger_mark  # 零依赖,不入重导入墙
+
+ledger_mark('py.interp_start', t0=_PY_T0)
+
 import cherrypy
 
 try:
@@ -50,6 +58,12 @@ from websrv.webplanetariumsrv import PlanetariumSrv
 # 策天飞星:已按《十八飞星策天紫微斗数》全面重写为自有引擎,从 kentang 摘出,直接挂载(不再走 kentang registry)。
 from websrv.webcetiansrv import CeTianSrv
 from websrv.kentang.registry import mount_kentang_services
+
+ledger_mark('py.imports_done', t0=_PY_T0)
+
+# 请求级三段计时(HOROSA_PY_CHART_TIMING)并入启动账本:
+# 开=对 /chart 记 init/build/encode 三段写账本;默认关=输出与响应逐字节不变。
+_PY_CHART_TIMING = os.environ.get('HOROSA_PY_CHART_TIMING', '0').lower() in ('1', 'true', 'yes', 'on')
 
 
 
@@ -118,7 +132,9 @@ class WebChartSrv:
 
             _terms_orig = push_request_terms(data.get('termsVariant', 0), data.get('leoBoundFirst'))
             _trip_orig = push_request_trip(data.get('triplicity'))
+            _pt0 = time.perf_counter() if _PY_CHART_TIMING else 0.0
             perchart = PerChart(data)
+            _pt1 = time.perf_counter() if _PY_CHART_TIMING else 0.0
             guostar = GuoStarSect(perchart)
             guolao_sunrise_time = None
             if data.get('guolaoLifeMode') == 'yumao':
@@ -178,7 +194,16 @@ class WebChartSrv:
             if predictives is not None:
                 obj['predictives'] = predictives
 
+            _pt2 = time.perf_counter() if _PY_CHART_TIMING else 0.0
             res = jsonpickle.encode(obj, unpicklable=False)
+            if _PY_CHART_TIMING:
+                # 三段:init(PerChart 构造)/build(取数组装)/encode(序列化)——补齐 python= 段构成黑盒
+                _pt3 = time.perf_counter()
+                ledger_mark('py.chart_req', extra={
+                    'init_ms': round((_pt1 - _pt0) * 1000.0, 1),
+                    'build_ms': round((_pt2 - _pt1) * 1000.0, 1),
+                    'encode_ms': round((_pt3 - _pt2) * 1000.0, 1),
+                })
             return res
         except:
             traceback.print_exc()
@@ -478,13 +503,32 @@ def _startup_gate_tool():
     STARTUP_GATE.wait(timeout=60)
 
 
+def _warm_real_astropy():
+    # xuanshi_astropy_warmup:提前把真 astropy(PyPI 天文库,kintaiyi 太乙引擎依赖)装入
+    # sys.modules——启动门(STARTUP_GATE)保证业务 POST 必在 warmup 之后,故「真 astropy
+    # 先于任何桩交互场景装入」被钉死,kentang 挂载顺序从此不再承重(v3.2.0 太乙静默 404
+    # 事故的顺序免疫层;根因层见 kinastro_common 桩 dunder 守卫)。瘦身包未随 astropy
+    # 时 ImportError 静默跳过(功能由各服务自身兜底),其它异常打印不吞。
+    try:
+        import astropy.units   # noqa: F401
+        import astropy.coordinates   # noqa: F401
+        import astropy.time   # noqa: F401
+    except ImportError:
+        pass
+    except Exception:
+        traceback.print_exc()
+
+
 def _run_warmups():
+    _warm_real_astropy()
     try:
         t0 = time.perf_counter()
         warm_chart = PerChart(dict(WebChartSrv.PD_WARMUP_SAMPLE))
         warm_chart.getPredict().getPrimaryDirection()
         WebChartSrv.WARMED = True
-        print('pd warmup ready in {0:.3f}s'.format(time.perf_counter() - t0), flush=True)
+        _pd_ms = (time.perf_counter() - t0) * 1000.0
+        print('pd warmup ready in {0:.3f}s'.format(_pd_ms / 1000.0), flush=True)
+        ledger_mark('py.warmup_pd', t0=_PY_T0, ms=_pd_ms)
     except Exception:
         traceback.print_exc()
     # 印度盘预热:把 india 各子算法冷路径载入,消除首次进入印度占星的 ~3s 冷启动;
@@ -492,7 +536,22 @@ def _run_warmups():
     try:
         t1 = time.perf_counter()
         warmup_india()
-        print('india warmup ready in {0:.3f}s'.format(time.perf_counter() - t1), flush=True)
+        _in_ms = (time.perf_counter() - t1) * 1000.0
+        print('india warmup ready in {0:.3f}s'.format(_in_ms / 1000.0), flush=True)
+        ledger_mark('py.warmup_india', t0=_PY_T0, ms=_in_ms)
+    except Exception:
+        traceback.print_exc()
+    # kentang 懒挂载空闲预热(WS-3d):挂载阶段零导入(mounts 段 -1.2~1.9s),
+    # 监听后在本 warmup 线程逐个补装真服务——用户首点通常已就绪;
+    # 预热失败只打日志,首个真实请求会以 KentangServiceLoadError 响亮 500(同一加载路径)。
+    try:
+        from websrv.kentang.registry import prewarm_kentang_services
+        t2 = time.perf_counter()
+        _loaded, _failed = prewarm_kentang_services()
+        _kt_ms = (time.perf_counter() - t2) * 1000.0
+        print('kentang prewarm ready in {0:.3f}s (loaded={1}, failed={2})'.format(
+            _kt_ms / 1000.0, _loaded, _failed), flush=True)
+        ledger_mark('py.warmup_kentang', t0=_PY_T0, ms=_kt_ms)
     except Exception:
         traceback.print_exc()
     STARTUP_GATE.set()
@@ -527,6 +586,7 @@ if __name__ == '__main__':
     cherrypy.tree.mount(AstroExtraSrv(), '/astroextra')
     cherrypy.tree.mount(PlanetariumSrv(), '/planetarium')
     mount_kentang_services(cherrypy)
+    ledger_mark('py.mounts_done', t0=_PY_T0)
 
     # 绑定前先确保端口可用(回收上次崩溃残留的僵尸 chart python),消除「Port 8899 not free」反复起不来。
     ensure_chart_port_free('127.0.0.1', chart_port)
@@ -539,4 +599,5 @@ if __name__ == '__main__':
     cherrypy.engine.start()
     # P0 启动握手:监听后向 stdout 报端口,壳/launcher 可确认「此端口确为本次起的 chart 后端」(消 TOCTOU/误判)。
     print('HOROSA_READY chart_port={0}'.format(chart_port), flush=True)
+    ledger_mark('py.listening', t0=_PY_T0, extra={'port': chart_port})
     cherrypy.engine.block()

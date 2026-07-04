@@ -530,6 +530,65 @@ open(manifest_path, 'w', encoding='utf-8').write(json.dumps(manifest, ensure_asc
 print('\n'.join(sorted(upload)))
 PYCOMPREUSE
 )"
+
+  # [WS-1e·I4] 差分效率下限门:增量制度的自动护栏——无论谁怎么改打包/部件边界,
+  # 待上传部件总体积超预算(HOROSA_DELTA_BUDGET_MB,默认 200)或「稳定部件」
+  # (py-runtime/jdk-runtime/ephe-data/xuanshi-data/java-lib)意外进上传名单,
+  # 发布在此拦下并打印逐部件成因;确属预期(如 JDK/星历升级)用 HOROSA_ALLOW_LARGE_DELTA=1 放行。
+  DELTA_GATE_OUT="$(COMP_DIST_ENV="${COMP_DIST}" UPLOAD_LIST_ENV="${COMP_UPLOAD_LIST}" PREV_JSON="${PREV_MANIFEST_JSON}" BUDGET_MB="${HOROSA_DELTA_BUDGET_MB:-200}" python3 - <<'PYDELTAGATE'
+import json, os, pathlib
+prev = {}
+try:
+    prev = json.loads(os.environ.get('PREV_JSON') or '{}')
+except Exception:
+    prev = {}
+has_prev_comps = any(e.get('components') for e in (prev.get('platforms') or {}).values())
+if not has_prev_comps:
+    print('VERDICT=SKIP_NO_BASELINE')
+    raise SystemExit(0)
+comp_dist = pathlib.Path(os.environ['COMP_DIST_ENV'])
+uploads = [l.strip() for l in os.environ['UPLOAD_LIST_ENV'].splitlines() if l.strip()]
+budget_mb = int(os.environ['BUDGET_MB'])
+stable = {'py-runtime', 'jdk-runtime', 'ephe-data', 'xuanshi-data', 'java-lib'}
+lock = json.loads((comp_dist / 'components-lock.json').read_text())
+by_file = {c['file']: c['name'] for c in lock['components']}
+total = 0
+stable_hit = []
+for fname in uploads:
+    if fname == 'components-lock.json':
+        continue
+    f = comp_dist / fname
+    size = f.stat().st_size if f.is_file() else 0
+    total += size
+    cname = by_file.get(fname, fname)
+    print(f"  - {cname}({fname}): {size/1048576:.1f} MB")
+    if cname in stable:
+        stable_hit.append(cname)
+print(f"delta-upload total: {total/1048576:.1f} MB / budget {budget_mb} MB")
+verdict = []
+if total > budget_mb * 1048576:
+    verdict.append(f"OVER_BUDGET:{total/1048576:.0f}MB>{budget_mb}MB")
+if stable_hit:
+    verdict.append('STABLE_CHANGED:' + ','.join(sorted(set(stable_hit))))
+print('VERDICT=' + (';'.join(verdict) if verdict else 'OK'))
+PYDELTAGATE
+)"
+  echo "${DELTA_GATE_OUT}"
+  DELTA_VERDICT="$(printf '%s\n' "${DELTA_GATE_OUT}" | sed -n 's/^VERDICT=//p')"
+  case "${DELTA_VERDICT}" in
+    OK) : ;;
+    SKIP_NO_BASELINE) echo "差分效率门(I4): 线上无 v2 部件基线(首发/拉取失败→全量上传属预期),放行" ;;
+    *)
+      if [ "${HOROSA_ALLOW_LARGE_DELTA:-0}" = "1" ]; then
+        echo "差分效率门(I4): ${DELTA_VERDICT} —— 已按 HOROSA_ALLOW_LARGE_DELTA=1 显式放行" >&2
+      else
+        echo "差分效率门(I4)拦截: ${DELTA_VERDICT}" >&2
+        echo "  · 稳定部件变更或增量总量超 ${HOROSA_DELTA_BUDGET_MB:-200}MB,通常意味着打包/部件边界被无意改动(用户将多下数百 MB)。" >&2
+        echo "  · 逐部件成因见上;确属预期(如 JDK/星历升级),用 HOROSA_ALLOW_LARGE_DELTA=1 重跑放行。" >&2
+        exit 1
+      fi
+      ;;
+  esac
 fi
 
 delete_named_assets "${APP_RELEASE_ID}" "Horosa-Desktop-macos-arm64.dmg" "${DESKTOP_PKG_ZIP}" "${DESKTOP_PKG}" "${DESKTOP_OFFLINE_PKG_ZIP}" "${DESKTOP_OFFLINE_PKG}" "${DESKTOP_ASSET}" "${UPDATE_MANIFEST_NAME}" "${RUNTIME_ASSET}"

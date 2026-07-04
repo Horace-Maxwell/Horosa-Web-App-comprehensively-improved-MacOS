@@ -29,9 +29,14 @@ FORBIDDEN_RUNTIME_MODULES = [
 
 # kentang adapter(vendor 顶层 import streamlit,由 kinastro_common 的 sys.modules
 # 桩兜住)——动态阻断下这些模块必须依然可 import(等价于打包脚本的 kentang gate)。
+# 全量 8 个 kinastro adapter(历史只列 5,shaozi/tieban/nanji 曾是覆盖盲区)+
+# webtaiyisrv(kintaiyi→真 astropy 消费者:钉死「astropy × streamlit 桩」交互路径,
+# v3.2.0 太乙静默 404 的事故面,此前零覆盖)。
 KENTANG_ADAPTERS = [
     'websrv.webfendjingsrv', 'websrv.webbeijisrv', 'websrv.webchunzisrv',
     'websrv.webxianqinsrv', 'websrv.webqizhengkinsrv',
+    'websrv.webshaozisrv', 'websrv.webtiebansrv', 'websrv.webnanjisrv',
+    'websrv.webtaiyisrv',
 ]
 
 
@@ -80,14 +85,26 @@ sys.path.insert(0, %r)
 FORBIDDEN = %r
 
 class _Blocker:
-    # Python3.12 import 系统只走 find_spec(PEP 451);此处直接 raise 模拟「包不存在」。
+    # Python3.12 import 系统只走 find_spec(PEP 451);此处 raise ModuleNotFoundError
+    # 模拟「包不存在」的导入面语义。
     def find_spec(self, name, path=None, target=None):
         top = name.split('.')[0]
         if top in FORBIDDEN:
-            raise ImportError('blocked-by-slim-sentinel: %%s' %% name)
+            raise ModuleNotFoundError('blocked-by-slim-sentinel: %%s' %% name)
         return None
 
 sys.meta_path.insert(0, _Blocker())
+
+# 探测面语义:真实缺包时 importlib.util.find_spec 返回 None(astropy 的
+# optional_deps 正是靠它判 HAS_PYARROW)。meta_path 的 raise 会误伤这类探测,
+# 故对 util.find_spec 打补丁按「不存在」返 None——双钩子合起来才是精确的缺包模拟。
+import importlib.util as _ilu
+_orig_find_spec = _ilu.find_spec
+def _slim_find_spec(name, package=None):
+    if name.split('.')[0] in FORBIDDEN:
+        return None
+    return _orig_find_spec(name, package)
+_ilu.find_spec = _slim_find_spec
 import websrv.webchartsrv  # noqa: F401  全服务 import 链
 for adapter in %r:
     __import__(adapter)  # kentang adapter:streamlit 桩兜底下必须可 import

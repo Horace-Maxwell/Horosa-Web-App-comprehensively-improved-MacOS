@@ -1,6 +1,6 @@
 [package]
 name = "horosa-desktop-installer"
-version = "3.2.1"
+version = "3.2.2"
 description = "Horosa macOS desktop shell"
 authors = ["Horosa"]
 edition = "2021"
@@ -32,3 +32,8 @@ panic = "abort"
 codegen-units = 1
 lto = true
 strip = true
+
+[features]
+# 本地假 release 全链路验证(verify_update_experience_local.sh):
+# 仅开发构建启用,发布二进制不带 → 「出站仅 GitHub」铁律不破。
+update-url-override = []

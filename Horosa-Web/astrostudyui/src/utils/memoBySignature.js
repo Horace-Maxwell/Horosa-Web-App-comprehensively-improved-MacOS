@@ -11,9 +11,10 @@ export function memoEnabled(){
 	return true;
 }
 
-// 创建带签名的 LRU 记忆器。slots 默认 4(覆盖「A→B→A 往返切换」而不留大对象)。
+// 创建带签名的 LRU 记忆器。slots 默认 8(WS-3b 4→8:覆盖「多设置来回拨」——
+// 流派×开关组合常超 4 个;条目是本地引擎结果对象,8 槽内存增量可忽略)。
 export function createSignatureMemo(slots){
-	const cap = Math.max(1, slots || 4);
+	const cap = Math.max(1, slots || 8);
 	const map = new Map(); // Map 迭代序=插入序,充当 LRU
 	return {
 		get(key){

@@ -179,9 +179,36 @@ if [ "${start_rc}" -ne 0 ]; then
 fi
 log "OK：后端已启动，健康检查通过（chart / 与 backend /common/time 均可响应）。"
 
-# ---- 4. 可选：kentang 引擎端点冒烟 ------------------------------------------
+# ---- 4. 端点冒烟 -------------------------------------------------------------
+# 全路由冒烟门:HOROSA_PROBE_SCRIPT 指定 → 用全路由探针器(Python 面 31 挂载真实计算断言)
+# 替代旧 kentang 17 探针;HOROSA_JAVA_RUNNER 指定且构建机有 node → 再跑 Java :9999 面
+# 24 条真实请求(verifyHorosaRuntimeFull.js)。默认(两 env 均未设)= 旧行为原样。
 if [ "${SKIP_ENDPOINTS}" = "1" ]; then
-  log "按要求跳过 kentang 引擎端点冒烟。"
+  log "按要求跳过引擎端点冒烟。"
+elif [ -n "${HOROSA_PROBE_SCRIPT:-}" ] && [ -f "${HOROSA_PROBE_SCRIPT}" ]; then
+  log "运行全路由冒烟探针（Python 面）…"
+  probe_args=(--root "http://127.0.0.1:${CHART_PORT}")
+  if [ -n "${HOROSA_PROBE_OUT:-}" ]; then
+    probe_args+=(--out "${HOROSA_PROBE_OUT}")
+  fi
+  if ! "${PY_BIN}" "${HOROSA_PROBE_SCRIPT}" "${probe_args[@]}"; then
+    fail "全路由冒烟失败（详见上方逐项输出）。"
+    exit 2
+  fi
+  log "OK：Python 面全路由冒烟通过。"
+  if [ -n "${HOROSA_JAVA_RUNNER:-}" ] && [ -f "${HOROSA_JAVA_RUNNER}" ]; then
+    if command -v node >/dev/null 2>&1; then
+      log "运行 Java 面全路由冒烟（verifyHorosaRuntimeFull）…"
+      if ! HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${HOROSA_JAVA_RUNNER}"; then
+        fail "Java 面全路由冒烟失败。"
+        exit 2
+      fi
+      log "OK：Java 面全路由冒烟通过。"
+    else
+      fail "构建机缺 node,无法跑 Java 面冒烟(HOROSA_JAVA_RUNNER 已指定)。"
+      exit 2
+    fi
+  fi
 elif [ -f "${KENTANG_VERIFIER}" ]; then
   log "运行 kentang 引擎端点冒烟…"
   if "${PY_BIN}" "${KENTANG_VERIFIER}" --root "http://127.0.0.1:${CHART_PORT}"; then

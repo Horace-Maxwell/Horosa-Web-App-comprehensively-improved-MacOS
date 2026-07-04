@@ -149,6 +149,16 @@ if [ ! -f "${RUNTIME_ARCHIVE}" ]; then
   exit 1
 fi
 
+# ── 全路由真实冒烟门(发布强制,fail fast 于签名/公证之前)────────────────────────
+# 对本次归档真启动内嵌 Python+Java,Python 面挂载 + Java 面路由逐条真实请求断言真实计算;
+# 含 slim 自证(桩激活环境)与挂载↔探针漂移比对。构建 +3~6 分钟。
+# 逃生阀:HOROSA_SKIP_RUNTIME_SMOKE=1(仅救急,发布前必须补跑,preflight[79] 会拦)。
+if [ "${HOROSA_SKIP_RUNTIME_SMOKE:-0}" = "1" ]; then
+  echo "⚠️  HOROSA_SKIP_RUNTIME_SMOKE=1:跳过全路由冒烟门(preflight[79] 将要求补跑)。"
+else
+  bash "${INSTALLER_ROOT}/scripts/verify_runtime_smoke.sh" "${RUNTIME_ARCHIVE}"
+fi
+
 LOCAL_RUNTIME_SHA256="$(shasum -a 256 "${RUNTIME_ARCHIVE}" | awk '{print $1}')"
 RUNTIME_SHA256="${LOCAL_RUNTIME_SHA256}"
 if [ "${RUNTIME_RELEASE_TAG}" != "${APP_RELEASE_TAG}" ] && [ "${HOROSA_FORCE_RUNTIME_UPLOAD:-0}" != "1" ] && command -v gh >/dev/null 2>&1; then
@@ -368,7 +378,13 @@ platform_entry = {
   'appSha256': hashlib.sha256((dist / config['desktopAssetName']).read_bytes()).hexdigest(),
   'pkgSha256': hashlib.sha256((dist / config['desktopOfflinePkgName']).read_bytes()).hexdigest(),
   'runtimeSha256': runtime_sha256,
+  # 进度可视化 v2:资产体积(客户端「提前显示要下多大」的数据源;老客户端 serde 忽略)
+  'appSizeBytes': (dist / config['desktopAssetName']).stat().st_size,
+  'pkgSizeBytes': (dist / config['desktopOfflinePkgName']).stat().st_size,
 }
+runtime_archive = dist / config['runtimeAssetName']
+if runtime_archive.is_file():
+    platform_entry['runtimeSizeBytes'] = runtime_archive.stat().st_size
 # ── manifest v2:增量更新部件清单(v1 字段全保留——老客户端零影响;无 components
 # 的 manifest 让新客户端自动走全量,天然降级)。lock 由 package_runtime_payload.sh
 # 部件切分段产出;runtimeVersion/appName 不符 = 产物漂移(如旧打包残留),立即失败。

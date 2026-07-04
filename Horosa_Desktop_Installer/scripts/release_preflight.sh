@@ -165,6 +165,12 @@ if [ -f "${MAINRS}" ]; then
   else
     bad "main.rs 缺「误杀静态服务器」修复说明/铁律 —— 首启分支若(再)调 cleanup_state 会关掉静态服务器致更新后卡启动页(见 docs/更新后卡启动页-真因cleanup_state误杀静态服务器-v2.4.0.md)"
   fi
+  # F:快路径回退从静默一行升级为醒目说明(属正常保护)+账本留痕。
+  if grep -q "已自动切换完整校验" "${MAINRS}" && grep -q "rust.fast_path_fallback" "${MAINRS}"; then
+    ok "F 快速启动回退醒目说明+账本留痕在位"
+  else
+    bad "main.rs 缺快速启动回退醒目说明(已自动切换完整校验)或账本留痕(rust.fast_path_fallback)—— 回退退化回静默一行,用户又会把回退当卡死"
+  fi
 else
   warn "main.rs 不存在,跳过更新卡顿哨兵(C①/A/D/E)"
 fi
@@ -1585,6 +1591,230 @@ done
 grep -qE "key: 'fengshui'.*金锁玉关.*乾坤国宝" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js" 2>/dev/null || { bad "[61] nav 缺理气六派关键词"; S61_BAD=1; }
 grep -qE "key: 'fengshui'.*玄空大卦.*形势.*择日" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js" 2>/dev/null || { bad "[61] nav 缺新派关键词(大卦/形势/择日)"; S61_BAD=1; }
 [ "${S61_BAD}" = "0" ] && ok "[61] 风水 十三派 引擎+玄空进阶(替卦/城门/打劫)+深化(黄泉/拨砂/线法/九水位/门主灶/日时紫白)+新派(辅星/净阴净阳/大卦/形势/择日)+盘面+测试+户型图两法零回归 在位" || bad "[61] 风水 有缺失"
+
+
+# 79. 打包产物全路由冒烟已跑且绿(哈希绑定,防拿旧包结果充数)
+echo "[79] 全路由真实冒烟 stamp(哈希绑定)"
+S79_STAMP="${INSTALLER_ROOT}/build/runtime-smoke/last_smoke.json"
+S79_ASSET="$(python3 -c "import json;print(json.load(open('${INSTALLER_ROOT}/config/release_config.json')).get('runtimeAssetName','horosa-runtime-macos-arm64.tar.gz'))" 2>/dev/null || echo horosa-runtime-macos-arm64.tar.gz)"
+S79_ARCHIVE="${INSTALLER_ROOT}/dist/${S79_ASSET}"
+if [ ! -f "${S79_ARCHIVE}" ]; then
+  warn "[79] dist 无运行时归档(${S79_ASSET}),冒烟 stamp 校验跳过(构建后会强制)"
+elif [ ! -f "${S79_STAMP}" ]; then
+  bad "[79] 缺 build/runtime-smoke/last_smoke.json —— 先跑 scripts/verify_runtime_smoke.sh"
+else
+  S79_RES="$(python3 - "$S79_STAMP" "$S79_ARCHIVE" <<'PY'
+import hashlib, json, sys
+stamp = json.load(open(sys.argv[1], encoding="utf-8"))
+sha = hashlib.sha256(open(sys.argv[2], "rb").read()).hexdigest()
+if not stamp.get("pass"):
+    print("stamp=FAIL")
+elif stamp.get("runtimeSha256") != sha:
+    print("sha-mismatch stamp=%s dist=%s" % (str(stamp.get("runtimeSha256"))[:16], sha[:16]))
+else:
+    print("ok")
+PY
+)"
+  if [ "${S79_RES}" = "ok" ]; then
+    ok "[79] 冒烟 stamp PASS 且 sha 与 dist 归档一致"
+  else
+    bad "[79] 冒烟 stamp 无效(${S79_RES}):对当前归档重跑 verify_runtime_smoke.sh"
+  fi
+fi
+grep -q "runtime-smoke" "${INSTALLER_ROOT}/SELFCHECK_LOG.md" 2>/dev/null \
+  && ok "[79] SELFCHECK_LOG 有冒烟留档行" \
+  || warn "[79] SELFCHECK_LOG 尚无冒烟留档(首次构建后自动追加)"
+
+# 80. 路由挂载 ↔ 冒烟探针清单 漂移=0(挂载无探针/探针无挂载 皆 FAIL)
+echo "[80] 路由挂载↔探针清单漂移"
+if python3 "${INSTALLER_ROOT}/scripts/check_route_probe_drift.py" >/dev/null 2>&1; then
+  ok "[80] 挂载↔探针 双向一致(含 kinastro importer 覆盖名单)"
+else
+  python3 "${INSTALLER_ROOT}/scripts/check_route_probe_drift.py" 2>&1 | sed 's/^/    /' >&2 || true
+  bad "[80] 挂载↔探针漂移:新增技法漏配探针或僵尸探针(详见上)"
+fi
+
+# 81. 太乙静默404三层守卫在位(FL-20260704-1;grep 特征串,不用文件存在性)
+echo "[81] 太乙静默404三层守卫"
+S81_BAD=0
+S81_PY="${REPO_ROOT}/Horosa-Web/astropy"
+grep -q "stub_dunder_guard_v1" "${S81_PY}/websrv/kentang/kinastro_common.py" 2>/dev/null || { bad "[81] 桩 dunder 守卫(stub_dunder_guard_v1)缺位"; S81_BAD=1; }
+grep -q 'raise AttributeError(_name)' "${S81_PY}/websrv/kentang/kinastro_common.py" 2>/dev/null || { bad "[81] 桩 dunder 拒答语句缺位"; S81_BAD=1; }
+[ "$(grep -c "__horosa_slim_stub__ = True" "${S81_PY}/websrv/kentang/kinastro_common.py" 2>/dev/null)" -ge 3 ] || { bad "[81] 子桩哨兵标记不足三处(顶桩+components+v1)"; S81_BAD=1; }
+grep -q "class KentangServiceLoadError" "${S81_PY}/websrv/kentang/registry.py" 2>/dev/null || { bad "[81] registry 缺 KentangServiceLoadError 响亮失败类型"; S81_BAD=1; }
+grep -q "KENTANG_LAZY_MOUNT_SELF_HEAL" "${S81_PY}/websrv/kentang/registry.py" 2>/dev/null || { bad "[81] registry 缺 sys.modules 自愈净化守卫"; S81_BAD=1; }
+grep -q "_warm_real_astropy" "${S81_PY}/websrv/webchartsrv.py" 2>/dev/null || { bad "[81] webchartsrv 缺真 astropy 预热(顺序免疫层)"; S81_BAD=1; }
+grep -q "stub_first" "${S81_PY}/tests/test_kentang_import_order.py" 2>/dev/null || { bad "[81] 双向导入门测试缺位/缺 stub_first 方向"; S81_BAD=1; }
+[ "${S81_BAD}" = "0" ] && ok "[81] 三层守卫+双向导入门 全在位"
+
+# 83. 更新链下载/解压核(WS-1b/1c):续传协议+原生流式解压+kill-switch+回归测试+Range 发布哨兵
+echo "[83] 断点续传下载核+原生流式解压"
+S83_BAD=0
+S83_MAIN="${INSTALLER_ROOT}/src-tauri/src/main.rs"
+grep -q "fn download_resumable_once" "${S83_MAIN}" 2>/dev/null || { bad "[83] 下载核 download_resumable_once 缺位"; S83_BAD=1; }
+grep -q "HOROSA_DOWNLOAD_NO_RESUME" "${S83_MAIN}" 2>/dev/null || { bad "[83] kill-switch HOROSA_DOWNLOAD_NO_RESUME 缺位"; S83_BAD=1; }
+grep -q "RESUME_MAX_ATTEMPTS" "${S83_MAIN}" 2>/dev/null || { bad "[83] 续传次数封顶 RESUME_MAX_ATTEMPTS 缺位"; S83_BAD=1; }
+grep -q '\.part\.meta' "${S83_MAIN}" 2>/dev/null || { bad "[83] .part.meta 续传元数据协议缺位"; S83_BAD=1; }
+grep -q "resume_completes_via_range_206" "${S83_MAIN}" 2>/dev/null || { bad "[83] 续传 206 回归测试缺位"; S83_BAD=1; }
+grep -q 'r 0-1023' "${INSTALLER_ROOT}/scripts/verify_github_release_end_to_end.sh" 2>/dev/null || { bad "[83] e2e 缺 GitHub Range(206)发布实测哨兵"; S83_BAD=1; }
+grep -q "fn extract_tar_gz_native_with" "${S83_MAIN}" 2>/dev/null || { bad "[83] 原生流式解压 extract_tar_gz_native_with 缺位"; S83_BAD=1; }
+grep -q "HOROSA_EXTRACT_NATIVE" "${S83_MAIN}" 2>/dev/null || { bad "[83] kill-switch HOROSA_EXTRACT_NATIVE 缺位"; S83_BAD=1; }
+grep -q "HOROSA_EXTRACT_CONCURRENCY" "${S83_MAIN}" 2>/dev/null || { bad "[83] 物化并发开关 HOROSA_EXTRACT_CONCURRENCY 缺位"; S83_BAD=1; }
+grep -q "native_extract_parity_with_external_tar" "${S83_MAIN}" 2>/dev/null || { bad "[83] 解压 parity 回归测试缺位"; S83_BAD=1; }
+grep -q "native_extract_rejects_path_escape" "${S83_MAIN}" 2>/dev/null || { bad "[83] 解压路径逃逸防护测试缺位"; S83_BAD=1; }
+grep -q "tar_extract_external" "${S83_MAIN}" 2>/dev/null || { bad "[83] 外部 tar 回退路径缺位(native 出错须可退)"; S83_BAD=1; }
+[ "${S83_BAD}" = "0" ] && ok "[83] 下载核+解压核 协议/开关/测试/发布哨兵 全在位"
+
+echo "[84] 更新验证基建(事件镜像+假release隔离)"
+# (manifest 分离签名机制已整体移除;本节保留事件镜像与假 release 入口隔离锚,
+#  并以反向锚确保签名代码不以「半拆」状态残留。)
+S84_BAD=0
+S84_MAIN="${INSTALLER_ROOT}/src-tauri/src/main.rs"
+grep -q "fn log_updater_event" "${S84_MAIN}" 2>/dev/null || { bad "[84] updater 事件镜像 log_updater_event 缺位(用户更新出问题拿不到证据)"; S84_BAD=1; }
+grep -q "updater-events.log" "${S84_MAIN}" 2>/dev/null || { bad "[84] 事件镜像日志文件锚缺位"; S84_BAD=1; }
+grep -q 'feature = "update-url-override"' "${S84_MAIN}" 2>/dev/null || { bad "[84] URL override 未按 feature 隔离"; S84_BAD=1; }
+if grep -q "update-url-override" "${INSTALLER_ROOT}/scripts/build_desktop_release.sh" 2>/dev/null; then
+  bad "[84] 发布构建脚本出现 update-url-override(假 release 入口绝不可进发布二进制)"; S84_BAD=1
+fi
+grep -q "manifest_fetch_three_outcomes" "${S84_MAIN}" 2>/dev/null || { bad "[84] manifest 获取三态回归测试缺位"; S84_BAD=1; }
+# 反向锚:签名制度已取消,残留即「半拆」状态(比有或无都危险)
+for zombie in "UPDATE_MANIFEST_PUBKEY_HEX" "verify_manifest_signature" "HOROSA_UPDATE_REQUIRE_SIG" "ed25519"; do
+  if grep -qi "${zombie}" "${S84_MAIN}" 2>/dev/null; then
+    bad "[84] 签名制度已取消但 main.rs 残留 ${zombie}(半拆状态,拆干净或整体恢复)"; S84_BAD=1
+  fi
+done
+grep -q "horosa-update-manifest-sign" "${INSTALLER_ROOT}/scripts/build_desktop_release.sh" 2>/dev/null && { bad "[84] build 脚本残留签名段(制度已取消)"; S84_BAD=1; }
+[ "${S84_BAD}" = "0" ] && ok "[84] 事件镜像+假release隔离 全在位(签名制度已取消且拆净)"
+
+# 85. 启动健康看门狗(WS-1d,A/B 自愈):状态机/回滚/ready 确认/回归测试全在位
+echo "[85] 启动健康看门狗"
+S85_BAD=0
+grep -q "WATCHDOG_ROLLBACK_THRESHOLD" "${S84_MAIN}" 2>/dev/null || { bad "[85] 看门狗阈值缺位"; S85_BAD=1; }
+grep -q "fn rollback_runtime_to_previous" "${S84_MAIN}" 2>/dev/null || { bad "[85] previous 槽回滚函数缺位"; S85_BAD=1; }
+grep -q "launch_health_confirm" "${S84_MAIN}" 2>/dev/null || { bad "[85] ready 确认(pending 归零)缺位"; S85_BAD=1; }
+grep -q "cleanup_previous_slots" "${S84_MAIN}" 2>/dev/null || { bad "[85] previous 槽 ready 后回收缺位"; S85_BAD=1; }
+grep -q "watchdog_health_state_machine_and_rollback" "${S84_MAIN}" 2>/dev/null || { bad "[85] 看门狗回归测试缺位"; S85_BAD=1; }
+[ "${S85_BAD}" = "0" ] && ok "[85] 看门狗 状态机/回滚/确认/测试 全在位"
+
+# 86. 增量八不变量(WS-1e):I3 三方 sha/I5 全量回退字段/I7 尺寸真值/I8 kill-switch 矩阵
+#     (I1 合成校验+I2 边界 lockstep+I6 lock 进 tar 由[74]强制;I4 差分门在 publish 内)
+echo "[86] 增量八不变量(I3/I5/I7/I8)"
+S86_BAD=0
+S86_MAIN="${INSTALLER_ROOT}/src-tauri/src/main.rs"
+# I8:四个 kill-switch + I4 门锚静态在位
+for anchor in "HOROSA_UPDATE_FULL_ONLY" "HOROSA_DOWNLOAD_NO_RESUME" "HOROSA_EXTRACT_NATIVE" "HOROSA_MENU_UPDATE_LEGACY"; do
+  grep -q "${anchor}" "${S86_MAIN}" 2>/dev/null || { bad "[86·I8] kill-switch ${anchor} 缺位"; S86_BAD=1; }
+done
+grep -q "HOROSA_ALLOW_LARGE_DELTA" "${INSTALLER_ROOT}/scripts/publish_github_release.sh" 2>/dev/null || { bad "[86·I4] publish 缺差分效率门"; S86_BAD=1; }
+grep -q "HOROSA_DELTA_BUDGET_MB" "${INSTALLER_ROOT}/scripts/publish_github_release.sh" 2>/dev/null || { bad "[86·I4] 差分门缺预算参数"; S86_BAD=1; }
+# I3/I5/I7:dist manifest 已产时做真值核对(manifest↔lock 逐名 sha / v1 全字段 / 尺寸↔实物)
+S86_MANIFEST="${INSTALLER_ROOT}/dist/horosa-latest.json"
+if [ -f "${S86_MANIFEST}" ]; then
+  S86_RES="$(python3 - "${S86_MANIFEST}" "${INSTALLER_ROOT}/dist" <<'PY86'
+import json, pathlib, sys
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text())
+dist = pathlib.Path(sys.argv[2])
+problems = []
+for key, entry in (manifest.get('platforms') or {}).items():
+    # I5:v2 必含 v1 全量回退字段(老壳/降级路径的生命线)
+    for field in ('appUrl', 'appSha256', 'runtimeUrl', 'runtimeSha256', 'runtimeVersion'):
+        if not entry.get(field):
+            problems.append(f"I5:{key} 缺 {field}")
+    # I7:尺寸字段完备且与 dist 实物一致(检查更新「要下多大」的真值)
+    for field, fname in (
+        ('appSizeBytes', entry.get('appUrl', '').rsplit('/', 1)[-1]),
+        ('runtimeSizeBytes', entry.get('runtimeUrl', '').rsplit('/', 1)[-1]),
+    ):
+        declared = entry.get(field)
+        if declared is None:
+            problems.append(f"I7:{key} 缺 {field}")
+            continue
+        f = dist / fname
+        if f.is_file() and f.stat().st_size != declared:
+            problems.append(f"I7:{key} {field}={declared} 与实物 {f.stat().st_size} 不一致({fname})")
+    # I3:manifest.components ↔ lock ↔ 实物 逐名 sha 三方核对
+    comps = entry.get('components') or []
+    if comps:
+        lock_path = dist / 'components' / 'components-lock.json'
+        if not lock_path.is_file():
+            problems.append('I3:dist/components/components-lock.json 缺失')
+        else:
+            lock = json.loads(lock_path.read_text())
+            lock_sha = {c['name']: c['sha256'] for c in lock.get('components') or []}
+            man_sha = {c['name']: c['sha256'] for c in comps}
+            if set(lock_sha) != set(man_sha):
+                problems.append(f"I3:{key} manifest/lock 部件集合漂移")
+            for name in set(lock_sha) & set(man_sha):
+                if lock_sha[name] != man_sha[name]:
+                    problems.append(f"I3:{key} 部件 {name} manifest/lock sha 漂移")
+print('; '.join(problems) if problems else 'OK')
+PY86
+)"
+  if [ "${S86_RES}" = "OK" ]; then
+    ok "[86] dist manifest I3/I5/I7 真值核对通过"
+  else
+    bad "[86] 不变量违约: ${S86_RES}"; S86_BAD=1
+  fi
+else
+  warn "[86] dist 未打包,跳过 I3/I5/I7 真值核对(I4/I8 静态锚已核)"
+fi
+[ "${S86_BAD}" = "0" ] && ok "[86] 增量八不变量 全在位"
+
+# 87. kentang 懒挂载(WS-3d):代理/开关/预热/失败响亮/回归测试全在位
+echo "[87] kentang 懒挂载"
+S87_BAD=0
+S87_REG="${REPO_ROOT}/Horosa-Web/astropy/websrv/kentang/registry.py"
+grep -q "class _LazyMountedService" "${S87_REG}" 2>/dev/null || { bad "[87] 懒挂载代理缺位"; S87_BAD=1; }
+grep -q "HOROSA_KENTANG_LAZY" "${S87_REG}" 2>/dev/null || { bad "[87] kill-switch HOROSA_KENTANG_LAZY 缺位"; S87_BAD=1; }
+grep -q "def prewarm_kentang_services" "${S87_REG}" 2>/dev/null || { bad "[87] 空闲预热入口缺位(首点兜底)"; S87_BAD=1; }
+grep -q "prewarm_kentang_services" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py" 2>/dev/null || { bad "[87] webchartsrv 未接预热(懒挂载首点无人兜)"; S87_BAD=1; }
+grep -q "test_lazy_proxy_load_failure_is_loud_not_404" "${REPO_ROOT}/Horosa-Web/astropy/tests/test_kentang_lazy_mount.py" 2>/dev/null || { bad "[87] 失败响亮(非404)回归测试缺位"; S87_BAD=1; }
+[ "${S87_BAD}" = "0" ] && ok "[87] 懒挂载 代理/开关/预热/测试 全在位"
+
+# 88. AppCDS 链(WS-3e):base 再生+预训练+增量豁免 全在位;payload 已产则验实物
+echo "[88] AppCDS base+预置链"
+S88_BAD=0
+S88_PKG="${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
+grep -q "Xshare:dump" "${S88_PKG}" 2>/dev/null || { bad "[88] 打包缺 base CDS 再生(jlink 不产 classes.jsa=自训链静默死)"; S88_BAD=1; }
+grep -q "HOROSA_SKIP_CDS_PRESEED" "${S88_PKG}" 2>/dev/null || { bad "[88] 打包缺 CDS 预训练段"; S88_BAD=1; }
+grep -q "app-cds.jsa'" "${S88_PKG}" 2>/dev/null || grep -q "app-cds.jsa" "${S88_PKG}" 2>/dev/null || { bad "[88] 打包缺 .jsa 部件豁免"; S88_BAD=1; }
+S88_STAGE="${INSTALLER_ROOT}/build/runtime-payload"
+if [ -d "${S88_STAGE}" ]; then
+  S88_BASE="${S88_STAGE}/runtime/mac/java/lib/server/classes.jsa"
+  S88_SEED="${S88_STAGE}/runtime/mac/bundle/boot-exploded/.app-cds.jsa"
+  if [ -s "${S88_BASE}" ]; then
+    ok "[88] stage base classes.jsa 在位($(du -h "${S88_BASE}" | cut -f1))"
+  else
+    bad "[88] stage 缺 base classes.jsa(用户端动态 dump 必败)"; S88_BAD=1
+  fi
+  if [ -s "${S88_SEED}" ] && [ "$(stat -f%z "${S88_SEED}")" -gt 20000000 ]; then
+    ok "[88] stage 预置 .app-cds.jsa 在位($(du -h "${S88_SEED}" | cut -f1))"
+  else
+    warn "[88] stage 无预置 .jsa(>20MB)——首启走自训兜底(非阻断,但失去首启即 CDS)"
+  fi
+else
+  warn "[88] payload stage 未构建,跳过实物核(代码面锚已核)"
+fi
+[ "${S88_BAD}" = "0" ] && ok "[88] AppCDS 链 全在位"
+
+# 89. 瞬时化性能资产(WS-3b/3c/3f):账本段名/缓存 flag/自热身/空闲预热/预算测试 全在位
+echo "[89] 瞬时化性能资产"
+S89_BAD=0
+S89_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+grep -q "techniqueCacheEnabled" "${S89_UI}/utils/requestDedupe.js" 2>/dev/null || { bad "[89] L2 技法缓存缺位"; S89_BAD=1; }
+grep -q "horosa.perf.techniqueCache" "${S89_UI}/utils/perfFlags.js" 2>/dev/null || { bad "[89] techniqueCache perfFlag 缺位"; S89_BAD=1; }
+grep -q "startIdleWarmQueue" "${S89_UI}/utils/idleWarmQueue.js" 2>/dev/null || { bad "[89] 空闲预热队列缺位"; S89_BAD=1; }
+grep -q "startIdleWarmQueue" "${S89_UI}/pages/index.js" 2>/dev/null || { bad "[89] 空闲预热未接线 pages/index"; S89_BAD=1; }
+grep -q "order: opts.order" "${S89_UI}/pages/index.js" 2>/dev/null || { bad "[89] 预载概率序缺位"; S89_BAD=1; }
+grep -q "preloadNavByLabel" "${S89_UI}/pages/index.js" 2>/dev/null || { bad "[89] 悬停预取缺位"; S89_BAD=1; }
+grep -q "selfWarmupAsync" "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/src/main/java/spacex/astrostudyboot/StartupLedgerListener.java" 2>/dev/null || { bad "[89] Java 自热身缺位"; S89_BAD=1; }
+[ -f "${S89_UI}/utils/__tests__/techniquePerfBudget.test.js" ] || { bad "[89] 性能预算测试缺位"; S89_BAD=1; }
+for seg in "rust.bootstrap_begin" "rust.emit_ready"; do
+  grep -q "${seg}" "${INSTALLER_ROOT}/src-tauri/src/main.rs" 2>/dev/null || { bad "[89] 账本段 ${seg} 缺位"; S89_BAD=1; }
+done
+grep -q "py.warmup_kentang" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py" 2>/dev/null || { bad "[89] 账本段 py.warmup_kentang 缺位"; S89_BAD=1; }
+[ "${S89_BAD}" = "0" ] && ok "[89] 瞬时化资产 全在位"
+
 
 
 echo "== 结果 =="

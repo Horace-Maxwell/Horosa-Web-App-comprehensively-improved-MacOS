@@ -35,6 +35,19 @@ def _ensure_streamlit_stub():
 
     class _StubModule(types.ModuleType):
         def __getattr__(self, _name):
+            # stub_dunder_guard_v1:dunder(双下划线)探测一律按「属性不存在」拒答,
+            # 绝不能返回函数。此前对任意属性返回 _noop 函数,导致 __file__ 也拿到函数:
+            # inspect.getmodule() 会遍历 sys.modules 逐个读模块 __file__(期望 str),
+            # 真 astropy(PyPI 天文库,kintaiyi 太乙引擎的依赖)导入期恰好走这条内省 →
+            # 桩在场时 `filename.endswith` 炸 AttributeError → kintaiyi 导入永久失败,
+            # CherryPy 把 AttributeError 当「无此路由」→ /taiyi/pan 整进程静默 404
+            # (v3.2.0 太乙事故的真实根因;七政/玄学史预热先注入桩、太乙首点必在其后,
+            # 故瘦身发货包必现)。dunder 拒答后 hasattr(stub,'__file__')=False,
+            # inspect/pickle/copy 等标准内省安全跳过;vendor 计算路径只用具名属性
+            # (st.cache_data/st.warning 等),桩语义不变。
+            if _name.startswith("__") and _name.endswith("__"):
+                raise AttributeError(_name)
+
             def _noop(*_args, **_kw):
                 return None
             return _noop
@@ -45,6 +58,9 @@ def _ensure_streamlit_stub():
     stub.cache_resource = _cache_data
     components = _StubModule("streamlit.components")
     v1 = _StubModule("streamlit.components.v1")
+    # 子桩同带哨兵标记(显式实例属性,不经 __getattr__,dunder 拒答不影响读取)。
+    components.__horosa_slim_stub__ = True
+    v1.__horosa_slim_stub__ = True
     stub.components = components
     components.v1 = v1
     sys.modules["streamlit"] = stub

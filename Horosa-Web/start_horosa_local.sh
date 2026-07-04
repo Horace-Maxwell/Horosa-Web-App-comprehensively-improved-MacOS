@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_ROOT="${HOROSA_LOG_ROOT:-${ROOT}/.horosa-local-logs}"
-RUN_TAG="$(date +%Y%m%d_%H%M%S)"
+# 启动账本:Rust 壳在场时沿用其 HOROSA_RUN_TAG(四层同 run 聚合);独立跑脚本时自建。
+RUN_TAG="${HOROSA_RUN_TAG:-$(date +%Y%m%d_%H%M%S)}"
 LOG_DIR="${LOG_ROOT}/${RUN_TAG}"
 PY_PID_FILE="${ROOT}/.horosa_py.pid"
 JAVA_PID_FILE="${ROOT}/.horosa_java.pid"
@@ -79,6 +80,45 @@ diag_tail() {
     printf '[%s] [tail] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${line}" >>"${DIAG_FILE}" 2>/dev/null || true
   done < <(tail -n "${lines}" "${file}" 2>/dev/null || true)
 }
+
+# ── 结构化启动账本(sh 层写入端)──────────────────────────────────────────────
+# 一行一段 JSON Lines,四层进程(Rust/shell/Java/Python)经 env 共享同一文件。
+# 只在段边界打点(约 12 次),绝不进 0.1s 轮询体;HOROSA_STARTUP_LEDGER=0 总关。
+STARTUP_LEDGER="${HOROSA_STARTUP_LEDGER:-1}"
+LEDGER_FILE="${HOROSA_LEDGER_FILE:-${LOG_DIR}/horosa-startup-ledger.jsonl}"
+export HOROSA_RUN_TAG="${RUN_TAG}"
+export HOROSA_LEDGER_FILE="${LEDGER_FILE}"
+export HOROSA_STARTUP_LEDGER="${STARTUP_LEDGER}"
+
+_now_ms() {
+  # bash5 $EPOCHREALTIME 优先(零进程);macOS /bin/bash 3.2 降级 perl Time::HiRes(系统自带,~5ms);
+  # 再降 date 秒×1000。只在段边界调用,开销可忽略。
+  if [ -n "${EPOCHREALTIME:-}" ]; then
+    local s="${EPOCHREALTIME%.*}" us="${EPOCHREALTIME#*.}"
+    printf '%s' "$(( s * 1000 + 10#${us:0:3} ))"
+  elif command -v perl >/dev/null 2>&1; then
+    perl -MTime::HiRes=time -e 'printf "%d", time()*1000'
+  else
+    printf '%s' "$(( $(date +%s) * 1000 ))"
+  fi
+}
+SH_T0_MS="$(_now_ms)"
+
+ledger_log() {
+  # ledger_log <seg> [extra_json_object]
+  [ "${STARTUP_LEDGER}" = "1" ] || return 0
+  local seg="$1" extra="${2:-}" now t
+  now="$(_now_ms)"
+  t=$(( now - SH_T0_MS ))
+  if [ -n "${extra}" ]; then
+    printf '{"run":"%s","layer":"sh","seg":"%s","pid":%s,"t_ms":%s,"extra":%s}\n' \
+      "${RUN_TAG}" "${seg}" "$$" "${t}" "${extra}" >>"${LEDGER_FILE}" 2>/dev/null || true
+  else
+    printf '{"run":"%s","layer":"sh","seg":"%s","pid":%s,"t_ms":%s}\n' \
+      "${RUN_TAG}" "${seg}" "$$" "${t}" >>"${LEDGER_FILE}" 2>/dev/null || true
+  fi
+}
+ledger_log sh.begin
 
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
 diag_log "startup_timeout=${STARTUP_TIMEOUT} skip_ui_build=${SKIP_UI_BUILD} chart_port=${CHART_PORT} backend_port=${BACKEND_PORT} log_dir=${LOG_DIR} mongo_optional=${DESKTOP_MONGO_OPTIONAL} mongo_skip_ping=${DESKTOP_MONGO_SKIP_PING} trusted_runtime=${TRUSTED_RUNTIME} needtranslog=${NEED_TRANSLOG} require_embedded_runtime=${REQUIRE_EMBEDDED_RUNTIME} lazy_spring=${DESKTOP_SPRING_LAZY_INIT} java_fast_start=${DESKTOP_JAVA_FAST_START} startup_cron=${ENABLE_STARTUP_CRON} startup_transgroup=${ENABLE_STARTUP_TRANSGROUP_INIT}"
@@ -228,7 +268,17 @@ warm_runtime_routes() {
 warm_runtime_routes_min_sync() {
   local warmup_js="${UI_DIR}/scripts/warmHorosaRuntime.js"
   local warmup_log="${LOG_DIR}/runtime-warmup-min.log"
-  local cap="${HOROSA_WARM_MIN_TIMEOUT:-5}"
+  # WS-3b cap auto 降级:AppCDS .jsa 已生成 = 非首启的暖机器,JVM/类加载早已热,
+  # min-warmup 的边际收益骤降 → cap 5s→1s(ready 到可交互提前 ~4s);
+  # 冷机器(首启,无 .jsa)保持 5s 原语义。显式 HOROSA_WARM_MIN_TIMEOUT 永远最高优先。
+  local cap="${HOROSA_WARM_MIN_TIMEOUT:-}"
+  if [ -z "${cap}" ]; then
+    if [ -s "${BOOT_EXPLODED}/.app-cds.jsa" ]; then
+      cap=1
+    else
+      cap=5
+    fi
+  fi
   if [ ! -f "${warmup_js}" ] || ! command -v node >/dev/null 2>&1; then
     diag_log "min sync warmup skipped (no script/node)"
     return 0
@@ -794,12 +844,14 @@ pid_alive() {
   case "${pid}" in (''|*[!0-9]*) return 1 ;; esac
   kill -0 "${pid}" >/dev/null 2>&1
 }
+ledger_log sh.preflight_done
 launch_detached "${PY_LOG}" "${PYTHON_LAUNCH_CMD[@]}" >"${PY_PID_FILE}"
 if ! pid_alive "${PY_PID_FILE}"; then
   diag_log "python launch FAILED: pid 文件为空/进程未存活 (pidfile='$(cat "${PY_PID_FILE}" 2>/dev/null || echo "<unreadable>")', 日志目录可写? 磁盘?)"
   echo "python service failed to launch (see ${PY_LOG})"
   exit 1
 fi
+ledger_log sh.python_spawned
 
 JAVA_LAUNCH_CMD=(env \
   HOROSA_DESKTOP_MONGO_OPTIONAL="${DESKTOP_MONGO_OPTIONAL}" \
@@ -880,8 +932,13 @@ if ! pid_alive "${JAVA_PID_FILE}"; then
   echo "java service failed to launch (see ${JAVA_LOG})"
   exit 1
 fi
+ledger_log sh.java_spawned
 
 ready=0
+# 账本观察位(不改就绪判据):各服务首个 http 响应各打一次,latch 后不再探。
+py_seen=0
+java_seen=0
+ledger_log sh.ready_poll_begin
 # 提速(更新后卡顿)B:轮询间隔与 trusted 解耦——更新后首启(trusted=0)同样用 0.2s 快轮询,
 # 服务一就绪就被探测到,不再被旧的 1s 粒度白等近一秒。trusted 仍可用更细的 0.1s。
 poll_interval="0.2"
@@ -905,9 +962,18 @@ while true; do
     break
   fi
 
+  # 账本观察位(纯旁路,latch 一次):各服务首个 http 响应时刻。
+  if [ "${py_seen}" = "0" ] && http_responding "http://127.0.0.1:${CHART_PORT}/"; then
+    py_seen=1
+    ledger_log sh.py_http_ready
+  fi
+  if [ "${java_seen}" = "0" ] && signed_backend_http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
+    java_seen=1
+    ledger_log sh.java_http_ready
+  fi
   # 就绪判定以 http 探测为准(trusted/untrusted 同口径)。曾把 netstat 端口解析当 http 探测的前置硬闸,
   # 解析在某环境失败(如 pipefail×SIGPIPE 坑)会把已就绪的服务挡死 → 首启永卡。本地 curl 0.2s 轮询开销可忽略;
-  # port_listening 仅保留给下方进度展示行(展示失败不影响就绪判定)。
+  # port_listening 仅保留给下方进度展示行(展示失败不影响就绪判定)。判据原样,账本零介入。
   if http_responding "http://127.0.0.1:${CHART_PORT}/" && signed_backend_http_responding "http://127.0.0.1:${BACKEND_PORT}/common/time"; then
     ready=1
     break
@@ -944,7 +1010,10 @@ if [ "${ready}" -ne 1 ]; then
 fi
 
 trap - EXIT
+ledger_log sh.ready
+_mw_t0="$(_now_ms)"
 warm_runtime_routes_min_sync
+ledger_log sh.min_warmup_done "{\"ms\":$(( $(_now_ms) - _mw_t0 ))}"
 warm_runtime_routes
 
 # ── AppCDS 首启后台自训练:exploded 模式且 .jsa 未生成时,主服务就绪后在冷门端口
@@ -990,6 +1059,10 @@ maybe_train_cds_background() {
       tries=$((tries + 1))
       sleep 0.5
     done
+    # [WS-3e] 触达补全:lazy-init 下 heartbeat 只初始化极小 bean 集;补一发 /chart POST
+    # (400/失败均可)把 controller/序列化链的类拉进 dump 档,提高 .jsa 覆盖。
+    curl -s -o /dev/null -m 3 -X POST -H 'Content-Type: application/json' -d '{}' \
+      "http://127.0.0.1:${train_port}/chart" 2>/dev/null || true
     kill -TERM "${tpid}" 2>/dev/null || true
     # dump 49MB archive 需 15-30s(优雅关停+写盘),等待窗放到 90s 再强杀
     tries=0
@@ -1006,6 +1079,7 @@ maybe_train_cds_background
 
 diag_log "services ready: backend=${BACKEND_PORT} chartpy=${CHART_PORT}"
 diag_log "===== run end (success) ====="
+ledger_log sh.total "{\"trusted\":${TRUSTED_RUNTIME},\"chart_port\":${CHART_PORT},\"backend_port\":${BACKEND_PORT}}"
 
 echo "services are ready."
 echo "backend:  http://127.0.0.1:${BACKEND_PORT}"

@@ -165,6 +165,9 @@ struct GithubRelease {
 struct GithubAsset {
     name: String,
     browser_download_url: String,
+    // GitHub API 恒带 size(字节);容缺以防字段变动
+    #[serde(default)]
+    size: Option<u64>,
 }
 
 #[allow(dead_code)]
@@ -203,6 +206,13 @@ struct UpdatePlatform {
     components_lock_url: Option<String>,
     #[serde(default, rename = "componentsLockSha256")]
     components_lock_sha256: Option<String>,
+    // 进度可视化 v2:资产体积(「提前显示要下多大」的数据源;老 manifest 缺省 None → 前端退化「大小待定」)
+    #[serde(default, rename = "appSizeBytes")]
+    app_size_bytes: Option<u64>,
+    #[serde(default, rename = "pkgSizeBytes")]
+    pkg_size_bytes: Option<u64>,
+    #[serde(default, rename = "runtimeSizeBytes")]
+    runtime_size_bytes: Option<u64>,
 }
 
 // manifest v2 的部件条目:客户端 diff(name+sha256)与下载(url)所需;应用细节
@@ -234,6 +244,9 @@ struct UpdatePlan {
     components: Option<Vec<ManifestComponent>>,
     components_lock_url: Option<String>,
     components_lock_sha256: Option<String>,
+    // 进度可视化 v2:资产体积(GithubApi 回退源恒 None → 前端退化)
+    app_size_bytes: Option<u64>,
+    runtime_size_bytes: Option<u64>,
     source: UpdateSource,
 }
 
@@ -518,6 +531,9 @@ struct DiagnosticsPayload {
     lines: Vec<String>,
     assets: Vec<AssetInventoryItem>,
     updated_at: u64,
+    // 启动账本(本次 run 的分段耗时 JSONL 尾部,四层聚合;无账本时为空)
+    #[serde(default)]
+    ledger_lines: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -1156,6 +1172,15 @@ fn stabilize_main_window_after_navigation(
 }
 
 fn emit_ready_and_stabilize(app: &AppHandle, window: &WebviewWindow, url: &str) {
+    ledger_mark("rust.emit_ready", None);
+    // 看门狗确认:达 ready = 当前槽健康,pending 归零;previous 槽后台回收(不占 ready 关键路径)。
+    if let Some(health_path) = launch_health_path(app) {
+        launch_health_confirm(&health_path);
+    }
+    {
+        let app = app.clone();
+        thread::spawn(move || cleanup_previous_slots(&app));
+    }
     let state = load_window_states(app).main;
     emit_ready(window, url);
     stabilize_main_window_after_navigation(app.clone(), window.clone(), state);
@@ -1619,8 +1644,66 @@ if (window.__horosaUpdateEvent) {{ window.__horosaUpdateEvent({json}); }}"
 }
 
 fn emit_update_event(app: &AppHandle, json: &str) {
+    log_updater_event(app, json);
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         emit_update_event_window(&window, json);
+    }
+}
+
+/// [WS-1f] updater 事件镜像:全部更新事件带时间戳落 logs/updater-events.log
+/// (本地文件,零遥测)。根治「用户更新出问题拿不到证据」;也是
+/// verify_update_experience_local.sh 四剧本的断言依据。HOROSA_UPDATER_EVENT_LOG=0 关。
+fn log_updater_event(app: &AppHandle, json: &str) {
+    if std::env::var("HOROSA_UPDATER_EVENT_LOG")
+        .map(|v| v == "0")
+        .unwrap_or(false)
+    {
+        return;
+    }
+    let Ok(dir) = app.path().app_data_dir() else {
+        return;
+    };
+    let path = dir.join("logs").join("updater-events.log");
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    // 简易轮转:超 2MB 截断重写(更新事件量级远低于此,仅防长年累积)。
+    let rotate = fs::metadata(&path)
+        .map(|m| m.len() > 2 * 1024 * 1024)
+        .unwrap_or(false);
+    let file = if rotate {
+        File::create(&path)
+    } else {
+        fs::OpenOptions::new().create(true).append(true).open(&path)
+    };
+    if let Ok(mut fh) = file {
+        let ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        use std::io::Write;
+        let payload = json.trim_start().trim_start_matches('{');
+        let _ = writeln!(fh, "{{\"ts\":{},{}", ms, payload);
+    }
+}
+
+/// 安装(applying)阶段通知器(WS-1c):UpdateNotifier 显「正在安装更新」卡;
+/// 旧前端不识别该 phase = 安全忽略,零适配义务。
+fn make_applying_notifier(
+    app: &AppHandle,
+    root_index: usize,
+    roots_total: usize,
+) -> impl Fn(&str) + '_ {
+    move |msg: &str| {
+        let text = if roots_total > 1 {
+            format!("[{}/{}] {}", root_index, roots_total, msg)
+        } else {
+            msg.to_string()
+        };
+        emit_update_event(
+            app,
+            &serde_json::json!({"phase":"applying","message":text}).to_string(),
+        );
     }
 }
 
@@ -2270,6 +2353,33 @@ fn collect_diagnostics_payload(app: &AppHandle) -> Result<DiagnosticsPayload> {
     } else {
         lines
     };
+    // 启动账本尾部(本次 run 优先;未初始化时回落 logs 下最新的账本文件)
+    let ledger_path = ledger_env().map(|(_, file)| file).or_else(|| {
+        let mut newest: Option<(SystemTime, PathBuf)> = None;
+        if let Ok(entries) = fs::read_dir(&paths.logs_dir) {
+            for entry in entries.flatten() {
+                let candidate = entry.path().join("horosa-startup-ledger.jsonl");
+                if let Ok(meta) = fs::metadata(&candidate) {
+                    let modified = meta.modified().unwrap_or(UNIX_EPOCH);
+                    if newest.as_ref().map(|(t, _)| modified > *t).unwrap_or(true) {
+                        newest = Some((modified, candidate));
+                    }
+                }
+            }
+        }
+        newest.map(|(_, p)| p)
+    });
+    let ledger_lines = ledger_path
+        .and_then(|p| fs::read_to_string(p).ok())
+        .map(|text| {
+            let all: Vec<String> = text.lines().map(|l| l.to_string()).collect();
+            if all.len() > 100 {
+                all[all.len() - 100..].to_vec()
+            } else {
+                all
+            }
+        })
+        .unwrap_or_default();
     Ok(DiagnosticsPayload {
         log_path: log_path.to_string_lossy().to_string(),
         app_data_dir: paths.app_data_dir.to_string_lossy().to_string(),
@@ -2283,6 +2393,7 @@ fn collect_diagnostics_payload(app: &AppHandle) -> Result<DiagnosticsPayload> {
         )?
         .items,
         updated_at: unix_ts(),
+        ledger_lines,
     })
 }
 
@@ -3158,7 +3269,26 @@ fn compare_runtime_manifests(
     }
 }
 
+// [WS-1f] 本地假 release 全链路验证入口:仅 `--features update-url-override` 的
+// 开发构建才编译此代码路径;发布二进制无此分支 → 出站仅 GitHub 铁律不破。
+// verify_update_experience_local.sh 用 HOROSA_UPDATE_BASE_OVERRIDE=http://127.0.0.1:PORT
+// 把 manifest/runtime/资产全部指到本地 python http.server。
+#[cfg(feature = "update-url-override")]
+fn update_base_override() -> Option<String> {
+    std::env::var("HOROSA_UPDATE_BASE_OVERRIDE")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+}
+
+#[cfg(not(feature = "update-url-override"))]
+fn update_base_override() -> Option<String> {
+    None
+}
+
 fn expected_runtime_url(config: &ReleaseConfig) -> String {
+    if let Some(base) = update_base_override() {
+        return format!("{}/{}", base.trim_end_matches('/'), config.runtime_asset_name);
+    }
     format!(
         "https://github.com/{}/{}/releases/download/{}{}/{}",
         config.repo_owner,
@@ -3170,6 +3300,13 @@ fn expected_runtime_url(config: &ReleaseConfig) -> String {
 }
 
 fn update_manifest_url(config: &ReleaseConfig) -> String {
+    if let Some(base) = update_base_override() {
+        return format!(
+            "{}/{}",
+            base.trim_end_matches('/'),
+            config.update_manifest_name
+        );
+    }
     format!(
         "https://github.com/{}/{}/releases/latest/download/{}",
         config.repo_owner, config.repo_name, config.update_manifest_name
@@ -3660,20 +3797,43 @@ fn verify_sha256(path: &Path, expected: Option<&str>, label: &str) -> Result<()>
     Ok(())
 }
 
+// manifest 获取(信任模型:HTTPS + GitHub 账号 + 资产 sha256):
+// Fetched=清单可用;Absent=不存在/网络失败/JSON 异常 → 允许走 GitHub API fallback。
+enum ManifestFetch {
+    Fetched(UpdateManifest),
+    Absent,
+}
+
+fn fetch_update_manifest(client: &Client, manifest_url: &str) -> ManifestFetch {
+    let Ok(response) = client
+        .get(manifest_url)
+        .header("User-Agent", "HorosaDesktop")
+        .header("Cache-Control", "no-cache")
+        .header("Pragma", "no-cache")
+        .send()
+    else {
+        return ManifestFetch::Absent;
+    };
+    if !response.status().is_success() {
+        return ManifestFetch::Absent;
+    }
+    let Ok(manifest_bytes) = response.bytes() else {
+        return ManifestFetch::Absent;
+    };
+    match serde_json::from_slice::<UpdateManifest>(&manifest_bytes) {
+        Ok(manifest) => ManifestFetch::Fetched(manifest),
+        Err(_) => ManifestFetch::Absent,
+    }
+}
+
 fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
     let config = load_release_config(app)?;
     let platform_key = current_platform_key();
 
     let manifest_url = cache_busted_url(&update_manifest_url(&config));
-    if let Ok(response) = client
-        .get(&manifest_url)
-        .header("User-Agent", "HorosaDesktop")
-        .header("Cache-Control", "no-cache")
-        .header("Pragma", "no-cache")
-        .send()
     {
-        if response.status().is_success() {
-            if let Ok(manifest) = response.json::<UpdateManifest>() {
+        if let ManifestFetch::Fetched(manifest) = fetch_update_manifest(client, &manifest_url) {
+            {
                 if let Some(platform) = manifest.platforms.get(platform_key) {
                     let latest = Version::parse(manifest.version.trim())?;
                     let repo_url = format!(
@@ -3702,6 +3862,8 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
                         components_lock_sha256: normalize_checksum(
                             platform.components_lock_sha256.clone(),
                         ),
+                        app_size_bytes: platform.app_size_bytes,
+                        runtime_size_bytes: platform.runtime_size_bytes,
                         source: UpdateSource::Manifest,
                     });
                 }
@@ -3751,6 +3913,9 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
         components: None,
         components_lock_url: None,
         components_lock_sha256: None,
+        // GithubApi 回退源:asset.size 若可得则用(GithubRelease asset 带 size 字段则透传)
+        app_size_bytes: asset.size,
+        runtime_size_bytes: runtime_asset.and_then(|asset| asset.size),
         source: UpdateSource::GithubApi,
     })
 }
@@ -3765,6 +3930,228 @@ fn tmp_download_path(app_name: &str, suffix: &str) -> PathBuf {
         .unwrap_or_else(|_| Duration::from_secs(0))
         .as_secs();
     std::env::temp_dir().join(format!("{}-{}-{}", app_name, ts, suffix))
+}
+
+// ============ 断点续传下载核(WS-1b,launcher/update 双通道共用) ============
+// 协议:数据写 dest.part,旁挂 dest.part.meta(url/etag/total/续传次数);
+// 中断后(同进程重试或跨进程重启)part+meta 在位且 url 相同 → Range bytes=N- 请求:
+//   206 且 etag 未变 → append 续传;200(服务器不理 Range)→ 就地当全新流用;
+//   etag 冲突/416/续传次数超限 → 自动退全新下载。
+// 完成 sync+原子 rename part→dest:dest 永远不出现半成品,sha 校验仍由调用方兜底;
+// 若续传拼合出错,外层 sha 失败时 part 已被 rename 消费 → 下一轮天然全新重下。
+// kill-switch: HOROSA_DOWNLOAD_NO_RESUME=1 退回全新下载(现状行为)。
+
+const RESUME_MAX_ATTEMPTS: u32 = 4;
+
+#[derive(Serialize, Deserialize, Default)]
+struct PartMeta {
+    url: String,
+    #[serde(default)]
+    etag: Option<String>,
+    #[serde(default)]
+    total: u64,
+    #[serde(default)]
+    resume_attempts: u32,
+}
+
+fn download_resume_enabled() -> bool {
+    std::env::var("HOROSA_DOWNLOAD_NO_RESUME")
+        .map(|v| !matches!(v.as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(true)
+}
+
+fn download_part_paths(dest: &Path) -> (PathBuf, PathBuf) {
+    let name = dest
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "download".to_string());
+    let dir = dest
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."));
+    (
+        dir.join(format!("{}.part", name)),
+        dir.join(format!("{}.part.meta", name)),
+    )
+}
+
+fn load_part_meta(path: &Path) -> Option<PartMeta> {
+    let text = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+fn save_part_meta(path: &Path, meta: &PartMeta) {
+    if let Ok(text) = serde_json::to_string(meta) {
+        let _ = fs::write(path, text);
+    }
+}
+
+fn clear_part_files(part: &Path, meta: &Path) {
+    let _ = fs::remove_file(part);
+    let _ = fs::remove_file(meta);
+}
+
+fn response_etag(resp: &reqwest::blocking::Response) -> Option<String> {
+    resp.headers()
+        .get(reqwest::header::ETAG)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+}
+
+/// 解析 206 的 Content-Range: bytes N-M/TOTAL,取 TOTAL。
+fn parse_content_range_total(resp: &reqwest::blocking::Response) -> Option<u64> {
+    let value = resp
+        .headers()
+        .get(reqwest::header::CONTENT_RANGE)?
+        .to_str()
+        .ok()?;
+    value.rsplit('/').next()?.trim().parse::<u64>().ok()
+}
+
+/// 下载进度回执:downloaded 含续传补入的既有字节;delta=本次新读字节。
+struct DownloadChunk {
+    downloaded: u64,
+    total: u64,
+    delta: u64,
+}
+
+/// 断点续传单次下载。成功=dest 原子就位;失败=part/meta 保留供下一轮续传。
+/// on_start(resumed_from,total) 连接建立后调一次;on_chunk 每读一块调(节流由调用方闭包自理)。
+fn download_resumable_once(
+    url: &str,
+    dest: &Path,
+    allow_resume: bool,
+    on_start: impl FnOnce(u64, u64),
+    mut on_chunk: impl FnMut(&DownloadChunk),
+) -> Result<()> {
+    let client = build_github_client(900)?;
+    if let Some(parent) = dest.parent() {
+        ensure_dir(parent)?;
+    }
+    let (part_path, meta_path) = download_part_paths(dest);
+    if !allow_resume {
+        clear_part_files(&part_path, &meta_path);
+    }
+
+    // 续传资格判定:part+meta 在位、同 url、长度>0 且未满、续传次数未超限。
+    let mut resume_offset: u64 = 0;
+    let mut resume_meta: Option<PartMeta> = None;
+    if allow_resume {
+        if let Some(meta) = load_part_meta(&meta_path) {
+            let part_len = fs::metadata(&part_path).map(|m| m.len()).unwrap_or(0);
+            let len_ok = part_len > 0 && (meta.total == 0 || part_len < meta.total);
+            if meta.url == url && len_ok && meta.resume_attempts < RESUME_MAX_ATTEMPTS {
+                resume_offset = part_len;
+                resume_meta = Some(meta);
+            } else {
+                clear_part_files(&part_path, &meta_path);
+            }
+        } else if part_path.exists() {
+            // 有 part 无 meta:无从判定来源,弃之。
+            clear_part_files(&part_path, &meta_path);
+        }
+    }
+
+    // 先试 Range 续传;拿不到干净的 206 就退全新(200 全量流可直接就地消费)。
+    let mut session: Option<(reqwest::blocking::Response, File, u64, u64)> = None;
+    let mut fresh_response: Option<reqwest::blocking::Response> = None;
+    if resume_offset > 0 {
+        let mut meta = resume_meta.take().unwrap_or_default();
+        meta.resume_attempts += 1;
+        save_part_meta(&meta_path, &meta);
+        if let Ok(resp) = client
+            .get(url)
+            .header("User-Agent", "HorosaDesktop")
+            .header("Range", format!("bytes={}-", resume_offset))
+            .send()
+        {
+            let status = resp.status();
+            if status == reqwest::StatusCode::PARTIAL_CONTENT {
+                let etag_conflict = matches!(
+                    (&meta.etag, &response_etag(&resp)),
+                    (Some(old), Some(new)) if old != new
+                );
+                if !etag_conflict {
+                    let total = parse_content_range_total(&resp).unwrap_or_else(|| {
+                        resp.content_length()
+                            .map(|len| resume_offset + len)
+                            .unwrap_or(meta.total)
+                    });
+                    let file = fs::OpenOptions::new()
+                        .append(true)
+                        .open(&part_path)
+                        .with_context(|| format!("open part {}", part_path.display()))?;
+                    session = Some((resp, file, resume_offset, total));
+                }
+            } else if status.is_success() {
+                // 服务器不支持 Range(回 200 全量):直接把这条响应当全新下载用,省一次握手。
+                fresh_response = Some(resp);
+            }
+            // 416/其它状态:落空,下面统一发全新请求。
+        }
+    }
+
+    let (mut response, mut file, start_offset, total) = match session {
+        Some(s) => s,
+        None => {
+            let resp = match fresh_response {
+                Some(r) => r,
+                None => client
+                    .get(url)
+                    .header("User-Agent", "HorosaDesktop")
+                    .header("Cache-Control", "no-cache")
+                    .header("Pragma", "no-cache")
+                    .send()
+                    .with_context(|| format!("download {}", url))?,
+            };
+            if !resp.status().is_success() {
+                return Err(anyhow!("download failed: {} -> {}", url, resp.status()));
+            }
+            let total = resp.content_length().unwrap_or(0);
+            save_part_meta(
+                &meta_path,
+                &PartMeta {
+                    url: url.to_string(),
+                    etag: response_etag(&resp),
+                    total,
+                    resume_attempts: 0,
+                },
+            );
+            // File::create 截断:etag 冲突/416 后的残余 part 在此归零重写。
+            let file = File::create(&part_path)?;
+            (resp, file, 0u64, total)
+        }
+    };
+
+    on_start(start_offset, total);
+    let mut downloaded = start_offset;
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let read = response.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        file.write_all(&buffer[..read])?;
+        downloaded += read as u64;
+        on_chunk(&DownloadChunk {
+            downloaded,
+            total,
+            delta: read as u64,
+        });
+    }
+    if total > 0 && downloaded < total {
+        return Err(anyhow!(
+            "download incomplete: {} -> {}/{} bytes",
+            url,
+            downloaded,
+            total
+        ));
+    }
+    let _ = file.sync_all();
+    drop(file);
+    fs::rename(&part_path, dest).with_context(|| format!("finalize {}", dest.display()))?;
+    let _ = fs::remove_file(&meta_path);
+    Ok(())
 }
 
 fn download_with_progress(
@@ -3790,7 +4177,8 @@ fn download_with_progress(
             Ok(()) => return Ok(()),
             Err(err) => {
                 last_err = Some(err);
-                let _ = fs::remove_file(dest);
+                // 半成品在 dest.part(由下载核管理),保留供下一轮断点续传;
+                // dest 只在成功 rename 后出现,这里无需清理。
             }
         }
     }
@@ -3806,51 +4194,79 @@ fn download_with_progress_once(
     end_pct: u8,
     label: &str,
 ) -> Result<()> {
-    let client = build_github_client(900)?;
-    let mut response = client
-        .get(url)
-        .header("User-Agent", "HorosaDesktop")
-        .header("Cache-Control", "no-cache")
-        .header("Pragma", "no-cache")
-        .send()
-        .with_context(|| format!("download {}", url))?;
-    if !response.status().is_success() {
-        return Err(anyhow!("download failed: {} -> {}", url, response.status()));
-    }
-    if let Some(parent) = dest.parent() {
-        ensure_dir(parent)?;
-    }
-    let total = response.content_length().unwrap_or(0);
-    if total > 0 {
-        emit_progress(
-            window,
-            start_pct,
-            &format!("{label}：已连接服务器，开始接收数据"),
-        );
-    } else {
-        emit_indeterminate_progress(
-            window,
-            start_pct,
-            &format!("{label}：已连接服务器，正在接收数据…"),
-        );
-    }
-    let mut file = File::create(dest)?;
-    let mut downloaded: u64 = 0;
-    let mut buffer = [0u8; 64 * 1024];
-    loop {
-        let read = response.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        file.write_all(&buffer[..read])?;
-        downloaded += read as u64;
-        if total > 0 {
-            let ratio = downloaded as f64 / total as f64;
+    // launcher 通道薄壳:下载/续传逻辑在 download_resumable_once;
+    // 这里只负责把进度烧进 message 字符串(launcher 页零改动受益);
+    // 节流 ≥400ms 才 emit(此前每 64KB 一次 window.eval,大包即洪泛)。
+    let started = Instant::now();
+    let mut last_emit = Instant::now();
+    let mut last_pct: i32 = -1;
+    // 续传补入的既有字节,不计入本次会话速度(Cell:on_start/on_chunk 两闭包共享)
+    let session_base = std::cell::Cell::new(0u64);
+    download_resumable_once(
+        url,
+        dest,
+        download_resume_enabled(),
+        |resumed_from, total| {
+            session_base.set(resumed_from);
+            if resumed_from > 0 {
+                emit_progress(
+                    window,
+                    start_pct,
+                    &format!(
+                        "{label}：检测到未完成的下载，从 {} MB 处继续…",
+                        resumed_from / 1_048_576
+                    ),
+                );
+            } else if total > 0 {
+                emit_progress(
+                    window,
+                    start_pct,
+                    &format!("{label}：已连接服务器，开始接收数据"),
+                );
+            } else {
+                emit_indeterminate_progress(
+                    window,
+                    start_pct,
+                    &format!("{label}：已连接服务器，正在接收数据…"),
+                );
+            }
+        },
+        |chunk| {
+            if chunk.total == 0 {
+                return;
+            }
+            let ratio = chunk.downloaded as f64 / chunk.total as f64;
             let span = end_pct.saturating_sub(start_pct) as f64;
-            let pct = start_pct as f64 + span * ratio;
-            emit_progress(window, pct.round() as u8, label);
-        }
-    }
+            let pct = (start_pct as f64 + span * ratio).round() as i32;
+            let now = Instant::now();
+            if pct != last_pct && now.duration_since(last_emit) >= Duration::from_millis(400) {
+                last_pct = pct;
+                last_emit = now;
+                let elapsed = started.elapsed().as_secs_f64().max(0.001);
+                // 字节/秒(本次会话均速:续传补入的字节不计,避免虚高)
+                let speed = chunk.downloaded.saturating_sub(session_base.get()) as f64 / elapsed;
+                let remaining = (chunk.total.saturating_sub(chunk.downloaded)) as f64;
+                let eta_secs = if speed > 0.0 { (remaining / speed) as u64 } else { 0 };
+                let eta_text = if eta_secs >= 60 {
+                    format!("约剩 {} 分 {} 秒", eta_secs / 60, eta_secs % 60)
+                } else {
+                    format!("约剩 {} 秒", eta_secs)
+                };
+                emit_progress(
+                    window,
+                    pct as u8,
+                    &format!(
+                        "{}：已下载 {}/{} MB · {:.1} MB/s · {}",
+                        label,
+                        chunk.downloaded / 1_048_576,
+                        chunk.total / 1_048_576,
+                        speed / 1_048_576.0,
+                        eta_text
+                    ),
+                );
+            }
+        },
+    )?;
     emit_progress(window, end_pct, label);
     Ok(())
 }
@@ -3931,7 +4347,105 @@ fn archive_runtime_version(archive_path: &Path) -> Result<String> {
     Ok(manifest.version)
 }
 
+// ============ 启动健康看门狗(WS-1d,A/B 槽自愈) ============
+// 语义:每次 bootstrap 起点 pending+1;emit_ready 即确认(归零+清 previous 槽)。
+// 连续 WATCHDOG_ROLLBACK_THRESHOLD 次未达 ready(崩溃/卡死被强退)→ 第三次启动时
+// 自动把 previous 槽换回 current(previous 由更新路径保留到首次成功 ready)。
+// 与 fast-path 回退互补:fast-path 兜「新 runtime 校验不过」,看门狗兜「新 runtime 起不来」。
+
+const WATCHDOG_ROLLBACK_THRESHOLD: u32 = 2;
+
+#[derive(Serialize, Deserialize, Default, Clone, Copy)]
+struct LaunchHealth {
+    #[serde(default)]
+    pending_starts: u32,
+}
+
+fn launch_health_path(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| dir.join("launch-health.json"))
+}
+
+fn launch_health_read(path: &Path) -> LaunchHealth {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+fn launch_health_write(path: &Path, health: &LaunchHealth) {
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(text) = serde_json::to_string(health) {
+        let _ = fs::write(path, text);
+    }
+}
+
+/// 启动起点登记:pending+1 落盘,返回累计未确认次数(含本次)。
+fn launch_health_note_start(path: &Path) -> u32 {
+    let mut health = launch_health_read(path);
+    health.pending_starts = health.pending_starts.saturating_add(1);
+    launch_health_write(path, &health);
+    health.pending_starts
+}
+
+/// 启动成功确认:pending 归零。
+fn launch_health_confirm(path: &Path) {
+    launch_health_write(
+        path,
+        &LaunchHealth {
+            pending_starts: 0,
+        },
+    );
+}
+
+/// 把 previous 槽换回 current。previous 不在/不完整 → Ok(false) 不动 current。
+fn rollback_runtime_to_previous(root: &Path) -> Result<bool> {
+    let current = root.join("current");
+    let previous = root.join("previous");
+    if !previous.join("runtime-manifest.json").exists() {
+        return Ok(false);
+    }
+    let broken = root.join("_broken_rollback");
+    remove_dir_if_exists(&broken)?;
+    if current.exists() {
+        fs::rename(&current, &broken).with_context(|| format!("隔离故障槽 {}", current.display()))?;
+    }
+    if let Err(err) = fs::rename(&previous, &current) {
+        // 换入失败:把故障槽放回,保持可诊断状态。
+        let _ = fs::rename(&broken, &current);
+        return Err(err).with_context(|| format!("回滚 previous 槽到 {}", current.display()));
+    }
+    let _ = remove_dir_if_exists(&broken);
+    Ok(true)
+}
+
+/// ready 后清各 root 的 previous 槽(确认当前槽健康,回收磁盘)。
+fn cleanup_previous_slots(app: &AppHandle) {
+    let mut roots = vec![shared_runtime_root()];
+    if let Ok(user_root) = user_runtime_root(app) {
+        roots.push(user_root);
+    }
+    for root in roots {
+        let previous = root.join("previous");
+        if previous.exists() {
+            let _ = remove_dir_if_exists(&previous);
+        }
+    }
+}
+
 fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> {
+    extract_runtime_archive_with(archive_path, dest_root, None)
+}
+
+fn extract_runtime_archive_with(
+    archive_path: &Path,
+    dest_root: &Path,
+    progress: Option<&dyn Fn(u64, u64, u64)>,
+) -> Result<()> {
     let extract_root = dest_root.join("_extract");
     remove_dir_if_exists(&extract_root)?;
     // 磁盘预检:解压产物 ≈ 2.3× 压缩包;不足时 tar 写到一半才败,留半成品且报错难懂。
@@ -3948,22 +4462,30 @@ fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> 
         }
     }
     ensure_dir(&extract_root)?;
-    let status = Command::new("/usr/bin/tar")
-        .arg("-xzf")
-        .arg(archive_path)
-        .arg("-C")
-        .arg(&extract_root)
-        .env("COPYFILE_DISABLE", "1")
-        .env("COPY_EXTENDED_ATTRIBUTES_DISABLE", "1")
-        .status()
-        .with_context(|| format!("extract runtime archive {}", archive_path.display()))?;
-    if !status.success() {
-        // tar 半途失败(磁盘满/坏包)的半成品必须当场清掉,否则磁盘累积孤立解压目录。
-        let _ = remove_dir_if_exists(&extract_root);
-        return Err(anyhow!(
-            "extract runtime archive failed for {}",
-            archive_path.display()
-        ));
+    let mut extracted_ok = false;
+    if extract_native_enabled() {
+        match extract_tar_gz_native(archive_path, &extract_root, 0, progress) {
+            Ok(()) => extracted_ok = true,
+            Err(err) => {
+                // native 半成品整目录重建后走外部 tar(_extract 是全新目录,可安全清)。
+                eprintln!(
+                    "[extract] native 解压失败,自动回退外部 tar 重解 {}: {err:#}",
+                    archive_path.display()
+                );
+                let _ = remove_dir_if_exists(&extract_root);
+                ensure_dir(&extract_root)?;
+            }
+        }
+    }
+    if !extracted_ok {
+        if let Err(err) = tar_extract_external(archive_path, &extract_root, false) {
+            // tar 半途失败(磁盘满/坏包)的半成品必须当场清掉,否则磁盘累积孤立解压目录。
+            let _ = remove_dir_if_exists(&extract_root);
+            return Err(err.context(format!(
+                "extract runtime archive failed for {}",
+                archive_path.display()
+            )));
+        }
     }
 
     let extracted_runtime = extract_root.join("runtime-payload");
@@ -4002,7 +4524,8 @@ fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> 
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
-    remove_dir_if_exists(&backup_runtime)?;
+    // WS-1d 看门狗:previous 槽保留到首次成功 ready(emit_ready→cleanup_previous_slots 回收);
+    // 若新 runtime 连续起不来,启动侧自动 rollback_runtime_to_previous。
     remove_dir_if_exists(&extract_root)?;
     Ok(())
 }
@@ -4118,6 +4641,7 @@ fn download_component_updates(
         .context("runtime 缓存目录不可用")?;
     ensure_dir(&cache_dir)?;
     let lock_path = cache_dir.join("components-lock.update.json");
+    update_ledger_begin_asset("components-lock", 0, 0);
     download_update_asset(app, lock_url, &lock_path, start_pct, start_pct, "下载部件清单")?;
     verify_sha256(&lock_path, Some(lock_sha), "部件清单")?;
     let new_lock_text = fs::read_to_string(&lock_path)?;
@@ -4166,6 +4690,7 @@ fn download_component_updates(
         let seg = (end_pct - start_pct) as u32;
         let s = start_pct + (seg * idx as u32 / total) as u8;
         let e = start_pct + (seg * (idx as u32 + 1) / total) as u8;
+        update_ledger_begin_asset(&comp.name, idx as u32 + 1, changed.len() as u32);
         download_update_asset(
             app,
             &comp.url,
@@ -4211,9 +4736,384 @@ fn clone_dir_fast(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-fn tar_extract_strip1(archive: &Path, dest: &Path) -> Result<()> {
-    let status = Command::new("/usr/bin/tar")
-        .arg("--strip-components=1")
+// ============ 原生流式解压(WS-1c) ============
+// flate2+tar 流式:进度=压缩流读取位置/归档大小(零预扫,一遍完成);
+// 单线程解码(tar 流不可并行解码)+ 有界并发写盘(小文件投池,in-flight ≤64MB;
+// 目录/链接/大文件主线程顺序,硬链前 flush 池保序)。
+// 外部 /usr/bin/tar 路径整体保留:native 出错自动回退重解;HOROSA_EXTRACT_NATIVE=0 直退。
+
+const SMALL_FILE_LIMIT: u64 = 8 * 1024 * 1024;
+const EXTRACT_INFLIGHT_CAP: u64 = 64 * 1024 * 1024;
+
+fn extract_native_enabled() -> bool {
+    std::env::var("HOROSA_EXTRACT_NATIVE")
+        .map(|v| !matches!(v.as_str(), "0" | "false" | "no" | "off"))
+        .unwrap_or(true)
+}
+
+fn extract_concurrency() -> usize {
+    std::env::var("HOROSA_EXTRACT_CONCURRENCY")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .map(|n| n.clamp(1, 16))
+        .unwrap_or(4)
+}
+
+/// 读取字节计数器:包在 gz 解码器之下,暴露压缩流位置作为进度分子。
+struct CountingReader<R: Read> {
+    inner: R,
+    count: Arc<std::sync::atomic::AtomicU64>,
+}
+impl<R: Read> Read for CountingReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.count
+            .fetch_add(n as u64, std::sync::atomic::Ordering::Relaxed);
+        Ok(n)
+    }
+}
+
+/// 剥 strip 个前导组件并做路径消毒。Ok(None)=条目整个被剥掉(如顶层目录自身)。
+/// ParentDir/RootDir 一律拒绝(路径逃逸);前导 CurDir(`./`)透明滤除。
+fn strip_tar_path(raw: &Path, strip: usize) -> Result<Option<PathBuf>> {
+    let mut normals: Vec<&std::ffi::OsStr> = Vec::new();
+    for comp in raw.components() {
+        match comp {
+            std::path::Component::Normal(seg) => normals.push(seg),
+            std::path::Component::CurDir => {}
+            _ => {
+                return Err(anyhow!("archive entry path escapes dest: {}", raw.display()));
+            }
+        }
+    }
+    if normals.len() <= strip {
+        return Ok(None);
+    }
+    let mut out = PathBuf::new();
+    for seg in &normals[strip..] {
+        out.push(seg);
+    }
+    Ok(Some(out))
+}
+
+struct WriteJob {
+    path: PathBuf,
+    data: Vec<u8>,
+    mode: Option<u32>,
+    mtime: Option<u64>,
+}
+
+fn extract_write_one(job: &WriteJob) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    if let Some(parent) = job.path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    // 先删旧条目:防 File::create 写穿同名旧 symlink(组件解压目标树带旧内容)。
+    let _ = fs::remove_file(&job.path);
+    let mut file = File::create(&job.path)?;
+    file.write_all(&job.data)?;
+    if let Some(mode) = job.mode {
+        let _ = file.set_permissions(fs::Permissions::from_mode(mode));
+    }
+    if let Some(mtime) = job.mtime {
+        let _ = file.set_times(
+            fs::FileTimes::new().set_modified(UNIX_EPOCH + Duration::from_secs(mtime)),
+        );
+    }
+    Ok(())
+}
+
+/// 有界并发写盘池:submit 按字节额度背压;flush=全部已提交 job 落盘;首个错误粘住。
+struct WriterPool {
+    tx: Option<std::sync::mpsc::Sender<WriteJob>>,
+    workers: Vec<thread::JoinHandle<()>>,
+    in_flight: Arc<(Mutex<u64>, std::sync::Condvar)>,
+    error: Arc<Mutex<Option<String>>>,
+}
+
+impl WriterPool {
+    fn new(concurrency: usize) -> Self {
+        let (tx, rx) = std::sync::mpsc::channel::<WriteJob>();
+        let rx = Arc::new(Mutex::new(rx));
+        let in_flight: Arc<(Mutex<u64>, std::sync::Condvar)> =
+            Arc::new((Mutex::new(0), std::sync::Condvar::new()));
+        let error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let mut workers = Vec::new();
+        for _ in 0..concurrency {
+            let rx = rx.clone();
+            let in_flight = in_flight.clone();
+            let error = error.clone();
+            workers.push(thread::spawn(move || loop {
+                let job = {
+                    let guard = match rx.lock() {
+                        Ok(g) => g,
+                        Err(_) => return,
+                    };
+                    guard.recv()
+                };
+                let Ok(job) = job else { return };
+                let size = job.data.len() as u64;
+                // 出错后仍消费队列(只减额度不写),防 submit 端死等背压。
+                if error.lock().map(|g| g.is_none()).unwrap_or(false) {
+                    if let Err(err) = extract_write_one(&job) {
+                        if let Ok(mut slot) = error.lock() {
+                            slot.get_or_insert(format!("{}: {}", job.path.display(), err));
+                        }
+                    }
+                }
+                let (lock, cvar) = &*in_flight;
+                if let Ok(mut cur) = lock.lock() {
+                    *cur = cur.saturating_sub(size);
+                }
+                cvar.notify_all();
+            }));
+        }
+        Self {
+            tx: Some(tx),
+            workers,
+            in_flight,
+            error,
+        }
+    }
+
+    fn check_error(&self) -> Result<()> {
+        if let Ok(slot) = self.error.lock() {
+            if let Some(msg) = slot.as_ref() {
+                return Err(anyhow!("并发写盘失败: {}", msg));
+            }
+        }
+        Ok(())
+    }
+
+    fn submit(&self, job: WriteJob) -> Result<()> {
+        self.check_error()?;
+        let size = job.data.len() as u64;
+        let (lock, cvar) = &*self.in_flight;
+        {
+            let mut cur = lock
+                .lock()
+                .map_err(|_| anyhow!("写盘池额度锁中毒"))?;
+            while *cur > 0 && *cur + size > EXTRACT_INFLIGHT_CAP {
+                cur = cvar
+                    .wait(cur)
+                    .map_err(|_| anyhow!("写盘池额度锁中毒"))?;
+            }
+            *cur += size;
+        }
+        self.tx
+            .as_ref()
+            .context("写盘池已关闭")?
+            .send(job)
+            .map_err(|_| anyhow!("写盘池线程已退出"))?;
+        Ok(())
+    }
+
+    /// 等全部已提交 job 落盘(硬链条目前必须调:链接目标先在)。
+    fn flush(&self) -> Result<()> {
+        let (lock, cvar) = &*self.in_flight;
+        {
+            let mut cur = lock
+                .lock()
+                .map_err(|_| anyhow!("写盘池额度锁中毒"))?;
+            while *cur > 0 {
+                cur = cvar
+                    .wait(cur)
+                    .map_err(|_| anyhow!("写盘池额度锁中毒"))?;
+            }
+        }
+        self.check_error()
+    }
+
+    fn finish(mut self) -> Result<()> {
+        self.tx.take();
+        for worker in self.workers.drain(..) {
+            let _ = worker.join();
+        }
+        self.check_error()
+    }
+}
+
+/// 原生流式解压(gz→tar 一遍过):progress(压缩流已读, 归档总字节, 已落文件数)。
+fn extract_tar_gz_native_with(
+    archive_path: &Path,
+    dest: &Path,
+    strip: usize,
+    concurrency: usize,
+    progress: Option<&dyn Fn(u64, u64, u64)>,
+) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let archive_size = fs::metadata(archive_path).map(|m| m.len()).unwrap_or(0);
+    let file =
+        File::open(archive_path).with_context(|| format!("open {}", archive_path.display()))?;
+    let read_count = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let counting = CountingReader {
+        inner: file,
+        count: read_count.clone(),
+    };
+    let gz = flate2::read::GzDecoder::new(counting);
+    let mut archive = tar::Archive::new(gz);
+    let pool = if concurrency > 1 {
+        Some(WriterPool::new(concurrency))
+    } else {
+        None
+    };
+    let mut files_done: u64 = 0;
+    let mut last_report = Instant::now();
+    ensure_dir(dest)?;
+    let result = (|| -> Result<()> {
+        for entry in archive.entries().context("read tar entries")? {
+            let mut entry = entry.context("read tar entry")?;
+            let raw_path = entry.path().context("entry path")?.to_path_buf();
+            let entry_type = entry.header().entry_type();
+            // pax/GNU 元数据条目:内容已被 tar crate 应用到相邻条目,自身跳过。
+            if matches!(
+                entry_type,
+                tar::EntryType::XHeader
+                    | tar::EntryType::XGlobalHeader
+                    | tar::EntryType::GNULongName
+                    | tar::EntryType::GNULongLink
+            ) {
+                continue;
+            }
+            let Some(rel) = strip_tar_path(&raw_path, strip)? else {
+                continue;
+            };
+            let out = dest.join(&rel);
+            match entry_type {
+                tar::EntryType::Directory => {
+                    fs::create_dir_all(&out)
+                        .with_context(|| format!("mkdir {}", out.display()))?;
+                    if let Ok(mode) = entry.header().mode() {
+                        let _ = fs::set_permissions(
+                            &out,
+                            fs::Permissions::from_mode(mode & 0o7777),
+                        );
+                    }
+                }
+                tar::EntryType::Symlink => {
+                    let target = entry
+                        .link_name()
+                        .context("symlink target")?
+                        .context("symlink missing target")?
+                        .to_path_buf();
+                    if let Some(parent) = out.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    let _ = fs::remove_file(&out);
+                    std::os::unix::fs::symlink(&target, &out)
+                        .with_context(|| format!("symlink {}", out.display()))?;
+                    files_done += 1;
+                }
+                tar::EntryType::Link => {
+                    // 硬链目标必须已落盘:flush 并发池后再建链。
+                    if let Some(pool) = &pool {
+                        pool.flush()?;
+                    }
+                    let raw_target = entry
+                        .link_name()
+                        .context("hardlink target")?
+                        .context("hardlink missing target")?
+                        .to_path_buf();
+                    let target_rel = strip_tar_path(&raw_target, strip)?
+                        .context("hardlink target stripped away")?;
+                    let target = dest.join(target_rel);
+                    if let Some(parent) = out.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    let _ = fs::remove_file(&out);
+                    fs::hard_link(&target, &out)
+                        .with_context(|| format!("hardlink {}", out.display()))?;
+                    files_done += 1;
+                }
+                tar::EntryType::Regular | tar::EntryType::Continuous => {
+                    let size = entry.header().size().unwrap_or(0);
+                    let mode = entry.header().mode().ok().map(|m| m & 0o7777);
+                    let mtime = entry.header().mtime().ok();
+                    if let Some(parent) = out.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    let pooled = pool.is_some() && size <= SMALL_FILE_LIMIT;
+                    if pooled {
+                        let mut data = Vec::with_capacity(size as usize);
+                        entry.read_to_end(&mut data).with_context(|| {
+                            format!("read entry data {}", raw_path.display())
+                        })?;
+                        pool.as_ref().unwrap().submit(WriteJob {
+                            path: out,
+                            data,
+                            mode,
+                            mtime,
+                        })?;
+                    } else {
+                        let _ = fs::remove_file(&out);
+                        let mut file = File::create(&out)
+                            .with_context(|| format!("create {}", out.display()))?;
+                        std::io::copy(&mut entry, &mut file)
+                            .with_context(|| format!("write {}", out.display()))?;
+                        if let Some(mode) = mode {
+                            let _ =
+                                file.set_permissions(fs::Permissions::from_mode(mode));
+                        }
+                        if let Some(mtime) = mtime {
+                            let _ = file.set_times(
+                                fs::FileTimes::new()
+                                    .set_modified(UNIX_EPOCH + Duration::from_secs(mtime)),
+                            );
+                        }
+                    }
+                    files_done += 1;
+                }
+                other => {
+                    return Err(anyhow!(
+                        "archive entry type {:?} not supported by native extractor ({})",
+                        other,
+                        raw_path.display()
+                    ));
+                }
+            }
+            if let Some(cb) = progress {
+                let now = Instant::now();
+                if now.duration_since(last_report) >= Duration::from_millis(200) {
+                    last_report = now;
+                    cb(
+                        read_count.load(std::sync::atomic::Ordering::Relaxed),
+                        archive_size,
+                        files_done,
+                    );
+                }
+            }
+        }
+        Ok(())
+    })();
+    // 无论成败都要收池(join 线程);错误优先报主循环的。
+    let pool_result = match pool {
+        Some(pool) => pool.finish(),
+        None => Ok(()),
+    };
+    result?;
+    pool_result?;
+    if let Some(cb) = progress {
+        cb(archive_size, archive_size, files_done);
+    }
+    Ok(())
+}
+
+fn extract_tar_gz_native(
+    archive_path: &Path,
+    dest: &Path,
+    strip: usize,
+    progress: Option<&dyn Fn(u64, u64, u64)>,
+) -> Result<()> {
+    extract_tar_gz_native_with(archive_path, dest, strip, extract_concurrency(), progress)
+}
+
+/// 外部 /usr/bin/tar 解压(历史行为原样保留,native 的回退路径)。
+fn tar_extract_external(archive: &Path, dest: &Path, strip1: bool) -> Result<()> {
+    let mut cmd = Command::new("/usr/bin/tar");
+    if strip1 {
+        cmd.arg("--strip-components=1");
+    }
+    let status = cmd
         .arg("-xzf")
         .arg(archive)
         .arg("-C")
@@ -4221,15 +5121,54 @@ fn tar_extract_strip1(archive: &Path, dest: &Path) -> Result<()> {
         .env("COPYFILE_DISABLE", "1")
         .env("COPY_EXTENDED_ATTRIBUTES_DISABLE", "1")
         .status()
-        .with_context(|| format!("extract component {}", archive.display()))?;
+        .with_context(|| format!("extract {}", archive.display()))?;
     if !status.success() {
-        return Err(anyhow!("解压组件失败: {}", archive.display()));
+        return Err(anyhow!("解压失败: {}", archive.display()));
     }
     Ok(())
 }
 
+fn tar_extract_strip1(archive: &Path, dest: &Path) -> Result<()> {
+    tar_extract_strip1_with(archive, dest, None)
+}
+
+fn tar_extract_strip1_with(
+    archive: &Path,
+    dest: &Path,
+    progress: Option<&dyn Fn(u64, u64, u64)>,
+) -> Result<()> {
+    if extract_native_enabled() {
+        match extract_tar_gz_native(archive, dest, 1, progress) {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                // dest 此时可能有 native 半成品:外部 tar 重解同一批条目全量覆盖,无残留风险。
+                eprintln!(
+                    "[extract] native 解压失败,自动回退外部 tar 重解 {}: {err:#}",
+                    archive.display()
+                );
+            }
+        }
+    }
+    tar_extract_external(archive, dest, true)
+        .with_context(|| format!("extract component {}", archive.display()))
+}
+
 /// 对单个 runtime root 应用增量部件:clone 暂存 → 手术 → 原子对换(失败 current 不动)。
 fn apply_component_updates(dest_root: &Path, staged: &StagedComponents) -> Result<()> {
+    apply_component_updates_with(dest_root, staged, None)
+}
+
+/// notify:安装阶段可视化(WS-1c)。None=现状逐字节一致(既有 component_apply_* 测试全绿即证明)。
+fn apply_component_updates_with(
+    dest_root: &Path,
+    staged: &StagedComponents,
+    notify: Option<&dyn Fn(&str)>,
+) -> Result<()> {
+    let say = |msg: &str| {
+        if let Some(cb) = notify {
+            cb(msg);
+        }
+    };
     let current = dest_root.join("current");
     if !current.exists() {
         return Err(anyhow!("增量前提缺失:{} 不存在", current.display()));
@@ -4254,6 +5193,7 @@ fn apply_component_updates(dest_root: &Path, staged: &StagedComponents) -> Resul
         }
     }
     let result = (|| -> Result<()> {
+        say("克隆当前运行时(APFS 秒级)…");
         clone_dir_fast(&current, &stage)?;
         let old_lock = fs::read_to_string(stage.join("components-lock.json"))
             .ok()
@@ -4261,7 +5201,9 @@ fn apply_component_updates(dest_root: &Path, staged: &StagedComponents) -> Resul
             .context("暂存副本缺已装部件清单(增量基准丢失)")?;
         let old_map = lock_component_map(&old_lock);
         let new_map = lock_component_map(&staged.new_lock_json);
-        for (comp, archive) in &staged.archives {
+        let comp_total = staged.archives.len();
+        for (comp_idx, (comp, archive)) in staged.archives.iter().enumerate() {
+            let comp_tag = format!("部件 {}/{}·{}", comp_idx + 1, comp_total, comp.name);
             let detail = new_map
                 .get(&comp.name)
                 .with_context(|| format!("新清单缺部件 {}", comp.name))?;
@@ -4301,10 +5243,24 @@ fn apply_component_updates(dest_root: &Path, staged: &StagedComponents) -> Resul
                 if paths.is_empty() {
                     return Err(anyhow!("tree 部件 {} 无 paths 声明", comp.name));
                 }
+                say(&format!("{}:清理旧内容…", comp_tag));
                 for rel in &paths {
                     remove_dir_if_exists(&stage.join(rel))?;
                 }
-                tar_extract_strip1(archive, &stage)?;
+                let on_extract = |read: u64, total: u64, files: u64| {
+                    if total == 0 {
+                        return;
+                    }
+                    say(&format!(
+                        "{}:解压 {}% · {} 个文件",
+                        comp_tag,
+                        ((read as f64 / total as f64) * 100.0).min(100.0).round() as u32,
+                        files
+                    ));
+                };
+                let extract_progress: Option<&dyn Fn(u64, u64, u64)> =
+                    if notify.is_some() { Some(&on_extract) } else { None };
+                tar_extract_strip1_with(archive, &stage, extract_progress)?;
                 for (rel, tmp) in moved {
                     let back = stage.join(&rel);
                     if back.exists() {
@@ -4343,9 +5299,11 @@ fn apply_component_updates(dest_root: &Path, staged: &StagedComponents) -> Resul
                         }
                     }
                 }
+                say(&format!("{}:更新文件…", comp_tag));
                 tar_extract_strip1(archive, &stage)?;
             }
         }
+        say("写入部件清单…");
         // 新部件清单 + runtime-manifest(version/builtAt/appName 从新 lock 派生)落盘。
         fs::write(stage.join("components-lock.json"), &staged.new_lock_text)?;
         let manifest_json = serde_json::json!({
@@ -4365,6 +5323,7 @@ fn apply_component_updates(dest_root: &Path, staged: &StagedComponents) -> Resul
         return Err(err);
     }
     // 原子对换(与全量 extract_runtime_archive 同款协议)。
+    say("原子切换运行时…");
     let backup = dest_root.join("previous");
     remove_dir_if_exists(&backup)?;
     fs::rename(&current, &backup)?;
@@ -4380,7 +5339,7 @@ fn apply_component_updates(dest_root: &Path, staged: &StagedComponents) -> Resul
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
-    remove_dir_if_exists(&backup)?;
+    // WS-1d 看门狗:previous 槽保留到首次成功 ready(同 extract_runtime_archive_with 语义)。
     clear_runtime_pending_marker(&current)?;
     Ok(())
 }
@@ -4694,12 +5653,37 @@ fn ensure_runtime_installed(
     emit_progress(window, 18, "准备本机组件");
     let archive_path = cached_runtime_archive_path(app, &config)?;
     let runtime_url = expected_runtime_url(&config);
-    download_with_progress(window, &runtime_url, &archive_path, 8, 56, "准备本机组件")?;
+    // 进度带 18→56(此前 8→56:上一行刚推到 18%,下载一开始又倒退回 8%,被用户视作卡死/回滚)
+    download_with_progress(window, &runtime_url, &archive_path, 18, 56, "准备本机组件")?;
     emit_status(window, "组件归档已就绪，正在部署本机组件…");
     emit_progress(window, 62, "部署本机组件");
-    for runtime_root in &install_roots {
+    // 62→73 进度带按压缩流位置推进:此前 4-8s 的解压黑盒改为「正在展开组件 · 43% · 12,304 个文件」。
+    let roots_total = install_roots.len().max(1);
+    for (root_idx, runtime_root) in install_roots.iter().enumerate() {
         ensure_dir(runtime_root)?;
-        extract_runtime_archive(&archive_path, runtime_root)?;
+        let base = 62.0 + 11.0 * (root_idx as f64 / roots_total as f64);
+        let span = 11.0 / roots_total as f64;
+        let last_pct = std::cell::Cell::new(0u8);
+        let on_extract = |read: u64, total: u64, files: u64| {
+            if total == 0 {
+                return;
+            }
+            let ratio = (read as f64 / total as f64).min(1.0);
+            let pct = (base + span * ratio).round() as u8;
+            if pct != last_pct.get() {
+                last_pct.set(pct);
+                emit_progress(
+                    window,
+                    pct,
+                    &format!(
+                        "正在展开组件 · {}% · {} 个文件",
+                        (ratio * 100.0).round() as u32,
+                        files
+                    ),
+                );
+            }
+        };
+        extract_runtime_archive_with(&archive_path, runtime_root, Some(&on_extract))?;
         clear_runtime_pending_marker(&runtime_root.join("current"))?;
     }
     emit_progress(window, 74, "本机组件已准备完成");
@@ -4854,6 +5838,12 @@ fn start_runtime(
             "HOROSA_DIAG_DIR",
             paths.logs_dir.to_string_lossy().to_string(),
         );
+    // 启动账本:把 run 标签与账本文件传给脚本层(shell 再传 Java/Python),四层同文件聚合。
+    if let Some((run_tag, ledger_file)) = ledger_env() {
+        command
+            .env("HOROSA_RUN_TAG", run_tag)
+            .env("HOROSA_LEDGER_FILE", ledger_file.to_string_lossy().to_string());
+    }
     // 本地回环探测防代理劫持(双保险,脚本侧 curl --noproxy / urllib 禁代理是第一道):
     // 用户 shell/launchctl 注入的代理变量会把脚本内 127.0.0.1 探测与热身请求劫持进代理 →
     // 服务在听也探不到 → 首启永不就绪。spawn 前显式剥掉六个代理变量。
@@ -4875,10 +5865,16 @@ fn start_runtime(
     }
     // 心跳:output() 阻塞等脚本(就绪轮询通常 5~20s,冷启更久),每秒刷一次 indeterminate
     // 文案让进度条保持活动,避免长等待被当成卡死。错误路径同样先置停+join 再返回。
+    // WS-1c 细分:借启动账本的 sh.py_http_ready / sh.java_http_ready 打点,
+    // 把整段等待拆成「排盘引擎已就绪(1/2)→主服务已就绪(2/2)」两阶段可见。
     let heartbeat_stop = Arc::new(AtomicBool::new(false));
     let heartbeat = {
         let window = window.clone();
         let stop = heartbeat_stop.clone();
+        let ledger_file = STARTUP_LEDGER
+            .get()
+            .and_then(|v| v.as_ref())
+            .map(|(_, file, _)| file.clone());
         thread::spawn(move || {
             let started = Instant::now();
             loop {
@@ -4888,18 +5884,44 @@ fn start_runtime(
                         return;
                     }
                 }
-                emit_indeterminate_progress(
-                    &window,
-                    82,
-                    &format!("正在启动本地服务…已等待 {} 秒", started.elapsed().as_secs()),
-                );
+                // 账本按 run 独立文件,读到什么段就是本次的(吞错:账本不可用退回笼统文案)
+                let stage = ledger_file
+                    .as_ref()
+                    .and_then(|f| fs::read_to_string(f).ok())
+                    .map(|text| {
+                        if text.contains("\"seg\":\"sh.java_http_ready\"") {
+                            2u8
+                        } else if text.contains("\"seg\":\"sh.py_http_ready\"") {
+                            1u8
+                        } else {
+                            0u8
+                        }
+                    })
+                    .unwrap_or(0);
+                let message = match stage {
+                    2 => format!(
+                        "主服务已就绪(2/2),正在完成收尾…已等待 {} 秒",
+                        started.elapsed().as_secs()
+                    ),
+                    1 => format!(
+                        "排盘引擎已就绪(1/2),正在启动主服务…已等待 {} 秒",
+                        started.elapsed().as_secs()
+                    ),
+                    _ => format!("正在启动本地服务…已等待 {} 秒", started.elapsed().as_secs()),
+                };
+                emit_indeterminate_progress(&window, 82, &message);
             }
         })
     };
+    ledger_mark("rust.script_spawn", None);
     let output_result = command.output().context("launch start_horosa_local.sh");
     heartbeat_stop.store(true, Ordering::Relaxed);
     let _ = heartbeat.join();
     let output = output_result?;
+    ledger_mark(
+        "rust.script_returned",
+        Some(serde_json::json!({"exit": output.status.code().unwrap_or(-1)})),
+    );
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -5554,13 +6576,14 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
             download_with_progress(&window, &plan.app_url, &zip_path, 12, 52, "下载桌面更新包")?;
             emit_status(&window, "桌面更新包下载完成，正在校验…");
         } else {
-            let client = build_github_client(900)?;
-            let mut response = client.get(&plan.app_url).send()?.error_for_status()?;
-            if let Some(parent) = zip_path.parent() {
-                ensure_dir(parent)?;
-            }
-            let mut file = File::create(&zip_path)?;
-            std::io::copy(&mut response, &mut file)?;
+            // 无主窗口分支:同走断点续传下载核(原为裸 io::copy,零重试零续传零原子性)。
+            download_resumable_once(
+                &plan.app_url,
+                &zip_path,
+                download_resume_enabled(),
+                |_, _| {},
+                |_| {},
+            )?;
         }
         verify_sha256(&zip_path, plan.app_sha256.as_deref(), "桌面更新包")?;
     }
@@ -5672,6 +6695,11 @@ struct UpdateAvailability {
     runtime_needs_update: bool,
     notes: String,
     release_url: String,
+    // 可视化 v2(全部 optional 语义:老前端忽略,新前端判空退化)
+    update_mode: Option<String>,     // "incremental" | "full"
+    download_bytes: Option<u64>,     // 预计下载量
+    reuse_pct: Option<u8>,           // 增量复用率
+    changed_components: Vec<String>, // 变化部件名
 }
 
 fn compute_runtime_needs_update(plan: &UpdatePlan, local_runtime: &Option<String>) -> bool {
@@ -5690,13 +6718,30 @@ fn update_check_silent(app: AppHandle) -> std::result::Result<UpdateAvailability
         let current = Version::parse(env!("CARGO_PKG_VERSION"))?;
         let local_runtime = local_runtime_version(&app);
         let runtime_needs_update = compute_runtime_needs_update(&plan, &local_runtime);
+        let available = plan.latest_version > current || runtime_needs_update;
+        // 可视化 v2:检查阶段即算「本次需下载多大(增量/全量,复用率)」——display-only,
+        // 真实下载路径届时自行重判(estimate 与实际有差时以实际为准)。
+        let estimate = if available {
+            Some(compute_update_estimate(
+                &plan,
+                plan.latest_version > current,
+            ))
+        } else {
+            None
+        };
         Ok(UpdateAvailability {
-            available: plan.latest_version > current || runtime_needs_update,
+            available,
             current_version: current.to_string(),
             latest_version: plan.latest_version.to_string(),
             runtime_needs_update,
             notes: summarize_update_notes(&plan.notes),
             release_url: plan.release_url.clone(),
+            update_mode: estimate.as_ref().map(|e| e.mode.to_string()),
+            download_bytes: estimate.as_ref().and_then(|e| e.need_bytes),
+            reuse_pct: estimate.as_ref().and_then(|e| e.reuse_pct),
+            changed_components: estimate
+                .map(|e| e.changed_names)
+                .unwrap_or_default(),
         })
     })()
     .map_err(|e| format!("{e:#}"))
@@ -5710,41 +6755,60 @@ fn download_update_asset_once(
     end_pct: u8,
     label: &str,
 ) -> Result<()> {
-    let client = build_github_client(900)?;
-    let mut response = client
-        .get(url)
-        .header("User-Agent", "HorosaDesktop")
-        .header("Cache-Control", "no-cache")
-        .header("Pragma", "no-cache")
-        .send()
-        .with_context(|| format!("download {}", url))?;
-    if !response.status().is_success() {
-        return Err(anyhow!("download failed: {} -> {}", url, response.status()));
-    }
-    if let Some(parent) = dest.parent() {
-        ensure_dir(parent)?;
-    }
-    let total = response.content_length().unwrap_or(0);
-    let mut file = File::create(dest)?;
-    let mut downloaded: u64 = 0;
-    let mut buffer = [0u8; 64 * 1024];
+    // update 事件通道薄壳:下载/续传逻辑在 download_resumable_once,这里只负责事件格式。
     let mut last_pct = start_pct;
-    emit_update_event(
-        app,
-        &serde_json::json!({"phase":"downloading","pct":start_pct,"message":label}).to_string(),
-    );
-    loop {
-        let read = response.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        file.write_all(&buffer[..read])?;
-        downloaded += read as u64;
-        if total > 0 {
-            let ratio = downloaded as f64 / total as f64;
-            let span = end_pct.saturating_sub(start_pct) as f64;
-            let pct = (start_pct as f64 + span * ratio).round() as u8;
-            if pct != last_pct {
+    download_resumable_once(
+        url,
+        dest,
+        download_resume_enabled(),
+        |resumed_from, _total| {
+            if resumed_from > 0 {
+                // 续传补入的既有字节计入账本进度(不进速度滑窗);事件带 resumedFrom(可选字段)。
+                update_ledger_note_resumed(resumed_from);
+                emit_update_event(
+                    app,
+                    &serde_json::json!({
+                        "phase": "downloading",
+                        "pct": start_pct,
+                        "message": format!("{}(断点续传,从 {} MB 处继续)", label, resumed_from / 1_048_576),
+                        "resumedFrom": resumed_from,
+                    })
+                    .to_string(),
+                );
+            } else {
+                emit_update_event(
+                    app,
+                    &serde_json::json!({"phase":"downloading","pct":start_pct,"message":label})
+                        .to_string(),
+                );
+            }
+        },
+        |chunk| {
+            let pct = if chunk.total > 0 {
+                let ratio = chunk.downloaded as f64 / chunk.total as f64;
+                let span = end_pct.saturating_sub(start_pct) as f64;
+                (start_pct as f64 + span * ratio).round() as u8
+            } else {
+                last_pct
+            };
+            // v2 字节账本:速度/ETA/全局字节/部件三元组合并进事件(账本自带 200ms 节流);
+            // v2 关闭或无账本时退回老「pct 变化才发」路径,行为与现状一致。
+            if let Some(fields) = update_ledger_chunk_fields(chunk.delta) {
+                last_pct = pct;
+                let mut event = serde_json::json!({
+                    "phase": "downloading",
+                    "pct": pct,
+                    "message": label,
+                });
+                if let (Some(event_obj), Some(field_obj)) =
+                    (event.as_object_mut(), fields.as_object())
+                {
+                    for (k, v) in field_obj {
+                        event_obj.insert(k.clone(), v.clone());
+                    }
+                }
+                emit_update_event(app, &event.to_string());
+            } else if chunk.total > 0 && pct != last_pct && !progress_v2_enabled() {
                 last_pct = pct;
                 emit_update_event(
                     app,
@@ -5752,8 +6816,9 @@ fn download_update_asset_once(
                         .to_string(),
                 );
             }
-        }
-    }
+        },
+    )?;
+    update_ledger_finish_asset();
     emit_update_event(
         app,
         &serde_json::json!({"phase":"downloading","pct":end_pct,"message":label}).to_string(),
@@ -5787,7 +6852,9 @@ fn download_update_asset(
             Ok(()) => return Ok(()),
             Err(err) => {
                 last_err = Some(err);
-                let _ = fs::remove_file(dest);
+                // 半成品在 dest.part(下载核管理),保留供下一轮续传;dest 只在 rename 后出现。
+                // 账本清当前资产字节:续传 attempt 会经 note_resumed 重新补入,口径自洽。
+                update_ledger_reset_current();
             }
         }
     }
@@ -5857,8 +6924,42 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
     }
 
     let config = load_release_config(app)?;
+    // 可视化 v2:先发 planning(预计体积/增量复用率/变化部件),再建全局字节账本。
+    let estimate = compute_update_estimate(&plan, app_should_update);
+    update_ledger_init(estimate.mode, estimate.need_bytes.unwrap_or(0));
+    {
+        let size_text = match estimate.need_bytes {
+            Some(bytes) => format!("约 {} MB", bytes / 1_048_576),
+            None => "大小待定".to_string(),
+        };
+        let mode_text = if estimate.mode == "incremental" {
+            match estimate.reuse_pct {
+                Some(pct) => format!("增量更新,复用 {}%", pct),
+                None => "增量更新".to_string(),
+            }
+        } else {
+            "完整更新".to_string()
+        };
+        let mut planning = serde_json::json!({
+            "phase": "planning",
+            "pct": 8,
+            "message": format!("本次需下载 {}({})", size_text, mode_text),
+            "mode": estimate.mode,
+        });
+        if let Some(bytes) = estimate.need_bytes {
+            planning["totalBytes"] = serde_json::json!(bytes);
+        }
+        if let Some(pct) = estimate.reuse_pct {
+            planning["reusePct"] = serde_json::json!(pct);
+        }
+        if !estimate.changed_names.is_empty() {
+            planning["changedComponents"] = serde_json::json!(estimate.changed_names);
+        }
+        emit_update_event(app, &planning.to_string());
+    }
     let zip_path = cached_app_update_path(app, &config)?;
     if app_should_update {
+        update_ledger_begin_asset("app", 0, 0);
         download_update_asset(app, &plan.app_url, &zip_path, 10, 55, "下载桌面更新包")?;
         verify_sha256(&zip_path, plan.app_sha256.as_deref(), "桌面更新包")?;
     }
@@ -5891,11 +6992,26 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
                 Ok(staged) => staged_components = Some(staged),
                 Err(err) => {
                     eprintln!("component update download failed, fallback to full: {err:#}");
+                    // 可视化 v2:增量降级全量——账本改按全量口径重记(mode=full,总量=已下+全量运行时)。
+                    update_ledger_reset_current();
+                    if let Ok(mut slot) = UPDATE_LEDGER.lock() {
+                        if let Some(ledger) = slot.as_mut() {
+                            ledger.mode = "full".to_string();
+                            ledger.total_bytes = match plan.runtime_size_bytes {
+                                Some(bytes) => ledger.completed_bytes + bytes,
+                                None => 0,
+                            };
+                            ledger.component_name.clear();
+                            ledger.component_index = 0;
+                            ledger.component_total = 0;
+                        }
+                    }
                     emit_update_event(
                         app,
                         &serde_json::json!({
                             "phase": "downloading",
                             "pct": start,
+                            "mode": "full",
                             "message": "增量组件获取失败,改为下载完整本机组件…",
                         })
                         .to_string(),
@@ -5906,6 +7022,7 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
         if staged_components.is_none() {
             if let Some(runtime_url) = plan.runtime_url.as_ref() {
                 let rp = cached_runtime_archive_path(app, &config)?;
+                update_ledger_begin_asset("runtime", 0, 0);
                 download_update_asset(app, runtime_url, &rp, start, 92, "下载本机组件更新")?;
                 verify_sha256(&rp, plan.runtime_sha256.as_deref(), "运行环境更新包")?;
                 runtime_archive_path = Some(rp);
@@ -5931,16 +7048,25 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
             });
         }
     }
-    emit_update_event(
-        app,
-        &serde_json::json!({
-            "phase": "ready",
-            "pct": 100,
-            "message": "更新已下载完成,可随时重启更新",
-            "version": plan.latest_version.to_string(),
-        })
-        .to_string(),
-    );
+    // ready 事件带模式与实际下载量(可视化 v2),随后清账。
+    let mut ready = serde_json::json!({
+        "phase": "ready",
+        "pct": 100,
+        "message": "更新已下载完成,可随时重启更新",
+        "version": plan.latest_version.to_string(),
+    });
+    if let Some((mode, downloaded)) = update_ledger_summary() {
+        ready["mode"] = serde_json::json!(mode);
+        ready["downloadedBytes"] = serde_json::json!(downloaded);
+        let mb = downloaded / 1_048_576;
+        ready["message"] = serde_json::json!(format!(
+            "更新已下载完成(本次共下载 {} MB,{}),可随时重启更新",
+            mb,
+            if mode == "incremental" { "增量" } else { "完整" }
+        ));
+    }
+    update_ledger_clear();
+    emit_update_event(app, &ready.to_string());
     Ok(())
 }
 
@@ -5948,6 +7074,7 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
 fn update_start_background(app: AppHandle) -> std::result::Result<(), String> {
     thread::spawn(move || {
         if let Err(err) = run_background_update_download(&app) {
+            update_ledger_clear();
             emit_update_event(
                 &app,
                 &serde_json::json!({"phase":"error","message":format!("{err:#}")}).to_string(),
@@ -5976,8 +7103,10 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
         if staged.runtime_should_update {
             if let Some(components) = staged.staged_components.as_ref() {
                 cleanup_state(app);
-                for root in &staged.runtime_roots {
-                    apply_component_updates(root, components)
+                let roots_total = staged.runtime_roots.len();
+                for (idx, root) in staged.runtime_roots.iter().enumerate() {
+                    let notify = make_applying_notifier(app, idx + 1, roots_total);
+                    apply_component_updates_with(root, components, Some(&notify))
                         .with_context(|| format!("增量应用本机组件到 {}", root.display()))?;
                 }
             }
@@ -5999,8 +7128,10 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
             .context("缺少主窗口,无法完成本机组件更新")?;
         cleanup_state(app);
         if let Some(components) = staged.staged_components.as_ref() {
-            for root in &staged.runtime_roots {
-                apply_component_updates(root, components)
+            let roots_total = staged.runtime_roots.len();
+            for (idx, root) in staged.runtime_roots.iter().enumerate() {
+                let notify = make_applying_notifier(app, idx + 1, roots_total);
+                apply_component_updates_with(root, components, Some(&notify))
                     .with_context(|| format!("增量应用本机组件到 {}", root.display()))?;
             }
         } else {
@@ -6008,9 +7139,21 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
                 .runtime_archive_path
                 .as_deref()
                 .context("已下载的本机组件包丢失,请重新下载")?;
-            for root in &staged.runtime_roots {
+            let roots_total = staged.runtime_roots.len();
+            for (idx, root) in staged.runtime_roots.iter().enumerate() {
                 ensure_dir(root)?;
-                extract_runtime_archive(runtime_archive, root)?;
+                let notify = make_applying_notifier(app, idx + 1, roots_total);
+                let on_extract = |read: u64, total: u64, files: u64| {
+                    if total == 0 {
+                        return;
+                    }
+                    notify(&format!(
+                        "展开完整运行时 {}% · {} 个文件",
+                        ((read as f64 / total as f64) * 100.0).min(100.0).round() as u32,
+                        files
+                    ));
+                };
+                extract_runtime_archive_with(runtime_archive, root, Some(&on_extract))?;
                 clear_runtime_pending_marker(&root.join("current"))?;
             }
         }
@@ -6158,7 +7301,42 @@ fn runtime_bootstrap(
         },
     );
     emit_status(&window, "正在检查安装配置…");
+    if let Ok(app_data_dir) = app.path().app_data_dir() {
+        ledger_init(&app_data_dir.join("logs"));
+    }
+    ledger_mark("rust.bootstrap_begin", None);
+    // 启动健康看门狗:连续 2 次未达 ready → 自动回滚 previous 槽(更新到坏版本的自愈)。
+    if let Some(health_path) = launch_health_path(&app) {
+        let pending = launch_health_note_start(&health_path);
+        if pending > WATCHDOG_ROLLBACK_THRESHOLD && !force_runtime_install {
+            let mut roots = vec![shared_runtime_root()];
+            if let Ok(user_root) = user_runtime_root(&app) {
+                roots.push(user_root);
+            }
+            let mut rolled = false;
+            for root in &roots {
+                match rollback_runtime_to_previous(root) {
+                    Ok(true) => rolled = true,
+                    Ok(false) => {}
+                    Err(err) => eprintln!("[watchdog] 回滚 {} 失败: {err:#}", root.display()),
+                }
+            }
+            if rolled {
+                ledger_mark(
+                    "rust.watchdog_rollback",
+                    Some(serde_json::json!({"pending": pending})),
+                );
+                emit_status(
+                    &window,
+                    "检测到连续两次启动未成功，已自动回退到上一版本运行时；启动后可在菜单「检查更新」重试升级。",
+                );
+                // 回滚开新的一链:本次视为第 1 次尝试。
+                launch_health_write(&health_path, &LaunchHealth { pending_starts: 1 });
+            }
+        }
+    }
     let paths = ensure_runtime_installed(&app, &window, force_runtime_install)?;
+    ledger_mark("rust.runtime_check_done", None);
     // panic 路径清理登记(只第一次生效):app panic 不触发 RunEvent::Exit,
     // 这里把 stop 脚本交给 panic hook,后端子进程不孤儿化。
     let _ = PANIC_STOP_SCRIPT.set((
@@ -6169,6 +7347,10 @@ fn runtime_bootstrap(
     let mut backend_port = choose_free_port()?;
     let mut chart_port = choose_free_port()?;
 
+    ledger_mark(
+        "rust.ports_chosen",
+        Some(serde_json::json!({"web": web_port, "backend": backend_port, "chart": chart_port})),
+    );
     let shutdown = Arc::new(AtomicBool::new(false));
     let _server_handle =
         start_static_server(paths.frontend_dir.clone(), web_port, shutdown.clone())?;
@@ -6177,6 +7359,7 @@ fn runtime_bootstrap(
             *slot = Some(shutdown);
         }
     }
+    ledger_mark("rust.static_server_up", None);
 
     // 修复(更新后卡顿)C①:标记「读取即消费」——检测到刚更新完即把通知缓存进内存并删除磁盘标记,
     // 这样无论本次首启成功/失败,标记都不残留 → 杜绝「首启失败后次次都走 300s 全量慢路径」。
@@ -6260,9 +7443,18 @@ fn runtime_bootstrap(
                 )
             })?;
         } else if fast_path_enabled {
-            emit_status(&window, "快速启动校验失败，正在自动回退到完整校验启动…");
+            // WS-1c:回退从「一行状态」升级为醒目说明(属正常保护而非故障)+账本留痕(诊断中心可见)。
+            ledger_mark("rust.fast_path_fallback", None);
+            emit_status(
+                &window,
+                "快速启动校验未通过，已自动切换完整校验启动（预计 30-60 秒），属正常自我保护，请稍候…",
+            );
             // 同上:与 start_runtime 入口同档防倒退。
-            emit_indeterminate_progress(&window, 82, "快速启动回退到完整校验");
+            emit_indeterminate_progress(
+                &window,
+                82,
+                "快速启动校验未通过 · 已自动切换完整校验(预计 30-60 秒,属正常保护)",
+            );
             stop_runtime(&paths);
             thread::sleep(Duration::from_secs(1));
             backend_port = choose_free_port()?;
@@ -6308,6 +7500,296 @@ fn runtime_bootstrap(
         chart_port,
         web_port,
     })
+}
+
+
+/// ── 结构化启动账本(Rust 层写入端)────────────────────────────────────────────
+/// 一行一段 JSON Lines,四层进程(Rust/shell/Java/Python)经 env(HOROSA_RUN_TAG/
+/// HOROSA_LEDGER_FILE)共享同一文件;Rust 是 run 标签的生成者。只在段边界打点,
+/// append + best-effort 吞错,账本绝不影响启动;HOROSA_STARTUP_LEDGER=0 总关。
+static STARTUP_LEDGER: std::sync::OnceLock<Option<(String, PathBuf, Instant)>> =
+    std::sync::OnceLock::new();
+
+fn ledger_init(logs_dir: &Path) {
+    let enabled = std::env::var("HOROSA_STARTUP_LEDGER")
+        .map(|v| !matches!(v.to_ascii_lowercase().as_str(), "0" | "false" | "no" | "off"))
+        .unwrap_or(true);
+    if !enabled {
+        let _ = STARTUP_LEDGER.set(None);
+        return;
+    }
+    let millis = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let run_tag = format!("r{}", millis);
+    let dir = logs_dir.join(&run_tag);
+    let _ = fs::create_dir_all(&dir);
+    let file = dir.join("horosa-startup-ledger.jsonl");
+    let _ = STARTUP_LEDGER.set(Some((run_tag, file, Instant::now())));
+}
+
+fn ledger_mark(seg: &str, extra: Option<serde_json::Value>) {
+    let Some(Some((run_tag, file, t0))) = STARTUP_LEDGER.get().map(|v| v.as_ref()).map(|v| v) else {
+        return;
+    };
+    let t_ms = t0.elapsed().as_millis();
+    let mut row = serde_json::json!({
+        "run": run_tag,
+        "layer": "rust",
+        "seg": seg,
+        "pid": std::process::id(),
+        "t_ms": t_ms,
+    });
+    if let Some(extra) = extra {
+        row["extra"] = extra;
+    }
+    if let Ok(mut fh) = fs::OpenOptions::new().create(true).append(true).open(file) {
+        use std::io::Write;
+        let _ = writeln!(fh, "{}", row);
+    }
+}
+
+fn ledger_env() -> Option<(String, PathBuf)> {
+    STARTUP_LEDGER
+        .get()
+        .and_then(|v| v.as_ref())
+        .map(|(tag, file, _)| (tag.clone(), file.clone()))
+}
+
+/// ── 更新进度可视化 v2:全局字节账本 ─────────────────────────────────────────────
+/// 一次后台更新一本账(既有设计即单飞),download_update_asset_once 喂块、事件层读
+/// 速度(10s 滑窗)/ETA/总量;HOROSA_PROGRESS_V2=0 时退化为老三样(phase/pct/message)。
+struct DownloadLedger {
+    mode: String,            // "incremental" | "full"
+    total_bytes: u64,        // 计划总下载量(0=未知,前端显「大小待定」)
+    completed_bytes: u64,    // 已完成资产累计
+    current_bytes: u64,      // 当前资产已下
+    window: std::collections::VecDeque<(Instant, u64)>, // (时刻, 全局已下字节) 10s 滑窗
+    component_index: u32,
+    component_total: u32,
+    component_name: String,
+    last_emit: Instant,
+    last_emit_bytes: u64,
+}
+
+impl DownloadLedger {
+    fn new(mode: &str, total_bytes: u64) -> Self {
+        Self {
+            mode: mode.to_string(),
+            total_bytes,
+            completed_bytes: 0,
+            current_bytes: 0,
+            window: std::collections::VecDeque::new(),
+            component_index: 0,
+            component_total: 0,
+            component_name: String::new(),
+            last_emit: Instant::now(),
+            last_emit_bytes: 0,
+        }
+    }
+
+    fn downloaded(&self) -> u64 {
+        self.completed_bytes + self.current_bytes
+    }
+
+    fn on_chunk(&mut self, delta: u64) {
+        self.current_bytes += delta;
+        let now = Instant::now();
+        let total = self.downloaded();
+        self.window.push_back((now, total));
+        while let Some((t, _)) = self.window.front() {
+            if now.duration_since(*t) > Duration::from_secs(10) {
+                self.window.pop_front();
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn finish_asset(&mut self) {
+        self.completed_bytes += self.current_bytes;
+        self.current_bytes = 0;
+    }
+
+    fn speed_bps(&self) -> u64 {
+        match (self.window.front(), self.window.back()) {
+            (Some((t0, b0)), Some((t1, b1))) if t1 > t0 => {
+                let secs = t1.duration_since(*t0).as_secs_f64();
+                if secs <= 0.0 {
+                    0
+                } else {
+                    (((*b1 - *b0) as f64) / secs) as u64
+                }
+            }
+            _ => 0,
+        }
+    }
+
+    fn eta_secs(&self) -> Option<u64> {
+        let speed = self.speed_bps();
+        if speed == 0 || self.total_bytes == 0 {
+            return None;
+        }
+        let remaining = self.total_bytes.saturating_sub(self.downloaded());
+        Some(remaining / speed.max(1))
+    }
+
+    /// 节流:≥200ms 且(有明显增量 ≥1MB 或距上次 ≥1s)才 emit,防 window.eval 洪泛。
+    fn should_emit(&mut self) -> bool {
+        let now = Instant::now();
+        let since = now.duration_since(self.last_emit);
+        if since < Duration::from_millis(200) {
+            return false;
+        }
+        let grown = self.downloaded().saturating_sub(self.last_emit_bytes);
+        if grown < 1_048_576 && since < Duration::from_secs(1) {
+            return false;
+        }
+        self.last_emit = now;
+        self.last_emit_bytes = self.downloaded();
+        true
+    }
+}
+
+static UPDATE_LEDGER: Mutex<Option<DownloadLedger>> = Mutex::new(None);
+
+fn progress_v2_enabled() -> bool {
+    std::env::var("HOROSA_PROGRESS_V2")
+        .map(|v| !matches!(v.as_str(), "0" | "false" | "no" | "off"))
+        .unwrap_or(true)
+}
+
+fn update_ledger_init(mode: &str, total_bytes: u64) {
+    if let Ok(mut slot) = UPDATE_LEDGER.lock() {
+        *slot = Some(DownloadLedger::new(mode, total_bytes));
+    }
+}
+
+fn update_ledger_begin_asset(name: &str, index: u32, total: u32) {
+    if let Ok(mut slot) = UPDATE_LEDGER.lock() {
+        if let Some(ledger) = slot.as_mut() {
+            ledger.component_name = name.to_string();
+            ledger.component_index = index;
+            ledger.component_total = total;
+        }
+    }
+}
+
+fn update_ledger_finish_asset() {
+    if let Ok(mut slot) = UPDATE_LEDGER.lock() {
+        if let Some(ledger) = slot.as_mut() {
+            ledger.finish_asset();
+        }
+    }
+}
+
+/// 资产下载失败重试前清当前资产字节(半成品作废,账本不虚增)。
+fn update_ledger_reset_current() {
+    if let Ok(mut slot) = UPDATE_LEDGER.lock() {
+        if let Some(ledger) = slot.as_mut() {
+            ledger.current_bytes = 0;
+            ledger.window.clear();
+        }
+    }
+}
+
+/// 断点续传补入的既有字节:计入进度显示(downloadedBytes),不进速度滑窗(速度不虚高)。
+fn update_ledger_note_resumed(bytes: u64) {
+    if let Ok(mut slot) = UPDATE_LEDGER.lock() {
+        if let Some(ledger) = slot.as_mut() {
+            ledger.current_bytes = ledger.current_bytes.saturating_add(bytes);
+        }
+    }
+}
+
+fn update_ledger_clear() {
+    if let Ok(mut slot) = UPDATE_LEDGER.lock() {
+        *slot = None;
+    }
+}
+
+/// 喂块并(按节流)返回要合并进 downloading 事件的 v2 字段;v2 关闭/无账本时返回 None。
+fn update_ledger_chunk_fields(delta: u64) -> Option<serde_json::Value> {
+    if !progress_v2_enabled() {
+        return None;
+    }
+    let mut slot = UPDATE_LEDGER.lock().ok()?;
+    let ledger = slot.as_mut()?;
+    ledger.on_chunk(delta);
+    if !ledger.should_emit() {
+        return None;
+    }
+    let mut fields = serde_json::json!({
+        "mode": ledger.mode,
+        "downloadedBytes": ledger.downloaded(),
+        "speedBps": ledger.speed_bps(),
+    });
+    if ledger.total_bytes > 0 {
+        fields["totalBytes"] = serde_json::json!(ledger.total_bytes);
+    }
+    if let Some(eta) = ledger.eta_secs() {
+        fields["etaSecs"] = serde_json::json!(eta);
+    }
+    if ledger.component_total > 0 {
+        fields["component"] = serde_json::json!(ledger.component_name);
+        fields["componentIndex"] = serde_json::json!(ledger.component_index);
+        fields["componentTotal"] = serde_json::json!(ledger.component_total);
+    }
+    Some(fields)
+}
+
+fn update_ledger_summary() -> Option<(String, u64)> {
+    let slot = UPDATE_LEDGER.lock().ok()?;
+    let ledger = slot.as_ref()?;
+    Some((ledger.mode.clone(), ledger.downloaded()))
+}
+
+/// 「本次需下载 XX MB(增量,复用 YY%)」的计算来源:display-only,真实下载路径照旧自决。
+struct UpdateEstimate {
+    mode: &'static str,        // "incremental" | "full"
+    need_bytes: Option<u64>,   // 预计下载量(None=大小待定)
+    reuse_pct: Option<u8>,     // 增量复用率(仅 incremental)
+    changed_names: Vec<String>,
+}
+
+fn compute_update_estimate(plan: &UpdatePlan, app_should_update: bool) -> UpdateEstimate {
+    let app_bytes = if app_should_update {
+        plan.app_size_bytes
+    } else {
+        Some(0)
+    };
+    let roots = vec![shared_runtime_root()];
+    if let Some(changed) = plan_component_diff(plan, &roots) {
+        let full_runtime: u64 = plan
+            .components
+            .as_ref()
+            .map(|cs| cs.iter().filter_map(|c| c.size).sum())
+            .unwrap_or(0);
+        let need_runtime: u64 = changed.iter().filter_map(|c| c.size).sum();
+        let reuse_pct = if full_runtime > 0 {
+            Some((100u64.saturating_sub(need_runtime * 100 / full_runtime)) as u8)
+        } else {
+            None
+        };
+        let need_bytes = app_bytes.map(|a| a + need_runtime);
+        return UpdateEstimate {
+            mode: "incremental",
+            need_bytes,
+            reuse_pct,
+            changed_names: changed.iter().map(|c| c.name.clone()).collect(),
+        };
+    }
+    let need_bytes = match (app_bytes, plan.runtime_size_bytes) {
+        (Some(a), Some(r)) => Some(a + r),
+        _ => None,
+    };
+    UpdateEstimate {
+        mode: "full",
+        need_bytes,
+        reuse_pct: None,
+        changed_names: Vec::new(),
+    }
 }
 
 /// panic 路径的后端清理:正常退出走 RunEvent::Exit→stop_runtime,但 panic 不触发 Exit 事件,
@@ -6473,16 +7955,24 @@ fn main() {
                     // v2.2.1 發現新版：非阻塞 —— 只向主窗口 emit update-available 事件,
                     // 由前端 UpdateNotifier 显示右下角非模态卡片,用户自行选择下载/稍后;
                     // 下载在后台、可最小化、不挡正常使用。不再启动原生阻塞弹框流程。
-                    let payload = serde_json::json!({
+                    let mut payload = serde_json::json!({
                         "phase": "available",
                         "currentVersion": current.to_string(),
                         "latestVersion": plan.latest_version.to_string(),
                         "runtimeNeedsUpdate": runtime_needs_update,
                         "notes": summarize_update_notes(&plan.notes),
                         "releaseUrl": plan.release_url.clone(),
-                    })
-                    .to_string();
-                    emit_update_event(&app_handle, &payload);
+                    });
+                    // 可视化 v2:available 卡即显示「本次需下载约 XX MB(增量,复用 YY%)」
+                    let estimate = compute_update_estimate(&plan, plan.latest_version > current);
+                    payload["mode"] = serde_json::json!(estimate.mode);
+                    if let Some(bytes) = estimate.need_bytes {
+                        payload["downloadBytes"] = serde_json::json!(bytes);
+                    }
+                    if let Some(pct) = estimate.reuse_pct {
+                        payload["reusePct"] = serde_json::json!(pct);
+                    }
+                    emit_update_event(&app_handle, &payload.to_string());
                 });
             }
 
@@ -6497,17 +7987,72 @@ fn main() {
             } else if id == MENU_SHOW_DIAGNOSTICS {
                 let _ = open_diagnostics_window(app);
             } else if id == MENU_CHECK_UPDATES {
-                let app_handle = app.clone();
-                thread::spawn(move || {
-                    if let Err(err) = check_for_updates(app_handle.clone()) {
-                        MessageDialog::new()
-                            .set_level(MessageLevel::Error)
-                            .set_title("检查更新失败")
-                            .set_description(format!("{err:#}"))
-                            .set_buttons(MessageButtons::Ok)
-                            .show();
-                    }
-                });
+                // 菜单「检查更新」并轨(消全量旁路):主窗口在时走非阻塞事件流(UpdateNotifier,
+                // 天然增量,与自动检查同一条路)——此前菜单永远走老阻塞 check_for_updates 的
+                // 全量 runtime 下载,同一次更新两个入口体积差 10 倍。无主窗口(启动早期/异常)
+                // 或 HOROSA_MENU_UPDATE_LEGACY=1 时保留老路,老函数整体不删。
+                let legacy = std::env::var("HOROSA_MENU_UPDATE_LEGACY").ok().as_deref()
+                    == Some("1");
+                let has_main = app.get_webview_window(MAIN_WINDOW_LABEL).is_some();
+                if !legacy && has_main {
+                    let app_handle = app.clone();
+                    thread::spawn(move || {
+                        match update_check_silent(app_handle.clone()) {
+                            Ok(avail) if avail.available => {
+                                let mut payload = serde_json::json!({
+                                    "phase": "available",
+                                    "currentVersion": avail.current_version,
+                                    "latestVersion": avail.latest_version,
+                                    "runtimeNeedsUpdate": avail.runtime_needs_update,
+                                    "notes": avail.notes,
+                                    "releaseUrl": avail.release_url,
+                                });
+                                if let Some(mode) = avail.update_mode {
+                                    payload["mode"] = serde_json::json!(mode);
+                                }
+                                if let Some(bytes) = avail.download_bytes {
+                                    payload["downloadBytes"] = serde_json::json!(bytes);
+                                }
+                                if let Some(pct) = avail.reuse_pct {
+                                    payload["reusePct"] = serde_json::json!(pct);
+                                }
+                                emit_update_event(&app_handle, &payload.to_string());
+                            }
+                            Ok(_) => {
+                                emit_update_event(
+                                    &app_handle,
+                                    &serde_json::json!({
+                                        "phase": "uptodate",
+                                        "message": "已是最新版本",
+                                    })
+                                    .to_string(),
+                                );
+                            }
+                            Err(err) => {
+                                emit_update_event(
+                                    &app_handle,
+                                    &serde_json::json!({
+                                        "phase": "error",
+                                        "message": format!("检查更新失败:{err}"),
+                                    })
+                                    .to_string(),
+                                );
+                            }
+                        }
+                    });
+                } else {
+                    let app_handle = app.clone();
+                    thread::spawn(move || {
+                        if let Err(err) = check_for_updates(app_handle.clone()) {
+                            MessageDialog::new()
+                                .set_level(MessageLevel::Error)
+                                .set_title("检查更新失败")
+                                .set_description(format!("{err:#}"))
+                                .set_buttons(MessageButtons::Ok)
+                                .show();
+                        }
+                    });
+                }
             } else if id == MENU_REINSTALL_RUNTIME {
                 trigger_reinstall(app.clone());
             } else if id == MENU_OPEN_LOGS {
@@ -7496,8 +9041,53 @@ mod tests {
                 .unwrap();
         assert_eq!(manifest["version"], "2.0.0");
         assert_eq!(manifest["appName"], APP_NAME);
-        assert!(!root.join("previous").exists());
+        // WS-1d 看门狗语义:previous 槽保留到首次成功 ready 才回收(供连续启动失败自动回滚);
+        // 其内容必须是更新前的旧版(1.x lock)。
+        let prev_lock: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(root.join("previous/components-lock.json")).unwrap(),
+        )
+        .unwrap();
+        assert_ne!(prev_lock["runtimeVersion"], "2.0.0", "previous 槽必须是旧版");
         assert!(!root.join("_comp_stage").exists());
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    #[test]
+    fn watchdog_health_state_machine_and_rollback() {
+        let work = temp_test_dir("watchdog");
+        // 状态机:连续 note_start 递增,confirm 归零
+        let health = work.join("launch-health.json");
+        assert_eq!(launch_health_note_start(&health), 1);
+        assert_eq!(launch_health_note_start(&health), 2);
+        assert_eq!(launch_health_note_start(&health), 3);
+        launch_health_confirm(&health);
+        assert_eq!(launch_health_read(&health).pending_starts, 0);
+        assert_eq!(launch_health_note_start(&health), 1);
+
+        // 回滚:previous 完整 → 换回 current,故障槽清除
+        let root = work.join("runtime");
+        fs::create_dir_all(root.join("current")).unwrap();
+        fs::write(root.join("current/runtime-manifest.json"), r#"{"version":"9.9.9"}"#).unwrap();
+        fs::write(root.join("current/marker.txt"), "broken-new").unwrap();
+        fs::create_dir_all(root.join("previous")).unwrap();
+        fs::write(root.join("previous/runtime-manifest.json"), r#"{"version":"9.9.8"}"#).unwrap();
+        fs::write(root.join("previous/marker.txt"), "good-old").unwrap();
+        assert!(rollback_runtime_to_previous(&root).unwrap());
+        assert_eq!(
+            fs::read_to_string(root.join("current/marker.txt")).unwrap(),
+            "good-old"
+        );
+        assert!(!root.join("previous").exists());
+        assert!(!root.join("_broken_rollback").exists());
+
+        // previous 缺失/不完整 → Ok(false),current 纹丝不动
+        assert!(!rollback_runtime_to_previous(&root).unwrap());
+        fs::create_dir_all(root.join("previous")).unwrap(); // 无 runtime-manifest.json = 不完整
+        assert!(!rollback_runtime_to_previous(&root).unwrap());
+        assert_eq!(
+            fs::read_to_string(root.join("current/marker.txt")).unwrap(),
+            "good-old"
+        );
         let _ = fs::remove_dir_all(&work);
     }
 
@@ -7552,6 +9142,8 @@ mod tests {
             components: comps,
             components_lock_url: Some("u".into()),
             components_lock_sha256: Some("s".into()),
+            app_size_bytes: None,
+            runtime_size_bytes: None,
             source: UpdateSource::Manifest,
         };
         let roots = vec![root.clone()];
@@ -7579,5 +9171,501 @@ mod tests {
         assert!(plan_component_diff(&plan(Some(vec![mk("t", "q")])), &roots).is_none());
         std::env::remove_var("HOROSA_UPDATE_FULL_ONLY");
         let _ = fs::remove_dir_all(&work);
+    }
+
+    // ---- WS-1b 断点续传下载核:tiny_http 本地矩阵 ----
+    // 全部走真实 HTTP(127.0.0.1 随机端口),allow_resume 走参数注入(不碰 env,测试可并行)。
+
+    mod download_resume {
+        use super::super::*;
+        use super::temp_test_dir;
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::{Read, Write};
+        use std::net::{Shutdown, TcpListener, TcpStream};
+        use std::sync::{Arc, Mutex};
+        use std::thread;
+        use tar::Builder;
+
+        // 用 raw TcpListener 手写 HTTP 响应:断线时机/206/Content-Range/ETag 逐字节可控
+        // (tiny_http 对「声明长度>实发字节」会自行降级成 EOF 定界,模拟不出真中断)。
+
+        fn test_payload(len: usize) -> Vec<u8> {
+            (0..len).map(|i| ((i * 31 + 7) % 251) as u8).collect()
+        }
+
+        fn read_request(stream: &mut TcpStream) -> String {
+            let mut buf = [0u8; 8192];
+            let mut req: Vec<u8> = Vec::new();
+            loop {
+                let n = stream.read(&mut buf).unwrap_or(0);
+                if n == 0 {
+                    break;
+                }
+                req.extend_from_slice(&buf[..n]);
+                if req.windows(4).any(|w| w == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            String::from_utf8_lossy(&req).to_string()
+        }
+
+        fn range_of(req: &str) -> Option<String> {
+            req.lines().find_map(|line| {
+                line.to_ascii_lowercase()
+                    .strip_prefix("range:")
+                    .map(|v| v.trim().to_string())
+            })
+        }
+
+        fn parse_range_offset(range: &str) -> usize {
+            range
+                .trim_start_matches("bytes=")
+                .trim_end_matches('-')
+                .parse()
+                .unwrap()
+        }
+
+        /// 200 响应:声明完整长度但只发 body 前缀,随即硬断连接(真·下载中断)。
+        fn write_200_interrupted(
+            stream: &mut TcpStream,
+            full_len: usize,
+            prefix: &[u8],
+            etag: &str,
+        ) {
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nETag: {}\r\nConnection: close\r\n\r\n",
+                full_len, etag
+            );
+            let _ = stream.write_all(head.as_bytes());
+            let _ = stream.write_all(prefix);
+            let _ = stream.flush();
+            let _ = stream.shutdown(Shutdown::Both);
+        }
+
+        fn write_206(stream: &mut TcpStream, full: &[u8], offset: usize, etag: &str) {
+            let body = &full[offset..];
+            let head = format!(
+                "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {}-{}/{}\r\nETag: {}\r\nConnection: close\r\n\r\n",
+                body.len(),
+                offset,
+                full.len() - 1,
+                full.len(),
+                etag
+            );
+            let _ = stream.write_all(head.as_bytes());
+            let _ = stream.write_all(body);
+            let _ = stream.flush();
+            let _ = stream.shutdown(Shutdown::Both);
+        }
+
+        fn write_200_full(stream: &mut TcpStream, full: &[u8], etag: &str) {
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nETag: {}\r\nConnection: close\r\n\r\n",
+                full.len(),
+                etag
+            );
+            let _ = stream.write_all(head.as_bytes());
+            let _ = stream.write_all(full);
+            let _ = stream.flush();
+            let _ = stream.shutdown(Shutdown::Both);
+        }
+
+        fn spawn_server() -> (TcpListener, String) {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let url = format!("http://127.0.0.1:{}/asset.bin", port);
+            (listener, url)
+        }
+
+        #[test]
+        fn resume_completes_via_range_206() {
+            let full = test_payload(300_000);
+            let (server, url) = spawn_server();
+            let ranges: Arc<Mutex<Vec<Option<String>>>> = Arc::new(Mutex::new(Vec::new()));
+            let (ranges_srv, full_srv) = (ranges.clone(), full.clone());
+            let handle = thread::spawn(move || {
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                ranges_srv.lock().unwrap().push(range_of(&req));
+                write_200_interrupted(&mut s, full_srv.len(), &full_srv[..131_072], "\"v1\"");
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                let range = range_of(&req);
+                let offset = parse_range_offset(range.as_deref().unwrap());
+                ranges_srv.lock().unwrap().push(range);
+                write_206(&mut s, &full_srv, offset, "\"v1\"");
+            });
+            let dir = temp_test_dir("dl-resume-206");
+            let dest = dir.join("asset.bin");
+            let (part, meta) = download_part_paths(&dest);
+
+            let first = download_resumable_once(&url, &dest, true, |_, _| {}, |_| {});
+            assert!(first.is_err(), "被中断的下载必须失败");
+            assert!(part.exists() && meta.exists(), "part/meta 必须保留供续传");
+            assert!(!dest.exists(), "finalize 前 dest 绝不出现");
+
+            let mut resumed_from = 0u64;
+            download_resumable_once(&url, &dest, true, |off, _| resumed_from = off, |_| {})
+                .expect("续传应成功");
+            assert!(resumed_from > 0, "第二次必须走续传而非全新");
+            assert_eq!(fs::read(&dest).unwrap(), full, "拼合内容必须逐字节一致");
+            assert!(!part.exists() && !meta.exists(), "完成后 part/meta 必须清除");
+            let seen = ranges.lock().unwrap();
+            assert!(seen[0].is_none(), "首个请求必须无 Range");
+            assert!(seen[1].as_deref().unwrap_or("").starts_with("bytes="));
+            drop(seen);
+            handle.join().unwrap();
+            let _ = fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn server_ignoring_range_falls_back_to_full_200() {
+            let full = test_payload(220_000);
+            let (server, url) = spawn_server();
+            let ranges: Arc<Mutex<Vec<Option<String>>>> = Arc::new(Mutex::new(Vec::new()));
+            let (ranges_srv, full_srv) = (ranges.clone(), full.clone());
+            let handle = thread::spawn(move || {
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                ranges_srv.lock().unwrap().push(range_of(&req));
+                write_200_interrupted(&mut s, full_srv.len(), &full_srv[..100_000], "\"v1\"");
+                // 无视 Range 回 200 全量:客户端应就地当全新流消费(截断重写)
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                ranges_srv.lock().unwrap().push(range_of(&req));
+                write_200_full(&mut s, &full_srv, "\"v1\"");
+            });
+            let dir = temp_test_dir("dl-resume-200");
+            let dest = dir.join("asset.bin");
+
+            assert!(download_resumable_once(&url, &dest, true, |_, _| {}, |_| {}).is_err());
+            let mut resumed_from = 42u64;
+            download_resumable_once(&url, &dest, true, |off, _| resumed_from = off, |_| {})
+                .expect("降级全新下载应成功");
+            assert_eq!(resumed_from, 0, "200 降级后按全新下载起算");
+            assert_eq!(fs::read(&dest).unwrap(), full);
+            let seen = ranges.lock().unwrap();
+            assert!(
+                seen[1].as_deref().unwrap_or("").starts_with("bytes="),
+                "第二次应先尝试 Range"
+            );
+            drop(seen);
+            handle.join().unwrap();
+            let _ = fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn etag_change_discards_part_and_redownloads() {
+            let old = test_payload(180_000);
+            let fresh: Vec<u8> = test_payload(180_000).iter().map(|b| b ^ 0x5a).collect();
+            let (server, url) = spawn_server();
+            let ranges: Arc<Mutex<Vec<Option<String>>>> = Arc::new(Mutex::new(Vec::new()));
+            let (ranges_srv, old_srv, fresh_srv) = (ranges.clone(), old.clone(), fresh.clone());
+            let handle = thread::spawn(move || {
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                ranges_srv.lock().unwrap().push(range_of(&req));
+                write_200_interrupted(&mut s, old_srv.len(), &old_srv[..90_000], "\"v1\"");
+                // 内容已换版:206 但 etag 变 → 客户端必须弃续传
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                let range = range_of(&req);
+                let offset = parse_range_offset(range.as_deref().unwrap());
+                ranges_srv.lock().unwrap().push(range);
+                write_206(&mut s, &fresh_srv, offset, "\"v2\"");
+                // 客户端随即发全新请求
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                ranges_srv.lock().unwrap().push(range_of(&req));
+                write_200_full(&mut s, &fresh_srv, "\"v2\"");
+            });
+            let dir = temp_test_dir("dl-resume-etag");
+            let dest = dir.join("asset.bin");
+
+            assert!(download_resumable_once(&url, &dest, true, |_, _| {}, |_| {}).is_err());
+            let mut resumed_from = 42u64;
+            download_resumable_once(&url, &dest, true, |off, _| resumed_from = off, |_| {})
+                .expect("etag 变化后全新重下应成功");
+            assert_eq!(resumed_from, 0, "etag 冲突必须放弃续传");
+            assert_eq!(fs::read(&dest).unwrap(), fresh, "必须拿到新版内容,绝不混拼");
+            let seen = ranges.lock().unwrap();
+            assert_eq!(seen.len(), 3);
+            assert!(seen[2].is_none(), "第三个请求必须是全新(无 Range)");
+            drop(seen);
+            handle.join().unwrap();
+            let _ = fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn no_resume_flag_forces_fresh_download() {
+            let full = test_payload(160_000);
+            let (server, url) = spawn_server();
+            let ranges: Arc<Mutex<Vec<Option<String>>>> = Arc::new(Mutex::new(Vec::new()));
+            let (ranges_srv, full_srv) = (ranges.clone(), full.clone());
+            let handle = thread::spawn(move || {
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                ranges_srv.lock().unwrap().push(range_of(&req));
+                write_200_interrupted(&mut s, full_srv.len(), &full_srv[..80_000], "\"v1\"");
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                ranges_srv.lock().unwrap().push(range_of(&req));
+                write_200_full(&mut s, &full_srv, "\"v1\"");
+            });
+            let dir = temp_test_dir("dl-resume-off");
+            let dest = dir.join("asset.bin");
+            let (part, meta) = download_part_paths(&dest);
+
+            assert!(download_resumable_once(&url, &dest, true, |_, _| {}, |_| {}).is_err());
+            assert!(part.exists());
+            download_resumable_once(&url, &dest, false, |_, _| {}, |_| {})
+                .expect("kill-switch 全新下载应成功");
+            assert_eq!(fs::read(&dest).unwrap(), full);
+            let seen = ranges.lock().unwrap();
+            assert!(
+                seen[1].is_none(),
+                "HOROSA_DOWNLOAD_NO_RESUME 语义:第二次不得带 Range"
+            );
+            assert!(!part.exists() && !meta.exists());
+            drop(seen);
+            handle.join().unwrap();
+            let _ = fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn native_extract_parity_with_external_tar() {
+            use super::super::{
+                extract_tar_gz_native_with, tar_extract_external, SMALL_FILE_LIMIT,
+            };
+            use std::os::unix::fs::MetadataExt;
+            use std::os::unix::fs::PermissionsExt;
+
+            // fixture:普通/中文名/exec 位/symlink/硬链/深嵌套/超过小文件阈值的大文件(全零,gz 后极小)
+            let dir = temp_test_dir("extract-parity");
+            let src = dir.join("src/runtime-payload");
+            fs::create_dir_all(src.join("nested/深层目录")).unwrap();
+            fs::write(src.join("plain.txt"), b"hello horosa").unwrap();
+            fs::write(src.join("nested/深层目录/星阙测试.dat"), test_payload(70_000)).unwrap();
+            fs::write(src.join("tool.sh"), b"#!/bin/sh\necho ok\n").unwrap();
+            fs::set_permissions(src.join("tool.sh"), fs::Permissions::from_mode(0o755)).unwrap();
+            let big = vec![0u8; (SMALL_FILE_LIMIT + 1024) as usize];
+            fs::write(src.join("big.bin"), &big).unwrap();
+            std::os::unix::fs::symlink("plain.txt", src.join("link-to-plain")).unwrap();
+
+            // 打包(gnu tar builder;follow_symlinks(false) 保 symlink 条目本体;
+            // 硬链条目手工构造——append_dir_all 不追踪 inode,会把硬链归成两个独立 Regular)
+            let archive = dir.join("fixture.tar.gz");
+            {
+                let tar_gz = File::create(&archive).unwrap();
+                let encoder = GzEncoder::new(tar_gz, Compression::default());
+                let mut builder = Builder::new(encoder);
+                builder.follow_symlinks(false);
+                builder
+                    .append_dir_all("runtime-payload", &src)
+                    .unwrap();
+                let mut link_header = tar::Header::new_gnu();
+                link_header.set_entry_type(tar::EntryType::Link);
+                link_header.set_size(0);
+                link_header.set_mode(0o644);
+                builder
+                    .append_link(
+                        &mut link_header,
+                        "runtime-payload/hard-to-plain",
+                        "runtime-payload/plain.txt",
+                    )
+                    .unwrap();
+                builder.finish().unwrap();
+            }
+
+            // 三方解压:native 顺序(=1)/native 并发(=4)/外部 /usr/bin/tar
+            let out_seq = dir.join("out-seq");
+            let out_par = dir.join("out-par");
+            let out_ext = dir.join("out-ext");
+            fs::create_dir_all(&out_ext).unwrap();
+            extract_tar_gz_native_with(&archive, &out_seq, 1, 1, None).expect("native 顺序");
+            let reported = std::cell::Cell::new((0u64, 0u64, 0u64));
+            let cb = |read: u64, total: u64, files: u64| {
+                reported.set((read, total, files));
+            };
+            extract_tar_gz_native_with(&archive, &out_par, 1, 4, Some(&cb))
+                .expect("native 并发");
+            let (rep_read, rep_total, rep_files) = reported.get();
+            assert_eq!(rep_read, rep_total, "终报进度必须收敛到 100%");
+            assert!(rep_files >= 6, "文件计数必须覆盖全部条目");
+            tar_extract_external(&archive, &out_ext, true).expect("外部 tar");
+
+            // 逐条目比对:路径集合/字节内容/mode/symlink 目标/硬链 inode 同一性/文件 mtime
+            fn walk(root: &Path) -> Vec<PathBuf> {
+                let mut out = Vec::new();
+                let mut stack = vec![root.to_path_buf()];
+                while let Some(cur) = stack.pop() {
+                    for e in fs::read_dir(&cur).unwrap() {
+                        let p = e.unwrap().path();
+                        out.push(p.strip_prefix(root).unwrap().to_path_buf());
+                        if p.is_dir() && !p.symlink_metadata().unwrap().file_type().is_symlink()
+                        {
+                            stack.push(p);
+                        }
+                    }
+                }
+                out.sort();
+                out
+            }
+            let listing = walk(&out_seq);
+            assert_eq!(listing, walk(&out_par), "顺序/并发 路径集合必须一致");
+            assert_eq!(listing, walk(&out_ext), "native/外部tar 路径集合必须一致");
+            assert!(!listing.is_empty());
+            for rel in &listing {
+                let a = out_seq.join(rel);
+                let b = out_par.join(rel);
+                let c = out_ext.join(rel);
+                let meta_a = a.symlink_metadata().unwrap();
+                if meta_a.file_type().is_symlink() {
+                    let ta = fs::read_link(&a).unwrap();
+                    assert_eq!(ta, fs::read_link(&b).unwrap(), "symlink 目标 {rel:?}");
+                    assert_eq!(ta, fs::read_link(&c).unwrap(), "symlink 目标 {rel:?}");
+                    continue;
+                }
+                if meta_a.is_dir() {
+                    continue;
+                }
+                let bytes_a = fs::read(&a).unwrap();
+                assert_eq!(bytes_a, fs::read(&b).unwrap(), "内容 {rel:?}");
+                assert_eq!(bytes_a, fs::read(&c).unwrap(), "内容 {rel:?}");
+                let mode_a = meta_a.permissions().mode() & 0o7777;
+                let mode_b = b.symlink_metadata().unwrap().permissions().mode() & 0o7777;
+                let mode_c = c.symlink_metadata().unwrap().permissions().mode() & 0o7777;
+                assert_eq!(mode_a, mode_b, "mode {rel:?}");
+                assert_eq!(mode_a, mode_c, "mode {rel:?}");
+                let mt = |p: &Path| {
+                    p.symlink_metadata()
+                        .unwrap()
+                        .modified()
+                        .unwrap()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                };
+                assert_eq!(mt(&a), mt(&b), "mtime {rel:?}");
+                assert_eq!(mt(&a), mt(&c), "mtime {rel:?}");
+            }
+            // 硬链同一性:hard-to-plain 与 plain.txt 同 inode(三方各自内部核对)
+            for root in [&out_seq, &out_par, &out_ext] {
+                let ino_plain = root.join("plain.txt").metadata().unwrap().ino();
+                let ino_hard = root.join("hard-to-plain").metadata().unwrap().ino();
+                assert_eq!(ino_plain, ino_hard, "硬链 inode 同一性 {root:?}");
+            }
+            // exec 位专项:tool.sh 三方都必须 0o755
+            for root in [&out_seq, &out_par, &out_ext] {
+                let mode = root.join("tool.sh").metadata().unwrap().permissions().mode() & 0o777;
+                assert_eq!(mode, 0o755, "exec 位 {root:?}");
+            }
+            let _ = fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn native_extract_rejects_path_escape() {
+            use super::super::extract_tar_gz_native_with;
+            // 恶意归档:条目路径带 ../ → 必须整体报错,绝不落盘到 dest 之外
+            let dir = temp_test_dir("extract-escape");
+            let archive = dir.join("evil.tar.gz");
+            {
+                let tar_gz = File::create(&archive).unwrap();
+                let encoder = GzEncoder::new(tar_gz, Compression::default());
+                let mut builder = Builder::new(encoder);
+                let data = b"evil";
+                let mut header = tar::Header::new_gnu();
+                // Builder::append_data 自己拒 `..`(打包端防护)——直接写 header 名字段造恶意条目
+                let name = b"root/../../escape.txt";
+                header.as_old_mut().name[..name.len()].copy_from_slice(name);
+                header.set_size(data.len() as u64);
+                header.set_mode(0o644);
+                header.set_cksum();
+                builder.append(&header, &data[..]).unwrap();
+                builder.finish().unwrap();
+            }
+            let out = dir.join("out");
+            let err = extract_tar_gz_native_with(&archive, &out, 0, 1, None);
+            assert!(err.is_err(), "路径逃逸归档必须报错");
+            assert!(!dir.join("escape.txt").exists(), "逃逸文件绝不落盘");
+            assert!(
+                !dir.parent().unwrap().join("escape.txt").exists(),
+                "逃逸文件绝不落盘到上层"
+            );
+            let _ = fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn manifest_fetch_three_outcomes() {
+            // 200+合法 JSON → Fetched;404 → Absent;200+坏 JSON → Absent(掉 API fallback)
+            let client = build_github_client(10).unwrap();
+            let cases: Vec<(Option<&[u8]>, bool)> = vec![
+                (Some(br#"{"version":"9.9.9","tag":"v9.9.9","platforms":{}}"#), true),
+                (None, false),
+                (Some(b"not-json"), false),
+            ];
+            for (idx, (body, expect_fetched)) in cases.into_iter().enumerate() {
+                let (server, base) = spawn_server();
+                let manifest_url = base.replace("/asset.bin", "/horosa-latest.json");
+                let handle = thread::spawn(move || {
+                    let mut s = server.accept().unwrap().0;
+                    let _ = read_request(&mut s);
+                    match body {
+                        Some(bytes) => write_200_full(&mut s, bytes, "\"m\""),
+                        None => {
+                            let head = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                            let _ = s.write_all(head.as_bytes());
+                            let _ = s.shutdown(Shutdown::Both);
+                        }
+                    }
+                });
+                let got = fetch_update_manifest(&client, &manifest_url);
+                assert_eq!(
+                    matches!(got, ManifestFetch::Fetched(_)),
+                    expect_fetched,
+                    "case {} 结果不符",
+                    idx + 1
+                );
+                handle.join().unwrap();
+            }
+        }
+
+        #[test]
+        fn resume_attempts_cap_forces_fresh() {
+            let full = test_payload(140_000);
+            let (server, url) = spawn_server();
+            let ranges: Arc<Mutex<Vec<Option<String>>>> = Arc::new(Mutex::new(Vec::new()));
+            let (ranges_srv, full_srv) = (ranges.clone(), full.clone());
+            let handle = thread::spawn(move || {
+                let mut s = server.accept().unwrap().0;
+                let req = read_request(&mut s);
+                ranges_srv.lock().unwrap().push(range_of(&req));
+                write_200_full(&mut s, &full_srv, "\"v1\"");
+            });
+            let dir = temp_test_dir("dl-resume-cap");
+            let dest = dir.join("asset.bin");
+            let (part, meta) = download_part_paths(&dest);
+            // 预造「续传次数已封顶」的病态 part:必须直接全新,防续传死循环
+            fs::write(&part, &full[..70_000]).unwrap();
+            save_part_meta(
+                &meta,
+                &PartMeta {
+                    url: url.clone(),
+                    etag: Some("\"v1\"".to_string()),
+                    total: full.len() as u64,
+                    resume_attempts: RESUME_MAX_ATTEMPTS,
+                },
+            );
+
+            download_resumable_once(&url, &dest, true, |_, _| {}, |_| {})
+                .expect("封顶后全新下载应成功");
+            assert_eq!(fs::read(&dest).unwrap(), full);
+            let seen = ranges.lock().unwrap();
+            assert!(seen[0].is_none(), "封顶后不得再发 Range");
+            drop(seen);
+            handle.join().unwrap();
+            let _ = fs::remove_dir_all(&dir);
+        }
     }
 }

@@ -108,7 +108,11 @@ def scan(root):
 
 full, comp = scan(full_root), scan(comp_root)
 # 预期差异:lock 只随全量 tar(增量应用后由客户端写新 lock 补齐)
-EXPECTED_ONLY_FULL = {'components-lock.json'}
+# 「只随全量、不进部件」豁免(三处 lockstep:打包端 java_app 排除 + 打包零遗漏校验豁免 + 本处):
+#   components-lock.json —— 切分产物真值,增量应用成功后由客户端写新 lock;
+#   .app-cds.jsa —— AppCDS 预置档(42MB):进部件会把每版增量撑大 ~67%;
+#     增量更新后旧档对新 exploded 失配由 JVM 自动忽略,首启后台自训再生。
+EXPECTED_ONLY_FULL = {'components-lock.json', 'runtime/mac/bundle/boot-exploded/.app-cds.jsa'}
 only_full = set(full) - set(comp) - EXPECTED_ONLY_FULL
 only_comp = set(comp) - set(full)
 mismatch = [k for k in set(full) & set(comp) if full[k] != comp[k]]

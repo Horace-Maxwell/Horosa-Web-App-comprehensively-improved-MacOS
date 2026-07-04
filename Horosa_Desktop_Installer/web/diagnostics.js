@@ -4,6 +4,27 @@
   const runtimeDir = document.getElementById('runtimeDir');
   const logOutput = document.getElementById('logOutput');
   const assetList = document.getElementById('assetList');
+  const ledgerOutput = document.getElementById('ledgerOutput');
+
+  // 启动账本 JSONL → 人可读分段表:「layer seg  t=…ms (ms=…)」,解析失败的行原样展示。
+  function renderLedger(lines) {
+    if (!lines || !lines.length) {
+      return '暂无账本数据(完成一次启动后生成)。';
+    }
+    return lines
+      .map((line) => {
+        try {
+          const row = JSON.parse(line);
+          const t = row.t_ms != null ? `t=${row.t_ms}ms` : '';
+          const ms = row.ms != null ? ` 段耗时=${row.ms}ms` : '';
+          const extra = row.extra ? ` ${JSON.stringify(row.extra)}` : '';
+          return `${String(row.layer || '').padEnd(4)} ${String(row.seg || '').padEnd(24)} ${t}${ms}${extra}`;
+        } catch (e) {
+          return line;
+        }
+      })
+      .join('\n');
+  }
 
   async function invoke(cmd, args) {
     if (window.__TAURI__?.core?.invoke) {
@@ -21,6 +42,9 @@
     appDataDir.textContent = payload.appDataDir;
     runtimeDir.textContent = payload.runtimeDir;
     logOutput.textContent = payload.lines.join('\n');
+    if (ledgerOutput) {
+      ledgerOutput.textContent = renderLedger(payload.ledgerLines);
+    }
     assetList.innerHTML = (payload.assets || [])
       .map(
         (item) => `

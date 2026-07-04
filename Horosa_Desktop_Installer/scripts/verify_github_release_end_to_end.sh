@@ -55,6 +55,7 @@ signed_backend_code() {
 fetch "${RELEASE_API}" -o "${DOWNLOAD_ROOT}/release.json"
 fetch -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${MANIFEST_URL}" -o "${DOWNLOAD_ROOT}/horosa-latest.json"
 
+
 DESKTOP_OFFLINE_PKG_ENV="${DESKTOP_OFFLINE_PKG}" \
 DESKTOP_ASSET_ENV="${DESKTOP_ASSET}" \
 python3 - <<'PY' "${DOWNLOAD_ROOT}/release.json" "${DOWNLOAD_ROOT}/horosa-latest.json" > "${WORK_ROOT}/release.env"
@@ -101,6 +102,17 @@ for label, path, expected in checks:
     if actual != expected:
         raise SystemExit(f'{label} checksum mismatch: {actual} != {expected}')
 PY
+
+# [WS-1b 哨兵] GitHub 资产必须支持 Range(206):客户端断点续传核的服务器前提。
+# GitHub 若哪天不再回 206,发版在此报警,而不是用户续传静默退化。
+RANGE_PROBE="${DOWNLOAD_ROOT}/range-probe.bin"
+RANGE_CODE="$(curl -sL -r 0-1023 -o "${RANGE_PROBE}" -w '%{http_code}' "${RUNTIME_URL}" || true)"
+RANGE_BYTES="$(stat -f%z "${RANGE_PROBE}" 2>/dev/null || echo 0)"
+if [ "${RANGE_CODE}" != "206" ] || [ "${RANGE_BYTES}" != "1024" ]; then
+  echo "[E2E] FATAL: runtime 资产 Range 探测失败(code=${RANGE_CODE} bytes=${RANGE_BYTES},预期 206/1024)——断点续传前提被破坏" >&2
+  exit 1
+fi
+echo "[E2E] Range 断点续传探测 OK(206, 1024 bytes)"
 
 ditto -x -k "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_UNZIP_ROOT}"
 APP_BUNDLE_PATH="$(find "${APP_UNZIP_ROOT}" -maxdepth 1 -type d -name "*.app" | head -n 1)"

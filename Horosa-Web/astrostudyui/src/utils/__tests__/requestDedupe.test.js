@@ -74,3 +74,47 @@ describe('dedupedRequest 行为', () => {
 		expect(b.ok).toBe(true);
 	});
 });
+
+describe('L2 技法结果缓存(horosa.perf.techniqueCache)', () => {
+	const { __ageEntries } = require('../requestDedupe');
+	beforeEach(() => {
+		window.localStorage.removeItem('horosa.perf.techniqueCache');
+	});
+	it('L1 过期后 L2 命中(来回拨参数场景),并回填 L1', async () => {
+		let calls = 0;
+		const runner = () => { calls += 1; return Promise.resolve({ ok: calls }); };
+		await dedupedRequest(URL_ACG, { body: BODY_A }, runner);
+		__ageEntries(60 * 1000);            // L1(30s)过期,L2(10min)存续
+		const b = await dedupedRequest(URL_ACG, { body: BODY_A }, runner);
+		expect(calls).toBe(1);              // 未重发网络
+		expect(b.ok).toBe(1);
+		expect(__dedupeStats().done).toBe(1); // 回填 L1
+	});
+	it('L2 也过期(>10min)则重新执行', async () => {
+		let calls = 0;
+		const runner = () => { calls += 1; return Promise.resolve({ ok: calls }); };
+		await dedupedRequest(URL_ACG, { body: BODY_A }, runner);
+		__ageEntries(11 * 60 * 1000);
+		const b = await dedupedRequest(URL_ACG, { body: BODY_A }, runner);
+		expect(calls).toBe(2);
+		expect(b.ok).toBe(2);
+	});
+	it('kill-switch:techniqueCache=0 时 L1 过期即重发', async () => {
+		window.localStorage.setItem('horosa.perf.techniqueCache', '0');
+		let calls = 0;
+		const runner = () => { calls += 1; return Promise.resolve({ ok: calls }); };
+		await dedupedRequest(URL_ACG, { body: BODY_A }, runner);
+		__ageEntries(60 * 1000);
+		await dedupedRequest(URL_ACG, { body: BODY_A }, runner);
+		expect(calls).toBe(2);
+		window.localStorage.removeItem('horosa.perf.techniqueCache');
+	});
+	it('L2 容量 48 上限:LRU 淘汰最旧', async () => {
+		const runner = (i) => () => Promise.resolve({ i });
+		for(let i = 0; i < 50; i += 1){
+			// eslint-disable-next-line no-await-in-loop
+			await dedupedRequest(URL_ACG, { body: JSON.stringify({ i }) }, runner(i));
+		}
+		expect(__dedupeStats().warm).toBeLessThanOrEqual(48);
+	});
+});

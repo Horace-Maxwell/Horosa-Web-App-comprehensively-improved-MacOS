@@ -313,7 +313,8 @@ wait_signed_backend_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
 wait_http "http://127.0.0.1:${CHART_PORT}/" 60
 # Keep the technique smoke before the generic chart/backend smoke. This catches
 # shared-process global state pollution, including Swiss Ephemeris path resets.
-python3 "${INSTALLER_ROOT}/scripts/verify_kentang_runtime_endpoints.py" --root "http://127.0.0.1:${CHART_PORT}"
+# 升级:kentang 17 探针 → 全路由 31 挂载真实计算探针(装包布局的第二次冒烟)。
+python3 "${INSTALLER_ROOT}/scripts/verify_full_route_smoke.py" --root "http://127.0.0.1:${CHART_PORT}"
 HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}" node "${INSTALLER_ROOT}/../Horosa-Web/astrostudyui/scripts/verifyHorosaRuntimeFull.js" >/dev/null
 if rg -n "MongoTimeoutException|127\\.0\\.0\\.1:27017|Connection refused" "${TMP_ROOT}/logs" "${TMP_ROOT}/diag" >/dev/null 2>&1; then
   echo "runtime smoke produced unexpected Mongo connection errors" >&2
