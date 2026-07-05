@@ -4,7 +4,9 @@ import KinAstroMain from '../kinastro/KinAstroMain';
 const MING_OTHER_TECHNIQUE_TABS = [
 	{ key: 'cetian', label: '策天飞星' },
 	{ key: 'xianqin', label: '演禽' },
+	{ key: 'yizhangjing', label: '一掌经' },
 ];
+const MING_OTHER_TECHNIQUE_KEYS = MING_OTHER_TECHNIQUE_TABS.map((t) => t.key);
 
 export default class MingOtherMain extends Component{
 	constructor(props){
@@ -17,7 +19,7 @@ export default class MingOtherMain extends Component{
 
 	onTechniqueChange(technique){
 		this.setState({
-			technique: technique === 'xianqin' ? 'xianqin' : 'cetian',
+			technique: MING_OTHER_TECHNIQUE_KEYS.indexOf(technique) >= 0 ? technique : 'cetian',
 		});
 	}
 

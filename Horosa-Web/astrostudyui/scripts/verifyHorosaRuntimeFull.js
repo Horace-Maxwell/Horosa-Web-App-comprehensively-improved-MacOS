@@ -156,6 +156,17 @@ function ensureNonEmptyObject(value, label) {
 async function run() {
   const summary = {};
 
+  // 身份握手端点(明文 GET、免签名、不走加密信封):app 标记必须为 horosa-backend。
+  // 这是前端「本地服务地址永不盲信」自愈链的凭据源,发布产物必须可用。
+  {
+    const idResp = await fetch(`${SERVER}/horosaIdentity`, { method: 'GET' });
+    assert(idResp.status === 200, `/horosaIdentity status ${idResp.status}`);
+    const idJson = JSON.parse(await idResp.text());
+    assert(idJson.app === 'horosa-backend', `/horosaIdentity app=${idJson.app}`);
+    assert(typeof idJson.nonce === 'string', '/horosaIdentity nonce missing');
+    summary.horosaIdentity = idJson.app;
+  }
+
   const chart = await call('/chart', {
     ...BASE_PAYLOAD,
     pdtype: 0,

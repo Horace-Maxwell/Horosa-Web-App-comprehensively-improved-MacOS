@@ -1,0 +1,400 @@
+// 一掌经 · 样式(令牌驱动,亮暗自适应;复用全局 horosa-huangji-* 卡片/信息壳)。
+// 由外层 board-host(overflow:auto)统一滚动;align-self:flex-start 顶对齐,杜绝居中把环图顶出视口
+// (board-host 默认垂直居中,内容高于视口时会把顶部裁掉——同 canping-center 处置)。
+// 中栏填满高度：题头(auto) + 大格盘(flex 撑开填满) + 四柱横条(auto)，杜绝底部大空白。
+.horosa-yizhangjing-center {
+	width: 100%;
+	min-height: 100%;
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px 16px 16px;
+}
+
+.horosa-yizhangjing-toolbar {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--horosa-border, rgba(120, 120, 120, 0.22));
+}
+.horosa-yizhangjing-part {
+	font-size: 15px;
+	font-weight: 700;
+	color: var(--horosa-text, #1b2333);
+}
+.horosa-yizhangjing-sub {
+	font-size: 12px;
+	color: var(--horosa-muted, #7a8699);
+}
+
+// 十二宫盘（紫微斗数式 4×4 格盘，占满中栏、大而清晰）
+.horosa-yizhangjing-board {
+	flex: 1 1 auto;
+	min-height: 440px;
+	width: 100%;
+	max-width: 880px;
+	margin: 2px auto 0;
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	grid-template-rows: repeat(4, 1fr);
+	gap: 8px;
+}
+.horosa-yizhangjing-cell {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 6px;
+	border-radius: 12px;
+	border: 1px solid var(--horosa-border, rgba(120, 120, 120, 0.24));
+	background: var(--horosa-surface, rgba(255, 255, 255, 0.03));
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	&.is-up { background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.09)); border-color: var(--horosa-gold-soft, rgba(154, 106, 37, 0.34)); }
+	&.is-down { background: var(--horosa-danger-soft, rgba(176, 72, 60, 0.07)); border-color: var(--horosa-danger-soft, rgba(176, 72, 60, 0.28)); }
+	// 命宫（＝时上起命时的时柱落点）：只描边不填色——中性内底压过品级色，金色双层描边（外框＋内环），清晰可辨不抢视觉。
+	&.is-ming {
+		background: var(--horosa-surface, rgba(255, 255, 255, 0.03));
+		border-color: var(--horosa-gold, #9a6a25);
+		box-shadow: inset 0 0 0 1.5px var(--horosa-gold, #9a6a25);
+	}
+	.cell-head {
+		position: absolute;
+		top: 6px; left: 8px; right: 8px;
+		display: flex; align-items: center; justify-content: space-between;
+	}
+	.cell-br { font-size: 10.5px; color: var(--horosa-muted, #8894a6); }
+	.cell-tags { display: flex; align-items: center; gap: 4px; }
+	// 四柱落宫（年/月/日/时）：淡金描边药丸，作次级标记。
+	.cell-role {
+		font-size: 10px; font-weight: 700;
+		color: var(--horosa-gold, #9a6a25);
+		background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.16));
+		border-radius: 999px; padding: 0 6px; line-height: 15px; min-width: 15px; text-align: center;
+	}
+	// 命宫标记：实金药丸（白字），作首级锚，压过四柱落宫标记。
+	.cell-ming {
+		font-size: 10px; font-weight: 800; color: #fff;
+		background: var(--horosa-gold, #9a6a25);
+		border-radius: 999px; padding: 0 6px; line-height: 15px; min-width: 15px; text-align: center;
+	}
+	.cell-star {
+		font-size: 30px; font-weight: 800; letter-spacing: 0.02em;
+		color: var(--horosa-gold, #9a6a25);
+	}
+	&.is-ming .cell-star { color: var(--horosa-gold, #9a6a25); text-shadow: 0 1px 0 rgba(154, 106, 37, 0.14); }
+	.cell-foot {
+		position: absolute;
+		bottom: 6px; left: 0; right: 0;
+		text-align: center;
+		font-size: 9.5px; color: var(--horosa-text-soft, #5c6a80);
+	}
+}
+// 中央枢（命宫）
+.horosa-yizhangjing-hub {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	border-radius: 14px;
+	border: 1px solid var(--horosa-border, rgba(120, 120, 120, 0.24));
+	background: var(--horosa-panel-soft, rgba(154, 106, 37, 0.05));
+	.hub-brand { font-size: 11px; color: var(--horosa-muted, #8894a6); letter-spacing: 0.06em; }
+	.hub-title { font-size: 11.5px; color: var(--horosa-text-soft, #5c6a80); margin-top: 6px; }
+	.hub-star { font-size: 46px; font-weight: 800; line-height: 1.1; color: var(--horosa-gold, #9a6a25); }
+	.hub-meta { font-size: 12px; color: var(--horosa-text-soft, #5c6a80); }
+	.hub-tags {
+		display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px;
+		span {
+			font-size: 11px; padding: 2px 10px; border-radius: 999px;
+			color: var(--horosa-gold, #9a6a25);
+			background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.14));
+		}
+	}
+}
+
+// 四柱四宫 · 主体横条
+.horosa-yizhangjing-strip {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 8px;
+	margin-top: 4px;
+}
+.horosa-yizhangjing-pcell {
+	text-align: center;
+	padding: 9px 8px 10px;
+	border-radius: 12px;
+	border: 1px solid var(--horosa-border, rgba(120, 120, 120, 0.22));
+	background: var(--horosa-surface, rgba(255, 255, 255, 0.03));
+	position: relative;
+	&.is-up { border-color: var(--horosa-gold-soft, rgba(154, 106, 37, 0.4)); }
+	&.is-down { border-color: var(--horosa-danger-soft, rgba(176, 72, 60, 0.34)); }
+	&.is-main {
+		background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.1));
+		border-color: var(--horosa-gold, #9a6a25);
+	}
+	.pl { font-size: 11px; color: var(--horosa-muted, #7a8699); }
+	.pstar { font-size: 22px; font-weight: 800; color: var(--horosa-gold, #9a6a25); margin: 2px 0 1px; letter-spacing: 0.02em; }
+	.pmeta { font-size: 11.5px; color: var(--horosa-text-soft, #52627a); }
+	.pgrade {
+		display: inline-block;
+		margin-top: 4px;
+		font-size: 10.5px;
+		padding: 1px 8px;
+		border-radius: 999px;
+		color: var(--horosa-text-soft, #52627a);
+		background: var(--horosa-panel-soft, rgba(120, 120, 120, 0.1));
+	}
+	&.is-up .pgrade { color: var(--horosa-gold, #9a6a25); background: var(--horosa-gold-soft, rgba(154, 106, 37, 0.16)); }
+	&.is-down .pgrade { color: var(--horosa-accent-strong, #a8433a); background: var(--horosa-danger-soft, rgba(176, 72, 60, 0.14)); }
+}
+
+// 右栏明细容器（子tab 全在此）：tab 头固定不动、仅内容区滚动。
+// 关键：Tabs 做 flex 列，nav 固定(flex:0)，content-holder 独占滚动(flex:1+overflow:auto)，
+// 且 tabpane height:auto!important 铺开(否则被限高 overflow:hidden 裁掉内容→右栏无法下滑)。
+.horosa-yizhangjing-aux {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	// 卡片美化：金色细边 + 更圆 + 均匀留白；标题加金色左强调条、与正文分隔（不改卡片内容，仅样式）。
+	.horosa-huangji-info-card {
+		margin-bottom: 12px;
+		border-radius: 10px;
+		border: 1px solid var(--horosa-gold-soft, rgba(154, 106, 37, 0.16));
+		&:last-child { margin-bottom: 2px; }
+	}
+	.horosa-huangji-info-heading {
+		position: relative;
+		padding-left: 11px;
+		margin-bottom: 8px;
+		font-size: 13.5px;
+		line-height: 1.5;
+		color: var(--horosa-text, #1b2333);
+		&::before {
+			content: '';
+			position: absolute;
+			left: 0; top: 3px; bottom: 3px;
+			width: 3px; border-radius: 2px;
+			background: var(--horosa-gold, #9a6a25);
+		}
+	}
+	.ant-tabs {
+		flex: 1 1 0;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.ant-tabs-nav {
+		flex: 0 0 auto;
+		margin-bottom: 8px;
+	}
+	.ant-tabs-content-holder {
+		flex: 1 1 0;
+		min-height: 0;
+		overflow-y: auto;
+		overflow-x: hidden;
+		padding-right: 4px;
+	}
+	// antd content 是横向 flex，默认 align-items:stretch 会把 tabpane 拉到 holder 高度并裁内容；
+	// 改 flex-start 让 tabpane 取自然高 → content-holder 滚动（nav 仍固定）。
+	.ant-tabs-content {
+		height: auto;
+		align-items: flex-start;
+	}
+	.ant-tabs-tabpane {
+		height: auto !important;
+		align-self: flex-start;
+		overflow: visible;
+	}
+	// tab 头统一金色调（激活字色/墨条/悬停），与全盘同色，去蓝色系。
+	.ant-tabs-tab:hover { color: var(--horosa-gold, #9a6a25); }
+	.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn { color: var(--horosa-gold, #9a6a25); }
+	.ant-tabs-ink-bar { background: var(--horosa-gold, #9a6a25); }
+}
+
+// 内联小字段（如 流年十二神 内的「流年地支」下拉）
+.horosa-yizhangjing-inlinefield {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	span { font-size: 12px; color: var(--horosa-muted, #7a8699); }
+	.ant-select { min-width: 96px; }
+}
+
+// 合并小节标题（如 格局 页内的「重犯」）
+.horosa-yizhangjing-subhead {
+	margin: 12px 0 6px;
+	padding-top: 10px;
+	border-top: 1px solid var(--horosa-border, rgba(120, 120, 120, 0.2));
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--horosa-gold, #9a6a25);
+}
+
+.horosa-yizhangjing-text {
+	font-size: 13px;
+	line-height: 1.68;
+	color: var(--horosa-text, #1b2333);
+	p { margin: 0 0 6px; &:last-child { margin-bottom: 0; } }
+	// 行内标签（该柱/象义/星性）金色，便于扫读。
+	p b { color: var(--horosa-gold, #9a6a25); font-weight: 700; }
+	.dim { color: var(--horosa-text-soft, #52627a); }
+	.poem {
+		font-style: normal;
+		letter-spacing: 0.04em;
+		color: var(--horosa-gold, #9a6a25);
+	}
+}
+
+.horosa-yizhangjing-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 3px 0;
+	border-bottom: 1px dashed var(--horosa-border, rgba(120, 120, 120, 0.18));
+	font-size: 13px;
+	span { color: var(--horosa-muted, #7a8699); flex: 0 0 auto; }
+	strong { color: var(--horosa-text, #1b2333); text-align: right; }
+	// 当前所宗口诀组：金色加粗（以字重＋金色区分，不用蓝色系）。
+	strong.hot { color: var(--horosa-gold, #9a6a25); font-weight: 800; }
+}
+
+.horosa-yizhangjing-note {
+	font-size: 12px;
+	color: var(--horosa-muted, #7a8699);
+	line-height: 1.6;
+	margin: 6px 0 0;
+	padding: 6px 9px;
+	border-left: 3px solid var(--horosa-gold-soft, rgba(154, 106, 37, 0.4));
+	background: var(--horosa-panel-soft, rgba(154, 106, 37, 0.05));
+	border-radius: 0 6px 6px 0;
+}
+
+.horosa-yizhangjing-tablewrap {
+	overflow-x: auto;
+}
+.horosa-yizhangjing-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12.5px;
+	th, td {
+		border: 1px solid var(--horosa-border, rgba(120, 120, 120, 0.2));
+		padding: 5px 7px;
+		text-align: center;
+		vertical-align: top;
+		color: var(--horosa-text, #1b2333);
+	}
+	th {
+		background: var(--horosa-panel-soft, rgba(120, 120, 120, 0.08));
+		color: var(--horosa-gold, #9a6a25);
+		font-weight: 600;
+		white-space: nowrap;
+	}
+	// 落宫标记（流年表「年/月/日/时/命」列头）：实金填充白字，作显眼锚点。
+	th.hot {
+		color: #fff;
+		background: var(--horosa-gold, #9a6a25);
+		border-color: var(--horosa-gold, #9a6a25);
+	}
+	td.lt { text-align: left; }
+	td.sm, th.sm { font-size: 11px; }
+	.dim { color: var(--horosa-text-soft, #52627a); font-size: 11px; }
+}
+
+// 竖表：宽 12 列横表转 2 列纵表（省横向空间、窄栏可读）。行首 th＝紧凑左对齐标签列。
+.horosa-yizhangjing-vtable {
+	tbody th {
+		text-align: left;
+		white-space: nowrap;
+		width: 1%;
+		padding-right: 12px;
+	}
+	td { text-align: left; }
+}
+
+.horosa-yizhangjing-pre {
+	white-space: pre-wrap;
+	font-family: inherit;
+	font-size: 12.5px;
+	line-height: 1.66;
+	margin: 0;
+	color: var(--horosa-text-soft, #52627a);
+	max-height: 46vh;
+	overflow-y: auto;
+}
+
+// 神煞合参层：按人事宫聚合的卡片网格（仅列本盘落宫，非全表）。
+.horosa-yizhangjing-shensha-empty {
+	font-size: 12.5px;
+	color: var(--horosa-muted, #7a8699);
+	padding: 14px 4px;
+	text-align: center;
+}
+.horosa-yizhangjing-shensha-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 10px;
+	margin-top: 10px;
+}
+.horosa-yizhangjing-shensha-cell {
+	border: 1px solid var(--horosa-gold-soft, rgba(154, 106, 37, 0.28));
+	border-radius: 10px;
+	padding: 9px 11px 8px;
+	background: var(--horosa-panel-soft, rgba(154, 106, 37, 0.045));
+}
+.horosa-yizhangjing-shensha-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-bottom: 6px;
+	padding-bottom: 5px;
+	border-bottom: 1px dashed var(--horosa-gold-soft, rgba(154, 106, 37, 0.3));
+	.horosa-yizhangjing-shensha-pal {
+		font-size: 14px;
+		font-weight: 800;
+		color: var(--horosa-gold, #9a6a25);
+		letter-spacing: 0.02em;
+	}
+	.horosa-yizhangjing-shensha-loc {
+		font-size: 11.5px;
+		color: var(--horosa-text-soft, #52627a);
+	}
+}
+.horosa-yizhangjing-shensha-row {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	grid-template-areas: 'name src' 'text text';
+	column-gap: 6px;
+	row-gap: 1px;
+	padding: 4px 0;
+	& + & { border-top: 1px solid var(--horosa-border, rgba(120, 120, 120, 0.12)); }
+	.horosa-yizhangjing-shensha-name {
+		grid-area: name;
+		font-size: 12.5px;
+		font-weight: 700;
+		color: var(--horosa-gold, #9a6a25);
+		white-space: nowrap;
+	}
+	.horosa-yizhangjing-shensha-src {
+		grid-area: src;
+		align-self: center;
+		font-size: 10.5px;
+		color: var(--horosa-muted, #7a8699);
+		background: var(--horosa-panel-soft, rgba(154, 106, 37, 0.08));
+		border-radius: 4px;
+		padding: 0 5px;
+		justify-self: start;
+		white-space: nowrap;
+	}
+	.horosa-yizhangjing-shensha-text {
+		grid-area: text;
+		font-size: 12px;
+		line-height: 1.55;
+		color: var(--horosa-text, #1b2333);
+	}
+}

@@ -170,6 +170,25 @@ export function buildRelativeSnapshotText(comp){
 			lines.push(buildAstroSnapshotContent(res.outer, null));
 		}
 	}
+
+	if(comp.currentTab === 'Score'){
+		lines.push('');
+		lines.push('[关系量化]');
+		lines.push(`契合分数：${res.score !== undefined && res.score !== null ? res.score : '-'}（0–100，50 为中性；越高越顺畅，越低张力越大）`);
+		const pushScoreAsps = (title, list)=>{
+			const arr = (list || []).slice(0, 12);
+			if(arr.length === 0){
+				return;
+			}
+			lines.push('');
+			lines.push(`[${title}]`);
+			arr.forEach((it)=>{
+				lines.push(`${msg(it.a)} 与 ${msg(it.b)} 成 ${aspectText(it.aspect)} 相位（权重${round3(it.impact)}，误差${round3(it.orb)}）`);
+			});
+		};
+		pushScoreAsps('顺畅连接', res.highlights);
+		pushScoreAsps('张力连接', res.challenges);
+	}
 	return lines.join('\n');
 }
 
@@ -665,6 +684,7 @@ class AstroRelative extends Component{
 										<AstroRelativeScore
 											params={this.genParams()}
 											height={height}
+											onResult={(r)=>{ hook.Score.result = r; this.saveRelativeSnapshot(); }}
 										/>
 								</TabPane>
 

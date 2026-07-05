@@ -6,6 +6,7 @@ import { getUserIP, isObject, } from './helper';
 import { encryptRSA, decryptRSA, } from './rsahelper';
 import { getErrMsg } from '../msg/errmsg';
 import { markServiceOnline, markServiceOffline, isBackendUnreachableError } from './serviceStatus';
+import { renegotiateLocalServerRoot } from './backendIdentity';
 
 var tmDelta = 0;
 // eslint-disable-next-line import/no-cycle
@@ -465,6 +466,40 @@ async function fetchWithRetryConnRefused(url, opts, timeoutMs, retryCfg){
 	throw lastErr;
 }
 
+// 服务地址自愈 + 安全重放(2026-07-04 事故复盘)。触发条件:后端不可达 / 超时 / 「毒 200」
+// (HTTP 200 但响应非本协议,典型=端口被其它进程占用)。再协商(身份握手)后【根确实换了】
+// 才重放——根换了意味着原请求从未到达真后端,重放对真后端零副作用(含 login 等非幂等请求);
+// 根没换(比如后端只是慢/真业务错)绝不重放,行为与旧版逐字节一致。__horosaHealed 防递归。
+export async function healAndRetryOnce(url, options, err, replay){
+	try{
+		if(options && options.__horosaHealed){
+			return null;
+		}
+		const suspect = !!(err && err.horosaIdentitySuspect)
+			|| isBackendUnreachableError(err)
+			|| isTimeoutLikeError(err);
+		if(!suspect){
+			return null;
+		}
+		const outcome = await renegotiateLocalServerRoot(
+			err && err.horosaIdentitySuspect ? 'poisoned-response' : 'request-failure'
+		);
+		if(!outcome || !outcome.changed || !outcome.from || !outcome.to){
+			return null;
+		}
+		const urlTxt = `${url}`;
+		const fromRoot = `${outcome.from}`.replace(/\/$/, '');
+		if(urlTxt.indexOf(fromRoot) !== 0){
+			return null;
+		}
+		const retryUrl = `${outcome.to}`.replace(/\/$/, '') + urlTxt.slice(fromRoot.length);
+		const value = await replay(retryUrl, { ...(options || {}), __horosaHealed: true });
+		return { value };
+	}catch(e2){
+		return null;
+	}
+}
+
 /**
  * Requests a URL, returning a promise.
  *
@@ -506,6 +541,9 @@ async function requestCore(url, options) {
         }
         if(opts && opts.disableLoading !== undefined){
             delete opts.disableLoading;
+        }
+        if(opts && opts.__horosaHealed !== undefined){
+            delete opts.__horosaHealed;
         }
 		let timeoutMs = null;
 		if(opts && opts.timeoutMs !== undefined){
@@ -550,7 +588,15 @@ async function requestCore(url, options) {
                 status: response.status,
                 url: response.url,
             }
-            err[Constants.ResultMessageKey] = '访问' + err.url + '错误。statusCode：' + err.status;
+            // 分类修正(2026-07-04 事故复盘):HTTP 200 但响应解不出本协议 ≠「服务不可达」——
+            // 典型根因是端口被其它进程占用/服务地址陈旧。标记 horosaIdentitySuspect,
+            // 由外层触发身份握手再协商;绝不再把 statusCode:200 报成「未就绪」。
+            if(response.status === 200){
+                err[Constants.ResultMessageKey] = '本地服务响应异常(' + err.url + ' 返回了非本应用协议的内容,疑似端口被其它程序占用),已自动重新定位服务,请重试。';
+                err.horosaIdentitySuspect = true;
+            }else{
+                err[Constants.ResultMessageKey] = '访问' + err.url + '错误。statusCode：' + err.status;
+            }
             throw err;
         }
 
@@ -578,6 +624,11 @@ async function requestCore(url, options) {
             return data;
         }    
     }catch(e){
+		// 服务地址自愈:根换成已验证的新地址后安全重放一次(详见 healAndRetryOnce 注释)。
+		const healed = await healAndRetryOnce(url, options, e, requestCore);
+		if(healed){
+			return healed.value;
+		}
 		if(isTimeoutLikeError(e)){
 			if(!silent){
 				innerHandleError(buildTimeoutError());
@@ -596,7 +647,7 @@ async function requestCore(url, options) {
                 payload: {
                     loading: false,
                 }
-            });  
+            });
             safeSetLocalItem('forceChange', '1');
         }
     }
@@ -629,6 +680,9 @@ export async function requestRaw(url, options) {
         if(opts && opts.disableLoading !== undefined){
             delete opts.disableLoading;
         }
+        if(opts && opts.__horosaHealed !== undefined){
+            delete opts.__horosaHealed;
+        }
 		let timeoutMs = null;
 		if(opts && opts.timeoutMs !== undefined){
 			timeoutMs = opts.timeoutMs;
@@ -659,18 +713,29 @@ export async function requestRaw(url, options) {
         let data = {};
         try{
             data = await response.blob();
-            return data;        
+            return data;
         }catch(e){
             let err = {
                 headers: response.headers,
                 status: response.status,
                 url: response.url,
             }
-            err[Constants.ResultMessageKey] = '访问' + err.url + '错误。statusCode：' + err.status;
+            // 同 request:200 但取不出 body ≠ 不可达;标记交外层再协商,不误报「未就绪」。
+            if(response.status === 200){
+                err[Constants.ResultMessageKey] = '本地服务响应异常(' + err.url + ' 返回了非本应用协议的内容,疑似端口被其它程序占用),已自动重新定位服务,请重试。';
+                err.horosaIdentitySuspect = true;
+            }else{
+                err[Constants.ResultMessageKey] = '访问' + err.url + '错误。statusCode：' + err.status;
+            }
             throw err;
         }
 
     }catch(e){
+		// 服务地址自愈:与 request 同构(根换了才安全重放一次)。
+		const healed = await healAndRetryOnce(url, options, e, requestRaw);
+		if(healed){
+			return healed.value;
+		}
 		if(isTimeoutLikeError(e)){
 			if(!silent){
 				innerHandleError(buildTimeoutError());
@@ -689,7 +754,7 @@ export async function requestRaw(url, options) {
                 payload: {
                     loading: false,
                 }
-            });  
+            });
             safeSetLocalItem('forceChange', '1');
         }
     }

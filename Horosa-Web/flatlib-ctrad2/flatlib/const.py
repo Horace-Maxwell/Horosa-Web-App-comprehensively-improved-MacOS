@@ -103,7 +103,7 @@ URANUS = 'Uranus'
 NEPTUNE = 'Neptune'
 PLUTO = 'Pluto'
 CHIRON = 'Chiron'
-# Uranian / 汉堡学派 trans-Neptunian points (Witte/Sieggrün hypothetical bodies)
+# Uranian / 汉堡学派 trans-Neptunian points (hypothetical bodies)
 CUPIDO = 'Cupido'
 HADES = 'Hades'
 ZEUS = 'Zeus'

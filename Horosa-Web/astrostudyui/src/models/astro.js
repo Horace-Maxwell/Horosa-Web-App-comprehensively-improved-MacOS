@@ -11,6 +11,7 @@ import { hookRafEnabled } from '../utils/perfFlags';
 import { loadLocalFateEvents, saveLocalFateEvents, } from '../utils/localdeeplearn';
 import * as AstroConst from '../constants/AstroConst';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../utils/dayBoundary';
+import { applyRecordToFields } from '../utils/recordFieldsRestore';
 
 let dtm = new DateTime();
 const DefaultHouseSystem = 1;
@@ -1133,42 +1134,27 @@ export default {
 		*fetchByChartData({ payload: values }, { call, put, select }){
             const store = getStore();
 			const state = store.astro;
-			const fields = {
-				...state.fields
-			}
+			// 载入还原（不可变）：record 里保存的每个排盘选项键按 RECORD_FIELDS_RESTORE_MANIFEST 条件还原
+			// （record 缺键=保持当前值，legacy 零冲击）；命中键与下方核心键一律写「新 entry」——
+			// 旧实现 {...state.fields} 后就地改共享 entry，① 组件层 prevProps 与 props 同对象、值比对失明,
+			// ② /chart 失败时 state 已被改一半（脏写）。清单见 utils/recordFieldsRestore.js（哨兵守全枚举）。
+			const fields = applyRecordToFields(state.fields, values);
+			const setF = (key, value)=>{ fields[key] = { ...(fields[key] || { name: [key] }), value }; };
 
 			let tm = new DateTime();
 			tm.parse(values.birth, 'YYYY-MM-DD HH:mm:ss');
 			tm.setAd(values.ad ? values.ad : 1);
 			tm.setZone(values.zone);
 
-			fields.cid.value = values.cid;
-			fields.date.value = tm;
-			fields.time.value = tm;
-			fields.zone.value = tm.zone;
-			fields.lat.value = values.lat;
-			fields.lon.value = values.lon;
-			fields.name.value = values.name;
-			fields.pos.value = values.pos;
-			fields.ad.value = tm.ad;
-			if(values.gender !== undefined && values.gender !== null){
-				fields.gender.value = parseInt(values.gender + '');
-			}
-			if(values.group !== undefined && values.group !== null){
-				fields.group.value = values.group;
-			}
-			// 日界点 + 晚子时·时柱起干 + 时间算法 回填: 命盘存档时保留的就用存档值,否则保留当前(已默认到全局)。
-			if(values.after23NewDay !== undefined && values.after23NewDay !== null){
-				fields.after23NewDay.value = parseInt(values.after23NewDay + '', 10);
-			}
-			if(values.orbs && typeof values.orbs === 'object'){ if(!fields.orbs){ fields.orbs = { name: ['orbs'] }; } fields.orbs.value = values.orbs; }
-			if(values.orbScale !== undefined && values.orbScale !== null){ if(!fields.orbScale){ fields.orbScale = { name: ['orbScale'] }; } fields.orbScale.value = values.orbScale; }
-			if(values.lateZiHourUseNextDay !== undefined && values.lateZiHourUseNextDay !== null){
-				fields.lateZiHourUseNextDay.value = parseInt(values.lateZiHourUseNextDay + '', 10);
-			}
-			if(values.timeAlg !== undefined && values.timeAlg !== null){
-				fields.timeAlg.value = parseInt(values.timeAlg + '', 10);
-			}
+			setF('cid', values.cid);
+			setF('date', tm);
+			setF('time', tm);
+			setF('zone', tm.zone);
+			setF('lat', values.lat);
+			setF('lon', values.lon);
+			setF('name', values.name);
+			setF('pos', values.pos);
+			setF('ad', tm.ad);
 
 			const param = fieldsToParams(fields);
 			const astroState = yield select((allState)=>allState.astro);
@@ -1184,14 +1170,15 @@ export default {
 			Result.chartId = randomStr(8);
 			saveAstroAISnapshotLazy(Result, fields);
 
-			fields.memo74.value = values.memo74;
-			fields.memoBaZi.value = values.memoBaZi;
-			fields.memoZiWei.value = values.memoZiWei;
-			fields.memoAstro.value = values.memoAstro;
-			fields.memoGua.value = values.memoGua;
-			fields.memoLiuReng.value = values.memoLiuReng;
-			fields.memoQiMeng.value = values.memoQiMeng;
-			fields.memoSuZhan.value = values.memoSuZhan;
+			// memo×8：无条件覆盖语义（record 无备注 = 清空该备注），与还原键的条件语义不同，故留手工。
+			setF('memo74', values.memo74);
+			setF('memoBaZi', values.memoBaZi);
+			setF('memoZiWei', values.memoZiWei);
+			setF('memoAstro', values.memoAstro);
+			setF('memoGua', values.memoGua);
+			setF('memoLiuReng', values.memoLiuReng);
+			setF('memoQiMeng', values.memoQiMeng);
+			setF('memoSuZhan', values.memoSuZhan);
 
 			let type = state.memoType;
 			let memo = '';

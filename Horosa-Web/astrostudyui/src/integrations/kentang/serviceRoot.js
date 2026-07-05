@@ -156,11 +156,28 @@ function queryValue(keys){
 	return '';
 }
 
+// 服务地址自愈(backendIdentity)拿到壳真值后写入的覆盖根:优先级在 query 之后、
+// ServerRoot 派生之前——修「ServerRoot 被毒化时 kentang 全线跟着塌」的传导链。
+let kentangRootOverride = '';
+
+export function setKentangRootOverride(root){
+	if(isValidHttpUrl(root)){
+		kentangRootOverride = `${root}`.replace(/\/$/, '');
+	}
+}
+
+export function getKentangRootOverride(){
+	return kentangRootOverride;
+}
+
 export function resolveKentangServiceRoot(moduleKey){
 	const config = KENTANG_SERVICE_CONFIG[moduleKey] || {};
 	const explicit = queryValue([...(config.queryKeys || []), ...COMMON_QUERY_KEYS]);
 	if(explicit){
 		return explicit;
+	}
+	if(kentangRootOverride){
+		return kentangRootOverride;
 	}
 	if(/:9999(?:\/)?$/i.test(ServerRoot)){
 		return replacePort(ServerRoot, LOCAL_KENTANG_CHART_PORT);

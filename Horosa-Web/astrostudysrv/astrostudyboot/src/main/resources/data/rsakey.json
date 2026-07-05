@@ -87,6 +87,7 @@
 	
 	"nochksig": {
 		"transCodes": [
+			"/horosaIdentity",
 			"/live/beat",
 			"/live/finishrecord",
 			"/live/onplay",

@@ -144,8 +144,10 @@ const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
 // v32 补:风水新增五流派导出段(辅星水法/净阴净阳/玄空大卦/形势峦头/择日选择)登记进 fengshui PRESET_SECTIONS。
 //        fengshui 已在 MIGRATION_KEYS → 同 v22-v31 范式(补 preset 末尾段 + 升版 union 并入,不删用户项);
 //        MIGRATION_VERSION 升至 == SETTINGS_VERSION 以覆盖曾在 v31 自定义过风水导出段的老用户(否则五新段被 filterContentByWantedSections 静默删)。
-export const AI_EXPORT_SETTINGS_VERSION = 32;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 32;
+// v36 补:一掌经神煞合参层由静态 21×12 表改为按盘计算落宫(生年支/日干/月支/日柱旬定位)→导出新增「神煞合参」段。
+//        yizhangjing 已在 MIGRATION_KEYS;MIGRATION_VERSION 升至 == SETTINGS_VERSION 以覆盖曾自定义过一掌经导出段(v33-35)的老用户(否则神煞合参段被静默删)。
+export const AI_EXPORT_SETTINGS_VERSION = 36;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 36;
 const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	// v18 补:占星/星运核心 + 卜卦/择日(此前漏登记)。务必与新增「有 preset 的技法」同步(aiExport.test 跨系统自检守)。
 	'astrochart',
@@ -210,6 +212,7 @@ const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	'extrareturns',
 	'canping',
 	'heluo',
+	'yizhangjing',
 ];
 const AI_EXPORT_PLANET_INFO_DEFAULT = {
 	showHouse: 1,
@@ -339,6 +342,7 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'heluo', label: '河洛理数' },
 	{ key: 'xianqin', label: '万化仙禽' },
 	{ key: 'cetian', label: '策天飞星' },
+	{ key: 'yizhangjing', label: '一掌经' },
 	{ key: 'germany', label: '量化盘' },
 	{ key: 'jieqi', label: '节气盘' },
 	...JIEQI_SPLIT_TECHNIQUES,
@@ -349,7 +353,7 @@ const AI_EXPORT_TECHNIQUES = [
 	{ key: 'generic', label: '其他页面' },
 ];
 
-const AI_EXPORT_PRESET_SECTIONS = {
+export const AI_EXPORT_PRESET_SECTIONS = {
 	horary: ['起卦信息', '根本性', '征象星指派', '完成分析', '月亮的故事', '相位全览', '裁决', '应期方位', '描述'],
 	election: ['起盘信息', '总评', '红线', '分项', '用事专属', '危象日参照', '应期', '本命合参', '时势合参', '建议'],
 	astrochart: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '12分度', '主宰星链', '古典', '古典格局', '寿命格局', '可能性'],
@@ -540,6 +544,7 @@ const AI_EXPORT_PRESET_SECTIONS = {
 	fengshui: ['起盘信息', '标记判定', '冲突清单', '未定位标注', '破局危害', '龙虎灶台', '移动盘', '吉凶评分', '缓解建议', '使用要点', '建议汇总', '纳气建议', '八卦定位', '成員卦象', '四类象格局', '应期成格', '改运建议', '风水·纳气盘', '风水·八卦阳宅', '风水·八宅大游年', '风水·玄空飞星', '风水·三合水法', '风水·金锁玉关', '风水·乾坤国宝', '风水·紫白飞星', '风水·辅星水法', '风水·净阴净阳', '风水·玄空大卦', '风水·形势峦头', '风水·择日选择'],
 	canping: ['起盘', '本命', '大运·歲運', '流年·歲運'],
 	heluo: ['起命', '先天卦·元堂爻辞', '后天卦·元堂爻辞', '命运篇', '大限·岁运', '流年·岁运', '断验'],
+	yizhangjing: ['起盘信息', '四柱四宫断语', '命宫与人事十二宫', '格局判定', '重犯', '交互格', '职业适性', '大限', '小限与流年十二神', '流年总论', '神煞合参'],
 	generic: ['起盘信息'],
 };
 
@@ -2139,9 +2144,17 @@ function resolveContextByAstroState(){
 		const auxchartMap = {
 			germanytech: { key: 'germany', displayName: '量化盘' },
 			hellenastro: { key: 'astrochart_like', displayName: '十三分盘' },
+			// 十二分盘/谐波盘/黄道分盘/换置盘 皆由本命盘派生的占星式衍生盘,导出复用星盘式预设。
+			dwadasamsa: { key: 'astrochart_like', displayName: '十二分盘' },
+			harmonic: { key: 'astrochart_like', displayName: '谐波盘' },
+			draconic: { key: 'astrochart_like', displayName: '黄道分盘' },
+			relocation: { key: 'astrochart_like', displayName: '换置盘' },
 			locastro: { key: 'astrochart_like', displayName: '占星地图' },
 			otherbu: { key: 'otherbu', displayName: '骰子' },
 			mundane: { key: 'mundane', displayName: '世俗盘' },
+			// 卜卦盘/择日盘 在辅盘页亦可单开(与顶层同术),各归本预设,勿 fallback 到量化盘。
+			horary: { key: 'horary', displayName: '卜卦盘', domain: 'horary' },
+			election: { key: 'election', displayName: '择日盘', domain: 'election' },
 		};
 		const cnyibuMap = {
 			suzhan: { key: 'suzhan', displayName: '宿盘' },
@@ -2211,8 +2224,14 @@ function resolveContextByAstroState(){
 		}
 		case 'yanqin':
 			return KINASTRO_EXPORT_CONTEXTS.xianqin;
-		case 'mingother':
+		case 'mingother': {
+			// 「其他」页同 moduleKey 承载策天飞星/一掌经，按运行时激活子技法取上下文（默认策天）。
+			const mingTech = getRuntimeKinAstroTechnique('mingother');
+			if(mingTech === 'yizhangjing'){
+				return KINASTRO_EXPORT_CONTEXTS.yizhangjing;
+			}
 			return KINASTRO_EXPORT_CONTEXTS.cetian;
+		}
 		case 'otherbu':
 			return { key: 'otherbu', displayName: '骰子' };
 		case 'fengshui':
@@ -2325,6 +2344,7 @@ const KINASTRO_EXPORT_CONTEXTS = {
 	cetian: { key: 'cetian', displayName: '策天飞星', domain: 'kentang_raw' },
 	canping: { key: 'canping', displayName: '邵子参评数' },   // 原生·模块快照（非 kentang）
 	heluo: { key: 'heluo', displayName: '河洛理数' },
+	yizhangjing: { key: 'yizhangjing', displayName: '一掌经' },
 };
 
 function getRuntimeKinAstroTechnique(group){
@@ -2472,7 +2492,7 @@ function getExtractorKindByExportKey(key){
 		|| exportKey === 'beiji' || exportKey === 'nanji' || exportKey === 'chunzi' || exportKey === 'xianqin'
 		|| exportKey === 'cetian' || exportKey === 'qizhengkin' || exportKey === 'guolao' || exportKey === 'suzhan'
 		|| exportKey === 'bazi' || exportKey === 'ziwei' || exportKey === 'horary' || exportKey === 'election'
-		|| exportKey === 'canping' || exportKey === 'heluo'){
+		|| exportKey === 'canping' || exportKey === 'heluo' || exportKey === 'yizhangjing'){
 		return `module:${snapshotModuleKeyByContextKey(exportKey)}`;
 	}
 	if(exportKey === 'taiyi'){
@@ -5361,6 +5381,11 @@ async function extractContentByKey(exportKey, context){
 	if(exportKey === 'decennials'){
 		return extractDecennialsContent(context);
 	}
+	if(exportKey === 'distributions' || exportKey === 'agepoint'){
+		// 界推运/年龄推进点：组件内 fetch /predict/dist|agepoint 后经 refresh-event 回写快照(同主限法机制)。
+		// 此前缺分支 → 落 extractGenericContent → 导出「无可导出文本」；补齐后与其余推运一致。
+		return extractSimpleModuleContent(exportKey);
+	}
 	if(AI_EXPORT_SIMPLE_MODULE_KEYS.indexOf(exportKey) >= 0){
 		return extractSimpleModuleContent(exportKey);
 	}
@@ -5420,6 +5445,10 @@ async function extractContentByKey(exportKey, context){
 	}
 	if(exportKey === 'heluo'){
 		return extractSimpleModuleContent('heluo');
+	}
+	if(exportKey === 'yizhangjing'){
+		// 一掌经（其他/命）：中栏组件按当前流派即时构建快照，refresh-event → 回退模块缓存。
+		return extractSimpleModuleContent('yizhangjing');
 	}
 	return extractGenericContent(context);
 }

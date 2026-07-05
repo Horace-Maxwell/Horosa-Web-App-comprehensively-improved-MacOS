@@ -1,6 +1,13 @@
 import React from 'react';
 import { ServerRoot } from '../../utils/constants';
 import { markServiceOnline } from '../../utils/serviceStatus';
+import { renegotiateLocalServerRoot } from '../../utils/backendIdentity';
+
+// 2026-07-04 事故复盘:探测地址必须每次从活绑定 ServerRoot 现算——旧版 useMemo 把 URL 冻结,
+// 服务地址自愈换根后本组件仍对旧(毒)端口无限轮询。
+function currentProbeUrl() {
+  return ServerRoot ? `${String(ServerRoot).replace(/\/$/, '')}/heartbeat` : '';
+}
 
 // P0 启动稳健化:本地后端就绪前的全屏「正在连接本地服务」覆盖层,取代「白屏 / 进不去主界面」。
 //
@@ -19,13 +26,8 @@ export default function StartupGate() {
   const [elapsed, setElapsed] = React.useState(0); // 秒
   const startRef = React.useRef(Date.now());
 
-  const probeUrl = React.useMemo(
-    () => (ServerRoot ? `${String(ServerRoot).replace(/\/$/, '')}/heartbeat` : ''),
-    [],
-  );
-
   React.useEffect(() => {
-    if (!probeUrl || typeof fetch !== 'function') { setReady(true); return undefined; }
+    if (!currentProbeUrl() || typeof fetch !== 'function') { setReady(true); return undefined; }
     let cancelled = false;
     let timer = null;
     const ticker = setInterval(() => {
@@ -40,13 +42,22 @@ export default function StartupGate() {
       try {
         const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
         if (ctrl) abortTimer = setTimeout(() => { try { ctrl.abort(); } catch (e) { /* noop */ } }, 2500);
-        fetch(probeUrl, { method: 'GET', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+        // 每次现算探测地址(活绑定):自愈换根后下一次探测自动落在新根。
+        fetch(currentProbeUrl(), { method: 'GET', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
           .then(() => { if (abortTimer) clearTimeout(abortTimer); pass(); })
           .catch((err) => {
             if (abortTimer) clearTimeout(abortTimer);
             if (cancelled) return;
             // 超时/中断 = 后端在世只是慢 → 放行,避免卡在慢启动。
             if (err && (err.name === 'AbortError' || err.name === 'TimeoutError')) { pass(); return; }
+            // 连败若干次 → 触发一次服务地址再协商(单飞+节流,便宜):
+            // 地址可疑(端口被占/存储陈旧)时,换到已验证的根后本环自动跟上。
+            if (attempt > 0 && attempt % 4 === 0) {
+              try {
+                const p = renegotiateLocalServerRoot('startup-gate');
+                if (p && p.catch) { p.catch(() => {}); }
+              } catch (e) { /* 自愈失败不影响重试环 */ }
+            }
             // 网络层不可达:退避重试(上限 2.5s),永不放弃。
             timer = setTimeout(() => probe(attempt + 1), Math.min(2500, 300 + attempt * 300));
           });
@@ -56,11 +67,15 @@ export default function StartupGate() {
     };
     probe(0);
     return () => { cancelled = true; if (timer) clearTimeout(timer); clearInterval(ticker); };
-  }, [probeUrl]);
+  }, []);
 
   const manualRetry = () => {
-    if (!probeUrl) { setReady(true); return; }
-    fetch(probeUrl, { method: 'GET', cache: 'no-store' })
+    if (!currentProbeUrl()) { setReady(true); return; }
+    // 手动重试先自愈再探测(等价 ChartServiceErrorModal 的「立即重试」语义)。
+    Promise.resolve()
+      .then(() => renegotiateLocalServerRoot('startup-gate-manual'))
+      .catch(() => null)
+      .then(() => fetch(currentProbeUrl(), { method: 'GET', cache: 'no-store' }))
       .then(() => { markServiceOnline(); setReady(true); })
       .catch(() => { /* 仍不可达,继续显示 */ });
   };
@@ -151,9 +166,9 @@ export default function StartupGate() {
             ) : null}
           </div>
         ) : null}
-        {elapsed >= 30 && probeUrl ? (
+        {elapsed >= 30 && currentProbeUrl() ? (
           <div style={{ marginTop: 12, fontSize: 11, color: 'var(--horosa-text-soft, #999)', wordBreak: 'break-all' }}>
-            后端地址: {probeUrl}
+            后端地址: {currentProbeUrl()}
           </div>
         ) : null}
         <style>{'@keyframes horosaStartupSpin{to{transform:rotate(360deg)}}'}</style>

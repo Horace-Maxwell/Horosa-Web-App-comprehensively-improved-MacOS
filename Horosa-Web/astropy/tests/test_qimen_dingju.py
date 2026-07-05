@@ -125,3 +125,36 @@ def test_pan_feipan_matches_ex1_fei():
     assert fp["值符值使"]["值符星宮"] == ["柱", "兌"]
     assert fp["值符值使"]["值使門宮"] == ["驚", "兌"]
     assert fp["盤式"] == "飛盤"
+
+
+# ── 2026-07-04 事故复盘:时家 拆补/置闰 与参考引擎对齐审计修复的回归锚 ──
+# 双引擎 9 年 42,731 点扫描定位两个实现 bug,修后全矩阵 0 差(值以参考引擎独立验证)。
+
+
+def test_chaibu_14day_gap_crossing_day_pre_crossing():
+    """Bug①:交节日与上一交节日历差=14 天(冬半年傍晚交节)时,旧 jq() 的
+    get_before before(15) 起跳恰好跳过上一交节日 → 交节前时段错报两档前节气。
+    2026-02-18(雨水 23:51 交,距立春 02-04 = 14 天):修前拆补=大寒→陽遁六局下(错),
+    正确=立春→陽遁二局下。"""
+    assert kq_config.qimen_ju_name_chaibu(2026, 2, 18, 10, 30) == "陽遁二局下"
+    # 交节前 23:30(日柱已晚子时进位→上元;节气仍立春):陽遁八局上
+    assert kq_config.qimen_ju_name_chaibu(2026, 2, 18, 23, 30) == "陽遁八局上"
+    # 同类日再钉两例(2015-01-20 大寒 17:43 距小寒 01-06=14 天;2025-12-21 冬至 23:02 距大雪 12-07=14 天)
+    assert kq_config.qimen_ju_name_chaibu(2015, 1, 20, 10, 30) == "陽遁二局上"
+    assert kq_config.qimen_ju_name_chaibu(2025, 12, 21, 2, 30) == "陰遁四局上"
+
+
+def test_zhirun_futou_eve_late_zi_consistency():
+    """Bug②:节气块边界(上元符头日)前夜 23:00–24:00,元随日柱晚子时进位而
+    距符头天数旧用日历日 → 「新元+旧节气局」嵌合体。2015-01-03 为己卯上元符头日
+    (小寒上元起):前夜 23:30 置闰应整体归次日=陽遁二局上元(修前=陽遁一局上元嵌合)。"""
+    assert kq_config.qimen_ju_name_zhirun(2015, 1, 2, 23, 30) == "陽遁二局上元"
+    # 邻位连续性:前夜 22:30 仍属旧块(陽遁四局下元…此处按归一「阳4下」= 冬至下元)
+    assert kq_config.qimen_ju_name_zhirun(2015, 1, 2, 22, 30) == "陽遁四局下元"
+    # 次日 00:30 与前夜 23:30 同局(晚子时口径自洽)
+    assert kq_config.qimen_ju_name_zhirun(2015, 1, 3, 0, 30) == "陽遁二局上元"
+
+
+def test_wurun_futou_eve_late_zi_consistency():
+    """无闰(zhirun_jieqi_noleap)同修晚子时进位;该时点无闰未触发 → 与置闰同值。"""
+    assert kq_config.qimen_ju_name_wurun(2015, 1, 2, 23, 30) == kq_config.qimen_ju_name_zhirun(2015, 1, 2, 23, 30)

@@ -390,4 +390,66 @@ describe('AI 挂载段过滤封装 applyAIExportSectionFilterToSnapshot（第五
 		const missing = mountableWithPreset.filter((key)=>!getTechniqueSettingsSchema(key));
 		expect(missing).toEqual([]);
 	});
+
+	it('反向哨兵:有导出预设的技法必须可挂载、或在显式豁免清单(kinastro 七技法曾「可导出不可挂载」从正向检查溜过)', ()=>{
+		// 豁免=结构上不可按单记录/单事盘重算者;新增豁免必须在此写明理由,否则新技法漏挂载当场红。
+		const MOUNT_EXEMPT = {
+			generic: '通用兜底键,非具体技法',
+			jieqi: '节气盘走自有 split 多取数导出,无单盘挂载语义',
+			relative: '合盘需两张盘,单记录挂载不适用',
+			otherbu: '骰子随机不可复算,无事盘存储',
+			fengshui: '风水按宅盘交互起盘,无事盘存储',
+		};
+		const mountable = new Set([...ANALYSIS_CHART_TECHNIQUES, ...ANALYSIS_CASE_TECHNIQUES]);
+		const leftovers = getAIExportPresetKeys()
+			.filter((key)=>!mountable.has(key))
+			.filter((key)=>!key.startsWith('jieqi_'))   // 节气盘 split 子键族:随 jieqi 自有分节机制,同族豁免
+			.filter((key)=>!Object.prototype.hasOwnProperty.call(MOUNT_EXEMPT, key));
+		expect(leftovers).toEqual([]);
+		// 豁免清单不许养僵尸:每个豁免键必须仍真实存在于导出预设表
+		const zombie = Object.keys(MOUNT_EXEMPT).filter((key)=>getAIExportPresetKeys().indexOf(key) < 0);
+		expect(zombie).toEqual([]);
+	});
+
+	it('可挂载技法的挂载快照建构分支必达(kinastro 系经通用建构器,标签/清单/schema/分支四点齐)', ()=>{
+		['qizhengkin', 'shaozi', 'tieban', 'fendjing', 'beiji', 'nanji', 'chunzi'].forEach((key)=>{
+			expect(ANALYSIS_CHART_TECHNIQUES).toContain(key);
+			expect(ANALYSIS_TECHNIQUE_LABELS[key]).toBeTruthy();
+			expect(getTechniqueSettingsSchema(key)).toBeTruthy();
+			expect(getAIExportPresetKeys()).toContain(key);
+		});
+	});
+});
+
+// 提取派发反向哨兵：反向哨兵(getAIExportAuditMatrix)查 getExtractorKindByExportKey 的「登记」，
+// 但不查 extractContentByKey 的「实际派发」——二者可漂移。曾致 yizhangjing / distributions / agepoint
+// 登记为 module/predictive 却无 extractContentByKey 分支 → 落 extractGenericContent → 导出空。
+// 本哨兵读源码断言：每个推运候选键都被 extractContentByKey 显式派发，不静默落 generic。
+describe('AI导出 · 提取派发反向哨兵(防新增技法漏 extractContentByKey 分支)', () => {
+	// eslint-disable-next-line global-require
+	const fs = require('fs');
+	// eslint-disable-next-line global-require
+	const path = require('path');
+	const SRC = fs.readFileSync(path.join(__dirname, '../aiExport.js'), 'utf8');
+
+	it('每个推运候选键(predictiveKeys)都被 extractContentByKey 显式派发,不落 generic', () => {
+		const pkMatch = SRC.match(/predictiveKeys\s*=\s*\[([^\]]*)\]/);
+		expect(pkMatch).toBeTruthy();
+		const predictiveKeys = [...pkMatch[1].matchAll(/'([a-z0-9_]+)'/g)].map((m) => m[1]);
+		expect(predictiveKeys.length).toBeGreaterThan(10);
+
+		// 截取 extractContentByKey 函数体(到下一个顶层 async function 声明为止)。
+		const start = SRC.indexOf('async function extractContentByKey');
+		expect(start).toBeGreaterThan(0);
+		const rest = SRC.slice(start + 34);
+		const end = rest.indexOf('\nasync function ');
+		const body = end > 0 ? rest.slice(0, end) : rest;
+
+		// 显式派发键 = 分支里所有 `exportKey === 'X'` ∪ 简单模块键组。
+		const handled = new Set([...body.matchAll(/exportKey\s*===\s*'([a-z0-9_]+)'/g)].map((m) => m[1]));
+		AI_EXPORT_SIMPLE_MODULE_KEYS.forEach((k) => handled.add(k));
+
+		const missing = predictiveKeys.filter((k) => !handled.has(k));
+		expect(missing).toEqual([]); // 缺分支 → 落 generic → 导出空(distributions/agepoint 曾如此)
+	});
 });

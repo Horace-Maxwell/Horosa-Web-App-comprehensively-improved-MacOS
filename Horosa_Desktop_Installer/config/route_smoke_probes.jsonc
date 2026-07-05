@@ -48,6 +48,7 @@
     { "id": "geomancy",   "mount": "/geomancy",   "path": "/geomancy/reading", "payload_ref": "kentang", "assert": { "result_code0": true } },
     { "id": "xuanshi",    "mount": "/xuanshi",    "path": "/xuanshi/summary",  "payload_ref": null, "method": "GET", "assert": { "no_err": true, "nonempty": true } },
     // ── webchartsrv 直挂 ────────────────────────────────────────────────────
+    { "id": "identity_py", "mount": "/",            "path": "/horosaIdentity",    "payload_ref": null, "method": "GET", "assert": { "no_err": true, "expect_keys": ["app", "nonce"] } },
     { "id": "chart",       "mount": "/",            "path": "/",                  "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
     { "id": "chart13",     "mount": "/",            "path": "/chart13",           "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
     { "id": "predict",     "mount": "/predict",     "path": "/predict/solarreturn", "payload_ref": "chart", "payload_extra": { "year": 2026 }, "assert": { "no_err": true, "nonempty": true } },

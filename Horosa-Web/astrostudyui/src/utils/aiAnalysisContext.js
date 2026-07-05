@@ -79,13 +79,14 @@ import { buildGermanySnapshotForFields } from '../components/germany/AstroMidpoi
 import { buildRelativeSnapshotText } from '../components/astro/AstroRelative';
 import { buildPredictiveSnapshotText } from './predictiveAiSnapshot';
 import { runHorary } from '../divination/horary/horaryEngine';
-import { buildHorarySnapshot } from '../divination/horary/horarySnapshot';
 import { horaryJudgeOpts } from '../divination/horary/horarySchools';
+import { buildHorarySnapshot } from '../divination/horary/horarySnapshot';
 import { runElection } from '../divination/election/electionEngine';
 import { buildElectionSnapshot } from '../divination/election/electionSnapshot';
 import { buildLocalBaziResult } from './baziLunarLocal';
 import { calculate as canpingCalculate, buildSnapshotText as buildCanpingSnapshotText, liunianSeries as canpingLiunianSeries } from './canpingLocal';
 import { calculate as heluoCalc, daYun as heluoDaYun, judge as heluoJudge, buildSnapshotText as buildHeluoSnapshotText, solarTermHuagong as heluoSolarTermHuagong } from './heluoLocal';
+import { buildYizhangjingModel, buildYizhangjingSnapshotText } from './yizhangjingReport';
 import { Solar as HeluoSolar } from 'lunar-javascript';
 // P5 主限法盘快照：方位法/度数换算的中文标签 + 默认（纯 util，无组件依赖、不回环 aiAnalysisContext）。
 import { getPdMethodLabel, getPdTimeKeyLabel, DEFAULT_PD_METHOD, DEFAULT_PD_TIME_KEY } from './primaryDirectionSync';
@@ -175,8 +176,18 @@ export const ANALYSIS_TECHNIQUE_LABELS = {
 	mundane: '世俗盘',
 	canping: '邵子参评数',
 	heluo: '河洛理数',
+	yizhangjing: '一掌经',
 	xianqin: '演禽',
 	cetian: '策天飞星',
+	// 2026-07-05 审计补:kinastro 系七技法此前「可导出不可挂载」——通用 buildKinAstroSnapshotForFields
+	// 按出生数据经 ken 后端起盘,与 xianqin/cetian 同管道,补齐挂载全链。
+	qizhengkin: '七政四余（七政）',
+	shaozi: '邵子神数',
+	tieban: '铁板神数',
+	fendjing: '鬼谷分定经',
+	beiji: '北极神数',
+	nanji: '南极神数',
+	chunzi: '蠢子数',
 	huangji: '皇极经世',
 	wuzhao: '五兆',
 	taixuan: '太玄筮法',
@@ -227,8 +238,16 @@ export const ANALYSIS_CHART_TECHNIQUES = [
 	'suzhan',
 	'canping',
 	'heluo',
+	'yizhangjing',
 	'xianqin',
 	'cetian',
+	'qizhengkin',
+	'shaozi',
+	'tieban',
+	'fendjing',
+	'beiji',
+	'nanji',
+	'chunzi',
 	'huangji',
 ];
 
@@ -803,13 +822,24 @@ export async function buildRelativeSnapshotForRecords(recordA, recordB){
 		try { return buildRelativeSnapshotText({ currentTab, result: data[Constants.ResultKey], chartA: { record: recordA }, chartB: { record: recordB }, params: { hsys: params.hsys, zodiacal: params.zodiacal } }); }
 		catch(_){ return ''; }
 	};
+	// 关系量化(分数)走独立 /astroextra/relative(返回 {score,highlights,challenges,aspects},非 /modern/relative)。
+	const fetchScore = async ()=>{
+		const params = { inner: mk(recordA), outer: mk(recordB), hsys: (recordA && recordA.hsys) || 0, zodiacal: (recordA && recordA.zodiacal) || 0, siderealAyanamsa: (recordA && recordA.siderealAyanamsa) || '' };
+		let data;
+		try { data = await request(`${Constants.ServerRoot}/astroextra/relative`, { body: JSON.stringify(params), silent: true }); }
+		catch(_){ return ''; }
+		if(!data || data[Constants.ResultKey] === undefined || data[Constants.ResultKey] === null) return '';
+		try { return buildRelativeSnapshotText({ currentTab: 'Score', result: data[Constants.ResultKey], chartA: { record: recordA }, chartB: { record: recordB }, params: { hsys: params.hsys, zodiacal: params.zodiacal } }); }
+		catch(_){ return ''; }
+	};
 	const comp = await fetchOne(0, 'Comp');            // 比较盘:互摄相位/中点相位/映点
 	const composite = await fetchOne(1, 'Composite');  // 组合盘:复合图盘
 	const synastry = await fetchOne(2, 'Synastry');    // 影响盘:双盘叠加
+	const scoreTxt = await fetchScore();               // 关系量化:契合分数+顺畅/张力 top 相位
 	const stripHeader = (txt)=>{ const i = `${txt || ''}`.indexOf('\n['); return i > 0 ? `${txt}`.slice(i + 1) : `${txt || ''}`; }; // 去重复的 [关系起盘信息] 段(仅留首份)
 	const parts = [];
 	if(comp && comp.trim()) parts.push(comp);
-	[composite, synastry].forEach((t)=>{ if(t && t.trim()) parts.push(parts.length ? stripHeader(t) : t); });
+	[composite, synastry, scoreTxt].forEach((t)=>{ if(t && t.trim()) parts.push(parts.length ? stripHeader(t) : t); });
 	return parts.join('\n\n');
 }
 
@@ -838,6 +868,15 @@ function generateCaseTechniqueSnapshot(record, moduleName, payload){
 				yanShuNum: payload.yanShuNum,
 				yueJiangMethod: payload.yueJiangMethod,
 				fenZhouYe: payload.fenZhouYe,
+				// 2026-07-05 审计修:与 regenerateCaseTechniqueSnapshot 的 liurengOpts 对齐——
+				// 涉害取舍/始入课/年神排序/昼夜阳阴/土旺衰 此前漏枚举 → 挂载快照丢设置回退默认。
+				// 缺省 undefined → builder 兜底默认 = 未设置时字节级不变(零回归)。
+				seHaiMethod: payload.seHaiMethod,
+				seHaiBoundary: payload.seHaiBoundary,
+				shiRuKe: payload.shiRuKe,
+				yearShenShaSort: payload.yearShenShaSort,
+				yinyangSystem: payload.yinyangSystem,
+				tuWangShuai: payload.tuWangShuai,
 			}
 		);
 	case 'jinkou': {
@@ -1297,6 +1336,19 @@ async function buildHeluoSnapshotForRecord(record, opts){
 	}
 }
 
+// 一掌经（其他/命）：纯前端，按本盘出生→农历(正月初一年支/月/日/时支)起四柱四宫+断语。
+// 挂载齿轮可调 顺逆/命宫/大限运长等 → record.{shunniRule,...} → opts（未改时 undefined，引擎回秘传默认）。
+async function buildYizhangjingSnapshotForRecord(record, opts){
+	try{
+		const params = buildChartBaziParams(record);
+		const bazi = buildLocalBaziResult(params).bazi;
+		const model = buildYizhangjingModel(bazi, opts || {});
+		return buildYizhangjingSnapshotText(model) || '';
+	}catch(e){
+		return '';
+	}
+}
+
 // 取该盘的西洋星盘原始结果（含 predictive 衍生数据，如 firdaria；可选含主限法）。
 async function fetchChartResultForRecord(record, options = {}){
 	const fields = buildFieldObject(record);
@@ -1685,8 +1737,11 @@ async function regenerateChartTechniqueSnapshot(record, key){
 			return await buildBaziSnapshotForParams(buildChartBaziParams(record));
 		case 'ziwei':
 			return await buildZiweiSnapshotForParams(buildChartZiweiParams(record));
-		case 'indiachart':
-			return await buildIndiaSnapshotForFields(buildFieldObject(record), 1);
+		case 'indiachart': {
+			// 挂载分盘可调(2026-07-05):record.indiaChartnum 经挂载齿轮设定;缺省 1=D1 现状零回归。
+			const indiaChartnum = Number(record && record.indiaChartnum) || 1;
+			return await buildIndiaSnapshotForFields(buildFieldObject(record), indiaChartnum);
+		}
 		case 'firdaria': {
 			// 法达星限随西洋盘 predictive 一并返回，直接读取即可。
 			const chartObj = await fetchChartResultForRecord(record);
@@ -1897,12 +1952,36 @@ async function regenerateChartTechniqueSnapshot(record, key){
 			// 河洛理数（数算）：纯前端，按本盘出生四柱起先后天卦 + 大限 + 命运篇判断。
 			// 挂载齿轮可调 取化工法 → record.quHuaGong → opts（未改时 undefined，builder 走 st=null 月支近似=现状）。
 			return await buildHeluoSnapshotForRecord(record, { quHuaGong: record.quHuaGong });
+		case 'yizhangjing':
+			// 一掌经（其他/命）：纯前端；挂载齿轮可调十项流派开关 → record.* → opts（未改回秘传默认）。
+			return await buildYizhangjingSnapshotForRecord(record, {
+				shunniRule: record.shunniRule, mingGongMethod: record.mingGongMethod,
+				dayunLength: record.dayunLength, dayunStartAge: record.dayunStartAge,
+				xiaoxianStart: record.xiaoxianStart, flowShenSet: record.flowShenSet,
+				chongfanKou: record.chongfanKou, dingYue: record.dingYue,
+				zaoZiAdjust: record.zaoZiAdjust, shenshaLayer: record.shenshaLayer,
+			});
 		case 'xianqin':
 			// 演禽（禽星）：经 ken 后端按出生数据起盘。
 			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'xianqin');
 		case 'cetian':
 			// 策天飞星：经 ken 后端按出生数据起盘。
 			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'cetian');
+		// kinastro 系七技法(2026-07-05 审计补):同 xianqin/cetian 管道,按出生数据经 ken 后端起盘。
+		case 'qizhengkin':
+			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'qizhengkin');
+		case 'shaozi':
+			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'shaozi');
+		case 'tieban':
+			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'tieban');
+		case 'fendjing':
+			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'fendjing');
+		case 'beiji':
+			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'beiji');
+		case 'nanji':
+			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'nanji');
+		case 'chunzi':
+			return await buildKinAstroSnapshotForFields(buildFieldObject(record), 'chunzi');
 		case 'huangji':
 			// 皇极经世：经 ken 后端起元会运世盘。
 			return await buildHuangJiSnapshotForFields(buildFieldObject(record));

@@ -83,6 +83,7 @@ describe('量化盘 汉堡学派快照段(WP-8)', () => {
 		};
 		const pts = [{ id: SUN, lon: 0 }, { id: MARS, lon: 20 }, { id: MERCURY, lon: 10 }];
 		const text = buildHamburgLines({ ...BASE, school: 'cosmo', showDiffList: true }, pts, result, 1).join('\n');
-		expect(/Witte|Ebertin|Brummund|Solar Fire|Astrolog|§|《|》/.test(text)).toBe(false);
+		const forbidden = ['\u0057\u0069\u0074\u0074\u0065', '\u0045\u0062\u0065\u0072\u0074\u0069\u006e', '\u0042\u0072\u0075\u006d\u006d\u0075\u006e\u0064', '\u0053\u006f\u006c\u0061\u0072\u0020\u0046\u0069\u0072\u0065', '\u0041\u0073\u0074\u0072\u006f\u006c\u006f\u0067'];
+		expect(new RegExp(forbidden.join('|') + '|§|《|》').test(text)).toBe(false);
 	});
 });

@@ -171,7 +171,11 @@ HOROSA_CHART_PORT="${CHART_PORT}" \
 HOROSA_LOG_ROOT="${LOG_ROOT}" \
 HOROSA_DIAG_DIR="${LOG_ROOT}/diag" \
 HOROSA_STARTUP_TIMEOUT="${STARTUP_TIMEOUT}" \
+HOROSA_LAUNCH_NONCE="selfcheck-$(date +%s)" \
   /bin/bash "${START_SH}" || start_rc=$?
+# ↑ HOROSA_LAUNCH_NONCE:桌面壳每次启动注入的身份握手会话 nonce,经 start 脚本环境继承进
+#   Java/Python 并由 /horosaIdentity 原样回显。冒烟环境模拟壳注入,identity 探针(expect nonce
+#   非空)因此同时验证「env 透传链 start→Python」——缺注入=探针红=当年壳侧接线断了也拦得住。
 
 if [ "${start_rc}" -ne 0 ]; then
   fail "后端未能在 ${STARTUP_TIMEOUT}s 内启动并通过健康检查（这正是 'java -version' 抓不到的那类问题）。"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, message } from 'antd';
 import { ServerRoot } from '../../utils/constants';
+import { verifyBackendIdentity, renegotiateLocalServerRoot } from '../../utils/backendIdentity';
 
 // Mac issue #12 / Win #11 #14: 排盘失败 → 本地服务未就绪 时的可操作对话框。
 // 把「重试 / 重启后端 / 打开诊断中心 / 复制诊断信息」全部集成,
@@ -40,15 +41,25 @@ async function tauriInvoke(cmd, successMsg, errorMsg) {
   }
 }
 
+// 2026-07-04 事故复盘修:旧探测打 /heartbeat 且「有任何 HTTP 响应就算在线」——端口被其它
+// 进程占用时(对任意路径回 200)会误报「后端已在线」。改为身份握手:必须是本应用后端
+// 才算在线;旧版运行时无 /horosaIdentity 时回退 /heartbeat 仅作存活参考(宽进)。
 async function probeBackend(root) {
   if (!root) return false;
   try {
-    const url = `${String(root).replace(/\/$/, '')}/heartbeat`;
-    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
-    const t = ctrl ? setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, 3500) : null;
-    const rsp = await fetch(url, { method: 'GET', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
-    if (t) clearTimeout(t);
-    return !!rsp;
+    const idv = await verifyBackendIdentity(root, { expectApp: 'horosa-backend', timeoutMs: 3500 });
+    if (idv && idv.ok) return true;
+    // 身份端点不可用(http-404 = 旧版运行时)→ 退回旧存活探测;
+    // 其余失败(标记不符 / nonce 不符 / 毒 200)一律判离线。
+    if (idv && idv.reason === 'http-404') {
+      const url = `${String(root).replace(/\/$/, '')}/heartbeat`;
+      const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      const t = ctrl ? setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, 3500) : null;
+      const rsp = await fetch(url, { method: 'GET', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+      if (t) clearTimeout(t);
+      return !!rsp;
+    }
+    return false;
   } catch (_) { return false; }
 }
 
@@ -125,8 +136,19 @@ export function showChartServiceError(extraDetail) {
     cancelText: '关闭',
     footer,
     onOk: async () => {
-      const ok = await probeBackend(root);
-      if (ok) {
+      // 先自愈再探测:地址可疑(端口被占/存储陈旧)时,一次身份握手再协商即可换到真后端。
+      let healedTo = '';
+      try {
+        const outcome = await renegotiateLocalServerRoot('modal-retry');
+        if (outcome && outcome.changed && outcome.to) {
+          healedTo = outcome.to;
+        }
+      } catch (_) {}
+      const effectiveRoot = ServerRoot || root;
+      const ok = await probeBackend(effectiveRoot);
+      if (ok && healedTo) {
+        Modal.success({ title: '已重新定位本地服务', content: `服务地址已自动修正为 ${healedTo},重新执行您的排盘操作即可。` });
+      } else if (ok) {
         Modal.success({ title: '后端已在线', content: '重新执行您的排盘操作即可。' });
       } else {
         Modal.warning({ title: '仍不可达', content: '后端可能还在启动中。建议等几秒后再试，或点「重启后端」。' });

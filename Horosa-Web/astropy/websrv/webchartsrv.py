@@ -104,6 +104,19 @@ class WebChartSrv:
 
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
+    def horosaIdentity(self):
+        # 身份握手端点:前端在采用任何本地服务地址(query/存储/端口推导)之前,先 GET 本端点核验
+        # app 标记(+壳注入的每次启动 nonce)——防端口被其它进程占用时把「陌生 200 响应」误当后端
+        # (症状:排盘失败但 statusCode:200)。明文、免签名,与 Java 侧 /horosaIdentity 同构。
+        enable_crossdomain()
+        _nonce = os.environ.get('HOROSA_LAUNCH_NONCE', '') or ''
+        # 与 Java 侧同构的 ASCII 白名单(str.isalnum 会放行 CJK,不可用)。
+        _nonce = ''.join(ch for ch in _nonce
+                         if ('a' <= ch <= 'z') or ('A' <= ch <= 'Z') or ('0' <= ch <= '9') or ch in '_-')
+        return jsonpickle.encode({'app': 'horosa-chart', 'proto': 1, 'nonce': _nonce}, unpicklable=False)
+
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
     def index(self):
         enable_crossdomain()
@@ -116,6 +129,7 @@ class WebChartSrv:
         # 界系(termsVariant)请求级临界区:push 取锁+换 essential.TERMS,整盘计算(尊贵/界主/互容接纳/
         # 围攻日木互容/predictives)都用所选界,finally 必还原+释放锁(防并发串界)。默认埃及=零回归。
         _terms_orig = None
+        _trip_orig = None  # 必须与 _terms_orig 同预初始化:守卫早退(invalid_date/invalid_coordinates)时 finally 引用它,漏初始化=UnboundLocalError→500
         try:
             data = cherrypy.request.json
 
@@ -221,6 +235,7 @@ class WebChartSrv:
     def chart13(self):
         enable_crossdomain()
         _terms_orig = None
+        _trip_orig = None  # 必须与 _terms_orig 同预初始化:守卫早退(invalid_date/invalid_coordinates)时 finally 引用它,漏初始化=UnboundLocalError→500
         try:
             data = cherrypy.request.json
 
@@ -299,6 +314,7 @@ class WebChartSrv:
         # 十二分盘(Dwadasamsa):newlon = (lon × 12) mod 360,与十三分盘同结构,仅换 HarmonicChart(perchart, 12)。
         enable_crossdomain()
         _terms_orig = None
+        _trip_orig = None  # 必须与 _terms_orig 同预初始化:守卫早退(invalid_date/invalid_coordinates)时 finally 引用它,漏初始化=UnboundLocalError→500
         try:
             data = cherrypy.request.json
 

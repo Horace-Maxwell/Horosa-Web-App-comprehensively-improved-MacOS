@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """kentang 懒挂载(WS-3d)回归:代理转发/单次加载/dunder 拒答/失败响亮/开关/预热。
 
-太乙静默 404 事故(FL-20260704-1)的机制课在此延续:懒代理的任何失败都必须是
+太乙静默 404 事故(2026-07-04 事故复盘)的机制课在此延续:懒代理的任何失败都必须是
 KentangServiceLoadError(CherryPy dispatcher 不吞)而绝不是 AttributeError(会被吞成 404)。
 """
 import sys

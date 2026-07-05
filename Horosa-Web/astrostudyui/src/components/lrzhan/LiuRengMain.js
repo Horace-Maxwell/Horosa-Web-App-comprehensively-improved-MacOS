@@ -25,6 +25,7 @@ import LiuRengInput from './LiuRengInput';
 import LiuRengBirthInput from './LiuRengBirthInput';
 import DateTime from '../comp/DateTime';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
+import { getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import {
 	getBirthGanzhiLocalCache,
 	getLiurengRunyearLocalCache,
@@ -406,7 +407,7 @@ const DA_GE_META = {
 	wuyin: {
 		key: 'wuyin',
 		name: '芜淫',
-		source: '芜淫课',
+		source: '别责课(刚日不备/柔日芜淫)',
 		highlight: '阴阳失衡，欲争并起',
 		summary: '结构有缺，易引发关系争夺与秩序失衡。',
 		keywords: '残缺、匮乏、欲望、争夺',
@@ -422,7 +423,7 @@ const DA_GE_META = {
 	xinren: {
 		key: 'xinren',
 		name: '信任',
-		source: '伏吟类课',
+		source: '伏吟类课(不虞/自任/自信/杜传)',
 		highlight: '粘连原位，难以分化',
 		summary: '事项多回到起点或原地循环，信息闭塞、进展迟滞。',
 		keywords: '原地、回轮、沉默、黏稠',
@@ -450,10 +451,14 @@ const COURSE_TO_DAGE_KEY = {
 	'弹射课': 'shishe',
 	'虎视课': 'hushi',
 	'掩目课': 'hushi',
+	// 别责两名(2026-07-04 词汇增强:刚日不备/柔日芜淫,同归芜淫格)
 	'芜淫课': 'wuyin',
+	'不备课': 'wuyin',
 	'八专课': 'weibu',
+	// 伏吟四格(课经:有克不虞/刚日自任/柔日自信/初传自刑杜传,同归信任格)
 	'不虞课': 'xinren',
 	'自任课': 'xinren',
+	'自信课': 'xinren',
 	'杜传课': 'xinren',
 	'无依课': 'wuyi',
 	'无亲课': 'wuyi',
@@ -4501,6 +4506,7 @@ class LiuRengMain extends Component{
 		this.clickStartPaiPan = this.clickStartPaiPan.bind(this);
 		this.saveLiuRengAISnapshot = this.saveLiuRengAISnapshot.bind(this);
 		this.clickSaveCase = this.clickSaveCase.bind(this);
+		this.restoreFromCurrentCase = this.restoreFromCurrentCase.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 		this.onToggleXiang = this.onToggleXiang.bind(this);
 		this.handleXiangPick = this.handleXiangPick.bind(this);
@@ -5127,6 +5133,43 @@ class LiuRengMain extends Component{
 		});
 	}
 
+	// 事盘回放(2026-07-05 储存审计补):此前六壬事盘存了全部 13 项设置却打不回页面——
+	// 打开已存事盘时把课盘数据+每技法设置整体回放(与 太乙/奇门/卦占 同范式);
+	// cid|updateTime 去重防重复回放;快照原样回写(保存时刻的真值,零重算漂移)。
+	restoreFromCurrentCase(force){
+		const saved = getKentangSavedCasePayload('liureng');
+		if(!saved || !saved.payload){
+			return false;
+		}
+		if(!force && this.lastRestoredCaseId === saved.caseVersion){
+			return false;
+		}
+		const p = saved.payload;
+		this.lastRestoredCaseId = saved.caseVersion;
+		const optionKeys = ['guireng', 'wuxing', 'castMethod', 'xuanShiZhi', 'yanShuNum', 'yueJiangMethod', 'fenZhouYe', 'seHaiMethod', 'seHaiBoundary', 'shiRuKe', 'yearShenShaSort', 'yinyangSystem', 'tuWangShuai'];
+		const next = {};
+		optionKeys.forEach((key)=>{
+			if(p[key] !== undefined && p[key] !== null){
+				next[key] = p[key];
+			}
+		});
+		if(p.liureng){
+			next.liureng = p.liureng;
+		}
+		if(p.runyear !== undefined && p.runyear !== null){
+			next.runyear = p.runyear;
+		}
+		if(!Object.keys(next).length){
+			return false;
+		}
+		this.setState(next, ()=>{
+			if(p.snapshot){
+				saveModuleAISnapshot('liureng', p.snapshot);
+			}
+		});
+		return true;
+	}
+
 	clickSaveCase(){
 		if(!this.state.liureng){
 			message.warning('请先完成起课后再保存');
@@ -5197,10 +5240,11 @@ class LiuRengMain extends Component{
 		if(typeof window !== 'undefined'){
 			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 			window.addEventListener('horosa:liureng-xiang-pick', this.handleXiangPick);
-		}
+		}		this.restoreFromCurrentCase(true);
 	}
 
 	componentDidUpdate(prevProps){
+		this.restoreFromCurrentCase();
 		// 即时重算: 当 props.fields.after23NewDay 通过全局设置 sync 改变时自动重新起课。
 		// 用户拍板: 左栏已改过则跳过(最高权限)。
 		if(this._after23BoundaryUserOverrode) return;

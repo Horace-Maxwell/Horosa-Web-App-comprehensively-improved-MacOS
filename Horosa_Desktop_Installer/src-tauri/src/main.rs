@@ -5818,6 +5818,9 @@ fn start_runtime(
         .env("HOROSA_JAVA_BIN", java_bin)
         .env("HOROSA_SERVER_PORT", backend_port.to_string())
         .env("HOROSA_CHART_PORT", chart_port.to_string())
+        // 启动会话 nonce:经 start 脚本环境继承进 Java/Python,被 /horosaIdentity 原样回显,
+        // 前端据此确认「这个端口上的确是本会话拉起的后端」(防端口squat/跨实例串线)。
+        .env("HOROSA_LAUNCH_NONCE", launch_nonce())
         .env(
             "HOROSA_SKIP_RUNTIME_WARMUP",
             if skip_runtime_warmup { "1" } else { "0" },
@@ -5993,15 +5996,65 @@ fn start_runtime_with_port_retry(
     Err(last_err.unwrap_or_else(|| anyhow!("星阙 backend start failed (port retry exhausted)")))
 }
 
+/// 每次壳进程一枚的启动会话 nonce:注入后端环境(HOROSA_LAUNCH_NONCE)与前端 URL(&sid=)。
+/// 前端身份握手(GET /horosaIdentity)据此把「端口被其它进程/其它星阙实例占用」与真后端
+/// 区分开——本地服务地址永不盲信。非安全边界,只做防混淆凭据;同一壳会话内「重启后端」
+/// 复用同值,前端无需重新协商。
+fn launch_nonce() -> &'static str {
+    use std::sync::OnceLock;
+    static NONCE: OnceLock<String> = OnceLock::new();
+    NONCE.get_or_init(|| {
+        let mut hasher = Sha256::new();
+        hasher.update(std::process::id().to_le_bytes());
+        if let Ok(dur) = SystemTime::now().duration_since(UNIX_EPOCH) {
+            hasher.update(dur.as_nanos().to_le_bytes());
+        }
+        let digest = hasher.finalize();
+        digest
+            .iter()
+            .take(8)
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>()
+    })
+}
+
+/// 前端服务地址自愈再协商的真值源:返回本会话真实后端端点 + 启动 nonce,
+/// 与启动 URL 的 srv/chartSrv/kentangSrv/sid 查询参数同构。
+/// 前端在身份握手失败(端口被其它进程占用/localStorage 陈旧/推导落空)时调用。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BackendEndpoints {
+    srv: String,
+    chart_srv: String,
+    kentang_srv: String,
+    sid: String,
+}
+
+#[tauri::command]
+fn get_backend_endpoints(app: AppHandle) -> std::result::Result<BackendEndpoints, String> {
+    let state = app.state::<AppState>();
+    let session = state.session.lock().map_err(|e| e.to_string())?;
+    let Some(session) = session.as_ref() else {
+        return Err("backend session not started".into());
+    };
+    Ok(BackendEndpoints {
+        srv: format!("http://127.0.0.1:{}", session.backend_port),
+        chart_srv: format!("http://127.0.0.1:{}", session.chart_port),
+        kentang_srv: format!("http://127.0.0.1:{}", session.chart_port),
+        sid: launch_nonce().to_string(),
+    })
+}
+
 fn frontend_url(web_port: u16, backend_port: u16, chart_port: u16) -> String {
     let backend_root = format!("http://127.0.0.1:{}", backend_port);
     let chart_root = format!("http://127.0.0.1:{}", chart_port);
     format!(
-        "http://127.0.0.1:{}/index.html?srv={}&chartSrv={}&kentangSrv={}&v={}",
+        "http://127.0.0.1:{}/index.html?srv={}&chartSrv={}&kentangSrv={}&sid={}&v={}",
         web_port,
         urlencoding::encode(&backend_root),
         urlencoding::encode(&chart_root),
         urlencoding::encode(&chart_root),
+        launch_nonce(),
         unix_ts()
     )
 }
@@ -7871,7 +7924,8 @@ fn main() {
             update_start_background,
             update_install_and_restart,
             copy_text_to_clipboard_command,
-            open_external_url_command
+            open_external_url_command,
+            get_backend_endpoints
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -8399,6 +8453,17 @@ mod tests {
         assert!(url.contains("srv=http%3A%2F%2F127.0.0.1%3A63968"));
         assert!(url.contains("chartSrv=http%3A%2F%2F127.0.0.1%3A63967"));
         assert!(url.contains("kentangSrv=http%3A%2F%2F127.0.0.1%3A63967"));
+        // 身份握手会话 nonce:必在 URL,且同壳进程内稳定复用(重启后端不换值)。
+        assert!(url.contains(&format!("sid={}", launch_nonce())));
+    }
+
+    #[test]
+    fn launch_nonce_is_stable_and_url_safe() {
+        let a = launch_nonce();
+        let b = launch_nonce();
+        assert_eq!(a, b, "同壳会话内 nonce 必须稳定(重启后端复用)");
+        assert_eq!(a.len(), 16);
+        assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     fn temp_test_dir(name: &str) -> PathBuf {

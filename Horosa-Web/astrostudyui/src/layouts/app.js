@@ -6,6 +6,7 @@ import PageHeader from '../components/homepage/PageHeader';
 import UpdateNotifier from '../components/update/UpdateNotifier';
 import ServiceStatusBanner from '../components/common/ServiceStatusBanner';
 import StartupGate from '../components/common/StartupGate';
+import LeftPanelExpand from '../components/common/LeftPanelExpand';
 import BackendStatusDot from '../components/common/BackendStatusDot';
 import {
     APPEARANCE_DARK,
@@ -141,6 +142,7 @@ const App = ({children, dispatch, app, user, astro, })=>{
             <ServiceStatusBanner />
             <BackendStatusDot />
             <StartupGate />
+            <LeftPanelExpand />
         </Layout>
     );
 };

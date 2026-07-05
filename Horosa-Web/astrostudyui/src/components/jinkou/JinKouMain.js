@@ -13,6 +13,7 @@ import { buildJinKouData, fetchJinKouPan, normalizeKinjinkouData } from './JinKo
 import { JINKOU_BASHE_DOC } from './JinKouDoc';
 import { resolveJinKouDiFen } from './JinKouState';
 import { saveModuleAISnapshot, saveModuleAISnapshotLazy, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
+import { getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import {
 	XQButton as Button,
 	XQSelect as Select,
@@ -719,6 +720,7 @@ class JinKouMain extends Component{
 		this.saveJinKouSnapshot = this.saveJinKouSnapshot.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 		this.clickSaveCase = this.clickSaveCase.bind(this);
+		this.restoreFromCurrentCase = this.restoreFromCurrentCase.bind(this);
 		this.renderInfoTable = this.renderInfoTable.bind(this);
 
 		if(this.props.hook){
@@ -1338,6 +1340,46 @@ class JinKouMain extends Component{
 		});
 	}
 
+
+	// 事盘回放(2026-07-05 储存审计补):打开已存金口诀事盘时把课盘数据+全部流派/盘式/
+	// 地分/月将占时设置整体回放(与 太乙/奇门/卦占 同范式);cid|updateTime 去重;快照原样回写。
+	restoreFromCurrentCase(force){
+		const saved = getKentangSavedCasePayload('jinkou');
+		if(!saved || !saved.payload){
+			return false;
+		}
+		if(!force && this.lastRestoredCaseId === saved.caseVersion){
+			return false;
+		}
+		const p = saved.payload;
+		this.lastRestoredCaseId = saved.caseVersion;
+		const optionKeys = ['wuxing', 'guireng', 'diFen', 'yueJiang', 'zhanShi', 'schoolYueJiang', 'schoolGuiTable', 'schoolGuiPan', 'panShi', 'timeBasis'];
+		const next = {};
+		optionKeys.forEach((key)=>{
+			if(p[key] !== undefined && p[key] !== null){
+				next[key] = p[key];
+			}
+		});
+		if(p.liureng){
+			next.liureng = p.liureng;
+		}
+		if(p.jinkouPan){
+			next.jinkouPan = p.jinkouPan;
+		}
+		if(p.runyear !== undefined && p.runyear !== null){
+			next.runyear = p.runyear;
+		}
+		if(!Object.keys(next).length){
+			return false;
+		}
+		this.setState(next, ()=>{
+			if(p.snapshot){
+				saveModuleAISnapshot('jinkou', p.snapshot);
+			}
+		});
+		return true;
+	}
+
 	clickSaveCase(){
 		if(!this.state.liureng){
 			message.warning('请先完成起课后再保存');
@@ -1358,6 +1400,9 @@ class JinKouMain extends Component{
 			wuxing: this.state.wuxing,
 			guireng: this.state.guireng,
 			diFen: this.state.diFen,
+			// 月将/占时覆盖(2026-07-05 储存审计补:此前漏存,回放后变默认)
+			yueJiang: this.state.yueJiang,
+			zhanShi: this.state.zhanShi,
 			jinkouPan: this.state.jinkouPan,
 			// 流派/盘式(命盘事盘储存:还原时连同流派一并恢复,避免存了课再开变回默认派)
 			schoolYueJiang: this.state.schoolYueJiang,
@@ -1429,9 +1474,16 @@ class JinKouMain extends Component{
 			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
 			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		}
+		if(this.restoreFromCurrentCase(true)){
+			return;
+		}
 		if(this.props.fields){
 			this.requestGods(this.props.fields, this.props.value);
 		}
+	}
+
+	componentDidUpdate(){
+		this.restoreFromCurrentCase();
 	}
 
 	componentWillUnmount(){

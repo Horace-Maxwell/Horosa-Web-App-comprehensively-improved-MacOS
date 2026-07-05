@@ -903,6 +903,9 @@ export default {
 			const flds = {
 				...astrostate.fields,
 			};
+			// 与 astro/fetchByChartData 同款不可变写：命中键写「新 entry」，绝不就地改共享 entry
+			// （否则组件层 prevProps 与 props 同对象、值比对失明；失败路径也会脏写 state）。
+			const setF = (key, value)=>{ flds[key] = { ...(flds[key] || { name: [key] }), value }; };
 			let tm = new DateTime();
 			const zone = values.zone ? values.zone : (flds.zone ? flds.zone.value : '+08:00');
 			tm.setZone(zone);
@@ -912,34 +915,34 @@ export default {
 			}else if(typeof divTime === 'string' && divTime){
 				tm = tm.parse(divTime, 'YYYY-MM-DD HH:mm:ss');
 			}
-			flds.date.value = tm.clone();
-			flds.time.value = tm.clone();
-			flds.ad.value = tm.ad;
-			flds.zone.value = zone;
+			setF('date', tm.clone());
+			setF('time', tm.clone());
+			setF('ad', tm.ad);
+			setF('zone', zone);
 			if(values.lon !== undefined && values.lon !== null){
-				flds.lon.value = values.lon;
+				setF('lon', values.lon);
 			}
 			if(values.lat !== undefined && values.lat !== null){
-				flds.lat.value = values.lat;
+				setF('lat', values.lat);
 			}
 			if(values.gpsLon !== undefined && values.gpsLon !== null){
-				flds.gpsLon.value = values.gpsLon;
+				setF('gpsLon', values.gpsLon);
 			}
 			if(values.gpsLat !== undefined && values.gpsLat !== null){
-				flds.gpsLat.value = values.gpsLat;
+				setF('gpsLat', values.gpsLat);
 			}
 			if(values.pos !== undefined){
-				flds.pos.value = values.pos;
+				setF('pos', values.pos);
 			}
 			// 储存全字段保真:与 astro/fetchByChartData(命盘还原)同口径,案例/事盘还原也补回性别 +
 			// 影响盘的设置(日界点/晚子时/时间算法/容许度),否则沿用当前全局值致还原盘错位
 			// (如保存时求测人性别=女、还原时全局=男 → 用神/乾坤造错位)。存档无该字段则跳过、不改现状。
-			if(values.gender !== undefined && values.gender !== null && flds.gender){ flds.gender.value = parseInt(values.gender + '', 10); }
-			if(values.after23NewDay !== undefined && values.after23NewDay !== null && flds.after23NewDay){ flds.after23NewDay.value = parseInt(values.after23NewDay + '', 10); }
-			if(values.lateZiHourUseNextDay !== undefined && values.lateZiHourUseNextDay !== null && flds.lateZiHourUseNextDay){ flds.lateZiHourUseNextDay.value = parseInt(values.lateZiHourUseNextDay + '', 10); }
-			if(values.timeAlg !== undefined && values.timeAlg !== null && flds.timeAlg){ flds.timeAlg.value = parseInt(values.timeAlg + '', 10); }
-			if(values.orbs && typeof values.orbs === 'object'){ if(!flds.orbs){ flds.orbs = { name: ['orbs'] }; } flds.orbs.value = values.orbs; }
-			if(values.orbScale !== undefined && values.orbScale !== null){ if(!flds.orbScale){ flds.orbScale = { name: ['orbScale'] }; } flds.orbScale.value = values.orbScale; }
+			if(values.gender !== undefined && values.gender !== null){ setF('gender', parseInt(values.gender + '', 10)); }
+			if(values.after23NewDay !== undefined && values.after23NewDay !== null){ setF('after23NewDay', parseInt(values.after23NewDay + '', 10)); }
+			if(values.lateZiHourUseNextDay !== undefined && values.lateZiHourUseNextDay !== null){ setF('lateZiHourUseNextDay', parseInt(values.lateZiHourUseNextDay + '', 10)); }
+			if(values.timeAlg !== undefined && values.timeAlg !== null){ setF('timeAlg', parseInt(values.timeAlg + '', 10)); }
+			if(values.orbs && typeof values.orbs === 'object'){ setF('orbs', values.orbs); }
+			if(values.orbScale !== undefined && values.orbScale !== null){ setF('orbScale', values.orbScale); }
 			const typeMeta = getCaseTypeMeta(values.caseType || values.sourceModule);
 			const nextTab = typeMeta.tab ? typeMeta.tab : (typeMeta.module === 'sanshiunited' ? 'sanshiunited' : 'cnyibu');
 			const nextSubTab = typeMeta.subTab || null;

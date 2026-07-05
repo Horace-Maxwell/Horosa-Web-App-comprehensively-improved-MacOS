@@ -1212,4 +1212,27 @@
         flex: 1;
         text-align: center;
     }
+
+    // 时间微调条(adjustOnly 变体,散布各技法左栏):窄栏下 5 元素固定栅格会把「步长下拉」压到只剩箭头。
+    // 改弹性:各列自适应内容宽,步长下拉保底 84px 可读,放不下时「此刻/确定」换行——不动常规日期布局。
+    .xq-datetime-adjust-only .ant-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 6px;
+    }
+
+    .xq-datetime-adjust-only .ant-row > .ant-col {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: none;
+    }
+
+    .xq-datetime-adjust-only .ant-row > .ant-col:nth-child(2) {
+        flex: 1 1 84px;
+        min-width: 84px;
+    }
+
+    .xq-datetime-adjust-only .ant-btn {
+        min-width: 34px;
+    }
 }

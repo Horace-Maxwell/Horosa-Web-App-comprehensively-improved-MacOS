@@ -545,14 +545,18 @@ class ChuangChart {
 			return res;
 		}
 
+		// 伏吟无克四格名(课经口径,2026-07-04 词汇增强):刚日=自任/柔日=自信;
+		// 初传自刑(转取三课/一课上神)= 杜传;有克=不虞(上方分支,不变)。三传内容零变更。
 		let gan = this.ke[0][2];
 		if(LRConst.YangGan.indexOf(gan) >= 0){
 			let cuang0 = this.ke[0][1];
 			let cuang1 = null;
 			let cuang2 = null;
+			let selfXing = false;
 			let zixings = LRConst.ZiXing[cuang0];
 			if(zixings === cuang0){
 				cuang1 = this.ke[2][1];
+				selfXing = true;
 			}else{
 				cuang1 = zixings;
 			}
@@ -564,16 +568,18 @@ class ChuangChart {
 			}
 			let res = {};
 			res.cuang = [cuang0, cuang1, cuang2];
-			res.name = '自任课';
+			res.name = selfXing ? '杜传课' : '自任课';
 			return res;
 		}
 
 		let cuang0 = this.ke[2][1];
 		let cuang1 = null;
 		let cuang2 = null;
+		let selfXing = false;
 		let zixings = LRConst.ZiXing[cuang0];
 		if(zixings === cuang0){
 			cuang1 = this.ke[0][1];
+			selfXing = true;
 		}else{
 			cuang1 = zixings;
 		}
@@ -585,7 +591,7 @@ class ChuangChart {
 		}
 		let res = {};
 		res.cuang = [cuang0, cuang1, cuang2];
-		res.name = '杜传课';
+		res.name = selfXing ? '杜传课' : '自信课';
 		return res;
 	}
 
@@ -650,9 +656,10 @@ class ChuangChart {
 			}
 			let cuang1 = this.ke[0][1];
 			let cuang2 = this.ke[0][1];
+			// 别责两名(2026-07-04 词汇增强):刚日=不备/柔日=芜淫;三传内容零变更。
 			return {
 				cuang: [cuang0, cuang1, cuang2],
-				name: '芜淫课',
+				name: LRConst.YangGan.indexOf(gan) >= 0 ? '不备课' : '芜淫课',
 			}
 
 		}

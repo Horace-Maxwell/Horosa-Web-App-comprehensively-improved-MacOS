@@ -31,7 +31,8 @@ import { ELECTION_TOPICS } from '../../components/election/ElectionMain';
 //   命盘侧重算不受 schema.kind 影响)，去掉事盘上误显的 TIME_FIELDS 覆盖坏边界。
 // wuzhao/taixuan/jingjue/shenyishu 已从 sectionsOnly 升级为 payload(builder 收 opts → 用户挂载设置生效)。
 // huangji 保持 sectionsOnly:命盘侧 buildHuangJiSnapshotForFields 已按出生重算,事盘侧读已存 snapshot 不重算。
-const SECTIONS_ONLY = ['sixyao', 'tongshefa', 'mundane', 'huangji', 'geomancy', 'tarot', 'auxchart'];
+const SECTIONS_ONLY = ['sixyao', 'tongshefa', 'mundane', 'huangji', 'geomancy', 'tarot', 'auxchart',
+];
 
 beforeEach(()=>{
 	window.localStorage.clear();

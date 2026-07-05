@@ -51,7 +51,12 @@ class AstroRelativeScore extends Component{
 				timeoutMs: 45000,
 			});
 			if(!this._mounted) return;
-			this.setState({result: unwrapResult(data) || {}, loading: false, requestKey: key});
+			const result = unwrapResult(data) || {};
+			this.setState({result, loading: false, requestKey: key});
+			// 分数上抛父组件，供合盘被动快照/AI 导出带上「关系量化」段（否则分数只在本组件本地 state）。
+			if(this.props.onResult){
+				this.props.onResult(result);
+			}
 		}catch(e){
 			if(!this._mounted) return;
 			this.setState({loading: false, requestKey: key});

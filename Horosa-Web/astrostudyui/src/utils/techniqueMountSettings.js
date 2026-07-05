@@ -523,6 +523,17 @@ const INDIA_CHART_FIELDS = [
 	{ name: 'indiaDashaSeed', label: '大运起点（Daśā seed）', type: 'select', options: INDIA_DASHA_SEED_OPTIONS_M, default: 'moon', group: '大运' },
 	{ name: 'indiaTransitDate', label: '过运日期（空=今日）', type: 'date', default: '', group: '行运/年度' },
 	{ name: 'indiaTajakaYear', label: '年度盘年份（空=当前年）', type: 'number', default: '', group: '行运/年度' },
+	// 挂载分盘(2026-07-05 审计补):buildIndiaSnapshotForFields 第二参本就吃 chartnum,挂载分支此前
+	// 硬编码 D1 → 用户无法把 D9/D10 等分盘快照挂给 AI。默认 1=D1 现状零回归。
+	// (页面另有 indiaSchool 软联动/lagnaRef/盘式/度数显示等纯前端渲染项:不达后端参数,不设死开关。)
+	{ name: 'indiaChartnum', label: '挂载分盘（Varga）', type: 'select', default: 1, group: '排盘', options: [
+		{ value: 1, label: 'D1 命盘（默认）' }, { value: 2, label: 'D2 财富' }, { value: 3, label: 'D3 兄弟' },
+		{ value: 4, label: 'D4 家宅' }, { value: 7, label: 'D7 子女' }, { value: 9, label: 'D9 婚姻' },
+		{ value: 10, label: 'D10 事业' }, { value: 12, label: 'D12 父母' }, { value: 16, label: 'D16 车乘' },
+		{ value: 20, label: 'D20 修行' }, { value: 24, label: 'D24 学业' }, { value: 27, label: 'D27 体力' },
+		{ value: 30, label: 'D30 灾厄' }, { value: 40, label: 'D40 母系' }, { value: 45, label: 'D45 父系' },
+		{ value: 60, label: 'D60 总业' },
+	] },
 ];
 
 // 主限法·表格（primarydirect）：列未来 pdYears 年全部 direction 行。方位法 + 时间换算 + 顺逆 + 映点/界 + pdYears
@@ -778,6 +789,15 @@ export const TECHNIQUE_SETTINGS_SCHEMA = {
 	// 注：禽星盘只取生辰原始时刻，ken 引擎不消费 日界/晚子时/真太阳时换算（parseFieldsDateTime 只读 date/time/zone/lat/lon）→
 	// 此前挂 TIME_FIELDS 是「可选但无效」的死设置，移除以免误导（报告配置/AI 挂载两处都不再显示无效项）。
 	xianqin: { kind: 'record', fields: [], emptyHint: '演禽按出生时间起盘，无独立可调排盘设置。' },
+	// kinastro 系七技法(2026-07-05 审计补):此前可导出不可挂载;按出生时间经 ken 后端起盘,
+	// 页面无独立可调排盘设置 → 与演禽同范式(record + emptyHint),仅内容勾选。
+	qizhengkin: { kind: 'record', fields: [], emptyHint: '七政四余（七政）按出生时间起盘，无独立可调排盘设置。' },
+	shaozi: { kind: 'record', fields: [], emptyHint: '邵子神数按出生时间起数，无独立可调排盘设置。' },
+	tieban: { kind: 'record', fields: [], emptyHint: '铁板神数按出生时间考刻起数，无独立可调排盘设置。' },
+	fendjing: { kind: 'record', fields: [], emptyHint: '鬼谷分定经按出生时间起盘，无独立可调排盘设置。' },
+	beiji: { kind: 'record', fields: [], emptyHint: '北极神数按出生时间起数，无独立可调排盘设置。' },
+	nanji: { kind: 'record', fields: [], emptyHint: '南极神数按出生时间起数，无独立可调排盘设置。' },
+	chunzi: { kind: 'record', fields: [], emptyHint: '蠢子数按出生时间起数，无独立可调排盘设置。' },
 	// 策天飞星：算法(书/原)+原法子选项 + 5 显示开关；全默认=现状(prune 为空，零字节差)。show_* 经 payload 下发后端过滤输出段/行。
 	cetian: { kind: 'payload', optionsPath: '', group: '策天飞星', fields: [
 		{ name: 'method', label: '排盘算法', type: 'select', default: 'book', group: '排盘方法', options: [
@@ -955,6 +975,43 @@ export const TECHNIQUE_SETTINGS_SCHEMA = {
 			{ value: 'sequential', label: '顺行（初→上）' },
 		] },
 		{ name: 'huangdiOffset', label: '纪年基准（黄帝纪元差）', type: 'number', default: 2697, group: '断验' },
+	] },
+	yizhangjing: { kind: 'record', fields: [
+		...TIME_FIELDS,
+		{ name: 'shunniRule', label: '顺逆规则', type: 'select', default: 'yangNanYinNv', group: '排盘分歧', options: [
+			{ value: 'yangNanYinNv', label: '阳男阴女（默认）' },
+			{ value: 'menShunNvNi', label: '男顺女逆' },
+		] },
+		{ name: 'mingGongMethod', label: '命宫定法', type: 'select', default: 'shiShang', group: '排盘分歧', options: [
+			{ value: 'shiShang', label: '时上起命（默认）' },
+			{ value: 'shuZhiMao', label: '数至卯' },
+		] },
+		{ name: 'dingYue', label: '定月法', type: 'select', default: 'nongli', group: '排盘分歧', options: [
+			{ value: 'nongli', label: '农历月（默认）' },
+			{ value: 'jieqi', label: '节气月' },
+		] },
+		{ name: 'dayunLength', label: '大限运长', type: 'select', default: 7, group: '推运分歧', options: [
+			{ value: 7, label: '一宫7年（默认）' },
+			{ value: 10, label: '一宫10年' },
+		] },
+		{ name: 'dayunStartAge', label: '大限起运', type: 'select', default: 'mi', group: '推运分歧', options: [
+			{ value: 'mi', label: '秘传起运（默认）' },
+			{ value: 'age1', label: '1岁连续' },
+		] },
+		{ name: 'xiaoxianStart', label: '小限起宫', type: 'select', default: 'ri', group: '推运分歧', options: [
+			{ value: 'ri', label: '日柱宫（默认）' },
+			{ value: 'yue', label: '月柱宫' },
+		] },
+		{ name: 'flowShenSet', label: '流年十二神', type: 'select', default: 'A', group: '推运分歧', options: [
+			{ value: 'A', label: '甲组·太阳系（默认）' },
+			{ value: 'B', label: '乙组·六合系' },
+			{ value: 'C', label: '丙组·岁破系' },
+		] },
+		{ name: 'chongfanKou', label: '重犯口诀', type: 'select', default: 'alpha', group: '断语分歧', options: [
+			{ value: 'alpha', label: '常见组（默认）' },
+			{ value: 'beta', label: '异传组' },
+		] },
+		{ name: 'shenshaLayer', label: '神煞合参层', type: 'switch', options: ON_OFF, default: 0, group: '合参层', normalize: (v)=>(v === true || v === 1 || v === '1') },
 	] },
 
 	// ---- B 类：事盘 options 驱动 ----

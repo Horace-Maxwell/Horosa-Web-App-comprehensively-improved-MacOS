@@ -28,12 +28,52 @@ function safeStorageSet(storage, key, value){
 	}catch(e){}
 }
 
+const LOCAL_ROOT_STORAGE_KEY = 'horosaLocalServerRoot';
+const LOCAL_ROOT_STORAGE_MODE_KEY = 'horosaLocalServerRootMode';
+
+function deriveLocalRootFromPagePort(){
+	if(typeof window === 'undefined'){
+		return null;
+	}
+	try{
+		const portTxt = `${window.location.port || ''}`.trim();
+		if(!/^\d+$/.test(portTxt)){
+			return null;
+		}
+		const webPort = parseInt(portTxt, 10);
+		if(!(webPort > 0)){
+			return null;
+		}
+		const backendPort = webPort + 1999;
+		if(!(backendPort > 0)){
+			return null;
+		}
+		return `http://127.0.0.1:${backendPort}`;
+	}catch(e){
+		return null;
+	}
+}
+
+function queryLocalServerRoot(){
+	if(typeof window === 'undefined'){
+		return null;
+	}
+	try{
+		const params = new URLSearchParams(window.location.search || '');
+		const fromQuery = params.get('srv');
+		if(isValidServerRootValue(fromQuery)){
+			return fromQuery;
+		}
+	}catch(e){}
+	return null;
+}
+
 function resolveLocalServerRoot(){
 	if(typeof window === 'undefined'){
 		return 'http://127.0.0.1:9999';
 	}
-	const storageKey = 'horosaLocalServerRoot';
-	const storageModeKey = 'horosaLocalServerRootMode';
+	const storageKey = LOCAL_ROOT_STORAGE_KEY;
+	const storageModeKey = LOCAL_ROOT_STORAGE_MODE_KEY;
 	const saveServerRoot = (serverRoot, mode)=>{
 		if(!isValidServerRootValue(serverRoot)){
 			return;
@@ -43,33 +83,14 @@ function resolveLocalServerRoot(){
 			safeStorageSet(window.localStorage, storageModeKey, mode);
 		}
 	};
-	const deriveFromPagePort = () => {
-		try{
-			const portTxt = `${window.location.port || ''}`.trim();
-			if(!/^\d+$/.test(portTxt)){
-				return null;
-			}
-			const webPort = parseInt(portTxt, 10);
-			if(!(webPort > 0)){
-				return null;
-			}
-			const backendPort = webPort + 1999;
-			if(!(backendPort > 0)){
-				return null;
-			}
-			return `http://127.0.0.1:${backendPort}`;
-		}catch(e){
-			return null;
-		}
-	};
-	try{
-		const params = new URLSearchParams(window.location.search || '');
-		const fromQuery = params.get('srv');
-		if(isValidServerRootValue(fromQuery)){
+	const deriveFromPagePort = deriveLocalRootFromPagePort;
+	{
+		const fromQuery = queryLocalServerRoot();
+		if(fromQuery){
 			saveServerRoot(fromQuery, 'query');
 			return fromQuery;
 		}
-	}catch(e){}
+	}
 	const fromStorage = safeStorageGet(window.localStorage, storageKey);
 	const storageMode = safeStorageGet(window.localStorage, storageModeKey);
 	const fromPage = deriveFromPagePort();
@@ -93,7 +114,67 @@ function resolveLocalServerRoot(){
 	return 'http://127.0.0.1:9999';
 }
 
-export const ServerRoot = isLocalHost ? resolveLocalServerRoot() : 'https://srv.horosa.com';
+function readLaunchSid(){
+	if(typeof window === 'undefined'){
+		return '';
+	}
+	try{
+		const params = new URLSearchParams(window.location.search || '');
+		const fromQuery = `${params.get('sid') || ''}`.trim();
+		if(/^[A-Za-z0-9_-]{4,64}$/.test(fromQuery)){
+			safeStorageSet(window.sessionStorage, 'horosaLaunchSid', fromQuery);
+			return fromQuery;
+		}
+	}catch(e){}
+	const stored = safeStorageGet(window.sessionStorage, 'horosaLaunchSid');
+	return (stored && /^[A-Za-z0-9_-]{4,64}$/.test(`${stored}`)) ? `${stored}` : '';
+}
+
+export const IsLocalHostEnv = isLocalHost;
+// 壳注入的启动会话 nonce(URL &sid=,同 tab 存 sessionStorage 兜住丢 query 的页内导航):
+// /horosaIdentity 身份握手的期望值;浏览器直连 dev 无 sid 时只核 app 标记。
+export const LaunchSid = readLaunchSid();
+// 活绑定(let,2026-07-04 事故复盘:):backendIdentity 自愈换根时原地更新;babel CJS 下 import 方
+// 每次读取都是属性访问,取到最新值。本地服务地址永不盲信——地址可疑时经身份握手再协商。
+export let ServerRoot = isLocalHost ? resolveLocalServerRoot() : 'https://srv.horosa.com';
+// 服务地址自愈的唯一写入口:仅本地环境生效;写通过后同步持久化(mode 记录来源)。
+export function applyLocalServerRoot(root, mode){
+	if(!isLocalHost || !isValidServerRootValue(root)){
+		return false;
+	}
+	const normalized = `${root}`.replace(/\/$/, '');
+	ServerRoot = normalized;
+	if(typeof window !== 'undefined'){
+		safeStorageSet(window.localStorage, LOCAL_ROOT_STORAGE_KEY, normalized);
+		if(mode){
+			safeStorageSet(window.localStorage, LOCAL_ROOT_STORAGE_MODE_KEY, mode);
+		}
+	}
+	return true;
+}
+// 自愈候选序(去重,含当前值):query > 存储 > 页面端口推导 > dev 默认 9999。仅本地环境使用。
+export function localServerRootCandidates(){
+	if(!isLocalHost){
+		return [];
+	}
+	const list = [];
+	const push = (val)=>{
+		if(isValidServerRootValue(val)){
+			const normalized = `${val}`.replace(/\/$/, '');
+			if(list.indexOf(normalized) < 0){
+				list.push(normalized);
+			}
+		}
+	};
+	push(ServerRoot);
+	push(queryLocalServerRoot());
+	if(typeof window !== 'undefined'){
+		push(safeStorageGet(window.localStorage, LOCAL_ROOT_STORAGE_KEY));
+	}
+	push(deriveLocalRootFromPagePort());
+	push('http://127.0.0.1:9999');
+	return list;
+}
 export const MobileServer = 'https://mobileweb.horosa.com';
 export const WebSockServer = 'ws://www.horosa.com:26900/ws';
 export const RtmpPushServer = 'https://rtmpush.horosa.com';
