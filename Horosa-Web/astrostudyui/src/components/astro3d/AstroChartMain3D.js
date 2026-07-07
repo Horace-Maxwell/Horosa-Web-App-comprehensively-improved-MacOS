@@ -9,6 +9,7 @@ import DateTime from '../comp/DateTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import { resolveGeoZone } from '../../utils/timezone';
+import { geoNameRawPatch } from '../../utils/geoName';
 import { getHousesOption } from '../comp/CompHelper'
 import {
 	XQButton,
@@ -111,6 +112,7 @@ class AstroChartMain3D extends Component{
 				const z = resolveGeoZone(rec, null);
 				if(z){ payload.zone = z; }
 			}
+			Object.assign(payload, geoNameRawPatch(rec));
 			this.props.onChange(payload);
 		}
 	}

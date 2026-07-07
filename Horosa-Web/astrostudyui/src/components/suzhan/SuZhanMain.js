@@ -1,5 +1,7 @@
 import { Component } from 'react';
 import { message } from 'antd';
+import DateTime from '../comp/DateTime';
+import QuickDockBar from '../common/QuickDockBar';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import {randomStr,} from '../../utils/helper';
@@ -435,7 +437,6 @@ class SuZhanMain extends Component{
 		this.restoreFromCurrentCase = this.restoreFromCurrentCase.bind(this);
 		this.clickSaveCase = this.clickSaveCase.bind(this);
 		this.setRightPanelTab = this.setRightPanelTab.bind(this);
-		this.navigateFeature = this.navigateFeature.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 
 		if(this.props.hook){
@@ -610,21 +611,6 @@ class SuZhanMain extends Component{
 		});
 	}
 
-	navigateFeature(tabKey, subTab){
-		if(this.props.dispatch){
-			const payload = {
-				currentTab: tabKey,
-			};
-			if(subTab){
-				payload.currentSubTab = subTab;
-			}
-			this.props.dispatch({
-				type: 'astro/save',
-				payload,
-			});
-		}
-	}
-
 	renderInputPanel(){
 		return (
 			<div className="horosa-suzhan-input-stack">
@@ -713,35 +699,37 @@ class SuZhanMain extends Component{
 		);
 	}
 
+	// 快捷栏契约:「此刻起盘」:盘时=当下并立即重排(走全局 fields 受控回流,左栏跟显)。
+	// 只补 date/time/ad——zone/经纬是用户所在地设置不动。
+	clickPlotNow(){
+		const now = new DateTime();
+		this.onFieldsChange({
+			date: { value: now.clone() },
+			time: { value: now.clone() },
+			ad: { value: now.ad },
+		});
+	}
+
+	// 快捷栏契约:右栏 tab 镜像与跨页目录撤除,只放本页没有的动词。
+	// cnyibu 容器经此声明透传渲染(勿在此放页面上已有的控件)。
+	getQuickDockConfig(){
+		return {
+			hasResult: !!this.props.value,
+			extras: [
+				{ key: 'nowPlot', label: '此刻起盘', icon: 'quickTransit', needsResult: false, onClick: ()=>this.clickPlotNow() },
+			],
+			save: ()=>this.clickSaveCase(),
+		};
+	}
+
 	renderBottomQuickDock(){
-		const actions = [
-			{ label: '概览', icon: 'quickPrimary', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
-			{ label: '宫宿', icon: 'quickComposite', active: this.state.rightPanelTab === 'houses', onClick: ()=>this.setRightPanelTab('houses') },
-			{ label: '快照', icon: 'quickNote', active: this.state.rightPanelTab === 'snapshot', onClick: ()=>this.setRightPanelTab('snapshot') },
-			{ label: '保存', icon: 'quickReturn', onClick: this.clickSaveCase },
-			{ label: '金口诀', icon: 'quickFirdaria', onClick: ()=>this.navigateFeature('cnyibu', 'jinkou') },
-			{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.navigateFeature('cnyibu', 'tongshefa') },
-			{ label: '太乙', icon: 'quickReturn', onClick: ()=>this.navigateFeature('taiyi') },
-			{ label: '遁甲', icon: 'quickTransit', onClick: ()=>this.navigateFeature('dunjia') },
-			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
-		];
 		return (
-			<div className="horosa-bottom-quick-dock horosa-suzhan-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-suzhan-quick-actions">
-					{actions.map((item)=>(
-						<button
-							type="button"
-							key={item.label}
-							className={`horosa-bottom-quick-button horosa-suzhan-quick-button${item.active ? ' is-active' : ''}`}
-							onClick={item.onClick}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="suzhan"
+				className="horosa-suzhan-quick-dock"
+				dispatch={this.props.dispatch}
+				{...this.getQuickDockConfig()}
+			/>
 		);
 	}
 

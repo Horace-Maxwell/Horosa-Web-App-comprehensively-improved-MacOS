@@ -418,6 +418,48 @@ public class BaZi {
 		this.genLifeMasterDeg(chart);
 	}
 
+	// 黄道系命度的 ra 真投影:黄→赤 cotrans(lat=0,type=-1)。
+	// 仅供赤仪显示口径读取;安命定义(lon)零改。转换失败回退 lon(=旧占位行为,平滑降级)。
+	private double eclipticLonToRa(double lon) {
+		return cotransDeg(lon, -1);
+	}
+
+	// 赤经命度的黄经反投影:赤→黄 cotrans(lat=0,type=1)。失败回退原值。
+	private double raToEclipticLon(double ra) {
+		return cotransDeg(ra, 1);
+	}
+
+	private double cotransDeg(double deg, int type) {
+		try {
+			Map<String, Object> param = new HashMap<String, Object>();
+			param.put("lon", deg);
+			param.put("lat", 0d);
+			param.put("type", type);
+			Map<String, Object> comap = AstroHelper.getCotrans(param);
+			Object val = comap == null ? null : comap.get("lon");
+			if(val instanceof Number) {
+				return normalizeLon(((Number) val).doubleValue());
+			}
+		} catch(Exception e) {
+		}
+		return deg;
+	}
+
+	// 黄仪/赤仪显示口径(chart.displayCoord,python 按宿度制宣告;缺省=赤仪旧行为)。
+	private boolean isEclipticDisplay(Map<String, Object> chart) {
+		return chart != null && "ecliptic".equals(chart.get("displayCoord"));
+	}
+
+	// 安命基准度:黄仪=太阳黄经,赤仪=太阳赤经(自定宫/遇卯的宫序判定与宫内落度都随仪制,
+	// 用户钦定「不能黄道制下自定命宫却按赤道基准算,反之亦然」)。
+	private double sunBaseDeg(Map<String, Object> sun, boolean ecliptic) {
+		Object val = ecliptic ? sun.get("lon") : sun.get("ra");
+		if(!(val instanceof Number)) {
+			val = sun.get("lon");
+		}
+		return val instanceof Number ? ((Number) val).doubleValue() : 0d;
+	}
+
 	// R2 自定命宫:lifeSignIdx = 选定地支的黄道宫序;命度 lon = 该宫起 + 太阳宫内度(同 yumao 命度落法)。
 	private boolean genCustomLifeMasterDeg(Map<String, Object> chart, String customZhi) {
 		if(customZhi == null || customZhi.trim().isEmpty()) {
@@ -438,18 +480,22 @@ public class BaZi {
 		if(sun == null) {
 			return false;
 		}
-		double sunlon = (double) sun.get("lon");
-		double lon = normalizeLon(lifeSignIdx * 30 + (sunlon % 30));
+		boolean ecliptic = isEclipticDisplay(chart);
+		double sunBase = sunBaseDeg(sun, ecliptic);
+		double pos = normalizeLon(lifeSignIdx * 30 + (sunBase % 30));
+		double lon = ecliptic ? pos : raToEclipticLon(pos);
+		double ra = ecliptic ? eclipticLonToRa(pos) : pos;
 		Map<String, Object> master = new HashMap<String, Object>();
 		master.putAll(sun);
 		master.put("lon", lon);
-		master.put("ra", lon);
+		master.put("ra", ra);
 		master.put("sign", StemBranch.SignList.get(lifeSignIdx));
 		master.put("signlon", lon % 30);
 		master.put("id", "LifeMasterDeg74");
 		master.put("type", "GenericCN");
 		master.put("house", findHouseForLon(chart, lon));
-		fillLifeMasterSu(chart, master, lon);
+		// 宿判定按置宿度(与宿度制同口径):黄仪制传 lon,赤仪制传 ra(=pos)。
+		fillLifeMasterSu(chart, master, ecliptic ? lon : ra);
 		insertLifeMaster(objects, master, lon);
 		return true;
 	}
@@ -592,26 +638,30 @@ public class BaZi {
 			return false;
 		}
 
-		double sunlon = (double) sun.get("lon");
+		boolean ecliptic = isEclipticDisplay(chart);
+		double sunBase = sunBaseDeg(sun, ecliptic);
 		int[] timeParts = useRawBirthTime ? this.oldBirthParts : this.birthParts;
 		double birthHour = timeParts[3] + timeParts[4] / 60.0 + timeParts[5] / 3600.0;
-		double signProbe = normalizeLon(sunlon - (riseHour - birthHour) * 15.0);
+		double signProbe = normalizeLon(sunBase - (riseHour - birthHour) * 15.0);
 		int lifeSignIdx = ConvertUtility.getValueAsInt(signProbe / 30);
 		if(lifeSignIdx < 0 || lifeSignIdx >= StemBranch.SignList.size()) {
 			lifeSignIdx = ((lifeSignIdx % 12) + 12) % 12;
 		}
-		double lon = normalizeLon(lifeSignIdx * 30 + (sunlon % 30));
+		double pos = normalizeLon(lifeSignIdx * 30 + (sunBase % 30));
+		double lon = ecliptic ? pos : raToEclipticLon(pos);
+		double ra = ecliptic ? eclipticLonToRa(pos) : pos;
 
 		Map<String, Object> master = new HashMap<String, Object>();
 		master.putAll(sun);
 		master.put("lon", lon);
-		master.put("ra", lon);
+		master.put("ra", ra);
 		master.put("sign", StemBranch.SignList.get(lifeSignIdx));
 		master.put("signlon", lon % 30);
 		master.put("id", "LifeMasterDeg74");
 		master.put("type", "GenericCN");
 		master.put("house", findHouseForLon(chart, lon));
-		fillLifeMasterSu(chart, master, lon);
+		// 宿判定按置宿度(与宿度制同口径):黄仪制传 lon,赤仪制传 ra(=pos)。
+		fillLifeMasterSu(chart, master, ecliptic ? lon : ra);
 		insertLifeMaster(objects, master, lon);
 		return true;
 	}

@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { createSignatureMemo } from '../../utils/memoBySignature';
 import { Checkbox, message } from 'antd';
 import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
+import QuickDockBar from '../common/QuickDockBar';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
 import * as AstroConst from '../../constants/AstroConst';
@@ -1656,34 +1657,26 @@ class GuaZhanMain extends Component{
 		);
 	}
 
+	// 快捷栏契约:起卦动词=本页主键群(主键豁免——左栏长表单下会滚出视野);概览/卦辞=右栏
+	// tab 镜像,撤。蓍草为第五种起卦收进 extras;「再摇一卦」语义比「随机卦」更贴复摇场景。
 	renderBottomQuickDock(){
-		const actions = [
-			{ label: '时间卦', icon: 'quickPrimary', onClick: ()=>this.clickTimeGua() },
-			{ label: '随机卦', icon: 'quickFirdaria', onClick: this.genGua },
-			{ label: '数字卦', icon: 'quickProfection', onClick: this.clickNumGua },
-			{ label: '自定义', icon: 'quickReturn', onClick: this.clickCustGua },
-			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
-			{ label: '卦辞', icon: 'quickTransit', active: this.state.rightPanelTab === 'gua', onClick: ()=>this.setRightPanelTab('gua') },
-			{ label: '保存', icon: 'quickNote', onClick: this.clickSaveCase },
-			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
-		];
 		return (
-			<div className="horosa-bottom-quick-dock horosa-guazhan-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-guazhan-quick-actions">
-					{actions.map((item)=>(
-						<button
-							type="button"
-							key={item.label}
-							className={`horosa-bottom-quick-button horosa-guazhan-quick-button${item.active ? ' is-active' : ''}`}
-							onClick={item.onClick}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="guazhan"
+				className="horosa-guazhan-quick-dock"
+				hasResult={!!(this.state.yao && this.state.yao.length)}
+				primary={[
+					{ key: 'timeGua', label: '时间卦', onClick: ()=>this.clickTimeGua() },
+					{ key: 'redoGua', label: '再摇一卦', icon: 'quickFirdaria', onClick: this.genGua },
+					{ key: 'numGua', label: '数字卦', icon: 'quickProfection', onClick: this.clickNumGua },
+					{ key: 'custGua', label: '自定义', icon: 'quickReturn', onClick: this.clickCustGua },
+				]}
+				extras={[
+					{ key: 'yarrowGua', label: '蓍草起卦', icon: 'quickTransit', needsResult: false, onClick: this.clickYarrowGua },
+				]}
+				save={this.clickSaveCase}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 

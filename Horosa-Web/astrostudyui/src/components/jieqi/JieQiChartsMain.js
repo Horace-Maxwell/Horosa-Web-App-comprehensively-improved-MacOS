@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { Row, Col, } from 'antd';
 import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
+import QuickDockBar from '../common/QuickDockBar';
 import AstroChartMain from '../astro/AstroChartMain';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import SuZhanMain from '../suzhan/SuZhanMain';
@@ -1582,37 +1583,57 @@ export class JieQiChartsMain extends Component{
 		return tabs;
 	}
 
+	// 快捷栏契约:节气选择交给中栏总览网格(点即开盘),本栏只放「页面上没有」的动词——
+	// 年份翻页(左栏改时间要开日期控件多步,这里一键)与当前节气的三种视图切换。
+	// 旧版把 24 节气×3 种盘全铺成 73+ 个按钮(目录复制),已废弃。
+	// state.time 是 DateTime 实例(onTimeChanged/requestJieQi 消费同型),不能塞 moment/字符串。
+	shiftJieQiYear(delta){
+		if(delta === 0){
+			this.onTimeChanged({ value: new DateTime() });
+			return;
+		}
+		const cur = this.state.time;
+		const base = cur && cur.clone && cur.setYear ? cur.clone() : new DateTime();
+		base.setYear(base.ad * base.year + delta);
+		this.onTimeChanged({ value: base });
+	}
+
+	switchJieQiView(type){
+		const info = parseJieQiTab(this.state.currentTab, this.state.jieqis);
+		if(!info){
+			return;
+		}
+		const key = type === 'astro' ? info.title
+			: (type === 'suzhan' ? `宿盘${info.title}` : `3D盘${info.title}`);
+		this.changeTab(key);
+	}
+
 	renderBottomQuickDock(){
-		const actions = [
-			{ key: '二十四节气', label: '二十四节气', icon: 'quickPrimary' },
-		];
-		(this.state.jieqis || []).forEach((title)=>{
-			actions.push(
-				{ key: title, label: `${title}星盘`, icon: 'quickTransit' },
-				{ key: `宿盘${title}`, label: `${title}宿盘`, icon: 'quickReturn' },
-				{ key: `3D盘${title}`, label: `${title}3D盘`, icon: 'quickComposite' },
-			);
-		});
+		const info = parseJieQiTab(this.state.currentTab, this.state.jieqis);
+		const onChartTab = !!info;
+		const hasCharts = !!(this.state.result && this.state.result.charts
+			&& Object.keys(this.state.result.charts).length);
 		return (
-			<div className="horosa-bottom-quick-dock horosa-jieqi-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-jieqi-quick-actions">
-					{actions.map((item)=>{
-						const active = this.state.currentTab === item.key;
-						return (
-							<button
-								type="button"
-								key={item.key}
-								className={`horosa-bottom-quick-button horosa-jieqi-quick-button${active ? ' is-active' : ''}`}
-								onClick={()=>this.changeTab(item.key)}
-							>
-								<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-								<span>{item.label}</span>
-							</button>
-						);
-					})}
-				</div>
-			</div>
+			<QuickDockBar
+				page="jieqi"
+				className="horosa-jieqi-quick-dock"
+				hasResult={hasCharts || (this.state.jieqis || []).length > 0}
+				primary={{
+					key: 'overview',
+					label: '二十四节气',
+					active: this.state.currentTab === '二十四节气',
+					onClick: ()=>this.changeTab('二十四节气'),
+				}}
+				extras={[
+					{ key: 'prevYear', label: '上一年', icon: 'quickTransit', needsResult: false, onClick: ()=>this.shiftJieQiYear(-1) },
+					{ key: 'thisYear', label: '回今年', icon: 'quickComposite', needsResult: false, onClick: ()=>this.shiftJieQiYear(0) },
+					{ key: 'nextYear', label: '下一年', icon: 'quickTransit', needsResult: false, onClick: ()=>this.shiftJieQiYear(1) },
+					{ key: 'viewAstro', label: '星盘', icon: 'quickNote', disabled: !onChartTab, active: onChartTab && info.type === 'astro', onClick: ()=>this.switchJieQiView('astro') },
+					{ key: 'viewSuzhan', label: '宿盘', icon: 'quickReturn', disabled: !onChartTab, active: onChartTab && info.type === 'suzhan', onClick: ()=>this.switchJieQiView('suzhan') },
+					{ key: 'view3d', label: '3D盘', icon: 'quickComposite', disabled: !onChartTab, active: onChartTab && info.type === 'astro3d', onClick: ()=>this.switchJieQiView('astro3d') },
+				]}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 

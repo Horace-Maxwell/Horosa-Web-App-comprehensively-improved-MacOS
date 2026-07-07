@@ -59,6 +59,7 @@ SU28_MODE_ZHENG_SIDEREAL = 4
 SU28_MODE_EQUATORIAL_SIDEREAL = 5   # G3/G4 赤道恒星制(制一):现代赤道距星案进动赤经定宿,planets 按赤经置宿,落宫仍黄道
 SU28_MODE_GUFA_LICHENG = 6           # WP-D 授时历古法立成:推变黄道宿度(极黄经)按黄经置宿;古宿固定(元时·默认)或随岁差
 SU28_MODE_EQUATORIAL_TROPICAL = 7    # 额外档·赤道回归制:固定元明赤道宿度立成(春分/牛前冬至锚、赤经常数、不随岁差),行星按赤经落宿(与 mode5「宿随星走」正相反)
+SU28_MODE_EQUATORIAL_TROPICAL_LIVE = 8   # 赤道回归·实时:宿宽=盘历元距星真赤经差(mode5 同源活体),锚=回归点(mode7 同款牛前冬至/春分壁2.3)——授时历「实测宿度+冬至锚」的活体版
 ZHENG_SIDEREAL_MODE = {
     'mode': swe.SE_SIDM_USER,
     't0': 2195875.5,
@@ -469,7 +470,7 @@ class PerChart:
             mode = int(value)
         except:
             return SU28_MODE_REAL
-        if mode in (SU28_MODE_REAL, SU28_MODE_DOUBING, SU28_MODE_MOIRA_CURRENT, SU28_MODE_MOIRA_KAIXI, SU28_MODE_ZHENG_SIDEREAL, SU28_MODE_EQUATORIAL_SIDEREAL, SU28_MODE_GUFA_LICHENG, SU28_MODE_EQUATORIAL_TROPICAL):
+        if mode in (SU28_MODE_REAL, SU28_MODE_DOUBING, SU28_MODE_MOIRA_CURRENT, SU28_MODE_MOIRA_KAIXI, SU28_MODE_ZHENG_SIDEREAL, SU28_MODE_EQUATORIAL_SIDEREAL, SU28_MODE_GUFA_LICHENG, SU28_MODE_EQUATORIAL_TROPICAL, SU28_MODE_EQUATORIAL_TROPICAL_LIVE):
             return mode
         return SU28_MODE_REAL
 
@@ -1289,6 +1290,13 @@ class PerChart:
             'antiscias': self.getAntiscia(),
             'stars': self.getStars(),
             'orientOccident': self.orientalOccidental(),
+            # 黄仪/赤仪显示口径(单一真值源,前端/Java 一律读此字段,勿自行判断):
+            # 与 getFixedStarSu28 的 byLon/byRA 置宿分派同一集合——黄仪(byLon 四制)=全黄经显示,
+            # 赤仪(byRA 四制)=全赤经显示;显示口径与入宿判定永远同体系。
+            'displayCoord': 'ecliptic' if self.su28Mode in (
+                SU28_MODE_MOIRA_CURRENT, SU28_MODE_MOIRA_KAIXI,
+                SU28_MODE_ZHENG_SIDEREAL, SU28_MODE_GUFA_LICHENG,
+            ) else 'equatorial',
             'fixedStarSu28': self.getFixedStarSu28(),
             'fixedStars': self.getFixedStars(),
             'signsRA': self.getSignsRA(),
@@ -2417,6 +2425,37 @@ class PerChart:
         res.sort(key=takeRa)
         return res
 
+    def getEquatorialTropicalLiveSu28(self):
+        # 赤道回归·实时(mode8):宿宽=盘历元距星真赤经差(与 mode5 恒星制同一活体距星源),
+        # 锚=回归点(牛前冬至 270° 默认 / 春分壁2.3 古度,语义与 mode7 元明立成同款)——
+        # 冬至/春分永远钉在锚宿位、宿形随时代实测,即授时历「实测宿度+冬至锚」体系的活体版;
+        # 与 mode5 之别在锚(回归锚 vs 距星绝对赤经),与 mode7 之别在宿宽(实时 vs 元明立成)。
+        base = self.getEquatorialSu28()
+        ra_by_id = {}
+        for s in base:
+            ra_by_id[s.id] = s.ra
+        if self.guolaoEqTropicalAnchor == 'chunfen':
+            from astrostudy import guolao_tuibian as gt
+            scale = 360.0 / gt.ZHOUTIAN_ANCIENT
+            anchor_ra = (ra_by_id[const.START_QIANBI] + 2.3 * scale) % 360.0
+            offset = (0.0 - anchor_ra) % 360.0
+        else:
+            offset = (270.0 - ra_by_id[const.START_NIU]) % 360.0
+        name_by_id = dict(zip(const.LIST_FIXED_SU28, const.LIST_FIXED_SU28_NAME))
+        res = []
+        for s in base:
+            ra = (s.ra + offset) % 360.0
+            name = name_by_id.get(s.id)
+            star = {
+                'ra': ra, 'decl': 0, 'name': name,
+                'wuxing': const.Su28WuXing[name], 'animal': const.Su28Animal[name],
+                'id': s.id, 'lon': ra, 'lat': 0,
+                'sign': const.LIST_SIGNS[int(ra / 30) % 12], 'signlon': ra % 30, 'type': const.OBJ_FIXED_STAR
+            }
+            res.append(object.Object.fromDict(star))
+        res.sort(key=takeRa)
+        return res
+
     def fillPlanetSu28(self, res, byLon=False):
         obj = const.LIST_ALL_POINTS
         for id in obj:
@@ -2484,6 +2523,12 @@ class PerChart:
         # 额外档·赤道回归制(mode7): 固定元明赤道宿度立成(春分/牛前冬至锚、赤经常数、不随岁差),planets 用赤经(byRA)。
         if self.su28Mode == SU28_MODE_EQUATORIAL_TROPICAL:
             res = self.getEquatorialTropicalSu28()
+            self.fillPlanetSu28(res)
+            return res
+
+        # 赤道回归·实时(mode8): 宿宽=盘历元距星真赤经(mode5 同源),锚=回归点(mode7 同款),planets 用赤经(byRA)。
+        if self.su28Mode == SU28_MODE_EQUATORIAL_TROPICAL_LIVE:
+            res = self.getEquatorialTropicalLiveSu28()
             self.fillPlanetSu28(res)
             return res
 

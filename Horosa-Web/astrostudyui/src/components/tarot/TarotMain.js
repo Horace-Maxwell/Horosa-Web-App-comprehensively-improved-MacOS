@@ -237,10 +237,19 @@ class TarotMain extends Component{
 		this.setState({ seedMode: 'manual', manualSeed: this.state.lastSeed });
 		message.success(`已锁定种子「${this.state.lastSeed}」,再次抽牌可复现此牌阵`);
 	}
+	// 快捷栏契约:抽牌=主键豁免;锁定复现等左栏已有控件不进栏;cnyibu 容器透传渲染。
+	getQuickDockConfig(){
+		return {
+			hasResult: !!this.state.reading,
+			primary: { key: 'draw', label: '抽牌', onClick: ()=>this.drawCards() },
+			save: ()=>this.clickSaveCase(),
+		};
+	}
+
 	clickSaveCase(){
 		if(!this.state.reading){ message.info('请先抽牌'); return; }
 		openKentangCaseDrawer({
-			fields: this.props.fields, module: 'tarot', label: '塔罗',
+			dispatch: this.props.dispatch, fields: this.props.fields, module: 'tarot', label: '塔罗',
 			payload: {
 				options: {
 					deckId: this.state.deckId, spreadType: this.state.spreadType,

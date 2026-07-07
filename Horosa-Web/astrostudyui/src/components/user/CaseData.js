@@ -7,6 +7,7 @@ import EditableTags from '../comp/EditableTags';
 import * as AstroHelper from '../astro/AstroHelper';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { applyDstToFields } from '../../utils/timezone';
+import { applyGeoNameToFields } from '../../utils/geoName';
 import DstZoneIndicator from '../comp/DstZoneIndicator';
 import { CASE_TYPE_OPTIONS, getCaseTypeMeta } from '../../utils/localcases';
 import { XQButton, XQInput, XQSelect, XQTextArea } from '../xq-ui';
@@ -160,6 +161,7 @@ export default class CaseData extends Component{
 			this.zoneManual = false;        // 地图选点 = 明确换地点,恢复自动时区校正
 			applyDstToFields(flds);
 		}
+		applyGeoNameToFields(flds, geo);
 		this.setState({
 			fields: flds,
 		});

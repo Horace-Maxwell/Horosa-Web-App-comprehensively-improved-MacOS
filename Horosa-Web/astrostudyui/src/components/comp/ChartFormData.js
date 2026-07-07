@@ -7,6 +7,7 @@ import EditableTags from './EditableTags';
 import * as AstroHelper from '../astro/AstroHelper';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { applyDstToFields } from '../../utils/timezone';
+import { applyGeoNameToFields } from '../../utils/geoName';
 import DstZoneIndicator from './DstZoneIndicator';
 import {getHousesOption} from './CompHelper';
 import { XQButton, XQInput, XQSelect } from '../xq-ui';
@@ -184,6 +185,7 @@ export default class ChartFormData extends Component{
 			this.zoneManual = false;        // 地图选点 = 明确换地点,恢复自动时区校正
 			applyDstToFields(flds);
 		}
+		applyGeoNameToFields(flds, geo);
 
 		this.setState({
 			fields: flds,

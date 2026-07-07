@@ -9,12 +9,12 @@
 **把所有玄学放进一个原生 macOS 软件里**<br />
 *Every kind of metaphysics, in one native macOS app*
 
-[![Version](https://img.shields.io/badge/version-3.3.0-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
+[![Version](https://img.shields.io/badge/version-3.3.1-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.0/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.1/Horosa-Installer-macos-arm64-offline.pkg) ·
 [中文详版](README_ZH.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -28,7 +28,8 @@
 1. [星阙是什么](#一星阙是什么)
 2. [技术栈](#二技术栈)
 3. [全功能清单（命 / 卜 / 工具）](#三全功能清单)
-4. [许可与第三方](#四许可与第三方)
+4. [网页版一键启动(从源码)](#网页版一键启动从源码)
+5. [许可与第三方](#四许可与第三方)
 5. [致谢](#五致谢)
 6. [文档与入口](#六文档与入口)
 
@@ -42,7 +43,7 @@
 
 本仓承担 macOS 这一侧的交付：应用源码、共享运行时、Tauri 桌面外壳，以及把这一切打成单个 `.pkg` 的发布链路。
 
-- **当前版本**：3.3.0（运行时 `3.3.0-runtime1`）
+- **当前版本**：3.3.1（运行时 `3.3.1-runtime1`）
 - **平台**：仅 macOS 12+ / Apple Silicon（`arm64`）
 - **许可**：AGPL-3.0-only
 
@@ -211,6 +212,16 @@
 - **命盘批注**（memo）、起盘配置抽屉（相位选择 / 容许度 / 显示星体 / 星盘组件 / 星盘分布）、小工具抽屉。
 
 ---
+
+## 网页版一键启动(从源码)
+
+不装 .pkg,直接从源码把星阙跑成本地网页版:
+
+- **启动**:双击仓库根目录的 `Horosa_OneClick_Mac.command` —— 有现成构建产物几秒即开浏览器;首次运行自动补齐工具链并构建(Mongo/Redis 对本产品是可选依赖,默认跳过;需要时 `HOROSA_SKIP_DB_SETUP=0` 开启)。
+- **停止**:双击 `Horosa_Stop_Mac.command`(回收全部端口实例,只停带本产品指纹的进程,绝不误伤其它软件)。
+- **用 ZIP 下载的注意**:GitHub「Download ZIP」会丢脚本执行位——先执行一次 `chmod +x *.command tools/mac/*.command scripts/mac/*.sh`;首次双击若被 Gatekeeper 拦截,右键该文件 → 打开。`git clone` 获取则两者皆免。
+- **端口被占**:自动换用 18899/19999/18000 起的空闲口,无需手动处理。
+- 全部可调项(端口/跳过构建/下载镜像等)见 [docs/WEB_LOCAL_LAUNCH.md](docs/WEB_LOCAL_LAUNCH.md);大陆网络已内置 TUNA/npmmirror 镜像回退。
 
 ## 四、许可与第三方
 

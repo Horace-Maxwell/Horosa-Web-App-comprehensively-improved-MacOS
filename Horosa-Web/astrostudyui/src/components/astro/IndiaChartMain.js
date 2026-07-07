@@ -4,9 +4,11 @@ import moment from 'moment';
 import IndiaChart, { fieldsToParams, requestIndiaChartData } from './IndiaChart';
 import { resolveLagnaRefSignNumber } from './IndiaSouthChart';
 import DateTime from '../comp/DateTime';
+import QuickDockBar from '../common/QuickDockBar';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import {convertLatToStr, convertLonToStr} from './AstroHelper';
 import { resolveGeoZone } from '../../utils/timezone';
+import { geoNameRawPatch } from '../../utils/geoName';
 import * as AstroConst from '../../constants/AstroConst';
 import { XQSegmented as Segmented, XQSelect as Select, XQTabs as Tabs, XQDatePicker as DatePicker, XQInputNumber as InputNumber } from '../xq-ui';
 import XQIcon from '../xq-icons';
@@ -20,17 +22,6 @@ const INDIA_DEGREE_DISPLAY_FULL = 'full';
 const INDIA_DEGREE_DISPLAY_OPTIONS = [
 	{ value: INDIA_DEGREE_DISPLAY_DEGREE, label: '只度数' },
 	{ value: INDIA_DEGREE_DISPLAY_FULL, label: '度数+分数' },
-];
-const INDIA_QUICK_ACTIONS = [
-	{ key: 'd1', label: '命盘', icon: 'sidePlanets', action: 'tab', tab: 'Natal' },
-	{ key: 'd9', label: '合伴', icon: 'sideHouses', action: 'tab', tab: 'Navamsa' },
-	{ key: 'd10', label: '事业', icon: 'quickPrimary', action: 'tab', tab: 'Dasamsa' },
-	{ key: 'd12', label: '父辈', icon: 'quickFirdaria', action: 'tab', tab: 'Dwadasamsa' },
-	{ key: 'north', label: '北印', icon: 'sideStyle', action: 'style', style: AstroConst.INDIA_CHART_STYLE_NORTH },
-	{ key: 'south', label: '南印', icon: 'quickReturn', action: 'style', style: AstroConst.INDIA_CHART_STYLE_SOUTH },
-	{ key: 'east', label: '东印', icon: 'quickTransit', action: 'style', style: AstroConst.INDIA_CHART_STYLE_EAST },
-	{ key: 'dasha', label: '大运', icon: 'quickNote', action: 'infoTab', infoTab: '3' },
-	{ key: 'yoga', label: 'Yoga', icon: 'target', action: 'infoTab', infoTab: '7' },
 ];
 const YOGA_CATEGORY_LABELS = {
 	'Pancha Mahapurusha': '五大人瑜伽',
@@ -996,7 +987,6 @@ class IndiaChartMain extends Component{
 		this.drillDasha = this.drillDasha.bind(this);
 		this.dashaBreadcrumbTo = this.dashaBreadcrumbTo.bind(this);
 		this.hideDashaSubPopover = this.hideDashaSubPopover.bind(this);
-		this.handleQuickAction = this.handleQuickAction.bind(this);
 		this.changeJyotishTab = this.changeJyotishTab.bind(this);
 		this.handleMainChartLoad = this.handleMainChartLoad.bind(this);
 			this.lastDashaRequestKey = '';
@@ -1116,6 +1106,7 @@ class IndiaChartMain extends Component{
 			patch.ad = nd.ad;
 			patch.zone = nd.zone;
 		}
+		Object.assign(patch, geoNameRawPatch(rec));
 		this.onFieldsChange(patch);
 	}
 
@@ -1382,24 +1373,6 @@ class IndiaChartMain extends Component{
 					indiaChartStyle,
 				},
 			});
-		}
-	}
-
-	handleQuickAction(item){
-		if(!item){
-			return;
-		}
-		if(item.action === 'tab' && item.tab){
-			this.changeTab(item.tab);
-			this.changeJyotishTab('1');
-			return;
-		}
-		if(item.action === 'style' && item.style){
-			this.changeIndiaChartStyle(item.style);
-			return;
-		}
-		if(item.action === 'infoTab' && item.infoTab){
-			this.changeJyotishTab(item.infoTab);
 		}
 	}
 
@@ -3474,29 +3447,17 @@ class IndiaChartMain extends Component{
 		);
 	}
 
-	renderQuickDock(indiaChartStyle){
+	// 快捷栏契约:原 9 键全部与页面既有控件重复(分盘 tab=分盘目录、北/南/东印=盘面头部
+	// XQSegmented、大运/Yoga=右栏 tab、并列 2×2=盘面头部开关),按「页面已有的不进栏」
+	// 公理整条撤除;命例保存页头已有,故只留 AI。
+	renderQuickDock(){
 		return (
-			<div className="horosa-bottom-quick-dock horosa-india-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-india-quick-actions">
-					{INDIA_QUICK_ACTIONS.map((item)=>{
-						const isActive = (item.action === 'tab' && this.state.currentTab === item.tab)
-							|| (item.action === 'style' && indiaChartStyle === item.style)
-							|| (item.action === 'infoTab' && this.state.jyotishTab === item.infoTab);
-						return (
-							<button
-								type="button"
-								key={item.key}
-								className={`horosa-bottom-quick-button horosa-india-quick-button${isActive ? ' is-active' : ''}`}
-								onClick={()=>this.handleQuickAction(item)}
-							>
-								<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-								<span>{item.label}</span>
-							</button>
-						);
-					})}
-				</div>
-			</div>
+			<QuickDockBar
+				page="india"
+				className="horosa-india-quick-dock"
+				hasResult={!!this.props.value}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 
@@ -3891,7 +3852,7 @@ class IndiaChartMain extends Component{
 							</Tabs>
 						</div>
 					</div>
-					{this.renderQuickDock(indiaChartStyle)}
+					{this.renderQuickDock()}
 				</div>
 			</div>
 		);

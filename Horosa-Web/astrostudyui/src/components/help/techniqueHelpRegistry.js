@@ -26,6 +26,7 @@ import Astro3DHelpDoc from './Astro3DHelpDoc';
 import XuanshiHelpDoc from './XuanshiHelpDoc';
 import AIAnalysisHelpDoc from './AIAnalysisHelpDoc';
 import YizhangjingHelpDoc from './YizhangjingHelpDoc';
+import AstrodataHelpDoc from './AstrodataHelpDoc';
 
 export const TECHNIQUE_HELP_DOCS = {
 	astrochart: AstroHelpDoc,
@@ -54,6 +55,7 @@ export const TECHNIQUE_HELP_DOCS = {
 	xuanshi: XuanshiHelpDoc,
 	aianalysis: AIAnalysisHelpDoc,
 	mingother: YizhangjingHelpDoc,
+	astrodata: AstrodataHelpDoc,
 };
 
 export function getTechniqueHelpDoc(currentTab){

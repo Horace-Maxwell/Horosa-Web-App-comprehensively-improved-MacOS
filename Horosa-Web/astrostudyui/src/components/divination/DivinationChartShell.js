@@ -5,6 +5,7 @@ import PlusMinusTime from '../astro/PlusMinusTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
 import { resolveGeoZone } from '../../utils/timezone';
+import { geoNameRawPatch } from '../../utils/geoName';
 import { getHousesOption } from '../comp/CompHelper';
 import { XQButton, XQSegmented, XQSelect, XQTabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
@@ -242,6 +243,7 @@ class DivinationChartShell extends Component{
 			patch.ad = nd.ad;
 			patch.zone = z;
 		}
+		Object.assign(patch, geoNameRawPatch(rec));
 		this.patchFields(patch);
 	}
 

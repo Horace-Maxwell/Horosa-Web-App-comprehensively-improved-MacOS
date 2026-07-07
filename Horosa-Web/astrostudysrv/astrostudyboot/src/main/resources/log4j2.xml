@@ -11,46 +11,100 @@
 			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} $${prjname} %-5level - %msg%n" charset="utf-8" />
 		</Console>
 
-		<RollingFile name="OtherAppender" fileName="${logdircomm}/all/other.log" filePattern="${logdircomm}/all/other_%d{yyyyMMdd_HH}.log">
+		<RollingFile name="OtherAppender" fileName="${logdircomm}/all/other.log" filePattern="${logdircomm}/all/other_%d{yyyyMMdd_HH}_%i.log">
 			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} $${prjname} %-5level - %msg%n" charset="utf-8" />
 			<Policies>
 				<TimeBasedTriggeringPolicy />
+				<SizeBasedTriggeringPolicy size="20 MB" />
 			</Policies>
+			<!-- 桌面长期运行防写满盘:单卷≤20MB×每小时≤5卷;每次滚动顺带清 7 天前旧日志
+			     (basedir 按日分目录,7 天前的文件必已非活跃,删除安全)。 -->
+			<DefaultRolloverStrategy max="5">
+				<Delete basePath="${basedir}" maxDepth="5">
+					<IfFileName glob="*/*/*/*/*.log" />
+					<IfLastModified age="P7D" />
+				</Delete>
+			</DefaultRolloverStrategy>
 		</RollingFile>
 
-		<RollingFile name="BoringAppender" fileName="${logdircomm}/all/boring.log" filePattern="${logdircomm}/all/boring_%d{yyyyMMdd_HH}.log">
+		<RollingFile name="BoringAppender" fileName="${logdircomm}/all/boring.log" filePattern="${logdircomm}/all/boring_%d{yyyyMMdd_HH}_%i.log">
 			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} $${prjname} %-5level - %msg%n" charset="utf-8" />
 			<Policies>
 				<TimeBasedTriggeringPolicy />
+				<SizeBasedTriggeringPolicy size="20 MB" />
 			</Policies>
+			<!-- 桌面长期运行防写满盘:单卷≤20MB×每小时≤5卷;每次滚动顺带清 7 天前旧日志
+			     (basedir 按日分目录,7 天前的文件必已非活跃,删除安全)。 -->
+			<DefaultRolloverStrategy max="5">
+				<Delete basePath="${basedir}" maxDepth="5">
+					<IfFileName glob="*/*/*/*/*.log" />
+					<IfLastModified age="P7D" />
+				</Delete>
+			</DefaultRolloverStrategy>
 		</RollingFile>
 
-		<RollingFile name="HttpClientAppender" fileName="${logdircomm}/http/httpclient.log" filePattern="${logdircomm}/http/httpclient_%d{yyyyMMdd_HH}.log">
+		<RollingFile name="HttpClientAppender" fileName="${logdircomm}/http/httpclient.log" filePattern="${logdircomm}/http/httpclient_%d{yyyyMMdd_HH}_%i.log">
 			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} $${prjname} %-5level - %msg%n" charset="utf-8" />
 			<Policies>
 				<TimeBasedTriggeringPolicy />
+				<SizeBasedTriggeringPolicy size="20 MB" />
 			</Policies>
+			<!-- 桌面长期运行防写满盘:单卷≤20MB×每小时≤5卷;每次滚动顺带清 7 天前旧日志
+			     (basedir 按日分目录,7 天前的文件必已非活跃,删除安全)。 -->
+			<DefaultRolloverStrategy max="5">
+				<Delete basePath="${basedir}" maxDepth="5">
+					<IfFileName glob="*/*/*/*/*.log" />
+					<IfLastModified age="P7D" />
+				</Delete>
+			</DefaultRolloverStrategy>
 		</RollingFile>
 
-		<RollingFile name="SpringAppender" fileName="${logdircomm}/spring/spring.log" filePattern="${logdircomm}/spring/spring_%d{yyyyMMdd_HH}.log">
+		<RollingFile name="SpringAppender" fileName="${logdircomm}/spring/spring.log" filePattern="${logdircomm}/spring/spring_%d{yyyyMMdd_HH}_%i.log">
 			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} $${prjname} %-5level - %msg%n" charset="utf-8" />
 			<Policies>
 				<TimeBasedTriggeringPolicy />
+				<SizeBasedTriggeringPolicy size="20 MB" />
 			</Policies>
+			<!-- 桌面长期运行防写满盘:单卷≤20MB×每小时≤5卷;每次滚动顺带清 7 天前旧日志
+			     (basedir 按日分目录,7 天前的文件必已非活跃,删除安全)。 -->
+			<DefaultRolloverStrategy max="5">
+				<Delete basePath="${basedir}" maxDepth="5">
+					<IfFileName glob="*/*/*/*/*.log" />
+					<IfLastModified age="P7D" />
+				</Delete>
+			</DefaultRolloverStrategy>
 		</RollingFile>
 
-		<RollingFile name="SqlAppender" fileName="${logdircomm}/sql/sql.log" filePattern="${logdircomm}/sql/sql_%d{yyyyMMdd_HH}.log">
+		<RollingFile name="SqlAppender" fileName="${logdircomm}/sql/sql.log" filePattern="${logdircomm}/sql/sql_%d{yyyyMMdd_HH}_%i.log">
 			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} $${prjname} %-5level - %msg%n" charset="utf-8" />
 			<Policies>
 				<TimeBasedTriggeringPolicy />
+				<SizeBasedTriggeringPolicy size="20 MB" />
 			</Policies>
+			<!-- 桌面长期运行防写满盘:单卷≤20MB×每小时≤5卷;每次滚动顺带清 7 天前旧日志
+			     (basedir 按日分目录,7 天前的文件必已非活跃,删除安全)。 -->
+			<DefaultRolloverStrategy max="5">
+				<Delete basePath="${basedir}" maxDepth="5">
+					<IfFileName glob="*/*/*/*/*.log" />
+					<IfLastModified age="P7D" />
+				</Delete>
+			</DefaultRolloverStrategy>
 		</RollingFile>
 
-		<RollingFile name="AppSqlAppender" fileName="${logdircomm}/sql/appsql.log" filePattern="${logdircomm}/sql/appsql_%d{yyyyMMdd_HH}.log">
+		<RollingFile name="AppSqlAppender" fileName="${logdircomm}/sql/appsql.log" filePattern="${logdircomm}/sql/appsql_%d{yyyyMMdd_HH}_%i.log">
 			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} $${prjname} %-5level - %msg%n" charset="utf-8" />
 			<Policies>
 				<TimeBasedTriggeringPolicy />
+				<SizeBasedTriggeringPolicy size="20 MB" />
 			</Policies>
+			<!-- 桌面长期运行防写满盘:单卷≤20MB×每小时≤5卷;每次滚动顺带清 7 天前旧日志
+			     (basedir 按日分目录,7 天前的文件必已非活跃,删除安全)。 -->
+			<DefaultRolloverStrategy max="5">
+				<Delete basePath="${basedir}" maxDepth="5">
+					<IfFileName glob="*/*/*/*/*.log" />
+					<IfLastModified age="P7D" />
+				</Delete>
+			</DefaultRolloverStrategy>
 		</RollingFile>
 																		
 	</Appenders>

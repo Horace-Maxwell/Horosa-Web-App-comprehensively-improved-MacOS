@@ -4707,7 +4707,8 @@ class PlanetariumBabylon extends Component{
 				lon: convertLonToStr(rec.lng),
 				gpsLat,
 				gpsLon,
-				label: '自选观测点',
+				// 观测点地名:经纬度查找带回则用其名(城市/区县),否则回退通用「自选观测点」。
+				label: (rec && rec.name) ? `${rec.name}` : '自选观测点',
 			},
 			selected: null,
 			speed: 0,

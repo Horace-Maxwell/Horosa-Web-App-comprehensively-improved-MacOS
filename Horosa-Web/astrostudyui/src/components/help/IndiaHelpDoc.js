@@ -37,6 +37,10 @@ class IndiaHelpDoc extends Component {
 								<li style={li}>切任一会改盘的设置（流派 / 岁差 / 分宫 / 交点 / 起运点 / 过运日期 / 年度盘年份）→ <b>实时全盘重算</b>（盘面 + 右栏各面板 + AI 挂载）。</li>
 								<li style={li}>「星体」「显示方向」「完整度数」「第1宫参照」「盘式」属<b>纯显示层</b>，不改黄经、不重新起盘，切换即时生效不发请求。</li>
 							</ul>
+							<div style={h}>中栏交互:点星高亮相映宫</div>
+							<ul style={ul}>
+								<li style={li}><b>点盘中任一行星</b>→ 盘上高亮该曜按当前相位范式(七政相映 / 星座相映…)所照射的宫位;<b>再点同一星</b>取消高亮,<b>点另一星</b>切换到那颗星。纯高亮显示,不改盘、不重算。</li>
+							</ul>
 						</div>
 					</TabPane>
 
@@ -242,6 +246,10 @@ class IndiaHelpDoc extends Component {
 								{kv('Śūla / Niryāṇa Śūla', '论凶险与死亡应期（Maraka 杀主）')}
 								{kv('Kālachakra', '时轮大运，按月宿×脚分四组推')}
 								{kv('Tāra / Sthira / Yogārdha / Maṇḍūka', '均匀座运 / 固定座运（动7固8变9）/ 平均座运 /蛙跳座运')}</div>
+
+							<div style={card}><div style={ct}>Sthira 固定座运 · 起座切换</div>
+								{kv('起座', '在 Sthira（固定座运）盘内可切「命宫」或「Brahma」为起座:命宫=从上升所在座起排;Brahma=从盘型定出的 Brahma 座起排(会标出 Brahma 所在星与座)')}
+								{kv('作用', '改起座后重排该大运,首运与后续座运随之变;仅影响 Sthira 座运,不动其他体系')}</div>
 
 							<div style={h}>起运点 Seed（右栏「大运」内选 · 仅宿系/条件大运用）</div>
 							<div style={card}><div style={ct}>取哪点所在宿起运</div>

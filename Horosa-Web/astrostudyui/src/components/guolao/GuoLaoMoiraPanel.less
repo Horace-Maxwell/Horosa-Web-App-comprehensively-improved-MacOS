@@ -208,6 +208,21 @@
 	color: var(--horosa-text-soft, #c8c0b2);
 }
 
+/* 本命/流年星曜表(宫/化曜/曜名/宫性):化曜曜名收窄不换行,宫性内容最多吃满余宽 */
+.horosa-guolao-moira-yearsign-table .horosa-guolao-moira-table-row {
+	grid-template-columns: 40px 34px minmax(48px, auto) minmax(0, 1.7fr);
+}
+
+.horosa-guolao-moira-yearsign-table .horosa-guolao-moira-table-row > span:nth-child(2),
+.horosa-guolao-moira-yearsign-table .horosa-guolao-moira-table-row > span:nth-child(3) {
+	white-space: nowrap;
+}
+
+/* 宫位化曜合并表(宫/本命化曜/流年化曜/宫性):本命·流年两列稍宽以容「化曜 曜名」,宫性吃余宽 */
+.horosa-guolao-moira-yearsign-merged .horosa-guolao-moira-table-row {
+	grid-template-columns: 40px minmax(56px, 0.95fr) minmax(56px, 0.95fr) minmax(0, 1.55fr);
+}
+
 .horosa-guolao-moira-stellar-table .horosa-guolao-moira-table-row {
 	grid-template-columns: 34px minmax(58px, 0.8fr) minmax(76px, 1fr) minmax(92px, 1.1fr);
 }
@@ -282,6 +297,90 @@
 	font-size: 11px;
 	font-style: normal;
 	color: var(--horosa-astro-gold, #e7bd75);
+}
+
+.horosa-guolao-moira-yeargroup-title {
+	margin: 8px 0 4px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--horosa-muted, #958b7a);
+}
+
+.horosa-guolao-moira-yeargroup-table {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--horosa-line, rgba(148, 130, 98, 0.28));
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.horosa-guolao-moira-yeargroup-row {
+	display: grid;
+	grid-template-columns: 74px 1fr;
+	gap: 6px;
+	align-items: center;
+	padding: 4px 8px;
+	font-size: 12px;
+	line-height: 19px;
+}
+
+.horosa-guolao-moira-yeargroup-row + .horosa-guolao-moira-yeargroup-row {
+	border-top: 1px solid var(--horosa-line, rgba(148, 130, 98, 0.18));
+}
+
+.horosa-guolao-moira-yeargroup-row:nth-child(even) {
+	background: rgba(231, 189, 117, 0.05);
+}
+
+.horosa-guolao-moira-yeargroup-row strong {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12.5px;
+	color: var(--horosa-text, #f0eee7);
+	white-space: nowrap;
+}
+
+.horosa-guolao-moira-yeargroup-row span {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	min-width: 0;
+}
+
+.horosa-guolao-moira-yeargroup-row em {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	font-style: normal;
+	font-size: 12px;
+	color: var(--horosa-text-soft, #c8c0b2);
+	white-space: nowrap;
+}
+
+.horosa-guolao-moira-yeargroup-row i {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 16px;
+	height: 16px;
+	padding: 0 3px;
+	border-radius: 4px;
+	background: rgba(231, 189, 117, 0.14);
+	font-style: normal;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--horosa-astro-gold, #e7bd75);
+	line-height: 1;
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-yeargroup-row:nth-child(even) {
+	background: rgba(148, 108, 34, 0.06);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-moira-yeargroup-row i {
+	background: rgba(148, 108, 34, 0.12);
+	color: #8a6420;
 }
 
 .horosa-guolao-moira-chip-list {
@@ -404,14 +503,7 @@
 	min-height: 0 !important;
 }
 
-.horosa-guolao-moira-tabs .ant-tabs-tab {
-	padding: 6px 4px;
-	font-size: 13px;
-}
-
-.horosa-guolao-moira-tabs .ant-tabs-tab + .ant-tabs-tab {
-	margin-left: 14px;
-}
+/* tab 间距/字号统一在 app.less 的 .horosa-guolao-moira-tabs 覆盖段(对齐六壬密度基准),此处不再写第二源。 */
 
 /* 神煞卡：曜名为长串、易挤；放宽行高 + 宫名/支/曜之间留间距（卡片仍按内容紧凑高）。 */
 .horosa-guolao-moira-gods .horosa-guolao-moira-god {
@@ -434,3 +526,264 @@
 .horosa-guolao-moira-god > div + div {
 	margin-top: 1px;
 }
+
+/* 七政动态五列版(星/宫宿度/宫内度/庙旺殿喜/动态)——四列基网格上加一列 */
+.horosa-guolao-moira-table-5col .horosa-guolao-moira-table-row {
+	grid-template-columns: 30px 1.6fr 0.85fr 0.65fr 0.6fr;
+}
+
+/* 天星择日左栏:选项一行两个(省纵向空间;窄栏自动回落单列) */
+.horosa-guolao-election-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+	gap: 4px 10px;
+}
+
+.horosa-guolao-election-grid .horosa-guolao-select-field {
+	margin-bottom: 2px;
+}
+
+/* ═══ 天星择日 · 星曜双列表(美化版:专属类,不动共享 moira-table)═══ */
+.horosa-guolao-election {
+	display: grid;
+	gap: 8px;
+}
+
+.horosa-guolao-election-table {
+	display: grid;
+	gap: 3px;
+	padding: 4px;
+	border: 1px solid var(--horosa-border-soft, rgba(231, 189, 117, 0.16));
+	border-radius: 10px;
+	background: linear-gradient(180deg, rgba(231, 189, 117, 0.05), rgba(0, 0, 0, 0.12));
+}
+
+.horosa-guolao-election-row {
+	display: grid;
+	grid-template-columns: 30px minmax(56px, 1fr) minmax(66px, 1.05fr) minmax(60px, 1fr);
+	gap: 8px;
+	align-items: center;
+	min-height: 30px;
+	padding: 4px 8px;
+	border-radius: 7px;
+	font-size: 12.5px;
+	color: var(--horosa-text-soft, #c8c0b2);
+	transition: background 0.13s ease;
+}
+
+.horosa-guolao-election-row:not(.horosa-guolao-election-head):nth-of-type(2n) {
+	background: rgba(255, 255, 255, 0.024);
+}
+
+.horosa-guolao-election-row:not(.horosa-guolao-election-head):hover {
+	background: rgba(231, 189, 117, 0.10);
+}
+
+.horosa-guolao-election-head {
+	min-height: 26px;
+	font-size: 11px;
+	letter-spacing: 1.5px;
+	font-weight: 600;
+	color: var(--horosa-astro-gold, #e7bd75);
+	background: rgba(231, 189, 117, 0.11);
+}
+
+.horosa-guolao-election-glyph {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	font-size: 14px;
+	font-weight: 700;
+	background: rgba(0, 0, 0, 0.20);
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.10));
+}
+
+.horosa-guolao-election-deg {
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.2px;
+	white-space: nowrap;
+	color: var(--horosa-text, #f0eee7);
+}
+
+.horosa-guolao-election-alt {
+	font-style: normal;
+	font-size: 10px;
+	font-weight: 700;
+	margin-left: 1px;
+	vertical-align: super;
+}
+
+.horosa-guolao-election-alt.is-up { color: #6fbf8b; }
+.horosa-guolao-election-alt.is-down { color: #9aa0a8; opacity: 0.85; }
+
+.horosa-guolao-election-state {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.horosa-guolao-election-tag {
+	display: inline-flex;
+	align-items: center;
+	padding: 0 8px;
+	height: 19px;
+	border-radius: 999px;
+	font-style: normal;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 19px;
+	border: 1px solid transparent;
+}
+
+.horosa-guolao-election-tag.tone-good { color: #7cc493; background: rgba(90, 158, 111, 0.16); border-color: rgba(90, 158, 111, 0.34); }
+.horosa-guolao-election-tag.tone-weak { color: #e09484; background: rgba(217, 134, 114, 0.16); border-color: rgba(217, 134, 114, 0.36); }
+.horosa-guolao-election-tag.tone-retro { color: #e0a76b; background: rgba(217, 158, 100, 0.15); border-color: rgba(217, 158, 100, 0.38); }
+.horosa-guolao-election-tag.tone-plain { color: var(--horosa-text-soft, #b7b0a4); background: rgba(167, 165, 156, 0.14); border-color: rgba(167, 165, 156, 0.22); }
+
+/* ═══ 天星择日 · 搜索三件套(美化版)═══ */
+.horosa-guolao-election-search {
+	display: grid;
+	gap: 10px;
+}
+
+.horosa-guolao-search-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 8px 12px;
+	padding: 10px 12px;
+	border: 1px solid var(--horosa-border-soft, rgba(231, 189, 117, 0.16));
+	border-radius: 10px;
+	background: linear-gradient(180deg, rgba(231, 189, 117, 0.06), rgba(0, 0, 0, 0.10));
+}
+
+.horosa-guolao-search-field {
+	display: grid;
+	gap: 3px;
+}
+
+.horosa-guolao-search-field > label {
+	font-size: 10.5px;
+	letter-spacing: 0.5px;
+	font-weight: 600;
+	color: var(--horosa-astro-gold, #e7bd75);
+	opacity: 0.9;
+}
+
+.horosa-guolao-search-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-left: auto;
+}
+
+.horosa-guolao-search-title {
+	padding: 5px 10px;
+	border-left: 3px solid var(--horosa-astro-gold, #e7bd75);
+	border-radius: 0 7px 7px 0;
+	background: rgba(231, 189, 117, 0.08);
+	color: var(--horosa-text, #f0eee7);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.horosa-guolao-search-results {
+	display: grid;
+	gap: 4px;
+}
+
+.horosa-guolao-search-row {
+	display: grid;
+	grid-template-columns: minmax(74px, 1.15fr) minmax(56px, 0.9fr) minmax(42px, 0.6fr) auto;
+	gap: 8px;
+	align-items: center;
+	padding: 6px 10px;
+	border: 1px solid var(--horosa-border-soft, rgba(255, 255, 255, 0.08));
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.10);
+	color: var(--horosa-text-soft, #c8c0b2);
+	font-size: 12.5px;
+	font-variant-numeric: tabular-nums;
+	transition: background 0.13s ease;
+}
+
+.horosa-guolao-search-row:hover { background: rgba(231, 189, 117, 0.09); }
+.horosa-guolao-search-date { color: var(--horosa-text, #f0eee7); font-weight: 600; }
+.horosa-guolao-search-az { color: var(--horosa-astro-gold, #e7bd75); }
+
+.horosa-guolao-search-pick {
+	justify-self: end;
+	padding: 2px 11px;
+	border-radius: 999px;
+	border: 1px solid rgba(231, 189, 117, 0.42);
+	background: rgba(231, 189, 117, 0.10);
+	color: var(--horosa-astro-gold, #e7bd75);
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.13s ease, color 0.13s ease;
+}
+
+.horosa-guolao-search-pick:hover {
+	background: var(--horosa-astro-gold, #e7bd75);
+	color: var(--horosa-surface-solid, #1a1712);
+}
+
+.horosa-guolao-search-empty {
+	display: grid;
+	place-items: center;
+	gap: 5px;
+	padding: 30px 14px;
+	text-align: center;
+	border: 1px dashed var(--horosa-border-soft, rgba(231, 189, 117, 0.2));
+	border-radius: 10px;
+	background: rgba(0, 0, 0, 0.05);
+	color: var(--horosa-text-soft, #c8c0b2);
+	font-size: 12px;
+}
+
+.horosa-guolao-search-empty-icon {
+	font-size: 22px;
+	color: var(--horosa-astro-gold, #e7bd75);
+	opacity: 0.5;
+}
+
+.horosa-guolao-search-empty-sub {
+	font-size: 11px;
+	opacity: 0.72;
+}
+
+/* ── 明亮主题覆盖 ── */
+:root[data-horosa-appearance='light'] .horosa-guolao-election-table,
+:root[data-horosa-appearance='light'] .horosa-guolao-search-bar {
+	background: linear-gradient(180deg, rgba(231, 189, 117, 0.10), rgba(255, 255, 255, 0.55));
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-election-row:not(.horosa-guolao-election-head):nth-of-type(2n) {
+	background: rgba(120, 90, 40, 0.045);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-election-row:not(.horosa-guolao-election-head):hover,
+:root[data-horosa-appearance='light'] .horosa-guolao-search-row:hover {
+	background: rgba(196, 148, 60, 0.14);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-election-glyph {
+	background: rgba(255, 255, 255, 0.7);
+	border-color: rgba(120, 90, 40, 0.18);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-search-row {
+	background: rgba(255, 255, 255, 0.62);
+}
+
+:root[data-horosa-appearance='light'] .horosa-guolao-election-alt.is-up { color: #2f9159; }
+:root[data-horosa-appearance='light'] .horosa-guolao-election-alt.is-down { color: #8a8f97; }
+
+:root[data-horosa-appearance='light'] .horosa-guolao-election-tag.tone-good { color: #2f8a54; background: rgba(47, 138, 84, 0.12); border-color: rgba(47, 138, 84, 0.3); }
+:root[data-horosa-appearance='light'] .horosa-guolao-election-tag.tone-weak { color: #c65a44; background: rgba(198, 90, 68, 0.12); border-color: rgba(198, 90, 68, 0.3); }
+:root[data-horosa-appearance='light'] .horosa-guolao-election-tag.tone-retro { color: #b8792c; background: rgba(184, 121, 44, 0.12); border-color: rgba(184, 121, 44, 0.3); }
+:root[data-horosa-appearance='light'] .horosa-guolao-election-tag.tone-plain { color: #6f6a5f; background: rgba(120, 110, 90, 0.1); border-color: rgba(120, 110, 90, 0.2); }

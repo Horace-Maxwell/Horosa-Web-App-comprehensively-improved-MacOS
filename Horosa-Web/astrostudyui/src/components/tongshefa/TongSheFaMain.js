@@ -1030,6 +1030,14 @@ class TongSheFaMain extends Component{
 		});
 	}
 
+	// 快捷栏契约:detailTab 镜像与边框开关(左栏已有)不进栏;cnyibu 容器透传渲染。
+	getQuickDockConfig(){
+		return {
+			hasResult: !!this.props.value,
+			save: ()=>this.clickSaveCase(),
+		};
+	}
+
 	clickSaveCase(){
 		const flds = this.props.fields;
 		if(!flds || !flds.date || !flds.time){

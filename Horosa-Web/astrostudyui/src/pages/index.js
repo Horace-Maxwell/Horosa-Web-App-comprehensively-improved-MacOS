@@ -460,6 +460,12 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             flds.gpsLon.value = values.gpsLon;
             flds.gpsLat.value = values.gpsLat;
         }
+        if(values.pos !== undefined){
+            // 经纬度查找选点带回的地名 → 写 fields.pos(显示于「地点」+ 随盘储存 + 进 AI 快照);
+            // 空串=据实清空(地图裸点逆地理失败/手输经纬无地名),不带 pos 键=仅改时区不动地名。
+            if(!flds.pos){ flds.pos = { value: '', name: ['pos'] }; }
+            flds.pos.value = `${values.pos || ''}`;
+        }
         if(values.southchart !== undefined && values.southchart !== null){
             flds.southchart.value = values.southchart;
         }

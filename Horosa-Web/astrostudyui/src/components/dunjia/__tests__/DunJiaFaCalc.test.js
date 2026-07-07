@@ -11,7 +11,39 @@ import {
 	computeRomance,
 	buildFaQimenAnalysis,
 	OPPOSITE_PALACE,
+	POS_GUA,
+	POS_DIRECTION,
 } from '../DunJiaFaCalc';
+
+// 🔴 对宫金标(非自洽·按后天八卦方位断)：巽东南↔乾西北、离南↔坎北、坤西南↔艮东北、震东↔兑西。
+// 用户报障:旧 {1:6} 把巽(东南)误对兑(正西);此测用「方位 180° 对冲」独立验证,防再错。
+describe('OPPOSITE_PALACE 后天八卦方位对宫(金标·方位判)', ()=>{
+	const DIR_OPPOSITE = {
+		东南: '西北', 西北: '东南', 正南: '正北', 正北: '正南',
+		西南: '东北', 东北: '西南', 正东: '正西', 正西: '正东',
+	};
+	test('每宫对宫方位 = 本宫方位的 180° 反向(逐宫)', ()=>{
+		[1, 2, 3, 4, 6, 7, 8, 9].forEach((p)=>{
+			const opp = OPPOSITE_PALACE[p];
+			expect(POS_DIRECTION[opp]).toBe(DIR_OPPOSITE[POS_DIRECTION[p]]);
+		});
+	});
+	test('关键对:巽1↔乾9(东南↔西北)、震4↔兑6(正东↔正西)、坤3↔艮7(西南↔东北)、离2↔坎8', ()=>{
+		expect(OPPOSITE_PALACE[1]).toBe(9);
+		expect(POS_GUA[OPPOSITE_PALACE[1]]).toBe('乾');
+		expect(POS_DIRECTION[OPPOSITE_PALACE[1]]).toBe('西北');
+		expect(OPPOSITE_PALACE[4]).toBe(6);
+		expect(OPPOSITE_PALACE[3]).toBe(7);
+		expect(OPPOSITE_PALACE[2]).toBe(8);
+	});
+	test('对宫为对合(involution)且 = 10 − 宫号,中5无对宫', ()=>{
+		[1, 2, 3, 4, 6, 7, 8, 9].forEach((p)=>{
+			expect(OPPOSITE_PALACE[p]).toBe(10 - p);
+			expect(OPPOSITE_PALACE[OPPOSITE_PALACE[p]]).toBe(p);
+		});
+		expect(OPPOSITE_PALACE[5]).toBeUndefined();
+	});
+});
 
 // 极简 cell 工厂：只填本引擎消费的字段。
 function cell(palaceNum, tianGan, diGan, god, door, tianXing){
@@ -276,5 +308,68 @@ describe('DunJiaFaCalc · 化解去说明 + 生肖替代 + 用神完整（本轮
 		const pan = mkPan({ ganzhi: { year: '甲子', month: '丙寅', day: '戊午', time: '辛丑' }, zhiFuPalace: 9, zhiShiPalace: 2, cells: [cell(4, '戊', '', '合', '生', '冲')] });
 		expect(computeCareer(pan).industryHint).toContain('行业取象');
 		expect(computeRomance(pan).zhanTaoHua).toContain('斩桃花');
+	});
+});
+
+// 🔴 WP-A 金标:用神/保护 值符·值使落宫以「盘面 cells」为单一真值(与盘面八神/八门同源),
+// 不用派生字段 pan.zhiFuPalace(GUA_POS_MAP+移星旋转 另算,移星档下会与盘面漂移)。防再对不上盘面。
+describe('WP-A 值符/值使落宫 = 盘面 cells(非漂移 pan.zhiFuPalace)', ()=>{
+	test('用神值符宫 = 八神「符」所在宫(即使 pan.zhiFuPalace 指向别宫)', ()=>{
+		const pan = mkPan({
+			ganzhi: { day: '丙寅', time: '庚子' },
+			zhiFuPalace: 9,   // 漂移的派生值
+			cells: [cell(1, '丙', '戊', '符', '开', '蓬'), cell(9, '庚', '乙', '虎', '惊', '心')],
+		});
+		expect(computeYongShen(pan).zhiFu.palaceNum).toBe(1);   // 以盘面「符」宫(1)为准,非 9
+	});
+	test('用神值使宫 = 值使门(pan.zhiShi「死门」)所在宫', ()=>{
+		const pan = mkPan({
+			ganzhi: { day: '丙寅', time: '庚子' },
+			zhiShi: '死门', zhiShiPalace: 3,   // 漂移
+			cells: [cell(1, '丙', '戊', '符', '开', '蓬'), cell(6, '庚', '乙', '虎', '死', '柱')],
+		});
+		expect(computeYongShen(pan).zhiShi.palaceNum).toBe(6);   // 死门在 6 宫,非 3
+	});
+	test('保护清单值符/值使宫同随盘面(computeProtect)', ()=>{
+		const pan = mkPan({
+			ganzhi: { day: '丙寅', time: '庚子' },
+			zhiFuPalace: 9, zhiShi: '死门', zhiShiPalace: 3,
+			cells: [cell(1, '丙', '戊', '符', '开', '蓬'), cell(6, '庚', '乙', '虎', '死', '柱')],
+		});
+		const prot = computeProtect(pan);
+		expect((prot.find((r)=>`${r.label}`.indexOf('值符') >= 0) || {}).palaceNum).toBe(1);
+		expect((prot.find((r)=>`${r.label}`.indexOf('值使') >= 0) || {}).palaceNum).toBe(6);
+	});
+	test('无「符」cell 时兜底 pan.zhiFuPalace(向后兼容零回归)', ()=>{
+		const pan = mkPan({ ganzhi: { day: '丙寅', time: '庚子' }, zhiFuPalace: 7, cells: [cell(4, '戊', '', '合', '生', '冲')] });
+		expect(computeYongShen(pan).zhiFu.palaceNum).toBe(7);
+	});
+});
+
+// 🔴 WP-C 命局/事局 日时干语义:命盘 日=内心·时=外在;事盘 日=实质·时=表象。ctx.chartCategory 驱动。
+describe('WP-C 命局/事局 日时干语义标注', ()=>{
+	const base = { ganzhi: { day: '丙寅', time: '庚子' }, cells: [cell(1, '丙', '戊', '符', '开', '蓬')] };
+	test('事盘:日干=实质、时干=表象', ()=>{
+		const ys = computeYongShen(mkPan(base), { chartCategory: 'shi' });
+		expect(ys.dayRole).toBe('实质');
+		expect(ys.timeRole).toBe('表象');
+		expect(ys.isMing).toBe(false);
+	});
+	test('命盘:日干=内心、时干=外在', ()=>{
+		const ys = computeYongShen(mkPan(base), { chartCategory: 'ming' });
+		expect(ys.dayRole).toBe('内心');
+		expect(ys.timeRole).toBe('外在');
+		expect(ys.isMing).toBe(true);
+	});
+	test('computeProtect 日/时干标签随盘类切换', ()=>{
+		const ming = computeProtect(mkPan(base), { chartCategory: 'ming' });
+		expect(ming.some((r)=>r.label === '日干·内心')).toBe(true);
+		expect(ming.some((r)=>r.label === '时干·外在')).toBe(true);
+		const shi = computeProtect(mkPan(base), { chartCategory: 'shi' });
+		expect(shi.some((r)=>r.label === '日干·实质')).toBe(true);
+		expect(shi.some((r)=>r.label === '时干·表象')).toBe(true);
+	});
+	test('缺 ctx/盘类 → 默认事盘(实质/表象)', ()=>{
+		expect(computeYongShen(mkPan(base)).dayRole).toBe('实质');
 	});
 });

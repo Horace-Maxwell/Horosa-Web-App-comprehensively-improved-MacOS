@@ -115,6 +115,13 @@ export const KENTANG_SERVICE_CONFIG = {
 		queryKeys: ['qizhengKinSrv', 'qizhengSrv', 'kinastroSrv'],
 		defaultLocalPort: 8892,
 	},
+	// 天星择日双轮数据(webqizhengelectionsrv,挂在主 chart 服务 :8899,非 kentang vendor)
+	qizhengelection: {
+		engine: 'horosa-election',
+		path: 'qizhengelection',
+		queryKeys: ['qizhengElectionSrv'],
+		defaultLocalPort: 8899,
+	},
 };
 
 const COMMON_QUERY_KEYS = ['kentangSrv', 'chartSrv', 'kinSrv'];

@@ -93,9 +93,11 @@ const TIME_FIELDS = [
 	{ name: 'timeAlg', label: '时间算法', type: 'select', options: TIME_ALG_OPTIONS, default: 0, group: '时间换算' },
 	...DAY_BOUNDARY_FIELDS,
 ];
-// 八字专属 timeAlg 3 档（源 CnTraditionInput：真太阳时/直接时间/春分定卯时；西占/紫微的 2 档不含「春分定卯时」）。
+// 八字专属 timeAlg 4 档（源 CnTraditionInput：真太阳时/平太阳时/直接时间/春分定卯时；西占/紫微的 2 档不含「春分定卯时/平太阳时」）。
+// 平太阳时(3)=仅经度差、去均时差,与真太阳时(0)算法不同(baziLunarLocal timeAlg=3),挂载须可选。
 const BAZI_TIME_ALG_OPTIONS = [
 	{ value: 0, label: '真太阳时' },
+	{ value: 3, label: '平太阳时' },
 	{ value: 1, label: '直接时间' },
 	{ value: 2, label: '春分定卯时' },
 ];
@@ -598,9 +600,10 @@ const GUOLAO_FIELDS = [
 		{ value: 0, label: '荀爽距星(19年测)' },
 		{ value: 1, label: '斗柄定房法' },
 		{ value: 5, label: '恒星制·现代天赤' },
-		{ value: 7, label: '赤道回归' },
+		{ value: 7, label: '赤道回归(元明)' },
+		{ value: 8, label: '赤道回归(实时)' },
 	] },
-	// 宿度制条件子选项(WP-D/赤道回归):仅特定宿度制下后端生效,showWhen 条件揭示(对齐 GuoLaoInput doubingSu28===4/6/7)。
+	// 宿度制条件子选项(WP-D/赤道回归):仅特定宿度制下后端生效,showWhen 条件揭示(对齐 GuoLaoInput doubingSu28===4/6/7/8)。
 	// GuoLaoChartMain.fieldsToParams:1888/1908-1915 读 fields.guolao{Ayanamsa,TuibianMethod,GufaPrecess,EqTropicalAnchor}(C 类 storageKey 回退 getStored)→ /chart 重排盘。默认即现状零回归。
 	{ name: 'guolaoAyanamsa', label: '恒星岁差（宿度制=恒星制黄道）', type: 'select', default: '', group: '命度', storageKey: 'horosaGuolaoAyanamsa',
 		showWhen: (d)=>Number(d.su28Mode) === 4,
@@ -612,7 +615,7 @@ const GUOLAO_FIELDS = [
 		showWhen: (d)=>Number(d.su28Mode) === 6,
 		options: [{ value: 0, label: '钉死元时（默认）' }, { value: 1, label: '随岁差东移' }] },
 	{ name: 'guolaoEqTropicalAnchor', label: '回归锚点（宿度制=赤道回归）', type: 'select', default: 'dongzhi', group: '命度', storageKey: 'horosaGuolaoEqTropicalAnchor',
-		showWhen: (d)=>Number(d.su28Mode) === 7,
+		showWhen: (d)=>Number(d.su28Mode) === 7 || Number(d.su28Mode) === 8,
 		options: [{ value: 'dongzhi', label: '牛前·冬至270°（默认）' }, { value: 'chunfen', label: '春分·壁2.3°' }] },
 	{ name: 'trueSolarTime', label: '报时星太阳时', type: 'select', default: 'true', group: '四余/时间', storageKey: 'horosaGuolaoTrueSolarTime', options: [
 		{ value: 'true', label: '真太阳时（经度+均时差，默认）' },
@@ -784,7 +787,12 @@ export const TECHNIQUE_SETTINGS_SCHEMA = {
 	astrochart: { kind: 'record', fields: ASTRO_CHART_FIELDS },
 	astrochart_like: { kind: 'record', fields: ASTRO_CHART_FIELDS },
 	indiachart: { kind: 'record', fields: INDIA_CHART_FIELDS, emptyHint: '印度盘按出生信息起盘，可调岁差制/分宫制。' },
-	suzhan: { kind: 'record', fields: ASTRO_CHART_FIELDS },
+	// 宿占=占星起盘 + 宿盘专属「人事十二宫起宫」(ASC起盘/八字公式起盘,SZConst.SZHouseStart_*);
+	// 独立拼 fields(不污染 astrochart 共用的 ASTRO_CHART_FIELDS)。默认 0=八字公式起盘=现状。
+	suzhan: { kind: 'record', fields: [...ASTRO_CHART_FIELDS, {
+		name: 'houseStartMode', label: '人事十二宫起盘', type: 'select', default: 0, group: '排盘',
+		options: [{ value: 0, label: '八字公式起盘（默认）' }, { value: 1, label: 'ASC起盘' }],
+	}] },
 	// 演禽/策天：经 ken 后端按出生时间起盘（纯命盘类、无事盘）。
 	// 注：禽星盘只取生辰原始时刻，ken 引擎不消费 日界/晚子时/真太阳时换算（parseFieldsDateTime 只读 date/time/zone/lat/lon）→
 	// 此前挂 TIME_FIELDS 是「可选但无效」的死设置，移除以免误导（报告配置/AI 挂载两处都不再显示无效项）。

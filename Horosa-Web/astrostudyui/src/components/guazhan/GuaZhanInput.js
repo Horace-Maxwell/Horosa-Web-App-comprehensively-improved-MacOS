@@ -4,6 +4,7 @@ import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { gcj02ToGps, randomStr } from '../../utils/helper';
 import {convertLatStrToDegree, convertLonStrToDegree, convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import { resolveGeoZone } from '../../utils/timezone';
+import { geoNameFieldPatch } from '../../utils/geoName';
 import DateTime from '../comp/DateTime';
 import { XQSelect as Select } from '../xq-ui';
 
@@ -90,6 +91,7 @@ class GuaZhanInput extends Component{
 				if(dDt && dDt.clone){ const nd = dDt.clone(); nd.setZone(z); payload.date = { value: nd }; payload.ad = { value: nd.ad }; }
 				if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); payload.time = { value: nt }; }
 			}
+			Object.assign(payload, geoNameFieldPatch(rec));
 			this.props.onFieldsChange(payload);
 		}
 	}

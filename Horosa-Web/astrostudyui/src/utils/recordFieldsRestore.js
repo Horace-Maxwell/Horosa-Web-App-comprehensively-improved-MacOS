@@ -32,6 +32,7 @@ export const RECORD_FIELDS_RESTORE_MANIFEST = [
 	{ key: 'tradition', parse: 'int' },
 	{ key: 'termsVariant', parse: 'int' },        // schema 无此键 → 还原时新建 entry
 	{ key: 'doubingSu28', parse: 'num' },
+	{ key: 'houseStartMode', parse: 'num' },       // 宿占人事十二宫起宫(ASC/八字):存盘后须还原,否则载入回退默认
 	{ key: 'southchart', parse: 'int' },
 	{ key: 'strongRecption', parse: 'int' },
 	{ key: 'simpleAsp', parse: 'int' },

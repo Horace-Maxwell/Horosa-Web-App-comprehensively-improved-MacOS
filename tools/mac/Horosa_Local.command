@@ -6,9 +6,9 @@ PROJECT_DIR="${ROOT}/Horosa-Web"
 START_SH="${PROJECT_DIR}/start_horosa_local.sh"
 STOP_SH="${PROJECT_DIR}/stop_horosa_local.sh"
 BOOTSTRAP_SH="${ROOT}/scripts/mac/bootstrap_and_run.sh"
-PY_PID_FILE="${PROJECT_DIR}/.horosa_py.pid"
-JAVA_PID_FILE="${PROJECT_DIR}/.horosa_java.pid"
-WEB_PID_FILE="${PROJECT_DIR}/.horosa_web.pid"
+# pid 文件带端口后缀(与 start/stop_horosa_local.sh 同一会话隔离约定,preflight[96] 三文件互锚);
+# WEB_PID_FILE 在 prepare_ports 定口后才能定名,见下方。Java/Python 的 pid 由 start 脚本自管,本文件不碰。
+WEB_PID_FILE=""
 UI_DIR="${PROJECT_DIR}/astrostudyui"
 
 BUNDLED_RUNTIME_DIR="${ROOT}/runtime/mac"
@@ -229,14 +229,8 @@ use_bundled_runtime() {
     fi
   fi
 
-  if [ -z "${HOROSA_JAVA_BIN:-}" ] && command -v java >/dev/null 2>&1; then
-    local fallback_java
-    fallback_java="$(command -v java)"
-    if "${fallback_java}" -version >/dev/null 2>&1; then
-      export HOROSA_JAVA_BIN="${fallback_java}"
-      echo "[预检] 未检测到项目内 Java runtime，回退系统 Java: ${HOROSA_JAVA_BIN}"
-    fi
-  fi
+  # 注:绝不回退 PATH 上的裸 `java`——无 Xcode CLT 的全新 Mac 上 /usr/bin/java 是会弹
+  # 「需要安装 JDK」系统框的桩;真实 JDK 已被上方 java_home/brew 探测覆盖,探不到就走 bootstrap。
 
   if [ -z "${HOROSA_JAVA_BIN:-}" ]; then
     echo "[预检] 未检测到项目内 Java runtime，且系统 Java 不可用。"
@@ -370,6 +364,12 @@ repair_frontend_entry_assets() {
   cp -f "$1"/umi.*.css "${static_dir}/" 2>/dev/null || true
 }
 
+# zip 解压会丢执行位:能修就自动修(本脚本既然在跑,就有权限 chmod 兄弟文件)。
+for _dep_script in "${START_SH}" "${STOP_SH}"; do
+  if [ -f "${_dep_script}" ] && [ ! -x "${_dep_script}" ]; then
+    chmod +x "${_dep_script}" 2>/dev/null || true
+  fi
+done
 if [ ! -x "${START_SH}" ] || [ ! -x "${STOP_SH}" ]; then
   echo "缺少可执行脚本：${START_SH} 或 ${STOP_SH}"
   read -r -p "按回车退出..." _
@@ -381,6 +381,8 @@ ensure_frontend_build() {
   local dist_index="${DIST_DIR}/index.html"
   local force_build="${HOROSA_FORCE_UI_BUILD:-0}"
 
+  # 快启语义:有产物即用(过期判定由 Horosa_OneClick_Mac.command 入口负责——它检测到
+  # 源码更新会改走 bootstrap 重建;直接双击本文件则以速度优先,HOROSA_FORCE_UI_BUILD=1 可强制)。
   if [ "${force_build}" != "1" ] && [ -f "${dist_index}" ]; then
     echo "[0/4] 使用已打包前端文件（如需重建请设置 HOROSA_FORCE_UI_BUILD=1）。"
     return
@@ -388,24 +390,8 @@ ensure_frontend_build() {
 
   local should_build=0
 
-  if [ ! -f "${dist_index}" ]; then
+  if [ ! -f "${dist_index}" ] || [ "${force_build}" = "1" ]; then
     should_build=1
-  else
-    if [ -n "$(find "${UI_DIR}/src" -type f -newer "${dist_index}" -print -quit 2>/dev/null)" ]; then
-      should_build=1
-    fi
-    if [ -d "${UI_DIR}/public" ] && [ -n "$(find "${UI_DIR}/public" -type f -newer "${dist_index}" -print -quit 2>/dev/null)" ]; then
-      should_build=1
-    fi
-    if [ -f "${UI_DIR}/package.json" ] && [ "${UI_DIR}/package.json" -nt "${dist_index}" ]; then
-      should_build=1
-    fi
-    if [ -f "${UI_DIR}/.umirc.ts" ] && [ "${UI_DIR}/.umirc.ts" -nt "${dist_index}" ]; then
-      should_build=1
-    fi
-    if [ -f "${UI_DIR}/.umirc.js" ] && [ "${UI_DIR}/.umirc.js" -nt "${dist_index}" ]; then
-      should_build=1
-    fi
   fi
 
   if [ "${should_build}" = "1" ]; then
@@ -451,12 +437,20 @@ mkdir -p "${BROWSER_PROFILE_DIR}"
 
 port_listening() {
   local port="$1"
-  lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+  # 弃用 lsof(与 start/stop 脚本同一铁律):lsof 遍历全系统进程 FD,遇到卡死进程单次可
+  # stall 30~100s;本函数在启动路径高频调用。netstat 只读内核表 ~0.006s。
+  # ⚠️ awk 绝不提前 exit:set -o pipefail 下 awk 早退让 netstat 吃 SIGPIPE → 误判未监听。
+  netstat -anv -p tcp 2>/dev/null \
+    | awk -v port="${port}" '$6 == "LISTEN" && $4 ~ ("[.:]" port "$") { exit_found=1 }
+                             END { exit exit_found ? 0 : 1 }'
 }
 
 port_listener_pids() {
   local port="$1"
-  lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null | sort -u || true
+  # macOS `netstat -anv` 第 4 列=本地地址、第 6 列=状态、第 11 列=pid(macOS 12+ 布局)。
+  netstat -anv -p tcp 2>/dev/null \
+    | awk -v port="${port}" '$6 == "LISTEN" && $4 ~ ("[.:]" port "$") { print $11 }' \
+    | sort -u || true
 }
 
 process_command() {
@@ -510,6 +504,8 @@ prepare_ports() {
   export HOROSA_SERVER_PORT="${BACKEND_PORT}"
   export HOROSA_WEB_PORT="${WEB_PORT}"
   export HOROSA_SERVER_ROOT="http://127.0.0.1:${BACKEND_PORT}"
+  # 端口定案后才能定 pid 文件名(端口后缀=会话隔离,stop 脚本按同名回收)。
+  WEB_PID_FILE="${PROJECT_DIR}/.horosa_web.${WEB_PORT}.pid"
 
   if [ "${auto_alt}" = "1" ]; then
     echo "[预检] 默认端口被其他副本占用，自动切换到 chart=${CHART_PORT} backend=${BACKEND_PORT} web=${WEB_PORT}"
@@ -549,7 +545,7 @@ cleanup_stale_horosa_web_listener() {
   local pid=""
   local cleaned=0
 
-  pids="$(get_listener_pids "${port}")"
+  pids="$(port_listener_pids "${port}")"
   if [ -z "${pids}" ]; then
     return 0
   fi
@@ -711,9 +707,15 @@ echo "[诊断] 运行问题会记录到：${DIAG_FILE}"
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
 diag_log "env HOROSA_STARTUP_TIMEOUT=${HOROSA_STARTUP_TIMEOUT:-} HOROSA_FORCE_UI_BUILD=${HOROSA_FORCE_UI_BUILD:-0} HOROSA_SKIP_UI_BUILD=${HOROSA_SKIP_UI_BUILD:-0}"
 
-echo "[预检] 执行启动前残留清理..."
-"${STOP_SH}" >/dev/null 2>&1 || true
-sleep 1
+# 快路径提速:三默认口全空(netstat 毫秒级)就没有可清理的残留,跳过 stop+等待(省 ~1.3s);
+# 有监听才走清理(端口后缀 pid + 指纹校验由 stop 脚本保证只动本产品服务)。
+if port_listening "${CHART_PORT}" || port_listening "${BACKEND_PORT}" || port_listening "${WEB_PORT}"; then
+  echo "[预检] 检测到默认端口有监听,执行启动前残留清理..."
+  "${STOP_SH}" >/dev/null 2>&1 || true
+  sleep 0.3
+else
+  echo "[预检] 默认端口空闲,跳过残留清理。"
+fi
 
 prepare_ports
 

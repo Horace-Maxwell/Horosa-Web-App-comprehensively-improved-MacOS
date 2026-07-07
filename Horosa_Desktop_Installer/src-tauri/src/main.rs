@@ -16,7 +16,7 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -36,6 +36,7 @@ const PREFERENCES_WINDOW_LABEL: &str = "preferences";
 const DIAGNOSTICS_WINDOW_LABEL: &str = "diagnostics";
 const MENU_CHECK_UPDATES: &str = "check_updates";
 const MENU_REINSTALL_RUNTIME: &str = "reinstall_runtime";
+const MENU_RESTART_SERVICES: &str = "restart_local_services";
 const MENU_OPEN_PREFERENCES: &str = "open_preferences";
 const MENU_SHOW_MAIN_WINDOW: &str = "show_main_window";
 const MENU_SHOW_DIAGNOSTICS: &str = "show_diagnostics";
@@ -872,15 +873,27 @@ fn build_offline_repair_required_state(
 
 fn build_launcher_error_payload(app: &AppHandle, error: &anyhow::Error) -> LauncherStatePayload {
     let raw_error = format!("{error:#}");
-    if let Ok(config) = load_release_config(app) {
-        if current_install_source(&config) == Some(InstallSource::PkgOffline)
-            && !shared_runtime_matches_expected(&config.runtime_version)
-            && !user_runtime_matches_expected(app, &config.runtime_version).unwrap_or(false)
-        {
-            return build_offline_repair_required_state(&config, &raw_error);
+    let mut payload = 'built: {
+        if let Ok(config) = load_release_config(app) {
+            if current_install_source(&config) == Some(InstallSource::PkgOffline)
+                && !shared_runtime_matches_expected(&config.runtime_version)
+                && !user_runtime_matches_expected(app, &config.runtime_version).unwrap_or(false)
+            {
+                break 'built build_offline_repair_required_state(&config, &raw_error);
+            }
         }
+        build_generic_launcher_error(&raw_error)
+    };
+    // 全球用户自助:失败面必须给出日志的确切路径(菜单「打开日志」不一定被发现;
+    // 远程求助时用户只要把这个目录打包发来即可定位)。
+    if let Ok(dir) = app.path().app_data_dir() {
+        payload.detail = format!(
+            "{}\n诊断日志目录:{}(菜单栏「打开日志」可直达)",
+            payload.detail,
+            dir.join("logs").display()
+        );
     }
-    build_generic_launcher_error(&raw_error)
+    payload
 }
 
 fn app_downloads_dir(app: &AppHandle) -> Result<PathBuf> {
@@ -1141,6 +1154,28 @@ fn apply_saved_window_state(window: &WebviewWindow, state: &SavedWindowState) {
     }
     if let (Some(x), Some(y)) = (normalized.x, normalized.y) {
         let _ = window.set_position(Position::Logical(LogicalPosition::new(x, y)));
+        // 离屏防护:恢复坐标可能属于已拔掉的外接屏——与任一现有显示器都不相交就居中,
+        // 否则窗口「消失」在不存在的屏幕坐标上,用户会以为应用没启动。
+        let on_screen = window
+            .outer_position()
+            .ok()
+            .zip(window.outer_size().ok())
+            .zip(window.available_monitors().ok())
+            .map(|((pos, size), monitors)| {
+                monitors.iter().any(|monitor| {
+                    let mp = monitor.position();
+                    let ms = monitor.size();
+                    let win_right = pos.x.saturating_add(size.width as i32);
+                    let win_bottom = pos.y.saturating_add(size.height as i32);
+                    let mon_right = mp.x.saturating_add(ms.width as i32);
+                    let mon_bottom = mp.y.saturating_add(ms.height as i32);
+                    pos.x < mon_right && win_right > mp.x && pos.y < mon_bottom && win_bottom > mp.y
+                })
+            })
+            .unwrap_or(true);
+        if !on_screen {
+            let _ = window.center();
+        }
     }
 }
 
@@ -1184,6 +1219,8 @@ fn emit_ready_and_stabilize(app: &AppHandle, window: &WebviewWindow, url: &str) 
     let state = load_window_states(app).main;
     emit_ready(window, url);
     stabilize_main_window_after_navigation(app.clone(), window.clone(), state);
+    // 服务存活看门狗:每次达 ready 换代重启一条(旧线程按 generation 自退)。
+    start_service_supervisor(app.clone());
 }
 
 fn set_window_state_persistence_ready(app: &AppHandle, ready: bool) {
@@ -1866,6 +1903,13 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
         true,
         None::<&str>,
     )?;
+    let restart_services = MenuItem::with_id(
+        app,
+        MENU_RESTART_SERVICES,
+        "重启本地服务",
+        true,
+        None::<&str>,
+    )?;
     let show_main_window = MenuItem::with_id(
         app,
         MENU_SHOW_MAIN_WINDOW,
@@ -1931,6 +1975,7 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
             &PredefinedMenuItem::separator(app)?,
             &check_updates,
             &reinstall_runtime,
+            &restart_services,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, None)?,
             &PredefinedMenuItem::separator(app)?,
@@ -4437,6 +4482,22 @@ fn cleanup_previous_slots(app: &AppHandle) {
     }
 }
 
+/// 多用户机权限延续:postinstall 只放开「装机时刻」的共享树;此后任一用户做全量解压/
+/// 增量对换,新落成的 current 树按该用户 umask(022)归其私有,其他用户能跑但无法再
+/// 更新/回滚。每次新树落成后 best-effort 放开(仅共享域;失败不阻塞,单用户机零影响)。
+fn open_shared_tree_permissions(path: &Path) {
+    if !is_shared_runtime_dir(path) {
+        return;
+    }
+    let _ = Command::new("/bin/chmod")
+        .arg("-R")
+        .arg("a+rwX")
+        .arg(path)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
 fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> {
     extract_runtime_archive_with(archive_path, dest_root, None)
 }
@@ -4524,6 +4585,7 @@ fn extract_runtime_archive_with(
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
+    open_shared_tree_permissions(&final_runtime);
     // WS-1d 看门狗:previous 槽保留到首次成功 ready(emit_ready→cleanup_previous_slots 回收);
     // 若新 runtime 连续起不来,启动侧自动 rollback_runtime_to_previous。
     remove_dir_if_exists(&extract_root)?;
@@ -5339,6 +5401,7 @@ fn apply_component_updates_with(
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
+    open_shared_tree_permissions(&current);
     // WS-1d 看门狗:previous 槽保留到首次成功 ready(同 extract_runtime_archive_with 语义)。
     clear_runtime_pending_marker(&current)?;
     Ok(())
@@ -5768,16 +5831,152 @@ fn start_static_server(
     Ok(handle)
 }
 
-fn stop_runtime(paths: &RuntimePaths) {
+// ── 会话中服务自愈(G1)──────────────────────────────────────────────
+// 启动看门狗管「起不来」;这里管「跑着跑着死了」:内存压力 jetsam/杀软误杀/误 kill 后,
+// 前端身份自愈只会换口找服务、救不活死进程——由壳层探活并限频自动重启;重启后的新端口
+// 经 get_backend_endpoints 真值 + 前端 renegotiate(verify-to-switch)闭环,前端零改动。
+static BOOTSTRAP_BUSY: AtomicUsize = AtomicUsize::new(0);
+static SUPERVISOR_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// 启动/修复/更新等「预期内服务不在」的窗口挂本守卫,探活线程静默跳过,防误判抢跑。
+struct BootstrapBusyGuard;
+impl BootstrapBusyGuard {
+    fn hold() -> BootstrapBusyGuard {
+        BOOTSTRAP_BUSY.fetch_add(1, Ordering::SeqCst);
+        BootstrapBusyGuard
+    }
+}
+impl Drop for BootstrapBusyGuard {
+    fn drop(&mut self) {
+        BOOTSTRAP_BUSY.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+fn bootstrap_busy() -> bool {
+    BOOTSTRAP_BUSY.load(Ordering::SeqCst) > 0
+}
+
+fn probe_local_port(port: u16) -> bool {
+    std::net::TcpStream::connect_timeout(
+        &SocketAddr::from(([127, 0, 0, 1], port)),
+        Duration::from_millis(600),
+    )
+    .is_ok()
+}
+
+fn current_session_snapshot(app: &AppHandle) -> Option<RuntimeSession> {
+    let state = app.try_state::<AppState>()?;
+    let slot = state.session.lock().ok()?;
+    slot.clone()
+}
+
+/// 菜单/探活看门狗共用的本地服务重启:停旧(带真实端口)→ 新端口全链拉起 → 会话真值更新。
+fn restart_local_services(app: &AppHandle, origin: &str) -> Result<()> {
+    if bootstrap_busy() {
+        return Err(anyhow!("启动/修复/更新流程正在进行,请稍候片刻再试"));
+    }
+    let _busy = BootstrapBusyGuard::hold();
+    let window = app
+        .get_webview_window(MAIN_WINDOW_LABEL)
+        .context("主窗口不可用")?;
+    let session =
+        current_session_snapshot(app).context("本地服务会话尚未建立(应用可能仍在启动中)")?;
+    ledger_mark("rust.services_restart_begin", None);
+    stop_runtime(
+        &session.paths,
+        Some((session.backend_port, session.chart_port)),
+    );
+    thread::sleep(Duration::from_millis(300));
+    let mut backend_port = choose_free_port()?;
+    let mut chart_port = choose_free_port()?;
+    start_runtime_with_port_retry(
+        &session.paths,
+        &window,
+        &mut backend_port,
+        &mut chart_port,
+        None,
+        true,
+        true,
+        true,
+    )?;
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(mut slot) = state.session.lock() {
+            *slot = Some(RuntimeSession {
+                paths: session.paths.clone(),
+                backend_port,
+                chart_port,
+                web_port: session.web_port,
+            });
+        }
+    }
+    ledger_mark("rust.services_restarted", None);
+    eprintln!("local services restarted via {origin}: backend={backend_port} chart={chart_port}");
+    Ok(())
+}
+
+/// 探活看门狗:ready 后每 20s 连测双端口,连续 2 轮不通=服务亡 → 自动重启
+/// (30 分钟窗 ≤2 次,防坏环境重启风暴);超限只记账,交前端错误模态+菜单人工兜底。
+/// generation 令牌:每次 ready 换代,旧线程自退,不叠加。
+fn start_service_supervisor(app: AppHandle) {
+    let my_gen = SUPERVISOR_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    thread::spawn(move || {
+        let mut consecutive_down = 0u32;
+        let mut recent_restarts: Vec<Instant> = Vec::new();
+        loop {
+            thread::sleep(Duration::from_secs(20));
+            if SUPERVISOR_GENERATION.load(Ordering::SeqCst) != my_gen {
+                return;
+            }
+            if bootstrap_busy() {
+                consecutive_down = 0;
+                continue;
+            }
+            let Some(session) = current_session_snapshot(&app) else {
+                consecutive_down = 0;
+                continue;
+            };
+            if probe_local_port(session.backend_port) && probe_local_port(session.chart_port) {
+                consecutive_down = 0;
+                continue;
+            }
+            consecutive_down += 1;
+            if consecutive_down < 2 {
+                continue;
+            }
+            consecutive_down = 0;
+            recent_restarts.retain(|t| t.elapsed() < Duration::from_secs(1800));
+            if recent_restarts.len() >= 2 {
+                ledger_mark("rust.supervisor_gave_up", None);
+                continue;
+            }
+            recent_restarts.push(Instant::now());
+            ledger_mark("rust.supervisor_auto_restart", None);
+            if let Err(err) = restart_local_services(&app, "supervisor") {
+                eprintln!("supervisor auto-restart failed: {err:#}");
+            }
+        }
+    });
+}
+
+fn stop_runtime(paths: &RuntimePaths, ports: Option<(u16, u16)>) {
     if !paths.stop_script.exists() {
         return;
     }
-    let _ = Command::new("/bin/bash")
+    let mut command = Command::new("/bin/bash");
+    command
         .arg(&paths.stop_script)
         .current_dir(paths.runtime_dir.join("Horosa-Web"))
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
+        .stderr(Stdio::null());
+    // 会话真实端口交给脚本(与 stop_runtime_detached 同款):pid 文件按端口后缀定位、
+    // 端口兜底扫描打到真端口——不传则脚本只会看默认口 8899/9999,动态选口的会话
+    // 停不干净(半启动服务在重试路径上泄漏)。
+    if let Some((backend_port, chart_port)) = ports {
+        command
+            .env("HOROSA_SERVER_PORT", backend_port.to_string())
+            .env("HOROSA_CHART_PORT", chart_port.to_string());
+    }
+    let _ = command.status();
 }
 
 fn start_runtime(
@@ -5802,9 +6001,19 @@ fn start_runtime(
     if !trusted_runtime {
         prepare_runtime_dir(&paths.runtime_dir)?;
     }
-    stop_runtime(paths);
+    stop_runtime(paths, Some((backend_port, chart_port)));
     emit_status(window, "正在后台启动 星阙 Python / Java 服务…");
-    emit_indeterminate_progress(window, 82, "正在后台启动本地服务,通常需 10~20 秒…");
+    if trusted_runtime {
+        emit_indeterminate_progress(window, 82, "正在后台启动本地服务,通常需 10~20 秒…");
+    } else {
+        // 首启/更新后走完整校验:冷 JVM + 首次预热在低速机上真实需要分钟级,
+        // 预期管理到位,用户才不会当成卡死而强退(强退两次会触发看门狗回滚)。
+        emit_indeterminate_progress(
+            window,
+            82,
+            "首次(或更新后)启动正在完整校验并预热本地计算引擎,约需 1~2 分钟,请保持窗口打开…",
+        );
+    }
 
     let python_bin = runtime_python_bin(&paths.runtime_dir);
     let java_bin = paths.runtime_dir.join("runtime/mac/java/bin/java");
@@ -5840,6 +6049,17 @@ fn start_runtime(
         .env(
             "HOROSA_DIAG_DIR",
             paths.logs_dir.to_string_lossy().to_string(),
+        )
+        // 本地文档缓存每用户独立(app_data_dir 下):共享树无锁 JSON 多用户并发会互踩。
+        .env(
+            "HOROSA_MONGO_FALLBACK_DIR",
+            paths
+                .logs_dir
+                .parent()
+                .unwrap_or(&paths.logs_dir)
+                .join("mongo-fallback")
+                .to_string_lossy()
+                .to_string(),
         );
     // 启动账本:把 run 标签与账本文件传给脚本层(shell 再传 Java/Python),四层同文件聚合。
     if let Some((run_tag, ledger_file)) = ledger_env() {
@@ -5983,7 +6203,7 @@ fn start_runtime_with_port_retry(
                 last_err = Some(e);
                 if is_port && attempt + 1 < PORT_RETRY_MAX {
                     emit_status(window, "检测到端口被占用，正在自动重选端口重试…");
-                    stop_runtime(paths);
+                    stop_runtime(paths, Some((*backend_port, *chart_port)));
                     thread::sleep(Duration::from_millis(400));
                     *backend_port = choose_free_port()?;
                     *chart_port = choose_free_port()?;
@@ -6213,7 +6433,7 @@ fn build_single_runtime_update_command(
     index: usize,
 ) -> String {
     format!(
-        "install_runtime_{index}() {{\nRUNTIME_ROOT={runtime_root}\nWORK_ROOT=\"${{RUNTIME_ROOT}}/_update\"\nPREVIOUS_ROOT=\"${{RUNTIME_ROOT}}/previous\"\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"${{RUNTIME_ROOT}}\"\nrm -rf \"${{WORK_ROOT}}\"\nmkdir -p \"${{WORK_ROOT}}\"\nCOPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar -xzf {archive} -C \"${{WORK_ROOT}}\"\nif [ ! -f \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" ]; then\n  echo \"runtime manifest missing after extract\" >&2\n  exit 1\nfi\nACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\"\nif [ -n \"${{EXPECTED_RUNTIME_VERSION}}\" ] && [ \"${{ACTUAL_RUNTIME_VERSION}}\" != \"${{EXPECTED_RUNTIME_VERSION}}\" ]; then\n  echo \"runtime version mismatch: ${{ACTUAL_RUNTIME_VERSION}} != ${{EXPECTED_RUNTIME_VERSION}}\" >&2\n  exit 1\nfi\nrm -rf \"${{PREVIOUS_ROOT}}\"\nHAD_RUNTIME=0\nif [ -d \"${{RUNTIME_ROOT}}/current\" ]; then\n  mv \"${{RUNTIME_ROOT}}/current\" \"${{PREVIOUS_ROOT}}\"\n  HAD_RUNTIME=1\nfi\nif mv \"${{WORK_ROOT}}/runtime-payload\" \"${{RUNTIME_ROOT}}/current\"; then\n  rm -rf \"${{WORK_ROOT}}\" \"${{PREVIOUS_ROOT}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true\nelse\n  rm -rf \"${{RUNTIME_ROOT}}/current\"\n  if [ \"${{HAD_RUNTIME}}\" = \"1\" ] && [ -d \"${{PREVIOUS_ROOT}}\" ]; then\n    mv \"${{PREVIOUS_ROOT}}\" \"${{RUNTIME_ROOT}}/current\"\n  fi\n  exit 1\nfi\n}}\ninstall_runtime_{index}\n",
+        "install_runtime_{index}() {{\nRUNTIME_ROOT={runtime_root}\nWORK_ROOT=\"${{RUNTIME_ROOT}}/_update\"\nPREVIOUS_ROOT=\"${{RUNTIME_ROOT}}/previous\"\nEXPECTED_RUNTIME_VERSION={runtime_version}\nmkdir -p \"${{RUNTIME_ROOT}}\"\nrm -rf \"${{WORK_ROOT}}\"\nmkdir -p \"${{WORK_ROOT}}\"\nCOPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar -xzf {archive} -C \"${{WORK_ROOT}}\"\nif [ ! -f \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" ]; then\n  echo \"runtime manifest missing after extract\" >&2\n  exit 1\nfi\nACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${{WORK_ROOT}}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\"\nif [ -n \"${{EXPECTED_RUNTIME_VERSION}}\" ] && [ \"${{ACTUAL_RUNTIME_VERSION}}\" != \"${{EXPECTED_RUNTIME_VERSION}}\" ]; then\n  echo \"runtime version mismatch: ${{ACTUAL_RUNTIME_VERSION}} != ${{EXPECTED_RUNTIME_VERSION}}\" >&2\n  exit 1\nfi\nrm -rf \"${{PREVIOUS_ROOT}}\"\nHAD_RUNTIME=0\nif [ -d \"${{RUNTIME_ROOT}}/current\" ]; then\n  mv \"${{RUNTIME_ROOT}}/current\" \"${{PREVIOUS_ROOT}}\"\n  HAD_RUNTIME=1\nfi\nif mv \"${{WORK_ROOT}}/runtime-payload\" \"${{RUNTIME_ROOT}}/current\"; then\n  rm -rf \"${{WORK_ROOT}}\" \"${{PREVIOUS_ROOT}}\"\n  /usr/bin/xattr -dr com.apple.quarantine \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true\n  case \"${{RUNTIME_ROOT}}\" in /Users/Shared/*) /bin/chmod -R a+rwX \"${{RUNTIME_ROOT}}/current\" >/dev/null 2>&1 || true ;; esac\nelse\n  rm -rf \"${{RUNTIME_ROOT}}/current\"\n  if [ \"${{HAD_RUNTIME}}\" = \"1\" ] && [ -d \"${{PREVIOUS_ROOT}}\" ]; then\n    mv \"${{PREVIOUS_ROOT}}\" \"${{RUNTIME_ROOT}}/current\"\n  fi\n  exit 1\nfi\n}}\ninstall_runtime_{index}\n",
         index = index,
         runtime_root = shell_quote(runtime_root),
         archive = shell_quote(archive_path),
@@ -7138,6 +7358,8 @@ fn update_start_background(app: AppHandle) -> std::result::Result<(), String> {
 }
 
 fn run_staged_install(app: &AppHandle) -> Result<()> {
+    // 更新安装会主动停服/对换 runtime:挂 busy 守卫让探活看门狗静默。
+    let _install_busy = BootstrapBusyGuard::hold();
     let staged = {
         let state = app.try_state::<AppState>().context("应用状态不可用")?;
         let slot = state
@@ -7275,7 +7497,10 @@ fn cleanup_state(app: &AppHandle) {
         }
         if let Ok(session_slot) = state.session.lock() {
             if let Some(session) = session_slot.as_ref() {
-                stop_runtime(&session.paths);
+                stop_runtime(
+                    &session.paths,
+                    Some((session.backend_port, session.chart_port)),
+                );
             }
         }
     }
@@ -7345,6 +7570,8 @@ fn runtime_bootstrap(
     window: WebviewWindow,
     force_runtime_install: bool,
 ) -> Result<RuntimeSession> {
+    // 引导期服务本就不在:挂 busy 守卫让探活看门狗静默,防误判抢跑重启。
+    let _bootstrap_busy = BootstrapBusyGuard::hold();
     emit_mode(
         &window,
         if force_runtime_install {
@@ -7355,9 +7582,23 @@ fn runtime_bootstrap(
     );
     emit_status(&window, "正在检查安装配置…");
     if let Ok(app_data_dir) = app.path().app_data_dir() {
-        ledger_init(&app_data_dir.join("logs"));
+        let logs_dir = app_data_dir.join("logs");
+        ledger_init(&logs_dir);
+        prune_logs_dir_best_effort(&logs_dir);
     }
     ledger_mark("rust.bootstrap_begin", None);
+    // App Translocation 提示(非阻塞):zip 通道用户从「下载」直接双击时,macOS 会把 App
+    // 转移到随机只读挂载点运行。运行本身不受影响(运行时在共享/用户目录),但自更新换
+    // 不到真实 App 路径——温和引导拖入「应用程序」。pkg 用户不会命中。
+    if let Ok(exe) = std::env::current_exe() {
+        if exe.to_string_lossy().contains("/AppTranslocation/") {
+            ledger_mark("rust.app_translocated", None);
+            emit_status(
+                &window,
+                "检测到 App 正从下载的临时位置运行:建议退出后把 星阙 拖入「应用程序」文件夹再打开,以获得完整的自动更新体验。",
+            );
+        }
+    }
     // 启动健康看门狗:连续 2 次未达 ready → 自动回滚 previous 槽(更新到坏版本的自愈)。
     if let Some(health_path) = launch_health_path(&app) {
         let pending = launch_health_note_start(&health_path);
@@ -7396,7 +7637,21 @@ fn runtime_bootstrap(
         paths.stop_script.clone(),
         paths.runtime_dir.join("Horosa-Web"),
     ));
-    let web_port = choose_port_with_preference(DEFAULT_FRONTEND_PORT)?;
+    let mut web_port = choose_port_with_preference(DEFAULT_FRONTEND_PORT)?;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    // TOCTOU 防线:「探口空闲」与「真正 bind」之间存在毫秒级窗口,被其它进程抢先会
+    // bind 失败——换随机口重试 ×3,而不是把整次首启判死。
+    let mut server_handle =
+        start_static_server(paths.frontend_dir.clone(), web_port, shutdown.clone());
+    for _ in 0..3 {
+        if server_handle.is_ok() {
+            break;
+        }
+        web_port = choose_free_port()?;
+        server_handle =
+            start_static_server(paths.frontend_dir.clone(), web_port, shutdown.clone());
+    }
+    let _server_handle = server_handle?;
     let mut backend_port = choose_free_port()?;
     let mut chart_port = choose_free_port()?;
 
@@ -7404,9 +7659,6 @@ fn runtime_bootstrap(
         "rust.ports_chosen",
         Some(serde_json::json!({"web": web_port, "backend": backend_port, "chart": chart_port})),
     );
-    let shutdown = Arc::new(AtomicBool::new(false));
-    let _server_handle =
-        start_static_server(paths.frontend_dir.clone(), web_port, shutdown.clone())?;
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(mut slot) = state.web_shutdown.lock() {
             *slot = Some(shutdown);
@@ -7474,7 +7726,7 @@ fn runtime_bootstrap(
             // indeterminate + 与 start_runtime 入口同档(82):重试会再次进入 start_runtime,
             // 入口发 82,这里若发 84 会出现进度倒退。
             emit_indeterminate_progress(&window, 82, "更新后首次启动自动重试");
-            stop_runtime(&paths);
+            stop_runtime(&paths, Some((backend_port, chart_port)));
             thread::sleep(Duration::from_secs(3));
             backend_port = choose_free_port()?;
             chart_port = choose_free_port()?;
@@ -7508,7 +7760,7 @@ fn runtime_bootstrap(
                 82,
                 "快速启动校验未通过 · 已自动切换完整校验(预计 30-60 秒,属正常保护)",
             );
-            stop_runtime(&paths);
+            stop_runtime(&paths, Some((backend_port, chart_port)));
             thread::sleep(Duration::from_secs(1));
             backend_port = choose_free_port()?;
             chart_port = choose_free_port()?;
@@ -7562,6 +7814,46 @@ fn runtime_bootstrap(
 /// append + best-effort 吞错,账本绝不影响启动;HOROSA_STARTUP_LEDGER=0 总关。
 static STARTUP_LEDGER: std::sync::OnceLock<Option<(String, PathBuf, Instant)>> =
     std::sync::OnceLock::new();
+
+/// 日志目录防写满盘:每次启动都会新建一个 run 子目录(四层账本+服务 stdout),放任累积
+/// 数月可达 GB 级——启动期 best-effort 修剪:>14 天的子目录/文件删除;常追加的单文件
+/// (如 updater-events.log)超 20MB 轮转成 .old 保一代。失败只跳过,绝不阻塞启动。
+fn prune_logs_dir_best_effort(logs_dir: &Path) {
+    const MAX_AGE: Duration = Duration::from_secs(14 * 24 * 3600);
+    const MAX_SINGLE_LOG_BYTES: u64 = 20 * 1024 * 1024;
+    let now = SystemTime::now();
+    let Ok(entries) = fs::read_dir(logs_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
+        let stale = meta
+            .modified()
+            .ok()
+            .and_then(|m| now.duration_since(m).ok())
+            .map(|age| age > MAX_AGE)
+            .unwrap_or(false);
+        if stale {
+            if meta.is_dir() {
+                let _ = fs::remove_dir_all(&path);
+            } else {
+                let _ = fs::remove_file(&path);
+            }
+            continue;
+        }
+        if meta.is_file()
+            && meta.len() > MAX_SINGLE_LOG_BYTES
+            && path.extension().map(|e| e == "log" || e == "jsonl").unwrap_or(false)
+        {
+            let rotated = path.with_extension("old");
+            let _ = fs::remove_file(&rotated);
+            let _ = fs::rename(&path, &rotated);
+        }
+    }
+}
 
 fn ledger_init(logs_dir: &Path) {
     let enabled = std::env::var("HOROSA_STARTUP_LEDGER")
@@ -8124,6 +8416,30 @@ fn main() {
                     let _ = ensure_dir(&paths.runtime_dir);
                     open_path(&paths.runtime_dir);
                 }
+            } else if id == MENU_RESTART_SERVICES {
+                // 手动兜底:服务被系统/杀软杀掉、探活看门狗已限频停手时,一键救活。
+                let app_handle = app.clone();
+                thread::spawn(move || {
+                    let outcome = restart_local_services(&app_handle, "menu");
+                    let (level, text) = match outcome {
+                        Ok(()) => (
+                            MessageLevel::Info,
+                            "本地服务已重启完成。若界面上有请求刚好失败,重新操作一次即可。"
+                                .to_string(),
+                        ),
+                        Err(err) => (
+                            MessageLevel::Error,
+                            format!(
+                                "重启本地服务未成功:{err:#}\n可稍后再试;菜单「在 Finder 中显示日志」可取诊断日志。"
+                            ),
+                        ),
+                    };
+                    MessageDialog::new()
+                        .set_level(level)
+                        .set_title("重启本地服务")
+                        .set_description(text)
+                        .show();
+                });
             } else if id == MENU_RELOAD_MAIN {
                 if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
                     let _ = window.eval("window.location.reload()");
@@ -8952,16 +9268,25 @@ mod tests {
         fs::create_dir_all(&work).expect("mk tempdir");
         fs::copy(repo_stop_script_path(), work.join("stop_horosa_local.sh"))
             .expect("copy script");
-        let spawn_sleeper = || {
-            Command::new("/bin/sleep")
-                .arg("100")
+        let spawn_marked_sleeper = |marker: &str| {
+            Command::new("/bin/bash")
+                .arg("-c")
+                .arg(format!("exec -a {marker} /bin/sleep 100"))
                 .spawn()
-                .expect("spawn sleeper")
+                .expect("spawn marked sleeper")
         };
-        let mut py = spawn_sleeper();
-        let mut java = spawn_sleeper();
-        fs::write(work.join(".horosa_py.pid"), py.id().to_string()).expect("write py pid");
-        fs::write(work.join(".horosa_java.pid"), java.id().to_string()).expect("write java pid");
+        let mut py = spawn_marked_sleeper("webchartsrv.py");
+        let mut java = spawn_marked_sleeper("astrostudyboot.jar");
+        let mut innocent = Command::new("/bin/sleep")
+            .arg("100")
+            .spawn()
+            .expect("spawn innocent sleeper");
+        // 脚本无 env 时用默认端口 8899/9999/8000 → pid 文件名按同一约定生成。
+        fs::write(work.join(".horosa_py.8899.pid"), py.id().to_string()).expect("write py pid");
+        fs::write(work.join(".horosa_java.9999.pid"), java.id().to_string())
+            .expect("write java pid");
+        fs::write(work.join(".horosa_web.8000.pid"), innocent.id().to_string())
+            .expect("write innocent pid");
         let started = Instant::now();
         let status = Command::new("/bin/bash")
             .arg(work.join("stop_horosa_local.sh"))
@@ -8989,6 +9314,17 @@ mod tests {
         }
         assert_reaped("py", &mut py);
         assert_reaped("java", &mut java);
+        // 无辜进程必须还活着(指纹校验拒杀),pid 文件应被清理。
+        assert!(
+            innocent.try_wait().expect("try_wait innocent").is_none(),
+            "指纹不符的进程绝不能被停服脚本误杀(pid 复用防线失效)"
+        );
+        assert!(
+            !work.join(".horosa_web.8000.pid").exists(),
+            "指纹不符时应只清理 pid 文件"
+        );
+        let _ = innocent.kill();
+        let _ = innocent.wait();
         let _ = fs::remove_dir_all(&work);
     }
 

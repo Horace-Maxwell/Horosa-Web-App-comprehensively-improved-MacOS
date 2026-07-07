@@ -1,15 +1,19 @@
 import { Component } from 'react';
 import {convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import { dstAwareZoneAt } from '../../utils/timezone';
+import { geoNameFieldPatch } from '../../utils/geoName';
 import DateTime from '../comp/DateTime';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import * as SZConst from '../suzhan/SZConst';
 import * as AstroConst from '../../constants/AstroConst';
-import { XQSelect as Select, XQToggle } from '../xq-ui';
+import { Checkbox, InputNumber, Radio } from 'antd';
+import { XQSelect as Select, XQToggle, XQModal } from '../xq-ui';
+import { MOIRA_PLANET_DEFS, MOIRA_ASPECT_DEFS, MOIRA_BIRTH_GOD_ORDER, MOIRA_TRANSIT_GOD_ORDER } from './GuoLaoMoiraWheel';
+import { parseMagneticDms, formatMagneticDms } from './electionGeomag';
 import GuoLaoStarSectDoc from './GuoLaoStarSectDoc';
 import XQIcon from '../xq-icons';
-import { GUOLAO_ALL_ASPECTS, GUOLAO_CHART_STYLE_CLASSIC, GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_CHART_STYLE_QIZHENG, GUOLAO_LIFE_MODE_ASC, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_KETU, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, setStoredGuolaoAyanamsa, getStoredGuolaoTrueSolarTime, setStoredGuolaoTrueSolarTime, getStoredGuolaoNodeType, setStoredGuolaoNodeType, getStoredGuolaoLilithType, setStoredGuolaoLilithType, getStoredGuolaoBodyMode, setStoredGuolaoBodyMode, getStoredGuolaoTuibianMethod, setStoredGuolaoTuibianMethod, getStoredGuolaoGufaPrecess, setStoredGuolaoGufaPrecess, getStoredGuolaoEqTropicalAnchor, setStoredGuolaoEqTropicalAnchor, setStoredGuolaoLifeMode, setStoredGuolaoSu28Mode, GUOLAO_SCHOOL_PRESETS, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, } from './GuoLaoChartStyle';
-import { SU28_MODE_GROUPS, TUIBIAN_METHOD_OPTIONS, GUFA_PRECESS_OPTIONS, EQ_TROPICAL_ANCHOR_OPTIONS, TRUE_SOLAR_TIME_OPTIONS, NODE_TYPE_OPTIONS, LILITH_TYPE_OPTIONS, BODY_MODE_OPTIONS, LIFE_MODE_OPTIONS, LIFE_MASTER_MODE_OPTIONS, MINOR_LIMIT_TYPE_OPTIONS, TONGXIAN_BASE_OPTIONS, SCHOOL_PRESET_OPTIONS, LIFE_CUSTOM_ZHI_OPTIONS, BODY_CUSTOM_ZHI_OPTIONS } from './guolaoData';
+import { GUOLAO_ALL_ASPECTS, GUOLAO_CHART_STYLE_CLASSIC, GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_CHART_STYLE_QIZHENG, GUOLAO_LIFE_MODE_ASC, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_KETU, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, setStoredGuolaoAyanamsa, getStoredGuolaoTrueSolarTime, setStoredGuolaoTrueSolarTime, getStoredGuolaoNodeType, setStoredGuolaoNodeType, getStoredGuolaoLilithType, setStoredGuolaoLilithType, getStoredGuolaoBodyMode, setStoredGuolaoBodyMode, getStoredGuolaoTuibianMethod, setStoredGuolaoTuibianMethod, getStoredGuolaoGufaPrecess, setStoredGuolaoGufaPrecess, getStoredGuolaoEqTropicalAnchor, setStoredGuolaoEqTropicalAnchor, setStoredGuolaoLifeMode, setStoredGuolaoSu28Mode, GUOLAO_SCHOOL_PRESETS, matchSchoolPreset, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, } from './GuoLaoChartStyle';
+import { SU28_MODE_GROUPS, TUIBIAN_METHOD_OPTIONS, GUFA_PRECESS_OPTIONS, EQ_TROPICAL_ANCHOR_OPTIONS, TRUE_SOLAR_TIME_OPTIONS, NODE_TYPE_OPTIONS, LILITH_TYPE_OPTIONS, BODY_MODE_OPTIONS, LIFE_MODE_OPTIONS, LIFE_MASTER_MODE_OPTIONS, MINOR_LIMIT_TYPE_OPTIONS, TONGXIAN_BASE_OPTIONS, SCHOOL_PRESET_OPTIONS, LIFE_CUSTOM_ZHI_OPTIONS, BODY_CUSTOM_ZHI_OPTIONS, HSYS_OPTIONS } from './guolaoData';
 
 const {Option, OptGroup} = Select;
 
@@ -17,6 +21,10 @@ class GuoLaoInput extends Component{
 	
 	constructor(props) {
 		super(props);
+
+		this.state = {
+			displayFilterOpen: false,
+		};
 
         this.tmHook = {
             getValue: null,
@@ -275,6 +283,24 @@ class GuoLaoInput extends Component{
 		if(p.display && this.props.onGuolaoDisplayChange){ this.props.onGuolaoDisplayChange(p.display); }
 	}
 
+	// G34 流派预设「当前值」纯派生:解析当前 fields(类A,缺则回退存储默认)+ display(类B),交给纯函数
+	// matchSchoolPreset 匹配。选后即显所选流派(命中);任一相关开关被微调 → 不再吻合 → 诚实回落「自定」。
+	// 匹配逻辑抽成 GuoLaoChartStyle.matchSchoolPreset(纯函数,单一真值源 + jest 守卫)。
+	schoolPresetValue(){
+		const fields = this.props.fields || {};
+		const fv = (key, fallback)=>{
+			const f = fields[key];
+			return (f && f.value !== undefined && f.value !== null) ? f.value : fallback;
+		};
+		return matchSchoolPreset({
+			guolaoLifeMode: fv('guolaoLifeMode', getStoredGuolaoLifeMode()),
+			guolaoBodyMode: fv('guolaoBodyMode', getStoredGuolaoBodyMode()),
+			guolaoTrueSolarTime: fv('guolaoTrueSolarTime', getStoredGuolaoTrueSolarTime()),
+			guolaoNodeType: fv('guolaoNodeType', getStoredGuolaoNodeType()),
+			doubingSu28: fv('doubingSu28', 2),
+		}, this.props.guolaoDisplay || {});
+	}
+
 	onMoiraTransitTimeChanged(value){
 		if(this.props.onMoiraTransitTimeChange){
 			this.props.onMoiraTransitTimeChange(value);
@@ -299,11 +325,54 @@ class GuoLaoInput extends Component{
 		}
 	}
 
+	onElectionChange(patch){
+		if(this.props.onGuolaoElectionChange){
+			this.props.onGuolaoElectionChange(patch);
+		}
+	}
+
 	onDisplayToggle(key){
 		if(this.props.onGuolaoDisplayChange){
 			const cur = this.props.guolaoDisplay || {};
 			this.props.onGuolaoDisplayChange({[key]: !cur[key]});
 		}
+	}
+
+	// 星曜可见性(对照 Moira PlanetDialog):pill 亮=显示;存隐藏名单,空=全显(默认零变化)。
+	togglePlanetHidden(label){
+		if(!this.props.onGuolaoDisplayChange){
+			return;
+		}
+		const cur = (this.props.guolaoDisplay && this.props.guolaoDisplay.hiddenPlanets) || [];
+		const next = cur.indexOf(label) >= 0 ? cur.filter((x)=>x !== label) : cur.concat([label]);
+		this.props.onGuolaoDisplayChange({ hiddenPlanets: next });
+	}
+
+	// 神煞筛选(对照 Moira 神煞开关):Checkbox 勾=显示;落盘存隐藏名单。
+	// 本命/流年独立名单(listKey=hiddenGodsBirth|hiddenGodsTransit),互不影响。
+	setGodsVisible(listKey, order, visibleList){
+		if(!this.props.onGuolaoDisplayChange){
+			return;
+		}
+		const cur = (this.props.guolaoDisplay && this.props.guolaoDisplay[listKey]) || [];
+		const others = cur.filter((g)=>order.indexOf(g) < 0);
+		const hiddenInOrder = order.filter((g)=>visibleList.indexOf(g) < 0);
+		this.props.onGuolaoDisplayChange({ [listKey]: others.concat(hiddenInOrder) });
+	}
+
+	// 每相位容许度(对照 Moira AspectDialog):清空回内置默认。
+	setAspectOrb(key, val){
+		if(!this.props.onGuolaoDisplayChange){
+			return;
+		}
+		const cur = { ...((this.props.guolaoDisplay && this.props.guolaoDisplay.aspectOrbs) || {}) };
+		const num = Number(val);
+		if(val === null || val === undefined || val === '' || !Number.isFinite(num)){
+			delete cur[key];
+		}else{
+			cur[key] = Math.max(0, Math.min(30, num));
+		}
+		this.props.onGuolaoDisplayChange({ aspectOrbs: cur });
 	}
 
 	toggleAspect(asp){
@@ -313,6 +382,86 @@ class GuoLaoInput extends Component{
 		const cur = (this.props.guolaoDisplay && this.props.guolaoDisplay.aspects) || [];
 		const next = cur.indexOf(asp) >= 0 ? cur.filter((a)=>a !== asp) : cur.concat([asp]);
 		this.props.onGuolaoDisplayChange({aspects: next});
+	}
+
+	// 神煞筛选 + 相位容许度 设置弹层(信息不进快捷栏;此处是设置项,归左栏)。
+	renderDisplayFilterModal(display){
+		if(!this.state.displayFilterOpen){
+			return null;
+		}
+		const orbs = display.aspectOrbs || {};
+		const godSection = (title, order, listKey)=>{
+			const hiddenList = display[listKey] || [];
+			const visible = order.filter((g)=>hiddenList.indexOf(g) < 0);
+			return (
+				<div style={{marginBottom: 14}}>
+					<div style={{display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6}}>
+						<strong style={{fontSize: 13}}>{title}</strong>
+						<a onClick={()=>this.setGodsVisible(listKey, order, order)} style={{fontSize: 12}}>全选</a>
+						<a onClick={()=>this.setGodsVisible(listKey, order, [])} style={{fontSize: 12}}>清空</a>
+						<a onClick={()=>this.setGodsVisible(listKey, order, order.filter((g)=>(listKey === 'hiddenGodsBirth' ? MOIRA_BIRTH_GOD_ORDER : MOIRA_TRANSIT_GOD_ORDER).indexOf(g) >= 0))} style={{fontSize: 12}}>恢复默认</a>
+						<span style={{fontSize: 12, color: 'var(--horosa-muted, #8c8c8c)'}}>{visible.length}/{order.length}</span>
+					</div>
+					<Checkbox.Group
+						value={visible}
+						onChange={(list)=>this.setGodsVisible(listKey, order, list)}
+						style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(68px, 1fr))', gap: '2px 8px'}}
+					>
+						{order.map((god)=>(<Checkbox key={god} value={god} style={{fontSize: 12, marginLeft: 0}}>{god}</Checkbox>))}
+					</Checkbox.Group>
+				</div>
+			);
+		};
+		return (
+			<XQModal
+				visible
+				title="盘面显示筛选"
+				width={720}
+				footer={null}
+				onCancel={()=>this.setState({ displayFilterOpen: false })}
+			>
+				{(()=>{
+					// 清单以当前盘实收字集为准(godNamePools,数据驱动);空(盘未返回)才回退固定序表。
+					const pools = this.props.godNamePools || {};
+					const birthList = pools.birth && pools.birth.length ? pools.birth : MOIRA_BIRTH_GOD_ORDER;
+					const transitList = pools.transit && pools.transit.length ? pools.transit : MOIRA_TRANSIT_GOD_ORDER;
+					return (
+						<>
+							{godSection(`本命神煞`, birthList, 'hiddenGodsBirth')}
+							{godSection(`流年神煞`, transitList, 'hiddenGodsTransit')}
+						</>
+					);
+				})()}
+				<div style={{marginBottom: 14}}>
+					<div style={{marginBottom: 6}}><strong style={{fontSize: 13}}>十神选择</strong><span style={{fontSize: 12, color: 'var(--horosa-muted, #8c8c8c)', marginLeft: 8}}>年曜十神的称谓体系（对照 Moira）</span></div>
+					<Radio.Group
+						value={display.tenGodSeq === 'alt' ? 'alt' : 'org'}
+						onChange={(e)=>this.props.onGuolaoDisplayChange && this.props.onGuolaoDisplayChange({ tenGodSeq: e.target.value })}
+					>
+						<Radio value="org" style={{display: 'block', fontSize: 12, marginBottom: 2}}>天禄, 天暗, 天福, 天耗, 天荫, 天贵, 天嗣, 天刑, 天印, 天囚, 天权</Radio>
+						<Radio value="alt" style={{display: 'block', fontSize: 12}}>比肩, 劫财, 食神, 伤官, 偏财, 正财, 七杀, 正官, 偏印, 正印</Radio>
+					</Radio.Group>
+				</div>
+				<div>
+					<div style={{marginBottom: 6}}><strong style={{fontSize: 13}}>相位容许度(度)</strong><span style={{fontSize: 12, color: 'var(--horosa-muted, #8c8c8c)', marginLeft: 8}}>清空=用默认</span></div>
+					<div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8}}>
+						{MOIRA_ASPECT_DEFS.map((sp)=>(
+							<label key={sp.key} style={{display: 'flex', alignItems: 'center', gap: 6, fontSize: 12}}>
+								<span style={{minWidth: 30}}>{sp.key}</span>
+								<InputNumber
+									size="small"
+									min={0}
+									max={30}
+									step={0.5}
+									value={orbs[sp.key] !== undefined ? orbs[sp.key] : sp.orb}
+									onChange={(val)=>this.setAspectOrb(sp.key, val)}
+								/>
+							</label>
+						))}
+					</div>
+				</div>
+			</XQModal>
+		);
 	}
 
 	changeGeo(rec){
@@ -344,6 +493,7 @@ class GuoLaoInput extends Component{
 				gpsLat: {
 					value: rec.gpsLat
 				},
+				...geoNameFieldPatch(rec),
 				date: {
 					value: dt.clone(),
 				},
@@ -400,6 +550,7 @@ class GuoLaoInput extends Component{
 		const kinElectionalCriteria = kinOptions.electionalCriteria || 'general';
 		const kinElectionalDays = kinOptions.electionalDays || 30;
 		const display = this.props.guolaoDisplay || {};
+		const ele = this.props.electionOptions || {};
 		const chartStyleField = (
 			<label className="horosa-guolao-select-field">
 				<span>星盘样式</span>
@@ -411,6 +562,16 @@ class GuoLaoInput extends Component{
 				</Select>
 			</label>
 		);
+		// 分宫制(西占宫位格/择日西占带共用 election.hsys):Moira圆盘与天星择日两样式可选,
+		// 从「天星择日」卡挪入「选项」卡(用户钦定)。
+		const hsysField = (chartStyle === GUOLAO_CHART_STYLE_MOIRA || chartStyle === GUOLAO_CHART_STYLE_PICK) ? (
+			<label className="horosa-guolao-select-field">
+				<span>分宫制</span>
+				<Select value={ele.hsys} onChange={(v)=>this.onElectionChange({ hsys: v })} size='small' dropdownMatchSelectWidth={false}>
+					{HSYS_OPTIONS.map(([v, l])=>(<Option key={v} value={v}>{l}</Option>))}
+				</Select>
+			</label>
+		) : null;
 
 		return (
 			<div className="horosa-guolao-input-stack">
@@ -443,6 +604,7 @@ class GuoLaoInput extends Component{
 								<Option value={1}>男</Option>
 							</Select>
 						</label>
+						{chartStyleField}
 						<label className="horosa-guolao-select-field">
 							<span>流时</span>
 							<Select value={kinTransitMode} onChange={(val)=>this.onKinastroOptionChange('transitMode', val)} size='small' dropdownMatchSelectWidth={false}>
@@ -539,7 +701,6 @@ class GuoLaoInput extends Component{
 								<Option value="off">隐藏</Option>
 							</Select>
 						</label>
-						{chartStyleField}
 					</div>
 					) : (
 					<div className="horosa-guolao-select-grid">
@@ -551,6 +712,7 @@ class GuoLaoInput extends Component{
 								<Option value={1}>男</Option>
 							</Select>
 						</label>
+						{chartStyleField}
 						<label className="horosa-guolao-select-field">
 							<span>宿度制</span>
 							<Select value={fields.doubingSu28.value} onChange={this.onDoubingSu28Change} size='small' dropdownMatchSelectWidth={false}>
@@ -609,7 +771,7 @@ class GuoLaoInput extends Component{
 								</Select>
 							</label>
 						) : null}
-						{Number(fields.doubingSu28.value) === 7 ? (
+						{Number(fields.doubingSu28.value) === 7 || Number(fields.doubingSu28.value) === 8 ? (
 							<label className="horosa-guolao-select-field">
 								<span>回归锚点</span>
 								<Select value={(fields.guolaoEqTropicalAnchor && fields.guolaoEqTropicalAnchor.value) || getStoredGuolaoEqTropicalAnchor()} onChange={this.onEqTropicalAnchorChange} size='small' dropdownMatchSelectWidth={false}>
@@ -664,12 +826,27 @@ class GuoLaoInput extends Component{
 							</label>
 						) : null}
 						<label className="horosa-guolao-select-field">
+							<span>定童限</span>
+							<Select value={Number(display.limitChildBase) === 10 ? 10 : 9} onChange={(v)=>this.onGuolaoDisplaySelect('limitChildBase', v)} size='small' dropdownMatchSelectWidth={false}>
+								<Option value={9}>九年起(默认)</Option>
+								<Option value={10}>十年起</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>大限年界</span>
+							<Select value={display.limitYearBoundary || 'gregorian'} onChange={(v)=>this.onGuolaoDisplaySelect('limitYearBoundary', v)} size='small' dropdownMatchSelectWidth={false}>
+								<Option value="gregorian">公历元旦(Moira默认)</Option>
+								<Option value="lichun">立春起</Option>
+								<Option value="dongzhi">冬至起</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
 							<span>流派预设</span>
-							<Select value="custom" onChange={(v)=>{ if(v !== 'custom'){ this.onSchoolPresetChange(v); } }} size='small' dropdownMatchSelectWidth={false}>
+							<Select value={this.schoolPresetValue()} onChange={(v)=>{ if(v !== 'custom'){ this.onSchoolPresetChange(v); } }} size='small' dropdownMatchSelectWidth={false}>
 								{SCHOOL_PRESET_OPTIONS.map((o)=>(<Option key={o.value} value={o.value}>{o.label}</Option>))}
 							</Select>
 						</label>
-						{chartStyleField}
+						{hsysField}
 					</div>
 					)}
 				</div>
@@ -688,16 +865,84 @@ class GuoLaoInput extends Component{
 							showLocation={false}
 							needZone={false}
 						/>
-						{chartStyle === GUOLAO_CHART_STYLE_MOIRA ? <div className="horosa-guolao-toggle-grid">
-							<XQToggle
-								size="small"
-								iconName="sideSwitch"
-								active={this.props.showMoiraTransitGods !== false}
-								onClick={this.onMoiraTransitGodsToggle}
-							>
-								流年神煞圈
-							</XQToggle>
-						</div> : null}
+
+					</div>
+				) : null}
+				{engineMode !== 'kinastro' && chartStyle === GUOLAO_CHART_STYLE_PICK ? (
+					<div className="horosa-guolao-input-section">
+						<div className="horosa-guolao-field-title">
+							<XQIcon name="target" />
+							<span>天星择日</span>
+						</div>
+						<div className="horosa-guolao-election-grid">
+						<label className="horosa-guolao-select-field">
+							<span>动盘选择</span>
+							<Select value={ele.dynMode} onChange={(v)=>this.onElectionChange({ dynMode: v })} size='small' dropdownMatchSelectWidth={false}>
+								<Option value="horizon">地平动盘</Option>
+								<Option value="quick">黄道动盘</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>度数显示</span>
+							<Select value={ele.degreeDisplay} onChange={(v)=>this.onElectionChange({ degreeDisplay: v })} size='small' dropdownMatchSelectWidth={false}>
+								<Option value="mountain">二十四山</Option>
+								<Option value="zodiac">十二宫</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>子正</span>
+							<Select value={ele.ziZheng} onChange={(v)=>this.onElectionChange({ ziZheng: v })} size='small' dropdownMatchSelectWidth={false}>
+								<Option value="true">正北</Option>
+								<Option value="magnetic">磁北</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>二十四山盘</span>
+							<Select value={ele.plate} onChange={(v)=>this.onElectionChange({ plate: v })} size='small' dropdownMatchSelectWidth={false}>
+								<Option value="tian">天盘</Option>
+								<Option value="di">地盘</Option>
+								<Option value="ren">人盘</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>山五行</span>
+							<Select value={ele.wuxing} onChange={(v)=>this.onElectionChange({ wuxing: v })} size='small' dropdownMatchSelectWidth={false}>
+								<Option value="main">正体五行</Option>
+								<Option value="combo">化合五行</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>立命时刻</span>
+							<Select value={this.props.eleLifeMode || 'sunrise'} onChange={(v)=>{ if(this.props.onEleLifeModeChange){ this.props.onEleLifeModeChange(v); } }} size='small' dropdownMatchSelectWidth={false}>
+								<Option value="sunrise">日出立命</Option>
+								<Option value="noon">正午立命</Option>
+								<Option value="sunset">日落立命</Option>
+							</Select>
+						</label>
+						<label className="horosa-guolao-select-field">
+							<span>座山度数</span>
+							<InputNumber size="small" min={0} max={359.99} step={0.5} value={ele.zuoShanDeg} onChange={(v)=>this.onElectionChange({ zuoShanDeg: Number(v) || 0 })} />
+						</label>
+						</div>
+						<div className="horosa-guolao-toggle-grid">
+							<XQToggle size="small" iconName="sideSwitch" active={ele.alignNorth !== false} onClick={()=>this.onElectionChange({ alignNorth: !(ele.alignNorth !== false) })}>子正在下</XQToggle>
+							<XQToggle size="small" iconName="sideSwitch" active={ele.adjNorth !== false} onClick={()=>this.onElectionChange({ adjNorth: !(ele.adjNorth !== false) })}>自动磁偏</XQToggle>
+						</div>
+						<label className="horosa-guolao-select-field">
+							<span>磁北度数</span>
+							{ele.adjNorth !== false ? (
+								<span style={{fontSize: 12, color: 'var(--horosa-text-soft, #c8c0b2)'}}>
+									{formatMagneticDms(this.props.electionDeclination || 0)}（WMM 自动{this.props.electionDeclOutOfRange ? '·超模型年限' : ''}）
+								</span>
+							) : (
+								<input
+									style={{width: 110, fontSize: 12, padding: '2px 6px', background: 'transparent', color: 'inherit', border: '1px solid var(--horosa-border-soft, rgba(231,189,117,0.25))', borderRadius: 4}}
+									defaultValue={formatMagneticDms(ele.magShiftManual || 0)}
+									placeholder="0E00'00"
+									onBlur={(e)=>{ const v = parseMagneticDms(e.target.value); if(v !== null){ this.onElectionChange({ magShiftManual: v }); } }}
+								/>
+							)}
+						</label>
 					</div>
 				) : null}
 				{engineMode !== 'kinastro' && (chartStyle === GUOLAO_CHART_STYLE_MOIRA || chartStyle === GUOLAO_CHART_STYLE_PICK) ? (
@@ -728,28 +973,38 @@ class GuoLaoInput extends Component{
 								);
 							})}
 						</div>
+						<div style={{display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8}}>
+							{MOIRA_PLANET_DEFS.map((def)=>{
+								const hidden = ((display.hiddenPlanets || []).indexOf(def.label) >= 0);
+								return (
+									<button
+										type="button"
+										key={`pl-${def.label}`}
+										onClick={()=>this.togglePlanetHidden(def.label)}
+										title={hidden ? `显示${def.label}` : `隐藏${def.label}(连带不参与相位连线)`}
+										style={{
+											padding: '2px 9px',
+											borderRadius: 999,
+											cursor: 'pointer',
+											fontSize: 12,
+											lineHeight: '18px',
+											border: !hidden ? '1px solid var(--horosa-astro-gold, #e7bd75)' : '1px solid var(--horosa-border-soft, rgba(231,189,117,0.2))',
+											background: !hidden ? 'var(--horosa-astro-gold, #e7bd75)' : 'transparent',
+											color: !hidden ? '#1a1712' : 'var(--horosa-text-soft, #c8c0b2)',
+										}}
+									>{def.label}</button>
+								);
+							})}
+						</div>
 						<div className="horosa-guolao-toggle-grid">
 							<XQToggle size="small" iconName="sideSwitch" active={display.dignity !== false} onClick={()=>this.onDisplayToggle('dignity')}>庙旺标注</XQToggle>
-							<XQToggle size="small" iconName="sideSwitch" active={display.birthGods !== false} onClick={()=>this.onDisplayToggle('birthGods')}>本命神煞圈</XQToggle>
-							<XQToggle size="small" iconName="sideSwitch" active={display.ageRing !== false} onClick={()=>this.onDisplayToggle('ageRing')}>限度年龄环</XQToggle>
+								<XQToggle size="small" iconName="sideSwitch" active={display.showAspects === true} onClick={()=>this.onDisplayToggle('showAspects')}>显示相位</XQToggle>
+							<XQToggle size="small" iconName="sideSwitch" active={false} onClick={()=>this.setState({ displayFilterOpen: true })}>神煞筛选</XQToggle>
+							{this.props.onOpenPatternDialog ? (
+								<XQToggle size="small" iconName="sideSwitch" active={false} onClick={this.props.onOpenPatternDialog}>格局档位</XQToggle>
+							) : null}
 						</div>
-						{this.props.onOpenPatternDialog ? (
-							<button
-								type="button"
-								onClick={this.props.onOpenPatternDialog}
-								style={{
-									marginTop: 8,
-									width: '100%',
-									padding: '5px 10px',
-									borderRadius: 6,
-									cursor: 'pointer',
-									fontSize: 12,
-									border: '1px solid var(--horosa-border-soft, rgba(231,189,117,0.2))',
-									background: 'transparent',
-									color: 'var(--horosa-text-soft, #c8c0b2)',
-								}}
-							>政余格局 · 显示档位设置…</button>
-						) : null}
+						{this.renderDisplayFilterModal(display)}
 						<GuoLaoStarSectDoc />
 					</div>
 				) : null}

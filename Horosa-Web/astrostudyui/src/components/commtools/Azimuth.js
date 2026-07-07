@@ -13,7 +13,8 @@ import { message } from 'antd';
 // 🛡 纯前端球面三角法地平坐标:输入 jdn / 观测点 / 黄道或赤道坐标 → 真高度+视高度+方位角(0=南顺时针,与既有 getAzimuthStr 兼容)。
 //   弃用后端 /calc/azimuth(RSA body 在 prod WKWebView 上偶发字段穿透 → params.error/raw "param error"),
 //   纯本地计算永久根治。误差 < 0.5°,对地平坐标显示足够。
-function calcAzimuthLocal({jdn, latObs, lonObs, coordLon, coordLat, coordType, temp, press}){
+// 共享导出:七政「方位标注」列/择日动盘离线兜底同用此实现(0=南顺时针;罗盘向=+180)。
+export function calcAzimuthLocal({jdn, latObs, lonObs, coordLon, coordLat, coordType, temp, press}){
 	const D2R = Math.PI / 180.0;
 	const R2D = 180.0 / Math.PI;
 	const T = (jdn - 2451545.0) / 36525.0;

@@ -4,7 +4,7 @@ set -euo pipefail
 # 架构兜底守卫:Distribution 层已有 hostArchitectures="arm64" gate(GUI 安装器拒 Intel),
 # 这里防 `installer` CLI 直装组件包绕过 GUI gate —— arm64 runtime 在 Intel 机解压了也只会首启崩。
 if [ "$(/usr/bin/uname -m)" != "arm64" ]; then
-  echo "本安装包仅支持 Apple Silicon (M 系列) 的 Mac,当前机器为 $(/usr/bin/uname -m),安装中止。" >&2
+  echo "本安装包仅支持 Apple Silicon (M 系列) 的 Mac,当前机器为 $(/usr/bin/uname -m),安装中止。 / This installer supports Apple Silicon Macs only (detected: $(/usr/bin/uname -m)); aborting." >&2
   exit 1
 fi
 
@@ -38,6 +38,35 @@ mkdir -p "${DOWNLOAD_DIR}" "${RUNTIME_ROOT}"
 
 log_line() {
   printf '[%s] %s\n' "$(/bin/date '+%Y-%m-%d %H:%M:%S')" "$1" >> "${LOG_PATH}"
+}
+
+# 升级时旧实例还在跑:pkg 落盘发生在 postinstall 之前,旧进程会继续拿着旧代码跑新换的
+# 共享 runtime(版本串线,下次服务重启才暴露)。先礼(console 用户会话内 osascript quit)
+# 后兵(等 15s 不退再 pkill),只退不代开——由用户按安装器提示自行重开新版。
+quit_running_app() {
+  local exec_hint="${APP_PATH}/Contents/MacOS/"
+  if ! /usr/bin/pgrep -f "${exec_hint}" >/dev/null 2>&1; then
+    return 0
+  fi
+  log_line "old app instance running during upgrade; asking it to quit"
+  local console_uid
+  console_uid="$(/usr/bin/stat -f%u /dev/console 2>/dev/null || true)"
+  if [ -n "${console_uid}" ] && [ "${console_uid}" != "0" ]; then
+    /bin/launchctl asuser "${console_uid}" /usr/bin/osascript -e "tell application \"${APP_NAME}\" to quit" >/dev/null 2>&1 || true
+  else
+    /usr/bin/osascript -e "tell application \"${APP_NAME}\" to quit" >/dev/null 2>&1 || true
+  fi
+  for _ in $(/usr/bin/seq 1 15); do
+    if ! /usr/bin/pgrep -f "${exec_hint}" >/dev/null 2>&1; then
+      log_line "old app instance exited gracefully"
+      return 0
+    fi
+    sleep 1
+  done
+  log_line "old app instance did not quit in time; terminating"
+  /usr/bin/pkill -f "${exec_hint}" >/dev/null 2>&1 || true
+  sleep 1
+  return 0
 }
 
 mark_pending() {
@@ -179,6 +208,7 @@ fail_offline_install() {
 # 逻辑判断(sha/清单/版本/可用性)仍各自显式调用 degrade,带更精确的中文原因。
 trap 'degrade_to_first_launch "安装脚本遇到未预期错误（多为磁盘空间不足或离线包下载不完整）"' ERR
 
+quit_running_app
 cleanup_work_dir
 
 if [ "${INSTALL_MODE}" = "defer-runtime-bootstrap" ]; then

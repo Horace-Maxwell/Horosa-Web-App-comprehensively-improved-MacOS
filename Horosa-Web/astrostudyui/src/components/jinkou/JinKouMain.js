@@ -7,6 +7,7 @@ import { ZSList, ZhangSheng, } from '../liureng/LRZhangSheng';
 import LiuRengInput from '../lrzhan/LiuRengInput';
 import LiuRengBirthInput from '../lrzhan/LiuRengBirthInput';
 import DateTime from '../comp/DateTime';
+import QuickDockBar from '../common/QuickDockBar';
 import JinKouChart from './JinKouChart';
 import JinKouRelationMini from './JinKouRelationMini';
 import { buildJinKouData, fetchJinKouPan, normalizeKinjinkouData } from './JinKouCalc';
@@ -710,7 +711,6 @@ class JinKouMain extends Component{
 		this.setRightTab = this.setRightTab.bind(this);
 		this.setAnalysisTab = this.setAnalysisTab.bind(this);
 		this.setAuxTab = this.setAuxTab.bind(this);
-		this.navigateFeature = this.navigateFeature.bind(this);
 		this.genWuXingDoms = this.genWuXingDoms.bind(this);
 		this.genGodsParams = this.genGodsParams.bind(this);
 		this.genRunYearParams = this.genRunYearParams.bind(this);
@@ -919,21 +919,6 @@ class JinKouMain extends Component{
 
 	setAuxTab(key){
 		this.setState({ auxTab: key });
-	}
-
-	navigateFeature(tabKey, subTab){
-		if(this.props.dispatch){
-			const payload = {
-				currentTab: tabKey,
-			};
-			if(subTab){
-				payload.currentSubTab = subTab;
-			}
-			this.props.dispatch({
-				type: 'astro/save',
-				payload,
-			});
-		}
 	}
 
 	genRunYearParams(){
@@ -2111,35 +2096,45 @@ class JinKouMain extends Component{
 		);
 	}
 
+	// 快捷栏契约:「此刻起课」:课时=当下,走全局 fields 受控回流(hook 链随新盘自动 requestGods)。
+	// 只补 date/time/ad——zone/经纬是用户所在地设置不动。
+	clickPlotNow(){
+		if(!this.props.dispatch || !this.props.fields){
+			return;
+		}
+		const now = new DateTime();
+		this.props.dispatch({
+			type: 'astro/fetchByFields',
+			payload: {
+				...this.props.fields,
+				date: { value: now.clone() },
+				time: { value: now.clone() },
+				ad: { value: now.ad },
+			},
+		});
+	}
+
+	// 快捷栏契约:右栏 tab 镜像与跨页目录撤除,只放本页没有的动词。
+	// cnyibu 容器经此声明透传渲染(勿在此放页面上已有的控件)。
+	getQuickDockConfig(){
+		return {
+			hasResult: !!this.state.liureng,
+			primary: { key: 'plot', label: '起课', onClick: ()=>this.requestGods(this.state.calcFields || this.props.fields, this.props.value) },
+			extras: [
+				{ key: 'nowPlot', label: '此刻起课', icon: 'quickTransit', needsResult: false, onClick: ()=>this.clickPlotNow() },
+			],
+			save: ()=>this.clickSaveCase(),
+		};
+	}
+
 	renderBottomQuickDock(){
-		const actions = [
-			{ label: '起课', icon: 'quickPrimary', onClick: ()=>this.requestGods(this.props.fields, this.props.value) },
-			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
-			{ label: '神煞', icon: 'quickFirdaria', active: this.state.rightPanelTab === 'gods', onClick: ()=>this.setRightPanelTab('gods') },
-			{ label: '分析', icon: 'quickProfection', active: this.state.rightPanelTab === 'analysis', onClick: ()=>this.setRightPanelTab('analysis') },
-			{ label: '辅助', icon: 'quickComposite', active: this.state.rightPanelTab === 'aux', onClick: ()=>this.setRightPanelTab('aux') },
-			{ label: '保存', icon: 'quickNote', onClick: this.clickSaveCase },
-			{ label: '宿盘', icon: 'quickReturn', onClick: ()=>this.navigateFeature('cnyibu', 'suzhan') },
-			{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.navigateFeature('cnyibu', 'tongshefa') },
-			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
-		];
 		return (
-			<div className="horosa-bottom-quick-dock horosa-jinkou-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-jinkou-quick-actions">
-					{actions.map((item)=>(
-						<button
-							type="button"
-							key={item.label}
-							className={`horosa-bottom-quick-button horosa-jinkou-quick-button${item.active ? ' is-active' : ''}`}
-							onClick={item.onClick}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="jinkou"
+				className="horosa-jinkou-quick-dock"
+				dispatch={this.props.dispatch}
+				{...this.getQuickDockConfig()}
+			/>
 		);
 	}
 

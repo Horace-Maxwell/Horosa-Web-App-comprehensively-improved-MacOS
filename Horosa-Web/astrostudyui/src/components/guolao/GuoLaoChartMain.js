@@ -7,19 +7,26 @@ import request from '../../utils/request';
 import {randomStr,} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import DateTime from '../comp/DateTime';
+import QuickDockBar from '../common/QuickDockBar';
 import GuoLaoInput from './GuoLaoInput';
-import { SU28_MODE_LABEL } from './guolaoData';
+import { SU28_MODE_LABEL, EXALT_DEGREE as GL_EXALT_DEG, starDignityStatuses as glStarDignity, starMotionState as glStarMotion, starCombust as glStarCombust } from './guolaoData';
 import { computeDongwei as glDongwei, computeTongxian as glTongxian } from './guolaoTransit';
 import GuoLaoChart from './GuoLaoChart';
 import GuoLaoMoiraPanel from './GuoLaoMoiraPanel';
 import GuoLaoMoiraWheel, {
 	moiraBuildLimitTable as buildLimitTable,
 	moiraLifeDegree as lifeDegree,
+	moiraGetZiGods,
+	moiraCollectGods,
+	moiraGodsFromRuleHits,
+	moiraLongLifeCharFor,
 } from './GuoLaoMoiraWheel';
 import GuoLaoMoiraPickWheel from './GuoLaoMoiraPickWheel';
 import GuoLaoQizhengWheel from './GuoLaoQizhengWheel';
-import { GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_CHART_STYLE_QIZHENG, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoChartStyle, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, getStoredGuolaoSu28Mode, getStoredGuolaoAyanamsa, getStoredGuolaoDisplay, getStoredMoiraTransitGodsVisible, getStoredGuolaoTrueSolarTime, getStoredGuolaoNodeType, getStoredGuolaoLilithType, getStoredGuolaoBodyMode, getStoredGuolaoTuibianMethod, getStoredGuolaoGufaPrecess, getStoredGuolaoEqTropicalAnchor, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, setStoredGuolaoChartStyle, setStoredGuolaoLifeMode, setStoredGuolaoNodeMode, setStoredGuolaoSu28Mode, setStoredMoiraTransitGodsVisible, setStoredGuolaoDisplay, } from './GuoLaoChartStyle';
-import { fetchKinastroQizheng, fetchMoiraQizhengRules, } from '../../services/qizheng';
+import { GUOLAO_CHART_STYLE_MOIRA, GUOLAO_CHART_STYLE_PICK, GUOLAO_CHART_STYLE_QIZHENG, GUOLAO_LIFE_MODE_COTRANS, GUOLAO_LIFE_MODE_YUMAO, GUOLAO_NODE_MODE_NORTH_RAHU, getStoredGuolaoChartStyle, getStoredGuolaoLifeMode, getStoredGuolaoNodeMode, getStoredGuolaoSu28Mode, getStoredGuolaoAyanamsa, getStoredGuolaoDisplay, getStoredMoiraTransitGodsVisible, getStoredGuolaoTrueSolarTime, getStoredGuolaoNodeType, getStoredGuolaoLilithType, getStoredGuolaoBodyMode, getStoredGuolaoTuibianMethod, getStoredGuolaoGufaPrecess, getStoredGuolaoEqTropicalAnchor, normalizeGuolaoLifeMode, normalizeGuolaoNodeMode, setStoredGuolaoChartStyle, setStoredGuolaoLifeMode, setStoredGuolaoNodeMode, setStoredGuolaoSu28Mode, setStoredMoiraTransitGodsVisible, setStoredGuolaoDisplay, getStoredGuolaoElection, setStoredGuolaoElection, getStoredGuolaoEleLifeMode, setStoredGuolaoEleLifeMode, } from './GuoLaoChartStyle';
+import { fetchKinastroQizheng, fetchMoiraQizhengRules, fetchQizhengElection, } from '../../services/qizheng';
+import { getMagneticDeclination } from './electionGeomag';
+import { GuoLaoElectionTable, GuoLaoElectionSearch } from './GuoLaoElectionTable';
 import { saveModuleAISnapshot, saveModuleAISnapshotLazy, } from '../../utils/moduleAiSnapshot';
 import * as AstroText from '../../constants/AstroText';
 import * as SZConst from '../suzhan/SZConst';
@@ -82,17 +89,6 @@ const MOIRA_QUICK_ACTIONS = [
 
 const GUOLAO_ENGINE_STORAGE_KEY = 'horosa.guolao.engineMode';
 const GUOLAO_KIN_OPTIONS_STORAGE_KEY = 'horosa.guolao.kinastroQizheng.options';
-const QIZHENG_KIN_QUICK_ACTIONS = [
-	{key: 'overview', label: '概览', icon: 'quickPrimary'},
-	{key: 'planets', label: '星曜', icon: 'sidePlanets'},
-	{key: 'houses', label: '宫位', icon: 'sideHouses'},
-	{key: 'shensha', label: '神煞', icon: 'quickNote'},
-	{key: 'dasha', label: '年限', icon: 'quickTransit'},
-	{key: 'transit', label: '流时', icon: 'quickTransit'},
-	{key: 'electional', label: '择日', icon: 'quickNote'},
-	{key: 'mansion', label: '宿度', icon: 'sidePlanets'},
-	{key: 'readings', label: '断语', icon: 'sideSwitch'},
-];
 
 function getStoredGuolaoEngineMode(){
 	try{
@@ -276,7 +272,8 @@ const GUOLAO_CACHE_MAX = 96;
 const GUOLAO_SU28_CACHE_REV = 'guolao_moira_su28_v9_eqtropical7';
 const GUOLAO_SU28_MODE_ZHENG_SIDEREAL = 4;
 const GUOLAO_SU28_MODE_GUFA_LICHENG = 6;   // WP-D 授时历古法立成(推变黄道·古法不等宫)
-const GUOLAO_SU28_MODE_EQUATORIAL_TROPICAL = 7;   // 额外档 赤道回归制(固定古度宿界·春分/牛前冬至锚)
+const GUOLAO_SU28_MODE_EQUATORIAL_TROPICAL = 7;   // 额外档 赤道回归制·元明(固定古度宿界·春分/牛前冬至锚)
+const GUOLAO_SU28_MODE_EQUATORIAL_TROPICAL_LIVE = 8;   // 赤道回归·实时(宿宽=盘历元距星真赤经·同款回归锚)
 const guolaoMem = new Map();
 const guolaoInflight = new Map();
 
@@ -554,8 +551,12 @@ function normDegree(val){
 	return deg;
 }
 
+// AI 快照显示口径(黄仪=lon/赤仪=ra):buildGuolaoSnapshotTextV2 开头按 chart.displayCoord 装载,
+// 与盘面/右栏同一真值源;渲染单线程,模块级变量安全(同 ACTIVE_SLOTS 模式)。
+let SNAPSHOT_PREFER_LON = false;
+
 function objectLon(obj){
-	const raw = obj && (obj.ra !== undefined ? obj.ra : obj.lon);
+	const raw = obj && (SNAPSHOT_PREFER_LON && obj.lon !== undefined ? obj.lon : (obj.ra !== undefined ? obj.ra : obj.lon));
 	const lon = normDegree(raw);
 	if(lon !== null){
 		return lon;
@@ -1482,7 +1483,7 @@ function buildGuolaoSuSection(result, planetDisplay){
 			return;
 		}
 		inSu.forEach((obj)=>{
-			let radeg = Number(obj.ra) - Number(su.ra);
+			let radeg = Number(objectLon(obj)) - Number(su.ra);
 			if(Number.isNaN(radeg)){
 				radeg = Number(obj.signlon);
 			}
@@ -1561,7 +1562,7 @@ function computeAscSignIndex(result, chart, fields){
 	if(!asc){
 		return -1;
 	}
-	const ascIdx = Math.floor(Number(asc.ra) / 30);
+	const ascIdx = Math.floor(Number(objectLon(asc)) / 30);
 	const mode = resolveHouseStartMode(fields);
 	if(mode === SZConst.SZHouseStart_ASC){
 		return ascIdx;
@@ -1577,7 +1578,7 @@ function computeAscSignIndex(result, chart, fields){
 	if(tmsigidx < 0){
 		return ascIdx;
 	}
-	const sunidx = Math.floor(Number(sun.ra) / 30);
+	const sunidx = Math.floor(Number(objectLon(sun)) / 30);
 	return (sunidx - tmsigidx - 5 + 24) % 12;
 }
 
@@ -1665,11 +1666,11 @@ function buildHouseSuAndGodsSection(result, planetDisplay, fields){
 			const list = suMap.get(su) || [];
 			lines.push(`二十八宿：${su}`);
 			list.forEach((obj)=>{
-				let radeg = Number(obj.ra);
+				let radeg = Number(objectLon(obj));
 				if(!Number.isNaN(radeg)){
 					const suRef = (chart.fixedStarSu28 || []).find((it)=>it.name === su);
 					if(suRef && suRef.ra !== undefined && suRef.ra !== null){
-						radeg = Number(obj.ra) - Number(suRef.ra);
+						radeg = Number(objectLon(obj)) - Number(suRef.ra);
 						if(radeg < 0){
 							radeg += 360;
 						}
@@ -1734,7 +1735,72 @@ export async function buildGuolaoSnapshotForFields(fields){
 	return buildGuolaoSnapshotTextV2(params, result, null, fields);
 }
 
-function buildGuolaoSnapshotTextV2(params, result, planetDisplay, fields){
+// AI 快照·神煞段与盘面同源(rules 引擎 godHits+十二长生;rules 未到回退历法 ziGods)——
+// 「显示什么就导出什么」:盘面/右栏已切 rules 源,快照必须同步,防 AI 拿到另一套神煞。
+function buildRulesGodsSection(moiraRules){
+	const hits = moiraRules && moiraRules.godHits;
+	if(!hits || !hits.length){
+		return '';
+	}
+	const ZHI12 = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+	const out = [];
+	ZHI12.forEach((zi)=>{
+		const gods = moiraGodsFromRuleHits(moiraRules, zi, 'birth') || [];
+		const ll = moiraLongLifeCharFor(moiraRules, zi, 'birth');
+		const all = (ll ? [ll] : []).concat(gods);
+		if(all.length){
+			out.push(`${zi}：${all.join('、')}`);
+		}
+	});
+	return out.join('\n');
+}
+
+// AI 快照·星曜庙旺与星点动态段（与右栏「星点动态」表同源函数 glStarDignity/glStarMotion，单一真值）：
+// 每点 曜｜地支｜所属(殿垣庙旺乐喜怒)｜速度态(顺逆留伏迟速)。天海冥无庙旺、升顶无庙旺无自行 → '-'。
+function buildStarDignityMotionSection(result, fields){
+	const chart = result && result.chart ? result.chart : {};
+	const objects = Array.isArray(chart.objects) ? chart.objects : [];
+	if(!objects.length){ return ''; }
+	const ecl = chart.displayCoord === 'ecliptic';
+	const ZLIST = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+	const ziOf = (lon)=>{ const n = ((lon % 360) + 360) % 360; const s = Math.floor(n / 30) % 12; return ZLIST[(10 - s + 12) % 12] || ''; };
+	const lonOf = (obj)=>{ const raw = obj && (ecl && obj.lon !== undefined ? obj.lon : (obj.ra !== undefined ? obj.ra : obj.lon)); return Number(raw); };
+	const sun = objects.find((o)=>o && o.id === AstroConst.SUN);
+	const sunLon = sun ? lonOf(sun) : NaN;
+	const STAR_POINTS = [
+		['日', AstroConst.SUN], ['月', AstroConst.MOON], ['金', AstroConst.VENUS], ['木', AstroConst.JUPITER],
+		['水', AstroConst.MERCURY], ['火', AstroConst.MARS], ['土', AstroConst.SATURN],
+		['计', AstroConst.SOUTH_NODE], ['罗', AstroConst.NORTH_NODE], ['炁', AstroConst.PURPLE_CLOUDS], ['孛', AstroConst.DARKMOON],
+		['天', AstroConst.URANUS], ['海', AstroConst.NEPTUNE], ['冥', AstroConst.PLUTO],
+	];
+	const ANGLE_POINTS = [['升', AstroConst.ASC], ['顶', AstroConst.MC]];
+	const rows = [];
+	STAR_POINTS.forEach(([name, id])=>{
+		const obj = objects.find((o)=>o && o.id === id);
+		if(!obj){ return; }
+		const lon = lonOf(obj);
+		if(!Number.isFinite(lon)){ return; }
+		const zhi = ziOf(lon);
+		const ex = GL_EXALT_DEG[name];
+		const atPeak = !!(ex && Math.floor((((lon % 360) + 360) % 360) / 30) % 12 === ex.signIndex && Math.abs((((lon % 360) + 360) % 360) % 30 - ex.deg) <= 1);
+		const combust = glStarCombust(name, lon, sunLon);   // Moira 合日 3°(单一真值,与右栏星点动态同源)
+		const belong = glStarDignity(name, zhi, atPeak).join('·') || '-';
+		const motion = glStarMotion(name, Number(obj.lonspeed), combust) || '-';
+		rows.push(`${name} ${zhi} 所属:${belong} 速度:${motion}`);
+	});
+	ANGLE_POINTS.forEach(([name, id])=>{
+		const obj = objects.find((o)=>o && o.id === id);
+		if(!obj){ return; }
+		const lon = lonOf(obj);
+		if(!Number.isFinite(lon)){ return; }
+		rows.push(`${name} ${ziOf(lon)} 所属:- 速度:-`);
+	});
+	return rows.join('\n');
+}
+
+function buildGuolaoSnapshotTextV2(params, result, planetDisplay, fields, moiraRules){
+	const _snapChart = result && result.chart ? result.chart : result;
+	SNAPSHOT_PREFER_LON = !!(_snapChart && _snapChart.displayCoord === 'ecliptic');
 	const lines = [];
 	const chart = result && result.chart ? result.chart : {};
 	const rootZiGods = result && result.nongli && result.nongli.bazi && result.nongli.bazi.guolaoGods
@@ -1769,8 +1835,11 @@ function buildGuolaoSnapshotTextV2(params, result, planetDisplay, fields){
 	lines.push('[七政四余宫位与二十八宿星曜]');
 	lines.push(buildHouseSuAndGodsSection(result, planetDisplay, fields) || '无');
 	lines.push('');
+	lines.push('[星曜庙旺与星点动态（殿垣庙旺乐喜怒 · 顺逆留伏迟速）]');
+	lines.push(buildStarDignityMotionSection(result, fields) || '无');
+	lines.push('');
 	lines.push('[神煞]');
-	lines.push(buildHouseGodsSection(result, fields) || '无');
+	lines.push(buildRulesGodsSection(moiraRules) || buildHouseGodsSection(result, fields) || '无');
 	lines.push('');
 	lines.push('[大限]');
 	lines.push(buildGuolaoLimitSection(chart, fields, params, _gDisp.minorLimitType || '', _gDisp.tongxianBase || 'tong10') || '无');
@@ -1923,8 +1992,8 @@ function fieldsToParams(fields){
 		if(_tuibian === 'jintui' || _tuibian === 'huiyuan'){ params.guolaoTuibianMethod = _tuibian; }
 		if(guolaoFieldValue(fields, 'guolaoGufaPrecess', getStoredGuolaoGufaPrecess)){ params.guolaoGufaPrecess = 1; }
 	}
-	// 额外档 赤道回归制(用制 7)锚点:仅 mode7 且非默认(牛前冬至)才透传 → 缺=牛前冬至零回归。
-	if(su28Mode === GUOLAO_SU28_MODE_EQUATORIAL_TROPICAL){
+	// 赤道回归制锚点(mode7 元明 / mode8 实时 同款):仅两制且非默认(牛前冬至)才透传 → 缺=牛前冬至零回归。
+	if(su28Mode === GUOLAO_SU28_MODE_EQUATORIAL_TROPICAL || su28Mode === GUOLAO_SU28_MODE_EQUATORIAL_TROPICAL_LIVE){
 		const _anchor = guolaoFieldValue(fields, 'guolaoEqTropicalAnchor', getStoredGuolaoEqTropicalAnchor);
 		if(_anchor === 'chunfen'){ params.guolaoEqTropicalAnchor = 'chunfen'; }
 	}
@@ -1993,6 +2062,12 @@ class GuoLaoChartMain extends Component{
 			bundleLoading: false,
 			guolaoDisplay: getStoredGuolaoDisplay(),
 			chartStyle: storedEngineMode === 'kinastro' ? GUOLAO_CHART_STYLE_QIZHENG : storedChartStyle,
+			// 天星择日双轮(pick 盘式):类B 选项 blob + 类A 立命时刻 + 端点数据
+			electionOptions: getStoredGuolaoElection(),
+			eleLifeMode: getStoredGuolaoEleLifeMode(),
+			electionData: null,
+			electionLoading: false,
+			electionDeclOutOfRange: false,
 			showMoiraTransitGods: getStoredMoiraTransitGodsVisible(),
 			moiraQuickDialog: null,
 			moiraStyleLevel: 3,
@@ -2011,6 +2086,7 @@ class GuoLaoChartMain extends Component{
 		this.prefetchTimer = null;
 		this.moiraTransitReqSeq = 0;
 		this.qizhengKinReqSeq = 0;
+		this.electionReqSeq = 0;
 		this.guolaoDefaultsEnsured = false;
 
 		this.onFieldsChange = this.onFieldsChange.bind(this);
@@ -2018,6 +2094,7 @@ class GuoLaoChartMain extends Component{
 		this.requestChartObj = this.requestChartObj.bind(this);
 		this.requestGuolaoBundle = this.requestGuolaoBundle.bind(this);
 		this.onGuolaoDisplayChange = this.onGuolaoDisplayChange.bind(this);
+		this.onLimitAgeClick = this.onLimitAgeClick.bind(this);
 		this.requestMoiraTransitChart = this.requestMoiraTransitChart.bind(this);
 		this.genParams = this.genParams.bind(this);
 		this.onTipClick = this.onTipClick.bind(this);
@@ -2052,6 +2129,7 @@ class GuoLaoChartMain extends Component{
 	onChartStyleChange(val){
 		const chartStyle = setStoredGuolaoChartStyle(val);
 		const engineMode = setStoredGuolaoEngineMode(chartStyle === GUOLAO_CHART_STYLE_QIZHENG ? 'kinastro' : 'horosa');
+		const prevEngine = this.state.engineMode;
 		this.setState({
 			chartStyle,
 			engineMode,
@@ -2059,7 +2137,15 @@ class GuoLaoChartMain extends Component{
 		}, ()=>{
 			if(engineMode === 'kinastro'){
 				this.requestKinastroQizheng();
-			}else{
+				return;
+			}
+			// Moira圆盘 ↔ 天星择日:同一套排盘参数、同一张盘,只是中盘换渲染组件、右栏数据不变。
+			// 若引擎未从 kinastro 切回、且已有匹配当前参数的盘数据 → 直接复用,绝不重跑 requestGuolaoBundle 的
+			// 多阶段取数(本命→流年→规则),否则每次切样式都把「本命/流年/规则」重算一遍 → 中/右盘多次跳算闪烁。
+			// 天星择日双轮所需 electionData 由 componentDidUpdate 的 requestElectionData 单独按需补取(单次 setState)。
+			const params = this.genParams();
+			const canReuse = prevEngine !== 'kinastro' && this.state.chartObj && params && isChartObjMatchParams(this.state.chartObj, params);
+			if(!canReuse){
 				this.requestGuolaoBundle(this.state.chartObj || this.props.value);
 			}
 		});
@@ -2077,6 +2163,18 @@ class GuoLaoChartMain extends Component{
 				this.requestGuolaoBundle(this.state.chartObj || this.props.value);
 			}
 		});
+	}
+
+	// 点击百六大限某岁数格 → 流年跳到该岁对应公历年的 **7月1日 12:00**(用户钦定的取中方式);
+	// 复用 onMoiraTransitTimeChange:左栏「Moira流年 时间」随之更新 + 重算流年盘(与手改时间同管道)。
+	onLimitAgeClick(year){
+		const y = Number(year);
+		if(!Number.isFinite(y)){ return; }
+		const cur = this.state.moiraTransitTime;
+		const next = cur && cur.clone ? cur.clone() : null;
+		if(!next || !next.parse){ return; }
+		next.parse(`${y}/07/01 12:00:00`, 'YYYY-MM-DD HH:mm:ss');
+		this.onMoiraTransitTimeChange({ value: next });
 	}
 
 	onMoiraTransitGodsVisibleChange(visible){
@@ -2251,8 +2349,11 @@ class GuoLaoChartMain extends Component{
 			pushCache(guolaoMem, key, clonePlain(chartObj));
 		}
 		const displayChartObj = applyGuolaoNodeMode(chartObj, this.props.fields);
+		// 合批渲染(用户钦定「算好一起出」):主盘暂存,与流年盘+rules 在 commitMoiraPanel 一次放行,
+		// 消除 框→主盘→神煞 三段跳。rules 链任何失败路径都有 local-fallback 兜底 commit,不会卡 loading。
+		this._pendingMoiraChartObj = displayChartObj;
 		this.setState({
-			chartObj: displayChartObj,
+			moiraLoading: true,
 		});
 		this.saveGuolaoAISnapshot(params, displayChartObj);
 		this.requestMoiraTransitChart(params, displayChartObj);
@@ -2260,7 +2361,12 @@ class GuoLaoChartMain extends Component{
 
 	commitMoiraPanel(rules, params, chartObj, transitParams, transitChartObj){
 		const nextTransitParams = transitParams || paramsWithMoiraTransit(this.props.fields, this.state.moiraTransitTime);
+		const pendingChartObj = this._pendingMoiraChartObj;
+		this._pendingMoiraChartObj = null;
 		this.setState({
+			...(pendingChartObj ? { chartObj: pendingChartObj } : {}),
+			// 流年盘与主盘/rules 同批放行(彻底合批:盘面一次成型,不显示半成品)。
+			...(transitChartObj ? { moiraTransitChartObj: transitChartObj } : {}),
 			moiraRules: rules,
 			moiraPanelChartObj: clonePlain(chartObj),
 			moiraPanelTransitChartObj: clonePlain(transitChartObj || this.state.moiraTransitChartObj),
@@ -2348,14 +2454,17 @@ class GuoLaoChartMain extends Component{
 			const rootChartObj = baseChartObj || this.state.chartObj || applyGuolaoNodeMode(this.props.value, this.props.fields);
 			if(!rootParams || !rootChartObj){
 				this.setState({
+					...(this._pendingMoiraChartObj ? { chartObj: this._pendingMoiraChartObj } : {}),
 					moiraTransitChartObj: displayResult,
 					moiraTransitLoading: false,
 					moiraLoading: false,
 				});
+				this._pendingMoiraChartObj = null;
 				return result;
 			}
+			// 彻底合批(用户钦定「不显示半成品」):流年盘结果不在此放行,与主盘/rules 一并
+			// 在 commitMoiraPanel 单次 setState(消除「主盘→流年环→神煞」三段跳的第二跳)。
 			this.setState({
-				moiraTransitChartObj: displayResult,
 				moiraTransitLoading: false,
 			});
 			this.requestMoiraRules(rootParams, rootChartObj, params, displayResult);
@@ -2371,8 +2480,10 @@ class GuoLaoChartMain extends Component{
 					this.requestMoiraRules(rootParams, rootChartObj, params, null);
 				}else {
 					this.setState({
+						...(this._pendingMoiraChartObj ? { chartObj: this._pendingMoiraChartObj } : {}),
 						moiraLoading: false,
 					});
+					this._pendingMoiraChartObj = null;
 				}
 			}
 			return null;
@@ -2407,7 +2518,7 @@ class GuoLaoChartMain extends Component{
 		}
 		const planetDisplay = this.props.planetDisplay;
 		const fields = this.props.fields;
-		saveModuleAISnapshotLazy('guolao', ()=>buildGuolaoSnapshotTextV2(p, r, planetDisplay, fields), {
+		saveModuleAISnapshotLazy('guolao', ()=>buildGuolaoSnapshotTextV2(p, r, planetDisplay, fields, this.state ? this.state.moiraRules : null), {
 			date: p.date,
 			time: p.time,
 			zone: p.zone,
@@ -2428,7 +2539,7 @@ class GuoLaoChartMain extends Component{
 				const p = this.genParams();
 				const r = this.state ? this.state.chartObj : null;
 				if(p && r){
-					text = `${buildGuolaoSnapshotTextV2(p, r, this.props.planetDisplay, this.props.fields) || ''}`.trim();
+					text = `${buildGuolaoSnapshotTextV2(p, r, this.props.planetDisplay, this.props.fields, this.state ? this.state.moiraRules : null) || ''}`.trim();
 				}
 			}else if(moduleName === 'guolao-qizhengkin'){
 				const pan = this.state ? this.state.qizhengKinPan : null;
@@ -2687,6 +2798,18 @@ class GuoLaoChartMain extends Component{
 		}
 		if(prevProps.value !== this.props.value && this.props.value){
 			this.requestGuolaoBundle(this.props.value);
+		}
+		// 天星择日:pick 盘式且(切入盘式/择时变化/立命时刻变化/流年盘刷新)→ 重取双轮数据;
+		// MOIRA 圆盘同触发(西占宫位格吃 staticHousesBySystem,本盘时刻变化时 staticDate 须跟上)。
+		if(this.state.chartStyle === GUOLAO_CHART_STYLE_PICK || this.state.chartStyle === GUOLAO_CHART_STYLE_MOIRA){
+			const styleSwitched = prevState && prevState.chartStyle !== this.state.chartStyle;
+			const timeChanged = prevState && prevState.moiraTransitTime !== this.state.moiraTransitTime;
+			const lifeChanged = prevState && prevState.eleLifeMode !== this.state.eleLifeMode;
+			const transitArrived = prevState && prevState.moiraTransitChartObj !== this.state.moiraTransitChartObj;
+			const valueChanged = prevProps.value !== this.props.value && !!this.props.value;
+			if(styleSwitched || timeChanged || lifeChanged || valueChanged || (transitArrived && !this.state.electionData)){
+				this.requestElectionData();
+			}
 		}
 	}
 
@@ -3181,6 +3304,156 @@ class GuoLaoChartMain extends Component{
 		return this.renderMoiraEmpty('请选择一个快捷功能。');
 	}
 
+	// ── 天星择日双轮(pick 盘式)数据链 ──
+	// 类A:择时时刻(moiraTransitTime)/立命时刻 → 重取端点;类B:electionOptions → 纯重绘。
+	requestElectionData(){
+		const fields = this.props.fields;
+		// pick=择日双轮全量;MOIRA 圆盘也取(仅用 staticHousesBySystem 画西占不等宫宫位格:
+		// 上升=1宫头、逆时针、格宽=真实宫宽,与择日盘同款做法)。
+		const styleOk = this.state.chartStyle === GUOLAO_CHART_STYLE_PICK || this.state.chartStyle === GUOLAO_CHART_STYLE_MOIRA;
+		if(!fields || !styleOk){
+			return;
+		}
+		const tp = paramsWithMoiraTransit(fields, this.state.moiraTransitTime) || {};
+		if(!tp.date || tp.gpsLat === undefined || tp.gpsLon === undefined){
+			return;
+		}
+		const seq = ++this.electionReqSeq;
+		this.setState({ electionLoading: true });
+		// 紫炁黄经透传自流年 chartObj(与全站四余口径同源,防双引擎漂移)
+		const transitChart = this.state.moiraTransitChartObj && this.state.moiraTransitChartObj.chart;
+		const extraBodies = [];
+		if(transitChart && Array.isArray(transitChart.objects)){
+			const ziqi = transitChart.objects.find((o)=>o && o.id === AstroConst.PURPLE_CLOUDS);
+			if(ziqi && Number.isFinite(Number(ziqi.lon))){
+				extraBodies.push({ id: 'PurpleClouds', label: '炁', lon: Number(ziqi.lon), lat: 0, speed: 0 });
+			}
+			// 天海冥透传择日动盘外圈(与炁同机制:后端按 lon/lat 算地平方位)。用其真黄纬/日行度以准方位与逆行徽标。
+			[[AstroConst.URANUS, '天'], [AstroConst.NEPTUNE, '海'], [AstroConst.PLUTO, '冥']].forEach(([oid, lab])=>{
+				const o = transitChart.objects.find((x)=>x && x.id === oid);
+				if(o && Number.isFinite(Number(o.lon))){
+					extraBodies.push({
+						id: oid,
+						label: lab,
+						lon: Number(o.lon),
+						lat: Number.isFinite(Number(o.lat)) ? Number(o.lat) : 0,
+						speed: Number.isFinite(Number(o.lonspeed)) ? Number(o.lonspeed) : 0,
+					});
+				}
+			});
+		}
+		const staticParams = this.genParams() || {};
+		const values = {
+			date: tp.date,
+			time: tp.time || '12:00:00',
+			// 静盘时刻(左栏顶部时间):内盘西占宫位/1宫头须与静盘上升同时刻同源
+			staticDate: staticParams.date,
+			staticTime: staticParams.time,
+			zone: tp.zone || '8:00',
+			gpsLat: tp.gpsLat,
+			gpsLon: tp.gpsLon,
+			eleLifeMode: this.state.eleLifeMode,
+			nodeType: getStoredGuolaoNodeType(),
+			lilithType: getStoredGuolaoLilithType(),
+			ayanamsaDeg: 0,
+			extraBodies,
+		};
+		fetchQizhengElection(values).then((res)=>{
+			if(this.unmounted || seq !== this.electionReqSeq){
+				return;
+			}
+			this.setState({ electionData: res, electionLoading: false });
+		}).catch(()=>{
+			if(this.unmounted || seq !== this.electionReqSeq){
+				return;
+			}
+			// 端点不可达:保留旧数据(有则续显),仅结束 loading;离线兜底由轮盘层的本地方位计算承担
+			this.setState({ electionLoading: false });
+		});
+	}
+
+	// 磁偏解析:自行修正=WMM(按择时年月);手动=输入值恒优先。超模型年限打标供角注警示。
+	resolveElectionDeclination(){
+		const ele = this.state.electionOptions || {};
+		if(ele.adjNorth === false){
+			if(this.state.electionDeclOutOfRange){
+				// 手动模式不涉模型,清残留标记(下轮 setState 合并,不在 render 中反复触发)
+			}
+			return Number(ele.magShiftManual) || 0;
+		}
+		const tp = paramsWithMoiraTransit(this.props.fields, this.state.moiraTransitTime) || {};
+		if(tp.gpsLat === undefined || tp.gpsLon === undefined || !tp.date){
+			return 0;
+		}
+		const parts = `${tp.date}`.replace(/-/g, '/').split('/');
+		const year = Number(parts[0]) + (Math.max(1, Number(parts[1]) || 1) - 1) / 12;
+		const res = getMagneticDeclination(year, Number(tp.gpsLon), Number(tp.gpsLat));
+		if(res.outOfRange !== this.state.electionDeclOutOfRange && !this._declFlagScheduled){
+			this._declFlagScheduled = true;
+			window.setTimeout(()=>{
+				this._declFlagScheduled = false;
+				if(!this.unmounted){
+					this.setState({ electionDeclOutOfRange: res.outOfRange });
+				}
+			}, 0);
+		}
+		return res.declination;
+	}
+
+	onGuolaoElectionChange(patch){
+		const safe = setStoredGuolaoElection({ ...(this.state.electionOptions || {}), ...(patch || {}) });
+		this.setState({ electionOptions: safe });
+	}
+
+	// 搜索结果一键设为择日时刻(驱动双轮与流年盘同步重取)
+	onPickElectionMoment(row){
+		if(!row || !row.date){
+			return;
+		}
+		const cur = this.state.moiraTransitTime;
+		const next = cur && cur.clone ? cur.clone() : null;
+		if(!next || !next.parse){
+			return;
+		}
+		next.parse(`${`${row.date}`.replace(/-/g, '/')} ${row.time || '12:00:00'}`, 'YYYY-MM-DD HH:mm:ss');
+		this.onMoiraTransitTimeChange({ value: next });
+	}
+
+	onEleLifeModeChange(val){
+		const mode = setStoredGuolaoEleLifeMode(val);
+		this.setState({ eleLifeMode: mode });
+	}
+
+	// 化曜/虚实/命曜/流曜/相位 五类信息面板原本没有——注入为右栏常驻 tab(信息不得仅在
+	// 快捷弹层可见);格局/神煞面板已有同源信息,不重复注入(格局弹窗仍留盘面徽标入口)。
+	buildMoiraExtraTabs(){
+		const wrap = (node)=>(<div className="horosa-guolao-moira">{node}</div>);
+		const electionTabs = this.state.chartStyle === GUOLAO_CHART_STYLE_PICK ? [
+			{ key: 'election', label: '择日', children: wrap(
+				<GuoLaoElectionTable
+					electionData={this.state.electionData}
+					transitChartObj={this.state.moiraTransitChartObj}
+					moiraRules={this.state.moiraRules}
+					election={this.state.electionOptions}
+					declination={this.resolveElectionDeclination()}
+				/>
+			) },
+			{ key: 'electionSearch', label: '搜索', children: wrap(
+				<GuoLaoElectionSearch
+					fields={this.props.fields}
+					transitParams={paramsWithMoiraTransit(this.props.fields, this.state.moiraTransitTime)}
+					onPickMoment={(row)=>this.onPickElectionMoment(row)}
+				/>
+			) },
+		] : [];
+		// 化曜/虚实/命曜/流曜 四 tab 已裁撤:化曜=概览生年化曜+星曜表已有;虚实=概览「虚实四柱」
+		// 卡;命曜/流曜=星曜 tab 本命/流年两节已有——信息不重复设 tab(用户钦定)。
+		return [
+			...electionTabs,
+			{ key: 'aspects', label: '相位', children: wrap(this.renderQuickAspects()) },
+		];
+	}
+
 	renderMoiraQuickModal(){
 		const key = this.state.moiraQuickDialog;
 		const meta = MOIRA_QUICK_ACTIONS.find((item)=>item.key === key);
@@ -3363,60 +3636,27 @@ class GuoLaoChartMain extends Component{
 		);
 	}
 
-	renderQizhengKinQuickDock(){
-		const pan = this.state.qizhengKinPan;
-		const qz = pan && pan.qizheng ? pan.qizheng : {};
-		const options = this.state.kinastroOptions || {};
-		const actions = QIZHENG_KIN_QUICK_ACTIONS.filter((item)=>{
-			if(item.key === 'transit'){
-				return !!qz.transit;
-			}
-			if(item.key === 'shensha'){
-				return options.showShensha !== false;
-			}
-			if(item.key === 'readings'){
-				return options.showZhangguo !== false;
-			}
-			return true;
-		});
+	// 快捷栏契约:kinastro 引擎模式下原 9 键=右栏 Tabs 静态镜像,撤;精确引擎模式原 7 张
+	// 速查弹层信息已全部常驻右栏(化曜/虚实/命曜/流曜/相位=注入 extraTabs;格局/神煞=面板
+	// 原生 tab,格局另留盘面徽标弹窗入口)——信息不得仅在快捷栏可见。命例保存页头已有,不放。
+	renderQuickDock(useKinastroQizheng){
+		if(useKinastroQizheng){
+			return (
+				<QuickDockBar
+					page="guolao"
+					className="horosa-guolao-quick-dock horosa-qizheng-kin-quick-dock"
+					hasResult={!!this.state.qizhengKinPan}
+					dispatch={this.props.dispatch}
+				/>
+			);
+		}
 		return (
-			<div className="horosa-bottom-quick-dock horosa-guolao-quick-dock horosa-qizheng-kin-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-guolao-quick-actions">
-					{actions.map((item)=>(
-						<button
-							type="button"
-							className={`horosa-bottom-quick-button horosa-guolao-quick-button${this.state.qizhengKinActiveTab === item.key ? ' is-active' : ''}`}
-							key={item.key}
-							onClick={()=>this.onQizhengKinTabChange(item.key)}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
-		);
-	}
-
-	renderQuickDock(){
-		return (
-			<div className="horosa-bottom-quick-dock horosa-guolao-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-guolao-quick-actions">
-					{MOIRA_QUICK_ACTIONS.map((item)=>(
-						<button
-							type="button"
-							className="horosa-bottom-quick-button horosa-guolao-quick-button"
-							key={item.key}
-							onClick={()=>this.openMoiraQuickDialog(item.key)}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="guolao"
+				className="horosa-guolao-quick-dock"
+				hasResult={!!this.state.chartObj}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 
@@ -3429,6 +3669,47 @@ class GuoLaoChartMain extends Component{
 				<div className="horosa-guolao-chart-skeleton-hint">排盘中…</div>
 			</div>
 		);
+	}
+
+	// 神煞筛选清单=数据驱动:从当前盘 godHits/transitGodHits 现场收集全字集(后端 rule 引擎
+	// 实际会画的字远多于固定序表——固定序只作排序前缀,新字追加,保证「选择全面+全联动」)。
+	collectGodNamePools(){
+		// 与盘面绝对同源:盘面神煞环已切到 rules 引擎(godHits/transitGodHits,Moira prop 规则本尊),
+		// 清单从同一 hits 收集(全集 ~107 字,勾选与盘一一联动);rules 未到回退历法 ziGods。
+		const rules = this.state.moiraRules || {};
+		const pickHits = (hits)=>{
+			const out = [];
+			const seen = new Set();
+			(hits || []).forEach((h)=>{
+				[].concat((h && h.gods) || [], (h && h.goodGods) || [], (h && h.neutralGods) || [], (h && h.badGods) || [], (h && h.taisuiGods) || []).forEach((g)=>{
+					const name = `${g || ''}`.trim();
+					if(name && !seen.has(name)){ seen.add(name); out.push(name); }
+				});
+			});
+			return out;
+		};
+		const pick = (co)=>{
+			const zg = moiraGetZiGods(co, co) || {};
+			const out = [];
+			const seen = new Set();
+			Object.keys(zg).forEach((zi)=>{
+				moiraCollectGods(zg, zi).forEach((g)=>{
+					if(g && !seen.has(g)){ seen.add(g); out.push(g); }
+				});
+			});
+			return out;
+		};
+		const orderBy = (names, order)=>{
+			const inOrder = order.filter((g)=>names.indexOf(g) >= 0);
+			const extras = names.filter((g)=>order.indexOf(g) < 0);
+			return inOrder.concat(extras);
+		};
+		const birthHits = pickHits(rules.godHits);
+		const transitHits = pickHits(rules.transitGodHits);
+		return {
+			birth: orderBy(birthHits.length ? birthHits : pick(this.state.chartObj), MOIRA_BIRTH_GOD_ORDER),
+			transit: orderBy(transitHits.length ? transitHits : pick(this.state.moiraTransitChartObj || this.state.chartObj), MOIRA_TRANSIT_GOD_ORDER),
+		};
 	}
 
 	render(){
@@ -3471,6 +3752,13 @@ class GuoLaoChartMain extends Component{
 								onMoiraTransitGodsVisibleChange={this.onMoiraTransitGodsVisibleChange}
 								guolaoDisplay={this.state.guolaoDisplay}
 								onGuolaoDisplayChange={this.onGuolaoDisplayChange}
+								godNamePools={this.collectGodNamePools()}
+								electionOptions={this.state.electionOptions}
+								onGuolaoElectionChange={(patch)=>this.onGuolaoElectionChange(patch)}
+								eleLifeMode={this.state.eleLifeMode}
+								onEleLifeModeChange={(val)=>this.onEleLifeModeChange(val)}
+								electionDeclination={this.resolveElectionDeclination()}
+								electionDeclOutOfRange={this.state.electionDeclOutOfRange}
 								onOpenPatternDialog={()=>this.openMoiraQuickDialog('patterns')}
 							/>
 						</div>
@@ -3484,10 +3772,21 @@ class GuoLaoChartMain extends Component{
 									transitLoading={this.state.moiraTransitLoading}
 									moiraRules={this.state.moiraRules}
 									aspectSet={this.state.guolaoDisplay.aspects}
+									aspectOrbs={this.state.guolaoDisplay.aspectOrbs}
+									hiddenPlanets={this.state.guolaoDisplay.hiddenPlanets}
+									hiddenGodsBirth={this.state.guolaoDisplay.hiddenGodsBirth}
+									hiddenGodsTransit={this.state.guolaoDisplay.hiddenGodsTransit}
 									showDignity={this.state.guolaoDisplay.dignity}
 									showMountains={this.state.guolaoDisplay.mountains}
 									showBirthGods={this.state.guolaoDisplay.birthGods}
 									showAgeRing={this.state.guolaoDisplay.ageRing}
+									limitChildBase={this.state.guolaoDisplay.limitChildBase}
+									onAgeClick={this.onLimitAgeClick}
+									limitYearBoundary={this.state.guolaoDisplay.limitYearBoundary}
+									election={this.state.electionOptions}
+									electionData={this.state.electionData}
+									declination={this.resolveElectionDeclination()}
+									declinationOutOfRange={this.state.electionDeclOutOfRange}
 									height={height}
 									fields={this.props.fields}
 									chartDisplay={this.props.chartDisplay}
@@ -3498,16 +3797,26 @@ class GuoLaoChartMain extends Component{
 								<GuoLaoMoiraWheel
 									rootValue={chartObj}
 									value={chart}
+									election={this.state.electionOptions}
+									electionData={this.state.electionData}
 									transitValue={this.state.moiraTransitChartObj}
 									transitParams={paramsWithMoiraTransit(this.props.fields, this.state.moiraTransitTime)}
 									transitLoading={this.state.moiraTransitLoading}
+									showAspectsMode={this.state.guolaoDisplay.showAspects === true}
 									showMoiraTransitGods={this.state.showMoiraTransitGods}
 									moiraRules={this.state.moiraRules}
 									aspectSet={this.state.guolaoDisplay.aspects}
+									aspectOrbs={this.state.guolaoDisplay.aspectOrbs}
+									hiddenPlanets={this.state.guolaoDisplay.hiddenPlanets}
+									hiddenGodsBirth={this.state.guolaoDisplay.hiddenGodsBirth}
+									hiddenGodsTransit={this.state.guolaoDisplay.hiddenGodsTransit}
 									showDignity={this.state.guolaoDisplay.dignity}
 									showMountains={this.state.guolaoDisplay.mountains}
 									showBirthGods={this.state.guolaoDisplay.birthGods}
 									showAgeRing={this.state.guolaoDisplay.ageRing}
+									limitChildBase={this.state.guolaoDisplay.limitChildBase}
+									onAgeClick={this.onLimitAgeClick}
+									limitYearBoundary={this.state.guolaoDisplay.limitYearBoundary}
 									height={height}
 									fields={this.props.fields}
 									chartDisplay={this.props.chartDisplay}
@@ -3536,11 +3845,12 @@ class GuoLaoChartMain extends Component{
 										fields={this.props.fields}
 										display={this.state.guolaoDisplay}
 										chartMode={usePickWheel ? 'pick' : 'moira'}
+										extraTabs={this.buildMoiraExtraTabs()}
 									/>
 							)}
 						</div>
 					</div>
-					{useKinastroQizheng ? this.renderQizhengKinQuickDock() : this.renderQuickDock()}
+					{this.renderQuickDock(useKinastroQizheng)}
 				</div>
 				{useKinastroQizheng ? null : this.renderMoiraQuickModal()}
 			</div>

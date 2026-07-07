@@ -252,6 +252,8 @@ export function buildLocalChartRecord(values){
 		gender: values.gender !== undefined && values.gender !== null ? parseInt(values.gender + '', 10) : -1,
 		isPub: values.isPub !== undefined && values.isPub !== null ? parseInt(values.isPub + '', 10) : 0,
 		doubingSu28: values.doubingSu28 !== undefined && values.doubingSu28 !== null ? Number(values.doubingSu28) : undefined,
+		// 宿占人事十二宫起宫(ASC/八字公式):存盘落库,否则重开/挂载回退默认(与保存时盘面不符)。
+		houseStartMode: values.houseStartMode !== undefined && values.houseStartMode !== null ? Number(values.houseStartMode) : undefined,
 		group: normalizeGroup(values.group),
 		creator: values.creator ? values.creator : 'local',
 		updateTime: values.preserveUpdateTime && values.updateTime ? values.updateTime : nowStr(),

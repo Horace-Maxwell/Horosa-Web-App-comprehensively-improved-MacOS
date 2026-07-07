@@ -4,6 +4,7 @@ import { XQSelect as Select } from '../xq-ui';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import {convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import { dstAwareZoneAt } from '../../utils/timezone';
+import { geoNameFieldPatch } from '../../utils/geoName';
 import DateTime from '../comp/DateTime';
 
 const {Option} = Select
@@ -384,6 +385,7 @@ class CnTraditionInput extends Component{
 				gpsLat: {
 					value: rec.gpsLat
 				},
+				...geoNameFieldPatch(rec),
 				date: {
 					value: dt.clone(),
 				},

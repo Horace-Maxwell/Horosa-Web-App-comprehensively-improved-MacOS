@@ -11,7 +11,7 @@ import JingJueMain from '../jingjue/JingJueMain';
 import ShenYiShuMain from '../shenyishu/ShenYiShuMain';
 import GeomancyMain from '../geomancy/GeomancyMain';
 import TarotMain from '../tarot/TarotMain';
-import XQIcon from '../xq-icons';
+import QuickDockBar from '../common/QuickDockBar';
 
 
 const TabPane = Tabs.TabPane;
@@ -90,8 +90,8 @@ class CnYiBuMain extends Component{
 		};
 
 		this.changeTab = this.changeTab.bind(this);
-		this.navigateFeature = this.navigateFeature.bind(this);
 		this.renderBottomQuickDock = this.renderBottomQuickDock.bind(this);
+		this.wrapDockHandler = this.wrapDockHandler.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields, chartObj)=>{
@@ -124,6 +124,16 @@ class CnYiBuMain extends Component{
 		});
 	}
 
+	componentDidMount(){
+		this.unmounted = false;
+		// 首渲时子页 ref 尚未挂上,取不到 getQuickDockConfig;挂载后补一拍让 dock 内容就位
+		this.forceUpdate();
+	}
+
+	componentWillUnmount(){
+		this.unmounted = true;
+	}
+
 	componentDidUpdate(prevProps){
 		if(prevProps.currentSubTab !== this.props.currentSubTab){
 			const key = this.props.currentSubTab;
@@ -144,209 +154,44 @@ class CnYiBuMain extends Component{
 		return ref && ref.current ? ref.current : null;
 	}
 
-	runChildAction(fn){
-		const child = this.getActiveChild();
-		if(child && fn){
-			fn(child);
-			window.setTimeout(()=>this.forceUpdate(), 0);
+	// dock 不在子页渲染树内,子页 setState 不会连带重渲容器——动作后补拍 forceUpdate,
+	// 让 hasResult/禁用态跟上子页内部状态。补三拍(0/600/2500ms):起盘/起课类动作是异步的,
+	// 结果落地在网络/计算返回之后,单拍会读到旧态(dock 永远禁用的伪死)。
+	wrapDockHandler(fn){
+		if(!fn){
+			return fn;
 		}
-	}
-
-	navigateFeature(tabKey, subTab){
-		if(this.props.dispatch){
-			const payload = {
-				currentTab: tabKey,
-			};
-			if(subTab){
-				payload.currentSubTab = subTab;
-			}
-			this.props.dispatch({
-				type: 'astro/save',
-				payload,
+		return (...args)=>{
+			fn(...args);
+			[0, 600, 2500].forEach((delay)=>{
+				window.setTimeout(()=>{
+					if(!this.unmounted){
+						this.forceUpdate();
+					}
+				}, delay);
 			});
-		}
+		};
 	}
 
+	// 快捷栏契约:原十套硬编码分支(右栏 tab 镜像/跨子页目录/跨页导航,经 ref 穿透)全部撤除——
+	// 那是目录不是快捷功能。各子页以 getQuickDockConfig() 自述主键/专属动词/保存,容器只透传。
 	renderBottomQuickDock(){
 		const tab = this.state.currentTab;
-		const activeChild = this.getActiveChild();
-		let actions = [];
-
-		if(tab === 'suzhan'){
-			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
-			actions = [
-				{ label: '概览', icon: 'quickPrimary', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
-				{ label: '宫宿', icon: 'quickComposite', active: rightPanelTab === 'houses', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('houses')) },
-				{ label: '快照', icon: 'quickNote', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
-				{ label: '金口诀', icon: 'quickFirdaria', onClick: ()=>this.changeTab('jinkou') },
-				{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.changeTab('tongshefa') },
-				{ label: '皇极经世', icon: 'quickReturn', onClick: ()=>this.changeTab('huangji') },
-				{ label: '五兆', icon: 'quickPrimary', onClick: ()=>this.changeTab('wuzhao') },
-				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
-				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
-				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
-				{ label: '地占', icon: 'note', onClick: ()=>this.changeTab('geomancy') },
-				{ label: '太乙', icon: 'quickReturn', onClick: ()=>this.navigateFeature('taiyi') },
-				{ label: '遁甲', icon: 'quickTransit', onClick: ()=>this.navigateFeature('dunjia') },
-				{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
-			];
-		}else if(tab === 'jinkou'){
-			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
-			actions = [
-				{ label: '起课', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.requestGods(child.props.fields, child.props.value)) },
-				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
-				{ label: '四位', icon: 'quickTransit', active: rightPanelTab === 'rows', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('rows')) },
-				{ label: '神煞', icon: 'quickFirdaria', active: rightPanelTab === 'gods', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('gods')) },
-				{ label: '保存', icon: 'quickNote', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
-				{ label: '宿盘', icon: 'quickReturn', onClick: ()=>this.changeTab('suzhan') },
-				{ label: '统摄法', icon: 'quickProfection', onClick: ()=>this.changeTab('tongshefa') },
-				{ label: '皇极经世', icon: 'quickTransit', onClick: ()=>this.changeTab('huangji') },
-				{ label: '五兆', icon: 'quickPrimary', onClick: ()=>this.changeTab('wuzhao') },
-				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
-				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
-				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
-				{ label: '地占', icon: 'note', onClick: ()=>this.changeTab('geomancy') },
-				{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
-			];
-		}else if(tab === 'tongshefa'){
-			const detailTab = activeChild && activeChild.state ? activeChild.state.detailTab : 'observe32';
-			const showMatrixBorder = activeChild && activeChild.state ? activeChild.state.showMatrixBorder : true;
-			actions = [
-				{ label: '三十二观', icon: 'quickPrimary', active: detailTab === 'observe32', onClick: ()=>this.runChildAction((child)=>child.changeDetailTab('observe32')) },
-				{ label: '三界', icon: 'quickComposite', active: detailTab === 'sanjie', onClick: ()=>this.runChildAction((child)=>child.changeDetailTab('sanjie')) },
-				{ label: '爻位', icon: 'quickTransit', active: detailTab === 'yaowei', onClick: ()=>this.runChildAction((child)=>child.changeDetailTab('yaowei')) },
-				{ label: '纳甲', icon: 'quickFirdaria', active: detailTab === 'najia', onClick: ()=>this.runChildAction((child)=>child.changeDetailTab('najia')) },
-				{ label: showMatrixBorder ? '隐藏边框' : '显示边框', icon: 'quickNote', onClick: ()=>this.runChildAction((child)=>child.onBorderToggle(showMatrixBorder ? 0 : 1)) },
-				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
-				{ label: '宿盘', icon: 'quickProfection', onClick: ()=>this.changeTab('suzhan') },
-				{ label: '金口诀', icon: 'quickAi', onClick: ()=>this.changeTab('jinkou') },
-				{ label: '皇极经世', icon: 'quickTransit', onClick: ()=>this.changeTab('huangji') },
-				{ label: '五兆', icon: 'quickPrimary', onClick: ()=>this.changeTab('wuzhao') },
-				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
-				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
-				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
-				{ label: '地占', icon: 'note', onClick: ()=>this.changeTab('geomancy') },
-			];
-		}else if(tab === 'huangji'){
-			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
-			actions = [
-				{ label: '起盘', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.clickPlot()) },
-				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
-				{ label: '卦象', icon: 'quickTransit', active: rightPanelTab === 'gua', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('gua')) },
-				{ label: '心易', icon: 'quickFirdaria', active: rightPanelTab === 'xinyi', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('xinyi')) },
-				{ label: '年表', icon: 'quickNote', active: rightPanelTab === 'history', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('history')) },
-				{ label: '典籍', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
-				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
-				{ label: '完整', icon: 'quickProfection', active: rightPanelTab === 'full', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('full')) },
-				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
-				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
-				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
-				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
-				{ label: '地占', icon: 'note', onClick: ()=>this.changeTab('geomancy') },
-			];
-		}else if(tab === 'wuzhao'){
-			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
-			actions = [
-				{ label: '起盘', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.clickPlot()) },
-				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
-				{ label: '六位', icon: 'quickTransit', active: rightPanelTab === 'positions', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('positions')) },
-				{ label: '标记', icon: 'quickFirdaria', active: rightPanelTab === 'flags', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('flags')) },
-				{ label: '典籍', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
-				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
-				{ label: '完整', icon: 'quickProfection', active: rightPanelTab === 'full', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('full')) },
-				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
-				{ label: '太玄', icon: 'quickNote', onClick: ()=>this.changeTab('taixuan') },
-				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
-				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
-				{ label: '地占', icon: 'note', onClick: ()=>this.changeTab('geomancy') },
-			];
-		}else if(tab === 'taixuan'){
-			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
-			actions = [
-				{ label: '起筮', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.randomizeSeed()) },
-				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
-				{ label: '玄首', icon: 'quickTransit', active: rightPanelTab === 'head', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('head')) },
-				{ label: '表', icon: 'quickFirdaria', active: rightPanelTab === 'lines', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('lines')) },
-				{ label: '全文', icon: 'quickNote', active: rightPanelTab === 'fulltext', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('fulltext')) },
-				{ label: '典籍', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
-				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
-				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
-				{ label: '荆诀', icon: 'book', onClick: ()=>this.changeTab('jingjue') },
-				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
-				{ label: '地占', icon: 'note', onClick: ()=>this.changeTab('geomancy') },
-			];
-		}else if(tab === 'jingjue'){
-			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
-			actions = [
-				{ label: '重起', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.randomizeSeed()) },
-				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
-				{ label: '起课', icon: 'quickTransit', active: rightPanelTab === 'cast', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('cast')) },
-				{ label: '十六卦', icon: 'quickFirdaria', active: rightPanelTab === 'gua', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('gua')) },
-				{ label: '来源', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
-				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
-				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
-				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
-				{ label: '地占', icon: 'note', onClick: ()=>this.changeTab('geomancy') },
-			];
-		}else if(tab === 'tarot'){
-			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
-			actions = [
-				{ label: '抽牌', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.drawCards()) },
-				{ label: '总览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
-				{ label: '牌位', icon: 'quickTransit', active: rightPanelTab === 'positions', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('positions')) },
-				{ label: '牌义', icon: 'quickFirdaria', active: rightPanelTab === 'meanings', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('meanings')) },
-				{ label: '锁定复现', icon: 'book', onClick: ()=>this.runChildAction((child)=>child.clickReproduce()) },
-				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
-				{ label: '神易数', icon: 'quickTransit', onClick: ()=>this.changeTab('shenyishu') },
-				{ label: '地占', icon: 'note', onClick: ()=>this.changeTab('geomancy') },
-			];
-		}else{
-			const rightPanelTab = activeChild && activeChild.state ? activeChild.state.rightPanelTab : 'overview';
-			actions = [
-				{ label: '起盘', icon: 'quickPrimary', onClick: ()=>this.runChildAction((child)=>child.clickPlot()) },
-				{ label: '概览', icon: 'quickComposite', active: rightPanelTab === 'overview', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('overview')) },
-				{ label: '干支', icon: 'quickTransit', active: rightPanelTab === 'pillars', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('pillars')) },
-				{ label: '五行', icon: 'quickReturn', active: rightPanelTab === 'wuxing', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('wuxing')) },
-				{ label: '兵占', icon: 'quickFirdaria', active: rightPanelTab === 'military', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('military')) },
-				{ label: '神煞', icon: 'quickProfection', active: rightPanelTab === 'shensha', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('shensha')) },
-				{ label: '完整', icon: 'quickNote', active: rightPanelTab === 'full', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('full')) },
-				{ label: '保存', icon: 'quickReturn', onClick: ()=>this.runChildAction((child)=>child.clickSaveCase()) },
-				{ label: '来源', icon: 'book', active: rightPanelTab === 'classics', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('classics')) },
-				{ label: '快照', icon: 'quickAi', active: rightPanelTab === 'snapshot', onClick: ()=>this.runChildAction((child)=>child.setRightPanelTab('snapshot')) },
-			];
-		}
-
-		const hiddenQuickActions = {
-			huangji: ['典籍', '完整', '快照'],
-			wuzhao: ['典籍', '完整', '快照'],
-			taixuan: ['典籍', '快照'],
-			jingjue: ['来源', '快照'],
-			shenyishu: ['完整', '来源', '快照'],
-		}[tab];
-		if(hiddenQuickActions){
-			actions = actions.filter((item)=>hiddenQuickActions.indexOf(item.label) < 0);
-		}
-
-		const actionGridStyle = {
-			gridTemplateColumns: `repeat(${actions.length}, minmax(58px, 1fr))`,
-		};
+		const child = this.getActiveChild();
+		const config = child && typeof child.getQuickDockConfig === 'function' ? child.getQuickDockConfig() : {};
+		const wrapItem = (item)=>(item ? { ...item, onClick: this.wrapDockHandler(item.onClick) } : item);
+		const primary = Array.isArray(config.primary) ? config.primary.map(wrapItem) : wrapItem(config.primary);
 		return (
-			<div className="horosa-bottom-quick-dock horosa-cnyibu-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-cnyibu-quick-actions" style={actionGridStyle}>
-					{actions.map((item)=>(
-						<button
-							type="button"
-							key={item.label}
-							className={`horosa-bottom-quick-button horosa-cnyibu-quick-button${item.active ? ' is-active' : ''}`}
-							onClick={item.onClick}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page={`cnyibu-${tab}`}
+				className="horosa-cnyibu-quick-dock"
+				hasResult={config.hasResult !== undefined ? !!config.hasResult : false}
+				primary={primary}
+				extras={(config.extras || []).map(wrapItem)}
+				save={this.wrapDockHandler(config.save)}
+				ai={config.ai !== undefined ? config.ai : true}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 

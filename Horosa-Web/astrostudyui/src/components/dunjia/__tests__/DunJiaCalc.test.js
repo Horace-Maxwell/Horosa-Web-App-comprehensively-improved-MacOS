@@ -714,6 +714,49 @@ describe('DunJiaCalc · WP-E 旺相休囚死(§17.1)', ()=>{
 	});
 });
 
+// WP-E：AI 快照四同步——[全局速览] 段落 + 命/事局语义随 pan.options.chartCategory 单一真值翻转。
+describe('DunJiaCalc · WP-E AI 快照:全局速览 + 命/事局语义(pan.options.chartCategory 单一真值)', ()=>{
+	const nongli = {
+		yearJieqi: '丙午', year: '丙午', monthGanZi: '癸巳', dayGanZi: '己丑', time: '甲子',
+		jieqi: '立夏', jiedelta: '立夏后第10天', birth: '2026-05-15 00:12:00',
+		month: '三月', day: '廿九', leap: false,
+	};
+	function panFor(cat){
+		const fields = makeFields('2026-05-15', '00:12:00');
+		const pan = calcDunJia(fields, nongli, makeOptions({ qijuMethod: 'chaibu', timeAlg: 1, school: '转盘' }), {});
+		if(cat){ pan.options.chartCategory = cat; }
+		return pan;
+	}
+	test('快照含 [全局速览] 段（九遁/三奇得使/吉凶格/六害分布/符使落宫，与概览页同源）', ()=>{
+		const snap = buildDunJiaSnapshotText(panFor('shi'));
+		expect(snap).toContain('[全局速览]');
+		expect(snap).toContain('九遁：');
+		expect(snap).toContain('三奇得使：');
+		expect(snap).toContain('吉格 ');
+		expect(snap).toContain('凶格 ');
+		expect(snap).toContain('六害分布：');
+		expect(snap).toContain('值符落宫：');
+	});
+	test('事局：日干＝实质 / 时干＝表象（用神分论措辞同步）', ()=>{
+		const snap = buildDunJiaSnapshotText(panFor('shi'));
+		expect(snap).toContain('事局（日干＝实质 / 时干＝表象）');
+		expect(snap).toContain('事之表象');            // 用神分论 yongShenText 事局措辞
+		expect(snap).not.toContain('命局（日干＝内心');
+	});
+	test('命局：日干＝内心 / 时干＝外在（用神分论措辞随之翻转）', ()=>{
+		const snap = buildDunJiaSnapshotText(panFor('ming'));
+		expect(snap).toContain('命局（日干＝内心 / 时干＝外在）');
+		expect(snap).toContain('此人外在');            // 用神分论 yongShenText 命局措辞
+		expect(snap).not.toContain('事局（日干＝实质');
+	});
+	test('缺 chartCategory（未戳）默认事局（向后兼容，calcDunJia 不写该字段）', ()=>{
+		const pan = panFor(null);
+		expect(pan.options.chartCategory).toBeUndefined();
+		const snap = buildDunJiaSnapshotText(pan);
+		expect(snap).toContain('事局（日干＝实质 / 时干＝表象）');
+	});
+});
+
 describe('DunJiaCalc · WP-0 前后端局审计(置闰超神接气诊断)', ()=>{
 	function localZhirun(dateStr, timeStr){
 		const fields = makeFields(dateStr, timeStr);

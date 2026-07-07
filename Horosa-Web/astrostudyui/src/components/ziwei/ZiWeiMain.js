@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { Row, Col } from 'antd';
+import { Row, Col, message } from 'antd';
 import { XQButton as Button, XQModal as Modal, XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
 import * as Constants from '../../utils/constants';
@@ -20,7 +20,9 @@ import ZWLuckPanel, {
 	houseIdxByBranch as luckHouseIdxByBranch,
 	emptyLuckSel,
 	luckSelectDaxian,
+	luckSelectLiunian,
 } from './ZWLuckPanel';
+import QuickDockBar from '../common/QuickDockBar';
 import ZWPatternPanel from './ZWPatternPanel';
 import TipsBoard from '../comp/TipsBoard';
 import * as ZiWeiHelper from './ZiWeiHelper';
@@ -561,7 +563,6 @@ class ZiWeiMain extends Component{
 		this.closeCenterInfo = this.closeCenterInfo.bind(this);
 		this.openDrawer = this.openDrawer.bind(this);
 		this.navigateFeature = this.navigateFeature.bind(this);
-		this.navigateDirectionTool = this.navigateDirectionTool.bind(this);
 		this.renderBottomQuickDock = this.renderBottomQuickDock.bind(this);
 		this.onLuckSelChange = this.onLuckSelChange.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
@@ -838,43 +839,51 @@ class ZiWeiMain extends Component{
 		}
 	}
 
-	navigateDirectionTool(subTab){
-		if(this.props.dispatch){
-			this.props.dispatch({
-				type: 'astro/save',
-				payload: {
-					currentTab: 'direction',
-					currentSubTab: subTab,
-				},
-			});
+	// 快捷栏契约:「运限对齐今天」:一键选中今天所在大限+今年流年(小限随流年自动合并),
+	// 免去九宫格逐层点找;与九宫格/运限 tab 同走 luckSel 单一真值源,幂等无副作用。
+	alignLuckToToday(){
+		const chart = this.state.result ? this.state.result.chart : null;
+		if(!chart || !chart.houses){
 			return;
 		}
-		this.navigateFeature('direction');
+		const idx = this.getNowDirectionIdx(chart);
+		if(idx === null){
+			message.info('今天不在任何大限范围内');
+			return;
+		}
+		const dx = buildDaxianItems(chart).find((d)=>d.mingIndex === idx) || null;
+		if(!dx){
+			return;
+		}
+		let sel = luckSelectDaxian(chart, dx, this.state.luckSel);
+		const year = parseInt(new DateTime().format('YYYY'), 10);
+		const ln = buildLiunianItems(chart, dx).find((l)=>l.year === year) || null;
+		if(ln){
+			sel = luckSelectLiunian(chart, ln, sel);
+		}
+		this.setState({ luckSel: sel });
 	}
 
+	// 快捷栏契约:原 6 个占星推运跨页键(主限/法达/小限/返照/合盘/星运)=跨页导航滥用,全撤;
+	// 换成本页真动词(运限对齐/清运限)。笔记保留=本页唯一入口(页头无)。
 	renderBottomQuickDock(){
-		const actions = [
-			{ label: '主限', icon: 'quickPrimary', onClick: ()=>this.navigateDirectionTool('primarydirect') },
-			{ label: '法达', icon: 'quickFirdaria', onClick: ()=>this.navigateDirectionTool('firdaria') },
-			{ label: '小限', icon: 'quickProfection', onClick: ()=>this.navigateDirectionTool('profection') },
-			{ label: '返照', icon: 'quickReturn', onClick: ()=>this.navigateDirectionTool('solarreturn') },
-			{ label: '合盘', icon: 'quickComposite', onClick: ()=>this.navigateFeature('relativechart') },
-			{ label: '星运', icon: 'quickTransit', onClick: ()=>this.navigateFeature('direction') },
-			{ label: '笔记', icon: 'quickNote', onClick: ()=>this.openDrawer('memo') },
-			{ label: 'AI助手', icon: 'quickAi', onClick: ()=>this.navigateFeature('aianalysis') },
-		];
+		const hasChart = !!(this.state.result && this.state.result.chart);
+		const hasLuck = (()=>{
+			const sel = this.state.luckSel;
+			return !!(sel && (sel.daxian || sel.liunian || sel.liuyue || sel.liuri || sel.liushi));
+		})();
 		return (
-			<div className="horosa-bottom-quick-dock horosa-ziwei-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-ziwei-quick-actions">
-					{actions.map((item)=>(
-						<button type="button" key={item.label} className="horosa-bottom-quick-button" onClick={item.onClick}>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="ziwei"
+				className="horosa-ziwei-quick-dock"
+				hasResult={hasChart}
+				extras={[
+					{ key: 'luckToday', label: '运限对齐今天', icon: 'quickTransit', onClick: ()=>this.alignLuckToToday() },
+					{ key: 'luckClear', label: '清除运限', icon: 'quickReturn', disabled: !hasChart || !hasLuck, onClick: ()=>this.setState({ luckSel: emptyLuckSel() }) },
+					{ key: 'memo', label: '笔记', icon: 'quickNote', needsResult: false, onClick: ()=>this.openDrawer('memo') },
+				]}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 

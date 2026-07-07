@@ -387,7 +387,8 @@ function buildFieldObject(record){
 		simpleAsp: { value: record.simpleAsp !== undefined && record.simpleAsp !== null ? record.simpleAsp : 0 },
 		virtualPointReceiveAsp: { value: record.virtualPointReceiveAsp !== undefined && record.virtualPointReceiveAsp !== null ? record.virtualPointReceiveAsp : 0 },
 		doubingSu28: { value: record.doubingSu28 !== undefined && record.doubingSu28 !== null ? Number(record.doubingSu28) : undefined },
-		houseStartMode: { value: 0 },
+		// 宿占人事十二宫起宫(ASC起盘 0 / 八字起盘 1):优先读 record(存盘/挂载重算),缺省回退 0=现状。
+		houseStartMode: { value: record.houseStartMode !== undefined && record.houseStartMode !== null ? Number(record.houseStartMode) : 0 },
 		predictive: { value: 1 },
 		showPdBounds: { value: 1 },
 		pdtype: { value: record.pdtype === 1 ? 1 : 0 },

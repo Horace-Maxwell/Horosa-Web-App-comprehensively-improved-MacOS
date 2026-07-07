@@ -679,6 +679,11 @@ class MoiraPropRuleEngine {
 		if(obj == null) {
 			return 0;
 		}
+		// 黄仪显示口径(QizhengMoiraRuleService.DISPLAY_ECLIPTIC 同线程装载):度数取黄经;
+		// 赤仪/未装载:取 ra(旧行为)。
+		if(QizhengMoiraRuleService.displayEcliptic() && obj.containsKey("lon")) {
+			return normalize(num(obj.get("lon"), 0));
+		}
 		if(obj.containsKey("ra")) {
 			return normalize(num(obj.get("ra"), 0));
 		}

@@ -2,12 +2,19 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-PY_PID_FILE="${ROOT}/.horosa_py.pid"
-JAVA_PID_FILE="${ROOT}/.horosa_java.pid"
-WEB_PID_FILE="${ROOT}/.horosa_web.pid"
 CHART_PORT="${HOROSA_CHART_PORT:-8899}"
 BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
 WEB_PORT="${HOROSA_WEB_PORT:-8000}"
+# pid 文件名带端口后缀=会话隔离:双实例/快切用户共用同一共享树时,固定名会互覆,
+# 停服就会杀错对方实例或漏杀自己(遗留僵尸)。端口是会话唯一的,天然做键。
+PY_PID_FILE="${ROOT}/.horosa_py.${CHART_PORT}.pid"
+JAVA_PID_FILE="${ROOT}/.horosa_java.${BACKEND_PORT}.pid"
+WEB_PID_FILE="${ROOT}/.horosa_web.${WEB_PORT}.pid"
+# 杀前身份指纹:pid 可能已被系统回收给无关进程(pid 复用),或 pid 文件被另一实例覆写。
+# 只允许命中本产品服务特征的进程被停;不符=只清文件不动进程。
+PY_CMD_PATTERN='webchartsrv\.py'
+JAVA_CMD_PATTERN='astrostudyboot\.jar|org\.springframework\.boot\.loader\.JarLauncher|horosa\.runtime\.owner=horosa-desktop'
+WEB_CMD_PATTERN='http\.server'
 
 kill_pid_gracefully() {
   local pid="$1"
@@ -36,6 +43,7 @@ kill_pid_gracefully() {
 stop_by_pid_file() {
   local name="$1"
   local pid_file="$2"
+  local expected_pattern="${3:-}"
   if [ ! -f "${pid_file}" ]; then
     echo "${name}: not running (pid file missing)."
     return
@@ -49,6 +57,16 @@ stop_by_pid_file() {
     rm -f "${pid_file}"
     return
   ;; esac
+  # 杀前指纹校验:pid 复用/文件被别的实例覆写时,这个 pid 可能是无辜进程。
+  if [ -n "${expected_pattern}" ]; then
+    local cmd
+    cmd="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
+    if [ -n "${cmd}" ] && ! printf '%s\n' "${cmd}" | grep -Eq "${expected_pattern}"; then
+      echo "${name}: pid ${pid} 非本产品服务(指纹不符),仅清理 pid 文件。"
+      rm -f "${pid_file}"
+      return
+    fi
+  fi
   if ! kill_pid_gracefully "${pid}" "${name}"; then
     echo "${name}: process not found, cleaning pid file."
   fi
@@ -113,11 +131,11 @@ stop_by_port_pattern() {
 
 # 提速:三个服务的停止互无顺序依赖(Java 调 Python 是请求方,谁先死都安全),并行收割。
 # set -euo pipefail 下后台 job 非零会让裸 wait 失败 → 逐个 wait || true。
-stop_by_pid_file "astropy" "${PY_PID_FILE}" &
+stop_by_pid_file "astropy" "${PY_PID_FILE}" "${PY_CMD_PATTERN}" &
 STOP_P1=$!
-stop_by_pid_file "astrostudyboot" "${JAVA_PID_FILE}" &
+stop_by_pid_file "astrostudyboot" "${JAVA_PID_FILE}" "${JAVA_CMD_PATTERN}" &
 STOP_P2=$!
-stop_by_pid_file "web" "${WEB_PID_FILE}" &
+stop_by_pid_file "web" "${WEB_PID_FILE}" "${WEB_CMD_PATTERN}" &
 STOP_P3=$!
 wait "${STOP_P1}" || true
 wait "${STOP_P2}" || true
@@ -133,3 +151,26 @@ STOP_Q3=$!
 wait "${STOP_Q1}" || true
 wait "${STOP_Q2}" || true
 wait "${STOP_Q3}" || true
+
+# HOROSA_STOP_ALL=1(Horosa_Stop_Mac.command 用):回收本工作区**所有端口实例**——
+# 双实例/换口副本/历史残留的 pid 文件(含旧版无后缀名)逐个按指纹校验停;
+# 指纹不符只清文件,与上方同一「绝不误伤」语义。
+if [ "${HOROSA_STOP_ALL:-0}" = "1" ]; then
+  swept_any=0
+  for sweep_pid_file in "${ROOT}"/.horosa_py.*.pid "${ROOT}"/.horosa_java.*.pid "${ROOT}"/.horosa_web.*.pid \
+                        "${ROOT}/.horosa_py.pid" "${ROOT}/.horosa_java.pid" "${ROOT}/.horosa_web.pid"; do
+    [ -e "${sweep_pid_file}" ] || continue
+    case "${sweep_pid_file}" in
+      *horosa_py*)   sweep_pattern="${PY_CMD_PATTERN}";   sweep_name="astropy(全实例)" ;;
+      *horosa_java*) sweep_pattern="${JAVA_CMD_PATTERN}"; sweep_name="astrostudyboot(全实例)" ;;
+      *)             sweep_pattern="${WEB_CMD_PATTERN}";  sweep_name="web(全实例)" ;;
+    esac
+    stop_by_pid_file "${sweep_name}" "${sweep_pid_file}" "${sweep_pattern}"
+    swept_any=1
+  done
+  if [ "${swept_any}" = "1" ]; then
+    echo "stop-all: 已按 pid 文件回收全部实例。"
+  else
+    echo "stop-all: 未发现其他实例的 pid 文件。"
+  fi
+fi

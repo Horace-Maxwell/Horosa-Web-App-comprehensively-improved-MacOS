@@ -6,3 +6,7 @@ preflight[79] 校验最近一次 runtime-smoke 为 PASS 且 sha 与当前 dist �
 
 | 时间 | git | 结果 | 门 | 产物 sha(前16) |
 |---|---|---|---|---|
+| 2026-07-05 03:08 | b60cd75 | PASS | runtime-smoke | da248ad2518b8c40… |
+| 2026-07-05 14:09 | e451cef | FAIL | runtime-smoke | 373d354e8412c64c… |
+| 2026-07-05 14:33 | e451cef | FAIL | runtime-smoke | 1326b13bdd61818e… |
+| 2026-07-05 15:29 | e451cef | PASS | runtime-smoke | 7765ba251eb99446… |

@@ -96,3 +96,83 @@ export async function fetchKinastroQizheng(values){
 		}
 	}
 }
+
+// ── 天星择日双轮数据(/qizhengelection/pan):kentang 直连惯例 + LRU/在途去重 ──
+const eleMem = new Map();
+const eleInflight = new Map();
+const ELE_CACHE_MAX = 32;
+
+function eleKey(values){
+	try{
+		return JSON.stringify(values || {});
+	}catch(e){
+		return '';
+	}
+}
+
+async function fetchQizhengElectionRaw(values, path = 'pan'){
+	let rsp = null;
+	try{
+		const response = await fetchChartWithRetry(buildKentangEndpoint('qizhengelection', path), {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+			body: JSON.stringify(values || {}),
+		});
+		const text = await response.text();
+		rsp = text ? JSON.parse(text) : null;
+		if(!rsp || (rsp.ResultCode !== undefined && rsp.ResultCode !== 0)){
+			throw new Error(rsp && rsp[ResultKey] ? `${rsp[ResultKey]}` : 'qizhengelection.local.fetch.failed');
+		}
+	}catch(e){
+		const response = await fetchChartWithRetry(`${ServerRoot}/qizhengelection/${path}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+			body: JSON.stringify(values || {}),
+		});
+		const text = await response.text();
+		rsp = text ? JSON.parse(text) : null;
+	}
+	if(!rsp || (rsp.ResultCode !== undefined && rsp.ResultCode !== 0)){
+		throw new Error(rsp && rsp[ResultKey] ? `${rsp[ResultKey]}` : 'qizhengelection.fetch.failed');
+	}
+	return rsp && rsp[ResultKey] ? rsp[ResultKey] : rsp;
+}
+
+export async function fetchQizhengElection(values){
+	const key = `pan|${eleKey(values)}`;
+	if(key && eleMem.has(key)){
+		return kinClone(eleMem.get(key));
+	}
+	if(key && eleInflight.has(key)){
+		return kinClone(await eleInflight.get(key));
+	}
+	const p = fetchQizhengElectionRaw(values, 'pan');
+	eleInflight.set(key, p);
+	try{
+		const res = await p;
+		if(res){
+			if(eleMem.has(key)){
+				eleMem.delete(key);
+			}
+			eleMem.set(key, kinClone(res));
+			if(eleMem.size > ELE_CACHE_MAX){
+				const first = eleMem.keys().next().value;
+				if(first !== undefined){
+					eleMem.delete(first);
+				}
+			}
+		}
+		return kinClone(res);
+	}finally{
+		eleInflight.delete(key);
+	}
+}
+
+// 搜索三件套(方位/日月食):无缓存直查
+export function fetchQizhengEclipses(values){
+	return fetchQizhengElectionRaw(values, 'eclipses');
+}
+
+export function fetchQizhengAzimuthSearch(values){
+	return fetchQizhengElectionRaw(values, 'azimuthsearch');
+}

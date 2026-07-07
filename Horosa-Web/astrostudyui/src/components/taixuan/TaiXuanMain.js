@@ -1,3 +1,4 @@
+import QuickDockBar from '../common/QuickDockBar';
 import { Component } from 'react';
 import { InputNumber, Spin } from 'antd';
 import DateTime from '../comp/DateTime';
@@ -546,32 +547,23 @@ class TaiXuanMain extends Component{
 		);
 	}
 
+	// 快捷栏契约:右栏 tab 镜像撤除;快捷栏只放本页没有的动词,配置由 cnyibu 容器透传渲染。
+	getQuickDockConfig(){
+		return {
+			hasResult: !!this.state.pan,
+			primary: { key: 'reseed', label: '起筮', onClick: ()=>this.randomizeSeed() },
+			save: ()=>this.clickSaveCase(),
+		};
+	}
+
 	renderBottomQuickDock(){
-		const actions = [
-			{ label: '起筮', icon: 'quickPrimary', onClick: this.randomizeSeed },
-			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: ()=>this.setRightPanelTab('overview') },
-			{ label: '玄首', icon: 'quickTransit', active: this.state.rightPanelTab === 'head', onClick: ()=>this.setRightPanelTab('head') },
-			{ label: '表', icon: 'quickFirdaria', active: this.state.rightPanelTab === 'lines', onClick: ()=>this.setRightPanelTab('lines') },
-			{ label: '全文', icon: 'quickNote', active: this.state.rightPanelTab === 'fulltext', onClick: ()=>this.setRightPanelTab('fulltext') },
-			{ label: '保存', icon: 'quickReturn', onClick: this.clickSaveCase },
-		];
 		return (
-			<div className="horosa-bottom-quick-dock horosa-huangji-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-huangji-quick-actions">
-					{actions.map((item)=>(
-						<button
-							type="button"
-							key={item.label}
-							className={`horosa-bottom-quick-button horosa-huangji-quick-button${item.active ? ' is-active' : ''}`}
-							onClick={item.onClick}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="taixuan"
+				className="horosa-huangji-quick-dock"
+				dispatch={this.props.dispatch}
+				{...this.getQuickDockConfig()}
+			/>
 		);
 	}
 

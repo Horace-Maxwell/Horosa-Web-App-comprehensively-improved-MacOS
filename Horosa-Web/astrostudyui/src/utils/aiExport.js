@@ -146,8 +146,8 @@ const AI_EXPORT_SETTINGS_KEY = 'horosa.ai.export.settings.v1';
 //        MIGRATION_VERSION 升至 == SETTINGS_VERSION 以覆盖曾在 v31 自定义过风水导出段的老用户(否则五新段被 filterContentByWantedSections 静默删)。
 // v36 补:一掌经神煞合参层由静态 21×12 表改为按盘计算落宫(生年支/日干/月支/日柱旬定位)→导出新增「神煞合参」段。
 //        yizhangjing 已在 MIGRATION_KEYS;MIGRATION_VERSION 升至 == SETTINGS_VERSION 以覆盖曾自定义过一掌经导出段(v33-35)的老用户(否则神煞合参段被静默删)。
-export const AI_EXPORT_SETTINGS_VERSION = 36;
-const AI_EXPORT_SECTION_MIGRATION_VERSION = 36;
+export const AI_EXPORT_SETTINGS_VERSION = 40;
+const AI_EXPORT_SECTION_MIGRATION_VERSION = 40;
 const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	// v18 补:占星/星运核心 + 卜卦/择日(此前漏登记)。务必与新增「有 preset 的技法」同步(aiExport.test 跨系统自检守)。
 	'astrochart',
@@ -180,6 +180,13 @@ const AI_EXPORT_SECTION_MIGRATION_KEYS = [
 	'sanshiunited',
 	'taiyi',
 	'guolao',
+	// v39 补:节气盘主键 + 四分点子盘(春分/夏至/秋分/冬至)+ 元数据键;presets 增 3D盘段,自定义用户须并集补入。
+	'jieqi',
+	'jieqi_chunfen',
+	'jieqi_xiazhi',
+	'jieqi_qiufen',
+	'jieqi_dongzhi',
+	'jieqi_meta',
 	'germany',
 	'otherbu',
 	'fengshui',
@@ -270,10 +277,10 @@ const AI_EXPORT_HOVER_MEANING_TECHNIQUES = new Set([
 ]);
 const JIEQI_SETTING_PRESETS = {
 	jieqi_meta: ['节气盘参数'],
-	jieqi_chunfen: ['春分星盘', '春分宿盘'],
-	jieqi_xiazhi: ['夏至星盘', '夏至宿盘'],
-	jieqi_qiufen: ['秋分星盘', '秋分宿盘'],
-	jieqi_dongzhi: ['冬至星盘', '冬至宿盘'],
+	jieqi_chunfen: ['春分星盘', '春分宿盘', '春分3D盘'],
+	jieqi_xiazhi: ['夏至星盘', '夏至宿盘', '夏至3D盘'],
+	jieqi_qiufen: ['秋分星盘', '秋分宿盘', '秋分3D盘'],
+	jieqi_dongzhi: ['冬至星盘', '冬至宿盘', '冬至3D盘'],
 };
 const JIEQI_SPLIT_SETTING_KEYS = Object.keys(JIEQI_SETTING_PRESETS);
 const JIEQI_SPLIT_TECHNIQUES = [
@@ -354,13 +361,15 @@ const AI_EXPORT_TECHNIQUES = [
 ];
 
 export const AI_EXPORT_PRESET_SECTIONS = {
-	horary: ['起卦信息', '根本性', '征象星指派', '完成分析', '月亮的故事', '相位全览', '裁决', '应期方位', '描述'],
+	horary: ['起卦信息', '根本性', '征象星指派', '完成分析', '月亮的故事', '相位全览', '裁决', '应期方位', '描述', '专题深化·X'],
 	election: ['起盘信息', '总评', '红线', '分项', '用事专属', '危象日参照', '应期', '本命合参', '时势合参', '建议'],
 	astrochart: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '12分度', '主宰星链', '古典', '古典格局', '寿命格局', '可能性'],
-	indiachart: ['星盘信息', '起盘信息', '信息', '相位', '行星', '希腊点', '古典', '可能性', '大运Dasha'],
+	indiachart: ['星盘信息', '起盘信息', '信息', '相位', '行星', '希腊点', '古典', '可能性', '大运Dasha',
+		// buildJyotishSnapshotLines 无条件派生段(约 40 段,条件产出⊆语义):此前未登记→自定义过 india 导出段的用户被静默删、纳入面板勾不到。
+		'Panchanga 五要素', '卡拉卡（8 Chara Karakas）', '节点主照（Rasi Drishti）', '星曜状态', '分盘吉位 Vimśopaka', '八分点 SAV', 'Sodhya Pinda 凝量', 'Shadbala 六力', 'Ishta/Kashta 吉凶果', 'Vimśopaka 分盘 20 分力', 'Hora 行星时', 'Choghadia 民用择时', '择时 Panchaka/Abhijit', 'Mūla 大运', 'Sudarśana Chakra 大运', 'Naisargika 自然大运', '补充上升（Supplementary Lagnas）', 'Nāḍī · Bhrigu Bindu 福点', 'Nāḍī · D150 纳地盘', 'Āyurdāya 寿命基础', '特殊上升 Special Lagnas', 'D60 六十分盘吉凶', '分盘变体对照', '功能吉凶（Functional Nature）', '宫位力（Bhava Bala）', '星曜战（Graha Yuddha）', '扩展大运（Conditional / Chara）', 'Kartari 夹击格局', 'Sudarshana 三盘（命/日/月起）', 'KP 宫头次主星 CSL', 'KP 意义者 Significators', 'KP 六级细分 / 当令星', '敌友（复合五分）', '行运 Gochara（从月·八分点）', '化解（信息·非处方）', 'Jaimini Argala 干涉', 'Tajika Harsha Bala', 'Tajika Pancha-Vargeeya', 'Tajika Mudda 年运', '行运 Gochara（从命）', '座运·X'],
 	astrochart_like: ['起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '12分度', '主宰星链', '古典', '古典格局', '寿命格局', '可能性', '占星地图'],
 	mundane: ['世俗入宫', '新月图', '满月图', '日食图', '月食图', '地区盘', '行星周期', '世俗宫义', '定局·年主/盘主', '入境骨架', '地理分野', '地区盘推运', '起盘信息', '宫位宫头', '星与虚点', '信息', '相位', '行星', '希腊点', '12分度', '主宰星链', '古典', '寿命格局', '可能性'],
-	relative: ['关系起盘信息', 'A对B相位', 'B对A相位', 'A对B中点相位', 'B对A中点相位', 'A对B映点', 'A对B反映点', 'B对A映点', 'B对A反映点', '合成图盘', '影响图盘-星盘A', '影响图盘-星盘B'],
+	relative: ['关系起盘信息', 'A对B相位', 'B对A相位', 'A对B中点相位', 'B对A中点相位', 'A对B映点', 'A对B反映点', 'B对A映点', 'B对A反映点', '合成图盘', '影响图盘-星盘A', '影响图盘-星盘B', '关系量化', '顺畅连接', '张力连接'],
 	primarydirect: ['出生时间', '星盘信息', '主限法设置', '主限法表格', '主/界限法设置', '主/界限法表格'],
 	distributions: ['界推运（分配法 / Distributions）'],
 	agepoint: ['年龄推进点（Age Point / Huber）'],
@@ -395,7 +404,7 @@ export const AI_EXPORT_PRESET_SECTIONS = {
 	jingjue: ['起课', '卦辞', '三分', '十六卦'],
 	shenyishu: ['起盘', '干支与五行', '神卦', '五行法则', '兵占', '主客判断', '神煞', '长生', '吉凶'],
 	geomancy: ['判定', '解读技法', '十二宫·图形入宫', '十六图形'],
-	tarot: ['牌阵直断', '牌阵细论', '牌义深解', '综合建议'],
+	tarot: ['牌阵综览', '逐牌详解', '综合断语', '定局', '生命牌'],
 	liureng: [
 		'起盘信息',
 		'十二盘式',
@@ -472,7 +481,7 @@ export const AI_EXPORT_PRESET_SECTIONS = {
 		'命宫行限',
 		'十六宫标记',
 	],
-	qimen: ['起盘信息', '盘型', '盘面要素', '奇门演卦', '八宫详解', '九宫方盘', '旺相休囚死·月令能量', '六害总览', '化解方案', '八门化气大阵', '用神分论', '财富七要', '事业七要', '恋爱姻缘', '孤辰寡宿'],
+	qimen: ['起盘信息', '盘型', '全局速览', '盘面要素', '奇门演卦', '八宫详解', '九宫方盘', '旺相休囚死·月令能量', '六害总览', '化解方案', '八门化气大阵', '用神分论', '财富七要', '事业七要', '恋爱姻缘', '孤辰寡宿'],
 	sanshiunited: [
 		'起盘信息',
 		'概览',
@@ -528,7 +537,7 @@ export const AI_EXPORT_PRESET_SECTIONS = {
 		'奇门孤辰寡宿',
 	],
 	guolao: ['起盘信息', '七政四余宫位与二十八宿星曜', '神煞', '大限', '政余格局', '相位'],
-	qizhengkin: ['起盘', '四柱', '星曜', '十二宫', '神煞', '年限', '流时', '择日', '张果断语', '命宫解读'],
+	qizhengkin: ['起盘', '四柱', '星曜', '十二宫', '神煞', '年限', '流时', '择日', '张果断语', '命宫解读', '今制宿度', '古制宿度'],
 	shaozi: ['起盘', '四柱', '四位起数', '河洛纳音', '完整结构', '64钥匙', '元会运世', '条文'],
 	tieban: ['起盘', '四柱', '算盘定部', '条文', '计算摘要', '命身刻分', '神数号码', '十二宫', '十二宫条文', '紫微安星', '条文库', '大运', '六亲佐证', '框架·流派刻制', '框架·考刻六亲', '框架·八卦滚', '框架·批断顺序', '框架·借用子系统'],
 	fendjing: ['起盘', '四柱', '两头钳', '命格', '判断', '六段断语'],
@@ -536,9 +545,9 @@ export const AI_EXPORT_PRESET_SECTIONS = {
 	nanji: ['起盘', '四柱', '宫部条文', '条文查询', '大运', '密码', '星图推演'],
 	chunzi: ['起盘', '四柱', '代码来源', '结构解析', '候选条文', '代码查询', '批量代码查询', '关键词检索', '多标签检索', '宿名检索', '时辰检索'],
 	xianqin: ['起盘', '三宫', '三星', '衍生星', '十二宫', '吞啖合战', '情性与格局', '二十八宿禽', '十二宫顺序', '三元起宿', '合宿表', '科名月宿', '四季得时', '情性赋全表', '二十八宿正像', '吞啖合战规则', '贵贱赋摘要', '演法·流派', '演法·起禽', '演法·择日', '演法·占卜', '演法·投胎'],
-	cetian: ['起盘', '农历与命身', '四化', '飞星', '格局', '命宮', '兄弟宮', '夫妻宮', '子女宮', '財帛宮', '疾厄宮', '遷移宮', '交友宮', '官祿宮', '田宅宮', '福德宮', '父母宮', '星曜属性', '正曜副曜', '宫干四化表', '飞化规则', '古法格局规则', '三合组'],
+	cetian: ['起盘', '农历与命身', '四化', '飞星', '格局', '命宮', '兄弟宮', '夫妻宮', '子女宮', '財帛宮', '疾厄宮', '遷移宮', '交友宮', '官祿宮', '田宅宮', '福德宮', '父母宮', '男女宮', '奴僕宮', '妻妾宮', '相貌宮', '星曜属性', '正曜副曜', '宫干四化表', '飞化规则', '古法格局规则', '三合组'],
 	germany: ['起盘信息', '宫位宫头', '行星', '中点', 'TNP星体', '中点相位', '90°中点盘', '行星图', '映点', '中点列表', '汉堡学派要素'],
-	jieqi: ['节气盘参数', '春分星盘', '春分宿盘', '夏至星盘', '夏至宿盘', '秋分星盘', '秋分宿盘', '冬至星盘', '冬至宿盘'],
+	jieqi: ['节气盘参数', '春分星盘', '春分宿盘', '春分3D盘', '夏至星盘', '夏至宿盘', '夏至3D盘', '秋分星盘', '秋分宿盘', '秋分3D盘', '冬至星盘', '冬至宿盘', '冬至3D盘'],
 	...JIEQI_SETTING_PRESETS,
 	otherbu: ['起盘信息', '骰子结果', '骰子盘宫位与星体', '天象盘宫位与星体'],
 	fengshui: ['起盘信息', '标记判定', '冲突清单', '未定位标注', '破局危害', '龙虎灶台', '移动盘', '吉凶评分', '缓解建议', '使用要点', '建议汇总', '纳气建议', '八卦定位', '成員卦象', '四类象格局', '应期成格', '改运建议', '风水·纳气盘', '风水·八卦阳宅', '风水·八宅大游年', '风水·玄空飞星', '风水·三合水法', '风水·金锁玉关', '风水·乾坤国宝', '风水·紫白飞星', '风水·辅星水法', '风水·净阴净阳', '风水·玄空大卦', '风水·形势峦头', '风水·择日选择'],
@@ -767,6 +776,16 @@ function normalizeSectionTitle(title){
 	}
 	if(/^基于.+起运$/.test(t)){
 		return '基于X起运';
+	}
+	// 印占 Rasi Dasha 座运·X(11 变体,IndiaChart.js out[`座运·${name}`])折叠成单占位,
+	// 与 preset 的「座运·X」两侧归一 → 一个纳入开关控 11 段(同 基于X点推运 范式)。
+	if(/^座运·.+$/.test(t)){
+		return '座运·X';
+	}
+	// 西洋卜卦 horary 专题深化·X(诉讼/买房/怀孕 3 变体,horarySnapshot.js 段头 `[专题深化·${topic.title}]`)
+	// 折叠成单占位,与 preset 的「专题深化·X」两侧归一 → 一个纳入开关控 3 类专题(同 座运·X 范式)。
+	if(/^专题深化·.+$/.test(t)){
+		return '专题深化·X';
 	}
 	return t;
 }

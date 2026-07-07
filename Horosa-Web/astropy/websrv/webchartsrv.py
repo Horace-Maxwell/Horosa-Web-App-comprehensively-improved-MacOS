@@ -57,6 +57,7 @@ from websrv.webastroextrasrv import AstroExtraSrv
 from websrv.webplanetariumsrv import PlanetariumSrv
 # 策天飞星:已按《十八飞星策天紫微斗数》全面重写为自有引擎,从 kentang 摘出,直接挂载(不再走 kentang registry)。
 from websrv.webcetiansrv import CeTianSrv
+from websrv.webqizhengelectionsrv import QiZhengElectionSrv
 from websrv.kentang.registry import mount_kentang_services
 
 ledger_mark('py.imports_done', t0=_PY_T0)
@@ -597,6 +598,7 @@ if __name__ == '__main__':
     cherrypy.tree.mount(JieQiSrv(), '/jieqi')
     cherrypy.tree.mount(WebJdnSrv(), '/jdn')
     cherrypy.tree.mount(WebCalcSrv(), '/calc')
+    cherrypy.tree.mount(QiZhengElectionSrv(), '/qizhengelection')
     cherrypy.tree.mount(AcgSrv(), '/location')
     cherrypy.tree.mount(CeTianSrv(), '/cetian')
     cherrypy.tree.mount(AstroExtraSrv(), '/astroextra')

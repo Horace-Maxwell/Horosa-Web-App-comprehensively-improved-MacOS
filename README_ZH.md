@@ -8,13 +8,13 @@
 
 **把所有玄学放进一个原生 macOS 软件中**
 
-[![Version](https://img.shields.io/badge/version-3.3.0-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
+[![Version](https://img.shields.io/badge/version-3.3.1-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
 - **法律与隐私**:服务条款 / 隐私政策 / 安全说明 / 网络说明 / 开源声明,见 [docs/legal](docs/legal/)(中英双语)。
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.0/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.1/Horosa-Installer-macos-arm64-offline.pkg) ·
 [入口页](README.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -33,7 +33,7 @@
 
 普通用户直接下载离线安装包，像任何 macOS 软件一样安装、打开即可。
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.0/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.1/Horosa-Installer-macos-arm64-offline.pkg)**
 
 适合场景：
 
@@ -43,6 +43,16 @@
 - 希望首次打开就能用，不再额外联网拉运行时
 
 无需自备 Python 或 Java，运行时已随包交付。更新只替换程序与共享运行时，不会动你已经保存的命例与事盘数据。
+
+## 网页版一键启动(从源码)
+
+不装 .pkg,直接从源码把星阙跑成本地网页版:
+
+- **启动**:双击仓库根目录的 `Horosa_OneClick_Mac.command` —— 有现成构建产物几秒即开浏览器;首次运行自动补齐工具链并构建(Mongo/Redis 对本产品是可选依赖,默认跳过;需要时 `HOROSA_SKIP_DB_SETUP=0` 开启)。
+- **停止**:双击 `Horosa_Stop_Mac.command`(回收全部端口实例,只停带本产品指纹的进程,绝不误伤其它软件)。
+- **用 ZIP 下载的注意**:GitHub「Download ZIP」会丢脚本执行位——先执行一次 `chmod +x *.command tools/mac/*.command scripts/mac/*.sh`;首次双击若被 Gatekeeper 拦截,右键该文件 → 打开。`git clone` 获取则两者皆免。
+- **端口被占**:自动换用 18899/19999/18000 起的空闲口,无需手动处理。
+- 全部可调项(端口/跳过构建/下载镜像等)见 [docs/WEB_LOCAL_LAUNCH.md](docs/WEB_LOCAL_LAUNCH.md);大陆网络已内置 TUNA/npmmirror 镜像回退。
 
 ## 截图
 

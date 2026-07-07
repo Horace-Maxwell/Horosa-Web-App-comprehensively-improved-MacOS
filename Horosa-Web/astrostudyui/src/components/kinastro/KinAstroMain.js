@@ -4,6 +4,7 @@ import { Input, InputNumber, Modal, Spin, Switch } from 'antd';
 import DateTime from '../comp/DateTime';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
 import { resolveGeoZone } from '../../utils/timezone';
+import { geoNameFieldPatch } from '../../utils/geoName';
 import CanPingMain from '../shusuan/CanPingMain';
 import HeLuoMain from '../shusuan/HeLuoMain';
 import YiZhangJingMain from '../yizhangjing/YiZhangJingMain';
@@ -994,6 +995,7 @@ class KinAstroMain extends Component{
 			if(dDt && dDt.clone){ const nd = dDt.clone(); nd.setZone(z); payload.date = { value: nd }; payload.ad = { value: nd.ad }; }
 			if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); payload.time = { value: nt }; }
 		}
+		Object.assign(payload, geoNameFieldPatch(rec));
 		this.onFieldsChange(payload);
 	}
 

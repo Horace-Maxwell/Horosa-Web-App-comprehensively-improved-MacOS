@@ -6,6 +6,7 @@ import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { splitDegree, convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
 import { resolveGeoZone } from '../../utils/timezone';
+import { geoNameFieldPatch } from '../../utils/geoName';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import * as LRConst from '../liureng/LRConst';
 import ChuangChart from '../liureng/ChuangChart';
@@ -31,6 +32,7 @@ import GeoCoordModal from '../amap/GeoCoordModal';
 import SanShiZiWeiSihua from './SanShiZiWeiSihua';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
+import QuickDockBar from '../common/QuickDockBar';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { getStore } from '../../utils/storageutil';
 import { getHousesOption } from '../comp/CompHelper';
@@ -89,6 +91,7 @@ import {
 	DANGER_BRIEF,
 	GAN_XIANG,
 	ZHI_ZODIAC,
+	LUOSHU_NUM,
 } from '../dunjia/DunJiaFaDoc';
 import {
 	QIMEN_YONGSHEN_BASIC,
@@ -184,15 +187,6 @@ const QIMEN_OPTIONS = {
 	shuziReportNumber: '',
 	zhirunLeapDays: 9,
 };
-
-const SANSHI_QUICK_ACTIONS = [
-	{ key: 'overview', label: '概览', icon: 'sidePlanets', tab: 'overview' },
-	{ key: 'taiyi', label: '太乙', icon: 'quickPrimary', tab: 'taiyi' },
-	{ key: 'liureng', label: '六壬', icon: 'quickFirdaria', tab: 'liureng' },
-	{ key: 'bagong', label: '遁甲', icon: 'sideHouses', tab: 'bagong' },
-	{ key: 'plot', label: '起盘', icon: 'quickTransit', action: 'plot' },
-	{ key: 'save', label: '保存', icon: 'quickReturn', action: 'save' },
-];
 
 const OUTER_RING_LAYOUT = [
 	{ branch: '巳', side: 'top', x0: 11.1, x1: 33.33, y0: 0, y1: 11.1 },
@@ -1976,7 +1970,6 @@ class SanShiUnitedMain extends Component{
 		this.clickPlot = this.clickPlot.bind(this);
 		this.changeGeo = this.changeGeo.bind(this);
 		this.clickSave = this.clickSave.bind(this);
-		this.handleQuickAction = this.handleQuickAction.bind(this);
 		this.renderQuickDock = this.renderQuickDock.bind(this);
 		this.parseCasePayload = this.parseCasePayload.bind(this);
 		this.restoreOptionsFromCurrentCase = this.restoreOptionsFromCurrentCase.bind(this);
@@ -1996,46 +1989,50 @@ class SanShiUnitedMain extends Component{
 		}
 	}
 
-	handleQuickAction(item){
-		if(!item){
+	// 快捷栏契约:「此刻起盘」:局时=当下并立即重排。借道 clickPlot 全管道(同步/预取/兜底定时器),
+	// 起盘瞬间临时屏蔽左栏时间草稿(timeHook)——点「此刻」语义就是 NOW,不该被旧草稿覆盖。
+	clickPlotNow(){
+		if(this.state.loading){
 			return;
 		}
-		if(item.tab){
-			this.setState({ rightPanelTab: item.tab });
+		const base = this.state.localFields || this.props.fields;
+		if(!base){
 			return;
 		}
-		if(item.action === 'plot'){
+		const now = new DateTime();
+		this.pendingTimeFields = {
+			...base,
+			date: { value: now.clone() },
+			time: { value: now.clone() },
+			ad: { value: now.ad },
+		};
+		const hookGet = this.timeHook && this.timeHook.getValue;
+		if(hookGet){
+			this.timeHook.getValue = ()=>null;
+		}
+		try{
 			this.clickPlot();
-			return;
-		}
-		if(item.action === 'save'){
-			this.clickSave();
+		}finally{
+			if(hookGet){
+				this.timeHook.getValue = hookGet;
+			}
 		}
 	}
 
+	// 快捷栏契约:右栏 tab 镜像(概览/太乙/六壬/遁甲)撤除,只留本页没有的动词。
 	renderQuickDock(){
-		const rightPanelTab = this.state.rightPanelTab === 'status' ? 'overview' : this.state.rightPanelTab;
 		return (
-			<div className="horosa-bottom-quick-dock horosa-sanshi-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-sanshi-quick-actions">
-					{SANSHI_QUICK_ACTIONS.map((item)=>{
-						const active = item.tab && item.tab === rightPanelTab;
-						return (
-							<button
-								type="button"
-								key={item.key}
-								className={`horosa-bottom-quick-button horosa-sanshi-quick-button${active ? ' is-active' : ''}`}
-								onClick={()=>this.handleQuickAction(item)}
-								disabled={this.state.loading && item.action === 'plot'}
-							>
-								<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-								<span>{item.label}</span>
-							</button>
-						);
-					})}
-				</div>
-			</div>
+			<QuickDockBar
+				page="sanshi"
+				className="horosa-sanshi-quick-dock"
+				hasResult={!!(this.state.hasPlotted && this.state.dunjia)}
+				primary={{ key: 'plot', label: '起盘', disabled: this.state.loading, onClick: this.clickPlot }}
+				extras={[
+					{ key: 'nowPlot', label: '此刻起盘', icon: 'quickTransit', needsResult: false, disabled: this.state.loading, onClick: ()=>this.clickPlotNow() },
+				]}
+				save={this.clickSave}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 
@@ -2819,6 +2816,7 @@ class SanShiUnitedMain extends Component{
 			if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); geoPatch.time = { value: nt }; }
 		}
 		// 🔑 刷新左栏显示(localFields)+ 实时重算(silent fetchByFields):改地点/时区即重排三式
+		Object.assign(geoPatch, geoNameFieldPatch(rec));
 		this.setState({ localFields: { ...base, ...geoPatch } });
 		this.onFieldsChange(geoPatch, true);
 	}
@@ -4536,7 +4534,7 @@ class SanShiUnitedMain extends Component{
 				<div key={`ssu_ys_loc_${label}`} style={{ lineHeight: '24px' }}>
 					<span style={{ fontWeight: 600 }}>{label}</span>
 					{it && it.symbol ? <span style={{ color: soft }}>（{it.symbol}）</span> : null}
-					<span style={{ color: soft }}>：{it && it.palaceNum ? `${it.palaceName}${it.palaceNum}宫·${it.direction}` : '局中未现'}</span>
+					<span style={{ color: soft }}>：{it && it.palaceNum ? `${it.palaceName}${LUOSHU_NUM[it.palaceName]}宫·${it.direction}` : '局中未现'}</span>
 					{' '}{hazardTag(it)}
 					{extra ? <span style={{ color: muted }}> {extra}</span> : null}
 				</div>
@@ -4558,7 +4556,7 @@ class SanShiUnitedMain extends Component{
 					{ys.ganHe ? locLine('干合·配偶/理想型', ys.ganHe) : null}
 					{locLine('值符·话语权', ys.zhiFu)}
 					{locLine('值使·用武之地', ys.zhiShi)}
-					<div style={{ color: muted, marginTop: 4 }}>六亲：{ys.liuQin.map((r)=>`${r.rel.split('·')[1]}(${r.symbol}${r.palaceNum ? r.palaceName + r.palaceNum + '宫' : '未现'})`).join('　')}</div>
+					<div style={{ color: muted, marginTop: 4 }}>六亲：{ys.liuQin.map((r)=>`${r.rel.split('·')[1]}(${r.symbol}${r.palaceNum ? r.palaceName + LUOSHU_NUM[r.palaceName] + '宫' : '未现'})`).join('　')}</div>
 				</Card>
 			);
 			const guGuaCard = guGua.length ? (
@@ -4626,7 +4624,7 @@ class SanShiUnitedMain extends Component{
 							<div key={`ssu_hz_${i}`} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 0', borderTop: i ? `1px solid ${border}` : 'none' }}>
 								{badge(d.oneChar, DANGER_DOT[d.type])}
 								<div style={{ flex: 1, minWidth: 0 }}>
-									<div style={{ lineHeight: '20px' }}><span style={{ color: DANGER_DOT[d.type], fontWeight: 600 }}>{d.type}</span><span style={{ color: soft }}> · {d.palaceName}{d.palaceNum}宫 · {d.direction} · {d.symbol}</span></div>
+									<div style={{ lineHeight: '20px' }}><span style={{ color: DANGER_DOT[d.type], fontWeight: 600 }}>{d.type}</span><span style={{ color: soft }}> · {d.palaceName}{LUOSHU_NUM[d.palaceName]}宫 · {d.direction} · {d.symbol}</span></div>
 									<div style={{ color: muted, fontSize: 12, lineHeight: '18px' }}>{DANGER_BRIEF[d.type] || d.note}</div>
 								</div>
 							</div>
@@ -4640,7 +4638,7 @@ class SanShiUnitedMain extends Component{
 								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
 									<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
 										{c.dangers.map((d, k)=>(<span key={`ssu_db_${k}`} style={{ display: 'inline-flex' }}>{badge(d.oneChar, DANGER_DOT[d.type])}</span>))}
-										<span style={{ fontWeight: 600, color: col }}>{c.palaceName}{c.palaceNum}宫<span style={{ color: muted, fontWeight: 400, fontSize: 12 }}> · {c.direction} · {c.deg}</span></span>
+										<span style={{ fontWeight: 600, color: col }}>{c.palaceName}{LUOSHU_NUM[c.palaceName]}宫<span style={{ color: muted, fontWeight: 400, fontSize: 12 }}> · {c.direction} · {c.deg}</span></span>
 									</span>
 									<Tag style={{ marginRight: 0, flex: '0 0 auto' }}>天盘干「{c.tianGan}」</Tag>
 								</div>
@@ -4655,7 +4653,7 @@ class SanShiUnitedMain extends Component{
 											{c.placements.map((p, k)=>(<div key={`ssu_pl_${k}`} style={{ paddingLeft: 20 }}><span style={{ color: '#2e7d32', fontWeight: 600 }}>{p.where}</span>　{p.text}</div>))}
 										</div>
 									) : null}
-									<div><span style={{ color: muted }}>③ 时机　</span>本宫 {c.benZhi}日 / {c.ben}　｜　对宫 {c.duiZhi}日 / {c.dui}</div>
+									<div style={{ display: 'flex', alignItems: 'flex-start' }}><span style={{ color: muted, flex: '0 0 auto' }}>③ 时机　</span><span>本宫 {c.benZhi}日 / {c.ben}<br />对宫 {c.duiZhi}日 / {c.dui}</span></div>
 									{c.notes.map((n, k)=>(<div key={`ssu_nt_${k}`} style={{ color: muted, fontSize: 12, marginTop: 2 }}>※ {n}</div>))}
 								</div>
 							</Card>
@@ -4676,7 +4674,7 @@ class SanShiUnitedMain extends Component{
 						{protect.map((r, i)=>(
 							<div key={`ssu_pr_${i}`} style={{ lineHeight: '22px', padding: '3px 0', borderTop: i ? `1px solid ${border}` : 'none' }}>
 								<span style={{ fontWeight: 600 }}>{r.label}{r.gan ? `「${r.gan}」` : ''}</span>
-								<span style={{ color: soft }}>：{r.palaceNum ? `${r.palaceName}${r.palaceNum}宫·${r.direction}` : '局中未现'}</span>
+								<span style={{ color: soft }}>：{r.palaceNum ? `${r.palaceName}${LUOSHU_NUM[r.palaceName]}宫·${r.direction}` : '局中未现'}</span>
 								{r.hazards.length ? <Tag color='red' style={{ marginLeft: 6 }}>{r.hazards.join('/')}</Tag> : (r.palaceNum ? <Tag color='green' style={{ marginLeft: 6 }}>平稳</Tag> : null)}
 								<div style={{ color: muted, fontSize: 12, paddingLeft: 2 }}>{r.advice}</div>
 							</div>

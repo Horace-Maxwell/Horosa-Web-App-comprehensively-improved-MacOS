@@ -1,8 +1,13 @@
 import { XQTabs as Tabs } from '../xq-ui';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
-import { moiraMergeStellarRelationRows as mergeStellarRelationRows, moiraBuildLimitTable as buildLimitTable, moiraCurrentLimitIndex as currentLimitIndex, } from './GuoLaoMoiraWheel';
-import { PALACE_LORD as GL_PALACE_LORD, SU28 as GL_SU28, SU28_DEGREE_LORD as GL_SU28_LORD, HUAYAO_A as GL_HUAYAO_A, EXALT_DEGREE as GL_EXALT, DIGNITY_TABLE as GL_DIGNITY } from './guolaoData';
+import { moiraMergeStellarRelationRows as mergeStellarRelationRows, moiraBuildLimitTable as buildLimitTable, moiraCurrentLimitIndex as currentLimitIndex, MOIRA_PLANET_DEFS, } from './GuoLaoMoiraWheel';
+import { calcAzimuthLocal } from '../commtools/Azimuth';
+import { convertLatStrToDegree, convertLonStrToDegree } from '../astro/AstroHelper';
+import { shanAtDeg } from '../fengshui/liqiCore';
+import { LIFE_HELPER_LABELS, lifeHelperRow, weakSolidPillars, smallLimitBranch, flyLimitBranches, limitDegreeSpan, childAgeLimitYears, childYearsSpan, childLimitBranch, monthLimitBranch, lunarMonthNumFromBranch, branchElementOf, SU_ELEMENT } from './guolaoMoiraTables';
+import { GUOLAO_STAR_NOTES } from './guolaoStarNotes';
+import { PALACE_LORD as GL_PALACE_LORD, SU28 as GL_SU28, SU28_DEGREE_LORD as GL_SU28_LORD, HUAYAO_A as GL_HUAYAO_A, EXALT_DEGREE as GL_EXALT, DIGNITY_TABLE as GL_DIGNITY, SIGN_STATUS_SEQ, starDignityStatuses as glStarDignity, starMotionState as glStarMotion, starCombust as glStarCombust } from './guolaoData';
 import { computeDongwei as glDongwei, computeXiaoxian as glXiaoxian, computeTongxian as glTongxian, computeYuexian as glYuexian } from './guolaoTransit';
 import './GuoLaoMoiraPanel.less';
 
@@ -39,6 +44,14 @@ const PLANET_ORDER = [
 	{ id: AstroConst.NORTH_NODE, name: '罗' },
 	{ id: AstroConst.PURPLE_CLOUDS, name: '炁' },
 	{ id: AstroConst.DARKMOON, name: '孛' },
+	{ id: AstroConst.URANUS, name: '天' },
+	{ id: AstroConst.NEPTUNE, name: '海' },
+	{ id: AstroConst.PLUTO, name: '冥' },
+];
+// 升顶(Asc/MC)角点:仅进「星点动态」表(位置/无庙旺/无自行),不入星曜庙旺列。
+const ANGLE_ORDER = [
+	{ id: AstroConst.ASC, name: '升' },
+	{ id: AstroConst.MC, name: '顶' },
 ];
 
 const STEM_BRANCHES = ['甲子', '乙丑', '丙寅', '丁卯', '戊辰', '己巳', '庚午', '辛未', '壬申', '癸酉', '甲戌', '乙亥', '丙子', '丁丑', '戊寅', '己卯', '庚辰', '辛巳', '壬午', '癸未', '甲申', '乙酉', '丙戌', '丁亥', '戊子', '己丑', '庚寅', '辛卯', '壬辰', '癸巳', '甲午', '乙未', '丙申', '丁酉', '戊戌', '己亥', '庚子', '辛丑', '壬寅', '癸卯', '甲辰', '乙巳', '丙午', '丁未', '戊申', '己酉', '庚戌', '辛亥', '壬子', '癸丑', '甲寅', '乙卯', '丙辰', '丁巳', '戊午', '己未', '庚申', '辛酉', '壬戌', '癸亥'];
@@ -173,8 +186,17 @@ function norm(deg){
 	return val;
 }
 
-function objectLon(obj){
-	const num = Number(obj && (obj.ra !== undefined ? obj.ra : obj.lon));
+// 黄仪/赤仪显示口径(chart.displayCoord 单一真值源;旧数据回退恒星制旧判据)。
+function isEclipticDisplay(chart){
+	const coord = chart && chart.displayCoord;
+	if(coord === 'ecliptic'){ return true; }
+	if(coord === 'equatorial'){ return false; }
+	const params = chart && chart.params ? chart.params : {};
+	return Number(params.doubingSu28) === 4 || Number(params.guolaoZhengSidereal) === 1;
+}
+
+function objectLon(obj, preferLon = false){
+	const num = Number(obj && (preferLon && obj.lon !== undefined ? obj.lon : (obj.ra !== undefined ? obj.ra : obj.lon)));
 	if(Number.isFinite(num)){
 		return norm(num);
 	}
@@ -206,13 +228,16 @@ function signNameFromLon(lon){
 }
 
 function ziFromLon(lon){
+	// 七政「宫位序↔地支」镜像:支 = (10 − 宫序 + 12) % 12(白羊=戌、巨蟹=未、水瓶=子)。
+	// 旧版把宫序直接当支序(巨蟹→卯),致「位置」列地支与盘面严重错位——已纠正。
 	const list = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-	return list[Math.floor(norm(lon) / 30) % 12] || '';
+	const signIdx = Math.floor(norm(lon) / 30) % 12;
+	return list[(10 - signIdx + 12) % 12] || '';
 }
 
 function anchorFromObject(chart, id, fallbackId, label){
 	const obj = findObject(chart, id) || findObject(chart, fallbackId);
-	const lon = objectLon(obj);
+	const lon = objectLon(obj, isEclipticDisplay(chart));
 	if(!obj || lon === null){
 		return {};
 	}
@@ -247,6 +272,7 @@ function suHostForLon(chart, lon){
 	const offset = norm(degree - star.ra);
 	return {
 		name: star.name,
+		offset,
 		degreeText: suDegreeText(offset),
 		value: `${star.name} ${suDegreeText(offset)}`,
 	};
@@ -421,14 +447,6 @@ export function isCombustObj(obj, lon, sunLon, id){
 	return d < 8;
 }
 
-function speedText(speed){
-	if(!Number.isFinite(speed)){
-		return '';
-	}
-	const sign = speed > 0 ? '+' : '';
-	return `${sign}${speed.toFixed(4)}`;
-}
-
 // G25 擢升度数:七政在擢升本座时标峰值度,距峰≤1°标「精擢」(EXALT_DEGREE 派生自 PALACE_LORD)。
 function exaltText(name, lon){
 	const e = GL_EXALT[name];
@@ -457,6 +475,32 @@ function motionText(id, speed){
 	return a < spec.mean ? '迟' : '疾';
 }
 
+// Moira 庙旺殿喜口径(与后端 dignity() 同表同序):入垣(宫主)/升殿(擢升)/失垣(对宫)/落陷。
+// 七政专判,四余/交点为虚星不判;本命行后端 rule.dignity 已给,流年行 rule 为空由此表补算,前后端单一口径。
+const MOIRA_SIGN_DIGNITY = [
+	[AstroConst.MARS, AstroConst.SUN, AstroConst.VENUS, AstroConst.SATURN],
+	[AstroConst.VENUS, AstroConst.MOON, AstroConst.MARS, null],
+	[AstroConst.MERCURY, null, AstroConst.JUPITER, null],
+	[AstroConst.MOON, AstroConst.JUPITER, AstroConst.SATURN, null],
+	[AstroConst.SUN, null, AstroConst.SATURN, null],
+	[AstroConst.MERCURY, AstroConst.MERCURY, AstroConst.JUPITER, AstroConst.VENUS],
+	[AstroConst.VENUS, AstroConst.SATURN, AstroConst.MARS, AstroConst.SUN],
+	[AstroConst.MARS, null, AstroConst.VENUS, AstroConst.MOON],
+	[AstroConst.JUPITER, null, AstroConst.MERCURY, null],
+	[AstroConst.SATURN, AstroConst.MARS, AstroConst.MOON, AstroConst.JUPITER],
+	[AstroConst.SATURN, null, AstroConst.SUN, null],
+	[AstroConst.JUPITER, AstroConst.VENUS, AstroConst.MERCURY, AstroConst.MERCURY],
+];
+const MOIRA_DIGNITY_WORDS = ['入垣', '升殿', '失垣', '落陷'];
+function moiraDignityOf(id, lon){
+	if(!Number.isFinite(lon)){ return ''; }
+	const row = MOIRA_SIGN_DIGNITY[Math.floor(norm(lon) / 30) % 12] || [];
+	for(let i = 0; i < 4; i++){
+		if(row[i] && row[i] === id){ return MOIRA_DIGNITY_WORDS[i]; }
+	}
+	return '';
+}
+
 // 庙旺(从 DIGNITY_TABLE 派生,单一真值源):七政按地支宫取庙/旺/落/陷/平。本命+流年一致(不依赖后端 rule.dignity)。
 // DIGNITY_TABLE 行=日月水金火木土,列=子..亥;地支(子base)=(10-黄道宫序+12)%12(戌=白羊)。
 function dignityFromTable(name, lon){
@@ -480,14 +524,19 @@ function qizhengStateText(item){
 
 function buildPlanetRows(chart, rulePlanets){
 	const byRule = new Map(safeList(rulePlanets).map((item)=>[item.id, item]));
-	const sunLon = objectLon(findObject(chart, AstroConst.SUN));
+	const sunLon = objectLon(findObject(chart, AstroConst.SUN), isEclipticDisplay(chart));
 	return PLANET_ORDER.map((def)=>{
 		const obj = findObject(chart, def.id);
-		const lon = objectLon(obj);
+		const lon = objectLon(obj, isEclipticDisplay(chart));
 		if(!obj || lon === null){
 			return null;
 		}
 		const rule = byRule.get(def.id) || {};
+		const _combust = isCombustObj(obj, lon, sunLon, def.id);   // G8 伏(合日 3°)
+		// Moira 庙旺所属(殿垣庙旺乐喜怒):按古法地支查表 + 躔擢升度峰值加「殿」;天海冥无表项 → []。
+		const _zhi = ziFromLon(lon);
+		const _ex = GL_EXALT[def.name];
+		const _atPeak = !!(_ex && Math.floor(norm(lon) / 30) % 12 === _ex.signIndex && Math.abs((norm(lon) % 30) - _ex.deg) <= 1);
 		return {
 			id: def.id,
 			name: def.name,
@@ -495,14 +544,66 @@ function buildPlanetRows(chart, rulePlanets){
 			degreeText: rule.degreeText || degreeText(lon),
 			compactDegree: compactDegreeText(lon),
 			su28: obj.su28 || rule.su28 || '',
+			// 「宫/宿度」列宿内度(Moira 07井木47 式):按 fixedStarSu28 真距星宿界;无宿界数据回退宿名+宫内度。
+			suDegText: (function(){
+				const host = suHostForLon(chart, lon);
+				if(!host || !host.name || !Number.isFinite(host.offset)){ return ''; }
+				const d = Math.floor(host.offset);
+				const m = Math.floor((host.offset - d) * 60);
+				return `${String(d).padStart(2, '0')}${host.name}${SU_ELEMENT[host.name] || ''}${String(m).padStart(2, '0')}`;
+			})(),
 			house: rule.moiraHouse || msg(obj.house) || '',
 			dignity: rule.dignity || '',
+			lon,
+			// 「位置」列(用户钦定格式):宫内度2位 + 所在地支 + 分2位,如 01午50
+			signDegreeText: (function(){
+				const inSign = norm(lon) % 30;
+				const dd = Math.floor(inSign);
+				const mm = Math.floor((inSign - dd) * 60);
+				return `${String(dd).padStart(2, '0')}${ziFromLon(lon)}${String(mm).padStart(2, '0')}`;
+			})(),
+			dignityMoira: (rule.dignity && rule.dignity !== '平') ? rule.dignity : moiraDignityOf(def.id, lon), // Moira 口径(本命=后端,流年=同表前端补算)
 			dignityTable: dignityFromTable(def.name, lon),     // 庙旺(单一真值源 DIGNITY_TABLE,本命+流年一致)
 			exalt: exaltText(def.name, lon),                   // G25 擢升度数(旺度峰值)
 			status: planetStatus(obj),
-			combust: isCombustObj(obj, lon, sunLon, def.id),   // G8 伏(焦伤)
+			combust: _combust,                                 // G8 伏(焦伤)
 			motion: motionText(def.id, Number(obj.lonspeed)),  // G8 留/迟/疾
 			speed: Number(obj.lonspeed),
+			zhi: _zhi,
+			signStatus: glStarDignity(def.name, _zhi, _atPeak),                       // Moira 庙旺所属(殿垣庙旺乐喜怒)
+			// Moira 速度态(顺逆留伏迟速):伏用 Moira 合日 3°(glStarCombust,与 AI 快照同源),非 isCombustObj 的 8° 焦伤。
+			motionState: glStarMotion(def.name, Number(obj.lonspeed), glStarCombust(def.name, lon, sunLon)),
+		};
+	}).filter(Boolean);
+}
+
+// 升顶(Asc/MC)角点行:仅位置(宫/宿度/位置);无庙旺、无自行 —— 仅供「星点动态」表尾追加。
+function buildAngleRows(chart){
+	if(!chart){ return []; }
+	const ecl = isEclipticDisplay(chart);
+	return ANGLE_ORDER.map((def)=>{
+		const obj = findObject(chart, def.id);
+		const lon = objectLon(obj, ecl);
+		if(!obj || lon === null){ return null; }
+		const host = suHostForLon(chart, lon);
+		const suDegText = (host && host.name && Number.isFinite(host.offset))
+			? `${String(Math.floor(host.offset)).padStart(2, '0')}${host.name}${SU_ELEMENT[host.name] || ''}${String(Math.floor((host.offset - Math.floor(host.offset)) * 60)).padStart(2, '0')}`
+			: '';
+		const inSign = norm(lon) % 30;
+		const signDegreeText = `${String(Math.floor(inSign)).padStart(2, '0')}${ziFromLon(lon)}${String(Math.floor((inSign - Math.floor(inSign)) * 60)).padStart(2, '0')}`;
+		return {
+			id: def.id,
+			name: def.name,
+			house: msg(obj.house) || '',
+			signName: msg(obj.sign) || '',
+			su28: obj.su28 || '',
+			compactDegree: compactDegreeText(lon),
+			suDegText,
+			signDegreeText,
+			lon,
+			signStatus: [],
+			motionState: '',
+			isAngle: true,
 		};
 	}).filter(Boolean);
 }
@@ -539,46 +640,94 @@ function KeyValueGrid({items}){
 	);
 }
 
-function PlanetTable({rows, showMotion}){
+// 地平方位表(对照 Moira pref_show_horiz「显示地平方位」):每曜 罗盘方位角/真高度/所临山。
+// 纯前端球面三角(calcAzimuthLocal,0=南顺时针 → 罗盘向+180),误差<0.5° 足够方位显示。
+function AzimuthTable({rootValue, chart, params}){
+	const jdn = Number(pickDeep(rootValue, ['jdn', 'julianDay', 'jd', 'jdUt']));
+	const latObs = params && params.lat ? convertLatStrToDegree(params.lat) : null;
+	const lonObs = params && params.lon ? convertLonStrToDegree(params.lon) : null;
+	if(!Number.isFinite(jdn) || latObs === null || lonObs === null){
+		return <div className="horosa-guolao-moira-empty">缺少儒略日/经纬,无法计算地平方位。</div>;
+	}
+	const objects = safeList(chart && chart.objects);
+	const rows = MOIRA_PLANET_DEFS.map((def)=>{
+		const obj = objects.find((o)=>o && o.id === def.id);
+		if(!obj || !Number.isFinite(Number(obj.lon))){
+			return null;
+		}
+		let res = null;
+		try{
+			res = calcAzimuthLocal({
+				jdn,
+				latObs,
+				lonObs,
+				coordLon: Number(obj.lon),
+				coordLat: Number.isFinite(Number(obj.lat)) ? Number(obj.lat) : 0,
+				coordType: 0,
+			});
+		}catch(e){
+			return null;
+		}
+		if(!res){
+			return null;
+		}
+		const azCompass = ((Number(res.azimuth) + 180) % 360 + 360) % 360;
+		const alt = Number(res.altitudeTrue);
+		return {
+			id: def.id,
+			name: def.label,
+			az: azCompass,
+			alt,
+			shan: shanAtDeg(azCompass),
+		};
+	}).filter(Boolean);
+	if(!rows.length){
+		return <div className="horosa-guolao-moira-empty">当前盘无可计算的星曜。</div>;
+	}
 	return (
 		<div className="horosa-guolao-moira-table">
 			<div className="horosa-guolao-moira-table-row horosa-guolao-moira-table-head">
-				<span>星</span><span>宫/座</span><span>宿度</span><span>势/速</span>
+				<span>星</span><span>方位角</span><span>高度</span><span>所临山</span>
 			</div>
 			{rows.map((item)=>(
-				<div className="horosa-guolao-moira-table-row" key={item.id}>
+				<div className="horosa-guolao-moira-table-row" key={`az-${item.id}`}>
 					<strong>{item.name}</strong>
-					<span>{item.house || item.signName} · {item.signName}</span>
-					<span>{item.su28 || '-'} {item.compactDegree}</span>
-					<span>{[item.dignity, item.exalt, item.status, item.combust ? '伏' : '', showMotion ? item.motion : '', speedText(item.speed)].filter(Boolean).join(' · ')}</span>
+					<span>{item.az.toFixed(1)}°</span>
+					<span>{item.alt >= 0 ? '+' : ''}{item.alt.toFixed(1)}°</span>
+					<span>{item.shan || '-'}山</span>
 				</div>
 			))}
 		</div>
 	);
 }
 
-// G8 七政动态表(本命/流年各一份):七政 顺逆留伏迟疾 + 宫/宿度 + 庙旺。
-function QizhengStateTable({rows}){
-	const list = safeList(rows).filter((r)=>GL_MOTION_SPEC[r.id] !== undefined);
+// 星点动态表(本命/流年各一份):七政 + 四余(罗计炁孛) + 天海冥 + 升顶(角点)。
+// 所属列=Moira 庙旺(殿垣庙旺乐喜怒,照 moira_t.prop 星辰X 表)+擢升徽标;速度列=Moira 速度态(顺逆留伏迟速)。
+// 天海冥无庙旺/升顶无庙旺无自行 → 相应列显 '-'。宿度/位置随宿度制与左栏选择实时变。
+function StarPointTable({rows, angleRows}){
+	const list = safeList(rows).concat(safeList(angleRows));
 	if(!list.length){
-		return <div className="horosa-guolao-moira-empty">当前响应无可判七政动态的星曜数据。</div>;
+		return <div className="horosa-guolao-moira-empty">当前响应无可判星点动态的数据。</div>;
 	}
 	return (
-		<div className="horosa-guolao-moira-table">
+		<div className="horosa-guolao-moira-table horosa-guolao-moira-table-5col">
 			<div className="horosa-guolao-moira-table-row horosa-guolao-moira-table-head">
-				<span>星</span><span>宫/宿度</span><span>庙旺</span><span>留逆伏迟疾</span>
+				<span>星</span><span>宫/宿度</span><span>位置</span><span>所属</span><span>速度</span>
 			</div>
 			{list.map((item)=>{
 				// 去前导宫号(本命) + 取别名前段(流年房号翻译含「子女宫 / 男女宫」双名,只留首名)。
 				const houseName = String(item.house || item.signName || '')
 					.replace(/^\s*\d+\s*宫\s*[-·、]?\s*/, '')
-					.split(/\s*\/\s*/)[0].trim();
+					.split(/\s*\/\s*/)[0].trim()
+					.replace(/宫$/, '');
+				const belong = [safeList(item.signStatus).join('·'), item.exalt].filter(Boolean).join(' ');
 				return (
-				<div className="horosa-guolao-moira-table-row" key={`qz-state-${item.id}`}>
+				<div className="horosa-guolao-moira-table-row" key={`sp-state-${item.id}`}>
 					<strong>{item.name}</strong>
-					<span>{[houseName, item.su28 ? `${item.su28}${item.compactDegree}` : item.compactDegree].filter(Boolean).join(' ')}</span>
-					<span>{[item.dignityTable || item.dignity, item.exalt].filter(Boolean).join('·') || '-'}</span>
-					<span>{qizhengStateText(item)}</span>
+					<span>{[houseName, item.suDegText || (item.su28 ? `${item.su28}${item.compactDegree}` : item.compactDegree)].filter(Boolean).join(' ')}</span>
+					<span>{item.signDegreeText || '-'}</span>
+					<span>{belong || '-'}</span>
+					<span>{item.motionState || '-'}</span>
 				</div>
 				);
 			})}
@@ -586,18 +735,96 @@ function QizhengStateTable({rows}){
 	);
 }
 
-function YearSignTable({rows}){
+// 年曜化曜表(照 Moira prop year_info 版式):每行 主曜︵化︶ + 诸从词︵化︶。
+// birth=全表(含月/命/局依赖词:值难/职元/局主/天经/地纬/天元/地元/人元);
+// transit=Moira 原版流年精简模板(上述词依本命而定,流年语境刻意留空)——非缺数据。
+// 替代十神映射(照 Moira alt_year_info 模板对位:天贵位为空,保留原名)。
+const TEN_GOD_ALT_MAP = { 天禄: '比肩', 天暗: '劫财', 天福: '食神', 天耗: '伤官', 天荫: '偏财', 天嗣: '正财', 天刑: '七杀', 天印: '正官', 天囚: '偏印', 天权: '正印' };
+function tenGodName(name, seq){
+	return (seq === 'alt' && TEN_GOD_ALT_MAP[name]) ? TEN_GOD_ALT_MAP[name] : name;
+}
+
+function YearGroupTable({groups, tenGodSeq}){
+	const list = safeList(groups);
+	if(!list.length){
+		return null;
+	}
 	return (
-		<div className="horosa-guolao-moira-table">
+		<div className="horosa-guolao-moira-yeargroup-table">
+			{list.map((row, idx)=>(
+				<div className="horosa-guolao-moira-yeargroup-row" key={`${row.main}-${idx}`}>
+					<strong>
+						{tenGodName(row.main, tenGodSeq)}
+						{row.mainStar ? <i>{row.mainStar}</i> : null}
+					</strong>
+					<span>
+						{safeList(row.items).slice(1).map((item, j)=>(
+							<em key={`${item.name}-${j}`}>
+								{item.name}
+								{item.star ? <i>{item.star}</i> : null}
+							</em>
+						))}
+					</span>
+				</div>
+			))}
+		</div>
+	);
+}
+
+// 宫位化曜合并表:本命化曜 + 流年化曜 同列于十二宫(用户钦定顺序 命财兄田子奴夫疾迁官福相)。
+// 曜名(shortName)随其化曜(star)派生(如各土宫→福食),故随化曜同格不拆列;宫性(强弱·地支·星座)命/流共享(十二宫本命固定,已 live 核实 natal==transit)。
+const YEARSIGN_PALACE_ORDER = ['命宫', '财帛', '兄弟', '田宅', '子女', '奴仆', '夫妻', '疾厄', '迁移', '官禄', '福德', '相貌'];
+function normYearSignPalace(name){
+	let n = String(name || '').trim().replace(/宫$/, '');
+	if(n === '男女' || n === '子孙' || n === '男' || n === '子'){ n = '子女'; }   // 子女宫在本仓数据名为「男女」,归一
+	return n;
+}
+// 纯函数:按钦定宫序合并本命/流年年曜化曜,返回 [{name, natalText, transitText, sign}]。零丢失(异名宫兜底补末)。
+export function mergeOrderedYearStars(natalRows, transitRows){
+	const natal = safeList(natalRows);
+	const transit = safeList(transitRows);
+	if(!natal.length && !transit.length){ return []; }
+	const toMap = (list)=>{ const m = new Map(); list.forEach((r)=>{ if(r && r.name){ m.set(normYearSignPalace(r.name), r); } }); return m; };
+	const nMap = toMap(natal);
+	const tMap = toMap(transit);
+	const seen = new Set();
+	const out = [];
+	const cell = (r)=>r ? [r.star, r.shortName].filter(Boolean).join(' ') : '';
+	const emit = (key)=>{
+		if(seen.has(key)){ return; }
+		const nr = nMap.get(key);
+		const tr = tMap.get(key);
+		if(!nr && !tr){ return; }
+		seen.add(key);
+		const base = nr || tr;
+		out.push({
+			name: base.name,
+			natalText: cell(nr),
+			transitText: cell(tr),
+			sign: [base.quality, base.zi, base.signName].filter(Boolean).join(' · '),
+		});
+	};
+	YEARSIGN_PALACE_ORDER.forEach((p)=>emit(normYearSignPalace(p)));
+	natal.forEach((r)=>r && r.name && emit(normYearSignPalace(r.name)));      // 兜底:非标准宫名按原序补末
+	transit.forEach((r)=>r && r.name && emit(normYearSignPalace(r.name)));
+	return out;
+}
+
+// 渲染:宫 | 本命(化曜·曜名) | 流年(化曜·曜名) | 宫性。
+function YearSignMergedTable({natalRows, transitRows}){
+	const rows = mergeOrderedYearStars(natalRows, transitRows);
+	if(!rows.length){ return null; }
+	return (
+		<div className="horosa-guolao-moira-table horosa-guolao-moira-yearsign-table horosa-guolao-moira-yearsign-merged">
 			<div className="horosa-guolao-moira-table-row horosa-guolao-moira-table-head">
-				<span>宫</span><span>化曜</span><span>曜名</span><span>宫性</span>
+				<span>宫</span><span>本命</span><span>流年</span><span>宫性</span>
 			</div>
-			{safeList(rows).map((item)=>(
-				<div className="horosa-guolao-moira-table-row" key={`${item.mode || 'year'}-${item.name}`}>
+			{rows.map((item)=>(
+				<div className="horosa-guolao-moira-table-row" key={`ysm-${item.name}`}>
 					<strong>{item.name}</strong>
-					<span>{item.star || '-'}</span>
-					<span>{item.shortName || '-'}</span>
-					<span>{[item.quality, item.zi, item.signName].filter(Boolean).join(' · ')}</span>
+					<span>{item.natalText || '-'}</span>
+					<span>{item.transitText || '-'}</span>
+					<span>{item.sign || '-'}</span>
 				</div>
 			))}
 		</div>
@@ -653,7 +880,10 @@ export default function GuoLaoMoiraPanel(props){
 	const transitChart = transitRoot.chart || {};
 	const params = mergeDefined(value && value.params, rootValue.params);
 	const transitParams = safeMap(props.transitParams);
-	const display = props.display || {};   // 类B 显示偏好:命主取法/留伏迟疾/五虎遁/行运法等
+	const display = props.display || {};   // 类B 显示偏好:命主取法/留伏迟疾/五虎遁/行运法/定童限等
+	const limitChildBase = Number(display.limitChildBase) === 10 ? 10 : 9; // 定童限 base(9 九年/10 十年),与大限环同口径
+	// 宿主页注入的补充 tab(化曜/虚实/命曜/流曜/相位等)——信息常驻右栏,不再只藏在快捷弹层里
+	const extraTabs = Array.isArray(props.extraTabs) ? props.extraTabs.filter(Boolean) : [];
 
 	if(props.loading && !value){
 		return (
@@ -685,6 +915,8 @@ export default function GuoLaoMoiraPanel(props){
 	const planets = safeList(value.planets);
 		const natalPlanetRows = buildPlanetRows(birthChart, planets);
 		const transitPlanetRows = buildPlanetRows(transitChart, []);
+		const natalAngleRows = buildAngleRows(birthChart);       // 升顶(Asc/MC)角点 → 星点动态表尾
+		const transitAngleRows = buildAngleRows(transitChart);
 		const godHits = safeList(value.godHits);
 		const yearStars = safeMap(value.yearStars);
 		const birthYearStars = safeMap(yearStars.birth);
@@ -714,8 +946,8 @@ export default function GuoLaoMoiraPanel(props){
 				<KeyValueGrid items={[
 					{label: '计算法', value: '地心计算法'},
 					{label: '本命时间', value: dateTextFromParams(params)},
-					{label: '流年时间', value: dateTextFromParams(transitParams)},
 					{label: '本命四柱', value: baziText(rootValue) || birthYearText},
+					{label: '流年时间', value: dateTextFromParams(transitParams)},
 					{label: '本命农历', value: lunarText(rootValue)},
 					{label: '流年', value: `${transitYearText} ${transitYear}，${Number.isFinite(age) ? `${age}岁` : ''}`},
 					{label: '地点', value: [params.lon, params.lat].filter(Boolean).join(' ')},
@@ -770,17 +1002,104 @@ export default function GuoLaoMoiraPanel(props){
 					if(ms.huayao){ items.push({ label: '生年化曜(A诀)', value: ms.huayao }); }
 					return items.length ? (<><div className="horosa-guolao-moira-subtitle">三主 · 命宫配干 · 化曜（{useDu ? '专度主' : '主宫主'}）</div><KeyValueGrid items={items} /></>) : null;
 				})()}
+			</Section>
+				{(()=>{
+					// Moira 信息区四表(照其本命盘右上版式):难仇恩用(度/宫两役行,主星五行查表;备标签「难财恩用」仅 Moira PICK_MODE 用)、
+					// 虚实四柱(虚=旬空)、飞限/小限、限度/至(黄道座+度分;宿度精排在盘面)。
+					const ms2 = deriveGuolaoMasters(life, self, lifeSuHost && lifeSuHost.name, (birthYearText || '').slice(0, 1), display.lifeMasterMode);
+					const rows = [];
+					const duElem = ms2.degMaster ? `${ms2.degMaster}`.charAt(0) : '';
+					const gongElem = ms2.lifeMaster ? `${ms2.lifeMaster}`.charAt(0) : branchElementOf(life && life.zi ? `${life.zi}`.slice(-1) : '');
+					const duRow = lifeHelperRow(duElem);
+					const gongRow = lifeHelperRow(gongElem);
+					if(duRow){ rows.push({ head: '度', main: duElem, roles: duRow }); }
+					if(gongRow){ rows.push({ head: '宫', main: gongElem, roles: gongRow }); }
+					const baziObj = getBazi(rootValue);
+					const pillarOf = (key)=>{
+						const col = baziObj && baziObj[key];
+						if(!col){ return ''; }
+						if(col.text){ return col.text; }
+						const stem = col.stem && col.stem.cell ? col.stem.cell : '';
+						const branch = col.branch && col.branch.cell ? col.branch.cell : '';
+						return `${stem}${branch}`;
+					};
+					const pillars = [pillarOf('year'), pillarOf('month'), pillarOf('day'), pillarOf('time')];
+					const ws = pillars.some(Boolean) ? weakSolidPillars(pillars) : null;
+					const lifeLon = Number(life && life.longitude);
+					const hasLife = Number.isFinite(lifeLon) && Number.isFinite(age);
+					const SIGN_BRANCH_LOCAL = ['戌', '酉', '申', '未', '午', '巳', '辰', '卯', '寅', '丑', '子', '亥'];
+					const fmtLimitDeg = (deg)=>{
+						const v = ((Number(deg) % 360) + 360) % 360;
+						const sign = Math.floor(v / 30);
+						const inDeg = v - sign * 30;
+						const d = Math.floor(inDeg);
+						const m = Math.floor((inDeg - d) * 60);
+						return `${String(d).padStart(2, '0')}${SIGN_BRANCH_LOCAL[sign]}${String(m).padStart(2, '0')}`;
+					};
+					// 飞限/童限边界=童限岁数上限四舍值;限度度数首宫=童限不四舍值(照 Moira getChildLimit true/false)。
+					// 勿用 flyLimitBranches/limitDegreeSpan 默认 5/11,否则童限边界与首宫年数皆错。
+					const childLimit = hasLife ? childAgeLimitYears(lifeLon, limitChildBase) : 5;
+					const childSpan = hasLife ? childYearsSpan(lifeLon, limitChildBase) : 11;
+					const fly = hasLife ? flyLimitBranches(lifeLon, Math.max(0, age - 1), childLimit) : null;
+					const span = hasLife ? limitDegreeSpan(lifeLon, age, childSpan) : null;
+					const childZhi = hasLife && age <= childLimit ? childLimitBranch(lifeLon, age) : '';
+					// 月限(照 Moira getMonthLimit):生月支 / 流年时刻月支 → 农历月序(月建口径);数据缺则空。
+					const monthBranchCell = (col)=>{ const b = col && col.branch; return (b && (b.cell || b.text)) || ''; };
+					const monthZhi = hasLife ? monthLimitBranch(lifeLon, age,
+						lunarMonthNumFromBranch(monthBranchCell(getBazi(rootValue).month)),
+						lunarMonthNumFromBranch(monthBranchCell(getBazi(transitRoot).month))) : '';
+					if(!rows.length && !ws && !hasLife){ return null; }
+					return (
+						<>
+							{rows.length ? (
+								<Section title="难仇恩用（主星五行四役）">
+									<div className="horosa-guolao-moira-yeargroup-table">
+										{rows.map((row)=>(
+											<div className="horosa-guolao-moira-yeargroup-row" key={`helper-${row.head}`}>
+												<strong>{row.head}<i>{row.main}</i></strong>
+												<span>
+													{LIFE_HELPER_LABELS.map((lab, li)=>(
+														<em key={`${row.head}-${lab}`}>{lab}<i>{row.roles[li]}</i></em>
+													))}
+												</span>
+											</div>
+										))}
+									</div>
+								</Section>
+							) : null}
+							{ws ? (
+								<Section title="虚实四柱（虚＝旬空）">
+									<KeyValueGrid items={[
+										{ label: '虚', value: ws.weak.join('') },
+										{ label: '实', value: ws.solid.join('') },
+									]} />
+								</Section>
+							) : null}
+							{hasLife ? (
+								<Section title={`飞限 · 童限 · 小限 · 月限 · 限度（${age} 岁 · ${transitYearText}年）`}>
+									<KeyValueGrid items={[
+										fly && fly.branches.length ? { label: '飞限', value: fly.branches.join('/') + (fly.halfYear ? '（各半年）' : '') } : null,
+										childZhi ? { label: '童限', value: childZhi } : null,
+										{ label: '小限', value: smallLimitBranch(lifeLon, age) },
+										monthZhi ? { label: '月限', value: monthZhi } : null,
+										span ? { label: '限度', value: fmtLimitDeg(span.from) } : null,
+										span ? { label: '至', value: fmtLimitDeg(span.to) } : null,
+									].filter(Boolean)} />
+								</Section>
+							) : null}
+						</>
+					);
+				})()}
 				{(()=>{
 					// G31/G32 行运法(类B 选择):''古度限度法(默认)/dongwei洞微大限/minor小限/month月限/tong童限。各派算法 §10。
 					const limitType = display.minorLimitType || '';
-					const sunLon = objectLon(findObject(birthChart, AstroConst.SUN));
+					const sunLon = objectLon(findObject(birthChart, AstroConst.SUN), isEclipticDisplay(birthChart));
 					const mz = life && life.zi;
 					if(limitType === '' && Number.isFinite(Number(life.longitude)) && Number.isFinite(birthYear)){
-						const limitRows = buildLimitTable(Number(life.longitude), birthYear);
+						const limitRows = buildLimitTable(Number(life.longitude), birthYear, limitChildBase);
 						const curIdx = Number.isFinite(age) ? currentLimitIndex(limitRows, age) : -1;
 						return (
-							<>
-								<div className="horosa-guolao-moira-subtitle">大限（古度限度法，自命度起）</div>
+							<Section title="大限（古度限度法 · 自命宫整宫界起 · 照 Moira）">
 								<div className="horosa-guolao-moira-house-list horosa-guolao-moira-limit-list">
 									{limitRows.map((row, idx)=>(
 										<div key={row.index} className={idx === curIdx ? 'horosa-guolao-moira-limit-current' : undefined}>
@@ -790,7 +1109,7 @@ export default function GuoLaoMoiraPanel(props){
 										</div>
 									))}
 								</div>
-							</>
+							</Section>
 						);
 					}
 					if(!Number.isFinite(Number(sunLon)) || !mz){ return null; }
@@ -805,8 +1124,7 @@ export default function GuoLaoMoiraPanel(props){
 							}
 						}
 						return (
-							<>
-								<div className="horosa-guolao-moira-subtitle">洞微大限（命宫顺行 · 各宫年数 · 飞星吊度 · 起限 {dw.startAge} 岁）</div>
+							<Section title={`洞微大限（命宫顺行 · 各宫年数 · 飞星吊度 · 起限 ${dw.startAge} 岁）`}>
 								{curDiaodu ? (
 									<div className="horosa-guolao-moira-meta-note">本年飞星吊度 ≈ {curDiaodu.deg}°（{age} 岁）</div>
 								) : null}
@@ -822,16 +1140,16 @@ export default function GuoLaoMoiraPanel(props){
 										);
 									})}
 								</div>
-							</>
+							</Section>
 						);
 					}
 					if(limitType === 'tong'){
 						const tx = glTongxian(Number(sunLon), display.tongxianBase || 'tong10');
 						const _baseName = { tong10: '通行十年', gu9: '古九岁', xu11: '虚十一(早不过11)' }[tx.baseVariant] || '通行十年';
-						return (<><div className="horosa-guolao-moira-subtitle">童限（命财疾妻福顺排 · 基数{_baseName}）</div><KeyValueGrid items={[
+						return (<Section title={`童限（命财疾妻福顺排 · 基数${_baseName}）`}><KeyValueGrid items={[
 							{ label: '童限顺排', value: tx.palaces.join('→') },
 							{ label: '出童限(约)', value: `${tx.exitAge} 岁` },
-						]} /></>);
+						]} /></Section>);
 					}
 					if(limitType === 'month'){
 						// 生月按月柱地支(节气月,寅=正月);月柱缺则回退阳历月。七政四余月限用节气月口径。
@@ -841,39 +1159,70 @@ export default function GuoLaoMoiraPanel(props){
 						if(mzi >= 0){ bMonth = ((mzi - 2) % 12 + 12) % 12 + 1; }
 						else { const bp = String((params && (params.birth || params.date)) || '').replace(/[/T-]/g, ' ').trim().split(/\s+/); bMonth = bp.length >= 2 ? (parseInt(bp[1], 10) || 1) : 1; }
 						const yx = Number.isFinite(age) ? glYuexian(mz, age, bMonth) : null;
-						return (<><div className="horosa-guolao-moira-subtitle">月限（小限宫起生月逆寻 · 生月{bMonth}）</div><KeyValueGrid items={[
+						return (<Section title={`月限（小限宫起生月逆寻 · 生月${bMonth}）`}><KeyValueGrid items={[
 							...(yx ? [{ label: `月限(${age}岁)`, value: `${yx.palaceName}（${yx.palaceZi}）` }] : [{ label: '月限', value: '需年龄/生月' }]),
-						]} /></>);
+						]} /></Section>);
 					}
 					// minor 小限(默认非空时)
 					const xx = Number.isFinite(age) ? glXiaoxian(mz, age) : null;
-					return (<><div className="horosa-guolao-moira-subtitle">小限（生年支加命宫逆数）</div><KeyValueGrid items={[
+					return (<Section title="小限（生年支加命宫逆数）"><KeyValueGrid items={[
 						...(xx ? [{ label: `小限(${age}岁)`, value: `${xx.palaceName}（${xx.palaceZi}）` }] : [{ label: '小限', value: '需年龄' }]),
-					]} /></>);
+					]} /></Section>);
 				})()}
-			</Section>
 
 				</>) },
 				{ key: 'stars', label: '星曜', children: (<>
-				<Section title="本命星曜">
-					{natalYearStars.length ? <YearSignTable rows={natalYearStars} /> : <PlanetTable rows={natalPlanetRows} showMotion={display.motionState === true} />}
+				<Section title="宫位化曜（本命 / 流年）">
+					<YearSignMergedTable natalRows={natalYearStars} transitRows={transitYearStars} />
 				</Section>
 
-				<Section title="本命七政动态（顺逆 · 留伏迟疾）">
-					<QizhengStateTable rows={natalPlanetRows} />
+				{display.showAzimuth === true ? (
+					<Section title="地平方位（方位角 · 高度 · 所临山）">
+						<AzimuthTable rootValue={rootValue} chart={birthChart} params={params} />
+					</Section>
+				) : null}
+
+				<Section title="本命星点动态（庙旺所属 · 速度）">
+					<StarPointTable rows={natalPlanetRows} angleRows={natalAngleRows} />
 				</Section>
 
-				<Section title="流年星曜">
-					{transitYearStars.length ? <YearSignTable rows={transitYearStars} /> : <PlanetTable rows={transitPlanetRows} showMotion={display.motionState === true} />}
+				<Section title="流年星点动态（庙旺所属 · 速度）">
+					<StarPointTable rows={transitPlanetRows} angleRows={transitAngleRows} />
 				</Section>
 
-				<Section title="流年七政动态（顺逆 · 留伏迟疾）">
-					<QizhengStateTable rows={transitPlanetRows} />
-				</Section>
-
-				<Section title="星宿落入与同经">
-					<StellarRelationTable rows={stellarRelationRows} />
-				</Section>
+				<Section title="年曜与十神">
+					<KeyValueGrid items={[
+						{label: '本命年柱', value: birthYearStars.yearPole || birthYearText},
+						{label: '流年年柱', value: currentYearStars.yearPole || transitYearText},
+						{label: '本命首曜', value: birthYearStars.yearStar},
+						{label: '流年首曜', value: currentYearStars.yearStar || `${transitYearText.slice(0, 1)} → ${YEAR_STAR_BY_STEM[transitYearText.slice(0, 1)] || '-'}`},
+						{label: '原十神序', value: safeList(yearStars.tenGodListOrg).length ? yearStars.tenGodListOrg.join('、') : TEN_GOD_ORG.join('、')},
+						{label: '替代十神序', value: safeList(yearStars.tenGodListAlt).length ? yearStars.tenGodListAlt.join('、') : TEN_GOD_ALT.join('、')},
+					]} />
+					{safeList(birthYearStars.groups).length ? (
+						<>
+							<div className="horosa-guolao-moira-yeargroup-title">本命年曜（全表）</div>
+							<YearGroupTable groups={birthYearStars.groups} tenGodSeq={display.tenGodSeq} />
+						</>
+					) : null}
+					{safeList(currentYearStars.groups).length ? (
+						<>
+							<div className="horosa-guolao-moira-yeargroup-title">流年年曜（月命局诸元随本命，流年从简）</div>
+							<YearGroupTable groups={currentYearStars.groups} tenGodSeq={display.tenGodSeq} />
+						</>
+					) : null}
+					{!safeList(birthYearStars.groups).length && !safeList(currentYearStars.groups).length ? (
+						<div className="horosa-guolao-moira-year-groups">
+							{yearInfoRows('年曜', transitYearText).map((row, idx)=>(
+								<div key={`${row.main}-${idx}`}>
+									<strong>{row.main}</strong>
+									<span>{row.items.slice(1).join('、') || '主项'}</span>
+									{row.yearStar ? <em>化禄：{row.yearStar}</em> : null}
+								</div>
+							))}
+						</div>
+					) : null}
+			</Section>
 
 			</>) },
 				{ key: 'palace', label: '宫限', children: (<>
@@ -889,31 +1238,9 @@ export default function GuoLaoMoiraPanel(props){
 				</div>
 			</Section>
 
-				<Section title="年曜与十神">
-					<KeyValueGrid items={[
-						{label: '本命年柱', value: birthYearStars.yearPole || birthYearText},
-						{label: '流年年柱', value: currentYearStars.yearPole || transitYearText},
-						{label: '本命首曜', value: birthYearStars.yearStar},
-						{label: '流年首曜', value: currentYearStars.yearStar || `${transitYearText.slice(0, 1)} → ${YEAR_STAR_BY_STEM[transitYearText.slice(0, 1)] || '-'}`},
-						{label: '原十神序', value: safeList(yearStars.tenGodListOrg).length ? yearStars.tenGodListOrg.join('、') : TEN_GOD_ORG.join('、')},
-						{label: '替代十神序', value: safeList(yearStars.tenGodListAlt).length ? yearStars.tenGodListAlt.join('、') : TEN_GOD_ALT.join('、')},
-					]} />
-					<div className="horosa-guolao-moira-year-groups">
-						{safeList(currentYearStars.groups).length ? currentYearStars.groups.map((row, idx)=>(
-							<div key={`${row.main}-${idx}`}>
-								<strong>{row.main}</strong>
-								<span>{joinYearItems(row.items)}</span>
-								{row.mainStar ? <em>化曜：{row.mainStar}</em> : null}
-							</div>
-						)) : yearInfoRows('年曜', transitYearText).map((row, idx)=>(
-							<div key={`${row.main}-${idx}`}>
-								<strong>{row.main}</strong>
-								<span>{row.items.slice(1).join('、') || '主项'}</span>
-								{row.yearStar ? <em>化禄：{row.yearStar}</em> : null}
-							</div>
-					))}
-				</div>
-			</Section>
+				<Section title="星宿落入与同经">
+					<StellarRelationTable rows={stellarRelationRows} />
+				</Section>
 
 			</>) },
 				{ key: 'gods', label: '神煞', children: (<>
@@ -970,6 +1297,7 @@ export default function GuoLaoMoiraPanel(props){
 				) : <div className="horosa-guolao-moira-empty">当前盘未命中已接入的 Moira 政余喜格/忌格。</div>}
 			</Section>
 				) },
+				...extraTabs,
 			]} />
 		</div>
 	);

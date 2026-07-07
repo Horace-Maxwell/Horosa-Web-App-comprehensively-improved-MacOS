@@ -1,6 +1,6 @@
 import { Component } from 'react';
 import { XQTabs as Tabs } from '../xq-ui';
-import { XQIcon } from '../xq-icons';
+import QuickDockBar from '../common/QuickDockBar';
 import { randomStr } from '../../utils/helper';
 import AstroGermany from '../germany/AstroGermany';
 import HellenAstroMain from '../hellenastro/HellenAstroMain';
@@ -16,19 +16,6 @@ import MundaneMain from '../mundane/MundaneMain';
 
 const TabPane = Tabs.TabPane;
 const AUX_TABS = ['germanytech', 'hellenastro', 'dwadasamsa', 'locastro', 'relocation', 'harmonic', 'draconic', 'otherbu', 'horary', 'election', 'mundane'];
-const AUX_QUICK_ACTIONS = [
-	{ key: 'germanytech', label: '量化盘', icon: 'quickPrimary' },
-	{ key: 'hellenastro', label: '十三分盘', icon: 'astro' },
-	{ key: 'dwadasamsa', label: '十二分盘', icon: 'astro' },
-	{ key: 'locastro', label: '占星地图', icon: 'locastro' },
-	{ key: 'relocation', label: '重置盘', icon: 'locastro' },
-	{ key: 'harmonic', label: '调波盘', icon: 'quickTransit' },
-	{ key: 'draconic', label: '龙盘', icon: 'astro' },
-	{ key: 'otherbu', label: '骰子', icon: 'quickAi' },
-	{ key: 'horary', label: '卜卦盘', icon: 'liuyao' },
-	{ key: 'election', label: '择日盘', icon: 'calendar' },
-	{ key: 'mundane', label: '世俗盘', icon: 'astro' },
-];
 
 class AuxChartMain extends Component{
 
@@ -130,24 +117,15 @@ class AuxChartMain extends Component{
 		}
 	}
 
-	renderQuickDock(tab){
+	// 快捷栏契约:原 11 键=右侧 Tabs 的静态镜像(目录化),全部撤除;辅盘无独立起盘/保存,只留 AI。
+	renderQuickDock(){
 		return (
-			<div className="horosa-bottom-quick-dock horosa-aux-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-aux-quick-actions">
-					{AUX_QUICK_ACTIONS.map((item)=>(
-						<button
-							type="button"
-							key={item.key}
-							className={`horosa-bottom-quick-button horosa-aux-quick-button${tab === item.key ? ' is-active' : ''}`}
-							onClick={()=>this.changeTab(item.key)}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="auxchart"
+				className="horosa-aux-quick-dock"
+				hasResult={!!this.props.chart}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 
@@ -328,7 +306,7 @@ class AuxChartMain extends Component{
 							/>
 						</TabPane>
 					</Tabs>
-					{this.renderQuickDock(tab)}
+					{this.renderQuickDock()}
 				</div>
 			</div>
 		);

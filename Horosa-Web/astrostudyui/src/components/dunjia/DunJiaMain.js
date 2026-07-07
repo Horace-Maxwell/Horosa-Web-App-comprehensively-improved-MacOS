@@ -3,6 +3,7 @@ import { Spin, Tag, message, Popover, Modal } from 'antd';
 import { XQButton as Button, XQCard as Card, XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
+import { geoNameFieldPatch } from '../../utils/geoName';
 import {
 	getNongliLocalCache,
 	setNongliLocalCache,
@@ -17,6 +18,7 @@ import sealedImage from '../../assets/sealed.png';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
+import QuickDockBar from '../common/QuickDockBar';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
 import { resolveGeoZone } from '../../utils/timezone';
@@ -50,6 +52,7 @@ import {
 	BAGONG_PALACE_NAME,
 	buildQimenBaGongPanelData,
 	buildQimenFuShiYiGua,
+	buildQimenOverviewSummary,
 } from './DunJiaBaGongRules';
 import {
 	buildQimenXiangTipObj,
@@ -72,6 +75,7 @@ import {
 	GAN_XIANG,
 	ZHI_ZODIAC,
 	SHENSHA_DOC,
+	LUOSHU_NUM,
 } from './DunJiaFaDoc';
 import { BaZiColor, ZhiColor } from '../../msg/bazimsg';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
@@ -552,7 +556,7 @@ class DunJiaMain extends Component {
 			viewportHeight: getViewportHeight(),
 			options: initialOptions,
 			faRelatedPeople: restoredLiveState && Array.isArray(restoredLiveState.faRelatedPeople) ? restoredLiveState.faRelatedPeople : [],
-			chartCategory: 'shi',
+			chartCategory: (restoredLiveState && restoredLiveState.pan && restoredLiveState.pan.options && restoredLiveState.pan.options.chartCategory) || 'shi',
 			shuziInput: '',
 		};
 
@@ -998,7 +1002,18 @@ class DunJiaMain extends Component {
 	}
 
 	onChartCategoryChange(value){
-		this.setState({ chartCategory: value === 'ming' ? 'ming' : 'shi' });
+		const cat = value === 'ming' ? 'ming' : 'shi';
+		this.setState({ chartCategory: cat }, ()=>{
+			// 切换命/事局后重戳 pan 并刷新 AI 快照，使「用神/化解/全局速览」的命事语义与挂载/导出即时同步。
+			const pan = this.state.pan;
+			if(pan){
+				if(pan.options){ pan.options.chartCategory = cat; }
+				const snapshotText = saveQimenLiveSnapshot(pan);
+				if(snapshotText){
+					saveModuleAISnapshot('qimen', snapshotText);
+				}
+			}
+		});
 	}
 
 	onFieldsChange(field, syncOnly){
@@ -1101,6 +1116,32 @@ class DunJiaMain extends Component {
 		});
 	}
 
+	// 快捷栏契约:「此刻起局」:课时=当下并立即重排,绕过左栏时间草稿(用户点「此刻」即要 NOW)。
+	// 只补 date/time/ad——zone/经纬是用户所在地设置不动;左栏跟显靠 onFieldsChange 受控回流。
+	clickPlotNow(){
+		if(this.state.loading){
+			return;
+		}
+		const base = this.state.localFields || this.props.fields;
+		if(!base){
+			return;
+		}
+		const now = new DateTime();
+		const patch = {
+			date: { value: now.clone() },
+			time: { value: now.clone() },
+			ad: { value: now.ad },
+		};
+		this.onFieldsChange(patch, true);
+		const nextFields = { ...base, ...patch };
+		this.setState({
+			hasPlotted: true,
+			localFields: nextFields,
+		}, ()=>{
+			this.requestNongli(nextFields, true);
+		});
+	}
+
 	changeGeo(rec){
 		const base = this.state.localFields || this.props.fields || {};
 		const dDt = base.date && base.date.value;
@@ -1122,6 +1163,7 @@ class DunJiaMain extends Component {
 		// 🔑 刷新左栏 + 让时间选择器(datetm 由 localFields 派生 + setZone)同步到新经度/时区,再走 clickPlot 重排。
 		// 注意:此处【不】调 onFieldsChange(save)——save 会触发 hook 预取竞态、以旧盘(旧经纬/时区)以更高 seq 覆盖重算,
 		// 导致真太阳时/四柱/局停在旧值;clickPlot 内部会在 key 变化时自行 save(顺序正确,无竞态)。
+		Object.assign(geoPatch, geoNameFieldPatch(rec));
 		const nextFields = { ...base, ...geoPatch };
 		this.setState({ localFields: nextFields, hasPlotted: true }, ()=>{
 			if(this._geoRecalcTimer){ clearTimeout(this._geoRecalcTimer); }
@@ -1199,6 +1241,8 @@ class DunJiaMain extends Component {
 		try{
 			const pan = await this.getResolvedPan(flds, nongli || this.state.nongli, fixedOptions, displaySolar);
 			this.applyFaRelatedToPan(pan);
+			// 单一真值：把当前「盘类（命/事）」戳进 pan.options，供 AI 快照(无 ctx 路径)与用神/化解命事局语义同源。
+			if(pan && pan.options){ pan.options.chartCategory = this.state.chartCategory; }
 			this.lastPanSignature = panSignature;
 			this.setState({ pan, displaySolarTime: displaySolar, loading: false }, ()=>{
 				if(pan){
@@ -2139,7 +2183,7 @@ class DunJiaMain extends Component {
 		const border = 'var(--horosa-border, #f0f0f0)';
 		const dangers = computeDangers(pan);
 		const jieHua = buildJieHua(pan);
-		const protect = computeProtect(pan, { topic: this.state.faAskTopic || 'shexin' });
+		const protect = computeProtect(pan, { topic: this.state.faAskTopic || 'shexin', chartCategory: this.state.chartCategory });
 		const badge = (ch, color, size)=>(
 			<span style={{ flex: '0 0 auto', width: size || 22, height: size || 22, borderRadius: '50%', background: `${color}1a`, color, fontWeight: 700, fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{ch}</span>
 		);
@@ -2155,7 +2199,7 @@ class DunJiaMain extends Component {
 						<div key={`hz_${i}`} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 0', borderTop: i ? `1px solid ${border}` : 'none' }}>
 							{badge(d.oneChar, DANGER_DOT[d.type])}
 							<div style={{ flex: 1, minWidth: 0 }}>
-								<div style={{ lineHeight: '20px' }}><span style={{ color: DANGER_DOT[d.type], fontWeight: 600 }}>{d.type}</span><span style={{ color: soft }}> · {d.palaceName}{d.palaceNum}宫 · {d.direction} · {d.symbol}</span></div>
+								<div style={{ lineHeight: '20px' }}><span style={{ color: DANGER_DOT[d.type], fontWeight: 600 }}>{d.type}</span><span style={{ color: soft }}> · {d.palaceName}{LUOSHU_NUM[d.palaceName]}宫 · {d.direction} · {d.symbol}</span></div>
 								<div style={{ color: muted, fontSize: 12, lineHeight: '18px' }}>{DANGER_BRIEF[d.type] || d.note}</div>
 							</div>
 						</div>
@@ -2169,7 +2213,7 @@ class DunJiaMain extends Component {
 							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
 								<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
 									{c.dangers.map((d, k)=>(<span key={`db_${k}`} style={{ display: 'inline-flex' }}>{badge(d.oneChar, DANGER_DOT[d.type])}</span>))}
-									<span style={{ fontWeight: 600, color: col }}>{c.palaceName}{c.palaceNum}宫<span style={{ color: muted, fontWeight: 400, fontSize: 12 }}> · {c.direction} · {c.deg}</span></span>
+									<span style={{ fontWeight: 600, color: col }}>{c.palaceName}{LUOSHU_NUM[c.palaceName]}宫<span style={{ color: muted, fontWeight: 400, fontSize: 12 }}> · {c.direction} · {c.deg}</span></span>
 								</span>
 								<Tag style={{ marginRight: 0, flex: '0 0 auto' }}>天盘干「{c.tianGan}」</Tag>
 							</div>
@@ -2184,7 +2228,7 @@ class DunJiaMain extends Component {
 										{c.placements.map((p, k)=>(<div key={`pl_${k}`} style={{ paddingLeft: 20 }}><span style={{ color: '#2e7d32', fontWeight: 600 }}>{p.where}</span>　{p.text}</div>))}
 									</div>
 								) : null}
-								<div><span style={{ color: muted }}>③ 时机　</span>本宫 {c.benZhi}日 / {c.ben}　｜　对宫 {c.duiZhi}日 / {c.dui}</div>
+								<div style={{ display: 'flex', alignItems: 'flex-start' }}><span style={{ color: muted, flex: '0 0 auto' }}>③ 时机　</span><span>本宫 {c.benZhi}日 / {c.ben}<br />对宫 {c.duiZhi}日 / {c.dui}</span></div>
 								{c.notes.map((n, k)=>(<div key={`nt_${k}`} style={{ color: muted, fontSize: 12, marginTop: 2 }}>※ {n}</div>))}
 							</div>
 						</Card>
@@ -2205,7 +2249,7 @@ class DunJiaMain extends Component {
 					{protect.map((r, i)=>(
 						<div key={`pr_${i}`} style={{ lineHeight: '22px', padding: '3px 0', borderTop: i ? `1px solid ${border}` : 'none' }}>
 							<span style={{ fontWeight: 600 }}>{r.label}{r.gan ? `「${r.gan}」` : ''}</span>
-							<span style={{ color: soft }}>：{r.palaceNum ? `${r.palaceName}${r.palaceNum}宫·${r.direction}` : '局中未现'}</span>
+							<span style={{ color: soft }}>：{r.palaceNum ? `${r.palaceName}${LUOSHU_NUM[r.palaceName]}宫·${r.direction}` : '局中未现'}</span>
 							{r.hazards.length ? <Tag color='red' style={{ marginLeft: 6 }}>{r.hazards.join('/')}</Tag> : (r.palaceNum ? <Tag color='green' style={{ marginLeft: 6 }}>平稳</Tag> : null)}
 							<div style={{ color: muted, fontSize: 12, paddingLeft: 2 }}>{r.advice}</div>
 						</div>
@@ -2242,7 +2286,7 @@ class DunJiaMain extends Component {
 			<div key={`loc_${label}`} style={{ lineHeight: '24px' }}>
 				<span style={{ fontWeight: 600 }}>{label}</span>
 				{it && it.symbol ? <span style={{ color: soft }}>（{it.symbol}）</span> : null}
-				<span style={{ color: soft }}>：{it && it.palaceNum ? `${it.palaceName}${it.palaceNum}宫·${it.direction}` : '局中未现'}</span>
+				<span style={{ color: soft }}>：{it && it.palaceNum ? `${it.palaceName}${LUOSHU_NUM[it.palaceName]}宫·${it.direction}` : '局中未现'}</span>
 				{' '}{hazardTag(it)}
 				{extra ? <span style={{ color: muted }}> {extra}</span> : null}
 			</div>
@@ -2282,19 +2326,19 @@ class DunJiaMain extends Component {
 		if(!pan){
 			return <div>{topicBtns}{shuziCard}<Card size='small'><div style={{ color: muted }}>请先起盘后查看用神分论。</div></Card></div>;
 		}
-		const ys = computeYongShen(pan, { faceToFace: true });
+		const ys = computeYongShen(pan, { faceToFace: true, chartCategory: this.state.chartCategory });
 		const guGua = computeGuGua(pan);
 		const cellOf = (p)=>(pan.cells || []).find((c)=>c.palaceNum === p) || {};
 		const yongShenCard = (
 			<Card size='small' style={{ marginBottom: 8, borderRadius: 8 }}>
 				<div style={{ fontWeight: 600, marginBottom: 6 }}>用神定位</div>
 				<div style={{ color: soft, lineHeight: '22px', marginBottom: 6 }}>{ys.yongShenText}</div>
-				{locLine('日干·内心/实质', ys.dayGan)}
-				{locLine('时干·外在/表象', ys.timeGan)}
+				{locLine(`日干·${ys.dayRole}`, ys.dayGan)}
+				{locLine(`时干·${ys.timeRole}`, ys.timeGan)}
 				{ys.ganHe ? locLine('干合·配偶/理想型', ys.ganHe) : null}
 				{locLine('值符·话语权', ys.zhiFu)}
 				{locLine('值使·用武之地', ys.zhiShi)}
-				<div style={{ color: muted, marginTop: 4 }}>六亲：{ys.liuQin.map((r)=>`${r.rel.split('·')[1]}(${r.symbol}${r.palaceNum ? r.palaceName + r.palaceNum + '宫' : '未现'})`).join('　')}</div>
+				<div style={{ color: muted, marginTop: 4 }}>六亲：{ys.liuQin.map((r)=>`${r.rel.split('·')[1]}(${r.symbol}${r.palaceNum ? r.palaceName + LUOSHU_NUM[r.palaceName] + '宫' : '未现'})`).join('　')}</div>
 			</Card>
 		);
 		let topicCard = null;
@@ -2314,10 +2358,10 @@ class DunJiaMain extends Component {
 			};
 			topicCard = (
 				<Card size='small' style={{ borderRadius: 8 }}>
-					<div style={{ fontWeight: 600, marginBottom: 6 }}>识破人心（日干内在 / 时干外在）</div>
+					<div style={{ fontWeight: 600, marginBottom: 6 }}>识破人心（日干{ys.dayRole} / 时干{ys.timeRole}）</div>
 					<div style={{ color: soft, lineHeight: '24px' }}>
-						<div>内在·日干宫（{ys.dayGan.palaceName}{ys.dayGan.palaceNum}）：{renderCellSymbols(ys.dayGan.palaceNum)}</div>
-						<div style={{ marginTop: 4 }}>外在·时干宫（{ys.timeGan.palaceName}{ys.timeGan.palaceNum}）：{renderCellSymbols(ys.timeGan.palaceNum)}</div>
+						<div>{ys.dayRole}·日干宫（{ys.dayGan.palaceName}{ys.dayGan.palaceNum}）：{renderCellSymbols(ys.dayGan.palaceNum)}</div>
+						<div style={{ marginTop: 4 }}>{ys.timeRole}·时干宫（{ys.timeGan.palaceName}{ys.timeGan.palaceNum}）：{renderCellSymbols(ys.timeGan.palaceNum)}</div>
 						<div style={{ color: muted, marginTop: 6 }}>悬浮各符号看取象，叠加成性格画像。</div>
 					</div>
 				</Card>
@@ -2330,7 +2374,7 @@ class DunJiaMain extends Component {
 					<div style={{ color: soft }}>
 						{w.items.map((it)=>locLine(it.name, it, it.note))}
 						<div style={{ lineHeight: '24px' }}><span style={{ fontWeight: 600 }}>月令</span>：{w.month.zhi}（{w.month.wuxing}）{w.month.relation ? <Tag color='gold' style={{ marginLeft: 4 }}>{w.month.relation}</Tag> : null}</div>
-						<div style={{ lineHeight: '24px' }}><span style={{ fontWeight: 600 }}>干财</span>：{w.ganCai.length ? w.ganCai.map((c)=>`${c.src}${c.symbol}(${c.palaceNum ? c.palaceName + c.palaceNum + '宫' : '未现'}${c.hazards && c.hazards.length ? '·' + c.hazards.join('/') : ''})`).join('　') : '—'}</div>
+						<div style={{ lineHeight: '24px' }}><span style={{ fontWeight: 600 }}>干财</span>：{w.ganCai.length ? w.ganCai.map((c)=>`${c.src}${c.symbol}(${c.palaceNum ? c.palaceName + LUOSHU_NUM[c.palaceName] + '宫' : '未现'}${c.hazards && c.hazards.length ? '·' + c.hazards.join('/') : ''})`).join('　') : '—'}</div>
 						<div style={{ color: muted, marginTop: 4, fontSize: 12 }}>{w.industryHint}</div>
 					</div>
 				</Card>
@@ -2343,7 +2387,7 @@ class DunJiaMain extends Component {
 					<div style={{ color: soft }}>
 						{c.items.map((it)=>locLine(it.name, it, it.note))}
 						{c.fuShi.map((r)=>locLine(r.rel, r))}
-						<div style={{ color: muted, marginTop: 4 }}>诸干：{c.zhuGan.map((r)=>`${r.rel.split('·')[1]}(${r.symbol}${r.palaceNum ? r.palaceName + r.palaceNum + '宫' : '未现'})`).join('　')}</div>
+						<div style={{ color: muted, marginTop: 4 }}>诸干：{c.zhuGan.map((r)=>`${r.rel.split('·')[1]}(${r.symbol}${r.palaceNum ? r.palaceName + LUOSHU_NUM[r.palaceName] + '宫' : '未现'})`).join('　')}</div>
 						<div style={{ color: muted, marginTop: 4, fontSize: 12 }}>{c.industryHint}</div>
 					</div>
 				</Card>
@@ -2355,8 +2399,8 @@ class DunJiaMain extends Component {
 					<div style={{ fontWeight: 600, marginBottom: 6 }}>恋爱姻缘</div>
 					<div style={{ color: soft }}>
 						{r.zhengYuan.map((z)=>locLine(z.name, z))}
-						<div style={{ lineHeight: '24px' }}><span style={{ fontWeight: 600 }}>三奇·桃花</span>：{r.taoHua.sanQi.map((s)=>`${s.gan}(${s.palaceNum ? s.palaceName + s.palaceNum + '宫' : '未现'})`).join('　')}</div>
-						<div style={{ lineHeight: '24px' }}><span style={{ fontWeight: 600 }}>沐浴位</span>：{r.taoHua.muYu.zhi}（{r.taoHua.muYu.palaceNum ? r.taoHua.muYu.palaceName + r.taoHua.muYu.palaceNum + '宫·' + r.taoHua.muYu.direction : '—'}）</div>
+						<div style={{ lineHeight: '24px' }}><span style={{ fontWeight: 600 }}>三奇·桃花</span>：{r.taoHua.sanQi.map((s)=>`${s.gan}(${s.palaceNum ? s.palaceName + LUOSHU_NUM[s.palaceName] + '宫' : '未现'})`).join('　')}</div>
+						<div style={{ lineHeight: '24px' }}><span style={{ fontWeight: 600 }}>沐浴位</span>：{r.taoHua.muYu.zhi}（{r.taoHua.muYu.palaceNum ? r.taoHua.muYu.palaceName + LUOSHU_NUM[r.taoHua.muYu.palaceName] + '宫·' + r.taoHua.muYu.direction : '—'}）</div>
 						<div style={{ marginTop: 6, color: muted, fontSize: 12 }}>{r.zhanTaoHua}</div>
 						<div style={{ marginTop: 6 }}><span style={{ fontWeight: 600 }}>情感不顺</span>：{r.trouble.length ? r.trouble.map((t, i)=>(<div key={`tr_${i}`} style={{ color: muted }}>· {t}</div>)) : <span style={{ color: muted }}>无明显凶象</span>}</div>
 					</div>
@@ -2537,6 +2581,49 @@ class DunJiaMain extends Component {
 					style={{ marginTop: 8 }}
 				>
 					<TabPane tab="概览" key="overview">
+						{(()=>{
+							// 全局速览：一眼看出 值符值使落宫 / 贵格(三奇得使·九遁) / 六害源头 / 吉凶格品级。
+							const sum = pan ? buildQimenOverviewSummary(pan) : null;
+							if(!sum){ return null; }
+							const HARM_TONE = { 击刑: '#b71c1c', 入墓: '#8b5e3c', 庚虎: '#c0392b', 门迫: '#d46b08', 空亡: '#2f54eb' };
+							const chip = (text, color, k)=>(
+								<span key={k || text} style={{ display: 'inline-block', padding: '0 8px', margin: '2px 5px 2px 0', borderRadius: 11, fontSize: 12, lineHeight: '20px', background: `${color}18`, color, border: `1px solid ${color}55` }}>{text}</span>
+							);
+							const harmRows = [
+								{ key: '击刑', items: sum.sixHarm.jiXing },
+								{ key: '入墓', items: sum.sixHarm.ruMu },
+								{ key: '庚虎', items: sum.sixHarm.gengHu.map((g)=>`${g.label}·${g.palaceName}${g.dir}`) },
+								{ key: '门迫', items: sum.sixHarm.menPo },
+								{ key: '空亡', items: sum.sixHarm.kongWang },
+							].filter((r)=>r.items && r.items.length);
+							const goodCount = sum.ji.length + sum.dun.length + (sum.sanQiDeshi ? 1 : 0);
+							return (
+								<Card bordered={false} bodyStyle={{ padding: '10px 12px' }} style={{ marginBottom: 8 }}>
+									<div style={{ fontWeight: 600, marginBottom: 6 }}>全局速览<span style={{ color: 'var(--horosa-muted, #8c8c8c)', fontWeight: 400, marginLeft: 6 }}>{pan.juText}</span></div>
+									<div style={{ lineHeight: '24px' }}>
+										<div><span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>值符</span> {sum.zhiFu.star}·{sum.zhiFu.palaceName}{sum.zhiFu.dir}　<span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>值使</span> {sum.zhiShi.door}·{sum.zhiShi.palaceName}{sum.zhiShi.dir}</div>
+										{(sum.dun.length || sum.sanQiDeshi) ? (
+											<div style={{ marginTop: 3 }}>
+												<span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>贵格</span>{' '}
+												{sum.sanQiDeshi ? chip(`三奇得使·${sum.sanQiDeshi.palaceName}${sum.sanQiDeshi.dir}`, '#2e7d32', 'sqds') : null}
+												{sum.dun.map((d)=>chip(`${d.name}·${d.palaceName}${d.dir}`, '#2e7d32', `dun_${d.name}_${d.palace}`))}
+											</div>
+										) : null}
+										{harmRows.length ? (
+											<div style={{ marginTop: 3 }}>
+												<span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>六害</span>{' '}
+												{harmRows.map((r)=>chip(`${r.key} ${r.items.join('、')}`, HARM_TONE[r.key], `harm_${r.key}`))}
+											</div>
+										) : <div style={{ marginTop: 3, color: '#2e7d32' }}>六害：无（全局清和）</div>}
+										<div style={{ marginTop: 3 }}>
+											<span style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>格局</span> 吉 {goodCount} · 凶 {sum.xiong.length}
+											{sum.ji.slice(0, 5).map((g)=>chip(`${g.name}·${g.palaceName}`, '#558b2f', `ji_${g.name}_${g.palace}`))}
+											{sum.xiong.slice(0, 5).map((g)=>chip(`${g.name}·${g.palaceName}`, '#b26a00', `xi_${g.name}_${g.palace}`))}
+										</div>
+									</div>
+								</Card>
+							);
+						})()}
 						<Card bordered={false} bodyStyle={{ padding: '10px 12px' }}>
 							<div style={{ lineHeight: '26px' }}>
 								<div>命式：{pan ? pan.options.sexLabel : '—'}</div>
@@ -2714,78 +2801,20 @@ class DunJiaMain extends Component {
 		);
 	}
 
+	// 快捷栏契约:右栏 tab 镜像(概览/神煞/八宫)与释义开关(左栏已有)撤除,只留页面没有的动词。
 	renderQuickDock(){
-		const validPanelTabs = ['overview', 'shensha', 'bagong', 'jiehua', 'yongshen'];
-		const panelTab = validPanelTabs.indexOf(this.state.rightPanelTab) >= 0 ? this.state.rightPanelTab : 'overview';
-		const showPatternInterpretation = this.state.showPatternInterpretation !== false;
-		const items = [
-			{
-				key: 'overview',
-				label: '概览',
-				icon: 'target',
-				active: panelTab === 'overview',
-				onClick: ()=>this.setState({ rightPanelTab: 'overview' }),
-			},
-			{
-				key: 'shensha',
-				label: '神煞',
-				icon: 'sidePlanets',
-				active: panelTab === 'shensha',
-				onClick: ()=>this.setState({ rightPanelTab: 'shensha' }),
-			},
-			{
-				key: 'bagong',
-				label: '八宫',
-				icon: 'sideHouses',
-				active: panelTab === 'bagong',
-				onClick: ()=>this.setState({ rightPanelTab: 'bagong' }),
-			},
-			{
-				key: 'interpretation',
-				label: showPatternInterpretation ? '释义显示' : '释义隐藏',
-				icon: 'quickNote',
-				active: showPatternInterpretation,
-				onClick: ()=>{
-					const next = !showPatternInterpretation;
-					this.setState({ showPatternInterpretation: next });
-					savePatternInterpretationPreference(next);
-				},
-			},
-			{
-				key: 'plot',
-				label: '重新起盘',
-				icon: 'qimen',
-				active: false,
-				disabled: this.state.loading,
-				onClick: this.clickPlot,
-			},
-			{
-				key: 'save',
-				label: '保存案例',
-				icon: 'bookmark',
-				active: false,
-				disabled: !this.state.pan,
-				onClick: this.clickSaveCase,
-			},
-		];
 		return (
-			<div className="horosa-bottom-quick-dock horosa-dunjia-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-dunjia-quick-actions">
-					{items.map((item)=>(
-						<button
-							type="button"
-							key={item.key}
-							className={`horosa-bottom-quick-button horosa-dunjia-quick-button${item.active ? ' is-active' : ''}`}
-							onClick={item.onClick}
-							disabled={item.disabled}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="dunjia"
+				className="horosa-dunjia-quick-dock"
+				hasResult={!!this.state.pan}
+				primary={{ key: 'plot', label: '起局', disabled: this.state.loading, onClick: this.clickPlot }}
+				extras={[
+					{ key: 'nowPlot', label: '此刻起局', icon: 'quickTransit', needsResult: false, disabled: this.state.loading, onClick: ()=>this.clickPlotNow() },
+				]}
+				save={this.clickSaveCase}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 

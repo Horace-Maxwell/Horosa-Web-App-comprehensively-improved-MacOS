@@ -5,6 +5,29 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOCAL_CMD="${ROOT}/tools/mac/Horosa_Local.command"
 BOOTSTRAP_SH="${ROOT}/scripts/mac/bootstrap_and_run.sh"
 
+# 项目完整性检查:被单独拷出/解压不完整时给人话提示,而不是后续神秘报错。
+if [ ! -d "${ROOT}/Horosa-Web" ] || [ ! -d "${ROOT}/tools/mac" ] || [ ! -d "${ROOT}/scripts/mac" ]; then
+  echo "[Horosa] 本脚本必须放在完整的项目文件夹内运行(缺少 Horosa-Web/tools/scripts 目录)。"
+  echo "[Horosa] Please keep this file inside the full project folder (Horosa-Web/tools/scripts are missing here)."
+  echo "[Horosa] 当前位置 / Current location: ${ROOT}"
+  read -r -p "按回车退出 / Press Enter to exit..." _
+  exit 1
+fi
+
+# zip 解压会丢执行位:能修就自动修(本脚本既然在跑,就有权限 chmod 兄弟脚本)。
+for _dep in "${LOCAL_CMD}" "${BOOTSTRAP_SH}"; do
+  if [ -f "${_dep}" ] && [ ! -x "${_dep}" ]; then
+    chmod +x "${_dep}" 2>/dev/null || true
+  fi
+done
+
+# iCloud 同步目录会显著拖慢 node_modules/venv 等海量小文件操作,提示但不阻塞。
+case "${ROOT}" in
+  *"Library/CloudStorage"*|*"com~apple~CloudDocs"*)
+    echo "[Horosa] 提示:当前项目位于 iCloud 同步目录,首次构建可能非常慢;建议移动到本地目录(如 ~/Horosa)后再运行。"
+    ;;
+esac
+
 has_frontend_artifact() {
   local candidates=(
     "${ROOT}/Horosa-Web/astrostudyui/dist-file/index.html"
@@ -39,6 +62,13 @@ frontend_needs_rebuild() {
     return 0
   fi
   if [ "${ui_dir}/package.json" -nt "${index}" ]; then
+    return 0
+  fi
+  # 依赖锁与 config/ 目录同样影响产物:漏查会「源码更新了却判无需重建」。
+  if [ -f "${ui_dir}/package-lock.json" ] && [ "${ui_dir}/package-lock.json" -nt "${index}" ]; then
+    return 0
+  fi
+  if [ -d "${ui_dir}/config" ] && [ -n "$(find "${ui_dir}/config" -type f -newer "${index}" -print -quit 2>/dev/null)" ]; then
     return 0
   fi
   if [ -f "${ui_dir}/.umirc.js" ] && [ "${ui_dir}/.umirc.js" -nt "${index}" ]; then

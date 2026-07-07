@@ -14,15 +14,17 @@
     <installation-check script="horosa_install_check()"/>
     <script><![CDATA[
 function horosa_install_check() {
+    // 拒绝文案中英双语:安装器 JS 拿不到可靠的系统语言,而被拦下的人群(Intel/旧系统)
+    // 遍布全球——单语文案会让非中文用户不知道为什么装不了。
     if (system.sysctl('hw.optional.arm64') != '1') {
-        my.result.title = '需要 Apple Silicon (M 系列) 的 Mac';
-        my.result.message = '__APP_NAME__ 仅支持 Apple Silicon (M1 及更新) 的 Mac,无法安装在 Intel 处理器的电脑上。';
+        my.result.title = '需要 Apple Silicon 芯片 / Apple Silicon Required';
+        my.result.message = '__APP_NAME__ 仅支持 Apple Silicon (M1 及更新) 的 Mac,无法安装在 Intel 处理器的电脑上。\nThis app runs only on Apple Silicon (M1 or later) Macs and cannot be installed on Intel-based Macs.';
         my.result.type = 'Fatal';
         return false;
     }
     if (system.compareVersions(system.version.ProductVersion, '12.0') < 0) {
-        my.result.title = '需要 macOS 12 或更高版本';
-        my.result.message = '__APP_NAME__ 需要 macOS 12 (Monterey) 或更高版本,请先升级系统后再安装。';
+        my.result.title = '需要 macOS 12 或更高版本 / macOS 12+ Required';
+        my.result.message = '__APP_NAME__ 需要 macOS 12 (Monterey) 或更高版本,请先升级系统后再安装。\nPlease upgrade to macOS 12 (Monterey) or later, then run this installer again.';
         my.result.type = 'Fatal';
         return false;
     }

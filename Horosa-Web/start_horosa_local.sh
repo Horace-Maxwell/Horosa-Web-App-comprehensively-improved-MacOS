@@ -6,8 +6,7 @@ LOG_ROOT="${HOROSA_LOG_ROOT:-${ROOT}/.horosa-local-logs}"
 # 启动账本:Rust 壳在场时沿用其 HOROSA_RUN_TAG(四层同 run 聚合);独立跑脚本时自建。
 RUN_TAG="${HOROSA_RUN_TAG:-$(date +%Y%m%d_%H%M%S)}"
 LOG_DIR="${LOG_ROOT}/${RUN_TAG}"
-PY_PID_FILE="${ROOT}/.horosa_py.pid"
-JAVA_PID_FILE="${ROOT}/.horosa_java.pid"
+# pid 文件定义在端口解析之后(带端口后缀,见下)——固定名会被并行实例互覆。
 UI_DIR="${ROOT}/astrostudyui"
 PY_LOG="${LOG_DIR}/astropy.log"
 JAVA_LOG="${LOG_DIR}/astrostudyboot.log"
@@ -26,8 +25,13 @@ SKIP_UI_BUILD="${HOROSA_SKIP_UI_BUILD:-0}"
 SKIP_RUNTIME_WARMUP="${HOROSA_SKIP_RUNTIME_WARMUP:-0}"
 CHART_PORT="${HOROSA_CHART_PORT:-8899}"
 BACKEND_PORT="${HOROSA_SERVER_PORT:-9999}"
+# pid 文件名带端口后缀=会话隔离(双实例/快切用户共用同一共享树时,固定名互覆 →
+# 停服杀错对方实例或漏杀自己留僵尸;与 stop_horosa_local.sh 同一命名约定)。
+PY_PID_FILE="${ROOT}/.horosa_py.${CHART_PORT}.pid"
+JAVA_PID_FILE="${ROOT}/.horosa_java.${BACKEND_PORT}.pid"
 DESKTOP_MONGO_OPTIONAL="${HOROSA_DESKTOP_MONGO_OPTIONAL:-1}"
-MONGO_FALLBACK_DIR="${HOROSA_MONGO_FALLBACK_DIR:-${ROOT}/.horosa-cache/mongo-fallback}"
+# 本地文档缓存必须每用户独立:放共享树会让多用户并发读写同一 JSON(无文件锁)互踩。
+MONGO_FALLBACK_DIR="${HOROSA_MONGO_FALLBACK_DIR:-${HOME}/.horosa-cache/mongo-fallback}"
 NEED_TRANSLOG="${HOROSA_NEED_TRANSLOG:-false}"
 ROOT_PARENT="$(cd "${ROOT}/.." && pwd)"
 DIAG_DIR="${HOROSA_DIAG_DIR:-${ROOT_PARENT}/diagnostics}"
@@ -149,8 +153,13 @@ cleanup_stale_pid_file() {
   fi
 }
 
-cleanup_stale_pid_file "${PY_PID_FILE}"
-cleanup_stale_pid_file "${JAVA_PID_FILE}"
+# glob 清理所有会话的死 pid 文件(含旧版无后缀名与其他端口后缀;只清「pid 已死」的,
+# 另一实例活着的 pid 文件原样保留)。
+for stale_pid_file in "${ROOT}"/.horosa_py.pid "${ROOT}"/.horosa_java.pid \
+  "${ROOT}"/.horosa_py.*.pid "${ROOT}"/.horosa_java.*.pid "${ROOT}"/.horosa_web.*.pid; do
+  [ -e "${stale_pid_file}" ] || continue
+  cleanup_stale_pid_file "${stale_pid_file}"
+done
 cleanup_metadata_files "${ROOT_PARENT}"
 
 port_listening() {
@@ -501,14 +510,17 @@ resolve_python_bin() {
   )
 
   if [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ]; then
+    # 严格模式与 resolve_java_bin 对称:只认内嵌解释器,绝不追加 PATH 上的 python3/python。
+    # 无 Xcode CLT 的 Mac 上 /usr/bin/python3 是会弹安装框的桩(见 java_bin_ready 注释),
+    # 内嵌探测一失败就滑去执行它 = 用户看到系统弹框 + 启动误判失败。
     candidates=("${PYTHON_BIN}")
-  fi
-
-  if command -v python3 >/dev/null 2>&1; then
-    candidates+=("$(command -v python3)")
-  fi
-  if command -v python >/dev/null 2>&1; then
-    candidates+=("$(command -v python)")
+  else
+    if command -v python3 >/dev/null 2>&1; then
+      candidates+=("$(command -v python3)")
+    fi
+    if command -v python >/dev/null 2>&1; then
+      candidates+=("$(command -v python)")
+    fi
   fi
 
   for candidate in "${candidates[@]}"; do
@@ -537,6 +549,9 @@ resolve_python_bin() {
     fi
   done
 
+  if [ "${REQUIRE_EMBEDDED_RUNTIME}" = "1" ]; then
+    diag_log "python strict mode enabled; refusing fallback away from ${PYTHON_BIN}"
+  fi
   return 1
 }
 
@@ -726,6 +741,9 @@ if [ "${JAVA_EXPLODED_MODE}" != "1" ] && [ -f "${BUNDLE_JAR}" ]; then
       rm -f "${JAR}" 2>/dev/null || true
       exit 1
     fi
+    # 多用户机权限延续:首拷 jar/目录按本用户 umask 归私有,别的用户会卡在上方两个分支。
+    chmod a+rwX "$(dirname "${JAR}")" 2>/dev/null || true
+    chmod a+rw "${JAR}" 2>/dev/null || true
   elif [ "${BUNDLE_JAR}" -nt "${JAR}" ] && ! cmp -s "${BUNDLE_JAR}" "${JAR}"; then
     diag_log "bundled jar newer than target jar, refreshing target from bundle"
     if ! cp -f "${BUNDLE_JAR}" "${JAR}"; then
@@ -733,6 +751,7 @@ if [ "${JAVA_EXPLODED_MODE}" != "1" ] && [ -f "${BUNDLE_JAR}" ]; then
       echo "cannot refresh backend jar (disk full / permission denied?)"
       exit 1
     fi
+    chmod a+rw "${JAR}" 2>/dev/null || true
   fi
 fi
 if [ "${JAVA_EXPLODED_MODE}" != "1" ] && [ ! -f "${JAR}" ]; then
@@ -884,6 +903,12 @@ fi
 
 # #9:让内置 Java 自动走 macOS/Windows 系统代理(getHttpHost/流式 client 经 ProxySelector 取用)。
 # localhost/127.0.0.1 默认 bypass,本地 :9999/:8899 不受影响;无系统代理则等同直连。
+# 运行环境确定性(全球任意系统设置下行为一致):
+# · -Duser.language/-Duser.country 钉死 JVM locale——泰语系统 JVM 默认历法是佛历
+#   (SimpleDateFormat 年+543)、土耳其语 i 大小写特例、阿拉伯语数字符号,全类灭除;
+#   不钉 user.timezone(「当前时间」类功能须跟系统时区)。
+# · paramhash.cache.redis.enable=false(-D 与 -- 双保险)——桌面模式绝不触碰 :6379,
+#   与用户自装 Redis 零交互;paramhash 缓存走纯本地层(getFromLocal 独立可用)。
 CDS_JSA="${BOOT_EXPLODED}/.app-cds.jsa"
 # ⚠️ CDS 铁律:JDK 对 classpath「目录」做 dump 校验(non-empty directory 拒绝),唯 `-cp .`
 # 豁免;且运行加载 .jsa 的 classpath 必须与训练一致 → exploded 的训练与运行都固定为
@@ -895,33 +920,38 @@ if [ "${JAVA_EXPLODED_MODE}" = "1" ] && [ "${HOROSA_JAVA_CDS:-1}" = "1" ] && [ -
     /bin/bash -c 'cd "$0" && exec "$@"' "${BOOT_EXPLODED}"
     "${JAVA_BIN}" -XX:SharedArchiveFile="${CDS_JSA}" -Xlog:cds=off
     -Djava.net.useSystemProxies=true -Dhorosa.runtime.owner=horosa-desktop
+    -Duser.language=zh -Duser.country=CN -Dparamhash.cache.redis.enable=false
     -cp . org.springframework.boot.loader.JarLauncher
     --server.port="${BACKEND_PORT}"
     --server.address=127.0.0.1
     --astrosrv=http://127.0.0.1:${CHART_PORT}
     --mongodb.ip=127.0.0.1
     --redis.ip=127.0.0.1
+    --paramhash.cache.redis.enable=false
   )
 elif [ "${JAVA_EXPLODED_MODE}" = "1" ]; then
   diag_log "java launch: exploded (no CDS yet)"
   JAVA_LAUNCH_CMD+=(
     /bin/bash -c 'cd "$0" && exec "$@"' "${BOOT_EXPLODED}"
     "${JAVA_BIN}" -Djava.net.useSystemProxies=true -Dhorosa.runtime.owner=horosa-desktop
+    -Duser.language=zh -Duser.country=CN -Dparamhash.cache.redis.enable=false
     -cp . org.springframework.boot.loader.JarLauncher
     --server.port="${BACKEND_PORT}"
     --server.address=127.0.0.1
     --astrosrv=http://127.0.0.1:${CHART_PORT}
     --mongodb.ip=127.0.0.1
     --redis.ip=127.0.0.1
+    --paramhash.cache.redis.enable=false
   )
 else
   JAVA_LAUNCH_CMD+=(
-    "${JAVA_BIN}" -Djava.net.useSystemProxies=true -Dhorosa.runtime.owner=horosa-desktop -jar "${JAR}"
+    "${JAVA_BIN}" -Djava.net.useSystemProxies=true -Dhorosa.runtime.owner=horosa-desktop -Duser.language=zh -Duser.country=CN -Dparamhash.cache.redis.enable=false -jar "${JAR}"
     --server.port="${BACKEND_PORT}"
     --server.address=127.0.0.1
     --astrosrv=http://127.0.0.1:${CHART_PORT}
     --mongodb.ip=127.0.0.1
     --redis.ip=127.0.0.1
+    --paramhash.cache.redis.enable=false
   )
 fi
 

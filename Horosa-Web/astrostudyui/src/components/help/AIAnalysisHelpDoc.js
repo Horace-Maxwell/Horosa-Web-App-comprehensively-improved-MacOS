@@ -3,7 +3,7 @@ import { Component } from 'react';
 import { Tabs } from 'antd';
 
 const { TabPane } = Tabs;
-import { MUTED, p, card, ct, body, title } from './helpDocStyle';
+import { MUTED, h, p, ul, li, card, ct, body, title } from './helpDocStyle';
 
 const kv = (k, v) => <div style={{ margin: '1px 0', lineHeight: 1.55 }}><span style={{ color: MUTED }}>{k}：</span>{v}</div>;
 
@@ -15,39 +15,87 @@ class AIAnalysisHelpDoc extends Component{
 				<Tabs defaultActiveKey="overview" size="small">
 					<TabPane tab="总览" key="overview">
 						<div style={body}>
-							<p style={p}><b>AI 分析</b>把你在各技法页挂载的命盘 / 占测快照交给你自己配置的大语言模型做解读。左侧为案例与对话区,右侧页签管理历史、资料、模版与服务设置。</p>
+							<p style={p}><b>AI 分析</b>把你在各技法页挂载的命盘 / 占测快照交给你自己配置的大语言模型做解读。左侧为对话区(顶栏选案例、技法、模型与参数),右侧页签管理历史、资料、模版、报告与服务设置。</p>
 							<div style={card}><div style={ct}>三步上手</div>
 								{kv('第一步', '「设置」页签配置模型服务:选择服务商(或自建 / 本地模型)、填入你自己的接口密钥、选择模型;可保存多套配置随时切换')}
-								{kv('第二步', '在任一技法页点「AI助手 / 挂载」把当前盘挂载为案例;或在本页「案例」列表选择已挂载的盘')}
+								{kv('第二步', '在任一技法页点「AI助手 / 挂载」把当前盘挂载为案例;或在分析页顶栏「选择案例」下拉里选已挂载的盘')}
 								{kv('第三步', '对话框输入问题发送;回答流式生成,可随时停止')}</div>
 							<div style={card}><div style={ct}>隐私要点</div>
 								{kv('数据去向', '发起分析时,所选案例的快照文本与你的问题会发送给你配置的模型服务;不使用则不发送任何数据')}
 								{kv('密钥', '接口密钥仅保存在你本机;选择本地部署模型(如 Ollama)可让数据完全不出本机')}</div>
 						</div>
 					</TabPane>
+
 					<TabPane tab="功能页签" key="panes">
-						<div style={body}>
-							<div style={card}><div style={ct}>案例</div>
-								{kv('看什么', '各技法页挂载来的命盘 / 事盘快照;点选即成为当前对话的分析对象,可多选合并')}
-								{kv('管理', '支持刷新、删除;挂载内容由各技法页的「AI 挂载设置」决定')}</div>
+						<div style={{ ...body }}>
+							<p style={{ ...p, color: MUTED }}>右侧共六个页签:分析 / 历史 / 资料 / 模版 / 报告 / 设置。</p>
+							<div style={card}><div style={ct}>分析</div>
+								{kv('看什么', '主对话区:顶栏「选择案例」(单选,下拉切换当前分析对象)、「选择技法」(多选,可同盘合并多种技法快照)、模型 / 参数,下方为流式对话')}
+								{kv('要点', '案例是单选;要合并多份内容,改在「选择技法」里多选,或用「挂载」按钮细调')}</div>
 							<div style={card}><div style={ct}>历史</div>
-								{kv('看什么', '过往对话记录,可回看、继续或删除;全部存于本机')}</div>
+								{kv('看什么', '过往对话表格,可搜索、按 Provider / 模型 / 案例类型 / 收藏 / 归档筛选,支持批量与单条操作;全部存于本机')}</div>
 							<div style={card}><div style={ct}>资料</div>
-								{kv('看什么', '你的个人笔记与参考资料库,可按标签 / 流派归类;对话时可引用作为上下文')}</div>
+								{kv('看什么', '你的个人笔记与参考资料库,可上传文档、按文件夹 / 标签 / 流派归类;对话时可引用作为上下文')}</div>
 							<div style={card}><div style={ct}>模版</div>
-								{kv('看什么', '常用提问模版,一键套用;可自建、编辑')}</div>
+								{kv('看什么', '常用提问模版 + 「组合」(绑定资料 / 默认模型 / 系统提示的一键套装);模版支持多版本、版本对比与回滚')}</div>
 							<div style={card}><div style={ct}>设置</div>
-								{kv('看什么', '模型服务配置(多套档案)、思考档位、连通性体检;密钥只存本机')}</div>
+								{kv('看什么', '模型服务配置(多套档案)、健康概览、连通性诊断;可导出 / 恢复整个工作区备份;密钥只存本机')}</div>
 						</div>
 					</TabPane>
-					<TabPane tab="进阶" key="advanced">
+
+					<TabPane tab="分析页操作" key="analysis">
 						<div style={body}>
+							<div style={h}>顶栏</div>
+							<ul style={ul}>
+								<li style={li}><b>选择案例 / 技法</b>:案例下拉单选(含「命盘时间」「起课时间」两个即时起盘入口);技法可多选合并。</li>
+								<li style={li}><b>配置 / 模型 / 嵌入模型</b>:切换接口配置与聊天模型;另可选「嵌入 / 向量模型」供资料库检索(可选)。</li>
+								<li style={li}><b>参数</b>:浮层设「思考档、温度、top_p、停止序列、频率惩罚、存在惩罚、JSON 输出」(部分项仅对 OpenAI 兼容接口生效)。</li>
+								<li style={li}><b>连通性 chip</b>:点一下即测当前接口 + 模型是否连通,显示成功 / 失败与耗时。</li>
+								<li style={li}><b>挂载</b>:打开挂载抽屉细调纳入内容(见下)。</li>
+							</ul>
+							<div style={h}>挂载抽屉 · 快速起盘</div>
+							<p style={p}>选「命盘时间 / 起课时间」案例时,抽屉内可即时起盘:填时间(「此刻」一键当前)、📍 选地点(atlas,自动带时区)、微调经纬时区、填姓名 / 事由与性别、「一键挂载全部式法」、「保存为命盘 / 事盘」入案例复用。</p>
+							<div style={h}>挂载抽屉 · 技法重算设置</div>
+							<p style={p}>对某一技法可开「挂载设置」:上半调该技法参数(「应用并重算」本次生效 / 「设为同类默认」)、下半「纳入内容」按分段勾选(与 AI 导出设置同源)。</p>
+							<div style={h}>发送与消息操作</div>
+							<ul style={ul}>
+								<li style={li}><b>输入区</b>:Enter 发送 · Shift+Enter 换行;可拖拽 / 粘贴图片(仅视觉模型有效);工具排有 新对话 / 重新生成 / 编辑上一条并分支 / 刷新案例 / 添加图片 / 生成报告 / 停止生成。</li>
+								<li style={li}><b>落地页建议问题</b>:空对话时给出按案例类型动态生成的示例问题 chip,点一下即填入(不自动发送)。</li>
+								<li style={li}><b>每条消息</b>:你的消息可「编辑并基于此分支」;任一轮可「从此轮次分支」;AI 回答可复制全文 / 重新生成,思考过程可折叠 + 单独复制,并显示 token 用量与估算费用。</li>
+								<li style={li}><b>整段会话</b>:导出为 Markdown / JSON / Word。</li>
+							</ul>
+						</div>
+					</TabPane>
+
+					<TabPane tab="历史 · 资料 · 模版" key="manage">
+						<div style={body}>
+							<div style={card}><div style={ct}>历史页</div>
+								{kv('筛选', '搜索(标题 / 案例名 / 模型)+ Provider / 模型 / 案例类型 / 收藏 / 归档 多面过滤')}
+								{kv('批量', '勾选后可批量导出 / 归档 / 取消归档 / 收藏 / 取消收藏 / 删除')}
+								{kv('单条', '打开 / 重命名 / 复制 / 收藏 / 归档 / 导出(MD·JSON·Word)/ 删除')}</div>
+							<div style={card}><div style={ct}>资料页</div>
+								{kv('上传', '拖拽入面即上传,或「选文件上传」;支持 TXT / Markdown / DOC / DOCX / PDF;桌面版另可「导入目录」批量入库')}
+								{kv('组织', '按文件夹归类、标签组、去重;卡片 / 列表视图切换,按更新时间 / 名称 / 大小排序')}
+								{kv('单条', '编辑 / 加入参考 / 移动文件夹 / 导出(原文件·提取文本)/ 替换文件 / 删除;可标流派')}</div>
+							<div style={card}><div style={ct}>模版页</div>
+								{kv('两类', '「模版」(提问模板,支持 text / JSON)与「组合」(绑定资料 + 默认模型 + 系统提示的套装)')}
+								{kv('模版', '编辑 / 预览 / 删除;两个及以上版本时可「版本对比」,并从版本列表「回滚」')}
+								{kv('组合', '编辑 / 一键应用 / 预览 / 加入参考 / 删除')}</div>
+						</div>
+					</TabPane>
+
+
+					<TabPane tab="设置 · 进阶" key="advanced">
+						<div style={body}>
+							<div style={card}><div style={ct}>设置页</div>
+								{kv('接口配置', '「新增接口配置」建多套档案;每条可编辑 / 拉取模型 / 测试连接 / 连通性诊断 / 删除;卡片与紧凑列表视图切换')}
+								{kv('备份', '「导出备份 / 恢复备份」整包搬迁工作区(配置 / 资料 / 模版 / 历史);顶部有健康概览')}</div>
 							<div style={card}><div style={ct}>多模态图片</div>
-								{kv('用法', '对话栏「添加图片」可附图提问(仅视觉模型有效)')}</div>
+								{kv('用法', '对话栏「添加图片」或直接拖拽 / 粘贴图片提问(仅视觉模型有效)')}</div>
 							<div style={card}><div style={ct}>AI 导出</div>
 								{kv('用法', '顶栏「AI导出」把当前技法页的完整判读文本复制出来,粘到任何外部模型使用;「AI导出设置」控制包含哪些段落')}</div>
 							<div style={card}><div style={ct}>思考过程</div>
-								{kv('说明', '支持思考档位的模型会展示推理过程(仅展示,不回灌上下文)')}</div>
+								{kv('说明', '支持思考档位的模型会展示推理过程(仅展示,不回灌上下文),可折叠并单独复制')}</div>
 						</div>
 					</TabPane>
 				</Tabs>

@@ -24,6 +24,7 @@ import LiuRengChart from './LiuRengChart';
 import LiuRengInput from './LiuRengInput';
 import LiuRengBirthInput from './LiuRengBirthInput';
 import DateTime from '../comp/DateTime';
+import QuickDockBar from '../common/QuickDockBar';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import {
@@ -346,13 +347,6 @@ function buildMetaRows(obj){
 		res.push(data);
 	}
 	return res;
-}
-
-function getMetaSummary(rows){
-	if(!rows || rows.length === 0){
-		return '暂无信息';
-	}
-	return `${rows.length}项信息`;
 }
 
 const DA_GE_META = {
@@ -4469,7 +4463,6 @@ class LiuRengMain extends Component{
 			pinnedXiang: null,
 			zhanCategory: 'general',
 			bifaQuery: '',
-			metaDialog: null,
 		};
 
 		this.unmounted = false;
@@ -4511,8 +4504,6 @@ class LiuRengMain extends Component{
 		this.onToggleXiang = this.onToggleXiang.bind(this);
 		this.handleXiangPick = this.handleXiangPick.bind(this);
 		this.onZhanCategoryChange = this.onZhanCategoryChange.bind(this);
-		this.openMetaDialog = this.openMetaDialog.bind(this);
-		this.closeMetaDialog = this.closeMetaDialog.bind(this);
 
 		if(this.props.hook){
 			this.props.hook.fun = (fields, chartObj)=>{
@@ -4522,18 +4513,6 @@ class LiuRengMain extends Component{
 				this.startPaiPanByFields(fields || this.props.fields, chartObj || this.props.value);
 			};
 		}
-	}
-
-	openMetaDialog(payload){
-		this.setState({
-			metaDialog: payload,
-		});
-	}
-
-	closeMetaDialog(){
-		this.setState({
-			metaDialog: null,
-		});
 	}
 
 	onFieldsChange(field){
@@ -5799,22 +5778,26 @@ class LiuRengMain extends Component{
 			xiaojuReferenceItems,
 			overviewItems,
 			qizhengItems,
+			metaItems,
 		} = refData;
 		const ctx = refBundle && refBundle.context ? refBundle.context : null;
+		// 「小局」已并入「格局」tab(旧 key 'xiaoju' 归一到 'dage',免旧状态落空白页)
+		const activeTabKey = this.state.rightPanelTab === 'xiaoju' ? 'dage' : this.state.rightPanelTab;
 		return (
 			<Tabs
 				className="horosa-liureng-tabs"
-				activeKey={this.state.rightPanelTab}
+				activeKey={activeTabKey}
 				onChange={(key)=>this.setState({ rightPanelTab: key })}
 				animated={false}
 			>
-				<TabPane tab="大格" key="dage">
+				<TabPane tab="格局" key="dage">
 					<div className="horosa-liureng-reference-tab-body">
 						{refSummary ? (
 							<Card size='small' style={{ marginBottom: 8, background: 'var(--horosa-panel-soft, #fafafa)' }}>
 								<div style={{ fontSize: 12, color: 'var(--horosa-text-soft, #595959)', lineHeight: '20px' }}>{refSummary}</div>
 							</Card>
 						) : null}
+						<div className="horosa-side-panel-subtitle" style={{ margin: '2px 0 6px' }}>大格</div>
 						{refBundle.dage && refBundle.dage.length ? refBundle.dage.map((item)=>(
 							<Card key={`dage_${item.key}`} size='small' style={{ marginBottom: 8 }}>
 								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -5829,14 +5812,11 @@ class LiuRengMain extends Component{
 								) : null}
 							</Card>
 						)) : (
-							<Card size='small'>
+							<Card size='small' style={{ marginBottom: 8 }}>
 								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中可判定的大格。</div>
 							</Card>
 						)}
-					</div>
-				</TabPane>
-				<TabPane tab="小局" key="xiaoju">
-					<div className="horosa-liureng-reference-tab-body">
+						<div className="horosa-side-panel-subtitle" style={{ margin: '8px 0 6px' }}>小局</div>
 						{xiaojuMainItems.length ? xiaojuMainItems.map((item)=>(
 							<Card key={`xiaoju_${item.key}`} size='small' style={{ marginBottom: 8 }}>
 								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -5853,6 +5833,26 @@ class LiuRengMain extends Component{
 						)) : (
 							<Card size='small'>
 								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>当前盘暂未命中已收录的小局条件。</div>
+							</Card>
+						)}
+					</div>
+				</TabPane>
+				<TabPane tab="信息" key="meta">
+					<div className="horosa-liureng-reference-tab-body">
+						{metaItems && metaItems.length ? metaItems.map((group)=>(
+							<Card key={`meta_${group.title}`} size='small' style={{ marginBottom: 8 }} title={group.title}>
+								<div className="horosa-liureng-meta-list">
+									{(group.rows || []).map((item, idx)=>(
+										<div className="horosa-liureng-meta-row" key={`${item.key}_${idx}`}>
+											<span>{item.key}</span>
+											<strong>{item.value}</strong>
+										</div>
+									))}
+								</div>
+							</Card>
+						)) : (
+							<Card size='small'>
+								<div style={{ color: 'var(--horosa-muted, #8c8c8c)' }}>起课后显示旬空/神煞/长生等信息。</div>
 							</Card>
 						)}
 					</div>
@@ -6048,28 +6048,44 @@ class LiuRengMain extends Component{
 		}];
 	}
 
-	renderQuickDock(displayRunYear){
-		const items = this.buildQuickMetaItems(displayRunYear);
+	// 快捷栏契约:起课主键常驻(左栏起课钮在长表单下会滚出视野,主键豁免)+「此刻起课」
+	// 一键把课时设为当下并重排;9 张神煞 meta 卡收进「速查」弹层(原先常驻铺满=目录化)。
+	// 只补 date/time——zone/经纬是用户所在地设置,动了反而起错课;ad 不动,DateTime 为
+	// 绝对时刻,历法标记只是左栏录入形态。
+	clickStartNowPaiPan(){
+		if(!this.props.dispatch){
+			return;
+		}
+		const currentFields = this.props.fields || {};
+		const now = new DateTime();
+		this.pendingFields = null;
+		this.props.dispatch({
+			type: 'astro/fetchByFields',
+			payload: {
+				...currentFields,
+				date: { value: now.clone() },
+				time: { value: now.clone() },
+				__requestOptions: {
+					silent: true,
+				},
+			},
+		});
+	}
+
+	// 神煞/旬空/长生等信息不再走栏内速查弹层——全部常驻右栏「信息」tab(信息不得仅在快捷栏可见)。
+	renderQuickDock(){
 		return (
-			<div className="horosa-bottom-quick-dock horosa-liureng-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-liureng-quick-actions">
-					{items.length ? items.map((item)=>(
-						<button
-							type="button"
-							className="horosa-bottom-quick-button horosa-liureng-meta-quick-button"
-							key={item.title}
-							onClick={()=>this.openMetaDialog({ title: item.title, gods: item.rows })}
-							title={`${item.title}：点击查看完整信息`}
-						>
-							<strong>{item.title}</strong>
-							<span>{getMetaSummary(item.rows)}</span>
-						</button>
-					)) : Array.from({length: 9}).map((_, idx)=>(
-						<div className="horosa-bottom-quick-placeholder" key={idx} />
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="lrzhan"
+				className="horosa-liureng-quick-dock"
+				hasResult={!!this.state.liureng}
+				primary={{ key: 'paipan', label: '起课', onClick: ()=>this.clickStartPaiPan() }}
+				extras={[
+					{ key: 'nowCast', label: '此刻起课', icon: 'quickTransit', needsResult: false, onClick: ()=>this.clickStartNowPaiPan() },
+				]}
+				save={()=>this.clickSaveCase()}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 
@@ -6135,9 +6151,6 @@ class LiuRengMain extends Component{
 			refContext.sanChuanText ? `三传：${refContext.sanChuanText}` : '',
 			refContext.dayGanZi ? `日干支：${refContext.dayGanZi}` : '',
 		].filter(Boolean).join('；');
-		const metaDialog = this.state.metaDialog;
-		const metaRows = metaDialog && Array.isArray(metaDialog.gods) ? metaDialog.gods : [];
-
 		let wxdoms = this.genWuXingDoms();
 		return (
 			<div className="horosa-liureng-page horosa-astro-redesign horosa-liureng-redesign" style={{ height: height, minHeight: height, overflow: 'hidden' }}>
@@ -6179,31 +6192,12 @@ class LiuRengMain extends Component{
 								xiaojuReferenceItems,
 								overviewItems,
 								qizhengItems: buildQiZhengItems(chart),
+								metaItems: this.buildQuickMetaItems(displayRunYear),
 							})}
 						</div>
 					</div>
-					{this.renderQuickDock(displayRunYear)}
+					{this.renderQuickDock()}
 				</div>
-				<Modal
-					visible={!!metaDialog}
-					title={metaDialog ? metaDialog.title : ''}
-					footer={null}
-					onCancel={this.closeMetaDialog}
-					width={420}
-					className="horosa-liureng-meta-modal"
-					destroyOnClose
-				>
-					<div className="horosa-liureng-meta-list">
-						{metaRows.length ? metaRows.map((item, idx)=>(
-							<div className="horosa-liureng-meta-row" key={`${item.key}_${idx}`}>
-								<span>{item.key}</span>
-								<strong>{item.value}</strong>
-							</div>
-						)) : (
-							<div className="horosa-liureng-meta-empty">暂无信息</div>
-						)}
-					</div>
-				</Modal>
 			</div>
 
 		);

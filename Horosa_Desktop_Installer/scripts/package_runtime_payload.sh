@@ -244,6 +244,17 @@ find "${STAGE_ROOT}/runtime/mac/python/lib/python3.12/site-packages" \
   -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" -type d \( -name '.horosa-logs' -o -name '.pytest_cache' -o -name '.cache' -o -name '__pycache__' \) -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" -type d -name '.git' -prune -exec rm -rf {} + 2>/dev/null || true
+# ── 自包含净化(fail-closed):pip 的 editable 安装工件(__editable__*.pth/finder)与
+# direct_url.json 内嵌构建机绝对路径——既不自包含也不该进发行包。先清后验,残留即中止。
+find "${SITE_PKGS}" \( -name 'direct_url.json' -o -name '__editable__*' \) -exec rm -f {} + 2>/dev/null || true
+SELFCONTAIN_LEFT="$(find "${SITE_PKGS}" \( -name 'direct_url.json' -o -name '__editable__*' \) 2>/dev/null | wc -l | tr -d ' ' || true)"
+PTH_ABS_LEAK="$(grep -l '/Users/' "${SITE_PKGS}"/*.pth 2>/dev/null | wc -l | tr -d ' ' || true)"
+if [ "${SELFCONTAIN_LEFT}" != "0" ] || [ "${PTH_ABS_LEAK}" != "0" ]; then
+  echo "❌ site-packages 自包含净化未通过(editable/direct_url 残留 ${SELFCONTAIN_LEFT} 个;.pth 含绝对路径 ${PTH_ABS_LEAK} 个),打包中止" >&2
+  find "${SITE_PKGS}" \( -name 'direct_url.json' -o -name '__editable__*' \) >&2 2>/dev/null || true
+  grep -l '/Users/' "${SITE_PKGS}"/*.pth >&2 2>/dev/null || true
+  exit 1
+fi
 # ── pyc 预编译(性能):用「内嵌 runtime 自己的 python」把 stdlib/site-packages/业务源码
 # 预编译为 __pycache__(pyc magic 绑版本,必须自编自用),用户机首启 import 免逐文件编译
 # (实测省 0.3-0.5s)。个别第三方文件语法不合本版本编不过属正常,|| true 容忍不阻断打包。

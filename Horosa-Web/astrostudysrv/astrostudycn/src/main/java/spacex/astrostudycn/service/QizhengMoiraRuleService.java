@@ -16,6 +16,16 @@ import java.util.Map;
 import java.util.Set;
 
 public class QizhengMoiraRuleService {
+	// 黄仪/赤仪显示口径(chart.displayCoord 单一真值源,python 按宿度制 byLon/byRA 宣告):
+	// 黄仪=度数取 lon(黄经),赤仪=取 ra(赤经)。ThreadLocal 承载(单例并发安全),
+	// analyze 入口装载、finally 清除;MoiraPropRuleEngine 同包共享读取。
+	// 未装载(其他入口/旧数据)时保持旧行为(ra 优先)。
+	static final ThreadLocal<Boolean> DISPLAY_ECLIPTIC = new ThreadLocal<Boolean>();
+
+	static boolean displayEcliptic() {
+		return Boolean.TRUE.equals(DISPLAY_ECLIPTIC.get());
+	}
+
 	private final MoiraPropRuleEngine propRuleEngine = new MoiraPropRuleEngine();
 	private static final int MOIRA_STYLE_LEVEL_MIN = 1;
 	private static final int MOIRA_STYLE_LEVEL_MAX = 5;
@@ -164,6 +174,16 @@ public class QizhengMoiraRuleService {
 	}
 
 	public Map<String, Object> analyze(Map<String, Object> chartObj, Map<String, Object> params, Map<String, Object> transitChartObj, Map<String, Object> transitParams) {
+		Map<String, Object> chartForCoord = asMap(chartObj.get("chart"));
+		DISPLAY_ECLIPTIC.set("ecliptic".equals(chartForCoord.get("displayCoord")));
+		try {
+			return analyzeInner(chartObj, params, transitChartObj, transitParams);
+		} finally {
+			DISPLAY_ECLIPTIC.remove();
+		}
+	}
+
+	private Map<String, Object> analyzeInner(Map<String, Object> chartObj, Map<String, Object> params, Map<String, Object> transitChartObj, Map<String, Object> transitParams) {
 		Map<String, Object> result = new LinkedHashMap<String, Object>();
 		Map<String, Object> chart = asMap(chartObj.get("chart"));
 		List<Object> objects = asList(chart.get("objects"));
@@ -698,6 +718,10 @@ public class QizhengMoiraRuleService {
 	private double position(Map<String, Object> obj) {
 		if(obj == null) {
 			return 0;
+		}
+		// 黄仪显示口径:度数一律取黄经(lon);赤仪/未装载:取 ra(旧行为)。
+		if(displayEcliptic() && obj.containsKey("lon")) {
+			return num(obj.get("lon"), 0);
 		}
 		if(obj.containsKey("ra")) {
 			return num(obj.get("ra"), 0);

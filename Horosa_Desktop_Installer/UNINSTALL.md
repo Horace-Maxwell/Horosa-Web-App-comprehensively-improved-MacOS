@@ -9,7 +9,10 @@ rm -rf "/Users/Shared/Horosa"
 rm -rf "$HOME/Library/Application Support/com.horacedong.horosa"
 rm -rf "$HOME/Library/WebKit/com.horacedong.horosa"
 rm -rf "$HOME/Library/Caches/com.horacedong.horosa"
+rm -rf "$HOME/.horosa-cache" "$HOME/.horosa-logs"
 defaults delete com.horacedong.horosa 2>/dev/null || true
+# 清除安装器收据（可选；让系统不再把本包记为「已安装」）
+sudo pkgutil --forget com.horacedong.horosa 2>/dev/null || true
 ```
 
 > 第 3 步会删除全部本地档案与设置，请先在 app 内导出需要保留的数据。

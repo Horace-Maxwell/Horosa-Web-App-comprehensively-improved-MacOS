@@ -63,12 +63,12 @@ export function getStoredGuolaoSu28Mode(){
 		return GUOLAO_DEFAULT_SU28_MODE;
 	}
 	const val = Number(raw);
-	return [0, 1, 2, 3, 4, 5, 6, 7].indexOf(val) >= 0 ? val : GUOLAO_DEFAULT_SU28_MODE;
+	return [0, 1, 2, 3, 4, 5, 6, 7, 8].indexOf(val) >= 0 ? val : GUOLAO_DEFAULT_SU28_MODE;
 }
 
 export function setStoredGuolaoSu28Mode(val){
 	const next = Number(val);
-	const mode = [0, 1, 2, 3, 4, 5, 6, 7].indexOf(next) >= 0 ? next : GUOLAO_DEFAULT_SU28_MODE;
+	const mode = [0, 1, 2, 3, 4, 5, 6, 7, 8].indexOf(next) >= 0 ? next : GUOLAO_DEFAULT_SU28_MODE;
 	writeItem(GUOLAO_SU28_MODE_KEY, `${mode}`);
 	return mode;
 }
@@ -217,6 +217,47 @@ export const GUOLAO_SCHOOL_PRESETS = {
 	huujiao: { fields: { guolaoLifeMode: 'asc', guolaoBodyMode: 'taiyin', guolaoNodeType: 'true', guolaoTrueSolarTime: 'true', doubingSu28: 5 }, display: { lifeMasterMode: 'gong', minorLimitType: '', motionState: true } },
 };
 
+// G34 流派预设匹配(纯函数,单一真值源;供左栏「流派预设」下拉派生「当前流派」+ jest 守卫)。
+// 入参:已解析的类A字段值 f(guolaoLifeMode/guolaoBodyMode/guolaoTrueSolarTime/guolaoNodeType/doubingSu28)
+// 与类B显示值 d(lifeMasterMode/minorLimitType/motionState)。当前配置恰好命中某预设定义的「全部键值」→ 回该预设键;
+// 否则 'custom'(帮助文档「选后即显所选流派,微调后回自定」的诚实语义)。各预设键值组合互斥,故至多命中一个。
+// 预设只定义部分键(如 qintang 不设 motionState)——匹配只校验预设自身声明的键,其余键不参与(agnostic)。
+export function matchSchoolPreset(f, d){
+	const ff = f || {};
+	const dd = d || {};
+	const cur = {
+		guolaoLifeMode: normalizeGuolaoLifeMode(ff.guolaoLifeMode),
+		guolaoBodyMode: ff.guolaoBodyMode,
+		guolaoTrueSolarTime: ff.guolaoTrueSolarTime,
+		guolaoNodeType: ff.guolaoNodeType,
+		doubingSu28: Number(ff.doubingSu28),
+	};
+	const dcur = {
+		lifeMasterMode: dd.lifeMasterMode || 'gong',
+		minorLimitType: dd.minorLimitType || '',
+		motionState: !!dd.motionState,
+	};
+	const keys = Object.keys(GUOLAO_SCHOOL_PRESETS);
+	for(let i = 0; i < keys.length; i++){
+		const p = GUOLAO_SCHOOL_PRESETS[keys[i]];
+		const pf = p.fields || {};
+		const pd = p.display || {};
+		let hit = true;
+		Object.keys(pf).forEach((k)=>{
+			const want = k === 'doubingSu28' ? Number(pf[k]) : `${pf[k]}`;
+			const got = k === 'doubingSu28' ? cur.doubingSu28 : `${cur[k]}`;
+			if(want !== got){ hit = false; }
+		});
+		Object.keys(pd).forEach((k)=>{
+			const want = k === 'motionState' ? !!pd[k] : `${pd[k]}`;
+			const got = k === 'motionState' ? dcur.motionState : `${dcur[k]}`;
+			if(want !== got){ hit = false; }
+		});
+		if(hit){ return keys[i]; }
+	}
+	return 'custom';
+}
+
 // G20 身宫法:taiyin=太阴落宫(果老,默认零回归)/youjin=逢酉(琴堂)。类A(进 moira params,QizhengMoira 重算身宫/格局)。
 export const GUOLAO_BODY_MODE_KEY = 'horosaGuolaoBodyMode';
 export function getStoredGuolaoBodyMode(){
@@ -231,7 +272,8 @@ export function setStoredGuolaoBodyMode(val){
 // G15 sunrise 命度法 已并入 guolaoLifeMode(asc/yumao/cotrans/sunrise);此处仅身宫法独立键。
 
 export function getStoredMoiraTransitGodsVisible(){
-	return readItem(GUOLAO_MOIRA_TRANSIT_GODS_KEY) !== '0';
+	// 流年神煞圈恒开(开关已下线;half 单盘布局保留在代码中,当前不可达)。
+	return true;
 }
 
 export function setStoredMoiraTransitGodsVisible(visible){
@@ -249,6 +291,11 @@ export const GUOLAO_LIFE_MASTER_MODES = ['gong', 'du', 'dudegrade'];
 export const GUOLAO_MINOR_LIMIT_TYPES = ['', 'minor', 'month', 'tong', 'dongwei'];
 export const GUOLAO_DIGNITY_EXT_KEYS = ['exalt', 'triplicity', 'term', 'face'];
 export const GUOLAO_TONGXIAN_BASES = ['tong10', 'gu9', 'xu11'];   // 童限基数(类B):tong10通行十年默认/gu9古九岁/xu11虚十一
+// 🔴 Moira 设置项(类B 纯前端重绘,均照 Moira TimeDialog):
+//  定童限 child_period —— 9 九年起(默认)/ 10 十年起(童限年数 base)。
+//  大限年界 —— gregorian 公历元旦(Moira 硬编码默认)/ lichun 立春 / dongzhi 冬至(birthFrac 基准;后二者=超 Moira 增强项)。
+export const GUOLAO_LIMIT_CHILD_BASES = [9, 10];
+export const GUOLAO_LIMIT_YEAR_BOUNDARIES = ['gregorian', 'lichun', 'dongzhi'];
 export const GUOLAO_DEFAULT_DISPLAY = {
 	aspects: ['會', '衝', '刑', '合', '半合'],
 	dignity: true,
@@ -262,12 +309,43 @@ export const GUOLAO_DEFAULT_DISPLAY = {
 	huayao: false,
 	dignityExtended: [],
 	tongxianBase: 'tong10',
+	limitChildBase: 9,          // 定童限:9 九年起(默认)/ 10 十年起
+	limitYearBoundary: 'gregorian', // 大限年界:gregorian 公历元旦(Moira 默认)/ lichun 立春 / dongzhi 冬至
+	// 星曜/神煞可见性与相位容许度(对照 Moira PlanetDialog/AspectDialog;类B纯重绘):
+	// 隐藏名单语义——空数组=全部显示(默认零变化);aspectOrbs 空对象=用内置默认 orb。
+	hiddenPlanets: [],
+	hiddenGodsBirth: [],
+	hiddenGodsTransit: [],
+	tenGodSeq: 'org',
+	showAspects: false,
+	aspectOrbs: {},
+	showAzimuth: false,
 };
+
+function normHiddenList(v){
+	return Array.isArray(v) ? v.filter((x)=>typeof x === 'string' && x).slice(0, 128) : [];
+}
+
+function normAspectOrbs(v){
+	if(!v || typeof v !== 'object'){
+		return {};
+	}
+	const out = {};
+	Object.keys(v).forEach((key)=>{
+		const num = Number(v[key]);
+		if(Number.isFinite(num) && num >= 0 && num <= 30){
+			out[key] = num;
+		}
+	});
+	return out;
+}
 
 function normLifeMasterMode(v){ return GUOLAO_LIFE_MASTER_MODES.indexOf(v) >= 0 ? v : 'gong'; }
 function normMinorLimitType(v){ return GUOLAO_MINOR_LIMIT_TYPES.indexOf(v) >= 0 ? v : ''; }
 function normDignityExt(v){ return Array.isArray(v) ? v.filter((k)=>GUOLAO_DIGNITY_EXT_KEYS.indexOf(k) >= 0) : []; }
 function normTongxianBase(v){ return GUOLAO_TONGXIAN_BASES.indexOf(v) >= 0 ? v : 'tong10'; }
+function normLimitChildBase(v){ return Number(v) === 10 ? 10 : 9; }
+function normLimitYearBoundary(v){ return GUOLAO_LIMIT_YEAR_BOUNDARIES.indexOf(v) >= 0 ? v : 'gregorian'; }
 
 function cloneDefaultDisplay(){
 	return {
@@ -283,6 +361,15 @@ function cloneDefaultDisplay(){
 		huayao: GUOLAO_DEFAULT_DISPLAY.huayao,
 		dignityExtended: [...GUOLAO_DEFAULT_DISPLAY.dignityExtended],
 		tongxianBase: GUOLAO_DEFAULT_DISPLAY.tongxianBase,
+		limitChildBase: GUOLAO_DEFAULT_DISPLAY.limitChildBase,
+		limitYearBoundary: GUOLAO_DEFAULT_DISPLAY.limitYearBoundary,
+		hiddenPlanets: [],
+		hiddenGodsBirth: [],
+		hiddenGodsTransit: [],
+		tenGodSeq: 'org',
+		showAspects: false,
+		aspectOrbs: {},
+		showAzimuth: false,
 	};
 }
 
@@ -299,8 +386,9 @@ export function getStoredGuolaoDisplay(){
 				: [...GUOLAO_DEFAULT_DISPLAY.aspects],
 			dignity: parsed.dignity !== false,
 			mountains: parsed.mountains === true,
-			birthGods: parsed.birthGods !== false,
-			ageRing: parsed.ageRing !== false,
+			// 神煞圈/年龄环恒开(开关已下线,Moira 几何恒定;忽略历史残留关闭态)
+			birthGods: true,
+			ageRing: true,
 			lifeMasterMode: normLifeMasterMode(parsed.lifeMasterMode),
 			minorLimitType: normMinorLimitType(parsed.minorLimitType),
 			motionState: parsed.motionState === true,
@@ -308,6 +396,16 @@ export function getStoredGuolaoDisplay(){
 			huayao: parsed.huayao === true,
 			dignityExtended: normDignityExt(parsed.dignityExtended),
 			tongxianBase: normTongxianBase(parsed.tongxianBase),
+			limitChildBase: normLimitChildBase(parsed.limitChildBase),
+			limitYearBoundary: normLimitYearBoundary(parsed.limitYearBoundary),
+			hiddenPlanets: normHiddenList(parsed.hiddenPlanets),
+			// 本命/流年神煞名单独立(旧版单名单 hiddenGods 自动迁移到两边)
+			hiddenGodsBirth: normHiddenList(parsed.hiddenGodsBirth !== undefined ? parsed.hiddenGodsBirth : parsed.hiddenGods),
+			hiddenGodsTransit: normHiddenList(parsed.hiddenGodsTransit !== undefined ? parsed.hiddenGodsTransit : parsed.hiddenGods),
+			tenGodSeq: parsed.tenGodSeq === 'alt' ? 'alt' : 'org',
+			showAspects: parsed.showAspects === true,
+			aspectOrbs: normAspectOrbs(parsed.aspectOrbs),
+			showAzimuth: parsed.showAzimuth === true,
 		};
 	}catch(e){
 		return cloneDefaultDisplay();
@@ -321,8 +419,8 @@ export function setStoredGuolaoDisplay(next){
 			: [...GUOLAO_DEFAULT_DISPLAY.aspects],
 		dignity: !(next && next.dignity === false),
 		mountains: !!(next && next.mountains === true),
-		birthGods: !(next && next.birthGods === false),
-		ageRing: !(next && next.ageRing === false),
+		birthGods: true,
+		ageRing: true,
 		lifeMasterMode: normLifeMasterMode(next && next.lifeMasterMode),
 		minorLimitType: normMinorLimitType(next && next.minorLimitType),
 		motionState: !!(next && next.motionState === true),
@@ -330,7 +428,92 @@ export function setStoredGuolaoDisplay(next){
 		huayao: !!(next && next.huayao === true),
 		dignityExtended: normDignityExt(next && next.dignityExtended),
 		tongxianBase: normTongxianBase(next && next.tongxianBase),
+		limitChildBase: normLimitChildBase(next && next.limitChildBase),
+		limitYearBoundary: normLimitYearBoundary(next && next.limitYearBoundary),
+		hiddenPlanets: normHiddenList(next && next.hiddenPlanets),
+		hiddenGodsBirth: normHiddenList(next && next.hiddenGodsBirth),
+		hiddenGodsTransit: normHiddenList(next && next.hiddenGodsTransit),
+		tenGodSeq: (next && next.tenGodSeq === 'alt') ? 'alt' : 'org',
+		showAspects: !!(next && next.showAspects === true),
+		aspectOrbs: normAspectOrbs(next && next.aspectOrbs),
+		showAzimuth: !!(next && next.showAzimuth === true),
 	};
 	writeItem(GUOLAO_DISPLAY_KEY, JSON.stringify(safe));
 	return safe;
+}
+
+// ── 天星择日双轮(pick 盘式)选项:类B 纯重绘 blob + 类A 立命时刻单键 ──
+export const GUOLAO_ELECTION_KEY = 'horosaGuolaoElection';
+export const GUOLAO_ELECTION_DEFAULT = {
+	dynMode: 'horizon',        // horizon 地平动盘 | quick 黄道动盘
+	hsys: 'P',                 // 黄道动盘分宫制 P/K/O/R/C/A/V/X/H/T/B
+	degreeDisplay: 'mountain', // mountain 二十四山 | zodiac 十二宫
+	ziZheng: 'true',           // true 正北 | magnetic 磁北
+	alignNorth: true,          // 子正在下
+	plate: 'di',               // 二十四山盘:tian 天盘 | di 地盘 | ren 人盘
+	wuxing: 'main',            // main 正体五行 | combo 化合五行
+	adjNorth: true,            // 自行修正磁偏(WMM 自动;false=手动磁北度数)
+	magShiftManual: 0,         // 手动磁北度数(十进制,东偏+)
+	zuoShanDeg: 0,             // 座山度数(罗盘方位 0-360)
+	showCompass: true,         // 显示罗盘(指北针+十字)
+};
+const GUOLAO_ELECTION_HSYS = ['P', 'K', 'O', 'R', 'C', 'A', 'V', 'X', 'H', 'T', 'B'];
+
+export function getStoredGuolaoElection(){
+	const raw = readItem(GUOLAO_ELECTION_KEY);
+	const def = { ...GUOLAO_ELECTION_DEFAULT };
+	if(!raw){
+		return def;
+	}
+	try{
+		const p = JSON.parse(raw) || {};
+		return {
+			dynMode: p.dynMode === 'quick' ? 'quick' : 'horizon',
+			hsys: GUOLAO_ELECTION_HSYS.indexOf(p.hsys) >= 0 ? p.hsys : 'P',
+			degreeDisplay: p.degreeDisplay === 'zodiac' ? 'zodiac' : 'mountain',
+			ziZheng: p.ziZheng === 'magnetic' ? 'magnetic' : 'true',
+			alignNorth: p.alignNorth !== false,
+			plate: (p.plate === 'tian' || p.plate === 'ren') ? p.plate : 'di',
+			wuxing: p.wuxing === 'combo' ? 'combo' : 'main',
+			adjNorth: p.adjNorth !== false,
+			magShiftManual: Number.isFinite(Number(p.magShiftManual)) ? Number(p.magShiftManual) : 0,
+			zuoShanDeg: Number.isFinite(Number(p.zuoShanDeg)) ? ((Number(p.zuoShanDeg) % 360) + 360) % 360 : 0,
+			// 罗盘层恒显(开关已撤,用户钦定):无视历史存储恒 true,防旧 false 值无 UI 可恢复。
+			showCompass: true,
+		};
+	}catch(e){
+		return def;
+	}
+}
+
+export function setStoredGuolaoElection(next){
+	const cur = getStoredGuolaoElection();
+	const merged = { ...cur, ...(next || {}) };
+	const safe = {
+		dynMode: merged.dynMode === 'quick' ? 'quick' : 'horizon',
+		hsys: GUOLAO_ELECTION_HSYS.indexOf(merged.hsys) >= 0 ? merged.hsys : 'P',
+		degreeDisplay: merged.degreeDisplay === 'zodiac' ? 'zodiac' : 'mountain',
+		ziZheng: merged.ziZheng === 'magnetic' ? 'magnetic' : 'true',
+		alignNorth: merged.alignNorth !== false,
+		plate: (merged.plate === 'tian' || merged.plate === 'ren') ? merged.plate : 'di',
+		wuxing: merged.wuxing === 'combo' ? 'combo' : 'main',
+		adjNorth: merged.adjNorth !== false,
+		magShiftManual: Number.isFinite(Number(merged.magShiftManual)) ? Number(merged.magShiftManual) : 0,
+		zuoShanDeg: Number.isFinite(Number(merged.zuoShanDeg)) ? ((Number(merged.zuoShanDeg) % 360) + 360) % 360 : 0,
+		showCompass: true,
+	};
+	writeItem(GUOLAO_ELECTION_KEY, JSON.stringify(safe));
+	return safe;
+}
+
+// 立命时刻(类A,变更须重取择日数据):sunrise/noon/sunset/custom
+export const GUOLAO_ELE_LIFE_MODE_KEY = 'horosaGuolaoEleLifeMode';
+export function getStoredGuolaoEleLifeMode(){
+	const v = readItem(GUOLAO_ELE_LIFE_MODE_KEY);
+	return ['sunrise', 'noon', 'sunset', 'custom'].indexOf(v) >= 0 ? v : 'sunrise';
+}
+export function setStoredGuolaoEleLifeMode(val){
+	const v = ['sunrise', 'noon', 'sunset', 'custom'].indexOf(val) >= 0 ? val : 'sunrise';
+	writeItem(GUOLAO_ELE_LIFE_MODE_KEY, v);
+	return v;
 }

@@ -1,3 +1,4 @@
+import QuickDockBar from '../common/QuickDockBar';
 import { Component } from 'react';
 import { Input, InputNumber, Spin, message } from 'antd';
 import XQIcon from '../xq-icons';
@@ -410,6 +411,7 @@ class GeomancyMain extends Component{
 			return;
 		}
 		openKentangCaseDrawer({
+			dispatch: this.props.dispatch,
 			fields: this.props.fields,
 			module: 'geomancy',
 			label: '天文地占',
@@ -878,27 +880,23 @@ class GeomancyMain extends Component{
 		);
 	}
 
+	// 快捷栏契约:右栏 tab 镜像撤除;快捷栏只放本页没有的动词,配置由 cnyibu 容器透传渲染。护盾/宫盘切换中栏已有,不进栏。
+	getQuickDockConfig(){
+		return {
+			hasResult: !!this.state.result,
+			primary: { key: 'cast', label: '起盘', onClick: ()=>this.clickCast() },
+			save: ()=>this.clickSaveCase(),
+		};
+	}
+
 	renderBottomQuickDock(){
-		const actions = [
-			{ label: '起盘', icon: 'quickPrimary', onClick: this.clickCast },
-			{ label: '护盾盘', icon: 'quickComposite', active: this.state.centerView === 'square', onClick: ()=>this.setCenterView('square') },
-			{ label: '宫盘', icon: 'quickTransit', active: this.state.centerView === 'wheel', onClick: ()=>this.setCenterView('wheel') },
-			{ label: '解读', icon: 'quickReturn', active: this.state.rightPanelTab === 'reading', onClick: ()=>this.setRightPanelTab('reading') },
-			{ label: '图形', icon: 'target', active: this.state.rightPanelTab === 'figures', onClick: ()=>this.setRightPanelTab('figures') },
-			{ label: '保存', icon: 'quickProfection', onClick: this.clickSaveCase },
-		];
 		return (
-			<div className="horosa-bottom-quick-dock horosa-huangji-quick-dock horosa-geomancy-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-huangji-quick-actions">
-					{actions.map((item)=>(
-						<button type="button" key={`${item.label}_${item.icon}`} className={`horosa-bottom-quick-button horosa-huangji-quick-button${item.active ? ' is-active' : ''}`} onClick={item.onClick}>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="geomancy"
+				className="horosa-huangji-quick-dock horosa-geomancy-quick-dock"
+				dispatch={this.props.dispatch}
+				{...this.getQuickDockConfig()}
+			/>
 		);
 	}
 

@@ -34,9 +34,19 @@ import boundless.utility.StringUtility;
 public class ParamHashCacheHelper {
 
 	private static final String Prefix = PropertyPlaceholder.getProperty("paramhash.cache.prefix", "paramhash");
-	private static final boolean EnableCache = PropertyPlaceholder.getPropertyAsBool("paramhash.cache.enable", true);
-	private static final boolean EnableRedis = PropertyPlaceholder.getPropertyAsBool("paramhash.cache.redis.enable", true);
-	private static final boolean EnableLocal = PropertyPlaceholder.getPropertyAsBool("paramhash.cache.local.enable", true);
+	private static final boolean EnableCache = resolveBoolFlag("paramhash.cache.enable", true);
+	private static final boolean EnableRedis = resolveBoolFlag("paramhash.cache.redis.enable", true);
+	private static final boolean EnableLocal = resolveBoolFlag("paramhash.cache.local.enable", true);
+
+	// 开关读取:先看 JVM 系统属性(-D,桌面启动脚本用它禁用 redis),再落属性文件。
+	// PropertyPlaceholder 只合并属性文件,不读 -D——曾导致「桌面禁 redis」旗标形同虚设。
+	private static boolean resolveBoolFlag(String key, boolean def) {
+		String sys = System.getProperty(key);
+		if(!StringUtility.isNullOrEmpty(sys)) {
+			return ConvertUtility.getValueAsBool(sys, def);
+		}
+		return PropertyPlaceholder.getPropertyAsBool(key, def);
+	}
 	private static final int ExpireInSec = PropertyPlaceholder.getPropertyAsInt("paramhash.cache.expireinsecond", 86400);
 	private static final int AnnualExpireInSec = PropertyPlaceholder.getPropertyAsInt("paramhash.cache.annual.expireinsecond", 86400 * 180);
 	private static final String LocalDir = PropertyPlaceholder.getProperty("paramhash.cache.local.dir", defaultLocalDir());
@@ -348,7 +358,12 @@ public class ParamHashCacheHelper {
 				try {
 					return JsonUtility.decode(str, Object.class);
 				}catch(Exception e) {
-					return str;
+					// 缓存层绝不把「解不开的字符串」上抛(调用方一律按 Map/List 消费,
+					// 上抛=ClassCastException 地雷)。视为 miss 并顺手清掉毒键自愈。
+					QueueLog.info(AppLoggers.InfoLogger,
+							"paramhash redis 值不可解,按 miss 处理并清键: {}", key);
+					removeRedis(key);
+					return null;
 				}
 			}
 			return obj;
@@ -363,10 +378,14 @@ public class ParamHashCacheHelper {
 			return;
 		}
 		try {
+			// 非 String 值必须先 JSON 编码:底层缓存工厂对任意对象走 toString() 序列化,
+			// Map 会被存成 `{k=v}` 垃圾(不可 decode)——读侧防线会按 miss 拦住,但写侧
+			// 就该写入可回读的 JSON,缓存才真正生效。
+			Object payload = (value instanceof String) ? value : JsonUtility.encode(value);
 			if(expInSec > 0) {
-				RedisCache.put(key, value, expInSec);
+				RedisCache.put(key, payload, expInSec);
 			}else {
-				RedisCache.put(key, value);
+				RedisCache.put(key, payload);
 			}
 		}catch(Exception e) {
 			QueueLog.error(AppLoggers.ErrorLogger, e);
@@ -419,7 +438,13 @@ public class ParamHashCacheHelper {
 				}
 				return payload;
 			}
-			payload.value = map.get("value");
+			Object cachedValue = map.get("value");
+			// 只放行 JSON 容器(Map/List):调用方按结构化结果消费,标量/字符串一律按 miss
+			// (与 redis 侧同一防线,杜绝 ClassCastException 类上抛)。
+			if(!(cachedValue instanceof Map) && !(cachedValue instanceof List)) {
+				return payload;
+			}
+			payload.value = cachedValue;
 			return payload;
 		}catch(Exception e) {
 			QueueLog.error(AppLoggers.ErrorLogger, e);

@@ -103,7 +103,7 @@ describe('aiExport settings', ()=>{
 		]);
 		matrix.filter((item)=>item.isJieQiSplit).forEach((item)=>{
 			expect(item.extractionKind).toBe('jieqi');
-			expect(item.presetSections.length).toBeLessThanOrEqual(2);
+			expect(item.presetSections.length).toBeLessThanOrEqual(3); // v39:四分点子盘 = 星盘/宿盘/3D盘 三段;meta ≤2
 		});
 	});
 
@@ -382,6 +382,25 @@ describe('AI 挂载段过滤封装 applyAIExportSectionFilterToSnapshot（第五
 	it('空/无内容输入 → 原样返回，不抛', ()=>{
 		expect(applyAIExportSectionFilterToSnapshot('astrochart', '')).toBe('');
 		expect(applyAIExportSectionFilterToSnapshot('astrochart', null)).toBe(null);
+	});
+
+	// 动态段头运行期折叠命中(端到端:喂真实产出的动态段名 → 折叠占位勾选能保留)。
+	// 静态守卫(aiExportRoundtrip)只证「占位进了 preset」,不证「运行期 normalizeSectionTitle 真把产出段名折到占位」——
+	// 若折叠分支正则打错,静态守卫仍绿而自定义用户丢整族动态段(座运/专题深化/基于X 各 3-11 段)。本用例堵此洞。
+	it('动态段头运行期折叠命中:实际产出段名(座运·摩羯/专题深化·诉讼/基于X点推运/基于X起运)被折叠占位勾选保留、未勾选段剔除', ()=>{
+		const CASES = [
+			{ key: 'horary', produced: '专题深化·诉讼胜负（1宫本方 vs 7宫对方，10宫法官）', placeholder: '专题深化·X' },
+			{ key: 'indiachart', produced: '座运·摩羯', placeholder: '座运·X' },
+			{ key: 'zodialrelease', produced: '基于金星点推运', placeholder: '基于X点推运' },
+			{ key: 'decennials', produced: '基于土星起运', placeholder: '基于X起运' },
+		];
+		CASES.forEach(({ key, produced, placeholder })=>{
+			const text = [`[${produced}]`, `${produced}-正文`, '', '[勿选占位段]', '勿选-正文', ''].join('\n').trim();
+			const settings = { version: AI_EXPORT_SETTINGS_VERSION, sections: { [key]: [placeholder] } };
+			const out = applyAIExportSectionFilterToSnapshot(key, text, settings);
+			expect(out).toContain(`${produced}-正文`); // 产出动态段名折叠命中占位 → 正文保留
+			expect(out).not.toContain('勿选-正文');     // 未勾选段被剔除(证明确在过滤,非全文兜底放行)
+		});
 	});
 
 	it('techniqueDefaults schema 不破坏四同步：每个有 preset 的挂载技法都能取到 schema(schema 或 sectionsOnly)', ()=>{

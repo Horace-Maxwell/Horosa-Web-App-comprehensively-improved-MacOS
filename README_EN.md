@@ -8,13 +8,13 @@
 
 **Every kind of metaphysics, in one native macOS app**
 
-[![Version](https://img.shields.io/badge/version-3.3.0-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
+[![Version](https://img.shields.io/badge/version-3.3.1-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
 - **Legal & privacy**: Terms of Service / Privacy Policy / Security / Network / Open-source notices — see [docs/legal](docs/legal/) (Chinese & English).
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.0)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.3.1)
 
-[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.0/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Download](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.1/Horosa-Installer-macos-arm64-offline.pkg) ·
 [Portal](README.md) ·
 [中文说明](README_ZH.md) ·
 [All Releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -33,7 +33,7 @@ This repository is the macOS delivery of that app: the application source, the s
 
 Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.0/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.3.1/Horosa-Installer-macos-arm64-offline.pkg)**
 
 Best for:
 
@@ -43,6 +43,15 @@ Best for:
 - anyone who wants the first launch to work without a separate runtime download
 
 You do not need to install Python or Java yourself—the runtime ships inside the package. Updates replace the program and the shared runtime; they are not designed to touch your saved charts and cases.
+
+## Run the Web Version from Source
+
+Prefer running from source instead of the `.pkg`? One double-click:
+
+- **Start**: double-click `Horosa_OneClick_Mac.command` in the repo root. With build artifacts present it opens your browser in seconds; the first run bootstraps the toolchain and builds automatically (Mongo/Redis are optional for this product and skipped by default — set `HOROSA_SKIP_DB_SETUP=0` to install them).
+- **Stop**: double-click `Horosa_Stop_Mac.command` — it reclaims every port instance and only touches processes carrying this product's fingerprint.
+- **Downloaded as ZIP?** GitHub's "Download ZIP" drops the executable bit — run `chmod +x *.command tools/mac/*.command scripts/mac/*.sh` once, and use right-click → Open the first time to pass Gatekeeper. `git clone` needs neither.
+- **Ports busy?** It automatically falls back to the 18899/19999/18000 range. All tunables (ports, skip flags, download mirrors): [docs/WEB_LOCAL_LAUNCH.md](docs/WEB_LOCAL_LAUNCH.md). Mainland-China mirror fallbacks (TUNA/npmmirror) are built in.
 
 ## Screenshots
 

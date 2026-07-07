@@ -56,8 +56,10 @@ class GeoCoordModal extends Component{
 	}
 
 	onChange(info){
+		// 合并而非整替:选点带地名后,若用户再仅改时区(zone-only,无 name 字段),旧地名不被抹掉。
+		// 坐标类操作(选城市/搜地名/地图点选)总会带 name(可为空串→据实覆盖),故地名与坐标始终同步。
 		this.setState({
-			record: info,
+			record: { ...(this.state.record || {}), ...info },
 		});
 	}
 

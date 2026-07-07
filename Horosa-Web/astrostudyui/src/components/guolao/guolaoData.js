@@ -46,6 +46,101 @@ export const DIGNITY_TABLE = {
 	土: ['庙', '庙', '平', '平', '旺', '平', '陷', '陷', '平', '平', '落', '平'],
 };
 
+// 🔴 Moira 星辰庙旺（殿垣庙旺乐喜怒）——抄自 moira_t.prop:1845-1858（繁→简：廟→庙 / 樂→乐，数据 byte-perfect）。
+// sign_status_seq=殿,垣,庙,旺,乐,喜,怒（呈现/优先序）；「殿」=升殿，另由躔擢升度峰值判（EXALT_DEGREE±容差），不在此表。
+// 同一地支可多态叠加（如金在酉=垣庙乐）。天海冥=现代星，古法无庙旺之位，不列（所属留空）。地支采古法宫序（戌=白羊）。
+export const SIGN_STATUS_SEQ = ['殿', '垣', '庙', '旺', '乐', '喜', '怒'];
+const SIGN_STATUS_RAW = {
+	日: '午:垣,午:庙,巳:旺,戌:旺,午:乐,辰:乐,寅:喜',
+	月: '未:垣,戌:庙,酉:旺,未:乐,卯:喜,亥:喜',
+	金: '酉:垣,辰:垣,酉:庙,辰:庙,午:旺,亥:旺,酉:乐,辰:乐,巳:喜,寅:怒',
+	木: '寅:垣,亥:垣,亥:庙,未:旺,寅:乐,亥:乐,未:喜,子:怒',
+	水: '申:垣,巳:垣,午:庙,申:旺,巳:旺,子:旺,申:乐,巳:乐,辰:喜,戌:怒',
+	火: '卯:垣,戌:垣,卯:庙,丑:旺,卯:乐,申:喜,丑:喜,酉:怒',
+	土: '丑:垣,子:垣,丑:庙,子:庙,辰:旺,卯:旺,丑:乐,子:乐,午:喜,巳:怒',
+	计: '巳:庙,亥:庙,卯:旺,寅:旺,戌:旺,卯:乐,子:喜',
+	罗: '午:庙,寅:庙,卯:旺,戌:喜',
+	炁: '申:庙,丑:旺,亥:旺,戌:喜',
+	孛: '未:庙,巳:旺,寅:旺,子:乐,酉:乐,亥:喜',
+};
+// 解析为 { 星: { 地支: [状态…] } }；同地支多态按 SIGN_STATUS_SEQ 序去重排列。单一真值源。
+export const SIGN_STATUS_TABLE = (function(){
+	const seqIdx = (s)=>SIGN_STATUS_SEQ.indexOf(s);
+	const out = {};
+	Object.keys(SIGN_STATUS_RAW).forEach((star)=>{
+		const m = {};
+		SIGN_STATUS_RAW[star].split(',').forEach((pair)=>{
+			const parts = pair.split(':');
+			const zhi = parts[0];
+			const st = parts[1];
+			if(!zhi || !st){ return; }
+			if(!m[zhi]){ m[zhi] = []; }
+			if(m[zhi].indexOf(st) < 0){ m[zhi].push(st); }
+		});
+		Object.keys(m).forEach((zhi)=>{ m[zhi].sort((a, b)=>seqIdx(a) - seqIdx(b)); });
+		out[star] = m;
+	});
+	return out;
+})();
+
+// 某曜在地支 zhi 的 Moira 庙旺所属（殿垣庙旺乐喜怒）；atExaltPeak=true 时前置「殿」（升殿=躔擢升度峰值）。
+// star=曜简名(日月金木水火土计罗炁孛);天海冥/升顶等无表项 → 返回 []（或仅「殿」若峰值，天海冥无擢升故不会）。
+export function starDignityStatuses(star, zhi, atExaltPeak){
+	const base = (SIGN_STATUS_TABLE[star] && SIGN_STATUS_TABLE[star][zhi]) ? SIGN_STATUS_TABLE[star][zhi].slice() : [];
+	if(atExaltPeak){ base.unshift('殿'); }
+	return base;
+}
+
+// 🔴 Moira 星曜速度状态阈值（moira_t.prop:714-724，五星专用，顺序=金木水火土；单位=度/日 黄经日行度）。
+// speed_state=顺,逆,蚀,留,伏,迟,速；stationary_gap→留、invisible_gap(合日3°)→伏、slow_speed→迟、fast_speed→速。
+export const STAR_SPEED_SPEC = {
+	金: { stat: 0.15, invisible: 3.0, slow: 0.71, fast: 1.245 },
+	木: { stat: 0.07, invisible: 3.0, slow: 0.05, fast: 0.23 },
+	水: { stat: 0.10, invisible: 3.0, slow: 0.88, fast: 1.50 },
+	火: { stat: 0.20, invisible: 3.0, slow: 0.40, fast: 0.70 },
+	土: { stat: 0.05, invisible: 3.0, slow: 0.02, fast: 0.13 },
+};
+// 天海冥（现代星，古法无速度档）——Horosa 依平均日行度派生阈值，与五星同风格（非 Moira 金标，实现层扩展）。
+export const OUTER_SPEED_SPEC = {
+	天: { stat: 0.004, slow: 0.020, fast: 0.050 },
+	海: { stat: 0.003, slow: 0.012, fast: 0.032 },
+	冥: { stat: 0.003, slow: 0.012, fast: 0.030 },
+};
+// 星点速度状态（照 Moira 顺逆留伏迟速；蚀由 eclipse 另判）：
+// name=曜简名;speed=度/日;combust=合日3°内(仅五星判伏)。升顶(角点)无自行→''；计罗无速度→逆(平交点)。
+export function starMotionState(name, speed, combust){
+	const sp = Number(speed);
+	const spec = STAR_SPEED_SPEC[name] || OUTER_SPEED_SPEC[name];
+	if(!Number.isFinite(sp)){
+		return (name === '计' || name === '罗') ? '逆' : '';
+	}
+	const a = Math.abs(sp);
+	const parts = [];
+	if(combust && STAR_SPEED_SPEC[name]){ parts.push('伏'); }   // 伏（合日）仅五星
+	if(spec && a < spec.stat){
+		parts.push('留');
+		return parts.join('·');
+	}
+	parts.push(sp < -1e-7 ? '逆' : '顺');
+	if(spec){
+		if(a < spec.slow){ parts.push('迟'); }
+		else if(a > spec.fast){ parts.push('速'); }
+	}
+	return parts.join('·');
+}
+
+// 合日「伏」判据(照 Moira invisible_gap=3.0，Calculate.java 以 <= 判)：仅五星，与太阳黄经角距 ≤ 阈值即伏。
+// 🔴 单一真值源：右栏星点动态表(motionState)与 AI 快照共用，消「面板 8° 焦伤 vs Moira 3° 伏」双口径分歧。
+// 注：isCombustObj(面板 8°)是 Horosa 另一套「焦伤」语义，不与此混用；本函数专供 Moira 速度态「伏」。
+export function starCombust(name, lon, sunLon){
+	const spec = STAR_SPEED_SPEC[name];
+	const l = Number(lon);
+	const s = Number(sunLon);
+	if(!spec || !Number.isFinite(l) || !Number.isFinite(s)){ return false; }
+	const sep = Math.abs((((l - s) % 360) + 540) % 360 - 180);
+	return sep <= spec.invisible;
+}
+
 // 十干化曜 A 诀(化曜) / 魁星 B 诀(≠化曜,仅备注)
 export const HUAYAO_A = { 甲: '火', 乙: '月孛', 丙: '木', 丁: '金', 戊: '土', 己: '太阴', 庚: '水', 辛: '紫炁', 壬: '计都', 癸: '罗睺' };
 export const KUIXING_B = { 甲: '太阴', 乙: '太阳', 丙: '罗睺', 丁: '计都', 戊: '炎', 己: '金', 庚: '水', 辛: '月孛', 壬: '紫炁', 癸: '木' };
@@ -81,7 +176,8 @@ export const SU28_MODE_GROUPS = [
 		{ value: 0, label: '荀爽距星(19年测)' },
 		{ value: 1, label: '斗柄定房法' },
 		{ value: 5, label: '恒星制·现代天赤' },
-		{ value: 7, label: '赤道回归' },
+		{ value: 7, label: '赤道回归(元明)' },
+		{ value: 8, label: '赤道回归(实时)' },
 	] },
 ];
 // 扁平查表:value→label(供 _su28Name 等单点取名,杜绝第三套漂移)。
@@ -128,7 +224,7 @@ export const TUIBIAN_METHOD_OPTIONS = [
 export const GUFA_PRECESS_OPTIONS = [
 	{ value: 0, label: '钉死元时(默认)' }, { value: 1, label: '随岁差东移' },
 ];
-// 赤道回归制(用制 7)子选项:黄道零点锚定。dongzhi 牛前冬至(默认)/ chunfen 春分壁2.3。仅 mode7 生效。
+// 赤道回归制(用制 7 元明立成 / 用制 8 实时距星)子选项:黄道零点锚定。dongzhi 牛前冬至(默认)/ chunfen 春分壁2.3。
 export const EQ_TROPICAL_ANCHOR_OPTIONS = [
 	{ value: 'dongzhi', label: '牛前·冬至270°(默认)' }, { value: 'chunfen', label: '春分·壁2.3°' },
 ];
@@ -143,3 +239,13 @@ export const SCHOOL_PRESET_OPTIONS = [
 	{ value: 'custom', label: '自定' }, { value: 'qintang', label: '琴堂五星' },
 	{ value: 'guolao', label: '果老星宗' }, { value: 'tianguan', label: '天官/耶律' }, { value: 'huujiao', label: '弧角天星' },
 ];
+
+// 分宫制(西占宫位格/择日西占带共用)单一真值源:code(swisseph hsys 字母)→ 显示名。
+// 下拉、盘面 tooltip、四角标注三处一律引此,杜绝「盘上显示原始字母 B 制」类漂移。
+export const HSYS_OPTIONS = [
+	['P', 'Placidus'], ['K', 'Koch'], ['O', 'Porphyrius'], ['R', 'Regiomontanus'],
+	['C', 'Campanus'], ['A', 'Equal'], ['V', 'Vehlow'], ['X', 'Meridian'],
+	['H', 'Horizontal'], ['T', 'Topocentric'], ['B', 'Alcabitius'],
+];
+export const HSYS_NAME = HSYS_OPTIONS.reduce((acc, [v, l])=>{ acc[v] = l; return acc; }, {});
+export function hsysDisplayName(code){ return HSYS_NAME[code] || HSYS_NAME.P; }

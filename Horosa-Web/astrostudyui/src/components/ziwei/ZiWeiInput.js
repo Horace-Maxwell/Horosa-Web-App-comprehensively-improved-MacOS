@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { Checkbox, Collapse } from 'antd';
 import {convertLatToStr, convertLonToStr} from '../astro/AstroHelper';
 import { dstAwareZoneAt } from '../../utils/timezone';
+import { geoNameFieldPatch } from '../../utils/geoName';
 import * as ZWCont from '../../constants/ZWConst';
 import * as ZiWeiHelper from './ZiWeiHelper';
 import ZWSihuaCustomModal from './ZWSihuaCustomModal';
@@ -347,6 +348,7 @@ class ZiWeiInput extends Component{
 				gpsLat: {
 					value: rec.gpsLat
 				},
+				...geoNameFieldPatch(rec),
 				date: {
 					value: dt.clone(),
 				},

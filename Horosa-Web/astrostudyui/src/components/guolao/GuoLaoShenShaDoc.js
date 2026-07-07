@@ -81,6 +81,8 @@ export const GUOLAO_SHENSHA_DOC = {
 const JX_TAG = {'吉': '【吉】', '凶': '【凶】', '中': '【中】'};
 
 // 单个神煞的悬浮判语；缺项兜底，不臆造。
+import { GUOLAO_STAR_NOTES } from './guolaoStarNotes';
+
 export function guolaoShenShaTip(name){
 	const key = `${name || ''}`.trim();
 	if(!key){
@@ -89,6 +91,10 @@ export function guolaoShenShaTip(name){
 	const doc = GUOLAO_SHENSHA_DOC[key];
 	if(doc){
 		return `${JX_TAG[doc.jx] || ''}${key}：${doc.desc}`;
+	}
+	// 兜底:Moira 星注全表(148 条,「星名+注」),覆盖本地释义未收录的星煞
+	if(GUOLAO_STAR_NOTES[key]){
+		return `${key}：${GUOLAO_STAR_NOTES[key]}`;
 	}
 	return `${key}：神煞（释义待补）`;
 }

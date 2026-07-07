@@ -14,6 +14,9 @@
 	--moira-muted-planet: #8a8a8a;
 	--moira-dignity-strong: #c9912e;
 	--moira-dignity-weak: #b06a5e;
+	--moira-ele-now: #000080;
+	--moira-ele-below: #cc0000;
+	--moira-ele-mark: #804040;
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -79,15 +82,15 @@
 .horosa-guolao-moira-wheel .moira-rings circle {
 	fill: none;
 	stroke: var(--moira-line);
-	stroke-width: 0.9;
+	stroke-width: 1.35;
 }
 
 .horosa-guolao-moira-wheel .moira-rings .moira-ring-major {
-	stroke-width: 1.15;
+	stroke-width: 1.35;
 }
 
 .horosa-guolao-moira-wheel .moira-rings .moira-ring-minor {
-	stroke-width: 0.8;
+	stroke-width: 1.35;
 }
 
 .horosa-guolao-moira-wheel .moira-rings .moira-outer-circle,
@@ -97,12 +100,12 @@
 
 .horosa-guolao-moira-wheel .moira-main-divider line {
 	stroke: var(--moira-line);
-	stroke-width: 1;
+	stroke-width: 1.35;
 }
 
 .horosa-guolao-moira-wheel .moira-inner-lines line {
 	stroke: var(--moira-line);
-	stroke-width: 1;
+	stroke-width: 1.35;
 }
 
 .horosa-guolao-moira-wheel .moira-side-text {
@@ -130,4 +133,8 @@
 	--moira-muted-planet: var(--horosa-muted, #80939b);
 	--moira-dignity-strong: #f1c879;
 	--moira-dignity-weak: #d98a7e;
+	/* 择日动盘行星(地平上深蓝/地平下红):暗色下原 #000080 与黑底几乎不可见,提亮。 */
+	--moira-ele-now: #7fb0ff;
+	--moira-ele-below: #ff8078;
+	--moira-ele-mark: #cf9a8d;
 }

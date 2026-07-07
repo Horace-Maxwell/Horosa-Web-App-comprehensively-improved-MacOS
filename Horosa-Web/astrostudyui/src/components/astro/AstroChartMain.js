@@ -20,6 +20,7 @@ import DateTime from '../comp/DateTime';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import { convertLatToStr, convertLonToStr} from './AstroHelper';
 import { dstAwareZoneAt } from '../../utils/timezone';
+import { geoNameRawPatch } from '../../utils/geoName';
 import { getHousesOption } from '../comp/CompHelper'
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
@@ -238,6 +239,7 @@ class AstroChartMain extends Component{
 					lat: convertLatToStr(rec.lat),
 					gpsLon: rec.gpsLng,
 					gpsLat: rec.gpsLat,
+					...geoNameRawPatch(rec),
 					tm: tm,
 					ad: tm.ad,
 					zone: tm.zone,
@@ -247,7 +249,8 @@ class AstroChartMain extends Component{
 					lon: convertLonToStr(rec.lng),
 					lat: convertLatToStr(rec.lat),
 					gpsLon: rec.gpsLng,
-					gpsLat: rec.gpsLat
+					gpsLat: rec.gpsLat,
+					...geoNameRawPatch(rec)
 				});
 			}
 		}

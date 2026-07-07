@@ -1,7 +1,8 @@
 import * as LRConst from '../liureng/LRConst';
 import { Solar } from 'lunar-javascript';
-import { buildQimenBaGongSnapshotLines, buildQimenFuShiYiGua } from './DunJiaBaGongRules';
+import { buildQimenBaGongSnapshotLines, buildQimenFuShiYiGua, buildQimenOverviewSummary } from './DunJiaBaGongRules';
 import { buildFaQimenAnalysis } from './DunJiaFaCalc';
+import { LUOSHU_NUM } from './DunJiaFaDoc';
 import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
@@ -1057,7 +1058,7 @@ export function normalizeKinqimenData(backendPan, fallbackPan, options, nongli){
 		mode: opts.yimaMode,
 		yimaZhi: yiMaZhi || (fallbackPan.yiMa ? fallbackPan.yiMa.yimaZhi : ''),
 		palace: yiMaPalace,
-		text: yiMaMeta.text || (yiMaPalace ? `驿马：${yiMaZhi}（${PALACE_NAME[yiMaPalace]}${yiMaPalace}宫）` : (fallbackPan.yiMa ? fallbackPan.yiMa.text : '驿马：无')),
+		text: yiMaMeta.text || (yiMaPalace ? `驿马：${yiMaZhi}（${PALACE_NAME[yiMaPalace]}${LUOSHU_NUM[PALACE_NAME[yiMaPalace]]}宫）` : (fallbackPan.yiMa ? fallbackPan.yiMa.text : '驿马：无')),
 		raw: horse,
 	};
 	const specials = resolveSpecials(maps.tianPan);
@@ -1556,7 +1557,7 @@ function resolveKongWangPalaces(kongWang){
 		const pos = BRANCH_TO_POS[zhi];
 		if(pos && palaces.indexOf(pos) < 0){
 			palaces.push(pos);
-			list.push(`${PALACE_NAME[pos]}${pos}宫空亡`);
+			list.push(`${PALACE_NAME[pos]}${LUOSHU_NUM[PALACE_NAME[pos]]}宫空亡`);
 		}
 	});
 	return { list, palaces };
@@ -1589,7 +1590,7 @@ function resolveYiMa(mode, ganzhi){
 		sourceZhi,
 		yimaZhi,
 		palace,
-		text: palace ? `${mode === 'time' ? '时马' : '日马'}：${yimaZhi}（${PALACE_NAME[palace]}${palace}宫）` : `${mode === 'time' ? '时马' : '日马'}：无`,
+		text: palace ? `${mode === 'time' ? '时马' : '日马'}：${yimaZhi}（${PALACE_NAME[palace]}${LUOSHU_NUM[PALACE_NAME[palace]]}宫）` : `${mode === 'time' ? '时马' : '日马'}：无`,
 	};
 }
 
@@ -1604,11 +1605,11 @@ function resolveSpecials(tianPan){
 		const ruRule = RU_MU_RULE[i] || '';
 		if(gan && jiRule && jiRule.indexOf(gan) >= 0){
 			jiXingSet.add(i);
-			liuYi.push(`${gan}击刑（${PALACE_NAME[i]}${i}宫）`);
+			liuYi.push(`${gan}击刑（${PALACE_NAME[i]}${LUOSHU_NUM[PALACE_NAME[i]]}宫）`);
 		}
 		if(gan && ruRule && ruRule.indexOf(gan) >= 0){
 			ruMuSet.add(i);
-			ruMu.push(`${gan}入墓（${PALACE_NAME[i]}${i}宫）`);
+			ruMu.push(`${gan}入墓（${PALACE_NAME[i]}${LUOSHU_NUM[PALACE_NAME[i]]}宫）`);
 		}
 	}
 	return {
@@ -1628,7 +1629,7 @@ function resolveMenPo(men){
 		const head = door.substring(0, 1);
 		if(head && MEN_PO_RULE[i].indexOf(head) >= 0){
 			palaces.push(i);
-			list.push(`${head}门迫（${PALACE_NAME[i]}${i}宫）`);
+			list.push(`${head}门迫（${PALACE_NAME[i]}${LUOSHU_NUM[PALACE_NAME[i]]}宫）`);
 		}
 	});
 	return { list, palaces };
@@ -2307,6 +2308,25 @@ export function buildDunJiaSnapshotText(pan){
 	lines.push(`值使：${pan.zhiShi}`);
 	lines.push('');
 
+	// [全局速览]：九遁/三奇得使/吉凶格品级 + 命事局，一眼看全局格局（与概览页「全局速览」同源）。
+	const overview = buildQimenOverviewSummary(pan);
+	if(overview){
+		const catText = pan.options && pan.options.chartCategory === 'ming' ? '命局（日干＝内心 / 时干＝外在）' : '事局（日干＝实质 / 时干＝表象）';
+		const posShort = (it)=>(it && it.palace ? `${it.palaceName}${LUOSHU_NUM[it.palaceName]}宫·${it.dir}` : '未现');
+		const patShort = (arr)=>(arr && arr.length ? arr.slice(0, 3).map((x)=>`${x.name}(${x.palaceName}${x.palace})`).join('、') + (arr.length > 3 ? ` 等${arr.length}例` : '') : '无');
+		lines.push('[全局速览]');
+		lines.push(`盘类：${catText}`);
+		lines.push(`九遁：${overview.dun.length ? overview.dun.map((d)=>`${d.name}(${d.palaceName}${d.palace})`).join('、') : '无'}`);
+		lines.push(`三奇得使：${overview.sanQiDeshi ? posShort(overview.sanQiDeshi) : '无'}`);
+		lines.push(`吉格 ${overview.ji.length} 例：${patShort(overview.ji)}`);
+		lines.push(`凶格 ${overview.xiong.length} 例：${patShort(overview.xiong)}`);
+		const harm = overview.sixHarm;
+		const harmCount = harm.jiXing.length + harm.ruMu.length + harm.menPo.length + harm.kongWang.length + harm.gengHu.length;
+		lines.push(`六害分布：${harmCount ? `击刑${harm.jiXing.length}·入墓${harm.ruMu.length}·门迫${harm.menPo.length}·空亡${harm.kongWang.length}·庚虎${harm.gengHu.length}` : '本局未现'}`);
+		lines.push(`值符落宫：${posShort(overview.zhiFu)}（${overview.zhiFu.star || '—'}）　值使落宫：${posShort(overview.zhiShi)}（${overview.zhiShi.door || '—'}）`);
+		lines.push('');
+	}
+
 	lines.push('[盘面要素]');
 	lines.push(`符头：${pan.fuTou}`);
 	lines.push(`地盘：${pan.diPanList.join(' ')}`);
@@ -2337,7 +2357,7 @@ export function buildDunJiaSnapshotText(pan){
 
 	lines.push('[九宫方盘]');
 	pan.cells.forEach((cell)=>{
-		lines.push(`${cell.palaceName}${cell.palaceNum}宫：${cell.tianGan || '—'} ${cell.god || '—'} ${cell.door || '—'} ${cell.tianXing || '—'} ${cell.diGan || '—'}`);
+		lines.push(`${cell.palaceName}${LUOSHU_NUM[cell.palaceName]}宫：${cell.tianGan || '—'} ${cell.god || '—'} ${cell.door || '—'} ${cell.tianXing || '—'} ${cell.diGan || '—'}`);
 	});
 
 	// 旺相休囚死(§17.1):以月令五行定各符号能量,供「看旺衰」断盘——旺相则吉力大凶有挡,休囚死则吉力弱凶更凶。
@@ -2347,19 +2367,19 @@ export function buildDunJiaSnapshotText(pan){
 		lines.push('[旺相休囚死·月令能量]');
 		lines.push(`月令：${wangShuai.monthBranch}（${wangShuai.monthElem}令）。当令者旺、我生者相、生我者休、克我者囚、我克者死；旺相有力，休囚死无力。`);
 		wangShuai.palaces.forEach((p)=>{
-			lines.push(`${p.palaceName}${p.palaceNum}宫：星${p.star || '—'}(${p.starWuxing || '—'}·${p.starWangShuai || '—'}) 门${p.door || '—'}(${p.doorWuxing || '—'}·${p.doorWangShuai || '—'}) 宫(${p.gongWuxing || '—'}·${p.gongWangShuai || '—'})`);
+			lines.push(`${p.palaceName}${LUOSHU_NUM[p.palaceName]}宫：星${p.star || '—'}(${p.starWuxing || '—'}·${p.starWangShuai || '—'}) 门${p.door || '—'}(${p.doorWuxing || '—'}·${p.doorWangShuai || '—'}) 宫(${p.gongWuxing || '—'}·${p.gongWangShuai || '—'})`);
 		});
 	}
 
 	// —— 法奇门叠加层（六害 / 化解 / 八门化气大阵 / 用神分论 / 七要 / 孤辰寡宿）；全量输出供 AI 导出·挂载·储存 ——
-	const fa = buildFaQimenAnalysis(pan, { faceToFace: true });
+	const fa = buildFaQimenAnalysis(pan, { faceToFace: true, chartCategory: pan.options && pan.options.chartCategory });
 	if(fa){
-		const posTxt = (it)=>(it && it.palaceNum ? `${it.palaceName}${it.palaceNum}宫` : '未现');
+		const posTxt = (it)=>(it && it.palaceNum ? `${it.palaceName}${LUOSHU_NUM[it.palaceName]}宫` : '未现');
 		lines.push('');
 		lines.push('[六害总览]');
 		if(fa.dangers.length){
 			lines.push('危害递减：击刑＞入墓＞庚＞白虎＞门迫＞空亡；天干＞一切，先解击刑天干。');
-			fa.dangers.forEach((d)=>lines.push(`${d.type}·${d.palaceName}${d.palaceNum}宫(${d.direction})｜${d.symbol}`));
+			fa.dangers.forEach((d)=>lines.push(`${d.type}·${d.palaceName}${LUOSHU_NUM[d.palaceName]}宫(${d.direction})｜${d.symbol}`));
 		}else{
 			lines.push('本局四纲八宫未现六害。');
 		}
@@ -2373,7 +2393,7 @@ export function buildDunJiaSnapshotText(pan){
 				const mieTxt = j.mie.length ? ' 灭象：' + j.mie.join(' ') : '';
 				const buTxt = j.placements.length ? ' 布阵：' + j.placements.map((p)=>p.where + p.text).join('；') : '';
 				const shiTxt = ` 时机:本宫${j.benZhi || ''}日/${j.ben || ''} 对宫${j.duiZhi || ''}日/${j.dui || ''}`;
-				lines.push(`${j.palaceName}${j.palaceNum}宫·${j.direction}（${dz}，天盘干${j.tianGan}）：${mieTxt}${buTxt}${shiTxt}${j.notes.length ? '｜' + j.notes.join(' ') : ''}`);
+				lines.push(`${j.palaceName}${LUOSHU_NUM[j.palaceName]}宫·${j.direction}（${dz}，天盘干${j.tianGan}）：${mieTxt}${buTxt}${shiTxt}${j.notes.length ? '｜' + j.notes.join(' ') : ''}`);
 			});
 		}else{
 			lines.push('无需化解。');
@@ -2381,7 +2401,7 @@ export function buildDunJiaSnapshotText(pan){
 
 		lines.push('');
 		lines.push('[八门化气大阵]');
-		fa.protect.forEach((r)=>lines.push(`${r.label}${r.gan ? '(' + r.gan + ')' : ''}：${r.palaceNum ? r.palaceName + r.palaceNum + '宫·' + r.direction : '未现'}${r.hazards.length ? ' [' + r.hazards.join('/') + ']' : ' [平稳]'}`));
+		fa.protect.forEach((r)=>lines.push(`${r.label}${r.gan ? '(' + r.gan + ')' : ''}：${r.palaceNum ? r.palaceName + LUOSHU_NUM[r.palaceName] + '宫·' + r.direction : '未现'}${r.hazards.length ? ' [' + r.hazards.join('/') + ']' : ' [平稳]'}`));
 
 		lines.push('');
 		lines.push('[用神分论]');
@@ -2414,7 +2434,7 @@ export function buildDunJiaSnapshotText(pan){
 		if(fa.romance){
 			fa.romance.zhengYuan.forEach((z)=>lines.push(`${z.name}:${z.symbol || ''}${posTxt(z)}`));
 			lines.push(`三奇桃花:${fa.romance.taoHua.sanQi.map((s)=>s.gan + posTxt(s)).join(' ')}`);
-			lines.push(`沐浴位:${fa.romance.taoHua.muYu.zhi}(${fa.romance.taoHua.muYu.palaceNum ? fa.romance.taoHua.muYu.palaceName + fa.romance.taoHua.muYu.palaceNum + '宫' : '—'})`);
+			lines.push(`沐浴位:${fa.romance.taoHua.muYu.zhi}(${fa.romance.taoHua.muYu.palaceNum ? fa.romance.taoHua.muYu.palaceName + LUOSHU_NUM[fa.romance.taoHua.muYu.palaceName] + '宫' : '—'})`);
 			if(fa.romance.trouble.length){ lines.push(`情感不顺:${fa.romance.trouble.join(' ')}`); }
 			if(fa.romance.zhanTaoHua){ lines.push(fa.romance.zhanTaoHua); }
 		}

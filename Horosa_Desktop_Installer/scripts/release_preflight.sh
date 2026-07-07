@@ -1634,7 +1634,7 @@ else
   bad "[80] 挂载↔探针漂移:新增技法漏配探针或僵尸探针(详见上)"
 fi
 
-# 81. 太乙静默404三层守卫在位(FL-20260704-1;grep 特征串,不用文件存在性)
+# 81. 太乙静默404三层守卫在位(2026-07-04 事故复盘;grep 特征串,不用文件存在性)
 echo "[81] 太乙静默404三层守卫"
 S81_BAD=0
 S81_PY="${REPO_ROOT}/Horosa-Web/astropy"
@@ -1815,7 +1815,166 @@ done
 grep -q "py.warmup_kentang" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py" 2>/dev/null || { bad "[89] 账本段 py.warmup_kentang 缺位"; S89_BAD=1; }
 [ "${S89_BAD}" = "0" ] && ok "[89] 瞬时化资产 全在位"
 
+# 92. runtime 自包含:pip editable/direct_url 工件内嵌构建机绝对路径,随 runtime tar 发出
+#     即不自包含(import 链依赖 PYTHONPATH 先于 meta_path 末位 finder 才不炸)。四面锚:
+#     staging 零残留 + .pth 零绝对路径 + 打包脚本 fail-closed 净化在位 + flatlib 导入源随包;
+#     dist 已有 runtime/py-runtime tar 时清单亦须零残留(扫过且 tar 未变则记号免重扫)。
+echo "[92] runtime 自包含(editable/direct_url 零残留)"
+S92_BAD=0
+S92_SP="${REPO_ROOT}/runtime/mac/python/lib/python3.12/site-packages"
+if [ -d "${S92_SP}" ]; then
+  S92_N="$(find "${S92_SP}" \( -name 'direct_url.json' -o -name '__editable__*' \) 2>/dev/null | wc -l | tr -d ' ' || true)"
+  [ "${S92_N}" = "0" ] || { bad "[92] staging site-packages 残留 editable/direct_url ${S92_N} 个"; S92_BAD=1; }
+  S92_P="$(grep -l '/Users/' "${S92_SP}"/*.pth 2>/dev/null | wc -l | tr -d ' ' || true)"
+  [ "${S92_P}" = "0" ] || { bad "[92] staging .pth 含构建机绝对路径 ${S92_P} 个"; S92_BAD=1; }
+else
+  warn "[92] runtime staging 不在本机,跳过实物核(脚本面锚照核)"
+fi
+grep -q "自包含净化" "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/package_runtime_payload.sh" || { bad "[92] 打包脚本缺自包含净化守卫"; S92_BAD=1; }
+[ -f "${REPO_ROOT}/Horosa-Web/flatlib-ctrad2/flatlib/__init__.py" ] || { bad "[92] flatlib 导入源(flatlib-ctrad2)缺失"; S92_BAD=1; }
+for S92_T in "${REPO_ROOT}/Horosa_Desktop_Installer/dist/horosa-runtime-macos-arm64.tar.gz" \
+             "${REPO_ROOT}/Horosa_Desktop_Installer/dist/components/horosa-comp-py-runtime-macos-arm64.tar.gz"; do
+  [ -f "${S92_T}" ] || continue
+  S92_MARK="${S92_T}.selfcontain-ok"
+  if [ -f "${S92_MARK}" ] && [ "${S92_MARK}" -nt "${S92_T}" ]; then
+    continue
+  fi
+  S92_TN="$(tar -tzf "${S92_T}" 2>/dev/null | grep -c -E '__editable__|direct_url\.json' || true)"
+  if [ "${S92_TN}" = "0" ]; then
+    touch "${S92_MARK}" 2>/dev/null || true
+  else
+    bad "[92] $(basename "${S92_T}") 清单含 editable/direct_url 残留 ${S92_TN} 条(守卫前的旧产物,须重打)"; S92_BAD=1
+  fi
+done
+[ "${S92_BAD}" = "0" ] && ok "[92] runtime 自包含 全绿"
 
+# 93. WebView 兼容(macOS 12.0-12.2 = Safari 15.0-15.3):ES2022 微填充 + :has() 类回退。
+#     :has 仅 Safari 15.4+ 支持;app.less 每条 :has 规则须有同义 class 回退(由
+#     legacyWebkitCompat 在旧引擎维护回退类)。:has 用点收敛于 app.less 且数量钉死——
+#     新增 :has 必须同步配回退并更新本哨兵计数。
+echo "[93] WebView 兼容(polyfill + :has 类回退)"
+S93_BAD=0
+S93_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S93_COMPAT="${S93_UI}/src/utils/legacyWebkitCompat.js"
+{ [ -f "${S93_COMPAT}" ] && grep -q "selector(:has(\*))" "${S93_COMPAT}"; } || { bad "[93] legacyWebkitCompat 缺失或缺 :has 探测"; S93_BAD=1; }
+grep -q "legacyWebkitCompat" "${S93_UI}/src/global.js" || { bad "[93] global.js 未接线兼容层(必须最先执行)"; S93_BAD=1; }
+S93_LESS="${S93_UI}/src/layouts/app.less"
+S93_HAS_N="$(grep -o ':has(' "${S93_LESS}" 2>/dev/null | wc -l | tr -d ' ' || true)"
+[ "${S93_HAS_N}" = "1" ] || { bad "[93] app.less :has( 数=${S93_HAS_N}(钉死 1);新增须配同义 class 回退并更新本哨兵"; S93_BAD=1; }
+grep -q "horosa-main-tab-hidden-parent" "${S93_LESS}" || { bad "[93] app.less 缺 tab 隐藏回退类规则"; S93_BAD=1; }
+S93_OTHER="$(grep -rl ':has(' "${S93_UI}/src" --include='*.less' --include='*.css' 2>/dev/null | grep -v 'layouts/app.less' | wc -l | tr -d ' ' || true)"
+[ "${S93_OTHER}" = "0" ] || { bad "[93] app.less 之外出现 :has 用点(${S93_OTHER} 文件)——须走回退配套或收敛"; S93_BAD=1; }
+[ -f "${S93_UI}/src/utils/__tests__/legacyWebkitCompat.test.js" ] || { bad "[93] 缺兼容层回归测试"; S93_BAD=1; }
+if [ -d "${S93_UI}/dist-file" ]; then
+  grep -rq "horosa-main-tab-hidden-parent" "${S93_UI}/dist-file" 2>/dev/null || { bad "[93] dist-file 缺 tab 回退类(前端未重建)"; S93_BAD=1; }
+  grep -rq "selector(:has(" "${S93_UI}/dist-file" 2>/dev/null || { bad "[93] dist-file 缺兼容层产物(前端未重建)"; S93_BAD=1; }
+fi
+[ "${S93_BAD}" = "0" ] && ok "[93] WebView 兼容 全在位"
+
+# 94. 会话自愈与停服安全(运行期可靠性):
+#     ① 服务存活看门狗(启动看门狗管「起不来」,这管「跑着跑着死了」)+ 限频自动重启
+#        + 菜单「重启本地服务」人工兜底;
+#     ② 停服链跨实例安全:pid 文件端口后缀(双实例互覆→误杀/漏杀)+ 杀前进程指纹校验
+#        (pid 复用防误杀无辜)+ stop_runtime 传真实端口(否则动态口会话停不干净)。
+echo "[94] 会话自愈与停服安全"
+S94_BAD=0
+S94_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+grep -q "fn start_service_supervisor" "${S94_RS}" || { bad "[94] 缺服务存活看门狗"; S94_BAD=1; }
+grep -q "fn restart_local_services" "${S94_RS}" || { bad "[94] 缺服务重启例程"; S94_BAD=1; }
+grep -q "MENU_RESTART_SERVICES" "${S94_RS}" || { bad "[94] 缺「重启本地服务」菜单"; S94_BAD=1; }
+grep -q "struct BootstrapBusyGuard" "${S94_RS}" || { bad "[94] 缺引导互斥守卫(看门狗会与更新/修复抢跑)"; S94_BAD=1; }
+grep -q "fn stop_runtime(paths: &RuntimePaths, ports: Option<(u16, u16)>)" "${S94_RS}" || { bad "[94] stop_runtime 缺端口参数"; S94_BAD=1; }
+grep -q "指纹不符的进程绝不能被停服脚本误杀" "${S94_RS}" || { bad "[94] 缺停服误杀回归测试"; S94_BAD=1; }
+S94_STOP="${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh"
+grep -q '\.horosa_py\.\${CHART_PORT}\.pid' "${S94_STOP}" || { bad "[94] stop 脚本 pid 文件缺端口后缀"; S94_BAD=1; }
+grep -q 'expected_pattern' "${S94_STOP}" || { bad "[94] stop 脚本缺杀前指纹校验"; S94_BAD=1; }
+grep -q '\.horosa_py\.\${CHART_PORT}\.pid' "${REPO_ROOT}/Horosa-Web/start_horosa_local.sh" || { bad "[94] start 脚本 pid 文件缺端口后缀"; S94_BAD=1; }
+[ "${S94_BAD}" = "0" ] && ok "[94] 会话自愈与停服安全 全在位"
+
+# 95. 确定性运行环境(不因系统设置/其它软件/长期运行而变):JVM locale 钉死(泰语系统
+#     默认佛历=年+543)/桌面 Redis 禁用(不触碰用户自装 :6379)/本地文档缓存每用户
+#     (共享无锁 JSON 会互踩)/日志保留策略(防写满盘)/安装器拒绝文案双语。
+echo "[95] 确定性运行环境"
+S95_BAD=0
+S95_SH="${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"
+grep -q '\-Duser\.language=zh' "${S95_SH}" || { bad "[95] java 启动缺 locale 钉死"; S95_BAD=1; }
+grep -q 'paramhash\.cache\.redis\.enable=false' "${S95_SH}" || { bad "[95] 桌面 redis 未禁用"; S95_BAD=1; }
+grep -q '\${HOME}/\.horosa-cache/mongo-fallback' "${S95_SH}" || { bad "[95] 文档缓存默认未每用户化"; S95_BAD=1; }
+grep -q 'HOROSA_MONGO_FALLBACK_DIR' "${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs" || { bad "[95] 壳未传每用户缓存目录"; S95_BAD=1; }
+grep -q 'fn prune_logs_dir_best_effort' "${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs" || { bad "[95] 壳缺日志修剪"; S95_BAD=1; }
+S95_LOG="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/src/main/resources/log4j2.xml"
+grep -q '<Delete basePath' "${S95_LOG}" || { bad "[95] log4j2 缺 Delete 保留策略"; S95_BAD=1; }
+grep -q 'SizeBasedTriggeringPolicy' "${S95_LOG}" || { bad "[95] log4j2 缺按量滚转"; S95_BAD=1; }
+grep -q 'Apple Silicon Required' "${REPO_ROOT}/Horosa_Desktop_Installer/installer-scripts/distribution.xml.template" || { bad "[95] 安装器拒绝文案缺英文"; S95_BAD=1; }
+grep -q 'pkgutil --forget' "${REPO_ROOT}/Horosa_Desktop_Installer/UNINSTALL.md" || { bad "[95] 卸载文档缺收据清除"; S95_BAD=1; }
+[ "${S95_BAD}" = "0" ] && ok "[95] 确定性运行环境 全在位"
+
+# 96. web 一键启动链(OneClick 家族):启停约定散在多文件而此前零门覆盖,
+#     单侧改动即会静默漂移(pid 命名断裂=停服漏杀)。守四面:全家族语法 / pid 约定跨文件互锚 /
+#     历史断裂回归钉 / 入口健壮化与文档在位。动启停约定必须保本哨兵绿(AGENTS.md 铁律)。
+echo "[96] web 一键启动链"
+S96_BAD=0
+for S96_F in \
+  "${REPO_ROOT}/Horosa_OneClick_Mac.command" \
+  "${REPO_ROOT}/Horosa_Stop_Mac.command" \
+  "${REPO_ROOT}/tools/mac/Horosa_Local.command" \
+  "${REPO_ROOT}/tools/mac/startup_ladder.sh" \
+  "${REPO_ROOT}/scripts/mac/bootstrap_and_run.sh" \
+  "${REPO_ROOT}/scripts/mac/self_check_horosa.sh" \
+  "${REPO_ROOT}/Horosa-Web/start_horosa_local.sh" \
+  "${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh"; do
+  if [ ! -f "${S96_F}" ]; then
+    bad "[96] 家族文件缺失: ${S96_F#"${REPO_ROOT}"/}"; S96_BAD=1; continue
+  fi
+  bash -n "${S96_F}" 2>/dev/null || { bad "[96] 语法错误: ${S96_F#"${REPO_ROOT}"/}"; S96_BAD=1; }
+done
+S96_LOCAL="${REPO_ROOT}/tools/mac/Horosa_Local.command"
+S96_STOP="${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh"
+S96_START="${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"
+grep -q '\.horosa_web\.\${WEB_PORT}\.pid' "${S96_LOCAL}" || { bad "[96] Local 缺 web pid 端口后缀"; S96_BAD=1; }
+grep -q '\.horosa_web\.\${WEB_PORT}\.pid' "${S96_STOP}" || { bad "[96] stop 缺 web pid 端口后缀"; S96_BAD=1; }
+grep -q '\.horosa_py\.\${CHART_PORT}\.pid' "${S96_START}" || { bad "[96] start 缺 py pid 端口后缀"; S96_BAD=1; }
+grep -q '\.horosa_py\.\${CHART_PORT}\.pid' "${S96_STOP}" || { bad "[96] stop 缺 py pid 端口后缀"; S96_BAD=1; }
+grep -q 'get_listener_pids' "${S96_LOCAL}" && { bad "[96] Local 回潮未定义函数 get_listener_pids"; S96_BAD=1; }
+grep -q 'port_listener_pids' "${S96_LOCAL}" || { bad "[96] Local 缺 port_listener_pids"; S96_BAD=1; }
+grep -q 'lsof -tiTCP' "${S96_LOCAL}" && { bad "[96] Local 回潮全表扫描 lsof(卡死类,已封杀)"; S96_BAD=1; }
+grep -q '项目完整性检查' "${REPO_ROOT}/Horosa_OneClick_Mac.command" || { bad "[96] OneClick 缺完整性检查"; S96_BAD=1; }
+grep -q 'HOROSA_STOP_ALL' "${REPO_ROOT}/Horosa_Stop_Mac.command" || { bad "[96] Stop 入口缺 STOP_ALL"; S96_BAD=1; }
+grep -q 'HOROSA_STOP_ALL' "${S96_STOP}" || { bad "[96] stop 脚本缺 STOP_ALL 模式"; S96_BAD=1; }
+grep -q 'download_with_fallback' "${REPO_ROOT}/scripts/mac/bootstrap_and_run.sh" || { bad "[96] bootstrap 缺镜像回退"; S96_BAD=1; }
+grep -q 'HOROSA_SKIP_DB_SETUP:-1' "${REPO_ROOT}/scripts/mac/bootstrap_and_run.sh" || { bad "[96] bootstrap DB 默认未跳过"; S96_BAD=1; }
+grep -q '网页版一键启动' "${REPO_ROOT}/README.md" || { bad "[96] README 缺一键启动教程"; S96_BAD=1; }
+[ -f "${REPO_ROOT}/docs/WEB_LOCAL_LAUNCH.md" ] || { bad "[96] 缺 WEB_LOCAL_LAUNCH.md"; S96_BAD=1; }
+[ "${S96_BAD}" = "0" ] && ok "[96] web 一键启动链 全在位"
+
+
+# ── [97] 七政天星择日双轮(Moira 对照)链完整性 ──────────────────────────────
+echo "[97] 七政择日双轮链"
+S97_BAD=0
+S97_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S97_PY="${REPO_ROOT}/Horosa-Web/astropy"
+for S97_F in \
+  "${S97_UI}/components/guolao/electionGeomag.js" \
+  "${S97_UI}/components/guolao/electionCore.js" \
+  "${S97_UI}/components/guolao/moiraWheelLayout.js" \
+  "${S97_UI}/components/guolao/guolaoMoiraTables.js" \
+  "${S97_UI}/components/guolao/guolaoStarNotes.js" \
+  "${S97_UI}/components/guolao/GuoLaoElectionTable.js" \
+  "${S97_UI}/components/guolao/GuoLaoWheelCaptions.js" \
+  "${S97_UI}/components/common/QuickDockBar.js" \
+  "${S97_PY}/websrv/webqizhengelectionsrv.py"; do
+  [ -f "${S97_F}" ] || { bad "[97] 缺文件: ${S97_F#"${REPO_ROOT}"/}"; S97_BAD=1; }
+done
+# WMM 系数完整性:两套历元且每套 90 行系数(截断即红)
+S97_WMM_EPOCHS=$(grep -c 'epoch: 20' "${S97_UI}/components/guolao/electionGeomag.js" 2>/dev/null || echo 0)
+[ "${S97_WMM_EPOCHS}" -ge 2 ] || { bad "[97] WMM 历元数 ${S97_WMM_EPOCHS} < 2"; S97_BAD=1; }
+S97_WMM_ROWS=$(grep -cE '^\s*\[(1[0-2]|[1-9]), ' "${S97_UI}/components/guolao/electionGeomag.js" 2>/dev/null || echo 0)
+[ "${S97_WMM_ROWS}" -ge 180 ] || { bad "[97] WMM 系数行 ${S97_WMM_ROWS} < 180(截断?)"; S97_BAD=1; }
+# 端点挂载在位
+grep -q "qizhengelection" "${S97_PY}/websrv/webchartsrv.py" || { bad "[97] webchartsrv 未挂载 /qizhengelection"; S97_BAD=1; }
+# 快捷栏契约测试在位(信息不进栏/禁复现守卫)
+[ -f "${S97_UI}/components/common/__tests__/quickDockContract.test.js" ] || { bad "[97] 缺 quickDockContract 契约测试"; S97_BAD=1; }
+[ "${S97_BAD}" = "0" ] && ok "[97] 择日双轮链完整(WMM ${S97_WMM_EPOCHS} 历元/${S97_WMM_ROWS} 行系数)"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

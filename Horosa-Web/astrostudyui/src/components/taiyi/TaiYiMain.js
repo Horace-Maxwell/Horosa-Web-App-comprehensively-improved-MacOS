@@ -6,8 +6,10 @@ import { fetchPreciseNongli } from '../../utils/preciseCalcBridge';
 import GeoCoordModal from '../amap/GeoCoordModal';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
+import QuickDockBar from '../common/QuickDockBar';
 import SpaceTimePanel from '../comp/SpaceTimePanel';
 import { convertLatToStr, convertLonToStr } from '../astro/AstroHelper';
+import { geoNameFieldPatch } from '../../utils/geoName';
 import { resolveGeoZone } from '../../utils/timezone';
 import XQIcon from '../xq-icons';
 import { computeTaiyiShuli, shuliTone } from './core/taiyiShuli';
@@ -315,6 +317,23 @@ class TaiYiMain extends Component {
 		this.requestNongli(nextFields);
 	}
 
+	// 快捷栏契约:「此刻起局」:局时=当下并立即重排,绕过左栏时间草稿(点「此刻」即要 NOW)。
+	// 只补 date/time/ad——zone/经纬是用户所在地设置不动;左栏跟显靠 onFieldsChange 受控回流。
+	clickPlotNow(){
+		const base = this.props.fields;
+		if(!base){
+			return;
+		}
+		const now = new DateTime();
+		const patch = {
+			date: { value: now.clone() },
+			time: { value: now.clone() },
+			ad: { value: now.ad },
+		};
+		this.onFieldsChange(patch);
+		this.requestNongli({ ...base, ...patch });
+	}
+
 	onGenderChange(val) {
 		this.onOptionChange('sex', val === 0 ? '女' : '男');
 		this.onFieldsChange({
@@ -341,6 +360,7 @@ class TaiYiMain extends Component {
 			if(dDt && dDt.clone){ const nd = dDt.clone(); nd.setZone(z); payload.date = { value: nd }; payload.ad = { value: nd.ad }; }
 			if(tDt && tDt.clone){ const nt = tDt.clone(); nt.setZone(z); payload.time = { value: nt }; }
 		}
+		Object.assign(payload, geoNameFieldPatch(rec));
 		this.onFieldsChange(payload);
 	}
 
@@ -1241,38 +1261,20 @@ class TaiYiMain extends Component {
 		);
 	}
 
+	// 快捷栏契约:右栏 tab 镜像(概览/十六宫/神煞/八门/断法/命法)全撤,只留本页没有的动词。
 	renderBottomQuickDock() {
-		const showLifeTab = this.hasSectionTitles(['命法', '命宫行限']);
-		const showDoorsTab = this.hasSectionTitles(['八门与宿曜']);
-		const showRulingsTab = this.hasSectionTitles(['断法', '七大兵法', '博弈']);
-		const actions = [
-			{ label: '起盘', icon: 'quickPrimary', onClick: this.clickPlot },
-			{ label: '保存', icon: 'quickNote', onClick: this.clickSaveCase },
-			{ label: '概览', icon: 'quickComposite', active: this.state.rightPanelTab === 'overview', onClick: () => this.setRightPanelTab('overview') },
-			{ label: '十六宫', icon: 'quickTransit', active: this.state.rightPanelTab === 'palaces', onClick: () => this.setRightPanelTab('palaces') },
-			{ label: '神煞', icon: 'quickReturn', active: this.state.rightPanelTab === 'spirits', onClick: () => this.setRightPanelTab('spirits') },
-			...(showDoorsTab ? [{ label: '八门', icon: 'quickNote', active: this.state.rightPanelTab === 'doors', onClick: () => this.setRightPanelTab('doors') }] : []),
-			...(showRulingsTab ? [{ label: '断法', icon: 'quickReturn', active: this.state.rightPanelTab === 'rulings', onClick: () => this.setRightPanelTab('rulings') }] : []),
-			...(showLifeTab ? [{ label: '命法', icon: 'quickNote', active: this.state.rightPanelTab === 'life', onClick: () => this.setRightPanelTab('life') }] : []),
-			{ label: 'AI助手', icon: 'quickAi', onClick: () => this.navigateFeature('aianalysis') },
-		].slice(0, 9);
 		return (
-			<div className="horosa-bottom-quick-dock horosa-taiyi-quick-dock">
-				<div className="horosa-bottom-quick-title">快捷功能 <XQIcon name="ai" /></div>
-				<div className="horosa-bottom-quick-actions horosa-taiyi-quick-actions">
-					{actions.map((item) => (
-						<button
-							type="button"
-							key={item.label}
-							className={`horosa-bottom-quick-button horosa-taiyi-quick-button${item.active ? ' is-active' : ''}`}
-							onClick={item.onClick}
-						>
-							<span className="horosa-bottom-quick-icon"><XQIcon name={item.icon} /></span>
-							<span>{item.label}</span>
-						</button>
-					))}
-				</div>
-			</div>
+			<QuickDockBar
+				page="taiyi"
+				className="horosa-taiyi-quick-dock"
+				hasResult={!!this.state.pan}
+				primary={{ key: 'plot', label: '起盘', onClick: this.clickPlot }}
+				extras={[
+					{ key: 'nowPlot', label: '此刻起局', icon: 'quickTransit', needsResult: false, onClick: ()=>this.clickPlotNow() },
+				]}
+				save={this.clickSaveCase}
+				dispatch={this.props.dispatch}
+			/>
 		);
 	}
 

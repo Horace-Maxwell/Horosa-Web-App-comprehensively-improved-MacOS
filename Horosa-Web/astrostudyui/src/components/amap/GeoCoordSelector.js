@@ -106,7 +106,8 @@ class GeoCoordSelector extends Component{
 	}
 
 	// 直接按 GPS（城市库 / 手输）选点：GPS → GCJ 供地图显示，回填 GPS。
-	applyGps(gpsLat, gpsLng){
+	// name:城市库直接给城市名;手输经纬度无名 → 传空串(表示「此坐标暂无地名」,上层据实回填/清名)。
+	applyGps(gpsLat, gpsLng, name){
 		const lat = Number(gpsLat);
 		const lng = Number(gpsLng);
 		if(!Number.isFinite(lat) || !Number.isFinite(lng)){
@@ -115,7 +116,7 @@ class GeoCoordSelector extends Component{
 		const gcj = gpsToGcj02(lat, lng);
 		this.setState({ manualLat: `${lat}`, manualLng: `${lng}` });
 		if(this.props.onChange){
-			this.props.onChange(this.withZone({ lat: gcj.lat, lng: gcj.lon, gpsLat: lat, gpsLng: lng }));
+			this.props.onChange(this.withZone({ lat: gcj.lat, lng: gcj.lon, gpsLat: lat, gpsLng: lng, name: name || '' }));
 		}
 	}
 
@@ -165,12 +166,46 @@ class GeoCoordSelector extends Component{
 			this.state.map.setZoom(13);
 			this.state.map.setCenter(e.poi.location);
 			this.state.marker.setPosition(e.poi.location);
-			this.changePos({ lat: e.poi.location.lat, lng: e.poi.location.lng });
+			// 地名搜索选中:e.poi.name 即用户选的地名(如「上海市」「陆家嘴」),连同坐标透传上层。
+			const name = (e.poi && e.poi.name) ? `${e.poi.name}` : '';
+			this.changePos({ lat: e.poi.location.lat, lng: e.poi.location.lng, name });
 		}
 	}
 
 	handleMapClick(e){
-		this.changePos({ lat: e.lnglat.lat, lng: e.lnglat.lng });
+		const lat = e.lnglat.lat;
+		const lng = e.lnglat.lng;
+		// 地图裸点选:无现成地名 → 逆地理编码尽力取「区/县/市」名;取不到(服务未开/失败)则空串,据实回填。
+		this.reverseGeocode(lng, lat, (name)=>{
+			this.changePos({ lat, lng, name: name || '' });
+		});
+	}
+
+	// 逆地理编码(高德 Geocoder,GCJ-02 坐标):尽力返回可读地名;任何失败/服务不可用一律回调空串,绝不抛错阻断选点。
+	reverseGeocode(lng, lat, cb){
+		try{
+			if(!window.AMap || !window.AMap.plugin){
+				cb('');
+				return;
+			}
+			window.AMap.plugin(['AMap.Geocoder'], ()=>{
+				try{
+					const geocoder = new window.AMap.Geocoder({});
+					geocoder.getAddress([lng, lat], (status, result)=>{
+						let name = '';
+						if(status === 'complete' && result && result.regeocode){
+							const rc = result.regeocode;
+							const comp = rc.addressComponent || {};
+							const pick = (v)=>(v && typeof v === 'string') ? v : '';
+							// 优先「区/县 → 乡镇/街道 → 城市 → 省」,再退回完整地址串。
+							name = pick(comp.district) || pick(comp.township) || pick(comp.city)
+								|| pick(comp.province) || pick(rc.formattedAddress) || '';
+						}
+						cb(name);
+					});
+				}catch(err){ cb(''); }
+			});
+		}catch(err){ cb(''); }
 	}
 
 	// 城市检索委托给纯函数模块 cityMatch(便于单测):简繁折叠 + 简体名 + 拼音/首字母 + 英文 + 地区,四档评分。
@@ -275,7 +310,7 @@ class GeoCoordSelector extends Component{
 									type="button"
 									key={`${c.name}-${c.lat}-${c.lng}`}
 									className={styles.cityItem}
-									onClick={()=>this.applyGps(c.lat, c.lng)}
+									onClick={()=>this.applyGps(c.lat, c.lng, c.name)}
 								>
 									<span className={styles.cityName}>{c.name}</span>
 									<span className={styles.cityRegion}>{c.region || ''}</span>

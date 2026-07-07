@@ -22,7 +22,10 @@ FRONTEND_INDEX="${UI_DIR}/dist-file/index.html"
 MAVEN_CMD=()
 
 SKIP_TOOLCHAIN_INSTALL="${HOROSA_SKIP_TOOLCHAIN_INSTALL:-0}"
-SKIP_DB_SETUP="${HOROSA_SKIP_DB_SETUP:-0}"
+# DB 默认跳过:Mongo/Redis 对本产品是可选依赖(连不上自动走本地文件缓存,桌面模式甚至
+# 硬编码不连)——默认装它们会让全球首启平白多下数百 MB、多等 5~15 分钟。真要装:
+#   HOROSA_SKIP_DB_SETUP=0 bash scripts/mac/bootstrap_and_run.sh
+SKIP_DB_SETUP="${HOROSA_SKIP_DB_SETUP:-1}"
 SKIP_BUILD="${HOROSA_SKIP_BUILD:-0}"
 SKIP_LAUNCH="${HOROSA_SKIP_LAUNCH:-0}"
 
@@ -39,9 +42,29 @@ have_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# 多源下载:候选 URL 依次尝试(官方在前、国内镜像殿后;HOROSA_*_URL 显式覆盖时只用覆盖值)。
+# 任一源失败(连不上/超时/4xx)立刻换下一源——大陆等网络分区环境首启不再卡死在单一官方源。
+download_with_fallback() {
+  local dest="$1"
+  shift
+  local url=""
+  for url in "$@"; do
+    [ -n "${url}" ] || continue
+    say "downloading: ${url}"
+    if curl -fL --retry 2 --connect-timeout 12 -o "${dest}" "${url}"; then
+      return 0
+    fi
+    say "warning: source failed, trying next mirror..."
+  done
+  return 1
+}
+
 port_listening() {
   local port="$1"
-  lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+  # 弃用 lsof(全系统 FD 扫描遇卡死进程可 stall 30~100s);netstat 只读内核表。
+  netstat -anv -p tcp 2>/dev/null \
+    | awk -v port="${port}" '$6 == "LISTEN" && $4 ~ ("[.:]" port "$") { exit_found=1 }
+                             END { exit exit_found ? 0 : 1 }'
 }
 
 require_macos() {
@@ -67,6 +90,7 @@ ensure_homebrew() {
   say "installing Homebrew (first run only)..."
   if ! NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
     say "warning: failed to install Homebrew automatically."
+    say "hint: 中国大陆网络可参考清华 TUNA Homebrew 安装指引(mirrors.tuna.tsinghua.edu.cn/help/homebrew/)后重跑本脚本;没有 Homebrew 也没关系,脚本会直接下载各运行时(已带镜像回退)。"
     return 1
   fi
   load_brew_env
@@ -206,14 +230,23 @@ install_local_java17() {
     return 1
   fi
 
-  download_url="${HOROSA_JDK17_URL:-https://api.adoptium.net/v3/binary/latest/17/ga/mac/${arch}/jdk/hotspot/normal/eclipse?project=jdk}"
+  local jdk_candidates=()
+  if [ -n "${HOROSA_JDK17_URL:-}" ]; then
+    jdk_candidates=("${HOROSA_JDK17_URL}")
+  else
+    jdk_candidates=(
+      "https://api.adoptium.net/v3/binary/latest/17/ga/mac/${arch}/jdk/hotspot/normal/eclipse?project=jdk"
+      # 大陆镜像回退(清华 TUNA;镜像无 latest API,版本钉住,可用 HOROSA_JDK17_URL 覆盖)
+      "https://mirrors.tuna.tsinghua.edu.cn/Adoptium/17/jdk/${arch}/mac/OpenJDK17U-jdk_${arch}_mac_hotspot_17.0.13_11.tar.gz"
+    )
+  fi
   tmp_root="$(mktemp -d "${TMPDIR:-/tmp}/horosa-jdk.XXXXXX")"
   archive_path="${tmp_root}/jdk17.tar.gz"
   extract_dir="${tmp_root}/extract"
   mkdir -p "${extract_dir}"
 
   say "downloading java 17 runtime (${arch}) ..."
-  if ! curl -fL --retry 2 --connect-timeout 15 -o "${archive_path}" "${download_url}"; then
+  if ! download_with_fallback "${archive_path}" "${jdk_candidates[@]}"; then
     rm -rf "${tmp_root}"
     return 1
   fi
@@ -255,14 +288,22 @@ install_local_node() {
   fi
 
   node_ver="${HOROSA_NODE_VERSION:-v20.11.1}"
-  download_url="${HOROSA_NODE_URL:-https://nodejs.org/dist/${node_ver}/node-${node_ver}-darwin-${arch}.tar.gz}"
+  local node_candidates=()
+  if [ -n "${HOROSA_NODE_URL:-}" ]; then
+    node_candidates=("${HOROSA_NODE_URL}")
+  else
+    node_candidates=(
+      "https://nodejs.org/dist/${node_ver}/node-${node_ver}-darwin-${arch}.tar.gz"
+      "https://cdn.npmmirror.com/binaries/node/${node_ver}/node-${node_ver}-darwin-${arch}.tar.gz"
+    )
+  fi
   tmp_root="$(mktemp -d "${TMPDIR:-/tmp}/horosa-node.XXXXXX")"
   archive_path="${tmp_root}/node.tar.gz"
   extract_dir="${tmp_root}/extract"
   mkdir -p "${extract_dir}"
 
   say "downloading node runtime (${node_ver}, ${arch}) ..."
-  if ! curl -fL --retry 2 --connect-timeout 15 -o "${archive_path}" "${download_url}"; then
+  if ! download_with_fallback "${archive_path}" "${node_candidates[@]}"; then
     rm -rf "${tmp_root}"
     return 1
   fi
@@ -294,14 +335,22 @@ install_local_maven() {
   local extracted_home=""
 
   maven_ver="${HOROSA_MAVEN_VERSION:-3.9.9}"
-  download_url="${HOROSA_MAVEN_URL:-https://archive.apache.org/dist/maven/maven-3/${maven_ver}/binaries/apache-maven-${maven_ver}-bin.tar.gz}"
+  local maven_candidates=()
+  if [ -n "${HOROSA_MAVEN_URL:-}" ]; then
+    maven_candidates=("${HOROSA_MAVEN_URL}")
+  else
+    maven_candidates=(
+      "https://archive.apache.org/dist/maven/maven-3/${maven_ver}/binaries/apache-maven-${maven_ver}-bin.tar.gz"
+      "https://mirrors.tuna.tsinghua.edu.cn/apache/maven/maven-3/${maven_ver}/binaries/apache-maven-${maven_ver}-bin.tar.gz"
+    )
+  fi
   tmp_root="$(mktemp -d "${TMPDIR:-/tmp}/horosa-maven.XXXXXX")"
   archive_path="${tmp_root}/maven.tar.gz"
   extract_dir="${tmp_root}/extract"
   mkdir -p "${extract_dir}"
 
   say "downloading apache maven ${maven_ver} ..."
-  if ! curl -fL --retry 2 --connect-timeout 15 -o "${archive_path}" "${download_url}"; then
+  if ! download_with_fallback "${archive_path}" "${maven_candidates[@]}"; then
     rm -rf "${tmp_root}"
     return 1
   fi
@@ -336,12 +385,20 @@ install_local_python() {
     return 1
   fi
 
-  download_url="${HOROSA_PYTHON_URL:-https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-${arch}.sh}"
+  local py_candidates=()
+  if [ -n "${HOROSA_PYTHON_URL:-}" ]; then
+    py_candidates=("${HOROSA_PYTHON_URL}")
+  else
+    py_candidates=(
+      "https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-${arch}.sh"
+      "https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-MacOSX-${arch}.sh"
+    )
+  fi
   tmp_root="$(mktemp -d "${TMPDIR:-/tmp}/horosa-python.XXXXXX")"
   installer_path="${tmp_root}/miniconda.sh"
 
   say "downloading python runtime (miniconda, ${arch}) ..."
-  if ! curl -fL --retry 2 --connect-timeout 15 -o "${installer_path}" "${download_url}"; then
+  if ! download_with_fallback "${installer_path}" "${py_candidates[@]}"; then
     rm -rf "${tmp_root}"
     return 1
   fi
@@ -695,6 +752,13 @@ frontend_needs_build() {
     return 0
   fi
   if [ "${UI_DIR}/package.json" -nt "${FRONTEND_INDEX}" ]; then
+    return 0
+  fi
+  # 依赖锁与 config/ 目录同样影响产物(与 Horosa_OneClick_Mac.command 判定保持同款)。
+  if [ -f "${UI_DIR}/package-lock.json" ] && [ "${UI_DIR}/package-lock.json" -nt "${FRONTEND_INDEX}" ]; then
+    return 0
+  fi
+  if [ -d "${UI_DIR}/config" ] && [ -n "$(find "${UI_DIR}/config" -type f -newer "${FRONTEND_INDEX}" -print -quit 2>/dev/null)" ]; then
     return 0
   fi
   if [ -f "${UI_DIR}/.umirc.js" ] && [ "${UI_DIR}/.umirc.js" -nt "${FRONTEND_INDEX}" ]; then
