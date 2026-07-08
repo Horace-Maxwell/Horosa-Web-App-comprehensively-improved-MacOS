@@ -278,7 +278,30 @@ const I18N={
    opt:{mode:['Contains','Prefix','Exact'],scope:['All','Name','Title','Bio'],gender:['All','Male','Female','Unknown'],sort:['Relevance','Name','Birth ↑','Birth ↓']},phkw:'Name / profession / birthplace…',phcat:'Nobel / birthplace / 1946 births…'}
 };
 let db=null,lang='zh',page=0,pageSize=24,total=0,selectedCats=[];
+let VOCAB={},CATZH={};   // 中文封闭词表(关系/事件/来源/时间精度…)+ 分类(en->zh);仅中文模式用,数据随库
 const EMBEDDED=(window.parent&&window.parent!==window);
+const isZh=()=>lang==='zh';
+function vmap(kind,en){return (isZh()&&VOCAB[kind]&&VOCAB[kind][en])||en;}
+function catDisp(en){return isZh()?(CATZH[en]||en):en;}
+const nm=r=>isZh()?(r.name_zh||r.name):r.name;   // 姓名/地点/出生/传记 按语言取列(缺中文列自动回退英文)
+const ps=r=>isZh()?(r.pos_zh||r.pos):r.pos;
+const bn=r=>isZh()?(r.born_zh||r.born_display):r.born_display;
+const sm=r=>isZh()?(r.summary_zh||r.wiki_summary):r.wiki_summary;
+function sumCredit(r){
+  if(!isZh())return I18N.en.wikicred;
+  if(r.summary_src==='wiki')return '摘要来自中文维基百科 · CC BY-SA 4.0';
+  if(r.summary_src==='deepseek')return '机器翻译 · 原文 Wikipedia,CC BY-SA 4.0';
+  return I18N.zh.wikicred;
+}
+const MONTHS_EN={January:1,February:2,March:3,April:4,May:5,June:6,July:7,August:8,September:9,October:10,November:11,December:12};
+function dz(s){ // 关系/事件日期 → 中文(仅中文模式;识别不出的原样返回)
+  if(!isZh()||!s)return s; s=(''+s).trim(); let m;
+  if((m=s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{3,4})$/))&&MONTHS_EN[m[2]])return `${m[3]}年${MONTHS_EN[m[2]]}月${+m[1]}日`;
+  if((m=s.match(/^([A-Za-z]+)\s+(\d{3,4})$/))&&MONTHS_EN[m[1]])return `${m[2]}年${MONTHS_EN[m[1]]}月`;
+  if((m=s.match(/^(\d{3,4})$/)))return `${m[1]}年`;
+  if((m=s.match(/^(\d{3,4})\/(\d{1,2})\/(\d{1,2})$/)))return `${m[1]}年${+m[2]}月${+m[3]}日`;
+  return s;
+}
 const $=id=>document.getElementById(id);
 function qy(sql,p){const st=db.prepare(sql);if(p)st.bind(p);const o=[];while(st.step())o.push(st.getAsObject());st.free();return o;}
 function one(sql,p){const r=qy(sql,p);return r.length?Object.values(r[0])[0]:null;}
@@ -291,6 +314,8 @@ function safeUrl(u){return /^https?:\/\//i.test(u||'')?u:'#';}
 async function boot(buf){
   const SQL=await initSqlJs({locateFile:f=>'vendor/'+f});
   db=new SQL.Database(await gunzipAsync(new Uint8Array(buf)));
+  try{VOCAB=await fetch('astrodata-zh-vocab.json').then(r=>r.ok?r.json():{});}catch(e){VOCAB={};}
+  try{qy("SELECT en,zh FROM category_zh").forEach(r=>CATZH[r.en]=r.zh);}catch(e){}
   $('loading').style.display='none';
   const g=(k)=>+one("SELECT value FROM meta WHERE key=?",[k]);
   animateCount($('s1'),g('persons'));animateCount($('s2'),g('with_wikipedia'));animateCount($('s3'),g('categories'));
@@ -310,13 +335,18 @@ function buildLegend(){$('legend').innerHTML=['fire','earth','air','water'].map(
 
 /* ---------- facet ---------- */
 function renderFacet(){
-  const kw=$('catq').value.trim();let sql="SELECT category,COUNT(*) c FROM category",p=[];
-  if(kw){sql+=" WHERE category LIKE ? COLLATE NOCASE";p=['%'+kw+'%'];}
-  sql+=" GROUP BY category ORDER BY c DESC, category LIMIT 40";
+  const kw=$('catq').value.trim();let sql,p=[];
+  if(kw&&isZh()){ // 中文模式:中文分类文本 或 英文原名 皆可命中(未译的自由分类仍能用英文词找到,LEFT JOIN 保留未译项)
+    sql="SELECT c.category category,COUNT(*) cnt FROM category c LEFT JOIN category_zh z ON z.en=c.category WHERE z.zh LIKE ? OR c.category LIKE ? COLLATE NOCASE GROUP BY c.category ORDER BY cnt DESC LIMIT 40";p=['%'+kw+'%','%'+kw+'%'];
+  }else if(kw){
+    sql="SELECT category,COUNT(*) cnt FROM category WHERE category LIKE ? COLLATE NOCASE GROUP BY category ORDER BY cnt DESC LIMIT 40";p=['%'+kw+'%'];
+  }else{
+    sql="SELECT category,COUNT(*) cnt FROM category GROUP BY category ORDER BY cnt DESC, category LIMIT 40";
+  }
   const rows=qy(sql,p.length?p:null);
-  $('facet').innerHTML=rows.map(r=>`<div class="cat${selectedCats.includes(r.category)?' on':''}" data-c="${esc(r.category)}"><span>${esc(r.category)}</span><span class="cnt">${r.c.toLocaleString()}</span></div>`).join('')||`<div class="empty" style="padding:20px">—</div>`;
+  $('facet').innerHTML=rows.map(r=>`<div class="cat${selectedCats.includes(r.category)?' on':''}" data-c="${esc(r.category)}"><span>${esc(catDisp(r.category))}</span><span class="cnt">${r.cnt.toLocaleString()}</span></div>`).join('')||`<div class="empty" style="padding:20px">—</div>`;
   $('facet').querySelectorAll('.cat').forEach(el=>el.onclick=()=>toggleCat(el.dataset.c));
-  $('selcats').innerHTML=selectedCats.map(c=>`<span class="chip" data-c="${esc(c)}">${esc(c)} ✕</span>`).join('');
+  $('selcats').innerHTML=selectedCats.map(c=>`<span class="chip" data-c="${esc(c)}">${esc(catDisp(c))} ✕</span>`).join('');
   $('selcats').querySelectorAll('.chip').forEach(el=>el.onclick=()=>toggleCat(el.dataset.c));
 }
 function toggleCat(c){const i=selectedCats.indexOf(c);if(i>=0)selectedCats.splice(i,1);else selectedCats.push(c);page=0;renderFacet();search();}
@@ -325,7 +355,9 @@ function toggleCat(c){const i=selectedCats.indexOf(c);if(i>=0)selectedCats.splic
 function buildWhere(){
   const w=[],p=[];const kw=$('q').value.trim();
   if(kw){const mode=$('mode').value,scope=$('scope').value;
-    const cols={any:['name','title','pos','wiki_summary'],name:['name'],title:['title'],bio:['wiki_summary']}[scope];
+    const cols=(isZh()
+      ?{any:['name_zh','name','title','pos_zh','summary_zh'],name:['name_zh','name'],title:['title'],bio:['summary_zh','wiki_summary']}
+      :{any:['name','title','pos','wiki_summary'],name:['name'],title:['title'],bio:['wiki_summary']})[scope];
     const pat=mode==='exact'?kw:mode==='prefix'?kw+'%':'%'+kw+'%';const op=mode==='exact'?'= ? COLLATE NOCASE':'LIKE ? COLLATE NOCASE';
     w.push('('+cols.map(c=>{p.push(pat);return `${c} ${op}`;}).join(' OR ')+')');}
   const g=$('gender').value;if(g!==''){w.push('gender=?');p.push(+g);}
@@ -342,7 +374,7 @@ function search(){
   const{where,p}=buildWhere();
   total=+one('SELECT COUNT(*) FROM person'+where,p.length?p:null);
   const pages=Math.max(1,Math.ceil(total/pageSize));if(page>=pages)page=pages-1;if(page<0)page=0;
-  const rows=qy('SELECT id,name,title,born_display,pos,gender,rodden,sun,moon,asc,has_time,wiki_summary,rel_count,evt_count,cat_preview FROM person'+where+orderBy()+` LIMIT ${pageSize} OFFSET ${page*pageSize}`,p.length?p:null);
+  const rows=qy('SELECT id,name,name_zh,title,born_display,born_zh,pos,pos_zh,gender,rodden,sun,moon,asc,has_time,wiki_summary,summary_zh,rel_count,evt_count,cat_preview FROM person'+where+orderBy()+` LIMIT ${pageSize} OFFSET ${page*pageSize}`,p.length?p:null);
   const from=total?page*pageSize+1:0,to=Math.min(total,(page+1)*pageSize);
   $('meta').innerHTML=T().showing(total.toLocaleString(),from,to);
   renderPagers();
@@ -358,12 +390,12 @@ function triadHtml(r){
 function card(r){
   let cats=[];try{cats=JSON.parse(r.cat_preview||'[]');}catch(e){}
   return `<article class="card" data-id="${r.id}">
-    <div class="top"><div><h3>${esc(r.name)}</h3><div class="sub">${esc(r.title)}</div></div><span class="rr">✦ ${esc(r.rodden)}</span></div>
+    <div class="top"><div><h3>${esc(nm(r))}</h3><div class="sub">${esc(r.title)}</div></div><span class="rr">✦ ${esc(r.rodden)}</span></div>
     <div class="triad">${triadHtml(r)}</div>
-    <div class="meta-line"><span><b>${T().born}</b> ${esc(r.born_display)||'—'}${r.has_time?'':` <span class="notime">?</span>`}</span></div>
-    <div class="meta-line"><span><b>${T().place}</b> ${esc(r.pos)||'—'}</span><span>${r.rel_count} rel · ${r.evt_count} evt</span></div>
-    ${r.wiki_summary?`<p class="bio">${esc(r.wiki_summary)}</p>`:''}
-    ${cats.length?`<div class="chips">${cats.slice(0,5).map(c=>`<span class="chip">${esc(c)}</span>`).join('')}</div>`:''}
+    <div class="meta-line"><span><b>${T().born}</b> ${esc(bn(r))||'—'}${r.has_time?'':` <span class="notime">?</span>`}</span></div>
+    <div class="meta-line"><span><b>${T().place}</b> ${esc(ps(r))||'—'}</span><span>${r.rel_count} rel · ${r.evt_count} evt</span></div>
+    ${sm(r)?`<p class="bio">${esc(sm(r))}</p>`:''}
+    ${cats.length?`<div class="chips">${cats.slice(0,5).map(c=>`<span class="chip">${esc(catDisp(c))}</span>`).join('')}</div>`:''}
   </article>`;
 }
 function pageCount(){return Math.max(1,Math.ceil(total/pageSize));}
@@ -434,7 +466,7 @@ function degStr(lon,sign){if(lon==null||!sign)return '—';const d=lon-SIGN_ORDE
 /* ---------- detail ---------- */
 function openDetail(id){
   const r=qy('SELECT * FROM person WHERE id=?',[id])[0];if(!r)return;const L=T();
-  $('d-name').textContent=r.name;$('d-sub').innerHTML=`${esc(r.title)} · <span class="rr">✦ ${esc(r.rodden)}</span>`;
+  $('d-name').textContent=nm(r);$('d-sub').innerHTML=`${esc(r.title)} · <span class="rr">✦ ${esc(r.rodden)}</span>`;
   let rels=[],evts=[];try{rels=JSON.parse(r.rel_json||'[]');}catch(e){}try{evts=JSON.parse(r.evt_json||'[]');}catch(e){}
   const cats=qy('SELECT category FROM category WHERE person_title=? ORDER BY category',[r.title]).map(x=>x.category);
   const plc=(g,lab,sign,lon,col)=>`<div class="plc"><span class="icn" style="color:${col}">${g}</span><div class="txt"><b>${lab}</b><small>${degStr(lon,sign)}</small></div></div>`;
@@ -454,16 +486,16 @@ function openDetail(id){
       ${r.wiki_url?`<a class="btn ghost" href="${esc(safeUrl(r.wiki_url))}" target="_blank" rel="noopener">${L.viewWiki} ↗</a>`:''}
     </div>
     <div class="kv">
-      <span class="k">${L.born}</span><span>${esc(r.born_display)||'—'}</span>
-      <span class="k">${L.place}</span><span>${esc(r.pos)||'—'}</span>
-      <span class="k">${L.coord}</span><span>${esc(r.lat)} ${esc(r.lon)} · ${L.zone} ${esc(r.zone)}${r.tz_abbr?` (${esc(r.tz_abbr)})`:''}${r.time_type?` · ${esc(r.time_type)}`:''}</span>
+      <span class="k">${L.born}</span><span>${esc(bn(r))||'—'}</span>
+      <span class="k">${L.place}</span><span>${esc(ps(r))||'—'}</span>
+      <span class="k">${L.coord}</span><span>${esc(r.lat)} ${esc(r.lon)} · ${L.zone} ${esc(r.zone)}${r.tz_abbr?` (${esc(r.tz_abbr)})`:''}${r.time_type?` · ${esc(vmap('time_type',r.time_type))}`:''}</span>
       <span class="k">${L.gender}</span><span>${GENDER[r.gender]?GENDER[r.gender][lang==='zh'?1:0]:'—'}</span>
     </div>
-    <div class="cred">Rodden <b>${esc(r.rodden)}</b> · ${L.source}: <b>${esc(r.data_source)||'—'}</b>${r.collector?` · ${L.collector}: ${esc(r.collector)}`:''}${r.time_accuracy?` · ${L.acc}: ${esc(r.time_accuracy)}`:''}</div>
-    ${r.wiki_summary?`<div class="sect"><h4>Wikipedia</h4><div class="wiki-sum">${esc(r.wiki_summary)}</div><div class="wiki-cred">${L.wikicred} · <a href="${esc(safeUrl(r.wiki_url))}" target="_blank" rel="noopener">${esc(r.wiki_url)}</a></div></div>`:''}
-    ${rels.length?`<div class="sect"><h4>${L.rel} · ${rels.length}</h4>${rels.map(x=>`<div class="rel"><b>${esc(x.name)}</b> — ${esc(x.rel)}${x.date?` · ${esc(x.date)}`:''}${x.cat?` <span style="color:var(--mut2)">[${esc(x.cat)}]</span>`:''}</div>`).join('')}</div>`:''}
-    ${evts.length?`<div class="sect"><h4>${L.evt} · ${evts.length}</h4>${evts.map(x=>`<div class="evt"><b>${esc(x.type)}</b>${x.date?` · ${esc(x.date)}`:''}${x.notes?`<br><span style="color:var(--mut)">${esc(x.notes)}</span>`:''}</div>`).join('')}</div>`:''}
-    ${cats.length?`<div class="sect"><h4>${L.cats} · ${cats.length}</h4><div class="chips">${cats.map(c=>`<span class="chip">${esc(c)}</span>`).join('')}</div></div>`:''}
+    <div class="cred">Rodden <b>${esc(r.rodden)}</b> · ${L.source}: <b>${esc(vmap('data_source',r.data_source))||'—'}</b>${r.collector?` · ${L.collector}: ${esc(r.collector)}`:''}${r.time_accuracy?` · ${L.acc}: ${esc(vmap('time_accuracy',r.time_accuracy))}`:''}</div>
+    ${sm(r)?`<div class="sect"><h4>${isZh()?'简介':'Wikipedia'}</h4><div class="wiki-sum">${esc(sm(r))}</div><div class="wiki-cred">${esc(sumCredit(r))}${r.wiki_url?` · <a href="${esc(safeUrl(r.wiki_url))}" target="_blank" rel="noopener">${esc(r.wiki_url)}</a>`:''}</div></div>`:''}
+    ${rels.length?`<div class="sect"><h4>${L.rel} · ${rels.length}</h4>${rels.map(x=>`<div class="rel"><b>${esc(x.name)}</b> — ${esc(vmap('rel_txt',x.rel))}${x.date?` · ${esc(dz(x.date))}`:''}${x.cat?` <span style="color:var(--mut2)">[${esc(vmap('rel_cat',x.cat))}]</span>`:''}</div>`).join('')}</div>`:''}
+    ${evts.length?`<div class="sect"><h4>${L.evt} · ${evts.length}</h4>${evts.map(x=>`<div class="evt"><b>${esc(vmap('evt_type',x.type))}</b>${x.date?` · ${esc(dz(x.date))}`:''}${x.notes?`<br><span style="color:var(--mut)">${esc(x.notes)}</span>`:''}</div>`).join('')}</div>`:''}
+    ${cats.length?`<div class="sect"><h4>${L.cats} · ${cats.length}</h4><div class="chips">${cats.map(c=>`<span class="chip">${esc(catDisp(c))}</span>`).join('')}</div></div>`:''}
   `;
   $('dbody').innerHTML=html;
   $('impbtn').onclick=()=>importChart(r);

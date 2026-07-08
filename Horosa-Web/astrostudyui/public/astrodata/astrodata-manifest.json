@@ -1,12 +1,12 @@
 {
   "format": "astrodata-aa",
   "version": 1,
-  "generated_at": "2026-07-03 00:28:10",
+  "generated_at": "2026-07-07 20:43:55",
   "persons": 59199,
   "with_wikipedia": 40403,
   "categories": 383327,
-  "sqlite_bytes": 122023936,
-  "gz_bytes": 38462932,
+  "sqlite_bytes": 150937600,
+  "gz_bytes": 50219646,
   "stats": {
     "rows": 65270,
     "dup": 6071,
@@ -16,7 +16,7 @@
   },
   "license_notice": {
     "astro_databank": "Data records (birth/event) from Astro-Databank / Astrodienst AG, reused for non-commercial astrological research per their copyright terms; Rodden Rating retained; source page linked per record.",
-    "wikipedia": "Biographical summaries from English Wikipedia, CC BY-SA 4.0, linked per record.",
+    "wikipedia": "Biographical summaries from English Wikipedia, CC BY-SA 4.0, linked per record. Chinese summaries are taken from Chinese Wikipedia or machine-translated (DeepSeek) from the English summary; both are CC BY-SA 4.0 derivatives, labeled by source.",
     "excluded": "Astro-Databank article text, wikitext, article_html, and all images are NOT included."
   }
 }
