@@ -15,6 +15,7 @@
           <p>查看当前日志、本机组件位置和应用数据目录，定位启动、更新和组件问题。</p>
         </div>
         <div class="diag-actions">
+          <button id="exportBundleBtn" class="secondary-button">导出诊断包</button>
           <button id="openLogsBtn" class="secondary-button">显示日志目录</button>
           <button id="refreshBtn" class="primary-button">刷新</button>
         </div>
@@ -47,6 +48,11 @@
         <article class="diag-card">
           <div class="card-title">启动分段(账本)</div>
           <pre id="ledgerOutput">暂无账本数据(完成一次启动后生成)。</pre>
+        </article>
+
+        <article class="diag-card">
+          <div class="card-title">更新历史</div>
+          <pre id="updateHistoryOutput">暂无更新历史(完成一次更新后生成)。</pre>
         </article>
 
         <article class="diag-card diag-card--log">

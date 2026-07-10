@@ -137,7 +137,7 @@ runtime_dir_is_usable() {
     && [ -f "${runtime_dir}/Horosa-Web/astrostudyui/dist-file/index.html" ] \
     && [ -x "${runtime_dir}/runtime/mac/python/bin/python3" ] \
     && [ -x "${runtime_dir}/runtime/mac/java/bin/java" ] \
-    && PATH="/usr/bin:/bin:/usr/sbin:/sbin" PYTHONNOUSERSITE=1 "${runtime_dir}/runtime/mac/python/bin/python3" -c 'import cherrypy, jsonpickle, swisseph' >/dev/null 2>&1 \
+    && PATH="/usr/bin:/bin:/usr/sbin:/sbin" PYTHONNOUSERSITE=1 "${runtime_dir}/runtime/mac/python/bin/python3" -c 'import cherrypy, jsonpickle, swisseph, cn2an, sxtwl, cnlunar' >/dev/null 2>&1 \
     && PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${runtime_dir}/runtime/mac/java/bin/java" -version >/dev/null 2>&1
 }
 
@@ -152,21 +152,24 @@ load_review_plan() {
   if [ ! -f "${REVIEW_PLAN_PATH}" ]; then
     return 0
   fi
-  eval "$(
-    /usr/bin/python3 - "${REVIEW_PLAN_PATH}" <<'PY'
-import json
-import shlex
-import sys
-
-path = sys.argv[1]
-with open(path, 'r', encoding='utf-8') as fh:
-    payload = json.load(fh)
-decisions = payload.get('decisions', {}) or {}
-print(f"ALLOW_REPLACE_SHARED_RUNTIME={'1' if payload.get('allowReplaceSharedRuntime') else '0'}")
-print(f"DECISION_PENDING_MARKER={shlex.quote(decisions.get('pending_marker', 'keep'))}")
-print(f"DECISION_CACHED_RUNTIME_ARCHIVE={shlex.quote(decisions.get('cached_runtime_archive', 'keep'))}")
-PY
-  )"
+  # [U-I G2] 纯 shell 解析(照 write_install_source 先例):全新 Mac 无 Xcode CLT 时
+  # /usr/bin/python3 只是个会弹「安装开发者工具」对话框的桩,安装器里绝不能调用。
+  # 计划文件是本 App 自己写出的紧凑 JSON,键值均为受控小写枚举——精确 sed 提取即够;
+  # 解析不出一律回退保守默认(keep/0)。
+  local plan_text
+  plan_text="$(/bin/cat "${REVIEW_PLAN_PATH}" 2>/dev/null || true)"
+  case "${plan_text}" in
+    *'"allowReplaceSharedRuntime":true'* | *'"allowReplaceSharedRuntime": true'*)
+      ALLOW_REPLACE_SHARED_RUNTIME=1
+      ;;
+    *)
+      ALLOW_REPLACE_SHARED_RUNTIME=0
+      ;;
+  esac
+  DECISION_PENDING_MARKER="$(printf '%s' "${plan_text}" | /usr/bin/sed -n 's/.*"pending_marker"[[:space:]]*:[[:space:]]*"\([a-z_-]*\)".*/\1/p' | /usr/bin/head -1)"
+  [ -n "${DECISION_PENDING_MARKER}" ] || DECISION_PENDING_MARKER="keep"
+  DECISION_CACHED_RUNTIME_ARCHIVE="$(printf '%s' "${plan_text}" | /usr/bin/sed -n 's/.*"cached_runtime_archive"[[:space:]]*:[[:space:]]*"\([a-z_-]*\)".*/\1/p' | /usr/bin/head -1)"
+  [ -n "${DECISION_CACHED_RUNTIME_ARCHIVE}" ] || DECISION_CACHED_RUNTIME_ARCHIVE="keep"
 }
 
 defer_runtime_install() {
@@ -287,6 +290,21 @@ if [ -d "${CURRENT_DIR}" ]; then
     /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
     /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
     exit 0
+  fi
+  # [U-I G3] 降级门:已装 runtime 比本包更新且可用 → 保留不覆盖(旧 pkg 覆盖装曾会
+  # 造成「新 App+旧 runtime」错位;App 侧 BundleIsVersionChecked 已不降,runtime 补齐
+  # 对称守卫)。确需退版:先手动删 ${RUNTIME_ROOT}/current 再重装(PLAYBOOK 有剧本)。
+  if [ -n "${EXISTING_VERSION}" ] && runtime_payload_is_usable; then
+    NEWER_VERSION="$(printf '%s\n%s\n' "${EXISTING_VERSION}" "${EXPECTED_VERSION}" | /usr/bin/sort -V | /usr/bin/tail -1)"
+    if [ "${NEWER_VERSION}" = "${EXISTING_VERSION}" ] && [ "${EXISTING_VERSION}" != "${EXPECTED_VERSION}" ]; then
+      log_line "existing runtime ${EXISTING_VERSION} is newer than pkg ${EXPECTED_VERSION}; keeping current (downgrade guard)"
+      clear_pending
+      cleanup_install_state
+      write_install_source "pkg_offline" "${EXPECTED_VERSION}"
+      /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+      /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+      exit 0
+    fi
   fi
   mv "${CURRENT_DIR}" "${PREVIOUS_DIR}"
   HAD_PREVIOUS=1

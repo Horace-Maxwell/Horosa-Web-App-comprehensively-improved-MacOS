@@ -22,7 +22,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{
-    AppHandle, LogicalPosition, LogicalSize, Manager, Position, RunEvent, Runtime, Size,
+    AppHandle, LogicalPosition, LogicalSize, Manager, Position, RunEvent, Runtime, Size, State,
     WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tiny_http::{Header, Method, Response, Server, StatusCode};
@@ -37,6 +37,7 @@ const DIAGNOSTICS_WINDOW_LABEL: &str = "diagnostics";
 const MENU_CHECK_UPDATES: &str = "check_updates";
 const MENU_REINSTALL_RUNTIME: &str = "reinstall_runtime";
 const MENU_RESTART_SERVICES: &str = "restart_local_services";
+const MENU_RELOCATE_APP: &str = "relocate_app";
 const MENU_OPEN_PREFERENCES: &str = "open_preferences";
 const MENU_SHOW_MAIN_WINDOW: &str = "show_main_window";
 const MENU_SHOW_DIAGNOSTICS: &str = "show_diagnostics";
@@ -214,11 +215,15 @@ struct UpdatePlatform {
     pkg_size_bytes: Option<u64>,
     #[serde(default, rename = "runtimeSizeBytes")]
     runtime_size_bytes: Option<u64>,
+    // [U-D 防降级] manifest 级逃生阀:显式 true 才允许把 runtime 退到更旧版本
+    // (全网退版应急剧本见 INCREMENTAL_UPDATE_SOP §4.3);缺省 None=false=单调防降级。
+    #[serde(default, rename = "allowDowngrade")]
+    allow_downgrade: Option<bool>,
 }
 
 // manifest v2 的部件条目:客户端 diff(name+sha256)与下载(url)所需;应用细节
 // (paths/files/preserve)在 components-lock.json asset 里,经 lockSha256 保真。
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ManifestComponent {
     name: String,
     #[serde(rename = "type")]
@@ -248,6 +253,8 @@ struct UpdatePlan {
     // 进度可视化 v2:资产体积(GithubApi 回退源恒 None → 前端退化)
     app_size_bytes: Option<u64>,
     runtime_size_bytes: Option<u64>,
+    // [U-D 防降级] manifest allowDowngrade 透传(GithubApi 回退源恒 false)
+    allow_downgrade: bool,
     source: UpdateSource,
 }
 
@@ -535,6 +542,9 @@ struct DiagnosticsPayload {
     // 启动账本(本次 run 的分段耗时 JSONL 尾部,四层聚合;无账本时为空)
     #[serde(default)]
     ledger_lines: Vec<String>,
+    // [U-G] 耐久更新台账尾部(vX→vY 结果历史;无台账时为空)
+    #[serde(default)]
+    update_history_lines: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -594,25 +604,39 @@ struct AppState {
 }
 
 // v2.2.1 后台已下载并校验完成、等待用户重启安装的更新。
-#[derive(Clone)]
+// [U-C] 增补 Serialize/Deserialize:下载完成即落盘 staged-update.json,进程被杀/
+// 用户退出后下次启动逐资产重验 sha 直接恢复「已就绪」态,免重下几百 MB。
+// 全字段 #[serde(default)]:老档新壳向前兼容(缺字段=默认,恢复门自会因资产/版本不符弃档)。
+#[derive(Clone, Serialize, Deserialize)]
 struct StagedUpdate {
+    #[serde(default)]
     zip_path: Option<PathBuf>,
+    #[serde(default)]
     runtime_archive_path: Option<PathBuf>,
+    #[serde(default)]
     runtime_roots: Vec<PathBuf>,
+    #[serde(default)]
     runtime_version: Option<String>,
+    #[serde(default)]
     target_version: String,
+    #[serde(default)]
     app_should_update: bool,
+    #[serde(default)]
     runtime_should_update: bool,
     // 增量部件更新(下载校验完毕):Some = 应用阶段走部件手术;None = 全量 tar。
+    #[serde(default)]
     staged_components: Option<StagedComponents>,
 }
 
 // 已下载校验完成的增量部件集:new_lock 是新版 components-lock.json 全文(paths/files/
 // preserve 应用细节的真值源),archives 只含 sha 有变化的部件。
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 struct StagedComponents {
+    #[serde(default)]
     archives: Vec<(ManifestComponent, PathBuf)>,
+    #[serde(default)]
     new_lock_json: serde_json::Value,
+    #[serde(default)]
     new_lock_text: String,
 }
 
@@ -1673,6 +1697,68 @@ if (window.__horosaProgress) {{ window.__horosaProgress({}, {}, false); }}",
 
 // v2.2.1 非阻塞升级事件:发到主窗口的独立通道(不接管 launcher 界面)。
 // 镜像既有 __horosaPending* 模式:先存 pending,前端 UpdateNotifier 挂载时若已有 handler 立即调,否则挂载时补读 pending。
+// [U-G] 日志轮转保代:超限先 rename 成 <name>.1(覆盖旧 .1)再由调用方新建续写。
+fn rotate_log_keep_one(path: &Path, max_bytes: u64) {
+    let over = fs::metadata(path)
+        .map(|m| m.len() > max_bytes)
+        .unwrap_or(false);
+    if !over {
+        return;
+    }
+    let older = match path.extension().and_then(|e| e.to_str()) {
+        Some(ext) => path.with_extension(format!("{ext}.1")),
+        None => path.with_extension("1"),
+    };
+    let _ = fs::remove_file(&older);
+    let _ = fs::rename(path, &older);
+}
+
+// [U-G 耐久更新台账] 每行一事件 JSONL——「从哪版→哪版→结果」的耐久历史,与
+// updater-events.log(瞬时事件镜像,2MB 保一代)互补:staged_ready/download_error/
+// apply_begin/apply_runtime_ok/helper_handoff/install_confirmed/apply_failed/
+// watchdog_rollback/downgrade_blocked/check_failed。>1MB 保尾 200 行重写(量级极小)。
+fn update_history_path(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|d| d.join("logs").join("update-history.jsonl"))
+}
+
+fn append_update_history_at(path: &Path, mut entry: serde_json::Value) {
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    if let Some(obj) = entry.as_object_mut() {
+        obj.insert("ts".into(), serde_json::json!(ms));
+        obj.entry("shellVersion")
+            .or_insert(serde_json::json!(env!("CARGO_PKG_VERSION")));
+    }
+    if fs::metadata(path)
+        .map(|m| m.len() > 1024 * 1024)
+        .unwrap_or(false)
+    {
+        if let Ok(text) = fs::read_to_string(path) {
+            let tail: Vec<&str> = text.lines().rev().take(200).collect();
+            let keep: Vec<&str> = tail.into_iter().rev().collect();
+            let _ = fs::write(path, format!("{}\n", keep.join("\n")));
+        }
+    }
+    if let Ok(mut fh) = fs::OpenOptions::new().create(true).append(true).open(path) {
+        use std::io::Write;
+        let _ = writeln!(fh, "{entry}");
+    }
+}
+
+fn append_update_history(app: &AppHandle, entry: serde_json::Value) {
+    if let Some(path) = update_history_path(app) {
+        append_update_history_at(&path, entry);
+    }
+}
+
 fn emit_update_event_window(window: &WebviewWindow, json: &str) {
     let _ = window.eval(&format!(
         "window.__horosaPendingUpdateEvent = {json}; \
@@ -1704,15 +1790,10 @@ fn log_updater_event(app: &AppHandle, json: &str) {
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    // 简易轮转:超 2MB 截断重写(更新事件量级远低于此,仅防长年累积)。
-    let rotate = fs::metadata(&path)
-        .map(|m| m.len() > 2 * 1024 * 1024)
-        .unwrap_or(false);
-    let file = if rotate {
-        File::create(&path)
-    } else {
-        fs::OpenOptions::new().create(true).append(true).open(&path)
-    };
+    // [U-G] 轮转保代:超 2MB rename→.1 再新建。旧实现 File::create 直接清零——恰在
+    // 「更新反复失败刷满」最需要证据时把全史毁掉(违背 §5「第一证据」定位)。
+    rotate_log_keep_one(&path, 2 * 1024 * 1024);
+    let file = fs::OpenOptions::new().create(true).append(true).open(&path);
     if let Ok(mut fh) = file {
         let ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1910,6 +1991,15 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
         true,
         None::<&str>,
     )?;
+    // [U-I G8] Translocation 自助搬迁:zip 通道用户从「下载」直接运行时,自更新链路
+    // 找不到真实 App 路径——菜单一键拷入「应用程序」并重开(菜单事件=主线程,弹确认框安全)。
+    let relocate_app = MenuItem::with_id(
+        app,
+        MENU_RELOCATE_APP,
+        "移入「应用程序」文件夹…",
+        true,
+        None::<&str>,
+    )?;
     let show_main_window = MenuItem::with_id(
         app,
         MENU_SHOW_MAIN_WINDOW,
@@ -1976,6 +2066,7 @@ fn build_menu<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
             &check_updates,
             &reinstall_runtime,
             &restart_services,
+            &relocate_app,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, None)?,
             &PredefinedMenuItem::separator(app)?,
@@ -2425,6 +2516,18 @@ fn collect_diagnostics_payload(app: &AppHandle) -> Result<DiagnosticsPayload> {
             }
         })
         .unwrap_or_default();
+    // [U-G] 耐久更新台账尾 50 行
+    let update_history_lines = update_history_path(app)
+        .and_then(|p| fs::read_to_string(p).ok())
+        .map(|text| {
+            let all: Vec<String> = text.lines().map(|l| l.to_string()).collect();
+            if all.len() > 50 {
+                all[all.len() - 50..].to_vec()
+            } else {
+                all
+            }
+        })
+        .unwrap_or_default();
     Ok(DiagnosticsPayload {
         log_path: log_path.to_string_lossy().to_string(),
         app_data_dir: paths.app_data_dir.to_string_lossy().to_string(),
@@ -2439,7 +2542,88 @@ fn collect_diagnostics_payload(app: &AppHandle) -> Result<DiagnosticsPayload> {
         .items,
         updated_at: unix_ts(),
         ledger_lines,
+        update_history_lines,
     })
+}
+
+// [U-G] 用 ditto 打 zip(全仓 Command 惯例;比 zip crate 写侧对 xattr/资源叉更稳)
+fn zip_dir_with_ditto(src: &Path, out: &Path) -> Result<()> {
+    let status = Command::new("/usr/bin/ditto")
+        .arg("-c")
+        .arg("-k")
+        .arg("--sequesterRsrc")
+        .arg(src)
+        .arg(out)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .context("spawn ditto")?;
+    if !status.success() {
+        return Err(anyhow!("ditto 打包失败: {}", out.display()));
+    }
+    Ok(())
+}
+
+// [U-G] 一键导出诊断包:logs 全目录(既有留存策略控体积)+关键状态文件+系统信息
+// → ~/Desktop/<app>-诊断-<ts>.zip(桌面缺失退回数据目录),并 Finder 定位。
+// 非技术用户排障从「教对方翻目录」变成「发一个 zip」。
+#[tauri::command]
+fn export_diagnostics_bundle(app: AppHandle) -> std::result::Result<String, String> {
+    (|| -> Result<String> {
+        let data_dir = app.path().app_data_dir().context("app data dir")?;
+        let staging = tmp_download_path(APP_NAME, "diag-bundle");
+        ensure_dir(&staging)?;
+        let logs_src = data_dir.join("logs");
+        if logs_src.exists() {
+            clone_dir_fast(&logs_src, &staging.join("logs"))?;
+        }
+        for name in [
+            "launch-health.json",
+            "staged-update.json",
+            "last-update-check.json",
+        ] {
+            let src = data_dir.join(name);
+            if src.exists() {
+                let _ = fs::copy(&src, staging.join(name));
+            }
+        }
+        let manifest = shared_runtime_dir().join("runtime-manifest.json");
+        if manifest.exists() {
+            let _ = fs::copy(&manifest, staging.join("runtime-manifest.json"));
+        }
+        let sw = Command::new("/usr/bin/sw_vers")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+        let info = format!(
+            "app={}\nshellVersion={}\nlocalRuntime={}\n{}",
+            APP_NAME,
+            env!("CARGO_PKG_VERSION"),
+            local_runtime_version(&app).unwrap_or_default(),
+            sw
+        );
+        fs::write(staging.join("system-info.txt"), info)?;
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let home = std::env::var("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| data_dir.clone());
+        let desktop = home.join("Desktop");
+        let out_dir = if desktop.exists() { desktop } else { data_dir };
+        let out = out_dir.join(format!("{}-诊断-{}.zip", APP_NAME, ts));
+        zip_dir_with_ditto(&staging, &out)?;
+        let _ = remove_dir_if_exists(&staging);
+        let _ = Command::new("/usr/bin/open")
+            .arg("-R")
+            .arg(&out)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        Ok(out.display().to_string())
+    })()
+    .map_err(|e| format!("{e:#}"))
 }
 
 #[tauri::command]
@@ -2580,11 +2764,17 @@ fn open_diagnostics_window_command(app: AppHandle) -> std::result::Result<(), St
     open_diagnostics_window(&app).map_err(|err| format!("{err:#}"))
 }
 
-// 桌面剪贴板:webview 里 navigator.clipboard / execCommand 被拦,走系统 pbcopy(macOS 自带、无新依赖)。
-#[tauri::command]
-fn copy_text_to_clipboard_command(text: String) -> std::result::Result<(), String> {
+// 桌面剪贴板:webview 里 navigator.clipboard / execCommand 被拦,走原生剪贴板。
+// 主路 arboard(NSPasteboard / CF_UNICODETEXT,Unicode 直写,跨平台同一实现);
+// macOS 兜底 pbcopy——GUI .app 进程无 LANG/LC_CTYPE 时 pbcopy 按 MacRoman 解读 stdin
+// (「技术」→「ÊäÄÊúØ」类乱码),必须显式钉 LC_CTYPE=UTF-8;绝对路径免 PATH 依赖。
+struct DesktopClipboardState(Mutex<Option<arboard::Clipboard>>);
+
+#[cfg(target_os = "macos")]
+fn pbcopy_utf8_fallback(text: &str) -> std::result::Result<(), String> {
     use std::io::Write;
-    let mut child = std::process::Command::new("pbcopy")
+    let mut child = std::process::Command::new("/usr/bin/pbcopy")
+        .env("LC_CTYPE", "UTF-8")
         .stdin(std::process::Stdio::piped())
         .spawn()
         .map_err(|err| format!("pbcopy spawn 失败: {err}"))?;
@@ -2597,11 +2787,48 @@ fn copy_text_to_clipboard_command(text: String) -> std::result::Result<(), Strin
             .write_all(text.as_bytes())
             .map_err(|err| format!("pbcopy 写入失败: {err}"))?;
     }
-    let status = child.wait().map_err(|err| format!("pbcopy 等待失败: {err}"))?;
+    let status = child
+        .wait()
+        .map_err(|err| format!("pbcopy 等待失败: {err}"))?;
     if status.success() {
         Ok(())
     } else {
         Err(format!("pbcopy 退出码 {:?}", status.code()))
+    }
+}
+
+#[tauri::command]
+fn copy_text_to_clipboard_command(
+    state: State<'_, DesktopClipboardState>,
+    text: String,
+) -> std::result::Result<(), String> {
+    let native_err = {
+        let mut guard = state
+            .0
+            .lock()
+            .map_err(|_| "剪贴板状态锁中毒".to_string())?;
+        if guard.is_none() {
+            *guard = arboard::Clipboard::new().ok();
+        }
+        match guard.as_mut() {
+            Some(clip) => match clip.set_text(text.clone()) {
+                Ok(()) => return Ok(()),
+                Err(err) => {
+                    *guard = None;
+                    format!("arboard 写入失败: {err}")
+                }
+            },
+            None => "arboard 初始化失败".to_string(),
+        }
+    };
+    #[cfg(target_os = "macos")]
+    {
+        return pbcopy_utf8_fallback(&text)
+            .map_err(|fallback_err| format!("{native_err}; 兜底 {fallback_err}"));
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err(native_err)
     }
 }
 
@@ -2797,7 +3024,8 @@ fn load_release_config(app: &AppHandle) -> Result<ReleaseConfig> {
         resource_dir.join("config/release_config.json"),
     ];
     #[cfg(debug_assertions)]
-    candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../config/release_config.json"));
+    candidates
+        .push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../config/release_config.json"));
     let mut parse_errors = Vec::new();
     for path in candidates {
         if path.exists() {
@@ -2908,6 +3136,17 @@ fn consume_update_complete_notice(app: &AppHandle) -> Option<String> {
     let data = fs::read_to_string(&marker).ok()?;
     let values = parse_marker_kv(&data);
     let _ = fs::remove_file(&marker);
+    // [U-G] 台账:install_confirmed——「vX→vY 结果」闭环行(helper 写标记,消费即记账;
+    // 标记本身读取即删,台账才是耐久历史)
+    append_update_history(
+        app,
+        serde_json::json!({
+            "event": "install_confirmed",
+            "to": values.get("version").cloned().unwrap_or_default(),
+            "runtimeVersion": values.get("runtime_version").cloned().unwrap_or_default(),
+            "relaunchStatus": values.get("relaunch_status").cloned().unwrap_or_default(),
+        }),
+    );
 
     let version = values
         .get("version")
@@ -3068,7 +3307,9 @@ fn runtime_python_ready(runtime_dir: &Path) -> bool {
     Command::new(&python_bin)
         .arg("-c")
         .arg(
-            "import importlib.util as iu; mods=('cherrypy','jsonpickle','swisseph'); missing=[m for m in mods if iu.find_spec(m) is None]; raise SystemExit(1 if missing else 0)",
+            // [U-I G4] 与 start 脚本的真启动门(6 包)对齐——缺 cn2an/sxtwl/cnlunar 的树
+            // 此前会通过「可用」判定、却在启动脚本处卡死。
+            "import importlib.util as iu; mods=('cherrypy','jsonpickle','swisseph','cn2an','sxtwl','cnlunar'); missing=[m for m in mods if iu.find_spec(m) is None]; raise SystemExit(1 if missing else 0)",
         )
         .env("PYTHONNOUSERSITE", "1")
         .stdout(Stdio::null())
@@ -3205,6 +3446,44 @@ fn prepare_runtime_dir(runtime_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+// [U-I G5] 健康缓存的实物锚:python/java 可执行 + site-packages 三个真启动门关键包
+// (swisseph .so/cn2an/cnlunar)。site-packages 路径按 lib/python3* 动态发现(不硬编
+// 解释器小版本)。
+fn runtime_site_packages_dir(runtime_dir: &Path) -> Option<PathBuf> {
+    let lib = runtime_dir.join("runtime/mac/python/lib");
+    for entry in fs::read_dir(&lib).ok()?.flatten() {
+        let path = entry.path();
+        let is_pyroot = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.starts_with("python3"))
+            .unwrap_or(false);
+        if is_pyroot {
+            let sp = path.join("site-packages");
+            if sp.exists() {
+                return Some(sp);
+            }
+        }
+    }
+    None
+}
+
+fn runtime_health_probe_files_present(runtime_dir: &Path) -> bool {
+    if !(runtime_python_bin(runtime_dir).exists() && runtime_java_bin(runtime_dir).exists()) {
+        return false;
+    }
+    let Some(sp) = runtime_site_packages_dir(runtime_dir) else {
+        return false;
+    };
+    let has_swisseph = fs::read_dir(&sp)
+        .map(|it| {
+            it.flatten()
+                .any(|e| e.file_name().to_string_lossy().starts_with("swisseph"))
+        })
+        .unwrap_or(false);
+    has_swisseph && sp.join("cn2an").exists() && sp.join("cnlunar").exists()
+}
+
 fn runtime_dir_is_usable(runtime_dir: &Path) -> bool {
     if !runtime_dir_has_required_files(runtime_dir) {
         return false;
@@ -3221,7 +3500,12 @@ fn runtime_dir_is_usable(runtime_dir: &Path) -> bool {
         }
     }
     if let Some(cache) = runtime_health_cache(runtime_dir) {
-        if runtime_health_cache_matches(runtime_dir, &cache) {
+        // [U-I G5] 健康缓存加锚:mtime 三探针之外,关键实物必须仍在(同 mtime 隐性损坏
+        // ——如 site-packages 被清理工具删掉——不再被快路径放行)。纯 stat,不跑 import,
+        // 快路径速度不变;不过锚即落全量深检。
+        if runtime_health_cache_matches(runtime_dir, &cache)
+            && runtime_health_probe_files_present(runtime_dir)
+        {
             return true;
         }
     }
@@ -3332,7 +3616,11 @@ fn update_base_override() -> Option<String> {
 
 fn expected_runtime_url(config: &ReleaseConfig) -> String {
     if let Some(base) = update_base_override() {
-        return format!("{}/{}", base.trim_end_matches('/'), config.runtime_asset_name);
+        return format!(
+            "{}/{}",
+            base.trim_end_matches('/'),
+            config.runtime_asset_name
+        );
     }
     format!(
         "https://github.com/{}/{}/releases/download/{}{}/{}",
@@ -3909,6 +4197,7 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
                         ),
                         app_size_bytes: platform.app_size_bytes,
                         runtime_size_bytes: platform.runtime_size_bytes,
+                        allow_downgrade: platform.allow_downgrade.unwrap_or(false),
                         source: UpdateSource::Manifest,
                     });
                 }
@@ -3961,6 +4250,7 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
         // GithubApi 回退源:asset.size 若可得则用(GithubRelease asset 带 size 字段则透传)
         app_size_bytes: asset.size,
         runtime_size_bytes: runtime_asset.and_then(|asset| asset.size),
+        allow_downgrade: false,
         source: UpdateSource::GithubApi,
     })
 }
@@ -4291,7 +4581,11 @@ fn download_with_progress_once(
                 // 字节/秒(本次会话均速:续传补入的字节不计,避免虚高)
                 let speed = chunk.downloaded.saturating_sub(session_base.get()) as f64 / elapsed;
                 let remaining = (chunk.total.saturating_sub(chunk.downloaded)) as f64;
-                let eta_secs = if speed > 0.0 { (remaining / speed) as u64 } else { 0 };
+                let eta_secs = if speed > 0.0 {
+                    (remaining / speed) as u64
+                } else {
+                    0
+                };
                 let eta_text = if eta_secs >= 60 {
                     format!("约剩 {} 分 {} 秒", eta_secs / 60, eta_secs % 60)
                 } else {
@@ -4359,9 +4653,15 @@ fn available_disk_bytes(path: &Path) -> Option<u64> {
     let probe = if path.exists() {
         path.to_path_buf()
     } else {
-        path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("/"))
+        path.parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("/"))
     };
-    let output = Command::new("/bin/df").arg("-k").arg(&probe).output().ok()?;
+    let output = Command::new("/bin/df")
+        .arg("-k")
+        .arg(&probe)
+        .output()
+        .ok()?;
     if !output.status.success() {
         return None;
     }
@@ -4439,12 +4739,7 @@ fn launch_health_note_start(path: &Path) -> u32 {
 
 /// 启动成功确认:pending 归零。
 fn launch_health_confirm(path: &Path) {
-    launch_health_write(
-        path,
-        &LaunchHealth {
-            pending_starts: 0,
-        },
-    );
+    launch_health_write(path, &LaunchHealth { pending_starts: 0 });
 }
 
 /// 把 previous 槽换回 current。previous 不在/不完整 → Ok(false) 不动 current。
@@ -4457,7 +4752,8 @@ fn rollback_runtime_to_previous(root: &Path) -> Result<bool> {
     let broken = root.join("_broken_rollback");
     remove_dir_if_exists(&broken)?;
     if current.exists() {
-        fs::rename(&current, &broken).with_context(|| format!("隔离故障槽 {}", current.display()))?;
+        fs::rename(&current, &broken)
+            .with_context(|| format!("隔离故障槽 {}", current.display()))?;
     }
     if let Err(err) = fs::rename(&previous, &current) {
         // 换入失败:把故障槽放回,保持可诊断状态。
@@ -4496,6 +4792,67 @@ fn open_shared_tree_permissions(path: &Path) {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
+}
+
+// [U-A kill-atomic] APFS 原子互换两目录(renamex_np + RENAME_SWAP,macOS 10.12+):
+// 对换全程只有这一个原子点——任意时刻断电/强杀,current 恒为「全旧」或「全新」,
+// 不再存在两段 rename 之间的 current 缺失窗口。返回 Ok(false)=本卷/内核不支持
+// (ENOTSUP/EINVAL/EXDEV)或被 HOROSA_SWAP_DISABLE=1 禁用 → 调用方走两段 rename
+// 回退路径(其 kill 窗口由启动期 repair_torn_runtime_slots 撕裂探测兜底)。
+fn atomic_swap_dirs(a: &Path, b: &Path) -> Result<bool> {
+    if std::env::var("HOROSA_SWAP_DISABLE")
+        .map(|v| v.trim() == "1")
+        .unwrap_or(false)
+    {
+        return Ok(false);
+    }
+    use std::os::unix::ffi::OsStrExt;
+    let ca = std::ffi::CString::new(a.as_os_str().as_bytes())
+        .with_context(|| format!("swap 路径含 NUL: {}", a.display()))?;
+    let cb = std::ffi::CString::new(b.as_os_str().as_bytes())
+        .with_context(|| format!("swap 路径含 NUL: {}", b.display()))?;
+    let rc = unsafe { libc::renamex_np(ca.as_ptr(), cb.as_ptr(), libc::RENAME_SWAP) };
+    if rc == 0 {
+        return Ok(true);
+    }
+    let err = std::io::Error::last_os_error();
+    match err.raw_os_error() {
+        // 卷/内核不支持 → 走回退分支,不算错误
+        Some(libc::ENOTSUP) | Some(libc::EINVAL) | Some(libc::EXDEV) => Ok(false),
+        _ => Err(anyhow::Error::from(err))
+            .with_context(|| format!("renamex_np swap {} ↔ {}", a.display(), b.display())),
+    }
+}
+
+// [U-A 撕裂探测] 启动期兜底:两段 rename 回退路径(或 postinstall shell 两 mv)在
+// 「current 已挪走、新树未就位」窗口被断电/强杀 → current 整体缺失。按候选新旧序
+// 收养:_comp_stage(增量暂存,最新) > _extract/runtime-payload(全量暂存) > previous
+// (旧版)。候选必须过 runtime_dir_has_required_files 完整性验,不完整绝不收养。
+fn repair_torn_runtime_slots(root: &Path) -> Result<bool> {
+    let current = root.join("current");
+    if !root.exists() || current.exists() {
+        return Ok(false);
+    }
+    let candidates = [
+        root.join("_comp_stage"),
+        root.join("_extract").join("runtime-payload"),
+        root.join("previous"),
+    ];
+    for candidate in candidates {
+        if candidate.exists() && runtime_dir_has_required_files(&candidate) {
+            fs::rename(&candidate, &current)
+                .with_context(|| format!("撕裂修复:收养 {} → current", candidate.display()))?;
+            ledger_mark(
+                "rust.torn_slot_repaired",
+                Some(serde_json::json!({
+                    "root": root.display().to_string(),
+                    "adopted": candidate.display().to_string(),
+                })),
+            );
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> {
@@ -4558,14 +4915,28 @@ fn extract_runtime_archive_with(
     let final_runtime = dest_root.join("current");
     let backup_runtime = dest_root.join("previous");
     let had_previous = final_runtime.exists();
-    if final_runtime.exists() {
+    if had_previous {
         remove_dir_if_exists(&backup_runtime)?;
-        fs::rename(&final_runtime, &backup_runtime)?;
-    }
-    if let Err(err) = fs::rename(&extracted_runtime, &final_runtime) {
-        if had_previous && backup_runtime.exists() {
-            let _ = fs::rename(&backup_runtime, &final_runtime);
+        // [U-A kill-atomic] 首选 renamex_np 单点互换:swap 后 extracted 位置上是旧树,
+        // 再挪进 previous 槽;挪失败即撤销 swap 恢复原状(保住「prepare 失败回滚依赖
+        // previous 在位」的既有不变量),报错走上游重试。
+        if atomic_swap_dirs(&extracted_runtime, &final_runtime)? {
+            if let Err(err) = fs::rename(&extracted_runtime, &backup_runtime) {
+                let _ = atomic_swap_dirs(&extracted_runtime, &final_runtime);
+                let _ = remove_dir_if_exists(&extract_root);
+                return Err(anyhow::Error::from(err).context("旧运行时挪 previous 槽失败"));
+            }
+        } else {
+            // 回退:两段 rename(kill 窗口由启动期 repair_torn_runtime_slots 撕裂探测兜底)
+            fs::rename(&final_runtime, &backup_runtime)?;
+            if let Err(err) = fs::rename(&extracted_runtime, &final_runtime) {
+                let _ = fs::rename(&backup_runtime, &final_runtime);
+                let _ = remove_dir_if_exists(&extract_root);
+                return Err(err.into());
+            }
         }
+    } else if let Err(err) = fs::rename(&extracted_runtime, &final_runtime) {
+        // 首装:单次 rename 本身即原子
         let _ = remove_dir_if_exists(&extract_root);
         return Err(err.into());
     }
@@ -4681,6 +5052,45 @@ fn plan_component_diff(
 }
 
 /// 下载并校验:components-lock + 变化部件。lock 与 manifest 逐部件核对(防两 asset 漂移)。
+// [U-E 部件级重试] 单部件失败先原地重试,仍败才上抛(由上游整链降级全量——此前一个
+// 部件坏一次就整链退全量重下 ~600MB)。按错误类型分治:sha 失配=坏资产,清 dest+续传
+// 残档全新下;下载错=网络抖动,保留 .part 让断点续传接力(续传自身次数上限由
+// .part.meta 的 attempts 管,与本层「整资产重试」正交)。
+const COMPONENT_RETRY_MAX: u32 = 2;
+
+fn download_component_with_retry(
+    dest: &Path,
+    download: &mut dyn FnMut() -> Result<()>,
+    verify: &mut dyn FnMut() -> Result<()>,
+    on_retry: &mut dyn FnMut(u32),
+) -> Result<()> {
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 0..=COMPONENT_RETRY_MAX {
+        if attempt > 0 {
+            on_retry(attempt);
+        }
+        match download() {
+            Ok(()) => {}
+            Err(err) => {
+                // 下载失败:保留 .part/.meta → 下一轮断点续传接力
+                last_err = Some(err);
+                continue;
+            }
+        }
+        match verify() {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                // sha 失配=坏资产:清 dest 与续传残档,下一轮全新下
+                let _ = fs::remove_file(dest);
+                let (part, meta) = download_part_paths(dest);
+                clear_part_files(&part, &meta);
+                last_err = Some(err);
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow!("component download failed")))
+}
+
 fn download_component_updates(
     app: &AppHandle,
     plan: &UpdatePlan,
@@ -4704,7 +5114,14 @@ fn download_component_updates(
     ensure_dir(&cache_dir)?;
     let lock_path = cache_dir.join("components-lock.update.json");
     update_ledger_begin_asset("components-lock", 0, 0);
-    download_update_asset(app, lock_url, &lock_path, start_pct, start_pct, "下载部件清单")?;
+    download_update_asset(
+        app,
+        lock_url,
+        &lock_path,
+        start_pct,
+        start_pct,
+        "下载部件清单",
+    )?;
     verify_sha256(&lock_path, Some(lock_sha), "部件清单")?;
     let new_lock_text = fs::read_to_string(&lock_path)?;
     let new_lock_json: serde_json::Value =
@@ -4753,15 +5170,28 @@ fn download_component_updates(
         let s = start_pct + (seg * idx as u32 / total) as u8;
         let e = start_pct + (seg * (idx as u32 + 1) / total) as u8;
         update_ledger_begin_asset(&comp.name, idx as u32 + 1, changed.len() as u32);
-        download_update_asset(
-            app,
-            &comp.url,
+        let label = format!("下载组件 {}({}/{})", comp.name, idx + 1, changed.len());
+        download_component_with_retry(
             &dest,
-            s,
-            e,
-            &format!("下载组件 {}({}/{})", comp.name, idx + 1, changed.len()),
+            &mut || download_update_asset(app, &comp.url, &dest, s, e, &label),
+            &mut || verify_sha256(&dest, Some(&comp.sha256), &format!("组件 {}", comp.name)),
+            &mut |attempt| {
+                // 重试:进度段回卷重进(账本重挂当前资产),事件可视
+                update_ledger_begin_asset(&comp.name, idx as u32 + 1, changed.len() as u32);
+                emit_update_event(
+                    app,
+                    &serde_json::json!({
+                        "phase": "downloading",
+                        "pct": s,
+                        "message": format!(
+                            "组件 {} 下载/校验未过,第 {}/{} 次重试…",
+                            comp.name, attempt, COMPONENT_RETRY_MAX
+                        ),
+                    })
+                    .to_string(),
+                );
+            },
         )?;
-        verify_sha256(&dest, Some(&comp.sha256), &format!("组件 {}", comp.name))?;
         archives.push((comp.clone(), dest));
     }
     Ok(StagedComponents {
@@ -4844,7 +5274,10 @@ fn strip_tar_path(raw: &Path, strip: usize) -> Result<Option<PathBuf>> {
             std::path::Component::Normal(seg) => normals.push(seg),
             std::path::Component::CurDir => {}
             _ => {
-                return Err(anyhow!("archive entry path escapes dest: {}", raw.display()));
+                return Err(anyhow!(
+                    "archive entry path escapes dest: {}",
+                    raw.display()
+                ));
             }
         }
     }
@@ -4878,9 +5311,8 @@ fn extract_write_one(job: &WriteJob) -> std::io::Result<()> {
         let _ = file.set_permissions(fs::Permissions::from_mode(mode));
     }
     if let Some(mtime) = job.mtime {
-        let _ = file.set_times(
-            fs::FileTimes::new().set_modified(UNIX_EPOCH + Duration::from_secs(mtime)),
-        );
+        let _ = file
+            .set_times(fs::FileTimes::new().set_modified(UNIX_EPOCH + Duration::from_secs(mtime)));
     }
     Ok(())
 }
@@ -4952,13 +5384,9 @@ impl WriterPool {
         let size = job.data.len() as u64;
         let (lock, cvar) = &*self.in_flight;
         {
-            let mut cur = lock
-                .lock()
-                .map_err(|_| anyhow!("写盘池额度锁中毒"))?;
+            let mut cur = lock.lock().map_err(|_| anyhow!("写盘池额度锁中毒"))?;
             while *cur > 0 && *cur + size > EXTRACT_INFLIGHT_CAP {
-                cur = cvar
-                    .wait(cur)
-                    .map_err(|_| anyhow!("写盘池额度锁中毒"))?;
+                cur = cvar.wait(cur).map_err(|_| anyhow!("写盘池额度锁中毒"))?;
             }
             *cur += size;
         }
@@ -4974,13 +5402,9 @@ impl WriterPool {
     fn flush(&self) -> Result<()> {
         let (lock, cvar) = &*self.in_flight;
         {
-            let mut cur = lock
-                .lock()
-                .map_err(|_| anyhow!("写盘池额度锁中毒"))?;
+            let mut cur = lock.lock().map_err(|_| anyhow!("写盘池额度锁中毒"))?;
             while *cur > 0 {
-                cur = cvar
-                    .wait(cur)
-                    .map_err(|_| anyhow!("写盘池额度锁中毒"))?;
+                cur = cvar.wait(cur).map_err(|_| anyhow!("写盘池额度锁中毒"))?;
             }
         }
         self.check_error()
@@ -5043,13 +5467,10 @@ fn extract_tar_gz_native_with(
             let out = dest.join(&rel);
             match entry_type {
                 tar::EntryType::Directory => {
-                    fs::create_dir_all(&out)
-                        .with_context(|| format!("mkdir {}", out.display()))?;
+                    fs::create_dir_all(&out).with_context(|| format!("mkdir {}", out.display()))?;
                     if let Ok(mode) = entry.header().mode() {
-                        let _ = fs::set_permissions(
-                            &out,
-                            fs::Permissions::from_mode(mode & 0o7777),
-                        );
+                        let _ =
+                            fs::set_permissions(&out, fs::Permissions::from_mode(mode & 0o7777));
                     }
                 }
                 tar::EntryType::Symlink => {
@@ -5097,9 +5518,9 @@ fn extract_tar_gz_native_with(
                     let pooled = pool.is_some() && size <= SMALL_FILE_LIMIT;
                     if pooled {
                         let mut data = Vec::with_capacity(size as usize);
-                        entry.read_to_end(&mut data).with_context(|| {
-                            format!("read entry data {}", raw_path.display())
-                        })?;
+                        entry
+                            .read_to_end(&mut data)
+                            .with_context(|| format!("read entry data {}", raw_path.display()))?;
                         pool.as_ref().unwrap().submit(WriteJob {
                             path: out,
                             data,
@@ -5113,8 +5534,7 @@ fn extract_tar_gz_native_with(
                         std::io::copy(&mut entry, &mut file)
                             .with_context(|| format!("write {}", out.display()))?;
                         if let Some(mode) = mode {
-                            let _ =
-                                file.set_permissions(fs::Permissions::from_mode(mode));
+                            let _ = file.set_permissions(fs::Permissions::from_mode(mode));
                         }
                         if let Some(mtime) = mtime {
                             let _ = file.set_times(
@@ -5288,8 +5708,7 @@ fn apply_component_updates_with(
                     if from.exists() {
                         let to = preserve_tmp.join(idx.to_string());
                         ensure_dir(preserve_tmp.as_path())?;
-                        fs::rename(&from, &to)
-                            .with_context(|| format!("暂存保留子树 {}", rel))?;
+                        fs::rename(&from, &to).with_context(|| format!("暂存保留子树 {}", rel))?;
                         moved.push((rel.clone(), to));
                     }
                 }
@@ -5320,8 +5739,11 @@ fn apply_component_updates_with(
                         files
                     ));
                 };
-                let extract_progress: Option<&dyn Fn(u64, u64, u64)> =
-                    if notify.is_some() { Some(&on_extract) } else { None };
+                let extract_progress: Option<&dyn Fn(u64, u64, u64)> = if notify.is_some() {
+                    Some(&on_extract)
+                } else {
+                    None
+                };
                 tar_extract_strip1_with(archive, &stage, extract_progress)?;
                 for (rel, tmp) in moved {
                     let back = stage.join(&rel);
@@ -5332,8 +5754,7 @@ fn apply_component_updates_with(
                         if let Some(parent) = back.parent() {
                             ensure_dir(parent)?;
                         }
-                        fs::rename(&tmp, &back)
-                            .with_context(|| format!("放回保留子树 {}", rel))?;
+                        fs::rename(&tmp, &back).with_context(|| format!("放回保留子树 {}", rel))?;
                     }
                 }
                 remove_dir_if_exists(&preserve_tmp)?;
@@ -5384,15 +5805,26 @@ fn apply_component_updates_with(
         let _ = remove_dir_if_exists(&stage);
         return Err(err);
     }
-    // 原子对换(与全量 extract_runtime_archive 同款协议)。
+    // [U-A kill-atomic] 原子对换(与全量 extract_runtime_archive_with 同款协议):
+    // 首选 renamex_np 单点互换,current 恒为全旧或全新;回退两段 rename(kill 窗口
+    // 由启动期 repair_torn_runtime_slots 撕裂探测兜底)。
     say("原子切换运行时…");
     let backup = dest_root.join("previous");
     remove_dir_if_exists(&backup)?;
-    fs::rename(&current, &backup)?;
-    if let Err(err) = fs::rename(&stage, &current) {
-        let _ = fs::rename(&backup, &current);
-        let _ = remove_dir_if_exists(&stage);
-        return Err(err.into());
+    if atomic_swap_dirs(&stage, &current)? {
+        // swap 后 stage 位置上是旧树 → 挪 previous;挪失败即撤销 swap 恢复原状
+        if let Err(err) = fs::rename(&stage, &backup) {
+            let _ = atomic_swap_dirs(&stage, &current);
+            let _ = remove_dir_if_exists(&stage);
+            return Err(anyhow::Error::from(err).context("旧运行时挪 previous 槽失败"));
+        }
+    } else {
+        fs::rename(&current, &backup)?;
+        if let Err(err) = fs::rename(&stage, &current) {
+            let _ = fs::rename(&backup, &current);
+            let _ = remove_dir_if_exists(&stage);
+            return Err(err.into());
+        }
     }
     let _ = Command::new("/usr/bin/xattr")
         .arg("-dr")
@@ -5804,9 +6236,7 @@ fn start_static_server(
                     let mime = from_path(&target).first_or_octet_stream().to_string();
                     // Header 构造改 infallible 兜底:异常 mime 字节序列不再 panic 静态服务线程。
                     let mut response = Response::from_data(bytes);
-                    if let Ok(header) =
-                        Header::from_bytes(&b"Content-Type"[..], mime.as_bytes())
-                    {
+                    if let Ok(header) = Header::from_bytes(&b"Content-Type"[..], mime.as_bytes()) {
                         response = response.with_header(header);
                     }
                     // CSP 纵深防御:主界面经本静态服务器加载(不走 tauri 协议,tauri.conf 的
@@ -5864,6 +6294,121 @@ fn probe_local_port(port: u16) -> bool {
     .is_ok()
 }
 
+// [U-F 深度健康探针] 手写 TcpStream HTTP GET /horosaIdentity——不用 reqwest:其默认吃
+// HTTP_PROXY/系统代理,本机回环探针会被毒代理劫走出假阴性;TCP 直连天然免疫。
+// 四分类:Ok=app 标记+nonce 全对;WrongIdentity=端口上是陌生进程/别的实例(立即判亡);
+// HttpSilent=TCP 通但不答/非 JSON(wedged/GC 停顿/毒 200——TCP 探针的盲区,慢判);
+// TcpDead=连不上(进程亡,快判)。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IdentityProbe {
+    Ok,
+    WrongIdentity,
+    HttpSilent,
+    TcpDead,
+}
+
+fn probe_identity(
+    port: u16,
+    expect_app: &str,
+    expect_nonce: &str,
+    timeout: Duration,
+) -> IdentityProbe {
+    use std::io::{Read, Write};
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let Ok(mut stream) = std::net::TcpStream::connect_timeout(&addr, timeout) else {
+        return IdentityProbe::TcpDead;
+    };
+    let _ = stream.set_read_timeout(Some(timeout));
+    let _ = stream.set_write_timeout(Some(timeout));
+    let request = format!(
+        "GET /horosaIdentity HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nAccept: application/json\r\n\r\n"
+    );
+    if stream.write_all(request.as_bytes()).is_err() {
+        return IdentityProbe::HttpSilent;
+    }
+    let mut raw = Vec::new();
+    let mut buf = [0u8; 4096];
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                raw.extend_from_slice(&buf[..n]);
+                // 有界读:身份响应是单行小 JSON,64KB 上限防陌生进程灌流
+                if raw.len() > 64 * 1024 {
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    if raw.is_empty() {
+        return IdentityProbe::HttpSilent;
+    }
+    let text = String::from_utf8_lossy(&raw);
+    let Some(body_at) = text.find("\r\n\r\n") else {
+        return IdentityProbe::HttpSilent;
+    };
+    let body = &text[body_at + 4..];
+    // chunked 兜底:取首个 { 到末个 }(身份响应为单个小 JSON 对象)
+    let json_slice = match (body.find('{'), body.rfind('}')) {
+        (Some(s), Some(e)) if e >= s => &body[s..=e],
+        _ => return IdentityProbe::HttpSilent,
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(json_slice) else {
+        return IdentityProbe::HttpSilent;
+    };
+    let app_tag = json.get("app").and_then(|v| v.as_str()).unwrap_or("");
+    let nonce = json.get("nonce").and_then(|v| v.as_str()).unwrap_or("");
+    if app_tag != expect_app {
+        return IdentityProbe::WrongIdentity;
+    }
+    if !expect_nonce.is_empty() && nonce != expect_nonce {
+        return IdentityProbe::WrongIdentity;
+    }
+    IdentityProbe::Ok
+}
+
+// [U-F] 双 streak 判亡状态机(纯函数可测):TcpDead 快判(连续 2 轮=40s),HttpSilent
+// 慢判(连续 6 轮=2min,容 GC 停顿/瞬时高载),WrongIdentity 立即判亡,Ok 全清零。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct SupervisorStreak {
+    dead: u32,
+    silent: u32,
+}
+const SUPERVISOR_DEAD_ROUNDS: u32 = 2;
+const SUPERVISOR_SILENT_ROUNDS: u32 = 6;
+
+fn supervisor_step(streak: SupervisorStreak, probe: IdentityProbe) -> (SupervisorStreak, bool) {
+    match probe {
+        IdentityProbe::Ok => (SupervisorStreak::default(), false),
+        IdentityProbe::WrongIdentity => (SupervisorStreak::default(), true),
+        IdentityProbe::TcpDead => {
+            let next = SupervisorStreak {
+                dead: streak.dead + 1,
+                silent: 0,
+            };
+            (next, next.dead >= SUPERVISOR_DEAD_ROUNDS)
+        }
+        IdentityProbe::HttpSilent => {
+            let next = SupervisorStreak {
+                dead: 0,
+                silent: streak.silent + 1,
+            };
+            (next, next.silent >= SUPERVISOR_SILENT_ROUNDS)
+        }
+    }
+}
+
+// [U-F] 服务监督事件通道(镜像 __horosaPending* 模式;老前端无 handler=无害)
+fn emit_service_event(app: &AppHandle, json: &str) {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        let _ = window.eval(&format!(
+            "window.__horosaPendingServiceEvent = {json}; \
+if (window.__horosaServiceEvent) {{ window.__horosaServiceEvent({json}); }}"
+        ));
+    }
+}
+
 fn current_session_snapshot(app: &AppHandle) -> Option<RuntimeSession> {
     let state = app.try_state::<AppState>()?;
     let slot = state.session.lock().ok()?;
@@ -5914,48 +6459,131 @@ fn restart_local_services(app: &AppHandle, origin: &str) -> Result<()> {
     Ok(())
 }
 
-/// 探活看门狗:ready 后每 20s 连测双端口,连续 2 轮不通=服务亡 → 自动重启
-/// (30 分钟窗 ≤2 次,防坏环境重启风暴);超限只记账,交前端错误模态+菜单人工兜底。
+/// [U-F] 探活看门狗(深度化):ready 后每 20s 对双后端做 /horosaIdentity 深探
+/// (probe_identity 四分类;TCP 探针只能看到「端口在听」,对 wedged/GC 死循环/陌生进程
+/// squat 全盲——「端口被占回毒 200」类事故的看门狗侧闭环)。TcpDead 连续 2 轮/HttpSilent 连续
+/// 6 轮/WrongIdentity 立即 → 自动重启(30 分钟窗 ≤2 次,防坏环境重启风暴);
+/// 超限单次闩锁:账本一行+emit supervisor_gave_up 事件(前端横幅显式化,不再静默)。
+/// web 静态服务器一并纳管(TCP 探,不通连续 2 轮原地重建,独立限频)。
 /// generation 令牌:每次 ready 换代,旧线程自退,不叠加。
 fn start_service_supervisor(app: AppHandle) {
     let my_gen = SUPERVISOR_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     thread::spawn(move || {
-        let mut consecutive_down = 0u32;
+        let mut backend_streak = SupervisorStreak::default();
+        let mut chart_streak = SupervisorStreak::default();
+        let mut web_down = 0u32;
         let mut recent_restarts: Vec<Instant> = Vec::new();
+        let mut recent_web_restarts: Vec<Instant> = Vec::new();
+        let mut gave_up_latched = false;
         loop {
             thread::sleep(Duration::from_secs(20));
             if SUPERVISOR_GENERATION.load(Ordering::SeqCst) != my_gen {
                 return;
             }
             if bootstrap_busy() {
-                consecutive_down = 0;
+                backend_streak = SupervisorStreak::default();
+                chart_streak = SupervisorStreak::default();
+                web_down = 0;
                 continue;
             }
             let Some(session) = current_session_snapshot(&app) else {
-                consecutive_down = 0;
+                backend_streak = SupervisorStreak::default();
+                chart_streak = SupervisorStreak::default();
+                web_down = 0;
                 continue;
             };
-            if probe_local_port(session.backend_port) && probe_local_port(session.chart_port) {
-                consecutive_down = 0;
+            // web 静态服务器监督:tiny_http 线程死=整个 UI 白屏,且此前无任何看门狗。
+            // 线程 panic 即 drop Server 即释放端口 → 同端口原地重建可行。
+            if probe_local_port(session.web_port) {
+                web_down = 0;
+            } else {
+                web_down += 1;
+                if web_down >= 2 {
+                    web_down = 0;
+                    recent_web_restarts.retain(|t| t.elapsed() < Duration::from_secs(1800));
+                    if recent_web_restarts.len() < 3 {
+                        recent_web_restarts.push(Instant::now());
+                        let shutdown = Arc::new(AtomicBool::new(false));
+                        match start_static_server(
+                            session.paths.frontend_dir.clone(),
+                            session.web_port,
+                            shutdown.clone(),
+                        ) {
+                            Ok(_handle) => {
+                                if let Some(state) = app.try_state::<AppState>() {
+                                    if let Ok(mut slot) = state.web_shutdown.lock() {
+                                        if let Some(old) = slot.take() {
+                                            old.store(true, Ordering::SeqCst);
+                                        }
+                                        *slot = Some(shutdown);
+                                    }
+                                }
+                                ledger_mark("rust.web_server_restarted", None);
+                            }
+                            Err(err) => {
+                                eprintln!("[supervisor] web 静态服务器重建失败: {err:#}")
+                            }
+                        }
+                    }
+                }
+            }
+            let nonce = launch_nonce();
+            let probe_timeout = Duration::from_millis(1500);
+            let backend_probe =
+                probe_identity(session.backend_port, "horosa-backend", nonce, probe_timeout);
+            let chart_probe =
+                probe_identity(session.chart_port, "horosa-chart", nonce, probe_timeout);
+            let (bs, backend_dead) = supervisor_step(backend_streak, backend_probe);
+            backend_streak = bs;
+            let (cs, chart_dead) = supervisor_step(chart_streak, chart_probe);
+            chart_streak = cs;
+            if backend_probe == IdentityProbe::Ok && chart_probe == IdentityProbe::Ok {
+                // 全健康:解除 gave_up 闩锁(人工重启成功后允许未来再次自动修复+提示)
+                gave_up_latched = false;
                 continue;
             }
-            consecutive_down += 1;
-            if consecutive_down < 2 {
+            if !(backend_dead || chart_dead) {
                 continue;
             }
-            consecutive_down = 0;
+            backend_streak = SupervisorStreak::default();
+            chart_streak = SupervisorStreak::default();
             recent_restarts.retain(|t| t.elapsed() < Duration::from_secs(1800));
             if recent_restarts.len() >= 2 {
-                ledger_mark("rust.supervisor_gave_up", None);
+                // 越限:单次闩锁——账本一行(不再每 20s 刷屏)+显式事件交前端横幅
+                if !gave_up_latched {
+                    gave_up_latched = true;
+                    ledger_mark("rust.supervisor_gave_up", None);
+                    emit_service_event(
+                        &app,
+                        &serde_json::json!({
+                            "kind": "supervisor_gave_up",
+                            "message": "本地服务多次自动重启未果，已暂停自动修复。可点「重启服务」手动重启，或打开诊断中心查看原因。",
+                        })
+                        .to_string(),
+                    );
+                }
                 continue;
             }
             recent_restarts.push(Instant::now());
-            ledger_mark("rust.supervisor_auto_restart", None);
+            ledger_mark(
+                "rust.supervisor_auto_restart",
+                Some(serde_json::json!({
+                    "backendProbe": format!("{:?}", backend_probe),
+                    "chartProbe": format!("{:?}", chart_probe),
+                })),
+            );
             if let Err(err) = restart_local_services(&app, "supervisor") {
                 eprintln!("supervisor auto-restart failed: {err:#}");
             }
         }
     });
+}
+
+// [U-F] 轻量服务重启命令(前端横幅「重启服务」用;此前横幅错线到
+// trigger_runtime_repair_command=全量修复流,对「服务死了」场景过重)。
+#[tauri::command]
+fn restart_local_services_command(app: AppHandle) -> std::result::Result<(), String> {
+    restart_local_services(&app, "frontend").map_err(|err| format!("{err:#}"))
 }
 
 fn stop_runtime(paths: &RuntimePaths, ports: Option<(u16, u16)>) {
@@ -6030,6 +6658,12 @@ fn start_runtime(
         // 启动会话 nonce:经 start 脚本环境继承进 Java/Python,被 /horosaIdentity 原样回显,
         // 前端据此确认「这个端口上的确是本会话拉起的后端」(防端口squat/跨实例串线)。
         .env("HOROSA_LAUNCH_NONCE", launch_nonce())
+        // [U-I G1] GUI(LaunchServices)拉起的进程通常无 locale——非 ASCII(中文用户名)
+        // home 路径在 JVM/子进程里有编解码风险;仅缺失时兜底,不覆盖用户显式设置。
+        .env(
+            "LANG",
+            std::env::var("LANG").unwrap_or_else(|_| "zh_CN.UTF-8".to_string()),
+        )
         .env(
             "HOROSA_SKIP_RUNTIME_WARMUP",
             if skip_runtime_warmup { "1" } else { "0" },
@@ -6063,9 +6697,10 @@ fn start_runtime(
         );
     // 启动账本:把 run 标签与账本文件传给脚本层(shell 再传 Java/Python),四层同文件聚合。
     if let Some((run_tag, ledger_file)) = ledger_env() {
-        command
-            .env("HOROSA_RUN_TAG", run_tag)
-            .env("HOROSA_LEDGER_FILE", ledger_file.to_string_lossy().to_string());
+        command.env("HOROSA_RUN_TAG", run_tag).env(
+            "HOROSA_LEDGER_FILE",
+            ledger_file.to_string_lossy().to_string(),
+        );
     }
     // 本地回环探测防代理劫持(双保险,脚本侧 curl --noproxy / urllib 禁代理是第一道):
     // 用户 shell/launchctl 注入的代理变量会把脚本内 127.0.0.1 探测与热身请求劫持进代理 →
@@ -6395,6 +7030,48 @@ fn app_bundle_path() -> Option<PathBuf> {
     None
 }
 
+// [U-I G8] 把当前 .app 拷入 /Applications 固定安装位并重开(Translocation 只读挂载
+// 点/桌面/下载目录直跑的用户,自更新链路找不到真实 App 路径——搬到固定位一劳永逸)。
+// 成功即 exit(0) 交棒新副本;返回非空字符串=无需动作的说明文案。
+fn relocate_app_to_applications(app: &AppHandle) -> Result<String> {
+    let bundle = app_bundle_path().context("未在 .app 包内运行,无需搬迁")?;
+    let dest = installed_app_target_path();
+    if bundle == dest {
+        return Ok("当前已从「应用程序」文件夹运行,无需搬迁。".to_string());
+    }
+    if dest.exists() {
+        return Err(anyhow!(
+            "「应用程序」里已存在 {},请直接打开它(或先删除旧副本再试)。",
+            dest.display()
+        ));
+    }
+    let copied = Command::new("/usr/bin/ditto")
+        .arg(&bundle)
+        .arg(&dest)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !copied {
+        return Err(anyhow!("拷贝到「应用程序」失败(可能没有写入权限)"));
+    }
+    let _ = Command::new("/usr/bin/xattr")
+        .arg("-dr")
+        .arg("com.apple.quarantine")
+        .arg(&dest)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    Command::new("/usr/bin/open")
+        .arg("-n")
+        .arg(&dest)
+        .spawn()
+        .context("打开「应用程序」里的新副本")?;
+    app.exit(0);
+    Ok(String::new())
+}
+
 fn handoff_to_newer_installed_app(app: &AppHandle) -> Result<bool> {
     let Some(current_bundle) = app_bundle_path() else {
         return Ok(false);
@@ -6470,7 +7147,7 @@ fn build_update_helper_script(
     runtime_cmd: &str,
 ) -> String {
     format!(
-        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nAPP_DISPLAY_NAME=\"$(/usr/bin/basename \"${{TARGET}}\" .app)\"\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  local relaunch_status=\"${{1:-pending_manual}}\"\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nrelaunch_status=${{relaunch_status}}\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nwait_for_stable_relaunch() {{\n  local appeared=0\n  for wait_step in $(/usr/bin/seq 1 25); do\n    if is_target_running; then\n      appeared=1\n      break\n    fi\n    sleep 1\n  done\n  if [ \"${{appeared}}\" != \"1\" ]; then\n    echo \"[open] process never appeared\"\n    return 1\n  fi\n  for stable_step in $(/usr/bin/seq 1 10); do\n    if ! is_target_running; then\n      echo \"[open] process exited before becoming stable\"\n      return 1\n    fi\n    sleep 1\n  done\n  return 0\n}}\nactivate_app_once() {{\n  if [ -z \"${{APP_DISPLAY_NAME}}\" ]; then\n    return 0\n  fi\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n    return 0\n  fi\n  /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    activate_app_once\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n  activate_app_once\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      activate_app_once\n      echo \"[open] relaunch confirmed\"\n      mark_update_complete \"auto_relaunch_confirmed\"\n      return 0\n    fi\n    sleep 2\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    rm -rf \"${{BACKUP_TARGET}}\"\n    HAD_TARGET=0\n    if [ -d \"${{TARGET}}\" ]; then\n      if mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        HAD_TARGET=1\n      else\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n    fi\n    if /usr/bin/ditto \"${{SRC}}\" \"${{TARGET}}\"; then\n      rm -rf \"${{BACKUP_TARGET}}\"\n      /usr/bin/xattr -dr com.apple.quarantine \"${{TARGET}}\" >/dev/null 2>&1 || true\n      echo \"[app] install succeeded\"\n      return 0\n    fi\n    echo \"[app] ditto failed on attempt ${{attempt}}\"\n    rm -rf \"${{TARGET}}\"\n    if [ \"${{HAD_TARGET}}\" = \"1\" ] && [ -d \"${{BACKUP_TARGET}}\" ]; then\n      mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n    fi\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  return 1\n}}\nwait_for_old_app_exit\ninstall_app\nsleep 1\nmark_update_complete \"pending_manual\"\nif ! open_app; then\n  echo \"[open] automatic relaunch could not be confirmed; waiting for manual reopen\"\n  exit 72\nfi\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
+        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nAPP_DISPLAY_NAME=\"$(/usr/bin/basename \"${{TARGET}}\" .app)\"\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  local relaunch_status=\"${{1:-pending_manual}}\"\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nrelaunch_status=${{relaunch_status}}\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nwait_for_stable_relaunch() {{\n  local appeared=0\n  for wait_step in $(/usr/bin/seq 1 25); do\n    if is_target_running; then\n      appeared=1\n      break\n    fi\n    sleep 1\n  done\n  if [ \"${{appeared}}\" != \"1\" ]; then\n    echo \"[open] process never appeared\"\n    return 1\n  fi\n  for stable_step in $(/usr/bin/seq 1 10); do\n    if ! is_target_running; then\n      echo \"[open] process exited before becoming stable\"\n      return 1\n    fi\n    sleep 1\n  done\n  return 0\n}}\nactivate_app_once() {{\n  if [ -z \"${{APP_DISPLAY_NAME}}\" ]; then\n    return 0\n  fi\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n    return 0\n  fi\n  /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    activate_app_once\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n  activate_app_once\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      activate_app_once\n      echo \"[open] relaunch confirmed\"\n      mark_update_complete \"auto_relaunch_confirmed\"\n      return 0\n    fi\n    sleep 2\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  STAGE_TARGET=\"${{TARGET%.app}}.update-stage.app\"\n  SRC_KB=\"$(/usr/bin/du -sk \"${{SRC}}\" 2>/dev/null | /usr/bin/awk '{{print $1}}')\"\n  AVAIL_KB=\"$(/bin/df -k \"$(dirname \"${{TARGET}}\")\" 2>/dev/null | /usr/bin/awk 'NR==2 {{print $4}}')\"\n  if [ -n \"${{SRC_KB}}\" ] && [ -n \"${{AVAIL_KB}}\" ] && [ \"${{AVAIL_KB}}\" -lt $((SRC_KB * 2)) ]; then\n    echo \"[app] insufficient disk space: need ~$((SRC_KB * 2))KB, avail ${{AVAIL_KB}}KB\"\n    return 1\n  fi\n  rm -rf \"${{STAGE_TARGET}}\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    if [ ! -d \"${{STAGE_TARGET}}\" ]; then\n      if ! /usr/bin/ditto \"${{SRC}}\" \"${{STAGE_TARGET}}\"; then\n        echo \"[app] stage ditto failed on attempt ${{attempt}}\"\n        rm -rf \"${{STAGE_TARGET}}\"\n        sleep 1\n        continue\n      fi\n      /usr/bin/xattr -dr com.apple.quarantine \"${{STAGE_TARGET}}\" >/dev/null 2>&1 || true\n    fi\n    if [ -d \"${{TARGET}}\" ]; then\n      if \"${{STAGE_TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" --horosa-atomic-swap \"${{STAGE_TARGET}}\" \"${{TARGET}}\" >/dev/null 2>&1; then\n        echo \"[app] atomic swap succeeded\"\n        rm -rf \"${{BACKUP_TARGET}}\"\n        mv \"${{STAGE_TARGET}}\" \"${{BACKUP_TARGET}}\" 2>/dev/null || rm -rf \"${{STAGE_TARGET}}\"\n        return 0\n      fi\n      echo \"[app] atomic swap unavailable, fallback to mv pair\"\n      rm -rf \"${{BACKUP_TARGET}}\"\n      if ! mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n      if mv \"${{STAGE_TARGET}}\" \"${{TARGET}}\"; then\n        rm -rf \"${{BACKUP_TARGET}}\"\n        echo \"[app] install succeeded (mv fallback)\"\n        return 0\n      fi\n      echo \"[app] stage mv failed; restoring previous\"\n      if [ -d \"${{BACKUP_TARGET}}\" ]; then\n        mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n      fi\n      sleep 1\n      continue\n    fi\n    if mv \"${{STAGE_TARGET}}\" \"${{TARGET}}\"; then\n      echo \"[app] install succeeded (fresh)\"\n      return 0\n    fi\n    echo \"[app] fresh mv failed on attempt ${{attempt}}\"\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  rm -rf \"${{STAGE_TARGET}}\"\n  return 1\n}}\nwait_for_old_app_exit\nif ! install_app; then\n  echo \"[app] install failed; reopening previous app\"\n  for reopen_attempt in $(/usr/bin/seq 1 3); do\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      echo \"[open] previous app reopened\"\n      break\n    fi\n  done\n  exit 71\nfi\nsleep 1\nmark_update_complete \"pending_manual\"\nif ! open_app; then\n  echo \"[open] automatic relaunch could not be confirmed; waiting for manual reopen\"\n  exit 72\nfi\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
         log = shell_quote(update_log),
         marker = shell_quote(completion_marker),
         runtime_cmd = runtime_cmd,
@@ -6721,13 +7398,12 @@ Release 页面
 fn check_for_updates(app: AppHandle) -> Result<()> {
     let client = build_github_client(90)?;
     let plan = resolve_update_plan(&client, &app)?;
+    // [U-H] 手动检查不受节流,但成功同样计入节流窗
+    write_update_check_stamp(&app);
     let current = Version::parse(env!("CARGO_PKG_VERSION"))?;
     let local_runtime = local_runtime_version(&app);
-    let runtime_needs_update = match (&plan.runtime_version, &local_runtime) {
-        (Some(remote), Some(local)) => remote.trim() != local.trim(),
-        (Some(_), None) => true,
-        _ => false,
-    };
+    let runtime_needs_update =
+        runtime_update_decision(&app, &plan, &local_runtime) == RuntimeUpdateDecision::Needed;
     let admin_update_notice = app_bundle_path()
         .filter(|path| target_requires_admin_update(path))
         .map(|_| {
@@ -6975,12 +7651,431 @@ struct UpdateAvailability {
     changed_components: Vec<String>, // 变化部件名
 }
 
-fn compute_runtime_needs_update(plan: &UpdatePlan, local_runtime: &Option<String>) -> bool {
-    match (&plan.runtime_version, local_runtime) {
-        (Some(remote), Some(local)) => remote.trim() != local.trim(),
-        (Some(_), None) => true,
-        _ => false,
+// [U-D 防降级] runtime 更新判定:单一真值函数,菜单/静默检查/后台下载/自动检查四处共用
+// (此前三处内联手抄同一段判定,已全部收口——内联回潮由 preflight[101] 反向锚拦)。
+// 语义:runtime_version_rank 单调比较,remote 更新才更;remote 更旧=DowngradeBlocked
+// (不动作,防 latest 指针异常/回滚把用户静默降级);任一侧 rank 解析失败回退老「不同即更」
+// 语义(防脏版本串永久卡死更新链);allow_downgrade(env HOROSA_ALLOW_DOWNGRADE=1 或
+// manifest allowDowngrade,应急全网退版剧本见 INCREMENTAL_UPDATE_SOP §4.3)恢复老语义。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeUpdateDecision {
+    UpToDate,
+    Needed,
+    DowngradeBlocked,
+}
+
+fn compute_runtime_update_decision(
+    remote: Option<&str>,
+    local: Option<&str>,
+    allow_downgrade: bool,
+) -> RuntimeUpdateDecision {
+    let (remote, local) = match (remote, local) {
+        (Some(remote), Some(local)) => (remote.trim(), local.trim()),
+        (Some(_), None) => return RuntimeUpdateDecision::Needed,
+        _ => return RuntimeUpdateDecision::UpToDate,
+    };
+    if remote == local {
+        return RuntimeUpdateDecision::UpToDate;
     }
+    if allow_downgrade {
+        return RuntimeUpdateDecision::Needed;
+    }
+    match (runtime_version_rank(remote), runtime_version_rank(local)) {
+        (Some(remote_rank), Some(local_rank)) => match remote_rank.cmp(&local_rank) {
+            std::cmp::Ordering::Greater => RuntimeUpdateDecision::Needed,
+            std::cmp::Ordering::Equal => RuntimeUpdateDecision::UpToDate,
+            std::cmp::Ordering::Less => RuntimeUpdateDecision::DowngradeBlocked,
+        },
+        // 任一侧解析失败 → 回退「不同即更」老语义(此分支 remote != local 已成立)
+        _ => RuntimeUpdateDecision::Needed,
+    }
+}
+
+fn allow_runtime_downgrade(plan: &UpdatePlan) -> bool {
+    if plan.allow_downgrade {
+        return true;
+    }
+    std::env::var("HOROSA_ALLOW_DOWNGRADE")
+        .map(|value| value.trim() == "1")
+        .unwrap_or(false)
+}
+
+// 带副作用的统一入口:DowngradeBlocked 时记账本;仅在 base 版本真更旧时发 UI 事件
+// (GithubApi 回退源的合成 runtime 版本串与本地只差 -runtimeN 修订位时属「合成不确定」,
+// 静默记账即可,不吓用户)。事件字段全 optional,老前端无钩子=无害。
+fn runtime_update_decision(
+    app: &AppHandle,
+    plan: &UpdatePlan,
+    local_runtime: &Option<String>,
+) -> RuntimeUpdateDecision {
+    let decision = compute_runtime_update_decision(
+        plan.runtime_version.as_deref(),
+        local_runtime.as_deref(),
+        allow_runtime_downgrade(plan),
+    );
+    if decision == RuntimeUpdateDecision::DowngradeBlocked {
+        ledger_mark(
+            "rust.update_downgrade_blocked",
+            Some(serde_json::json!({
+                "remote": plan.runtime_version.clone(),
+                "local": local_runtime.clone(),
+            })),
+        );
+        // [U-G] 台账:降级拦截
+        append_update_history(
+            app,
+            serde_json::json!({
+                "event": "downgrade_blocked",
+                "remote": plan.runtime_version.clone(),
+                "local": local_runtime.clone(),
+            }),
+        );
+        let base_truly_older = match (
+            plan.runtime_version
+                .as_deref()
+                .and_then(runtime_version_rank),
+            local_runtime.as_deref().and_then(runtime_version_rank),
+        ) {
+            (Some(remote_rank), Some(local_rank)) => remote_rank.0 < local_rank.0,
+            _ => false,
+        };
+        if base_truly_older {
+            emit_update_event(
+                app,
+                &serde_json::json!({
+                    "phase": "downgrade-blocked",
+                    "remoteRuntime": plan.runtime_version.clone(),
+                    "localRuntime": local_runtime.clone(),
+                    "message": "线上运行环境版本低于本机，已按防降级策略跳过（如确需回退请使用离线安装包重装）。",
+                })
+                .to_string(),
+            );
+        }
+    }
+    decision
+}
+
+// [U-C staged 持久化] 后台下载校验完成的更新落盘 staged-update.json;下次启动
+// (run_auto_update_check 开头)逐资产重验 sha + 与线上 latest 核对后直接恢复
+// 「已就绪」——保守复用策略:manifest 必须可达且 target==线上 latest 才复用
+// (无签名信任模型下「线上撤版」唯一挡板就是最新性核对);拉取失败留档下次再验。
+const STAGED_UPDATE_MAX_AGE_MS: u64 = 7 * 24 * 3600 * 1000;
+
+#[derive(Serialize, Deserialize)]
+struct PersistedStagedUpdate {
+    #[serde(default)]
+    saved_at_ms: u64,
+    staged: StagedUpdate,
+    // 各资产落盘时自算 sha(不抄 manifest——GithubApi 源 app_sha256=None 也能护)
+    #[serde(default)]
+    asset_shas: Vec<PersistedAssetSha>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PersistedAssetSha {
+    path: PathBuf,
+    sha256: String,
+}
+
+fn staged_update_file_path(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|d| d.join("staged-update.json"))
+}
+
+fn staged_update_asset_paths(staged: &StagedUpdate) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(p) = &staged.zip_path {
+        paths.push(p.clone());
+    }
+    if let Some(p) = &staged.runtime_archive_path {
+        paths.push(p.clone());
+    }
+    if let Some(c) = &staged.staged_components {
+        for (_, p) in &c.archives {
+            paths.push(p.clone());
+        }
+    }
+    paths
+}
+
+fn persist_staged_update_file_at(path: &Path, staged: &StagedUpdate) -> Result<()> {
+    let mut asset_shas = Vec::new();
+    for asset in staged_update_asset_paths(staged) {
+        let sha = sha256_digest(&asset)?;
+        asset_shas.push(PersistedAssetSha {
+            path: asset,
+            sha256: sha,
+        });
+    }
+    let saved_at_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let payload = PersistedStagedUpdate {
+        saved_at_ms,
+        staged: staged.clone(),
+        asset_shas,
+    };
+    fs::write(path, serde_json::to_string(&payload)?)?;
+    Ok(())
+}
+
+fn persist_staged_update_file(app: &AppHandle, staged: &StagedUpdate) {
+    if let Some(path) = staged_update_file_path(app) {
+        if let Err(err) = persist_staged_update_file_at(&path, staged) {
+            eprintln!("[updater] staged 持久化失败(不影响本次流程): {err:#}");
+            let _ = fs::remove_file(&path);
+        }
+    }
+}
+
+// 读档:过期(>7 天)/坏 JSON/任一资产 sha 不符 → None(调用方删档;资产文件保留,
+// 后续正常流按需续传/重下,安全自愈)。
+fn load_staged_update_file_at(path: &Path, now_ms: u64) -> Option<StagedUpdate> {
+    let data = fs::read_to_string(path).ok()?;
+    let parsed: PersistedStagedUpdate = serde_json::from_str(&data).ok()?;
+    if now_ms.saturating_sub(parsed.saved_at_ms) > STAGED_UPDATE_MAX_AGE_MS {
+        return None;
+    }
+    if parsed.asset_shas.is_empty() {
+        return None;
+    }
+    for item in &parsed.asset_shas {
+        match sha256_digest(&item.path) {
+            Ok(sha) if sha.eq_ignore_ascii_case(&item.sha256) => {}
+            _ => return None,
+        }
+    }
+    Some(parsed.staged)
+}
+
+fn clear_staged_update_file(app: &AppHandle) {
+    if let Some(path) = staged_update_file_path(app) {
+        let _ = fs::remove_file(&path);
+    }
+}
+
+// 复用门(纯函数可测):暂存目标必须与线上 latest 完全一致(app 版本 + runtime 版本)
+fn staged_matches_plan(
+    staged: &StagedUpdate,
+    latest: &str,
+    runtime_version: &Option<String>,
+) -> bool {
+    staged.target_version == latest && staged.runtime_version == *runtime_version
+}
+
+// [U-C] 清已消费的部件归档+lock 临时档(部件档只进不出会漏磁盘;全量 runtime/app
+// 归档有意保留=离线修复资本,不清)。
+fn cleanup_consumed_component_archives(staged: &StagedUpdate) {
+    if let Some(components) = &staged.staged_components {
+        let mut cache_dir: Option<PathBuf> = None;
+        for (_, path) in &components.archives {
+            if cache_dir.is_none() {
+                cache_dir = path.parent().map(|p| p.to_path_buf());
+            }
+            let _ = fs::remove_file(path);
+        }
+        if let Some(dir) = cache_dir {
+            let _ = fs::remove_file(dir.join("components-lock.update.json"));
+        }
+    }
+}
+
+// [U-H 周期检查+节流] 自动检查:启动首查距上次成功检查 <4h 跳过;驻留线程每 24h
+// 再查;检查失败不再静默(账本+check-failed 低打扰事件)。手动检查(菜单/前端)不受
+// 节流但成功同样写 stamp。dev/e2e 覆盖:HOROSA_UPDATE_CHECK_INTERVAL_SECS(同时作
+// 节流下限与周期,秒)。
+const AUTO_CHECK_MIN_INTERVAL_SECS: u64 = 4 * 3600;
+const AUTO_CHECK_CYCLE_SECS: u64 = 24 * 3600;
+
+fn auto_check_interval_override() -> Option<u64> {
+    std::env::var("HOROSA_UPDATE_CHECK_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|v| *v > 0)
+}
+
+fn auto_update_check_cycle() -> Duration {
+    Duration::from_secs(auto_check_interval_override().unwrap_or(AUTO_CHECK_CYCLE_SECS))
+}
+
+fn update_check_stamp_path(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|d| d.join("last-update-check.json"))
+}
+
+fn load_update_check_stamp(path: &Path) -> Option<u64> {
+    let data = fs::read_to_string(path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&data).ok()?;
+    json.get("lastCheckMs").and_then(|v| v.as_u64())
+}
+
+fn write_update_check_stamp_at(path: &Path) {
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let _ = fs::write(
+        path,
+        serde_json::json!({ "lastCheckMs": now_ms }).to_string(),
+    );
+}
+
+fn write_update_check_stamp(app: &AppHandle) {
+    if let Some(path) = update_check_stamp_path(app) {
+        write_update_check_stamp_at(&path);
+    }
+}
+
+// 纯函数:是否该发起本轮自动检查(interval 由调用方合成 env 覆盖,测试不碰环境)
+fn should_run_auto_check(last_ms: Option<u64>, now_ms: u64, min_interval_ms: u64) -> bool {
+    match last_ms {
+        None => true,
+        Some(last) => now_ms.saturating_sub(last) >= min_interval_ms,
+    }
+}
+
+// 检查失败不再静默:账本+低打扰事件(老前端无此 phase 钩子=无害;新前端 toast 单显)
+fn note_auto_check_failure(app: &AppHandle, err: &anyhow::Error) {
+    eprintln!("[updater] auto check failed: {err:#}");
+    ledger_mark(
+        "rust.update_check_failed",
+        Some(serde_json::json!({ "error": format!("{err:#}") })),
+    );
+    // [U-G] 台账:检查失败(耐久留痕,排障可回看「源不可达从何时开始」)
+    append_update_history(
+        app,
+        serde_json::json!({ "event": "check_failed", "error": format!("{err:#}") }),
+    );
+    emit_update_event(
+        app,
+        &serde_json::json!({
+            "phase": "check-failed",
+            "message": "更新检查未完成（网络或更新源暂不可达），稍后会自动重试；也可在菜单「检查更新」手动检查。",
+        })
+        .to_string(),
+    );
+}
+
+// [U-H] 自动检查本体(原启动一次性线程体抽出,供 启动首查/24h 周期共用;
+// U-C staged 断点恢复挂接于此)。
+fn run_auto_update_check(app: &AppHandle) {
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    // [U-C] 先看有无上次「已下载完成未安装」的暂存档(过期/坏档/资产被动即删)
+    let staged_file = staged_update_file_path(app);
+    let staged_candidate = staged_file.as_deref().and_then(|path| {
+        if !path.exists() {
+            return None;
+        }
+        let loaded = load_staged_update_file_at(path, now_ms);
+        if loaded.is_none() {
+            let _ = fs::remove_file(path);
+        }
+        loaded
+    });
+    // 节流:staged 在场=有待恢复成果,值得发起 manifest 核对 → 绕过
+    if staged_candidate.is_none() {
+        let min_interval_ms = auto_check_interval_override()
+            .map(|s| s.saturating_mul(1000))
+            .unwrap_or(AUTO_CHECK_MIN_INTERVAL_SECS * 1000);
+        let last_ms = update_check_stamp_path(app)
+            .as_deref()
+            .and_then(load_update_check_stamp);
+        if !should_run_auto_check(last_ms, now_ms, min_interval_ms) {
+            ledger_mark(
+                "rust.update_check_throttled",
+                Some(serde_json::json!({ "lastCheckMs": last_ms })),
+            );
+            return;
+        }
+    }
+    let client = match build_github_client(90) {
+        Ok(c) => c,
+        Err(err) => {
+            // manifest 不可达:staged 留档下次再验(不复用不删除)
+            note_auto_check_failure(app, &err);
+            return;
+        }
+    };
+    let plan = match resolve_update_plan(&client, app) {
+        Ok(p) => p,
+        Err(err) => {
+            note_auto_check_failure(app, &err);
+            return;
+        }
+    };
+    write_update_check_stamp(app);
+    let current = match Version::parse(env!("CARGO_PKG_VERSION")) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let local_runtime = local_runtime_version(app);
+    let runtime_needs_update =
+        runtime_update_decision(app, &plan, &local_runtime) == RuntimeUpdateDecision::Needed;
+    let update_due = plan.latest_version > current || runtime_needs_update;
+    if let Some(staged) = staged_candidate {
+        if update_due
+            && staged_matches_plan(
+                &staged,
+                &plan.latest_version.to_string(),
+                &plan.runtime_version,
+            )
+        {
+            // [U-C] 复用:回填内存槽 + 直接 ready(零重下)
+            ledger_mark(
+                "rust.staged_update_restored",
+                Some(serde_json::json!({ "target": staged.target_version })),
+            );
+            let ready = serde_json::json!({
+                "phase": "ready",
+                "pct": 100,
+                "version": staged.target_version,
+                "message": "更新此前已下载完成，可随时重启更新",
+            });
+            if let Some(state) = app.try_state::<AppState>() {
+                if let Ok(mut slot) = state.staged_update.lock() {
+                    *slot = Some(staged);
+                }
+            }
+            emit_update_event(app, &ready.to_string());
+            return;
+        }
+        // 线上已推进/撤版/本机已装到位:废弃暂存档走正常流
+        if let Some(path) = staged_file.as_deref() {
+            let _ = fs::remove_file(path);
+        }
+    }
+    if !update_due {
+        // 无更新:静默
+        return;
+    }
+    // 发现新版:非阻塞——只向主窗口 emit update-available 事件,由前端 UpdateNotifier
+    // 显示右下角非模态卡片,用户自行选择下载/稍后;下载在后台、可最小化。
+    let mut payload = serde_json::json!({
+        "phase": "available",
+        "currentVersion": current.to_string(),
+        "latestVersion": plan.latest_version.to_string(),
+        "runtimeNeedsUpdate": runtime_needs_update,
+        "notes": summarize_update_notes(&plan.notes),
+        "releaseUrl": plan.release_url.clone(),
+    });
+    // 可视化 v2:available 卡即显示「本次需下载约 XX MB(增量,复用 YY%)」
+    let estimate = compute_update_estimate(&plan, plan.latest_version > current);
+    payload["mode"] = serde_json::json!(estimate.mode);
+    if let Some(bytes) = estimate.need_bytes {
+        payload["downloadBytes"] = serde_json::json!(bytes);
+    }
+    if let Some(pct) = estimate.reuse_pct {
+        payload["reusePct"] = serde_json::json!(pct);
+    }
+    emit_update_event(app, &payload.to_string());
 }
 
 #[tauri::command]
@@ -6988,9 +8083,12 @@ fn update_check_silent(app: AppHandle) -> std::result::Result<UpdateAvailability
     (|| -> Result<UpdateAvailability> {
         let client = build_github_client(90)?;
         let plan = resolve_update_plan(&client, &app)?;
+        // [U-H] 前端手动检查同样计入节流窗
+        write_update_check_stamp(&app);
         let current = Version::parse(env!("CARGO_PKG_VERSION"))?;
         let local_runtime = local_runtime_version(&app);
-        let runtime_needs_update = compute_runtime_needs_update(&plan, &local_runtime);
+        let runtime_needs_update =
+            runtime_update_decision(&app, &plan, &local_runtime) == RuntimeUpdateDecision::Needed;
         let available = plan.latest_version > current || runtime_needs_update;
         // 可视化 v2:检查阶段即算「本次需下载多大(增量/全量,复用率)」——display-only,
         // 真实下载路径届时自行重判(estimate 与实际有差时以实际为准)。
@@ -7012,9 +8110,7 @@ fn update_check_silent(app: AppHandle) -> std::result::Result<UpdateAvailability
             update_mode: estimate.as_ref().map(|e| e.mode.to_string()),
             download_bytes: estimate.as_ref().and_then(|e| e.need_bytes),
             reuse_pct: estimate.as_ref().and_then(|e| e.reuse_pct),
-            changed_components: estimate
-                .map(|e| e.changed_names)
-                .unwrap_or_default(),
+            changed_components: estimate.map(|e| e.changed_names).unwrap_or_default(),
         })
     })()
     .map_err(|e| format!("{e:#}"))
@@ -7147,7 +8243,8 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
     let plan = resolve_update_plan(&client, app)?;
     let current = Version::parse(env!("CARGO_PKG_VERSION"))?;
     let local_runtime = local_runtime_version(app);
-    let runtime_needs_update = compute_runtime_needs_update(&plan, &local_runtime);
+    let runtime_needs_update =
+        runtime_update_decision(app, &plan, &local_runtime) == RuntimeUpdateDecision::Needed;
 
     if plan.latest_version <= current && !runtime_needs_update {
         emit_update_event(
@@ -7303,22 +8400,35 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
         }
     }
 
+    let staged = StagedUpdate {
+        zip_path: if app_should_update {
+            Some(zip_path)
+        } else {
+            None
+        },
+        runtime_archive_path,
+        runtime_roots,
+        runtime_version: plan.runtime_version.clone(),
+        target_version: plan.latest_version.to_string(),
+        app_should_update,
+        runtime_should_update,
+        staged_components,
+    };
+    // [U-C] 落盘持久化:进程被杀/用户退出后,已下载校验的成果下次启动直接恢复(免重下)
+    persist_staged_update_file(app, &staged);
+    // [U-G] 台账:下载校验完成(耐久行,进程死也留痕)
+    append_update_history(
+        app,
+        serde_json::json!({
+            "event": "staged_ready",
+            "from": env!("CARGO_PKG_VERSION"),
+            "to": staged.target_version,
+            "runtimeVersion": staged.runtime_version,
+        }),
+    );
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(mut slot) = state.staged_update.lock() {
-            *slot = Some(StagedUpdate {
-                zip_path: if app_should_update {
-                    Some(zip_path)
-                } else {
-                    None
-                },
-                runtime_archive_path,
-                runtime_roots,
-                runtime_version: plan.runtime_version.clone(),
-                target_version: plan.latest_version.to_string(),
-                app_should_update,
-                runtime_should_update,
-                staged_components,
-            });
+            *slot = Some(staged);
         }
     }
     // ready 事件带模式与实际下载量(可视化 v2),随后清账。
@@ -7335,7 +8445,11 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
         ready["message"] = serde_json::json!(format!(
             "更新已下载完成(本次共下载 {} MB,{}),可随时重启更新",
             mb,
-            if mode == "incremental" { "增量" } else { "完整" }
+            if mode == "incremental" {
+                "增量"
+            } else {
+                "完整"
+            }
         ));
     }
     update_ledger_clear();
@@ -7348,6 +8462,11 @@ fn update_start_background(app: AppHandle) -> std::result::Result<(), String> {
     thread::spawn(move || {
         if let Err(err) = run_background_update_download(&app) {
             update_ledger_clear();
+            // [U-G] 台账:下载失败
+            append_update_history(
+                &app,
+                serde_json::json!({ "event": "download_error", "error": format!("{err:#}") }),
+            );
             emit_update_event(
                 &app,
                 &serde_json::json!({"phase":"error","message":format!("{err:#}")}).to_string(),
@@ -7368,6 +8487,15 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
             .map_err(|_| anyhow!("更新暂存锁异常"))?;
         slot.clone().context("没有已下载完成的更新,请先下载")?
     };
+    // [U-G] 台账:开始应用
+    append_update_history(
+        app,
+        serde_json::json!({
+            "event": "apply_begin",
+            "to": staged.target_version,
+            "mode": if staged.staged_components.is_some() { "incremental" } else { "full" },
+        }),
+    );
     if staged.app_should_update {
         let zip = staged
             .zip_path
@@ -7386,6 +8514,15 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
                 }
             }
         }
+        // [U-C] 增量手术已成:清已消费部件档;交 helper 前消费暂存档(helper 接管即
+        // 不可回头;此后 kill 由 helper 自身重试/回滚兜底,不再走 staged 恢复)。
+        cleanup_consumed_component_archives(&staged);
+        clear_staged_update_file(app);
+        // [U-G] 台账:交接 helper(结果由 install_confirmed 闭环)
+        append_update_history(
+            app,
+            serde_json::json!({ "event": "helper_handoff", "to": staged.target_version }),
+        );
         // 应用包安装会替换 + 重启(install_downloaded_app 内部 app.exit),全量 runtime 随同处理。
         install_downloaded_app(
             app.clone(),
@@ -7432,6 +8569,17 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
                 clear_runtime_pending_marker(&root.join("current"))?;
             }
         }
+        // [U-C] 全部 root 应用成功:清已消费部件档+暂存档(失败路径 ? 早退不清,重试免重下)
+        cleanup_consumed_component_archives(&staged);
+        clear_staged_update_file(app);
+        // [U-G] 台账:runtime 更新应用成功(app 不换壳路径的结果行)
+        append_update_history(
+            app,
+            serde_json::json!({
+                "event": "apply_runtime_ok",
+                "runtimeVersion": staged.runtime_version,
+            }),
+        );
         let app_handle = app.clone();
         let win = window.clone();
         thread::spawn(
@@ -7459,7 +8607,14 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
 
 #[tauri::command]
 fn update_install_and_restart(app: AppHandle) -> std::result::Result<(), String> {
-    run_staged_install(&app).map_err(|e| format!("{e:#}"))
+    run_staged_install(&app).map_err(|e| {
+        // [U-G] 台账:应用失败(staged 档保留,重试免重下)
+        append_update_history(
+            &app,
+            serde_json::json!({ "event": "apply_failed", "error": format!("{e:#}") }),
+        );
+        format!("{e:#}")
+    })
 }
 
 fn trigger_reinstall(app: AppHandle) {
@@ -7595,8 +8750,26 @@ fn runtime_bootstrap(
             ledger_mark("rust.app_translocated", None);
             emit_status(
                 &window,
-                "检测到 App 正从下载的临时位置运行:建议退出后把 星阙 拖入「应用程序」文件夹再打开,以获得完整的自动更新体验。",
+                "检测到 App 正从下载的临时位置运行:可在菜单选择「移入「应用程序」文件夹…」一键搬迁并重开,以获得完整的自动更新体验。",
             );
+        }
+    }
+    // [U-A 撕裂探测] 两段 rename 回退路径/postinstall shell 对换若在中间被断电强杀,
+    // current 会整体缺失——启动最早期按候选完整度收养,先于看门狗与安装检查。
+    {
+        let mut torn_roots = vec![shared_runtime_root()];
+        if let Ok(user_root) = user_runtime_root(&app) {
+            torn_roots.push(user_root);
+        }
+        for root in &torn_roots {
+            match repair_torn_runtime_slots(root) {
+                Ok(true) => emit_status(
+                    &window,
+                    "检测到上次更新中断，已自动恢复运行时，正在继续启动…",
+                ),
+                Ok(false) => {}
+                Err(err) => eprintln!("[torn-repair] {} 修复失败: {err:#}", root.display()),
+            }
         }
     }
     // 启动健康看门狗:连续 2 次未达 ready → 自动回滚 previous 槽(更新到坏版本的自愈)。
@@ -7619,6 +8792,11 @@ fn runtime_bootstrap(
                 ledger_mark(
                     "rust.watchdog_rollback",
                     Some(serde_json::json!({"pending": pending})),
+                );
+                // [U-G] 台账:看门狗自动回滚(耐久行)
+                append_update_history(
+                    &app,
+                    serde_json::json!({ "event": "watchdog_rollback", "pending": pending }),
                 );
                 emit_status(
                     &window,
@@ -7648,8 +8826,7 @@ fn runtime_bootstrap(
             break;
         }
         web_port = choose_free_port()?;
-        server_handle =
-            start_static_server(paths.frontend_dir.clone(), web_port, shutdown.clone());
+        server_handle = start_static_server(paths.frontend_dir.clone(), web_port, shutdown.clone());
     }
     let _server_handle = server_handle?;
     let mut backend_port = choose_free_port()?;
@@ -7807,7 +8984,6 @@ fn runtime_bootstrap(
     })
 }
 
-
 /// ── 结构化启动账本(Rust 层写入端)────────────────────────────────────────────
 /// 一行一段 JSON Lines,四层进程(Rust/shell/Java/Python)经 env(HOROSA_RUN_TAG/
 /// HOROSA_LEDGER_FILE)共享同一文件;Rust 是 run 标签的生成者。只在段边界打点,
@@ -7846,7 +9022,10 @@ fn prune_logs_dir_best_effort(logs_dir: &Path) {
         }
         if meta.is_file()
             && meta.len() > MAX_SINGLE_LOG_BYTES
-            && path.extension().map(|e| e == "log" || e == "jsonl").unwrap_or(false)
+            && path
+                .extension()
+                .map(|e| e == "log" || e == "jsonl")
+                .unwrap_or(false)
         {
             let rotated = path.with_extension("old");
             let _ = fs::remove_file(&rotated);
@@ -7857,7 +9036,12 @@ fn prune_logs_dir_best_effort(logs_dir: &Path) {
 
 fn ledger_init(logs_dir: &Path) {
     let enabled = std::env::var("HOROSA_STARTUP_LEDGER")
-        .map(|v| !matches!(v.to_ascii_lowercase().as_str(), "0" | "false" | "no" | "off"))
+        .map(|v| {
+            !matches!(
+                v.to_ascii_lowercase().as_str(),
+                "0" | "false" | "no" | "off"
+            )
+        })
         .unwrap_or(true);
     if !enabled {
         let _ = STARTUP_LEDGER.set(None);
@@ -7875,7 +9059,8 @@ fn ledger_init(logs_dir: &Path) {
 }
 
 fn ledger_mark(seg: &str, extra: Option<serde_json::Value>) {
-    let Some(Some((run_tag, file, t0))) = STARTUP_LEDGER.get().map(|v| v.as_ref()).map(|v| v) else {
+    let Some(Some((run_tag, file, t0))) = STARTUP_LEDGER.get().map(|v| v.as_ref()).map(|v| v)
+    else {
         return;
     };
     let t_ms = t0.elapsed().as_millis();
@@ -7906,10 +9091,10 @@ fn ledger_env() -> Option<(String, PathBuf)> {
 /// 一次后台更新一本账(既有设计即单飞),download_update_asset_once 喂块、事件层读
 /// 速度(10s 滑窗)/ETA/总量;HOROSA_PROGRESS_V2=0 时退化为老三样(phase/pct/message)。
 struct DownloadLedger {
-    mode: String,            // "incremental" | "full"
-    total_bytes: u64,        // 计划总下载量(0=未知,前端显「大小待定」)
-    completed_bytes: u64,    // 已完成资产累计
-    current_bytes: u64,      // 当前资产已下
+    mode: String,                                       // "incremental" | "full"
+    total_bytes: u64,                                   // 计划总下载量(0=未知,前端显「大小待定」)
+    completed_bytes: u64,                               // 已完成资产累计
+    current_bytes: u64,                                 // 当前资产已下
     window: std::collections::VecDeque<(Instant, u64)>, // (时刻, 全局已下字节) 10s 滑窗
     component_index: u32,
     component_total: u32,
@@ -8092,9 +9277,9 @@ fn update_ledger_summary() -> Option<(String, u64)> {
 
 /// 「本次需下载 XX MB(增量,复用 YY%)」的计算来源:display-only,真实下载路径照旧自决。
 struct UpdateEstimate {
-    mode: &'static str,        // "incremental" | "full"
-    need_bytes: Option<u64>,   // 预计下载量(None=大小待定)
-    reuse_pct: Option<u8>,     // 增量复用率(仅 incremental)
+    mode: &'static str,      // "incremental" | "full"
+    need_bytes: Option<u64>, // 预计下载量(None=大小待定)
+    reuse_pct: Option<u8>,   // 增量复用率(仅 incremental)
     changed_names: Vec<String>,
 }
 
@@ -8173,7 +9358,9 @@ fn sweep_stale_tmp_downloads() {
                     continue;
                 }
                 let Ok(meta) = entry.metadata() else { continue };
-                let Ok(modified) = meta.modified() else { continue };
+                let Ok(modified) = meta.modified() else {
+                    continue;
+                };
                 if modified < cutoff {
                     let path = entry.path();
                     let _ = if meta.is_dir() {
@@ -8187,12 +9374,45 @@ fn sweep_stale_tmp_downloads() {
     });
 }
 
+// [U-B] swap CLI 本体(纯函数可测):0=互换成功;2=不可用/入参不齐(调用方走 mv 回退);
+// 1=真实错误(同样回退)。helper 借主二进制做 renamex_np——不新增 Mach-O 进签名面。
+fn run_swap_cli(a: &Path, b: &Path) -> i32 {
+    if !a.exists() || !b.exists() {
+        eprintln!(
+            "[swap-cli] 两侧路径必须都存在: {} / {}",
+            a.display(),
+            b.display()
+        );
+        return 2;
+    }
+    match atomic_swap_dirs(a, b) {
+        Ok(true) => 0,
+        Ok(false) => 2,
+        Err(err) => {
+            eprintln!("[swap-cli] {err:#}");
+            1
+        }
+    }
+}
+
 fn main() {
+    // [U-B] 隐藏 CLI 旗标:update helper 用「新版 app 自己的二进制」做原子互换,
+    // 位于 tauri::Builder 之前(零 UI、零窗口即退)。
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if args.len() == 4 && args[1] == "--horosa-atomic-swap" {
+            std::process::exit(run_swap_cli(Path::new(&args[2]), Path::new(&args[3])));
+        }
+    }
     configure_macos_native_window_restoration();
     register_panic_runtime_cleanup();
     sweep_stale_tmp_downloads();
     tauri::Builder::default()
         .manage(AppState::default())
+        // [剪贴板] 主线程创建;失败存 None,command 内惰性重建
+        .manage(DesktopClipboardState(Mutex::new(
+            arboard::Clipboard::new().ok(),
+        )))
         .menu(build_menu)
         .invoke_handler(tauri::generate_handler![
             load_preferences_payload,
@@ -8217,7 +9437,9 @@ fn main() {
             update_install_and_restart,
             copy_text_to_clipboard_command,
             open_external_url_command,
-            get_backend_endpoints
+            get_backend_endpoints,
+            restart_local_services_command,
+            export_diagnostics_bundle
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -8261,64 +9483,20 @@ fn main() {
                 }
             });
 
-            // 自動檢查更新（若偏好啟用）：啟動延遲 10 秒，僅當發現新版時彈框；
-            // 無更新/網絡失敗 靜默寫日誌，避免每次啟動打擾用戶（修復 codex 版偏好定義但從不被消費的死開關）。
+            // [U-H 周期检查+节流] 自动检查更新(若偏好启用):启动延迟 10s 首查——
+            // 距上次成功检查 <4h 直接跳过(节流,防每次开关 app 都打网络);此后线程
+            // 驻留每 24h 再查(长开 app 也能收到新版;偏好每轮重读,关闭即静默)。
+            // 检查失败不再静默:账本 rust.update_check_failed + check-failed 低打扰事件。
             {
                 let app_handle = app.handle().clone();
                 thread::spawn(move || {
                     thread::sleep(std::time::Duration::from_secs(10));
-                    if !load_preferences(&app_handle).auto_check_updates {
-                        return;
-                    }
-                    let client = match build_github_client(90) {
-                        Ok(c) => c,
-                        Err(err) => {
-                            eprintln!("[updater] auto check skipped (client): {err:#}");
-                            return;
+                    loop {
+                        if load_preferences(&app_handle).auto_check_updates {
+                            run_auto_update_check(&app_handle);
                         }
-                    };
-                    let plan = match resolve_update_plan(&client, &app_handle) {
-                        Ok(p) => p,
-                        Err(err) => {
-                            eprintln!("[updater] auto check skipped (plan): {err:#}");
-                            return;
-                        }
-                    };
-                    let current = match Version::parse(env!("CARGO_PKG_VERSION")) {
-                        Ok(v) => v,
-                        Err(_) => return,
-                    };
-                    let local_runtime = local_runtime_version(&app_handle);
-                    let runtime_needs_update = match (&plan.runtime_version, &local_runtime) {
-                        (Some(remote), Some(local)) => remote.trim() != local.trim(),
-                        (Some(_), None) => true,
-                        _ => false,
-                    };
-                    if plan.latest_version <= current && !runtime_needs_update {
-                        // 無更新：靜默
-                        return;
+                        thread::sleep(auto_update_check_cycle());
                     }
-                    // v2.2.1 發現新版：非阻塞 —— 只向主窗口 emit update-available 事件,
-                    // 由前端 UpdateNotifier 显示右下角非模态卡片,用户自行选择下载/稍后;
-                    // 下载在后台、可最小化、不挡正常使用。不再启动原生阻塞弹框流程。
-                    let mut payload = serde_json::json!({
-                        "phase": "available",
-                        "currentVersion": current.to_string(),
-                        "latestVersion": plan.latest_version.to_string(),
-                        "runtimeNeedsUpdate": runtime_needs_update,
-                        "notes": summarize_update_notes(&plan.notes),
-                        "releaseUrl": plan.release_url.clone(),
-                    });
-                    // 可视化 v2:available 卡即显示「本次需下载约 XX MB(增量,复用 YY%)」
-                    let estimate = compute_update_estimate(&plan, plan.latest_version > current);
-                    payload["mode"] = serde_json::json!(estimate.mode);
-                    if let Some(bytes) = estimate.need_bytes {
-                        payload["downloadBytes"] = serde_json::json!(bytes);
-                    }
-                    if let Some(pct) = estimate.reuse_pct {
-                        payload["reusePct"] = serde_json::json!(pct);
-                    }
-                    emit_update_event(&app_handle, &payload.to_string());
                 });
             }
 
@@ -8416,6 +9594,53 @@ fn main() {
                     let _ = ensure_dir(&paths.runtime_dir);
                     open_path(&paths.runtime_dir);
                 }
+            } else if id == MENU_RELOCATE_APP {
+                // [U-I G8] Translocation/任意非标准位置 → 一键拷入「应用程序」并重开。
+                let app_handle = app.clone();
+                thread::spawn(move || {
+                    let bundle = app_bundle_path();
+                    let dest = installed_app_target_path();
+                    let already_installed = bundle
+                        .as_deref()
+                        .map(|b| b == dest.as_path())
+                        .unwrap_or(false);
+                    if already_installed {
+                        MessageDialog::new()
+                            .set_level(MessageLevel::Info)
+                            .set_title("移入「应用程序」文件夹")
+                            .set_description("当前已从「应用程序」文件夹运行,无需搬迁。")
+                            .show();
+                        return;
+                    }
+                    let proceed = MessageDialog::new()
+                        .set_level(MessageLevel::Info)
+                        .set_title("移入「应用程序」文件夹")
+                        .set_description(
+                            "将把本应用拷贝到「应用程序」文件夹并重新打开(自动更新等功能需要固定安装位置)。是否继续?",
+                        )
+                        .set_buttons(MessageButtons::YesNo)
+                        .show();
+                    if proceed != MessageDialogResult::Yes {
+                        return;
+                    }
+                    match relocate_app_to_applications(&app_handle) {
+                        Ok(done_msg) if !done_msg.is_empty() => {
+                            MessageDialog::new()
+                                .set_level(MessageLevel::Info)
+                                .set_title("移入「应用程序」文件夹")
+                                .set_description(done_msg)
+                                .show();
+                        }
+                        Ok(_) => {}
+                        Err(err) => {
+                            MessageDialog::new()
+                                .set_level(MessageLevel::Error)
+                                .set_title("移入「应用程序」文件夹")
+                                .set_description(format!("搬迁未完成:{err:#}"))
+                                .show();
+                        }
+                    }
+                });
             } else if id == MENU_RESTART_SERVICES {
                 // 手动兜底:服务被系统/杀软杀掉、探活看门狗已限频停手时,一键救活。
                 let app_handle = app.clone();
@@ -8500,6 +9725,631 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
     use std::process::Command;
     use tar::Builder;
+
+    // [剪贴板] UTF-8 roundtrip:主路 arboard 与兜底 pbcopy(LC_CTYPE 钉死)两路合一,
+    // 防 cargo test 并行互踩全局剪贴板;先存后还。读侧 pbpaste 同样要钉 LC_CTYPE。
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn clipboard_utf8_roundtrip_native_and_pbcopy() {
+        let sample = "技术·測試 ✓ 三式合一";
+        let saved = arboard::Clipboard::new()
+            .ok()
+            .and_then(|mut c| c.get_text().ok());
+
+        let mut clip = arboard::Clipboard::new().expect("arboard 初始化失败");
+        clip.set_text(sample.to_string()).expect("arboard 写入失败");
+        assert_eq!(clip.get_text().expect("arboard 读回失败"), sample);
+        drop(clip);
+
+        pbcopy_utf8_fallback(sample).expect("pbcopy 兜底写入失败");
+        let out = Command::new("/usr/bin/pbpaste")
+            .env("LC_CTYPE", "UTF-8")
+            .output()
+            .expect("pbpaste 执行失败");
+        assert_eq!(String::from_utf8_lossy(&out.stdout), sample);
+
+        if let (Some(prev), Ok(mut c)) = (saved, arboard::Clipboard::new()) {
+            let _ = c.set_text(prev);
+        }
+    }
+
+    // [U-D 防降级] 单调判定矩阵:remote 更新才更;更旧被拦;rank 等价不重复下载;
+    // 逃生阀恢复老「不同即更」语义;合成串(GithubApi 无 -runtimeN)同 base 视作更旧修订被拦。
+    #[test]
+    fn runtime_update_monotonic_gate() {
+        use RuntimeUpdateDecision::*;
+        let d = compute_runtime_update_decision;
+        assert_eq!(
+            d(Some("3.3.3-runtime1"), Some("3.3.2-runtime1"), false),
+            Needed
+        );
+        // runtime 修订位数值序(非字典序):-runtime10 > -runtime2
+        assert_eq!(
+            d(Some("3.3.2-runtime10"), Some("3.3.2-runtime2"), false),
+            Needed
+        );
+        assert_eq!(
+            d(Some("3.3.2-runtime2"), Some("3.3.2-runtime10"), false),
+            DowngradeBlocked
+        );
+        // 字符串不同但 rank 等价 → 视为已最新(不重复下载)
+        assert_eq!(
+            d(Some("3.3.2-runtime1"), Some("3.3.2-runtime01"), false),
+            UpToDate
+        );
+        assert_eq!(
+            d(Some("3.3.2-runtime1"), Some("3.3.2-runtime1"), false),
+            UpToDate
+        );
+        // 远端更旧 → 拦;逃生阀放行
+        assert_eq!(
+            d(Some("3.3.1-runtime9"), Some("3.3.2-runtime1"), false),
+            DowngradeBlocked
+        );
+        assert_eq!(
+            d(Some("3.3.1-runtime9"), Some("3.3.2-runtime1"), true),
+            Needed
+        );
+        // 本地无 runtime → 必装;远端无字段 → 不更
+        assert_eq!(d(Some("3.3.2-runtime1"), None, false), Needed);
+        assert_eq!(d(None, Some("3.3.2-runtime1"), false), UpToDate);
+        // GithubApi 合成串(裸版本号):同 base 视作更旧修订 → 拦(避免无谓整包重下)
+        assert_eq!(
+            d(Some("3.3.2"), Some("3.3.2-runtime1"), false),
+            DowngradeBlocked
+        );
+        assert_eq!(d(Some("3.3.3"), Some("3.3.2-runtime1"), false), Needed);
+    }
+
+    #[test]
+    fn runtime_needs_update_unparseable_falls_back_to_neq() {
+        use RuntimeUpdateDecision::*;
+        // 任一侧 rank 解析失败 → 回退「不同即更」(防脏版本串永久卡死更新链)
+        assert_eq!(
+            compute_runtime_update_decision(Some("weird-tag"), Some("3.3.2-runtime1"), false),
+            Needed
+        );
+        assert_eq!(
+            compute_runtime_update_decision(Some("3.3.3-runtime1"), Some("corrupted"), false),
+            Needed
+        );
+        // 双侧相同脏串 → 字符串相等短路,视为最新
+        assert_eq!(
+            compute_runtime_update_decision(Some("weird"), Some("weird"), false),
+            UpToDate
+        );
+    }
+
+    // [U-A] 撕裂测试用最小「完整」runtime 树(过 runtime_dir_has_required_files 五文件判据)
+    fn write_minimal_runtime_tree(dir: &Path, marker: &str) {
+        fs::create_dir_all(dir.join("Horosa-Web/astrostudyui/dist-file")).unwrap();
+        fs::create_dir_all(dir.join("runtime/mac/python/bin")).unwrap();
+        fs::create_dir_all(dir.join("runtime/mac/java/bin")).unwrap();
+        fs::write(
+            dir.join("runtime-manifest.json"),
+            format!("{{\"version\":\"{}\"}}\n", marker),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("Horosa-Web/start_horosa_local.sh"),
+            "#!/bin/bash\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("Horosa-Web/astrostudyui/dist-file/index.html"),
+            marker,
+        )
+        .unwrap();
+        fs::write(dir.join("runtime/mac/python/bin/python3"), "stub").unwrap();
+        fs::write(dir.join("runtime/mac/java/bin/java"), "stub").unwrap();
+    }
+
+    #[test]
+    fn atomic_swap_dirs_exchanges_trees_on_apfs() {
+        let work = temp_test_dir("swap");
+        let a = work.join("a");
+        let b = work.join("b");
+        fs::create_dir_all(&a).unwrap();
+        fs::create_dir_all(&b).unwrap();
+        fs::write(a.join("who.txt"), "aaa").unwrap();
+        fs::write(b.join("who.txt"), "bbb").unwrap();
+        let swapped = atomic_swap_dirs(&a, &b).expect("swap 调用不应报错");
+        assert!(swapped, "本机 temp 卷应为 APFS,renamex_np 必须可用");
+        assert_eq!(fs::read_to_string(a.join("who.txt")).unwrap(), "bbb");
+        assert_eq!(fs::read_to_string(b.join("who.txt")).unwrap(), "aaa");
+        // 禁用开关必须走回退分支(防两段 rename 回退路径死代码化)
+        std::env::set_var("HOROSA_SWAP_DISABLE", "1");
+        let disabled = atomic_swap_dirs(&a, &b).unwrap();
+        std::env::remove_var("HOROSA_SWAP_DISABLE");
+        assert!(!disabled, "HOROSA_SWAP_DISABLE=1 必须返回 false 走回退");
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    #[test]
+    fn torn_slot_repair_promotes_complete_candidate() {
+        // 场景1:current 缺失 + 仅 previous 完整 → 收养 previous
+        let root1 = temp_test_dir("torn1");
+        write_minimal_runtime_tree(&root1.join("previous"), "prev");
+        assert!(repair_torn_runtime_slots(&root1).unwrap());
+        assert!(root1.join("current/runtime-manifest.json").exists());
+        assert!(!root1.join("previous").exists());
+
+        // 场景2:_comp_stage(增量暂存,最新)优先于 previous;previous 保留作回滚资本
+        let root2 = temp_test_dir("torn2");
+        write_minimal_runtime_tree(&root2.join("_comp_stage"), "stage");
+        write_minimal_runtime_tree(&root2.join("previous"), "prev");
+        assert!(repair_torn_runtime_slots(&root2).unwrap());
+        assert_eq!(
+            fs::read_to_string(root2.join("current/Horosa-Web/astrostudyui/dist-file/index.html"))
+                .unwrap(),
+            "stage"
+        );
+        assert!(root2.join("previous").exists());
+
+        // 场景3:_extract/runtime-payload(全量暂存)次优
+        let root3 = temp_test_dir("torn3");
+        write_minimal_runtime_tree(&root3.join("_extract/runtime-payload"), "extract");
+        assert!(repair_torn_runtime_slots(&root3).unwrap());
+        assert_eq!(
+            fs::read_to_string(root3.join("current/Horosa-Web/astrostudyui/dist-file/index.html"))
+                .unwrap(),
+            "extract"
+        );
+
+        // 场景4:候选不完整(缺 java)绝不收养
+        let root4 = temp_test_dir("torn4");
+        write_minimal_runtime_tree(&root4.join("previous"), "broken");
+        fs::remove_file(root4.join("previous/runtime/mac/java/bin/java")).unwrap();
+        assert!(!repair_torn_runtime_slots(&root4).unwrap());
+        assert!(!root4.join("current").exists());
+
+        // 场景5:current 在位 → 零动作
+        let root5 = temp_test_dir("torn5");
+        write_minimal_runtime_tree(&root5.join("current"), "cur");
+        write_minimal_runtime_tree(&root5.join("previous"), "prev");
+        assert!(!repair_torn_runtime_slots(&root5).unwrap());
+        assert_eq!(
+            fs::read_to_string(root5.join("current/Horosa-Web/astrostudyui/dist-file/index.html"))
+                .unwrap(),
+            "cur"
+        );
+        for root in [root1, root2, root3, root4, root5] {
+            let _ = fs::remove_dir_all(&root);
+        }
+    }
+
+    // [U-E] 部件级重试矩阵:下载错(留 .part 续传接力)/sha 失配(清 dest 全新下)/耗尽上抛
+    #[test]
+    fn component_download_retry_then_success_and_exhaust() {
+        let work = temp_test_dir("comp-retry");
+        let dest = work.join("comp-x.tar.gz");
+        // fail(下载),fail(校验),ok → 成功;共 3 次下载、2 次重试通知
+        let calls = std::cell::Cell::new(0u32);
+        let retries = std::cell::Cell::new(0u32);
+        let result = download_component_with_retry(
+            &dest,
+            &mut || {
+                calls.set(calls.get() + 1);
+                fs::write(&dest, format!("payload-{}", calls.get())).unwrap();
+                if calls.get() == 1 {
+                    Err(anyhow!("network"))
+                } else {
+                    Ok(())
+                }
+            },
+            &mut || {
+                if calls.get() == 2 {
+                    Err(anyhow!("sha mismatch"))
+                } else {
+                    Ok(())
+                }
+            },
+            &mut |_| retries.set(retries.get() + 1),
+        );
+        assert!(result.is_ok());
+        assert_eq!(calls.get(), 3);
+        assert_eq!(retries.get(), 2);
+
+        // 持续 sha 失配 → 1+COMPONENT_RETRY_MAX 次后 Err,坏资产不残留
+        let fails = std::cell::Cell::new(0u32);
+        let result = download_component_with_retry(
+            &dest,
+            &mut || {
+                fails.set(fails.get() + 1);
+                Ok(())
+            },
+            &mut || Err(anyhow!("sha mismatch")),
+            &mut |_| {},
+        );
+        assert!(result.is_err());
+        assert_eq!(fails.get(), 1 + COMPONENT_RETRY_MAX);
+        assert!(!dest.exists(), "sha 失配路径必须清掉坏资产");
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    // [U-H] 节流三态:无 stamp=查;窗内=跳;窗外=查(interval 作参数传入,测试不碰 env)
+    #[test]
+    fn auto_check_throttle_gate() {
+        let four_hours_ms: u64 = 4 * 3600 * 1000;
+        let now: u64 = 1_000_000_000_000;
+        assert!(should_run_auto_check(None, now, four_hours_ms));
+        assert!(!should_run_auto_check(
+            Some(now - 3 * 3600 * 1000),
+            now,
+            four_hours_ms
+        ));
+        assert!(should_run_auto_check(
+            Some(now - 5 * 3600 * 1000),
+            now,
+            four_hours_ms
+        ));
+        // 恰在边界=可查;时钟倒拨(last>now)不 panic 且按窗内处理
+        assert!(should_run_auto_check(
+            Some(now - four_hours_ms),
+            now,
+            four_hours_ms
+        ));
+        assert!(!should_run_auto_check(
+            Some(now + 60_000),
+            now,
+            four_hours_ms
+        ));
+    }
+
+    #[test]
+    fn update_check_stamp_roundtrip() {
+        let work = temp_test_dir("check-stamp");
+        let path = work.join("last-update-check.json");
+        assert_eq!(load_update_check_stamp(&path), None);
+        write_update_check_stamp_at(&path);
+        let loaded = load_update_check_stamp(&path).expect("stamp 应可读回");
+        assert!(loaded > 0);
+        // 坏 JSON → None(自愈:下轮照常检查并重写)
+        fs::write(&path, "not-json").unwrap();
+        assert_eq!(load_update_check_stamp(&path), None);
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    // [U-C] staged 持久化门:往返/篡改一字节拒绝/复用门匹配
+    #[test]
+    fn staged_update_file_roundtrip_and_sha_gate() {
+        let work = temp_test_dir("staged");
+        let zip = work.join("app.zip");
+        let comp = work.join("comp-web-app.tar.gz");
+        fs::write(&zip, "zip-bytes").unwrap();
+        fs::write(&comp, "comp-bytes").unwrap();
+        let staged = StagedUpdate {
+            zip_path: Some(zip.clone()),
+            runtime_archive_path: None,
+            runtime_roots: vec![work.join("root")],
+            runtime_version: Some("9.9.9-runtime1".into()),
+            target_version: "9.9.9".into(),
+            app_should_update: true,
+            runtime_should_update: true,
+            staged_components: Some(StagedComponents {
+                archives: vec![(
+                    ManifestComponent {
+                        name: "web-app".into(),
+                        kind: "tree".into(),
+                        sha256: "x".into(),
+                        size: Some(1),
+                        file: "comp-web-app.tar.gz".into(),
+                        url: String::new(),
+                    },
+                    comp.clone(),
+                )],
+                new_lock_json: serde_json::json!({"runtimeVersion":"9.9.9-runtime1"}),
+                new_lock_text: "{}".into(),
+            }),
+        };
+        let file = work.join("staged-update.json");
+        persist_staged_update_file_at(&file, &staged).expect("持久化应成功");
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        let loaded = load_staged_update_file_at(&file, now).expect("原样资产应可恢复");
+        assert_eq!(loaded.target_version, "9.9.9");
+        assert!(staged_matches_plan(
+            &loaded,
+            "9.9.9",
+            &Some("9.9.9-runtime1".into())
+        ));
+        assert!(!staged_matches_plan(
+            &loaded,
+            "9.9.10",
+            &Some("9.9.9-runtime1".into())
+        ));
+        assert!(!staged_matches_plan(
+            &loaded,
+            "9.9.9",
+            &Some("9.9.9-runtime2".into())
+        ));
+        // 篡改一个资产字节 → 拒绝复用
+        fs::write(&comp, "comp-bytes-tampered").unwrap();
+        assert!(load_staged_update_file_at(&file, now).is_none());
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    #[test]
+    fn staged_update_expiry_discard() {
+        let work = temp_test_dir("staged-exp");
+        let zip = work.join("app.zip");
+        fs::write(&zip, "zip").unwrap();
+        let staged = StagedUpdate {
+            zip_path: Some(zip),
+            runtime_archive_path: None,
+            runtime_roots: vec![],
+            runtime_version: None,
+            target_version: "9.9.9".into(),
+            app_should_update: true,
+            runtime_should_update: false,
+            staged_components: None,
+        };
+        let file = work.join("staged-update.json");
+        persist_staged_update_file_at(&file, &staged).unwrap();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        assert!(load_staged_update_file_at(&file, now).is_some());
+        // 8 天后 → 过期废弃
+        assert!(load_staged_update_file_at(&file, now + 8 * 24 * 3600 * 1000).is_none());
+        // 无资产清单的档(异常构造)→ 拒绝
+        fs::write(
+            &file,
+            serde_json::json!({
+                "saved_at_ms": now,
+                "staged": { "target_version": "9.9.9" },
+                "asset_shas": []
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert!(load_staged_update_file_at(&file, now).is_none());
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    // [U-F] 身份探针四分类:真 TcpListener 假服务(正确 JSON/陌生标记/不答话/不监听)
+    #[test]
+    fn identity_probe_classifies_squatter_and_silence() {
+        use std::io::{Read, Write};
+        let timeout = Duration::from_millis(800);
+        // Ok:回正确身份 JSON(app 标记+nonce 全对)
+        let ok_listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let ok_port = ok_listener.local_addr().unwrap().port();
+        let ok_thread = thread::spawn(move || {
+            if let Ok((mut s, _)) = ok_listener.accept() {
+                let mut buf = [0u8; 1024];
+                let _ = s.read(&mut buf);
+                let body = r#"{"app":"horosa-backend","proto":1,"nonce":"n-1"}"#;
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                let _ = s.write_all(resp.as_bytes());
+            }
+        });
+        assert_eq!(
+            probe_identity(ok_port, "horosa-backend", "n-1", timeout),
+            IdentityProbe::Ok
+        );
+        ok_thread.join().unwrap();
+
+        // WrongIdentity:陌生 app 标记(毒 200 squatter)/ nonce 不符(别的实例)
+        let sq = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let sq_port = sq.local_addr().unwrap().port();
+        let sq_thread = thread::spawn(move || {
+            for _ in 0..2 {
+                if let Ok((mut s, _)) = sq.accept() {
+                    let mut buf = [0u8; 1024];
+                    let _ = s.read(&mut buf);
+                    let body = r#"{"app":"stranger","nonce":"zzz"}"#;
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        body.len(),
+                        body
+                    );
+                    let _ = s.write_all(resp.as_bytes());
+                }
+            }
+        });
+        assert_eq!(
+            probe_identity(sq_port, "horosa-backend", "n-1", timeout),
+            IdentityProbe::WrongIdentity
+        );
+        assert_eq!(
+            probe_identity(sq_port, "stranger", "n-1", timeout),
+            IdentityProbe::WrongIdentity
+        );
+        sq_thread.join().unwrap();
+
+        // HttpSilent:端口在听但不答话(wedged 形态)
+        let silent = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let silent_port = silent.local_addr().unwrap().port();
+        let silent_thread = thread::spawn(move || {
+            if let Ok((s, _)) = silent.accept() {
+                thread::sleep(Duration::from_millis(1200));
+                drop(s);
+            }
+        });
+        assert_eq!(
+            probe_identity(silent_port, "horosa-backend", "n-1", timeout),
+            IdentityProbe::HttpSilent
+        );
+        silent_thread.join().unwrap();
+
+        // TcpDead:无人监听
+        let dead_port = {
+            let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            l.local_addr().unwrap().port()
+        };
+        assert_eq!(
+            probe_identity(dead_port, "horosa-backend", "n-1", timeout),
+            IdentityProbe::TcpDead
+        );
+    }
+
+    // [U-F] 双 streak 状态机:快判/慢判/立即判/互清/Ok 归零
+    #[test]
+    fn supervisor_streak_state_machine() {
+        let zero = SupervisorStreak::default();
+        // Ok 全清零
+        assert_eq!(
+            supervisor_step(SupervisorStreak { dead: 1, silent: 3 }, IdentityProbe::Ok),
+            (zero, false)
+        );
+        // TcpDead 连续 2 轮判亡
+        let (s1, k1) = supervisor_step(zero, IdentityProbe::TcpDead);
+        assert!(!k1);
+        let (_, k2) = supervisor_step(s1, IdentityProbe::TcpDead);
+        assert!(k2);
+        // HttpSilent 连续 6 轮判亡
+        let mut s = zero;
+        for round in 1..=5u32 {
+            let (next, kill) = supervisor_step(s, IdentityProbe::HttpSilent);
+            s = next;
+            assert!(!kill, "silent 第 {round} 轮不应判亡");
+        }
+        let (_, k6) = supervisor_step(s, IdentityProbe::HttpSilent);
+        assert!(k6);
+        // dead 与 silent 互清对方(交替抖动不误判)
+        let (sd, _) = supervisor_step(
+            SupervisorStreak { dead: 0, silent: 5 },
+            IdentityProbe::TcpDead,
+        );
+        assert_eq!(sd.silent, 0);
+        let (ss, _) = supervisor_step(
+            SupervisorStreak { dead: 1, silent: 0 },
+            IdentityProbe::HttpSilent,
+        );
+        assert_eq!(ss.dead, 0);
+        // WrongIdentity 立即判亡
+        assert!(supervisor_step(zero, IdentityProbe::WrongIdentity).1);
+    }
+
+    // [U-B] helper 模板契约:stage-first 序/swap 旗标/失败重开臂/磁盘预检/危险旧序零回潮
+    #[test]
+    fn update_helper_script_stages_before_swap() {
+        let script = build_update_helper_script(
+            Path::new("/tmp/log.txt"),
+            Path::new("/tmp/marker.txt"),
+            Path::new("/Applications/Demo.app"),
+            Path::new("/tmp/extract/Demo.app"),
+            "501",
+            "demo",
+            "1234",
+            "demo-exec",
+            "9.9.9",
+            Some("9.9.9-runtime1"),
+            "",
+        );
+        // stage-first:ditto 到暂存位必须先于任何对 TARGET 的 mv(长拷贝期间 TARGET 不动)
+        let stage_at = script
+            .find("ditto \"${SRC}\" \"${STAGE_TARGET}\"")
+            .expect("缺 stage ditto");
+        let mv_target_at = script
+            .find("mv \"${TARGET}\" \"${BACKUP_TARGET}\"")
+            .expect("缺 mv 回退");
+        assert!(
+            stage_at < mv_target_at,
+            "ditto 必须先于 mv TARGET(stage-first)"
+        );
+        assert!(script.contains("--horosa-atomic-swap"));
+        assert!(script.contains("update-stage.app"));
+        // 失败臂:install 失败必须重开旧 app(而非 set -e 静默中止)
+        assert!(script.contains("if ! install_app; then"));
+        assert!(script.contains("reopening previous app"));
+        // 磁盘预检在位
+        assert!(script.contains("insufficient disk space"));
+        // 危险旧序(把新版长时间 ditto 直写 TARGET)不得回潮
+        assert!(!script.contains("ditto \"${SRC}\" \"${TARGET}\""));
+    }
+
+    #[test]
+    fn atomic_swap_cli_flag_swaps_and_exits() {
+        let work = temp_test_dir("swap-cli");
+        let a = work.join("a.app");
+        let b = work.join("b.app");
+        fs::create_dir_all(&a).unwrap();
+        fs::create_dir_all(&b).unwrap();
+        fs::write(a.join("who.txt"), "new").unwrap();
+        fs::write(b.join("who.txt"), "old").unwrap();
+        assert_eq!(run_swap_cli(&a, &b), 0, "APFS 上应互换成功");
+        assert_eq!(fs::read_to_string(b.join("who.txt")).unwrap(), "new");
+        assert_eq!(fs::read_to_string(a.join("who.txt")).unwrap(), "old");
+        // 入参路径缺失 → 2(helper 走 mv 回退的信号,非硬错误)
+        assert_eq!(run_swap_cli(&work.join("nope"), &b), 2);
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    // [U-G] 台账追加+保尾轮转:超 1MB 保尾 200 行,新行在、头行不在,ts/shellVersion 自动补
+    #[test]
+    fn update_history_append_and_rotation_keeps_tail() {
+        let work = temp_test_dir("uhist");
+        let path = work.join("update-history.jsonl");
+        append_update_history_at(&path, serde_json::json!({ "event": "staged_ready" }));
+        let text = fs::read_to_string(&path).unwrap();
+        assert!(text.contains("\"event\":\"staged_ready\""));
+        assert!(text.contains("\"ts\":"));
+        assert!(text.contains("\"shellVersion\":"));
+        // 灌 >1MB 再追加 → 只留尾部+新行
+        let filler: String = (0..40000)
+            .map(|i| format!("{{\"event\":\"filler\",\"n\":{i}}}\n"))
+            .collect();
+        fs::write(&path, filler).unwrap();
+        assert!(fs::metadata(&path).unwrap().len() > 1024 * 1024);
+        append_update_history_at(&path, serde_json::json!({ "event": "install_confirmed" }));
+        let text = fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert!(lines.len() <= 201, "保尾 200+新 1 行,实际 {}", lines.len());
+        assert!(text.contains("install_confirmed"));
+        assert!(!text.contains("\"n\":0}"), "头行必须被轮转掉");
+        assert!(text.contains("\"n\":39999"), "尾行必须保留");
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    // [U-G] events 轮转保代:超限 rename→.1 保旧史(不再截断毁证)
+    #[test]
+    fn rotate_log_keep_one_generation() {
+        let work = temp_test_dir("rotlog");
+        let path = work.join("updater-events.log");
+        fs::write(&path, "old-history\n".repeat(1000)).unwrap();
+        // 未超限:不动
+        rotate_log_keep_one(&path, 1024 * 1024);
+        assert!(path.exists());
+        assert!(!path.with_extension("log.1").exists());
+        // 超限:rename → .1,主文件让位(调用方新建续写)
+        rotate_log_keep_one(&path, 100);
+        let older = path.with_extension("log.1");
+        assert!(older.exists(), ".1 保代必须存在");
+        assert!(!path.exists(), "主文件应让位");
+        assert!(fs::read_to_string(&older).unwrap().contains("old-history"));
+        let _ = fs::remove_dir_all(&work);
+    }
+
+    // [U-G] 诊断包 ditto 实跑:zip 产出且内容在包内
+    #[test]
+    fn diagnostics_bundle_staging_collects_expected_files() {
+        let work = temp_test_dir("diagzip");
+        let staging = work.join("staging");
+        fs::create_dir_all(staging.join("logs")).unwrap();
+        fs::write(staging.join("logs/update-history.jsonl"), "{}\n").unwrap();
+        fs::write(staging.join("system-info.txt"), "app=test\n").unwrap();
+        let out = work.join("bundle.zip");
+        zip_dir_with_ditto(&staging, &out).expect("ditto 打包应成功");
+        assert!(out.exists());
+        let listing = Command::new("/usr/bin/unzip")
+            .arg("-l")
+            .arg(&out)
+            .output()
+            .expect("unzip -l");
+        let text = String::from_utf8_lossy(&listing.stdout);
+        assert!(text.contains("update-history.jsonl"));
+        assert!(text.contains("system-info.txt"));
+        let _ = fs::remove_dir_all(&work);
+    }
 
     #[test]
     fn saved_window_state_accepts_legacy_json_without_maximize_flag() {
@@ -9266,8 +11116,7 @@ mod tests {
         let work = std::env::temp_dir().join(format!("horosa-stop-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&work);
         fs::create_dir_all(&work).expect("mk tempdir");
-        fs::copy(repo_stop_script_path(), work.join("stop_horosa_local.sh"))
-            .expect("copy script");
+        fs::copy(repo_stop_script_path(), work.join("stop_horosa_local.sh")).expect("copy script");
         let spawn_marked_sleeper = |marker: &str| {
             Command::new("/bin/bash")
                 .arg("-c")
@@ -9396,14 +11245,21 @@ mod tests {
         let new_lock = lock_json("2.0.0", "2026-02-02", &["f/a.txt", "f/c.txt"]);
         let mk = |name: &str, file: &str| ManifestComponent {
             name: name.into(),
-            kind: if name == "t" { "tree".into() } else { "files".into() },
+            kind: if name == "t" {
+                "tree".into()
+            } else {
+                "files".into()
+            },
             sha256: "irrelevant-for-apply".into(),
             size: Some(1),
             file: file.into(),
             url: String::new(),
         };
         StagedComponents {
-            archives: vec![(mk("t", "comp-t.tar.gz"), t_tar), (mk("f", "comp-f.tar.gz"), f_tar)],
+            archives: vec![
+                (mk("t", "comp-t.tar.gz"), t_tar),
+                (mk("f", "comp-f.tar.gz"), f_tar),
+            ],
             new_lock_text: serde_json::to_string_pretty(&new_lock).unwrap(),
             new_lock_json: new_lock,
         }
@@ -9448,7 +11304,10 @@ mod tests {
             &fs::read_to_string(root.join("previous/components-lock.json")).unwrap(),
         )
         .unwrap();
-        assert_ne!(prev_lock["runtimeVersion"], "2.0.0", "previous 槽必须是旧版");
+        assert_ne!(
+            prev_lock["runtimeVersion"], "2.0.0",
+            "previous 槽必须是旧版"
+        );
         assert!(!root.join("_comp_stage").exists());
         let _ = fs::remove_dir_all(&work);
     }
@@ -9468,10 +11327,18 @@ mod tests {
         // 回滚:previous 完整 → 换回 current,故障槽清除
         let root = work.join("runtime");
         fs::create_dir_all(root.join("current")).unwrap();
-        fs::write(root.join("current/runtime-manifest.json"), r#"{"version":"9.9.9"}"#).unwrap();
+        fs::write(
+            root.join("current/runtime-manifest.json"),
+            r#"{"version":"9.9.9"}"#,
+        )
+        .unwrap();
         fs::write(root.join("current/marker.txt"), "broken-new").unwrap();
         fs::create_dir_all(root.join("previous")).unwrap();
-        fs::write(root.join("previous/runtime-manifest.json"), r#"{"version":"9.9.8"}"#).unwrap();
+        fs::write(
+            root.join("previous/runtime-manifest.json"),
+            r#"{"version":"9.9.8"}"#,
+        )
+        .unwrap();
         fs::write(root.join("previous/marker.txt"), "good-old").unwrap();
         assert!(rollback_runtime_to_previous(&root).unwrap());
         assert_eq!(
@@ -9494,8 +11361,7 @@ mod tests {
 
     #[test]
     fn component_apply_failure_leaves_current_untouched() {
-        let work =
-            std::env::temp_dir().join(format!("horosa-comp-fail-{}", std::process::id()));
+        let work = std::env::temp_dir().join(format!("horosa-comp-fail-{}", std::process::id()));
         let _ = fs::remove_dir_all(&work);
         let root = work.join("root");
         setup_v1_runtime(&root);
@@ -9510,15 +11376,17 @@ mod tests {
         let lock: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(cur.join("components-lock.json")).unwrap())
                 .unwrap();
-        assert_eq!(lock["runtimeVersion"], "1.0.0", "失败后 current 必须纹丝不动");
+        assert_eq!(
+            lock["runtimeVersion"], "1.0.0",
+            "失败后 current 必须纹丝不动"
+        );
         assert!(!root.join("_comp_stage").exists(), "失败必须清理暂存");
         let _ = fs::remove_dir_all(&work);
     }
 
     #[test]
     fn component_diff_gates_and_change_detection() {
-        let work =
-            std::env::temp_dir().join(format!("horosa-comp-diff-{}", std::process::id()));
+        let work = std::env::temp_dir().join(format!("horosa-comp-diff-{}", std::process::id()));
         let _ = fs::remove_dir_all(&work);
         let root = work.join("root");
         setup_v1_runtime(&root);
@@ -9545,13 +11413,13 @@ mod tests {
             components_lock_sha256: Some("s".into()),
             app_size_bytes: None,
             runtime_size_bytes: None,
+            allow_downgrade: false,
             source: UpdateSource::Manifest,
         };
         let roots = vec![root.clone()];
         // v1 lock 里 t/f 的 sha 是 "x"/"y":同 sha 不下载,异 sha 进下载集
-        let diff =
-            plan_component_diff(&plan(Some(vec![mk("t", "x"), mk("f", "changed")])), &roots)
-                .expect("应可增量");
+        let diff = plan_component_diff(&plan(Some(vec![mk("t", "x"), mk("f", "changed")])), &roots)
+            .expect("应可增量");
         assert_eq!(diff.len(), 1);
         assert_eq!(diff[0].name, "f");
         // 新增部件(本地清单没有)按变化处理
@@ -9564,10 +11432,11 @@ mod tests {
         assert_eq!(diff2[0].name, "brand-new");
         // 门:无 components → None;多 root → None;kill-switch → None
         assert!(plan_component_diff(&plan(None), &roots).is_none());
-        assert!(
-            plan_component_diff(&plan(Some(vec![mk("t", "x")])), &[root.clone(), work.clone()])
-                .is_none()
-        );
+        assert!(plan_component_diff(
+            &plan(Some(vec![mk("t", "x")])),
+            &[root.clone(), work.clone()]
+        )
+        .is_none());
         std::env::set_var("HOROSA_UPDATE_FULL_ONLY", "1");
         assert!(plan_component_diff(&plan(Some(vec![mk("t", "q")])), &roots).is_none());
         std::env::remove_var("HOROSA_UPDATE_FULL_ONLY");
@@ -9711,7 +11580,10 @@ mod tests {
                 .expect("续传应成功");
             assert!(resumed_from > 0, "第二次必须走续传而非全新");
             assert_eq!(fs::read(&dest).unwrap(), full, "拼合内容必须逐字节一致");
-            assert!(!part.exists() && !meta.exists(), "完成后 part/meta 必须清除");
+            assert!(
+                !part.exists() && !meta.exists(),
+                "完成后 part/meta 必须清除"
+            );
             let seen = ranges.lock().unwrap();
             assert!(seen[0].is_none(), "首个请求必须无 Range");
             assert!(seen[1].as_deref().unwrap_or("").starts_with("bytes="));
@@ -9847,7 +11719,11 @@ mod tests {
             let src = dir.join("src/runtime-payload");
             fs::create_dir_all(src.join("nested/深层目录")).unwrap();
             fs::write(src.join("plain.txt"), b"hello horosa").unwrap();
-            fs::write(src.join("nested/深层目录/星阙测试.dat"), test_payload(70_000)).unwrap();
+            fs::write(
+                src.join("nested/深层目录/星阙测试.dat"),
+                test_payload(70_000),
+            )
+            .unwrap();
             fs::write(src.join("tool.sh"), b"#!/bin/sh\necho ok\n").unwrap();
             fs::set_permissions(src.join("tool.sh"), fs::Permissions::from_mode(0o755)).unwrap();
             let big = vec![0u8; (SMALL_FILE_LIMIT + 1024) as usize];
@@ -9862,9 +11738,7 @@ mod tests {
                 let encoder = GzEncoder::new(tar_gz, Compression::default());
                 let mut builder = Builder::new(encoder);
                 builder.follow_symlinks(false);
-                builder
-                    .append_dir_all("runtime-payload", &src)
-                    .unwrap();
+                builder.append_dir_all("runtime-payload", &src).unwrap();
                 let mut link_header = tar::Header::new_gnu();
                 link_header.set_entry_type(tar::EntryType::Link);
                 link_header.set_size(0);
@@ -9889,8 +11763,7 @@ mod tests {
             let cb = |read: u64, total: u64, files: u64| {
                 reported.set((read, total, files));
             };
-            extract_tar_gz_native_with(&archive, &out_par, 1, 4, Some(&cb))
-                .expect("native 并发");
+            extract_tar_gz_native_with(&archive, &out_par, 1, 4, Some(&cb)).expect("native 并发");
             let (rep_read, rep_total, rep_files) = reported.get();
             assert_eq!(rep_read, rep_total, "终报进度必须收敛到 100%");
             assert!(rep_files >= 6, "文件计数必须覆盖全部条目");
@@ -9904,8 +11777,7 @@ mod tests {
                     for e in fs::read_dir(&cur).unwrap() {
                         let p = e.unwrap().path();
                         out.push(p.strip_prefix(root).unwrap().to_path_buf());
-                        if p.is_dir() && !p.symlink_metadata().unwrap().file_type().is_symlink()
-                        {
+                        if p.is_dir() && !p.symlink_metadata().unwrap().file_type().is_symlink() {
                             stack.push(p);
                         }
                     }
@@ -9959,7 +11831,13 @@ mod tests {
             }
             // exec 位专项:tool.sh 三方都必须 0o755
             for root in [&out_seq, &out_par, &out_ext] {
-                let mode = root.join("tool.sh").metadata().unwrap().permissions().mode() & 0o777;
+                let mode = root
+                    .join("tool.sh")
+                    .metadata()
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777;
                 assert_eq!(mode, 0o755, "exec 位 {root:?}");
             }
             let _ = fs::remove_dir_all(&dir);
@@ -10002,7 +11880,10 @@ mod tests {
             // 200+合法 JSON → Fetched;404 → Absent;200+坏 JSON → Absent(掉 API fallback)
             let client = build_github_client(10).unwrap();
             let cases: Vec<(Option<&[u8]>, bool)> = vec![
-                (Some(br#"{"version":"9.9.9","tag":"v9.9.9","platforms":{}}"#), true),
+                (
+                    Some(br#"{"version":"9.9.9","tag":"v9.9.9","platforms":{}}"#),
+                    true,
+                ),
                 (None, false),
                 (Some(b"not-json"), false),
             ];

@@ -117,7 +117,7 @@ if ! grep -qF "${REPO_OWNER}/${REPO_NAME}" "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}
   exit 1
 fi
 # runtime 包内嵌整套前端(dist-file):必须与「本仓当前 dist-file」逐字节一致,
-# 否则说明包来自别处构建(跨仓拷贝/陈旧产物),装机用户的运行时自动下载会吞下它。
+# 否则说明包来自别处构建(外部拷贝/陈旧产物),装机用户的运行时自动下载会吞下它。
 RUNTIME_UMI_ENTRY="$(tar -tzf "${RUNTIME_ARCHIVE_PATH}" 2>/dev/null | grep -E 'runtime-payload/Horosa-Web/astrostudyui/dist-file/umi\.[0-9a-f]+\.js$' | head -1)"
 if [ -z "${RUNTIME_UMI_ENTRY}" ]; then
   echo "更新通道隔离硬闸: runtime 包内未找到前端主 bundle(dist-file/umi.*.js),拒绝发布" >&2

@@ -1976,6 +1976,238 @@ grep -q "qizhengelection" "${S97_PY}/websrv/webchartsrv.py" || { bad "[97] webch
 [ -f "${S97_UI}/components/common/__tests__/quickDockContract.test.js" ] || { bad "[97] 缺 quickDockContract 契约测试"; S97_BAD=1; }
 [ "${S97_BAD}" = "0" ] && ok "[97] 择日双轮链完整(WMM ${S97_WMM_EPOCHS} 历元/${S97_WMM_ROWS} 行系数)"
 
+# ── [98] kill-atomic 对换(U-A):renamex_np 单点互换+启动撕裂探测 ──────────────
+echo "[98] kill-atomic 对换"
+S98_BAD=0
+S98_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S98_TOML="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/Cargo.toml"
+grep -q 'renamex_np' "${S98_MAIN}" || { bad "[98] 缺 renamex_np 系统调用"; S98_BAD=1; }
+grep -q 'RENAME_SWAP' "${S98_MAIN}" || { bad "[98] 缺 RENAME_SWAP 旗标"; S98_BAD=1; }
+grep -q 'fn atomic_swap_dirs' "${S98_MAIN}" || { bad "[98] 缺 atomic_swap_dirs"; S98_BAD=1; }
+grep -q 'fn repair_torn_runtime_slots' "${S98_MAIN}" || { bad "[98] 缺启动撕裂探测 repair_torn_runtime_slots"; S98_BAD=1; }
+grep -q 'HOROSA_SWAP_DISABLE' "${S98_MAIN}" || { bad "[98] 缺回退分支逃生阀 HOROSA_SWAP_DISABLE"; S98_BAD=1; }
+grep -qE '^libc' "${S98_TOML}" || { bad "[98] Cargo.toml 缺 libc 依赖"; S98_BAD=1; }
+# 两处对换必须都走 swap(全量 extracted↔current、增量 stage↔current);删 swap 只留两段 rename=静默回退,红
+grep -q 'atomic_swap_dirs(&extracted_runtime, &final_runtime)' "${S98_MAIN}" || { bad "[98] 全量对换未走 swap"; S98_BAD=1; }
+grep -q 'atomic_swap_dirs(&stage, &current)' "${S98_MAIN}" || { bad "[98] 增量对换未走 swap"; S98_BAD=1; }
+grep -q 'repair_torn_runtime_slots(root)' "${S98_MAIN}" || { bad "[98] bootstrap 未接线撕裂探测"; S98_BAD=1; }
+grep -q 'rust.torn_slot_repaired' "${S98_MAIN}" || { bad "[98] 缺撕裂修复账本段"; S98_BAD=1; }
+grep -q 'atomic_swap_dirs_exchanges_trees_on_apfs' "${S98_MAIN}" || { bad "[98] 缺 swap 回归测试"; S98_BAD=1; }
+grep -q 'torn_slot_repair_promotes_complete_candidate' "${S98_MAIN}" || { bad "[98] 缺撕裂修复回归测试"; S98_BAD=1; }
+[ "${S98_BAD}" = "0" ] && ok "[98] kill-atomic 对换链在位(swap 双点+撕裂探测+回退阀)"
+
+# ── [102] 部件级重试(U-E):单部件先重试再整链降级 ──────────────────────────
+echo "[102] 部件级重试"
+S102_BAD=0
+S102_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+grep -q 'COMPONENT_RETRY_MAX' "${S102_MAIN}" || { bad "[102] 缺 COMPONENT_RETRY_MAX"; S102_BAD=1; }
+grep -q 'fn download_component_with_retry' "${S102_MAIN}" || { bad "[102] 缺重试壳函数"; S102_BAD=1; }
+grep -q 'download_component_with_retry(' "${S102_MAIN}" || { bad "[102] 逐部件循环未走重试壳"; S102_BAD=1; }
+grep -q '次重试' "${S102_MAIN}" || { bad "[102] 缺重试可视事件文案"; S102_BAD=1; }
+grep -q 'component_download_retry_then_success_and_exhaust' "${S102_MAIN}" || { bad "[102] 缺重试回归测试"; S102_BAD=1; }
+grep -q 'U-E' "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_update_experience_local.sh" || { bad "[102] s2 剧本缺重试语义注记"; S102_BAD=1; }
+[ "${S102_BAD}" = "0" ] && ok "[102] 部件级重试在位(sha 失配全新下/网络错续传接力)"
+
+# ── [99] .app helper 加固(U-B):stage-first+主二进制 swap 旗标+失败重开臂 ──
+echo "[99] helper 加固"
+S99_BAD=0
+S99_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S99_FLAGS=$(grep -c '\-\-horosa-atomic-swap' "${S99_MAIN}" 2>/dev/null || true)
+[ "${S99_FLAGS}" -ge 2 ] || { bad "[99] swap 旗标出现 ${S99_FLAGS} < 2(main 分支+helper 模板须两处)"; S99_BAD=1; }
+grep -q 'fn run_swap_cli' "${S99_MAIN}" || { bad "[99] 缺 swap CLI 本体"; S99_BAD=1; }
+grep -q 'update-stage.app' "${S99_MAIN}" || { bad "[99] helper 缺 stage-first 暂存位"; S99_BAD=1; }
+grep -q 'if ! install_app; then' "${S99_MAIN}" || { bad "[99] helper 缺 install 失败守卫臂"; S99_BAD=1; }
+grep -q 'reopening previous app' "${S99_MAIN}" || { bad "[99] helper 失败臂缺重开旧 app"; S99_BAD=1; }
+grep -q 'insufficient disk space' "${S99_MAIN}" || { bad "[99] helper 缺磁盘预检"; S99_BAD=1; }
+# 反向锚:危险旧序(新版长时间 ditto 直写 TARGET)不得回潮
+grep -q 'ditto \\"\${{SRC}}\\" \\"\${{TARGET}}\\"' "${S99_MAIN}" && { bad "[99] helper 回潮 ditto 直写 TARGET(长窗口)"; S99_BAD=1; }
+grep -q 'update_helper_script_stages_before_swap' "${S99_MAIN}" || { bad "[99] 缺 helper 契约测试"; S99_BAD=1; }
+grep -q 'atomic_swap_cli_flag_swaps_and_exits' "${S99_MAIN}" || { bad "[99] 缺 swap CLI 测试"; S99_BAD=1; }
+[ "${S99_BAD}" = "0" ] && ok "[99] helper 加固在位(stage-first+swap 旗标+失败重开+磁盘预检)"
+
+# ── [100] staged 持久化+断点恢复(U-C) ─────────────────────────────────────
+echo "[100] staged 持久化"
+S100_BAD=0
+S100_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+grep -q 'staged-update.json' "${S100_MAIN}" || { bad "[100] 缺暂存档文件"; S100_BAD=1; }
+grep -q 'fn load_staged_update_file_at' "${S100_MAIN}" || { bad "[100] 缺读档函数"; S100_BAD=1; }
+grep -q 'STAGED_UPDATE_MAX_AGE_MS' "${S100_MAIN}" || { bad "[100] 缺过期常量"; S100_BAD=1; }
+grep -q 'rust.staged_update_restored' "${S100_MAIN}" || { bad "[100] 缺恢复账本段"; S100_BAD=1; }
+grep -q '此前已下载完成' "${S100_MAIN}" || { bad "[100] 缺恢复 ready 独有文案(s5 锚)"; S100_BAD=1; }
+# 读档必须逐资产 sha 重验(load 函数体内含 sha256_digest)
+awk '/fn load_staged_update_file_at/,/^}/' "${S100_MAIN}" | grep -q 'sha256_digest' || { bad "[100] 读档未逐资产重验 sha"; S100_BAD=1; }
+# 写点+两清点+部件档清理都在
+grep -q 'persist_staged_update_file(app, &staged)' "${S100_MAIN}" || { bad "[100] 下载完成未落盘"; S100_BAD=1; }
+S100_CLEARS=$(grep -c 'clear_staged_update_file(app)' "${S100_MAIN}" 2>/dev/null || true)
+[ "${S100_CLEARS}" -ge 2 ] || { bad "[100] 消费清点 ${S100_CLEARS} < 2(helper 交接+runtime-only 成功)"; S100_BAD=1; }
+S100_CLEANUPS=$(grep -c 'cleanup_consumed_component_archives(&staged)' "${S100_MAIN}" 2>/dev/null || true)
+[ "${S100_CLEANUPS}" -ge 2 ] || { bad "[100] 部件档清理点 ${S100_CLEANUPS} < 2(磁盘漏回潮)"; S100_BAD=1; }
+grep -q 'staged_update_file_roundtrip_and_sha_gate' "${S100_MAIN}" || { bad "[100] 缺往返/篡改回归测试"; S100_BAD=1; }
+grep -q "'此前已下载完成'" "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_update_experience_local.sh" || { bad "[100] 假 release 缺 s5 断言"; S100_BAD=1; }
+[ "${S100_BAD}" = "0" ] && ok "[100] staged 持久化断点恢复在位(sha 门+过期门+双清点)"
+
+# ── [101] 更新链防降级(U-D):单调判定+双逃生阀+内联手抄零回潮 ──────────────
+echo "[101] 更新防降级"
+S101_BAD=0
+S101_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+grep -q 'fn compute_runtime_update_decision' "${S101_MAIN}" || { bad "[101] 缺单一判定函数 compute_runtime_update_decision"; S101_BAD=1; }
+grep -q 'runtime_version_rank(remote)' "${S101_MAIN}" || { bad "[101] 判定未走 runtime_version_rank 单调比较"; S101_BAD=1; }
+grep -q 'HOROSA_ALLOW_DOWNGRADE' "${S101_MAIN}" || { bad "[101] 缺 env 逃生阀 HOROSA_ALLOW_DOWNGRADE"; S101_BAD=1; }
+grep -q 'allowDowngrade' "${S101_MAIN}" || { bad "[101] 缺 manifest 逃生阀字段 allowDowngrade"; S101_BAD=1; }
+grep -q 'rust.update_downgrade_blocked' "${S101_MAIN}" || { bad "[101] 缺降级拦截账本段"; S101_BAD=1; }
+# 反向锚:runtime 判定的「remote.trim() != local.trim()」内联手抄曾散在 3 处,回潮即红
+S101_NEQ=$(grep -c 'remote.trim() != local.trim()' "${S101_MAIN}" 2>/dev/null || true)
+[ "${S101_NEQ}" = "0" ] || { bad "[101] runtime 判定内联手抄回潮 ${S101_NEQ} 处(必须走统一入口)"; S101_BAD=1; }
+# 消费面:菜单/静默检查/后台下载/自动检查 四处必须都走统一入口
+S101_CALLS=$(grep -cE 'runtime_update_decision\(&?app' "${S101_MAIN}" 2>/dev/null || true)
+[ "${S101_CALLS}" -ge 4 ] || { bad "[101] runtime_update_decision 消费点 ${S101_CALLS} < 4(有路径漏收口)"; S101_BAD=1; }
+grep -q 'allowDowngrade' "${REPO_ROOT}/Horosa_Desktop_Installer/INCREMENTAL_UPDATE_SOP.md" || { bad "[101] SOP §4.3 缺 allowDowngrade 退版剧本"; S101_BAD=1; }
+grep -q 'runtime_update_monotonic_gate' "${S101_MAIN}" || { bad "[101] 缺单调判定回归测试"; S101_BAD=1; }
+[ "${S101_BAD}" = "0" ] && ok "[101] 防降级链在位(单调判定+双逃生阀+手抄零回潮)"
+
+# ── [103] 看门狗深探+越限UX+web 监督+横幅自愈(U-F) ────────────────────────
+echo "[103] 看门狗深探链"
+S103_BAD=0
+S103_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S103_BANNER="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/common/ServiceStatusBanner.js"
+S103_RECOVERY="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/serviceRecovery.js"
+grep -q 'fn probe_identity' "${S103_MAIN}" || { bad "[103] 缺深度身份探针"; S103_BAD=1; }
+grep -q 'fn supervisor_step' "${S103_MAIN}" || { bad "[103] 缺双 streak 状态机"; S103_BAD=1; }
+grep -q 'SUPERVISOR_SILENT_ROUNDS' "${S103_MAIN}" || { bad "[103] 缺 HttpSilent 慢判常量"; S103_BAD=1; }
+grep -q 'rust.web_server_restarted' "${S103_MAIN}" || { bad "[103] web 静态服务器未纳管"; S103_BAD=1; }
+grep -q 'fn restart_local_services_command' "${S103_MAIN}" || { bad "[103] 缺轻量重启命令"; S103_BAD=1; }
+# 命令必须注册进 generate_handler(定义了没注册=前端调不到)
+awk '/generate_handler!\[/,/\]\)/' "${S103_MAIN}" | grep -q 'restart_local_services_command' || { bad "[103] 轻量重启命令未注册"; S103_BAD=1; }
+grep -q 'supervisor_gave_up' "${S103_MAIN}" || { bad "[103] 缺越限事件"; S103_BAD=1; }
+grep -q 'gave_up_latched' "${S103_MAIN}" || { bad "[103] 越限未闩锁(账本刷屏回潮)"; S103_BAD=1; }
+grep -q '__horosaServiceEvent' "${S103_MAIN}" || { bad "[103] 缺服务监督事件通道"; S103_BAD=1; }
+# 前端:自动轮询+事件钩子+错线修复(反向锚:横幅不得再直调全量修复命令作首选)
+[ -f "${S103_RECOVERY}" ] || { bad "[103] 缺 serviceRecovery.js"; S103_BAD=1; }
+grep -q 'startRecoveryPolling' "${S103_BANNER}" || { bad "[103] 横幅缺自动恢复轮询"; S103_BAD=1; }
+grep -q 'verifyBackendIdentity' "${S103_BANNER}" || { bad "[103] 横幅重试未走身份探测"; S103_BAD=1; }
+grep -q '__horosaServiceEvent' "${S103_BANNER}" || { bad "[103] 横幅缺 gave_up 事件钩子"; S103_BAD=1; }
+grep -q 'restart_local_services_command' "${S103_BANNER}" || { bad "[103] 横幅重启按钮未换轻量命令"; S103_BAD=1; }
+grep -q 'identity_probe_classifies_squatter_and_silence' "${S103_MAIN}" || { bad "[103] 缺探针分类回归测试"; S103_BAD=1; }
+grep -q 'supervisor_streak_state_machine' "${S103_MAIN}" || { bad "[103] 缺状态机回归测试"; S103_BAD=1; }
+[ -f "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/serviceRecovery.test.js" ] || { bad "[103] 缺 serviceRecovery jest"; S103_BAD=1; }
+[ "${S103_BAD}" = "0" ] && ok "[103] 看门狗深探链在位(四分类+双streak+web纳管+横幅自愈)"
+
+# ── [104] 耐久更新台账+轮转保代+诊断包导出(U-G) ───────────────────────────
+echo "[104] 更新台账/诊断包"
+S104_BAD=0
+S104_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S104_DHTML="${REPO_ROOT}/Horosa_Desktop_Installer/web/diagnostics.html"
+S104_DJS="${REPO_ROOT}/Horosa_Desktop_Installer/web/diagnostics.js"
+grep -q 'update-history.jsonl' "${S104_MAIN}" || { bad "[104] 缺耐久台账文件"; S104_BAD=1; }
+grep -q 'fn rotate_log_keep_one' "${S104_MAIN}" || { bad "[104] 缺轮转保代函数"; S104_BAD=1; }
+# 写点覆盖:staged_ready/download_error/apply_begin/helper_handoff/apply_runtime_ok/
+# apply_failed/install_confirmed/watchdog_rollback/downgrade_blocked/check_failed ≥10 调用
+S104_WRITES=$(grep -c 'append_update_history(' "${S104_MAIN}" 2>/dev/null || true)
+[ "${S104_WRITES}" -ge 10 ] || { bad "[104] 台账写点 ${S104_WRITES} < 10(事件面漏挂)"; S104_BAD=1; }
+grep -q '"event": "install_confirmed"' "${S104_MAIN}" || { bad "[104] 缺 vX→vY 结果闭环行"; S104_BAD=1; }
+# 反向锚:updater-events.log 的 File::create 截断毁证旧样式不得回潮(排除注释行——
+# 函数内说明性注释提到旧样式字样不算回潮)
+awk '/fn log_updater_event/,/^}/' "${S104_MAIN}" | grep -v '^[[:space:]]*//' | grep -q 'File::create' && { bad "[104] events 日志截断毁证旧样式回潮"; S104_BAD=1; }
+grep -q 'fn export_diagnostics_bundle' "${S104_MAIN}" || { bad "[104] 缺一键诊断包命令"; S104_BAD=1; }
+awk '/generate_handler!\[/,/\]\)/' "${S104_MAIN}" | grep -q 'export_diagnostics_bundle' || { bad "[104] 诊断包命令未注册"; S104_BAD=1; }
+grep -q 'update_history_lines' "${S104_MAIN}" || { bad "[104] 诊断载荷缺台账尾部"; S104_BAD=1; }
+grep -q 'updateHistoryOutput' "${S104_DHTML}" || { bad "[104] 诊断页缺更新历史卡"; S104_BAD=1; }
+grep -q 'exportBundleBtn' "${S104_DHTML}" || { bad "[104] 诊断页缺导出按钮"; S104_BAD=1; }
+grep -q 'export_diagnostics_bundle' "${S104_DJS}" || { bad "[104] 诊断页未接导出命令"; S104_BAD=1; }
+grep -q 'update_history_append_and_rotation_keeps_tail' "${S104_MAIN}" || { bad "[104] 缺台账回归测试"; S104_BAD=1; }
+grep -q 'rotate_log_keep_one_generation' "${S104_MAIN}" || { bad "[104] 缺轮转保代回归测试"; S104_BAD=1; }
+[ "${S104_BAD}" = "0" ] && ok "[104] 更新台账/诊断包在位(写点 ${S104_WRITES}/轮转保代/一键导出)"
+
+# ── [105] 周期检查+节流+检查失败显式化(U-H) ──────────────────────────────
+echo "[105] 更新检查节流/周期"
+S105_BAD=0
+S105_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S105_UN="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/update/UpdateNotifier.js"
+grep -q 'last-update-check.json' "${S105_MAIN}" || { bad "[105] 缺检查戳记文件"; S105_BAD=1; }
+grep -q 'fn should_run_auto_check' "${S105_MAIN}" || { bad "[105] 缺节流纯函数"; S105_BAD=1; }
+grep -q 'fn run_auto_update_check' "${S105_MAIN}" || { bad "[105] 缺自动检查本体函数"; S105_BAD=1; }
+grep -q 'AUTO_CHECK_CYCLE_SECS' "${S105_MAIN}" || { bad "[105] 缺 24h 周期常量"; S105_BAD=1; }
+grep -q 'HOROSA_UPDATE_CHECK_INTERVAL_SECS' "${S105_MAIN}" || { bad "[105] 缺 dev 周期覆盖 env"; S105_BAD=1; }
+grep -q 'rust.update_check_failed' "${S105_MAIN}" || { bad "[105] 检查失败未落账本"; S105_BAD=1; }
+grep -q '"check-failed"' "${S105_MAIN}" || { bad "[105] 检查失败未发显式事件"; S105_BAD=1; }
+# 反向锚:检查失败只 eprintln 吞掉的旧样式(auto check skipped)不得回潮
+grep -q 'auto check skipped' "${S105_MAIN}" && { bad "[105] 检查失败静默吞掉旧样式回潮"; S105_BAD=1; }
+# 手动检查两路径写戳记(菜单+前端 silent);消费点 ≥3(auto+2 手动)
+S105_STAMPS=$(grep -c 'write_update_check_stamp(' "${S105_MAIN}" 2>/dev/null || true)
+[ "${S105_STAMPS}" -ge 3 ] || { bad "[105] 检查戳记写点 ${S105_STAMPS} < 3(手动路径漏写)"; S105_BAD=1; }
+grep -q "check-failed" "${S105_UN}" || { bad "[105] 前端缺 check-failed 低打扰处理"; S105_BAD=1; }
+grep -q "downgrade-blocked" "${S105_UN}" || { bad "[105] 前端缺 downgrade-blocked 提示"; S105_BAD=1; }
+grep -q 'auto_check_throttle_gate' "${S105_MAIN}" || { bad "[105] 缺节流回归测试"; S105_BAD=1; }
+[ "${S105_BAD}" = "0" ] && ok "[105] 检查节流/周期/失败显式化在位"
+
+# ── [106] 安装链收尾组合锚(U-I:编码钉死/CLT桩清零/降级门/六包门/缓存实物锚/本机直连钉/搬迁) ──
+echo "[106] 安装链收尾"
+S106_BAD=0
+S106_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S106_START="${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"
+S106_POST="${REPO_ROOT}/Horosa_Desktop_Installer/installer-scripts/postinstall.template"
+# G1:三条 Java 启动路径都钉 file.encoding+sun.jnu.encoding;LANG 兜底(脚本+壳)
+S106_ENC=$(grep -c 'Dfile.encoding=UTF-8' "${S106_START}" 2>/dev/null || true)
+[ "${S106_ENC}" -ge 3 ] || { bad "[106] file.encoding 钉死 ${S106_ENC} < 3 条启动路径"; S106_BAD=1; }
+S106_JNU=$(grep -c 'Dsun.jnu.encoding=UTF-8' "${S106_START}" 2>/dev/null || true)
+[ "${S106_JNU}" -ge 3 ] || { bad "[106] sun.jnu.encoding 钉死 ${S106_JNU} < 3"; S106_BAD=1; }
+grep -q 'export LANG=zh_CN.UTF-8' "${S106_START}" || { bad "[106] start 脚本缺 LANG 兜底"; S106_BAD=1; }
+grep -q '"LANG"' "${S106_MAIN}" || { bad "[106] 壳 spawn 缺 LANG 兜底"; S106_BAD=1; }
+# G2:postinstall 零 /usr/bin/python3 实调(注释里提及不算——查行首非注释调用)
+grep -vE '^\s*#' "${S106_POST}" | grep -q '/usr/bin/python3' && { bad "[106] postinstall 回潮 /usr/bin/python3(CLT 弹窗桩)"; S106_BAD=1; }
+# G3:降级门
+grep -q 'downgrade guard' "${S106_POST}" || { bad "[106] postinstall 缺 runtime 降级门"; S106_BAD=1; }
+grep -q 'sort -V' "${S106_POST}" || { bad "[106] 降级门缺 sort -V 版本比较"; S106_BAD=1; }
+# G4:可用门六包(壳+postinstall 两处)
+grep -q "'cherrypy','jsonpickle','swisseph','cn2an','sxtwl','cnlunar'" "${S106_MAIN}" || { bad "[106] 壳可用门未对齐 6 包"; S106_BAD=1; }
+grep -q 'cherrypy, jsonpickle, swisseph, cn2an, sxtwl, cnlunar' "${S106_POST}" || { bad "[106] postinstall 可用门未对齐 6 包"; S106_BAD=1; }
+# G5:健康缓存实物锚
+grep -q 'fn runtime_health_probe_files_present' "${S106_MAIN}" || { bad "[106] 缺健康缓存实物锚"; S106_BAD=1; }
+grep -q 'runtime_health_probe_files_present(runtime_dir)' "${S106_MAIN}" || { bad "[106] 快路径未接实物锚"; S106_BAD=1; }
+# G7:本机直连钉死(三路径)
+S106_NPH=$(grep -c 'Dhttp.nonProxyHosts=localhost' "${S106_START}" 2>/dev/null || true)
+[ "${S106_NPH}" -ge 3 ] || { bad "[106] nonProxyHosts 钉死 ${S106_NPH} < 3"; S106_BAD=1; }
+# G8:Translocation 搬迁菜单
+grep -q 'MENU_RELOCATE_APP' "${S106_MAIN}" || { bad "[106] 缺搬迁菜单"; S106_BAD=1; }
+grep -q 'fn relocate_app_to_applications' "${S106_MAIN}" || { bad "[106] 缺搬迁实现"; S106_BAD=1; }
+[ "${S106_BAD}" = "0" ] && ok "[106] 安装链收尾在位(编码×${S106_ENC}/降级门/六包门/实物锚/直连钉×${S106_NPH}/搬迁)"
+
+echo "[107] AI 导出链(剪贴板/PDF/BOM)+ 紫微运限方向 防回归"
+S107_BAD=0
+S107_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S107_TAURI="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri"
+# 剪贴板:arboard 原生主路 + pbcopy 必钉 LC_CTYPE(GUI .app 无 locale → MacRoman 乱码)
+grep -q 'arboard = { version = "3", default-features = false' "${S107_TAURI}/Cargo.toml" || { bad "[107] Cargo.toml 缺 arboard"; S107_BAD=1; }
+grep -q 'arboard::Clipboard' "${S107_TAURI}/src/main.rs" || { bad "[107] main.rs 缺 arboard 原生主路"; S107_BAD=1; }
+python3 - "${S107_TAURI}/src/main.rs" <<'PY107' || { bad "[107] main.rs 存在未钉 LC_CTYPE 的 pbcopy 调用(MacRoman 乱码复发)"; S107_BAD=1; }
+import sys, re
+src = open(sys.argv[1], encoding='utf-8').read()
+for m in re.finditer(r'Command::new\("[^"]*pbcopy"\)', src):
+    if '.env("LC_CTYPE"' not in src[m.start():m.start() + 200]:
+        sys.exit(1)
+sys.exit(0)
+PY107
+# 前端:复制唯一入口 + 组件层裸 writeText 归零(grep -a 防含 NUL 档被当二进制漏检)
+[ -f "${S107_UI}/src/utils/clipboardText.js" ] || { bad "[107] 缺复制共享件 clipboardText.js"; S107_BAD=1; }
+grep -q "from './clipboardText'" "${S107_UI}/src/utils/aiExport.js" || { bad "[107] aiExport 未走复制共享件"; S107_BAD=1; }
+S107_RAW="$(grep -rla 'navigator.clipboard.writeText' "${S107_UI}/src/components" --include='*.js' 2>/dev/null | grep -v __tests__ | wc -l | tr -d ' ')"
+[ "${S107_RAW}" = "0" ] || { bad "[107] 组件层仍有 ${S107_RAW} 档裸 navigator.clipboard.writeText(APP 内静默失败)"; S107_BAD=1; }
+# PDF:负锚大负值离屏定位(仅 aiExport)+ 守卫正锚
+grep -q 'left:-99999px' "${S107_UI}/src/utils/aiExport.js" && { bad "[107] aiExport PDF 宿主又用大负值离屏定位(全白 PDF)"; S107_BAD=1; }
+grep -q 'canvasHasInk' "${S107_UI}/src/utils/aiExport.js" || { bad "[107] PDF 墨迹守卫缺失(空白假成功)"; S107_BAD=1; }
+grep -q 'skipFonts: true' "${S107_UI}/src/utils/aiExport.js" || { bad "[107] PDF skipFonts 缺失"; S107_BAD=1; }
+grep -q "output('blob')" "${S107_UI}/src/utils/aiExport.js" || { bad "[107] PDF blob 尺寸守卫缺失"; S107_BAD=1; }
+# BOM 单源
+grep -q 'withUtf8Bom' "${S107_UI}/src/utils/aiAnalysisExport.js" || { bad "[107] BOM 政策单源 withUtf8Bom 缺失"; S107_BAD=1; }
+# 紫微运限方向(财=+8/官=+4,地支逆行宫序)
+grep -q 'const caibo = (idx + 8) % 12' "${S107_UI}/src/components/ziwei/ZiWeiHelper.js" || { bad "[107] getSanheIndices 财帛方向丢失(应为 命+8)"; S107_BAD=1; }
+grep -q 'const guanlu = (idx + 4) % 12' "${S107_UI}/src/components/ziwei/ZiWeiHelper.js" || { bad "[107] getSanheIndices 官禄方向丢失(应为 命+4)"; S107_BAD=1; }
+# 测试在位
+for t in utils/__tests__/clipboardText.test.js utils/__tests__/aiExportPdfGuard.test.js components/ziwei/__tests__/ziweiSanheDirection.test.js; do
+  [ -f "${S107_UI}/src/${t}" ] || { bad "[107] 缺测试 ${t}"; S107_BAD=1; }
+done
+[ "${S107_BAD}" = "0" ] && ok "[107] AI 导出链 + 紫微运限方向 防回归 全在位"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

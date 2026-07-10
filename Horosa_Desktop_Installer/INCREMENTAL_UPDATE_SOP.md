@@ -54,6 +54,7 @@
 - **全网**:发布一个不带 `components` 字段的 manifest(或 `manifestVersion` 回 1)→ 所有客户端自动全量,零客户端改动。
 - **部件资产损坏**:客户端 sha 校验失败 → 当次自动回落全量下载,自愈;修复方式=重传正确部件资产。
 - **增量应用失败**:current/previous 原子对换协议保证 current 不动;客户端报错后用户重试即可(重试仍失败会一直回落全量路径)。
+- **全网退版本(极端应急)**:客户端默认**单调防降级**(线上 runtimeVersion 低于本机=拦截不动作,防 latest 指针异常把全网静默降级)。确需全网回退旧版:手工编辑 manifest,平台条目加 `"allowDowngrade": true` 并把 runtimeUrl/sha 指向旧资产,重传 manifest 即生效;单机救援可用 env `HOROSA_ALLOW_DOWNGRADE=1`。两阀均恢复「不同即更」老语义。
 
 ## 5. 客户端行为矩阵(降级全覆盖,均有 cargo test / 代码路径背书)
 

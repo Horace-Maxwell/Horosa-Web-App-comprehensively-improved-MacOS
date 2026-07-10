@@ -1,6 +1,6 @@
 [package]
 name = "horosa-desktop-installer"
-version = "3.3.2"
+version = "3.3.3"
 description = "Horosa macOS desktop shell"
 authors = ["Horosa"]
 edition = "2021"
@@ -11,8 +11,13 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 anyhow = "1"
+# [剪贴板] 原生 NSPasteboard/CF_UNICODETEXT 直写(GUI 无 locale 时 pbcopy 按 MacRoman 解读 stdin 致乱码);
+# 关 image 特性 → macOS 传递依赖(objc2 三件)全在 tauri 树,净新增仅本 crate;Windows 未来直接复用
+arboard = { version = "3", default-features = false }
 base64 = "0.22"
 flate2 = "1"
+# [U-A kill-atomic] renamex_np(RENAME_SWAP) 原子互换目录;0.2 已在 tauri 依赖树,零新增传递依赖
+libc = "0.2"
 mime_guess = "2"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 rfd = "0.15"
