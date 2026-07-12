@@ -74,6 +74,17 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" != "
   exit 1
 fi
 
+# ad-hoc 降档显式化:签名三件套缺失时产物只有 ad-hoc 签名(他机 Gatekeeper 拦),
+# 在 dist/ 落 UNSIGNED-DEV-BUILD.txt 标记 + 显眼警告;publish 的装订硬门([134])见此标记
+# 或 stapler validate 不过即拒绝上传——「本地误建版流入 release」这条路从两头堵死。
+if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "0" ]; then
+  mkdir -p "${DIST_ROOT}"
+  printf 'ad-hoc build (no Developer ID / notarization). NOT for distribution.\nbuilt_at=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" > "${DIST_ROOT}/UNSIGNED-DEV-BUILD.txt"
+  echo "⚠️⚠️  ad-hoc 构建(未签名/未公证):产物仅限本机测试,publish 装订门会拒绝上传。" >&2
+else
+  rm -f "${DIST_ROOT}/UNSIGNED-DEV-BUILD.txt" 2>/dev/null || true
+fi
+
 if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" = "1" ] && ! xcrun notarytool history --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" >/dev/null 2>&1; then
   echo "notarytool keychain profile is unavailable: ${NOTARYTOOL_KEYCHAIN_PROFILE}" >&2
   exit 1

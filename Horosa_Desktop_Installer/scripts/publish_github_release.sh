@@ -87,6 +87,22 @@ for asset in "${APP_ASSETS[@]}" "${RUNTIME_ARCHIVE_PATH}"; do
   }
 done
 
+# ── 装订硬门([134]):上传前 stapler validate .pkg——ad-hoc/未公证产物(签名三件套缺失时
+#    build 自动降档产出)绝不允许流入 release(他机 Gatekeeper 会拦,用户装不上还以为发布坏了)。
+#    逃生阀 HOROSA_ALLOW_UNSTAPLED=1(仅内网/测试 release 用,勿用于公开发行)。
+if [ "${HOROSA_ALLOW_UNSTAPLED:-0}" != "1" ]; then
+  if ! xcrun stapler validate "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}" >/dev/null 2>&1; then
+    echo "❌ ${DESKTOP_OFFLINE_PKG} 未通过 stapler validate(未公证/ad-hoc 构建)。" >&2
+    echo "   公开发行必须签名+公证+装订;重跑 build_desktop_release.sh(签名三件套在位)。" >&2
+    echo "   确属内网测试 release:HOROSA_ALLOW_UNSTAPLED=1 放行(慎用)。" >&2
+    exit 1
+  fi
+  if [ -f "${DIST_ROOT}/UNSIGNED-DEV-BUILD.txt" ]; then
+    echo "❌ dist/ 存在 UNSIGNED-DEV-BUILD.txt 标记(本目录产物出自 ad-hoc 构建)。" >&2
+    exit 1
+  fi
+fi
+
 # ── 更新通道隔离硬闸:待传产物的身份必须与「本仓自身配置」一致,防止把别处构建的产物
 #    误传进本仓 release(用户的自动更新会原样吞下)。期望值全部派生自本仓 tauri.conf,
 #    不写死任何外部值;任一不符立即中止,绝不带病上传。

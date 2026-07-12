@@ -43,6 +43,9 @@ grep -q "APP_VERSION = '${VERSION}'" "${INSTALLER_ROOT}/web/app.js"             
 if awk '/^name = "horosa-desktop-installer"$/{getline; print}' "${INSTALLER_ROOT}/src-tauri/Cargo.lock" | grep -q "version = \"${VERSION}\""; then ok "Cargo.lock"; else bad "Cargo.lock horosa-desktop-installer version != ${VERSION}"; fi
 # runtimeVersion 必须是 {VERSION}-runtimeN
 case "${RUNTIME_VERSION}" in "${VERSION}-runtime"*) ok "release_config runtimeVersion (${RUNTIME_VERSION})";; *) bad "runtimeVersion '${RUNTIME_VERSION}' 不是 ${VERSION}-runtimeN";; esac
+# ChartController 磁盘缓存版本闸必须与 runtimeVersion 同步 bump(否则升级 runtime 后旧缓存不失效)
+S1_CC="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java"
+grep -q "RUNTIME_VERSION = \"${RUNTIME_VERSION}\"" "${S1_CC}" 2>/dev/null && ok "ChartController.RUNTIME_VERSION=${RUNTIME_VERSION}" || bad "ChartController.RUNTIME_VERSION != ${RUNTIME_VERSION}(改后须 mvn install astrostudycn+重建 boot)"
 # verify_launcher_console_states.py 硬编码 launcher 的 "来源 pkg <VERSION>" 断言(launcher 用 APP_VERSION 渲染该行)——
 # 每版必须同步,否则 verify_desktop_packaging 在「编译+签名+公证」之后才报 ready-state 失败(v2.1.8 复盘:白白跑完一次签名公证)。
 grep -q "来源 pkg ${VERSION}" "${INSTALLER_ROOT}/scripts/verify_launcher_console_states.py" && ok "verify_launcher_console_states.py(launcher 版本断言)" || bad "verify_launcher_console_states.py 仍断言旧版本 —— 改 '来源 pkg ${VERSION}' 及注入 detail 的 '本机组件版本 ${VERSION}'"
@@ -2207,6 +2210,333 @@ for t in utils/__tests__/clipboardText.test.js utils/__tests__/aiExportPdfGuard.
   [ -f "${S107_UI}/src/${t}" ] || { bad "[107] 缺测试 ${t}"; S107_BAD=1; }
 done
 [ "${S107_BAD}" = "0" ] && ok "[107] AI 导出链 + 紫微运限方向 防回归 全在位"
+
+# ---- [122] dist 构建指纹门(发布产物必须可追溯到干净 HEAD;杜绝「脏工作树构建」产物无对应 commit) ----
+S122_BAD=0
+S122_INFO="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file/build-info.json"
+if [ ! -f "${S122_INFO}" ]; then
+  bad "[122] dist-file 缺 build-info.json(旧产物或 build 链未挂指纹)—— npm run build:file 重建"; S122_BAD=1
+else
+  S122_COMMIT=$(python3 -c "import json;print(json.load(open('${S122_INFO}')).get('commit',''))" 2>/dev/null || echo "")
+  S122_DIRTY=$(python3 -c "import json;print(1 if json.load(open('${S122_INFO}')).get('dirty') else 0)" 2>/dev/null || echo "1")
+  S122_HEAD=$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || echo "")
+  [ "${S122_DIRTY}" = "0" ] || { bad "[122] dist-file 由脏工作树构建(含未提交改动)——先 commit 再重 build"; S122_BAD=1; }
+  if [ -n "${S122_COMMIT}" ] && [ "${S122_COMMIT}" = "${S122_HEAD}" ]; then
+    :  # 指纹=HEAD,最严格等价
+  elif [ -n "${S122_COMMIT}" ] && git -C "${REPO_ROOT}" merge-base --is-ancestor "${S122_COMMIT}" "${S122_HEAD}" 2>/dev/null \
+       && [ -z "$(git -C "${REPO_ROOT}" diff --name-only "${S122_COMMIT}" "${S122_HEAD}" -- Horosa-Web/astrostudyui/src Horosa-Web/astrostudyui/package.json Horosa-Web/astrostudyui/.umirc.js Horosa-Web/astrostudyui/public 2>/dev/null)" ]; then
+    :  # 指纹 commit 是 HEAD 祖先且前端源面零 diff:产物与 HEAD 源码等价,仍可追溯(scripts/docs-only 前进不逼重 build)
+  else
+    bad "[122] dist-file 构建 commit(${S122_COMMIT:0:12}) ≠ 当前 HEAD(${S122_HEAD:0:12}) 且前端源面有 diff——重 build"; S122_BAD=1
+  fi
+fi
+grep -q "write-build-info.js dist-file" "${REPO_ROOT}/Horosa-Web/astrostudyui/package.json" 2>/dev/null || { bad "[122] build:file 未挂构建指纹脚本(write-build-info)"; S122_BAD=1; }
+[ "${S122_BAD}" = "0" ] && ok "[122] dist 构建指纹(干净 HEAD ${S122_HEAD:0:12} · 与源码可对应)"
+
+# ---- [123] 会话投毒防线+全站防白屏+浮层不透明+产物冒烟脚本(根因:request() 吞错 resolve
+#      undefined 被缓存层当成功缓存=会话投毒(紫微选项永远选不中/dedupe 同参 10min 无反应);
+#      直接 import 技法页无 ErrorBoundary=单组件崩整页白屏;portal 浮层消费容器作用域
+#      CSS 变量=断链透明底。四防线全为可执行护栏。) ----
+S123_BAD=0
+S123_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+echo "[123] 会话投毒/防白屏/浮层不透明/产物冒烟"
+grep -q "响应为空" "${S123_UI}/src/services/rules.js" 2>/dev/null || { bad "[123] rules.js 缺空载荷剔缓存防线(会话投毒回潮)"; S123_BAD=1; }
+grep -q "吞错型失败" "${S123_UI}/src/utils/__tests__/ziweiRulesCache.test.js" 2>/dev/null || { bad "[123] 缺 rules 投毒回归测试"; S123_BAD=1; }
+grep -q "空载荷不入缓存" "${S123_UI}/src/utils/requestDedupe.js" 2>/dev/null || { bad "[123] requestDedupe 缺空载荷防线(10min 投毒回潮)"; S123_BAD=1; }
+grep -q "吞错型失败" "${S123_UI}/src/utils/__tests__/requestDedupe.test.js" 2>/dev/null || { bad "[123] 缺 dedupe 投毒回归测试"; S123_BAD=1; }
+grep -q "TechniqueErrorBoundary" "${S123_UI}/src/components/comp/FreezeInactive.js" 2>/dev/null || { bad "[123] FreezeInactive 未集成 ErrorBoundary(直接 import 技法页白屏回潮)"; S123_BAD=1; }
+[ -f "${S123_UI}/src/components/comp/__tests__/freezeInactiveBoundary.test.js" ] || { bad "[123] 缺防白屏接线测试"; S123_BAD=1; }
+grep -q "horosa-floating-surface" "${S123_UI}/src/layouts/app.less" 2>/dev/null || { bad "[123] app.less 缺 floating-surface 基类"; S123_BAD=1; }
+awk '/\.horosa-guolao-moira-tooltip \{/,/^\}/' "${S123_UI}/src/components/guolao/GuoLaoMoiraWheel.less" 2>/dev/null | grep -q -- "--moira-tooltip-bg" || { bad "[123] moira tooltip 变量未自带(portal 断链透明回潮)"; S123_BAD=1; }
+grep -q -- "--horosa-surface-solid" "${S123_UI}/src/utils/helper.js" 2>/dev/null || { bad "[123] setupFloatingTooltip 背景未用 surface-solid(浮层微透明回潮)"; S123_BAD=1; }
+[ -x "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_packaged_frontend.sh" ] || { bad "[123] 缺 verify_packaged_frontend.sh(打包产物冒烟制度)"; S123_BAD=1; }
+[ "${S123_BAD}" = "0" ] && ok "[123] 投毒防线×2+防白屏接线+浮层不透明+产物冒烟脚本 全在位"
+
+# ---- [124] 推运盘星体白名单防线(历史事故:
+#      根因:星运页三个推运 TabPane 漏传 planetDisplay 等显示 props,
+#      AstroDoubleChart/AstroChart 把「漏传(undefined)」当「空白名单」→ 双盘有框架无星体,
+#      且 dev 源码恒正常(props 齐)——只有打包产物坏,preview 永远测不出。
+#      判据:推运盘 svg texts=64(坏)/250(好)。防线两层:①三 TabPane 显式传 planetDisplay
+#      ②两 chart 组件对漏传回落 DEFAULT_OBJECTS/DEFAULT_LOTS(漏传≠全空盘)。) ----
+S124_BAD=0
+S124_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+echo "[124] 推运盘星体白名单(漏传≠全空盘)"
+S124_CNT=$(grep -c "planetDisplay={this.props.planetDisplay}" "${S124_UI}/src/components/direction/AstroDirectMain.js" 2>/dev/null || echo 0)
+[ "${S124_CNT}" -ge 6 ] || { bad "[124] AstroDirectMain planetDisplay 透传少于 6 处(推运 TabPane 漏传回潮,现=${S124_CNT})"; S124_BAD=1; }
+grep -q "DEFAULT_OBJECTS" "${S124_UI}/src/components/astro/AstroDoubleChart.js" 2>/dev/null || { bad "[124] AstroDoubleChart 缺 planetDisplay 漏传回落(空盘回潮)"; S124_BAD=1; }
+grep -q "DEFAULT_OBJECTS" "${S124_UI}/src/components/astro/AstroChart.js" 2>/dev/null || { bad "[124] AstroChart 缺 planetDisplay 漏传回落(空盘回潮)"; S124_BAD=1; }
+[ "${S124_BAD}" = "0" ] && ok "[124] 推运 TabPane 透传×${S124_CNT}+双 chart 组件漏传回落 全在位"
+
+# ---- [125] 存储配额治理(FL 级「一个都没修好」终局根因:黄历缓存写满 localStorage
+#      5MB origin 级配额 → 全 App 一切 setItem 抛 QuotaExceededError → 页页炸错误卡。
+#      防线:①派生缓存迁 IndexedDB(字节预算+LRU,与 5MB 绝缘)+首启迁移清尸键
+#      ②全站裸 localStorage.setItem 白名单制(新增裸写=红)③错误卡 quota 自愈按钮
+#      ④quota 注错金标。) ----
+S125_BAD=0
+S125_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+echo "[125] 存储配额治理(缓存分层+裸写白名单+自愈)"
+# ① 缓存分层:localCalcCache 走 IndexedDB 后端+迁移器
+grep -q "idbCacheStore" "${S125_UI}/src/utils/localCalcCache.js" 2>/dev/null || { bad "[125] localCalcCache 未走 IndexedDB 后端(5MB 定时炸弹回潮)"; S125_BAD=1; }
+grep -q "migrateLegacyLocalStorage" "${S125_UI}/src/utils/localCalcCache.js" 2>/dev/null || { bad "[125] 缺首启迁移器(老设备尸键不清)"; S125_BAD=1; }
+grep -q "TOTAL_BUDGET_BYTES" "${S125_UI}/src/utils/idbCacheStore.js" 2>/dev/null || { bad "[125] idbCacheStore 缺字节预算(磁盘无限膨胀)"; S125_BAD=1; }
+# ② 裸 setItem 白名单:只允许 safeStorage/deferredStorage(自带 quota 防线)出现裸写
+S125_BARE=$(grep -rln "localStorage\.setItem" "${S125_UI}/src" --include="*.js" 2>/dev/null | grep -v "__tests__" | grep -v "safeStorage.js" | grep -v "deferredStorage.js" | head -5)
+[ -z "${S125_BARE}" ] || { bad "[125] 发现白名单外裸 localStorage.setItem(须走 safeStorage): ${S125_BARE}"; S125_BAD=1; }
+# ③ 错误卡 quota 自愈
+grep -q "clearRecoverableCaches" "${S125_UI}/src/components/common/TechniqueErrorBoundary.js" 2>/dev/null || { bad "[125] 错误卡缺 quota 一键清理自愈"; S125_BAD=1; }
+# ④ quota 注错金标
+[ -f "${S125_UI}/src/utils/__tests__/storageQuotaGuard.test.js" ] || { bad "[125] 缺 quota 注错回归金标"; S125_BAD=1; }
+[ "${S125_BAD}" = "0" ] && ok "[125] 缓存分层+迁移器+字节预算+裸写白名单+自愈+金标 全在位"
+
+# ---- [126] 盘面可见性重画+失败泊车(推运/恒星推运「表新盘旧」根治。
+#      根因:antd Tabs 切换只切 CSS(children element 引用不变→React bail out,子树零 render);
+#      隐藏期(svg 0×0,draw 尺寸早退)数据已更新的 d3 手绘盘切回后无任何重画触发 → 盘停旧数据、
+#      右表已是新数据,永久不吻合。防线:①watchChartSvgResize(ResizeObserver,0→非0 必重画)
+#      ②四个无自愈路径的 chart 组件挂接 ③load 失败绝不记 key 为已完成(失败泊车,窗口期后重试)
+#      ④可见性重画+泊车金标。铁律:「隐藏期 0×0 不记签名」必须搭配变可见重画触发器。) ----
+S126_BAD=0
+S126_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+echo "[126] 盘面可见性重画+失败泊车(表盘严格吻合)"
+# ① 共享工具在位
+grep -q "export function watchChartSvgResize" "${S126_UI}/src/utils/chartDrawGuard.js" 2>/dev/null || { bad "[126] chartDrawGuard 缺 watchChartSvgResize(隐藏盘切回不重画回潮)"; S126_BAD=1; }
+# ② 四个无自愈路径组件挂接(AstroDoubleChart/AstroChart=案发地;JinKouChart/GuaZhanChart=同病)
+for S126_F in astro/AstroDoubleChart.js astro/AstroChart.js jinkou/JinKouChart.js guazhan/GuaZhanChart.js; do
+	grep -q "watchChartSvgResize" "${S126_UI}/src/components/${S126_F}" 2>/dev/null || { bad "[126] ${S126_F} 未挂可见性重画"; S126_BAD=1; }
+done
+# ③ 推运面板+三容器 失败泊车(catch 记 key=表盘永久分叉)
+grep -q "parkLoadFailure" "${S126_UI}/src/components/astro/AstroProgChart.js" 2>/dev/null || { bad "[126] ProgMethodPanel 缺失败泊车(load 失败吞更新回潮)"; S126_BAD=1; }
+for S126_C in AstroProgressions AstroVedicProgressions AstroJaynesProgressions; do
+	grep -q "parkLoadFailure" "${S126_UI}/src/components/astro/${S126_C}.js" 2>/dev/null || { bad "[126] ${S126_C} 缺失败泊车"; S126_BAD=1; }
+done
+# ④ 金标在位
+[ -f "${S126_UI}/src/utils/__tests__/chartVisibilityRedraw.test.js" ] || { bad "[126] 缺可见性重画+泊车金标"; S126_BAD=1; }
+[ "${S126_BAD}" = "0" ] && ok "[126] 可见性重画工具+4组件挂接+失败泊车×4+金标 全在位"
+
+# ── [127] helper 全量 runtime 原子化(手术收进 TARGET 二进制/定义不执行/wait 后时序/
+#     previous 保留/撕裂候选 _update/失败臂不写标记/孤儿清扫/旧危险序仅存于 _legacy 逃生阀) ──
+echo "[127] helper 全量 runtime 原子化"
+S127_BAD=0
+S127_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+# ① 新协议生成器:非 legacy 函数体必须经 --horosa-runtime-swap,且零两段 mv 危险序
+S127_NEWBODY=$(awk '/^fn build_single_runtime_update_command\(/{f=1} /^fn build_single_runtime_update_command_legacy\(/{f=0} f{print}' "${S127_MAIN}")
+printf '%s' "${S127_NEWBODY}" | grep -q -- '--horosa-runtime-swap' || { bad "[127] 新协议生成器未经 TARGET 二进制对换"; S127_BAD=1; }
+printf '%s' "${S127_NEWBODY}" | grep -qF 'mv \"${WORK_ROOT}/runtime-payload\"' && { bad "[127] 新协议生成器回潮两段 mv 危险序"; S127_BAD=1; }
+# ② 逃生阀成对:legacy 函数 + 开关门都在(单删其一=半拆)
+grep -q 'fn build_single_runtime_update_command_legacy' "${S127_MAIN}" || { bad "[127] 缺 legacy 逃生阀函数"; S127_BAD=1; }
+grep -q 'fn helper_runtime_swap_enabled' "${S127_MAIN}" || { bad "[127] 缺 HOROSA_HELPER_RUNTIME_SWAP 开关门"; S127_BAD=1; }
+# ③ CLI 钩 + 协议统一(CLI 必须走 extract_runtime_archive_with 同一协议 → previous 保留/版本闸/磁盘预检全继承)
+grep -q 'fn run_runtime_swap_cli' "${S127_MAIN}" || { bad "[127] 缺 runtime-swap CLI 实现"; S127_BAD=1; }
+awk '/^fn run_runtime_swap_cli\(/{f=1} f&&/^}$/{exit} f{print}' "${S127_MAIN}" | grep -q 'extract_runtime_archive_with' || { bad "[127] CLI 未复用进程内 extract 协议(previous 保留失守)"; S127_BAD=1; }
+# ④ 模板时序:runtime 调用必须在 install_app 之后(sleep 1 之后)且失败臂 exit 73 在 mark 之前
+grep -qF 'sleep 1\nif ! run_runtime_installs; then' "${S127_MAIN}" || { bad "[127] 模板时序失守(runtime 未在 install_app 之后)"; S127_BAD=1; }
+grep -qF 'exit 73\nfi\nmark_update_complete \"pending_manual\"' "${S127_MAIN}" || { bad "[127] 失败臂/完成标记相对序失守(铁律14)"; S127_BAD=1; }
+# ⑤ 撕裂候选含旧协议暂存位 _update/runtime-payload
+grep -qF 'root.join("_update").join("runtime-payload")' "${S127_MAIN}" || { bad "[127] 撕裂候选缺 _update(旧协议过渡跳撕裂成孤儿)"; S127_BAD=1; }
+# ⑥ 孤儿清扫 + 账本段
+grep -q 'fn sweep_stale_runtime_stage_dirs' "${S127_MAIN}" || { bad "[127] 缺孤儿暂存清扫"; S127_BAD=1; }
+grep -q 'rust.stale_stage_swept' "${S127_MAIN}" || { bad "[127] 清扫缺账本段"; S127_BAD=1; }
+# ⑦ helper_handoff 事件带协议指纹(排障时区分新旧协议)
+grep -q '"helperProtocol"' "${S127_MAIN}" || { bad "[127] helper_handoff 缺协议指纹字段"; S127_BAD=1; }
+# ⑧ 回归测试在位(契约钉住:时序/铁律14/开关闭环/版本闸/previous 保留/收养)
+for t in update_helper_script_runtime_swap_after_wait_and_app update_helper_runtime_failure_arm_never_marks update_helper_legacy_killswitch_restores_old_template runtime_swap_cli_rejects_version_mismatch runtime_swap_cli_promotes_and_keeps_previous repair_torn_slots_adopts_legacy_update_dir; do
+  grep -q "fn ${t}" "${S127_MAIN}" || { bad "[127] 缺回归测试 ${t}"; S127_BAD=1; }
+done
+[ "${S127_BAD}" = "0" ] && ok "[127] helper 全量 runtime 原子化在位(CLI 协议统一/时序/previous 保留/撕裂候选/清扫/测试×6)"
+
+# ── [128] 跨进程手术互斥锁(flock 五叶子/上层禁取反锚/多实例更新感知) ──
+echo "[128] 跨进程手术互斥锁"
+S128_BAD=0
+S128_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S128_BANNER="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/common/ServiceStatusBanner.js"
+# ① 锁原语三件:锁文件名常量 / flock 系调 / 开关门
+grep -q '\.horosa-surgery\.lock' "${S128_MAIN}" || { bad "[128] 缺锁文件名常量"; S128_BAD=1; }
+grep -q 'libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB)' "${S128_MAIN}" || { bad "[128] 缺 flock 非阻塞轮询"; S128_BAD=1; }
+grep -q 'HOROSA_SURGERY_LOCK_DISABLE' "${S128_MAIN}" || { bad "[128] 缺锁开关门"; S128_BAD=1; }
+# ② 五叶各含锁调用(required×2 + optional×3),少一叶=写窗口裸奔
+for leaf in extract_runtime_archive_with apply_component_updates_with; do
+  awk "/^fn ${leaf}\(/{f=1} f&&/^}\$/{exit} f{print}" "${S128_MAIN}" | grep -q 'acquire_surgery_lock_required' || { bad "[128] ${leaf} 缺 required 锁"; S128_BAD=1; }
+done
+for leaf in rollback_runtime_to_previous repair_torn_runtime_slots cleanup_previous_slots; do
+  awk "/^fn ${leaf}\(/{f=1} f&&/^}\$/{exit} f{print}" "${S128_MAIN}" | grep -q 'acquire_surgery_lock_optional' || { bad "[128] ${leaf} 缺 optional 锁"; S128_BAD=1; }
+done
+# ③ 反向锚:锁调用总数=5(五叶各一)+定义处;上层乱取=同进程 fd 互斥自死锁
+S128_REQ=$(grep -c 'acquire_surgery_lock_required(' "${S128_MAIN}" || true)
+S128_OPT=$(grep -c 'acquire_surgery_lock_optional(' "${S128_MAIN}" || true)
+[ "${S128_REQ}" -eq 3 ] || { bad "[128] required 锁出现 ${S128_REQ} 次 ≠ 3(定义1+两叶;上层禁取)"; S128_BAD=1; }
+[ "${S128_OPT}" -eq 4 ] || { bad "[128] optional 锁出现 ${S128_OPT} 次 ≠ 4(定义1+三叶;上层禁取)"; S128_BAD=1; }
+# ④ 收养复核:repair 拿锁后必须复核 current(等锁期间对方可能已产出)
+awk '/^fn repair_torn_runtime_slots\(/{f=1} f&&/^}$/{exit} f{print}' "${S128_MAIN}" | grep -q '拿锁后复核' || { bad "[128] repair 缺拿锁后复核"; S128_BAD=1; }
+# ⑤ 多实例更新感知(V11):纯函数+supervisor 接线+账本+前端信息横幅
+grep -q 'fn runtime_change_step' "${S128_MAIN}" || { bad "[128] 缺 runtime_change_step 纯函数"; S128_BAD=1; }
+grep -q 'rust.runtime_updated_elsewhere' "${S128_MAIN}" || { bad "[128] 缺多实例更新账本段"; S128_BAD=1; }
+grep -q 'runtime_updated_elsewhere' "${S128_BANNER}" || { bad "[128] 前端横幅未接多实例更新事件"; S128_BAD=1; }
+# ⑥ 账本段 + 回归测试
+grep -q 'rust.surgery_lock_timeout' "${S128_MAIN}" || { bad "[128] 缺锁超时账本段"; S128_BAD=1; }
+for t in surgery_lock_blocks_second_acquire_same_process surgery_lock_cross_process_contention surgery_lock_released_on_sigkill surgery_lock_disable_env_bypasses torn_repair_skips_when_locked runtime_change_step_detects_version_drift; do
+  grep -q "fn ${t}" "${S128_MAIN}" || { bad "[128] 缺回归测试 ${t}"; S128_BAD=1; }
+done
+[ "${S128_BAD}" = "0" ] && ok "[128] 跨进程手术锁在位(五叶插桩/上层禁取反锚/复核/V11 感知/测试×6)"
+
+# ── [129] API 回退源 sha 闭环(manifest asset 取回 / 守门无条件 / notify-only 不触网) ──
+echo "[129] API 回退源 sha 闭环"
+S129_BAD=0
+S129_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S129_NOTIFIER="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/update/UpdateNotifier.js"
+# ① 反向锚(最重要):旧「按来源豁免 sha 守门」条件式零回潮——无 sha 绝不自动安装
+grep -q 'plan.source == UpdateSource::Manifest' "${S129_MAIN}" && { bad "[129] sha 守门回潮按来源豁免(GithubApi 回退将无 sha 自动安装)"; S129_BAD=1; }
+# ② 守门无条件在位(两处消费点:菜单检查 + 后台下载)
+S129_GUARD=$(grep -c 'plan.latest_version > current && plan.app_sha256.is_none()' "${S129_MAIN}" || true)
+[ "${S129_GUARD}" -ge 2 ] || { bad "[129] 无条件 app sha 守门 ${S129_GUARD} < 2 处"; S129_BAD=1; }
+S129_RTG=$(grep -c 'runtime_needs_update && plan.runtime_sha256.is_none()' "${S129_MAIN}" || true)
+[ "${S129_RTG}" -ge 2 ] || { bad "[129] 无条件 runtime sha 守门 ${S129_RTG} < 2 处"; S129_BAD=1; }
+# ③ 一级回退:经 API 定位 manifest asset 取回真 manifest(引用 update_manifest_name 配置)
+grep -q 'fn fetch_manifest_via_release_asset' "${S129_MAIN}" || { bad "[129] 缺 manifest asset 取回"; S129_BAD=1; }
+awk '/^fn fetch_manifest_via_release_asset\(/{f=1} f&&/^}$/{exit} f{print}' "${S129_MAIN}" | grep -q 'a.name == manifest_name' || { bad "[129] asset 取回未按 updateManifestName 匹配"; S129_BAD=1; }
+grep -q 'UpdateSource::ManifestViaApi' "${S129_MAIN}" || { bad "[129] 缺 ManifestViaApi 来源变体"; S129_BAD=1; }
+# ④ 纯映射单一真值(主通道与回退通道共用,防手抄分叉)
+grep -q 'fn plan_from_manifest' "${S129_MAIN}" || { bad "[129] 缺 plan_from_manifest 纯映射"; S129_BAD=1; }
+S129_PFM=$(grep -c 'plan_from_manifest(' "${S129_MAIN}" || true)
+[ "${S129_PFM}" -ge 4 ] || { bad "[129] plan_from_manifest 调用 ${S129_PFM} < 4(定义1+主通道1+回退1+测试)"; S129_BAD=1; }
+# ⑤ 二级降级 notify-only:plan 字段 + 三消费点短路 + 账本 + 台账
+grep -q 'notify_only: bool' "${S129_MAIN}" || { bad "[129] UpdatePlan 缺 notify_only"; S129_BAD=1; }
+grep -q 'rust.update_notify_only' "${S129_MAIN}" || { bad "[129] 缺 notify-only 账本段"; S129_BAD=1; }
+grep -q 'rust.update_manifest_via_api' "${S129_MAIN}" || { bad "[129] 缺 asset 取回账本段"; S129_BAD=1; }
+grep -q '"event": "notify_only"' "${S129_MAIN}" || { bad "[129] notify-only 未写耐久台账"; S129_BAD=1; }
+grep -q '"phase": "notify-only"' "${S129_MAIN}" || { bad "[129] 缺 notify-only 事件"; S129_BAD=1; }
+awk '/^fn run_background_update_download\(/{f=1} f&&/^}$/{exit} f{print}' "${S129_MAIN}" | grep -q 'if plan.notify_only' || { bad "[129] 后台下载未短路 notify-only(会触网无 sha 下载)"; S129_BAD=1; }
+# ⑥ 前端:notifyOnly 判空退化 + 「打开发布页」形态
+grep -q 'payload.notifyOnly === true' "${S129_NOTIFIER}" || { bad "[129] 前端 notifyOnly 未判空退化(老壳不安全)"; S129_BAD=1; }
+grep -q '打开发布页' "${S129_NOTIFIER}" || { bad "[129] 前端缺发布页出口"; S129_BAD=1; }
+# ⑦ 开关(只允许「跳过 asset 取回」,不提供「恢复无 sha 安装」的回魂路)+ 回归测试
+grep -q 'HOROSA_UPDATE_API_MANIFEST_FETCH' "${S129_MAIN}" || { bad "[129] 缺 asset 取回开关"; S129_BAD=1; }
+for t in api_fallback_fetches_manifest_asset_and_keeps_sha api_fallback_manifest_asset_missing_yields_none api_fallback_manifest_asset_bad_json_yields_none api_manifest_fetch_killswitch_forces_notify_only_path plan_from_manifest_without_sha_leaves_none_for_guard; do
+  grep -q "fn ${t}" "${S129_MAIN}" || { bad "[129] 缺回归测试 ${t}"; S129_BAD=1; }
+done
+[ "${S129_BAD}" = "0" ] && ok "[129] API 回退源 sha 闭环在位(asset 取回/守门无条件×${S129_GUARD}/notify-only 不触网/前端退化/测试×5)"
+
+# ── [130] 就绪门 progress-aware 续命(进展指纹/续命/cap 夹钳/判死引用进展/壳脚同步) ──
+echo "[130] 就绪门 progress-aware 续命"
+S130_BAD=0
+S130_START="${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"
+S130_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+grep -q '_progress_fingerprint()' "${S130_START}" || { bad "[130] 缺进展指纹函数"; S130_BAD=1; }
+grep -q 'sh.ready_extend' "${S130_START}" || { bad "[130] 缺续命账本段"; S130_BAD=1; }
+grep -q 'sh.ready_giveup' "${S130_START}" || { bad "[130] 缺判死账本段"; S130_BAD=1; }
+grep -q 'HOROSA_READY_PROGRESS_EXTEND' "${S130_START}" || { bad "[130] 缺总开关"; S130_BAD=1; }
+grep -q 'HOROSA_READY_TOTAL_CAP_SECS' "${S130_START}" || { bad "[130] 缺总 cap(无限等防线)"; S130_BAD=1; }
+# 反锚①:判死分支必须引用 last_progress_epoch(续命被删回硬超时=红)
+awk '/-ge "\$\{deadline_epoch\}"/{f=1} f' "${S130_START}" | head -30 | grep -q 'last_progress_epoch' || { bad "[130] 判死分支未引用 last_progress_epoch(硬超时回潮)"; S130_BAD=1; }
+# 反锚②:续命必须被 cap 夹钳(超冲 59s 病零回潮)
+grep -q 'cap_epoch=' "${S130_START}" || { bad "[130] 续命缺 cap 夹钳"; S130_BAD=1; }
+# 反锚③:指纹函数禁 lsof(慢探针拖死就绪门)
+awk '/_progress_fingerprint\(\)/{f=1} f&&/^}$/{exit} f{print}' "${S130_START}" | grep -q 'lsof' && { bad "[130] 指纹函数混入 lsof"; S130_BAD=1; }
+# 壳脚同步:心跳读 ready_extend 段给续命可视文案
+grep -q 'sh.ready_extend' "${S130_MAIN}" || { bad "[130] 壳心跳未接续命段(慢机用户会当卡死)"; S130_BAD=1; }
+grep -q 'fn start_script_keeps_progress_extend_guard' "${S130_MAIN}" || { bad "[130] 缺契约测试"; S130_BAD=1; }
+[ "${S130_BAD}" = "0" ] && ok "[130] progress-aware 就绪门在位(指纹/续命/cap 夹钳/判死引用进展/壳脚同步/契约)"
+
+# ── [131] 探针深化(OOM 转硬死/deep 真算双端 proto2 一致/壳 proto 门代数差免疫) ──
+echo "[131] 探针深化(OOM+deep)"
+S131_BAD=0
+S131_START="${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"
+S131_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S131_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/HorosaIdentityController.java"
+S131_PY="${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"
+# ① JVM OOM 旗:走集中变量(三启动分支共用)+ 开关
+grep -q 'ExitOnOutOfMemoryError' "${S131_START}" || { bad "[131] 缺 ExitOnOutOfMemoryError(软 OOM 假活盲区回潮)"; S131_BAD=1; }
+grep -q 'HOROSA_JAVA_EXIT_ON_OOM' "${S131_START}" || { bad "[131] 缺 OOM 旗开关"; S131_BAD=1; }
+# ② 双端 proto 一致升 2(单边升协议=红)+ deep 实现 + dev 注错钩
+grep -q '\\"proto\\":2' "${S131_JAVA}" || { bad "[131] Java 身份端 proto 未升 2"; S131_BAD=1; }
+grep -q "'proto': 2" "${S131_PY}" || { bad "[131] Python 身份端 proto 未升 2"; S131_BAD=1; }
+grep -q 'runDeepProbe' "${S131_JAVA}" || { bad "[131] Java 缺深探真算"; S131_BAD=1; }
+grep -q '_identity_deep_ok' "${S131_PY}" || { bad "[131] Python 缺深探真算"; S131_BAD=1; }
+grep -q 'HOROSA_IDENTITY_DEEP_FAIL' "${S131_JAVA}" || { bad "[131] Java 缺注错钩"; S131_BAD=1; }
+grep -q 'HOROSA_IDENTITY_DEEP_FAIL' "${S131_PY}" || { bad "[131] Python 缺注错钩"; S131_BAD=1; }
+# ③ 壳侧:DeepFail/DeepUnsupported 分类 + deep_step + 周期常量 + 开关 + proto 门包裹
+grep -q 'DeepFail' "${S131_MAIN}" || { bad "[131] 缺 DeepFail 分类"; S131_BAD=1; }
+grep -q 'DeepUnsupported' "${S131_MAIN}" || { bad "[131] 缺 DeepUnsupported(代数差免疫)"; S131_BAD=1; }
+grep -q 'fn deep_step' "${S131_MAIN}" || { bad "[131] 缺 deep_step 状态机"; S131_BAD=1; }
+grep -q 'SUPERVISOR_DEEP_EVERY_ROUNDS' "${S131_MAIN}" || { bad "[131] 缺深探周期常量"; S131_BAD=1; }
+grep -q 'HOROSA_DEEP_PROBE' "${S131_MAIN}" || { bad "[131] 缺深探开关"; S131_BAD=1; }
+# 反锚:probe_identity 内 deep 判定必须被 proto 门包裹(proto<2 直通,防误杀旧 runtime)
+awk '/^fn probe_identity\(/{f=1} f&&/^}$/{exit} f{print}' "${S131_MAIN}" | grep -q 'proto < 2' || { bad "[131] deep 判定缺 proto 门(新壳×旧 runtime 会被误杀)"; S131_BAD=1; }
+# ④ 账本段 + 回归测试
+grep -q 'rust.deep_probe_fail' "${S131_MAIN}" || { bad "[131] 缺深探失败账本段"; S131_BAD=1; }
+grep -q 'rust.deep_probe_unsupported' "${S131_MAIN}" || { bad "[131] 缺 unsupported 账本段"; S131_BAD=1; }
+for t in deep_step_state_machine probe_identity_deep_unsupported_on_proto1 probe_identity_deep_fail_on_proto2 probe_identity_deep_ok_on_proto2; do
+  grep -q "fn ${t}" "${S131_MAIN}" || { bad "[131] 缺回归测试 ${t}"; S131_BAD=1; }
+done
+grep -q 'test_horosa_identity_deep_ok' "${REPO_ROOT}/Horosa-Web/astropy/tests/test_horosa_identity.py" || { bad "[131] 缺 Python 深探 pytest"; S131_BAD=1; }
+[ "${S131_BAD}" = "0" ] && ok "[131] 探针深化在位(OOM 旗/双端 proto2/deep 真算/proto 门/账本/测试)"
+
+# ── [132] 观测一致性(状态灯真话/三处重启统一轻量/诊断包收 Java 日志) ──
+echo "[132] 观测一致性"
+S132_BAD=0
+S132_DOT="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/common/BackendStatusDot.js"
+S132_MODAL="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/common/ChartServiceErrorModal.js"
+S132_BANNER="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/common/ServiceStatusBanner.js"
+S132_RECOVERY="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/serviceRecovery.js"
+S132_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+# ① 真话灯:状态灯必须走身份握手;反锚 /heartbeat 裸 fetch 零回潮(404/毒200 点绿灯的病)
+grep -q 'verifyBackendIdentity' "${S132_DOT}" || { bad "[132] 状态灯未走身份握手"; S132_BAD=1; }
+grep -q '/heartbeat' "${S132_DOT}" && { bad "[132] 状态灯回潮 /heartbeat 裸探(主后端无此 HTTP 路由,灯会撒谎)"; S132_BAD=1; }
+# ② 三处「重启后端」统一轻量入口(共享 util,禁再内联 trigger_runtime_repair_command 直连)
+grep -q 'fn invokeLightServiceRestart\|function invokeLightServiceRestart\|invokeLightServiceRestart' "${S132_RECOVERY}" || { bad "[132] 缺共享轻量重启 util"; S132_BAD=1; }
+for f in "${S132_DOT}" "${S132_MODAL}" "${S132_BANNER}"; do
+  grep -q 'invokeLightServiceRestart' "${f}" || { bad "[132] $(basename "${f}") 未走统一重启入口"; S132_BAD=1; }
+done
+grep -q "onClick={() => tauriInvoke('trigger_runtime_repair_command'" "${S132_MODAL}" && { bad "[132] 弹窗回潮全量修复直连"; S132_BAD=1; }
+grep -q "invoke('trigger_runtime_repair_command')" "${S132_DOT}" && { bad "[132] 状态灯回潮全量修复直连"; S132_BAD=1; }
+# ③ 诊断包收 Java 结构化日志(选取器 + java-logs 目录 + 20MB cap)
+grep -q 'fn select_recent_files_by_mtime' "${S132_MAIN}" || { bad "[132] 缺 Java 日志选取器"; S132_BAD=1; }
+grep -q '"java-logs"' "${S132_MAIN}" || { bad "[132] 诊断包未收 java-logs"; S132_BAD=1; }
+grep -q '.horosa-logs' "${S132_MAIN}" || { bad "[132] 诊断包未指向 log4j2 落点"; S132_BAD=1; }
+# ④ 回归测试
+grep -q 'fn select_recent_files_prefers_newest_within_cap' "${S132_MAIN}" || { bad "[132] 缺选取器测试"; S132_BAD=1; }
+grep -q 'invokeLightServiceRestart' "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/serviceRecovery.test.js" || { bad "[132] 缺轻量重启 jest"; S132_BAD=1; }
+[ "${S132_BAD}" = "0" ] && ok "[132] 观测一致性在位(真话灯/三处统一轻量/诊断包 java-logs/测试)"
+
+# ── [133] 运行期资源自感知(磁盘水位闩/权限写测定因/失败上浮) ──
+echo "[133] 运行期资源自感知"
+S133_BAD=0
+S133_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S133_BANNER="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/common/ServiceStatusBanner.js"
+grep -q 'fn disk_low_step' "${S133_MAIN}" || { bad "[133] 缺磁盘水位闩纯函数"; S133_BAD=1; }
+grep -q 'HOROSA_DISK_WATCH' "${S133_MAIN}" || { bad "[133] 缺磁盘监控开关"; S133_BAD=1; }
+grep -q 'HOROSA_DISK_MIN_MB' "${S133_MAIN}" || { bad "[133] 缺阈值参数"; S133_BAD=1; }
+grep -q 'rust.disk_low' "${S133_MAIN}" || { bad "[133] 缺磁盘水位账本段"; S133_BAD=1; }
+grep -q '"kind": "disk_low"' "${S133_MAIN}" || { bad "[133] 缺 disk_low 事件"; S133_BAD=1; }
+grep -q "'disk_low'" "${S133_BANNER}" || { bad "[133] 前端横幅未接 disk_low"; S133_BAD=1; }
+# 权限定因:写测函数 + 失败包装(restart 失败必须过定因)+ 账本
+grep -q 'fn classify_permission_issue' "${S133_MAIN}" || { bad "[133] 缺权限写测定因"; S133_BAD=1; }
+grep -q 'fn restart_local_services_inner' "${S133_MAIN}" || { bad "[133] restart 失败未过定因包装"; S133_BAD=1; }
+grep -q 'rust.permission_probe_failed' "${S133_MAIN}" || { bad "[133] 缺权限定因账本段"; S133_BAD=1; }
+# 解闩防抖反锚:disk_low_step 内必须有 2× 恢复阈值(防阈值附近抖动刷屏)
+awk '/^fn disk_low_step\(/{f=1} f&&/^}$/{exit} f{print}' "${S133_MAIN}" | grep -q 'saturating_mul(2)' || { bad "[133] 缺 2× 解闩防抖"; S133_BAD=1; }
+for t in disk_low_step_latch_and_recovery classify_permission_issue_detects_readonly_dir; do
+  grep -q "fn ${t}" "${S133_MAIN}" || { bad "[133] 缺回归测试 ${t}"; S133_BAD=1; }
+done
+[ "${S133_BAD}" = "0" ] && ok "[133] 资源自感知在位(水位闩/2×防抖/权限定因/失败上浮/测试×2)"
+
+# 114. 签名产物防误发():ad-hoc 构建落 UNSIGNED-DEV-BUILD.txt 标记+警告;
+#      publish 上传前 stapler validate 硬门(逃生 HOROSA_ALLOW_UNSTAPLED=1 仅测试 release)。
+#      堵「本地未签名误建版被 publish 流入公开 release、他机 Gatekeeper 拦装」这条路。
+echo "[134] 签名产物防误发(build 标记 + publish 装订门)"
+S134_BAD=0
+S134_BUILD="${INSTALLER_ROOT}/scripts/build_desktop_release.sh"
+S134_PUB="${INSTALLER_ROOT}/scripts/publish_github_release.sh"
+grep -q 'UNSIGNED-DEV-BUILD.txt' "${S134_BUILD}" || { bad "[134] build 缺 ad-hoc 标记文件落点"; S134_BAD=1; }
+grep -q 'ad-hoc 构建(未签名/未公证)' "${S134_BUILD}" || { bad "[134] build 缺 ad-hoc 显眼警告"; S134_BAD=1; }
+awk '/UNSIGNED-DEV-BUILD.txt/{n++} END{exit !(n>=2)}' "${S134_BUILD}" || { bad "[134] build 标记须双臂(降档写入+签名档清除)"; S134_BAD=1; }
+grep -q 'xcrun stapler validate "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"' "${S134_PUB}" || { bad "[134] publish 缺 stapler validate 硬门(须验 offline pkg 本体)"; S134_BAD=1; }
+grep -q 'HOROSA_ALLOW_UNSTAPLED' "${S134_PUB}" || { bad "[134] publish 装订门缺逃生阀(内网测试 release 需要)"; S134_BAD=1; }
+grep -q 'UNSIGNED-DEV-BUILD.txt' "${S134_PUB}" || { bad "[134] publish 未检查 ad-hoc 标记文件"; S134_BAD=1; }
+# 顺序锚:装订门必须先于上传(资产一旦上传,门就形同虚设)
+S134_GATE_LN="$(grep -n 'xcrun stapler validate "${DIST_ROOT}' "${S134_PUB}" | head -1 | cut -d: -f1 || true)"
+S134_UP_LN="$(grep -n '^upload_asset()' "${S134_PUB}" | head -1 | cut -d: -f1 || true)"
+{ [ -n "${S134_GATE_LN}" ] && [ -n "${S134_UP_LN}" ] && [ "${S134_GATE_LN}" -lt "${S134_UP_LN}" ]; } || { bad "[134] 装订门(${S134_GATE_LN:-?})未先于上传函数(${S134_UP_LN:-?})"; S134_BAD=1; }
+[ "${S134_BAD}" = "0" ] && ok "[134] 签名产物防误发在位(标记双臂/装订门/逃生阀/门先于上传)"
+
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

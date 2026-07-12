@@ -29,6 +29,10 @@ use tiny_http::{Header, Method, Response, Server, StatusCode};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
+// ⚠️ 本仓身份三常量必须与 tauri.conf/release_config 一致:
+// APP_NAME 用于 /Applications 定位、更新解压路径、窗口标题;APP_IDENTIFIER 用于 defaults 偏好域清理;
+// DEFAULT_REPO_NAME 是读不到打包配置时的更新兜底源。任何一个配错取值,
+// 就会去碰其它构建的安装位/偏好域/更新通道(串台事故)。
 const APP_NAME: &str = "星阙";
 const APP_IDENTIFIER: &str = "com.horacedong.horosa";
 const MAIN_WINDOW_LABEL: &str = "main";
@@ -167,7 +171,10 @@ struct GithubRelease {
 struct GithubAsset {
     name: String,
     browser_download_url: String,
-    // GitHub API 恒带 size(字节);容缺以防字段变动
+    // GitHub API 恒带 size(字节);容缺以防字段变动。
+    // 起 API 回退不再直接组装下载 plan(改为取回 manifest asset,或降级 notify-only),
+    // 故本字段当前无消费点;保留以备将来(如发布页展示体积)。
+    #[allow(dead_code)]
     #[serde(default)]
     size: Option<u64>,
 }
@@ -256,11 +263,17 @@ struct UpdatePlan {
     // [U-D 防降级] manifest allowDowngrade 透传(GithubApi 回退源恒 false)
     allow_downgrade: bool,
     source: UpdateSource,
+    /// 只通知不安装:主 manifest 与 manifest asset 双双不可得 → 无 sha 可校验。
+    /// 信任模型(PLAYBOOK §4)= HTTPS + sha256;缺 sha 绝不自动下载安装,只引导去发布页。
+    notify_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UpdateSource {
     Manifest,
+    /// 主 manifest URL 不可达(5xx/CDN 故障),但经 GitHub API 定位到 release 里的
+    /// manifest asset 并取回 —— 完整 sha/部件信息俱在,与 Manifest 同等可信。
+    ManifestViaApi,
     GithubApi,
 }
 
@@ -2567,6 +2580,31 @@ fn zip_dir_with_ditto(src: &Path, out: &Path) -> Result<()> {
 // [U-G] 一键导出诊断包:logs 全目录(既有留存策略控体积)+关键状态文件+系统信息
 // → ~/Desktop/<app>-诊断-<ts>.zip(桌面缺失退回数据目录),并 Finder 定位。
 // 非技术用户排障从「教对方翻目录」变成「发一个 zip」。
+// 诊断包 Java 日志选取器(纯函数可测):按 mtime 降序拣最新文件,总量 ≤ cap;
+// 超预算的大文件跳过继续拣小的(宁可多收几份小日志,不为一份巨型日志放弃其余)。
+fn select_recent_files_by_mtime(root: &Path, cap_bytes: u64) -> Vec<PathBuf> {
+    let mut files: Vec<(SystemTime, u64, PathBuf)> = WalkDir::new(root)
+        .into_iter()
+        .flatten()
+        .filter(|e| e.file_type().is_file())
+        .filter_map(|e| {
+            let md = e.metadata().ok()?;
+            Some((md.modified().ok()?, md.len(), e.into_path()))
+        })
+        .collect();
+    files.sort_by(|a, b| b.0.cmp(&a.0));
+    let mut total = 0u64;
+    let mut out = Vec::new();
+    for (_, len, path) in files {
+        if total.saturating_add(len) > cap_bytes {
+            continue;
+        }
+        total += len;
+        out.push(path);
+    }
+    out
+}
+
 #[tauri::command]
 fn export_diagnostics_bundle(app: AppHandle) -> std::result::Result<String, String> {
     (|| -> Result<String> {
@@ -2590,6 +2628,25 @@ fn export_diagnostics_bundle(app: AppHandle) -> std::result::Result<String, Stri
         let manifest = shared_runtime_dir().join("runtime-manifest.json");
         if manifest.exists() {
             let _ = fs::copy(&manifest, staging.join("runtime-manifest.json"));
+        }
+        // Java 结构化日志:log4j2 落 ~/.horosa-logs/astrostudyboot(yyyy/MM/dd 滚动),
+        // 不在 app_data/logs 内 —— 此前诊断包只有重定向 stdout 的 JAVA_LOG,spring/sql
+        // 滚动日志全缺。按 mtime 取最新 ≤20MB 保持相对目录进 java-logs/。
+        if let Ok(home_dir) = std::env::var("HOME").map(PathBuf::from) {
+            let java_logs_root = home_dir.join(".horosa-logs").join("astrostudyboot");
+            if java_logs_root.exists() {
+                let picked =
+                    select_recent_files_by_mtime(&java_logs_root, 20 * 1024 * 1024);
+                for src in picked {
+                    if let Ok(rel) = src.strip_prefix(&java_logs_root) {
+                        let dest = staging.join("java-logs").join(rel);
+                        if let Some(parent) = dest.parent() {
+                            let _ = fs::create_dir_all(parent);
+                        }
+                        let _ = fs::copy(&src, &dest);
+                    }
+                }
+            }
         }
         let sw = Command::new("/usr/bin/sw_vers")
             .output()
@@ -2765,7 +2822,7 @@ fn open_diagnostics_window_command(app: AppHandle) -> std::result::Result<(), St
 }
 
 // 桌面剪贴板:webview 里 navigator.clipboard / execCommand 被拦,走原生剪贴板。
-// 主路 arboard(NSPasteboard / CF_UNICODETEXT,Unicode 直写,跨平台同一实现);
+// [E1] 主路 arboard(NSPasteboard / CF_UNICODETEXT,Unicode 直写,跨平台同一实现);
 // macOS 兜底 pbcopy——GUI .app 进程无 LANG/LC_CTYPE 时 pbcopy 按 MacRoman 解读 stdin
 // (「技术」→「ÊäÄÊúØ」类乱码),必须显式钉 LC_CTYPE=UTF-8;绝对路径免 PATH 依赖。
 struct DesktopClipboardState(Mutex<Option<arboard::Clipboard>>);
@@ -2808,6 +2865,7 @@ fn copy_text_to_clipboard_command(
             .lock()
             .map_err(|_| "剪贴板状态锁中毒".to_string())?;
         if guard.is_none() {
+            // 构建期创建失败或上次写失败被重置 → 惰性重建(pasteboard 服务偶发异常可自愈)
             *guard = arboard::Clipboard::new().ok();
         }
         match guard.as_mut() {
@@ -2847,6 +2905,45 @@ fn open_external_url_command(url: String) -> std::result::Result<(), String> {
         .arg(target)
         .spawn()
         .map_err(|err| format!("open 外链失败: {err}"))?;
+    Ok(())
+}
+
+// [B-A5] 报告矢量打印:前端传完整 HTML(buildReportHtml 产物)→ 落临时文件 →
+// 独立 WebviewWindow 加载 → 页面 Finished 后弹 macOS 原生打印对话框(wry Webview::print,
+// 本平台恒 macOS)。打印对话框「另存为 PDF」= 文字可选的矢量 PDF——区别于前端
+// html2canvas 位图 PDF(保留为「PDF(图片版)」)。窗口留着给用户预览/重印,自行关闭。
+#[tauri::command]
+fn print_report_html_command(
+    app: AppHandle,
+    html: String,
+    title: Option<String>,
+) -> std::result::Result<(), String> {
+    let dir = std::env::temp_dir().join("horosa-print");
+    fs::create_dir_all(&dir).map_err(|err| format!("建打印暂存目录失败: {err}"))?;
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let page = dir.join(format!("report-{stamp}.html"));
+    fs::write(&page, html).map_err(|err| format!("写打印页失败: {err}"))?;
+    let url = tauri::Url::from_file_path(&page)
+        .map_err(|_| "打印页路径无法转 URL".to_string())?;
+    let label = format!("report-print-{stamp}");
+    WebviewWindowBuilder::new(&app, label, WebviewUrl::External(url))
+        .title(title.unwrap_or_else(|| "打印 / 另存矢量 PDF".to_string()))
+        .inner_size(920.0, 1080.0)
+        .on_page_load(|win, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                let target = win.clone();
+                // 留 400ms 让嵌图/字体 settle 再弹打印;spawn 出回调线程避免阻塞页面事件。
+                thread::spawn(move || {
+                    thread::sleep(Duration::from_millis(400));
+                    let _ = target.print();
+                });
+            }
+        })
+        .build()
+        .map_err(|err| format!("打印窗口创建失败: {err}"))?;
     Ok(())
 }
 
@@ -4130,7 +4227,8 @@ fn verify_sha256(path: &Path, expected: Option<&str>, label: &str) -> Result<()>
     Ok(())
 }
 
-// manifest 获取(信任模型:HTTPS + GitHub 账号 + 资产 sha256):
+// manifest 获取(签名制度已于 2026-07-04 应用户决定取消——信任模型回到
+// HTTPS + GitHub 账号 + 资产 sha256;取消记录见 docs/UPDATE_AND_PERF_PLAYBOOK.md §4):
 // Fetched=清单可用;Absent=不存在/网络失败/JSON 异常 → 允许走 GitHub API fallback。
 enum ManifestFetch {
     Fetched(UpdateManifest),
@@ -4159,49 +4257,81 @@ fn fetch_update_manifest(client: &Client, manifest_url: &str) -> ManifestFetch {
     }
 }
 
+// manifest → plan 的纯映射(可测;主通道与 API-asset 回退通道共用,零手抄分叉)。
+fn plan_from_manifest(
+    manifest: UpdateManifest,
+    config: &ReleaseConfig,
+    platform_key: &str,
+    source: UpdateSource,
+) -> Option<UpdatePlan> {
+    let platform = manifest.platforms.get(platform_key)?;
+    let latest = Version::parse(manifest.version.trim()).ok()?;
+    let repo_url = format!(
+        "https://github.com/{}/{}",
+        config.repo_owner, config.repo_name
+    );
+    let release_tag = manifest
+        .tag
+        .clone()
+        .unwrap_or_else(|| format!("{}{}", config.release_tag_prefix, latest));
+    let release_url = format!("{}/releases/tag/{}", repo_url, release_tag);
+    Some(UpdatePlan {
+        latest_version: latest,
+        notes: manifest
+            .notes
+            .clone()
+            .unwrap_or_else(|| "See GitHub release notes.".to_string()),
+        repo_url,
+        release_url,
+        app_url: platform.app_url.clone(),
+        app_sha256: normalize_checksum(platform.app_sha256.clone()),
+        runtime_url: platform.runtime_url.clone(),
+        runtime_version: platform.runtime_version.clone(),
+        runtime_sha256: normalize_checksum(platform.runtime_sha256.clone()),
+        components: platform.components.clone(),
+        components_lock_url: platform.components_lock_url.clone(),
+        components_lock_sha256: normalize_checksum(platform.components_lock_sha256.clone()),
+        app_size_bytes: platform.app_size_bytes,
+        runtime_size_bytes: platform.runtime_size_bytes,
+        allow_downgrade: platform.allow_downgrade.unwrap_or(false),
+        source,
+        notify_only: false,
+    })
+}
+
+fn api_manifest_fetch_enabled() -> bool {
+    std::env::var("HOROSA_UPDATE_API_MANIFEST_FETCH")
+        .map(|v| v != "0")
+        .unwrap_or(true)
+}
+
+// API 回退时,先在 release assets 里找 manifest 资产并取回真 manifest
+// (horosa-latest.json 本身就是 release 的一个 asset,发布脚本随包上传)。
+fn fetch_manifest_via_release_asset(
+    client: &Client,
+    release: &GithubRelease,
+    manifest_name: &str,
+) -> Option<UpdateManifest> {
+    if !api_manifest_fetch_enabled() {
+        return None;
+    }
+    let asset = release.assets.iter().find(|a| a.name == manifest_name)?;
+    match fetch_update_manifest(client, &cache_busted_url(&asset.browser_download_url)) {
+        ManifestFetch::Fetched(manifest) => Some(manifest),
+        ManifestFetch::Absent => None,
+    }
+}
+
 fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
     let config = load_release_config(app)?;
     let platform_key = current_platform_key();
 
     let manifest_url = cache_busted_url(&update_manifest_url(&config));
-    {
-        if let ManifestFetch::Fetched(manifest) = fetch_update_manifest(client, &manifest_url) {
-            {
-                if let Some(platform) = manifest.platforms.get(platform_key) {
-                    let latest = Version::parse(manifest.version.trim())?;
-                    let repo_url = format!(
-                        "https://github.com/{}/{}",
-                        config.repo_owner, config.repo_name
-                    );
-                    let release_tag = manifest
-                        .tag
-                        .clone()
-                        .unwrap_or_else(|| format!("{}{}", config.release_tag_prefix, latest));
-                    let release_url = format!("{}/releases/tag/{}", repo_url, release_tag);
-                    return Ok(UpdatePlan {
-                        latest_version: latest,
-                        notes: manifest
-                            .notes
-                            .unwrap_or_else(|| "See GitHub release notes.".to_string()),
-                        repo_url,
-                        release_url,
-                        app_url: platform.app_url.clone(),
-                        app_sha256: normalize_checksum(platform.app_sha256.clone()),
-                        runtime_url: platform.runtime_url.clone(),
-                        runtime_version: platform.runtime_version.clone(),
-                        runtime_sha256: normalize_checksum(platform.runtime_sha256.clone()),
-                        components: platform.components.clone(),
-                        components_lock_url: platform.components_lock_url.clone(),
-                        components_lock_sha256: normalize_checksum(
-                            platform.components_lock_sha256.clone(),
-                        ),
-                        app_size_bytes: platform.app_size_bytes,
-                        runtime_size_bytes: platform.runtime_size_bytes,
-                        allow_downgrade: platform.allow_downgrade.unwrap_or(false),
-                        source: UpdateSource::Manifest,
-                    });
-                }
-            }
+    if let ManifestFetch::Fetched(manifest) = fetch_update_manifest(client, &manifest_url) {
+        if let Some(plan) =
+            plan_from_manifest(manifest, &config, platform_key, UpdateSource::Manifest)
+        {
+            return Ok(plan);
         }
     }
 
@@ -4217,41 +4347,54 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
         .send()?
         .error_for_status()?
         .json::<GithubRelease>()?;
+
+    // 一级回退:经 API 定位 manifest asset → 取回真 manifest → 走含 sha 的正常通道。
+    if let Some(manifest) =
+        fetch_manifest_via_release_asset(client, &release, &config.update_manifest_name)
+    {
+        if let Some(plan) =
+            plan_from_manifest(manifest, &config, platform_key, UpdateSource::ManifestViaApi)
+        {
+            ledger_mark(
+                "rust.update_manifest_via_api",
+                Some(serde_json::json!({ "tag": release.tag_name })),
+            );
+            return Ok(plan);
+        }
+    }
+
+    // 二级降级:manifest 与其 asset 双双不可得 → notify-only。
+    // 绝不再无 sha 自动下载安装(旧行为的安全洞):只把版本/发布页告诉用户。
     let latest = parse_version(&release.tag_name)?;
     let repo_url = format!(
         "https://github.com/{}/{}",
         config.repo_owner, config.repo_name
     );
-    let asset = release
-        .assets
-        .iter()
-        .find(|asset| asset.name == config.desktop_asset_name)
-        .ok_or_else(|| anyhow!("desktop asset {} not found", config.desktop_asset_name))?;
-    let runtime_asset = release
-        .assets
-        .iter()
-        .find(|asset| asset.name == config.runtime_asset_name);
+    ledger_mark(
+        "rust.update_notify_only",
+        Some(serde_json::json!({ "tag": release.tag_name })),
+    );
     Ok(UpdatePlan {
-        latest_version: latest.clone(),
+        latest_version: latest,
         notes: release.body.unwrap_or_default(),
         repo_url: repo_url.clone(),
         release_url: release
             .html_url
             .clone()
             .unwrap_or_else(|| format!("{}/releases/tag/{}", repo_url, release.tag_name)),
-        app_url: asset.browser_download_url.clone(),
+        app_url: String::new(),
         app_sha256: None,
-        runtime_url: runtime_asset.map(|asset| asset.browser_download_url.clone()),
-        runtime_version: runtime_asset.map(|_| latest.to_string()),
+        runtime_url: None,
+        runtime_version: None,
         runtime_sha256: None,
         components: None,
         components_lock_url: None,
         components_lock_sha256: None,
-        // GithubApi 回退源:asset.size 若可得则用(GithubRelease asset 带 size 字段则透传)
-        app_size_bytes: asset.size,
-        runtime_size_bytes: runtime_asset.and_then(|asset| asset.size),
+        app_size_bytes: None,
+        runtime_size_bytes: None,
         allow_downgrade: false,
         source: UpdateSource::GithubApi,
+        notify_only: true,
     })
 }
 
@@ -4743,12 +4886,152 @@ fn launch_health_confirm(path: &Path) {
 }
 
 /// 把 previous 槽换回 current。previous 不在/不完整 → Ok(false) 不动 current。
+// 跨进程手术互斥锁:多实例/多用户可并发对同一 runtime 根做 clone→_comp_stage→swap,
+// renamex 单 op 原子但多步手术未跨进程串行化 → flock 锁文件(内核级,进程崩溃/被杀自动释放)。
+// 纪律([108] 反向锚强制):锁只允许出现在五个叶子手术函数内部——
+//   extract_runtime_archive_with / apply_component_updates_with(required)
+//   rollback_runtime_to_previous / repair_torn_runtime_slots / cleanup_previous_slots(optional)
+// 五叶已核互不嵌套;flock 同进程两个 fd 也互斥,上层再取=自死锁,严禁。
+// helper 经 --horosa-runtime-swap → extract 协议自动拿锁(零新增代数差)。
+struct RuntimeSurgeryLock {
+    _file: Option<File>,
+}
+
+fn runtime_surgery_lock_path(root: &Path) -> PathBuf {
+    root.join(".horosa-surgery.lock")
+}
+
+fn surgery_lock_disabled() -> bool {
+    std::env::var("HOROSA_SURGERY_LOCK_DISABLE")
+        .map(|v| v == "1")
+        .unwrap_or(false)
+}
+
+fn surgery_lock_wait_secs() -> u64 {
+    std::env::var("HOROSA_SURGERY_LOCK_WAIT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(300)
+}
+
+// Ok(Some)=拿到 / Ok(None)=等满未拿到 / Err=连锁文件都开不出(权限/只读卷)。
+fn try_acquire_surgery_lock(root: &Path, wait: Duration) -> Result<Option<RuntimeSurgeryLock>> {
+    if surgery_lock_disabled() {
+        return Ok(Some(RuntimeSurgeryLock { _file: None }));
+    }
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    use std::os::unix::io::AsRawFd;
+    ensure_dir(root)?;
+    let lock_path = runtime_surgery_lock_path(root);
+    let file = match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .mode(0o666)
+        .open(&lock_path)
+    {
+        Ok(f) => {
+            // umask(022) 会剥 o+w:多用户共享根必须显式补,否则 B 用户开不出写句柄。
+            let _ = f.set_permissions(fs::Permissions::from_mode(0o666));
+            f
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+            // 他人先建且权限未放开:flock 对只读 fd 也能上 LOCK_EX。
+            std::fs::OpenOptions::new()
+                .read(true)
+                .open(&lock_path)
+                .with_context(|| format!("打开手术锁 {}", lock_path.display()))?
+        }
+        Err(err) => {
+            return Err(anyhow::Error::from(err)
+                .context(format!("创建手术锁 {}", lock_path.display())))
+        }
+    };
+    let fd = file.as_raw_fd();
+    let deadline = Instant::now() + wait;
+    loop {
+        if unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) } == 0 {
+            return Ok(Some(RuntimeSurgeryLock { _file: Some(file) }));
+        }
+        if Instant::now() >= deadline {
+            return Ok(None);
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+}
+
+// 手术必需(extract/apply):等不到=Err(用户可读文案);账本留证,Err 沿既有更新失败
+// 通道(事件+update-history)上浮。默认等 300s——须盖住对方一次全量解压。
+fn acquire_surgery_lock_required(root: &Path) -> Result<RuntimeSurgeryLock> {
+    let started = Instant::now();
+    let wait = Duration::from_secs(surgery_lock_wait_secs());
+    match try_acquire_surgery_lock(root, wait)? {
+        Some(guard) => {
+            let waited = started.elapsed();
+            if waited > Duration::from_secs(1) {
+                ledger_mark(
+                    "rust.surgery_lock_wait",
+                    Some(serde_json::json!({
+                        "root": root.display().to_string(),
+                        "ms": waited.as_millis() as u64,
+                    })),
+                );
+            }
+            Ok(guard)
+        }
+        None => {
+            ledger_mark(
+                "rust.surgery_lock_timeout",
+                Some(serde_json::json!({
+                    "root": root.display().to_string(),
+                    "mode": "required",
+                })),
+            );
+            Err(anyhow!(
+                "另一份星阙实例(可能是本机其他用户)正在更新或修复本机组件,请稍后重试。"
+            ))
+        }
+    }
+}
+
+fn surgery_lock_optional_wait_secs() -> u64 {
+    std::env::var("HOROSA_SURGERY_LOCK_OPT_WAIT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10)
+}
+
+// 尽力而为(启动兜底类:回滚/收养/回收):短等 10s,拿不到=跳过本项让位对方手术。
+fn acquire_surgery_lock_optional(root: &Path) -> Option<RuntimeSurgeryLock> {
+    match try_acquire_surgery_lock(root, Duration::from_secs(surgery_lock_optional_wait_secs())) {
+        Ok(Some(guard)) => Some(guard),
+        Ok(None) => {
+            ledger_mark(
+                "rust.surgery_lock_timeout",
+                Some(serde_json::json!({
+                    "root": root.display().to_string(),
+                    "mode": "optional",
+                })),
+            );
+            None
+        }
+        Err(err) => {
+            eprintln!("[surgery-lock] {}: {err:#}", root.display());
+            None
+        }
+    }
+}
+
 fn rollback_runtime_to_previous(root: &Path) -> Result<bool> {
     let current = root.join("current");
     let previous = root.join("previous");
     if !previous.join("runtime-manifest.json").exists() {
         return Ok(false);
     }
+    // optional 锁:对方在手术=让位,本轮不回滚(下次启动再判)。
+    let Some(_surgery) = acquire_surgery_lock_optional(root) else {
+        return Ok(false);
+    };
     let broken = root.join("_broken_rollback");
     remove_dir_if_exists(&broken)?;
     if current.exists() {
@@ -4773,6 +5056,10 @@ fn cleanup_previous_slots(app: &AppHandle) {
     for root in roots {
         let previous = root.join("previous");
         if previous.exists() {
+            // optional 锁:对方在手术期间 previous 可能是其回滚资本,绝不抢删。
+            let Some(_surgery) = acquire_surgery_lock_optional(&root) else {
+                continue;
+            };
             let _ = remove_dir_if_exists(&previous);
         }
     }
@@ -4833,9 +5120,19 @@ fn repair_torn_runtime_slots(root: &Path) -> Result<bool> {
     if !root.exists() || current.exists() {
         return Ok(false);
     }
+    // optional 锁:对方可能正在手术(即将产出 current),不抢收养。
+    let Some(_surgery) = acquire_surgery_lock_optional(root) else {
+        return Ok(false);
+    };
+    // 拿锁后复核:等锁期间对方可能已产出 current。
+    if current.exists() {
+        return Ok(false);
+    }
     let candidates = [
         root.join("_comp_stage"),
         root.join("_extract").join("runtime-payload"),
+        // 旧 helper 协议(过渡跳)的暂存位:断电撕裂时新树可被收养,不再成孤儿。
+        root.join("_update").join("runtime-payload"),
         root.join("previous"),
     ];
     for candidate in candidates {
@@ -4855,15 +5152,54 @@ fn repair_torn_runtime_slots(root: &Path) -> Result<bool> {
     Ok(false)
 }
 
+// 孤儿暂存清扫:current 在位(无需收养)但 _update/_extract 残留 = 上次手术
+// 成功臂之外中断留下的孤儿树,只漏磁盘不碍事。仅清 24h 以上的陈旧目录——另一实例
+// 正在进行的手术(_extract 活跃)绝不误伤;更细的互斥由跨进程手术锁承担。
+fn sweep_stale_runtime_stage_dirs(root: &Path) {
+    let current = root.join("current");
+    if !current.exists() {
+        return; // 无 current = 撕裂态,交给 repair_torn_runtime_slots,不清扫
+    }
+    for name in ["_update", "_extract"] {
+        let stage = root.join(name);
+        if !stage.exists() {
+            continue;
+        }
+        let stale = fs::metadata(&stage)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.elapsed().ok())
+            .map(|age| age.as_secs() > 24 * 3600)
+            .unwrap_or(false);
+        if !stale {
+            continue;
+        }
+        if remove_dir_if_exists(&stage).is_ok() {
+            ledger_mark(
+                "rust.stale_stage_swept",
+                Some(serde_json::json!({
+                    "root": root.display().to_string(),
+                    "stage": name,
+                })),
+            );
+        }
+    }
+}
+
 fn extract_runtime_archive(archive_path: &Path, dest_root: &Path) -> Result<()> {
-    extract_runtime_archive_with(archive_path, dest_root, None)
+    extract_runtime_archive_with(archive_path, dest_root, None, None)
 }
 
 fn extract_runtime_archive_with(
     archive_path: &Path,
     dest_root: &Path,
     progress: Option<&dyn Fn(u64, u64, u64)>,
+    // 版本闸:helper 经 --horosa-runtime-swap 走本协议时,归档内 manifest.version
+    // 必须与期望一致(替代旧 helper 内联 plutil 核对);不符→清 _extract 返回 Err,current 零接触。
+    expected_version: Option<&str>,
 ) -> Result<()> {
+    // required 锁:全量手术全程独占(_extract 建立→解压→互换→previous 挪位)。
+    let _surgery = acquire_surgery_lock_required(dest_root)?;
     let extract_root = dest_root.join("_extract");
     remove_dir_if_exists(&extract_root)?;
     // 磁盘预检:解压产物 ≈ 2.3× 压缩包;不足时 tar 写到一半才败,留半成品且报错难懂。
@@ -4910,6 +5246,17 @@ fn extract_runtime_archive_with(
     if !extracted_runtime.exists() {
         let _ = remove_dir_if_exists(&extract_root);
         return Err(anyhow!("runtime-payload folder missing inside archive"));
+    }
+    if let Some(expected) = expected_version.map(str::trim).filter(|v| !v.is_empty()) {
+        let actual = read_runtime_manifest_from_path(&extracted_runtime.join("runtime-manifest.json"))
+            .map(|m| m.version)
+            .unwrap_or_default();
+        if actual != expected {
+            let _ = remove_dir_if_exists(&extract_root);
+            return Err(anyhow!(
+                "runtime version mismatch: {actual} != {expected}(归档与期望不符,current 未动)"
+            ));
+        }
     }
 
     let final_runtime = dest_root.join("current");
@@ -5655,6 +6002,8 @@ fn apply_component_updates_with(
     if !current.exists() {
         return Err(anyhow!("增量前提缺失:{} 不存在", current.display()));
     }
+    // required 锁:部件手术全程独占(clone→部件对换→swap;防两实例 _comp_stage 互踩)。
+    let _surgery = acquire_surgery_lock_required(dest_root)?;
     let stage = dest_root.join("_comp_stage");
     remove_dir_if_exists(&stage)?;
     // 磁盘预检:非 APFS 退化拷贝最多需要一份 runtime 副本 + 解压余量。
@@ -6178,7 +6527,7 @@ fn ensure_runtime_installed(
                 );
             }
         };
-        extract_runtime_archive_with(&archive_path, runtime_root, Some(&on_extract))?;
+        extract_runtime_archive_with(&archive_path, runtime_root, Some(&on_extract), None)?;
         clear_runtime_pending_marker(&runtime_root.join("current"))?;
     }
     emit_progress(window, 74, "本机组件已准备完成");
@@ -6305,6 +6654,11 @@ enum IdentityProbe {
     WrongIdentity,
     HttpSilent,
     TcpDead,
+    /// 身份/nonce 全对但「真算探针」失败:软 OOM/线程池被 hang 占满的灰区
+    /// ——进程活着、身份线程秒回,业务算力已死。独立慢 streak 判定。
+    DeepFail,
+    /// 对端 proto<2(旧 runtime 不识 deep 参数):按通过处理,账本一次不误杀。
+    DeepUnsupported,
 }
 
 fn probe_identity(
@@ -6312,6 +6666,7 @@ fn probe_identity(
     expect_app: &str,
     expect_nonce: &str,
     timeout: Duration,
+    deep: bool,
 ) -> IdentityProbe {
     use std::io::{Read, Write};
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -6320,8 +6675,15 @@ fn probe_identity(
     };
     let _ = stream.set_read_timeout(Some(timeout));
     let _ = stream.set_write_timeout(Some(timeout));
+    // deep=1:服务端在身份响应里附带一次微型真算结果(deep:"ok"/"fail")——
+    // 探「还能算」,非仅「身份线程活着」。仅 proto>=2 的对端支持;旧对端由 proto 门兜底。
+    let path = if deep {
+        "/horosaIdentity?deep=1"
+    } else {
+        "/horosaIdentity"
+    };
     let request = format!(
-        "GET /horosaIdentity HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nAccept: application/json\r\n\r\n"
+        "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nAccept: application/json\r\n\r\n"
     );
     if stream.write_all(request.as_bytes()).is_err() {
         return IdentityProbe::HttpSilent;
@@ -6365,6 +6727,18 @@ fn probe_identity(
     if !expect_nonce.is_empty() && nonce != expect_nonce {
         return IdentityProbe::WrongIdentity;
     }
+    if deep {
+        // proto 门(代数差免疫):旧 runtime(proto<2 或无 proto)不识 deep → 按通过,
+        // 由调用方账本一次;proto>=2 必须回 deep 字段且为 "ok"。
+        let proto = json.get("proto").and_then(|v| v.as_u64()).unwrap_or(1);
+        if proto < 2 {
+            return IdentityProbe::DeepUnsupported;
+        }
+        let deep_status = json.get("deep").and_then(|v| v.as_str()).unwrap_or("fail");
+        if deep_status != "ok" {
+            return IdentityProbe::DeepFail;
+        }
+    }
     IdentityProbe::Ok
 }
 
@@ -6381,6 +6755,11 @@ const SUPERVISOR_SILENT_ROUNDS: u32 = 6;
 fn supervisor_step(streak: SupervisorStreak, probe: IdentityProbe) -> (SupervisorStreak, bool) {
     match probe {
         IdentityProbe::Ok => (SupervisorStreak::default(), false),
+        // DeepFail=身份活着(浅层健康)→ 浅 streak 清零,由 deep_step 独立判;
+        // DeepUnsupported=旧对端,等同 Ok。
+        IdentityProbe::DeepFail | IdentityProbe::DeepUnsupported => {
+            (SupervisorStreak::default(), false)
+        }
         IdentityProbe::WrongIdentity => (SupervisorStreak::default(), true),
         IdentityProbe::TcpDead => {
             let next = SupervisorStreak {
@@ -6397,6 +6776,35 @@ fn supervisor_step(streak: SupervisorStreak, probe: IdentityProbe) -> (Superviso
             (next, next.silent >= SUPERVISOR_SILENT_ROUNDS)
         }
     }
+}
+
+// 深探慢 streak(纯函数可测):连续 SUPERVISOR_DEEP_FAIL_ROUNDS 次深探失败
+// (每 SUPERVISOR_DEEP_EVERY_ROUNDS 轮才发一次深探,即 ≈2×5min)才判「算力死」——
+// 容忍单次高载/GC 长停顿;Ok 清零。
+const SUPERVISOR_DEEP_EVERY_ROUNDS: u64 = 15;
+const SUPERVISOR_DEEP_FAIL_ROUNDS: u32 = 2;
+
+fn deep_step(streak: u32, deep_ok: bool) -> (u32, bool) {
+    if deep_ok {
+        (0, false)
+    } else {
+        let next = streak + 1;
+        (next, next >= SUPERVISOR_DEEP_FAIL_ROUNDS)
+    }
+}
+
+fn deep_probe_enabled() -> bool {
+    std::env::var("HOROSA_DEEP_PROBE")
+        .map(|v| v != "0")
+        .unwrap_or(true)
+}
+
+fn deep_probe_every_rounds() -> u64 {
+    std::env::var("HOROSA_DEEP_PROBE_EVERY")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(SUPERVISOR_DEEP_EVERY_ROUNDS)
 }
 
 // [U-F] 服务监督事件通道(镜像 __horosaPending* 模式;老前端无 handler=无害)
@@ -6416,7 +6824,25 @@ fn current_session_snapshot(app: &AppHandle) -> Option<RuntimeSession> {
 }
 
 /// 菜单/探活看门狗共用的本地服务重启:停旧(带真实端口)→ 新端口全链拉起 → 会话真值更新。
+// 失败定因包装:重启失败时做一次关键目录写测,PermissionDenied → 人话上浮
+// (错误沿既有通道进对话框/账本,用户直接看到「哪个目录权限坏」而非泛化失败)。
 fn restart_local_services(app: &AppHandle, origin: &str) -> Result<()> {
+    let result = restart_local_services_inner(app, origin);
+    if result.is_err() {
+        if let Some(session) = current_session_snapshot(app) {
+            if let Some(hint) = classify_permission_issue(&session.paths) {
+                ledger_mark(
+                    "rust.permission_probe_failed",
+                    Some(serde_json::json!({ "hint": hint })),
+                );
+                return result.context(hint);
+            }
+        }
+    }
+    result
+}
+
+fn restart_local_services_inner(app: &AppHandle, origin: &str) -> Result<()> {
     if bootstrap_busy() {
         return Err(anyhow!("启动/修复/更新流程正在进行,请稍候片刻再试"));
     }
@@ -6455,17 +6881,96 @@ fn restart_local_services(app: &AppHandle, origin: &str) -> Result<()> {
         }
     }
     ledger_mark("rust.services_restarted", None);
+    // 低打扰告知(信息横幅,可关闭):软 OOM 转硬死后自动拉起时,用户当次排盘
+    // 会失败一次——明说「已自动恢复」,不留悬念。老前端无 handler=无害。
+    emit_service_event(
+        app,
+        &serde_json::json!({
+            "kind": "runtime_updated_elsewhere",
+            "message": "本地计算服务已自动恢复。若刚才有操作失败,重试即可。",
+        })
+        .to_string(),
+    );
     eprintln!("local services restarted via {origin}: backend={backend_port} chart={chart_port}");
     Ok(())
 }
 
 /// [U-F] 探活看门狗(深度化):ready 后每 20s 对双后端做 /horosaIdentity 深探
 /// (probe_identity 四分类;TCP 探针只能看到「端口在听」,对 wedged/GC 死循环/陌生进程
-/// squat 全盲——「端口被占回毒 200」类事故的看门狗侧闭环)。TcpDead 连续 2 轮/HttpSilent 连续
+/// squat 全盲——历史事故 的看门狗侧闭环)。TcpDead 连续 2 轮/HttpSilent 连续
 /// 6 轮/WrongIdentity 立即 → 自动重启(30 分钟窗 ≤2 次,防坏环境重启风暴);
 /// 超限单次闩锁:账本一行+emit supervisor_gave_up 事件(前端横幅显式化,不再静默)。
 /// web 静态服务器一并纳管(TCP 探,不通连续 2 轮原地重建,独立限频)。
 /// generation 令牌:每次 ready 换代,旧线程自退,不叠加。
+// 磁盘水位闩(纯函数可测):低于阈值→触发一次(闩住不刷屏);回升到阈值×2 才解闩
+// (防抖:在阈值附近抖动不会反复弹);读不到(卷异常)不动作。返回 (下一闩态, 本轮是否触发)。
+fn disk_low_step(latched: bool, avail_bytes: Option<u64>, min_bytes: u64) -> (bool, bool) {
+    match avail_bytes {
+        None => (latched, false),
+        Some(avail) => {
+            if !latched && avail < min_bytes {
+                (true, true)
+            } else if latched && avail >= min_bytes.saturating_mul(2) {
+                (false, false)
+            } else {
+                (latched, false)
+            }
+        }
+    }
+}
+
+fn disk_watch_enabled() -> bool {
+    std::env::var("HOROSA_DISK_WATCH")
+        .map(|v| v != "0")
+        .unwrap_or(true)
+}
+
+fn disk_min_bytes() -> u64 {
+    std::env::var("HOROSA_DISK_MIN_MB")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(500)
+        .saturating_mul(1024 * 1024)
+}
+
+// 权限自检:关键目录写测(临时探针文件)。PermissionDenied → 人话定因
+// (此前权限坏只会泛化成启动失败/500,用户与排障者都无从下手)。其它错误不定因。
+fn classify_permission_issue(paths: &RuntimePaths) -> Option<String> {
+    for dir in [&paths.app_data_dir, &paths.logs_dir, &paths.runtime_dir] {
+        let probe = dir.join(".horosa-perm-probe");
+        match fs::write(&probe, b"x") {
+            Ok(_) => {
+                let _ = fs::remove_file(&probe);
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+                return Some(format!(
+                    "目录权限异常:{} 不可写。可尝试菜单「重装运行时」修复;公司管控机请联系管理员放开该目录。",
+                    dir.display()
+                ));
+            }
+            Err(_) => {}
+        }
+    }
+    None
+}
+
+// 多实例更新感知纯函数:基线未定→以首见版本为基线;已定且磁盘版本不同→触发一次。
+// (renamex 换 inode 后本实例仍跑旧树:探针恒 Ok,只有 manifest 版本对比能看见「别人更新了」。)
+fn runtime_change_step(
+    baseline: Option<String>,
+    disk: Option<String>,
+) -> (Option<String>, bool) {
+    match (baseline, disk) {
+        (None, Some(v)) => (Some(v), false),
+        (Some(b), Some(now)) => {
+            let changed = b != now;
+            (Some(b), changed)
+        }
+        (b, None) => (b, false),
+    }
+}
+
 fn start_service_supervisor(app: AppHandle) {
     let my_gen = SUPERVISOR_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     thread::spawn(move || {
@@ -6475,6 +6980,13 @@ fn start_service_supervisor(app: AppHandle) {
         let mut recent_restarts: Vec<Instant> = Vec::new();
         let mut recent_web_restarts: Vec<Instant> = Vec::new();
         let mut gave_up_latched = false;
+        let mut round: u64 = 0;
+        let mut boot_runtime_version: Option<String> = None;
+        let mut runtime_changed_notified = false;
+        let mut backend_deep_streak = 0u32;
+        let mut chart_deep_streak = 0u32;
+        let mut deep_unsupported_noted = false;
+        let mut disk_low_latched = false;
         loop {
             thread::sleep(Duration::from_secs(20));
             if SUPERVISOR_GENERATION.load(Ordering::SeqCst) != my_gen {
@@ -6492,6 +7004,67 @@ fn start_service_supervisor(app: AppHandle) {
                 web_down = 0;
                 continue;
             };
+            round = round.wrapping_add(1);
+            // 磁盘水位自感知(每 15 轮 ≈5min,statfs 零成本):写满盘是排盘 500/
+            // 更新失败/日志丢失的共因,此前运行期零检测。跌破阈值一次性横幅告知;
+            // 回升到 2× 阈值自动解闩(此后再跌破会再次提醒)。
+            if disk_watch_enabled() && round % 15 == 0 {
+                let avail = [
+                    available_disk_bytes(&session.paths.app_data_dir),
+                    available_disk_bytes(&session.paths.runtime_dir),
+                ]
+                .into_iter()
+                .flatten()
+                .min();
+                let (next_latch, fire) = disk_low_step(disk_low_latched, avail, disk_min_bytes());
+                disk_low_latched = next_latch;
+                if fire {
+                    ledger_mark(
+                        "rust.disk_low",
+                        Some(serde_json::json!({
+                            "availBytes": avail.unwrap_or(0),
+                        })),
+                    );
+                    emit_service_event(
+                        &app,
+                        &serde_json::json!({
+                            "kind": "disk_low",
+                            "message": "磁盘可用空间不足,可能影响排盘、日志与自动更新——请清理磁盘后继续使用。",
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            // 多实例感知:另一实例(可能是本机其他用户)更新共享 runtime 后,
+            // 本实例仍持旧 inode 且探针恒 Ok → 每 15 轮(≈5min)比对 manifest 版本,
+            // 变化即一次性提示(闩锁,不刷屏)。基线取首轮读到的版本。
+            if !runtime_changed_notified {
+                if boot_runtime_version.is_none() || round % 15 == 0 {
+                    let disk_version =
+                        read_runtime_manifest_from_path(&session.paths.manifest_path)
+                            .map(|m| m.version);
+                    let (next_baseline, changed) =
+                        runtime_change_step(boot_runtime_version.take(), disk_version);
+                    boot_runtime_version = next_baseline;
+                    if changed {
+                        runtime_changed_notified = true;
+                        ledger_mark(
+                            "rust.runtime_updated_elsewhere",
+                            Some(serde_json::json!({
+                                "baseline": boot_runtime_version.clone().unwrap_or_default(),
+                            })),
+                        );
+                        emit_service_event(
+                            &app,
+                            &serde_json::json!({
+                                "kind": "runtime_updated_elsewhere",
+                                "message": "本机组件已在另一会话中完成更新(可能来自本机其他用户)。重启星阙后即可使用新版本。",
+                            })
+                            .to_string(),
+                        );
+                    }
+                }
+            }
             // web 静态服务器监督:tiny_http 线程死=整个 UI 白屏,且此前无任何看门狗。
             // 线程 panic 即 drop Server 即释放端口 → 同端口原地重建可行。
             if probe_local_port(session.web_port) {
@@ -6529,24 +7102,77 @@ fn start_service_supervisor(app: AppHandle) {
             }
             let nonce = launch_nonce();
             let probe_timeout = Duration::from_millis(1500);
-            let backend_probe =
-                probe_identity(session.backend_port, "horosa-backend", nonce, probe_timeout);
-            let chart_probe =
-                probe_identity(session.chart_port, "horosa-chart", nonce, probe_timeout);
+            // 每 N 轮(默认 15≈5min)把浅探升级为深探(真算维度):
+            // 软 OOM/线程池部分 wedge 时身份端点仍秒回 Ok,只有真算探针能看见。
+            let deep_round = deep_probe_enabled() && round % deep_probe_every_rounds() == 0;
+            let backend_probe = probe_identity(
+                session.backend_port,
+                "horosa-backend",
+                nonce,
+                probe_timeout,
+                deep_round,
+            );
+            let chart_probe = probe_identity(
+                session.chart_port,
+                "horosa-chart",
+                nonce,
+                probe_timeout,
+                deep_round,
+            );
+            if deep_round
+                && !deep_unsupported_noted
+                && (backend_probe == IdentityProbe::DeepUnsupported
+                    || chart_probe == IdentityProbe::DeepUnsupported)
+            {
+                deep_unsupported_noted = true;
+                ledger_mark("rust.deep_probe_unsupported", None);
+            }
             let (bs, backend_dead) = supervisor_step(backend_streak, backend_probe);
             backend_streak = bs;
             let (cs, chart_dead) = supervisor_step(chart_streak, chart_probe);
             chart_streak = cs;
-            if backend_probe == IdentityProbe::Ok && chart_probe == IdentityProbe::Ok {
+            // 深探独立慢 streak(仅深探轮推进)
+            let mut deep_dead = false;
+            if deep_round {
+                let (bds, bd) = deep_step(
+                    backend_deep_streak,
+                    backend_probe != IdentityProbe::DeepFail,
+                );
+                backend_deep_streak = bds;
+                let (cds, cd) =
+                    deep_step(chart_deep_streak, chart_probe != IdentityProbe::DeepFail);
+                chart_deep_streak = cds;
+                if bd || cd {
+                    deep_dead = true;
+                    ledger_mark(
+                        "rust.deep_probe_fail",
+                        Some(serde_json::json!({
+                            "backendStreak": backend_deep_streak,
+                            "chartStreak": chart_deep_streak,
+                        })),
+                    );
+                }
+            }
+            let backend_healthy = matches!(
+                backend_probe,
+                IdentityProbe::Ok | IdentityProbe::DeepUnsupported
+            );
+            let chart_healthy = matches!(
+                chart_probe,
+                IdentityProbe::Ok | IdentityProbe::DeepUnsupported
+            );
+            if backend_healthy && chart_healthy && !deep_dead {
                 // 全健康:解除 gave_up 闩锁(人工重启成功后允许未来再次自动修复+提示)
                 gave_up_latched = false;
                 continue;
             }
-            if !(backend_dead || chart_dead) {
+            if !(backend_dead || chart_dead || deep_dead) {
                 continue;
             }
             backend_streak = SupervisorStreak::default();
             chart_streak = SupervisorStreak::default();
+            backend_deep_streak = 0;
+            chart_deep_streak = 0;
             recent_restarts.retain(|t| t.elapsed() < Duration::from_secs(1800));
             if recent_restarts.len() >= 2 {
                 // 越限:单次闩锁——账本一行(不再每 20s 刷屏)+显式事件交前端横幅
@@ -6570,6 +7196,11 @@ fn start_service_supervisor(app: AppHandle) {
                 Some(serde_json::json!({
                     "backendProbe": format!("{:?}", backend_probe),
                     "chartProbe": format!("{:?}", chart_probe),
+                    "reason": if deep_dead && !(backend_dead || chart_dead) {
+                        "deep_probe"
+                    } else {
+                        "identity_probe"
+                    },
                 })),
             );
             if let Err(err) = restart_local_services(&app, "supervisor") {
@@ -6718,7 +7349,8 @@ fn start_runtime(
     if let Some(timeout_secs) = startup_timeout_secs {
         command.env("HOROSA_STARTUP_TIMEOUT", timeout_secs.to_string());
     } else if !trusted_runtime {
-        // 全新安装首启(untrusted)预算放宽:含 jar 首次拷贝 + JVM 冷启 + 杀软扫描,慢盘机器 180s 临界。
+        // 全新安装首启(untrusted)预算放宽:含 324MB jar 首次拷贝 + JVM 冷启 + 杀软扫描,
+        // 慢盘机器 180s 临界(与脚本侧 untrusted 默认 300 对齐,这里显式传以防脚本默认被改)。
         command.env("HOROSA_STARTUP_TIMEOUT", "300");
     }
     // 心跳:output() 阻塞等脚本(就绪轮询通常 5~20s,冷启更久),每秒刷一次 indeterminate
@@ -6743,29 +7375,37 @@ fn start_runtime(
                     }
                 }
                 // 账本按 run 独立文件,读到什么段就是本次的(吞错:账本不可用退回笼统文案)
-                let stage = ledger_file
+                let ledger_text = ledger_file
                     .as_ref()
                     .and_then(|f| fs::read_to_string(f).ok())
-                    .map(|text| {
-                        if text.contains("\"seg\":\"sh.java_http_ready\"") {
-                            2u8
-                        } else if text.contains("\"seg\":\"sh.py_http_ready\"") {
-                            1u8
-                        } else {
-                            0u8
-                        }
-                    })
-                    .unwrap_or(0);
+                    .unwrap_or_default();
+                let stage = if ledger_text.contains("\"seg\":\"sh.java_http_ready\"") {
+                    2u8
+                } else if ledger_text.contains("\"seg\":\"sh.py_http_ready\"") {
+                    1u8
+                } else {
+                    0u8
+                };
+                // progress-aware 续命可视:脚本侧账本出现 sh.ready_extend =
+                // 预算已耗尽但检测到持续进展,正在自动延长——明说,防慢机用户当卡死强退。
+                let extend_note = if ledger_text.contains("\"seg\":\"sh.ready_extend\"") {
+                    "(检测到持续进展,已自动延长等待)"
+                } else {
+                    ""
+                };
                 let message = match stage {
                     2 => format!(
-                        "主服务已就绪(2/2),正在完成收尾…已等待 {} 秒",
+                        "主服务已就绪(2/2),正在完成收尾…已等待 {} 秒{extend_note}",
                         started.elapsed().as_secs()
                     ),
                     1 => format!(
-                        "排盘引擎已就绪(1/2),正在启动主服务…已等待 {} 秒",
+                        "排盘引擎已就绪(1/2),正在启动主服务…已等待 {} 秒{extend_note}",
                         started.elapsed().as_secs()
                     ),
-                    _ => format!("正在启动本地服务…已等待 {} 秒", started.elapsed().as_secs()),
+                    _ => format!(
+                        "正在启动本地服务…已等待 {} 秒{extend_note}",
+                        started.elapsed().as_secs()
+                    ),
                 };
                 emit_indeterminate_progress(&window, 82, &message);
             }
@@ -7103,7 +7743,39 @@ fn handoff_to_newer_installed_app(app: &AppHandle) -> Result<bool> {
     Ok(true)
 }
 
+// helper runtime 新协议开关:=0 时生成端回退旧模板(两段 mv,定义即执行)。
+// 仅排障/对照用;发布环境勿设。
+fn helper_runtime_swap_enabled() -> bool {
+    std::env::var("HOROSA_HELPER_RUNTIME_SWAP")
+        .map(|v| v != "0")
+        .unwrap_or(true)
+}
+
+// 新协议:只生成**函数定义**(不立即执行),由模板底部 run_runtime_installs 在
+// wait_for_old_app_exit 与 install_app 之后统一调用。手术本体 = TARGET 新二进制的
+// --horosa-runtime-swap → extract_runtime_archive_with 同一协议(renamex 原子互换 +
+// previous 保留到首次 ready + 版本闸 + 磁盘预检);失败 return 1(绝不 exit 杀 helper),
+// 失败臂由模板层处理:重开新 app + exit 73,不写完成标记(铁律14)。
+// 非共享根成功后 chown 归还用户(admin 更新时 root 跑 helper,防 root-owned 锁死后续用户态更新)。
 fn build_single_runtime_update_command(
+    runtime_root: &Path,
+    archive_path: &Path,
+    runtime_version: Option<&str>,
+    index: usize,
+) -> String {
+    format!(
+        "install_runtime_{index}() {{\n  RUNTIME_ROOT={runtime_root}\n  if ! \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" --horosa-runtime-swap \"${{RUNTIME_ROOT}}\" {archive} {runtime_version}; then\n    echo \"[runtime] swap failed for ${{RUNTIME_ROOT}}\"\n    return 1\n  fi\n  case \"${{RUNTIME_ROOT}}\" in\n    /Users/Shared/*) : ;;\n    *) /usr/sbin/chown -R \"${{USER_UID}}\" \"${{RUNTIME_ROOT}}\" >/dev/null 2>&1 || true ;;\n  esac\n  return 0\n}}\n",
+        index = index,
+        runtime_root = shell_quote(runtime_root),
+        archive = shell_quote(archive_path),
+        runtime_version = shell_quote_text(runtime_version.unwrap_or(""))
+    )
+}
+
+// 旧协议原样保留(HOROSA_HELPER_RUNTIME_SWAP=0 的逃生阀)。已知病:两段 mv 非原子、
+// 成功即删 previous(无回滚资本)、定义即执行(先于 wait_for_old_app_exit)、失败臂 exit 杀 helper。
+// 仅作对照/排障,发布环境勿关新协议。
+fn build_single_runtime_update_command_legacy(
     runtime_root: &Path,
     archive_path: &Path,
     runtime_version: Option<&str>,
@@ -7123,14 +7795,37 @@ fn build_runtime_update_command(
     archive_path: &Path,
     runtime_version: Option<&str>,
 ) -> String {
-    runtime_roots
+    if runtime_roots.is_empty() {
+        return String::new();
+    }
+    if !helper_runtime_swap_enabled() {
+        return runtime_roots
+            .iter()
+            .enumerate()
+            .map(|(index, root)| {
+                build_single_runtime_update_command_legacy(
+                    root,
+                    archive_path,
+                    runtime_version,
+                    index,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
+    let defs = runtime_roots
         .iter()
         .enumerate()
         .map(|(index, root)| {
             build_single_runtime_update_command(root, archive_path, runtime_version, index)
         })
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n");
+    let calls = (0..runtime_roots.len())
+        .map(|index| format!("  install_runtime_{index} || return 1"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("{defs}\nrun_runtime_installs() {{\n{calls}\n  return 0\n}}\n")
 }
 
 fn build_update_helper_script(
@@ -7147,7 +7842,7 @@ fn build_update_helper_script(
     runtime_cmd: &str,
 ) -> String {
     format!(
-        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nAPP_DISPLAY_NAME=\"$(/usr/bin/basename \"${{TARGET}}\" .app)\"\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  local relaunch_status=\"${{1:-pending_manual}}\"\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nrelaunch_status=${{relaunch_status}}\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nwait_for_stable_relaunch() {{\n  local appeared=0\n  for wait_step in $(/usr/bin/seq 1 25); do\n    if is_target_running; then\n      appeared=1\n      break\n    fi\n    sleep 1\n  done\n  if [ \"${{appeared}}\" != \"1\" ]; then\n    echo \"[open] process never appeared\"\n    return 1\n  fi\n  for stable_step in $(/usr/bin/seq 1 10); do\n    if ! is_target_running; then\n      echo \"[open] process exited before becoming stable\"\n      return 1\n    fi\n    sleep 1\n  done\n  return 0\n}}\nactivate_app_once() {{\n  if [ -z \"${{APP_DISPLAY_NAME}}\" ]; then\n    return 0\n  fi\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n    return 0\n  fi\n  /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    activate_app_once\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n  activate_app_once\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      activate_app_once\n      echo \"[open] relaunch confirmed\"\n      mark_update_complete \"auto_relaunch_confirmed\"\n      return 0\n    fi\n    sleep 2\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  STAGE_TARGET=\"${{TARGET%.app}}.update-stage.app\"\n  SRC_KB=\"$(/usr/bin/du -sk \"${{SRC}}\" 2>/dev/null | /usr/bin/awk '{{print $1}}')\"\n  AVAIL_KB=\"$(/bin/df -k \"$(dirname \"${{TARGET}}\")\" 2>/dev/null | /usr/bin/awk 'NR==2 {{print $4}}')\"\n  if [ -n \"${{SRC_KB}}\" ] && [ -n \"${{AVAIL_KB}}\" ] && [ \"${{AVAIL_KB}}\" -lt $((SRC_KB * 2)) ]; then\n    echo \"[app] insufficient disk space: need ~$((SRC_KB * 2))KB, avail ${{AVAIL_KB}}KB\"\n    return 1\n  fi\n  rm -rf \"${{STAGE_TARGET}}\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    if [ ! -d \"${{STAGE_TARGET}}\" ]; then\n      if ! /usr/bin/ditto \"${{SRC}}\" \"${{STAGE_TARGET}}\"; then\n        echo \"[app] stage ditto failed on attempt ${{attempt}}\"\n        rm -rf \"${{STAGE_TARGET}}\"\n        sleep 1\n        continue\n      fi\n      /usr/bin/xattr -dr com.apple.quarantine \"${{STAGE_TARGET}}\" >/dev/null 2>&1 || true\n    fi\n    if [ -d \"${{TARGET}}\" ]; then\n      if \"${{STAGE_TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" --horosa-atomic-swap \"${{STAGE_TARGET}}\" \"${{TARGET}}\" >/dev/null 2>&1; then\n        echo \"[app] atomic swap succeeded\"\n        rm -rf \"${{BACKUP_TARGET}}\"\n        mv \"${{STAGE_TARGET}}\" \"${{BACKUP_TARGET}}\" 2>/dev/null || rm -rf \"${{STAGE_TARGET}}\"\n        return 0\n      fi\n      echo \"[app] atomic swap unavailable, fallback to mv pair\"\n      rm -rf \"${{BACKUP_TARGET}}\"\n      if ! mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n      if mv \"${{STAGE_TARGET}}\" \"${{TARGET}}\"; then\n        rm -rf \"${{BACKUP_TARGET}}\"\n        echo \"[app] install succeeded (mv fallback)\"\n        return 0\n      fi\n      echo \"[app] stage mv failed; restoring previous\"\n      if [ -d \"${{BACKUP_TARGET}}\" ]; then\n        mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n      fi\n      sleep 1\n      continue\n    fi\n    if mv \"${{STAGE_TARGET}}\" \"${{TARGET}}\"; then\n      echo \"[app] install succeeded (fresh)\"\n      return 0\n    fi\n    echo \"[app] fresh mv failed on attempt ${{attempt}}\"\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  rm -rf \"${{STAGE_TARGET}}\"\n  return 1\n}}\nwait_for_old_app_exit\nif ! install_app; then\n  echo \"[app] install failed; reopening previous app\"\n  for reopen_attempt in $(/usr/bin/seq 1 3); do\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      echo \"[open] previous app reopened\"\n      break\n    fi\n  done\n  exit 71\nfi\nsleep 1\nmark_update_complete \"pending_manual\"\nif ! open_app; then\n  echo \"[open] automatic relaunch could not be confirmed; waiting for manual reopen\"\n  exit 72\nfi\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
+        "#!/bin/bash\nset -euo pipefail\nLOG={log}\nMARKER={marker}\nTARGET={target}\nSRC={src}\nUSER_UID={user_uid}\nUSER_NAME={user_name}\nOLD_PID={old_pid}\nEXEC_NAME={exec_name}\nEXPECTED_VERSION={target_version}\nEXPECTED_RUNTIME_VERSION={runtime_version}\nAPP_DISPLAY_NAME=\"$(/usr/bin/basename \"${{TARGET}}\" .app)\"\nmkdir -p \"$(dirname \"${{LOG}}\")\"\nmkdir -p \"$(dirname \"${{MARKER}}\")\"\nexec >> \"${{LOG}}\" 2>&1\necho \"===== update helper start $(date '+%Y-%m-%d %H:%M:%S') =====\"\necho \"uid=$(/usr/bin/id -u) user=$(/usr/bin/id -un)\"\necho \"target=${{TARGET}}\"\necho \"src=${{SRC}}\"\nwait_for_old_app_exit() {{\n  if [ -z \"${{OLD_PID}}\" ] || [ \"${{OLD_PID}}\" = \"0\" ]; then\n    return 0\n  fi\n  for attempt in $(/usr/bin/seq 1 60); do\n    if ! /bin/kill -0 \"${{OLD_PID}}\" >/dev/null 2>&1; then\n      echo \"[app] old process exited\"\n      return 0\n    fi\n    sleep 1\n  done\n  echo \"[app] old process still running after wait window\"\n  return 0\n}}\nrun_runtime_installs() {{\n  return 0\n}}\n{runtime_cmd}mark_update_complete() {{\n  local relaunch_status=\"${{1:-pending_manual}}\"\n  MARKER_DIR=\"$(dirname \"${{MARKER}}\")\"\n  /bin/mkdir -p \"${{MARKER_DIR}}\"\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER_DIR}}\" >/dev/null 2>&1 || true\n  /bin/cat > \"${{MARKER}}\" <<EOF\nversion=${{EXPECTED_VERSION}}\nruntime_version=${{EXPECTED_RUNTIME_VERSION}}\ninstalled_at=$(/bin/date '+%Y-%m-%d %H:%M:%S')\nrelaunch_status=${{relaunch_status}}\nEOF\n  /usr/sbin/chown \"${{USER_UID}}\" \"${{MARKER}}\" >/dev/null 2>&1 || true\n}}\nis_target_running() {{\n  if [ -z \"${{EXEC_NAME}}\" ]; then\n    return 1\n  fi\n  /usr/bin/pgrep -f \"${{TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" >/dev/null 2>&1\n}}\nwait_for_stable_relaunch() {{\n  local appeared=0\n  for wait_step in $(/usr/bin/seq 1 25); do\n    if is_target_running; then\n      appeared=1\n      break\n    fi\n    sleep 1\n  done\n  if [ \"${{appeared}}\" != \"1\" ]; then\n    echo \"[open] process never appeared\"\n    return 1\n  fi\n  for stable_step in $(/usr/bin/seq 1 10); do\n    if ! is_target_running; then\n      echo \"[open] process exited before becoming stable\"\n      return 1\n    fi\n    sleep 1\n  done\n  return 0\n}}\nactivate_app_once() {{\n  if [ -z \"${{APP_DISPLAY_NAME}}\" ]; then\n    return 0\n  fi\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n    return 0\n  fi\n  /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/osascript -e \"tell application \\\"${{APP_DISPLAY_NAME}}\\\" to activate\" >/dev/null 2>&1 || true\n}}\nopen_app_once() {{\n  if [ \"$(/usr/bin/id -u)\" = \"${{USER_UID}}\" ]; then\n    /usr/bin/open -n \"${{TARGET}}\"\n    activate_app_once\n    return 0\n  fi\n  if /bin/launchctl asuser \"${{USER_UID}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  if /usr/bin/sudo -u \"${{USER_NAME}}\" /usr/bin/open -n \"${{TARGET}}\"; then\n    activate_app_once\n    return 0\n  fi\n  /usr/bin/open -n \"${{TARGET}}\"\n  activate_app_once\n}}\nopen_app() {{\n  for attempt in $(/usr/bin/seq 1 8); do\n    echo \"[open] attempt ${{attempt}}\"\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      activate_app_once\n      echo \"[open] relaunch confirmed\"\n      mark_update_complete \"auto_relaunch_confirmed\"\n      return 0\n    fi\n    sleep 2\n  done\n  echo \"[open] relaunch not confirmed after retries\"\n  return 1\n}}\ninstall_app() {{\n  BACKUP_TARGET=\"${{TARGET}}.previous\"\n  STAGE_TARGET=\"${{TARGET%.app}}.update-stage.app\"\n  SRC_KB=\"$(/usr/bin/du -sk \"${{SRC}}\" 2>/dev/null | /usr/bin/awk '{{print $1}}')\"\n  AVAIL_KB=\"$(/bin/df -k \"$(dirname \"${{TARGET}}\")\" 2>/dev/null | /usr/bin/awk 'NR==2 {{print $4}}')\"\n  if [ -n \"${{SRC_KB}}\" ] && [ -n \"${{AVAIL_KB}}\" ] && [ \"${{AVAIL_KB}}\" -lt $((SRC_KB * 2)) ]; then\n    echo \"[app] insufficient disk space: need ~$((SRC_KB * 2))KB, avail ${{AVAIL_KB}}KB\"\n    return 1\n  fi\n  rm -rf \"${{STAGE_TARGET}}\"\n  for attempt in $(/usr/bin/seq 1 45); do\n    echo \"[app] attempt ${{attempt}}\"\n    if [ ! -d \"${{STAGE_TARGET}}\" ]; then\n      if ! /usr/bin/ditto \"${{SRC}}\" \"${{STAGE_TARGET}}\"; then\n        echo \"[app] stage ditto failed on attempt ${{attempt}}\"\n        rm -rf \"${{STAGE_TARGET}}\"\n        sleep 1\n        continue\n      fi\n      /usr/bin/xattr -dr com.apple.quarantine \"${{STAGE_TARGET}}\" >/dev/null 2>&1 || true\n    fi\n    if [ -d \"${{TARGET}}\" ]; then\n      if \"${{STAGE_TARGET}}/Contents/MacOS/${{EXEC_NAME}}\" --horosa-atomic-swap \"${{STAGE_TARGET}}\" \"${{TARGET}}\" >/dev/null 2>&1; then\n        echo \"[app] atomic swap succeeded\"\n        rm -rf \"${{BACKUP_TARGET}}\"\n        mv \"${{STAGE_TARGET}}\" \"${{BACKUP_TARGET}}\" 2>/dev/null || rm -rf \"${{STAGE_TARGET}}\"\n        return 0\n      fi\n      echo \"[app] atomic swap unavailable, fallback to mv pair\"\n      rm -rf \"${{BACKUP_TARGET}}\"\n      if ! mv \"${{TARGET}}\" \"${{BACKUP_TARGET}}\"; then\n        echo \"[app] mv failed on attempt ${{attempt}}\"\n        /bin/ls -ld \"${{TARGET}}\" >/dev/null 2>&1 && /bin/ls -ld \"${{TARGET}}\"\n        sleep 1\n        continue\n      fi\n      if mv \"${{STAGE_TARGET}}\" \"${{TARGET}}\"; then\n        rm -rf \"${{BACKUP_TARGET}}\"\n        echo \"[app] install succeeded (mv fallback)\"\n        return 0\n      fi\n      echo \"[app] stage mv failed; restoring previous\"\n      if [ -d \"${{BACKUP_TARGET}}\" ]; then\n        mv \"${{BACKUP_TARGET}}\" \"${{TARGET}}\" || true\n      fi\n      sleep 1\n      continue\n    fi\n    if mv \"${{STAGE_TARGET}}\" \"${{TARGET}}\"; then\n      echo \"[app] install succeeded (fresh)\"\n      return 0\n    fi\n    echo \"[app] fresh mv failed on attempt ${{attempt}}\"\n    sleep 1\n  done\n  echo \"[app] install failed after retries\"\n  rm -rf \"${{STAGE_TARGET}}\"\n  return 1\n}}\nwait_for_old_app_exit\nif ! install_app; then\n  echo \"[app] install failed; reopening previous app\"\n  for reopen_attempt in $(/usr/bin/seq 1 3); do\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      echo \"[open] previous app reopened\"\n      break\n    fi\n  done\n  exit 71\nfi\nsleep 1\nif ! run_runtime_installs; then\n  echo \"[runtime] runtime install failed; reopening app without completion marker\"\n  for reopen_attempt in $(/usr/bin/seq 1 3); do\n    open_app_once || true\n    if wait_for_stable_relaunch; then\n      echo \"[open] app reopened after runtime failure\"\n      break\n    fi\n  done\n  exit 73\nfi\nmark_update_complete \"pending_manual\"\nif ! open_app; then\n  echo \"[open] automatic relaunch could not be confirmed; waiting for manual reopen\"\n  exit 72\nfi\necho \"===== update helper success $(date '+%Y-%m-%d %H:%M:%S') =====\"\n",
         log = shell_quote(update_log),
         marker = shell_quote(completion_marker),
         runtime_cmd = runtime_cmd,
@@ -7352,6 +8047,7 @@ fn format_update_check_dialog(
     };
     let update_source = match source {
         UpdateSource::Manifest => "固定更新清单",
+        UpdateSource::ManifestViaApi => "更新清单(经 GitHub Releases 取回)",
         UpdateSource::GithubApi => "GitHub Releases 回退通道",
     };
     let summary = summarize_update_notes(notes);
@@ -7432,6 +8128,37 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         return Ok(());
     }
 
+    // notify-only:manifest 与其 asset 双双不可得 → 无 sha 可校验,绝不进下载流。
+    // 给用户「打开发布页」的手动出口(仍是 HTTPS + GitHub 账号信任根,与自动更新同源)。
+    if plan.notify_only {
+        append_update_history(
+            &app,
+            serde_json::json!({
+                "event": "notify_only",
+                "to": plan.latest_version.to_string(),
+            }),
+        );
+        let open_page = MessageDialog::new()
+            .set_level(MessageLevel::Warning)
+            .set_title("发现可用更新（暂不能自动更新）")
+            .set_description(format!(
+                "{summary}\n\n更新清单暂时无法获取，为确保安装包完整性，已停止自动下载。\n可稍后重试，或现在打开发布页手动下载安装包。"
+            ))
+            .set_buttons(MessageButtons::OkCancelCustom(
+                "打开发布页".to_string(),
+                "稍后再说".to_string(),
+            ))
+            .show();
+        if open_page == MessageDialogResult::Custom("打开发布页".to_string()) {
+            let _ = Command::new("open")
+                .arg(&plan.release_url)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+        }
+        return Ok(());
+    }
+
     let proceed = MessageDialog::new()
         .set_level(MessageLevel::Info)
         .set_title("发现可用更新")
@@ -7450,16 +8177,11 @@ fn check_for_updates(app: AppHandle) -> Result<()> {
         return Ok(());
     }
 
-    if plan.source == UpdateSource::Manifest
-        && plan.latest_version > current
-        && plan.app_sha256.is_none()
-    {
+    // sha 守门无条件:任何来源(含 API 回退)缺 sha 都不下载安装。notify-only 已在上游短路。
+    if plan.latest_version > current && plan.app_sha256.is_none() {
         return Err(anyhow!("更新清单缺少桌面包 sha256，已停止自动更新"));
     }
-    if plan.source == UpdateSource::Manifest
-        && runtime_needs_update
-        && plan.runtime_sha256.is_none()
-    {
+    if runtime_needs_update && plan.runtime_sha256.is_none() {
         return Err(anyhow!("更新清单缺少运行环境 sha256，已停止自动更新"));
     }
 
@@ -7649,6 +8371,8 @@ struct UpdateAvailability {
     download_bytes: Option<u64>,     // 预计下载量
     reuse_pct: Option<u8>,           // 增量复用率
     changed_components: Vec<String>, // 变化部件名
+    // 无 sha 可校验(manifest 与其 asset 双双不可得)→ 只通知不安装
+    notify_only: bool,
 }
 
 // [U-D 防降级] runtime 更新判定:单一真值函数,菜单/静默检查/后台下载/自动检查四处共用
@@ -8066,6 +8790,17 @@ fn run_auto_update_check(app: &AppHandle) {
         "notes": summarize_update_notes(&plan.notes),
         "releaseUrl": plan.release_url.clone(),
     });
+    // notify-only:无 sha 不自动下载。卡片带 notifyOnly 标记,前端把「下载」换「查看发布页」。
+    // 老前端不认该字段 → 仍显示「下载」,点了会走 run_background_update_download 的 notify-only
+    // 短路(发 notify-only 事件+不触网),故新旧前端皆安全。
+    if plan.notify_only {
+        payload["notifyOnly"] = serde_json::json!(true);
+        payload["message"] = serde_json::json!(
+            "检测到新版本，但更新清单暂不可获取，已暂停自动下载。可稍后重试，或到发布页手动下载安装包。"
+        );
+        emit_update_event(app, &payload.to_string());
+        return;
+    }
     // 可视化 v2:available 卡即显示「本次需下载约 XX MB(增量,复用 YY%)」
     let estimate = compute_update_estimate(&plan, plan.latest_version > current);
     payload["mode"] = serde_json::json!(estimate.mode);
@@ -8092,7 +8827,8 @@ fn update_check_silent(app: AppHandle) -> std::result::Result<UpdateAvailability
         let available = plan.latest_version > current || runtime_needs_update;
         // 可视化 v2:检查阶段即算「本次需下载多大(增量/全量,复用率)」——display-only,
         // 真实下载路径届时自行重判(estimate 与实际有差时以实际为准)。
-        let estimate = if available {
+        // notify-only 无资产 URL/尺寸,估算无意义。
+        let estimate = if available && !plan.notify_only {
             Some(compute_update_estimate(
                 &plan,
                 plan.latest_version > current,
@@ -8111,6 +8847,7 @@ fn update_check_silent(app: AppHandle) -> std::result::Result<UpdateAvailability
             download_bytes: estimate.as_ref().and_then(|e| e.need_bytes),
             reuse_pct: estimate.as_ref().and_then(|e| e.reuse_pct),
             changed_components: estimate.map(|e| e.changed_names).unwrap_or_default(),
+            notify_only: plan.notify_only,
         })
     })()
     .map_err(|e| format!("{e:#}"))
@@ -8253,16 +8990,32 @@ fn run_background_update_download(app: &AppHandle) -> Result<()> {
         );
         return Ok(());
     }
-    if plan.source == UpdateSource::Manifest
-        && plan.latest_version > current
-        && plan.app_sha256.is_none()
-    {
+    // notify-only 短路:无 sha 可校验 → 绝不触网下载。给用户友好出口(发布页)而非报错。
+    if plan.notify_only {
+        append_update_history(
+            app,
+            serde_json::json!({
+                "event": "notify_only",
+                "to": plan.latest_version.to_string(),
+            }),
+        );
+        emit_update_event(
+            app,
+            &serde_json::json!({
+                "phase": "notify-only",
+                "message": "检测到新版本，但更新清单暂不可获取，已暂停自动下载。可稍后重试，或到发布页手动下载安装包。",
+                "latestVersion": plan.latest_version.to_string(),
+                "releaseUrl": plan.release_url.clone(),
+            })
+            .to_string(),
+        );
+        return Ok(());
+    }
+    // sha 守门无条件:任何来源(含 API 回退)缺 sha 都不下载安装。notify-only 已在上游短路。
+    if plan.latest_version > current && plan.app_sha256.is_none() {
         return Err(anyhow!("更新清单缺少桌面包 sha256,已停止自动更新"));
     }
-    if plan.source == UpdateSource::Manifest
-        && runtime_needs_update
-        && plan.runtime_sha256.is_none()
-    {
+    if runtime_needs_update && plan.runtime_sha256.is_none() {
         return Err(anyhow!("更新清单缺少运行环境 sha256,已停止自动更新"));
     }
 
@@ -8521,7 +9274,11 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
         // [U-G] 台账:交接 helper(结果由 install_confirmed 闭环)
         append_update_history(
             app,
-            serde_json::json!({ "event": "helper_handoff", "to": staged.target_version }),
+            serde_json::json!({
+                "event": "helper_handoff",
+                "to": staged.target_version,
+                "helperProtocol": if helper_runtime_swap_enabled() { "runtime-swap-v2" } else { "legacy" },
+            }),
         );
         // 应用包安装会替换 + 重启(install_downloaded_app 内部 app.exit),全量 runtime 随同处理。
         install_downloaded_app(
@@ -8565,7 +9322,7 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
                         files
                     ));
                 };
-                extract_runtime_archive_with(runtime_archive, root, Some(&on_extract))?;
+                extract_runtime_archive_with(runtime_archive, root, Some(&on_extract), None)?;
                 clear_runtime_pending_marker(&root.join("current"))?;
             }
         }
@@ -8770,6 +9527,7 @@ fn runtime_bootstrap(
                 Ok(false) => {}
                 Err(err) => eprintln!("[torn-repair] {} 修复失败: {err:#}", root.display()),
             }
+            sweep_stale_runtime_stage_dirs(root);
         }
     }
     // 启动健康看门狗:连续 2 次未达 ready → 自动回滚 previous 槽(更新到坏版本的自愈)。
@@ -9395,6 +10153,39 @@ fn run_swap_cli(a: &Path, b: &Path) -> i32 {
     }
 }
 
+// 隐藏 CLI:update helper 借「新版 app 自己的二进制」做全量 runtime 对换——
+// 与进程内 extract_runtime_archive_with 完全同一协议(磁盘预检 + _extract 暂存 +
+// 版本闸 + renamex 原子互换 + previous 保留到首次 ready)。stdout/stderr 由 helper
+// 的 exec >> LOG 收进 update.log。exit: 0=成功 / 1=手术失败(current 未动或已回滚,
+// 半成品已清或留给撕裂探测) / 2=入参不可用。
+fn run_runtime_swap_cli(root: &Path, archive: &Path, expected_version: &str) -> i32 {
+    if !archive.is_file() {
+        eprintln!("[runtime-swap] archive 不存在: {}", archive.display());
+        return 2;
+    }
+    if let Err(err) = ensure_dir(root) {
+        eprintln!("[runtime-swap] runtime 根不可用 {}: {err:#}", root.display());
+        return 2;
+    }
+    let expected = expected_version.trim();
+    let expected = if expected.is_empty() {
+        None
+    } else {
+        Some(expected)
+    };
+    match extract_runtime_archive_with(archive, root, None, expected) {
+        Ok(()) => {
+            let _ = clear_runtime_pending_marker(&root.join("current"));
+            println!("[runtime-swap] promoted new runtime at {}", root.display());
+            0
+        }
+        Err(err) => {
+            eprintln!("[runtime-swap] {err:#}");
+            1
+        }
+    }
+}
+
 fn main() {
     // [U-B] 隐藏 CLI 旗标:update helper 用「新版 app 自己的二进制」做原子互换,
     // 位于 tauri::Builder 之前(零 UI、零窗口即退)。
@@ -9403,13 +10194,21 @@ fn main() {
         if args.len() == 4 && args[1] == "--horosa-atomic-swap" {
             std::process::exit(run_swap_cli(Path::new(&args[2]), Path::new(&args[3])));
         }
+        // helper 全量 runtime 对换(与 --horosa-atomic-swap 同款先例:零 UI 即退)。
+        if args.len() == 5 && args[1] == "--horosa-runtime-swap" {
+            std::process::exit(run_runtime_swap_cli(
+                Path::new(&args[2]),
+                Path::new(&args[3]),
+                &args[4],
+            ));
+        }
     }
     configure_macos_native_window_restoration();
     register_panic_runtime_cleanup();
     sweep_stale_tmp_downloads();
     tauri::Builder::default()
         .manage(AppState::default())
-        // [剪贴板] 主线程创建;失败存 None,command 内惰性重建
+        // [E1 剪贴板] 主线程创建(照官方 clipboard-manager 插件形态);失败存 None,command 内惰性重建
         .manage(DesktopClipboardState(Mutex::new(
             arboard::Clipboard::new().ok(),
         )))
@@ -9437,6 +10236,7 @@ fn main() {
             update_install_and_restart,
             copy_text_to_clipboard_command,
             open_external_url_command,
+            print_report_html_command,
             get_backend_endpoints,
             restart_local_services_command,
             export_diagnostics_bundle
@@ -9726,8 +10526,9 @@ mod tests {
     use std::process::Command;
     use tar::Builder;
 
-    // [剪贴板] UTF-8 roundtrip:主路 arboard 与兜底 pbcopy(LC_CTYPE 钉死)两路合一,
-    // 防 cargo test 并行互踩全局剪贴板;先存后还。读侧 pbpaste 同样要钉 LC_CTYPE。
+    // [E1 剪贴板] UTF-8 roundtrip:主路 arboard 与兜底 pbcopy(LC_CTYPE 钉死)两路合一,
+    // 防 cargo test 并行互踩全局剪贴板;先存后还,尽量不打扰开发者剪贴板。
+    // 读侧 pbpaste 同样要钉 LC_CTYPE:无 locale 时读侧也按 MacRoman 转码输出。
     #[test]
     #[cfg(target_os = "macos")]
     fn clipboard_utf8_roundtrip_native_and_pbcopy() {
@@ -9736,11 +10537,13 @@ mod tests {
             .ok()
             .and_then(|mut c| c.get_text().ok());
 
+        // ① arboard 主路
         let mut clip = arboard::Clipboard::new().expect("arboard 初始化失败");
         clip.set_text(sample.to_string()).expect("arboard 写入失败");
         assert_eq!(clip.get_text().expect("arboard 读回失败"), sample);
         drop(clip);
 
+        // ② pbcopy 兜底
         pbcopy_utf8_fallback(sample).expect("pbcopy 兜底写入失败");
         let out = Command::new("/usr/bin/pbpaste")
             .env("LC_CTYPE", "UTF-8")
@@ -10132,7 +10935,7 @@ mod tests {
             }
         });
         assert_eq!(
-            probe_identity(ok_port, "horosa-backend", "n-1", timeout),
+            probe_identity(ok_port, "horosa-backend", "n-1", timeout, false),
             IdentityProbe::Ok
         );
         ok_thread.join().unwrap();
@@ -10156,11 +10959,11 @@ mod tests {
             }
         });
         assert_eq!(
-            probe_identity(sq_port, "horosa-backend", "n-1", timeout),
+            probe_identity(sq_port, "horosa-backend", "n-1", timeout, false),
             IdentityProbe::WrongIdentity
         );
         assert_eq!(
-            probe_identity(sq_port, "stranger", "n-1", timeout),
+            probe_identity(sq_port, "stranger", "n-1", timeout, false),
             IdentityProbe::WrongIdentity
         );
         sq_thread.join().unwrap();
@@ -10175,7 +10978,7 @@ mod tests {
             }
         });
         assert_eq!(
-            probe_identity(silent_port, "horosa-backend", "n-1", timeout),
+            probe_identity(silent_port, "horosa-backend", "n-1", timeout, false),
             IdentityProbe::HttpSilent
         );
         silent_thread.join().unwrap();
@@ -10186,7 +10989,7 @@ mod tests {
             l.local_addr().unwrap().port()
         };
         assert_eq!(
-            probe_identity(dead_port, "horosa-backend", "n-1", timeout),
+            probe_identity(dead_port, "horosa-backend", "n-1", timeout, false),
             IdentityProbe::TcpDead
         );
     }
@@ -10744,29 +11547,44 @@ mod tests {
 
     #[test]
     fn runtime_update_command_uses_shell_resolved_manifest_path() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let runtime_root = Path::new("/tmp/horosa-runtime-root");
         let archive = Path::new("/tmp/horosa-runtime.tar.gz");
+        // 默认新协议:手术经 TARGET 新二进制(--horosa-runtime-swap),模板层只定义不执行
         let command = build_runtime_update_command(
             &[runtime_root.to_path_buf()],
             archive,
             Some("1.0.19-runtime1"),
         );
-        assert!(command.contains(
+        assert!(command.contains("--horosa-runtime-swap"));
+        assert!(command.contains("run_runtime_installs() {"));
+        assert!(!command.contains("mv \"${WORK_ROOT}/runtime-payload\""));
+        // 旧协议(逃生阀)保留 shell 原生 plutil 解析,零 python 依赖
+        let legacy = build_single_runtime_update_command_legacy(
+            runtime_root,
+            archive,
+            Some("1.0.19-runtime1"),
+            0,
+        );
+        assert!(legacy.contains(
             "ACTUAL_RUNTIME_VERSION=\"$(/usr/bin/plutil -extract version raw -o - \"${WORK_ROOT}/runtime-payload/runtime-manifest.json\" 2>/dev/null || true)\""
         ));
-        assert!(!command
+        assert!(!legacy
             .contains("pathlib.Path(r\"${WORK_ROOT}/runtime-payload/runtime-manifest.json\")"));
     }
 
     #[test]
-    fn runtime_update_command_extracts_and_switches_payload() {
+    fn runtime_update_command_legacy_extracts_and_switches_payload() {
+        // 旧协议(HOROSA_HELPER_RUNTIME_SWAP=0 逃生阀)功能保真:自包含 bash 原地可跑。
+        // 新协议的功能等价物 = run_runtime_swap_cli(见 runtime_swap_cli_* 测试)。
         let root = temp_test_dir("runtime-update-helper");
         let runtime_root = root.join("shared/runtime");
         let archive = create_runtime_archive(&root, "1.0.19-runtime1");
-        let command = build_runtime_update_command(
-            std::slice::from_ref(&runtime_root),
+        let command = build_single_runtime_update_command_legacy(
+            &runtime_root,
             &archive,
             Some("1.0.19-runtime1"),
+            0,
         );
         let script_path = root.join("run.sh");
         fs::write(
@@ -10785,6 +11603,859 @@ mod tests {
         assert!(status.success());
         assert!(runtime_root.join("current/runtime-manifest.json").exists());
         assert!(!runtime_root.join("_update").exists());
+    }
+
+    // HOROSA_HELPER_RUNTIME_SWAP 是进程级 env:读它的模板测试与设它的 killswitch
+    // 测试并行会互毒 → 共用一把测试锁串行化(поisoned 也继续,锁只为互斥不为状态)。
+    static HELPER_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    // 新协议 helper 模板契约:定义不执行 / wait→app→runtime 时序 / 危险旧序零回潮
+    #[test]
+    fn update_helper_script_runtime_swap_after_wait_and_app() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let runtime_cmd = build_runtime_update_command(
+            &[PathBuf::from("/Users/Shared/HorosaTest/runtime")],
+            Path::new("/tmp/runtime.tar.gz"),
+            Some("9.9.9-runtime1"),
+        );
+        let script = build_update_helper_script(
+            Path::new("/tmp/log.txt"),
+            Path::new("/tmp/marker.txt"),
+            Path::new("/Applications/Demo.app"),
+            Path::new("/tmp/extract/Demo.app"),
+            "501",
+            "demo",
+            "1234",
+            "demo-exec",
+            "9.9.9",
+            Some("9.9.9-runtime1"),
+            &runtime_cmd,
+        );
+        assert!(
+            script.contains("--horosa-runtime-swap"),
+            "新协议必须经 TARGET 二进制做 runtime 对换"
+        );
+        // 旧危险序零回潮(默认脚本不得再出现两段 mv 序/成功即删 previous)
+        assert!(!script.contains("mv \"${WORK_ROOT}/runtime-payload\""));
+        assert!(!script.contains("rm -rf \"${WORK_ROOT}\" \"${PREVIOUS_ROOT}\""));
+        // 时序:定义(install_runtime_0)→ wait 调用 → install_app 调用 → run_runtime_installs 调用
+        let def_at = script
+            .find("install_runtime_0() {")
+            .expect("缺 runtime 安装函数定义");
+        let wait_call_at = script
+            .rfind("\nwait_for_old_app_exit\n")
+            .expect("缺 wait 裸调用");
+        let app_call_at = script
+            .find("if ! install_app; then")
+            .expect("缺 install_app 调用");
+        let runtime_call_at = script
+            .find("if ! run_runtime_installs; then")
+            .expect("缺 run_runtime_installs 调用");
+        assert!(def_at < wait_call_at, "runtime_cmd 必须只定义不执行");
+        assert!(
+            wait_call_at < app_call_at && app_call_at < runtime_call_at,
+            "顺序必须 wait→app→runtime"
+        );
+    }
+
+    // 铁律14:runtime 失败臂(exit 73)绝不写完成标记,重开用 open_app_once(open_app 会 mark)
+    #[test]
+    fn update_helper_runtime_failure_arm_never_marks() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let runtime_cmd = build_runtime_update_command(
+            &[PathBuf::from("/Users/Shared/HorosaTest/runtime")],
+            Path::new("/tmp/runtime.tar.gz"),
+            Some("9.9.9-runtime1"),
+        );
+        let script = build_update_helper_script(
+            Path::new("/tmp/log.txt"),
+            Path::new("/tmp/marker.txt"),
+            Path::new("/Applications/Demo.app"),
+            Path::new("/tmp/extract/Demo.app"),
+            "501",
+            "demo",
+            "1234",
+            "demo-exec",
+            "9.9.9",
+            Some("9.9.9-runtime1"),
+            &runtime_cmd,
+        );
+        let arm_start = script.find("if ! run_runtime_installs; then").unwrap();
+        let arm_end = arm_start + script[arm_start..].find("exit 73").expect("缺 exit 73 臂");
+        let arm = &script[arm_start..arm_end];
+        assert!(
+            !arm.contains("mark_update_complete"),
+            "runtime 失败臂不得写完成标记"
+        );
+        assert!(arm.contains("open_app_once"), "失败臂用 open_app_once 重开");
+        // 成功路径的 mark 必须在失败臂之后(即 run_runtime_installs 通过才 mark)
+        let mark_at = script
+            .rfind("mark_update_complete \"pending_manual\"")
+            .unwrap();
+        assert!(arm_end < mark_at);
+    }
+
+    // kill-switch:生成端回旧模板(证明开关真实闭环)
+    #[test]
+    fn update_helper_legacy_killswitch_restores_old_template() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("HOROSA_HELPER_RUNTIME_SWAP", "0");
+        let legacy = build_runtime_update_command(
+            &[PathBuf::from("/Users/Shared/HorosaTest/runtime")],
+            Path::new("/tmp/runtime.tar.gz"),
+            Some("9.9.9-runtime1"),
+        );
+        std::env::remove_var("HOROSA_HELPER_RUNTIME_SWAP");
+        assert!(
+            legacy.contains("mv \"${WORK_ROOT}/runtime-payload\""),
+            "开关下必须回旧模板"
+        );
+        assert!(!legacy.contains("--horosa-runtime-swap"));
+        assert!(
+            !legacy.contains("run_runtime_installs() {"),
+            "旧模板不覆盖 run_runtime_installs(走默认空实现)"
+        );
+    }
+
+    // helper 真执行演练:生成的脚本用 /bin/bash 实跑——文本契约测不出
+    // set -euo pipefail 下的真实执行语义(函数定义顺序/失败臂 exit 码/标记纪律)。
+    // 只换三个 GUI 命令(open/pgrep/osascript)为桩,mv/ditto/kill/df 全真;
+    // 手术本体行为由 runtime_swap_cli_* 测试真实覆盖,此处桩只回执 exit 码。
+    struct HelperExecFixture {
+        root: PathBuf,
+        script_path: PathBuf,
+        log: PathBuf,
+        marker: PathBuf,
+        target_payload: PathBuf,
+        calls: PathBuf,
+        path_env: String,
+    }
+
+    fn write_exec_stub(path: &Path, body: &str) {
+        use std::os::unix::fs::PermissionsExt;
+        fs::write(path, body).unwrap();
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    fn build_helper_exec_fixture(name: &str, swap_exit: i32, old_pid: &str) -> HelperExecFixture {
+        let root = temp_test_dir(name);
+        let stub = root.join("stub");
+        fs::create_dir_all(&stub).unwrap();
+        let calls = root.join("calls.log");
+        fs::write(&calls, "").unwrap();
+        // 裸 sleep 走 PATH:压缩等待窗(60 轮×0.05s 仍足够旧进程真实退出)
+        write_exec_stub(&stub.join("sleep"), "#!/bin/bash\n/bin/sleep 0.05\n");
+        write_exec_stub(
+            &stub.join("open"),
+            &format!("#!/bin/bash\necho \"open $*\" >> {}\nexit 0\n", calls.display()),
+        );
+        write_exec_stub(&stub.join("osascript"), "#!/bin/bash\nexit 0\n");
+        write_exec_stub(
+            &stub.join("pgrep"),
+            &format!("#!/bin/bash\necho \"pgrep $*\" >> {}\nexit 0\n", calls.display()),
+        );
+        // SRC 新 app 骨架:exec 桩处理两个子命令(atomic-swap 拒→逼 mv 回退;runtime-swap 落参回执)
+        let src_app = root.join("src/Horosa.app");
+        fs::create_dir_all(src_app.join("Contents/MacOS")).unwrap();
+        fs::create_dir_all(src_app.join("Contents/Resources")).unwrap();
+        write_exec_stub(
+            &src_app.join("Contents/MacOS/horosa-exec"),
+            &format!(
+                "#!/bin/bash\ncase \"${{1:-}}\" in\n  --horosa-atomic-swap) exit 1 ;;\n  --horosa-runtime-swap) echo \"swap-args $2 $3 $4\" >> {}\n    exit {} ;;\nesac\nexit 0\n",
+                calls.display(),
+                swap_exit
+            ),
+        );
+        fs::write(src_app.join("Contents/Resources/payload.txt"), "new").unwrap();
+        // TARGET 旧 app(mv 回退路径要求它在位)
+        let target_app = root.join("Applications/Horosa.app");
+        fs::create_dir_all(target_app.join("Contents/MacOS")).unwrap();
+        fs::create_dir_all(target_app.join("Contents/Resources")).unwrap();
+        write_exec_stub(&target_app.join("Contents/MacOS/horosa-exec"), "#!/bin/bash\nexit 0\n");
+        fs::write(target_app.join("Contents/Resources/payload.txt"), "old").unwrap();
+
+        let runtime_cmd = {
+            let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOROSA_HELPER_RUNTIME_SWAP", "1");
+            let cmd = build_runtime_update_command(
+                &[root.join("runtime")],
+                &root.join("runtime.tar.gz"),
+                Some("9.9.9-runtime1"),
+            );
+            std::env::remove_var("HOROSA_HELPER_RUNTIME_SWAP");
+            cmd
+        };
+        let log = root.join("update.log");
+        let marker = root.join("update-complete.txt");
+        let uid = unsafe { libc::getuid() }.to_string();
+        let script = build_update_helper_script(
+            &log,
+            &marker,
+            &target_app,
+            &src_app,
+            &uid,
+            "helper-exec-test",
+            old_pid,
+            "horosa-exec",
+            "9.9.9",
+            Some("9.9.9-runtime1"),
+            &runtime_cmd,
+        )
+        .replace("/usr/bin/open", &stub.join("open").display().to_string())
+        .replace("/usr/bin/pgrep", &stub.join("pgrep").display().to_string())
+        .replace(
+            "/usr/bin/osascript",
+            &stub.join("osascript").display().to_string(),
+        );
+        let script_path = root.join("helper.sh");
+        fs::write(&script_path, script).unwrap();
+        HelperExecFixture {
+            path_env: format!("{}:/usr/bin:/bin:/usr/sbin:/sbin", stub.display()),
+            target_payload: target_app.join("Contents/Resources/payload.txt"),
+            root,
+            script_path,
+            log,
+            marker,
+            calls,
+        }
+    }
+
+    fn run_helper_script(fx: &HelperExecFixture) -> i32 {
+        Command::new("/bin/bash")
+            .arg(&fx.script_path)
+            .env("PATH", &fx.path_env)
+            .status()
+            .expect("run helper script")
+            .code()
+            .unwrap_or(-1)
+    }
+
+    #[test]
+    fn update_helper_exec_happy_path_orders_wait_app_runtime_then_marks() {
+        // 真旧进程:0.3s 后退出,验证 wait_for_old_app_exit 真的等到了它。
+        // 必须即时收尸(僵尸 pid 对 kill -0 恒真,会骗过等待循环)→ 独立线程 wait()。
+        let mut old = Command::new("/bin/sleep").arg("0.3").spawn().unwrap();
+        let old_pid = old.id().to_string();
+        let reaper = std::thread::spawn(move || {
+            let _ = old.wait();
+        });
+        let fx = build_helper_exec_fixture("helper-exec-happy", 0, &old_pid);
+        let code = run_helper_script(&fx);
+        let _ = reaper.join();
+        let log = fs::read_to_string(&fx.log).unwrap_or_default();
+        let calls = fs::read_to_string(&fx.calls).unwrap_or_default();
+        assert_eq!(code, 0, "log:\n{log}\ncalls:\n{calls}");
+        assert!(log.contains("[app] old process exited"), "必须真等旧进程退出:\n{log}");
+        let i_install = log.find("[app] install succeeded").expect("app 安装日志");
+        assert!(log.contains("update helper success"));
+        let swap_line = calls
+            .lines()
+            .find(|l| l.starts_with("swap-args"))
+            .expect("runtime swap 必须被调用");
+        assert!(
+            swap_line.contains("9.9.9-runtime1") && swap_line.contains("runtime.tar.gz"),
+            "swap 参数错:{swap_line}"
+        );
+        // 时序:app 安装成功日志先于 runtime 失败探测日志区(swap 在 install 之后才可能出现)
+        let i_runtime_log = log.find("===== update helper success").unwrap();
+        assert!(i_install < i_runtime_log);
+        let marker = fs::read_to_string(&fx.marker).expect("成功路必须写完成标记");
+        assert!(marker.contains("relaunch_status=auto_relaunch_confirmed"), "{marker}");
+        assert_eq!(fs::read_to_string(&fx.target_payload).unwrap(), "new");
+        let _ = fs::remove_dir_all(&fx.root);
+    }
+
+    #[test]
+    fn update_helper_exec_runtime_failure_exits_73_without_marker() {
+        let fx = build_helper_exec_fixture("helper-exec-rtfail", 1, "0");
+        let code = run_helper_script(&fx);
+        let log = fs::read_to_string(&fx.log).unwrap_or_default();
+        assert_eq!(code, 73, "runtime 失败臂必须 exit 73:\n{log}");
+        assert!(log.contains("[runtime] runtime install failed"));
+        assert!(
+            !fx.marker.exists(),
+            "runtime 失败绝不写完成标记(铁律14)"
+        );
+        // 新 app 已上位(修复机器在场)+ 已尝试重开
+        assert_eq!(fs::read_to_string(&fx.target_payload).unwrap(), "new");
+        let calls = fs::read_to_string(&fx.calls).unwrap_or_default();
+        assert!(calls.lines().any(|l| l.starts_with("open ")), "失败臂必须重开 app");
+        let _ = fs::remove_dir_all(&fx.root);
+    }
+
+    #[test]
+    fn update_helper_exec_app_install_failure_exits_71_keeps_old_app() {
+        let fx = build_helper_exec_fixture("helper-exec-appfail", 0, "0");
+        // 挖掉 SRC → ditto 永败 → install_app 失败臂
+        fs::remove_dir_all(fx.root.join("src")).unwrap();
+        let code = run_helper_script(&fx);
+        let log = fs::read_to_string(&fx.log).unwrap_or_default();
+        assert_eq!(code, 71, "app 安装失败臂必须 exit 71:\n{log}");
+        assert!(!fx.marker.exists(), "安装失败绝不写完成标记");
+        assert_eq!(
+            fs::read_to_string(&fx.target_payload).unwrap(),
+            "old",
+            "旧 app 必须完好"
+        );
+        let calls = fs::read_to_string(&fx.calls).unwrap_or_default();
+        assert!(
+            !calls.contains("swap-args"),
+            "app 未装成绝不能碰 runtime"
+        );
+        let _ = fs::remove_dir_all(&fx.root);
+    }
+
+    // CLI 手术版本闸:归档 manifest 与期望不符 → 失败且 current 纹丝不动、半成品清净
+    #[test]
+    fn runtime_swap_cli_rejects_version_mismatch() {
+        let root = temp_test_dir("runtime-swap-cli-vgate");
+        let runtime_root = root.join("runtime");
+        write_minimal_runtime_tree(&runtime_root.join("current"), "old");
+        let archive = create_runtime_archive(&root, "2.0.0-runtime1");
+        let code = run_runtime_swap_cli(&runtime_root, &archive, "9.9.9-runtime1");
+        assert_eq!(code, 1, "版本不符必须失败");
+        assert_eq!(
+            fs::read_to_string(
+                runtime_root.join("current/Horosa-Web/astrostudyui/dist-file/index.html")
+            )
+            .unwrap(),
+            "old"
+        );
+        assert!(!runtime_root.join("_extract").exists(), "半成品必须清");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // CLI 手术成功路:新树上位 + previous 保留到首次 ready(看门狗回滚资本)
+    #[test]
+    fn runtime_swap_cli_promotes_and_keeps_previous() {
+        let root = temp_test_dir("runtime-swap-cli-promote");
+        let runtime_root = root.join("runtime");
+        write_minimal_runtime_tree(&runtime_root.join("current"), "old");
+        let archive = create_runtime_archive(&root, "2.0.0-runtime1");
+        let code = run_runtime_swap_cli(&runtime_root, &archive, "2.0.0-runtime1");
+        assert_eq!(code, 0);
+        let manifest =
+            fs::read_to_string(runtime_root.join("current/runtime-manifest.json")).unwrap();
+        assert!(manifest.contains("2.0.0-runtime1"));
+        assert!(
+            runtime_root.join("previous").exists(),
+            "previous 必须保留(绝不像旧协议成功即删)"
+        );
+        assert_eq!(
+            fs::read_to_string(
+                runtime_root.join("previous/Horosa-Web/astrostudyui/dist-file/index.html")
+            )
+            .unwrap(),
+            "old"
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // 旧协议(过渡跳)暂存 _update/runtime-payload:断电撕裂时可被收养,不再成孤儿
+    #[test]
+    fn repair_torn_slots_adopts_legacy_update_dir() {
+        let root = temp_test_dir("torn-legacy-update");
+        write_minimal_runtime_tree(&root.join("_update/runtime-payload"), "legacy-stage");
+        assert!(repair_torn_runtime_slots(&root).unwrap());
+        assert_eq!(
+            fs::read_to_string(root.join("current/Horosa-Web/astrostudyui/dist-file/index.html"))
+                .unwrap(),
+            "legacy-stage"
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // 孤儿清扫:新鲜暂存/撕裂态零动作;仅清 24h 以上陈旧目录
+    #[test]
+    fn sweep_stale_stage_dirs_only_removes_old() {
+        let root = temp_test_dir("sweep-stale");
+        write_minimal_runtime_tree(&root.join("current"), "cur");
+        fs::create_dir_all(root.join("_update/runtime-payload")).unwrap();
+        fs::create_dir_all(root.join("_extract/runtime-payload")).unwrap();
+        sweep_stale_runtime_stage_dirs(&root);
+        assert!(root.join("_update").exists(), "新鲜目录绝不清");
+        assert!(root.join("_extract").exists());
+        // mtime 拨回 2020 → 判陈旧,必须清
+        let _ = Command::new("/usr/bin/touch")
+            .args(["-t", "202001010000"])
+            .arg(root.join("_update"))
+            .status();
+        sweep_stale_runtime_stage_dirs(&root);
+        assert!(!root.join("_update").exists(), "陈旧 _update 必须被清扫");
+        assert!(root.join("_extract").exists(), "新鲜 _extract 仍不动");
+        // 无 current(撕裂态)零动作,交给收养
+        let root2 = temp_test_dir("sweep-torn");
+        fs::create_dir_all(root2.join("_update/runtime-payload")).unwrap();
+        let _ = Command::new("/usr/bin/touch")
+            .args(["-t", "202001010000"])
+            .arg(root2.join("_update"))
+            .status();
+        sweep_stale_runtime_stage_dirs(&root2);
+        assert!(root2.join("_update").exists(), "撕裂态不清扫(留给收养)");
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&root2);
+    }
+
+    // 手术锁簇:全部走 HELPER_ENV_LOCK 串行(读写手术锁相关 env,防并行互毒)
+    #[test]
+    fn surgery_lock_blocks_second_acquire_same_process() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let root = temp_test_dir("surgery-lock-same-proc");
+        let guard = try_acquire_surgery_lock(&root, Duration::from_secs(1))
+            .unwrap()
+            .expect("首次必须拿到");
+        // flock 同进程第二个 fd 也互斥(这正是「锁只进五叶、上层禁取」纪律的依据)
+        let second = try_acquire_surgery_lock(&root, Duration::from_millis(600)).unwrap();
+        assert!(second.is_none(), "持锁期间第二次 acquire 必须等超时");
+        drop(guard);
+        let third = try_acquire_surgery_lock(&root, Duration::from_secs(1)).unwrap();
+        assert!(third.is_some(), "释放后立即可得");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // 子进程角色:仅当 HOROSA_LOCK_TEST_ROOT 在场才动作(直跑=零动作秒过)。
+    #[test]
+    fn surgery_lock_child_holder() {
+        let Ok(root) = std::env::var("HOROSA_LOCK_TEST_ROOT") else {
+            return;
+        };
+        let guard = try_acquire_surgery_lock(Path::new(&root), Duration::from_secs(5))
+            .unwrap()
+            .expect("child 必须拿到锁");
+        thread::sleep(Duration::from_secs(3));
+        drop(guard);
+    }
+
+    fn spawn_lock_holder_child(root: &Path) -> std::process::Child {
+        let exe = std::env::current_exe().unwrap();
+        Command::new(&exe)
+            .args(["--exact", "tests::surgery_lock_child_holder", "--nocapture"])
+            .env("HOROSA_LOCK_TEST_ROOT", root)
+            .env_remove("HOROSA_SURGERY_LOCK_DISABLE")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn child")
+    }
+
+    fn wait_until_child_holds_lock(root: &Path) -> bool {
+        for _ in 0..50 {
+            thread::sleep(Duration::from_millis(100));
+            match try_acquire_surgery_lock(root, Duration::from_millis(1)).unwrap() {
+                Some(g) => drop(g), // 子进程还没锁上,继续等
+                None => return true,
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn surgery_lock_cross_process_contention() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let root = temp_test_dir("surgery-lock-xproc");
+        fs::create_dir_all(&root).unwrap();
+        let mut child = spawn_lock_holder_child(&root);
+        assert!(wait_until_child_holds_lock(&root), "子进程应已持锁");
+        // 短等拿不到(对方在手术)
+        assert!(try_acquire_surgery_lock(&root, Duration::from_millis(300))
+            .unwrap()
+            .is_none());
+        // 长等(≥子进程持锁 3s)排队拿到
+        assert!(try_acquire_surgery_lock(&root, Duration::from_secs(10))
+            .unwrap()
+            .is_some());
+        let _ = child.wait();
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn surgery_lock_released_on_sigkill() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let root = temp_test_dir("surgery-lock-sigkill");
+        fs::create_dir_all(&root).unwrap();
+        let mut child = spawn_lock_holder_child(&root);
+        assert!(wait_until_child_holds_lock(&root), "子进程应已持锁");
+        let _ = Command::new("/bin/kill")
+            .args(["-9", &child.id().to_string()])
+            .status();
+        let _ = child.wait();
+        // 内核级释放:kill -9 后立即可得(崩溃不留死锁)
+        assert!(try_acquire_surgery_lock(&root, Duration::from_secs(2))
+            .unwrap()
+            .is_some());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn surgery_lock_disable_env_bypasses() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let root = temp_test_dir("surgery-lock-disable");
+        let guard = try_acquire_surgery_lock(&root, Duration::from_secs(1))
+            .unwrap()
+            .expect("先真实持锁");
+        std::env::set_var("HOROSA_SURGERY_LOCK_DISABLE", "1");
+        let bypass = try_acquire_surgery_lock(&root, Duration::from_millis(100)).unwrap();
+        std::env::remove_var("HOROSA_SURGERY_LOCK_DISABLE");
+        assert!(bypass.is_some(), "开关下必须旁路(退回无锁旧行为)");
+        drop(guard);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn torn_repair_skips_when_locked() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let root = temp_test_dir("torn-locked");
+        write_minimal_runtime_tree(&root.join("previous"), "prev");
+        std::env::set_var("HOROSA_SURGERY_LOCK_OPT_WAIT_SECS", "1");
+        let guard = try_acquire_surgery_lock(&root, Duration::from_secs(1))
+            .unwrap()
+            .expect("模拟对方持锁");
+        // optional 语义:拿不到 → Ok(false) 且绝不收养(current 不产出)
+        let repaired = repair_torn_runtime_slots(&root).unwrap();
+        std::env::remove_var("HOROSA_SURGERY_LOCK_OPT_WAIT_SECS");
+        assert!(!repaired, "对方持锁期间不得收养");
+        assert!(!root.join("current").exists());
+        drop(guard);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // 多实例更新感知纯函数
+    #[test]
+    fn runtime_change_step_detects_version_drift() {
+        // 首见=定基线,不触发
+        let (b, changed) = runtime_change_step(None, Some("1.0.0-runtime1".into()));
+        assert_eq!(b.as_deref(), Some("1.0.0-runtime1"));
+        assert!(!changed);
+        // 同版本不触发
+        let (b, changed) = runtime_change_step(b, Some("1.0.0-runtime1".into()));
+        assert!(!changed);
+        // 版本漂移触发(基线保持,供账本引用)
+        let (b, changed) = runtime_change_step(b, Some("1.0.1-runtime1".into()));
+        assert!(changed);
+        assert_eq!(b.as_deref(), Some("1.0.0-runtime1"));
+        // 读不到 manifest(手术中途)不触发
+        let (_b, changed) = runtime_change_step(b, None);
+        assert!(!changed);
+    }
+
+    // ===== API 回退源 sha 闭环:三态 + 守门无条件 + notify-only 不触网 =====
+    fn test_release_config(manifest_name: &str) -> ReleaseConfig {
+        serde_json::from_value(serde_json::json!({
+            "repoOwner": "demo", "repoName": "horosa",
+            "runtimeVersion": "1.0.0-runtime1",
+            "runtimeAssetName": "runtime.tar.gz",
+            "desktopAssetName": "Horosa-Desktop.zip",
+            "desktopPkgName": "a.pkg", "desktopPkgZipName": "a.pkg.zip",
+            "updateManifestName": manifest_name,
+            "primaryDownload": "pkg", "supportedArch": "arm64",
+            "releaseTagPrefix": "v", "appName": "星阙",
+        }))
+        .unwrap()
+    }
+
+    fn manifest_json(version: &str, with_sha: bool) -> String {
+        let sha = if with_sha {
+            "\"appSha256\":\"aa\",\"runtimeSha256\":\"bb\","
+        } else {
+            ""
+        };
+        format!(
+            "{{\"version\":\"{version}\",\"tag\":\"v{version}\",\"platforms\":{{\"macos-aarch64\":{{\
+             \"appUrl\":\"https://x/app.zip\",{sha}\"runtimeUrl\":\"https://x/rt.tar.gz\",\
+             \"runtimeVersion\":\"{version}-runtime1\"}}}}}}"
+        )
+    }
+
+    /// 极简 raw HTTP:按 path 返回预置 body(200)或 404。返回 (base_url, 命中计数)。
+    /// 用 raw TcpListener 而非 tiny_http:与 §7.1 规矩一致,协议级可控。
+    fn spawn_asset_server(
+        routes: Vec<(String, String)>,
+    ) -> (String, Arc<AtomicUsize>, Arc<AtomicBool>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        listener.set_nonblocking(true).unwrap();
+        let hits = Arc::new(AtomicUsize::new(0));
+        let stop = Arc::new(AtomicBool::new(false));
+        let (h, st) = (hits.clone(), stop.clone());
+        thread::spawn(move || {
+            while !st.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((mut sock, _)) => {
+                        h.fetch_add(1, Ordering::SeqCst);
+                        let mut buf = [0u8; 2048];
+                        let n = sock.read(&mut buf).unwrap_or(0);
+                        let req = String::from_utf8_lossy(&buf[..n]).to_string();
+                        let path = req
+                            .split_whitespace()
+                            .nth(1)
+                            .unwrap_or("/")
+                            .split('?')
+                            .next()
+                            .unwrap_or("/")
+                            .to_string();
+                        let body = routes.iter().find(|(p, _)| *p == path).map(|(_, b)| b.clone());
+                        let resp = match body {
+                            Some(b) => format!(
+                                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                                b.len(),
+                                b
+                            ),
+                            None => "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string(),
+                        };
+                        let _ = sock.write_all(resp.as_bytes());
+                    }
+                    Err(_) => thread::sleep(Duration::from_millis(20)),
+                }
+            }
+        });
+        (format!("http://127.0.0.1:{port}"), hits, stop)
+    }
+
+    #[test]
+    fn api_fallback_fetches_manifest_asset_and_keeps_sha() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (base, _hits, stop) = spawn_asset_server(vec![(
+            "/horosa-latest.json".into(),
+            manifest_json("9.9.9", true),
+        )]);
+        let release: GithubRelease = serde_json::from_value(serde_json::json!({
+            "tag_name": "v9.9.9",
+            "assets": [{"name": "horosa-latest.json",
+                        "browser_download_url": format!("{base}/horosa-latest.json")}],
+        }))
+        .unwrap();
+        let client = build_github_client(5).unwrap();
+        let manifest =
+            fetch_manifest_via_release_asset(&client, &release, "horosa-latest.json").unwrap();
+        let plan = plan_from_manifest(
+            manifest,
+            &test_release_config("horosa-latest.json"),
+            "macos-aarch64",
+            UpdateSource::ManifestViaApi,
+        )
+        .unwrap();
+        assert_eq!(plan.source, UpdateSource::ManifestViaApi);
+        assert_eq!(plan.app_sha256.as_deref(), Some("aa"));
+        assert_eq!(plan.runtime_sha256.as_deref(), Some("bb"));
+        assert!(!plan.notify_only, "取回真 manifest 后绝不是 notify-only");
+        stop.store(true, Ordering::SeqCst);
+    }
+
+    #[test]
+    fn api_fallback_manifest_asset_missing_yields_none() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let release: GithubRelease = serde_json::from_value(serde_json::json!({
+            "tag_name": "v9.9.9",
+            "assets": [{"name": "Horosa-Desktop.zip", "browser_download_url": "https://x/app.zip"}],
+        }))
+        .unwrap();
+        let client = build_github_client(2).unwrap();
+        // assets 里没有 manifest 名 → None(上游据此降级 notify-only)
+        assert!(fetch_manifest_via_release_asset(&client, &release, "horosa-latest.json").is_none());
+    }
+
+    #[test]
+    fn api_fallback_manifest_asset_bad_json_yields_none() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (base, _hits, stop) =
+            spawn_asset_server(vec![("/horosa-latest.json".into(), "{ not json".into())]);
+        let release: GithubRelease = serde_json::from_value(serde_json::json!({
+            "tag_name": "v9.9.9",
+            "assets": [{"name": "horosa-latest.json",
+                        "browser_download_url": format!("{base}/horosa-latest.json")}],
+        }))
+        .unwrap();
+        let client = build_github_client(5).unwrap();
+        assert!(
+            fetch_manifest_via_release_asset(&client, &release, "horosa-latest.json").is_none(),
+            "坏 JSON 必须降级(不 panic)"
+        );
+        stop.store(true, Ordering::SeqCst);
+    }
+
+    #[test]
+    fn api_manifest_fetch_killswitch_forces_notify_only_path() {
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (base, hits, stop) = spawn_asset_server(vec![(
+            "/horosa-latest.json".into(),
+            manifest_json("9.9.9", true),
+        )]);
+        let release: GithubRelease = serde_json::from_value(serde_json::json!({
+            "tag_name": "v9.9.9",
+            "assets": [{"name": "horosa-latest.json",
+                        "browser_download_url": format!("{base}/horosa-latest.json")}],
+        }))
+        .unwrap();
+        let client = build_github_client(5).unwrap();
+        std::env::set_var("HOROSA_UPDATE_API_MANIFEST_FETCH", "0");
+        let got = fetch_manifest_via_release_asset(&client, &release, "horosa-latest.json");
+        std::env::remove_var("HOROSA_UPDATE_API_MANIFEST_FETCH");
+        assert!(got.is_none(), "开关下跳过 asset 取回");
+        assert_eq!(hits.load(Ordering::SeqCst), 0, "开关下不得触网");
+        stop.store(true, Ordering::SeqCst);
+    }
+
+    // 无 sha 的 manifest 也能映射成 plan(sha=None),真正的拦截在守门——
+    // 守门已改无条件,故此处钉住「plan 侧 sha 缺失可观测」这一前置事实。
+    #[test]
+    fn plan_from_manifest_without_sha_leaves_none_for_guard() {
+        let manifest: UpdateManifest = serde_json::from_str(&manifest_json("9.9.9", false)).unwrap();
+        let plan = plan_from_manifest(
+            manifest,
+            &test_release_config("horosa-latest.json"),
+            "macos-aarch64",
+            UpdateSource::ManifestViaApi,
+        )
+        .unwrap();
+        assert!(plan.app_sha256.is_none() && plan.runtime_sha256.is_none());
+        assert!(!plan.notify_only);
+        // 平台键不匹配 → None(老 manifest/异构平台)
+        let m2: UpdateManifest = serde_json::from_str(&manifest_json("9.9.9", true)).unwrap();
+        assert!(plan_from_manifest(
+            m2,
+            &test_release_config("horosa-latest.json"),
+            "windows-x86_64",
+            UpdateSource::Manifest
+        )
+        .is_none());
+    }
+
+    // 深探慢 streak 纯函数:1 次失败不杀、2 次杀、Ok 清零
+    #[test]
+    fn deep_step_state_machine() {
+        let (s1, kill1) = deep_step(0, false);
+        assert_eq!((s1, kill1), (1, false), "单次深探失败容忍(高载/GC)");
+        let (s2, kill2) = deep_step(s1, false);
+        assert_eq!((s2, kill2), (2, true), "连续 2 次深探失败判算力死");
+        let (s3, kill3) = deep_step(s2, true);
+        assert_eq!((s3, kill3), (0, false), "恢复即清零");
+    }
+
+    fn spawn_identity_stub(body: &'static str) -> u16 {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        thread::spawn(move || {
+            if let Ok((mut sock, _)) = listener.accept() {
+                let mut buf = [0u8; 1024];
+                let _ = sock.read(&mut buf);
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                let _ = sock.write_all(resp.as_bytes());
+            }
+        });
+        port
+    }
+
+    // proto 门代数差免疫:旧对端(proto 1/无 deep 字段)在深探轮按通过处理,绝不误杀
+    #[test]
+    fn probe_identity_deep_unsupported_on_proto1() {
+        use std::io::{Read, Write};
+        let _ = (Read::read
+            as fn(&mut std::net::TcpStream, &mut [u8]) -> std::io::Result<usize>);
+        let port = spawn_identity_stub(r#"{"app":"horosa-backend","proto":1,"nonce":"n-1"}"#);
+        let got = probe_identity(port, "horosa-backend", "n-1", Duration::from_secs(2), true);
+        assert_eq!(got, IdentityProbe::DeepUnsupported);
+    }
+
+    #[test]
+    fn probe_identity_deep_fail_on_proto2() {
+        let port = spawn_identity_stub(
+            r#"{"app":"horosa-backend","proto":2,"nonce":"n-1","deep":"fail"}"#,
+        );
+        let got = probe_identity(port, "horosa-backend", "n-1", Duration::from_secs(2), true);
+        assert_eq!(got, IdentityProbe::DeepFail, "proto2 深探失败必须显式分类");
+    }
+
+    #[test]
+    fn probe_identity_deep_ok_on_proto2() {
+        let port = spawn_identity_stub(
+            r#"{"app":"horosa-backend","proto":2,"nonce":"n-1","deep":"ok"}"#,
+        );
+        let got = probe_identity(port, "horosa-backend", "n-1", Duration::from_secs(2), true);
+        assert_eq!(got, IdentityProbe::Ok);
+        // 浅探不受 proto2 影响
+        let port2 = spawn_identity_stub(
+            r#"{"app":"horosa-backend","proto":2,"nonce":"n-1"}"#,
+        );
+        let got2 = probe_identity(port2, "horosa-backend", "n-1", Duration::from_secs(2), false);
+        assert_eq!(got2, IdentityProbe::Ok);
+    }
+
+    // 诊断包 Java 日志选取器:mtime 最新优先 + cap 内尽量多收(大文件跳过继续拣小)
+    #[test]
+    fn select_recent_files_prefers_newest_within_cap() {
+        let root = temp_test_dir("diag-select");
+        fs::create_dir_all(root.join("2026/07/09")).unwrap();
+        let old_big = root.join("2026/07/09/old-big.log");
+        let mid = root.join("2026/07/09/mid.log");
+        let newest = root.join("newest.log");
+        fs::write(&old_big, vec![b'x'; 3000]).unwrap();
+        fs::write(&mid, vec![b'y'; 400]).unwrap();
+        fs::write(&newest, vec![b'z'; 500]).unwrap();
+        let _ = Command::new("/usr/bin/touch").args(["-t", "202001010000"]).arg(&old_big).status();
+        let _ = Command::new("/usr/bin/touch").args(["-t", "202601010000"]).arg(&mid).status();
+        let _ = Command::new("/usr/bin/touch").args(["-t", "202607090000"]).arg(&newest).status();
+        // cap=1000:newest(500)+mid(400) 收下;old_big(3000) 超预算跳过
+        let picked = select_recent_files_by_mtime(&root, 1000);
+        assert_eq!(picked.len(), 2, "cap 内应收两份小日志");
+        assert_eq!(picked[0], newest, "mtime 最新优先");
+        assert_eq!(picked[1], mid);
+        assert!(!picked.contains(&old_big), "超预算大文件跳过而非截断全部");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // 磁盘水位闩:跌破触发一次/闩内不刷屏/回升 2× 解闩/卷异常不动作
+    #[test]
+    fn disk_low_step_latch_and_recovery() {
+        let min = 500u64 * 1024 * 1024;
+        // 正常 → 不触发
+        assert_eq!(disk_low_step(false, Some(min * 4), min), (false, false));
+        // 跌破 → 触发+闩
+        assert_eq!(disk_low_step(false, Some(min - 1), min), (true, true));
+        // 闩内仍低 → 不再刷屏
+        assert_eq!(disk_low_step(true, Some(min / 2), min), (true, false));
+        // 回升但未到 2× → 保持闩(防抖)
+        assert_eq!(disk_low_step(true, Some(min + 1), min), (true, false));
+        // 回升到 2× → 解闩(不触发)
+        assert_eq!(disk_low_step(true, Some(min * 2), min), (false, false));
+        // 解闩后再跌破 → 再次触发
+        assert_eq!(disk_low_step(false, Some(min - 1), min), (true, true));
+        // 读不到 → 原样不动作
+        assert_eq!(disk_low_step(true, None, min), (true, false));
+        assert_eq!(disk_low_step(false, None, min), (false, false));
+    }
+
+    // 权限定因:目录 chmod 000 → PermissionDenied → 人话 hint;正常目录 → None
+    #[test]
+    fn classify_permission_issue_detects_readonly_dir() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = temp_test_dir("perm-probe");
+        let ok_dir = root.join("ok");
+        let bad_dir = root.join("bad");
+        fs::create_dir_all(&ok_dir).unwrap();
+        fs::create_dir_all(&bad_dir).unwrap();
+        let paths = RuntimePaths {
+            app_data_dir: ok_dir.clone(),
+            runtime_dir: bad_dir.clone(),
+            logs_dir: ok_dir.clone(),
+            frontend_dir: ok_dir.clone(),
+            start_script: ok_dir.join("s.sh"),
+            stop_script: ok_dir.join("t.sh"),
+            manifest_path: ok_dir.join("m.json"),
+        };
+        // 全可写 → None
+        assert!(classify_permission_issue(&paths).is_none());
+        // runtime 目录锁死 → Some(含目录路径的人话)
+        fs::set_permissions(&bad_dir, fs::Permissions::from_mode(0o000)).unwrap();
+        let hint = classify_permission_issue(&paths);
+        fs::set_permissions(&bad_dir, fs::Permissions::from_mode(0o755)).unwrap();
+        let hint = hint.expect("锁死目录必须定因");
+        assert!(hint.contains("权限异常"));
+        assert!(hint.contains(&bad_dir.display().to_string()));
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
@@ -11078,6 +12749,48 @@ mod tests {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Horosa-Web/stop_horosa_local.sh")
     }
 
+    fn repo_start_script_path() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Horosa-Web/start_horosa_local.sh")
+    }
+
+    // progress-aware 就绪门契约(文本面):
+    // ① 三锚在位(续命账本段/总开关/总 cap);② 判死分支必须引用 last_progress_epoch
+    //   (反锚:防有人把续命逻辑删回硬超时);③ 指纹函数禁 lsof(全进程 FD 扫描遇
+    //   卡死进程可 stall 数十秒,曾拖死探测——沿用 stop 脚本同款禁令)。
+    #[test]
+    fn start_script_keeps_progress_extend_guard() {
+        let script = fs::read_to_string(repo_start_script_path()).expect("read start script");
+        assert!(script.contains("sh.ready_extend"), "缺续命账本段");
+        assert!(script.contains("sh.ready_giveup"), "缺判死账本段");
+        assert!(
+            script.contains("HOROSA_READY_PROGRESS_EXTEND"),
+            "缺总开关"
+        );
+        assert!(
+            script.contains("HOROSA_READY_TOTAL_CAP_SECS"),
+            "缺总 cap(无限等防线)"
+        );
+        // 判死分支必须以进展时刻为条件(硬超时回潮=红)
+        let deadline_at = script
+            .find(r#"-ge "${deadline_epoch}""#)
+            .expect("缺 deadline 判定");
+        let tail = &script[deadline_at..deadline_at + 1200.min(script.len() - deadline_at)];
+        assert!(
+            tail.contains("last_progress_epoch"),
+            "判死分支未引用 last_progress_epoch(续命被删回硬超时)"
+        );
+        // 指纹函数体内禁 lsof
+        let fp_at = script.find("_progress_fingerprint()").expect("缺指纹函数");
+        let fp_end = script[fp_at..]
+            .find("\n}")
+            .map(|i| fp_at + i)
+            .unwrap_or(script.len());
+        assert!(
+            !script[fp_at..fp_end].contains("lsof"),
+            "指纹函数禁用 lsof"
+        );
+    }
+
     #[test]
     fn stop_script_keeps_workspace_guard_and_fast_primitives() {
         // 行为护栏的文本面:① ROOT 工作区守卫(防误杀第二份 checkout 的服务)不许丢;
@@ -11111,8 +12824,11 @@ mod tests {
 
     #[test]
     fn stop_script_kills_within_time_budget() {
-        // 行为护栏:起两个假服务进程写入 pid 文件,脚本必须在 3s 内全停(旧实现 ≥2s 串行
-        // sleep + lsof stall 可到 30s+)。tempdir 隔离,不碰真实工作区。
+        // 行为护栏(G2 升级版):
+        // ① 起两个「指纹伪装成本产品服务」的假进程(exec -a 改 argv[0]),写入带端口后缀的
+        //    pid 文件——脚本必须在 3s 内全停(旧实现 ≥2s 串行 sleep + lsof stall 可到 30s+)。
+        // ② 反向断言:一个指纹不符的无辜进程(裸 sleep)即使 pid 被写进 pid 文件,也绝不能
+        //    被误杀(pid 复用/跨实例覆写场景),脚本只清文件。tempdir 隔离,不碰真实工作区。
         let work = std::env::temp_dir().join(format!("horosa-stop-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&work);
         fs::create_dir_all(&work).expect("mk tempdir");
@@ -11150,7 +12866,7 @@ mod tests {
             elapsed < Duration::from_secs(3),
             "stop script too slow: {elapsed:?}"
         );
-        // 两个假进程必须已死。它们是本测试进程的子进程,被杀后先成僵尸(kill -0 对僵尸
+        // 两个假服务必须已死。它们是本测试进程的子进程,被杀后先成僵尸(kill -0 对僵尸
         // 仍成功),必须用 try_wait 收尸判定;轮询 ≤2s 防 wait 永久阻塞。
         fn assert_reaped(label: &str, child: &mut std::process::Child) {
             for _ in 0..40 {
@@ -11415,6 +13131,7 @@ mod tests {
             runtime_size_bytes: None,
             allow_downgrade: false,
             source: UpdateSource::Manifest,
+            notify_only: false,
         };
         let roots = vec![root.clone()];
         // v1 lock 里 t/f 的 sha 是 "x"/"y":同 sha 不下载,异 sha 进下载集
