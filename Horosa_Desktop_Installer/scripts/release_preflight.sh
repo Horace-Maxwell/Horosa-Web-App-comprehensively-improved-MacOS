@@ -2537,6 +2537,22 @@ S134_UP_LN="$(grep -n '^upload_asset()' "${S134_PUB}" | head -1 | cut -d: -f1 ||
 { [ -n "${S134_GATE_LN}" ] && [ -n "${S134_UP_LN}" ] && [ "${S134_GATE_LN}" -lt "${S134_UP_LN}" ]; } || { bad "[134] 装订门(${S134_GATE_LN:-?})未先于上传函数(${S134_UP_LN:-?})"; S134_BAD=1; }
 [ "${S134_BAD}" = "0" ] && ok "[134] 签名产物防误发在位(标记双臂/装订门/逃生阀/门先于上传)"
 
+# ---- [135] AI段勾选「所见即所得」(四症=清空按钮死/勾了不纳入/挂载与导出分叉/五技法强推段
+#      取消不掉。根因:①空数组被当「未自定义」→ effective 回 preset 全勾;②导出主链运行时强推段
+#      而挂载封装不强推 → 两链分叉;③事盘/命盘源上下文(full 模式)全文裸发不过段;④planetInfo
+#      开关仅导出消费。防线:v45 语义(空数组=显式全清)+迁移(尸块删键+强推 union 显式化)+
+#      源层读出后过滤+planetInfo 挂载消费+金标。铁律:「设置面显示什么,导出与挂载就吃什么」。) ----
+S135_BAD=0
+S135_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+echo "[135] AI段勾选所见即所得(空数组=显式全清+强推迁移+源层过滤)"
+grep -q "hasCustom" "${S135_UI}/src/utils/aiExport.js" 2>/dev/null || { bad "[135] effective 缺 hasCustom 空数组语义(清空按钮回潮死)"; S135_BAD=1; }
+grep -q "AI_EXPORT_FORCED_INCLUDE_SECTIONS" "${S135_UI}/src/utils/aiExport.js" 2>/dev/null || { bad "[135] 缺强推段迁移表(老用户强推段将静默丢失)"; S135_BAD=1; }
+grep -q "picked.push('六壬大格'" "${S135_UI}/src/utils/aiExport.js" 2>/dev/null && { bad "[135] 导出主链运行时强推段回潮(用户取消不掉事故复发)"; S135_BAD=1; }
+grep -q "filterSourceContextBySections" "${S135_UI}/src/utils/aiAnalysisContext.js" 2>/dev/null || { bad "[135] 源上下文段过滤缺失(事盘全文裸发回潮)"; S135_BAD=1; }
+grep -q "exportSettingKeyForSnapshotModule" "${S135_UI}/src/utils/aiAnalysisContext.js" 2>/dev/null || { bad "[135] 源层缺 module→设置键反查(六爻 guazhan 打不中设置)"; S135_BAD=1; }
+grep -q "applyPlanetInfoFilterByContext" "${S135_UI}/src/utils/aiAnalysisContext.js" 2>/dev/null || { bad "[135] 挂载链缺星曜后天信息消费(开关静默失效回潮)"; S135_BAD=1; }
+[ -f "${S135_UI}/src/utils/__tests__/aiExportSectionSemantics.test.js" ] || { bad "[135] 缺段勾选语义金标"; S135_BAD=1; }
+[ "${S135_BAD}" = "0" ] && ok "[135] v45 空数组语义+强推迁移+源层过滤+planetInfo 挂载消费+金标 全在位"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
