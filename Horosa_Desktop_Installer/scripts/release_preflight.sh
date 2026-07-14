@@ -2639,6 +2639,25 @@ if [ -f "${S137_ENGINE}" ]; then
 fi
 [ "${S137_BAD}" = "0" ] && ok "[137] 矢量 PDF 字体 TrueType(glyf)整嵌 + 旧 .otf 已除 + jest 双锚守卫在位"
 
+# ---- [138] 导出截图星符号字体内嵌 —— 防「A/B/C/D 裸字母不成 glyph」回归(2026-07-14 FL) ----
+#   血泪根因:PDF/Word 导出的图盘截图走 html-to-image,旧代码 skipFonts:true 跳过所有 @font-face →
+#   星符号字体(字母→glyph 映射)不内嵌 → canvas 回退裸字母 A/B/C/D…。
+#   修法:buildScreenshotFontEmbedCSS 预取同源小字体 base64 内联成 fontEmbedCSS(避 WKWebView 全量扫 hang),
+#   URL 必经 new URL(raw, sheet.href) 相对样式表解析(相对页面会取 SPA 兜底 index.html→字体损坏),
+#   magic-byte 挡 HTML 兜底。守卫与 pageScreenshot.test.js 双护。
+S138_BAD=0
+S138_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S138_PS="${S138_UI}/src/utils/pageScreenshot.js"
+echo "[138] 导出截图星符号字体内嵌(防裸字母回归)"
+if [ -f "${S138_PS}" ]; then
+  grep -q "buildScreenshotFontEmbedCSS" "${S138_PS}" || { bad "[138] 缺 buildScreenshotFontEmbedCSS(截图不内嵌符号字体=裸字母)"; S138_BAD=1; }
+  grep -q "fontEmbedCSS" "${S138_PS}" || { bad "[138] toCanvas 未用 fontEmbedCSS(回到 skipFonts=裸字母)"; S138_BAD=1; }
+  grep -q "new URL(m\[1\], sheets\[s\].href" "${S138_PS}" || { bad "[138] 字体 URL 未相对样式表解析(相对页面会取 SPA 兜底 HTML→字体损坏)"; S138_BAD=1; }
+  grep -q "wOF2" "${S138_PS}" || { bad "[138] 缺 magic-byte 校验(不挡 HTML 兜底=把 index.html 当字体)"; S138_BAD=1; }
+  grep -q "buildScreenshotFontEmbedCSS" "${S138_UI}/src/utils/__tests__/pageScreenshot.test.js" 2>/dev/null || { bad "[138] pageScreenshot.test 缺截图字体守卫"; S138_BAD=1; }
+fi
+[ "${S138_BAD}" = "0" ] && ok "[138] 截图 fontEmbedCSS 内嵌(符号字体成 glyph)+ URL 相对样式表解析 + magic 挡兜底 + jest 守卫在位"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"
