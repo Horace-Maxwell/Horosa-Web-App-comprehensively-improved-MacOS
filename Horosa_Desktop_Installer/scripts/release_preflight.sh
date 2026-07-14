@@ -2554,6 +2554,91 @@ grep -q "applyPlanetInfoFilterByContext" "${S135_UI}/src/utils/aiAnalysisContext
 [ -f "${S135_UI}/src/utils/__tests__/aiExportSectionSemantics.test.js" ] || { bad "[135] 缺段勾选语义金标"; S135_BAD=1; }
 [ "${S135_BAD}" = "0" ] && ok "[135] v45 空数组语义+强推迁移+源层过滤+planetInfo 挂载消费+金标 全在位"
 
+# ---- [136] 在线地图(高德)CSP 白名单完整性(FL 装机专发类) ----
+#   ★真表面 = main.rs 的 tiny_http 响应头 CSP,非 tauri.conf.json!主界面走本机静态服务器
+#   (http://127.0.0.1:PORT)加载,不走 tauri:// 协议 → tauri.conf 的 csp 管不到主界面(地图在此)。
+#   病根一(host)——main.rs CSP 的 script/style/img/connect 未放行 AMap 域(*.amap.com/*.autonavi.com)。
+#   病根二(eval/wasm)——AMap 2.0 运行时用 eval()+WebAssembly.compile,须 script-src 含 'unsafe-eval'
+#   (同时放行 eval 与 wasm)+ worker-src 含 blob:(瓦片解码走 blob worker)。
+#   macOS WKWebView 严格执行响应头 CSP → 缺任一 = 地图白屏;preview 无 CSP、Windows WebView2 宽松
+#   → dev/Win 假绿,唯 Mac 装机版暴露。iframe 实证:加齐后 map-COMPLETE 零违规。与 mapCsp.test.js 双护。
+S136_BAD=0
+S136_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S136_CONF="${INSTALLER_ROOT}/src-tauri/tauri.conf.json"
+S136_MAINRS="${INSTALLER_ROOT}/src-tauri/src/main.rs"
+echo "[136] 高德地图 CSP 白名单完整(真表面=main.rs tiny_http 响应头)"
+if grep -q "amap-jsapi-loader" "${S136_UI}/src/components/amap/MapV2.js" 2>/dev/null \
+   || grep -q "AMapKey" "${S136_UI}/src/utils/constants.js" 2>/dev/null; then
+  S136_RES="$(python3 - "${S136_MAINRS}" "${S136_CONF}" <<'PY'
+import json, re, sys
+def parse(csp):
+    dirs = {}
+    for seg in csp.split(";"):
+        seg = seg.strip()
+        if seg:
+            p = seg.split(); dirs[p[0]] = p[1:]
+    return dirs
+def eff(dirs, d): return dirs.get(d, dirs.get("default-src", []))
+def allows(sources, host):
+    for s in sources:
+        if s == "https://" + host: return True
+        if s.startswith("https://*."):
+            suf = s[len("https://*"):]
+            if host.endswith(suf) and host != suf[1:]: return True
+    return False
+def check(csp, label):
+    dirs = parse(csp); probs = []
+    for h in ("webapi.amap.com", "restapi.amap.com", "jsapi.amap.com"):
+        for d in ("script-src", "connect-src", "img-src"):
+            if not allows(eff(dirs, d), h): probs.append("%s:%s 未放行 %s" % (label, d, h))
+    if "blob:" not in eff(dirs, "worker-src"): probs.append("%s:worker-src 缺 blob:" % label)
+    if "'unsafe-eval'" not in eff(dirs, "script-src"): probs.append("%s:script-src 缺 'unsafe-eval'(eval+wasm→白屏)" % label)
+    return probs
+problems = []
+try:
+    src = open(sys.argv[1], encoding="utf-8").read()
+    m = re.search(r'&b"(default-src[^"]*)"', src)
+    if not m: problems.append("main.rs 找不到 tiny_http CSP 字节串(地图真表面无法校验)")
+    else: problems += check(m.group(1), "main.rs主界面")
+except OSError:
+    problems.append("main.rs 读取失败(地图真表面无法校验)")
+try:
+    csp2 = json.load(open(sys.argv[2], encoding="utf-8")).get("app", {}).get("security", {}).get("csp", "")
+    problems += check(csp2, "tauri.conf")
+except OSError:
+    problems.append("tauri.conf.json 读取失败")
+if problems: sys.stdout.write("; ".join(problems))
+PY
+)"
+  if [ -n "${S136_RES}" ]; then bad "[136] Mac 装机版地图将白屏 → CSP 缺放行: ${S136_RES}"; S136_BAD=1; fi
+  grep -q "hasMapConsent" "${S136_UI}/src/components/amap/MapV2.js" 2>/dev/null || { bad "[136] 地图一次性同意闸丢失(放行外部域后须仍受同意 gate)"; S136_BAD=1; }
+fi
+[ "${S136_BAD}" = "0" ] && ok "[136] 高德地图 CSP(main.rs真表面+launcher:script/connect/img/worker-blob/unsafe-eval)白名单齐 + 同意闸在位"
+
+# ---- [137] 可选中文字 PDF 矢量字体必须 TrueType(glyf) 整嵌 —— 防 CJK 乱码回归(2026-07-14 FL) ----
+#   血泪根因:内嵌 .otf(CFF)经 pdf-lib 产出结构非法内嵌字体文件 → macOS Preview/poppler 拒渲染 =
+#   整份中文乱码(pdffonts 报 "Embedded font file may be invalid");且 fontkit subset:true 静默丢字形。
+#   修法=字体 CFF→TrueType(glyf,cu2qu)+ embedFont subset:false 整嵌。守卫与 aiExportPdfVector.test.js 双护。
+S137_BAD=0
+S137_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S137_ENGINE="${S137_UI}/src/utils/aiExportPdfVector.js"
+S137_FONT="${S137_UI}/public/fonts/HorosaCJK-subset.ttf"
+echo "[137] 矢量 PDF 字体 TrueType 整嵌(防 CJK 乱码回归)"
+if [ -f "${S137_ENGINE}" ]; then
+  if [ ! -f "${S137_FONT}" ]; then
+    bad "[137] 缺 TrueType 字体 HorosaCJK-subset.ttf(引擎取不到→矢量 PDF 失败)"; S137_BAD=1
+  else
+    S137_TAG="$(python3 -c "import sys;sys.stdout.write(open('${S137_FONT}','rb').read(4).decode('latin1'))" 2>/dev/null || echo '??')"
+    [ "${S137_TAG}" = "OTTO" ] && { bad "[137] 字体是 CFF/OTF('OTTO')→pdf-lib 产非法内嵌=乱码;须转 TrueType(glyf)"; S137_BAD=1; }
+  fi
+  grep -q "HorosaCJK-subset.ttf" "${S137_ENGINE}" || { bad "[137] 引擎 FONT_URLS 未指向 .ttf"; S137_BAD=1; }
+  grep -q "subset: false" "${S137_ENGINE}" || { bad "[137] 引擎 embedFont 未用 subset:false(subset:true 会静默丢字形)"; S137_BAD=1; }
+  grep -q "embedFont(fontBytes, { subset: true })" "${S137_ENGINE}" && { bad "[137] 引擎仍试 subset:true(丢字形回潮)"; S137_BAD=1; }
+  [ -f "${S137_UI}/public/fonts/HorosaCJK-subset.otf" ] && { bad "[137] 旧 CFF 字体 .otf 仍在(乱码源,应删)"; S137_BAD=1; }
+  grep -q "fontSfntKind" "${S137_UI}/src/utils/__tests__/aiExportPdfVector.test.js" 2>/dev/null || { bad "[137] aiExportPdfVector.test 缺字体乱码守卫(fontSfntKind 双锚)"; S137_BAD=1; }
+fi
+[ "${S137_BAD}" = "0" ] && ok "[137] 矢量 PDF 字体 TrueType(glyf)整嵌 + 旧 .otf 已除 + jest 双锚守卫在位"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

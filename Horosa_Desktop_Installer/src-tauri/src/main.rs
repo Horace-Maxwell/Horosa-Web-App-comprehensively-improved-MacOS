@@ -6589,12 +6589,16 @@ fn start_static_server(
                         response = response.with_header(header);
                     }
                     // CSP 纵深防御:主界面经本静态服务器加载(不走 tauri 协议,tauri.conf 的
-                    // csp 管不到这里)。umi 产物含 inline script/style,antd 动态注入样式,
-                    // 3D(three/Babylon) 需 wasm;AI/排盘走本机回环端口。
+                    // csp 管不到这里——这才是地图真正生效的表面)。umi 产物含 inline script/style,
+                    // antd 动态注入样式,3D(three/Babylon) 需 wasm;AI/排盘走本机回环端口。
+                    // 高德地图(AMap JSAPI 2.0):注入 https://webapi.amap.com 脚本 + WebGL 瓦片/逆地理走
+                    // *.amap.com/*.autonavi.com。故 script/style/img/connect 均须放行这两域(worker-src
+                    // 已含 blob:,eval/wasm 已由 'unsafe-eval'+'wasm-unsafe-eval' 放行)。缺域 = Mac 装机版
+                    // 地图白屏(WKWebView 严格执行响应头 CSP;preview/Win 宽松故假绿)。见 preflight[136]。
                     if mime == "text/html" {
                         if let Ok(csp) = Header::from_bytes(
                             &b"Content-Security-Policy"[..],
-                            &b"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; worker-src 'self' blob:; media-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'self'"[..],
+                            &b"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://*.amap.com; style-src 'self' 'unsafe-inline' https://*.amap.com; img-src 'self' data: blob: https://*.amap.com https://*.autonavi.com; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:* https://*.amap.com https://*.autonavi.com; worker-src 'self' blob:; media-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'self'"[..],
                         ) {
                             response = response.with_header(csp);
                         }

@@ -160,7 +160,7 @@ No GPL-licensed source from Stellarium is incorporated; this notice is provided 
 - Repository: https://github.com/notofonts/noto-cjk
 - Copyright: Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'. Noto is a trademark of Google LLC.
 - License: SIL Open Font License, Version 1.1 (OFL-1.1)
-- Use in Horosa: a size-reduced subset (GB2312 hanzi + common symbols, `public/fonts/HorosaCJK-subset.otf`) is embedded into locally generated AI-export PDFs so that Chinese text is selectable and searchable. The OFL permits bundling and embedding; the font is used unmodified except for glyph subsetting.
+- Use in Horosa: a size-reduced subset (GB2312 + Traditional + Korean hanzi/hangul + common symbols, `public/fonts/HorosaCJK-subset.ttf`) is embedded into locally generated AI-export PDFs so that Chinese text is selectable and searchable. The OFL permits bundling, embedding and modification; the font is used with glyph subsetting and a CFF→TrueType (glyf) outline conversion (cubic→quadratic) required for correct PDF embedding via pdf-lib.
 
 ## pdf-lib
 
