@@ -21,7 +21,8 @@ WORK_DIR="${RUNTIME_ROOT}/_install"
 DOWNLOAD_DIR="${SHARED_ROOT}/downloads"
 LOG_PATH="${SHARED_ROOT}/installer.log"
 PENDING_PATH="${SHARED_ROOT}/runtime-install-pending.txt"
-ARCHIVE_NAME="__RUNTIME_ASSET__"
+# 离线内嵌档名(可为 tar.zst;__RUNTIME_ASSET__ 保留给 RUNTIME_URL=在线 gz 资产名)
+ARCHIVE_NAME="__OFFLINE_RUNTIME_ASSET__"
 ARCHIVE_PATH="${DOWNLOAD_DIR}/${ARCHIVE_NAME}"
 LOCAL_ARCHIVE_PATH="${HOROSA_RUNTIME_LOCAL_ARCHIVE:-${SCRIPT_DIR}/${ARCHIVE_NAME}}"
 RUNTIME_URL="${HOROSA_RUNTIME_URL:-https://github.com/__REPO_OWNER__/__REPO_NAME__/releases/download/__RUNTIME_RELEASE_TAG__/__RUNTIME_ASSET__}"
@@ -39,6 +40,19 @@ mkdir -p "${DOWNLOAD_DIR}" "${RUNTIME_ROOT}"
 log_line() {
   printf '[%s] %s\n' "$(/bin/date '+%Y-%m-%d %H:%M:%S')" "$1" >> "${LOG_PATH}"
 }
+
+# [WP-I] 安装账本:各段毫秒级时间戳落 jsonl,「安装提速赢多少」可证。
+# 只用 /usr/bin/perl 取 ms(macOS 恒在;绝不调 python3——无 CLT 的全新 Mac 是弹窗桩)。
+INSTALL_LEDGER_PATH="${SHARED_ROOT}/logs/install-ledger.jsonl"
+/bin/mkdir -p "${SHARED_ROOT}/logs" >/dev/null 2>&1 || true
+_install_now_ms() {
+  /usr/bin/perl -MTime::HiRes=time -e 'printf("%d", time()*1000)' 2>/dev/null || printf '%s000' "$(/bin/date +%s)"
+}
+INSTALL_T0_MS="$(_install_now_ms)"
+install_ledger() {
+  printf '{"seg":"%s","t_ms":%s}\n' "$1" "$(( $(_install_now_ms) - INSTALL_T0_MS ))" >> "${INSTALL_LEDGER_PATH}" 2>/dev/null || true
+}
+install_ledger install.begin
 
 # 升级时旧实例还在跑:pkg 落盘发生在 postinstall 之前,旧进程会继续拿着旧代码跑新换的
 # 共享 runtime(版本串线,下次服务重启才暴露)。先礼(console 用户会话内 osascript quit)
@@ -212,6 +226,33 @@ fail_offline_install() {
 trap 'degrade_to_first_launch "安装脚本遇到未预期错误（多为磁盘空间不足或离线包下载不完整）"' ERR
 
 quit_running_app
+
+# [Z2 零残留] 残兵清扫:quit_running_app 只退 App 壳,绝不碰 java/python —— App 曾异常退出
+# (panic/强杀)留下孤儿后端时,直接覆盖安装会让旧后端带旧代码活过更新。按「运行时绝对路径串」
+# 精确指纹清扫(webchartsrv.py / astrostudyboot 的 cmdline 必含 ${RUNTIME_ROOT}/current 前缀,
+# 零误伤面):TERM → 等 1s → KILL。best-effort,失败不阻断安装。
+sweep_runtime_orphans() {
+  # 单指纹=「本产品 runtime current 树」路径前缀:python(argv0 与脚本参数)、java 三分支
+  # (argv0 = …/current/Horosa-Web/../runtime/mac/java/bin/java)cmdline 必含之;
+  # 不用 owner 旗标(不同构建同值,会跨产品误杀对方后端)。
+  local pattern="${RUNTIME_ROOT}/current/"
+  local pids
+  pids="$(/usr/bin/pgrep -f "${pattern}" 2>/dev/null || true)"
+  [ -n "${pids}" ] || return 0
+  log_line "sweeping orphan runtime processes: ${pids//$'\n'/ }"
+  for pid in ${pids}; do
+    kill -TERM "${pid}" >/dev/null 2>&1 || true
+  done
+  sleep 1
+  for pid in ${pids}; do
+    if kill -0 "${pid}" >/dev/null 2>&1; then
+      kill -9 "${pid}" >/dev/null 2>&1 || true
+    fi
+  done
+}
+sweep_runtime_orphans || true
+install_ledger install.app_quit_and_sweep_done
+
 cleanup_work_dir
 
 if [ "${INSTALL_MODE}" = "defer-runtime-bootstrap" ]; then
@@ -243,10 +284,17 @@ if [ ! -f "${LOCAL_ARCHIVE_PATH}" ]; then
 fi
 log_line "using bundled runtime archive ${LOCAL_ARCHIVE_PATH}"
 # 先把内置归档缓存到共享 downloads(供 App 首启离线自愈复用)。缓存失败基本只可能是磁盘空间不足。
-if ! cp -f "${LOCAL_ARCHIVE_PATH}" "${ARCHIVE_PATH}"; then
-  rm -f "${ARCHIVE_PATH}" >/dev/null 2>&1 || true
-  degrade_to_first_launch "磁盘空间不足，无法准备本机组件。请在「访达」清理到至少 4 GB 可用空间后，重新运行离线安装包。"
+# [WP-I] cp -c=APFS clonefile(同容器即时、零物理字节);跨卷/不支持时回退真拷(旧行为)。
+# [FL-20260720] 互清姊妹压缩格式的旧缓存档(gz↔zst):否则安装降级/换格式后,App 按固定
+# gz 资产名读到「异名旧版本档」→ 弹「版本不符,建议重建」(v3.5.0 真机踩实)。
+rm -f "${ARCHIVE_PATH}" "${ARCHIVE_PATH%.tar.gz}.tar.zst" "${ARCHIVE_PATH%.tar.zst}.tar.gz" >/dev/null 2>&1 || true
+if ! /bin/cp -c "${LOCAL_ARCHIVE_PATH}" "${ARCHIVE_PATH}" 2>/dev/null; then
+  if ! cp -f "${LOCAL_ARCHIVE_PATH}" "${ARCHIVE_PATH}"; then
+    rm -f "${ARCHIVE_PATH}" >/dev/null 2>&1 || true
+    degrade_to_first_launch "磁盘空间不足，无法准备本机组件。请在「访达」清理到至少 4 GB 可用空间后，重新运行离线安装包。"
+  fi
 fi
+install_ledger install.archive_cached
 
 if [ -n "${EXPECTED_SHA256}" ]; then
   ACTUAL_SHA256="$(/usr/bin/shasum -a 256 "${ARCHIVE_PATH}" 2>/dev/null | awk '{print $1}')"
@@ -256,6 +304,7 @@ if [ -n "${EXPECTED_SHA256}" ]; then
     degrade_to_first_launch "离线安装包内置运行环境校验失败（下载可能不完整），请重新完整下载离线安装包后重试。"
   fi
 fi
+install_ledger install.sha_verified
 
 # 解压前磁盘空间预检:解压后的本机组件约 2 GB,这里要求运行环境卷至少有 ~3 GB 可用,
 # 否则直接给「磁盘不足」的明确原因(此时缓存归档已就位,清理空间后重开 星阙 即自动补齐)。
@@ -264,9 +313,18 @@ if [ -n "${RUNTIME_AVAIL_KIB}" ] && [ "${RUNTIME_AVAIL_KIB}" -lt 3145728 ] 2>/de
   degrade_to_first_launch "磁盘空间不足（准备本机组件约需 3 GB 可用空间）。请清理磁盘后重新打开 星阙，将自动完成本机组件准备。"
 fi
 
-if ! COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar -xzf "${ARCHIVE_PATH}" -C "${WORK_DIR}" 2>/dev/null; then
+# [WP-I] -xf:bsdtar 按内容自动侦测压缩格式。-z 会强制 gzip 滤器,故弃用。
+# ⚠️ [FL-20260720] 内嵌档必须是 gz:macOS 系统 tar(libarchive)无 zstd 滤器,安装沙盒净化
+# PATH 下无第三方 zstd 兜底,.zst 解压必败(构建层已断言+e2e 真装门看守)。
+# tar stderr 必须落 installer.log —— 旧版 2>/dev/null 吞错,真机翻车时只剩「多为磁盘空间不足」
+# 的猜测文案,无法定因(v3.5.0 真机复盘定谳)。
+TAR_ERR_FILE="${WORK_DIR}/.tar-extract-err"
+if ! COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar -xf "${ARCHIVE_PATH}" -C "${WORK_DIR}" 2>"${TAR_ERR_FILE}"; then
+  log_line "runtime archive extract failed: $(/usr/bin/head -c 400 "${TAR_ERR_FILE}" 2>/dev/null | /usr/bin/tr '\n' ' ' || true)"
   degrade_to_first_launch "本机组件解压失败（多为磁盘空间不足）。请清理磁盘后重新打开 星阙，将自动完成本机组件准备。"
 fi
+rm -f "${TAR_ERR_FILE}" >/dev/null 2>&1 || true
+install_ledger install.extract_done
 
 if [ ! -f "${WORK_DIR}/runtime-payload/runtime-manifest.json" ]; then
   fail_offline_install "离线安装包缺少运行环境清单，请重新下载离线安装包。"
@@ -329,10 +387,12 @@ else
 fi
 
 clear_pending
+install_ledger install.tree_swap_done
 log_line "runtime bootstrap installed successfully"
 write_install_source "pkg_offline" "${EXPECTED_VERSION}"
 /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
 /usr/bin/xattr -dr com.apple.quarantine "${CURRENT_DIR}" >/dev/null 2>&1 || true
 /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+install_ledger install.total
 cleanup_install_state
 exit 0

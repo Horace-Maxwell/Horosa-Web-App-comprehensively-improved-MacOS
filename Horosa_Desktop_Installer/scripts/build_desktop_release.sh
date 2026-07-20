@@ -230,7 +230,25 @@ if [ "${TAURI_BUILD_OK}" != "1" ]; then
   exit 1
 fi
 
-INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" RUNTIME_SHA256_ENV="${RUNTIME_SHA256}" LOCAL_RUNTIME_SHA256_ENV="${LOCAL_RUNTIME_SHA256}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" RUNTIME_RELEASE_TAG_ENV="${RUNTIME_RELEASE_TAG}" python3 - <<'PYPOST'
+# [FL-20260720] 离线 pkg 内嵌档一律 gz —— zst 内嵌在真机安装 100% 必败的铁案:
+# macOS 系统 /usr/bin/tar(libarchive 编译清单 zlib/liblzma/bz2lib,**无 zstd**)平时能解 .zst
+# 全靠 PATH 里第三方 zstd 兜底;PKInstallSandbox 的 PATH 精简无此兜底 → postinstall 解压
+# 即败 → 降级 pending → App 首启读到旧版缓存报「版本不符」。构建机满 PATH 探测是假绿。
+# zst 仅限显式 HOROSA_OFFLINE_ZSTD=1 且**净化 PATH**探测通过(本机实验用;发布链禁用)。
+RUNTIME_ARCHIVE_ZST="${RUNTIME_ARCHIVE%.tar.gz}.tar.zst"
+OFFLINE_EMBED_ARCHIVE="${RUNTIME_ARCHIVE}"
+OFFLINE_EMBED_ASSET="${RUNTIME_ASSET}"
+if [ "${HOROSA_OFFLINE_ZSTD:-0}" = "1" ] && [ -s "${RUNTIME_ARCHIVE_ZST}" ] \
+  && env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/tar -tf "${RUNTIME_ARCHIVE_ZST}" >/dev/null 2>&1; then
+  OFFLINE_EMBED_ARCHIVE="${RUNTIME_ARCHIVE_ZST}"
+  OFFLINE_EMBED_ASSET="$(basename "${RUNTIME_ARCHIVE_ZST}")"
+  echo "offline pkg embeds zst runtime archive: ${OFFLINE_EMBED_ASSET} (explicit HOROSA_OFFLINE_ZSTD=1)"
+else
+  echo "offline pkg embeds gz runtime archive: ${OFFLINE_EMBED_ASSET}"
+fi
+OFFLINE_EMBED_SHA256="$(shasum -a 256 "${OFFLINE_EMBED_ARCHIVE}" | awk '{print $1}')"
+
+INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" RUNTIME_SHA256_ENV="${RUNTIME_SHA256}" LOCAL_RUNTIME_SHA256_ENV="${LOCAL_RUNTIME_SHA256}" OFFLINE_RUNTIME_ASSET_ENV="${OFFLINE_EMBED_ASSET}" OFFLINE_RUNTIME_SHA256_ENV="${OFFLINE_EMBED_SHA256}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" RUNTIME_RELEASE_TAG_ENV="${RUNTIME_RELEASE_TAG}" python3 - <<'PYPOST'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
 config = json.loads((root / 'config/release_config.json').read_text())
@@ -242,6 +260,10 @@ base_replacements = {
     '__REPO_NAME__': config['repoName'],
     '__VERSION__': os.environ['RUNTIME_VERSION_ENV'],
     '__RUNTIME_ASSET__': config['runtimeAssetName'],
+    # 离线内嵌档名 = 实际拷进 scripts 的归档名(见下方 cp 到 OFFLINE_SCRIPTS_RENDERED_DIR/${RUNTIME_ASSET})。
+    # 缺此替换 → postinstall ARCHIVE_NAME 停留字面量 __OFFLINE_RUNTIME_ASSET__ → 找不到内嵌档
+    # → 离线安装降级 first-launch pending → App 首启报「运行时损坏/旧版本」。zst 安装链 drift 坑。
+    '__OFFLINE_RUNTIME_ASSET__': config['runtimeAssetName'],
     '__RUNTIME_RELEASE_TAG__': os.environ['RUNTIME_RELEASE_TAG_ENV'],
     # 共享目录名单源化:安装器与壳层必须看同一目录(配置缺省 Horosa)
     '__SHARED_ROOT_NAME__': config.get('sharedRootName', 'Horosa'),
@@ -252,7 +274,10 @@ offline_scripts_dir.mkdir(parents=True, exist_ok=True)
 offline_template = template
 for key, value in {
     **base_replacements,
-    '__RUNTIME_SHA256__': os.environ['LOCAL_RUNTIME_SHA256_ENV'],
+    # [FL-20260720] 离线三键同源:内嵌档名/内嵌档 sha 由构建层实际选定的 OFFLINE_EMBED_* 传入,
+    # 与「实际 cp 进 Scripts 的那份档」永远一致(dict 合并同键覆盖 base 缺省)。
+    '__OFFLINE_RUNTIME_ASSET__': os.environ['OFFLINE_RUNTIME_ASSET_ENV'],
+    '__RUNTIME_SHA256__': os.environ['OFFLINE_RUNTIME_SHA256_ENV'],
     '__INSTALL_MODE__': 'bootstrap-now',
 }.items():
     offline_template = offline_template.replace(key, value)
@@ -262,7 +287,24 @@ offline_out.chmod(0o755)
 
 PYPOST
 
-cp -f "${RUNTIME_ARCHIVE}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET}"
+rm -f "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/$(basename "${RUNTIME_ARCHIVE_ZST}")"
+cp -f "${OFFLINE_EMBED_ARCHIVE}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/${OFFLINE_EMBED_ASSET}"
+
+# ── [FL-20260720] 渲染后硬断言(占位符漏替/内嵌档错位/沙盒不可解 任一命中 = 立即熔断,绝不出包) ──
+if grep -nE '__[A-Z_]+__' "${OFFLINE_SCRIPTS_RENDERED_DIR}/postinstall"; then
+  echo "ERROR: rendered postinstall 残留未替换占位符(见上行)—— 模板新增占位符必须同步渲染表" >&2
+  exit 1
+fi
+RENDERED_ARCHIVE_NAME="$(sed -n 's/^ARCHIVE_NAME="\(.*\)"$/\1/p' "${OFFLINE_SCRIPTS_RENDERED_DIR}/postinstall" | head -n 1)"
+if [ -z "${RENDERED_ARCHIVE_NAME}" ] || [ ! -s "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RENDERED_ARCHIVE_NAME}" ]; then
+  echo "ERROR: postinstall ARCHIVE_NAME(${RENDERED_ARCHIVE_NAME:-<空>})在 Scripts 目录无对应内嵌档" >&2
+  exit 1
+fi
+if ! env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/tar -tf "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RENDERED_ARCHIVE_NAME}" >/dev/null 2>&1; then
+  echo "ERROR: 内嵌档在净化 PATH(≈PKInstallSandbox)下不可解 —— 系统 tar 无此压缩滤器,禁止出包" >&2
+  exit 1
+fi
+echo "offline embed asserts OK: ${RENDERED_ARCHIVE_NAME} (占位符零残留/档在位/净化 PATH 可解)"
 
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY}" APPLE_ENTITLEMENTS_PATH="${APPLE_ENTITLEMENTS_PATH}" APPLE_SIGNING_KEYCHAIN="${APPLE_SIGNING_KEYCHAIN}" "${INSTALLER_ROOT}/scripts/ad_hoc_sign_app.sh" "${TARGET_APP}"
 
@@ -347,6 +389,16 @@ PYDIST
 build_component_pkg "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_COMPONENT_PKG}"
 build_product_pkg "${OFFLINE_COMPONENT_PKG}" "${OFFLINE_INSTALLER_PKG}"
 
+# ── [FL-20260720] 离线 .pkg 真装 e2e 门(notarize 前拦截):展开成品包,在净化 PATH
+# (≈PKInstallSandbox)下真跑 Scripts/postinstall(共享根重定向临时目录),断言运行时落位
+# 且版本吻合。冒烟链只测过 runtime 归档本身,从未测过「安装沙盒里的 postinstall 全链」——
+# v3.5.0 双仓离线包正是死在这段盲区。逃生阀 HOROSA_SKIP_PKG_E2E=1(仅救急;preflight 拦)。
+if [ "${HOROSA_SKIP_PKG_E2E:-0}" = "1" ]; then
+  echo "⚠️  HOROSA_SKIP_PKG_E2E=1:跳过离线 pkg 真装 e2e(preflight 将要求补跑)。"
+else
+  bash "${INSTALLER_ROOT}/scripts/verify_offline_pkg_install_e2e.sh" "${OFFLINE_INSTALLER_PKG}" "${RUNTIME_VERSION}"
+fi
+
 if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" = "1" ]; then
   (
     cd "$(dirname "${TARGET_APP}")"
@@ -356,6 +408,11 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" = "1
   xcrun stapler staple "${TARGET_APP}"
   xcrun notarytool submit "${OFFLINE_INSTALLER_PKG}" --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" --wait
   xcrun stapler staple "${OFFLINE_INSTALLER_PKG}"
+  # [FL-20260720] staple 会改 pkg 字节 → e2e stamp 的 sha 必须随之刷新(真装结论对 Scripts 不变,
+  # 仅同步指纹;preflight [156]/[139] 按 sha 绑定成品,不刷新则永远红)。
+  if [ -f "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp" ] && grep -q '^OK' "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp"; then
+    printf 'OK\t%s\t%s\n' "$(shasum -a 256 "${OFFLINE_INSTALLER_PKG}" | awk '{print $1}')" "${RUNTIME_VERSION}" > "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp"
+  fi
 fi
 (
   cd "$(dirname "${TARGET_APP}")"

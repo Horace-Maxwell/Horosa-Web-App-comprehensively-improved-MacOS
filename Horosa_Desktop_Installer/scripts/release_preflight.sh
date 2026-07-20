@@ -73,11 +73,37 @@ done
 echo "[5] 编译产物新鲜度"
 JAR="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
 DIST="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file/index.html"
+# 内容感知豁免(制度化 2026-07-14,git-op mtime 假旧类):git checkout/reset/merge 会平移「工作树源文件」
+# 的 mtime(gitignored 的 target/jar、dist-file 产物不被触碰),令「find src -newer 产物」在切分支/reset
+# 后误判产物假旧、阻断发布。真判据 = 内容可证现行,而非 mtime。仅当内容可证现行时豁免 mtime 裁决;否则(含
+# 真·未提交改动/未重建)照旧按 mtime 拦——两门并存的设计不破(见 [122])。
 if [ -f "${JAR}" ]; then
-  if [ -n "$(find "${REPO_ROOT}"/Horosa-Web/astrostudysrv/*/src/main -type f -newer "${JAR}" -print -quit 2>/dev/null || true)" ]; then bad "astrostudyboot.jar 比后端源码旧 —— 需 mvn clean package 重建"; else ok "astrostudyboot.jar 比源码新"; fi
+  # jar 无 build-info 指纹 ⟹ 现行判据:后端工作树对 HEAD 干净(无未提交改动) ∧ jar 构建时刻 ≥ 最近一次
+  # 改后端源(src/main、pom.xml)的提交时刻(git-op 不动 gitignored 的 target/jar,其 mtime 是真实构建时刻)。
+  _JAR_MT="$(stat -f %m "${JAR}" 2>/dev/null || echo 0)"
+  _JAR_LASTSRC_CT="$(git -C "${REPO_ROOT}" log -1 --format=%ct -- ':(glob)Horosa-Web/astrostudysrv/**/src/main/**' ':(glob)Horosa-Web/astrostudysrv/**/pom.xml' 2>/dev/null || echo 0)"
+  if [ "${_JAR_LASTSRC_CT}" != "0" ] && [ "${_JAR_MT}" -ge "${_JAR_LASTSRC_CT}" ] && git -C "${REPO_ROOT}" diff --quiet HEAD -- Horosa-Web/astrostudysrv 2>/dev/null; then
+    ok "astrostudyboot.jar 现行(后端工作树干净 ∧ jar 构建≥最近后端提交;git-op mtime 假旧已内容感知豁免)"
+  elif [ -n "$(find "${REPO_ROOT}"/Horosa-Web/astrostudysrv/*/src/main -type f -newer "${JAR}" -print -quit 2>/dev/null || true)" ]; then bad "astrostudyboot.jar 比后端源码旧 —— 需 mvn clean package 重建"; else ok "astrostudyboot.jar 比源码新"; fi
 else warn "astrostudyboot.jar 不存在(发布会回退到 runtime bundle 旧 jar —— 后端有改动务必先重建)"; fi
 if [ -f "${DIST}" ]; then
-  if [ -n "$(find "${REPO_ROOT}/Horosa-Web/astrostudyui/src" -type f -newer "${DIST}" -print -quit 2>/dev/null || true)" ]; then bad "dist-file 比前端源码旧 —— 需 npm run build && build:file"; else ok "dist-file 比源码新"; fi
+  # dist-file 由 build-info 指纹背书 ⟹ 现行判据(与 [122] 同):前端工作树对 HEAD 干净 ∧ build-info.dirty==0 ∧
+  # build-info.commit 为 HEAD(或 HEAD 祖先且前端源面零 diff)。满足即产物源自 HEAD 前端源,mtime 假旧可豁免。
+  _DINFO="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file/build-info.json"
+  _DIST_FRESH=0
+  if [ -f "${_DINFO}" ] && git -C "${REPO_ROOT}" diff --quiet HEAD -- Horosa-Web/astrostudyui/src 2>/dev/null; then
+    _DC="$(python3 -c "import json;print(json.load(open('${_DINFO}')).get('commit',''))" 2>/dev/null || echo "")"
+    _DD="$(python3 -c "import json;print(1 if json.load(open('${_DINFO}')).get('dirty') else 0)" 2>/dev/null || echo "1")"
+    _DH="$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || echo "")"
+    if [ "${_DD}" = "0" ] && [ -n "${_DC}" ]; then
+      if [ "${_DC}" = "${_DH}" ]; then _DIST_FRESH=1
+      elif git -C "${REPO_ROOT}" merge-base --is-ancestor "${_DC}" "${_DH}" 2>/dev/null \
+           && [ -z "$(git -C "${REPO_ROOT}" diff --name-only "${_DC}" "${_DH}" -- Horosa-Web/astrostudyui/src Horosa-Web/astrostudyui/package.json Horosa-Web/astrostudyui/.umirc.js Horosa-Web/astrostudyui/public 2>/dev/null)" ]; then _DIST_FRESH=1; fi
+    fi
+  fi
+  if [ "${_DIST_FRESH}" = "1" ]; then
+    ok "dist-file 现行(build-info 指纹背书源自 HEAD ∧ 前端源干净;git-op mtime 假旧已内容感知豁免)"
+  elif [ -n "$(find "${REPO_ROOT}/Horosa-Web/astrostudyui/src" -type f -not -path "*/.umi/*" -not -path "*/node_modules/*" -newer "${DIST}" -print -quit 2>/dev/null || true)" ]; then bad "dist-file 比前端源码旧 —— 需 npm run build && build:file"; else ok "dist-file 比源码新"; fi
 else bad "dist-file 不存在 —— 需 npm run build:file"; fi
 
 # 6. CI 必须对当前 HEAD 通过(功能回归靠 CI 兜 —— 复盘 #3)。需要 gh。
@@ -2657,6 +2683,44 @@ if [ -f "${S138_PS}" ]; then
   grep -q "buildScreenshotFontEmbedCSS" "${S138_UI}/src/utils/__tests__/pageScreenshot.test.js" 2>/dev/null || { bad "[138] pageScreenshot.test 缺截图字体守卫"; S138_BAD=1; }
 fi
 [ "${S138_BAD}" = "0" ] && ok "[138] 截图 fontEmbedCSS 内嵌(符号字体成 glyph)+ URL 相对样式表解析 + magic 挡兜底 + jest 守卫在位"
+
+# ── [139] 离线安装链真装门(渲染占位符/内嵌档 gz/净化 PATH 可解/成品 pkg e2e stamp) ──
+#   守 2026-07-20 双案:①模板占位符 __OFFLINE_RUNTIME_ASSET__ 渲染表漏键 → postinstall 找不到
+#   内嵌档 → 降级 pending;②内嵌 .tar.zst 而 macOS 系统 tar(libarchive 无 zstd 滤器)在
+#   PKInstallSandbox 净化 PATH 下无第三方 zstd 兜底 → 解压必败 → 降级;两案 App 首启都读到
+#   旧版缓存报「版本不符」。全链自检此前只测「runtime 归档能启动」,从未测「成品 .pkg 的
+#   postinstall 在安装沙盒等价环境下真装成功」—— 本哨兵 + build 内联断言 + e2e 门三层补死。
+echo "[139] 离线安装链真装门"
+S139_BAD=0
+S139_BUILD="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/build_desktop_release.sh"
+S139_RD="${REPO_ROOT}/Horosa_Desktop_Installer/build/installer-scripts-rendered-offline"
+S139_STAMP="${REPO_ROOT}/Horosa_Desktop_Installer/build/offline-pkg-e2e.stamp"
+grep -q 'HOROSA_OFFLINE_ZSTD:-0' "${S139_BUILD}" 2>/dev/null || { bad "[139] 🔴 build 未默认 gz 内嵌(HOROSA_OFFLINE_ZSTD:-0)——zst 在安装沙盒必败"; S139_BAD=1; }
+grep -q 'env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/tar -tf' "${S139_BUILD}" 2>/dev/null || { bad "[139] 🔴 build 缺净化 PATH 内嵌档探测"; S139_BAD=1; }
+grep -q '渲染后硬断言' "${S139_BUILD}" 2>/dev/null || { bad "[139] 🔴 build 缺渲染后硬断言块(占位符/档在位/可解)"; S139_BAD=1; }
+grep -q 'verify_offline_pkg_install_e2e.sh' "${S139_BUILD}" 2>/dev/null || { bad "[139] 🔴 build 未接离线 pkg 真装 e2e 门"; S139_BAD=1; }
+[ -x "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_offline_pkg_install_e2e.sh" ] || { bad "[139] 缺 verify_offline_pkg_install_e2e.sh"; S139_BAD=1; }
+if [ -f "${S139_RD}/postinstall" ]; then
+  grep -qE '__[A-Z_]+__' "${S139_RD}/postinstall" && { bad "[139] 🔴 rendered postinstall 残留未替换占位符"; S139_BAD=1; }
+  S139_AN="$(sed -n 's/^ARCHIVE_NAME="\(.*\)"$/\1/p' "${S139_RD}/postinstall" | head -n 1)"
+  if [ -z "${S139_AN}" ] || [ ! -s "${S139_RD}/${S139_AN}" ]; then
+    bad "[139] 🔴 rendered Scripts 缺内嵌档(${S139_AN:-<空>})"; S139_BAD=1
+  elif ! env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/tar -tf "${S139_RD}/${S139_AN}" >/dev/null 2>&1; then
+    bad "[139] 🔴 rendered 内嵌档净化 PATH(≈PKInstallSandbox)不可解——系统 tar 无此压缩滤器"; S139_BAD=1
+  fi
+fi
+S139_PKG_NAME="$(python3 -c "import json;print(json.load(open('${REPO_ROOT}/Horosa_Desktop_Installer/config/release_config.json'))['desktopOfflinePkgName'])" 2>/dev/null || true)"
+S139_PKG="${REPO_ROOT}/Horosa_Desktop_Installer/dist/${S139_PKG_NAME}"
+if [ -n "${S139_PKG_NAME}" ] && [ -s "${S139_PKG}" ]; then
+  if [ ! -f "${S139_STAMP}" ]; then
+    bad "[139] 🔴 有离线 pkg 但缺真装 e2e stamp(HOROSA_SKIP_PKG_E2E 跳过未补跑?)"; S139_BAD=1
+  else
+    S139_SHA="$(shasum -a 256 "${S139_PKG}" | awk '{print $1}')"
+    S139_MATCH="$(awk -F'\t' -v sha="${S139_SHA}" '$1=="OK" && $2==sha {print "MATCH"}' "${S139_STAMP}" | head -n 1)"
+    [ "${S139_MATCH}" = "MATCH" ] || { bad "[139] 🔴 e2e stamp 非 OK 或与成品 pkg sha 不符——对当前 pkg 补跑 verify_offline_pkg_install_e2e.sh"; S139_BAD=1; }
+  fi
+fi
+[ "${S139_BAD}" = "0" ] && ok "[139] 离线安装链真装门全在位(gz 默认/净化探测/渲染断言/e2e stamp 绑定成品)"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

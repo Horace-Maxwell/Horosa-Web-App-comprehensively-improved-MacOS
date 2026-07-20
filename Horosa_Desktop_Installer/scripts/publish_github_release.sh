@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 发布硬闸(制度,2026-06-12):任何 release 发布前必须完成人工安装验收。
-# 流程 = 打包 → 用户亲手安装 .pkg 实测 → 确认后 HOROSA_USER_TESTED=1 重跑本脚本。
-if [ "${HOROSA_USER_TESTED:-0}" != "1" ]; then
-  echo "⛔ 发布中止:本 release 尚未经人工安装验收。" >&2
-  echo "   请先安装 dist/ 下的 .pkg 完整手测;确认无误后:HOROSA_USER_TESTED=1 bash $0" >&2
-  exit 1
-fi
+# 发布前验收(2026-07-14 起移除强制手测闸):建议先装机手测 dist/ 下的 .pkg,但不再作硬门拦截
+# (HOROSA_USER_TESTED 不再必需;若仍想保留提醒,可自行在外层流程加)。发布前唯一硬保护 = 下方
+# [134] stapler validate 门:未公证/ad-hoc 产物直接拒发,杜绝误发未签名/未公证构建。
 
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"

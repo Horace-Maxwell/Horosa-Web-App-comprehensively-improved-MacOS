@@ -17,3 +17,15 @@ preflight[79] 校验最近一次 runtime-smoke 为 PASS 且 sha 与当前 dist �
 | 2026-07-12 07:31 | 995d9ec | PASS | runtime-smoke | 33ad59cf77a857a4… |
 | 2026-07-12 11:42 | 844511c | PASS | runtime-smoke | 9f5668b54d0ec4da… |
 | 2026-07-12 14:33 | 3442fe9 | PASS | runtime-smoke | 031e6383da1a86e6… |
+| 2026-07-13 12:15 | 50e8cc1 | PASS | runtime-smoke | 18372ee6813a66ca… |
+| 2026-07-14 00:12 | b5362c7 | PASS | runtime-smoke | 8c0ba62d3ca0ba79… |
+| 2026-07-14 01:27 | a56722d | PASS | runtime-smoke | 5ec3c19cabfe741e… |
+| 2026-07-14 01:52 | 84febc2 | PASS | runtime-smoke | 6214f1fba19b8fe6… |
+| 2026-07-14 02:48 | a829e36 | PASS | runtime-smoke | f0a968c7fe0e877b… |
+| 2026-07-14 03:43 | 3a685f0 | PASS | runtime-smoke | 00f1501d12ffc048… |
+| 2026-07-14 07:07 | bbc8de3 | PASS | runtime-smoke | e12df06370440465… |
+| 2026-07-14 11:48 | 7669fe7 | PASS | runtime-smoke | 839d8ce2b023e6c8… |
+| 2026-07-14 13:46 | ae456a8 | PASS | runtime-smoke | d802bb6ecf671871… |
+| 2026-07-20 10:03 | 2a4516d | FAIL | runtime-smoke | da016bfc69d5875f… |
+| 2026-07-20 13:08 | c110312 | PASS | runtime-smoke | 7c5ef0b9cd1f013a… |
+| 2026-07-20 14:27 | 0a74983 | PASS | runtime-smoke | a436633d6ee1612f… |

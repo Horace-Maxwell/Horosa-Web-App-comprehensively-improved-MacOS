@@ -43,6 +43,12 @@ def webchartsrv_direct_mounts(web_root):
     src_path = os.path.join(web_root, "astropy", "websrv", "webchartsrv.py")
     src = open(src_path, encoding="utf-8").read()
     mounts = set(re.findall(r"tree\.mount\([^,]+,\s*'(/[^']*)'", src))
+    # [B5] 核心服务惰性挂载后,14 路由从字面 tree.mount(...) 移进 CORE_SERVICE_SPECS
+    # 表(循环挂 spec["mount"]),字面正则看不见 → 这里把表里的 mount 一并计入,
+    # 语义仍是「webchartsrv 实际会挂什么」。
+    spec_block = re.search(r"CORE_SERVICE_SPECS\s*=\s*\[(.*?)\n\]", src, re.S)
+    if spec_block:
+        mounts |= set(re.findall(r'"mount":\s*"(/[^"]*)"', spec_block.group(1)))
     return mounts
 
 

@@ -31,7 +31,7 @@ public class ChartController {
 	// 必须与 Horosa_Desktop_Installer/config/release_config.json 的 runtimeVersion 字段保持 lockstep
 	// (preflight [65] 会比对二者一致;升级 runtime 时同步改这里)。_wireRev 只在 PD 接线变更时手动 bump,
 	// 不覆盖"算法升级但接线不变"这一类陈旧场景,故另立运行时版本闸。
-	private static final String RUNTIME_VERSION = "3.4.0-runtime1";
+	private static final String RUNTIME_VERSION = "3.5.0-runtime1";
 
 	private static final int SU28_MODE_ZHENG_SIDEREAL = 4;
 	private static final double ZHENG_AYANAMSHA_BASE_DEGREE = 4.0;

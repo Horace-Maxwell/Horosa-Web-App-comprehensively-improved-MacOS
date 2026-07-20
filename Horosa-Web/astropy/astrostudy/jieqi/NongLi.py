@@ -1,11 +1,21 @@
+import os
+
 from flatlib.datetime import Datetime
 from flatlib.geopos import GeoPos
 from flatlib.chart import Chart
 from flatlib import const
+from flatlib.ephem import swe
 
 from astrostudy.helper import distance
 from . import jieqiconst
 from astrostudy.jieqi.YearJieQi import YearJieQi
+
+# v3.0.1 perf ROUND-5 (HOROSA_JIEQI_FAST_APPROACH,与 BirthJieQi/YearJieQi 同一开关): NongLi.approach
+# (新月牛顿求解,×16/年,/chart 首用某年份时算 本年+次年 两张月表)原每次迭代重建整张 flatlib Chart
+# (全行星+宫位+阿拉伯点 ~100 次 swe.calc_ut)只为读 日/月 经度与月速 —— 换 swe.sweObject 直取,
+# 收敛判据/公式/Datetime.fromJD 链一字不动 → 输出逐字节相同(实测 1985/2024/2033/公元前500 四年
+# jsonpickle 全等;单年 1.66-2.8s → 0.13-0.23s)。kill-switch 同 HOROSA_JIEQI_FAST_APPROACH=0。
+_JIEQI_FAST_APPROACH = os.environ.get('HOROSA_JIEQI_FAST_APPROACH', '1').lower() not in ('0', 'false', 'no', 'off')
 
 
 MonthNames = ['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月']
@@ -67,6 +77,22 @@ class NongLi:
         self.jq25 = jq25
 
     def approach(self, dt):
+        if _JIEQI_FAST_APPROACH:
+            sun = swe.sweObject(const.SUN, dt.jd, swe.SEDEFAULT_FLAG)
+            moon = swe.sweObject(const.MOON, dt.jd, swe.SEDEFAULT_FLAG)
+            delta = distance(sun['lon'], moon['lon']) + 1/7200
+            deltatm = delta / moon['lonspeed']
+            newjd = dt.jd + deltatm
+            newtm = Datetime.fromJD(newjd, self.zone)
+            while abs(delta) > 0.0003:
+                sun = swe.sweObject(const.SUN, newtm.jd, swe.SEDEFAULT_FLAG)
+                moon = swe.sweObject(const.MOON, newtm.jd, swe.SEDEFAULT_FLAG)
+                delta = distance(sun['lon'], moon['lon']) + 1 / 7200
+                deltatm = delta / moon['lonspeed']
+                newjd = newtm.jd + deltatm
+                newtm = Datetime.fromJD(newjd, self.zone)
+            return newtm
+        # kill-switch fallback (HOROSA_JIEQI_FAST_APPROACH=0): original Chart-based loop
         chart = Chart(dt, self.pos, const.TROPICAL, hsys=const.HOUSES_WHOLE_SIGN)
         sun = chart.getObject(const.SUN)
         moon = chart.getObject(const.MOON)
@@ -159,8 +185,13 @@ class NongLi:
             if dparts[1] != '12' and dparts[2] != '01':
                 eidx = eidx + 1
         else:
-            if dparts[2] != '12' and dparts[2] != '01':
+            # 公元前日期串形如 '-7039-12-18',split 后首段为空、月/日整体右移一位:
+            # 月=dparts[2]、日=dparts[3]。旧写法把 dparts[2] 双用(月又当日),
+            # 部分 BC 年份 eidx 误进 → 越界崩 / 冬月错标(静默错月,更隐蔽)。
+            if dparts[2] != '12' and dparts[3] != '01':
                 eidx = eidx + 1
+        if eidx >= len(months):
+            eidx = len(months) - 1
 
         months[eidx]['name'] = MonthNames[10]
         eidx = eidx - 1
@@ -235,7 +266,12 @@ class NongLi:
             tm = Datetime.fromJD(tm['tm'].jd + 29, self.zone)
             dtstr = tm.toCNString()
             parts = dtstr.split(' ')
-            tm = self.computeNewMoon(parts[0])
+            try:
+                tm = self.computeNewMoon(parts[0])
+            except Exception:
+                # 星历数据域尽头(如 AD16799 年末):朔序列在界内截断,已得朔表照常成表;
+                # 覆盖不足所需月份时由 setupMonth/上层报明确超域,而非整年炸。
+                break
             if cnt == 0:
                 if tm['date'] == self.prevDongZi['date']:
                     nongliMoon = [tm]

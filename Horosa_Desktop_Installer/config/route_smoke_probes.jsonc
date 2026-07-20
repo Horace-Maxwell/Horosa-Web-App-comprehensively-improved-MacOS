@@ -63,6 +63,7 @@
     { "id": "cetian",      "mount": "/cetian",      "path": "/cetian/pan",        "payload_ref": "kentang", "assert": { "result_code0": true } },
     { "id": "astroextra",  "mount": "/astroextra",  "path": "/astroextra/analysis", "payload_ref": "chart", "payload_extra": { "fixedStarOrb": 1 }, "assert": { "no_err": true, "nonempty": true } },
     { "id": "planetarium", "mount": "/planetarium", "path": "/planetarium/state", "payload_ref": "chart", "payload_extra": { "starLimit": 50 }, "assert": { "no_err": true, "expect_keys": ["bodies"] } },
+    { "id": "chart3d",     "mount": "/chart3d",     "path": "/chart3d/state", "payload_ref": "chart", "payload_extra": { "center": "helio" }, "assert": { "no_err": true, "expect_keys": ["bodies"] } },
     // chart 四变体(时区/纪元边界,平移自既有 kentang 冒烟)
     { "id": "chart-past",   "mount": "/", "path": "/", "payload_ref": "chart", "payload_extra": { "date": "2023/05/24", "time": "08:41:55", "lat": "26n04", "lon": "119e19", "gpsLat": 26.0666, "gpsLon": 119.3166 }, "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
     { "id": "chart-future", "mount": "/", "path": "/", "payload_ref": "chart", "payload_extra": { "date": "2027/05/24", "time": "20:41:55", "lat": "26n04", "lon": "119e19", "gpsLat": 26.0666, "gpsLon": 119.3166 }, "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },

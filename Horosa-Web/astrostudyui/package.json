@@ -12,8 +12,8 @@
 	],
 	"scripts": {
 		"start": "export NODE_OPTIONS=--openssl-legacy-provider && umi dev",
-		"build": "export NODE_OPTIONS=--openssl-legacy-provider && umi build && node scripts/write-build-info.js dist",
-		"build:file": "export BUILD_FOR_FILE=1 NODE_OPTIONS=--openssl-legacy-provider && umi build && node scripts/write-build-info.js dist-file",
+		"build": "export NODE_OPTIONS=--openssl-legacy-provider && umi build && node scripts/write-build-info.js dist && node scripts/inject-preload.js dist && node scripts/check-chunk-dup.js dist",
+		"build:file": "export BUILD_FOR_FILE=1 NODE_OPTIONS=--openssl-legacy-provider && umi build && node scripts/write-build-info.js dist-file && node scripts/inject-preload.js dist-file && node scripts/check-chunk-dup.js dist-file",
 		"build:cities": "node scripts/build-cities.js",
 		"postinstall": "node scripts/patch_quill_domnodeinserted.js && umi generate tmp",
 		"prettier": "prettier --write '**/*.{js,jsx,tsx,ts,less,md,json}'",
@@ -37,6 +37,7 @@
 		"@pdf-lib/fontkit": "^1.1.1",
 		"ajv": "^8.17.1",
 		"ajv-formats": "^3.0.1",
+		"astronomy-engine": "2.1.19",
 		"babylonjs": "^7.54.3",
 		"d3": "^7.8.4",
 		"docx": "^9.5.1",
@@ -63,7 +64,7 @@
 		"react": "17.x",
 		"react-dom": "17.x",
 		"react-quill": "^1.3.5",
-		"three": "^0.128.0",
+		"three": "0.185.1",
 		"tz-lookup": "^6.1.25",
 		"umi": "^3.5.41",
 		"video.js": "^8.3.0",
@@ -79,6 +80,7 @@
 		"opencc-js": "^1.3.1",
 		"pinyin-pro": "^3.28.1",
 		"prettier": "^2.2.0",
+		"puppeteer-core": "^21.11.0",
 		"typescript": "^4.1.2",
 		"yorkie": "^2.0.0"
 	}

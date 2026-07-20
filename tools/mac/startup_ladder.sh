@@ -38,6 +38,7 @@ if not paths:
 # 每个 run: {seg: t_ms};段耗时优先取 extra.ms(显式段长),否则用 t_ms(相对起点的完成时刻)
 runs = {}
 labels = {}
+modes = {}   # run -> {'exploded': 0|1, 'trusted': 0|1} 档位取证(sh.java_mode / sh.total 的 extra)
 for p in paths:
     for line in p.read_text(encoding='utf-8', errors='replace').splitlines():
         line = line.strip()
@@ -56,6 +57,11 @@ for p in paths:
         ms = extra.get('ms') if isinstance(extra, dict) else None
         runs.setdefault(run, {})[seg] = {'t_ms': t, 'ms': ms}
         labels.setdefault(run, 'cold' if 'cold' in run else ('warm' if 'warm' in run else ''))
+        if isinstance(extra, dict):
+            if seg == 'sh.java_mode' and 'exploded' in extra:
+                modes.setdefault(run, {})['exploded'] = extra['exploded']
+            if seg == 'sh.total' and 'trusted' in extra:
+                modes.setdefault(run, {})['trusted'] = extra['trusted']
 
 def pct(vals, q):
     vals = sorted(vals)
@@ -75,6 +81,23 @@ out_dir = pathlib.Path(os.environ.get('LADDER_OUT', '.'))
 csv_path = out_dir / f"ladder-{time.strftime('%Y%m%d-%H%M%S')}.csv"
 rows_out = []
 print(f"\n== 启动阶梯汇总({len(runs)} 次启动;t_ms=段完成时刻,ms=段长)==")
+
+# 🔴 档位取证(2026-07-16 立):fat-jar 回退档与 exploded+CDS 档是两条性能宇宙(Java 段
+# 7.0s vs 2.6s),trusted=0 与 =1 的 preflight 也不同路。2026-07-15 曾整轮 ladder 跑在
+# 回退档还被当装机真值分析 → 任何汇总必须先亮档位,非装机档位红字警告。
+fatjar_runs = [r for r, m in modes.items() if m.get('exploded') == 0]
+untrusted_runs = [r for r, m in modes.items() if m.get('trusted') == 0]
+no_mode_runs = [r for r in runs if r not in modes or 'exploded' not in modes.get(r, {})]
+if fatjar_runs:
+    print(f"🔴🔴 档位警告:{len(fatjar_runs)}/{len(runs)} 次启动走了【fat-jar 回退】(非装机 exploded+CDS 档)!")
+    print(f"     Java 段数字系统性虚高(~7s vs ~2.6s),勿当装机真值。dev 机修复:")
+    print(f"     bash Horosa_Desktop_Installer/scripts/refresh_boot_exploded.sh")
+if untrusted_runs:
+    print(f"⚠️  档位提示:{len(untrusted_runs)}/{len(runs)} 次 trusted=0(preflight 含 java/python 探针,装机 trusted=1 会跳过)")
+if no_mode_runs and len(no_mode_runs) < len(runs):
+    print(f"⚠️  {len(no_mode_runs)} 次账本无 sh.java_mode 标记(旧版脚本所出,档位未知)")
+if modes and not fatjar_runs:
+    print(f"✓ 档位:全部 {len(modes)} 次 exploded 模式")
 for gname, members in groups.items():
     if not members:
         continue

@@ -13,6 +13,11 @@
     
 """
 
+import copy
+import os
+import threading
+from collections import OrderedDict
+
 import swisseph
 from . import eph
 from . import swe
@@ -20,11 +25,46 @@ from flatlib import const
 from flatlib import utils
 
 from flatlib.datetime import Datetime
-from flatlib.object import (GenericObject, Object, 
+from flatlib.object import (GenericObject, Object,
                             House, FixedStar)
-from flatlib.lists import (GenericList, ObjectList, 
+from flatlib.lists import (GenericList, ObjectList,
                            HouseList, FixedStarList)
 
+
+# v3.0.1 perf ROUND-5 (HOROSA_STAR_LRU):恒星批(67 恒星 / 28 宿)只依赖
+# (IDs, date.jd, pos, height, flags, sidereal 上下文) —— 与宫位制/容许度/相位设置完全无关。
+# 「改设置重排同一命盘」时这些输入不变,但每次仍全量重取(swisseph 逐星重扫 sefstars.txt,~460ms/盘)。
+# 有界 LRU(8 条,线程安全):**存入与命中都走 deepcopy** —— 缓存内永远是"出厂原样"的批,消费者
+# (relocateSouthObjects 的 +180°、su28 的 ra 调整)改的是自己的副本,互不串染 → 值与全新计算
+# 逐字节一致(同键取数确定性已实测)。deepcopy ~2-3ms vs 重算 ~130ms。kill-switch:HOROSA_STAR_LRU=0。
+_STAR_LRU_ENABLED = os.environ.get('HOROSA_STAR_LRU', '1').lower() not in ('0', 'false', 'no', 'off')
+_STAR_LRU_MAX = 8
+_STAR_LRU = OrderedDict()
+_STAR_LRU_LOCK = threading.Lock()
+
+
+def _siderealCtxKey():
+    ctx = swe._SIDEREAL_CONTEXT
+    return (getattr(ctx, 'mode', None), getattr(ctx, 't0', 0.0), getattr(ctx, 'ayan_t0', 0.0))
+
+
+def _starLruLookup(kind, IDs, date, pos, height, flags):
+    key = (kind, tuple(IDs), date.jd, pos.lat, pos.lon, height, flags, _siderealCtxKey())
+    with _STAR_LRU_LOCK:
+        hit = _STAR_LRU.get(key)
+        if hit is not None:
+            _STAR_LRU.move_to_end(key)
+            return key, copy.deepcopy(hit)
+    return key, None
+
+
+def _starLruStore(key, starList):
+    pristine = copy.deepcopy(starList)
+    with _STAR_LRU_LOCK:
+        _STAR_LRU[key] = pristine
+        _STAR_LRU.move_to_end(key)
+        while len(_STAR_LRU) > _STAR_LRU_MAX:
+            _STAR_LRU.popitem(last=False)
 
 
 # === Objects === #
@@ -62,7 +102,14 @@ def getObject(ID, date, pos, height=150, flags=swe.SEDEFAULT_FLAG):
 
 def getObjectList(IDs, date, pos, height=150, flags=swe.SEDEFAULT_FLAG):
     """ Returns a list of objects. """
-    objList = [getObject(ID, date, pos, height, flags) for ID in IDs]
+    objList = []
+    for ID in IDs:
+        try:
+            objList.append(getObject(ID, date, pos, height, flags))
+        except Exception:
+            # 个别天体在其星历物理域外(如凯龙限 AD675-4649)时跳过该星,
+            # 整盘照常(与 ACG 单星降级同语义);域内任何星不会走到这里。
+            continue
     res = ObjectList(objList)
     try:
         if IDs.index(const.SUN) >= 0 and IDs.index(const.MOON) >= 0:
@@ -148,11 +195,27 @@ def getFixedStarSu28(ID, date, pos, height, flags=swe.SEDEFAULT_FLAG):
 
 def getFixedStarList(IDs, date, pos, height, flags=swe.SEDEFAULT_FLAG):
     """ Returns a list of fixed stars. """
+    if _STAR_LRU_ENABLED:
+        key, hit = _starLruLookup('stars67', IDs, date, pos, height, flags)
+        if hit is not None:
+            return hit
+        starList = [getFixedStar(ID, date, pos, height, flags) for ID in IDs]
+        res = FixedStarList(starList)
+        _starLruStore(key, res)
+        return res
     starList = [getFixedStar(ID, date, pos, height, flags) for ID in IDs]
     return FixedStarList(starList)
 
 def getFixedStarSu28List(IDs, date, pos, height, flags=swe.SEDEFAULT_FLAG):
     """ Returns a list of fixed stars. """
+    if _STAR_LRU_ENABLED:
+        key, hit = _starLruLookup('su28', IDs, date, pos, height, flags)
+        if hit is not None:
+            return hit
+        starList = [getFixedStarSu28(ID, date, pos, height, flags) for ID in IDs]
+        res = FixedStarList(starList)
+        _starLruStore(key, res)
+        return res
     starList = [getFixedStarSu28(ID, date, pos, height, flags) for ID in IDs]
     return FixedStarList(starList)
 

@@ -122,7 +122,9 @@ fi
 # 确认确实无需重建(例如只动了文档/无关文件)可设 HOROSA_SKIP_FRESHNESS_GUARD=1 跳过。
 DIST_INDEX="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file/index.html"
 if [ "${HOROSA_SKIP_FRESHNESS_GUARD:-0}" != "1" ] && [ -f "${DIST_INDEX}" ]; then
-  if [ -n "$(find "${REPO_ROOT}/Horosa-Web/astrostudyui/src" -type f -newer "${DIST_INDEX}" -print -quit 2>/dev/null || true)" ]; then
+  # src/.umi* 是 umi 生成目录(dev 服务器运行中持续写入),不是源码——纳入比较会造成
+  # 「只要 preview 开着就永远打不了包」的守卫误报;排除之(真源码新于产物仍照常拦)。
+  if [ -n "$(find "${REPO_ROOT}/Horosa-Web/astrostudyui/src" -type f -not -path "*/src/.umi*" -newer "${DIST_INDEX}" -print -quit 2>/dev/null || true)" ]; then
     echo "ERROR: dist-file 比前端源码旧——很可能忘了重建前端包。" >&2
     echo "       cd Horosa-Web/astrostudyui && npm run build && npm run build:file" >&2
     echo "       (确认无需重建可设 HOROSA_SKIP_FRESHNESS_GUARD=1)" >&2
@@ -139,7 +141,21 @@ if [ "${HOROSA_SKIP_FRESHNESS_GUARD:-0}" != "1" ] && [ -f "${BOOT_JAR_SOURCE}" ]
 fi
 # -----------------------------------------------------------------------------------
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file" "${STAGE_ROOT}/Horosa-Web/astrostudyui/"
-rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/warmHorosaRuntime.js" "${STAGE_ROOT}/Horosa-Web/astrostudyui/scripts/"
+# ── [B2] 前端旁置预压缩:为可压缩产物生成 <file>.gz(-9,保留原件),壳内 tiny_http 按
+# Accept-Encoding 供给(Content-Encoding: gzip)。仅压 >4KB 的 js/css/html/json/svg/map;
+# 已存在且不比原件旧则跳过。首屏关键链 ~6.9MB 未压缩 → gzip 后约 1/4,温启配合
+# immutable+ETag 进一步归零。失败不阻断打包(壳侧无旁件即回退原件,零功能差异)。
+if command -v gzip >/dev/null 2>&1; then
+  find "${STAGE_ROOT}/Horosa-Web/astrostudyui/dist-file" -type f \
+    \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' -o -name '*.svg' -o -name '*.map' \) \
+    -size +4k -print0 2>/dev/null | while IFS= read -r -d '' f; do
+      if [ ! -f "${f}.gz" ] || [ "${f}" -nt "${f}.gz" ]; then
+        gzip -k -9 -f "${f}" 2>/dev/null || true
+      fi
+    done
+  GZ_COUNT=$(find "${STAGE_ROOT}/Horosa-Web/astrostudyui/dist-file" -name '*.gz' | wc -l | tr -d ' ')
+  echo "[payload] dist-file 预压缩旁件: ${GZ_COUNT} 个 .gz"
+fi
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" "${STAGE_ROOT}/Horosa-Web/scripts/"
 build_embedded_java_runtime "${JAVA_SOURCE_DIR}" "${STAGE_ROOT}/runtime/mac/java"
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/runtime/mac/python" "${STAGE_ROOT}/runtime/mac/"
@@ -467,6 +483,29 @@ fi
   cd "${BUILD_ROOT}"
   COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar --disable-copyfile -czf "${ARCHIVE_PATH}" runtime-payload
 )
+
+# [WP-I] zst 姊妹档:仅供离线 pkg 内嵌(在线更新链资产仍是 tar.gz,零波及)。
+# zstd -T0 多线程压缩,安装侧解压比单线程 gunzip 快数倍且包体更小;构建机无 zstd 或
+# 显式跳过(HOROSA_SKIP_ZSTD_ARCHIVE=1)则只出 gz,build_desktop_release 自动回退嵌 gz。
+ARCHIVE_PATH_ZST="${ARCHIVE_PATH%.tar.gz}.tar.zst"
+if [ "${HOROSA_SKIP_ZSTD_ARCHIVE:-0}" != "1" ] && command -v zstd >/dev/null 2>&1; then
+  echo "packing zst sibling (zstd -T0 -15)…"
+  (
+    cd "${BUILD_ROOT}"
+    COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar --disable-copyfile -cf - runtime-payload \
+      | zstd -T0 -15 -f -q -o "${ARCHIVE_PATH_ZST}"
+  )
+  # 自检:系统 tar 必须能读(postinstall 解压走 /usr/bin/tar -xf 自动侦测)——读不了就删档回退 gz。
+  if /usr/bin/tar -tf "${ARCHIVE_PATH_ZST}" >/dev/null 2>&1; then
+    echo "zst sibling ready: $(du -h "${ARCHIVE_PATH_ZST}" | cut -f1) (gz: $(du -h "${ARCHIVE_PATH}" | cut -f1))"
+  else
+    echo "WARN: 系统 tar 读不了刚产出的 zst 档,删除之(离线 pkg 将回退内嵌 gz)" >&2
+    rm -f "${ARCHIVE_PATH_ZST}"
+  fi
+else
+  rm -f "${ARCHIVE_PATH_ZST}" 2>/dev/null || true
+  echo "WARN: zstd 不可用或被跳过,未产出 zst 姊妹档(离线 pkg 将内嵌 gz)" >&2
+fi
 
 python3 - <<'PYVERIFY' "${ARCHIVE_PATH}"
 import os

@@ -1,4 +1,7 @@
 import { Component } from 'react';
+import UpdatingBadge from '../common/UpdatingBadge';
+import { silentTechniquePanelsEnabled } from '../../utils/perfFlags';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { Row, Col, message } from 'antd';
 import { XQButton as Button, XQModal as Modal, XQTabs as Tabs } from '../xq-ui';
 import XQIcon from '../xq-icons';
@@ -35,6 +38,7 @@ import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/d
 import { calcZiwei, deriveSanPan } from './ZiweiCalc';
 import { detectPatterns } from './ziweiPatterns';
 import { ZWEngineOptions, ziweiNeedsLocalEngine } from './ziweiOptions';
+import { parseYearFromDateStr } from '../../utils/dateStrSafe';
 
 const TabPane = Tabs.TabPane;
 
@@ -598,6 +602,11 @@ class ZiWeiMain extends Component{
 				}
 				this.requestZiWei(fields);
 			};
+			// 🔴 chartFree 契约(极速化快车道):本页中右栏【零】消费共享 chartObj(全部由 fields
+			// 驱动本组件自算/自取)。声明后 fetchByFields 对本页走快车道:fields 立即提交、
+			// 不等 /chart 网络 —— 本页从「等一次网络(~230ms)」变「点击即出(<100ms)」。
+			// 若日后本页开始读 props.value/chartObj,必须删掉此行(有静态哨兵机械核)。
+			this.props.hook.chartFree = true;
 		}
 	}
 
@@ -657,6 +666,7 @@ class ZiWeiMain extends Component{
 		const params = {
 			date: flds.date.value.format('YYYY-MM-DD'),
 			time: flds.time.value.format('HH:mm:ss'),
+			ad: (flds.ad && flds.ad.value !== undefined) ? flds.ad.value : (flds.date.value.ad || 1),
 			zone: flds.zone.value,
 			lon: flds.lon.value,
 			lat: flds.lat.value,
@@ -684,9 +694,13 @@ class ZiWeiMain extends Component{
 		// 并行 + rules 会话缓存:rules 与本盘无关(body 恒 {}),原串行瀑布白付一次 RTT;
 		// 启动已 prime 缓存(models/app.js dispatch rules/ziwei),此处通常零成本命中。
 		// 任一失败整体 throw、不 setState,与原「串行中途失败不 setState」口径一致。
+		// WP-C/D 极速化:silent=不触发全局满屏 Spin(keep-stale:旧盘留存+「更新中…」角标,
+		// 新盘到达单次 setState 整体替换)。关 silentTechniquePanels 开关=旧全屏。
+		this.setState({ updating: true });
 		const [data, rules] = await Promise.all([
 			request(`${Constants.ServerRoot}/ziwei/birth`, {
 				body: JSON.stringify(params),
+				silent: silentTechniquePanelsEnabled(),
 			}),
 			ziweirulesCached({}),
 		]);
@@ -694,6 +708,7 @@ class ZiWeiMain extends Component{
 		// 缺守卫时 data[ResultKey]/rules[ResultKey] 直接崩(Unhandled Rejection)→ 生产白屏/选项永无反应。
 		// 口径与「失败不 setState」一致:人话提示 + return,后端就绪后用户重试即恢复。
 		if(!data || !rules){
+			this.setState({ updating: false });
 			message.error('后端服务尚未就绪,请稍后重试');
 			return;
 		}
@@ -736,6 +751,7 @@ class ZiWeiMain extends Component{
 			result: result,
 			rules: rules[Constants.ResultKey],
 			luckSel: sameChart ? (this.state.luckSel || emptyLuckSel()) : emptyLuckSel(),
+			updating: false,
 		};
 
 
@@ -759,7 +775,7 @@ class ZiWeiMain extends Component{
 		let now = new DateTime();
 		let y = now.format('YYYY');
 		let year = parseInt(y);
-		let birth = parseInt(chartobj.birth.substr(0,4));
+		let birth = parseYearFromDateStr(chartobj.birth);
 		let age = year - birth + 1;
 		for(let i = 0; i<12; i++){
 			let house = chartobj.houses[i];
@@ -960,6 +976,17 @@ class ZiWeiMain extends Component{
 		);
 	}
 
+
+	// WP-H-2 极速化:重 wrapper sCU —— 全 props 机械浅比(函数型跳过,详 wrapperPropsEqual);
+	// state 任一引用变照常重渲(setState 恒换引用,此比既完整又廉价)。
+	// 收益:宿主因无关状态重渲时,本重组件整树不再白跑。关 chartSCU 开关 = 恒重渲旧行为。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	componentDidMount(){
 		this.unmounted = false;
 		this._after23BoundaryUserOverrode = false; // 用户拍板:左栏改过 after23NewDay 后,全局事件不再触发重新起盘
@@ -1110,7 +1137,8 @@ class ZiWeiMain extends Component{
 								onFieldsChange={this.onFieldsChange}
 							/>
 						</div>
-						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-ziwei-chart-panel xq-chart-renderer xq-chart-renderer-ziwei">
+						<div className="horosa-chart-stage horosa-chart-stage-redesign horosa-ziwei-chart-panel xq-chart-renderer xq-chart-renderer-ziwei" style={{ position: 'relative' }}>
+							{this.state.updating && this.state.result ? <UpdatingBadge /> : null}
 							<div className="horosa-ziwei-chart-viewport" data-capture-chart-only>
 								<ZiWeiChart
 									value={chart}
@@ -1130,7 +1158,8 @@ class ZiWeiMain extends Component{
 							</div>
 						</div>
 						<div className="horosa-inspector-panel horosa-astro-content-panel horosa-ziwei-info-panel">
-							<Tabs defaultActiveKey="info" tabPosition='top' className="horosa-content-tabs horosa-ziwei-tabs">
+							{/* 星阙金 W1 试点:XQTabs 自带 xq-tabs 基线(金 ink-bar 2px+三态字色);W2 全量收编 content-tabs 族 */}
+						<Tabs defaultActiveKey="info" tabPosition='top' className="horosa-content-tabs horosa-ziwei-tabs">
 								<TabPane tab="命盘" key="info">
 									{this.renderZiWeiInfoPanel(infoData, doms, tipheight)}
 								</TabPane>
