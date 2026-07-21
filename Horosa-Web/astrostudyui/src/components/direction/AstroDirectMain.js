@@ -836,6 +836,12 @@ class AstroDirectMain extends Component{
 		if(!this.props.dispatch){
 			return;
 		}
+		// base 盘不完整(如 /chart 失败后 chartObj 为空)时绝不落盘:merge 会合成只有 pd 系
+		// params、无 chart/无 params.zone 的部分态对象,写入全局后宿占/3D 等消费方按
+		// chartObj truthy 解引用 .chart/.params.zone 即崩。
+		if(!chartObj || !chartObj.chart){
+			return;
+		}
 		const nextChartObj = mergePrimaryDirectionChartObj(chartObj, {
 			pdRows,
 			showPdBounds: req.showPdBounds,
@@ -1462,7 +1468,7 @@ class AstroDirectMain extends Component{
 						<FreezeInactive active={this.state.currentTab === "zodialrelease"}>
 						<AstroZR  
 							value={this.props.chartObj} 
-							height={this.props.height} 
+							height={height} 
 							chartDisplay={this.props.chartDisplay}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
