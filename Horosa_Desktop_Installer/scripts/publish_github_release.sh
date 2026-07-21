@@ -162,6 +162,41 @@ if [ -z "${GITHUB_TOKEN}" ]; then
   exit 1
 fi
 
+# 发布前环境就绪硬门(早失败早提示,不再深炸 preflight/上传后才发现):
+#   常见环境缺口——① python3(PATH)无 swisseph → 深处 [52] validate_acg 假红;
+#   ② playwright chromium 未装 → preflight 后 verify_launcher_console_states 才炸。
+#   两者都是「跑了几分钟才在深处报环境问题」。此门在最前面 2 秒内验完并给出确切修复命令。
+echo "== 发布前环境就绪 =="
+_RDY_BAD=0
+if ! command -v node >/dev/null 2>&1; then
+  echo "❌ node 不在 PATH(node@18 keg-only 未链接)—— verify_desktop_packaging 的前端校验会 command-not-found。" >&2
+  echo "   修:export PATH=\"/opt/homebrew/opt/node@18/bin:\$PATH\"(勿把 homebrew/bin 前置,会用无 swisseph 的 python3)。" >&2
+  _RDY_BAD=1
+fi
+if ! command -v gh >/dev/null 2>&1; then
+  echo "❌ gh 不在 PATH —— 无法建 release。修:brew 安装或加 /opt/homebrew/bin 到 PATH。" >&2
+  _RDY_BAD=1
+fi
+if ! python3 -c 'import swisseph' >/dev/null 2>&1; then
+  echo "❌ 当前 python3($(command -v python3))无 swisseph —— ACG/星历 golden 会假红。" >&2
+  echo "   修:用带 swisseph 的 python3(如 miniconda),勿把无 swisseph 的 python 前置到 PATH。" >&2
+  _RDY_BAD=1
+fi
+if python3 -c 'import playwright' >/dev/null 2>&1; then
+  if ! python3 - <<'PYRDY' >/dev/null 2>&1
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    b = p.chromium.launch(headless=True); b.close()
+PYRDY
+  then
+    echo "❌ playwright 已装但 chromium 浏览器缺失/版本不符 —— 首启界面验证(verify_launcher_console_states)会炸。" >&2
+    echo "   修:python3 -m playwright install chromium" >&2
+    _RDY_BAD=1
+  fi
+fi
+[ "${_RDY_BAD}" = "0" ] || { echo "发布前环境未就绪,已在最前拦下(未触网、未建 release)。" >&2; exit 1; }
+echo "  ✅ python3+swisseph / playwright+chromium 就绪"
+
 # Pre-flight self-check: encodes the process-review findings (version lockstep, per-version
 # release notes, secrets not tracked, config JSON valid, artifact freshness, CI green).
 # HOROSA_SKIP_PREFLIGHT=1 overrides only when you are certain.
