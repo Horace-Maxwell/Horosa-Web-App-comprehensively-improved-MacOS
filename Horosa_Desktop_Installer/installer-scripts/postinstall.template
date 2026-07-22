@@ -285,7 +285,7 @@ fi
 log_line "using bundled runtime archive ${LOCAL_ARCHIVE_PATH}"
 # 先把内置归档缓存到共享 downloads(供 App 首启离线自愈复用)。缓存失败基本只可能是磁盘空间不足。
 # [WP-I] cp -c=APFS clonefile(同容器即时、零物理字节);跨卷/不支持时回退真拷(旧行为)。
-# [FL-20260720] 互清姊妹压缩格式的旧缓存档(gz↔zst):否则安装降级/换格式后,App 按固定
+# [2026-07-20 实案] 互清姊妹压缩格式的旧缓存档(gz↔zst):否则安装降级/换格式后,App 按固定
 # gz 资产名读到「异名旧版本档」→ 弹「版本不符,建议重建」(v3.5.0 真机踩实)。
 rm -f "${ARCHIVE_PATH}" "${ARCHIVE_PATH%.tar.gz}.tar.zst" "${ARCHIVE_PATH%.tar.zst}.tar.gz" >/dev/null 2>&1 || true
 if ! /bin/cp -c "${LOCAL_ARCHIVE_PATH}" "${ARCHIVE_PATH}" 2>/dev/null; then
@@ -314,7 +314,7 @@ if [ -n "${RUNTIME_AVAIL_KIB}" ] && [ "${RUNTIME_AVAIL_KIB}" -lt 3145728 ] 2>/de
 fi
 
 # [WP-I] -xf:bsdtar 按内容自动侦测压缩格式。-z 会强制 gzip 滤器,故弃用。
-# ⚠️ [FL-20260720] 内嵌档必须是 gz:macOS 系统 tar(libarchive)无 zstd 滤器,安装沙盒净化
+# ⚠️ [2026-07-20 实案] 内嵌档必须是 gz:macOS 系统 tar(libarchive)无 zstd 滤器,安装沙盒净化
 # PATH 下无第三方 zstd 兜底,.zst 解压必败(构建层已断言+e2e 真装门看守)。
 # tar stderr 必须落 installer.log —— 旧版 2>/dev/null 吞错,真机翻车时只剩「多为磁盘空间不足」
 # 的猜测文案,无法定因(v3.5.0 真机复盘定谳)。
@@ -393,6 +393,20 @@ write_install_source "pkg_offline" "${EXPECTED_VERSION}"
 /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
 /usr/bin/xattr -dr com.apple.quarantine "${CURRENT_DIR}" >/dev/null 2>&1 || true
 /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+# [R3-C1] 预置信任:本脚本上方冒烟已实证 python import/java -version 健康 —— 用新装
+# App 自己的二进制(--horosa-preseed-health,坑15 范式:格式单一真值源在二进制内,零
+# bash 复刻)预写健康缓存 + fast-path 标记 → 首真启直走 trusted 快路径(免 untrusted
+# 完整校验/300s 预算档)。任何失败无害:不写=首启照旧完整校验;两文件补 a+rw(多用户)。
+APP_BIN="$(/usr/bin/find "${APP_PATH}/Contents/MacOS" -maxdepth 1 -type f 2>/dev/null | /usr/bin/head -n 1)"
+if [ -n "${APP_BIN}" ] && [ -x "${APP_BIN}" ]; then
+  if "${APP_BIN}" --horosa-preseed-health "${CURRENT_DIR}" >/dev/null 2>&1; then
+    log_line "preseed-health ok: first launch will take trusted fast path"
+  else
+    log_line "preseed-health skipped (rc=$?): first launch will run full verification"
+  fi
+  /bin/chmod a+rw "${CURRENT_DIR}/.runtime-health-cache.json" "${CURRENT_DIR}/.runtime-fast-path.json" >/dev/null 2>&1 || true
+fi
+install_ledger install.preseed_done
 install_ledger install.total
 cleanup_install_state
 exit 0

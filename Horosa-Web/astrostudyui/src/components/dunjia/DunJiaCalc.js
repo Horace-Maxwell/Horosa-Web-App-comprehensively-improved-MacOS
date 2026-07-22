@@ -6,7 +6,7 @@ import { LUOSHU_NUM } from './DunJiaFaDoc';
 import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
-import { fetchChartWithRetry } from '../../utils/chartFetch';
+import { cachedKentangFetch } from '../../utils/kentangCache';
 
 export const SEX_OPTIONS = [
 	{ value: 1, label: '男' },
@@ -1157,7 +1157,7 @@ export async function fetchQimenPan(fields, nongli, options, context){
 	};
 	let rsp = null;
 	try{
-		const rawResponse = await fetchChartWithRetry(buildKentangEndpoint('qimen', 'pan'), {
+		const rawResponse = await cachedKentangFetch(buildKentangEndpoint('qimen', 'pan'), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',

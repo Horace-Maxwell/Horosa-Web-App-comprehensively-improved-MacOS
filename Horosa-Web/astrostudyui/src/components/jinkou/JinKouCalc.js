@@ -2,7 +2,7 @@ import * as LRConst from '../liureng/LRConst';
 import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
-import { fetchChartWithRetry } from '../../utils/chartFetch';
+import { cachedKentangFetch } from '../../utils/kentangCache';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import {
 
@@ -1974,7 +1974,7 @@ export async function fetchJinKouPan(fields, nongli, options){
 	};
 	let rsp = null;
 	try{
-		const rawResponse = await fetchChartWithRetry(buildKentangEndpoint('jinkou', 'pan'), {
+		const rawResponse = await cachedKentangFetch(buildKentangEndpoint('jinkou', 'pan'), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',

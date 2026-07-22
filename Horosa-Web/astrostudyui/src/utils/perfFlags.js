@@ -170,3 +170,17 @@ export function astro3dMorphEnabled(){
 	// 新位(~600ms),不走全量重建;关=旧全量 disposeMesh+重建
 	return flagEnabled('horosa.perf.astro3dMorph');
 }
+
+// —— R3-A3(2026-07-21):kentang(:8899 直连 C 型)统一缓存壳 ——
+export function kentangCacheEnabled(){
+	// /pan 族请求 L1/L2/L3 缓存+在途去重(键=path+body,同 body 恒同果);
+	// 关=逐字节旧行为(裸 fetchChartWithRetry 直通,每次全程 Python 重算)
+	return flagEnabled('horosa.perf.kentangCache');
+}
+
+// —— R3-A1(2026-07-21):选定步长那一刻的双向预取 ——
+export function stepSelectPrefetchEnabled(){
+	// 时间组件选步长档即预取 ±1、±2 步(第一下也不冷);关=仅 settle 后预取(旧行为)
+	return flagEnabled('horosa.perf.stepSelectPrefetch');
+}
+

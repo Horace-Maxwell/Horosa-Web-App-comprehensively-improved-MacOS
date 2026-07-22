@@ -230,7 +230,7 @@ if [ "${TAURI_BUILD_OK}" != "1" ]; then
   exit 1
 fi
 
-# [FL-20260720] 离线 pkg 内嵌档一律 gz —— zst 内嵌在真机安装 100% 必败的铁案:
+# [2026-07-20 实案] 离线 pkg 内嵌档一律 gz —— zst 内嵌在真机安装 100% 必败的铁案:
 # macOS 系统 /usr/bin/tar(libarchive 编译清单 zlib/liblzma/bz2lib,**无 zstd**)平时能解 .zst
 # 全靠 PATH 里第三方 zstd 兜底;PKInstallSandbox 的 PATH 精简无此兜底 → postinstall 解压
 # 即败 → 降级 pending → App 首启读到旧版缓存报「版本不符」。构建机满 PATH 探测是假绿。
@@ -274,7 +274,7 @@ offline_scripts_dir.mkdir(parents=True, exist_ok=True)
 offline_template = template
 for key, value in {
     **base_replacements,
-    # [FL-20260720] 离线三键同源:内嵌档名/内嵌档 sha 由构建层实际选定的 OFFLINE_EMBED_* 传入,
+    # [2026-07-20 实案] 离线三键同源:内嵌档名/内嵌档 sha 由构建层实际选定的 OFFLINE_EMBED_* 传入,
     # 与「实际 cp 进 Scripts 的那份档」永远一致(dict 合并同键覆盖 base 缺省)。
     '__OFFLINE_RUNTIME_ASSET__': os.environ['OFFLINE_RUNTIME_ASSET_ENV'],
     '__RUNTIME_SHA256__': os.environ['OFFLINE_RUNTIME_SHA256_ENV'],
@@ -290,7 +290,7 @@ PYPOST
 rm -f "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/$(basename "${RUNTIME_ARCHIVE_ZST}")"
 cp -f "${OFFLINE_EMBED_ARCHIVE}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/${OFFLINE_EMBED_ASSET}"
 
-# ── [FL-20260720] 渲染后硬断言(占位符漏替/内嵌档错位/沙盒不可解 任一命中 = 立即熔断,绝不出包) ──
+# ── [2026-07-20 实案] 渲染后硬断言(占位符漏替/内嵌档错位/沙盒不可解 任一命中 = 立即熔断,绝不出包) ──
 if grep -nE '__[A-Z_]+__' "${OFFLINE_SCRIPTS_RENDERED_DIR}/postinstall"; then
   echo "ERROR: rendered postinstall 残留未替换占位符(见上行)—— 模板新增占位符必须同步渲染表" >&2
   exit 1
@@ -389,7 +389,7 @@ PYDIST
 build_component_pkg "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_COMPONENT_PKG}"
 build_product_pkg "${OFFLINE_COMPONENT_PKG}" "${OFFLINE_INSTALLER_PKG}"
 
-# ── [FL-20260720] 离线 .pkg 真装 e2e 门(notarize 前拦截):展开成品包,在净化 PATH
+# ── [2026-07-20 实案] 离线 .pkg 真装 e2e 门(notarize 前拦截):展开成品包,在净化 PATH
 # (≈PKInstallSandbox)下真跑 Scripts/postinstall(共享根重定向临时目录),断言运行时落位
 # 且版本吻合。冒烟链只测过 runtime 归档本身,从未测过「安装沙盒里的 postinstall 全链」——
 # v3.5.0 双仓离线包正是死在这段盲区。逃生阀 HOROSA_SKIP_PKG_E2E=1(仅救急;preflight 拦)。
@@ -408,7 +408,7 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" = "1
   xcrun stapler staple "${TARGET_APP}"
   xcrun notarytool submit "${OFFLINE_INSTALLER_PKG}" --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" --wait
   xcrun stapler staple "${OFFLINE_INSTALLER_PKG}"
-  # [FL-20260720] staple 会改 pkg 字节 → e2e stamp 的 sha 必须随之刷新(真装结论对 Scripts 不变,
+  # [2026-07-20 实案] staple 会改 pkg 字节 → e2e stamp 的 sha 必须随之刷新(真装结论对 Scripts 不变,
   # 仅同步指纹;preflight [156]/[139] 按 sha 绑定成品,不刷新则永远红)。
   if [ -f "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp" ] && grep -q '^OK' "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp"; then
     printf 'OK\t%s\t%s\n' "$(shasum -a 256 "${OFFLINE_INSTALLER_PKG}" | awk '{print $1}')" "${RUNTIME_VERSION}" > "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp"

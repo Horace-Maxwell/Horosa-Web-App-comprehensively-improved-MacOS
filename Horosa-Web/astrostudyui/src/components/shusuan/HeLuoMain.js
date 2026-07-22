@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { deriveNongliUniversalSync, subscribeRemoteNongli } from '../../utils/divinationTimeDraft';
 import { createSignatureMemo } from '../../utils/memoBySignature';
 import { sharedNativeModelEnabled } from '../../utils/perfFlags';
@@ -51,6 +52,15 @@ function deepFreeze(o){
 }
 
 class HeLuoMain extends Component {
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(props) {
 		super(props);
 		this.state = { daxianKey: '', openYao: '', liunianKey: '', liuyueKey: '', yearForMonth: null, monthForDay: null, openJing: '' };

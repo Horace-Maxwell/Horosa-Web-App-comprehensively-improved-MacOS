@@ -1,6 +1,6 @@
 import { Component } from 'react';
 import UpdatingBadge from '../common/UpdatingBadge';
-import { silentTechniquePanelsEnabled } from '../../utils/perfFlags';
+import { silentTechniquePanelsEnabled, stepPrefetchEnabled } from '../../utils/perfFlags';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { Row, Col, message } from 'antd';
 import { XQButton as Button, XQModal as Modal, XQTabs as Tabs } from '../xq-ui';
@@ -619,6 +619,13 @@ class ZiWeiMain extends Component{
 			if(Object.prototype.hasOwnProperty.call(patch, '__confirmed')){
 				delete patch.__confirmed;
 			}
+			// [R3-A2] 紫微不走 fetchByFields(save+requestZiWei 自链),步进提示在此捕获后剥净:
+			// 防其进入 astro/save 与 requestZiWei 请求体(save reducer 另有中央网兜底);
+			// 捕获值驱动本组件专属的顺向 +1 步预取(A4 紫微版)。
+			const stepHint = patch.__stepHint || null;
+			if(Object.prototype.hasOwnProperty.call(patch, '__stepHint')){
+				delete patch.__stepHint;
+			}
 			// 用户拍板: 左栏改过 after23NewDay 后,全局事件不再覆盖。
 			if(field && Object.prototype.hasOwnProperty.call(field, 'after23NewDay')){
 				this._after23BoundaryUserOverrode = true;
@@ -636,8 +643,48 @@ class ZiWeiMain extends Component{
 			});
 			if(confirmed || !Object.prototype.hasOwnProperty.call(field || {}, '__confirmed')){
 				this.requestZiWei(flds.fields);
+				this.prefetchNextStepZiwei(flds.fields, stepHint);
 			}
 		}
+	}
+
+	// [R3-A4 紫微版] 顺向 +1 步预取:/ziwei/birth 经 genParams 同源构参 → 键逐字节等,
+	// 结果落 requestDedupe(L1/L2/L3);rules 与盘无关恒缓存。连点下一步 ≈ 瞬间。
+	// 失败静默;开关关=零行为。
+	prefetchNextStepZiwei(baseFields, stepHint){
+		try{
+			if(!stepPrefetchEnabled()){ return; }
+			if(!stepHint || !stepHint.dir){ return; }
+			const dt0 = baseFields && baseFields.date && baseFields.date.value;
+			if(!dt0 || typeof dt0.clone !== 'function'){ return; }
+			if(this.prefetchStepTimer){ clearTimeout(this.prefetchStepTimer); }
+			this.prefetchStepTimer = setTimeout(()=>{
+				this.prefetchStepTimer = null;
+				if(this.unmounted){ return; }
+				try{
+					const dt2 = dt0.clone();
+					const unit = stepHint.unit || 'm';
+					if(unit === 'y'){ dt2.addYear(stepHint.dir); }
+					else if(unit === 'M'){ dt2.addMonth(stepHint.dir); }
+					else if(unit === 'd'){ dt2.addDate(stepHint.dir); }
+					else if(unit === 'h'){ dt2.addHour(stepHint.dir); }
+					else { dt2.addMinute(4 * stepHint.dir); }
+					const flds2 = {
+						...baseFields,
+						date: { value: dt2.clone() },
+						time: { value: dt2.clone() },
+						ad: { value: dt2.ad },
+						zone: { value: dt2.zone },
+					};
+					const params = this.genParams(flds2);
+					if(!params){ return; }
+					request(`${Constants.ServerRoot}/ziwei/birth`, {
+						body: JSON.stringify(params),
+						silent: true,
+					}).catch(()=>null);
+				}catch(e){ /* 预取失败无害 */ }
+			}, 150);
+		}catch(e){ /* 预取失败无害 */ }
 	}
 
 	// 命盘九宫格点大限(需求1)：写统一 luckSel(等价 ZWLuckPanel.pickDaxian)，立即驱动 运X/金框/大限四化叠层。

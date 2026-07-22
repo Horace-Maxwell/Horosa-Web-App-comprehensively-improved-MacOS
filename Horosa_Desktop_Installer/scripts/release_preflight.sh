@@ -399,14 +399,17 @@ echo "[18] 前端排盘透明重试哨兵(修法5:幂等 raw-fetch 重试,SSE/AI
 CHARTFETCH="${UISRC}/utils/chartFetch.js"
 REQJS="${UISRC}/utils/request.js"
 if [ -f "${CHARTFETCH}" ] && [ -f "${REQJS}" ]; then
+  # [R3-A3 起] 合法接入=cachedKentangFetch(缓存壳,内部走 fetchChartWithRetry,重试语义
+  # 由调用方 cfg 控制:原四引擎保默认重试,原裸 fetch 站点传 {retries:0} 保旧单发)。
   if grep -q "export async function fetchChartWithRetry" "${CHARTFETCH}" \
-     && grep -q "fetchChartWithRetry" "${UISRC}/components/dunjia/DunJiaCalc.js" \
-     && grep -q "fetchChartWithRetry" "${UISRC}/components/taiyi/TaiYiCalc.js" \
-     && grep -q "fetchChartWithRetry" "${UISRC}/components/jinkou/JinKouCalc.js" \
-     && grep -q "fetchChartWithRetry" "${UISRC}/services/qizheng.js"; then
-    ok "修法5 fetchChartWithRetry 接入四引擎 raw-fetch 主路径"
+     && grep -q "fetchChartWithRetry(url, fetchOpts, cfg)" "${UISRC}/utils/kentangCache.js" \
+     && grep -q "cachedKentangFetch" "${UISRC}/components/dunjia/DunJiaCalc.js" \
+     && grep -q "cachedKentangFetch" "${UISRC}/components/taiyi/TaiYiCalc.js" \
+     && grep -q "cachedKentangFetch" "${UISRC}/components/jinkou/JinKouCalc.js" \
+     && grep -q "cachedKentangFetch" "${UISRC}/services/qizheng.js"; then
+    ok "修法5 缓存壳(内含 fetchChartWithRetry)接入四引擎 raw-fetch 主路径"
   else
-    bad "排盘 raw-fetch 站点未全部接入 fetchChartWithRetry —— 冷启动首个排盘无重试会弹「未就绪」(修法5)"
+    bad "排盘 raw-fetch 站点未全部接入缓存壳/壳内失去重试 —— 冷启动首个排盘无重试会弹「未就绪」(修法5)"
   fi
   # SSE 必须排除重试:requestStream 函数体内不得出现重试封装(防双发/重复计费)。
   if grep -q "export async function requestStream" "${REQJS}" \
@@ -2721,6 +2724,32 @@ if [ -n "${S139_PKG_NAME}" ] && [ -s "${S139_PKG}" ]; then
   fi
 fi
 [ "${S139_BAD}" = "0" ] && ok "[139] 离线安装链真装门全在位(gz 默认/净化探测/渲染断言/e2e stamp 绑定成品)"
+
+# ── [140] R3 性能宗师轮防回归(kentang 缓存/选步长预取/覆盖矩阵零 todo/预置信任/warmup 并行/惰性工厂/让路)──
+echo "[140] R3 性能宗师轮防回归"
+S140_BAD=0
+S140_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S140_KC="${S140_UI}/utils/kentangCache.js"
+[ -s "${S140_KC}" ] || { bad "[140] 缺 kentangCache.js"; S140_BAD=1; }
+grep -aq 'kt\.\${pathOf(url)}' "${S140_KC}" 2>/dev/null || { bad "[140] 🔴 kentangCache 键未去端口化"; S140_BAD=1; }
+grep -aq "obj.ResultCode !== undefined && obj.ResultCode !== 0" "${S140_KC}" 2>/dev/null || { bad "[140] 🔴 载荷守卫缺位"; S140_BAD=1; }
+grep -aq "modulePolicy(moduleKey) !== 'deterministic'" "${S140_KC}" 2>/dev/null || { bad "[140] 🔴 预取纪律锚缺位"; S140_BAD=1; }
+S140_RAW="$(grep -rn "fetchChartWithRetry(" "${S140_UI}/components" "${S140_UI}/services" 2>/dev/null | grep -av "kentangCache" | grep -av "__tests__" || true)"
+[ -z "${S140_RAW}" ] || { bad "[140] 🔴 存在绕过缓存壳的 fetchChartWithRetry 裸调用"; S140_BAD=1; }
+grep -aq "fireStepSelectPrefetch(val)" "${S140_UI}/components/comp/DateTimeSelector.js" 2>/dev/null || { bad "[140] 🔴 选步长触发点缺位"; S140_BAD=1; }
+grep -aq "stepSelectPrefetch={true}" "${S140_UI}/components/astro/PlusMinusTime.js" 2>/dev/null || { bad "[140] 🔴 PlusMinusTime 未挂全链 prop"; S140_BAD=1; }
+grep -aq "registerStepSelectHandler((unit)" "${S140_UI}/models/astro.js" 2>/dev/null || { bad "[140] 🔴 选步长处理器未注册"; S140_BAD=1; }
+S140_TODO="$(grep -ac ": 'todo'" "${S140_UI}/utils/perfCoverageManifest.js" 2>/dev/null || true)"
+[ "${S140_TODO:-0}" = "0" ] || { bad "[140] 🔴 perfCoverage 矩阵仍有 ${S140_TODO} 个 todo"; S140_BAD=1; }
+S140_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+grep -q -- "--horosa-preseed-health" "${S140_MAIN}" 2>/dev/null || { bad "[140] 🔴 缺预置信任子命令"; S140_BAD=1; }
+grep -q -- "--horosa-preseed-health" "${REPO_ROOT}/Horosa_Desktop_Installer/installer-scripts/postinstall.template" 2>/dev/null || { bad "[140] 🔴 postinstall 未调用预置信任"; S140_BAD=1; }
+grep -q "_warmup_stage_kentang" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py" 2>/dev/null || { bad "[140] 🔴 warmup 三段化缺位"; S140_BAD=1; }
+grep -q "class LazyCacheFactory" "${REPO_ROOT}/Horosa-Web/astrostudysrv/boundless/src/main/java/boundless/types/cache/LazyCacheFactory.java" 2>/dev/null || { bad "[140] 🔴 缺 LazyCacheFactory"; S140_BAD=1; }
+S140_LZ="$(grep -c -- "-Dhorosa.cache.lazyinit=true" "${REPO_ROOT}/Horosa-Web/start_horosa_local.sh" 2>/dev/null || true)"
+[ "${S140_LZ:-0}" = "3" ] || { bad "[140] 🔴 惰性属性注入应恰 3 处,现 ${S140_LZ}"; S140_BAD=1; }
+grep -q "HOROSA_WARM_MIN_ASYNC" "${REPO_ROOT}/Horosa-Web/start_horosa_local.sh" 2>/dev/null || { bad "[140] 🔴 min-warmup 让路开关缺位"; S140_BAD=1; }
+[ "${S140_BAD}" = "0" ] && ok "[140] R3 性能宗师轮资产全在位"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

@@ -16,7 +16,7 @@
 //   · 预取参数必须「与用户真点会发出的请求」逐字节同键(复用同一参数构建路径),绝不臆造;
 //   · PREFETCH_ALLOWED_PATHS 白名单之外的端点绝不预取 —— 尤其【随机起卦/抽牌类】
 //     (dice/摇卦/塔罗/地占),预取即把随机结果钉死;AI/心跳类同禁。
-import { stepPrefetchEnabled } from './perfFlags';
+import { stepPrefetchEnabled, stepSelectPrefetchEnabled } from './perfFlags';
 
 /** 允许预取的端点前缀(显式白名单;哨兵对照此数组,增删须同步测试) */
 export const PREFETCH_ALLOWED_PATHS = [
@@ -78,14 +78,51 @@ function pump(){
  * @param {Array<{name:string, run:function}>} tasks 预取任务(run 返回 Promise;
  *        任务内的请求自带 silent+零重试;结果自然落进各自缓存层)
  */
-export function submitStepPrefetch(tasks){
+export function submitStepPrefetch(tasks, opts){
 	if(!stepPrefetchEnabled() || !Array.isArray(tasks) || !tasks.length){
 		return;
 	}
 	generation += 1;
 	const gen = generation;
-	queue = tasks.slice(0, BUDGET_PER_SETTLE).map((t)=>({ ...t, gen }));
+	const budget = opts && Number.isInteger(opts.budget) && opts.budget > 0
+		? Math.min(opts.budget, 5)   // 硬顶 5:选步长双向 ±2=4 任务;绝不放开成风暴
+		: BUDGET_PER_SETTLE;
+	queue = tasks.slice(0, budget).map((t)=>({ ...t, gen }));
 	pump();
+}
+
+// —— [R3-A1] 选步长即预取:DateTimeSelector.changeTimeType(opt-in 宿主)→ 此处 ——
+// 与 settle 后预取共用同一队列/代际/预算体系;处理器由 models/astro 注册
+// (读 store 现 fields 走 buildStepPrefetchTasks 双向 ±2,键构造同源)。
+// 同 unit 5s 去重:反复点同档不重复排队(切档立即生效,latest-wins 覆盖旧代)。
+let stepSelectHandler = null;
+let lastStepSelect = { unit: null, at: 0 };
+
+export function registerStepSelectHandler(fn){
+	if(typeof fn === 'function'){
+		stepSelectHandler = fn;
+	}
+}
+
+export function fireStepSelectPrefetch(unit){
+	try{
+		if(!stepPrefetchEnabled() || !stepSelectPrefetchEnabled() || !unit){
+			return;
+		}
+		const now = Date.now();
+		if(lastStepSelect.unit === unit && (now - lastStepSelect.at) < 5000){
+			return;
+		}
+		lastStepSelect = { unit, at: now };
+		if(stepSelectHandler){
+			stepSelectHandler(unit);
+		}
+	}catch(e){ /* 预取失败无害 */ }
+}
+
+/** 测试用:清选步长去重态 */
+export function __resetStepSelectForTest(){
+	lastStepSelect = { unit: null, at: 0 };
 }
 
 // —— Phase B:技法端点注册表(kentang pan 等 raw fetch 不经 requestDedupe,

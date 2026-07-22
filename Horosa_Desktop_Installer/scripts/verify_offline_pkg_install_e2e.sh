@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verify_offline_pkg_install_e2e.sh —— 离线 .pkg 真装 e2e 门([FL-20260720] 制度化)。
+# verify_offline_pkg_install_e2e.sh —— 离线 .pkg 真装 e2e 门([2026-07-20 实案] 制度化)。
 #
 # 背景(v3.5.0 双仓离线包真机翻车,同日两案):
 #   ① public:模板占位符 __OFFLINE_RUNTIME_ASSET__ 渲染表漏键 → postinstall 找不到内嵌档 → 降级;

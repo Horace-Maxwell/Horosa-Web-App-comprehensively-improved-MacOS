@@ -2,6 +2,7 @@
 // 🔴 宿主范式=本页签(CnYiBuMain)每 tab 只渲染组件一次 → 自出三栏(照同页邻居 GuiceMain)。
 // 🔴 局是【冻结值】:起支(时支/选支/数取)一经定局即不可重起;命宫年龄性别只重排命宫目。
 import React, { Component, createRef } from 'react';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { XQSideSection } from '../xq-ui';
 import { Tabs, Empty, Input, InputNumber, Radio, Button, Select, Tag } from 'antd';
 import { resolveQiZhi, buildJu, mingGong, liuNian, liuYue } from './core/feigongJu';
@@ -127,6 +128,15 @@ export function buildFeiGongSnapshotForCase(payload, opts){
 }
 
 class FeiGongMain extends Component {
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(p){
 		super(p);
 		const stored = safeJsonParseFromStorage(STORE_KEY);

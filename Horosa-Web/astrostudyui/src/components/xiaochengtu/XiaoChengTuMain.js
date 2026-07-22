@@ -4,6 +4,7 @@
 // 🔴 本技法起卦不吃占时(手动卦/数字/股价三式皆非时间起例)——AI 挂载登记时不进
 //    TIME_CASTABLE_DIVINATION(时间可起课清单),挂载重算无「按时重起」路径。
 import React, { Component, createRef } from 'react';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { XQSideSection } from '../xq-ui';
 import { Tabs, Empty, Input, InputNumber, Radio, Button, Select, Tag } from 'antd';
 import { qiGuaManual, qiGuaByNumbers, qiGuaByStock, qiGuaByDaYan } from './core/xiaochengtuQiGua';
@@ -102,6 +103,15 @@ export function buildXiaoChengTuSnapshotForCase(payload, opts){
 }
 
 class XiaoChengTuMain extends Component {
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(p){
 		super(p);
 		const stored = safeJsonParseFromStorage(STORE_KEY);

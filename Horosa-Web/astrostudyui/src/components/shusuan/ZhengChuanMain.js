@@ -5,6 +5,7 @@
 // 条文正文库体积大（铁板 465KB / 邵子 437KB），故动态载入独立 chunk：
 // 条文号同步即得并先行显示，正文到达后再填 —— 首屏不等条文库。
 import React, { Component } from 'react';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { createSignatureMemo } from '../../utils/memoBySignature';
 import { sharedNativeModelEnabled } from '../../utils/perfFlags';
 import { Empty, Spin, Tabs } from 'antd';
@@ -81,6 +82,15 @@ function deepFreeze(o){
 }
 
 class ZhengChuanMain extends Component {
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(props) {
 		super(props);
 		this.state = { verses: null, auxTab: '' };   // auxTab: 右栏所在之目（空 = 取首目）

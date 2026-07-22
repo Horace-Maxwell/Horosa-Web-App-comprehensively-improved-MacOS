@@ -9,7 +9,7 @@ import {
 import request from '../../utils/request';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
-import { fetchChartWithRetry } from '../../utils/chartFetch';
+import { cachedKentangFetch } from '../../utils/kentangCache';
 import buildLocalBaziResult from '../../utils/baziLunarLocal';
 import { defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { parseDateParts } from '../../utils/dateStrSafe';
@@ -290,7 +290,7 @@ export async function fetchTaiyiPan(fields, nongli, options){
 	};
 	let rsp = null;
 	try{
-		const rawResponse = await fetchChartWithRetry(buildKentangEndpoint('taiyi', 'pan'), {
+		const rawResponse = await cachedKentangFetch(buildKentangEndpoint('taiyi', 'pan'), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',

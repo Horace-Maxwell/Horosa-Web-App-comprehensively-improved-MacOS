@@ -2635,8 +2635,7 @@ fn export_diagnostics_bundle(app: AppHandle) -> std::result::Result<String, Stri
         if let Ok(home_dir) = std::env::var("HOME").map(PathBuf::from) {
             let java_logs_root = home_dir.join(".horosa-logs").join("astrostudyboot");
             if java_logs_root.exists() {
-                let picked =
-                    select_recent_files_by_mtime(&java_logs_root, 20 * 1024 * 1024);
+                let picked = select_recent_files_by_mtime(&java_logs_root, 20 * 1024 * 1024);
                 for src in picked {
                     if let Ok(rel) = src.strip_prefix(&java_logs_root) {
                         let dest = staging.join("java-logs").join(rel);
@@ -2860,10 +2859,7 @@ fn copy_text_to_clipboard_command(
     text: String,
 ) -> std::result::Result<(), String> {
     let native_err = {
-        let mut guard = state
-            .0
-            .lock()
-            .map_err(|_| "剪贴板状态锁中毒".to_string())?;
+        let mut guard = state.0.lock().map_err(|_| "剪贴板状态锁中毒".to_string())?;
         if guard.is_none() {
             // 构建期创建失败或上次写失败被重置 → 惰性重建(pasteboard 服务偶发异常可自愈)
             *guard = arboard::Clipboard::new().ok();
@@ -2926,8 +2922,7 @@ fn print_report_html_command(
         .unwrap_or(0);
     let page = dir.join(format!("report-{stamp}.html"));
     fs::write(&page, html).map_err(|err| format!("写打印页失败: {err}"))?;
-    let url = tauri::Url::from_file_path(&page)
-        .map_err(|_| "打印页路径无法转 URL".to_string())?;
+    let url = tauri::Url::from_file_path(&page).map_err(|_| "打印页路径无法转 URL".to_string())?;
     let label = format!("report-print-{stamp}");
     WebviewWindowBuilder::new(&app, label, WebviewUrl::External(url))
         .title(title.unwrap_or_else(|| "打印 / 另存矢量 PDF".to_string()))
@@ -3536,6 +3531,37 @@ fn runtime_fast_path_allowed(runtime_dir: &Path) -> bool {
     runtime_fast_path_marker(runtime_dir)
         .map(|cache| runtime_health_cache_matches(runtime_dir, &cache))
         .unwrap_or(false)
+}
+
+// [R3-C1] postinstall 预置信任子命令本体:安装器冒烟(python import+java -version)已证
+// runtime 健康,此处以与 App 完全同一份格式代码预写健康缓存 + fast-path 标记,使首真启
+// 直走 trusted 快路径(免 untrusted 深检/300s 预算档)。写后回验:探针实物缺位时
+// write_* 会静默不写 → 回验不过=保持 untrusted(无害,首启照旧完整校验)。
+// 退出码:0=预置成功;71=manifest 不可读;72=回验不过(探针缺位)。
+fn run_preseed_health_cli(runtime_dir: &Path) -> i32 {
+    let manifest_path = runtime_dir.join("runtime-manifest.json");
+    let Some(manifest) = read_runtime_manifest_from_path(&manifest_path) else {
+        eprintln!(
+            "preseed-health: manifest unreadable at {}",
+            manifest_path.display()
+        );
+        return 71;
+    };
+    write_runtime_health_cache(runtime_dir, &manifest);
+    write_runtime_fast_path_marker(runtime_dir, &manifest);
+    let cache_ok = runtime_health_cache(runtime_dir)
+        .map(|c| runtime_health_cache_matches(runtime_dir, &c))
+        .unwrap_or(false);
+    if cache_ok && runtime_fast_path_allowed(runtime_dir) {
+        println!(
+            "preseed-health: trusted fast-path preseeded for {}",
+            runtime_dir.display()
+        );
+        0
+    } else {
+        eprintln!("preseed-health: probes missing, left untrusted (harmless)");
+        72
+    }
 }
 
 fn prepare_runtime_dir(runtime_dir: &Path) -> Result<()> {
@@ -4352,9 +4378,12 @@ fn resolve_update_plan(client: &Client, app: &AppHandle) -> Result<UpdatePlan> {
     if let Some(manifest) =
         fetch_manifest_via_release_asset(client, &release, &config.update_manifest_name)
     {
-        if let Some(plan) =
-            plan_from_manifest(manifest, &config, platform_key, UpdateSource::ManifestViaApi)
-        {
+        if let Some(plan) = plan_from_manifest(
+            manifest,
+            &config,
+            platform_key,
+            UpdateSource::ManifestViaApi,
+        ) {
             ledger_mark(
                 "rust.update_manifest_via_api",
                 Some(serde_json::json!({ "tag": release.tag_name })),
@@ -4943,8 +4972,9 @@ fn try_acquire_surgery_lock(root: &Path, wait: Duration) -> Result<Option<Runtim
                 .with_context(|| format!("打开手术锁 {}", lock_path.display()))?
         }
         Err(err) => {
-            return Err(anyhow::Error::from(err)
-                .context(format!("创建手术锁 {}", lock_path.display())))
+            return Err(
+                anyhow::Error::from(err).context(format!("创建手术锁 {}", lock_path.display()))
+            )
         }
     };
     let fd = file.as_raw_fd();
@@ -5248,9 +5278,10 @@ fn extract_runtime_archive_with(
         return Err(anyhow!("runtime-payload folder missing inside archive"));
     }
     if let Some(expected) = expected_version.map(str::trim).filter(|v| !v.is_empty()) {
-        let actual = read_runtime_manifest_from_path(&extracted_runtime.join("runtime-manifest.json"))
-            .map(|m| m.version)
-            .unwrap_or_default();
+        let actual =
+            read_runtime_manifest_from_path(&extracted_runtime.join("runtime-manifest.json"))
+                .map(|m| m.version)
+                .unwrap_or_default();
         if actual != expected {
             let _ = remove_dir_if_exists(&extract_root);
             return Err(anyhow!(
@@ -6961,10 +6992,7 @@ fn classify_permission_issue(paths: &RuntimePaths) -> Option<String> {
 
 // 多实例更新感知纯函数:基线未定→以首见版本为基线;已定且磁盘版本不同→触发一次。
 // (renamex 换 inode 后本实例仍跑旧树:探针恒 Ok,只有 manifest 版本对比能看见「别人更新了」。)
-fn runtime_change_step(
-    baseline: Option<String>,
-    disk: Option<String>,
-) -> (Option<String>, bool) {
+fn runtime_change_step(baseline: Option<String>, disk: Option<String>) -> (Option<String>, bool) {
     match (baseline, disk) {
         (None, Some(v)) => (Some(v), false),
         (Some(b), Some(now)) => {
@@ -10168,7 +10196,10 @@ fn run_runtime_swap_cli(root: &Path, archive: &Path, expected_version: &str) -> 
         return 2;
     }
     if let Err(err) = ensure_dir(root) {
-        eprintln!("[runtime-swap] runtime 根不可用 {}: {err:#}", root.display());
+        eprintln!(
+            "[runtime-swap] runtime 根不可用 {}: {err:#}",
+            root.display()
+        );
         return 2;
     }
     let expected = expected_version.trim();
@@ -10205,6 +10236,12 @@ fn main() {
                 Path::new(&args[3]),
                 &args[4],
             ));
+        } // [R3-C1] postinstall 预置信任:安装器已跑过 python import 冒烟 + java -version,
+          // 由本子命令以【与 App 同一份格式代码】预写健康缓存 + fast-path 标记 → 首真启
+          // 走 trusted 快路径(early-nav/免深检/180s 预算),免付 untrusted 全量校验档。
+          // 失败无害:不写=首启照旧 untrusted 完整校验;启动失败仍有 fast_path_fallback+看门狗。
+        if args.len() == 3 && args[1] == "--horosa-preseed-health" {
+            std::process::exit(run_preseed_health_cli(Path::new(&args[2])));
         }
     }
     configure_macos_native_window_restoration();
@@ -11751,12 +11788,18 @@ mod tests {
         write_exec_stub(&stub.join("sleep"), "#!/bin/bash\n/bin/sleep 0.05\n");
         write_exec_stub(
             &stub.join("open"),
-            &format!("#!/bin/bash\necho \"open $*\" >> {}\nexit 0\n", calls.display()),
+            &format!(
+                "#!/bin/bash\necho \"open $*\" >> {}\nexit 0\n",
+                calls.display()
+            ),
         );
         write_exec_stub(&stub.join("osascript"), "#!/bin/bash\nexit 0\n");
         write_exec_stub(
             &stub.join("pgrep"),
-            &format!("#!/bin/bash\necho \"pgrep $*\" >> {}\nexit 0\n", calls.display()),
+            &format!(
+                "#!/bin/bash\necho \"pgrep $*\" >> {}\nexit 0\n",
+                calls.display()
+            ),
         );
         // SRC 新 app 骨架:exec 桩处理两个子命令(atomic-swap 拒→逼 mv 回退;runtime-swap 落参回执)
         let src_app = root.join("src/Horosa.app");
@@ -11775,7 +11818,10 @@ mod tests {
         let target_app = root.join("Applications/Horosa.app");
         fs::create_dir_all(target_app.join("Contents/MacOS")).unwrap();
         fs::create_dir_all(target_app.join("Contents/Resources")).unwrap();
-        write_exec_stub(&target_app.join("Contents/MacOS/horosa-exec"), "#!/bin/bash\nexit 0\n");
+        write_exec_stub(
+            &target_app.join("Contents/MacOS/horosa-exec"),
+            "#!/bin/bash\nexit 0\n",
+        );
         fs::write(target_app.join("Contents/Resources/payload.txt"), "old").unwrap();
 
         let runtime_cmd = {
@@ -11849,7 +11895,10 @@ mod tests {
         let log = fs::read_to_string(&fx.log).unwrap_or_default();
         let calls = fs::read_to_string(&fx.calls).unwrap_or_default();
         assert_eq!(code, 0, "log:\n{log}\ncalls:\n{calls}");
-        assert!(log.contains("[app] old process exited"), "必须真等旧进程退出:\n{log}");
+        assert!(
+            log.contains("[app] old process exited"),
+            "必须真等旧进程退出:\n{log}"
+        );
         let i_install = log.find("[app] install succeeded").expect("app 安装日志");
         assert!(log.contains("update helper success"));
         let swap_line = calls
@@ -11864,7 +11913,10 @@ mod tests {
         let i_runtime_log = log.find("===== update helper success").unwrap();
         assert!(i_install < i_runtime_log);
         let marker = fs::read_to_string(&fx.marker).expect("成功路必须写完成标记");
-        assert!(marker.contains("relaunch_status=auto_relaunch_confirmed"), "{marker}");
+        assert!(
+            marker.contains("relaunch_status=auto_relaunch_confirmed"),
+            "{marker}"
+        );
         assert_eq!(fs::read_to_string(&fx.target_payload).unwrap(), "new");
         let _ = fs::remove_dir_all(&fx.root);
     }
@@ -11876,14 +11928,14 @@ mod tests {
         let log = fs::read_to_string(&fx.log).unwrap_or_default();
         assert_eq!(code, 73, "runtime 失败臂必须 exit 73:\n{log}");
         assert!(log.contains("[runtime] runtime install failed"));
-        assert!(
-            !fx.marker.exists(),
-            "runtime 失败绝不写完成标记(铁律14)"
-        );
+        assert!(!fx.marker.exists(), "runtime 失败绝不写完成标记(铁律14)");
         // 新 app 已上位(修复机器在场)+ 已尝试重开
         assert_eq!(fs::read_to_string(&fx.target_payload).unwrap(), "new");
         let calls = fs::read_to_string(&fx.calls).unwrap_or_default();
-        assert!(calls.lines().any(|l| l.starts_with("open ")), "失败臂必须重开 app");
+        assert!(
+            calls.lines().any(|l| l.starts_with("open ")),
+            "失败臂必须重开 app"
+        );
         let _ = fs::remove_dir_all(&fx.root);
     }
 
@@ -11902,10 +11954,7 @@ mod tests {
             "旧 app 必须完好"
         );
         let calls = fs::read_to_string(&fx.calls).unwrap_or_default();
-        assert!(
-            !calls.contains("swap-args"),
-            "app 未装成绝不能碰 runtime"
-        );
+        assert!(!calls.contains("swap-args"), "app 未装成绝不能碰 runtime");
         let _ = fs::remove_dir_all(&fx.root);
     }
 
@@ -12197,7 +12246,10 @@ mod tests {
                             .next()
                             .unwrap_or("/")
                             .to_string();
-                        let body = routes.iter().find(|(p, _)| *p == path).map(|(_, b)| b.clone());
+                        let body = routes
+                            .iter()
+                            .find(|(p, _)| *p == path)
+                            .map(|(_, b)| b.clone());
                         let resp = match body {
                             Some(b) => format!(
                                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -12255,7 +12307,9 @@ mod tests {
         .unwrap();
         let client = build_github_client(2).unwrap();
         // assets 里没有 manifest 名 → None(上游据此降级 notify-only)
-        assert!(fetch_manifest_via_release_asset(&client, &release, "horosa-latest.json").is_none());
+        assert!(
+            fetch_manifest_via_release_asset(&client, &release, "horosa-latest.json").is_none()
+        );
     }
 
     #[test]
@@ -12303,7 +12357,8 @@ mod tests {
     // 守门已改无条件,故此处钉住「plan 侧 sha 缺失可观测」这一前置事实。
     #[test]
     fn plan_from_manifest_without_sha_leaves_none_for_guard() {
-        let manifest: UpdateManifest = serde_json::from_str(&manifest_json("9.9.9", false)).unwrap();
+        let manifest: UpdateManifest =
+            serde_json::from_str(&manifest_json("9.9.9", false)).unwrap();
         let plan = plan_from_manifest(
             manifest,
             &test_release_config("horosa-latest.json"),
@@ -12357,8 +12412,7 @@ mod tests {
     #[test]
     fn probe_identity_deep_unsupported_on_proto1() {
         use std::io::{Read, Write};
-        let _ = (Read::read
-            as fn(&mut std::net::TcpStream, &mut [u8]) -> std::io::Result<usize>);
+        let _ = (Read::read as fn(&mut std::net::TcpStream, &mut [u8]) -> std::io::Result<usize>);
         let port = spawn_identity_stub(r#"{"app":"horosa-backend","proto":1,"nonce":"n-1"}"#);
         let got = probe_identity(port, "horosa-backend", "n-1", Duration::from_secs(2), true);
         assert_eq!(got, IdentityProbe::DeepUnsupported);
@@ -12375,16 +12429,19 @@ mod tests {
 
     #[test]
     fn probe_identity_deep_ok_on_proto2() {
-        let port = spawn_identity_stub(
-            r#"{"app":"horosa-backend","proto":2,"nonce":"n-1","deep":"ok"}"#,
-        );
+        let port =
+            spawn_identity_stub(r#"{"app":"horosa-backend","proto":2,"nonce":"n-1","deep":"ok"}"#);
         let got = probe_identity(port, "horosa-backend", "n-1", Duration::from_secs(2), true);
         assert_eq!(got, IdentityProbe::Ok);
         // 浅探不受 proto2 影响
-        let port2 = spawn_identity_stub(
-            r#"{"app":"horosa-backend","proto":2,"nonce":"n-1"}"#,
+        let port2 = spawn_identity_stub(r#"{"app":"horosa-backend","proto":2,"nonce":"n-1"}"#);
+        let got2 = probe_identity(
+            port2,
+            "horosa-backend",
+            "n-1",
+            Duration::from_secs(2),
+            false,
         );
-        let got2 = probe_identity(port2, "horosa-backend", "n-1", Duration::from_secs(2), false);
         assert_eq!(got2, IdentityProbe::Ok);
     }
 
@@ -12399,9 +12456,18 @@ mod tests {
         fs::write(&old_big, vec![b'x'; 3000]).unwrap();
         fs::write(&mid, vec![b'y'; 400]).unwrap();
         fs::write(&newest, vec![b'z'; 500]).unwrap();
-        let _ = Command::new("/usr/bin/touch").args(["-t", "202001010000"]).arg(&old_big).status();
-        let _ = Command::new("/usr/bin/touch").args(["-t", "202601010000"]).arg(&mid).status();
-        let _ = Command::new("/usr/bin/touch").args(["-t", "202607090000"]).arg(&newest).status();
+        let _ = Command::new("/usr/bin/touch")
+            .args(["-t", "202001010000"])
+            .arg(&old_big)
+            .status();
+        let _ = Command::new("/usr/bin/touch")
+            .args(["-t", "202601010000"])
+            .arg(&mid)
+            .status();
+        let _ = Command::new("/usr/bin/touch")
+            .args(["-t", "202607090000"])
+            .arg(&newest)
+            .status();
         // cap=1000:newest(500)+mid(400) 收下;old_big(3000) 超预算跳过
         let picked = select_recent_files_by_mtime(&root, 1000);
         assert_eq!(picked.len(), 2, "cap 内应收两份小日志");
@@ -12596,6 +12662,34 @@ mod tests {
         assert!(runtime_dir_is_usable(&runtime_dir));
     }
 
+    // [R3-C1] postinstall 预置信任:子命令双写(健康缓存+fast-path 标记)后,
+    // runtime_fast_path_allowed 必须放行 —— 首真启走 trusted 档的机器证明;
+    // manifest 缺失=71 且绝不放行(负锚)。
+    #[cfg(unix)]
+    #[test]
+    fn preseed_health_cli_enables_trusted_fast_path() {
+        let root = temp_test_dir("preseed-health-ok");
+        let runtime_dir = create_fake_runtime_tree(&root, "9.9.9-runtime1", true);
+        assert!(!runtime_fast_path_allowed(&runtime_dir));
+        let code = run_preseed_health_cli(&runtime_dir);
+        assert_eq!(code, 0);
+        assert!(runtime_fast_path_allowed(&runtime_dir));
+        assert!(runtime_health_cache(&runtime_dir)
+            .map(|c| runtime_health_cache_matches(&runtime_dir, &c))
+            .unwrap_or(false));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn preseed_health_cli_refuses_without_manifest() {
+        let root = temp_test_dir("preseed-health-nomanifest");
+        let runtime_dir = root.join("current");
+        fs::create_dir_all(&runtime_dir).unwrap();
+        let code = run_preseed_health_cli(&runtime_dir);
+        assert_eq!(code, 71);
+        assert!(!runtime_fast_path_allowed(&runtime_dir));
+    }
+
     #[cfg(unix)]
     #[test]
     fn runtime_fast_path_marker_is_invalidated_when_runtime_changes() {
@@ -12766,10 +12860,7 @@ mod tests {
         let script = fs::read_to_string(repo_start_script_path()).expect("read start script");
         assert!(script.contains("sh.ready_extend"), "缺续命账本段");
         assert!(script.contains("sh.ready_giveup"), "缺判死账本段");
-        assert!(
-            script.contains("HOROSA_READY_PROGRESS_EXTEND"),
-            "缺总开关"
-        );
+        assert!(script.contains("HOROSA_READY_PROGRESS_EXTEND"), "缺总开关");
         assert!(
             script.contains("HOROSA_READY_TOTAL_CAP_SECS"),
             "缺总 cap(无限等防线)"
@@ -12789,10 +12880,7 @@ mod tests {
             .find("\n}")
             .map(|i| fp_at + i)
             .unwrap_or(script.len());
-        assert!(
-            !script[fp_at..fp_end].contains("lsof"),
-            "指纹函数禁用 lsof"
-        );
+        assert!(!script[fp_at..fp_end].contains("lsof"), "指纹函数禁用 lsof");
     }
 
     #[test]

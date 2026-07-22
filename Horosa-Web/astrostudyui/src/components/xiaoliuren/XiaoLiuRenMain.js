@@ -4,6 +4,7 @@
 // 🔴 课是【冻结值】:起课(三数所出)一经起出即不可重起,改流派重排判读、绝不重起课。
 // 🔴 中栏为抽象宫位结构图(六宫环/九宫格),绝不画拟人手掌——掌诀原文以文字目呈现。
 import React, { Component, createRef } from 'react';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { XQSideSection } from '../xq-ui';
 import { Tabs, Empty, Input, InputNumber, Radio, Button, Switch, Tag } from 'antd';
 import { qiKe, teLi } from './core/xiaoliurenKe';
@@ -94,6 +95,15 @@ const DAO_AREAS = { 留连: '1 / 1', 速喜: '1 / 2', 病符: '1 / 3', 大安: '
 const TONE_OF = { 大安: 'ji', 速喜: 'ji', 小吉: 'ji', 天德: 'ji', 留连: 'ping', 桃花: 'ping', 赤口: 'xiong', 空亡: 'xiong', 病符: 'xiong' };
 
 class XiaoLiuRenMain extends Component {
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(p){
 		super(p);
 		const stored = safeJsonParseFromStorage(STORE_KEY);

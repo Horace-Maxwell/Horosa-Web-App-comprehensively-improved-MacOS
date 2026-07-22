@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import KinAstroMain from '../kinastro/KinAstroMain';
 
 const MING_OTHER_TECHNIQUE_TABS = [
@@ -9,6 +10,15 @@ const MING_OTHER_TECHNIQUE_TABS = [
 const MING_OTHER_TECHNIQUE_KEYS = MING_OTHER_TECHNIQUE_TABS.map((t) => t.key);
 
 export default class MingOtherMain extends Component{
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(props){
 		super(props);
 		this.state = {

@@ -2,6 +2,7 @@
 // 后端 webxuanshisrv 返回 jsonpickle 原始 dict(无 ResultCode 包裹,错误回 {err:...})。
 import { ServerRoot } from '../utils/constants';
 import { buildKentangEndpoint } from '../integrations/kentang/serviceRoot';
+import { cachedKentangFetch } from '../utils/kentangCache';
 
 const _requestCache = {};
 
@@ -10,14 +11,14 @@ async function _post(action, payload) {
 	const headers = { 'Content-Type': 'application/json; charset=UTF-8' };
 	let rsp = null;
 	try {
-		const r = await fetch(buildKentangEndpoint('xuanshi', action), { method: 'POST', headers, body });
+		const r = await cachedKentangFetch(buildKentangEndpoint('xuanshi', action), { method: 'POST', headers, body }, { retries: 0 });
 		const t = await r.text();
 		rsp = t ? JSON.parse(t) : null;
 		if (!rsp || rsp.err || (rsp.ResultCode !== undefined && rsp.ResultCode !== 0)) {
 			throw new Error(rsp && rsp.err ? `${rsp.err}` : 'xuanshi.local.fetch.failed');
 		}
 	} catch (e) {
-		const r = await fetch(`${ServerRoot}/xuanshi/${action}`, { method: 'POST', headers, body });
+		const r = await cachedKentangFetch(`${ServerRoot}/xuanshi/${action}`, { method: 'POST', headers, body }, { retries: 0 });
 		const t = await r.text();
 		rsp = t ? JSON.parse(t) : null;
 	}

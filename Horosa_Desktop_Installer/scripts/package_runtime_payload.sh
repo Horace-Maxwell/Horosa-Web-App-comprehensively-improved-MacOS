@@ -213,10 +213,13 @@ if [ "${HOROSA_SKIP_CDS_PRESEED:-0}" != "1" ]; then
       kill -0 "${CDS_TRAIN_PID}" 2>/dev/null || break
       CDS_WAITED=$((CDS_WAITED + 1)); sleep 1
     done
-    # 触达补全:lazy-init 下 heartbeat 只初始化极小 bean 集;补一发 /chart POST
-    # (400/失败均可——目的只是把 controller/序列化链的类拉进本次 dump 的档)。
-    curl -s -o /dev/null -m 3 -X POST -H 'Content-Type: application/json' -d '{}' \
-      "http://127.0.0.1:${CDS_TRAIN_PORT}/chart" 2>/dev/null || true
+    # 触达补全:lazy-init 下 heartbeat 只初始化极小 bean 集;补发高频端点各一枪
+    # (400/后端不可达均可——目的只是把 controller/service/序列化链的类拉进本次 dump 的档)。
+    # [R3-B2] /chart 之外再触 常用时间/八字/六壬/紫微/节气 五链,扩类捕获(冷首点更少 JIT/加载)。
+    for _cds_ep in "/chart" "/common/time" "/bazi/direct" "/liureng/gods" "/ziwei/birth" "/jieqi/year"; do
+      curl -s -o /dev/null -m 3 -X POST -H 'Content-Type: application/json' -d '{}' \
+        "http://127.0.0.1:${CDS_TRAIN_PORT}${_cds_ep}" 2>/dev/null || true
+    done
     kill -TERM "${CDS_TRAIN_PID}" 2>/dev/null || true
     CDS_WAITED=0
     while [ "${CDS_WAITED}" -lt 90 ]; do

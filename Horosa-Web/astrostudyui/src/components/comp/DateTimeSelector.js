@@ -3,6 +3,7 @@ import { Row, Col } from 'antd';
 import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
 
 import DateTime from './DateTime';
+import { fireStepSelectPrefetch } from '../../utils/stepPrefetch';
 
 const Option = Select.Option;
 
@@ -194,6 +195,11 @@ class DateTimeSelector extends Component{
 		this.setState({
 			timeType: val
 		});
+		// [R3-A1] 选定步长那一刻即预取前后各 2 步(opt-in 宿主:主盘/步进面 PlusMinusTime/PD;
+		// 日历/表单抽屉等无关上下文不挂此 prop=零行为)。第一下点 ± 也不冷。
+		if(this.props.stepSelectPrefetch){
+			fireStepSelectPrefetch(val);
+		}
 	}
 
 	clickMinus(){

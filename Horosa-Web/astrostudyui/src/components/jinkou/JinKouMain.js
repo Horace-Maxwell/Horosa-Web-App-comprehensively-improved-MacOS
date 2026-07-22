@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { sideSectionIcon } from '../../constants/sideSectionIcons'; // [观象P1]
 import { message, Modal } from 'antd';
 import * as Constants from '../../utils/constants';
@@ -29,7 +30,7 @@ import {
 } from '../../utils/localCalcCache';
 import XQIcon from '../xq-icons';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
-import { chartDrawGuardEnabled } from '../../utils/perfFlags';
+import { chartDrawGuardEnabled, stepPrefetchEnabled, kentangCacheEnabled } from '../../utils/perfFlags';
 
 const { Option } = Select;
 const TabPane = Tabs.TabPane;
@@ -678,6 +679,15 @@ function pushCache(map, key, val, max = 96){
 }
 
 class JinKouMain extends Component{
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(props) {
 		super(props);
 		const now = new DateTime();
@@ -799,7 +809,66 @@ class JinKouMain extends Component{
 					nohook: !confirmed,
 				},
 			});
+			// [R3-A4] 步进时静默备下 T+1 的 gods+pan(链与 requestGods 完全同源)
+			if(confirmed && patch.__stepHint){
+				this.prefetchNextStepJinkou(flds, patch.__stepHint);
+			}
 		}
+	}
+
+	// [R3-A4] 顺向 +1 步预取:genGodsParams→/liureng/gods(requestDedupe 缓存)→
+	// resolveJinKouDiFen(同款选项解析)→fetchJinKouPan(kentangCache)——与 requestGods
+	// 消费链逐环同源 → 键逐字节等。失败静默;开关关=零行为。
+	prefetchNextStepJinkou(baseFields, stepHint){
+		try{
+			if(!stepPrefetchEnabled() || !kentangCacheEnabled()){ return; }
+			if(!stepHint || !stepHint.dir){ return; }
+			const dt0 = baseFields && baseFields.date && baseFields.date.value;
+			if(!dt0 || typeof dt0.clone !== 'function'){ return; }
+			if(this.prefetchStepTimer){ clearTimeout(this.prefetchStepTimer); }
+			this.prefetchStepTimer = setTimeout(()=>{
+				this.prefetchStepTimer = null;
+				if(this.unmounted){ return; }
+				try{
+					const dt2 = dt0.clone();
+					const unit = stepHint.unit || 'm';
+					if(unit === 'y'){ dt2.addYear(stepHint.dir); }
+					else if(unit === 'M'){ dt2.addMonth(stepHint.dir); }
+					else if(unit === 'd'){ dt2.addDate(stepHint.dir); }
+					else if(unit === 'h'){ dt2.addHour(stepHint.dir); }
+					else { dt2.addMinute(4 * stepHint.dir); }
+					const flds2 = {
+						...baseFields,
+						date: { value: dt2.clone() },
+						time: { value: dt2.clone() },
+						ad: { value: dt2.ad },
+						zone: { value: dt2.zone },
+					};
+					const params = this.genGodsParams(flds2);
+					if(!params){ return; }
+					request(`${Constants.ServerRoot}/liureng/gods`, {
+						body: JSON.stringify(params),
+						silent: true,
+					}).then((data)=>{
+						const result = data && data[Constants.ResultKey] ? data[Constants.ResultKey] : null;
+						if(!result || !result.liureng || this.unmounted){ return null; }
+						const timeZi = normalizeZiFromText(result.liureng.nongli.time);
+						const diFen = resolveJinKouDiFen(
+							this.state.diFen,
+							this.state.diFenAuto === true,
+							timeZi,
+							!!this.state.liureng
+						);
+						return fetchJinKouPan(flds2, result.liureng.nongli, {
+							diFen: diFen,
+							yueJiang: this.state.yueJiang,
+							zhanShi: this.state.zhanShi,
+							timeBasis: this.state.timeBasis,
+						});
+					}).catch(()=>null);
+				}catch(e){ /* 预取失败无害 */ }
+			}, 150);
+		}catch(e){ /* 预取失败无害 */ }
 	}
 
 	onBirthChange(field){

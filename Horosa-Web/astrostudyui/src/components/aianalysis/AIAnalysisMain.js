@@ -188,6 +188,12 @@ const RETRIEVAL_OPTIONS = [
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 
+// 前缀缓存断点标记:埋在 system 文本里的中性标记,与后端 AI 代理内同名常量**逐字节一致**。
+// 后端按 provider 分家:anthropic 按标记切 system 数组块并打 cache_control(ephemeral);
+// OpenAI 家族剥标记吃厂商自动前缀缓存;Gemini/Ollama 等剥净。改这个字面量必须两端同改,
+// 否则标记会原样混进 prompt 正文。
+const PROMPT_CACHE_BP = '[[__CACHE_BP__]]';
+
 const COMMON_PROVIDER_OPTION_KEYS = ['extraHeaders', 'extraBody', 'apiVersion', 'requestTimeoutMs'];
 const PROVIDER_OPTION_KEY_MAP = {
 	openai: [],
@@ -2196,9 +2202,25 @@ function AIAnalysisMain(props){
 				stats: clipDetail.stats || null,
 			});
 		}
-		return {
+		// 前缀缓存断点:挂载快照/资料/会话规则等【稳定层】在前,检索命中与近期对话【挥发层】
+		// 在后,两者交界插 PROMPT_CACHE_BP。稳定层跨轮逐字节不变即命中 provider 前缀缓存——
+		// 治「每轮追问都把整份命盘快照按原价重发」的成本大头。层序本就稳定在前挥发在后
+		// (retrieved-context / recent-history 恒居末),分组零重排;不支持的 provider 由后端
+		// 剥标记 → 与不分层时字节等价、零回归。
+		const _joinLayers = (arr)=>arr.map((item)=>`${item.title}\n${item.content}`).join('\n\n').trim();
+		const _volatileKeys = { 'retrieved-context': 1, 'recent-history': 1 };
+		const _fam = getProviderProtocolFamily(profile && profile.providerType);
+		const _stableL = clipDetail.kept.filter((item)=>!_volatileKeys[item.key]);
+		const _volatileL = clipDetail.kept.filter((item)=>_volatileKeys[item.key]);
+		let _sysJoined;
+		if((_fam === 'anthropic' || _fam === 'openai-compatible') && _stableL.length && _volatileL.length){
+			_sysJoined = [_joinLayers(_stableL), _joinLayers(_volatileL)].filter(Boolean).join(`\n\n${PROMPT_CACHE_BP}\n\n`);
+		}else{
 			// join 表达式与 buildPromptContext 逐字同式（prompt 结构零漂移）。
-			systemPrompt: clipDetail.kept.map((item)=>`${item.title}\n${item.content}`).join('\n\n').trim(),
+			_sysJoined = _joinLayers(clipDetail.kept);
+		}
+		return {
+			systemPrompt: _sysJoined,
 			retrieval,
 			clippedLayers: clipDetail.kept,
 		};
@@ -5175,7 +5197,7 @@ function AIAnalysisMain(props){
 					<Form.Item name="tags" label="标签">
 						<Input placeholder="支持逗号分隔" />
 					</Form.Item>
-					<Form.Item name="schools" label="流派" extra="可多选/自由输入；报告功能可按流派过滤资料并注入流派提示。">
+					<Form.Item name="schools" label="流派" extra="可多选/自由输入；用于按流派过滤资料并注入流派提示。">
 						<Select
 							mode="tags"
 							placeholder="如 子平派 / 盲派 / 北派飞星 等（不填 = 视为通用资料）"

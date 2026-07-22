@@ -1,4 +1,5 @@
 import QuickDockBar from '../common/QuickDockBar';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { Component } from 'react';
 import { InputNumber, Spin } from 'antd';
 import DateTime from '../comp/DateTime';
@@ -9,6 +10,8 @@ import { XQButton as Button, XQSelect as Select, XQTabs as Tabs, XQSideSection }
 import { saveModuleAISnapshotLazy, saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
+import { stepPrefetchEnabled, kentangCacheEnabled } from '../../utils/perfFlags';
+import { cachedKentangFetch } from '../../utils/kentangCache';
 import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import { formatHumanValue } from '../../utils/humanReadableFields';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
@@ -86,13 +89,13 @@ async function postWuZhao(path, payload){
 	let lastError = null;
 	for(let i=0; i<endpoints.length; i++){
 		try{
-			const rawResponse = await fetch(endpoints[i], {
+			const rawResponse = await cachedKentangFetch(endpoints[i], {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json; charset=UTF-8',
 				},
 				body: JSON.stringify(payload),
-			});
+			}, { retries: 0 });
 			const rawText = await rawResponse.text();
 			const rsp = rawText ? JSON.parse(rawText) : null;
 			if(!rsp || (rsp.ResultCode !== undefined && rsp.ResultCode !== 0)){
@@ -104,13 +107,13 @@ async function postWuZhao(path, payload){
 		}
 	}
 	try{
-		const rawResponse = await fetch(`${ServerRoot}/wuzhao/${path}`, {
+		const rawResponse = await cachedKentangFetch(`${ServerRoot}/wuzhao/${path}`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',
 			},
 			body: JSON.stringify(payload),
-		});
+		}, { retries: 0 });
 		const rawText = await rawResponse.text();
 		const rsp = rawText ? JSON.parse(rawText) : null;
 		if(!rsp || (rsp.ResultCode !== undefined && rsp.ResultCode !== 0)){
@@ -165,6 +168,15 @@ export async function buildWuZhaoSnapshotForFields(fields, opts){
 }
 
 class WuZhaoMain extends Component{
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(props){
 		super(props);
 		this.state = {
@@ -322,7 +334,30 @@ class WuZhaoMain extends Component{
 			time: { value: dt.clone() },
 			ad: { value: dt.ad },
 			zone: { value: dt.zone },
+			// [R3-A2] 步进方向提示:驱动 astro model settle 后 /chart ±步预取(消费后即剥离)
+			...(value.step ? { __stepHint: value.step } : {}),
 		});
+		this.prefetchDraftPan();
+	}
+
+	// [R3-A4] 草稿时间一变即预取该时刻 pan:字段源与 clickPlot 完全同源
+	// (getTimeFieldsFromSelector),payload 走 buildPanPayload 单源 → 键逐字节等;
+	// 用户点「起盘」即缓存命中 ≈ 瞬间。失败静默;开关关=零行为。
+	prefetchDraftPan(){
+		try{
+			if(!stepPrefetchEnabled() || !kentangCacheEnabled()){ return; }
+			if(this.prefetchDraftTimer){ clearTimeout(this.prefetchDraftTimer); }
+			this.prefetchDraftTimer = setTimeout(()=>{
+				this.prefetchDraftTimer = null;
+				if(this.unmounted){ return; }
+				try{
+					const flds = this.getTimeFieldsFromSelector(this.props.fields) || this.props.fields;
+					const payload = this.buildPanPayload(flds);
+					if(!payload){ return; }
+					postWuZhao('pan', payload).catch(()=>null);
+				}catch(e){ /* 预取失败无害 */ }
+			}, 150);
+		}catch(e){ /* 预取失败无害 */ }
 	}
 
 	getTimeFieldsFromSelector(baseFields){
@@ -364,21 +399,28 @@ class WuZhaoMain extends Component{
 		this.fetchPan(nextFields);
 	}
 
-	async fetchPan(fields){
+	// [R3-A4] pan 请求体单源:fetchPan 与草稿预取共用同一构造 → 缓存键逐字节等(预取生效前提)。
+	buildPanPayload(fields){
 		const dt = parseFieldsDateTime(fields);
-		if(!dt){
+		if(!dt){ return null; }
+		return {
+			...dt,
+			mode: this.state.mode,
+			number: this.state.number,
+			manual: this.state.manual,
+			manualSplits: this.state.manualSplits,
+		};
+	}
+
+	async fetchPan(fields){
+		const payload = this.buildPanPayload(fields);
+		if(!payload){
 			return;
 		}
 		const reqSeq = ++this.requestSeq;
 		this.setState({ loading: true });
 		try{
-			const pan = await postWuZhao('pan', {
-				...dt,
-				mode: this.state.mode,
-				number: this.state.number,
-				manual: this.state.manual,
-				manualSplits: this.state.manualSplits,
-			});
+			const pan = await postWuZhao('pan', payload);
 			if(this.unmounted || reqSeq !== this.requestSeq){
 				return;
 			}

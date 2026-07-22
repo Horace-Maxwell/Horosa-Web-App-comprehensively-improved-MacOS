@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { XQTabs as Tabs } from '../xq-ui';
 import QuickDockBar from '../common/QuickDockBar';
 import { randomStr } from '../../utils/helper';
@@ -18,6 +19,15 @@ const TabPane = Tabs.TabPane;
 const AUX_TABS = ['germanytech', 'hellenastro', 'dwadasamsa', 'locastro', 'relocation', 'harmonic', 'draconic', 'otherbu', 'horary', 'election', 'mundane'];
 
 class AuxChartMain extends Component{
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 
 	constructor(props) {
 		super(props);

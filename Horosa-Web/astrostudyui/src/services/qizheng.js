@@ -1,7 +1,7 @@
 import request from '../utils/request';
 import { ServerRoot, ResultKey } from '../utils/constants';
 import { buildKentangEndpoint } from '../integrations/kentang/serviceRoot';
-import { fetchChartWithRetry } from '../utils/chartFetch';
+import { cachedKentangFetch } from '../utils/kentangCache';
 import { cachedPost } from './_requestCache';
 
 // 七政四余是确定性纯计算(同 params 必产同结果);对其加「同参复用 + 在途合并」让重开/来回切瞬时,
@@ -38,7 +38,7 @@ function kinClone(obj){
 async function fetchKinastroQizhengRaw(values){
 	let rsp = null;
 	try{
-		const response = await fetchChartWithRetry(buildKentangEndpoint('qizhengkin', 'pan'), {
+		const response = await cachedKentangFetch(buildKentangEndpoint('qizhengkin', 'pan'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json; charset=UTF-8' },
 			body: JSON.stringify(values || {}),
@@ -49,7 +49,7 @@ async function fetchKinastroQizhengRaw(values){
 			throw new Error(rsp && rsp[ResultKey] ? `${rsp[ResultKey]}` : 'qizhengkin.local.fetch.failed');
 		}
 	}catch(e){
-		const response = await fetchChartWithRetry(`${ServerRoot}/qizhengkin/pan`, {
+		const response = await cachedKentangFetch(`${ServerRoot}/qizhengkin/pan`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json; charset=UTF-8' },
 			body: JSON.stringify(values || {}),
@@ -113,7 +113,7 @@ function eleKey(values){
 async function fetchQizhengElectionRaw(values, path = 'pan'){
 	let rsp = null;
 	try{
-		const response = await fetchChartWithRetry(buildKentangEndpoint('qizhengelection', path), {
+		const response = await cachedKentangFetch(buildKentangEndpoint('qizhengelection', path), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json; charset=UTF-8' },
 			body: JSON.stringify(values || {}),
@@ -124,7 +124,7 @@ async function fetchQizhengElectionRaw(values, path = 'pan'){
 			throw new Error(rsp && rsp[ResultKey] ? `${rsp[ResultKey]}` : 'qizhengelection.local.fetch.failed');
 		}
 	}catch(e){
-		const response = await fetchChartWithRetry(`${ServerRoot}/qizhengelection/${path}`, {
+		const response = await cachedKentangFetch(`${ServerRoot}/qizhengelection/${path}`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json; charset=UTF-8' },
 			body: JSON.stringify(values || {}),

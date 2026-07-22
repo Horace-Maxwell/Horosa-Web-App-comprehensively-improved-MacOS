@@ -1,4 +1,5 @@
 import QuickDockBar from '../common/QuickDockBar';
+import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { Component } from 'react';
 import { InputNumber, Spin } from 'antd';
 import DateTime from '../comp/DateTime';
@@ -9,6 +10,7 @@ import { XQButton as Button, XQTabs as Tabs, XQSideSection } from '../xq-ui';
 import { saveModuleAISnapshotLazy, saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
+import { cachedKentangFetch } from '../../utils/kentangCache';
 import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import { formatHumanValue } from '../../utils/humanReadableFields';
 import { parseDateParts } from '../../utils/dateStrSafe';
@@ -48,26 +50,26 @@ function defaultSeed(){
 async function postTaiXuan(path, payload){
 	let rsp = null;
 	try{
-		const rawResponse = await fetch(buildKentangEndpoint('taixuan', path), {
+		const rawResponse = await cachedKentangFetch(buildKentangEndpoint('taixuan', path), {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',
 			},
 			body: JSON.stringify(payload),
-		});
+		}, { retries: 0 });
 		const rawText = await rawResponse.text();
 		rsp = rawText ? JSON.parse(rawText) : null;
 		if(!rsp || (rsp.ResultCode !== undefined && rsp.ResultCode !== 0)){
 			throw new Error(rsp && rsp[ResultKey] ? `${rsp[ResultKey]}` : 'taixuan.local.fetch.failed');
 		}
 	}catch(e){
-		const rawResponse = await fetch(`${ServerRoot}/taixuan/${path}`, {
+		const rawResponse = await cachedKentangFetch(`${ServerRoot}/taixuan/${path}`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',
 			},
 			body: JSON.stringify(payload),
-		});
+		}, { retries: 0 });
 		const rawText = await rawResponse.text();
 		rsp = rawText ? JSON.parse(rawText) : null;
 	}
@@ -142,6 +144,15 @@ export async function buildTaiXuanSnapshotForFields(fields, opts){
 }
 
 class TaiXuanMain extends Component{
+	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
+	shouldComponentUpdate(nextProps, nextState){
+		if(nextState !== this.state){
+			return true;
+		}
+		return !wrapperPropsEqual(this.props, nextProps);
+	}
+
 	constructor(props){
 		super(props);
 		this.state = {
@@ -286,6 +297,8 @@ class TaiXuanMain extends Component{
 			time: { value: dt.clone() },
 			ad: { value: dt.ad },
 			zone: { value: dt.zone },
+			// [R3-A2] 步进方向提示:驱动 settle 后 /chart ±步预取(消费后即剥离)
+			...(value.step ? { __stepHint: value.step } : {}),
 		});
 	}
 
