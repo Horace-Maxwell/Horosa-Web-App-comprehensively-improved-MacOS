@@ -16,7 +16,9 @@ const MODE_OPTIONS = [
 ];
 
 // 理气/水法/大卦/形势/择日 —— 纯前端流派（不依赖户型图，走 LiqiWorkspace）。
-const LIQI_SCHOOLS = ['bazhai', 'xuankong', 'sanhe', 'jinsuo', 'qiankun', 'zibai', 'fuxing', 'jingyin', 'dagua', 'xingshi', 'zeri'];
+// 🔴 新增任何纯前端派必须同时进本表（LIQI_SET 是 onVm 守的判据）——漏登记 = 画布快照覆盖本派快照。
+const LIQI_SCHOOLS = ['bazhai', 'xuankong', 'sanhe', 'jinsuo', 'qiankun', 'zibai', 'fuxing', 'jingyin', 'dagua', 'xingshi', 'zeri',
+	'liufa', 'mingli', 'luopan'];
 const LIQI_SET = new Set(LIQI_SCHOOLS);
 const SCHOOL_GROUPS = [
 	{ label: '户型图阳宅（标注）', items: [
@@ -30,6 +32,11 @@ const SCHOOL_GROUPS = [
 		{ value: 'jinsuo', label: '金锁玉关' },
 		{ value: 'qiankun', label: '乾坤国宝' },
 		{ value: 'zibai', label: '紫白飞星' },
+		{ value: 'liufa', label: '玄空六法 · 谈养吾' },
+	] },
+	{ label: '罗盘 · 命理', items: [
+		{ value: 'luopan', label: '综合罗经 · 三针分层' },
+		{ value: 'mingli', label: '命理派 · 以命配宅' },
 	] },
 	{ label: '水法 · 翻卦', items: [
 		{ value: 'fuxing', label: '辅星水法 · 翻卦九星' },

@@ -384,6 +384,37 @@ def gender_mf(value, default="M"):
     return "F" if gender_cn(value, "男") == "女" else "M"
 
 
+def authoritative_pillars(dt, data=None):
+    """标准四柱的单一权威口径。
+
+    🔴 铁律(用户拍板):凡展示标准「年柱/月柱/日柱/时柱」的技法,四柱必等于全局权威
+    extreme_pillars —— 天文年立春界(公历 1/2 月且未过立春归上一年)、定气月、儒略 JDN
+    (全域含 BC)。各 vendor 引擎自带的简化换算没有立春界,于是「2026-01-15 的年柱」
+    会算成丙午而非乙巳;远古/BC 年更是整片偏数十日。
+
+    日界(23 点是否进次日)与晚子时(时干取次日)语义随参数透传,不因换权威而丢失;
+    月柱要用真太阳黄经定气,故时区也一并传入。取不到权威实现时返回 None ——
+    由调用方保留各自旧值,不让整张盘失败。
+    """
+    d = data or {}
+    try:
+        from kin_year_domain import extreme_pillars
+    except Exception:
+        return None
+    try:
+        y, m, dd, h, _zi = extreme_pillars(
+            dt.year, dt.month, dt.day, dt.hour, getattr(dt, "minute", 0) or 0,
+            after23=to_int(d.get("after23NewDay"), 1),
+            hour_gan_next=to_int(d.get("lateZiHourUseNextDay"), 1),
+            zone_hours=timezone_to_float(d.get("zone"), 8.0),
+        )
+    except Exception:
+        return None
+    if not (y and m and dd and h):
+        return None
+    return {"year": y, "month": m, "day": dd, "hour": h}
+
+
 def timezone_to_float(value, default=8.0):
     text = clean_text(value)
     if not text:

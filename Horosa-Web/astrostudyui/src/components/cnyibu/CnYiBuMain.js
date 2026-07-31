@@ -23,10 +23,12 @@ const XiaoLiuRenMain = React.lazy(() => import(/* webpackChunkName: "xiaoliuren-
 const XiaoChengTuMain = React.lazy(() => import(/* webpackChunkName: "xiaochengtu-main" */ '../xiaochengtu/XiaoChengTuMain'));
 const FeiGongMain = React.lazy(() => import(/* webpackChunkName: "feigong-main" */ '../feigong/FeiGongMain'));
 import QuickDockBar from '../common/QuickDockBar';
+import { CNYIBU_SUBTABS } from '../../constants/SubTabRegistry';
 
 
 const TabPane = Tabs.TabPane;
-const CNYIBU_VALID_TABS = ['suzhan', 'jinkou', 'tongshefa', 'huangji', 'wuzhao', 'taixuan', 'jingjue', 'shenyishu', 'geomancy', 'tarot', 'guice', 'xiaoliuren', 'xiaochengtu', 'feigong'];
+// 合法子页签集合的单一真值源在 constants/SubTabRegistry(导航层同源)。
+const CNYIBU_VALID_TABS = CNYIBU_SUBTABS;
 
 function getRuntimeCnYiBuTab(){
 	if(typeof window === 'undefined'){

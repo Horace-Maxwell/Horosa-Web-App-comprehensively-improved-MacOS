@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { Row, Col, Divider, Popover, } from 'antd';
 import {randomStr,} from '../../utils/helper';
 import * as ZWConst from '../../constants/ZWConst';
+import STAR_MEANING from '../ziwei/data/tables/ziweiStarMeaning.json';   // WP-7 十二宫含义
 
 class RuleHouses extends Component{
 	constructor(props) {
@@ -25,7 +26,7 @@ class RuleHouses extends Component{
 		for(let i=0; i<houses.length; i++){
 			let house = houses[i];
 			let rules = ZWRules.RuleHouses[house];
-			let dom = this.genPopoverDom(rules);
+			let dom = this.genPopoverDom(rules, house);
 			let title = house + '';
 			let col = (
 				<Col span={6} key={randomStr(8)}>
@@ -39,7 +40,11 @@ class RuleHouses extends Component{
 		return cols;
 	}
 
-	genPopoverDom(rules){
+	genPopoverDom(rules, house){
+		let meaning = house ? STAR_MEANING.houses[house] : null;   // WP-7 十二宫含义
+		let head = meaning ? (
+			<div key={randomStr(8)} style={{ marginBottom: 8, padding: '6px 9px', background: 'var(--horosa-ziwei-selected-bg, rgba(120,72,232,0.08))', borderRadius: 4, fontSize: 12, lineHeight: '20px' }}>{meaning}</div>
+		) : null;
 		let lis = [];
 		for(let i=0; i<rules.length; i++){
 			let rule = rules[i];
@@ -66,6 +71,7 @@ class RuleHouses extends Component{
 		}
 		let rulesDom = (
 			<div key={randomStr(8)} style={{width: 400}}>
+				{head}
 				<ul key={randomStr(8)}>
 					{lis}
 				</ul>

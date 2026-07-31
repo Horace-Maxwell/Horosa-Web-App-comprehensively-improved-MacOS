@@ -58,7 +58,7 @@ SU28_MODE_MOIRA_KAIXI = 3
 SU28_MODE_ZHENG_SIDEREAL = 4
 SU28_MODE_EQUATORIAL_SIDEREAL = 5   # G3/G4 赤道恒星制(制一):现代赤道距星案进动赤经定宿,planets 按赤经置宿,落宫仍黄道
 SU28_MODE_GUFA_LICHENG = 6           # WP-D 授时历古法立成:推变黄道宿度(极黄经)按黄经置宿;古宿固定(元时·默认)或随岁差
-SU28_MODE_EQUATORIAL_TROPICAL = 7    # 额外档·赤道回归制:固定元明赤道宿度立成(春分/牛前冬至锚、赤经常数、不随岁差),行星按赤经落宿(与 mode5「宿随星走」正相反)
+SU28_MODE_EQUATORIAL_TROPICAL = 7    # 额外档·赤道回归制(元明):固定元明赤道宿度立成(春分/牛前冬至锚、赤经常数、不随岁差),行星按赤经落宿(与 mode5「宿随星走」正相反)
 SU28_MODE_EQUATORIAL_TROPICAL_LIVE = 8   # 赤道回归·实时:宿宽=盘历元距星真赤经差(mode5 同源活体),锚=回归点(mode7 同款牛前冬至/春分壁2.3)——授时历「实测宿度+冬至锚」的活体版
 ZHENG_SIDEREAL_MODE = {
     'mode': swe.SE_SIDM_USER,
@@ -264,16 +264,18 @@ LOTS = [
     arabicparts.PARS_HORSEMANSHIP,
     arabicparts.PARS_LIFE,
     arabicparts.PARS_RADIX,
-]
-
-LIST_OBJECTS_NOCHIRON = [
-    const.SUN, const.MOON, const.MERCURY, const.VENUS, const.MARS, const.JUPITER, const.SATURN,
-    const.URANUS, const.NEPTUNE, const.PLUTO, const.NORTH_NODE,
-    const.SOUTH_NODE, const.SYZYGY, const.PARS_FORTUNA, const.DARKMOON, const.PURPLE_CLOUDS,
+    # 希腊化补全六点(基础/旺宫为四要点其二,补齐后显赫指标「四显赫点」方可实算)
+    arabicparts.PARS_BASIS,
+    arabicparts.PARS_EXALTATION,
+    arabicparts.PARS_SONS_VALENS,
+    arabicparts.PARS_DAUGHTERS,
+    arabicparts.PARS_PRAXIS,
+    arabicparts.PARS_WEDDING_DOROTHEAN,
 ]
 
 # 窄域天体的星历数据域(JD,二分实测后各收 1 天安全边;其余天体与主行星同全域)。
-# 按各自域精确取舍:域内在场、域外缺席,PerChart 下游对 objlists 内任何星的取用都保证命中。
+# 旧降级表在凯龙域外把 Pholus/Ceres/Pallas/Juno/Vesta/Intp_* 一并剔除——现按各自域
+# 精确取舍:域内在场、域外缺席,PerChart 下游对 objlists 内任何星的取用都保证命中。
 BODY_JD_DOMAIN = {
     const.CHIRON: (1967602.5, 3419436.2),      # AD 675 ~ 4649
     const.PHOLUS: (640648.6, 4390615.4),       # BC 2960 ~ AD 7308
@@ -338,6 +340,11 @@ _TERMS_TABLES = [tables.EGYPTIAN_TERMS, tables.TETRABIBLOS_TERMS, tables.LILLY_T
 _TETRABIBLOS_LEO_SATURN_FIRST = copy.deepcopy(tables.TETRABIBLOS_TERMS)
 _TETRABIBLOS_LEO_SATURN_FIRST['Leo'] = [['Saturn', 0, 6], ['Mercury', 6, 13], ['Jupiter', 13, 19], ['Venus', 19, 25], ['Mars', 25, 30]]
 
+# 托勒密界·经典传本(termsVariant==2)双子界4/5 校勘口径:原书 ♄21–25/♂25–30 → 校勘本对调 ♂21–25/♄25–30。
+# 仅 geminiBoundEmended 且 termsVariant==2 时换本表;默认忠原书(零回归)。与 leoBoundFirst 同款请求级开关。
+_LILLY_GEMINI_EMENDED = copy.deepcopy(tables.LILLY_TERMS)
+_LILLY_GEMINI_EMENDED['Gemini'] = [['Mercury', 0, 7], ['Jupiter', 7, 14], ['Venus', 14, 21], ['Mars', 21, 25], ['Saturn', 25, 30]]
+
 # G15 迦勒底界(界系 3·推演慎用):宽度 [8,7,6,5,4](和 30),星序按元素昼序;夜盘土↔水位置互换。
 # 仅白羊有源、余按规则推演(故 UI 标「推演·慎用」)。按 sect 预生成昼/夜两表,perchart 据 isDiurnal 选。
 _CHALDEAN_WIDTHS = [8, 7, 6, 5, 4]
@@ -381,9 +388,10 @@ def parse_terms_variant(v):
     return tv if tv in (0, 1, 2, 3) else 0
 
 
-def push_request_terms(termsVariant, leoBoundFirst=False):
+def push_request_terms(termsVariant, leoBoundFirst=False, geminiBoundEmended=False):
     """/chart 请求级界系:获取锁 + 换 essential.TERMS,返回还原令牌(原表);必须在 finally 配对 pop_request_terms。
-    G15:leoBoundFirst 且托勒密界(tv==1)时换狮子土星优先变体表;默认木优先零回归。"""
+    G15:leoBoundFirst 且托勒密界·校勘本(tv==1)时换狮子土星优先变体表;默认木优先零回归。
+    卜卦 2b:geminiBoundEmended 且经典传本(tv==2)时换双子校勘口径表;默认忠原书零回归。"""
     tv = parse_terms_variant(termsVariant)
     _PERCHART_TERMS_LOCK.acquire()
     orig = essential.TERMS
@@ -391,6 +399,8 @@ def push_request_terms(termsVariant, leoBoundFirst=False):
         essential.TERMS = _CHALDEAN_TERMS_DAY   # 迦勒底界:先昼表;夜盘由 perchart setupPlanets 据 isDiurnal 换夜表(锁内安全)
     elif tv == 1 and leoBoundFirst in (True, 1, '1', 'true'):
         essential.TERMS = _TETRABIBLOS_LEO_SATURN_FIRST
+    elif tv == 2 and geminiBoundEmended in (True, 1, '1', 'true'):
+        essential.TERMS = _LILLY_GEMINI_EMENDED
     else:
         essential.TERMS = _TERMS_TABLES[tv]
     return orig
@@ -472,6 +482,111 @@ def pop_request_trip(token):
         _PERCHART_TRIP_LOCK.release()
 
 
+# ── 旺位异文两开关(月交点旺 / 土星旺 20°)请求级参数化 ────────────────────
+# 二者皆改 essential.TABLE 的 exalt/fall 位 ⇒ 会动全盘尊贵计分,故一律默认关(零回归),
+# 仅显式开启才 锁+换表,finally 配对 pop。照 push_request_trip 同款范式(pop(None)=no-op)。
+#   nodeExaltation:北交旺 3°双子 / 南交旺 3°射手(对宫互为落);少数派传统,文档标「可作软件开关」。
+#   saturnExalt20 :土星旺 天秤 20°(默认 21°);少数异文。
+# 🔴 必须用独立锁:本开关叠加在 push_request_trip 之后(同线程),复用 _PERCHART_TRIP_LOCK 会自锁死。
+#    两者串行嵌套(trip 先 push、exalt 后 push;pop 反序),各自持锁不交叉,无 ABBA 风险。
+_PERCHART_EXALT_LOCK = threading.Lock()
+_SATURN_EXALT_DEFAULT_DEG = 21
+_SATURN_EXALT_VARIANT_DEG = 20
+
+
+def _build_dignities_variant(base_table, node_exalt=False, saturn20=False):
+    """在给定基表上叠加旺位异文;不改基表本身(深拷贝)。"""
+    tbl = copy.deepcopy(base_table)
+    if node_exalt:
+        # 交点无 ruler/trip/face 语义,仅置 exalt/fall 两位(essential.score 只查这两处)
+        if 'Gemini' in tbl:
+            tbl['Gemini']['exalt'] = [const.NORTH_NODE, 3]
+            tbl['Gemini']['fall'] = [const.SOUTH_NODE, 3]
+        if 'Sagittarius' in tbl:
+            tbl['Sagittarius']['exalt'] = [const.SOUTH_NODE, 3]
+            tbl['Sagittarius']['fall'] = [const.NORTH_NODE, 3]
+    if saturn20:
+        if 'Libra' in tbl and tbl['Libra'].get('exalt') and tbl['Libra']['exalt'][0] == const.SATURN:
+            tbl['Libra']['exalt'] = [const.SATURN, _SATURN_EXALT_VARIANT_DEG]
+        # 土星之落(白羊)随旺度同步为对宫同度,保持旺落对称
+        if 'Aries' in tbl and tbl['Aries'].get('fall') and tbl['Aries']['fall'][0] == const.SATURN:
+            tbl['Aries']['fall'] = [const.SATURN, _SATURN_EXALT_VARIANT_DEG]
+    return tbl
+
+
+def _truthy(v):
+    return v in (1, '1', True, 'true', 'True')
+
+
+def push_request_exalt_variants(nodeExaltation=None, saturnExalt20=None):
+    """请求级旺位异文:两者全关 → 不 push(返回 None,零锁开销零回归);任一开 → 锁+叠加换表。
+    在当前 essential.TABLE(可能已被 push_request_trip 换成托勒密表)之上叠加,故两层可共存。"""
+    node_on = _truthy(nodeExaltation)
+    sat_on = _truthy(saturnExalt20)
+    if not node_on and not sat_on:
+        return None
+    _PERCHART_EXALT_LOCK.acquire()
+    orig = essential.TABLE
+    essential.TABLE = _build_dignities_variant(orig, node_exalt=node_on, saturn20=sat_on)
+    return orig
+
+
+def pop_request_exalt_variants(token):
+    """还原 essential.TABLE 并释放锁;token=None(未 push)时安全 no-op。"""
+    if token is None:
+        return
+    try:
+        essential.TABLE = token
+    finally:
+        _PERCHART_EXALT_LOCK.release()
+
+
+# ── 落宫宫头前移(five-degree rule)请求级参数化 ─────────────────────────────
+# flatlib House._OFFSET 是类全局(-5.0=传统 5° 律):象限制 inHouse 以 [cusp+OFFSET, +size) 收纳,
+# 星距下一宫头 |OFFSET|° 内前移入下一宫;整宫制分支天然豁免(无偏移)。落宫输出(object.house/
+# house.planets/四角 house)全走 getHouseByLon→inHouse → 换 OFFSET 即全站落宫随动,且随当前 hsys 宫表。
+# 照 push_request_trip 范式:默认 5° 不 push(零回归零锁开销);仅非默认才 锁+换值,finally 配对 pop。
+_PERCHART_HOUSE_OFFSET_LOCK = threading.Lock()
+_HOUSE_CUSP_ADVANCE_DEFAULT = 5.0
+
+def _optional_float(v):
+    """None/缺省/畸形 → None(调用方回落现值);数字/数串 → float。"""
+    if v is None or v == '':
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_house_cusp_advance(v):
+    """收编 houseCuspAdvance(度):仅认 0/1/3/5,缺省/畸形一律回 5=现状。"""
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return _HOUSE_CUSP_ADVANCE_DEFAULT
+    return n if n in (0.0, 1.0, 3.0, 5.0) else _HOUSE_CUSP_ADVANCE_DEFAULT
+
+def push_request_house_offset(houseCuspAdvance):
+    """请求级换 House._OFFSET;返回还原令牌(原值)或 None(默认未 push)。必须 finally 配对 pop。"""
+    adv = parse_house_cusp_advance(houseCuspAdvance)
+    if adv == _HOUSE_CUSP_ADVANCE_DEFAULT:
+        return None
+    _PERCHART_HOUSE_OFFSET_LOCK.acquire()
+    orig = object.House._OFFSET
+    object.House._OFFSET = -adv
+    return orig
+
+def pop_request_house_offset(token):
+    """还原 House._OFFSET 并释放锁;token=None(未 push)时安全 no-op。"""
+    if token is None:
+        return
+    try:
+        object.House._OFFSET = token
+    finally:
+        _PERCHART_HOUSE_OFFSET_LOCK.release()
+
+
 class PerChart:
 
     @staticmethod
@@ -496,6 +611,33 @@ class PerChart:
 
     def __init__(self, data):
         self.data = data
+
+        # ── 古典口径请求级参数(全局设置「星盘组件」;缺省 None/默认=各保现硬编码值,零回归)──
+        # 太阳三态阈值:传键时 sunPos(合相口径)与 phase(可见弧口径)两套统一吃全局值;
+        # 缺省时各保历史现值(sunPos 17'/8.5/17,phase 16'/8),phase 日光束界恒逐星 arcus visionis。
+        _cz = _optional_float(data.get('cazimiOrb'))
+        _cb = _optional_float(data.get('combustOrb'))
+        _ub = _optional_float(data.get('underBeamsOrb'))
+        self._sunPosCazimi = _cz if _cz is not None else 17.0 / 60.0
+        self._sunPosCombust = _cb if _cb is not None else 8.5
+        self._sunPosBeams = _ub if _ub is not None else 17.0
+        self._phaseCazimi = _cz if _cz is not None else 16.0 / 60.0
+        self._phaseCombust = _cb if _cb is not None else 8.0
+        # 恒星合相轨:starOrb 平轨(默认 1°=现状);starOrbMode='byMagnitude' 走 FixedStar.orb() 星等表。
+        _so = _optional_float(data.get('starOrb'))
+        self._starOrb = _so if _so is not None else 1.0
+        self._starOrbByMag = (data.get('starOrbMode') == 'byMagnitude')
+        # 映点接触容许度(同座 signlon 差,默认 1°=现状)。
+        _ao = _optional_float(data.get('antisciaOrb'))
+        self._antisciaOrb = _ao if _ao is not None else 1.0
+        # 月亮空亡口径(六口径,默认 lilly=现实现「无入相/正合主相位即空」;前端 'classic'/'backend' 同义)。
+        _vm = data.get('vocMode') or 'lilly'
+        self._vocMode = 'lilly' if _vm in ('classic', 'backend') else _vm
+        self._vocIncludeOuter = bool(data.get('vocIncludeOuter'))
+        # 燃烧之路边界(默认 standard=195–225 传统口径;2026-07 用户拍板由旧窄口径 208–217 归正,
+        # 旧值以 'narrow' 档保留)。畸形键回默认。
+        self._viaCombustaRange = self._VIA_COMBUSTA_RANGES.get(
+            data.get('viaCombustaVariant') or 'standard', self._VIA_COMBUSTA_RANGES['standard'])
 
         date = data['date']
         self.time = data['time']
@@ -525,15 +667,29 @@ class PerChart:
         self.simpleAsp = False
         self.pdtype = 0
         self.pdMethod = 'core_alchabitius'
+        # 投影×定局解耦(正交):pdProjection 决定弧、pdFrame 决定盘面宫始点。
+        # None = 未显式指定 → 由 pdMethod 兼容映射推导(perpredict._PD_METHOD_TO_PAIR),
+        # 全缺省时 = ('ptolemy','alcabitius') = 现状默认路径,字节零回归。
+        self.pdProjection = None
+        self.pdFrame = None
         self.pdTimeKey = 'Ptolemy'
         self.pdYears = 100
-        # 自研引擎方位法的顺逆开关(core/legacy 不受影响)。
+        # 自研引擎方位法的开关(仅 placidus / regio / campanus / topo 生效；core/legacy 不受影响）。
         # 默认「顺逆都开」(用户偏好):Alcabitius 走自有引擎本就含正负弧、忽略此开关;
         # 切到新方位法时默认两向都算、按年龄交错。
         self.pdDirect = True      # 顺向 direct(默认开)
         self.pdConverse = True    # 逆向 converse(默认开;可与 direct 同时开)
         self.pdAntiscia = False   # 映点/反映点作 promissor
         self.pdTerms = False      # 界(terms)边界作 promissor
+        self.pdParallel = False       # 赤纬平行/反平行(映点法);pdtype=1 时为世界平行
+        self.pdRaptParallel = False   # 急动平行(双动求根;仅世界主限)
+        self.pdFramework = 'aspect'   # 框架:aspect 相位主限(默认)/bounds 界行/release 释放(hyleg)
+        # S/P 清单扩展(默认 None=现状集,零回归):
+        # pdSignificators 追加键 ∈ {Desc, IC, Syzygy, Spirit, Cusps};pdPromissorTypes ∈ {cusps}
+        self.pdSignificators = None
+        self.pdPromissorTypes = None
+        self.pdTimeKeyCustom = None   # User 钥匙:自定义每年度数(仅 pdTimeKey='User' 时消费)
+        self.termsVariant = 0         # 界系:0 埃及(默认)/1 托勒密/2 莉莉(PD 界行/分配星同用)
 
         self.isBC = False
         if 'ad' in data.keys():
@@ -567,7 +723,11 @@ class PerChart:
                 self.houseCust = custHouse_Fortuna_Whole
 
         if 'pdaspects' in data.keys():
-            self.pdaspects = data['pdaspects']
+            # 🔴 空/非法相位集回落主相位默认:pdaspects 继承自主盘相位设置,用户在主盘
+            # 清空相位会让主限表变成 0 行死表(合相 0 也是相位集成员,清空 = 连本体行都没有)。
+            # 与其它参数「非法值回落默认」同口径;显式给出的非空集合原样尊重(零回归)。
+            _asp = data['pdaspects']
+            self.pdaspects = _asp if (isinstance(_asp, (list, tuple)) and len(_asp)) else const.MAJOR_ASPECTS
 
         self.southchart = False
         if 'southchart' in data.keys():
@@ -580,10 +740,25 @@ class PerChart:
             self.pdMethod = data['pdMethod']
             # whitelist 与 perpredict._PD_METHOD_REGISTRY 保持同步；未识别 method 一律
             # 回退到默认 Alcabitius (core_alchabitius)，护住默认路径字节级一致。
-            if self.pdMethod not in ('core_alchabitius', 'horosa_legacy',
+            if self.pdMethod not in ('core_alchabitius', 'horosa_legacy', 'placidus',
+                                     'regiomontanus', 'campanus', 'topocentric',
                                      'meridian', 'porphyry', 'equal_ecliptic',
-                                     'equal_hour_circle'):
+                                     'equal_hour_circle', 'morinus',
+                                     'in_zodiaco_lon', 'in_zodiaco_abs'):
                 self.pdMethod = 'core_alchabitius'
+
+        if 'pdProjection' in data.keys():
+            v = '{0}'.format(data['pdProjection'] or '')
+            if v in ('ptolemy', 'placidus', 'regiomontanus', 'campanus', 'topocentric',
+                     'zodiacal', 'ra_direct', 'in_zodiaco_lon', 'in_zodiaco_abs', 'horosa_legacy',
+                     'placidus_under_pole'):
+                self.pdProjection = v
+        if 'pdFrame' in data.keys():
+            v = '{0}'.format(data['pdFrame'] or '')
+            if v in ('alcabitius', 'placidus', 'regiomontanus', 'campanus', 'topocentric',
+                     'meridian', 'porphyry', 'equal', 'wholesign', 'morinus', 'koch',
+                     'equal_hour_circle'):
+                self.pdFrame = v
 
         if 'pdTimeKey' in data.keys():
             self.pdTimeKey = data['pdTimeKey']
@@ -607,6 +782,38 @@ class PerChart:
             self.pdAntiscia = _truthy(data['pdAntiscia'])
         if 'pdTerms' in data.keys():
             self.pdTerms = _truthy(data['pdTerms'])
+        if 'pdParallel' in data.keys():
+            self.pdParallel = _truthy(data['pdParallel'])
+        if 'pdRaptParallel' in data.keys():
+            self.pdRaptParallel = _truthy(data['pdRaptParallel'])
+        if 'pdFramework' in data.keys():
+            v = '{0}'.format(data['pdFramework'] or '')
+            if v in ('aspect', 'bounds', 'release'):
+                self.pdFramework = v
+        def _strlist(v):
+            if isinstance(v, (list, tuple)):
+                return [str(x) for x in v]
+            if isinstance(v, str) and v.strip():
+                return [x.strip() for x in v.split(',') if x.strip()]
+            return None
+        if 'pdSignificators' in data.keys():
+            vs = _strlist(data['pdSignificators'])
+            if vs is not None:
+                allow = ('Desc', 'IC', 'Syzygy', 'Spirit', 'Cusps', 'Stars', 'Lots')
+                self.pdSignificators = [x for x in vs if x in allow] or None
+        if 'pdPromissorTypes' in data.keys():
+            vs = _strlist(data['pdPromissorTypes'])
+            if vs is not None:
+                self.pdPromissorTypes = [x for x in vs if x in ('cusps', 'stars', 'lots')] or None
+        if 'pdTimeKeyCustom' in data.keys():
+            try:
+                v = float(data['pdTimeKeyCustom'])
+                if 0.001 <= v <= 30.0:
+                    self.pdTimeKeyCustom = v
+            except (TypeError, ValueError):
+                pass
+        if 'termsVariant' in data.keys():
+            self.termsVariant = parse_terms_variant(data['termsVariant'])
 
         # 容许度自定义：orbs(逐星 id->度) / orbScale(全局倍数)。默认 None → 盘对象 orb() 回退默认表，零回归。
         self.orbOverrides = None
@@ -645,6 +852,8 @@ class PerChart:
         self.objlists = []
 
         jd = self.dateTime.jd
+        # 凯龙域内=全表(与旧行为字节一致);域外=按各天体数据域精确筛
+        #(旧版整组剔除小行星,致 relative/midpoint 等在古代/远期缺 Ceres 等全域可算天体)。
         if 1967601.5 <= jd <= 3419437.5:
             self.objlists.extend(const.LIST_OBJECTS)
         else:
@@ -856,6 +1065,14 @@ class PerChart:
     def reinit(self):
         self.orientOccident = None
         self.orientOccidentHouses = None
+        # v3.0.1 perf ROUND-5 请求内 memo:同一 /chart 请求内被重复计算的纯函数结果(重复调用逐字节
+        # 等值已实测证明;各访问器处有防坑注释)。与 orientOccident 同生命周期,reinit 即全部失效。
+        self._fixedStars67Cache = None
+        self._adjustSu28Cache = None
+        self._rawSu28Cache = None
+        self._sunRiseCache = None
+        self._surroundAttacksCache = None
+        self._mutualsCache = None
         self.dynchart = ChartDynamics(self.chart)
         self.dynchart.simpleAsp = self.simpleAsp
         self.applyOrbOverrides()
@@ -887,9 +1104,21 @@ class PerChart:
         self.reinit()
 
 
+    # 燃烧之路边界四档(2026-07 全局化,用户拍板默认对齐传统):
+    #   standard(默认)=天秤15°–天蝎15°(195–225,古典标准);narrow=旧硬编码窄口径(208–217,
+    #   天秤28°–天蝎7°,作历史变体保留);scorpioFull=天秤后15°+天蝎全宫(195–240);
+    #   bothFull=天秤+天蝎全段(180–240)。isViaRepression(178–186)非本参数域,原样不动。
+    _VIA_COMBUSTA_RANGES = {
+        'standard': (195.0, 225.0),
+        'narrow': (208.0, 217.0),
+        'scorpioFull': (195.0, 240.0),
+        'bothFull': (180.0, 240.0),
+    }
+
     def setupSpecial(self, star):
-        if 208 <= star.lon < 217:
-           star.isViaCombust = True
+        lo, hi = self._viaCombustaRange
+        if lo <= star.lon < hi:
+            star.isViaCombust = True
         if 178 <= star.lon < 186:
             star.isViaRepression = True
 
@@ -920,9 +1149,9 @@ class PerChart:
             return
         ae = abs(((planet.lon - sun.lon + 180.0) % 360.0) - 180.0)
         planet.phasisElong = round(ae, 3)
-        if ae <= 16.0 / 60.0:
+        if ae <= self._phaseCazimi:
             planet.phase = 'cazimi'
-        elif ae < 8.0:
+        elif ae < self._phaseCombust:
             planet.phase = 'combust'
         elif ae < arcus:
             planet.phase = 'underBeams'
@@ -1251,7 +1480,7 @@ class PerChart:
             obj.governSign = govsign
             obj.governPlanets = govplanets
             if itemA == const.MOON:
-                obj.isVOC = self.dynchart.isVOC(itemA)
+                obj.isVOC = self.dynchart.isVOC(itemA, self._vocMode, self._vocIncludeOuter)
                 obj.moonPhase = self.chart.getMoonPhase()
 
     def takePlanetDignity(self, planetId, dignities):
@@ -1433,7 +1662,14 @@ class PerChart:
 
         return res
 
+    # v3.0.1 perf ROUND-5:besiegementDetail 会再次调用本方法(10×10 inDignities 对),同一响应的
+    # mutuals 键已算过。memo;只读互容判定,无状态变异。重复调用逐字节等值已实测。
     def getMutuals(self):
+        if self._mutualsCache is None:
+            self._mutualsCache = self._computeMutuals()
+        return self._mutualsCache
+
+    def _computeMutuals(self):
         res = []
         planets = const.LIST_SEVEN_PLANETS.copy()
         if self.tradition == False:
@@ -1561,11 +1797,11 @@ class PerChart:
                         plobj = self.chart.get(obj['id'])
                     except:
                         continue
-                    if obj['orb'] < 17/60:
+                    if obj['orb'] < self._sunPosCazimi:
                         plobj.sunPos = 'Cazimi'
-                    elif 17/60 <= obj['orb'] < 8.5:
+                    elif self._sunPosCazimi <= obj['orb'] < self._sunPosCombust:
                         plobj.sunPos = 'Combust'
-                    elif 8.5 <= obj['orb'] < 17:
+                    elif self._sunPosCombust <= obj['orb'] < self._sunPosBeams:
                         plobj.sunPos = 'Sunbeams'
 
             for obj in asp['Applicative']:
@@ -1576,11 +1812,11 @@ class PerChart:
                         plobj = self.chart.get(obj['id'])
                     except:
                         continue
-                    if obj['orb'] < 17 / 60:
+                    if obj['orb'] < self._sunPosCazimi:
                         plobj.sunPos = 'Cazimi'
-                    elif 17 / 60 <= obj['orb'] < 8.5:
+                    elif self._sunPosCazimi <= obj['orb'] < self._sunPosCombust:
                         plobj.sunPos = 'Combust'
-                    elif 8.5 <= obj['orb'] < 17:
+                    elif self._sunPosCombust <= obj['orb'] < self._sunPosBeams:
                         plobj.sunPos = 'Sunbeams'
 
             for obj in asp['None']:
@@ -1591,11 +1827,11 @@ class PerChart:
                         plobj = self.chart.get(obj['id'])
                     except:
                         continue
-                    if obj['orb'] < 17/60:
+                    if obj['orb'] < self._sunPosCazimi:
                         plobj.sunPos = 'Cazimi'
-                    elif 17/60 <= obj['orb'] < 8.5:
+                    elif self._sunPosCazimi <= obj['orb'] < self._sunPosCombust:
                         plobj.sunPos = 'Combust'
-                    elif 8.5 <= obj['orb'] < 17:
+                    elif self._sunPosCombust <= obj['orb'] < self._sunPosBeams:
                         plobj.sunPos = 'Sunbeams'
 
             for obj in asp['Separative']:
@@ -1606,11 +1842,11 @@ class PerChart:
                         plobj = self.chart.get(obj['id'])
                     except:
                         continue
-                    if obj['orb'] < 17/60:
+                    if obj['orb'] < self._sunPosCazimi:
                         plobj.sunPos = 'Cazimi'
-                    elif 17/60 <= obj['orb'] < 8.5:
+                    elif self._sunPosCazimi <= obj['orb'] < self._sunPosCombust:
                         plobj.sunPos = 'Combust'
-                    elif 8.5 <= obj['orb'] < 17:
+                    elif self._sunPosCombust <= obj['orb'] < self._sunPosBeams:
                         plobj.sunPos = 'Sunbeams'
 
             res[itemA] = asp
@@ -1626,11 +1862,11 @@ class PerChart:
         for planet in planets:
             if planet != obj.id:
                 cmpobj = self.chart.getObject(planet)
-                if cmpobj.sign == obj.sign and (abs(cmpobj.signlon - obj.signlon) < 1):
+                if cmpobj.sign == obj.sign and (abs(cmpobj.signlon - obj.signlon) < self._antisciaOrb):
                     res.append(cmpobj)
         for angle in const.LIST_ANGLES:
             cmpobj = self.chart.getAngle(angle)
-            if cmpobj.sign == obj.sign and (abs(cmpobj.signlon - obj.signlon) < 1):
+            if cmpobj.sign == obj.sign and (abs(cmpobj.signlon - obj.signlon) < self._antisciaOrb):
                 res.append(cmpobj)
         if len(res) > 0:
             return res
@@ -1684,8 +1920,7 @@ class PerChart:
             planets = self.objlists
         planets = planets.copy()
         planets.extend(const.LIST_ANGLES)
-        stars = self.chart.getFixedStars()
-        self.relocateSouthObjects(stars)
+        stars = self._getFixedStars67Cached()
         for planet in planets:
             fixstars = {
                 'id': planet,
@@ -1697,7 +1932,9 @@ class PerChart:
                 # 跨 0° 白羊点的合相(如 359.7 vs 0.3,差 359.4)需折回最短分离角
                 if delta > 180:
                     delta = 360 - delta
-                if delta < 1:
+                # 轨档:byMagnitude 逐星取星等表 FixedStar.orb()(mag<2→7.5°…),否则平轨(默认 1°=现状)。
+                _orb = star.orb() if self._starOrbByMag else self._starOrb
+                if delta < _orb:
                     obj = [star.id, star.sign, star.signlon, delta, star.name]
                     fixstars['stars'].append(obj)
             res.append(fixstars)
@@ -1877,7 +2114,15 @@ class PerChart:
             'MinDelta': [] if len(alltmp) == 0 else alltmp[0]
         }
 
+    # v3.0.1 perf ROUND-5:besiegementDetail 会再次调用本方法,而 webchartsrv 同一响应里已在
+    # surround.attacks 键算过一遍(4 层 7×8×6×8 相位点循环 ×7 目标)。memo;相位数学只读不可变的
+    # lon/sign 状态(getAspects 的 sunPos 变异不进本函数)。重复调用逐字节等值已实测。
     def surroundAttacks(self):
+        if self._surroundAttacksCache is None:
+            self._surroundAttacksCache = self._computeSurroundAttacks()
+        return self._surroundAttacksCache
+
+    def _computeSurroundAttacks(self):
         res = {}
         planets = const.LIST_SEVEN_PLANETS.copy()
         # if self.tradition == False:
@@ -2486,15 +2731,24 @@ class PerChart:
                 continue
 
 
+    # v3.0.1 perf ROUND-5:同一请求 'fixedStarSu28' 与 'su28Adjust' 两个键各调一次本方法,每次都从
+    # swisseph 重取 28 星再重做同一套 ra 调整(单次 ~50ms)。memo **成品列表**(★方法会原地改 star.ra,
+    # 缓存成品保证调整恰好执行一次);消费者只读。重复调用逐字节等值已实测证明。
+    def getAdjustFixedStarSu28(self):
+        if self._adjustSu28Cache is None:
+            self._adjustSu28Cache = self._computeAdjustFixedStarSu28()
+        return self._adjustSu28Cache
+
+    # v3.0.1 perf ROUND-5:guo74.virtualSu28 原本逐星 chart.getFixedStar()×28 只为读 decl —— 同一请求
+    # 对同一批 28 星的第三次取数。这里缓存一次**原始批**(未 relocate、未调 ra,与逐星取值同源同值:
+    # 同 (star, jd, flags) 的 decl 确定性,重复取数逐字节等值已实测)。与上面的成品缓存严格分离:
+    # 成品路径自己另取一批再变异,绝不共享对象,防变异串染。消费者(guo74)只读 decl。
     def getRawFixedStarSu28Cached(self):
-        # 同一请求内 guo74.virtualSu28 逐星取 decl 时对同批 28 星重复取数。缓存一次**原始批**
-        # (未 relocate、未调 ra;同 (star, jd, flags) 的 decl 确定性,重复取数逐字节等值)。
-        # 与 getAdjustFixedStarSu28 的成品缓存严格分离:成品路径自取一批再变异,绝不共享对象。
-        if getattr(self, '_rawSu28Cache', None) is None:
+        if self._rawSu28Cache is None:
             self._rawSu28Cache = self.chart.getFixedStartsSu28()
         return self._rawSu28Cache
 
-    def getAdjustFixedStarSu28(self):
+    def _computeAdjustFixedStarSu28(self):
         stars = self.chart.getFixedStartsSu28()
         self.relocateSouthObjects(stars)
         res = []
@@ -2565,9 +2819,19 @@ class PerChart:
         self.fillPlanetSu28(res)
         return res
 
+    # v3.0.1 perf ROUND-5:67 恒星表在同一请求被 getStars 与 getFixedStars 各全量重算一次(flatlib 每次
+    # 从 swisseph 重取 67 星,swisseph 逐星重扫 sefstars.txt,单次 ~130ms)。取一次 + relocate 一次后共享;
+    # 两个消费者均只读。★防坑:relocateSouthObjects 是 +180° 原地变换,必须缓存在 relocate **之后**,
+    # 否则南盘(lat<0)跑两次会把变换抵消。重复调用 jsonpickle 输出逐字节等值已实测证明。
+    def _getFixedStars67Cached(self):
+        if self._fixedStars67Cache is None:
+            stars = self.chart.getFixedStars()
+            self.relocateSouthObjects(stars)
+            self._fixedStars67Cache = stars
+        return self._fixedStars67Cache
+
     def getFixedStars(self):
-        stars = self.chart.getFixedStars()
-        self.relocateSouthObjects(stars)
+        stars = self._getFixedStars67Cached()
         res = []
         for id in const.LIST_FIXED_STARS:
             obj = stars.content[id]
@@ -2655,6 +2919,11 @@ class PerChart:
                         res['contraParallel'][objA] = set()
                         res['contraParallel'][objA].add(objB)
 
+        # set 迭代序随 PYTHONHASHSEED 跨进程漂移,同参请求在服务重启后响应字节不稳
+        # (2026-07 对拍实证:仅此字段序漂移,数值全同)。出口确定化:组内按 id 字典序,
+        # parallel 组间按首元素排序;纯排序,成员与数值零变。
+        res['parallel'] = sorted((sorted(pSet) for pSet in res['parallel']), key=lambda grp: grp[0])
+        res['contraParallel'] = {objA: sorted(objBs) for objA, objBs in res['contraParallel'].items()}
         return res
 
     def getDayerStar(self):
@@ -2662,7 +2931,15 @@ class PerChart:
         daystar = dayerStar[day]
         return daystar
 
+    # v3.0.1 perf ROUND-5:日出求解(最多 50 次迭代建瘦 Chart)同一请求跑 2-3 次('sunRiseTime' 键 +
+    # getTimerStar 内 + guolao yumao 模式再一次)。memo 结果 dict;消费者只读 timeStr/datetime.jd,
+    # 从不改写(已核)。重复调用逐字节等值已实测。
     def getSunRiseTime(self):
+        if self._sunRiseCache is None:
+            self._sunRiseCache = self._computeSunRiseTime()
+        return self._sunRiseCache
+
+    def _computeSunRiseTime(self):
         dt = Datetime(self.date, "05:00:00", self.zone)
         dist = 99
         speed = 1 / (4 / 60 / 24)

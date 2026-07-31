@@ -28,12 +28,13 @@ function DonggongMonth({ y, m, activeYmd, event, onPick }) {
 		const yv = yongshiVerdict(buildHuangliDay(y, m, d), event);
 		const ymd = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 		rows.push(
-			<div key={d} className={`horosa-tongshu-dayrow ${ymd === activeYmd ? 'is-active' : ''} ${yv.level === 'yi' ? 'is-yi-day' : (yv.level === 'ji' ? 'is-ji-day' : '')}`} onClick={()=> onPick(ymd)}>
+			<div key={d} className={`horosa-tongshu-dayrow ${ymd === activeYmd ? 'is-active' : ''} ${yv.level === 'yi' ? 'is-yi-day' : (yv.level === 'ji' || yv.level === 'conflict' ? 'is-ji-day' : '')}`} onClick={()=> onPick(ymd)}>
 				<span className='horosa-tongshu-dayrow-d'>{d}</span>
 				<span className='horosa-tongshu-dayrow-gz'>{r.dayGZ}</span>
 				<span className='horosa-tongshu-dayrow-jc'>{r.jianchu}</span>
 				{yv.level === 'yi' ? <Tag className='horosa-huangli-tag is-good'>宜{event}</Tag> : null}
 				{yv.level === 'ji' ? <Tag className='horosa-huangli-tag is-bad'>忌{event}</Tag> : null}
+				{yv.level === 'conflict' ? <Tag className='horosa-huangli-tag is-bad'>{event}·宜忌相冲</Tag> : null}
 				{r.jinshen.hit ? <Tag className='horosa-huangli-tag is-bad'>金神七煞</Tag> : null}
 				{r.sanxing ? <Tag className='horosa-huangli-tag is-good'>{r.sanxing}</Tag> : null}
 			</div>,
@@ -55,8 +56,11 @@ function DonggongDetail({ y, m, d, event }) {
 				<Tag className='horosa-huangli-gz'>{r.monthName}·{r.jianchu}{r.zhi}日</Tag>
 			</div>
 			{event ? (
-				<div className={`horosa-tongshu-verdict ${yv.level === 'yi' ? 'is-good' : (yv.level === 'ji' ? 'is-bad' : 'is-neutral')}`}>
-					{yv.level === 'yi' ? `本日通书宜「${event}」（宜 ${yv.hits.join('、')}）` : (yv.level === 'ji' ? `本日通书忌「${event}」（忌 ${yv.hits.join('、')}）` : `本日通书于「${event}」无明确宜忌，参酌下方董公断语与建除`)}
+				<div className={`horosa-tongshu-verdict ${yv.level === 'yi' ? 'is-good' : (yv.level === 'ji' || yv.level === 'conflict' ? 'is-bad' : 'is-neutral')}`}>
+					{yv.level === 'yi' ? `本日通书宜「${event}」（宜 ${yv.hits.join('、')}）`
+						: (yv.level === 'ji' ? `本日通书忌「${event}」（忌 ${yv.hits.join('、')}）`
+							: (yv.level === 'conflict' ? `本日通书对「${event}」宜忌相冲（命中 ${yv.hits.join('、')}）——按凶优先，慎用`
+								: `本日通书于「${event}」无明确宜忌，参酌下方董公断语与建除`))}
 				</div>
 			) : null}
 			<div className={`horosa-tongshu-verdict ${verdictTone(r.verdict.level)}`}>{r.verdict.text}</div>

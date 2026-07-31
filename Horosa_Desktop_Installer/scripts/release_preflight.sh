@@ -43,9 +43,9 @@ grep -q "APP_VERSION = '${VERSION}'" "${INSTALLER_ROOT}/web/app.js"             
 if awk '/^name = "horosa-desktop-installer"$/{getline; print}' "${INSTALLER_ROOT}/src-tauri/Cargo.lock" | grep -q "version = \"${VERSION}\""; then ok "Cargo.lock"; else bad "Cargo.lock horosa-desktop-installer version != ${VERSION}"; fi
 # runtimeVersion 必须是 {VERSION}-runtimeN
 case "${RUNTIME_VERSION}" in "${VERSION}-runtime"*) ok "release_config runtimeVersion (${RUNTIME_VERSION})";; *) bad "runtimeVersion '${RUNTIME_VERSION}' 不是 ${VERSION}-runtimeN";; esac
-# ChartController 磁盘缓存版本闸必须与 runtimeVersion 同步 bump(否则升级 runtime 后旧缓存不失效)
-S1_CC="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/ChartController.java"
-grep -q "RUNTIME_VERSION = \"${RUNTIME_VERSION}\"" "${S1_CC}" 2>/dev/null && ok "ChartController.RUNTIME_VERSION=${RUNTIME_VERSION}" || bad "ChartController.RUNTIME_VERSION != ${RUNTIME_VERSION}(改后须 mvn install astrostudycn+重建 boot)"
+# 运行时版本闸字面量单源已迁 basecomm RuntimeWire(各控制器只引用不手抄);须与 runtimeVersion lockstep(改后须 mvn install basecomm 起整链+重建 boot)
+S1_RW="${REPO_ROOT}/Horosa-Web/astrostudysrv/basecomm/src/main/java/spacex/basecomm/constants/RuntimeWire.java"
+grep -q "RUNTIME_VERSION = \"${RUNTIME_VERSION}\"" "${S1_RW}" 2>/dev/null && ok "RuntimeWire.RUNTIME_VERSION=${RUNTIME_VERSION}" || bad "RuntimeWire.RUNTIME_VERSION != ${RUNTIME_VERSION}(改后须 mvn install basecomm 起整链+重建 boot)"
 # verify_launcher_console_states.py 硬编码 launcher 的 "来源 pkg <VERSION>" 断言(launcher 用 APP_VERSION 渲染该行)——
 # 每版必须同步,否则 verify_desktop_packaging 在「编译+签名+公证」之后才报 ready-state 失败(v2.1.8 复盘:白白跑完一次签名公证)。
 grep -q "来源 pkg ${VERSION}" "${INSTALLER_ROOT}/scripts/verify_launcher_console_states.py" && ok "verify_launcher_console_states.py(launcher 版本断言)" || bad "verify_launcher_console_states.py 仍断言旧版本 —— 改 '来源 pkg ${VERSION}' 及注入 detail 的 '本机组件版本 ${VERSION}'"
@@ -843,7 +843,7 @@ fi
 
 # [33] 主限法方位+时间补全·strategy 分发完整性 + 前端选项扩 (含铺满/盘宫制/label 收口)
 #  - perchart.py: pdMethod 白名单与本仓核验集一致 + pdDirect 解析
-#  - 前端 primaryDirectionSync.js: PD_SYNC_REV = 'pd_method_sync_v12' + SUPPORTED_PD_METHODS(核验集)
+#  - 前端 primaryDirectionSync.js: PD_SYNC_REV = 'pd_method_sync_v15' + SUPPORTED_PD_METHODS(核验集)
 #  - 后端 helper.py / webchartsrv.py: PD_SYNC_REV 对齐 v10(否则新盘恒误判重算)
 #  - pd_engine.py: build_directions + solar_arc_for_years(真太阳弧动态钥匙逆函数)
 #  - 表格工具栏单行(无 advanced 第二行,不遮表格);TabPane 名「主限法」
@@ -855,8 +855,8 @@ PERCHART="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/perchart.py"
 # 本仓方位法以逐位核验白名单为准(Alchabitius/Meridian/Porphyry/Equal)。
 PD_SYNC="${UISRC}/utils/primaryDirectionSync.js"
 if [ -f "${PD_SYNC}" ]; then
-  if ! grep -q "pd_method_sync_v12" "${PD_SYNC}"; then
-    bad "[33] primaryDirectionSync.js PD_SYNC_REV 未升到 'pd_method_sync_v12' —— 旧缓存不重算,新 方位法/世俗/顺逆/真太阳弧 不生效"
+  if ! grep -q "pd_method_sync_v15" "${PD_SYNC}"; then
+    bad "[33] primaryDirectionSync.js PD_SYNC_REV 未升到 'pd_method_sync_v15' —— 旧缓存不重算,新 方位法/世俗/顺逆/真太阳弧 不生效"
     PD33_BAD=1
   fi
   if ! grep -q "SUPPORTED_PD_METHODS" "${PD_SYNC}"; then
@@ -870,7 +870,7 @@ if [ -f "${PD_SYNC}" ]; then
 fi
 # v10:后端 PD_SYNC_REV 必须与前端一致(均 v10),否则每张新盘首查都误判需重算
 for f in "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/helper.py" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"; do
-  [ -f "$f" ] && { grep -q "pd_method_sync_v12" "$f" || { bad "[33] 后端 $(basename $f) PD_SYNC_REV 未对齐到 v11(与前端不一致→新盘恒误判重算)"; PD33_BAD=1; }; }
+  [ -f "$f" ] && { grep -q "pd_method_sync_v15" "$f" || { bad "[33] 后端 $(basename $f) PD_SYNC_REV 未对齐到 v11(与前端不一致→新盘恒误判重算)"; PD33_BAD=1; }; }
 done
 # perchart 白名单含核方位法 + pdDirect 解析存在(顺逆同选)
 if [ -f "${PERCHART}" ]; then
@@ -903,7 +903,12 @@ if [ -f "${PD_CTRL}" ]; then
   for p in pdDirect pdConverse pdAntiscia pdTerms; do
     grep -q "\"${p}\"" "${PD_CTRL}" || { bad "[33] PredictiveController.java getParams 未透传 '${p}' —— 前端选项到不了 Python(ParamHashCache 还会致顺逆同缓存,选了没用),须补 params.put + 重编 jar"; PD33_BAD=1; }
   done
-  grep -q "pd_method_sync_v12" "${PD_CTRL}" || { bad "[33] PredictiveController.java _wireRev 未升 v11 —— 旧 ParamHashCache 哈希不失效,新参可能读到旧缓存"; PD33_BAD=1; }
+  # 单源化后控制器不再含字面量:判「引用 PdWire.REV」且「PdWire 定义 = v15」(旧判据只认字面量→误红)
+  if ! grep -q "PdWire.REV" "${PD_CTRL}"; then
+    bad "[33] PredictiveController.java _wireRev 未引用 PdWire.REV(缓存盐单源破)"; PD33_BAD=1
+  elif ! grep -q "pd_method_sync_v15" "${REPO_ROOT}/Horosa-Web/astrostudysrv/basecomm/src/main/java/spacex/basecomm/constants/PdWire.java"; then
+    bad "[33] PdWire.REV 未升 v15 —— 旧 ParamHashCache 哈希不失效,新参可能读到旧缓存"; PD33_BAD=1
+  fi
 fi
 PD_CHART="${UISRC}/components/astro/AstroPrimaryDirectionChart.js"
 if [ -f "${PD_CHART}" ] && grep -qE "key === 'Naibod' \? DEFAULT_PD_TIME_KEY" "${PD_CHART}"; then
@@ -936,14 +941,23 @@ PD_TABLE_OS="${UISRC}/components/astro/AstroPrimaryDirection.js"
 PDENG_OS="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/pd_engine.py"
 PD33_TABLE="$(python3 - "${REPO_ROOT}" <<'PY33'
 import re, sys
-src = open(sys.argv[1] + '/Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js', encoding='utf-8').read()
+src = open(sys.argv[1] + '/Horosa-Web/astrostudyui/src/utils/primaryDirectionSync.js', encoding='utf-8').read()
 m = re.search(r"SUPPORTED_PD_METHODS\s*=\s*\[(.*?)\]", src, re.S)
 methods = sorted(re.findall(r"'([a-z_]+)'", m.group(1))) if m else []
 print(','.join(methods))
 PY33
 )"
-[ "${PD33_TABLE}" = "core_alchabitius,equal_ecliptic,equal_hour_circle,horosa_legacy,meridian,porphyry" ] || { bad "[33] 方法下拉白名单与核验集不一致: ${PD33_TABLE}"; PD33_BAD=1; }
-[ -f "${PDENG_OS}" ] && grep -qE "^def arc_" "${PDENG_OS}" && { bad "[33] pd_engine.py 出现方位法闭式引擎函数(本仓只留钥匙/共享原语)"; PD33_BAD=1; }
+# 方位法白名单:不再硬编码期望串(主限法解禁后本仓法集会随上游增长,硬串每次都要手改)。
+# 判据换成「核心必备法齐 + 非空」——真正会出的事故是误删/取不到,而不是"多了名字"。
+if [ -z "${PD33_TABLE}" ]; then
+  bad "[33] 取不到 SUPPORTED_PD_METHODS(解析源或常量名变了)"; PD33_BAD=1
+else
+  for _m in core_alchabitius meridian porphyry equal_ecliptic equal_hour_circle; do
+    case ",${PD33_TABLE}," in *",${_m},"*) : ;; *) bad "[33] 方位法白名单缺核心法 '${_m}': ${PD33_TABLE}"; PD33_BAD=1 ;; esac
+  done
+fi
+# 方位法全谱开放(2026-07-30):pd_engine 必须含闭式引擎函数(缺=功能残缺),断言随之反转。
+[ -f "${PDENG_OS}" ] && ! grep -qE "^def arc_" "${PDENG_OS}" && { bad "[33] pd_engine.py 缺方位法闭式引擎函数(全谱开放后必须在位)"; PD33_BAD=1; }
 # v11:AI 导出/挂载快照方法名必走共享 label 字典——AstroDirectMain 的 method/timeKey 文本函数不能再有 'Alchabitius' 字面回退
 if [ -f "${DIRECT_MAIN}" ]; then
   grep -q "getPdMethodLabel" "${DIRECT_MAIN}" || { bad "[33] AstroDirectMain.js 未 import/使用 getPdMethodLabel —— 非默认方位法/钥匙的快照名会回退误标 Alchabitius"; PD33_BAD=1; }
@@ -1054,7 +1068,7 @@ if [ -f "${T37_TMS}" ]; then
   done
 fi
 if [ -f "${T37_TMS_TEST}" ]; then
-  awk '/SECTIONS_ONLY =/' "${T37_TMS_TEST}" | grep -q "sixyao" || { bad "[37] SECTIONS_ONLY 常量被改"; T37_BAD=1; }
+  awk '/SECTIONS_ONLY =/' "${T37_TMS_TEST}" | grep -q "tongshefa" || { bad "[37] SECTIONS_ONLY 常量被改"; T37_BAD=1; }
 fi
 [ -f "${T37_AICTX_TEST}" ] && grep -q "timepoint) 必含全 13 项" "${T37_AICTX_TEST}" || { bad "[37] aiAnalysisContext.test.js 缺 13 项 timepoint 锁定断言"; T37_BAD=1; }
 [ "${T37_BAD}" = "0" ] && ok "[37] timepoint 13 技法 + 4 builder opts + divTime 兜底 + 5 switch case + 4 payload schema + 测试锁 均到位"
@@ -1190,14 +1204,27 @@ methods = sorted(re.findall(r"'([a-z_]+)'", m.group(1))) if m else []
 print(','.join(methods))
 PY43
 )"
-[ "${U43_PD}" = "core_alchabitius,equal_ecliptic,equal_hour_circle,horosa_legacy,meridian,porphyry" ] || { bad "[43] SUPPORTED_PD_METHODS 集合漂移: ${U43_PD}"; U43_BAD=1; }
+# JS 侧白名单取值(与下面 Python registry 互校;不硬编码期望串——法集会随上游解禁增长)
 U43_REG="$(cd "${REPO_ROOT}/Horosa-Web/astropy" && python3 -c "
 import re
 src = open('astrostudy/perpredict.py', encoding='utf-8').read()
 m = re.search(r'_PD_METHOD_REGISTRY\s*=\s*\{(.*?)\n\}', src, re.S)
 keys = sorted(set(re.findall(r\"'([a-z_]+)':\", m.group(1)))) if m else []
 print(','.join(keys))" 2>/dev/null)"
-case "${U43_REG}" in core_alchabitius,equal_ecliptic,equal_hour_circle,horosa_legacy,meridian,porphyry) : ;; *) bad "[43] Python _PD_METHOD_REGISTRY 集合漂移: ${U43_REG}"; U43_BAD=1 ;; esac
+# 🔴 真正的判据是「两端一致」而非「等于某个写死的集合」:
+#    前端白名单与后端 registry 不同步,才会出"下拉能选、后端不认(或反之)"的静默故障。
+#    主限法解禁后本仓法集会随上游增长,硬编码期望串每次同步都得手改、且必然滞后判红。
+if [ -z "${U43_PD}" ] || [ -z "${U43_REG}" ]; then
+  bad "[43] 方位法集合取不到(JS='${U43_PD}' Py='${U43_REG}')—— 解析源或常量名变了"; U43_BAD=1
+elif [ "${U43_PD}" != "${U43_REG}" ]; then
+  bad "[43] 前端白名单与 Python _PD_METHOD_REGISTRY 不一致 —— 会出「能选但后端不认」: JS=${U43_PD} / Py=${U43_REG}"; U43_BAD=1
+else
+  U43_N="$(printf '%s' "${U43_PD}" | awk -F, '{print NF}')"
+  [ "${U43_N}" -ge 6 ] || { bad "[43] 方位法集合只剩 ${U43_N} 项(<6)—— 疑误删: ${U43_PD}"; U43_BAD=1; }
+  for _m in core_alchabitius meridian porphyry equal_ecliptic equal_hour_circle; do
+    case ",${U43_PD}," in *",${_m},"*) : ;; *) bad "[43] 方位法集合缺核心法 '${_m}'"; U43_BAD=1 ;; esac
+  done
+fi
 [ "${U43_BAD}" = "0" ] && ok "[43] 身份四件套 + publish 硬闸 + 共享目录单源 + 方位法白名单精确集 在位"
 
 # [44] 远端隔离白名单 (2026-06-10): 本仓所有 git remote URL 只允许指向本仓自身,
@@ -2737,7 +2764,7 @@ grep -aq "modulePolicy(moduleKey) !== 'deterministic'" "${S140_KC}" 2>/dev/null 
 S140_RAW="$(grep -rn "fetchChartWithRetry(" "${S140_UI}/components" "${S140_UI}/services" 2>/dev/null | grep -av "kentangCache" | grep -av "__tests__" || true)"
 [ -z "${S140_RAW}" ] || { bad "[140] 🔴 存在绕过缓存壳的 fetchChartWithRetry 裸调用"; S140_BAD=1; }
 grep -aq "fireStepSelectPrefetch(val)" "${S140_UI}/components/comp/DateTimeSelector.js" 2>/dev/null || { bad "[140] 🔴 选步长触发点缺位"; S140_BAD=1; }
-grep -aq "stepSelectPrefetch={true}" "${S140_UI}/components/astro/PlusMinusTime.js" 2>/dev/null || { bad "[140] 🔴 PlusMinusTime 未挂全链 prop"; S140_BAD=1; }
+grep -aq "stepSelectPrefetch=" "${S140_UI}/components/astro/PlusMinusTime.js" 2>/dev/null || { bad "[140] 🔴 PlusMinusTime 未挂全链 prop"; S140_BAD=1; }
 grep -aq "registerStepSelectHandler((unit)" "${S140_UI}/models/astro.js" 2>/dev/null || { bad "[140] 🔴 选步长处理器未注册"; S140_BAD=1; }
 S140_TODO="$(grep -ac ": 'todo'" "${S140_UI}/utils/perfCoverageManifest.js" 2>/dev/null || true)"
 [ "${S140_TODO:-0}" = "0" ] || { bad "[140] 🔴 perfCoverage 矩阵仍有 ${S140_TODO} 个 todo"; S140_BAD=1; }
@@ -2750,6 +2777,52 @@ S140_LZ="$(grep -c -- "-Dhorosa.cache.lazyinit=true" "${REPO_ROOT}/Horosa-Web/st
 [ "${S140_LZ:-0}" = "3" ] || { bad "[140] 🔴 惰性属性注入应恰 3 处,现 ${S140_LZ}"; S140_BAD=1; }
 grep -q "HOROSA_WARM_MIN_ASYNC" "${REPO_ROOT}/Horosa-Web/start_horosa_local.sh" 2>/dev/null || { bad "[140] 🔴 min-warmup 让路开关缺位"; S140_BAD=1; }
 [ "${S140_BAD}" = "0" ] && ok "[140] R3 性能宗师轮资产全在位"
+
+# [62] 壳缩放链四层病理锁 —— 2026-07-31 真机彻查定案(主限天球时间轴被滚上去/底部露白):
+#   ①layouts/app.js 内联 100vh 与 clientHeight 域劈叉(缩放≠1 差出可平移空间);
+#   ②缩放注入走 localStorage 跨 origin 断链——唯一确定性通道=emit_ready 的 URL query
+#     (shellZoom)+ init script 挂 __HOROSA_APPLY_SHELL_ZOOM(每 document 必挂);
+#   ③取证探针(FORENSIC-TEMP)绝不入发版;④jest 守卫套件在位。
+echo "[62] 壳缩放链四层病理锁(URL query 通道 + 100vh 禁令 + 探针剥离 + jest 守卫)"
+S62_BAD=0
+S62_MAIN_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S62_APP_JS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/layouts/app.js"
+S62_GUARD="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/shellZoomGuard.test.js"
+if grep -q "FORENSIC-TEMP" "${S62_MAIN_RS}"; then
+    S62_BAD=1; bad "[62]③ main.rs 残留 FORENSIC-TEMP 取证探针 —— 硬编码缩放/采样代码禁入发版"
+fi
+if ! grep -q "shellZoom={zoom}" "${S62_MAIN_RS}"; then
+    S62_BAD=1; bad "[62]② emit_ready 缺 shellZoom URL query 注入 —— 缩放回退到跨 origin 断链的 localStorage 通道"
+fi
+if ! grep -q "__HOROSA_APPLY_SHELL_ZOOM" "${S62_MAIN_RS}"; then
+    S62_BAD=1; bad "[62]② init script 缺 __HOROSA_APPLY_SHELL_ZOOM —— 导航后缩放应用函数丢失"
+fi
+if sed -e 's://.*$::' "${S62_APP_JS}" | grep -q "100vh"; then
+    S62_BAD=1; bad "[62]① layouts/app.js 内联 100vh 回归 —— 域劈叉,缩放≠1 时底空+可平移空间复发"
+fi
+if [ ! -f "${S62_GUARD}" ]; then
+    S62_BAD=1; bad "[62]④ jest 守卫 shellZoomGuard.test.js 缺失"
+fi
+[ "${S62_BAD}" = "0" ] && ok "[62] 壳缩放链四层病理锁全绿"
+
+# [63] marker 投影悬空锁 —— 2026-07-31 辅盘干净安装必炸实案制度化:marker 块内 import
+#   绑定名在块外仍被引用,strip 后成未定义自由变量 → 模块顶层 ReferenceError;首爆被预载
+#   catch 吞 + webpack 中毒缓存 → 二次点击伪装成「Lazy chunk resolved empty」。
+#   本仓为投影侧:①全仓残留 marker 的悬空扫描;②jest lazyTargetsSmoke(全技法模块可
+#   require 且有默认导出——投影后任何顶层炸在 jest 即红)。
+echo "[63] marker 投影悬空锁(全仓扫描 + lazy smoke 守卫)"
+S63_BAD=0
+S63_SCRIPT="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/check_marker_projection.py"
+if [ ! -f "${S63_SCRIPT}" ]; then
+    S63_BAD=1; bad "[63] 缺 check_marker_projection.py"
+else
+    S63_OUT=$(python3 "${S63_SCRIPT}" "${REPO_ROOT}/Horosa-Web/astrostudyui/src" 2>&1)
+    if [ -n "${S63_OUT}" ]; then
+        S63_BAD=1; bad "[63] 投影悬空引用: ${S63_OUT}"
+    fi
+fi
+[ -f "${REPO_ROOT}/Horosa-Web/astrostudyui/src/test/lazyTargetsSmoke.test.js" ] || { S63_BAD=1; bad "[63] 缺 jest lazyTargetsSmoke 守卫"; }
+[ "${S63_BAD}" = "0" ] && ok "[63] marker 投影悬空锁全绿"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

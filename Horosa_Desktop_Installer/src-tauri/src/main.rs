@@ -110,6 +110,36 @@ const DESKTOP_WINDOW_INIT_SCRIPT: &str = r#"
   lock("resizeBy");
   lock("moveTo");
   lock("moveBy");
+  // 🔴 壳级缩放应用函数(每个 document 都由本 init 脚本重新挂上,导航后永不丢):
+  // CSS zoom 域实现——documentElement.zoom + body calc(100%/z) 补偿(body 为 fixed,
+  // 包含块不随 html zoom)+ 当前 origin localStorage 落键 + resize 通知量高链。
+  // z=1 清样式=零残留。运行时 ⌘±/⌘0 由壳 eval 调用;页面早期由 global.js 以
+  // URL query(shellZoom)同构先行,此处后到幂等覆盖。
+  try {
+    window.__HOROSA_APPLY_SHELL_ZOOM = function (z) {
+      try {
+        var v = Number(z);
+        if (!v || v <= 0) { v = 1; }
+        var d = document.documentElement;
+        var apply = function () {
+          if (v === 1) {
+            d.style.zoom = "";
+            if (document.body) { document.body.style.height = ""; document.body.style.width = ""; }
+          } else {
+            d.style.zoom = String(v);
+            if (document.body) {
+              document.body.style.height = "calc(100% / " + v + ")";
+              document.body.style.width = "calc(100% / " + v + ")";
+            }
+          }
+        };
+        apply();
+        if (!document.body) { document.addEventListener("DOMContentLoaded", apply); }
+        try { localStorage.setItem("horosa.shell.zoom", String(v)); } catch (_) {}
+        try { window.dispatchEvent(new Event("resize")); } catch (_) {}
+      } catch (_) {}
+    };
+  } catch (_) {}
 })();
 "#;
 #[cfg(target_os = "macos")]
@@ -1868,7 +1898,16 @@ if (window.__horosaMode) {{ window.__horosaMode({mode}); }}",
 }
 
 fn emit_ready(window: &WebviewWindow, url: &str) {
-    let url = escape_js(url);
+    // 🔴 壳缩放经 URL query 确定性送达页面:随导航天然到达正确 document/origin。
+    // (初始 document 上 eval 写的 localStorage 键分 origin,页面读不到——真机实锤。)
+    let zoom = window
+        .app_handle()
+        .try_state::<AppState>()
+        .and_then(|s| s.zoom_level.lock().ok().map(|z| *z))
+        .unwrap_or(DEFAULT_ZOOM);
+    let sep = if url.contains('?') { '&' } else { '?' };
+    let url = format!("{url}{sep}shellZoom={zoom}");
+    let url = escape_js(&url);
     let _ = window.eval(&format!(
         "window.__horosaPendingReadyUrl = {url}; \
 if (window.__horosaReady) {{ window.__horosaReady({url}); }} else {{ window.location.replace({url}); }}",
@@ -2180,6 +2219,15 @@ fn build_main_window(app: &AppHandle, state: &SavedWindowState) -> Result<Webvie
             .inner_size(size.0, size.1)
             .min_inner_size(MAIN_WINDOW_MIN_SIZE.0, MAIN_WINDOW_MIN_SIZE.1)
             .initialization_script(DESKTOP_WINDOW_INIT_SCRIPT)
+            // 🔴 页面载入完成后重打缩放(无害兜底,幂等):应用逻辑单源在 init script 的
+            // __HOROSA_APPLY_SHELL_ZOOM;启动值另经 emit_ready 的 URL query 确定性送达。
+            .on_page_load(|win, payload| {
+                if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                    let app = win.app_handle().clone();
+                    let zoom = load_preferences(&app).zoom_level;
+                    let _ = set_window_zoom(&app, zoom);
+                }
+            })
             .visible(false);
     if let Some((x, y)) = saved_launch_position(state) {
         builder = builder.position(x, y);
@@ -7599,7 +7647,15 @@ fn set_window_zoom(app: &AppHandle, zoom: f64) -> Result<()> {
     let window = app
         .get_webview_window(MAIN_WINDOW_LABEL)
         .context("main window missing for zoom")?;
-    window.set_zoom(clamped)?;
+    // 🔴 缩放走页面内 CSS zoom(原生 pageZoom 恒 1.0):pageZoom≠1 时 clientHeight(物理域)
+    // 与 100vh(布局域)劈叉,量高链错位=底空+可平移空间(真机实锤)。应用逻辑单源在
+    // init script 的 __HOROSA_APPLY_SHELL_ZOOM(每个 document 必挂,导航后不丢);启动值
+    // 另经 emit_ready 的 URL query(shellZoom)确定性送达页面 origin,global.js 先行同构应用。
+    window.set_zoom(1.0)?;
+    let _ = window.eval(&format!(
+        "if(window.__HOROSA_APPLY_SHELL_ZOOM){{window.__HOROSA_APPLY_SHELL_ZOOM({});}}",
+        clamped
+    ));
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(mut slot) = state.zoom_level.lock() {
             *slot = clamped;

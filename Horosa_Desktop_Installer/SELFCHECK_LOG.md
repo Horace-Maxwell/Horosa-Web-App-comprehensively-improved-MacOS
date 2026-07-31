@@ -33,3 +33,7 @@ preflight[79] 校验最近一次 runtime-smoke 为 PASS 且 sha 与当前 dist �
 | 2026-07-21 19:45 | f52f75b | FAIL | runtime-smoke | 23114a546f806c07… |
 | 2026-07-21 19:47 | f52f75b | PASS | runtime-smoke | 23114a546f806c07… |
 | 2026-07-21 20:34 | f52f75b | PASS | runtime-smoke | 5082f263f699f88a… |
+| 2026-07-21 21:24 | ba07628 | PASS | runtime-smoke | 658c179f060a50a9… |
+| 2026-07-30 20:47 | faaa2c7 | PASS | runtime-smoke | dc4e20484cc9ce86… |
+| 2026-07-30 22:41 | ea77850 | PASS | runtime-smoke | abac271f164bec32… |
+| 2026-07-30 23:24 | 8256d56 | PASS | runtime-smoke | a1d61fb6ed87e593… |

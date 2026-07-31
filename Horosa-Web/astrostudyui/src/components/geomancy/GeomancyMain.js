@@ -1046,22 +1046,31 @@ class GeomancyMain extends Component{
 			<div className="horosa-geomancy-shield">
 				<div className="horosa-geomancy-shield-title">护盾方盘 · 十六图形{rtl ? ' · 自右向左' : ''}</div>
 				<div className="horosa-geomancy-shield-grid">
-					{Array.from({ length: 16 }).map((_, slot)=>{
-						const i = idxOf(slot);
-						const f = figs[i] || {};
-						const tone = (f.tone || '').toLowerCase();
-						const qcls = tone === 'good' ? ' is-good' : (tone === 'bad' ? ' is-bad' : '');
-						return (
-							<div className={`horosa-geomancy-shield-cell${qcls}`} key={slot}>
-								<span className="horosa-geomancy-shield-slot">{FIGURE_SLOTS[i]}</span>
-								{this.renderDots(f.dots)}
-								<div className="horosa-geomancy-shield-name">
-									<strong>{f.nameZh || f.nameEn || '—'}</strong>
-									<em>{f.displayName || f.nameEn || ''}</em>
-								</div>
+					{/* 每行恰为一族(母/女/甥/证判):FIGURE_GROUPS 作行组标签,slot 序与 RTL 镜像逻辑不变 */}
+					{FIGURE_GROUPS.map((g, gi)=>(
+						<div className="horosa-geomancy-shield-rowgroup" key={g.label}>
+							<span className="horosa-geomancy-shield-grouplab">{g.label}</span>
+							<div className="horosa-geomancy-shield-rowcells">
+								{Array.from({ length: 4 }).map((_, c)=>{
+									const slot = gi * 4 + c;
+									const i = idxOf(slot);
+									const f = figs[i] || {};
+									const tone = (f.tone || '').toLowerCase();
+									const qcls = tone === 'good' ? ' is-good' : (tone === 'bad' ? ' is-bad' : '');
+									return (
+										<div className={`horosa-geomancy-shield-cell${qcls}`} key={slot}>
+											<span className="horosa-geomancy-shield-slot">{FIGURE_SLOTS[i]}</span>
+											{this.renderDots(f.dots)}
+											<div className="horosa-geomancy-shield-name">
+												<strong>{f.nameZh || f.nameEn || '—'}</strong>
+												<em>{f.displayName || f.nameEn || ''}</em>
+											</div>
+										</div>
+									);
+								})}
 							</div>
-						);
-					})}
+						</div>
+					))}
 				</div>
 			</div>
 		);

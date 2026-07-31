@@ -24,7 +24,7 @@ import { duanJueLines, zhanleiLines, buildSnapshotAnalysis } from './liuyaoSnaps
 import { YONGSHEN_CATEGORIES } from '../gua/liuyaoYongShen';
 import { CHISHI_JUE, FADONG_JUE, LIUSHEN_FADONG, YAOWEI_XIANG, ZHANLEI_GANGYAO } from '../gua/liuyaoReference';
 import { SHENSHA_META, DEFAULT_SHENSHA_SET } from '../gua/liuyaoShenSha';
-import { LiuYaoZhuangTable, LiuYaoYongShenView, LiuYaoDongBianView, LiuYaoRelatedCards, LiuYaoShenShaView, LiuYaoReference, LiuYaoXunKong, LiuYaoManualCards, LiuYaoRiYueView, LiuYaoShenShaExView, LiuYaoYueLiuShenView } from './LiuYaoBoard';
+import { LiuYaoZhuangTable, LiuYaoYongShenView, LiuYaoDongBianView, LiuYaoRelatedCards, LiuYaoShenShaView, LiuYaoReference, LiuYaoXunKong, LiuYaoManualCards, LiuYaoRiYueView, LiuYaoShenShaExView, LiuYaoYueLiuShenView, LiuYaoTianshiView } from './LiuYaoBoard';
 import DateTime from '../comp/DateTime';
 import { saveModuleAISnapshot, saveModuleAISnapshotLazy, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { getStore } from '../../utils/storageutil';
@@ -403,6 +403,9 @@ class GuaZhanMain extends Component{
 			],
 			btnGenGua: '整卦随机',
 			currentGua: null,
+			// 起卦来源:'time'=时间卦(随时间派生,改时间应重起);其余=一次性成卦(手摇/蓍草/报数/自定义/直选/随机),
+			// 改时间/地点/日界只应刷新干支(日辰月建旬空神煞),绝不可重摇 —— 「起出即冻结」。
+			guaOrigin: 'time',
 			nongli: null,
 			custGuaDongYao: -1,
 			numGuaDongYao: -1,
@@ -502,6 +505,8 @@ class GuaZhanMain extends Component{
 		const nextState = {
 			yao: yao,
 			currentGua: rawState.currentGua !== undefined ? rawState.currentGua : null,
+			// 旧档(v2 之前)无此键:一律按「一次性成卦」还原,宁可少重算也绝不重摇覆盖存档卦象。
+			guaOrigin: rawState.guaOrigin === 'time' ? 'time' : (rawState.guaOrigin || 'restored'),
 			nongli: rawState.nongli && typeof rawState.nongli === 'object' ? rawState.nongli : null,
 			guaDesc: rawState.guaDesc && typeof rawState.guaDesc === 'object' ? rawState.guaDesc : null,
 			custGuaDongYao: rawState.custGuaDongYao !== undefined ? rawState.custGuaDongYao : -1,
@@ -728,6 +733,18 @@ class GuaZhanMain extends Component{
 		});
 	}
 
+	// 🔴 时间/地点/日界变动的唯一入口(左栏改字段 + 两个全局设置事件都走这里)。
+	// 时间卦本就随时间派生 → 重起;而手摇/蓍草/报数/自定义/直选/随机/载回的卦是一次性成卦,
+	// 只能刷新干支(日辰月建随之变,旺衰·旬空·神煞由渲染层按新 nongli 现算),卦象与动爻原样保留。
+	// 从前这里无条件 clickTimeGua,用户摇完卦一改时间就被时间卦静默顶掉 —— 与「起出即冻结」直接冲突。
+	onTimeGeoChanged(fields){
+		if((this.state.guaOrigin || 'time') === 'time'){
+			this.clickTimeGua(fields);
+		}else{
+			this.requestNongli(fields, ()=>{ this.requestGuaDesc(); });
+		}
+	}
+
 	async requestNongli(fields, completeHandle){
 		if(fields === undefined || fields === null){
 			return;
@@ -786,6 +803,7 @@ class GuaZhanMain extends Component{
 		this.setState({
 			yao: yao,
 			currentGua: guaidx,
+			guaOrigin: 'time',
 		}, ()=>{
 			this.requestGuaDesc();
 		});						
@@ -861,6 +879,7 @@ class GuaZhanMain extends Component{
 			this.setState({
 				yao: yao,
 				currentGua: guaidx,
+				guaOrigin: 'cast',
 			}, ()=>{
 				this.requestGuaDesc();
 			});							
@@ -879,7 +898,7 @@ class GuaZhanMain extends Component{
 		this.setupYao(yao, guaidx);
 		let flds = this.genFields();
 		this.requestNongli(flds, ()=>{
-			this.setState({ yao: yao, currentGua: guaidx }, ()=>{ this.requestGuaDesc(); });
+			this.setState({ yao: yao, currentGua: guaidx, guaOrigin: 'cast' }, ()=>{ this.requestGuaDesc(); });
 		});
 	};
 
@@ -895,7 +914,7 @@ class GuaZhanMain extends Component{
 		this.setupYao(yao, guaidx);
 		let flds = this.genFields();
 		this.requestNongli(flds, ()=>{
-			this.setState({ yao: yao, currentGua: guaidx }, ()=>{ this.requestGuaDesc(); });
+			this.setState({ yao: yao, currentGua: guaidx, guaOrigin: 'cast' }, ()=>{ this.requestGuaDesc(); });
 		});
 	}
 
@@ -946,10 +965,17 @@ class GuaZhanMain extends Component{
 			this.setState({
 				yao: yao,
 				currentGua: guaidx,
+				guaOrigin: 'cast',
 			}, ()=>{
 				this.requestGuaDesc();
 			});							
 		});
+	}
+
+	// 六爻是否都已成形(emptyYao 出来的是六个 value=-1 的占位,长度同样是 6 —— 不能用长度判)。
+	isGuaComplete(){
+		const yao = this.state.yao;
+		return !!(yao && yao.length === 6 && yao.every((y)=>y && y.value >= 0));
 	}
 
 	emptyYao(){
@@ -988,6 +1014,7 @@ class GuaZhanMain extends Component{
 			this.setState({
 				yao: this.emptyYao(),
 				currentGua: null,
+				guaOrigin: 'time',
 				upGuaIdx: null,
 				downGuaIdx: null,
 				number: null,
@@ -1007,8 +1034,14 @@ class GuaZhanMain extends Component{
 		this.setState({
 			yao: yao,
 			currentGua: value,
+			guaOrigin: 'cast',
 		}, ()=>{
 			this.requestGuaDesc();
+			// 直选卦时若本次还没取过干支,补取一次 —— 否则日辰月建全空,
+			// 旺衰/六神/旬空/神煞会静默缺失(界面上看不出缺,只是全部算不出)。
+			if(!this.state.nongli){
+				this.requestNongli(this.genFields(), ()=>{});
+			}
 		});
 	}
 
@@ -1075,6 +1108,7 @@ class GuaZhanMain extends Component{
 				this.setState({
 					yao: yao,
 					currentGua: guaidx,
+					guaOrigin: 'cast',
 				}, ()=>{
 					this.requestGuaDesc();
 				});							
@@ -1094,6 +1128,7 @@ class GuaZhanMain extends Component{
 					this.setState({
 						yao: yao,
 						currentGua: guaidx,
+						guaOrigin: 'cast',
 					});						
 				}, 200);
 			}
@@ -1121,6 +1156,7 @@ class GuaZhanMain extends Component{
 			this.setState({
 				yao: yao,
 				currentGua: guaidx,
+				guaOrigin: 'cast',
 			});	
 
 			let completGua = true;
@@ -1136,6 +1172,7 @@ class GuaZhanMain extends Component{
 					this.setState({
 						yao: yao,
 						currentGua: guaidx,
+						guaOrigin: 'cast',
 					}, ()=>{
 						this.requestGuaDesc();
 					});							
@@ -1156,6 +1193,7 @@ class GuaZhanMain extends Component{
 					this.setState({
 						yao: yao,
 						currentGua: guaidx,
+						guaOrigin: 'cast',
 					});						
 				}, 100);	
 			}
@@ -1241,12 +1279,12 @@ class GuaZhanMain extends Component{
 			});
 
 			// [R3-A2] __stepHint 只供 fetchByFields 消费;时间卦派生走净化副本(防瞬态键入卦链)
-			if(Object.prototype.hasOwnProperty.call(flds.fields, '__stepHint')){
-				const { __stepHint, ...cleanFields } = flds.fields;
-				this.clickTimeGua(cleanFields);
-			}else{
-				this.clickTimeGua(flds.fields);
+			let nextFields = flds.fields;
+			if(Object.prototype.hasOwnProperty.call(nextFields, '__stepHint')){
+				const { __stepHint, ...cleanFields } = nextFields;
+				nextFields = cleanFields;
 			}
+			this.onTimeGeoChanged(nextFields);
 		}
 	}
 
@@ -1368,7 +1406,7 @@ class GuaZhanMain extends Component{
 				if(this._after23BoundaryUserOverrode) return;
 				const v = ev && ev.detail ? ev.detail.after23NewDay : null;
 				if((v === 0 || v === 1) && this.props.fields){
-					this.requestNongli(this.props.fields);
+					this.onTimeGeoChanged(this.props.fields);
 				}
 			};
 			window.addEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
@@ -1376,7 +1414,7 @@ class GuaZhanMain extends Component{
 				if(this._lateZiHourUserOverrode) return;
 				const v = ev && ev.detail ? ev.detail.lateZiHourUseNextDay : null;
 				if((v === 0 || v === 1) && this.props.fields){
-					this.requestNongli(this.props.fields);
+					this.onTimeGeoChanged(this.props.fields);
 				}
 			};
 			window.addEventListener('horosa:late-zi-hour-mode-changed', this._lateZiHourListener);
@@ -1491,6 +1529,7 @@ class GuaZhanMain extends Component{
 			upGuaIdx: this.state.upGuaIdx,
 			downGuaIdx: this.state.downGuaIdx,
 			number: this.state.number,
+			guaOrigin: this.state.guaOrigin || 'time',
 			liuyaoSettings: normalizeLiuyaoSettings(this.state.liuyaoSettings),
 		};
 		const payload = {
@@ -1682,6 +1721,7 @@ class GuaZhanMain extends Component{
 						{sel('世身', 'shishen', [{ v: 'off', l: '不用' }, { v: 'standard', l: '子午持世身居初' }, { v: 'lichunfeng', l: '亥子持世身居初' }])}
 						{sel('进退神土路', 'jinTuiTu', [{ v: 'chain', l: '丑辰未戌连环' }, { v: 'break', l: '戌丑断开' }])}
 						{sel('长生用法', 'changshengUse', [{ v: 'full12', l: '十二宫全用' }, { v: 'four', l: '只取生旺墓绝' }])}
+						{sel('天时占法', 'tianshiSchool', [{ v: 'fumu', l: '通行(父母雨子孙晴)' }, { v: 'ancient', l: '古法多套(五家分列)' }])}
 						{sel('生旺墓阴阳', 'changshengYinYang', [{ v: 'ziping', l: '分阴阳' }, { v: 'classic', l: '古法不分' }])}
 						{sel('字背口径', 'coinFace', [{ v: 'standard', l: '背为阳(火珠林系)' }, { v: 'alt', l: '字为阳(卜筮正宗系)' }])}
 						{sel('变卦装法', 'biangua', [{ v: 'movingOnly', l: '仅装变爻' }, { v: 'full', l: '全装变卦' }])}
@@ -1867,6 +1907,9 @@ class GuaZhanMain extends Component{
 				<TabPane tab="占类" key="zhanlei">
 					<div className="horosa-guazhan-info-card" style={scrollStyle}>
 						<LiuYaoZhanLeiView analysis={analysis} currentGuaName={this.state.currentGua !== null && Gua64[this.state.currentGua] ? Gua64[this.state.currentGua].name : ''} castLines={(this.state.yao || []).map((y)=>y && y.value)} />
+						{/* 天时(晴雨)本就是一个占类 —— 「天时占法」设为古法档时在此列出各家判据;
+						    通行档(父母主雨/子孙晴)时 analysis.tianshi 为 null,该卡自身返回 null 不占位。 */}
+						<LiuYaoTianshiView analysis={analysis} />
 					</div>
 				</TabPane>
 				<TabPane tab="参考" key="ref">
@@ -1890,7 +1933,7 @@ class GuaZhanMain extends Component{
 			<QuickDockBar
 				page="guazhan"
 				className="horosa-guazhan-quick-dock"
-				hasResult={!!(this.state.yao && this.state.yao.length)}
+				hasResult={this.isGuaComplete()}
 				primary={[
 					{ key: 'timeGua', label: '时间卦', onClick: ()=>this.clickTimeGua() },
 					{ key: 'redoGua', label: '再摇一卦', icon: 'quickFirdaria', onClick: this.genGua },

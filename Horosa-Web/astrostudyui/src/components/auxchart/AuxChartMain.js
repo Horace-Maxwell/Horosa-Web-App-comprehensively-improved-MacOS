@@ -14,9 +14,14 @@ import AstroRelocationLab from './AstroRelocationLab';
 import HoraryMain from '../horary/HoraryMain';
 import ElectionMain from '../election/ElectionMain';
 import MundaneMain from '../mundane/MundaneMain';
+// 🔴 共享真值源 import 绝不许进 private marker 块:消费点(AUX_TABS)在块外,strip 后
+// public 侧成悬空自由变量→模块顶层 ReferenceError→辅盘页干净安装必炸(v3.6.0 实案)。
+import { AUX_SUBTABS } from '../../constants/SubTabRegistry';
+import BabylonMain from '../babylon/BabylonMain';
 
 const TabPane = Tabs.TabPane;
-const AUX_TABS = ['germanytech', 'hellenastro', 'dwadasamsa', 'locastro', 'relocation', 'harmonic', 'draconic', 'otherbu', 'horary', 'election', 'mundane'];
+// 合法子页签集合的单一真值源在 constants/SubTabRegistry(导航层同源,防「切回来被打回首档」)。
+const AUX_TABS = AUX_SUBTABS;
 
 class AuxChartMain extends Component{
 	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
@@ -69,6 +74,9 @@ class AuxChartMain extends Component{
 					fun: null
 				},
 				mundane:{
+					fun: null
+				},
+				babylon:{
 					fun: null
 				},
 			},
@@ -175,6 +183,7 @@ class AuxChartMain extends Component{
 							<HellenAstroMain
 								value={this.props.chart}
 								onChange={this.props.onChange}
+								tripSystem={this.props.tripSystem}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}
 								height={childHeight}
@@ -192,6 +201,7 @@ class AuxChartMain extends Component{
 						<TabPane tab="十二分盘" key="dwadasamsa">
 							<Dwadasamsa12Main
 								onChange={this.props.onChange}
+								tripSystem={this.props.tripSystem}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}
 								height={childHeight}
@@ -312,6 +322,21 @@ class AuxChartMain extends Component{
 								lotsDisplay={this.props.lotsDisplay}
 								showAstroMeaning={this.props.showAstroMeaning}
 								hook={this.state.hook.mundane}
+								dispatch={this.props.dispatch}
+							/>
+						</TabPane>
+
+						<TabPane tab="巴比伦" key="babylon">
+							<BabylonMain
+								fields={this.props.fields}
+								fieldsAry={this.props.fieldsAry}
+								height={childHeight}
+								chart={this.props.chart}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								hook={this.state.hook.babylon}
 								dispatch={this.props.dispatch}
 							/>
 						</TabPane>
