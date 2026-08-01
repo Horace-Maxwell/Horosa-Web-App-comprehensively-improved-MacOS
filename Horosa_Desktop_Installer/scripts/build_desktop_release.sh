@@ -392,7 +392,7 @@ build_product_pkg "${OFFLINE_COMPONENT_PKG}" "${OFFLINE_INSTALLER_PKG}"
 # ── [2026-07-20 实案] 离线 .pkg 真装 e2e 门(notarize 前拦截):展开成品包,在净化 PATH
 # (≈PKInstallSandbox)下真跑 Scripts/postinstall(共享根重定向临时目录),断言运行时落位
 # 且版本吻合。冒烟链只测过 runtime 归档本身,从未测过「安装沙盒里的 postinstall 全链」——
-# v3.5.0 双仓离线包正是死在这段盲区。逃生阀 HOROSA_SKIP_PKG_E2E=1(仅救急;preflight 拦)。
+# v3.5.0 的离线包正是死在这段盲区。逃生阀 HOROSA_SKIP_PKG_E2E=1(仅救急;preflight 拦)。
 if [ "${HOROSA_SKIP_PKG_E2E:-0}" = "1" ]; then
   echo "⚠️  HOROSA_SKIP_PKG_E2E=1:跳过离线 pkg 真装 e2e(preflight 将要求补跑)。"
 else

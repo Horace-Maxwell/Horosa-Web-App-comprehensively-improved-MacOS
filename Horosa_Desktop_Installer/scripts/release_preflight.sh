@@ -17,7 +17,7 @@ warn() { printf '  \033[33m⚠️\033[0m  %s\n' "$1"; }
 
 # keg-only node@22 不在默认 PATH 的终端会让 node -e 检查假阳性失败、误拦 pre-push;缺 node 则自动补常见位置的 node。
 if ! command -v node >/dev/null 2>&1; then
-	for _nd in /opt/homebrew/opt/node@22/bin /opt/homebrew/bin /usr/local/opt/node@22/bin /usr/local/bin; do
+	for _nd in /opt/homebrew/opt/node@22/bin /opt/homebrew/opt/node@20/bin /opt/homebrew/opt/node@18/bin /opt/homebrew/bin /usr/local/opt/node@22/bin /usr/local/opt/node@18/bin /usr/local/bin; do
 		[ -x "${_nd}/node" ] && { PATH="${_nd}:${PATH}"; export PATH; break; }
 	done
 fi
@@ -2823,6 +2823,54 @@ else
 fi
 [ -f "${REPO_ROOT}/Horosa-Web/astrostudyui/src/test/lazyTargetsSmoke.test.js" ] || { S63_BAD=1; bad "[63] 缺 jest lazyTargetsSmoke 守卫"; }
 [ "${S63_BAD}" = "0" ] && ok "[63] marker 投影悬空锁全绿"
+
+# [64] 干支年基准 / 性别接线 / AI 输出预算键 三合一锁（与 private[179] 同判据）：
+#   ①术数流年 base 必须是干支年(立春前出生者用公历年会整体错一年);
+#   ②左栏性别下拉须宿主下发 + 组件 props 优先(曾恒读命盘性别=死开关);
+#   ③AI 输出预算键走单源 maxTokensKeyForModel + 后端代际归一(gpt-5+ 不收 max_tokens)。
+echo "[64] 干支年基准 + 性别接线 + AI 预算键代际(三合一)"
+S64_BAD=0
+S64_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S64_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java"
+[ -f "${S64_UI}/utils/ganzhiYearBase.js" ] || { S64_BAD=1; bad "[64]① 缺干支年基准单源"; }
+for F in components/shusuan/HeLuoMain.js components/shusuan/CanPingMain.js utils/aiAnalysisContext.js; do
+    grep -aq "ganzhiYearBase(" "${S64_UI}/${F}" 2>/dev/null || { S64_BAD=1; bad "[64]① ${F} 未经 ganzhiYearBase"; }
+done
+grep -aq "gender={this.state.gender}" "${S64_UI}/components/kinastro/KinAstroMain.js" 2>/dev/null || { S64_BAD=1; bad "[64]② 宿主未下发 gender"; }
+for F in components/shusuan/CanPingMain.js components/shusuan/ZhengChuanMain.js components/shusuan/HeLuoMain.js; do
+    grep -aq "this.props.gender !== undefined" "${S64_UI}/${F}" 2>/dev/null || { S64_BAD=1; bad "[64]② ${F} 未 props.gender 优先"; }
+done
+grep -aq "maxTokensKeyForModel" "${S64_UI}/utils/aiAnalysisProviders.js" 2>/dev/null || { S64_BAD=1; bad "[64]③ 缺 AI 预算键单源"; }
+grep -aq "normalizeOpenAIMaxTokensKey" "${S64_JAVA}" 2>/dev/null || { S64_BAD=1; bad "[64]③ Java 代理缺代际归一"; }
+[ -f "${S64_UI}/utils/__tests__/ganzhiYearBaseGuard.test.js" ] || { S64_BAD=1; bad "[64] 缺 jest 金标"; }
+[ "${S64_BAD}" = "0" ] && ok "[64] 三合一锁全绿"
+
+echo "[180] 构建产物路径脱敏(构建机用户名与仓目录名不得进 bundle)"
+# 病灶(2026-08-01 v3.6.1 保密复查抓到,存量):umi 的插件注册把运行时文件的**绝对路径**
+# 原样写进 bundle —— register({apply:a, path:"/Users/<用户名>/Desktop/<仓目录名>/.../runtime.tsx"}),
+# 于是发布产物里同时躺着构建机用户名(PII)与本地仓目录名。禁词表扫源码扫不到它(产物不在源码树),
+# 人工逐条读 diff 也看不见(产物不入 git),只有直接 grep 打包产物才现形。
+S180_BAD=0
+S180_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+[ -f "${S180_UI}/scripts/scrub-build-paths.js" ] || { S180_BAD=1; bad "[180] 缺脱敏脚本 scripts/scrub-build-paths.js"; }
+# ① 两条构建链都必须接:漏一条 → 那个产物照样带路径
+for S180_K in '"build":' '"build:file":'; do
+  S180_LINE="$(grep -a "${S180_K}" "${S180_UI}/package.json" 2>/dev/null | head -1)"
+  printf '%s' "${S180_LINE}" | grep -aq "scrub-build-paths" \
+    || { S180_BAD=1; bad "[180] package.json ${S180_K} 未接脱敏步骤 —— 该产物会带构建机路径"; }
+  # ② 顺序:必须在 write-build-info 之前(脱敏改文件内容,后写指纹才对得上产物)
+  printf '%s' "${S180_LINE}" | awk '{ i=index($0,"scrub-build-paths"); j=index($0,"write-build-info"); exit !(i>0 && j>0 && i<j) }' \
+    || { S180_BAD=1; bad "[180] ${S180_K} 脱敏步骤必须排在 write-build-info 之前(否则指纹与产物不符)"; }
+done
+# ③ 终判据:直接 grep 现有产物,残留即红(不信脚本"跑过了",只认产物本身)
+for S180_D in dist dist-file; do
+  if [ -d "${S180_UI}/${S180_D}" ]; then
+    if grep -rlaE '/(Users|home)/[A-Za-z0-9._-]+/' "${S180_UI}/${S180_D}" --include=*.js --include=*.css --include=*.html 2>/dev/null | head -1 | grep -q .; then
+      S180_BAD=1; bad "[180] ${S180_D} 产物内仍有构建机绝对路径 —— 重跑 npm run build/build:file"
+    fi
+  fi
+done
+[ "${S180_BAD}" = "0" ] && ok "[180] 产物路径脱敏链完好(脚本在位·两链已接·顺序正确·产物零残留)"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

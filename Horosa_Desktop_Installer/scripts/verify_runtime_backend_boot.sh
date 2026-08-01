@@ -200,6 +200,13 @@ elif [ -n "${HOROSA_PROBE_SCRIPT:-}" ] && [ -f "${HOROSA_PROBE_SCRIPT}" ]; then
     exit 2
   fi
   log "OK：Python 面全路由冒烟通过。"
+  # keg-only 的 node 不在默认 PATH 里,而打包是从干净环境的子进程调起本脚本 ——
+  # 于是这里 command -v node 必然失败,整轮打包卡在「构建机缺 node」(2026-08-01 实测)。
+  if ! command -v node >/dev/null 2>&1; then
+    for _nd in /opt/homebrew/opt/node@22/bin /opt/homebrew/opt/node@20/bin /opt/homebrew/opt/node@18/bin /opt/homebrew/bin /usr/local/opt/node@22/bin /usr/local/opt/node@18/bin /usr/local/bin; do
+      [ -x "${_nd}/node" ] && { PATH="${_nd}:${PATH}"; export PATH; break; }
+    done
+  fi
   if [ -n "${HOROSA_JAVA_RUNNER:-}" ] && [ -f "${HOROSA_JAVA_RUNNER}" ]; then
     if command -v node >/dev/null 2>&1; then
       log "运行 Java 面全路由冒烟（verifyHorosaRuntimeFull）…"

@@ -1526,13 +1526,24 @@ class KinAstroMain extends Component{
 							</>
 						) : null}
 						{this.config.serviceKey === 'canping' ? (
-							<label className="horosa-huangji-select-field is-wide">
-								<span>取法</span>
-								<Select value={this.state.canpingMethod} onChange={(value)=>this.setState({ canpingMethod: value })}>
-									<Option value="ming">明法（月支反向）</Option>
-									<Option value="gu">古法（八字日支）</Option>
-								</Select>
-							</label>
+							<>
+								<label className="horosa-huangji-select-field is-wide">
+									<span>取法</span>
+									<Select value={this.state.canpingMethod} onChange={(value)=>this.setState({ canpingMethod: value })}>
+										<Option value="ming">明法（月支反向）</Option>
+										<Option value="gu">古法（八字日支）</Option>
+									</Select>
+								</label>
+								<label className="horosa-huangji-select-field is-wide">
+									<span>大运排法</span>
+									<Select value={this.state.canpingDayun} dropdownMatchSelectWidth={false} onChange={(value)=>this.setState({ canpingDayun: value })}>
+										<Option value="mingGongQiyun">命宫顺行 · 生日推起运</Option>
+										<Option value="mingGongOne">命宫顺行 · 恒一岁起</Option>
+										<Option value="baziStyle">八字大运法（阳男阴女顺）</Option>
+									</Select>
+								</label>
+								<div className="horosa-cetian-settings-hint">诸法分歧：默认取《参评诀》口径——命宫顺行、起运岁按生日推算（单月三十逆数／双月初一顺数，三数一岁）。「恒一岁起」为旧版行为；「八字大运法」依《河洛理数》注解，自月建下一位按阳男阴女顺、阴男阳女逆排。改设置即时重排。</div>
+							</>
 						) : null}
 						{this.config.serviceKey === 'heluo' ? (
 								<>
@@ -2999,6 +3010,11 @@ class KinAstroMain extends Component{
 		);
 	}
 
+	// 参评数左栏分歧打包（与 HeLuo/一掌经同范式；组件 memo 签名与快照去重键均含本 opts）
+	buildCanpingOpts(){
+		return { dayunRule: this.state.canpingDayun || 'mingGongQiyun' };
+	}
+
 	buildZhengChuanOpts(){
 		// 汇总全部开关 → 单一 opts 下传;任一变则中/右栏重算 + AI 快照刷新(禁止只监听单项)。
 		return {
@@ -3064,14 +3080,14 @@ class KinAstroMain extends Component{
 
 	renderCenter(){
 		if(this.config.serviceKey === 'canping'){
-			return <CanPingMain slot="center" fields={this.props.fields} method={this.state.canpingMethod} />;
+			return <CanPingMain slot="center" fields={this.props.fields} gender={this.state.gender} method={this.state.canpingMethod} opts={this.buildCanpingOpts()} />;
 		}
 		if(this.config.serviceKey === 'heluo'){
 			return <HeLuoMain slot="center" fields={this.props.fields} gender={this.state.gender} quHuaGong={this.state.heluoQuHuaGong} opts={this.buildHeluoOpts()} />;
 		}
 		if(this.config.serviceKey === 'zhengchuan'){
 			return <Suspense fallback={<div className="horosa-zhengchuan-loading"><Spin size="small" /> 载入中</div>}>
-					<ZhengChuanMain slot="center" fields={this.props.fields} opts={this.buildZhengChuanOpts()} />
+					<ZhengChuanMain slot="center" fields={this.props.fields} gender={this.state.gender} opts={this.buildZhengChuanOpts()} />
 				</Suspense>;
 		}
 		if(this.config.serviceKey === 'yizhangjing'){
@@ -3271,7 +3287,7 @@ class KinAstroMain extends Component{
 
 	renderRightPanel(){
 		if(this.config.serviceKey === 'canping'){
-			return <div className="horosa-huangji-section-list"><CanPingMain slot="aux" fields={this.props.fields} method={this.state.canpingMethod} /></div>;
+			return <div className="horosa-huangji-section-list"><CanPingMain slot="aux" fields={this.props.fields} gender={this.state.gender} method={this.state.canpingMethod} opts={this.buildCanpingOpts()} /></div>;
 		}
 		if(this.config.serviceKey === 'heluo'){
 			return <div className="horosa-huangji-section-list"><HeLuoMain slot="aux" fields={this.props.fields} gender={this.state.gender} quHuaGong={this.state.heluoQuHuaGong} opts={this.buildHeluoOpts()} /></div>;
@@ -3279,7 +3295,7 @@ class KinAstroMain extends Component{
 		if(this.config.serviceKey === 'zhengchuan'){
 			return <div className="horosa-huangji-section-list">
 					<Suspense fallback={<div className="horosa-zhengchuan-loading"><Spin size="small" /> 载入中</div>}>
-						<ZhengChuanMain slot="aux" fields={this.props.fields} opts={this.buildZhengChuanOpts()} />
+						<ZhengChuanMain slot="aux" fields={this.props.fields} gender={this.state.gender} opts={this.buildZhengChuanOpts()} />
 					</Suspense>
 				</div>;
 		}

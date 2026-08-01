@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # verify_offline_pkg_install_e2e.sh —— 离线 .pkg 真装 e2e 门([2026-07-20 实案] 制度化)。
 #
-# 背景(v3.5.0 双仓离线包真机翻车,同日两案):
+# 背景(v3.5.0 离线包真机翻车,同日两案):
 #   ① public:模板占位符 __OFFLINE_RUNTIME_ASSET__ 渲染表漏键 → postinstall 找不到内嵌档 → 降级;
 #   ② private:内嵌 .tar.zst,而 macOS 系统 tar(libarchive 无 zstd)在 PKInstallSandbox 净化
 #      PATH 下无第三方 zstd 兜底 → 解压必败 → 降级;App 首启读到旧版缓存报「版本不符」。

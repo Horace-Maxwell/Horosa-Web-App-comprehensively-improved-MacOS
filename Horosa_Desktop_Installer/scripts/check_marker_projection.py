@@ -3,7 +3,7 @@
 
 对每个含 @horosa-private 块的 js/jsx/ts/tsx 文件:
   块内 import 的绑定名 × strip 投影(剥注释/字符串)文本 → 交集非空 = 悬空引用。
-strip 后 public 侧该名字成未定义自由变量 → 模块顶层 ReferenceError → 技法页干净安装必炸,
+剥离后该名字成未定义自由变量 → 模块顶层 ReferenceError → 技法页干净安装必炸,
 且首爆被预载 catch 吞、二次点击伪装成「Lazy chunk resolved empty」——真因极难排查。
 
 用法: check_marker_projection.py <repo_ui_src_dir>
