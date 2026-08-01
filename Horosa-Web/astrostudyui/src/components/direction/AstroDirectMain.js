@@ -6,7 +6,19 @@ import { XQTabs as Tabs } from '../xq-ui';
 import DateTime from '../comp/DateTime';
 import AstroPrimaryDirection from '../astro/AstroPrimaryDirection';
 import AstroPrimaryDirectionChart from '../astro/AstroPrimaryDirectionChart';
-import AstroPDSphere from '../astro3d/AstroPDSphere';
+// 🔴 主限天球必须懒加载,绝不可改回静态 import(2026-08-01 用户实报「进入星运台卡死」的真因):
+//   静态引它 → AstroPDSphere → PDSphereEngine → three,整条链成为本页 chunk 的**同步依赖**,
+//   于是只要进星运页,模块求值期就得先解析完 three(vendors-gl 862KB)+ 引擎(90KB);
+//   而本页默认停在「主限法」表格,二十多个子页签里只有「主限天球」一个用得着 3D ——
+//   从不打开天球的用户每次进页都白等这份解析,配置一般的机器足以让主线程长时间无响应。
+//   本页又是 idle 预取队列 order:1(优先级最高),连「从不进星运页」的用户都可能在空闲期吃到它。
+//   天球子页签是 TabPane + FreezeInactive(不激活不挂载),故懒化后「不打开=零成本」天然成立;
+//   FreezeInactive.render 自带 TechniqueErrorBoundary,此处无需再包一层边界。
+import { makeLazyBoundary, idleWarm } from '../../utils/lazyBoundary';
+const AstroPDSphere = makeLazyBoundary(
+	() => import(/* webpackChunkName: "pd-sphere" */ '../astro3d/AstroPDSphere'),
+	{ label: '主限天球', tip: '主限天球加载中…' }
+);
 import AstroZR from '../astro/AstroZR';
 import AstroFirdaria from '../astro/AstroFirdaria';
 import AstroDistributions from '../astro/AstroDistributions';
@@ -1180,6 +1192,9 @@ class AstroDirectMain extends Component{
 
 	componentDidMount(){
 		this.unmounted = false;
+		// 天球 chunk 空闲预热:不打开天球=零成本(它只在空闲拍拉取,不占进页面这一帧),
+		// 真去点「主限天球」时通常已就绪,体感不比静态 import 差。卸载时必须 cancel。
+		this._cancelSphereWarm = idleWarm(AstroPDSphere, { timeout: 2500 });
 		if(typeof window !== 'undefined' && window.addEventListener){
 			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		}
@@ -1249,6 +1264,7 @@ class AstroDirectMain extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(this._cancelSphereWarm){ this._cancelSphereWarm(); this._cancelSphereWarm = null; }
 		if(this._scrollZeroGuard){ window.removeEventListener('scroll', this._scrollZeroGuard, true); this._scrollZeroGuard = null; }
 		if(typeof window !== 'undefined' && window.removeEventListener){
 			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);

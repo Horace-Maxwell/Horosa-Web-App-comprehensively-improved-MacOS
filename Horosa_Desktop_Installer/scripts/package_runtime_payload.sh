@@ -402,24 +402,61 @@ java_app_files += root_files
 
 components = []
 
+# ── 部件包必须【可复现】:内容不变 ⇒ sha 不变 ──────────────────────────────
+# 🔴 2026-08-01 实测抓出:增量更新的复用判据是 `plan_component_diff` 里
+# 「本地 components-lock 的部件 sha == 新 manifest 的部件 sha」。若打包不可复现,
+# 内容一字未改的稳定部件也会 sha 漂移 → 判为「变了」→ 每版每个用户全量重下。
+# 实锤:3.6.1 已装的 ephe-data 与 3.6.2 新包**逐文件内容完全一致**(158 档同摘要),
+# 包 sha 却不同;七个部件无一复用,reusePct=0、downloadBytes=690MB。
+# 两个与内容无关的漂移源:
+#   ① gzip 头的 MTIME 字段 = 打包时刻(每次都变)      → 用 `gzip -n` 归零
+#   ② **目录**条目 mtime 被 staging 拷贝刷新(文件自身 mtime 是保留的)
+#                                                      → 打包前把目录 mtime 归一
+# 只归一目录、不动文件:.pyc 的失效判据是所记录的 .py mtime+size,动文件 mtime 会让
+# 全量 .pyc 失效、首启重编译(见踩坑「pyc 同秒同长脏缓存」)。目录 mtime 无语义。
+# 这条同时是 I4 不变量(稳定部件不得变)能真正成立的前提。
+EPOCH = 1700000000   # 固定基准(任意常量即可,只要跨构建恒定)
+
+def normalize_dir_mtimes(root: pathlib.Path):
+    n = 0
+    for dirpath, dirnames, _ in os.walk(root):
+        dirnames.sort()
+        for d in [dirpath] + [os.path.join(dirpath, x) for x in dirnames]:
+            try:
+                os.utime(d, (EPOCH, EPOCH), follow_symlinks=False)
+                n += 1
+            except (OSError, NotImplementedError):
+                pass
+    return n
+
+def _tar_gz(out, cmd_tail, env):
+    """tar 出流 → gzip -n(不写文件名/时间戳)→ 落盘。-czf 会把打包时刻写进 gzip 头。"""
+    with open(out, 'wb') as fh:
+        tar = subprocess.Popen(['/usr/bin/tar', '--disable-copyfile', '-cf', '-'] + cmd_tail,
+                               stdout=subprocess.PIPE, env=env)
+        gz = subprocess.Popen(['/usr/bin/gzip', '-n', '-c'], stdin=tar.stdout, stdout=fh)
+        tar.stdout.close()
+        gz.communicate()
+        if tar.wait() != 0 or gz.returncode != 0:
+            raise SystemExit(f'部件打包失败: {out.name}')
+
 def tar_from_list(name, file_list):
     lst = comp_dist / f'.{name}.list'
     lst.write_text('\n'.join(f'runtime-payload/{f}' for f in file_list) + '\n')
     out = comp_dist / f'horosa-comp-{name}-macos-arm64.tar.gz'
     env = dict(os.environ, COPYFILE_DISABLE='1', COPY_EXTENDED_ATTRIBUTES_DISABLE='1')
-    subprocess.run(['/usr/bin/tar', '--disable-copyfile', '-czf', str(out),
-                    '-C', str(build_root), '-T', str(lst)], check=True, env=env)
+    _tar_gz(out, ['-C', str(build_root), '-T', str(lst)], env)
     lst.unlink()
     return out
 
 def tar_tree(name, paths, excludes):
     out = comp_dist / f'horosa-comp-{name}-macos-arm64.tar.gz'
     env = dict(os.environ, COPYFILE_DISABLE='1', COPY_EXTENDED_ATTRIBUTES_DISABLE='1')
-    cmd = ['/usr/bin/tar', '--disable-copyfile', '-czf', str(out), '-C', str(build_root)]
+    tail = ['-C', str(build_root)]
     for ex in excludes:
-        cmd.append(f'--exclude=runtime-payload/{ex}')
-    cmd += [f'runtime-payload/{p}' for p in paths]
-    subprocess.run(cmd, check=True, env=env)
+        tail.append(f'--exclude=runtime-payload/{ex}')
+    tail += [f'runtime-payload/{p}' for p in paths]
+    _tar_gz(out, tail, env)
     return out
 
 def sha256(path):
@@ -428,6 +465,8 @@ def sha256(path):
         for chunk in iter(lambda: f.read(1 << 20), b''):
             h.update(chunk)
     return h.hexdigest()
+
+print(f'[components] 目录 mtime 归一 {normalize_dir_mtimes(stage)} 个(可复现打包前置)', flush=True)
 
 for name, paths, excludes in tree_components:
     out = tar_tree(name, paths, excludes)

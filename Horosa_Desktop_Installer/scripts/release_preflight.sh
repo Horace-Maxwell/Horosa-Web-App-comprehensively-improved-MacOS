@@ -2872,6 +2872,118 @@ for S180_D in dist dist-file; do
 done
 [ "${S180_BAD}" = "0" ] && ok "[180] 产物路径脱敏链完好(脚本在位·两链已接·顺序正确·产物零残留)"
 
+echo "[181] 重引擎按需加载锁(页面不得静态引 3D/图表引擎)"
+# 病灶(2026-08-01 用户实报「进入星运台卡死」):页面组件**静态** import 了重可视化组件,
+# webpack 遂把整个引擎变成该页 chunk 的**同步依赖** —— 用户只要进这个页,模块求值期就得先
+# 解析完整个引擎,哪怕他从不打开那个 3D 子页签。实报那次星运页静态引 AstroPDSphere→
+# PDSphereEngine→three(vendors-gl 862KB+引擎 90KB),而该页默认停在「主限法」表格、
+# 二十多个子页签里只有一个用得着 3D;配置一般的机器足以让主线程长时间无响应。同族共三处
+# (星运/节气/玄史),玄史那处引的是 echarts(1291KB,比 three 还大)。
+# 四道判据:单一真值源在位 → 三处接线正确 → 主锁测试在位 → **直接扫产物**(不信源码,只认产物)。
+S181_BAD=0
+S181_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+# ① 懒边界单一真值源(空模块自愈住这里 —— 组件内各写一份必然丢掉它,那是 v3.6.0 的坑)
+S181_LB="${S181_UI}/src/utils/lazyBoundary.js"
+if [ ! -f "${S181_LB}" ]; then
+  S181_BAD=1; bad "[181] 缺懒边界单一真值源 utils/lazyBoundary.js"
+else
+  grep -aq "export function makeLazyBoundary" "${S181_LB}" || { S181_BAD=1; bad "[181] lazyBoundary 未导出 makeLazyBoundary"; }
+  grep -aq "Lazy chunk resolved empty" "${S181_LB}" || { S181_BAD=1; bad "[181] lazyBoundary 丢了空模块自愈(坏结果进 React.lazy 缓存会被永久钉死)"; }
+fi
+# ② 三处宿主页不得静态 import 重组件(剥注释后再判 —— 注释里提到不算)
+S181_CHECK(){   # $1=文件 $2=被禁的静态 import 正则 $3=人话
+  local F="${S181_UI}/src/components/$1"
+  [ -f "${F}" ] || { S181_BAD=1; bad "[181] 缺文件 $1"; return; }
+  local CODE; CODE=$(sed -E 's://.*$::' "${F}" 2>/dev/null)
+  if printf '%s' "${CODE}" | grep -qE "$2"; then
+    S181_BAD=1; bad "[181] $3 —— 静态 import 会把引擎拖回本页 chunk,进该页即须解析整个引擎"
+  fi
+}
+S181_CHECK "direction/AstroDirectMain.js"   "^import AstroPDSphere from"    "星运页又静态引了主限天球"
+S181_CHECK "jieqi/JieQiChartsMain.js"       "^import AstroChartMain3D from" "节气页又静态引了 3D 盘"
+S181_CHECK "xuanshi/XuanShiMain.js"         "^import (XuanShiCelestial|XuanShiMap) from" "玄史页又静态引了 echarts 宿主"
+S181_CHECK "astro3d/AstroChartMain3D.js"    "^import AstroPDSphere from"    "3D 星盘页又静态引了主限天球(那条分支恒 false,纯拖累)"
+# ③ 主锁(AST import 图遍历)在位 —— 它才是覆盖「未来任意新增页面」的那一道
+[ -f "${S181_UI}/src/utils/__tests__/heavyEngineImportGraph.test.js" ] \
+  || { S181_BAD=1; bad "[181] 缺主锁 heavyEngineImportGraph.test.js(AST 图遍历,自动覆盖新增页面)"; }
+grep -aq "重引擎不得与页面同 chunk" "${S181_UI}/scripts/check-chunk-dup.js" 2>/dev/null \
+  || { S181_BAD=1; bad "[181] check-chunk-dup 缺产物层判据(锁 C)"; }
+# ④ 终判据:直接扫产物 —— 任何 async chunk 不得同时含引擎标记与页面懒边界
+#    (vendors 前缀是引擎独占 chunk,本就该含引擎,豁免)
+for S181_D in dist dist-file; do
+  [ -d "${S181_UI}/${S181_D}" ] || continue
+  for S181_F in "${S181_UI}/${S181_D}"/*.async.js; do
+    [ -f "${S181_F}" ] || continue
+    case "$(basename "${S181_F}")" in vendors-*|vendors~*) continue ;; esac
+    if grep -aq "WebGLRenderer" "${S181_F}" 2>/dev/null && grep -aq "LazyBoundary" "${S181_F}" 2>/dev/null; then
+      S181_BAD=1; bad "[181] ${S181_D}/$(basename "${S181_F}") 同时含 three 与页面懒边界 —— 引擎被拖进页面 chunk"
+    fi
+  done
+done
+# ⑤ 首屏批次判据:引擎不得与「基础设施库」编在同一个 cacheGroup
+#    ④ 只查「引擎与页面同 chunk」,查不到这条隐形通道:引擎跟一个首屏必需的基础设施库
+#    (d3——星盘 SVG 绘制用,全仓 101 个文件在用)共处同一个 vendors chunk → 首屏把整包
+#    拉走,引擎虽规规矩矩待在 vendors 里(④ 全绿)、页面也确实懒加载了(①②③ 全绿),
+#    用户照样开机就得下载解析它。实锤:原 vendors-viz 1228KB 含 echarts,在首屏批次里。
+#    拆成 vendors-d3(129KB 首屏)+ vendors-echarts(1132KB 只随玄史两子页)后首屏净省 1.1MB。
+grep -aq "vendorsD3" "${S181_UI}/.umirc.js" 2>/dev/null \
+  && grep -aq "name: 'vendors-echarts'" "${S181_UI}/.umirc.js" 2>/dev/null \
+  || { S181_BAD=1; bad "[181] .umirc.js 的 echarts 与 d3 未分组 —— 图表引擎会被首屏必需的 d3 捎带下载,玄史页懒加载等于白做"; }
+grep -aq "首屏批次不得含重引擎" "${S181_UI}/scripts/check-chunk-dup.js" 2>/dev/null \
+  || { S181_BAD=1; bad "[181] check-chunk-dup 缺首屏批次判据(锁 E)"; }
+#    终判据同样只认产物,但**不在这里重写一遍**:minify 后是单行巨串,shell 正则解析
+#    极易错配成虚绿(本条初版就栽在这)。直接跑 check-chunk-dup.js 本体 —— 它已就
+#    「首屏批次无引擎」做过正反双验(病态配置下 exit 1 实测),复用比重写可靠。
+if command -v node >/dev/null 2>&1; then
+  for S181_D in dist dist-file; do
+    [ -d "${S181_UI}/${S181_D}" ] || continue
+    S181_OUT="$(cd "${S181_UI}" && node scripts/check-chunk-dup.js "${S181_D}" 2>&1)" || {
+      S181_BAD=1; bad "[181] ${S181_D}: check-chunk-dup 未过 —— $(printf '%s' "${S181_OUT}" | head -2 | tr '\n' ' ')"
+    }
+    printf '%s' "${S181_OUT}" | grep -q "首屏批次\[" \
+      || { S181_BAD=1; bad "[181] ${S181_D}: check-chunk-dup 没打出首屏批次 —— 该判据未真正执行(拒绝虚绿)"; }
+  done
+else
+  S181_BAD=1; bad "[181] 找不到 node,首屏批次判据无法执行 —— 判据失效即红,不许静默放行"
+fi
+[ "${S181_BAD}" = "0" ] && ok "[181] 重引擎按需加载锁全绿(单源在位·四处接线·主锁与产物锁在位·产物零同居·首屏批次无引擎)"
+
+echo "[182] 部件包可复现(内容不变 ⇒ sha 不变;否则增量复用恒 0)"
+# 🔴 2026-08-01 实测抓出:增量更新的复用判据是「本地 lock 的部件 sha == 新 manifest 的部件 sha」
+# (plan_component_diff)。打包若不可复现,内容一字未改的稳定部件也会 sha 漂移 → 判为「变了」
+# → 每版每个用户全量重下,I4 不变量(稳定部件不得变)恒不成立。
+# 实锤:上一版已装的 ephe-data 与本版新包逐文件内容完全一致(158 档同摘要),包 sha 却不同;
+# 七部件无一复用,reusePct=0、downloadBytes=690MB。
+# 两个与内容无关的漂移源:① gzip 头 MTIME=打包时刻;② 目录条目 mtime 被 staging 拷贝刷新。
+S182_BAD=0
+S182_PK="${INSTALLER_ROOT}/scripts/package_runtime_payload.sh"
+# ① 实现在位:gzip -n(归零头时间戳)+ 目录 mtime 归一
+grep -aq "'/usr/bin/gzip', '-n'" "${S182_PK}" 2>/dev/null \
+  || { S182_BAD=1; bad "[182] 部件打包未走 gzip -n —— gzip 头会写入打包时刻,sha 每版必漂,增量复用恒 0"; }
+grep -aq "def normalize_dir_mtimes" "${S182_PK}" 2>/dev/null \
+  && grep -aq "normalize_dir_mtimes(stage)" "${S182_PK}" 2>/dev/null \
+  || { S182_BAD=1; bad "[182] 部件打包前未归一目录 mtime —— staging 拷贝会刷新目录时间戳,sha 照样漂"; }
+# ② 反向锚:旧写法(-czf 一步压)不得回潮
+grep -aqE "'-czf', str\(out\)" "${S182_PK}" 2>/dev/null \
+  && { S182_BAD=1; bad "[182] 部件打包又出现 -czf 一步压 —— 那正是把打包时刻写进 gzip 头的写法"; }
+# ③ 终判据:直接扫**真产物**的 gzip 头 MTIME 字段,必须为 0(不信源码,只认产物)
+S182_CD="${INSTALLER_ROOT}/dist/components"
+if [ -d "${S182_CD}" ]; then
+  S182_N=0
+  for S182_F in "${S182_CD}"/horosa-comp-*.tar.gz; do
+    [ -f "${S182_F}" ] || continue
+    S182_N=$((S182_N+1))
+    S182_MT="$(python3 -c "
+import struct,sys
+h=open(sys.argv[1],'rb').read(10)
+print(struct.unpack('<I', h[4:8])[0] if len(h)>=8 else -1)
+" "${S182_F}" 2>/dev/null || echo -1)"
+    [ "${S182_MT}" = "0" ] || { S182_BAD=1; bad "[182] $(basename "${S182_F}") 的 gzip 头 MTIME=${S182_MT}(应为 0)—— 该包 sha 与内容无关地每版漂移"; }
+  done
+  [ "${S182_N}" -ge 7 ] || { S182_BAD=1; bad "[182] dist/components 只有 ${S182_N} 个部件包(应 ≥7)—— 判据没扫到东西,拒绝虚绿"; }
+fi
+[ "${S182_BAD}" = "0" ] && ok "[182] 部件包可复现(gzip -n + 目录 mtime 归一在位·旧写法未回潮·产物 gzip 头 MTIME 全 0)"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"
