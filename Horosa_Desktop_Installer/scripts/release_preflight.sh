@@ -2984,6 +2984,44 @@ print(struct.unpack('<I', h[4:8])[0] if len(h)>=8 else -1)
 fi
 [ "${S182_BAD}" = "0" ] && ok "[182] 部件包可复现(gzip -n + 目录 mtime 归一在位·旧写法未回潮·产物 gzip 头 MTIME 全 0)"
 
+# ── [184] 天星择日征象搜索:条件类型注册表 前↔后端 双向差空 ──
+# 前端多键=用户可选而后端 invalid_conditions(死开关);后端多键=功能藏而不露。
+# 键抓取契约:py 一键一行 '键': {...} / js 一键一行 \t键: {(两侧文件头均有注记);
+# jest 哨兵(conditionTypesSync.test.js)带注错自证,此处再做 bash 轻量双向差(零依赖秒级)。
+echo "== [184] 择日征象条件类型 前↔后端一致性 =="
+S184_BAD=0
+S184_PY="Horosa-Web/astropy/astrostudy/election_scan.py"
+S184_JS="Horosa-Web/astrostudyui/src/divination/zeri/conditionTypes.js"
+S184_JEST="Horosa-Web/astrostudyui/src/divination/zeri/__tests__/conditionTypesSync.test.js"
+# R4 对齐制度化:tab 对拍资产(页签↔扫描引擎双端锁)与 explain 全类契约不许缺席/缩水:
+# 「选了什么→搜出来→点开右栏严密符合」的机械保证。
+S184_PARITY="Horosa-Web/astropy/tests/test_election_scan_tab_parity.py"
+S184_ENDP="Horosa-Web/astropy/tests/test_election_scan_endpoint.py"
+for f in "${S184_PY}" "${S184_JS}" "${S184_JEST}" "${S184_PARITY}" "${S184_ENDP}"; do
+  [ -f "${f}" ] || { bad "[184] 🔴 缺真值源/哨兵文件:${f}"; S184_BAD=1; }
+done
+if [ -f "${S184_PARITY}" ]; then
+  S184_NPAR=$(grep -ac "^def test_" "${S184_PARITY}" || true)
+  [ "${S184_NPAR}" -ge 9 ] || { bad "[184] 🔴 tab 对拍资产缩水(${S184_NPAR}<9)——对齐护栏被删?"; S184_BAD=1; }
+fi
+if [ -f "${S184_ENDP}" ]; then
+  grep -aq "test_explain_contract_all_types_and_scan_agreement" "${S184_ENDP}"     || { bad "[184] 🔴 explain 全类契约测试缺席(新类可无实测文本=详情面板哑)"; S184_BAD=1; }
+fi
+if [ "${S184_BAD}" = "0" ]; then
+  S184_PYKEYS=$(sed -n "/^CONDITION_TYPES = {/,/^}/p" "${S184_PY}" | grep -aoE "^    '[a-z_]+':" | tr -d " ':" | sort)
+  S184_JSKEYS=$(sed -n "/^export const CONDITION_TYPES = {/,/^};/p" "${S184_JS}" | grep -aoE $'^\t[a-z_]+:' | tr -d $'\t:' | sort)
+  S184_NPY=$(printf '%s\n' "${S184_PYKEYS}" | grep -ac . || true)
+  S184_NJS=$(printf '%s\n' "${S184_JSKEYS}" | grep -ac . || true)
+  if [ "${S184_NPY}" -lt 10 ] || [ "${S184_NJS}" -lt 10 ]; then
+    bad "[184] 🔴 键抓取塌缩(py=${S184_NPY}/js=${S184_NJS} <10)——一键一行格式契约被破或 regex 失配"; S184_BAD=1;
+  elif [ "${S184_PYKEYS}" != "${S184_JSKEYS}" ]; then
+    bad "[184] 🔴 条件类型键集不一致(前端死开关或后端藏功能):"; S184_BAD=1;
+    diff <(printf '%s\n' "${S184_PYKEYS}") <(printf '%s\n' "${S184_JSKEYS}") | sed 's/^/[184]   /' >&2 || true
+  fi
+  grep -aq "注错自证" "${S184_JEST}" 2>/dev/null || { bad "[184] 🔴 jest 哨兵缺注错自证断言(哨兵可能已死)"; S184_BAD=1; }
+fi
+[ "${S184_BAD}" = "0" ] && ok "[184] 择日条件类型前后端恒等(py=${S184_NPY} 键)+jest 哨兵自证在位"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"
