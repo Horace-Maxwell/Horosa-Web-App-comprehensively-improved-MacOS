@@ -1,5 +1,8 @@
 import { Component } from 'react';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
+// R4-B3(horosa_prefetch_registry_v1):七政三段链式预取登记(R10 情报③)。
+import { stepPrefetchEnabled } from '../../utils/perfFlags';
+import { registerStepPrefetcher, unregisterStepPrefetcher } from '../../utils/stepPrefetch';
 import { safeLocalStorageSet } from '../../utils/safeStorage';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { XQModal, XQTabs as Tabs } from '../xq-ui';
@@ -9,6 +12,7 @@ import request from '../../utils/request';
 import {randomStr,} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import DateTime from '../comp/DateTime';
+import { FreezeSubTab } from '../comp/FreezeInactive';
 import QuickDockBar from '../common/QuickDockBar';
 import GuoLaoInput from './GuoLaoInput';
 import { SU28_MODE_LABEL, EXALT_DEGREE as GL_EXALT_DEG, starDignityStatuses as glStarDignity, starMotionState as glStarMotion, starCombust as glStarCombust } from './guolaoData';
@@ -2104,6 +2108,23 @@ export function buildGuolaoLimitSection(chart, fields, params, minorLimitType, t
 	}
 }
 
+// R4-B3(数据层空闲预热):按当前命盘 fields 预热七政「本命盘」进 guolao 缓存 —— 与用户
+// 首点走完全相同的 fieldsToParams + fetchGuolaoChartCached 入口(key 同、body 同、结果逐字节同,
+// 只是提前付)。仅暖本命:流年/Moira 规则依赖「此刻」的流年时间=取现时,按预热白名单纪律禁入
+// (步进预取的三段链式版在组件登记里,那里能读到用户显式设置的 transitTime)。
+// 存储样式为七政 kinastro 引擎时跳过(不同引擎路径,预热本命盘对其无效)。失败静默。
+export async function warmGuolaoNatal(fields){
+	try{
+		if(!fields || !fields.date || !fields.date.value || !fields.date.value.format){ return null; }
+		if(!(fields.lon && fields.lon.value) || !(fields.lat && fields.lat.value)){ return null; }
+		if(getStoredGuolaoChartStyle() === GUOLAO_CHART_STYLE_QIZHENG){ return null; }
+		const params = fieldsToParams(fields);
+		return await fetchGuolaoChartCached(params, { silent: true });
+	}catch(e){
+		return null; // 预热失败静默:首点回到冷即付的现状
+	}
+}
+
 function fieldsToParams(fields){
 	const su28Mode = guolaoSu28ModeFromFields(fields);
 	const params = {
@@ -2298,6 +2319,63 @@ class GuoLaoChartMain extends Component{
 					if(tp){ fetchGuolaoChartCached(tp, { silent: true }).catch(()=>{ /* 预热静默 */ }); }
 				}catch(e){ /* 预热失败无害 */ }
 			};
+			// R4-B3(horosa_prefetch_registry_v1,R10 情报③「七政三段」):七政步进链=本命→流年→
+			// 判读规则三段串行,前两段有缓存、第三段(fetchMoiraQizhengRules,几百 ms 重计算)每步必付。
+			// 登记的预取任务把三段【链式】全预热(与 requestGuolaoBundle 同构:同 params/同
+			// applyGuolaoNodeMode/同 rules 入参形态 → 键逐字节同,真点步进时第三段归零)。
+			// 🔴 取现时红线:moiraTransitTime 为 null(默认过运=「现在」)时流年/规则两段的键含
+			//    构造时刻的「现在」——真点时刻已变,键不同=预热白打且徒增负载 → 该态只暖本命段。
+			//    键不同也意味着绝不会错误命中旧「现在」(无「今天被冻住」降级)。
+			if(stepPrefetchEnabled()){
+				this._guolaoStepPrefetcher = (steppedFields)=>{
+					if(this.unmounted || this.state.engineMode === 'kinastro'){
+						return [];
+					}
+					if(this.state.chartStyle === GUOLAO_CHART_STYLE_QIZHENG){
+						return [];
+					}
+					let params = null;
+					try{
+						params = fieldsToParams(steppedFields);
+					}catch(e){
+						return [];
+					}
+					if(!params){
+						return [];
+					}
+					const transitTime = this.state.moiraTransitTime;
+					const warmAllStages = transitTime !== null && transitTime !== undefined;
+					return [{
+						name: 'guolao:natal',
+						path: '/chart',
+						run: async ()=>{
+							const natalRaw = await fetchGuolaoChartCached(params, { silent: true });
+							if(!natalRaw || !warmAllStages || this.unmounted){
+								return natalRaw || null;
+							}
+							try{
+								const chartObj = applyGuolaoNodeMode(natalRaw, steppedFields);
+								const tp = paramsWithMoiraTransit(steppedFields, transitTime);
+								let transitObj = null;
+								if(tp){
+									const tRaw = await fetchGuolaoChartCached(tp, { silent: true }).catch(()=>null);
+									transitObj = tRaw ? applyGuolaoNodeMode(tRaw, steppedFields) : null;
+								}
+								// 第三段:判读规则 —— 结果落 services/qizheng 的 cachedPost 缓存,
+								// 真点步进到该时刻时 requestGuolaoBundle 的规则段直接命中。
+								await fetchMoiraQizhengRules({
+									params,
+									chartObj,
+									transitParams: tp,
+									transitChartObj: transitObj,
+								}, { silent: true, timeoutMs: 12000 });
+							}catch(e){ /* 后两段预热失败静默:首点回到冷即付 */ }
+							return natalRaw;
+						},
+					}];
+				};
+				registerStepPrefetcher('guolao', this._guolaoStepPrefetcher);
+			}
 		}
 	}
 
@@ -3001,6 +3079,11 @@ class GuoLaoChartMain extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		// R4-B3:反注册步进预取器(防卸载后闭包吃到死组件态)。
+		if(this._guolaoStepPrefetcher){
+			try{ unregisterStepPrefetcher('guolao', this._guolaoStepPrefetcher); }catch(e){ /* ignore */ }
+			this._guolaoStepPrefetcher = null;
+		}
 		this.moiraReqSeq++;
 		this.moiraTransitReqSeq++;
 		this.qizhengKinReqSeq++;
@@ -3813,9 +3896,13 @@ class GuoLaoChartMain extends Component{
 			>
 				{tabs.map((item)=>(
 					<TabPane tab={item.label} key={item.key}>
-						<div className="horosa-qizheng-kin-info-stack">
-							{item.content}
-						</div>
+						{/* [R4-B7/C16] 非激活面板冻结(切时间/改选项时七政右栏 5+ 面板不再全员陪跑 reconcile);
+						    content 元素构造在 tabs 数组定义处已付,此层拦的是 reconcile+render 下沉。 */}
+						<FreezeSubTab active={active === item.key}>
+							<div className="horosa-qizheng-kin-info-stack">
+								{item.content}
+							</div>
+						</FreezeSubTab>
 					</TabPane>
 				))}
 			</Tabs>

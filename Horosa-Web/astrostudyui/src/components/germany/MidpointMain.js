@@ -170,7 +170,10 @@ class MidpointMain extends Component{
 							{
 								showdateselector && (
 									<Col span={24}>
-										<PlusMinusTime value={dt} onChange={this.changeTime} />
+										<PlusMinusTime value={dt} onChange={this.changeTime}
+											onStepSelect={()=>{ /* R4-B4 错轴止血:量化盘时间轴自持,全局选步长
+												handler 预取 natal /chart 与本轴无关;函数型屏蔽。正轴(/germany/
+												midpoint)预热由 dataWarm 组负责。 */ }} />
 									</Col>	
 								)
 							}

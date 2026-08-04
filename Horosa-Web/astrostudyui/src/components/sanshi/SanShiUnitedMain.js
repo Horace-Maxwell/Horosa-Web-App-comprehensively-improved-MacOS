@@ -3133,16 +3133,23 @@ class SanShiUnitedMain extends Component{
 		}
 	}
 
-	recalcByNongli(fields, nongli, overrideOptions, displaySolarTime){
+	recalcByNongli(fields, nongli, overrideOptions, displaySolarTime, commitPatch){
 		const flds = fields || this.state.localFields || this.props.fields;
 		if(!flds || !nongli){
 			return Promise.resolve(false);
 		}
+		// [R4-B7/C16 靶①] commitPatch:调用方要与盘结果【同帧】提交的 state 补丁(loading:false/
+		// displaySolarTime)。防抖窗内 payload 被覆盖时合并保留旧补丁(refined/seed 补算不带补丁,
+		// 不得把主链的 loading:false 冲掉)。
 		this.pendingRecalcPayload = {
 			fields: flds,
 			nongli,
 			overrideOptions,
 			displaySolarTime,
+			commitPatch: {
+				...(this.pendingRecalcPayload && this.pendingRecalcPayload.commitPatch),
+				...commitPatch,
+			},
 		};
 		if(this.pendingRecalcTimer){
 			clearTimeout(this.pendingRecalcTimer);
@@ -3168,7 +3175,8 @@ class SanShiUnitedMain extends Component{
 							payload.fields,
 							payload.nongli,
 							payload.overrideOptions,
-							payload.displaySolarTime
+							payload.displaySolarTime,
+							payload.commitPatch
 						)).then((changed)=>{
 							this.resolvePendingRecalc(changed);
 						}).catch((e)=>{
@@ -3191,7 +3199,7 @@ class SanShiUnitedMain extends Component{
 			});
 		}
 
-	async performRecalcByNongli(fields, nongli, overrideOptions, displaySolarTime){
+	async performRecalcByNongli(fields, nongli, overrideOptions, displaySolarTime, commitPatch){
 		const flds = fields || this.state.localFields || this.props.fields;
 		if(!flds || !nongli){
 			return false;
@@ -3378,6 +3386,8 @@ class SanShiUnitedMain extends Component{
 			lat: flds && flds.lat ? flds.lat.value : '',
 		};
 		this.lastRecalcSignature = recalcSignature;
+		// [R4-B7/C16 靶①] 双提交合一:盘结果与调用方补丁(loading:false/displaySolarTime)同一次
+		// setState 落地 —— 旧形态先渲「新盘 + loading 还挂着」一帧再渲去转圈一帧,肉眼即闪帧。
 		this.setState({
 			nongli,
 			liureng,
@@ -3388,6 +3398,7 @@ class SanShiUnitedMain extends Component{
 			lrLayout: lrBundle.lrLayout,
 			keData: lrBundle.keData,
 			sanChuan: lrBundle.sanChuan,
+			...(commitPatch || null),
 		}, ()=>{
 			this.scheduleSnapshotSave(snapshotPayload, snapshotMeta);
 		});
@@ -3529,11 +3540,21 @@ class SanShiUnitedMain extends Component{
 						if(this.unmounted || seq !== this.refreshSeq){
 							return;
 						}
-						const changed = await this.recalcByNongli(fields, nongli, null, displaySolarTime);
+						// [R4-B7/C16 靶①] 补丁预算好随盘结果同帧提交(recalcByNongli 第五参);
+						// 仅当 recalc 未落 setState(签名去重/守卫 early-return,changed=false)时才在
+						// 这里兜底单独提交 —— 否则「新盘+转圈」中间帧重现。
+						const commitPatch = {};
+						if(this.state.loading){
+							commitPatch.loading = false;
+						}
+						if(displaySolarTime !== this.state.displaySolarTime){
+							commitPatch.displaySolarTime = displaySolarTime;
+						}
+						const changed = await this.recalcByNongli(fields, nongli, null, displaySolarTime, commitPatch);
 						if(!changed && !this.state.dunjia && this.lastRecalcError){
 							throw this.lastRecalcError;
 						}
-						if(!this.unmounted && seq === this.refreshSeq){
+						if(!this.unmounted && seq === this.refreshSeq && !changed){
 							const patch = {};
 							if(this.state.loading){
 								patch.loading = false;

@@ -8,6 +8,9 @@ import { getErrMsg } from '../msg/errmsg';
 import { markServiceOnline, markServiceOffline, isBackendUnreachableError } from './serviceStatus';
 import { renegotiateLocalServerRoot } from './backendIdentity';
 import { waitForBackendBoot } from './backendBootGate';
+// horosa_prefetch_runtime_whitelist_v1(R4-B1):预取作用域内的 URL 闸(纵深防御)。
+// 非预取作用域恒放行 —— 用户真实请求逐字节零行为变化。
+import { guardPrefetchUrl } from './stepPrefetch';
 
 var tmDelta = 0;
 // eslint-disable-next-line import/no-cycle
@@ -525,6 +528,12 @@ export async function healAndRetryOnce(url, options, err, replay){
  * @return {object}           An object containing either "data" or "err"
  */
 export default async function request(url, options) {
+    // horosa_prefetch_runtime_whitelist_v1:仅当【步进预取任务正在同步起调】时才判定;
+    // 白名单外的端点直接拒发(返回 undefined —— 与本函数既有「网络失败吞错 resolve undefined」
+    // 同一语义,调用方既有空载荷守卫原样接住)。预取关闸/非预取路径:此判定恒 true,零影响。
+    if (!guardPrefetchUrl(url)) {
+        return undefined;
+    }
     // 计算类幂等端点:同参进行中共享一次往返 + 30s 会话缓存(白名单内;返回深拷贝;
     // perfFlag horosa.perf.requestDedupe 可关)。白名单外 100% 走原路径零差异。
     if (dedupeEligible(url, options)) {
@@ -644,6 +653,12 @@ async function requestCore(url, options) {
             return data;
         }    
     }catch(e){
+		// [R4-B5b] abort 短路(必须在 healAndRetryOnce 之前):主链新请求已 abort 旧请求——
+		// 旧信道的失败既不触发身份再协商/地址自愈,也不 surface(离线横幅/错误弹窗),
+		// 原样上抛由调用方按 AbortError 静默忽略。
+		if(options && options.signal && options.signal.aborted){
+			throw e;
+		}
 		// 服务地址自愈:根换成已验证的新地址后安全重放一次(详见 healAndRetryOnce 注释)。
 		const healed = await healAndRetryOnce(url, options, e, requestCore);
 		if(healed){
@@ -751,6 +766,10 @@ export async function requestRaw(url, options) {
         }
 
     }catch(e){
+		// [R4-B5b] abort 短路(与 requestCore 同构,在自愈之前)。
+		if(options && options.signal && options.signal.aborted){
+			throw e;
+		}
 		// 服务地址自愈:与 request 同构(根换了才安全重放一次)。
 		const healed = await healAndRetryOnce(url, options, e, requestRaw);
 		if(healed){

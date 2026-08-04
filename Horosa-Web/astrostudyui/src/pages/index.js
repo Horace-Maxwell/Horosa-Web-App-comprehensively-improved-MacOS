@@ -1,6 +1,9 @@
 import React from 'react';
 import { connect  } from 'dva';
 import { Spin, } from 'antd';
+// R4-B2:切页签 300ms 后武装 ±depth 步进预取((c) 时机)+ 手势起点技法归属。
+import { armStepPrefetch } from '../utils/stepPrefetchArm';
+import { setCurrentTechnique } from '../utils/perfMark';
 import DateTime from '../components/comp/DateTime';
 import LoginForm from '../components/user/LoginForm';
 import RegisterForm from '../components/user/RegisterForm';
@@ -354,6 +357,26 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
     const { ziwei, } = rules; 
 
     
+    // R4-B3:排盘成功后的数据层空闲预热 —— 把「用户首点某技法才付的取数成本」挪进
+    // 空闲时段:走各技法**自己导出的 warm builder + 缓存入口**(key/body 与真实首点逐字节
+    // 一致,结果自然落各自 L1;首点=命中即时)。组以 chartId 为代(新盘作废旧组);任务内
+    // 动态 import(不拖 chunk 进主包,顺带引擎预热);全部 silent、只进确定性端点、交互即让路。
+    // 双闸:horosa.perf.idleWarmQueue(总)/ horosa.perf.dataWarmTasks(细)。失败静默。
+    React.useEffect(()=>{
+        if(!(chartObj && chartObj.chartId) || !fields || !(fields.date && fields.date.value)){ return; }
+        const warmFields = fields;
+        const warmChartObj = chartObj;
+        Promise.all([
+            import('../utils/idleWarmQueue'),
+            import('../utils/dataWarmTasks'),
+        ]).then(([queue, registry])=>{
+            if(!queue || typeof queue.scheduleDataWarmGroup !== 'function'){ return; }
+            if(!registry || typeof registry.buildDataWarmTasks !== 'function'){ return; }
+            queue.scheduleDataWarmGroup(chartObj.chartId, registry.buildDataWarmTasks(warmFields, warmChartObj));
+        }).catch(()=>{ /* 预热不可用=回到现状 */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chartObj && chartObj.chartId]);
+
     function closeDrawer(){
         dispatch({
             type: 'astro/closeDrawer',
@@ -428,90 +451,102 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             }, 0);
         }
 
+        // R4-B2((c) 时机):切到新技法页签 300ms 后(切换 paint 与可能的刷新已让路)按该技法
+        // 最近档位武装 ±depth —— 进页后第一下步进也命中。NO_ARM 技法由 shouldArmForTab 内部拦。
+        try{ setCurrentTechnique(key); }catch(e){ /* 观测归属失败无害 */ }
+        setTimeout(()=>{
+            try{ armStepPrefetch('tab-activate', { tabOverride: key }); }catch(e){ /* 武装失败静默 */ }
+        }, 300);
+
     }
+
+    // horosa_change_cond_no_mutate_v1(R4-B5,FE-18)—— 就地变异根治。
+    // 旧写法 `{...fields}` **只拷了顶层**:`flds.date` 与 `fields.date` 是同一个对象,
+    // `flds.date.value = x` 改的是 state 里那个对象本身 ⇒ 「旧 fields」与「新 fields」的
+    // 嵌套对象引用完全相同,任何按引用比较的 React.memo / shouldComponentUpdate 都会判
+    // 「没变」而跳过重渲(或反过来:整树重渲,因为顶层引用永远是新的)。这正是渲染
+    // 优化的**前提** —— 不修它,后面加多少 memo 都是白加。
+    // setFld 一律产出**新对象**;`{...(prev || {name:[name]})}` 保留原有 name 数组与其它
+    // 键,value 立即覆盖 ⇒ 与旧代码那几处「不存在则以默认值新建再赋值」逐字段等价。
+    const setFld = (obj, name, value) => {
+        obj[name] = { ...(obj[name] || { name: [name] }), value };
+        return obj[name];
+    };
 
     function changeCond(values){
         let flds = {
             ...fields,
-        };  
+        };
         if(values.nohook){
             flds.nohook = true;
-        }  
+        }
 
         if(values.tm !== undefined && values.tm != null){
             let birth = values.tm;
-            flds.date.value = birth.clone();
-            flds.time.value = birth.clone();
-            flds.ad.value = birth.ad;
+            setFld(flds, 'date', birth.clone());
+            setFld(flds, 'time', birth.clone());
+            setFld(flds, 'ad', birth.ad);
             // zone 兜底链:DateTime 缺 zone 时保留原 fields 值,双双缺失落 +08:00 ——
             // 任何一环 undefined 直写会让请求丢 zone 键(Java miss.zone)且污染持久 fields。
-            flds.zone.value = birth.zone || flds.zone.value || '+08:00';
+            setFld(flds, 'zone', birth.zone || (flds.zone && flds.zone.value) || '+08:00');
         }
 
         if(values.hsys !== undefined && values.hsys !== null){
-            flds.hsys.value = values.hsys;
+            setFld(flds, 'hsys', values.hsys);
         }
         if(values.zodiacal !== undefined && values.zodiacal !== null){
-            flds.zodiacal.value = values.zodiacal;
+            setFld(flds, 'zodiacal', values.zodiacal);
         }
         if(values.siderealAyanamsa !== undefined && values.siderealAyanamsa !== null){
-            if(!flds.siderealAyanamsa){ flds.siderealAyanamsa = { value: '', name: ['siderealAyanamsa'] }; }
-            flds.siderealAyanamsa.value = values.siderealAyanamsa;
+            setFld(flds, 'siderealAyanamsa', values.siderealAyanamsa);
         }
         if(values.termsVariant !== undefined && values.termsVariant !== null){
             // 界系：流派预设(G20)一次性带入界 → 写 fields.termsVariant，由 fieldsToParams 条件透传(0 不下发，零回归)。
             // 同时同步 app.termsVariant(界系 UI 记忆，与 ChartDisplaySelector 单改一致)。
-            if(!flds.termsVariant){ flds.termsVariant = { value: 0, name: ['termsVariant'] }; }
-            flds.termsVariant.value = values.termsVariant;
+            setFld(flds, 'termsVariant', values.termsVariant);
             dispatch({ type: 'app/save', payload: { termsVariant: values.termsVariant } });
         }
         if(values.triplicity !== undefined && values.triplicity !== null){
             // 三分集(G20-P2)：流派预设带入 → 写 fields.triplicity，由 fieldsToParams 条件透传(Dorothean 不下发，零回归)。
             // 后端 push_request_trip 据此换尊贵表;同步 app.tripSystem(三分显示，与 G14 选择器一致)。
-            if(!flds.triplicity){ flds.triplicity = { value: 'Dorothean', name: ['triplicity'] }; }
-            flds.triplicity.value = values.triplicity;
+            setFld(flds, 'triplicity', values.triplicity);
             dispatch({ type: 'app/save', payload: { tripSystem: values.triplicity } });
         }
         // 流派全维分化三项(P1-D1)：预设一次性带入 → 写 fields，由 fieldsToParams 条件透传(默认值不下发，零回归)。
         // 🔴 changeCond 是显式白名单：不在此登记的键会被静默丢弃(选档后该维不生效)。
         if(values.lotReversal !== undefined && values.lotReversal !== null){
-            if(!flds.lotReversal){ flds.lotReversal = { value: 1, name: ['lotReversal'] }; }
-            flds.lotReversal.value = values.lotReversal;
+            setFld(flds, 'lotReversal', values.lotReversal);
         }
         if(values.sectBuffer !== undefined && values.sectBuffer !== null){
-            if(!flds.sectBuffer){ flds.sectBuffer = { value: 'geo', name: ['sectBuffer'] }; }
-            flds.sectBuffer.value = values.sectBuffer;
+            setFld(flds, 'sectBuffer', values.sectBuffer);
         }
         if(values.orbs !== undefined){
             // 相位模型：degree 档写 moiety 容许度差异项；whole 档传 null ⇒ 据实清空(回默认表、不下发)。
             // 🔴 传 undefined 会被本行 !==undefined 判定跳过 → 切回默认档时 moiety 残留、流派反查误判。
-            if(!flds.orbs){ flds.orbs = { value: undefined, name: ['orbs'] }; }
-            flds.orbs.value = values.orbs === null ? undefined : values.orbs;
+            setFld(flds, 'orbs', values.orbs === null ? undefined : values.orbs);
         }
         if(values.lotsDocReverse !== undefined){
             // 点公式文档口径(婚姻男女/子女/朋友/疾病)：不反转档带 1；其余档显式 0 ⇒ fieldsToParams 不下发。
-            if(!flds.lotsDocReverse){ flds.lotsDocReverse = { value: 0, name: ['lotsDocReverse'] }; }
-            flds.lotsDocReverse.value = values.lotsDocReverse;
+            setFld(flds, 'lotsDocReverse', values.lotsDocReverse);
         }
         if(values.lon !== undefined && values.lon !== null){
-            flds.lon.value = values.lon;
-            flds.lat.value = values.lat;
-            flds.gpsLon.value = values.gpsLon;
-            flds.gpsLat.value = values.gpsLat;
+            setFld(flds, 'lon', values.lon);
+            setFld(flds, 'lat', values.lat);
+            setFld(flds, 'gpsLon', values.gpsLon);
+            setFld(flds, 'gpsLat', values.gpsLat);
         }
         if(values.pos !== undefined){
             // 经纬度查找选点带回的地名 → 写 fields.pos(显示于「地点」+ 随盘储存 + 进 AI 快照);
             // 空串=据实清空(地图裸点逆地理失败/手输经纬无地名),不带 pos 键=仅改时区不动地名。
-            if(!flds.pos){ flds.pos = { value: '', name: ['pos'] }; }
-            flds.pos.value = `${values.pos || ''}`;
+            setFld(flds, 'pos', `${values.pos || ''}`);
         }
         if(values.southchart !== undefined && values.southchart !== null){
-            flds.southchart.value = values.southchart;
+            setFld(flds, 'southchart', values.southchart);
         }
-        if(flds.lat.value >= 0){
+        if(flds.lat && flds.lat.value >= 0){
             let lat = flds.lat.value;
             if(lat.toLowerCase().indexOf('n') >= 0){
-                flds.southchart.value = 0;
+                setFld(flds, 'southchart', 0);
             }
         }
 
@@ -596,11 +631,15 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
         }catch(e){ /* 定位失败回退 CSS 默认位置 */ }
     };
 
-    let aryfields = convertToArray(fields);
-    let arychartflds = convertToArray(currentChart);
-    let arycaseflds = convertToArray(currentCase);
-    let aryregflds = convertToArray(registerFields);
-    let aryloginflds = convertToArray(loginFields);
+    // horosa_convert_memo_v1(R4-B7/C15):五个 convertToArray 按源对象身份 memo——收益不在计算本身
+    // (浅遍历微秒级),在【数组引用稳定】:aryfields 每 render 新数组 → 下游组件凡以 fieldsAry 为
+    // memo/sCU 依据者必 miss。FE-18 后 fields 一切变更产新对象,dep=[源] 语义正确;convertToArray
+    // 对入参的 name/value 补齐是幂等写(仅 undefined 时设),memo 化后首跑已施加,行为逐字节同。
+    const aryfields = React.useMemo(()=>convertToArray(fields), [fields]);
+    const arychartflds = React.useMemo(()=>convertToArray(currentChart), [currentChart]);
+    const arycaseflds = React.useMemo(()=>convertToArray(currentCase), [currentCase]);
+    const aryregflds = React.useMemo(()=>convertToArray(registerFields), [registerFields]);
+    const aryloginflds = React.useMemo(()=>convertToArray(loginFields), [loginFields]);
     const drawerNavigationPages = navigationPages.concat(
         userInfo ? [
             { label: '书籍阅读', key: 'astroreader', icon: 'book', group: '内容' },

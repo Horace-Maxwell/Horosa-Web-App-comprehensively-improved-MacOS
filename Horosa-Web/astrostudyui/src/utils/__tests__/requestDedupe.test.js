@@ -125,12 +125,33 @@ describe('L2 技法结果缓存(horosa.perf.techniqueCache)', () => {
 		expect(calls).toBe(2);
 		window.localStorage.removeItem('horosa.perf.techniqueCache');
 	});
-	it('L2 容量 48 上限:LRU 淘汰最旧', async () => {
+	// R4-B1 扩容(落账):48→192 —— 技法族全量接入预取后,48 条连一次完整技法巡览都装不下。
+	it('L2 容量 192 上限:LRU 淘汰最旧', async () => {
 		const runner = (i) => () => Promise.resolve({ i });
-		for(let i = 0; i < 50; i += 1){
+		for(let i = 0; i < 200; i += 1){
 			// eslint-disable-next-line no-await-in-loop
 			await dedupedRequest(URL_ACG, { body: JSON.stringify({ i }) }, runner(i));
 		}
-		expect(__dedupeStats().warm).toBeLessThanOrEqual(48);
+		expect(__dedupeStats().warm).toBeLessThanOrEqual(192);
+	});
+	// horosa_dedupe_l1_lru_v1(R4-B1):命中重插=真 LRU。热条目反复命中时,一串新写入
+	// 不得把它挤出去(旧 FIFO 语义下热条目先死、预取自己活着 —— 方向反了)。
+	it('🔴 L1 真 LRU:反复命中的热条目在容量满时存活,冷条目先淘汰', async () => {
+		const runner = (v) => () => Promise.resolve({ v });
+		const hotBody = JSON.stringify({ hot: 1 });
+		let hotRuns = 0;
+		await dedupedRequest(URL_ACG, { body: hotBody }, () => { hotRuns += 1; return Promise.resolve({ hot: 1 }); });
+		// 写入 159 条冷条目,期间每 40 条访问一次热条目(命中即重插 → 永远在队尾侧)
+		for(let i = 0; i < 159; i += 1){
+			// eslint-disable-next-line no-await-in-loop
+			await dedupedRequest(URL_ACG, { body: JSON.stringify({ cold: i }) }, runner(i));
+			if(i % 40 === 0){
+				// eslint-disable-next-line no-await-in-loop
+				await dedupedRequest(URL_ACG, { body: hotBody }, () => { hotRuns += 1; return Promise.resolve({ hot: 1 }); });
+			}
+		}
+		// 再访热条目:仍应命中(runner 不再执行)——旧 FIFO 语义下它早被 160 条写入挤出
+		await dedupedRequest(URL_ACG, { body: hotBody }, () => { hotRuns += 1; return Promise.resolve({ hot: 1 }); });
+		expect(hotRuns).toBe(1);
 	});
 });

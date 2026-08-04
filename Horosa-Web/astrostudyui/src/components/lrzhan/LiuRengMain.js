@@ -27,6 +27,7 @@ import LiuRengChart from './LiuRengChart';
 import LiuRengInput from './LiuRengInput';
 import LiuRengBirthInput from './LiuRengBirthInput';
 import DateTime from '../comp/DateTime';
+import { FreezeSubTab } from '../comp/FreezeInactive';
 import QuickDockBar from '../common/QuickDockBar';
 import { saveModuleAISnapshot, loadModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
@@ -38,6 +39,9 @@ import {
 } from '../../utils/localCalcCache';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { chartDrawGuardEnabled, stepPrefetchEnabled, stepSelectPrefetchEnabled } from '../../utils/perfFlags';
+// R4-B2(horosa_prefetch_registry_v1):/liureng/gods 步进预取登记 + 选步长武装(S3 收敛)。
+import { registerStepPrefetcher, unregisterStepPrefetcher } from '../../utils/stepPrefetch';
+import { armStepPrefetch } from '../../utils/stepPrefetchArm';
 
 
 const {Option} = Select;
@@ -443,7 +447,7 @@ const COURSE_TO_DAGE_KEY = {
 	'元首课': 'yuanshou',
 	'重审课': 'chongshen',
 	// 始入课=「九法变十法」开关下单一下贼上的单列名(ChuangChart.isJinKe0),大格判词同归重审;
-	// 漏此键则该开关下断语参考整块静默消失(Windows #46 全量巡查时补)。
+	// 漏此键则该开关下断语参考整块静默消失(#46 全量巡查时补)。
 	'始入课': 'chongshen',
 	'比用课': 'zhiyi',
 	'知一课': 'zhiyi',
@@ -4637,6 +4641,35 @@ class LiuRengMain extends Component{
 					}).catch(()=>null);
 				}catch(e){ /* 预热失败无害 */ }
 			};
+			// R4-B2(horosa_prefetch_registry_v1):/liureng/gods 是确定性纯计算(同时刻恒同神将)
+			// → 登记步进预取,武装线(选步长/settle/切页)±depth 全窗经共享调度器构造发出
+			// (享白名单闸/latest-wins/预算;S3 收敛:本地裸发路径退役为薄壳,见 prefetchStepSelect)。
+			if(stepPrefetchEnabled()){
+				this._liurengStepPrefetcher = (steppedFields)=>{
+					if(this.unmounted || !steppedFields){
+						return [];
+					}
+					let params = null;
+					try{
+						params = this.genGodsParams(steppedFields);
+					}catch(e){
+						return [];
+					}
+					if(!params){
+						return [];
+					}
+					return [{
+						name: 'liureng:gods',
+						path: '/liureng/gods',
+						run: ()=> request(`${Constants.ServerRoot}/liureng/gods`, {
+							body: JSON.stringify(params),
+							silent: true,
+							retry: { retries: 0 },
+						}),
+					}];
+				};
+				registerStepPrefetcher('liureng', this._liurengStepPrefetcher);
+			}
 		}
 	}
 
@@ -5001,39 +5034,16 @@ class LiuRengMain extends Component{
 		return params;
 	}
 
-	// [R3-A1 下放] 选步长即预取:六壬主耗时=/liureng/gods(全局 handler 只罩 /chart) ——
-	// 以当前时间 ±1 双向、genGodsParams 单源构参预热(silent,落 requestDedupe 缓存,
-	// 真点同参命中);同 unit 5s 去重。第一下步进即快。
+	// R4-B2(S3 收敛):选步长即预取改走武装引擎 —— ±depth 全窗任务(gods 经登记表构造 +
+	// /chart 主链)统一由共享调度器排队(享白名单闸/latest-wins/预算/连点保底),不再本地
+	// 裸发([R3-A1 下放]的 ±1 双向裸 request 语义被 ±depth 超集覆盖;5s 去重由武装线沿用)。
 	prefetchStepSelect(unit){
 		try{
 			if(!stepPrefetchEnabled() || !stepSelectPrefetchEnabled() || !unit){ return; }
 			const now = Date.now();
 			if(this._lastStepSel && this._lastStepSel.unit === unit && (now - this._lastStepSel.at) < 5000){ return; }
 			this._lastStepSel = { unit, at: now };
-			const base = this.props.fields || {};
-			const dt0 = base.date && base.date.value;
-			if(!dt0 || typeof dt0.clone !== 'function'){ return; }
-			[1, -1].forEach((dir)=>{
-				try{
-					const dt2 = dt0.clone();
-					if(unit === 'y'){ dt2.addYear(dir); }
-					else if(unit === 'M'){ dt2.addMonth(dir); }
-					else if(unit === 'd'){ dt2.addDate(dir); }
-					else if(unit === 'h'){ dt2.addHour(dir); }
-					else { dt2.addMinute(4 * dir); }
-					const flds2 = {
-						...base,
-						date: { value: dt2.clone() },
-						time: { value: dt2.clone() },
-					};
-					const params = this.genGodsParams(flds2);
-					if(!params){ return; }
-					request(`${Constants.ServerRoot}/liureng/gods`, {
-						body: JSON.stringify(params),
-						silent: true,
-					}).catch(()=>null);
-				}catch(e){ /* 预取失败无害 */ }
-			});
+			armStepPrefetch('unit-select', { unit });
 		}catch(e){ /* 预取失败无害 */ }
 	}
 
@@ -5411,6 +5421,11 @@ class LiuRengMain extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		// R4-B2:反注册步进预取器(防卸载后闭包吃到死组件态)。
+		if(this._liurengStepPrefetcher){
+			try{ unregisterStepPrefetcher('liureng', this._liurengStepPrefetcher); }catch(e){ /* ignore */ }
+			this._liurengStepPrefetcher = null;
+		}
 		if(typeof window !== 'undefined'){
 			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 			window.removeEventListener('horosa:liureng-xiang-pick', this.handleXiangPick);
@@ -5955,6 +5970,7 @@ class LiuRengMain extends Component{
 				animated={false}
 			>
 				<TabPane tab="格局" key="dage">
+					<FreezeSubTab active={activeTabKey === 'dage'}>{() => (
 					<div className="horosa-liureng-reference-tab-body">
 						{refSummary ? (
 							<Card size='small' style={{ marginBottom: 8, background: 'var(--horosa-panel-soft, #fafafa)' }}>
@@ -6000,8 +6016,10 @@ class LiuRengMain extends Component{
 							</Card>
 						)}
 					</div>
+					)}</FreezeSubTab>
 				</TabPane>
 				<TabPane tab="信息" key="meta">
+					<FreezeSubTab active={activeTabKey === 'meta'}>{() => (
 					<div className="horosa-liureng-reference-tab-body">
 						{metaItems && metaItems.length ? metaItems.map((group)=>(
 							<Card key={`meta_${group.title}`} size='small' style={{ marginBottom: 8 }} title={group.title}>
@@ -6020,11 +6038,13 @@ class LiuRengMain extends Component{
 							</Card>
 						)}
 					</div>
+					)}</FreezeSubTab>
 				</TabPane>
 				<TabPane tab="毕法" key="bifa">
-					{this.renderBiFaTab(ctx)}
+					<FreezeSubTab active={activeTabKey === 'bifa'}>{() => this.renderBiFaTab(ctx)}</FreezeSubTab>
 				</TabPane>
 				<TabPane tab="参考" key="reference">
+					<FreezeSubTab active={activeTabKey === 'reference'}>{() => (
 					<div className="horosa-liureng-reference-tab-body">
 						{xiaojuReferenceItems.length ? xiaojuReferenceItems.map((item)=>(
 							<Card key={`ref_${item.key}`} size='small' style={{ marginBottom: 8 }}>
@@ -6045,8 +6065,10 @@ class LiuRengMain extends Component{
 							</Card>
 						)}
 					</div>
+					)}</FreezeSubTab>
 				</TabPane>
 				<TabPane tab="概览" key="overview">
+					<FreezeSubTab active={activeTabKey === 'overview'}>{() => (
 					<div className="horosa-liureng-reference-tab-body">
 						{this.renderShenShaSection(ctx)}
 						{overviewItems.length ? overviewItems.map((item, idx)=>(
@@ -6070,14 +6092,16 @@ class LiuRengMain extends Component{
 							</Card>
 						)}
 					</div>
+					)}</FreezeSubTab>
 				</TabPane>
 				<TabPane tab="占断" key="zhanduan">
-					{this.renderZhanDuanTab(ctx)}
+					<FreezeSubTab active={activeTabKey === 'zhanduan'}>{() => this.renderZhanDuanTab(ctx)}</FreezeSubTab>
 				</TabPane>
 				<TabPane tab="取象" key="xiang">
-					{this.renderXiangTab(ctx)}
+					<FreezeSubTab active={activeTabKey === 'xiang'}>{() => this.renderXiangTab(ctx)}</FreezeSubTab>
 				</TabPane>
 				<TabPane tab="七政" key="qizheng">
+					<FreezeSubTab active={activeTabKey === 'qizheng'}>{() => (
 					<div className="horosa-liureng-reference-tab-body">
 						{qizhengItems && qizhengItems.length ? (
 							<Card size='small'>
@@ -6131,6 +6155,7 @@ class LiuRengMain extends Component{
 							</Card>
 						)}
 					</div>
+					)}</FreezeSubTab>
 				</TabPane>
 			</Tabs>
 		);

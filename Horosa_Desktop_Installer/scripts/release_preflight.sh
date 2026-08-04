@@ -2990,13 +2990,13 @@ fi
 # jest 哨兵(conditionTypesSync.test.js)带注错自证,此处再做 bash 轻量双向差(零依赖秒级)。
 echo "== [184] 择日征象条件类型 前↔后端一致性 =="
 S184_BAD=0
-S184_PY="Horosa-Web/astropy/astrostudy/election_scan.py"
-S184_JS="Horosa-Web/astrostudyui/src/divination/zeri/conditionTypes.js"
-S184_JEST="Horosa-Web/astrostudyui/src/divination/zeri/__tests__/conditionTypesSync.test.js"
+S184_PY="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/election_scan.py"
+S184_JS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/divination/zeri/conditionTypes.js"
+S184_JEST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/divination/zeri/__tests__/conditionTypesSync.test.js"
 # R4 对齐制度化:tab 对拍资产(页签↔扫描引擎双端锁)与 explain 全类契约不许缺席/缩水:
 # 「选了什么→搜出来→点开右栏严密符合」的机械保证。
-S184_PARITY="Horosa-Web/astropy/tests/test_election_scan_tab_parity.py"
-S184_ENDP="Horosa-Web/astropy/tests/test_election_scan_endpoint.py"
+S184_PARITY="${REPO_ROOT}/Horosa-Web/astropy/tests/test_election_scan_tab_parity.py"
+S184_ENDP="${REPO_ROOT}/Horosa-Web/astropy/tests/test_election_scan_endpoint.py"
 for f in "${S184_PY}" "${S184_JS}" "${S184_JEST}" "${S184_PARITY}" "${S184_ENDP}"; do
   [ -f "${f}" ] || { bad "[184] 🔴 缺真值源/哨兵文件:${f}"; S184_BAD=1; }
 done
@@ -3021,6 +3021,252 @@ if [ "${S184_BAD}" = "0" ]; then
   grep -aq "注错自证" "${S184_JEST}" 2>/dev/null || { bad "[184] 🔴 jest 哨兵缺注错自证断言(哨兵可能已死)"; S184_BAD=1; }
 fi
 [ "${S184_BAD}" = "0" ] && ok "[184] 择日条件类型前后端恒等(py=${S184_NPY} 键)+jest 哨兵自证在位"
+
+# ── [185] 六壬伏吟子卯互刑末传取冲(#62) ──
+# 病史:伏吟中末传沿刑链取(中=初刑,末=中刑,唯中传自刑取冲),而刑表子↔卯为唯一二环——
+# 中传所刑还回初传时旧码照取,丁卯/己卯/辛卯日伏吟排出「卯子卯」(#62 实报,应卯子午)。
+# 勘正:初中两传恰为子卯互刑(传行杜塞)→ 末传取中传所冲;明令仅此一对,不作更泛抽象。
+# 🔴 [160] 型「对拍在位」哨兵抓不到本类病:720 对拍 oracle 的伏吟段曾与引擎同盲区(对拍恒绿)。
+# 故本哨兵直接锁:引擎守卫+三分支接线+oracle 同口径+用户实报课式金标锚+反越界锚。
+echo "== [185] 六壬伏吟子卯互刑末传取冲(#62) =="
+S185_BAD=0
+S185_ENG="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/liureng/ChuangChart.js"
+S185_ORACLE="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/liureng/__tests__/liurengNineMethodOracle.test.js"
+S185_GOLD="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/liureng/__tests__/liurengSanChuanGolden.test.js"
+grep -aq "getFuYinLastCuang(cuang0, cuang1){" "${S185_ENG}" 2>/dev/null || { bad "[185] 🔴 引擎伏吟末传守卫函数缺失(getFuYinLastCuang)"; S185_BAD=1; }
+grep -aq "cuang0 === '子' && cuang1 === '卯'" "${S185_ENG}" 2>/dev/null || { bad "[185] 🔴 引擎子卯互刑字面守卫缺失(或被泛化改写)"; S185_BAD=1; }
+S185_WIRE=$(grep -ac "this.getFuYinLastCuang(cuang0, cuang1)" "${S185_ENG}" 2>/dev/null)
+S185_WIRE=${S185_WIRE:-0}
+[ "${S185_WIRE}" -ge 3 ] || { bad "[185] 🔴 伏吟三分支(不虞/自任·杜传/自信·杜传)末传接线不足(需≥3,现 ${S185_WIRE})"; S185_BAD=1; }
+grep -aqF "(x1.selfX || ziMaoLoop)" "${S185_ORACLE}" 2>/dev/null || { bad "[185] 🔴 720 对拍 oracle 未同步子卯口径(半截修复:引擎与 oracle 将再度同盲或互红)"; S185_BAD=1; }
+grep -aq "#62" "${S185_GOLD}" 2>/dev/null || { bad "[185] 🔴 金标缺 #62 勘正区块标记"; S185_BAD=1; }
+grep -aq "'卯', '子', '午'" "${S185_GOLD}" 2>/dev/null || { bad "[185] 🔴 金标缺 #62 实报课式锚(丁卯/己卯/辛卯伏吟→卯子午)"; S185_BAD=1; }
+grep -aq "'辰', '卯', '子'" "${S185_GOLD}" 2>/dev/null || { bad "[185] 🔴 金标缺反越界锚(乙卯不虞辰卯子:守卫只认初中互刑环)"; S185_BAD=1; }
+grep -aq "'亥', '子', '卯'" "${S185_GOLD}" 2>/dev/null || { bad "[185] 🔴 金标缺反越界锚(壬子杜传亥子卯:中末子卯相邻不得改写)"; S185_BAD=1; }
+grep -aE "\.skip|xdescribe|xit\(" "${S185_GOLD}" >/dev/null 2>&1 && { bad "[185] 🔴 金标文件被 skip 旁路"; S185_BAD=1; }
+[ "${S185_BAD}" = "0" ] && ok "[185] 六壬伏吟子卯守卫(引擎+三分支接线+oracle 同口径+金标/反越界锚)全在位"
+
+# ── [186] 奇门择日(zeri 子技法)全链完整性 ──
+# 择日页「奇门择日」= scope 化复用 DunJiaMain + 纯本地找局引擎。本哨兵锁四类静默退化:
+# ①资产在位+新测试零 skip ②条件注册表一键一行契约(Tab 缩进抓键,塌缩判红)+格局清单加性导出
+#   (zeri 侧零手抄的根,机械同源 jest 含注错自证) ③对偶锁:SubTabRegistry⇔ZeriMain TabPane
+#   (缺一=切走切回被打回首档)、aiExport preset 追加三段⇔快照 builder 三段头(逐字成对)
+# ④DunJiaMain scope 化回归锚(硬编码 qimen 槽回潮=keep-alive 双实例竞写复发)+aiExport
+#   「择日」子串启发式次序锚(奇门择日<天星择日<裸择日,乱序=zeri 页导出串成辅盘择日盘)。
+S186_BAD=0
+echo "== [186] 奇门择日全链完整性 =="
+S186_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S186_REG="${S186_UI}/src/divination/zeri/qimenConditionTypes.js"
+S186_T1="${S186_UI}/src/divination/zeri/__tests__/qimenConditionTypes.test.js"
+S186_T2="${S186_UI}/src/divination/zeri/__tests__/qimenScanEngine.test.js"
+S186_T3="${S186_UI}/src/divination/zeri/__tests__/qimenZeriFourLedger.test.js"
+S186_T5="${S186_UI}/src/components/dunjia/__tests__/dunjiaMainScopeContract.test.js"
+for f in \
+	"${S186_REG}" \
+	"${S186_UI}/src/divination/zeri/qimenScanEngine.js" \
+	"${S186_UI}/src/divination/zeri/qimenZeriSnapshot.js" \
+	"${S186_UI}/src/components/zeri/QimenZeriMain.js" \
+	"${S186_UI}/src/components/zeri/QimenZeriWorkbench.js" \
+	"${S186_UI}/src/components/zeri/QimenMiniBoardPopup.js" \
+	"${S186_UI}/src/components/help/ZeriHelpDoc.js" \
+	"${S186_T1}" "${S186_T2}" "${S186_T3}" "${S186_T5}"; do
+	[ -f "${f}" ] || { bad "[186] 🔴 奇门择日资产缺失: ${f#${REPO_ROOT}/}"; S186_BAD=1; }
+done
+for f in "${S186_T1}" "${S186_T2}" "${S186_T3}" "${S186_T5}"; do
+	grep -aE "\.skip|xdescribe|xit\(" "${f}" >/dev/null 2>&1 && { bad "[186] 🔴 奇门择日测试被 skip 旁路: $(basename "${f}")"; S186_BAD=1; }
+done
+grep -aq "注错自证" "${S186_T1}" 2>/dev/null || { bad "[186] 🔴 格局机械同源哨兵缺注错自证(T1 可能已死)"; S186_BAD=1; }
+S186_NKEYS=$(grep -acE $'^\t[a-z_]+: \{' "${S186_REG}" 2>/dev/null || true)
+[ "${S186_NKEYS}" -ge 13 ] || { bad "[186] 🔴 奇门条件注册表键抓取塌缩(现 ${S186_NKEYS},需≥13;一键一行 Tab 缩进契约被破?)"; S186_BAD=1; }
+grep -aq "^export const QIMEN_JI_PATTERN_NAMES" "${S186_UI}/src/components/dunjia/DunJiaBaGongRules.js" 2>/dev/null || { bad "[186] 🔴 吉格清单加性导出缺失(DunJiaBaGongRules)"; S186_BAD=1; }
+grep -aq "^export const QIMEN_XIONG_PATTERN_NAMES" "${S186_UI}/src/components/dunjia/DunJiaBaGongRules.js" 2>/dev/null || { bad "[186] 🔴 凶格清单加性导出缺失(DunJiaBaGongRules)"; S186_BAD=1; }
+grep -aq "'qimenzeri'" "${S186_UI}/src/constants/SubTabRegistry.js" 2>/dev/null || { bad "[186] 🔴 ZERI_SUBTABS 缺 qimenzeri(切走切回被打回首档)"; S186_BAD=1; }
+grep -aq 'key="qimenzeri"' "${S186_UI}/src/components/zeri/ZeriMain.js" 2>/dev/null || { bad "[186] 🔴 ZeriMain 缺 qimenzeri TabPane"; S186_BAD=1; }
+grep -aq "AI_EXPORT_PRESET_SECTIONS.qimenzeri = \[\.\.\.AI_EXPORT_PRESET_SECTIONS.qimen, '择日搜索配置', '择日条件', '命中时辰'\]" "${S186_UI}/src/utils/aiExport.js" 2>/dev/null || { bad "[186] 🔴 qimenzeri preset 段表缺失或改形(须=qimen 全段+择日三段)"; S186_BAD=1; }
+for s in '\[择日搜索配置\]' '\[择日条件\]' '\[命中时辰\]'; do
+	grep -aq "${s}" "${S186_UI}/src/divination/zeri/qimenZeriSnapshot.js" 2>/dev/null || { bad "[186] 🔴 奇门择日快照缺段头 ${s}"; S186_BAD=1; }
+done
+S186_L1=$(grep -an "topInfo.includes('奇门择日')" "${S186_UI}/src/utils/aiExport.js" 2>/dev/null | head -1 | cut -d: -f1)
+S186_L2=$(grep -an "topInfo.includes('天星择日')" "${S186_UI}/src/utils/aiExport.js" 2>/dev/null | head -1 | cut -d: -f1)
+S186_L3=$(grep -an "topInfo.includes('择日')" "${S186_UI}/src/utils/aiExport.js" 2>/dev/null | head -1 | cut -d: -f1)
+{ [ -n "${S186_L1}" ] && [ -n "${S186_L2}" ] && [ -n "${S186_L3}" ] && [ "${S186_L1}" -lt "${S186_L2}" ] && [ "${S186_L2}" -lt "${S186_L3}" ]; } || { bad "[186] 🔴 aiExport 择日子串启发式次序被破(奇门择日=${S186_L1:-缺} 天星=${S186_L2:-缺} 裸择日=${S186_L3:-缺};乱序=zeri 页导出串盘)"; S186_BAD=1; }
+grep -aq "case 'zeri':" "${S186_UI}/src/utils/aiExport.js" 2>/dev/null || { bad "[186] 🔴 resolveContextByAstroState 缺 zeri 分流(store 兜底根治缺位)"; S186_BAD=1; }
+grep -aq "this.scope = props.techniqueScope || 'qimen';" "${S186_UI}/src/components/dunjia/DunJiaMain.js" 2>/dev/null || { bad "[186] 🔴 DunJiaMain techniqueScope 默认锚缺失"; S186_BAD=1; }
+S186_HARD=$(grep -ac "saveModuleAISnapshot('qimen'" "${S186_UI}/src/components/dunjia/DunJiaMain.js" 2>/dev/null || true)
+[ "${S186_HARD}" = "0" ] || { bad "[186] 🔴 DunJiaMain 出现硬编码 qimen 快照槽(${S186_HARD} 处;scope 化被回潮=双实例竞写复发)"; S186_BAD=1; }
+grep -aq "horosa-zeri-host .horosa-dunjia-redesign" "${S186_UI}/src/layouts/app.less" 2>/dev/null || { bad "[186] 🔴 zeri 页 dunjia dock 行样式条缺失(底部 64px 空带回归)"; S186_BAD=1; }
+[ "${S186_BAD}" = "0" ] && ok "[186] 奇门择日全链(资产11+注册表${S186_NKEYS}键+格局同源导出+对偶锁+scope回归锚+启发式次序锚)在位"
+
+# ── [187] R4-B1 预取底座:运行时白名单闸+连点泵保底+组式数据预热+L1 真 LRU ──
+# 病史:①白名单只是注释+jest 快照,运行时零拦截,且裸 '/pan' 条目匹配不到任何真实路径;
+# ②连点时预取泵被「丢旧代耗整拍+rIC 长 timeout」饿死(实测 20 连点 0 派发);
+# ③registerIdleWarmTask 启动瞬间快照一次,启动后登记永不执行(注册表空转);
+# ④dedupe L1 是 FIFO 冒充 LRU(热条目被预取挤出,预取自己活着)。
+# 本哨兵锁四件资产 + Mac 政策修正点(taixuan=seedInBody 绝不入预取白名单——Windows 版此处是漏洞)。
+echo "== [187] R4-B1 预取底座(白名单闸+泵保底+组式预热+L1 LRU) =="
+S187_BAD=0
+S187_SP="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/stepPrefetch.js"
+S187_REQ="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/request.js"
+S187_CF="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/chartFetch.js"
+S187_IWQ="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/idleWarmQueue.js"
+S187_RD="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/requestDedupe.js"
+S187_TEST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/stepPrefetch.test.js"
+grep -aq "export function guardPrefetchUrl(url){" "${S187_SP}" 2>/dev/null || { bad "[187] 🔴 运行时白名单闸函数缺失(guardPrefetchUrl)"; S187_BAD=1; }
+grep -aq "'/qimen/pan'," "${S187_SP}" 2>/dev/null || { bad "[187] 🔴 kentang 逐条枚举缺失(白名单塌回通配即随机起卦可被预取)"; S187_BAD=1; }
+grep -aqE "^	'/pan'," "${S187_SP}" 2>/dev/null && { bad "[187] 🔴 裸 '/pan' 条目回潮(形同虚设的假白名单)"; S187_BAD=1; }
+grep -aq "'/taixuan/pan'" "${S187_SP}" 2>/dev/null && { bad "[187] 🔴 taixuan(seedInBody 蓍法种子)混入预取白名单——预取即钉死起课"; S187_BAD=1; }
+grep -aq "'taixuan'," "${S187_SP}" 2>/dev/null || { bad "[187] 🔴 FORBIDDEN 缺 taixuan 禁词"; S187_BAD=1; }
+grep -aq "guardPrefetchUrl(url)" "${S187_REQ}" 2>/dev/null || { bad "[187] 🔴 request.js 纵深闸未接线"; S187_BAD=1; }
+grep -aq "guardPrefetchUrl(url)" "${S187_CF}" 2>/dev/null || { bad "[187] 🔴 chartFetch.js 纵深闸未接线(kentang 族裸 fetch 不经 request)"; S187_BAD=1; }
+grep -aq "horosa_prefetch_pump_livelock_v1" "${S187_SP}" 2>/dev/null || { bad "[187] 🔴 连点泵保底改造缺失(20 连点将回到 0 派发)"; S187_BAD=1; }
+grep -aq "export function scheduleDataWarmGroup(generationKey, tasks){" "${S187_IWQ}" 2>/dev/null || { bad "[187] 🔴 组式数据预热调度缺失(scheduleDataWarmGroup)"; S187_BAD=1; }
+grep -aq "horosa_dedupe_l1_lru_v1" "${S187_RD}" 2>/dev/null || { bad "[187] 🔴 dedupe L1 真 LRU 命中重插缺失(FIFO 会把热条目挤给预取)"; S187_BAD=1; }
+grep -aq "连点泵保底:20 次连点" "${S187_TEST}" 2>/dev/null || { bad "[187] 🔴 连点保底金标缺失(≥15/20 硬指标失守)"; S187_BAD=1; }
+grep -aq "kentang 枚举 ≡ 政策表" "${S187_TEST}" 2>/dev/null || { bad "[187] 🔴 白名单↔政策表单一真值源对拍测试缺失"; S187_BAD=1; }
+grep -aE "\.skip|xdescribe|xit\(" "${S187_TEST}" >/dev/null 2>&1 && { bad "[187] 🔴 stepPrefetch 测试被 skip 旁路"; S187_BAD=1; }
+[ "${S187_BAD}" = "0" ] && ok "[187] R4-B1 预取底座(白名单闸+泵保底+组式预热+L1 LRU+政策修正)全在位"
+
+# ── [188] R4-B2 武装引擎:四时机武装+技法登记表复活+紫微空烧止血 ──
+# 病史:①「选完步长第一下卡」——预取单位只来自上次步进 hint,选新档第一下必 miss;
+# ②registerStepPrefetcher 注册表零组件登记(死表),且旧 builder 把【基准 fields】传给登记方
+# (构出「此刻」参数,预取白打——死表期潜伏未爆);③紫微 chartFree 页选步长走全局 handler
+# 空烧 4 个 /chart。武装=四时机(unit-select/settle 兜底/local-settle/tab-activate)按当前
+# 档位 ±depth 预好;NO_ARM 含 zeri(Mac 差异化:择日 fields 自持+找局纯本地,全局武装错轴)。
+echo "== [188] R4-B2 武装引擎(四时机+登记表+紫微止血) =="
+S188_BAD=0
+S188_ARM="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/stepPrefetchArm.js"
+S188_AST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/models/astro.js"
+S188_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+[ -f "${S188_ARM}" ] || { bad "[188] 🔴 武装引擎文件缺失(stepPrefetchArm.js)"; S188_BAD=1; }
+grep -aq "'zeri'," "${S188_ARM}" 2>/dev/null || { bad "[188] 🔴 NO_ARM_TABS 缺 zeri(择日 fields 自持,全局武装=错轴白打)"; S188_BAD=1; }
+grep -aq "'guazhan', 'planetarium', 'aianalysis'" "${S188_ARM}" 2>/dev/null || { bad "[188] 🔴 NO_ARM_TABS 随机/取现时/流式三禁缺失"; S188_BAD=1; }
+grep -aq "registerArmPlanBuilder((fieldValues, hint, astroState)=>buildStepPrefetchTasks" "${S188_AST}" 2>/dev/null || { bad "[188] 🔴 构造器注入缺失(武装线拿不到 builder=全线哑火)"; S188_BAD=1; }
+grep -aq "const more = extra(f2, stepHint);" "${S188_AST}" 2>/dev/null || { bad "[188] 🔴 f2 修正回退(登记方又拿基准 fields=预取白打)"; S188_BAD=1; }
+S188_SETTLE=$(grep -ac "currentStepUnit(astroState.currentTab)" "${S188_AST}" 2>/dev/null)
+S188_SETTLE=${S188_SETTLE:-0}
+[ "${S188_SETTLE}" -ge 2 ] || { bad "[188] 🔴 settle 兜底武装不足(快车道+常规两分支须各一,现 ${S188_SETTLE})"; S188_BAD=1; }
+S188_REG=$(grep -arl "registerStepPrefetcher('" "${S188_UI}/src/components" 2>/dev/null | wc -l | tr -d ' ')
+[ "${S188_REG}" -ge 4 ] || { bad "[188] 🔴 技法登记组件数不足(需≥4:ziwei/dunjia/taiyi/liureng,现 ${S188_REG})"; S188_BAD=1; }
+S188_UNREG=$(grep -arl "unregisterStepPrefetcher('" "${S188_UI}/src/components" 2>/dev/null | wc -l | tr -d ' ')
+[ "${S188_UNREG}" -ge 4 ] || { bad "[188] 🔴 反注册配对不足(卸载后闭包吃死组件态,现 ${S188_UNREG})"; S188_BAD=1; }
+grep -aq "armStepPrefetch('unit-select', { unit, skipChart: true })" "${S188_UI}/src/components/ziwei/ZiWeiInput.js" 2>/dev/null || { bad "[188] 🔴 紫微选步长止血缺失(chartFree 页又空烧 /chart)"; S188_BAD=1; }
+grep -aq "armStepPrefetch('tab-activate'" "${S188_UI}/src/pages/index.js" 2>/dev/null || { bad "[188] 🔴 切页武装时机缺失(进页第一下步进恒冷)"; S188_BAD=1; }
+grep -aq "armStepPrefetch('local-settle', { fieldsOverride: fields, skipChart: true })" "${S188_UI}/src/components/ziwei/ZiWeiMain.js" 2>/dev/null || { bad "[188] 🔴 紫微本地漏斗 settle 武装缺失"; S188_BAD=1; }
+[ "${S188_BAD}" = "0" ] && ok "[188] R4-B2 武装引擎(四时机+登记 ${S188_REG} 件+f2 修正+紫微止血)全在位"
+
+# ── [189] R4 B3-B6/P1-P3a 综合资产锚(数据预热/三段链/错轴止血/缓存补全/静态供给/门观察位) ──
+# 一段多锚:各批已由独立 commit+测试验收,此处锁「资产在位性」防未来无意识拆除;
+# 逐行一罪,任一缺位即红。详细病史见各 perf(R4-*) commit 信息。
+echo "== [189] R4 B3-B6/P1-P3a 综合资产锚 =="
+S189_BAD=0
+S189_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S189_DWT="${S189_UI}/src/utils/dataWarmTasks.js"
+S189_OPT="${S189_UI}/src/utils/optionPrefetch.js"
+S189_MAIN_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S189_START="${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"
+S189_PYSRV="${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"
+# B3:数据预热注册表(登记≥4)+pages 接线+七政三段链
+S189_NWARM=$(grep -ac "^registerDataWarmTask('" "${S189_DWT}" 2>/dev/null); S189_NWARM=${S189_NWARM:-0}
+[ "${S189_NWARM}" -ge 4 ] || { bad "[189] 🔴 dataWarmTasks 登记数不足(需≥4,现 ${S189_NWARM})"; S189_BAD=1; }
+grep -aq "registry.buildDataWarmTasks(warmFields, warmChartObj)" "${S189_UI}/src/pages/index.js" 2>/dev/null || { bad "[189] 🔴 pages 数据预热接线缺失(注册表空转回潮)"; S189_BAD=1; }
+S189_RULES=$(grep -ac "fetchMoiraQizhengRules({" "${S189_UI}/src/components/guolao/GuoLaoChartMain.js" 2>/dev/null); S189_RULES=${S189_RULES:-0}
+[ "${S189_RULES}" -ge 3 ] || { bad "[189] 🔴 七政规则段调用不足(主链两路+预取链一处须≥3,现 ${S189_RULES}——三段链的第三段被拆即步进回到每步必付)"; S189_BAD=1; }
+grep -aq "warmAllStages = transitTime !== null" "${S189_UI}/src/components/guolao/GuoLaoChartMain.js" 2>/dev/null || { bad "[189] 🔴 七政取现时红线守卫缺失(默认「现在」态后两段白打)"; S189_BAD=1; }
+# B4:PD 正轴预取+错轴止血
+grep -aq "prefetchPdStepSelect(unit){" "${S189_UI}/src/components/astro/AstroPrimaryDirectionChart.js" 2>/dev/null || { bad "[189] 🔴 主限法正轴预取器缺失"; S189_BAD=1; }
+grep -aq "path: '/predict/pdchart'," "${S189_UI}/src/components/astro/AstroPrimaryDirectionChart.js" 2>/dev/null || { bad "[189] 🔴 PD 预取任务 path 契约缺失"; S189_BAD=1; }
+grep -aq "R4-B4 错轴止血" "${S189_UI}/src/components/astro/AstroPersianDirected.js" 2>/dev/null || { bad "[189] 🔴 波斯向运错轴止血被拆(选步长回到空烧 natal /chart)"; S189_BAD=1; }
+# B6:dedupe 精确条目+chartMem validOnly
+grep -aq "'/bazi/birth'," "${S189_UI}/src/utils/requestDedupe.js" 2>/dev/null || { bad "[189] 🔴 dedupe 缺 /bazi/birth 精确条目"; S189_BAD=1; }
+grep -aqE "^	'/bazi/'," "${S189_UI}/src/utils/requestDedupe.js" 2>/dev/null && { bad "[189] 🔴 /bazi/ 整前缀回潮(族内有写端点 pattern/update)"; S189_BAD=1; }
+grep -aq "chartMem_valid_only_v1" "${S189_UI}/src/services/astro.js" 2>/dev/null || { bad "[189] 🔴 chartMem validOnly 被拆(错误信封会进缓存)"; S189_BAD=1; }
+# B5a:FE-18+optionPrefetch
+grep -aq "horosa_change_cond_no_mutate_v1" "${S189_UI}/src/pages/index.js" 2>/dev/null || { bad "[189] 🔴 changeCond 就地变异根治被拆(渲染 memo 全部白加)"; S189_BAD=1; }
+S189_AXES=$(grep -ac "	{ key: '" "${S189_OPT}" 2>/dev/null); S189_AXES=${S189_AXES:-0}
+[ "${S189_AXES}" = "4" ] || { bad "[189] 🔴 BINARY_CHART_AXES 非恰四轴(现 ${S189_AXES};多值轴须组件登记不许 util 臆造)"; S189_BAD=1; }
+S189_SPEC=$(grep -ac "speculateChartOptions(fieldValues, astroState);" "${S189_UI}/src/models/astro.js" 2>/dev/null); S189_SPEC=${S189_SPEC:-0}
+[ "${S189_SPEC}" -ge 2 ] || { bad "[189] 🔴 选项投机 settle 接线不足(快车道+常规两分支须各一,现 ${S189_SPEC})"; S189_BAD=1; }
+# P1cd:preload 六前缀+对拍⑤段
+grep -aq "'shared-technique', 'vendors-d3'" "${S189_UI}/scripts/inject-preload.js" 2>/dev/null || { bad "[189] 🔴 preload 清单缺 shared-technique/vendors-d3(首屏最大件回到串行瀑布)"; S189_BAD=1; }
+grep -aq "check-chunk-dup ⑤" "${S189_UI}/scripts/check-chunk-dup.js" 2>/dev/null || { bad "[189] 🔴 preload↔首屏批次对拍⑤段缺失(清单漂移无人看守)"; S189_BAD=1; }
+# P2c:latch 终确认+listen 观察位
+grep -aq "sh.java_listen_ready" "${S189_START}" 2>/dev/null || { bad "[189] 🔴 sh.java_listen_ready 观察位缺失(P4-3 裁决数据断供)"; S189_BAD=1; }
+grep -aq "HOROSA_READY_PROBE_LATCH" "${S189_START}" 2>/dev/null || { bad "[189] 🔴 就绪探测 latch 合并被拆(每轮回到 4 次 curl fork)"; S189_BAD=1; }
+# P3a:PD 并行组+门观察位
+grep -aq "HOROSA_PY_PD_PARALLEL" "${S189_PYSRV}" 2>/dev/null || { bad "[189] 🔴 PD 并行组开关缺失"; S189_BAD=1; }
+grep -aq "ledger_mark('py.gate_open'" "${S189_PYSRV}" 2>/dev/null || { bad "[189] 🔴 py.gate_open 观察位缺失"; S189_BAD=1; }
+grep -aq "py.gate_first_wait" "${S189_PYSRV}" 2>/dev/null || { bad "[189] 🔴 py.gate_first_wait 观察位缺失(P3-b 分级门裁决数据断供)"; S189_BAD=1; }
+# P1ab+P2ab:Rust 静态供给+串行点
+grep -aq "HOROSA_STATIC_POOL" "${S189_MAIN_RS}" 2>/dev/null || { bad "[189] 🔴 静态服务器线程池被拆(首屏回到单线程串行供给)"; S189_BAD=1; }
+grep -aq "fn respond_static_from_ram(" "${S189_MAIN_RS}" 2>/dev/null || { bad "[189] 🔴 静态 RAM 缓存应答缺失"; S189_BAD=1; }
+grep -aq "fn make_static_etag(" "${S189_MAIN_RS}" 2>/dev/null || { bad "[189] 🔴 ETag 公式单源定义缺失(fn make_static_etag)"; S189_BAD=1; }
+S189_ETAG=$(grep -ac "make_static_etag(" "${S189_MAIN_RS}" 2>/dev/null); S189_ETAG=${S189_ETAG:-0}
+[ "${S189_ETAG}" -ge 3 ] || { bad "[189] 🔴 ETag 公式单源共用不足(定义+RAM 两处须≥3(public 磁盘路径简化版不发 ETag),现 ${S189_ETAG}——两路分叉即 304 连续性破)"; S189_BAD=1; }
+grep -aq "rust.prestop_done" "${S189_MAIN_RS}" 2>/dev/null || { bad "[189] 🔴 stop 预检账本位缺失"; S189_BAD=1; }
+grep -aq "HOROSA_PRUNE_LOGS_ASYNC" "${S189_MAIN_RS}" 2>/dev/null || { bad "[189] 🔴 日志清扫后台化被拆"; S189_BAD=1; }
+[ "${S189_BAD}" = "0" ] && ok "[189] R4 B3-B6/P1-P3a 综合资产(预热 ${S189_NWARM} 条+三段链+止血+精确缓存+preload 对拍+门观察位+静态池/RAM)全在位"
+
+# ── [190] R4-B7 渲染批资产锚(convert memo/图守卫/双提交合一/弹窗短路/子页签冻结) ──
+# 病史:R10 实测四靶点(三式闪帧/659 行弹窗白建/无关状态抖动)+FL-20260712-5 同型「表新盘旧」。
+echo "== [190] R4-B7 渲染批资产锚 =="
+S190_BAD=0
+S190_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+# C15:convertToArray memo(五处 useMemo,身份稳定供下游 memo)
+grep -aq "horosa_convert_memo_v1" "${S190_UI}/src/pages/index.js" 2>/dev/null || { bad "[190] 🔴 convertToArray memo 标记缺失"; S190_BAD=1; }
+S190_CM=$(grep -ac "React.useMemo(()=>convertToArray(" "${S190_UI}/src/pages/index.js" 2>/dev/null); S190_CM=${S190_CM:-0}
+[ "${S190_CM}" -ge 5 ] || { bad "[190] 🔴 convertToArray useMemo 不足五处(现 ${S190_CM}——数组引用每 render 新建,下游 memo 全 miss)"; S190_BAD=1; }
+# C17:七政盘 svg resize 守卫(隐藏期数据更新→切回表新盘旧)
+grep -aq "watchChartSvgResize(this.state.chartid, this.drawChart)" "${S190_UI}/src/components/guolao/GuoLaoChart.js" 2>/dev/null || { bad "[190] 🔴 GuoLaoChart svg resize 守卫缺失(FL-20260712-5 同型回潮)"; S190_BAD=1; }
+# C16 靶①:三式重算双提交合一(盘结果与 loading:false 同帧)
+grep -aq "payload.commitPatch" "${S190_UI}/src/components/sanshi/SanShiUnitedMain.js" 2>/dev/null || { bad "[190] 🔴 三式 commitPatch 防抖透传被拆"; S190_BAD=1; }
+grep -aq '\.\.\.(commitPatch || null),' "${S190_UI}/src/components/sanshi/SanShiUnitedMain.js" 2>/dev/null || { bad "[190] 🔴 三式双提交合一被拆(新盘+转圈中间帧回潮)"; S190_BAD=1; }
+# C16 靶②:择日两弹窗「从未打开过」粘性短路(~650 行元素树白建)
+for S190_F in "src/components/zeri/ConditionBuilderModal.js" "src/components/zeri/QimenZeriWorkbench.js"; do
+	grep -aq "if(!everOpenRef.current){ return null; }" "${S190_UI}/${S190_F}" 2>/dev/null || { bad "[190] 🔴 ${S190_F} 粘性短路缺失(弹窗关着每 render 白建元素树)"; S190_BAD=1; }
+done
+# C16-⑤:FreezeSubTab 三技法接线(六壬 8 面板/奇门 5 面板/七政 map 全面板)
+S190_LR=$(grep -ac "<FreezeSubTab active={activeTabKey ===" "${S190_UI}/src/components/lrzhan/LiuRengMain.js" 2>/dev/null); S190_LR=${S190_LR:-0}
+[ "${S190_LR}" -ge 8 ] || { bad "[190] 🔴 六壬右栏 FreezeSubTab 不足 8 面板(现 ${S190_LR})"; S190_BAD=1; }
+S190_DJ=$(grep -ac "<FreezeSubTab active={panelTab ===" "${S190_UI}/src/components/dunjia/DunJiaMain.js" 2>/dev/null); S190_DJ=${S190_DJ:-0}
+[ "${S190_DJ}" -ge 5 ] || { bad "[190] 🔴 奇门右栏 FreezeSubTab 不足 5 面板(现 ${S190_DJ})"; S190_BAD=1; }
+grep -aq "<FreezeSubTab active={active === item.key}>" "${S190_UI}/src/components/guolao/GuoLaoChartMain.js" 2>/dev/null || { bad "[190] 🔴 七政右栏 FreezeSubTab map 接线缺失"; S190_BAD=1; }
+for S190_F in "src/components/lrzhan/LiuRengMain.js" "src/components/dunjia/DunJiaMain.js" "src/components/guolao/GuoLaoChartMain.js"; do
+	grep -aq "import { FreezeSubTab } from '../comp/FreezeInactive';" "${S190_UI}/${S190_F}" 2>/dev/null || { bad "[190] 🔴 ${S190_F} FreezeSubTab import 缺失"; S190_BAD=1; }
+done
+[ "${S190_BAD}" = "0" ] && ok "[190] R4-B7 渲染批资产(convert memo ${S190_CM} 处+七政守卫+三式同帧+双弹窗短路+子页签冻结 ${S190_LR}/${S190_DJ}/map)全在位"
+
+# ── [191] R4-B5b 选项防抖+主链 Abort 资产锚 ──
+echo "== [191] R4-B5b 选项防抖+主链 Abort 资产锚 =="
+S191_BAD=0
+S191_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+# 选项通道:调度器在位+delta/fresh-base 形态+接线
+grep -aq "horosa_option_debounce_v1" "${S191_UI}/src/utils/optionDispatchScheduler.js" 2>/dev/null || { bad "[191] 🔴 optionDispatchScheduler 缺失"; S191_BAD=1; }
+grep -aq "pendingDelta = { ...(pendingDelta || {}), ...(delta || {}) };" "${S191_UI}/src/utils/optionDispatchScheduler.js" 2>/dev/null || { bad "[191] 🔴 delta 累积被拆(trailing 只发末次快照=陈旧时间键覆盖时间轴在途变更)"; S191_BAD=1; }
+grep -aq "scheduleOptionDispatch((payload)=>{" "${S191_UI}/src/components/astro/ChartDisplaySelector.js" 2>/dev/null || { bad "[191] 🔴 古典参数选项通道接线缺失(连拨回到逐发全算)"; S191_BAD=1; }
+# 主链 Abort 三防线:models 挂载+request 短路序+services 共享隔离
+grep -aq "chartMainAbortCtl = new AbortController();" "${S191_UI}/src/models/astro.js" 2>/dev/null || { bad "[191] 🔴 主链 AbortController 挂载缺失"; S191_BAD=1; }
+S191_GUARD=$(grep -ac "options.signal && options.signal.aborted" "${S191_UI}/src/utils/request.js" 2>/dev/null); S191_GUARD=${S191_GUARD:-0}
+[ "${S191_GUARD}" -ge 2 ] || { bad "[191] 🔴 request 层 abort 短路不足两路(requestCore+requestRaw 须各一,现 ${S191_GUARD}——缺者 abort 触发身份再协商)"; S191_BAD=1; }
+grep -aq "const shareKey = opts.signal ? '' : key;" "${S191_UI}/src/services/astro.js" 2>/dev/null || { bad "[191] 🔴 chartInflight signal 隔离被拆(A abort 连坐同参搭车 B)"; S191_BAD=1; }
+grep -aq "err.name === 'TimeoutError' || err.name === 'AbortError'" "${S191_UI}/src/utils/serviceStatus.js" 2>/dev/null || { bad "[191] 🔴 AbortError 离线白名单被拆(abort 弹离线横幅/触发重试)"; S191_BAD=1; }
+[ "${S191_BAD}" = "0" ] && ok "[191] R4-B5b 资产(选项通道 delta+fresh base/Abort 三防线 ${S191_GUARD} 路短路)全在位"
+
+# ── [199] CDS 两处训练端点清单 lockstep(打包预训 ↔ 用户侧自训) ──
+# 病史:两处清单各自演化=预置 .jsa 与自训 .jsa 类面分叉,增量后回退自训档时首交互链覆盖骤缩。
+echo "== [199] CDS 训练端点清单 lockstep =="
+S199_A=$(grep -a 'for _cds_ep in ' "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/package_runtime_payload.sh" 2>/dev/null | head -1 | sed 's/^[[:space:]]*//')
+S199_B=$(grep -a 'for _cds_ep in ' "${REPO_ROOT}/Horosa-Web/start_horosa_local.sh" 2>/dev/null | head -1 | sed 's/^[[:space:]]*//')
+if [ -z "${S199_A}" ] || [ -z "${S199_B}" ]; then
+	bad "[199] 🔴 CDS 训练端点循环缺失(打包侧='${S199_A}' 自训侧='${S199_B}')"
+elif [ "${S199_A}" != "${S199_B}" ]; then
+	bad "[199] 🔴 两处 CDS 训练清单分叉——打包预训与用户侧自训类面不一致:打包=${S199_A} 自训=${S199_B}"
+else
+	if echo "${S199_A}" | grep -aq '"/rules/ziwei"'; then
+		ok "[199] CDS 两处训练清单逐字一致(含 /rules/ziwei)"
+	else
+		bad "[199] 🔴 训练清单缺 /rules/ziwei(R4-P4-2 扩容被拆)"
+	fi
+fi
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

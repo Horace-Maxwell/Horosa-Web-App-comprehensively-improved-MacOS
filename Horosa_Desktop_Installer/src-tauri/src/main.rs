@@ -6631,6 +6631,193 @@ fn choose_port_with_preference(preferred_port: u16) -> Result<u16> {
     }
 }
 
+// [R4-P1b] 静态资产 RAM 缓存条目:dist 在进程运行期不变(更新=换树重启;repair=新 bootstrap
+// 新 server 新缓存),故一次性构建、零失效逻辑。raw/gz 双体;etag 与磁盘路径共用同一公式
+// (make_static_etag)——跨「缓存命中/磁盘回退/进程重启」三态 304 连续性逐字节不破。
+struct StaticRamAsset {
+    raw: Vec<u8>,
+    gz: Option<Vec<u8>>,
+    etag_raw: String,
+    etag_gz: Option<String>,
+    mime: String,
+}
+
+// [B2] umi 内容 hash 判定:文件名含「.xxxxxxxx.」8 位十六进制段(umi.3425e23b.js /
+// p__index.4d77b5f4.async.js / umi.d1758af4.css)= 内容寻址,可 immutable 长缓存;
+// 其余(index.html 等)走 no-cache 重校验。
+fn static_asset_has_content_hash(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] == b'.' {
+            let start = i + 1;
+            let mut j = start;
+            while j < bytes.len() && bytes[j].is_ascii_hexdigit() {
+                j += 1;
+            }
+            if j - start == 8 && j < bytes.len() && bytes[j] == b'.' {
+                return true;
+            }
+            i = if j > start { j } else { i + 1 };
+        } else {
+            i += 1;
+        }
+    }
+    false
+}
+
+// [R4-P1b] 弱 ETag 公式单源:len-mtime(-gz)。缓存构建与磁盘旧路径共用 —— 谁改公式必须
+// 两路同改,否则同一文件在命中/回退两态给出不同 ETag = 客户端缓存被无谓打穿。
+fn make_static_etag(len: u64, mtime_secs: u64, gz: bool) -> String {
+    format!("W/\"{}-{}{}\"", len, mtime_secs, if gz { "-gz" } else { "" })
+}
+
+fn static_file_mtime_secs(meta: &fs::Metadata) -> u64 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+// [R4-P1b] 构建 RAM 缓存:清单**解析 index.html 的 script/link 引用**自维护(零硬编码
+// chunk 名 —— preload 清单扩容/chunk 改名后自动跟随);加 index.html 自身。每项载入
+// raw + .gz 旁件。单件 >8MB 跳过、总预算 40MB(现首屏 raw ~10.2MB + gz ~2.9MB)。
+fn build_static_ram_cache(
+    frontend_dir: &std::path::Path,
+) -> std::collections::HashMap<String, StaticRamAsset> {
+    let mut map = std::collections::HashMap::new();
+    let html_path = frontend_dir.join("index.html");
+    let html = match fs::read_to_string(&html_path) {
+        Ok(h) => h,
+        Err(_) => return map,
+    };
+    let mut rels: Vec<String> = vec!["index.html".to_string()];
+    for cap in html.split(|c| c == '"' || c == '\'') {
+        let cand = cap.trim_start_matches("./").trim_start_matches('/');
+        if (cand.ends_with(".js") || cand.ends_with(".css"))
+            && !cand.contains("://")
+            && !cand.is_empty()
+            && !rels.iter().any(|r| r == cand)
+        {
+            rels.push(cand.to_string());
+        }
+    }
+    const SINGLE_CAP: u64 = 8 * 1024 * 1024;
+    const TOTAL_CAP: usize = 40 * 1024 * 1024;
+    let mut total: usize = 0;
+    for rel in rels {
+        let path = frontend_dir.join(&rel);
+        let meta = match fs::metadata(&path) {
+            Ok(m) if m.is_file() && m.len() <= SINGLE_CAP => m,
+            _ => continue,
+        };
+        let raw = match fs::read(&path) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        if total + raw.len() > TOTAL_CAP {
+            break;
+        }
+        total += raw.len();
+        let etag_raw = make_static_etag(meta.len(), static_file_mtime_secs(&meta), false);
+        let gz_path = PathBuf::from(format!("{}.gz", path.to_string_lossy()));
+        let (gz, etag_gz) = match fs::metadata(&gz_path) {
+            Ok(gm) if gm.is_file() => match fs::read(&gz_path) {
+                Ok(gb) if total + gb.len() <= TOTAL_CAP => {
+                    total += gb.len();
+                    let et = make_static_etag(gm.len(), static_file_mtime_secs(&gm), true);
+                    (Some(gb), Some(et))
+                }
+                _ => (None, None),
+            },
+            _ => (None, None),
+        };
+        let mime = from_path(&path).first_or_octet_stream().to_string();
+        map.insert(
+            rel,
+            StaticRamAsset {
+                raw,
+                gz,
+                etag_raw,
+                etag_gz,
+                mime,
+            },
+        );
+    }
+    map
+}
+
+// [R4-P1b] RAM 命中应答:响应头语义(ETag/304/Cache-Control/Vary/Content-Encoding/CSP)与
+// 磁盘路径**逐字段一致**(下方磁盘路径是语义权威;两处改动必须同步)。
+fn respond_static_from_ram(request: tiny_http::Request, rel: &str, asset: &StaticRamAsset) {
+    let immutable = static_asset_has_content_hash(rel.rsplit('/').next().unwrap_or(rel));
+    let cache_control: &str = if immutable {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache"
+    };
+    let accepts_gzip = request.headers().iter().any(|h| {
+        h.field.equiv("Accept-Encoding")
+            && h.value.as_str().to_ascii_lowercase().contains("gzip")
+    });
+    let use_gz = accepts_gzip && asset.gz.is_some();
+    let etag = if use_gz {
+        asset.etag_gz.as_deref().unwrap_or(asset.etag_raw.as_str())
+    } else {
+        asset.etag_raw.as_str()
+    };
+    let inm_hit = request.headers().iter().any(|h| {
+        h.field.equiv("If-None-Match") && h.value.as_str().trim() == etag
+    });
+    if inm_hit {
+        let mut resp = Response::empty(StatusCode(304));
+        if let Ok(hd) = Header::from_bytes(&b"ETag"[..], etag.as_bytes()) {
+            resp = resp.with_header(hd);
+        }
+        if let Ok(hd) = Header::from_bytes(&b"Cache-Control"[..], cache_control.as_bytes()) {
+            resp = resp.with_header(hd);
+        }
+        if let Ok(hd) = Header::from_bytes(&b"Vary"[..], &b"Accept-Encoding"[..]) {
+            resp = resp.with_header(hd);
+        }
+        let _ = request.respond(resp);
+        return;
+    }
+    let body: Vec<u8> = if use_gz {
+        asset.gz.as_ref().cloned().unwrap_or_else(|| asset.raw.clone())
+    } else {
+        asset.raw.clone()
+    };
+    let mut response = Response::from_data(body);
+    if let Ok(header) = Header::from_bytes(&b"Content-Type"[..], asset.mime.as_bytes()) {
+        response = response.with_header(header);
+    }
+    if use_gz {
+        if let Ok(hd) = Header::from_bytes(&b"Content-Encoding"[..], &b"gzip"[..]) {
+            response = response.with_header(hd);
+        }
+    }
+    if let Ok(hd) = Header::from_bytes(&b"Vary"[..], &b"Accept-Encoding"[..]) {
+        response = response.with_header(hd);
+    }
+    if let Ok(hd) = Header::from_bytes(&b"Cache-Control"[..], cache_control.as_bytes()) {
+        response = response.with_header(hd);
+    }
+    if let Ok(hd) = Header::from_bytes(&b"ETag"[..], etag.as_bytes()) {
+        response = response.with_header(hd);
+    }
+    if asset.mime == "text/html" {
+        if let Ok(csp) = Header::from_bytes(
+                            &b"Content-Security-Policy"[..],
+                            &b"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://*.amap.com; style-src 'self' 'unsafe-inline' https://*.amap.com; img-src 'self' data: blob: https://*.amap.com https://*.autonavi.com; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:* https://*.amap.com https://*.autonavi.com; worker-src 'self' blob:; media-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'self'"[..],
+        ) {
+            response = response.with_header(csp);
+        }
+    }
+    let _ = request.respond(response);
+}
+
 fn start_static_server(
     frontend_dir: PathBuf,
     port: u16,
@@ -6638,7 +6825,53 @@ fn start_static_server(
 ) -> Result<thread::JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let server = Server::http(addr).map_err(|e| anyhow!(e.to_string()))?;
-    let handle = thread::spawn(move || {
+    // [R4-P1a] 线程池:tiny_http Server 是 Sync,官方多线程模式 = Arc<Server> + N worker 各自
+    // recv_timeout。旧单线程串行供给首屏 ~10MB×12 响应排队;WKWebView 同源并发 ≤6,默认 4
+    // worker(>4 与 JVM 引导抢核边际负)。HOROSA_STATIC_POOL:0/1=单线程旧行为,2..8 夹取。
+    let pool: usize = std::env::var("HOROSA_STATIC_POOL")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .map(|n| if n <= 1 { 1 } else { n.min(8) })
+        .unwrap_or(4);
+    // [R4-P1b] RAM 缓存后台构建:建成前 worker 走磁盘旧路径(优雅降级,早到请求零等待)。
+    // kill-switch:HOROSA_STATIC_RAM_CACHE=0。
+    let ram_enabled = std::env::var("HOROSA_STATIC_RAM_CACHE")
+        .map(|v| v != "0")
+        .unwrap_or(true);
+    let ram_cache: Arc<std::sync::RwLock<Option<std::collections::HashMap<String, StaticRamAsset>>>> =
+        Arc::new(std::sync::RwLock::new(None));
+    if ram_enabled {
+        let cache_slot = Arc::clone(&ram_cache);
+        let dir_for_cache = frontend_dir.clone();
+        let t0 = std::time::Instant::now();
+        thread::spawn(move || {
+            let built = build_static_ram_cache(&dir_for_cache);
+            let files = built.len();
+            let bytes: usize = built
+                .values()
+                .map(|a| a.raw.len() + a.gz.as_ref().map(|g| g.len()).unwrap_or(0))
+                .sum();
+            if let Ok(mut w) = cache_slot.write() {
+                *w = Some(built);
+            }
+            ledger_mark(
+                "rust.static_cache_ready",
+                Some(serde_json::json!({
+                    "files": files,
+                    "bytes": bytes,
+                    "ms": t0.elapsed().as_millis() as u64,
+                })),
+            );
+        });
+    }
+    let server = Arc::new(server);
+    let mut workers: Vec<thread::JoinHandle<()>> = Vec::new();
+    for _ in 0..pool {
+        let server = Arc::clone(&server);
+        let shutdown = Arc::clone(&shutdown);
+        let frontend_dir = frontend_dir.clone();
+        let ram_cache = Arc::clone(&ram_cache);
+        workers.push(thread::spawn(move || {
         while !shutdown.load(Ordering::Relaxed) {
             let request = match server.recv_timeout(Duration::from_millis(250)) {
                 Ok(Some(req)) => req,
@@ -6655,6 +6888,16 @@ fn start_static_server(
             } else {
                 url.trim_start_matches('/').to_string()
             };
+            // [R4-P1b] RAM 命中:首屏关键件(index.html 引用的 js/css+gz 旁件)零磁盘 IO 应答。
+            // try_read 失败(构建中持写锁的瞬间)按 miss 走磁盘 —— 永不阻塞请求。
+            if let Ok(guard) = ram_cache.try_read() {
+                if let Some(map) = guard.as_ref() {
+                    if let Some(asset) = map.get(&rel) {
+                        respond_static_from_ram(request, &rel, asset);
+                        continue;
+                    }
+                }
+            }
             let mut target = frontend_dir.join(&rel);
             if !target.exists() {
                 target = frontend_dir.join("index.html");
@@ -6688,6 +6931,13 @@ fn start_static_server(
                     let _ = request.respond(Response::empty(StatusCode(404)));
                 }
             }
+        }
+        }));
+    }
+    // 签名不变:返回一个「join 全部 worker」的监督线程 handle(调用方 TOCTOU 重试环零改动)。
+    let handle = thread::spawn(move || {
+        for w in workers {
+            let _ = w.join();
         }
     });
     Ok(handle)
@@ -7340,7 +7590,37 @@ fn start_runtime(
     if !trusted_runtime {
         prepare_runtime_dir(&paths.runtime_dir)?;
     }
-    stop_runtime(paths, Some((backend_port, chart_port)));
+    // [R4-P2a] 启动期 stop 条件跳过:choose_free_port 已证两口可绑,stop 在常态下是
+    // 「pid 文件不存在 → 脚本空跑」的纯 no-op 固定税(bash spawn + 三并行 stop + netstat
+    // ≈50-150ms)。预检对齐 stop 脚本的兜底扫描语义(通配 .horosa_{py,java,web}.*.pid ——
+    // 任一 stale pid 在 → 照旧同步跑,回收覆盖零损失)。孤儿回收另有四道(退出停服/panic
+    // 真端口/看门狗/postinstall sweep),本预检只省「明确无可回收」的那次 spawn;
+    // 零残留铁律不涉——这是启动期预清理,不是退出路径。HOROSA_START_STOP_PRECHECK=0 关。
+    let prestop_skip = std::env::var("HOROSA_START_STOP_PRECHECK")
+        .map(|v| v != "0")
+        .unwrap_or(true)
+        && {
+            let web_dir = paths.runtime_dir.join("Horosa-Web");
+            let has_stale_pid = fs::read_dir(&web_dir)
+                .map(|it| {
+                    it.filter_map(|e| e.ok())
+                        .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+                        .any(|n| {
+                            n.ends_with(".pid")
+                                && (n.starts_with(".horosa_py.")
+                                    || n.starts_with(".horosa_java.")
+                                    || n.starts_with(".horosa_web."))
+                        })
+                })
+                .unwrap_or(true); // 目录读不了 → 保守判「可能有残留」照旧跑 stop
+            !has_stale_pid
+        };
+    if prestop_skip {
+        ledger_mark("rust.prestop_done", Some(serde_json::json!({"skipped": 1})));
+    } else {
+        stop_runtime(paths, Some((backend_port, chart_port)));
+        ledger_mark("rust.prestop_done", Some(serde_json::json!({"skipped": 0})));
+    }
     emit_status(window, "正在后台启动 星阙 Python / Java 服务…");
     if trusted_runtime {
         emit_indeterminate_progress(window, 82, "正在后台启动本地服务,通常需 10~20 秒…");
@@ -9584,7 +9864,17 @@ fn runtime_bootstrap(
     if let Ok(app_data_dir) = app.path().app_data_dir() {
         let logs_dir = app_data_dir.join("logs");
         ledger_init(&logs_dir);
-        prune_logs_dir_best_effort(&logs_dir);
+        // [R4-P2b] 日志清扫后台化:本就 best-effort、只删 >14 天项且与本 run 新目录无交集,
+        // 无任何序依赖 —— 挪出 bootstrap 关键路径(冷 FS 下同步 readdir+删除可达几十 ms)。
+        // HOROSA_PRUNE_LOGS_ASYNC=0 回同步旧序。
+        if std::env::var("HOROSA_PRUNE_LOGS_ASYNC").map(|v| v == "0").unwrap_or(false) {
+            prune_logs_dir_best_effort(&logs_dir);
+        } else {
+            let dir = logs_dir.clone();
+            thread::spawn(move || {
+                prune_logs_dir_best_effort(&dir);
+            });
+        }
     }
     ledger_mark("rust.bootstrap_begin", None);
     // App Translocation 提示(非阻塞):zip 通道用户从「下载」直接双击时,macOS 会把 App

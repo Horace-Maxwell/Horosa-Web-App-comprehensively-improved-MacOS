@@ -8,7 +8,9 @@ import { safeLocalStorageSet } from './safeStorage';
 //   safeLocalStorageSet('horosa.perf.chartDrawGuard', '0') // 图面重绘签名守卫
 //   safeLocalStorageSet('horosa.perf.chartSCU', '0')       // 盘面重组件 shouldComponentUpdate
 //   safeLocalStorageSet('horosa.perf.hookRaf', '0')        // 排盘 hook rAF 化
-//   safeLocalStorageSet('horosa.perf.freezeInactiveTabs','0')// 冻结非激活 TabPane 重渲
+//   safeLocalStorageSet('horosa.perf.freezeInactiveTabs','0')// 冻结非激活 TabPane 重渲(顶层技法页签)
+//   safeLocalStorageSet('horosa.perf.freezeSubTabs','0')   // R4-B1:冻结非激活【子页签】重渲(FreezeSubTab)
+//   safeLocalStorageSet('horosa.perf.subTabDeferMount','0')// R4-B1:子页签「从未激活过则延迟首次渲染」
 //   safeLocalStorageSet('horosa.perf.requestDedupe', '0')  // 计算请求 去重+短TTL缓存
 //   safeLocalStorageSet('horosa.perf.techniqueCache', '0') // L2 技法结果缓存(10min,来回拨参数≈0)
 //   safeLocalStorageSet('horosa.perf.idleWarmQueue', '0')  // 就绪后空闲预热队列(chunk/引擎/数据)
@@ -21,6 +23,13 @@ import { safeLocalStorageSet } from './safeStorage';
 //   safeLocalStorageSet('horosa.perf.sharedNativeModel', '0')     // native 技法 center/aux 共享模型 memo
 //   safeLocalStorageSet('horosa.perf.singleTriggerPredictive','0')// PD/ZR hook+didUpdate 同签名去重
 //   safeLocalStorageSet('horosa.perf.stepPrefetch', '0')          // 时间步进方向预取
+//   safeLocalStorageSet('horosa.perf.stepPrefetchArm', '0')       // R4-B2:选步长/出盘/切页即武装 ±N 步预取(关=只剩步进后预取)
+//   safeLocalStorageSet('horosa.perf.stepPrefetchDepth', '2')     // R4-B2:武装深度 ±N(默认 3,合法 0..5,0=等效关)
+//   safeLocalStorageSet('horosa.perf.dataWarmTasks', '0')         // R4-B3:排盘后数据层空闲预热(组式)细闸
+//   safeLocalStorageSet('horosa.perf.neighborPrefetch', '0')      // R4-B3:分至图年份邻位预取(year±1)
+//   safeLocalStorageSet('horosa.perf.speculativePrecompute', '0') // R4-B5:表单编辑期防抖预发同参请求(只暖缓存)
+//   safeLocalStorageSet('horosa.perf.optionPrefetch', '0')        // R4-B5:选项 Hamming-1 投机预取(关=零任务)
+//   safeLocalStorageSet('horosa.perf.bootChartRestore', '0')      // R4-B8:温启恢复上次的盘(关=启动回空白默认态)
 //   safeLocalStorageSet('horosa.perf.chartCloneLite', '0')        // 出盘缓存冻结共享引用(关=每次深拷贝)
 //   safeLocalStorageSet('horosa.perf.hoverPrefetch', '0')         // 导航悬停预取 chunk(关=点击才载)
 //   safeLocalStorageSet('horosa.perf.netResultCache', '0')        // 请求结果 L3 持久缓存(IndexedDB,跨重启 0 往返)
@@ -61,6 +70,18 @@ export function hookRafEnabled(){
 
 export function freezeInactiveTabsEnabled(){
 	return flagEnabled('horosa.perf.freezeInactiveTabs');
+}
+
+// horosa_freeze_subtabs_v1(R4-B1):子页签冻结总闸。
+// 关掉 → FreezeSubTab 的 sCU 恒真且不再延迟首渲,回到「技法内所有子面板每次父重渲都跟着重渲」的旧行为。
+export function freezeSubTabsEnabled(){
+	return flagEnabled('horosa.perf.freezeSubTabs');
+}
+
+// horosa_freeze_subtabs_v1 细闸:只管「从未激活过的子页签延迟到首次激活才渲染」。
+// 关掉 → 子面板一开始就渲一次(冻结仍生效),用于排查「某面板必须挂载才注册副作用」类问题。
+export function subTabDeferMountEnabled(){
+	return flagEnabled('horosa.perf.subTabDeferMount');
 }
 
 export function requestDedupeEnabled(){
@@ -141,6 +162,74 @@ export function singleTriggerPredictiveEnabled(){
 
 export function stepPrefetchEnabled(){
 	return flagEnabled('horosa.perf.stepPrefetch');
+}
+
+// —— R4-B2(horosa_step_prefetch_arm_v1):「选步长即武装」 ——
+// 病根:预取单位只来自上一次步进 hint(无 hint 硬编码 'm'),选完新步长的第一下必 miss
+// (owner 原话「第一下卡之后不卡」)。武装 = 不等步进,先按当前档位把 ±1..±depth 预好。
+export function stepPrefetchArmEnabled(){
+	return flagEnabled('horosa.perf.stepPrefetchArm');
+}
+
+// 武装深度 ±N。默认 3(±1 即时命中,±2/±3 吃空闲窗);合法 0..5,0=等效关;
+// 非法值一律回默认 —— 现场只需 safeLocalStorageSet('horosa.perf.stepPrefetchDepth','2') 即可调。
+export function stepPrefetchDepth(){
+	try{
+		if(typeof window !== 'undefined' && window.localStorage){
+			const raw = window.localStorage.getItem('horosa.perf.stepPrefetchDepth');
+			if(raw !== null && raw !== undefined && raw !== ''){
+				const n = parseInt(raw, 10);
+				if(Number.isFinite(n) && n >= 0 && n <= 5){
+					return n;
+				}
+			}
+		}
+	}catch(e){
+		// localStorage 不可用时走默认
+	}
+	return 3;
+}
+
+// R4-B3:排盘后数据层空闲预热(scheduleDataWarmGroup)的细闸——在总闸 idleWarmQueue
+// 之内再单独可关。预热只经各技法自己的缓存入口取数(结果与用户首点逐字节一致,只是提前付),
+// 关掉即回到「首点付冷成本」的现状。
+export function dataWarmTasksEnabled(){
+	return flagEnabled('horosa.perf.dataWarmTasks');
+}
+
+// R4-B3:分至图年份邻位预取(year±1)的独立闸。
+export function neighborPrefetchEnabled(){
+	return flagEnabled('horosa.perf.neighborPrefetch');
+}
+
+// R4-B5 预测性预计算(speculativePrecompute):用户在排盘表单里编辑参数时,防抖后提前发出与
+// 「提交」完全相同的确定性计算请求 —— 结果只进 services 层缓存(chartMem/在途合并),不落任何
+// 状态、不动 UI;点提交时直接命中/加入在途 → 点击→显示≈渲染耗时。严禁随机/取现时类端点。
+// 关掉(horosa.perf.speculativePrecompute=0)即回到「点提交才计算」。
+export function speculativePrecomputeEnabled(){
+	return flagEnabled('horosa.perf.speculativePrecompute');
+}
+
+// R4-B5(horosa_option_prefetch_v1):选项空间 Hamming-1 投机预取。
+export function optionPrefetchEnabled(){
+	return flagEnabled('horosa.perf.optionPrefetch');
+}
+
+// R4-B5b(horosa_option_debounce_v1):「选项即发」路径 leading 立发+250ms trailing 并帧
+// (与时间轴 debounce 分通道)。关=每次选项变更各发各的旧行为。
+export function optionDebounceEnabled(){
+	return flagEnabled('horosa.perf.optionDebounce');
+}
+
+// R4-B5b(horosa_main_chain_abort_v1):/chart 主链新发先 abort 旧在途(网络层取消;
+// 结果层正确性本就由 fieldsEpoch 代际保证,此闸释放连接与后端算力)。关=旧请求自然完成。
+export function mainChainAbortEnabled(){
+	return flagEnabled('horosa.perf.mainChainAbort');
+}
+
+// R4-B8(horosa_boot_chart_restore_v1):温启恢复上次工作现场(owner 拍板默认开)。
+export function bootChartRestoreEnabled(){
+	return flagEnabled('horosa.perf.bootChartRestore');
 }
 
 export function chartCloneLiteEnabled(){

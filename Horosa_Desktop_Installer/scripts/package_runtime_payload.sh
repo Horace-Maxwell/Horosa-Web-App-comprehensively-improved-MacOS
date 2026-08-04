@@ -216,7 +216,9 @@ if [ "${HOROSA_SKIP_CDS_PRESEED:-0}" != "1" ]; then
     # 触达补全:lazy-init 下 heartbeat 只初始化极小 bean 集;补发高频端点各一枪
     # (400/后端不可达均可——目的只是把 controller/service/序列化链的类拉进本次 dump 的档)。
     # [R3-B2] /chart 之外再触 常用时间/八字/六壬/紫微/节气 五链,扩类捕获(冷首点更少 JIT/加载)。
-    for _cds_ep in "/chart" "/common/time" "/bazi/direct" "/liureng/gods" "/ziwei/birth" "/jieqi/year"; do
+    # [R4-P4-2] +/rules/ziwei(紫微判读规则链——首次交互重链,类面独立于 /ziwei/birth)。
+    # ⚠️ 两处训练清单(本文件+start_horosa_local.sh)必须逐字相同,preflight[199] lockstep 锁。
+    for _cds_ep in "/chart" "/common/time" "/bazi/direct" "/liureng/gods" "/ziwei/birth" "/jieqi/year" "/rules/ziwei"; do
       curl -s -o /dev/null -m 3 -X POST -H 'Content-Type: application/json' -d '{}' \
         "http://127.0.0.1:${CDS_TRAIN_PORT}${_cds_ep}" 2>/dev/null || true
     done

@@ -33,6 +33,8 @@ import {
 import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';
 import { chartDrawGuardEnabled, stepPrefetchEnabled, kentangCacheEnabled, stepSelectPrefetchEnabled } from '../../utils/perfFlags';
+// R4-B2(horosa_prefetch_registry_v1):太乙 stage-1 步进预取登记。
+import { registerStepPrefetcher, unregisterStepPrefetcher } from '../../utils/stepPrefetch';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 
 const { Option } = Select;
@@ -55,6 +57,46 @@ function withTimeout(promise, timeoutMs) {
 			setTimeout(() => resolve(null), timeoutMs);
 		}),
 	]);
+}
+
+// —— R4-B3:太乙 stage-1(/nongli/time)构参的模块级纯函数(组件 genParams 纯委托)。
+//    抽出来的唯一目的:预热要在【组件之外】构出与首点逐字节同键的 body。语义逐字节不变。
+function buildTaiYiNongliParamsPure(flds, options) {
+	if (!flds) {
+		return null;
+	}
+	const opts = options || {};
+	return {
+		date: flds.date.value.format('YYYY-MM-DD'),
+		time: flds.time.value.format('HH:mm:ss'),
+		ad: (flds.ad && flds.ad.value !== undefined) ? flds.ad.value : (flds.date.value.ad || 1),
+		zone: flds.zone.value,
+		lon: flds.lon.value,
+		lat: flds.lat.value,
+		gpsLat: flds.gpsLat.value,
+		gpsLon: flds.gpsLon.value,
+		gender: flds.gender.value,
+		after23NewDay: opts.after23NewDay || 0,
+	};
+}
+
+// R4-B3(数据层空闲预热):太乙 stage-1 = /nongli/time(确定性历法计算)。
+// after23NewDay 取 defaultAfter23NewDay() —— 与组件构造时 state.options 的初值同一口径,
+// 故 key/body 与用户首点逐字节一致。
+// 🔴 绝不预热 /taiyi/pan:它吃 stage-1 结果 + 组件态(积年/流派),提前构不出同键。
+export async function warmTaiYiStage1(fields) {
+	try {
+		if (!fields || !fields.date || !fields.date.value || !fields.date.value.format) {
+			return null;
+		}
+		const params = buildTaiYiNongliParamsPure(fields, { after23NewDay: defaultAfter23NewDay() });
+		if (!params) {
+			return null;
+		}
+		return await fetchPreciseNongli(params);
+	} catch (e) {
+		return null;   // 预热失败静默:首点回到冷即付的现状
+	}
 }
 
 class TaiYiMain extends Component {
@@ -117,6 +159,44 @@ class TaiYiMain extends Component {
 				}
 				this.requestNongli(fields || this.props.fields);
 			};
+			// R4-B3(A6):太乙同为【两段式】—— stage-1(/nongli/time)先回来盘才能推。
+			// 与主 /chart 无关,在 /chart 返回之前并行发出即把 stage-1 摘出关键路径
+			// (latency sum→max)。闸:horosa.perf.prewarmRequests(关=此函数不被调用,逐字节旧序)。
+			this.props.hook.prewarmRequests = (flds) => {
+				if (this.unmounted) {
+					return;
+				}
+				try {
+					const params = this.genParams(flds || this.props.fields);
+					if (params) {
+						fetchPreciseNongli(params).catch(() => { /* 预热静默 */ });
+					}
+				} catch (e) { /* 预热失败无害 */ }
+			};
+			// R4-B2(horosa_prefetch_registry_v1):只登记 stage-1(/nongli/time,确定性历法计算)。
+			// 🔴 绝不预取 /taiyi/pan:它吃 stage-1 结果 + 组件态(积年/局数流派),提前构不出同键。
+			if (stepPrefetchEnabled()) {
+				this._taiyiStepPrefetcher = (steppedFields) => {
+					if (this.unmounted || !steppedFields) {
+						return [];
+					}
+					let params = null;
+					try {
+						params = this.genParams(steppedFields);
+					} catch (e) {
+						return [];
+					}
+					if (!params) {
+						return [];
+					}
+					return [{
+						name: 'taiyi:nongli',
+						path: '/nongli/time',
+						run: () => fetchPreciseNongli(params),
+					}];
+				};
+				registerStepPrefetcher('taiyi', this._taiyiStepPrefetcher);
+			}
 		}
 	}
 
@@ -232,6 +312,11 @@ class TaiYiMain extends Component {
 
 	componentWillUnmount() {
 		this.unmounted = true;
+		// R4-B2:反注册步进预取器(防卸载后闭包吃到死组件态)。
+		if(this._taiyiStepPrefetcher){
+			try{ unregisterStepPrefetcher('taiyi', this._taiyiStepPrefetcher); }catch(e){ /* ignore */ }
+			this._taiyiStepPrefetcher = null;
+		}
 		if(this.boardObserver){
 			this.boardObserver.disconnect();
 			this.boardObserver = null;
@@ -457,22 +542,9 @@ class TaiYiMain extends Component {
 	}
 
 	genParams(fields) {
-		const flds = fields || this.props.fields;
-		if (!flds) {
-			return null;
-		}
-		return {
-			date: flds.date.value.format('YYYY-MM-DD'),
-			time: flds.time.value.format('HH:mm:ss'),
-			ad: (flds.ad && flds.ad.value !== undefined) ? flds.ad.value : (flds.date.value.ad || 1),
-			zone: flds.zone.value,
-			lon: flds.lon.value,
-			lat: flds.lat.value,
-			gpsLat: flds.gpsLat.value,
-			gpsLon: flds.gpsLon.value,
-			gender: flds.gender.value,
-			after23NewDay: this.state.options.after23NewDay || 0,
-		};
+		// R4-B3:构造原样抽为模块级纯函数(预热复用同一路径 ⇒ key/body 逐字节一致);
+		// 本方法保持既有签名与 props 兜底语义,纯委托零行为变化。
+		return buildTaiYiNongliParamsPure(fields || this.props.fields, this.state.options);
 	}
 
 	async recalc(fields, nongli, options) {

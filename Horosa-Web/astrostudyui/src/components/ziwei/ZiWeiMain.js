@@ -1,6 +1,9 @@
 import { Component } from 'react';
 import UpdatingBadge from '../common/UpdatingBadge';
 import { silentTechniquePanelsEnabled, stepPrefetchEnabled } from '../../utils/perfFlags';
+// R4-B2(horosa_prefetch_registry_v1):/ziwei/birth 步进预取登记 + 本地漏斗 settle 武装。
+import { registerStepPrefetcher, unregisterStepPrefetcher } from '../../utils/stepPrefetch';
+import { armStepPrefetch } from '../../utils/stepPrefetchArm';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { Row, Col, message } from 'antd';
 import { XQButton as Button, XQModal as Modal, XQTabs as Tabs } from '../xq-ui';
@@ -493,6 +496,60 @@ function buildZiweiOverlayLines(chart){
 	return out;
 }
 
+// —— R4-B3:/ziwei/birth 构参的模块级纯函数(组件方法 genParams 纯委托于此)。
+//    抽出来的唯一目的:预热/预取要在【组件之外】构出与首点逐字节同键的 body。
+//    语义与抽出前逐字节一致(含「非默认流派才附 sihua」这条零回归约定)。
+export function buildZiweiBirthParams(flds){
+	if(!flds){
+		return null;
+	}
+	const timeAlg = (flds.timeAlg && flds.timeAlg.value !== undefined && flds.timeAlg.value !== null)
+		? flds.timeAlg.value
+		: 0;
+	const params = {
+		date: flds.date.value.format('YYYY-MM-DD'),
+		time: flds.time.value.format('HH:mm:ss'),
+		ad: (flds.ad && flds.ad.value !== undefined) ? flds.ad.value : (flds.date.value.ad || 1),
+		zone: flds.zone.value,
+		lon: flds.lon.value,
+		lat: flds.lat.value,
+		gpsLat: flds.gpsLat.value,
+		gpsLon: flds.gpsLon.value,
+		gender: flds.gender.value,
+		timeAlg: timeAlg === 1 ? 1 : 0,
+		after23NewDay: defaultAfter23NewDay(),
+		lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
+	}
+	// P2-1：非默认流派时附四化表，使后端格局判定随流派；beipai(现状)不附＝缓存键不变＝零回归。
+	const school = ZWConst.ZWSchool.school;
+	if(school && school !== 'beipai'){
+		params.sihua = ZWConst.getActiveSiHuaGan();
+	}
+	return params;
+}
+
+// R4-B3(数据层空闲预热):紫微本盘 /ziwei/birth —— 首点概率最高的技法之一。
+// 走与 requestZiWei 完全同一入口(同 url、同 body、同 requestDedupe 三层缓存)⇒ 用户首点即命中。
+// silent、丢结果、绝不 dispatch/setState;失败静默。
+export async function warmZiweiBirth(fields){
+	try{
+		if(!fields || !fields.date || !fields.date.value || !fields.date.value.format){
+			return null;
+		}
+		const params = buildZiweiBirthParams(fields);
+		if(!params){
+			return null;
+		}
+		return await request(`${Constants.ServerRoot}/ziwei/birth`, {
+			body: JSON.stringify(params),
+			silent: true,
+			retry: { retries: 0 },
+		});
+	}catch(e){
+		return null;   // 预热失败静默:首点回到冷即付的现状
+	}
+}
+
 // 供 AI 分析无头复算：按出生参数取盘并生成紫微快照文本（不依赖组件挂载）。
 export async function buildZiweiSnapshotForParams(params){
 	if(!params){
@@ -675,6 +732,38 @@ class ZiWeiMain extends Component{
 			// 不等 /chart 网络 —— 本页从「等一次网络(~230ms)」变「点击即出(<100ms)」。
 			// 若日后本页开始读 props.value/chartObj,必须删掉此行(有静态哨兵机械核)。
 			this.props.hook.chartFree = true;
+			// R4-B2(horosa_prefetch_registry_v1):/ziwei/birth 是确定性纯计算(同 生辰+流派 恒同盘;
+			// 无随机、不依赖「现在」)→ 登记步进预取。
+			// 🔴 登记必须在组件内:genParams 吃组件态的流派设置(ZWConst.ZWSchool),
+			//    模块级登记构不出与真点同键的 body。闸:horosa.perf.stepPrefetch(关=零登记)。
+			if(stepPrefetchEnabled()){
+				this._ziweiStepPrefetcher = (steppedFields)=>{
+					if(this.unmounted){
+						return [];
+					}
+					let params = null;
+					try{
+						params = this.genParams(steppedFields);
+					}catch(e){
+						return [];
+					}
+					if(!params){
+						return [];
+					}
+					// 与 requestZiWei 完全同一入口(同 url、同 body、同 requestDedupe 三层缓存)
+					// —— 差一字节即白预取。silent + retry:0:后端重启窗口绝不退避风暴。
+					return [{
+						name: 'ziwei:birth',
+						path: '/ziwei/birth',
+						run: ()=> request(`${Constants.ServerRoot}/ziwei/birth`, {
+							body: JSON.stringify(params),
+							silent: true,
+							retry: { retries: 0 },
+						}),
+					}];
+				};
+				registerStepPrefetcher('ziwei', this._ziweiStepPrefetcher);
+			}
 		}
 	}
 
@@ -774,30 +863,9 @@ class ZiWeiMain extends Component{
 	}
 
 	genParams(fields){
-		let flds = fields ? fields : this.props.fields;
-		const timeAlg = (flds.timeAlg && flds.timeAlg.value !== undefined && flds.timeAlg.value !== null)
-			? flds.timeAlg.value
-			: 0;
-		const params = {
-			date: flds.date.value.format('YYYY-MM-DD'),
-			time: flds.time.value.format('HH:mm:ss'),
-			ad: (flds.ad && flds.ad.value !== undefined) ? flds.ad.value : (flds.date.value.ad || 1),
-			zone: flds.zone.value,
-			lon: flds.lon.value,
-			lat: flds.lat.value,
-			gpsLat: flds.gpsLat.value,
-			gpsLon: flds.gpsLon.value,
-			gender: flds.gender.value,
-			timeAlg: timeAlg === 1 ? 1 : 0,
-			after23NewDay: defaultAfter23NewDay(),
-			lateZiHourUseNextDay: defaultLateZiHourUseNextDay(),
-		}
-		// P2-1：非默认流派时附四化表，使后端格局判定随流派；beipai(现状)不附＝缓存键不变＝零回归。
-		const school = ZWConst.ZWSchool.school;
-		if(school && school !== 'beipai'){
-			params.sihua = ZWConst.getActiveSiHuaGan();
-		}
-		return params;
+		// R4-B3:构造原样抽为模块级纯函数(预热/预取复用同一路径 ⇒ key/body 逐字节一致);
+		// 本方法保持既有签名与 props 兜底语义,纯委托零行为变化。
+		return buildZiweiBirthParams(fields ? fields : this.props.fields);
 	}
 
 	async requestZiWei(fields){
@@ -872,7 +940,12 @@ class ZiWeiMain extends Component{
 		};
 
 
-		this.setState(st);
+		this.setState(st, ()=>{
+			// R4-B2(b′):紫微步进走本地漏斗(onFieldsChange→astro/save+直调本方法,不经
+			// fetchByFields)⇒ settle 武装必须在这里自己做,否则登记的 /ziwei/birth 预取器
+			// 在本页步进路径上永不触发。skipChart:/chart 不在本页步进路径上(chartFree)。
+			try{ armStepPrefetch('local-settle', { fieldsOverride: fields, skipChart: true }); }catch(e){ /* 武装失败静默 */ }
+		});
 		// 惰性构建:12 宫×星曜×四化遍历挪出排盘关键路径(params/result 为本函数局部量,闭包安全;
 		// builder 读的全局流派 ZWConst.ZWSchool 若在 idle 前被切换,切换路径必经 requestZiWei
 		// 重排 → 新 save 覆盖本 pending,latest-wins 兜底)。
@@ -1146,6 +1219,11 @@ class ZiWeiMain extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		// R4-B2:反注册步进预取器(防卸载后闭包吃到死组件态)。
+		if(this._ziweiStepPrefetcher){
+			try{ unregisterStepPrefetcher('ziwei', this._ziweiStepPrefetcher); }catch(e){ /* ignore */ }
+			this._ziweiStepPrefetcher = null;
+		}
 		if(typeof window !== 'undefined' && this._dayBoundaryListener){
 			window.removeEventListener('horosa:day-boundary-changed', this._dayBoundaryListener);
 		}
