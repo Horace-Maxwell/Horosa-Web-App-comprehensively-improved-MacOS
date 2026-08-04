@@ -3268,6 +3268,23 @@ else
 	fi
 fi
 
+# ── [192] 三式连续进退流畅度四资产(丢击根治/不等回流/快照idle/三pan预取+蒙层撤) ──
+# 病史:用户实告「连续进退卡很久」——实测三因叠加:①loading 期点击被 clickPlot 静默丢弃
+# ②每步硬等 /chart 回流的 1200ms 兜底 timer(回流常缺席=步步吃满)③快照 ~950ms 同步大构建
+# 恰插进下一步 recalc timer 之前顶住。另:全屏 Spin 蒙层挡盘(用户圈报)。
+echo "== [192] 三式连续进退流畅度四资产 =="
+S192_BAD=0
+S192_F="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js"
+for S192_M in horosa_sanshi_no_drop_step_v1 horosa_sanshi_no_wait_chart_v1 horosa_sanshi_snapshot_idle_v1 horosa_sanshi_step_prefetch_v1; do
+	grep -aq "${S192_M}" "${S192_F}" 2>/dev/null || { bad "[192] 🔴 资产标记缺失:${S192_M}"; S192_BAD=1; }
+done
+grep -aq "registerStepPrefetcher('sanshiunited'" "${S192_F}" 2>/dev/null || { bad "[192] 🔴 三式步进预取登记缺失(连击回到每步真发 HTTP)"; S192_BAD=1; }
+grep -aq "unregisterStepPrefetcher('sanshiunited'" "${S192_F}" 2>/dev/null || { bad "[192] 🔴 预取反注册缺失(卸载后登记表泄漏)"; S192_BAD=1; }
+grep -aqE "awaitingSyncTimer = setTimeout\(" "${S192_F}" 2>/dev/null && { bad "[192] 🔴 1200ms 兜底 timer 回潮(每步硬等回流)"; S192_BAD=1; }
+grep -aq "horosa-workspace-updating horosa-sanshi-updating" "${S192_F}" 2>/dev/null || { bad "[192] 🔴 中栏小加载徽标缺失(或 Spin 蒙层回潮)"; S192_BAD=1; }
+grep -aq "sanshiStepFluency" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/__tests__/sanshiStepFluency.test.js" 2>/dev/null || { bad "[192] 🔴 流畅度金标文件缺失"; S192_BAD=1; }
+[ "${S192_BAD}" = "0" ] && ok "[192] 三式连续进退四资产(四标记+登记配对+兜底负锚+徽标+金标)全在位"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"
