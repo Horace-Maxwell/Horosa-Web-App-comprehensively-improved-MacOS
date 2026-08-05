@@ -329,10 +329,16 @@ if missing:
 print(f"kentang runtime import check OK: {len(modules)} adapters")
 PY
 if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}" ]; then
-  /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" \
+  # [FL-20260804-1 修三] 经缓存层调用签名(horosa_repro_sign_cache_v1):codesign --timestamp
+  # 每次向 Apple 请求时间戳 ⇒ 同字节同身份也签出不同结果 ⇒ py-runtime 113MB 每版必重下。
+  # 缓存键含「待签树内容快照 + 身份 + 两个脚本自身 sha」,命中即复用上次签名产物(字节恒等)。
+  # kill-switch:HOROSA_SIGN_CACHE=0 ⇒ 缓存层自旁路,退回每次真签。
+  /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_payload_cached.py" \
+    "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" \
     "${STAGE_ROOT}/runtime/mac" \
-    --identity "${APPLE_SIGNING_IDENTITY}" \
-    --keychain "${APPLE_SIGNING_KEYCHAIN}"
+    "${APPLE_SIGNING_IDENTITY}" \
+    "${APPLE_SIGNING_KEYCHAIN}" \
+    "${INSTALLER_ROOT}/build/.sign-cache"
 fi
 
 python3 - <<INNERPY
@@ -377,9 +383,19 @@ def rel_files(root: pathlib.Path):
     return out
 
 # ── 部件定义(唯一真值源;与 SOP / preflight 哨兵 lockstep)──
+# [FL-20260804-1 修二] base CDS archive 豁免出增量部件(horosa_repro_jdk_cds_v1)。
+# 🔴 实测定谳:jdk-runtime 两次打包 **85 个文件里只有 1 个变**,就是 lib/server/classes.jsa
+# ——它由 build_embedded_java_runtime 的 `java -Xshare:dump` 生成,CDS dump 输出天然
+# 不可复现(内含内存布局/指针),于是 28MB 部件每版必被判「变了」全量重下。
+# 语义与既有 .app-cds.jsa 豁免完全同款:只随全量 tar 分发。JDK 树没变 ⇒ 用户本地旧
+# classes.jsa 与新 JDK 完全匹配、继续可用(零感知);JDK 真升级 ⇒ jlink 输出变、本部件
+# 本就要全量重下,而旧 jsa 失配会被 JVM 自行忽略,首启后台自训重建。
+JDK_CDS_REL = 'runtime/mac/java/lib/server/classes.jsa'
+_jdk_excludes = [] if os.environ.get('HOROSA_CDS_IN_COMPONENTS', '0') == '1' else [JDK_CDS_REL]
+
 tree_components = [
     ('py-runtime',   ['runtime/mac/python'], []),
-    ('jdk-runtime',  ['runtime/mac/java'], []),
+    ('jdk-runtime',  ['runtime/mac/java'], _jdk_excludes),
     ('ephe-data',    ['Horosa-Web/flatlib-ctrad2/flatlib/resources'], []),
     ('xuanshi-data', ['Horosa-Web/astropy/astrostudy/xuanshi'], []),
     # web-app:Horosa-Web 整树,但排除上面两个数据子树(应用时 preserve 放回)
@@ -431,6 +447,38 @@ def normalize_dir_mtimes(root: pathlib.Path):
                 pass
     return n
 
+# [FL-20260804-1 修一] 文件 mtime 归一(horosa_repro_pyc_mtime_v1),**唯一例外是 .py**。
+# 🔴 实测定谳(两类部件同一病根):
+#   · xuanshi-data 两次打包**内容零差异**(21 文件逐一 sha 相同),sha 却变——变量是 .pyc
+#     的 mtime(打包时 precompile 重生成 ⇒ 每次是当下时刻),它进 tar 头即改 sha;
+#   · jdk-runtime 同理——jlink 现场生成整棵树,每个文件 mtime 都是当下时刻。
+# tar 头记录每个文件的 mtime,所以「内容一字未改、sha 却变」的典型形状就是 mtime 漂移。
+# 归一它是可复现构建的标准做法。
+#
+# 🔴 唯一不能碰的是 .py:CPython 的 pyc 失效判据 = **pyc 内部记录的 (源 .py mtime, size)**
+# 与实际 .py 的 stat 比对(importlib._bootstrap_external._validate_timestamp_pyc)。动 .py 的
+# mtime 会让全量 .pyc 失效、用户首启重编译(见踩坑「pyc 同秒同长脏缓存」)。
+# 反过来,.pyc **自身**的 mtime 不参与任何判据,归一零语义影响。
+# 其余文件类型(.so/.dylib/.jar/.jsa/数据档/脚本)均不以自身 mtime 为语义载体。
+def normalize_file_mtimes(root: pathlib.Path):
+    if os.environ.get('HOROSA_REPRO_PYC_MTIME', '1') != '1':
+        return -1
+    n = 0
+    for dirpath, _, filenames in os.walk(root):
+        for fn in filenames:
+            if fn.endswith('.py'):
+                continue
+            p = os.path.join(dirpath, fn)
+            try:
+                # 🔴 符号链接**必须**一并归一(follow_symlinks=False 即 lutimes,改的是链接
+                # 自身而非目标)。实测踩过:首版跳过 symlink ⇒ jdk 树 57 个 legal/ 链接、
+                # Python framework 大量链接的 mtime 每次仍是生成时刻 ⇒ 进 tar 头 ⇒ 部件照旧漂。
+                os.utime(p, (EPOCH, EPOCH), follow_symlinks=False)
+                n += 1
+            except (OSError, NotImplementedError):
+                pass
+    return n
+
 def _tar_gz(out, cmd_tail, env):
     """tar 出流 → gzip -n(不写文件名/时间戳)→ 落盘。-czf 会把打包时刻写进 gzip 头。"""
     with open(out, 'wb') as fh:
@@ -469,6 +517,9 @@ def sha256(path):
     return h.hexdigest()
 
 print(f'[components] 目录 mtime 归一 {normalize_dir_mtimes(stage)} 个(可复现打包前置)', flush=True)
+_pycn = normalize_file_mtimes(stage)
+print(f'[components] 文件 mtime 归一 {_pycn} 个(.py 除外;可复现打包前置)' if _pycn >= 0
+      else '[components] 文件 mtime 归一已关闭(HOROSA_REPRO_PYC_MTIME=0)', flush=True)
 
 for name, paths, excludes in tree_components:
     out = tar_tree(name, paths, excludes)
@@ -504,7 +555,11 @@ for name, sub in covered:
     union |= sub
 missing = all_stage - union
 # 部件豁免文件(全量 tar 带、增量部件不带,语义见各自注释):
+#   .app-cds.jsa  — 应用动态 CDS 预置档(WS-3e)
+#   classes.jsa   — JDK base CDS archive(FL-20260804-1 修二;仅在豁免生效时才允许缺席)
 missing = {f for f in missing if not f.endswith('/.app-cds.jsa')}
+if _jdk_excludes:
+    missing = {f for f in missing if f != JDK_CDS_REL}
 extra = union - all_stage
 if overlap or missing or extra:
     raise SystemExit(f'component split drift: overlap={overlap[:2]} missing={sorted(missing)[:5]} extra={sorted(extra)[:5]}')

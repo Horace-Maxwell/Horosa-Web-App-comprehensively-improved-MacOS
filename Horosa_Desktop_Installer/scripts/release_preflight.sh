@@ -3285,6 +3285,146 @@ grep -aq "horosa-workspace-updating horosa-sanshi-updating" "${S192_F}" 2>/dev/n
 grep -aq "sanshiStepFluency" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/__tests__/sanshiStepFluency.test.js" 2>/dev/null || { bad "[192] 🔴 流畅度金标文件缺失"; S192_BAD=1; }
 [ "${S192_BAD}" = "0" ] && ok "[192] 三式连续进退四资产(四标记+登记配对+兜底负锚+徽标+金标)全在位"
 
+# ── [193] 增量部件可复现性三资产(FL-20260804-1:pyc/文件 mtime 归一 + CDS 豁免 + 签名缓存) ──
+# 增量更新的复用判据是「本地部件 sha == 新 manifest 部件 sha」。打包一旦不可复现,内容
+# 一字未改的部件也被判「变了」⇒ 每版每个用户全量重下(实测曾复用率仅 14%、白耗 167MB)。
+# 三条修复缺一即回退到「白下载」,故逐条钉死;另钉可执行护栏脚本在位。
+echo "== [193] 增量部件可复现性三资产 =="
+S193_BAD=0
+S193_PKG="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/package_runtime_payload.sh"
+S193_SIGN="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/sign_payload_cached.py"
+S193_VERIFY="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_component_reproducibility.sh"
+S193_TEST="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/test_sign_payload_cached.py"
+# 修一:文件 mtime 归一(且 .py 必须豁免——动它会让全量 pyc 失效、用户首启重编译)
+grep -aq "def normalize_file_mtimes" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修一缺失:文件 mtime 归一函数不在(xuanshi/jdk 将每版重下)"; S193_BAD=1; }
+grep -aqE "if fn\.endswith\('\.py'\):" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修一危险:.py 豁免不在——归一 .py 的 mtime 会让全量 pyc 失效"; S193_BAD=1; }
+grep -aq "normalize_file_mtimes(stage)" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修一未接线:归一函数定义了但没调用"; S193_BAD=1; }
+# 修二:base CDS archive 豁免出增量部件
+grep -aq "JDK_CDS_REL = 'runtime/mac/java/lib/server/classes.jsa'" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修二缺失:classes.jsa 豁免锚不在"; S193_BAD=1; }
+grep -aq "HOROSA_CDS_IN_COMPONENTS" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修二 kill-switch 缺失"; S193_BAD=1; }
+# 修三:签名产物缓存(且缓存键必须排除 .jsa——它每次 dump 都不同,纳入键则缓存永不命中)
+[ -f "${S193_SIGN}" ] || { bad "[193] 🔴 修三缺失:签名缓存层脚本不在"; S193_BAD=1; }
+grep -aq "horosa_repro_sign_cache_v1" "${S193_SIGN}" 2>/dev/null || { bad "[193] 🔴 修三资产标记缺失"; S193_BAD=1; }
+grep -aq 'KEY_EXCLUDE_SUFFIXES = (".jsa",)' "${S193_SIGN}" 2>/dev/null || { bad "[193] 🔴 修三键污染防线缺失:.jsa 未排出缓存键(实测踩过——键每次都变、缓存永不命中)"; S193_BAD=1; }
+grep -aq "HOROSA_SIGN_CACHE" "${S193_SIGN}" 2>/dev/null || { bad "[193] 🔴 修三 kill-switch 缺失"; S193_BAD=1; }
+grep -aq "sign_payload_cached.py" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修三未接线:打包脚本仍直呼原签名脚本(缓存不生效)"; S193_BAD=1; }
+# 护栏与金标在位
+[ -x "${S193_VERIFY}" ] || { bad "[193] 🔴 可复现性护栏脚本缺失或不可执行"; S193_BAD=1; }
+[ -f "${S193_TEST}" ] || { bad "[193] 🔴 签名缓存金标缺失"; S193_BAD=1; }
+[ "${S193_BAD}" = "0" ] && ok "[193] 增量可复现三资产(mtime 归一+.py 豁免+CDS 豁免+签名缓存+键防污+护栏+金标)全在位"
+
+# ── [194] 时间即时传导 + 择日空闲预挂载 ──────────────────────────────────────
+# 用户定版语义:未起盘=改时间只落草稿(首盘必须显式起盘);已起盘=改时间即刻重算中栏右栏。
+# 旧病:onTimeChanged 只认 confirmed(Popover 改年月日时分秒带 false)⇒「时间改了盘不动」。
+echo "== [194] 时间即时传导 + 择日空闲预挂载 =="
+S194_BAD=0
+S194_SS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js"
+S194_DJ="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js"
+S194_ZR="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/zeri/ZeriMain.js"
+S194_T="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/__tests__/liveTimePropagation.test.js"
+grep -aq "horosa_live_time_propagation_v1" "${S194_SS}" 2>/dev/null || { bad "[194] 🔴 三式时间传导资产标记缺失"; S194_BAD=1; }
+grep -aq "const liveReplot = !confirmed && !!this.state.hasPlotted;" "${S194_SS}" 2>/dev/null || { bad "[194] 🔴 三式 liveReplot 判据缺失(改时间盘不动会复发)"; S194_BAD=1; }
+grep -aq "horosa_live_time_propagation_v1" "${S194_DJ}" 2>/dev/null || { bad "[194] 🔴 遁甲时间传导资产标记缺失"; S194_BAD=1; }
+grep -aqE "if\(this\.state\.hasPlotted\)\{[[:space:]]*$" "${S194_DJ}" 2>/dev/null || grep -aq "this.requestNongli(localFields, true);" "${S194_DJ}" 2>/dev/null || { bad "[194] 🔴 遁甲已起盘重算接线缺失"; S194_BAD=1; }
+# 反向锚:首盘显式门不得被抹掉(否则未起盘也自动出盘,违用户定版)
+grep -aq "点击左侧“起盘”后显示三式合一盘" "${S194_SS}" 2>/dev/null || { bad "[194] 🔴 三式未起盘提示缺失(首盘显式门被抹)"; S194_BAD=1; }
+grep -aq "点击左侧“起盘”后显示遁甲盘" "${S194_DJ}" 2>/dev/null || { bad "[194] 🔴 遁甲未起盘提示缺失(首盘显式门被抹)"; S194_BAD=1; }
+# 择日空闲预挂载
+grep -aq "horosa_zeri_idle_prerender_v1" "${S194_ZR}" 2>/dev/null || { bad "[194] 🔴 择日空闲预挂载资产标记缺失"; S194_BAD=1; }
+grep -aq "forceRender={this.state.prerenderQimenZeri}" "${S194_ZR}" 2>/dev/null || { bad "[194] 🔴 择日 forceRender 未接线(首次点击回到冷态建树)"; S194_BAD=1; }
+grep -aq "horosa.perf.zeriPrerender" "${S194_ZR}" 2>/dev/null || { bad "[194] 🔴 择日预挂载 kill-switch 缺失"; S194_BAD=1; }
+[ -f "${S194_T}" ] || { bad "[194] 🔴 时间传导金标缺失"; S194_BAD=1; }
+[ "${S194_BAD}" = "0" ] && ok "[194] 时间即时传导(三式/遁甲 liveReplot+首盘显式门)+择日空闲预挂载(forceRender+kill-switch)+金标 全在位"
+
+# ── [195] 二十八宿相关六修(节气距离/宿度表/环长/锚点/死代码/天才双端) ─────────
+# 全部经独立复核+史料查证落定,判据写在各自注释里;拆任一条即回到静默错值。
+echo "== [195] 二十八宿六修资产 =="
+S195_BAD=0
+S195_JQ="${REPO_ROOT}/Horosa-Web/vendor/kintaiyi/src/kintaiyi/jieqi.py"
+S195_CFG="${REPO_ROOT}/Horosa-Web/vendor/kintaiyi/src/kintaiyi/config.py"
+S195_PC="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/perchart.py"
+S195_ZJS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/ziwei/ZiweiCalc.js"
+S195_ZJV="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/model/ZiWeiChart.java"
+S195_T="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/ziwei/__tests__/ziweiTianCaiParity.test.js"
+# ① distancejq 取当前节气(不得回潮 year-1)
+grep -aq "get_jieqi_start_date(year, month, day, hour, minute)" "${S195_JQ}" 2>/dev/null || { bad "[195] 🔴 distancejq 未取当前节气起点"; S195_BAD=1; }
+# 🔴 负锚必须只认【真代码形态】:文档字符串里引述旧写法时会误报(本哨兵初版即栽在这)。
+# 旧代码独有形态 = 同一行里既有 `return int( Date(` 又有 `find_jq_date(year-1`。
+grep -aE "return int\( *Date\(.*find_jq_date\(year-1," "${S195_JQ}" >/dev/null 2>&1 && { bad "[195] 🔴 distancejq 的 year-1 回潮(春分当天会返回 365)"; S195_BAD=1; }
+# ①' 全年份域:distancejq 取 now 必须走 ephem.Date,不得用 datetime.datetime。
+#     datetime 只支持公元 1..9999,而本函数经 starhouse 服务于太乙全年份域 ——
+#     ①的首版改用 datetime 取 now,公元前 1 年/16798 年直接 ValueError 炸掉整个
+#     taiyi/pan(极端年矩阵三例转红)。负锚只认 now 赋值这一真代码形态。
+grep -aq "now = Date(" "${S195_JQ}" 2>/dev/null || { bad "[195] 🔴 distancejq 的 now 未走 ephem.Date(全年份域会炸)"; S195_BAD=1; }
+grep -aE "^\s*now = datetime\.datetime\(year," "${S195_JQ}" >/dev/null 2>&1 && { bad "[195] 🔴 distancejq 回潮 datetime.datetime 取 now(公元前/远未来 ValueError,taiyi/pan 全炸)"; S195_BAD=1; }
+S195_JQT="${REPO_ROOT}/Horosa-Web/astropy/tests/test_kintaiyi_jieqi_distance.py"
+[ -f "${S195_JQT}" ] || { bad "[195] 🔴 节气距离金标缺失(纯单元,不依赖 :8899——极端年矩阵要服务在线,单靠它守不住离线自检)"; S195_BAD=1; }
+# ② 虚宿距度(汉书10/授时9,原误作25)
+grep -aq "numlist = \[13, 9, 16, 5, 5, 17, 10, 24, 7, 11, 10, 18," "${S195_CFG}" 2>/dev/null || { bad "[195] 🔴 虛宿距度非 10(汉书/授时两源皆远小于原值 25)"; S195_BAD=1; }
+# ③ 环长按表长取模(不得写死 360)
+grep -aq "zhoutian = len(gensulist)" "${S195_CFG}" 2>/dev/null || { bad "[195] 🔴 周天写死回潮(表长 363 与 360 不符即静默混叠)"; S195_BAD=1; }
+grep -aqE "new_num = num -360" "${S195_CFG}" 2>/dev/null && { bad "[195] 🔴 旧 -360 环绕回潮"; S195_BAD=1; }
+# ④ 三处节气锚点(判据=24 步间隔须 13~17)
+grep -aq '\["井", 12\]' "${S195_CFG}" 2>/dev/null || { bad "[195] 🔴 夏至锚点非井12(原井1 致 4/26 度畸形步)"; S195_BAD=1; }
+grep -aq '\["箕",4\]' "${S195_CFG}" 2>/dev/null || { bad "[195] 🔴 大雪锚点非箕4(原箕24 越出箕宿致岁末倒退)"; S195_BAD=1; }
+grep -aq '\["氐", 2\],\["房",1\]' "${S195_CFG}" 2>/dev/null || { bad "[195] 🔴 霜降/立冬 氐房顺序回潮(原序为全环唯一逆行)"; S195_BAD=1; }
+# ⑤ 节气名对不上须硬报错(不得静默取首宿)
+grep -aq "starhouse: 节气" "${S195_CFG}" 2>/dev/null || { bad "[195] 🔴 锚点缺失时的硬报错缺失(会把错误伪装成宿名交出)"; S195_BAD=1; }
+# ⑥ MOIRA 赤经死代码停用
+grep -aq "_moira_distar_ra 已停用" "${S195_PC}" 2>/dev/null || { bad "[195] 🔴 _moira_distar_ra 停用守卫缺失(按赤经定宿会偏 10–44°)"; S195_BAD=1; }
+# ⑦ 天才双端同式(JS/Java 必须同改,否则前后端分叉)
+grep -aq "placeRec((lifeIdx + yearZiIdx) % 12, '天才', 3)" "${S195_ZJS}" 2>/dev/null || { bad "[195] 🔴 JS 天才落宫式回潮(宫名反查恒偏一位)"; S195_BAD=1; }
+grep -aq "int caiIdx = (this.lifeHouseIndex + yearziIdx0 + 24) % 12;" "${S195_ZJV}" 2>/dev/null || { bad "[195] 🔴 Java 天才落宫式未同改(前后端分叉)"; S195_BAD=1; }
+[ -f "${S195_T}" ] || { bad "[195] 🔴 天才/马星金标缺失"; S195_BAD=1; }
+[ "${S195_BAD}" = "0" ] && ok "[195] 二十八宿六修(节气距离/虛10/环长/三锚点/硬报错/死代码/天才双端)全在位"
+
+# ── [196] 三式外圈随时间校正 + 遁甲/择日遮罩 + 六壬环角宫排版 ─────────────────
+# 用户实测三轮才定位的一类**静默错值**:三式已起盘后按时间步进,中栏表头与奇门/太乙盘都跟着走,
+# 唯独外圈星度(顶/升/金/日/月,唯一数据源 props.chartObj)冻在起盘那一刻;同一时辰内奇门局与
+# 太乙局本就不变,于是整盘看上去「完全没动」。差分实证(同一时刻):点「确定」盘更新、按步进不更新。
+# 三道判据缺一即复发,故逐条钉死。
+echo "[196] 三式外圈随时间校正 + 遮罩 + 角宫排版"
+S196_BAD=0
+S196_SS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js"
+S196_FLAGS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/perfFlags.js"
+S196_DJ="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js"
+S196_LESS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/layouts/app.less"
+S196_T="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/__tests__/outerRingFollowsTime.test.js"
+# ① chartObj 校正不得被 awaitingChartSync 闸死(实时传导路径下它恒为 false)
+grep -aq "if(this.state.hasPlotted && chartChanged){" "${S196_SS}" 2>/dev/null || { bad "[196] 🔴 三式 chartObj 校正判据缺失(外圈会冻在起盘那一刻)"; S196_BAD=1; }
+grep -aq "if(this.awaitingChartSync && this.state.hasPlotted && chartChanged)" "${S196_SS}" 2>/dev/null && { bad "[196] 🔴 awaitingChartSync 前置条件回潮(它恒 false,校正整个被跳过)"; S196_BAD=1; }
+# ② outerChartKey 不得含随机 chartId(否则同刻重复回流也判「变了」,每次全量重算)
+grep -aE "^\s+chartId,\s*$" "${S196_SS}" >/dev/null 2>&1 && { bad "[196] 🔴 getOuterChartKey 回潮纳入随机 chartId"; S196_BAD=1; }
+# ③ /chart 主链 abort 必须默认关 —— 两个并发请求会互相残杀致 chartObj 永不更新
+grep -aq "=== '1'" "${S196_FLAGS}" 2>/dev/null || { bad "[196] 🔴 mainChainAbort 未保持默认关(双杀致盘不跟时间走)"; S196_BAD=1; }
+grep -aq "return flagEnabled('horosa.perf.mainChainAbort')" "${S196_FLAGS}" 2>/dev/null && { bad "[196] 🔴 mainChainAbort 回潮为默认开"; S196_BAD=1; }
+# ④ 遁甲/择日全屏遮罩已撤为中栏小徽标(择日内嵌的正是 DunJiaMain,一处守两处)
+grep -aq "<Spin spinning={this.state.loading}>" "${S196_DJ}" 2>/dev/null && { bad "[196] 🔴 遁甲全屏 Spin 遮罩回潮(用户明令只留中栏小徽标)"; S196_BAD=1; }
+grep -aq "horosa-workspace-updating horosa-dunjia-updating" "${S196_DJ}" 2>/dev/null || { bad "[196] 🔴 遁甲中栏小徽标缺失"; S196_BAD=1; }
+grep -aq "horosa-dunjia-updating" "${S196_LESS}" 2>/dev/null || { bad "[196] 🔴 遁甲徽标样式缺失(absolute 会飞到窗口角)"; S196_BAD=1; }
+# ⑤ 六壬环角宫:落点回重心 + 外推调小(原 3.1 会把字压出外框)
+grep -aq "巳: { left: '29.6%', top: '25.9%'" "${S196_SS}" 2>/dev/null || { bad "[196] 🔴 六壬环角宫落点非重心原值"; S196_BAD=1; }
+grep -aq "const outerShift = 3.1;" "${S196_SS}" 2>/dev/null && { bad "[196] 🔴 角宫径向外推回潮 3.1(字会压出外框)"; S196_BAD=1; }
+[ -f "${S196_T}" ] || { bad "[196] 🔴 外圈随时间校正金标缺失"; S196_BAD=1; }
+[ "${S196_BAD}" = "0" ] && ok "[196] 外圈随时间校正(校正闸/键去随机/abort默认关)+遁甲择日小徽标+角宫排版 全在位"
+
+# ── [197] 调试插桩不得混进发布产物 ──────────────────────────────────────────
+# 🔴 病史(v3.7.3 真机拆包抓出):排查「三式改时间盘不动」时往 SanShiUnitedMain / models/astro
+# 临时插了 console.log 探针,收尾撤除用的正则只覆盖了「独占一行的 try{ console.log(...) }」形态,
+# **漏掉了 `try{ if(cond) console.log(...) }catch(e){} ` 这种带条件的单行写法** ⇒ 一条 `[D] didUpdate`
+# 探针随前端进了已公证的 public .pkg,是拆开 web-app 部件搜字符串才发现的(源码 grep 当时也能查到,
+# 但收尾时只按自己记得的形态搜,没做全类扫)。
+# 判据:src 全树不得出现本类调试标记(业务代码里作为**注释**说明日志门的 "[D] 调试日志门" 不算,
+# 故只认 console.log 同行出现标记的真代码形态)。
+echo "[197] 调试插桩零残留"
+S197_BAD=0
+S197_SRC="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S197_HITS="$(grep -rn -E "console\.(log|debug|info)\([^)]*\[(DBG|D|M)[0-9]*\]" "${S197_SRC}" 2>/dev/null | head -5)"
+[ -n "${S197_HITS}" ] && { bad "[197] 🔴 发现调试插桩残留(会随前端进 .pkg):"; printf '%s\n' "${S197_HITS}" >&2; S197_BAD=1; }
+S197_HITS2="$(grep -rn -E "window\.__(EPOCHLOG|MARK|probe|netProbe)" "${S197_SRC}" 2>/dev/null | head -5)"
+[ -n "${S197_HITS2}" ] && { bad "[197] 🔴 发现挂在 window 上的临时探针残留:"; printf '%s\n' "${S197_HITS2}" >&2; S197_BAD=1; }
+[ "${S197_BAD}" = "0" ] && ok "[197] src 全树无调试插桩残留"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"
