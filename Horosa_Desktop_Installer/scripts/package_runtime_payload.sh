@@ -281,7 +281,11 @@ fi
 # (实测省 0.3-0.5s)。个别第三方文件语法不合本版本编不过属正常,|| true 容忍不阻断打包。
 STAGE_PY_BIN="${STAGE_ROOT}/runtime/mac/python/bin/python3"
 if [ -x "${STAGE_PY_BIN}" ]; then
-  "${STAGE_PY_BIN}" -m compileall -q -j0 \
+  # [193b 2026-08-09] -f --invalidation-mode unchecked-hash:pyc 改嵌「源内容 hash」而非源 mtime
+  # (timestamp 模式下任一源 mtime 扰动 → pyc 字节漂移 → 签名缓存键变 → 整部件 sha 翻转,
+  #  实测 py-runtime 在 9b39↔fbb6 两态间翻转、每版全量重下)。-f 强制重编覆盖任何既有 pyc 态。
+  # unchecked-hash=运行时信任 pyc 不校验(打包后源恒不变,恰为其设计场景),启动性能零损失。
+  "${STAGE_PY_BIN}" -m compileall -q -j0 -f --invalidation-mode unchecked-hash \
     "${STAGE_ROOT}/runtime/mac/python/lib/python3.12" \
     "${STAGE_ROOT}/Horosa-Web/astropy" \
     "${STAGE_ROOT}/Horosa-Web/flatlib-ctrad2" \

@@ -13,7 +13,6 @@ import {
 	Popover,
 	Slider,
 	Space,
-	Spin,
 	Table,
 	Tag,
 	Tooltip,
@@ -76,6 +75,7 @@ import {
 	getStoreRecord,
 	listConversationMessages,
 	listStoreRecords,
+	listStoreRecordsBatched,
 	loadUiPrefs,
 	migrateWorkspaceData,
 	putStoreRecord,
@@ -878,6 +878,8 @@ function AIAnalysisMain(props){
 	const defaultUi = loadUiPrefs();
 	const [innerTab, setInnerTab] = React.useState('analysis');
 	const [workspaceLoading, setWorkspaceLoading] = React.useState(false);
+	// [首开反卡] Wave2(资料/会话/版本)后台载入中 —— 只驱动资料/历史 pane 顶部细提示,绝不全页转圈。
+	const [deepLoading, setDeepLoading] = React.useState(false);
 	const [sending, setSending] = React.useState(false);
 	const [sources, setSources] = React.useState([]);
 	const [providerProfiles, setProviderProfiles] = React.useState([]);
@@ -1373,56 +1375,70 @@ function AIAnalysisMain(props){
 		});
 	}, [lockedContextItems]);
 
+	// [首开反卡 2026-08-09] 双波加载:APP(WKWebView)里 materials/conversations 大库的一次性读会把
+	// 首开冻成「全页转圈很久」(WebKit IDB 大 value 反序列化慢,Chromium 无感 → preview 好 APP 坏)。
+	// Wave1=轻库(接口档/夹/组/模板/包,小记录)——await 完立即收 loading,首帧秒出;
+	// Wave2=后台(迁移→资料分批游标→版本/会话)——绝不挡首帧,批间让出主线程,到位即填充。
+	// 🔴 迁移必须在 templateVersions 读取之前(migrate 会补建版本记录,先读后迁=模板打开缺版本)。
 	const loadWorkspace = React.useCallback(async (options = {})=>{
 		setWorkspaceLoading(true);
+		setDeepLoading(true);
 		try{
-			await migrateWorkspaceData();
 			const [
 				nextProfiles,
-				nextMaterials,
 				nextFolders,
 				nextTagGroups,
 				nextTemplates,
-				nextTemplateVersions,
 				nextBundles,
-				nextConversations,
 			] = await Promise.all([
 				listStoreRecords(AI_ANALYSIS_STORES.providerProfiles),
-				listStoreRecords(AI_ANALYSIS_STORES.materials),
 				listStoreRecords(AI_ANALYSIS_STORES.materialFolders),
 				listStoreRecords(AI_ANALYSIS_STORES.tagGroups),
 				listStoreRecords(AI_ANALYSIS_STORES.templates),
-				listStoreRecords(AI_ANALYSIS_STORES.templateVersions),
 				listStoreRecords(AI_ANALYSIS_STORES.bundles),
-				listStoreRecords(AI_ANALYSIS_STORES.conversations),
 			]);
 			setProviderProfiles(sortByUpdatedDesc(nextProfiles));
 			// [G1] 密文解不开(换机器/钥匙串被清)→ 提示重填,绝不带密文串发请求
 			if((nextProfiles || []).some((p)=>p && p.apiKeyDecryptFailed)){
 				message.warning('部分 AI 接口的 API Key 无法解密(钥匙串主密钥缺失),请到「接口设置」重新填入。', 6);
 			}
-			setMaterials(sortByUpdatedDesc(nextMaterials));
 			setMaterialFolders(compareByName(nextFolders));
 			setTagGroups(compareByName(nextTagGroups));
 			setTemplates(sortByUpdatedDesc(nextTemplates));
-			setTemplateVersions(sortByUpdatedDesc(nextTemplateVersions));
 			setBundles(sortByUpdatedDesc(nextBundles));
-			setConversations(sortByUpdatedDesc(nextConversations));
 			setSources(listAnalysisSources());
-			if(options.keepConversation && activeConversationId){
-				// v1.16-O: 防 race
-				const loadToken = ++conversationLoadTokenRef.current;
-				const msgs = await listConversationMessages(activeConversationId);
-				if(loadToken === conversationLoadTokenRef.current){
-					setMessages(msgs);
-				}
-			}
 		}catch(e){
 			console.error(e);
 			message.error('AI分析工作区加载失败');
 		}finally{
 			setWorkspaceLoading(false);
 		}
+		(async ()=>{
+			try{
+				await migrateWorkspaceData();
+				const nextMaterials = await listStoreRecordsBatched(AI_ANALYSIS_STORES.materials, { batch: 12 });
+				setMaterials(sortByUpdatedDesc(nextMaterials));
+				const [nextTemplateVersions, nextConversations] = await Promise.all([
+					listStoreRecords(AI_ANALYSIS_STORES.templateVersions),
+					listStoreRecordsBatched(AI_ANALYSIS_STORES.conversations, { batch: 40 }),
+				]);
+				setTemplateVersions(sortByUpdatedDesc(nextTemplateVersions));
+				setConversations(sortByUpdatedDesc(nextConversations));
+				if(options.keepConversation && activeConversationId){
+					// v1.16-O: 防 race
+					const loadToken = ++conversationLoadTokenRef.current;
+					const msgs = await listConversationMessages(activeConversationId);
+					if(loadToken === conversationLoadTokenRef.current){
+						setMessages(msgs);
+					}
+				}
+			}catch(e){
+				console.error(e);
+				message.error('AI分析资料/会话载入失败');
+			}finally{
+				setDeepLoading(false);
+			}
+		})();
 	}, [activeConversationId]);
 
 	React.useEffect(()=>{
@@ -5205,8 +5221,10 @@ function AIAnalysisMain(props){
 				style={{ display: 'none' }}
 				onChange={handleDesktopFolderInputChange}
 			/>
-			<Spin spinning={workspaceLoading}>
-				<Tabs
+			{/* [首开反卡 2026-08-09] 全页 Spin 已摘:曾以 workspaceLoading 包住整个工作区 ——
+			    APP(WKWebView)里大库首读把它顶成「全页转圈很久」。现在首帧直接渲染,
+			    wave2 未到位时资料/历史 pane 顶部各自细提示(deepLoading)。绝不回包全页。 */}
+			<Tabs
 					className={styles.workspaceTabs}
 					tabPosition="right"
 					activeKey={innerTab}
@@ -5217,10 +5235,16 @@ function AIAnalysisMain(props){
 						<div className={styles.pane}>{renderAnalysisPane()}</div>
 					</TabPane>
 					<TabPane tab={<span>{SECONDARY_TABS[1].icon}历史</span>} key="history">
-						<div className={styles.pane}>{renderHistoryPane()}</div>
+						<div className={styles.pane}>
+							{deepLoading ? <div style={{ padding: '4px 12px', color: 'var(--horosa-text-tertiary, #999)', fontSize: 12 }}>会话记录载入中…</div> : null}
+							{renderHistoryPane()}
+						</div>
 					</TabPane>
 					<TabPane tab={<span>{SECONDARY_TABS[2].icon}资料</span>} key="materials">
-						<div className={styles.pane}>{renderMaterialsPane()}</div>
+						<div className={styles.pane}>
+							{deepLoading ? <div style={{ padding: '4px 12px', color: 'var(--horosa-text-tertiary, #999)', fontSize: 12 }}>资料库载入中…</div> : null}
+							{renderMaterialsPane()}
+						</div>
 					</TabPane>
 					<TabPane tab={<span>{SECONDARY_TABS[3].icon}模版</span>} key="templates">
 						<div className={styles.pane}>{renderTemplatesPane()}</div>
@@ -5229,7 +5253,6 @@ function AIAnalysisMain(props){
 						<div className={styles.pane}>{renderSettingsPane()}</div>
 					</TabPane>
 				</Tabs>
-			</Spin>
 
 			{renderMountDrawer()}
 			{renderTechniqueSettingsDrawer()}
