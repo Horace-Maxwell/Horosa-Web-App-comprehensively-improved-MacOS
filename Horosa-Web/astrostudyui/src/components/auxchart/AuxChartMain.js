@@ -170,6 +170,7 @@ class AuxChartMain extends Component{
 								fieldsAry={this.props.fieldsAry}
 								height={childHeight}
 								chart={this.props.chart}
+								wheelArt={this.props.wheelArt}
 								chartDisplay={this.props.chartDisplay}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
@@ -188,6 +189,7 @@ class AuxChartMain extends Component{
 								fieldsAry={this.props.fieldsAry}
 								height={childHeight}
 								chartStyle={this.props.chartStyle}
+								wheelArt={this.props.wheelArt}
 								chartDisplay={this.props.chartDisplay}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
@@ -206,6 +208,7 @@ class AuxChartMain extends Component{
 								fieldsAry={this.props.fieldsAry}
 								height={childHeight}
 								chartStyle={this.props.chartStyle}
+								wheelArt={this.props.wheelArt}
 								chartDisplay={this.props.chartDisplay}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
@@ -237,6 +240,7 @@ class AuxChartMain extends Component{
 								fields={this.props.fields}
 								height={childHeight}
 								chartStyle={this.props.chartStyle}
+								wheelArt={this.props.wheelArt}
 								chartDisplay={this.props.chartDisplay}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
@@ -251,6 +255,7 @@ class AuxChartMain extends Component{
 								value={this.props.chart}
 								height={childHeight}
 								chartStyle={this.props.chartStyle}
+								wheelArt={this.props.wheelArt}
 								chartDisplay={this.props.chartDisplay}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
@@ -263,6 +268,7 @@ class AuxChartMain extends Component{
 								value={this.props.chart}
 								height={childHeight}
 								chartStyle={this.props.chartStyle}
+								wheelArt={this.props.wheelArt}
 								chartDisplay={this.props.chartDisplay}
 								planetDisplay={this.props.planetDisplay}
 								lotsDisplay={this.props.lotsDisplay}
@@ -272,6 +278,7 @@ class AuxChartMain extends Component{
 
 						<TabPane tab="骰子" key="otherbu">
 							<OtherBuMain
+								wheelArt={this.props.wheelArt}
 								height={childHeight}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}
@@ -300,6 +307,7 @@ class AuxChartMain extends Component{
 
 						<TabPane tab="择日盘" key="election">
 							<ElectionMain
+								wheelArt={this.props.wheelArt}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}
 								height={childHeight}

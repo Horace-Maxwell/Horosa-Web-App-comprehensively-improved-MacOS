@@ -285,7 +285,12 @@ if [ -x "${STAGE_PY_BIN}" ]; then
   # (timestamp 模式下任一源 mtime 扰动 → pyc 字节漂移 → 签名缓存键变 → 整部件 sha 翻转,
   #  实测 py-runtime 在 9b39↔fbb6 两态间翻转、每版全量重下)。-f 强制重编覆盖任何既有 pyc 态。
   # unchecked-hash=运行时信任 pyc 不校验(打包后源恒不变,恰为其设计场景),启动性能零损失。
-  "${STAGE_PY_BIN}" -m compileall -q -j0 -f --invalidation-mode unchecked-hash \
+  # [193c 2026-08-09] PYTHONHASHSEED=0 + -j1:marshal 对 frozenset/集合序受进程 hash 种子影响,
+  # 不钉种子 → 个别 pyc(实案 kerykeion/relationship_score_factory,seed1/seed2/seed0 三编三态实证)
+  # 跨打包字节漂 → py-runtime 部件 tar sha 漂(pyc 是部件内容)每版被判「变了」重下,且 seed 预灌的
+  # 内容面全等闸必拒。钉 0 后同文件重编恒等(实证)。签名缓存键只含 Mach-O/归档,不受 pyc 影响。
+  # -j1 排除多进程 worker 各自种子面(compileall 子进程不继承钉死语义的兜底)。
+  PYTHONHASHSEED=0 "${STAGE_PY_BIN}" -m compileall -q -j1 -f --invalidation-mode unchecked-hash \
     "${STAGE_ROOT}/runtime/mac/python/lib/python3.12" \
     "${STAGE_ROOT}/Horosa-Web/astropy" \
     "${STAGE_ROOT}/Horosa-Web/flatlib-ctrad2" \
@@ -337,12 +342,38 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}"
   # 每次向 Apple 请求时间戳 ⇒ 同字节同身份也签出不同结果 ⇒ py-runtime 113MB 每版必重下。
   # 缓存键含「待签树内容快照 + 身份 + 两个脚本自身 sha」,命中即复用上次签名产物(字节恒等)。
   # kill-switch:HOROSA_SIGN_CACHE=0 ⇒ 缓存层自旁路,退回每次真签。
-  /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_payload_cached.py" \
-    "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" \
-    "${STAGE_ROOT}/runtime/mac" \
-    "${APPLE_SIGNING_IDENTITY}" \
-    "${APPLE_SIGNING_KEYCHAIN}" \
-    "${INSTALLER_ROOT}/build/.sign-cache"
+  # [修三 v2 · 分域] 整树单键会让 Java jar 的正常版本变化牵动键值 ⇒ 内容未变的 Python framework
+  # 全树重签(时间戳字节漂)⇒ py-runtime 118MB 每版被判「变了」(v3.8.1 实测:227 文件差异全为签名组)。
+  # 改为对 runtime/mac 顶层每个子目录独立走缓存签名:各域各键、各域独立缓存子目录(prune 互不挤占),
+  # jar 变只重签 bundle 域,python 域命中缓存产物字节恒等。域集动态枚举,新增顶层目录自动纳入不漏签;
+  # 顶层若出现散文件(当前树没有)则整树退化单键签名保安全。
+  SIGN_TOP_FILES="$(find "${STAGE_ROOT}/runtime/mac" -maxdepth 1 -type f | head -1)"
+  if [ -z "${SIGN_TOP_FILES}" ]; then
+    while IFS= read -r -d '' SIGN_DOMAIN; do
+      SIGN_DOMAIN_NAME="$(basename "${SIGN_DOMAIN}")"
+      # java 域(JDK)整棵不碰:整树模式靠 SKIP_DIR_NAMES 的相对路径判定跳过;分域后域内相对路径
+      # 不再含 java 前缀,判定失效 → 必须在域层直接跳过,否则 JDK 被重签(v3.8.1 分域首打实案:34 个
+      # Mach-O 被误签,jdk 部件跨版本恒等性破坏)。
+      if [ "${SIGN_DOMAIN_NAME}" = "java" ]; then
+        echo "[sign-cache] 域 java(JDK)按约整棵跳过不重签"
+        continue
+      fi
+      /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_payload_cached.py" \
+        "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" \
+        "${SIGN_DOMAIN}" \
+        "${APPLE_SIGNING_IDENTITY}" \
+        "${APPLE_SIGNING_KEYCHAIN}" \
+        "${INSTALLER_ROOT}/build/.sign-cache/${SIGN_DOMAIN_NAME}"
+    done < <(find "${STAGE_ROOT}/runtime/mac" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+  else
+    echo "[sign-cache] runtime/mac 顶层出现散文件(${SIGN_TOP_FILES}),退化整树单键签名" >&2
+    /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_payload_cached.py" \
+      "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" \
+      "${STAGE_ROOT}/runtime/mac" \
+      "${APPLE_SIGNING_IDENTITY}" \
+      "${APPLE_SIGNING_KEYCHAIN}" \
+      "${INSTALLER_ROOT}/build/.sign-cache"
+  fi
 fi
 
 python3 - <<INNERPY

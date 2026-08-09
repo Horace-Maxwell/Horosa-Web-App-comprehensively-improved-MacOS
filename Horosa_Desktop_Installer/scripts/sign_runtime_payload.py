@@ -90,6 +90,12 @@ def iter_bundle_dirs(root: pathlib.Path) -> list[pathlib.Path]:
             continue
         if path.suffix in BUNDLE_SUFFIXES or (path / "Contents/Info.plist").is_file() or (path / "Resources/Info.plist").is_file():
             bundles.append(path)
+    # 域根自身也可能是框架内容根(如 python 域根带 Resources/Info.plist):整树调用时它作为
+    # 子目录被枚举到,按域调用时 rglob 不含根自身 → 必须显式纳入,否则 bundle 级签名缺失,
+    # 主二进制只剩裸文件签名 → 公证判 "signature of the binary is invalid"(v3.8.1 分域首打实案)。
+    # 整树调用(root=runtime/mac 容器,无 Info.plist)不受影响。
+    if root.suffix in BUNDLE_SUFFIXES or (root / "Contents/Info.plist").is_file() or (root / "Resources/Info.plist").is_file():
+        bundles.append(root)
     bundles.sort(key=lambda item: (len(item.parts), str(item)), reverse=True)
     return bundles
 

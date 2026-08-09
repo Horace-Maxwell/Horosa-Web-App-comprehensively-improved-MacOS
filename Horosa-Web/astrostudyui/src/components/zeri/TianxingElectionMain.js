@@ -392,6 +392,7 @@ export default class TianxingElectionMain extends Component{
 					renderRight={(args) => this.renderRight(args)}
 				/>
 				<ConditionBuilderModal
+					wheelArt={this.props.wheelArt}
 					open={this.state.searchOpen}
 					onClose={() => this.setState({ searchOpen: false })}
 					cfg={this.state.cfg}

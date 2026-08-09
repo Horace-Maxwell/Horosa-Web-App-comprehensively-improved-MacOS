@@ -483,6 +483,7 @@ class AstroLunarReturn extends Component{
 						>
 							<TabPane tab="返照盘" key="singlechart">
 									<AstroChart value={rChart} 
+										wheelArt={this.props.wheelArt}
 										chartDisplay={this.props.chartDisplay}
 										planetDisplay={this.props.planetDisplay}
 										lotsDisplay={this.props.lotsDisplay}
@@ -492,6 +493,7 @@ class AstroLunarReturn extends Component{
 							</TabPane>
 							<TabPane tab="原命盘" key="nautalchart">
 									<AstroChart value={chartObj.natualChart} 
+										wheelArt={this.props.wheelArt}
 										chartDisplay={this.props.chartDisplay}
 										planetDisplay={this.props.planetDisplay}
 										lotsDisplay={this.props.lotsDisplay}
@@ -512,6 +514,7 @@ class AstroLunarReturn extends Component{
 								secRChart && (
 									<TabPane tab="第二返照盘" key="secsinglechart">
 											<AstroChart value={secRChart} 
+												wheelArt={this.props.wheelArt}
 												chartDisplay={this.props.chartDisplay}
 												planetDisplay={this.props.planetDisplay}
 												lotsDisplay={this.props.lotsDisplay}

@@ -337,7 +337,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
     }, []);
     // 每个 tab「上次刷新时的输入签名」(脏标记)。用 ref:可变、跨渲染留存、改它不触发重渲。
     const tabRefreshSigRef = React.useRef({});
-    const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, chartStyle, indiaChartStyle, aspects, planetDisplay, lotsDisplay, resolvedAppearance, showPdBounds, showPlanetHouseInfo, showAstroMeaning, showOnlyRulExaltReception, schoolPreset, tripSystem, voidClassical} = app;
+    const { tokenImg, registerFields, loginFields, loading, loadingText, refresh, chartDisplay, chartStyle, wheelArt, indiaChartStyle, aspects, planetDisplay, lotsDisplay, resolvedAppearance, showPdBounds, showPlanetHouseInfo, showAstroMeaning, showOnlyRulExaltReception, schoolPreset, tripSystem, voidClassical} = app;
     const {
         pwdFields,
         userInfo,
@@ -681,6 +681,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         height={height} 
                         chartDisplay={chartDisplay}
                         chartStyle={chartStyle}
+                        wheelArt={wheelArt}
                         aspects={aspects}
                         planetDisplay={planetDisplay}
 	                        lotsDisplay={lotsDisplay}
@@ -704,6 +705,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 <TabPane tab={mainTab('星运', null, { hidden: true })} key="direction">
                   <FreezeInactive active={activeMainTab === "direction"}>
 	                    <AstroDirectMain
+	                    wheelArt={wheelArt}
                         height={height} 
                         fields={fields}
                         fieldsAry={aryfields}
@@ -796,6 +798,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         showAstroMeaning={showAstroMeaning}
                         hook={predictHook.auxchart}
                         chartStyle={chartStyle}
+                        wheelArt={wheelArt}
                         dispatch={dispatch}
                         currentSubTab={currentSubTab}
                     />
@@ -812,6 +815,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                         planetDisplay={planetDisplay}
 	                        lotsDisplay={lotsDisplay}
 	                        chartStyle={chartStyle}
+                        wheelArt={wheelArt}
 	                        showPlanetHouseInfo={showPlanetHouseInfo}
 	                        showAstroMeaning={showAstroMeaning}
 	                        hook={predictHook.relativechart}
@@ -921,6 +925,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
 	                        showPlanetHouseInfo={showPlanetHouseInfo}
 	                        showAstroMeaning={showAstroMeaning}
 	                        chartStyle={chartStyle}
+                        wheelArt={wheelArt}
 	                        hook={predictHook.jieqichart}
 	                        dispatch={dispatch}
 	                    />
@@ -1049,6 +1054,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                 <TabPane tab={mainTab('择日')} key="zeri">
                   <FreezeInactive active={activeMainTab === "zeri"}>
                     <ZeriMain
+                        wheelArt={wheelArt}
                         chart={chartObj}
                         height={height}
                         fields={fields}
@@ -1482,6 +1488,7 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
                     showPlanetHouseInfo={showPlanetHouseInfo}
                     showAstroMeaning={showAstroMeaning}
                     showOnlyRulExaltReception={showOnlyRulExaltReception}
+                    wheelArt={wheelArt}
                     termsVariant={fields && fields.termsVariant ? fields.termsVariant.value : 0}
                     voidClassical={voidClassical}
                     fields={fields}

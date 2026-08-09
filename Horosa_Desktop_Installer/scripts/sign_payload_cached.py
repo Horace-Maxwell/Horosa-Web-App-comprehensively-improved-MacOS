@@ -107,6 +107,61 @@ def key_relevant(snap: dict, root: pathlib.Path, signer_mod) -> dict:
     return out
 
 
+def _sig_derived(rel: str) -> bool:
+    """签名派生文件(_CodeSignature/CodeResources 等):codesign 生成,签名前树里不存在。"""
+    return "_CodeSignature" in pathlib.PurePath(rel).parts
+
+
+def try_seed(seed_root: pathlib.Path, root: pathlib.Path, before: dict, keyed: dict) -> int:
+    """[修三 v2 · seed 预灌] 用外部已签名产物树(如线上已发布部件 tar 解包)充当本次签名产物,
+    让「内容未变」的域当版即与线上字节恒等(不必等下一版才命中缓存)。
+    安全闸(三重):
+      ① 键面文件(签名会重写的 Mach-O/归档)在 seed 里必须齐全;
+      ② 内容面文件(签名不碰的 .py/资源等,即 before 中的全部非键面非链接项)在 seed 与本树
+         必须逐字节同 —— 任何一个不同 ⇒ seed 来源版本与本树内容不一致,整体拒用;
+      ③ 后置既有四门(codesign --verify / stapler / spctl / 净化 e2e)对最终产物硬校验。
+    返回拷贝文件数;不适用返回 -1(回落真签,绝不半用)。"""
+    if not seed_root.is_dir():
+        print(f"[sign-cache] seed 拒因: 域目录不存在 {seed_root}", flush=True)
+        return -1
+    for rel in keyed:
+        if not (seed_root / rel).is_file():
+            print(f"[sign-cache] seed 拒因: 键面文件缺失 {rel}", flush=True)
+            return -1
+    for rel, val in before.items():
+        if rel in keyed or val.startswith("L:") or _sig_derived(rel):
+            continue
+        sp = seed_root / rel
+        if not sp.is_file():
+            print(f"[sign-cache] seed 拒因: 内容面文件缺失 {rel}", flush=True)
+            return -1
+        if _sha_file(sp) != val:
+            print(f"[sign-cache] seed 拒因: 内容面不一致 {rel}", flush=True)
+            return -1
+    n = 0
+    for rel in sorted(keyed):
+        src = seed_root / rel
+        dst = root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        _unlink_force(dst)
+        shutil.copy2(src, dst)
+        n += 1
+    # 签名派生文件(签名前树无):从 seed 整套带回,与键面签名配套。
+    for dirpath, dirnames, filenames in os.walk(seed_root):
+        dirnames.sort()
+        for fn in sorted(filenames):
+            p = pathlib.Path(dirpath) / fn
+            rel = str(p.relative_to(seed_root))
+            if not _sig_derived(rel):
+                continue
+            dst = root / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            _unlink_force(dst)
+            shutil.copy2(p, dst)
+            n += 1
+    return n
+
+
 def cache_key(snap: dict, identity: str, extra_files: list) -> str:
     h = hashlib.sha256()
     h.update(b"horosa_repro_sign_cache_v1\n")
@@ -213,8 +268,20 @@ def main() -> int:
             return 0
         print("[sign-cache] 缓存残缺,回退真签", flush=True)
 
-    print("[sign-cache] 未命中,执行真实签名…", flush=True)
-    real_sign()
+    seeded = False
+    seed_root_s = os.environ.get("HOROSA_SIGN_SEED_DIR", "")
+    if seed_root_s:
+        seed_root = pathlib.Path(seed_root_s) / root.name
+        n = try_seed(seed_root, root, before, keyed)
+        if n >= 0:
+            seeded = True
+            print(f"[sign-cache] 🌱 seed 命中({seed_root}),复用外部签名产物 {n} 个文件(跳过 codesign;与外部产物字节恒等)", flush=True)
+        else:
+            print(f"[sign-cache] seed 不适用({seed_root}:域缺失/键面不全/内容面不一致),忽略走真签", flush=True)
+
+    if not seeded:
+        print("[sign-cache] 未命中,执行真实签名…", flush=True)
+        real_sign()
     after = snapshot(root)
     changed = sorted(rel for rel, sha in after.items()
                      if before.get(rel) != sha and not sha.startswith("L:"))

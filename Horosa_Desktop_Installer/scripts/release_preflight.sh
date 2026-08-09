@@ -3425,6 +3425,30 @@ S197_HITS2="$(grep -rn -E "window\.__(EPOCHLOG|MARK|probe|netProbe)" "${S197_SRC
 [ -n "${S197_HITS2}" ] && { bad "[197] 🔴 发现挂在 window 上的临时探针残留:"; printf '%s\n' "${S197_HITS2}" >&2; S197_BAD=1; }
 [ "${S197_BAD}" = "0" ] && ok "[197] src 全树无调试插桩残留"
 
+# ── [207] 盘面美术(wheel art)五档全链(2026-08-09) ────────────────────────────
+# 病灶预防:①wheelArt 不进 AstroChart sCU 白名单=改档不重绘死开关;②app model globalSetup 白名单漏键=静默不存;
+# ③重绘签名缺维度=方盘切回圆盘白屏;④中世纪坐标表(徽章=宫头线中点/星体=三角质心/宫号贴内方形)金标锁死。
+echo "[207] 盘面美术五档全链"
+S207_BAD=0
+S207_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+grep -qF "'wheelArt'," "${S207_UI}/components/astro/AstroChart.js" \
+  || { bad "[207] 🔴 wheelArt 不在 AstroChart sCU 白名单(改档不重绘=死开关)"; S207_BAD=1; }
+grep -qF 'wheelArt: st.wheelArt' "${S207_UI}/models/app.js" \
+  || { bad "[207] 🔴 app model globalSetup 白名单缺 wheelArt(跨会话保存静默失效)"; S207_BAD=1; }
+grep -qF 'export function normalizeWheelArt' "${S207_UI}/constants/AstroConst.js" \
+  || { bad "[207] 🔴 wheelArt 归一函数缺失"; S207_BAD=1; }
+grep -qF 'renderWheelStyleGrid' "${S207_UI}/components/astro/AstroChartMain.js" \
+  || { bad "[207] 🔴 星盘样式双下拉单源方法被拆(外环样式+盘面美术)"; S207_BAD=1; }
+[ -s "${S207_UI}/components/astro/__tests__/wheelArtChart.test.js" ] \
+  || { bad "[207] 🔴 盘面美术金标缺失(中世纪几何校准规格失锁)"; S207_BAD=1; }
+grep -qF '每个 <AstroChart 渲染点' "${S207_UI}/components/astro/__tests__/wheelArtChart.test.js" \
+  || { bad "[207] 🔴 消费点完备性总锁被拆(新增 AstroChart 渲染点漏接 wheelArt 将无人拦截)"; S207_BAD=1; }
+grep -qF '至少一个宿主渲染点传了 wheelArt' "${S207_UI}/components/astro/__tests__/wheelArtChart.test.js" \
+  || { bad "[207] 🔴 宿主链断点总锁被拆(组件接了 props 宿主没传=选了无效死开关)"; S207_BAD=1; }
+grep -qF 'wheelArt: this.props.wheelArt' "${S207_UI}/components/astro/AstroChart.js" \
+  || { bad "[207] 🔴 重绘签名缺 wheelArt 维度(方盘切回圆盘白屏)"; S207_BAD=1; }
+[ "${S207_BAD}" = "0" ] && ok "[207] 盘面美术 sCU键/持久化白名单/归一/双下拉/几何金标/双总锁/签名维度 全绿"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

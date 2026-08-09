@@ -577,6 +577,7 @@ class DiceMain extends Component{
 						>
 								<TabPane tab="骰子盘" key="touzichart">
 									<AstroChart value={this.state.diceChart} 
+										wheelArt={this.props.wheelArt}
 										keyPlanets={keyPlanets}
 										chartDisplay={chartDisp}
 										planetDisplay={planetDisp}
@@ -587,6 +588,7 @@ class DiceMain extends Component{
 								</TabPane>
 								<TabPane tab="天象盘" key="chart">
 									<AstroChart value={this.state.chart} 
+										wheelArt={this.props.wheelArt}
 										chartDisplay={this.props.chartDisplay}
 										planetDisplay={this.props.planetDisplay}
 										lotsDisplay={this.props.lotsDisplay}

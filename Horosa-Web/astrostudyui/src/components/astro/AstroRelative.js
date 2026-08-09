@@ -657,6 +657,7 @@ class AstroRelative extends Component{
 							</TabPane>
 							<TabPane tab="组合盘" key="Composite">
 									<AstroComposite 
+										wheelArt={this.props.wheelArt}
 										value={hook.Composite.result}
 									height={height}
 									fields={this.props.fields}
@@ -675,6 +676,7 @@ class AstroRelative extends Component{
 							</TabPane>
 							<TabPane tab="影响盘" key="Synastry">
 									<AstroSynastry 
+										wheelArt={this.props.wheelArt}
 										value={hook.Synastry.result}
 									height={height}
 									fields={this.props.fields}
@@ -693,6 +695,7 @@ class AstroRelative extends Component{
 							</TabPane>
 							<TabPane tab="时空中点盘" key="TimeSpace">
 									<AstroTimeSpace 
+										wheelArt={this.props.wheelArt}
 										value={hook.TimeSpace.result}
 									height={height}
 									fields={this.props.fields}
@@ -711,6 +714,7 @@ class AstroRelative extends Component{
 							</TabPane>
 								<TabPane tab="马克斯盘" key="Marks">
 										<AstroMarks 
+											wheelArt={this.props.wheelArt}
 											value={hook.Marks.result}
 									height={height}
 									fields={this.props.fields}
