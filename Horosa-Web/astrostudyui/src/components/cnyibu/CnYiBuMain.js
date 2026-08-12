@@ -22,6 +22,7 @@ const GuiceMain = React.lazy(() => import(/* webpackChunkName: "guice-main" */ '
 const XiaoLiuRenMain = React.lazy(() => import(/* webpackChunkName: "xiaoliuren-main" */ '../xiaoliuren/XiaoLiuRenMain'));
 const XiaoChengTuMain = React.lazy(() => import(/* webpackChunkName: "xiaochengtu-main" */ '../xiaochengtu/XiaoChengTuMain'));
 const FeiGongMain = React.lazy(() => import(/* webpackChunkName: "feigong-main" */ '../feigong/FeiGongMain'));
+const LingQiMain = React.lazy(() => import(/* webpackChunkName: "lingqi-main" */ '../lingqi/LingQiMain'));
 import QuickDockBar from '../common/QuickDockBar';
 import { CNYIBU_SUBTABS } from '../../constants/SubTabRegistry';
 
@@ -106,6 +107,9 @@ class CnYiBuMain extends Component{
 				},
 				tarot:{
 					fun: null
+				},
+				lingqi:{
+					fun: null
 				}
 			},
 		};
@@ -125,6 +129,7 @@ class CnYiBuMain extends Component{
 			shenyishu: createRef(),
 			geomancy: createRef(),
 			tarot: createRef(),
+			lingqi: createRef(),
 		};
 
 		this.changeTab = this.changeTab.bind(this);
@@ -473,6 +478,21 @@ class CnYiBuMain extends Component{
 								fields={this.props.fields}
 								hook={this.state.hook.tarot}
 								dispatch={this.props.dispatch}
+								hideQuickDock
+							/>
+						</Suspense>
+					</TabPane>
+
+					<TabPane tab="灵棋经" key="lingqi">
+						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+							<LingQiMain
+								ref={this.attachChildRef('lingqi')}
+								value={this.props.chart}
+								height={contentHeight}
+								fields={this.props.fields}
+								hook={this.state.hook.lingqi}
+								dispatch={this.props.dispatch}
+								onResultChange={this.refreshDock}
 								hideQuickDock
 							/>
 						</Suspense>

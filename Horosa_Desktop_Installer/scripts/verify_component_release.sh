@@ -86,7 +86,7 @@ done
 wait
 
 echo "== 3/3 全树等价(内容 sha + symlink 指向 + 无多无漏)"
-python3 - "${WORK}/full/runtime-payload" "${WORK}/comp/runtime-payload" <<'PYDIFF'
+python3 - "${WORK}/full/runtime-payload" "${WORK}/comp/runtime-payload" "${INSTALLER_ROOT}/scripts/package_runtime_payload.sh" <<'PYDIFF'
 import hashlib, os, pathlib, sys
 full_root, comp_root = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 
@@ -112,7 +112,30 @@ full, comp = scan(full_root), scan(comp_root)
 #   components-lock.json —— 切分产物真值,增量应用成功后由客户端写新 lock;
 #   .app-cds.jsa —— AppCDS 预置档(42MB):进部件会把每版增量撑大 ~67%;
 #     增量更新后旧档对新 exploded 失配由 JVM 自动忽略,首启后台自训再生。
-EXPECTED_ONLY_FULL = {'components-lock.json', 'runtime/mac/bundle/boot-exploded/.app-cds.jsa'}
+#   JDK classes.jsa —— 同款语义的第二处 CDS 豁免(WS-3e 之后加),打包端写在
+#     package_runtime_payload.sh 的 JDK_CDS_REL/_jdk_excludes 里。
+#
+# 🔴 [FL-20260812-3] 这份白名单曾**手抄**、且只抄到 .app-cds.jsa —— JDK 那处豁免加进打包端后
+#   本处没跟,本验证器自那时起恒判「部件合成树与全量树不等价」。手抄白名单一旦落后于打包端,
+#   本验证器要么恒红(如本次)、要么在打包端删豁免后**恒绿地放过真漏件**——后者才是致命方向。
+#   故改为**从打包脚本抽取**豁免字面量:两端同源,打包端加/删豁免本处自动跟随;
+#   抽不到(脚本改名/常量重写)则 fail-closed,绝不退回手抄默认值蒙混。
+def _jdk_cds_rel():
+    # argv[3] = 打包脚本路径(由外层 shell 传入;stdin 模式下没有 __file__ 可用)
+    import pathlib as _pl, re as _re
+    if len(sys.argv) < 4:
+        raise SystemExit('[verify] 未收到 package_runtime_payload.sh 路径 —— fail-closed')
+    pkg = _pl.Path(sys.argv[3])
+    if not pkg.is_file():
+        raise SystemExit(f'[verify] 打包脚本不存在: {pkg} —— fail-closed')
+    m = _re.search(r"^JDK_CDS_REL\s*=\s*'([^']+)'", pkg.read_text(encoding='utf-8'), _re.M)
+    if not m:
+        raise SystemExit('[verify] 抽不到 package_runtime_payload.sh 的 JDK_CDS_REL —— '
+                         'fail-closed(白名单必须与打包端同源,不接受手抄默认值)')
+    return m.group(1)
+
+EXPECTED_ONLY_FULL = {'components-lock.json', 'runtime/mac/bundle/boot-exploded/.app-cds.jsa',
+                      _jdk_cds_rel()}
 only_full = set(full) - set(comp) - EXPECTED_ONLY_FULL
 only_comp = set(comp) - set(full)
 mismatch = [k for k in set(full) & set(comp) if full[k] != comp[k]]

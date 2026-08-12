@@ -1,0 +1,11 @@
+# 已确认 superseded 的本地 feature 分支登记表(被 squash/重实现进 main、逐文件实测在 main 且更新、零降级)。
+# 格式 TAB 分隔: <branch>\t<已登记tip全sha>\t<日期>\t<理由>。preflight[22]: tip 未变=放行;tip 变动(真有新活)=照常复报。
+#
+# 【2026-08-11 分支总清理】全仓 41 条本地分支收敛为仅 main。判据三层逐条自证:
+#   ①ancestry:tip 是 main 祖先(git branch -d 成功) ②merge-tree 模拟:合并结果树 ≡ main^{tree}
+#   ③git cherry:补丁在 main 有等价物('-')。三者任一成立即删;两条 backup/* 走②,feature/wuzhao-classics
+#   走「A类文件数=0 + 五兆路径逐文件字节相同 + 52个M文件无一处分支侧多出五兆内容」。
+#   下表两条(ziwei-depth/astro-progression-v250)所指分支已于当日一并删除,条目留档以存判据;
+#   若日后从旧克隆重建同名分支,须重新自证而非直接信任本表。
+feature/ziwei-depth	16d0ef39fd2b6a58b9f1afe5011d447d033f3adf	2026-06-15	紫微运限深度/占星DST/Balbillus/六壬七政 均已在 main 且随 v2.6.7 发布;main 更新更全(+784/-21)并已中性化来源注释,merge 反致降级+来源注释回泄
+feature/astro-progression-v250	378e9b4be569ca08925e9b905e0f07cce2345b1e	2026-06-15	占星DST时区+Balbillus校准,为 ziwei-depth 子集,同已在 main 且更新,merge 反致降级

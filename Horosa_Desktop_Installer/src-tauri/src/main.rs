@@ -6062,6 +6062,9 @@ fn tar_extract_strip1_with(
 }
 
 /// 对单个 runtime root 应用增量部件:clone 暂存 → 手术 → 原子对换(失败 current 不动)。
+/// 生产链走 apply_component_updates_with(notify);本包装是 component_apply_* 协议测试的
+/// 入口(锁定 notify=None 的默认语义),故仅测试构建可见 —— 非测试构建豁免 dead_code。
+#[cfg_attr(not(test), allow(dead_code))]
 fn apply_component_updates(dest_root: &Path, staged: &StagedComponents) -> Result<()> {
     apply_component_updates_with(dest_root, staged, None)
 }

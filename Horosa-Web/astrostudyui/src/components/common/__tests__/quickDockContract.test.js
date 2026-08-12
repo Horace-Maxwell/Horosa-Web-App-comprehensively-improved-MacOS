@@ -99,7 +99,7 @@ describe('全站快捷栏静态契约(源码扫描)', () => {
 	const read = (f)=>fs.readFileSync(f, 'utf8');
 
 	test('裸 dock 标记只允许出现在保形白名单(其余页必须走 QuickDockBar)', () => {
-		// kinastro/astro 为用户认可的保形页(动态数据门控),finance 未落地跳过
+		// kinastro/astro 为用户认可的保形页(动态数据门控)
 		const WHITELIST = ['common/QuickDockBar.js', 'astro/AstroChartMain.js', 'kinastro/KinAstroMain.js'];
 		const offenders = files.filter((f)=>read(f).includes('horosa-bottom-quick-title'))
 			.map((f)=>path.relative(COMPONENTS_DIR, f))

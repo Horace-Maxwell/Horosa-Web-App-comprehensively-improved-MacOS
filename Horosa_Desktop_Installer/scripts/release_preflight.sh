@@ -3449,6 +3449,40 @@ grep -qF 'wheelArt: this.props.wheelArt' "${S207_UI}/components/astro/AstroChart
   || { bad "[207] 🔴 重绘签名缺 wheelArt 维度(方盘切回圆盘白屏)"; S207_BAD=1; }
 [ "${S207_BAD}" = "0" ] && ok "[207] 盘面美术 sCU键/持久化白名单/归一/双下拉/几何金标/双总锁/签名维度 全绿"
 
+# ── [210] pyc 不得嵌打包机绝对路径 ───────────────────────────────────────────
+# 病症:compileall 不带 -s/-p 时,code object 的 co_filename 记的是打包机绝对路径,
+# 于是 /Users/<用户名>/... 随每一个 pyc 进了已公证的 .pkg(实测 runtime tar 内数千个全带)。
+# 构建机用户名属 PII。与 [136] 前端 bundle 路径脱敏是同类病、不同表面 —— 那条只钉了
+# 前端产物,pyc 这一面此前无人看守;它扫源码扫不到(产物不在源码树)、读 diff 也看不见
+# (产物不入 git),只有拆产物 grep 才现形。
+# 附带收益:脱敏后同源跨机编译的 pyc 字节恒等,增量部件不再因换目录名被判「变了」。
+echo "[210] pyc 路径脱敏(co_filename 不得含构建机路径)"
+S210_PKG="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/package_runtime_payload.sh"
+S210_BAD=0
+[ -s "${S210_PKG}" ] || { bad "[210] 🔴 打包脚本缺失"; S210_BAD=1; }
+if [ -s "${S210_PKG}" ]; then
+  grep -qE '^\s*-s "\$\{STAGE_ROOT\}" -p "horosa-runtime" \\' "${S210_PKG}" \
+    || { bad "[210] 🔴 compileall 未带 -s ${STAGE_ROOT} -p horosa-runtime —— pyc 会重新嵌构建机绝对路径"; S210_BAD=1; }
+  grep -qF 'PYTHONHASHSEED=0 "${STAGE_PY_BIN}" -m compileall -q -j1 -f --invalidation-mode unchecked-hash' "${S210_PKG}" \
+    || { bad "[210] 🔴 compileall 的种子/单进程/hash 失效模式三件套被改动(pyc 可复现性依赖它)"; S210_BAD=1; }
+fi
+# pip 的 console_scripts 把安装当时的 python 绝对路径写死进 shebang,同样要脱敏
+grep -qF 'console_scripts shebang 脱敏' "${S210_PKG}" \
+  || { bad "[210] 🔴 console_scripts shebang 脱敏段缺失 —— pip 入口脚本会带构建机绝对路径"; S210_BAD=1; }
+# 终判据:直接扫已产出的**全部**部件,残留即红(不信脚本「跑过了」,只认产物本身)。
+# 🔴 曾只扫一个部件 → 另一个部件里的残留照样漏过去;判据面窄 = 假绿。
+S210_DIR="${REPO_ROOT}/Horosa_Desktop_Installer/dist/components"
+if [ -d "${S210_DIR}" ]; then
+  for S210_COMP in "${S210_DIR}"/horosa-comp-*.tar.gz; do
+    [ -s "${S210_COMP}" ] || continue
+    S210_HIT="$(tar -xzOf "${S210_COMP}" 2>/dev/null | LC_ALL=C grep -ac "/Users/${USER}/" || true)"
+    [ "${S210_HIT:-0}" = "0" ] \
+      || { bad "[210] 🔴 部件 $(basename "${S210_COMP}") 内仍有构建机路径(${S210_HIT} 处)——重跑 package_runtime_payload.sh"; S210_BAD=1; }
+  done
+fi
+[ "${S210_BAD}" = "0" ] && ok "[210] compileall 带 -s/-p + 可复现三件套完整 + 产物零构建机路径"
+
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

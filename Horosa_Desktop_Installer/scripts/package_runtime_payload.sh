@@ -290,13 +290,54 @@ if [ -x "${STAGE_PY_BIN}" ]; then
   # 跨打包字节漂 → py-runtime 部件 tar sha 漂(pyc 是部件内容)每版被判「变了」重下,且 seed 预灌的
   # 内容面全等闸必拒。钉 0 后同文件重编恒等(实证)。签名缓存键只含 Mach-O/归档,不受 pyc 影响。
   # -j1 排除多进程 worker 各自种子面(compileall 子进程不继承钉死语义的兜底)。
+  # [FL-20260812-4] -s/-p:把 code object 的 co_filename 由**打包机绝对路径**改写成
+  # `horosa-runtime/...` 相对路径。不加时 pyc 里嵌的是
+  # /Users/<用户名>/Desktop/<仓目录名>/... —— 实测发布产物内 7653 个 pyc 全部带,
+  # 抽样 20/20 命中,构建机用户名(PII)与本地仓目录名就这样随包发出去了。
+  # 与 [180](umi bundle 绝对路径脱敏)同类病、不同表面:[180] 只钉了前端 bundle,
+  # pyc 这一面此前无人看守;禁词表扫源码扫不到(产物不在源码树),只有拆产物 grep 才现形。
+  # 顺带一层收益:co_filename 不再含机器/仓路径 ⇒ **同源跨机跨仓编译出的 pyc 字节恒等**,
+  # 增量部件不再因换个目录名就被判「变了」(反向对照实测:不加 -s/-p 时两路径编译结果不等)。
+  # 安全性:全仓零处依赖 co_filename(inspect.getsource/linecache 均无调用);
+  # unchecked-hash 模式本就不按路径校验源;__file__ 仍是运行时真实路径,不受影响。
   PYTHONHASHSEED=0 "${STAGE_PY_BIN}" -m compileall -q -j1 -f --invalidation-mode unchecked-hash \
+    -s "${STAGE_ROOT}" -p "horosa-runtime" \
     "${STAGE_ROOT}/runtime/mac/python/lib/python3.12" \
     "${STAGE_ROOT}/Horosa-Web/astropy" \
     "${STAGE_ROOT}/Horosa-Web/flatlib-ctrad2" \
     "${STAGE_ROOT}/Horosa-Web/vendor" >/dev/null 2>&1 || true
   echo "pyc precompiled ($(find "${STAGE_ROOT}" -name '*.pyc' 2>/dev/null | wc -l | tr -d ' ') files)"
 fi
+
+# [FL-20260812-4b] pip 生成的 console_scripts 入口(pytest / f2py / numpy-config / astropy 的
+# fitsheader 等)把**安装当时的 python 绝对路径**写死进 shebang。实测 py-runtime 部件里 14 个
+# 这类脚本带着 /Users/<用户名>/Desktop/<很久以前的仓目录名>/... —— 用户名与一个早已不存在的
+# 旧项目目录名就这样随包发出去。
+# 🔴 它们在**任何**机器上都是坏的(shebang 指向的路径连本机都没有了),App 也从不调用;
+# 但直接删文件风险不必要,故只把 shebang 重指到「同一份内嵌 runtime 里的 python」——
+# 用 $(dirname $0) 相对定位,搬到任何安装位都成立,脱敏与可用性一次拿下。
+# 判据取「文本文件 ∧ 头两行含 /Users/ 绝对路径」:二进制与 python3/python3.12 本体(软链/Mach-O)
+# 天然不在其列,不会被误改。
+_scrub_n=0
+while IFS= read -r _f; do
+  [ -f "${_f}" ] || continue
+  case "$(file -b "${_f}" 2>/dev/null)" in *text*) : ;; *) continue;; esac
+  head -2 "${_f}" 2>/dev/null | LC_ALL=C grep -q '"/Users/[^"]*/python3' || continue
+  # bin/ 与 site-packages/bin/ 两处到内嵌解释器的相对深度不同,各自算
+  python3 - "${_f}" "${STAGE_ROOT}/runtime/mac/python/bin/python3" <<'PYSCRUB'
+import re, sys, os
+p, pybin = sys.argv[1], sys.argv[2]
+src = open(p, encoding='utf-8', errors='surrogateescape').read()
+# 🔴 相对层数必须**算**不能猜:bin/* 与 lib/python3.12/site-packages/bin/* 深度不同,
+# 手数层数一错脚本就指到不存在的路径(实测猜三层得 lib/bin/python3,少了一层)。
+rel = os.path.relpath(pybin, os.path.dirname(p))
+out = re.sub(r'"/Users/[^"]*/python3(?:\.\d+)?"', f'"$(dirname "$0")/{rel}"', src)
+if out != src:
+    open(p, 'w', encoding='utf-8', errors='surrogateescape').write(out)
+PYSCRUB
+  _scrub_n=$((_scrub_n + 1))
+done < <(find "${STAGE_ROOT}/runtime/mac/python" -type f \( -path '*/bin/*' \) 2>/dev/null)
+echo "[scrub] console_scripts shebang 脱敏 ${_scrub_n} 个(去构建机绝对路径,改 \$(dirname \$0) 相对定位)"
 find "${STAGE_ROOT}" -type d -name '_CodeSignature' -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
 # 注:此行曾含 '*.pyc' —— 会把上方 compileall 刚预编译的 pyc 全部删光(预编译白做,

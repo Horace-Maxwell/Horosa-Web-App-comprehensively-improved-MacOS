@@ -16,7 +16,7 @@ import ElectionMain from '../election/ElectionMain';
 import MundaneMain from '../mundane/MundaneMain';
 // 🔴 共享真值源 import 绝不许进条件编译块:消费点(AUX_TABS)在块外,该块一旦被剔除
 // 就成了悬空自由变量→模块顶层 ReferenceError→辅盘页干净安装必炸(v3.6.0 实案)。
-import { AUX_SUBTABS } from '../../constants/SubTabRegistry';
+import { AUX_SUBTABS, rememberSubTab } from '../../constants/SubTabRegistry';
 import BabylonMain from '../babylon/BabylonMain';
 
 const TabPane = Tabs.TabPane;
@@ -39,6 +39,7 @@ class AuxChartMain extends Component{
 
 		const subtab = this.props.currentSubTab ? this.props.currentSubTab : 'germanytech';
 		const tab = AUX_TABS.indexOf(subtab) >= 0 ? subtab : 'germanytech';
+		rememberSubTab('auxchart', tab, AUX_TABS);
 		this.state = {
 			divId: 'div_' + randomStr(8),
 			currentTab: tab,
@@ -108,6 +109,7 @@ class AuxChartMain extends Component{
 	}
 
 	changeTab(key){
+		rememberSubTab('auxchart', key, AUX_TABS);
 		this.setState({
 			currentTab: key,
 		}, ()=>{
@@ -128,6 +130,7 @@ class AuxChartMain extends Component{
 		if(prevProps.currentSubTab !== this.props.currentSubTab){
 			const key = this.props.currentSubTab;
 			if(AUX_TABS.indexOf(key) >= 0 && key !== this.state.currentTab){
+				rememberSubTab('auxchart', key, AUX_TABS);
 				this.setState({ currentTab: key }, ()=>{
 					this.callCurrentHook(this.props.fields, this.props.chart);
 				});
