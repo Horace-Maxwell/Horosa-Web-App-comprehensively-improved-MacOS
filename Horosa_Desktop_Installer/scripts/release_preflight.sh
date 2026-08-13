@@ -49,6 +49,9 @@ grep -q "RUNTIME_VERSION = \"${RUNTIME_VERSION}\"" "${S1_RW}" 2>/dev/null && ok 
 # verify_launcher_console_states.py 硬编码 launcher 的 "来源 pkg <VERSION>" 断言(launcher 用 APP_VERSION 渲染该行)——
 # 每版必须同步,否则 verify_desktop_packaging 在「编译+签名+公证」之后才报 ready-state 失败(v2.1.8 复盘:白白跑完一次签名公证)。
 grep -q "来源 pkg ${VERSION}" "${INSTALLER_ROOT}/scripts/verify_launcher_console_states.py" && ok "verify_launcher_console_states.py(launcher 版本断言)" || bad "verify_launcher_console_states.py 仍断言旧版本 —— 改 '来源 pkg ${VERSION}' 及注入 detail 的 '本机组件版本 ${VERSION}'"
+# 同文件另有一处 offline_ready 夹具串「本机组件版本 <VERSION>」—— 历版皆随版本改,却一直靠人记得。
+# 2026-08-12 v3.9.1 lockstep 时发现它是唯一没被守住的一处,补进本闸。
+grep -q "本机组件版本 ${VERSION} 已可直接使用" "${INSTALLER_ROOT}/scripts/verify_launcher_console_states.py" && ok "verify_launcher_console_states.py(offline_ready 夹具版本)" || bad "verify_launcher_console_states.py 的 offline_ready 夹具版本 != ${VERSION}"
 
 # 2. 本版 release notes 文件必须存在且非空(否则发布页只剩通用模板 —— v2.1.4 复盘 #1)
 echo "[2] 本版发布说明"
@@ -3481,6 +3484,76 @@ if [ -d "${S210_DIR}" ]; then
   done
 fi
 [ "${S210_BAD}" = "0" ] && ok "[210] compileall 带 -s/-p + 可复现三件套完整 + 产物零构建机路径"
+
+
+# ── [211] 天文地占:改设置/改时地必须实时重排,且重排绝不换卦 ────────────────
+# 病症一:改设置或换地点后盘面纹丝不动,非得再点一次「起盘」—— 而再点起盘就是重新揲卦,
+#   手上那一卦当场就没了。根因:时地接入计算之后,无人在时地变化时重新请求判读。
+# 病症二:用报数起卦的盘,切一次流派就被重新揲一次(母图全变,等于换了一卦)——
+#   重排时只带种子、不带那十六个数,计算端遂改由随机数重揲。八种起卦法逐一实测,唯此档失败;
+#   时间档另有隐患:它只认时间种子,钉成普通种子即退化成真随机。
+# 病症三:「据所选时地起真实上升」「真实星历落星」两档从未生效 —— 界面送出的是度分记法的经纬
+#   (如 119e19),计算端按十进制度解读:'26n04' 解不出;'119e19' 更隐蔽,会被当成科学记数法的
+#   合法浮点(1.19e21),过了数值转换却卡在经度范围检查上,于是整体静默回落成「无真实盘」。
+# 判据两层:jest/pytest 立行为判据 + 此处钉住关键接线与判据文件不被摘掉。
+echo "[211] 天文地占实时重排 + 重排不换卦"
+S211_SRC="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/geomancy/GeomancyMain.js"
+S211_T="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/geomancy/__tests__/geomancyLiveRecast.test.js"
+S211_PY="${REPO_ROOT}/Horosa-Web/astropy/websrv/webgeomancysrv.py"
+S211_PT="${REPO_ROOT}/Horosa-Web/astropy/tests/test_geomancy_kernel.py"
+S211_BAD=0
+[ -s "${S211_SRC}" ] || { bad "[211] 🔴 GeomancyMain.js 缺失"; S211_BAD=1; }
+[ -s "${S211_T}" ]   || { bad "[211] 🔴 判据文件 geomancyLiveRecast.test.js 缺失(行为判据没了=无人看守)"; S211_BAD=1; }
+if [ -s "${S211_SRC}" ]; then
+  # ① 时地判据须取「真正送进请求体的值」,而非 fields 引用 —— 按引用判会因无关状态更新白打后端
+  grep -qF 'castParamSig(){' "${S211_SRC}" \
+    || { bad "[211] 🔴 castParamSig 缺失 —— 时地变化判据回落引用比较"; S211_BAD=1; }
+  # ② 载入存档那一拍不得重排(否则存档盘被覆盖),且签名照样同步(否则下一拍误触发)
+  grep -qF 'if(changed && !restored && !this._suppressRecast){ this.scheduleRecastPinned(); }' "${S211_SRC}" \
+    || { bad "[211] 🔴 didUpdate 的「变了才算 + 载档不算」守卫被改动"; S211_BAD=1; }
+  # ③ 载档抑制窗口:状态更新是异步的,清本地时地草稿要到下一拍才生效,届时「刚载过档」的标志
+  #    已复位而签名已变 —— 无此窗口则刚载入的存档盘会被重排覆盖。
+  grep -qF 'this._suppressRecast = true;' "${S211_SRC}" \
+    || { bad "[211] 🔴 载档抑制窗口缺失 —— 存档盘会在下一拍被重排覆盖"; S211_BAD=1; }
+  # ④ 重排须回带该盘自己的起卦源(报数十六数),否则报数盘一改设置就被重新揲卦
+  grep -qF "fzMethod === 'numbers' && Array.isArray(fz.cast_numbers)" "${S211_SRC}" \
+    || { bad "[211] 🔴 重排未回带十六数 —— 报数盘改设置即被重新揲卦"; S211_BAD=1; }
+  # ⑤ 时间档只认时间种子
+  grep -qF "if(fzMethod === 'time'){ payload.castMethod = 'time'; payload.timeSeed = pinned; }" "${S211_SRC}" \
+    || { bad "[211] 🔴 时间档未走 timeSeed —— 钉成普通种子即退化真随机"; S211_BAD=1; }
+  # ⑥ 会改判读的左栏控件须全汇到同一入口(曾散着四份各自钉种子的重复实现)
+  S211_N="$(grep -c 'this.recastPinned()' "${S211_SRC}" || true)"
+  [ "${S211_N:-0}" -ge 7 ] \
+    || { bad "[211] 🔴 recastPinned 调用点仅 ${S211_N} 处(应 ≥7:流派/传本/行星盘/问类/所问宫/转宫/问题+时地)"; S211_BAD=1; }
+fi
+# ⑦-⑨ 服务层时地解析:经纬是度分记法、时区是偏移串,直接数值转换会让两档成为死开关
+if [ -s "${S211_PY}" ]; then
+  grep -qF 'lon = _parse_geo(data.get("lon"))' "${S211_PY}" \
+    || { bad "[211] 🔴 地占服务未走 _parse_geo —— 真实上升/真实星历落星回落成死开关"; S211_BAD=1; }
+  grep -qF 'zone = _parse_zone(data.get("zone"))' "${S211_PY}" \
+    || { bad "[211] 🔴 地占服务未按偏移串解析时区 —— 非东八区的真实盘时刻整体偏"; S211_BAD=1; }
+  grep -qF 'from websrv.horosa_engine_common import coord_to_float' "${S211_PY}" \
+    || { bad "[211] 🔴 未复用既有 coord_to_float(度分解析口径会分叉)"; S211_BAD=1; }
+else
+  bad "[211] 🔴 webgeomancysrv.py 缺失"; S211_BAD=1
+fi
+# ⑩ 判据文件里的关键断言不得被摘:每条都对应上述三项修复中的一个具体失效形态
+if [ -s "${S211_T}" ]; then
+  for S211_A in \
+    '报数盘:重算必带回那十六个数' \
+    '时间档只认 timeSeed' \
+    '载档那一拍不许重算' \
+    '时地无关的重渲染'
+  do
+    grep -qF "${S211_A}" "${S211_T}" \
+      || { bad "[211] 🔴 判据文件缺关键断言:${S211_A}"; S211_BAD=1; }
+  done
+fi
+grep -qF 'def test_time_place_reaches_real_chart_with_frontend_payload' "${S211_PT}" 2>/dev/null \
+  || { bad "[211] 🔴 pytest 缺「按界面原样请求体须起得出真实盘」判据"; S211_BAD=1; }
+grep -qF 'def test_real_chart_switch_off_means_time_place_never_matters' "${S211_PT}" 2>/dev/null \
+  || { bad "[211] 🔴 pytest 缺零回归判据(未选真实盘档时喂不喂时地必恒等)"; S211_BAD=1; }
+[ "${S211_BAD}" = "0" ] && ok "[211] 时地/设置改动即重排 + 八档起卦源原样回带 + 载档不被覆盖"
 
 
 echo "== 结果 =="

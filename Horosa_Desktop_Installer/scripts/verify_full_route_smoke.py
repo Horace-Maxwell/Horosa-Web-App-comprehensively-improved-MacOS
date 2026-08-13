@@ -56,6 +56,16 @@ def http_json(url, payload, method, timeout):
         return response.status, json.loads(body)
 
 
+def _dig(obj, dotted):
+    """按点分路径取值(a.b.c);任一层缺失即回 None。"""
+    cur = obj
+    for part in dotted.split("."):
+        if not isinstance(cur, dict):
+            return None
+        cur = cur.get(part)
+    return cur
+
+
 def run_probe(root, probe, payloads, timeout):
     url = root.rstrip("/") + probe["path"]
     method = probe.get("method", "POST")
@@ -95,6 +105,14 @@ def run_probe(root, probe, payloads, timeout):
         val = body.get(key) if isinstance(body, dict) else None
         if not isinstance(val, (int, float)):
             problems.append("key %r not numeric (%r)" % (key, type(val).__name__))
+    # 嵌套判据:顶层键判不到「算没算对」——如地占真实盘的可用位埋在 Result.reading.settings 下,
+    # 只断言 ResultCode==0 时,时地解析全盘失效(静默回落)照样是 200+0,探针形同虚设。
+    for path in checks.get("expect_true_paths") or []:
+        if _dig(body, path) is not True:
+            problems.append("path %r != True (%r)" % (path, _dig(body, path)))
+    for path in checks.get("numeric_paths") or []:
+        if not isinstance(_dig(body, path), (int, float)):
+            problems.append("path %r not numeric (%r)" % (path, _dig(body, path)))
     if problems:
         detail["problems"] = problems
         detail["body_head"] = json.dumps(body, ensure_ascii=False)[:400]

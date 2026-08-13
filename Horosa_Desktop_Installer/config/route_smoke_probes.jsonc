@@ -46,6 +46,23 @@
     { "id": "qizhengkin", "mount": "/qizhengkin", "path": "/qizhengkin/pan", "payload_ref": "kentang", "assert": { "result_code0": true } },
     // geomancy/xuanshi 属 registry 但非 /pan 协议(v3.2.x 前无人冒烟的历史盲区,本清单封死)
     { "id": "geomancy",   "mount": "/geomancy",   "path": "/geomancy/reading", "payload_ref": "kentang", "assert": { "result_code0": true } },
+    // 🔴 地占真实星历盘两档:只断言 ResultCode==0 判不出「算没算对」—— 时地解析若整体失效,
+    //    判读端会静默回落成「无真实盘」,照样 200+0。故须钉住可用位与上升度数(度数埋在嵌套层)。
+    //    风险点在打包运行时:跨模块经纬解析 import + 惰性星历导入,二者在开发环境必然可用、打包后未必。
+    //    ⚠ 经纬用**度分记法**、时区用偏移串 —— 界面发的就是这个形状,冒烟必须照同一形状发。
+    { "id": "geomancy-real", "mount": "/geomancy", "path": "/geomancy/reading", "payload_ref": "kentang",
+      "payload_extra": { "ascSource": "real_chart", "seedMode": "manual", "seed": 4242,
+                         "date": "2026-05-24", "time": "12:00:00", "zone": "+08:00", "lon": "119e19", "lat": "26n04" },
+      "assert": { "result_code0": true,
+                  "expect_true_paths": ["Result.reading.settings.real_chart_available"],
+                  "numeric_paths": ["Result.reading.astroErection.asc_lon"] } },
+    // 西经 + 西时区:覆盖度分负号与偏移串两条解析路径(上一条只覆盖东经东时区)
+    { "id": "geomancy-real-west", "mount": "/geomancy", "path": "/geomancy/reading", "payload_ref": "kentang",
+      "payload_extra": { "ascSource": "real_chart", "seedMode": "manual", "seed": 4242,
+                         "date": "2026-05-24", "time": "12:00:00", "zone": "-04:00", "lon": "74w00", "lat": "40n42" },
+      "assert": { "result_code0": true,
+                  "expect_true_paths": ["Result.reading.settings.real_chart_available"],
+                  "numeric_paths": ["Result.reading.astroErection.asc_lon"] } },
     { "id": "xuanshi",    "mount": "/xuanshi",    "path": "/xuanshi/summary",  "payload_ref": null, "method": "GET", "assert": { "no_err": true, "nonempty": true } },
     // ── webchartsrv 直挂 ────────────────────────────────────────────────────
     { "id": "identity_py", "mount": "/",            "path": "/horosaIdentity",    "payload_ref": null, "method": "GET", "assert": { "no_err": true, "expect_keys": ["app", "nonce"] } },
