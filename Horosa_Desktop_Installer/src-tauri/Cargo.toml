@@ -1,6 +1,6 @@
 [package]
 name = "horosa-desktop-installer"
-version = "3.9.1"
+version = "3.9.2"
 description = "Horosa macOS desktop shell"
 authors = ["Horosa"]
 edition = "2021"

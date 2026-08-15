@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { saveDerivedAstroSnapshot } from '../../utils/derivedAstroSnapshot';
 import AstroChart from '../astro/AstroChart';
 import AstroInfo from '../astro/AstroInfo';
 import AstroAspect from '../astro/AstroAspect';
@@ -130,7 +131,22 @@ class AstroRelocationLab extends Component{
 				timeoutMs: 30000,
 			});
 			if(!this._mounted) return;
-			this.setState({result: unwrapResult(data) || {}, loading: false, requestKey: key});
+			const res = unwrapResult(data) || {};
+			this.setState({result: res, loading: false, requestKey: key});
+			// [审计修·派生盘快照重定源] 出盘即存:整张重置盘 + [重置盘] 专属段(地点/四角对比)。
+			saveDerivedAstroSnapshot('relocation', res.chart, this.props.fields, ()=>{
+				const out = ['[重置盘]'];
+				out.push(`重置地点：纬 ${this.state.relocLat} / 经 ${this.state.relocLon}`);
+				try{
+					const natal = anglesOf(this.props.value);
+					const reloc = anglesOf(res.chart);
+					ANGLE_IDS.forEach((id)=>{
+						const n = natal && natal[id]; const r = reloc && reloc[id];
+						if(n || r){ out.push(`${id}：本命 ${n ? `${n.sign || ''}${n.signlon != null ? Number(n.signlon).toFixed(2) + '°' : ''}` : '—'} → 重置后 ${r ? `${r.sign || ''}${r.signlon != null ? Number(r.signlon).toFixed(2) + '°' : ''}` : '—'}`); }
+					});
+				}catch(e){ /* 角点缺省不产行 */ }
+				return out.length > 1 ? out : [];
+			});
 		}catch(e){
 			if(!this._mounted) return;
 			this.setState({loading: false, requestKey: key});

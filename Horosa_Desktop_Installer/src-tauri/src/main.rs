@@ -22,8 +22,8 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{
-    AppHandle, LogicalPosition, LogicalSize, Manager, Position, RunEvent, Runtime, Size, State,
-    WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Position, RunEvent, Runtime, Size,
+    State, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 use walkdir::WalkDir;
@@ -2899,6 +2899,183 @@ fn pbcopy_utf8_fallback(text: &str) -> std::result::Result<(), String> {
     } else {
         Err(format!("pbcopy 退出码 {:?}", status.code()))
     }
+}
+
+// ── [V5-A3] 影子副本:本地记录库(WebView localStorage 主存)的壳侧文件镜像 ──────────
+// WebView 数据目录由系统按 bundle identifier 派生(macOS ~/Library/WebKit/<id>),app 不可
+// 控、用户不可见、可被清理工具/磁盘压力驱逐整体清掉,且 localStorage 写后立即退出存在
+// 未落盘窗口(上游 tauri #4455)。镜像住 app_data_dir/shadow/(dirs 跨平台语义,Windows 端
+// %APPDATA% 同 API 同代码),每写 = 临时文件 + fsync + 原子 rename,invoke 返回即已在盘。
+// 白名单键防「任意键名 → 任意文件写」;白名单键字符集本身即安全文件名。
+// 恢复语义在前端(shadowMirror.reconcile):仅主存缺失时写回,绝不覆盖存在的主存。
+const SHADOW_ALLOWED_KEYS: [&str; 4] = [
+    "horosa.localCharts.v1",
+    "horosa.localCases.v1",
+    "horosa.localCharts.trash.v1",
+    "horosa.localCases.trash.v1",
+];
+
+static SHADOW_INFLIGHT_WRITES: AtomicUsize = AtomicUsize::new(0);
+
+fn shadow_store_dir(app: &AppHandle) -> std::result::Result<PathBuf, String> {
+    let base = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| format!("app_data_dir 不可用: {err}"))?;
+    Ok(base.join("shadow"))
+}
+
+/// 退出路径等待在途影子写清空(上限 500ms):Exit 回调跑在 applicationWillTerminate 内,
+/// 不允许无界等待;写本体毫秒级,此上限只为极端 IO 卡顿兜底。
+fn wait_shadow_writes_settle() {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+    while SHADOW_INFLIGHT_WRITES.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < deadline
+    {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+#[tauri::command]
+fn shadow_store_write_command(
+    app: AppHandle,
+    key: String,
+    text: String,
+) -> std::result::Result<(), String> {
+    if !SHADOW_ALLOWED_KEYS.contains(&key.as_str()) {
+        return Err("shadow.key.not-allowed".to_string());
+    }
+    SHADOW_INFLIGHT_WRITES.fetch_add(1, Ordering::SeqCst);
+    let result = (|| -> std::result::Result<(), String> {
+        let dir = shadow_store_dir(&app)?;
+        fs::create_dir_all(&dir).map_err(|err| format!("shadow 目录创建失败: {err}"))?;
+        let tmp = dir.join(format!("{key}.json.tmp"));
+        let dst = dir.join(format!("{key}.json"));
+        {
+            let mut f =
+                fs::File::create(&tmp).map_err(|err| format!("shadow 临时文件创建失败: {err}"))?;
+            f.write_all(text.as_bytes())
+                .map_err(|err| format!("shadow 写入失败: {err}"))?;
+            f.sync_all()
+                .map_err(|err| format!("shadow fsync 失败: {err}"))?;
+        }
+        fs::rename(&tmp, &dst).map_err(|err| format!("shadow 原子替换失败: {err}"))?;
+        Ok(())
+    })();
+    SHADOW_INFLIGHT_WRITES.fetch_sub(1, Ordering::SeqCst);
+    result
+}
+
+// ── [V5-B] 自动备份壳侧四件:用户可见目录写/列/读/修剪(白名单目录+文件名模式双防呆) ──
+// 目录=系统「文稿」/Horosa Backups(用户可见、进 Time Machine 面、可自行软链到网盘目录;
+// Win 端 dirs 同 API 落 %USERPROFILE%\Documents)。写=fsync+原子 rename;删=仅限本目录内
+// 匹配 horosa-backup-*.zip 的文件(任意路径/任意名一律拒)。
+fn auto_backup_dir(app: &AppHandle) -> std::result::Result<PathBuf, String> {
+    let base = app
+        .path()
+        .document_dir()
+        .map_err(|err| format!("document_dir 不可用: {err}"))?;
+    Ok(base.join("Horosa Backups"))
+}
+
+fn is_backup_file_name(name: &str) -> bool {
+    name.starts_with("horosa-backup-")
+        && name.ends_with(".zip")
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.')
+        && !name.contains("..")
+}
+
+#[tauri::command]
+fn auto_backup_write_command(
+    app: AppHandle,
+    file_name: String,
+    base64_data: String,
+) -> std::result::Result<String, String> {
+    if !is_backup_file_name(&file_name) {
+        return Err("backup.name.invalid".to_string());
+    }
+    let bytes = BASE64_STANDARD
+        .decode(base64_data.as_bytes())
+        .map_err(|err| format!("base64 解码失败: {err}"))?;
+    let dir = auto_backup_dir(&app)?;
+    fs::create_dir_all(&dir).map_err(|err| format!("备份目录创建失败: {err}"))?;
+    let tmp = dir.join(format!("{file_name}.tmp"));
+    let dst = dir.join(&file_name);
+    {
+        let mut f = fs::File::create(&tmp).map_err(|err| format!("备份临时文件创建失败: {err}"))?;
+        f.write_all(&bytes)
+            .map_err(|err| format!("备份写入失败: {err}"))?;
+        f.sync_all()
+            .map_err(|err| format!("备份 fsync 失败: {err}"))?;
+    }
+    fs::rename(&tmp, &dst).map_err(|err| format!("备份原子替换失败: {err}"))?;
+    Ok(dst.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn auto_backup_list_command(app: AppHandle) -> std::result::Result<Vec<String>, String> {
+    let dir = auto_backup_dir(&app)?;
+    let mut out = Vec::new();
+    if let Ok(entries) = fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if is_backup_file_name(&name) {
+                out.push(name);
+            }
+        }
+    }
+    out.sort();
+    Ok(out)
+}
+
+#[tauri::command]
+fn auto_backup_read_command(
+    app: AppHandle,
+    file_name: String,
+) -> std::result::Result<String, String> {
+    if !is_backup_file_name(&file_name) {
+        return Err("backup.name.invalid".to_string());
+    }
+    let path = auto_backup_dir(&app)?.join(&file_name);
+    let bytes = fs::read(&path).map_err(|err| format!("备份读取失败: {err}"))?;
+    Ok(BASE64_STANDARD.encode(bytes))
+}
+
+#[tauri::command]
+fn auto_backup_prune_command(
+    app: AppHandle,
+    delete_names: Vec<String>,
+) -> std::result::Result<u32, String> {
+    let dir = auto_backup_dir(&app)?;
+    let mut deleted = 0u32;
+    for name in delete_names {
+        if !is_backup_file_name(&name) {
+            continue; // 模式外名一律拒(双侧防呆:前端只送 GFS 淘汰名单,壳侧再验)
+        }
+        let path = dir.join(&name);
+        if fs::remove_file(&path).is_ok() {
+            deleted += 1;
+        }
+    }
+    Ok(deleted)
+}
+
+#[tauri::command]
+fn shadow_store_read_all_command(
+    app: AppHandle,
+) -> std::result::Result<std::collections::HashMap<String, String>, String> {
+    let dir = shadow_store_dir(&app)?;
+    let mut out = std::collections::HashMap::new();
+    for key in SHADOW_ALLOWED_KEYS {
+        let path = dir.join(format!("{key}.json"));
+        if let Ok(text) = fs::read_to_string(&path) {
+            if !text.is_empty() {
+                out.insert(key.to_string(), text);
+            }
+        }
+    }
+    Ok(out)
 }
 
 #[tauri::command]
@@ -6672,7 +6849,12 @@ fn static_asset_has_content_hash(name: &str) -> bool {
 // [R4-P1b] 弱 ETag 公式单源:len-mtime(-gz)。缓存构建与磁盘旧路径共用 —— 谁改公式必须
 // 两路同改,否则同一文件在命中/回退两态给出不同 ETag = 客户端缓存被无谓打穿。
 fn make_static_etag(len: u64, mtime_secs: u64, gz: bool) -> String {
-    format!("W/\"{}-{}{}\"", len, mtime_secs, if gz { "-gz" } else { "" })
+    format!(
+        "W/\"{}-{}{}\"",
+        len,
+        mtime_secs,
+        if gz { "-gz" } else { "" }
+    )
 }
 
 fn static_file_mtime_secs(meta: &fs::Metadata) -> u64 {
@@ -6761,8 +6943,7 @@ fn respond_static_from_ram(request: tiny_http::Request, rel: &str, asset: &Stati
         "no-cache"
     };
     let accepts_gzip = request.headers().iter().any(|h| {
-        h.field.equiv("Accept-Encoding")
-            && h.value.as_str().to_ascii_lowercase().contains("gzip")
+        h.field.equiv("Accept-Encoding") && h.value.as_str().to_ascii_lowercase().contains("gzip")
     });
     let use_gz = accepts_gzip && asset.gz.is_some();
     let etag = if use_gz {
@@ -6770,9 +6951,10 @@ fn respond_static_from_ram(request: tiny_http::Request, rel: &str, asset: &Stati
     } else {
         asset.etag_raw.as_str()
     };
-    let inm_hit = request.headers().iter().any(|h| {
-        h.field.equiv("If-None-Match") && h.value.as_str().trim() == etag
-    });
+    let inm_hit = request
+        .headers()
+        .iter()
+        .any(|h| h.field.equiv("If-None-Match") && h.value.as_str().trim() == etag);
     if inm_hit {
         let mut resp = Response::empty(StatusCode(304));
         if let Ok(hd) = Header::from_bytes(&b"ETag"[..], etag.as_bytes()) {
@@ -6788,7 +6970,11 @@ fn respond_static_from_ram(request: tiny_http::Request, rel: &str, asset: &Stati
         return;
     }
     let body: Vec<u8> = if use_gz {
-        asset.gz.as_ref().cloned().unwrap_or_else(|| asset.raw.clone())
+        asset
+            .gz
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| asset.raw.clone())
     } else {
         asset.raw.clone()
     };
@@ -6841,8 +7027,9 @@ fn start_static_server(
     let ram_enabled = std::env::var("HOROSA_STATIC_RAM_CACHE")
         .map(|v| v != "0")
         .unwrap_or(true);
-    let ram_cache: Arc<std::sync::RwLock<Option<std::collections::HashMap<String, StaticRamAsset>>>> =
-        Arc::new(std::sync::RwLock::new(None));
+    let ram_cache: Arc<
+        std::sync::RwLock<Option<std::collections::HashMap<String, StaticRamAsset>>>,
+    > = Arc::new(std::sync::RwLock::new(None));
     if ram_enabled {
         let cache_slot = Arc::clone(&ram_cache);
         let dir_for_cache = frontend_dir.clone();
@@ -9870,7 +10057,10 @@ fn runtime_bootstrap(
         // [R4-P2b] 日志清扫后台化:本就 best-effort、只删 >14 天项且与本 run 新目录无交集,
         // 无任何序依赖 —— 挪出 bootstrap 关键路径(冷 FS 下同步 readdir+删除可达几十 ms)。
         // HOROSA_PRUNE_LOGS_ASYNC=0 回同步旧序。
-        if std::env::var("HOROSA_PRUNE_LOGS_ASYNC").map(|v| v == "0").unwrap_or(false) {
+        if std::env::var("HOROSA_PRUNE_LOGS_ASYNC")
+            .map(|v| v == "0")
+            .unwrap_or(false)
+        {
             prune_logs_dir_best_effort(&logs_dir);
         } else {
             let dir = logs_dir.clone();
@@ -10633,6 +10823,19 @@ fn main() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
+            // [V5-B1] 自动备份心跳:壳侧线程每 30 分钟 emit 一次(不依赖 WebView 定时器——
+            // 窗口最小化/节能会漂移);首跳延后 5 分钟避开冷启高峰。前端 listen 组 zip 回送写盘;
+            // 内容指纹未变则前端自行跳过,心跳本身零 IO。
+            {
+                let backup_handle = app_handle.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(300));
+                    loop {
+                        let _ = backup_handle.emit("horosa://auto-backup-tick", ());
+                        std::thread::sleep(std::time::Duration::from_secs(1800));
+                    }
+                });
+            }
             set_window_state_persistence_ready(&app_handle, false);
             let main_state = load_window_states(&app_handle).main;
             let window = if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
@@ -10893,12 +11096,14 @@ fn main() {
                 if is_window_state_persistence_ready(app) {
                     persist_all_known_window_states(app);
                 }
+                wait_shadow_writes_settle(); // [V5-A4] 在途影子写清空(≤500ms)再放行退出
                 spawn_exit_cleanup(app);
             }
             RunEvent::Exit => {
                 if is_window_state_persistence_ready(app) {
                     persist_all_known_window_states(app);
                 }
+                wait_shadow_writes_settle(); // [V5-A4] macOS terminate 路径只回调 Exit,同样兜底
                 spawn_exit_cleanup(app);
             }
             _ => {}
