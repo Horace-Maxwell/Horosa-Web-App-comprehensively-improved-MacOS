@@ -8,6 +8,28 @@ from astrostudy.perchart import PerChart
 from astrostudy.helper import getChartObj
 from websrv.helper import enable_crossdomain
 from websrv._guards import validate_geo
+import functools
+from astrostudy.perchart import push_classical_request, pop_classical_request
+
+
+
+def _with_classical(fn):
+    """[0d] 推运全族请求级古典临界区:此前 16 端点零 push——界系/三分/宫头5°律/
+    点公式口径/旺位异文在返照·推运·主限链全走默认,与主盘口径静默分叉(三层断链之 Python 层)。
+    装饰器统一包裹:进入端点按 JSON 体 push 五族(perchart.push_classical_request 固定顺序),
+    finally 反序 pop——漏 pop 结构性不可能。JSON 体不可得(GET 探活)按空体=全默认。"""
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        try:
+            _body = cherrypy.request.json
+        except Exception:
+            _body = None
+        _tokens = push_classical_request(_body)
+        try:
+            return fn(self, *args, **kwargs)
+        finally:
+            pop_classical_request(_tokens)
+    return wrapper
 
 
 class PredictSrv:
@@ -19,6 +41,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def solarreturn(self):
         enable_crossdomain()
         try:
@@ -77,6 +100,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def lunarreturn(self):
         enable_crossdomain()
         try:
@@ -124,6 +148,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def givenyear(self):
         enable_crossdomain()
         try:
@@ -170,6 +195,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def profection(self):
         enable_crossdomain()
         try:
@@ -211,6 +237,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def solararc(self):
         enable_crossdomain()
         try:
@@ -248,6 +275,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def planetaryarc(self):
         enable_crossdomain()
         try:
@@ -273,6 +301,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def persianchart(self):
         enable_crossdomain()
         try:
@@ -297,6 +326,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def pd(self):
         enable_crossdomain()
         try:
@@ -321,6 +351,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def pdchart(self):
         enable_crossdomain()
         try:
@@ -345,6 +376,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def td(self):
         enable_crossdomain()
         try:
@@ -372,6 +404,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def dist(self):
         enable_crossdomain()
         try:
@@ -395,6 +428,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def agepoint(self):
         enable_crossdomain()
         try:
@@ -418,6 +452,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def zr(self):
         enable_crossdomain()
         try:
@@ -455,6 +490,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def dice(self):
         enable_crossdomain()
         try:
@@ -491,6 +527,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def pdpoles(self):
         # §19 Pole 高级输出:S 集逐应星极点(随 resolved projection)。
         # 行 shape 5 元锁死不扩 → 独立元信息端点,前端 Pole 列按应星 join。
@@ -514,6 +551,7 @@ class PredictSrv:
     @cherrypy.expose
     @cherrypy.config(**{'tools.cors.on': True})
     @cherrypy.tools.json_in()
+    @_with_classical
     def pd3d(self):
         # 主限法 3D 天球数据(WS-3):表行走既有 getPrimaryDirectionByZ(弧零重算),
         # 附每个 id 的引擎真实坐标(points)/应星位置圈(circles)/天球框架(frame)。

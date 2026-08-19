@@ -210,7 +210,7 @@ function pruneWarm(){
 
 // runner: () => Promise<result>(真正的网络执行体,由 request() 传入)
 export function dedupedRequest(url, options, runner){
-	const key = `${url} ${options.body}`;
+	const key = `${url}\x00${options.body}`;
 	const hit = done.get(key);
 	if(hit && (Date.now() - hit.at) <= TTL_MS){
 		// horosa_dedupe_l1_lru_v1(R4-B1):命中必须重插。Map 的迭代序 == 插入序,而 prune()

@@ -19,7 +19,9 @@
     "prettier": "prettier --write '**/*.{js,jsx,tsx,ts,less,md,json}'",
     "test": "umi-test",
     "test:coverage": "umi-test --coverage",
-    "planetarium:perf": "node scripts/planetariumPerfSmoke.js"
+    "planetarium:perf": "node scripts/planetariumPerfSmoke.js",
+    "eval:report": "node scripts/reportEvalCli.js",
+    "eval:report:compare": "node scripts/reportEvalCompare.js"
   },
   "lint-staged": {
     "*.{js,jsx,less,md,json}": [
