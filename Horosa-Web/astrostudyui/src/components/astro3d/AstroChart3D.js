@@ -28,46 +28,29 @@ class AstroChart3D extends Component{
 		if(svgdom === undefined || svgdom === null){
 			return;
 		}
-
-		let w = svgdom.clientWidth;
-		let h = svgdom.clientHeight;
-
-		let flag = checkFullScreen();
-		if(!this.fullScreen){
-			this.width = w;
-			this.height = h;	
-		}else{
-			if(flag){
-				setTimeout(()=>{
-					w = this.orgWidth;
-					h = this.orgHeight;	
-					if(this.flip){
-						w = window.screen.width;
-						h = window.screen.height;
-						this.flip = false;
-						this.waitEsc = true;
-					}
-					svgdom.style.width = w + 'px';
-					svgdom.style.height = h + 'px';
-					this.astro3d.resize(w, h);	
-				}, 100);
-			}else{
-				setTimeout(()=>{
-					if(this.waitEsc){
-						w = this.width;
-						h = this.height;
-						this.waitEsc = false;
-					}
-					svgdom.style.width = w + 'px';
-					svgdom.style.height = h + 'px';
-					this.astro3d.resize(w, h);	
-				}, 100);
-			}
+		// [Issue#68] 全屏尺寸改「实测」:旧版用 window.screen.width/height 估算(含菜单栏/Dock/缩放
+		// 误差,Tauri 窗口全屏更非整屏)+ flip/waitEsc 手工状态机围绕恒真的 checkFullScreen 打补丁,
+		// 结果=按 Esc 退出后状态永远对不上、画布尺寸与容器不符 →「全屏后显示不完整」。
+		// 判据修为状态位后,这里只需:全屏态按视口实测、常态按容器实测,由 fullscreenchange 驱动。
+		const full = checkFullScreen();
+		this.fullScreen = full;
+		if(full){
+			const w = Math.max(1, window.innerWidth || svgdom.clientWidth);
+			const h = Math.max(1, window.innerHeight || svgdom.clientHeight);
+			svgdom.style.width = w + 'px';
+			svgdom.style.height = h + 'px';
+			if(this.astro3d){ this.astro3d.resize(w, h); }
 			return;
 		}
-
-		this.astro3d.resize(w, h);
-
+		// 退出全屏:先摘掉内联尺寸让容器回到布局尺寸,再按实测重排(rect 优先,回退 client*)。
+		svgdom.style.width = '';
+		svgdom.style.height = '';
+		const rect = svgdom.getBoundingClientRect ? svgdom.getBoundingClientRect() : null;
+		const w = Math.max(1, Math.round((rect && rect.width) || svgdom.clientWidth));
+		const h = Math.max(1, Math.round((rect && rect.height) || svgdom.clientHeight));
+		this.width = w;
+		this.height = h;
+		if(this.astro3d){ this.astro3d.resize(w, h); }
 	}
 
 	doubleClick(){
@@ -75,24 +58,12 @@ class AstroChart3D extends Component{
 		if(svgdom === undefined || svgdom === null){
 			return;
 		}
-
-		if(this.fullScreen){
-			this.fullScreen = false;
+		// [Issue#68] 只负责进出全屏;尺寸一律交给 fullscreenchange → handleResize 实测,
+		// 不再在这里按 screen.* 预写(旧版预写值与真实全屏视口不一致=显示不完整的另一半)。
+		if(checkFullScreen()){
 			exitFullScreen();
-			let w = this.width;
-			let h = this.height;
-			svgdom.style.width = w + 'px';
-			svgdom.style.height = h + 'px';	
 		}else{
-			this.orgHeight = this.height;
-			this.orgWidth = this.width;
-			this.fullScreen = true;
 			launchFullScreen(svgdom);
-			let w = window.screen.width;
-			let h = window.screen.height;
-			svgdom.style.width = w + 'px';
-			svgdom.style.height = h + 'px';	
-			this.flip = true;
 		}
 	}
 
@@ -179,12 +150,19 @@ class AstroChart3D extends Component{
 
 	componentDidMount(){
 		window.addEventListener('resize', this.handleResize);
+		// [Issue#68] 全屏进出必须由浏览器事件驱动:此前只有 doubleClick 手工翻 this.fullScreen,
+		// 用户按 Esc / 系统退出全屏时组件毫不知情 → 状态与尺寸双双卡死(「按过 Esc 后再也全屏不了」)。
+		// 四前缀全挂(Tauri WKWebView 走 webkit 前缀)。
+		['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach((evt)=>{
+			document.addEventListener(evt, this.handleResize);
+		});
 		this.drawChart();
 
 		let svgdom = document.getElementById(this.state.chartid);
 		if(svgdom){
-			this.width = svgdom.clientWidth;
-			this.height = svgdom.clientHeight;
+			const rect = svgdom.getBoundingClientRect ? svgdom.getBoundingClientRect() : null;
+			this.width = Math.max(1, Math.round((rect && rect.width) || svgdom.clientWidth));
+			this.height = Math.max(1, Math.round((rect && rect.height) || svgdom.clientHeight));
 			this.orgWidth = this.width;
 			this.orgHeight = this.height;
 		}
@@ -208,6 +186,9 @@ class AstroChart3D extends Component{
 
 	componentWillUnmount() {
 		window.removeEventListener('resize', this.handleResize);
+		['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach((evt)=>{
+			document.removeEventListener(evt, this.handleResize);
+		});
 		try{
 			if(this.astro3d){
 				this.astro3d.dispose()

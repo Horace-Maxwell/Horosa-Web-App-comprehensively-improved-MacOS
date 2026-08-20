@@ -11,12 +11,12 @@
 
 命 · 卜 · 工具 三区 —— **26 门主技法 · 60+ 子技法流派**（完整清单见[全功能清单](#三全功能清单)）
 
-[![Version](https://img.shields.io/badge/version-3.9.3-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.9.3)
+[![Version](https://img.shields.io/badge/version-3.9.4-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.9.4)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.9.3)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.9.3)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.9.4)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.9.4)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.9.3/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.9.4/Horosa-Installer-macos-arm64-offline.pkg) ·
 [中文详版](README_ZH.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -45,7 +45,7 @@
 
 本仓承担 macOS 这一侧的交付：应用源码、共享运行时、Tauri 桌面外壳，以及把这一切打成单个 `.pkg` 的发布链路。
 
-- **当前版本**：3.9.3（运行时 `3.9.3-runtime1`）
+- **当前版本**：3.9.4（运行时 `3.9.4-runtime1`）
 - **平台**：仅 macOS 12+ / Apple Silicon（`arm64`）
 - **许可**：AGPL-3.0-only
 

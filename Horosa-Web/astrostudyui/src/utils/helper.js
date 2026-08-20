@@ -497,11 +497,21 @@ export function exitFullScreen() {
 	}	
 }
 
+// [Issue#68] 全屏「状态」判据:旧版混进了两个**能力位**——`document.fullscreenEnabled` 与
+// `msFullscreenEnabled` 表示「本文档允许全屏」,在支持全屏的浏览器里恒 true,于是本函数恒返回
+// true:3D 星盘/阅读器一进页面就自认已全屏,尺寸按全屏估算 → 「全屏后显示不完整」。
+// 正解只认状态位:fullscreenElement(标准)/webkitFullscreenElement(旧 WebKit,Tauri WKWebView 走这支)
+// /webkitIsFullScreen(更旧)/msFullscreenElement;window.fullScreen 是 Firefox 私有状态位,保留兜底。
 export function checkFullScreen(){
-	var isFull = document.fullscreenEnabled || window.fullScreen || document.webkitIsFullScreen || document.msFullscreenEnabled;
-	//to fix : false || undefined == undefined
-	if (isFull === undefined) {isFull = false;}
-	return isFull;
+	if(typeof document === 'undefined'){ return false; }
+	const el = document.fullscreenElement
+		|| document.webkitFullscreenElement
+		|| document.mozFullScreenElement
+		|| document.msFullscreenElement;
+	if(el){ return true; }
+	if(document.webkitIsFullScreen === true){ return true; }
+	if(typeof window !== 'undefined' && window.fullScreen === true){ return true; }
+	return false;
 }
 
 export function getAzimuthStr(deg){
