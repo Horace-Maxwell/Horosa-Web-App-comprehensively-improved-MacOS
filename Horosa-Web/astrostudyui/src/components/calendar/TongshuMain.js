@@ -380,7 +380,7 @@ class TongshuMain extends Component {
 			};
 		}
 		if (s.school === 'qimen') {
-			return QimenPanes({ y, m, d, selHour: this.state.qimenHour, onSelHour: (h)=> this.setState({ qimenHour: h }) });
+			return QimenPanes({ y, m, d, selHour: this.state.qimenHour, onSelHour: (h)=> this.setState({ qimenHour: h }, this.saveAISnapshot) });
 		}
 		if (s.school === 'sanyuanliexiu') {
 			return SanyuanPanes({ y, m, d, use: s.liexiuUse, onPick: this.pickDay });
@@ -389,7 +389,7 @@ class TongshuMain extends Component {
 			return WutuPanes({ y, m, d, onPick: this.pickDay });
 		}
 		if (s.school === 'sanyuan') {
-			return XuankongPanes({ y, m, d, mingYear: s.mingYear, selHour: this.state.qimenHour, onSelHour: (h)=> this.setState({ qimenHour: h }) });
+			return XuankongPanes({ y, m, d, mingYear: s.mingYear, selHour: this.state.qimenHour, onSelHour: (h)=> this.setState({ qimenHour: h }, this.saveAISnapshot) });
 		}
 		const school = TONGSHU_SCHOOL_MAP[s.school] || {};
 		const stub = <div className='horosa-empty-hint'>「{school.label}」正在开发中，敬请期待。</div>;

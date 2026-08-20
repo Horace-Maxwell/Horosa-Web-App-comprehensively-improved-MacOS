@@ -14,7 +14,6 @@ const TaiXuanMain = React.lazy(() => import(/* webpackChunkName: "taixuan-main" 
 const JingJueMain = React.lazy(() => import(/* webpackChunkName: "jingjue-main" */ '../jingjue/JingJueMain'));
 const ShenYiShuMain = React.lazy(() => import(/* webpackChunkName: "shenyishu-main" */ '../shenyishu/ShenYiShuMain'));
 const GeomancyMain = React.lazy(() => import(/* webpackChunkName: "geomancy-main" */ '../geomancy/GeomancyMain'));
-const TarotMain = React.lazy(() => import(/* webpackChunkName: "tarot-main" */ '../tarot/TarotMain'));
 // 皇极轨策:组件级 lazy —— 其引擎(十二起卦法/演数/卦变/断法/十应/大定/历数)只随本页签走,
 // 不入本模块主 chunk。ref 经 React.lazy 透传至内层 class(getQuickDockConfig 等仍可用);
 // 未解析前 childRefs.guice.current 为 null,getActiveChild 本就判空 → dock 自动降级。
@@ -105,9 +104,6 @@ class CnYiBuMain extends Component{
 				geomancy:{
 					fun: null
 				},
-				tarot:{
-					fun: null
-				},
 				lingqi:{
 					fun: null
 				}
@@ -128,7 +124,6 @@ class CnYiBuMain extends Component{
 			jingjue: createRef(),
 			shenyishu: createRef(),
 			geomancy: createRef(),
-			tarot: createRef(),
 			lingqi: createRef(),
 		};
 
@@ -463,20 +458,6 @@ class CnYiBuMain extends Component{
 								height={contentHeight}
 								fields={this.props.fields}
 								hook={this.state.hook.geomancy}
-								dispatch={this.props.dispatch}
-								hideQuickDock
-							/>
-						</Suspense>
-					</TabPane>
-
-					<TabPane tab="塔罗" key="tarot">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
-							<TarotMain
-								ref={this.attachChildRef('tarot')}
-								value={this.props.chart}
-								height={contentHeight}
-								fields={this.props.fields}
-								hook={this.state.hook.tarot}
 								dispatch={this.props.dispatch}
 								hideQuickDock
 							/>

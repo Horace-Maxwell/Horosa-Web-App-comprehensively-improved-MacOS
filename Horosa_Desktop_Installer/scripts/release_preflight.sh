@@ -3555,6 +3555,31 @@ grep -qF 'def test_real_chart_switch_off_means_time_place_never_matters' "${S211
   || { bad "[211] 🔴 pytest 缺零回归判据(未选真实盘档时喂不喂时地必恒等)"; S211_BAD=1; }
 [ "${S211_BAD}" = "0" ] && ok "[211] 时地/设置改动即重排 + 八档起卦源原样回带 + 载档不被覆盖"
 
+# ── [219] 源码文本文件禁裸控制字节(NUL):裸 \x00 会让 file(1) 判 data、BSD grep 判 binary
+# 静默弃扫 —— 一切基于 grep 的护栏/审计/临时排查在该文件上失明(2026-08-17 实抓:
+# KaTeX 占位哨兵写成裸字节,致该文件对无 -a 的 grep 完全不可见)。哨兵/分隔符一律写
+# \x00 转义序列(运行时字节串等价),绝不落裸字节。──
+echo "[219] 文本源码禁裸 NUL"
+S219_HITS="$(cd "${REPO_ROOT}" && git ls-files -z -- '*.js' '*.jsx' '*.ts' '*.md' '*.less' '*.css' '*.json' '*.py' '*.java' '*.sh' '*.rs' '*.html' | python3 -c '
+import sys
+files = sys.stdin.buffer.read().split(b"\x00")
+bad = []
+for f in files:
+    if not f:
+        continue
+    try:
+        data = open(f, "rb").read()
+    except Exception:
+        continue
+    if b"\x00" in data:
+        bad.append(f.decode())
+print("\n".join(bad))
+')"
+if [ -n "${S219_HITS}" ]; then
+  bad "[219] 🔴 文本源码含裸 NUL 字节(grep 类护栏对其静默失明,改用 \\x00 转义): $(printf '%s' "${S219_HITS}" | tr '\n' ' ')"
+else
+  ok "[219] 文本源码零裸 NUL(grep 类护栏可信)"
+fi
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

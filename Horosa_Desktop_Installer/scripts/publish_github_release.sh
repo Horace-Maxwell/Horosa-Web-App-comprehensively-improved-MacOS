@@ -3,6 +3,8 @@ set -euo pipefail
 
 # 发布前验收(2026-07-14 起移除强制手测闸):建议先装机手测 dist/ 下的 .pkg,但不再作硬门拦截
 # (HOROSA_USER_TESTED 不再必需;若仍想保留提醒,可自行在外层流程加)。发布前唯一硬保护 = 下方
+
+
 # [134] stapler validate 门:未公证/ad-hoc 产物直接拒发,杜绝误发未签名/未公证构建。
 
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -40,6 +42,13 @@ print(
 PY
 )
 EOF
+
+# [SEC-N] 发布终闸:release note 残留内部段标记 = 上游剔除流程没跑(手拷/绕过同步)——拒发。
+NOTE_FILE_SECN="${INSTALLER_ROOT}/config/release_notes/${VERSION}.md"
+if [ -f "${NOTE_FILE_SECN}" ] && grep -aq "horosa-priv""ate-only" "${NOTE_FILE_SECN}"; then
+  echo "❌ [SEC-N] release note 含私有段标记(段剔除器未生效),拒发。" >&2
+  exit 1
+fi
 
 RELEASE_CHANNEL="${HOROSA_RELEASE_CHANNEL:-${RELEASE_CHANNEL}}"
 RELEASE_PRERELEASE="false"

@@ -17,6 +17,8 @@ import { XQSegmented, XQSelect } from '../xq-ui';
 import { SIGNS } from '../../divination/data/signs';
 import UpdatingBadge from '../common/UpdatingBadge';
 import { silentTechniquePanelsEnabled } from '../../utils/perfFlags';
+import { natalClassicalParams, transitOrbDefault } from './AstroExtraCommon';
+import { pruneStaleClassicalParams } from '../../utils/classicalChartGlobals';
 
 // ===== G9 月/日小限 + 多起点(纯前端派生) =====
 // flatlib 后端小限盘已连续旋转(年盘自上升),此处的「年/月/日」摘要为离散古典口径的纯前端派生,
@@ -141,7 +143,7 @@ class AstroProfection extends Component{
 				datetime: now,
 				tmType: 'y',
 				nodeRetrograde: false,
-				asporb: 1,
+				asporb: transitOrbDefault(),
 			},
 			dirChart: null,
 			// G9:小限粒度(年/月/日,默认年=现状) + 起点(上升默认)。纯前端摘要,不影响后端年盘请求。
@@ -177,10 +179,11 @@ class AstroProfection extends Component{
 					return;
 				}
 				let param = this.genNatalParams(chartObj);
-				let params = {
+				// [SURF-T1] 增量 merge 粘滞剔除:非默认改回默认后 param 不带键,旧值不得残留(见 classicalChartGlobals)。
+				let params = pruneStaleClassicalParams({
 					...this.state.params,
 					...param,
-				};
+				}, param);
 				this.setState({
 					params: params
 				}, ()=>{
@@ -227,6 +230,8 @@ class AstroProfection extends Component{
 			hsys: qryparam.hsys,
 			tradition: qryparam.tradition,
 			zodiacal: qryparam.zodiacal, siderealAyanamsa: qryparam.siderealAyanamsa,
+			// [0d] 古典口径段(单源):此前只带 4-6 基础键,改界系/三分/宫头5°律后与主盘口径静默分叉。
+			...natalClassicalParams(qryparam),
 		};
 		return params;
 	}
@@ -242,6 +247,10 @@ class AstroProfection extends Component{
 	}
 
 	async requestDirection(params){
+		// [SURF-R5p] 乱序/混代防(B 断面):双在途旧响应后回=盘面与快照回滚;快照 chartValue
+		// 此前取回调时刻 props=与响应混代——请求时捕获,与 params/result 同代(响应内产范式)。
+		const seq = ++this._reqSeq || (this._reqSeq = 1);
+		const chartValueAtRequest = this.props.value;
 		// 空回包/请求失败防御:后端未就绪、无效生辰等场景 request 可能抛错或返回空——
 		// 静默保持现盘,不产生 Unhandled Rejection(此前 data 为 undefined 时读 Result 直接炸红屏)。
 		let data = null;
@@ -254,9 +263,11 @@ class AstroProfection extends Component{
 				silent: silentTechniquePanelsEnabled(),
 			});
 		}catch(e){
+			if(this.unmounted || seq !== this._reqSeq){ return; }
 			this.setState({ updating: false });
 			return;
 		}
+		if(this.unmounted || seq !== this._reqSeq){ return; }
 		const result = data ? data[Constants.ResultKey] : null;
 		if(!result){
 			this.setState({ updating: false });
@@ -277,7 +288,7 @@ class AstroProfection extends Component{
 		};
 
 		this.setState(st, ()=>{
-			const chartValue = this.props.value;
+			const chartValue = chartValueAtRequest;
 			saveModuleAISnapshotLazy('profection', ()=>buildPredictiveSnapshotText(chartValue, st.params, result, 'profection'), {
 				module: 'profection',
 			});

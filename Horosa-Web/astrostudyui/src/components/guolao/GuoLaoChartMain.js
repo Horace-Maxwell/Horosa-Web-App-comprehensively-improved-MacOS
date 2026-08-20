@@ -2638,6 +2638,11 @@ class GuoLaoChartMain extends Component{
 			moiraPanelTransitChartObj: clonePlain(transitChartObj || this.state.moiraTransitChartObj),
 			moiraPanelTransitParams: clonePlain(nextTransitParams),
 			moiraLoading: false,
+		}, ()=>{
+			// [issue#74 同类] 规则落地即补拍快照:阶段一在 moiraRules 未归时已产首版(lazy 200-800ms
+			// 即物化冻结,导出直吃缓存),不补拍则 AI 侧恒丢 [虚实]/[本命化曜]/[流年流曜] 三段、
+			// [神煞] 降级历法源——页面/refresh/无头三路都等规则,唯存盘路裸拍(不同构)。
+			this.saveGuolaoAISnapshot(params, pendingChartObj || chartObj || this.state.chartObj);
 		});
 	}
 
@@ -2922,6 +2927,9 @@ class GuoLaoChartMain extends Component{
 			moiraPanelTransitParams: transitParams,
 			moiraLoading: false,
 			moiraTransitLoading: false,
+		}, ()=>{
+			// [issue#74 同类] 同 commitMoiraPanel:阶段二规则取齐即补拍,快照终版带全 Moira 段。
+			this.saveGuolaoAISnapshot(params, chartObj);
 		});
 	}
 
