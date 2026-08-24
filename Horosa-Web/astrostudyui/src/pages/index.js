@@ -20,6 +20,7 @@ import AstroFormComp from '../components/astro/AstroFormComp';
 import AstroChartMain from '../components/astro/AstroChartMain';
 import TechniqueErrorBoundary from '../components/common/TechniqueErrorBoundary';
 import { makeLazyBoundary } from '../utils/lazyBoundary';
+import { clientToFixed } from '../utils/zoomDomain';
 
 // 流畅度:可预取的 lazy —— 启动仍只载首包(快),首屏就绪后空闲时段后台预载全部技法 chunk,
 // 用户切任何技法时模块早已就绪(零等待)。preload 引用同一 factory,React.lazy 缓存同一 promise。
@@ -631,8 +632,10 @@ function AstroIndex({dispatch, astro, app, user, rules, }){
             }
             if(stage){
                 const r = stage.getBoundingClientRect();
-                el.style.top = Math.round(r.top + 10) + 'px';
-                el.style.right = Math.round(window.innerWidth - r.right + 12) + 'px';
+                // r 与 innerWidth 同属 rect 域(计算自洽);徽标 .horosa-workspace-updating
+                // 是 position:fixed,style 属 CSS 域 ⇒ 写回换算。壳缩放=1 时恒等。
+                el.style.top = Math.round(clientToFixed(r.top + 10)) + 'px';
+                el.style.right = Math.round(clientToFixed(window.innerWidth - r.right + 12)) + 'px';
                 el.style.left = 'auto';
             }
         }catch(e){ /* 定位失败回退 CSS 默认位置 */ }

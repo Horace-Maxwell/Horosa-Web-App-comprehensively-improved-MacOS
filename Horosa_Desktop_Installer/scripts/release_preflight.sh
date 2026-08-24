@@ -3581,6 +3581,91 @@ else
   ok "[219] 文本源码零裸 NUL(grep 类护栏可信)"
 fi
 
+# [220] CSS-zoom 域劈叉锁(全站浮层定位)。
+#   病理:壳缩放走 documentElement.style.zoom ⇒ 页面存在两个坐标域——rect 域
+#   (getBoundingClientRect,已缩放)与 CSS 域(style.left/top,未缩放)。dom-align@1.12.4 的
+#   setLeftTop() 把 rect 域位移直写 CSS 域,z≠1 时全站浮层(下拉/提示/气泡/日期面板等)
+#   系统性错位:Δ = (z−1)·(D−C) + z·(preset − floor(preset·z)),preset = −999(库内探针)。
+#   z=1 时两项同时归零,故默认缩放档一直正常,问题只在非默认档暴露。
+#   修法四件:①node_modules/dom-align 双产物补丁(写回除以实测有效缩放);②构建链三处挂载;
+#   ③global.js 装运行时钩子;④手写 fixed 浮层经 clientToFixed 换算。
+echo "[220] CSS-zoom 域劈叉锁(dom-align 补丁 + 构建挂载 + 运行时钩子 + 手写浮层)"
+S220_BAD=0
+S220_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S220_ZD="${S220_UI}/src/utils/zoomDomain.js"
+S220_PATCH="${S220_UI}/scripts/patch-dom-align-zoom.js"
+S220_PKG="${S220_UI}/package.json"
+S220_GLOBAL="${S220_UI}/src/global.js"
+
+for f in "${S220_ZD}" "${S220_PATCH}"; do
+    [ -f "${f}" ] || { S220_BAD=1; bad "[220]① 缺失 ${f##*/} —— 缩放域换算链断"; }
+done
+if [ -f "${S220_ZD}" ]; then
+    for fn in getEffectiveScale getFixedScale clientToFixed installAlignHooks; do
+        grep -q "export function ${fn}" "${S220_ZD}" || { S220_BAD=1; bad "[220]① zoomDomain 缺导出 ${fn}"; }
+    done
+fi
+
+for D in dist-node dist-web; do
+    S220_F="${S220_UI}/node_modules/dom-align/${D}/index.js"
+    if [ ! -f "${S220_F}" ]; then
+        S220_BAD=1; bad "[220]② dom-align/${D}/index.js 缺失(npm install 未跑?)"
+    else
+        grep -q "horosa:dom-align-zoom" "${S220_F}" || { S220_BAD=1; bad "[220]② dom-align/${D} 未打补丁 —— 该份产物的浮层在缩放档全歪(测试走 dist-node、打包走 dist-web,两份都要打)"; }
+        S220_N1="$(grep -c 'off = off / __hz' "${S220_F}" || true)"
+        S220_N2="$(grep -c '_off = _off / __hz' "${S220_F}" || true)"
+        [ "${S220_N1}" = "1" ] || { S220_BAD=1; bad "[220]② dom-align/${D} 首处写回补偿数=${S220_N1}(应 1)—— 半修"; }
+        [ "${S220_N2}" = "1" ] || { S220_BAD=1; bad "[220]② dom-align/${D} 次处写回补偿数=${S220_N2}(应 1)—— 半修"; }
+    fi
+done
+if [ -f "${S220_UI}/node_modules/dom-align/package.json" ]; then
+    S220_VER="$(python3 -c "import json;print(json.load(open('${S220_UI}/node_modules/dom-align/package.json'))['version'])" 2>/dev/null || echo '?')"
+    [ "${S220_VER}" = "1.12.4" ] || { S220_BAD=1; bad "[220]② dom-align 版本变为 ${S220_VER}(锚点按 1.12.4 核对过)—— 升级后必须重审补丁锚点再放行"; }
+fi
+
+if [ -f "${S220_PKG}" ]; then
+    for k in postinstall build "build:file"; do
+        python3 - "${S220_PKG}" "${k}" <<'PY' || { S220_BAD=1; bad "[220]③ package.json 的 ${k} 未挂 patch-dom-align-zoom —— 构建产物会退回未补丁的 dom-align"; }
+import json, sys
+d = json.load(open(sys.argv[1]))
+sys.exit(0 if 'patch-dom-align-zoom' in (d.get('scripts', {}).get(sys.argv[2]) or '') else 1)
+PY
+    done
+fi
+
+if [ -f "${S220_GLOBAL}" ]; then
+    sed -e 's://.*$::' "${S220_GLOBAL}" | grep -q "installAlignHooks()" \
+        || { S220_BAD=1; bad "[220]④ global.js 未调用 installAlignHooks() —— 钩子不装则补丁全程回落 1,等于没修"; }
+fi
+
+S220_DF="${S220_UI}/dist-file"
+if [ -d "${S220_DF}" ]; then
+    grep -rqa "__HOROSA_ALIGN_SCALE__" "${S220_DF}" \
+        || { S220_BAD=1; bad "[220]⑤ dist-file 产物内找不到 __HOROSA_ALIGN_SCALE__ —— 打包用的前端是未补丁版本,装到机器上浮层照旧错位"; }
+fi
+
+for t in popupAlignZoomGuard popupAlignStaticGuard; do
+    [ -f "${S220_UI}/src/utils/__tests__/${t}.test.js" ] \
+        || { S220_BAD=1; bad "[220]⑥ 守卫套件 ${t}.test.js 缺失"; }
+done
+
+# ⑦ fixed 包含块残留不回归:container-type / contain:layout 会把中栏变成 fixed 后代的包含块
+#    + stacking context,叠加 overflow:hidden 即裁剪悬浮窗。必须剥**跨行**块注释后再判——
+#    修复注释本身就写着这两个词,单行剥法会假红。
+S220_CT="$(python3 - "${S220_UI}/src/layouts/app.less" <<'PY'
+import re, sys
+src = open(sys.argv[1], encoding='utf-8').read()
+src = re.sub(r'/\*.*?\*/', '', src, flags=re.S)
+src = re.sub(r'(?m)^\s*//.*$', '', src)
+print(len(re.findall(r'container-type|contain:\s*layout', src)))
+PY
+)"
+if [ "${S220_CT}" != "0" ]; then
+    S220_BAD=1; bad "[220]⑦ app.less 出现 container-type / contain:layout(${S220_CT} 处)—— 会重新制造 fixed 包含块,悬浮窗被裁剪复发;全仓零 @container 消费者,不该有它"
+fi
+
+[ "${S220_BAD}" = "0" ] && ok "[220] CSS-zoom 域劈叉锁全绿(双产物补丁/三处挂载/钩子/守卫/包含块)"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"
