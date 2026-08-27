@@ -21,7 +21,7 @@
     if (window.__TAURI_INTERNALS__?.invoke) {
       return window.__TAURI_INTERNALS__.invoke(cmd, args);
     }
-    throw new Error('Tauri invoke bridge unavailable');
+    throw new Error('无法连接桌面程序，请重新打开星阙后重试');
   }
 
   function showToast(message) {

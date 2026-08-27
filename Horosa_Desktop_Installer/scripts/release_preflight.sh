@@ -3666,6 +3666,64 @@ fi
 
 [ "${S220_BAD}" = "0" ] && ok "[220] CSS-zoom 域劈叉锁全绿(双产物补丁/三处挂载/钩子/守卫/包含块)"
 
+# [221] 壳内页面版面体检(启动/诊断/偏好三页)。
+#   3 页 × 多尺寸(含各自最小与极端宽高比) × 12 缩放档(0.7–1.8) × 明暗两态 = 384 组合,
+#   七类判据(横向出界/纵向滚不到/被 hidden 切/卡片压盖/文本裁切/中文竖排/对比度 AA)。
+#   跑之前先自证判别力(人为制造每类缺陷必须判红)——审查器自身出过多次误报漏报,
+#   故把自证做成体检的前置步骤:自证不过 ⇒ 体检结论不作数。
+echo "[221] 壳内页面版面体检(384 组合 × 七类判据)"
+S221_AUDIT="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/audit_shell_pages.py"
+if [ ! -f "${S221_AUDIT}" ]; then
+    bad "[221] 缺 audit_shell_pages.py —— 门面体检闸门丢失"
+elif ! python3 -c "import playwright" >/dev/null 2>&1; then
+    warn "[221] 未装 playwright,跳过版面体检(装:python3 -m pip install playwright && python3 -m playwright install chromium)"
+else
+    S221_OUT="$(cd "${REPO_ROOT}/Horosa_Desktop_Installer" && python3 scripts/audit_shell_pages.py --self-test 2>&1)"
+    if [ $? -ne 0 ]; then
+        bad "[221] 判据自证失败(审查器自身漏检,结论不可信): $(printf '%s' "${S221_OUT}" | tail -3 | tr '\n' ' ')"
+    else
+        S221_OUT2="$(cd "${REPO_ROOT}/Horosa_Desktop_Installer" && python3 scripts/audit_shell_pages.py 2>&1)"
+        if [ $? -ne 0 ]; then
+            bad "[221] 壳内页面体检发现缺陷: $(printf '%s' "${S221_OUT2}" | tail -6 | tr '\n' ' ')"
+        else
+            ok "[221] $(printf '%s' "${S221_OUT2}" | tail -1)"
+        fi
+    fi
+fi
+
+# [222] 主应用版面体检 × 双引擎语义 —— 2026-08-27 缩放档底部死带事故。
+#   为什么单有 [221] 不够(两条都是这次踩出来的):
+#     ① [221] 只覆盖壳内三页,**主应用一页都没进闸门**;而 [220] 是结构锁(查代码形状),
+#        不看渲染结果 —— 事故当天它们全绿,用户屏幕上却是一大条空白。
+#     ② 所有护栏都只跑一种引擎语义。真机实测两台机器不同:
+#          E3 画面缩放、rect 跟着缩放     E2 画面缩放、rect **不**反映
+#        出事那段「clientHeight ÷ rect探针」在 E3 上恰好正确、E2 上算短 z 倍 ⇒ 单引擎必假绿。
+#   judge 全在 scripts/audit_app_layout.py:尺寸 × 12 缩放档 × E2/E3 = 120 组合,
+#   四类判据(内容纵向填充 FILL / 横向填充 WIDTH-FILL / 容器贴底 HOST-SHORT / 基线洁净)。
+#   判别力已实证:同一闸门对**事故前产物**在 E2 下判红(填充 78%)、修复后判绿。
+echo "[222] 主应用版面体检(120 组合 × 双引擎语义)"
+S222_AUDIT="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/audit_app_layout.py"
+S222_DIST="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file/index.html"
+if [ ! -f "${S222_AUDIT}" ]; then
+    bad "[222] 缺 audit_app_layout.py —— 主应用版面闸门丢失"
+elif [ ! -f "${S222_DIST}" ]; then
+    warn "[222] 无前端产物(dist-file),跳过主应用版面体检 —— 打包前必然已构建,届时会真跑"
+elif ! python3 -c "import playwright" >/dev/null 2>&1; then
+    warn "[222] 未装 playwright,跳过(装:python3 -m pip install playwright && python3 -m playwright install chromium)"
+else
+    S222_OUT="$(cd "${REPO_ROOT}/Horosa_Desktop_Installer" && python3 scripts/audit_app_layout.py --self-test 2>&1)"
+    if [ $? -ne 0 ]; then
+        bad "[222] 判据自证失败(审查器自身漏检,结论不可信): $(printf '%s' "${S222_OUT}" | tail -3 | tr '\n' ' ')"
+    else
+        S222_OUT2="$(cd "${REPO_ROOT}/Horosa_Desktop_Installer" && python3 scripts/audit_app_layout.py 2>&1)"
+        if [ $? -ne 0 ]; then
+            bad "[222] 主应用版面体检发现缺陷: $(printf '%s' "${S222_OUT2}" | tail -6 | tr '\n' ' ')"
+        else
+            ok "[222] $(printf '%s' "${S222_OUT2}" | tail -1)"
+        fi
+    fi
+fi
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

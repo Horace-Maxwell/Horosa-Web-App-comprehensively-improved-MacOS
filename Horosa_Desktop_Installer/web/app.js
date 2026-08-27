@@ -1,3 +1,48 @@
+// 🔴 [布局密度·2026-08-25] CSS 媒体查询在 CSS zoom 下**看不见真实可用空间**。
+// 实测:窗口 1180×760、zoom=1.8 时,matchMedia('(max-height:720px)') 仍为 false
+// (它按视口 rect 域 1180×760 评估),而实际布局空间只剩 656×422 —— 断点永不触发,
+// 内容被挤爆也不会切紧凑布局。故改用 JS 实测布局空间,挂 data-density 给 CSS 用。
+(function(){
+  var LAST = '';
+  // 🔴 2026-08-27 根修:直接量布局空间,不再「物理读数 ÷ 缩放」。
+  // 旧写法拿 rect 探针当缩放值去除 clientWidth/Height,而旧 MacBook(Safari 26.2)上
+  // rect 根本不反映 zoom、探针恒测得 1 ⇒ 等于没除 ⇒ 密度档判错(高缩放下该切 micro
+  // 却仍按 normal 排,内容挤爆)。主应用同一处错误造成了工作区底部死带。
+  // 正解是不去问缩放:position:fixed;inset:0 的 offsetWidth/offsetHeight 就是布局空间,
+  // 任何 zoom 语义下都直接成立。实测(物理 720):0.7→1029 / 0.8→900 / 1.8→400 = 720/z。
+  function layoutSpace(){
+    try {
+      if (!document.body) return null;
+      var probe = document.createElement('div');
+      probe.setAttribute('aria-hidden', 'true');
+      probe.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;visibility:hidden;pointer-events:none';
+      document.body.appendChild(probe);
+      var w = probe.offsetWidth, h = probe.offsetHeight;
+      document.body.removeChild(probe);
+      if (w > 0 && h > 0) return { w: w, h: h };
+    } catch (e) {}
+    return null;
+  }
+  function apply(){
+    try {
+      if (!document.body) return;
+      var d = document.documentElement;
+      var sp = layoutSpace();
+      // 量不到时退物理读数:缩放≠1 会偏保守(更早切紧凑),但绝不会排爆版面。
+      var w = sp ? sp.w : d.clientWidth, h = sp ? sp.h : d.clientHeight;
+      // 阀值按实测定:1180×760 窗口在 1.5 倍缩放下布局高 507px,刚好卡在 500 外而走不到 micro,
+      // 侧栏就差那一点放不下 —— 提到 530 后 0.7–1.8 全 12 档均无需滚动。
+      var mode = (h < 530 || w < 800) ? 'micro' : ((h < 640 || w < 1000) ? 'compact' : 'normal');
+      if (mode !== LAST) { d.setAttribute('data-density', mode); LAST = mode; }
+    } catch (e) {}
+  }
+  if (document.body) apply(); else document.addEventListener('DOMContentLoaded', apply);
+  window.addEventListener('resize', apply);
+  // 壳改缩放后会 dispatch resize,但 zoom 应用与 resize 可能同帧,补一次延迟兜底。
+  window.addEventListener('resize', function(){ setTimeout(apply, 50); });
+  window.__HOROSA_APPLY_DENSITY = apply;
+})();
+
 (function () {
   const progressFill = document.getElementById('progressFill');
   const progressTrack = progressFill?.parentElement || null;
@@ -89,7 +134,7 @@
     if (window.__TAURI_INTERNALS__?.invoke) {
       return window.__TAURI_INTERNALS__.invoke(cmd, args);
     }
-    throw new Error('Tauri invoke bridge unavailable');
+    throw new Error('无法连接桌面程序，请重新打开星阙后重试');
   }
 
   function escapeHtml(value) {
@@ -156,13 +201,13 @@
       toggleLogBtn.textContent = currentTone === 'error' ? '展开错误' : '展开详情';
     }
     if (currentTone === 'ready') {
-      setStatusPill('ready', 'Ready');
+      setStatusPill('ready', '已就绪');
       setPrimaryCta(true, '进入主界面');
     } else if (currentTone === 'error') {
-      setStatusPill('failed', 'Failed');
+      setStatusPill('failed', '未完成');
       setPrimaryCta(true, '重建 Runtime');
     } else {
-      setStatusPill('live', 'Live');
+      setStatusPill('live', '进行中');
       setPrimaryCta(false, '进入主界面');
     }
   }
@@ -176,12 +221,12 @@
       sceneTitle: '正在检查本机环境',
       sceneCopy: '完成后将自动进入主界面，无需手动操作',
       summarySessionType: '日常启动',
-      summaryRuntimeStrategy: '复用现有 runtime',
+      summaryRuntimeStrategy: '复用本机组件',
       summaryBackendMode: '后台启动',
       summaryOutcome: '待进入主界面',
       sessionInline: '日常启动',
       phases: ['安装检查', '本机组件', '后台服务', '主界面'],
-      badges: ['Daily', 'Reuse runtime', 'LIVE']
+      badges: ['日常启动', '复用本机组件', 'LIVE']
     },
     offline: {
       tag: '离线安装',
@@ -196,17 +241,17 @@
       summaryOutcome: '已完成',
       sessionInline: '离线安装已完成',
       phases: ['安装检查', '本机组件', '后台服务', '完成'],
-      badges: ['Offline', 'Trusted pkg', 'Ready']
+      badges: ['离线安装', '离线包已校验', '已就绪']
     },
     install: {
       tag: '首次准备',
-      hint: '部署 runtime',
+      hint: '部署本机组件',
       title: '准备本机组件',
-      copy: '校验离线包 · 写入共享 runtime · 启动服务',
+      copy: '校验离线包 · 写入本机组件 · 启动服务',
       sceneTitle: '首次准备',
-      sceneCopy: '部署 runtime、jar、python。',
+      sceneCopy: '正在部署排盘所需的本机组件。',
       summarySessionType: '首次准备',
-      summaryRuntimeStrategy: '部署并校验 runtime',
+      summaryRuntimeStrategy: '部署并校验组件',
       summaryBackendMode: '部署后启动',
       summaryOutcome: '进入主界面',
       sessionInline: '首次准备',
@@ -214,9 +259,9 @@
     },
     repair: {
       tag: '组件修复',
-      hint: '重建 runtime',
+      hint: '重建本机组件',
       title: '修复本机组件',
-      copy: '清理异常标记 · 重建 runtime · 保留数据',
+      copy: '清理异常标记 · 重建本机组件 · 保留个人数据',
       sceneTitle: '本机组件修复',
       sceneCopy: '只处理损坏或不完整组件。',
       summarySessionType: '组件修复',
@@ -230,11 +275,11 @@
       tag: '版本更新',
       hint: '下载并重开',
       title: '更新星阙',
-      copy: '下载 · 校验 · 替换 app · 重开',
+      copy: '下载 · 校验 · 替换程序 · 重新打开',
       sceneTitle: '应用更新',
-      sceneCopy: '按 manifest 替换 app/runtime。',
+      sceneCopy: '按更新清单替换程序与组件。',
       summarySessionType: '版本更新',
-      summaryRuntimeStrategy: '按 manifest 校验',
+      summaryRuntimeStrategy: '按更新清单校验',
       summaryBackendMode: '替换后重开',
       summaryOutcome: '进入新版本',
       sessionInline: '版本更新',
@@ -315,8 +360,8 @@
           kind: 'launch_ready',
           badge: '首次准备',
           title: '部署本机组件',
-          summary: 'runtime、jar、python 将写入共享位置。',
-          detail: '完成后启动 backend 与 chartpy。',
+          summary: '排盘所需组件将写入本机共享位置。',
+          detail: '完成后启动后台服务与排盘引擎。',
           recommendation: null,
           installSource: null
         };
@@ -326,7 +371,7 @@
           badge: '组件修复',
           title: '重建异常组件',
           summary: '保留用户数据与日志。',
-          detail: '只替换损坏或不完整的 runtime 内容。',
+          detail: '只替换损坏或不完整的组件内容。',
           recommendation: null,
           installSource: null
         };
@@ -334,7 +379,7 @@
         return {
           kind: 'update_in_progress',
           badge: '版本更新',
-          title: '按 manifest 更新',
+          title: '按更新清单更新',
           summary: '下载、校验、替换、重开。',
           detail: '用户数据不参与替换。',
           recommendation: null,
@@ -343,7 +388,7 @@
       case 'offline':
         return {
           kind: 'offline_ready',
-          badge: 'Ready',
+          badge: '已就绪',
           title: '离线安装已完成',
           summary: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
           detail: '当前步骤：—',
@@ -353,10 +398,10 @@
       default:
         return {
           kind: 'launch_checking',
-          badge: 'Daily Launch',
+          badge: '日常启动',
           title: '正在检查本机环境',
           summary: '完成后将自动进入主界面，无需手动操作',
-          detail: '当前步骤：检查 App 签名',
+          detail: '当前步骤：检查 程序签名',
           recommendation: null,
           installSource: null
         };
@@ -370,22 +415,22 @@
           modeTag: '首次准备',
           modeHint: '仅在需要时准备本机组件',
           brandTitle: '正在为这台 Mac 准备 星阙',
-          brandCopy: '首次准备会在 app 内安静完成，不需要你理解脚本、缓存或内部资产。',
+          brandCopy: '首次准备会在程序内安静完成，无需你了解任何内部细节。',
           sceneTitleText: '首次准备',
-          sceneCopyText: '如果当前机器缺少所需内容，星阙 会在 app 内完成准备、校验和切换。',
+          sceneCopyText: '如果本机缺少所需内容，星阙会自动完成准备、校验与切换。',
           sessionInlineText: '首次准备',
           summarySessionTypeText: '首次准备',
           summaryRuntimeStrategyText: '按需准备并接管本机组件',
           summaryBackendModeText: '准备完成后自动启动所需服务',
           summaryOutcomeText: '直接进入主界面',
-          heroBadges: ['首次准备在 app 内完成', '只在需要时准备组件', '普通用户无需手工处理'],
+          heroBadges: ['首次准备在程序内完成', '只在需要时准备组件', '普通用户无需手工处理'],
           guards: [
             ['准备方式', '只有确认需要的内容才会被准备或替换。'],
             ['安装审查', '先看清这次会处理什么，再决定是否继续。'],
             ['技术细节', '过程摘要默认收起，避免技术信息抢占主视图。'],
             ['数据目录', '用户数据与运行日志不会在准备时被删除。']
           ],
-          footer: '星阙 会尽量把首次准备表现成标准 Mac app 流程，而不是工程安装器。',
+          footer: '首次准备会尽量贴近标准的 Mac 应用体验，而不是工程安装器。',
           retry: {
             title: '重装本机组件',
             copy: '当组件损坏或准备不完整时，重新准备本机组件',
@@ -405,7 +450,7 @@
           summaryRuntimeStrategyText: '尽量保留可复用内容，仅重建需要修复的部分',
           summaryBackendModeText: '修复完成后自动启动所需服务',
           summaryOutcomeText: '完成后返回主界面',
-          heroBadges: ['修复动作在 app 内完成', '日志与诊断入口已保留', '修复后自动回到主界面'],
+          heroBadges: ['修复在程序内完成', '日志与诊断入口已保留', '修复后自动回到主界面'],
           guards: [
             ['首选动作', '主界面会优先显示下一步建议，而不是直接铺满原始错误。'],
             ['安装审查', '只有你明确勾选替换的项目才会被处理。'],
@@ -510,15 +555,15 @@
           sceneCopyText: '完成后将自动进入主界面，无需手动操作',
           sessionInlineText: '日常启动',
           summarySessionTypeText: '日常启动',
-          summaryRuntimeStrategyText: '复用现有 runtime',
+          summaryRuntimeStrategyText: '复用本机组件',
           summaryBackendModeText: '后台服务待启动',
           summaryOutcomeText: '待进入主界面',
-          heroBadges: ['Daily', 'Reuse runtime', 'LIVE'],
+          heroBadges: ['日常启动', '复用本机组件', 'LIVE'],
           guards: [
-            ['App', '签名校验后替换。'],
-            ['Runtime', '损坏或版本不符才重建。'],
-            ['Logs', '失败时保留。'],
-            ['Data', '更新不删除用户数据。']
+            ['程序本体', '签名校验后替换。'],
+            ['本机组件', '损坏或版本不符才重建。'],
+            ['运行日志', '失败时保留。'],
+            ['个人数据', '更新不删除用户数据。']
           ],
           footer: '窗口大小会随上次关闭状态恢复。',
           retry: {
@@ -537,7 +582,7 @@
         return {
           ...modeDefaults,
           modeTag: '离线安装',
-          modeHint: 'Trusted pkg',
+          modeHint: '离线包已校验',
           brandTitle: '离线安装已完成',
           brandCopy: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
           sceneTitleText: '离线安装已完成',
@@ -547,17 +592,17 @@
           summaryRuntimeStrategyText: '来自离线包的本机组件',
           summaryBackendModeText: '下次启动直接复用',
           summaryOutcomeText: '已完成',
-          heroBadges: ['Offline', 'Trusted pkg', 'Ready'],
+          heroBadges: ['离线安装', '离线包已校验', '已就绪'],
           guards: [
-            ['App', '签名校验后替换。'],
-            ['Runtime', '离线包组件已校验。'],
-            ['Logs', '失败时保留。'],
-            ['Data', '安装更新不删除用户数据。']
+            ['程序本体', '签名校验后替换。'],
+            ['本机组件', '离线包组件已校验。'],
+            ['运行日志', '失败时保留。'],
+            ['个人数据', '安装更新不删除用户数据。']
           ],
           footer: '离线安装完成后，下次打开会直接复用本机组件并进入主界面。',
           retry: {
             title: '重新安装离线包',
-            copy: 'secondary action',
+            copy: '用离线包重装一次',
             action: 'reinstall_offline_package'
           }
         };
@@ -629,15 +674,15 @@
   function compactSupportContent(content, payload) {
     const key = payload?.kind || currentMode;
     const commonGuards = [
-      ['App', '签名校验后替换。'],
-      ['Runtime', '损坏或版本不符才重建。'],
-      ['Logs', '失败时保留。'],
-      ['Data', '更新不删除用户数据。']
+      ['程序本体', '签名校验后替换。'],
+      ['本机组件', '损坏或版本不符才重建。'],
+      ['运行日志', '失败时保留。'],
+      ['个人数据', '更新不删除用户数据。']
     ];
     const variants = {
       launch: {
         tone: 'launch',
-        modeTag: 'Daily launch',
+        modeTag: '日常启动',
         modeHint: '复用本机组件',
         brandTitle: '检查本机环境',
         brandCopy: '完成后自动进入主界面',
@@ -645,23 +690,23 @@
         sceneCopyText: '完成后将自动进入主界面，无需手动操作',
         sessionInlineText: '日常启动',
         summarySessionTypeText: '日常启动',
-        summaryRuntimeStrategyText: '复用 runtime',
+        summaryRuntimeStrategyText: '复用本机组件',
         summaryThirdLabelText: '预计',
         summaryBackendModeText: '~ 4s',
         summaryOutcomeText: '待进入主界面',
-        heroBadges: ['Daily', 'Reuse runtime', 'LIVE'],
-        statusLabel: 'Live',
+        heroBadges: ['日常启动', '复用本机组件', 'LIVE'],
+        statusLabel: '进行中',
         progressPrefix: '当前步骤',
-        progressEmphasis: '检查 App 签名',
+        progressEmphasis: '检查 程序签名',
         progressSuffix: '',
         primaryCtaLabel: '进入主界面',
         guards: commonGuards,
         footer: '窗口大小会随上次关闭状态恢复。',
-        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+        retry: { title: '重装组件', copy: '修复本机组件', action: 'repair_runtime' }
       },
       launch_ready: {
         tone: 'ready',
-        modeTag: 'Daily launch',
+        modeTag: '日常启动',
         modeHint: '复用本机组件',
         brandTitle: '已完成启动检查',
         brandCopy: '正在进入主界面。',
@@ -669,23 +714,23 @@
         sceneCopyText: 'App、本机组件和后台服务均已完成检查。',
         sessionInlineText: '日常启动',
         summarySessionTypeText: '日常启动',
-        summaryRuntimeStrategyText: '复用 runtime',
+        summaryRuntimeStrategyText: '复用本机组件',
         summaryThirdLabelText: '结果',
         summaryBackendModeText: '已就绪',
         summaryOutcomeText: '准备进入主界面',
-        heroBadges: ['Daily', 'Reuse runtime', 'Ready'],
-        statusLabel: 'Ready',
+        heroBadges: ['日常启动', '复用本机组件', '已就绪'],
+        statusLabel: '已就绪',
         progressPrefix: '启动检查已完成',
         progressEmphasis: '正在进入主界面',
         progressSuffix: '',
         primaryCtaLabel: '进入主界面',
         guards: commonGuards,
         footer: '窗口大小会随上次关闭状态恢复。',
-        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+        retry: { title: '重装组件', copy: '修复本机组件', action: 'repair_runtime' }
       },
       install: {
         modeTag: '首次准备',
-        modeHint: '部署 runtime',
+        modeHint: '部署本机组件',
         brandTitle: '准备本机组件',
         brandCopy: '校验离线包 · 写入共享 runtime · 启动服务',
         sceneTitleText: '首次准备',
@@ -695,10 +740,10 @@
         summaryRuntimeStrategyText: '部署并校验 runtime',
         summaryBackendModeText: '部署后启动',
         summaryOutcomeText: '进入主界面',
-        heroBadges: ['Offline pkg', 'Shared runtime', 'No terminal'],
+        heroBadges: ['离线包', '共享组件', '无需命令行'],
         guards: commonGuards,
         footer: '离线包内置 runtime，安装后可无网启动。',
-        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+        retry: { title: '重装组件', copy: '修复本机组件', action: 'repair_runtime' }
       },
       repair: {
         modeTag: '组件修复',
@@ -712,34 +757,34 @@
         summaryRuntimeStrategyText: '重建异常组件',
         summaryBackendModeText: '修复后启动',
         summaryOutcomeText: '返回主界面',
-        heroBadges: ['Repair', 'Keep data', 'Keep logs'],
+        heroBadges: ['修复', '保留数据', '保留日志'],
         guards: commonGuards,
         footer: '修复不删除用户数据。',
-        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+        retry: { title: '重装组件', copy: '修复本机组件', action: 'repair_runtime' }
       },
       update: {
         modeTag: '版本更新',
         modeHint: '下载并重开',
         brandTitle: '更新星阙',
-        brandCopy: '下载 · 校验 · 替换 app · 重开',
+        brandCopy: '下载 · 校验 · 替换程序 · 重新打开',
         sceneTitleText: '应用更新',
-        sceneCopyText: '按 manifest 替换 app/runtime。',
+        sceneCopyText: '按更新清单替换程序与组件。',
         sessionInlineText: '版本更新',
         summarySessionTypeText: '版本更新',
-        summaryRuntimeStrategyText: 'manifest 校验',
+        summaryRuntimeStrategyText: '按更新清单校验',
         summaryBackendModeText: '替换后重开',
         summaryOutcomeText: '进入新版本',
-        heroBadges: ['Manifest', 'Signature', 'Restart'],
+        heroBadges: ['更新清单', '签名校验', '重新启动'],
         guards: commonGuards,
         footer: '更新只替换清单资产。',
-        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+        retry: { title: '重装组件', copy: '修复本机组件', action: 'repair_runtime' }
       },
       error: {
         tone: 'error',
         modeTag: 'Needs attention',
-        modeHint: 'Runtime 损坏 · 建议重建',
+        modeHint: '需要重建',
         brandTitle: '组件校验未通过',
-        brandCopy: 'Runtime 损坏 · 建议重建',
+        brandCopy: '本机组件损坏或不完整，重建一次即可恢复，个人数据不受影响',
         sceneTitleText: '需要处理',
         sceneCopyText: '优先显示可执行恢复动作。',
         sessionInlineText: '需要处理',
@@ -748,45 +793,45 @@
         summaryThirdLabelText: '结果',
         summaryBackendModeText: '等待修复',
         summaryOutcomeText: '恢复后重试',
-        heroBadges: ['Error', 'Runtime', 'Failed'],
-        statusLabel: 'Failed',
+        heroBadges: ['出错', '本机组件', '未完成'],
+        statusLabel: '未完成',
         progressPrefix: '本机组件',
         progressEmphasis: 'runtime jar 哈希不符',
         progressSuffix: 'pipeline 已暂停',
         primaryCtaLabel: '重建 Runtime',
         guards: commonGuards,
         footer: '日志已保留 · 重建不会影响用户数据',
-        retry: { title: '重装组件', copy: 'repair runtime', action: 'repair_runtime' }
+        retry: { title: '重装组件', copy: '修复本机组件', action: 'repair_runtime' }
       },
       offline_ready: {
         tone: 'ready',
-        modeTag: 'Offline install',
-        modeHint: '本次未联网 · 来自离线包',
+        modeTag: '离线安装',
+        modeHint: '未联网',
         brandTitle: '已就绪',
-        brandCopy: '本次未联网 · 来自离线包',
+        brandCopy: '组件均来自离线包，下次打开直接进入主界面',
         sceneTitleText: '离线安装已完成',
         sceneCopyText: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
         sessionInlineText: '离线安装已完成',
         summarySessionTypeText: '离线安装',
-        summaryRuntimeStrategyText: '复用共享 runtime',
+        summaryRuntimeStrategyText: '复用本机组件',
         summaryThirdLabelText: '来源',
         summaryBackendModeText: `pkg ${APP_VERSION}`,
         summaryOutcomeText: '已完成',
-        heroBadges: ['Offline', 'Trusted pkg', 'Ready'],
-        statusLabel: 'Ready',
+        heroBadges: ['离线安装', '离线包已校验', '已就绪'],
+        statusLabel: '已就绪',
         progressPrefix: '离线安装已完成',
-        progressEmphasis: `runtime ${APP_VERSION}`,
+        progressEmphasis: `组件 ${APP_VERSION}`,
         progressSuffix: '下次打开直接进入',
         primaryCtaLabel: '进入主界面',
         guards: commonGuards,
-        footer: '离线安装包已包含 runtime · 窗口大小随上次关闭状态恢复',
-        retry: { title: '重新安装离线包', copy: 'secondary action', action: 'reinstall_offline_package' }
+        footer: '离线安装包已自带全部组件 · 窗口大小会沿用上次关闭时的状态',
+        retry: { title: '重新安装离线包', copy: '用离线包重装一次', action: 'reinstall_offline_package' }
       },
       offline_review: {
         modeTag: '安装审查',
         modeHint: '先确认再替换',
         brandTitle: '选择替换项',
-        brandCopy: 'replace / keep · app · runtime · cache',
+        brandCopy: '逐项选择替换或保留，确认后再开始',
         sceneTitleText: '离线安装审查',
         sceneCopyText: '只处理勾选为替换的资产。',
         sessionInlineText: '等待审查',
@@ -802,9 +847,9 @@
       offline_repair_required: {
         tone: 'error',
         modeTag: 'Needs attention',
-        modeHint: 'Runtime 损坏 · 建议重建',
+        modeHint: '需要重建',
         brandTitle: '组件校验未通过',
-        brandCopy: 'Runtime 损坏 · 建议重建',
+        brandCopy: '本机组件损坏或不完整，重建一次即可恢复，个人数据不受影响',
         sceneTitleText: '离线修复',
         sceneCopyText: '首选重新运行离线安装包。',
         sessionInlineText: '需要修复',
@@ -813,8 +858,8 @@
         summaryThirdLabelText: '结果',
         summaryBackendModeText: '等待修复',
         summaryOutcomeText: '重装后启动',
-        heroBadges: ['Offline repair', 'Runtime', 'Failed'],
-        statusLabel: 'Failed',
+        heroBadges: ['离线修复', '本机组件', '未完成'],
+        statusLabel: '未完成',
         progressPrefix: '本机组件',
         progressEmphasis: 'runtime jar 哈希不符',
         progressSuffix: 'pipeline 已暂停',
@@ -827,18 +872,18 @@
         modeTag: '更新确认',
         modeHint: '确认后下载',
         brandTitle: '发现新版本',
-        brandCopy: 'manifest 已比对 · 等待确认',
+        brandCopy: '已比对更新清单，确认后开始替换',
         sceneTitleText: '更新待确认',
         sceneCopyText: '确认前不下载、不替换、不重开。',
         sessionInlineText: '等待确认',
         summarySessionTypeText: '更新确认',
-        summaryRuntimeStrategyText: '比对 manifest',
+        summaryRuntimeStrategyText: '比对更新清单',
         summaryBackendModeText: '确认后执行',
         summaryOutcomeText: '进入更新事务',
         heroBadges: ['Check only', 'Confirm', 'Update'],
         guards: commonGuards,
         footer: '检查更新不再自动替换。',
-        retry: { title: '重新检查更新', copy: 'check manifest', action: 'repair_runtime' }
+        retry: { title: '重新检查更新', copy: '重新比对更新清单', action: 'repair_runtime' }
       }
     };
     return { ...content, ...(variants[key] || variants[currentMode] || variants.launch) };
@@ -874,11 +919,11 @@
     heroBadgePrimary.textContent = content.heroBadges[0];
     heroBadgeSecondary.textContent = content.heroBadges[1];
     if (inferredTone === 'ready') {
-      setStatusPill('ready', content.statusLabel || content.heroBadges[2] || 'Ready');
+      setStatusPill('ready', content.statusLabel || content.heroBadges[2] || '已就绪');
     } else if (inferredTone === 'error') {
-      setStatusPill('failed', content.statusLabel || content.heroBadges[2] || 'Failed');
+      setStatusPill('failed', content.statusLabel || content.heroBadges[2] || '未完成');
     } else {
-      setStatusPill('live', content.statusLabel || content.heroBadges[2] || 'Live');
+      setStatusPill('live', content.statusLabel || content.heroBadges[2] || '进行中');
     }
     setPrimaryCta(inferredTone !== 'launch', content.primaryCtaLabel);
     if (content.progressPrefix || content.progressEmphasis || content.progressSuffix) {
@@ -958,7 +1003,7 @@
     }
     return [
       { time: nowTime(-2), level: 'info', message: '启动页已加载' },
-      { time: nowTime(-1), level: 'info', message: '校验 App 签名' },
+      { time: nowTime(-1), level: 'info', message: '校验 程序签名' },
       { time: nowTime(), level: 'info', message: '准备检查本机组件' }
     ];
   }
@@ -1159,7 +1204,7 @@
     if (payload.kind === 'offline_ready') {
       payload = {
         ...payload,
-        badge: 'Ready',
+        badge: '已就绪',
         title: '离线安装已完成',
         summary: '本次未联网，所有组件来自离线包；下次打开将直接进入主界面',
         detail: '当前步骤：—',
@@ -1388,7 +1433,7 @@
       try {
         await handler();
       } catch (error) {
-        pushLine(`操作失败: ${error.message || error}`);
+        pushLine(`操作失败：${error.message || error}`);
       }
     });
   }
@@ -1458,7 +1503,7 @@
     setProgress(100, '准备进入主界面');
     const readyPayload = {
       kind: 'launch_ready',
-      badge: 'Ready',
+      badge: '已就绪',
       title: '已准备进入主界面',
       summary: 'App、本机组件和后台服务均已完成检查。',
       detail: '正在切换到主界面。',
@@ -1566,7 +1611,7 @@
   });
 
   applyMode('launch');
-  setProgress(8, '检查 App 签名');
+  setProgress(8, '检查 程序签名');
   renderLog();
   bootstrapPreferences();
   replayPendingState();

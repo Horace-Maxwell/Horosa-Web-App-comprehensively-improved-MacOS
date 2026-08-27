@@ -6,6 +6,8 @@
   --text: #182330;
   --text-soft: #586577;
   --accent: #1970f2;
+  /* 次要按钮底色:必须走变量,写死浅色会在深色模式下变成浅字配浅底(实测 1.21:1) */
+  --surface-btn: rgba(247, 249, 252, 0.96);
   --shadow: 0 24px 60px rgba(20, 32, 48, 0.12);
   --font-ui: "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
 }
@@ -71,6 +73,19 @@ body {
 .diag-actions {
   display: flex;
   gap: 10px;
+  /* 🔴 空间不足时必须整组换行,绝不能让按钮里的中文逐字竖排 ——
+     实测 840×720 窗口 ×1.8 缩放时,「导出诊断包」被拆成竖着的五个字,非常难看。 */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.diag-actions button {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+/* 头部在窄空间下改上下排布,给标题和按钮各自完整宽度 */
+@media (max-width: 640px) {
+  .diag-header { flex-direction: column; align-items: stretch; }
+  .diag-actions { justify-content: flex-start; }
 }
 
 .primary-button,
@@ -83,7 +98,9 @@ body {
 .primary-button {
   padding: 12px 18px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #1970f2, #4e98ff);
+  /* 渐变浅端原为 #4e98ff：白字对它仅 2.89:1，连大字粗体的 3.0 都不到。
+     收到 #3275d0(4.57:1)后整条渐变都过 AA，观感仍是同一支蓝。 */
+  background: linear-gradient(135deg, #1560d8, #3275d0);
   color: white;
   font-weight: 700;
 }
@@ -91,7 +108,7 @@ body {
 .secondary-button {
   padding: 12px 16px;
   border-radius: 999px;
-  background: rgba(247, 249, 252, 0.96);
+  background: var(--surface-btn);
   color: var(--text);
   box-shadow: inset 0 0 0 1px var(--line);
 }
@@ -187,4 +204,41 @@ body {
   .diag-header {
     grid-template-columns: 1fr;
   }
+}
+
+/* 🔴 [缩放域·2026-08-25] 抵消壳注入的 CSS zoom 补偿。
+   壳对**每个 document** 注入行内 `body{width:calc(100%/z);height:calc(100%/z)}`,那是按主
+   应用的布局假设写的。本页 html 已经是布局域尺寸(视口/z)、body 铺满即可,再补偿一次就成了
+   视口/z²,页面被缩到 1/z ——— 实测 zoom 1.8 时 body 只填视口的 56%,内容缩在左上角一小块,
+   右下大片空白,非常难看。
+   本页是**流式布局**(高度随内容),所以高度要放开成 auto + min-height:100%,不能像启动页那样
+   钉成 100%,否则内容多时会被截断。
+   ⚠️ 行内样式只能被 !important 覆盖。 */
+body {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100% !important;
+}
+
+/* [深色模式·2026-08-25] 与启动页同策:跟随系统,只覆盖变量。
+   此前纯浅色 —— 深色系统下从暗色主界面点开这个窗口会突然刺眼。 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15181c;
+    --panel: rgba(32, 37, 43, 0.92);
+    --line: rgba(255, 255, 255, 0.10);
+    --text: #dfe4ea;
+    --text-soft: #9aa5b1;
+    --accent: #5b9bf8;
+    --surface-btn: rgba(58, 66, 76, 0.95);
+    --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  }
+  body { background: linear-gradient(180deg, #181c21 0%, var(--bg) 100%); }
+}
+
+/* [键盘可达性] 仅键盘导航时显示焦点环,鼠标点击不打扰 */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 8px;
 }

@@ -10,7 +10,7 @@
     <main class="diag-shell">
       <header class="diag-header">
         <div>
-          <div class="diag-eyebrow">Diagnostics</div>
+          <div class="diag-eyebrow">运行状况</div>
           <h1>诊断中心</h1>
           <p>查看当前日志、本机组件位置和应用数据目录，定位启动、更新和组件问题。</p>
         </div>
@@ -36,6 +36,24 @@
             <div>
               <div class="path-label">本机组件</div>
               <div class="path-value" id="runtimeDir">读取中…</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="diag-card">
+          <div class="card-title">版面与缩放</div>
+          <div class="path-block">
+            <div>
+              <div class="path-label">缩放档位</div>
+              <div class="path-value" id="zoomDeclared">读取中…</div>
+            </div>
+            <div>
+              <div class="path-label">窗口可用版面</div>
+              <div class="path-value" id="zoomLayout">读取中…</div>
+            </div>
+            <div>
+              <div class="path-label">显示引擎行为</div>
+              <div class="path-value" id="zoomEngine">读取中…</div>
             </div>
           </div>
         </article>

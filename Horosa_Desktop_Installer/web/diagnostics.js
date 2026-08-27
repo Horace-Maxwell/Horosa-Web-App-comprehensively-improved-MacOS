@@ -56,7 +56,7 @@
     if (window.__TAURI_INTERNALS__?.invoke) {
       return window.__TAURI_INTERNALS__.invoke(cmd, args);
     }
-    throw new Error('Tauri invoke bridge unavailable');
+    throw new Error('无法连接桌面程序，请重新打开星阙后重试');
   }
 
   async function refresh() {
@@ -108,7 +108,7 @@
       invoke('export_diagnostics_bundle')
         .then((path) => {
           exportBtn.textContent = '已导出到桌面';
-          logOutput.textContent = `诊断包已生成:\n${path}`;
+          logOutput.textContent = `诊断包已生成：\n${path}`;
         })
         .catch((error) => {
           exportBtn.textContent = '导出诊断包';
@@ -129,4 +129,74 @@
   setInterval(() => {
     refresh().catch(() => {});
   }, 4000);
+})();
+
+// ── 版面与缩放读数 ────────────────────────────────────────────────────────
+// 由来(2026-08-27):旧机缩放档下全站底部一大条死带,而我们手上只有用户拍的照片,
+// 只能靠量比例反推病因,来回折腾多轮。把关键读数直接摆在诊断页上,下次一屏截图即定谳。
+//
+// 三种引擎行为(真机实证):
+//   跟随   rect 读数跟着缩放走(新系统 / Chromium)
+//   不跟随 画面缩放了但读数不跟(旧 MacBook 实测)—— 历史上按读数换算版面就会算错
+//   未缩放 声明了缩放但画面没缩放
+// 现行代码两种都不依赖(改为直接量容器),此处读数仅供排障与回归取证。
+(function () {
+  function measure() {
+    var d = document.documentElement;
+    var declared = 1;
+    try { var z = parseFloat(d.style.zoom); if (z > 0) declared = z; } catch (e) {}
+    try {
+      if (declared === 1) {
+        var s = window.localStorage.getItem('horosa.shell.zoom');
+        var sz = parseFloat(s);
+        if (sz > 0) declared = sz;
+      }
+    } catch (e) {}
+
+    var probe = document.createElement('div');
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = 'position:absolute;left:0;top:0;width:1000px;height:0;visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+    var rectScale = probe.getBoundingClientRect().width / 1000;
+    document.body.removeChild(probe);
+
+    var fx = document.createElement('div');
+    fx.setAttribute('aria-hidden', 'true');
+    fx.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;visibility:hidden;pointer-events:none';
+    document.body.appendChild(fx);
+    var lw = fx.offsetWidth, lh = fx.offsetHeight;
+    document.body.removeChild(fx);
+
+    var grew = (lh > 0 && window.innerHeight > 0) ? (lh / window.innerHeight) : 1;
+    var engine;
+    if (declared === 1) {
+      engine = '未缩放档(读数无差异)';
+    } else if (Math.abs(grew - 1 / declared) > 0.08) {
+      engine = '未缩放 — 声明了缩放但画面没缩放';
+    } else if (Math.abs(rectScale - declared) < 0.03) {
+      engine = '跟随 — 读数随缩放变化';
+    } else {
+      engine = '不跟随 — 画面已缩放但读数不变';
+    }
+    return { declared: declared, layoutW: lw, layoutH: lh, engine: engine };
+  }
+
+  function paint() {
+    try {
+      var m = measure();
+      var set = function (id, txt) {
+        var el = document.getElementById(id);
+        if (el) { el.textContent = txt; }
+      };
+      set('zoomDeclared', Math.round(m.declared * 100) + '%');
+      set('zoomLayout', (m.layoutW || '?') + ' × ' + (m.layoutH || '?') + ' 点'
+        + '(窗口 ' + window.innerWidth + ' × ' + window.innerHeight + ')');
+      set('zoomEngine', m.engine);
+    } catch (e) {}
+  }
+
+  if (document.body) { paint(); } else { document.addEventListener('DOMContentLoaded', paint); }
+  window.addEventListener('resize', function () { setTimeout(paint, 60); });
+  var rb = document.getElementById('refreshBtn');
+  if (rb) { rb.addEventListener('click', function () { setTimeout(paint, 60); }); }
 })();

@@ -5,7 +5,12 @@
   --ink: #0a0a0a;
   --text: #242827;
   --muted: #6b6b6b;
-  --weak: #a0a0a0;
+  /* 🔴 [对比度·2026-08-25] 原值 #a0a0a0 对白底仅 2.61:1,远低于 WCAG AA 正文要求的 4.5:1 ——
+     步骤状态、保护项说明、操作卡副文案都用它,是**正文信息**不是装饰,必须达标。
+     取值按**最不利背景**实测定,不能只看白底:次要文字还会落在激活步骤的浅绿底
+     (等效 #ecf3f1)和页面米底(#fafaf7)上 —— #767676 在这两处只有 4.04 / 4.34,仍不达标。
+     #6b6b6b 对三种背景分别为 4.73 / 5.10 / 5.33,全部过 AA。 */
+  --weak: #6b6b6b;
   --line: rgba(0, 0, 0, 0.08);
   --line-soft: rgba(0, 0, 0, 0.06);
   --hero: #0e1414;
@@ -33,6 +38,20 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
+}
+
+/* 🔴 [缩放域·2026-08-25] 抵消壳注入的 CSS zoom 补偿。
+   壳对每个 document 注入行内 `body{width:calc(100%/z);height:calc(100%/z)}`,那是按**主应用**
+   的布局假设写的。本页面的 html 已经是布局域尺寸(视口/z)、body 铺满它即可 —— 再补偿一次
+   就变成 视口/z²,页面被缩到 1/z。
+   实测 z=1.8、视口 1440×900:带补偿时 body 布局 444×278(rect 800×500,只占 55%,右下大片
+   空白且卡片被截);抵消后 body 布局 800×500(rect 1440×900,正好填满)。
+   ⚠️ 行内样式只能被 !important 覆盖,这里必须保留 !important。
+   ⚠️ 判据提醒:本页 `html,body{overflow:hidden}`,故 scrollWidth 永远不会超过 clientWidth ——
+   **不能用 scrollWidth 判溢出**(会恒绿假过),要按关键元素的 rect 是否落在视口内判。 */
+body {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 body {
@@ -63,14 +82,33 @@ button {
 }
 
 .launcher-shell {
+  /* 内容量固定的过渡界面:窗口再大也不该把版面拉散,居中成一块稳定卡片。
+     ⚠️ 居中用 .launcher-window 的 `margin: auto` 而**不是** align-items: center ——
+     后者在内容高于容器时(如 1.8× 缩放,900px 视口只剩 500 布局px)会把顶部切掉
+     且滚不回去;margin:auto 则是「有余量才居中,不够就正常从头排」。 */
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  overscroll-behavior: contain;
   width: 100%;
-  height: 100vh;
+  /* 不用 100vh:vh 是视口单位、不随 zoom 补偿,与布局域劈叉([177] 同型)。
+     100% 继承上面已补偿好的 body,两个域自洽。 */
+  height: 100%;
   padding: 14px;
   background: #ecece7;
 }
 
 .launcher-window {
   width: 100%;
+  /* [版式·2026-08-25] 启动界面会沿用主应用的窗口尺寸(用户的窗口可宽达 2000px),
+     而本界面的信息量只有一小屏。不限宽时卡片被拉得极扁、留白成片,信息密度极低。
+     限宽 + 居中后,任何窗口尺寸下版面比例都稳定。 */
+  max-width: 1180px;
+  /* 大窗口限高成一块;高倍缩放下可用高度不足时由上面的 overflow:auto 兜底滚动。 */
+  max-height: 660px;
+  /* min() 而非定值:高倍缩放下可用布局高度可低至 420px,定值会强制溢出。 */
+  min-height: min(520px, 100%);
+  margin: auto;
   height: 100%;
   min-height: 0;
   display: flex;
@@ -200,6 +238,13 @@ button {
   flex-direction: column;
   gap: 9px;
   overflow: hidden;
+}
+
+/* 高倍缩放(如 1.8×)下可用布局高度骤减,侧栏三块装不下 —— 让它自己滚动,
+   而不是把内容顶出窗口被切掉(实测 z=1.8 原本越界 83px)。 */
+.context-column {
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .brand-card,
@@ -470,7 +515,9 @@ button {
 }
 
 .step-item.is-active .step-desc {
-  color: #888;
+  /* 原为硬编码 #888(绕开 --weak,所以改变量改不到它):在激活态的浅绿底上仅 3.54:1。
+     统一回变量,随明暗两套配色一起达 AA。 */
+  color: var(--weak);
 }
 
 .step-item.is-failed .step-desc {
@@ -1167,3 +1214,240 @@ body[data-launcher-tone="ready"] .mode-dot {
     overflow: visible;
   }
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   [布局密度·2026-08-25] 按 **JS 实测的布局空间** 切紧凑档。
+   为什么不用 @media:CSS 媒体查询在 CSS zoom 下按视口 rect 域评估,看不见缩放造成的
+   空间缩水 —— 实测窗口 1180×760 + zoom 1.8 时,`(max-height:720px)` 仍为 false,而实际
+   可用布局空间只有 656×422。断点永不触发 = 内容挤爆也不降级。
+   data-density 由 app.js 顶部的探测器写入:normal / compact(h<620 或 w<980)/ micro(h<500 或 w<780)。
+   ──────────────────────────────────────────────────────────────────────────── */
+
+:root[data-density="compact"] .launcher-shell { padding: 8px; }
+:root[data-density="compact"] .launcher-window { min-height: 0; max-height: 100%; }
+:root[data-density="compact"] .window-body { gap: 7px; padding: 7px; }
+:root[data-density="compact"] .context-column,
+:root[data-density="compact"] .content-column { gap: 6px; }
+:root[data-density="compact"] .brand-card { padding: 10px 11px; }
+:root[data-density="compact"] .brand-card h1 { font-size: 15px; }
+:root[data-density="compact"] .sidebar-card { padding: 9px 11px; }
+:root[data-density="compact"] .progress-card { padding: 11px 13px; }
+:root[data-density="compact"] .detail-card { padding: 9px 11px; }
+:root[data-density="compact"] .action-card { padding: 8px 10px; }
+:root[data-density="compact"] .step-list { gap: 4px; }
+
+/* micro:空间极紧(如最小窗口 × 1.8 倍缩放 = 656×422)。
+   进一步压间距,并收起纯装饰/次要信息,保证主链路(进度 + 步骤 + 操作)完整可见。 */
+:root[data-density="micro"] .launcher-shell { padding: 6px; }
+:root[data-density="micro"] .launcher-window { min-height: 0; max-height: 100%; border-radius: 9px; }
+:root[data-density="micro"] .window-body { gap: 6px; padding: 6px; grid-template-columns: 168px minmax(0, 1fr); }
+:root[data-density="micro"] .context-column,
+:root[data-density="micro"] .content-column { gap: 5px; }
+:root[data-density="micro"] .brand-card { padding: 8px 9px; }
+:root[data-density="micro"] .brand-card h1 { font-size: 14px; margin: 0; }
+:root[data-density="micro"] .brand-card .brand-icon { width: 30px; height: 30px; }
+:root[data-density="micro"] .brand-meta { display: none; }          /* 与 mode-pill 信息重复 */
+:root[data-density="micro"] .sidebar-card { padding: 7px 9px; }
+:root[data-density="micro"] .progress-card { padding: 9px 11px; }
+:root[data-density="micro"] .progress-number { font-size: 24px; }
+:root[data-density="micro"] .detail-card { padding: 7px 9px; }
+:root[data-density="micro"] .action-card { padding: 6px 8px; }
+:root[data-density="micro"] .action-copy { display: none; }          /* 标题已足够表意 */
+:root[data-density="micro"] .step-list { gap: 3px; }
+:root[data-density="micro"] .step-desc { display: none; }            /* 步骤名已足够 */
+:root[data-density="micro"] .footer-note { display: none; }
+
+/* micro 档瓶颈实测:侧栏三块合计 460px,而 1180×760 窗口在 1.8 倍缩放下只有 352px 可用。
+   下面按「保信息、压排布」的原则再省 ~110px —— 不隐藏任何一项内容,只改排列与行距。 */
+
+/* 本次启动:四行竖排 dl → 横向流式(104px → 约 30px) */
+:root[data-density="micro"] .session-card .summary-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+}
+:root[data-density="micro"] .session-card .summary-list > div {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  min-height: 0;
+}
+:root[data-density="micro"] .session-card .summary-list dt,
+:root[data-density="micro"] .session-card .summary-list dd { font-size: 10px; line-height: 1.35; margin: 0; }
+
+/* 进行步骤:压行高与标记尺寸(214px → 约 175px),step-desc 上面已隐藏 */
+:root[data-density="micro"] .step-item { padding: 3px 6px; min-height: 0; }
+:root[data-density="micro"] .step-name { font-size: 11px; line-height: 1.3; }
+:root[data-density="micro"] .step-marker { width: 12px; height: 12px; }
+
+/* 品牌卡:描述限两行,避免长文案把卡片顶高 */
+:root[data-density="micro"] .brand-card p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+/* 🔴 关键:解除卡片的硬编码 min-height。
+   常规档下这些定值(brand 132 / session 104 / pipeline 214 / step-item 39 / progress 146)
+   是为了让三块高度稳定、视觉整齐;但在紧凑档下它们**白吃约 160px** —— 实测 pipeline-card
+   内容只需 118px 却被撑到 214px,直接导致 1180×760 窗口 ×1.8 缩放时侧栏溢出 108px。
+   紧凑档改为按内容自然高度。 */
+:root[data-density="compact"] .brand-card,
+:root[data-density="micro"] .brand-card,
+:root[data-density="compact"] .session-card,
+:root[data-density="micro"] .session-card,
+:root[data-density="compact"] .pipeline-card,
+:root[data-density="micro"] .pipeline-card,
+:root[data-density="compact"] .progress-card,
+:root[data-density="micro"] .progress-card { min-height: 0; }
+
+:root[data-density="compact"] .step-item { min-height: 28px; }
+:root[data-density="micro"] .step-item { min-height: 0; }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   [任意长度文本健壮性·2026-08-25] 版面不得被文本长度撑坏。
+   实测:把文案换成 70 字长句(模拟长错误信息/长路径)后,原样式在**全部 12 个缩放档**
+   都出缺陷 —— 摘要值(dd)被裁切、侧栏卡片被 overflow:hidden 的祖先切掉、1.8 档还会出界。
+   真实文案最长 30 字虽然安全,但「将来加一条长错误信息就翻车」不能算完美。
+   规则:长词强制断行 + 关键描述限行数,保证任何输入都不撑爆、不裁切、不出界。
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* 摘要值:允许在任意位置断行(中文长句、无空格长 token、长路径都能收住) */
+.summary-list dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: right;
+}
+.summary-list dt { min-width: 0; overflow-wrap: anywhere; }
+
+/* 品牌卡描述:限 3 行,超出省略(micro 档另限 2 行) */
+.brand-card p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.brand-card h1 { overflow-wrap: anywhere; word-break: break-word; }
+
+/* 其余承载动态文案的位置:一律允许断行,避免撑出容器 */
+.brand-meta,
+.mode-pill,
+.step-name,
+.action-title,
+.action-copy,
+.guard-key,
+.guard-value,
+.progress-copy,
+.footer-note { overflow-wrap: anywhere; word-break: break-word; }
+
+/* 状态徽章:内容是短状态词(已就绪/进行中/未完成)。
+   ⚠️ 别用百分比限宽 —— 实测 max-width:40% 会把「进行中」截成「进行」。
+   用足够容纳常规状态词的字符宽度,只在异常长文案时才省略。 */
+.hero-badge {
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* brand-card 内每一处文本都必须有行数上限,否则任意长度的动态文案会把侧栏顶爆 ——
+   实测长中文/长路径注入后,z1.3–1.8 出现 sidebar-card 被切与出界。 */
+.brand-card h1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.brand-meta {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mode-pill {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 步骤名同理(动态文案可能很长) */
+.step-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 操作卡标题/副文案 */
+.action-title, .action-copy {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 底部说明:最多两行 */
+.footer-note {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 当前步骤行 */
+.progress-copy {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   [深色模式·2026-08-25] 主应用有深色皮肤,而壳内三页此前是纯浅色 —— 深色系统下
+   启动会先闪一屏刺眼白底再切进暗色主界面,割裂感很强。本页全部配色走 CSS 变量,
+   因此只需覆盖变量即可整页转暗,零结构改动。
+   跟随系统(prefers-color-scheme),不额外做开关:这是过渡界面,不该有自己的主题设置。
+   ════════════════════════════════════════════════════════════════════════════ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181a;
+    --surface: #1e2124;
+    --surface-soft: #24282b;
+    --ink: #f2f4f5;
+    --text: #d8dcdf;
+    --muted: #9aa3a8;
+    --weak: #848b8f;   /* 4.68:1 对卡片底,达 AA;仍暗于 --muted(6.30:1) */
+    --line: rgba(255, 255, 255, 0.10);
+    --line-soft: rgba(255, 255, 255, 0.06);
+    --hero: #0b0e0f;
+    --brand: #3fbf9a;
+    --brand-strong: #45cba5;
+    --brand-soft: rgba(63, 191, 154, 0.12);
+    --brand-chip: rgba(63, 191, 154, 0.16);
+    --danger: #e0736c;
+    --danger-soft: rgba(224, 115, 108, 0.14);
+    --warning: #d7a44b;
+    --shadow-card: 0 8px 22px rgba(0, 0, 0, 0.35);
+  }
+  .launcher-shell { background: #0f1112; }
+  .traffic-light { filter: saturate(0.9) brightness(0.95); }
+  /* 日志行的等宽区在暗色下需要更低的对比,避免刺眼 */
+  .log-list { color: var(--muted); }
+}
+
+/* [键盘可达性] 此前三页没有任何焦点样式。macOS 用户用 Tab 键走查时看不到焦点在哪,
+   属于可用性缺陷。用 :focus-visible —— 只在键盘导航时出现,鼠标点击不显示,不打扰常规使用。 */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.toolbar-button:focus-visible,
+.action-card:focus-visible,
+.detail-button:focus-visible,
+.primary-cta:focus-visible { outline-offset: 3px; }
