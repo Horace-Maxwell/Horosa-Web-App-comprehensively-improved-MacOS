@@ -158,12 +158,28 @@
 
   function setProgressNumber(value) {
     if (!progressPct) return;
-    if (String(value) === '接收中') {
-      progressPct.textContent = '接收中';
+    // 进度不可测时这里放的是状态词而非数字。原先只硬认「接收中」一个词,加了别的词就会
+    // 被当成数字算成 0% —— 改为「非数字一律原样显示」。
+    if (typeof value === 'string' && !/^-?\d/.test(value)) {
+      progressPct.textContent = value;
       return;
     }
     const clamped = Math.max(0, Math.min(100, Number(value) || 0));
     progressPct.innerHTML = `${Math.round(clamped)}<span class="pct-sign">%</span>`;
+  }
+
+  // 🔴 进度不可测时的措辞必须分路(2026-08-27 用户实报:离线安装启动本地服务时大字写着
+  // 「接收中」——那一刻什么都没在接收,该词只在联网下载路径成立)。
+  //   下载路径(安装/更新/修复)→ 接收中
+  //   本机路径(离线/普通启动)→ 请稍候(此时在等本地服务就绪,badge 已另写「启动中」,不重复)
+  function indeterminateLabel() {
+    return (currentMode === 'install' || currentMode === 'update' || currentMode === 'repair')
+      ? '接收中'
+      : '请稍候';
+  }
+  // 读屏用的完整说法(#phaseLabel 是 visually-hidden,只给辅助技术)
+  function indeterminateA11yLabel() {
+    return indeterminateLabel() === '接收中' ? '正在接收组件' : '正在启动本机服务';
   }
 
   function setProgressCopy(prefix, emphasis, suffix = '') {
@@ -1348,7 +1364,7 @@
     const currentPct = Number(progressPct.textContent.replace('%', '')) || 0;
     const phase = resolvePhase(currentPct);
     phaseLabel.textContent = progressIsIndeterminate
-      ? '接收中'
+      ? indeterminateA11yLabel()
       : phase.label;
     renderSteps(phase.step, Boolean(phase.complete));
     applySupportContent(currentStatePayload && hasExplicitState ? currentStatePayload : fallbackStateForMode(nextMode));
@@ -1408,8 +1424,8 @@
       progressTrack.classList.toggle('is-indeterminate', indeterminate);
     }
     progressFill.style.width = indeterminate ? '38%' : `${clamped}%`;
-    setProgressNumber(indeterminate ? '接收中' : clamped);
-    phaseLabel.textContent = indeterminate ? '接收中' : phase.label;
+    setProgressNumber(indeterminate ? indeterminateLabel() : clamped);
+    phaseLabel.textContent = indeterminate ? indeterminateA11yLabel() : phase.label;
     renderSteps(failedStep || phase.step, completeAll, failedStep);
     renderMilestones(clamped, failedStep, completeAll);
     if (currentTone === 'ready' && clamped >= 100) {

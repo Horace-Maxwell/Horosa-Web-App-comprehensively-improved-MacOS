@@ -146,8 +146,11 @@
               </div>
               <div class="progress-copy" id="progressSubtitle">
                 当前步骤 · <span id="progressText">检查 程序签名</span>
-                <span class="visually-hidden" id="phaseLabel">安装检查</span>
               </div>
+              <!-- 🔴 必须放在 #progressSubtitle **之外**:setProgressCopy 会整段重写
+                   progressSubtitle.innerHTML,放里面会在第一次进度更新时被冲掉,
+                   此后写入的是游离节点(不报错、但读屏永远读不到)。 -->
+              <span class="visually-hidden" id="phaseLabel" aria-live="polite">安装检查</span>
               <div class="milestone-wrap">
                 <div class="progress-track"><span id="progressFill" style="width: 8%"></span></div>
                 <span class="milestone is-active" data-milestone="1"></span>
