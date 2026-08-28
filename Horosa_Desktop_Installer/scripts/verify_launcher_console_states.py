@@ -104,9 +104,16 @@ def step(data: dict[str, Any], step_no: int) -> dict[str, str]:
     return next(item for item in data["steps"] if item["step"] == str(step_no))
 
 
+# 🔴 2026-08-27:状态词期望由英文改为中文。
+# 由来:界面全面中文化那一轮(启动/诊断/偏好三页)把状态徽标从 Live/Ready/Failed 换成了
+# 进行中/已就绪/未完成,**却没同步本校验器**。它只在 publish 链上跑(build 不跑),
+# 所以之后几次打包都绿、直到真发布才判红。这不是放松闸门,是把期望对齐到真实界面语言;
+# 判据强度不变(仍是精确串相等)。同轮修掉两处漏译:modeTag「Needs attention」、
+# copy「run offline pkg」。
+
 def check_default(data: dict[str, Any], errors: list[str]) -> None:
     require_common(data, errors)
-    if data["tone"] != "launch" or data["pct"] != "8%" or data["status"] != "Live":
+    if data["tone"] != "launch" or data["pct"] != "8%" or data["status"] != "进行中":
         fail(errors, f"default state mismatch: {data}")
     if not data["ctaHidden"]:
         fail(errors, "default state must hide the primary CTA")
@@ -122,7 +129,7 @@ def check_dynamic(data: dict[str, Any], expected_pct: str, active_step: int, err
     require_common(data, errors)
     if data["pct"] != expected_pct or data["fillWidth"] != expected_pct:
         fail(errors, f"{data['label']}: progress did not track real backend value")
-    if data["status"] != "Live" or not data["ctaHidden"]:
+    if data["status"] != "进行中" or not data["ctaHidden"]:
         fail(errors, f"{data['label']}: dynamic progress must stay live and CTA-free")
     if "is-active" not in step(data, active_step)["cls"]:
         fail(errors, f"{data['label']}: expected pipeline step {active_step} active")
@@ -130,7 +137,7 @@ def check_dynamic(data: dict[str, Any], expected_pct: str, active_step: int, err
 
 def check_ready(data: dict[str, Any], errors: list[str]) -> None:
     require_common(data, errors)
-    if data["tone"] != "ready" or data["pct"] != "100%" or data["status"] != "Ready":
+    if data["tone"] != "ready" or data["pct"] != "100%" or data["status"] != "已就绪":
         fail(errors, f"ready state mismatch: {data}")
     if data["ctaHidden"] or data["cta"] != "进入主界面":
         fail(errors, "ready state must expose the enter-main-window CTA")
@@ -144,7 +151,7 @@ def check_ready(data: dict[str, Any], errors: list[str]) -> None:
 
 def check_error(data: dict[str, Any], errors: list[str]) -> None:
     require_common(data, errors)
-    if data["tone"] != "error" or data["pct"] != "26%" or data["status"] != "Failed":
+    if data["tone"] != "error" or data["pct"] != "26%" or data["status"] != "未完成":
         fail(errors, f"failed state mismatch: {data}")
     if data["ctaHidden"] or data["cta"] != "重建 Runtime":
         fail(errors, "failed state must show the green rebuild Runtime CTA")

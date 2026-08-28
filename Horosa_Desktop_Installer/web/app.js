@@ -797,7 +797,7 @@
       },
       error: {
         tone: 'error',
-        modeTag: 'Needs attention',
+        modeTag: '需要处理',
         modeHint: '需要重建',
         brandTitle: '组件校验未通过',
         brandCopy: '本机组件损坏或不完整，重建一次即可恢复，个人数据不受影响',
@@ -858,11 +858,11 @@
         heroBadges: ['Review', 'Replace', 'Keep'],
         guards: commonGuards,
         footer: '未勾选资产保持不动。',
-        retry: { title: '重新安装离线包', copy: 'run offline pkg', action: 'reinstall_offline_package' }
+        retry: { title: '重新安装离线包', copy: '用离线包重装一次', action: 'reinstall_offline_package' }
       },
       offline_repair_required: {
         tone: 'error',
-        modeTag: 'Needs attention',
+        modeTag: '需要处理',
         modeHint: '需要重建',
         brandTitle: '组件校验未通过',
         brandCopy: '本机组件损坏或不完整，重建一次即可恢复，个人数据不受影响',
@@ -882,7 +882,7 @@
         primaryCtaLabel: '重建 Runtime',
         guards: commonGuards,
         footer: '日志已保留 · 重建不会影响用户数据',
-        retry: { title: '重新安装离线包', copy: 'run offline pkg', action: 'reinstall_offline_package' }
+        retry: { title: '重新安装离线包', copy: '用离线包重装一次', action: 'reinstall_offline_package' }
       },
       update_review: {
         modeTag: '更新确认',
