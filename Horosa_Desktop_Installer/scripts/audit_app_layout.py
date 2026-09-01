@@ -42,24 +42,33 @@ ZOOMS = [round(0.7 + 0.1 * i, 1) for i in range(12)]
 # 主窗最小 1180×760(main.rs);再加常见与极端宽高比
 SIZES = [(1180, 760), (1440, 900), (1728, 1117), (2560, 1440), (1180, 1400)]
 
-# 壳注入的缩放实现(逐字对齐 main.rs 的 __HOROSA_APPLY_SHELL_ZOOM),体检必须测「跑的那套」
-APPLY_ZOOM_JS = r"""
-(z) => {
-  const d = document.documentElement;
-  if (z === 1) {
-    d.style.zoom = '';
-    if (document.body) { document.body.style.height = ''; document.body.style.width = ''; }
-  } else {
-    d.style.zoom = String(z);
-    if (document.body) {
-      document.body.style.height = 'calc(100% / ' + z + ')';
-      document.body.style.width  = 'calc(100% / ' + z + ')';
-    }
-  }
-  window.dispatchEvent(new Event('resize'));
-  return true;
-}
-"""
+# 壳注入的缩放实现:运行时从 main.rs 的 [zoom-apply-fn:begin/end] 锚间抽取——体检永远测
+# 「壳跑的那套」,零内嵌拷贝(历史教训:内嵌拷贝随壳演进悄悄漂移,「逐字对齐」注释成假话
+# 而闸门毫无察觉)。锚缺失=硬失败 exit 2,不允许静默退回任何本地拷贝。
+MAIN_RS = Path(__file__).resolve().parent.parent / "src-tauri" / "src" / "main.rs"
+APPLY_BEGIN = "[zoom-apply-fn:begin]"
+APPLY_END = "[zoom-apply-fn:end]"
+
+
+def extract_apply_zoom_js():
+    if not MAIN_RS.exists():
+        print(f"❌ 找不到 {MAIN_RS} —— 无法抽取壳缩放实现")
+        return None
+    text = MAIN_RS.read_text(encoding="utf-8")
+    if APPLY_BEGIN not in text or APPLY_END not in text:
+        print(f"❌ main.rs 缺 {APPLY_BEGIN}/{APPLY_END} 抽取锚 —— 壳缩放段被改动却没保留锚")
+        return None
+    seg = text.split(APPLY_BEGIN, 1)[1].split(APPLY_END, 1)[0]
+    # 去掉锚行残留的注释收尾(begin 行的 " */" 与 end 行的 "/* "),剩纯 JS(含 JS 注释,合法)
+    seg = seg.split("*/", 1)[1].rsplit("/*", 1)[0]
+    if "__HOROSA_APPLY_SHELL_ZOOM" not in seg:
+        print("❌ 抽取段不含 __HOROSA_APPLY_SHELL_ZOOM —— 锚位错误")
+        return None
+    return seg
+
+
+# 调用形态:先把抽取段包函数体 evaluate(挂上 window.__HOROSA_APPLY_SHELL_ZOOM),再逐档调用。
+APPLY_CALL_JS = "(z) => { window.__HOROSA_APPLY_SHELL_ZOOM(z); return true; }"
 
 # E2 引擎模型:画面照常缩放,但页面读到的 rect 回到布局域(= Chromium 值 ÷ z)。
 # 数值依据真机实测:物理 720、z=0.8 时,1000px 元素在旧机量得 1000(Chromium 给 800,
@@ -237,6 +246,11 @@ def main():
         print("❌ 需要 playwright：python3 -m pip install playwright && python3 -m playwright install chromium")
         return 2
 
+    apply_src = extract_apply_zoom_js()
+    if apply_src is None:
+        return 2
+    apply_define_js = "() => { " + apply_src + " }"
+
     httpd = serve()
     failures, checked = [], 0
     sizes = SIZES[:1] if quick else SIZES
@@ -257,6 +271,7 @@ def main():
                         failures.append(f"{code} {w}x{h}: #mainContent 始终未渲染")
                         continue
                     page.wait_for_timeout(900)   # 等版面稳定(dva 首次 syncWorkspaceHeight)
+                    page.evaluate(apply_define_js)   # 挂上壳抽取版 __HOROSA_APPLY_SHELL_ZOOM
 
                     if self_test:
                         page.evaluate("(src) => { window.__AUDIT_SRC = src; }", AUDIT_JS)
@@ -265,15 +280,66 @@ def main():
                         print(f"  {code}  {w}x{h}  判别力 {res}")
                         if bad:
                             failures.append(f"{code} 判别力自证失败: {bad}")
+                        # [FOLLOW-STUCK 自证] 钉死 #mainContent 宽后拖视口,增幅判据必须能判红
+                        # (SELF_TEST_JS 已污染页面 → 先 reload 回干净态再演练)。
+                        page.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="load")
+                        page.wait_for_selector("#mainContent", timeout=15000)
+                        page.wait_for_timeout(900)
+                        page.evaluate(
+                            "() => { const m = document.getElementById('mainContent');"
+                            " m.style.width = '800px'; m.style.maxWidth = '800px';"
+                            " m.style.flex = 'none'; }")
+                        fs_before = page.evaluate(
+                            "() => window.__REAL_GBCR.call("
+                            "document.getElementById('mainContent')).width")
+                        page.set_viewport_size({"width": w + 240, "height": h + 160})
+                        page.wait_for_timeout(500)
+                        fs_after = page.evaluate(
+                            "() => window.__REAL_GBCR.call("
+                            "document.getElementById('mainContent')).width")
+                        follow_verdict = "PASS" if (fs_after - fs_before < 200) else "FAIL"
+                        print(f"  {code}  FOLLOW-STUCK 自证(钉宽拖窗须被判红): {follow_verdict}")
+                        if follow_verdict != "PASS":
+                            failures.append(
+                                f"{code} FOLLOW-STUCK 自证失败: 钉宽后拖窗仍量出跟随"
+                                f"({fs_before:.0f}→{fs_after:.0f}),判据无判别力")
                         break
 
                     for z in zooms:
-                        page.evaluate(APPLY_ZOOM_JS, z)
-                        page.wait_for_timeout(260)   # 等 resize/ResizeObserver 重算
+                        page.evaluate(APPLY_CALL_JS, z)
+                        page.wait_for_timeout(260)   # 等 resize/RO/rAF 重测拍重算
                         defects = page.evaluate(AUDIT_JS)
                         checked += 1
                         if defects:
                             failures.append(f"{code} {w}x{h} z={z}: {', '.join(defects[:4])}")
+
+                    # [FOLLOW-STUCK] 拖窗跟随判据(直击「不随窗口变化」):缩放档下拖大视口,
+                    # #mainContent 的真实(裁判域 __REAL_GBCR)宽度必须即时跟随且版面复审仍绿。
+                    # 判别边界(诚实标注):Playwright/Chromium 视口变化必发 resize 事件,复现
+                    # 不了 WKWebView 事件源冻结本身——那由壳侧 resize 桥+真机浮层读数覆盖;
+                    # 本判据锁的是「事件到了但版面不跟」的回归(钉宽/订阅断/域混挂死)。
+                    page.evaluate(APPLY_CALL_JS, 0.9)
+                    page.wait_for_timeout(300)
+                    fw_before = page.evaluate(
+                        "() => { const m = document.getElementById('mainContent');"
+                        " return m ? window.__REAL_GBCR.call(m).width : 0; }")
+                    page.set_viewport_size({"width": w + 240, "height": h + 160})
+                    page.wait_for_timeout(500)
+                    fw_after = page.evaluate(
+                        "() => { const m = document.getElementById('mainContent');"
+                        " return m ? window.__REAL_GBCR.call(m).width : 0; }")
+                    checked += 1
+                    if fw_after - fw_before < 200:
+                        failures.append(
+                            f"{code} {w}x{h} FOLLOW-STUCK: 拖窗 +240 后 #mainContent 裁判宽 "
+                            f"{fw_before:.0f}→{fw_after:.0f}(增幅<200,版面没跟随)")
+                    else:
+                        follow_defects = page.evaluate(AUDIT_JS)
+                        if follow_defects:
+                            failures.append(
+                                f"{code} {w + 240}x{h + 160} z=0.9(拖窗后复审): "
+                                f"{', '.join(follow_defects[:4])}")
+                    page.evaluate(APPLY_CALL_JS, 1)
                 ctx.close()
                 if self_test:
                     break
@@ -299,7 +365,8 @@ def main():
             print(f"   …… 另有 {len(failures) - 40} 处")
         return 1
     print(f"✅ 主应用版面体检全绿：{checked} 个组合"
-          f"（尺寸 × {len(ZOOMS)} 缩放档 × E2/E3 两种引擎语义）。")
+          f"（尺寸 × {len(ZOOMS)} 缩放档 × E2/E3 双引擎语义 + 逐组合拖窗跟随复审;"
+          f" 缩放实现=运行时抽取 main.rs 锚段,测的=跑的）。")
     return 0
 
 

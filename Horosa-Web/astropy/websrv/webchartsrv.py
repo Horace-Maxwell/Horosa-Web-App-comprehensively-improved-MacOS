@@ -69,6 +69,10 @@ CORE_SERVICE_SPECS = [
     {"key": "planetarium", "mount": "/planetarium", "module": "websrv.webplanetariumsrv", "class_name": "PlanetariumSrv"},
     # 天星择日·征象搜索(Calculate 侧;动盘侧=qizhengelection)。
     {"key": "electionscan", "mount": "/electionscan", "module": "websrv.webelectionscansrv", "class_name": "ElectionScanSrv"},
+    # [Z7] 七政择日·征象扫描(qizheng_election_scan;与天星 electionscan 同形薄壳)。
+    {"key": "qizhengelectionscan", "mount": "/qizhengelectionscan", "module": "websrv.webqizhengelectionscansrv", "class_name": "QizhengElectionScanSrv"},
+    # [Z8] 印度择日·征象扫描(india_election_scan;同形薄壳)。
+    {"key": "indiaelectionscan", "mount": "/indiaelectionscan", "module": "websrv.webindiaelectionscansrv", "class_name": "IndiaElectionScanSrv"},
 ]
 
 

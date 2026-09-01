@@ -799,6 +799,17 @@ export default {
             };
             window.addEventListener('resize', handleResize);
 
+            // [Tahoe 三保险] WKWebView 有 window resize 缺席前科(macOS 26 实报拖窗不重排);
+            // visualViewport 是独立事件源,复用同一 80ms 去抖入口——健康引擎上只是同一次
+            // 变化多进一次去抖=零成本,事件断链引擎上是第三保险(RO 是第二)。
+            let vvHandler = null;
+            try{
+                if(typeof window.visualViewport !== 'undefined' && window.visualViewport){
+                    vvHandler = handleResize;
+                    window.visualViewport.addEventListener('resize', vvHandler);
+                }
+            }catch(e){ vvHandler = null; }
+
             // 🔴 直接观察容器本身。window resize 只覆盖"窗口变了"这一种成因,漏掉
             // 缩放档切换、页头高度变化、栏位折叠等——而死带恰恰是"容器变了但没重算"。
             // 观察容器则不问成因,尺寸一动就跟。resize 监听保留作兜底(容器未挂载时仍需它)。
@@ -845,6 +856,10 @@ export default {
             return ()=>{
                 if(roTimer){ clearInterval(roTimer); }
                 if(workspaceRO){ try{ workspaceRO.disconnect(); }catch(e){ /* ignore */ } workspaceRO = null; }
+                if(vvHandler){
+                    try{ window.visualViewport.removeEventListener('resize', vvHandler); }catch(e){ /* ignore */ }
+                    vvHandler = null;
+                }
                 window.removeEventListener('resize', handleResize);
                 if(resizeTimer){
                     clearTimeout(resizeTimer);

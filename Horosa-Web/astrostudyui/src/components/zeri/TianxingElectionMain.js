@@ -416,6 +416,7 @@ export default class TianxingElectionMain extends Component{
 						planetDisplay: this.props.planetDisplay,
 						lotsDisplay: this.props.lotsDisplay,
 						showAstroMeaning: this.props.showAstroMeaning,
+						wheelArt: this.props.wheelArt,	// 概览浮窗盘式(曾只从顶层传、Modal 签名未接=断链)
 					}}
 					scanning={this.state.scanning}
 					progress={this.state.progress}

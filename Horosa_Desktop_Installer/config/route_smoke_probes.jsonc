@@ -72,6 +72,9 @@
     { "id": "india",       "mount": "/india",       "path": "/india/chart",       "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["chart", "params"] } },
     { "id": "qizhengelection", "mount": "/qizhengelection", "path": "/qizhengelection/pan", "payload_ref": "chart", "payload_extra": { "ping": true }, "assert": { "result_code0": true } },
     { "id": "electionscan", "mount": "/electionscan", "path": "/electionscan/scan", "payload_ref": "chart", "payload_extra": { "ping": true }, "assert": { "result_code0": true } },
+    // [Z7/Z8] 择日 py 双引擎(薄壳 ping 短路,与 electionscan 同形)。
+    { "id": "qizhengelectionscan", "mount": "/qizhengelectionscan", "path": "/qizhengelectionscan/scan", "payload_ref": "chart", "payload_extra": { "ping": true }, "assert": { "result_code0": true } },
+    { "id": "indiaelectionscan", "mount": "/indiaelectionscan", "path": "/indiaelectionscan/scan", "payload_ref": "chart", "payload_extra": { "ping": true }, "assert": { "result_code0": true } },
     { "id": "modern",      "mount": "/modern",      "path": "/modern/relative",   "payload_ref": "chart", "payload_extra": { "inner": { "date": "2026/05/24", "time": "09:30:00", "zone": "+08:00", "lat": "31n14", "lon": "121e28" }, "outer": { "date": "1994/01/17", "time": "23:15:00", "zone": "-08:00", "lat": "34n03", "lon": "118w15" } }, "assert": { "no_err": true, "nonempty": true } },
     { "id": "germany",     "mount": "/germany",     "path": "/germany/midpoint",  "payload_ref": "chart", "assert": { "no_err": true, "expect_keys": ["midpoints"] } },
     { "id": "jieqi",       "mount": "/jieqi",       "path": "/jieqi/year",        "payload_ref": "chart", "payload_extra": { "year": 2026 }, "assert": { "no_err": true, "nonempty": true } },

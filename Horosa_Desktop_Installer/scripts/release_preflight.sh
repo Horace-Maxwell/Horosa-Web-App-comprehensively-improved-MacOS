@@ -3724,6 +3724,62 @@ else
     fi
 fi
 
+# [223] Tahoe 版面根治锁(2026-09-01):四链修复(盘面域混/resize 事件链/缩放数值漂移/探针
+#      多拍)的结构完整性。历史教训:audit 内嵌 APPLY 拷贝悄悄漂移成假「逐字对齐」,故
+#      ③强制运行时抽取+零拷贝;紫微 rect→style 域混由 jest T4+此处双锁。
+echo "[223] Tahoe 版面根治锁(域混/resize 桥/探针多拍/zoom-snap)"
+S223_BAD=0
+S223_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S223_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+# ① 壳侧四标记+多拍 token
+for S223_TOK in "zoom-apply-fn:begin" "zoom-apply-fn:end" "tahoe-resize-bridge" "zoom-snap"; do
+  grep -aq "\[${S223_TOK}\]" "${S223_MAIN}" || { bad "[223] main.rs 缺 [${S223_TOK}] 标记"; S223_BAD=1; }
+done
+grep -aq "__applyBodyComp('raf')" "${S223_MAIN}" || { bad "[223] main.rs 探针缺 rAF 重测拍"; S223_BAD=1; }
+grep -aq "__applyBodyComp('load')" "${S223_MAIN}" || { bad "[223] main.rs 探针缺 load 重测拍"; S223_BAD=1; }
+grep -aq "__applyBodyComp('resize')" "${S223_MAIN}" || { bad "[223] main.rs 探针缺 resize 重跑"; S223_BAD=1; }
+grep -aq "(value \* 10.0).round() / 10.0" "${S223_MAIN}" || { bad "[223] main.rs zoom snap 归一被删"; S223_BAD=1; }
+grep -aq "dispatchEvent(new Event('resize'))" "${S223_MAIN}" || { bad "[223] main.rs resize 桥派发被删"; S223_BAD=1; }
+# ② global.js 同构 token+诊断出口
+for S223_GT in "__applyBodyComp('raf')" "__applyBodyComp('load')" "__applyBodyComp('resize')" "__HOROSA_ZOOM_PROBE_LAST" "__HOROSA_ZOOM_REPROBE_ARMED" "horosa.compat.zoomReprobe"; do
+  grep -aqF "${S223_GT}" "${S223_UI}/src/global.js" || { bad "[223] global.js 缺同构 token: ${S223_GT}"; S223_BAD=1; }
+done
+# ③ audit 运行时抽取+零内嵌 APPLY 拷贝(剥注释判,calc 补偿串只许活在 main.rs 抽取段)
+grep -aq "extract_apply_zoom_js" "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/audit_app_layout.py" \
+  || { bad "[223] audit_app_layout.py 缺运行时抽取(测的≠跑的回潮)"; S223_BAD=1; }
+S223_INLINE="$(sed 's/#.*$//' "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/audit_app_layout.py" | grep -ac "calc(100% / ")"
+[ "${S223_INLINE}" = "0" ] || { bad "[223] audit_app_layout.py 又出现内嵌补偿拷贝 ×${S223_INLINE}(必须运行时抽取)"; S223_BAD=1; }
+# ④ 四 jest 合同在位
+for S223_T in \
+  src/utils/__tests__/shellZoomProbeGuard.test.js \
+  src/components/ziwei/__tests__/ziweiChartSurfaceDomain.test.js \
+  src/components/graph/__tests__/graphTextFill.test.js; do
+  [ -f "${S223_UI}/${S223_T}" ] || { bad "[223] jest 合同缺失: ${S223_T}"; S223_BAD=1; }
+done
+grep -aq "T4 rect→style 写回族" "${S223_UI}/src/utils/__tests__/layoutDomainStaticGuard.test.js" \
+  || { bad "[223] layoutDomainStaticGuard 缺 T4 rect→style 写回族"; S223_BAD=1; }
+# ⑤ 紫微主刀点零 gBCR(剥注释;修复注释点名旧 API 属正常)
+S223_ZW="$(awk '/ensureChartSurfaceSize\(/{f=1} f&&/drawChart\(/{exit} f' "${S223_UI}/src/components/ziwei/ZiWeiChart.js" | grep -v '^\s*//' | grep -ac 'getBoundingClientRect')"
+[ "${S223_ZW}" = "0" ] || { bad "[223] ZiWeiChart.ensureChartSurfaceSize 又吃 rect 域读数(域混回潮)"; S223_BAD=1; }
+# ⑥ GraphHelper 文字填色渲染(4 个 text 分支 stroke=none)
+S223_GH="$(grep -ac "\.attr('stroke', 'none')" "${S223_UI}/src/components/graph/GraphHelper.js")"
+[ "${S223_GH}" -ge 4 ] || { bad "[223] GraphHelper 文字 stroke=none 不足 4 处(描边回潮,实测 ${S223_GH})"; S223_BAD=1; }
+# ⑦ models/app.js visualViewport 对称挂/卸
+grep -aq "window.visualViewport.addEventListener('resize', vvHandler)" "${S223_UI}/src/models/app.js" \
+  || { bad "[223] models/app.js 缺 visualViewport 三保险挂载"; S223_BAD=1; }
+grep -aq "window.visualViewport.removeEventListener('resize', vvHandler)" "${S223_UI}/src/models/app.js" \
+  || { bad "[223] models/app.js visualViewport 卸载不对称"; S223_BAD=1; }
+[ "${S223_BAD}" = "0" ] && ok "[223] Tahoe 四链根治结构全在位(壳桥+多拍探针+snap+域混锁+填色+vv 三保险)"
+
+# [224] 布局取证段零残留(同步剥离终验):global.js 在本仓不得含任何 @horosa-private 标记
+#      或诊断浮层痕迹(上游剥离通道的最终审计位)。
+echo "[224] global.js 布局取证段零残留"
+S224_BAD=0
+S224_F="${REPO_ROOT}/Horosa-Web/astrostudyui/src/global.js"
+S224_LEAK="$(grep -aciE "@horosa-private|layout-probe|布局诊断浮层|KeyL" "${S224_F}")"
+[ "${S224_LEAK}" = "0" ] || { bad "[224] global.js 残留私有标记/诊断浮层痕迹 ×${S224_LEAK}"; S224_BAD=1; }
+[ "${S224_BAD}" = "0" ] && ok "[224] global.js 零私有标记零浮层痕迹"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

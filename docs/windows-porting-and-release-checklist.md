@@ -630,3 +630,20 @@ Horosa_Windows_Installer/
 Windows 版完成的定义不是“能打开”，而是：
 
 安装后的 app，在干净 Windows 机器上，不联网也能打开；所有已加入的命法和卜法都能起盘；管理命盘/管理事盘不会丢任何必要信息；AI 导出能按当前页面和当前 tab 输出完整结构化内容；关闭重开和版本升级后用户数据仍在；正式发布包下载回来后仍然通过同一套自检。
+
+## v3.10.0 同步要点(Mac 已落地,Windows 按此对齐)
+
+### AI 流式超时三层语义(修 Windows issue #77)
+- `services/aianalysis.js`:空闲看门狗 STALL 默认 90s→**180s**(仅 delta/reasoning 产出事件续命,心跳不续);流总时长上限 MAX 默认 300s→**1800s**(此前 5 分钟硬顶会掐断深思模型的正常长回答)。两默认可被 `providerOptions.streamStallMs / streamMaxStreamMs` 覆盖(毫秒,1s 下限)。
+- 设置面板:新增「流式空闲上限(秒)」「流式总时长上限(秒)」两参数;「请求超时(毫秒)」说明改为「仅作用于非流式请求(测试连接/拉模型/取材料)」。
+- Java 代理 `AIAnalysisProxyService`:流式请求不再把 requestTimeoutMs 设为 HttpRequest 总时限;providerOptions 剥离清单加 `streamStallMs`/`streamMaxStreamMs`(不下发上游)。
+- 契约测试 `services/__tests__/aiStreamWatchdog.test.js` 六例可直接移植。
+
+### 紫微挂载设置(修 Windows issue #76)
+- 紫微 AI 挂载设置的传本/排盘开关(含紫云太岁入卦、太岁关系人)补齐 globalCurrent 基线锚——挂载设置真实生效、与主页左栏设置及跨命盘完全隔离。对应 `techniqueMountSettings.js` 紫微段 30 键。
+
+### 真太阳时精度
+- `baziLunarLocal.js` 均时差换 NOAA/Meeus 高精度式(旧教科书简式误差 ±1-2 分钟,时辰边界附近会与后端引擎判到不同时辰);经度缺失时回退 gpsLon 并告警,不再静默按钟表时。
+
+### 择日十技法
+- Mac 版择日页本版扩至十技法(新增黄历/八字/太乙/紫微/六壬/三式合一/七政/印度择时),前端实现全在 `src/divination/zeri/` 与 `src/components/zeri/`,七政/印度另有 Python 端点 `/qizhengelectionscan` `/indiaelectionscan`。Windows 侧如跟进,以本仓这批文件为准整体移植(判定与主盘同源零第二实现,带全套 jest/pytest 金标)。

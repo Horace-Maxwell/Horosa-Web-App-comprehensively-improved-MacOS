@@ -94,3 +94,91 @@ describe('T3 壳内三页:同一标准', () => {
 		expect(src.indexOf('position:fixed;left:0;top:0;right:0;bottom:0') >= 0).toBe(true);
 	});
 });
+
+
+// ── T4 rect→style 写回族(2026-09-01 Tahoe 轮新增) ─────────────────────────────
+// 第三族域混:getBoundingClientRect(rect 域,壳缩放≠1 时已被 zoom 缩放)的读数被写进
+// style.width/height(CSS 布局域 px)。z≠1 即写错尺寸——紫微盘面「超宽被两侧遮裁」的
+// 元凶(ZiWeiChart.ensureChartSurfaceSize,已改 offsetWidth 直读)。上面的 PATTERN 只抓
+// 「读数÷标识符」,抓不到这种跨域直写,故按「文件同时含 gBCR 与 style 尺寸写」粗筛+
+// 豁免表精判。豁免必须带一行可自证的判定依据,严禁为绿而豁免。
+const RECT_WRITE_EXEMPT = [
+	// rect 仅用于鼠标坐标换算(注释自证「getBoundingClientRect 本就是 CSS px」);
+	// canvas 尺寸写回值源自 host.clientWidth(布局域)——读写同域。
+	'components/fengshui/fengshuiEngine.js',
+	// rect 用于克隆节点测自然高(clone 脱离布局流,与写回目标同一元素同域)。
+	'components/calendar/NongLi.js',
+	// rect 用于阅读器翻页几何(与滚动坐标同域消费),尺寸写回源自 clientWidth。
+	'components/reader/BookReader.js',
+	// 3D 视图:rect 用于 pointer 拾取(物理域正当消费);画布尺寸走 clientWidth+dpr。
+	'components/astro3d/Astro3D.js',
+	'components/astro3d/AstroChart3D.js',
+	// 方盘边长已改 clientWidth 优先,残余 rect 仅作 0 兜底且经 getEffectiveScale 换域,
+	// 以及 rect.top 域内相减后显式 /zScale 换回布局域(见各自 [Tahoe 域混根修] 注释)。
+	'components/suzhan/SuZhanChart.js',
+	'components/guolao/GuoLaoChart.js',
+];
+
+function fileHasRectStyleWrite(fullPath){
+	const src = fs.readFileSync(fullPath, 'utf8');
+	// 注释里的字样不算(哨兵纯文本陷阱,上面 isComment 同教训)
+	const code = src.split('\n').filter((l) => !isComment(l)).join('\n');
+	return code.indexOf('getBoundingClientRect') >= 0
+		&& /style\.(width|height)\s*=/.test(code);
+}
+
+function walkJs(dir, out){
+	for(const name of fs.readdirSync(dir)){
+		const full = path.join(dir, name);
+		const st = fs.statSync(full);
+		if(st.isDirectory()){
+			if(name === '__tests__' || name === 'node_modules'){ continue; }
+			walkJs(full, out);
+		}else if(name.endsWith('.js')){
+			out.push(full);
+		}
+	}
+	return out;
+}
+
+describe('T4 rect→style 写回族(第三族域混)', () => {
+	it('扫描器在人造违规上必须判红(判别力自证)', () => {
+		const tmp = path.join(SRC, 'utils', '__tests__', '__probe_rect_write__.js');
+		fs.writeFileSync(tmp,
+			'const r = el.getBoundingClientRect();\nel.style.width = r.width + "px";\n');
+		try{
+			expect(fileHasRectStyleWrite(tmp)).toBe(true);
+		}finally{
+			fs.unlinkSync(tmp);
+		}
+	});
+
+	it('🔴 components 全树:gBCR 与 style 尺寸写共存的文件必须在豁免表内(带依据)', () => {
+		const compDir = path.join(SRC, 'components');
+		const offenders = walkJs(compDir, [])
+			.filter((f) => fileHasRectStyleWrite(f))
+			.map((f) => path.relative(SRC, f).split(path.sep).join('/'))
+			.filter((rel) => !RECT_WRITE_EXEMPT.includes(rel));
+		expect(offenders.join('\n')).toBe('');
+	});
+
+	it('豁免清单不腐烂:每个豁免文件必须仍存在且仍双命中(否则摘除豁免)', () => {
+		for(const rel of RECT_WRITE_EXEMPT){
+			const full = path.join(SRC, rel);
+			expect(fs.existsSync(full)).toBe(true);
+			expect(fileHasRectStyleWrite(full)).toBe(true);
+		}
+	});
+
+	it('🔴 紫微主刀点自身:ensureChartSurfaceSize 已是布局域直读(零 gBCR)', () => {
+		const src = fs.readFileSync(path.join(SRC, 'components', 'ziwei', 'ZiWeiChart.js'), 'utf8');
+		const fnStart = src.indexOf('ensureChartSurfaceSize(');
+		expect(fnStart).toBeGreaterThan(0);
+		// 剥注释再判(修复注释里点名了旧病 API 名——哨兵纯文本陷阱,只认代码行)
+		const fnBody = src.slice(fnStart, src.indexOf('drawChart(', fnStart))
+			.split('\n').filter((l) => !isComment(l)).join('\n');
+		expect(fnBody.indexOf('getBoundingClientRect')).toBe(-1);
+		expect(fnBody.indexOf('offsetWidth')).toBeGreaterThan(0);
+		expect(fnBody.indexOf('offsetHeight')).toBeGreaterThan(0);
+	});
+});

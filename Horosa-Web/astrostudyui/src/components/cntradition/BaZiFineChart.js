@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import React, { Component } from 'react';
 import { BaZiMsg } from '../../msg/bazimsg';
 import { getSelfZuo, hiddenStemsOf, xunKongOf } from '../../utils/baziLunarLocal';
 import { filterShenShaByGroups } from '../../utils/baziShenShaLocal';
