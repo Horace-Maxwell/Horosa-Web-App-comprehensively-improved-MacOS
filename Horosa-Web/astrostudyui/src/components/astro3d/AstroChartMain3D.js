@@ -26,6 +26,8 @@ import {
 import { sideSectionIcon } from '../../constants/sideSectionIcons'; // [观象P2]
 import * as AstroConst from '../../constants/AstroConst';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
+// [视觉底线·2026-09-17] 最小尺寸是屏幕可读意图(物理 px),壳缩放 z 下按 1/z 折算成布局 px;z=1 恒等。
+import { visualFloorPx } from '../../utils/zoomDomain';
 
 const TabPane = XQTabs.TabPane;
 const Option = XQSelect.Option;
@@ -284,7 +286,7 @@ class AstroChartMain3D extends Component{
 		}	
 
 		let height = this.props.height ? this.props.height : 760;
-		let chartHeight = Math.max(360, height - 28);
+		let chartHeight = Math.max(visualFloorPx(360), height - 28);
 		let tabHeight = this.state.tabH || (height - 252);
 
 		let showzodical = true;
@@ -385,10 +387,13 @@ class AstroChartMain3D extends Component{
 							</XQSelect>
 						) : null}
 						{showhsys ? (
+							// [TL-16] 星座口径只对南纬盘生效(changeSouthChart 北纬直接 return):北纬置灰并写明,此前受控值不变、无任何提示
 							<XQSelect
 								onChange={this.changeSouthChart}
 								value={this.props.fields.southchart.value}
 								size='small'
+								disabled={!(this.props.fields.gpsLat && this.props.fields.gpsLat.value < 0)}
+								title={(this.props.fields.gpsLat && this.props.fields.gpsLat.value < 0) ? undefined : '仅南纬盘生效(北半球两种画法相同)'}
 							>
 								<Option value={0}>天文星座</Option>
 								<Option value={1}>涵义星座</Option>
@@ -431,6 +436,8 @@ class AstroChartMain3D extends Component{
 						</XQToolbar>
 					) : null}
 					<div className="horosa-3d-tabs-fill" ref={this.attachSideTabsRO}>
+					{/* [Q-376/T-356 裁决 2026-09-18] 非地心时右栏四页签仍是地心盘(/chart3d/state 只重算球体与轨道)→ 明说,不再让帮助的「整盘重算」误导 */}
+					{this.state.centerMode && this.state.centerMode !== 'geo' ? <div className="horosa-3d-geo-note" style={{ fontSize: 12, opacity: 0.75, padding: '2px 8px' }}>以下信息 / 相位 / 行星 / 希腊点为地心盘（换心只作用于 3D 球体与轨道；悬浮提示按黄道设置取座）</div> : null}
 					<XQTabs defaultActiveKey="1" tabPosition='top' className="horosa-3d-tabs">
 						<TabPane tab="信息" key="1">
 							<AstroInfo height={tabHeight}

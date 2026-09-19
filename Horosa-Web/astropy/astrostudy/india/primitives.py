@@ -171,15 +171,17 @@ def friend_signs(planet, planet_signs):
 # ── P-b Rasi Drishti（Ch10.3）────────────────────────────────────────────
 def rasi_drishti(sign):
     """该 rasi 照见的 rasi 列表：动→所有定(除相邻定)、定→所有动(除相邻动)、双→所有其它双。"""
+    # [Q-232/T-196] 受照座此前按 set 迭代:字符串哈希按进程随机 → 同一盘重启后端后行序不同,
+    # AI 快照/导出 [节点主照] 行序随每次启动漂移。改按黄道序(SIGNS)输出,内容集合不变。
     q = quality(sign)
     if q == 'movable':
         adjacent = offset_sign(sign, 2)  # 下一宫(必为定)
-        return [s for s in FIXED if s != adjacent]
+        return [s for s in SIGNS if s in FIXED and s != adjacent]
     if q == 'fixed':
         prev = offset_sign(sign, 12)  # 上一宫(必为动)
-        return [s for s in MOVABLE if s != prev]
+        return [s for s in SIGNS if s in MOVABLE and s != prev]
     # dual → 其它三个 dual
-    return [s for s in DUAL if s != sign]
+    return [s for s in SIGNS if s in DUAL and s != sign]
 
 
 def rasi_aspects(from_sign, to_sign):

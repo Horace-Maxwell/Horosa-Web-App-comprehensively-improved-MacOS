@@ -12,7 +12,7 @@
 # 这两层都属于「肉眼看不出、只有比 sha 才现形」的病——故必须留成可执行护栏。
 #
 # 用法:bash scripts/verify_component_reproducibility.sh
-#   耗时约 2×payload 打包(~20 分钟,第二轮因签名缓存命中会明显更快)。
+#   耗时约 2×payload 打包(~20 分钟,第二遍因签名缓存命中会明显更快)。
 #   需要 APPLE_SIGNING_IDENTITY(与真实发布同条件);缺失时签名段会被跳过,判据仍有效但
 #   覆盖面变小(测不到签名缓存),此时脚本会显式提示。
 set -uo pipefail

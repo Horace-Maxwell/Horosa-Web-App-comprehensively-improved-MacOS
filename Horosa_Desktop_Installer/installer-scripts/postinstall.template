@@ -351,7 +351,7 @@ if [ -d "${CURRENT_DIR}" ]; then
   fi
   # [U-I G3] 降级门:已装 runtime 比本包更新且可用 → 保留不覆盖(旧 pkg 覆盖装曾会
   # 造成「新 App+旧 runtime」错位;App 侧 BundleIsVersionChecked 已不降,runtime 补齐
-  # 对称守卫)。确需退版:先手动删 ${RUNTIME_ROOT}/current 再重装(PLAYBOOK 有剧本)。
+  # 对称守卫)。确需退版:先手动删 ${RUNTIME_ROOT}/current 再重装(见更新排障剧本)。
   if [ -n "${EXISTING_VERSION}" ] && runtime_payload_is_usable; then
     NEWER_VERSION="$(printf '%s\n%s\n' "${EXISTING_VERSION}" "${EXPECTED_VERSION}" | /usr/bin/sort -V | /usr/bin/tail -1)"
     if [ "${NEWER_VERSION}" = "${EXISTING_VERSION}" ] && [ "${EXISTING_VERSION}" != "${EXPECTED_VERSION}" ]; then

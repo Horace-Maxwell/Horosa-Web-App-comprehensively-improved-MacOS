@@ -4,7 +4,7 @@
 //   - 新增挂载而不加探针 → check_route_probe_drift.py 直接 FAIL(发布拦截);
 //   - 断言三层:HTTP<500 且 JSON 可解析 → 业务码(result_code0 / no_err) → 真实计算特征(expect);
 //   - payload_ref 指向 payloads 库;字段可按探针以 payload_extra 覆盖/追加;
-//   - 加载器忽略以 // 开头的行(JSONC-lite),以便私有条目用剥离标记包裹。
+//   - 加载器忽略以 // 开头的行(JSONC-lite),以便条目可用标记行包裹。
 {
   "version": 1,
   "payloads": {

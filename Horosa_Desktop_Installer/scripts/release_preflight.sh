@@ -14,6 +14,15 @@ fail=0
 ok()   { printf '  \033[32m✅\033[0m %s\n' "$1"; }
 bad()  { printf '  \033[31m❌\033[0m %s\n' "$1" >&2; fail=1; }
 warn() { printf '  \033[33m⚠️\033[0m  %s\n' "$1"; }
+# pipe_has <grep 参数…> —— 「管道接 grep -q」的等价替身:从标准输入读,命中返回 0;参数与 grep 同形(去掉 q)。
+#   本脚本开着 pipefail。`… | grep -q` 命中即退,上游若还有超过管道缓冲(64KB)的内容没写完就吃 SIGPIPE,整条管道按失败计:
+#   「命中 → 报红」的缺席型检查因此**假绿**(旧坏形态回潮却判通过),「未命中 → 报红」的存在型检查因此假红。
+#   计数式必须读完全部输入,上游不会被掐断。本脚本的代码行里不许再出现「管道接 grep -q」(由文末哨兵机械锁)。
+pipe_has(){ local n; n="$(grep -ac "$@" 2>/dev/null || true)"; [ "${n:-0}" -gt 0 ] 2>/dev/null; }
+# 前端源面清单(单源 = astrostudyui/scripts/fe-source-paths.txt):构建时判脏(write-build-info.js)、本脚本两处构建指纹判定、
+#   打包产物前端冒烟(verify_packaged_frontend.sh)同读这一份。读不到或为空 = 无从判定产物与源码是否对应 → [122] fail-closed 报红。
+FE_SRC_LIST_FILE="${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/fe-source-paths.txt"
+FE_SRC_PATHS="$(grep -avE '^[[:space:]]*(#|$)' "${FE_SRC_LIST_FILE}" 2>/dev/null | sed -e 's/[[:space:]]*$//' -e 's#^#Horosa-Web/astrostudyui/#' | tr '\n' ' ')"
 
 # keg-only node@22 不在默认 PATH 的终端会让 node -e 检查假阳性失败、误拦 pre-push;缺 node 则自动补常见位置的 node。
 if ! command -v node >/dev/null 2>&1; then
@@ -40,7 +49,7 @@ else
 fi
 grep -q "APP_VERSION = '${VERSION}'" "${INSTALLER_ROOT}/web/app.js"                 && ok "web/app.js"          || bad "web/app.js APP_VERSION != ${VERSION}"
 # Cargo.lock: 本项目包的版本
-if awk '/^name = "horosa-desktop-installer"$/{getline; print}' "${INSTALLER_ROOT}/src-tauri/Cargo.lock" | grep -q "version = \"${VERSION}\""; then ok "Cargo.lock"; else bad "Cargo.lock horosa-desktop-installer version != ${VERSION}"; fi
+if awk '/^name = "horosa-desktop-installer"$/{getline; print}' "${INSTALLER_ROOT}/src-tauri/Cargo.lock" | pipe_has "version = \"${VERSION}\""; then ok "Cargo.lock"; else bad "Cargo.lock horosa-desktop-installer version != ${VERSION}"; fi
 # runtimeVersion 必须是 {VERSION}-runtimeN
 case "${RUNTIME_VERSION}" in "${VERSION}-runtime"*) ok "release_config runtimeVersion (${RUNTIME_VERSION})";; *) bad "runtimeVersion '${RUNTIME_VERSION}' 不是 ${VERSION}-runtimeN";; esac
 # 运行时版本闸字面量单源已迁 basecomm RuntimeWire(各控制器只引用不手抄);须与 runtimeVersion lockstep(改后须 mvn install basecomm 起整链+重建 boot)
@@ -94,14 +103,15 @@ if [ -f "${DIST}" ]; then
   # build-info.commit 为 HEAD(或 HEAD 祖先且前端源面零 diff)。满足即产物源自 HEAD 前端源,mtime 假旧可豁免。
   _DINFO="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file/build-info.json"
   _DIST_FRESH=0
-  if [ -f "${_DINFO}" ] && git -C "${REPO_ROOT}" diff --quiet HEAD -- Horosa-Web/astrostudyui/src 2>/dev/null; then
+  # shellcheck disable=SC2086
+  if [ -f "${_DINFO}" ] && [ -n "${FE_SRC_PATHS// /}" ] && git -C "${REPO_ROOT}" diff --quiet HEAD -- ${FE_SRC_PATHS} 2>/dev/null; then
     _DC="$(python3 -c "import json;print(json.load(open('${_DINFO}')).get('commit',''))" 2>/dev/null || echo "")"
     _DD="$(python3 -c "import json;print(1 if json.load(open('${_DINFO}')).get('dirty') else 0)" 2>/dev/null || echo "1")"
     _DH="$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || echo "")"
     if [ "${_DD}" = "0" ] && [ -n "${_DC}" ]; then
       if [ "${_DC}" = "${_DH}" ]; then _DIST_FRESH=1
       elif git -C "${REPO_ROOT}" merge-base --is-ancestor "${_DC}" "${_DH}" 2>/dev/null \
-           && [ -z "$(git -C "${REPO_ROOT}" diff --name-only "${_DC}" "${_DH}" -- Horosa-Web/astrostudyui/src Horosa-Web/astrostudyui/package.json Horosa-Web/astrostudyui/.umirc.js Horosa-Web/astrostudyui/public 2>/dev/null)" ]; then _DIST_FRESH=1; fi
+           && [ -z "$(git -C "${REPO_ROOT}" diff --name-only "${_DC}" "${_DH}" -- ${FE_SRC_PATHS} 2>/dev/null)" ]; then _DIST_FRESH=1; fi
     fi
   fi
   if [ "${_DIST_FRESH}" = "1" ]; then
@@ -360,7 +370,7 @@ if [ -f "${STARTSH}" ]; then
     bad "start_horosa_local.sh 缺 exit 3 / bind_err_re 精确 token —— 端口竞态无法被 Rust 识别重试(修法2)"
   fi
   # 防回归(红队 C2):bind 错正则绝不能含裸小写 'port' 分支(否则 Spring banner/--server.port= 会被误判)。
-  if grep "bind_err_re=" "${STARTSH}" | grep -qF "|port"; then
+  if grep "bind_err_re=" "${STARTSH}" | pipe_has -F "|port"; then
     bad "bind_err_re 含裸 'port' 分支 —— 会把正常输出误判为端口冲突(红队 C2),请改回精确 token"
   else
     ok "修法2 bind_err_re 不含裸 port(精确匹配,无误判)"
@@ -416,7 +426,7 @@ if [ -f "${CHARTFETCH}" ] && [ -f "${REQJS}" ]; then
   fi
   # SSE 必须排除重试:requestStream 函数体内不得出现重试封装(防双发/重复计费)。
   if grep -q "export async function requestStream" "${REQJS}" \
-     && ! awk '/export async function requestStream/,/^}/' "${REQJS}" | grep -q "fetchWithRetryConnRefused"; then
+     && ! awk '/export async function requestStream/,/^}/' "${REQJS}" | pipe_has "fetchWithRetryConnRefused"; then
     ok "修法5 SSE(requestStream)未接入重试(防双发/重复计费)"
   else
     bad "requestStream 疑似接入重试封装 —— SSE/AI 流绝不可重试(会双发/重复计费,红队)"
@@ -456,7 +466,7 @@ if [ -f "${ZW_FAT_JAR}" ] && command -v unzip >/dev/null 2>&1; then
   zw_cn="$(unzip -Z1 "${ZW_FAT_JAR}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
   if [ -n "${zw_cn}" ]; then
     zw_list="$(cd "$(mktemp -d)" && unzip -oq "${ZW_FAT_JAR}" "${zw_cn}" 2>/dev/null && unzip -Z1 "${zw_cn}" 2>/dev/null)"
-    if echo "${zw_list}" | grep -q "ZiWeiLuck.class" && echo "${zw_list}" | grep -q "ZiWeiPattern.class" && echo "${zw_list}" | grep -q "ziweige.json" && echo "${zw_list}" | grep -q "ziweiliuchangqu.json"; then
+    if echo "${zw_list}" | pipe_has "ZiWeiLuck.class" && echo "${zw_list}" | pipe_has "ZiWeiPattern.class" && echo "${zw_list}" | pipe_has "ziweige.json" && echo "${zw_list}" | pipe_has "ziweiliuchangqu.json"; then
       ok "[20] fat jar 已含 ZiWeiLuck/ZiWeiPattern + ziweige/ziweiliuchangqu(gotcha #10)"
     else
       bad "[20] fat jar 缺紫微运限/格局类或数据 —— 需 astrostudycn install + astrostudyboot clean package"
@@ -487,8 +497,8 @@ if [ -f "${ZW_FAT_JAR}" ] && command -v unzip >/dev/null 2>&1; then
   zw2_cn="$(unzip -Z1 "${ZW_FAT_JAR}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
   if [ -n "${zw2_cn}" ]; then
     zw2_dir="$(mktemp -d)"; ( cd "${zw2_dir}" && unzip -oq "${ZW_FAT_JAR}" "${zw2_cn}" 2>/dev/null )
-    if unzip -p "${zw2_dir}/${zw2_cn}" spacex/astrostudycn/model/ZiWeiPattern.class 2>/dev/null | strings | grep -q "inOpp"; then ok "[20b] fat jar ZiWeiPattern 含新 op(inOpp)"; else bad "[20b] fat jar 未含新 op —— 需 astrostudycn install + astrostudyboot clean package"; fi
-    if unzip -p "${zw2_dir}/${zw2_cn}" spacex/astrostudycn/model/ZiWeiChart.class 2>/dev/null | grep -aq "setupStarsTianShangShi"; then ok "[20b] fat jar ZiWeiChart 含天伤天使"; else bad "[20b] fat jar 未含天伤天使 —— 需重编"; fi
+    if unzip -p "${zw2_dir}/${zw2_cn}" spacex/astrostudycn/model/ZiWeiPattern.class 2>/dev/null | strings | pipe_has "inOpp"; then ok "[20b] fat jar ZiWeiPattern 含新 op(inOpp)"; else bad "[20b] fat jar 未含新 op —— 需 astrostudycn install + astrostudyboot clean package"; fi
+    if unzip -p "${zw2_dir}/${zw2_cn}" spacex/astrostudycn/model/ZiWeiChart.class 2>/dev/null | pipe_has "setupStarsTianShangShi"; then ok "[20b] fat jar ZiWeiChart 含天伤天使"; else bad "[20b] fat jar 未含天伤天使 —— 需重编"; fi
   fi
 fi
 
@@ -530,11 +540,11 @@ AIEXPORT_TEST_JS="${UISRC}/utils/__tests__/aiExport.test.js"
 precise_fb_cnt=$(awk '/export async function fetchPreciseNongli/,/^}/' "${PRECISE_JS}" 2>/dev/null | grep -c "buildLocalNongliFallback")
 if [ "${precise_fb_cnt:-0}" -ge 2 ]; then ok "[24] fetchPreciseNongli 软失败也走本地兜底(B1:奇门/太乙离线不缺失)"; else bad "[24] fetchPreciseNongli 兜底疑似仍只在 catch(B1 回退风险)"; fi
 # New3：卜卦盘/择日盘进白名单
-if awk '/TIME_CASTABLE_DIVINATION =/' "${LR_AICTX}" 2>/dev/null | grep -q "horary" && awk '/TIME_CASTABLE_DIVINATION =/' "${LR_AICTX}" 2>/dev/null | grep -q "election"; then ok "[24] 卜卦盘/择日盘已入 TIME_CASTABLE_DIVINATION"; else bad "[24] TIME_CASTABLE_DIVINATION 缺 horary/election"; fi
+if awk '/TIME_CASTABLE_DIVINATION =/' "${LR_AICTX}" 2>/dev/null | pipe_has "horary" && awk '/TIME_CASTABLE_DIVINATION =/' "${LR_AICTX}" 2>/dev/null | pipe_has "election"; then ok "[24] 卜卦盘/择日盘已入 TIME_CASTABLE_DIVINATION"; else bad "[24] TIME_CASTABLE_DIVINATION 缺 horary/election"; fi
 # 🔒 铁律：六爻永不入时间确定白名单(否则按时间伪造卦象)
-if awk '/TIME_CASTABLE_DIVINATION =/' "${LR_AICTX}" 2>/dev/null | grep -q "sixyao"; then bad "[24] 🔒 铁律破:六爻进了 TIME_CASTABLE_DIVINATION"; else ok "[24] 🔒 六爻未入时间确定白名单(护栏在)"; fi
+if awk '/TIME_CASTABLE_DIVINATION =/' "${LR_AICTX}" 2>/dev/null | pipe_has "sixyao"; then bad "[24] 🔒 铁律破:六爻进了 TIME_CASTABLE_DIVINATION"; else ok "[24] 🔒 六爻未入时间确定白名单(护栏在)"; fi
 # F：河洛快照出流年卦(调 liuNian)
-if awk '/export function buildSnapshotText/,/return lines.join/' "${HELUO_JS}" 2>/dev/null | grep -q "liuNian("; then ok "[24] 河洛 buildSnapshotText 已出流年卦(调 liuNian)"; else bad "[24] 河洛快照未调 liuNian —— 仍缺整层流年卦"; fi
+if awk '/export function buildSnapshotText/,/return lines.join/' "${HELUO_JS}" 2>/dev/null | pipe_has "liuNian("; then ok "[24] 河洛 buildSnapshotText 已出流年卦(调 liuNian)"; else bad "[24] 河洛快照未调 liuNian —— 仍缺整层流年卦"; fi
 # F：canping/heluo 进导出注册(否则导出设置隐身+免自检)
 if grep -q "key: 'canping'" "${AIEXPORT_JS}" 2>/dev/null && grep -q "key: 'heluo'" "${AIEXPORT_JS}" 2>/dev/null; then ok "[24] canping/heluo 已进 AI_EXPORT_TECHNIQUES"; else bad "[24] canping/heluo 未进 AI_EXPORT_TECHNIQUES(导出设置隐身)"; fi
 # F：preset⊆AI_EXPORT_TECHNIQUES 自检断言在(堵隐身回归)
@@ -550,9 +560,9 @@ for k in $(grep -oE '<TabPane tab="[^"]*" key="[^"]*"' "${ASTRODIR_JS}" 2>/dev/n
 done
 [ -z "${dir_tab_miss}" ] && ok "[24] 星运页所有 TabPane key 均在 VALID_DIRECTION_SUB_TABS(点 tab 不会先跳主限法)" || bad "[24] 星运 tab 不在白名单、点击会先跳主限法,补入 primaryDirectionSync VALID 表:${dir_tab_miss}"
 # AI 四同步(导出/设置/挂载/储存)完备性:migration 必须覆盖占星/星运核心,否则预设新段升级后不入老用户设置(astrochart 的 12分度/主宰链/寿命格局曾受此坑)。
-if awk '/AI_EXPORT_SECTION_MIGRATION_KEYS = \[/,/\];/' "${AIEXPORT_JS}" 2>/dev/null | grep -q "'astrochart'" \
-  && awk '/AI_EXPORT_SECTION_MIGRATION_KEYS = \[/,/\];/' "${AIEXPORT_JS}" 2>/dev/null | grep -q "'primarydirect'" \
-  && awk '/AI_EXPORT_SECTION_MIGRATION_KEYS = \[/,/\];/' "${AIEXPORT_JS}" 2>/dev/null | grep -q "'firdaria'"; then
+if awk '/AI_EXPORT_SECTION_MIGRATION_KEYS = \[/,/\];/' "${AIEXPORT_JS}" 2>/dev/null | pipe_has "'astrochart'" \
+  && awk '/AI_EXPORT_SECTION_MIGRATION_KEYS = \[/,/\];/' "${AIEXPORT_JS}" 2>/dev/null | pipe_has "'primarydirect'" \
+  && awk '/AI_EXPORT_SECTION_MIGRATION_KEYS = \[/,/\];/' "${AIEXPORT_JS}" 2>/dev/null | pipe_has "'firdaria'"; then
   ok "[24] AI导出 migration 覆盖占星/星运核心(astrochart/primarydirect/firdaria)"
 else
   bad "[24] AI导出 migration 漏占星/星运核心 → 预设新段升级不入老用户设置(补进 AI_EXPORT_SECTION_MIGRATION_KEYS)"
@@ -677,7 +687,7 @@ for rf in README.md README_EN.md README_ZH.md; do
   rp="${REPO_ROOT}/${rf}"
   if [ ! -f "${rp}" ]; then warn "[28] 缺 ${rf}"; continue; fi
   if ! grep -q "version-${VERSION}-" "${rp}"; then bad "[28] ${rf} 版本徽章不是 ${VERSION}(README 漏跟随 app 版本)"; README_BAD=1; fi
-  if grep -oE "releases/download/v[0-9]+\.[0-9]+\.[0-9]+/" "${rp}" 2>/dev/null | grep -qv "releases/download/v${VERSION}/"; then bad "[28] ${rf} 有指向非 v${VERSION} 的下载链接(陈旧,用户会下到旧包)"; README_BAD=1; fi
+  if grep -oE "releases/download/v[0-9]+\.[0-9]+\.[0-9]+/" "${rp}" 2>/dev/null | pipe_has -v "releases/download/v${VERSION}/"; then bad "[28] ${rf} 有指向非 v${VERSION} 的下载链接(陈旧,用户会下到旧包)"; README_BAD=1; fi
 done
 [ "${README_BAD}" = "0" ] && ok "[28] 三主 README 版本徽章 + 下载链接均为 v${VERSION}"
 
@@ -832,9 +842,9 @@ fi
 if [ -f "${PD_BYTEPERFECT}" ] && [ "${HOROSA_PD_PREFLIGHT_SKIP_BP:-0}" != "1" ] && command -v python3 >/dev/null 2>&1; then
   PD_BP_LIMIT="${HOROSA_PD_BYTEPERFECT_LIMIT:-12}"
   PD_BP_OUT="$(cd "${REPO_ROOT}/Horosa-Web/astropy" 2>/dev/null && HOROSA_PD_BYTEPERFECT_LIMIT="${PD_BP_LIMIT}" PYTHONPATH="../flatlib-ctrad2:." python3 -m pytest tests/test_pd_alcabitius_byteperfect.py -q 2>&1)"
-  if printf '%s\n' "${PD_BP_OUT}" | grep -qE "[0-9]+ passed"; then
+  if printf '%s\n' "${PD_BP_OUT}" | pipe_has -E "[0-9]+ passed"; then
     ok "[32] byte-perfect 实跑前 ${PD_BP_LIMIT} case 通过 —— golden 与当前代码字节级一致(防 stale fixture)"
-  elif printf '%s\n' "${PD_BP_OUT}" | grep -qE "[0-9]+ failed|Error|Traceback"; then
+  elif printf '%s\n' "${PD_BP_OUT}" | pipe_has -E "[0-9]+ failed|Error|Traceback"; then
     bad "[32] byte-perfect 实跑失败 —— Alcabitius+Ptolemy 与 golden 不一致(代码漂移或 golden 过期);末行:$(printf '%s\n' "${PD_BP_OUT}" | tail -1)"
     PD32_BAD=1
   else
@@ -965,7 +975,7 @@ fi
 if [ -f "${DIRECT_MAIN}" ]; then
   grep -q "getPdMethodLabel" "${DIRECT_MAIN}" || { bad "[33] AstroDirectMain.js 未 import/使用 getPdMethodLabel —— 非默认方位法/钥匙的快照名会回退误标 Alchabitius"; PD33_BAD=1; }
   # 旧 bug 模式:primaryDirectionMethodText 内 `return 'Alchabitius'` 字面回退(非 label 字典)
-  if grep -A3 "function primaryDirectionMethodText" "${DIRECT_MAIN}" | grep -q "return 'Alchabitius'"; then
+  if grep -A3 "function primaryDirectionMethodText" "${DIRECT_MAIN}" | pipe_has "return 'Alchabitius'"; then
     bad "[33] AstroDirectMain.primaryDirectionMethodText 仍字面回退 'Alchabitius' —— 须 delegate 到 getPdMethodLabel(非默认选项导出/挂载会被误标)"
     PD33_BAD=1
   fi
@@ -1054,7 +1064,7 @@ T37_WUZHAO="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/wuzhao/WuZhaoMai
 T37_SHENYI="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/shenyishu/ShenYiShuMain.js"
 if [ -f "${T37_AICTX}" ]; then
   for k in huangji taixuan jingjue wuzhao shenyishu; do
-    awk '/TIMEPOINT_CASTABLE_SET =/' "${T37_AICTX}" | grep -q "${k}" || { bad "[37] TIMEPOINT_CASTABLE_SET 缺 ${k}(下拉能选但显「缺失」)"; T37_BAD=1; }
+    awk '/TIMEPOINT_CASTABLE_SET =/' "${T37_AICTX}" | pipe_has "${k}" || { bad "[37] TIMEPOINT_CASTABLE_SET 缺 ${k}(下拉能选但显「缺失」)"; T37_BAD=1; }
   done
   grep -q "record.birth || record.divTime" "${T37_AICTX}" || { bad "[37] buildFieldObject 未兜底 record.divTime → timepoint 源 5 法时间出 NaN-undefined"; T37_BAD=1; }
   for k in huangji taixuan jingjue wuzhao shenyishu; do
@@ -1071,7 +1081,7 @@ if [ -f "${T37_TMS}" ]; then
   done
 fi
 if [ -f "${T37_TMS_TEST}" ]; then
-  awk '/SECTIONS_ONLY =/' "${T37_TMS_TEST}" | grep -q "tongshefa" || { bad "[37] SECTIONS_ONLY 常量被改"; T37_BAD=1; }
+  awk '/SECTIONS_ONLY =/' "${T37_TMS_TEST}" | pipe_has "tongshefa" || { bad "[37] SECTIONS_ONLY 常量被改"; T37_BAD=1; }
 fi
 [ -f "${T37_AICTX_TEST}" ] && grep -q "timepoint) 必含全 13 项" "${T37_AICTX_TEST}" || { bad "[37] aiAnalysisContext.test.js 缺 13 项 timepoint 锁定断言"; T37_BAD=1; }
 [ "${T37_BAD}" = "0" ] && ok "[37] timepoint 13 技法 + 4 builder opts + divTime 兜底 + 5 switch case + 4 payload schema + 测试锁 均到位"
@@ -1086,20 +1096,20 @@ R38_INDEX="${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js"
 if [ -f "${R38_REL}" ]; then
   grep -q "Constants.ServerRoot}/modern/relative" "${R38_REL}" || { bad "[38] AstroRelative 合盘端点必走 :9999 Java"; R38_BAD=1; }
   # 检查非注释行(忽略 // 开头的历史解释注释)
-  grep -vE "^\s*//" "${R38_REL}" | grep -q "resolveKentangServiceRoot" && { bad "[38] AstroRelative 残留 resolveKentangServiceRoot active 代码(:8899 不解密)"; R38_BAD=1; }
+  grep -vE "^\s*//" "${R38_REL}" | pipe_has "resolveKentangServiceRoot" && { bad "[38] AstroRelative 残留 resolveKentangServiceRoot active 代码(:8899 不解密)"; R38_BAD=1; }
   grep -q "handleRelativeOnChange" "${R38_REL}" || { bad "[38] AstroRelative 缺 handleRelativeOnChange"; R38_BAD=1; }
   grep -q "ResizeObserver" "${R38_REL}" || { bad "[38] AstroRelative 缺 ResizeObserver(子盘下端空白真因)"; R38_BAD=1; }
 fi
 if [ -f "${R38_INDEX}" ]; then
-  awk '/<AstroRelative/,/\/>/' "${R38_INDEX}" | grep -q "chartStyle={chartStyle}" || { bad "[38] index.js AstroRelative 缺 chartStyle 透传"; R38_BAD=1; }
-  awk '/<AstroRelative/,/\/>/' "${R38_INDEX}" | grep -q "onChange={changeCond}" || { bad "[38] index.js AstroRelative 缺 onChange"; R38_BAD=1; }
+  awk '/<AstroRelative/,/\/>/' "${R38_INDEX}" | pipe_has "chartStyle={chartStyle}" || { bad "[38] index.js AstroRelative 缺 chartStyle 透传"; R38_BAD=1; }
+  awk '/<AstroRelative/,/\/>/' "${R38_INDEX}" | pipe_has "onChange={changeCond}" || { bad "[38] index.js AstroRelative 缺 onChange"; R38_BAD=1; }
 fi
 for f in AstroSynastry AstroMarks AstroComposite AstroTimeSpace; do
   FP="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/relative/${f}.js"
   [ -f "${FP}" ] || continue
   grep -q "hidezodiacal={1}" "${FP}" && { bad "[38] ${f} 仍有 hidezodiacal={1}(popover 空白)"; R38_BAD=1; }
   grep -q "hidehsys={1}" "${FP}" && { bad "[38] ${f} 仍有 hidehsys={1}"; R38_BAD=1; }
-  awk '/function paramsToFields/,/^}/' "${FP}" | grep -q "value: param.zodiacal" && { bad "[38] ${f} paramsToFields 仍覆盖 zodiacal(左栏改了显示不变)"; R38_BAD=1; }
+  awk '/function paramsToFields/,/^}/' "${FP}" | pipe_has "value: param.zodiacal" && { bad "[38] ${f} paramsToFields 仍覆盖 zodiacal(左栏改了显示不变)"; R38_BAD=1; }
 done
 if [ -f "${R38_LESS}" ]; then
   grep -q ".horosa-relative-page .horosa-field-block .ant-select-selector" "${R38_LESS}" || { bad "[38] app.less 缺合盘局部 Select CSS"; R38_BAD=1; }
@@ -1386,19 +1396,19 @@ S51_BAD=0
 S51_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
 S51_EXIT_BLOCK="$(awk '/RunEvent::ExitRequested \{ .. \} =>/,/^            _ => \{\}/' "${S51_MAIN}")"
 [ -n "${S51_EXIT_BLOCK}" ] || { bad "[51] 未能定位 run loop 退出两臂(结构变了?同步更新本哨兵)"; S51_BAD=1; }
-printf '%s' "${S51_EXIT_BLOCK}" | grep -q "cleanup_state(" && { bad "[51] 退出臂回归了同步 cleanup_state(会阻塞主循环)"; S51_BAD=1; }
-printf '%s' "${S51_EXIT_BLOCK}" | grep -q "\.status()" && { bad "[51] 退出臂出现同步 .status()"; S51_BAD=1; }
+printf '%s' "${S51_EXIT_BLOCK}" | pipe_has "cleanup_state(" && { bad "[51] 退出臂回归了同步 cleanup_state(会阻塞主循环)"; S51_BAD=1; }
+printf '%s' "${S51_EXIT_BLOCK}" | pipe_has "\.status()" && { bad "[51] 退出臂出现同步 .status()"; S51_BAD=1; }
 [ "$(printf '%s' "${S51_EXIT_BLOCK}" | grep -c "spawn_exit_cleanup(app)")" -ge 2 ] || { bad "[51] 退出两臂缺 spawn_exit_cleanup"; S51_BAD=1; }
 for S51_SCRIPT in "${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh" "${REPO_ROOT}/Horosa-Web/start_horosa_local.sh"; do
-  if grep -v '^[[:space:]]*#' "${S51_SCRIPT}" | grep -q "lsof"; then
+  if grep -v '^[[:space:]]*#' "${S51_SCRIPT}" | pipe_has "lsof"; then
     bad "[51] $(basename "${S51_SCRIPT}") 非注释行出现 lsof(必须 netstat 读内核表)"; S51_BAD=1
   fi
 done
 grep -q "netstat -anv -p tcp" "${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh" || { bad "[51] stop 脚本缺 netstat 端口扫描"; S51_BAD=1; }
 grep -Fq 'grep -Fq "${ROOT}"' "${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh" || { bad "[51] stop 脚本丢了工作区守卫(会误杀第二份 checkout)"; S51_BAD=1; }
 grep -q "sleep 0.1" "${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh" || { bad "[51] stop 脚本 0.1s 轮询丢失"; S51_BAD=1; }
-grep -v '^[[:space:]]*#' "${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh" | grep -Eq '^[[:space:]]*sleep 1([[:space:]]|$)' && { bad "[51] stop 脚本回归整秒 sleep"; S51_BAD=1; }
-grep -A1 "if !trusted_runtime {" "${S51_MAIN}" | grep -q "prepare_runtime_dir" || { bad "[51] start_runtime 的 prepare_runtime_dir 失去 !trusted_runtime 守卫(冷缓存全树遍历会卡 36%)"; S51_BAD=1; }
+grep -v '^[[:space:]]*#' "${REPO_ROOT}/Horosa-Web/stop_horosa_local.sh" | pipe_has -E '^[[:space:]]*sleep 1([[:space:]]|$)' && { bad "[51] stop 脚本回归整秒 sleep"; S51_BAD=1; }
+grep -A1 "if !trusted_runtime {" "${S51_MAIN}" | pipe_has "prepare_runtime_dir" || { bad "[51] start_runtime 的 prepare_runtime_dir 失去 !trusted_runtime 守卫(冷缓存全树遍历会卡 36%)"; S51_BAD=1; }
 grep -q '正在准备启动环境' "${S51_MAIN}" || { bad "[51] start_runtime 入口缺 indeterminate 进度(重活前进度会冻在 36%)"; S51_BAD=1; }
 grep -q "'lsof', '-nP'" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py" || { bad "[51] webchartsrv.py 的 lsof 回退缺 -nP(DNS 反查会超 timeout 假阴性)"; S51_BAD=1; }
 # 首启稳定性 (2026-06-12 安装包卡死根治后增):
@@ -1431,7 +1441,7 @@ grep -q "ayanamsa:" "${S52_FE}" 2>/dev/null || { bad "[52] AstroAcg 缺参数接
 if [ "${S52_BAD}" = "0" ] && command -v python3 >/dev/null 2>&1 && [ "${HOROSA_ACG_PREFLIGHT_SKIP:-0}" != "1" ]; then
   S52_OUT="$(cd "${S52_PY}" 2>/dev/null && PYTHONPATH="../flatlib-ctrad2:." python3 astrostudy/acg/validate_acg.py 2>&1)" || {
     bad "[52] 🔴 validate_acg golden 未退0: $(printf '%s' "${S52_OUT}" | tail -2 | head -1)"; S52_BAD=1; }
-  printf '%s' "${S52_OUT}" | grep -q "ACG alignment PASS" || { bad "[52] validate_acg 输出无 PASS"; S52_BAD=1; }
+  printf '%s' "${S52_OUT}" | pipe_has "ACG alignment PASS" || { bad "[52] validate_acg 输出无 PASS"; S52_BAD=1; }
 fi
 [ "${S52_BAD}" = "0" ] && ok "[52] 占星地图 引擎golden+白名单+前端接线 在位" || bad "[52] 占星地图 护栏 有缺失"
 
@@ -1475,8 +1485,8 @@ echo "[54] 择日西方深化(流派轴·golden·28宿·交映)"
 for s54k in modern_main hellenistic persian renaissance modern_revival; do
 	grep -q "${s54k}: {" "${S54_WS}" 2>/dev/null || { bad "[54] 流派档缺失: ${s54k}"; S54_BAD=1; }
 done
-awk '/modern_main: \{/,/\},/' "${S54_WS}" 2>/dev/null | grep -q "extraWeights: {}," || { bad "[54] 🔴 modern_main extraWeights 非空(默认总分构成被改=零回归破坏)"; S54_BAD=1; }
-awk '/modern_main: \{/,/\},/' "${S54_WS}" 2>/dev/null | grep -q "hsys: null" || { bad "[54] modern_main 宫制联动未保持 null(默认不得改用户宫制)"; S54_BAD=1; }
+awk '/modern_main: \{/,/\},/' "${S54_WS}" 2>/dev/null | pipe_has "extraWeights: {}," || { bad "[54] 🔴 modern_main extraWeights 非空(默认总分构成被改=零回归破坏)"; S54_BAD=1; }
+awk '/modern_main: \{/,/\},/' "${S54_WS}" 2>/dev/null | pipe_has "hsys: null" || { bad "[54] modern_main 宫制联动未保持 null(默认不得改用户宫制)"; S54_BAD=1; }
 [ -f "${S54_SNAP}" ] || { bad "[54] 缺 electionGolden 快照(默认输出法律)"; S54_BAD=1; }
 [ -f "${S54_DIR}/election/__tests__/electionFixture.js" ] || { bad "[54] 缺 golden 固定盘 fixture"; S54_BAD=1; }
 S54_MANSIONS=$(grep -c "{ n: " "${S54_DIR}/data/lunarMansions.js" 2>/dev/null || echo 0)
@@ -1492,7 +1502,7 @@ grep -q "§" "${S54_DIR}/election/electionSnapshot.js" 2>/dev/null && { bad "[54
 [ "${S54_BAD}" = "0" ] && ok "[54] 择日西方深化 全在位" || bad "[54] 择日西方深化 有缺失"
 
 # ============================================================================
-# [55] 性能资产·第二轮(瘦身/启动门/恒星memo/连接池/3D动态化)
+# [55] 性能资产·二批(瘦身/启动门/恒星memo/连接池/3D动态化)
 # ============================================================================
 S55_BAD=0
 S55_PKG="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/package_runtime_payload.sh"
@@ -1504,7 +1514,7 @@ echo "[55] 性能资产R2(瘦身排除表·启动门·恒星memo·连接池·3D�
 grep -q "site-packages 重依赖排除表" "${S55_PKG}" 2>/dev/null || { bad "[55] 打包脚本缺重依赖排除表"; S55_BAD=1; }
 grep -q "for heavy in streamlit pyarrow plotly altair pydeck" "${S55_PKG}" 2>/dev/null || { bad "[55] 排除表重依赖清单漂移(pandas 属 chunzi 真依赖不得入表)"; S55_BAD=1; }
 grep -q "_ensure_streamlit_stub" "${REPO_ROOT}/Horosa-Web/astropy/websrv/kentang/kinastro_common.py" 2>/dev/null || { bad "[55] kinastro_common 缺 streamlit 桩(kentang adapter 在瘦身 runtime 会挂)"; S55_BAD=1; }
-grep -E "name '\*\.pyc'" "${S55_PKG}" 2>/dev/null | grep -q "delete" && { bad "[55] 打包清理行又包含 *.pyc -delete(会删光预编译产物)"; S55_BAD=1; }
+grep -E "name '\*\.pyc'" "${S55_PKG}" 2>/dev/null | pipe_has "delete" && { bad "[55] 打包清理行又包含 *.pyc -delete(会删光预编译产物)"; S55_BAD=1; }
 [ -f "${REPO_ROOT}/Horosa-Web/astropy/tests/test_runtime_deps_slim.py" ] || { bad "[55] 缺瘦身哨兵测试"; S55_BAD=1; }
 grep -q "STARTUP_GATE" "${S55_CHARTSRV}" 2>/dev/null || { bad "[55] webchartsrv 缺启动就绪门"; S55_BAD=1; }
 grep -q "HOROSA_PY_WARMUP_SYNC" "${S55_CHARTSRV}" 2>/dev/null || { bad "[55] 启动门缺同步回退 kill-switch"; S55_BAD=1; }
@@ -2097,7 +2107,7 @@ grep -q 'STAGED_UPDATE_MAX_AGE_MS' "${S100_MAIN}" || { bad "[100] 缺过期常�
 grep -q 'rust.staged_update_restored' "${S100_MAIN}" || { bad "[100] 缺恢复账本段"; S100_BAD=1; }
 grep -q '此前已下载完成' "${S100_MAIN}" || { bad "[100] 缺恢复 ready 独有文案(s5 锚)"; S100_BAD=1; }
 # 读档必须逐资产 sha 重验(load 函数体内含 sha256_digest)
-awk '/fn load_staged_update_file_at/,/^}/' "${S100_MAIN}" | grep -q 'sha256_digest' || { bad "[100] 读档未逐资产重验 sha"; S100_BAD=1; }
+awk '/fn load_staged_update_file_at/,/^}/' "${S100_MAIN}" | pipe_has 'sha256_digest' || { bad "[100] 读档未逐资产重验 sha"; S100_BAD=1; }
 # 写点+两清点+部件档清理都在
 grep -q 'persist_staged_update_file(app, &staged)' "${S100_MAIN}" || { bad "[100] 下载完成未落盘"; S100_BAD=1; }
 S100_CLEARS=$(grep -c 'clear_staged_update_file(app)' "${S100_MAIN}" 2>/dev/null || true)
@@ -2139,7 +2149,7 @@ grep -q 'SUPERVISOR_SILENT_ROUNDS' "${S103_MAIN}" || { bad "[103] 缺 HttpSilent
 grep -q 'rust.web_server_restarted' "${S103_MAIN}" || { bad "[103] web 静态服务器未纳管"; S103_BAD=1; }
 grep -q 'fn restart_local_services_command' "${S103_MAIN}" || { bad "[103] 缺轻量重启命令"; S103_BAD=1; }
 # 命令必须注册进 generate_handler(定义了没注册=前端调不到)
-awk '/generate_handler!\[/,/\]\)/' "${S103_MAIN}" | grep -q 'restart_local_services_command' || { bad "[103] 轻量重启命令未注册"; S103_BAD=1; }
+awk '/generate_handler!\[/,/\]\)/' "${S103_MAIN}" | pipe_has 'restart_local_services_command' || { bad "[103] 轻量重启命令未注册"; S103_BAD=1; }
 grep -q 'supervisor_gave_up' "${S103_MAIN}" || { bad "[103] 缺越限事件"; S103_BAD=1; }
 grep -q 'gave_up_latched' "${S103_MAIN}" || { bad "[103] 越限未闩锁(账本刷屏回潮)"; S103_BAD=1; }
 grep -q '__horosaServiceEvent' "${S103_MAIN}" || { bad "[103] 缺服务监督事件通道"; S103_BAD=1; }
@@ -2169,9 +2179,9 @@ S104_WRITES=$(grep -c 'append_update_history(' "${S104_MAIN}" 2>/dev/null || tru
 grep -q '"event": "install_confirmed"' "${S104_MAIN}" || { bad "[104] 缺 vX→vY 结果闭环行"; S104_BAD=1; }
 # 反向锚:updater-events.log 的 File::create 截断毁证旧样式不得回潮(排除注释行——
 # 函数内说明性注释提到旧样式字样不算回潮)
-awk '/fn log_updater_event/,/^}/' "${S104_MAIN}" | grep -v '^[[:space:]]*//' | grep -q 'File::create' && { bad "[104] events 日志截断毁证旧样式回潮"; S104_BAD=1; }
+awk '/fn log_updater_event/,/^}/' "${S104_MAIN}" | grep -v '^[[:space:]]*//' | pipe_has 'File::create' && { bad "[104] events 日志截断毁证旧样式回潮"; S104_BAD=1; }
 grep -q 'fn export_diagnostics_bundle' "${S104_MAIN}" || { bad "[104] 缺一键诊断包命令"; S104_BAD=1; }
-awk '/generate_handler!\[/,/\]\)/' "${S104_MAIN}" | grep -q 'export_diagnostics_bundle' || { bad "[104] 诊断包命令未注册"; S104_BAD=1; }
+awk '/generate_handler!\[/,/\]\)/' "${S104_MAIN}" | pipe_has 'export_diagnostics_bundle' || { bad "[104] 诊断包命令未注册"; S104_BAD=1; }
 grep -q 'update_history_lines' "${S104_MAIN}" || { bad "[104] 诊断载荷缺台账尾部"; S104_BAD=1; }
 grep -q 'updateHistoryOutput' "${S104_DHTML}" || { bad "[104] 诊断页缺更新历史卡"; S104_BAD=1; }
 grep -q 'exportBundleBtn' "${S104_DHTML}" || { bad "[104] 诊断页缺导出按钮"; S104_BAD=1; }
@@ -2216,7 +2226,7 @@ S106_JNU=$(grep -c 'Dsun.jnu.encoding=UTF-8' "${S106_START}" 2>/dev/null || true
 grep -q 'export LANG=zh_CN.UTF-8' "${S106_START}" || { bad "[106] start 脚本缺 LANG 兜底"; S106_BAD=1; }
 grep -q '"LANG"' "${S106_MAIN}" || { bad "[106] 壳 spawn 缺 LANG 兜底"; S106_BAD=1; }
 # G2:postinstall 零 /usr/bin/python3 实调(注释里提及不算——查行首非注释调用)
-grep -vE '^\s*#' "${S106_POST}" | grep -q '/usr/bin/python3' && { bad "[106] postinstall 回潮 /usr/bin/python3(CLT 弹窗桩)"; S106_BAD=1; }
+grep -vE '^\s*#' "${S106_POST}" | pipe_has '/usr/bin/python3' && { bad "[106] postinstall 回潮 /usr/bin/python3(CLT 弹窗桩)"; S106_BAD=1; }
 # G3:降级门
 grep -q 'downgrade guard' "${S106_POST}" || { bad "[106] postinstall 缺 runtime 降级门"; S106_BAD=1; }
 grep -q 'sort -V' "${S106_POST}" || { bad "[106] 降级门缺 sort -V 版本比较"; S106_BAD=1; }
@@ -2273,6 +2283,14 @@ done
 # ---- [122] dist 构建指纹门(发布产物必须可追溯到干净 HEAD;杜绝「脏工作树构建」产物无对应 commit) ----
 S122_BAD=0
 S122_INFO="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file/build-info.json"
+# 前端源面清单:单源 fe-source-paths.txt(本脚本顶部读入;构建时判脏与产物冒烟同读这一份,[123]⑤b 机械锁)。
+#   清单必须覆盖「会改变产物字节」的全部受控输入 —— 只列源码四项时,构建之后只改构建前处理脚本(浮层对齐补丁直接进 bundle)
+#   或依赖锁的提交会被判成「产物仍可对应」,装进包里的却是旧补丁 / 旧依赖编出来的 bundle。
+S122_FE_PATHS="${FE_SRC_PATHS}"
+if [ -z "${S122_FE_PATHS// /}" ]; then bad "[122] 前端源面清单缺失或为空(Horosa-Web/astrostudyui/scripts/fe-source-paths.txt)—— 无从判定产物与源码是否对应"; S122_BAD=1; fi
+for S122_REQ in src public package.json package-lock.json .umirc.js scripts/patch-dom-align-zoom.js scripts/patch_quill_domnodeinserted.js scripts/scrub-build-paths.js scripts/inject-preload.js scripts/write-build-info.js scripts/check-chunk-dup.js scripts/fe-source-paths.txt; do
+  case " ${S122_FE_PATHS} " in *" Horosa-Web/astrostudyui/${S122_REQ} "*) : ;; *) bad "[122] 前端源面清单缺必备项:${S122_REQ}(构建之后只改它的提交会被误判成产物仍可对应)"; S122_BAD=1 ;; esac
+done
 if [ ! -f "${S122_INFO}" ]; then
   bad "[122] dist-file 缺 build-info.json(旧产物或 build 链未挂指纹)—— npm run build:file 重建"; S122_BAD=1
 else
@@ -2283,7 +2301,7 @@ else
   if [ -n "${S122_COMMIT}" ] && [ "${S122_COMMIT}" = "${S122_HEAD}" ]; then
     :  # 指纹=HEAD,最严格等价
   elif [ -n "${S122_COMMIT}" ] && git -C "${REPO_ROOT}" merge-base --is-ancestor "${S122_COMMIT}" "${S122_HEAD}" 2>/dev/null \
-       && [ -z "$(git -C "${REPO_ROOT}" diff --name-only "${S122_COMMIT}" "${S122_HEAD}" -- Horosa-Web/astrostudyui/src Horosa-Web/astrostudyui/package.json Horosa-Web/astrostudyui/.umirc.js Horosa-Web/astrostudyui/public 2>/dev/null)" ]; then
+       && [ -z "$(git -C "${REPO_ROOT}" diff --name-only "${S122_COMMIT}" "${S122_HEAD}" -- ${S122_FE_PATHS} 2>/dev/null)" ]; then
     :  # 指纹 commit 是 HEAD 祖先且前端源面零 diff:产物与 HEAD 源码等价,仍可追溯(scripts/docs-only 前进不逼重 build)
   else
     bad "[122] dist-file 构建 commit(${S122_COMMIT:0:12}) ≠ 当前 HEAD(${S122_HEAD:0:12}) 且前端源面有 diff——重 build"; S122_BAD=1
@@ -2306,9 +2324,16 @@ grep -q "吞错型失败" "${S123_UI}/src/utils/__tests__/requestDedupe.test.js"
 grep -q "TechniqueErrorBoundary" "${S123_UI}/src/components/comp/FreezeInactive.js" 2>/dev/null || { bad "[123] FreezeInactive 未集成 ErrorBoundary(直接 import 技法页白屏回潮)"; S123_BAD=1; }
 [ -f "${S123_UI}/src/components/comp/__tests__/freezeInactiveBoundary.test.js" ] || { bad "[123] 缺防白屏接线测试"; S123_BAD=1; }
 grep -q "horosa-floating-surface" "${S123_UI}/src/layouts/app.less" 2>/dev/null || { bad "[123] app.less 缺 floating-surface 基类"; S123_BAD=1; }
-awk '/\.horosa-guolao-moira-tooltip \{/,/^\}/' "${S123_UI}/src/components/guolao/GuoLaoMoiraWheel.less" 2>/dev/null | grep -q -- "--moira-tooltip-bg" || { bad "[123] moira tooltip 变量未自带(portal 断链透明回潮)"; S123_BAD=1; }
+awk '/\.horosa-guolao-moira-tooltip \{/,/^\}/' "${S123_UI}/src/components/guolao/GuoLaoMoiraWheel.less" 2>/dev/null | pipe_has -- "--moira-tooltip-bg" || { bad "[123] moira tooltip 变量未自带(portal 断链透明回潮)"; S123_BAD=1; }
 grep -q -- "--horosa-surface-solid" "${S123_UI}/src/utils/helper.js" 2>/dev/null || { bad "[123] setupFloatingTooltip 背景未用 surface-solid(浮层微透明回潮)"; S123_BAD=1; }
 [ -x "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_packaged_frontend.sh" ] || { bad "[123] 缺 verify_packaged_frontend.sh(打包产物冒烟制度)"; S123_BAD=1; }
+# ⑤b 构建指纹的「前端源面」三处必须同读单源清单(构建时判脏 / [122] / 产物冒烟),不许各写各的;产物冒烟脚本判据自证通过
+for S123_C in "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_packaged_frontend.sh" "${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/write-build-info.js"; do
+  grep -qF "fe-source-paths.txt" "${S123_C}" 2>/dev/null || { bad "[123] ${S123_C##*/} 没有读单源清单 fe-source-paths.txt(前端源面各写各的 = 迟早漂移)"; S123_BAD=1; }
+done
+grep -aE "git status --porcelain -- \.\./src|FE_SRC_PATHS=\"Horosa-Web/astrostudyui/src " "${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/write-build-info.js" "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_packaged_frontend.sh" >/dev/null 2>&1 \
+  && { bad "[123] 构建指纹消费方里又出现写死的前端源面清单(必须读 fe-source-paths.txt)"; S123_BAD=1; }
+bash "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_packaged_frontend.sh" --self-test >/dev/null 2>&1 || { bad "[123] 产物冒烟脚本判据自证未过(verify_packaged_frontend.sh --self-test)"; S123_BAD=1; }
 [ "${S123_BAD}" = "0" ] && ok "[123] 投毒防线×2+防白屏接线+浮层不透明+产物冒烟脚本 全在位"
 
 # ---- [124] 推运盘星体白名单防线(历史事故:
@@ -2378,14 +2403,14 @@ S127_BAD=0
 S127_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
 # ① 新协议生成器:非 legacy 函数体必须经 --horosa-runtime-swap,且零两段 mv 危险序
 S127_NEWBODY=$(awk '/^fn build_single_runtime_update_command\(/{f=1} /^fn build_single_runtime_update_command_legacy\(/{f=0} f{print}' "${S127_MAIN}")
-printf '%s' "${S127_NEWBODY}" | grep -q -- '--horosa-runtime-swap' || { bad "[127] 新协议生成器未经 TARGET 二进制对换"; S127_BAD=1; }
-printf '%s' "${S127_NEWBODY}" | grep -qF 'mv \"${WORK_ROOT}/runtime-payload\"' && { bad "[127] 新协议生成器回潮两段 mv 危险序"; S127_BAD=1; }
+printf '%s' "${S127_NEWBODY}" | pipe_has -- '--horosa-runtime-swap' || { bad "[127] 新协议生成器未经 TARGET 二进制对换"; S127_BAD=1; }
+printf '%s' "${S127_NEWBODY}" | pipe_has -F 'mv \"${WORK_ROOT}/runtime-payload\"' && { bad "[127] 新协议生成器回潮两段 mv 危险序"; S127_BAD=1; }
 # ② 逃生阀成对:legacy 函数 + 开关门都在(单删其一=半拆)
 grep -q 'fn build_single_runtime_update_command_legacy' "${S127_MAIN}" || { bad "[127] 缺 legacy 逃生阀函数"; S127_BAD=1; }
 grep -q 'fn helper_runtime_swap_enabled' "${S127_MAIN}" || { bad "[127] 缺 HOROSA_HELPER_RUNTIME_SWAP 开关门"; S127_BAD=1; }
 # ③ CLI 钩 + 协议统一(CLI 必须走 extract_runtime_archive_with 同一协议 → previous 保留/版本闸/磁盘预检全继承)
 grep -q 'fn run_runtime_swap_cli' "${S127_MAIN}" || { bad "[127] 缺 runtime-swap CLI 实现"; S127_BAD=1; }
-awk '/^fn run_runtime_swap_cli\(/{f=1} f&&/^}$/{exit} f{print}' "${S127_MAIN}" | grep -q 'extract_runtime_archive_with' || { bad "[127] CLI 未复用进程内 extract 协议(previous 保留失守)"; S127_BAD=1; }
+awk '/^fn run_runtime_swap_cli\(/{f=1} f&&/^}$/{exit} f{print}' "${S127_MAIN}" | pipe_has 'extract_runtime_archive_with' || { bad "[127] CLI 未复用进程内 extract 协议(previous 保留失守)"; S127_BAD=1; }
 # ④ 模板时序:runtime 调用必须在 install_app 之后(sleep 1 之后)且失败臂 exit 73 在 mark 之前
 grep -qF 'sleep 1\nif ! run_runtime_installs; then' "${S127_MAIN}" || { bad "[127] 模板时序失守(runtime 未在 install_app 之后)"; S127_BAD=1; }
 grep -qF 'exit 73\nfi\nmark_update_complete \"pending_manual\"' "${S127_MAIN}" || { bad "[127] 失败臂/完成标记相对序失守(铁律14)"; S127_BAD=1; }
@@ -2413,10 +2438,10 @@ grep -q 'libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB)' "${S128_MAIN}" || { bad
 grep -q 'HOROSA_SURGERY_LOCK_DISABLE' "${S128_MAIN}" || { bad "[128] 缺锁开关门"; S128_BAD=1; }
 # ② 五叶各含锁调用(required×2 + optional×3),少一叶=写窗口裸奔
 for leaf in extract_runtime_archive_with apply_component_updates_with; do
-  awk "/^fn ${leaf}\(/{f=1} f&&/^}\$/{exit} f{print}" "${S128_MAIN}" | grep -q 'acquire_surgery_lock_required' || { bad "[128] ${leaf} 缺 required 锁"; S128_BAD=1; }
+  awk "/^fn ${leaf}\(/{f=1} f&&/^}\$/{exit} f{print}" "${S128_MAIN}" | pipe_has 'acquire_surgery_lock_required' || { bad "[128] ${leaf} 缺 required 锁"; S128_BAD=1; }
 done
 for leaf in rollback_runtime_to_previous repair_torn_runtime_slots cleanup_previous_slots; do
-  awk "/^fn ${leaf}\(/{f=1} f&&/^}\$/{exit} f{print}" "${S128_MAIN}" | grep -q 'acquire_surgery_lock_optional' || { bad "[128] ${leaf} 缺 optional 锁"; S128_BAD=1; }
+  awk "/^fn ${leaf}\(/{f=1} f&&/^}\$/{exit} f{print}" "${S128_MAIN}" | pipe_has 'acquire_surgery_lock_optional' || { bad "[128] ${leaf} 缺 optional 锁"; S128_BAD=1; }
 done
 # ③ 反向锚:锁调用总数=5(五叶各一)+定义处;上层乱取=同进程 fd 互斥自死锁
 S128_REQ=$(grep -c 'acquire_surgery_lock_required(' "${S128_MAIN}" || true)
@@ -2424,7 +2449,7 @@ S128_OPT=$(grep -c 'acquire_surgery_lock_optional(' "${S128_MAIN}" || true)
 [ "${S128_REQ}" -eq 3 ] || { bad "[128] required 锁出现 ${S128_REQ} 次 ≠ 3(定义1+两叶;上层禁取)"; S128_BAD=1; }
 [ "${S128_OPT}" -eq 4 ] || { bad "[128] optional 锁出现 ${S128_OPT} 次 ≠ 4(定义1+三叶;上层禁取)"; S128_BAD=1; }
 # ④ 收养复核:repair 拿锁后必须复核 current(等锁期间对方可能已产出)
-awk '/^fn repair_torn_runtime_slots\(/{f=1} f&&/^}$/{exit} f{print}' "${S128_MAIN}" | grep -q '拿锁后复核' || { bad "[128] repair 缺拿锁后复核"; S128_BAD=1; }
+awk '/^fn repair_torn_runtime_slots\(/{f=1} f&&/^}$/{exit} f{print}' "${S128_MAIN}" | pipe_has '拿锁后复核' || { bad "[128] repair 缺拿锁后复核"; S128_BAD=1; }
 # ⑤ 多实例更新感知(V11):纯函数+supervisor 接线+账本+前端信息横幅
 grep -q 'fn runtime_change_step' "${S128_MAIN}" || { bad "[128] 缺 runtime_change_step 纯函数"; S128_BAD=1; }
 grep -q 'rust.runtime_updated_elsewhere' "${S128_MAIN}" || { bad "[128] 缺多实例更新账本段"; S128_BAD=1; }
@@ -2450,7 +2475,7 @@ S129_RTG=$(grep -c 'runtime_needs_update && plan.runtime_sha256.is_none()' "${S1
 [ "${S129_RTG}" -ge 2 ] || { bad "[129] 无条件 runtime sha 守门 ${S129_RTG} < 2 处"; S129_BAD=1; }
 # ③ 一级回退:经 API 定位 manifest asset 取回真 manifest(引用 update_manifest_name 配置)
 grep -q 'fn fetch_manifest_via_release_asset' "${S129_MAIN}" || { bad "[129] 缺 manifest asset 取回"; S129_BAD=1; }
-awk '/^fn fetch_manifest_via_release_asset\(/{f=1} f&&/^}$/{exit} f{print}' "${S129_MAIN}" | grep -q 'a.name == manifest_name' || { bad "[129] asset 取回未按 updateManifestName 匹配"; S129_BAD=1; }
+awk '/^fn fetch_manifest_via_release_asset\(/{f=1} f&&/^}$/{exit} f{print}' "${S129_MAIN}" | pipe_has 'a.name == manifest_name' || { bad "[129] asset 取回未按 updateManifestName 匹配"; S129_BAD=1; }
 grep -q 'UpdateSource::ManifestViaApi' "${S129_MAIN}" || { bad "[129] 缺 ManifestViaApi 来源变体"; S129_BAD=1; }
 # ④ 纯映射单一真值(主通道与回退通道共用,防手抄分叉)
 grep -q 'fn plan_from_manifest' "${S129_MAIN}" || { bad "[129] 缺 plan_from_manifest 纯映射"; S129_BAD=1; }
@@ -2462,7 +2487,7 @@ grep -q 'rust.update_notify_only' "${S129_MAIN}" || { bad "[129] 缺 notify-only
 grep -q 'rust.update_manifest_via_api' "${S129_MAIN}" || { bad "[129] 缺 asset 取回账本段"; S129_BAD=1; }
 grep -q '"event": "notify_only"' "${S129_MAIN}" || { bad "[129] notify-only 未写耐久台账"; S129_BAD=1; }
 grep -q '"phase": "notify-only"' "${S129_MAIN}" || { bad "[129] 缺 notify-only 事件"; S129_BAD=1; }
-awk '/^fn run_background_update_download\(/{f=1} f&&/^}$/{exit} f{print}' "${S129_MAIN}" | grep -q 'if plan.notify_only' || { bad "[129] 后台下载未短路 notify-only(会触网无 sha 下载)"; S129_BAD=1; }
+awk '/^fn run_background_update_download\(/{f=1} f&&/^}$/{exit} f{print}' "${S129_MAIN}" | pipe_has 'if plan.notify_only' || { bad "[129] 后台下载未短路 notify-only(会触网无 sha 下载)"; S129_BAD=1; }
 # ⑥ 前端:notifyOnly 判空退化 + 「打开发布页」形态
 grep -q 'payload.notifyOnly === true' "${S129_NOTIFIER}" || { bad "[129] 前端 notifyOnly 未判空退化(老壳不安全)"; S129_BAD=1; }
 grep -q '打开发布页' "${S129_NOTIFIER}" || { bad "[129] 前端缺发布页出口"; S129_BAD=1; }
@@ -2484,11 +2509,11 @@ grep -q 'sh.ready_giveup' "${S130_START}" || { bad "[130] 缺判死账本段"; S
 grep -q 'HOROSA_READY_PROGRESS_EXTEND' "${S130_START}" || { bad "[130] 缺总开关"; S130_BAD=1; }
 grep -q 'HOROSA_READY_TOTAL_CAP_SECS' "${S130_START}" || { bad "[130] 缺总 cap(无限等防线)"; S130_BAD=1; }
 # 反锚①:判死分支必须引用 last_progress_epoch(续命被删回硬超时=红)
-awk '/-ge "\$\{deadline_epoch\}"/{f=1} f' "${S130_START}" | head -30 | grep -q 'last_progress_epoch' || { bad "[130] 判死分支未引用 last_progress_epoch(硬超时回潮)"; S130_BAD=1; }
+awk '/-ge "\$\{deadline_epoch\}"/{f=1} f' "${S130_START}" | head -30 | pipe_has 'last_progress_epoch' || { bad "[130] 判死分支未引用 last_progress_epoch(硬超时回潮)"; S130_BAD=1; }
 # 反锚②:续命必须被 cap 夹钳(超冲 59s 病零回潮)
 grep -q 'cap_epoch=' "${S130_START}" || { bad "[130] 续命缺 cap 夹钳"; S130_BAD=1; }
 # 反锚③:指纹函数禁 lsof(慢探针拖死就绪门)
-awk '/_progress_fingerprint\(\)/{f=1} f&&/^}$/{exit} f{print}' "${S130_START}" | grep -q 'lsof' && { bad "[130] 指纹函数混入 lsof"; S130_BAD=1; }
+awk '/_progress_fingerprint\(\)/{f=1} f&&/^}$/{exit} f{print}' "${S130_START}" | pipe_has 'lsof' && { bad "[130] 指纹函数混入 lsof"; S130_BAD=1; }
 # 壳脚同步:心跳读 ready_extend 段给续命可视文案
 grep -q 'sh.ready_extend' "${S130_MAIN}" || { bad "[130] 壳心跳未接续命段(慢机用户会当卡死)"; S130_BAD=1; }
 grep -q 'fn start_script_keeps_progress_extend_guard' "${S130_MAIN}" || { bad "[130] 缺契约测试"; S130_BAD=1; }
@@ -2518,7 +2543,7 @@ grep -q 'fn deep_step' "${S131_MAIN}" || { bad "[131] 缺 deep_step 状态机"; 
 grep -q 'SUPERVISOR_DEEP_EVERY_ROUNDS' "${S131_MAIN}" || { bad "[131] 缺深探周期常量"; S131_BAD=1; }
 grep -q 'HOROSA_DEEP_PROBE' "${S131_MAIN}" || { bad "[131] 缺深探开关"; S131_BAD=1; }
 # 反锚:probe_identity 内 deep 判定必须被 proto 门包裹(proto<2 直通,防误杀旧 runtime)
-awk '/^fn probe_identity\(/{f=1} f&&/^}$/{exit} f{print}' "${S131_MAIN}" | grep -q 'proto < 2' || { bad "[131] deep 判定缺 proto 门(新壳×旧 runtime 会被误杀)"; S131_BAD=1; }
+awk '/^fn probe_identity\(/{f=1} f&&/^}$/{exit} f{print}' "${S131_MAIN}" | pipe_has 'proto < 2' || { bad "[131] deep 判定缺 proto 门(新壳×旧 runtime 会被误杀)"; S131_BAD=1; }
 # ④ 账本段 + 回归测试
 grep -q 'rust.deep_probe_fail' "${S131_MAIN}" || { bad "[131] 缺深探失败账本段"; S131_BAD=1; }
 grep -q 'rust.deep_probe_unsupported' "${S131_MAIN}" || { bad "[131] 缺 unsupported 账本段"; S131_BAD=1; }
@@ -2571,7 +2596,7 @@ grep -q 'fn classify_permission_issue' "${S133_MAIN}" || { bad "[133] 缺权限�
 grep -q 'fn restart_local_services_inner' "${S133_MAIN}" || { bad "[133] restart 失败未过定因包装"; S133_BAD=1; }
 grep -q 'rust.permission_probe_failed' "${S133_MAIN}" || { bad "[133] 缺权限定因账本段"; S133_BAD=1; }
 # 解闩防抖反锚:disk_low_step 内必须有 2× 恢复阈值(防阈值附近抖动刷屏)
-awk '/^fn disk_low_step\(/{f=1} f&&/^}$/{exit} f{print}' "${S133_MAIN}" | grep -q 'saturating_mul(2)' || { bad "[133] 缺 2× 解闩防抖"; S133_BAD=1; }
+awk '/^fn disk_low_step\(/{f=1} f&&/^}$/{exit} f{print}' "${S133_MAIN}" | pipe_has 'saturating_mul(2)' || { bad "[133] 缺 2× 解闩防抖"; S133_BAD=1; }
 for t in disk_low_step_latch_and_recovery classify_permission_issue_detects_readonly_dir; do
   grep -q "fn ${t}" "${S133_MAIN}" || { bad "[133] 缺回归测试 ${t}"; S133_BAD=1; }
 done
@@ -2800,7 +2825,7 @@ fi
 if ! grep -q "__HOROSA_APPLY_SHELL_ZOOM" "${S62_MAIN_RS}"; then
     S62_BAD=1; bad "[62]② init script 缺 __HOROSA_APPLY_SHELL_ZOOM —— 导航后缩放应用函数丢失"
 fi
-if sed -e 's://.*$::' "${S62_APP_JS}" | grep -q "100vh"; then
+if [ "$(sed -e 's://.*$::' "${S62_APP_JS}" | grep -ac "100vh")" != "0" ]; then
     S62_BAD=1; bad "[62]① layouts/app.js 内联 100vh 回归 —— 域劈叉,缩放≠1 时底空+可平移空间复发"
 fi
 if [ ! -f "${S62_GUARD}" ]; then
@@ -2859,7 +2884,7 @@ S180_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
 # ① 两条构建链都必须接:漏一条 → 那个产物照样带路径
 for S180_K in '"build":' '"build:file":'; do
   S180_LINE="$(grep -a "${S180_K}" "${S180_UI}/package.json" 2>/dev/null | head -1)"
-  printf '%s' "${S180_LINE}" | grep -aq "scrub-build-paths" \
+  printf '%s' "${S180_LINE}" | pipe_has "scrub-build-paths" \
     || { S180_BAD=1; bad "[180] package.json ${S180_K} 未接脱敏步骤 —— 该产物会带构建机路径"; }
   # ② 顺序:必须在 write-build-info 之前(脱敏改文件内容,后写指纹才对得上产物)
   printf '%s' "${S180_LINE}" | awk '{ i=index($0,"scrub-build-paths"); j=index($0,"write-build-info"); exit !(i>0 && j>0 && i<j) }' \
@@ -2868,7 +2893,7 @@ done
 # ③ 终判据:直接 grep 现有产物,残留即红(不信脚本"跑过了",只认产物本身)
 for S180_D in dist dist-file; do
   if [ -d "${S180_UI}/${S180_D}" ]; then
-    if grep -rlaE '/(Users|home)/[A-Za-z0-9._-]+/' "${S180_UI}/${S180_D}" --include=*.js --include=*.css --include=*.html 2>/dev/null | head -1 | grep -q .; then
+    if grep -rlaE '/(Users|home)/[A-Za-z0-9._-]+/' "${S180_UI}/${S180_D}" --include=*.js --include=*.css --include=*.html 2>/dev/null | pipe_has .; then
       S180_BAD=1; bad "[180] ${S180_D} 产物内仍有构建机绝对路径 —— 重跑 npm run build/build:file"
     fi
   fi
@@ -2898,7 +2923,7 @@ S181_CHECK(){   # $1=文件 $2=被禁的静态 import 正则 $3=人话
   local F="${S181_UI}/src/components/$1"
   [ -f "${F}" ] || { S181_BAD=1; bad "[181] 缺文件 $1"; return; }
   local CODE; CODE=$(sed -E 's://.*$::' "${F}" 2>/dev/null)
-  if printf '%s' "${CODE}" | grep -qE "$2"; then
+  if printf '%s' "${CODE}" | pipe_has -E "$2"; then
     S181_BAD=1; bad "[181] $3 —— 静态 import 会把引擎拖回本页 chunk,进该页即须解析整个引擎"
   fi
 }
@@ -2943,7 +2968,7 @@ if command -v node >/dev/null 2>&1; then
     S181_OUT="$(cd "${S181_UI}" && node scripts/check-chunk-dup.js "${S181_D}" 2>&1)" || {
       S181_BAD=1; bad "[181] ${S181_D}: check-chunk-dup 未过 —— $(printf '%s' "${S181_OUT}" | head -2 | tr '\n' ' ')"
     }
-    printf '%s' "${S181_OUT}" | grep -q "首屏批次\[" \
+    printf '%s' "${S181_OUT}" | pipe_has "首屏批次\[" \
       || { S181_BAD=1; bad "[181] ${S181_D}: check-chunk-dup 没打出首屏批次 —— 该判据未真正执行(拒绝虚绿)"; }
   done
 else
@@ -3264,7 +3289,7 @@ if [ -z "${S199_A}" ] || [ -z "${S199_B}" ]; then
 elif [ "${S199_A}" != "${S199_B}" ]; then
 	bad "[199] 🔴 两处 CDS 训练清单分叉——打包预训与用户侧自训类面不一致:打包=${S199_A} 自训=${S199_B}"
 else
-	if echo "${S199_A}" | grep -aq '"/rules/ziwei"'; then
+	if echo "${S199_A}" | pipe_has '"/rules/ziwei"'; then
 		ok "[199] CDS 两处训练清单逐字一致(含 /rules/ziwei)"
 	else
 		bad "[199] 🔴 训练清单缺 /rules/ziwei(R4-P4-2 扩容被拆)"
@@ -3634,7 +3659,7 @@ PY
 fi
 
 if [ -f "${S220_GLOBAL}" ]; then
-    sed -e 's://.*$::' "${S220_GLOBAL}" | grep -q "installAlignHooks()" \
+    [ "$(sed -e 's://.*$::' "${S220_GLOBAL}" | grep -ac "installAlignHooks()")" != "0" ] \
         || { S220_BAD=1; bad "[220]④ global.js 未调用 installAlignHooks() —— 钩子不装则补丁全程回落 1,等于没修"; }
 fi
 
@@ -3657,11 +3682,29 @@ import re, sys
 src = open(sys.argv[1], encoding='utf-8').read()
 src = re.sub(r'/\*.*?\*/', '', src, flags=re.S)
 src = re.sub(r'(?m)^\s*//.*$', '', src)
-print(len(re.findall(r'container-type|contain:\s*layout', src)))
+# 白名单:三个盘面叶宿主(无 fixed 后代;antd 浮层挂 body)可作 inline-size 容器查询源(放大档中栏逐字竖排根治),
+# 且全文件必有 @container 消费者;size 型 / contain:layout 一律禁(浮层裁剪事故根因 = block 轴 size 包含 + layout 包含
+# = fixed 包含块)。白名单外出现 container-type = 红。
+ALLOW = {'.horosa-workspace-shell .horosa-taixuan-board', '.horosa-workspace-shell .horosa-wuzhao-board', '.horosa-workspace-shell .horosa-cnx-board'}
+bad = len(re.findall(r'contain:\s*[^;]*layout', src))
+allowed_hits = 0
+for m in re.finditer(r'container-type\s*:\s*([a-z-]+)', src):
+    head = src[:m.start()]
+    open_idx = head.rfind('{')
+    pre = head[:open_idx] if open_idx >= 0 else ''
+    start = max(pre.rfind('}'), pre.rfind('{'), pre.rfind(';'))
+    sel = re.sub(r'\s+', ' ', pre[start + 1:].strip())
+    if m.group(1) == 'inline-size' and sel in ALLOW:
+        allowed_hits += 1
+    else:
+        bad += 1
+if allowed_hits and not re.search(r'@container', src):
+    bad += 1
+print(bad)
 PY
 )"
 if [ "${S220_CT}" != "0" ]; then
-    S220_BAD=1; bad "[220]⑦ app.less 出现 container-type / contain:layout(${S220_CT} 处)—— 会重新制造 fixed 包含块,悬浮窗被裁剪复发;全仓零 @container 消费者,不该有它"
+    S220_BAD=1; bad "[220]⑦ app.less 出现白名单外 container-type / contain:layout(${S220_CT} 处)—— 会重新制造 fixed 包含块,悬浮窗被裁剪复发;全仓零 @container 消费者,不该有它"
 fi
 
 [ "${S220_BAD}" = "0" ] && ok "[220] CSS-zoom 域劈叉锁全绿(双产物补丁/三处挂载/钩子/守卫/包含块)"
@@ -3777,8 +3820,1748 @@ echo "[224] global.js 布局取证段零残留"
 S224_BAD=0
 S224_F="${REPO_ROOT}/Horosa-Web/astrostudyui/src/global.js"
 S224_LEAK="$(grep -aciE "@horosa-private|layout-probe|布局诊断浮层|KeyL" "${S224_F}")"
-[ "${S224_LEAK}" = "0" ] || { bad "[224] global.js 残留私有标记/诊断浮层痕迹 ×${S224_LEAK}"; S224_BAD=1; }
-[ "${S224_BAD}" = "0" ] && ok "[224] global.js 零私有标记零浮层痕迹"
+[ "${S224_LEAK}" = "0" ] || { bad "[224] global.js 残留标记/诊断浮层痕迹 ×${S224_LEAK}"; S224_BAD=1; }
+[ "${S224_BAD}" = "0" ] && ok "[224] global.js 零标记零浮层痕迹"
+
+
+# [225] AI 助手行动能力·运行时门控锁(2026-09-01):总开关默认关(仅 '1' 为开)=完全现状路径;
+#   SSE 事件名前后端互锚;AIAnalysisMain 插座在位;jest 判别向量在位;看门狗续命含工具帧。
+echo "[225] AI 助手运行时门控(总开关默认关/事件互锚/插座在位)"
+S225_BAD=0
+S225_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S225_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service"
+grep -aq "safeLocalStorageGet(AGENT_ENABLED_KEY) === '1'" "${S225_UI}/src/utils/aiAgent/prefs.js" || { bad "[225] prefs.js 总开关判据不是「仅 '1' 为开」(默认关被改)"; S225_BAD=1; }
+grep -aq "if(!enabled){ return NULL_AGENT; }" "${S225_UI}/src/utils/aiAgent/runtime.js" || { bad "[225] runtime.js 关闭态未返回 NULL_AGENT"; S225_BAD=1; }
+for ev in tool_call_start tool_call; do
+  grep -aq "case '${ev}'" "${S225_UI}/src/utils/aiAgent/runtime.js" || { bad "[225] runtime.js 未消费 SSE 事件 ${ev}"; S225_BAD=1; }
+  grep -aq "\"${ev}\"" "${S225_JAVA}/AIToolCallSupport.java" || { bad "[225] AIToolCallSupport.java 未发出 SSE 事件 ${ev}"; S225_BAD=1; }
+done
+grep -aq "event.type === 'tool_call'" "${S225_UI}/src/services/aianalysis.js" || { bad "[225] aianalysis.js 看门狗未把 tool_call 计为真产出"; S225_BAD=1; }
+S225_MAIN="${S225_UI}/src/components/aianalysis/AIAnalysisMain.js"
+for anchor in "createAgentTurn({" "while(await agent.settleRound())" "agent.onEvent(event);" "agentTrace: agent.trace() || undefined" "<AgentActionBar " "<AgentAbilityPanel />" "tools: agent.toolDefs()"; do
+  grep -aqF "${anchor}" "${S225_MAIN}" || { bad "[225] AIAnalysisMain.js 插座缺失: ${anchor}"; S225_BAD=1; }
+done
+[ "$(grep -ac "agentTrace: item.agentTrace," "${S225_MAIN}")" = "4" ] || { bad "[225] AIAnalysisMain.js 四处消息 map 未全带 agentTrace"; S225_BAD=1; }
+# 流式合帧锁:delta/reasoning 只登记不逐条提交(schedule 恰 2 处)、末帧 flush、catch/finally 双 cancel、助手正文经记忆化组件渲染。
+# 任一缺失=高吞吐模型长回复期主线程被逐 delta 全量 markdown 重渲染打满(实测 35 气泡会话 144s 内阻塞 140s)。
+grep -aq "createStreamFlusher(()=>{" "${S225_MAIN}" || { bad "[225] AIAnalysisMain.js 流式合帧器未创建"; S225_BAD=1; }
+[ "$(grep -ac "streamFlusher.schedule();" "${S225_MAIN}")" = "2" ] || { bad "[225] AIAnalysisMain.js delta/reasoning 未各经 streamFlusher.schedule()"; S225_BAD=1; }
+grep -aq "streamFlusher.flush();" "${S225_MAIN}" || { bad "[225] AIAnalysisMain.js 末帧 flush 缺失"; S225_BAD=1; }
+[ "$(grep -ac "streamFlusher.cancel();" "${S225_MAIN}")" = "2" ] || { bad "[225] AIAnalysisMain.js catch/finally 未双 cancel 合帧器"; S225_BAD=1; }
+grep -aq "<AssistantMarkdown className={styles.markdownBody}" "${S225_MAIN}" || { bad "[225] AIAnalysisMain.js 助手正文未经 AssistantMarkdown 记忆化组件渲染"; S225_BAD=1; }
+grep -aqF "content: streamBufferRef.current," "${S225_MAIN}" && { bad "[225] AIAnalysisMain.js 逐 delta 直接 setMessages 复活(合帧被绕过)"; S225_BAD=1; }
+[ -f "${S225_UI}/src/utils/aiStreamFlush.js" ] && [ -f "${S225_UI}/src/utils/__tests__/aiStreamFlush.test.js" ] || { bad "[225] aiStreamFlush.js 或其单测缺失"; S225_BAD=1; }
+# 本机 IP 探测整体移除锁:request.js/helper.js 去注释后不得再出现 LocalIp/getUserIP/RTCPeerConnection
+# (每请求 new RTCPeerConnection 且不关=~500 次后全部后端请求静默失败;Java 侧该头只作日志兜底,无业务消费)。
+if [ "$(sed -E 's#//.*$##' "${S225_UI}/src/utils/request.js" "${S225_UI}/src/utils/helper.js" | grep -acE '\bLocalIp\b|getUserIP|RTCPeerConnection')" != "0" ]; then bad "[225] request.js/helper.js 复活了 LocalIp/getUserIP/RTCPeerConnection"; S225_BAD=1; fi
+[ -f "${S225_UI}/src/utils/__tests__/requestHeaders.noLocalIp.test.js" ] || { bad "[225] requestHeaders.noLocalIp.test.js 缺失"; S225_BAD=1; }
+grep -aq "silent failure" "${S225_UI}/src/utils/request.js" || { bad "[225] request.js 静默失败留痕缺失(吞错零日志=排障盲区)"; S225_BAD=1; }
+for t in aiAgentRuntime aiAgentProtocol aiToolsCatalog.contract aiToolsAdditiveGuard aiToolsRecords aiToolsSettings aiToolsCast; do
+  [ -f "${S225_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[225] jest 哨兵缺失 ${t}.test.js"; S225_BAD=1; }
+done
+for k in horosa.ai.agent.enabled horosa.ai.agent.approval horosa.ai.agent.caps.v1 horosa.ai.agent.ledger.v1; do
+  grep -aq "'${k}'" "${S225_UI}/src/utils/storageKeyRegistry.js" || { bad "[225] storageKeyRegistry 未登记 ${k}"; S225_BAD=1; }
+  grep -aq "'${k}'" "${S225_UI}/src/utils/techniqueOnboardingContract.js" || { bad "[225] onboarding contract 未登记 ${k}"; S225_BAD=1; }
+done
+grep -aq "AGENT_SYSTEM_RULES" "${S225_UI}/src/utils/aiAgent/protocol.js" || { bad "[225] protocol.js 守则块缺失"; S225_BAD=1; }
+RT_SRC="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiAgent/runtime.js"
+MAIN_SRC="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/aianalysis/AIAnalysisMain.js"
+[ "$(sed 's#//.*$##' "${RT_SRC}" | grep -ac "failRound(message)")" != "0" ] || { bad "[225] 运行时缺流层抛错的失败收口 failRound"; S225_BAD=1; }
+[ "$(sed 's#//.*$##' "${MAIN_SRC}" | grep -ac "agent.failRound(failMessage)")" != "0" ] || { bad "[225] 页面 catch 未调 failRound(抛错轮不归档 → trace 停止原因恒空)"; S225_BAD=1; }
+[ "${S225_BAD}" = "0" ] && ok "[225] 运行时门控/事件互锚/插座/注册表/哨兵全在位"
+
+# [226] 外部智能体连接(本机 MCP 服务)锁:只绑回环;三道门顺序;工具面只放行 read/additive;
+#   偏好默认关;退出钩子;页面桥零数据层 import 且在途队列键在位;布局层挂桥;面板复制零裸 writeText。
+echo "[226] 外部智能体连接(MCP)安全锁"
+S226_BAD=0
+S226_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/mcp_server.rs"
+S226_MAIN="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+[ -f "${S226_RS}" ] || { bad "[226] mcp_server.rs 缺失"; S226_BAD=1; }
+grep -aqF "0.0.0.0" "${S226_RS}" && { bad "[226] mcp_server.rs 出现 0.0.0.0(必须只绑回环)"; S226_BAD=1; }
+[ "$(grep -ac "\[127, 0, 0, 1\]" "${S226_RS}")" -ge 2 ] || { bad "[226] mcp_server.rs 回环绑定锚缺失"; S226_BAD=1; }
+S226_L_HOST="$(grep -an "!host_allowed(host)" "${S226_RS}" | head -1 | cut -d: -f1)"
+S226_L_ORIG="$(grep -an "!origin_allowed(origin)" "${S226_RS}" | head -1 | cut -d: -f1)"
+S226_L_AUTH="$(grep -an "!bearer_allowed(authorization" "${S226_RS}" | head -1 | cut -d: -f1)"
+S226_L_DISP="$(grep -anE "core.handle_rpc(_with_session)?\\(&parsed, dispatcher" "${S226_RS}" | head -1 | cut -d: -f1)"
+{ [ -n "${S226_L_HOST}" ] && [ -n "${S226_L_ORIG}" ] && [ -n "${S226_L_AUTH}" ] && [ -n "${S226_L_DISP}" ] && [ "${S226_L_HOST}" -lt "${S226_L_ORIG}" ] && [ "${S226_L_ORIG}" -lt "${S226_L_AUTH}" ] && [ "${S226_L_AUTH}" -lt "${S226_L_DISP}" ]; } || { bad "[226] 三道门顺序(Host→Origin→Bearer→dispatch)行号锚不成立"; S226_BAD=1; }
+grep -aq 'level == "read" || level == "additive"' "${S226_RS}" || { bad "[226] filter_tools 未限定 read/additive"; S226_BAD=1; }
+grep -aq "fn constant_time_eq" "${S226_RS}" || { bad "[226] 令牌比较非常量时间"; S226_BAD=1; }
+grep -aq "mcp_server_enabled: false," "${S226_MAIN}" || { bad "[226] main.rs 偏好默认 mcp_server_enabled 非 false"; S226_BAD=1; }
+grep -aq "agent_enabled: false," "${S226_MAIN}" || { bad "[226] main.rs 偏好默认 agent_enabled 非 false"; S226_BAD=1; }
+grep -aq "mcp_server::stop_on_exit(app);" "${S226_MAIN}" || { bad "[226] spawn_exit_cleanup 未调 mcp_server::stop_on_exit"; S226_BAD=1; }
+grep -aq "next.mcp_server_enabled = current.mcp_server_enabled;" "${S226_MAIN}" || { bad "[226] 偏好窗保存会清掉 mcp_server_enabled(须保留现值)"; S226_BAD=1; }
+S226_BR="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js"
+grep -aqE "from '[^']*(localcharts|localcases|localRecordStore|models/|dva)'" "${S226_BR}" && { bad "[226] mcpBridge.js 出现数据层 import"; S226_BAD=1; }
+grep -aq "__horosaPendingAgentTools" "${S226_BR}" || { bad "[226] mcpBridge.js 缺在途队列键"; S226_BAD=1; }
+grep -aq "bindMcpBridge();" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/layouts/app.js" || { bad "[226] layouts/app.js 未挂 bindMcpBridge"; S226_BAD=1; }
+grep -aq "writeText(" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/aianalysis/ExternalAgentPanel.js" && { bad "[226] ExternalAgentPanel 出现裸 writeText(须走 copyTextSmart)"; S226_BAD=1; }
+[ -f "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/mcpBridge.test.js" ] || { bad "[226] mcpBridge.test.js 缺失"; S226_BAD=1; }
+grep -aq "fn http_transport_end_to_end_and_port_released_on_stop" "${S226_RS}" || { bad "[226] cargo 端到端单测缺失"; S226_BAD=1; }
+[ -x "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_mcp_smoke.sh" ] || { bad "[226] verify_mcp_smoke.sh 缺失/不可执行"; S226_BAD=1; }
+# 令牌暴露面:状态查询不携带令牌(恒空串),按需 reveal 命令单独取;面板复制走 reveal
+grep -aqF '"token": String::new(),' "${S226_RS}" || { bad "[226] mcp_server.rs status_json 仍携带令牌(须恒空,按需 reveal)"; S226_BAD=1; }
+grep -aq "pub fn reveal_token" "${S226_RS}" || { bad "[226] mcp_server.rs 缺 reveal_token"; S226_BAD=1; }
+grep -aq "mcp_server_reveal_token_command," "${S226_MAIN}" || { bad "[226] main.rs 未注册 mcp_server_reveal_token_command"; S226_BAD=1; }
+grep -aq "desktopMcpServerRevealToken" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/aianalysis/ExternalAgentPanel.js" || { bad "[226] ExternalAgentPanel 复制未走 reveal 按需取令牌"; S226_BAD=1; }
+# 外部桥页面侧自带超时(挂死工具不得卡死整条串行队列)
+grep -aq "withTimeout(d.runTool(" "${S226_BR}" || { bad "[226] mcpBridge.js runTool 未包超时(挂死工具会卡死整条队列)"; S226_BAD=1; }
+[ "${S226_BAD}" = "0" ] && ok "[226] MCP 只绑回环/三道门有序/工具面收窄/默认关/退出钩子/桥零数据层/令牌按需/桥超时"
+
+# [227] AI 助手工具目录·只增不删四层锁:禁键表含 cid;目录零删改类工具名;守卫先于 Ajv;
+#   mount 永不空写 token;removeLocal* 只在 ledger.js;哨兵在位;账本键登记(敏感词面由 [45] 统一看守)。
+echo "[227] AI 助手工具目录只增不删四层锁"
+S227_BAD=0
+S227_T="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiTools"
+grep -aq "'cid'," "${S227_T}/catalog.js" || { bad "[227] FORBIDDEN_ARG_KEYS 不含 cid"; S227_BAD=1; }
+grep -aq "AGENT_TOOL_LEVELS = \['read', 'additive'\]" "${S227_T}/catalog.js" || { bad "[227] AGENT_TOOL_LEVELS 正向集合被改"; S227_BAD=1; }
+S227_NAMES="$(grep -ahoE "name: '[a-z_]+'" "${S227_T}"/tools/*.js | sed -E "s/name: '([a-z_]+)'/\1/" | sort -u)"
+S227_DENY="$(echo "${S227_NAMES}" | grep -ciE "delete|remove|purge|clear|reset|overwrite|update|rename|import|export|restore|backup|undo" || true)"
+[ "${S227_DENY}" = "0" ] || { bad "[227] 工具目录出现删改类工具名 ×${S227_DENY}"; S227_BAD=1; }
+[ "$(echo "${S227_NAMES}" | grep -c .)" = "24" ] || { bad "[227] 工具目录应恰 24 件,现 $(echo "${S227_NAMES}" | grep -c .)"; S227_BAD=1; }
+S227_L_G="$(grep -an "const guard = guardAdditive(def.name, args, def.referenceKeys);" "${S227_T}/registry.js" | head -1 | cut -d: -f1)"
+S227_L_V="$(grep -an "const validated = validateArgs(def, args);" "${S227_T}/registry.js" | head -1 | cut -d: -f1)"
+{ [ -n "${S227_L_G}" ] && [ -n "${S227_L_V}" ] && [ "${S227_L_G}" -lt "${S227_L_V}" ]; } || { bad "[227] registry.js 守卫未先于 Ajv(removeAdditional 会剥禁键=零判别力)"; S227_BAD=1; }
+grep -aq "\[ai-tools:never-empty-mount-write\]" "${S227_T}/settingsFacets.js" || { bad "[227] settingsFacets.js 缺 never-empty-mount-write token"; S227_BAD=1; }
+S227_RM="$(grep -alE "removeLocal(Chart|Case)\(" "${S227_T}" -r | grep -v "/ledger.js$" || true)"
+[ -z "${S227_RM}" ] || { bad "[227] removeLocalChart/Case 出现在账本之外: ${S227_RM}"; S227_BAD=1; }
+S227_SM="$(grep -alE "saveMountTechniqueDefaults\(" "${S227_T}" -r | grep -vE "/(settingsFacets|ledger)\.js$" || true)"
+[ -z "${S227_SM}" ] || { bad "[227] saveMountTechniqueDefaults 出现在 settingsFacets/ledger 之外: ${S227_SM}"; S227_BAD=1; }
+grep -aq "referenceKeys: \['cid'\]" "${S227_T}/tools/loadRecordIntoWorkspace.js" || { bad "[227] 载入工具引用键声明缺失"; S227_BAD=1; }
+[ "$(grep -arl "referenceKeys" "${S227_T}/tools" | wc -l | tr -d ' ')" = "1" ] || { bad "[227] referenceKeys 只允许载入工具声明"; S227_BAD=1; }
+grep -aq "'horosa.ai.agent.ledger.v1'" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/storageKeyRegistry.js" || { bad "[227] 账本键未登记"; S227_BAD=1; }
+[ -f "${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md" ] || { bad "[227] docs/AI_AGENT_RUNTIME.md 缺失"; S227_BAD=1; }
+[ "${S227_BAD}" = "0" ] && ok "[227] 只增不删四层(禁键/目录/守卫序/静态)+文档在位"
+
+
+# [228] 壳→页面事件桥死开关锁(FL-20260902-1):打包版无 window.__TAURI__(withGlobalTauri 缺省 false)且 capabilities 为空
+#   (event.listen 无授权)→ 任何「只探 window.__TAURI__」的门控/`__TAURI__.event.listen` 在壳内恒死。锁:页面零单探门控、
+#   自动备份 tick 走 eval 回调、壳侧不再 emit、桥自检上报在位、ACL 面不变(不开 withGlobalTauri/不加 capabilities)、双测在位。
+echo "[228] 壳→页面事件桥(单探 __TAURI__ 门控/emit 死链)锁"
+S228_BAD=0
+S228_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S228_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S228_SINGLE="$(grep -rnE "!!window\.__TAURI__|!window\.__TAURI__\)|window\.__TAURI__\.event\.listen|window\.__TAURI__\) \? \(window\.__TAURI__" "${S228_UI}/src" --include='*.js' 2>/dev/null | grep -v "__tests__" | grep -vE "^[^:]+:[0-9]+:\s*//" || true)"
+[ -z "${S228_SINGLE}" ] || { bad "[228] 页面出现只探 window.__TAURI__ 的门控/listen(打包版恒死):"; echo "${S228_SINGLE}" | head -5 | sed 's/^/      /'; S228_BAD=1; }
+grep -aq "window.__horosaAutoBackupTick = " "${S228_UI}/src/utils/autoBackup.js" || { bad "[228] autoBackup.js 未挂 __horosaAutoBackupTick 回调"; S228_BAD=1; }
+grep -aq "__horosaPendingAutoBackupTicks" "${S228_UI}/src/utils/autoBackup.js" || { bad "[228] autoBackup.js 缺 pending 补读"; S228_BAD=1; }
+grep -aq "reportDesktopBridgeDiag()" "${S228_UI}/src/layouts/app.js" || { bad "[228] layouts/app.js 未挂桥自检上报"; S228_BAD=1; }
+grep -aq "fn dispatch_auto_backup_tick" "${S228_RS}" || { bad "[228] main.rs 缺 dispatch_auto_backup_tick(eval 回调投递)"; S228_BAD=1; }
+grep -aqF 'emit("horosa://auto-backup-tick"' "${S228_RS}" && { bad "[228] main.rs 仍用 emit 投递自动备份 tick(无人能收)"; S228_BAD=1; }
+grep -aq "bridge_diag_report_command," "${S228_RS}" || { bad "[228] main.rs 未注册 bridge_diag_report_command"; S228_BAD=1; }
+grep -aq "fn packaged_context_has_no_global_tauri_and_event_listen_is_acl_denied" "${S228_RS}" || { bad "[228] cargo ACL/withGlobalTauri 自证测试缺失"; S228_BAD=1; }
+grep -aq '"withGlobalTauri": *true' "${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/tauri.conf.json" && { bad "[228] tauri.conf.json 开了 withGlobalTauri(ACL 面扩大,与桥范式冲突;须评估后另立哨兵)"; S228_BAD=1; }
+[ -d "${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/capabilities" ] && { bad "[228] 出现 capabilities 目录(ACL 面变化未经评估)"; S228_BAD=1; }
+[ -f "${S228_UI}/src/utils/__tests__/autoBackupBridge.test.js" ] || { bad "[228] autoBackupBridge.test.js 缺失"; S228_BAD=1; }
+[ -f "${S228_UI}/src/utils/desktopBridgeDiag.js" ] || { bad "[228] desktopBridgeDiag.js 缺失"; S228_BAD=1; }
+# eval 回调范式的隐性前提:CSP 必须保留 'unsafe-eval'(收紧即整条壳→页面通道再死一次)
+grep -aq "'unsafe-eval'" "${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/tauri.conf.json" || { bad "[228] tauri.conf.json CSP 丢了 'unsafe-eval'(壳→页面 eval 回调范式失效)"; S228_BAD=1; }
+[ -f "${S228_UI}/src/utils/__tests__/desktopBridgeDiag.test.js" ] || { bad "[228] desktopBridgeDiag.test.js 缺失"; S228_BAD=1; }
+[ "${S228_BAD}" = "0" ] && ok "[228] 事件桥:零单探门控/tick 走 eval 回调/壳零 emit/自检上报/ACL 面不变/双测在位/CSP unsafe-eval"
+
+# [229] 西占宫主口径单源锁(Windows #79):宫主/主宰=整宫制自上升起算(与后端 ruleHouses/快照 nR 同源),行星力量=当前分宫制;
+#   两表派生只许一份实现(utils/wholeSignRulers.js),AI 快照与主页 AstroDispositor/AstroInfo 同函数(禁本地 SIGN_RULER 查表);
+#   [分宫制宫神星表] 独立段:九个西占键 preset 紧随「主宰星链」+ v57 union(MIGRATION_VERSION 恒 44);旧格式快照按 payload 格式版本失效;三测在位。
+echo "[229] 西占宫主口径单源(整宫制宫主表/分宫制宫神星表)锁"
+S229_BAD=0
+S229_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+[ -f "${S229_UI}/src/utils/wholeSignRulers.js" ] || { bad "[229] wholeSignRulers.js 缺失(宫主派生单源)"; S229_BAD=1; }
+grep -aq "from './wholeSignRulers'" "${S229_UI}/src/utils/astroAiSnapshot.js" || { bad "[229] astroAiSnapshot.js 未引宫主单源"; S229_BAD=1; }
+grep -aq "utils/wholeSignRulers'" "${S229_UI}/src/components/astro/AstroDispositor.js" || { bad "[229] AstroDispositor.js 未引宫主单源"; S229_BAD=1; }
+grep -aq "utils/wholeSignRulers'" "${S229_UI}/src/components/astro/AstroInfo.js" || { bad "[229] AstroInfo.js 未引宫主单源(命主星)"; S229_BAD=1; }
+S229_LOCAL="$(grep -anF "SIGN_RULER = {" "${S229_UI}/src/components/astro/AstroDispositor.js" "${S229_UI}/src/components/astro/AstroInfo.js" "${S229_UI}/src/utils/astroAiSnapshot.js" 2>/dev/null | grep -vE ":[0-9]+:\s*//" || true)"
+[ -z "${S229_LOCAL}" ] || { bad "[229] 宫主查表又长回第二份本地实现(须走 wholeSignRulers.rulerOfSign):"; echo "${S229_LOCAL}" | head -3 | sed 's/^/      /'; S229_BAD=1; }
+grep -aqF "'◆ 整宫制宫主表(wholeSignRulers)'" "${S229_UI}/src/utils/astroAiSnapshot.js" || { bad "[229] [主宰星链] 缺整宫制宫主表子块"; S229_BAD=1; }
+grep -aqF "buildSectionText('分宫制宫神星表'" "${S229_UI}/src/utils/astroAiSnapshot.js" || { bad "[229] 快照缺 [分宫制宫神星表] 独立段"; S229_BAD=1; }
+grep -aqF "'◆ 宫神星(houseRows)'" "${S229_UI}/src/utils/astroAiSnapshot.js" && { bad "[229] 旧「◆ 宫神星(houseRows)」子块回潮到 [主宰星链](分宫制表须独立成段并标宫制)"; S229_BAD=1; }
+grep -aqF "export const ASTRO_SNAPSHOT_FORMAT_VERSION" "${S229_UI}/src/utils/astroAiSnapshot.js" || { bad "[229] astroAiSnapshot.js 缺快照格式版本常量"; S229_BAD=1; }
+grep -aqF "ASTRO_SNAPSHOT_FORMAT_VERSION" "${S229_UI}/src/utils/aiAnalysisContext.js" || { bad "[229] aiAnalysisContext.js 缺旧格式快照守卫"; S229_BAD=1; }
+S229_PRESET="$(grep -acF "'主宰星链', '分宫制宫神星表'" "${S229_UI}/src/utils/aiExport.js" || true)"
+[ "${S229_PRESET:-0}" -ge 9 ] || { bad "[229] aiExport.js preset 含「主宰星链, 分宫制宫神星表」行数 ${S229_PRESET:-0} < 9(九个西占键必登记,否则该段被静默删)"; S229_BAD=1; }
+grep -aq "AI_EXPORT_V57_SECTION_UNION" "${S229_UI}/src/utils/aiExport.js" || { bad "[229] aiExport.js 缺 v57 union"; S229_BAD=1; }
+grep -aqF "AI_EXPORT_SECTION_MIGRATION_VERSION = 44;" "${S229_UI}/src/utils/aiExport.js" || { bad "[229] AI_EXPORT_SECTION_MIGRATION_VERSION 被动(须恒 44)"; S229_BAD=1; }
+for f in wholeSignRulers.test.js astroV2FactEquivalence.test.js astroClassicalSnapshot.test.js; do
+  [ -f "${S229_UI}/src/utils/__tests__/${f}" ] || { bad "[229] 测试缺失:${f}"; S229_BAD=1; }
+done
+grep -aqF "POST_BASELINE_HEADS" "${S229_UI}/src/utils/__tests__/astroV2FactEquivalence.test.js" || { bad "[229] 等价证明缺段头白名单守卫(基线只读,新段须白名单)"; S229_BAD=1; }
+[ "${S229_BAD}" = "0" ] && ok "[229] 西占宫主口径:单源在位/零本地查表/两表两段/preset×9+v57/MIGRATION 44/格式版本守卫/三测在位"
+
+# [230] AI 规模面锁(IDB 索引读/上下文缓存自裁/源列表缓存/批量选源/写放大)
+echo "[230] AI 规模面锁(IDB 索引读/上下文缓存自裁/源列表缓存/批量选源/写放大)"
+S230_BAD=0
+S230_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+grep -aq "\['conversationId', 'conversationId'\]" "${S230_UI}/src/utils/aiAnalysisStore.js" || { bad "[230] aiAnalysisStore 缺 messages.conversationId 索引声明"; S230_BAD=1; }
+grep -aq "export async function readByIndex" "${S230_UI}/src/utils/aiAnalysisStore.js" || { bad "[230] aiAnalysisStore 缺 readByIndex"; S230_BAD=1; }
+awk '/^export async function listConversationMessages/,/^}/' "${S230_UI}/src/utils/aiAnalysisStore.js" | pipe_has "listStoreRecords(AI_ANALYSIS_STORES.messages)" && { bad "[230] listConversationMessages 退回全表 getAll"; S230_BAD=1; }
+grep -aq "CONTEXT_CACHE_MAX_ENTRIES = 300" "${S230_UI}/src/utils/aiAnalysisStore.js" || { bad "[230] context_cache 条数上限常量缺失/被改"; S230_BAD=1; }
+grep -aq "schedulePruneContextCache()" "${S230_UI}/src/utils/aiAnalysisContext.js" || { bad "[230] getAnalysisSourceContext 写后未调度裁剪"; S230_BAD=1; }
+grep -aq "export function findAnalysisSourceById" "${S230_UI}/src/utils/aiAnalysisSources.js" || { bad "[230] aiAnalysisSources 缺 findAnalysisSourceById"; S230_BAD=1; }
+grep -aq "findAnalysisSourceById(" "${S230_UI}/src/utils/aiTools/tools/castTechnique.js" || { bad "[230] castTechnique 记录源未走直查"; S230_BAD=1; }
+grep -aq "listAnalysisSources().find" "${S230_UI}/src/utils/aiTools/tools/castTechnique.js" && { bad "[230] castTechnique 又为找一条解析全库"; S230_BAD=1; }
+grep -aq "getByCid" "${S230_UI}/src/utils/localRecordStore.js" || { bad "[230] localRecordStore 缺 getByCid"; S230_BAD=1; }
+grep -aq "__serializeListForTests" "${S230_UI}/src/utils/localRecordStore.js" || { bad "[230] localRecordStore 写放大优化(serializeList)缺失"; S230_BAD=1; }
+for f in runtime.js mcpBridge.js; do grep -aq "deferSelect" "${S230_UI}/src/utils/aiAgent/$f" || { bad "[230] aiAgent/$f 缺批量选源合并(deferSelect)"; S230_BAD=1; }; done
+for f in createChartRecord.js createCaseRecord.js; do grep -aq "deferSelect" "${S230_UI}/src/utils/aiTools/tools/$f" || { bad "[230] aiTools/$f 缺 deferSelect 分支"; S230_BAD=1; }; done
+for t in aiAnalysisStoreIndexes contextCachePrune aiAnalysisSourcesCache localRecordStoreWriteAmp aiAgentBatchSelect; do [ -f "${S230_UI}/src/utils/__tests__/$t.test.js" ] || { bad "[230] 回归测试 $t.test.js 缺失"; S230_BAD=1; }; done
+grep -aq '"fake-indexeddb"' "${S230_UI}/package.json" || { bad "[230] fake-indexeddb devDependency 缺失(IDB 真径测试跑不了)"; S230_BAD=1; }
+CAST_SRC="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiTools/tools/castTechnique.js"
+[ "$(sed 's#//.*$##' "${CAST_SRC}" | grep -ac "clipContentToBudget(picked")" != "0" ] || { bad "[230] cast_technique 截断未段对齐(会把快照砍在表中间)"; S230_BAD=1; }
+[ "$(sed 's#//.*$##' "${CAST_SRC}" | grep -ac "E_SECTION_NOT_FOUND")" != "0" ] || { bad "[230] cast_technique 缺按段取的空命中报错"; S230_BAD=1; }
+[ "${S230_BAD}" = "0" ] && ok "[230] AI 规模面锁(IDB 索引读/上下文缓存自裁/源列表缓存/批量选源/写放大)"
+
+# [231] 请求失败分类留痕 + 诊断账本(吞错必留痕)
+echo "[231] 请求失败分类留痕 + 诊断账本(吞错必留痕)"
+S231_BAD=0
+S231_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+[ -f "${S231_UI}/src/utils/requestFailure.js" ] && [ -f "${S231_UI}/src/utils/requestTelemetry.js" ] && [ -f "${S231_UI}/src/utils/backendDiagText.js" ] || { bad "[231] requestFailure/requestTelemetry/backendDiagText 缺失"; S231_BAD=1; }
+[ "$(grep -ac 'classifyRequestFailure(' "${S231_UI}/src/utils/request.js")" -ge 3 ] || { bad "[231] request.js 三条失败分支未全经 classifyRequestFailure"; S231_BAD=1; }
+[ "$(grep -ac 'recordRequestFailure(' "${S231_UI}/src/utils/request.js")" -ge 3 ] || { bad "[231] request.js 三条失败分支未全留痕"; S231_BAD=1; }
+grep -aq "recordRequestFailure(" "${S231_UI}/src/utils/chartFetch.js" || { bad "[231] chartFetch.js 失败未留痕"; S231_BAD=1; }
+grep -aq "buildBackendDiagText" "${S231_UI}/src/components/common/BackendStatusDot.js" || { bad "[231] 复制信息未接诊断文本"; S231_BAD=1; }
+grep -aq "page_telemetry" "${S231_UI}/src/utils/desktopBridgeDiag.js" || { bad "[231] 页面留痕未上报壳账本(page_telemetry)"; S231_BAD=1; }
+grep -aq "reportPageTelemetry" "${S231_UI}/src/layouts/app.js" || { bad "[231] layouts/app.js 未挂离线跳变/周期上报"; S231_BAD=1; }
+for t in requestFailure requestTelemetry requestSilentTrace backendDiagText; do [ -f "${S231_UI}/src/utils/__tests__/$t.test.js" ] || { bad "[231] 回归测试 $t.test.js 缺失"; S231_BAD=1; }; done
+[ "${S231_BAD}" = "0" ] && ok "[231] 请求失败分类留痕 + 诊断账本(吞错必留痕)"
+
+# [232] 产品口径锁(中国大陆统一时区归并/地名中文别名与重音折叠/跨技法时间基准自声明)
+echo "[232] 产品口径锁(中国大陆统一时区归并/地名中文别名与重音折叠/跨技法时间基准自声明)"
+S232_BAD=0
+S232_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+grep -aq "CN_UNIFIED_ZONE_SINCE" "${S232_UI}/src/utils/timezone.js" || { bad "[232] timezone.js 缺统一北京时间归并"; S232_BAD=1; }
+[ "$(sed -E 's#//.*$##' "${S232_UI}/src/utils/timezone.js" | grep -ac "return '+08:00'")" = "0" ] || { bad "[232] timezone.js 出现写死 +08:00 返回(须按日期算偏移)"; S232_BAD=1; }
+grep -aq "'horosa.tz.cnUnified'" "${S232_UI}/src/utils/storageKeyRegistry.js" || { bad "[232] horosa.tz.cnUnified 未登记注册表"; S232_BAD=1; }
+grep -aq "cn-unified" "${S232_UI}/src/components/amap/GeoCoordSelector.js" || { bad "[232] 选点预览缺官方/当地惯用提示"; S232_BAD=1; }
+grep -aq "world_cities_zh" "${S232_UI}/scripts/build-cities.js" || { bad "[232] build-cities 未合并中文别名种子"; S232_BAD=1; }
+[ "$(python3 -c "import json;d=json.load(open('${S232_UI}/scripts/data/world_cities_zh.json'));print(len([k for k in d if k!='_doc']))" 2>/dev/null || echo 0)" -ge 300 ] || { bad "[232] 中文别名种子少于 300 条"; S232_BAD=1; }
+grep -aq "雷克雅未克" "${S232_UI}/src/data/citiesFull.json" || { bad "[232] citiesFull.json 未含中文别名(需 npm run build:cities)"; S232_BAD=1; }
+grep -aq "export function foldAscii" "${S232_UI}/src/components/amap/cityMatch.js" || { bad "[232] cityMatch 缺重音折叠"; S232_BAD=1; }
+[ -f "${S232_UI}/src/utils/timeBasisLine.js" ] || { bad "[232] timeBasisLine.js 缺失"; S232_BAD=1; }
+[ "$(grep -ac 'buildTimeBasisLine(' "${S232_UI}/src/components/guolao/GuoLaoChartMain.js")" -ge 2 ] || { bad "[232] 七政两处 [起盘信息] 未自声明时间基准"; S232_BAD=1; }
+grep -aq "buildTimeBasisLine(" "${S232_UI}/src/components/cntradition/BaZi.js" || { bad "[232] 八字 [起盘信息] 未自声明时间基准"; S232_BAD=1; }
+grep -aq "withTimeBasis: true" "${S232_UI}/src/utils/astroAiSnapshot.js" || { bad "[232] 星盘 [起盘信息] 未自声明时间基准"; S232_BAD=1; }
+grep -aq "时间基准" "${S232_UI}/src/utils/aiAgent/protocol.js" || { bad "[232] AGENT_SYSTEM_RULES 缺跨技法时间基准条款"; S232_BAD=1; }
+for t in timezone.cnRegion snapshotTimeBasis.contract; do [ -f "${S232_UI}/src/utils/__tests__/$t.test.js" ] || { bad "[232] 回归测试 $t.test.js 缺失"; S232_BAD=1; }; done
+[ "${S232_BAD}" = "0" ] && ok "[232] 产品口径锁(中国大陆统一时区归并/地名中文别名与重音折叠/跨技法时间基准自声明)"
+
+# [233] AI 工具错误码单一真源(码表/文案/信封 retryable+cause;三集合恒等)
+echo "[233] AI 工具错误码单一真源(码表/文案/信封 retryable+cause)"
+S233_BAD=0
+S233_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S233_TBL="${S233_UI}/src/utils/aiTools/errorCodes.js"
+S233_CAST="${S233_UI}/src/utils/aiTools/tools/castTechnique.js"
+S233_PROTO="${S233_UI}/src/utils/aiAgent/protocol.js"
+S233_REG="${S233_UI}/src/utils/aiTools/registry.js"
+S233_DOC="${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md"
+# 剥单行注释再 grep:注释里复写同一字面量会让肯定式哨兵假绿、否定式假红(字面量哨兵×注释双向陷阱)。
+s233_code(){ sed -E 's#//.*$##' "$1"; }
+if [ ! -f "${S233_TBL}" ]; then
+	bad "[233] aiTools/errorCodes.js 缺失(错误码没有单一真源)"; S233_BAD=1
+else
+	for sym in "export const TOOL_ERROR_CODES" "export const TOOL_ERROR_CODE_LIST" "export const TOOL_ERROR_LAYERS" "export const ERROR_CAUSE_KEYS" "export function getErrorMeta" "export function isRetryable" "export function sanitizeErrorCause"; do
+		s233_code "${S233_TBL}" | pipe_has -F "${sym}" || { bad "[233] errorCodes.js 缺导出:${sym}"; S233_BAD=1; }
+	done
+	# 三集合恒等:源码里出现的 'E_*' 字面量 == 冻结表键 == 文档表首列。任一漂移=有码没落表/表里有死码/文档没跟。
+	S233_SCAN="$(find "${S233_UI}/src/utils/aiTools" "${S233_UI}/src/utils/aiAgent" "${S233_UI}/src/integrations" -name '*.js' ! -name 'errorCodes.js' ! -name '*.test.js' -exec sed -E 's#//.*$##' {} + | grep -aoE "'E_[A-Z0-9_]+'" | tr -d "'" | sort -u)"
+	S233_KEYS="$(s233_code "${S233_TBL}" | grep -aoE '^[[:space:]]+E_[A-Z0-9_]+: def\(' | grep -aoE 'E_[A-Z0-9_]+' | sort -u)"
+	S233_DOCK="$(grep -aoE '^\| `E_[A-Z0-9_]+` \|' "${S233_DOC}" | grep -aoE 'E_[A-Z0-9_]+' | sort -u)"
+	S233_N="$(printf '%s\n' "${S233_KEYS}" | grep -ac 'E_')"
+	[ "${S233_N}" -ge 40 ] || { bad "[233] 码表只有 ${S233_N} 条(应 ≥40,少了说明有码没落表)"; S233_BAD=1; }
+	[ "${S233_SCAN}" = "${S233_KEYS}" ] || { bad "[233] 源码扫描集 ≠ 冻结表(差集: $(comm -3 <(printf '%s\n' "${S233_SCAN}") <(printf '%s\n' "${S233_KEYS}") | tr -d '\t' | tr '\n' ' '))"; S233_BAD=1; }
+	[ "${S233_DOCK}" = "${S233_KEYS}" ] || { bad "[233] 文档错误码表 ≠ 冻结表(差集: $(comm -3 <(printf '%s\n' "${S233_DOCK}") <(printf '%s\n' "${S233_KEYS}") | tr -d '\t' | tr '\n' ' '))"; S233_BAD=1; }
+	# 可重试只给「同参机械重试有望成功」的后端不可达一类;多标一个=让模型在必败路径上空转。
+	[ "$(s233_code "${S233_TBL}" | grep -acE "def\('[a-z]+', true,")" = "1" ] || { bad "[233] 可重试码不是恰好一枚(判据:同参重试有望成功)"; S233_BAD=1; }
+	s233_code "${S233_TBL}" | pipe_has -E "^[[:space:]]+E_CAST_BACKEND_FAILED: def\('backend', true," || { bad "[233] E_CAST_BACKEND_FAILED 不是 backend 层可重试码"; S233_BAD=1; }
+	s233_code "${S233_TBL}" | pipe_has -F "该技法未产出内容" || { bad "[233] E_SNAPSHOT_MISSING 文案未落表(文案须单源)"; S233_BAD=1; }
+fi
+grep -aqF '| 码 | 层 | 可重试 | 产出方 | 用户可做 |' "${S233_DOC}" || { bad "[233] 文档缺错误码表(表头须逐列固定)"; S233_BAD=1; }
+# 信封:失败才带 retryable/cause;retryable 缺省查表;cause 过白名单(绝不带请求体/响应头/令牌)。
+s233_code "${S233_PROTO}" | pipe_has -F "isRetryable(r.code)" || { bad "[233] 信封 retryable 未查错误码表"; S233_BAD=1; }
+s233_code "${S233_PROTO}" | pipe_has -F "sanitizeErrorCause(r.cause)" || { bad "[233] 信封 cause 未过白名单过滤"; S233_BAD=1; }
+s233_code "${S233_PROTO}" | pipe_has -E "failure \?[^\n]*retryable" || { bad "[233] 信封 ok:true 也带 retryable(须只在失败信封带)"; S233_BAD=1; }
+# 起盘失败三路各出各码;负锚:那句把请求层故障说成计算服务离线的旧文案不得回潮。
+for c in E_CAST_FAILED E_CAST_BACKEND_FAILED E_SNAPSHOT_MISSING; do
+	s233_code "${S233_CAST}" | pipe_has -F "'${c}'" || { bad "[233] castTechnique 失败三路缺 ${c}"; S233_BAD=1; }
+done
+s233_code "${S233_CAST}" | pipe_has -F "需本机计算服务在线" && { bad "[233] castTechnique 旧误导文案回潮(纯本地技法照它去查服务=白查)"; S233_BAD=1; }
+s233_code "${S233_CAST}" | pipe_has -F "sanitizeErrorCause(" || { bad "[233] castTechnique 的 cause 未过白名单"; S233_BAD=1; }
+s233_code "${S233_CAST}" | pipe_has -F "lastFor(" || { bad "[233] castTechnique 未取 /chart 失败留痕作 cause"; S233_BAD=1; }
+# 写前快照失败是工具层的事,不再借用取值类码(借用会让模型反复去改本来没错的参数)。
+s233_code "${S233_REG}" | pipe_has -F "'E_SETTING_SNAPSHOT_FAILED'" || { bad "[233] registry 写前快照失败未用 E_SETTING_SNAPSHOT_FAILED"; S233_BAD=1; }
+[ "$(s233_code "${S233_REG}" | grep -aF "写前快照失败" | grep -acF "E_SETTING_VALUE_INVALID")" = "0" ] || { bad "[233] registry 写前快照仍借用取值类码"; S233_BAD=1; }
+[ -f "${S233_UI}/src/utils/__tests__/aiToolsErrorCodes.contract.test.js" ] || { bad "[233] 合同测试 aiToolsErrorCodes.contract.test.js 缺失"; S233_BAD=1; }
+[ "${S233_BAD}" = "0" ] && ok "[233] AI 工具错误码单一真源(${S233_N} 码;三集合恒等/文案单源/信封 retryable+cause)"
+
+# [234] AI 助手交互效率与记忆(对话交互增强插座;策略写入方;目录纪律)
+echo "[234] AI 助手交互效率与记忆(插座/策略写入方/目录纪律)"
+S234_BAD=0
+S234_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S234_MAIN="${S234_UI}/src/components/aianalysis/AIAnalysisMain.js"
+S234_HIST="${S234_UI}/src/utils/aiChatHistory.js"
+s234_code(){ sed -E 's#//.*$##' "$1"; }
+# 插座:AIAnalysisMain 只经 ./chat 桶 import;唯一钩子 + 浮层宿主在位
+[ "$(s234_code "${S234_MAIN}" | grep -acF "import { useChatAssist, ChatAssistOverlays } from './chat';")" != "0" ] || { bad "[234] AIAnalysisMain 缺 ./chat 插座 import"; S234_BAD=1; }
+[ "$(s234_code "${S234_MAIN}" | grep -acF "const chatAssist = useChatAssist({")" = "1" ] || { bad "[234] useChatAssist 插座不是恰好一处"; S234_BAD=1; }
+[ "$(s234_code "${S234_MAIN}" | grep -acF "<ChatAssistOverlays {...chatAssist.overlays} />")" = "1" ] || { bad "[234] ChatAssistOverlays 浮层宿主不是恰好一处"; S234_BAD=1; }
+# 既有计数锚不得被本轮改动碰到(hunk 只增插座,不动运行时插座)
+[ "$(grep -ac 'agentTrace: item.agentTrace,' "${S234_MAIN}")" = "4" ] || { bad "[234] 四处消息 map 计数漂移(本轮不得触碰运行时插座)"; S234_BAD=1; }
+# 策略写入方(此前只读没写=八档永远跑 legacy)
+for sym in "export function writeContextPolicy" "export function clearContextPolicy" "export function subscribeContextPolicy" "export const CONTEXT_POLICY_PRESETS"; do
+	[ "$(s234_code "${S234_HIST}" | grep -acF "${sym}")" != "0" ] || { bad "[234] aiChatHistory 缺 ${sym}"; S234_BAD=1; }
+done
+# 目录纪律:utils/aiChat + components/aianalysis/chat 零裸 localStorage 写、零工具注册、零注册表 import
+S234_DIRS="${S234_UI}/src/utils/aiChat ${S234_UI}/src/components/aianalysis/chat"
+[ -d "${S234_UI}/src/utils/aiChat" ] && [ -d "${S234_UI}/src/components/aianalysis/chat" ] || { bad "[234] 对话交互增强目录缺失"; S234_BAD=1; }
+[ "$(cat $(find ${S234_DIRS} -name '*.js' 2>/dev/null) 2>/dev/null | sed -E 's#//.*$##' | grep -acE 'localStorage\.(setItem|removeItem)\(')" = "0" ] || { bad "[234] 对话交互增强目录出现裸 localStorage 写"; S234_BAD=1; }
+[ "$(cat $(find ${S234_DIRS} -name '*.js' 2>/dev/null) 2>/dev/null | sed -E 's#//.*$##' | grep -acE 'registerTool\(|aiTools/registry')" = "0" ] || { bad "[234] 对话交互增强目录注册了工具/引了注册表(口径记忆检查点永远不是工具)"; S234_BAD=1; }
+# A1a 策略设置卡:设置页插座恰 1;卡在位;打开不写键的判别向量在合同测试里
+[ "$(s234_code "${S234_MAIN}" | grep -acF "{chatAssist.settingsPanels}")" = "1" ] || { bad "[234] 设置页插座 chatAssist.settingsPanels 不是恰好一处"; S234_BAD=1; }
+# [进阶页] 两处插座整体迁到 renderAdvancedPane;设置页只剩接口配置与备份。三锚:渲染函数在位 / 页签在位 / 设置页体内不再渲染插座(排空计数形态,pipefail 下不吃 SIGPIPE)。
+[ "$(s234_code "${S234_MAIN}" | grep -acF "function renderAdvancedPane(")" = "1" ] || { bad "[234] 进阶页渲染函数 renderAdvancedPane 缺失"; S234_BAD=1; }
+[ "$(s234_code "${S234_MAIN}" | grep -acF "key=\"advanced\"")" = "1" ] || { bad "[234] 进阶页签 key=advanced 缺失"; S234_BAD=1; }
+S234_SETTINGS_BODY="$(s234_code "${S234_MAIN}" | sed -n '/function renderSettingsPane(){/,/^\tfunction /p')"
+[ "$(printf '%s\n' "${S234_SETTINGS_BODY}" | grep -acF "chatAssist.settingsPanels")" = "0" ] || { bad "[234] 设置页仍渲染 settingsPanels 插座(应已迁到进阶页)"; S234_BAD=1; }
+[ -f "${S234_UI}/src/components/aianalysis/chat/AdvancedPane.js" ] && [ -f "${S234_UI}/src/components/aianalysis/chat/AdvCard.js" ] && [ -f "${S234_UI}/src/utils/__tests__/aiAdvancedPane.test.js" ] || { bad "[234] 进阶页组件/外壳/合同测试缺失"; S234_BAD=1; }
+[ -f "${S234_UI}/src/components/aianalysis/chat/ChatContextPolicyPanel.js" ] && [ -f "${S234_UI}/src/utils/aiChat/policyPanel.js" ] || { bad "[234] 对话上下文策略设置卡缺失"; S234_BAD=1; }
+# A2 状态栏:输入区插座恰 1;组件在位;纯展示零 localStorage 写(目录纪律已覆盖)
+[ "$(s234_code "${S234_MAIN}" | grep -acF "{chatAssist.statusBarNode}")" = "1" ] || { bad "[234] 状态栏插座 chatAssist.statusBarNode 不是恰好一处"; S234_BAD=1; }
+[ -f "${S234_UI}/src/components/aianalysis/chat/ChatStatusBar.js" ] || { bad "[234] ChatStatusBar 缺失"; S234_BAD=1; }
+for t in aiChatPolicyWrite aiChatStatus aiChatShortCall aiChatPolicyPanel aiChatStatusBar; do
+	[ -f "${S234_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[234] 合同测试 ${t}.test.js 缺失"; S234_BAD=1; }
+done
+# A3 斜杠命令 + 技能包:命令面板插座恰 1 + 发送口拦截恰 1(按钮/回车同一入口)+ 解析规则(首字符 / 且次字符非 /)+ capture 阶段 keydown + IME 不拦 + 内置技能 + 跨页跳转桥 + 合同
+[ "$(s234_code "${S234_MAIN}" | grep -acF "<ComposerAssist {...chatAssist.composer} />")" = "1" ] && [ "$(s234_code "${S234_MAIN}" | grep -acF "chatAssist.interceptSend(trimmed)")" = "1" ] || { bad "[234] 命令面板插座/发送口拦截不是恰一处"; S234_BAD=1; }
+S234_CMD="${S234_UI}/src/utils/aiChat/commands.js"
+[ "$(s234_code "${S234_CMD}" | grep -acF "if(s.length < 2 || s[0] !== '/' || s[1] === '/'){ return null; }")" = "1" ] && [ "$(s234_code "${S234_CMD}" | grep -acF "export function listCommandItems(")" = "1" ] || { bad "[234] 斜杠解析规则锚缺失(// 与正文中的 / 不得成为命令)"; S234_BAD=1; }
+S234_CA="${S234_UI}/src/components/aianalysis/chat/ComposerAssist.js"
+[ "$(s234_code "${S234_CA}" | grep -acF "ta.addEventListener('keydown', onKey, true);")" = "1" ] && [ "$(s234_code "${S234_CA}" | grep -acF "if(e.isComposing || e.keyCode === 229){ return; }")" = "1" ] || { bad "[234] 命令面板须 capture 阶段拦键且 IME 组合期不拦"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/utils/aiChat/skills.js" | grep -acF "export const BUILTIN_SKILLS = [")" = "1" ] && [ "$(s234_code "${S234_UI}/src/utils/aiChat/skills.js" | grep -acF "export function planSkillImport(")" = "1" ] || { bad "[234] 技能包模块缺内置技能/导入判定"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/pages/index.js" | grep -acF "window.addEventListener('horosa:navigate', onNav);")" = "1" ] || { bad "[234] 跨页跳转桥 horosa:navigate 缺失(/择日 无处可去)"; S234_BAD=1; }
+[ -f "${S234_UI}/src/components/aianalysis/chat/SkillPackPanel.js" ] || { bad "[234] 技能包设置卡缺失"; S234_BAD=1; }
+for t in aiChatCommands aiChatSkills aiChatComposer; do [ -f "${S234_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[234] 合同测试 ${t}.test.js 缺失"; S234_BAD=1; }; done
+# A4 @引用:候选/解析/挂载计划纯模块 + 技法段过滤复用导出段切分 + Main 技法段插座恰 1 + 邮箱/全角不算 @ 的合同
+S234_MN="${S234_UI}/src/utils/aiChat/mentions.js"
+[ -s "${S234_MN}" ] && [ "$(s234_code "${S234_MN}" | grep -acF "export function findMentionQuery(")" = "1" ] && [ "$(s234_code "${S234_MN}" | grep -acF "export function resolveMentions(")" = "1" ] || { bad "[234] mentions.js 缺 @查询定位/挂载计划"; S234_BAD=1; }
+[ "$(s234_code "${S234_MN}" | grep -acF "if(i > 0 && isWordChar(s[i - 1])){ return null; }")" = "1" ] || { bad "[234] @ 前是邮箱字符须不算命令的判据缺失"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/utils/aiChat/sectionFilter.js" | grep -acF "export function filterContentSections(")" = "1" ] && [ "$(s234_code "${S234_UI}/src/utils/aiChat/sectionFilter.js" | grep -acF "filterContentByWantedSections(text, new Set(list))")" = "1" ] || { bad "[234] 技法段过滤须复用导出段切分器"; S234_BAD=1; }
+[ "$(s234_code "${S234_MAIN}" | grep -acF "chatAssist.filterTechniqueSections(")" = "1" ] || { bad "[234] 技法段过滤插座不是恰一处"; S234_BAD=1; }
+[ -f "${S234_UI}/src/utils/__tests__/aiChatMentions.test.js" ] || { bad "[234] 合同测试 aiChatMentions.test.js 缺失"; S234_BAD=1; }
+# A5 压缩/旁问/回退:主线视图 mainline 恰 6(四发送口+历史层+模版变量 conversation_history 渲染)· 附加稳定层插座恰 1 · 检查点落库恰 1 · 回退按钮恰 1 · 摘要层 priority 88 · 旁问不落库不带工具 · checkpoint.js 零工具注册 · 合同
+[ "$(s234_code "${S234_MAIN}" | grep -acF "chatAssist.mainline(")" = "6" ] && [ "$(s234_code "${S234_MAIN}" | grep -acF "extraLayers: chatAssist.promptLayerExtras(),")" = "1" ] && [ "$(s234_code "${S234_MAIN}" | grep -acF "checkpoint: chatAssist.buildCheckpoint(),")" = "1" ] && [ "$(s234_code "${S234_MAIN}" | grep -acF "chatAssist.openRewind(item)")" = "1" ] || { bad "[234] 压缩/检查点/回退插座计数不对(mainline 5/extraLayers 1/checkpoint 1/openRewind 1)"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/utils/aiChat/compact.js" | grep -acF "export const COMPACT_LAYER_PRIORITY = 88;")" = "1" ] && [ "$(s234_code "${S234_UI}/src/utils/aiChat/compact.js" | grep -acF "export function applyCompact(")" = "1" ] || { bad "[234] compact.js 缺摘要层 88/主线视图"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/utils/aiAnalysisContext.js" | grep -acF "extraLayers,")" = "1" ] || { bad "[234] buildContextLayers 缺 extraLayers 参数(摘要/口径/记忆层无处可进)"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/utils/aiChat/checkpoint.js" | grep -acE 'registerTool\(|aiTools/registry|aiTools/ledger')" = "0" ] && [ "$(s234_code "${S234_UI}/src/utils/aiChat/checkpoint.js" | grep -acF "export function planRewind(")" = "1" ] || { bad "[234] checkpoint.js 须纯计划(零注册表/账本 import)且有 planRewind"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/components/aianalysis/chat/SideQuestionPanel.js" | grep -acE 'saveConversationMessage|tools:')" = "0" ] || { bad "[234] 旁问面板不得落库/不得带工具"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/components/aianalysis/chat/useChatAssist.js" | grep -acF "const r = undoAction(actionIds[i]);")" = "1" ] || { bad "[234] 回退须先逐条撤销再删消息"; S234_BAD=1; }
+for t in aiChatCompact aiChatCheckpoint aiChatSide; do [ -f "${S234_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[234] 合同测试 ${t}.test.js 缺失"; S234_BAD=1; }; done
+# A6 口径/记忆/命主工作区:键登记 + 口径层 102/记忆层 101 常量 + 缺省全关判据 + memory/persona 零工具面 + 记忆注入封顶 1500 + 设置卡/抽屉在位 + 合同
+[ "$(grep -acF "'horosa.ai.persona.v1'" "${S234_UI}/src/utils/storageKeyRegistry.js")" != "0" ] && [ "$(grep -acF "'horosa.ai.persona.v1'" "${S234_UI}/src/utils/techniqueOnboardingContract.js")" != "0" ] || { bad "[234] horosa.ai.persona.v1 未登记"; S234_BAD=1; }
+S234_PS="${S234_UI}/src/utils/aiChat/persona.js"; S234_MM="${S234_UI}/src/utils/aiChat/memory.js"
+[ "$(s234_code "${S234_PS}" | grep -acF "export const PERSONA_LAYER_PRIORITY = 102;")" = "1" ] && [ "$(s234_code "${S234_PS}" | grep -acF "export const MEMORY_LAYER_PRIORITY = 101;")" = "1" ] && [ "$(s234_code "${S234_PS}" | grep -acF "enabled: r.enabled === true,")" = "1" ] || { bad "[234] 口径/记忆层优先级或缺省关判据锚缺失"; S234_BAD=1; }
+[ "$(s234_code "${S234_MM}" | grep -acF "export const MEMORY_DIRECTIVE_MAX = 1500;")" = "1" ] && [ "$(s234_code "${S234_MM}" | grep -acF "export const MEMORY_CANDIDATE_MAX = 50;")" = "1" ] || { bad "[234] 记忆封顶常量锚缺失"; S234_BAD=1; }
+[ "$(cat "${S234_PS}" "${S234_MM}" | sed -E 's#//.*$##' | grep -acE 'aiTools/|registerTool\(')" = "0" ] || { bad "[234] persona/memory 引了工具面(口径记忆不得成为工具)"; S234_BAD=1; }
+[ -f "${S234_UI}/src/components/aianalysis/chat/PersonaMemoryPanel.js" ] && [ -f "${S234_UI}/src/components/aianalysis/chat/SubjectWorkspaceDrawer.js" ] || { bad "[234] 口径/记忆设置卡或命主工作区抽屉缺失"; S234_BAD=1; }
+[ "$(s234_code "${S234_UI}/src/components/aianalysis/chat/useChatAssist.js" | grep -acF "if(!personaRef.current.memoryCapture){ return; }")" = "1" ] || { bad "[234] 自动沉淀候选缺缺省关门"; S234_BAD=1; }
+for t in aiChatPersona aiChatMemory aiChatSubjectWorkspace; do [ -f "${S234_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[234] 合同测试 ${t}.test.js 缺失"; S234_BAD=1; }; done
+[ "${S234_BAD}" = "0" ] && ok "[234] AI 助手交互效率与记忆(插座/策略写入方/目录纪律)"
+
+# [235] AI 助手行动能力 v2·P0(审批三档/类别收紧/信任档案/反问等待台/账本面板/外部客户端档;三新工具)
+echo "[235] AI 助手行动能力 v2·P0(审批三档/反问/账本面板/外部客户端档)"
+S235_BAD=0
+S235_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S235_AG="${S235_UI}/src/utils/aiAgent"
+S235_T="${S235_UI}/src/utils/aiTools"
+S235_C="${S235_UI}/src/components/aianalysis"
+s235_code(){ sed -E 's#//.*$##' "$1"; }
+# ① 审批三档:值域含 read-only;运行时经纯函数判定(不再裸比 mode);deny → E_APPROVAL_DENIED
+[ "$(s235_code "${S235_AG}/prefs.js" | grep -acF "AGENT_APPROVAL_MODES = ['never', 'on-request', 'read-only']")" = "1" ] || { bad "[235] prefs.js 审批档值域不是 never|on-request|read-only"; S235_BAD=1; }
+[ "$(s235_code "${S235_AG}/runtime.js" | grep -acF "resolveApprovalDecision({")" != "0" ] || { bad "[235] runtime.js 未经 resolveApprovalDecision 判定审批"; S235_BAD=1; }
+[ "$(s235_code "${S235_AG}/runtime.js" | grep -acF "'E_APPROVAL_DENIED'")" != "0" ] || { bad "[235] runtime.js 缺 E_APPROVAL_DENIED 拒绝支"; S235_BAD=1; }
+# ② 信任档案只放行 workspace/query(建档/改设置永不因信任放行)
+[ "$(s235_code "${S235_AG}/approvalPolicy.js" | grep -acF "const TRUST_CATEGORIES = ['workspace', 'query'];")" = "1" ] || { bad "[235] approvalPolicy 信任放行集合被改(只能 workspace/query)"; S235_BAD=1; }
+# ③ 反问等待台:ask_user 在位、无通道回 E_ELICIT_UNAVAILABLE;AIAnalysisMain 插座恰 1;动作条渲染反问行;守则第 6 条
+[ "$(grep -acF "name: 'ask_user'," "${S235_T}/tools/askUser.js")" = "1" ] || { bad "[235] ask_user 工具缺失"; S235_BAD=1; }
+[ "$(s235_code "${S235_T}/tools/askUser.js" | grep -acF "'E_ELICIT_UNAVAILABLE'")" != "0" ] || { bad "[235] ask_user 无通道未回 E_ELICIT_UNAVAILABLE"; S235_BAD=1; }
+[ "$(s235_code "${S235_C}/AIAnalysisMain.js" | grep -acF "requestElicitation: (q)=>requestAgentElicitation(assistantMessage.id, q),")" = "1" ] || { bad "[235] AIAnalysisMain 反问插座不是恰好一处"; S235_BAD=1; }
+[ "$(grep -acF 'data-agent-elicitation="1"' "${S235_C}/AgentActionBar.js")" != "0" ] || { bad "[235] AgentActionBar 未渲染反问作答行"; S235_BAD=1; }
+[ "$(s235_code "${S235_AG}/protocol.js" | grep -acF "ask_user")" != "0" ] || { bad "[235] AGENT_SYSTEM_RULES 缺 ask_user 守则"; S235_BAD=1; }
+# ④ 账本面板:在位、挂在能力面板、订阅账本事件;list_actions/search_materials 工具在位
+[ -f "${S235_C}/ActionLedgerPanel.js" ] || { bad "[235] ActionLedgerPanel.js 缺失(外部动作不可见不可撤)"; S235_BAD=1; }
+[ "$(grep -acF "<ActionLedgerPanel />" "${S235_C}/AgentAbilityPanel.js")" = "1" ] || { bad "[235] AgentAbilityPanel 未挂账本面板"; S235_BAD=1; }
+[ "$(s235_code "${S235_T}/ledger.js" | grep -acF "export function subscribeLedger")" = "1" ] || { bad "[235] ledger.js 缺 subscribeLedger"; S235_BAD=1; }
+[ "$(grep -acF "name: 'list_actions'," "${S235_T}/tools/listActions.js")" = "1" ] || { bad "[235] list_actions 工具缺失"; S235_BAD=1; }
+[ "$(grep -acF "name: 'search_materials'," "${S235_T}/tools/searchMaterials.js")" = "1" ] || { bad "[235] search_materials 工具缺失"; S235_BAD=1; }
+# ⑤ 外部客户端档:桥不再导出外部工具(防回环)、读外部档、只读直拒、限流 E_LIMIT;注销只限 external;禁用判定在 getTool 后 guardAdditive 前
+[ "$(s235_code "${S235_AG}/mcpBridge.js" | grep -acE "exportToolManifest\(\{ includeExternal: false, origin: .mcp. \}\)")" != "0" ] || { bad "[235] mcpBridge tools/list 未排除外部工具(再导出回环)"; S235_BAD=1; }
+[ "$(s235_code "${S235_AG}/mcpBridge.js" | grep -acF "getExternalPolicy()")" != "0" ] || { bad "[235] mcpBridge 未读外部客户端档"; S235_BAD=1; }
+[ "$(s235_code "${S235_AG}/mcpBridge.js" | grep -acF "'E_APPROVAL_DENIED'")" != "0" ] || { bad "[235] mcpBridge 只读档未直拒写入"; S235_BAD=1; }
+[ "$(s235_code "${S235_AG}/mcpBridge.js" | grep -acF "code: 'E_LIMIT'")" != "0" ] || { bad "[235] mcpBridge 缺限流 E_LIMIT"; S235_BAD=1; }
+[ "$(s235_code "${S235_T}/registry.js" | grep -acF "if(!def || def.origin !== 'external'){ return false; }")" = "1" ] || { bad "[235] registry.unregisterTool 未限定只注销 external(只增不删失守)"; S235_BAD=1; }
+S235_L_GET="$(grep -an "const def = getTool(name);" "${S235_T}/registry.js" | head -1 | cut -d: -f1)"
+S235_L_DIS="$(grep -an "if(!toolEnabled(def)){" "${S235_T}/registry.js" | head -1 | cut -d: -f1)"
+S235_L_GRD="$(grep -an "const guard = guardAdditive(def.name, args, def.referenceKeys);" "${S235_T}/registry.js" | head -1 | cut -d: -f1)"
+{ [ -n "${S235_L_GET}" ] && [ -n "${S235_L_DIS}" ] && [ -n "${S235_L_GRD}" ] && [ "${S235_L_GET}" -lt "${S235_L_DIS}" ] && [ "${S235_L_DIS}" -lt "${S235_L_GRD}" ]; } || { bad "[235] registry.js 禁用判定不在 getTool 之后、guardAdditive 之前"; S235_BAD=1; }
+# ⑥ 三键登记(注册表 + 上线合同)+ 六码进冻结表与文档表
+for k in horosa.ai.agent.approval.categories.v1 horosa.ai.agent.trust.records.v1 horosa.ai.agent.external.policy.v1; do
+	[ "$(grep -acF "'${k}'" "${S235_UI}/src/utils/storageKeyRegistry.js")" != "0" ] || { bad "[235] storageKeyRegistry 未登记 ${k}"; S235_BAD=1; }
+	[ "$(grep -acF "'${k}'" "${S235_UI}/src/utils/techniqueOnboardingContract.js")" != "0" ] || { bad "[235] techniqueOnboardingContract 未登记 ${k}"; S235_BAD=1; }
+done
+for c in E_APPROVAL_DENIED E_TOOL_DISABLED E_ELICIT_UNAVAILABLE E_ELICIT_TIMEOUT E_ELICIT_DECLINED E_MATERIAL_INDEX_EMPTY; do
+	[ "$(grep -acF "${c}" "${S235_T}/errorCodes.js")" != "0" ] || { bad "[235] errorCodes.js 缺 ${c}"; S235_BAD=1; }
+	[ "$(grep -acF "\`${c}\`" "${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md")" != "0" ] || { bad "[235] AI_AGENT_RUNTIME §8 缺 ${c}"; S235_BAD=1; }
+done
+# ⑦ 合同测试在位
+for t in aiAgentApprovalPolicy aiAgentElicitations aiToolsAskUser aiToolsListActions aiToolsSearchMaterials; do
+	[ -f "${S235_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[235] 合同测试 ${t}.test.js 缺失"; S235_BAD=1; }
+done
+# ⑧ [P1 任务中心] IDB 升版四 store;任务/通知模块;布局接线;桌面通知命令(偏好门+脱敏+限流,标题正文只经清洗);键登记;合同在位
+S235_ST="${S235_UI}/src/utils/aiAnalysisStore.js"
+[ "$(s235_code "${S235_ST}" | grep -acF "const DB_VERSION = 7;")" = "1" ] || { bad "[235] aiAnalysisStore DB_VERSION ≠ 7(任务中心四 store 需升版同车)"; S235_BAD=1; }
+for st in agent_tasks agent_notices automation_rules integration_profiles; do [ "$(grep -acF "'${st}'" "${S235_ST}")" != "0" ] || { bad "[235] aiAnalysisStore 缺 store ${st}"; S235_BAD=1; }; done
+[ "$(s235_code "${S235_ST}" | grep -acF "function isSecretStore(storeName)")" = "1" ] && [ "$(s235_code "${S235_ST}" | grep -acF "storeName === AI_ANALYSIS_STORES.providerProfiles")" = "0" ] || { bad "[235] 密钥钩未泛化到 integration_profiles(联网检索 key 将明文落库)"; S235_BAD=1; }
+for f in taskStore.js noticeStore.js taskRegistry.js reconcile.js index.js; do [ -s "${S235_UI}/src/utils/aiAgent/tasks/$f" ] || { bad "[235] aiAgent/tasks/$f 缺失"; S235_BAD=1; }; done
+[ "$(s235_code "${S235_UI}/src/layouts/app.js" | grep -acF "bindTaskCenter();")" = "1" ] && [ "$(s235_code "${S235_UI}/src/layouts/app.js" | grep -acF "<TaskCenterBell />")" = "1" ] || { bad "[235] app.js 未接任务中心(对账/铃铛)"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/utils/aiAgent/tasks/noticeStore.js" | grep -acF "safeLocalStorageGet(DESKTOP_NOTIFY_KEY) === '1'")" = "1" ] || { bad "[235] 桌面通知开关判据不是 === 1"; S235_BAD=1; }
+[ "$(grep -acF "'horosa.notify.desktop'" "${S235_UI}/src/utils/storageKeyRegistry.js")" != "0" ] && [ "$(grep -acF "'horosa.notify.desktop'" "${S235_UI}/src/utils/techniqueOnboardingContract.js")" != "0" ] || { bad "[235] horosa.notify.desktop 未登记"; S235_BAD=1; }
+S235_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+[ "$(grep -acF "show_desktop_notification_command," "${S235_RS}")" = "1" ] && [ "$(grep -acF "fn sanitize_notification_text(" "${S235_RS}")" = "1" ] && [ "$(grep -acF "fn notify_limiter_decide(" "${S235_RS}")" = "1" ] || { bad "[235] main.rs 缺桌面通知命令/清洗/限流"; S235_BAD=1; }
+[ "$(grep -acF "show_macos_notification(&t, &b);" "${S235_RS}")" = "1" ] && [ "$(grep -acF "show_macos_notification(&title" "${S235_RS}")" = "0" ] || { bad "[235] 桌面通知命令把未清洗的标题/正文直传 osascript"; S235_BAD=1; }
+[ "$(grep -acF "mod desktop_notify_tests" "${S235_RS}")" = "1" ] || { bad "[235] 桌面通知 cargo 单测缺失"; S235_BAD=1; }
+for t in agentTaskStore agentNoticeStore agentTaskReconcile taskCenterPanel; do [ -f "${S235_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[235] 合同测试 ${t}.test.js 缺失"; S235_BAD=1; }; done
+# ⑨ [P2 目标任务] 运行器与工具;子开关缺省关(=== '1');autoStart 脱离当前调用栈;撤销支只许未开始;任务中心入口;合同在位
+S235_GR="${S235_UI}/src/utils/aiAgent/goalRunner.js"
+[ -s "${S235_GR}" ] && [ "$(s235_code "${S235_GR}" | grep -acF "export async function runHeadlessTurn(")" = "1" ] && [ "$(s235_code "${S235_GR}" | grep -acF "export async function startGoalTask(")" = "1" ] || { bad "[235] goalRunner 缺 runHeadlessTurn/startGoalTask"; S235_BAD=1; }
+[ "$(s235_code "${S235_GR}" | grep -acF "setTimeout(()=>{ startGoalTask(task.id)")" = "1" ] || { bad "[235] createGoalTask autoStart 未脱离当前调用栈(工具执行中不得再起 Turn)"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/utils/aiAgent/prefs.js" | grep -acF "safeLocalStorageGet(AGENT_GOAL_ENABLED_KEY) === '1'")" = "1" ] || { bad "[235] 目标任务子开关判据不是 === 1"; S235_BAD=1; }
+[ "$(grep -acF "enabled: ()=>isGoalEnabled()," "${S235_T}/tools/createGoalTask.js")" = "1" ] && [ "$(grep -acF "undoKind: 'cancel-task'," "${S235_T}/tools/createGoalTask.js")" = "1" ] || { bad "[235] create_goal_task 缺开关门/撤销支"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/utils/aiAgent/tasks/index.js" | grep -acF "registerUndoHandler('cancel-task', cancelTaskUndoHandler)")" = "1" ] && [ "$(s235_code "${S235_UI}/src/utils/aiAgent/tasks/index.js" | grep -acF "'E_UNDO_TASK_STARTED'")" != "0" ] || { bad "[235] 账本撤销支 cancel-task 未登记/未拦已开始任务"; S235_BAD=1; }
+[ "$(grep -acF "'horosa.ai.tasks.goal.enabled'" "${S235_UI}/src/utils/storageKeyRegistry.js")" != "0" ] && [ "$(grep -acF "'horosa.ai.tasks.goal.enabled'" "${S235_UI}/src/utils/techniqueOnboardingContract.js")" != "0" ] || { bad "[235] horosa.ai.tasks.goal.enabled 未登记"; S235_BAD=1; }
+[ -f "${S235_C}/GoalTaskModal.js" ] && [ "$(grep -acF "data-new-goal=\"1\"" "${S235_C}/TaskCenterPanel.js")" = "1" ] || { bad "[235] 任务中心缺新建目标入口"; S235_BAD=1; }
+for t in aiAgentGoalRunner aiToolsTasks; do [ -f "${S235_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[235] 合同测试 ${t}.test.js 缺失"; S235_BAD=1; }; done
+# ⑩ [P3 定时任务] 壳侧 60 秒哑心跳(偏好 scheduler_enabled 缺省 false;偏好窗保存保留现值;HOROSA_SCHEDULER=0 否决;pending 只留 1)+ 页面调度器接线 + 子开关 === '1' + 工具门/撤销支 + 键登记 + 入口 + 合同
+[ "$(grep -acF "scheduler_enabled: false," "${S235_RS}")" = "1" ] && [ "$(grep -acF "next.scheduler_enabled = current.scheduler_enabled;" "${S235_RS}")" = "1" ] || { bad "[235] main.rs 定时开关偏好缺省/保留现值锚缺失"; S235_BAD=1; }
+[ "$(grep -acF "fn dispatch_scheduler_tick(" "${S235_RS}")" = "1" ] && [ "$(grep -acF "fn scheduler_tick_script(" "${S235_RS}")" = "1" ] && [ "$(grep -acF "fn scheduler_kill_switch(" "${S235_RS}")" = "1" ] || { bad "[235] main.rs 缺定时心跳投递/脚本/kill-switch"; S235_BAD=1; }
+[ "$(grep -acF "set_scheduler_enabled_command," "${S235_RS}")" = "1" ] && [ "$(grep -acF "scheduler_status_command," "${S235_RS}")" = "1" ] || { bad "[235] 定时两命令未注册进 generate_handler"; S235_BAD=1; }
+[ "$(grep -acF "q.length>1" "${S235_RS}")" != "0" ] && [ "$(grep -acF "fn scheduler_tick_script_calls_handler_or_queues" "${S235_RS}")" = "1" ] || { bad "[235] 定时 pending 上限 1 / cargo 单测缺失"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/layouts/app.js" | grep -acF "bindSchedulerTicks();")" = "2" ] && [ "$(s235_code "${S235_UI}/src/layouts/app.js" | grep -acF "unbindSchedulerTicks();")" = "1" ] || { bad "[235] app.js 未接定时心跳或缺卸载解绑(绑 1 + 解绑 1;注意 unbindSchedulerTicks(); 含 bindSchedulerTicks(); 子串,故按总数 2 判)"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/utils/aiAgent/prefs.js" | grep -acF "safeLocalStorageGet(AGENT_SCHEDULER_ENABLED_KEY) === '1'")" = "1" ] || { bad "[235] 定时任务子开关判据不是 === 1"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/utils/aiAgent/tasks/scheduler.js" | grep -acF "if(!(o.force || schedulerGatesOpen())){ return out; }")" = "1" ] || { bad "[235] 调度一跳缺门(缺省关必须零执行)"; S235_BAD=1; }
+[ "$(grep -acF "enabled: ()=>isSchedulerEnabled()," "${S235_T}/tools/scheduleTask.js")" = "1" ] && [ "$(grep -acF "undoKind: 'cancel-task'," "${S235_T}/tools/scheduleTask.js")" = "1" ] && [ "$(grep -acF "'E_SCHEDULE_INVALID'" "${S235_T}/tools/scheduleTask.js")" != "0" ] || { bad "[235] schedule_task 缺开关门/撤销支/排期错误码"; S235_BAD=1; }
+[ "$(grep -acF "'horosa.ai.tasks.scheduler.enabled'" "${S235_UI}/src/utils/storageKeyRegistry.js")" != "0" ] && [ "$(grep -acF "'horosa.ai.tasks.scheduler.enabled'" "${S235_UI}/src/utils/techniqueOnboardingContract.js")" != "0" ] && [ "$(grep -acF "'horosa.ai.tasks.scheduler.lastTickAt'" "${S235_UI}/src/utils/storageKeyRegistry.js")" != "0" ] || { bad "[235] 定时任务两键未登记"; S235_BAD=1; }
+[ -f "${S235_C}/ScheduledTaskModal.js" ] && [ "$(grep -acF "data-new-schedule=\"1\"" "${S235_C}/TaskCenterPanel.js")" = "1" ] && [ "$(grep -acF "data-scheduler-switch=\"1\"" "${S235_C}/AgentAbilityPanel.js")" = "1" ] || { bad "[235] 任务中心缺新建定时入口/面板缺定时开关"; S235_BAD=1; }
+for t in agentScheduler aiToolsSchedule; do [ -f "${S235_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[235] 合同测试 ${t}.test.js 缺失"; S235_BAD=1; }; done
+
+# [235b] 自动化规则 hooks:默认关;事件层零 import;调用点五处恰一;深度守卫与上限在引擎;动作只做可撤销/无副作用的事
+S235_AU="${S235_UI}/src/utils/aiAgent/automation"
+[ -s "${S235_AU}/events.js" ] && [ "$(grep -acE '^import ' "${S235_AU}/events.js")" = "0" ] || { bad "[235] 自动化事件层必须零 import(调用点散在数据层,绝不能反向拖进引擎/存储)"; S235_BAD=1; }
+[ "$(s235_code "${S235_AU}/engine.js" | grep -acF "if(!isAutomationEnabled()){ return { ...out, off: true }; }")" = "1" ] && [ "$(s235_code "${S235_AU}/engine.js" | grep -acF "if(origin === 'automation'){ return { ...out, depthGuard: true }; }")" = "1" ] || { bad "[235] 自动化引擎缺总开关门或深度守卫"; S235_BAD=1; }
+[ "$(s235_code "${S235_AU}/engine.js" | grep -acF 'export const MAX_RULES_PER_EVENT = 3;')" = "1" ] && [ "$(s235_code "${S235_AU}/engine.js" | grep -acF 'isCoolingDown(rule, now)')" -ge "1" ] || { bad "[235] 自动化引擎缺每事件上限或冷却"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/utils/localcharts.js" | grep -acF "emitAutomationEvent('record.saved'")" = "1" ] && [ "$(s235_code "${S235_UI}/src/utils/localcases.js" | grep -acF "emitAutomationEvent('record.saved'")" = "1" ] || { bad "[235] 数据层两处 record.saved 调用点缺失或重复"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/utils/aiTools/registry.js" | grep -acF "emitAutomationEvent('tool.after'")" = "1" ] && [ "$(s235_code "${S235_UI}/src/utils/aiAgent/tasks/taskStore.js" | grep -acF "emitAutomationEvent('task.done'")" = "1" ] && [ "$(s235_code "${S235_UI}/src/layouts/app.js" | grep -acF "emitAutomationEvent('app.start'")" = "1" ] || { bad "[235] 工具面/任务层/启动 三处调用点缺失或重复"; S235_BAD=1; }
+[ "$(s235_code "${S235_UI}/src/utils/aiAgent/prefs.js" | grep -acF "return safeLocalStorageGet(AGENT_AUTOMATION_KEY) === '1';")" = "1" ] && [ "$(grep -acF "key: 'horosa.ai.automation.enabled'" "${S235_UI}/src/utils/storageKeyRegistry.js")" = "1" ] || { bad "[235] 自动化开关判据非 === '1' 或键未登记"; S235_BAD=1; }
+# 🔴 动作面永不引工具注册表:自动化只做「用户自己点也能做」的事,不得绕过审批去跑写入工具
+[ "$(cat "${S235_AU}/actions.js" | sed -E 's#//.*$##' | grep -acE "aiTools/registry|runTool\(|registerTool\(")" = "0" ] || { bad "[235] 自动化动作面引了工具注册表(动作只能走注入的页面能力)"; S235_BAD=1; }
+[ -f "${S235_UI}/src/utils/__tests__/automationEngine.test.js" ] || { bad "[235] 合同测试 automationEngine.test.js 缺失"; S235_BAD=1; }
+[ -f "${S235_UI}/src/components/aianalysis/AutomationRulesPanel.js" ] || { bad "[235] 缺自动规则面板"; S235_BAD=1; }
+[ "${S235_BAD}" = "0" ] && ok "[235] AI 助手行动能力 v2·P0(审批三档/反问/账本面板/外部客户端档)"
+
+# [236] AI 助手·本机 MCP 服务 v2:能力位三面 listChanged;资源/提示方法转发页面;GET SSE 在三道门之后;通知广播;会话可选;ext_ 不再导出;冒烟覆盖
+echo "[236] 本机 MCP 服务 v2(资源/提示/SSE/通知/会话)"
+S236_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S236_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/mcp_server.rs"
+S236_MAIN_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S236_SMOKE="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_mcp_smoke.sh"
+S236_BAD=0
+s236_code(){ sed -E 's#//.*$##' "$1"; }
+[ -s "${S236_RS}" ] && [ "$(s236_code "${S236_RS}" | grep -acF '"tools": { "listChanged": true }')" = "1" ] && [ "$(s236_code "${S236_RS}" | grep -acF '"resources": { "subscribe": false, "listChanged": true }')" = "1" ] && [ "$(s236_code "${S236_RS}" | grep -acF '"prompts": { "listChanged": true }')" = "1" ] || { bad "[236] initialize 未宣告 tools/resources/prompts 的 listChanged"; S236_BAD=1; }
+# 五个资源/提示方法必须走同一个传输透传函数(测试区的假页面实现也含同名字面,故锚带 self.page_passthrough)
+# [v3.11.0] 锚改为去空白比对:rustfmt 会把短臂折成 `"m" => {\n self.page_passthrough("m", …)`、长臂折成 `"m" => self.page_passthrough(\n "m", …)`,
+#   逐行字面锚在两种折法下各漏一种(cargo fmt 归一后实红);两种形态模式先赋值再引用(bash 3.2 花括号陷阱 FL-20260908-2)。
+for m in "resources/list" "resources/templates/list" "resources/read" "prompts/list" "prompts/get"; do S236_P1="\"${m}\"=>self.page_passthrough(\"${m}\","; S236_P2="\"${m}\"=>{self.page_passthrough(\"${m}\","; S236_N=$(( $(s236_code "${S236_RS}" | tr -d " \n\t" | grep -oF "${S236_P1}" | wc -l | tr -d " ") + $(s236_code "${S236_RS}" | tr -d " \n\t" | grep -oF "${S236_P2}" | wc -l | tr -d " ") )); [ "${S236_N}" = "1" ] || { bad "[236] mcp_server 缺方法 ${m}(须经 page_passthrough 转发页面)"; S236_BAD=1; }; done
+[ "$(s236_code "${S236_RS}" | grep -acF '"logging/setLevel" =>')" = "1" ] || { bad "[236] mcp_server 缺 logging/setLevel"; S236_BAD=1; }
+[ "$(s236_code "${S236_RS}" | grep -acF 'pub fn notify(')" = "1" ] && [ "$(s236_code "${S236_RS}" | grep -acF 'MAX_SSE_CLIENTS')" -ge 2 ] && [ "$(s236_code "${S236_RS}" | grep -acF 'pub fn sse_subscribe(')" = "1" ] || { bad "[236] SSE 通道/广播缺失(notify / sse_subscribe / 上限)"; S236_BAD=1; }
+[ "$(s236_code "${S236_RS}" | grep -acF 'request.upgrade("sse", resp)')" = "1" ] || { bad "[236] SSE 须走 upgrade 裸 socket(tiny_http chunked 编码器有 8KB 缓冲,流式帧发不出去)"; S236_BAD=1; }
+# 🔴 GET 分支必须在 core.gate( 之后:门(Host→Origin→Bearer→协议版本)永远先于语义
+S236_GATE_LINE="$(grep -n 'if method == Method::Get || method == Method::Delete' "${S236_RS}" | head -1 | cut -d: -f1)"
+S236_GATE_CALL="$(awk -v s="${S236_GATE_LINE}" 'NR>s && /core.gate\(/{print NR; exit}' "${S236_RS}")"
+S236_ACCEPT="$(awk -v s="${S236_GATE_LINE}" 'NR>s && /text\/event-stream/{print NR; exit}' "${S236_RS}")"
+[ -n "${S236_GATE_LINE}" ] && [ -n "${S236_GATE_CALL}" ] && [ -n "${S236_ACCEPT}" ] && [ "${S236_GATE_CALL}" -lt "${S236_ACCEPT}" ] || { bad "[236] GET/DELETE 分支未先过 core.gate( 再判 Accept(门必须在语义之前)"; S236_BAD=1; }
+[ "$(s236_code "${S236_RS}" | grep -acF 'starts_with("ext_")')" = "1" ] || { bad "[236] tool_name_ok 未拒 ext_ 前缀(外部工具不得再导出)"; S236_BAD=1; }
+[ "$(s236_code "${S236_RS}" | grep -acF 'pub fn session_allowed(')" = "1" ] && [ "$(s236_code "${S236_RS}" | grep -acF 'MAX_SESSIONS')" -ge 2 ] || { bad "[236] 可选会话(session_allowed/容量)缺失"; S236_BAD=1; }
+[ "$(s236_code "${S236_MAIN_RS}" | grep -acF 'agent_notify_command,')" = "1" ] && [ "$(s236_code "${S236_MAIN_RS}" | grep -acF 'notifications/tools/list_changed')" -ge 1 ] || { bad "[236] main.rs 未登记 agent_notify_command 或桥就绪不推 list_changed"; S236_BAD=1; }
+for f in resources.js prompts.js; do [ -s "${S236_UI}/src/utils/aiTools/${f}" ] || { bad "[236] 缺 aiTools/${f}"; S236_BAD=1; }; done
+# 资源/提示面只出内容:零注册表、零运行时、零工具执行
+[ "$(cat "${S236_UI}/src/utils/aiTools/resources.js" "${S236_UI}/src/utils/aiTools/prompts.js" | sed -E 's#//.*$##' | grep -acE "from '\./registry'|from '\.\./aiAgent/|registerTool\(|runTool\(")" = "0" ] || { bad "[236] 资源/提示面引了注册表或运行时(只许出内容)"; S236_BAD=1; }
+[ "$(s236_code "${S236_UI}/src/utils/aiAgent/mcpBridge.js" | grep -acE "method === 'resources/(list|read)'|method === 'prompts/(list|get)'")" = "4" ] || { bad "[236] mcpBridge 缺资源/提示四分支"; S236_BAD=1; }
+[ "$(s236_code "${S236_UI}/src/utils/aiAgent/mcpBridge.js" | grep -acE "from '\.\./(localcharts|localcases|aiAnalysisStore)'")" = "0" ] || { bad "[236] 桥引了数据层(资源内容必须经惰性 loadTools 拿)"; S236_BAD=1; }
+[ -s "${S236_SMOKE}" ] && [ "$(grep -acF 'text/event-stream' "${S236_SMOKE}")" -ge 1 ] && [ "$(grep -acF 'Mcp-Session-Id' "${S236_SMOKE}")" -ge 1 ] && [ "$(grep -acF 'resources/read' "${S236_SMOKE}")" -ge 1 ] || { bad "[236] 冒烟脚本未覆盖 SSE/会话/资源读"; S236_BAD=1; }
+[ -f "${S236_UI}/src/utils/__tests__/mcpResources.test.js" ] || { bad "[236] 合同测试 mcpResources.test.js 缺失"; S236_BAD=1; }
+[ "${S236_BAD}" = "0" ] && ok "[236] 本机 MCP 服务 v2(资源/提示/SSE/通知/会话)"
+
+# [237] AI 助手·出站①外部 MCP 客户端:默认关;只读准入;slug 双实现同算法;令牌只落壳侧 0600;注销只限 external;CSP 不放宽(负锚);kill switch
+echo "[237] 外部 MCP 客户端(默认关/只读准入/令牌不出壳/CSP 不放宽)"
+S237_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S237_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/mcp_client.rs"
+S237_MAIN_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S237_CONF="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/tauri.conf.json"
+S237_JS="${S237_UI}/src/integrations/mcpClient.js"
+S237_BAD=0
+s237_code(){ sed -E 's#//.*$##' "$1"; }
+[ -s "${S237_RS}" ] && [ "$(s237_code "${S237_RS}" | grep -acF 'pub fn slug_tool_name(')" = "1" ] && [ "$(s237_code "${S237_RS}" | grep -acF 'pub fn redact_spec(')" = "1" ] && [ "$(s237_code "${S237_RS}" | grep -acF 'write_private_file(&path, &body)')" = "1" ] || { bad "[237] mcp_client 缺 slug/脱敏/0600 私有写"; S237_BAD=1; }
+[ "$(s237_code "${S237_RS}" | grep -acF 'MCP_CLIENT_KILL_ENV')" -ge 3 ] && [ "$(s237_code "${S237_RS}" | grep -acF 'pub fn client_allowed()')" = "1" ] || { bad "[237] mcp_client 缺 HOROSA_MCP_CLIENT 一票否决"; S237_BAD=1; }
+[ "$(s237_code "${S237_RS}" | grep -acF '.stderr(Stdio::null())')" = "1" ] || { bad "[237] stdio 传输须丢弃子进程 stderr(外部输出不得混进协议流)"; S237_BAD=1; }
+[ "$(s237_code "${S237_MAIN_RS}" | grep -acF 'mcp_client::stop_on_exit(&state)')" = "1" ] && [ "$(s237_code "${S237_MAIN_RS}" | grep -acF 'mcp_client_call_command,')" = "1" ] || { bad "[237] main.rs 未登记客户端命令或退出未断连"; S237_BAD=1; }
+[ -s "${S237_JS}" ] && [ "$(s237_code "${S237_JS}" | grep -acF "export const EXT_PREFIX = 'ext_';")" = "1" ] && [ "$(s237_code "${S237_JS}" | grep -acF 'export function admitExternalTool(')" = "1" ] || { bad "[237] 前端接入层缺 ext_ 前缀单源或准入判定"; S237_BAD=1; }
+[ "$(s237_code "${S237_JS}" | grep -acF "level: verdict.level || 'read',")" = "1" ] && [ "$(s237_code "${S237_JS}" | grep -acE "level: '(destructive)'")" = "0" ] || { bad "[237] 外部工具注册级别须取 admitExternalTool 的 verdict.level(read/additive),且永不 destructive"; S237_BAD=1; }
+[ "$(s237_code "${S237_JS}" | grep -acF "level: readOnly ? 'read' : 'additive'")" = "1" ] || { bad "[237] admitExternalTool 须按 readOnlyHint 分级(只读=read,清单放行的写工具=additive)"; S237_BAD=1; }
+[ "$(s237_code "${S237_JS}" | grep -acF "if(readOnlyOnly && !readOnly){")" = "1" ] || { bad "[237] 只读档必须直接拒未声明 readOnlyHint 的工具(允许清单不得在只读档放行写工具)"; S237_BAD=1; }
+[ "$(s237_code "${S237_RS}" | grep -acF "if spec.read_only_only {")" = "1" ] || { bad "[237] 壳侧 admit_tool 须镜像只读档语义(清单不放行写工具)"; S237_BAD=1; }
+[ "$(s237_code "${S237_JS}" | grep -acF 'isExternalToolsEnabled()')" -ge 1 ] && [ "$(s237_code "${S237_UI}/src/utils/aiAgent/prefs.js" | grep -acF "return safeLocalStorageGet(AGENT_EXTERNAL_TOOLS_KEY) === '1';")" = "1" ] || { bad "[237] 外部工具总开关缺失或判据不是 === '1'"; S237_BAD=1; }
+[ "$(grep -acF "key: 'horosa.ai.tools.external.enabled'" "${S237_UI}/src/utils/storageKeyRegistry.js")" = "1" ] || { bad "[237] 外部工具开关键未登记注册表"; S237_BAD=1; }
+[ "$(s237_code "${S237_UI}/src/utils/aiTools/registry.js" | grep -acF "if(!def || def.origin !== 'external'){ return false; }")" = "1" ] || { bad "[237] unregisterTool 未限定 origin external(内置目录只增不删)"; S237_BAD=1; }
+# 🔴 出站不得放宽 CSP:connect-src 行与现值逐字相同(放宽即红)
+[ "$(grep -acF "connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:* https://*.amap.com https://*.autonavi.com" "${S237_CONF}")" = "1" ] || { bad "[237] tauri.conf.json 的 connect-src 被改动(外部 MCP 走壳侧 reqwest,页面出站权限不得放宽)"; S237_BAD=1; }
+[ "$(s237_code "${S237_JS}" | grep -acE 'fetch\(|XMLHttpRequest|WebSocket\(')" = "0" ] || { bad "[237] 前端接入层出现直连(外部请求一律经壳命令)"; S237_BAD=1; }
+[ -f "${S237_UI}/src/utils/__tests__/aiToolsExternal.test.js" ] || { bad "[237] 合同测试 aiToolsExternal.test.js 缺失"; S237_BAD=1; }
+[ -f "${S237_UI}/src/components/aianalysis/ExternalServersPanel.js" ] || { bad "[237] 缺外部服务器面板"; S237_BAD=1; }
+[ "$(s237_code "${S237_UI}/src/components/aianalysis/ExternalServersPanel.js" | grep -acF 'Input.Password')" = "1" ] || { bad "[237] 令牌输入须用密码框(界面不回显)"; S237_BAD=1; }
+
+# [237b] 出站②联网检索:默认关;Java 端点在位且错误文案不回显 Key;工具 read 级 + 子开关;两码入表
+S237_WS_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIWebSearchService.java"
+S237_WS_CTRL="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/AIAnalysisController.java"
+S237_WS_TOOL="${S237_UI}/src/utils/aiTools/tools/webSearch.js"
+[ -s "${S237_WS_JAVA}" ] && [ "$(grep -acF '"/websearch"' "${S237_WS_CTRL}")" = "1" ] || { bad "[237] 联网检索 Java 服务或端点缺失"; S237_BAD=1; }
+[ "$(grep -acE 'Logger|log\.(info|debug|warn|error)' "${S237_WS_JAVA}")" = "0" ] || { bad "[237] 联网检索服务出现日志调用(Key 与检索词绝不落日志)"; S237_BAD=1; }
+[ "$(grep -acF 'throw new ErrorCodeException(ERR_UPSTREAM, "检索服务返回 HTTP " + status)' "${S237_WS_JAVA}")" = "1" ] || { bad "[237] 上游错误须只回状态码(不回上游原文,可能含 Key 回显)"; S237_BAD=1; }
+[ -s "${S237_WS_TOOL}" ] && [ "$(s237_code "${S237_WS_TOOL}" | grep -acF "level: 'read',")" = "1" ] && [ "$(s237_code "${S237_WS_TOOL}" | grep -acF 'isWebSearchEnabled()')" = "1" ] || { bad "[237] web_search 须 read 级且受子开关门控"; S237_BAD=1; }
+[ "$(s237_code "${S237_UI}/src/utils/aiAgent/prefs.js" | grep -acF "return safeLocalStorageGet(AGENT_WEB_SEARCH_KEY) === '1';")" = "1" ] && [ "$(grep -acF "key: 'horosa.ai.tools.webSearch.enabled'" "${S237_UI}/src/utils/storageKeyRegistry.js")" = "1" ] || { bad "[237] 联网检索开关判据非 === '1' 或键未登记"; S237_BAD=1; }
+[ "$(s237_code "${S237_UI}/src/integrations/webSearch.js" | grep -acE 'fetch\(|XMLHttpRequest')" = "0" ] || { bad "[237] 联网检索前端不得直连(一律经 Java 端点)"; S237_BAD=1; }
+[ -f "${S237_UI}/src/utils/__tests__/aiToolsWebSearch.test.js" ] || { bad "[237] 合同测试 aiToolsWebSearch.test.js 缺失"; S237_BAD=1; }
+[ -f "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIWebSearchServiceTest.java" ] || { bad "[237] Java 合同测试 AIWebSearchServiceTest 缺失"; S237_BAD=1; }
+[ "${S237_BAD}" = "0" ] && ok "[237] 出站:外部 MCP 客户端 + 联网检索(默认关/只读准入/令牌不出壳/CSP 不放宽)"
+
+# [238] AI 多模型对比 / 审阅 / 编排(C5-C7):候选上限 4 单源;候选流不得带工具;历史只带采用稿(四处 map);成本确认;判官 strict;合同在位
+echo "[238] AI 多模型对比/审阅/编排(候选 4/无工具/采用稿进历史/成本确认)"
+S238_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S238_BAD=0
+s238_code(){ sed -E 's#//.*$##' "$1"; }
+S238_BO="${S238_UI}/src/utils/aiBestOfN.js"; S238_HK="${S238_UI}/src/components/aianalysis/chat/useChatBestOf.js"; S238_MAIN="${S238_UI}/src/components/aianalysis/AIAnalysisMain.js"
+[ -s "${S238_BO}" ] && [ "$(s238_code "${S238_BO}" | grep -acF "export const MAX_CANDIDATES = 4;")" = "1" ] && [ "$(s238_code "${S238_BO}" | grep -acF "export function estimateCandidatesCost(")" = "1" ] && [ "$(s238_code "${S238_BO}" | grep -acF "export function historyContentOf(")" = "1" ] || { bad "[238] aiBestOfN 缺候选上限/成本估算/采用稿取值单源"; S238_BAD=1; }
+[ -s "${S238_HK}" ] && [ "$(s238_code "${S238_HK}" | grep -acE 'tools: |toolChoice: |toolDefs\(\)')" = "0" ] || { bad "[238] 候选流带了工具(对比模式只回答不执行动作)"; S238_BAD=1; }
+[ "$(s238_code "${S238_HK}" | grep -acF "applyResponseSchema(opts, { name: 'bestof_judge', schema: JUDGE_SCHEMA })")" = "1" ] && [ "$(s238_code "${S238_HK}" | grep -acF "resolveRoute('judge'")" = "1" ] || { bad "[238] 判官须 strict schema 且走 judge 路由槽"; S238_BAD=1; }
+S238_PAT_COST="if(typeof confirmCost === 'function'){ const ok = await confirmCost({ candidates, est });"  # 先赋值再引用:bash 3.2 会把 $( … ) 内紧贴括号的 { a, b } 花括号展开(见 [249])
+[ "$(s238_code "${S238_HK}" | grep -acF "${S238_PAT_COST}")" = "1" ] || { bad "[238] 发送前成本确认门缺失(2026-09-08 起无价档也弹「费用未知」确认)"; S238_BAD=1; }
+[ "$(s238_code "${S238_MAIN}" | grep -acF "content: historyContentOf(item),")" = "4" ] && [ "$(s238_code "${S238_MAIN}" | grep -acF "{chatAssist.bestOfCards(item)}")" = "1" ] && [ "$(grep -ac 'agentTrace: item.agentTrace,' "${S238_MAIN}")" = "4" ] || { bad "[238] Main 四处 map 未改 historyContentOf / 卡片插座不是恰一处 / agentTrace 计数漂移"; S238_BAD=1; }
+for t in aiBestOfN aiChatBestOf; do [ -f "${S238_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[238] 合同测试 ${t}.test.js 缺失"; S238_BAD=1; }; done
+# C6 审阅:共享纯模块零生成管线/事实核对 import(负锚);schema strict 四类含 ungrounded;跨家族挑选单源;钩子零工具、strict 审阅、重写稿 rewriteOf/被替代稿 supersededBy;Main 两插座;主线剔除被替代稿
+S238_RV="${S238_UI}/src/utils/aiReview.js"; S238_RH="${S238_UI}/src/components/aianalysis/chat/useChatReview.js"; S238_CA="${S238_UI}/src/components/aianalysis/chat/useChatAssist.js"
+[ -s "${S238_RV}" ] && [ "$(s238_code "${S238_RV}" | grep -acE 'reportFactCheck|reportConsistency|reportPipeline|ReportPane')" = "0" ] || { bad "[238] aiReview.js 引了生成管线/事实核对模块(确定性问题只许调用方注入)"; S238_BAD=1; }
+[ "$(s238_code "${S238_RV}" | grep -acF "export const REVIEW_SCHEMA = {")" = "1" ] && [ "$(s238_code "${S238_RV}" | grep -acF "'ungrounded'")" -ge 1 ] && [ "$(s238_code "${S238_RV}" | grep -acF "export function pickReviewModel(")" = "1" ] || { bad "[238] aiReview 缺 REVIEW_SCHEMA/ungrounded 类/跨家族挑选单源"; S238_BAD=1; }
+[ -s "${S238_RH}" ] && [ "$(s238_code "${S238_RH}" | grep -acE 'tools: |toolChoice: |toolDefs\(\)')" = "0" ] && [ "$(s238_code "${S238_RH}" | grep -acF "applyResponseSchema(opts, { name: 'answer_review', schema: REVIEW_SCHEMA })")" = "1" ] && [ "$(s238_code "${S238_RH}" | grep -acF "rewriteOf: cur.id")" = "1" ] && [ "$(s238_code "${S238_RH}" | grep -acF "supersededBy: placeholder.id")" = "1" ] || { bad "[238] 审阅钩子须零工具/strict 审阅/重写稿 rewriteOf/原稿 supersededBy"; S238_BAD=1; }
+[ "$(s238_code "${S238_CA}" | grep -acF "const review = useChatReview(depsRef, { mainline });")" = "1" ] && [ "$(s238_code "${S238_CA}" | grep -acF "m.supersededBy || (m.role === 'assistant' && isPlaceholderAssistantContent(m.content))")" = "1" ] || { bad "[238] useChatAssist 缺审阅插座或主线未剔除被替代稿"; S238_BAD=1; }
+[ "$(s238_code "${S238_MAIN}" | grep -acF "{chatAssist.reviewNotes(item)}")" = "1" ] && [ "$(s238_code "${S238_MAIN}" | grep -acF "chatAssist.review.run(item)")" = "1" ] || { bad "[238] AIAnalysisMain 审阅插座(批注/按钮)缺失或重复"; S238_BAD=1; }
+for t in aiReview aiChatReview; do [ -f "${S238_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[238] 合同测试 ${t}.test.js 缺失"; S238_BAD=1; }; done
+# C7 编排:限额单源(子任务 4/子轮 3/零写入/并行 3;负锚:编排件不得出现非零 MAX_ADDITIVE_PER_TURN);只读注册表视图在位且钩子用它+限额常量;子开关 '1' 门;面板插座;键登记;合同测试
+S238_OR="${S238_UI}/src/utils/aiAgent/orchestrator.js"; S238_OH="${S238_UI}/src/components/aianalysis/chat/useChatOrchestrate.js"; S238_PF="${S238_UI}/src/utils/aiAgent/prefs.js"
+[ -s "${S238_OR}" ] && [ "$(s238_code "${S238_OR}" | grep -acF "MAX_SUBTASKS: 4, SUB_MAX_ROUNDS: 3, SUB_MAX_ADDITIVE: 0, PARALLEL: 3")" = "1" ] && [ "$(s238_code "${S238_OR}" | grep -acF "export function readOnlyRegistryView(")" = "1" ] || { bad "[238] orchestrator 缺限额单源(子任务 4/子轮 3/零写入/并行 3)或只读注册表视图"; S238_BAD=1; }
+[ "$(cat "${S238_OR}" "${S238_OH}" | grep -acE 'MAX_ADDITIVE_PER_TURN: [1-9]')" = "0" ] || { bad "[238] 编排件出现非零 MAX_ADDITIVE_PER_TURN(子任务必须零写入)"; S238_BAD=1; }
+[ -s "${S238_OH}" ] && [ "$(s238_code "${S238_OH}" | grep -acF "MAX_ROUNDS: ORCH_LIMITS.SUB_MAX_ROUNDS, MAX_ADDITIVE_PER_TURN: ORCH_LIMITS.SUB_MAX_ADDITIVE")" = "1" ] && [ "$(s238_code "${S238_OH}" | grep -acF "registry: defaultReadOnlyRegistry()")" = "1" ] && [ "$(s238_code "${S238_OH}" | grep -acF "!isOrchestrateEnabled()")" = "1" ] || { bad "[238] 编排钩子须用限额常量+只读注册表视图+子开关门"; S238_BAD=1; }
+[ "$(s238_code "${S238_PF}" | grep -acF "export const AGENT_ORCH_ENABLED_KEY = 'horosa.ai.orchestrate.enabled';")" = "1" ] && [ "$(s238_code "${S238_PF}" | grep -acF "return safeLocalStorageGet(AGENT_ORCH_ENABLED_KEY) === '1';")" = "1" ] && [ "$(grep -acF "key: 'horosa.ai.orchestrate.enabled'" "${S238_UI}/src/utils/storageKeyRegistry.js")" = "1" ] || { bad "[238] 编排子开关键未登记或判据不是 === '1'"; S238_BAD=1; }
+[ "$(s238_code "${S238_MAIN}" | grep -acF "{chatAssist.orchestrationPanel(item)}")" = "1" ] || { bad "[238] AIAnalysisMain 编排面板插座缺失或重复"; S238_BAD=1; }
+for t in aiAgentOrchestrator aiChatOrchestrate; do [ -f "${S238_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[238] 合同测试 ${t}.test.js 缺失"; S238_BAD=1; }; done
+[ "${S238_BAD}" = "0" ] && ok "[238] AI 多模型对比/审阅/编排(候选 4/无工具/采用稿进历史/成本确认)"
+
+# [239] AI 结构化输出:json_schema strict 单一构造点在位且缺省路径零变化(消费方一律显式旗标;任何一处把 json_schema 变成无条件默认 = 请求字节变化 = 红)
+echo "[239] AI 结构化输出(json_schema strict 单源/现状路径不变)"
+S239_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S239_BAD=0
+s239_code(){ sed -E 's#//.*$##' "$1"; }
+S239_SO="${S239_UI}/src/utils/aiStructuredOutput.js"
+[ -s "${S239_SO}" ] && [ "$(s239_code "${S239_SO}" | grep -acF "export const STRUCTURED_FORMAT_TYPE = 'json_schema';")" = "1" ] && [ "$(s239_code "${S239_SO}" | grep -acF "export function applyResponseSchema(")" = "1" ] || { bad "[239] aiStructuredOutput 缺单一构造点"; S239_BAD=1; }
+[ "$(s239_code "${S239_SO}" | grep -acF "if(strict){ out.additionalProperties = false; out.required = Object.keys(props); }")" = "1" ] && [ "$(s239_code "${S239_SO}" | grep -acF "export const SCHEMA_MAX_DEPTH = 5;")" = "1" ] || { bad "[239] strict 硬约束/深度上限锚缺失"; S239_BAD=1; }
+[ "$(s239_code "${S239_SO}" | grep -acF "export function parseStructuredJson(")" = "1" ] && [ "$(s239_code "${S239_SO}" | grep -acF "export function schemaFingerprint(")" = "1" ] || { bad "[239] 宽松解析/指纹缺失"; S239_BAD=1; }
+[ -f "${S239_UI}/src/utils/__tests__/aiStructuredOutput.test.js" ] || { bad "[239] 合同测试 aiStructuredOutput.test.js 缺失"; S239_BAD=1; }
+[ "$(s239_code "${S239_UI}/src/utils/aiAgent/goalRunner.js" | grep -acF "opts.response_format = { type: 'json_object' };")" = "1" ] || { bad "[239] 目标判官 json_object 现状锚变了(接 schema 须走显式旗标)"; S239_BAD=1; }
+# 聊天侧五类浮层参数(温度 / top_p / 停止序列 / 两惩罚 / JSON 模式)已收敛到单源 applyChatParams —— 锚随之迁到那里。
+#   锚的用意不变:聊天路径的 JSON 模式仍只发 json_object(未接 json_schema),且只对 OpenAI 兼容与 Gemini 下发。
+[ "$(s239_code "${S239_UI}/src/utils/aiAnalysisProviders.js" | grep -acF "o.response_format = { type: 'json_object' };")" = "1" ] || { bad "[239] 聊天 JSON 模式现状锚变了(applyChatParams 单源)"; S239_BAD=1; }
+[ "$(s239_code "${S239_UI}/src/utils/aiAnalysisProviders.js" | grep -acF "if(p.jsonMode && p.withJsonMode !== false && (isOpenAiFamily(family) || family === 'gemini')){")" = "1" ] || { bad "[239] 聊天 JSON 模式家族门控锚变了"; S239_BAD=1; }
+[ "$(s239_code "${S239_UI}/src/components/aianalysis/AIAnalysisMain.js" | grep -acF "Object.assign(chatProviderOptions, applyChatParams(chatProviderOptions, {")" = "1" ] || { bad "[239] 聊天发送侧未走 applyChatParams 单源"; S239_BAD=1; }
+# Java 四家翻译:OpenAI 透传 + 自愈两级降级;Anthropic 非流式强制 schema 工具(tool_use.input 回读);Gemini responseSchema(清洗);Ollama format=schema;
+#    负锚:Anthropic/Ollama 分支里「无条件丢 response_format」的裸语句回潮即红(翻译被绕过=结构化输出静默失效)
+S239_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java"
+[ "$(grep -acF "static Map<String, Object> responseFormatSpec(" "${S239_JAVA}")" = "1" ] && [ "$(grep -acF "static Map<String, Object> anthropicForcedSchemaTool(" "${S239_JAVA}")" = "1" ] && [ "$(grep -acF "static boolean degradeResponseFormat(" "${S239_JAVA}")" = "1" ] || { bad "[239] Java 结构化输出翻译助手缺失"; S239_BAD=1; }
+[ "$(grep -acF 'generationConfig.put("responseSchema", geminiResponseSchema(' "${S239_JAVA}")" = "1" ] && [ "$(grep -acF 'applyOllamaResponseFormat(body, prov.remove("response_format"));' "${S239_JAVA}")" = "1" ] && [ "$(grep -acF 'if(degradeResponseFormat(body, msg)) { changed = true; }' "${S239_JAVA}")" = "1" ] || { bad "[239] Gemini/Ollama/自愈三处接线缺失"; S239_BAD=1; }
+[ "$(grep -acE '^[[:space:]]*aprov\.remove\("response_format"\);' "${S239_JAVA}")" = "0" ] && [ "$(grep -acE '^[[:space:]]*prov\.remove\("response_format"\);' "${S239_JAVA}")" = "0" ] || { bad "[239] Anthropic/Ollama 无条件丢 response_format 回潮(翻译被绕过)"; S239_BAD=1; }
+[ "$(grep -acF 'return JsonUtility.encode(((Map)part).get("input"));' "${S239_JAVA}")" = "1" ] || { bad "[239] Anthropic 强制工具 tool_use.input 回读缺失(非流式结构化输出会拿到空正文)"; S239_BAD=1; }
+S239_JT="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIAnalysisProxyServiceTest.java"
+for t in buildAnthropicBodyNonStreamJsonSchemaBecomesForcedTool buildGeminiBodyJsonSchemaSetsResponseSchema applyOllamaResponseFormatOnlyTranslatesJsonSchema healUpstreamRequestBodyDegradesResponseFormatTwoLevels extractAnthropicContentReturnsForcedToolInputAsJson; do [ "$(grep -acF "public void ${t}()" "${S239_JT}")" = "1" ] || { bad "[239] Java 合同 ${t} 缺失"; S239_BAD=1; }; done
+# [按任务用模型] 六槽键单源(全空=现状)+ 运行时每轮 model 进 trace / requestClose 恰一轮收口 / NULL_AGENT 空钩 + 页面插座恰一处 + 键登记 + 设置卡 + 合同
+S239_MR="${S239_UI}/src/utils/aiModelRouting.js"
+[ -s "${S239_MR}" ] && [ "$(s239_code "${S239_MR}" | grep -acF "export const MODEL_ROUTES_KEY = 'horosa.ai.chat.modelRoutes.v1';")" = "1" ] && [ "$(s239_code "${S239_MR}" | grep -acF "export const ROUTE_SLOTS = ['toolRounds', 'final', 'judge', 'review', 'planner', 'subagent'];")" = "1" ] || { bad "[239] aiModelRouting 六槽键单源缺失"; S239_BAD=1; }
+[ "$(s239_code "${S239_MR}" | grep -acF "export function shouldRequestClose(")" = "1" ] && [ "$(s239_code "${S239_MR}" | grep -acF "export function providerOptionsForRoute(")" = "1" ] || { bad "[239] 路由纯函数缺失"; S239_BAD=1; }
+S239_RT="${S239_UI}/src/utils/aiAgent/runtime.js"
+[ "$(s239_code "${S239_RT}" | grep -acF "requestClose(){ if(!state.closing){ state.closeRequested = true; } },")" = "1" ] && [ "$(s239_code "${S239_RT}" | grep -acF "requestClose(){},")" = "1" ] && [ "$(s239_code "${S239_RT}" | grep -acF "model: r.model || undefined,")" = "1" ] || { bad "[239] 运行时 requestClose/NULL_AGENT 空钩/trace 每轮 model 锚缺失"; S239_BAD=1; }
+[ "$(s239_code "${S239_RT}" | grep -acF "if(!calls.length && state.closeRequested && !state.closing){")" = "1" ] || { bad "[239] 收口一轮分支缺失(终稿模型永远轮不到)"; S239_BAD=1; }
+S239_MAIN="${S239_UI}/src/components/aianalysis/AIAnalysisMain.js"
+[ "$(s239_code "${S239_MAIN}" | grep -acF "const chatModels = useChatModels({")" = "1" ] && [ "$(s239_code "${S239_MAIN}" | grep -acF "chatModels.pickRound({")" = "1" ] && [ "$(s239_code "${S239_MAIN}" | grep -acF "chatModels.afterRound({")" = "1" ] && [ "$(s239_code "${S239_MAIN}" | grep -acF "chatModels.pickTool({")" = "1" ] || { bad "[239] AIAnalysisMain 模型路由插座不是恰一处"; S239_BAD=1; }
+[ -f "${S239_UI}/src/components/aianalysis/chat/useChatModels.js" ] && [ -f "${S239_UI}/src/components/aianalysis/chat/ChatModelRoutesPanel.js" ] || { bad "[239] useChatModels 钩子/设置卡缺失"; S239_BAD=1; }
+[ "$(grep -acF "'horosa.ai.chat.modelRoutes.v1'" "${S239_UI}/src/utils/storageKeyRegistry.js")" != "0" ] && [ "$(grep -acF "'horosa.ai.chat.modelRoutes.v1'" "${S239_UI}/src/utils/techniqueOnboardingContract.js")" != "0" ] || { bad "[239] horosa.ai.chat.modelRoutes.v1 未登记"; S239_BAD=1; }
+for t in aiModelRouting aiAgentRuntimeRouting; do [ -f "${S239_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[239] 合同测试 ${t}.test.js 缺失"; S239_BAD=1; }; done
+[ "${S239_BAD}" = "0" ] && ok "[239] AI 结构化输出(json_schema strict 单源/现状路径不变)"
+
+# [240] 自检收口锁(接口 key 静态加密钩 G1:provider_profiles 读四处解密/写一处加密/主密钥命令)
+echo "[240] 自检收口锁(接口 key 静态加密钩)"
+S240_BAD=0
+S240_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S240_STORE="${S240_UI}/src/utils/aiAnalysisStore.js"
+S240_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+s240_code(){ sed -E 's#//.*$##' "$1"; }
+[ -f "${S240_UI}/src/utils/secureKeyStore.js" ] || { bad "[240] secureKeyStore.js 缺失"; S240_BAD=1; }
+[ "$(s240_code "${S240_STORE}" | grep -acF "from './secureKeyStore'")" != "0" ] || { bad "[240] aiAnalysisStore 未接 secureKeyStore(接口 key 明文落库)"; S240_BAD=1; }
+[ "$(s240_code "${S240_STORE}" | grep -acF "encryptSecretText(")" != "0" ] || { bad "[240] aiAnalysisStore 写路径未加密 apiKey"; S240_BAD=1; }
+[ "$(s240_code "${S240_STORE}" | grep -acF "decryptProfileRecord(rec, storeName)")" -ge 3 ] || { bad "[240] aiAnalysisStore 读路径解密不足三处(list/batched/readByIndex)"; S240_BAD=1; }
+[ "$(s240_code "${S240_STORE}" | grep -acF "return decryptProfileRecord(record, storeName);")" != "0" ] || { bad "[240] getStoreRecord 未解密 provider 记录"; S240_BAD=1; }
+[ "$(s240_code "${S240_STORE}" | grep -acF "apiKeyDecryptFailed: true")" != "0" ] || { bad "[240] 解密失败未置空+标记(密文会流进请求头)"; S240_BAD=1; }
+grep -aqF "fn ai_master_key_command()" "${S240_RS}" || { bad "[240] main.rs 缺主密钥命令 ai_master_key_command(canEncryptSecrets 恒假=明文)"; S240_BAD=1; }
+grep -aqF "            ai_master_key_command," "${S240_RS}" || { bad "[240] ai_master_key_command 未注册进 generate_handler"; S240_BAD=1; }
+grep -aqF "find-generic-password" "${S240_RS}" || { bad "[240] 主密钥未走登录钥匙串"; S240_BAD=1; }
+[ -f "${S240_UI}/src/utils/__tests__/aiSecureKeyStore.test.js" ] || { bad "[240] aiSecureKeyStore.test.js 缺失"; S240_BAD=1; }
+[ -f "${S240_UI}/src/utils/__tests__/aiSettingsFacetsWhitelist.test.js" ] || { bad "[240] aiSettingsFacetsWhitelist.test.js 缺失(AI 可写键 ⊆ 登记键 无人看守)"; S240_BAD=1; }
+[ "$(s240_code "${S240_UI}/src/utils/__tests__/aiSettingsFacetsWhitelist.test.js" 2>/dev/null | grep -acF "bogusKey")" != "0" ] || { bad "[240] 白名单测试缺注错自证向量"; S240_BAD=1; }
+[ -f "${S240_UI}/src/utils/__tests__/aiExportContentAuditRatchet.test.js" ] || { bad "[240] aiExportContentAuditRatchet.test.js 缺失(内容 gap 无棘轮)"; S240_BAD=1; }
+[ "${S240_BAD}" = "0" ] && ok "[240] 自检收口锁(接口 key 静态加密钩/AI 可写设置键白名单/测试在位)"
+
+# [241] 压测二轮·稳健性债收口锁(2026-09-06):账本写前预留=拒绝执行 / 注册幂等 / 资源面只认自有键 / 桥限流按会话分桶+资源面受限+桶表有界 /
+#       外部 schema 消毒 / 自动化引擎链深度·每秒闸·尝试即冷却·deps 真接线 / 通知横幅节流+索引游标 / 任务 CAS·裁剪·预热 /
+#       调度一跳超时·信号·租约 / 审批超时撤台 / 目标任务幂等闸·孤儿过滤·判官 signal / 起盘链解锁 / 短调用 signal 直达请求层 /
+#       检索面板换引擎不沿用 Key / 技能包劫持三防 / Java 出站守卫·不跟随重定向·有界读·根因 / Rust 会话 TTL·有界读·子进程随连接退出
+echo "[241] 压测二轮·稳健性债收口锁"
+S241_BAD=0
+S241_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S241_T="${S241_UI}/utils/__tests__"
+S241_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service"
+S241_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src"
+# 剥单行注释再 grep 字面(注释复写字面=假绿);pipefail 下一律排空计数,不用 grep -q
+s241_code(){ sed -E 's#//.*$##' "$1" 2>/dev/null; }
+s241_has(){ [ "$(s241_code "$1" | grep -acF -- "$2")" != "0" ]; }
+s241_need(){ s241_has "$1" "$2" || { bad "[241] $3"; S241_BAD=1; }; }
+# ① 账本:预留失败拒绝执行(零写入),裁半重试;错误码三集合同步
+s241_need "${S241_UI}/utils/aiTools/ledger.js" "export function reserveAction" "ledger 缺写前预留 reserveAction"
+s241_need "${S241_UI}/utils/aiTools/ledger.js" "LEDGER_HALVING_MAX_ROUNDS" "ledger 缺配额裁半重试"
+s241_need "${S241_UI}/utils/aiTools/registry.js" "reserveAction({ id: actionId" "registry 跑 additive 工具前未预留账本位"
+s241_need "${S241_UI}/utils/aiTools/registry.js" "E_LEDGER_UNAVAILABLE" "registry 预留失败未回 E_LEDGER_UNAVAILABLE"
+s241_need "${S241_UI}/utils/aiTools/errorCodes.js" "E_LEDGER_UNAVAILABLE: def(" "errorCodes 缺 E_LEDGER_UNAVAILABLE"
+[ "$(grep -acF 'E_LEDGER_UNAVAILABLE' "${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md")" != "0" ] || { bad "[241] 手册 §8 缺 E_LEDGER_UNAVAILABLE 行"; S241_BAD=1; }
+# ② 注册幂等:同一份定义再注册短路(零 warn、不清 Ajv 缓存)
+s241_need "${S241_UI}/utils/aiTools/registry.js" "sources.get(name) === def" "registry 缺同定义幂等短路"
+# ③ 资源面:只认自有键、坏编码不抛、id 封长
+s241_need "${S241_UI}/utils/aiTools/resources.js" "hasOwnProperty.call(KIND_READERS, kind)" "resources 类别判定仍走原型链"
+s241_need "${S241_UI}/utils/aiTools/resources.js" "RESOURCE_ID_MAX" "resources 缺 id 上限"
+# ④ 外部桥:桶键按会话、桶表 LRU、资源/提示分支受限流、坏 URI 回 -32602
+s241_need "${S241_UI}/utils/aiAgent/mcpBridge.js" "function bucketKeyOf" "mcpBridge 限流桶仍按客户端自报名分"
+s241_need "${S241_UI}/utils/aiAgent/mcpBridge.js" "export const BUCKET_MAX" "mcpBridge 桶表无上限"
+s241_need "${S241_UI}/utils/aiAgent/mcpBridge.js" "if(READ_FACE_METHODS.indexOf(method) >= 0){" "mcpBridge 资源/提示分支未过限流"
+s241_need "${S241_RS}/mcp_server.rs" "pub fn handle_rpc_with_session" "mcp_server 未把会话身份注入页面分发"
+# ⑤ 外部 schema 消毒
+s241_need "${S241_UI}/integrations/mcpClient.js" "function sanitizeExternalSchemaNode" "mcpClient 外部 schema 未消毒"
+s241_need "${S241_UI}/integrations/mcpClient.js" "EXTERNAL_SCHEMA_MAX_DEPTH" "mcpClient 外部 schema 深度不封"
+# ⑥ 自动化引擎:链深度 / 每秒闸 / 尝试即冷却 / deps 真接线
+s241_need "${S241_UI}/utils/aiAgent/automation/engine.js" "export const MAX_CHAIN_DEPTH" "engine 缺链深度上限"
+s241_need "${S241_UI}/utils/aiAgent/automation/engine.js" "export const MAX_EVENTS_PER_SEC" "engine 缺每秒事件闸"
+[ -f "${S241_UI}/utils/aiAgent/automation/deps.js" ] || { bad "[241] automation/deps.js 缺失(三件公共动作恒不可用)"; S241_BAD=1; }
+s241_need "${S241_UI}/layouts/app.js" "buildDefaultAutomationDeps()" "app.js 仍裸调 bindAutomationEngine"
+s241_need "${S241_UI}/utils/aiAgent/bgSink.js" "export function reportBackgroundFailure" "bgSink 缺后台链留痕"
+# ⑦ 通知:横幅令牌桶+同文去重;listNotices 走索引游标
+s241_need "${S241_UI}/utils/aiAgent/tasks/noticeStore.js" "export function allowDesktopBanner" "noticeStore 缺横幅节流"
+s241_need "${S241_UI}/utils/aiAgent/tasks/noticeStore.js" "listStoreRecordsByIndexCursor(AI_ANALYSIS_STORES.agentNotices, 'createdAt'" "listNotices 未走 createdAt 索引游标"
+s241_need "${S241_UI}/utils/aiAnalysisStore.js" "export async function listStoreRecordsByIndexCursor" "aiAnalysisStore 缺索引游标读原语"
+# ⑧ 任务:CAS / 裁剪 / 预热
+s241_need "${S241_UI}/utils/aiAnalysisStore.js" "export async function updateStoreRecordIf" "aiAnalysisStore 缺单事务 CAS 原语"
+s241_need "${S241_UI}/utils/aiAgent/tasks/taskStore.js" "export async function patchTaskIf" "taskStore 缺 patchTaskIf"
+s241_need "${S241_UI}/utils/aiAgent/tasks/taskStore.js" "export async function pruneTasks" "taskStore 缺 pruneTasks"
+s241_need "${S241_UI}/utils/aiAgent/tasks/taskStore.js" "export const TASK_KEEP_MAX" "taskStore 缺 TASK_KEEP_MAX"
+s241_need "${S241_UI}/utils/aiAgent/tasks/taskStore.js" "export async function warmTaskCache" "taskStore 缺 warmTaskCache"
+s241_need "${S241_UI}/utils/aiAgent/tasks/index.js" "settle" "撤销处理器未附 settle 承诺(账本会被标成已撤销)"
+# ⑨ 调度:CAS 抢跑 / 一跳超时 / 信号 / 租约键登记
+s241_need "${S241_UI}/utils/aiAgent/tasks/scheduler.js" "patchTaskIf(task.id, { status: 'running'" "scheduler 抢跑未走 CAS"
+s241_need "${S241_UI}/utils/aiAgent/tasks/scheduler.js" "function hopTimeoutOf" "scheduler 一跳无超时"
+s241_need "${S241_UI}/utils/aiAgent/tasks/scheduler.js" "signal: ac.signal" "scheduler 执行体 ctx 无 signal"
+s241_need "${S241_UI}/utils/aiAgent/tasks/scheduler.js" "export const SCHEDULER_LEASE_KEY" "scheduler 缺租约键"
+s241_need "${S241_UI}/utils/storageKeyRegistry.js" "horosa.ai.tasks.scheduler.lease" "租约键未登记注册表"
+s241_need "${S241_UI}/utils/aiAgent/tasks/taskKinds.js" "signal: c.signal" "taskKinds 未透传 signal 给无头轮"
+# ⑩ 审批超时撤台;目标任务幂等闸/孤儿过滤/判官 signal
+s241_need "${S241_UI}/utils/aiAgent/approvals.js" "entry.timer = setTimeout" "approvals 无超时撤台"
+s241_need "${S241_UI}/utils/aiAgent/goalRunner.js" "if(runningLoops.has(taskId)){ return task; }" "goalRunner 缺幂等闸"
+s241_need "${S241_UI}/utils/aiAgent/goalRunner.js" "!== ORPHAN_STREAMING_CONTENT" "goalRunner 历史未过滤孤儿正文"
+s241_need "${S241_UI}/utils/aiAgent/goalRunner.js" "timeoutMs: GOAL_APPROVAL_TIMEOUT_MS" "goalRunner 审批未走等待台超时"
+# ⑪ 起盘链解锁;短调用 signal 直达请求层
+s241_need "${S241_UI}/utils/aiTools/tools/castTechnique.js" "function castAbortPromise" "castTechnique 起盘链无中止解锁"
+s241_need "${S241_UI}/services/aianalysis.js" "export function requestAIAnalysisChat(values, options)" "services.requestAIAnalysisChat 不收 signal"
+s241_need "${S241_UI}/services/aianalysis.js" "export function requestWebSearch(values, options)" "services.requestWebSearch 不收 signal"
+s241_need "${S241_UI}/integrations/webSearch.js" "}, { signal });" "runWebSearch 未把 signal 交给 requestWebSearch"
+# ⑫ 检索面板换引擎;技能包劫持三防
+s241_need "${S241_UI}/components/aianalysis/WebSearchPanel.js" "export function mergeSearchProfileForm" "WebSearchPanel 换引擎仍沿用旧 Key"
+s241_need "${S241_UI}/utils/aiChat/skillLimits.js" "export const SKILL_MAX_SYSTEM_PROMPT" "skills 缺系统指令上限(单源 skillLimits.js)"
+s241_need "${S241_UI}/utils/aiChat/skills.js" "const conflicts = triggerConflicts(skill.triggers)" "planSkillImport 未检触发词冲突"
+s241_need "${S241_UI}/components/aianalysis/chat/SkillPackPanel.js" "plan.conflicts && plan.conflicts.length" "技能包面板未拒冲突导入"
+# ⑬ Java 出站守卫;Rust 会话 TTL 与有界读
+[ -f "${S241_JAVA}/OutboundUrlGuard.java" ] || { bad "[241] OutboundUrlGuard.java 缺失"; S241_BAD=1; }
+s241_need "${S241_JAVA}/AIWebSearchService.java" "HttpClient.Redirect.NEVER" "检索服务仍跟随重定向"
+s241_need "${S241_JAVA}/AIWebSearchService.java" "MAX_RESPONSE_BYTES = 2L * 1024 * 1024" "检索服务回体无上限"
+s241_need "${S241_JAVA}/AIWebSearchService.java" "return OutboundUrlGuard.validate(url)" "检索服务出站地址未过守卫"
+s241_need "${S241_RS}/mcp_server.rs" "const SESSION_TTL" "mcp_server 会话无时效"
+s241_need "${S241_RS}/mcp_client.rs" "fn read_line_bounded" "mcp_client stdio 行读无上限"
+s241_need "${S241_RS}/mcp_client.rs" "take(MAX_RESPONSE_BYTES as u64 + 1)" "mcp_client HTTP 回体先全读后判上限"
+s241_need "${S241_RS}/mcp_client.rs" "impl Drop for Conn" "mcp_client 连接丢弃不杀子进程"
+# ⑭ 先红后绿的回归锁全部在位
+for f in aiAgentGoalRunnerStress agentSchedulerConcurrency webSearchPanel aiChatShortCallSignal mcpResourcesHostile mcpBridgeLimits aiToolsExternalSchemaBomb aiToolsRegistryIdempotent aiAgentInjectionGuard aiChatContextPolicySnapshot aiAgentAutomationStress agentNoticeFlood aiToolsLedgerQuota agentTaskPrune aiUsageNormalize; do
+  [ -f "${S241_T}/${f}.test.js" ] || { bad "[241] 回归锁 ${f}.test.js 缺失"; S241_BAD=1; }
+done
+[ -f "${S241_T}/helpers/agentFakes.js" ] || { bad "[241] 夹具 helpers/agentFakes.js 缺失"; S241_BAD=1; }
+[ -f "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIWebSearchServiceHostileTest.java" ] || { bad "[241] AIWebSearchServiceHostileTest 缺失"; S241_BAD=1; }
+[ "${S241_BAD}" = "0" ] && ok "[241] 压测二轮·稳健性债收口锁"
+
+# [242] 批二·对标 Claude Code 十二项收口锁(2026-09-06):①标签单源+死代码清除 ②按工具名 allow/deny(deny 任何档位都拒且不进目录) ③写前 diff 预览随审批
+#       ④tool.before 同步否决(E_HOOK_DENIED 零写入) ⑤流中途插话(下一轮工具回合附 [用户插话]) ⑥note_progress 进度清单(零落库)
+#       ⑦/plan 先计划后执行(规划短调用只看目录摘要;三档字面锚不动) ⑧/compact <指令> + 阈值提醒(只提醒不自动压缩) ⑨分层口径(全局→命主→技法→会话)
+#       ⑩按槽思考档(槽档优先) ⑪会话 resume(缺省关) ⑫/doctor(脱敏一屏诊断);三把新键登记两表;十二套回归锁在位
+echo "[242] 批二·对标 Claude Code 十二项收口锁"
+S242_BAD=0
+S242_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S242_T="${S242_UI}/utils/__tests__"
+S242_C="${S242_UI}/components/aianalysis"
+S242_MAIN="${S242_C}/AIAnalysisMain.js"
+s242_code(){ sed -E 's#//.*$##' "$1" 2>/dev/null; }
+s242_has(){ [ "$(s242_code "$1" | grep -acF -- "$2")" != "0" ]; }
+s242_need(){ s242_has "$1" "$2" || { bad "[242] $3"; S242_BAD=1; }; }
+s242_none(){ [ "$(s242_code "$1" | grep -acF -- "$2")" = "0" ] || { bad "[242] $3"; S242_BAD=1; }; }
+# ① 标签单源;命令表无「待实装」死支
+s242_need "${S242_UI}/utils/aiTools/labels.js" "export function toolLabel(" "labels.js 缺 toolLabel 单源"
+s242_need "${S242_C}/AgentActionBar.js" "from '../../utils/aiTools/labels'" "动作条未从 labels 单源取标签"
+s242_none "${S242_UI}/utils/aiChat/commands.js" "kind === 'later'" "commands.js 仍有 later 死支"
+# ② 按工具名策略:键 + 判定优先级 + 目录过滤 + 面板
+s242_need "${S242_UI}/utils/aiAgent/prefs.js" "export const AGENT_TOOL_POLICY_KEY = 'horosa.ai.agent.toolPolicy.v1';" "prefs 缺 toolPolicy 键"
+s242_need "${S242_UI}/utils/aiAgent/prefs.js" "export const AGENT_APPROVAL_CATEGORIES = TOOL_CATEGORIES.slice();" "审批类别未取自目录类别单源(interactive 分叉)"
+s242_need "${S242_UI}/utils/aiAgent/approvalPolicy.js" "export function isToolDenied(" "approvalPolicy 缺 isToolDenied"
+s242_need "${S242_UI}/utils/aiAgent/runtime.js" "toolPolicy.deny.indexOf(t.name) < 0" "runtime manifest 未剔 deny 工具"
+s242_need "${S242_UI}/utils/aiAgent/runtime.js" "已被用户禁用,未执行" "runtime deny 拒绝文案缺失"
+s242_need "${S242_C}/AgentAbilityPanel.js" 'data-tool-policy="deny"' "能力面板缺按工具名禁用多选"
+# ③ diff 预览:纯 diff + 预览组件 + 运行时超时随审批 + 三件工具 preview
+s242_need "${S242_UI}/utils/aiChat/textDiff.js" "export function diffHunks(" "textDiff 缺 diffHunks"
+s242_need "${S242_C}/AgentDiffPreview.js" 'data-agent-diff="1"' "AgentDiffPreview 缺机读锚"
+s242_need "${S242_UI}/utils/aiAgent/runtime.js" "export const PREVIEW_TIMEOUT_MS" "runtime 预览无超时"
+s242_need "${S242_UI}/utils/aiAgent/approvals.js" "preview: p.preview || null" "approvals 未把预览随待审项外露"
+s242_need "${S242_UI}/utils/aiTools/registry.js" "typeof def.preview !== 'function'" "registry 未校验 preview 形状"
+for t in setSettings createChartRecord createCaseRecord; do s242_need "${S242_UI}/utils/aiTools/tools/${t}.js" "preview(args" "${t} 缺 preview"; done
+s242_need "${S242_C}/AgentActionBar.js" "<AgentDiffPreview" "动作条未渲染 diff 预览"
+# ④ tool.before 同步否决
+s242_need "${S242_UI}/utils/aiAgent/automation/events.js" "'tool.before'" "事件表缺 tool.before"
+s242_need "${S242_UI}/utils/aiAgent/automation/events.js" "export function emitAutomationEventSync(" "events 缺同步通道"
+s242_need "${S242_UI}/utils/aiAgent/automation/engine.js" "export function vetoDecision(" "engine 缺否决判定"
+s242_need "${S242_UI}/utils/aiAgent/automation/actions.js" "'deny'" "动作表缺 deny"
+s242_need "${S242_UI}/utils/aiTools/registry.js" "emitAutomationEventSync('tool.before'" "registry 执行前未发 tool.before"
+s242_need "${S242_UI}/utils/aiTools/registry.js" "'E_HOOK_DENIED'" "registry 否决未回 E_HOOK_DENIED"
+s242_need "${S242_UI}/utils/aiTools/errorCodes.js" "E_HOOK_DENIED" "错误码表缺 E_HOOK_DENIED"
+# ⑤ 插话:队列模块 + 运行时每轮取一次 + Main 插座 + 芯片
+s242_need "${S242_UI}/utils/aiAgent/steer.js" "export const STEER_PREFIX = '[用户插话]';" "steer 缺前缀常量"
+s242_need "${S242_UI}/utils/aiAgent/steer.js" "export const STEER_MAX_PER_TURN = 3;" "steer 缺每轮上限"
+s242_need "${S242_UI}/utils/aiAgent/runtime.js" "steerLine(" "runtime 未把插话附到请求末尾"
+[ "$(s242_code "${S242_MAIN}" | grep -acF "steer: ()=>chatAssist.takeSteer(assistantMessage.id),")" = "1" ] || { bad "[242] Main createAgentTurn 插话插座不是恰一处"; S242_BAD=1; }
+[ "$(s242_code "${S242_MAIN}" | grep -acF "}else if(chatAssist.canSteer){")" = "1" ] || { bad "[242] Main 回车插话分支不是恰一处"; S242_BAD=1; }
+s242_need "${S242_C}/chat/ComposerAssist.js" 'data-composer-steer="1"' "ComposerAssist 缺插话芯片"
+# ⑥ 进度清单
+s242_need "${S242_UI}/utils/aiTools/tools/noteProgress.js" "name: 'note_progress'," "note_progress 工具缺失"
+s242_need "${S242_UI}/utils/aiTools/index.js" "noteProgress" "note_progress 未进内置目录"
+s242_need "${S242_UI}/utils/aiAgent/runtime.js" "state.todos = result.data.items.slice(0, 20)" "runtime 未落进度清单"
+s242_need "${S242_C}/AgentActionBar.js" 'data-agent-todos="1"' "动作条缺进度清单"
+s242_need "${S242_UI}/utils/aiAgent/protocol.js" "note_progress 列出步骤" "守则缺进度清单条款"
+# ⑦ /plan
+s242_need "${S242_UI}/utils/aiAgent/planMode.js" "export function parseActionPlan(" "planMode 缺解析"
+s242_need "${S242_UI}/utils/aiAgent/planMode.js" "export const ACTION_PLAN_SCHEMA" "planMode 缺 schema"
+s242_need "${S242_C}/chat/PlanCard.js" 'data-plan-approve="1"' "PlanCard 缺批准锚"
+s242_need "${S242_UI}/utils/aiChat/shortCall.js" "plan: '【行动计划】'" "短调用标记缺 plan"
+s242_need "${S242_UI}/utils/aiChat/commands.js" "name: 'plan'," "命令表缺 /plan"
+s242_need "${S242_C}/chat/useChatAssist.js" "if(cmd.name === 'plan'){ return runPlan(parsed.argsText); }" "useChatAssist 未分发 /plan"
+# ⑧ /compact <指令> + 阈值提醒
+s242_need "${S242_UI}/utils/aiChat/compact.js" "export function buildCompactSystem(" "compact 缺带指令 system"
+s242_need "${S242_UI}/utils/aiChat/compactPrefs.js" "export function writeCompactAutoTokens(" "compactPrefs 缺阈值写入"
+s242_need "${S242_C}/chat/useChatAssist.js" "return runCompact(parsed.argsText);" "/compact 未传指令"
+s242_need "${S242_C}/chat/ChatStatusBar.js" "'data-suggest-compact': '1'" "状态栏缺压缩提醒芯片"
+s242_need "${S242_C}/chat/ChatContextPolicyPanel.js" 'data-policy-field="compactAutoTokens"' "策略卡缺阈值框"
+# ⑨ 分层口径
+s242_need "${S242_UI}/utils/aiChat/personaLayers.js" "export const PERSONA_LAYERS_KEY = 'horosa.ai.persona.layers.v1';" "personaLayers 缺键"
+s242_need "${S242_UI}/utils/aiChat/personaLayers.js" "export function composePersonaText(" "personaLayers 缺合成"
+s242_need "${S242_UI}/utils/aiChat/persona.js" "composePersonaText(p.text, ctx.layers, ctx)" "persona 层未走分层合成"
+s242_need "${S242_C}/chat/PersonaMemoryPanel.js" 'data-persona-tabs="1"' "口径面板缺四页签"
+s242_need "${S242_C}/chat/useChatAssist.js" "sessionText: convP ? convP.persona : ''" "useChatAssist 未接会话层"
+# ⑩ 按槽思考档
+s242_need "${S242_UI}/utils/aiModelRouting.js" "export const ROUTE_OPTIONS_KEY = 'horosa.ai.chat.routeOptions.v1';" "aiModelRouting 缺 routeOptions 键"
+s242_need "${S242_UI}/utils/aiModelRouting.js" "export function stripThinkingOptions(" "aiModelRouting 缺剥思考键"
+s242_need "${S242_C}/chat/useChatModels.js" "readRouteOptions()" "useChatModels 每轮未读槽档"
+s242_need "${S242_C}/chat/ChatModelRoutesPanel.js" "data-route-thinking" "路由卡缺思考下拉"
+# ⑪ resume
+s242_need "${S242_UI}/utils/aiChat/resume.js" "export function pickResumeConversation(" "resume 缺挑选"
+s242_need "${S242_UI}/utils/aiChat/commands.js" "name: 'resume'," "命令表缺 /resume"
+s242_need "${S242_C}/chat/ChatAssistOverlays.js" 'data-resume-pref="1"' "resume 浮层缺开关"
+s242_need "${S242_C}/chat/useChatAssist.js" "rememberLastConversation(convIdForResume)" "useChatAssist 未记上次对话"
+# ⑫ /doctor
+s242_need "${S242_UI}/utils/aiChat/doctor.js" "export function buildDoctorReport(" "doctor 缺报告"
+s242_need "${S242_UI}/utils/aiChat/doctor.js" "export function redactSecrets(" "doctor 缺脱敏"
+s242_need "${S242_C}/chat/DoctorPanel.js" 'data-doctor-copy="1"' "DoctorPanel 缺复制"
+s242_need "${S242_C}/chat/DoctorPanel.js" "copyTextSmart" "DoctorPanel 复制未走 copyTextSmart"
+s242_need "${S242_UI}/utils/aiChat/commands.js" "name: 'doctor'," "命令表缺 /doctor"
+# 三把新键两表登记
+for k in horosa.ai.agent.toolPolicy.v1 horosa.ai.persona.layers.v1 horosa.ai.chat.routeOptions.v1; do
+  s242_need "${S242_UI}/utils/storageKeyRegistry.js" "key: '${k}'" "注册表缺 ${k}"
+  s242_need "${S242_UI}/utils/techniqueOnboardingContract.js" "'${k}'" "上手合同缺 ${k}"
+done
+# 回归锁十二套
+for f in aiAgentToolLabels aiAgentToolPolicy aiAgentDiffPreview aiAgentHookDeny aiAgentSteer aiToolsNoteProgress aiAgentPlanMode aiChatCompactInstruction aiChatPersonaLayers aiModelRoutingOptions aiChatResume aiChatDoctor; do
+  [ -f "${S242_T}/${f}.test.js" ] || { bad "[242] 回归锁 ${f}.test.js 缺失"; S242_BAD=1; }
+done
+[ "${S242_BAD}" = "0" ] && ok "[242] 批二·对标 Claude Code 十二项收口锁"
+
+# [243] 批三·对标 Codex 六项收口锁(2026-09-06):①web_fetch 读整页(Java 严格档守卫逐跳校验/有界/四类内容/HTML→文本/段对齐;子开关缺省关;两码)
+#       ②按槽 reasoning/温度/输出上限 + 具名方案(/profile)③无头 JSON 出口 run_analysis(origins:['mcp'] 合同;只读注册表视图;内存 deps 零落库;在途 1;子开关缺省关)
+#       ④stdio 本机 MCP 代理(--horosa-mcp-stdio;端点文件取令牌;有界行;-32001)+ Claude Desktop command/args 形态 ⑤并行目标任务(缺省 0=现状)⑥通知外部脚本钩(壳侧六道门/零 shell/10s/限流/HOROSA_NOTIFY_HOOK)
+echo "[243] 批三·对标 Codex 六项收口锁"
+S243_BAD=0
+S243_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S243_T="${S243_UI}/utils/__tests__"
+S243_C="${S243_UI}/components/aianalysis"
+S243_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy"
+S243_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src"
+s243_code(){ sed -E 's#//.*$##' "$1" 2>/dev/null; }
+s243_has(){ [ "$(s243_code "$1" | grep -acF -- "$2")" != "0" ]; }
+s243_need(){ s243_has "$1" "$2" || { bad "[243] $3"; S243_BAD=1; }; }
+s243_none(){ [ "$(s243_code "$1" | grep -acF -- "$2")" = "0" ] || { bad "[243] $3"; S243_BAD=1; }; }
+# ① web_fetch:Java 严格档 + 端点 + 零日志 + 前端零直连 + 子开关 + 两码
+[ -s "${S243_JAVA}/service/AIWebFetchService.java" ] || { bad "[243] AIWebFetchService.java 缺失"; S243_BAD=1; }
+s243_need "${S243_JAVA}/service/OutboundUrlGuard.java" "public static String validateStrict(String url, boolean allowLoopback)" "守卫缺严格档"
+s243_need "${S243_JAVA}/service/OutboundUrlGuard.java" 'System.getenv("HOROSA_WEBFETCH_ALLOW_LOOPBACK")' "严格档放行开关未读环境变量"
+s243_need "${S243_JAVA}/service/AIWebFetchService.java" "current = OutboundUrlGuard.validateStrict(next, allowLoopback);" "重定向二跳未过严格档"
+s243_need "${S243_JAVA}/service/AIWebFetchService.java" ".followRedirects(HttpClient.Redirect.NEVER)" "网页读取仍跟随重定向"
+s243_need "${S243_JAVA}/service/AIWebFetchService.java" "MAX_RESPONSE_BYTES = 2L * 1024 * 1024" "网页回体无上限"
+s243_need "${S243_JAVA}/service/AIWebFetchService.java" "static Truncated truncateAtParagraph(" "缺段落对齐截断"
+[ "$(grep -acE 'Logger|log\.(info|debug|warn|error)' "${S243_JAVA}/service/AIWebFetchService.java")" = "0" ] || { bad "[243] 网页读取服务出现日志调用(地址与正文绝不落日志)"; S243_BAD=1; }
+[ "$(grep -acF '"/webfetch"' "${S243_JAVA}/controller/AIAnalysisController.java")" = "1" ] || { bad "[243] 缺 /webfetch 端点"; S243_BAD=1; }
+[ -f "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIWebFetchServiceTest.java" ] || { bad "[243] AIWebFetchServiceTest 缺失"; S243_BAD=1; }
+s243_need "${S243_UI}/utils/aiTools/tools/webFetch.js" "name: 'web_fetch'," "web_fetch 工具缺失"
+s243_need "${S243_UI}/utils/aiTools/tools/webFetch.js" "enabled: ()=>isWebFetchEnabled()," "web_fetch 未受子开关约束"
+s243_need "${S243_UI}/utils/aiTools/tools/webFetch.js" "level: 'read'," "web_fetch 须 read 级"
+[ "$(s243_code "${S243_UI}/integrations/webFetch.js" | grep -acE 'fetch\(|XMLHttpRequest')" = "0" ] || { bad "[243] 网页读取前端不得直连(一律经 Java 端点)"; S243_BAD=1; }
+s243_need "${S243_UI}/services/aianalysis.js" "export function requestWebFetch(values, options)" "services 缺 requestWebFetch"
+s243_need "${S243_UI}/utils/aiAgent/prefs.js" "return safeLocalStorageGet(AGENT_WEB_FETCH_KEY) === '1';" "prefs 缺网页读取开关"
+s243_need "${S243_C}/WebSearchPanel.js" 'data-web-fetch-switch="1"' "面板缺网页读取开关"
+for c in E_WEB_FETCH_BLOCKED E_WEB_FETCH_FAILED E_HEADLESS_UNAVAILABLE; do s243_need "${S243_UI}/utils/aiTools/errorCodes.js" "${c}" "错误码表缺 ${c}"; done
+# ② 槽参数 + 具名方案
+s243_need "${S243_UI}/utils/aiModelRouting.js" "export const ROUTE_SLOT_OPTION_KEYS = ['thinking', 'reasoningEffort', 'temperature', 'maxTokens'];" "槽参数四键缺失"
+s243_need "${S243_UI}/utils/aiModelRouting.js" "export function applySlotParams(" "缺槽参数施加"
+s243_need "${S243_UI}/utils/aiModelRouting.js" "export const ROUTE_PROFILES_KEY = 'horosa.ai.chat.routeProfiles.v1';" "缺具名方案键"
+s243_need "${S243_UI}/utils/aiModelRouting.js" "export function applyRouteProfile(" "缺方案切换"
+s243_need "${S243_C}/chat/ChatModelRoutesPanel.js" 'data-route-profile-save="1"' "路由卡缺另存为"
+s243_need "${S243_C}/chat/ChatModelRoutesPanel.js" "data-route-max-tokens" "路由卡缺输出上限框"
+s243_need "${S243_UI}/utils/aiChat/commands.js" "name: 'profile'," "命令表缺 /profile"
+# ③ 无头出口
+s243_need "${S243_UI}/utils/aiTools/catalog.js" "export const TOOL_CALL_ORIGINS = ['in-app', 'mcp', 'goal', 'automation', 'scheduled', 'orchestrate'];" "catalog 缺来源值域(2026-09-08 起含 orchestrate)"
+s243_need "${S243_UI}/utils/aiTools/registry.js" "function originAllowed(def, origin){" "registry 缺 origins 判定"
+s243_need "${S243_UI}/utils/aiTools/registry.js" "if(!originAllowed(def, ctx.origin)){" "runTool 未按 origins 拒"
+s243_need "${S243_UI}/utils/aiTools/tools/runAnalysis.js" "origins: ['mcp']," "run_analysis 未限定 mcp 来源"
+s243_need "${S243_UI}/utils/aiTools/tools/runAnalysis.js" "export function readOnlyRegistryView(" "无头出口缺只读注册表视图"
+s243_need "${S243_UI}/utils/aiTools/tools/runAnalysis.js" "export const HEADLESS_INFLIGHT_MAX = 1;" "无头出口在途上限不是 1"
+s243_none "${S243_UI}/utils/aiTools/tools/runAnalysis.js" "cid:" "run_analysis schema 不得用禁键 cid"
+s243_need "${S243_UI}/utils/aiAgent/mcpBridge.js" "d.exportToolManifest({ includeExternal: false, origin: 'mcp' })" "桥 tools/list 未带 origin"
+s243_need "${S243_UI}/utils/aiAgent/goalRunner.js" "...(registry ? { registry } : {})," "runHeadlessTurn 未收 registry"
+s243_need "${S243_C}/ExternalAgentPanel.js" 'data-headless-switch="1"' "缺无头出口开关"
+# ④ stdio 代理
+[ -s "${S243_RS}/mcp_stdio.rs" ] || { bad "[243] mcp_stdio.rs 缺失"; S243_BAD=1; }
+s243_need "${S243_RS}/mcp_stdio.rs" "pub const STDIO_LINE_MAX: usize = 1024 * 1024;" "stdio 代理行无上限"
+s243_need "${S243_RS}/mcp_stdio.rs" "pub const ERR_NOT_RUNNING: i64 = -32001;" "stdio 代理缺 -32001"
+s243_need "${S243_RS}/mcp_stdio.rs" "pub fn read_line_bounded" "stdio 代理缺有界行读"
+s243_need "${S243_RS}/main.rs" "mod mcp_stdio;" "main.rs 未挂 mcp_stdio"
+s243_need "${S243_RS}/main.rs" "args[1] == mcp_stdio::MCP_STDIO_FLAG" "main.rs 缺 stdio 旗标分派"
+s243_need "${S243_RS}/mcp_server.rs" '"binaryPath": std::env::current_exe()' "status_json 缺 binaryPath"
+s243_need "${S243_C}/ExternalAgentPanel.js" "args: ['--horosa-mcp-stdio', st.endpointFile]" "Claude Desktop 配置未用 stdio 形态"
+s243_need "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_mcp_smoke.sh" "--horosa-mcp-stdio" "冒烟脚本缺 --stdio"
+# ⑤ 并行目标
+s243_need "${S243_UI}/utils/aiAgent/prefs.js" "export const AGENT_GOAL_PARALLEL_KEY = 'horosa.ai.tasks.goal.parallel';" "缺并行上限键"
+s243_need "${S243_UI}/utils/aiAgent/goalRunner.js" "if(parallelLimit > 0 && runningLoops.size >= parallelLimit){" "startGoalTask 缺并行闸"
+s243_need "${S243_UI}/utils/aiAgent/goalRunner.js" "export async function startNextQueuedGoal(" "缺接力起跑"
+s243_need "${S243_C}/TaskCenterPanel.js" 'data-goal-start-all="1"' "任务中心缺全部开始"
+# ⑥ 通知脚本钩
+s243_need "${S243_RS}/main.rs" "fn validate_notify_hook_path_with_roots(" "壳缺脚本路径六道门"
+s243_need "${S243_RS}/main.rs" 'std::env::var("HOROSA_NOTIFY_HOOK")' "缺 HOROSA_NOTIFY_HOOK 否决"
+s243_need "${S243_RS}/main.rs" "Command::new(path)" "通知脚本须零 shell 直起"
+s243_need "${S243_RS}/main.rs" "pub const NOTIFY_HOOK_TIMEOUT_MS: u64 = 10_000;" "通知脚本超时不是 10s"
+s243_need "${S243_RS}/main.rs" "notify_hook_run_command," "main.rs 未登记通知脚本命令"
+s243_need "${S243_UI}/utils/aiAgent/automation/actions.js" "'notify-script'" "动作表缺 notify-script"
+s243_need "${S243_C}/ExternalAgentPanel.js" "Modal.confirm({ title: '启用通知脚本钩?'" "通知脚本钩首次启用缺确认"
+# 四把新键两表登记
+for k in horosa.ai.tools.webFetch.enabled horosa.ai.tools.headless.enabled horosa.ai.tasks.goal.parallel horosa.ai.chat.routeProfiles.v1; do
+  s243_need "${S243_UI}/utils/storageKeyRegistry.js" "key: '${k}'" "注册表缺 ${k}"
+  s243_need "${S243_UI}/utils/techniqueOnboardingContract.js" "'${k}'" "上手合同缺 ${k}"
+done
+# 回归锁
+for f in aiToolsWebFetch aiModelRoutingProfiles aiToolsHeadless aiAgentGoalParallel aiAgentNotifyHook; do
+  [ -f "${S243_T}/${f}.test.js" ] || { bad "[243] 回归锁 ${f}.test.js 缺失"; S243_BAD=1; }
+done
+[ "${S243_BAD}" = "0" ] && ok "[243] 批三·对标 Codex 六项收口锁"
+
+# [244] 进阶页重排(版式件/四枚版式锚/LESS 纪律/子面板去内联/回归锁)+ 操控软件工具集锚在本段末追加
+echo "[244] 进阶页重排 + 操控软件工具集收口锁"
+S244_BAD=0
+S244_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S244_T="${S244_UI}/utils/__tests__"
+S244_C="${S244_UI}/components/aianalysis"
+s244_code(){ sed -E 's#//.*$##' "$1" 2>/dev/null; }
+s244_has(){ [ "$(s244_code "$1" | grep -acF -- "$2")" != "0" ]; }
+s244_need(){ s244_has "$1" "$2" || { bad "[244] $3"; S244_BAD=1; }; }
+s244_none(){ [ "$(s244_code "$1" | grep -acF -- "$2")" = "0" ] || { bad "[244] $3"; S244_BAD=1; }; }
+s244_once(){ [ "$(s244_code "$1" | grep -acF -- "$2")" = "1" ] || { bad "[244] $3"; S244_BAD=1; }; }
+# ① 版式件在位 + 四枚版式锚各恰一 + 导轨不是链接(hash 路由)+ 宽度档走 ResizeObserver + 分区锚表
+for f in AdvSectionNav.js useElementWidth.js AdvancedPane.js AdvCard.js; do [ -f "${S244_C}/chat/${f}" ] || { bad "[244] 进阶页版式件 ${f} 缺失"; S244_BAD=1; }; done
+s244_once "${S244_C}/chat/AdvancedPane.js" 'data-advanced-grid="1"' "进阶页网格锚不是恰一处"
+s244_once "${S244_C}/chat/AdvSectionNav.js" 'data-advanced-nav="1"' "导轨锚不是恰一处"
+s244_once "${S244_C}/chat/ChatModelRoutesPanel.js" 'data-route-grid-head="1"' "路由表表头锚不是恰一处"
+s244_once "${S244_C}/AgentAbilityPanel.js" 'data-agent-collapse="1"' "行动能力折叠区锚不是恰一处"
+[ "$(s244_code "${S244_C}/AgentAbilityPanel.js" | grep -acF -- "<Collapse.Panel forceRender key=")" = "5" ] || { bad "[244] 折叠区五子面板须全部 forceRender(锚点常驻)"; S244_BAD=1; }
+s244_none "${S244_C}/chat/AdvSectionNav.js" "<a " "导轨不得用 <a>(桌面构建走 hash 路由,href=# 会改写路由)"
+s244_need "${S244_C}/chat/AdvancedPane.js" "useElementWidth(rootRef)" "宽度档未走 ResizeObserver 量根节点"
+s244_need "${S244_C}/chat/AdvCard.js" "export const ADV_SECTION_IDS" "AdvCard 缺分区锚 id 表"
+# ② LESS 纪律:含 / 的 grid 值必须转义(LESS 会算成除法);零半像素字号;零 container-type(Tahoe 浮层事故)
+# (剥 // 注释再查:注释里提到规则名不算违规——字面量哨兵×注释双向陷阱)
+[ "$(s244_code "${S244_C}/chat/advanced.less" | grep -acE 'grid-(column|row|area):[[:space:]]*[^~;]*/')" = "0" ] || { bad "[244] advanced.less 有未转义的 grid 除号值"; S244_BAD=1; }
+[ "$(s244_code "${S244_C}/chat/advanced.less" | grep -acE 'font-size:[[:space:]]*[0-9]+\.5px')" = "0" ] || { bad "[244] advanced.less 出现半像素字号"; S244_BAD=1; }
+[ "$(s244_code "${S244_C}/chat/advanced.less" | grep -acE '^[[:space:]]*container-type[[:space:]]*:')" = "0" ] || { bad "[244] advanced.less 不得用 container-type"; S244_BAD=1; }
+# CSS 覆盖权重机械网:模块类覆盖 antd 一旦与竞争者【打平】,赢家就随分包落地序摇摆(本仓 CSS
+# 分散在十几个运行时追加的分包里,源码序没有定义)。2026-09-07 一次抓到五处。
+S244_SPEC="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/check_css_specificity.js"
+if [ -f "${S244_SPEC}" ] && command -v node >/dev/null 2>&1; then
+  node "${S244_SPEC}" --self-test >/dev/null 2>&1 || { bad "[244] CSS 权重网判别向量自证失败(网本身坏了,结论不作数)"; S244_BAD=1; }
+  S244_SPEC_OUT="$(node "${S244_SPEC}" "${S244_C}/chat/advanced.less" 2>&1)" \
+    || { bad "[244] advanced.less 有与 antd 打平的覆盖: $(echo "${S244_SPEC_OUT}" | grep -c '^❌') 处"; S244_BAD=1; }
+else
+  bad "[244] 缺 check_css_specificity.js 或 node(CSS 权重网跑不了)"; S244_BAD=1
+fi
+# ③ 五子面板去内联外壳,统一走 advanced.less 类
+for f in ExternalAgentPanel ExternalServersPanel WebSearchPanel AutomationRulesPanel ActionLedgerPanel; do
+  s244_none "${S244_C}/${f}.js" "1px dashed var(--horosa-border" "${f} 仍有内联虚线外壳(须走 advanced.less 类)"
+  s244_need "${S244_C}/${f}.js" "advStyles as styles" "${f} 未接统一外壳类"
+done
+# ④ 回归锁在位
+for f in aiAdvancedLayout chatModelRoutesPanel agentAbilityPanel automationRulesPanel skillPackImport; do
+  [ -f "${S244_T}/${f}.test.js" ] || { bad "[244] 回归锁 ${f}.test.js 缺失"; S244_BAD=1; }
+done
+# ⑥ 操控软件工具集:桥 ui 面登记 API 与三处登记方 / 五件工具在目录且 ui 类只 read 且只对 in-app+mcp / 运行时封顶 / 轨迹与高亮零落库、高亮有总开关门 / 合盘页注销 / 记录标签内核
+s244_need "${S244_UI}/utils/aiTools/workspaceBridge.js" "export function registerWorkspaceUi(" "工作区桥缺 registerWorkspaceUi"
+s244_need "${S244_UI}/utils/aiTools/workspaceBridge.js" "export function waitForWorkspaceUi(" "工作区桥缺 waitForWorkspaceUi"
+s244_once "${S244_C}/chat/useChatAssist.js" "registerWorkspaceUi({" "AI 分析页未登记 ui 面(或登记不止一处)"
+s244_once "${S244_UI}/pages/index.js" "registerWorkspaceUi({" "主页未登记导航面(或登记不止一处)"
+s244_once "${S244_UI}/components/astro/AstroRelative.js" "this._unregisterAgentUi = registerWorkspaceUi({" "合盘页未登记配对面"
+s244_need "${S244_UI}/components/astro/AstroRelative.js" "if(typeof this._unregisterAgentUi === 'function'){ try{ this._unregisterAgentUi(); }catch(e){ /* noop */ } this._unregisterAgentUi = null; }" "合盘页卸载未注销配对面"
+s244_need "${S244_UI}/utils/aiTools/tools/_shared.js" "return { ...(getWorkspaceUi() || {}), ...((ctx && ctx.ui) || {}) };" "ctxUi 未改读登记的 ui 面"
+s244_need "${S244_UI}/utils/aiAgent/automation/deps.js" "const ui = getWorkspaceUi();" "自动化 selectSource 未改读登记的 ui 面"
+s244_need "${S244_UI}/utils/aiAgent/mcpBridge.js" "workspaceUi: ()=>{ const ui = typeof index.getWorkspaceUi === 'function' ? index.getWorkspaceUi() : null;" "MCP 桥批尾选中未改读登记的 ui 面"
+s244_need "${S244_UI}/utils/aiTools/ledger.js" "const ui = getWorkspaceUi() || {};" "账本撤销后刷源未改读登记的 ui 面"
+s244_none "${S244_UI}/utils/aiTools/ledger.js" "b.refreshSources" "账本仍留 b.refreshSources 死分支"
+for f in navigateToTechnique compareRecords starRecord pinRecord addRecordTag; do [ -f "${S244_UI}/utils/aiTools/tools/${f}.js" ] || { bad "[244] 工具 ${f}.js 缺失"; S244_BAD=1; }; done
+for f in navigateToTechnique compareRecords; do
+  s244_need "${S244_UI}/utils/aiTools/tools/${f}.js" "level: 'read'," "${f} 须 read 级"
+  s244_need "${S244_UI}/utils/aiTools/tools/${f}.js" "category: 'ui'," "${f} 须 ui 类别"
+  s244_need "${S244_UI}/utils/aiTools/tools/${f}.js" "origins: ['in-app', 'mcp']," "${f} 未限定 in-app/mcp 来源(目标任务/自动化不得导航)"
+done
+for f in starRecord pinRecord addRecordTag; do
+  s244_need "${S244_UI}/utils/aiTools/tools/${f}.js" "undoKind: 'restore-record-flag'," "${f} 撤销类型不对"
+  s244_need "${S244_UI}/utils/aiTools/tools/${f}.js" "preview(args){" "${f} 缺写前预览"
+done
+s244_need "${S244_UI}/utils/aiTools/catalog.js" "'interactive', 'ui'];" "目录类别表缺 ui"
+s244_need "${S244_UI}/utils/aiTools/catalog.js" "readOnlyHint: d.level === 'read' && category !== 'ui'," "manifest 对 ui 类仍标 readOnly"
+s244_need "${S244_UI}/utils/aiAgent/runtime.js" "MAX_UI_PER_TURN: 2," "运行时缺界面动作每 Turn 上限"
+s244_need "${S244_UI}/utils/aiAgent/runtime.js" "const uiCalls = accepted.filter((x)=>x.ui);" "运行时未把 ui 类排在末尾串行"
+s244_need "${S244_UI}/utils/aiAgent/protocol.js" "'9) 界面动作(navigate_to_technique / compare_records)" "守则缺第 9 条"
+s244_none "${S244_UI}/utils/aiAgent/uiTrail.js" "localStorage" "界面轨迹不得落 localStorage"
+s244_need "${S244_UI}/utils/aiAgent/agentSpotlight.js" "if(typeof document === 'undefined' || !isAgentEnabled()){ return false; }" "高亮缺总开关门(缺省必须零 DOM 改动)"
+s244_once "${S244_C}/AgentActionBar.js" 'data-agent-ui-trail="1"' "动作条缺界面操作轨迹行"
+s244_need "${S244_UI}/utils/localRecordStore.js" "export function parseGroupTags(group){" "记录内核缺标签解析"
+s244_need "${S244_UI}/utils/localRecordStore.js" "function setTags(cid, tags){" "记录内核缺 setTags"
+s244_need "${S244_UI}/utils/localcharts.js" "export function setLocalChartTags(cid, tags){" "命盘库缺 setLocalChartTags"
+s244_need "${S244_UI}/utils/localcases.js" "export function setLocalCaseTags(cid, tags){" "事盘库缺 setLocalCaseTags"
+s244_need "${S244_UI}/utils/aiTools/labels.js" "navigate_to_technique: '切换技法页'," "标签单源缺五件"
+for f in aiToolsGetCurrentContext aiAgentAutomationDeps mcpBridgeDeferredSelect aiToolsLedgerRefresh aiToolsUiTools aiAgentUiTrail aiAgentSpotlight aiToolsResolvePlace; do
+  [ -f "${S244_T}/${f}.test.js" ] || { bad "[244] 回归锁 ${f}.test.js 缺失"; S244_BAD=1; }
+done
+# 发送前「需要先挂载案例」闸单源:行动能力开启即不拦(AI 自己按名字找记录);两处调用点都走 needsMountBeforeSend
+s244_need "${S244_UI}/utils/aiAnalysisStarterPrompts.js" "export function needsMountBeforeSend(" "挂载前置闸单源缺失"
+s244_need "${S244_UI}/utils/aiAnalysisStarterPrompts.js" "if(agentEnabled){ return false; }" "挂载前置闸未给行动能力让路"
+s244_once "${S244_C}/AIAnalysisMain.js" "needsMountBeforeSend({ text: trimmed" "发送路径未走挂载前置闸单源"
+s244_none "${S244_C}/AIAnalysisMain.js" "referencesSpecificCase(trimmed)" "发送路径仍直调 referencesSpecificCase(绕过单源)"
+[ -f "${S244_T}/aiAnalysisSendGuard.test.js" ] || { bad "[244] 回归锁 aiAnalysisSendGuard.test.js 缺失"; S244_BAD=1; }
+# 上下文策略缺省=窗口(legacy 预设必须显式写 legacy,否则缺省翻转后预设被带成 window)
+s244_need "${S244_UI}/utils/aiChatHistory.js" "historyMode: 'window'," "上下文策略缺省不是 window"
+s244_need "${S244_UI}/utils/aiChatHistory.js" "legacy: Object.freeze({ ...DEFAULT_CONTEXT_POLICY, historyMode: 'legacy' })" "legacy 预设未显式写 legacy"
+[ "${S244_BAD}" = "0" ] && ok "[244] 进阶页重排 + 操控软件工具集收口锁"
+
+# [245] 前端源码零未声明标识符(Babel 作用域静态扫全 src;ReferenceError 机械网)
+#   事故:手工维护的大文件里少了一行 `const xxxRef = React.useRef(null)`、别处还传着 xxxRef —— 语法合法、构建照过、
+#   单测不渲染该组件照绿,只有真打开页面才整页白;另一处 `pdtype: DEFAULT_PD_TYPE` 漏 import 被 try/catch 吞成「段落恒降级」。
+#   脚本内有存量棘轮表(只减不增)+ --self-test 判别向量(一红一绿)。
+echo "[245] 前端源码零未声明标识符(ReferenceError 机械网)"
+S245_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S245_JS="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/check_undefined_identifiers.js"
+if [ ! -f "${S245_JS}" ]; then bad "[245] 缺 check_undefined_identifiers.js"
+elif [ ! -d "${S245_UI}/node_modules/@babel/traverse" ]; then bad "[245] 缺 @babel/traverse(先在 astrostudyui 里 npm install)"
+else
+  S245_ST="$(node "${S245_JS}" "${S245_UI}" --self-test 2>&1)" || { echo "${S245_ST}" | sed 's/^/    /'; bad "[245] 静态扫描判别向量自证失败(网本身坏了)"; }
+  S245_OUT="$(node "${S245_JS}" "${S245_UI}" . 2>&1)"; S245_RC=$?
+  if [ "${S245_RC}" = "0" ]; then ok "[245] $(echo "${S245_OUT}" | tail -1 | sed 's/^✅ //')"
+  else echo "${S245_OUT}" | tail -12 | sed 's/^/    /'; bad "[245] 前端源码有新增未声明标识符(整页 ReferenceError 白屏类;见上)"; fi
+fi
+
+# [246] 快捷数字时间录入(左栏双击键入 / 表单「快捷输入」)接线锁:解析单源 + 共享触发件 + 五站点 + 三表单 + 起课标签 + 帮助文档 + 回归锁
+echo "[246] 快捷数字时间录入接线锁"
+S246_BAD=0
+S246_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+s246_code(){ sed -E 's#//.*$##' "$1" 2>/dev/null; }
+s246_has(){ [ "$(s246_code "$1" | grep -acF -- "$2")" != "0" ]; }
+s246_need(){ s246_has "$1" "$2" || { bad "[246] $3"; S246_BAD=1; }; }
+s246_none(){ [ "$(s246_code "$1" | grep -acF -- "$2")" = "0" ] || { bad "[246] $3"; S246_BAD=1; }; }
+s246_need "${S246_UI}/utils/quickDateTimeDigits.js" "export function applyQuickDigits(" "解析单源缺 applyQuickDigits"
+s246_need "${S246_UI}/utils/quickDateTimeDigits.js" "if(month === 0){ month = 1; }" "补零月份未按 01 处理"
+s246_need "${S246_UI}/components/comp/QuickTimeField.js" "export class TimeFieldTrigger" "共享触发件缺失"
+s246_need "${S246_UI}/components/comp/QuickTimeField.js" "export class QuickTimeInput" "表单快捷输入件缺失"
+s246_need "${S246_UI}/components/comp/QuickTimeField.js" "onDoubleClick={this.startEdit}" "双击进入键入态的接线缺失"
+s246_none "${S246_UI}/components/comp/QuickTimeField.js" "maxLength" "输入框不得设 maxLength(粘贴带分隔符时间会先被截断)"
+for f in comp/SpaceTimePanel.js astro/AstroChartMain.js divination/DivinationChartShell.js horary/HoraryMain.js mundane/MundaneMain.js; do
+  s246_need "${S246_UI}/components/${f}" "<TimeFieldTrigger" "${f} 未走共享触发件"
+  s246_none "${S246_UI}/components/${f}" "content={timeEditor}" "${f} 仍有手抄 Popover 时间块"
+done
+for f in user/ChartData.js user/CaseData.js comp/ChartFormData.js; do s246_need "${S246_UI}/components/${f}" "<QuickTimeInput" "${f} 缺快捷输入行"; done
+s246_need "${S246_UI}/components/user/CaseData.js" "起课时间：" "起课表单标签未改名"
+s246_none "${S246_UI}/components/user/CaseData.js" "起课事件：" "起课表单旧标签残留"
+s246_need "${S246_UI}/components/help/AstroHelpDoc.js" "双击" "占星帮助未写快输"
+s246_need "${S246_UI}/components/comp/QuickTimeField.js" "export class QuickTimeText" "单行时间文本共享件缺 QuickTimeText"
+s246_need "${S246_UI}/components/planetarium/PlanetariumBabylon.js" "<QuickTimeText" "天文馆时间行未接 QuickTimeText"
+s246_none "${S246_UI}/components/planetarium/PlanetariumBabylon.js" "<div ref={this._timeDisplayRef}" "天文馆仍有手写时间行"
+s246_need "${S246_UI}/components/xq-ui/index.js" "export function QuickDigitsHost" "xq-ui 缺数字快输宿主"
+s246_need "${S246_UI}/components/xq-ui/index.js" "export function XQTimePicker" "xq-ui 缺 XQTimePicker"
+s246_need "${S246_UI}/utils/quickDateTimeDigits.js" "export function parseQuickDigitsForFormat(" "解析单源缺按 format 切位"
+S246_RAW="$(grep -rlE --include='*.js' "import[[:space:]]*\{[^}]*(DatePicker|TimePicker)[^}]*\}[[:space:]]*from[[:space:]]*'antd'" "${S246_UI}/components" 2>/dev/null | grep -v "xq-ui/index.js" | grep -v "__tests__" || true)"
+[ -z "${S246_RAW}" ] || { bad "[246] 组件层仍直接引 antd DatePicker/TimePicker(绕过数字快输宿主): ${S246_RAW}"; S246_BAD=1; }
+s246_need "${S246_UI}/components/help/PlanetariumHelpDoc.js" "双击" "天文馆帮助未写快输"
+for f in utils/__tests__/quickDateTimeDigits components/comp/__tests__/quickTimeFieldTrigger components/comp/__tests__/spaceTimePanelQuickEntry utils/__tests__/recordFormsQuickTime components/comp/__tests__/quickTimeFieldWiring components/comp/__tests__/quickTimeText components/xq-ui/__tests__/xqPickerQuickDigits; do
+  [ -f "${S246_UI}/${f}.test.js" ] || { bad "[246] 回归锁 ${f}.test.js 缺失"; S246_BAD=1; }
+done
+[ "${S246_BAD}" = "0" ] && ok "[246] 快捷数字时间录入接线锁"
+
+# [247] 进阶页控件登记网(FL-20260907-2 族「写了键、没人读」):每个 data-* 控件必登记(锚/存储/消费方符号/端到端判据),检查器自证判别力;
+#   D1-D5 负锚:短调用消费方禁再硬编码 'off' 思考档(槽参数死开关回潮)、目标自检按 judge 槽解析、外部客户端策略控件在位、细项档数不写死「八档」。
+echo "[247] 进阶页控件登记表(锚↔登记↔消费方↔端到端判据)+ 死开关四修负锚"
+S247_BAD=0
+S247_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S247_JS="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/check_adv_controls_registry.js"
+[ -f "${S247_JS}" ] || { bad "[247] 缺 check_adv_controls_registry.js"; S247_BAD=1; }
+[ -f "${S247_UI}/src/components/aianalysis/chat/advancedControls.registry.json" ] || { bad "[247] 缺进阶页控件登记表 advancedControls.registry.json"; S247_BAD=1; }
+if [ "${S247_BAD}" = "0" ]; then
+  S247_ST="$(node "${S247_JS}" "${S247_UI}" --self-test 2>&1)" || { echo "${S247_ST}" | tail -4 | sed 's/^/    /'; bad "[247] 登记表检查器判别向量自证失败(网本身坏了)"; S247_BAD=1; }
+  S247_OUT="$(node "${S247_JS}" "${S247_UI}" 2>&1)"; S247_RC=$?
+  [ "${S247_RC}" = "0" ] || { echo "${S247_OUT}" | tail -12 | sed 's/^/    /'; bad "[247] 进阶页控件登记表不合(源码锚未登记/消费方缺/端到端用例 id 缺/棘轮)"; S247_BAD=1; }
+fi
+S247_HOOKS=("${S247_UI}/src/components/aianalysis/chat/useChatBestOf.js" "${S247_UI}/src/components/aianalysis/chat/useChatReview.js" "${S247_UI}/src/components/aianalysis/chat/useChatOrchestrate.js" "${S247_UI}/src/utils/aiAgent/goalRunner.js")
+S247_OFF=""; S247_SLOT=0
+for S247_F in "${S247_HOOKS[@]}"; do
+  S247_HIT="$(grep -nE "providerOptions \|\| \{\}\) \}, 'off'" "${S247_F}" 2>/dev/null | grep -vE ":[0-9]+:[[:space:]]*//" || true)"
+  [ -z "${S247_HIT}" ] || S247_OFF="${S247_OFF}${S247_F}:${S247_HIT}
+"
+  S247_N="$(grep -c "providerOptionsForSlot(" "${S247_F}" 2>/dev/null || true)"; S247_SLOT=$(( S247_SLOT + ${S247_N:-0} ))
+done
+[ -z "${S247_OFF}" ] || { bad "[247] 短调用消费方又硬编码 'off' 思考档(判官/审阅/规划/子任务槽参数死开关回潮):"; echo "${S247_OFF}" | head -3 | sed 's/^/      /'; S247_BAD=1; }
+[ "${S247_SLOT}" -ge 6 ] || { bad "[247] providerOptionsForSlot 调用 ${S247_SLOT} < 6(判官/合并/审阅/规划/子任务/目标自检 六处须走单源)"; S247_BAD=1; }
+grep -aqF "resolveHeadlessSlot('judge'" "${S247_UI}/src/utils/aiAgent/goalRunner.js" || { bad "[247] 目标任务自检未按 judge 槽解析(说明书承诺落空)"; S247_BAD=1; }
+[ "$(grep -acF 'data-external-policy-approval="1"' "${S247_UI}/src/components/aianalysis/ExternalAgentPanel.js")" = "1" ] || { bad "[247] 外部客户端策略控件锚 data-external-policy-approval 须恰一处"; S247_BAD=1; }
+grep -aq "setExternalPolicy(" "${S247_UI}/src/components/aianalysis/ExternalAgentPanel.js" || { bad "[247] 外部客户端策略控件没有写入方(setExternalPolicy)"; S247_BAD=1; }
+grep -aq "八档" "${S247_UI}/src/utils/aiChat/policyPanel.js" "${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md" 2>/dev/null && { bad "[247] 「八档」写死回潮(细项档数只认 FIELD_SPECS.length)"; S247_BAD=1; }
+[ -f "${S247_UI}/src/utils/__tests__/aiAdvancedControlsRegistry.test.js" ] || { bad "[247] 缺登记表 reveal 合同测试 aiAdvancedControlsRegistry.test.js"; S247_BAD=1; }
+[ -f "${S247_UI}/src/utils/__tests__/externalPolicyPanel.test.js" ] || { bad "[247] 缺外部客户端策略控件测试"; S247_BAD=1; }
+[ -f "${S247_UI}/src/utils/__tests__/aiModelRoutingSlotOptions.test.js" ] || { bad "[247] 缺槽参数单源测试"; S247_BAD=1; }
+# D6-D10(2026-09-07):跨窗口 storage 转发六处 / 槽输出上限落家族键 / 「恢复现状」按存过键门控 / invokeOptional 数组包 value / turn.end 有人发
+S247_ST_N=$(grep -acF "window.addEventListener('storage', sh)" "${S247_UI}/src/utils/aiModelRouting.js" "${S247_UI}/src/utils/aiChat/persona.js" "${S247_UI}/src/utils/aiChat/personaLayers.js" "${S247_UI}/src/utils/aiChatHistory.js" 2>/dev/null | awk -F: '{s+=$NF} END{print s+0}')
+[ "${S247_ST_N:-0}" -ge 6 ] || { bad "[247] 进阶页六类订阅的跨窗口 storage 转发缺(${S247_ST_N:-0}/6)"; S247_BAD=1; }
+grep -aqF "maxTokensKeyForModel(getProviderProtocolFamily(providerType), model)] = s.maxTokens" "${S247_UI}/src/utils/aiModelRouting.js" || { bad "[247] applySlotParams 输出上限未经 maxTokensKeyForModel 单源"; S247_BAD=1; }
+grep -aqE "^\s*o\.max_tokens = s\.maxTokens" "${S247_UI}/src/utils/aiModelRouting.js" && { bad "[247] applySlotParams 又裸写 o.max_tokens = s.maxTokens"; S247_BAD=1; }
+grep -aqF "disabled={!stored}" "${S247_UI}/src/components/aianalysis/chat/ChatContextPolicyPanel.js" || { bad "[247] 上下文策略「恢复现状」门控未按 hasStoredContextPolicy"; S247_BAD=1; }
+grep -aqF "!Array.isArray(r) ? r : { value: r }" "${S247_UI}/src/utils/aiAnalysisDesktop.js" || { bad "[247] invokeOptional 又把数组结果展开(外部服务器清单永远空表)"; S247_BAD=1; }
+grep -aqF "emitAutomationEvent('turn.end'" "${S247_UI}/src/components/aianalysis/AIAnalysisMain.js" || { bad "[247] 「一轮对话结束」事件没人发(自动规则 turn.end 死档)"; S247_BAD=1; }
+for S247_T in externalServersPanel aiAdvancedCrossWindow aiChatPolicyPanel; do [ -f "${S247_UI}/src/utils/__tests__/${S247_T}.test.js" ] || { bad "[247] 缺 ${S247_T}.test.js"; S247_BAD=1; }; done
+# D11(真模型磁带实抓):结构化短调用空正文第三级降级 —— 审阅/判官/规划与综合三处必须经 requestStructuredWithFallback(DeepSeek 把输出写进 reasoning_content、content 为空)
+S247_SF_N=$(grep -acF "requestStructuredWithFallback(requestAIAnalysisChat" "${S247_UI}/src/components/aianalysis/chat/useChatReview.js" "${S247_UI}/src/components/aianalysis/chat/useChatBestOf.js" "${S247_UI}/src/components/aianalysis/chat/useChatOrchestrate.js" 2>/dev/null | awk -F: '{s+=$NF} END{print s+0}')
+[ "${S247_SF_N:-0}" -ge 3 ] || { bad "[247] 结构化短调用空正文降级缺(${S247_SF_N:-0}/3;/审阅 在 DeepSeek 上恒「没有返回合法 JSON」)"; S247_BAD=1; }
+[ "${S247_BAD}" = "0" ] && ok "[247] 进阶页控件登记网:检查器自证/全锚登记/消费方在/D1-D10 负锚/六测在位"
+
+# [248] 行动能力策略双路径同源网(2026-09-08 进阶复查 D12–D19;FL-20260908-1 族「只有对话路径消费了键/函数」+「读级类别档无消费方」):
+#   死导出检查器(写了函数没人调)+ 桌面桥合同三向对拍(壳 Vec ↔ 页面读 .value ↔ 桌面 mock 同形)各自 --self-test 后全检;
+#   D12–D18 负锚:读级类别档进判定 / 目录按来源列 / 桥侧 deny·目录外名字·审批超时撤台 / ask 无通道 fail-closed / 被拒计额 / ledgerLost 可见 / list_changed 发射器;五测在位。
+echo "[248] 行动能力策略双路径同源网:死导出 / 桥合同 / D12–D18 负锚 / 五测"
+S248_BAD=0
+S248_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+for S248_JS in check_dead_exports.js check_desktop_bridge_contract.js; do
+  S248_P="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/${S248_JS}"
+  [ -f "${S248_P}" ] || { bad "[248] 缺 ${S248_JS}"; S248_BAD=1; continue; }
+  S248_ARG="${S248_UI}"; [ "${S248_JS}" = "check_desktop_bridge_contract.js" ] && S248_ARG="${REPO_ROOT}"
+  S248_ST="$(node "${S248_P}" "${S248_ARG}" --self-test 2>&1)" || { echo "${S248_ST}" | tail -4 | sed 's/^/    /'; bad "[248] ${S248_JS} 判别向量自证失败"; S248_BAD=1; }
+  S248_OUT="$(node "${S248_P}" "${S248_ARG}" 2>&1)" || { echo "${S248_OUT}" | tail -12 | sed 's/^/    /'; bad "[248] ${S248_JS} 有违反(新增死导出 / 桥合同不齐)"; S248_BAD=1; }
+done
+[ "$(grep -acF "PURE_READ_CATEGORIES" "${S248_UI}/src/utils/aiAgent/approvalPolicy.js")" != "0" ] || { bad "[248] 读级类别档未进审批判定(D12)"; S248_BAD=1; }
+[ "$(grep -acF "exportToolManifest({ origin })" "${S248_UI}/src/utils/aiAgent/runtime.js")" != "0" ] || { bad "[248] 运行时目录未按来源列(D14)"; S248_BAD=1; }
+[ "$(grep -acF "isToolDenied(" "${S248_UI}/src/utils/aiAgent/mcpBridge.js")" -ge 1 ] || { bad "[248] 桥未消费按工具名禁用(D13a)"; S248_BAD=1; }
+[ "$(grep -acF "'E_TOOL_NOT_FOUND'" "${S248_UI}/src/utils/aiAgent/mcpBridge.js")" != "0" ] || { bad "[248] 桥未在限流前拒目录外名字(D13b)"; S248_BAD=1; }
+[ "$(grep -acF "{ timeoutMs: ms }" "${S248_UI}/src/utils/aiAgent/mcpBridge.js")" != "0" ] || { bad "[248] 桥审批等待未带 timeoutMs 撤台(D13c)"; S248_BAD=1; }
+[ "$(grep -acF "no-approval-channel" "${S248_UI}/src/utils/aiAgent/runtime.js")" != "0" ] || { bad "[248] ask 无审批通道未 fail-closed(D15)"; S248_BAD=1; }
+[ "$(grep -acF "ledgerLost" "${S248_UI}/src/components/aianalysis/AgentActionBar.js")" != "0" ] || { bad "[248] 账本丢失未在动作条可见(D17)"; S248_BAD=1; }
+[ "$(grep -acF "agent_notify_command" "${S248_UI}/src/utils/aiAnalysisDesktop.js")" != "0" ] || { bad "[248] 页面侧无 list_changed 发射器(D18)"; S248_BAD=1; }
+[ "$(grep -acF "data-approval-scope=\"session\"" "${S248_UI}/src/components/aianalysis/AgentActionBar.js")" != "0" ] || { bad "[248] 审批行缺「本会话不再问」(P1)"; S248_BAD=1; }
+[ "$(grep -acF "<TabPane tab=\"进阶\"" "${S248_UI}/src/components/help/AIAnalysisHelpDoc.js")" != "0" ] || { bad "[248] 操作手册缺「进阶」页签(P2)"; S248_BAD=1; }
+for S248_T in aiToolsManifestOrigins.contract aiAgentPolicyParity agentActionBarLedgerLost aiAgentNotify aiAgentSessionAllow; do [ -f "${S248_UI}/src/utils/__tests__/${S248_T}.test.js" ] || { bad "[248] 缺 ${S248_T}.test.js"; S248_BAD=1; }; done
+[ "$(grep -acF "checkResolvedAddresses" "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/OutboundUrlGuard.java")" -ge 2 ] || { bad "[248] 出站守卫未按解析结果再判(D21)"; S248_BAD=1; }
+[ "${S248_BAD}" = "0" ] && ok "[248] 策略双路径同源网:死导出零新增 / 桥合同齐 / D12–D18 负锚 / P1 P2 在位 / 五测在位 / 出站解析后判"
+# ---- [249] preflight 自身 bash 3.2 花括号展开陷阱(2026-09-08「发送前成本确认门」哨兵假红根因:
+#      macOS /bin/bash 3.2 的花括号展开扫描器不认识 $( … ),朴素数引号后把 `confirmCost({ candidates, est })`
+#      当成未加引号的 {a,b} 展开成两个词 → grep 各数 0 → 哨兵在 zsh/bash4 下绿、在真跑的 bash 3.2 下恒红。
+#      修法=模式先赋值再引用(赋值右侧不做花括号展开)。本块用检查器逐词模拟 bash 3.2 规则扫全部 .sh,
+#      命中即红;--self-test 十一向量自证(必红/必绿各半)。) ----
+S249_BAD=0
+S249_CHK="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/check_bash32_brace_trap.py"
+if [ ! -s "${S249_CHK}" ]; then
+  bad "[249] 缺 check_bash32_brace_trap.py(bash 3.2 花括号陷阱检查器丢失)"; S249_BAD=1
+else
+  S249_ST="$(python3 "${S249_CHK}" --self-test 2>&1)" || { bad "[249] 检查器自证失败(判别向量不全红全绿,结论不可信): $(echo "${S249_ST}" | grep -a 'BAD' | head -3 | tr '\n' ' ')"; S249_BAD=1; }
+  S249_OUT="$(python3 "${S249_CHK}" "${REPO_ROOT}"/Horosa_Desktop_Installer/scripts/*.sh "${REPO_ROOT}"/Horosa-Web/*.sh 2>&1)" || { bad "[249] 脚本里存在 bash 3.2 花括号展开陷阱(把模式先赋给变量再引用): $(echo "${S249_OUT}" | grep -a '陷阱' | head -3 | tr '\n' ' ')"; S249_BAD=1; }
+fi
+[ "${S249_BAD}" = "0" ] && ok "[249] bash 3.2 花括号展开陷阱零命中(检查器自证 + 全部 .sh 逐词扫描)"
+
+# ---- [250] AI 分析机械网 ①(2026-09-08;审批台按消息键建表 / 桥单预算按原因出码 / 非对话来源读级放行 / 会话放行只对对话 /
+#      任务创建快照模型 / 库批量事件一发 / 账本丢失监听可拆 —— 负锚 + 十测在位;写法纪律:模式含 {…,…} 先赋值再引用,管道禁 grep -q) ----
+S250_BAD=0
+S250_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+s250_code(){ sed -E 's#//.*$##' "$1"; }
+S250_APV="${S250_UI}/src/utils/aiAgent/approvals.js"; S250_ELI="${S250_UI}/src/utils/aiAgent/elicitations.js"
+[ "$(s250_code "${S250_APV}" | grep -acF "function keyOf(messageKey, callId)")" = "1" ] && [ "$(s250_code "${S250_ELI}" | grep -acF "function keyOf(messageKey, callId)")" = "1" ] || { bad "[250] 待审/反问表未按 messageKey::callId 建键(并发轮同 id 互相顶掉)"; S250_BAD=1; }
+[ "$(s250_code "${S250_APV}" | grep -acF "export function resolveApprovalsByName(name, allowed, messageKey)")" = "1" ] || { bad "[250] 按名落定未限定 messageKey(会话钮跨作用域批准后台任务)"; S250_BAD=1; }
+[ "$(s250_code "${S250_APV}" | grep -acF "export function approvalReasonOf(")" = "1" ] || { bad "[250] 审批落定未回传原因"; S250_BAD=1; }
+[ "$(s250_code "${S250_UI}/src/components/aianalysis/AgentActionBar.js" | grep -acF "resolveApprovalsByName(x.name, true, messageId)")" = "2" ] || { bad "[250] 动作条两钮未按本消息键落定"; S250_BAD=1; }
+S250_BR="${S250_UI}/src/utils/aiAgent/mcpBridge.js"
+S250_P_BUD='const remainMs = ms - spentMs;'
+[ "$(s250_code "${S250_BR}" | grep -acF "${S250_P_BUD}")" = "1" ] || { bad "[250] 桥执行预算未减去审批已耗(最坏 2×预算)"; S250_BAD=1; }
+[ "$(s250_code "${S250_BR}" | grep -acF "timedOut = !allowed")" = "0" ] || { bad "[250] 桥仍用耗时启发式判超时(回潮)"; S250_BAD=1; }
+[ "$(s250_code "${S250_BR}" | grep -acF "approvalReasonOf(")" != "0" ] || { bad "[250] 桥未按落定原因出码"; S250_BAD=1; }
+[ "$(s250_code "${S250_BR}" | grep -acF "'rejected'")" != "0" ] && [ "$(s250_code "${S250_BR}" | grep -acF "REJECT_MAX_PER_MINUTE")" != "0" ] || { bad "[250] 桥拒绝未走独立 rejected 桶"; S250_BAD=1; }
+[ "$(s250_code "${S250_BR}" | grep -acF "manifestCache")" != "0" ] || { bad "[250] 桥目录未按策略/目录版本缓存"; S250_BAD=1; }
+[ "$(s250_code "${S250_BR}" | grep -acF "notifier !== mine")" != "0" ] || { bad "[250] 通知器订阅未校验同一性"; S250_BAD=1; }
+[ "$(s250_code "${S250_UI}/src/utils/aiAgent/tasks/index.js" | grep -acF "removeEventListener('horosa:agent-ledger-lost'")" != "0" ] || { bad "[250] 账本丢失监听无拆除"; S250_BAD=1; }
+S250_RT="${S250_UI}/src/utils/aiAgent/runtime.js"
+[ "$(s250_code "${S250_RT}" | grep -acF "autoAllowReadLevel(origin, level)")" = "1" ] || { bad "[250] 运行时未对非对话来源读级「询问」自动放行"; S250_BAD=1; }
+[ "$(s250_code "${S250_RT}" | grep -acF "origin === 'in-app' ? isToolSessionAllowed")" = "1" ] || { bad "[250] 会话放行集未限定对话来源(泄漏进后台任务)"; S250_BAD=1; }
+[ "$(grep -acF "[D36] 禁用名的分支不可达" "${S250_RT}")" = "1" ] || { bad "[250] 运行时禁用名死分支未清"; S250_BAD=1; }
+[ "$(s250_code "${S250_UI}/src/utils/aiAgent/approvalPolicy.js" | grep -acF "export function autoAllowReadLevel(")" = "1" ] || { bad "[250] 策略层缺 autoAllowReadLevel 单源"; S250_BAD=1; }
+for S250_F in aiAgent/goalRunner.js aiAgent/tasks/taskKinds.js; do
+  [ "$(s250_code "${S250_UI}/src/utils/${S250_F}" | grep -acF "\${call.name} 请求写入")" = "0" ] || { bad "[250] ${S250_F} 审批文案仍硬写「请求写入」"; S250_BAD=1; }
+  [ "$(s250_code "${S250_UI}/src/utils/${S250_F}" | grep -acF "approvalVerb(call)")" != "0" ] || { bad "[250] ${S250_F} 审批文案未按级别"; S250_BAD=1; }
+done
+[ -s "${S250_UI}/src/utils/aiAgent/tasks/modelSnapshot.js" ] || { bad "[250] 缺 tasks/modelSnapshot.js(任务创建快照模型单源)"; S250_BAD=1; }
+for S250_F in utils/aiAgent/goalRunner.js utils/aiTools/tools/scheduleTask.js components/aianalysis/ScheduledTaskModal.js; do
+  [ "$(s250_code "${S250_UI}/src/${S250_F}" | grep -acF "snapshotModelSelection(")" != "0" ] || { bad "[250] ${S250_F} 创建任务未快照 modelSelection"; S250_BAD=1; }
+done
+S250_ST="${S250_UI}/src/utils/aiAnalysisStore.js"
+for S250_OP in "'bulk'" "'clear'" "'deleteMany'"; do [ "$(s250_code "${S250_ST}" | grep -acF "${S250_OP}")" != "0" ] || { bad "[250] 库 ${S250_OP} 变更事件缺(bulkPut/clear/批删各派一次)"; S250_BAD=1; }; done
+for S250_T in aiAgentApprovals aiAnalysisStoreEvents agentTaskModelSnapshot; do [ -f "${S250_UI}/src/utils/__tests__/${S250_T}.test.js" ] || { bad "[250] 缺 ${S250_T}.test.js"; S250_BAD=1; }; done
+for S250_TG in "mcpBridge.test.js:[D25]" "mcpBridge.test.js:[D32]" "mcpBridge.test.js:[D35]" "mcpBridge.test.js:[D33]" "aiAgentApprovalPolicy.test.js:D24/D27" "aiAgentRuntime.test.js:D24/D65" "aiAgentGoalRunner.test.js:D27" "taskCenterPanel.test.js:D33"; do
+  S250_TF="${S250_TG%%:*}"; S250_TT="${S250_TG#*:}"
+  [ "$(grep -acF "${S250_TT}" "${S250_UI}/src/utils/__tests__/${S250_TF}")" != "0" ] || { bad "[250] ${S250_TF} 缺 ${S250_TT} 向量"; S250_BAD=1; }
+done
+S250_JG="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/OutboundUrlGuard.java"
+S250_JF="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIWebFetchService.java"
+[ "$(grep -acF "isDottedQuad(h)" "${S250_JG}")" -ge 3 ] || { bad "[250] 私网前缀判定未限定点分十进制字面量(10.gov 被当内网)"; S250_BAD=1; }
+[ "$(grep -acF "allowLoopback && isLoopbackLiteral(h0)" "${S250_JG}")" = "1" ] || { bad "[250] ALLOW_LOOPBACK 未收窄为只放回环字面量(名字主机跳过解析判定)"; S250_BAD=1; }
+[ "$(grep -acF "64:ff9b:" "${S250_JG}")" != "0" ] || { bad "[250] 出站守卫缺 NAT64/文档段判定"; S250_BAD=1; }
+[ "$(grep -acF "return url.trim();" "${S250_JG}")" = "1" ] || { bad "[250] 守卫未回 trim 后地址(首尾空格穿到 URI.create)"; S250_BAD=1; }
+[ "$(grep -acF "target = URI.create(current);" "${S250_JF}")" = "1" ] || { bad "[250] 逐跳 URI.create 仍在 try 之外"; S250_BAD=1; }
+[ "$(grep -acF "strictGuardDottedQuadOnlyTrimAndReservedRanges" "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIWebFetchServiceTest.java")" = "1" ] || { bad "[250] 缺出站守卫点分十进制/trim/保留段 JUnit"; S250_BAD=1; }
+# ⑥ 密钥面:诊断包脱敏 / 令牌轮换失效测 / 备份按单源密钥店剥密穷举 / 桌面 mock 主密钥档
+S250_MR="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+[ "$(grep -acF "redact_lines(" "${S250_MR}")" -ge 4 ] || { bad "[250] 诊断包三段未经 redact_lines 脱敏"; S250_BAD=1; }
+[ "$(grep -acF "fn diagnostics_redacts_secrets" "${S250_MR}")" = "1" ] || { bad "[250] 缺诊断脱敏 Rust 测"; S250_BAD=1; }
+[ "$(grep -acF "fn rotate_token_invalidates_old_bearer" "${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/mcp_server.rs")" = "1" ] || { bad "[250] 缺轮换令牌旧令牌失效测"; S250_BAD=1; }
+[ -s "${S250_UI}/src/utils/aiSecretStores.js" ] && [ "$(s250_code "${S250_UI}/src/utils/unifiedBackup.js" | grep -acF "isSecretStore(name)")" = "1" ] || { bad "[250] 备份剥密未走 aiSecretStores 单源"; S250_BAD=1; }
+[ -f "${S250_UI}/src/utils/__tests__/aiSecretStores.test.js" ] || { bad "[250] 缺 [G7] 备份剥密穷举向量"; S250_BAD=1; }
+# ⑦ 手册真话:看门狗/技能上限/网页读取/规则链深 数字全部常量插值;能力卡文案由目录生成;撤销豁免显式登记;JSX 文本零 markdown 加粗;手册旧口径归零;五合同在位
+S250_HELP="${S250_UI}/src/components/help/AIAnalysisHelpDoc.js"
+[ "$(grep -acE '自动转正|完全一样|90 秒内|最多 5 分钟|超长或触发词冲突会被拒绝' "${S250_HELP}")" = "0" ] || { bad "[250]⑦ 应用内手册旧口径回潮"; S250_BAD=1; }
+[ "$(grep -acF 'DEFAULT_STREAM_STALL_MS / 1000' "${S250_HELP}")" = "1" ] && [ "$(grep -acF 'DEFAULT_STREAM_MAX_MS / 60000' "${S250_HELP}")" = "1" ] && [ "$(grep -acF '${SKILL_MAX_TEMPLATE} 字按上限截断' "${S250_HELP}")" = "1" ] || { bad "[250]⑦ 手册数字未走常量插值"; S250_BAD=1; }
+[ "$(sed -E 's#//.*$##' "${S250_UI}/src/services/aianalysis.js" | grep -acF 'DEFAULT_STREAM_STALL_MS)')" = "1" ] && [ "$(sed -E 's#//.*$##' "${S250_UI}/src/services/aianalysis.js" | grep -acF 'DEFAULT_STREAM_MAX_MS)')" = "1" ] || { bad "[250]⑦ 服务层看门狗缺省未走 aiStreamLimits 单源"; S250_BAD=1; }
+[ "$(grep -acF 'export const UNDO_EXEMPT' "${S250_UI}/src/utils/aiTools/catalog.js")" = "1" ] && [ "$(grep -acF 'agentAbilityCopyText()' "${S250_UI}/src/components/aianalysis/AgentAbilityPanel.js")" != "0" ] && [ "$(grep -acF 'AGENT_ABILITY_COPY' "${S250_UI}/src/components/aianalysis/AgentAbilityPanel.js")" = "0" ] || { bad "[250]⑦ 能力卡文案未由目录生成 / 撤销豁免表缺"; S250_BAD=1; }
+[ "$(grep -acF '${MAX_CHAIN_DEPTH}' "${S250_UI}/src/components/aianalysis/AutomationRulesPanel.js")" = "1" ] && [ "$(grep -acF '${WEB_FETCH_MAX_CHARS} 字' "${S250_UI}/src/components/aianalysis/WebSearchPanel.js")" = "1" ] || { bad "[250]⑦ 规则链深 / 网页读取上限 文案未与常量同源"; S250_BAD=1; }
+[ "$(grep -acE '\*\*只读\*\*|\*\*你的检索词\*\*' "${S250_UI}/src/components/aianalysis/ExternalServersPanel.js" "${S250_UI}/src/components/aianalysis/WebSearchPanel.js" | awk -F: '{s+=$2} END{print s+0}')" = "0" ] || { bad "[250]⑦ 面板 JSX 文本 markdown 加粗回潮"; S250_BAD=1; }
+[ "$(grep -acE '六类 records|\*\*三个动作\*\*' "${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md")" = "0" ] && [ "$(grep -acF '共 **24 件**' "${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md")" = "1" ] || { bad "[250]⑦ 手册旧口径回潮或总数句缺"; S250_BAD=1; }
+for S250_T in aiAgentRuntimeDoc.contract aiAdvancedHelpCards.contract aiPanelCopyNoMarkdown aiToolsUndoContract agentAbilityCopy.contract; do
+  [ -f "${S250_UI}/src/utils/__tests__/${S250_T}.test.js" ] || { bad "[250]⑦ 缺 ${S250_T}.test.js"; S250_BAD=1; }
+done
+# ⑧ 官方 schema 网实抓两处 Java 根修:代理自用键 maxRetries 不进上游请求体 · Gemini Schema.type 按官方枚举名(大写)下发 + JUnit 两锁
+S250_PROXY="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java"
+S250_TCS="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIToolCallSupport.java"
+[ "$(grep -acF '|| "maxRetries".equals(key)' "${S250_PROXY}")" = "1" ] || { bad "[250]⑧ 代理未剥 maxRetries(自用键进上游请求体)"; S250_BAD=1; }
+[ "$(grep -acF 'static String geminiTypeName(String t)' "${S250_TCS}")" = "1" ] && [ "$(grep -acF 'geminiTypeName(' "${S250_TCS}")" -ge 3 ] || { bad "[250]⑧ Gemini Schema.type 未按官方枚举名归一"; S250_BAD=1; }
+[ "$(grep -acF 'assertFalse(bodyOptions.containsKey("maxRetries"));' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIAnalysisProxyServiceTest.java")" = "1" ] && [ "$(grep -acF 'geminiSchemaTypesAreUppercasedRecursively' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIToolCallSupportTest.java")" != "0" ] || { bad "[250]⑧ 缺 JUnit 锁"; S250_BAD=1; }
+[ "${S250_BAD}" = "0" ] && ok "[250] 机械网 ①:审批台按消息键 / 桥单预算按原因 / 来源读级放行 / 会话放行限对话 / 任务快照模型 / 库批量事件 / 十测在位"
+
+# ---- [251] 死开关/死导出清零锁(2026-09-08:导出「图例」全家桶死开关填首批并缺省关;LEGACY 11 条 9 删 2 接线,棘轮归零;
+#      死导出扫描面扩到 report*/aiExport*/aiAnalysis*/services;「清空全部口径」钮接线两件 API) ----
+S251_BAD=0
+S251_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+s251_code(){ sed -E 's#//.*$##' "$1"; }
+S251_LG="${S251_UI}/src/utils/aiExportLegend.js"
+S251_AWK_LG='/^const LEGEND_BY_TECHNIQUE/,/^};/'
+[ "$(awk "${S251_AWK_LG}" "${S251_LG}" | grep -acE "^\s+[a-z_]+: \[")" -ge 3 ] || { bad "[251] 图例注册表不足 3 个技法(死开关全家桶)"; S251_BAD=1; }
+[ "$(awk "${S251_AWK_LG}" "${S251_LG}" | grep -acE "^\s+'.+',?$")" -ge 15 ] || { bad "[251] 图例条目总数 <15"; S251_BAD=1; }
+[ "$(s251_code "${S251_UI}/src/utils/aiExport.js" | grep -acF "legend: src.legend === true")" = "1" ] || { bad "[251] 图例偏好缺省未翻为关(填表即改缺省导出字节)"; S251_BAD=1; }
+[ "$(s251_code "${S251_UI}/src/utils/aiExport.js" | grep -acF "prefs.legend === true")" != "0" ] || { bad "[251] isAIExportLegendEnabled 未按显式 true 判"; S251_BAD=1; }
+[ "$(grep -acF 'data-ai-export-legend="1"' "${S251_UI}/src/components/homepage/PageHeader.js")" = "1" ] || { bad "[251] 设置面缺图例勾选"; S251_BAD=1; }
+[ -f "${S251_UI}/src/utils/__tests__/aiExportLegend.test.js" ] || { bad "[251] 缺 aiExportLegend.test.js(缺省关 + 首批判据)"; S251_BAD=1; }
+S251_DE="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/check_dead_exports.js"
+[ "$(grep -acF "SCAN_FILE_RES" "${S251_DE}")" -ge 2 ] || { bad "[251] 死导出扫描面未扩到 report*/aiExport*/aiAnalysis*/services"; S251_BAD=1; }
+S251_LEG="$(awk '/^const LEGACY = new Set\(\[/,/^\]\);/' "${S251_DE}" | grep -acE "^\s+'")"
+[ "${S251_LEG}" = "0" ] || { bad "[251] 死导出 LEGACY 棘轮表未归零(仍有 ${S251_LEG} 条逃生口)"; S251_BAD=1; }
+[ "$(grep -acF "data-persona-clear-all" "${S251_UI}/src/components/aianalysis/chat/PersonaMemoryPanel.js")" != "0" ] && [ "$(grep -acF '"persona.clearAll"' "${S251_UI}/src/components/aianalysis/chat/advancedControls.registry.json")" = "1" ] || { bad "[251] 「清空全部口径」钮未接线/未登记"; S251_BAD=1; }
+for S251_SYM in "goalRunner.js:pauseGoalTask" "goalRunner.js:resumeGoalTask" "goalRunner.js:runningGoalCount" "textProtocol.js:isToolResultsEnvelope"; do
+  S251_F="${S251_SYM%%:*}"; S251_N="${S251_SYM#*:}"
+  [ "$(s251_code "${S251_UI}/src/utils/aiAgent/${S251_F}" | grep -acF "export function ${S251_N}(")" = "0" ] || { bad "[251] 死导出 ${S251_N} 回潮"; S251_BAD=1; }
+done
+[ "${S251_BAD}" = "0" ] && ok "[251] 死开关/死导出清零:图例首批(缺省关)+ 勾选 / 扫描面扩 / 棘轮归零 / 清空口径钮接线"
+
+# ---- [252] AI 分析主页/存储根修(2026-09-08:D53 发送门闩 try/finally · D54 恢复只替换包内数据集+快照回滚+未来版拒+体积上限 · D55 渲染器单源 ·
+#      D61 库健康态横幅 · D67 正文后 error 帧不吞;写法纪律:模式含 {…,…} 先赋值再引用) ----
+S252_BAD=0
+S252_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S252_MAIN="${S252_UI}/src/components/aianalysis/AIAnalysisMain.js"
+s252_code(){ sed -E 's#^[[:space:]]*//.*$##' "$1"; }
+# ① 门闩:复位只在 finally;早退不复位形态归零;置 true 后下一非空行是 try{
+[ "$(s252_code "${S252_MAIN}" | grep -acF 'sendingRef.current = false; return;')" = "0" ] || { bad "[252]① 发送门闩早退行内复位回潮(应整段 try/finally)"; S252_BAD=1; }
+S252_RESET_PAT='sendingRef.current = false'
+S252_FINALLY_PAT='}finally{'
+S252_RESET_N="$(s252_code "${S252_MAIN}" | grep -acF "${S252_RESET_PAT}")"
+S252_RESET_OK="$(s252_code "${S252_MAIN}" | grep -A1 -F "${S252_FINALLY_PAT}" | grep -acF "${S252_RESET_PAT}")"
+[ "${S252_RESET_N}" -ge 1 ] && [ "${S252_RESET_N}" = "${S252_RESET_OK}" ] || { bad "[252]① sendingRef 复位须全部落在 finally(实测 ${S252_RESET_N} 处,其中 finally 内 ${S252_RESET_OK} 处)"; S252_BAD=1; }
+S252_NEXT="$(s252_code "${S252_MAIN}" | awk 'f && NF {print; exit} /sendingRef.current = true;/{f=1}' | tr -d '[:space:]')"
+[ "${S252_NEXT}" = "try{" ] || { bad "[252]① sendingRef 置 true 后下一行不是 try{(得到:${S252_NEXT})"; S252_BAD=1; }
+# ② 恢复:走 aiWorkspaceRestore;旧循环归零;体积上限进解析
+S252_RESTORE_CALL='restoreWorkspaceStores(plan, { clearStore, bulkPutStoreRecords, listStoreRecords, putStoreRecord'
+S252_PARSE_CALL='parseWorkspaceBackupBlob(blob, { maxBytes: AI_BACKUP_MAX_ZIP_BYTES })'
+[ "$(s252_code "${S252_MAIN}" | grep -acF "${S252_RESTORE_CALL}")" = "1" ] && [ "$(s252_code "${S252_MAIN}" | grep -acF 'planWorkspaceRestore(payload, storeKeys)')" = "1" ] || { bad "[252]② 主页恢复未走 aiWorkspaceRestore 单源"; S252_BAD=1; }
+[ "$(s252_code "${S252_MAIN}" | grep -acF "${S252_PARSE_CALL}")" = "1" ] || { bad "[252]② 备份解析未带体积上限"; S252_BAD=1; }
+[ "$(s252_code "${S252_MAIN}" | grep -acF 'await clearStore(storeName);')" = "0" ] || { bad "[252]② 旧「对每个已知店一律清」循环回潮"; S252_BAD=1; }
+S252_WR="${S252_UI}/src/utils/aiWorkspaceRestore.js"
+[ -f "${S252_WR}" ] && [ "$(grep -acF "backup.version.future" "${S252_WR}")" != "0" ] && [ "$(grep -acF "'rolled-back'" "${S252_WR}")" != "0" ] && [ "$(grep -acF 'export const AI_BACKUP_MAX_ZIP_BYTES' "${S252_WR}")" = "1" ] || { bad "[252]② aiWorkspaceRestore.js 缺未来版拒/回滚句柄/体积上限"; S252_BAD=1; }
+# ③ 渲染器单源(此前内联 DOMPurify 少硬化)
+[ "$(s252_code "${S252_MAIN}" | grep -acF "from '../../utils/aiMarkdownRender'")" = "1" ] && [ "$(s252_code "${S252_MAIN}" | grep -acF 'DOMPurify.sanitize(')" = "0" ] && [ "$(s252_code "${S252_MAIN}" | grep -acF 'marked.setOptions(')" = "0" ] || { bad "[252]③ 主页渲染器未走共享 aiMarkdownRender / 内联净化回潮"; S252_BAD=1; }
+# ④ 资料/检索数据围栏 + 默认路径错误可见 + RAG 索引读
+S252_CTX="${S252_UI}/src/utils/aiAnalysisContext.js"; S252_RAG="${S252_UI}/src/utils/aiAnalysisRag.js"
+[ "$(s252_code "${S252_CTX}" | grep -acF 'wrapUntrustedData(')" -ge 1 ] && [ "$(grep -acF "export const UNTRUSTED_DATA_BEGIN" "${S252_RAG}")" = "1" ] && [ "$(grep -acF 'export function neutralizeActionFences' "${S252_RAG}")" = "1" ] || { bad "[252]④ 资料/检索正文未带数据围栏"; S252_BAD=1; }
+[ "$(grep -acF 'HOROSA_DATA_BEGIN' "${S252_UI}/src/utils/aiAgent/protocol.js")" != "0" ] || { bad "[252]④ 守则第 2 条未写哨兵语义"; S252_BAD=1; }
+[ "$(s252_code "${S252_CTX}" | grep -acF 'regenerateChartTechniqueSnapshot(record, key, { throwOnError: true })')" = "1" ] && [ "$(s252_code "${S252_CTX}" | grep -acF "(genError ? 'error' : 'missing')")" = "1" ] || { bad "[252]④ 默认路径重算失败仍静默成 missing"; S252_BAD=1; }
+[ "$(s252_code "${S252_RAG}" | grep -acF "readByIndex(AI_ANALYSIS_STORES.materialChunks, 'materialId'")" = "1" ] && [ "$(s252_code "${S252_RAG}" | grep -acF "readByIndex(AI_ANALYSIS_STORES.materialEmbeddings, 'materialId'")" = "1" ] || { bad "[252]④ RAG 切块/向量仍整店 getAll"; S252_BAD=1; }
+# ⑤ 资料抽取上限 / 流池饱和即拒 / Retry-After 两形态
+S252_MAT="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisMaterialService.java"
+for S252_K in MAX_DECODED_BYTES MAX_BASE64_CHARS MAX_PDF_PAGES MAX_TEXT_CHARS 'ZipSecureFile.setMinInflateRatio'; do
+  [ "$(grep -acF "${S252_K}" "${S252_MAT}")" != "0" ] || { bad "[252]⑤ 资料抽取缺上限 ${S252_K}"; S252_BAD=1; }
+done
+S252_PROXY="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java"
+[ "$(grep -acF 'ThreadPoolExecutor.AbortPolicy()' "${S252_PROXY}")" = "1" ] && [ "$(grep -acF 'CallerRunsPolicy()' "${S252_PROXY}")" = "0" ] && [ "$(grep -acF 'static long retryAfterMs(String header, long nowMillis)' "${S252_PROXY}")" = "1" ] || { bad "[252]⑤ 流池仍 CallerRunsPolicy / Retry-After 未支持日期形态"; S252_BAD=1; }
+[ "$(grep -acF '580050' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/AIAnalysisController.java")" != "0" ] || { bad "[252]⑤ controller 未把池饱和翻成 503(580050)"; S252_BAD=1; }
+for S252_T in aiUntrustedDataFence aiAnalysisRagIndex aiAnalysisContextErrors aiProvidersPresets.contract; do
+  [ -f "${S252_UI}/src/utils/__tests__/${S252_T}.test.js" ] || { bad "[252]⑤ 缺 ${S252_T}.test.js"; S252_BAD=1; }
+done
+[ "$(grep -acF 'retryAfterHeaderParsesSecondsAndHttpDate' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIAnalysisProxyServiceTest.java")" != "0" ] && [ "$(grep -acF 'oversizedBase64IsRejectedFastWith580103' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIAnalysisMaterialServiceTest.java")" != "0" ] || { bad "[252]⑤ 缺 D58/D60 JUnit"; S252_BAD=1; }
+# ⑥ 健康态:store 记 + 主页横幅
+[ "$(grep -acF 'export function getAiStoreHealth()' "${S252_UI}/src/utils/aiAnalysisStore.js")" = "1" ] && [ "$(grep -acF 'data-ai-store-degraded=' "${S252_MAIN}")" = "1" ] || { bad "[252]⑥ 库健康态未接(store getAiStoreHealth / 主页 data-ai-store-degraded)"; S252_BAD=1; }
+# ⑦ 正文后 error 帧:errorInfo 恒记 + partial;Java 四条中继转发流中错误帧
+[ "$(s252_code "${S252_MAIN}" | grep -acF 'const errorInfo = streamError ? classifyStreamError(streamError) : null;')" = "1" ] && [ "$(s252_code "${S252_MAIN}" | grep -acF 'partial: partialAfterError || undefined,')" = "1" ] || { bad "[252]⑦ 正文后 error 帧仍被吞(errorInfo 只在正文为空时才记)"; S252_BAD=1; }
+S252_PROXY="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java"
+[ "$(grep -acF 'emitMidStreamUpstreamError(channel,' "${S252_PROXY}")" -ge 4 ] || { bad "[252]⑦ Java 四条中继未转发流中错误帧"; S252_BAD=1; }
+# ⑧ 测试在位
+for S252_T in aiAnalysisSendLatch aiWorkspaceRestore aiChatRendererShared aiChatStreamErrorPartial aiAdvancedKeysMigration; do
+  [ -f "${S252_UI}/src/utils/__tests__/${S252_T}.test.js" ] || { bad "[252]⑧ 缺 ${S252_T}.test.js"; S252_BAD=1; }
+done
+[ "$(grep -acF 'midStreamUpstreamErrorFramesAreForwardedAsErrorEvents' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIAnalysisProxyServiceTest.java")" != "0" ] || { bad "[252]⑧ 缺 Java 流中错误帧 JUnit"; S252_BAD=1; }
+[ "${S252_BAD}" = "0" ] && ok "[252] 主页/存储根修:门闩 try/finally / 恢复只动包内店+回滚 / 渲染器单源 / 健康态横幅 / 正文后 error 帧不吞 + 测试在位"
+
+# ---- [253] AI 助手行动能力 行动能力机械网(2026-09-09:D70 动作条四钮以本气泡 messageId 落定(此前 x.messageKey=undefined 跨键落定,
+#      哨兵锚住不存在的字段名假绿)· D71 待审条目带 level · D72 桥超时必带取消 + 声明预算取小 · D73 读面超时 · D77 运行时注入 modelSelection · D78 载入预览 ·
+#      D79 只读视图单源 · D80/D81 后台吞错留痕 + 调度兜底解绑 · D89 注解只在 MCP 面;写法纪律:模式含 {…,…} 先赋值再引用) ----
+S253_BAD=0
+S253_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S253_AGENT="${S253_UI}/src/utils/aiAgent"
+S253_BAR="${S253_UI}/src/components/aianalysis/AgentActionBar.js"
+S253_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src"
+s253_code(){ sed -E 's#^[[:space:]]*//.*$##' "$1"; }
+# ① 审批落定到组件层:x.messageKey 归零;四钮与 Enter 一律带本键;待审条目带 level;任务中心用 approvalVerb
+[ "$(s253_code "${S253_BAR}" | grep -acF 'x.messageKey')" = "0" ] || { bad "[253]① 动作条仍用 trace 条目上不存在的 x.messageKey(跨消息键落定回潮)"; S253_BAD=1; }
+[ "$(s253_code "${S253_BAR}" | grep -acF 'resolveApprovalsByName(x.name, true, messageId)')" = "2" ] && [ "$(s253_code "${S253_BAR}" | grep -acF 'resolveApproval(x.callId, true, messageId)')" = "1" ] && [ "$(s253_code "${S253_BAR}" | grep -acF 'resolveApproval(x.callId, false, messageId)')" = "1" ] || { bad "[253]① 动作条四钮未按本气泡 messageId 落定"; S253_BAD=1; }
+S253_ENTER='resolveElicitation(elicit.callId, { answer: text.trim() }, elicit.messageKey)'
+[ "$(s253_code "${S253_BAR}" | grep -acF "${S253_ENTER}")" = "2" ] || { bad "[253]① 反问行 Enter/提交未带消息键(应恰两处)"; S253_BAD=1; }
+[ "$(grep -acF 'level: p.call.level' "${S253_AGENT}/approvals.js")" = "1" ] || { bad "[253]① listPendingApprovals 条目缺 level(任务中心文案死路径)"; S253_BAD=1; }
+[ "$(grep -acF 'approvalVerb(a)' "${S253_UI}/src/components/aianalysis/TaskCenterPanel.js")" = "1" ] || { bad "[253]① 任务中心待办文案未走 approvalVerb"; S253_BAD=1; }
+# ② 桥:超时必带取消 + 声明预算取小 + 读面超时;withTimeout 带 onTimeout
+S253_BRIDGE="${S253_AGENT}/mcpBridge.js"
+S253_SIG='...(ac ? { signal: ac.signal } : {}),'
+[ "$(s253_code "${S253_BRIDGE}" | grep -acF 'new AbortController()')" != "0" ] && [ "$(s253_code "${S253_BRIDGE}" | grep -acF "${S253_SIG}")" = "1" ] && [ "$(s253_code "${S253_BRIDGE}" | grep -acF 'onTimeout: ()=>{ if(ac){')" = "1" ] || { bad "[253]② 桥超时未带取消信号(工具在后台跑完=客户端重试即重复写入)"; S253_BAD=1; }
+[ "$(s253_code "${S253_BRIDGE}" | grep -acF 'Math.min(remainMs, declared)')" = "1" ] || { bad "[253]② 桥执行预算未与工具声明 timeoutMs 取小"; S253_BAD=1; }
+[ "$(grep -acF 'export const READ_FACE_TIMEOUT_MS = 17000' "${S253_BRIDGE}")" = "1" ] && [ "$(s253_code "${S253_BRIDGE}" | grep -acF 'readFace(')" -ge 5 ] || { bad "[253]② 读面五方法未带页面侧超时"; S253_BAD=1; }
+[ "$(s253_code "${S253_AGENT}/withTimeout.js" | grep -acF 'onTimeout')" -ge 2 ] || { bad "[253]② withTimeout 缺 onTimeout 取消回调"; S253_BAD=1; }
+# ③ 运行时注入 modelSelection;两建任务工具消费;载入工具带 preview;只读视图单源
+[ "$(s253_code "${S253_AGENT}/runtime.js" | grep -acF 'modelSelection: profileId && model ?')" = "1" ] || { bad "[253]③ 运行时未注入 ctx.modelSelection(schedule_task 读的是死参数)"; S253_BAD=1; }
+[ "$(s253_code "${S253_UI}/src/utils/aiTools/tools/createGoalTask.js" | grep -acF 'modelSelection: ctx && ctx.modelSelection')" = "1" ] && [ "$(s253_code "${S253_UI}/src/utils/aiTools/tools/scheduleTask.js" | grep -acF 'snapshotModelSelection(ctx && ctx.modelSelection)')" = "1" ] || { bad "[253]③ 建任务工具未消费 ctx.modelSelection"; S253_BAD=1; }
+[ "$(s253_code "${S253_UI}/src/utils/aiTools/tools/loadRecordIntoWorkspace.js" | grep -acF 'preview(args){')" = "1" ] || { bad "[253]③ load_record_into_workspace 缺写前预览"; S253_BAD=1; }
+[ -f "${S253_AGENT}/readOnlyRegistry.js" ] && [ "$(grep -acF "from './readOnlyRegistry'" "${S253_AGENT}/orchestrator.js")" = "1" ] && [ "$(grep -acF "from '../../aiAgent/readOnlyRegistry'" "${S253_UI}/src/utils/aiTools/tools/runAnalysis.js")" = "1" ] && [ "$(s253_code "${S253_AGENT}/orchestrator.js" | grep -acF 'const readDef = ')" = "0" ] || { bad "[253]③ 只读注册表视图未单源(orchestrator / runAnalysis 各一份)"; S253_BAD=1; }
+# ③ [C25] MCP 2026-07-28 双纪元服务端 + stdio 代理注头 + 冒烟 --modern(D88):服务同时服务旧握手纪元与现代无状态纪元
+S253_MCP="${S253_RS}/mcp_server.rs"
+[ "$(grep -acF 'pub const MCP_MODERN_VERSIONS: [&str; 1] = ["2026-07-28"];' "${S253_MCP}")" = "1" ] && [ "$(grep -acF 'pub fn detect_era(' "${S253_MCP}")" = "1" ] && [ "$(grep -acF 'pub fn validate_modern_request(' "${S253_MCP}")" = "1" ] && [ "$(grep -acF 'pub fn handle_modern(' "${S253_MCP}")" = "1" ] || { bad "[253]③ 本机 MCP 服务缺现代纪元核(版本表 / 纪元判定 / 头体校验 / 现代入口)"; S253_BAD=1; }
+[ "$(grep -acF '"server/discover"' "${S253_MCP}")" -ge 2 ] && [ "$(grep -acF '"subscriptions/listen"' "${S253_MCP}")" -ge 2 ] && [ "$(grep -acF 'pub const ERR_HEADER_MISMATCH: i64 = -32020;' "${S253_MCP}")" = "1" ] && [ "$(grep -acF 'pub const ERR_UNSUPPORTED_VERSION: i64 = -32022;' "${S253_MCP}")" = "1" ] || { bad "[253]③ 缺 server/discover / subscriptions/listen / 规范错误码"; S253_BAD=1; }
+[ "$(grep -acF 'fn stream_sse(' "${S253_MCP}")" = "1" ] && [ "$(grep -acF 'request.upgrade("sse", resp)' "${S253_MCP}")" = "1" ] && [ "$(grep -acF 'pub fn listen_subscribe(' "${S253_MCP}")" = "1" ] && [ "$(grep -acF 'fn dispatch_method(' "${S253_MCP}")" = "1" ] || { bad "[253]③ SSE 写流 / 长流订阅 / 单一分发表未单源"; S253_BAD=1; }
+[ "$(grep -acF 'HOROSA_MCP_MODERN' "${S253_MCP}")" != "0" ] || { bad "[253]③ 现代纪元开关 HOROSA_MCP_MODERN 未在 mcp_server.rs 出现"; S253_BAD=1; }
+[ "$(grep -acF 'pub fn modern_line_headers(' "${S253_RS}/mcp_stdio.rs")" = "1" ] && [ "$(grep -acF '"Mcp-Method"' "${S253_RS}/mcp_stdio.rs")" != "0" ] && [ "$(grep -acF 'subscriptions/listen is not available through the stdio proxy' "${S253_RS}/mcp_stdio.rs")" = "1" ] || { bad "[253]③ stdio 代理未按行体注现代三头 / 未本地拒 listen"; S253_BAD=1; }
+for S253_T in claude_code_v2_fallback_sequence_against_legacy_only_server modern_discover_returns_versions_capabilities_and_cache_hints modern_header_mismatch_returns_400_minus_32020 modern_unsupported_version_returns_400_minus_32022_with_supported_list modern_mcp_name_base64_sentinel_decoded_before_compare subscriptions_listen_acks_then_delivers_tagged_tools_list_changed_and_legacy_get_concurrently listen_streams_capped_separately_from_legacy_get dual_era_probe_goes_modern_when_enabled_and_legacy_still_served modern_ignores_session_header_and_never_mints_one; do
+  [ "$(grep -acF "fn ${S253_T}(" "${S253_MCP}")" = "1" ] || { bad "[253]③ 缺 cargo 测 ${S253_T}"; S253_BAD=1; }
+done
+for S253_T in serve_forwards_server_discover_and_injects_modern_headers serve_passes_modern_json_errors_through_verbatim serve_answers_subscriptions_listen_locally_without_forwarding; do
+  [ "$(grep -acF "fn ${S253_T}(" "${S253_RS}/mcp_stdio.rs")" = "1" ] || { bad "[253]③ 缺 stdio 代理 cargo 测 ${S253_T}"; S253_BAD=1; }
+done
+S253_SMOKE="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_mcp_smoke.sh"
+[ "$(grep -acF -- '--modern' "${S253_SMOKE}")" != "0" ] && [ "$(grep -acF 'Mcp-Method' "${S253_SMOKE}")" != "0" ] && [ "$(grep -acF 'server/discover' "${S253_SMOKE}")" != "0" ] && [ "$(grep -acF 'subscriptions/listen' "${S253_SMOKE}")" != "0" ] || { bad "[253]③ 冒烟脚本缺 --modern 腿"; S253_BAD=1; }
+# ④ 后台链吞错留痕:各模块经 bgSink;调度兜底定时器有解绑出口
+for S253_M in goalRunner.js:5 tasks/index.js:5 tasks/reconcile.js:2 tasks/scheduler.js:3 automation/engine.js:4 tasks/noticeStore.js:2 tasks/taskStore.js:1 automation/actions.js:1 tasks/taskKinds.js:1; do
+  S253_F="${S253_M%%:*}"; S253_N="${S253_M##*:}"
+  [ "$(s253_code "${S253_AGENT}/${S253_F}" | grep -acF 'reportBackgroundFailure(')" -ge "${S253_N}" ] || { bad "[253]④ ${S253_F} 后台 catch 未经 bgSink 留痕(应 ≥${S253_N})"; S253_BAD=1; }
+done
+[ "$(grep -acF 'export function unbindSchedulerTicks' "${S253_AGENT}/tasks/scheduler.js")" = "1" ] && [ "$(grep -acF 'unbindSchedulerTicks()' "${S253_UI}/src/layouts/app.js")" != "0" ] || { bad "[253]④ 调度兜底定时器无解绑出口"; S253_BAD=1; }
+# ⑤ 注解只在 MCP 面:openWorldHint 出网真话 / title / requiresUserInteraction;运行时 toolDefs 不带注解
+S253_CAT="${S253_UI}/src/utils/aiTools/catalog.js"
+[ "$(s253_code "${S253_CAT}" | grep -acF "openWorldHint: category === 'external' || origin === 'external'")" = "1" ] && [ "$(s253_code "${S253_CAT}" | grep -acF 'title: toolLabel(d.name)')" = "1" ] && [ "$(s253_code "${S253_CAT}" | grep -acF 'requiresUserInteraction')" = "1" ] || { bad "[253]⑤ 工具注解未改真话(openWorldHint / title / requiresUserInteraction)"; S253_BAD=1; }
+S253_DEFS='return manifest().map((t)=>({ name: t.name, description: t.description, inputSchema: t.inputSchema }));'
+[ "$(s253_code "${S253_AGENT}/runtime.js" | grep -acF "${S253_DEFS}")" = "1" ] || { bad "[253]⑤ 运行时 toolDefs 形状变了(注解不得进模型请求体)"; S253_BAD=1; }
+# ⑥ 测试在位
+for S253_T in agentActionBarApprovalScope aiAgentApprovalCallSites.contract aiAgentBackgroundCatch.contract mcpBridgeAbort aiToolsReadOnlyRegistry.contract aiToolsManifestAnnotations.contract; do
+  [ -f "${S253_UI}/src/utils/__tests__/${S253_T}.test.js" ] || { bad "[253]⑥ 缺 ${S253_T}.test.js"; S253_BAD=1; }
+done
+# ⑦ [C24] 壳层限流跟随页面策略(D74)+ 桌面桥合同三形态(D84)+ 壳侧零测试面(D86)
+[ "$(grep -acF 'rate_per_minute: f64' "${S253_RS}/mcp_server.rs")" != "0" ] && [ "$(grep -acF 'pub fn apply_limits(state: &McpState, calls_per_minute: u32)' "${S253_RS}/mcp_server.rs")" = "1" ] && [ "$(grep -acF 'core.set_calls_per_minute(inner.calls_per_minute);' "${S253_RS}/mcp_server.rs")" = "1" ] || { bad "[253]⑦ 壳令牌桶速率未可配 / 服务重建未重施"; S253_BAD=1; }
+[ "$(grep -acF 'fn mcp_server_set_limits_command(' "${S253_RS}/main.rs")" = "1" ] && [ "$(grep -acF 'mcp_server_set_limits_command,' "${S253_RS}/main.rs")" = "1" ] && [ "$(grep -acF 'mcp_calls_per_minute' "${S253_RS}/main.rs")" -ge 5 ] && [ "$(grep -acF 'mcp_server::apply_limits(&state, prefs.mcp_calls_per_minute)' "${S253_RS}/main.rs")" = "1" ] || { bad "[253]⑦ 壳缺 set_limits 命令 / 偏好镜像 / 启动重施"; S253_BAD=1; }
+[ "$(grep -acF "invokeOptional('mcp_server_set_limits_command'" "${S253_UI}/src/utils/aiAnalysisDesktop.js")" = "1" ] && [ "$(s253_code "${S253_AGENT}/mcpBridge.js" | grep -acF 'function syncShellLimits()')" = "1" ] && [ "$(s253_code "${S253_AGENT}/mcpBridge.js" | grep -acF 'if(on){ syncShellLimits(); }')" = "1" ] || { bad "[253]⑦ 页面策略未同步给壳(绑桥 + 策略改动)"; S253_BAD=1; }
+S253_DBC="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/check_desktop_bridge_contract.js"
+[ "$(grep -acF '|auto_export_|' "${S253_DBC}")" = "1" ] && [ "$(grep -acF "真壳返回 ()" "${S253_DBC}")" != "0" ] && [ "$(grep -acF "真壳返回标量" "${S253_DBC}")" != "0" ] || { bad "[253]⑦ 桌面桥合同检查器未扩到三形态 / 未收编 auto_export_"; S253_BAD=1; }
+for S253_T in rate_bucket_follows_configured_limit shadow_keys_whitelist_only_four_record_stores backup_file_name_validation_vectors preferences_default_calls_per_minute_and_roundtrip master_key_runner_hit_miss_and_add_failure run_notify_hook_process_with_timeout; do
+  [ "$(grep -acF "${S253_T}" "${S253_RS}/mcp_server.rs" "${S253_RS}/main.rs" | awk -F: '{s+=$2} END {print s+0}')" != "0" ] || { bad "[253]⑦ 缺 cargo 测 ${S253_T}"; S253_BAD=1; }
+done
+[ -f "${S253_UI}/src/utils/__tests__/mcpBridgeLimitsSync.test.js" ] || { bad "[253]⑦ 缺 mcpBridgeLimitsSync.test.js"; S253_BAD=1; }
+# ⑧ [C26] 外部 MCP 客户端双纪元探测回退(D88 客户端侧)+ 壳侧准入(D83):连接先 server/discover,现代服务器按每请求 _meta + 三头、永不 initialize / 会话头;
+#    旧服务器(400 纯文本 / -32601 / 探测超时)回退 initialize(线上字节同今日);-32022 无共同版本 ⇒ 报错不回退;input_required 拒收;call 只放行服务器宣告且(readOnlyHint 或允许清单)的工具
+S253_CLI="${S253_RS}/mcp_client.rs"
+[ "$(grep -acF 'pub const MODERN_PROTOCOL_VERSION: &str = "2026-07-28";' "${S253_CLI}")" = "1" ] && [ "$(grep -acF 'pub enum Era' "${S253_CLI}")" = "1" ] && [ "$(grep -acF 'fn probe_era(' "${S253_CLI}")" = "1" ] && [ "$(grep -acF 'pub fn classify_discover(' "${S253_CLI}")" = "1" ] || { bad "[253]⑧ 外部客户端缺双纪元探测(MODERN_PROTOCOL_VERSION / Era / probe_era / classify_discover)"; S253_BAD=1; }
+[ "$(grep -acF 'fn admit_tool(' "${S253_CLI}")" = "1" ] && [ "$(grep -acF 'admit_tool(&spec, &guard.tools, tool)?;' "${S253_CLI}")" = "1" ] && [ "$(grep -acF 'spec.allow_tools.iter().any(' "${S253_CLI}")" = "1" ] && [ "$(grep -acF '"readOnlyHint"' "${S253_CLI}")" != "0" ] || { bad "[253]⑧ 外部客户端 call 缺壳侧准入(admit_tool 在 tools/call 之前;allow_tools / readOnlyHint)"; S253_BAD=1; }
+[ "$(grep -acF '("Mcp-Method", method.to_string())' "${S253_CLI}")" = "1" ] && [ "$(grep -acF '("Mcp-Name", encode_header_value(n))' "${S253_CLI}")" = "1" ] && [ "$(grep -acF 'Some("input_required")' "${S253_CLI}")" = "2" ] && [ "$(grep -acF 'fn http_exchange(' "${S253_CLI}")" = "1" ] || { bad "[253]⑧ 外部客户端现代纪元缺三头注入 / input_required 拒收(list+call)/ 单一 HTTP 往返"; S253_BAD=1; }
+[ "$(grep -acF '("MCP-Protocol-Version", PROTOCOL_VERSION.to_string())' "${S253_CLI}")" = "1" ] || { bad "[253]⑧ 旧纪元请求头形态变了(必须仍是 2025-06-18 + 会话头,线上字节同今日)"; S253_BAD=1; }
+for S253_T in http_probe_modern_server_uses_per_request_meta_and_headers http_probe_legacy_server_falls_back_to_initialize http_probe_modern_error_minus_32022_does_not_fall_back stdio_probe_modern_and_legacy_scripts modern_input_required_result_is_rejected call_admission_mirrors_page_rule; do
+  [ "$(grep -acF "fn ${S253_T}(" "${S253_CLI}")" = "1" ] || { bad "[253]⑧ 缺 cargo 测 ${S253_T}"; S253_BAD=1; }
+done
+# ⑨ [C27] Java 工具调用翻译残余(D75 Ollama 收口轮不带 tools / D76 Gemini const 推断类型走枚举名)+ 零测试分支七例 + 出站守卫直测
+S253_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src"
+[ "$(grep -acF 'boolean ollamaClosing = "none".equals(AIToolCallSupport.toolChoiceNorm(params.get("toolChoice")));' "${S253_JAVA}/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java")" = "1" ] && [ "$(grep -acF 'if(!ollamaTools.isEmpty() && !ollamaClosing) { body.put("tools", ollamaTools); }' "${S253_JAVA}/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java")" = "1" ] || { bad "[253]⑨ Ollama 收口轮仍带 tools(toolChoice=none 应不带)"; S253_BAD=1; }
+[ "$(grep -acF 'out.put("type", geminiTypeName(constVal instanceof Number' "${S253_JAVA}/main/java/spacex/astrostudy/service/AIToolCallSupport.java")" = "1" ] && [ "$(grep -acF 'geminiTypeName(' "${S253_JAVA}/main/java/spacex/astrostudy/service/AIToolCallSupport.java")" -ge 4 ] || { bad "[253]⑨ Gemini const 推断类型未走 geminiTypeName(小写不合枚举)"; S253_BAD=1; }
+for S253_T in ollamaBodyOmitsToolsWhenToolChoiceNone geminiConstEnumInfersUppercaseType anthropicAndGeminiToolChoiceNoneShapes openAIToolChoiceKeyPresentOnlyWhenTools toolCallDeltaKeepAliveEmittedWhileArgumentsStream redactedThinkingBlocksCollected normalizeToolCallsBadJsonBecomesEmptyObject; do
+  [ "$(grep -acF "public void ${S253_T}()" "${S253_JAVA}/test/java/spacex/astrostudy/service/AIToolCallSupportTest.java")" = "1" ] || { bad "[253]⑨ 缺 JUnit ${S253_T}"; S253_BAD=1; }
+done
+[ -f "${S253_JAVA}/test/java/spacex/astrostudy/service/OutboundUrlGuardTest.java" ] && [ "$(grep -acF 'public void ' "${S253_JAVA}/test/java/spacex/astrostudy/service/OutboundUrlGuardTest.java")" -ge 4 ] || { bad "[253]⑨ 缺 OutboundUrlGuardTest(≥4 例)"; S253_BAD=1; }
+[ "${S253_BAD}" = "0" ] && ok "[253] 行动能力机械网①–⑨:审批到组件层 / 桥超时取消 / 模型快照注入 / 只读视图单源 / 吞错留痕 / 注解真话 / 壳限流跟随页面 / MCP 双纪元(服务端 + stdio 代理 + 外部客户端探测回退 + 壳侧准入)/ Java 翻译残余 + 测试在位"
+
+# [254] AI 挂载「逐技法 × 挂载内容 × 挂载设置」自检机械网(2026-09-10):①全技法表驱动差分闸(设置→请求体/入参/全局键→正文,候选值×盘变体×上下文,离线不假绿)
+#   ②快照段⊆导出预设⊆纳入内容候选 合同 ③残余死齿轮修复的判别向量各在位(奇门中门 0≡false / 盘类进 pan.options / 紫微太岁关系人数组 / 正传心易缺省 /
+#   八字起运行 / 巴比伦纪元 / 皇极心易后端键 / 印占三旗问事 / 大定所推之年 / 地占无头不读页面事盘)④jest 后端请求 shim(js-rsa 严格模式)在位;负锚:旧死形态回潮即红。
+S254_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"; S254_BAD=0
+for S254_T in mountSettingsDiffAll mountSectionOptionsContract mountAuditResiduals mountAuditIndiaPrashna mountAuditZhengchuanDading mountAuditBuFixes mountAuditCaseBaselines mountAuditWiring mountAuditGuolaoSu28 mountAuditGuolaoNodeMode mountAuditHeluoHuagong mountAuditZhengchuanGender mountAuditIndiaCalibre mountAuditJieqiStale mountAuditAstroLike mountAuditRelativeParties mountAuditLiurengHeadless mountAuditZeriSave mountAuditZiweiDayBoundary mountAuditLabels mountAuditJinkouSuzhan pdSphereStamp; do
+  [ -f "${S254_UI}/src/utils/__tests__/${S254_T}.test.js" ] || { bad "[254]① 缺挂载自检测试 ${S254_T}.test.js"; S254_BAD=1; }
+done
+S254_DN="${S254_UI}/src/utils/__tests__/mountSettingsDiffAll.test.js"
+[ "$(grep -acE "(it|describe|test)\.skip\(" "${S254_DN}")" = "0" ] || { bad "[254]① 差分闸含 skip(闸门被关)"; S254_BAD=1; }
+S254_P_DE="const DEAD_EXEMPT = {"; S254_P_PR="pruneOptionsToNonDefault(key, { [field.name]: v }, baseline)"
+[ "$(grep -acF "${S254_P_DE}" "${S254_DN}")" = "1" ] && [ "$(grep -acF "${S254_P_PR}" "${S254_DN}")" = "1" ] && [ "$(grep -acF "HOROSA_DIFFNET_OFFLINE" "${S254_DN}")" -ge 1 ] || { bad "[254]① 差分闸三锚(豁免表/覆盖判据同源/离线不假绿)缺失"; S254_BAD=1; }
+[ "$(grep -acF "'^js-rsa$'" "${S254_UI}/jest.config.js")" = "1" ] && [ -f "${S254_UI}/test/jsRsaJestShim.js" ] || { bad "[254]④ jest js-rsa shim 未接(后端请求在 jest 内静默失败=在线判据全成假绿)"; S254_BAD=1; }
+S254_DJ="${S254_UI}/src/components/dunjia/DunJiaCalc.js"
+[ "$(grep -acF "feiMenZhongCan: opts.feiMenZhongCan !== false," "${S254_DJ}")" = "0" ] && [ "$(grep -acF "opts.feiMenZhongCan === 0 || opts.feiMenZhongCan === '0'" "${S254_DJ}")" -ge 2 ] || { bad "[254]③ 奇门中门参与 0/'0' 判关回潮(挂载 select 0 被当参与)"; S254_BAD=1; }
+S254_P_CC="? { chartCategory: opts.chartCategory } : {}),"
+[ "$(grep -acF "${S254_P_CC}" "${S254_DJ}")" = "1" ] || { bad "[254]③ 奇门盘类未随 opts 进 pan.options"; S254_BAD=1; }
+S254_CTX="${S254_UI}/src/utils/aiAnalysisContext.js"
+[ "$(grep -acF "noPageFallback: true" "${S254_CTX}")" -ge 2 ] || { bad "[254]③ 塔罗/地占无头「不读页面当前事盘」旗少于 2 处"; S254_BAD=1; }
+S254_P_TS="if(record && Array.isArray(record.taiSuiRelatives)){"
+[ "$(grep -acF "${S254_P_TS}" "${S254_CTX}")" = "1" ] || { bad "[254]③ 紫微太岁关系人数组形态处理缺失(挂载覆盖路径串化剪空回潮)"; S254_BAD=1; }
+[ "$(grep -acF "item: record.zcItem || '父母', sound: record.zcSound || '日'" "${S254_CTX}")" = "1" ] || { bad "[254]③ 正传心易缺省未落地(无声音=查询段整段不产)"; S254_BAD=1; }
+[ "$(grep -acF "deriveDadingYearPillars: dd.deriveDadingYearPillars," "${S254_CTX}")" = "1" ] && [ "$(grep -acF "export function deriveDadingYearPillars(" "${S254_UI}/src/utils/zhengchuanDadingLocal.js")" = "1" ] || { bad "[254]③ 大定所推之年派生未接无头"; S254_BAD=1; }
+S254_P_IT="indiaTripataki: { value: (record.indiaTripataki === 1"
+[ "$(grep -acF "${S254_P_IT}" "${S254_CTX}")" = "1" ] && [ "$(grep -acF "name: 'indiaPrashnaTime'" "${S254_UI}/src/utils/techniqueMountSettings.js")" = "1" ] || { bad "[254]③ 印占三旗/问事挂载链缺失"; S254_BAD=1; }
+S254_TMS="${S254_UI}/src/utils/techniqueMountSettings.js"
+# 花括号内含逗号的字面锚必须先赋值再引用(bash 3.2 花括号展开陷阱,FL-20260908-2)
+S254_P_OLD="{ value: 'strokes'"; S254_P_NEW="{ value: 'character'"   # 锚只咬值域(后端只认 character/direction);标签随页面文案
+[ "$(grep -acF "${S254_P_OLD}" "${S254_TMS}")" = "0" ] && [ "$(grep -acF "${S254_P_NEW}" "${S254_TMS}")" = "1" ] || { bad "[254]③ 皇极心易起卦法值域回潮(strokes/object 后端不识)"; S254_BAD=1; }
+[ "$(grep -acF "name: 'babylonEphemerisSource'" "${S254_TMS}")" = "0" ] || { bad "[254]③ 巴比伦位置源死齿轮回潮(无头无消费点)"; S254_BAD=1; }
+S254_P_QY='lines.push(`起运：${bazi.directInfo}`)'
+[ "$(grep -acF "${S254_P_QY}" "${S254_UI}/src/components/cntradition/BaZi.js")" = "1" ] || { bad "[254]③ 八字 [大运] 起运行缺失(起运精度齿轮无处落地)"; S254_BAD=1; }
+[ "$(grep -acF "安息纪元" "${S254_UI}/src/utils/babylonAiSnapshot.js")" = "1" ] || { bad "[254]③ 巴比伦纪元行缺失"; S254_BAD=1; }
+[ "$(grep -acF "wuxingOfMansion(me, s.qinWuxing)" "${S254_UI}/src/components/yanqin/yanqinSnapshot.js")" = "1" ] || { bad "[254]③ 演禽演法·占卜五行口径未随流派"; S254_BAD=1; }
+[ "${S254_BAD}" = "0" ] && ok "[254] AI 挂载逐技法自检机械网①–④:差分闸/段合同/残余修复判别向量/js-rsa shim 全在位"
+
+# [255] 缩放域「运行期真值」+ 版面容器定高锁。
+#   ① 运行期「现在几档」只认文档根 inline zoom。URL query 与存储键是壳的启动传输层:运行时换档不改 URL,而壳调回 100% 时恰恰把 inline 清空
+#      ⇒ 读回启动旧档:对齐库补偿除数用旧档(全站浮层错位 (1/z0−1)·(D+999))、布局视口缓存命中旧档、视觉底线按旧档折算。
+#      只用 `__HOROSA_ALIGN_SCALE__ = () => z` 的桩测对齐,恰好绕开「声明值→缓存→除数」真链路 —— 行为用例必须装真钩子走完整生命周期。
+#   ② 页面自刷新(reload)时 URL 仍是启动旧 query ⇒ 启动档位以键为准(壳每次换档都写键),单源 resolveBootstrapZoom。
+#   ③ 坞行高 ≡ 坞盒高:行写裸 58px 装 64px 的坞,各缩放档坞下缘被窗口底边切掉一截。
+#   ④ Tabs 内容链定高 + 叶子 fill(容器定高):叶子按「物理域窗口高 − 常数」写死 px 时,缩小档底部死带、放大档溢出被裁且滚不到。
+#   ⑤ 物理域视口直读族静态守卫(只抓「÷」的旧 PATTERN 抓不到「− 常数 / > 断点」)。
+#   ⑥ 行为闸:真页面 + 真对齐库产物 + 壳里抽取的真换档脚本,两种引擎语义都必须零错位;自证 = 注入旧档除数必红。
+echo "[255] 缩放域运行期真值 + 版面容器定高锁"
+S255_BAD=0
+S255_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S255_ZD="${S255_UI}/src/utils/zoomDomain.js"
+S255_SZ="${S255_UI}/src/utils/shellZoom.js"
+S255_GJ="${S255_UI}/src/global.js"
+S255_LESS="${S255_UI}/src/layouts/app.less"
+S255_T="${S255_UI}/src/utils/__tests__"
+for S255_F in "${S255_ZD}" "${S255_SZ}" "${S255_GJ}" "${S255_LESS}" "${S255_T}/popupAlignZoomGuard.test.js" "${S255_T}/shellZoomGuard.test.js" "${S255_T}/layoutDomainStaticGuard.test.js"; do
+  [ -f "${S255_F}" ] || { bad "[255] 资产缺失:${S255_F#${REPO_ROOT}/}"; S255_BAD=1; }
+done
+if [ "${S255_BAD}" = "0" ]; then
+  # ①②:剥注释后判(注释里同样写着这些字面量,不剥会假绿 / 假红)
+  if ! python3 - "${S255_ZD}" "${S255_SZ}" "${S255_GJ}" <<'S255PY'
+import re, sys
+def strip(t): return re.sub(r'//[^\n]*', '', re.sub(r'/\*[\s\S]*?\*/', '', t))
+zd, sz, gj = (strip(open(p, encoding='utf-8').read()) for p in sys.argv[1:4])
+bad = []
+if re.search(r"from\s+['\"]\./shellZoom['\"]", zd): bad.append('zoomDomain 仍 import shellZoom(运行期真值被启动传输层污染)')
+if 'getShellZoom' in zd or 'location.search' in zd: bad.append('zoomDomain 仍读启动传输层(getShellZoom / location.search)')
+m = re.search(r'export function getDeclaredZoom\(\)\{([\s\S]*?)\n\}', zd)
+if not m or 'document.documentElement.style.zoom' not in m.group(1): bad.append('getDeclaredZoom 不再读 documentElement.style.zoom')
+if m and ('localStorage' in m.group(1)): bad.append('getDeclaredZoom 体内出现 localStorage')
+for tok in ('export function resolveBootstrapZoom', 'export function readBootstrapShellZoom', "'reload'"):
+    if tok not in sz: bad.append('shellZoom.js 缺 ' + tok)
+if 'readBootstrapShellZoom' not in gj: bad.append('global.js 未经 readBootstrapShellZoom 取启动档位')
+if 'shellZoom=' in gj: bad.append('global.js 仍自带一份 query 读法(两份读法 = 漂移源)')
+for b in bad: print('    ' + b)
+sys.exit(1 if bad else 0)
+S255PY
+  then bad "[255]①② 缩放域运行期真值 / 启动档位单源 被改回"; S255_BAD=1; fi
+  # 回归用例字面在位(真钩子全链 + 启动→调回 100% + reload 真值表)
+  S255_P1='[运行期真值] 真钩子全链'
+  S255_P2='[运行期真值] 0.8 档启动'
+  S255_P3='resolveBootstrapZoom 真值表'
+  [ "$(grep -acF "${S255_P1}" "${S255_T}/popupAlignZoomGuard.test.js")" -ge 1 ] || { bad "[255]① 回归用例缺失:${S255_P1}"; S255_BAD=1; }
+  [ "$(grep -acF "${S255_P2}" "${S255_T}/popupAlignZoomGuard.test.js")" -ge 1 ] || { bad "[255]① 回归用例缺失:${S255_P2}"; S255_BAD=1; }
+  [ "$(grep -acF "${S255_P3}" "${S255_T}/shellZoomGuard.test.js")" -ge 1 ] || { bad "[255]② 回归用例缺失:${S255_P3}"; S255_BAD=1; }
+  # ③④:app.less(剥块注释后判)
+  if ! python3 - "${S255_LESS}" <<'S255PY2'
+import re, sys
+t = re.sub(r'/\*[\s\S]*?\*/', '', open(sys.argv[1], encoding='utf-8').read())
+bad = []
+m = re.search(r'\.horosa-sanshi-redesign-layout\s*\{([^}]*)\}', t)
+if not m or 'grid-template-rows: minmax(0, 1fr) var(--horosa-bottom-dock-height)' not in m.group(1): bad.append('三式坞行不再 ≡ 坞盒高单源变量')
+m = re.search(r'\.horosa-sanshi-redesign-grid\s*\{([^}]*)\}', t)
+if not m or 'grid-template-rows: minmax(0, 1fr)' not in m.group(1): bad.append('三式栅格隐式行未锁死')
+chain = r'\.horosa-cntradition-page\s*>\s*\.ant-tabs-right\s*>\s*\.ant-tabs-content-holder\s*>\s*\.ant-tabs-content\s*>\s*\.ant-tabs-tabpane\s*\{[^}]*'
+if not re.search(chain + r'height:\s*100%', t): bad.append('辅助页 Tabs 内容链未定高')
+if not re.search(chain + r'overflow-y:\s*auto', t): bad.append('辅助页 pane 无纵滚出路')
+if '.horosa-fill-tabs.ant-tabs' not in t: bad.append('fill 模式内层 Tabs 规则缺失')
+if not re.search(r'\.horosa-content-tabs \.ant-tabs-tabpane > \.ant-spin-nested-loading > \.ant-spin-container > :only-child\s*\{[^}]*height:\s*100%\s*!important', t): bad.append('内容页签定高链在 Spin 处掐断(占星「格局」页签 100% 档少 36px 的病)')
+rows = [x for x in re.findall(r'grid-template-rows:\s*minmax\(0,\s*1fr\)\s+(\d+)px', t) if x not in ('64', '138', '60')]
+if rows: bad.append('出现与坞盒高不等的坞行:%s px' % ','.join(rows))
+for b in bad: print('    ' + b)
+sys.exit(1 if bad else 0)
+S255PY2
+  then bad "[255]③④ 坞行高 / 三式隐式行 / 辅助页定高链 回归"; S255_BAD=1; fi
+  S255_CN="${S255_UI}/src/components/cntradition/CnTraditionMain.js"
+  for S255_TOK in '<GuaSymDesc fill />' '<CuanGong12 fill />' '<BaziPithy fill />'; do
+    [ "$(grep -acF "${S255_TOK}" "${S255_CN}")" -ge 1 ] || { bad "[255]④ 辅助页子 tab 未走 fill:${S255_TOK}"; S255_BAD=1; }
+  done
+  # ①b dom-align 补丁 v2:翻转 / 夹紧半程的祖先裁剪循环(rect 域 offset + 布局域 client* 直加 → 放大档滚动祖先可视区被算矮 →
+  #     下半部的触发器被判不可见 → 整段跳过翻转,下拉伸出窗口底边)。两份产物各恰 1 处、未补形态零残留、回归用例在位。
+  S255_PV='horosa:dom-align-zoom v3'
+  S255_PD='documentHeight = win.innerHeight * __vs;'
+  S255_PH='pos.top + el.clientHeight * __hzc);'
+  S255_PO='pos.top + el.clientHeight);'
+  for S255_D in dist-node dist-web; do
+    S255_DF="${S255_UI}/node_modules/dom-align/${S255_D}/index.js"
+    if [ -f "${S255_DF}" ]; then
+      [ "$(grep -acF "${S255_PV}" "${S255_DF}")" = "1" ] || { bad "[255]①b dom-align/${S255_D} 不是 v3 补丁(构建前跑 node scripts/patch-dom-align-zoom.js)"; S255_BAD=1; }
+      [ "$(grep -acF "${S255_PH}" "${S255_DF}")" = "1" ] || { bad "[255]①b dom-align/${S255_D} 祖先裁剪循环未换域"; S255_BAD=1; }
+      [ "$(grep -acF "${S255_PO}" "${S255_DF}")" = "0" ] || { bad "[255]①b dom-align/${S255_D} 残留未补形态(半修)"; S255_BAD=1; }
+      [ "$(grep -acF "${S255_PD}" "${S255_DF}")" = "1" ] || { bad "[255]①b dom-align/${S255_D} 「文档尺寸」读数未过视口系数(v3;rect 不反映缩放的引擎放大档下拉不翻转)"; S255_BAD=1; }
+    fi
+  done
+  S255_P4='T3b 翻转半程'
+  [ "$(grep -acF "${S255_P4}" "${S255_T}/popupAlignZoomGuard.test.js")" -ge 1 ] || { bad "[255]①b 回归用例缺失:${S255_P4}"; S255_BAD=1; }
+  # ⑤ 静态守卫两族在位
+  S255_P5='T5 物理域视口直读族'
+  S255_P6='T6 底部快捷栏'
+  [ "$(grep -acF "${S255_P5}" "${S255_T}/layoutDomainStaticGuard.test.js")" -ge 1 ] || { bad "[255]⑤ 静态守卫 T5 缺失"; S255_BAD=1; }
+  [ "$(grep -acF "${S255_P6}" "${S255_T}/layoutDomainStaticGuard.test.js")" -ge 1 ] || { bad "[255]⑤ 静态守卫 T6 缺失"; S255_BAD=1; }
+fi
+# ⑥ 行为闸:真页面 + 真 antd + 真 dom-align 产物 + 壳里抽取的真换档脚本,走「非 1 档启动 → 页内调回 100%」等换档序列,
+#    E2(旧 macOS:rect 不反映缩放)/ E3(Tahoe / Chromium)两种引擎语义都必须零错位;自证 = 注入旧档除数必红。
+S255_AUDIT="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/audit_popup_geometry.py"
+S255_DIST="${S255_UI}/dist-file/index.html"
+if [ ! -f "${S255_AUDIT}" ]; then
+  bad "[255]⑥ 缺 audit_popup_geometry.py —— 浮层几何行为闸丢失"; S255_BAD=1
+elif [ ! -f "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/popup_geometry.tpl.js" ]; then
+  bad "[255]⑥ 判据体 scripts/popup_geometry.tpl.js 缺失(双引擎行为闸的判据单源)"; S255_BAD=1
+elif [ ! -f "${S255_DIST}" ]; then
+  warn "[255]⑥ 无前端产物(dist-file),跳过浮层几何行为闸 —— 打包前必然已构建,届时会真跑"
+elif ! python3 -c "import playwright" >/dev/null 2>&1; then
+  warn "[255]⑥ 未装 playwright,跳过(装:python3 -m pip install playwright && python3 -m playwright install chromium)"
+else
+  S255_OUT="$(cd "${REPO_ROOT}/Horosa_Desktop_Installer" && python3 scripts/audit_popup_geometry.py --self-test 2>&1)"
+  if [ $? -ne 0 ]; then
+    bad "[255]⑥ 浮层判据自证失败(健康臂不绿或病灶臂不红,结论不可信): $(printf '%s' "${S255_OUT}" | tail -3 | tr '\n' ' ')"; S255_BAD=1
+  else
+    S255_OUT2="$(cd "${REPO_ROOT}/Horosa_Desktop_Installer" && python3 scripts/audit_popup_geometry.py --quick 2>&1)"
+    if [ $? -ne 0 ]; then
+      bad "[255]⑥ 浮层几何行为闸发现错位: $(printf '%s' "${S255_OUT2}" | tail -6 | tr '\n' ' ')"; S255_BAD=1
+    fi
+  fi
+fi
+[ "${S255_BAD}" = "0" ] && ok "[255] 缩放域运行期真值只读 inline + 启动档位单源(reload 以键为准)+ 坞行≡坞盒 + 辅助页定高链与 fill + 物理域直读守卫 + 浮层几何行为闸"
+
+# [256] 版面 / 指针换域第二批。每一条都是「100% 档两域重合看不出来、缩放档才现形」:
+#   ① 折叠节行高:节体网格行写裸 1fr 时,系统浏览器内核在「占位式滚动条出现 → 面板变窄 → 节内控件折行变高」后不重算行高,
+#      节内最后一行被内盒(overflow:hidden)裁掉且滚不到;写 minmax(0,1fr) 不裁(折叠态同写 minmax(0,0fr) 才能插值)。
+#   ② 手写浮层 / 自绘画布的指针换域单源:fixedPopupFrame / pointerToLocal / pointerLocalRatio;只认命令式 style 写回的守卫
+#      看不见 React 内联样式那条路 —— 新守卫盯读数端(clientX / window.inner*)。
+#   ③ 内核契约垫片(按实测比值,一致的内核上自动不生效):SVG getScreenCTM 不反映 CSS zoom ⇒ d3.pointer / zoom / drag 整体错位;
+#      MouseEvent.offsetX/Y 被报成视觉域 ⇒ 图表库 / 3D 惰性拾取偏 z 倍;对齐库「可见视口」系数改直接量。
+#   ④ 叶子「工作区高 − 常数」定高第二批 + 八字盘槽 JS 配比与网格行两套算法。
+#   ⑤ 裸 CSS px 底线(画布 320 / 页根 560)+ 黄历工作台隐式行 + 塔罗快捷栏被三栏挤出视口。
+echo "[256] 折叠节行高 + 指针换域单源 + 内核契约垫片 + 叶子定高第二批"
+S256_BAD=0
+S256_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S256_SRC="${S256_UI}/src"
+if ! python3 - "${S256_SRC}" <<'S256PY'
+import os, re, sys
+src = sys.argv[1]
+def rd(rel):
+    p = os.path.join(src, rel)
+    return open(p, encoding='utf-8').read() if os.path.exists(p) else None
+def strip(t): return re.sub(r'//[^\n]*', '', re.sub(r'/\*[\s\S]*?\*/', '', t))
+bad = []
+# ① 折叠节
+t = rd('components/xq-ui/styles.less')
+if t is None: bad.append('xq-ui/styles.less 缺失')
+else:
+    c = strip(t)
+    m = re.search(r'\.xq-side-section-body\s*\{([^}]*)\}', c)
+    if not m or 'grid-template-rows: minmax(0, 1fr)' not in m.group(1): bad.append('折叠节体行高不是 minmax(0, 1fr)(裸 1fr 折行后不重算 → 节内末行被裁)')
+    m = re.search(r'\.xq-side-section-collapsed\s+\.xq-side-section-body\s*\{([^}]*)\}', c)
+    if not m or 'grid-template-rows: minmax(0, 0fr)' not in m.group(1): bad.append('折叠态行高不是 minmax(0, 0fr)(与展开态不同型 → 过渡不插值)')
+    m = re.search(r'\.xq-side-section\s*\{([^}]*)\}', c)
+    if not m or 'flex-shrink: 0' not in m.group(1): bad.append('折叠节缺 flex-shrink: 0')
+# ②③ 换域单源
+t = rd('utils/zoomDomain.js')
+if t is None: bad.append('utils/zoomDomain.js 缺失')
+else:
+    c = strip(t)
+    for tok in ('export function fixedPopupFrame', 'export function pointerToLocal', 'export function pointerLocalRatio', 'export function installSvgCtmShim', 'export function getSvgCtmScale', 'export function installOffsetXYShim', 'export function getOffsetDomainScale'):
+        if tok not in c: bad.append('zoomDomain 缺 ' + tok)
+    m = re.search(r'export function installAlignHooks\(\)\{([\s\S]*?)\n\}', c)
+    if not m or 'installSvgCtmShim()' not in m.group(1): bad.append('installAlignHooks 未安装 SVG 矩阵垫片(d3.pointer 全族在缩放档错位)')
+    if not m or 'installOffsetXYShim()' not in m.group(1): bad.append('installAlignHooks 未安装 offsetX/Y 垫片(图表库 / 3D 惰性拾取在缩放档偏 z 倍)')
+    m2 = re.search(r'export function getViewportScale\(\)\{([\s\S]*?)\n\}', c)
+    if not m2 or 'getBoundingClientRect' not in m2.group(1) or 'getEffectiveScale() === 1' in m2.group(1).replace(' ', ' '): bad.append('对齐库视口系数不再直接量(rect 不反映缩放的引擎放大档下拉不翻转)')
+# ④ 叶子定高:禁回「工作区高 − 常数」
+LEAVES = [
+    ('components/ruleziwei/ZWRuleMain.js', r'height\s*-\s*130', '紫微资料参考'),
+    ('components/acg/AstroAcg.js', r'height\s*=\s*height\s*-\s*50', '占星地图'),
+    ('components/tongshefa/TongSheFaMain.js', r'height\s*-\s*304', '统摄法'),
+    ('components/tarot/TarotMain.js', r'height\s*-\s*8\b', '塔罗'),
+    ('components/astro/AstroFirdaria.js', r'height\s*-\s*70', '法达星限'),
+    ('components/astro/AstroYearSystem129.js', r'height\s*-\s*70', '129 年系统'),
+    ('components/fengshui/fengshuiEngine.js', r'Math\.max\(\s*320\s*,\s*host\.client', '风水画布 320 裸底线'),
+]
+for rel, pat, name in LEAVES:
+    t = rd(rel)
+    if t is None: continue      # 精简发行形态不含该模块
+    if re.search(pat, strip(t)): bad.append('%s 改回「工作区高 − 常数 / 裸 px 底线」定高:%s' % (name, rel))
+t = rd('components/cntradition/BaZi.js')
+if t is not None and "height={isFineChart ? 'auto' : '100%'}" not in t: bad.append('八字盘滚动盒不再 100% 贴槽(JS 配比与网格行两套算法 → 择日八字盘底被槽裁掉)')
+t = rd('components/zeri/HuangliZeriMain.js')
+if t is not None and 'height="100%"' not in t: bad.append('择日黄历宿主改回传工作区 px 高(工作台比宿主高 → 详情滚动盒被裁)')
+# ⑤ 样式
+t = rd('layouts/app.less')
+if t is not None:
+    c = strip(t)
+    if not re.search(r'\.horosa-tarot-page\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column', c): bad.append('塔罗页根不再是纵向 flex(三栏占满整页 → 快捷栏整条挤出视口)')
+    m = re.search(r'\.horosa-calendar-workbench\s*\{([^}]*)\}', c)
+    if not m or 'grid-template-rows: minmax(0, 1fr)' not in m.group(1): bad.append('黄历工作台隐式行未锁死')
+t = rd('components/planetarium/planetarium.less')
+if t is not None and re.search(r'min-height:\s*560px\s*;', strip(t)): bad.append('天文馆页根改回裸 560px 底线(放大档把整页撑出页签盒)')
+for b in bad: print('    ' + b)
+sys.exit(1 if bad else 0)
+S256PY
+then bad "[256] 折叠节行高 / 换域单源 / 叶子定高 回归"; S256_BAD=1; fi
+S256_T="${S256_SRC}/utils/__tests__"
+S256_P1='installSvgCtmShim · getScreenCTM 与 clientX 同域'
+S256_P2='T6 指针 / 物理视口读数必须过换域件'
+[ -f "${S256_T}/zoomDomainPointerHelpers.test.js" ] && [ "$(grep -acF "${S256_P1}" "${S256_T}/zoomDomainPointerHelpers.test.js")" -ge 1 ] || { bad "[256]③ 回归用例缺失:${S256_P1}"; S256_BAD=1; }
+[ "$(grep -acF "${S256_P2}" "${S256_T}/popupAlignStaticGuard.test.js" 2>/dev/null)" -ge 1 ] || { bad "[256]② 静态守卫缺失:${S256_P2}"; S256_BAD=1; }
+# ⑤ 三式中栏的内层盒不自己滚(滚动只交给外面的面板)。系统浏览器内核在合成层里画「定高百分比的滚动盒 + 首尾子元素 auto 外边距居中」时,
+#    只画从盒顶起、内容自身那么高的一段,而内容被上外边距整体下推 ⇒ 起盘后盘底信息盒少画一截(浅色主题;版面读数全对,换一次缩放档才恢复)。
+S256_SS="${S256_UI}/src/components/sanshi/SanShiUnitedMain.less"
+if [ ! -f "${S256_SS}" ]; then bad "[256]⑤ 缺 SanShiUnitedMain.less"; S256_BAD=1
+elif ! python3 - "${S256_SS}" <<'S256SSPY'
+import re, sys
+c = re.sub(r'/\*.*?\*/', '', open(sys.argv[1], encoding='utf-8').read(), flags=re.S)   # 注释里同样写着 overflow,不剥会误判
+m = re.search(r'\.boardStack\s*\{([^}]*)\}', c)
+bad = []
+if not m: bad.append('找不到 .boardStack 规则')
+else:
+    if re.search(r'overflow(-y)?\s*:\s*(auto|scroll)', m.group(1)): bad.append('.boardStack 又自己滚了(overflow:auto/scroll)')
+    if not re.search(r'overflow\s*:\s*visible', m.group(1)): bad.append('.boardStack 未显式 overflow:visible')
+if bad:
+    print('\n'.join('    ' + b for b in bad)); sys.exit(1)
+S256SSPY
+then bad "[256]⑤ 三式中栏内层盒保险失效(见上)"; S256_BAD=1; fi
+[ "${S256_BAD}" = "0" ] && ok "[256] 折叠节行高 minmax(0,1fr) + 指针换域单源与读数端守卫 + SVG 矩阵垫片 + 叶子定高第二批 + 三式中栏内层盒不自滚"
+
+# ── [257] 本脚本自身:不许再出现「管道接 grep -q」(pipefail 下大输入靠前命中 = 缺席型检查假绿 / 存在型检查假红) ──
+# 病症:本脚本开着 pipefail。`产生器 | grep -q 形态 && bad` 这类「旧坏形态回潮即报红」的缺席型检查,一旦回潮位置靠前、
+#   产生器输出又超过管道缓冲(64KB),grep 命中即退、产生器吃 SIGPIPE、整条管道按失败计 → 走「未命中」= 回潮了却判通过。
+#   同形态的存在型检查则会无故报红。全部改走顶部的 pipe_has(计数式,读完全部输入);此处锁死不许回潮,并用判别向量自证。
+echo "[257] 发布自检自身:零「管道接 grep -q」+ pipe_has 判别向量"
+S257_BAD=0
+S257_SELF="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/release_preflight.sh"
+# (bash 3.2 解析不了「命令替换里套 heredoc、体内又有不成对引号 / 括号」,所以输出走临时文件,不包在 $( ) 里)
+S257_TMP="$(mktemp)"
+python3 - "${S257_SELF}" > "${S257_TMP}" <<'PY257'
+import re, sys
+lines = open(sys.argv[1], encoding='utf-8').read().split('\n')
+rx = re.compile(r'(?<![|&])\|\s*(?:e|f)?grep\s+(?:-[A-Za-z]+\s+)*-[A-Za-z]*q')
+hd = re.compile(r'<<-?\s*([\'"]?)([A-Za-z_][A-Za-z0-9_]*)\1')
+tag, bad = None, []
+for i, l in enumerate(lines):
+    if tag is not None:
+        if l.strip() == tag: tag = None
+        continue
+    if l.lstrip().startswith('#'): continue
+    if rx.search(l): bad.append(i + 1)
+    m = hd.search(l)
+    if m: tag = m.group(2)
+print(','.join(map(str, bad[:12])) + ('…' if len(bad) > 12 else '') if bad else 'none')
+PY257
+S257_OUT="$(cat "${S257_TMP}" 2>/dev/null)"; rm -f "${S257_TMP}"
+[ "${S257_OUT}" = "none" ] || { bad "[257] 🔴 代码行里又出现「管道接 grep -q」(行 ${S257_OUT});改用 pipe_has"; S257_BAD=1; }
+grep -qF 'pipe_has(){ local n; n="$(grep -ac "$@" 2>/dev/null || true)"; [ "${n:-0}" -gt 0 ] 2>/dev/null; }' "${S257_SELF}" \
+  || { bad "[257] 🔴 pipe_has 计数式定义丢失或被改回提前退出形态"; S257_BAD=1; }
+# 判别向量:>64KB 的流、命中在第一行。pipe_has 必须命中;同一条流未命中的词必须不命中;带 -F / -v / -x 的参数形态同样成立。
+S257_BIG="$(python3 -c "print('NEEDLE(x)'); print(('filler line ' * 8 + '\n') * 1400, end='')")"
+printf '%s\n' "${S257_BIG}" | pipe_has "NEEDLE" || { bad "[257] 🔴 pipe_has 在大输入靠前命中上未命中"; S257_BAD=1; }
+printf '%s\n' "${S257_BIG}" | pipe_has -F "NEEDLE(x)" || { bad "[257] 🔴 pipe_has -F 形态未命中"; S257_BAD=1; }
+printf '%s\n' "${S257_BIG}" | pipe_has -x "NEEDLE(x)" || { bad "[257] 🔴 pipe_has -x 形态未命中"; S257_BAD=1; }
+printf '%s\n' "${S257_BIG}" | pipe_has "ABSENT_TOKEN" && { bad "[257] 🔴 pipe_has 对不存在的词误命中"; S257_BAD=1; }
+printf 'only\n' | pipe_has -v "only" && { bad "[257] 🔴 pipe_has -v 语义不对(全部行都匹配时应为未命中)"; S257_BAD=1; }
+[ "${S257_BAD}" = "0" ] && ok "[257] 代码行零「管道接 grep -q」+ pipe_has 定义在位 + 判别向量五条(大输入靠前命中 / -F / -x / 不误命中 / -v)"
+
+# ── [258] 技法页「排盘设置跨会话保留」制度(用户实报:排盘设置改了之后每次重开软件都要重设) ──────────
+# 病症:各技法页的排盘口径历来只活在组件 state 里,关掉软件再开就回出厂值;而「这一页哪些选项该保留」从来没有一张表 ——
+#   新页整页漏掉、老页加了新选项也没人想起来。另有两种更隐蔽的同族:① 改动时写了存储、首开却从不读回(七政四项);
+#   ② 同一张卡里一个控件写全局、旁边那个只改本地 state(辅盘盘壳的外环样式)。
+# 制度三件:单源件(声明 schema → load / save,校验严格、读端永不抛)· 登记表(每页保留哪些键 / 哪些键带理由不保留)·
+#   合同测试(页面里每个用户可改键都已表态;登记表 ≡ 活 schema;候选值与缺省同类型)。本闸锁这三件在位、不被掏空。
+echo "[258] 技法页排盘设置跨会话保留:单源件 + 登记表 + 合同测试"
+S258_BAD=0
+S258_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+for S258_F in \
+  "${S258_UI}/utils/pageSettingsStore.js" "${S258_UI}/utils/pageSettingsRegistry.js" \
+  "${S258_UI}/utils/divinationShellSettings.js" "${S258_UI}/utils/directionPageSettings.js" \
+  "${S258_UI}/utils/__tests__/pageSettingsStore.test.js" "${S258_UI}/utils/__tests__/pageSettingsRegistry.contract.test.js" \
+  "${S258_UI}/utils/__tests__/directionPageSettings.test.js"; do
+  [ -f "${S258_F}" ] || { bad "[258] 🔴 制度资产缺失:${S258_F#${REPO_ROOT}/}"; S258_BAD=1; }
+done
+S258_CT="${S258_UI}/utils/__tests__/pageSettingsRegistry.contract.test.js"
+if [ -f "${S258_CT}" ]; then
+  for S258_A in "页面里用户可改的每个选项键都已表态" "登记表 fields 与页面 schema 的键逐个相同" "schema 自洽(活对象)" "落盘键已登记为 settings 且进备份面" "凡用盘壳的页,黄道 / 宫制的亲手改动都接到了落盘"; do
+    grep -qF "${S258_A}" "${S258_CT}" || { bad "[258] 🔴 合同测试被掏空:缺「${S258_A}」"; S258_BAD=1; }
+  done
+fi
+S258_ST="${S258_UI}/utils/pageSettingsStore.js"
+if [ -f "${S258_ST}" ]; then
+  grep -qF "if(typeof value !== t){ return { ok: false }; }" "${S258_ST}" || { bad "[258] 🔴 单源件的严格类型校验被改(0 ≠ false、'1' ≠ 1 是死开关的防线)"; S258_BAD=1; }
+  grep -qF "if(spec.sparse){" "${S258_ST}" || { bad "[258] 🔴 单源件的稀疏覆盖层分支丢失"; S258_BAD=1; }
+  S258_N="$(grep -c "safeLocalStorage\(Get\|Set\|Remove\)" "${S258_ST}" 2>/dev/null || true)"
+  [ "${S258_N:-0}" -ge 3 ] || { bad "[258] 🔴 单源件不再走 safeStorage(配额 / 登记闸全绕过)"; S258_BAD=1; }
+fi
+S258_SH="${S258_UI}/components/divination/DivinationChartShell.js"
+if [ -f "${S258_SH}" ]; then
+  S258_N="$(grep -c "this.notifyUserFieldChange(" "${S258_SH}" 2>/dev/null || true)"
+  [ "${S258_N:-0}" -ge 2 ] || { bad "[258] 🔴 盘壳左栏的黄道 / 宫制不再回调 onUserFieldChange(宿主页的落盘就此断链)"; S258_BAD=1; }
+  grep -qF "payload: { chartStyle }" "${S258_SH}" || { bad "[258] 🔴 盘壳的外环样式又只改本地 state(不写全局 → 重开即丢)"; S258_BAD=1; }
+  grep -qF "props.chartStyle : readStoredChartStyle())" "${S258_SH}" || { bad "[258] 🔴 盘壳的外环样式缺「宿主没传就自己读全局」的兜底"; S258_BAD=1; }
+fi
+S258_GL="${S258_UI}/components/guolao/GuoLaoChartMain.js"
+if [ -f "${S258_GL}" ]; then
+  for S258_A in "['guolaoTrueSolarTime', getStoredGuolaoTrueSolarTime]" "['guolaoNodeType', getStoredGuolaoNodeType]" "['guolaoLilithType', getStoredGuolaoLilithType]" "['guolaoBodyMode', getStoredGuolaoBodyMode]"; do
+    grep -qF "${S258_A}" "${S258_GL}" || { bad "[258] 🔴 七政首开补空漏读:${S258_A}"; S258_BAD=1; }
+  done
+fi
+S258_KA="${S258_UI}/components/kinastro/KinAstroMain.js"
+if [ -f "${S258_KA}" ]; then
+  S258_N="$(grep -c "this.setUserOpt(" "${S258_KA}" 2>/dev/null || true)"
+  [ "${S258_N:-0}" -ge 100 ] || { bad "[258] 🔴 策天 / 数算族的用户入口只剩 ${S258_N:-0} 处走 setUserOpt(应 ≥100)"; S258_BAD=1; }
+  grep -qF "KINASTRO_PAGE_SETTINGS.save(patch);" "${S258_KA}" || { bad "[258] 🔴 setUserOpt 不再落盘"; S258_BAD=1; }
+fi
+# 金口诀首帧:主盘未到位时宿主传下来的是空对象 {},画盘第一步取贵人读 nongli.dayGanZi 抛错,错误边界不自愈 → 整块面板停在「加载出错」。
+for S258_F in "${S258_UI}/components/jinkou/JinKouChart.js" "${S258_UI}/components/jinkou/JinKouPanChart.js"; do
+  if [ -f "${S258_F}" ]; then
+    grep -qF "nongli.dayGanZi){" "${S258_F}" || { bad "[258] 🔴 金口诀画盘前的「农历日柱未到位不画」守卫丢失:${S258_F##*/}"; S258_BAD=1; }
+  fi
+done
+# 相交处五条:保存值本身留得住,出事的是它与「载入旧案 / 择日宿主 / 没有控件的兄弟页 / 离不开输入的起法 / 整张覆盖层落盘」
+# 相交的地方。语义由 jest(pageSettingsCaseAndHostSemantics)看守,这里锁住要害写法不被改回。
+S258_SEM="${S258_UI}/utils/__tests__/pageSettingsCaseAndHostSemantics.test.js"
+[ -f "${S258_SEM}" ] || { bad "[258] 🔴 相交处语义测试缺失:${S258_SEM#${REPO_ROOT}/}"; S258_BAD=1; }
+if [ -f "${S258_ST}" ]; then
+  grep -qF "function saveMapEntry(field, subKey, value){" "${S258_ST}" || { bad "[258] 🔴 单源件的 saveMapEntry 丢失(map 型字段又只能整张落盘 → 旧案的子项会被存成缺省)"; S258_BAD=1; }
+  grep -qF "function fillMissing(obj){" "${S258_ST}" || { bad "[258] 🔴 单源件的 fillMissing 丢失(事盘还原缺键无处回出厂值)"; S258_BAD=1; }
+fi
+if [ -f "${S258_SH}" ]; then
+  grep -qF "this.props.restoreBaseline" "${S258_SH}" || { bad "[258] 🔴 盘壳的事盘还原不再用还原基线(旧案缺键又会沿用本机保存的流派 / 宫制 / 判读参数)"; S258_BAD=1; }
+fi
+for S258_F in "${S258_UI}/components/horary/HoraryMain.js" "${S258_UI}/components/election/ElectionMain.js" "${S258_UI}/components/mundane/MundaneMain.js" "${S258_UI}/components/zeri/TianxingElectionMain.js"; do
+  if [ -f "${S258_F}" ]; then
+    grep -qF "restoreBaseline={this._" "${S258_F}" || { bad "[258] 🔴 盘壳宿主页没把还原基线传给壳:${S258_F##*/}"; S258_BAD=1; }
+  fi
+done
+for S258_F in "${S258_UI}/components/lrzhan/LiuRengMain.js" "${S258_UI}/components/taiyi/TaiYiMain.js" "${S258_UI}/components/sanshi/SanShiUnitedMain.js"; do
+  if [ -f "${S258_F}" ]; then
+    grep -qF "usesSavedSettings(){" "${S258_F}" || { bad "[258] 🔴 择日内嵌实例的隔离丢失(内嵌盘又会继承独立页保存值 → 点选所见 ≠ 扫描所判):${S258_F##*/}"; S258_BAD=1; }
+  fi
+done
+for S258_F in AstroGivenYear AstroLunarReturn AstroSolarReturn AstroPersianDirected; do
+  if [ -f "${S258_UI}/components/astro/${S258_F}.js" ]; then
+    S258_N="$(grep -c "load().nodeRetrograde" "${S258_UI}/components/astro/${S258_F}.js" 2>/dev/null || true)"
+    [ "${S258_N:-0}" -eq 0 ] || { bad "[258] 🔴 ${S258_F} 没有「南北交逆移」控件却读了共享保存值(看不见的设置暗中改结果)"; S258_BAD=1; }
+  fi
+done
+if [ -f "${S258_GL}" ]; then
+  grep -qF "const recordLoaded = !!(fields.cid && fields.cid.value);" "${S258_GL}" || { bad "[258] 🔴 七政补空不再区分「载入了记录」(记录的缺省值会被全局仓值盖掉)"; S258_BAD=1; }
+fi
+for S258_A in "horary/HoraryMain.js:save({ horaryOverrides: next })" "election/ElectionMain.js:save({ electionParams: next })" "geomancy/GeomancyMain.js:save({ granular: next })"; do
+  S258_F="${S258_UI}/components/${S258_A%%:*}"
+  if [ -f "${S258_F}" ]; then
+    S258_C="$(grep -cF "${S258_A#*:}" "${S258_F}" 2>/dev/null || true)"
+    [ "${S258_C:-0}" -eq 0 ] || { bad "[258] 🔴 整张覆盖层落盘的写法回来了:${S258_A%%:*}"; S258_BAD=1; }
+  fi
+done
+[ "${S258_BAD}" = "0" ] && ok "[258] 单源件 / 登记表 / 合同测试五要害 / 盘壳回调与写全局 / 七政读回四项 / 多技法组件入口 / 相交处五条要害写法 均在位"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

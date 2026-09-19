@@ -18,6 +18,16 @@ function sh(cmd){
 	}
 }
 
+// 前端源面清单单源:scripts/fe-source-paths.txt(构建时判脏 / 发布自检指纹门 / 打包产物冒烟 三处同读这一份)。
+function readSourcePaths(){
+	try{
+		const raw = fs.readFileSync(path.join(__dirname, 'fe-source-paths.txt'), 'utf8');
+		return raw.split('\n').map((s)=>s.trim()).filter((s)=>s && !s.startsWith('#'));
+	}catch(e){
+		return [];
+	}
+}
+
 function main(){
 	const distDir = process.argv[2] || (process.env.BUILD_FOR_FILE === '1' ? 'dist-file' : 'dist');
 	const outDir = path.resolve(__dirname, '..', distDir);
@@ -26,8 +36,12 @@ function main(){
 		return;
 	}
 	const commit = sh('git rev-parse HEAD');
-	// 只统计会进 dist 的源码面（前端 src/config/依赖清单）——docs/HANDOFF 等不影响产物的脏文件不算。
-	const dirtyRaw = sh('git status --porcelain -- ../src ../package.json ../.umirc.js ../public');
+	// 只统计会改变产物字节的源面(清单见 fe-source-paths.txt:源码 / 静态资源 / 依赖清单与锁 / 构建配置 / 构建前后处理脚本)
+	// ——docs 等不影响产物的脏文件不算。清单读不到 = 无法判脏 → 按脏处理(fail-closed,发布自检会拦)。
+	const srcPaths = readSourcePaths();
+	const dirtyRaw = srcPaths.length
+		? sh(`git status --porcelain -- ${srcPaths.map((p)=>`'../${p}'`).join(' ')}`)
+		: '?? fe-source-paths.txt(清单缺失或为空)';
 	const dirtyFiles = dirtyRaw ? dirtyRaw.split('\n').filter(Boolean) : [];
 	const info = {
 		commit: commit || 'unknown',
@@ -35,6 +49,7 @@ function main(){
 		dirtyCount: dirtyFiles.length,
 		builtAt: new Date().toISOString(),
 		dist: distDir,
+		sourcePaths: srcPaths.length,
 	};
 	fs.writeFileSync(path.join(outDir, 'build-info.json'), `${JSON.stringify(info, null, '\t')}\n`);
 	if(info.dirty){

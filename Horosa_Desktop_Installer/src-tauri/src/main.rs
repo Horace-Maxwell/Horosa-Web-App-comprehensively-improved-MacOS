@@ -35,6 +35,11 @@ use zip::ZipArchive;
 // 就会去碰其它构建的安装位/偏好域/更新通道(串台事故)。
 const APP_NAME: &str = "星阙";
 const APP_IDENTIFIER: &str = "com.horacedong.horosa";
+// 外部智能体连接(本机 MCP 服务):协议核/三道门/传输/页面桥全在子模块,本文件只挂钩子。
+mod mcp_client;
+mod mcp_server;
+mod mcp_stdio;
+
 const MAIN_WINDOW_LABEL: &str = "main";
 const PREFERENCES_WINDOW_LABEL: &str = "preferences";
 const DIAGNOSTICS_WINDOW_LABEL: &str = "diagnostics";
@@ -336,7 +341,7 @@ struct UpdatePlan {
     allow_downgrade: bool,
     source: UpdateSource,
     /// 只通知不安装:主 manifest 与 manifest asset 双双不可得 → 无 sha 可校验。
-    /// 信任模型(PLAYBOOK §4)= HTTPS + sha256;缺 sha 绝不自动下载安装,只引导去发布页。
+    /// 信任模型 = HTTPS + sha256;缺 sha 绝不自动下载安装,只引导去发布页。
     notify_only: bool,
 }
 
@@ -398,6 +403,24 @@ struct AppPreferences {
     always_review_before_replace: bool,
     #[serde(default = "default_zoom")]
     zoom_level: f64,
+    // AI 助手·行动能力总开关的壳侧镜像(页面开关同步写入;默认关)与外部智能体服务子开关(默认关)。
+    // 二者皆真 + HOROSA_MCP_SERVER!=0 才起本机 MCP 监听;偏好窗保存不触碰这两键(save_preferences_command 保留现值)。
+    #[serde(default)]
+    agent_enabled: bool,
+    #[serde(default)]
+    mcp_server_enabled: bool,
+    // [批三⑥] 通知外部脚本钩(仅桌面壳、默认关、用户在界面确认后才开):路径须绝对·常规文件·可执行·非全员可写·位于 $HOME 或 /usr/local/bin;
+    // 触发时 Command::new(path).arg(json) 零 shell、10s 超时 kill、复用桌面通知限流;env HOROSA_NOTIFY_HOOK=0 一票否决。
+    #[serde(default)]
+    notify_hook_enabled: bool,
+    #[serde(default)]
+    notify_hook_path: String,
+    // [P3] 定时任务:壳侧 60 秒哑心跳的开关镜像(页面子开关同步写入;默认关=线程零动作);偏好窗保存不触碰。
+    #[serde(default)]
+    scheduler_enabled: bool,
+    // [D74] 外部客户端策略「每分钟调用上限」的壳侧镜像(页面 1..600 同步写入;缺省 60);偏好窗保存不触碰。
+    #[serde(default = "default_mcp_calls_per_minute")]
+    mcp_calls_per_minute: u32,
 }
 
 fn default_zoom() -> f64 {
@@ -432,8 +455,18 @@ impl Default for AppPreferences {
             enable_experimental_features: false,
             always_review_before_replace: true,
             zoom_level: DEFAULT_ZOOM,
+            agent_enabled: false,
+            mcp_server_enabled: false,
+            notify_hook_enabled: false,
+            notify_hook_path: String::new(),
+            scheduler_enabled: false,
+            mcp_calls_per_minute: 60,
         }
     }
+}
+
+fn default_mcp_calls_per_minute() -> u32 {
+    60
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -2270,6 +2303,11 @@ fn build_main_window(app: &AppHandle, state: &SavedWindowState) -> Result<Webvie
                     let _ = set_window_zoom(&app, zoom);
                 }
             })
+            // 关掉 tauri 的原生拖放处理器:它对每次拖放恒返回 true,wry(macOS)只在处理器返回 false 时
+            // 才把拖放交还 WKWebView,页面永远收不到 HTML5 drop → 资料页 / AI 输入框的「拖入」在桌面版
+            // 全部无反应。关掉后走 WebKit 原生拖放,网页 DataTransfer.files 正常;壳自身没有任何
+            // drag-drop 事件消费方,零副作用。
+            .disable_drag_drop_handler()
             .visible(false);
     if let Some((x, y)) = saved_launch_position(state) {
         builder = builder.position(x, y);
@@ -2389,6 +2427,153 @@ fn show_macos_notification(title: &str, body: &str) {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn();
+}
+
+// ── [P1] 桌面通知命令:偏好门(show_status_notifications)+ 脱控制字符/截断 + 令牌桶(6/min,突发 3)+ 10 秒同文去重;
+//    页面永远拿不到 osascript,标题/正文只经本函数清洗后进 show_macos_notification。
+fn sanitize_notification_text(text: &str, max_chars: usize) -> String {
+    // 控制字符(含换行/制表)一律变空格再折叠:绝不把两个词粘在一起,也绝不让换行进 osascript 参数
+    let cleaned: String = text
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if cleaned.chars().count() > max_chars {
+        let mut s: String = cleaned.chars().take(max_chars.saturating_sub(1)).collect();
+        s.push('…');
+        s
+    } else {
+        cleaned
+    }
+}
+
+struct NotifyLimiter {
+    tokens: f64,
+    last_refill: Instant,
+    last_text: String,
+    last_at: Option<Instant>,
+}
+static NOTIFY_LIMITER: Mutex<Option<NotifyLimiter>> = Mutex::new(None);
+const NOTIFY_RATE_PER_MIN: f64 = 6.0;
+const NOTIFY_BURST: f64 = 3.0;
+const NOTIFY_DEDUPE_SECS: u64 = 10;
+
+fn notify_limiter_decide(
+    state: &mut NotifyLimiter,
+    now: Instant,
+    text: &str,
+) -> std::result::Result<(), &'static str> {
+    let elapsed = now
+        .saturating_duration_since(state.last_refill)
+        .as_secs_f64();
+    state.tokens = (state.tokens + elapsed * NOTIFY_RATE_PER_MIN / 60.0).min(NOTIFY_BURST);
+    state.last_refill = now;
+    if let Some(at) = state.last_at {
+        if state.last_text == text
+            && now.saturating_duration_since(at).as_secs() < NOTIFY_DEDUPE_SECS
+        {
+            return Err("duplicate");
+        }
+    }
+    if state.tokens < 1.0 {
+        return Err("rate_limited");
+    }
+    state.tokens -= 1.0;
+    state.last_text = text.to_string();
+    state.last_at = Some(now);
+    Ok(())
+}
+
+#[tauri::command]
+fn show_desktop_notification_command(
+    app: AppHandle,
+    title: String,
+    body: String,
+) -> std::result::Result<serde_json::Value, String> {
+    let prefs = load_preferences(&app);
+    if !prefs.show_status_notifications {
+        return Ok(serde_json::json!({ "shown": false, "reason": "preference_off" }));
+    }
+    let t = sanitize_notification_text(&title, 60);
+    let b = sanitize_notification_text(&body, 240);
+    if t.is_empty() && b.is_empty() {
+        return Ok(serde_json::json!({ "shown": false, "reason": "empty" }));
+    }
+    let key = format!("{t}\n{b}");
+    let decision = {
+        let mut guard = NOTIFY_LIMITER
+            .lock()
+            .map_err(|_| "notify limiter poisoned".to_string())?;
+        let state = guard.get_or_insert_with(|| NotifyLimiter {
+            tokens: NOTIFY_BURST,
+            last_refill: Instant::now(),
+            last_text: String::new(),
+            last_at: None,
+        });
+        let d = notify_limiter_decide(state, Instant::now(), &key);
+        d
+    };
+    match decision {
+        Ok(()) => {
+            show_macos_notification(&t, &b);
+            ledger_mark(
+                "rust.notification",
+                Some(
+                    serde_json::json!({ "title_len": t.chars().count(), "body_len": b.chars().count() }),
+                ),
+            );
+            Ok(serde_json::json!({ "shown": true, "reason": "" }))
+        }
+        Err(reason) => Ok(serde_json::json!({ "shown": false, "reason": reason })),
+    }
+}
+
+#[cfg(test)]
+mod desktop_notify_tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_notification_text_caps_and_strips_controls() {
+        assert_eq!(
+            sanitize_notification_text("a\u{0007}b\n\tc   d", 10),
+            "a b c d"
+        );
+        let long = sanitize_notification_text(&"星".repeat(100), 60);
+        assert_eq!(long.chars().count(), 60);
+        assert!(long.ends_with('…'));
+        assert_eq!(sanitize_notification_text("  \u{0001} ", 10), "");
+    }
+
+    #[test]
+    fn notify_limiter_burst_then_blocks_and_dedupes() {
+        let now = Instant::now();
+        let mut st = NotifyLimiter {
+            tokens: NOTIFY_BURST,
+            last_refill: now,
+            last_text: String::new(),
+            last_at: None,
+        };
+        assert!(notify_limiter_decide(&mut st, now, "a").is_ok());
+        assert_eq!(notify_limiter_decide(&mut st, now, "a"), Err("duplicate"));
+        assert!(notify_limiter_decide(&mut st, now, "b").is_ok());
+        assert!(notify_limiter_decide(&mut st, now, "c").is_ok());
+        assert_eq!(
+            notify_limiter_decide(&mut st, now, "d"),
+            Err("rate_limited")
+        );
+        let later = now + std::time::Duration::from_secs(11);
+        assert!(notify_limiter_decide(&mut st, later, "a").is_ok());
+        let much_later = now + std::time::Duration::from_secs(120);
+        assert!(notify_limiter_decide(&mut st, much_later, "e").is_ok());
+        assert!(notify_limiter_decide(&mut st, much_later, "f").is_ok());
+        assert!(notify_limiter_decide(&mut st, much_later, "g").is_ok());
+        assert_eq!(
+            notify_limiter_decide(&mut st, much_later, "h"),
+            Err("rate_limited")
+        );
+    }
 }
 
 fn open_release_page(app: &AppHandle) -> Result<()> {
@@ -2561,6 +2746,99 @@ fn open_offline_reinstall_flow(app: &AppHandle) -> Result<()> {
     Ok(())
 }
 
+/// 诊断包脱敏:日志/账本/更新历史尾部里任何形如 `sk-…`(≥8 位)、`Bearer <token>`、`api_key=<value>` 的片段掩成 `***`。
+/// 诊断 zip 是用户外发的最高后果泄漏通道;此前收集器零脱敏。手写扫描器(不引 regex crate)。
+fn redact_secrets(input: &str) -> String {
+    fn is_tok(c: char) -> bool {
+        c.is_ascii_alphanumeric()
+            || c == '_'
+            || c == '-'
+            || c == '.'
+            || c == '+'
+            || c == '/'
+            || c == '='
+    }
+    let chars: Vec<char> = input.chars().collect();
+    let lower: Vec<char> = input.to_lowercase().chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(n);
+    let mut i = 0usize;
+    let starts_with = |pos: usize, pat: &str| -> bool {
+        let p: Vec<char> = pat.chars().collect();
+        pos + p.len() <= n && lower[pos..pos + p.len()] == p[..]
+    };
+    while i < n {
+        // sk-XXXXXXXX…(≥8 位密钥体)
+        if starts_with(i, "sk-") {
+            let mut j = i + 3;
+            while j < n && is_tok(chars[j]) {
+                j += 1;
+            }
+            if j - (i + 3) >= 8 {
+                out.push_str("sk-***");
+                i = j;
+                continue;
+            }
+        }
+        // Bearer <token>
+        if starts_with(i, "bearer ") {
+            out.extend(chars[i..i + 7].iter());
+            let mut j = i + 7;
+            while j < n && chars[j] == ' ' {
+                j += 1;
+            }
+            let start = j;
+            while j < n && is_tok(chars[j]) {
+                j += 1;
+            }
+            if j > start {
+                out.push_str("***");
+                i = j;
+                continue;
+            }
+            i = start;
+            continue;
+        }
+        // api_key / apikey / api-key 后接 = : 引号 空格 再接值
+        let key_hit = ["api_key", "apikey", "api-key"]
+            .iter()
+            .find(|k| starts_with(i, k))
+            .map(|k| k.len());
+        if let Some(klen) = key_hit {
+            out.extend(chars[i..i + klen].iter());
+            let mut j = i + klen;
+            while j < n
+                && (chars[j] == ' '
+                    || chars[j] == '='
+                    || chars[j] == ':'
+                    || chars[j] == '"'
+                    || chars[j] == '\'')
+            {
+                out.push(chars[j]);
+                j += 1;
+            }
+            let start = j;
+            while j < n && is_tok(chars[j]) {
+                j += 1;
+            }
+            if j - start >= 6 {
+                out.push_str("***");
+                i = j;
+                continue;
+            }
+            i = start;
+            continue;
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+fn redact_lines(lines: Vec<String>) -> Vec<String> {
+    lines.into_iter().map(|l| redact_secrets(&l)).collect()
+}
+
 fn collect_diagnostics_payload(app: &AppHandle) -> Result<DiagnosticsPayload> {
     let paths = resolve_runtime_paths(app)?;
     ensure_dir(&paths.logs_dir)?;
@@ -2631,6 +2909,9 @@ fn collect_diagnostics_payload(app: &AppHandle) -> Result<DiagnosticsPayload> {
             }
         })
         .unwrap_or_default();
+    let lines = redact_lines(lines);
+    let ledger_lines = redact_lines(ledger_lines);
+    let update_history_lines = redact_lines(update_history_lines);
     Ok(DiagnosticsPayload {
         log_path: log_path.to_string_lossy().to_string(),
         app_data_dir: paths.app_data_dir.to_string_lossy().to_string(),
@@ -2695,6 +2976,67 @@ fn select_recent_files_by_mtime(root: &Path, cap_bytes: u64) -> Vec<PathBuf> {
     out
 }
 
+// [B1b] 旧运行时兜底:修复前的 Java 日志器拿 log4j2 basedir 的原样串拼路径,活文件落到
+// 「相对进程 CWD 的字面目录」,目录名就是这两个原样串;CWD 视启动路径为 Horosa-Web /
+// boot-exploded / bundle。用户机若仍跑旧包,诊断包得把这些目录也收进来,否则活日志全缺。
+const LEGACY_JAVA_LOG_LITERALS: [&str; 2] = ["${env:HOME:-${sys:user.home}}", "${env:HOME}"];
+const LEGACY_JAVA_LOG_CWD_SUBDIRS: [&str; 3] = [
+    "Horosa-Web",
+    "runtime/mac/bundle/boot-exploded",
+    "runtime/mac/bundle",
+];
+
+/// 旧运行时字面目录里的 Java 日志根(存在的才算;跨 runtime 根去重,保持扫描顺序)。
+fn legacy_java_log_roots(runtime_dirs: &[PathBuf]) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    for base in runtime_dirs {
+        for sub in LEGACY_JAVA_LOG_CWD_SUBDIRS {
+            for lit in LEGACY_JAVA_LOG_LITERALS {
+                let root = base
+                    .join(sub)
+                    .join(lit)
+                    .join(".horosa-logs")
+                    .join("astrostudyboot");
+                if root.is_dir() && !out.contains(&root) {
+                    out.push(root);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// 把旧运行时字面目录里的 Java 日志收进 staging/java-logs-legacy/<序号>/(每个根按 mtime 取最新
+/// ≤ cap,保持相对目录),并写 legacy-roots.txt 记录序号→来源目录;无命中返回 None 且不建目录。
+fn export_legacy_java_logs(
+    runtime_dirs: &[PathBuf],
+    staging: &Path,
+    cap_bytes: u64,
+) -> Option<PathBuf> {
+    let roots = legacy_java_log_roots(runtime_dirs);
+    if roots.is_empty() {
+        return None;
+    }
+    let dest_root = staging.join("java-logs-legacy");
+    let mut index = String::new();
+    for (idx, root) in roots.iter().enumerate() {
+        let bucket = dest_root.join((idx + 1).to_string());
+        index.push_str(&format!("{}\t{}\n", idx + 1, root.display()));
+        for src in select_recent_files_by_mtime(root, cap_bytes) {
+            if let Ok(rel) = src.strip_prefix(root) {
+                let dest = bucket.join(rel);
+                if let Some(parent) = dest.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                let _ = fs::copy(&src, &dest);
+            }
+        }
+    }
+    let _ = fs::create_dir_all(&dest_root);
+    let _ = fs::write(dest_root.join("legacy-roots.txt"), index);
+    Some(dest_root)
+}
+
 #[tauri::command]
 fn export_diagnostics_bundle(app: AppHandle) -> std::result::Result<String, String> {
     (|| -> Result<String> {
@@ -2737,6 +3079,14 @@ fn export_diagnostics_bundle(app: AppHandle) -> std::result::Result<String, Stri
                 }
             }
         }
+        // [B1b] 旧运行时字面目录兜底(见 export_legacy_java_logs):共享/用户两处 runtime 根都扫。
+        let mut legacy_bases: Vec<PathBuf> = vec![shared_runtime_dir()];
+        if let Ok(user_dir) = user_runtime_dir(&app) {
+            if !legacy_bases.contains(&user_dir) {
+                legacy_bases.push(user_dir);
+            }
+        }
+        let _ = export_legacy_java_logs(&legacy_bases, &staging, 10 * 1024 * 1024);
         let sw = Command::new("/usr/bin/sw_vers")
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
@@ -2782,7 +3132,673 @@ fn save_preferences_command(
     app: AppHandle,
     preferences: AppPreferences,
 ) -> std::result::Result<(), String> {
-    save_preferences(&app, &preferences).map_err(|err| format!("{err:#}"))
+    // 偏好窗的载荷不含助手/外部智能体两键(serde 缺省=false 会把已开的开关静默关掉)→ 保留现值
+    let current = load_preferences(&app);
+    let mut next = preferences;
+    next.agent_enabled = current.agent_enabled;
+    next.mcp_server_enabled = current.mcp_server_enabled;
+    next.scheduler_enabled = current.scheduler_enabled;
+    next.notify_hook_enabled = current.notify_hook_enabled;
+    next.notify_hook_path = current.notify_hook_path.clone();
+    next.mcp_calls_per_minute = current.mcp_calls_per_minute;
+    save_preferences(&app, &next).map_err(|err| format!("{err:#}"))
+}
+
+// ── [批三⑥] 通知外部脚本钩 ──
+pub const NOTIFY_HOOK_TIMEOUT_MS: u64 = 10_000;
+pub const NOTIFY_HOOK_PAYLOAD_MAX: usize = 8 * 1024;
+
+fn notify_hook_kill_switch() -> bool {
+    std::env::var("HOROSA_NOTIFY_HOOK")
+        .map(|v| v.trim() == "0")
+        .unwrap_or(false)
+}
+
+fn notify_hook_allowed_roots() -> Vec<PathBuf> {
+    let mut roots = vec![PathBuf::from("/usr/local/bin")];
+    if let Some(h) = std::env::var_os("HOME") {
+        let p = PathBuf::from(h);
+        if !p.as_os_str().is_empty() {
+            roots.insert(0, p);
+        }
+    }
+    roots
+}
+
+/// 路径六道门:绝对 → 存在且常规文件(经 canonicalize,符号链接看目标)→ 位于允许根之下 → 可执行 → 非全员可写 → 目录也非全员可写。
+/// 文案只说原因,不回显路径。
+fn validate_notify_hook_path_with_roots(
+    raw: &str,
+    roots: &[PathBuf],
+) -> std::result::Result<PathBuf, String> {
+    use std::os::unix::fs::PermissionsExt;
+    let p = Path::new(raw.trim());
+    if raw.trim().is_empty() {
+        return Err("路径为空".to_string());
+    }
+    if !p.is_absolute() {
+        return Err("必须是绝对路径".to_string());
+    }
+    let canon = fs::canonicalize(p).map_err(|_| "文件不存在".to_string())?;
+    let meta = fs::metadata(&canon).map_err(|_| "文件不可读".to_string())?;
+    if !meta.is_file() {
+        return Err("必须是常规文件(不是目录)".to_string());
+    }
+    let inside = roots.iter().any(|r| {
+        fs::canonicalize(r)
+            .map(|rc| canon.starts_with(&rc))
+            .unwrap_or(false)
+    });
+    if !inside {
+        return Err("脚本必须放在你的用户目录或 /usr/local/bin 之下".to_string());
+    }
+    let mode = meta.permissions().mode();
+    if mode & 0o111 == 0 {
+        return Err("文件不可执行(chmod +x)".to_string());
+    }
+    if mode & 0o002 != 0 {
+        return Err("文件对所有人可写,拒绝(chmod o-w)".to_string());
+    }
+    if let Some(dir) = canon.parent() {
+        if let Ok(dm) = fs::metadata(dir) {
+            if dm.permissions().mode() & 0o002 != 0 && dm.permissions().mode() & 0o1000 == 0 {
+                return Err("所在目录对所有人可写,拒绝".to_string());
+            }
+        }
+    }
+    Ok(canon)
+}
+
+fn validate_notify_hook_path(raw: &str) -> std::result::Result<PathBuf, String> {
+    validate_notify_hook_path_with_roots(raw, &notify_hook_allowed_roots())
+}
+
+/// 跑脚本:零 shell(路径即程序,载荷是唯一参数);stdin 关、stdout/stderr 丢;10s 到点 kill。回 (exit_code, timed_out)。
+fn run_notify_hook_process(
+    path: &Path,
+    payload: &str,
+) -> std::result::Result<(Option<i32>, bool), String> {
+    run_notify_hook_process_with_timeout(path, payload, NOTIFY_HOOK_TIMEOUT_MS)
+}
+
+/// 同上,超时可参数化(测试用短超时证明 kill 路径;生产恒 NOTIFY_HOOK_TIMEOUT_MS)
+fn run_notify_hook_process_with_timeout(
+    path: &Path,
+    payload: &str,
+    timeout_ms: u64,
+) -> std::result::Result<(Option<i32>, bool), String> {
+    let mut child = Command::new(path)
+        .arg(payload)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("启动失败({})", e.kind()))?;
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok((status.code(), false)),
+            Ok(None) => {
+                if started.elapsed() >= Duration::from_millis(timeout_ms) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Ok((None, true));
+                }
+                thread::sleep(Duration::from_millis(25));
+            }
+            Err(e) => return Err(format!("等待失败({})", e.kind())),
+        }
+    }
+}
+
+fn notify_hook_status_value(prefs: &AppPreferences) -> serde_json::Value {
+    let valid = if prefs.notify_hook_path.trim().is_empty() {
+        Err("未设置".to_string())
+    } else {
+        validate_notify_hook_path(&prefs.notify_hook_path).map(|_| ())
+    };
+    serde_json::json!({
+        "enabled": prefs.notify_hook_enabled,
+        "path": prefs.notify_hook_path,
+        "killSwitch": notify_hook_kill_switch(),
+        "valid": valid.is_ok(),
+        "reason": valid.err().unwrap_or_default(),
+        "timeoutMs": NOTIFY_HOOK_TIMEOUT_MS,
+    })
+}
+
+#[tauri::command]
+fn notify_hook_status_command(app: AppHandle) -> std::result::Result<serde_json::Value, String> {
+    Ok(notify_hook_status_value(&load_preferences(&app)))
+}
+
+#[tauri::command]
+fn notify_hook_set_command(
+    app: AppHandle,
+    enabled: bool,
+    path: String,
+) -> std::result::Result<serde_json::Value, String> {
+    let mut prefs = load_preferences(&app);
+    let trimmed = path.trim().to_string();
+    if enabled {
+        validate_notify_hook_path(&trimmed)?;
+    }
+    prefs.notify_hook_enabled = enabled;
+    prefs.notify_hook_path = trimmed;
+    save_preferences(&app, &prefs).map_err(|err| format!("{err:#}"))?;
+    Ok(notify_hook_status_value(&prefs))
+}
+
+/// 页面(自动化动作 notify-script / 面板「测试运行」)触发:门 → 校验 → 限流 → 跑;永不吐路径以外的系统信息。
+#[tauri::command]
+fn notify_hook_run_command(
+    app: AppHandle,
+    payload: serde_json::Value,
+    test: Option<bool>,
+) -> std::result::Result<serde_json::Value, String> {
+    let prefs = load_preferences(&app);
+    if notify_hook_kill_switch() {
+        return Ok(serde_json::json!({ "ran": false, "reason": "kill_switch" }));
+    }
+    if !prefs.notify_hook_enabled {
+        return Ok(serde_json::json!({ "ran": false, "reason": "disabled" }));
+    }
+    let path = match validate_notify_hook_path(&prefs.notify_hook_path) {
+        Ok(p) => p,
+        Err(reason) => {
+            return Ok(
+                serde_json::json!({ "ran": false, "reason": format!("invalid_path:{reason}") }),
+            )
+        }
+    };
+    let mut body = payload;
+    if !body.is_object() {
+        body = serde_json::json!({ "text": body });
+    }
+    let text = body.to_string();
+    if text.len() > NOTIFY_HOOK_PAYLOAD_MAX {
+        return Ok(serde_json::json!({ "ran": false, "reason": "payload_too_large" }));
+    }
+    if test != Some(true) {
+        let key = format!(
+            "hook:{}",
+            body.get("title").and_then(|t| t.as_str()).unwrap_or("")
+        );
+        let decision = {
+            let mut guard = NOTIFY_LIMITER
+                .lock()
+                .map_err(|_| "notify limiter poisoned".to_string())?;
+            let state = guard.get_or_insert_with(|| NotifyLimiter {
+                tokens: NOTIFY_BURST,
+                last_refill: Instant::now(),
+                last_text: String::new(),
+                last_at: None,
+            });
+            notify_limiter_decide(state, Instant::now(), &key)
+        };
+        if let Err(reason) = decision {
+            return Ok(serde_json::json!({ "ran": false, "reason": reason }));
+        }
+    }
+    let (code, timed_out) = run_notify_hook_process(&path, &text)?;
+    ledger_mark(
+        "rust.notify_hook",
+        Some(
+            serde_json::json!({ "exit": code, "timed_out": timed_out, "payload_len": text.len() }),
+        ),
+    );
+    Ok(serde_json::json!({ "ran": true, "exit": code, "timedOut": timed_out }))
+}
+
+#[cfg(test)]
+mod notify_hook_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn tmp_root(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("horosa-hook-{}-{}", tag, std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        fs::set_permissions(&d, fs::Permissions::from_mode(0o755)).unwrap();
+        d
+    }
+    fn script(dir: &Path, name: &str, mode: u32) -> PathBuf {
+        let p = dir.join(name);
+        fs::write(&p, "#!/bin/sh\nexit 0\n").unwrap();
+        fs::set_permissions(&p, fs::Permissions::from_mode(mode)).unwrap();
+        p
+    }
+
+    #[test]
+    fn notify_hook_path_six_gates() {
+        let root = tmp_root("gates");
+        let roots = vec![root.clone()];
+        let ok = script(&root, "ok.sh", 0o755);
+        assert!(validate_notify_hook_path_with_roots(ok.to_str().unwrap(), &roots).is_ok());
+        // ① 相对路径
+        assert_eq!(
+            validate_notify_hook_path_with_roots("ok.sh", &roots).unwrap_err(),
+            "必须是绝对路径"
+        );
+        // ② 不存在
+        assert_eq!(
+            validate_notify_hook_path_with_roots(root.join("nope.sh").to_str().unwrap(), &roots)
+                .unwrap_err(),
+            "文件不存在"
+        );
+        // ③ 目录
+        assert!(
+            validate_notify_hook_path_with_roots(root.to_str().unwrap(), &roots)
+                .unwrap_err()
+                .contains("常规文件")
+        );
+        // ④ 根之外
+        let outside = tmp_root("outside");
+        let o = script(&outside, "o.sh", 0o755);
+        assert!(
+            validate_notify_hook_path_with_roots(o.to_str().unwrap(), &roots)
+                .unwrap_err()
+                .contains("用户目录")
+        );
+        // ⑤ 不可执行
+        let nx = script(&root, "nx.sh", 0o644);
+        assert!(
+            validate_notify_hook_path_with_roots(nx.to_str().unwrap(), &roots)
+                .unwrap_err()
+                .contains("不可执行")
+        );
+        // ⑥ 全员可写
+        let ww = script(&root, "ww.sh", 0o777);
+        assert!(
+            validate_notify_hook_path_with_roots(ww.to_str().unwrap(), &roots)
+                .unwrap_err()
+                .contains("所有人可写")
+        );
+        // 文案不回显路径
+        let e = validate_notify_hook_path_with_roots(o.to_str().unwrap(), &roots).unwrap_err();
+        assert!(!e.contains("horosa-hook"));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn notify_hook_process_runs_with_single_json_arg_and_times_out() {
+        let root = tmp_root("run");
+        let out = root.join("seen.txt");
+        let p = root.join("echo.sh");
+        fs::write(
+            &p,
+            format!(
+                "#!/bin/sh\nprintf '%s' \"$1\" > '{}'\nexit 3\n",
+                out.display()
+            ),
+        )
+        .unwrap();
+        fs::set_permissions(&p, fs::Permissions::from_mode(0o755)).unwrap();
+        let (code, timed_out) =
+            run_notify_hook_process(&p, r#"{"title":"t","a b":"$(rm -rf /) ; x"}"#).unwrap();
+        assert_eq!(code, Some(3));
+        assert!(!timed_out);
+        let seen = fs::read_to_string(&out).unwrap();
+        assert_eq!(
+            seen, r#"{"title":"t","a b":"$(rm -rf /) ; x"}"#,
+            "载荷原样作为唯一参数,零 shell 展开"
+        );
+        let slow = root.join("slow.sh");
+        fs::write(&slow, "#!/bin/sh\nsleep 30\n").unwrap();
+        fs::set_permissions(&slow, fs::Permissions::from_mode(0o755)).unwrap();
+        // [D86] kill 路径真跑:同一条 try_wait 循环,超时参数化到 300ms —— 到点 kill + wait,回 (None, true),且不等 sleep 30
+        let t0 = Instant::now();
+        let (code2, timed_out2) = run_notify_hook_process_with_timeout(&slow, "{}", 300).unwrap();
+        assert_eq!(code2, None);
+        assert!(timed_out2, "sleep 30 的脚本必须被到点 kill");
+        assert!(
+            t0.elapsed() < Duration::from_secs(5),
+            "kill 路径不该等子进程自己退出: {:?}",
+            t0.elapsed()
+        );
+        let _ = fs::remove_dir_all(&root);
+        assert_eq!(NOTIFY_HOOK_TIMEOUT_MS, 10_000);
+    }
+}
+
+// ── AI 助手·行动能力 / 外部智能体连接(本机 MCP 服务)命令 ──
+#[tauri::command]
+async fn set_agent_enabled_command(
+    app: AppHandle,
+    enabled: bool,
+) -> std::result::Result<serde_json::Value, String> {
+    let mut prefs = load_preferences(&app);
+    prefs.agent_enabled = enabled;
+    save_preferences(&app, &prefs).map_err(|err| format!("{err:#}"))?;
+    if let Some(state) = app.try_state::<mcp_server::McpState>() {
+        mcp_server::apply_enabled(&app, &state, prefs.agent_enabled, prefs.mcp_server_enabled)
+            .map_err(|err| format!("{err:#}"))?;
+    }
+    Ok(serde_json::json!({ "enabled": enabled }))
+}
+
+#[tauri::command]
+fn mcp_server_status_command(app: AppHandle) -> std::result::Result<serde_json::Value, String> {
+    let prefs = load_preferences(&app);
+    let state = app
+        .try_state::<mcp_server::McpState>()
+        .ok_or_else(|| "missing mcp state".to_string())?;
+    Ok(mcp_server::status_json(
+        &app,
+        &state,
+        prefs.agent_enabled,
+        prefs.mcp_server_enabled,
+    ))
+}
+
+#[tauri::command]
+async fn mcp_server_set_enabled_command(
+    app: AppHandle,
+    enabled: bool,
+) -> std::result::Result<serde_json::Value, String> {
+    let mut prefs = load_preferences(&app);
+    prefs.mcp_server_enabled = enabled;
+    save_preferences(&app, &prefs).map_err(|err| format!("{err:#}"))?;
+    let state = app
+        .try_state::<mcp_server::McpState>()
+        .ok_or_else(|| "missing mcp state".to_string())?;
+    mcp_server::apply_enabled(&app, &state, prefs.agent_enabled, prefs.mcp_server_enabled)
+        .map_err(|err| format!("{err:#}"))?;
+    Ok(mcp_server::status_json(
+        &app,
+        &state,
+        prefs.agent_enabled,
+        prefs.mcp_server_enabled,
+    ))
+}
+
+// ── [P3] 定时任务:壳侧只做 60 秒哑心跳(调度大脑在页面 aiAgent/tasks/scheduler.js);偏好 scheduler_enabled 缺省 false;
+//    HOROSA_SCHEDULER=0 一票否决;页面未绑定时 pending 只留最新一跳;每 30 跳记一次账本(rust.scheduler_tick)。
+static SCHEDULER_TICKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static SCHEDULER_LAST_TICK: Mutex<Option<u64>> = Mutex::new(None);
+const SCHEDULER_FIRST_DELAY_SECS: u64 = 90;
+const SCHEDULER_INTERVAL_SECS: u64 = 60;
+const SCHEDULER_LEDGER_EVERY: u64 = 30;
+
+fn scheduler_kill_switch() -> bool {
+    std::env::var("HOROSA_SCHEDULER")
+        .map(|v| v.trim() == "0")
+        .unwrap_or(false)
+}
+
+fn scheduler_now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// [D74] 外部客户端策略「每分钟调用上限」的壳侧镜像:页面策略 1..600 ⇒ 壳令牌桶按用户值生效(此前壳写死 60/分钟,页面 >60 全部无效);
+/// 落偏好,重启后服务重建时重施;回实际生效值。
+#[tauri::command]
+fn mcp_server_set_limits_command(
+    app: AppHandle,
+    calls_per_minute: u32,
+) -> std::result::Result<serde_json::Value, String> {
+    let n = calls_per_minute.clamp(1, 600);
+    let mut prefs = load_preferences(&app);
+    prefs.mcp_calls_per_minute = n;
+    save_preferences(&app, &prefs).map_err(|err| format!("{err:#}"))?;
+    let applied = match app.try_state::<mcp_server::McpState>() {
+        Some(state) => mcp_server::apply_limits(&state, n).map_err(|err| format!("{err:#}"))?,
+        None => n,
+    };
+    Ok(serde_json::json!({ "callsPerMinute": applied }))
+}
+
+#[tauri::command]
+fn set_scheduler_enabled_command(
+    app: AppHandle,
+    enabled: bool,
+) -> std::result::Result<serde_json::Value, String> {
+    let mut prefs = load_preferences(&app);
+    prefs.scheduler_enabled = enabled;
+    save_preferences(&app, &prefs).map_err(|err| format!("{err:#}"))?;
+    Ok(serde_json::json!({ "enabled": enabled, "killSwitch": scheduler_kill_switch() }))
+}
+
+#[tauri::command]
+fn scheduler_status_command(app: AppHandle) -> std::result::Result<serde_json::Value, String> {
+    let prefs = load_preferences(&app);
+    let last = *SCHEDULER_LAST_TICK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    Ok(serde_json::json!({
+        "enabled": prefs.scheduler_enabled,
+        "killSwitch": scheduler_kill_switch(),
+        "ticks": SCHEDULER_TICKS.load(std::sync::atomic::Ordering::Relaxed),
+        "lastTickAt": last,
+        "intervalSecs": SCHEDULER_INTERVAL_SECS,
+    }))
+}
+
+/// 定时任务 tick 投递(壳→页面 eval 回调范式,同 dispatch_auto_backup_tick;页面未就绪只留最新一跳)。返回是否找到主窗口。
+fn dispatch_scheduler_tick(app: &AppHandle, seq: u64) -> bool {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        return false;
+    };
+    let at = scheduler_now_secs();
+    let payload =
+        serde_json::json!({ "seq": seq, "at": at, "intervalSecs": SCHEDULER_INTERVAL_SECS });
+    let script = scheduler_tick_script(&payload.to_string());
+    let _ = window.eval(&script);
+    *SCHEDULER_LAST_TICK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some(at);
+    if seq % SCHEDULER_LEDGER_EVERY == 1 {
+        ledger_mark("rust.scheduler_tick", Some(payload));
+    }
+    true
+}
+
+/// 纯函数(可单测):有回调即调,无回调入队且只留最新 1 条(页面绑定时补跑一次即可,多跳无意义)。
+fn scheduler_tick_script(payload_json: &str) -> String {
+    format!(
+        "(function(){{var t={payload_json};if(typeof window.__horosaSchedulerTick==='function'){{try{{window.__horosaSchedulerTick(t);}}catch(e){{}}}}else{{var q=window.__horosaPendingSchedulerTicks=window.__horosaPendingSchedulerTicks||[];q.push(t);if(q.length>1){{q.splice(0,q.length-1);}}}}}})();"
+    )
+}
+
+#[tauri::command]
+async fn mcp_server_rotate_token_command(
+    app: AppHandle,
+) -> std::result::Result<serde_json::Value, String> {
+    let prefs = load_preferences(&app);
+    let state = app
+        .try_state::<mcp_server::McpState>()
+        .ok_or_else(|| "missing mcp state".to_string())?;
+    mcp_server::rotate_token(&app, &state).map_err(|err| format!("{err:#}"))?;
+    Ok(mcp_server::status_json(
+        &app,
+        &state,
+        prefs.agent_enabled,
+        prefs.mcp_server_enabled,
+    ))
+}
+/// 令牌只在用户点「复制」时按需取(状态查询不再携带令牌)。
+#[tauri::command]
+fn mcp_server_reveal_token_command(
+    app: AppHandle,
+) -> std::result::Result<serde_json::Value, String> {
+    let state = app
+        .try_state::<mcp_server::McpState>()
+        .ok_or_else(|| "missing mcp state".to_string())?;
+    let token = mcp_server::reveal_token(&state).unwrap_or_default();
+    Ok(serde_json::json!({ "token": token, "running": !token.is_empty() }))
+}
+
+#[tauri::command]
+fn agent_tool_result_command(
+    app: AppHandle,
+    id: u64,
+    ok: bool,
+    result: Option<serde_json::Value>,
+    error: Option<serde_json::Value>,
+) -> std::result::Result<bool, String> {
+    let state = app
+        .try_state::<mcp_server::McpState>()
+        .ok_or_else(|| "missing mcp state".to_string())?;
+    let outcome = if ok {
+        Ok(result.unwrap_or(serde_json::Value::Null))
+    } else {
+        let e = error.unwrap_or(serde_json::Value::Null);
+        Err(mcp_server::McpError {
+            code: e
+                .get("code")
+                .and_then(|c| c.as_i64())
+                .unwrap_or(mcp_server::ERR_INTERNAL),
+            message: e
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("tool failed")
+                .to_string(),
+            data: e.get("data").cloned(),
+        })
+    };
+    Ok(state.bridge.resolve(id, outcome))
+}
+
+#[tauri::command]
+fn agent_bridge_ready_command(
+    app: AppHandle,
+    version: Option<u32>,
+    ready: Option<bool>,
+) -> std::result::Result<bool, String> {
+    let state = app
+        .try_state::<mcp_server::McpState>()
+        .ok_or_else(|| "missing mcp state".to_string())?;
+    let is_ready = ready.unwrap_or(true);
+    state.bridge.set_ready(is_ready);
+    // 页面桥(重新)绑定或离场 → 工具目录缓存作废,tools/list 与 tools/call 口径一致
+    // [P5] 并向 SSE 订阅者推 tools/list_changed(外部客户端不必轮询)
+    if let Ok(inner) = state.inner.lock() {
+        if let Some(core) = inner.core.as_ref() {
+            core.invalidate_tools_cache();
+            if is_ready {
+                core.notify("notifications/tools/list_changed", serde_json::json!({}));
+            }
+        }
+    }
+    ledger_mark(
+        "rust.agent_bridge_ready",
+        Some(serde_json::json!({ "version": version.unwrap_or(0), "ready": is_ready })),
+    );
+    Ok(true)
+}
+
+/// [P6] 外部 MCP 服务器(出站,默认关):清单/连接/调用全部经壳侧;令牌只落 0600 配置文件,回页面一律脱敏。
+#[tauri::command]
+fn mcp_client_list_command(app: AppHandle) -> std::result::Result<Vec<serde_json::Value>, String> {
+    let state = app
+        .try_state::<mcp_client::ClientState>()
+        .ok_or_else(|| "missing mcp client state".to_string())?;
+    Ok(state.list())
+}
+
+#[tauri::command]
+fn mcp_client_upsert_command(
+    app: AppHandle,
+    spec: mcp_client::ServerSpec,
+    keep_headers: Option<bool>,
+) -> std::result::Result<serde_json::Value, String> {
+    let state = app
+        .try_state::<mcp_client::ClientState>()
+        .ok_or_else(|| "missing mcp client state".to_string())?;
+    // [Q-294/M-109·AR-24] 面板「编辑」令牌留空 ⇒ keep_headers=true 沿用旧令牌
+    let out = state
+        .upsert_keeping(spec, keep_headers.unwrap_or(false))
+        .map_err(|e| format!("{e:#}"))?;
+    ledger_mark(
+        "rust.mcp_client_upsert",
+        Some(serde_json::json!({ "id": out.get("id").cloned() })),
+    );
+    Ok(out)
+}
+
+#[tauri::command]
+fn mcp_client_remove_command(app: AppHandle, id: String) -> std::result::Result<bool, String> {
+    let state = app
+        .try_state::<mcp_client::ClientState>()
+        .ok_or_else(|| "missing mcp client state".to_string())?;
+    state.remove(&id).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+async fn mcp_client_connect_command(
+    app: AppHandle,
+    id: String,
+) -> std::result::Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app
+            .try_state::<mcp_client::ClientState>()
+            .ok_or_else(|| "missing mcp client state".to_string())?;
+        state.connect(&id).map_err(|e| format!("{e:#}"))
+    })
+    .await
+    .map_err(|e| format!("{e}"))?
+}
+
+#[tauri::command]
+async fn mcp_client_call_command(
+    app: AppHandle,
+    id: String,
+    tool: String,
+    arguments: Option<serde_json::Value>,
+) -> std::result::Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app
+            .try_state::<mcp_client::ClientState>()
+            .ok_or_else(|| "missing mcp client state".to_string())?;
+        state
+            .call(
+                &id,
+                &tool,
+                arguments.unwrap_or_else(|| serde_json::json!({})),
+            )
+            .map_err(|e| format!("{e:#}"))
+    })
+    .await
+    .map_err(|e| format!("{e}"))?
+}
+
+#[tauri::command]
+fn mcp_client_disconnect_command(app: AppHandle, id: String) -> std::result::Result<bool, String> {
+    let state = app
+        .try_state::<mcp_client::ClientState>()
+        .ok_or_else(|| "missing mcp client state".to_string())?;
+    Ok(state.disconnect(&id))
+}
+
+/// [P5] 页面侧数据变了(建档/撤销/外部工具集变化)→ 向 MCP 的 SSE 订阅者推 list_changed。
+/// kind 只认三枚白名单;服务没起或没人订阅一律回 0,永不报错、永不吐令牌。
+#[tauri::command]
+fn agent_notify_command(app: AppHandle, kind: String) -> std::result::Result<usize, String> {
+    let method = match kind.as_str() {
+        "tools" => "notifications/tools/list_changed",
+        "resources" => "notifications/resources/list_changed",
+        "prompts" => "notifications/prompts/list_changed",
+        _ => return Err("unknown notify kind".to_string()),
+    };
+    let Some(state) = app.try_state::<mcp_server::McpState>() else {
+        return Ok(0);
+    };
+    let sent = state
+        .inner
+        .lock()
+        .ok()
+        .and_then(|inner| {
+            inner
+                .core
+                .as_ref()
+                .map(|core| core.notify(method, serde_json::json!({})))
+        })
+        .unwrap_or(0);
+    Ok(sent)
 }
 
 #[tauri::command]
@@ -2959,6 +3975,11 @@ const SHADOW_ALLOWED_KEYS: [&str; 4] = [
 
 static SHADOW_INFLIGHT_WRITES: AtomicUsize = AtomicUsize::new(0);
 
+/// 影子副本键白名单判定(纯函数;命令入口与测试共用)
+fn shadow_key_allowed(key: &str) -> bool {
+    SHADOW_ALLOWED_KEYS.contains(&key)
+}
+
 fn shadow_store_dir(app: &AppHandle) -> std::result::Result<PathBuf, String> {
     let base = app
         .path()
@@ -2983,7 +4004,7 @@ fn shadow_store_write_command(
     key: String,
     text: String,
 ) -> std::result::Result<(), String> {
-    if !SHADOW_ALLOWED_KEYS.contains(&key.as_str()) {
+    if !shadow_key_allowed(key.as_str()) {
         return Err("shadow.key.not-allowed".to_string());
     }
     SHADOW_INFLIGHT_WRITES.fetch_add(1, Ordering::SeqCst);
@@ -3237,6 +4258,81 @@ fn open_login_items_settings_command() -> std::result::Result<(), String> {
         .spawn()
         .map(|_| ())
         .map_err(|err| err.to_string())
+}
+
+/// AI 接口 key 静态加密主密钥:存 macOS 登录钥匙串(service 唯一定位),首次调用生成
+/// 32 字节随机密钥。返回 base64;任何失败走 Err → 前端回落明文兼容路径(不阻断功能)。
+/// 密钥本身绝不落日志/落盘文件。
+fn get_or_create_ai_master_key() -> Result<String> {
+    get_or_create_ai_master_key_with(&|args: &[&str]| {
+        Command::new("/usr/bin/security")
+            .args(args)
+            .stdin(Stdio::null())
+            .output()
+    })
+}
+
+/// [D86] 主密钥取/建逻辑与 `security` 命令解耦(测试注入执行器):find 命中且非空 ⇒ 原样回;find 退出码 44(不存在)⇒ 生成 32 字节随机 → add-generic-password -U;find 其它失败 / 命中空串 ⇒ Err(不动旧钥,前端回退明文路径);add 失败 ⇒ Err
+fn get_or_create_ai_master_key_with(
+    run: &dyn Fn(&[&str]) -> std::io::Result<std::process::Output>,
+) -> Result<String> {
+    const KEYCHAIN_SERVICE: &str = "com.horosa.ai-provider-master";
+    const KEYCHAIN_ACCOUNT: &str = "horosa";
+    let find = run(&[
+        "find-generic-password",
+        "-s",
+        KEYCHAIN_SERVICE,
+        "-a",
+        KEYCHAIN_ACCOUNT,
+        "-w",
+    ]);
+    // [Q-059③ / AW-27 2026-09-18] 只有「条目不存在」(security 退出码 44 = errSecItemNotFound)才允许新建主密钥。
+    // 此前任何 find 失败(钥匙串锁定 / 权限拒绝 / 命令跑不起来 / 命中但空串)都直接生成新钥并 -U 覆盖 →
+    // 旧主密钥被替换,库内全部密文永久解不开。现在其它失败一律 Err(前端回退明文路径且不动旧钥)。
+    let find = find.context("run security find-generic-password for ai master key")?;
+    if find.status.success() {
+        let existing = String::from_utf8_lossy(&find.stdout).trim().to_string();
+        if !existing.is_empty() {
+            return Ok(existing);
+        }
+        return Err(anyhow!(
+            "keychain returned an empty ai master key; refusing to overwrite it"
+        ));
+    }
+    if find.status.code() != Some(44) {
+        return Err(anyhow!(
+            "keychain lookup failed (status {:?}); refusing to create a new ai master key",
+            find.status.code()
+        ));
+    }
+    let mut key_bytes = [0u8; 32];
+    File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut key_bytes))
+        .context("read urandom for ai master key")?;
+    let key_b64 = BASE64_STANDARD.encode(key_bytes);
+    let add = run(&[
+        "add-generic-password",
+        "-s",
+        KEYCHAIN_SERVICE,
+        "-a",
+        KEYCHAIN_ACCOUNT,
+        "-w",
+        &key_b64,
+        "-U",
+    ])
+    .context("add-generic-password for ai master key")?;
+    if !add.status.success() {
+        return Err(anyhow!(
+            "keychain add failed (status {:?})",
+            add.status.code()
+        ));
+    }
+    Ok(key_b64)
+}
+
+#[tauri::command]
+fn ai_master_key_command() -> std::result::Result<String, String> {
+    get_or_create_ai_master_key().map_err(|err| err.to_string())
 }
 
 fn ai_analysis_async_dialog() -> AsyncFileDialog {
@@ -4521,7 +5617,7 @@ fn verify_sha256(path: &Path, expected: Option<&str>, label: &str) -> Result<()>
 }
 
 // manifest 获取(签名制度已于 2026-07-04 应用户决定取消——信任模型回到
-// HTTPS + GitHub 账号 + 资产 sha256;取消记录见 docs/UPDATE_AND_PERF_PLAYBOOK.md §4):
+// HTTPS + GitHub 账号 + 资产 sha256;签名制度已取消):
 // Fetched=清单可用;Absent=不存在/网络失败/JSON 异常 → 允许走 GitHub API fallback。
 enum ManifestFetch {
     Fetched(UpdateManifest),
@@ -7373,6 +8469,39 @@ fn deep_probe_every_rounds() -> u64 {
 }
 
 // [U-F] 服务监督事件通道(镜像 __horosaPending* 模式;老前端无 handler=无害)
+/// 自动备份 tick 投递(壳→页面 eval 回调范式;页面未就绪先入 pending 队列)。返回是否找到主窗口。
+fn dispatch_auto_backup_tick(app: &AppHandle, seq: u64) -> bool {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        return false;
+    };
+    let payload = serde_json::json!({ "seq": seq, "at": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0) });
+    let script = auto_backup_tick_script(&payload.to_string());
+    let _ = window.eval(&script);
+    ledger_mark("rust.auto_backup_tick", Some(payload));
+    true
+}
+
+/// 纯函数(可单测):生成投递脚本——有回调即调,无回调入队(队列上限 8,防页面长期未绑无限增长)。
+fn auto_backup_tick_script(payload_json: &str) -> String {
+    format!(
+        "(function(){{var t={payload_json};if(typeof window.__horosaAutoBackupTick==='function'){{try{{window.__horosaAutoBackupTick(t);}}catch(e){{}}}}else{{var q=window.__horosaPendingAutoBackupTicks=window.__horosaPendingAutoBackupTicks||[];q.push(t);if(q.length>8){{q.splice(0,q.length-8);}}}}}})();"
+    )
+}
+
+/// 页面侧桥自检上报:页面启动时把 typeof window.__TAURI__ / __TAURI_INTERNALS__ 与 event.listen 的 ACL 探测结果
+/// 写进启动账本 —— 真机上「桥到底通没通」有据可查(诊断包一并导出),不靠猜。
+#[tauri::command]
+fn bridge_diag_report_command(payload: serde_json::Value) -> std::result::Result<bool, String> {
+    ledger_mark("rust.bridge_diag", Some(payload));
+    Ok(true)
+}
+
+/// 应用上下文唯一构造点:`generate_context!` 内嵌 `_EMBED_INFO_PLIST` 链接段静态量,同一 crate 展开两次=重复符号
+/// (测试里要用 MockRuntime 复用同一份 tauri.conf.json/ACL,故做成泛型函数由 main 与测试各自实例化)。
+fn build_app_context<R: tauri::Runtime>() -> tauri::Context<R> {
+    tauri::generate_context!()
+}
+
 fn emit_service_event(app: &AppHandle, json: &str) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let _ = window.eval(&format!(
@@ -9417,6 +10546,24 @@ fn run_auto_update_check(app: &AppHandle) {
     emit_update_event(app, &payload.to_string());
 }
 
+/// [Q-308] 本地版本号(不联网、不写节流戳):「关于星阙」只需要版本号,此前它调 update_check_silent ——
+/// 一打开就联网查更新、无视「自动检查更新」偏好、把「有新版」结果丢掉,还把 4 小时节流窗刷新一次
+/// (导致启动时本该弹的新版提示被推迟);离线时请求失败连版本号都显示不出来。
+#[tauri::command]
+fn app_version_local_command(app: AppHandle) -> LocalVersionInfo {
+    LocalVersionInfo {
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+        runtime_version: local_runtime_version(&app).unwrap_or_default(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalVersionInfo {
+    app_version: String,
+    runtime_version: String,
+}
+
 #[tauri::command]
 fn update_check_silent(app: AppHandle) -> std::result::Result<UpdateAvailability, String> {
     (|| -> Result<UpdateAvailability> {
@@ -10063,6 +11210,11 @@ fn stop_runtime_detached(paths: &RuntimePaths, ports: Option<(u16, u16, u16)>) {
 fn spawn_exit_cleanup(app: &AppHandle) {
     if !claim_exit_cleanup() {
         return;
+    }
+    // 外部智能体服务:关 socket + 删端点文件(worker 250ms 内退出,不阻塞退出臂)
+    mcp_server::stop_on_exit(app);
+    if let Some(state) = app.try_state::<mcp_client::ClientState>() {
+        mcp_client::stop_on_exit(&state);
     }
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(mut shutdown) = state.web_shutdown.lock() {
@@ -10828,18 +11980,48 @@ fn main() {
         if args.len() == 3 && args[1] == "--horosa-preseed-health" {
             std::process::exit(run_preseed_health_cli(Path::new(&args[2])));
         }
+        // [批三④] stdio 代理:Claude Desktop 这类只会 stdio 的客户端用「同一份 App 二进制 + 端点文件」接本机 MCP
+        //(零 UI 即退;令牌只在端点文件里,不进任何客户端配置)。
+        if args.len() == 3 && args[1] == mcp_stdio::MCP_STDIO_FLAG {
+            std::process::exit(mcp_stdio::run_cli(Path::new(&args[2])));
+        }
     }
     configure_macos_native_window_restoration();
     register_panic_runtime_cleanup();
     sweep_stale_tmp_downloads();
     tauri::Builder::default()
         .manage(AppState::default())
+        .manage(mcp_server::McpState::default())
+        .manage(mcp_client::ClientState::default())
         // [E1 剪贴板] 主线程创建(照官方 clipboard-manager 插件形态);失败存 None,command 内惰性重建
         .manage(DesktopClipboardState(Mutex::new(
             arboard::Clipboard::new().ok(),
         )))
         .menu(build_menu)
         .invoke_handler(tauri::generate_handler![
+            bridge_diag_report_command,
+            set_agent_enabled_command,
+            mcp_server_status_command,
+            ai_master_key_command,
+            mcp_server_set_enabled_command,
+            mcp_server_set_limits_command,
+            mcp_server_rotate_token_command,
+            mcp_server_reveal_token_command,
+            agent_tool_result_command,
+            agent_bridge_ready_command,
+            agent_notify_command,
+            notify_hook_status_command,
+            notify_hook_set_command,
+            notify_hook_run_command,
+            mcp_client_list_command,
+            mcp_client_upsert_command,
+            mcp_client_remove_command,
+            mcp_client_connect_command,
+            mcp_client_call_command,
+            mcp_client_disconnect_command,
+            show_desktop_notification_command,
+            set_scheduler_enabled_command,
+            scheduler_status_command,
             load_preferences_payload,
             save_preferences_command,
             read_diagnostics_snapshot,
@@ -10858,6 +12040,7 @@ fn main() {
             save_ai_analysis_file_command,
             open_ai_analysis_backup_command,
             update_check_silent,
+            app_version_local_command,
             update_start_background,
             update_install_and_restart,
             copy_text_to_clipboard_command,
@@ -10869,16 +12052,43 @@ fn main() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
+            // [P6] 外部 MCP 服务器清单落私有目录(0600);启动即载入,失败不阻断(清单为空=零出站)
+            if let Ok(dir) = app.path().app_data_dir() {
+                if let Some(state) = app.try_state::<mcp_client::ClientState>() {
+                    state.bind_dir(&dir);
+                }
+            }
             // [V5-B1] 自动备份心跳:壳侧线程每 30 分钟 emit 一次(不依赖 WebView 定时器——
             // 窗口最小化/节能会漂移);首跳延后 5 分钟避开冷启高峰。前端 listen 组 zip 回送写盘;
             // 内容指纹未变则前端自行跳过,心跳本身零 IO。
+            // [FL-20260902-1] 此前用 app.emit 投递 auto-backup-tick 事件(哨兵纯文本陷阱:注释里不复写字面量):页面没有 window.__TAURI__(withGlobalTauri
+            // 缺省 false)且 capabilities 为空(event.listen 无授权)→ 从未有人接收,timer 触发路径一直是死的。
+            // 改走壳→页面既有 eval 回调范式(同 emit_service_event):页面就绪调 __horosaAutoBackupTick,
+            // 未就绪先进 __horosaPendingAutoBackupTicks,页面绑定时补跑。
             {
                 let backup_handle = app_handle.clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_secs(300));
+                    let mut seq: u64 = 0;
                     loop {
-                        let _ = backup_handle.emit("horosa://auto-backup-tick", ());
+                        seq += 1;
+                        dispatch_auto_backup_tick(&backup_handle, seq);
                         std::thread::sleep(std::time::Duration::from_secs(1800));
+                    }
+                });
+            }
+            // [P3] 定时任务哑心跳:壳侧线程每 60 秒投一次 tick(页面调度器决定跑什么);偏好 scheduler_enabled(缺省 false)
+            // 或 HOROSA_SCHEDULER=0 时零动作;首跳延后 90 秒避开冷启;每 30 跳记一次账本。
+            {
+                let sched_handle = app_handle.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(SCHEDULER_FIRST_DELAY_SECS));
+                    loop {
+                        if !scheduler_kill_switch() && load_preferences(&sched_handle).scheduler_enabled {
+                            let seq = SCHEDULER_TICKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                            dispatch_scheduler_tick(&sched_handle, seq);
+                        }
+                        std::thread::sleep(std::time::Duration::from_secs(SCHEDULER_INTERVAL_SECS));
                     }
                 });
             }
@@ -10890,6 +12100,15 @@ fn main() {
                 build_main_window(&app_handle, &main_state)?
             };
             apply_main_window_launch_state(&window, &main_state);
+            // 外部智能体连接:清扫陈旧端点文件;页面总开关与子开关皆开(且未被 HOROSA_MCP_SERVER=0 否决)才起监听
+            {
+                let prefs = load_preferences(&app_handle);
+                // [D74] 先施加用户设的每分钟调用上限(偏好镜像),再决定是否起监听:服务重建时从 inner 重施
+                if let Some(state) = app_handle.try_state::<mcp_server::McpState>() {
+                    let _ = mcp_server::apply_limits(&state, prefs.mcp_calls_per_minute);
+                }
+                mcp_server::setup_on_launch(&app_handle, prefs.agent_enabled, prefs.mcp_server_enabled);
+            }
             set_window_zoom(&app_handle, load_preferences(&app_handle).zoom_level)?;
             if handoff_to_newer_installed_app(&app_handle)? {
                 return Ok(());
@@ -11118,7 +12337,7 @@ fn main() {
                 let _ = set_window_zoom(app, DEFAULT_ZOOM);
             }
         })
-        .build(tauri::generate_context!())
+        .build(build_app_context())
         .expect("error while running 星阙 desktop shell")
         .run(|app, event| match event {
             RunEvent::WindowEvent { label, event, .. } => {
@@ -11169,6 +12388,94 @@ fn main() {
             }
             _ => {}
         });
+}
+
+// ── [FL-20260902-1] 壳→页面事件桥死开关自证(不起 UI:MockRuntime + 真实 generate_context!) ──
+// ① withGlobalTauri 缺省 false → 页面没有 window.__TAURI__(tauri-codegen 只在为 true 时注入全局 API 脚本);
+// ② capabilities 为空 → core:event:allow-listen 未授权 → 即便拿到 __TAURI_INTERNALS__,plugin:event|listen 也被 ACL 拒;
+// ③ 应用自身命令(generate_handler)不受此影响,仍可 invoke —— 三者一起解释了「emit 从未被接收」与「invoke 却正常」。
+#[cfg(test)]
+mod bridge_acl_tests {
+    use tauri::test::{get_ipc_response, mock_builder, INVOKE_KEY};
+    use tauri::webview::InvokeRequest;
+
+    fn request(cmd: &str, body: serde_json::Value) -> InvokeRequest {
+        InvokeRequest {
+            cmd: cmd.to_string(),
+            callback: tauri::ipc::CallbackFn(0),
+            error: tauri::ipc::CallbackFn(1),
+            url: "tauri://localhost".parse().unwrap(),
+            body: body.into(),
+            headers: Default::default(),
+            invoke_key: INVOKE_KEY.to_string(),
+        }
+    }
+
+    #[test]
+    fn packaged_context_has_no_global_tauri_and_event_listen_is_acl_denied() {
+        let context = super::build_app_context::<tauri::test::MockRuntime>();
+        assert!(
+            !context.config().app.with_global_tauri,
+            "withGlobalTauri 必须保持缺省 false:壳→页面通道走 eval 回调,不开全局 API 面"
+        );
+        // 不挂应用命令(它们按 Wry 运行时签名,MockRuntime 挂不上;本测只需核心插件命令的 ACL 判定)
+        let app = mock_builder().build(context).expect("mock app");
+        let webview =
+            tauri::WebviewWindowBuilder::new(&app, super::MAIN_WINDOW_LABEL, Default::default())
+                .build()
+                .expect("main webview");
+        let listen = get_ipc_response(
+            &webview,
+            request(
+                "plugin:event|listen",
+                serde_json::json!({ "event": "horosa://auto-backup-tick", "target": { "kind": "Any" }, "handler": 1 }),
+            ),
+        );
+        let err = listen.expect_err("plugin:event|listen 必须被 ACL 拒绝(无 capabilities)");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("not allowed"),
+            "拒绝理由应是 ACL not allowed, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn scheduler_tick_script_calls_handler_or_queues() {
+        let s = super::scheduler_tick_script("{\"seq\":7,\"at\":9}");
+        assert!(s.contains("window.__horosaSchedulerTick"));
+        assert!(s.contains("__horosaPendingSchedulerTicks"));
+        assert!(s.contains("{\"seq\":7,\"at\":9}"));
+        assert!(!s.contains("emit("), "不得依赖 event emit");
+        // pending 上限字面值 1 与页面侧 agentScheduler.test.js 的同构模拟一致;改上限两侧同改
+        assert!(s.contains("q.length>1"), "pending 上限字面值 1 漂移");
+        assert!(s.contains("q.splice(0,q.length-1)"), "超限须只留最新 1 条");
+    }
+
+    #[test]
+    fn scheduler_kill_switch_only_on_zero() {
+        std::env::remove_var("HOROSA_SCHEDULER");
+        assert!(!super::scheduler_kill_switch());
+        std::env::set_var("HOROSA_SCHEDULER", "1");
+        assert!(!super::scheduler_kill_switch());
+        std::env::set_var("HOROSA_SCHEDULER", " 0 ");
+        assert!(super::scheduler_kill_switch());
+        std::env::remove_var("HOROSA_SCHEDULER");
+    }
+
+    #[test]
+    fn auto_backup_tick_script_calls_handler_or_queues() {
+        let s = super::auto_backup_tick_script("{\"seq\":1,\"at\":2}");
+        assert!(s.contains("window.__horosaAutoBackupTick"));
+        assert!(s.contains("__horosaPendingAutoBackupTicks"));
+        assert!(s.contains("{\"seq\":1,\"at\":2}"));
+        assert!(!s.contains("emit("), "不得再依赖 event emit");
+        // pending 队列上限字面值 8 与页面侧 autoBackupBridge.test.js 的复算一致;改上限两侧同改
+        assert!(s.contains("q.length>8"), "pending 上限字面值 8 漂移");
+        assert!(
+            s.contains("q.splice(0,q.length-8)"),
+            "超限须裁掉最旧、留最新 8 条"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -12282,6 +13589,36 @@ mod tests {
     // 测试并行会互毒 → 共用一把测试锁串行化(поisoned 也继续,锁只为互斥不为状态)。
     static HELPER_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    #[test]
+    fn diagnostics_redacts_secrets() {
+        // 诊断包三段(日志/账本/更新历史)都经 redact_lines;密钥形状零明文
+        let lines = vec![
+            "2026-09-08 upstream auth sk-abcdefghijklmnopqrstuvwxyz1234 rejected".to_string(),
+            "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig".to_string(),
+            "{\"api_key\":\"AIzaSyD-exampleexample\",\"apikey\": \"secret-value-here\"}"
+                .to_string(),
+            "plain line without secrets sk-short".to_string(),
+        ];
+        let out = redact_lines(lines);
+        let joined = out.join("\n");
+        assert!(
+            !joined.contains("abcdefghijklmnopqrstuvwxyz1234"),
+            "{}",
+            joined
+        );
+        assert!(!joined.contains("eyJhbGciOiJIUzI1NiJ9"), "{}", joined);
+        assert!(!joined.contains("AIzaSyD-exampleexample"), "{}", joined);
+        assert!(!joined.contains("secret-value-here"), "{}", joined);
+        assert!(joined.contains("sk-***"));
+        assert!(joined.contains("Bearer ***"));
+        assert!(
+            joined.contains("sk-short"),
+            "短于 8 位的 sk- 不算密钥,保留:{}",
+            joined
+        );
+        assert_eq!(redact_secrets("nothing here"), "nothing here");
+    }
+
     // 新协议 helper 模板契约:定义不执行 / wait→app→runtime 时序 / 危险旧序零回潮
     #[test]
     fn update_helper_script_runtime_swap_after_wait_and_app() {
@@ -13109,6 +14446,52 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
+    // [B1b] 旧运行时字面目录里的 Java 日志兜底:命中即收进 java-logs-legacy/,无命中不建目录
+    #[test]
+    fn export_legacy_java_logs_collects_literal_dirs() {
+        let root = temp_test_dir("diag-legacy");
+        let runtime = root.join("runtime-a");
+        let lit_a = runtime
+            .join("Horosa-Web")
+            .join("${env:HOME:-${sys:user.home}}")
+            .join(".horosa-logs/astrostudyboot/2026/09/03/error");
+        let lit_b = runtime
+            .join("runtime/mac/bundle/boot-exploded")
+            .join("${env:HOME}")
+            .join(".horosa-logs/astrostudyboot/2026/09/03/access");
+        fs::create_dir_all(&lit_a).unwrap();
+        fs::create_dir_all(&lit_b).unwrap();
+        fs::write(lit_a.join("error.log"), b"legacy-error").unwrap();
+        fs::write(lit_b.join("access.log"), b"legacy-access").unwrap();
+        let staging = root.join("staging");
+        fs::create_dir_all(&staging).unwrap();
+        // 同一 runtime 根传两次 → 去重,不重复收
+        let out = export_legacy_java_logs(
+            &[runtime.clone(), runtime.clone()],
+            &staging,
+            10 * 1024 * 1024,
+        )
+        .expect("字面目录存在应命中");
+        assert_eq!(
+            out.file_name().and_then(|s| s.to_str()),
+            Some("java-logs-legacy")
+        );
+        assert!(out.join("1/2026/09/03/error/error.log").is_file());
+        assert!(out.join("2/2026/09/03/access/access.log").is_file());
+        assert!(!out.join("3").exists(), "同根重复传入不得重复收");
+        let index = fs::read_to_string(out.join("legacy-roots.txt")).unwrap();
+        assert!(index.contains("Horosa-Web"));
+        assert!(index.contains("boot-exploded"));
+        // 无字面目录 → None,且不建 java-logs-legacy/
+        let staging_empty = root.join("staging-empty");
+        fs::create_dir_all(&staging_empty).unwrap();
+        assert!(
+            export_legacy_java_logs(&[root.join("runtime-none")], &staging_empty, 1024).is_none()
+        );
+        assert!(!staging_empty.join("java-logs-legacy").exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
     // 磁盘水位闩:跌破触发一次/闩内不刷屏/回升 2× 解闩/卷异常不动作
     #[test]
     fn disk_low_step_latch_and_recovery() {
@@ -13343,6 +14726,8 @@ mod tests {
 
     #[test]
     fn clear_runtime_pending_marker_only_touches_shared_runtime_marker() {
+        // 进程级环境变量(HOROSA_SHARED_RUNTIME_DIR)被并行测试线程共享:与 helper 用例同锁串行,否则偶发互踩(cargo 全套实抓)
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let root = temp_test_dir("runtime-pending-clear");
         let shared_runtime = root.join("Users/Shared/Horosa/runtime/current");
         let shared_root = shared_runtime
@@ -13371,6 +14756,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn clear_runtime_pending_marker_ignores_permission_denied_for_shared_runtime_marker() {
+        // 进程级环境变量(HOROSA_SHARED_RUNTIME_DIR)被并行测试线程共享:与 helper 用例同锁串行,否则偶发互踩(cargo 全套实抓)
+        let _env = HELPER_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         use std::os::unix::fs::PermissionsExt;
 
         let root = temp_test_dir("runtime-pending-clear-permissions");
@@ -14390,5 +15777,143 @@ mod tests {
             handle.join().unwrap();
             let _ = fs::remove_dir_all(&dir);
         }
+    }
+}
+
+// [D86·2026-09-09] 壳侧零测试面补测:影子副本键白名单 / 自动备份文件名 / 偏好新字段缺省 / 主密钥取建(注入执行器)
+#[cfg(test)]
+mod shell_guard_tests {
+    use super::*;
+    use std::os::unix::process::ExitStatusExt;
+    use std::process::{ExitStatus, Output};
+
+    #[test]
+    fn shadow_keys_whitelist_only_four_record_stores() {
+        for k in SHADOW_ALLOWED_KEYS.iter() {
+            assert!(shadow_key_allowed(k));
+        }
+        for bad in [
+            "horosa.ai.agent.ledger.v1",
+            "",
+            "horosa.localCharts.v1.tmp",
+            "../x",
+            "horosa.localCharts.v1 ",
+        ] {
+            assert!(!shadow_key_allowed(bad), "{bad:?} 不该进影子副本");
+        }
+    }
+
+    #[test]
+    fn backup_file_name_validation_vectors() {
+        for ok in [
+            "horosa-backup-20260909-120000.zip",
+            "horosa-backup-x.zip",
+            "horosa-backup-a.b-c.zip",
+        ] {
+            assert!(is_backup_file_name(ok), "{ok}");
+        }
+        for bad in [
+            "backup.zip",
+            "horosa-backup-.tar",
+            "horosa-backup-../x.zip",
+            "horosa-backup-a b.zip",
+            "horosa-backup-中.zip",
+            "/tmp/horosa-backup-x.zip",
+            "horosa-backup-x.zip/",
+            "horosa-backup-x.ZIP",
+        ] {
+            assert!(!is_backup_file_name(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn preferences_default_calls_per_minute_and_roundtrip() {
+        // 旧偏好文件没有该键 ⇒ serde 缺省 60(不改旧用户行为)
+        let mut v: serde_json::Value = serde_json::to_value(AppPreferences::default()).unwrap();
+        v.as_object_mut().unwrap().remove("mcpCallsPerMinute");
+        let p: AppPreferences =
+            serde_json::from_value(v).expect("prefs without the new key deserialise");
+        assert_eq!(p.mcp_calls_per_minute, 60);
+        assert!(!p.scheduler_enabled && !p.mcp_server_enabled && !p.agent_enabled);
+        let mut q = AppPreferences::default();
+        q.mcp_calls_per_minute = 240;
+        q.scheduler_enabled = true;
+        let text = serde_json::to_string(&q).unwrap();
+        let back: AppPreferences = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.mcp_calls_per_minute, 240);
+        assert!(back.scheduler_enabled);
+    }
+
+    fn out(code: i32, stdout: &str) -> std::io::Result<Output> {
+        Ok(Output {
+            status: ExitStatus::from_raw(code << 8),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: Vec::new(),
+        })
+    }
+
+    #[test]
+    fn master_key_runner_hit_miss_and_add_failure() {
+        let calls = std::sync::Mutex::new(Vec::<String>::new());
+        let hit = |args: &[&str]| {
+            calls.lock().unwrap().push(args[0].to_string());
+            out(0, "EXISTING-KEY\n")
+        };
+        assert_eq!(
+            get_or_create_ai_master_key_with(&hit).unwrap(),
+            "EXISTING-KEY"
+        );
+        assert_eq!(calls.lock().unwrap().as_slice(), ["find-generic-password"]);
+        let calls2 = std::sync::Mutex::new(Vec::<String>::new());
+        let miss_then_add = |args: &[&str]| {
+            calls2.lock().unwrap().push(args[0].to_string());
+            if args[0] == "find-generic-password" {
+                out(44, "")
+            } else {
+                assert_eq!(args[7], "-U");
+                out(0, "")
+            }
+        };
+        let k = get_or_create_ai_master_key_with(&miss_then_add).unwrap();
+        assert_eq!(k.len(), 44);
+        assert!(BASE64_STANDARD
+            .decode(&k)
+            .map(|b| b.len() == 32)
+            .unwrap_or(false));
+        assert_eq!(
+            calls2.lock().unwrap().as_slice(),
+            ["find-generic-password", "add-generic-password"]
+        );
+        // [Q-059③] find 非 44 失败(钥匙串锁定 36 / 命中空串)绝不新建:不得调用 add-generic-password
+        for (code, stdout) in [(36, ""), (1, ""), (0, "")] {
+            let calls3 = std::sync::Mutex::new(Vec::<String>::new());
+            let locked = |args: &[&str]| {
+                calls3.lock().unwrap().push(args[0].to_string());
+                assert_eq!(args[0], "find-generic-password", "must not create a key");
+                out(code, stdout)
+            };
+            assert!(get_or_create_ai_master_key_with(&locked).is_err());
+            assert_eq!(calls3.lock().unwrap().as_slice(), ["find-generic-password"]);
+        }
+        let add_fail = |args: &[&str]| {
+            if args[0] == "find-generic-password" {
+                out(44, "")
+            } else {
+                out(1, "")
+            }
+        };
+        assert!(get_or_create_ai_master_key_with(&add_fail).is_err());
+        // 命中但只回空白(含换行):同属「命中空串」,一律 Err 且绝不调用 add-generic-password(旧钥不被覆盖)。
+        let calls4 = std::sync::Mutex::new(Vec::<String>::new());
+        let empty_hit = |args: &[&str]| {
+            calls4.lock().unwrap().push(args[0].to_string());
+            if args[0] == "find-generic-password" {
+                out(0, "\n")
+            } else {
+                out(0, "")
+            }
+        };
+        assert!(get_or_create_ai_master_key_with(&empty_hit).is_err());
+        assert_eq!(calls4.lock().unwrap().as_slice(), ["find-generic-password"]);
     }
 }

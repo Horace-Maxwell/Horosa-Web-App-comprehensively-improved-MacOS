@@ -8,6 +8,7 @@ import GuaSym from './GuaSym';
 import GuaChartDiv from './GuaChartDiv';
 import { XQSelect as Select } from '../xq-ui';
 
+import { getLayoutViewportHeight } from '../../utils/shellZoom';   // 版面尺寸一律读布局域(壳缩放下 documentElement.client* 恒为物理域)
 const { Option } = Select;
 
 export default class MeiyiGuaSym extends Component{
@@ -101,7 +102,7 @@ export default class MeiyiGuaSym extends Component{
     }
 
     render(){
-        let height = this.props.height ? this.props.height : document.documentElement.clientHeight - 50;
+        let height = this.props.height ? this.props.height : getLayoutViewportHeight() - 50;
 
         let gua8dom = this.genGua8Dom();
 
@@ -127,9 +128,11 @@ export default class MeiyiGuaSym extends Component{
             }, 100);
         }
 
+        const fill = !!this.props.fill;
+        const FILL_COL = { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 };
         return (
-            <div>
-                <Row gutter={8}>
+            <div style={fill ? FILL_COL : undefined}>
+                <Row gutter={8} style={fill ? { flex: 'none' } : undefined}>
                     <Col span={18}>
                         {gua8dom}
                     </Col>
@@ -137,8 +140,8 @@ export default class MeiyiGuaSym extends Component{
                         <GuaChartDiv value={val} height={30} width={40} />
                     </Col>
                 </Row>
-                <div>
-                    <GuaSym value={val} height={height} />
+                <div style={fill ? { flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' } : undefined}>
+                    <GuaSym value={val} height={height} fill={fill} />
                 </div>
             </div>
         )

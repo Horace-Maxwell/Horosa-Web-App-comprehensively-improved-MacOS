@@ -647,3 +647,29 @@ Windows 版完成的定义不是“能打开”，而是：
 
 ### 择日十技法
 - Mac 版择日页本版扩至十技法(新增黄历/八字/太乙/紫微/六壬/三式合一/七政/印度择时),前端实现全在 `src/divination/zeri/` 与 `src/components/zeri/`,七政/印度另有 Python 端点 `/qizhengelectionscan` `/indiaelectionscan`。Windows 侧如跟进,以本仓这批文件为准整体移植(判定与主盘同源零第二实现,带全套 jest/pytest 金标)。
+
+## v3.11.0 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- `Horosa_Desktop_Installer/{package.json, src-tauri/Cargo.toml, src-tauri/Cargo.lock, src-tauri/tauri.conf.json, web/app.js(APP_VERSION), config/release_config.json(runtimeVersion=3.11.0-runtime1), scripts/verify_launcher_console_states.py}`、`basecomm RuntimeWire.RUNTIME_VERSION`(改后重建 jar)、三主 README、`CITATION.cff`、`config/release_notes/3.11.0.md`、`UPGRADE_LOG.md`。
+
+### 共享 Java(自 v3.10.0)
+- `AIAnalysisController / AIAnalysisMaterialService / AIAnalysisProxyService / AIToolCallSupport / AIWebFetchService(新) / AIWebSearchService(新) / OutboundUrlGuard(新)`;`boundless AppLoggers`(日志落点根修);`boundless/pom.xml` log4j 2.14.1→2.17.2。单测:`astrostudy` 9 个测试类(含工具调用翻译/网页读取/联网检索/出站守卫/缓存断点)可直接移植。
+
+### 共享桌面壳逻辑
+- MCP 本机服务 v2(资源/提示/事件流/会话;2026-07-28 修订双纪元)、外部 MCP 客户端(HTTP/stdio,只读准入)、调度心跳(60s,缺省关)、桌面通知(限流去重)、令牌桶限流跟随页面设置。Mac 实现在 `src-tauri/src/{mcp_server,mcp_stdio,mcp_client,main}.rs`;Electron 端按同名命令表复刻(命令清单见 `docs/AI_AGENT_RUNTIME.md`)。
+
+### 共享 Python
+- `websrv/webchunzisrv.py`(蠢子数 auto 档以 sxtwl 真算农历月日)、`websrv/webtaiyisrv.py`(博弈分析缺依赖时降级回传)、`vendor/kintaiyi/src/kintaiyi/game_theory.py`(缺 scipy 走纯 numpy 两阶段单纯形 linprog)+ `astropy/tests/test_taiyi_game_theory_{degrade,lp_fallback}.py`。
+
+### 共享前端 · 缩放与版面(本版追加)
+- **适用前提**:壳缩放走根元素 CSS `zoom`。Chromium 系内核与新版系统 WebView 同为「rect 反映缩放」语义,下列缺陷在两端同样存在(浮层错位只在「以非 100% 档启动 → 应用内调回 100%」时出现);壳若改用原生页面缩放,换域件全部按实测比值退化为恒等,可原样搬。
+- **构建期**:`astrostudyui/scripts/patch-dom-align-zoom.js` 升 v3(`build` / `build:file` 前自动执行,给 `node_modules/dom-align` 两份产物打补丁);打包前确认产物含 `horosa:dom-align-zoom v3`。
+- **新文件**:`components/comp/DragModal.js`(取代第三方可拖动对话框)+ `components/comp/__tests__/dragModalZoom.test.js`、`utils/__tests__/zoomDomainPointerHelpers.test.js`、`Horosa_Desktop_Installer/scripts/{audit_popup_geometry.py,popup_geometry.tpl.js}`(浮层几何行为闸,headless,两种缩放语义)。
+- **改动**:`utils/zoomDomain.js`(运行期缩放真值只读根元素内联 zoom;`fixedPopupFrame` / `pointerToLocal` / `pointerLocalRatio`;视口系数直接量;SVG `getScreenCTM` 与 `MouseEvent.offsetX/Y` 一致性垫片,一致内核自动不生效,回退键 `horosa.compat.svgCtmZoom` / `horosa.compat.offsetXYZoom`)、`utils/shellZoom.js`(`resolveBootstrapZoom`)、`global.js`、`components/xq-ui/styles.less`(折叠节行 `minmax(0, 1fr)`)、`components/sanshi/SanShiUnitedMain.less`(内层盒不自滚)、手写浮层 / 自绘画布 19 处(玄史 / 七政 / 印占大运浮动面板 / 天文馆 / 择日三浮窗 / 占星地图 / 图形星历 / 3D 盘 / 风水画布)、「窗口高 − 固定数」估高的叶子第二批(紫微资料参考 / 占星地图 / 统摄法 / 塔罗 / 八字 / 择日黄历 / 卜卦盘定盘)。
+- **样式(`layouts/app.less`,各端自有副本,按条对齐)**:三式底栏行高 ≡ 栏高 + 三栏栅格显式行 `minmax(0, 1fr)`;辅助页 Tabs 内容链定高 + 子页纵滚;塔罗页根纵向 flex;宫格 `minmax(min-content, 1fr)` + 宿主滚;存储键注册表登记两个回退键(设备本地、不进备份)。
+- **验证**:同名 jest 守卫(`zoomDomainPointerHelpers` / `popupAlignStaticGuard` / `popupAlignZoomGuard` / `dragModalZoom` / `layoutDomainStaticGuard`)+ `python3 Horosa_Desktop_Installer/scripts/audit_popup_geometry.py --quick`。零 Java / Python / 壳改动,不必重编 jar。
+
+### 共享前端
+- AI 助手全套:`src/utils/aiAgent/**`、`src/utils/aiChat/**`、`src/utils/aiTools/**`、`src/components/aianalysis/**`(含「进阶」页签);挂载链 `src/utils/{aiAnalysisContext,techniqueMountSettings,aiExport}.js`;择日宿主 `src/components/zeri/**`;时间录入 `src/utils/quickDateTimeDigits.js` + `src/components/common/QuickTimeField*`;五兆/推运/印占/七政演禽/蠢子数各页与工具函数。对应测试全部在 `src/utils/__tests__/` 与各组件 `__tests__/`。
+- 存储:IndexedDB 升版(新增任务/通知/自动化规则/集成档案四店)与新增 localStorage 键全部登记在 `storageKeyRegistry.js` / `techniqueOnboardingContract.js`,Windows 端注册表须同步。

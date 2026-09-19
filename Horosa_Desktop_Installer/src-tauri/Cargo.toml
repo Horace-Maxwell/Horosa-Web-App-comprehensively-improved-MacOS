@@ -1,6 +1,6 @@
 [package]
 name = "horosa-desktop-installer"
-version = "3.10.0"
+version = "3.11.0"
 description = "Horosa macOS desktop shell"
 authors = ["Horosa"]
 edition = "2021"
@@ -37,6 +37,10 @@ panic = "abort"
 codegen-units = 1
 lto = true
 strip = true
+
+# 测试专用:tauri::test(MockRuntime + IPC 断言)——用真实 generate_context! 自证 ACL/withGlobalTauri,不起 UI
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
 
 [features]
 # 本地假 release 全链路验证(verify_update_experience_local.sh):

@@ -202,6 +202,7 @@ elif [ -n "${HOROSA_PROBE_SCRIPT:-}" ] && [ -f "${HOROSA_PROBE_SCRIPT}" ]; then
   log "OK：Python 面全路由冒烟通过。"
   # keg-only 的 node 不在默认 PATH 里,而打包是从干净环境的子进程调起本脚本 ——
   # 于是这里 command -v node 必然失败,整轮打包卡在「构建机缺 node」(2026-08-01 实测)。
+  # 与 release_preflight 同款补 PATH:缺 node 就去常见安装位翻一遍。
   if ! command -v node >/dev/null 2>&1; then
     for _nd in /opt/homebrew/opt/node@22/bin /opt/homebrew/opt/node@20/bin /opt/homebrew/opt/node@18/bin /opt/homebrew/bin /usr/local/opt/node@22/bin /usr/local/opt/node@18/bin /usr/local/bin; do
       [ -x "${_nd}/node" ] && { PATH="${_nd}:${PATH}"; export PATH; break; }
@@ -233,4 +234,13 @@ else
 fi
 
 log "全部通过：这份运行时可以在本机架构上真正启动并服务。"
+# ── 日志落点活体门:动态 logger 曾把活文件写进「相对 CWD 的字面目录」。
+# 修好的判据只有一条:后端起来并被打过请求后,运行时 CWD 下不得出现 ${env:* 目录;今天的 error/ 目录须在 $HOME 下。
+if find "${WEB_ROOT}" -maxdepth 1 -name '${env:*' 2>/dev/null | grep -q .; then
+  fail "Java 在运行时 CWD 生成了字面日志目录(log4j basedir 未解析)——见 boundless AppLoggers.resolvedBaseDir"
+fi
+if [ ! -d "${HOME}/.horosa-logs/astrostudyboot/$(date +%Y/%m/%d)/error" ]; then
+  fail "今天的 Java error 日志目录不在 \$HOME/.horosa-logs/astrostudyboot 下(动态 logger 落点错)"
+fi
+
 exit 0

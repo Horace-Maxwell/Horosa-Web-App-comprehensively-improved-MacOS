@@ -116,14 +116,25 @@ export function getStoredUranianDisplay(){
 	}
 }
 
+// [Q-355/T-336] 写显示偏好后派一个事件:偏好里有几项(六宫框)是**父组件**在自己的 render 里读的,
+// 子组件 setState 不会让父组件重渲 —— 开了六宫框页签不出现、关了页签还在(点进去回退行星中点),
+// 要等其它操作顺带触发父组件重渲才对得上。订阅方见 URANIAN_DISPLAY_EVENT。
+export const URANIAN_DISPLAY_EVENT = 'horosa:uranian-display-changed';
+
 export function saveUranianDisplay(next){
+	let merged;
 	try {
-		const merged = { ...getStoredUranianDisplay(), ...(next || {}) };
+		merged = { ...getStoredUranianDisplay(), ...(next || {}) };
 		if (typeof localStorage !== 'undefined') safeLocalStorageSet(KEY, JSON.stringify(merged));
-		return merged;
 	} catch (e) {
-		return { ...getStoredUranianDisplay(), ...(next || {}) };
+		merged = { ...getStoredUranianDisplay(), ...(next || {}) };
 	}
+	try {
+		if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+			window.dispatchEvent(new CustomEvent(URANIAN_DISPLAY_EVENT, { detail: merged }));
+		}
+	} catch (e) { /* 事件派发失败不影响写入 */ }
+	return merged;
 }
 
 export const URANIAN_DIAL_BASES = VALID_BASES;

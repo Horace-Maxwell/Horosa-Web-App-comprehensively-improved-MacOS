@@ -1,12 +1,18 @@
 package boundless.log;
 
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -154,94 +160,155 @@ public class AppLoggers {
 		if(now == today){
 			return;
 		}
-		changeLogFile();
+		// 先推进日期再换文件:换文件抛错也不能让之后每分钟无限重试(每次重试都会再建一批 appender)
 		today = now;
+		try{
+			changeLogFile();
+		}catch(Exception e){
+			QueueLog.error(ErrorLogger, e, "changeLogFile failed");
+		}
 	}
 	
-	public static String getBaseDir(){
-		AbstractConfiguration conf = (AbstractConfiguration)config;
-		String basedir = conf.getStrSubstitutor().getVariableResolver().lookup("basedir");
-		basedir = StringUtility.isNullOrEmpty(basedir) ? "/" : basedir;
-		if(!basedir.endsWith("/")){
-			basedir = basedir + "/";
-		}
+	/** 变量解析失败时的兜底目录尾巴,与 log4j2.xml 里 basedir 的缺省口径一致。 */
+	private static final String FALLBACK_BASEDIR_TAIL = "/.horosa-logs/astrostudyboot";
 
-		return basedir;
+	/** 「日志根/」之后紧跟的日期目录段 yyyy/MM/dd/。 */
+	private static final Pattern DATE_DIR_HEAD = Pattern.compile("^\\d{4}/\\d{2}/\\d{2}/");
+
+	/**
+	 * 解析后的日志根目录(恒以 / 结尾)。
+	 * 直接 lookup("basedir") 拿到的是 Properties 里的原始串(log4j 2.17.1 起属性值存原文,
+	 * 形如 ${env:HOME:-${sys:user.home}}/...,不递归替换),拿它拼路径会在进程 CWD 下造出同名字面目录;
+	 * 必须经 StrSubstitutor 递归替换,替换失败或仍含 ${ 时退回 user.home 下的缺省目录。
+	 */
+	static String resolvedBaseDir(){
+		String b = null;
+		try{
+			b = config.getStrSubstitutor().replace("${basedir}");
+		}catch(Exception e){
+			b = null;
+		}
+		if(StringUtility.isNullOrEmpty(b) || b.indexOf("${") >= 0){
+			b = System.getProperty("user.home") + FALLBACK_BASEDIR_TAIL;
+		}
+		return b.endsWith("/") ? b : b + "/";
+	}
+
+	/**
+	 * 取「日志根/yyyy/MM/dd/」之后的相对尾巴(如 error/error.log、all/other_%d{yyyyMMdd_HH}_%i.log);
+	 * 路径不在日志根下或日期段形状不符则返回 null,调用方跳过——绝不再按固定长度硬切。
+	 */
+	static String tailUnderDateDir(String path, String basedir){
+		if(StringUtility.isNullOrEmpty(path) || StringUtility.isNullOrEmpty(basedir)){
+			return null;
+		}
+		String base = basedir.endsWith("/") ? basedir : basedir + "/";
+		if(!path.startsWith(base)){
+			return null;
+		}
+		String rest = path.substring(base.length());
+		Matcher m = DATE_DIR_HEAD.matcher(rest);
+		if(!m.find()){
+			return null;
+		}
+		String tail = rest.substring(m.end());
+		return tail.length() == 0 ? null : tail;
+	}
+
+	public static String getBaseDir(){
+		return resolvedBaseDir();
+	}
+
+	private static boolean attachedToAnyLogger(Map<String, LoggerConfig> logconfigs, String key){
+		for(LoggerConfig logconf : logconfigs.values()){
+			if(logconf.getAppenders().get(key) instanceof RollingFileAppender){
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	synchronized public static void changeLogFile(){
 		AbstractConfiguration conf = (AbstractConfiguration)config;
-		String basedir = config.getStrSubstitutor().getVariableResolver().lookup("basedir");
-		basedir = StringUtility.isNullOrEmpty(basedir) ? "/" : basedir;
-		if(!basedir.endsWith("/")){
-			basedir = basedir + "/";
-		}
+		String basedir = resolvedBaseDir();
 
 		Map<String, LoggerConfig> logconfigs = conf.getLoggers();
 		
 		Map<String, Appender> appenders = conf.getAppenders();
-		Map<String, Appender> tmpappenders = new HashMap<String, Appender>();
+		Map<String, RollingFileAppender> tmpappenders = new HashMap<String, RollingFileAppender>();
 		
+		Date now = new Date();
+		StringBuilder commdir = new StringBuilder(basedir);
+		commdir.append(FormatUtility.formatDateTime(now, "yyyy/MM/dd")).append("/");
+
 		for(Map.Entry<String, Appender> entry : appenders.entrySet()){
 			String key = entry.getKey();
 			Appender app = entry.getValue();
 
-			if(app instanceof RollingFileAppender){
-				RollingFileAppender rollapp = (RollingFileAppender)app;
-				String fn = rollapp.getFileName().substring(basedir.length() + 11);
-				String pattern = rollapp.getFilePattern().substring(basedir.length() + 11);
-				
-				Date now = new Date();
-				StringBuilder commdir = new StringBuilder(basedir);
-				commdir.append(FormatUtility.formatDateTime(now, "yyyy/MM/dd")).append("/");
-				
+			if(!(app instanceof RollingFileAppender)){
+				continue;
+			}
+			// 没挂到任何 logger 上的 appender 不换(建了也没人写,只会白开一个文件句柄)
+			if(!attachedToAnyLogger(logconfigs, key)){
+				continue;
+			}
+			RollingFileAppender rollapp = (RollingFileAppender)app;
+			String fn = tailUnderDateDir(rollapp.getFileName(), basedir);
+			String pattern = tailUnderDateDir(rollapp.getFilePattern(), basedir);
+			if(fn == null || pattern == null){
+				continue;
+			}
+			try{
 				RollingFileAppender appender = RollingFileAppender.newBuilder()
 						.withFileName(commdir.toString() + fn).withFilePattern(commdir.toString() + pattern)
 						.withPolicy(rollapp.getTriggeringPolicy()).withBufferedIo(false).withImmediateFlush(true)
 						.setLayout(rollapp.getLayout()).setName(key).setConfiguration(config)
 						.build();
+				if(appender == null){
+					QueueLog.error(ErrorLogger, "changeLogFile rebuild appender returned null: " + key);
+					continue;
+				}
 				appender.addFilter(rollapp.getFilter());
 				tmpappenders.put(key, appender);
+			}catch(Exception e){
+				QueueLog.error(ErrorLogger, e, "changeLogFile rebuild appender failed: " + key);
 			}
 		}
 		
-		Map<String, Appender> oldapps = new HashMap<String, Appender>();
-		for(Map.Entry<String, LoggerConfig> entry : logconfigs.entrySet()){
-			LoggerConfig logconf = entry.getValue();
-			for(Map.Entry<String, Appender> appentry : logconf.getAppenders().entrySet()){
-				String appkey = appentry.getKey();
-				Appender app = appentry.getValue();
-				if(!(app instanceof RollingFileAppender)){
-					continue;
+		// 逐个换成新一天的实例:先把旧实例从所有 logger 与配置注册表摘下并停掉(注册表里那份通常
+		// 就是挂着的那份,按实例去重、每个旧实例只 stop 一次——重复 stop 会把共享文件管理器的引用计数
+		// 减到 0,误关刚起的新实例),再挂新实例并登记回注册表,让 getAppenders() 与 logger 上挂的一致。
+		Set<Appender> stopped = Collections.newSetFromMap(new IdentityHashMap<Appender, Boolean>());
+		for(Map.Entry<String, RollingFileAppender> entry : tmpappenders.entrySet()){
+			String key = entry.getKey();
+			RollingFileAppender newapp = entry.getValue();
+			List<LoggerConfig> owners = new ArrayList<LoggerConfig>();
+			List<Appender> olds = new ArrayList<Appender>();
+			for(LoggerConfig logconf : logconfigs.values()){
+				Appender attached = logconf.getAppenders().get(key);
+				if(attached instanceof RollingFileAppender){
+					owners.add(logconf);
+					olds.add(attached);
 				}
-				oldapps.put(appkey, app);
 			}
-		}
-		
-		Set<String> newappset = new HashSet<String>();
-		for(Map.Entry<String, LoggerConfig> entry : logconfigs.entrySet()){
-			LoggerConfig logconf = entry.getValue();
-			for(Map.Entry<String, Appender> appentry : logconf.getAppenders().entrySet()){
-				String appkey = appentry.getKey();
-				Appender logapp = appentry.getValue();
-				if(!(logapp instanceof RollingFileAppender)){
-					continue;
+			try{
+				Appender registered = conf.getAppender(key);
+				conf.removeAppender(key);
+				if(registered != null){
+					stopped.add(registered);
 				}
-				if(newappset.contains(appkey)){
-					logconf.removeAppender(appkey);
-					logconf.addAppender(tmpappenders.get(appkey), logconf.getLevel(), logconf.getFilter());
-					continue;
+				for(Appender old : olds){
+					if(stopped.add(old)){
+						old.stop();
+					}
 				}
-				
-				Appender app = oldapps.get(appkey);
-				app.stop();
-				logconf.removeAppender(appkey);
-
-				Appender newapp = tmpappenders.get(appkey);
 				newapp.start();
-				
-				logconf.addAppender(newapp, logconf.getLevel(), logconf.getFilter());
-				newappset.add(appkey);
+				for(LoggerConfig owner : owners){
+					owner.addAppender(newapp, owner.getLevel(), owner.getFilter());
+				}
+				config.addAppender(newapp);
+			}catch(Exception e){
+				QueueLog.error(ErrorLogger, e, "changeLogFile swap appender failed: " + key);
 			}
 		}
 		
@@ -251,11 +318,7 @@ public class AppLoggers {
 	
 	private static Tuple<Logger, org.apache.logging.log4j.core.Logger> createLog(String logdir, String name, Level level){
 		AbstractConfiguration conf = (AbstractConfiguration)config;
-		String basedir = config.getStrSubstitutor().getVariableResolver().lookup("basedir");
-		basedir = StringUtility.isNullOrEmpty(basedir) ? "/" : basedir;
-		if(!basedir.endsWith("/")){
-			basedir = basedir + "/";
-		}
+		String basedir = resolvedBaseDir();
 		
 		if(logdir.startsWith("/")){
 			logdir = logdir.substring(1);

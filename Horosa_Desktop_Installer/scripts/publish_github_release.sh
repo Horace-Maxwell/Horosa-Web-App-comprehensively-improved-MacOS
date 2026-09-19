@@ -46,7 +46,7 @@ EOF
 # [SEC-N] 发布终闸:release note 残留内部段标记 = 上游剔除流程没跑(手拷/绕过同步)——拒发。
 NOTE_FILE_SECN="${INSTALLER_ROOT}/config/release_notes/${VERSION}.md"
 if [ -f "${NOTE_FILE_SECN}" ] && grep -aq "horosa-priv""ate-only" "${NOTE_FILE_SECN}"; then
-  echo "❌ [SEC-N] release note 含私有段标记(段剔除器未生效),拒发。" >&2
+  echo "❌ [SEC-N] release note 含段标记(段剔除器未生效),拒发。" >&2
   exit 1
 fi
 

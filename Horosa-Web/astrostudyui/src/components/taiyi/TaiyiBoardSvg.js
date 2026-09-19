@@ -4,7 +4,7 @@
 // props: { pan, showBoardMark, selectedPalace, onSelectPalace(idx|null), boardHostRef?, gejuList? }
 import React from 'react';
 import { computeGeju } from './core/taiyiGeju';
-import { TAIYI_GONG_INFO } from './core/taiyiDuanfa';
+import { TAIYI_GONG_INFO, shenMeaning } from './core/taiyiDuanfa';
 
 const LAYER2_NUMS = ['二', '七', '六', '一', '八', '三', '四', '九'];
 const LAYER3_BRANCH_GUA = ['午', '未', '坤', '申', '酉', '戌', '乾', '亥', '子', '丑', '艮', '寅', '卯', '辰', '巽', '巳'];

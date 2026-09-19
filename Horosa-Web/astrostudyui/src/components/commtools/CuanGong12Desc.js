@@ -5,6 +5,7 @@ import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import styles from '../../css/styles.less';
 
+import { getLayoutViewportHeight } from '../../utils/shellZoom';   // 版面尺寸一律读布局域(壳缩放下 documentElement.client* 恒为物理域)
 export default class CuanGong12Desc extends Component{
 	constructor(props) {
 		super(props);
@@ -116,8 +117,15 @@ export default class CuanGong12Desc extends Component{
     }
 
     render(){
-		let height = this.props.height ? this.props.height : document.documentElement.clientHeight;
-		let style = {
+		// fill = 充满父容器(父级定高链);不传则保留原 px 路径(其它宿主零回归)。病理见 gua/GuaSym.js 同名注。
+		let height = this.props.height ? this.props.height : getLayoutViewportHeight();
+		let style = this.props.fill ? {
+			height: '100%',
+			minHeight: 0,
+			boxSizing: 'border-box',
+			overflowY:'auto',
+			overflowX:'hidden',
+		} : {
 			height: (height-200) + 'px',
 			overflowY:'auto', 
 			overflowX:'hidden',

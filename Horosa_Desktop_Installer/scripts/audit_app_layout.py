@@ -234,11 +234,29 @@ def serve():
 ENGINES = [("E3", E3_SHIM_JS), ("E2", E2_SHIM_JS)]
 
 
+def backend_up():
+    """本机 Java(:9999)+ Python(:8899)是否在监听。判据自证必须在「主应用能出内容」的前提下做:
+    后端不在时主内容区塌成空态,人为压缩 30% 与原本就空 **测不出差别** → 报成「判据无判别力」,
+    实际是环境不满足(2026-09-04 实抓:停后端后 FILL/WIDTH-FILL 自证必假红,起回即全绿)。"""
+    import socket
+    for port in (9999, 8899):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sk:
+            sk.settimeout(1.0)
+            if sk.connect_ex(("127.0.0.1", port)) != 0:
+                return port
+    return None
+
+
 def main():
     self_test = "--self-test" in sys.argv
     quick = "--quick" in sys.argv
     if not (DIST / "index.html").exists():
         print(f"❌ 找不到前端产物 {DIST}/index.html —— 先 npm run build:file")
+        return 2
+    missing = backend_up()
+    if missing is not None:
+        print(f"❌ 本机后端 :{missing} 未监听 —— 主应用无内容可渲染,版面判据与自证都不成立。")
+        print("   先起后端:cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh")
         return 2
     try:
         from playwright.sync_api import sync_playwright

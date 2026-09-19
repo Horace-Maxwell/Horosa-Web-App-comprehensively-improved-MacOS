@@ -29,7 +29,7 @@ _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 def load_manifest(path):
     with open(path, encoding="utf-8") as fh:
         raw = fh.read()
-    # JSONC-lite:去掉整行 // 注释与 /* … */ 单行标记行(私有剥离标记形态)
+    # JSONC-lite:去掉整行 // 注释与 /* … */ 单行标记行(标记行形态)
     lines = []
     for line in raw.splitlines():
         stripped = line.strip()
@@ -39,7 +39,7 @@ def load_manifest(path):
             continue
         lines.append(line)
     text = "\n".join(lines)
-    # 容忍剥离标记留下的悬挂逗号(私有条目被剥后可能出现 ",]" / ",}")
+    # 容忍剥离标记留下的悬挂逗号(条目被剥后可能出现 ",]" / ",}")
     text = re.sub(r",\s*([\]}])", r"\1", text)
     return json.loads(text)
 

@@ -14,6 +14,7 @@ import CuanGong12 from './CuanGong12';
 import BaziPithy from './BaziPithy';
 import TechniqueErrorBoundary from '../common/TechniqueErrorBoundary';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeStorage';
+import { getLayoutViewportHeight } from '../../utils/shellZoom';
 
 const TabPane = Tabs.TabPane;
 
@@ -37,9 +38,27 @@ class CommToolsMain extends Component{
 
 		this.state = {
 			tab: tab,
+			layoutH: 0,
 		};
 
 		this.changeTab = this.changeTab.bind(this);
+		this.handleResize = this.handleResize.bind(this);
+	}
+
+	// 抽屉高按**布局域**视口量(壳缩放下 documentElement.clientHeight 恒为物理高,当布局高用 = 缩小档抽屉内容矮一截、
+	// 放大档超出抽屉被裁);窗口尺寸 / 壳换档(会派发 resize)后重量。z=1 时两者相等,零变化。
+	componentDidMount(){
+		if(typeof window !== 'undefined'){ window.addEventListener('resize', this.handleResize); }
+		this.handleResize();
+	}
+
+	componentWillUnmount(){
+		if(typeof window !== 'undefined'){ window.removeEventListener('resize', this.handleResize); }
+	}
+
+	handleResize(){
+		const h = getLayoutViewportHeight();
+		if(h > 0 && Math.abs(h - (this.state.layoutH || 0)) >= 2){ this.setState({ layoutH: h }); }
 	}
 
 	changeTab(key){
@@ -50,7 +69,9 @@ class CommToolsMain extends Component{
 	}
 
 	render(){
-		let height = document.documentElement.clientHeight;
+		let height = this.state.layoutH > 0 ? this.state.layoutH : getLayoutViewportHeight();
+		// 三个带自滚叶子的面板沿用各自的「窗口高 − 常数」算术,但喂给它们的是布局域窗口高(不再各自去读物理域 clientHeight)。
+		const leafH = height;
 		height = height - 80;
 
 		let fields = this.props.fields;
@@ -103,15 +124,15 @@ class CommToolsMain extends Component{
 					</TabPane>
 
 					<TabPane tab="八卦类象" key="guasym">
-						{wrap('八卦类象', <GuaSymDesc />)}
+						{wrap('八卦类象', <GuaSymDesc height={leafH} />)}
 					</TabPane>
 
 					<TabPane tab="十二串宫" key="cuangong12">
-						{wrap('十二串宫', <CuanGong12 />)}
+						{wrap('十二串宫', <CuanGong12 height={leafH} />)}
 					</TabPane>
 
 					<TabPane tab="八字规则" key="pithy">
-						{wrap('八字规则', <BaziPithy />)}
+						{wrap('八字规则', <BaziPithy height={leafH} />)}
 					</TabPane>
 
 				</Tabs>

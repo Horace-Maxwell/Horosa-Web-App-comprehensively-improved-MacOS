@@ -247,6 +247,7 @@ class AstroRelocationLab extends Component{
 						<AstroAnalysisLab
 							value={chartObj}
 							height={tabHeight}
+							voidClassical={this.props.voidClassical}   /* [Q-149/T-56] 宿主链补传(格局页空亡古典义 / 仅本垣擢升互容) */
 						/>
 					</TabPane>
 				</XQTabs>

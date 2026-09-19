@@ -597,6 +597,33 @@ _pycn = normalize_file_mtimes(stage)
 print(f'[components] 文件 mtime 归一 {_pycn} 个(.py 除外;可复现打包前置)' if _pycn >= 0
       else '[components] 文件 mtime 归一已关闭(HOROSA_REPRO_PYC_MTIME=0)', flush=True)
 
+# 第三个与内容无关的漂移源:**macOS 扩展属性**。bsdtar 把 xattr 写进 pax 扩展头
+# (LIBARCHIVE.xattr.* / SCHILY.xattr.*),而 --disable-copyfile / COPYFILE_DISABLE 只管 AppleDouble
+# `._` 文件,拦不住它。实锤(v3.11.0 重打):py-runtime 逐文件内容、成员顺序、mtime、模式
+# 与线上 v3.10.0 **全部相同**,tar 却多 791 字节、sha 漂 → 暂存树 6 处目录/文件被系统悄悄加了
+# `com.apple.macl`(TCC 文件访问标记;**不改 mtime**,find -newer/mtime 判据全盲)。
+# 处置:打包前从 staging 树剥掉这类「随使用而来」的 xattr。只剥黑名单、不动 com.apple.provenance
+# (线上历史包已带 provenance 头,剥它会让四个稳定部件本版全部 sha 变、用户白下 278 MB)。
+INCIDENTAL_XATTRS = ('com.apple.macl', 'com.apple.quarantine', 'com.apple.lastuseddate#PS',
+                     'com.apple.FinderInfo', 'com.apple.metadata:_kMDItemUserTags')
+
+def strip_incidental_xattrs(root: pathlib.Path):
+    stripped = 0
+    for name in INCIDENTAL_XATTRS:
+        try:
+            before = subprocess.run(['/usr/bin/xattr', '-lr', str(root)], capture_output=True, text=True).stdout
+            hits = [ln for ln in before.splitlines() if f': {name}:' in ln or ln.endswith(f': {name}')]
+            if not hits:
+                continue
+            subprocess.run(['/usr/bin/xattr', '-r', '-d', name, str(root)], capture_output=True, text=True)
+            stripped += len(hits)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return stripped
+
+_xn = strip_incidental_xattrs(stage)
+print(f'[components] 剥离随使用而来的 xattr {_xn} 处(com.apple.macl 等;可复现打包前置)', flush=True)
+
 for name, paths, excludes in tree_components:
     out = tar_tree(name, paths, excludes)
     entry = {'name': name, 'type': 'tree', 'paths': paths,

@@ -7,6 +7,7 @@ import * as AstroText from '../../constants/AstroText';
 import { unwrapResult, fmtNum, chartParams, chartRequestKey, cardStyle, parkLoadFailure, clearLoadFailure, loadParked } from './AstroExtraCommon';
 import { buildStarAndLotPositionLines, buildHouseCuspLines, buildPredictiveBirthLines, buildCurrentMomentLines, buildMethodNoteLines, } from '../../utils/astroAiSnapshot';
 import ProgMethodPanel, { MINOR_VARIANT_OPTIONS } from './AstroProgChart';
+import { DIRECTION_PAGE_SETTINGS } from '../../utils/directionPageSettings';
 
 const TabPane = Tabs.TabPane;
 const { Option } = Select;
@@ -27,13 +28,13 @@ function methodTab(method){
 }
 
 // 赤纬推运 AI 快照（无头）：内部 fetch /astroextra/jaynesprog。无数据返回 ''。
-// opts（AI 挂载「每技法设置」）：targetDate + targetTime（目标时刻）+ minorVariant（小推运月长，缺省 engine=现状）。
+// opts（AI 挂载「每技法设置」）：targetDate + targetTime（目标时刻）+ minorVariant（小推运月长，缺省 synodic=标准朔望月 [Q-180]）。
 export async function buildJaynesProgSnapshotText(chartObj, opts){
 	if(!chartObj){ return ''; }
 	const o = opts && typeof opts === 'object' ? opts : {};
 	const targetDate = `${o.targetDate || ''}`.trim() || today();
 	const targetTime = `${o.targetTime || ''}`.trim() || '12:00:00';
-	const minorVariant = `${o.minorVariant || ''}`.trim() || 'engine';
+	const minorVariant = `${o.minorVariant || ''}`.trim() || 'synodic';
 	let result = null;
 	try{
 		const data = await request(`${Constants.ServerRoot}/astroextra/jaynesprog`, {
@@ -48,7 +49,8 @@ export async function buildJaynesProgSnapshotText(chartObj, opts){
 	const sym = (id) => (AstroText.AstroTxtMsg[id] || `${id}`);
 	const lines = [];
 	lines.push('[赤纬推运（Declination）]');
-	lines.push('赤纬推运：推运后看赤纬平行/反平行（下表为二次推运，截至今日）。');
+	// [Q-176/T-116b] 同上:表推到的是所选目标日期,不是「今日」。
+	lines.push('赤纬推运：推运后看赤纬平行/反平行（下表为二次推运，推至所选目标日期）。');
 	// 目标日期与推运时刻的映射必须写明(推运法本义:目标日期折算成推运时刻;只写派生时刻会被误读为没吃目标日期)。
 	lines.push(`目标日期：${targetDate} ${targetTime}（各法推运时刻=按该法折算，见各小节）`);
 	const natalStars = buildStarAndLotPositionLines(chartObj);
@@ -89,6 +91,8 @@ export async function buildJaynesProgSnapshotText(chartObj, opts){
 			lines.push('');
 			lines.push(`◆ ${label} 推运赤纬`);
 			if(when){ lines.push(`推运时刻：${when}`); }
+			// [Q-180] 小推运写明所用月长档(此前三法全出却不写档,AI 无从分辨「引擎历史值≈无推进」与标准朔望月)。
+			if(m.method === 'minor'){ lines.push(`月长算法：${(MINOR_VARIANT_OPTIONS.find((x)=>x.value === minorVariant) || {}).label || minorVariant}`); }
 			lines.push('| 点 | 赤纬 |');
 			lines.push('| --- | --- |');
 			m.declinations.forEach((d) => { lines.push(`| ${sym(d.id)} | ${fmtNum(d.decl, 2)}° |`); });
@@ -117,7 +121,7 @@ export async function buildJaynesProgSnapshotText(chartObj, opts){
 class AstroJaynesProgressions extends Component{
 	constructor(props){
 		super(props);
-		this.state = { targetDate: today(), targetTime: '12:00:00', minorVariant: 'engine', loading: false, result: null, requestKey: '' };
+		this.state = { targetDate: today(), targetTime: '12:00:00', minorVariant: DIRECTION_PAGE_SETTINGS.load().minorVariant, loading: false, result: null, requestKey: '' };
 		this.load = this.load.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
 	}
@@ -144,7 +148,8 @@ class AstroJaynesProgressions extends Component{
 
 	handleSnapshotRefreshRequest(evt){
 		if(!evt || !evt.detail || evt.detail.module !== 'jaynesprog' || !this.props.value){ return; }
-		buildJaynesProgSnapshotText(this.props.value, { minorVariant: this.state.minorVariant }).then((txt) => { evt.detail.snapshotText = txt || ''; }).catch(() => {});
+		// [挂载自检] 导出=页面所见:带页面目标时刻(此前只传月长算法,导出恒「今日 12:00」)。
+		buildJaynesProgSnapshotText(this.props.value, { targetDate: this.state.targetDate, targetTime: this.state.targetTime, minorVariant: this.state.minorVariant }).then((txt) => { evt.detail.snapshotText = txt || ''; }).catch(() => {});
 	}
 
 	ensureLoaded(){
@@ -176,7 +181,9 @@ class AstroJaynesProgressions extends Component{
 		this.ensureLoaded();
 		const result = this.state.result || {};
 		const height = this.props.height || 700;
-		const panelH = Math.max(360, height - 104);
+		// [双滚动条根治 2026-09-18] 面板高不再用「工作区高−常数」估算(常数与真实工具条/页签高不等 → 多出的十几像素把外层面板撑出第二条滚动条);
+		// 内层 Tabs 走定高链(app.less .horosa-direction-page .ant-tabs-top …),面板 100% 跟随容器,任何缩放/字号/窗高零常数。
+		const panelH = '100%';
 		return (
 			<Spin spinning={this.state.loading}>
 				<div style={{ height, display: 'flex', flexDirection: 'column' }}>
@@ -184,13 +191,13 @@ class AstroJaynesProgressions extends Component{
 						<span style={{ fontWeight: 600 }}>赤纬推运（平行 / 反平行）</span>
 						<label>目标日期 <input type="date" value={this.state.targetDate} onChange={(e) => this.setState({ targetDate: e.target.value })} /></label>
 						<label>时间 <input type="time" step="1" value={this.state.targetTime} onChange={(e) => this.setState({ targetTime: e.target.value })} /></label>
-						<label>月长算法 <Select size="small" style={{ width: 150 }} value={this.state.minorVariant} onChange={(v)=>this.setState({ minorVariant: v })}>
+						<label>月长算法 <Select size="small" style={{ width: 150 }} value={this.state.minorVariant} onChange={(v)=>{ DIRECTION_PAGE_SETTINGS.save({ minorVariant: v }); this.setState({ minorVariant: v }); }}>
 							{MINOR_VARIANT_OPTIONS.map((o)=>(<Option key={o.value} value={o.value}>{o.label}</Option>))}
 						</Select></label>
 						<Button size="small" onClick={this.load}>计算推运</Button>
 						<span>年龄天数：{fmtNum(result.ageDays, 1)}</span>
 					</div>
-					<Tabs defaultActiveKey="secondary" tabPosition="top" style={{ flex: '1 1 auto' }}>
+					<Tabs defaultActiveKey="secondary" tabPosition="top" style={{ flex: '1 1 auto', minHeight: 0 }}>
 						{(result.methods || []).map((method) => (
 							<TabPane tab={methodTab(method)} key={method.method}>
 								<ProgMethodPanel
