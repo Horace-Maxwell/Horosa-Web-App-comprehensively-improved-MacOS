@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { readPdSphereStamp } from '../../utils/pdSphereStamp';
+import { recordNewChartSeeds } from '../../utils/newChartSeeds';
 import { Row, Col, message, } from 'antd';
 import { XQTabs as Tabs } from '../xq-ui';
 import DateTime from '../comp/DateTime';
@@ -1433,6 +1434,15 @@ class AstroDirectMain extends Component{
 			return;
 		}
 		const opt = options || {};
+		// 「新盘种子」:主限法口径(方法 / 时间钥匙 / In Zodiaco·Mundo / 投影·定局·框架·平行)的亲手改动 = 新命盘缺省;
+		// 没改过 = 内建默认,Alcabitius + Ptolemy 默认路径逐字节不动
+		recordNewChartSeeds({
+			pdMethod, pdTimeKey, pdtype: opt.pdtype === 1 ? 1 : 0,
+			...(opt.projection ? { pdProjection: opt.projection } : {}),
+			...(opt.frame ? { pdFrame: opt.frame } : {}),
+			...(opt.framework ? { pdFramework: opt.framework } : {}),
+			pdParallel: opt.parallel ? 1 : 0,
+		});
 		const resolvedPdYears = pdYears !== undefined && pdYears !== null
 			? normalizePdYears(pdYears)
 			: this.getDesiredPdConfig(this.props.chartObj).pdYears;

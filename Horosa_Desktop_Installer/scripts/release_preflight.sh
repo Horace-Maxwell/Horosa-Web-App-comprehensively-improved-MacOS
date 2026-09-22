@@ -5563,6 +5563,137 @@ for S258_A in "horary/HoraryMain.js:save({ horaryOverrides: next })" "election/E
 done
 [ "${S258_BAD}" = "0" ] && ok "[258] 单源件 / 登记表 / 合同测试五要害 / 盘壳回调与写全局 / 七政读回四项 / 多技法组件入口 / 相交处五条要害写法 均在位"
 
+# ── [259] 发布链顺序不变量:部件复用基线在建 release **之前**取 / 清单最后上传 / 新 release 以 draft 建、资产齐了才转正 ──
+# 病症(v3.11.0 发布实测,从 v3.1.0 起就有):①脚本先建新 release(立刻成为 latest)再去 releases/latest 取「上一版」清单当基线
+#   → 取到刚建好、还没有清单的新 release → 基线恒空 → 部件全量重传、差分效率门(I4)形同虚设;②资产顺序「安装包 → 桌面包 →
+#   清单 → runtime → 部件」:清单一上线在线用户就拿到新版本号,去下 runtime / 部件却 404,当次更新失败(实测窗口 ≈80 s)。
+# 现在:基线由 pick_release_baseline.py 经认证 API 挑「非本次 tag 的最新已发布版」;顺序不变量由同一文件 --lint 静态看守(判别向量在 --self-test)。
+echo "[259] 发布链:基线先于建 release / 清单最后上传 / draft 转正"
+S259_BAD=0
+S259_PK="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/pick_release_baseline.py"
+S259_PUB="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/publish_github_release.sh"
+if [ ! -f "${S259_PK}" ]; then
+  bad "[259] 🔴 缺 pick_release_baseline.py(基线挑选 / 顺序自检单源件)"; S259_BAD=1
+else
+  python3 "${S259_PK}" --self-test >/dev/null 2>&1 || { bad "[259] 🔴 基线挑选 / 顺序不变量的判别向量失败"; S259_BAD=1; }
+  S259_OUT="$(python3 "${S259_PK}" --lint "${S259_PUB}" 2>&1 || true)"
+  case "${S259_OUT}" in
+    *"LINT: OK"*) : ;;
+    *) bad "[259] 🔴 发布脚本顺序不变量不成立:$(printf '%s' "${S259_OUT}" | grep -a 'LINT:' | grep -av 'LINT: OK' | head -3 | tr '\n' ' ')"; S259_BAD=1 ;;
+  esac
+fi
+grep -qF 'HOROSA_ALLOW_NO_BASELINE' "${S259_PUB}" || { bad "[259] 🔴 基线取回失败的显式放行阀缺失(失败应拦、放行须显式)"; S259_BAD=1; }
+grep -qF 'find_release_json_by_tag "${tag_name}"' "${S259_PUB}" || { bad "[259] 🔴 ensure_release 不再按 tag 找回上次中途留下的 draft(会重复建 release)"; S259_BAD=1; }
+[ "${S259_BAD}" = "0" ] && ok "[259] 发布链顺序不变量 + 基线判别向量 全在位"
+
+# ── [260] 安装器:同版本号 runtime 再比一层内容身份(components-lock sha)──
+# 病症:postinstall 遇到已装 runtime 只比 runtime-manifest.json 的 version 串;同版本号重打的包一个字节也装不进去,
+#   安装日志只有一句 keeping current runtime。现在同版本号再比内容身份,不同就按「版本不同」同一条路径替换;降级门原样不动。
+#   四格 + 咬合判别向量:verify_postinstall_version_matrix.sh <offline.pkg>(真解压,发版轮跑一次)。
+echo "[260] 安装器:同版本号 runtime 再比内容身份"
+S260_BAD=0
+S260_TPL="${REPO_ROOT}/Horosa_Desktop_Installer/installer-scripts/postinstall.template"
+grep -qF 'runtime_content_identity() {' "${S260_TPL}" || { bad "[260] 🔴 模板缺 runtime_content_identity(同版本重打的包又会装不进去)"; S260_BAD=1; }
+grep -qF 'PAYLOAD_IDENTITY="$(runtime_content_identity "${WORK_DIR}/runtime-payload")"' "${S260_TPL}" || { bad "[260] 🔴 同版本分支不再取包内内容身份"; S260_BAD=1; }
+grep -qF '[ "${EXISTING_IDENTITY}" = "${PAYLOAD_IDENTITY}" ]' "${S260_TPL}" || { bad "[260] 🔴 同版本分支的内容比对被改掉"; S260_BAD=1; }
+grep -qF 'different content' "${S260_TPL}" || { bad "[260] 🔴 「同版本不同内容」的替换日志缺失(真机排障靠它)"; S260_BAD=1; }
+grep -qF 'downgrade guard' "${S260_TPL}" || { bad "[260] 🔴 降级门丢失"; S260_BAD=1; }
+[ -f "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/verify_postinstall_version_matrix.sh" ] || { bad "[260] 🔴 缺四格判别向量测试台 verify_postinstall_version_matrix.sh"; S260_BAD=1; }
+/bin/bash -n "${S260_TPL}" 2>/dev/null || { bad "[260] 🔴 安装模板语法错"; S260_BAD=1; }
+[ "${S260_BAD}" = "0" ] && ok "[260] 安装器同版本内容身份比对 在位"
+
+# ── [261] 随盘键「新盘种子」(新命盘缺省 = 上次亲手设的值;载入记录不播;捕获按内建默认)──────────────────────
+# 由来:占星黄道 / 宫制、时间算法、八字长生 / 神煞、宿法、印占选项、主限法口径写在 astro.fields,新盘 / 重开软件一律回出厂值(与「排盘设置
+#   改了重开又回去」同一体感)。单源件 utils/newChartSeeds.js;四条语义由 newChartSeeds.test.js 逐条锁,本闸锁资产与接线在位。
+echo "[261] 随盘键「新盘种子」:单源件 + 模型 / 还原接线 + 亲手改动入口 + 合同测试"
+S261_BAD=0
+S261_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+for S261_F in "${S261_UI}/utils/newChartSeeds.js" "${S261_UI}/utils/__tests__/newChartSeeds.test.js"; do
+  [ -f "${S261_F}" ] || { bad "[261] 🔴 资产缺失:${S261_F#${REPO_ROOT}/}"; S261_BAD=1; }
+done
+grep -qF "...newChartSeedExtraEntries()," "${S261_UI}/models/astro.js" || { bad "[261] 🔴 newEmptyFields 不再展开种子(schema 没有的种子键回不到新盘)"; S261_BAD=1; }
+S261_N="$(grep -c "value: newChartSeedValue('" "${S261_UI}/models/astro.js" 2>/dev/null || true)"
+[ "${S261_N:-0}" -ge 16 ] || { bad "[261] 🔴 newEmptyFields 读种子的键少于 16(现 ${S261_N:-0}):有键退回写死初值"; S261_BAD=1; }
+grep -qF "fields = resetNewChartSeedKeysToInternalDefaults(fields);" "${S261_UI}/utils/recordFieldsRestore.js" || { bad "[261] 🔴 载入记录不再复位种子键(记录会被种子污染)"; S261_BAD=1; }
+grep -qF "isNewChartSeedKey(key) ? newChartSeedInternalDefault(key)" "${S261_UI}/utils/recordFieldsRestore.js" || { bad "[261] 🔴 捕获不再按内建默认判种子键(与种子同值的口径不落库 → 换机漂移)"; S261_BAD=1; }
+for S261_A in "pages/index.js:seedNewCharts" "components/astro/AstroChartMain.js:if(this.props.seedNewCharts){ recordNewChartSeeds(patch); }" \
+  "components/cntradition/BaZi.js:recordNewChartSeeds(" "components/ziwei/ZiWeiMain.js:!this.props.techniqueScope && patch.timeAlg !== undefined" \
+  "components/sanshi/SanShiUnitedMain.js:if(this.usesSavedSettings()){ recordNewChartSeeds(" "components/suzhan/SuZhanInput.js:recordNewChartSeeds({ doubingSu28: val });" \
+  "components/astro/IndiaChartMain.js:recordNewChartSeeds(patch);" "components/direction/AstroDirectMain.js:pdMethod, pdTimeKey, pdtype: opt.pdtype === 1 ? 1 : 0," \
+  "components/homepage/PageHeader.js:时间算法（新命盘的缺省）"; do
+  S261_F="${S261_UI}/${S261_A%%:*}"
+  [ -f "${S261_F}" ] && grep -qF "${S261_A#*:}" "${S261_F}" || { bad "[261] 🔴 亲手改动入口没记种子:${S261_A%%:*}"; S261_BAD=1; }
+done
+grep -qF "'horosa.chart.newChartSeeds.v1'" "${S261_UI}/utils/storageKeyRegistry.js" || { bad "[261] 🔴 存储键未登记(备份面缺它 = 迁机即丢)"; S261_BAD=1; }
+[ "${S261_BAD}" = "0" ] && ok "[261] 新盘种子:单源件 / 模型与还原接线 / 九处入口 / 存储键登记 全在位"
+
+echo "[262] 盘面随界面主题重画:单源订阅 + 宿主普查 + 合同锁"
+S262_BAD=0
+S262_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S262_TEST="${S262_UI}/utils/__tests__/chartThemeFollow.contract.test.js"
+for S262_F in "${S262_UI}/utils/appearance.js" "${S262_UI}/utils/chartDrawGuard.js" "${S262_TEST}"; do
+  [ -f "${S262_F}" ] || { bad "[262] 🔴 资产缺失:${S262_F#${REPO_ROOT}/}"; S262_BAD=1; }
+done
+if [ -f "${S262_TEST}" ]; then
+  grep -Eq "(it|test|describe)\.skip\(" "${S262_TEST}" && { bad "[262] 🔴 合同测试出现 .skip(源码级三锁被整体关闭)"; S262_BAD=1; }
+  for S262_T in "🔴 ① 每个宿主组件都挂 watchChartAppearance(" "🔴 ② 组件里零私自观察 data-horosa-appearance" "🔴 applyAppearanceToDocument:调色板先到位" "🔴 订阅:同帧多信号合并一次" "🔴 watchChartAppearance:重画回调在调色板切换之后" "🔴 ④ 组件树零模块级调色板烘焙" "🔴 ⑥ 零实例字段调色板烘焙" "🔴 ⑤ render 期读调色板的宿主,主题回调必须重渲染"; do
+    grep -qF "${S262_T}" "${S262_TEST}" || { bad "[262] 🔴 合同测试缺锁:${S262_T}"; S262_BAD=1; }
+  done
+  grep -qF "const HOST_RE = /AstroColor\\.|d3\\.select\\(|getContext\\('2d'\\)|new [A-Z]\\w*Chart\\(|new FengShuiEngine\\(/;" "${S262_TEST}" \
+    || { bad "[262] 🔴 合同测试的宿主判据正则被改(与本闸普查不同文;改判据须两处同改)"; S262_BAD=1; }
+fi
+S262_RES="$(python3 - "${S262_UI}" <<'PY'
+import os, re, sys
+src = sys.argv[1]; comp = os.path.join(src, 'components')
+HOST_RE = re.compile(r"AstroColor\.|d3\.select\(|getContext\('2d'\)|new [A-Z]\w*Chart\(|new FengShuiEngine\(")
+ALLOW = {
+  'components/lrzhan/LiuRengMain.js': 'owner: null',
+  'components/sanshi/SanShiUnitedMain.js': 'owner: null',
+  'components/xuanshi/XuanShiPersons.js': 'var(--horosa',
+  'components/fengshui/FengShuiMain.js': 'new FengShuiEngine(canvas',
+}
+def read(p):
+    try: return open(p, encoding='utf-8').read()
+    except Exception: return ''
+problems = []; hosts = 0
+for root, dirs, files in os.walk(comp):
+    dirs[:] = [d for d in dirs if d != '__tests__']
+    for fn in files:
+        if not fn.endswith('.js'): continue
+        p = os.path.join(root, fn); rel = os.path.relpath(p, src); s = read(p)
+        if re.search(r"attributeFilter:\s*\[[^\]]*data-horosa-appearance", s): problems.append('私自观察外观属性:' + rel)
+        if ('componentDidMount' in s or 'useEffect(' in s) and HOST_RE.search(s):
+            hosts += 1
+            if 'watchChartAppearance(' in s: continue
+            if rel in ALLOW:
+                if ALLOW[rel] not in s: problems.append('豁免理由已不成立:' + rel)
+                continue
+            problems.append('宿主未挂 watchChartAppearance(:' + rel)
+for rel in ALLOW:
+    p = os.path.join(src, rel)
+    if os.path.isfile(p) and 'watchChartAppearance(' in read(p): problems.append('已接线却仍在豁免表:' + rel)
+for root, dirs, files in os.walk(src):
+    dirs[:] = [d for d in dirs if d not in ('__tests__', '.umi', '.umi-production')]
+    for fn in files:
+        if not fn.endswith('.js'): continue
+        p = os.path.join(root, fn); rel = os.path.relpath(p, src)
+        if rel in ('utils/appearance.js', 'constants/AstroConst.js'): continue
+        if 'setColorTheme(' in read(p): problems.append('调色板在单源之外被切:' + rel)
+for rel in ('layouts/app.js', 'pages/index.js'):
+    if 'syncChartPalette(resolvedAppearance)' not in read(os.path.join(src, rel)): problems.append('render 站点不再同步调色板:' + rel)
+ap = read(os.path.join(src, 'utils', 'appearance.js'))
+i1 = ap.find('syncChartPalette(actual)'); i2 = ap.find("setAttribute('data-horosa-appearance'"); i3 = ap.find('dispatchEvent(new CustomEvent(APPEARANCE_APPLIED_EVENT')
+if not (0 <= i1 < i2 < i3): problems.append('applyAppearanceToDocument 顺序不再是 调色板 → 根属性 → 广播')
+if 'data-appearance-toggle="1"' not in read(os.path.join(src, 'components', 'homepage', 'PageHeader.js')): problems.append('主题钮审计锚缺失')
+if hosts < 15: problems.append('宿主普查只数到 %d 个(判据失效或目录被挪)' % hosts)
+print('; '.join(problems) if problems else 'ok:%d' % hosts)
+PY
+)"
+case "${S262_RES}" in
+  ok:*) [ "${S262_BAD}" = "0" ] && ok "[262] ${S262_RES#ok:} 个盘面宿主全挂单源订阅 / 调色板只在 utils/appearance.js 切 / 零私抄观察器 / 合同八锁在位" ;;
+  *) bad "[262] 🔴 源码普查:${S262_RES}"; S262_BAD=1 ;;
+esac
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

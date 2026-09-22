@@ -440,49 +440,84 @@ export RELEASE_BODY
 
 set_release_meta() {
   local release_json="$1"
-  read -r ENSURE_RELEASE_ID ENSURE_UPLOAD_URL <<EOF_META
+  read -r ENSURE_RELEASE_ID ENSURE_UPLOAD_URL ENSURE_RELEASE_DRAFT <<EOF_META
 $(python3 - <<'PY' "${release_json}"
 import json, sys
 payload = json.loads(sys.argv[1])
-print(payload['id'], payload['upload_url'].split('{', 1)[0])
+print(payload['id'], payload['upload_url'].split('{', 1)[0], 'true' if payload.get('draft') else 'false')
 PY
 )
 EOF_META
 }
 
+# 按 tag 找 release:已发布的走 tags 端点;draft(上次中途失败留下的)还没有 tag,只能在 releases 列表里按 tag_name 找。
+# 列表文件由「基线取回」段写好(RELEASES_JSON_FILE);没有就只认 tags 端点。
+find_release_json_by_tag() {
+  local tag_name="$1" found=""
+  if found="$(api_json "${API_ROOT}/releases/tags/${tag_name}" 2>/dev/null)" && [ -n "${found}" ]; then
+    printf '%s' "${found}"
+    return 0
+  fi
+  [ -s "${RELEASES_JSON_FILE:-/dev/null}" ] || return 1
+  found="$(python3 - "${RELEASES_JSON_FILE}" "${tag_name}" <<'PY'
+import json, sys
+try:
+    rels = json.load(open(sys.argv[1], encoding='utf-8'))
+except Exception:
+    rels = []
+for r in rels if isinstance(rels, list) else []:
+    if r.get('draft') and r.get('tag_name') == sys.argv[2]:
+        print(json.dumps(r))
+        break
+PY
+)"
+  [ -n "${found}" ] || return 1
+  printf '%s' "${found}"
+}
+
+# ensure_release <tag> <name> <body> <make_latest> <prerelease> [draft]
+# draft=true:新建时以 draft 建 —— 资产全部上传后由 publish_release 转正,latest 指针到那时才动
+# (此前 release 一建就是 latest:清单先上线的那一两分钟里,在线用户拿到新版本号却下不到 runtime / 部件,当次更新失败)。
+# 已发布的 release 绝不再转回 draft(那会让它的 download 地址失效,正在用它的用户会断更新),只按原状 PATCH。
+# 新建时 target_commitish 钉本地 HEAD 的 sha(推送后才发布,所以远端必有):tag 在转正那一刻才建,钉 sha 才不会落到期间新推的提交上。
 ensure_release() {
   local tag_name="$1"
   local release_name="$2"
   local release_body="$3"
   local make_latest="$4"
   local prerelease="$5"
+  local draft="${6:-false}"
   local release_json=""
-  if release_json="$(api_json "${API_ROOT}/releases/tags/${tag_name}" 2>/dev/null)"; then
+  if release_json="$(find_release_json_by_tag "${tag_name}")"; then
     set_release_meta "${release_json}"
+    if [ "${ENSURE_RELEASE_DRAFT}" = "true" ]; then draft="true"; else draft="false"; fi
     curl -fsSL -X PATCH "${auth_header[@]}" -H 'Content-Type: application/json' \
-      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" PRERELEASE_ENV="${prerelease}" python3 - <<'PY'
+      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" PRERELEASE_ENV="${prerelease}" DRAFT_ENV="${draft}" python3 - <<'PY'
 import json, os
 print(json.dumps({
   'name': os.environ['RELEASE_NAME_ENV'],
   'tag_name': os.environ['TAG_NAME_ENV'],
   'body': os.environ['RELEASE_BODY_ENV'],
-  'draft': False,
+  'draft': os.environ['DRAFT_ENV'] == 'true',
   'prerelease': os.environ['PRERELEASE_ENV'] == 'true',
   'make_latest': os.environ['MAKE_LATEST_ENV'],
 }))
 PY
 )" \
       "${API_ROOT}/releases/${ENSURE_RELEASE_ID}" >/dev/null
+    ENSURE_RELEASE_DRAFT="${draft}"
   else
+    local target_commitish
+    target_commitish="$(git -C "${INSTALLER_ROOT}" rev-parse HEAD 2>/dev/null || echo main)"
     release_json="$(curl -fsSL -X POST "${auth_header[@]}" -H 'Content-Type: application/json' \
-      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" PRERELEASE_ENV="${prerelease}" python3 - <<'PY'
+      -d "$(RELEASE_BODY_ENV="${release_body}" RELEASE_NAME_ENV="${release_name}" TAG_NAME_ENV="${tag_name}" MAKE_LATEST_ENV="${make_latest}" PRERELEASE_ENV="${prerelease}" DRAFT_ENV="${draft}" TARGET_ENV="${target_commitish}" python3 - <<'PY'
 import json, os
 print(json.dumps({
   'tag_name': os.environ['TAG_NAME_ENV'],
-  'target_commitish': 'main',
+  'target_commitish': os.environ['TARGET_ENV'],
   'name': os.environ['RELEASE_NAME_ENV'],
   'body': os.environ['RELEASE_BODY_ENV'],
-  'draft': False,
+  'draft': os.environ['DRAFT_ENV'] == 'true',
   'prerelease': os.environ['PRERELEASE_ENV'] == 'true',
   'make_latest': os.environ['MAKE_LATEST_ENV'],
 }))
@@ -490,6 +525,17 @@ PY
 )" "${API_ROOT}/releases")"
     set_release_meta "${release_json}"
   fi
+}
+
+# draft → 已发布(此时资产已全部上传;latest 指针此刻才移动)
+publish_release() {
+  local release_id="$1" make_latest="$2" prerelease="$3"
+  curl -fsSL -X PATCH "${auth_header[@]}" -H 'Content-Type: application/json' \
+    -d "$(MAKE_LATEST_ENV="${make_latest}" PRERELEASE_ENV="${prerelease}" python3 - <<'PY'
+import json, os
+print(json.dumps({'draft': False, 'prerelease': os.environ['PRERELEASE_ENV'] == 'true', 'make_latest': os.environ['MAKE_LATEST_ENV']}))
+PY
+)" "${API_ROOT}/releases/${release_id}" >/dev/null
 }
 
 delete_named_assets() {
@@ -540,6 +586,13 @@ upload_asset() {
     "${upload_url}?name=${asset_name}" >/dev/null
 }
 
+# 删同名旧资产 → 上传(GitHub 同名资产不能覆盖)。只在紧邻上传前删:同 tag 重发时每个资产缺席的窗口只有它自己的上传时长。
+replace_asset() {
+  local release_id="$1" upload_url="$2" asset_path="$3"
+  delete_named_assets "${release_id}" "$(basename "${asset_path}")"
+  upload_asset "${upload_url}" "${asset_path}"
+}
+
 RUNTIME_RELEASE_BODY="$(cat <<EOF
 Reusable runtime payload for Horosa desktop releases.
 
@@ -547,9 +600,46 @@ This release stores the shared runtime archive used by installer/bootstrap flows
 EOF
 )"
 
-ensure_release "${TAG_NAME}" "${RELEASE_NAME}" "${RELEASE_BODY}" "${APP_MAKE_LATEST}" "${RELEASE_PRERELEASE}"
+# ── 增量部件复用基线:必须在建 release **之前**取。此前的写法是先建 release(立刻成为 latest)再去
+#    releases/latest 取「上一版」清单 → 取到的恒是刚建好、还没有清单的新 release → 基线恒空 → 部件全量重传、
+#    差分效率门形同虚设(v3.1.0 起从未真正生效);仓库不公开时匿名 download 地址还恒 404。
+#    现在:认证列 releases → 挑「非本次 tag / 非 runtime tag / 非 draft / 带清单资产(发正式版还要非预发布)」里最新一版
+#    → 经资产 API 下载它的清单。判别向量在 pick_release_baseline.py --self-test。
+RELEASES_JSON_FILE="$(mktemp "${TMPDIR:-/tmp}/horosa-releases.XXXXXX")"
+if ! api_json "${API_ROOT}/releases?per_page=50" > "${RELEASES_JSON_FILE}" 2>/dev/null; then : > "${RELEASES_JSON_FILE}"; fi
+BASELINE_PICK="$(python3 "${INSTALLER_ROOT}/scripts/pick_release_baseline.py" --pick --releases-file "${RELEASES_JSON_FILE}" --tag "${TAG_NAME}" --runtime-tag "${RUNTIME_TAG_NAME}" --manifest-name "${UPDATE_MANIFEST_NAME}" --prerelease "${RELEASE_PRERELEASE}")"
+baseline_field() { printf '%s' "${BASELINE_PICK}" | python3 -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1], ""))' "$1"; }
+BASELINE_STATE="$(baseline_field state)"
+BASELINE_TAG="$(baseline_field tag)"
+BASELINE_ASSET_URL="$(baseline_field asset_url)"
+BASELINE_REASON="$(baseline_field reason)"
+PREV_MANIFEST_JSON=""
+if [ "${BASELINE_STATE}" = "ok" ]; then
+  PREV_MANIFEST_JSON="$(curl -fsSL "${auth_header[@]}" -H 'Accept: application/octet-stream' "${BASELINE_ASSET_URL}" 2>/dev/null || true)"
+  BASELINE_STATE="$(printf '%s' "${PREV_MANIFEST_JSON}" | python3 "${INSTALLER_ROOT}/scripts/pick_release_baseline.py" --verify-manifest --tag "${TAG_NAME}" --version "${VERSION}")"
+  [ "${BASELINE_STATE}" = "ok" ] || BASELINE_REASON="下载到的清单判为 ${BASELINE_STATE}"
+fi
+case "${BASELINE_STATE}" in
+  ok) echo "部件复用基线: ${BASELINE_TAG} 的清单(建 release 之前取)" ;;
+  first) echo "部件复用基线: 无 —— 本仓尚无任何别的已发布 release(真首发),全量上传" ;;
+  none_eligible|no_v2) echo "部件复用基线: 无 —— 线上没有带 v2 部件清单的旧版(${BASELINE_REASON}),全量上传"; PREV_MANIFEST_JSON="" ;;
+  self) echo "❌ 部件复用基线取到了本次发布自己(${BASELINE_TAG}):挑选逻辑有误,拒发。" >&2; exit 1 ;;
+  *)
+    if [ "${HOROSA_ALLOW_NO_BASELINE:-0}" = "1" ]; then
+      echo "⚠️ 部件复用基线取回失败(${BASELINE_STATE}:${BASELINE_REASON}),已按 HOROSA_ALLOW_NO_BASELINE=1 放行 —— 本次全量上传、差分效率门不判。" >&2
+      PREV_MANIFEST_JSON=""
+    else
+      echo "❌ 部件复用基线取回失败(${BASELINE_STATE}:${BASELINE_REASON})。此刻还没建 release、没传任何资产,排查网络 / 令牌后重跑即可;" >&2
+      echo "   确认要在没有基线的情况下发布(差分效率门随之失效),用 HOROSA_ALLOW_NO_BASELINE=1 放行。" >&2
+      exit 1
+    fi
+    ;;
+esac
+
+ensure_release "${TAG_NAME}" "${RELEASE_NAME}" "${RELEASE_BODY}" "${APP_MAKE_LATEST}" "${RELEASE_PRERELEASE}" "true"
 APP_RELEASE_ID="${ENSURE_RELEASE_ID}"
 APP_UPLOAD_URL="${ENSURE_UPLOAD_URL}"
+APP_RELEASE_IS_DRAFT="${ENSURE_RELEASE_DRAFT}"
 
 # ── 增量更新部件:跨版本 asset 复用决策(必须在 manifest 上传之前——会重写其 url)。
 # 真值源=线上 latest manifest 的 components(用户正在用的部件 url/sha):
@@ -559,7 +649,7 @@ APP_UPLOAD_URL="${ENSURE_UPLOAD_URL}"
 COMP_DIST="${DIST_ROOT}/components"
 COMP_UPLOAD_LIST=""
 if [ -f "${COMP_DIST}/components-lock.json" ] && [ -f "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" ]; then
-  PREV_MANIFEST_JSON="$(curl -fsSL -H 'Cache-Control: no-cache' "https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest/download/${UPDATE_MANIFEST_NAME}" 2>/dev/null || true)"
+  # 基线 PREV_MANIFEST_JSON 已在建 release 之前取好(见上「增量部件复用基线」段)
   COMP_UPLOAD_LIST="$(MANIFEST_PATH="${DIST_ROOT}/${UPDATE_MANIFEST_NAME}" PREV_JSON="${PREV_MANIFEST_JSON}" python3 - <<'PYCOMPREUSE'
 import json, os
 manifest_path = os.environ['MANIFEST_PATH']
@@ -633,7 +723,7 @@ PYDELTAGATE
   DELTA_VERDICT="$(printf '%s\n' "${DELTA_GATE_OUT}" | sed -n 's/^VERDICT=//p')"
   case "${DELTA_VERDICT}" in
     OK) : ;;
-    SKIP_NO_BASELINE) echo "差分效率门(I4): 线上无 v2 部件基线(首发/拉取失败→全量上传属预期),放行" ;;
+    SKIP_NO_BASELINE) echo "差分效率门(I4): 无部件基线(${BASELINE_STATE}:${BASELINE_REASON:-真首发 / 旧格式 / 显式放行}),全量上传,本次不判" ;;
     *)
       if [ "${HOROSA_ALLOW_LARGE_DELTA:-0}" = "1" ]; then
         echo "差分效率门(I4): ${DELTA_VERDICT} —— 已按 HOROSA_ALLOW_LARGE_DELTA=1 显式放行" >&2
@@ -647,14 +737,18 @@ PYDELTAGATE
   esac
 fi
 
-delete_named_assets "${APP_RELEASE_ID}" "Horosa-Desktop-macos-arm64.dmg" "${DESKTOP_PKG_ZIP}" "${DESKTOP_PKG}" "${DESKTOP_OFFLINE_PKG_ZIP}" "${DESKTOP_OFFLINE_PKG}" "${DESKTOP_ASSET}" "${UPDATE_MANIFEST_NAME}" "${RUNTIME_ASSET}"
-
-for asset in "${APP_ASSETS[@]}"; do
-  upload_asset "${APP_UPLOAD_URL}" "${asset}"
-done
+# ── 资产上传顺序:runtime → 增量部件 → 安装包 / 桌面包 → 清单最后;新 release 以 draft 建、资产齐了才转正。
+#    此前的顺序是「安装包 → 桌面包 → 清单 → runtime → 部件」且 release 一建就是 latest:清单先上线的那一两分钟里
+#    (上传慢时更长),在线用户的更新检查拿到新版本号,去下 runtime / 部件却 404 → 部件重试后降级全量 → 全量包也
+#    还没传完 → 当次更新失败。现在清单引用的每个地址都先于清单就位;同 tag 重发(已发布,不能再转 draft)则逐资产
+#    「删旧即传新」,窗口缩到单个资产的上传时长。顺序不变量由 pick_release_baseline.py --lint 看守。
+# 过时资产名(dmg / pkg.zip 等早已不再发布的形态)先清掉,它们不被清单引用
+STALE_ASSET_NAMES=( "Horosa-Desktop-macos-arm64.dmg" "${DESKTOP_PKG_ZIP}" "${DESKTOP_PKG}" "${DESKTOP_OFFLINE_PKG_ZIP}" )
+[ "${RUNTIME_TAG_NAME}" = "${TAG_NAME}" ] || STALE_ASSET_NAMES+=( "${RUNTIME_ASSET}" )
+delete_named_assets "${APP_RELEASE_ID}" "${STALE_ASSET_NAMES[@]}"
 
 if [ "${RUNTIME_TAG_NAME}" = "${TAG_NAME}" ]; then
-  upload_asset "${APP_UPLOAD_URL}" "${RUNTIME_ARCHIVE_PATH}"
+  replace_asset "${APP_RELEASE_ID}" "${APP_UPLOAD_URL}" "${RUNTIME_ARCHIVE_PATH}"
   RUNTIME_RELEASE_ID="${APP_RELEASE_ID}"
   RUNTIME_UPLOAD_URL="${APP_UPLOAD_URL}"
 else
@@ -702,6 +796,17 @@ PYDIGEST
   done <<< "${COMP_UPLOAD_LIST}"
   echo "components uploaded (incremental set): $(echo "${COMP_UPLOAD_LIST}" | tr '\n' ' ')"
 fi
+
+# 安装包 / 桌面包(清单引用它们的地址,先于清单就位)
+replace_asset "${APP_RELEASE_ID}" "${APP_UPLOAD_URL}" "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"
+replace_asset "${APP_RELEASE_ID}" "${APP_UPLOAD_URL}" "${DIST_ROOT}/${DESKTOP_ASSET}"
+# 清单最后:它一上线,在线用户的更新检查就会拿到新版本号 —— 此刻它引用的每个地址都已存在
+replace_asset "${APP_RELEASE_ID}" "${APP_UPLOAD_URL}" "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"
+if [ "${APP_RELEASE_IS_DRAFT}" = "true" ]; then
+  publish_release "${APP_RELEASE_ID}" "${APP_MAKE_LATEST}" "${RELEASE_PRERELEASE}"
+  echo "release ${TAG_NAME} 已由 draft 转正(资产全部就位后才设 latest)"
+fi
+rm -f "${RELEASES_JSON_FILE}"
 
 if [ "${RELEASE_PRERELEASE}" = "true" ]; then
   LATEST_MANIFEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${TAG_NAME}/${UPDATE_MANIFEST_NAME}"

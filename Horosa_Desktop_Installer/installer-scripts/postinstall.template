@@ -162,6 +162,19 @@ current_runtime_version() {
   /usr/bin/plutil -extract version raw -o - "${CURRENT_DIR}/runtime-manifest.json" 2>/dev/null || true
 }
 
+# 运行环境的「内容身份」:components-lock.json 的 sha256(它逐个记录了每个部件的 sha,内容一变它就变);
+# 没有 lock 的旧目录退到 runtime-manifest.json 的 built_at;两者都没有回空(= 未知)。永远 return 0(调用方在 set -e 下)。
+runtime_content_identity() {
+  local runtime_dir="$1" built_at=""
+  if [ -f "${runtime_dir}/components-lock.json" ]; then
+    /usr/bin/shasum -a 256 "${runtime_dir}/components-lock.json" 2>/dev/null | /usr/bin/awk '{print "lock:" $1}'
+  elif [ -f "${runtime_dir}/runtime-manifest.json" ]; then
+    built_at="$(/usr/bin/plutil -extract built_at raw -o - "${runtime_dir}/runtime-manifest.json" 2>/dev/null || true)"
+    [ -z "${built_at}" ] || printf 'built_at:%s' "${built_at}"
+  fi
+  return 0
+}
+
 load_review_plan() {
   if [ ! -f "${REVIEW_PLAN_PATH}" ]; then
     return 0
@@ -340,14 +353,22 @@ HAD_PREVIOUS=0
 rm -rf "${PREVIOUS_DIR}"
 if [ -d "${CURRENT_DIR}" ]; then
   EXISTING_VERSION="$(current_runtime_version)"
+  # 同版本号:再比一层内容身份。只比版本字符串曾让「同版本号重打的包」一个字节都装不进去
+  # (安装日志只有一句 keeping current runtime,极难察觉);内容相同才保留(快路径不变),
+  # 不同就按「版本不同」同一条路径替换。判别向量:verify_postinstall_version_matrix.sh(四格)。
   if [ "${EXISTING_VERSION}" = "${EXPECTED_VERSION}" ] && runtime_payload_is_usable; then
-    log_line "shared runtime already matches ${EXPECTED_VERSION}; keeping current runtime"
-    clear_pending
-    cleanup_install_state
-    write_install_source "pkg_offline" "${EXPECTED_VERSION}"
-    /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
-    /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
-    exit 0
+    EXISTING_IDENTITY="$(runtime_content_identity "${CURRENT_DIR}")"
+    PAYLOAD_IDENTITY="$(runtime_content_identity "${WORK_DIR}/runtime-payload")"
+    if [ -n "${EXISTING_IDENTITY}" ] && [ "${EXISTING_IDENTITY}" = "${PAYLOAD_IDENTITY}" ]; then
+      log_line "shared runtime already matches ${EXPECTED_VERSION} (same content ${EXISTING_IDENTITY}); keeping current runtime"
+      clear_pending
+      cleanup_install_state
+      write_install_source "pkg_offline" "${EXPECTED_VERSION}"
+      /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
+      /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+      exit 0
+    fi
+    log_line "same version ${EXPECTED_VERSION}, different content (installed ${EXISTING_IDENTITY:-unknown} vs package ${PAYLOAD_IDENTITY:-unknown}); replacing"
   fi
   # [U-I G3] 降级门:已装 runtime 比本包更新且可用 → 保留不覆盖(旧 pkg 覆盖装曾会
   # 造成「新 App+旧 runtime」错位;App 侧 BundleIsVersionChecked 已不降,runtime 补齐

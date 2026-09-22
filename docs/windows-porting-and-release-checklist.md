@@ -673,3 +673,19 @@ Windows 版完成的定义不是“能打开”，而是：
 ### 共享前端
 - AI 助手全套:`src/utils/aiAgent/**`、`src/utils/aiChat/**`、`src/utils/aiTools/**`、`src/components/aianalysis/**`(含「进阶」页签);挂载链 `src/utils/{aiAnalysisContext,techniqueMountSettings,aiExport}.js`;择日宿主 `src/components/zeri/**`;时间录入 `src/utils/quickDateTimeDigits.js` + `src/components/common/QuickTimeField*`;五兆/推运/印占/七政演禽/蠢子数各页与工具函数。对应测试全部在 `src/utils/__tests__/` 与各组件 `__tests__/`。
 - 存储:IndexedDB 升版(新增任务/通知/自动化规则/集成档案四店)与新增 localStorage 键全部登记在 `storageKeyRegistry.js` / `techniqueOnboardingContract.js`,Windows 端注册表须同步。
+
+## v3.11.1 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.11.1` / `runtimeVersion` = `3.11.1-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 共享前端 · 盘面随界面主题重画
+- 单源 `src/utils/appearance.js`(`applyAppearanceToDocument`:调色板先切换 → 根属性 → 广播 `horosa:appearance-applied`;`subscribeAppearance` / `syncChartPalette` / `chartColorThemeFor`)+ `src/utils/chartDrawGuard.js` 的 `watchChartAppearance(redraw)`;各盘面宿主(占星单盘 / 双盘 / 三维、紫微、宿盘、二十八宿、七政、六壬、卦、卦占、金口诀、汉堡学派各盘、玄史地图、占星地图)在 `componentDidMount` 订阅、unmount 卸;`components/suzhan/SZConst.js`、`components/su28/Su28Helper.js` 与各绘图类里固化的调色板改为访问时求值(getter);`AstroChart` / `JinKouChart` 的主题回调改为重渲染;`layouts/app.js` / `pages/index.js` 只调 `syncChartPalette(resolvedAppearance)`;主题按钮带 `data-appearance-toggle="1"`。
+- **Windows 需要做什么**:同步上述共享件;若 Electron 端有自己的主题切换入口,必须经 `applyAppearanceToDocument`(顺序不可倒,先广播后换调色板会重画一遍旧色),不要直接改 `data-horosa-appearance`;新增任何 d3 / canvas 盘面照 `watchChartAppearance` 接线,不要私写属性观察器;跑 jest `chartThemeFollow.contract`(宿主普查 + 调色板只在单源切换 + 零模块级 / 零实例字段调色板固化 + render 读调色板的回调必重渲染)。巡检判据:切明暗后每个盘面的底色与墨色明度、对比度都要跟主题(暗底深墨 / 亮底淡墨都算没跟)。
+
+### 共享前端 · 排盘设置
+- 「新盘种子」:`src/utils/newChartSeeds.js`(种子表 / `newChartSeedValue` / `recordNewChartSeeds` / `resetNewChartSeedKeysToInternalDefaults` / `newChartSeedExtraEntries`)、`models/astro.js`(`newEmptyFields` 读种子)、`utils/recordFieldsRestore.js`(载入记录复位种子键;捕获按内建默认判非默认)、各页亲手改动入口(占星主页 / 八字 / 紫微 / 三式 / 宿盘 / 印占 / 主限法 / 全局设置「时间算法(新命盘的缺省)」)、存储键 `horosa.chart.newChartSeeds.v1`(登记 `storageKeyRegistry.js`);合同测试 `utils/__tests__/newChartSeeds.test.js`;帮助手册七处。语义:新盘按种子、载入记录按记录、缺键回内建默认、存盘捕获按内建默认判非默认。
+- 保留机制遗留:七政「报时星 / 罗计取法 / 月孛取法 / 身宫法」首开补空只在非择日内嵌实例、载入了记录不播;铁板「大运步数」限整数;遁甲程序同步性别不写入保留设置;地占后端流派档起盘前显示中文名。
+
+### 安装器 / 发布链
+- 安装器同版本号再比部件锁(`components-lock.json`)内容身份,相同才保留、不同走替换路径;发布脚本的部件复用基线在建 release 之前经认证 API 取上一版正式清单,新版以草稿建、顺序 runtime → 部件 → 安装包 → 清单最后再转正。Windows 安装器 / 发布脚本按同样语义对齐。

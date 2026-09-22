@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import UpdatingBadge from '../common/UpdatingBadge';
 import { silentTechniquePanelsEnabled, stepPrefetchEnabled } from '../../utils/perfFlags';
+import { recordNewChartSeeds } from '../../utils/newChartSeeds';
 // R4-B2(horosa_prefetch_registry_v1):/ziwei/birth 步进预取登记 + 本地漏斗 settle 武装。
 import { registerStepPrefetcher, unregisterStepPrefetcher } from '../../utils/stepPrefetch';
 import { armStepPrefetch } from '../../utils/stepPrefetchArm';
@@ -970,6 +971,10 @@ class ZiWeiMain extends Component{
 			const stepHint = patch.__stepHint || null;
 			if(Object.prototype.hasOwnProperty.call(patch, '__stepHint')){
 				delete patch.__stepHint;
+			}
+			// 「新盘种子」:独立紫微页亲手改「时间算法」= 全局时间算法缺省(与设置弹窗同一仓);择日内嵌 / 截图挂载不记
+			if(!this.props.techniqueScope && patch.timeAlg !== undefined){
+				recordNewChartSeeds({ timeAlg: patch.timeAlg });
 			}
 			// 用户拍板: 左栏改过 after23NewDay 后,全局事件不再覆盖。
 			if(field && Object.prototype.hasOwnProperty.call(field, 'after23NewDay')){
