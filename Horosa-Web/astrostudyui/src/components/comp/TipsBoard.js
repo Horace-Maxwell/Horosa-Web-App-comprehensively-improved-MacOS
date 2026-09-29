@@ -28,23 +28,23 @@ export default class TipsBoard extends Component{
                 if(item instanceof Array){
                     let lis = item.map((li, idx)=>{
                         if(li === '=='){
-                            return (<Divider dashed={true} key={randomStr(8)} />)
+                            return (<Divider dashed={true} key={`s1-${idx}`} />)
                         }
                         return (
-                            <li key={randomStr(8)}>{li}</li>
+                            <li key={`s2-${idx}`}>{li}</li>
                         )
                     });
                     let res = (
-                        <ul key={randomStr(8)}>
+                        <ul key={`s3-${idx}`}>
                             {lis}
                         </ul>                        
                     )
                     return res;
                 }else{
                     if(item === '=='){
-                        return (<Divider dashed={true} key={randomStr(8)}/>)
+                        return (<Divider dashed={true} key={`s4-${idx}`}/>)
                     }
-                    return (<li key={randomStr(8)}>{item}</li>)
+                    return (<li key={`s5-${idx}`}>{item}</li>)
                 }
             });
         }else{

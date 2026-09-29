@@ -3,7 +3,7 @@ import { Row, Col, Divider, Popover, } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from '../astro/AstroHelper';
-import { randomStr} from '../../utils/helper'
+
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
 import { buildMeaningTipByCategory, buildAspectMeaningTip, } from '../astro/AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
@@ -62,7 +62,7 @@ class MidpointInfo extends Component{
 				continue;
 			}
 			let domtitle = (
-				<div key={randomStr(8)}>
+				<div key={`s1-${i}`}>
 						<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
 						{this.renderLabel(
 							appendPlanetHouseInfoById(
@@ -81,7 +81,7 @@ class MidpointInfo extends Component{
 				let asp = obj[idx];
 
 				let dom = (
-						<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+						<div key={`s2-${idx}`} style={{fontFamily: AstroConst.AstroFont}}>
 							<span>&emsp;{
 								wrapWithMeaning(
 									<span>{AstroText.AstroMsg['Asp' + asp.aspect]}&nbsp;</span>,
@@ -119,7 +119,7 @@ class MidpointInfo extends Component{
 			}
 
 			let space = (
-				<div key={randomStr(8)}><span>&nbsp;</span></div>
+				<div key={`s3-${i}`}><span>&nbsp;</span></div>
 			);
 			divs.push(space);
 		}

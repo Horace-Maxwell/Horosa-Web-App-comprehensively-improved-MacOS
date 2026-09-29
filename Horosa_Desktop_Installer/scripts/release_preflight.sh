@@ -1885,6 +1885,13 @@ for seg in "rust.bootstrap_begin" "rust.emit_ready"; do
   grep -q "${seg}" "${INSTALLER_ROOT}/src-tauri/src/main.rs" 2>/dev/null || { bad "[89] 账本段 ${seg} 缺位"; S89_BAD=1; }
 done
 grep -q "py.warmup_kentang" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py" 2>/dev/null || { bad "[89] 账本段 py.warmup_kentang 缺位"; S89_BAD=1; }
+# [R5 P0-1] 前端启动段进账本:上报单源 + 主页首盘段 + 壳命令(缺任一 = 前端段又回到黑箱)
+grep -q "web_ledger_mark_command" "${S89_UI}/utils/startupLedger.js" 2>/dev/null || { bad "[89] 前端启动账本上报单源缺位(utils/startupLedger.js)"; S89_BAD=1; }
+grep -q "web.first_chart_paint" "${S89_UI}/pages/index.js" 2>/dev/null || { bad "[89] 账本段 web.first_chart_paint 未接线 pages/index"; S89_BAD=1; }
+grep -q "fn web_ledger_mark_command" "${INSTALLER_ROOT}/src-tauri/src/main.rs" 2>/dev/null || { bad "[89] 壳缺 web_ledger_mark_command(前端段无处落账)"; S89_BAD=1; }
+# [R5 S2] 就绪门事件化:壳同参确认必派事件,前端门必监听(缺任一 = 首盘回到「等下一次探活」)
+grep -q "horosa:backend-confirmed" "${INSTALLER_ROOT}/src-tauri/src/main.rs" 2>/dev/null || { bad "[89] 壳 init 脚本未派 horosa:backend-confirmed"; S89_BAD=1; }
+grep -q "BACKEND_CONFIRMED_EVENT" "${S89_UI}/utils/backendBootGate.js" 2>/dev/null || { bad "[89] 前端就绪门未监听壳确认事件"; S89_BAD=1; }
 [ "${S89_BAD}" = "0" ] && ok "[89] 瞬时化资产 全在位"
 
 # 92. runtime 自包含:pip editable/direct_url 工件内嵌构建机绝对路径,随 runtime tar 发出
@@ -2833,24 +2840,14 @@ if [ ! -f "${S62_GUARD}" ]; then
 fi
 [ "${S62_BAD}" = "0" ] && ok "[62] 壳缩放链四层病理锁全绿"
 
-# [63] marker 投影悬空锁 —— 2026-07-31 辅盘干净安装必炸实案制度化:marker 块内 import
-#   绑定名在块外仍被引用,strip 后成未定义自由变量 → 模块顶层 ReferenceError;首爆被预载
-#   catch 吞 + webpack 中毒缓存 → 二次点击伪装成「Lazy chunk resolved empty」。
-#   本仓为投影侧:①全仓残留 marker 的悬空扫描;②jest lazyTargetsSmoke(全技法模块可
-#   require 且有默认导出——投影后任何顶层炸在 jest 即红)。
-echo "[63] marker 投影悬空锁(全仓扫描 + lazy smoke 守卫)"
+# [63] 模块顶层悬空引用锁 —— 2026-07-31 辅盘干净安装必炸实案制度化:模块顶层引用未定义
+#   的名字 → 模块求值即 ReferenceError;首爆被预载 catch 吞 + webpack 中毒缓存 → 二次点击
+#   伪装成「Lazy chunk resolved empty」。jest lazyTargetsSmoke 逐个 require 全技法模块并断言
+#   有默认导出,任何顶层炸在 jest 即红。
+echo "[63] 模块顶层悬空引用锁(lazy smoke 守卫)"
 S63_BAD=0
-S63_SCRIPT="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/check_marker_projection.py"
-if [ ! -f "${S63_SCRIPT}" ]; then
-    S63_BAD=1; bad "[63] 缺 check_marker_projection.py"
-else
-    S63_OUT=$(python3 "${S63_SCRIPT}" "${REPO_ROOT}/Horosa-Web/astrostudyui/src" 2>&1)
-    if [ -n "${S63_OUT}" ]; then
-        S63_BAD=1; bad "[63] 投影悬空引用: ${S63_OUT}"
-    fi
-fi
 [ -f "${REPO_ROOT}/Horosa-Web/astrostudyui/src/test/lazyTargetsSmoke.test.js" ] || { S63_BAD=1; bad "[63] 缺 jest lazyTargetsSmoke 守卫"; }
-[ "${S63_BAD}" = "0" ] && ok "[63] marker 投影悬空锁全绿"
+[ "${S63_BAD}" = "0" ] && ok "[63] 模块顶层悬空引用锁在位"
 
 # [64] 干支年基准 / 性别接线 / AI 输出预算键 三合一锁（与 private[179] 同判据）：
 #   ①术数流年 base 必须是干支年(立春前出生者用公历年会整体错一年);
@@ -3336,10 +3333,17 @@ grep -aq "horosa_repro_sign_cache_v1" "${S193_SIGN}" 2>/dev/null || { bad "[193]
 grep -aq 'KEY_EXCLUDE_SUFFIXES = (".jsa",)' "${S193_SIGN}" 2>/dev/null || { bad "[193] 🔴 修三键污染防线缺失:.jsa 未排出缓存键(实测踩过——键每次都变、缓存永不命中)"; S193_BAD=1; }
 grep -aq "HOROSA_SIGN_CACHE" "${S193_SIGN}" 2>/dev/null || { bad "[193] 🔴 修三 kill-switch 缺失"; S193_BAD=1; }
 grep -aq "sign_payload_cached.py" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修三未接线:打包脚本仍直呼原签名脚本(缓存不生效)"; S193_BAD=1; }
+# 修四 [#71 / FL-20260923-1]:单文件原生库签名按内容缓存(jar 内成员每版重签的时间戳漂移 ⇒ java-lib 298.7 MB 每版必变)
+S193_SIGNER="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/sign_runtime_payload.py"
+S193_NTEST="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/test_sign_runtime_payload_native_cache.py"
+grep -aq "def sign_file_cached" "${S193_SIGNER}" 2>/dev/null || { bad "[193] 🔴 修四缺失:签名器没有单文件按内容缓存(sign_file_cached)"; S193_BAD=1; }
+grep -aq "outcome = sign_file_cached(macho" "${S193_SIGNER}" 2>/dev/null || { bad "[193] 🔴 修四未接线:jar 内 Mach-O 成员仍直呼 sign_path"; S193_BAD=1; }
+grep -aq "HOROSA_NATIVE_SIGN_CACHE" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修四未接线:打包脚本没给签名器传缓存目录(HOROSA_NATIVE_SIGN_CACHE)"; S193_BAD=1; }
+[ -f "${S193_NTEST}" ] && python3 "${S193_NTEST}" >/dev/null 2>&1 || { bad "[193] 🔴 修四判别向量缺失或失败(test_sign_runtime_payload_native_cache.py)"; S193_BAD=1; }
 # 护栏与金标在位
 [ -x "${S193_VERIFY}" ] || { bad "[193] 🔴 可复现性护栏脚本缺失或不可执行"; S193_BAD=1; }
 [ -f "${S193_TEST}" ] || { bad "[193] 🔴 签名缓存金标缺失"; S193_BAD=1; }
-[ "${S193_BAD}" = "0" ] && ok "[193] 增量可复现三资产(mtime 归一+.py 豁免+CDS 豁免+签名缓存+键防污+护栏+金标)全在位"
+[ "${S193_BAD}" = "0" ] && ok "[193] 增量可复现四资产(mtime 归一+.py 豁免+CDS 豁免+签名缓存+键防污+原生库按内容缓存+护栏+金标)全在位"
 
 # ── [194] 时间即时传导 + 择日空闲预挂载 ──────────────────────────────────────
 # 用户定版语义:未起盘=改时间只落草稿(首盘必须显式起盘);已起盘=改时间即刻重算中栏右栏。
@@ -3814,14 +3818,13 @@ grep -aq "window.visualViewport.removeEventListener('resize', vvHandler)" "${S22
   || { bad "[223] models/app.js visualViewport 卸载不对称"; S223_BAD=1; }
 [ "${S223_BAD}" = "0" ] && ok "[223] Tahoe 四链根治结构全在位(壳桥+多拍探针+snap+域混锁+填色+vv 三保险)"
 
-# [224] 布局取证段零残留(同步剥离终验):global.js 在本仓不得含任何 @horosa-private 标记
-#      或诊断浮层痕迹(上游剥离通道的最终审计位)。
-echo "[224] global.js 布局取证段零残留"
+# [224] 布局诊断浮层零残留:global.js 不得含布局诊断浮层及其快捷键痕迹。
+echo "[224] global.js 布局诊断浮层零残留"
 S224_BAD=0
 S224_F="${REPO_ROOT}/Horosa-Web/astrostudyui/src/global.js"
-S224_LEAK="$(grep -aciE "@horosa-private|layout-probe|布局诊断浮层|KeyL" "${S224_F}")"
-[ "${S224_LEAK}" = "0" ] || { bad "[224] global.js 残留标记/诊断浮层痕迹 ×${S224_LEAK}"; S224_BAD=1; }
-[ "${S224_BAD}" = "0" ] && ok "[224] global.js 零标记零浮层痕迹"
+S224_LEAK="$(grep -aciE "layout-probe|布局诊断浮层|KeyL" "${S224_F}")"
+[ "${S224_LEAK}" = "0" ] || { bad "[224] global.js 残留诊断浮层痕迹 ×${S224_LEAK}"; S224_BAD=1; }
+[ "${S224_BAD}" = "0" ] && ok "[224] global.js 零诊断浮层痕迹"
 
 
 # [225] AI 助手行动能力·运行时门控锁(2026-09-01):总开关默认关(仅 '1' 为开)=完全现状路径;
@@ -5693,6 +5696,608 @@ case "${S262_RES}" in
   ok:*) [ "${S262_BAD}" = "0" ] && ok "[262] ${S262_RES#ok:} 个盘面宿主全挂单源订阅 / 调色板只在 utils/appearance.js 切 / 零私抄观察器 / 合同八锁在位" ;;
   *) bad "[262] 🔴 源码普查:${S262_RES}"; S262_BAD=1 ;;
 esac
+
+echo "[263] 后端交易日志:AI 分析端点整组排除 + 密钥类参数脱敏(#68)"
+S263_BAD=0
+S263_CTRL="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/AIAnalysisController.java"
+S263_EXC="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/src/main/resources/conf/log/excludelogtrans.json"
+S263_LOGP="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/src/main/resources/conf/properties/log.properties"
+if [ -f "${S263_CTRL}" ] && [ -f "${S263_EXC}" ]; then
+  S263_RES="$(python3 - "${S263_CTRL}" "${S263_EXC}" <<'PY'
+import json, re, sys
+ctrl = open(sys.argv[1], encoding='utf-8').read()
+base = re.search(r'@RequestMapping\("(/[^"]*)"\)\s*\npublic class', ctrl)
+base = base.group(1) if base else '/aianalysis'
+body = ctrl.split('public class', 1)[1] if 'public class' in ctrl else ctrl
+paths = set(base + p for p in re.findall(r'@(?:Post|Get|Request)Mapping\(\s*(?:value\s*=\s*)?"(/[^"]+)"', body))
+excl = set(json.load(open(sys.argv[2], encoding='utf-8')))
+missing = sorted(paths - excl)
+print(('ok:%d' % len(paths)) if not missing else ('missing:' + ','.join(missing)))
+PY
+)"
+  case "${S263_RES}" in
+    ok:*) : ;;
+    *) bad "[263] 🔴 AI 分析端点未整组排除出交易日志(一旦开日志会记对话与 key):${S263_RES}"; S263_BAD=1 ;;
+  esac
+else
+  bad "[263] 🔴 缺控制器或排除表:${S263_CTRL#${REPO_ROOT}/} / ${S263_EXC#${REPO_ROOT}/}"; S263_BAD=1
+fi
+for S263_K in apiKey authorization Authorization extraHeaders token; do
+  grep -aq "^remvedparams=.*\b${S263_K}\b" "${S263_LOGP}" 2>/dev/null || { bad "[263] 🔴 脱敏参数表 remvedparams 缺 ${S263_K}"; S263_BAD=1; }
+done
+[ "${S263_BAD}" = "0" ] && ok "[263] AI 分析端点整组已排除出交易日志 + 密钥类五参数在脱敏表"
+
+# ── [264] 启动并行三件套(壳 early-nav):静态服务一起来就让前端开始下载解析,与后端引导并行 ──
+#   三件缺一即回退:① 早导航块(early=1 + HOROSA_EARLY_NAV 回退开关 + rust.early_nav 段)
+#   ② init 脚本 __horosaReady:后端就绪时的第二次 ready 同参不重载,只置 __horosaBackendConfirmed 并派事件
+#   (缺它 = 后端就绪时整页重载,并行成果全部作废)③ 端口阶梯段(偏好口被占顺位 +1,本地缓存域不漂)。
+echo "[264] 启动并行三件套(early-nav / 同参不重载 / 端口阶梯)"
+S264_BAD=0
+S264_MAIN="${INSTALLER_ROOT}/src-tauri/src/main.rs"
+for S264_K in "early=1" "HOROSA_EARLY_NAV" "HOROSA_EARLY_NAV_POST_UPDATE" "fn early_nav_url" "rust.early_nav" "window.__horosaReady = function" "__horosaBackendConfirmed" "horosa:backend-confirmed" "rust.web_port_ladder" "fn desktop_init_script_has_same_target_ready_guard" "fn web_port_ladder_steps_instead_of_random_drift"; do
+  grep -aqF "${S264_K}" "${S264_MAIN}" || { bad "[264] 🔴 壳缺启动并行件「${S264_K}」"; S264_BAD=1; }
+done
+grep -aq "BACKEND_CONFIRMED_EVENT" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/backendBootGate.js" 2>/dev/null || { bad "[264] 前端就绪门未监听壳确认事件"; S264_BAD=1; }
+[ "${S264_BAD}" = "0" ] && ok "[264] 启动并行三件套在位(早导航 + 同参不重载确认 + 端口阶梯 + 前端就绪门事件化)"
+
+echo "[265] 跨源请求头合同:前端 X-Horosa-* 请求头 ⊆ Java CORS 白名单(2026-09-25 真浏览器台架实抓)"
+S265_BAD=0
+S265_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/src/main/java/spacex/astrostudyboot/AstroStudyProgram.java"
+S265_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S265_TEST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/corsHeadersContract.test.js"
+[ -f "${S265_TEST}" ] || { bad "[265] 合同测试缺席:corsHeadersContract.test.js"; S265_BAD=1; }
+if [ -f "${S265_JAVA}" ] && [ -d "${S265_UI}" ]; then
+  S265_RES="$(python3 - "${S265_JAVA}" "${S265_UI}" <<'PY265'
+import os, re, sys
+java = open(sys.argv[1], encoding='utf-8').read()
+m = re.search(r'"cors\.supportedHeaders",\s*"([^"]+)"', java)
+if not m:
+    print('no-whitelist'); sys.exit(0)
+allowed = set(h.strip().lower() for h in m.group(1).split(','))
+used = set()
+for root, dirs, files in os.walk(sys.argv[2]):
+    dirs[:] = [d for d in dirs if d not in ('__tests__', 'node_modules') and not d.startswith('.umi')]
+    for f in files:
+        if not f.endswith(('.js', '.jsx', '.ts', '.tsx')):
+            continue
+        try:
+            t = open(os.path.join(root, f), encoding='utf-8', errors='replace').read()
+        except Exception:
+            continue
+        q = chr(39) + chr(34) + chr(96)   # 三种引号;不写字面量,免 bash 3.2 在 $( ) 里数引号
+        used |= set(re.findall('[' + q + '](X-Horosa-[A-Za-z0-9-]+)[' + q + ']', t))
+missing = sorted(h for h in used if h.lower() not in allowed)
+print(('ok:%d' % len(used)) if not missing else ('missing:' + ','.join(missing)))
+PY265
+)"
+  case "${S265_RES}" in
+    ok:*) : ;;
+    *) bad "[265] 🔴 前端自定义请求头不在 CORS 白名单(桌面跨源预检 403 = 整站请求被浏览器拦下):${S265_RES}"; S265_BAD=1 ;;
+  esac
+else
+  bad "[265] 🔴 缺 AstroStudyProgram.java 或前端 src"; S265_BAD=1
+fi
+[ "${S265_BAD}" = "0" ] && ok "[265] 前端 X-Horosa-* 请求头全部在 Java CORS 白名单(${S265_RES#ok:} 枚)+ 合同测试在场"
+
+echo "[266] 延迟初始化边界:XML 扫描组件里带静态初始化块的类必须显式 @Lazy(false) 或在已审白名单(2026-09-25 零降级自检实抓)"
+S266_BAD=0
+S266_SRV="${REPO_ROOT}/Horosa-Web/astrostudysrv"
+S266_MVC="${S266_SRV}/astrostudyboot/src/main/resources/conf/spring-mvc.xml"
+if [ -f "${S266_MVC}" ]; then
+  S266_RES="$(python3 - "${S266_SRV}" "${S266_MVC}" <<'PY266'
+import os, re, sys
+srv, mvc = sys.argv[1], sys.argv[2]
+xml = open(mvc, encoding="utf-8").read()
+m = re.search(r"component-scan\s+base-package=\"([^\"]+)\"", xml)
+if not m:
+    print("no-scan-list"); raise SystemExit(0)
+pkgs = [x.strip() for x in m.group(1).replace(chr(10), ",").split(",") if x.strip()]
+# 已审白名单:静态块只填本类自己的静态状态、读启动后不变的属性(setAppServer 全仓零调用)
+allow = {
+    "boundless.spring.help.springcomp.RestResponseEntityExceptionHandler": "静态块只填本类两张日志过滤表",
+    "spacex.astrostudy.controller.TokenController": "静态块只配置本类两个令牌管理器,静态方法调用即触发类初始化",
+}
+stereo = re.compile(r"^@(Controller|RestController|Service|Component|ControllerAdvice|RestControllerAdvice|Repository)\b", re.M)
+bad, seen = [], 0
+for mod in sorted(os.listdir(srv)):
+    base = os.path.join(srv, mod, "src", "main", "java")
+    if not os.path.isdir(base):
+        continue
+    for pkg in pkgs:
+        root = os.path.join(base, *pkg.split("."))
+        if not os.path.isdir(root):
+            continue
+        for dp, dn, fn in os.walk(root):
+            for f in fn:
+                if not f.endswith(".java"):
+                    continue
+                path = os.path.join(dp, f)
+                src = open(path, encoding="utf-8", errors="replace").read()
+                code = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+                code = re.sub(r"//[^\n]*", "", code)
+                if not stereo.search(code):
+                    continue
+                if not re.search(r"\bstatic\s*\{", code):
+                    continue
+                seen += 1
+                fqn = os.path.relpath(path, base)[:-5].replace(os.sep, ".")
+                if "@Lazy(false)" in code or fqn in allow:
+                    continue
+                bad.append(fqn)
+print(("ok:%d" % seen) if not bad else ("unreviewed:" + ",".join(sorted(set(bad)))))
+PY266
+)"
+  case "${S266_RES}" in
+    ok:*) : ;;
+    *) bad "[266] 🔴 XML 扫描组件带静态初始化块却未审(桌面延迟初始化会把它挪到首次使用时;有进程级副作用的必须 @Lazy(false),自足的进白名单并写明理由):${S266_RES}"; S266_BAD=1 ;;
+  esac
+else
+  bad "[266] 🔴 缺 spring-mvc.xml(组件扫描清单)"; S266_BAD=1
+fi
+grep -q "@Lazy(false)" "${S266_SRV}/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisMaterialService.java" 2>/dev/null || { bad "[266] 🔴 AIAnalysisMaterialService 缺 @Lazy(false)(静态块设置进程级表格解析阈值,Excel 导入依赖它在启动时生效)"; S266_BAD=1; }
+[ "${S266_BAD}" = "0" ] && ok "[266] XML 扫描组件静态初始化块全部已审(${S266_RES#ok:} 个)+ AIAnalysisMaterialService 启动时创建"
+
+echo "[267] 加载态收敛:玄学史序号各守各的 · 神数正传条文库按派归属 · 双触发收敛通用件接线(2026-09-26)"
+S267_BAD=0
+S267_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+for S267_F in "components/xuanshi/__tests__/xuanshiLoaderSeq.test.js" "components/shusuan/__tests__/zhengchuanVersesLoad.test.js" "utils/__tests__/singleTrigger.test.js" "utils/singleTrigger.js"; do
+  [ -s "${S267_UI}/${S267_F}" ] || { bad "[267] 🔴 缺 ${S267_F}"; S267_BAD=1; }
+done
+grep -q "this._dynSeq" "${S267_UI}/components/xuanshi/XuanShiStories.js" 2>/dev/null || { bad "[267] 🔴 故事专题朝代选项未用独立序号(与列表共用 = 首开永远「载入…」)"; S267_BAD=1; }
+grep -q "this._microSeq" "${S267_UI}/components/xuanshi/XuanShiCelestial.js" 2>/dev/null || { bad "[267] 🔴 星象大典年代明细未用独立序号"; S267_BAD=1; }
+grep -q "currentVerses()" "${S267_UI}/components/shusuan/ZhengChuanMain.js" 2>/dev/null && grep -q "versesFor" "${S267_UI}/components/shusuan/ZhengChuanMain.js" 2>/dev/null || { bad "[267] 🔴 神数正传条文库未按派归属管理"; S267_BAD=1; }
+S267_N=0
+for S267_C in guolao/GuoLaoChartMain taiyi/TaiYiMain babylon/BabylonMain astro/AstroDecennials germany/UranianDialMain germany/UranianGraphicEphemeris germany/UranianHouseFrames huangji/HuangJiMain jingjue/JingJueMain shenyishu/ShenYiShuMain taixuan/TaiXuanMain wuzhao/WuZhaoMain kinastro/KinAstroMain; do
+  if grep -q "claimTrigger(this, '" "${S267_UI}/components/${S267_C}.js" 2>/dev/null; then S267_N=$((S267_N + 1)); else bad "[267] 🔴 ${S267_C} 未接双触发收敛(挂钩与更新钩子同参各算一遍)"; S267_BAD=1; fi
+done
+[ "${S267_BAD}" = "0" ] && ok "[267] 玄学史两组件序号独立 + 神数正传条文库按派归属 + 双触发收敛接线 ${S267_N} 处 + 回归测试在场"
+
+# [268] 响应顶层键序 = 生产方顺序 · 黄历九星值日 / 时辰宜忌懒算 · 皇极经世典籍正文按需 · 天象微年表只取渲染行 ·
+#       小限摘要粒度 / 起点挂载接线 + 挂载差分测试缺省钉住此刻。锚住修法与回归测试在位(2026-09-26)。
+echo "[268] 响应保序 · 黄历懒算 · 皇极典籍按需 · 微年表截断 · 小限齿轮接线 + 差分测试钉此刻"
+S268_BAD=0
+S268_W="${REPO_ROOT}/Horosa-Web"
+S268_UI="${S268_W}/astrostudyui/src"
+S268_TD="${S268_W}/astrostudysrv/boundless/src/main/java/boundless/spring/help/interceptor/TransData.java"
+for S268_F in \
+  "astrostudysrv/boundless/src/test/java/boundless/spring/help/interceptor/TransDataOrderTest.java" \
+  "astrostudyui/src/components/calendar/__tests__/huangliLazyDetail.test.js" \
+  "astrostudyui/src/components/huangji/__tests__/huangjiClassicsOnDemand.test.js" \
+  "astropy/tests/test_wangji_classics_ondemand.py" \
+  "astropy/tests/test_xuanshi_micro_ondemand.py"; do
+  [ -s "${S268_W}/${S268_F}" ] || { bad "[268] 🔴 缺回归测试 ${S268_F}"; S268_BAD=1; }
+done
+grep -q "new LinkedHashMap<String, Object>()" "${S268_TD}" 2>/dev/null && [ "$(grep -c 'newResponseMap()' "${S268_TD}" 2>/dev/null)" -ge 6 ] || { bad "[268] 🔴 响应主体表未保序"; S268_BAD=1; }
+grep -q "get times() { return readTimes(); }" "${S268_UI}/components/calendar/huangliDay.js" 2>/dev/null \
+  && grep -q "get nineStar() { return readNineStar(); }" "${S268_UI}/components/calendar/huangliDay.js" 2>/dev/null || { bad "[268] 🔴 黄历九星值日 / 时辰宜忌未懒算"; S268_BAD=1; }
+grep -q "def classic(self):" "${S268_W}/astropy/websrv/webwangjisrv.py" 2>/dev/null \
+  && grep -q "ensurePanClassics(await postWangJi('pan', payload), payload)" "${S268_UI}/components/huangji/HuangJiMain.js" 2>/dev/null \
+  && grep -q "ensurePanClassics(await postWangJi('pan', panPayload), panPayload)" "${S268_UI}/components/huangji/HuangJiMain.js" 2>/dev/null || { bad "[268] 🔴 皇极典籍按需接线不全"; S268_BAD=1; }
+grep -q "def _micro_texts(" "${S268_W}/astropy/astrostudy/xuanshi/celestial.py" 2>/dev/null \
+  && grep -q "(sm.total || 0) > MICRO_RENDER_LIMIT" "${S268_UI}/components/xuanshi/XuanShiMicro.js" 2>/dev/null || { bad "[268] 🔴 天象微年表截断接线不全"; S268_BAD=1; }
+grep -q "profGrain: record.profGrain," "${S268_UI}/utils/aiAnalysisContext.js" 2>/dev/null && grep -q "profStart: record.profStart," "${S268_UI}/utils/aiAnalysisContext.js" 2>/dev/null \
+  && grep -q "installFixedNow('2026-09-26T12:00:00+08:00');" "${S268_UI}/utils/__tests__/mountSettingsDiffAll.test.js" 2>/dev/null || { bad "[268] 🔴 小限摘要粒度 / 起点挂载接线或差分测试钉此刻缺失"; S268_BAD=1; }
+[ "${S268_BAD}" = "0" ] && ok "[268] 响应保序 + 黄历懒算 + 皇极典籍按需 + 微年表截断 + 小限齿轮接线 + 差分测试钉此刻 + 回归测试在场"
+
+# [269] 玄学史天象库载入逐行解析年号:候选按首字分桶(桶内保持原表序),命中集与「等长先到先得」不变,
+#       与全表线性扫逐值相同。锚住分桶与开关回退路 + 等价测试在位(2026-09-26)。
+echo "[269] 玄学史年号首字分桶(逐值等价)"
+S269_BAD=0
+S269_P="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/xuanshi/period.py"
+S269_T="${REPO_ROOT}/Horosa-Web/astropy/tests/test_xuanshi_era_index.py"
+[ -s "${S269_T}" ] || { bad "[269] 🔴 缺等价测试 test_xuanshi_era_index.py"; S269_BAD=1; }
+grep -q "HOROSA_XUANSHI_ERA_INDEX" "${S269_P}" 2>/dev/null && grep -q "_ERA_BY_FIRST.setdefault(_k\[0\], \[\]).append(_k)" "${S269_P}" 2>/dev/null \
+  && grep -q "for cand in _era_candidates(s):" "${S269_P}" 2>/dev/null \
+  && grep -q "for e in _era_candidates(_rest_emp)" "${S269_P}" 2>/dev/null || { bad "[269] 🔴 年号解析回到全表线性扫(或分桶 / 开关回退路缺一)"; S269_BAD=1; }
+grep -q "test_era_index_matches_linear_scan" "${S269_T}" 2>/dev/null && grep -q "test_celestial_load_identical_both_modes" "${S269_T}" 2>/dev/null \
+  || { bad "[269] 🔴 等价测试缺「逐值对全表扫」或「天象库整表两档相等」"; S269_BAD=1; }
+[ "${S269_BAD}" = "0" ] && ok "[269] 年号首字分桶 + 开关回退路 + 等价测试在场"
+
+# [270] 生辰节气(/jieqi/birth,每张新盘都会调)的节气牛顿求解与卯时基准盘原每步建整张默认盘,只读太阳经度 / 速度 / 赤经。
+#       同 HOROSA_JIEQI_FAST_APPROACH 直取太阳位置 + 太阳瘦盘,两档逐字节相同;锚住防回潮(2026-09-26)。
+echo "[270] 生辰节气快路径(节气求解直取太阳 + 卯时基准瘦盘)"
+S270_BAD=0
+S270_P="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/jieqi/BirthJieQi.py"
+S270_T="${REPO_ROOT}/Horosa-Web/astropy/tests/test_birthjieqi_fast_approach.py"
+[ -s "${S270_T}" ] || { bad "[270] 🔴 缺回归测试 test_birthjieqi_fast_approach.py"; S270_BAD=1; }
+grep -q "from flatlib.ephem import swe" "${S270_P}" 2>/dev/null \
+  && [ "$(grep -c "sun = swe.sweObject(const.SUN, " "${S270_P}" 2>/dev/null)" -ge 2 ] \
+  && [ "$(grep -c "chart = self._ascChart(dateTime)" "${S270_P}" 2>/dev/null)" -ge 2 ] || { bad "[270] 🔴 生辰节气求解 / 卯时基准盘回到整张默认盘"; S270_BAD=1; }
+grep -q "test_fast_path_builds_no_full_default_chart" "${S270_T}" 2>/dev/null && grep -q "test_fast_and_slow_paths_are_byte_identical" "${S270_T}" 2>/dev/null \
+  || { bad "[270] 🔴 回归测试缺「两档逐字节同」或「快档零整盘」"; S270_BAD=1; }
+[ "${S270_BAD}" = "0" ] && ok "[270] 生辰节气快路径 + 两档等价测试 + 零整盘结构断言在场"
+
+# [271] 响应 JSON 快径由两个服务扩到进程级(全部挂载服务共用真 jsonpickle 模块;同判据、同回退,逐字节相同),
+#       蠢子数诗词库按进程只建一次。锚住安装点 / 原函数取回 / 缺省参数 / 缓存入口与测试(2026-09-26)。
+echo "[271] 响应 JSON 快径进程级 + 蠢子数诗词库按进程只建一次"
+S271_BAD=0
+S271_W="${REPO_ROOT}/Horosa-Web/astropy"
+for S271_F in tests/test_fastjson_global.py tests/test_chunzi_db_memo.py tests/test_perf_r5_batch1.py; do
+  [ -s "${S271_W}/${S271_F}" ] || { bad "[271] 🔴 缺测试 ${S271_F}"; S271_BAD=1; }
+done
+grep -q "_install_fast_json_global(jsonpickle)" "${S271_W}/websrv/webchartsrv.py" 2>/dev/null \
+  && grep -q "def install_global(jsonpickle_module):" "${S271_W}/websrv/fastjson.py" 2>/dev/null \
+  && grep -q "encode._horosa_orig = orig" "${S271_W}/websrv/fastjson.py" 2>/dev/null \
+  && grep -q "def original_encode(jsonpickle_module):" "${S271_W}/websrv/fastjson.py" 2>/dev/null || { bad "[271] 🔴 进程级 JSON 快径安装点 / 原函数取回口缺失"; S271_BAD=1; }
+grep -q "def encode(self, obj, unpicklable=True, \*\*kw):" "${S271_W}/websrv/fastjson.py" 2>/dev/null || { bad "[271] 🔴 快径 shim 的 unpicklable 缺省须与真 jsonpickle 同为 True"; S271_BAD=1; }
+grep -q "FJ.original_encode(shim)" "${S271_W}/tests/test_perf_r5_batch1.py" 2>/dev/null || { bad "[271] 🔴 快径对拍基准须取原 encode"; S271_BAD=1; }
+grep -q "czs = _chunzi_db()" "${S271_W}/websrv/webchunzisrv.py" 2>/dev/null && grep -q "HOROSA_CHUNZI_DB_MEMO" "${S271_W}/websrv/webchunzisrv.py" 2>/dev/null \
+  || { bad "[271] 🔴 蠢子数又回到每请求新建诗词库"; S271_BAD=1; }
+[ "${S271_BAD}" = "0" ] && ok "[271] 进程级 JSON 快径 + 蠢子数诗词库缓存 + 三份测试在场"
+
+# [272] 玄学史人物关系图节点表原按字符串集合迭代,顺序随进程哈希种子变(每次启动输出不同,力导向图初始布局也随之不同)。
+#       固定为「共现权重降序、同权按人名」;锚住防回潮(2026-09-26)。
+echo "[272] 玄学史人物关系图输出与进程哈希种子无关"
+S272_BAD=0
+S272_E="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/xuanshi/editorial.py"
+S272_T="${REPO_ROOT}/Horosa-Web/astropy/tests/test_xuanshi_persons_graph_order.py"
+[ -s "${S272_T}" ] || { bad "[272] 🔴 缺测试 test_xuanshi_persons_graph_order.py"; S272_BAD=1; }
+grep -q 'for n in sorted(used, key=lambda n: (-deg\[n\], n))\]' "${S272_E}" 2>/dev/null || { bad "[272] 🔴 人物关系图节点表又按集合迭代(顺序随哈希种子变)"; S272_BAD=1; }
+grep -q "PYTHONHASHSEED" "${S272_T}" 2>/dev/null || { bad "[272] 🔴 测试须跨哈希种子子进程比对"; S272_BAD=1; }
+[ "${S272_BAD}" = "0" ] && ok "[272] 人物关系图节点固定序 + 跨哈希种子测试在场"
+
+# [273] 生辰节气卯时上升求解按黄经(byLon=1)在高纬可永不收敛(请求不返回、线程空转)。牛顿迭代设上限
+#       (5 万步,约 1.4 s)+ 超限退到按赤经并在结果里注明 maoFallback;收敛的输入逐字节不变。锚住防回潮(2026-09-27)。
+echo "[273] 卯时上升求解迭代上限 + 不收敛回退"
+S273_BAD=0
+S273_P="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/jieqi/BirthJieQi.py"
+S273_T="${REPO_ROOT}/Horosa-Web/astropy/tests/test_birthjieqi_mao_fallback.py"
+[ -s "${S273_T}" ] || { bad "[273] 🔴 缺回归测试 test_birthjieqi_mao_fallback.py"; S273_BAD=1; }
+grep -qE "^_ASC_APPROACH_MAX_ITER = [0-9]+" "${S273_P}" 2>/dev/null \
+  && [ "$(grep -c "if it > _ASC_APPROACH_MAX_ITER:" "${S273_P}" 2>/dev/null)" -ge 2 ] \
+  && grep -q "self.maoFallback = 'byRA'" "${S273_P}" 2>/dev/null \
+  && grep -q "res\['maoFallback'\] = self.maoFallback" "${S273_P}" 2>/dev/null || { bad "[273] 🔴 卯时上升求解又无迭代上限 / 缺不收敛回退"; S273_BAD=1; }
+grep -q "test_previously_hanging_cases_return_and_fall_back_to_right_ascension" "${S273_T}" 2>/dev/null && grep -q "timeout=" "${S273_T}" 2>/dev/null \
+  || { bad "[273] 🔴 回归测试须用子进程 + 超时跑此前不返回的用例"; S273_BAD=1; }
+[ "${S273_BAD}" = "0" ] && ok "[273] 卯时上升求解迭代上限 + 按赤经回退 + 子进程限时回归测试在场"
+
+# [274] 铁板神数每次排盘新建计算器都重读诗词库与足本条文库、分类检索全表线性扫。按进程只载一次 + 载入时建
+#       分类索引(HOROSA_TIEBAN_DB_MEMO);输出逐字节不变。锚住防回潮(2026-09-27)。
+echo "[274] 铁板神数诗词库 / 足本条文库按进程只载一次 + 分类索引"
+S274_BAD=0
+S274_V="${REPO_ROOT}/Horosa-Web/vendor/kinastro/astro/tieban/tieban_calculator.py"
+S274_T="${REPO_ROOT}/Horosa-Web/astropy/tests/test_tieban_db_memo.py"
+[ -s "${S274_T}" ] || { bad "[274] 🔴 缺测试 test_tieban_db_memo.py"; S274_BAD=1; }
+grep -q '_TIEBAN_DB_MEMO_ON = os.environ.get("HOROSA_TIEBAN_DB_MEMO"' "${S274_V}" 2>/dev/null \
+  && grep -q "_TIEBAN_DB_MEMO.get(('verses', verses_path))" "${S274_V}" 2>/dev/null \
+  && grep -q "_TIEBAN_DB_MEMO.get(('tiaowen', data_path))" "${S274_V}" 2>/dev/null \
+  && grep -q "def _build_category_index(" "${S274_V}" 2>/dev/null || { bad "[274] 🔴 铁板神数又回到每次排盘重读两份库 / 分类全表扫"; S274_BAD=1; }
+grep -q "test_pan_identical_memo_on_off_no_bleed_and_loaded_once" "${S274_T}" 2>/dev/null && grep -q "test_category_index_matches_linear_scan" "${S274_T}" 2>/dev/null \
+  || { bad "[274] 🔴 测试缺「开关两档逐字节同 + 无串染 + 只载一次」或「分类索引 = 线性扫」"; S274_BAD=1; }
+[ "${S274_BAD}" = "0" ] && ok "[274] 铁板神数库按进程只载一次 + 分类索引 + 测试在场"
+
+# [275] 星历表等端点同一请求里重复算同一 (天体, jd, 中心) 黄经。请求内 memo(astroextra.swe_lon;webchartsrv 请求工具
+#       按服务前缀开启、请求结束清空),键含中心与站心坐标;输出逐字节不变。锚住防回潮(2026-09-27)。
+echo "[275] 请求内黄经 memo"
+S275_BAD=0
+S275_A="${REPO_ROOT}/Horosa-Web/astropy/astrostudy/astroextra.py"
+S275_W="${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"
+S275_T="${REPO_ROOT}/Horosa-Web/astropy/tests/test_swe_lon_memo.py"
+[ -s "${S275_T}" ] || { bad "[275] 🔴 缺测试 test_swe_lon_memo.py"; S275_BAD=1; }
+grep -q "key = (body, jd, c, topo)" "${S275_A}" 2>/dev/null && grep -q "memo = None   # 置点失败时" "${S275_A}" 2>/dev/null \
+  && grep -q "HOROSA_SWE_LON_MEMO" "${S275_A}" 2>/dev/null || { bad "[275] 🔴 黄经 memo 键不全 / 站心置点失败未排除 / 缺开关"; S275_BAD=1; }
+grep -q "cherrypy.tools.swe_lon_memo = cherrypy.Tool('before_handler', _swe_lon_memo_tool" "${S275_W}" 2>/dev/null \
+  && grep -q "req.hooks.attach('on_end_request', ax.swe_lon_memo_end)" "${S275_W}" 2>/dev/null \
+  && grep -q "ax.swe_lon_memo_end()   # 保险:非目标请求一律无 memo" "${S275_W}" 2>/dev/null || { bad "[275] 🔴 黄经 memo 请求工具未注册 / 未在请求结束清空"; S275_BAD=1; }
+grep -q "test_memo_key_separates_center_and_topo_position" "${S275_T}" 2>/dev/null && grep -q "test_outputs_identical_memo_on_off_and_fewer_ephemeris_calls" "${S275_T}" 2>/dev/null \
+  || { bad "[275] 🔴 测试缺「开关两档逐字节同 + 真少算」或「键分中心与站心坐标」"; S275_BAD=1; }
+[ "${S275_BAD}" = "0" ] && ok "[275] 请求内黄经 memo(键 / 站心 / 请求工具 / 清空)+ 测试在场"
+
+# [276] 主排盘两处等价提速:恒星批 LRU 存入 / 命中由整批 deepcopy 改快克隆(可变属性仍深拷贝、共享关系保持)·
+#       JSON 快径预扫由递归改迭代(逐节点判据不变)。锚住防回潮(2026-09-27)。
+echo "[276] 恒星批快克隆 + JSON 快径迭代预扫"
+S276_BAD=0
+S276_E="${REPO_ROOT}/Horosa-Web/flatlib-ctrad2/flatlib/ephem/ephem.py"
+S276_F="${REPO_ROOT}/Horosa-Web/astropy/websrv/fastjson.py"
+S276_T="${REPO_ROOT}/Horosa-Web/astropy/tests/test_star_clone_and_iter_scan.py"
+[ -s "${S276_T}" ] || { bad "[276] 🔴 缺测试 test_star_clone_and_iter_scan.py"; S276_BAD=1; }
+grep -q "return key, _cloneStarList(hit)" "${S276_E}" 2>/dev/null && grep -q "pristine = _cloneStarList(starList)" "${S276_E}" 2>/dev/null \
+  && grep -q "HOROSA_STAR_LRU_FASTCLONE" "${S276_E}" 2>/dev/null && grep -q "setattr(c, sk, copy.deepcopy(sv))" "${S276_E}" 2>/dev/null \
+  || { bad "[276] 🔴 恒星批快克隆缺失 / 可变属性未深拷贝 / 缺开关"; S276_BAD=1; }
+grep -q "def _fast_shape_ok_iter(obj, _depth=0):" "${S276_F}" 2>/dev/null && grep -q "def _fast_shape_ok_recursive(obj, _depth=0):" "${S276_F}" 2>/dev/null \
+  && grep -q "HOROSA_FAST_JSON_ITER_SCAN" "${S276_F}" 2>/dev/null || { bad "[276] 🔴 迭代预扫 / 递归回退路 / 开关缺一"; S276_BAD=1; }
+grep -q "test_iterative_scan_matches_recursive" "${S276_T}" 2>/dev/null && grep -q "test_star_clone_matches_deepcopy_and_isolates" "${S276_T}" 2>/dev/null \
+  || { bad "[276] 🔴 测试缺「迭代 = 递归」或「快克隆 = deepcopy + 隔离」"; S276_BAD=1; }
+[ "${S276_BAD}" = "0" ] && ok "[276] 恒星批快克隆 + 迭代预扫 + 测试在场"
+
+# [277] 八字时间算法口径:「直接时间」不做任何时刻换算(年柱 / 月柱 / 交节距离也按所填钟表时刻,不沿用计算服务的卯时偏移
+#       —— 否则交节后一段时间内节气窗越界报错);「春分定卯时」尚无独立换算,模型与四处控制器缓存键一律按「直接时间」算
+#       (否则按平移后的时刻判换日,多数时辰日柱前错一天)。真太阳时 / 平太阳时结果不变。锚住防回潮(2026-09-27)。
+echo "[277] 八字时间算法口径:直接时间零偏移 + 春分定卯时按直接时间"
+S277_BAD=0
+S277_CN="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn"
+S277_T="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/test/java/spacex/astrostudycn/model/BaZiTimeAlgBasisTest.java"
+grep -q "return this == SpringMao ? DirectTime : this;" "${S277_CN}/constants/TimeZiAlg.java" 2>/dev/null || { bad "[277] 🔴 TimeZiAlg.calcBasis 缺失(春分定卯时未归直接时间)"; S277_BAD=1; }
+grep -q "this.timeAlg = timeAlg == null ? null : timeAlg.calcBasis();" "${S277_CN}/model/BaZi.java" 2>/dev/null || { bad "[277] 🔴 BaZi 构造未按 calcBasis 归一时间算法"; S277_BAD=1; }
+grep -A5 "}else if(this.timeAlg == TimeZiAlg.DirectTime) {" "${S277_CN}/model/BaZi.java" 2>/dev/null | pipe_has "this.timeOffsetJDN = 0;" || { bad "[277] 🔴 直接时间未清零偏移(会沿用卯时偏移平移出生时刻)"; S277_BAD=1; }
+for s277_c in BaZiBirthController PaiBaZiController LiuRengController JieQiController; do
+  grep -q "TimeZiAlg.fromCode(time[A-Za-z]*).calcBasis()" "${S277_CN}/controller/${s277_c}.java" 2>/dev/null || { bad "[277] 🔴 ${s277_c} 缓存键未按 calcBasis 归一"; S277_BAD=1; }
+done
+grep -q "springMaoOutputEqualsDirectTimeByteForByte" "${S277_T}" 2>/dev/null && grep -q "directTimeUsesClockTimeWithoutOffset" "${S277_T}" 2>/dev/null \
+  && grep -q "solarTimeAlgorithmsKeepTheirOffsets" "${S277_T}" 2>/dev/null || { bad "[277] 🔴 测试缺「春分定卯时 = 直接时间逐字节」/「直接时间零偏移」/「真太阳时平太阳时照旧」"; S277_BAD=1; }
+S277_FAT="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
+if [ -f "${S277_FAT}" ]; then
+  s277_cn="$(unzip -Z1 "${S277_FAT}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
+  if [ -n "${s277_cn}" ]; then
+    s277_tmp="$(mktemp -d)"; unzip -oq "${S277_FAT}" "${s277_cn}" -d "${s277_tmp}" 2>/dev/null
+    unzip -p "${s277_tmp}/${s277_cn}" spacex/astrostudycn/constants/TimeZiAlg.class 2>/dev/null | strings | pipe_has "calcBasis" || { bad "[277] 后端 jar 未含 calcBasis —— 需重建 astrostudycn 与 astrostudyboot"; S277_BAD=1; }
+    rm -rf "${s277_tmp}"
+  fi
+fi
+[ "${S277_BAD}" = "0" ] && ok "[277] 直接时间零偏移 + 春分定卯时按直接时间(模型 / 四处缓存键 / 测试)在位"
+
+# [278] 年柱按立春本身判定 + 换算后跨出节气窗时重取窗口:一、二月出生与节气窗里的立春(ord == 0 的节)比较,不按固定下标
+#       (节气窗会在生辰前补项以包住生辰,二月立春前出生时立春不在 [2]);不再「换算跨立春另进一年」(年柱已按换算后时刻判定);
+#       真太阳时 / 平太阳时换算后跨回交节前、落出按钟表时刻取的节气窗时,按换算后时刻重取窗口,不再报错。锚住防回潮(2026-09-27)。
+echo "[278] 年柱按立春本身判定 + 换算后跨出节气窗重取窗口"
+S278_BAD=0
+S278_H="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/BaZiHelper.java"
+S278_B="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/model/BaZi.java"
+S278_J="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/controller/JieQiController.java"
+S278_T="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/test/java/spacex/astrostudycn/model/BaZiLichunWindowTest.java"
+grep -q "static Map<String, Object> findLichun(Map<String, Object>\[\] jieqi, double birthJdn)" "${S278_H}" 2>/dev/null \
+  && grep -q "if(m == Calendar.JANUARY || m == Calendar.FEBRUARY) {" "${S278_H}" 2>/dev/null \
+  && grep -q "Map<String, Object> lichun = findLichun(jieqi, jdn);" "${S278_H}" 2>/dev/null || { bad "[278] 🔴 年柱未按窗口里的立春本身判定(一、二月)"; S278_BAD=1; }
+grep -q "Map<String, Object> map = jieqi\[2\];" "${S278_H}" 2>/dev/null && { bad "[278] 🔴 年柱又按固定下标 jieqi[2] 取立春"; S278_BAD=1; }
+grep -q "nextYear" "${S278_B}" 2>/dev/null && { bad "[278] 🔴 又出现跨立春另进一年(年柱已按换算后时刻判定,再进 = 多算一年)"; S278_BAD=1; }
+grep -q "private int locateBirthJie() {" "${S278_B}" 2>/dev/null \
+  && grep -q "BaZiHelper.getJieQiInfo(this.ad, this.birth, this.zone, this.lon, this.lat, useLocalMao, byLon).get(\"jieqi\")" "${S278_B}" 2>/dev/null \
+  && [ "$(grep -c "jieidx = this.locateBirthJie();" "${S278_B}" 2>/dev/null)" -ge 2 ] || { bad "[278] 🔴 换算后跨出节气窗未按换算后时刻重取窗口"; S278_BAD=1; }
+s278_rev="$(grep -oE 'JieQiYearCacheRev = "jieqi_year_bazi_v[0-9]+"' "${S278_J}" 2>/dev/null | grep -oE '[0-9]+"$' | tr -d '"')"
+[ "${s278_rev:-0}" -ge 6 ] 2>/dev/null || { bad "[278] 🔴 节气年表缓存代次低于 v6(旧年缓存返旧四柱)"; S278_BAD=1; }
+for s278_m in februaryBeforeLichunIsPreviousYear julianEraLichunInLateJanuary solarTimeCrossingLichunAddsNoExtraYear shiftedBirthOutsideClockWindowRefetches; do
+  grep -q "${s278_m}" "${S278_T}" 2>/dev/null || { bad "[278] 🔴 测试缺 ${s278_m}"; S278_BAD=1; }
+done
+S278_FAT="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
+if [ -f "${S278_FAT}" ]; then
+  s278_tmp="$(mktemp -d)"
+  s278_as="$(unzip -Z1 "${S278_FAT}" 'BOOT-INF/lib/astrostudy-1*.jar' 2>/dev/null | head -1)"
+  s278_cn="$(unzip -Z1 "${S278_FAT}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
+  if [ -n "${s278_as}" ] && [ -n "${s278_cn}" ]; then
+    unzip -oq "${S278_FAT}" "${s278_as}" "${s278_cn}" -d "${s278_tmp}" 2>/dev/null
+    unzip -p "${s278_tmp}/${s278_as}" spacex/astrostudy/helper/BaZiHelper.class 2>/dev/null | strings | pipe_has "findLichun" || { bad "[278] 后端 jar 未含 findLichun —— 需重建 astrostudy / astrostudycn / astrostudyboot"; S278_BAD=1; }
+    unzip -p "${s278_tmp}/${s278_cn}" spacex/astrostudycn/model/BaZi.class 2>/dev/null | strings | pipe_has "locateBirthJie" || { bad "[278] 后端 jar 未含 locateBirthJie —— 需重建 astrostudycn / astrostudyboot"; S278_BAD=1; }
+  fi
+  rm -rf "${s278_tmp}"
+fi
+[ "${S278_BAD}" = "0" ] && ok "[278] 年柱按立春本身判定 / 不另进一年 / 跨出节气窗重取 / 年表缓存代次 / 测试在位"
+
+# [279] 经纬度串按「度 + 分 / 60」解析(真太阳时 / 平太阳时偏移随之正确)+ 日柱按换算后时刻取、不再另减一天
+#       (偏移大的西部地点子时出生此前日柱前错一天)。锚住防回潮(2026-09-27)。
+echo "[279] 经纬度串「度 + 分 / 60」+ 日柱不另减一天"
+S279_BAD=0
+S279_W="${REPO_ROOT}/Horosa-Web/astrostudysrv"
+S279_P="${S279_W}/boundless/src/main/java/boundless/utility/PositionUtility.java"
+S279_B="${S279_W}/astrostudycn/src/main/java/spacex/astrostudycn/model/BaZi.java"
+grep -q "static double parseDegreeMinute(String degStr, String minStr){" "${S279_P}" 2>/dev/null \
+  && grep -q "ConvertUtility.getValueAsDouble(minStr, 0) / 60.0" "${S279_P}" 2>/dev/null \
+  && [ "$(grep -c "return parseDegreeMinute(parts\[0\], parts\[1\]) \* positive;" "${S279_P}" 2>/dev/null)" -ge 2 ] || { bad "[279] 🔴 经纬度串未按「度 + 分 / 60」解析(经度 / 纬度两处)"; S279_BAD=1; }
+grep -q "(1.0 / min" "${S279_P}" 2>/dev/null && { bad "[279] 🔴 经纬度串又出现「度 + 1 / 分」"; S279_BAD=1; }
+grep -Eq "prevDay|nextDay|offsetTimeZi" "${S279_B}" 2>/dev/null && { bad "[279] 🔴 又出现日柱另减一天(日柱已按换算后时刻取)"; S279_BAD=1; }
+s279_rev="$(grep -oE 'JieQiYearCacheRev = "jieqi_year_bazi_v[0-9]+"' "${S279_W}/astrostudycn/src/main/java/spacex/astrostudycn/controller/JieQiController.java" 2>/dev/null | grep -oE '[0-9]+"$' | tr -d '"')"
+[ "${s279_rev:-0}" -ge 7 ] 2>/dev/null || { bad "[279] 🔴 节气年表缓存代次低于 v7"; S279_BAD=1; }
+grep -q "public void roundTripWithFormatter()" "${S279_W}/boundless/src/test/java/boundless/utility/PositionUtilityDegreeMinuteTest.java" 2>/dev/null \
+  && grep -q "longitudeMinutesAreSixtiethsOfDegree" "${S279_W}/astrostudy/src/test/java/spacex/astrostudy/model/RealSunTimeOffsetTest.java" 2>/dev/null \
+  && grep -q "westernLateNightUsesDayOfConvertedTime" "${S279_W}/astrostudycn/src/test/java/spacex/astrostudycn/model/BaZiSolarDayPillarTest.java" 2>/dev/null \
+  && grep -q "smallOffsetUnchanged" "${S279_W}/astrostudycn/src/test/java/spacex/astrostudycn/model/BaZiSolarDayPillarTest.java" 2>/dev/null || { bad "[279] 🔴 测试缺解析 / 偏移 / 西部子时日柱 / 小偏移不变之一"; S279_BAD=1; }
+S279_FAT="${S279_W}/astrostudyboot/target/astrostudyboot.jar"
+if [ -f "${S279_FAT}" ]; then
+  s279_tmp="$(mktemp -d)"
+  s279_bl="$(unzip -Z1 "${S279_FAT}" 'BOOT-INF/lib/boundless-*.jar' 2>/dev/null | head -1)"
+  s279_cn="$(unzip -Z1 "${S279_FAT}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
+  if [ -n "${s279_bl}" ] && [ -n "${s279_cn}" ]; then
+    unzip -oq "${S279_FAT}" "${s279_bl}" "${s279_cn}" -d "${s279_tmp}" 2>/dev/null
+    unzip -p "${s279_tmp}/${s279_bl}" boundless/utility/PositionUtility.class 2>/dev/null | strings | pipe_has "parseDegreeMinute" || { bad "[279] 后端 jar 未含 parseDegreeMinute —— 需重建 boundless / astrostudy / astrostudycn / astrostudyboot"; S279_BAD=1; }
+    unzip -p "${s279_tmp}/${s279_cn}" spacex/astrostudycn/model/BaZi.class 2>/dev/null | strings | pipe_has "prevDay" && { bad "[279] 后端 jar 的 BaZi 仍含 prevDay —— 需重建 astrostudycn / astrostudyboot"; S279_BAD=1; }
+  fi
+  rm -rf "${s279_tmp}"
+fi
+[ "${S279_BAD}" = "0" ] && ok "[279] 经纬度串「度 + 分 / 60」/ 日柱不另减一天 / 年表缓存 v7 / 测试在位"
+
+# [280] 八字本地引擎按出生绝对时刻取年柱 / 月柱 / 交节距离:lunar-javascript 节气表按北京时间,非东八区须把(真太阳时换算后的)
+#       出生时刻折成北京时间去取年 / 月与交节,日柱 / 时柱仍按当地钟表;东八区原样(逐字节不变)。锚住防回潮(2026-09-27)。
+echo "[280] 八字本地引擎按绝对时刻换月(非东八区)"
+S280_BAD=0
+S280_L="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/baziLunarLocal.js"
+S280_T="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/baziAbsoluteTimeJie.test.js"
+grep -q "function absoluteTimeLunar(localLunar, localSolar, zone" "${S280_L}" 2>/dev/null \
+  && grep -qF "export function shiftSolarMinutes(solar, minutes){" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/beijingTimeShift.js" 2>/dev/null \
+  && grep -qF "import { parseZoneHours, bjShiftMinutes, shiftSolarMinutes } from './beijingTimeShift';" "${S280_L}" 2>/dev/null \
+  && grep -q "import { Solar, LunarUtil, Lunar, LunarMonth, EightChar } from 'lunar-javascript';" "${S280_L}" 2>/dev/null || { bad "[280] 🔴 本地引擎缺按绝对时刻的农历"; S280_BAD=1; }
+[ "$(grep -c "const baziLunar = absoluteTimeLunar(lunar, solar, params && params.zone" "${S280_L}" 2>/dev/null)" -ge 2 ] \
+  && [ "$(grep -c "buildNongli(lunar, solar, solar, ziweiLunar, baziLunar)" "${S280_L}" 2>/dev/null)" -ge 2 ] \
+  && grep -q "const prevJie = baziLunar.getPrevJie();" "${S280_L}" 2>/dev/null || { bad "[280] 🔴 完整版 / 轻量版 / 节后天数 / 月律分野 未全部改走绝对时刻"; S280_BAD=1; }
+grep -q "东八区不变(对照)" "${S280_T}" 2>/dev/null && grep -q "奇门扫描用轻量版同口径" "${S280_T}" 2>/dev/null || { bad "[280] 🔴 测试缺海外换月 / 东八区对照 / 轻量版同口径"; S280_BAD=1; }
+[ "${S280_BAD}" = "0" ] && ok "[280] 八字本地引擎按绝对时刻换月 + 测试在位"
+
+# [281] 八字「南半球月令」设置:缺省不对冲(八字主盘现状),两个引擎都按它算(本地 flipMonthPillar / 后端 BaZi.southMonthFlip,
+#       缺省 false);/bazi/birth、/bazi/direct 按请求参数;二十四节气页显式对冲,保持其帮助文档写明的南纬对调。锚住防回潮(2026-09-27)。
+echo "[281] 南半球月令设置(两引擎同口径)"
+S281_BAD=0
+S281_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S281_CN="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn"
+grep -q '<div className="horosa-field-label">南半球月令</div>' "${S281_UI}/components/cntradition/CnTraditionInput.js" 2>/dev/null \
+  && grep -q "southMonth: (this.state.baziOpt && this.state.baziOpt.southMonth) || 'none'," "${S281_UI}/components/cntradition/BaZi.js" 2>/dev/null \
+  && grep -q "(prev.southMonth || 'none') !== (opt.southMonth || 'none')" "${S281_UI}/components/cntradition/BaZi.js" 2>/dev/null || { bad "[281] 🔴 八字页缺南半球月令控件 / 请求参数 / 改后重排"; S281_BAD=1; }
+grep -q "{ name: 'southMonth', label: '南半球月令'" "${S281_UI}/utils/techniqueMountSettings.js" 2>/dev/null \
+  && grep -q "southMonth: (record && record.southMonth) || 'none'," "${S281_UI}/utils/aiAnalysisContext.js" 2>/dev/null || { bad "[281] 🔴 AI 挂载缺南半球月令 / 取盘参数未转发"; S281_BAD=1; }
+grep -q "function flipMonthPillar(hybrid, base){" "${S281_UI}/utils/baziLunarLocal.js" 2>/dev/null \
+  && grep -q "export function isSouthLatitude(params){" "${S281_UI}/utils/baziLunarLocal.js" 2>/dev/null \
+  && grep -q "'gender', 'southMonth'\];" "${S281_UI}/utils/baziLunarLocal.js" 2>/dev/null || { bad "[281] 🔴 本地引擎缺对冲实现 / 南纬判定 / 核心缓存键未含 southMonth"; S281_BAD=1; }
+grep -q "transient protected boolean southMonthFlip = false;" "${S281_CN}/model/BaZi.java" 2>/dev/null \
+  && grep -q 'if(this.southMonthFlip && lat.toLowerCase().contains("s")) {' "${S281_CN}/model/BaZi.java" 2>/dev/null || { bad "[281] 🔴 后端南纬月柱又成无条件对冲(或缺开关)"; S281_BAD=1; }
+for s281_c in BaZiBirthController PaiBaZiController; do
+  grep -q 'bz.setSouthMonthFlip("chong".equals(params.get("southMonth")));' "${S281_CN}/controller/${s281_c}.java" 2>/dev/null \
+    && grep -q 'map.put("southMonth", "chong".equals(TransData.getValueAsString("southMonth")) ? "chong" : "none");' "${S281_CN}/controller/${s281_c}.java" 2>/dev/null || { bad "[281] 🔴 ${s281_c} 未按参数设南半球月令(或未进缓存键)"; S281_BAD=1; }
+done
+[ "$(grep -c "bz.setSouthMonthFlip(true);" "${S281_CN}/controller/JieQiController.java" 2>/dev/null)" -ge 2 ] || { bad "[281] 🔴 节气页未显式对冲"; S281_BAD=1; }
+grep -q "AI 快照:南纬盘标明月令口径" "${S281_UI}/utils/__tests__/baziSouthMonth.test.js" 2>/dev/null \
+  && grep -q "southFlipWhenRequested" "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/test/java/spacex/astrostudycn/model/BaZiSouthMonthTest.java" 2>/dev/null || { bad "[281] 🔴 缺南半球月令测试(前端 / 后端)"; S281_BAD=1; }
+S281_FAT="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
+if [ -f "${S281_FAT}" ]; then
+  s281_cn="$(unzip -Z1 "${S281_FAT}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
+  if [ -n "${s281_cn}" ]; then
+    s281_tmp="$(mktemp -d)"; unzip -oq "${S281_FAT}" "${s281_cn}" -d "${s281_tmp}" 2>/dev/null
+    unzip -p "${s281_tmp}/${s281_cn}" spacex/astrostudycn/model/BaZi.class 2>/dev/null | strings | pipe_has "setSouthMonthFlip" || { bad "[281] 后端 jar 未含 setSouthMonthFlip —— 需重建 astrostudycn / astrostudyboot"; S281_BAD=1; }
+    rm -rf "${s281_tmp}"
+  fi
+fi
+[ "${S281_BAD}" = "0" ] && ok "[281] 南半球月令:界面 / 请求 / 挂载 / 本地引擎 / 后端缺省不对冲 / 节气页显式对冲 / 测试在位"
+
+echo "[282] 八字岁数 / 年份口径:回退 Java 的岁数对齐虚岁 + 旧版界面与快照随「年龄」档 + 跨公元纪元无 0 年"
+S282_BAD=0
+S282_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S282_CT="${S282_UI}/components/cntradition"
+S282_CN="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn"
+# ① 取数入口:/bazi/birth、/bazi/direct 两处回退结果都先对齐为虚岁(大运按天文年差,跨纪元不多算)
+[ "$(grep -cF 'alignJavaBaziAges(data[Constants.ResultKey])' "${S282_CT}/BaZi.js" 2>/dev/null)" -ge 2 ] \
+  && grep -qF 'd.age = displayYearDiff(birthYear, startYear) + 1;' "${S282_CT}/BaZi.js" 2>/dev/null || { bad "[282] 🔴 八字页回退 Java 的结果未在取数入口对齐为虚岁(公元前 / 域外年份岁数小一岁)"; S282_BAD=1; }
+# ② 岁数显示单源 + 旧版界面随「年龄」档
+grep -qF "export function baziAgeText(age, ageStyle, legacySuffix = '周岁'){" "${S282_CT}/baziAgeText.js" 2>/dev/null \
+  && grep -qF "return ageStyle === 'real' ? Math.max(0, n - 1) : n;" "${S282_CT}/baziAgeText.js" 2>/dev/null || { bad "[282] 🔴 岁数显示单源 baziAgeText 缺失或换算被改"; S282_BAD=1; }
+for s282_f in MDSDirect MDSYear SmallDirection MainDirection BaZiLegacyView; do
+  grep -qF 'baziAgeText(' "${S282_CT}/${s282_f}.js" 2>/dev/null || { bad "[282] 🔴 ${s282_f} 岁数未走 baziAgeText(虚岁数据标「周岁」大一岁)"; S282_BAD=1; }
+done
+if grep -qF '<span>{age}周岁</span>' "${S282_CT}/MDSDirect.js" 2>/dev/null || grep -qF "nowage + '周岁'" "${S282_CT}/MDSYear.js" 2>/dev/null \
+  || grep -qF '{d.age !== undefined ? `${d.age}周岁`' "${S282_CT}/SmallDirection.js" 2>/dev/null || grep -qF '{age ? `${age}周岁` : ' "${S282_CT}/BaZiLegacyView.js" 2>/dev/null; then
+  bad "[282] 🔴 旧版界面又出现把原值直接标「周岁」的写法"; S282_BAD=1
+fi
+[ "$(grep -cF 'ageStyle={ageStyle} />' "${S282_CT}/BaZiLegacyView.js" 2>/dev/null)" -ge 3 ] \
+  && grep -qF "<BaZiLegacyInfoPanel value={bazi} fields={this.effFields()} height={tabHeight} ageStyle={(this.state.baziOpt && this.state.baziOpt.ageStyle) || 'nominal'} />" "${S282_CT}/BaZi.js" 2>/dev/null || { bad "[282] 🔴 旧版界面三处岁数未下传「年龄」档"; S282_BAD=1; }
+# ③ AI 快照「流年行运概略」起始年龄随档
+grep -qF "const startAge = block && block.age !== undefined ? baziAgeText(block.age, overviewAgeStyle) : '';" "${S282_CT}/BaZi.js" 2>/dev/null || { bad "[282] 🔴 快照起始年龄又恒写虚岁(与小运表口径不一)"; S282_BAD=1; }
+# ④ 显示年算术(无公元 0 年):行运面板 / 细盘 / 旧版 / 快照
+grep -qF 'export function addDisplayYears(year, n){' "${S282_UI}/utils/dateStrSafe.js" 2>/dev/null \
+  && grep -qF 'export function displayYearDiff(a, b){' "${S282_UI}/utils/dateStrSafe.js" 2>/dev/null || { bad "[282] 🔴 dateStrSafe 缺显示年算术"; S282_BAD=1; }
+if grep -qF 'const year = luck.startYear + idx;' "${S282_CT}/BaZiLuckFlowPanel.js" 2>/dev/null || grep -qF 'const year = birthYear + idx;' "${S282_CT}/BaZiLuckFlowPanel.js" 2>/dev/null \
+  || grep -qF 'return SixtyJiaZi[mod(year - 1984, 60)];' "${S282_CT}/BaZiLuckFlowPanel.js" 2>/dev/null \
+  || grep -qF 'const index = Number(selection.year) - Number(block.startYear);' "${S282_CT}/BaZiFineChart.js" 2>/dev/null; then
+  bad "[282] 🔴 行运面板 / 细盘又直接加减年份(跨公元纪元出 0 年、公元前年干支错一位)"; S282_BAD=1
+fi
+# ⑤ Java:大运起运岁、小运年份跨纪元
+[ "$(grep -cF 'int age = historicalYearDiff(birthYear, dirYear);' "${S282_CN}/model/BaZiDirect.java" 2>/dev/null)" -eq 2 ] \
+  && [ "$(grep -cF 'int age = historicalYearDiff(birthYear, dirYear);' "${S282_CN}/model/OnlyFourColumns.java" 2>/dev/null)" -eq 2 ] \
+  && [ "$(grep -cF 'int y = addHistoricalYears(year, i);' "${S282_CN}/model/BaZiDirect.java" 2>/dev/null)" -eq 2 ] || { bad "[282] 🔴 Java 大运岁 / 小运年份又直接加减(公元前出生起运岁多一岁、小运出 0 年)"; S282_BAD=1; }
+grep -qF 'bcBirthLuckStartingInAdDoesNotCountYearZero' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/test/java/spacex/astrostudycn/model/BaZiEraBoundaryTest.java" 2>/dev/null \
+  && grep -qF '旧版界面岁数随「年龄」档' "${S282_CT}/__tests__/baziAgeYearConvention.test.js" 2>/dev/null || { bad "[282] 🔴 缺岁数 / 年份口径测试(前端 / Java)"; S282_BAD=1; }
+S282_FAT="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
+if [ -f "${S282_FAT}" ]; then
+  s282_cn="$(unzip -Z1 "${S282_FAT}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
+  if [ -n "${s282_cn}" ]; then
+    s282_tmp="$(mktemp -d)"; unzip -oq "${S282_FAT}" "${s282_cn}" -d "${s282_tmp}" 2>/dev/null
+    unzip -p "${s282_tmp}/${s282_cn}" spacex/astrostudycn/model/BaZi.class 2>/dev/null | strings | pipe_has "historicalYearDiff" || { bad "[282] fat jar 未含 historicalYearDiff —— 需 astrostudycn install + astrostudyboot clean package"; S282_BAD=1; }
+    rm -rf "${s282_tmp}"
+  fi
+fi
+[ "${S282_BAD}" = "0" ] && ok "[282] 八字岁数 / 年份口径:取数入口对齐虚岁 / 旧版界面与快照随「年龄」档 / 显示年算术 / Java 跨纪元 / 测试 / 运行时 jar 在位"
+
+echo "[283] 历法口径统一:时刻串秒进位 / 八字农历随时间算法 / 交节精确时刻 / 北京农历表 / 各模块按当地钟表比节气"
+S283_BAD=0
+S283_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S283_SRV="${REPO_ROOT}/Horosa-Web/astrostudysrv"
+S283_PY="${REPO_ROOT}/Horosa-Web/astropy"
+S283_DT="${S283_SRV}/boundless/src/main/java/boundless/utility/DateTimeUtility.java"
+S283_NL="${S283_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/NongliHelper.java"
+S283_CN="${S283_SRV}/astrostudycn/src/main/java/spacex/astrostudycn"
+# ① 时刻串:秒四舍五入到 60 逐级进位,进到 24:00:00 日期同步进一天(不再出 xx:xx:60、整点时辰不再判早)
+grep -qF 'if(s >= 60) {' "${S283_DT}" 2>/dev/null && grep -qF 'long[] dt = calDateFromJdn(tparts[0] > 0 ? locjdn + 1 : locjdn);' "${S283_DT}" 2>/dev/null \
+  && grep -qF 'if(Math.abs(delta) > 0.5 / 86400.0 + 0.00000001) {' "${S283_DT}" 2>/dev/null || { bad "[283] 🔴 Java 时刻串秒数进位被改回(会再出 :60,整点时辰判早一个)"; S283_BAD=1; }
+# ② 八字类农历日期 / 节后天数 / 人元司令随所选时间算法(真太阳时档不动;标为真太阳时的一行仍给真太阳时)
+[ "$(grep -cF 'this.alignNongliWithTimeAlg(realSunBirth);' "${S283_CN}/model/BaZi.java" 2>/dev/null)" -eq 1 ] \
+  && grep -qF 'map.put("birth", trueSolarBirth);' "${S283_CN}/model/BaZi.java" 2>/dev/null || { bad "[283] 🔴 八字农历又恒按真太阳时(或真太阳时一行被改)"; S283_BAD=1; }
+# ③ 交节时刻:求解目标为节气黄经本身;节气时刻显示四舍五入到秒;缓存代次随之升级
+for s283_f in BirthJieQi YearJieQi; do
+  [ "$(grep -cF '+ 1/7200' "${S283_PY}/astrostudy/jieqi/${s283_f}.py" 2>/dev/null)" = "0" ] || { bad "[283] 🔴 ${s283_f} 交节求解又加了 1/7200°(交节晚约 12 秒)"; S283_BAD=1; }
+done
+grep -qF 'def cnTimeRounded(tm):' "${S283_PY}/astrostudy/jieqi/jieqiconst.py" 2>/dev/null \
+  && [ "$(grep -cF 'jieqiconst.cnTimeRounded(newtm)' "${S283_PY}/astrostudy/jieqi/BirthJieQi.py" 2>/dev/null)" -ge 3 ] \
+  && [ "$(grep -cF 'jieqiconst.cnTimeRounded(newtm)' "${S283_PY}/astrostudy/jieqi/YearJieQi.py" 2>/dev/null)" -ge 2 ] || { bad "[283] 🔴 节气时刻显示不再四舍五入到秒"; S283_BAD=1; }
+[ "$(grep -cF 'params.put("_v", "w5");' "${S283_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/AstroHelper.java" 2>/dev/null)" -ge 2 ] \
+  && grep -qF 'params.put("_v", "w6");' "${S283_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/AstroHelper.java" 2>/dev/null \
+  && [ "$(grep -cF 'params.put("_v", "w5");' "${S283_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/BaZiHelper.java" 2>/dev/null)" -ge 2 ] \
+  && [ "$(grep -cF 'w6", date, zone);' "${S283_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/AstroCacheHelper.java" 2>/dev/null)" -ge 2 ] || { bad "[283] 🔴 节气 / 农历请求缓存代次未升级(老缓存会返回晚 12 秒的交节)"; S283_BAD=1; }
+# ④ 农历按北京时间编算的农历表、以出生地日期查;月末换月东八区原逻辑、其他时区只比日期;朔时刻标北京时间
+[ "$(grep -cF 'getNongliMonths(year, NONGLI_TABLE_ZONE, ctx);' "${S283_NL}" 2>/dev/null)" = "1" ] \
+  && grep -qF 'getNongliMonths(nexty + "", NONGLI_TABLE_ZONE, ctx);' "${S283_NL}" 2>/dev/null \
+  && grep -qF 'if(isNongliTableZone(zone)) {' "${S283_NL}" 2>/dev/null \
+  && [ "$(grep -cF 'dtNum = DateTimeUtility.getDateNum(dt+" 00:00:00", zone);' "${S283_NL}" 2>/dev/null)" -ge 2 ] \
+  && grep -qF 'moonTime = moonTime + "（北京时间）";' "${S283_NL}" 2>/dev/null || { bad "[283] 🔴 农历又按出生地时区求朔(海外农历日差一天)或月末换月比较错位"; S283_BAD=1; }
+# ⑤ 结果缓存键带历法口径代次(升级后不返回旧口径结果),且不发给排盘引擎
+grep -qF 'public static final String CALENDAR_CACHE_REV' "${S283_NL}" 2>/dev/null \
+  && [ "$(grep -cF 'NongliHelper.CALENDAR_CACHE_REV' "${S283_CN}/controller/LiuRengController.java" 2>/dev/null)" -eq 2 ] \
+  && grep -qF 'NongliHelper.CALENDAR_CACHE_REV' "${S283_CN}/controller/BaZiBirthController.java" 2>/dev/null \
+  && grep -qF 'NongliHelper.CALENDAR_CACHE_REV' "${S283_CN}/controller/PaiBaZiController.java" 2>/dev/null \
+  && [ "$(grep -cF 'args.remove("_calRev");' "${S283_CN}/controller/ChartController.java" 2>/dev/null)" -eq 3 ] || { bad "[283] 🔴 八字 / 六壬 / 七政结果缓存缺历法口径代次(升级后一天内返回旧口径)"; S283_BAD=1; }
+# ⑥ 前端各模块按当地钟表比节气(节气种子 / 奇门 / 节气页本地回退 / 河洛页与挂载同源)
+grep -qF 'export function shiftSolarMinutes(solar, minutes){' "${S283_UI}/utils/beijingTimeShift.js" 2>/dev/null \
+  && grep -qF "import { parseZoneHours, bjShiftMinutes, shiftSolarMinutes } from './beijingTimeShift';" "${S283_UI}/utils/baziLunarLocal.js" 2>/dev/null \
+  && grep -qF 'const toLocal = -bjShiftMinutes(zone);' "${S283_UI}/utils/localNongliAdapter.js" 2>/dev/null \
+  && grep -qF 'export function heluoSolarTermOfDate(dateStr, zone, quHuaGong) {' "${S283_UI}/utils/heluoLocal.js" 2>/dev/null \
+  && grep -qF "return heluoSolarTermOfDate(dateStr, zone, this.props.quHuaGong || 'tuWangKunGen');" "${S283_UI}/components/shusuan/HeLuoMain.js" 2>/dev/null \
+  && grep -qF 'return heluoSolarTermOfDate(dateStr, zone, quHuaGong);' "${S283_UI}/utils/aiAnalysisContext.js" 2>/dev/null || { bad "[283] 🔴 节气种子 / 河洛又拿当地钟表比北京时间节气(非东八区交节前后判错)"; S283_BAD=1; }
+# ⑦ 测试在位(Java / Python / 前端)
+[ -f "${S283_SRV}/boundless/src/test/java/boundless/utility/DateTimeUtilitySecondCarryTest.java" ] \
+  && [ -f "${S283_SRV}/astrostudycn/src/test/java/spacex/astrostudycn/model/BaZiNongliTimeAlgTest.java" ] \
+  && [ -f "${S283_SRV}/astrostudycn/src/test/java/spacex/astrostudycn/model/NongliBeijingTableTest.java" ] \
+  && [ -f "${S283_PY}/tests/test_jieqi_exact_longitude.py" ] \
+  && [ -f "${S283_UI}/utils/__tests__/beijingTimeJieqiCrossModule.test.js" ] || { bad "[283] 🔴 缺历法口径测试(Java / Python / 前端)"; S283_BAD=1; }
+# 置闰:按日期定冬至所在月(不再「该月不是从 12 月起就后挪一个月」→ 2033 等年凭空闰秋月、与次年表前后矛盾)
+grep -qF "prevdz0 = self.prevDongZi['tm'].calcZeroHourJd()" "${S283_PY}/astrostudy/jieqi/NongLi.py" 2>/dev/null \
+  && [ "$(grep -cF "if dparts[1] != '12' and dparts[2] != '01':" "${S283_PY}/astrostudy/jieqi/NongLi.py" 2>/dev/null)" = "0" ] \
+  && [ -f "${S283_PY}/tests/test_nongli_leap_month.py" ] || { bad "[283] 🔴 农历置闰又按「非 12 月起就后挪」定冬至所在月(2033 年误成闰七月)"; S283_BAD=1; }
+# ⑧ 运行时 jar 在位
+S283_FAT="${S283_SRV}/astrostudyboot/target/astrostudyboot.jar"
+if [ -f "${S283_FAT}" ]; then
+  s283_as="$(unzip -Z1 "${S283_FAT}" 'BOOT-INF/lib/astrostudy-*.jar' 2>/dev/null | head -1)"
+  s283_cn="$(unzip -Z1 "${S283_FAT}" 'BOOT-INF/lib/astrostudycn-*.jar' 2>/dev/null | head -1)"
+  if [ -n "${s283_as}" ] && [ -n "${s283_cn}" ]; then
+    s283_tmp="$(mktemp -d)"; unzip -oq "${S283_FAT}" "${s283_as}" "${s283_cn}" -d "${s283_tmp}" 2>/dev/null
+    unzip -p "${s283_tmp}/${s283_as}" spacex/astrostudy/helper/NongliHelper.class 2>/dev/null | strings | pipe_has "isNongliTableZone" || { bad "[283] fat jar 未含 isNongliTableZone —— 需 astrostudy install + astrostudyboot clean package"; S283_BAD=1; }
+    unzip -p "${s283_tmp}/${s283_cn}" spacex/astrostudycn/model/BaZi.class 2>/dev/null | strings | pipe_has "alignNongliWithTimeAlg" || { bad "[283] fat jar 未含 alignNongliWithTimeAlg —— 需 astrostudycn install + astrostudyboot clean package"; S283_BAD=1; }
+    rm -rf "${s283_tmp}"
+  fi
+fi
+[ "${S283_BAD}" = "0" ] && ok "[283] 历法口径统一:秒进位 / 农历随时间算法 / 交节精确 / 北京农历表 / 缓存代次 / 当地钟表比节气 / 测试 / 运行时 jar 在位"
+
+echo "[284] 六爻间爻按世应位置取(世应中间两爻,不再写死三、四爻)"
+S284_BAD=0
+S284_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S284_CONST="${S284_UI}/components/gua/LiuYaoConst.js"
+S284_FACADE="${S284_UI}/components/gua/liuyaoFacade.js"
+# ① 单源:间爻爻位只由 jianYaoPositions(世, 应) 给出;门面按世应取,不得再写死三、四爻
+grep -qF 'export function jianYaoPositions(shi, ying){' "${S284_CONST}" 2>/dev/null \
+  && [ "$(grep -cF 'jianYaoPositions(shiPos, yingPos)' "${S284_FACADE}" 2>/dev/null)" = "1" ] \
+  && [ "$(grep -cE 'jianYao[[:space:]]*=[[:space:]]*\[[[:space:]]*3[[:space:]]*,[[:space:]]*4[[:space:]]*\]' "${S284_FACADE}" 2>/dev/null)" = "0" ] || { bad "[284] 🔴 六爻间爻又写死三、四爻(64 卦中 48 卦会把世爻或应爻本身算进间爻)"; S284_BAD=1; }
+# ② 概览卡片与 AI 快照同源:两处都按世应位置出「世某应某之间」
+grep -qF 'jianYaoSpanText(pt.shi, pt.ying)' "${S284_UI}/components/guazhan/LiuYaoBoard.js" 2>/dev/null \
+  && grep -qF 'jianYaoSpanText(pt.shi, pt.ying)' "${S284_UI}/components/guazhan/liuyaoSnapshotEx.js" 2>/dev/null || { bad "[284] 🔴 间爻的概览卡片 / AI 快照未走同一取位函数"; S284_BAD=1; }
+# ③ 帮助文档不再写「三四间爻」,装卦结构卡有「间爻」一条
+[ "$(grep -cF '三四间爻' "${S284_UI}/components/help/GuazhanHelpDoc.js" 2>/dev/null)" = "0" ] \
+  && grep -qF "{kv('间爻'," "${S284_UI}/components/help/GuazhanHelpDoc.js" 2>/dev/null || { bad "[284] 🔴 六爻帮助文档的间爻口径回退"; S284_BAD=1; }
+# ④ 测试在位(全 64 卦逐一核:间爻恰在世应之间、从不含世应本身)
+grep -qF '全 64 卦:间爻恰为世应之间两爻' "${S284_UI}/components/guazhan/__tests__/liuyaoJianYao.test.js" 2>/dev/null || { bad "[284] 🔴 缺六爻间爻测试"; S284_BAD=1; }
+[ "${S284_BAD}" = "0" ] && ok "[284] 六爻间爻:按世应位置单源取位 / 概览卡片与 AI 快照同源 / 帮助文档 / 测试在位"
+
+echo "[285] 升级后缓存版本闸与温启首批请求(早导航前记运行时版本 / 收尾比对 rv / 直连排盘服务过就绪门 / 预取优先级先于去重)"
+S285_BAD=0
+S285_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S285_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+# ① runtime_bootstrap 里「记运行时版本」先于「生成早导航 URL」:否则整个会话 URL 不带 rv,前端缓存信封恒为旧版本号,
+#    升级后 24 h 内同参数的盘可能回放旧运行时的结果
+s285_order="$(awk '/^fn runtime_bootstrap\(/{f=1} f && !n && index($0,"note_runtime_version_for_url(&manifest.version);"){n=NR} f && !e && index($0,"let early_url = early_nav_url("){e=NR} END{ if(n && e && n<e) print "ok"; else print "bad" }' "${S285_RS}" 2>/dev/null)"
+[ "${s285_order}" = "ok" ] || { bad "[285] 🔴 早导航 URL 不带 rv(运行时版本在早导航之后才记)"; S285_BAD=1; }
+# ② 收尾 ready 的同参判定含 rv(不一致必须整页重载,不许沿用错误的缓存版本号)
+grep -qF 'var keys = ["srv", "chartSrv", "kentangSrv", "rv"];' "${S285_RS}" 2>/dev/null || { bad "[285] 🔴 收尾 ready 不比对 rv"; S285_BAD=1; }
+# ③ 直连排盘服务的公共入口先过就绪门(温启恢复到卜类 / 玄学史等页时,首批请求不打到尚未监听的端口)
+grep -qF 'await waitForBackendBoot(url);' "${S285_UI}/utils/chartFetch.js" 2>/dev/null || { bad "[285] 🔴 fetchChartWithRetry 未过就绪门"; S285_BAD=1; }
+# ④ 预取优先级在 request() 入口、去重分流之前打头(去重层 runner 在 await 之后才调,放在那里判定永远读不到预取作用域)
+s285_req="$(awk '/^export default async function request\(url, options\) \{/{f=1} /^async function requestCore\(url, options\) \{/{f=0} f && !t && index($0,"options = tagRequestPriority(options, isInPrefetchScope());"){t=NR} f && !d && index($0,"if (dedupeEligible(url, options)) {"){d=NR} END{ if(t && d && t<d) print "ok"; else print "bad" }' "${S285_UI}/utils/request.js" 2>/dev/null)"
+[ "${s285_req}" = "ok" ] || { bad "[285] 🔴 预取优先级头未在去重分流之前打上(可去重端点永不带头)"; S285_BAD=1; }
+# ⑤ 测试在位(壳源码顺序 / 直连就绪门 / 入口打头)
+grep -qF 'fn runtime_version_noted_before_early_navigation()' "${S285_RS}" 2>/dev/null \
+  && grep -qF '排盘服务直连路径(fetchChartWithRetry)同样先过就绪门' "${S285_UI}/utils/__tests__/backendBootGate.test.js" 2>/dev/null \
+  && grep -qF 'request() 入口在去重分流与任何 await 之前打头' "${S285_UI}/utils/__tests__/requestPriority.test.js" 2>/dev/null || { bad "[285] 🔴 缺缓存版本闸 / 就绪门 / 优先级测试"; S285_BAD=1; }
+[ "${S285_BAD}" = "0" ] && ok "[285] 早导航带 rv / 收尾比对 rv / 直连排盘服务过就绪门 / 预取优先级先于去重 / 测试在位"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

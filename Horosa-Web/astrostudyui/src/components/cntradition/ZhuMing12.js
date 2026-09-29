@@ -20,13 +20,13 @@ export default class ZhuMing12 extends Component{
 
 		let cols = stems.map((item, idx)=>{
 			return (
-				<Col span={24} style={{textAlign: 'center'}} key={randomStr(8)}>
+				<Col span={24} style={{textAlign: 'center'}} key={`s1-${idx}`}>
 					<span>{BaZiMsg[item.polar] + item.cell + BaZiMsg[item.element]}&bull;{BaZiMsg[item.relative]}</span>
 				</Col>
 			);
 		});
 		for(let i=cols.length; i<3; i++){
-			let emptycol = (<Col span={24} key={randomStr(8)}><span>&nbsp;</span></Col>);
+			let emptycol = (<Col span={24} key={`s2-${i}`}><span>&nbsp;</span></Col>);
 			cols.push(emptycol);
 		}
 

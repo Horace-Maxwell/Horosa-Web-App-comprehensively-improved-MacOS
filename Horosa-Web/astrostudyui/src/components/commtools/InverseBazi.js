@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Row, Col, Divider, message} from 'antd';
 import { XQButton as Button, XQInputNumber as InputNumber, XQSelect as Select } from '../xq-ui';
-import { randomStr, isNumber } from '../../utils/helper';
+import { isNumber } from '../../utils/helper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import {BaziMonthTime, SixtyJiaZi} from '../../constants/ZWConst';
@@ -251,7 +251,7 @@ export default class InverseBazi extends Component{
             const c = checks[idx];
             const mark = c ? (c.ok ? (c.adjusted ? `　✓（夜子时按当前口径归 ${c.text.split(' ')[1]}，原 ${c.from}）` : '　✓') : '　✗ 按当前日界 / 晚子时口径不成立') : '';
             return (
-                <Col span={24} key={randomStr(8)}>
+                <Col span={24} key={`s1-${idx}`}>
                     <span style={c && !c.ok ? { color: 'var(--horosa-muted)', textDecoration: 'line-through' } : undefined}>{item}</span><span style={{ fontSize: 12, color: c && c.ok ? 'var(--horosa-accent-strong)' : 'var(--horosa-danger)' }}>{mark}</span>
                 </Col>
             )
@@ -284,7 +284,7 @@ export default class InverseBazi extends Component{
         let monthes = BaziMonthTime.month[gan];
         let opts = monthes.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s2-${idx}`} value={item}>{item}</Option>
             );
         })
         return opts;
@@ -299,7 +299,7 @@ export default class InverseBazi extends Component{
         let times = BaziMonthTime.time[gan];
         let opts = times.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s3-${idx}`} value={item}>{item}</Option>
             );
         })
         return opts;
@@ -316,12 +316,12 @@ export default class InverseBazi extends Component{
         let dom = this.genDom();
         let yopts = SixtyJiaZi.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s4-${idx}`} value={item}>{item}</Option>
             )
         });
         let dopts = SixtyJiaZi.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s5-${idx}`} value={item}>{item}</Option>
             )
         });
         let mopts = this.genMonthOptions();

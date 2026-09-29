@@ -64,7 +64,7 @@ class PaiBaZi extends Component{
 				let mainDirect = dir.mainDirect;
 				let subdir = this.genSubDirectDom(dir.subDirect, startYear, age, mainDirect, directTime);
 				let maindirDom = (
-					<div key={randomStr(8)}>
+					<div key={`s1-${i}`}>
 						<Divider orientation='left'>{startYear + ' ' + mainDirect.ganzi + ' ' + mainDirect.naying}</Divider>
 						<Row>
 							{subdir}
@@ -85,11 +85,11 @@ class PaiBaZi extends Component{
 			let sub = dir[i];
 			let y = startYear + i;
 			let dirtm = y;
-			let gancol = (<Col key={randomStr(8)} span={4}>{sub.ganzi}</Col>);
-			let nayingcol = (<Col key={randomStr(8)} span={6}>{sub.naying}</Col>);
-			let tmcol = (<Col key={randomStr(8)} span={14}>{dirtm}&emsp;{age + i}周岁</Col>);
+			let gancol = (<Col key={`s2-${i}`} span={4}>{sub.ganzi}</Col>);
+			let nayingcol = (<Col key={`s3-${i}`} span={6}>{sub.naying}</Col>);
+			let tmcol = (<Col key={`s4-${i}`} span={14}>{dirtm}&emsp;{age + i}周岁</Col>);
 			let dom = (
-				<Col key={randomStr(8)} span={24}>
+				<Col key={`s5-${i}`} span={24}>
 					<Row>
 						{gancol}
 						{nayingcol}

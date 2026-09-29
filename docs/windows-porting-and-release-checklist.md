@@ -1,6 +1,6 @@
 # 星阙 Windows 复刻与发布自检指南
 
-最后更新：2026-05-24
+最后更新：2026-09-26
 
 这份文档用于把当前 macOS 版星阙完整复刻到 Windows。重点不是照搬 macOS 的脚本，而是把这几轮已经暴露过的错误、易漏点和必须进入 Windows 工作流的自检门槛固定下来。
 
@@ -689,3 +689,84 @@ Windows 版完成的定义不是“能打开”，而是：
 
 ### 安装器 / 发布链
 - 安装器同版本号再比部件锁(`components-lock.json`)内容身份,相同才保留、不同走替换路径;发布脚本的部件复用基线在建 release 之前经认证 API 取上一版正式清单,新版以草稿建、顺序 runtime → 部件 → 安装包 → 清单最后再转正。Windows 安装器 / 发布脚本按同样语义对齐。
+
+## v3.11.2 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.11.2` / `runtimeVersion` = `3.11.2-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 缩放上限 / 设置项 / 天象库日期 / 日志脱敏
+- 缩放上限随窗口宽度封顶:上限 = 「窗口逻辑宽 ÷ 1000」取 0.1 档再夹进 [0.7, 1.8](1440 → 1.4、1728 → 1.7、3008 → 1.8、1180 → 1.1);超限的放大停在上限并调用页面钩子 `window.__HOROSA_SHELL_ZOOM_CAPPED(上限, 窗口宽)`(`layouts/app.js` 提示原因);窗口变窄后当前档超限即降到上限。**Windows 需要做什么**:Electron 端的缩放入口按同一公式封顶并调用同一钩子。
+- AI 助手设置面移除无作用的「配色主题」项(`utils/aiTools/settingsFacets.js`)。
+- 六爻「正月初一定年」联机:`utils/preciseCalcBridge.js` 联机结果缺 `yearGZByLunar` 时按本地历法补键(与离线回落同源)。
+- 玄学史天象库:`astropy/astrostudy/xuanshi/data/public_data.sqlite` 重新生成(84 条年号 / 干支日期按年号年 + 农历月 + 干支日重推;`julian_date` 列整列置空,`modern_date` 即史料所载的儒略历日期),`astrostudy/xuanshi/celestial.py` 同步;前端 `components/xuanshi/xuanshiDate.js` / `XuanShiCelestial.js` / `XuanShiEvents.js` 的「排此日」提示行改历前一律标「儒略历 … 起盘」;测试 `tests/test_xuanshi_celestial_era_date_consistency.py`。**Windows 需要做什么**:数据库文件整体替换(逐字节相同),连同上述引擎与前端文件同步。
+- 交易日志:`astrostudyboot/src/main/resources/conf/log/excludelogtrans.json` 整组排除 `/aianalysis/*` 各端点,`conf/properties/log.properties` 的脱敏参数表加入 apiKey / authorization / token 等密钥类参数;同步后重建 jar。
+
+### Windows 独有补丁撤回 · 高纬度偕日升 / 没搜索限界(台账 PY-22)
+- 现象:该补丁会丢「晨星初现 / 昏星初没」标签(`phasisEvent`)。按同一逻辑做覆盖边界的差分:真实偕日事件前后 ±7 天(含边界)× 16 个纬度 × 五星共 22834 例,不一致 687 例,全是「昏星初没」→ 空(以水星为主,中高纬度);1900–2100 随机 2400 例中 3 例。
+- 原因:
+  - `flag |= HELFLAG_SEARCH_1_PERIOD` 之后,偕日升在首个会合周期里搜不到会抛错;外层 try 包着「偕日升 → 偕日没」整个循环,于是整个函数中止,偕日没根本没查。原逻辑在这里是「搜到远处事件 → 丢弃 → 继续查偕日没」。
+  - `_phasisWindowFeasible` 给 `swisseph.azalt` 传 2 元组,在 pyswisseph 2.10.03 上恒抛 TypeError(需要至少 3 个数),被 except 兜成「可行」,预筛从未生效。若修好这一层会误删真事件:Swiss Ephemeris 的模型里存在太阳在地平上 30° 以上的金星事件。
+  - north-hi 金标「字节不变」只因为那张盘的偕日没本来就搜不到;8.4 s → 0.2 s 的提速几乎全部来自上面的错误中止。
+- 严格等价的写法(每类事件先做首周期搜索,只有「偕日升首周期无事件、偕日没落在 ±7 天内」这一支补跑无界搜索)在同样的样本上零差异,但没有提速:慢的是偕日没搜索本身,带不带首周期标志都约 3.5 s。
+- **Windows 需要做什么**:撤回该补丁(`windows-adaptations/patches/astropy__perchart.chartMemo.py.patch` 现只含这一段,可整份删除),`_phasis_event` 回到与 Mac 相同的写法;删掉 `HOROSA_PHASIS_BOUNDED` 开关与 `horosa_phasis_bounded_v1` / `_phasisWindowFeasible` 锚,同步 `MARKER_INVENTORY.json` / `HARNESS_MANIFEST.md`;台账 PY-22 改为「已撤回(改输出)」。north-hi 金标输出不变,整盘耗时回到约 8 秒(与 Mac 相同)。
+
+### Windows 独有补丁作废 · 皇极经世典籍按需 / 玄学史长文本按需(台账 PY-6 / PY-7)
+- 上游已实现这两项,接口与 Windows 版不同:
+  - 皇极经世:`/wangji/pan` 只有请求带 `slimClassics: 1` 时才省正文,并在 `classics` 里标 `contentOmitted: true`;不带标记照旧全文。新只读端点 `/wangji/classic` 回与旧盘完全相同的 `classics` 对象(`meta` / `selectedKey` / `sections`)。前端 `HuangJiMain.js` 按典籍键缓存正文,逐节核对(典籍键 / 节数 / level / title)后合并,合并结果与旧盘逐字节相同;对不齐或取数失败回退一次不带标记的全文盘;起盘、无头快照、草稿预取三处接线,存档还原只合并、不重新起盘。开关 `horosa.perf.wangjiClassicsOnDemand`(前端)、`HOROSA_WANGJI_SECTIONS_CACHE`(后端典籍解析缓存)。
+  - 玄学史:`celestial.microchronology` 新增可选 `limit`(缺省全量,星象大典年代下钻照旧),列表查询不取长文本列,下发行按 rowid 回贴正文(event_id 在该表不唯一,不要按 event_id 取正文),统计仍按全部命中行,结果按参数缓存(`HOROSA_XUANSHI_MICRO_MEMO`)。天象微年表页传 `limit: 300`,「仅显示前 300 条」提示按总数判断。开关 `horosa.perf.xuanshiMicroLimit`。
+- **Windows 需要做什么**:`windows-adaptations/patches` 里 PY-6 / PY-7 相关补丁(webwangjisrv / webxuanshisrv / celestial / HuangJiMain / XuanShiMicro / services/xuanshi)中「典籍按需 / 长文本按需」的改动段作废,以上游为准;`microchronology_detail`(按 event_id 取正文)不再需要。同一补丁里的其它改动(如右栏子页冻结、面板就绪打点、步进预取)照旧保留,在新上游上重新生成补丁。台账 PY-6 / PY-7 改 upstreamed。
+
+### 共享 Java(同步后重建后端 jar)
+- 响应主体表保序:`boundless` 的 `TransData` 改用保持插入顺序的表,同一请求的顶层字段顺序固定为生成顺序(此前随工作线程的表容量历史变化,内容相同而字节不同)。开关 `HOROSA_JAVA_ORDERED_RESPONSE=0` / `-Dhorosa.response.ordered=false` 回旧。
+- 组件扫描出的控制器与服务补上延迟初始化,并在就绪后后台预创建(`LazyInitXmlScanPostProcessor`,开关 `HOROSA_JAVA_XML_SCAN_LAZY` / `HOROSA_JAVA_LAZY_PREWARM`);通配组件扫描挪到条件装配(`HOROSA_JAVA_LEGACY_BROAD_SCAN`);`AIAnalysisMaterialService` 显式启动时创建(其静态块设置进程级表格解析阈值)。
+- 跨源请求头白名单含 `X-Horosa-Crypto` / `X-Horosa-Priority`;响应加解密 v2(请求头能力协商,会话钥 AES-GCM;旧客户端照旧 RSA 信封;`-Dwebencrypt.v2=false` 回旧)。
+- 八字时间算法口径(`astrostudycn`:`TimeZiAlg.calcBasis`、`BaZi.setup`,`/bazi/birth` `/bazi/direct` `/liureng/gods` `/jieqi/year` 缓存键):「春分定卯时」一律按「直接时间」算(此前按平移后的时刻判换日,多数时辰出生日柱前错一天);「直接时间」偏移清零,年柱 / 月柱 / 交节距离都按所填钟表时刻(此前沿用计算服务的卯时偏移,交节后约 1–3 小时内起盘报节气窗不够)。真太阳时 / 平太阳时结果不变。测试 `BaZiTimeAlgBasisTest`(需计算服务在线)。
+- 八字年柱按立春本身判定(`astrostudy`:`BaZiHelper.getYearColumn` / `findLichun`;`astrostudycn`:`BaZi`):一、二月出生与节气窗里的立春(`ord == 0` 的节)比较,不再按固定下标(节气窗在生辰前补项后,二月立春前出生会被判成下一年);儒略历年份立春落在一月下旬时一月立春后出生算当年;不再「换算跨立春另进一年」。真太阳时 / 平太阳时换算后跨回交节前、落出按钟表时刻取的节气窗时,按换算后时刻重取窗口(`locateBirthJie`),不再报「节气窗不够」。节气年表缓存代次 `jieqi_year_bazi_v6`。测试 `BaZiLichunWindowTest`(需计算服务在线)。
+- 经纬度串解析(`boundless`:`PositionUtility.convertLonStrToDegree / convertLatStrToDegree` → `parseDegreeMinute`):「度 + 方位字母 + 分」按度 + 分 / 60(此前误作度 + 1 / 分,118e27 → 118.037°,Java 真太阳时 / 平太阳时偏移最多差约 4 分钟;一位数分钟另被乘 10)。日柱(`astrostudycn`:`BaZi`)按换算后的出生时刻取,不再另减一天(偏移 ≥ 约 2 小时的地点子时出生此前日柱前错一天)。节气年表缓存代次 `jieqi_year_bazi_v7`。测试 `PositionUtilityDegreeMinuteTest`、`RealSunTimeOffsetTest`、`BaZiSolarDayPillarTest`。boundless 改动后需重装全部依赖它的模块再重建 jar。
+- 八字南半球月令(`astrostudycn`:`BaZi.southMonthFlip` 缺省 false、`setSouthMonthFlip`;`/bazi/birth`、`/bazi/direct` 读请求参数 `southMonth`(chong / none,进缓存键);`JieQiController` 两处显式 `setSouthMonthFlip(true)`)。此前南纬一律对冲。测试 `BaZiSouthMonthTest`。
+- 八字大运岁 / 小运年份跨公元纪元(`astrostudycn`:`BaZi.historicalYearDiff` / `addHistoricalYears`;`BaZiDirect`、`OnlyFourColumns` 起运岁,`BaZiDirect` 小运年份):公元前出生、起运落在公元后的盘,此前起运岁多一岁、小运年份出现不存在的 0 年;公元年份逐字节不变。测试 `BaZiEraBoundaryTest`。
+- 时刻串秒进位(`boundless`:`DateTimeUtility.getTimePartsFromJdnTime` / `getDateFromJdn`):秒四舍五入到 60 时逐级进位(秒 → 分 → 时 → 日,进到 24:00:00 时日期同步进一天);此前约 1% 的换算时刻显示为 `xx:xx:60`,整点时按字符串取小时判时辰会判早一个。只有原本出 `:60` 的输出变化,起运用的节前 / 节后秒数不变。
+- 八字类附带的农历随时间算法(`astrostudycn`:`BaZi.alignNongliWithTimeAlg`):选直接时间 / 平太阳时时,农历日期、节后天数、人元司令、农历日时干支按所选算法的时刻取;真太阳时档不变;`nongli.birth` / `solarTime` 仍给真太阳时。
+- 农历按北京时间编算的农历表查(`astrostudy`:`NongliHelper`):整年朔日表固定取东八区那份,按出生地日期查;月末换月在东八区以外只比日历日期;东八区以外的「朔」时刻加注「(北京时间)」。东八区输出不变。
+- 缓存代次:节气 / 农历请求的 `_v` 由 w4 升 w5(`AstroHelper` / `BaZiHelper`),农历年表缓存键尾 ` w5`(`AstroCacheHelper`),`/jieqi/year` 年缓存 `jieqi_year_bazi_v8`;`/bazi/birth` `/bazi/direct` `/liureng/gods` `/liureng/runyear` `/chart13` `/chart12` 的结果缓存键加 `_calRev`(`NongliHelper.CALENDAR_CACHE_REV`,只进缓存键,不发给排盘引擎)。
+- 农历置闰随 Python 修正再升一格缓存代次:农历月表请求 `_v` w6(`AstroHelper.getNongliMonth`;节气请求仍 w5),农历年表缓存键尾 ` w6`(`AstroCacheHelper`),`jieqi_year_bazi_v9`,`CALENDAR_CACHE_REV` = `cal3`。
+- **Windows 需要做什么**:同步 Java 源码后重建 jar。Windows 自有的 Java 补丁(日志行尾调用点按需 / 磁盘缓存 JSON 归一 / 缓存目录与 comm 缓存先读 -D / 农历按日持久化开关)以上游为准,台账 JV-3 / 5 / 6 / 8 / 9 / 10 改 upstreamed;启动期八字 / 农历预热与上游 `StartupLedgerListener` 的「此刻」样本二选一,不要重复预热。
+
+### 共享 Python
+- 星历路径短路、纯 JSON 快径(`websrv/fastjson.py`,允许名单含 flatlib 对象)、相位请求级缓存(`HOROSA_EPHE_PATH_FASTPATH` / `HOROSA_FAST_JSON_ENCODE` / `HOROSA_ASPECT_MEMO`);奇门热路径、kin 系常量、显示层繁简替换单遍、印占瑜伽输出有序;请求优先级车道(预取请求带 `X-Horosa-Priority: prefetch`,`HOROSA_PRIORITY_LANE`)。
+- 玄学史天象库载入时逐行解析年号:候选年号按首字分桶(桶内保持原表序),命中集与「等长先到先得」不变,结果与全表逐个比对逐值相同;天象库冷载入约 318 → 225 ms。开关 `HOROSA_XUANSHI_ERA_INDEX=0` 回全表比对。
+- 生辰节气(`/jieqi/birth`,每张新盘都会调)的节气求解与卯时基准盘不再每步建整张默认盘:与节气年表 / 农历同一开关 `HOROSA_JIEQI_FAST_APPROACH`,节气求解直取太阳位置、基准盘用太阳瘦盘;单次约 6.1 → 0.5 ms,输出逐字节相同。
+- 响应 JSON 快径扩到全部服务:`webchartsrv` 载入时把真 `jsonpickle.encode` 换成同判据、同回退的快径版(`websrv/fastjson.install_global`;子开关 `HOROSA_FAST_JSON_GLOBAL=0` 只留主排盘 / 推运两处)。印度盘约 30 → 19 ms、占星地图约 147 → 67 ms,输出逐字节相同。快径 shim 的 `unpicklable` 缺省改为与 jsonpickle 一致(True)。
+- 蠢子数诗词库按进程只建一次(`HOROSA_CHUNZI_DB_MEMO`),`/chunzi/pan` 约 19 → 7 ms。
+- 玄学史人物关系图节点顺序固定为「共现权重降序、同权按人名」(原随进程哈希种子变,每次启动输出与布局不同)。
+- 生辰节气卯时上升求解的牛顿迭代加上限(`_ASC_APPROACH_MAX_ITER` = 5 万步,最坏约 1.4 s):「按黄经」(`byLon=1`)在 |纬度| ≳ 50° 可永不收敛,此前请求不返回、线程空转;超限退到按赤经并在结果里加 `maoFallback: "byRA"`(按赤经也不收敛时不做卯时校正,`"none"`)。收敛的输入结果不变。
+- 铁板神数诗词库 / 足本条文库按进程只载一次,分类检索改查载入时建好的索引(`HOROSA_TIEBAN_DB_MEMO`;vendor `kinastro/astro/tieban/tieban_calculator.py`),`/tieban/pan` 约 15.5 → 3.7 ms,输出不变。
+- 星历表等端点请求内黄经 memo(`astroextra.swe_lon`,键 = 天体 / 时刻 / 中心 / 站心坐标;`webchartsrv` 请求工具按服务前缀开启、请求结束清空;`HOROSA_SWE_LON_MEMO`),星历表约 29.6 → 22.6 ms,输出不变。
+- 主排盘两处等价提速:恒星批 LRU 存入 / 命中由整批 deepcopy 改快克隆(`flatlib/ephem/ephem._cloneStarList`,`HOROSA_STAR_LRU_FASTCLONE`);JSON 快径预扫改迭代实现(`fastjson._fast_shape_ok_iter`,`HOROSA_FAST_JSON_ITER_SCAN`)。主排盘约 15.7 → 15.0 ms,输出不变。
+- 交节时刻按节气黄经精确求解(`astrostudy/jieqi/BirthJieQi.py` / `YearJieQi.py`:此前求解目标多加 1/7200 度,交节系统性晚约 12 秒);节气时刻的显示串经 `jieqiconst.cnTimeRounded` 四舍五入到秒(此前截秒)。
+- 农历置闰按日期定冬至所在月(`astrostudy/jieqi/NongLi.py` `setupMonth`:朔日的日期不晚于冬至的日期即为十一月,与判中气同一口径;此前按时刻取朔再「非 12 月起就后挪一个月」,冬至落在所在月最后一两天时错挪,2033 年误成闰七月、1642 / 2128 年误成闰九月、1813 / 2185 年多出闰八月)。测试 `tests/test_nongli_leap_month.py`。
+- **Windows 需要做什么**:同步 Python 文件;Windows 原创的同名开关项(PY-1 / 2 / 3 / 4 / 5 / 9 / 18 / 19 / 20 / 21)台账改 upstreamed,回流时以 Mac 版为准。玄学史门后预热(PY-13)与择日扫描预装挪到门后(PY-23)上游不收(Mac 上冷装载只有几毫秒到几百毫秒,预热还要常驻约百兆事件缓存),Windows 按自身冷导入耗时自行保留。
+
+### 共享前端
+- 八字本地引擎按出生绝对时刻换月(`utils/baziLunarLocal.js`:`absoluteTimeLunar` / `shiftSolarMinutes`,非东八区年 / 月 / 交节取自折成北京时间的农历,日 / 时仍按当地钟表;东八区逐字节不变)与「南半球月令」(`flipMonthPillar` / `isSouthLatitude`,核心缓存键含 `southMonth`;八字左栏新下拉、`BaZi.js` 进请求参数与改后重排、AI 挂载盘法组与 `buildChartBaziParams` 转发、南纬快照标注、帮助文档一卡)。AI 挂载 / 快照「春分定卯时」文案注明同直接时间。测试 `baziAbsoluteTimeJie`、`baziSouthMonth`。
+- 八字岁数 / 年份口径(`components/cntradition/baziAgeText.js` 岁数显示单源;`BaZi.js` `alignJavaBaziAges` 在 `/bazi/birth`、`/bazi/direct` 回退结果入口对齐为虚岁;旧版界面 `BaZiLegacyView` / `MainDirection` / `MainDirectionSimple` / `MDSDirect` / `MDSYear` / `SmallDirection` 随「年龄」档,「上运时间」取首步大运岁数;AI 快照「流年行运概略」起始年龄随档;`utils/dateStrSafe.js` `addDisplayYears` / `displayYearDiff`,行运面板 / 细盘 / 旧版 / 快照年份跨公元纪元不出 0 年)。测试 `baziAgeYearConvention`。
+- 一次改动只重算一次(`utils/singleTrigger.js`,13 处接线,`horosa.perf.singleTrigger`);玄学史「故事专题」首次打开卡在「载入…」、神数正传切换流派后条文不再载入两处修复;AI 分析挂载「小限粒度 / 小限起点」对命盘生效;黄历九星值日与时辰宜忌改为用到时才计算(`horosa.perf.huangliLazyDetail`);预载 / 预热按本机使用频次排序(`horosa.perf.usageOrderedPreload`);温启直接显示上次的盘(`horosa.perf.bootChartRestore`,恢复在 `checkUser` 里二选一);稳定 React key。
+- 共用工具 `utils/beijingTimeShift.js`(`parseZoneHours` / `bjShiftMinutes` / `shiftSolarMinutes`,从 `baziLunarLocal.js` 原样抽出,八字引擎改为引用)。
+- 本地节气种子按时区折成当地钟表(`utils/localNongliAdapter.js` `buildLocalJieqiYearSeed(year, zone)`:交节时刻与交节日干支按当地钟表 / 日期),奇门当前节气、节气页离线回退、奇门择日扫描、AI 挂载共用;东八区与缺时区不变。
+- 河洛出生节气单源 `utils/heluoLocal.js` `heluoSolarTermOfDate(dateStr, zone, quHuaGong)`:页面 `HeLuoMain.solarTerm` 与挂载 `aiAnalysisContext.heluoSolarTermForDate` 同调;非东八区按节气的当地日期比(东八区原路径不变)。`DunJiaCalc` 新增仅供单测的 `__testing__` 导出。
+- 帮助文档:八字「算法与口径」、紫微「时间 / 地点」、黄历「农历」补阴历口径与两条算法路径的差异说明。
+- 六爻间爻按世应位置取(`components/gua/LiuYaoConst.js` `jianYaoPositions` / `jianYaoSpanText` / `JIANYAO_ROLE` / `JIANYAO_DONG_NOTE`;`liuyaoFacade.js` 逐爻带旺衰、动静、空破与对世对应的冲合生克;`LiuYaoBoard.js` 概览卡片、`liuyaoSnapshotEx.js` AI 快照同一串标签;`GuazhanHelpDoc.js` 四处):间爻 = 世应中间两爻(世应在初四取二三、二五取三四、三上取四五),此前固定取三、四爻,64 卦中 48 卦把世爻或应爻本身算进间爻。测试 `components/guazhan/__tests__/liuyaoJianYao.test.js`。
+- **Windows 需要做什么**:同步前端文件;Windows 的温启恢复补丁(`src__models__app.bootChartRestore`)作废,以上游 `models/app.js` / `models/astro.js` 为准。
+
+### Electron 壳侧
+- 前端启动分段计时经桌面桥命令 `web_ledger_mark_command` 上报:Electron 可提供同名 IPC,或依赖 `invokeDesktopCommand` 在壳无此命令时的空操作(已内建)。
+- 后端就绪确认:壳在后端就绪时派发 `horosa:backend-confirmed` 并置 `window.__horosaBackendConfirmed`,前端就绪门立即放行。
+- 更新后首次启动提前进界面:前端 `bootContext()` 读 URL 参数 `early` / `firstLaunch` / `boot`;Electron 在加载地址上带同名参数即可复用「已用时 / 更新已完成」的启动页文案。
+- 启动器 JVM 旗标(可选对齐):`-XX:-UsePerfData`、`-Dlog4j2.disableJmx=true`、`-Dspring.mvc.servlet.load-on-startup=1`、`-Dorg.springframework.boot.logging.LoggingSystem=none`、`-XX:+DisableExplicitGC`、`-Dcachehelper.needcache=false`。
+
+### 更新后缓存版本闸 / 温启与请求 / 会话钥清理
+- 壳(`main.rs`):运行时版本号(manifest.version)在**第一次导航之前**记下,早导航 URL 与收尾 ready 都带 `rv=`;init 脚本 `__horosaReady` 的同参判定键加 `rv`(不一致整页重载)。此前壳在第一次导航时不带 `rv`,前端结果缓存信封恒为 `net-v1`,更新后 24 h 内同参数的盘可能回放旧版本结果。「重启后端 / 修复运行时」单飞:启动 / 修复 / 更新引导进行中拒绝并发第二条(`trigger_runtime_repair_command` 返回错误,菜单项静默);启动账本整行一次写入,页面上报的附加字段序列化超过 4 KB 只记长度。**Windows 需要做什么**:Electron 壳在第一次加载前就带上 `rv`,收尾 ready 比对 `rv`;修复入口单飞。
+- 前端:`utils/chartFetch.js` 直连排盘服务先过就绪门(温启恢复到卜类 / 玄学史等页时首批请求不再打到未起的端口);`utils/request.js` 预取优先级头在去重分流之前打上(此前可去重端点永不带头);`models/astro.js` 温启恢复按最终生效的 fields 重算请求参数、有变按新参数重取;`models/app.js` 恢复的子页签经 `constants/SubTabRegistry.restoredSubTab` 校验,恢复兜底计时从后端可达起算;`utils/backendBootGate.js` 更新后首启兜底放行 900 s(= 启动脚本就绪总上限);`utils/rsahelper.js` v2 解密失败统一 `code: 'crypto.v2'`,请求层提示「解密失败、已切兼容模式」,不再当端口占用去再协商。
+- Java:`RequestHeaderInterceptor` 改为 `AsyncHandlerInterceptor`,会话钥在 `afterCompletion` 写完响应体后与 `afterConcurrentHandlingStarted` 时清除(测试 `ResponseCryptoTest`);`ChartController` 的 `/chart` 结果缓存键加 `_calRev`;`log.properties` 脱敏表加 `Token` / `AccessToken`;`StartupLedgerListener` 延迟 bean 预热失败记入启动账本与标准错误。同步后重建 jar。
+- Python:`flatlib/ephem/swe.py` 外部重设星历路径时作废 JPL 文件追踪(JPL 模式下随后重设 JPL 文件);`websrv/fastjson.py` 非有限浮点字典键回退真 jsonpickle;`astrostudy/perchart.py` 古典临界区异常回滚覆盖 `BaseException`(相位缓存作用域必关)。

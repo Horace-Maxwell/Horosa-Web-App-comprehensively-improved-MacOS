@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Row, Col, Divider, Statistic, Modal, Tooltip } from 'antd';
 import { XQButton as Button, XQInput as Input, XQSelect as Select } from '../xq-ui';
-import { randomStr, isNumber } from '../../utils/helper';
+import { isNumber } from '../../utils/helper';
 import { splitDegree, } from '../astro/AstroHelper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
@@ -228,56 +228,56 @@ export default class Calculator extends Component{
             let item = this.state.formula[i];
             if(item.type === '<Operator>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s1-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 opdom.push(opt);
             }else if(item.type === '<Boolean Operator>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s2-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 boolopdom.push(opt);
             }else if(item.type === '<Binary Relation>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s3-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 binreladom.push(opt);
             }else if(item.type === '<Unary Function>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s4-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 unifundom.push(opt);
             }else if(item.type === '<Binary Function>' && item.syntax !== 'EulerPol'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s5-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 binfundom.push(opt);
             }else if(item.type === '<3-args Function>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s6-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 trifundom.push(opt);
             }else if(item.type === '<Variadic Function>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s7-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 varfundom.push(opt);
             }else if(item.type === '<Calculus Operator>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s8-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
@@ -287,28 +287,28 @@ export default class Calculator extends Component{
                 let idx = prefix.length;
                 let desc = item.desc.substr(idx);
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s9-${i}`} value={item.syntax}>
                         {item.syntax} -- {desc}
                     </Option>
                 )    
                 iterdom.push(opt);
             }else if(item.type === '<Bitwise Operator>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={item.syntax}>
+                    <Option key={`s10-${i}`} value={item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 bitwisedom.push(opt);
             }else if(item.type === '<Constant Value>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={'*' + item.syntax}>
+                    <Option key={`s11-${i}`} value={'*' + item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    
                 constdom.push(opt);
             }else if(item.type === '<Unit>'){
                 let opt = (
-                    <Option key={randomStr(8)} value={'*' + item.syntax}>
+                    <Option key={`s12-${i}`} value={'*' + item.syntax}>
                         {item.syntax} -- {item.desc}
                     </Option>
                 )    

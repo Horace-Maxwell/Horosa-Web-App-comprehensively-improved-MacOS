@@ -26,7 +26,7 @@ class RuleStars extends Component{
 			let dom = this.genPopoverDom(rules, star);
 			let title = star + '';
 			let col = (
-				<Col span={4} key={randomStr(8)}>
+				<Col span={4} key={`s1-${i}`}>
 					<Popover content={dom} title={title}>
 						{star}
 					</Popover>					
@@ -68,7 +68,7 @@ class RuleStars extends Component{
 			let li = null;
 			if(rule === '=='){
 				li = (
-					<hr key={randomStr(8)} />
+					<hr key={`s4-${i}`} />
 				);
 			}else{
 				if(rule instanceof Array){
@@ -82,7 +82,7 @@ class RuleStars extends Component{
 					)
 				}else{
 					li = (
-						<li key={randomStr(8)}>{rule}</li>
+						<li key={`s5-${i}`}>{rule}</li>
 					);	
 				}
 			}

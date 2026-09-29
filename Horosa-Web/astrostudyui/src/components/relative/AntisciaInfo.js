@@ -74,7 +74,7 @@ class AntisciaInfo extends Component{
 				this.props.showPlanetHouseInfo
 			);
 				let dom = (
-					<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+					<div key={`s2-${idx}`} style={{fontFamily: AstroConst.AstroFont}}>
 						<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
 						{this.renderLabel(labelA, obj.idA)}&nbsp;与&nbsp;
 						<span style={{fontFamily: AstroConst.NormalFont}}>{innerTitle}&nbsp;</span>
@@ -103,7 +103,7 @@ class AntisciaInfo extends Component{
 				this.props.showPlanetHouseInfo
 			);
 				let dom = (
-					<div key={randomStr(8)} style={{fontFamily: AstroConst.AstroFont}}>
+					<div key={`s4-${idx}`} style={{fontFamily: AstroConst.AstroFont}}>
 						<span style={{fontFamily: AstroConst.NormalFont}}>{title}&nbsp;</span>
 						{this.renderLabel(labelA, obj.idA)}&nbsp;与&nbsp;
 						<span style={{fontFamily: AstroConst.NormalFont}}>{innerTitle}&nbsp;</span>

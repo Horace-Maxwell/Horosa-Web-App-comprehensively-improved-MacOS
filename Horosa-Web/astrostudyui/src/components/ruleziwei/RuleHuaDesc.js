@@ -19,7 +19,7 @@ class RuleHuaDesc extends Component{
 			let rules = huas[key];
 			let dom = this.genPopoverDom(rules);
 			let col = (
-				<Col span={8} key={randomStr(8)}>
+				<Col span={8} key={`s1-${key}`}>
 					<Popover content={dom} title={key}>
 						{key}
 					</Popover>					
@@ -37,7 +37,7 @@ class RuleHuaDesc extends Component{
 			let li = null;
 			if(rule === '=='){
 				li = (
-					<hr key={randomStr(8)} />
+					<hr key={`s2-${i}`} />
 				);
 			}else{
 				if(rule instanceof Array){
@@ -51,7 +51,7 @@ class RuleHuaDesc extends Component{
 					)
 				}else{
 					li = (
-						<li key={randomStr(8)}>{rule}</li>
+						<li key={`s3-${i}`}>{rule}</li>
 					);	
 				}
 			}
@@ -80,7 +80,7 @@ class RuleHuaDesc extends Component{
 			let dom = this.genPopoverDomInObj(hua);
 			let title = key + '在命盘'
 			let col = (
-				<Col span={12} key={randomStr(8)}>
+				<Col span={12} key={`s6-${key}`}>
 					<Popover content={dom} title={title}>
 						<span style={ZWConst.SihuaColor[key]}>{title}</span>						
 					</Popover>					
@@ -101,18 +101,18 @@ class RuleHuaDesc extends Component{
 				let li = null;
 				if(rule === '=='){
 					li = (
-						<hr key={randomStr(8)} />
+						<hr key={`s7-${i}`} />
 					);
 				}else{
 					li = (
-						<li key={randomStr(8)}>{rule}</li>
+						<li key={`s8-${i}`}>{rule}</li>
 					);
 				}
 				houslis.push(li);
 			}
 
 			let house = (
-				<li key={randomStr(8)}>
+				<li key={`s9-${key}`}>
 					<div>
 						{key}
 					</div>

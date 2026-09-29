@@ -29,7 +29,7 @@ class RuleHouses extends Component{
 			let dom = this.genPopoverDom(rules, house);
 			let title = house + '';
 			let col = (
-				<Col span={6} key={randomStr(8)}>
+				<Col span={6} key={`s1-${i}`}>
 					<Popover content={dom} title={title}>
 						{house}
 					</Popover>					
@@ -63,7 +63,7 @@ class RuleHouses extends Component{
 					)
 				}else{
 					li = (
-						<li key={randomStr(8)}>{rule}</li>
+						<li key={`s3-${i}`}>{rule}</li>
 					);	
 				}
 			}
@@ -93,7 +93,7 @@ class RuleHouses extends Component{
 			let rules = ZWRules.RuleHouseType[key];
 			let dom = this.genPopoverDom(rules);
 			let col = (
-				<Col span={6} key={randomStr(8)}>
+				<Col span={6} key={`s6-${key}`}>
 					<Popover content={dom} title={key}>
 						{key}
 					</Popover>					

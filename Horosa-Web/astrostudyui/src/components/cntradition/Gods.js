@@ -58,7 +58,7 @@ class Gods extends Component{
 		for(let i=0; i<taisuiGods.length; i++){
 			let str = taisuiGods[i];
 			let span = (
-				<span key={randomStr(8)}>{str}&emsp;</span>
+				<span key={`s4-${i}`}>{str}&emsp;</span>
 			);
 			spans.push(span);
 		}
@@ -97,21 +97,21 @@ class Gods extends Component{
 		for(let i=0; i<goodGods.length; i++){
 			let str = goodGods[i];
 			let span = (
-				<span key={randomStr(8)}>{str}&emsp;</span>
+				<span key={`s8-${i}`}>{str}&emsp;</span>
 			);
 			spans.push(span);
 		}
 		for(let i=0; i<neutralGods.length; i++){
 			let str = neutralGods[i];
 			let span = (
-				<span key={randomStr(8)}>{str}&emsp;</span>
+				<span key={`s9-${i}`}>{str}&emsp;</span>
 			);
 			spans.push(span);
 		}
 		for(let i=0; i<badGods.length; i++){
 			let str = badGods[i];
 			let span = (
-				<span key={randomStr(8)}>{str}&emsp;</span>
+				<span key={`s10-${i}`}>{str}&emsp;</span>
 			);
 			spans.push(span);
 		}

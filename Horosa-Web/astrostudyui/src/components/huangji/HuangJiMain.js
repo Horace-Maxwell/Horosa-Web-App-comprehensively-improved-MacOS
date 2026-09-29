@@ -1,4 +1,5 @@
 import QuickDockBar from '../common/QuickDockBar';
+import { claimTrigger, settleTrigger } from '../../utils/singleTrigger';   // [#84] 双触发收敛
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { sideSectionIcon } from '../../constants/sideSectionIcons'; // [观象P1]
 import { Component } from 'react';
@@ -11,7 +12,7 @@ import { XQButton as Button, XQSelect as Select, XQTabs as Tabs, XQSideSection  
 import { saveModuleAISnapshotLazy, saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { ServerRoot, ResultKey } from '../../utils/constants';
 import { buildKentangEndpoint } from '../../integrations/kentang/serviceRoot';
-import { stepPrefetchEnabled, kentangCacheEnabled } from '../../utils/perfFlags';
+import { stepPrefetchEnabled, kentangCacheEnabled, flagEnabled } from '../../utils/perfFlags';
 import { cachedKentangFetch } from '../../utils/kentangCache';
 import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
 import { formatHumanValue } from '../../utils/humanReadableFields';
@@ -101,6 +102,86 @@ function fmtValue(value){
 	return formatHumanValue(value);
 }
 
+// [#75] 典籍正文按需取:盘请求带 slimClassics=1,后端只回典籍目录(level + title,标 contentOmitted);
+// 全书正文(约 1.96 MB)由 /wangji/classic 按典籍键取一次、模块级缓存,合并回盘后与旧盘逐字节相同
+// (classics 仍是 meta / selectedKey / sections 三键同序,节对象同形)。合并前逐节核对典籍键 / 节数 / level / title,
+// 对不齐或正文取数失败 → 回退一次不带标记的全文盘(旧口径),绝不让缺正文的盘进入 state / 快照 / 存档。
+// 开关 horosa.perf.wangjiClassicsOnDemand=0 → 盘请求不带标记,全文随盘(旧行为)。
+const CLASSIC_FULL_CACHE = {};
+const CLASSIC_FULL_PENDING = {};
+
+function classicsOnDemandEnabled(){
+	return flagEnabled('horosa.perf.wangjiClassicsOnDemand');
+}
+
+function loadClassicFull(classicKey){
+	const key = classicKey || DEFAULT_CLASSIC;
+	if(CLASSIC_FULL_CACHE[key]){
+		return Promise.resolve(CLASSIC_FULL_CACHE[key]);
+	}
+	if(CLASSIC_FULL_PENDING[key]){
+		return CLASSIC_FULL_PENDING[key];
+	}
+	const task = postWangJi('classic', { classicKey: key }).then((res)=>{
+		delete CLASSIC_FULL_PENDING[key];
+		if(res && Array.isArray(res.sections) && res.selectedKey && !res.contentOmitted){
+			CLASSIC_FULL_CACHE[key] = res;
+			CLASSIC_FULL_CACHE[res.selectedKey] = res;
+			return res;
+		}
+		return null;
+	}).catch(()=>{
+		delete CLASSIC_FULL_PENDING[key];
+		return null;
+	});
+	CLASSIC_FULL_PENDING[key] = task;
+	return task;
+}
+
+// 逐节对齐才合并;返回与旧盘同形的 classics(三键同序),对不齐返回 null。
+export function mergeClassicsFull(slim, full){
+	if(!slim || !full || !Array.isArray(slim.sections) || !Array.isArray(full.sections)){
+		return null;
+	}
+	if(slim.selectedKey !== full.selectedKey || slim.sections.length !== full.sections.length){
+		return null;
+	}
+	for(let i = 0; i < slim.sections.length; i += 1){
+		const a = slim.sections[i];
+		const b = full.sections[i];
+		if(!a || !b || a.title !== b.title || a.level !== b.level){
+			return null;
+		}
+	}
+	return { meta: slim.meta, selectedKey: slim.selectedKey, sections: full.sections.slice() };
+}
+
+function panNeedsClassics(pan){
+	return !!(pan && pan.classics && pan.classics.contentOmitted);
+}
+
+// 盘里典籍缺正文 → 补齐;对不齐 / 取数失败 → 回退全文盘(去掉 slimClassics 重取一次)。
+async function ensurePanClassics(pan, panPayload){
+	if(!panNeedsClassics(pan)){
+		return pan;
+	}
+	const merged = mergeClassicsFull(pan.classics, await loadClassicFull(pan.classics.selectedKey));
+	if(merged){
+		return { ...pan, classics: merged };
+	}
+	const fullPayload = { ...(panPayload || {}) };
+	delete fullPayload.slimClassics;
+	return postWangJi('pan', fullPayload);
+}
+
+function withSlimClassics(payload){
+	if(!payload || !classicsOnDemandEnabled()){
+		return payload;
+	}
+	return { ...payload, slimClassics: 1 };
+}
+
+
 // opts(可选)：{ classicSectionIndex } —— 选中典籍章节序号(与右栏「典籍」选择联动);缺省取首章(与 UI 初始态一致)。
 export function buildSnapshotText(pan, xinyi, opts){
 	if(!pan){
@@ -170,11 +251,13 @@ export async function buildHuangJiSnapshotForFields(fields, opts){
 		// 所推之年:存档/齿轮可覆盖(元会运世值卦按年而定)——🔴 曾写死 dt.year,页面推的年份传不进挂载。
 		const hy = (o.historyYear !== undefined && o.historyYear !== null && `${o.historyYear}` !== '' && Number.isFinite(Number(o.historyYear)))
 			? Number(o.historyYear) : dt.year;
-		const pan = await postWangJi('pan', {
+		const panPayload = withSlimClassics({
 			...dt,
 			historyYear: hy,
 			classicKey: o.classicKey || DEFAULT_CLASSIC,
 		});
+		if(panPayload.slimClassics){ loadClassicFull(panPayload.classicKey); }   // [#75] 正文与盘并行取
+		const pan = await ensurePanClassics(await postWangJi('pan', panPayload), panPayload);
 		if(!pan){
 			return '';
 		}
@@ -350,6 +433,19 @@ class HuangJiMain extends Component{
 			const xinyi = this.state.xinyi;
 			const snapOpts = { classicSectionIndex: this.state.classicSectionIndex };
 			saveModuleAISnapshotLazy('huangji', ()=>buildSnapshotText(pan, xinyi, snapOpts));
+			// [#75] 存档盘正常都带正文(落 state 前已合并);万一是缺正文的档,异步补齐并重存快照 —— 正文只会迟到、不会丢。
+			// 只按典籍键合并正文,绝不重新起盘(档里的盘是档的时刻,不是当前表单时刻)。
+			if(panNeedsClassics(pan)){
+				const reqSeq = this.requestSeq;
+				loadClassicFull(pan.classics.selectedKey).then((full)=>{
+					const merged = mergeClassicsFull(pan.classics, full);
+					if(!merged || this.unmounted || reqSeq !== this.requestSeq || this.state.pan !== pan){ return; }
+					const fullPan = { ...pan, classics: merged };
+					this.setState({ pan: fullPan }, ()=>{
+						saveModuleAISnapshotLazy('huangji', ()=>buildSnapshotText(fullPan, xinyi, { classicSectionIndex: this.state.classicSectionIndex }));
+					});
+				}).catch(()=>{});
+			}
 		});
 		return true;
 	}
@@ -399,6 +495,7 @@ class HuangJiMain extends Component{
 					const payload = this.buildPanPayload(flds);
 					if(!payload){ return; }
 					postWangJi('pan', payload).catch(()=>null);
+					if(payload.slimClassics){ loadClassicFull(payload.classicKey); }   // [#75] 正文一并预取
 					this.fetchXinyi(flds, false).catch(()=>null);
 				}catch(e){ /* 预取失败无害 */ }
 			}, 150);
@@ -448,11 +545,11 @@ class HuangJiMain extends Component{
 	buildPanPayload(fields){
 		const dt = parseFieldsDateTime(fields);
 		if(!dt){ return null; }
-		return {
+		return withSlimClassics({
 			...dt,
 			historyYear: this.state.historyYear,
 			classicKey: this.state.classicKey,
-		};
+		});
 	}
 
 	async fetchPan(fields){
@@ -460,10 +557,16 @@ class HuangJiMain extends Component{
 		if(!payload){
 			return;
 		}
+		// [#84] 双触发收敛:挂钩与 componentDidUpdate 同一次改动各进一次 → 起盘请求体与心易选项全同的第二路跳过
+		const panTrig = claimTrigger(this, 'fetchPan', JSON.stringify([payload, this.state.xinyiOptions]));
+		if(!panTrig){
+			return;
+		}
 		const reqSeq = ++this.requestSeq;
 		this.setState({ loading: true });
 		try{
-			const pan = await postWangJi('pan', payload);
+			if(payload.slimClassics){ loadClassicFull(payload.classicKey); }   // [#75] 正文与盘并行取(命中缓存即零请求)
+			const pan = await ensurePanClassics(await postWangJi('pan', payload), payload);
 			const xinyi = await this.fetchXinyi(fields, false);
 			if(this.unmounted || reqSeq !== this.requestSeq){
 				return;
@@ -473,6 +576,7 @@ class HuangJiMain extends Component{
 				saveModuleAISnapshotLazy('huangji', ()=>buildSnapshotText(pan, xinyi, snapOpts));
 			});
 		}catch(e){
+			settleTrigger(this, 'fetchPan', panTrig, false);
 			console.warn('kinwangji backend failed', e);
 			if(!this.unmounted && reqSeq === this.requestSeq){
 				this.setState({ loading: false });

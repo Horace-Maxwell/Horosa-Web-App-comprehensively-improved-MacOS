@@ -819,6 +819,8 @@ export default {
 	state:{
 		height: 660,
 		chartObj: null,
+		bootChartRestore: null,      // [R5 S7] 温启恢复状态:null / 'pending' / 'done' / 'dropped' / 'failed'
+		bootFieldsApplied: false,    // [R5 S7] checkUser 已在恢复期落过 fields(失败回落「此刻」由恢复方负责)
 		drawerVisible: closeAllDrawer('init'),
 		currentTab: 'astrochart',
 		// [Q-314 裁决 A] 八字本页口径覆盖层(日界 / 晚子时 / 时间算法;只八字页读;新命盘 / 载入复位)+ 载入命盘自带口径钉住共享层
@@ -1366,7 +1368,23 @@ export default {
 			// （record 缺键=保持当前值，legacy 零冲击）；命中键与下方核心键一律写「新 entry」——
 			// 旧实现 {...state.fields} 后就地改共享 entry，① 组件层 prevProps 与 props 同对象、值比对失明,
 			// ② /chart 失败时 state 已被改一半（脏写）。清单见 utils/recordFieldsRestore.js（哨兵守全枚举）。
-			const fields = applyRecordToFields(state.fields, values);
+			// [R5 S7] 字段构造收成闭包:温启恢复(bootRestore)在响应回来后若 checkUser 已换过 fields(预测设置 / 用户档),
+			// 用**最新** fields 重建一次,record 键仍然覆盖 ⇒ 盘与选项一致,且 checkUser 的补充不丢。
+			const buildFields = (base)=>{
+				const f = applyRecordToFields(base, values);
+				const set = (key, value)=>{ f[key] = { ...(f[key] || { name: [key] }), value }; };
+				set('cid', values.cid);
+				set('date', tm);
+				set('time', tm);
+				set('zone', tm.zone);
+				set('lat', values.lat);
+				set('lon', values.lon);
+				set('name', values.name);
+				set('pos', values.pos);
+				set('ad', tm.ad);
+				return f;
+			};
+			let fields = null;
 			const setF = (key, value)=>{ fields[key] = { ...(fields[key] || { name: [key] }), value }; };
 
 			let tm = new DateTime();
@@ -1378,20 +1396,55 @@ export default {
 			tm.setAd(birthIsBc ? -1 : (values.ad ? values.ad : 1));
 			tm.setZone(values.zone);
 
-			setF('cid', values.cid);
-			setF('date', tm);
-			setF('time', tm);
-			setF('zone', tm.zone);
-			setF('lat', values.lat);
-			setF('lon', values.lon);
-			setF('name', values.name);
-			setF('pos', values.pos);
-			setF('ad', tm.ad);
 
+			fields = buildFields(state.fields);
 			const param = fieldsToParams(fields);
 			const astroState = yield select((allState)=>allState.astro);
 			param.includePrimaryDirection = shouldIncludePrimaryDirection(astroState);
-			const rsp = yield call(service.fetchChart, param);
+			const bootEpoch = fieldsEpoch;
+			let rsp = yield call(service.fetchChart, param);
+			if(values.bootRestore){
+				// [R5 S7] 温启恢复:响应回来时用户若已先动手(已有盘提交 / 快车道代际已推进)→ 丢弃,latest-wins;
+				// 服务异常静默(恢复是优化不是功能,不弹错):标 failed,若 checkUser 已落过 fields 就由这里回落「此刻」,
+				// 否则 checkUser 看到 failed 自己走「此刻」(两处只跑一处,不出双盘)。
+				const now = yield select((s)=>s.astro);
+				if(now.chartObj !== state.chartObj || fieldsEpoch !== bootEpoch){
+					yield put({ type: 'save', payload: { bootChartRestore: 'dropped' } });
+					return;
+				}
+				if(!isValidChartResponse(rsp)){
+					yield put({ type: 'save', payload: { bootChartRestore: 'failed' } });
+					if(now.bootFieldsApplied){
+						yield put({ type: 'nowChart', payload: { fields: now.fields } });
+					}
+					return;
+				}
+				if(now.fields !== state.fields){
+					fields = buildFields(now.fields);
+					// checkUser 在恢复请求在途时落了用户档 / 预测设置(预测开关、主限法方法 / 时间键 / 相位等不在存档记录里):
+					// 盘必须按最终展示的选项算 —— 参数有变就按新参数重取一次(同参 L3 命中时近乎零成本),否则盘与选项不一致。
+					const param2 = fieldsToParams(fields);
+					param2.includePrimaryDirection = param.includePrimaryDirection;
+					if(JSON.stringify(param2) !== JSON.stringify(param)){
+						rsp = yield call(service.fetchChart, param2);
+						const again = yield select((s)=>s.astro);
+						if(again.chartObj !== state.chartObj || fieldsEpoch !== bootEpoch){
+							yield put({ type: 'save', payload: { bootChartRestore: 'dropped' } });
+							return;
+						}
+						if(!isValidChartResponse(rsp)){
+							yield put({ type: 'save', payload: { bootChartRestore: 'failed' } });
+							if(again.bootFieldsApplied){
+								yield put({ type: 'nowChart', payload: { fields: again.fields } });
+							}
+							return;
+						}
+						if(again.fields !== now.fields){
+							fields = buildFields(again.fields);
+						}
+					}
+				}
+			}
 			if(!isValidChartResponse(rsp)){
 				showChartServiceError();
 				return;
@@ -1441,6 +1494,7 @@ export default {
 					memoType: type,
 					baziCalibreOverride: {},                                   // [Q-314] 载入命盘:八字本页覆盖层复位(随盘值 > 本页左栏)
 					_dayBoundaryRecordPinned: recordPinsDayBoundary(values),   // [Q-314] 命盘自带口径 → 钉住共享层,全局事件不覆盖
+					...(values.bootRestore ? { bootChartRestore: 'done' } : {}),   // [R5 S7] 温启恢复已落盘
                 },
             });
 

@@ -34,7 +34,7 @@ class GuaDesc extends Component{
 		let yaotitle = (<Title level={4} key={randomStr(8)}>爻辞</Title>);
 		let yao = gua['爻辞'].map((item, idx)=>{
 			let dom = (
-				<li key={randomStr(8)}>
+				<li key={`s5-${idx}`}>
 					<Text strong mark>{item}</Text>
 					<div>象曰：{gua['爻象'][idx]}</div>
 				</li>

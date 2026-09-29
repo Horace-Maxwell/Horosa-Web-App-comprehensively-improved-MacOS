@@ -70,6 +70,11 @@ def verify_manifest(text, tag, version):
 BASELINE_LINE = 'BASELINE_STATE="$('
 ENSURE_APP_LINE = 'ensure_release "${TAG_NAME}"'
 OLD_BASELINE_CURL = 'PREV_MANIFEST_JSON="$(curl -fsSL -H \'Cache-Control: no-cache\' "https://github.com/'
+# [FL-20260922-5] 资产本体下载只能带一个 Accept:auth_header(vnd.github+json)+ octet-stream 同发 → GitHub 回元数据 JSON,基线恒判 no_v2
+DOUBLE_ACCEPT_LINE = '"${auth_header[@]}" -H \'Accept: application/octet-stream\''
+ASSET_HEADER_DEF = "asset_header=( -H \"Authorization: Bearer ${GITHUB_TOKEN}\" -H 'X-GitHub-Api-Version: 2022-11-28' -H 'Accept: application/octet-stream' )"
+BASELINE_DOWNLOAD_LINE = 'PREV_MANIFEST_JSON="$(curl -fsSL "${asset_header[@]}" "${BASELINE_ASSET_URL}"'
+
 COMPONENTS_DONE_LINE = 'components uploaded (incremental set)'
 MANIFEST_UPLOAD_LINE = 'replace_asset "${APP_RELEASE_ID}" "${APP_UPLOAD_URL}" "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"'
 PUBLISH_LINE = 'publish_release "${APP_RELEASE_ID}"'
@@ -113,6 +118,12 @@ def lint(text):
         problems.append('ensure_release 不再支持以 draft 建 release')
     if first(SELF_GUARD_LINE) is None:
         problems.append('缺「基线取到自己」硬拒分支')
+    if first(DOUBLE_ACCEPT_LINE) is not None:
+        problems.append('资产下载带了两个 Accept(auth_header 的 vnd.github+json + octet-stream)→ GitHub 回元数据不回文件,基线恒判 no_v2')
+    if first(ASSET_HEADER_DEF) is None:
+        problems.append('缺资产下载专用头 asset_header(单一 Accept: application/octet-stream)')
+    if first(BASELINE_DOWNLOAD_LINE) is None:
+        problems.append('基线清单必须用 asset_header 下载(PREV_MANIFEST_JSON="$(curl -fsSL "${asset_header[@]}" …)')
     return problems
 
 
@@ -132,6 +143,8 @@ GOOD_SCRIPT = '\n'.join([
     'replace_asset "${APP_RELEASE_ID}" "${APP_UPLOAD_URL}" "${DIST_ROOT}/${DESKTOP_OFFLINE_PKG}"',
     'replace_asset "${APP_RELEASE_ID}" "${APP_UPLOAD_URL}" "${DIST_ROOT}/${UPDATE_MANIFEST_NAME}"',
     'publish_release "${APP_RELEASE_ID}" "${APP_MAKE_LATEST}" "${RELEASE_PRERELEASE}"',
+    ASSET_HEADER_DEF,
+    BASELINE_DOWNLOAD_LINE + ' 2>/dev/null || true)"',
 ])
 
 
@@ -155,6 +168,10 @@ def self_test():
     # 3. 空列表 / 非 JSON → first / fetch_failed
     assert pick([], 'v1', 'v1-runtime1', M, 'false')['state'] == 'first'
     assert pick(None, 'v1', 'v1-runtime1', M, 'false')['state'] == 'fetch_failed'
+    fixed = ASSET_HEADER_DEF + '\n' + BASELINE_DOWNLOAD_LINE + ' 2>/dev/null || true)\n'
+    broken = ASSET_HEADER_DEF + '\n' + 'PREV_MANIFEST_JSON="$(curl -fsSL ' + DOUBLE_ACCEPT_LINE + ' "${BASELINE_ASSET_URL}" 2>/dev/null || true)\n'
+    assert any('两个 Accept' in p for p in lint(broken)), 'lint 必须抓「双 Accept」'
+    assert not any(('两个 Accept' in p) or ('asset_header' in p) for p in lint(fixed)), 'lint 对修后写法不得报资产头问题'
     assert _load_releases('not json') is None and _load_releases('{"a":1}') is None and _load_releases('[]') == []
     # 4. draft 一律跳过(上次中途失败留下的 draft 没有 tag、没有完整资产)
     r = pick([_rel('v3.10.0', '2026-09-01', [M], draft=True), _rel('v3.9.4', '2026-08-20', [M])], 'v3.11.0', 'v3.11.0-runtime1', M, 'false')

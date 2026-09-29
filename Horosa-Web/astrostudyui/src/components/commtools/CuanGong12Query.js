@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Row, Col, Divider, Popover} from 'antd';
 import { XQSelect as Select } from '../xq-ui';
-import { randomStr, isNumber } from '../../utils/helper';
+import { isNumber } from '../../utils/helper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import styles from '../../css/styles.less';
@@ -72,7 +72,7 @@ export default class CuanGong12Query extends Component{
     genOptions(){
         let opts = GZConst.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s1-${idx}`} value={item}>{item}</Option>
             )
         });
         return opts;
@@ -87,7 +87,7 @@ export default class CuanGong12Query extends Component{
                 </div>
             )
             return (
-                <Col key={randomStr(8)} span={5}>
+                <Col key={`s2-${idx}`} span={5}>
                     <span style={{fontWeight: 'bold'}}>{GZConst[idx+12]}：</span>
                     <Popover content={tip}>
                         {item.name}
@@ -111,7 +111,7 @@ export default class CuanGong12Query extends Component{
                 </div>
             )
             return (
-                <Col key={randomStr(8)} span={5}>
+                <Col key={`s3-${idx}`} span={5}>
                     <span style={{fontWeight: 'bold'}}>{GZConst[idx]}：</span>
                     <Popover content={tip}>
                         {item.name}
@@ -134,7 +134,7 @@ export default class CuanGong12Query extends Component{
                 </div>
             )
             return (
-                <Col key={randomStr(8)} span={5}>
+                <Col key={`s4-${idx}`} span={5}>
                     <span style={{fontWeight: 'bold'}}>{GZConst[idx+12]}：</span>
                     <Popover content={tip}>
                         {item.name}
@@ -157,7 +157,7 @@ export default class CuanGong12Query extends Component{
                 </div>
             )
             return (
-                <Col key={randomStr(8)} span={5}>
+                <Col key={`s5-${idx}`} span={5}>
                     <span style={{fontWeight: 'bold'}}>{GZConst[idx]}：</span>
                     <Popover content={tip}>
                         {item.name}

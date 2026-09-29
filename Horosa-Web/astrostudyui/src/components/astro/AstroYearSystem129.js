@@ -157,8 +157,8 @@ class AstroYearSystem129 extends Component{
 		}
 		for(let i = 0; i < rows.length; i++){
 			const cols = rows[i].map((d) => <Col key={randomStr(8)} span={8}>{d}</Col>);
-			doms.push(<Row key={randomStr(8)} gutter={12}>{cols}</Row>);
-			if(i < rows.length - 1){ doms.push(<Divider key={randomStr(8)} dashed={true} />); }
+			doms.push(<Row key={`s3-${i}`} gutter={12}>{cols}</Row>);
+			if(i < rows.length - 1){ doms.push(<Divider key={`s4-${i}`} dashed={true} />); }
 		}
 
 		return (

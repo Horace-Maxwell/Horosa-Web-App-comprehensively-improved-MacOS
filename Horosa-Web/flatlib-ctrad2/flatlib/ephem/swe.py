@@ -81,15 +81,56 @@ def _candidateEphePath():
     return SEACTIVE_PATH
 
 
+# [R5 T1] 星历路径短路(与 Windows 版同名开关 HOROSA_EPHE_PATH_FASTPATH):记录「当前真正生效的星历路径」,
+# 让 ensureEphePath 在无人改动时直接跳过。安全的根据:_guardedSetEphePath 自下方
+# `swisseph.set_ephe_path = ...` 起就是进程内唯一入口 —— 全部 vendor/kinastro 模块的 `swe.set_ephe_path("")`
+# 都经运行时属性查找路由到这里,所以追踪变量不可能落后于真实状态;一旦有人改了路径,比较立刻失配、照旧恢复,
+# 语义与改动前完全一致(输出逐字节相同,tests/test_perf_r5_batch1.py 钉住)。
+# 为什么值得:applySiderealMode 每次 swe 调用都走一趟 ensureEphePath,而 C 库 swe_set_ephe_path 会顺带
+# 关闭已打开的星历文件 → 每张本命盘重设 177 次、约 6.6ms(约 20%),文件被反复关闭重开。
+# kill-switch:HOROSA_EPHE_PATH_FASTPATH=0 → 每次都照旧真正调用。
+_EPHE_PATH_ACTIVE = None
+_JPL_FILE_ACTIVE = None
+_EPHE_FASTPATH = os.environ.get('HOROSA_EPHE_PATH_FASTPATH', '1').lower() not in ('0', 'false', 'no', 'off')
+
+
 def _guardedSetEphePath(path):
     # Several bundled kinastro modules reset pyswisseph to its process default
     # with set_ephe_path(""). Keep the packaged swefiles path active instead.
+    global _EPHE_PATH_ACTIVE, _JPL_FILE_ACTIVE
     if path is None or str(path).strip() == '':
         path = _candidateEphePath() or ''
-    return _SET_EPHE_PATH(path)
+    # C 侧 swe_set_ephe_path 会重置 JPL 文件名:作废 JPL 追踪,ensureEphePath 随后照旧重设(与改前「每次路径后都重设」同义);
+    # 路径追踪只在调用成功后记,调用抛错时不留「假已设」。
+    _JPL_FILE_ACTIVE = None
+    ret = _SET_EPHE_PATH(path)
+    _EPHE_PATH_ACTIVE = path
+    return ret
 
 
 swisseph.set_ephe_path = _guardedSetEphePath
+
+
+# 短路的另一半 —— 必须与之成对存在,否则短路不安全:短路后星历文件句柄常驻(纯收益,更新时安装器本就先结束进程),
+# 但任何人调用 swisseph.close() 之后追踪变量就陈旧了。把 close 也纳入守卫:一关即作废追踪,下一次 ensureEphePath 照旧重设。
+# (当前产品代码无人调用 close —— 已 grep 确认;此举是让短路在结构上安全,而不是靠「没人调用」。)
+_SWE_CLOSE = getattr(swisseph, 'close', None)
+
+if _SWE_CLOSE is not None:
+    def _guardedClose():
+        global _EPHE_PATH_ACTIVE, _JPL_FILE_ACTIVE
+        _EPHE_PATH_ACTIVE = None
+        _JPL_FILE_ACTIVE = None
+        return _SWE_CLOSE()
+
+    swisseph.close = _guardedClose
+
+
+def closeEphemerisFiles():
+    """显式释放 swisseph 持有的星历文件句柄(并作废路径追踪器)。生产代码不需要调用;测试 / 工具要移动或删除
+    .se1 文件时先调它。调用后一切照旧:下一次 ensureEphePath 会重新建立路径。"""
+    if _SWE_CLOSE is not None:
+        swisseph.close()
 
 SE_SIDM_FAGAN_BRADLEY = getattr(swisseph, 'SIDM_FAGAN_BRADLEY', 0)
 SE_SIDM_LAHIRI = getattr(swisseph, 'SIDM_LAHIRI', 1)
@@ -252,11 +293,17 @@ def setPath(path):
 
 
 def ensureEphePath():
-    """Restore flatlib's Swiss Ephemeris path after shared-process callers change it."""
-    if SEACTIVE_PATH:
+    """Restore flatlib's Swiss Ephemeris path after shared-process callers change it.
+
+    [R5 T1] 路径未被任何人改动时直接短路。语义不变 —— 只要有外部调用者动过路径,_EPHE_PATH_ACTIVE 立刻与
+    SEACTIVE_PATH 失配,这里照旧恢复(见 _guardedSetEphePath 处的说明:它是进程内唯一入口)。
+    """
+    global _JPL_FILE_ACTIVE
+    if SEACTIVE_PATH and (not _EPHE_FASTPATH or _EPHE_PATH_ACTIVE != SEACTIVE_PATH):
         swisseph.set_ephe_path(SEACTIVE_PATH)
-    if SEACTIVE_JPL_FILE:
+    if SEACTIVE_JPL_FILE and (not _EPHE_FASTPATH or _JPL_FILE_ACTIVE != SEACTIVE_JPL_FILE):
         swisseph.set_jpl_file(SEACTIVE_JPL_FILE)
+        _JPL_FILE_ACTIVE = SEACTIVE_JPL_FILE
 
 
 def getRuntimeConfig():

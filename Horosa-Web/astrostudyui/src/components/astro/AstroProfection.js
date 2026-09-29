@@ -304,7 +304,7 @@ class AstroProfection extends Component{
 			if(i % 2 === 0){
 				if(i > 0){
 					let dom = (
-						<div key={randomStr(8)}>
+						<div key={`s1-${i}`}>
 							<Row>
 								{cols}
 							</Row>

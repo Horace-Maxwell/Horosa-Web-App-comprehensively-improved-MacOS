@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { Row, Col, Popover, Divider } from 'antd';
 import { randomStr } from '../../utils/helper';
 import { BaZiMsg } from '../../msg/bazimsg';
+import { baziAgeText } from './baziAgeText';
 import { birthMonthDayFromBazi, resolveStarCharger } from './starChargerLazy';
 import styles from '../../css/styles.less';
 
@@ -121,10 +122,10 @@ class SmallDirection extends Component{
 					return (
 						<div className="horosa-bazi-xy-item" key={randomStr(8)}>
 							{this.renderPillarChip('小运', subdir, `小运：${subdir.ganzi || ''}`, popSub)}
-							{this.renderPillarChip('流年', yeardir, `流年：${yeardir.ganzi || ''} ${d.year || ''} ${d.age || ''}岁`, popYear)}
+							{this.renderPillarChip('流年', yeardir, `流年：${yeardir.ganzi || ''} ${d.year || ''} ${this.props.ageStyle ? baziAgeText(d.age, this.props.ageStyle) : `${d.age || ''}岁`}`, popYear)}
 							<div className="horosa-bazi-xy-meta">
 								<span className="horosa-bazi-xy-year">{d.year || ''}</span>
-								<b className="horosa-bazi-xy-age">{d.age !== undefined ? `${d.age}周岁` : ''}</b>
+								<b className="horosa-bazi-xy-age">{d.age !== undefined ? baziAgeText(d.age, this.props.ageStyle) : ''}</b>
 							</div>
 						</div>
 					);

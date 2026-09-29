@@ -7,6 +7,9 @@ import struct
 import subprocess
 import tempfile
 import zipfile
+import hashlib
+
+NATIVE_STATS: dict = {}
 from typing import Optional
 
 
@@ -53,6 +56,45 @@ def is_macho(path: pathlib.Path) -> bool:
         nfat_arch = struct.unpack("<I", header[4:8])[0]
         return 0 < nfat_arch <= 32
     return False
+
+
+# ── [FL-20260923-1 / #71] 原生库签名按内容缓存 ────────────────────────────────────────────────
+# codesign --timestamp 每次向 Apple 取时间戳 ⇒ 同字节同身份签出不同结果。域级缓存(sign_payload_cached.py)只在整个域
+# 未变时命中;bundle 域每版都变(自家 jar 版本号)⇒ 10 个含原生库的三方 jar 每版重签 ⇒ java-lib 298.7 MB 每版必变(v3.11.1 实测)。
+# 这里对「单个 Mach-O 文件」按其未签名内容 sha256(+ 身份)缓存签名产物:内容未变 ⇒ 直接写回上次的签名字节,jar 重打后逐字节恒等。
+# 只缓存单文件(jar 内成员 / 树内散 Mach-O),不缓存 bundle 目录(其签名涉及整目录)。HOROSA_SIGN_CACHE=0 与域级缓存同开关。
+def _native_cache_dir(identity: str) -> Optional[pathlib.Path]:
+    if os.environ.get("HOROSA_SIGN_CACHE", "1") != "1":
+        return None
+    root = os.environ.get("HOROSA_NATIVE_SIGN_CACHE", "").strip()
+    if not root:
+        return None
+    ident = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]
+    d = pathlib.Path(root) / ident
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def sign_file_cached(path: pathlib.Path, identity: str, keychain: Optional[str]) -> str:
+    """签单个 Mach-O 文件;回 'hit'(复用缓存字节)/ 'signed'(真签并入缓存)/ 'plain'(缓存未启用,真签)。"""
+    cache = _native_cache_dir(identity)
+    if cache is None:
+        sign_path(path, identity, keychain)
+        return "plain"
+    key = _sha256_bytes(path.read_bytes())
+    cached = cache / (key + ".signed")
+    if cached.is_file():
+        path.write_bytes(cached.read_bytes())
+        return "hit"
+    sign_path(path, identity, keychain)
+    tmp = cached.with_suffix(".tmp")
+    tmp.write_bytes(path.read_bytes())
+    tmp.replace(cached)
+    return "signed"
 
 
 def sign_path(path: pathlib.Path, identity: str, keychain: Optional[str]) -> None:
@@ -171,7 +213,8 @@ def process_archive(archive_path: pathlib.Path, identity: str, keychain: Optiona
                 changed = True
 
         for macho in iter_macho_files(tmp_root):
-            sign_path(macho, identity, keychain)
+            outcome = sign_file_cached(macho, identity, keychain)
+            NATIVE_STATS[outcome] = NATIVE_STATS.get(outcome, 0) + 1
             changed = True
 
         for bundle in iter_bundle_dirs(tmp_root):
@@ -198,11 +241,15 @@ def main() -> int:
         process_archive(archive, args.identity, args.keychain or None)
 
     for macho in iter_macho_files(root):
-        sign_path(macho, args.identity, args.keychain or None)
+        outcome = sign_file_cached(macho, args.identity, args.keychain or None)
+        NATIVE_STATS[outcome] = NATIVE_STATS.get(outcome, 0) + 1
 
     for bundle in iter_bundle_dirs(root):
         sign_path(bundle, args.identity, args.keychain or None)
 
+    if NATIVE_STATS:
+        print("[native-sign-cache] 单文件 Mach-O:命中复用 %d · 真签入缓存 %d · 未启用缓存 %d" % (
+            NATIVE_STATS.get("hit", 0), NATIVE_STATS.get("signed", 0), NATIVE_STATS.get("plain", 0)), flush=True)
     return 0
 
 

@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Row, Col, Divider, Popconfirm, message} from 'antd';
 import { XQButton as Button, XQInput as Input, XQSelect as Select } from '../xq-ui';
-import { randomStr, isNumber } from '../../utils/helper';
+import { isNumber } from '../../utils/helper';
 // 八字格局完全本地化(localStorage 存读),不再依赖后端 → 删除 request/Constants 引用
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeStorage';
 import {BaziMonthTime, SixtyJiaZi} from '../../constants/ZWConst';
@@ -376,7 +376,7 @@ export default class BaziPattern extends Component{
             let type = item.type;
             if(type === 0){
                 let col = (
-                    <Col span={6} key={randomStr(8)}>
+                    <Col span={6} key={`s1-${idx}`}>
                         {key}：
                         <Select size='small' style={{width: '50%'}} value={this.state[key]}
                             onChange={(val)=>{this.changeAttribute(key, val);}}
@@ -392,7 +392,7 @@ export default class BaziPattern extends Component{
                 cols.push(col);
             }else if(type === 1){
                 let col = (
-                    <Col span={6} key={randomStr(8)}>
+                    <Col span={6} key={`s2-${idx}`}>
                         {key}：
                         <Select size='small' style={{width: '50%'}} value={this.state[key]}
                             onChange={(val)=>{this.changeAttribute(key, val);}}
@@ -426,7 +426,7 @@ export default class BaziPattern extends Component{
         let monthes = BaziMonthTime.month[gan];
         let opts = monthes.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s3-${idx}`} value={item}>{item}</Option>
             );
         })
         return opts;
@@ -441,7 +441,7 @@ export default class BaziPattern extends Component{
         let times = BaziMonthTime.time[gan];
         let opts = times.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s4-${idx}`} value={item}>{item}</Option>
             );
         })
         return opts;
@@ -458,12 +458,12 @@ export default class BaziPattern extends Component{
         let dom = this.genDom();
         let yopts = SixtyJiaZi.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s5-${idx}`} value={item}>{item}</Option>
             )
         });
         let dopts = SixtyJiaZi.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s6-${idx}`} value={item}>{item}</Option>
             )
         });
         let mopts = this.genMonthOptions();

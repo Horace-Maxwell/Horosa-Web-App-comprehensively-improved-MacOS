@@ -72,8 +72,8 @@ _ensure_streamlit_stub()
 
 
 CUR_DIR = os.path.dirname(os.path.abspath(__file__))
-HOROSA_WEB_ROOT = os.path.abspath(os.path.join(CUR_DIR, "..", "..", ".."))
-KINASTRO_SRC = os.path.join(HOROSA_WEB_ROOT, "vendor", "kinastro")
+WEB_ROOT_DIR = os.path.abspath(os.path.join(CUR_DIR, "..", "..", ".."))  # 路径常量(非环境开关)
+KINASTRO_SRC = os.path.join(WEB_ROOT_DIR, "vendor", "kinastro")
 
 
 def ensure_kinastro_path():
@@ -260,10 +260,27 @@ DISPLAY_REPLACEMENTS = {
 }
 
 
+# horosa_display_trans_v1:DISPLAY_REPLACEMENTS
+# 全部 1字→1字 ⇒ 逐项 str.replace(每字符串 ~125 次全串遍历)可无损换成**单遍** C 级
+# str.translate。等价条件:
+#   ① 全键值单字符 —— _DISPLAY_TRANS_OK 在 import 时机械核验;未来有人混入多字符项,
+#     自动整体退回旧循环(双保险,勿删);
+#   ② 无链式替换(某项的**值**又是另一项的**键**)—— 键全繁体、值全简体;
+#     astropy/tests/test_perf_r5_batch3.py 以不变量断言钉死,改表破坏该性质会立即红。
+# 热路径:display_safe 递归清洗整棵 vendor 载荷,20 个 kentang 技法逐响应过这里。
+# kill:HOROSA_DISPLAY_TRANS=0 ⇒ 旧循环路径,逐字节旧行为。
+_DISPLAY_TRANS_ON = os.environ.get("HOROSA_DISPLAY_TRANS", "1").lower() not in ("0", "false", "no", "off")
+_DISPLAY_TRANS_OK = all(len(k) == 1 and len(v) == 1 for k, v in DISPLAY_REPLACEMENTS.items())
+_DISPLAY_TRANS = str.maketrans(DISPLAY_REPLACEMENTS) if _DISPLAY_TRANS_OK else None
+
+
 def display_text(value):
     text = clean_text(value)
-    for old, new in DISPLAY_REPLACEMENTS.items():
-        text = text.replace(old, new)
+    if _DISPLAY_TRANS_ON and _DISPLAY_TRANS is not None:
+        text = text.translate(_DISPLAY_TRANS)
+    else:
+        for old, new in DISPLAY_REPLACEMENTS.items():
+            text = text.replace(old, new)
     if zh_convert:
         try:
             text = zh_convert(text, "zh-cn")
@@ -273,6 +290,8 @@ def display_text(value):
 
 
 SOURCE_REPLACEMENTS = {new: old for old, new in DISPLAY_REPLACEMENTS.items() if old != new}
+# 同前提同证明(逆映射同为 1:1 单字符;金标同文件覆盖)。
+_SOURCE_TRANS = str.maketrans(SOURCE_REPLACEMENTS) if _DISPLAY_TRANS_OK else None
 
 
 def source_text(value):
@@ -283,6 +302,8 @@ def source_text(value):
             text = zh_convert(text, "zh-tw")
         except Exception:
             pass
+    if _DISPLAY_TRANS_ON and _SOURCE_TRANS is not None:
+        return text.translate(_SOURCE_TRANS)
     for old, new in SOURCE_REPLACEMENTS.items():
         text = text.replace(old, new)
     return text

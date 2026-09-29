@@ -165,13 +165,47 @@ def _sanitize_history_records(records):
     return clean
 
 
-def _classic_payload(key):
+# horosa_wangji_classics_ondemand_v1 —— 典籍正文按需取(全书约 1.96 MB,此前每次 /wangji/pan 都随盘下发)。
+# get_sections() 每次重读 + 重切整册 md;这里加模块级解析缓存(典籍随包只读、进程内恒定,命中即零 I/O)。
+#   * /wangji/pan 带 slimClassics=1 → 典籍只给目录(level + title),并标 contentOmitted: True;
+#   * /wangji/classic → 回与旧盘完全相同的典籍对象(meta / selectedKey / sections 含正文),前端按典籍键缓存一次,
+#     合并回盘里后与旧盘逐字节相同。
+#   * 不带 slimClassics 的调用方(旧前端 / 其它工具)照旧拿全文,形状不变。
+_SECTIONS_CACHE = {}
+# 开关:HOROSA_WANGJI_SECTIONS_CACHE=0 → 每次重读重切典籍 md(旧行为)。
+_SECTIONS_CACHE_ON = os.environ.get("HOROSA_WANGJI_SECTIONS_CACHE", "1").lower() not in ("0", "false", "no", "off")
+
+
+def _cached_sections(key):
+    if not _SECTIONS_CACHE_ON:
+        return get_sections(key)
+    cached = _SECTIONS_CACHE.get(key)
+    if cached is None:
+        cached = get_sections(key)
+        _SECTIONS_CACHE[key] = cached
+    return cached
+
+
+def _classic_payload(key, with_content=True):
     meta = list_classics()
     valid_keys = [item["key"] for item in meta]
     selected = key if key in valid_keys else (valid_keys[0] if valid_keys else "")
     sections = []
     if selected:
-        sections = get_sections(selected)
+        sections = _cached_sections(selected)
+    if with_content:
+        return {
+            "meta": meta,
+            "selectedKey": selected,
+            "sections": [
+                {
+                    "level": item.get("level"),
+                    "title": item.get("title", ""),
+                    "content": item.get("content", ""),
+                }
+                for item in sections
+            ],
+        }
     return {
         "meta": meta,
         "selectedKey": selected,
@@ -179,10 +213,10 @@ def _classic_payload(key):
             {
                 "level": item.get("level"),
                 "title": item.get("title", ""),
-                "content": item.get("content", ""),
             }
             for item in sections
         ],
+        "contentOmitted": True,
     }
 
 
@@ -303,6 +337,21 @@ class WangJiSrv:
     def OPTIONS(*args, **kwargs):
         enable_crossdomain()
 
+    # horosa_wangji_classics_ondemand_v1:典籍全文(只读、无随机 / 无 now / 无副作用)。入参 classicKey;
+    # 回与旧 /wangji/pan 里完全相同的 classics 对象,供前端按典籍键缓存一次后合并。
+    @cherrypy.expose
+    @cherrypy.config(**{"tools.cors.on": True})
+    @cherrypy.tools.json_in()
+    def classic(self):
+        enable_crossdomain()
+        try:
+            data = cherrypy.request.json or {}
+            classic_key = _clean_text(data.get("classicKey"), "huangji_jingshi_shu")
+            return jsonpickle.encode({"ResultCode": 0, "Result": _classic_payload(classic_key, with_content=True)}, unpicklable=False)
+        except Exception:
+            traceback.print_exc()
+            return jsonpickle.encode({"ResultCode": -1, "Result": "classic load failed"}, unpicklable=False)
+
     @cherrypy.expose
     @cherrypy.config(**{"tools.cors.on": True})
     @cherrypy.tools.json_in()
@@ -352,7 +401,7 @@ class WangJiSrv:
                 "wangxiang": _json_safe(wangxiang),
                 "historyYear": history_year,
                 "history": history_records,
-                "classics": _classic_payload(classic_key),
+                "classics": _classic_payload(classic_key, with_content=_to_int(data.get("slimClassics"), 0) != 1),
                 "fullText": pan_text,
                 "guaUnicode": GUA_UNICODE,
                 "xinyiOptions": {

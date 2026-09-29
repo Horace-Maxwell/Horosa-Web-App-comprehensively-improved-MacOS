@@ -2,6 +2,10 @@ import sys
 import traceback
 import jsonpickle
 import cherrypy
+
+# [R5 T2] 响应 JSON 快径:单源见 websrv/fastjson.py(HOROSA_FAST_JSON_ENCODE=0 关)
+from websrv.fastjson import install as _install_fast_json
+jsonpickle = _install_fast_json(jsonpickle)
 from flatlib import const
 from flatlib.geopos import GeoPos
 from astrostudy.perchart import PerChart

@@ -1,6 +1,10 @@
 import React from 'react';
 import { Spin, Empty, Select, Input } from 'antd';
 import { fetchMicrochronology } from '../../services/xuanshi';
+import { flagEnabled } from '../../utils/perfFlags';
+
+// 本页渲染上限(与后端 celestial.MICRO_LIST_LIMIT 同值):列表只画前 N 条,超出时提示「仅显示前 300 条」。
+const MICRO_RENDER_LIMIT = 300;
 import { fixedPopupFrame } from '../../utils/zoomDomain';
 import { collapseSoftBreaks, celestialCalendarLabel, celestialDateWithCalendar } from './xuanshiDate';   // [Q-495/T-457] 日期按来源标历法
 
@@ -39,6 +43,9 @@ export default class XuanShiMicro extends React.Component {
 				history: this.state.history || undefined,
 				omen_type: this.state.omen || undefined,
 				decade: this.state.decade != null ? this.state.decade : undefined,
+				// [#75] 本页只画前 MICRO_RENDER_LIMIT 条:后端按有效年排序后截同样的前 N 条下发(统计仍按全部命中行),
+				// 不筛选时载荷约 12.9 MB → 0.17 MB。开关 horosa.perf.xuanshiMicroLimit=0 回全量。
+				limit: flagEnabled('horosa.perf.xuanshiMicroLimit') ? MICRO_RENDER_LIMIT : undefined,
 			}); if(__seq !== this._loadSeq){ return; }
 			this.setState({ events: r.events || [], summary: r.summary || null, loading: false });
 		} catch (e) { this.setState({ loading: false, err: `${e && e.message ? e.message : e}` }); }
@@ -124,7 +131,7 @@ export default class XuanShiMicro extends React.Component {
 							<div className="xuanshi-center"><Empty description={`载入失败:${err}`} /><span className="xuanshi-link" onClick={() => this.load()}>重试</span></div>
 						) : !events.length ? <div className="xuanshi-center"><Empty description="无匹配天象" /></div> : (
 							<>
-								{events.slice(0, 300).map((e, i) => (
+								{events.slice(0, MICRO_RENDER_LIMIT).map((e, i) => (
 									<div className="xuanshi-evrow" key={`mev-${i}`} style={{ cursor: 'help' }}
 										onMouseEnter={(ev) => this.showHover(ev, e)} onMouseLeave={() => this.hideHover()}>
 										<div className="xuanshi-evrow-chips">
@@ -138,7 +145,7 @@ export default class XuanShiMicro extends React.Component {
 										{e.interpretation ? <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--jade)' }}>→ {e.interpretation}</p> : null}
 									</div>
 								))}
-								{events.length > 300 ? <div style={{ padding: '12px 18px', fontSize: 12, color: 'var(--ink-muted)', textAlign: 'center' }}>仅显示前 300 条;如需更细可结合左侧筛选。</div> : null}
+								{(events.length > MICRO_RENDER_LIMIT || (sm.total || 0) > MICRO_RENDER_LIMIT) ? <div style={{ padding: '12px 18px', fontSize: 12, color: 'var(--ink-muted)', textAlign: 'center' }}>仅显示前 300 条;如需更细可结合左侧筛选。</div> : null}
 							</>
 						)}
 					</div>

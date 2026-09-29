@@ -1,6 +1,6 @@
 import { Component } from 'react';
 import { Row, Col, Divider } from 'antd';
-import { randomStr } from '../../utils/helper';
+
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import styles from '../../css/styles.less';
@@ -51,7 +51,7 @@ export default class CuanGong12Desc extends Component{
         }
         let lis = this.state.starSu.map((item, idx)=>{
             return (
-                <li key={randomStr(8)}>
+                <li key={`s1-${idx}`}>
                     <h4>{item.name}：</h4>{item.event}
                     <div>{item.mind}</div>
                 </li>
@@ -63,7 +63,7 @@ export default class CuanGong12Desc extends Component{
             for(let key in this.state.typeSu){
                 let val = this.state.typeSu[key];
                 let li = (
-                    <li key={randomStr(8)}>
+                    <li key={`s2-${key}`}>
                         <h4>{key}：</h4>{val}
                     </li>
                 );
@@ -92,7 +92,7 @@ export default class CuanGong12Desc extends Component{
         }
         let lis = this.state.stars.map((item, idx)=>{
             return (
-                <li key={randomStr(8)}>
+                <li key={`s3-${idx}`}>
                     <h4>{item.name}：</h4>{item.event}
                 </li>
             )

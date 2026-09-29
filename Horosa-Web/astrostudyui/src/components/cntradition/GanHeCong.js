@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Row, Col } from 'antd';
 import { XQCard as Card } from '../xq-ui';
-import { randomStr } from '../../utils/helper';
+
 import styles from '../../css/styles.less';
 
 function relationItemText(item){
@@ -33,15 +33,15 @@ class GanHeCong extends Component{
 			}
 			let spans = ary.map((item, idx)=>{
 				return (
-					<span key={randomStr(8)}>{relationItemText(item)}&emsp;</span>
+					<span key={`s1-${idx}`}>{relationItemText(item)}&emsp;</span>
 				)
 			});
 			let spanhe = (
-				<span key={randomStr(8)}>&rarr;&emsp;{key}</span>
+				<span key={`s2-${key}`}>&rarr;&emsp;{key}</span>
 			);
 			spans.push(spanhe);
 			let row = (
-				<Row key={randomStr(8)}>
+				<Row key={`s3-${key}`}>
 					<Col offset={1} span={23}>
 						{spans}
 					</Col>
@@ -62,11 +62,11 @@ class GanHeCong extends Component{
 			if(!Array.isArray(ary) || ary.length < 2){
 				continue;
 			}
-			let gan0 = (<span key={randomStr(8)}>{relationItemText(ary[0])}&emsp;</span>);
-			let gan1 = (<span key={randomStr(8)}>{relationItemText(ary[1])}&emsp;</span>);
-			let cong = (<span key={randomStr(8)}>冲</span>);
+			let gan0 = (<span key={`s4-${key}`}>{relationItemText(ary[0])}&emsp;</span>);
+			let gan1 = (<span key={`s5-${key}`}>{relationItemText(ary[1])}&emsp;</span>);
+			let cong = (<span key={`s6-${key}`}>冲</span>);
 			let row = (
-				<Row key={randomStr(8)}>
+				<Row key={`s7-${key}`}>
 					<Col offset={1} span={23}>
 						{gan0} 
 						{cong} 

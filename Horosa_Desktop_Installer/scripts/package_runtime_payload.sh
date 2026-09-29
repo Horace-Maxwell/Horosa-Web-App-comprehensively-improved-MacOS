@@ -388,6 +388,8 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}"
   # 改为对 runtime/mac 顶层每个子目录独立走缓存签名:各域各键、各域独立缓存子目录(prune 互不挤占),
   # jar 变只重签 bundle 域,python 域命中缓存产物字节恒等。域集动态枚举,新增顶层目录自动纳入不漏签;
   # 顶层若出现散文件(当前树没有)则整树退化单键签名保安全。
+  # [#71 / FL-20260923-1] 单文件原生库签名按内容缓存(jar 内成员每版重签的时间戳漂移根治):目录随仓、与域级缓存同开关。
+  export HOROSA_NATIVE_SIGN_CACHE="${INSTALLER_ROOT}/build/.sign-cache/natives"
   SIGN_TOP_FILES="$(find "${STAGE_ROOT}/runtime/mac" -maxdepth 1 -type f | head -1)"
   if [ -z "${SIGN_TOP_FILES}" ]; then
     while IFS= read -r -d '' SIGN_DOMAIN; do

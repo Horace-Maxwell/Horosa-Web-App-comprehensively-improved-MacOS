@@ -2,7 +2,7 @@ import { Component } from 'react';
 import { Row, Col } from 'antd';
 import * as Constants from '../../utils/constants';
 import request from '../../utils/request';
-import {randomStr, randomNum, littleEndian,} from '../../utils/helper';
+import { randomNum, littleEndian } from '../../utils/helper';
 import { Gua8, getGua8, } from '../gua/GuaConst';
 import GuaSym from './GuaSym';
 import GuaChartDiv from './GuaChartDiv';
@@ -79,7 +79,7 @@ export default class MeiyiGuaSym extends Component{
     genGua8Dom(){
         let ops = Gua8.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item.name} record={item}>{item.name}&nbsp;--&nbsp;{item.abrname}</Option>
+                <Option key={`s1-${idx}`} value={item.name} record={item}>{item.name}&nbsp;--&nbsp;{item.abrname}</Option>
             )
         });
         let dom = (

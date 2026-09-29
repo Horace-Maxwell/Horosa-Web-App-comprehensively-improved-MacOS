@@ -25,7 +25,7 @@ export default class GuaSym extends Component{
         if(meiyi){
             for(let key in meiyi){
                 let list = meiyi[key];
-                let title = (<Title level={4} key={randomStr(8)}>{key}</Title>);
+                let title = (<Title level={4} key={`s1-${key}`}>{key}</Title>);
                 let ul = this.genSymList(list);
                 res.push(title);
                 res.push(ul);
@@ -55,7 +55,7 @@ export default class GuaSym extends Component{
         if(!Array.isArray(list)){ return null; }
         let lis = list.map((item, idx)=>{
             return (
-                <li key={randomStr(8)}>
+                <li key={`s4-${idx}`}>
                     <Text>{item}</Text>
                 </li>
             )

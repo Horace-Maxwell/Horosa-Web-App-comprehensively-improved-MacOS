@@ -182,6 +182,8 @@ class XuanShiSrv:
             traceback.print_exc()
             return jsonpickle.encode({"err": str(e)}, unpicklable=False)
 
+    # horosa_xuanshi_micro_ondemand_v1:limit 缺省 = 全量(天象大典年代下钻的既有口径);
+    # 天象微年表页显式传 limit=300(= 它的渲染上限),长文本因此只随真正下发的行走。
     @cherrypy.expose
     @cherrypy.tools.json_in()
     def microchronology(self, **kwargs):
@@ -193,6 +195,7 @@ class XuanShiSrv:
                 history=_str(d, "history"),
                 omen_type=_str(d, "omen_type", _str(d, "omenType", _str(d, "omen"))),
                 decade=_int(d, "decade"),
+                limit=_int(d, "limit"),
             )
             return jsonpickle.encode(res, unpicklable=False)
         except Exception as e:

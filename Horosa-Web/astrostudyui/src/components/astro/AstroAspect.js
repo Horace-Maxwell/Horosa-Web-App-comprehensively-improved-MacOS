@@ -5,7 +5,7 @@ import { Row, Col, Popover, } from 'antd';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
-import { randomStr} from '../../utils/helper'
+
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
 import { buildMeaningTipByCategory, buildAspectMeaningTip, } from './AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from './AstroMeaningPopover';
@@ -191,7 +191,7 @@ class AstroAspect extends Component{
 				continue;
 			}
 			groups.push(
-				<div key={randomStr(8)} className="horosa-aspect-group">
+				<div key={`s1-${i}`} className="horosa-aspect-group">
 					<div className="horosa-aspect-group-title" style={{fontFamily: AstroConst.AstroFont}}>{this.planetLabel(key)}</div>
 					<div className="horosa-aspect-rows">{rows}</div>
 				</div>
@@ -224,7 +224,7 @@ class AstroAspect extends Component{
 			}
 
 			let dom = (
-				<div key={randomStr(8)} className="horosa-aspect-row horosa-aspect-row--immediate" style={{fontFamily: AstroConst.AstroFont}}>
+				<div key={`s2-${i}`} className="horosa-aspect-row horosa-aspect-row--immediate" style={{fontFamily: AstroConst.AstroFont}}>
 					<span className="horosa-aspect-target">{this.planetLabel(key)}</span>
 					<span className="horosa-aspect-glyph">{this.aspectNode(obj[0].asp, key, obj[0].id)}</span>
 					<span className="horosa-aspect-target">{this.planetLabel(obj[0].id)}</span>

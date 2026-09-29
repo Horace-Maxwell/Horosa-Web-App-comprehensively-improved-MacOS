@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Row, Col, Divider } from 'antd';
 import { XQSelect as Select } from '../xq-ui';
-import { randomStr, isNumber } from '../../utils/helper';
+import { isNumber } from '../../utils/helper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
 import {NaYin, SixtyJiaZi} from '../../constants/ZWConst';
@@ -59,12 +59,12 @@ export default class NaYing extends Component{
                 style.backgroundColor = 'var(--horosa-accent-soft, #33CCFF)';
             }
             let col = (
-                <Col span={24} key={randomStr(8)}><div style={style}>{ganzi}--{wx}</div></Col>
+                <Col span={24} key={`s1-${i}`}><div style={style}>{ganzi}--{wx}</div></Col>
             )
             cols.push(col);
             if(i % 10 === 9){
                 let topcol = (
-                    <Col key={randomStr(8)} span={4}>
+                    <Col key={`s2-${i}`} span={4}>
                         <Row>{cols}</Row>
                     </Col>
                 );
@@ -88,7 +88,7 @@ export default class NaYing extends Component{
         let dom = this.genDom();
         let opts = SixtyJiaZi.map((item, idx)=>{
             return (
-                <Option key={randomStr(8)} value={item}>{item}</Option>
+                <Option key={`s3-${idx}`} value={item}>{item}</Option>
             )
         });
 

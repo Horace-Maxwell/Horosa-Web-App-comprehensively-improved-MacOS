@@ -217,6 +217,9 @@ if [ "${HOROSA_SKIP_PREFLIGHT:-0}" != "1" ]; then
 fi
 
 auth_header=( -H "Authorization: Bearer ${GITHUB_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' )
+# 资产(文件本体)下载专用头:只能有一个 Accept —— 与 auth_header 的 vnd.github+json 同时发时 GitHub 回的是资产元数据 JSON,
+# 不是文件(基线清单会被误判为缺失、部件复用基线随之失效;preflight [259] lint 看守)。
+asset_header=( -H "Authorization: Bearer ${GITHUB_TOKEN}" -H 'X-GitHub-Api-Version: 2022-11-28' -H 'Accept: application/octet-stream' )
 
 api_json() {
   curl -fsSL "${auth_header[@]}" "$@"
@@ -615,7 +618,7 @@ BASELINE_ASSET_URL="$(baseline_field asset_url)"
 BASELINE_REASON="$(baseline_field reason)"
 PREV_MANIFEST_JSON=""
 if [ "${BASELINE_STATE}" = "ok" ]; then
-  PREV_MANIFEST_JSON="$(curl -fsSL "${auth_header[@]}" -H 'Accept: application/octet-stream' "${BASELINE_ASSET_URL}" 2>/dev/null || true)"
+  PREV_MANIFEST_JSON="$(curl -fsSL "${asset_header[@]}" "${BASELINE_ASSET_URL}" 2>/dev/null || true)"
   BASELINE_STATE="$(printf '%s' "${PREV_MANIFEST_JSON}" | python3 "${INSTALLER_ROOT}/scripts/pick_release_baseline.py" --verify-manifest --tag "${TAG_NAME}" --version "${VERSION}")"
   [ "${BASELINE_STATE}" = "ok" ] || BASELINE_REASON="下载到的清单判为 ${BASELINE_STATE}"
 fi
@@ -834,7 +837,7 @@ for asset in data.get('assets', []):
 PYURL
 )"
     if [ -n "${MANIFEST_ASSET_API_URL}" ]; then
-      LATEST_MANIFEST="$(curl -fsSL "${auth_header[@]}" -H 'Accept: application/octet-stream' "${MANIFEST_ASSET_API_URL}" 2>/dev/null || true)"
+      LATEST_MANIFEST="$(curl -fsSL "${asset_header[@]}" "${MANIFEST_ASSET_API_URL}" 2>/dev/null || true)"
     fi
   fi
   if [ -n "${LATEST_MANIFEST}" ]; then

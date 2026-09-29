@@ -18,7 +18,7 @@ class RuleSihua extends Component{
 		for(let g in gan){
 			let stars = gan[g];
 			let row = (
-				<Row key={randomStr(8)}>
+				<Row key={`s1-${g}`}>
 					<Col span={4}>{g + '：'}</Col>
 					<Col span={5} style={ZWConst.SihuaColor[0]}>{stars[0]}</Col>
 					<Col span={5} style={ZWConst.SihuaColor[1]}>{stars[1]}</Col>
@@ -47,7 +47,7 @@ class RuleSihua extends Component{
 				let rule = rules[j];
 				if(rule === '=='){
 					li = (
-						<hr key={randomStr(8)} />
+						<hr key={`s2-${j}`} />
 					);
 				}else{
 					if(rule instanceof Array){
@@ -61,7 +61,7 @@ class RuleSihua extends Component{
 						)
 					}else{
 						li = (
-							<li key={randomStr(8)}>{rule}</li>
+							<li key={`s3-${j}`}>{rule}</li>
 						);	
 					}
 				}
@@ -69,8 +69,8 @@ class RuleSihua extends Component{
 				lis.push(li);
 			}
 			rulesDom[i] = (
-				<div key={randomStr(8)} style={{width: 400}}>
-					<ul key={randomStr(8)}>
+				<div key={`s4-${i}`} style={{width: 400}}>
+					<ul key={`s5-${i}`}>
 						{lis}
 					</ul>
 				</div>

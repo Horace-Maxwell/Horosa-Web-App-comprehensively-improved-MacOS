@@ -66,7 +66,7 @@ class AspectInfo extends Component{
 					this.props.showPlanetHouseInfo
 				);
 					let dom = (
-						<div key={randomStr(8)}>
+						<div key={`s1-${j}`}>
 							<span style={{fontFamily: AstroConst.AstroFont}}>
 								&emsp;{
 									wrapWithMeaning(
@@ -108,7 +108,7 @@ class AspectInfo extends Component{
 			if(i % 2 === 0){
 				if(i > 0){
 					let dom = (
-						<div key={randomStr(8)}>
+						<div key={`s2-${i}`}>
 							<Row>
 								{cols}
 							</Row>

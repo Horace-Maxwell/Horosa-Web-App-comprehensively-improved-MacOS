@@ -39,7 +39,7 @@ def load_manifest(path):
             continue
         lines.append(line)
     text = "\n".join(lines)
-    # 容忍剥离标记留下的悬挂逗号(条目被剥后可能出现 ",]" / ",}")
+    # 容忍条目删除后留下的悬挂逗号(可能出现 ",]" / ",}")
     text = re.sub(r",\s*([\]}])", r"\1", text)
     return json.loads(text)
 

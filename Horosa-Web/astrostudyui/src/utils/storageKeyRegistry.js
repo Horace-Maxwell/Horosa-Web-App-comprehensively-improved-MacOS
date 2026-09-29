@@ -54,6 +54,7 @@ export const STORAGE_KEY_REGISTRY = [
 	{ key: 'ziweiSihuaCustom', kind: 'user-data', backup: true, label: '紫微自定义四化表(主存;IDB 另有镜像自愈)' },
 	// [Q-309/T-314] 纠正:CalculatorFormula 实为后端「公式帮助表」7 天缓存(Calculator.js 拉取 result.formula 落盘,配额清理白名单),非用户公式。
 	{ key: 'CalculatorFormula', kind: 'cache', backup: false, label: '计算器公式帮助表缓存(后端拉取,7 天;非用户数据)' },
+	{ key: 'horosa.boot.lastChart.v1', kind: 'cache', backup: false, label: '温启恢复上次的盘快照(载入命盘 record 口径 + 页签;7 天窗;丢了只是启动回空白默认态)' },
 	// [Q-309/T-314] 工具箱三组历史键(常量标识符 / 模板串写入,穷举哨兵抓不到 → 此前未登记,备份靠兜底、存储健康报未登记):
 	{ key: 'baziInverse', kind: 'settings', backup: true, label: '八字反查表单态(工具箱;最近一次查询条件)' },
 	{ key: 'baziPattern', kind: 'settings', backup: true, label: '八字格局表单态(工具箱;最近一次查询条件)' },

@@ -61,6 +61,9 @@ const MENU_ZOOM_RESET: &str = "zoom_reset";
 const DEFAULT_ZOOM: f64 = 1.0;
 const MIN_ZOOM: f64 = 0.7;
 const MAX_ZOOM: f64 = 1.8;
+// [#59 缩放上限随窗宽封顶] 布局视口宽 = 窗口逻辑宽 ÷ zoom,低于此值三栏页主盘会被两侧栏挤成一条缝(小窗 × 极档实报)。
+// 上限 = floor(窗口逻辑宽 / 1000, 0.1 档) 再夹进 [MIN_ZOOM, MAX_ZOOM]:1440 宽 → 1.4;1728 → 1.7;3008 → 1.8;最小主窗 1180 → 1.1。
+const MIN_LAYOUT_WIDTH_CSS_PX: f64 = 1000.0;
 const ZOOM_STEP: f64 = 0.1;
 const DEFAULT_REPO_OWNER: &str = "Horace-Maxwell";
 const DEFAULT_REPO_NAME: &str = "Horosa-Web-App-comprehensively-improved-MacOS";
@@ -187,6 +190,33 @@ const DESKTOP_WINDOW_INIT_SCRIPT: &str = r#"
     };
   } catch (_) {}
   /* [zoom-apply-fn:end] */
+  // [B1] 前后端启动重叠:early 导航后,收尾的第二次 ready(同 srv/chartSrv/kentangSrv 同页)
+  // 不许整页重载(否则并行启动省下的 umi 解析全白费)——仅当服务根参数或页面源真变了才导航。
+  // 同参时置 __horosaBackendConfirmed=1,前端 boot-gate 以此立即放行排队中的请求。
+  // 注:splash(launcher)页脚本晚于本 init 脚本执行,若其自定义 __horosaReady 会照常覆盖本实现。
+  try {
+    window.__horosaReady = function (url) {
+      try {
+        var next = new URL(String(url), window.location.href);
+        var cur = new URL(window.location.href);
+        if (cur.origin === next.origin && cur.pathname === next.pathname) {
+          // rv = 运行时版本(前端 L3 缓存版本闸):早导航与收尾 ready 的 rv 不一致(早导航时尚未读到版本、或引导中途换装了运行时)
+          // 必须整页重载,否则整个会话沿用错误的缓存版本号。
+          var keys = ["srv", "chartSrv", "kentangSrv", "rv"];
+          var same = true;
+          for (var i = 0; i < keys.length; i += 1) {
+            if (cur.searchParams.get(keys[i]) !== next.searchParams.get(keys[i])) { same = false; break; }
+          }
+          if (same) {
+            window.__horosaBackendConfirmed = true;
+            try { window.dispatchEvent(new CustomEvent("horosa:backend-confirmed")); } catch (_) {}
+            return;
+          }
+        }
+      } catch (_) {}
+      window.location.replace(url);
+    };
+  } catch (_) {}
 })();
 "#;
 #[cfg(target_os = "macos")]
@@ -4247,8 +4277,7 @@ fn trigger_update_check_command(app: AppHandle) -> std::result::Result<(), Strin
 
 #[tauri::command]
 fn trigger_runtime_repair_command(app: AppHandle) -> std::result::Result<(), String> {
-    trigger_reinstall(app);
-    Ok(())
+    trigger_reinstall(app).map_err(|reason| reason.to_string())
 }
 
 #[tauri::command]
@@ -7939,14 +7968,33 @@ fn choose_free_port() -> Result<u16> {
 }
 
 fn choose_port_with_preference(preferred_port: u16) -> Result<u16> {
-    match TcpListener::bind(("127.0.0.1", preferred_port)) {
-        Ok(listener) => {
+    // [B3] 端口防漂移阶梯:偏好口被占(另一实例在跑/他进程占用)不再直接跳随机口——
+    // localStorage/IndexedDB 按 origin(含端口)分域,随机漂移=该实例的本地缓存/偏好全部
+    // 换域「看起来清零」。改为 preferred..preferred+8 顺位试绑:第二实例稳定落 38992、
+    // 第三落 38993……各实例跨重启口径稳定,域不再漂;九口全占才落随机兜底(账本可见)。
+    for offset in 0..=8u16 {
+        let candidate = match preferred_port.checked_add(offset) {
+            Some(p) => p,
+            None => break,
+        };
+        if let Ok(listener) = TcpListener::bind(("127.0.0.1", candidate)) {
             let port = listener.local_addr()?.port();
             drop(listener);
-            Ok(port)
+            if offset > 0 {
+                ledger_mark(
+                    "rust.web_port_ladder",
+                    Some(serde_json::json!({"preferred": preferred_port, "chosen": port})),
+                );
+            }
+            return Ok(port);
         }
-        Err(_) => choose_free_port(),
     }
+    let fallback = choose_free_port()?;
+    ledger_mark(
+        "rust.web_port_random_fallback",
+        Some(serde_json::json!({"preferred": preferred_port, "chosen": fallback})),
+    );
+    Ok(fallback)
 }
 
 // [R4-P1b] 静态资产 RAM 缓存条目:dist 在进程运行期不变(更新=换树重启;repair=新 bootstrap
@@ -8494,6 +8542,46 @@ fn auto_backup_tick_script(payload_json: &str) -> String {
 fn bridge_diag_report_command(payload: serde_json::Value) -> std::result::Result<bool, String> {
     ledger_mark("rust.bridge_diag", Some(payload));
     Ok(true)
+}
+
+/// [R5 P0-1] 前端启动段上报:seg 限 `web.[a-z0-9_]{1,40}`;at_epoch_ms = 页面 Date.now()(壳按 run 标签折算到
+/// 与 rust.* 同一 t_ms 尺度);extra 只放页面侧的小对象(sinceNavMs 等)。纯观测:账本关闭(HOROSA_STARTUP_LEDGER=0)
+/// 时 ledger 未初始化即静默丢弃;非法段名拒收(不写账本)。
+#[tauri::command]
+fn web_ledger_mark_command(
+    seg: String,
+    at_epoch_ms: Option<f64>,
+    extra: Option<serde_json::Value>,
+) -> std::result::Result<bool, String> {
+    if !web_ledger_seg_ok(&seg) {
+        return Err("bad seg".to_string());
+    }
+    ledger_mark_layer_at("web", &seg, at_epoch_ms, web_ledger_extra_capped(extra));
+    Ok(true)
+}
+
+/// 页面上报的附加字段只作诊断,序列化超过 4 KB 即只记长度(账本随诊断导出,不许被页面灌大)。
+const WEB_LEDGER_EXTRA_MAX_BYTES: usize = 4096;
+
+fn web_ledger_extra_capped(extra: Option<serde_json::Value>) -> Option<serde_json::Value> {
+    let value = extra?;
+    let bytes = serde_json::to_string(&value).map(|s| s.len()).unwrap_or(0);
+    if bytes > WEB_LEDGER_EXTRA_MAX_BYTES {
+        Some(serde_json::json!({ "truncated": true, "bytes": bytes }))
+    } else {
+        Some(value)
+    }
+}
+
+fn web_ledger_seg_ok(seg: &str) -> bool {
+    let Some(rest) = seg.strip_prefix("web.") else {
+        return false;
+    };
+    !rest.is_empty()
+        && rest.len() <= 40
+        && rest
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
 }
 
 /// 应用上下文唯一构造点:`generate_context!` 内嵌 `_EMBED_INFO_PLIST` 链接段静态量,同一 crate 展开两次=重复符号
@@ -9089,8 +9177,10 @@ fn start_runtime(
         thread::spawn(move || {
             let started = Instant::now();
             loop {
-                for _ in 0..10 {
-                    thread::sleep(Duration::from_millis(100));
+                // [R5 S4] 停止旗标 10ms 粒度:脚本一返回,output() 之后的 join() 最多再等 10ms
+                //(原 100ms 粒度 = 每次温启在就绪之后白等 0~100ms 才发 ready)。文案仍每秒刷一次。
+                for _ in 0..100 {
+                    thread::sleep(Duration::from_millis(10));
                     if stop.load(Ordering::Relaxed) {
                         return;
                     }
@@ -9261,10 +9351,26 @@ fn get_backend_endpoints(app: AppHandle) -> std::result::Result<BackendEndpoints
     })
 }
 
+// [T1] 前端 URL 的 runtime 版本参数:前端 L3 持久缓存(IndexedDB,TTL 24h)把它掺进信封
+// rev —— runtime 更新后 24h 内绝不回放旧算法结果(旧口子:信封 rev 是常量 net-v1)。
+// 取值=已装 runtime 的 manifest.version(真在跑的),bootstrap/重引导时刷新;未知则不带参
+// (dev 直跑 umi 无此参,前端保持 net-v1 旧行为)。
+static FRONTEND_RUNTIME_VERSION: Mutex<Option<String>> = Mutex::new(None);
+
+fn note_runtime_version_for_url(version: &str) {
+    let trimmed = version.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    if let Ok(mut slot) = FRONTEND_RUNTIME_VERSION.lock() {
+        *slot = Some(trimmed.to_string());
+    }
+}
+
 fn frontend_url(web_port: u16, backend_port: u16, chart_port: u16) -> String {
     let backend_root = format!("http://127.0.0.1:{}", backend_port);
     let chart_root = format!("http://127.0.0.1:{}", chart_port);
-    format!(
+    let mut url = format!(
         "http://127.0.0.1:{}/index.html?srv={}&chartSrv={}&kentangSrv={}&sid={}&v={}",
         web_port,
         urlencoding::encode(&backend_root),
@@ -9272,7 +9378,33 @@ fn frontend_url(web_port: u16, backend_port: u16, chart_port: u16) -> String {
         urlencoding::encode(&chart_root),
         launch_nonce(),
         unix_ts()
-    )
+    );
+    if let Ok(slot) = FRONTEND_RUNTIME_VERSION.lock() {
+        if let Some(version) = slot.as_ref() {
+            url.push_str("&rv=");
+            url.push_str(&urlencoding::encode(version));
+        }
+    }
+    url
+}
+
+/// [R5 S8] 提前导航 URL:early=1(前端就绪门按目标根探活排队)+ boot=壳启动 epoch 毫秒(页面「已用时」从壳起算,
+/// 与启动账本 run 标签同源)+ 更新后首启再带 firstLaunch=1(前端兜底放行拉长到 900 s、文案改「更新已完成,正在恢复启动」)。
+fn early_nav_url(web_port: u16, backend_port: u16, chart_port: u16, post_update: bool) -> String {
+    let mut url = frontend_url(web_port, backend_port, chart_port);
+    url.push_str("&early=1");
+    if post_update {
+        url.push_str("&firstLaunch=1");
+    }
+    if let Some(epoch) = STARTUP_LEDGER
+        .get()
+        .and_then(|v| v.as_ref())
+        .and_then(|(run_tag, _, _)| run_tag.strip_prefix('r'))
+        .and_then(|digits| digits.parse::<u128>().ok())
+    {
+        url.push_str(&format!("&boot={}", epoch));
+    }
+    url
 }
 
 fn open_path(path: &Path) {
@@ -9287,11 +9419,44 @@ fn clamp_zoom_level(value: f64) -> f64 {
     snapped.clamp(MIN_ZOOM, MAX_ZOOM)
 }
 
+fn max_zoom_for_width(logical_width: f64) -> f64 {
+    if !logical_width.is_finite() || logical_width <= 0.0 {
+        return MAX_ZOOM;
+    }
+    let cap = (logical_width / MIN_LAYOUT_WIDTH_CSS_PX * 10.0).floor() / 10.0;
+    cap.clamp(MIN_ZOOM, MAX_ZOOM)
+}
+
+fn window_zoom_cap(app: &AppHandle) -> (f64, f64) {
+    // 回 (上限, 窗口逻辑宽);拿不到窗口 / 尺寸时按无封顶(MAX_ZOOM)处理,绝不因量不到而把用户缩回去。
+    let window = match app.get_webview_window(MAIN_WINDOW_LABEL) {
+        Some(window) => window,
+        None => return (MAX_ZOOM, 0.0),
+    };
+    let scale = window.scale_factor().unwrap_or(1.0);
+    match window.inner_size() {
+        Ok(size) if scale > 0.0 => {
+            let width = size.width as f64 / scale;
+            (max_zoom_for_width(width), width)
+        }
+        _ => (MAX_ZOOM, 0.0),
+    }
+}
+
 fn set_window_zoom(app: &AppHandle, zoom: f64) -> Result<()> {
-    let clamped = clamp_zoom_level(zoom);
+    let requested = clamp_zoom_level(zoom);
     let window = app
         .get_webview_window(MAIN_WINDOW_LABEL)
         .context("main window missing for zoom")?;
+    // [#59] 超过本窗宽度的上限 → 停在上限并让页面说明原因(⌘+ 不再放大;拉宽窗口 / 换大屏可继续)。
+    let (cap, width) = window_zoom_cap(app);
+    let clamped = if requested > cap { cap } else { requested };
+    if requested > cap {
+        let _ = window.eval(&format!(
+            "if(window.__HOROSA_SHELL_ZOOM_CAPPED){{window.__HOROSA_SHELL_ZOOM_CAPPED({},{});}}",
+            cap, width
+        ));
+    }
     // 🔴 缩放走页面内 CSS zoom(原生 pageZoom 恒 1.0):pageZoom≠1 时 clientHeight(物理域)
     // 与 100vh(布局域)劈叉,量高链错位=底空+可平移空间(真机实锤)。应用逻辑单源在
     // init script 的 __HOROSA_APPLY_SHELL_ZOOM(每个 document 必挂,导航后不丢);启动值
@@ -11125,30 +11290,51 @@ fn update_install_and_restart(app: AppHandle) -> std::result::Result<(), String>
     })
 }
 
-fn trigger_reinstall(app: AppHandle) {
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-        let win = window.clone();
-        let app_handle = app.clone();
-        thread::spawn(
-            move || match runtime_bootstrap(app_handle.clone(), win.clone(), true) {
-                Ok(session) => {
-                    if let Some(state) = app_handle.try_state::<AppState>() {
-                        if let Ok(mut slot) = state.session.lock() {
-                            *slot = Some(session.clone());
-                        }
-                    }
-                    emit_ready_and_stabilize(
-                        &app_handle,
-                        &win,
-                        &frontend_url(session.web_port, session.backend_port, session.chart_port),
-                    );
-                }
-                Err(err) => {
-                    emit_launcher_error(&win, &build_launcher_error_payload(&app_handle, &err))
-                }
-            },
-        );
+/// 修复引导在途旗标(与 BOOTSTRAP_BUSY 合判):两次点击之间引导线程尚未挂上 busy 守卫的窗口也要挡住。
+static REINSTALL_INFLIGHT: AtomicBool = AtomicBool::new(false);
+
+/// 引导结束(含 panic 展开)即清在途旗标,不会因一次异常永久拒绝修复。
+struct ReinstallInflightGuard;
+impl Drop for ReinstallInflightGuard {
+    fn drop(&mut self) {
+        REINSTALL_INFLIGHT.store(false, Ordering::SeqCst);
     }
+}
+
+/// 单飞:启动 / 修复 / 更新引导仍在进行时不再并发第二条 —— 两条引导线程会各自 stop_runtime 互杀、
+/// 两次 emit_ready 抢导航(提前导航后页面里的「重启后端」按钮 15 s 就出现,更新后首启常在此窗口内)。
+fn trigger_reinstall(app: AppHandle) -> std::result::Result<(), &'static str> {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        return Err("主窗口不可用");
+    };
+    if bootstrap_busy() || REINSTALL_INFLIGHT.swap(true, Ordering::SeqCst) {
+        ledger_mark("rust.reinstall_refused_busy", None);
+        return Err("启动/修复/更新流程正在进行,请稍候片刻再试");
+    }
+    let win = window.clone();
+    let app_handle = app.clone();
+    thread::spawn(move || {
+        let outcome = {
+            let _inflight = ReinstallInflightGuard;
+            runtime_bootstrap(app_handle.clone(), win.clone(), true)
+        };
+        match outcome {
+            Ok(session) => {
+                if let Some(state) = app_handle.try_state::<AppState>() {
+                    if let Ok(mut slot) = state.session.lock() {
+                        *slot = Some(session.clone());
+                    }
+                }
+                emit_ready_and_stabilize(
+                    &app_handle,
+                    &win,
+                    &frontend_url(session.web_port, session.backend_port, session.chart_port),
+                );
+            }
+            Err(err) => emit_launcher_error(&win, &build_launcher_error_payload(&app_handle, &err)),
+        }
+    });
+    Ok(())
 }
 
 fn cleanup_state(app: &AppHandle) {
@@ -11412,6 +11598,49 @@ fn runtime_bootstrap(
         // 故直接去掉,只保留 1s 缓冲。
         thread::sleep(Duration::from_secs(1));
     }
+    // [B1] 前后端启动重叠(仅温启快路径):静态服务器已起、三口已定 → 立即把 webview 导航到
+    // 前端,umi 下载/解析/JS 启动与 Java/Python 引导并行;前端 request 层检测 URL 的 early=1
+    // 后按目标根探活排队请求(L3 持久缓存命中不经门,温启即刻可渲染缓存盘)。
+    // 更新后首启/修复/全量校验保持旧序(splash 全程可见;emit_overlay 内联卡与 launcher 错误
+    // 面板本就页面无关,故障照常可见)。看门狗 confirm/supervisor 仍只在就绪后的
+    // emit_ready_and_stabilize;彼时同参二次 ready 由 init-script __horosaReady 判定不重载。
+    // 端口重试换口时,收尾 ready 参数不同 → 自动整页导航到正确端口(行为正确性兜底)。
+    // 回退开关:HOROSA_EARLY_NAV=0(账本 rust.early_nav 可查是否生效)。
+    // [R5 S8] 更新后首次启动也提前进界面:页面 URL 多带 firstLaunch=1(前端就绪门兜底放行 90 s→900 s,与启动脚本就绪总上限同值,
+    // StartupGate 从 t=0 显示「更新已完成,正在恢复启动」与已用时)与 boot=壳启动 epoch(已用时从壳起算)。
+    // 回退开关:HOROSA_EARLY_NAV_POST_UPDATE=0(只回到「更新后首启保持旧序、splash 全程可见」,普通温启不受影响)。
+    // [T1] rv(前端 L3 缓存版本闸)必须在第一次导航之前确立:早导航 URL 与收尾 ready 同参不重载,若等到 bootstrap
+    // 末尾才记版本,整个会话的 URL 都不带 rv(前端信封恒为 net-v1)→ 更新后 24 h 内可能回放旧运行时的缓存结果。
+    // 此处运行时已装好、manifest 即将启动的那一份;末尾那次保留为幂等刷新(引导中途换装则收尾 ready 的 rv 不同 → 整页重载)。
+    if let Some(manifest) = read_runtime_manifest(&paths) {
+        note_runtime_version_for_url(&manifest.version);
+    }
+    let post_update_early_nav = std::env::var("HOROSA_EARLY_NAV_POST_UPDATE")
+        .map(|v| v != "0")
+        .unwrap_or(true);
+    let early_nav = fast_path_enabled
+        && (!first_launch_after_update || post_update_early_nav)
+        && std::env::var("HOROSA_EARLY_NAV")
+            .map(|v| v != "0")
+            .unwrap_or(true);
+    if early_nav {
+        ledger_mark(
+            "rust.early_nav",
+            Some(serde_json::json!({
+                "web": web_port, "backend": backend_port, "chart": chart_port,
+                "post_update": first_launch_after_update
+            })),
+        );
+        let state = load_window_states(&app).main;
+        let early_url = early_nav_url(
+            web_port,
+            backend_port,
+            chart_port,
+            first_launch_after_update,
+        );
+        emit_ready(&window, &early_url);
+        stabilize_main_window_after_navigation(app.clone(), window.clone(), state);
+    }
     // 修法1:首次启动走带「端口冲突重试」的封装(web/静态服务器不参与本环;仅 backend/chart 换口重试)。
     // 非端口类错误 / 端口重试耗尽时,原样落入下方既有的「更新后首启 / 快路径回退」分支(逻辑保持不变)。
     if let Err(first_err) = start_runtime_with_port_retry(
@@ -11503,6 +11732,10 @@ fn runtime_bootstrap(
             let _ = cleanup_runtime_metadata(&mop_dir);
         });
     }
+    // [T1] 刷新前端 URL 的 runtime 版本参数(L3 缓存版本闸;更新后重引导取到新值)。
+    if let Some(manifest) = read_runtime_manifest(&paths) {
+        note_runtime_version_for_url(&manifest.version);
+    }
     Ok(RuntimeSession {
         paths,
         backend_port,
@@ -11586,14 +11819,35 @@ fn ledger_init(logs_dir: &Path) {
 }
 
 fn ledger_mark(seg: &str, extra: Option<serde_json::Value>) {
+    ledger_mark_layer_at("rust", seg, None, extra);
+}
+
+/// [R5 P0-1] 账本通用写入:layer = rust(壳自身)/ web(前端经 web_ledger_mark_command 上报)。
+/// at_epoch_ms 给定时按 run 标签里的 epoch(r<millis>)折算成与 rust.* 同一尺度的 t_ms
+/// (页面 Date.now() 与壳 SystemTime 同一墙钟),否则取当前 elapsed。
+fn ledger_mark_layer_at(
+    layer: &str,
+    seg: &str,
+    at_epoch_ms: Option<f64>,
+    extra: Option<serde_json::Value>,
+) {
     let Some(Some((run_tag, file, t0))) = STARTUP_LEDGER.get().map(|v| v.as_ref()).map(|v| v)
     else {
         return;
     };
-    let t_ms = t0.elapsed().as_millis();
+    let elapsed = t0.elapsed().as_millis();
+    let t_ms = at_epoch_ms
+        .filter(|at| at.is_finite() && *at > 0.0)
+        .and_then(|at| {
+            run_tag
+                .strip_prefix('r')
+                .and_then(|digits| digits.parse::<u128>().ok())
+                .map(|run_epoch| (at as i128 - run_epoch as i128).max(0) as u128)
+        })
+        .unwrap_or(elapsed);
     let mut row = serde_json::json!({
         "run": run_tag,
-        "layer": "rust",
+        "layer": layer,
         "seg": seg,
         "pid": std::process::id(),
         "t_ms": t_ms,
@@ -11603,7 +11857,10 @@ fn ledger_mark(seg: &str, extra: Option<serde_json::Value>) {
     }
     if let Ok(mut fh) = fs::OpenOptions::new().create(true).append(true).open(file) {
         use std::io::Write;
-        let _ = writeln!(fh, "{}", row);
+        // 整行一次写出:壳线程与页面上报(IPC 线程池)会同时追加,O_APPEND 只保证单次写原子,
+        // writeln! 按格式片段多次写,行内会被别的线程插进来。
+        let line = format!("{row}\n");
+        let _ = fh.write_all(line.as_bytes());
     }
 }
 
@@ -12000,6 +12257,7 @@ fn main() {
         .menu(build_menu)
         .invoke_handler(tauri::generate_handler![
             bridge_diag_report_command,
+            web_ledger_mark_command,
             set_agent_enabled_command,
             mcp_server_status_command,
             ai_master_key_command,
@@ -12236,7 +12494,8 @@ fn main() {
                     });
                 }
             } else if id == MENU_REINSTALL_RUNTIME {
-                trigger_reinstall(app.clone());
+                // 引导在途时单飞拒绝(已记账本),菜单侧无需再提示
+                let _ = trigger_reinstall(app.clone());
             } else if id == MENU_OPEN_LOGS {
                 if let Ok(paths) = resolve_runtime_paths(app) {
                     let _ = ensure_dir(&paths.logs_dir);
@@ -12354,6 +12613,17 @@ fn main() {
                     if let Some(window) = app.get_webview_window(&label) {
                         let _ = window
                             .eval("try{window.dispatchEvent(new Event('resize'))}catch(_){}");
+                    }
+                }
+                // [#59] 窗口变窄后当前档可能超过新的宽度上限 → 降到上限(只降不升;持久化随 set_window_zoom)。
+                if is_resize_like && label == MAIN_WINDOW_LABEL {
+                    let current = app
+                        .try_state::<AppState>()
+                        .and_then(|state| state.zoom_level.lock().ok().map(|slot| *slot))
+                        .unwrap_or(DEFAULT_ZOOM);
+                    let (cap, _) = window_zoom_cap(app);
+                    if current > cap + 1e-9 {
+                        let _ = set_window_zoom(app, cap);
                     }
                 }
                 let should_persist = match event {
@@ -12482,7 +12752,82 @@ mod bridge_acl_tests {
 mod tests {
     use super::*;
 
+    // [B3] 偏好口被占必须走 +1 阶梯而非随机漂移 —— localStorage/IndexedDB 按 origin
+    // (含端口)分域,漂移=本地缓存/偏好「看起来清零」。
+    #[test]
+    fn web_port_ladder_steps_instead_of_random_drift() {
+        let preferred: u16 = 48991;
+        let idle = choose_port_with_preference(preferred).expect("choose idle");
+        assert_eq!(idle, preferred, "空闲时必须拿到偏好口");
+        let _hold = TcpListener::bind(("127.0.0.1", preferred)).expect("hold preferred");
+        let stepped = choose_port_with_preference(preferred).expect("choose stepped");
+        assert_eq!(stepped, preferred + 1, "偏好口被占应顺位 +1,不得随机漂移");
+    }
+
+    // [R5 P0-1] 前端上报的账本段名只认 web.[a-z0-9_]{1,40}:页面无法伪造 rust./sh. 段、无法写超长段名。
+    #[test]
+    fn early_nav_url_marks_post_update_first_launch() {
+        let normal = early_nav_url(7998, 9999, 8899, false);
+        assert!(normal.contains("&early=1"));
+        assert!(!normal.contains("firstLaunch=1"));
+        let post = early_nav_url(7998, 9999, 8899, true);
+        assert!(post.contains("&early=1"));
+        assert!(post.contains("&firstLaunch=1"));
+        assert!(post.starts_with("http://127.0.0.1:7998/index.html?"));
+    }
+
+    #[test]
+    fn web_ledger_seg_name_is_validated() {
+        for ok in ["web.umi_exec", "web.first_render", "web.a1_b2"] {
+            assert!(web_ledger_seg_ok(ok), "{ok}");
+        }
+        let too_long = format!("web.{}", "a".repeat(41));
+        for bad in [
+            "rust.emit_ready",
+            "web.",
+            "web.Bad",
+            "web.a-b",
+            "",
+            too_long.as_str(),
+        ] {
+            assert!(!web_ledger_seg_ok(bad), "{bad}");
+        }
+    }
+
+    // [B1] init 脚本必须带「同参二次 ready 不重载」的 __horosaReady 实现,且比对
+    // srv/chartSrv/kentangSrv 三键并置 __horosaBackendConfirmed —— 缺任一,早导航后的
+    // 收尾 ready 会整页重载(并行启动收益清零)或前端 boot-gate 收不到就绪短路信号。
+    #[test]
+    fn desktop_init_script_has_same_target_ready_guard() {
+        assert!(DESKTOP_WINDOW_INIT_SCRIPT.contains("window.__horosaReady = function"));
+        assert!(DESKTOP_WINDOW_INIT_SCRIPT.contains("__horosaBackendConfirmed"));
+        // [R5 S2] 同参确认必须同时派事件,前端就绪门等待者靠它即时放行(不等下一次探活)
+        assert!(DESKTOP_WINDOW_INIT_SCRIPT.contains("horosa:backend-confirmed"));
+        for key in ["\"srv\"", "\"chartSrv\"", "\"kentangSrv\"", "\"rv\""] {
+            assert!(
+                DESKTOP_WINDOW_INIT_SCRIPT.contains(key),
+                "init script missing compare key {key}"
+            );
+        }
+        assert!(DESKTOP_WINDOW_INIT_SCRIPT.contains("window.location.replace(url)"));
+    }
+
     // [zoom-snap] 缩放档归一单测:f64 累加脏值必须吸回 0.1 档(⌘0 清理分支依赖精确 1.0)。
+    // [#59] 缩放上限随窗口宽度封顶:布局视口宽 ≥ 1000 CSS px。
+    #[test]
+    fn zoom_cap_follows_window_width() {
+        assert_eq!(max_zoom_for_width(1440.0), 1.4);
+        assert_eq!(max_zoom_for_width(1728.0), 1.7);
+        assert_eq!(max_zoom_for_width(3008.0), MAX_ZOOM);
+        assert_eq!(max_zoom_for_width(1180.0), 1.1);
+        assert_eq!(max_zoom_for_width(1000.0), 1.0);
+        // 比 1000 还窄的窗:夹到下限,永不为 0 / 负数
+        assert_eq!(max_zoom_for_width(600.0), MIN_ZOOM);
+        // 量不到尺寸 → 无封顶,不把用户缩回去
+        assert_eq!(max_zoom_for_width(0.0), MAX_ZOOM);
+        assert_eq!(max_zoom_for_width(f64::NAN), MAX_ZOOM);
+    }
+
     #[test]
     fn zoom_snap_normalizes_float_drift() {
         // ⌘± 累加路径:0.7 + 0.1*3 在 f64 上 ≠ 1.0,snap 后必须精确等于 1.0
@@ -13291,6 +13636,46 @@ mod tests {
         assert!(DESKTOP_WINDOW_INIT_SCRIPT.contains("moveTo"));
     }
 
+    #[test]
+    fn reinstall_inflight_guard_clears_flag_on_drop() {
+        REINSTALL_INFLIGHT.store(true, Ordering::SeqCst);
+        {
+            let _g = ReinstallInflightGuard;
+        }
+        assert!(!REINSTALL_INFLIGHT.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn web_ledger_extra_is_size_capped() {
+        assert_eq!(web_ledger_extra_capped(None), None);
+        let small = serde_json::json!({ "via": "probe", "waitedMs": 12 });
+        assert_eq!(web_ledger_extra_capped(Some(small.clone())), Some(small));
+        let big = serde_json::json!({ "blob": "x".repeat(WEB_LEDGER_EXTRA_MAX_BYTES + 1) });
+        let capped = web_ledger_extra_capped(Some(big)).expect("capped value");
+        assert_eq!(capped["truncated"], serde_json::json!(true));
+        assert!(capped["bytes"].as_u64().unwrap() > WEB_LEDGER_EXTRA_MAX_BYTES as u64);
+    }
+
+    // [T1] 早导航 URL 必须带 rv:runtime_bootstrap 里「记运行时版本」要先于「生成早导航 URL」。
+    #[test]
+    fn runtime_version_noted_before_early_navigation() {
+        let src = include_str!("main.rs");
+        let body_at = src
+            .find("fn runtime_bootstrap(")
+            .expect("runtime_bootstrap present");
+        let body = &src[body_at..];
+        let note_at = body
+            .find("note_runtime_version_for_url(&manifest.version);")
+            .expect("version noted in bootstrap");
+        let nav_at = body
+            .find("let early_url = early_nav_url(")
+            .expect("early navigation present");
+        assert!(
+            note_at < nav_at,
+            "runtime version must be noted before the early navigation URL is built"
+        );
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
     fn legacy_macos_defaults_cleanup_targets_old_main_workspace_frames() {
@@ -13393,6 +13778,26 @@ mod tests {
             (1260.0, 792.0)
         );
         assert_eq!(saved_launch_position(&state), Some((260.0, 160.0)));
+    }
+
+    // [T1] frontend_url 的 rv 参数:置版本后必须带 &rv=(前端 L3 信封版本闸的唯一供给);
+    // 未置(dev)不带参=前端保持旧 rev。注意测试进程内 Mutex 是全局——先测未置态再置。
+    #[test]
+    fn frontend_url_carries_runtime_version_gate() {
+        {
+            let slot = FRONTEND_RUNTIME_VERSION.lock().unwrap();
+            assert!(slot.is_none() || slot.is_some()); // 仅取锁确认可用
+        }
+        note_runtime_version_for_url("  ");
+        note_runtime_version_for_url("3.4.0-runtime1");
+        let url = frontend_url(38991, 61632, 61633);
+        assert!(url.contains("&rv=3.4.0-runtime1"), "{url}");
+        note_runtime_version_for_url("3.5.0-runtime1");
+        let url2 = frontend_url(38991, 61632, 61633);
+        assert!(
+            url2.contains("&rv=3.5.0-runtime1"),
+            "更新后重引导必须取新值: {url2}"
+        );
     }
 
     #[test]
