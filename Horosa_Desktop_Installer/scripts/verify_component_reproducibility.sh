@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# [FL-20260804-1] 增量部件可复现性自证门(horosa_repro_verify_v1)。
+# 增量部件可复现性自证门(horosa_repro_verify_v1)。
 #
 # 判据:**同一份源连打两次 payload,四个稳定部件的 sha 必须两两相同**。
 #   稳定部件 = py-runtime / jdk-runtime / xuanshi-data / ephe-data

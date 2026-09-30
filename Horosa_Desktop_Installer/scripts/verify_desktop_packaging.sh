@@ -313,7 +313,7 @@ read -r CHART_PORT BACKEND_PORT <<<"$(pick_ports)"
 # ↑ HOROSA_LAUNCH_NONCE:桌面壳每次启动注入的身份握手会话 nonce,经 start 脚本环境继承进
 #   Java/Python,由 /horosaIdentity 原样回显。离线装包冒烟无真实壳→必须在此模拟壳注入,
 #   否则 identity_py 探针(expect nonce 非空)红。与 verify_runtime_backend_boot.sh 同源做法:
-#   缺注入=探针红=壳侧 env 透传链断了也拦得住(两处冒烟入口须一致注入,漏一处即探针红)。
+#   缺注入=探针红=壳侧 env 透传链断了也拦得住(两 smoke 入口只修一个的翻版)。
 wait_signed_backend_http "http://127.0.0.1:${BACKEND_PORT}/common/time" 120
 wait_http "http://127.0.0.1:${CHART_PORT}/" 60
 # Keep the technique smoke before the generic chart/backend smoke. This catches

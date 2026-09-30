@@ -1275,7 +1275,8 @@ else
   S45_XUANSHI_EXCL=":(exclude)Horosa-Web/astropy/astrostudy/xuanshi/data/"
   # -a 强制文本扫描(替换原 -I:它会静默跳过被判 binary 的 unicode 密集 JS,曾致盲漏过中文禁词);
   # 真二进制资产按扩展名排除,防随机字节伪命中。
-  S45_BIN_EXCL=(":(exclude)*.png" ":(exclude)*.icns" ":(exclude)*.jar" ":(exclude)*.gz" ":(exclude)*.zip" ":(exclude)*.woff" ":(exclude)*.woff2" ":(exclude)*.ttf" ":(exclude)*.ico" ":(exclude)*.jpg" ":(exclude)*.dat")
+  # 星历 .se1 / sqlite 是随机字节的二进制资产:按扩展名排除,否则任何短模式(如 [#NN)都会伪命中
+  S45_BIN_EXCL=(":(exclude)*.png" ":(exclude)*.icns" ":(exclude)*.jar" ":(exclude)*.gz" ":(exclude)*.zip" ":(exclude)*.woff" ":(exclude)*.woff2" ":(exclude)*.ttf" ":(exclude)*.ico" ":(exclude)*.jpg" ":(exclude)*.dat" ":(exclude)*.se1" ":(exclude)*.sqlite")
   # ① 工作树 tracked 内容(含未提交修改)
   S45_HITS="$(cd "${REPO_ROOT}" && git grep -a -n -E "${S45_A_ARGS[@]}" -- "${S45_VENDOR_EXCL}" "${S45_XUANSHI_EXCL}" "${S45_BIN_EXCL[@]}" 2>/dev/null | head -5)"
   [ -n "${S45_HITS}" ] && { bad "[45] 工作树命中敏感词:"; printf '%s\n' "${S45_HITS}" >&2; S45_BAD=1; }
@@ -3232,7 +3233,7 @@ grep -aq "HOROSA_PRUNE_LOGS_ASYNC" "${S189_MAIN_RS}" 2>/dev/null || { bad "[189]
 [ "${S189_BAD}" = "0" ] && ok "[189] R4 B3-B6/P1-P3a 综合资产(预热 ${S189_NWARM} 条+三段链+止血+精确缓存+preload 对拍+门观察位+静态池/RAM)全在位"
 
 # ── [190] R4-B7 渲染批资产锚(convert memo/图守卫/双提交合一/弹窗短路/子页签冻结) ──
-# 病史:R10 实测四靶点(三式闪帧/659 行弹窗白建/无关状态抖动)+FL-20260712-5 同型「表新盘旧」。
+# 病史:R10 实测四靶点(三式闪帧/659 行弹窗白建/无关状态抖动)+ 同型「表新盘旧」。
 echo "== [190] R4-B7 渲染批资产锚 =="
 S190_BAD=0
 S190_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
@@ -3241,7 +3242,7 @@ grep -aq "horosa_convert_memo_v1" "${S190_UI}/src/pages/index.js" 2>/dev/null ||
 S190_CM=$(grep -ac "React.useMemo(()=>convertToArray(" "${S190_UI}/src/pages/index.js" 2>/dev/null); S190_CM=${S190_CM:-0}
 [ "${S190_CM}" -ge 5 ] || { bad "[190] 🔴 convertToArray useMemo 不足五处(现 ${S190_CM}——数组引用每 render 新建,下游 memo 全 miss)"; S190_BAD=1; }
 # C17:七政盘 svg resize 守卫(隐藏期数据更新→切回表新盘旧)
-grep -aq "watchChartSvgResize(this.state.chartid, this.drawChart)" "${S190_UI}/src/components/guolao/GuoLaoChart.js" 2>/dev/null || { bad "[190] 🔴 GuoLaoChart svg resize 守卫缺失(FL-20260712-5 同型回潮)"; S190_BAD=1; }
+grep -aq "watchChartSvgResize(this.state.chartid, this.drawChart)" "${S190_UI}/src/components/guolao/GuoLaoChart.js" 2>/dev/null || { bad "[190] 🔴 GuoLaoChart svg resize 守卫缺失(同型回潮)"; S190_BAD=1; }
 # C16 靶①:三式重算双提交合一(盘结果与 loading:false 同帧)
 grep -aq "payload.commitPatch" "${S190_UI}/src/components/sanshi/SanShiUnitedMain.js" 2>/dev/null || { bad "[190] 🔴 三式 commitPatch 防抖透传被拆"; S190_BAD=1; }
 grep -aq '\.\.\.(commitPatch || null),' "${S190_UI}/src/components/sanshi/SanShiUnitedMain.js" 2>/dev/null || { bad "[190] 🔴 三式双提交合一被拆(新盘+转圈中间帧回潮)"; S190_BAD=1; }
@@ -3310,7 +3311,7 @@ grep -aq "horosa-workspace-updating horosa-sanshi-updating" "${S192_F}" 2>/dev/n
 grep -aq "sanshiStepFluency" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/__tests__/sanshiStepFluency.test.js" 2>/dev/null || { bad "[192] 🔴 流畅度金标文件缺失"; S192_BAD=1; }
 [ "${S192_BAD}" = "0" ] && ok "[192] 三式连续进退四资产(四标记+登记配对+兜底负锚+徽标+金标)全在位"
 
-# ── [193] 增量部件可复现性三资产(FL-20260804-1:pyc/文件 mtime 归一 + CDS 豁免 + 签名缓存) ──
+# ── [193] 增量部件可复现性三资产(pyc/文件 mtime 归一 + CDS 豁免 + 签名缓存) ──
 # 增量更新的复用判据是「本地部件 sha == 新 manifest 部件 sha」。打包一旦不可复现,内容
 # 一字未改的部件也被判「变了」⇒ 每版每个用户全量重下(实测曾复用率仅 14%、白耗 167MB)。
 # 三条修复缺一即回退到「白下载」,故逐条钉死;另钉可执行护栏脚本在位。
@@ -3333,7 +3334,7 @@ grep -aq "horosa_repro_sign_cache_v1" "${S193_SIGN}" 2>/dev/null || { bad "[193]
 grep -aq 'KEY_EXCLUDE_SUFFIXES = (".jsa",)' "${S193_SIGN}" 2>/dev/null || { bad "[193] 🔴 修三键污染防线缺失:.jsa 未排出缓存键(实测踩过——键每次都变、缓存永不命中)"; S193_BAD=1; }
 grep -aq "HOROSA_SIGN_CACHE" "${S193_SIGN}" 2>/dev/null || { bad "[193] 🔴 修三 kill-switch 缺失"; S193_BAD=1; }
 grep -aq "sign_payload_cached.py" "${S193_PKG}" 2>/dev/null || { bad "[193] 🔴 修三未接线:打包脚本仍直呼原签名脚本(缓存不生效)"; S193_BAD=1; }
-# 修四 [#71 / FL-20260923-1]:单文件原生库签名按内容缓存(jar 内成员每版重签的时间戳漂移 ⇒ java-lib 298.7 MB 每版必变)
+# 修四:单文件原生库签名按内容缓存(jar 内成员每版重签的时间戳漂移 ⇒ java-lib 298.7 MB 每版必变)
 S193_SIGNER="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/sign_runtime_payload.py"
 S193_NTEST="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/test_sign_runtime_payload_native_cache.py"
 grep -aq "def sign_file_cached" "${S193_SIGNER}" 2>/dev/null || { bad "[193] 🔴 修四缺失:签名器没有单文件按内容缓存(sign_file_cached)"; S193_BAD=1; }
@@ -3936,7 +3937,7 @@ grep -aq "'horosa.ai.agent.ledger.v1'" "${REPO_ROOT}/Horosa-Web/astrostudyui/src
 [ "${S227_BAD}" = "0" ] && ok "[227] 只增不删四层(禁键/目录/守卫序/静态)+文档在位"
 
 
-# [228] 壳→页面事件桥死开关锁(FL-20260902-1):打包版无 window.__TAURI__(withGlobalTauri 缺省 false)且 capabilities 为空
+# [228] 壳→页面事件桥死开关锁:打包版无 window.__TAURI__(withGlobalTauri 缺省 false)且 capabilities 为空
 #   (event.listen 无授权)→ 任何「只探 window.__TAURI__」的门控/`__TAURI__.event.listen` 在壳内恒死。锁:页面零单探门控、
 #   自动备份 tick 走 eval 回调、壳侧不再 emit、桥自检上报在位、ACL 面不变(不开 withGlobalTauri/不加 capabilities)、双测在位。
 echo "[228] 壳→页面事件桥(单探 __TAURI__ 门控/emit 死链)锁"
@@ -4277,7 +4278,7 @@ s236_code(){ sed -E 's#//.*$##' "$1"; }
 [ -s "${S236_RS}" ] && [ "$(s236_code "${S236_RS}" | grep -acF '"tools": { "listChanged": true }')" = "1" ] && [ "$(s236_code "${S236_RS}" | grep -acF '"resources": { "subscribe": false, "listChanged": true }')" = "1" ] && [ "$(s236_code "${S236_RS}" | grep -acF '"prompts": { "listChanged": true }')" = "1" ] || { bad "[236] initialize 未宣告 tools/resources/prompts 的 listChanged"; S236_BAD=1; }
 # 五个资源/提示方法必须走同一个传输透传函数(测试区的假页面实现也含同名字面,故锚带 self.page_passthrough)
 # [v3.11.0] 锚改为去空白比对:rustfmt 会把短臂折成 `"m" => {\n self.page_passthrough("m", …)`、长臂折成 `"m" => self.page_passthrough(\n "m", …)`,
-#   逐行字面锚在两种折法下各漏一种(cargo fmt 归一后实红);两种形态模式先赋值再引用(bash 3.2 花括号陷阱 FL-20260908-2)。
+#   逐行字面锚在两种折法下各漏一种(cargo fmt 归一后实红);两种形态模式先赋值再引用(bash 3.2 花括号陷阱)。
 for m in "resources/list" "resources/templates/list" "resources/read" "prompts/list" "prompts/get"; do S236_P1="\"${m}\"=>self.page_passthrough(\"${m}\","; S236_P2="\"${m}\"=>{self.page_passthrough(\"${m}\","; S236_N=$(( $(s236_code "${S236_RS}" | tr -d " \n\t" | grep -oF "${S236_P1}" | wc -l | tr -d " ") + $(s236_code "${S236_RS}" | tr -d " \n\t" | grep -oF "${S236_P2}" | wc -l | tr -d " ") )); [ "${S236_N}" = "1" ] || { bad "[236] mcp_server 缺方法 ${m}(须经 page_passthrough 转发页面)"; S236_BAD=1; }; done
 [ "$(s236_code "${S236_RS}" | grep -acF '"logging/setLevel" =>')" = "1" ] || { bad "[236] mcp_server 缺 logging/setLevel"; S236_BAD=1; }
 [ "$(s236_code "${S236_RS}" | grep -acF 'pub fn notify(')" = "1" ] && [ "$(s236_code "${S236_RS}" | grep -acF 'MAX_SSE_CLIENTS')" -ge 2 ] && [ "$(s236_code "${S236_RS}" | grep -acF 'pub fn sse_subscribe(')" = "1" ] || { bad "[236] SSE 通道/广播缺失(notify / sse_subscribe / 上限)"; S236_BAD=1; }
@@ -4855,7 +4856,7 @@ for f in utils/__tests__/quickDateTimeDigits components/comp/__tests__/quickTime
 done
 [ "${S246_BAD}" = "0" ] && ok "[246] 快捷数字时间录入接线锁"
 
-# [247] 进阶页控件登记网(FL-20260907-2 族「写了键、没人读」):每个 data-* 控件必登记(锚/存储/消费方符号/端到端判据),检查器自证判别力;
+# [247] 进阶页控件登记网(「写了键、没人读」一族):每个 data-* 控件必登记(锚/存储/消费方符号/端到端判据),检查器自证判别力;
 #   D1-D5 负锚:短调用消费方禁再硬编码 'off' 思考档(槽参数死开关回潮)、目标自检按 judge 槽解析、外部客户端策略控件在位、细项档数不写死「八档」。
 echo "[247] 进阶页控件登记表(锚↔登记↔消费方↔端到端判据)+ 死开关四修负锚"
 S247_BAD=0
@@ -4899,7 +4900,7 @@ S247_SF_N=$(grep -acF "requestStructuredWithFallback(requestAIAnalysisChat" "${S
 [ "${S247_SF_N:-0}" -ge 3 ] || { bad "[247] 结构化短调用空正文降级缺(${S247_SF_N:-0}/3;/审阅 在 DeepSeek 上恒「没有返回合法 JSON」)"; S247_BAD=1; }
 [ "${S247_BAD}" = "0" ] && ok "[247] 进阶页控件登记网:检查器自证/全锚登记/消费方在/D1-D10 负锚/六测在位"
 
-# [248] 行动能力策略双路径同源网(2026-09-08 进阶复查 D12–D19;FL-20260908-1 族「只有对话路径消费了键/函数」+「读级类别档无消费方」):
+# [248] 行动能力策略双路径同源网(2026-09-08 进阶复查 D12–D19;「只有对话路径消费了键/函数」一族+「读级类别档无消费方」):
 #   死导出检查器(写了函数没人调)+ 桌面桥合同三向对拍(壳 Vec ↔ 页面读 .value ↔ 桌面 mock 同形)各自 --self-test 后全检;
 #   D12–D18 负锚:读级类别档进判定 / 目录按来源列 / 桥侧 deny·目录外名字·审批超时撤台 / ask 无通道 fail-closed / 被拒计额 / ledgerLost 可见 / list_changed 发射器;五测在位。
 echo "[248] 行动能力策略双路径同源网:死导出 / 桥合同 / D12–D18 负锚 / 五测"
@@ -5207,7 +5208,7 @@ S254_P_TS="if(record && Array.isArray(record.taiSuiRelatives)){"
 S254_P_IT="indiaTripataki: { value: (record.indiaTripataki === 1"
 [ "$(grep -acF "${S254_P_IT}" "${S254_CTX}")" = "1" ] && [ "$(grep -acF "name: 'indiaPrashnaTime'" "${S254_UI}/src/utils/techniqueMountSettings.js")" = "1" ] || { bad "[254]③ 印占三旗/问事挂载链缺失"; S254_BAD=1; }
 S254_TMS="${S254_UI}/src/utils/techniqueMountSettings.js"
-# 花括号内含逗号的字面锚必须先赋值再引用(bash 3.2 花括号展开陷阱,FL-20260908-2)
+# 花括号内含逗号的字面锚必须先赋值再引用(bash 3.2 花括号展开陷阱)
 S254_P_OLD="{ value: 'strokes'"; S254_P_NEW="{ value: 'character'"   # 锚只咬值域(后端只认 character/direction);标签随页面文案
 [ "$(grep -acF "${S254_P_OLD}" "${S254_TMS}")" = "0" ] && [ "$(grep -acF "${S254_P_NEW}" "${S254_TMS}")" = "1" ] || { bad "[254]③ 皇极心易起卦法值域回潮(strokes/object 后端不识)"; S254_BAD=1; }
 [ "$(grep -acF "name: 'babylonEphemerisSource'" "${S254_TMS}")" = "0" ] || { bad "[254]③ 巴比伦位置源死齿轮回潮(无头无消费点)"; S254_BAD=1; }
@@ -6298,6 +6299,98 @@ grep -qF 'fn runtime_version_noted_before_early_navigation()' "${S285_RS}" 2>/de
   && grep -qF '排盘服务直连路径(fetchChartWithRetry)同样先过就绪门' "${S285_UI}/utils/__tests__/backendBootGate.test.js" 2>/dev/null \
   && grep -qF 'request() 入口在去重分流与任何 await 之前打头' "${S285_UI}/utils/__tests__/requestPriority.test.js" 2>/dev/null || { bad "[285] 🔴 缺缓存版本闸 / 就绪门 / 优先级测试"; S285_BAD=1; }
 [ "${S285_BAD}" = "0" ] && ok "[285] 早导航带 rv / 收尾比对 rv / 直连排盘服务过就绪门 / 预取优先级先于去重 / 测试在位"
+
+# ── [286] 签名缓存加固 + 自动种子 + 稳定部件包内对拍 + sqlite 边车 + 交易日志不分大小写 + persistable 回退 + 温启页签 / 一次性上下文:
+#   ① 签名器键输入显式化(codesign 参数模板 + 语义代次)/ 基名入键 / 命中 codesign --verify / 原子写 / 播种入口 + 反锚(参数不散写)
+#   ② 域级缓存层:签名器盐 + 层代次 + 放回保留权限位 + manifest v2;反锚(不再掺脚本全文 sha)
+#   ③ 打包脚本接线:prepare_sign_seed.py 自动种子(按 tar 头权限解)+ --seed-native-from + verify_stable_parts_headers.py + 边车剥离
+#   ④ 引擎 immutable=1 只读(与边车剥离必须同时成立)⑤ Java 三处 ⑥ 前端两处 ⑦ 测试在位并通过 ⑧ 语义代次变了没种子只提醒
+echo "[286] 签名缓存加固 / 自动种子 / 稳定部件包内对拍 / sqlite 边车 / 交易日志不分大小写 / persistable 回退 / 温启页签与一次性上下文"
+S286_BAD=0; S286_SC="${REPO_ROOT}/Horosa_Desktop_Installer/scripts"; S286_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"; S286_SRV="${REPO_ROOT}/Horosa-Web/astrostudysrv"
+for S286_KW in 'CODESIGN_ARGS_TEMPLATE = (' 'SIGNER_CACHE_EPOCH = "' 'def signer_cache_salt()' 'def native_cache_key(data: bytes, name: str)' 'def verify_signature(path' 'def write_cache_entry(dst' 'def seed_native_cache(' '"--seed-native-from"' 'cmd = list(CODESIGN_ARGS_TEMPLATE) + ["--sign", identity]'; do
+  grep -qF -- "${S286_KW}" "${S286_SC}/sign_runtime_payload.py" 2>/dev/null || { bad "[286]① 签名器缺「${S286_KW}」"; S286_BAD=1; }
+done
+[ "$(grep -c '"--options",' "${S286_SC}/sign_runtime_payload.py" 2>/dev/null || true)" = "1" ] || { bad "[286]① codesign 参数在模板之外又散写了(模板是唯一来源)"; S286_BAD=1; }
+for S286_KW in 'CACHE_LAYER_EPOCH = "' 'def signer_salt(signer_mod, signer_path' 'def _put_signed(src' 'horosa_repro_sign_cache_v2' 'signer_salt(signer_mod, signer)'; do
+  grep -qF -- "${S286_KW}" "${S286_SC}/sign_payload_cached.py" 2>/dev/null || { bad "[286]② 域级缓存层缺「${S286_KW}」"; S286_BAD=1; }
+done
+grep -qF 'cache_key(keyed, identity, [signer, __file__])' "${S286_SC}/sign_payload_cached.py" 2>/dev/null && { bad "[286]② 域级缓存键仍掺脚本全文 sha(回潮)"; S286_BAD=1; }
+for S286_KW in 'prepare_sign_seed.py' '--seed-native-from' 'verify_stable_parts_headers.py' 'sqlite-shm'; do
+  grep -qF -- "${S286_KW}" "${S286_SC}/package_runtime_payload.sh" 2>/dev/null || { bad "[286]③ 打包脚本未接「${S286_KW}」"; S286_BAD=1; }
+done
+grep -qF 'filter="fully_trusted"' "${S286_SC}/prepare_sign_seed.py" 2>/dev/null || { bad "[286]③ 种子解包未按 tar 头权限(fully_trusted)"; S286_BAD=1; }
+grep -qF 'def dump_prev_headers(' "${S286_SC}/prepare_sign_seed.py" 2>/dev/null || { bad "[286]③ 种子准备未留档上一版部件头部"; S286_BAD=1; }
+grep -qF 'mode=ro&immutable=1' "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/xuanshi/db.py" 2>/dev/null || { bad "[286]④ 天象库未以 immutable=1 只读打开(剥了边车会打不开)"; S286_BAD=1; }
+grep -qF 'TransLogRules.normalizeTransCodes(' "${S286_SRV}/boundless/src/main/java/boundless/spring/help/TransLogMongoHelper.java" 2>/dev/null \
+  && grep -qF 'shouldSkipTransLog(path)' "${S286_SRV}/boundless/src/main/java/boundless/spring/help/TransLogMongoHelper.java" 2>/dev/null || { bad "[286]⑤ 交易日志排除表仍精确串匹配"; S286_BAD=1; }
+grep -qF 'TransLogRules.removeParamsIgnoreCase(head, RemovedParams)' "${S286_SRV}/boundless/src/main/java/boundless/spring/help/interceptor/TransData.java" 2>/dev/null || { bad "[286]⑤ 交易日志删参仍只删三形"; S286_BAD=1; }
+grep -qF 'ParamHashPersistPolicy.apply(obj, ParamHashCacheHelper::persistable)' "${S286_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java" 2>/dev/null || { bad "[286]⑤ persistable 无回退开关"; S286_BAD=1; }
+grep -qF "url.searchParams.delete('firstLaunch');" "${S286_UI}/utils/backendBootGate.js" 2>/dev/null || { bad "[286]⑥ 首启一次性上下文未从地址栏摘除"; S286_BAD=1; }
+grep -qF '}, [currentTab, currentSubTab]);' "${S286_UI}/pages/index.js" 2>/dev/null || { bad "[286]⑥ 切页签不重落温启快照"; S286_BAD=1; }
+for S286_T in test_sign_payload_cached.py test_sign_runtime_payload_native_cache.py test_prepare_sign_seed.py; do
+  /usr/bin/python3 "${S286_SC}/${S286_T}" >/dev/null 2>&1 || { bad "[286]⑦ ${S286_T} 失败"; S286_BAD=1; }
+done
+/usr/bin/python3 "${S286_SC}/verify_stable_parts_headers.py" --self-test >/dev/null 2>&1 || { bad "[286]⑦ verify_stable_parts_headers 自证失败"; S286_BAD=1; }
+[ -f "${REPO_ROOT}/Horosa-Web/astropy/tests/test_xuanshi_db_immutable_readonly.py" ] || { bad "[286]⑦ 缺 sqlite immutable 只读测试"; S286_BAD=1; }
+[ -f "${S286_SRV}/boundless/src/test/java/boundless/spring/help/TransLogRulesTest.java" ] && [ -f "${S286_SRV}/astrostudy/src/test/java/spacex/astrostudy/helper/ParamHashPersistPolicyTest.java" ] || { bad "[286]⑦ 缺 JUnit(TransLogRulesTest / ParamHashPersistPolicyTest)"; S286_BAD=1; }
+grep -qF '上下文读完即从地址栏摘掉 firstLaunch / boot' "${S286_UI}/utils/__tests__/backendBootGate.test.js" 2>/dev/null && grep -qF '温启快照的页签 = 上次停留' "${S286_UI}/utils/__tests__/bootChartRestore.test.js" 2>/dev/null || { bad "[286]⑦ 缺 jest(一次性上下文 / 切页签快照)"; S286_BAD=1; }
+S286_TAG="$(git -C "${REPO_ROOT}" describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-runtime*' HEAD 2>/dev/null || true)"
+if [ -n "${S286_TAG}" ]; then
+  S286_PREV_EPOCH="$(git -C "${REPO_ROOT}" show "${S286_TAG}:Horosa_Desktop_Installer/scripts/sign_runtime_payload.py" 2>/dev/null | sed -n 's/^SIGNER_CACHE_EPOCH = "\(.*\)"/\1/p' | head -1)"
+  S286_CUR_EPOCH="$(sed -n 's/^SIGNER_CACHE_EPOCH = "\(.*\)"/\1/p' "${S286_SC}/sign_runtime_payload.py" | head -1)"
+  if [ "${S286_PREV_EPOCH}" != "${S286_CUR_EPOCH}" ] && ! ls "${REPO_ROOT}/Horosa_Desktop_Installer/dist/components"/horosa-comp-py-runtime-*.tar.gz >/dev/null 2>&1 && [ -z "${HOROSA_SIGN_SEED_DIR:-}" ]; then
+    warn "[286]⑧ 签名语义代次 ${S286_PREV_EPOCH:-无} → ${S286_CUR_EPOCH}(与 ${S286_TAG} 不同)且 dist/components 无上一版 py-runtime 部件可作种子:打包前放回上一版部件或显式设 HOROSA_SIGN_SEED_DIR,否则 py-runtime 整版重签重下"
+  fi
+fi
+[ "${S286_BAD}" = "0" ] && ok "[286] 签名缓存加固 / 自动种子 / 稳定部件包内对拍 / sqlite 边车 / 交易日志不分大小写 / persistable 回退 / 温启页签与一次性上下文:代码 + 接线 + 测试全在位"
+
+# ── [287] 零事故台账号 / 零工单号标记(公开 issue 一律写作 [Windows #NN];十六进制颜色 [#6366f1] 一类不算)+ 禁词表含两模式 ──
+echo "[287] 零台账号 / 零工单号标记 + 禁词表含两模式"
+S287_BAD=0
+S287_HITS="$(cd "${REPO_ROOT}" && git grep -a -n -E -e 'FL-[0-9]{8}' -e '\[#[0-9]{2,3}(\]|[^0-9A-Fa-f])' -- . ':(exclude)Horosa-Web/vendor/' ':(exclude)*.png' ':(exclude)*.icns' ':(exclude)*.jar' ':(exclude)*.gz' ':(exclude)*.zip' ':(exclude)*.woff' ':(exclude)*.woff2' ':(exclude)*.ttf' ':(exclude)*.sqlite' ':(exclude)*.se1' 2>/dev/null | head -5)"
+[ -n "${S287_HITS}" ] && { printf '%s\n' "${S287_HITS}" | sed 's/^/    /'; bad "[287] 工作树含台账号 / 工单号标记"; S287_BAD=1; }
+S287_PAT="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/.secrecy_patterns.sh"
+if [ -f "${S287_PAT}" ]; then
+  grep -qF "'FL-[0-9]{8}'" "${S287_PAT}" 2>/dev/null && grep -qF '#[0-9]{2,3}(' "${S287_PAT}" 2>/dev/null || { bad "[287] 本地禁词表缺台账号 / 工单号两模式"; S287_BAD=1; }
+fi
+[ "${S287_BAD}" = "0" ] && ok "[287] 零台账号 / 零工单号标记;禁词表含两模式"
+
+echo "[288] 首启原生库预检 + 硬链接暂存槽 + 换完即预检 + 排盘服务分级门(装包 / 更新后第一次打开不再等十几秒)"
+S288_BAD=0
+S288_RS="${REPO_ROOT}/Horosa_Desktop_Installer/src-tauri/src/main.rs"
+S288_PI="${REPO_ROOT}/Horosa_Desktop_Installer/installer-scripts/postinstall.template"
+S288_CFG="${REPO_ROOT}/Horosa_Desktop_Installer/config/native_prewarm_priority.json"
+S288_PY="${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"
+# ① 壳:子命令 + 就绪后补做 + 只做文件级校验(块内不许出现可执行映射 / 动态加载)
+for S288_K in '"--horosa-native-prewarm"' 'fn run_native_prewarm_cli' 'fn spawn_native_prewarm_after_ready' 'NATIVE_PREWARM_F_CHECK_LV' 'NATIVE_PREWARM_F_ADDFILESIGS_RETURN' 'fn native_prewarm_block_never_maps_or_loads_code' 'fn stage_dir_by_hardlink' 'fn stage_runtime_copy' 'stage_runtime_copy(&current, &stage, &say)?;' 'fn native_prewarm_after_runtime_update' '"update-incremental"' '"update-full"' '"first-install"' '"runtime-swap"' 'fn component_apply_keeps_inodes_of_untouched_files_and_isolates_root_files' 'fn stage_dir_by_hardlink_shares_inodes_but_copies_root_files'; do
+  grep -aqF -- "${S288_K}" "${S288_RS}" 2>/dev/null || { bad "[288] 🔴 壳缺 ${S288_K}"; S288_BAD=1; }
+done
+S288_BLK="$(awk '/\[首启原生库预检\] 装包 \/ 更新后第一次打开/{f=1} f{print} /\[首启原生库预检\] 块尾/{if(f){exit}}' "${S288_RS}" 2>/dev/null)"
+[ -n "${S288_BLK}" ] || { bad "[288] 🔴 壳里找不到预检块(首尾标记)"; S288_BAD=1; }
+for S288_K in 'mmap(' 'dlopen(' 'libloading' 'Command::new'; do
+  printf '%s' "${S288_BLK}" | pipe_has -F -- "${S288_K}" && { bad "[288] 🔴 预检块里出现了 ${S288_K}(只许文件级校验调用)"; S288_BAD=1; }
+done
+# ①b 暂存槽用硬链接搭:外部 tar 回退必须先删条目再建(就地覆盖写会伤到与旧树共用 inode 的文件);树根两处改写先删条目
+grep -aqF -- '.arg("-U")' "${S288_RS}" 2>/dev/null || { bad "[288] 🔴 外部 tar 回退缺 -U(硬链接槽里就地覆盖写会伤到正在跑的旧树)"; S288_BAD=1; }
+grep -aqF -- 'let _ = fs::remove_file(stage.join("components-lock.json"));' "${S288_RS}" 2>/dev/null || { bad "[288] 🔴 手术改写部件锁前没先删条目"; S288_BAD=1; }
+# ② 安装脚本:装完后台跑,且只在二进制认识该子命令时才调
+grep -aqF -- '--horosa-native-prewarm "${CURRENT_DIR}"' "${S288_PI}" 2>/dev/null || { bad "[288] 🔴 postinstall 没接首启原生库预检"; S288_BAD=1; }
+grep -aqF -- "grep -q -- '--horosa-native-prewarm' \"\${APP_BIN}\"" "${S288_PI}" 2>/dev/null || { bad "[288] 🔴 postinstall 预检缺「二进制认识该子命令」守卫(旧二进制会拉起界面)"; S288_BAD=1; }
+# ③ 顺序表:合法 JSON,启动档数 ≤ 档数,配对哨兵在
+python3 - "${S288_CFG}" <<'PY' 2>/dev/null || { bad "[288] 🔴 native_prewarm_priority.json 缺失 / 不合法 / 启动档数越界"; S288_BAD=1; }
+import json, sys
+d = json.load(open(sys.argv[1], encoding='utf-8'))
+t = d['tiers']; s = d['startupTiers']
+assert isinstance(t, list) and len(t) >= 4 and 1 <= s <= len(t)
+assert all(tier and all(isinstance(x, str) and x for x in tier) for tier in t)
+PY
+[ -f "${REPO_ROOT}/Horosa-Web/astropy/tests/test_native_prewarm_priority.py" ] || { bad "[288] 🔴 缺顺序表覆盖哨兵 test_native_prewarm_priority.py"; S288_BAD=1; }
+# ④ 排盘服务分级门:核心门 / 卜类挂载点判定 / 总开关 / 宽限 / 金标
+for S288_K in 'CORE_GATE = threading.Event()' 'def _request_targets_kentang' 'HOROSA_PY_TIERED_GATE' 'HOROSA_PY_CORE_GATE_GRACE_MS' 'py.gate_core_open'; do
+  grep -aqF -- "${S288_K}" "${S288_PY}" 2>/dev/null || { bad "[288] 🔴 排盘服务缺 ${S288_K}"; S288_BAD=1; }
+done
+[ -f "${REPO_ROOT}/Horosa-Web/astropy/tests/test_startup_gate_tiers.py" ] || { bad "[288] 🔴 缺分级门金标 test_startup_gate_tiers.py"; S288_BAD=1; }
+[ "${S288_BAD}" = "0" ] && ok "[288] 首启原生库预检(壳子命令 + 安装脚本后台跑 + 就绪后补做 + 顺序表哨兵)+ 硬链接暂存槽 / 换完即预检 / 外部 tar 先删后建 + 分级门金标全在位"
 
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi

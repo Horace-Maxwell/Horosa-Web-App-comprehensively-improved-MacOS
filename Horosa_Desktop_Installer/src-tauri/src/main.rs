@@ -61,7 +61,7 @@ const MENU_ZOOM_RESET: &str = "zoom_reset";
 const DEFAULT_ZOOM: f64 = 1.0;
 const MIN_ZOOM: f64 = 0.7;
 const MAX_ZOOM: f64 = 1.8;
-// [#59 缩放上限随窗宽封顶] 布局视口宽 = 窗口逻辑宽 ÷ zoom,低于此值三栏页主盘会被两侧栏挤成一条缝(小窗 × 极档实报)。
+// 布局视口宽 = 窗口逻辑宽 ÷ zoom,低于此值三栏页主盘会被两侧栏挤成一条缝(小窗 × 极档实报)。
 // 上限 = floor(窗口逻辑宽 / 1000, 0.1 档) 再夹进 [MIN_ZOOM, MAX_ZOOM]:1440 宽 → 1.4;1728 → 1.7;3008 → 1.8;最小主窗 1180 → 1.1。
 const MIN_LAYOUT_WIDTH_CSS_PX: f64 = 1000.0;
 const ZOOM_STEP: f64 = 0.1;
@@ -1393,6 +1393,8 @@ fn emit_ready_and_stabilize(app: &AppHandle, window: &WebviewWindow, url: &str) 
     stabilize_main_window_after_navigation(app.clone(), window.clone(), state);
     // 服务存活看门狗:每次达 ready 换代重启一条(旧线程按 generation 自退)。
     start_service_supervisor(app.clone());
+    // [首启原生库预检] 没预检过的运行时,就绪后后台补做(不占就绪关键路径)。
+    spawn_native_prewarm_after_ready(app);
 }
 
 fn set_window_state_persistence_ready(app: &AppHandle, ready: bool) {
@@ -4956,6 +4958,575 @@ fn run_preseed_health_cli(runtime_dir: &Path) -> i32 {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// [首启原生库预检] 装包 / 更新后第一次打开,盘要等十几秒的根治件。
+//
+// 根因(已用「刚解包的运行时」在备用端口复现):macOS 对每个新落盘的原生库(Mach-O)在
+// 第一次被加载时做一次系统安全评估(syspolicyd),约 0.07–0.1 s 一个,系统侧基本串行。
+// 排盘服务预热 + JVM 引导要加载约 130 个,所以这一次启动多等 10–16 s;同一批文件第二次加载
+// 只要 0.6 s。评估结果按文件身份记:整目录改名不失效,重新解包 / APFS 克隆出来的都算新文件。
+//
+// 做法:在用户启动之前把评估触发掉 —— 对运行时树里每个 Mach-O 的本机架构切片做两次 fcntl
+// (挂签名 F_ADDFILESIGS_RETURN + 库校验 F_CHECK_LV)。不映射、不执行任何库代码;
+// 实测此后同一批文件的服务启动回到 0.66 s。系统侧串行,所以按「启动要用的先做」排序
+// (顺序表 config/native_prewarm_priority.json,编译期嵌入)。
+//
+// 接线:安装脚本装完即在后台跑一遍(子命令 --horosa-native-prewarm,做完即退)·
+// 其余情形(应用内更新 / 首启自装 / 修复 / 手动拷贝 / 上次被打断)服务就绪后后台补做。
+// 两处都是一次性的活,不驻留;App 进程内那条随进程结束。
+// 总开关:HOROSA_NATIVE_PREWARM=0。
+// ─────────────────────────────────────────────────────────────────────────────
+const NATIVE_PREWARM_MARKER_FILE: &str = ".native-prewarm.json";
+const NATIVE_PREWARM_PRIORITY_JSON: &str =
+    include_str!("../../config/native_prewarm_priority.json");
+#[cfg(target_os = "macos")]
+const NATIVE_PREWARM_F_ADDFILESIGS_RETURN: libc::c_int = 97;
+#[cfg(target_os = "macos")]
+const NATIVE_PREWARM_F_CHECK_LV: libc::c_int = 98;
+const NATIVE_PREWARM_LC_CODE_SIGNATURE: u32 = 0x1d;
+/// 单个文件耗时 ≥ 此值(ms)记为「系统真的评估了一次」;评估过的文件约 0.1–2 ms。
+const NATIVE_PREWARM_EVALUATED_MS: f64 = 15.0;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct NativePrewarmMarker {
+    v: u32,
+    identity: String,
+    files: usize,
+    evaluated: usize,
+    ms: u64,
+    complete: bool,
+    at: u64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct NativePrewarmStats {
+    files: usize,
+    startup_files: usize,
+    touched: usize,
+    evaluated: usize,
+    ms: u64,
+    complete: bool,
+    timed_out: bool,
+}
+
+#[cfg(target_os = "macos")]
+#[repr(C)]
+struct NativePrewarmFsignatures {
+    fs_file_start: libc::off_t,
+    fs_blob_start: *mut libc::c_void,
+    fs_blob_size: libc::size_t,
+    // 新版内核的结构体更长(fs_fsignatures_size / fs_cdhash / fs_hash_type),留足尾部
+    tail: [u8; 64],
+}
+
+#[cfg(target_os = "macos")]
+#[repr(C)]
+struct NativePrewarmFchecklv {
+    lv_file_start: libc::off_t,
+    lv_error_message_size: libc::size_t,
+    lv_error_message: *mut libc::c_void,
+}
+
+fn native_prewarm_enabled_from(value: Option<&str>) -> bool {
+    value.map(|v| v.trim() != "0").unwrap_or(true)
+}
+
+fn native_prewarm_enabled() -> bool {
+    native_prewarm_enabled_from(std::env::var("HOROSA_NATIVE_PREWARM").ok().as_deref())
+}
+
+/// 回 (各档片段表, 启动档数)。配置坏了 = 空表(全部同档,顺序退化为路径序,功能不受影响)。
+fn native_prewarm_tiers() -> (Vec<Vec<String>>, u32) {
+    let parsed = serde_json::from_str::<serde_json::Value>(NATIVE_PREWARM_PRIORITY_JSON).ok();
+    let tiers: Vec<Vec<String>> = parsed
+        .as_ref()
+        .and_then(|v| v.get("tiers"))
+        .and_then(|t| t.as_array())
+        .map(|tiers| {
+            tiers
+                .iter()
+                .map(|tier| {
+                    tier.as_array()
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|s| s.as_str().map(|s| s.to_string()))
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let startup = parsed
+        .as_ref()
+        .and_then(|v| v.get("startupTiers"))
+        .and_then(|n| n.as_u64())
+        .map(|n| n as u32)
+        .unwrap_or(tiers.len() as u32)
+        .min(tiers.len() as u32);
+    (tiers, startup)
+}
+
+fn native_prewarm_tier_of(rel: &str, tiers: &[Vec<String>]) -> u32 {
+    for (idx, tier) in tiers.iter().enumerate() {
+        if tier.iter().any(|needle| rel.contains(needle.as_str())) {
+            return idx as u32;
+        }
+    }
+    tiers.len() as u32
+}
+
+/// 回本机架构切片的 (偏移, 长度);不是 Mach-O 回空。
+/// Java .class 与 fat Mach-O 同魔数 CAFEBABE:class 文件此处 4 字节是版本号(≥ 45),按切片数 ≤ 32 区分。
+fn native_prewarm_slices(head: &[u8], file_len: u64) -> Vec<(u64, u64)> {
+    if head.len() < 8 {
+        return Vec::new();
+    }
+    let magic = [head[0], head[1], head[2], head[3]];
+    if magic == [0xcf, 0xfa, 0xed, 0xfe] || magic == [0xce, 0xfa, 0xed, 0xfe] {
+        return vec![(0, file_len)];
+    }
+    let fat64 = magic == [0xca, 0xfe, 0xba, 0xbf];
+    if magic != [0xca, 0xfe, 0xba, 0xbe] && !fat64 {
+        return Vec::new();
+    }
+    let count = u32::from_be_bytes([head[4], head[5], head[6], head[7]]) as usize;
+    if count == 0 || count > 32 {
+        return Vec::new();
+    }
+    let want: i32 = if cfg!(target_arch = "aarch64") {
+        0x0100_000c
+    } else {
+        0x0100_0007
+    };
+    let step = if fat64 { 32 } else { 20 };
+    let mut all = Vec::new();
+    let mut host = Vec::new();
+    for i in 0..count {
+        let o = 8 + i * step;
+        if head.len() < o + step {
+            break;
+        }
+        let cpu = i32::from_be_bytes([head[o], head[o + 1], head[o + 2], head[o + 3]]);
+        let be32 = |p: usize| u32::from_be_bytes([head[p], head[p + 1], head[p + 2], head[p + 3]]);
+        let be64 = |p: usize| ((be32(p) as u64) << 32) | be32(p + 4) as u64;
+        let (off, size) = if fat64 {
+            (be64(o + 8), be64(o + 16))
+        } else {
+            (be32(o + 8) as u64, be32(o + 12) as u64)
+        };
+        if off == 0 || size == 0 || off.saturating_add(size) > file_len {
+            continue;
+        }
+        all.push((off, size));
+        if cpu == want {
+            host.push((off, size));
+        }
+    }
+    if host.is_empty() {
+        all
+    } else {
+        host
+    }
+}
+
+/// 读切片的 LC_CODE_SIGNATURE:回 (签名在切片内的偏移, 长度);没签名回 None。
+fn native_prewarm_codesig(file: &mut File, base: u64) -> Option<(u64, u64)> {
+    use std::io::{Seek, SeekFrom};
+    let mut header = [0u8; 32];
+    file.seek(SeekFrom::Start(base)).ok()?;
+    file.read_exact(&mut header).ok()?;
+    let magic = [header[0], header[1], header[2], header[3]];
+    let is64 = magic == [0xcf, 0xfa, 0xed, 0xfe];
+    if !is64 && magic != [0xce, 0xfa, 0xed, 0xfe] {
+        return None;
+    }
+    let le32 = |b: &[u8], p: usize| u32::from_le_bytes([b[p], b[p + 1], b[p + 2], b[p + 3]]);
+    let ncmds = le32(&header, 16);
+    let sizeofcmds = le32(&header, 20) as usize;
+    if sizeofcmds == 0 || sizeofcmds > (1 << 20) {
+        return None;
+    }
+    let header_len: u64 = if is64 { 32 } else { 28 };
+    let mut cmds = vec![0u8; sizeofcmds];
+    file.seek(SeekFrom::Start(base + header_len)).ok()?;
+    file.read_exact(&mut cmds).ok()?;
+    let mut p = 0usize;
+    for _ in 0..ncmds {
+        if p + 8 > cmds.len() {
+            break;
+        }
+        let cmd = le32(&cmds, p);
+        let size = le32(&cmds, p + 4) as usize;
+        if size < 8 {
+            break;
+        }
+        if cmd == NATIVE_PREWARM_LC_CODE_SIGNATURE && p + 16 <= cmds.len() {
+            return Some((le32(&cmds, p + 8) as u64, le32(&cmds, p + 12) as u64));
+        }
+        p += size;
+    }
+    None
+}
+
+/// 只读文件头判「是不是 Mach-O」(收集阶段用;不触发任何评估)。
+fn native_prewarm_is_macho(path: &Path) -> bool {
+    let Ok(mut file) = File::open(path) else {
+        return false;
+    };
+    let Ok(len) = file.metadata().map(|m| m.len()) else {
+        return false;
+    };
+    let mut head = vec![0u8; 4096];
+    let Ok(n) = file.read(&mut head) else {
+        return false;
+    };
+    head.truncate(n);
+    !native_prewarm_slices(&head, len).is_empty()
+}
+
+/// 对一个 Mach-O 触发系统的首次加载评估;回耗时(ms)。不是 Mach-O / 打不开回 None。
+/// 只有两次 fcntl:不映射、不执行库里的任何代码;调用失败一律忽略(评估在调用里已经发生)。
+#[cfg(target_os = "macos")]
+fn native_prewarm_touch(path: &Path) -> Option<f64> {
+    use std::os::unix::io::AsRawFd;
+    let started = Instant::now();
+    let mut file = File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    let mut head = vec![0u8; 4096];
+    let n = file.read(&mut head).ok()?;
+    head.truncate(n);
+    let slices = native_prewarm_slices(&head, len);
+    if slices.is_empty() {
+        return None;
+    }
+    for (base, _size) in slices {
+        let Some((sig_off, sig_len)) = native_prewarm_codesig(&mut file, base) else {
+            continue;
+        };
+        let fd = file.as_raw_fd();
+        let mut sig = NativePrewarmFsignatures {
+            fs_file_start: base as libc::off_t,
+            fs_blob_start: sig_off as usize as *mut libc::c_void,
+            fs_blob_size: sig_len as libc::size_t,
+            tail: [0u8; 64],
+        };
+        let mut message = [0u8; 1024];
+        let mut lv = NativePrewarmFchecklv {
+            lv_file_start: base as libc::off_t,
+            lv_error_message_size: message.len() as libc::size_t,
+            lv_error_message: message.as_mut_ptr() as *mut libc::c_void,
+        };
+        unsafe {
+            let _ = libc::fcntl(
+                fd,
+                NATIVE_PREWARM_F_ADDFILESIGS_RETURN,
+                &mut sig as *mut NativePrewarmFsignatures,
+            );
+            let _ = libc::fcntl(
+                fd,
+                NATIVE_PREWARM_F_CHECK_LV,
+                &mut lv as *mut NativePrewarmFchecklv,
+            );
+        }
+    }
+    Some(started.elapsed().as_secs_f64() * 1000.0)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn native_prewarm_touch(_path: &Path) -> Option<f64> {
+    None
+}
+
+/// 收集运行时树里全部 Mach-O,按(档, 相对路径)排好序。
+fn native_prewarm_collect(runtime_dir: &Path, tiers: &[Vec<String>]) -> Vec<(u32, PathBuf)> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut found: Vec<(u32, String, PathBuf)> = Vec::new();
+    for entry in WalkDir::new(runtime_dir)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let path = entry.path();
+        let by_ext = matches!(
+            path.extension().and_then(|e| e.to_str()),
+            Some("so") | Some("dylib") | Some("jnilib")
+        );
+        let executable = entry
+            .metadata()
+            .map(|m| m.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false);
+        if !by_ext && !executable {
+            continue;
+        }
+        if !native_prewarm_is_macho(path) {
+            continue;
+        }
+        let rel = path
+            .strip_prefix(runtime_dir)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        found.push((native_prewarm_tier_of(&rel, tiers), rel, path.to_path_buf()));
+    }
+    found.sort_by(|a, b| (a.0, &a.1).cmp(&(b.0, &b.1)));
+    found
+        .into_iter()
+        .map(|(tier, _, path)| (tier, path))
+        .collect()
+}
+
+/// 运行时树的「文件身份」:解释器 / JVM / 清单三者的 inode + 部件锁内容摘要。重新解包、克隆都会变,
+/// 整目录改名不变;硬链接搭的暂存槽里未变部件的 inode 不变,靠锁摘要看出「换过部件」。
+fn native_prewarm_identity(runtime_dir: &Path) -> Option<String> {
+    use std::os::unix::fs::MetadataExt;
+    let python = fs::metadata(runtime_python_bin(runtime_dir)).ok()?;
+    let java = fs::metadata(runtime_java_bin(runtime_dir)).ok()?;
+    let manifest = fs::metadata(runtime_dir.join("runtime-manifest.json")).ok()?;
+    let lock_digest = fs::read(runtime_dir.join("components-lock.json"))
+        .ok()
+        .map(|bytes| {
+            let mut hasher = Sha256::new();
+            hasher.update(&bytes);
+            format!("{:x}", hasher.finalize())[..16].to_string()
+        })
+        .unwrap_or_else(|| "nolock".to_string());
+    Some(format!(
+        "{}:{}:{}:{}:{}",
+        python.ino(),
+        java.ino(),
+        manifest.ino(),
+        manifest.len(),
+        lock_digest
+    ))
+}
+
+fn native_prewarm_marker(runtime_dir: &Path) -> Option<NativePrewarmMarker> {
+    let text = fs::read_to_string(runtime_dir.join(NATIVE_PREWARM_MARKER_FILE)).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+/// 这棵运行时还要不要预检:没有标记 / 标记记的是别的文件身份 / 上次没做完 → 要。
+fn native_prewarm_needed(runtime_dir: &Path) -> bool {
+    let Some(identity) = native_prewarm_identity(runtime_dir) else {
+        return false; // 树不完整(缺解释器 / JVM / 清单):不是这里该管的事
+    };
+    match native_prewarm_marker(runtime_dir) {
+        Some(marker) if marker.identity == identity => !marker.complete,
+        _ => true,
+    }
+}
+
+/// 跑一遍预检(全树,按档序)。budget 到了就收手(已派出的调用让它自己做完)。
+/// 结束后落标记;没超时才记 complete。
+fn native_prewarm_run(
+    runtime_dir: &Path,
+    threads: usize,
+    budget: Duration,
+    progress: Option<&dyn Fn(usize, usize)>,
+) -> NativePrewarmStats {
+    let started = Instant::now();
+    let (tiers, startup_tiers) = native_prewarm_tiers();
+    let all = native_prewarm_collect(runtime_dir, &tiers);
+    let startup_files = all.iter().filter(|(tier, _)| *tier < startup_tiers).count();
+    let targets: Vec<PathBuf> = all.into_iter().map(|(_, path)| path).collect();
+    let total = targets.len();
+    let targets = Arc::new(targets);
+    let next = Arc::new(AtomicUsize::new(0));
+    let done = Arc::new(AtomicUsize::new(0));
+    let touched = Arc::new(AtomicUsize::new(0));
+    let evaluated = Arc::new(AtomicUsize::new(0));
+    let stop = Arc::new(AtomicBool::new(false));
+    let workers = threads.clamp(1, 8).min(total.max(1));
+    let alive = Arc::new(AtomicUsize::new(workers));
+    for _ in 0..workers {
+        let targets = Arc::clone(&targets);
+        let next = Arc::clone(&next);
+        let done = Arc::clone(&done);
+        let touched = Arc::clone(&touched);
+        let evaluated = Arc::clone(&evaluated);
+        let stop = Arc::clone(&stop);
+        let alive = Arc::clone(&alive);
+        thread::spawn(move || {
+            loop {
+                if stop.load(Ordering::SeqCst) {
+                    break;
+                }
+                let idx = next.fetch_add(1, Ordering::SeqCst);
+                if idx >= targets.len() {
+                    break;
+                }
+                if let Some(ms) = native_prewarm_touch(&targets[idx]) {
+                    touched.fetch_add(1, Ordering::SeqCst);
+                    if ms >= NATIVE_PREWARM_EVALUATED_MS {
+                        evaluated.fetch_add(1, Ordering::SeqCst);
+                    }
+                }
+                done.fetch_add(1, Ordering::SeqCst);
+            }
+            alive.fetch_sub(1, Ordering::SeqCst);
+        });
+    }
+    let mut timed_out = false;
+    let mut last_reported = usize::MAX;
+    loop {
+        if let Some(cb) = progress {
+            let finished = done.load(Ordering::SeqCst).min(total);
+            if finished != last_reported {
+                cb(finished, total);
+                last_reported = finished;
+            }
+        }
+        if alive.load(Ordering::SeqCst) == 0 {
+            break;
+        }
+        if started.elapsed() >= budget {
+            timed_out = true;
+            stop.store(true, Ordering::SeqCst);
+            break;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+    let stats = NativePrewarmStats {
+        files: total,
+        startup_files,
+        touched: touched.load(Ordering::SeqCst),
+        evaluated: evaluated.load(Ordering::SeqCst),
+        ms: started.elapsed().as_millis() as u64,
+        complete: !timed_out && done.load(Ordering::SeqCst) >= total,
+        timed_out,
+    };
+    if let Some(identity) = native_prewarm_identity(runtime_dir) {
+        let marker = NativePrewarmMarker {
+            v: 1,
+            identity,
+            files: stats.files,
+            evaluated: stats.evaluated,
+            ms: stats.ms,
+            complete: stats.complete,
+            at: unix_ts(),
+        };
+        if let Ok(text) = serde_json::to_string(&marker) {
+            let path = runtime_dir.join(NATIVE_PREWARM_MARKER_FILE);
+            if fs::write(&path, text).is_ok() {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o666));
+            }
+        }
+    }
+    stats
+}
+
+/// 子命令 --horosa-native-prewarm <运行时目录>:零界面,做完即退(上限 180 秒)。
+/// 退出码恒 0 —— 预检是优化,任何情形都不该让安装失败。
+fn run_native_prewarm_cli(runtime_dir: &Path) -> i32 {
+    if !native_prewarm_enabled() {
+        println!("native-prewarm: disabled by HOROSA_NATIVE_PREWARM=0");
+        return 0;
+    }
+    if !native_prewarm_needed(runtime_dir) {
+        println!(
+            "native-prewarm: nothing to do for {}",
+            runtime_dir.display()
+        );
+        return 0;
+    }
+    let stats = native_prewarm_run(runtime_dir, 4, Duration::from_secs(180), None);
+    println!(
+        "native-prewarm: files={} startup={} touched={} evaluated={} ms={} complete={} timed_out={}",
+        stats.files,
+        stats.startup_files,
+        stats.touched,
+        stats.evaluated,
+        stats.ms,
+        stats.complete,
+        stats.timed_out
+    );
+    0
+}
+
+/// 服务就绪后后台补做:没预检过的运行时(应用内更新 / 首启自装 / 修复 / 手动拷贝 / 上次被打断)。
+/// 同一文件身份每进程只起一次;延后 12 秒让首屏取盘与后端自热身先走;两线程,不与前台抢。
+fn spawn_native_prewarm_after_ready(app: &AppHandle) {
+    static LAST_IDENTITY: Mutex<Option<String>> = Mutex::new(None);
+    if !native_prewarm_enabled() {
+        return;
+    }
+    let runtime_dir = app
+        .try_state::<AppState>()
+        .and_then(|state| {
+            state
+                .session
+                .lock()
+                .ok()
+                .and_then(|slot| slot.as_ref().map(|s| s.paths.runtime_dir.clone()))
+        })
+        .unwrap_or_else(shared_runtime_dir);
+    let Some(identity) = native_prewarm_identity(&runtime_dir) else {
+        return;
+    };
+    if let Ok(mut last) = LAST_IDENTITY.lock() {
+        if last.as_deref() == Some(identity.as_str()) {
+            return;
+        }
+        *last = Some(identity);
+    }
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(12));
+        if !native_prewarm_needed(&runtime_dir) {
+            return;
+        }
+        let stats = native_prewarm_run(&runtime_dir, 2, Duration::from_secs(180), None);
+        ledger_mark(
+            "rust.native_prewarm",
+            Some(serde_json::json!({
+                "where": "post-ready",
+                "files": stats.files,
+                "evaluated": stats.evaluated,
+                "ms": stats.ms,
+                "complete": stats.complete,
+            })),
+        );
+    });
+}
+/// [更新槽复用] 换完运行时(增量 / 全量 / 首启自装 / helper 全量对换)立刻对新树做首次加载预检:硬链接复用的
+/// 未变文件已评估过(约 1 ms 一个),只有本次真换的部件里的原生库要真评估;文件身份随后续 rename 不变,
+/// 评估状态直接带进 current。say 收进度文案;失败 / 超时无害(就绪后补做兜底)。
+fn native_prewarm_after_runtime_update(runtime_dir: &Path, say: &dyn Fn(&str), site: &str) {
+    if !native_prewarm_enabled() || !native_prewarm_needed(runtime_dir) {
+        return;
+    }
+    say("正在完成新版本的首次加载检查…");
+    let last = std::cell::Cell::new(Instant::now());
+    let progress = |done: usize, total: usize| {
+        if total > 0 && (done == total || last.get().elapsed() >= Duration::from_millis(700)) {
+            last.set(Instant::now());
+            say(&format!("正在完成新版本的首次加载检查 {}/{}", done, total));
+        }
+    };
+    let stats = native_prewarm_run(runtime_dir, 4, Duration::from_secs(120), Some(&progress));
+    say(&format!(
+        "首次加载检查完成:{} 个原生库,新评估 {} 个,{:.1} 秒",
+        stats.files,
+        stats.evaluated,
+        stats.ms as f64 / 1000.0
+    ));
+    ledger_mark(
+        "rust.native_prewarm",
+        Some(serde_json::json!({
+            "where": site,
+            "files": stats.files,
+            "evaluated": stats.evaluated,
+            "ms": stats.ms,
+            "complete": stats.complete,
+        })),
+    );
+}
+// ── [首启原生库预检] 块尾 ─────────────────────────────────────────────────────
+
 fn prepare_runtime_dir(runtime_dir: &Path) -> Result<()> {
     let _ = cleanup_runtime_metadata(runtime_dir)?;
     Ok(())
@@ -6971,6 +7542,69 @@ fn download_component_updates(
     })
 }
 
+fn stage_hardlink_enabled() -> bool {
+    std::env::var("HOROSA_STAGE_HARDLINK")
+        .map(|v| v.trim() != "0")
+        .unwrap_or(true)
+}
+
+/// [更新槽复用] 用硬链接搭暂存槽:未变部件的文件与 current 共用 inode —— 系统对原生库的首次加载评估按文件身份记,
+/// 硬链接不换身份,更新后只有真换了的部件要重评估(此前整棵 APFS 克隆 = 全部换身份 = 更新后首启十几秒)。
+/// 目录重建(权限照抄)、符号链接照抄;树根下的散文件(清单 / 锁 / 各标记)拷贝而不链接 —— 手术期要就地改写
+/// 它们,链接会写穿到正在跑的旧树。安全前提:部件替换一律先删条目再建新文件(native 解压 remove_file 后
+/// File::create;外部 tar 带 -U),绝不就地覆盖写;树内其余文件只读。
+fn stage_dir_by_hardlink(src: &Path, dst: &Path) -> Result<()> {
+    fs::create_dir_all(dst)?;
+    if let Ok(meta) = fs::metadata(src) {
+        let _ = fs::set_permissions(dst, meta.permissions());
+    }
+    for entry in WalkDir::new(src).follow_links(false).min_depth(1) {
+        let entry = entry?;
+        let rel = entry.path().strip_prefix(src)?;
+        let target = dst.join(rel);
+        let file_type = entry.file_type();
+        if file_type.is_dir() {
+            fs::create_dir_all(&target)?;
+            if let Ok(meta) = entry.metadata() {
+                let _ = fs::set_permissions(&target, meta.permissions());
+            }
+        } else if file_type.is_symlink() {
+            let link = fs::read_link(entry.path())?;
+            std::os::unix::fs::symlink(&link, &target)?;
+        } else if file_type.is_file() {
+            if rel.components().count() == 1 {
+                fs::copy(entry.path(), &target)?;
+            } else if let Err(err) = fs::hard_link(entry.path(), &target) {
+                // 已签名应用包(Python.app)里的文件系统不许硬链接(EPERM):退单文件克隆(新 inode,
+                // 更新后要重评估的只多这几个);其它错误同样退克隆,克隆也失败才整体失败。
+                fs::copy(entry.path(), &target).with_context(|| {
+                    format!("hardlink {} 失败({err}),克隆也失败", rel.display())
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// 搭暂存槽:硬链接优先;HOROSA_STAGE_HARDLINK=0 或链接失败(卷不支持等)→ 清掉半成品回 APFS 克隆旧路。
+fn stage_runtime_copy(current: &Path, stage: &Path, say: &dyn Fn(&str)) -> Result<()> {
+    if stage_hardlink_enabled() {
+        say("复用当前运行时(硬链接,秒级)…");
+        match stage_dir_by_hardlink(current, stage) {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                let _ = remove_dir_if_exists(stage);
+                ledger_mark(
+                    "rust.stage_hardlink_fallback",
+                    Some(serde_json::json!({"error": format!("{err:#}")})),
+                );
+            }
+        }
+    }
+    say("克隆当前运行时(APFS 秒级)…");
+    clone_dir_fast(current, stage)
+}
+
 fn clone_dir_fast(src: &Path, dst: &Path) -> Result<()> {
     // APFS clonefile(秒级零空间);非 APFS 卷退化普通拷贝。cp -R 对 symlink 原样拷。
     let cloned = Command::new("/bin/cp")
@@ -7366,6 +8000,8 @@ fn tar_extract_external(archive: &Path, dest: &Path, strip1: bool) -> Result<()>
         cmd.arg("--strip-components=1");
     }
     let status = cmd
+        // [更新槽复用] -U 先删条目再建新文件:暂存槽里的文件可能是与旧树共用 inode 的硬链接,就地覆盖写会伤到正在跑的旧树
+        .arg("-U")
         .arg("-xzf")
         .arg(archive)
         .arg("-C")
@@ -7450,8 +8086,7 @@ fn apply_component_updates_with(
         }
     }
     let result = (|| -> Result<()> {
-        say("克隆当前运行时(APFS 秒级)…");
-        clone_dir_fast(&current, &stage)?;
+        stage_runtime_copy(&current, &stage, &say)?;
         let old_lock = fs::read_to_string(stage.join("components-lock.json"))
             .ok()
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
@@ -7563,12 +8198,15 @@ fn apply_component_updates_with(
         }
         say("写入部件清单…");
         // 新部件清单 + runtime-manifest(version/builtAt/appName 从新 lock 派生)落盘。
+        // 树根散文件是拷贝不是链接;再删一次条目是硬链接防写穿的通用写法(回退克隆路同样无害)
+        let _ = fs::remove_file(stage.join("components-lock.json"));
         fs::write(stage.join("components-lock.json"), &staged.new_lock_text)?;
         let manifest_json = serde_json::json!({
             "version": staged.new_lock_json.get("runtimeVersion").and_then(|v| v.as_str()).unwrap_or(""),
             "built_at": staged.new_lock_json.get("builtAt").and_then(|v| v.as_str()).unwrap_or(""),
             "appName": staged.new_lock_json.get("appName").and_then(|v| v.as_str()).unwrap_or(APP_NAME),
         });
+        let _ = fs::remove_file(stage.join("runtime-manifest.json"));
         fs::write(
             stage.join("runtime-manifest.json"),
             serde_json::to_string_pretty(&manifest_json)? + "\n",
@@ -7955,6 +8593,13 @@ fn ensure_runtime_installed(
         };
         extract_runtime_archive_with(&archive_path, runtime_root, Some(&on_extract), None)?;
         clear_runtime_pending_marker(&runtime_root.join("current"))?;
+        // [更新槽复用] 新解包的树里每个原生库都是新文件:在服务起来之前把首次加载评估做掉(带进度,不像卡住)
+        let say_install = |msg: &str| emit_progress(window, 73, msg);
+        native_prewarm_after_runtime_update(
+            &runtime_root.join("current"),
+            &say_install,
+            "first-install",
+        );
     }
     emit_progress(window, 74, "本机组件已准备完成");
     Ok(resolve_runtime_paths(app)?)
@@ -9448,7 +10093,7 @@ fn set_window_zoom(app: &AppHandle, zoom: f64) -> Result<()> {
     let window = app
         .get_webview_window(MAIN_WINDOW_LABEL)
         .context("main window missing for zoom")?;
-    // [#59] 超过本窗宽度的上限 → 停在上限并让页面说明原因(⌘+ 不再放大;拉宽窗口 / 换大屏可继续)。
+    // 超过本窗宽度的上限 → 停在上限并让页面说明原因(⌘+ 不再放大;拉宽窗口 / 换大屏可继续)。
     let (cap, width) = window_zoom_cap(app);
     let clamped = if requested > cap { cap } else { requested };
     if requested > cap {
@@ -11180,6 +11825,11 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
                     let notify = make_applying_notifier(app, idx + 1, roots_total);
                     apply_component_updates_with(root, components, Some(&notify))
                         .with_context(|| format!("增量应用本机组件到 {}", root.display()))?;
+                    native_prewarm_after_runtime_update(
+                        &root.join("current"),
+                        &notify,
+                        "update-incremental",
+                    );
                 }
             }
         }
@@ -11218,6 +11868,11 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
                 let notify = make_applying_notifier(app, idx + 1, roots_total);
                 apply_component_updates_with(root, components, Some(&notify))
                     .with_context(|| format!("增量应用本机组件到 {}", root.display()))?;
+                native_prewarm_after_runtime_update(
+                    &root.join("current"),
+                    &notify,
+                    "update-incremental",
+                );
             }
         } else {
             let runtime_archive = staged
@@ -11240,6 +11895,7 @@ fn run_staged_install(app: &AppHandle) -> Result<()> {
                 };
                 extract_runtime_archive_with(runtime_archive, root, Some(&on_extract), None)?;
                 clear_runtime_pending_marker(&root.join("current"))?;
+                native_prewarm_after_runtime_update(&root.join("current"), &notify, "update-full");
             }
         }
         // [U-C] 全部 root 应用成功:清已消费部件档+暂存档(失败路径 ? 早退不清,重试免重下)
@@ -12205,6 +12861,8 @@ fn run_runtime_swap_cli(root: &Path, archive: &Path, expected_version: &str) -> 
     match extract_runtime_archive_with(archive, root, None, expected) {
         Ok(()) => {
             let _ = clear_runtime_pending_marker(&root.join("current"));
+            let say_swap = |msg: &str| println!("[runtime-swap] {}", msg);
+            native_prewarm_after_runtime_update(&root.join("current"), &say_swap, "runtime-swap");
             println!("[runtime-swap] promoted new runtime at {}", root.display());
             0
         }
@@ -12236,6 +12894,10 @@ fn main() {
           // 失败无害:不写=首启照旧 untrusted 完整校验;启动失败仍有 fast_path_fallback+看门狗。
         if args.len() == 3 && args[1] == "--horosa-preseed-health" {
             std::process::exit(run_preseed_health_cli(Path::new(&args[2])));
+        }
+        // [首启原生库预检] 安装脚本装完后台调;零界面,做完即退(说明见 native_prewarm_run 上方)。
+        if args.len() == 3 && args[1] == "--horosa-native-prewarm" {
+            std::process::exit(run_native_prewarm_cli(Path::new(&args[2])));
         }
         // [批三④] stdio 代理:Claude Desktop 这类只会 stdio 的客户端用「同一份 App 二进制 + 端点文件」接本机 MCP
         //(零 UI 即退;令牌只在端点文件里,不进任何客户端配置)。
@@ -12319,7 +12981,7 @@ fn main() {
             // [V5-B1] 自动备份心跳:壳侧线程每 30 分钟 emit 一次(不依赖 WebView 定时器——
             // 窗口最小化/节能会漂移);首跳延后 5 分钟避开冷启高峰。前端 listen 组 zip 回送写盘;
             // 内容指纹未变则前端自行跳过,心跳本身零 IO。
-            // [FL-20260902-1] 此前用 app.emit 投递 auto-backup-tick 事件(哨兵纯文本陷阱:注释里不复写字面量):页面没有 window.__TAURI__(withGlobalTauri
+            // 此前用 app.emit 投递 auto-backup-tick 事件(哨兵纯文本陷阱:注释里不复写字面量):页面没有 window.__TAURI__(withGlobalTauri
             // 缺省 false)且 capabilities 为空(event.listen 无授权)→ 从未有人接收,timer 触发路径一直是死的。
             // 改走壳→页面既有 eval 回调范式(同 emit_service_event):页面就绪调 __horosaAutoBackupTick,
             // 未就绪先进 __horosaPendingAutoBackupTicks,页面绑定时补跑。
@@ -12615,7 +13277,7 @@ fn main() {
                             .eval("try{window.dispatchEvent(new Event('resize'))}catch(_){}");
                     }
                 }
-                // [#59] 窗口变窄后当前档可能超过新的宽度上限 → 降到上限(只降不升;持久化随 set_window_zoom)。
+                // 窗口变窄后当前档可能超过新的宽度上限 → 降到上限(只降不升;持久化随 set_window_zoom)。
                 if is_resize_like && label == MAIN_WINDOW_LABEL {
                     let current = app
                         .try_state::<AppState>()
@@ -12660,7 +13322,7 @@ fn main() {
         });
 }
 
-// ── [FL-20260902-1] 壳→页面事件桥死开关自证(不起 UI:MockRuntime + 真实 generate_context!) ──
+// ── 壳→页面事件桥死开关自证(不起 UI:MockRuntime + 真实 generate_context!) ──
 // ① withGlobalTauri 缺省 false → 页面没有 window.__TAURI__(tauri-codegen 只在为 true 时注入全局 API 脚本);
 // ② capabilities 为空 → core:event:allow-listen 未授权 → 即便拿到 __TAURI_INTERNALS__,plugin:event|listen 也被 ACL 拒;
 // ③ 应用自身命令(generate_handler)不受此影响,仍可 invoke —— 三者一起解释了「emit 从未被接收」与「invoke 却正常」。
@@ -12813,7 +13475,7 @@ mod tests {
     }
 
     // [zoom-snap] 缩放档归一单测:f64 累加脏值必须吸回 0.1 档(⌘0 清理分支依赖精确 1.0)。
-    // [#59] 缩放上限随窗口宽度封顶:布局视口宽 ≥ 1000 CSS px。
+    // 缩放上限随窗口宽度封顶:布局视口宽 ≥ 1000 CSS px。
     #[test]
     fn zoom_cap_follows_window_width() {
         assert_eq!(max_zoom_for_width(1440.0), 1.4);
@@ -15108,6 +15770,368 @@ mod tests {
         let code = run_preseed_health_cli(&runtime_dir);
         assert_eq!(code, 71);
         assert!(!runtime_fast_path_allowed(&runtime_dir));
+    }
+
+    // ── [首启原生库预检] ──────────────────────────────────────────────────────
+    // Mach-O 判定:瘦 / 胖各一;Java class(与胖文件同魔数)、脚本、残缺文件头必须判否。
+    #[test]
+    fn native_prewarm_slices_recognize_macho_and_reject_java_class() {
+        let thin = [0xcf, 0xfa, 0xed, 0xfe, 0, 0, 0, 0];
+        assert_eq!(native_prewarm_slices(&thin, 4096), vec![(0, 4096)]);
+        // 胖文件两片:x86_64 在 0x1000 长 0x100;arm64 在 0x4000 长 0x200
+        let mut fat = vec![0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2];
+        fat.extend_from_slice(&0x0100_0007i32.to_be_bytes());
+        fat.extend_from_slice(&3i32.to_be_bytes());
+        fat.extend_from_slice(&0x1000u32.to_be_bytes());
+        fat.extend_from_slice(&0x100u32.to_be_bytes());
+        fat.extend_from_slice(&12u32.to_be_bytes());
+        fat.extend_from_slice(&0x0100_000ci32.to_be_bytes());
+        fat.extend_from_slice(&0i32.to_be_bytes());
+        fat.extend_from_slice(&0x4000u32.to_be_bytes());
+        fat.extend_from_slice(&0x200u32.to_be_bytes());
+        fat.extend_from_slice(&14u32.to_be_bytes());
+        let want = if cfg!(target_arch = "aarch64") {
+            vec![(0x4000u64, 0x200u64)]
+        } else {
+            vec![(0x1000u64, 0x100u64)]
+        };
+        assert_eq!(native_prewarm_slices(&fat, 0x8000), want);
+        // 切片越出文件末尾的条目丢弃
+        assert!(native_prewarm_slices(&fat, 0x1000).is_empty());
+        // Java class:CAFEBABE + 版本号 52
+        let class = [0xca, 0xfe, 0xba, 0xbe, 0x00, 0x00, 0x00, 0x34];
+        assert!(native_prewarm_slices(&class, 4096).is_empty());
+        assert!(native_prewarm_slices(b"#!/bin/sh\n", 10).is_empty());
+        assert!(native_prewarm_slices(&[0xcf, 0xfa], 2).is_empty());
+    }
+
+    #[test]
+    fn native_prewarm_tiers_put_startup_libraries_first() {
+        let (tiers, startup) = native_prewarm_tiers();
+        assert!(tiers.len() >= 4, "顺序表至少四档");
+        assert!(startup >= 1 && startup as usize <= tiers.len());
+        let t = |rel: &str| native_prewarm_tier_of(rel, &tiers);
+        let py = t("runtime/mac/python/bin/python3.12");
+        let jvm = t("runtime/mac/java/lib/server/libjvm.dylib");
+        let dynload = t("runtime/mac/python/lib/python3.12/lib-dynload/_ssl.cpython-312-darwin.so");
+        let pandas = t(
+            "runtime/mac/python/lib/python3.12/site-packages/pandas/_libs/index.cpython-312-darwin.so",
+        );
+        let swe =
+            t("runtime/mac/python/lib/python3.12/site-packages/swisseph.cpython-312-darwin.so");
+        let other_pkg = t(
+            "runtime/mac/python/lib/python3.12/site-packages/scipy/linalg/_fblas.cpython-312-darwin.so",
+        );
+        let other_java = t("runtime/mac/java/lib/libawt_lwawt.dylib");
+        assert!(py < dynload && jvm < dynload && dynload < pandas);
+        assert_eq!(pandas, swe);
+        assert!(pandas < startup, "预热要装的包必须落在启动档内");
+        assert_eq!(other_pkg, tiers.len() as u32);
+        assert_eq!(other_java, tiers.len() as u32);
+    }
+
+    #[test]
+    fn native_prewarm_switch_reads_zero_as_off() {
+        assert!(native_prewarm_enabled_from(None));
+        assert!(native_prewarm_enabled_from(Some("1")));
+        assert!(!native_prewarm_enabled_from(Some("0")));
+        assert!(!native_prewarm_enabled_from(Some(" 0 ")));
+    }
+
+    // 标记跟的是「文件身份」:整目录改名不用重做;克隆 / 拷贝出来的树(标记文件也跟着拷过去)必须重做。
+    // 应用内更新的第一步就是克隆当前运行时,所以更新后的那棵树一定要重新预检。
+    #[cfg(unix)]
+    #[test]
+    fn native_prewarm_marker_follows_file_identity() {
+        let root = temp_test_dir("native-prewarm-marker");
+        let runtime_dir = create_fake_runtime_tree(&root, "9.9.9-runtime1", true);
+        assert!(native_prewarm_needed(&runtime_dir));
+        let stats = native_prewarm_run(&runtime_dir, 2, Duration::from_secs(30), None);
+        assert!(stats.complete && !stats.timed_out);
+        assert!(!native_prewarm_needed(&runtime_dir));
+
+        let renamed = root.join("runtime/renamed");
+        fs::rename(&runtime_dir, &renamed).unwrap();
+        assert!(!native_prewarm_needed(&renamed));
+
+        let cloned = root.join("runtime/cloned");
+        clone_dir_fast(&renamed, &cloned).unwrap();
+        assert!(cloned.join(NATIVE_PREWARM_MARKER_FILE).exists());
+        assert!(native_prewarm_needed(&cloned));
+
+        let mut marker = native_prewarm_marker(&renamed).unwrap();
+        marker.complete = false;
+        fs::write(
+            renamed.join(NATIVE_PREWARM_MARKER_FILE),
+            serde_json::to_string(&marker).unwrap(),
+        )
+        .unwrap();
+        assert!(native_prewarm_needed(&renamed));
+
+        let empty = root.join("runtime/empty");
+        fs::create_dir_all(&empty).unwrap();
+        assert!(!native_prewarm_needed(&empty));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn native_prewarm_touch_handles_real_binary_and_plain_file() {
+        let exe = std::env::current_exe().unwrap();
+        assert!(native_prewarm_is_macho(&exe));
+        assert!(native_prewarm_touch(&exe).is_some());
+        let root = temp_test_dir("native-prewarm-touch");
+        let plain = root.join("plain.txt");
+        fs::write(&plain, b"hello").unwrap();
+        assert!(!native_prewarm_is_macho(&plain));
+        assert!(native_prewarm_touch(&plain).is_none());
+        assert!(native_prewarm_touch(&root.join("missing.dylib")).is_none());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn native_prewarm_collects_only_macho_in_priority_order() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = temp_test_dir("native-prewarm-collect");
+        let runtime_dir = create_fake_runtime_tree(&root, "9.9.9-runtime1", true);
+        let exe = std::env::current_exe().unwrap();
+        let put = |rel: &str| {
+            let path = runtime_dir.join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::copy(&exe, &path).unwrap();
+        };
+        put("runtime/mac/python/lib/python3.12/site-packages/zzz/other.so");
+        put("runtime/mac/python/lib/python3.12/lib-dynload/_a.so");
+        put("runtime/mac/java/lib/server/libjvm.dylib");
+        // 扩展名像、内容不是 / 带执行位的脚本 / Java class:都不收
+        fs::write(
+            runtime_dir.join("runtime/mac/python/lib/python3.12/lib-dynload/fake.so"),
+            b"not a mach-o",
+        )
+        .unwrap();
+        let script = runtime_dir.join("runtime/mac/java/bin/tool.sh");
+        fs::write(&script, b"#!/bin/sh\n").unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        fs::write(
+            runtime_dir.join("runtime/mac/java/lib/A.class"),
+            [0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 0x34],
+        )
+        .unwrap();
+        let (tiers, _) = native_prewarm_tiers();
+        let got: Vec<String> = native_prewarm_collect(&runtime_dir, &tiers)
+            .into_iter()
+            .map(|(_, p)| {
+                p.strip_prefix(&runtime_dir)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                "runtime/mac/java/lib/server/libjvm.dylib".to_string(),
+                "runtime/mac/python/lib/python3.12/lib-dynload/_a.so".to_string(),
+                "runtime/mac/python/lib/python3.12/site-packages/zzz/other.so".to_string(),
+            ]
+        );
+        let stats = native_prewarm_run(&runtime_dir, 2, Duration::from_secs(60), None);
+        assert_eq!(stats.files, 3);
+        assert_eq!(stats.startup_files, 2);
+        assert_eq!(stats.touched, 3);
+        assert!(stats.complete);
+        let marker = native_prewarm_marker(&runtime_dir).unwrap();
+        assert!(marker.complete && marker.files == 3);
+    }
+
+    // [更新槽复用] 标记身份掺部件锁摘要:锁内容变了(换过部件)即使三个 inode 都没变也要重做
+    #[cfg(unix)]
+    #[test]
+    fn native_prewarm_identity_changes_when_component_lock_changes() {
+        let root = temp_test_dir("native-prewarm-lock");
+        let runtime_dir = create_fake_runtime_tree(&root, "9.9.9-runtime1", true);
+        fs::write(runtime_dir.join("components-lock.json"), b"{\"v\":1}").unwrap();
+        let before = native_prewarm_identity(&runtime_dir).unwrap();
+        native_prewarm_run(&runtime_dir, 1, Duration::from_secs(10), None);
+        assert!(!native_prewarm_needed(&runtime_dir));
+        fs::write(runtime_dir.join("components-lock.json"), b"{\"v\":2}").unwrap();
+        let after = native_prewarm_identity(&runtime_dir).unwrap();
+        assert_ne!(before, after);
+        assert!(native_prewarm_needed(&runtime_dir));
+    }
+
+    // [更新槽复用] 硬链接搭槽:嵌套文件同 inode、符号链接照抄、目录权限照抄、树根散文件是拷贝(独立 inode)
+    #[cfg(unix)]
+    #[test]
+    fn stage_dir_by_hardlink_shares_inodes_but_copies_root_files() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let root = temp_test_dir("stage-hardlink");
+        let src = root.join("current");
+        write_file(&src.join("runtime/mac/python/bin/python3"), "py");
+        write_file(&src.join("runtime/mac/java/lib/libjvm.dylib"), "jvm");
+        write_file(&src.join("components-lock.json"), "{}");
+        write_file(&src.join("runtime-manifest.json"), "{}");
+        fs::set_permissions(
+            src.join("runtime/mac/python/bin"),
+            fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink("python3", src.join("runtime/mac/python/bin/python")).unwrap();
+        let dst = root.join("stage");
+        stage_dir_by_hardlink(&src, &dst).unwrap();
+        let ino = |p: &Path| fs::metadata(p).unwrap().ino();
+        assert_eq!(
+            ino(&src.join("runtime/mac/python/bin/python3")),
+            ino(&dst.join("runtime/mac/python/bin/python3"))
+        );
+        assert_eq!(
+            ino(&src.join("runtime/mac/java/lib/libjvm.dylib")),
+            ino(&dst.join("runtime/mac/java/lib/libjvm.dylib"))
+        );
+        assert_eq!(
+            fs::metadata(dst.join("runtime/mac/java/lib/libjvm.dylib"))
+                .unwrap()
+                .nlink(),
+            2
+        );
+        assert_ne!(
+            ino(&src.join("components-lock.json")),
+            ino(&dst.join("components-lock.json"))
+        );
+        assert_ne!(
+            ino(&src.join("runtime-manifest.json")),
+            ino(&dst.join("runtime-manifest.json"))
+        );
+        assert_eq!(
+            fs::read_to_string(dst.join("components-lock.json")).unwrap(),
+            "{}"
+        );
+        let link = dst.join("runtime/mac/python/bin/python");
+        assert!(fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(fs::read_link(&link).unwrap(), PathBuf::from("python3"));
+        assert_eq!(
+            fs::metadata(dst.join("runtime/mac/python/bin"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o755
+        );
+        // 树根散文件就地改写不会写穿到源树
+        fs::write(dst.join("components-lock.json"), "{\"changed\":true}").unwrap();
+        assert_eq!(
+            fs::read_to_string(src.join("components-lock.json")).unwrap(),
+            "{}"
+        );
+    }
+
+    // [更新槽复用] 增量手术后:未变文件与更新前同 inode(首次加载评估状态跟着走)、换了的文件是新 inode、
+    // previous 槽的旧内容与旧锁一字未动(回滚资本完好,证明手术全程没有就地覆盖写)。
+    #[cfg(unix)]
+    #[test]
+    fn component_apply_keeps_inodes_of_untouched_files_and_isolates_root_files() {
+        use std::os::unix::fs::MetadataExt;
+        let work = temp_test_dir("comp-apply-hardlink");
+        let root = work.join("root");
+        setup_v1_runtime(&root);
+        write_file(&root.join("current/u/lib.so"), "untouched-native");
+        let ino = |p: &Path| fs::metadata(p).unwrap().ino();
+        let before_u = ino(&root.join("current/u/lib.so"));
+        let before_keep = ino(&root.join("current/t/keep/k.txt"));
+        let before_a = ino(&root.join("current/f/a.txt"));
+        let before_lock = ino(&root.join("current/components-lock.json"));
+        let staged = staged_v2(&work);
+        apply_component_updates(&root, &staged).expect("incremental apply should succeed");
+        let cur = root.join("current");
+        let prev = root.join("previous");
+        assert_eq!(
+            ino(&cur.join("u/lib.so")),
+            before_u,
+            "未变文件必须还是同一个 inode"
+        );
+        assert_eq!(
+            ino(&prev.join("u/lib.so")),
+            before_u,
+            "previous 与 current 共用未变文件"
+        );
+        assert_eq!(fs::metadata(cur.join("u/lib.so")).unwrap().nlink(), 2);
+        assert_eq!(
+            ino(&cur.join("t/keep/k.txt")),
+            before_keep,
+            "preserve 子树同样保身份"
+        );
+        assert_ne!(
+            ino(&cur.join("f/a.txt")),
+            before_a,
+            "换了的文件必须是新 inode"
+        );
+        assert_eq!(fs::read_to_string(cur.join("f/a.txt")).unwrap(), "v2-a");
+        assert_eq!(
+            fs::read_to_string(prev.join("f/a.txt")).unwrap(),
+            "v1-a",
+            "旧树文件不得被覆盖写穿"
+        );
+        assert_ne!(
+            ino(&cur.join("components-lock.json")),
+            before_lock,
+            "树根散文件是拷贝"
+        );
+        let prev_lock: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(prev.join("components-lock.json")).unwrap())
+                .unwrap();
+        assert_eq!(
+            prev_lock["runtimeVersion"], "1.0.0",
+            "previous 的锁必须还是旧版"
+        );
+        let prev_manifest: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(prev.join("runtime-manifest.json")).unwrap())
+                .unwrap();
+        assert_eq!(prev_manifest["version"], "1.0.0");
+    }
+
+    // [更新槽复用] 回退路(APFS 克隆)仍可用且语义同旧:全部文件都是新 inode
+    #[cfg(unix)]
+    #[test]
+    fn stage_runtime_copy_clone_fallback_gives_fresh_inodes() {
+        use std::os::unix::fs::MetadataExt;
+        let root = temp_test_dir("stage-clone-fallback");
+        let src = root.join("current");
+        write_file(&src.join("runtime/mac/java/lib/libjvm.dylib"), "jvm");
+        let dst = root.join("stage");
+        clone_dir_fast(&src, &dst).unwrap();
+        assert_ne!(
+            fs::metadata(src.join("runtime/mac/java/lib/libjvm.dylib"))
+                .unwrap()
+                .ino(),
+            fs::metadata(dst.join("runtime/mac/java/lib/libjvm.dylib"))
+                .unwrap()
+                .ino()
+        );
+        assert_eq!(
+            fs::read_to_string(dst.join("runtime/mac/java/lib/libjvm.dylib")).unwrap(),
+            "jvm"
+        );
+    }
+
+    // 预检这一块只许做文件级校验调用:不许出现可执行映射 / 动态加载(那会执行库里的代码)。
+    #[test]
+    fn native_prewarm_block_never_maps_or_loads_code() {
+        let source = include_str!("main.rs");
+        let begin = source
+            .find("// [首启原生库预检] 装包 / 更新后第一次打开")
+            .expect("预检块首标记");
+        let end = source[begin..]
+            .find("// ── [首启原生库预检] 块尾")
+            .expect("预检块尾标记")
+            + begin;
+        let block = &source[begin..end];
+        assert!(block.contains("NATIVE_PREWARM_F_CHECK_LV"));
+        assert!(block.contains("NATIVE_PREWARM_F_ADDFILESIGS_RETURN"));
+        for banned in ["mmap(", "dlopen(", "libloading", "Command::new"] {
+            assert!(!block.contains(banned), "预检块里不许出现 {}", banned);
+        }
     }
 
     #[cfg(unix)]

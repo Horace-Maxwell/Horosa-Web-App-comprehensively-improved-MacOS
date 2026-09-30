@@ -59,7 +59,7 @@ from websrv._guards import validate_geo
 # 现挂载零导入、监听提前;warmup 线程在开门前逐个预装(prewarm)——任何业务 POST 的最早
 # 可服务时刻不晚于旧方案(单一 STARTUP_GATE 语义不变,sid_mode 并发安全同旧)。
 # kill-switch:HOROSA_CORE_LAZY=0 回退旧饿加载(eager import + 直挂)。
-from websrv.kentang.registry import mount_kentang_services, _LazyMountedService, _load_service
+from websrv.kentang.registry import mount_kentang_services, _LazyMountedService, _load_service, KENTANG_SERVICE_SPECS
 
 CORE_SERVICE_SPECS = [
     {"key": "predict", "mount": "/predict", "module": "websrv.webpredictsrv", "class_name": "PredictSrv"},
@@ -621,6 +621,41 @@ def ensure_chart_port_free(host, port, attempts=12, wait=0.5):
 # kill-switch:HOROSA_PY_WARMUP_SYNC=1 回退旧同步顺序。
 STARTUP_GATE = threading.Event()
 
+# ── 分级门:核心段(真 astropy + 主限法 + 核心服务 + 印度盘)装完即开 ──────────────────
+# 新落盘的运行时(装包 / 更新后第一次启动)里,系统要对每个新原生库做一次首次加载评估,卜类引擎那一段
+# 因此要多花 6–10 秒;主排盘这类不经卜类挂载点的请求此前一起被挡到全部装完(账本实证等了 9 秒多)。
+# 分级后:
+#   · 打到卜类挂载点的请求:照旧等全门(STARTUP_GATE),语义逐字不变;
+#   · 其余业务请求:等核心门;核心门开后再给卜类段一段宽限(缺省 1.5 秒)—— 平时卜类段紧跟着就装完,
+#     请求实际仍在全门之后放行(与单门相同);只有卜类段拖过宽限才先放行。
+# 总开关 HOROSA_PY_TIERED_GATE=0 → 一律等全门(旧行为)。宽限 HOROSA_PY_CORE_GATE_GRACE_MS(毫秒)。
+CORE_GATE = threading.Event()
+_CORE_GATE_OPENED_AT = [None]
+_KENTANG_MOUNTS = frozenset(spec['mount'] for spec in KENTANG_SERVICE_SPECS)
+
+
+def _tiered_gate_enabled():
+    return os.environ.get('HOROSA_PY_TIERED_GATE', '1').lower() not in ('0', 'false', 'no', 'off')
+
+
+def _core_gate_grace_seconds():
+    try:
+        ms = float(os.environ.get('HOROSA_PY_CORE_GATE_GRACE_MS', '1500'))
+    except (TypeError, ValueError):
+        ms = 1500.0
+    return min(max(ms, 0.0), 60000.0) / 1000.0
+
+
+def _open_core_gate():
+    if not CORE_GATE.is_set():
+        _CORE_GATE_OPENED_AT[0] = time.perf_counter()
+        ledger_mark('py.gate_core_open', t0=_PY_T0)
+        CORE_GATE.set()
+
+
+def _request_targets_kentang(req):
+    return (getattr(req, 'script_name', '') or '') in _KENTANG_MOUNTS
+
 
 _GATE_FIRST_WAIT_LOGGED = [False]
 
@@ -674,14 +709,25 @@ def _startup_gate_tool():
     # [R4-P0 观察位] 门真实咬到业务 POST 时记一次(等待时长+路径)——P3-b 分级门的裁决数据
     # (装机首启 early-nav 下首个 /chart 是否撞门、撞多久;<300ms 则分级门判不做)。纯旁路。
     _wait_t0 = time.perf_counter()
-    # 兜底超时:warmup 异常挂死也不至于永久拒绝服务(warmup 平常 1.5-2s)
-    STARTUP_GATE.wait(timeout=60)
+    _via = 'full'
+    if _tiered_gate_enabled() and not _request_targets_kentang(req):
+        # 核心门 60 秒都没开 = warmup 挂死,兜底放行(同旧);开了就再给卜类段剩余的宽限
+        if CORE_GATE.wait(timeout=60):
+            _opened = _CORE_GATE_OPENED_AT[0]
+            _remaining = _core_gate_grace_seconds() - (time.perf_counter() - (_opened if _opened is not None else _wait_t0))
+            if _remaining > 0:
+                STARTUP_GATE.wait(timeout=_remaining)
+            if not STARTUP_GATE.is_set():
+                _via = 'core'
+    else:
+        # 兜底超时:warmup 异常挂死也不至于永久拒绝服务(warmup 平常 1.5-2s)
+        STARTUP_GATE.wait(timeout=60)
     if not _GATE_FIRST_WAIT_LOGGED[0]:
         _GATE_FIRST_WAIT_LOGGED[0] = True
         try:
             _wait_ms = (time.perf_counter() - _wait_t0) * 1000.0
             ledger_mark('py.gate_first_wait', t0=_PY_T0, ms=_wait_ms,
-                        extra={'path': getattr(req, 'path_info', '') or ''})
+                        extra={'path': getattr(req, 'path_info', '') or '', 'via': _via})
         except Exception:
             pass
 
@@ -801,11 +847,19 @@ def _run_warmups():
                     for _i, _fn in enumerate(_stages)]
         for _t in _threads:
             _t.start()
+        # 分级门:卜类之外的各段先收齐 → 开核心门;再等卜类段
+        for _t, _fn in zip(_threads, _stages):
+            if _fn is not _warmup_stage_kentang:
+                _t.join()
+        _open_core_gate()
         for _t in _threads:
             _t.join()
     else:
         for _fn in _stages:
+            if _fn is _warmup_stage_kentang:
+                _open_core_gate()   # 串行档:卜类段之前的各段已装完
             _fn()
+    _open_core_gate()   # 兜底:段表里没有卜类段时也要开
     # [R4-P0 观察位] 门开绝对时刻显式化(改前基线里门开时刻要靠 warmup 末段推算)。
     ledger_mark('py.gate_open', t0=_PY_T0)
     STARTUP_GATE.set()
@@ -843,6 +897,7 @@ if __name__ == '__main__':
     if not _warmup_sync:
         threading.Thread(target=_run_warmups, name='horosa-warmup', daemon=True).start()
     else:
+        CORE_GATE.set()
         STARTUP_GATE.set()
 
     cherrypy.engine.start()

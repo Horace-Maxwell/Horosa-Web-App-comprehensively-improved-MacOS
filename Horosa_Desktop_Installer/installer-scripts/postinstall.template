@@ -428,6 +428,35 @@ if [ -n "${APP_BIN}" ] && [ -x "${APP_BIN}" ]; then
   /bin/chmod a+rw "${CURRENT_DIR}/.runtime-health-cache.json" "${CURRENT_DIR}/.runtime-fast-path.json" >/dev/null 2>&1 || true
 fi
 install_ledger install.preseed_done
+# [首启原生库预检] 系统对每个新落盘的原生库在第一次加载时做一次安全评估(约 0.1 秒一个、串行,约 250 个);
+# 不提前触发,装完第一次打开盘要多等十几秒。装完立刻用 App 自己的二进制跑一遍(子命令做完即退),
+# 最多等它 30 秒,没完就留它在后台跑完;以当前登录用户身份跑(与 App 自己加载时同一身份),没有登录用户
+# 就用安装身份。任何失败无害:没跑成 = 首次打开由服务自己触发(与此前相同),就绪后 App 会自己补做。
+# 关闭:安装时环境 HOROSA_NATIVE_PREWARM=0。
+# 只在二进制真认识这个子命令时才调(旧二进制会把它当普通启动而拉起界面;按字面串探能力,零风险)。
+if [ -n "${APP_BIN}" ] && [ -x "${APP_BIN}" ] && [ "${HOROSA_NATIVE_PREWARM:-1}" != "0" ] \
+   && /usr/bin/grep -q -- '--horosa-native-prewarm' "${APP_BIN}" 2>/dev/null; then
+  PREWARM_UID="$(/usr/bin/stat -f%u /dev/console 2>/dev/null || true)"
+  # 能以登录用户身份跑就以他跑(先非交互探一次 sudo 可用);探不过就用安装身份,评估结果同样按文件记
+  if [ -n "${PREWARM_UID}" ] && [ "${PREWARM_UID}" != "0" ] && /usr/bin/sudo -n -u "#${PREWARM_UID}" /usr/bin/true >/dev/null 2>&1; then
+    /usr/bin/nohup /usr/bin/sudo -n -u "#${PREWARM_UID}" "${APP_BIN}" --horosa-native-prewarm "${CURRENT_DIR}" >>"${LOG_PATH}" 2>&1 </dev/null &
+  else
+    /usr/bin/nohup "${APP_BIN}" --horosa-native-prewarm "${CURRENT_DIR}" >>"${LOG_PATH}" 2>&1 </dev/null &
+  fi
+  PREWARM_PID=$!
+  log_line "native prewarm started (pid ${PREWARM_PID}, uid ${PREWARM_UID:-0})"
+  _i=0
+  while [ "${_i}" -lt 300 ] && kill -0 "${PREWARM_PID}" 2>/dev/null; do
+    /bin/sleep 0.1
+    _i=$((_i + 1))
+  done
+  if kill -0 "${PREWARM_PID}" 2>/dev/null; then
+    log_line "native prewarm still running in background after 30s wait"
+  else
+    log_line "native prewarm finished"
+  fi
+  install_ledger install.native_prewarm_done
+fi
 install_ledger install.total
 cleanup_install_state
 exit 0

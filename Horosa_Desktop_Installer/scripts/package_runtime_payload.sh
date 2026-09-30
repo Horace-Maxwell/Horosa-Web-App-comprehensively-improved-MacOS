@@ -290,7 +290,7 @@ if [ -x "${STAGE_PY_BIN}" ]; then
   # 跨打包字节漂 → py-runtime 部件 tar sha 漂(pyc 是部件内容)每版被判「变了」重下,且 seed 预灌的
   # 内容面全等闸必拒。钉 0 后同文件重编恒等(实证)。签名缓存键只含 Mach-O/归档,不受 pyc 影响。
   # -j1 排除多进程 worker 各自种子面(compileall 子进程不继承钉死语义的兜底)。
-  # [FL-20260812-4] -s/-p:把 code object 的 co_filename 由**打包机绝对路径**改写成
+  # -s/-p:把 code object 的 co_filename 由**打包机绝对路径**改写成
   # `horosa-runtime/...` 相对路径。不加时 pyc 里嵌的是
   # /Users/<用户名>/Desktop/<仓目录名>/... —— 实测发布产物内 7653 个 pyc 全部带,
   # 抽样 20/20 命中,构建机用户名(PII)与本地仓目录名就这样随包发出去了。
@@ -309,7 +309,7 @@ if [ -x "${STAGE_PY_BIN}" ]; then
   echo "pyc precompiled ($(find "${STAGE_ROOT}" -name '*.pyc' 2>/dev/null | wc -l | tr -d ' ') files)"
 fi
 
-# [FL-20260812-4b] pip 生成的 console_scripts 入口(pytest / f2py / numpy-config / astropy 的
+# pip 生成的 console_scripts 入口(pytest / f2py / numpy-config / astropy 的
 # fitsheader 等)把**安装当时的 python 绝对路径**写死进 shebang。实测 py-runtime 部件里 14 个
 # 这类脚本带着 /Users/<用户名>/Desktop/<很久以前的仓目录名>/... —— 用户名与一个早已不存在的
 # 旧项目目录名就这样随包发出去。
@@ -338,6 +338,12 @@ PYSCRUB
   _scrub_n=$((_scrub_n + 1))
 done < <(find "${STAGE_ROOT}/runtime/mac/python" -type f \( -path '*/bin/*' \) 2>/dev/null)
 echo "[scrub] console_scripts shebang 脱敏 ${_scrub_n} 个(去构建机绝对路径,改 \$(dirname \$0) 相对定位)"
+# 天象库 sqlite 边车文件(-shm / -wal / -journal)不进包:它们是本机后端打开 WAL 库时留下的运行痕迹,字节随打包机
+#   状态变(xuanshi-data 部件 sha 因此依赖打包机);引擎已改为 immutable=1 只读打开(astrostudy/xuanshi/db.py),不需要它们。
+#   实测:不带 -shm 的 WAL 库在不可写目录下 mode=ro 打不开、immutable=1 可打开 —— 两处必须一起改,故引擎侧有 pytest 钉住。
+_side_n=0
+while IFS= read -r -d '' _f; do rm -f "${_f}"; _side_n=$((_side_n+1)); done < <(find "${STAGE_ROOT}/Horosa-Web/astropy/astrostudy/xuanshi/data" \( -name '*.sqlite-shm' -o -name '*.sqlite-wal' -o -name '*.sqlite-journal' \) -type f -print0 2>/dev/null)
+echo "[stage] 剥离天象库 sqlite 边车文件 ${_side_n} 个(-shm / -wal / -journal;只读 immutable 打开不需要它们)"
 find "${STAGE_ROOT}" -type d -name '_CodeSignature' -prune -exec rm -rf {} + 2>/dev/null || true
 find "${STAGE_ROOT}" \( -name '._*' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null || true
 # 注:此行曾含 '*.pyc' —— 会把上方 compileall 刚预编译的 pyc 全部删光(预编译白做,
@@ -379,7 +385,7 @@ if missing:
 print(f"kentang runtime import check OK: {len(modules)} adapters")
 PY
 if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}" ]; then
-  # [FL-20260804-1 修三] 经缓存层调用签名(horosa_repro_sign_cache_v1):codesign --timestamp
+  # [修三] 经缓存层调用签名(horosa_repro_sign_cache_v1):codesign --timestamp
   # 每次向 Apple 请求时间戳 ⇒ 同字节同身份也签出不同结果 ⇒ py-runtime 113MB 每版必重下。
   # 缓存键含「待签树内容快照 + 身份 + 两个脚本自身 sha」,命中即复用上次签名产物(字节恒等)。
   # kill-switch:HOROSA_SIGN_CACHE=0 ⇒ 缓存层自旁路,退回每次真签。
@@ -388,8 +394,30 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}"
   # 改为对 runtime/mac 顶层每个子目录独立走缓存签名:各域各键、各域独立缓存子目录(prune 互不挤占),
   # jar 变只重签 bundle 域,python 域命中缓存产物字节恒等。域集动态枚举,新增顶层目录自动纳入不漏签;
   # 顶层若出现散文件(当前树没有)则整树退化单键签名保安全。
-  # [#71 / FL-20260923-1] 单文件原生库签名按内容缓存(jar 内成员每版重签的时间戳漂移根治):目录随仓、与域级缓存同开关。
+  # 单文件原生库签名按内容缓存(jar 内成员每版重签的时间戳漂移根治):目录随仓、与域级缓存同开关。
   export HOROSA_NATIVE_SIGN_CACHE="${INSTALLER_ROOT}/build/.sign-cache/natives"
+  # 自动播种:上一版构建留在 dist/components 的部件(发布后与线上逐字节相同)由 prepare_sign_seed.py 按 tar 头权限位
+  #   解到 build/.sign-seed —— py-runtime 树作域级缓存种子(HOROSA_SIGN_SEED_DIR 显式设置时优先),java-lib 的已签名 jar 为
+  #   单文件缓存播种(键 = 基名 + 未签名字节,与签名器同一个键函数)。内容未变 ⇒ 部件当版即与线上恒等;换键公式 / 换机 / 首次
+  #   接入都不再需要人工播种。种子任一条目权限 / 大小与 tar 头不符即整体拒用(走真签),HOROSA_SIGN_CACHE=0 时整段跳过。
+  if [ "${HOROSA_SIGN_CACHE:-1}" = "1" ]; then
+    SEED_LINES="$(/usr/bin/python3 "${INSTALLER_ROOT}/scripts/prepare_sign_seed.py" "${INSTALLER_ROOT}")" || SEED_LINES=""
+    SEED_PY="$(printf '%s\n' "${SEED_LINES}" | sed -n 's/^python_seed=//p')"
+    SEED_LIB="$(printf '%s\n' "${SEED_LINES}" | sed -n 's/^javalib_seed=//p')"
+    if [ -n "${HOROSA_SIGN_SEED_DIR:-}" ]; then
+      echo "[sign-seed] 域级缓存种子 = ${HOROSA_SIGN_SEED_DIR}(显式指定,优先于自动种子)"
+    elif [ -n "${SEED_PY}" ] && [ "${SEED_PY}" != "-" ]; then
+      export HOROSA_SIGN_SEED_DIR="${SEED_PY}"
+      echo "[sign-seed] 域级缓存种子 = ${SEED_PY}(上一版 py-runtime 部件,自动)"
+    else
+      echo "[sign-seed] 无上一版 py-runtime 部件可作种子(首发 / dist 已清):域级缓存未命中时走真签"
+    fi
+    if [ -n "${SEED_LIB}" ] && [ "${SEED_LIB}" != "-" ] && [ -d "${STAGE_BOOT_EXPLODED}/BOOT-INF/lib" ]; then
+      /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" "${STAGE_BOOT_EXPLODED}/BOOT-INF/lib" \
+        --identity "${APPLE_SIGNING_IDENTITY}" --seed-native-from "${SEED_LIB}" \
+        || echo "[sign-seed] 单文件缓存播种失败(忽略;未命中的成员走真签)" >&2
+    fi
+  fi
   SIGN_TOP_FILES="$(find "${STAGE_ROOT}/runtime/mac" -maxdepth 1 -type f | head -1)"
   if [ -z "${SIGN_TOP_FILES}" ]; then
     while IFS= read -r -d '' SIGN_DOMAIN; do
@@ -461,7 +489,7 @@ def rel_files(root: pathlib.Path):
     return out
 
 # ── 部件定义(唯一真值源;与 SOP / preflight 哨兵 lockstep)──
-# [FL-20260804-1 修二] base CDS archive 豁免出增量部件(horosa_repro_jdk_cds_v1)。
+# [修二] base CDS archive 豁免出增量部件(horosa_repro_jdk_cds_v1)。
 # 🔴 实测定谳:jdk-runtime 两次打包 **85 个文件里只有 1 个变**,就是 lib/server/classes.jsa
 # ——它由 build_embedded_java_runtime 的 `java -Xshare:dump` 生成,CDS dump 输出天然
 # 不可复现(内含内存布局/指针),于是 28MB 部件每版必被判「变了」全量重下。
@@ -525,7 +553,7 @@ def normalize_dir_mtimes(root: pathlib.Path):
                 pass
     return n
 
-# [FL-20260804-1 修一] 文件 mtime 归一(horosa_repro_pyc_mtime_v1),**唯一例外是 .py**。
+# [修一] 文件 mtime 归一(horosa_repro_pyc_mtime_v1),**唯一例外是 .py**。
 # 🔴 实测定谳(两类部件同一病根):
 #   · xuanshi-data 两次打包**内容零差异**(21 文件逐一 sha 相同),sha 却变——变量是 .pyc
 #     的 mtime(打包时 precompile 重生成 ⇒ 每次是当下时刻),它进 tar 头即改 sha;
@@ -661,7 +689,7 @@ for name, sub in covered:
 missing = all_stage - union
 # 部件豁免文件(全量 tar 带、增量部件不带,语义见各自注释):
 #   .app-cds.jsa  — 应用动态 CDS 预置档(WS-3e)
-#   classes.jsa   — JDK base CDS archive(FL-20260804-1 修二;仅在豁免生效时才允许缺席)
+#   classes.jsa   — JDK base CDS archive(修二;仅在豁免生效时才允许缺席)
 missing = {f for f in missing if not f.endswith('/.app-cds.jsa')}
 if _jdk_excludes:
     missing = {f for f in missing if f != JDK_CDS_REL}
@@ -681,6 +709,10 @@ print(f"components ready: {len(components)} parts, total {total/1048576:.0f}MB -
 for c in components:
     print(f"  {c['name']:14s} {c['size']/1048576:8.1f}MB  {c['sha256'][:12]}")
 PYCOMP
+  # 包内就与上一版稳定部件逐条目头部对拍(留档来自 prepare_sign_seed.py):不等包后核验才发现部件漂了;
+  #   缺省只报告,HOROSA_STABLE_PARTS_STRICT=1 时任一稳定部件不恒等即失败(内容确有改动的版本别开)。
+  /usr/bin/python3 "${INSTALLER_ROOT}/scripts/verify_stable_parts_headers.py" "${INSTALLER_ROOT}" \
+    || { echo "[stable-parts] ❌ 稳定部件与上一版不恒等(HOROSA_STABLE_PARTS_STRICT=1)" >&2; exit 1; }
 fi
 
 (

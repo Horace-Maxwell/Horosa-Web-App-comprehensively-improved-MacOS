@@ -770,3 +770,23 @@ Windows 版完成的定义不是“能打开”，而是：
 - 前端:`utils/chartFetch.js` 直连排盘服务先过就绪门(温启恢复到卜类 / 玄学史等页时首批请求不再打到未起的端口);`utils/request.js` 预取优先级头在去重分流之前打上(此前可去重端点永不带头);`models/astro.js` 温启恢复按最终生效的 fields 重算请求参数、有变按新参数重取;`models/app.js` 恢复的子页签经 `constants/SubTabRegistry.restoredSubTab` 校验,恢复兜底计时从后端可达起算;`utils/backendBootGate.js` 更新后首启兜底放行 900 s(= 启动脚本就绪总上限);`utils/rsahelper.js` v2 解密失败统一 `code: 'crypto.v2'`,请求层提示「解密失败、已切兼容模式」,不再当端口占用去再协商。
 - Java:`RequestHeaderInterceptor` 改为 `AsyncHandlerInterceptor`,会话钥在 `afterCompletion` 写完响应体后与 `afterConcurrentHandlingStarted` 时清除(测试 `ResponseCryptoTest`);`ChartController` 的 `/chart` 结果缓存键加 `_calRev`;`log.properties` 脱敏表加 `Token` / `AccessToken`;`StartupLedgerListener` 延迟 bean 预热失败记入启动账本与标准错误。同步后重建 jar。
 - Python:`flatlib/ephem/swe.py` 外部重设星历路径时作废 JPL 文件追踪(JPL 模式下随后重设 JPL 文件);`websrv/fastjson.py` 非有限浮点字典键回退真 jsonpickle;`astrostudy/perchart.py` 古典临界区异常回滚覆盖 `BaseException`(相位缓存作用域必关)。
+
+## v3.11.3 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.11.3` / `runtimeVersion` = `3.11.3-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 共享 Java(同步后重建后端 jar)
+- `boundless/spring/help/TransLogRules.java`(新):交易日志排除表 / 白名单载入统一小写、查询不分大小写(`TransLogMongoHelper.shouldSkipTransLog`;路径匹配不区分大小写时不同写法曾绕过排除表);`TransData` 删参改为不分大小写(`removeParamsIgnoreCase`)。单测 `TransLogRulesTest`。
+- `astrostudy/helper/ParamHashPersistPolicy.java`(新):冷路径结果「往返成纯 Map」的回退开关,`-Dparamhash.persistable=false` 回旧口;`ParamHashCacheHelper` 经它调用。单测 `ParamHashPersistPolicyTest`。
+
+### 共享前端
+- `utils/backendBootGate.js`:读完启动上下文即 `history.replaceState` 摘掉 `firstLaunch` / `boot`(Electron 壳若也经 URL 送这两个参数,行为同 Mac:手动刷新不再重演「更新已完成」文案与首启兜底;`early` 与服务根参数保留)。jest `backendBootGate.test.js`。
+- `pages/index.js`:出盘后切换页签也重落温启快照(页签 = 上次停留而不是上次出盘)。jest `bootChartRestore.test.js`。
+
+### Python 引擎
+- `astrostudy/xuanshi/db.py`:只读打开加 `immutable=1`;打包不再携带 `editorial.sqlite-shm / -wal / -journal`(Windows 打包同样剥离;两处必须一起改 —— 不带 immutable 的 WAL 库在不可写目录连只读都打不开)。pytest `tests/test_xuanshi_db_immutable_readonly.py`。
+- 排盘服务分级门(`websrv/webchartsrv.py`):核心段装完即开核心门,不经卜类挂载点的请求在核心门后最多再等 `HOROSA_PY_CORE_GATE_GRACE_MS`(缺省 1500 ms)就放行,卜类挂载点仍等全门;`HOROSA_PY_TIERED_GATE=0` 回单门。随共享 Python 自动到位,Windows 冷启同样受益;同步后跑一次 `tests/test_startup_gate_tiers.py`。
+
+### macOS 独有(Windows 无对应动作)
+- 安装 / 更新后原生库首次加载预检(`config/native_prewarm_priority.json`、`installer-scripts/postinstall.template`、壳子命令 `--horosa-native-prewarm`)、增量更新暂存槽硬链接搭 + 换完即预检(Windows 的差分更新按文件树下载、不走整棵克隆)、签名缓存自动种子与稳定部件对拍(`prepare_sign_seed.py` / `verify_stable_parts_headers.py`)。

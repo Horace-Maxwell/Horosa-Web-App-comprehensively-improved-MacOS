@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "note": "原生库首次加载预检的先后顺序:越靠前的档越先做。每档是一组路径片段,相对运行时根的路径包含任一片段即归该档(先中先得);都不中归最后一档。前四档 = 启动时一定会加载的那批(解释器与 JVM 本体、标准库扩展、预热要装的第三方包),由 astropy/tests/test_native_prewarm_priority.py 对照真实预热核对覆盖。",
+  "startupTiers": 4,
+  "tiers": [
+    [
+      "runtime/mac/python/bin/",
+      "runtime/mac/python/Python",
+      "runtime/mac/python/Resources/Python.app/",
+      "runtime/mac/python/lib/libpython",
+      "runtime/mac/python/lib/libcrypto",
+      "runtime/mac/python/lib/libssl"
+    ],
+    [
+      "runtime/mac/java/bin/java",
+      "runtime/mac/java/lib/server/",
+      "runtime/mac/java/lib/libjli.",
+      "runtime/mac/java/lib/libjava.",
+      "runtime/mac/java/lib/libjimage.",
+      "runtime/mac/java/lib/libzip.",
+      "runtime/mac/java/lib/libnio.",
+      "runtime/mac/java/lib/libnet.",
+      "runtime/mac/java/lib/libextnet.",
+      "runtime/mac/java/lib/libmanagement",
+      "runtime/mac/java/lib/libverify."
+    ],
+    [
+      "/lib-dynload/"
+    ],
+    [
+      "/site-packages/numpy/",
+      "/site-packages/pandas/",
+      "/site-packages/astropy/",
+      "/site-packages/erfa/",
+      "/site-packages/ephem/",
+      "/site-packages/pendulum/",
+      "/site-packages/pydantic_core/",
+      "/site-packages/yaml/",
+      "/site-packages/charset_normalizer/",
+      "/site-packages/swisseph",
+      "/site-packages/_sxtwl",
+      "__mypyc"
+    ]
+  ]
+}

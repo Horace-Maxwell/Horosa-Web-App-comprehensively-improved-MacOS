@@ -70,7 +70,7 @@ def verify_manifest(text, tag, version):
 BASELINE_LINE = 'BASELINE_STATE="$('
 ENSURE_APP_LINE = 'ensure_release "${TAG_NAME}"'
 OLD_BASELINE_CURL = 'PREV_MANIFEST_JSON="$(curl -fsSL -H \'Cache-Control: no-cache\' "https://github.com/'
-# [FL-20260922-5] 资产本体下载只能带一个 Accept:auth_header(vnd.github+json)+ octet-stream 同发 → GitHub 回元数据 JSON,基线恒判 no_v2
+# 资产本体下载只能带一个 Accept:auth_header(vnd.github+json)+ octet-stream 同发 → GitHub 回元数据 JSON,基线恒判 no_v2
 DOUBLE_ACCEPT_LINE = '"${auth_header[@]}" -H \'Accept: application/octet-stream\''
 ASSET_HEADER_DEF = "asset_header=( -H \"Authorization: Bearer ${GITHUB_TOKEN}\" -H 'X-GitHub-Api-Version: 2022-11-28' -H 'Accept: application/octet-stream' )"
 BASELINE_DOWNLOAD_LINE = 'PREV_MANIFEST_JSON="$(curl -fsSL "${asset_header[@]}" "${BASELINE_ASSET_URL}"'

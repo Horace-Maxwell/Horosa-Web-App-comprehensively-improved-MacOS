@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""[FL-20260804-1 修三] 签名产物缓存层(horosa_repro_sign_cache_v1)。
+"""[修三] 签名产物缓存层(horosa_repro_sign_cache_v1)。
 
 问题:`sign_runtime_payload.py` 用 `codesign --force --timestamp --options runtime`,
 `--timestamp` 每次向 Apple 时间戳服务器请求 ⇒ **同一份字节、同一身份,签出来也每次不同**。
@@ -9,7 +9,9 @@ bin/python3.12* + _CodeSignature/CodeResources),导致 113MB 部件每版被判�
 
 做法:本脚本包在原签名脚本外面(原脚本一行不改),
   ① 签名前给待签树做文件级 sha 快照(排除 java/ —— 原脚本 SKIP_DIR_NAMES 跳过它);
-  ② 用「快照 + 签名身份 + 原脚本自身 sha + 本脚本自身 sha」算缓存键;
+  ② 用「快照 + 签名身份 + 签名器的 codesign 参数模板与语义代次(SIGNER_CACHE_EPOCH)+ 本层代次」算缓存键
+     (此前掺的是两个脚本的全文 sha:任何一处改动 —— 哪怕只是加一行注释 —— 都作废全部缓存,内容未变的
+     py-runtime 118 MB 整版重签重下,v3.11.2 打包实抓;签名器缺这两个量时退回全文 sha 的保守形态);
   ③ 命中 ⇒ 把缓存里的签名后文件逐一拷回,跳过 codesign(省数分钟且产物字节恒等);
   ④ 未命中 ⇒ 调原脚本真签,再对比签名前后快照、把**发生变化的文件**存进缓存。
 
@@ -30,6 +32,7 @@ import sys
 
 SKIP_DIR_NAMES = {"java"}  # 与 sign_runtime_payload.py 的 SKIP_DIR_NAMES 保持一致
 CACHE_KEEP = 2             # 只保留最近 N 个键的缓存(构建机磁盘友好)
+CACHE_LAYER_EPOCH = "1"    # 本层(快照口径 / 复用逻辑)的语义代次;只在复用语义变化时升,纯重构不升
 
 # 🔴 缓存键只能纳入「签名真会碰的文件」。任何与签名结果无关、又本身不可复现的文件混进键,
 # 都会让键每次都变、缓存永不命中。实测连踩两次:
@@ -142,9 +145,7 @@ def try_seed(seed_root: pathlib.Path, root: pathlib.Path, before: dict, keyed: d
     for rel in sorted(keyed):
         src = seed_root / rel
         dst = root / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        _unlink_force(dst)
-        shutil.copy2(src, dst)
+        _put_signed(src, dst)
         n += 1
     # 签名派生文件(签名前树无):从 seed 整套带回,与键面签名配套。
     for dirpath, dirnames, filenames in os.walk(seed_root):
@@ -162,18 +163,53 @@ def try_seed(seed_root: pathlib.Path, root: pathlib.Path, before: dict, keyed: d
     return n
 
 
-def cache_key(snap: dict, identity: str, extra_files: list) -> str:
-    h = hashlib.sha256()
-    h.update(b"horosa_repro_sign_cache_v1\n")
-    h.update(identity.encode("utf-8") + b"\n")
-    for f in extra_files:
+def signer_salt(signer_mod, signer_path: str) -> str:
+    """缓存键里代表「签名器」的那一份:优先签名器自报的参数模板 + 语义代次;签名器没有(旧版)则退回全文 sha(保守)。"""
+    salt = getattr(signer_mod, "signer_cache_salt", None) if signer_mod is not None else None
+    if callable(salt):
         try:
-            h.update(_sha_file(pathlib.Path(f)).encode("ascii") + b"\n")
-        except OSError:
-            h.update(b"missing\n")
+            return "salt:" + str(salt())
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        return "sha:" + _sha_file(pathlib.Path(signer_path))
+    except OSError:
+        return "sha:missing"
+
+
+def cache_key(snap: dict, identity: str, salt: str) -> str:
+    h = hashlib.sha256()
+    h.update(b"horosa_repro_sign_cache_v2\n")
+    h.update(identity.encode("utf-8") + b"\n")
+    h.update(salt.encode("utf-8") + b"\n")
+    h.update(("layer=" + CACHE_LAYER_EPOCH).encode("utf-8") + b"\n")
     for rel in sorted(snap):
         h.update(rel.encode("utf-8") + b"\0" + snap[rel].encode("utf-8") + b"\n")
     return h.hexdigest()
+
+
+def _mode_of(path: pathlib.Path):
+    """暂存树里目标档的权限位(不跟随符号链接);不存在回 None。"""
+    try:
+        if path.is_symlink() or not path.exists():
+            return None
+        return path.stat().st_mode & 0o7777
+    except OSError:
+        return None
+
+
+def _put_signed(src: pathlib.Path, dst: pathlib.Path) -> None:
+    """把签名产物放回暂存树:内容取 src,权限位保留 dst 原有的(codesign 不改权限,产物权限必须 = 暂存树的)。
+    v3.11.2 实抓:种子树是不带 -p 解出来的,74 个 .so 被 umask 降成 0755,copy2 连权限一起带进包 ⇒ 部件 sha 漂。"""
+    mode = _mode_of(dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    _unlink_force(dst)
+    shutil.copy2(src, dst)
+    if mode is not None:
+        try:
+            os.chmod(dst, mode)
+        except OSError:
+            pass
 
 
 def _unlink_force(path: pathlib.Path) -> None:
@@ -201,16 +237,14 @@ def restore(cache_dir: pathlib.Path, root: pathlib.Path) -> int:
     for rel in files:
         src = cache_dir / "files" / rel
         dst = root / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
         # 🔴 目标可能是只读档(实测 libtcl8.6.dylib 等按 444 落盘),直接 open(dst,'wb') 会
-        # PermissionError 崩掉整个打包。先摘掉旧档再拷(copy2 会带回源的权限位)。
-        _unlink_force(dst)
-        shutil.copy2(src, dst)
+        # PermissionError 崩掉整个打包。先摘掉旧档再拷;权限位保留暂存树原有的(_put_signed)。
+        _put_signed(src, dst)
         n += 1
     return n
 
 
-def store(cache_dir: pathlib.Path, root: pathlib.Path, changed: list) -> None:
+def store(cache_dir: pathlib.Path, root: pathlib.Path, changed: list, keyed: dict = None) -> None:
     files_dir = cache_dir / "files"
     for rel in changed:
         src = root / rel
@@ -219,8 +253,12 @@ def store(cache_dir: pathlib.Path, root: pathlib.Path, changed: list) -> None:
         dst = files_dir / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
-    (cache_dir / "manifest.json").write_text(
-        json.dumps({"version": 1, "files": changed}, ensure_ascii=False, indent=1) + "\n")
+    payload = {"version": 2, "files": changed}
+    if keyed is not None:
+        payload["keyed"] = keyed   # 键面快照(未签名内容 sha):将来换键公式时可按内容再定位这份产物
+    tmp = cache_dir / "manifest.json.tmp"
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n")
+    tmp.replace(cache_dir / "manifest.json")
 
 
 def prune(cache_root: pathlib.Path, keep: int) -> None:
@@ -255,7 +293,7 @@ def main() -> int:
     before = snapshot(root)
     signer_mod = load_signer_module(signer)
     keyed = key_relevant(before, root, signer_mod)
-    key = cache_key(keyed, identity, [signer, __file__])
+    key = cache_key(keyed, identity, signer_salt(signer_mod, signer))
     cache_dir = cache_root / key
     print(f"[sign-cache] key={key[:16]} 签名面 {len(keyed)} 个 Mach-O/归档"
           f"(树内共 {len(before)} 文件,其余与签名无关不入键)", flush=True)
@@ -286,7 +324,7 @@ def main() -> int:
     changed = sorted(rel for rel, sha in after.items()
                      if before.get(rel) != sha and not sha.startswith("L:"))
     cache_dir.mkdir(parents=True, exist_ok=True)
-    store(cache_dir, root, changed)
+    store(cache_dir, root, changed, keyed)
     prune(cache_root, CACHE_KEEP)
     print(f"[sign-cache] 已缓存签名产物 {len(changed)} 个文件 → {cache_dir.name[:16]}", flush=True)
     return 0

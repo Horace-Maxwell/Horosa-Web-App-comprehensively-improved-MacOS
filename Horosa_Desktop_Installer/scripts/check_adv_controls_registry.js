@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 「进阶」页控件登记表机械网(preflight 由控件登记段调用;FL-20260907-2 族:「写了键、没人读」的死开关只能靠
+// 「进阶」页控件登记表机械网(preflight 由控件登记段调用;「写了键、没人读」一族:的死开关只能靠
 // 「每个控件必登记、必有消费方、必有真栈判据」的登记表堵住 —— 组件测试绿证不了消费方读键)。
 //
 // 用法: node check_adv_controls_registry.js <astrostudyui 目录> [--self-test] [--json]

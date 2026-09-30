@@ -1,127 +1,78 @@
 #!/usr/bin/env python3
-"""签名缓存层单元自测:命中/恢复/键失效三态。"""
-import os, pathlib, shutil, subprocess, sys
+"""域级签名缓存层的判别向量(不真签):
+① 缓存键不再含脚本全文:签名器脚本文本改动(加注释)而参数模板 / 语义代次不变 → 键不变;
+② 参数模板或语义代次变 → 键变;签名器缺这两个量(旧版)→ 退回全文 sha;
+③ 签名产物放回暂存树保留暂存树原有权限位(种子 / 缓存文件是 0755,暂存是 0775 → 结果 0775);
+④ restore()/try_seed() 都走这条;store() 的 manifest 带键面快照、经 tmp+rename 落盘。"""
+import os, pathlib, sys, tempfile, importlib.util, json, stat
 
-BASE = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "horosa-signcache-selftest"
-SCRIPTS = pathlib.Path(__file__).resolve().parent
-
-def fresh_tree():
-    if BASE.exists():
-        shutil.rmtree(BASE)
-    (BASE / "tree/python/bin").mkdir(parents=True)
-    (BASE / "tree/java/bin").mkdir(parents=True)
-    (BASE / "cache").mkdir(parents=True)
-    (BASE / "tree/python/bin/prog").write_text("AAA")
-    (BASE / "tree/python/lib.dylib").write_text("LIB")
-    (BASE / "tree/java/bin/java").write_text("JAVA")
-    signer = BASE / "fake_signer.py"
-    # 假 signer 必须暴露 is_macho / ARCHIVE_SUFFIXES —— 缓存层用它们把「签名真会碰的对象」
-    # 挑进缓存键(白名单)。这里把 .bin 当作「Mach-O」以模拟真实结构。
-    signer.write_text(
-        "import sys, pathlib, random\n"
-        "ARCHIVE_SUFFIXES = {'.jar', '.zip'}\n"
-        "def is_macho(path):\n"
-        "    return path.is_file() and not path.is_symlink() and path.suffix in ('.dylib', '.bin', '')\n"
-        "if __name__ == '__main__':\n"
-        "    root = pathlib.Path(sys.argv[1])\n"
-        "    for p in sorted(root.rglob('*')):\n"
-        "        if p.is_file() and 'java' not in p.relative_to(root).parts:\n"
-        "            p.write_text(p.read_text().split('|')[0] + '|SIG' + str(random.randint(10**9, 10**10)))\n"
-        "    print('fake signed')\n")
-    return signer
-
-def run(signer, identity="ID123"):
-    r = subprocess.run(["/usr/bin/python3", str(SCRIPTS / "sign_payload_cached.py"),
-                        str(signer), str(BASE / "tree"), identity, "", str(BASE / "cache")],
-                       capture_output=True, text=True)
-    return r.stdout.strip().splitlines()
-
-def content():
-    return ((BASE / "tree/python/bin/prog").read_text(),
-            (BASE / "tree/python/lib.dylib").read_text(),
-            (BASE / "tree/java/bin/java").read_text())
-
-signer = fresh_tree()
-ok = True
-
-out1 = run(signer)
-c1 = content()
-print("① 首次:", [l for l in out1 if "sign-cache" in l][-1] if any("sign-cache" in l for l in out1) else out1)
-print("   签后 prog =", c1[0])
-assert "|SIG" in c1[0], "首次应真签"
-
-# 复原到签名前状态,再跑一次 —— 应命中缓存,产物字节与首次完全相同
-(BASE / "tree/python/bin/prog").write_text("AAA")
-(BASE / "tree/python/lib.dylib").write_text("LIB")
-out2 = run(signer)
-c2 = content()
-hit = any("命中" in l for l in out2)
-print("② 同输入重跑:", "命中缓存 ✓" if hit else "未命中 ❌")
-print("   产物 prog =", c2[0])
-if not hit or c1 != c2:
-    ok = False
-    print("   ❌ 期望命中且产物字节恒等")
-else:
-    print("   ✅ 产物与首次逐字节恒等(签名不可复现被缓存抹平)")
-
-# java 目录不该被签名脚本碰
-if c2[2] != "JAVA":
-    ok = False; print("   ❌ java 目录被误动")
-else:
-    print("   ✅ java 目录未被触碰(与 SKIP_DIR_NAMES 一致)")
-
-# 换身份 ⇒ 键必须失效
-(BASE / "tree/python/bin/prog").write_text("AAA")
-(BASE / "tree/python/lib.dylib").write_text("LIB")
-out3 = run(signer, identity="OTHER_ID")
-miss = any("未命中" in l for l in out3)
-print("③ 换签名身份:", "键失效、重新真签 ✓" if miss else "仍命中 ❌(危险)")
-if not miss: ok = False
-
-# 树内容变 ⇒ 键必须失效
-(BASE / "tree/python/bin/prog").write_text("BBB")
-(BASE / "tree/python/lib.dylib").write_text("LIB")
-out4 = run(signer)
-miss4 = any("未命中" in l for l in out4)
-print("④ 树内容变化:", "键失效、重新真签 ✓" if miss4 else "仍命中 ❌(危险)")
-if not miss4: ok = False
+HERE = pathlib.Path(__file__).resolve().parent
 
 
-# ⑥ 与签名无关的易变文件(.jsa/.pyc 类)变化 ⇒ 键**不得**变(否则缓存永不命中,实测踩过两次)
-(BASE / "tree/python/bin/prog").write_text("BBB")
-(BASE / "tree/python/lib.dylib").write_text("LIB")
-run(signer)                                   # 建基线
-(BASE / "tree/python/bin/prog").write_text("BBB")
-(BASE / "tree/python/lib.dylib").write_text("LIB")
-(BASE / "tree/python/noise.jsa").write_text("DUMP" + str(id(object())))   # 每次都不同的无关档
-out6 = run(signer)
-hit6 = any("命中" in l for l in out6)
-print("⑥ 无关易变档(.jsa)变化:", "键不受影响、仍命中 ✓" if hit6 else "键被污染、未命中 ❌")
-if not hit6: ok = False
+def load(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    return mod
 
 
-# ⑧ 只读目标档:命中后 restore 必须能覆盖(实测 libtcl8.6.dylib 等按 444 落盘,直接写会崩)
-(BASE / "tree/python/bin/prog").write_text("RO-TEST")
-(BASE / "tree/python/lib.dylib").write_text("LIB")
-run(signer)                                    # 建缓存
-(BASE / "tree/python/bin/prog").write_text("RO-TEST")
-(BASE / "tree/python/lib.dylib").write_text("LIB")
-os.chmod(BASE / "tree/python/bin/prog", 0o444)  # 目标置为只读
-os.chmod(BASE / "tree/python/lib.dylib", 0o444)
-out8 = run(signer)
-hit8 = any("命中" in l for l in out8)
-print("⑧ 只读目标档:", "命中且成功覆盖 ✓" if hit8 else "崩溃/未命中 ❌")
-if not hit8: ok = False
+def run():
+    cache = load(HERE / "sign_payload_cached.py", "sign_payload_cached")
+    with tempfile.TemporaryDirectory() as d:
+        d = pathlib.Path(d)
+        signer_src = (HERE / "sign_runtime_payload.py").read_text(encoding="utf-8")
+        s1 = d / "signer1.py"; s1.write_text(signer_src, encoding="utf-8")
+        s2 = d / "signer2.py"; s2.write_text(signer_src + "\n# 纯注释改动:不许作废缓存\n", encoding="utf-8")
+        m1, m2 = cache.load_signer_module(str(s1)), cache.load_signer_module(str(s2))
+        assert m1 is not None and m2 is not None
+        keyed = {"bin/python3": "aa" * 32, "lib/libx.dylib": "bb" * 32}
+        k1 = cache.cache_key(keyed, "ID", cache.signer_salt(m1, str(s1)))
+        k2 = cache.cache_key(keyed, "ID", cache.signer_salt(m2, str(s2)))
+        assert k1 == k2, "① 签名器脚本文本改动(参数模板 / 代次不变)不得改变缓存键"
+        assert cache.signer_salt(m1, str(s1)).startswith("salt:"), "签名器自报的盐必须被采用"
+        m2.SIGNER_CACHE_EPOCH = m2.SIGNER_CACHE_EPOCH + "x"
+        assert cache.cache_key(keyed, "ID", cache.signer_salt(m2, str(s2))) != k1, "② 语义代次变 → 键变"
+        m2.SIGNER_CACHE_EPOCH = m1.SIGNER_CACHE_EPOCH
+        m2.CODESIGN_ARGS_TEMPLATE = m2.CODESIGN_ARGS_TEMPLATE + ("--entitlements", "e.plist")
+        assert cache.cache_key(keyed, "ID", cache.signer_salt(m2, str(s2))) != k1, "② 参数模板变 → 键变"
+        assert cache.cache_key(dict(keyed, **{"lib/libx.dylib": "cc" * 32}), "ID", cache.signer_salt(m1, str(s1))) != k1, "内容变 → 键变"
+        assert cache.cache_key(keyed, "ID-2", cache.signer_salt(m1, str(s1))) != k1, "身份变 → 键变"
+        # 旧版签名器(没有 signer_cache_salt)→ 退回全文 sha
+        class Old: pass
+        old = Old(); old.is_macho = lambda p: False; old.ARCHIVE_SUFFIXES = {".jar"}
+        assert cache.signer_salt(old, str(s1)).startswith("sha:"), "缺盐函数必须退回全文 sha(保守)"
+        # ③ 权限位:目标 0775,源 0755 → 放回后仍 0775
+        root = d / "stage"; (root / "lib").mkdir(parents=True)
+        dst = root / "lib" / "a.so"; dst.write_bytes(b"UNSIGNED"); os.chmod(dst, 0o775)
+        src = d / "a.so.signed"; src.write_bytes(b"SIGNED"); os.chmod(src, 0o755)
+        cache._put_signed(src, dst)
+        assert dst.read_bytes() == b"SIGNED" and stat.S_IMODE(dst.stat().st_mode) == 0o775, "③ 放回后必须保留暂存树的权限位"
+        (d / "other").mkdir(); ro = d / "other" / "ro.so"; ro.write_bytes(b"X"); os.chmod(ro, 0o444)   # 暂存树之外,不进种子内容面
+        cache._put_signed(src, ro)
+        assert ro.read_bytes() == b"SIGNED" and stat.S_IMODE(ro.stat().st_mode) == 0o444, "只读目标也要能放回且保留 0444"
+        # ④ restore() 走同一条:缓存里的文件 0755,暂存 0775 → 0775
+        cdir = d / "cache" / "k1"; (cdir / "files" / "lib").mkdir(parents=True)
+        (cdir / "files" / "lib" / "a.so").write_bytes(b"CACHED"); os.chmod(cdir / "files" / "lib" / "a.so", 0o755)
+        (cdir / "manifest.json").write_text(json.dumps({"version": 2, "files": ["lib/a.so"]}))
+        os.chmod(dst, 0o775)
+        assert cache.restore(cdir, root) == 1 and dst.read_bytes() == b"CACHED" and stat.S_IMODE(dst.stat().st_mode) == 0o775
+        # ④ try_seed():种子树 0755,暂存 0775 → 0775;内容面不一致 → 拒用
+        seed = d / "seed" / "stage"; (seed / "lib").mkdir(parents=True)
+        (seed / "lib" / "a.so").write_bytes(b"SEEDED"); os.chmod(seed / "lib" / "a.so", 0o755)
+        (root / "README").write_text("same"); (seed / "README").write_text("same")
+        dst.write_bytes(b"UNSIGNED"); os.chmod(dst, 0o775)
+        before = cache.snapshot(root); keyed2 = {"lib/a.so": before["lib/a.so"]}
+        assert cache.try_seed(seed, root, before, keyed2) == 1 and dst.read_bytes() == b"SEEDED" and stat.S_IMODE(dst.stat().st_mode) == 0o775, "种子放回必须保留暂存权限位"
+        (seed / "README").write_text("different")
+        dst.write_bytes(b"UNSIGNED"); before = cache.snapshot(root)
+        assert cache.try_seed(seed, root, before, keyed2) == -1, "内容面不一致的种子必须整体拒用"
+        # store():manifest 含键面快照,无 .tmp 残留
+        sdir = d / "cache" / "k2"; sdir.mkdir(parents=True)
+        cache.store(sdir, root, ["lib/a.so"], keyed2)
+        man = json.loads((sdir / "manifest.json").read_text())
+        assert man["files"] == ["lib/a.so"] and man.get("keyed") == keyed2 and not list(sdir.glob("*.tmp"))
+    print("sign-payload-cached self-test OK")
+    return 0
 
-# ⑦ kill-switch
-os.environ["HOROSA_SIGN_CACHE"] = "0"
-r = subprocess.run(["/usr/bin/python3", str(SCRIPTS / "sign_payload_cached.py"),
-                    str(signer), str(BASE / "tree"), "ID123", "", str(BASE / "cache")],
-                   capture_output=True, text=True, env={**os.environ})
-print("⑦ kill-switch:", "旁路生效 ✓" if "已关闭" in r.stdout else "未旁路 ❌")
-if "已关闭" not in r.stdout: ok = False
 
-shutil.rmtree(BASE, ignore_errors=True)
-print()
-print("总判定:", "全部通过 ✅" if ok else "有失败 ❌")
-sys.exit(0 if ok else 1)
+if __name__ == "__main__":
+    sys.exit(run())

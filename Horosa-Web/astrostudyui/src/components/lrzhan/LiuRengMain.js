@@ -6112,7 +6112,7 @@ class LiuRengMain extends Component{
 								</Select>
 							</label>
 							<label className="horosa-liureng-select-field" title={this.state.guireng !== 0 ? '星历阳阴系只在贵人体系=六壬法贵人时生效(甲乙丙辛壬癸昼夜互换);当前贵人体系下两档恒同' : undefined}>
-								<span>昼夜阳阴归属{this.state.guireng !== 0 ? '（仅六壬法贵人生效）' : ''}</span>
+								<span>昼夜阳阴归属</span>
 								{/* [Q-164/T-87·SS-19] 贵人≠六壬法时置灰:LRConst 只在 guirengType===0 时按此键互换昼夜 */}
 								<Select value={this.state.yinyangSystem} disabled={this.state.guireng !== 0} onChange={(v)=>this.handleCastField('yinyangSystem', v)} dropdownMatchSelectWidth={false}>
 									<Option value="danmu">旦暮系(默认)</Option>

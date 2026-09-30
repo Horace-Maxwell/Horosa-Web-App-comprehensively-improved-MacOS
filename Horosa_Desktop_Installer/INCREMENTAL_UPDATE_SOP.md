@@ -84,7 +84,7 @@ manifest 的 `platforms` 按 key 隔离(`darwin-aarch64` 等)。其他平台接�
 | I1 | 部件合成树 ≡ 全量树(逐条目内容/symlink) | `verify_component_release.sh`;打包内建零遗漏零重叠校验(`component split drift`) | 校验输出的差异条目;打包日志 | 不可放行:修边界数组直到零差异 |
 | I2 | 部件边界三处 lockstep(打包数组/本文 §2/preflight[74] 锚) | preflight[74] 名单锚 | `[74]` 红名单缺哪个部件 | 三处同步改齐,无旁路 |
 | I3 | manifest ↔ lock ↔ 实物 逐名 sha 三方一致 | preflight[74](lock↔实物)+ [86](manifest↔lock) | 红字里的部件名与两侧 sha | 不可放行:重跑打包(漂移=产物不同源) |
-| I4 | 差分效率下限:待上传部件总量 ≤ HOROSA_DELTA_BUDGET_MB(默认 200)且稳定部件(py-runtime/jdk-runtime/ephe-data/xuanshi-data/java-lib)不得变 | `publish_github_release.sh` 差分门(PYDELTAGATE,拦在上传前) | 门打印的逐部件体积/VERDICT(OVER_BUDGET / STABLE_CHANGED) | 确属预期(JDK/星历升级):`HOROSA_ALLOW_LARGE_DELTA=1` 重跑;否则=打包/边界被无意改动,修根因 |
+| I4 | 差分效率下限:待上传部件总量 ≤ HOROSA_DELTA_BUDGET_MB(默认 200)且稳定部件(py-runtime/jdk-runtime/ephe-data/xuanshi-data/java-lib)不得变 | `publish_github_release.sh` 差分门(PYDELTAGATE,拦在上传前) | 门打印的逐部件体积/VERDICT(OVER_BUDGET / STABLE_CHANGED) | **先证明再放行**:从线上取回上一版 `components-lock.json`(`gh release download v<上一版>-runtime1 -p components-lock.json`;本地那份已被打包覆盖),tarfile 逐条目对拍线上部件,差异恰为本版改动文件(如天象库数据更新)或确属预期升级(JDK / 星历)才 `HOROSA_ALLOW_LARGE_DELTA=1` 重跑(复用已建 draft);否则=打包/边界被无意改动(签名种子权限、时间戳漂移),修根因 |
 | I5 | 全量回退路径必存:manifest v2 必含 v1 全字段(appUrl/appSha256/runtimeUrl/runtimeSha256/runtimeVersion) | preflight[86] | 红字缺哪个字段 | 不可放行:v1 字段是老壳与降级路径的生命线 |
 | I6 | components-lock.json 随全量 tar(客户端增量基准) | preflight[74](`lock 同步进 stage 根` 锚) | 打包脚本对应段 | 不可放行 |
 | I7 | 尺寸字段完备且与实物一致(appSizeBytes/runtimeSizeBytes/components[].size) | preflight[86](dist 实物 stat 逐项核) | 红字里的字段/声明值/实测值 | 不可放行:重跑打包(尺寸是「要下多大」显示真值) |
