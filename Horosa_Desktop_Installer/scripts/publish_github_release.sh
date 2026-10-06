@@ -207,9 +207,11 @@ fi
 echo "  ✅ python3+swisseph / playwright+chromium 就绪"
 
 # Pre-flight self-check: encodes the process-review findings (version lockstep, per-version
-# release notes, secrets not tracked, config JSON valid, artifact freshness, CI green).
+# release notes, secrets not tracked, config JSON valid, artifact freshness, local release baseline stamp).
 # HOROSA_SKIP_PREFLIGHT=1 overrides only when you are certain.
 if [ "${HOROSA_SKIP_PREFLIGHT:-0}" != "1" ]; then
+  # 发布必须有本机发版基线戳(preflight [6]:jest 全量 / pytest / mvn / cargo 对当前 HEAD 全绿;run_release_baseline.sh 落戳)
+  export HOROSA_REQUIRE_BASELINE=1
   "${INSTALLER_ROOT}/scripts/release_preflight.sh" || {
     echo "release_preflight 失败,发布中止。修复后重试,或确认无误时设 HOROSA_SKIP_PREFLIGHT=1。" >&2
     exit 1

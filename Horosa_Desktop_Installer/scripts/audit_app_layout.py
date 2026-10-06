@@ -244,6 +244,16 @@ def backend_up():
             sk.settimeout(1.0)
             if sk.connect_ex(("127.0.0.1", port)) != 0:
                 return port
+    # 监听 ≠ 能答(2026-10-06 实抓:别的项目的运行时占了 :8899,healthz 回 500,主应用照样无内容,
+    # 自证按「判据无判别力」假红)。排盘服务必须 200 + JSON {"service": "chart"} 才算在。
+    try:
+        import json, urllib.request
+        with urllib.request.urlopen("http://127.0.0.1:8899/healthz", timeout=3) as resp:
+            body = json.loads(resp.read().decode("utf-8", "replace"))
+        if not (isinstance(body, dict) and body.get("service") == "chart"):
+            return "8899(在监听但不是排盘服务:healthz 答的不是 chart)"
+    except Exception as exc:  # noqa: BLE001 - 任何不健康形态都按「不在」处理并说清楚
+        return f"8899(在监听但不健康:healthz {type(exc).__name__};可能是别的项目的运行时占了口)"
     return None
 
 
@@ -255,7 +265,7 @@ def main():
         return 2
     missing = backend_up()
     if missing is not None:
-        print(f"❌ 本机后端 :{missing} 未监听 —— 主应用无内容可渲染,版面判据与自证都不成立。")
+        print(f"❌ 本机后端 :{missing} 不可用 —— 主应用无内容可渲染,版面判据与自证都不成立。")
         print("   先起后端:cd Horosa-Web && HOROSA_SKIP_UI_BUILD=1 ./start_horosa_local.sh")
         return 2
     try:

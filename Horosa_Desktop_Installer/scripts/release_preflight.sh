@@ -119,18 +119,22 @@ if [ -f "${DIST}" ]; then
   elif [ -n "$(find "${REPO_ROOT}/Horosa-Web/astrostudyui/src" -type f -not -path "*/.umi/*" -not -path "*/node_modules/*" -newer "${DIST}" -print -quit 2>/dev/null || true)" ]; then bad "dist-file 比前端源码旧 —— 需 npm run build && build:file"; else ok "dist-file 比源码新"; fi
 else bad "dist-file 不存在 —— 需 npm run build:file"; fi
 
-# 6. CI 必须对当前 HEAD 通过(功能回归靠 CI 兜 —— 复盘 #3)。需要 gh。
-echo "[6] CI 状态(当前 HEAD)"
-if command -v gh >/dev/null 2>&1; then
-  HEAD_SHA="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
-  CI_JSON="$(gh run list --repo Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS --branch main --limit 10 --json headSha,status,conclusion,workflowName 2>/dev/null || echo '[]')"
-  CONCL="$(printf '%s' "${CI_JSON}" | python3 -c "import sys,json;sha='${HEAD_SHA}';rs=[r for r in json.load(sys.stdin) if r.get('headSha')==sha];print((rs[0].get('conclusion') or rs[0].get('status')) if rs else 'none')" 2>/dev/null || echo 'err')"
-  case "${CONCL}" in
-    success) ok "CI 对 HEAD(${HEAD_SHA:0:7})成功";;
-    none)    warn "CI 还没有 HEAD(${HEAD_SHA:0:7})的运行记录 —— 先 push 并等 CI 跑完";;
-    *)       bad "CI 对 HEAD(${HEAD_SHA:0:7})状态=${CONCL}(需 success 才发)";;
+# 6. 本机发版基线戳(2026-10-06 改:CI 工作流 2026-05-31 已随「精简仓库附属目录」删除,原「CI 对 HEAD 成功」只剩空门)。
+#    基线 = jest 全量 / pytest / mvn 四模块(含四柱全年份域矩阵)/ cargo fmt + test,由 scripts/run_release_baseline.sh 在本机跑完落戳
+#    build/release-baseline.json;这里认戳:对当前 HEAD(或之后只改了非源码路径)五套件全绿 → ok;无戳 / 戳过期 / 缺套件 → warn
+#    (发布脚本设 HOROSA_REQUIRE_BASELINE=1 时 → bad);任一套件真红 → bad。校验器先自证。
+echo "[6] 本机发版基线戳(当前 HEAD)"
+S6_PY="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/release_baseline_stamp.py"
+if [ -f "${S6_PY}" ]; then
+  /usr/bin/python3 "${S6_PY}" --self-test >/dev/null 2>&1 || bad "[6] 基线戳校验器自证失败"
+  grep -qF 'export HOROSA_REQUIRE_BASELINE=1' "${REPO_ROOT}/Horosa_Desktop_Installer/scripts/publish_github_release.sh" 2>/dev/null || bad "[6] 发布脚本未强制要基线戳(HOROSA_REQUIRE_BASELINE=1)"
+  S6_OUT="$(/usr/bin/python3 "${S6_PY}" check --repo "${REPO_ROOT}" ${HOROSA_REQUIRE_BASELINE:+--require} 2>&1)"; S6_RC=$?
+  case "${S6_RC}" in
+    0) ok "[6] ${S6_OUT}";;
+    2) warn "[6] ${S6_OUT}";;
+    *) bad "[6] ${S6_OUT}";;
   esac
-else warn "未装 gh,跳过 CI 检查 —— 请手动确认 CI 绿"; fi
+else bad "[6] 缺 scripts/release_baseline_stamp.py(本机基线戳校验器)"; fi
 
 # 7. Issue #8(AI 分析 SSE)修复哨兵:catch 必须先记原始异常,SSE 流必须心跳。
 #    Windows 端 v2.2.1 调试复盘:Ollama 慢首 token 时空闲断连,catch 块 sendEvent 撞 ClientAbort
