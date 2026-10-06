@@ -70,6 +70,15 @@ def run():
         cache.store(sdir, root, ["lib/a.so"], keyed2)
         man = json.loads((sdir / "manifest.json").read_text())
         assert man["files"] == ["lib/a.so"] and man.get("keyed") == keyed2 and not list(sdir.glob("*.tmp"))
+        # ③b 留档优先:同一目标在留档里记 0600 → 放回后 0600;无留档时上面的 ③ 已钉「保留暂存位」
+        rec = d / "prev-parts-headers.json"; stage = d / "runtime-payload" / "lib"; stage.mkdir(parents=True)
+        tgt = stage / "b.so"; tgt.write_bytes(b"OLD"); os.chmod(tgt, 0o775)
+        rec.write_text(json.dumps({"py-runtime": [["runtime-payload/lib/b.so", "0", 3, 0o600, 0, ""]]}))
+        os.environ["HOROSA_PREV_PARTS_HEADERS"] = str(rec); os.environ["HOROSA_PREV_PARTS_MODES"] = "1"
+        cache.prev_parts_modes._RECORD_CACHE.clear()
+        cache._put_signed(src, tgt)
+        assert stat.S_IMODE(tgt.stat().st_mode) == 0o600, "③b 留档里有该条目时放回必须取留档位"
+        os.environ.pop("HOROSA_PREV_PARTS_HEADERS", None); cache.prev_parts_modes._RECORD_CACHE.clear()
     print("sign-payload-cached self-test OK")
     return 0
 

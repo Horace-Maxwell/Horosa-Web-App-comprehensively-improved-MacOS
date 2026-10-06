@@ -25,6 +25,9 @@ kill-switch:HOROSA_SIGN_CACHE=0 ⇒ 完全旁路(每次真签,行为与本脚本
 import hashlib
 import json
 import os
+import sys
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+import prev_parts_modes   # 权限位单一来源
 import pathlib
 import shutil
 import subprocess
@@ -199,17 +202,15 @@ def _mode_of(path: pathlib.Path):
 
 
 def _put_signed(src: pathlib.Path, dst: pathlib.Path) -> None:
-    """把签名产物放回暂存树:内容取 src,权限位保留 dst 原有的(codesign 不改权限,产物权限必须 = 暂存树的)。
-    v3.11.2 实抓:种子树是不带 -p 解出来的,74 个 .so 被 umask 降成 0755,copy2 连权限一起带进包 ⇒ 部件 sha 漂。"""
+    """把签名产物放回暂存树:内容取 src,权限位按单一来源(prev_parts_modes:上一版部件 tar 头留档优先,留档没有的
+    用 dst 原有的;codesign 不改权限)。
+    v3.11.2 实抓:种子树是不带 -p 解出来的,74 个 .so 被 umask 降成 0755,copy2 连权限一起带进包 ⇒ 部件 sha 漂。
+    v3.11.3 实抓:只保留暂存位时与单文件缓存那层(jar 重建落 0600)口径相反 ⇒ java-lib 随缓存冷热漂,故改留档优先。"""
     mode = _mode_of(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
     _unlink_force(dst)
     shutil.copy2(src, dst)
-    if mode is not None:
-        try:
-            os.chmod(dst, mode)
-        except OSError:
-            pass
+    prev_parts_modes.apply_mode(dst, mode)
 
 
 def _unlink_force(path: pathlib.Path) -> None:

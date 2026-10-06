@@ -8,6 +8,9 @@ import subprocess
 import tempfile
 import zipfile
 import hashlib
+import sys
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import prev_parts_modes   # 权限位单一来源
 
 NATIVE_STATS: dict = {}
 from typing import Optional
@@ -259,6 +262,9 @@ def iter_macho_files(root: pathlib.Path) -> list[pathlib.Path]:
 
 
 def rebuild_archive_from_tree(archive_path: pathlib.Path, tree_root: pathlib.Path) -> None:
+    # 重建后的 jar 权限位按单一来源(prev_parts_modes):上一版部件 tar 头留档优先,留档没有的保留 jar 原有的位。
+    # 此前 NamedTemporaryFile 建的临时档是 0600,replace 后 jar 就成 0600(与域级缓存命中保留的 0644 口径相反)。
+    staged_mode = archive_path.stat().st_mode & 0o7777
     with zipfile.ZipFile(archive_path) as source:
         infos = source.infolist()
     with tempfile.NamedTemporaryFile(dir=str(archive_path.parent), delete=False) as tmp_file:
@@ -283,6 +289,7 @@ def rebuild_archive_from_tree(archive_path: pathlib.Path, tree_root: pathlib.Pat
                 else:
                     target.writestr(new_info, extracted.read_bytes())
         tmp_name.replace(archive_path)
+        prev_parts_modes.apply_mode(archive_path, staged_mode)
     finally:
         if tmp_name.exists():
             tmp_name.unlink()

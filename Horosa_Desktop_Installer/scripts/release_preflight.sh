@@ -6392,6 +6392,26 @@ done
 [ -f "${REPO_ROOT}/Horosa-Web/astropy/tests/test_startup_gate_tiers.py" ] || { bad "[288] 🔴 缺分级门金标 test_startup_gate_tiers.py"; S288_BAD=1; }
 [ "${S288_BAD}" = "0" ] && ok "[288] 首启原生库预检(壳子命令 + 安装脚本后台跑 + 就绪后补做 + 顺序表哨兵)+ 硬链接暂存槽 / 换完即预检 / 外部 tar 先删后建 + 分级门金标全在位"
 
+echo "[289] 打包链单飞锁(release_lock.sh:目录锁 + 嵌套放行 + 残留回收 + 退出释放)+ 签名产物权限位单一来源(prev_parts_modes:两层缓存同口径)"
+S289_BAD=0; S289_SC="${REPO_ROOT}/Horosa_Desktop_Installer/scripts"
+for S289_KW in 'horosa_release_lock()' 'horosa_release_lock_release()' "trap 'horosa_release_lock_release' EXIT" 'return 75' 'HOROSA_RELEASE_LOCK_OWNER' 'kill -0 "${owner_pid}"'; do
+  grep -qF -- "${S289_KW}" "${S289_SC}/release_lock.sh" 2>/dev/null || { bad "[289]① 单飞锁缺「${S289_KW}」"; S289_BAD=1; }
+done
+for S289_F in build_desktop_release.sh package_runtime_payload.sh; do
+  grep -qF '. "${INSTALLER_ROOT}/scripts/release_lock.sh"' "${S289_SC}/${S289_F}" 2>/dev/null && grep -qF 'horosa_release_lock "' "${S289_SC}/${S289_F}" 2>/dev/null || { bad "[289]① ${S289_F} 未接单飞锁"; S289_BAD=1; }
+  S289_LN="$(grep -n 'horosa_release_lock "' "${S289_SC}/${S289_F}" 2>/dev/null | head -n 1 | cut -d: -f1)"
+  [ -n "${S289_LN}" ] && [ "${S289_LN}" -le 40 ] || { bad "[289]① ${S289_F} 取锁不在脚本开头(第 ${S289_LN:-?} 行;须先于任何构建步骤)"; S289_BAD=1; }
+done
+bash "${S289_SC}/test_release_lock.sh" >/dev/null 2>&1 || { bad "[289]② 单飞锁自证失败(并发拒 / 嵌套放行 / 残留回收 / 退出释放)"; S289_BAD=1; }
+for S289_KW in 'def decide_mode(' 'def tar_name_of(' 'def apply_mode(' 'RECORD_ENV = "HOROSA_PREV_PARTS_HEADERS"' 'SWITCH_ENV = "HOROSA_PREV_PARTS_MODES"'; do
+  grep -qF -- "${S289_KW}" "${S289_SC}/prev_parts_modes.py" 2>/dev/null || { bad "[289]③ 权限位单一来源缺「${S289_KW}」"; S289_BAD=1; }
+done
+grep -qF 'prev_parts_modes.apply_mode(dst, mode)' "${S289_SC}/sign_payload_cached.py" 2>/dev/null || { bad "[289]③ 域级缓存放回未走权限位单一来源"; S289_BAD=1; }
+grep -qF 'prev_parts_modes.apply_mode(archive_path, staged_mode)' "${S289_SC}/sign_runtime_payload.py" 2>/dev/null || { bad "[289]③ jar 重建未走权限位单一来源(会落临时档的 0600)"; S289_BAD=1; }
+grep -qF 'export HOROSA_PREV_PARTS_HEADERS=' "${S289_SC}/package_runtime_payload.sh" 2>/dev/null || { bad "[289]③ 打包脚本未导出上一版部件头部留档路径"; S289_BAD=1; }
+/usr/bin/python3 "${S289_SC}/test_prev_parts_modes.py" >/dev/null 2>&1 || { bad "[289]④ 权限位单一来源自证失败(两层缓存口径 / 开关 / 留档缺失回退)"; S289_BAD=1; }
+[ "${S289_BAD}" = "0" ] && ok "[289] 打包链单飞锁(目录锁 + 嵌套 + 残留回收 + 退出释放,自证 4/4)+ 签名产物权限位单一来源(留档优先 / 暂存位回退 / 两层同口径,自证 ①–⑤)"
+
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "pre-flight 有 ❌,先修再发。" >&2; exit 1; fi
 echo "pre-flight 全部通过 ✅(注意:功能层 e2e 仍需另测,如 AI 用真 key、八字切换显示)。"

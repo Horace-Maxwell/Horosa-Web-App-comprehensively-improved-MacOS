@@ -4,6 +4,9 @@ set -euo pipefail
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 BUILD_ROOT="${INSTALLER_ROOT}/build"
+# 打包单飞锁:同一 build 目录只许一条流水线(锁 build/.release.lock;子脚本嵌套放行)。
+. "${INSTALLER_ROOT}/scripts/release_lock.sh"
+horosa_release_lock "build_desktop_release" || exit $?
 TARGET_ROOT="${INSTALLER_ROOT}/src-tauri/target-user"
 OFFLINE_SCRIPTS_RENDERED_DIR="${BUILD_ROOT}/installer-scripts-rendered-offline"
 NOTARY_BUILD_ROOT="${BUILD_ROOT}/notary"

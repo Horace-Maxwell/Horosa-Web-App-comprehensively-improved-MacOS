@@ -92,6 +92,20 @@ def run():
         os.environ["HOROSA_SIGN_CACHE"] = "0"
         assert mod.seed_native_cache(u, sdir, "ID-1") == {"disabled": True}
         os.environ["HOROSA_SIGN_CACHE"] = "1"
+        # ⑪ jar 重建后的权限位:无留档 → 保留 jar 原有位(不再是 NamedTemporaryFile 的 0600);有留档 → 留档位
+        os.environ.pop("HOROSA_PREV_PARTS_HEADERS", None); mod.prev_parts_modes._RECORD_CACHE.clear()
+        stage = d / "runtime-payload" / "lib"; stage.mkdir(parents=True)
+        j = stage / "n.jar"
+        with zipfile.ZipFile(j, "w") as z:
+            z.writestr("x.dylib", b"MACHO")
+        os.chmod(j, 0o644); tree = d / "jtree"; tree.mkdir(); (tree / "x.dylib").write_bytes(b"MACHO-S")
+        mod.rebuild_archive_from_tree(j, tree)
+        assert (j.stat().st_mode & 0o7777) == 0o644, "⑪ 无留档:重建后必须保留 jar 原有权限位"
+        rec = d / "prev.json"; rec.write_text('{"java-lib": [["runtime-payload/lib/n.jar", "0", 1, 384, 0, ""]]}')
+        os.environ["HOROSA_PREV_PARTS_HEADERS"] = str(rec); mod.prev_parts_modes._RECORD_CACHE.clear()
+        mod.rebuild_archive_from_tree(j, tree)
+        assert (j.stat().st_mode & 0o7777) == 0o600, "⑪ 有留档:重建后必须取留档位(0600)"
+        os.environ.pop("HOROSA_PREV_PARTS_HEADERS", None); mod.prev_parts_modes._RECORD_CACHE.clear()
     print("native-sign-cache self-test OK")
     return 0
 

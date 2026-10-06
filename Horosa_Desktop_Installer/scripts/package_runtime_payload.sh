@@ -4,6 +4,9 @@ set -euo pipefail
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "${INSTALLER_ROOT}/.." && pwd)"
 BUILD_ROOT="${INSTALLER_ROOT}/build/runtime"
+# 打包单飞锁:被上层打包脚本调用时嵌套放行(父已持锁);单独跑时自己取锁。
+. "${INSTALLER_ROOT}/scripts/release_lock.sh"
+horosa_release_lock "package_runtime_payload" || exit $?
 STAGE_ROOT="${BUILD_ROOT}/runtime-payload"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
@@ -411,6 +414,14 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}"
       echo "[sign-seed] 域级缓存种子 = ${SEED_PY}(上一版 py-runtime 部件,自动)"
     else
       echo "[sign-seed] 无上一版 py-runtime 部件可作种子(首发 / dist 已清):域级缓存未命中时走真签"
+    fi
+    # 权限位单一来源:两层签名缓存放回产物时先查上一版部件 tar 头留档,留档没有的才用暂存文件位
+    #   (HOROSA_PREV_PARTS_MODES=0 退回一律暂存位)。留档由上面的 prepare_sign_seed.py 写出;没有留档 = 首发 / dist 已清。
+    if [ -f "${INSTALLER_ROOT}/build/.sign-seed/prev-parts-headers.json" ]; then
+      export HOROSA_PREV_PARTS_HEADERS="${INSTALLER_ROOT}/build/.sign-seed/prev-parts-headers.json"
+      echo "[sign-mode] 权限位留档 = ${HOROSA_PREV_PARTS_HEADERS}"
+    else
+      echo "[sign-mode] 无上一版部件头部留档:签名产物权限位一律取暂存文件位"
     fi
     if [ -n "${SEED_LIB}" ] && [ "${SEED_LIB}" != "-" ] && [ -d "${STAGE_BOOT_EXPLODED}/BOOT-INF/lib" ]; then
       /usr/bin/python3 "${INSTALLER_ROOT}/scripts/sign_runtime_payload.py" "${STAGE_BOOT_EXPLODED}/BOOT-INF/lib" \
