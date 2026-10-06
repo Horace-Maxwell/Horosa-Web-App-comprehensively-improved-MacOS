@@ -17,8 +17,11 @@ import argparse, datetime, json, os, pathlib, re, subprocess, sys, tempfile
 STAMP_REL = "Horosa_Desktop_Installer/build/release-baseline.json"
 REQUIRED = ("cargo_fmt", "cargo_test", "pytest", "mvn", "jest_full")
 # 与源码无关的路径:这些路径之间的提交不作废戳(文档 / 元文档 / 引用信息 / 日志)
+# 与五个套件无关的路径:这些路径之间的提交不作废戳(文档 / 元文档 / 引用信息 / 日志 / 发布工具与发布说明 —— 发布脚本有自己的
+# 自证与哨兵,不在 jest / pytest / mvn / cargo 的覆盖面里)
 NON_SOURCE = (re.compile(r"^docs/"), re.compile(r"\.md$"), re.compile(r"^\.claude/"), re.compile(r"^CITATION\.cff$"),
-              re.compile(r"^README"), re.compile(r"^UPGRADE_LOG"))
+              re.compile(r"^README"), re.compile(r"^UPGRADE_LOG"),
+              re.compile(r"^Horosa_Desktop_Installer/scripts/"), re.compile(r"^Horosa_Desktop_Installer/config/release_notes/"))
 
 
 def _git(repo, *args):
@@ -53,7 +56,15 @@ def write(repo, suite, rc, summary, log=""):
     repo = pathlib.Path(repo).resolve()
     head = head_of(repo)
     st = load(repo)
-    if not st or st.get("head") != head:
+    if st and st.get("head") and st.get("head") != head:
+        # 戳 HEAD 是当前 HEAD 的祖先、其间只改了非源码路径 → 已记套件仍有效,把戳挪到当前 HEAD(跑长套件途中提交文档不再作废前面的套件)
+        anc = _git(repo, "merge-base", "--is-ancestor", st["head"], head)[0] == 0
+        changed = [l for l in _git(repo, "diff", "--name-only", st["head"], head)[1].splitlines() if l.strip()] if anc else []
+        if anc and all(is_non_source(c) for c in changed):
+            st["carried_from"] = st.get("head_short"); st["head"] = head; st["head_short"] = head[:8]
+        else:
+            st = None
+    if not st:
         st = {"schema": 1, "head": head, "head_short": head[:8], "created_at": _now(), "suites": {}}
     st["dirty"] = dirty_count(repo)
     st["updated_at"] = _now()
@@ -131,12 +142,14 @@ def self_test():
         subprocess.run(["git", "-C", str(d), "add", "docs/n.md"], check=True)
         subprocess.run(["git", "-C", str(d), "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "docs"], check=True)
         assert check(d, True)[0] == 0, "真仓文档提交后 → 仍过"
+        write(d, "pytest", 0, "after docs commit")   # 文档提交后再落一个套件:已记套件必须保留(不重开)
+        assert check(d, True)[0] == 0 and len(load(d)["suites"]) == len(REQUIRED), "真仓文档提交后再写戳 → 保留全部套件并挪到新 HEAD"
         (d / "src.py").write_text("x"); subprocess.run(["git", "-C", str(d), "add", "src.py"], check=True)
         subprocess.run(["git", "-C", str(d), "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "src"], check=True)
         assert check(d, True)[0] == 1 and check(d, False)[0] == 2, "真仓源码提交后 → 发布红 / 日常告警"
         write(d, "pytest", 0, "again")   # 新 HEAD 上写戳 = 重开(旧套件作废)
         assert "缺套件" in check(d, False)[1], "新 HEAD 重开戳只含刚写的套件"
-    print("release-baseline-stamp self-test OK(逻辑 10 向 + 真仓 4 向)")
+    print("release-baseline-stamp self-test OK(逻辑 10 向 + 真仓 5 向)")
     return 0
 
 
