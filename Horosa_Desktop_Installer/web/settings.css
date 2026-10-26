@@ -191,7 +191,7 @@ body {
   }
 }
 
-/* 🔴 [缩放域·2026-08-25] 抵消壳注入的 CSS zoom 补偿。
+/* 🔴 抵消壳注入的 CSS zoom 补偿。
    壳对**每个 document** 注入行内 `body{width:calc(100%/z);height:calc(100%/z)}`,那是按主
    应用的布局假设写的。本页 html 已经是布局域尺寸(视口/z)、body 铺满即可,再补偿一次就成了
    视口/z²,页面被缩到 1/z ——— 实测 zoom 1.8 时 body 只填视口的 56%,内容缩在左上角一小块,
@@ -211,7 +211,7 @@ body {
 button.primary-button,
 button.secondary-button { white-space: nowrap; }
 
-/* [深色模式·2026-08-25] 与启动页同策:跟随系统,只覆盖变量。
+/* 与启动页同策:跟随系统,只覆盖变量。
    此前纯浅色 —— 深色系统下从暗色主界面点开这个窗口会突然刺眼。 */
 @media (prefers-color-scheme: dark) {
   :root {
@@ -232,4 +232,26 @@ button.secondary-button { white-space: nowrap; }
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 8px;
+}
+
+/* 共享运行环境权限提示(一行,不弹窗):早先安装包留下所有账户可写的旧树,要用完整安装包更新一次 */
+.info-warning {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #7a3e00;
+  background: #fff3e0;
+  border: 1px solid #f0c48a;
+}
+.info-warning.hidden {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  .info-warning {
+    color: #ffd8a8;
+    background: #3a2a14;
+    border-color: #7a5a2a;
+  }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "horosa-desktop-installer"
-version = "3.11.3"
+version = "3.12.0"
 description = "Horosa macOS desktop shell"
 authors = ["Horosa"]
 edition = "2021"
@@ -31,6 +31,11 @@ tiny_http = "0.12"
 urlencoding = "2"
 walkdir = "2.5"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+# 本机 HTTP 服务库换成仓内源码副本(vendor/tiny_http,改动见其 PATCHES.md):请求体收尾不按客户端声明长度申请缓冲、
+# 连接读写超时、请求头总长上限、accept 遇暂时性错误退避续接、在服连接上限、停服后的请求回 503 并关连接。
+[patch.crates-io]
+tiny_http = { path = "vendor/tiny_http" }
 
 [profile.release]
 panic = "abort"

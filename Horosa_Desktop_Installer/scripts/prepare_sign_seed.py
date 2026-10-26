@@ -47,7 +47,13 @@ def tar_headers(tar_path: pathlib.Path) -> list:
 
 
 def dump_prev_headers(comp_dir: pathlib.Path, seed_root: pathlib.Path) -> str:
-    """上一版稳定部件的 tar 头 + components-lock 留档;没有任何部件回 '-'。"""
+    """上一版稳定部件的 tar 头 + components-lock 留档;没有任何部件回 '-'。
+    先删旧留档:dist/components 被清掉、或这次留档失败时,不许让上一轮的旧留档冒充这一轮的(打包脚本按输出行判,不按文件在不在)。"""
+    for stale in (seed_root / PREV_HEADERS_NAME, seed_root / PREV_LOCK_NAME):
+        try:
+            stale.unlink()
+        except FileNotFoundError:
+            pass
     headers = {}
     for part in STABLE_PARTS:
         t = comp_dir / part_tar_name(part)

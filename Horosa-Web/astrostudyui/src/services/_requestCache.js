@@ -11,6 +11,9 @@
 //       `cachedPost(url, values, opts, { ns: 'predictive' })`。
 
 import request from '../utils/request';
+import { responseCacheable } from '../utils/resultEnvelope';
+import { cacheBypassed } from '../utils/requestDedupe';
+import { registerProcessCache } from '../utils/processCacheRegistry';
 
 const DEFAULT_MAX = 96;
 
@@ -63,13 +66,14 @@ function storeFor(ns, max){
 
 // 确定性纯计算 POST + 同参去重 + LRU 结果缓存。
 // cacheOptions: { ns?: string(默认=url), max?: number, enabled?: boolean }
-// requestOptions.cache === false 也可临时关闭缓存(与 astro.js fetchChart 行为一致)。
+// requestOptions.cache === false(或 resultCache === false)也可临时关闭缓存(与 astro.js fetchChart 行为一致);
+// 与去重层同一判据 cacheBypassed。
 export function cachedPost(url, values, requestOptions, cacheOptions){
 	const opts = requestOptions || {};
 	const cfg = cacheOptions || {};
 	const ns = cfg.ns || url;
 	const store = storeFor(ns, cfg.max);
-	const disableCache = opts.cache === false || cfg.enabled === false;
+	const disableCache = cacheBypassed(opts) || cfg.enabled === false;
 	const key = disableCache ? '' : buildKey(values);
 	if(key && store.mem.has(key)){
 		return Promise.resolve(clonePlain(store.mem.get(key)));
@@ -81,8 +85,8 @@ export function cachedPost(url, values, requestOptions, cacheOptions){
 		body: JSON.stringify(values),
 		...opts,
 	}).then((rsp)=>{
-		// 只缓存"看起来成功"的响应;后端错误(rsp.err / 非0码视端点而定)不进缓存,避免把瞬时失败钉死。
-		if(key && rsp && !rsp.err){
+		// 只缓存真成功的响应;后端错误(信封顶层 err 或 Result.err,判据单一出处 resultEnvelope)不进缓存,避免把瞬时失败钉死。
+		if(key && responseCacheable(rsp)){
 			pushCache(store.mem, key, clonePlain(rsp), store.max);
 		}
 		return rsp;
@@ -112,3 +116,4 @@ export function clearRequestCache(ns){
 		s.inflight.clear();
 	});
 }
+registerProcessCache('services.requestCache', ()=>clearRequestCache());

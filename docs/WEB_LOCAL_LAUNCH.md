@@ -1,7 +1,7 @@
 # 网页版一键启动链(Web Local Launch)参考
 
 > 从源码把星阙跑成「本地网页版」的完整入口地图与可调项。桌面 `.pkg` 用户无需阅读本文。
-> 制度化:本链全家族由 `release_preflight.sh` 的 **[96]** 哨兵守护(语法/pid 约定跨文件一致/禁 lsof 全表扫描/文档在位)——任何改动启停约定必须保 [96] 绿(见 `Horosa-Web/AGENTS.md`)。
+> 制度化:本链全家族由 `release_preflight.sh` 的 **[96]** 哨兵守护(语法/pid 约定跨文件一致/禁 lsof 全表扫描/文档在位)——任何改动启停约定必须保 [96] 绿。
 
 ## 家族文件与角色
 
@@ -19,6 +19,7 @@
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `HOROSA_WEB_PORT` / `HOROSA_SERVER_PORT` / `HOROSA_CHART_PORT` | 8000 / 9999 / 8899 | 网页/Java/Python 端口;被占自动换 18000/19999/18899 起的空闲口 |
+| `HOROSA_PID_DIR` | (自动) | 服务 pid 文件放哪:缺省本目录可写就放本目录,否则落当前账户的 `~/Library/Caches/horosa-run/…`;显式给出时以它为准 |
 | `HOROSA_NO_BROWSER` | 0 | =1 只起服务打印 URL,不开浏览器(自检/远程用) |
 | `HOROSA_KEEP_SERVICES_RUNNING` | 1 | =1 关网页后服务常驻(再次双击秒开);=0 关窗即停 |
 | `HOROSA_FORCE_UI_BUILD` | 0 | =1 忽略产物强制重建前端 |
@@ -30,6 +31,6 @@
 
 ## 排障三条
 
-1. **双击没反应/提示身份不明**:zip 下载丢了执行位与来源标记——`chmod +x *.command tools/mac/*.command scripts/mac/*.sh`,再右键文件 → 打开;`git clone` 获取则天然无此问题。
+1. **双击没反应/提示身份不明**:zip 下载丢了执行位与来源标记——`chmod +x horosa *.command tools/mac/*.command scripts/mac/*.sh`,再右键文件 → 打开;`git clone` 获取则天然无此问题。
 2. **提示端口被占**:正常会自动换口;若确有异物占用备用口,`lsof -nP -iTCP:<口> -sTCP:LISTEN` 查明后释放,或用 `HOROSA_*_PORT` 指定新口。
 3. **服务起没起/日志在哪**:诊断日志 `diagnostics/horosa-run-issues.log`(根目录),各服务原始日志 `Horosa-Web/.horosa-local-logs/<时间戳>/`;一键回收所有服务用 `Horosa_Stop_Mac.command`。

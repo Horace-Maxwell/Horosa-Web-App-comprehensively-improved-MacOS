@@ -12,10 +12,12 @@ import * as Constants from '../../utils/constants';
 import { randomStr, convertToArray} from '../../utils/helper';
 import styles from '../../css/styles.less';
 import DateTime from '../comp/DateTime';
+import { returnPickerSeed } from '../../utils/returnPickerSeed';
 import { saveModuleAISnapshotLazy, saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import { buildPredictiveSnapshotText, } from '../../utils/predictiveAiSnapshot';
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
 import UpdatingBadge from '../common/UpdatingBadge';
+import { natalSourceKey, pickKeyedDerived } from '../../utils/derivedChartSource';
 import { silentTechniquePanelsEnabled } from '../../utils/perfFlags';
 import { natalClassicalParams, transitOrbDefault } from './AstroExtraCommon';
 import { pruneStaleClassicalParams } from '../../utils/classicalChartGlobals';
@@ -90,7 +92,7 @@ class AstroGivenYear extends Component{
 					return;
 				}
 				let param = this.genNatalParams(chartObj);
-				// [SURF-T1] 增量 merge 粘滞剔除:非默认改回默认后 param 不带键,旧值不得残留(见 classicalChartGlobals)。
+				// 增量 merge 粘滞剔除:非默认改回默认后 param 不带键,旧值不得残留(见 classicalChartGlobals)。
 				let params = pruneStaleClassicalParams({
 					...this.state.params,
 					...param,
@@ -123,18 +125,15 @@ class AstroGivenYear extends Component{
 
 	genNatalParams(chartObj){
 		let qryparam = chartObj ? chartObj.params : {};
-		let datetime = new DateTime();
+		// 「今年 / 此刻」按本盘时区(DateTime.nowForChart);东八区盘逐位不变
+		let datetime = DateTime.nowForChart(qryparam.zone);
 		if(qryparam.birth){
 			let parts = qryparam.birth.split(' ');
 			qryparam.date = parts[0];
 			qryparam.time = parts[1];
-			let dtstr = datetime.format('yyyy') + parts[0].substr(4) + ' ' + parts[1];
-			if(parts[1].length < 8){
-				dtstr = dtstr + ':00';
-			}
-			datetime.parse(dtstr, 'yyyy-MM-dd HH:mm:ss');
+			datetime = returnPickerSeed(qryparam.birth, DateTime.nowForChart(qryparam.zone));   // 今年 + 出生月日时分(民用历日期串单源解析)
 		}
-		// [Q-182/T-97] 选择器起始时刻按本命时区计(DateTime 缺省 +08:00),否则非东八区盘的返照/流年盘时区串成东八区。
+		// 选择器起始时刻按本命时区计(DateTime 缺省 +08:00),否则非东八区盘的返照/流年盘时区串成东八区。
 		if(qryparam.zone){ datetime.setZone(qryparam.zone); }
 		let params = {
 			date: qryparam.date,
@@ -149,7 +148,7 @@ class AstroGivenYear extends Component{
 			hsys: qryparam.hsys,
 			zodiacal: qryparam.zodiacal, siderealAyanamsa: qryparam.siderealAyanamsa,
 			tradition: qryparam.tradition,
-			// [0d] 古典口径段(单源):此前只带 4-6 基础键,改界系/三分/宫头5°律后与主盘口径静默分叉。
+			// 古典口径段(单源):此前只带 4-6 基础键,改界系/三分/宫头5°律后与主盘口径静默分叉。
 			...natalClassicalParams(qryparam),
 		};
 		return params;
@@ -159,7 +158,7 @@ class AstroGivenYear extends Component{
 		let params = {
 			...this.state.params
 		};
-		// [Q-182/T-97] 先取时区再格式化:此前格式化成字符串后再取 .zone 得 undefined → 首算按本命时区、步进后又按选择器缺省 +08:00 → 非东八区本命盘跳变。
+		// 先取时区再格式化:此前格式化成字符串后再取 .zone 得 undefined → 首算按本命时区、步进后又按选择器缺省 +08:00 → 非东八区本命盘跳变。
 		const _dtv = params.datetime;
 		params.dirZone = (_dtv && _dtv.zone) ? _dtv.zone : undefined;
 		params.datetime = _dtv.format('YYYY-MM-DD HH:mm:ss');
@@ -169,9 +168,10 @@ class AstroGivenYear extends Component{
 	}
 
 	async requestDirection(params){
-		// [SURF-R5p] 乱序/混代防(B 断面):双在途旧响应后回=盘面与快照回滚;快照 chartValue
+		// 乱序/混代防(B 断面):双在途旧响应后回=盘面与快照回滚;快照 chartValue
 		// 此前取回调时刻 props=与响应混代——请求时捕获,与 params/result 同代(响应内产范式)。
 		const seq = ++this._reqSeq || (this._reqSeq = 1);
+		const dirChartSig = natalSourceKey(params);   // 本次结果出自哪位命主(读时与当前盘比,见 shownDirChart)
 		const chartValueAtRequest = this.props.value;
 		// 空回包/请求失败防御:后端未就绪、无效生辰等场景 request 可能抛错或返回空——
 		// 静默保持现盘,不产生 Unhandled Rejection(request 失败 resolve undefined 是全仓契约)。
@@ -203,6 +203,7 @@ class AstroGivenYear extends Component{
 		}
 		const st = {
 			dirChart: result,
+			dirChartSig,
 			updating: false,
 			params: {
 				...params,
@@ -212,9 +213,7 @@ class AstroGivenYear extends Component{
 
 		this.setState(st, ()=>{
 			const chartValue = chartValueAtRequest;
-			saveModuleAISnapshotLazy('givenyear', ()=>buildPredictiveSnapshotText(chartValue, st.params, result, 'givenyear'), {
-				module: 'givenyear',
-			});
+			saveModuleAISnapshotLazy('givenyear', ()=>buildPredictiveSnapshotText(chartValue, st.params, result, 'givenyear'), this.snapshotMeta());
 		});
 	}
 
@@ -225,7 +224,7 @@ class AstroGivenYear extends Component{
 		params.datetime = values.datetime.format('YYYY-MM-DD HH:mm:ss');
 		params.dirLat = values.lat;
 		params.dirLon = values.lon;
-		// [Q-303/T-290] 表单无 zone 项:「提交」沿用 state 里上一次响应写回的旧时区,改时区后自动请求在途时点提交
+		// 表单无 zone 项:「提交」沿用 state 里上一次响应写回的旧时区,改时区后自动请求在途时点提交
 		// → 序号守卫只认后发请求,旧时区胜出、盘面与下拉一起回退。改为与自动请求同源:取所选日期时间自带的时区。
 		const dtZone = values.datetime && (values.datetime.zone || (values.datetime.time && values.datetime.time.zone));
 		if(values.zone || dtZone){
@@ -279,11 +278,11 @@ class AstroGivenYear extends Component{
 	}
 
 	genAspectDom(){
-		if(this.state.dirChart === undefined || this.state.dirChart === null){
+		if(this.shownDirChart() === undefined || this.shownDirChart() === null){
 			return null;
 		}
 
-		let aspects = this.state.dirChart.chart.aspects;
+		let aspects = this.shownDirChart().chart.aspects;
 		let divs = [];
 		for(let i=0; i<aspects.length; i++){
 			let obj = aspects[i];
@@ -310,7 +309,7 @@ class AstroGivenYear extends Component{
 				<Col key={i} span={12}>
 					<div>
 						<span style={{fontFamily: AstroConst.NormalFont}}>行运&nbsp;</span>
-						<span>{this.renderPlanetLabel(this.state.dirChart, obj.directId)}</span>
+						<span>{this.renderPlanetLabel(this.shownDirChart(), obj.directId)}</span>
 					</div>
 					{coldivs}
 				</Col>
@@ -358,6 +357,11 @@ class AstroGivenYear extends Component{
 		});
 	}
 
+	// 写槽 meta 单一来源:平时写槽与刷新应答共用(刷新一次后槽的 meta 不变)
+	snapshotMeta(){
+		return { module: 'givenyear' };
+	}
+
 	// AI 导出/挂载实时取数:导出侧派发 refresh 事件,这里用当前显示的盘即时构建快照并回填,
 	// 保证「显示什么就导出什么」——不依赖懒存缓存是否已物化(reload/rehydrate 未重排时缓存可能为空,
 	// 此前缺此监听 → 显示有盘却报「当前页面没有可导出文本」)。
@@ -367,7 +371,7 @@ class AstroGivenYear extends Component{
 			return;
 		}
 		const chartValue = this.props.value;
-		const result = this.state ? this.state.dirChart : null;
+		const result = this.shownDirChart();
 		if(!chartValue || !result){
 			return;
 		}
@@ -378,7 +382,7 @@ class AstroGivenYear extends Component{
 			text = '';
 		}
 		if(text){
-			saveModuleAISnapshot('givenyear', text);
+			saveModuleAISnapshot('givenyear', text, this.snapshotMeta());   // 刷新应答与平时写槽同一份 meta
 			if(evt && evt.detail && typeof evt.detail === 'object'){
 				evt.detail.snapshotText = text;
 			}
@@ -400,16 +404,21 @@ class AstroGivenYear extends Component{
 		}
 	}
 
+	// 派生盘只与它出自的那张命盘配对:换盘后新盘在途、或新盘取盘失败时,state 里仍是上一位命主的结果 → 当没有
+	shownDirChart(){
+		return pickKeyedDerived(this.state.dirChart, this.state.dirChartSig, natalSourceKey(this.props.value));
+	}
+
 	render(){
 		let chartObj = {
 			natualChart: this.props.value,
-			dirChart: this.state.dirChart,
+			dirChart: this.shownDirChart(),
 			inverse: this.state.inverse,
 		};
 
 		let rChart = null;
-		if(this.state.dirChart && this.state.dirChart.dirChart){
-			rChart = this.state.dirChart.dirChart;
+		if(this.shownDirChart() && this.shownDirChart().dirChart){
+			rChart = this.shownDirChart().dirChart;
 		}
 
 		let param = this.state.params;
@@ -481,7 +490,7 @@ class AstroGivenYear extends Component{
 					<Col className="horosa-givenyear-chart-panel" span={17}>
 						{/* keep-stale 角标:重取期间旧盘留在盘面,右上角提示「更新中…」;首次加载(无旧盘)不显示 */}
 						<div style={{ position: 'relative' }}>
-						{this.state.updating && this.state.dirChart ? <UpdatingBadge /> : null}
+						{this.state.updating && this.shownDirChart() ? <UpdatingBadge /> : null}
 						<Tabs
 							defaultActiveKey='doublechart' tabPosition='bottom'
 							style={{ height: height }}

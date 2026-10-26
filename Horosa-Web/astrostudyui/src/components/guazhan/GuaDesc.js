@@ -3,6 +3,7 @@ import { Typography } from 'antd';
 import {randomStr, } from '../../utils/helper';
 import styles from '../../css/styles.less';
 import { XQTabs as Tabs } from '../xq-ui';
+import ExternalLink from '../common/ExternalLink';
 
 const { Title, Paragraph, Text } = Typography;
 const { TabPane } = Tabs;
@@ -22,7 +23,7 @@ class GuaDesc extends Component{
 
 		let res = [];
 		let title = (
-			<Title level={3} key={randomStr(8)}><a href={gua.url} target='_blank'>第{gua.ord}卦，{gua.name}卦，{gua.desc}</a></Title>
+			<Title level={3} key={randomStr(8)}><ExternalLink href={gua.url}>第{gua.ord}卦，{gua.name}卦，{gua.desc}</ExternalLink></Title>
 		);
 		res.push(title);
 

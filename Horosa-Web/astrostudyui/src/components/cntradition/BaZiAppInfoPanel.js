@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { leapPrefix } from '../../utils/lunarText';
 import { BaZiMsg } from '../../msg/bazimsg';
 import { calcFlowShenSha, filterShenShaByGroups } from '../../utils/baziShenShaLocal';
 
@@ -36,26 +37,6 @@ function hiddenText(item){
 	return stems.map((stem)=>`${stem.cell || ''}${stem.relative || ''}`).filter(Boolean).join(' ');
 }
 
-function collectGods(item){
-	if(!item){
-		return [];
-	}
-	const gods = [];
-	if(Array.isArray(item.shenSha)){
-		gods.push(...item.shenSha);
-	}
-	if(Array.isArray(item.goodGods)){
-		gods.push(...item.goodGods);
-	}
-	if(Array.isArray(item.neutralGods)){
-		gods.push(...item.neutralGods);
-	}
-	if(Array.isArray(item.badGods)){
-		gods.push(...item.badGods);
-	}
-	return Array.from(new Set(gods.filter(Boolean)));
-}
-
 function infoPair(label, value){
 	if(value === undefined || value === null || value === ''){
 		return null;
@@ -73,7 +54,7 @@ class BaZiAppInfoPanel extends Component{
 		const nongli = bazi.nongli || {};
 		const name = fields && fields.name ? fields.name.value : '';
 		const gender = BaZiMsg[bazi.gender] || '';
-		const lunarText = nongli.year ? `${nongli.year}年${nongli.leap ? '闰' : ''}${nongli.month || ''}${nongli.day || ''}` : '';
+		const lunarText = nongli.year ? `${nongli.year}年${leapPrefix(nongli)}${nongli.month || ''}${nongli.day || ''}` : '';
 		const timeAlgNames = { 0: '真太阳时', 1: '直接时间', 2: '春分定卯时', 3: '平太阳时' };
 		const timeAlgVal = fields && fields.timeAlg ? fields.timeAlg.value : 0;
 		const formClock = (fields && fields.date && fields.time) ? `${fields.date.value.format('YYYY-MM-DD')} ${fields.time.value.format('HH:mm:ss')}` : '';

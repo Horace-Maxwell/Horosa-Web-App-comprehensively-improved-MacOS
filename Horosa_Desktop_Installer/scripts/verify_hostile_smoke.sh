@@ -15,6 +15,12 @@
 # HOROSA_SKIP_HOSTILE=1。结果追加 SELFCHECK_LOG.md。
 # 退出码:0 全过 / 非 0 = 底层 verify_runtime_backend_boot.sh 的对应码。
 set -euo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -32,7 +38,8 @@ INPUT_PATH="${1:-}"
 
 # ── 构造污染环境 ────────────────────────────────────────────────────────────────
 HOSTILE_TMP="$(mktemp -d -t horosa-hostile)"
-trap 'chmod -R u+w "${HOSTILE_TMP}" >/dev/null 2>&1 || true; rm -rf "${HOSTILE_TMP}" >/dev/null 2>&1 || true' EXIT
+hostile_cleanup(){ chmod -R u+w "${HOSTILE_TMP}" >/dev/null 2>&1 || true; rm -rf "${HOSTILE_TMP}" >/dev/null 2>&1 || true; }
+trap 'hx_on_exit hostile_cleanup' EXIT
 
 # 恶意 PYTHONPATH:同名毒模块(被 import 即炸;正确的隔离下它们根本不会被看见)
 mkdir -p "${HOSTILE_TMP}/poison"

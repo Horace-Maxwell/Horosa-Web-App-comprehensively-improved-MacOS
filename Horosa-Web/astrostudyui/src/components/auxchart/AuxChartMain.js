@@ -18,7 +18,7 @@ import MundaneMain from '../mundane/MundaneMain';
 // 就成了悬空自由变量→模块顶层 ReferenceError→辅盘页干净安装必炸(v3.6.0 实案)。
 import { AUX_SUBTABS, rememberSubTab } from '../../constants/SubTabRegistry';
 import BabylonMain from '../babylon/BabylonMain';
-// [视觉底线·2026-09-17] 最小尺寸是屏幕可读意图(物理 px),壳缩放 z 下按 1/z 折算成布局 px;z=1 恒等。
+// 最小尺寸是屏幕可读意图(物理 px),壳缩放 z 下按 1/z 折算成布局 px;z=1 恒等。
 import { visualFloorPx } from '../../utils/zoomDomain';
 
 const TabPane = Tabs.TabPane;
@@ -26,7 +26,7 @@ const TabPane = Tabs.TabPane;
 const AUX_TABS = AUX_SUBTABS;
 
 class AuxChartMain extends Component{
-	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
 	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
 	shouldComponentUpdate(nextProps, nextState){
 		if(nextState !== this.state){
@@ -187,8 +187,8 @@ class AuxChartMain extends Component{
 
 						<TabPane tab="十三分盘" key="hellenastro">
 							<HellenAstroMain
-								planetListStyle={this.props.planetListStyle}   /* [Q-356/T-337] 行星列表密度透传 */
-								voidClassical={this.props.voidClassical}   /* [Q-149/T-56] 宿主链补传:此前断在辅盘,空亡古典义 / 仅本垣擢升互容 两档在派生盘页恒按关(会话态键,无 localStorage 兜底) */
+								planetListStyle={this.props.planetListStyle}   /* 行星列表密度透传 */
+								voidClassical={this.props.voidClassical}   /* 宿主链补传:此前断在辅盘,空亡古典义 / 仅本垣擢升互容 两档在派生盘页恒按关(会话态键,无 localStorage 兜底) */
 								showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
 								value={this.props.chart}
 								onChange={this.props.onChange}
@@ -210,8 +210,8 @@ class AuxChartMain extends Component{
 
 						<TabPane tab="十二分盘" key="dwadasamsa">
 							<Dwadasamsa12Main
-								planetListStyle={this.props.planetListStyle}   /* [Q-356/T-337] 行星列表密度透传 */
-								voidClassical={this.props.voidClassical}   /* [Q-149/T-56] 宿主链补传:此前断在辅盘,空亡古典义 / 仅本垣擢升互容 两档在派生盘页恒按关(会话态键,无 localStorage 兜底) */
+								planetListStyle={this.props.planetListStyle}   /* 行星列表密度透传 */
+								voidClassical={this.props.voidClassical}   /* 宿主链补传:此前断在辅盘,空亡古典义 / 仅本垣擢升互容 两档在派生盘页恒按关(会话态键,无 localStorage 兜底) */
 								showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
 								onChange={this.props.onChange}
 								tripSystem={this.props.tripSystem}
@@ -249,7 +249,7 @@ class AuxChartMain extends Component{
 							<AstroRelocationLab
 								value={this.props.chart}
 								fields={this.props.fields}
-								voidClassical={this.props.voidClassical}   /* [Q-149/T-56] 宿主链补传:此前断在辅盘,空亡古典义 / 仅本垣擢升互容 两档在派生盘页恒按关(会话态键,无 localStorage 兜底) */
+								voidClassical={this.props.voidClassical}   /* 宿主链补传:此前断在辅盘,空亡古典义 / 仅本垣擢升互容 两档在派生盘页恒按关(会话态键,无 localStorage 兜底) */
 								showOnlyRulExaltReception={this.props.showOnlyRulExaltReception}
 								height={childHeight}
 								chartStyle={this.props.chartStyle}
@@ -266,7 +266,7 @@ class AuxChartMain extends Component{
 						<TabPane tab="调波盘" key="harmonic">
 							<AstroHarmonicLab
 								value={this.props.chart}
-								fields={this.props.fields}   /* [Q-149/T-56] 派生快照 meta 源:缺 fields → 挂载健康核对恒 unknown(换本命也不告警) */
+								fields={this.props.fields}   /* 派生快照 meta 源:缺 fields → 挂载健康核对恒 unknown(换本命也不告警) */
 								height={childHeight}
 								chartStyle={this.props.chartStyle}
 								wheelArt={this.props.wheelArt}
@@ -280,7 +280,7 @@ class AuxChartMain extends Component{
 						<TabPane tab="龙盘" key="draconic">
 							<AstroDraconicLab
 								value={this.props.chart}
-								fields={this.props.fields}   /* [Q-149/T-56] 同上:派生快照 meta 源 */
+								fields={this.props.fields}   /* 同上:派生快照 meta 源 */
 								height={childHeight}
 								chartStyle={this.props.chartStyle}
 								wheelArt={this.props.wheelArt}
@@ -308,7 +308,7 @@ class AuxChartMain extends Component{
 
 						<TabPane tab="卜卦盘" key="horary">
 							<HoraryMain
-								wheelArt={this.props.wheelArt}   /* [Q-150/T-61] 盘面美术 / 外环样式随「设置→星盘设置」全局变更(壳内订阅同步) */
+								wheelArt={this.props.wheelArt}   /* 盘面美术 / 外环样式随「设置→星盘设置」全局变更(壳内订阅同步) */
 								chartStyle={this.props.chartStyle}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}
@@ -324,7 +324,7 @@ class AuxChartMain extends Component{
 
 						<TabPane tab="择日盘" key="election">
 							<ElectionMain
-								wheelArt={this.props.wheelArt}   /* [Q-150/T-61] 盘面美术 / 外环样式随「设置→星盘设置」全局变更(壳内订阅同步) */
+								wheelArt={this.props.wheelArt}   /* 盘面美术 / 外环样式随「设置→星盘设置」全局变更(壳内订阅同步) */
 								chartStyle={this.props.chartStyle}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}
@@ -340,7 +340,7 @@ class AuxChartMain extends Component{
 
 						<TabPane tab="世俗盘" key="mundane">
 							<MundaneMain
-								wheelArt={this.props.wheelArt}   /* [Q-150/T-61] 盘面美术 / 外环样式随「设置→星盘设置」全局变更(壳内订阅同步) */
+								wheelArt={this.props.wheelArt}   /* 盘面美术 / 外环样式随「设置→星盘设置」全局变更(壳内订阅同步) */
 								chartStyle={this.props.chartStyle}
 								fields={this.props.fields}
 								fieldsAry={this.props.fieldsAry}

@@ -790,3 +790,123 @@ Windows 版完成的定义不是“能打开”，而是：
 
 ### macOS 独有(Windows 无对应动作)
 - 安装 / 更新后原生库首次加载预检(`config/native_prewarm_priority.json`、`installer-scripts/postinstall.template`、壳子命令 `--horosa-native-prewarm`)、增量更新暂存槽硬链接搭 + 换完即预检(Windows 的差分更新按文件树下载、不走整棵克隆)、签名缓存自动种子与稳定部件对拍(`prepare_sign_seed.py` / `verify_stable_parts_headers.py`)。
+
+## v3.12.0 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.12.0` / `runtimeVersion` = `3.12.0-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 共享 Java · 本机请求不走系统代理(Windows issue #89)
+- 根因:JVM 开 `-Djava.net.useSystemProxies=true` 时,`http.nonProxyHosts` / `socksNonProxyHosts` 不参与判断;Windows 系统代理只写「地址:端口」时同一代理还被当作 SOCKS,连本机 8899 / 9999 也被送进代理(日志 `Reply from SOCKS server has bad version`)。
+- 同步 `boundless` 新 `LoopbackDirectProxySelector`(`AstroStudyProgram.main` 第一句安装;本机地址一律直连,其余交回系统代理)与后端各出站客户端的按目标判路由(含 AI 流式、网页读取、联网检索);重建 fat jar 即生效,不依赖启动参数。
+- 双保险(建议同做):Electron `service-manager.js` 凡带 `-Djava.net.useSystemProxies=true` 的 Java 启动参数(含 CDS / 预热训练进程)同时补 `-Dhttp.nonProxyHosts=localhost|127.*|[::1]` 与 `-DsocksNonProxyHosts=localhost|127.*|[::1]`(整体作一个 argv 元素);壳里的本机健康探测(curl / Node)对 127.0.0.1 显式禁代理。
+- 前端 `utils/request.js`:引擎连不上时 silent 请求也提示一次(15 秒去重)。
+- 真机验收:开系统代理(如 DevSidecar)→ 重启 → 星盘 / 紫微 / 奇门 / 六壬 / 主限法均出结果;AI 外部服务与联网检索经代理可用;停掉排盘引擎时界面提示一次。
+
+### 共享 Java · 请求记录写出前统一脱敏
+- 同步 `boundless/utility/SecretRedactor`(单源)与交易日志 / 回落缓存(`conf/properties/cache/mongotranslog.properties` 的 `fallback.redactonpersist=true`)/ 错误日志各写出点;重建 jar 即生效。若 Windows 版用过 Mongo 回落缓存,发布说明里提示用户删除回落缓存目录(可再生)并视情况轮换模型服务密钥。
+
+### 共享前端 · 合盘中式对照补全(Windows issue #87)
+- `utils/pairChineseData.js`:八字四柱逐柱对照、两人地支合局(三合 / 三会 / 三刑);紫微双方命宫 / 身宫落对方哪宫(按宫干支地支定位)、四化入宫带落宫地支。`utils/baziLunarLocal.js` 新增三个导出,`riziEngine.personBazi` 多 `monthGZ`。jest `aiPairChinesePalaceByBranch.test.js`。壳不用改。
+
+### 共享前端 · 推运类缺省「此刻」按盘时区
+- `components/comp/DateTime.js` 新 `nowForChart` / `wallClockForChart`;推运各页、AI 挂载与无头缺省目标时刻改用。东八区的盘逐位不变;非东八区的盘缺省目标时刻改正。
+
+### 无头 · 批量验证(Windows issue #85)
+- `./horosa batch` / `./horosa batch-pack` 为 bash + Node,Windows 原生不支持:Windows 用户在 WSL2(Ubuntu 24.04 / Debian 12)里按 `docs/HEADLESS.md`「批量验证」用运行包;运行包在 macOS / Linux 上打。
+
+### 共享前端 · 旧系统内核兼容
+- `astrostudyui/scripts/legacy-engine-floor.js` 在 `build` / `build:file` 收尾检查构建产物(以 Safari 15.0 为下限:正则后行断言、无回退的 `color-mix()`、选择器列表混写新伪类等);Windows 使用同一前端构建即生效(Electron 内核较新,检查只防回归)。
+
+## v3.11.3 之后(Mac 已落地;随 v3.12.0 发布,Windows 按此对齐)
+
+### 共享前端 · AI 对话双盘挂载(Windows issue #87)
+- Windows 同步以下文件:`utils/aiAnalysisContext.js`(`buildContextLayers({partner})` / 挂载预算双盘分摊 / `snapshotSourceMismatch` 日期归一 / `pairDisplayName`)、`utils/aiChat/{mentions,checkpoint,skills,commands}.js`、`components/aianalysis/chat/{useChatAssist,useChatOrchestrate}.js`、`utils/aiAgent/goalRunner.js`、`components/help/AIAnalysisHelpDoc.js`;jest `aiChatPairMount.test.js` / `aiChatPairMountHeadless.test.js` / `aiMountHealth.test.js`。
+- `components/aianalysis/AIAnalysisMain.js` (Windows 侧自有版本按下列要点对齐):会话级 `partnerSourceId` 与 `partnerSource` 判定(两张都是命盘且不是同一张)、对方案例前提 / 技法上下文预览、挂载卡片(`partner-source:<id>` / `technique:<key>@partner`)、`buildResolvedPrompt` 传 `partner`、`mountSig` 追加 `|pair:<id>`、会话记录 `partnerRef`、检查点 `partnerSourceId`、抽屉「合盘对方(可选)」、顶栏「合盘 · X」标签、横幅、历史列表「A × B」。
+- 行为:不选对方时与此前完全相同;`/合盘` 的西洋比较盘 / 组合盘数据只在没勾技法或勾了西洋本命类时附。会话记录多一个可选字段 `partnerRef`,IndexedDB 不升版。发布自检 [290]。
+
+### 共享前端 · AI 对话命令参数与 /help
+- Windows 同步以下文件:`utils/aiChat/{mentions,skills,commands}.js`、`components/aianalysis/chat/{useChatAssist,ChatAssistOverlays}.js`、`utils/aiAnalysisContext.js`(西洋合盘数据按对缓存 + `pair:synastry` 层)、`utils/aiAgent/goalRunner.js`、`components/help/AIAnalysisHelpDoc.js`;jest `aiChatCommandArgs.test.js`。
+- `components/aianalysis/AIAnalysisMain.js` (Windows 侧自有版本按下列要点对齐):导入 `shouldAttachWesternSynastry` / `getPairSynastryText`,`partnerSynastry` 状态 + 预览 effect + 「合盘数据(西洋)」卡,`buildResolvedPromptImpl` 给 `partnerForPrompt.synastry`。
+- 行为:命令参数里的 @ 与正文同一解析;/合盘 找人精确同名优先;年份写法规整;新命令 /help;合盘对方在场时西洋合盘数据整段对话都在。发布自检 [291]。
+
+### 共享前端 · AI 对话命令(二):本轮请求 / 命令气泡 / 参数补全
+- Windows 同步以下文件:新 `utils/aiChat/turnRequest.js`、`components/aianalysis/chat/UserTurnBody.js`;`utils/aiChat/commands.js`、`components/aianalysis/chat/{useChatAssist,ComposerAssist}.js`、`utils/aiConversationBranch.js`;jest `aiChatTurnRequest.test.js`。
+- `components/aianalysis/AIAnalysisMain.js` (Windows 侧自有版本按下列要点对齐):`handleSend(overrideText, extraSystemContext, turnOptions)` 与用户消息的 `turn` 字段;`buildResolvedPrompt` 系列带 turn(本轮技法 / 本轮合盘对方,本轮专用技法不写预览);`ensureConversationRecord` 的标题与合盘对方;三处重答带 turn;`applyBundle(bundle, { skipTechniques })`;用户气泡改 `chatAssist.userTurnContent(item)`。
+- 行为:技能带的技法只用于这一轮;命令气泡与标题写命令;命令参数补全。发布自检 [291]。
+
+### 共享前端 · AI 调用链整理
+- Windows 同步以下文件:新 `utils/aiPromptAssembly.js`;`utils/aiAgent/goalRunner.js`、`utils/aiModelRouting.js`(第七槽 utility)、`utils/aiChat/shortCall.js`、`components/aianalysis/chat/useChatAssist.js`、`utils/aiAnalysisContext.js`(双盘快照重算缓存、紫微 / 七政同技法排队)、`components/ziwei/ZiWeiMain.js`(快照构造器排队)、`components/aianalysis/chat/advancedControls.registry.json`;jest `aiPromptAssembly` / `aiPairSnapshotCache` / `aiSerialTechniqueBuild`。
+- `components/aianalysis/AIAnalysisMain.js` (Windows 侧自有版本按下列要点对齐):拼装段改 `assembleSystemPrompt`(页内不再定义断点常量);自动起标题走 `utility` 槽。
+- 行为:缺省请求逐字节不变;「按任务用模型」多一行「辅助」。发布自检 [292];[239] 的路由槽字面改为七槽。
+
+### 共享前端 · AI 对话合盘:中式对照
+- Windows 同步以下文件:新 `utils/pairChineseData.js`;`utils/aiAnalysisContext.js`、`utils/aiAgent/goalRunner.js`、`components/help/AIAnalysisHelpDoc.js`;jest `aiPairChineseData.test.js`。
+- `components/aianalysis/AIAnalysisMain.js` (Windows 侧自有版本按下列要点对齐):`getPairChineseTexts` 导入、`partnerChinese` 状态与预览卡、发送时 `partnerForPrompt.chinese`。
+- 行为:两人都勾八字 / 紫微时附对照层;只有对照事实不打分。发布自检 [290]。
+
+### 共享壳 + 前端 · 本机 MCP 协议层(外部客户端接入)
+- Windows 同步以下 Rust 文件:`src-tauri/src/mcp_server.rs`(工具全字段透传 `project_tool`、握手认 2025-11-25、`completion/complete`、取消登记与墓碑、`CallControl` / `dispatch_ctl`、页面桥进度通道与 `cancel_script`、单请求事件流 `SseResponse`(`into_writer` 自写分块)、收发线程 8 / 在途 6、客户端 `_meta.timeoutMs` 投给页面)、`src-tauri/src/mcp_stdio.rs`(并发转发、事件流逐条转行、取消按原纪元转发、按工具预算给超时)。
+- `src-tauri/src/main.rs` (Windows 侧自有版本按下列要点对齐):新命令 `agent_tool_progress_command(id, progress, total?, message?) -> bool`(转 `state.bridge.progress`),并登记进 `generate_handler!`。
+- Windows 同步以下前端文件:`utils/aiAgent/mcpBridge.js`(只读并发 ≤3 / 写入与界面串行、`window.__horosaAgentToolCancel`、进度发射器、补全与分页、声明了输出结构的工具成功恒带 `structuredContent`)、`utils/aiTools/{catalog,registry,resources,prompts,errorCodes}.js`、新 `utils/aiTools/completions.js`、九件工具 `outputSchema`、`castTechnique.js` / `runAnalysis.js` 报进度;jest `mcpBridgeSchedule` / `aiToolsOutputSchema.contract` / `mcpCompletionsPaging`。
+- 若 Windows 壳自写 MCP 服务(不用这份 Rust):进度帧走该请求自己的事件流且分块收尾(别靠关连接);旧纪元按(会话, id)取消、断开不算取消;现代纪元断流即取消;壳必须把客户端 `_meta.timeoutMs` 投给页面(页面预算 = 壳预算 − 3 s)。
+- 行为:外部客户端看得到中文工具名与输出结构;长调用有进度、能取消;一次长起盘不再堵住只读查询。发布自检 [293];冒烟 `verify_mcp_smoke.sh` 缺省腿六断言。
+
+### 共享前端 · 本机 MCP 读面补齐(外部 AI 能读的内容)
+- Windows 同步以下文件:新 `utils/aiTools/helpText.js`、`utils/aiTools/tools/{listTasks,castRelative,searchElection,searchXuanshi,readCurrentPage,privateRead}.js`;`utils/aiTools/{index,labels,resources,completions,prompts}.js`、`tools/runAnalysis.js`、`utils/aiAgent/{prefs,goalRunner}.js`、`utils/aiExport.js`、`components/aianalysis/ExternalAgentPanel.js`、`utils/techniqueOnboardingContract.js`、`components/aianalysis/chat/advancedControls.registry.json`;jest `aiToolsMcp1` / `mcpHelpSkillsPrompts`。
+- (Windows 侧自有版本按下列要点对齐):`utils/storageKeyRegistry.js` 加 `horosa.ai.tools.privateRead.enabled`(settings,随备份)一行,存储注册表快照随之多一行;目录合同件数 24 → 36。
+- 行为:外部客户端可读后台任务、两人合盘数据、天星择日(条件 / 搜索 / 判读)、玄学史、当前页 AI 导出正文、技法操作手册;私人内容(对话记录 / 备注与断事日志)默认不给,开「私人内容可读」后只经本机 MCP 可读。发布自检 [294]。
+
+### 共享前端 · 本机 MCP 写入面(断事日志 / 档案关系 / 对话挂载 / AI 页页签)
+- Windows 同步以下文件:新 `utils/aiTools/tools/{recordJournal,setChatMount}.js`;`utils/aiTools/{recordFlags,index,labels}.js`、`tools/navigateToTechnique.js`、`components/aianalysis/chat/useChatAssist.js`;jest `aiToolsMcp2Records`。
+- (Windows 侧自有版本按下列要点对齐):`components/aianalysis/AIAnalysisMain.js` 加模块级 `SECONDARY_TAB_ITEMS`(页签键与名)并在 `useChatAssist` 入参加 `innerTab, innerTabs: SECONDARY_TAB_ITEMS`;目录合同件数 36 → 39。
+- 行为:外部客户端可追加断事日志、记两张档案的关系(双向,只新增,不刷新更新时间,可撤销)、设对话挂载、切到 AI 分析页的各页签。发布自检 [295]。
+
+### 共享前端 · 本机 MCP 写入面(按用户起卦结果建事盘)
+- Windows 同步以下文件:新 `utils/aiTools/divinationCast.js`、`utils/aiTools/tools/castDivinationCase.js`;`components/guazhan/GuaZhanMain.js`(新导出 `buildLinesGua`)、`utils/aiAnalysisContext.js`(新导出 `buildCaseFieldsForRecord` / `buildSixyaoCaseFromLines`)、`aiTools/tools/createCaseRecord.js`(抽出共用函数,行为不变)、`aiTools/{index,labels}.js`;jest `aiToolsMcp2Cast`。
+- (Windows 侧自有版本按下列要点对齐):目录合同件数 39 → 41。
+- 行为:外部客户端可把用户报出的六爻 / 小六壬 / 灵棋 / 统摄法 / 小成图 / 飞宫结果存成事盘(与页面存的同形,页面可原样重开,可撤销);六爻需要农历(本机服务优先、离线本地兜底)。发布自检 [295]。
+
+### 共享前端 · 本机 MCP 写入面第三批(设置「页面」面)
+- Windows 同步以下文件:`utils/aiTools/settingsFacets.js`(`page` 面、页面设置载入表与排除表)、`aiTools/tools/{setSettings,describeSettings}.js`、`utils/pageSettingsStore.js`(仅注释);jest `aiToolsMcp2PageSettings`、`aiSettingsFacetsWhitelist`、`aiAgentDiffPreview`。
+- 行为:外部客户端在用户要求时可改技法页保存的排盘设置(只认该页合法取值,要确认、可撤销,已打开的页下次载入生效);天文馆不在其列。发布自检 [295]。
+
+### 共享前端 · 本机 MCP 写入面第四批(各流派择日搜索)
+- Windows 同步以下文件:新 `utils/aiTools/zeriSchools.js`、`utils/aiTools/tools/searchZeri.js`;`aiTools/tools/searchElection.js`(参数化,天星行为不变)、`components/zeri/{BaziZeriMain,ZiweiZeriMain,LiurengZeriMain,TaiyiZeriMain}.js`(缺省参数改导出函数,值不变)、`aiTools/{index,labels}.js`、`components/help/AIAnalysisHelpDoc.js`;jest `aiToolsMcp2Zeri`。
+- (Windows 侧自有版本按下列要点对齐):目录合同件数 44 → 47。
+- 行为:外部客户端可按黄历 / 八字 / 紫微 / 六壬 / 太乙 / 七政 / 印度择日搜索与判读;七政 / 印度需要本机服务。发布自检 [295]。
+
+### 共享前端 · 本机 MCP · 外部「界面类也要确认」
+- Windows 同步以下文件:`utils/aiAgent/{prefs,mcpBridge}.js`、`components/aianalysis/ExternalAgentPanel.js`、`components/aianalysis/chat/advancedControls.registry.json`;jest `aiToolsMcp3`。
+- 行为:进阶页「外部连接」新开关「界面类也要确认」(缺省关);开后外部程序的切页 / 合盘配对 / 设对话挂载先弹本机审批台。若 Windows 壳自写 MCP 页面桥,对 `category:'ui'` 的外部调用同样按 `uiConfirm` 送审批。发布自检 [296]。
+
+### 共享前端 · 本机 MCP · 档案提案
+- Windows 同步以下文件:新 `utils/aiAgent/proposals.js`、`utils/aiTools/tools/proposeRecord.js`;`components/aianalysis/{TaskCenterPanel,TaskCenterBell}.js`、`components/help/AIAnalysisHelpDoc.js`、`utils/aiTools/{catalog,index,labels,errorCodes}.js`、`utils/techniqueOnboardingContract.js`;jest `aiToolsMcp3`。
+- (Windows 侧自有版本按下列要点对齐):`utils/storageKeyRegistry.js` 加 `horosa.ai.agent.proposals.v1`(device-local、不随备份)与快照一行;目录合同件数 41 → 44。
+- 行为:AI 改档案 / 归档只能提议,提案在任务中心逐条采纳才落库,可撤销采纳;档案在提议后被改过则判冲突不落库;删除永远不开放。发布自检 [296]。
+
+### 壳 + 共享前端 · 本机 REST 接口(/api/v1)
+- Windows 同步以下文件:新 `src-tauri/src/rest_api.rs`;`src-tauri/src/mcp_server.rs`(`McpCore.rest_enabled` 缺省 false、`/api/v1` 前缀转入、`apply_rest_enabled`、状态尾部 `restEnabled` / `restUrl`)、`utils/aiAnalysisDesktop.js`、`components/aianalysis/ExternalAgentPanel.js`、`components/aianalysis/chat/advancedControls.registry.json`、`components/help/AIAnalysisHelpDoc.js`、`scripts/check_adv_controls_registry.js`(下限 129);jest `aiToolsRestPanel`、`aiAdvancedControlsRegistry`。
+- (Windows 侧自有版本按下列要点对齐):`main.rs` 四处 —— `mod rest_api;`、偏好 `mcp_rest_enabled`(缺省 false,保存偏好时保留壳侧值)、启动时 `apply_rest_enabled`、新命令 `mcp_server_set_rest_enabled_command` 并登记进 `generate_handler!`。Windows 壳若有自己的 MCP 服务实现,同样做到:同端口、同令牌、门先于子开关、调用方名 `rest`。
+- 行为:进阶页「外部连接」新开关「REST 接口」(缺省关,随本机服务);开后本机脚本可用 HTTP 调同一套工具,审批与上限同外部客户端策略。发布自检 [297]。
+
+### 壳 + 共享前端 · 终端命令(--horosa-cli)
+- Windows 同步以下文件:新 `src-tauri/src/horosa_cli.rs`;`src-tauri/src/mcp_server.rs`(测试)、`utils/aiAnalysisDesktop.js`、`components/aianalysis/ExternalAgentPanel.js`、`components/aianalysis/chat/advancedControls.registry.json`、`components/help/AIAnalysisHelpDoc.js`、`scripts/check_adv_controls_registry.js`(下限 130)、`scripts/check_desktop_bridge_contract.js`;jest `aiToolsCliPanel`、`aiAdvancedControlsRegistry`。
+- (Windows 侧自有版本按下列要点对齐):`main.rs` —— `mod horosa_cli;`、`main()` 最前分流 `--horosa-cli`(不论子命令都在此退出)、三个壳命令 `cli_shim_status_command` / `cli_shim_install_command` / `cli_shim_remove_command` 登记进 `generate_handler!`。Windows:端点文件在 `%APPDATA%\<identifier>\`(已按平台分支);终端命令垫片是 sh 脚本,Windows 端需另做(如 `horosa.cmd`);Ctrl-C 信号处理只在 unix 编译。
+- 行为:进阶页「外部连接」新行「终端命令 horosa」(安装 / 移除 / 复制示例);终端里 `horosa status` / `tools` / `call …` 等调用同一套工具,审批与上限同外部客户端策略。发布自检 [298]。
+
+### 共享前端 + 新目录 · 无头模式(不开 App:./horosa · MCP · REST)+ 名人库开放给 AI + 奇门择日对外开放
+- Windows 同步以下文件:新 `Horosa-Web/astrostudyui/headless/`(运行时 / 协议 / REST / 服务 / stdio / 终端命令 / 页面宿主 / 自测;`dist/` 不入库)、仓库根 `horosa` 与 `.mcp.json`、`utils/astrodata/celebrityDb.js`、`utils/aiTools/tools/celebrities.js`、`scripts/verify_desktop_api_e2e.sh`;改动 `utils/aiAnalysisStore.js`(只加落盘钩子,浏览器零影响)、`components/dunjia/DunJiaMain.js`(导出 `dunjiaZeriOptions`)、`utils/aiTools/{index,labels,errorCodes,zeriSchools}.js`、`tools/searchZeri.js`、帮助文档、`mcp_server.rs`(缺省忽略的联调测试)。
+- (Windows 侧自有版本按下列要点对齐):目录合同件数 47 → 51、手册错误码表 +2、`docs/HEADLESS.md`。
+- Windows:运行时与协议层不分平台,可直接 `node Horosa-Web/astrostudyui/headless/cli.js …`;`./horosa` 是 bash 入口、起停后端用的是 mac 启停脚本,Windows 端需换成自己的启停。发布自检 [299] [300]。
+
+### 共享前端 · 无头模式:模型接口 / 整库导入导出 / 管理令牌
+- Windows 同步以下文件:`headless/aiProfiles.js`(新)、`headless/{runtime,server,cli,entry,build,selftest}.js`、`utils/secureKeyStore.js`(没有桌面桥时可由无头运行时装主密钥钩子)、`aiAgent/mcpBridge.js`(AI 助手开关翻转时作废工具目录缓存)、`services/aianalysis.js`(报错说明在源头解码)。
+- 行为:App 里打开「无头分析 / 私人内容可读 / 网页读取」后,外部调用对应工具不再报「未知工具」;网页读取 / 联网检索 / 连通测试的报错不再显示成乱码 —— Windows 版 App 同样受益。
+
+### 壳 + 共享前端 · 外部接口加固(本机服务资源边界 · 工具承诺 · 无头会话)
+- **壳(Windows 必看)**:本机 MCP / REST 服务的 HTTP 库换成仓内补丁副本 `src-tauri/vendor/tiny_http`(`Cargo.toml` 的 `[patch.crates-io]`):不按客户端声明长度申请缓冲、连接读写超时、请求头上限、accept 遇暂时性错误退避续接、在服连接上限、停服后回 503 并关连接 —— 此前一个不带令牌的畸形超大请求即可让 App 退出(发布配置 `panic = "abort"`)。
+- 壳内其它:`mcp_server.rs`(服务句柄丢弃即停、`/healthz` 只认本机 Host / Origin、事件流两类名额分开计数、私有文件随机临时名且不跟随符号链接)、`mcp_client.rs`(断开外部 MCP 先结束子进程、不占主线程;不跟随重定向)、`mcp_stdio.rs`(端点 URL 解析校验回环)、`horosa_cli.rs`(先核对端点进程号再带令牌、超时单独报)、`rest_api.rs`(失败时从正文回填 `data`)。`main.rs`(Windows 侧自有版本按下列要点对齐):参数非 UTF-8 不崩、外部 MCP 断开 / 删除命令不占主线程、退出清理放后台线程。
+- 共享前端:`aiAgent/mcpBridge.js`(结构化结果只给成功;资源面受按工具名禁用管)、`aiTools/settingsFacets.js`(设置撤销逐键 + 写后值核对)、`aiTools/castInputKeys.js`(新:起卦输入键不许经参数改)、`aiTools/resourceToolGate.js`(新)、`aiTools/tools/*`(事盘去重按起卦输入指纹、提案在私人内容关着时不回显备注、关系边两侧都查、分页补 offset、名人检索带署名、外部来源建的任务只入队)。
+- 无头:`headless/*` + `test/runtime.test.js`(新);仓库根 `horosa`、`Horosa-Web/start_horosa_local.sh`、`scripts/mac/bootstrap_and_run.sh`(Windows 无对应;若有自有启动器,按同样要点对齐:坏数据文件改名留档、关闭时落盘、自动拉后端只在两个都没开时)。
+- 打包链(Windows 无对应动作):`release_lock.sh` 改内核文件锁。

@@ -2,12 +2,27 @@
   const logPath = document.getElementById('logPath');
   const appDataDir = document.getElementById('appDataDir');
   const runtimeDir = document.getElementById('runtimeDir');
+  const sharedWarn = document.getElementById('sharedRuntimeWarning');
   const logOutput = document.getElementById('logOutput');
   const assetList = document.getElementById('assetList');
   const ledgerOutput = document.getElementById('ledgerOutput');
   const updateHistoryOutput = document.getElementById('updateHistoryOutput');
 
-  // [U-G] 更新台账 JSONL → 人可读:「时间 事件 详情」;解析失败原样展示。
+  // 壳层报错 → 中文一句 + 原始信息(shell_errors.js,页面先于本文件载入)
+  function errorText(error) {
+    return window.HorosaShellErrors.withDetail(error);
+  }
+
+  // 资产状态 → 中文(与启动器审查页同一套叫法)
+  const ASSET_STATE_LABELS = {
+    healthy: '可复用',
+    outdated: '版本旧',
+    broken: '损坏或不完整',
+    pending: '待处理',
+    cache_only: '待清理缓存'
+  };
+
+  // 更新台账 JSONL → 人可读:「时间 事件 详情」;解析失败原样展示。
   function renderUpdateHistory(lines) {
     if (!lines || !lines.length) {
       return '暂无更新历史(完成一次更新后生成)。';
@@ -49,35 +64,25 @@
       .join('\n');
   }
 
-  async function invoke(cmd, args) {
-    if (window.__TAURI__?.core?.invoke) {
-      return window.__TAURI__.core.invoke(cmd, args);
-    }
-    if (window.__TAURI_INTERNALS__?.invoke) {
-      return window.__TAURI_INTERNALS__.invoke(cmd, args);
-    }
-    throw new Error('无法连接桌面程序，请重新打开星阙后重试');
-  }
+  const invoke = window.HorosaShellBridge.invoke;
 
   async function refresh() {
     const payload = await invoke('read_diagnostics_snapshot');
     logPath.textContent = payload.logPath;
     appDataDir.textContent = payload.appDataDir;
     runtimeDir.textContent = payload.runtimeDir;
+    sharedWarn.textContent = payload.sharedRuntimeWarning || '';
+    sharedWarn.classList.toggle('hidden', !payload.sharedRuntimeWarning);
     logOutput.textContent = payload.lines.join('\n');
-    if (ledgerOutput) {
-      ledgerOutput.textContent = renderLedger(payload.ledgerLines);
-    }
-    if (updateHistoryOutput) {
-      updateHistoryOutput.textContent = renderUpdateHistory(payload.updateHistoryLines);
-    }
+    ledgerOutput.textContent = renderLedger(payload.ledgerLines);
+    updateHistoryOutput.textContent = renderUpdateHistory(payload.updateHistoryLines);
     assetList.innerHTML = (payload.assets || [])
       .map(
         (item) => `
           <div class="asset-row">
             <div class="asset-row-top">
               <div class="asset-row-title">${item.label}</div>
-              <div class="asset-row-state">${item.state}</div>
+              <div class="asset-row-state">${ASSET_STATE_LABELS[item.state] || item.state}</div>
             </div>
             <div class="asset-row-copy">${item.details}</div>
             <pre class="asset-row-path">${item.path}</pre>
@@ -89,42 +94,40 @@
 
   document.getElementById('refreshBtn').addEventListener('click', () => {
     refresh().catch((error) => {
-      logOutput.textContent = error.message || String(error);
+      logOutput.textContent = errorText(error);
     });
   });
 
   document.getElementById('openLogsBtn').addEventListener('click', () => {
     invoke('reveal_special_path', { kind: 'logs' }).catch((error) => {
-      logOutput.textContent = error.message || String(error);
+      logOutput.textContent = errorText(error);
     });
   });
 
-  // [U-G] 一键诊断包:壳收集 logs/台账/状态文件/系统信息 → 桌面 zip + Finder 定位
+  // 一键诊断包:壳收集 logs/台账/状态文件/系统信息 → 桌面 zip + Finder 定位
   const exportBtn = document.getElementById('exportBundleBtn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
-      exportBtn.disabled = true;
-      exportBtn.textContent = '正在打包…';
-      invoke('export_diagnostics_bundle')
-        .then((path) => {
-          exportBtn.textContent = '已导出到桌面';
-          logOutput.textContent = `诊断包已生成：\n${path}`;
-        })
-        .catch((error) => {
+  exportBtn.addEventListener('click', () => {
+    exportBtn.disabled = true;
+    exportBtn.textContent = '正在打包…';
+    invoke('export_diagnostics_bundle')
+      .then((path) => {
+        exportBtn.textContent = '已导出到桌面';
+        logOutput.textContent = `诊断包已生成：\n${path}`;
+      })
+      .catch((error) => {
+        exportBtn.textContent = '导出诊断包';
+        logOutput.textContent = errorText(error);
+      })
+      .finally(() => {
+        setTimeout(() => {
+          exportBtn.disabled = false;
           exportBtn.textContent = '导出诊断包';
-          logOutput.textContent = error.message || String(error);
-        })
-        .finally(() => {
-          setTimeout(() => {
-            exportBtn.disabled = false;
-            exportBtn.textContent = '导出诊断包';
-          }, 4000);
-        });
-    });
-  }
+        }, 4000);
+      });
+  });
 
   refresh().catch((error) => {
-    logOutput.textContent = error.message || String(error);
+    logOutput.textContent = errorText(error);
   });
   setInterval(() => {
     refresh().catch(() => {});
@@ -144,7 +147,8 @@
   function measure() {
     var d = document.documentElement;
     var declared = 1;
-    try { var z = parseFloat(d.style.zoom); if (z > 0) declared = z; } catch (e) {}
+    var z = parseFloat(d.style.zoom);
+    if (z > 0) declared = z;
     try {
       if (declared === 1) {
         var s = window.localStorage.getItem('horosa.shell.zoom');
@@ -185,8 +189,7 @@
     try {
       var m = measure();
       var set = function (id, txt) {
-        var el = document.getElementById(id);
-        if (el) { el.textContent = txt; }
+        document.getElementById(id).textContent = txt;
       };
       set('zoomDeclared', Math.round(m.declared * 100) + '%');
       set('zoomLayout', (m.layoutW || '?') + ' × ' + (m.layoutH || '?') + ' 点'
@@ -197,6 +200,5 @@
 
   if (document.body) { paint(); } else { document.addEventListener('DOMContentLoaded', paint); }
   window.addEventListener('resize', function () { setTimeout(paint, 60); });
-  var rb = document.getElementById('refreshBtn');
-  if (rb) { rb.addEventListener('click', function () { setTimeout(paint, 60); }); }
+  document.getElementById('refreshBtn').addEventListener('click', function () { setTimeout(paint, 60); });
 })();

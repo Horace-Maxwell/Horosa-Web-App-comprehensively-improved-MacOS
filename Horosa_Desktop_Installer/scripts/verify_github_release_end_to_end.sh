@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK_ROOT="${INSTALLER_ROOT}/build/github-release-e2e"
@@ -7,7 +13,7 @@ DOWNLOAD_ROOT="${WORK_ROOT}/downloads"
 APP_UNZIP_ROOT="${WORK_ROOT}/app-unzip"
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # TAB 分隔交接:appName 可含空格,空格分词会让字段右移(同 build_desktop_release.sh 修正)
-IFS=$'\t' read -r APP_NAME DESKTOP_OFFLINE_PKG DESKTOP_ASSET RUNTIME_ASSET TAG_NAME RELEASE_CHANNEL <<EOF
+IFS=$'\t' read -r APP_NAME DESKTOP_OFFLINE_PKG DESKTOP_ASSET RUNTIME_ASSET TAG_NAME RELEASE_CHANNEL REPO_OWNER REPO_NAME SHARED_ROOT_NAME <<EOF
 $(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 - <<'PYCONF'
 import json, os, pathlib
 root = pathlib.Path(os.environ['INSTALLER_ROOT_ENV'])
@@ -20,17 +26,22 @@ print(
     config['runtimeAssetName'],
     f"{config['releaseTagPrefix']}{version}",
     config.get('releaseChannel', 'stable'),
+    config['repoOwner'],
+    config['repoName'],
+    config.get('sharedRootName') or 'Horosa',
     sep='\t',
 )
 PYCONF
 )
 EOF
-RELEASE_API='https://api.github.com/repos/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest'
-MANIFEST_URL='https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/latest/download/horosa-latest.json'
+# 仓库坐标与安装根目录(sharedRootName)都从 release_config 读,与打包配置同源,不在脚本里写死:
+# 写死的坐标在别的发布配置下验的是别家 release(资产名必 missing),写死的安装根会让离线包装到别处后存在性判断静默失败。
+RELEASE_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
+MANIFEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest/download/horosa-latest.json"
 case "$(printf '%s' "${HOROSA_RELEASE_CHANNEL:-${RELEASE_CHANNEL}}" | tr '[:upper:]' '[:lower:]')" in
   beta|preview|prerelease|pre-release)
-    RELEASE_API="https://api.github.com/repos/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tags/${TAG_NAME}"
-    MANIFEST_URL="https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/horosa-latest.json"
+    RELEASE_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/tags/${TAG_NAME}"
+    MANIFEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${TAG_NAME}/horosa-latest.json"
     ;;
 esac
 
@@ -39,6 +50,12 @@ mkdir -p "${DOWNLOAD_ROOT}" "${APP_UNZIP_ROOT}"
 
 fetch() {
   curl -fL --retry 5 --retry-delay 2 --retry-all-errors "$@"
+}
+
+# 发布资产下载(按发布地址落盘;与真实用户的下载路径一致)。
+fetch_release_url() {
+  local url="$1" out="$2"
+  fetch -o "${out}" "${url}"
 }
 
 signed_backend_code() {
@@ -85,9 +102,9 @@ PY
 
 source "${WORK_ROOT}/release.env"
 
-fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/${TAG_NAME}/${DESKTOP_OFFLINE_PKG}"
-fetch -o "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_URL}"
-fetch -o "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" "${RUNTIME_URL}"
+fetch_release_url "https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${TAG_NAME}/${DESKTOP_OFFLINE_PKG}" "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}"
+fetch_release_url "${APP_URL}" "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}"
+fetch_release_url "${RUNTIME_URL}" "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}"
 
 python3 - <<'PY' "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "${PKG_SHA256}" "${DOWNLOAD_ROOT}/${DESKTOP_ASSET}" "${APP_SHA256}" "${DOWNLOAD_ROOT}/${RUNTIME_ASSET}" "${RUNTIME_SHA256}"
 import hashlib, pathlib, sys
@@ -103,7 +120,7 @@ for label, path, expected in checks:
         raise SystemExit(f'{label} checksum mismatch: {actual} != {expected}')
 PY
 
-# [WS-1b 哨兵] GitHub 资产必须支持 Range(206):客户端断点续传核的服务器前提。
+# GitHub 资产必须支持 Range(206):客户端断点续传核的服务器前提。
 # GitHub 若哪天不再回 206,发版在此报警,而不是用户续传静默退化。
 RANGE_PROBE="${DOWNLOAD_ROOT}/range-probe.bin"
 RANGE_CODE="$(curl -sL -r 0-1023 -o "${RANGE_PROBE}" -w '%{http_code}' "${RUNTIME_URL}" || true)"
@@ -123,15 +140,15 @@ python3 "${INSTALLER_ROOT}/scripts/verify_icon_alpha.py" \
 
 TMP_INSTALL="$(mktemp -d "${TMPDIR:-/tmp}/horosa-github-release.XXXXXX")"
 cleanup() {
-  if [ -n "${CHART_PORT:-}" ] && [ -n "${BACKEND_PORT:-}" ] && [ -d "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web" ]; then
+  if [ -n "${CHART_PORT:-}" ] && [ -n "${BACKEND_PORT:-}" ] && [ -d "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/Horosa-Web" ]; then
     (
-      cd "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web"
+      cd "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/Horosa-Web"
       HOROSA_CHART_PORT="${CHART_PORT}" HOROSA_SERVER_PORT="${BACKEND_PORT}" /bin/bash ./stop_horosa_local.sh >/dev/null 2>&1 || true
     )
   fi
   rm -rf "${TMP_INSTALL}"
 }
-trap cleanup EXIT
+trap 'hx_on_exit cleanup' EXIT
 
 pkgutil --expand-full "${DOWNLOAD_ROOT}/${DESKTOP_OFFLINE_PKG}" "${TMP_INSTALL}/expanded-offline" >/dev/null
 OFFLINE_COMPONENT_SCRIPT="$(find "${TMP_INSTALL}/expanded-offline" -path '*/Scripts/postinstall' | head -n 1)"
@@ -139,13 +156,13 @@ OFFLINE_COMPONENT_SCRIPT="$(find "${TMP_INSTALL}/expanded-offline" -path '*/Scri
 mkdir -p "${TMP_INSTALL}/offline-target/Applications"
 rsync -a "${APP_BUNDLE_PATH}/" "${TMP_INSTALL}/offline-target/Applications/${APP_NAME}.app/"
 HOROSA_RUNTIME_URL="file:///definitely-missing-runtime.tar.gz" /bin/bash "${OFFLINE_COMPONENT_SCRIPT}" pkgid unused "${TMP_INSTALL}/offline-target"
-[ -f "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime-manifest.json" ]
-[ ! -f "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime-install-pending.txt" ]
-[ -f "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/installer.log" ]
-[ -x "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
-/usr/bin/python3 "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python"
-PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
-PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" -version >/dev/null
+[ -f "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/runtime-manifest.json" ]
+[ ! -f "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime-install-pending.txt" ]
+[ -f "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/installer.log" ]
+[ -x "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/runtime/mac/python/Resources/Python.app/Contents/MacOS/Python" ]
+/usr/bin/python3 "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/Horosa-Web/scripts/repairEmbeddedPythonRuntime.py" --check "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/runtime/mac/python"
+PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/runtime/mac/python/bin/python3" -c 'import sys, ssl, hashlib; print(sys.executable); print("embedded-python-ok")' >/dev/null
+PATH="/usr/bin:/bin:/usr/sbin:/sbin" "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/runtime/mac/java/bin/java" -version >/dev/null
 
 read -r CHART_PORT BACKEND_PORT <<EOF
 $(python3 - <<'PY'
@@ -162,7 +179,7 @@ PY
 EOF
 
 (
-  cd "${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/Horosa-Web"
+  cd "${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/Horosa-Web"
   PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
   HOROSA_SKIP_UI_BUILD=1 \
   HOROSA_SKIP_RUNTIME_WARMUP=1 \
@@ -170,8 +187,8 @@ EOF
   HOROSA_STARTUP_TIMEOUT=180 \
   HOROSA_CHART_PORT="${CHART_PORT}" \
   HOROSA_SERVER_PORT="${BACKEND_PORT}" \
-  HOROSA_PYTHON="${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/python/bin/python3" \
-  HOROSA_JAVA_BIN="${TMP_INSTALL}/offline-target/Users/Shared/Horosa/runtime/current/runtime/mac/java/bin/java" \
+  HOROSA_PYTHON="${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/runtime/mac/python/bin/python3" \
+  HOROSA_JAVA_BIN="${TMP_INSTALL}/offline-target/Users/Shared/${SHARED_ROOT_NAME}/runtime/current/runtime/mac/java/bin/java" \
   HOROSA_LOG_ROOT="${TMP_INSTALL}/logs" \
   HOROSA_DIAG_DIR="${TMP_INSTALL}/diag" \
   /bin/bash ./start_horosa_local.sh
@@ -226,3 +243,4 @@ echo "latest_manifest_version=${MANIFEST_VERSION}"
 }
 
 echo "github release e2e passed for ${TAG_NAME}"
+exit 0

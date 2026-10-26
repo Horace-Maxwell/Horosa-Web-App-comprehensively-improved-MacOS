@@ -18,7 +18,7 @@ const R=(el)=>{ const r=GB(el); return {l:+r.left.toFixed(1),t:+r.top.toFixed(1)
 for(let i=0;i<80&&!document.querySelector('#mainContent');i++) await sleep(500);
 window.dispatchEvent(new CustomEvent('horosa:navigate',{detail:{key:KEY}}));
 await sleep(5500);
-if(CAST==='1'){ const b=[...document.querySelectorAll('button')].find(x=>/^(起\s*盘|起\s*课|起\s*卦|起\s*局|排\s*盘)$/.test((x.textContent||'').trim())); if(b){ b.click(); await sleep(6000); } }
+if(CAST==='1'){ const b=[...document.querySelectorAll('button')].find(x=>/^(起\s*[盘盤]|起\s*[课課]|起\s*卦|起\s*局|排\s*[盘盤])$/.test((x.textContent||'').trim())); if(b){ b.click(); await sleep(6000); } }
 const out={key:KEY, loadZoom:document.documentElement.style.zoom||'1', rtz:RTZ, rows:[], rafAlive:null};
 { let n=0; const t0=performance.now(); await new Promise(res=>{ const tick=()=>{ n++; if(performance.now()-t0<300) requestAnimationFrame(tick); }; requestAnimationFrame(tick); setTimeout(res,380); }); out.rafAlive=n; }
 if(RTZ){ if(typeof window.__HOROSA_APPLY_SHELL_ZOOM==='function'){ window.__HOROSA_APPLY_SHELL_ZOOM(parseFloat(RTZ)); out.rtApplied='shellFn'; } else { document.documentElement.style.zoom=RTZ; window.dispatchEvent(new Event('resize')); out.rtApplied='styleOnly'; } await sleep(2500); }

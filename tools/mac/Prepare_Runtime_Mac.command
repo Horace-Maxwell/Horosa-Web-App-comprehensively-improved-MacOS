@@ -12,7 +12,7 @@ REQ_FILE="${ROOT}/scripts/requirements/mac-python.txt"
 PY_REPAIR_HELPER="${PROJECT_DIR}/scripts/repairEmbeddedPythonRuntime.py"
 
 UI_DIR="${PROJECT_DIR}/astrostudyui"
-IMAGE_DIR="${PROJECT_DIR}/astrostudysrv/image"
+SERVER_POM="${PROJECT_DIR}/astrostudysrv/pom.xml"
 BOOT_DIR="${PROJECT_DIR}/astrostudysrv/astrostudyboot"
 JAR_PATH="${BOOT_DIR}/target/astrostudyboot.jar"
 
@@ -221,21 +221,25 @@ prepare_backend_bundle() {
     return 0
   fi
 
-  if [ -d "${IMAGE_DIR}" ] && [ -d "${BOOT_DIR}" ] && command -v mvn >/dev/null 2>&1; then
-    echo "[后端] 使用 Maven 构建 jar..."
-    (
-      cd "${IMAGE_DIR}"
-      mvn -DskipTests install
-      cd "${BOOT_DIR}"
-      mvn -DskipTests clean install
-    ) || true
+  # 后端按聚合 pom 一次构建全部模块(模块清单只在 astrostudysrv/pom.xml 的 <modules> 一处);逐模块 install 在新机器上
+  #   找不到父 pom 与兄弟模块,在旧机器上会吃本地仓库里的旧件。构建失败要如实报出来,不吞。
+  if [ -f "${SERVER_POM}" ] && command -v mvn >/dev/null 2>&1; then
+    echo "[后端] 使用 Maven 按聚合 pom 构建 jar..."
+    local mvn_rc=0
+    mvn -f "${SERVER_POM}" -DskipTests clean install || mvn_rc=$?
+    if [ "${mvn_rc}" -ne 0 ]; then
+      echo "[后端] Maven 构建失败(退出码 ${mvn_rc}),见上方输出;修好后重跑本脚本。"
+      return 1
+    fi
   else
-    echo "[后端] 未检测到 mvn 或目录不完整，尝试自动补齐后端构建能力..."
+    echo "[后端] 未检测到 mvn 或聚合 pom 缺失，尝试自动补齐后端构建能力..."
   fi
 
   if [ ! -f "${JAR_PATH}" ] && [ -x "${BOOTSTRAP_SH}" ]; then
     echo "[后端] 目标 jar 缺失，自动执行一键部署脚本构建后端..."
-    HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 HOROSA_SKIP_BUILD=0 HOROSA_SKIP_TOOLCHAIN_INSTALL="${HOROSA_SKIP_TOOLCHAIN_INSTALL:-0}" "${BOOTSTRAP_SH}" || true
+    local boot_rc=0
+    HOROSA_SKIP_DB_SETUP=1 HOROSA_SKIP_LAUNCH=1 HOROSA_SKIP_BUILD=0 HOROSA_SKIP_TOOLCHAIN_INSTALL="${HOROSA_SKIP_TOOLCHAIN_INSTALL:-0}" "${BOOTSTRAP_SH}" || boot_rc=$?
+    [ "${boot_rc}" -eq 0 ] || echo "[后端] 一键部署脚本在构建后端时失败(退出码 ${boot_rc}),见上方输出。"
   fi
 
   if [ -f "${JAR_PATH}" ]; then

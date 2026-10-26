@@ -17,6 +17,12 @@
 # 用法: verify_postinstall_version_matrix.sh <offline.pkg> [--keep]
 #   --keep 保留临时目录(排障用)。每格真解压一次内嵌档(约 2 GB),整套约 5–10 分钟;需要 ≥ 6 GB 临时空间。
 set -euo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 
 PKG="${1:?用法: $0 <offline.pkg> [--keep]}"
 KEEP="${2:-}"
@@ -28,7 +34,7 @@ TEMPLATE="${INSTALLER_ROOT}/installer-scripts/postinstall.template"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/horosa-pi-matrix.XXXXXX")"
 cleanup() { if [ "${KEEP}" = "--keep" ]; then echo "[matrix] 保留临时目录 ${WORK}"; else rm -rf "${WORK}"; fi; }
-trap cleanup EXIT
+trap 'hx_on_exit cleanup' EXIT
 
 echo "[matrix] expanding ${PKG} …"
 /usr/sbin/pkgutil --expand-full "${PKG}" "${WORK}/expanded"
@@ -111,7 +117,7 @@ step "格② 同版本同内容 → 应保留"
 touch "${MARK}"
 run_pi "${FRESH}" g2 || FAILS=$((FAILS + 1))
 [ -f "${MARK}" ] || { echo "matrix FAIL[g2]: 同版本同内容却被替换了"; FAILS=$((FAILS + 1)); }
-printf '%s' "${LAST_LOG}" | grep -q "same content" || { echo "matrix FAIL[g2]: 日志缺 same content:${LAST_LOG}"; FAILS=$((FAILS + 1)); }
+grep -q "same content" <<< "${LAST_LOG}" || { echo "matrix FAIL[g2]: 日志缺 same content:${LAST_LOG}"; FAILS=$((FAILS + 1)); }
 
 # 格③:同版本不同内容 → 替换
 step "格③ 同版本不同内容 → 应替换"
@@ -119,7 +125,7 @@ printf '\n' >> "${CUR}/components-lock.json"    # 内容身份变、版本号不
 touch "${MARK}"
 run_pi "${FRESH}" g3 || FAILS=$((FAILS + 1))
 [ ! -f "${MARK}" ] || { echo "matrix FAIL[g3]: 同版本不同内容却被保留了(#同版本重打的包装不进去# 旧病)"; FAILS=$((FAILS + 1)); }
-printf '%s' "${LAST_LOG}" | grep -q "different content" || { echo "matrix FAIL[g3]: 日志缺 different content:${LAST_LOG}"; FAILS=$((FAILS + 1)); }
+grep -q "different content" <<< "${LAST_LOG}" || { echo "matrix FAIL[g3]: 日志缺 different content:${LAST_LOG}"; FAILS=$((FAILS + 1)); }
 cmp -s "${CUR}/components-lock.json" "${WORK}/lock.from-payload.json" || { echo "matrix FAIL[g3]: 替换后落地 lock 与包内不同"; FAILS=$((FAILS + 1)); }
 
 # 咬合:旧行为变种跑格③ → 必须保留(证明本测试台判得出病)
@@ -146,7 +152,7 @@ set_ver "${R_VERSION}" "999.0.0-runtime1"
 touch "${MARK}"
 run_pi "${FRESH}" g5 || FAILS=$((FAILS + 1))
 [ -f "${MARK}" ] || { echo "matrix FAIL[g5]: 更新的已装版本被覆盖了(降级门失效)"; FAILS=$((FAILS + 1)); }
-printf '%s' "${LAST_LOG}" | grep -q "downgrade guard" || { echo "matrix FAIL[g5]: 日志缺 downgrade guard:${LAST_LOG}"; FAILS=$((FAILS + 1)); }
+grep -q "downgrade guard" <<< "${LAST_LOG}" || { echo "matrix FAIL[g5]: 日志缺 downgrade guard:${LAST_LOG}"; FAILS=$((FAILS + 1)); }
 set_ver "999.0.0-runtime1" "${R_VERSION}"
 
 if [ "${FAILS}" -ne 0 ]; then
@@ -155,3 +161,4 @@ if [ "${FAILS}" -ne 0 ]; then
   exit 1
 fi
 echo "[matrix] OK: 四格 + 咬合全部通过(runtime ${R_VERSION};同版本同内容保留 / 不同内容替换 / 旧版替换 / 新版保留 / 旧行为变种复现旧病)"
+exit 0

@@ -11,12 +11,12 @@
 
 Three workspaces — **Fate (命) · Divination (卜) · Tools (工具)** — **26 primary disciplines, 60+ sub-techniques and schools** (full catalog in [What's Inside](#3-whats-inside))
 
-[![Version](https://img.shields.io/badge/version-3.11.3-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.11.3)
+[![Version](https://img.shields.io/badge/version-3.12.0-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.12.0)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.11.3)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.11.3)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.12.0)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.12.0)
 
-[Download the installer](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.11.3/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Download the installer](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.12.0/Horosa-Installer-macos-arm64-offline.pkg) ·
 [Chinese portal](README.md) ·
 [中文详版](README_ZH.md) ·
 [All releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -32,6 +32,7 @@ Three workspaces — **Fate (命) · Divination (卜) · Tools (工具)** — **
 3. [What's Inside (Fate / Divination / Tools)](#3-whats-inside)
 4. [Download & Install](#4-download--install)
 5. [Run the Web Version from Source](#5-run-the-web-version-from-source)
+   - [5b. Headless mode · terminal · MCP · REST](#5b-headless-mode--terminal--mcp--rest-no-app-needed-ready-for-ai-agents)
 6. [FAQ](#6-faq)
 7. [License & Third-Party Notices](#7-license--third-party-notices)
 8. [Acknowledgements](#8-acknowledgements)
@@ -47,7 +48,7 @@ The goal: **stop hopping between a dozen single-purpose web chart calculators, a
 
 This repository is the macOS delivery of that app: the application source, the shared runtime, the Tauri desktop shell, and the release pipeline that turns all of it into a single `.pkg`.
 
-- **Current version**: 3.11.3 (runtime `3.11.3-runtime1`)
+- **Current version**: 3.12.0 (runtime `3.12.0-runtime1`)
 - **Platform**: macOS 12+ on Apple Silicon (`arm64`) only
 - **License**: AGPL-3.0-only
 
@@ -94,7 +95,7 @@ This repository is the macOS delivery of that app: the application source, the s
 | Desktop shell | **Tauri 2 (Rust)** | Native shell: lifecycle / windows / runtime bootstrap / in-app updates / zoom persistence; Developer ID signed + Apple notarized; the offline runtime ships inside the package |
 | Frontend | **React 17 + UMI 3 + TypeScript / JS**, Ant Design | D3 chart drawing, Babylon.js / Three.js 3D, Plotly astro-maps, Monaco editor for AI export templates |
 | Backend (business) | **Java 17 / Spring Boot 2.7** (multi-module Maven) | Hosts the core astrology and Chinese-method services; listens on `:9999` (request bodies RSA-encrypted); heavy computation is forwarded to Python |
-| Backend (computation) | **Python 3.9** | Wraps Swiss Ephemeris (`pyswisseph`) + flatlib (modified) + vendored traditional-method engines; CherryPy REST on `:8899` |
+| Backend (computation) | **Python 3.11+** (the desktop package bundles 3.12) | Wraps Swiss Ephemeris (`pyswisseph`) + flatlib (modified) + vendored traditional-method engines; CherryPy REST on `:8899` |
 
 **Port conventions**: frontend ↔ Java `:9999` (RSA-encrypted envelope); Java ↔ Python `:8899`; the frontend's static port is allocated dynamically (multiple instances never collide).
 
@@ -215,7 +216,7 @@ The Yi and the Three Formulae are more than independent tabs: Sanshi United is a
 - **Structured export**: filter sections by technique / tab; md / html / json / csv / pdf / docx.
 
 #### Planetarium
-- Real-time 3D sky on Babylon.js. **Pure astronomy**: it borrows the house frame only — no precession-based zodiac tricks.
+- Real-time 3D sky on Babylon.js. **Pure astronomy**: it borrows only the house frame and applies no sidereal (precession) offset.
 - Sun, Moon, planets + lunar nodes + planetary tracks; Chinese asterisms (the 28 mansions in four symbols / the three enclosures / the Big Dipper / asterisms / the Milky Way, always on their real stars); the 88 Western constellations + IAU boundaries + star names; four coordinate grids (horizon / equatorial / ecliptic / mansion degrees); scale overlays; poles and the precession circle / the analemma; magnitude filter (1.0–6.5, default 4.0); click to read coordinates / angular-distance measurement / rise, transit and set times (Bennett atmospheric refraction).
 
 #### Almanac
@@ -243,7 +244,7 @@ The Yi and the Three Formulae are more than independent tabs: Sanshi United is a
 
 Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.11.3/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.12.0/Horosa-Installer-macos-arm64-offline.pkg)**
 
 Best for:
 
@@ -262,11 +263,23 @@ Prefer running from source instead of the `.pkg`? One double-click:
 
 - **Start**: double-click `Horosa_OneClick_Mac.command` in the repo root. With build artifacts present it opens your browser in seconds; the first run bootstraps the toolchain and builds automatically (Mongo / Redis are optional for this product and skipped by default — set `HOROSA_SKIP_DB_SETUP=0` to install them).
 - **Stop**: double-click `Horosa_Stop_Mac.command` — it reclaims every port instance and only touches processes carrying this product's fingerprint, never other software.
-- **Downloaded as ZIP?** GitHub's "Download ZIP" drops the executable bit — run `chmod +x *.command tools/mac/*.command scripts/mac/*.sh` once, and use right-click → Open the first time to pass Gatekeeper. `git clone` needs neither.
+- **Downloaded as ZIP?** GitHub's "Download ZIP" drops the executable bit — run `chmod +x horosa *.command tools/mac/*.command scripts/mac/*.sh` once, and use right-click → Open the first time to pass Gatekeeper. `git clone` needs neither.
 - **Ports busy?** It automatically falls back to free ports starting at 18899 / 19999 / 18000 — nothing to do by hand.
 - All tunables (ports, skip-build flags, download mirrors, …) are documented in [docs/WEB_LOCAL_LAUNCH.md](docs/WEB_LOCAL_LAUNCH.md); mainland-China mirror fallbacks (TUNA / npmmirror) are built in.
 
 ---
+
+## 5b. Headless mode · terminal · MCP · REST (no app needed; ready for AI agents)
+
+Every Horosa AI tool (records, chart casting, synastry data, election by school, the celebrity database, history-of-metaphysics (Xuanshi) search …) works without opening the app:
+
+- **One command each** (macOS only; the first setup takes a dozen-odd minutes, about 5 GB, and needs network access): `./horosa setup` (first run: toolchain + build) → `./horosa start` (local compute services + headless API server) → `./horosa doctor` (self-check).
+- **Hand it to an AI**: open this repo in Claude Code and it offers the `horosa` MCP server automatically (root `.mcp.json` registers `./horosa mcp`); for Claude Desktop / Cursor / Codex, register the repo's `horosa` (argument `mcp`) as an MCP server — see [docs/HEADLESS.md](docs/HEADLESS.md).
+- **Terminal**: `./horosa tools` / `./horosa call <tool> k=v …` / `./horosa records <name>` … (same subcommands as the desktop app's terminal command; `--json` for machine-readable output).
+- **REST**: after `./horosa start`, `http://127.0.0.1:<port>/api/v1` (OpenAPI generated live; the token is in the endpoint file).
+- **Models and data**: `./horosa ai add <provider>` configures a model for `run_analysis` (key typed hidden and stored encrypted; or set `HOROSA_AI_PROVIDER` etc. as environment variables, never written to disk); `./horosa export` / `./horosa import` use the same format as the desktop full backup.
+- **Batch validation**: `./horosa batch cases.csv -t bazi,astrochart -o out.jsonl` casts every case with every chosen technique and writes one JSONL line per case plus a summary (resumable, adjustable parallelism; `--celebrities` uses the built-in ~59k-chart celebrity database). `./horosa batch-pack` builds a runtime bundle that runs on a headless Linux server with just Node + Python (+ JDK) — see [docs/HEADLESS.md](docs/HEADLESS.md).
+- Full usage, client setup and troubleshooting: [docs/HEADLESS.md](docs/HEADLESS.md). Self-test: `./horosa selftest` (real tools, temporary data dir, no windows).
 
 ## 6. FAQ
 

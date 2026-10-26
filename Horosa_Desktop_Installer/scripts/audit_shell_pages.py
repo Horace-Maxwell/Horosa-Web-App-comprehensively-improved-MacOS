@@ -41,10 +41,10 @@ from pathlib import Path
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 PORT = 8791
 
-# 与 src-tauri/src/main.rs 对齐：MIN_ZOOM 0.7 / MAX_ZOOM 1.8 / ZOOM_STEP 0.1
+# 与 src-tauri/src/config.rs 对齐：MIN_ZOOM 0.7 / MAX_ZOOM 1.8 / ZOOM_STEP 0.1
 ZOOMS = [round(0.7 + 0.1 * i, 1) for i in range(12)]
 
-# 各页的窗口尺寸取自 main.rs：主窗最小 1180×760；诊断 840×720(最小 720×620)；
+# 各页的窗口尺寸取自壳层源码(config.rs / ui_windows.rs)：主窗最小 1180×760；诊断 840×720(最小 720×620)；
 # 偏好 760×680(最小 680×620)。再加极端宽高比压版面。
 PAGES = {
     "index.html": {

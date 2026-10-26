@@ -12,11 +12,17 @@
 #   3) 远端模式加验:manifest v2 结构 + componentsLockSha256 + 各部件 url 可达
 # 任一不符 exit 1。发版 runbook 中在 publish 后必跑远端模式。
 set -euo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
 WORK="$(mktemp -d /tmp/horosa-comp-verify.XXXXXX)"
-trap 'rm -rf "${WORK}"' EXIT
+trap 'hx_on_exit rm -rf "${WORK}"' EXIT
 
 MANIFEST_URL="${1:-}"
 
@@ -148,3 +154,4 @@ print(f"  {len(full)} 条目全等价(含 symlink 指向)✓")
 PYDIFF
 
 echo "verify_component_release: ALL GREEN ✅"
+exit 0

@@ -81,7 +81,7 @@ build_embedded_java_runtime() {
       --no-header-files \
       --no-man-pages \
       --output "${dest_java}"
-    # [WS-3e·CDS修复] jlink 默认不生成 base CDS archive(lib/server/classes.jsa)——
+    # jlink 默认不生成 base CDS archive(lib/server/classes.jsa)——
     # 缺 base 时 -XX:ArchiveClassesAtExit 动态 dump 直接拒绝("base CDS archive is not
     # loaded"),首启后台自训链自上线以来一直静默失败、用户从未享受过 AppCDS。
     # 此处就地补 dump(~11MB,随 jdk-runtime 部件;实测 zulu17 一次 ~15s)。
@@ -137,14 +137,14 @@ fi
 if [ "${HOROSA_SKIP_FRESHNESS_GUARD:-0}" != "1" ] && [ -f "${BOOT_JAR_SOURCE}" ]; then
   if [ -n "$(find "${REPO_ROOT}"/Horosa-Web/astrostudysrv/*/src/main -type f -newer "${BOOT_JAR_SOURCE}" -print -quit 2>/dev/null || true)" ]; then
     echo "ERROR: astrostudyboot.jar 比后端源码旧——很可能忘了重建后端 fat jar。" >&2
-    echo "       cd Horosa-Web/astrostudysrv && mvn -f boundless/pom.xml install -DskipTests && mvn -f astrostudy/pom.xml install -DskipTests && mvn -f astrostudyboot/pom.xml clean package -DskipTests" >&2
+    echo "       mvn -f Horosa-Web/astrostudysrv/pom.xml clean install -DskipTests" >&2
     echo "       (确认无需重建可设 HOROSA_SKIP_FRESHNESS_GUARD=1)" >&2
     exit 1
   fi
 fi
 # -----------------------------------------------------------------------------------
 rsync -a "${RSYNC_FILTERS[@]}" "${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file" "${STAGE_ROOT}/Horosa-Web/astrostudyui/"
-# ── [B2] 前端旁置预压缩:为可压缩产物生成 <file>.gz(-9,保留原件),壳内 tiny_http 按
+# ── 前端旁置预压缩:为可压缩产物生成 <file>.gz(-9,保留原件),壳内 tiny_http 按
 # Accept-Encoding 供给(Content-Encoding: gzip)。仅压 >4KB 的 js/css/html/json/svg/map;
 # 已存在且不比原件旧则跳过。首屏关键链 ~6.9MB 未压缩 → gzip 后约 1/4,温启配合
 # immutable+ETag 进一步归零。失败不阻断打包(壳侧无旁件即回退原件,零功能差异)。
@@ -192,7 +192,7 @@ fi
 shasum -a 256 "${STAGE_BOOT_JAR}" | awk '{print $1}' > "${STAGE_BOOT_EXPLODED}/.source-jar.sha256"
 rm -f "${STAGE_BOOT_JAR}"
 
-# ── [WS-3e] AppCDS 预训练进 payload:打包机在 stage exploded 上训练动态 .jsa(~42MB),
+# ── AppCDS 预训练进 payload:打包机在 stage exploded 上训练动态 .jsa(~42MB),
 # 随【全量 tar】分发 → 用户首启即享 CDS(免首启训练副本 CPU 峰 + 温启 -0.3~0.4s)。
 # 跨路径可用性已实证:训练/运行都是 `cd exploded && java -cp . JarLauncher`(相对
 # classpath,CDS 豁免绝对路径校验;A 路径训练 → B 路径 -Xshare:on 强制加载存活)。
@@ -212,17 +212,17 @@ if [ "${HOROSA_SKIP_CDS_PRESEED:-0}" != "1" ]; then
     CDS_TRAIN_PID=$!
     CDS_WAITED=0
     while [ "${CDS_WAITED}" -lt 60 ]; do
-      if curl -s -o /dev/null -m 1 "http://127.0.0.1:${CDS_TRAIN_PORT}/heartbeat" 2>/dev/null; then break; fi
+      if curl -s --noproxy '*' -o /dev/null -m 1 "http://127.0.0.1:${CDS_TRAIN_PORT}/heartbeat" 2>/dev/null; then break; fi
       kill -0 "${CDS_TRAIN_PID}" 2>/dev/null || break
       CDS_WAITED=$((CDS_WAITED + 1)); sleep 1
     done
     # 触达补全:lazy-init 下 heartbeat 只初始化极小 bean 集;补发高频端点各一枪
     # (400/后端不可达均可——目的只是把 controller/service/序列化链的类拉进本次 dump 的档)。
-    # [R3-B2] /chart 之外再触 常用时间/八字/六壬/紫微/节气 五链,扩类捕获(冷首点更少 JIT/加载)。
-    # [R4-P4-2] +/rules/ziwei(紫微判读规则链——首次交互重链,类面独立于 /ziwei/birth)。
+    # /chart 之外再触 常用时间/八字/六壬/紫微/节气 五链,扩类捕获(冷首点更少 JIT/加载)。
+    # +/rules/ziwei(紫微判读规则链——首次交互重链,类面独立于 /ziwei/birth)。
     # ⚠️ 两处训练清单(本文件+start_horosa_local.sh)必须逐字相同,preflight[199] lockstep 锁。
     for _cds_ep in "/chart" "/common/time" "/bazi/direct" "/liureng/gods" "/ziwei/birth" "/jieqi/year" "/rules/ziwei"; do
-      curl -s -o /dev/null -m 3 -X POST -H 'Content-Type: application/json' -d '{}' \
+      curl -s --noproxy '*' -o /dev/null -m 3 -X POST -H 'Content-Type: application/json' -d '{}' \
         "http://127.0.0.1:${CDS_TRAIN_PORT}${_cds_ep}" 2>/dev/null || true
     done
     kill -TERM "${CDS_TRAIN_PID}" 2>/dev/null || true
@@ -284,11 +284,11 @@ fi
 # (实测省 0.3-0.5s)。个别第三方文件语法不合本版本编不过属正常,|| true 容忍不阻断打包。
 STAGE_PY_BIN="${STAGE_ROOT}/runtime/mac/python/bin/python3"
 if [ -x "${STAGE_PY_BIN}" ]; then
-  # [193b 2026-08-09] -f --invalidation-mode unchecked-hash:pyc 改嵌「源内容 hash」而非源 mtime
+  # -f --invalidation-mode unchecked-hash:pyc 改嵌「源内容 hash」而非源 mtime
   # (timestamp 模式下任一源 mtime 扰动 → pyc 字节漂移 → 签名缓存键变 → 整部件 sha 翻转,
   #  实测 py-runtime 在 9b39↔fbb6 两态间翻转、每版全量重下)。-f 强制重编覆盖任何既有 pyc 态。
   # unchecked-hash=运行时信任 pyc 不校验(打包后源恒不变,恰为其设计场景),启动性能零损失。
-  # [193c 2026-08-09] PYTHONHASHSEED=0 + -j1:marshal 对 frozenset/集合序受进程 hash 种子影响,
+  # PYTHONHASHSEED=0 + -j1:marshal 对 frozenset/集合序受进程 hash 种子影响,
   # 不钉种子 → 个别 pyc(实案 kerykeion/relationship_score_factory,seed1/seed2/seed0 三编三态实证)
   # 跨打包字节漂 → py-runtime 部件 tar sha 漂(pyc 是部件内容)每版被判「变了」重下,且 seed 预灌的
   # 内容面全等闸必拒。钉 0 后同文件重编恒等(实证)。签名缓存键只含 Mach-O/归档,不受 pyc 影响。
@@ -392,7 +392,7 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}"
   # 每次向 Apple 请求时间戳 ⇒ 同字节同身份也签出不同结果 ⇒ py-runtime 113MB 每版必重下。
   # 缓存键含「待签树内容快照 + 身份 + 两个脚本自身 sha」,命中即复用上次签名产物(字节恒等)。
   # kill-switch:HOROSA_SIGN_CACHE=0 ⇒ 缓存层自旁路,退回每次真签。
-  # [修三 v2 · 分域] 整树单键会让 Java jar 的正常版本变化牵动键值 ⇒ 内容未变的 Python framework
+  # 整树单键会让 Java jar 的正常版本变化牵动键值 ⇒ 内容未变的 Python framework
   # 全树重签(时间戳字节漂)⇒ py-runtime 118MB 每版被判「变了」(v3.8.1 实测:227 文件差异全为签名组)。
   # 改为对 runtime/mac 顶层每个子目录独立走缓存签名:各域各键、各域独立缓存子目录(prune 互不挤占),
   # jar 变只重签 bundle 域,python 域命中缓存产物字节恒等。域集动态枚举,新增顶层目录自动纳入不漏签;
@@ -407,6 +407,7 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}"
     SEED_LINES="$(/usr/bin/python3 "${INSTALLER_ROOT}/scripts/prepare_sign_seed.py" "${INSTALLER_ROOT}")" || SEED_LINES=""
     SEED_PY="$(printf '%s\n' "${SEED_LINES}" | sed -n 's/^python_seed=//p')"
     SEED_LIB="$(printf '%s\n' "${SEED_LINES}" | sed -n 's/^javalib_seed=//p')"
+    SEED_HDR="$(printf '%s\n' "${SEED_LINES}" | sed -n 's/^prev_headers=//p')"
     if [ -n "${HOROSA_SIGN_SEED_DIR:-}" ]; then
       echo "[sign-seed] 域级缓存种子 = ${HOROSA_SIGN_SEED_DIR}(显式指定,优先于自动种子)"
     elif [ -n "${SEED_PY}" ] && [ "${SEED_PY}" != "-" ]; then
@@ -417,8 +418,9 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ -n "${APPLE_SIGNING_IDENTITY}"
     fi
     # 权限位单一来源:两层签名缓存放回产物时先查上一版部件 tar 头留档,留档没有的才用暂存文件位
     #   (HOROSA_PREV_PARTS_MODES=0 退回一律暂存位)。留档由上面的 prepare_sign_seed.py 写出;没有留档 = 首发 / dist 已清。
-    if [ -f "${INSTALLER_ROOT}/build/.sign-seed/prev-parts-headers.json" ]; then
-      export HOROSA_PREV_PARTS_HEADERS="${INSTALLER_ROOT}/build/.sign-seed/prev-parts-headers.json"
+    #   只认这一轮 prepare_sign_seed.py 报出来的留档路径(不看文件在不在:上一轮的旧留档不许冒充)。
+    if [ -n "${SEED_HDR}" ] && [ "${SEED_HDR}" != "-" ] && [ -f "${SEED_HDR}" ]; then
+      export HOROSA_PREV_PARTS_HEADERS="${SEED_HDR}"
       echo "[sign-mode] 权限位留档 = ${HOROSA_PREV_PARTS_HEADERS}"
     else
       echo "[sign-mode] 无上一版部件头部留档:签名产物权限位一律取暂存文件位"
@@ -597,9 +599,10 @@ def normalize_file_mtimes(root: pathlib.Path):
     return n
 
 def _tar_gz(out, cmd_tail, env):
-    """tar 出流 → gzip -n(不写文件名/时间戳)→ 落盘。-czf 会把打包时刻写进 gzip 头。"""
+    """tar 出流 → gzip -n(不写文件名/时间戳)→ 落盘。-czf 会把打包时刻写进 gzip 头。
+    --no-xattrs --no-acls:扩展属性 / ACL 一律不进部件头(见下方 xattr 一段)。"""
     with open(out, 'wb') as fh:
-        tar = subprocess.Popen(['/usr/bin/tar', '--disable-copyfile', '-cf', '-'] + cmd_tail,
+        tar = subprocess.Popen(['/usr/bin/tar', '--disable-copyfile', '--no-xattrs', '--no-acls', '-cf', '-'] + cmd_tail,
                                stdout=subprocess.PIPE, env=env)
         gz = subprocess.Popen(['/usr/bin/gzip', '-n', '-c'], stdin=tar.stdout, stdout=fh)
         tar.stdout.close()
@@ -643,8 +646,11 @@ print(f'[components] 文件 mtime 归一 {_pycn} 个(.py 除外;可复现打包�
 # `._` 文件,拦不住它。实锤(v3.11.0 重打):py-runtime 逐文件内容、成员顺序、mtime、模式
 # 与线上 v3.10.0 **全部相同**,tar 却多 791 字节、sha 漂 → 暂存树 6 处目录/文件被系统悄悄加了
 # `com.apple.macl`(TCC 文件访问标记;**不改 mtime**,find -newer/mtime 判据全盲)。
-# 处置:打包前从 staging 树剥掉这类「随使用而来」的 xattr。只剥黑名单、不动 com.apple.provenance
-# (线上历史包已带 provenance 头,剥它会让四个稳定部件本版全部 sha 变、用户白下 278 MB)。
+# 处置:部件 tar 一律 --no-xattrs --no-acls(_tar_gz),扩展属性不进部件头。com.apple.provenance 也一样:
+# 它由系统按「创建文件的进程」自动贴上,打包进程环境一换就有 / 没有(v3.12.0 实抓:py-runtime 内容与
+# 线上逐字节同、只差每条目一个 provenance 头 → sha 漂、老用户白下 117 MB),只有「一律不写」是确定的。
+# 下面的黑名单剥离仍留给整包 runtime 归档(那份不做跨版本复用对拍)。
+# 部件里残留扩展属性头 = verify_stable_parts_headers.py 判红(exit 4)。
 INCIDENTAL_XATTRS = ('com.apple.macl', 'com.apple.quarantine', 'com.apple.lastuseddate#PS',
                      'com.apple.FinderInfo', 'com.apple.metadata:_kMDItemUserTags')
 
@@ -721,9 +727,9 @@ for c in components:
     print(f"  {c['name']:14s} {c['size']/1048576:8.1f}MB  {c['sha256'][:12]}")
 PYCOMP
   # 包内就与上一版稳定部件逐条目头部对拍(留档来自 prepare_sign_seed.py):不等包后核验才发现部件漂了;
-  #   缺省只报告,HOROSA_STABLE_PARTS_STRICT=1 时任一稳定部件不恒等即失败(内容确有改动的版本别开)。
+  #   缺省只报告,HOROSA_STABLE_PARTS_STRICT=1 时任一稳定部件不恒等即失败(内容确有改动的版本别开);部件带扩展属性头一律失败。
   /usr/bin/python3 "${INSTALLER_ROOT}/scripts/verify_stable_parts_headers.py" "${INSTALLER_ROOT}" \
-    || { echo "[stable-parts] ❌ 稳定部件与上一版不恒等(HOROSA_STABLE_PARTS_STRICT=1)" >&2; exit 1; }
+    || { echo "[stable-parts] ❌ 稳定部件带扩展属性头,或与上一版不恒等(HOROSA_STABLE_PARTS_STRICT=1)" >&2; exit 1; }
 fi
 
 (
@@ -731,7 +737,7 @@ fi
   COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 /usr/bin/tar --disable-copyfile -czf "${ARCHIVE_PATH}" runtime-payload
 )
 
-# [WP-I] zst 姊妹档:仅供离线 pkg 内嵌(在线更新链资产仍是 tar.gz,零波及)。
+# zst 姊妹档:仅供离线 pkg 内嵌(在线更新链资产仍是 tar.gz,零波及)。
 # zstd -T0 多线程压缩,安装侧解压比单线程 gunzip 快数倍且包体更小;构建机无 zstd 或
 # 显式跳过(HOROSA_SKIP_ZSTD_ARCHIVE=1)则只出 gz,build_desktop_release 自动回退嵌 gz。
 ARCHIVE_PATH_ZST="${ARCHIVE_PATH%.tar.gz}.tar.zst"

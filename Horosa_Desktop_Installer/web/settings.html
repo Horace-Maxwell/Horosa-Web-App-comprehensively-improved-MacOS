@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>偏好设置</title>
     <link rel="stylesheet" href="./settings.css" />
+    <script src="./shell_hant_table.js"></script>
+    <script src="./shell_script.js"></script>
   </head>
   <body>
     <main class="prefs-shell">
@@ -48,8 +50,10 @@
           <div class="info-block">
             <div class="info-label">当前版本</div>
             <div class="info-value" id="runtimeVersion">读取中…</div>
+            <div class="info-warning hidden" id="sharedRuntimeWarning"></div>
           </div>
           <div class="button-stack">
+            <button class="secondary-button hidden" id="sealSharedBtn">收紧共享权限</button>
             <button class="secondary-button" id="openRuntimeBtn">在 Finder 中显示本机组件</button>
             <button class="secondary-button" id="repairRuntimeBtn">重装本机组件</button>
           </div>
@@ -109,6 +113,8 @@
       </footer>
       <div id="statusToast" class="status-toast hidden"></div>
     </main>
+    <script src="./shell_errors.js"></script>
+    <script src="./shell_bridge.js"></script>
     <script src="./settings.js"></script>
   </body>
 </html>

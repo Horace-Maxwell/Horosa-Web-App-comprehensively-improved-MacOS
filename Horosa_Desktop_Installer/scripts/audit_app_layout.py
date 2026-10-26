@@ -37,26 +37,26 @@ from pathlib import Path
 DIST = Path(__file__).resolve().parent.parent.parent / "Horosa-Web" / "astrostudyui" / "dist-file"
 PORT = 8793
 
-# 与 src-tauri/src/main.rs 对齐:MIN_ZOOM 0.7 / MAX_ZOOM 1.8 / ZOOM_STEP 0.1
+# 与 src-tauri/src/config.rs 对齐:MIN_ZOOM 0.7 / MAX_ZOOM 1.8 / ZOOM_STEP 0.1
 ZOOMS = [round(0.7 + 0.1 * i, 1) for i in range(12)]
-# 主窗最小 1180×760(main.rs);再加常见与极端宽高比
+# 主窗最小 1180×760(config.rs);再加常见与极端宽高比
 SIZES = [(1180, 760), (1440, 900), (1728, 1117), (2560, 1440), (1180, 1400)]
 
-# 壳注入的缩放实现:运行时从 main.rs 的 [zoom-apply-fn:begin/end] 锚间抽取——体检永远测
+# 壳注入的缩放实现:运行时从 shell_init.rs(窗口初始化脚本)的 [zoom-apply-fn:begin/end] 锚间抽取——体检永远测
 # 「壳跑的那套」,零内嵌拷贝(历史教训:内嵌拷贝随壳演进悄悄漂移,「逐字对齐」注释成假话
 # 而闸门毫无察觉)。锚缺失=硬失败 exit 2,不允许静默退回任何本地拷贝。
-MAIN_RS = Path(__file__).resolve().parent.parent / "src-tauri" / "src" / "main.rs"
+SHELL_INIT_RS = Path(__file__).resolve().parent.parent / "src-tauri" / "src" / "shell_init.rs"
 APPLY_BEGIN = "[zoom-apply-fn:begin]"
 APPLY_END = "[zoom-apply-fn:end]"
 
 
 def extract_apply_zoom_js():
-    if not MAIN_RS.exists():
-        print(f"❌ 找不到 {MAIN_RS} —— 无法抽取壳缩放实现")
+    if not SHELL_INIT_RS.exists():
+        print(f"❌ 找不到 {SHELL_INIT_RS} —— 无法抽取壳缩放实现")
         return None
-    text = MAIN_RS.read_text(encoding="utf-8")
+    text = SHELL_INIT_RS.read_text(encoding="utf-8")
     if APPLY_BEGIN not in text or APPLY_END not in text:
-        print(f"❌ main.rs 缺 {APPLY_BEGIN}/{APPLY_END} 抽取锚 —— 壳缩放段被改动却没保留锚")
+        print(f"❌ shell_init.rs 缺 {APPLY_BEGIN}/{APPLY_END} 抽取锚 —— 壳缩放段被改动却没保留锚")
         return None
     seg = text.split(APPLY_BEGIN, 1)[1].split(APPLY_END, 1)[0]
     # 去掉锚行残留的注释收尾(begin 行的 " */" 与 end 行的 "/* "),剩纯 JS(含 JS 注释,合法)
@@ -394,7 +394,7 @@ def main():
         return 1
     print(f"✅ 主应用版面体检全绿：{checked} 个组合"
           f"（尺寸 × {len(ZOOMS)} 缩放档 × E2/E3 双引擎语义 + 逐组合拖窗跟随复审;"
-          f" 缩放实现=运行时抽取 main.rs 锚段,测的=跑的）。")
+          f" 缩放实现=运行时抽取 shell_init.rs 锚段,测的=跑的）。")
     return 0
 
 

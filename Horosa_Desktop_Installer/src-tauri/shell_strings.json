@@ -1,0 +1,267 @@
+{
+	"_note": "桌面壳原生菜单栏 / 原生对话框 / 系统通知横幅 / 原生窗口标题文案单源(凡画在网页之外、由壳自己写的字)(id → 简体 / 繁体)。繁体由本表给出,壳里不做简繁转换;繁体一栏须与页面显示层转换器的结果逐字一致(前端 jest shellStrings.test.js 比对,不一致即红)。{name} 一类是占位符。",
+	"menu.preferences": {
+		"hans": "偏好设置…",
+		"hant": "偏好設置…"
+	},
+	"menu.check_updates": {
+		"hans": "检查更新",
+		"hant": "檢查更新"
+	},
+	"menu.reinstall_runtime": {
+		"hans": "重装本机组件",
+		"hant": "重裝本機組件"
+	},
+	"menu.restart_services": {
+		"hans": "重启本地服务",
+		"hant": "重啟本地服務"
+	},
+	"menu.relocate_app": {
+		"hans": "移入「应用程序」文件夹…",
+		"hant": "移入「應用程序」文件夾…"
+	},
+	"menu.show_main_window": {
+		"hans": "显示主窗口",
+		"hant": "顯示主窗口"
+	},
+	"menu.show_diagnostics": {
+		"hans": "诊断中心",
+		"hant": "診斷中心"
+	},
+	"menu.open_logs": {
+		"hans": "在 Finder 中显示日志",
+		"hant": "在 Finder 中顯示日誌"
+	},
+	"menu.open_data": {
+		"hans": "在 Finder 中显示数据目录",
+		"hant": "在 Finder 中顯示數據目錄"
+	},
+	"menu.open_runtime": {
+		"hans": "在 Finder 中显示本机组件",
+		"hant": "在 Finder 中顯示本機組件"
+	},
+	"menu.reload_main": {
+		"hans": "重新载入主界面",
+		"hant": "重新載入主界面"
+	},
+	"menu.open_releases": {
+		"hans": "打开下载与版本说明",
+		"hant": "打開下載與版本說明"
+	},
+	"menu.zoom_in": {
+		"hans": "放大",
+		"hant": "放大"
+	},
+	"menu.zoom_out": {
+		"hans": "缩小",
+		"hant": "縮小"
+	},
+	"menu.zoom_reset": {
+		"hans": "实际大小",
+		"hant": "實際大小"
+	},
+	"menu.file": {
+		"hans": "文件",
+		"hant": "文件"
+	},
+	"menu.edit": {
+		"hans": "编辑",
+		"hant": "編輯"
+	},
+	"menu.view": {
+		"hans": "视图",
+		"hant": "視圖"
+	},
+	"menu.window": {
+		"hans": "窗口",
+		"hant": "窗口"
+	},
+	"menu.help": {
+		"hans": "帮助",
+		"hant": "幫助"
+	},
+	"win.preferences": {
+		"hans": "偏好设置",
+		"hant": "偏好設置"
+	},
+	"win.diagnostics": {
+		"hans": "诊断中心",
+		"hant": "診斷中心"
+	},
+	"notify.update_done.title": {
+		"hans": "星阙 已完成更新",
+		"hant": "星闕 已完成更新"
+	},
+	"notify.update_done.body": {
+		"hans": "新版已经安装完成,并已重新生效。",
+		"hant": "新版已經安裝完成,並已重新生效。"
+	},
+	"dlg.update_failed.title": {
+		"hans": "检查更新失败",
+		"hant": "檢查更新失敗"
+	},
+	"dlg.relocate.title": {
+		"hans": "移入「应用程序」文件夹",
+		"hant": "移入「應用程序」文件夾"
+	},
+	"dlg.relocate.already": {
+		"hans": "当前已从「应用程序」文件夹运行,无需搬迁。",
+		"hant": "當前已從「應用程序」文件夾運行,無需搬遷。"
+	},
+	"dlg.relocate.confirm": {
+		"hans": "将把本应用拷贝到「应用程序」文件夹并重新打开(自动更新等功能需要固定安装位置)。是否继续?",
+		"hant": "將把本應用拷貝到「應用程序」文件夾並重新打開(自動更新等功能需要固定安裝位置)。是否繼續?"
+	},
+	"dlg.relocate.failed": {
+		"hans": "搬迁未完成:{err}",
+		"hant": "搬遷未完成:{err}"
+	},
+	"dlg.relocate.exists": {
+		"hans": "「应用程序」里已存在 {path},请直接打开它(或先删除旧副本再试)。",
+		"hant": "「應用程序」裡已存在 {path},請直接打開它(或先刪除舊副本再試)。"
+	},
+	"dlg.relocate.copy_failed": {
+		"hans": "拷贝到「应用程序」失败(可能没有写入权限)",
+		"hant": "拷貝到「應用程序」失敗(可能沒有寫入權限)"
+	},
+	"dlg.relocate.not_in_bundle": {
+		"hans": "未在 .app 包内运行,无需搬迁",
+		"hant": "未在 .app 包內運行,無需搬遷"
+	},
+	"dlg.relocate.open_failed": {
+		"hans": "打开「应用程序」里的新副本",
+		"hant": "打開「應用程序」裡的新副本"
+	},
+	"dlg.restart.title": {
+		"hans": "重启本地服务",
+		"hant": "重啟本地服務"
+	},
+	"dlg.restart.ok": {
+		"hans": "本地服务已重启完成。若界面上有请求刚好失败,重新操作一次即可。",
+		"hant": "本地服務已重啟完成。若界面上有請求剛好失敗,重新操作一次即可。"
+	},
+	"dlg.restart.failed": {
+		"hans": "重启本地服务未成功:{err}\n可稍后再试;菜单「在 Finder 中显示日志」可取诊断日志。",
+		"hant": "重啟本地服務未成功:{err}\n可稍後再試;菜單「在 Finder 中顯示日誌」可取診斷日誌。"
+	},
+	"dlg.reinstall.title": {
+		"hans": "重新安装离线包",
+		"hant": "重新安裝離線包"
+	},
+	"dlg.reinstall.not_found": {
+		"hans": "没有在 Downloads 或 Desktop 中找到 {pkg}。\n\n我已经为你打开最新 Release 页面，请重新获取离线安装包后再次安装。",
+		"hant": "沒有在 Downloads 或 Desktop 中找到 {pkg}。\n\n我已經為你打開最新 Release 頁面，請重新獲取離線安裝包後再次安裝。"
+	},
+	"dlg.stdio_confirm.title": {
+		"hans": "允许星阙启动这个本机命令?",
+		"hant": "允許星闕啟動這個本機命令?"
+	},
+	"dlg.stdio_confirm.body": {
+		"hans": "外部服务器「{name}」要在本机以你的身份运行下面的命令(首次连接或命令有改动时才会问;看不见的字符已转义成 \\n、\\u{…}):\n\n{display}\n\n只在你认得这条命令时允许。",
+		"hant": "外部服務器「{name}」要在本機以你的身份運行下面的命令(首次連接或命令有改動時才會問;看不見的字符已轉義成 \\n、\\u{…}):\n\n{display}\n\n只在你認得這條命令時允許。"
+	},
+	"dlg.update_result.title": {
+		"hans": "更新检查结果",
+		"hant": "更新檢查結果"
+	},
+	"dlg.update_notify.title": {
+		"hans": "发现可用更新（暂不能自动更新）",
+		"hant": "發現可用更新（暫不能自動更新）"
+	},
+	"dlg.update_notify.manifest_unavailable": {
+		"hans": "{summary}\n\n更新清单暂时无法获取，为确保安装包完整性，已停止自动下载。\n可稍后重试，或现在打开发布页手动下载安装包。",
+		"hant": "{summary}\n\n更新清單暫時無法獲取，為確保安裝包完整性，已停止自動下載。\n可稍後重試，或現在打開發布頁手動下載安裝包。"
+	},
+	"update.notify_only.full_pkg": {
+		"hans": "{reason}。请到发布页下载完整安装包(.pkg)安装。",
+		"hant": "{reason}。請到發佈頁下載完整安裝包(.pkg)安裝。"
+	},
+	"update.notify_only.no_manifest": {
+		"hans": "检测到新版本，但更新清单暂不可获取，已暂停自动下载。可稍后重试，或到发布页手动下载安装包。",
+		"hant": "檢測到新版本，但更新清單暫不可獲取，已暫停自動下載。可稍後重試，或到發佈頁手動下載安裝包。"
+	},
+	"update.shared_tree.foreign": {
+		"hans": "共享运行环境 {path} 归别的账户(uid {uid})所有、所有本机账户都能改(权限 {mode}):请用完整安装包(.pkg)更新一次以收紧权限 —— 这一次不走 App 内更新",
+		"hant": "共享運行環境 {path} 歸別的賬戶(uid {uid})所有、所有本機賬戶都能改(權限 {mode}):請用完整安裝包(.pkg)更新一次以收緊權限 —— 這一次不走 App 內更新"
+	},
+	"btn.open_release_page": {
+		"hans": "打开发布页",
+		"hant": "打開發布頁"
+	},
+	"btn.later": {
+		"hans": "稍后再说",
+		"hant": "稍後再說"
+	},
+	"dlg.update_found.title": {
+		"hans": "发现可用更新",
+		"hant": "發現可用更新"
+	},
+	"dlg.update_found.body": {
+		"hans": "{summary}{notice}\n\n是否现在开始更新？选择“否”只会结束本次检查，不会开始下载。",
+		"hant": "{summary}{notice}\n\n是否現在開始更新？選擇“否”只會結束本次檢查，不會開始下載。"
+	},
+	"dlg.update_starting.title": {
+		"hans": "更新即将开始",
+		"hant": "更新即將開始"
+	},
+	"dlg.update_starting.body": {
+		"hans": "当前没有主窗口可显示进度卡片，将按推荐选项继续下载、校验与替换。",
+		"hant": "當前沒有主窗口可顯示進度卡片，將按推薦選項繼續下載、校驗與替換。"
+	},
+	"dlg.update_skipped.title": {
+		"hans": "未执行更新",
+		"hant": "未執行更新"
+	},
+	"dlg.update_skipped.body": {
+		"hans": "你保留了当前已安装内容，本次没有需要替换的资产。",
+		"hant": "你保留了當前已安裝內容，本次沒有需要替換的資產。"
+	},
+	"update.status.available": {
+		"hans": "发现可用更新",
+		"hant": "發現可用更新"
+	},
+	"update.status.runtime_only": {
+		"hans": "应用已是最新，运行环境可更新",
+		"hant": "應用已是最新，運行環境可更新"
+	},
+	"update.status.latest": {
+		"hans": "已是最新版本",
+		"hant": "已是最新版本"
+	},
+	"update.status.ahead": {
+		"hans": "当前版本高于远端版本",
+		"hant": "當前版本高於遠端版本"
+	},
+	"update.source.manifest": {
+		"hans": "固定更新清单",
+		"hant": "固定更新清單"
+	},
+	"update.source.manifest_via_api": {
+		"hans": "更新清单(经 GitHub Releases 取回)",
+		"hant": "更新清單(經 GitHub Releases 取回)"
+	},
+	"update.source.github_api": {
+		"hans": "GitHub Releases 回退通道",
+		"hant": "GitHub Releases 回退通道"
+	},
+	"update.runtime.latest": {
+		"hans": "{local} (已是最新)",
+		"hant": "{local} (已是最新)"
+	},
+	"update.runtime.not_installed": {
+		"hans": "未安装 -> {remote}",
+		"hant": "未安裝 -> {remote}"
+	},
+	"update.runtime.remote_unknown": {
+		"hans": "{local} (远端未声明版本)",
+		"hant": "{local} (遠端未聲明版本)"
+	},
+	"update.summary": {
+		"hans": "检查结果\n{status}\n\n当前版本\n{current}\n\n新版本号\n{latest}\n\n运行环境\n{runtime}\n\n更新来源\n{source}\n\n更新摘要\n{summary}\n\n完整 Changelog\n{changelog}\n\nGitHub 仓库\n{repo}\n\nRelease 页面\n{release}",
+		"hant": "檢查結果\n{status}\n\n當前版本\n{current}\n\n新版本號\n{latest}\n\n運行環境\n{runtime}\n\n更新來源\n{source}\n\n更新摘要\n{summary}\n\n完整 Changelog\n{changelog}\n\nGitHub 倉庫\n{repo}\n\nRelease 頁面\n{release}"
+	},
+	"dlg.update_found.admin_notice": {
+		"hans": "\n\n由于当前应用安装在 /Applications，macOS 接下来会要求管理员密码来完成应用替换。",
+		"hant": "\n\n由於當前應用安裝在 /Applications，macOS 接下來會要求管理員密碼來完成應用替換。"
+	}
+}

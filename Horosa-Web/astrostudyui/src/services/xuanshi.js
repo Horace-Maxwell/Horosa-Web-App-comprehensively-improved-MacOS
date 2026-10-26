@@ -1,27 +1,36 @@
-// 玄史(中国玄学史)模块取数 —— 走 kentang :8899 直连(buildKentangEndpoint),失败回退 ServerRoot。
+// 玄史(中国玄学史)模块取数 —— 走 kentang :8899 直连(buildKentangEndpoint;不回退 Java 后端,那边没有这些路由)。
 // 后端 webxuanshisrv 返回 jsonpickle 原始 dict(无 ResultCode 包裹,错误回 {err:...})。
-import { ServerRoot } from '../utils/constants';
 import { buildKentangEndpoint } from '../integrations/kentang/serviceRoot';
 import { cachedKentangFetch } from '../utils/kentangCache';
+import { scriptQueryVariants, ensureScriptConverter } from '../utils/scriptMode';
 
 const _requestCache = {};
 
+// 检索词:连同它的简体归一写法 / 繁体显示写法一起发(q_any),后端任一写法命中即算 ——
+// 库里简繁混存(史书原文多繁体,如「熒惑」两千六百余条、「荧惑」四十余条),只发一种写法总会漏掉另一半;
+// 简体界面同样要带(输入「荧惑」也要搜到「熒惑」原文)。转换器按需加载(见 prepareQuery);没加载到就只发原词。
+export function withQueryVariants(payload) {
+	const p = payload || {};
+	if (typeof p.q !== 'string' || !p.q.trim() || p.q_any !== undefined) { return p; }
+	const alts = scriptQueryVariants(p.q, { anyScript: true });
+	return alts.length ? { ...p, q_any: alts } : p;
+}
+
+// 带检索词的请求先等转换器到位(只第一次真等;之后同步可得),再定请求体与缓存键 —— 两者同一份
+async function prepareQuery(payload) {
+	if (payload && typeof payload.q === 'string' && payload.q.trim()) { await ensureScriptConverter(); }
+	return withQueryVariants(payload);
+}
+
 async function _post(action, payload) {
-	const body = JSON.stringify(payload || {});
+	payload = await prepareQuery(payload);
+	const body = JSON.stringify(withQueryVariants(payload));
 	const headers = { 'Content-Type': 'application/json; charset=UTF-8' };
-	let rsp = null;
-	try {
-		const r = await cachedKentangFetch(buildKentangEndpoint('xuanshi', action), { method: 'POST', headers, body }, { retries: 0 });
-		const t = await r.text();
-		rsp = t ? JSON.parse(t) : null;
-		if (!rsp || rsp.err || (rsp.ResultCode !== undefined && rsp.ResultCode !== 0)) {
-			throw new Error(rsp && rsp.err ? `${rsp.err}` : 'xuanshi.local.fetch.failed');
-		}
-	} catch (e) {
-		const r = await cachedKentangFetch(`${ServerRoot}/xuanshi/${action}`, { method: 'POST', headers, body }, { retries: 0 });
-		const t = await r.text();
-		rsp = t ? JSON.parse(t) : null;
-	}
+	// 只打本机计算服务:不再失败改走 ServerRoot 同名路径(Java 后端没有 /xuanshi 路由,那一跳只会拿到 404 / 拦截页,
+	// 还把本机服务回的真实报错换成解析错);报错原样抛出
+	const r = await cachedKentangFetch(buildKentangEndpoint('xuanshi', action), { method: 'POST', headers, body }, { retries: 0 });
+	const t = await r.text();
+	const rsp = t ? JSON.parse(t) : null;
 	if (!rsp || rsp.err || (rsp.ResultCode !== undefined && rsp.ResultCode !== 0)) {
 		throw new Error(rsp && rsp.err ? `${rsp.err}` : 'xuanshi.fetch.failed');
 	}
@@ -35,15 +44,11 @@ export function postXuanShi(action, payload) {
 
 // 幂等只读端点缓存(同 action+payload 复用)
 export async function postXuanShiCached(action, payload) {
-	const key = `${action}:${JSON.stringify(payload || {})}`;
+	const key = `${action}:${JSON.stringify(await prepareQuery(payload))}`;
 	if (_requestCache[key]) { return _requestCache[key]; }
 	const res = await _post(action, payload);
 	_requestCache[key] = res;
 	return res;
-}
-
-export function clearXuanShiCache() {
-	Object.keys(_requestCache).forEach((k) => { delete _requestCache[k]; });
 }
 
 // —— 便捷端点（与 webxuanshisrv 端点一一对应）——
@@ -64,7 +69,6 @@ export const fetchDynasties = () => postXuanShiCached('dynasties', {});
 export const fetchDynasty = (slug) => postXuanShiCached('dynasty', { slug });
 export const fetchStories = (p) => postXuanShi('stories', p || {});
 export const fetchStory = (slug) => postXuanShiCached('story', { slug });
-export const fetchChannels = () => postXuanShiCached('channels', {});
 export const fetchMap = (period) => postXuanShi('map', { period });
 export const fetchPersonsGraph = (p) => postXuanShi('persons-graph', p || {});
 export const fetchTimeline = (p) => postXuanShi('timeline', p || {});

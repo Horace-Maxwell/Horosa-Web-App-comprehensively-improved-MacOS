@@ -12,8 +12,25 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def _source_set_files(path: Path) -> list:
+    """Files split into submodules keep their path as a facade; read submodules (registered order) + facade.
+    Registry: Horosa-Web/astrostudyui/scripts/source-sets.json."""
+    parts = path.resolve().as_posix().rsplit("/src/", 1)
+    if len(parts) != 2:
+        return [path]
+    ui_root, rel = Path(parts[0]), parts[1]
+    try:
+        sets = json.loads((ui_root / "scripts" / "source-sets.json").read_text(encoding="utf-8"))["sets"]
+    except Exception:
+        return [path]
+    entry = sets.get(rel)
+    if not entry:
+        return [path]
+    return [ui_root / "src" / entry["dir"] / f for f in entry["files"]] + [path]
+
+
 def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+    return "".join(p.read_text(encoding="utf-8") for p in _source_set_files(path))
 
 
 def _assert_contains(path: Path, needle: str) -> None:

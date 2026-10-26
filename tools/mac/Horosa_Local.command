@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PROJECT_DIR="${ROOT}/Horosa-Web"
@@ -469,7 +475,7 @@ port_owned_by_project() {
   fi
   for pid in ${pids}; do
     cmd="$(process_command "${pid}")"
-    if [ -n "${cmd}" ] && printf '%s\n' "${cmd}" | grep -Fq "${ROOT}"; then
+    if [ -n "${cmd}" ] && grep -Fq "${ROOT}" <<< "${cmd}"; then
       return 0
     fi
   done
@@ -701,7 +707,7 @@ cleanup() {
 
   return "${code}"
 }
-trap cleanup EXIT INT TERM HUP
+trap 'hx_on_exit cleanup' EXIT; trap cleanup INT TERM HUP
 
 echo "[诊断] 运行问题会记录到：${DIAG_FILE}"
 diag_log "===== run begin pid=$$ cwd=${ROOT} ====="
@@ -852,3 +858,4 @@ echo "网页已关闭，正在停止本地服务..."
 RUN_OK=1
 diag_log "run success, web_url=${URL}"
 diag_log "===== run end (success) ====="
+exit 0

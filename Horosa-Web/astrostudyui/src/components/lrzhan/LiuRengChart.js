@@ -5,6 +5,7 @@ import { Modal } from 'antd';
 import {randomStr, setupFloatingTooltip} from '../../utils/helper';
 import * as AstroConst from '../../constants/AstroConst';
 import RengChart from './RengChart';
+import { inZoomChangeFrame } from '../../utils/zoomSyncRemeasure';
 
 class LiuRengChart extends Component{
 	constructor(props) {
@@ -38,6 +39,7 @@ class LiuRengChart extends Component{
 			onMetaInfoClick: this.openMetaDialog,
 			chartType: this.props.chartType,
 			compactPreview: this.props.compactPreview,
+			timeAlg: this.props.timeAlg,
 		};
 		this.rengchart = new RengChart(opt);
 
@@ -106,6 +108,7 @@ class LiuRengChart extends Component{
 		this.rengchart.onMetaInfoClick = this.openMetaDialog;
 		this.rengchart.chartType = this.props.chartType;
 		this.rengchart.compactPreview = !!this.props.compactPreview;
+		this.rengchart.timeAlg = this.props.timeAlg;
 
 		this.rengchart.draw();
 	}
@@ -130,6 +133,8 @@ class LiuRengChart extends Component{
 		const svgdom = document.getElementById(this.state.chartid);
 		if(svgdom && svgdom.parentNode && typeof window !== 'undefined' && typeof window.ResizeObserver === 'function'){
 			this.hostResizeObserver = new window.ResizeObserver(()=>{
+				// 换档当帧就地重画(观察的是宿主,重画只改 svg —— 不回到被观察的宿主),首帧即按终值排;其余时候照旧排进下一帧
+				if(inZoomChangeFrame()){ this.safeDrawChart(); return; }
 				this.handleResize();
 			});
 			this.hostResizeObserver.observe(svgdom.parentNode);
@@ -148,6 +153,7 @@ class LiuRengChart extends Component{
 			|| prevProps.guireng !== this.props.guireng
 			|| prevProps.castOverride !== this.props.castOverride
 			|| prevProps.panStyleName !== this.props.panStyleName
+			|| prevProps.timeAlg !== this.props.timeAlg
 			|| prevProps.chartType !== this.props.chartType
 			|| prevProps.compactPreview !== this.props.compactPreview){
 			this.safeDrawChart();

@@ -1,4 +1,4 @@
-// [Q-060/AW-18/AW-23] 资料导入白名单与抽取上限的机械合同:
+// 资料导入白名单与抽取上限的机械合同:
 //  ① 前端白名单与桌面壳 `AI_ANALYSIS_IMPORT_EXTENSIONS` **逐字同集**(两条导入路径此前入库结果不同:
 //     壳层按扩展名过滤,前端没有白名单 → 拖一张 PNG 进来就是一份类型 txt、摘要乱码的资料);
 //  ② 30MB 抽取上限与后端 `MAX_DECODED_BYTES` 同值,且只对走后端抽取的 pdf/doc/docx 生效;
@@ -18,8 +18,9 @@ import {
 const mk = (name, size)=>({ name, size: size || 1 });
 
 it('🔴 白名单与桌面壳、后端上限三方同源', ()=>{
-	const mainRs = fs.readFileSync(path.resolve(__dirname, '../../../../../Horosa_Desktop_Installer/src-tauri/src/main.rs'), 'utf8');
-	const m = /AI_ANALYSIS_IMPORT_EXTENSIONS[^=]*=\s*\[([^\]]*)\]/.exec(mainRs);
+	// 壳层常量表在 src-tauri/src/config.rs
+	const shellConfig = fs.readFileSync(path.resolve(__dirname, '../../../../../Horosa_Desktop_Installer/src-tauri/src/config.rs'), 'utf8');
+	const m = /AI_ANALYSIS_IMPORT_EXTENSIONS[^=]*=\s*\[([^\]]*)\]/.exec(shellConfig);
 	expect(m).toBeTruthy();
 	const shell = m[1].split(',').map((s)=>s.trim().replace(/^"|"$/g, '')).filter(Boolean);
 	expect(MATERIAL_IMPORT_EXTENSIONS.slice().sort()).toEqual(shell.slice().sort());

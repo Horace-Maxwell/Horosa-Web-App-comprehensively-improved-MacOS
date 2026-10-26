@@ -15,6 +15,12 @@
 # 用法: bash scripts/verify_packaged_frontend.sh              (仓根或 Installer 目录均可)
 #       bash scripts/verify_packaged_frontend.sh --self-test  (判据自证:指纹判定 / 端口探测各自的判别向量)
 set -uo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 DIST="${REPO_ROOT}/Horosa-Web/astrostudyui/dist-file"
@@ -158,7 +164,7 @@ fi
 #    就绪按轮询等(冷盘首起可能超过 1 秒),无条件回收并复核端口已释放 —— 每跑一次不留一个残留进程。
 HTTPD_PID=""
 cleanup_httpd(){ if [ -n "${HTTPD_PID}" ]; then kill "${HTTPD_PID}" >/dev/null 2>&1; wait "${HTTPD_PID}" 2>/dev/null; HTTPD_PID=""; fi; }
-trap cleanup_httpd EXIT
+trap 'hx_on_exit cleanup_httpd' EXIT
 PORT=$(pick_free_port 8019)
 CODE="000"
 if [ -z "${PORT}" ]; then
@@ -205,3 +211,4 @@ fi
 echo "== 结果 =="
 if [ "${fail}" -ne 0 ]; then echo "❌ 打包产物冒烟未过,禁止交付/发布。" >&2; exit 1; fi
 echo "✅ 打包产物冒烟通过(自动面);人工面按 踩坑记录 #48:horosa-prod 起 :8011 实点 推运盘星体/紫微选项/择日控件/悬浮窗底。"
+exit 0

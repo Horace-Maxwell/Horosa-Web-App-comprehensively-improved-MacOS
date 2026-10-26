@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import QuickDockBar from '../QuickDockBar';
+const { readSource } = require('../../../utils/__tests__/helpers/sourceSet');   // 拆成子模块的大文件按「门面 + 子模块」全集读,其余文件原样读
 
 const COMPONENTS_DIR = path.resolve(__dirname, '../..');
 
@@ -96,7 +97,7 @@ describe('QuickDockBar 组件契约', () => {
 
 describe('全站快捷栏静态契约(源码扫描)', () => {
 	const files = listMainFiles();
-	const read = (f)=>fs.readFileSync(f, 'utf8');
+	const read = (f)=>readSource(f);
 
 	test('裸 dock 标记只允许出现在保形白名单(其余页必须走 QuickDockBar)', () => {
 		// kinastro/astro 为用户认可的保形页(动态数据门控)
@@ -157,7 +158,7 @@ describe('全站快捷栏静态契约(源码扫描)', () => {
 		];
 		const missing = DIVINATION.filter((rel)=>{
 			const src = read(path.join(COMPONENTS_DIR, rel));
-			// tongshefa/tarot 等 config-only 子页无独立 dock 渲染,由 cnyibu 容器透传
+			// tongshefa 等 config-only 子页无独立 dock 渲染,由 cnyibu 容器透传(tarot 已升一级自渲)
 			const wired = src.includes('QuickDockBar') || src.includes('getQuickDockConfig()');
 			return !(/save[:=]\s*[\({]|save=\{/.test(src) && wired);
 		});
@@ -170,13 +171,19 @@ describe('全站快捷栏静态契约(源码扫描)', () => {
 		});
 	});
 
-	test('cnyibu 十子页均自述 getQuickDockConfig,容器零硬编码分支', () => {
-		const SUBPAGES = ['suzhan/SuZhanMain.js', 'jinkou/JinKouMain.js', 'tongshefa/TongSheFaMain.js', 'huangji/HuangJiMain.js', 'wuzhao/WuZhaoMain.js', 'taixuan/TaiXuanMain.js', 'jingjue/JingJueMain.js', 'shenyishu/ShenYiShuMain.js', 'geomancy/GeomancyMain.js', 'tarot/TarotMain.js'];
+	test('cnyibu 九子页均自述 getQuickDockConfig,容器零硬编码分支(tarot 已升一级,独立自渲另测)', () => {
+		const SUBPAGES = ['suzhan/SuZhanMain.js', 'jinkou/JinKouMain.js', 'tongshefa/TongSheFaMain.js', 'huangji/HuangJiMain.js', 'wuzhao/WuZhaoMain.js', 'taixuan/TaiXuanMain.js', 'jingjue/JingJueMain.js', 'shenyishu/ShenYiShuMain.js', 'geomancy/GeomancyMain.js'];
 		SUBPAGES.forEach((rel)=>{
 			expect(read(path.join(COMPONENTS_DIR, rel))).toContain('getQuickDockConfig()');
 		});
+		// 塔罗已升一级:独立页必须自渲 dock(config-only 时代靠容器透传;升一级丢容器=丢存档,此锁防倒退):
+		const tarotSrc = read(path.join(COMPONENTS_DIR, 'tarot/TarotMain.js'));
+		expect(tarotSrc).toContain('QuickDockBar');
+		expect(tarotSrc).toContain('getQuickDockConfig()');
+		// 聚合容器零塔罗残留(双宿主 = keep-alive 双实例串扰):
 		const container = read(path.join(COMPONENTS_DIR, 'cnyibu/CnYiBuMain.js'));
 		expect(container).toContain('getQuickDockConfig');
+		expect(container).not.toContain('TarotMain');
 		expect(container).not.toContain('runChildAction');
 		expect(container.includes("tab === 'suzhan'")).toBe(false);
 	});

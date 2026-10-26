@@ -11,12 +11,12 @@
 
 命 · 卜 · 工具 三区 —— **26 门主技法 · 60+ 子技法流派**（完整清单见[全功能清单](#三全功能清单)）
 
-[![Version](https://img.shields.io/badge/version-3.11.3-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.11.3)
+[![Version](https://img.shields.io/badge/version-3.12.0-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.12.0)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.11.3)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.11.3)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.12.0)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.12.0)
 
-[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.11.3/Horosa-Installer-macos-arm64-offline.pkg) ·
+[下载安装包](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.12.0/Horosa-Installer-macos-arm64-offline.pkg) ·
 [中文详版](README_ZH.md) ·
 [English Guide](README_EN.md) ·
 [所有版本](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -31,9 +31,10 @@
 2. [技术栈](#二技术栈)
 3. [全功能清单（命 / 卜 / 工具）](#三全功能清单)
 4. [网页版一键启动(从源码)](#网页版一键启动从源码)
-5. [许可与第三方](#四许可与第三方)
-5. [致谢](#五致谢)
-6. [文档与入口](#六文档与入口)
+5. [无头模式 · 终端 · MCP · REST](#无头模式--终端--mcp--rest不开-appai-拿到仓库即用)
+6. [许可与第三方](#四许可与第三方)
+7. [致谢](#五致谢)
+8. [文档与入口](#六文档与入口)
 
 ---
 
@@ -45,7 +46,7 @@
 
 本仓承担 macOS 这一侧的交付：应用源码、共享运行时、Tauri 桌面外壳，以及把这一切打成单个 `.pkg` 的发布链路。
 
-- **当前版本**：3.11.3（运行时 `3.11.3-runtime1`）
+- **当前版本**：3.12.0（运行时 `3.12.0-runtime1`）
 - **平台**：仅 macOS 12+ / Apple Silicon（`arm64`）
 - **许可**：AGPL-3.0-only
 
@@ -92,7 +93,7 @@
 | 桌面壳 | **Tauri 2（Rust）** | 原生外壳：生命周期 / 窗口 / 运行时引导 / 应用内更新 / 缩放持久化；Developer ID 签名 + Apple 公证；离线运行时随包交付 |
 | 前端 | **React 17 + UMI 3 + TypeScript / JS**，Ant Design | D3 绘盘、Babylon.js / Three.js 三维、Plotly 星体地图、Monaco 编辑 AI 导出模板 |
 | 后端（业务） | **Java 17 / Spring Boot 2.7**（多模块 Maven） | 承载占星与中国术数核心服务；监听 `:9999`（前端请求体 RSA 加密），重计算转发 Python |
-| 后端（计算） | **Python 3.9** | 封装 Swiss Ephemeris（`pyswisseph`）+ flatlib（改写版）+ vendored 传统术数计算引擎；CherryPy REST `:8899` |
+| 后端（计算） | **Python 3.11+**（桌面包内置 3.12） | 封装 Swiss Ephemeris（`pyswisseph`）+ flatlib（改写版）+ vendored 传统术数计算引擎；CherryPy REST `:8899` |
 
 **端口约定**：前端 ↔ Java `:9999`（RSA 加密信封）；Java ↔ Python `:8899`；前端静态端口动态分配（多实例不撞）。
 
@@ -243,9 +244,21 @@
 
 - **启动**:双击仓库根目录的 `Horosa_OneClick_Mac.command` —— 有现成构建产物几秒即开浏览器;首次运行自动补齐工具链并构建(Mongo/Redis 对本产品是可选依赖,默认跳过;需要时 `HOROSA_SKIP_DB_SETUP=0` 开启)。
 - **停止**:双击 `Horosa_Stop_Mac.command`(回收全部端口实例,只停带本产品指纹的进程,绝不误伤其它软件)。
-- **用 ZIP 下载的注意**:GitHub「Download ZIP」会丢脚本执行位——先执行一次 `chmod +x *.command tools/mac/*.command scripts/mac/*.sh`;首次双击若被 Gatekeeper 拦截,右键该文件 → 打开。`git clone` 获取则两者皆免。
+- **用 ZIP 下载的注意**:GitHub「Download ZIP」会丢脚本执行位——先执行一次 `chmod +x horosa *.command tools/mac/*.command scripts/mac/*.sh`;首次双击若被 Gatekeeper 拦截,右键该文件 → 打开。`git clone` 获取则两者皆免。
 - **端口被占**:自动换用 18899/19999/18000 起的空闲口,无需手动处理。
 - 全部可调项(端口/跳过构建/下载镜像等)见 [docs/WEB_LOCAL_LAUNCH.md](docs/WEB_LOCAL_LAUNCH.md);大陆网络已内置 TUNA/npmmirror 镜像回退。
+
+## 无头模式 · 终端 · MCP · REST(不开 App,AI 拿到仓库即用)
+
+星阙的全部 AI 工具(建档、起盘、合盘取数、各流派择日、名人库、玄学史……)不开 App 也能用:
+
+- **一键**(仅 macOS;首次 setup 约十几分钟、装完约 5 GB、需联网):`./horosa setup`(首次:工具链 + 构建)→ `./horosa start`(起本机计算服务 + 无头接口服务)→ `./horosa doctor`(自检)。
+- **交给 AI**:用 Claude Code 打开本仓库会自动提示接入(根目录 `.mcp.json` 已登记 `./horosa mcp`);Claude Desktop / Cursor / Codex 等把仓库里的 `horosa`(参数 `mcp`)配成 MCP 服务器,写法见 [docs/HEADLESS.md](docs/HEADLESS.md#交给-ai)。
+- **终端**:`./horosa tools` / `./horosa call <工具> k=v …` / `./horosa records 张` …(与桌面 App 的终端命令同一组子命令;`--json` 机器可读)。
+- **REST**:`./horosa start` 后 `http://127.0.0.1:<端口>/api/v1`(OpenAPI 现生成;令牌在端点文件里)。
+- **模型与数据**:`./horosa ai add <接口类型>` 配模型接口(密钥隐藏输入、加密存放;或只用环境变量 `HOROSA_AI_PROVIDER` 等不落盘)供 `run_analysis` 用;`./horosa export` / `./horosa import` 与桌面「全量备份」互通。
+- **批量验证**:`./horosa batch 命例.csv -t bazi,astrochart -o out.jsonl`(一批命例逐例逐技法起盘,一行一例 JSONL + 汇总;断点续跑、并发可调;`--celebrities` 用内置名人库约 5.9 万例);`./horosa batch-pack` 打运行包,Linux 服务器上只要 Node + Python(+ JDK)即可跑。见 [docs/HEADLESS.md](docs/HEADLESS.md#批量验证一批命例--一组技法linux-服务器上也能跑)。
+- 全部用法、各 AI 客户端配法与排障见 [docs/HEADLESS.md](docs/HEADLESS.md);自测 `./horosa selftest`(真工具、临时数据目录、零窗口)。
 
 ## 四、许可与第三方
 

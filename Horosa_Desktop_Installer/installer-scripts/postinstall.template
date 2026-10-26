@@ -41,7 +41,7 @@ log_line() {
   printf '[%s] %s\n' "$(/bin/date '+%Y-%m-%d %H:%M:%S')" "$1" >> "${LOG_PATH}"
 }
 
-# [WP-I] 安装账本:各段毫秒级时间戳落 jsonl,「安装提速赢多少」可证。
+# 安装账本:各段毫秒级时间戳落 jsonl,「安装提速赢多少」可证。
 # 只用 /usr/bin/perl 取 ms(macOS 恒在;绝不调 python3——无 CLT 的全新 Mac 是弹窗桩)。
 INSTALL_LEDGER_PATH="${SHARED_ROOT}/logs/install-ledger.jsonl"
 /bin/mkdir -p "${SHARED_ROOT}/logs" >/dev/null 2>&1 || true
@@ -53,6 +53,28 @@ install_ledger() {
   printf '{"seg":"%s","t_ms":%s}\n' "$1" "$(( $(_install_now_ms) - INSTALL_T0_MS ))" >> "${INSTALL_LEDGER_PATH}" 2>/dev/null || true
 }
 install_ledger install.begin
+
+# 共享运行环境只给安装者写:属主改成安装者(当前登录用户;没有登录用户时用 sudo 发起人;都没有就保持 root),
+# 读 / 执行对所有本机账户放开、写只留属主(u+rwX,go+rX,go-w;归档里自带组写位的文件一并收掉——组 = staff = 所有本机账户)。
+# 多账户机上的其他账户只读加载这份运行环境:pid 文件、日志、CDS 档都落在各自的用户目录;要换版本时换进自己的用户目录。
+# 以前整棵树放开给所有账户写,任一本机账户都能改启动脚本 / 引擎 / 页面,下次别人打开星阙就以别人的身份执行。
+SHARED_OWNER_UID=""
+resolve_shared_owner() {
+  local uid
+  uid="$(/usr/bin/stat -f%u /dev/console 2>/dev/null || true)"
+  case "${uid}" in ''|0|*[!0-9]*) uid="${SUDO_UID:-}" ;; esac
+  case "${uid}" in ''|0|*[!0-9]*) uid="" ;; esac
+  SHARED_OWNER_UID="${uid}"
+  return 0
+}
+resolve_shared_owner
+seal_shared_root() {
+  if [ -n "${SHARED_OWNER_UID}" ]; then
+    /usr/sbin/chown -R "${SHARED_OWNER_UID}" "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  fi
+  /bin/chmod -R u+rwX,go+rX,go-w "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  return 0
+}
 
 # 升级时旧实例还在跑:pkg 落盘发生在 postinstall 之前,旧进程会继续拿着旧代码跑新换的
 # 共享 runtime(版本串线,下次服务重启才暴露)。先礼(console 用户会话内 osascript quit)
@@ -109,6 +131,11 @@ write_install_source() {
   # 兜底:把版本号收紧到安全字符集,杜绝任何异常输出(含换行/引号)破坏 JSON。
   app_version="$(printf '%s' "${app_version}" | tr -cd '0-9A-Za-z._-')"
   now="$(/bin/date +%s 2>/dev/null || printf '0')"
+  # 缓存进共享 downloads 的运行时归档名与包内校验值:App 自愈拿它解压前核 sha(不是 64 位十六进制就留空 = 不核)
+  local archive_name archive_sha
+  archive_name="$(printf '%s' "${ARCHIVE_NAME}" | tr -cd '0-9A-Za-z._-')"
+  archive_sha="$(printf '%s' "${EXPECTED_SHA256}" | tr 'A-F' 'a-f' | tr -cd '0-9a-f')"
+  [ "${#archive_sha}" = "64" ] || archive_sha=""
   mkdir -p "$(dirname "${INSTALL_SOURCE_PATH}")"
   # 根治「全新 M 芯片 Mac 装不上」之一:旧实现用 /usr/bin/python3 写 JSON,
   # 但全新 Mac 若未装 Xcode/命令行工具,/usr/bin/python3 只是个会弹「安装开发者工具」
@@ -120,7 +147,9 @@ write_install_source() {
     printf '  "source": "%s",\n' "${source}"
     printf '  "installedAt": %s,\n' "${now}"
     printf '  "runtimeVersion": "%s",\n' "${runtime_version}"
-    printf '  "appVersion": "%s"\n' "${app_version}"
+    printf '  "appVersion": "%s",\n' "${app_version}"
+    printf '  "runtimeArchiveName": "%s",\n' "${archive_name}"
+    printf '  "runtimeArchiveSha256": "%s"\n' "${archive_sha}"
     printf '}\n'
   } > "${INSTALL_SOURCE_PATH}" 2>/dev/null || true
   /bin/chmod a+r "${INSTALL_SOURCE_PATH}" >/dev/null 2>&1 || true
@@ -143,6 +172,7 @@ runtime_dir_is_usable() {
   local runtime_dir="$1"
   # 身份验明:manifest 的 appName 必须等于本应用,异主/无戳 runtime 一律视为不可用并重装。
   # 否则别的应用装过的 runtime 会被「看似可用」跳过复检,留下串内容。
+  # 壳层 runtime_dir_owned_by_this_app 用同一判据;cargo 用例把本函数原样抠出来与壳层逐个对拍。
   local manifest_app
   manifest_app="$(/usr/bin/plutil -extract appName raw -o - "${runtime_dir}/runtime-manifest.json" 2>/dev/null || true)"
   [ "${manifest_app}" = "${APP_NAME}" ] \
@@ -179,7 +209,7 @@ load_review_plan() {
   if [ ! -f "${REVIEW_PLAN_PATH}" ]; then
     return 0
   fi
-  # [U-I G2] 纯 shell 解析(照 write_install_source 先例):全新 Mac 无 Xcode CLT 时
+  # 纯 shell 解析(照 write_install_source 先例):全新 Mac 无 Xcode CLT 时
   # /usr/bin/python3 只是个会弹「安装开发者工具」对话框的桩,安装器里绝不能调用。
   # 计划文件是本 App 自己写出的紧凑 JSON,键值均为受控小写枚举——精确 sed 提取即够;
   # 解析不出一律回退保守默认(keep/0)。
@@ -205,7 +235,7 @@ defer_runtime_install() {
   mark_pending "${reason}"
   cleanup_install_state
   /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
-  /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  seal_shared_root
   exit 0
 }
 
@@ -224,7 +254,7 @@ degrade_to_first_launch() {
   write_install_source "pkg_offline" "${EXPECTED_VERSION}"
   cleanup_work_dir
   /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
-  /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  seal_shared_root
   exit 0
 }
 
@@ -240,7 +270,7 @@ trap 'degrade_to_first_launch "安装脚本遇到未预期错误（多为磁盘�
 
 quit_running_app
 
-# [Z2 零残留] 残兵清扫:quit_running_app 只退 App 壳,绝不碰 java/python —— App 曾异常退出
+# 残兵清扫:quit_running_app 只退 App 壳,绝不碰 java/python —— App 曾异常退出
 # (panic/强杀)留下孤儿后端时,直接覆盖安装会让旧后端带旧代码活过更新。按「运行时绝对路径串」
 # 精确指纹清扫(webchartsrv.py / astrostudyboot 的 cmdline 必含 ${RUNTIME_ROOT}/current 前缀,
 # 零误伤面):TERM → 等 1s → KILL。best-effort,失败不阻断安装。
@@ -286,7 +316,7 @@ if [ "${INSTALL_MODE}" = "defer-runtime-bootstrap" ]; then
   write_install_source "pkg_online" "${EXPECTED_VERSION}"
   cleanup_install_state
   /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
-  /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+  seal_shared_root
   exit 0
 fi
 
@@ -297,8 +327,8 @@ if [ ! -f "${LOCAL_ARCHIVE_PATH}" ]; then
 fi
 log_line "using bundled runtime archive ${LOCAL_ARCHIVE_PATH}"
 # 先把内置归档缓存到共享 downloads(供 App 首启离线自愈复用)。缓存失败基本只可能是磁盘空间不足。
-# [WP-I] cp -c=APFS clonefile(同容器即时、零物理字节);跨卷/不支持时回退真拷(旧行为)。
-# [2026-07-20 实案] 互清姊妹压缩格式的旧缓存档(gz↔zst):否则安装降级/换格式后,App 按固定
+# cp -c=APFS clonefile(同容器即时、零物理字节);跨卷/不支持时回退真拷(旧行为)。
+# 互清姊妹压缩格式的旧缓存档(gz↔zst):否则安装降级/换格式后,App 按固定
 # gz 资产名读到「异名旧版本档」→ 弹「版本不符,建议重建」(v3.5.0 真机踩实)。
 rm -f "${ARCHIVE_PATH}" "${ARCHIVE_PATH%.tar.gz}.tar.zst" "${ARCHIVE_PATH%.tar.zst}.tar.gz" >/dev/null 2>&1 || true
 if ! /bin/cp -c "${LOCAL_ARCHIVE_PATH}" "${ARCHIVE_PATH}" 2>/dev/null; then
@@ -326,8 +356,8 @@ if [ -n "${RUNTIME_AVAIL_KIB}" ] && [ "${RUNTIME_AVAIL_KIB}" -lt 3145728 ] 2>/de
   degrade_to_first_launch "磁盘空间不足（准备本机组件约需 3 GB 可用空间）。请清理磁盘后重新打开 星阙，将自动完成本机组件准备。"
 fi
 
-# [WP-I] -xf:bsdtar 按内容自动侦测压缩格式。-z 会强制 gzip 滤器,故弃用。
-# ⚠️ [2026-07-20 实案] 内嵌档必须是 gz:macOS 系统 tar(libarchive)无 zstd 滤器,安装沙盒净化
+# -xf:bsdtar 按内容自动侦测压缩格式。-z 会强制 gzip 滤器,故弃用。
+# ⚠️ 内嵌档必须是 gz:macOS 系统 tar(libarchive)无 zstd 滤器,安装沙盒净化
 # PATH 下无第三方 zstd 兜底,.zst 解压必败(构建层已断言+e2e 真装门看守)。
 # tar stderr 必须落 installer.log —— 旧版 2>/dev/null 吞错,真机翻车时只剩「多为磁盘空间不足」
 # 的猜测文案,无法定因(v3.5.0 真机复盘定谳)。
@@ -365,12 +395,12 @@ if [ -d "${CURRENT_DIR}" ]; then
       cleanup_install_state
       write_install_source "pkg_offline" "${EXPECTED_VERSION}"
       /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
-      /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+      seal_shared_root
       exit 0
     fi
     log_line "same version ${EXPECTED_VERSION}, different content (installed ${EXISTING_IDENTITY:-unknown} vs package ${PAYLOAD_IDENTITY:-unknown}); replacing"
   fi
-  # [U-I G3] 降级门:已装 runtime 比本包更新且可用 → 保留不覆盖(旧 pkg 覆盖装曾会
+  # 降级门:已装 runtime 比本包更新且可用 → 保留不覆盖(旧 pkg 覆盖装曾会
   # 造成「新 App+旧 runtime」错位;App 侧 BundleIsVersionChecked 已不降,runtime 补齐
   # 对称守卫)。确需退版:先手动删 ${RUNTIME_ROOT}/current 再重装(见更新排障剧本)。
   if [ -n "${EXISTING_VERSION}" ] && runtime_payload_is_usable; then
@@ -381,7 +411,7 @@ if [ -d "${CURRENT_DIR}" ]; then
       cleanup_install_state
       write_install_source "pkg_offline" "${EXPECTED_VERSION}"
       /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
-      /bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
+      seal_shared_root
       exit 0
     fi
   fi
@@ -413,11 +443,11 @@ log_line "runtime bootstrap installed successfully"
 write_install_source "pkg_offline" "${EXPECTED_VERSION}"
 /usr/bin/xattr -dr com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1 || true
 /usr/bin/xattr -dr com.apple.quarantine "${CURRENT_DIR}" >/dev/null 2>&1 || true
-/bin/chmod -R a+rwX "${SHARED_ROOT}" >/dev/null 2>&1 || true
-# [R3-C1] 预置信任:本脚本上方冒烟已实证 python import/java -version 健康 —— 用新装
+seal_shared_root
+# 预置信任:本脚本上方冒烟已实证 python import/java -version 健康 —— 用新装
 # App 自己的二进制(--horosa-preseed-health,坑15 范式:格式单一真值源在二进制内,零
 # bash 复刻)预写健康缓存 + fast-path 标记 → 首真启直走 trusted 快路径(免 untrusted
-# 完整校验/300s 预算档)。任何失败无害:不写=首启照旧完整校验;两文件补 a+rw(多用户)。
+# 完整校验/300s 预算档)。任何失败无害:不写=首启照旧完整校验;两文件由安装身份写出,归还给安装者(只属主可写)。
 APP_BIN="$(/usr/bin/find "${APP_PATH}/Contents/MacOS" -maxdepth 1 -type f 2>/dev/null | /usr/bin/head -n 1)"
 if [ -n "${APP_BIN}" ] && [ -x "${APP_BIN}" ]; then
   if "${APP_BIN}" --horosa-preseed-health "${CURRENT_DIR}" >/dev/null 2>&1; then
@@ -425,7 +455,13 @@ if [ -n "${APP_BIN}" ] && [ -x "${APP_BIN}" ]; then
   else
     log_line "preseed-health skipped (rc=$?): first launch will run full verification"
   fi
-  /bin/chmod a+rw "${CURRENT_DIR}/.runtime-health-cache.json" "${CURRENT_DIR}/.runtime-fast-path.json" >/dev/null 2>&1 || true
+  for _seal_file in "${CURRENT_DIR}/.runtime-health-cache.json" "${CURRENT_DIR}/.runtime-fast-path.json"; do
+    [ -e "${_seal_file}" ] || continue
+    if [ -n "${SHARED_OWNER_UID}" ]; then
+      /usr/sbin/chown "${SHARED_OWNER_UID}" "${_seal_file}" >/dev/null 2>&1 || true
+    fi
+    /bin/chmod u+rw,go+r,go-w "${_seal_file}" >/dev/null 2>&1 || true
+  done
 fi
 install_ledger install.preseed_done
 # [首启原生库预检] 系统对每个新落盘的原生库在第一次加载时做一次安全评估(约 0.1 秒一个、串行,约 250 个);

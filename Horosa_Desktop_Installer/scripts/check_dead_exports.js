@@ -37,24 +37,42 @@ try {
 // 扫描面(相对 src):这些目录/文件族的函数导出必须有非测试消费方(D48:此前只有三个 agent 目录,报告/导出/分析工具链是盲区)
 const SCAN_DIRS = ['utils/aiAgent', 'utils/aiTools', 'utils/aiChat'];
 const SCAN_FILE_RES = [/^utils\/report[A-Za-z0-9]*\.js$/, /^utils\/aiExport[A-Za-z0-9]*\.js$/, /^utils\/aiAnalysis[A-Za-z0-9]*\.js$/, /^services\/aianalysis\.js$/];
-function inScanFace(file, scanDirs){ return scanDirs.some((d) => file.startsWith(d + '/')) || SCAN_FILE_RES.some((re) => re.test(file)); }
+// 拆成子模块的大文件(登记表 astrostudyui/scripts/source-sets.json):子模块随门面进 / 出扫描面;门面里「export { x } from './子模块'」
+//   只是转手,不算消费 —— 门面的 x 有人用,子模块的 x 才算有人用;报告里子模块的条目记在门面名下(棘轮表 / 可选消费表的键不变)。
+let SOURCE_SETS = new Map();   // 门面路径(相对 src)→ [子模块路径(相对 src)…]
+function loadSourceSets(){
+  const m = new Map();
+  try {
+    const sets = JSON.parse(fs.readFileSync(path.join(uiRoot, 'scripts', 'source-sets.json'), 'utf8')).sets || {};
+    for (const [facade, v] of Object.entries(sets)) m.set(facade, (v.files || []).map((f) => `${v.dir}/${f}`));
+  } catch (e) { /* 登记表不在 = 没有拆过的文件 */ }
+  return m;
+}
+function facadeOf(file){ for (const [facade, subs] of SOURCE_SETS) { if (subs.indexOf(file) >= 0) return facade; } return null; }
+function inScanFace(file, scanDirs){
+  const facade = facadeOf(file);
+  if (facade) return inScanFace(facade, scanDirs);
+  return scanDirs.some((d) => file.startsWith(d + '/')) || SCAN_FILE_RES.some((re) => re.test(file));
+}
 // 豁免:测试专用重置钩(约定名)
 const EXEMPT_RE = /ForTests$/;
-// 评测装置文件(src/test 下的 jest 驱动 CLI 主体与磁带):视为真消费方
-const HARNESS_CONSUMERS = new Set(['test/reportEvalLive.test.js', 'test/evalCassette.js']);
+// 评测装置文件(src/test 下的 jest 驱动 CLI 主体与磁带):视为真消费方(登记表按检出里有的装置补)
+const HARNESS_CONSUMERS = new Set();
 // astrostudyui/scripts 下的 node CLI(evalCompare/evalAb 等)也是真消费方:按标识符文本命中计入(它们在 src 之外,不走 import 解析)
 const SCRIPTS_DIR_CONSUMERS = true;
 // 棘轮:既往存量(路径:导出名);只许减不许增 —— 清掉一条就从此表删一条。首次落地时的存量见下(每条都是「导出了但全仓零调用」)。
-// 可选模块消费:这些共享导出的消费方在可选的报告导出模块里(并非每个构建都带该模块);带模块的构建里它们确有消费方,
-// 不带模块的构建扫不到消费方但不是死导出。每条须写明消费方文件。
-const PRIVATE_EDITION_CONSUMED = new Set([
-  'utils/aiExportDocModel.js:parseMarkdownSectionBlocks',   // 报告导出模块 reportExport.js
-  'utils/aiExportDocModel.js:planCaptureSegments',          // 报告导出模块 reportExport.js
-  'utils/aiExport.js:getAIExportPresetKeys',                // 报告模块(见带模块构建的消费方)
-  'utils/aiAnalysisRag.js:rankChunksByKeywordWithExtra',   // 报告模块 reportPipeline.js
-  'utils/aiAnalysisRag.js:filterMaterialsBySchools',           // 报告模块 components/aianalysis/ReportPane.js
-  'utils/aiAnalysisProviders.js:setPersistedThinkingLevel',    // 报告模块 components/aianalysis/ReportGenerator.js
-  'utils/aiAnalysisProviders.js:getPersistedThinkingLevel',    // 报告模块 components/aianalysis/ReportGenerator.js / components/aianalysis/ReportPane.js
+// 可选消费方:这些共享导出的消费方文件不在时扫不到消费方,但不是死导出(对应文件不在则跳过)。
+const OPTIONAL_CONSUMED = new Set([
+  'utils/aiExportDocModel.js:parseMarkdownSectionBlocks',
+  'utils/aiExportDocModel.js:planCaptureSegments',
+  'utils/aiExport.js:getAIExportPresetKeys',
+  'utils/aiExport.js:migrateSplitSegments',
+  'utils/aiAnalysisRag.js:rankChunksByKeywordWithExtra',
+  'utils/aiAnalysisRag.js:filterMaterialsBySchools',
+  'utils/aiAnalysisProviders.js:setPersistedThinkingLevel',
+  'utils/aiAnalysisProviders.js:getPersistedThinkingLevel',
+  // 库内读改写单一入口:合同测试 aiAnalysisStoreRecoverMerge 要求新增的单例文档写点一律经它(测试本身也直测它)
+  'utils/aiAnalysisStore.js:mergeStoreRecord',
 ]);
 const LEGACY = new Set([
   // 2026-09-08 存量 11 条已逐条处置(9 删 2 接线),棘轮归零:从此任何一条新死导出 = 红,不再有逃生口。
@@ -121,20 +139,24 @@ function analyze(files) {
     for (const [n, c] of internal) { if (c > 0) internalUse.add(`${file}:${n}`); }
   }
   const consumed = new Set();
+  const passThrough = [];             // [门面, 门面导出名, 子模块, 子模块导出名]
   for (const [file, ast] of asts) {
     const isTest = /(^|\/)__tests__\//.test(file) || /\.test\.jsx?$/.test(file) || /(^|\/)test\//.test(file);
-    // 评测装置(jest 驱动的 CLI 主体 + 磁带)是真消费方,不是单元测试:reportEvalRubrics 等只被它们消费
+    // 评测装置(jest 驱动的 CLI 主体 + 磁带)是真消费方,不是单元测试:有的导出只被它们消费
     if (isTest && !HARNESS_CONSUMERS.has(file)) continue;
     const deps = new Set();            // 本文件引到的模块
     const direct = [];                 // [模块, 导出名] 直接说明符
+    const ownSubs = SOURCE_SETS.get(file) || [];   // 门面引自己的子模块:只是转手
     traverse(ast, {
       ImportDeclaration(p) {
-        const m = resolve(file, p.node.source.value); if (!m) return; deps.add(m);
+        const m = resolve(file, p.node.source.value); if (!m) return; if (ownSubs.indexOf(m) >= 0) return; deps.add(m);
         for (const s of p.node.specifiers) { if (s.type === 'ImportSpecifier') direct.push([m, s.imported.type === 'Identifier' ? s.imported.name : s.imported.value]); }
       },
       ExportNamedDeclaration(p) {
         if (!p.node.source) return;
-        const m = resolve(file, p.node.source.value); if (!m) return; deps.add(m);
+        const m = resolve(file, p.node.source.value); if (!m) return;
+        if (ownSubs.indexOf(m) >= 0) { for (const s of p.node.specifiers) { if (s.type === 'ExportSpecifier') passThrough.push([file, s.exported.name, m, s.local.name]); } return; }
+        deps.add(m);
         for (const s of p.node.specifiers) { if (s.type === 'ExportSpecifier') direct.push([m, s.local.name]); }
       },
       ExportAllDeclaration(p) { const m = resolve(file, p.node.source.value); if (m) { deps.add(m); for (const n of exportsOf.get(m) || []) direct.push([m, n]); } },
@@ -157,6 +179,7 @@ function analyze(files) {
     for (const m of deps) for (const n of exportsOf.get(m) || []) { if (seen.has(n)) consumed.add(`${m}:${n}`); }
   }
   for (const k of internalUse) consumed.add(k);
+  for (const [facade, exported, subFile, local] of passThrough) { if (consumed.has(`${facade}:${exported}`)) consumed.add(`${subFile}:${local}`); }
   return { exportsOf, fnExportsOf, consumed };
 }
 
@@ -173,7 +196,7 @@ function deadExports(files, scanDirs, opts) {
   const out = [];
   for (const [file, names] of fnExportsOf) {
     if (!inScanFace(file, scanDirs)) continue;
-    for (const n of names) { if (EXEMPT_RE.test(n)) continue; if (consumed.has(`${file}:${n}`)) continue; if (scripts && new RegExp('\\b' + n + '\\b').test(scripts)) continue; out.push(`${file}:${n}`); }
+    for (const n of names) { if (EXEMPT_RE.test(n)) continue; if (consumed.has(`${file}:${n}`)) continue; if (scripts && new RegExp('\\b' + n + '\\b').test(scripts)) continue; out.push(`${facadeOf(file) || file}:${n}`); }
   }
   return out.sort();
 }
@@ -213,6 +236,17 @@ function selfTest() {
   const reexp = new Map(base); reexp.set('utils/aiAgent/index.js', "export { lonely } from './a';\n"); reexp.set('pages/z.js', "import { lonely } from '../utils/aiAgent';\nexport default lonely;\n");
   const dead4 = deadExports(reexp, SCAN_DIRS, { scripts: '' });
   V.push(['经 index 重导出后被页面引用 → lonely 不再死(outer 仍死)', JSON.stringify(dead4) === JSON.stringify(['utils/aiAgent/a.js:outer']), dead4]);
+  // 拆成子模块的门面:门面转手不算消费;门面的名字有人用 → 子模块的才算有人用;子模块的条目记在门面名下
+  const savedSets = SOURCE_SETS;
+  SOURCE_SETS = new Map([['utils/aiAgent/big.js', ['utils/aiAgent/big/part.js']]]);
+  const split = new Map([
+    ['utils/aiAgent/big/part.js', 'export function used(){}\nexport function unused(){}\n'],
+    ['utils/aiAgent/big.js', "import './a';\nexport { used, unused } from './big/part';\n"],
+    ['pages/w.js', "import { used } from '../utils/aiAgent/big';\nexport default used;\n"],
+  ]);
+  const dead5 = deadExports(split, SCAN_DIRS, { scripts: '' });
+  SOURCE_SETS = savedSets;
+  V.push(['门面转手不算消费:子模块里只经门面导出、没人用的函数判死,记在门面名下', JSON.stringify(dead5) === JSON.stringify(['utils/aiAgent/big.js:unused']), dead5]);
   // 棘轮增长必红:LEGACY 之外出现一条 = 红
   const grown = ['utils/aiAgent/a.js:lonely'].filter((k) => !LEGACY.has(k));
   V.push(['棘轮表外的死导出必须判红', grown.length === 1, grown]);
@@ -223,9 +257,10 @@ function selfTest() {
 }
 
 if (flags.has('--self-test')) process.exit(selfTest());
+SOURCE_SETS = loadSourceSets();
 const files = loadRepo();
 const dead = deadExports(files, SCAN_DIRS, { scripts: scriptsText() });
-const fresh = dead.filter((k) => !LEGACY.has(k) && !PRIVATE_EDITION_CONSUMED.has(k));
+const fresh = dead.filter((k) => !LEGACY.has(k) && !OPTIONAL_CONSUMED.has(k));
 const stale = Array.from(LEGACY).filter((k) => dead.indexOf(k) < 0);
 if (flags.has('--json')) { console.log(JSON.stringify({ dead, fresh, stale }, null, 1)); }
 if (stale.length) console.log(`⚠️ 棘轮表里已不再死的条目(可从 LEGACY 删除):${stale.join(', ')}`);

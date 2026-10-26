@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "horosa": {
+      "command": "./horosa",
+      "args": ["mcp"]
+    }
+  }
+}

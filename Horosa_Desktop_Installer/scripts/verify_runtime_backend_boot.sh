@@ -27,6 +27,12 @@
 #   - 在 verify_public_distribution_readiness.sh 末尾按需调用。
 
 set -euo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -71,7 +77,7 @@ cleanup() {
   fi
   exit "${code}"
 }
-trap cleanup EXIT INT TERM HUP
+trap 'hx_on_exit cleanup' EXIT; trap cleanup INT TERM HUP
 
 port_free() {
   ! lsof -tiTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
@@ -236,7 +242,7 @@ fi
 log "全部通过：这份运行时可以在本机架构上真正启动并服务。"
 # ── 日志落点活体门:动态 logger 曾把活文件写进「相对 CWD 的字面目录」。
 # 修好的判据只有一条:后端起来并被打过请求后,运行时 CWD 下不得出现 ${env:* 目录;今天的 error/ 目录须在 $HOME 下。
-if find "${WEB_ROOT}" -maxdepth 1 -name '${env:*' 2>/dev/null | grep -q .; then
+if grep -q . < <(find "${WEB_ROOT}" -maxdepth 1 -name '${env:*' 2>/dev/null); then
   fail "Java 在运行时 CWD 生成了字面日志目录(log4j basedir 未解析)——见 boundless AppLoggers.resolvedBaseDir"
 fi
 if [ ! -d "${HOME}/.horosa-logs/astrostudyboot/$(date +%Y/%m/%d)/error" ]; then

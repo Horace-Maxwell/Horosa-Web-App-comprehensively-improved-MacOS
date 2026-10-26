@@ -1,0 +1,65 @@
+# tiny_http 0.12.0 的源码副本(crates.io 发布包),本地改动见 PATCHES.md。
+# 与发布包的差异:去掉了上游自带测试用的开发依赖(本副本只作为依赖编译)。
+
+[package]
+edition = "2018"
+name = "tiny_http"
+version = "0.12.0"
+authors = [
+    "pierre.krieger1708@gmail.com",
+    "Corey Farwell <coreyf@rwell.org>",
+]
+description = "Low level HTTP server library"
+documentation = "https://tiny-http.github.io/tiny-http/tiny_http/index.html"
+readme = "README.md"
+keywords = [
+    "http",
+    "server",
+    "web",
+]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/tiny-http/tiny-http"
+
+[package.metadata.docs.rs]
+features = ["ssl-openssl"]
+
+[dependencies.ascii]
+version = "1.0"
+
+[dependencies.chunked_transfer]
+version = "1"
+
+[dependencies.httpdate]
+version = "1.0.2"
+
+[dependencies.log]
+version = "0.4.4"
+
+[dependencies.openssl]
+version = "0.10"
+optional = true
+
+[dependencies.rustls]
+version = "0.20"
+optional = true
+
+[dependencies.rustls-pemfile]
+version = "0.2.1"
+optional = true
+
+[dependencies.zeroize]
+version = "1"
+optional = true
+
+[features]
+default = []
+ssl = ["ssl-openssl"]
+ssl-openssl = [
+    "openssl",
+    "zeroize",
+]
+ssl-rustls = [
+    "rustls",
+    "rustls-pemfile",
+    "zeroize",
+]

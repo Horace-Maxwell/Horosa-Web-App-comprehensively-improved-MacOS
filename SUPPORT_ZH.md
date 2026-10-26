@@ -10,7 +10,7 @@ Horosa 正在按“正式开源 GitHub 仓库”的标准整理。本文件说�
 
 - [README.md](README.md)
 - [README_ZH.md](README_ZH.md)
-- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+- [docs/HEADLESS.md](docs/HEADLESS.md)
 - [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
 
 ## 公开后的支持模型

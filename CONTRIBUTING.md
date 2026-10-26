@@ -27,7 +27,7 @@ Good contributions keep that system understandable, verifiable, and safe to ship
 - [README.md](README.md)
 - [README_EN.md](README_EN.md)
 - [README_ZH.md](README_ZH.md)
-- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+- [docs/HEADLESS.md](docs/HEADLESS.md)
 - [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
 
 ## Local Setup
@@ -44,22 +44,18 @@ npm run build:file
 
 ### Backend
 
-```bash
-cd Horosa-Web/astrostudysrv/boundless
-mvn test -DskipTests=false
-
-cd ../astrostudy
-mvn test -DskipTests=false
-```
-
-If Maven dependencies are missing in a clean environment, install the internal dependency chain first:
+The backend is a multi-module Maven project driven by the aggregator pom (`Horosa-Web/astrostudysrv/pom.xml`); its `<modules>` list is the only module list. Always build and test through the aggregator:
 
 ```bash
-cd Horosa-Web/astrostudysrv/boundless && mvn -DskipTests install
-cd ../basecomm && mvn -DskipTests install
-cd ../image && mvn -DskipTests install
-cd ../astrostudy && mvn test -DskipTests=false
+# Build every module from source in dependency order and produce astrostudyboot/target/astrostudyboot.jar
+# (this one command is all a clean machine needs)
+mvn -f Horosa-Web/astrostudysrv/pom.xml -DskipTests clean install
+
+# Run the unit tests of selected modules (-am compiles the sibling modules they depend on in the same build)
+mvn -f Horosa-Web/astrostudysrv/pom.xml test -pl boundless,astrostudy -am
 ```
+
+Do not `cd` into a module and install modules one by one: on a clean machine the local repository has neither the parent pom nor the sibling modules, so the second module fails to resolve; on an existing machine it silently links stale copies from `~/.m2`.
 
 ### Full Local Runtime
 

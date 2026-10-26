@@ -1,0 +1,3 @@
+# Linux(x86_64 / arm64)上 Python 计算引擎的依赖:与 macOS 同一份清单(下面这行引用它;内容跨平台,文件名沿用旧名)。
+# 用法:python3 -m pip install -r scripts/requirements/linux-python.txt(Python 3.11+;个别包在没有预编译轮子的平台上要现编,需 gcc / g++)
+-r mac-python.txt

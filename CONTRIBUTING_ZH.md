@@ -27,7 +27,7 @@ English guide: [CONTRIBUTING.md](CONTRIBUTING.md)
 - [README.md](README.md)
 - [README_ZH.md](README_ZH.md)
 - [README_EN.md](README_EN.md)
-- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+- [docs/HEADLESS.md](docs/HEADLESS.md)
 - [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
 
 ## 本地环境
@@ -44,22 +44,17 @@ npm run build:file
 
 ### 后端
 
-```bash
-cd Horosa-Web/astrostudysrv/boundless
-mvn test -DskipTests=false
-
-cd ../astrostudy
-mvn test -DskipTests=false
-```
-
-如果你在全新环境里缺少内部 Maven 依赖，可以先按依赖链安装：
+后端是由聚合 pom（`Horosa-Web/astrostudysrv/pom.xml`）管理的多模块 Maven 工程，模块清单只在它的 `<modules>` 里。一律从聚合 pom 构建与测试：
 
 ```bash
-cd Horosa-Web/astrostudysrv/boundless && mvn -DskipTests install
-cd ../basecomm && mvn -DskipTests install
-cd ../image && mvn -DskipTests install
-cd ../astrostudy && mvn test -DskipTests=false
+# 按依赖顺序从源码构建全部模块，产出 astrostudyboot/target/astrostudyboot.jar（全新环境也只需这一条）
+mvn -f Horosa-Web/astrostudysrv/pom.xml -DskipTests clean install
+
+# 只跑部分模块的单元测试（-am 让它们依赖的兄弟模块在同一次构建里一起编译）
+mvn -f Horosa-Web/astrostudysrv/pom.xml test -pl boundless,astrostudy -am
 ```
+
+不要进到单个模块目录里逐个 `install`：全新环境的本地仓库里没有父 pom 与兄弟模块，第二个模块就会解析失败；已有环境则会悄悄用到本地仓库里的旧版本。
 
 ### 整体运行态
 

@@ -17,11 +17,10 @@
 // --self-test:六向量必红(删一条登记 / 假消费方符号 / 假用例 id / 棘轮 / 挂名孪生 / 假 jest 名 / 挂名棘轮压 0)+ 一向量必绿(原表),网本身坏了当场判红。
 const fs = require('fs');
 const path = require('path');
+const { readSourceSet } = require(path.join(__dirname, 'source_sets.js'));   // 拆成子模块的门面按「子模块 + 门面」全集读
 
-const REGISTRY_FLOOR = 125;   // 共享登记表的控件数下限:加控件同提交抬线,不许减(2026-09-11 +agent.openTaskCenter;2026-09-17 +ext.edit 编辑入口登记)
-// 🔴 本检查器会把扩展登记表(advancedControls.private.json,存在才读)并进 controls,故实际下限
-//    = 基表下限 + 本次并入的扩展条目数;写成合并后的总数只在扩展表存在时成立,不存在时恒红。
-const PENDING_MAX = 0;        // 尚无 端到端判据的控件数上限(含扩展表):只减不增(C3 已落地:每个控件至少一条 端到端判据;新控件不带 用例 id = 红)
+const REGISTRY_FLOOR = 130;   // 共享登记表的控件数下限:加控件同提交抬线,不许减(2026-09-11 +agent.openTaskCenter;2026-09-17 +ext.edit 编辑入口登记;2026-10-11 抬到 129:私人内容可读 / 界面类也要确认 / REST 子开关与两个复制钮;同日 130:终端命令垫片三钮)
+const PENDING_MAX = 0;        // 尚无 端到端判据的控件数上限:只减不增(C3 已落地:每个控件至少一条 端到端判据;新控件不带 用例 id = 红)
 const L5_NOMINAL_MAX = 20;    // 挂名 端到端链接(用例文本不含本条锚 / 存储键)对数上限:2026-09-14 实测 20,只减不增
 const JEST_NOMINAL_MAX = 32;  // 挂名 jest 链接(文件不含本条锚 / 消费符号 / 存储键)条数上限:2026-09-14 实测 32,只减不增
 const PANE_FILES = [
@@ -59,14 +58,11 @@ function readJson(p){ return JSON.parse(fs.readFileSync(p, 'utf8')); }
 function loadInputs(uiDir){
 	const paneDir = path.join(uiDir, 'src', 'components', 'aianalysis');
 	const shared = readJson(path.join(paneDir, 'chat', 'advancedControls.registry.json'));
-	const privPath = path.join(paneDir, 'chat', 'advancedControls.private.json');
-	const priv = fs.existsSync(privPath) ? readJson(privPath) : null;
-	const privControls = priv && priv.controls ? priv.controls : [];
 	const registry = {
 		kinds: shared.kinds || [],
-		controls: (shared.controls || []).concat(privControls),
-		markers: (shared.markers || []).concat(priv && priv.markers ? priv.markers : []),
-		extCount: privControls.length,   // 棘轮下限随扩展条目数加成(见 REGISTRY_FLOOR 注)
+		controls: (shared.controls || []).slice(),
+		markers: (shared.markers || []).slice(),
+		floor: REGISTRY_FLOOR,
 	};
 	const files = {};
 	PANE_FILES.forEach((f)=>{ files[f] = stripComments(fs.readFileSync(path.join(paneDir, f), 'utf8')); });
@@ -109,7 +105,7 @@ function loadInputs(uiDir){
 
 function check({ registry, files, cards, scenarioIds, scenarioText, scenarioHasExpect, jestFiles, srcDir }, opts){
 	const errors = [];
-	const floor = opts && Number.isFinite(opts.floor) ? opts.floor : (REGISTRY_FLOOR + (Number(registry.extCount) || 0));
+	const floor = opts && Number.isFinite(opts.floor) ? opts.floor : (Number.isFinite(Number(registry.floor)) ? Number(registry.floor) : REGISTRY_FLOOR);
 	const pendingMax = opts && Number.isFinite(opts.pendingMax) ? opts.pendingMax : PENDING_MAX;
 	const controls = registry.controls || [];
 	const markers = registry.markers || [];
@@ -147,7 +143,7 @@ function check({ registry, files, cards, scenarioIds, scenarioText, scenarioHasE
 			if(!file || !sym){ errors.push(`控件 ${c.id} 消费方引用格式错: ${ref}`); return; }
 			const full = path.join(srcDir, file);
 			if(!fs.existsSync(full)){ errors.push(`控件 ${c.id} 消费方文件不存在: ${file}`); return; }
-			if(!srcCache[full]){ srcCache[full] = stripComments(fs.readFileSync(full, 'utf8')); }
+			if(!srcCache[full]){ srcCache[full] = stripComments(readSourceSet(full)); }
 			if(!symbolDeclared(srcCache[full], sym)){ errors.push(`控件 ${c.id} 消费方符号未声明: ${ref}`); }
 		});
 	});

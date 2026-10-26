@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * 静态扫「引用了却在任何作用域都没声明」的标识符(浏览器 / ES / Node / jest 全局白名单之外)。
+ * 静态扫「引用了却在任何作用域都没声明」的标识符(浏览器 / ES / Node / jest 全局白名单之外),
+ * 以及「const / let 在自己的初值里读自己」(`const x = x || {}`):
+ * 原生 JS 下这是暂时性死区 ReferenceError,经 Babel 降成 var 后又静默变成 undefined,两种结果都错。
  *
  * 为什么要有它:手工维护的大文件里删掉一行 `const xxxRef = React.useRef(null)` 而别处还传着 `xxxRef`,
  * 语法完全合法、构建照过、单测不渲染该组件也照绿,只有真打开页面才 ReferenceError 整页白。
@@ -55,7 +57,6 @@ const GLOBALS = new Set((
 // 新增任何一条 = 红;这里的都是历史遗留,逐条清掉后从此表删除。
 const LEGACY = new Set([
   'components/astro3d/vendor/DRACOLoader.js:DracoDecoderModule',   // 第三方解码器运行时全局
-  'components/gua/Gua3.js:parse',                                 // 遗留文件,Babel 严格模式不接受其 super() 写法
 ]);
 
 const PLUGINS = ['jsx', 'classProperties', 'classPrivateProperties', 'classPrivateMethods', 'objectRestSpread', 'optionalChaining',
@@ -84,8 +85,24 @@ function scanSource(src) {
   const found = [];
   const ast = parser.parse(src, { sourceType: 'module', plugins: PLUGINS, errorRecovery: false });
   traverse(ast, {
+    // JSX 正文里写成注释样子的文字(`</span>   /* 说明 */</div>`):JSX 里它不是注释,会原样渲染到页面上
+    JSXText(p) {
+      const v = p.node.value;
+      if (/\/\*|\*\/|(^|\s)\/\/\s/.test(v)) found.push({ name: v.trim().slice(0, 40), line: p.node.loc ? p.node.loc.start.line : 0, jsxComment: true });
+    },
     ReferencedIdentifier(p) {
       const name = p.node.name;
+      const binding = p.scope.getBinding(name);
+      if (binding && (binding.kind === 'const' || binding.kind === 'let') && binding.path.isVariableDeclarator()) {
+        // 声明前自引用:读点落在自己声明的初值里,且不在初值里的函数体内(函数体是之后才调用的,不算)
+        const initPath = binding.path.get('init');
+        if (initPath.node && p.isDescendant(initPath)) {
+          const fn = p.getFunctionParent();
+          if (!(fn && (fn === initPath || fn.isDescendant(initPath)))) {
+            found.push({ name, line: p.node.loc ? p.node.loc.start.line : 0, selfRef: true });
+          }
+        }
+      }
       if (GLOBALS.has(name)) return;
       if (p.scope.hasBinding(name)) return;
       if (p.parentPath && p.parentPath.isUnaryExpression({ operator: 'typeof' })) return;
@@ -103,7 +120,21 @@ if (targets[0] === '--self-test') {
   const okGreen = green.length === 0;
   console.log((okRed ? '✅' : '❌') + ' 判别向量①:未声明 fooRef/useHook 必抓 → ' + JSON.stringify(red.map((r) => r.name)));
   console.log((okGreen ? '✅' : '❌') + ' 判别向量②:声明后零命中 + typeof 守卫/JSX 组件/白名单不误报 → ' + JSON.stringify(green.map((r) => r.name)));
-  process.exit(okRed && okGreen ? 0 : 1);
+  // ③ 声明前自引用:外层同名的参数被内层 const 遮蔽并在初值里读自己 → 必抓;递归函数 / 方法体里引用自己 / 普通遮蔽 → 不误报
+  const selfRed = scanSource("export function A({ layout }){ function inner(){ const layout = layout || {}; return layout.up; } return inner(); }");
+  const selfGreen = scanSource("const walk = (n)=>(n > 0 ? walk(n - 1) : 0);\nconst token = { get(){ return token; } };\nexport function B({ layout }){ function inner(){ const cur = layout || {}; const layout2 = cur; return layout2; } return [walk(2), token.get(), inner()]; }");
+  const okSelfRed = selfRed.length === 1 && selfRed[0].name === 'layout' && selfRed[0].selfRef === true;
+  const okSelfGreen = selfGreen.length === 0;
+  console.log((okSelfRed ? '✅' : '❌') + ' 判别向量③:const x = x || {} 必抓 → ' + JSON.stringify(selfRed.map((r) => r.name)));
+  console.log((okSelfGreen ? '✅' : '❌') + ' 判别向量④:递归 / 方法体自引用 / 普通改名不误报 → ' + JSON.stringify(selfGreen.map((r) => r.name)));
+  // ⑤ JSX 正文里的注释写法必抓;真 JSX 注释 {/* */}、正文里的普通斜杠不误报
+  const jsxRed = scanSource("export function A({ y }){ return <div>{y}   /* 同一函数 */</div>; }");
+  const jsxGreen = scanSource("export function A({ y }){ return <div>{y}{/* 同一函数 */} 1/2 a/b</div>; }");
+  const okJsxRed = jsxRed.length === 1 && jsxRed[0].jsxComment === true;
+  const okJsxGreen = jsxGreen.length === 0;
+  console.log((okJsxRed ? '✅' : '❌') + ' 判别向量⑤:JSX 正文里的 /* … */ 必抓 → ' + JSON.stringify(jsxRed.map((r) => r.name)));
+  console.log((okJsxGreen ? '✅' : '❌') + ' 判别向量⑥:真 JSX 注释与正文斜杠不误报 → ' + JSON.stringify(jsxGreen.map((r) => r.name)));
+  process.exit(okRed && okGreen && okSelfRed && okSelfGreen && okJsxRed && okJsxGreen ? 0 : 1);
 }
 
 for (const t of targets) {
@@ -124,7 +155,7 @@ for (const t of targets) {
       continue;
     }
     for (const r of refs) {
-      (LEGACY.has(keyOf(f, r.name)) ? legacyHits : problems).push(`${path.relative(uiRoot, f)}:${r.line} 未声明引用 ${r.name}`);
+      (LEGACY.has(keyOf(f, r.name)) ? legacyHits : problems).push(`${path.relative(uiRoot, f)}:${r.line} ${r.jsxComment ? 'JSX 正文里的注释写法(会渲染到页面)' : (r.selfRef ? '声明前自引用' : '未声明引用')} ${r.name}`);
     }
   }
 }

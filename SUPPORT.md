@@ -10,7 +10,7 @@ Before opening a support request, check:
 
 - [README.md](README.md)
 - [README_EN.md](README_EN.md)
-- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+- [docs/HEADLESS.md](docs/HEADLESS.md)
 - [Horosa_Desktop_Installer/README.md](Horosa_Desktop_Installer/README.md)
 
 ## Public Support Model

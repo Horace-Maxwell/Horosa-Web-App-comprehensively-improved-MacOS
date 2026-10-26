@@ -78,7 +78,7 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" != "
 fi
 
 # ad-hoc 降档显式化:签名三件套缺失时产物只有 ad-hoc 签名(他机 Gatekeeper 拦),
-# 在 dist/ 落 UNSIGNED-DEV-BUILD.txt 标记 + 显眼警告;publish 的装订硬门([134])见此标记
+# 在 dist/ 落 UNSIGNED-DEV-BUILD.txt 标记 + 显眼警告;publish 的装订硬门见此标记
 # 或 stapler validate 不过即拒绝上传——「本地误建版流入 release」这条路从两头堵死。
 if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "0" ]; then
   mkdir -p "${DIST_ROOT}"
@@ -233,22 +233,13 @@ if [ "${TAURI_BUILD_OK}" != "1" ]; then
   exit 1
 fi
 
-# [2026-07-20 实案] 离线 pkg 内嵌档一律 gz —— zst 内嵌在真机安装 100% 必败的铁案:
-# macOS 系统 /usr/bin/tar(libarchive 编译清单 zlib/liblzma/bz2lib,**无 zstd**)平时能解 .zst
-# 全靠 PATH 里第三方 zstd 兜底;PKInstallSandbox 的 PATH 精简无此兜底 → postinstall 解压
-# 即败 → 降级 pending → App 首启读到旧版缓存报「版本不符」。构建机满 PATH 探测是假绿。
-# zst 仅限显式 HOROSA_OFFLINE_ZSTD=1 且**净化 PATH**探测通过(本机实验用;发布链禁用)。
-RUNTIME_ARCHIVE_ZST="${RUNTIME_ARCHIVE%.tar.gz}.tar.zst"
+# 离线 pkg 内嵌档一律 gz:macOS 系统 /usr/bin/tar(libarchive 编译清单 zlib/liblzma/bz2lib,
+# **无 zstd**)平时能解 .zst 全靠 PATH 里第三方 zstd 兜底;PKInstallSandbox 的 PATH 精简无此兜底 → postinstall
+# 解压即败 → 降级 pending → App 首启读到旧版缓存报「版本不符」。构建机满 PATH 探测是假绿。
+# 本应用的壳自愈 / 清点 / 清理也只认 tar.gz 缓存,所以这里不留内嵌 tar.zst 的口子。
 OFFLINE_EMBED_ARCHIVE="${RUNTIME_ARCHIVE}"
 OFFLINE_EMBED_ASSET="${RUNTIME_ASSET}"
-if [ "${HOROSA_OFFLINE_ZSTD:-0}" = "1" ] && [ -s "${RUNTIME_ARCHIVE_ZST}" ] \
-  && env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/tar -tf "${RUNTIME_ARCHIVE_ZST}" >/dev/null 2>&1; then
-  OFFLINE_EMBED_ARCHIVE="${RUNTIME_ARCHIVE_ZST}"
-  OFFLINE_EMBED_ASSET="$(basename "${RUNTIME_ARCHIVE_ZST}")"
-  echo "offline pkg embeds zst runtime archive: ${OFFLINE_EMBED_ASSET} (explicit HOROSA_OFFLINE_ZSTD=1)"
-else
-  echo "offline pkg embeds gz runtime archive: ${OFFLINE_EMBED_ASSET}"
-fi
+echo "offline pkg embeds gz runtime archive: ${OFFLINE_EMBED_ASSET}"
 OFFLINE_EMBED_SHA256="$(shasum -a 256 "${OFFLINE_EMBED_ARCHIVE}" | awk '{print $1}')"
 
 INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" RUNTIME_SHA256_ENV="${RUNTIME_SHA256}" LOCAL_RUNTIME_SHA256_ENV="${LOCAL_RUNTIME_SHA256}" OFFLINE_RUNTIME_ASSET_ENV="${OFFLINE_EMBED_ASSET}" OFFLINE_RUNTIME_SHA256_ENV="${OFFLINE_EMBED_SHA256}" RUNTIME_VERSION_ENV="${RUNTIME_VERSION}" RUNTIME_RELEASE_TAG_ENV="${RUNTIME_RELEASE_TAG}" python3 - <<'PYPOST'
@@ -290,10 +281,11 @@ offline_out.chmod(0o755)
 
 PYPOST
 
-rm -f "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/$(basename "${RUNTIME_ARCHIVE_ZST}")"
+# 同时清掉旧构建可能留下的 tar.zst 姊妹档,免得它被一起打进 pkg
+rm -f "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/${RUNTIME_ASSET%.tar.gz}.tar.zst"
 cp -f "${OFFLINE_EMBED_ARCHIVE}" "${OFFLINE_SCRIPTS_RENDERED_DIR}/${OFFLINE_EMBED_ASSET}"
 
-# ── [2026-07-20 实案] 渲染后硬断言(占位符漏替/内嵌档错位/沙盒不可解 任一命中 = 立即熔断,绝不出包) ──
+# ── 渲染后硬断言(占位符漏替/内嵌档错位/沙盒不可解 任一命中 = 立即熔断,绝不出包) ──
 if grep -nE '__[A-Z_]+__' "${OFFLINE_SCRIPTS_RENDERED_DIR}/postinstall"; then
   echo "ERROR: rendered postinstall 残留未替换占位符(见上行)—— 模板新增占位符必须同步渲染表" >&2
   exit 1
@@ -392,7 +384,7 @@ PYDIST
 build_component_pkg "${OFFLINE_SCRIPTS_RENDERED_DIR}" "${OFFLINE_COMPONENT_PKG}"
 build_product_pkg "${OFFLINE_COMPONENT_PKG}" "${OFFLINE_INSTALLER_PKG}"
 
-# ── [2026-07-20 实案] 离线 .pkg 真装 e2e 门(notarize 前拦截):展开成品包,在净化 PATH
+# ── 离线 .pkg 真装 e2e 门(notarize 前拦截):展开成品包,在净化 PATH
 # (≈PKInstallSandbox)下真跑 Scripts/postinstall(共享根重定向临时目录),断言运行时落位
 # 且版本吻合。冒烟链只测过 runtime 归档本身,从未测过「安装沙盒里的 postinstall 全链」——
 # v3.5.0 的离线包正是死在这段盲区。逃生阀 HOROSA_SKIP_PKG_E2E=1(仅救急;preflight 拦)。
@@ -411,7 +403,7 @@ if [ "${HOROSA_PUBLIC_DISTRIBUTION}" = "1" ] && [ "${PUBLIC_SIGNING_READY}" = "1
   xcrun stapler staple "${TARGET_APP}"
   xcrun notarytool submit "${OFFLINE_INSTALLER_PKG}" --keychain-profile "${NOTARYTOOL_KEYCHAIN_PROFILE}" --wait
   xcrun stapler staple "${OFFLINE_INSTALLER_PKG}"
-  # [2026-07-20 实案] staple 会改 pkg 字节 → e2e stamp 的 sha 必须随之刷新(真装结论对 Scripts 不变,
+  # staple 会改 pkg 字节 → e2e stamp 的 sha 必须随之刷新(真装结论对 Scripts 不变,
   # 仅同步指纹;preflight [156]/[139] 按 sha 绑定成品,不刷新则永远红)。
   if [ -f "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp" ] && grep -q '^OK' "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp"; then
     printf 'OK\t%s\t%s\n' "$(shasum -a 256 "${OFFLINE_INSTALLER_PKG}" | awk '{print $1}')" "${RUNTIME_VERSION}" > "${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verify_offline_pkg_install_e2e.sh —— 离线 .pkg 真装 e2e 门([2026-07-20 实案] 制度化)。
+# verify_offline_pkg_install_e2e.sh —— 离线 .pkg 真装 e2e 门(制度化)。
 #
 # 背景(v3.5.0 离线包真机翻车,同日两案):
 #   ① public:模板占位符 __OFFLINE_RUNTIME_ASSET__ 渲染表漏键 → postinstall 找不到内嵌档 → 降级;
@@ -14,6 +14,12 @@
 #       临时目录 真跑 Scripts/postinstall → 断言:无 pending 降级、runtime/current 落位、
 #       runtime-manifest.json 版本 == 期望、install-source.json 写入。
 set -euo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 
 PKG="${1:?用法: $0 <offline.pkg> <expected-runtime-version>}"
 EXPECTED="${2:?缺 expected-runtime-version}"
@@ -25,7 +31,7 @@ STAMP_PATH="${INSTALLER_ROOT}/build/offline-pkg-e2e.stamp"
 
 WORK="$(mktemp -d /tmp/horosa-pkg-e2e.XXXXXX)"
 cleanup() { rm -rf "${WORK}"; }
-trap cleanup EXIT
+trap 'hx_on_exit cleanup' EXIT
 
 echo "[pkg-e2e] expanding ${PKG} …"
 /usr/sbin/pkgutil --expand-full "${PKG}" "${WORK}/expanded"
@@ -81,3 +87,4 @@ if [ -n "${FAIL}" ]; then
 fi
 printf 'OK\t%s\t%s\n' "${PKG_SHA}" "${EXPECTED}" > "${STAMP_PATH}"
 echo "[pkg-e2e] OK: 离线包净化环境真装通过,runtime ${EXPECTED} 落位(stamp → ${STAMP_PATH})"
+exit 0

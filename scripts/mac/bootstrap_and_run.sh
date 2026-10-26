@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
+# 下载 JDK / Node / Maven / Python 的临时目录(几百 MB):各函数在成功 / 失败分支里显式删,set -e 中途中止时由这里收走(exec 起应用时不触发)
+boot_tmp_cleanup(){ if [ -n "${tmp_root:-}" ]; then rm -rf "${tmp_root}"; fi; }
+trap 'hx_on_exit boot_tmp_cleanup' EXIT
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROJECT_DIR="${ROOT}/Horosa-Web"
@@ -548,14 +557,19 @@ ensure_node() {
   fi
 
   if [ "${node_major}" -lt 18 ]; then
-    if [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ]; then
-      if have_cmd brew && brew info node@18 >/dev/null 2>&1; then
-        if ensure_formula node@18; then
-          export PATH="$(brew --prefix node@18)/bin:${PATH}"
+    if [ "${SKIP_TOOLCHAIN_INSTALL}" != "1" ] && have_cmd brew; then
+      # 新的长期支持版优先;Homebrew 已停用的公式(如 node@18)跳过 —— brew info 对停用公式照样成功,装的时候才失败
+      local f
+      for f in node@22 node@20 node; do
+        if grep -q '"disabled": *true' <<< "$(brew info --json=v2 --formula "${f}" 2>/dev/null)"; then
+          continue
         fi
-      else
-        ensure_formula node || true
-      fi
+        if ensure_formula "${f}"; then
+          export PATH="$(brew --prefix "${f}")/bin:${PATH}"
+          node_major="$(node_major_version_of "$(brew --prefix "${f}")/bin/node")"
+          [ "${node_major}" -ge 18 ] && break
+        fi
+      done
     fi
     if have_cmd node; then
       node_major="$(node_major_version_of "$(command -v node)")"
@@ -583,12 +597,14 @@ ensure_node() {
   have_cmd npm || fail "npm command not found."
 }
 
+# Python 3.11+:requirements 里 numpy 2.4 / scipy 1.17 / astropy 7 都要 3.11 起(macOS 命令行工具自带的 /usr/bin/python3 是 3.9,
+# 用它建虚拟环境,装依赖必失败)
 detect_python_bin() {
   local candidate=""
   for candidate in "${VENV_DIR}/bin/python3" "${LOCAL_PYTHON_BIN}" "${RUNTIME_PYTHON_BIN}"; do
     if [ -x "${candidate}" ] && "${candidate}" - <<'PY' >/dev/null 2>&1
 import sys
-sys.exit(0 if (sys.version_info.major, sys.version_info.minor) >= (3, 9) else 1)
+sys.exit(0 if (sys.version_info.major, sys.version_info.minor) >= (3, 11) else 1)
 PY
     then
       echo "${candidate}"
@@ -600,7 +616,7 @@ PY
     candidate="$(command -v python3)"
     if "${candidate}" - <<'PY' >/dev/null 2>&1
 import sys
-sys.exit(0 if (sys.version_info.major, sys.version_info.minor) >= (3, 9) else 1)
+sys.exit(0 if (sys.version_info.major, sys.version_info.minor) >= (3, 11) else 1)
 PY
     then
       echo "${candidate}"
@@ -647,12 +663,12 @@ ensure_python() {
 
   if [ -z "${py_bin}" ]; then
     if [ "${SKIP_TOOLCHAIN_INSTALL}" = "1" ]; then
-      fail "python 3.9+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or provide python manually."
+      fail "python 3.11+ is required. disable HOROSA_SKIP_TOOLCHAIN_INSTALL or provide python manually."
     fi
-    fail "python 3.9+ is required. automatic install failed (Homebrew unavailable and direct download failed)."
+    fail "python 3.11+ is required. automatic install failed (Homebrew unavailable and direct download failed)."
   fi
 
-  [ -n "${py_bin}" ] || fail "python 3.9+ not found."
+  [ -n "${py_bin}" ] || fail "python 3.11+ not found."
   export HOROSA_BOOTSTRAP_PYTHON="${py_bin}"
 }
 
@@ -678,9 +694,10 @@ venv_python_ready() {
   if [ ! -x "${py_bin}" ]; then
     return 1
   fi
+  # 旧的 3.9 / 3.10 虚拟环境装不上现在的依赖 → 当作坏的,重建
   "${py_bin}" - <<'PY' >/dev/null 2>&1
 import sys
-raise SystemExit(0 if sys.executable else 1)
+raise SystemExit(0 if sys.executable and sys.version_info[:2] >= (3, 11) else 1)
 PY
 }
 
@@ -807,30 +824,14 @@ build_backend_if_needed() {
     return
   fi
 
-  local modules=(
-    "boundless"
-    "basecomm"
-    "image"
-    "astrostudy"
-    "astrostudycn"
-    "astroreader"
-    "astrodeeplearn"
-    "astroesp"
-    "astrostudyboot"
-  )
-
-  say "building backend modules with Maven ..."
-  local module
-  for module in "${modules[@]}"; do
-    if [ ! -d "${SERVER_DIR}/${module}" ]; then
-      fail "missing backend module directory: ${module}"
-    fi
-    if [ "${module}" = "astrostudyboot" ]; then
-      (cd "${SERVER_DIR}/${module}" && run_maven -DskipTests clean install)
-    else
-      (cd "${SERVER_DIR}/${module}" && run_maven -DskipTests install)
-    fi
-  done
+  # 后端是 Maven 多模块工程:一律按聚合 pom 一次构建(模块清单只在 astrostudysrv/pom.xml 的 <modules> 一处)。
+  #   不要逐个模块进目录各装一遍:新机器的本地仓库里没有父 pom 与兄弟模块,第二个模块就解析失败;
+  #   旧机器上则会悄悄吃本地仓库里的旧件。下架 / 新增模块只改聚合 pom,这里不用跟着改。
+  if [ ! -f "${SERVER_DIR}/pom.xml" ]; then
+    fail "backend aggregator pom not found: ${SERVER_DIR}/pom.xml"
+  fi
+  say "building backend (all modules via ${SERVER_DIR}/pom.xml) ..."
+  run_maven -f "${SERVER_DIR}/pom.xml" -DskipTests clean install
 }
 
 installed_mongo_formula() {
@@ -944,3 +945,4 @@ main() {
 }
 
 main "$@"
+exit "$?"

@@ -17,14 +17,15 @@ INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "${INSTALLER_ROOT}/.." && pwd)"
 DIST="${INSTALLER_ROOT}/dist"
 
-read -r VERSION RUNTIME_VERSION REPO_NAME GH_OWNER <<EOF
+read -r VERSION RUNTIME_VERSION REPO_NAME GH_OWNER OFFLINE_PKG_NAME DESKTOP_ZIP_NAME MANIFEST_NAME <<EOF
 $(python3 - "$INSTALLER_ROOT" <<'PY'
 import json, os, sys
 root = sys.argv[1]
 cfg = json.load(open(os.path.join(root, 'config/release_config.json')))
 ver = json.load(open(os.path.join(root, 'package.json')))['version']
 rv = str(cfg.get('runtimeVersion') or ver).strip() or ver
-print(ver, rv, cfg['repoName'], cfg['repoOwner'])
+print(ver, rv, cfg['repoName'], cfg['repoOwner'], cfg['desktopOfflinePkgName'], cfg['desktopAssetName'],
+      cfg.get('updateManifestName') or 'horosa-latest.json')
 PY
 )
 EOF
@@ -46,7 +47,7 @@ fi
 echo "== GitCode 镜像同步：${GITCODE_OWNER}/${GITCODE_REPO}  版本 ${TAG} =="
 
 # ① 确认 tag 已被 GitCode 镜像同步过来（GitCode 只读，发行版必须挂在已存在的 tag 上）
-if ! GIT_TERMINAL_PROMPT=0 git ls-remote --tags "${GITCODE_URL}.git" "${TAG}" 2>/dev/null | grep -q "refs/tags/${TAG}$"; then
+if ! grep -q "refs/tags/${TAG}$" < <(GIT_TERMINAL_PROMPT=0 git ls-remote --tags "${GITCODE_URL}.git" "${TAG}" 2>/dev/null); then
   echo ""
   echo "⚠️ GitCode 上还没有 ${TAG} 标签——镜像尚未同步。"
   echo "   先到 ${GITCODE_URL}  →  仓库设置 → 仓库镜像，点「更新」立即同步（≤5min）；"
@@ -77,7 +78,7 @@ create_release() {
 
 echo "[1/2] 创建发行版条目 + 写入真实说明"
 create_release "${TAG}" "${INSTALLER_ROOT}/config/release_notes/${VERSION}.md"
-if GIT_TERMINAL_PROMPT=0 git ls-remote --tags "${GITCODE_URL}.git" "${RUNTIME_TAG}" 2>/dev/null | grep -q "refs/tags/${RUNTIME_TAG}$"; then
+if grep -q "refs/tags/${RUNTIME_TAG}$" < <(GIT_TERMINAL_PROMPT=0 git ls-remote --tags "${GITCODE_URL}.git" "${RUNTIME_TAG}" 2>/dev/null); then
   create_release "${RUNTIME_TAG}" "/dev/null"
 fi
 
@@ -86,7 +87,8 @@ echo ""
 echo "[2/2] 还需手动两步（GitCode 只读镜像 + 无附件上传 API）："
 echo "  (a) 源码同步：${GITCODE_URL} → 仓库设置 → 仓库镜像 → 点「更新」（确保 main 也追上 GitHub）。"
 echo "  (b) 上传安装包到发行版附件（≤2G）：打开 ${GITCODE_URL}/releases/tag/${TAG} ，把以下文件拖进附件："
-for f in "Horosa-Installer-macos-arm64-offline.pkg" "Horosa-Desktop-macos-arm64.zip" "horosa-latest.json"; do
+# 附件名从 release_config 读(与打包配置同源)
+for f in "${OFFLINE_PKG_NAME}" "${DESKTOP_ZIP_NAME}" "${MANIFEST_NAME}"; do
   [ -f "${DIST}/${f}" ] && echo "        ${DIST}/${f}"
 done
 if [ -f "${DIST}/horosa-runtime-macos-arm64.tar.gz" ]; then

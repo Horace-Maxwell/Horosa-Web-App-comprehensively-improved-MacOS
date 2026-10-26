@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# 星阙无头命令行入口:./horosa <子命令>(./horosa help 看全部)。不需要桌面 App:
+#   ./horosa setup   首次部署(工具链 + 构建)
+#   ./horosa start   起本机计算服务 + 无头接口服务(MCP / REST / 终端命令共用)
+#   ./horosa mcp     stdio MCP(给 Claude Code / Claude Desktop / Codex / Cursor 等直接拉起;仓库根的 .mcp.json 已登记)
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI="${ROOT}/Horosa-Web/astrostudyui/headless/cli.js"
+
+# setup 不需要 Node(部署脚本自己装工具链)
+if [ "${1:-}" = "setup" ]; then
+  exec env HOROSA_SKIP_LAUNCH=1 bash "${ROOT}/scripts/mac/bootstrap_and_run.sh"
+fi
+
+# Node 候选:显式指定 > 项目内 > PATH > 常见安装位置(图形界面客户端拉起时 PATH 往往只有 /usr/bin:/bin,
+# Homebrew / Volta / fnm / nvm 装的 node 都不在里面;brew 的 node@NN 是 keg-only,连终端 PATH 里都没有)
+node_candidates() {
+  printf '%s\n' "${HOROSA_NODE:-}" "${ROOT}/.runtime/mac/node/bin/node" "$(command -v node 2>/dev/null || true)" \
+    /opt/homebrew/bin/node /usr/local/bin/node \
+    /opt/homebrew/opt/node@22/bin/node /opt/homebrew/opt/node@20/bin/node /usr/local/opt/node@22/bin/node /usr/local/opt/node@20/bin/node \
+    "${HOME}/.volta/bin/node" "${HOME}/.local/share/fnm/aliases/default/bin/node" "${HOME}/Library/Application Support/fnm/aliases/default/bin/node"
+  ls -d "${HOME}"/.nvm/versions/node/v*/bin/node 2>/dev/null | sort -rV || true
+}
+pick_node() {
+  local cand
+  while IFS= read -r cand; do
+    [ -n "${cand}" ] && [ -x "${cand}" ] || continue
+    local major
+    major="$("${cand}" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+    if [ "${major}" -ge 18 ] 2>/dev/null; then
+      echo "${cand}"
+      return 0
+    fi
+  done < <(node_candidates)
+  return 1
+}
+
+# 帮助 / 版本 / 自检不需要前端依赖(新克隆还没 setup 时也能看)
+NEEDS_DEPS=1
+case "${1:-help}" in help|-h|--help|version|-V|--version|doctor) NEEDS_DEPS=0 ;; esac
+
+NODE_BIN="$(pick_node || true)"
+if [ -z "${NODE_BIN}" ]; then
+  if [ "${NEEDS_DEPS}" = "0" ]; then
+    echo "星阙无头命令行(仅 macOS):首次使用先运行 ./horosa setup —— 装好 Node / JDK 17 / Python 3.11+ 并构建(约 5 GB,需联网);"
+    echo "装好后 ./horosa help 看全部子命令。若 Node 18+ 已装在别处,设 HOROSA_NODE=/绝对路径/node。"
+    exit 0
+  fi
+  echo "horosa: 找不到 Node.js 18+;先运行 ./horosa setup(会装好 Node / JDK / Python 并构建);Node 已装在别处就设 HOROSA_NODE=/绝对路径/node" >&2
+  exit 3
+fi
+if [ "${NEEDS_DEPS}" = "1" ] && { [ ! -d "${ROOT}/Horosa-Web/astrostudyui/node_modules/jsdom" ] || [ ! -d "${ROOT}/Horosa-Web/astrostudyui/node_modules/esbuild" ]; }; then
+  echo "horosa: 前端依赖没装;先运行 ./horosa setup" >&2
+  exit 3
+fi
+exec "${NODE_BIN}" "${CLI}" "$@"

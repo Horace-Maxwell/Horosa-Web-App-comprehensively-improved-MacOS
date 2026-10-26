@@ -95,7 +95,7 @@ manifest 的 `platforms` 按 key 隔离(`darwin-aarch64` 等)。其他平台接�
 | 护栏 | 拦什么 |
 |---|---|
 | `cargo test component_` | tree/preserve/files 应用语义回归;失败原子性;diff 门控矩阵 |
-| `cargo test download_resume` / `native_extract` | 断点续传协议回归;native 解压 parity/路径逃逸 |
+| `cargo test download_resume` / `native_extract` | 断点续传协议回归;native 解压 parity/路径逃逸/符号链接逃逸(绝对目标、真实解析出树、经链接写盘、不安全不回退外部 tar) |
 | build 脚本 lock 漂移闸 | 旧部件残留混入新版本 manifest(runtimeVersion/appName 不符即失败) |
 | publish digest 幂等 | 同名异 sha 资产残留(删旧重传,防客户端校验失败) |
 | 启动健康看门狗(preflight[85]) | 更新到起不来的版本:连续 2 次未 ready 自动回滚 previous 槽 |

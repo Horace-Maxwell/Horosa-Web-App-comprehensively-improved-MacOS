@@ -14,6 +14,7 @@ import { saveModuleAISnapshotLazy, saveModuleAISnapshot, } from '../../utils/mod
 import { buildPredictiveSnapshotText, } from '../../utils/predictiveAiSnapshot';
 import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../utils/planetHouseInfo';
 import UpdatingBadge from '../common/UpdatingBadge';
+import { natalSourceKey, pickKeyedDerived } from '../../utils/derivedChartSource';
 import { silentTechniquePanelsEnabled } from '../../utils/perfFlags';
 import { natalClassicalParams, transitOrbDefault } from './AstroExtraCommon';
 import { pruneStaleClassicalParams } from '../../utils/classicalChartGlobals';
@@ -47,7 +48,7 @@ class AstroSolarArc extends Component{
 				hsys: qryparam.hsys,
 				zodiacal: qryparam.zodiacal, siderealAyanamsa: qryparam.siderealAyanamsa,
 				tradition: qryparam.tradition,
-				datetime: new DateTime(),
+				datetime: DateTime.nowForChart(qryparam.zone),   // 「此刻」按本盘时区(与 dirZone 配套下发)
 				tmType: 'y',
 				nodeRetrograde: DIRECTION_PAGE_SETTINGS.load().nodeRetrograde,   // 上次亲手设的值(星运族共用)
 				asporb: transitOrbDefault(),
@@ -81,7 +82,7 @@ class AstroSolarArc extends Component{
 					return;
 				}
 				let param = this.genNatalParams(chartObj);
-				// [SURF-T1] 增量 merge 粘滞剔除:非默认改回默认后 param 不带键,旧值不得残留(见 classicalChartGlobals)。
+				// 增量 merge 粘滞剔除:非默认改回默认后 param 不带键,旧值不得残留(见 classicalChartGlobals)。
 				let params = pruneStaleClassicalParams({
 					...this.state.params,
 					...param,
@@ -141,16 +142,17 @@ class AstroSolarArc extends Component{
 			hsys: qryparam.hsys,
 			zodiacal: qryparam.zodiacal, siderealAyanamsa: qryparam.siderealAyanamsa,
 			tradition: qryparam.tradition,
-			// [0d] 古典口径段(单源):此前只带 4-6 基础键,改界系/三分/宫头5°律后与主盘口径静默分叉。
+			// 古典口径段(单源):此前只带 4-6 基础键,改界系/三分/宫头5°律后与主盘口径静默分叉。
 			...natalClassicalParams(qryparam),
 		};
 		return params;
 	}
 
 	async requestDirection(params){
-		// [SURF-R5p] 乱序/混代防(B 断面):双在途旧响应后回=盘面与快照回滚;快照 chartValue
+		// 乱序/混代防(B 断面):双在途旧响应后回=盘面与快照回滚;快照 chartValue
 		// 此前取回调时刻 props=与响应混代——请求时捕获,与 params/result 同代(响应内产范式)。
 		const seq = ++this._reqSeq || (this._reqSeq = 1);
+		const dirChartSig = natalSourceKey(params);   // 本次结果出自哪位命主(读时与当前盘比,见 shownDirChart)
 		const chartValueAtRequest = this.props.value;
 		// 空回包/请求失败防御:后端未就绪、无效生辰等场景 request 可能抛错或返回空——
 		// 静默保持现盘,不产生 Unhandled Rejection(request 失败 resolve undefined 是全仓契约)。
@@ -182,6 +184,7 @@ class AstroSolarArc extends Component{
 		}
 		const st = {
 			dirChart: result,
+			dirChartSig,
 			updating: false,
 			params: {
 				...params,
@@ -191,9 +194,7 @@ class AstroSolarArc extends Component{
 
 		this.setState(st, ()=>{
 			const chartValue = chartValueAtRequest;
-			saveModuleAISnapshotLazy('solararc', ()=>buildPredictiveSnapshotText(chartValue, st.params, result, 'solararc'), {
-				module: 'solararc',
-			});
+			saveModuleAISnapshotLazy('solararc', ()=>buildPredictiveSnapshotText(chartValue, st.params, result, 'solararc'), this.snapshotMeta());
 		});
 	}
 
@@ -247,11 +248,11 @@ class AstroSolarArc extends Component{
 	}
 
 	genAspectDom(){
-		if(this.state.dirChart === undefined || this.state.dirChart === null){
+		if(this.shownDirChart() === undefined || this.shownDirChart() === null){
 			return null;
 		}
 
-		let aspects = this.state.dirChart.chart.aspects;
+		let aspects = this.shownDirChart().chart.aspects;
 		let divs = [];
 		for(let i=0; i<aspects.length; i++){
 			let obj = aspects[i];
@@ -278,7 +279,7 @@ class AstroSolarArc extends Component{
 				<Col key={i} span={12}>
 					<div>
 						<span style={{fontFamily: AstroConst.NormalFont}}>行运&nbsp;</span>
-						<span>{this.renderPlanetLabel(this.state.dirChart, obj.directId)}</span>
+						<span>{this.renderPlanetLabel(this.shownDirChart(), obj.directId)}</span>
 					</div>
 					{coldivs}
 				</Col>
@@ -327,6 +328,11 @@ class AstroSolarArc extends Component{
 		}
 	}
 
+	// 写槽 meta 单一来源:平时写槽与刷新应答共用(刷新一次后槽的 meta 不变)
+	snapshotMeta(){
+		return { module: 'solararc' };
+	}
+
 	// AI 导出/挂载实时取数:导出侧派发 refresh 事件,这里用当前显示的推运盘即时构建快照并回填,
 	// 保证「显示什么就导出什么」——不依赖懒存缓存是否已物化(reload/rehydrate 未重排时缓存可能为空,
 	// 此前缺此监听 → 显示有盘却报「当前页面没有可导出文本」)。
@@ -336,7 +342,7 @@ class AstroSolarArc extends Component{
 			return;
 		}
 		const chartValue = this.props.value;
-		const dirChart = this.state ? this.state.dirChart : null;
+		const dirChart = this.shownDirChart();
 		if(!chartValue || !dirChart){
 			return;
 		}
@@ -347,7 +353,7 @@ class AstroSolarArc extends Component{
 			text = '';
 		}
 		if(text){
-			saveModuleAISnapshot('solararc', text);
+			saveModuleAISnapshot('solararc', text, this.snapshotMeta());   // 刷新应答与平时写槽同一份 meta
 			if(evt && evt.detail && typeof evt.detail === 'object'){
 				evt.detail.snapshotText = text;
 			}
@@ -361,10 +367,15 @@ class AstroSolarArc extends Component{
 		}
 	}
 
+	// 派生盘只与它出自的那张命盘配对:换盘后新盘在途、或新盘取盘失败时,state 里仍是上一位命主的结果 → 当没有
+	shownDirChart(){
+		return pickKeyedDerived(this.state.dirChart, this.state.dirChartSig, natalSourceKey(this.props.value));
+	}
+
 	render(){
 		let chartObj = {
 			natualChart: this.props.value,
-			dirChart: this.state.dirChart,
+			dirChart: this.shownDirChart(),
 		};
 
 		let param = this.state.params;
@@ -418,7 +429,7 @@ class AstroSolarArc extends Component{
 		let height = this.props.height ? this.props.height : 760;
 		let style = {
 			height: (height-20) + 'px',
-			boxSizing: 'border-box',   // [巡检实抓 2026-09-17] 内距计入高度,不再比面板高 5px
+			boxSizing: 'border-box',   // 内距计入高度,不再比面板高 5px
 			overflowY:'auto', 
 			overflowX:'hidden',
 		};
@@ -428,7 +439,7 @@ class AstroSolarArc extends Component{
 				<Row gutter={6}>
 					<Col span={17}>
 						<div style={{ position: 'relative' }}>
-							{this.state.updating && this.state.dirChart ? <UpdatingBadge /> : null}
+							{this.state.updating && this.shownDirChart() ? <UpdatingBadge /> : null}
 							<AstroDoubleChart value={chartObj}
 								height={height}
 								planetDisplay={this.props.planetDisplay}
@@ -444,7 +455,7 @@ class AstroSolarArc extends Component{
 							<Col span={24}>
 								<AstroDirectionForm {...fields}
 									fieldsAry={fieldsary}
-									hideMeanOrb   /* [Q-172/T-105] 弧类走 solararc.compute:-1 档与 1° 同结果,隐掉 */
+									hideMeanOrb   /* 弧类走 solararc.compute:-1 档与 1° 同结果,隐掉 */
 									onFieldsChange={this.fieldsChanged}
 									onSubmit={this.submit}
 								/>							

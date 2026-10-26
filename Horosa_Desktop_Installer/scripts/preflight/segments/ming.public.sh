@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# 发布前自检 · 命(各技法与历法)(续)
+# 由 preflight/lib.sh 按登记表装载;只定义函数 seg_<id>(),不直接执行。

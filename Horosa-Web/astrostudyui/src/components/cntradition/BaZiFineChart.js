@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { XQDesignScaleBox } from '../xq-ui';
 import { BaZiMsg } from '../../msg/bazimsg';
 import { getSelfZuo, hiddenStemsOf, xunKongOf } from '../../utils/baziLunarLocal';
 import { filterShenShaByGroups } from '../../utils/baziShenShaLocal';
@@ -357,6 +358,16 @@ const ELEMENT_CN = {
 	Metal: '金', metal: '金', Water: '水', water: '水',
 };
 
+// 细盘设计宽(布局 px)= 标签列 62 + 每柱(字形最小宽 + 左右内距 12)+ 边框 2;
+// 与样式同值锁:.horosa-bazi-fine-row 的标签列 62px、.horosa-bazi-fine-glyph 的 min-width(细盘 46 / 简盘 36)、.horosa-bazi-fine-cell 的左右内距 6
+export const BAZI_FINE_LABEL_COL = 62;
+export const BAZI_FINE_GLYPH_MIN = { fine: 46, simple: 36 };
+export const BAZI_FINE_CELL_PAD_X = 6;
+export function baziFineDesignWidth(colCount, isSimple){
+	const g = isSimple ? BAZI_FINE_GLYPH_MIN.simple : BAZI_FINE_GLYPH_MIN.fine;
+	return BAZI_FINE_LABEL_COL + (Number(colCount) || 0) * (g + 2 * BAZI_FINE_CELL_PAD_X) + 2;
+}
+
 class BaZiFineChart extends Component{
 	hasDirection(rec){
 		return !!(rec && Array.isArray(rec.direction) && rec.direction.length);
@@ -652,7 +663,10 @@ class BaZiFineChart extends Component{
 		const branchRelations = this.buildBranchRelations(cols);
 		const isSimple = this.props.mode === 'simple';
 		const schoolMark = this.buildSchoolMark();
+		// 栏宽不足设计宽(标签列 + 每柱「天干地支字形最小宽 + 内距」)时按设计宽排版再整体等比缩(放得下时逐像素不变):
+		// 字形不再互贴、连线不再穿字、表头不再两字竖排、右缘不再被裁
 		return (
+			<XQDesignScaleBox designWidth={baziFineDesignWidth(cols.length, isSimple)}>
 			<div className={`horosa-bazi-fine-chart ${cols.length === 4 ? 'horosa-bazi-fine-chart-core' : ''} ${isSimple ? 'horosa-bazi-fine-chart-simple' : ''}`}>
 				{schoolMark ? this.renderSchoolBar(schoolMark) : null}
 				{this.renderHeader(cols, schoolMark)}
@@ -683,6 +697,7 @@ class BaZiFineChart extends Component{
 				{!isSimple ? this.renderSimpleRow('自坐', cols, (item)=><strong>{getSelfZuo(item.stem, item.branch, this.props.fields && this.props.fields.phaseType ? this.props.fields.phaseType.value : undefined)}</strong>, 'horosa-bazi-fine-info-row') : null}
 				{!isSimple ? this.renderSimpleRow('空亡', cols, (item)=><strong>{item.xunEmpty}</strong>, 'horosa-bazi-fine-info-row') : null}
 			</div>
+			</XQDesignScaleBox>
 		);
 	}
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """签名种子自动准备的判别向量:① 0775 / 0444 / 0755 三种权限位解出来逐一保留(umask 不介入);
 ② 输出两个种子目录(python 域根 = …/runtime/mac;java-lib = …/BOOT-INF/lib);③ 没有上一版部件 → 两行都是 `-`;
-④ 重复运行清旧种子;⑤ 上一版稳定部件的 tar 头与 lock 留档到 build/.sign-seed。"""
+④ 重复运行清旧种子;⑤ 上一版稳定部件的 tar 头与 lock 留档到 build/.sign-seed;
+⑥ 部件被清掉后旧留档删掉、输出 `-`。"""
 import io
 import os
 import pathlib
@@ -57,6 +58,13 @@ def run():
             junk = py / "python" / "junk"; junk.write_text("x")
             r = subprocess.run([sys.executable, str(HERE / "prepare_sign_seed.py"), str(root)], capture_output=True, text=True)
             assert r.returncode == 0 and not junk.exists(), "重复运行必须清掉旧种子"
+            # ⑥ 部件被清掉后再跑:上一轮的旧留档必须删掉、输出 `-`(不许让旧留档冒充这一轮的)
+            for t in (root / "dist" / "components").glob("*.tar.gz"):
+                t.unlink()
+            r = subprocess.run([sys.executable, str(HERE / "prepare_sign_seed.py"), str(root)], capture_output=True, text=True)
+            lines = dict(l.split("=", 1) for l in r.stdout.strip().splitlines())
+            assert r.returncode == 0 and lines["prev_headers"] == "-", lines
+            assert not ph.exists() and not (ph.parent / "prev-components-lock.json").exists(), "⑥ 旧留档没删"
         with tempfile.TemporaryDirectory() as d:
             root = pathlib.Path(d); (root / "dist" / "components").mkdir(parents=True)
             r = subprocess.run([sys.executable, str(HERE / "prepare_sign_seed.py"), str(root)], capture_output=True, text=True)

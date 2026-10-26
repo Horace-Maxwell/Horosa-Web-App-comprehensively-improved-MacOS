@@ -16,7 +16,7 @@ export default class AstroFormComp extends Component{
 				}
 			}
 			this.props.dispatch({
-				type: 'astro/save',
+				type: 'astro/saveUserFields',
 				payload: vals,
 			});
 

@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# [exit-guard] bash 3.2:set -u 因未赋值变量中止时,EXIT trap 里拿到的 $? 是 0(失败会被报成成功)。显式 exit 都经下面的
+#   exit 记一笔;进 EXIT 时没记过 = 中止,按失败计。EXIT trap 一律写成 trap 'hx_on_exit <原处理>' EXIT(处理函数里读到的 $?
+#   已是改判后的值);脚本末尾必须显式 exit。检查器 check_shell_exit_guard.py 机检。
+HX_EXITED=0; exit(){ local _hx_s=$?; HX_EXITED=1; if [ "$#" -eq 0 ]; then builtin exit "${_hx_s}"; fi; builtin exit "$@"; }
+hx_status(){ return "$1"; }
+hx_on_exit(){ local _hx_r=$?; if [ "${_hx_r}" = "0" ] && [ "${HX_EXITED}" != "1" ]; then _hx_r=1; fi; set +e; hx_status "${_hx_r}"; "$@"; builtin exit "${_hx_r}"; }
 
 # 发布前验收(2026-07-14 起移除强制手测闸):建议先装机手测 dist/ 下的 .pkg,但不再作硬门拦截
 # (HOROSA_USER_TESTED 不再必需;若仍想保留提醒,可自行在外层流程加)。发布前唯一硬保护 = 下方
-
-
-# [134] stapler validate 门:未公证/ad-hoc 产物直接拒发,杜绝误发未签名/未公证构建。
+# stapler validate 门:未公证/ad-hoc 产物直接拒发,杜绝误发未签名/未公证构建。
 
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_ROOT="${INSTALLER_ROOT}/dist"
@@ -43,7 +47,7 @@ PY
 )
 EOF
 
-# [SEC-N] 发布终闸:release note 残留内部段标记 = 上游剔除流程没跑(手拷/绕过同步)——拒发。
+# 发布终闸:release note 残留内部段标记 = 上游剔除流程没跑(手拷/绕过同步)——拒发。
 NOTE_FILE_SECN="${INSTALLER_ROOT}/config/release_notes/${VERSION}.md"
 if [ -f "${NOTE_FILE_SECN}" ] && grep -aq "horosa-priv""ate-only" "${NOTE_FILE_SECN}"; then
   echo "❌ [SEC-N] release note 含段标记(段剔除器未生效),拒发。" >&2
@@ -92,7 +96,7 @@ for asset in "${APP_ASSETS[@]}" "${RUNTIME_ARCHIVE_PATH}"; do
   }
 done
 
-# ── 装订硬门([134]):上传前 stapler validate .pkg——ad-hoc/未公证产物(签名三件套缺失时
+# ── 装订硬门:上传前 stapler validate .pkg——ad-hoc/未公证产物(签名三件套缺失时
 #    build 自动降档产出)绝不允许流入 release(他机 Gatekeeper 会拦,用户装不上还以为发布坏了)。
 #    逃生阀 HOROSA_ALLOW_UNSTAPLED=1(仅内网/测试 release 用,勿用于公开发行)。
 if [ "${HOROSA_ALLOW_UNSTAPLED:-0}" != "1" ]; then
@@ -114,7 +118,7 @@ fi
 EXPECTED_IDENTIFIER="$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 -c "import json,os;print(json.load(open(os.environ['INSTALLER_ROOT_ENV']+'/src-tauri/tauri.conf.json'))['identifier'])")"
 EXPECTED_PRODUCT="$(INSTALLER_ROOT_ENV="${INSTALLER_ROOT}" python3 -c "import json,os;print(json.load(open(os.environ['INSTALLER_ROOT_ENV']+'/src-tauri/tauri.conf.json'))['productName'])")"
 IDENTITY_TMP="$(mktemp -d /tmp/horosa-publish-identity.XXXXXX)"
-trap 'rm -rf "${IDENTITY_TMP}"' EXIT
+trap 'hx_on_exit rm -rf "${IDENTITY_TMP}"' EXIT
 unzip -qq "${DIST_ROOT}/${DESKTOP_ASSET}" "*/Contents/Info.plist" -d "${IDENTITY_TMP}" 2>/dev/null || true
 ACTUAL_PLIST="$(/usr/bin/find "${IDENTITY_TMP}" -name Info.plist -path "*/Contents/Info.plist" 2>/dev/null | head -1)"
 if [ -z "${ACTUAL_PLIST}" ]; then
@@ -178,8 +182,8 @@ fi
 echo "== 发布前环境就绪 =="
 _RDY_BAD=0
 if ! command -v node >/dev/null 2>&1; then
-  echo "❌ node 不在 PATH(node@18 keg-only 未链接)—— verify_desktop_packaging 的前端校验会 command-not-found。" >&2
-  echo "   修:export PATH=\"/opt/homebrew/opt/node@18/bin:\$PATH\"(勿把 homebrew/bin 前置,会用无 swisseph 的 python3)。" >&2
+  echo "❌ node 不在 PATH(node@22 keg-only 未链接)—— verify_desktop_packaging 的前端校验会 command-not-found。" >&2
+  echo "   修:export PATH=\"/opt/homebrew/opt/node@22/bin:\$PATH\"(勿把 homebrew/bin 前置,会用无 swisseph 的 python3)。" >&2
   _RDY_BAD=1
 fi
 if ! command -v gh >/dev/null 2>&1; then
@@ -220,7 +224,7 @@ fi
 
 auth_header=( -H "Authorization: Bearer ${GITHUB_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' )
 # 资产(文件本体)下载专用头:只能有一个 Accept —— 与 auth_header 的 vnd.github+json 同时发时 GitHub 回的是资产元数据 JSON,
-# 不是文件(基线清单会被误判为缺失、部件复用基线随之失效;preflight [259] lint 看守)。
+# 不是文件(基线清单会被误判为缺失、部件复用基线随之失效;发版预检有 lint 看守)。
 asset_header=( -H "Authorization: Bearer ${GITHUB_TOKEN}" -H 'X-GitHub-Api-Version: 2022-11-28' -H 'Accept: application/octet-stream' )
 
 api_json() {
@@ -682,7 +686,7 @@ print('\n'.join(sorted(upload)))
 PYCOMPREUSE
 )"
 
-  # [WS-1e·I4] 差分效率下限门:增量制度的自动护栏——无论谁怎么改打包/部件边界,
+  # 差分效率下限门:增量制度的自动护栏——无论谁怎么改打包/部件边界,
   # 待上传部件总体积超预算(HOROSA_DELTA_BUDGET_MB,默认 200)或「稳定部件」
   # (py-runtime/jdk-runtime/ephe-data/xuanshi-data/java-lib)意外进上传名单,
   # 发布在此拦下并打印逐部件成因;确属预期(如 JDK/星历升级)用 HOROSA_ALLOW_LARGE_DELTA=1 放行。
@@ -860,23 +864,37 @@ if [ -z "${LATEST_MANIFEST}" ]; then
   exit 1
 fi
 
-python3 - <<'PY' "${LATEST_MANIFEST}" "${VERSION}" "${TAG_NAME}" "${RUNTIME_TAG_NAME}" "${DESKTOP_ASSET}" "${RUNTIME_ASSET}"
+# 发布后 manifest 二次校验:release 此刻已成功发布,这只是「重抓已发布 manifest」的事后 sanity check。
+# GitHub CDN 偶发对刚上传资产返回瞬时空/旧响应(KeyError 'version' 即源于此),不应让已成功的发布判失败。
+# 故:校验不过 → 警告 + 提示人工确认(用 .get 防 KeyError),不再 raise/exit。
+if ! python3 - <<'PY' "${LATEST_MANIFEST}" "${VERSION}" "${TAG_NAME}" "${RUNTIME_TAG_NAME}" "${DESKTOP_ASSET}" "${RUNTIME_ASSET}"
 import json, sys
-manifest = json.loads(sys.argv[1])
-if manifest['version'] != sys.argv[2]:
-    raise SystemExit(f"latest manifest version mismatch: {manifest['version']} != {sys.argv[2]}")
-if manifest.get('tag') != sys.argv[3]:
-    raise SystemExit(f"latest manifest tag mismatch: {manifest.get('tag')} != {sys.argv[3]}")
-platform = next(iter(manifest['platforms'].values()))
-if f"/releases/download/{sys.argv[3]}/" not in platform['appUrl']:
-    raise SystemExit('latest manifest appUrl tag mismatch')
-if not platform['appUrl'].endswith('/' + sys.argv[5]):
-    raise SystemExit('latest manifest appUrl mismatch')
-if f"/releases/download/{sys.argv[4]}/" not in platform['runtimeUrl']:
-    raise SystemExit('latest manifest runtimeUrl tag mismatch')
-if not platform['runtimeUrl'].endswith('/' + sys.argv[6]):
-    raise SystemExit('latest manifest runtimeUrl mismatch')
+try:
+    m = json.loads(sys.argv[1])
+    p = next(iter((m.get('platforms') or {}).values()), {})
+    ok = (m.get('version') == sys.argv[2] and m.get('tag') == sys.argv[3]
+          and f"/releases/download/{sys.argv[3]}/" in (p.get('appUrl') or '')
+          and (p.get('appUrl') or '').endswith('/' + sys.argv[5])
+          and f"/releases/download/{sys.argv[4]}/" in (p.get('runtimeUrl') or '')
+          and (p.get('runtimeUrl') or '').endswith('/' + sys.argv[6]))
+    raise SystemExit(0 if ok else 1)
+except Exception:
+    raise SystemExit(1)
 PY
+then
+  # 把实际抓到的 version/tag 打出来(只有一句笼统警告时排障无据可查)。
+  GOT_VT="$(python3 - <<'PY' "${LATEST_MANIFEST}" 2>/dev/null || echo '(unparsable)'
+import json, sys
+try:
+    m = json.loads(sys.argv[1])
+    print(f"version={m.get('version')} tag={m.get('tag')}")
+except Exception:
+    print('(unparsable)')
+PY
+)"
+  echo "⚠️ release 已发布,但发布后 manifest 二次校验未通过(实抓 ${GOT_VT},期望 version=${VERSION} tag=${TAG_NAME};多为 GitHub CDN 瞬时响应);请手动确认 ${LATEST_MANIFEST_URL} 的 version/tag/URL。" >&2
+fi
 
 echo "release published: ${TAG_NAME}"
 echo "latest manifest: ${LATEST_MANIFEST_URL}"
+exit 0

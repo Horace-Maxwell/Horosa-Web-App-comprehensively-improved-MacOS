@@ -8,6 +8,8 @@ build/.sign-seed/prev-parts-headers.json + prev-components-lock.json)逐条目�
   · sha 同                     → 恒等 ✓(增量更新可复用)
   · sha 异、头部逐条目全同     → 只有内容变了:签名时间戳 / pyc 字节漂移 → 查签名种子是否命中(v3.11.2 实抓形态)
   · sha 异、头部有差           → 列前 N 条:新增 / 消失 / 大小 / 权限 / mtime(权限差 = 种子解包没带 -p 的形态)
+  · 本版部件带扩展属性 / ACL 头 → 一律判红(exit 4,不看 strict):部件 tar 必须 --no-xattrs --no-acls 打,
+                                 xattr(com.apple.provenance / macl …)随打包进程环境来去,写进头 = sha 随环境漂
 缺留档(首发 / dist 已清)只提示不判。缺省只报告(exit 0);HOROSA_STABLE_PARTS_STRICT=1 时任一稳定部件不恒等 → exit 3
 (内容确有改动的版本别开 strict,拿这里的逐条目输出去证明差异恰为改动文件即可)。
 
@@ -37,6 +39,16 @@ def tar_headers(tar_path: pathlib.Path) -> list:
             out.append([m.name, m.type.decode("latin-1") if isinstance(m.type, bytes) else str(m.type),
                         int(m.size), int(m.mode & 0o7777), int(m.mtime), m.linkname or ""])
     return out
+
+
+def xattr_entries(tar_path: pathlib.Path) -> int:
+    """部件里带扩展属性 / ACL pax 头(LIBARCHIVE.xattr.* / SCHILY.xattr.* / SCHILY.acl.*)的条目数。"""
+    n = 0
+    with tarfile.open(tar_path, "r:gz") as tf:
+        for m in tf:
+            if any(".xattr." in k or k.startswith("SCHILY.acl") for k in m.pax_headers):
+                n += 1
+    return n
 
 
 def sha256_of(path: pathlib.Path) -> str:
@@ -92,6 +104,10 @@ def compare(installer_root: pathlib.Path, limit: int = 10) -> dict:
         if not t.is_file():
             result[part] = {"status": "missing"}
             continue
+        xa = xattr_entries(t)
+        if xa:
+            result[part] = {"status": "xattr", "xattr": xa}
+            continue
         if part not in prev_headers:
             result[part] = {"status": "no-prev"}
             continue
@@ -112,7 +128,11 @@ def report(result: dict) -> int:
     bad = 0
     for part, r in result.items():
         st = r["status"]
-        if st == "identical":
+        if st == "xattr":
+            bad += 1
+            print(f"[stable-parts] {part:13s} ❌ 部件带扩展属性 / ACL 头 {r['xattr']} 条:部件 tar 必须 --no-xattrs --no-acls 打"
+                  f"(否则 sha 随打包进程环境漂)")
+        elif st == "identical":
             print(f"[stable-parts] {part:13s} 与上一版恒等 ✓ ({r['sha']})")
         elif st == "no-prev":
             print(f"[stable-parts] {part:13s} 无上一版留档(首发 / dist 已清),不判")
@@ -121,7 +141,7 @@ def report(result: dict) -> int:
         elif st == "content-only":
             bad += 1
             print(f"[stable-parts] {part:13s} ⚠ sha 变了({r['prev_sha']} → {r['sha']})但头部逐条目全同:只有内容变 —— "
-                  f"签名时间戳 / pyc 字节漂移,查签名种子是否命中(sign-seed 行)")
+                  f"签名时间戳 / pyc 字节漂移,查签名种子是否命中(sign-seed 行);上一版部件带扩展属性头时也是这一形态")
         else:
             bad += 1
             d = r["diff"]
@@ -139,14 +159,16 @@ def report(result: dict) -> int:
     return bad
 
 
-def _mk_tar(path: pathlib.Path, entries: list) -> None:
-    """entries: [(name, bytes, mode, mtime)]"""
-    with tarfile.open(path, "w:gz") as tf:
+def _mk_tar(path: pathlib.Path, entries: list, pax: dict = None) -> None:
+    """entries: [(name, bytes, mode, mtime)];pax = 每条都带的 pax 头(模拟扩展属性头)"""
+    with tarfile.open(path, "w:gz", format=tarfile.PAX_FORMAT) as tf:
         for name, data, mode, mtime in entries:
             ti = tarfile.TarInfo(name)
             ti.size = len(data)
             ti.mode = mode
             ti.mtime = mtime
+            if pax:
+                ti.pax_headers = dict(pax)
             import io
             tf.addfile(ti, io.BytesIO(data))
 
@@ -188,6 +210,12 @@ def self_test() -> int:
             problems.append(f"jdk-runtime 应报 mode 0o775→0o755: {d}")
         if r["xuanshi-data"].get("diff", {}).get("added") != ["a/z.sqlite-shm"]:
             problems.append(f"xuanshi-data 应报新增 a/z.sqlite-shm: {r['xuanshi-data']}")
+        # 本版部件带扩展属性头(内容 / 头部与上一版全同也判红)
+        _mk_tar(comp / part_tar_name("py-runtime"), base, {"SCHILY.xattr.com.apple.provenance": "x"})
+        r3 = compare(root)
+        if r3["py-runtime"]["status"] != "xattr" or report({"py-runtime": r3["py-runtime"]}) != 1:
+            problems.append(f"带扩展属性头应判 xattr: {r3['py-runtime']}")
+        _mk_tar(comp / part_tar_name("py-runtime"), base)
         # 无留档:全部 no-prev
         (seed / "prev-parts-headers.json").unlink()
         r2 = compare(root)
@@ -197,28 +225,33 @@ def self_test() -> int:
         print("\n".join("  ❌ " + p for p in problems))
         print("❌ verify_stable_parts_headers 自证失败")
         return 1
-    print("✅ verify_stable_parts_headers 自证通过(恒等 / 权限漂 / 只内容变 / 新增条目 / 缺部件 / 无留档 六形态各判对)")
+    print("✅ verify_stable_parts_headers 自证通过(恒等 / 权限漂 / 只内容变 / 新增条目 / 缺部件 / 无留档 / 带扩展属性头 七形态各判对)")
     return 0
 
 
 def main(argv: list) -> int:
     if "--self-test" in argv:
         return self_test()
-    args = [a for a in argv if not a.startswith("--")]
+    limit, skip = 10, set()
+    if "--limit" in argv:
+        i = argv.index("--limit")
+        try:
+            limit = int(argv[i + 1])
+            skip.add(i + 1)
+        except (IndexError, ValueError):
+            pass
+    args = [a for j, a in enumerate(argv) if not a.startswith("--") and j not in skip]
     if len(args) != 1:
         print("usage: verify_stable_parts_headers.py <installer_root> [--strict] [--limit N] | --self-test", file=sys.stderr)
         return 2
-    limit = 10
-    if "--limit" in argv:
-        try:
-            limit = int(argv[argv.index("--limit") + 1])
-            args = [a for a in args if a != str(limit)]
-        except (IndexError, ValueError):
-            pass
     root = pathlib.Path(args[0]).resolve()
     result = compare(root, limit)
     bad = report(result)
     strict = "--strict" in argv or os.environ.get("HOROSA_STABLE_PARTS_STRICT", "0") == "1"
+    xa = [p for p, r in result.items() if r["status"] == "xattr"]
+    if xa:
+        print(f"[stable-parts] ❌ 部件带扩展属性 / ACL 头:{', '.join(xa)}", file=sys.stderr)
+        return 4
     if bad and strict:
         print(f"[stable-parts] ❌ strict:{bad} 个稳定部件与上一版不恒等", file=sys.stderr)
         return 3

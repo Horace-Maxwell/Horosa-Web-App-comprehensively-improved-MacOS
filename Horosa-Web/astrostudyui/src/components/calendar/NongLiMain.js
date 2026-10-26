@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { leapPrefix } from '../../utils/lunarText';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
 import { Row, Col, Divider, } from 'antd';
 import { XQButton as Button } from '../xq-ui';
@@ -13,6 +14,8 @@ import NongLi from './NongLi';
 import GuaChartDiv from '../gua/GuaChartDiv';
 import {Week} from '../../msg/types';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
+import ExternalLink from '../common/ExternalLink';
+import { yearMonthKey, monthDayLabel } from '../../utils/dateStrSafe';
 
 // 日干支五行着色（与八字模块同色变量 --horosa-bazi-*）。农历网格 dayExtra 用。
 const GAN_WX = { 甲: 'wood', 乙: 'wood', 丙: 'fire', 丁: 'fire', 戊: 'earth', 己: 'earth', 庚: 'metal', 辛: 'metal', 壬: 'water', 癸: 'water' };
@@ -26,18 +29,18 @@ export function buildNongliSnapshotText(state){
 	const lines = [];
 	const monthOf = (d)=>{
 		const birth = `${d && d.birth ? d.birth : ''}`;
-		return birth.slice(0, 7);
+		return yearMonthKey(birth);   // 民用日期串单源(公元前 / 五位年不切错位)
 	};
 	const dayOf = (d)=>{
 		const birth = `${d && d.birth ? d.birth : ''}`;
-		return birth.slice(5, 10);
+		return monthDayLabel(birth);
 	};
 
 	const queryMonth = st.date && st.date.format ? st.date.format('YYYY-MM') : (days[0] ? monthOf(days[0]) : '');
 	lines.push('[起盘信息]');
 	if(queryMonth){ lines.push(`查询月份：${queryMonth}`); }
 	if(st.date && st.date.zone !== undefined && st.date.zone !== null && `${st.date.zone}` !== ''){
-		lines.push(`时区：${utcZoneText(st.date.zone)}`);   // [Q-271/ZC-29] zone 形如 +08:00(或小时数 8),此前拼成「东+08:00区」
+		lines.push(`时区：${utcZoneText(st.date.zone)}`);   // zone 形如 +08:00(或小时数 8),此前拼成「东+08:00区」
 	}
 	if(st.lon){ lines.push(`历算经度：${st.lon}`); }
 
@@ -52,7 +55,7 @@ export function buildNongliSnapshotText(state){
 			rows.forEach((d)=>{
 				let nl = `${d.day || ''}`;
 				if(d.dayInt === 1){
-					nl = `${d.leap ? '闰' : ''}${d.month || ''}${d.day || ''}`;
+					nl = `${leapPrefix(d)}${d.month || ''}${d.day || ''}`;
 				}
 				const notes = [];
 				if(d.jieqi){ notes.push(`${d.jieqi} ${d.jieqiTime || ''}`.trim()); }
@@ -70,8 +73,7 @@ export function buildNongliSnapshotText(state){
 		lines.push('');
 		lines.push('[选中日详情]');
 		lines.push(`公历：${sel.birth.split(' ')[0]} ${Week[`${sel.dayOfWeek}`] || ''}`);
-		let selMonth = `${sel.month || ''}`;
-		if(sel.leap){ selMonth = `闰${selMonth}`; }
+		const selMonth = `${leapPrefix(sel)}${sel.month || ''}`;
 		lines.push(`农历：${sel.year || ''}年${selMonth}${sel.day || ''}`);
 		if(sel.yearNaying){ lines.push(`年纳音：${sel.yearNaying}`); }
 		lines.push(`干支：${sel.yearJieqi || ''}年 ${sel.monthGanZi || ''}月 ${sel.dayGanZi || ''}日 ${sel.time || ''}时`);
@@ -83,7 +85,7 @@ export function buildNongliSnapshotText(state){
 		}
 		if(sel.qimengYearGua){
 			const gua = st.yearGua;
-			// [issue#74 同类] 卦名↔释文配对校验:clickDate 里 requestYearGua(异步) 与 saveAISnapshot
+			// 卦名↔释文配对校验:clickDate 里 requestYearGua(异步) 与 saveAISnapshot
 			// 同步背靠背,首版快照曾拼出「新卦名+旧卦释文」错配对;网络静默失败(requestYearGua 的
 			// 空载荷守卫 return 不 setState)时第二版纠正不发生,错配恒留。释文只在与当前卦名配对
 			// (guaName 随取数落档)时才拼;不配对=只出卦名,缺比错好。
@@ -103,7 +105,7 @@ export function buildNongliSnapshotText(state){
 	return lines.join('\n');
 }
 
-// [Q-271/ZC-29] 时区文本:'+08:00' → 'UTC+08:00';小时数 8 / '8' / -5.5 → 'UTC+08:00' / 'UTC-05:30'
+// 时区文本:'+08:00' → 'UTC+08:00';小时数 8 / '8' / -5.5 → 'UTC+08:00' / 'UTC-05:30'
 export function utcZoneText(zone){
 	if(zone === undefined || zone === null || `${zone}` === ''){ return 'UTC'; }
 	const str = `${zone}`.trim();
@@ -118,7 +120,7 @@ export function utcZoneText(zone){
 }
 
 class NongLiMain extends Component{
-	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
 	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
 	shouldComponentUpdate(nextProps, nextState){
 		if(nextState !== this.state){
@@ -186,11 +188,14 @@ class NongLiMain extends Component{
 	}
 
 	async requestNongli(){
+		// 请求代次:只认最后一次发出的那个月(连点月份步进 / 快速改日期时,先发的晚回会把网格拉回上一个月、清掉选中日)
+		const seq = (this._monthReqSeq = (this._monthReqSeq || 0) + 1);
 		const params = this.genParams();
 
 		const data = await request(`${Constants.ServerRoot}/calendar/month`, {
 			body: JSON.stringify(params),
 		});
+		if(seq !== this._monthReqSeq || this._unmounted){ return; }
 		if(!data){ return; }   // 空载荷守卫:request() 吞错 resolve undefined(网络层失败),此次不更新、重试即恢复
 		const result = data[Constants.ResultKey];
 
@@ -204,13 +209,15 @@ class NongLiMain extends Component{
 	}
 
 	async requestYearGua(){
+		// 请求代次:快速连选两天时只认最后一次(先发的晚回会把释文落成上一天的年卦)
+		const seq = (this._yearGuaReqSeq = (this._yearGuaReqSeq || 0) + 1);
 		if(this.state.dateSelected === undefined || this.state.dateSelected === null){
 			return null;
 		}
 		let date = this.state.dateSelected;
 		let gua = date.qimengYearGua;
 		if(gua === undefined || gua === null){
-			// [issue#74 同类] 新选日无年卦时清旧值:不清则页面(render 只看 state.yearGua)仍画
+			// 新选日无年卦时清旧值:不清则页面(render 只看 state.yearGua)仍画
 			// 上一个日期的卦释,与所选日错配。快照侧有 qimengYearGua 守卫反而不受影响。
 			if(this.state.yearGua){
 				this.setState({ yearGua: null }, this.saveAISnapshot);
@@ -224,6 +231,7 @@ class NongLiMain extends Component{
 		const data = await request(`${Constants.ServerRoot}/gua/desc`, {
 			body: JSON.stringify(params),
 		});
+		if(seq !== this._yearGuaReqSeq || this._unmounted){ return; }
 		if(!data){ return; }   // 空载荷守卫:request() 吞错 resolve undefined(网络层失败),此次不更新、重试即恢复
 		const result = data[Constants.ResultKey];
 
@@ -320,10 +328,7 @@ class NongLiMain extends Component{
 		}
 		let date = this.state.dateSelected;
 		let parts = date.birth.split(' ');
-		let month = date.month + date.day;
-		if(date.leap){
-			month = '闰'+month;
-		}
+		let month = `${leapPrefix(date)}${date.month}${date.day}`;
 
 		let mt = '';
 		if(date.dayInt === 1){
@@ -404,7 +409,7 @@ class NongLiMain extends Component{
 									<GuaChartDiv value={this.state.yearGua} height={30} width={40} />
 								</Col>
 								<Col span={18}>
-									<a href={this.state.yearGua.url} target='_blank'>{this.state.yearGua.desc}</a>
+									<ExternalLink href={this.state.yearGua.url}>{this.state.yearGua.desc}</ExternalLink>
 								</Col>
 							</Row>
 						</Col>
@@ -418,6 +423,7 @@ class NongLiMain extends Component{
 	}
 
 	componentDidMount(){
+		this._unmounted = false;
 		if(typeof window !== 'undefined'){
 			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		}
@@ -425,6 +431,7 @@ class NongLiMain extends Component{
 	}
 
 	componentWillUnmount(){
+		this._unmounted = true;
 		if(typeof window !== 'undefined'){
 			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		}

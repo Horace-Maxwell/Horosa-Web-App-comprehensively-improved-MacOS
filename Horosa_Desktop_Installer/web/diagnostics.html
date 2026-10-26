@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>诊断中心</title>
     <link rel="stylesheet" href="./diagnostics.css" />
+    <script src="./shell_hant_table.js"></script>
+    <script src="./shell_script.js"></script>
   </head>
   <body>
     <main class="diag-shell">
@@ -36,6 +38,7 @@
             <div>
               <div class="path-label">本机组件</div>
               <div class="path-value" id="runtimeDir">读取中…</div>
+              <div class="info-warning hidden" id="sharedRuntimeWarning"></div>
             </div>
           </div>
         </article>
@@ -79,6 +82,8 @@
         </article>
       </section>
     </main>
+    <script src="./shell_errors.js"></script>
+    <script src="./shell_bridge.js"></script>
     <script src="./diagnostics.js"></script>
   </body>
 </html>

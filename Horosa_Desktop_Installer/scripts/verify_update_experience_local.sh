@@ -42,7 +42,7 @@ assert_scenario() {
       grep -q '"phase":"ready"' "${EVENT_LOG}" || { echo "FAIL[s1]: 未见 ready 事件" >&2; exit 1; }
       echo "PASS[s1] 增量命中:planning(incremental)→…→ready" ;;
     s2) # 篡改 sha → 增量失败降级全量:先 incremental 后出现 mode:full 的下载
-      # [U-E] 部件级重试后语义不变:tamper=持续性 sha 失配 → 该部件原地重试
+      # 部件级重试后语义不变:tamper=持续性 sha 失配 → 该部件原地重试
       # COMPONENT_RETRY_MAX 次(事件流会多出「第 n/2 次重试」行)后仍败 → 照旧整链降级全量。
       grep -q '"mode":"incremental"' "${EVENT_LOG}" || { echo "FAIL[s2]: 未见增量计划(先跑 --tamper 再在 app 里更新)" >&2; exit 1; }
       grep -q '"mode":"full"' "${EVENT_LOG}" || { echo "FAIL[s2]: 未见降级全量事件" >&2; exit 1; }
@@ -53,7 +53,7 @@ assert_scenario() {
     s4) # FULL_ONLY:计划即全量
       grep -q '"mode":"full"' "${EVENT_LOG}" || { echo "FAIL[s4]: 未见全量模式事件" >&2; exit 1; }
       echo "PASS[s4] HOROSA_UPDATE_FULL_ONLY 强制全量" ;;
-    s5) # [U-C] staged 断点恢复:ready 后 kill -9 壳 → 重启 → 免重下直接恢复 ready
+    s5) # staged 断点恢复:ready 后 kill -9 壳 → 重启 → 免重下直接恢复 ready
       # 恢复路径的 ready 文案带独有标记「此前已下载完成」(正常下载完成的 ready 无此字样)
       grep -q '此前已下载完成' "${EVENT_LOG}" || { echo "FAIL[s5]: 未见 staged 恢复 ready(重启后免重下)事件" >&2; exit 1; }
       echo "PASS[s5] staged 持久化断点恢复(kill 后重启零重下)" ;;

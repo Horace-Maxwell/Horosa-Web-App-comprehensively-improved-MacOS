@@ -14,6 +14,8 @@ import { sanyuanLiexiuDay, sanyuanYearPoints } from './tongshu/sanyuanLiexiu';
 import { wutuMonth } from './tongshu/wutu';
 import { xuankongDay, xuankongForHour } from './tongshu/xuankong';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
+import { civilMonthDays, civilJdnOfYmd } from '../../utils/civilCalendar';
+import { civilJdnOfDateStr } from '../../utils/dateStrSafe';
 
 const MODULE = 'calendar-tongshu';
 
@@ -21,9 +23,9 @@ function verdictTone(level) { return level === 'good' ? 'is-good' : (level === '
 
 // 董公中栏：本月逐日值日（建除 + 金神七煞/三吉星 + 所选用事宜/忌），点击选日。
 function DonggongMonth({ y, m, activeYmd, event, onPick }) {
-	const days = new Date(y, m, 0).getDate();
+	// 本月真实存在的日号(民用历单源:1500-02 有 29 日,1582-10 没有 5–14 日)
 	const rows = [];
-	for (let d = 1; d <= days; d++) {
+	for (const d of civilMonthDays(y, m)) {
 		const r = donggongDay({ y, m, d });
 		const yv = yongshiVerdict(buildHuangliDay(y, m, d), event);
 		const ymd = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -141,12 +143,11 @@ function SanyuanPanes({ y, m, d, use = '建宅', onPick }) {
 	const USE_FIELDS = ['建宅', '安葬', '修造', '造命'];
 	const useField = USE_FIELDS.includes(use) ? use : '建宅';
 	// 距最近天帝加临日（含跨年前后）：跨 y-1/y/y+1 三年取全部点位求最小天差。
-	const sel = new Date(y, m - 1, d).getTime();
+	const sel = civilJdnOfYmd(y, m, d);   // 民用历日序数(跨改历不多算 10 天)
 	const allPts = [...sanyuanYearPoints(y - 1), ...points, ...sanyuanYearPoints(y + 1)];
 	let nearest = null;
 	allPts.forEach((p)=>{
-		const [py, pm, pd] = p.ymd.split('-').map((n)=> parseInt(n, 10));
-		const diff = Math.round((new Date(py, pm - 1, pd).getTime() - sel) / 86400000);
+		const diff = civilJdnOfDateStr(p.ymd) - sel;
 		if (!nearest || Math.abs(diff) < Math.abs(nearest.diff)) { nearest = { ...p, diff }; }
 	});
 	// 当前用事类下有断语的曜（排前），供中栏计数与右栏排序。
@@ -308,7 +309,7 @@ function XuankongPanes({ y, m, d, mingYear, selHour, onSelHour }) {
 }
 
 class TongshuMain extends Component {
-	// [R3-A6] 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
+	// 渲染守卫:宿主无关 dispatch 不再全树重渲(nextState 引用变照常放行;
 	// 开关 horosa.perf.chartSCU,语义详 chartUpdateGuard.wrapperPropsEqual)。
 	shouldComponentUpdate(nextProps, nextState){
 		if(nextState !== this.state){
@@ -372,7 +373,7 @@ class TongshuMain extends Component {
 	renderPanes() {
 		const s = this.state.settings;
 		const ymd = this.ymd();
-		// [Q-270/T-263] 公元前串带符号年:'-2026-09-01' 不能按 '-' 直接切分。
+		// 公元前串带符号年:'-2026-09-01' 不能按 '-' 直接切分。
 		const ymdMatch = /^(-?\d+)-(\d{1,2})-(\d{1,2})/.exec(ymd) || [];
 		const y = parseInt(ymdMatch[1], 10), m = parseInt(ymdMatch[2], 10), d = parseInt(ymdMatch[3], 10);
 		if (s.school === 'donggong') {

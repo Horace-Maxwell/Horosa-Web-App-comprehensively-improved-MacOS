@@ -1,4 +1,4 @@
-// 🔴 [布局密度·2026-08-25] CSS 媒体查询在 CSS zoom 下**看不见真实可用空间**。
+// 🔴 CSS 媒体查询在 CSS zoom 下**看不见真实可用空间**。
 // 实测:窗口 1180×760、zoom=1.8 时,matchMedia('(max-height:720px)') 仍为 false
 // (它按视口 rect 域 1180×760 评估),而实际布局空间只剩 656×422 —— 断点永不触发,
 // 内容被挤爆也不会切紧凑布局。故改用 JS 实测布局空间,挂 data-density 给 CSS 用。
@@ -45,7 +45,7 @@
 
 (function () {
   const progressFill = document.getElementById('progressFill');
-  const progressTrack = progressFill?.parentElement || null;
+  const progressTrack = progressFill.parentElement;
   const progressText = document.getElementById('progressText');
   const progressPct = document.getElementById('progressPct');
   const sessionInline = document.getElementById('sessionInline');
@@ -124,18 +124,10 @@
   let showFullLog = false;
   let retryActionKind = 'repair_runtime';
   let progressIsIndeterminate = false;
-  const APP_VERSION = '3.11.3';
+  const APP_VERSION = '3.12.0';
   let currentTone = 'launch';
 
-  async function invoke(cmd, args) {
-    if (window.__TAURI__?.core?.invoke) {
-      return window.__TAURI__.core.invoke(cmd, args);
-    }
-    if (window.__TAURI_INTERNALS__?.invoke) {
-      return window.__TAURI_INTERNALS__.invoke(cmd, args);
-    }
-    throw new Error('无法连接桌面程序，请重新打开星阙后重试');
-  }
+  const invoke = window.HorosaShellBridge.invoke;
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -157,7 +149,6 @@
   }
 
   function setProgressNumber(value) {
-    if (!progressPct) return;
     // 进度不可测时这里放的是状态词而非数字。原先只硬认「接收中」一个词,加了别的词就会
     // 被当成数字算成 0% —— 改为「非数字一律原样显示」。
     if (typeof value === 'string' && !/^-?\d/.test(value)) {
@@ -183,7 +174,6 @@
   }
 
   function setProgressCopy(prefix, emphasis, suffix = '') {
-    if (!progressSubtitle) return;
     const parts = [];
     if (prefix) parts.push(escapeHtml(prefix));
     if (emphasis) parts.push(`<span>${escapeHtml(emphasis)}</span>`);
@@ -198,13 +188,11 @@
   }
 
   function setStatusPill(kind, label) {
-    if (!heroBadgeTertiary) return;
     heroBadgeTertiary.className = `progress-status hero-badge hero-badge--${kind}`;
     heroBadgeTertiary.innerHTML = `${statusIcon(kind)}${escapeHtml(label)}`;
   }
 
   function setPrimaryCta(visible, label) {
-    if (!primaryCtaBtn || !primaryCtaLabel) return;
     primaryCtaLabel.textContent = label || '进入主界面';
     primaryCtaBtn.classList.toggle('hidden', !visible);
   }
@@ -212,10 +200,8 @@
   function applyLauncherTone(tone) {
     currentTone = tone || 'launch';
     document.body.dataset.launcherTone = currentTone;
-    diagnosticDot?.classList.toggle('hidden', currentTone !== 'error');
-    if (toggleLogBtn) {
-      toggleLogBtn.textContent = currentTone === 'error' ? '展开错误' : '展开详情';
-    }
+    diagnosticDot.classList.toggle('hidden', currentTone !== 'error');
+    toggleLogBtn.textContent = currentTone === 'error' ? '展开错误' : '展开详情';
     if (currentTone === 'ready') {
       setStatusPill('ready', '已就绪');
       setPrimaryCta(true, '进入主界面');
@@ -929,7 +915,7 @@
     sessionInline.textContent = content.sessionInlineText;
     summarySessionType.textContent = content.summarySessionTypeText;
     summaryRuntimeStrategy.textContent = content.summaryRuntimeStrategyText;
-    if (summaryThirdLabel) summaryThirdLabel.textContent = content.summaryThirdLabelText || '预计';
+    summaryThirdLabel.textContent = content.summaryThirdLabelText || '预计';
     summaryBackendMode.textContent = content.summaryBackendModeText;
     summaryOutcome.textContent = content.summaryOutcomeText;
     heroBadgePrimary.textContent = content.heroBadges[0];
@@ -1025,7 +1011,6 @@
   }
 
   function renderLog() {
-    if (!statusLog) return;
     document.body.classList.toggle('show-full-log', showFullLog);
     const recordedEntries = lines.map(normalizeLogEntry);
     const entries =
@@ -1047,23 +1032,19 @@
       .join('');
     statusLog.scrollTop = statusLog.scrollHeight;
     const hiddenCount = Math.max(0, entries.length - visibleEntries.length);
-    if (toggleLogBtn) {
-      toggleLogBtn.textContent = showFullLog
-        ? currentTone === 'error'
-          ? '收起错误'
-          : '收起详情'
-        : currentTone === 'error'
-          ? '展开错误'
-          : '展开详情';
-      toggleLogBtn.disabled = entries.length <= 8;
-    }
-    if (logSummaryNote) {
-      logSummaryNote.textContent = showFullLog
-        ? '完整日志'
-        : hiddenCount > 0
-          ? `最近 8 条 / 已收起 ${hiddenCount} 条`
-          : `最近 ${visibleEntries.length} 条`;
-    }
+    toggleLogBtn.textContent = showFullLog
+      ? currentTone === 'error'
+        ? '收起错误'
+        : '收起详情'
+      : currentTone === 'error'
+        ? '展开错误'
+        : '展开详情';
+    toggleLogBtn.disabled = entries.length <= 8;
+    logSummaryNote.textContent = showFullLog
+      ? '完整日志'
+      : hiddenCount > 0
+        ? `最近 8 条 / 已收起 ${hiddenCount} 条`
+        : `最近 ${visibleEntries.length} 条`;
   }
 
   function pushLine(line) {
@@ -1420,9 +1401,7 @@
       setStatusPill('live', '启动中');
     }
     progressIsIndeterminate = indeterminate;
-    if (progressTrack) {
-      progressTrack.classList.toggle('is-indeterminate', indeterminate);
-    }
+    progressTrack.classList.toggle('is-indeterminate', indeterminate);
     progressFill.style.width = indeterminate ? '38%' : `${clamped}%`;
     setProgressNumber(indeterminate ? indeterminateLabel() : clamped);
     phaseLabel.textContent = indeterminate ? indeterminateA11yLabel() : phase.label;
@@ -1444,12 +1423,11 @@
   }
 
   function bindAction(button, handler) {
-    if (!button) return;
     button.addEventListener('click', async () => {
       try {
         await handler();
       } catch (error) {
-        pushLine(`操作失败：${error.message || error}`);
+        pushLine(`操作失败：${window.HorosaShellErrors ? window.HorosaShellErrors.plain(error) : error.message || error}`);
       }
     });
   }
@@ -1462,7 +1440,7 @@
         Boolean(payload?.preferences?.compactLauncherLayout)
       );
     } catch (error) {
-      if (window.__TAURI__ || window.__TAURI_INTERNALS__) {
+      if (window.HorosaShellBridge.available()) {
         pushLine({ level: 'warn', message: '无法读取偏好设置，继续使用默认布局。' });
       }
     }
