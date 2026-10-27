@@ -63,7 +63,7 @@ else bad "dist-file 不存在 —— 需 npm run build:file"; fi
 seg_6() {
 # 6. 本机发版基线戳(2026-10-06 改:CI 工作流 2026-05-31 已随「精简仓库附属目录」删除,原「CI 对 HEAD 成功」只剩空门)。
 #    基线 = jest 全量 / pytest / mvn 四模块(含四柱全年份域矩阵)/ cargo fmt + test,由 scripts/run_release_baseline.sh 在本机跑完落戳
-#    build/release-baseline.json;这里认戳:对当前 HEAD(或之后只改了非源码路径)五套件全绿 → ok;无戳 / 戳过期 / 缺套件 → warn
+#    build/release-baseline.json;这里认戳:对当前 HEAD(或戳提交与 HEAD 两棵树只差非源码路径)五套件全绿 → ok;无戳 / 戳过期 / 缺套件 → warn
 #    (发布脚本设 HOROSA_REQUIRE_BASELINE=1 时 → bad);任一套件真红 → bad。校验器先自证。
 echo "[6] 本机发版基线戳(当前 HEAD)"
 S6_PY="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/release_baseline_stamp.py"
