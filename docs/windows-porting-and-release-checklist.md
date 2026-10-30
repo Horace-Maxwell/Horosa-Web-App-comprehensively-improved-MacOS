@@ -791,6 +791,31 @@ Windows 版完成的定义不是“能打开”，而是：
 ### macOS 独有(Windows 无对应动作)
 - 安装 / 更新后原生库首次加载预检(`config/native_prewarm_priority.json`、`installer-scripts/postinstall.template`、壳子命令 `--horosa-native-prewarm`)、增量更新暂存槽硬链接搭 + 换完即预检(Windows 的差分更新按文件树下载、不走整棵克隆)、签名缓存自动种子与稳定部件对拍(`prepare_sign_seed.py` / `verify_stable_parts_headers.py`)。
 
+## v3.13.0 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.13.0` / `runtimeVersion` = `3.13.0-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 共享 Python · 主限法与星运(重打 Python 运行时)
+- 新模块:`astrostudy/pd_geometry.py`(改进 / 经典两种写法的唯一选择点)、`pd_semiarc_pole.py`、`pd_mundane.py`、`pd_classic.py`、`pd_fieldplane.py`、`pd_aspect_latitude.py`、`distributions.py`、`germany/coord_midpoint.py`;`astrostudy/yearsystem129.py` 已删除(129 年系统改为前端引擎 `utils/yearSystem129.js`)。
+- 主限法同步版本标记 `PD_SYNC_REV` 升到 `pd_method_sync_v26`(前端 `primaryDirectionSync.js`、Python `helper.py` / `webchartsrv.py`、Java `PdWire` 四处同值),旧缓存随之全部重算。
+
+### 共享 Java(重建 jar)
+- `PredictiveController` / `PdWire`:主限法新设置键(相位侧 / 忽略应星·迫星黄纬 / 传统逆向 / 月亮视差 / 真位置 / 相位点黄纬 / 日期年长 / 逆向弧用出生前太阳 / 几何口径 / 方向类型 4 = Field Plane)与界推运四项设置键透传。
+- `GermanyTechController`:放行 `mpCoord`(中点坐标);不放行时前端选了赤经 / 赤纬也只回黄经表。
+- 存活探针 `GET /heartbeat`:验签、应用鉴权、登录权限三道拦截器共用同一判据放行裸 GET / HEAD / OPTIONS;`HeartbeatController` 不再重复写跨域头。Electron 若用它探活,现在返回 200。
+- `AIAnalysisProxyService`:Anthropic 2026-10 型号表(Haiku 5.5 自适应思考、关闭思考的允许形态、2026-10-21 起 API 版本不发采样参数)。
+
+### 共享前端
+- 主限法表 / 主限法盘 / 主限天球 / AI 挂载与导出:方向类型三值(0 / 1 / 4)单源 `normalizePdType`;弧算法下拉「（改进）/（经典）」两项;不起作用设置置灰规则 `pdSettingInertReason` / `pdExtensionOptionInertReason`。
+- 量化盘:`CoordMidpoint.js` / `midpointGlyph.js` / `utils/uranianFormula.js` 新增;AI 导出段级 union 到 v60(「中点坐标」「公式求解」)。
+- 星运时主类选项单源:`utils/agePointOptions.js` / `distributionsOptions.js` / `timeLordYears.js` / `yearSystem129.js`。
+
+### 真机验收
+- 主限法:各方位法与 In Mundo、Field Plane 出表;弧算法选「（经典）」与「（改进）」结果不同的方法确有差异;Ptolemy 缺省路径与上一版逐位相同。
+- 量化盘:行星中点页「中点坐标」选赤经 → 右栏换成赤经中点与接触表(星体符号);90° 盘「公式求解」输入「日+月−火」出敏感点。
+- 繁体界面:地点检索输入「騰衝市」能搜到腾冲。
+
 ## v3.12.0 同步要点(Mac 已落地,Windows 按此对齐)
 
 ### 版本 lockstep

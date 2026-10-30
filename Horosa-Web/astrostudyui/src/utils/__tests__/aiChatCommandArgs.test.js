@@ -18,6 +18,8 @@ const li = { id: 'local-2', sourceType: 'chart', title: '李四', record: { name
 const lisi4 = { id: 'local-3', sourceType: 'chart', title: '李四四', record: { name: '李四四', updatedAt: '2026-01-03T00:00:00Z' } };
 const li5 = { id: 'local-4', sourceType: 'chart', title: '李五', record: { name: '李五', updatedAt: '2026-01-04T00:00:00Z' } };
 const flush = ()=>new Promise((r)=>setTimeout(r, 15));
+// 等到条件成立(最多 2 秒):命令执行链里有几拍 setTimeout,全量并跑抢核时固定 15 ms 会等不到
+const settle = async (pred, ms = 2000)=>{ const t0 = Date.now(); while(!pred() && Date.now() - t0 < ms){ await new Promise((r)=>setTimeout(r, 5)); } };
 let host;
 beforeEach(()=>{ window.localStorage.clear(); host = document.createElement('div'); document.body.appendChild(host); });
 afterEach(()=>{ act(()=>{ ReactDOM.unmountComponentAtNode(host); }); host.remove(); });
@@ -81,7 +83,7 @@ describe('命令参数里的 @', ()=>{
 		const deps = baseDeps();
 		const a = mount(deps);
 		expect(a.interceptSend('/流年 @[命盘:李四] 2027年')).toBe(true);
-		await flush();
+		await settle(()=>deps.handleSend.mock.calls.length > 0);
 		expect(deps.setSelectedSourceId).toHaveBeenCalledWith(li.id);
 		expect(deps.handleSend).toHaveBeenCalledTimes(1);
 		const text = deps.handleSend.mock.calls[0][0];
@@ -101,7 +103,7 @@ describe('命令参数里的 @', ()=>{
 		const deps = baseDeps();
 		const a = mount(deps);
 		expect(a.interceptSend('/合盘 李四')).toBe(true);
-		await flush();
+		await settle(()=>deps.handleSend.mock.calls.length > 0);
 		expect(deps.setPartnerSourceId).toHaveBeenLastCalledWith(li.id);
 		expect(deps.handleSend).toHaveBeenCalledTimes(1);
 		expect(a.interceptSend('/合盘 李')).toBe(true);
@@ -115,11 +117,11 @@ describe('命令参数里的 @', ()=>{
 		const deps = baseDeps({ activeSource: null });
 		const a = mount(deps);
 		expect(a.interceptSend('/side @[命盘:李四] 的事业怎样')).toBe(true);
-		await flush();
+		await settle(()=>api.overlays.side.open === true);
 		expect(api.overlays.side.open).toBe(true);
 		expect(api.overlays.side.initialQuestion).toBe('李四 的事业怎样');
 		expect(a.interceptSend('/流年 @[命盘:李四] 明年')).toBe(true);
-		await flush();
+		await settle(()=>deps.handleSend.mock.calls.length > 0);
 		expect(deps.setSelectedSourceId).toHaveBeenLastCalledWith(li.id);
 		expect(deps.handleSend).toHaveBeenCalledTimes(1);
 		expect(deps.handleSend.mock.calls[0][0]).toContain(`李四在 ${new Date().getFullYear() + 1} 年`);
@@ -131,7 +133,7 @@ describe('/help', ()=>{
 		const deps = baseDeps({ sending: true });
 		const a = mount(deps);
 		expect(a.interceptSend('/help')).toBe(true);
-		await flush();
+		await settle(()=>api.overlays.help.open === true);
 		expect(api.overlays.help.open).toBe(true);
 		expect(api.overlays.help.items.length).toBeGreaterThanOrEqual(BUILTIN_COMMANDS.length);
 		const box = document.createElement('div'); document.body.appendChild(box);

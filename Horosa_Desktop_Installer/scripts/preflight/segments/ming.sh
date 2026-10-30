@@ -34,11 +34,11 @@ if [ -f "${PERSIAN}" ]; then
     && ok "C 波斯向运 requestData 重算 natalParams(内圈本命不冻结)" \
     || bad "C AstroPersianDirected 未从 props.value 重算 natalParams —— 换盘后内圈本命会冻结成旧盘"
 fi
-# D. Balbillus 旺距削减公式 N×(1−d/360) + 七星小年表(独立引擎,勿退回 k 标度实验版)
+# D. Balbillus 旺距削减公式 N′×(360−d)/360(d = 序数度离擢升度的整度角距)+ 七星小年表(独立引擎,勿退回 k 标度实验版)
 if [ -f "${BALB}" ]; then
-  grep -q "1 - d / 360" "${BALB}" && grep -q "BALBILLUS_YEARS" "${BALB}" \
+  grep -q "base \* (360 - d) / 360" "${BALB}" && grep -q "BALBILLUS_YEARS" "${BALB}" \
     && ok "D Balbillus 旺距削减公式在位" \
-    || bad "D balbillus.js 缺 N×(1−d/360) 削减公式 或 BALBILLUS_YEARS"
+    || bad "D balbillus.js 缺 N′×(360−d)/360 削减公式 或 BALBILLUS_YEARS"
 fi
 }
 
@@ -977,7 +977,7 @@ fi
 seg_33() {
 # [33] 主限法方位+时间补全·strategy 分发完整性 + 前端选项扩 (含铺满/盘宫制/label 收口)
 #  - perchart.py: pdMethod 白名单与本仓核验集一致 + pdDirect 解析
-#  - 前端 primaryDirectionSync.js: PD_SYNC_REV = 'pd_method_sync_v15' + SUPPORTED_PD_METHODS(核验集)
+#  - 前端 primaryDirectionSync.js: PD_SYNC_REV = 'pd_method_sync_v26' + SUPPORTED_PD_METHODS(核验集)
 #  - 后端 helper.py / webchartsrv.py: PD_SYNC_REV 对齐 v10(否则新盘恒误判重算)
 #  - pd_engine.py: build_directions + solar_arc_for_years(真太阳弧动态钥匙逆函数)
 #  - 表格工具栏单行(无 advanced 第二行,不遮表格);TabPane 名「主限法」
@@ -988,8 +988,8 @@ PD33_BAD=0
 PERCHART="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/perchart.py")"
 PD_SYNC="${UISRC}/utils/primaryDirectionSync.js"
 if [ -f "${PD_SYNC}" ]; then
-  if ! grep -q "pd_method_sync_v15" "${PD_SYNC}"; then
-    bad "[33] primaryDirectionSync.js PD_SYNC_REV 未升到 'pd_method_sync_v15' —— 旧缓存不重算,新 方位法/世俗/顺逆/真太阳弧 不生效"
+  if ! grep -q "pd_method_sync_v26" "${PD_SYNC}"; then
+    bad "[33] primaryDirectionSync.js PD_SYNC_REV 未升到 'pd_method_sync_v26' —— 旧缓存不重算,新 方位法/世俗/顺逆/真太阳弧 不生效"
     PD33_BAD=1
   fi
   if ! grep -q "SUPPORTED_PD_METHODS" "${PD_SYNC}"; then
@@ -1003,7 +1003,7 @@ if [ -f "${PD_SYNC}" ]; then
 fi
 # v10:后端 PD_SYNC_REV 必须与前端一致(均 v10),否则每张新盘首查都误判需重算
 for f in "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/helper.py" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"; do
-  [ -f "$f" ] && { grep -q "pd_method_sync_v15" "$f" || { bad "[33] 后端 $(basename $f) PD_SYNC_REV 未对齐到 v11(与前端不一致→新盘恒误判重算)"; PD33_BAD=1; }; }
+  [ -f "$f" ] && { grep -q "pd_method_sync_v26" "$f" || { bad "[33] 后端 $(basename $f) PD_SYNC_REV 未对齐到 v11(与前端不一致→新盘恒误判重算)"; PD33_BAD=1; }; }
 done
 # perchart 白名单含上面同一组方位法 + pdDirect 解析存在(顺逆同选)
 if [ -f "${PERCHART}" ]; then
@@ -1040,7 +1040,7 @@ if [ -f "${PD_CTRL}" ]; then
   # 单源化后控制器不再含字面量:判「引用 PdWire.REV」且「PdWire 定义 = v15」(旧判据只认字面量→误红)
   if ! grep -q "PdWire.REV" "${PD_CTRL}"; then
     bad "[33] PredictiveController.java _wireRev 未引用 PdWire.REV(缓存盐单源破)"; PD33_BAD=1
-  elif ! grep -q "pd_method_sync_v15" "${REPO_ROOT}/Horosa-Web/astrostudysrv/basecomm/src/main/java/spacex/basecomm/constants/PdWire.java"; then
+  elif ! grep -q "pd_method_sync_v26" "${REPO_ROOT}/Horosa-Web/astrostudysrv/basecomm/src/main/java/spacex/basecomm/constants/PdWire.java"; then
     bad "[33] PdWire.REV 未升 v15 —— 旧 ParamHashCache 哈希不失效,新参可能读到旧缓存"; PD33_BAD=1
   fi
 fi

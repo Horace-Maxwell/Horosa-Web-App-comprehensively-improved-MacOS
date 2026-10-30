@@ -122,7 +122,7 @@ grep -qF "isNewChartSeedKey(key) ? newChartSeedInternalDefault(key)" "${S281_UI}
 for S281_A in "pages/index.js:seedNewCharts" "components/astro/AstroChartMain.js:if(this.props.seedNewCharts){ recordNewChartSeeds(patch); }" \
   "components/cntradition/BaZi.js:recordNewChartSeeds(" "components/ziwei/ZiWeiMain.js:!this.props.techniqueScope && patch.timeAlg !== undefined" \
   "components/sanshi/SanShiUnitedMain.js:if(this.usesSavedSettings()){ recordNewChartSeeds(" "components/suzhan/SuZhanInput.js:recordNewChartSeeds({ doubingSu28: val });" \
-  "components/astro/IndiaChartMain.js:recordNewChartSeeds(patch);" "components/direction/AstroDirectMain.js:pdMethod, pdTimeKey, pdtype: opt.pdtype === 1 ? 1 : 0," \
+  "components/astro/IndiaChartMain.js:recordNewChartSeeds(patch);" "components/direction/AstroDirectMain.js:pdMethod, pdTimeKey, pdtype: normalizePdType(opt.pdtype)," \
   "components/homepage/PageHeader.js:时间算法（新命盘的缺省）"; do
   S281_F="${S281_UI}/${S281_A%%:*}"
   [ -f "${S281_F}" ] && grep -qF "${S281_A#*:}" "$(pf_src_set "${S281_F}")" || { bad "[${PF_NO}] 🔴 亲手改动入口没记种子:${S281_A%%:*}"; S281_BAD=1; }

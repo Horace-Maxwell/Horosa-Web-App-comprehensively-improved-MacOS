@@ -4,7 +4,7 @@ import * as AstroText from '../../constants/AstroText';
 import { buildMeaningTipByCategory, buildAspectMeaningTip, } from '../astro/AstroMeaningData';
 import { isMeaningEnabled, wrapWithMeaning, } from '../astro/AstroMeaningPopover';
 import { composeShort } from '../../data/uranianMeanings';
-import { tnpGlyph } from './UranianGlyphs';
+import { midpointGlyph } from './midpointGlyph';
 import styles from '../../css/styles.less';
 
 // 中点相位(「行星中点」Tab 右栏「相位」页):按目标因子分组的卡片行——
@@ -44,18 +44,7 @@ class AspectToMidpoint extends Component{
 	}
 
 	glyph(id){
-		// 与 Midpoint.js 同修:虚星在字体无字符致空白 → SVG 字形优先 → 字体 → 缩写兜底。
-		const svg = tnpGlyph(id, 14);
-		const node = svg
-			? <span style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: '-0.15em' }}>{svg}</span>
-			: (AstroText.AstroMsg[id]
-				? <span style={{ fontFamily: AstroConst.AstroFont }}>{AstroText.AstroMsg[id]}</span>
-				: <span style={{ fontWeight: 600, letterSpacing: '0.3px', fontSize: 12 }}>{AstroText.isUranian(id) ? AstroText.uranianGlyph(id) : (AstroText.AstroMsgCN[id] || id)}</span>);
-		return wrapWithMeaning(
-			node,
-			this.showMeaning(),
-			buildMeaningTipByCategory('planet', id)
-		);
+		return midpointGlyph(id, this.showMeaning());
 	}
 
 	aspRow(targetId, asp, key, alt){

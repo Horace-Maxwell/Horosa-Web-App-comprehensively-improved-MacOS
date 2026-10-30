@@ -3,6 +3,7 @@ import { Row, Col, } from 'antd';
 import AstroChart from '../astro/AstroChart';
 import Midpoint from './Midpoint';
 import AspectToMidpoint from './AspectToMidpoint';
+import CoordMidpoint from './CoordMidpoint';
 import PlusMinusTime from '../astro/PlusMinusTime';
 import DateTime from '../comp/DateTime';
 import { getHousesOption } from '../comp/CompHelper'
@@ -11,6 +12,14 @@ import { sideSectionIcon } from '../../constants/sideSectionIcons';
 import * as AstroConst from '../../constants/AstroConst';
 import { sameDisplayList, shallowPropsEqual } from '../../utils/chartUpdateGuard';
 import { chartSCUEnabled } from '../../utils/perfFlags';
+import { getStoredUranianDisplay, saveUranianDisplay } from './UranianDialStyle';
+
+// 中点坐标:黄经(缺省,原中点 / 相位两表)/ 赤经 / 赤纬(后端 coordMidpoints)。
+export const MP_COORD_OPTIONS = [
+	{ value: 'lon', label: '黄经' },
+	{ value: 'ra', label: '赤经' },
+	{ value: 'decl', label: '赤纬' },
+];
 
 const TabPane = Tabs.TabPane;
 
@@ -58,18 +67,22 @@ class MidpointMain extends Component{
 	constructor(props) {
 		super(props);
 		this.state = {
-
+			mpCoord: getStoredUranianDisplay().mpCoord,
 		}
 
 		this.changeTime = this.changeTime.bind(this);
 		this.changeZodiacal = this.changeZodiacal.bind(this);
 		this.changeHsys = this.changeHsys.bind(this);
 		this.changeSouthChart = this.changeSouthChart.bind(this);
+		this.changeCoord = this.changeCoord.bind(this);
 	}
 
-	shouldComponentUpdate(nextProps){
+	shouldComponentUpdate(nextProps, nextState){
 		if(!chartSCUEnabled()){
 			return true; // kill-switch
+		}
+		if(nextState && nextState.mpCoord !== this.state.mpCoord){
+			return true; // 本组件自己的状态(坐标下拉)变了必须重渲,props 白名单管不到它
 		}
 		return !shallowPropsEqual(this.props, nextProps, MIDPOINTMAIN_SCU_KEYS, MIDPOINTMAIN_SCU_COMPARATORS);
 	}
@@ -102,6 +115,12 @@ class MidpointMain extends Component{
 		}
 	}
 
+	// 存进 90°中点盘同一份显示偏好:父层 AstroMidpoint 监听该事件,请求参数签名变了就重取(带 mpCoord)
+	changeCoord(val){
+		this.setState({ mpCoord: val });
+		saveUranianDisplay({ mpCoord: val });
+	}
+
 	changeSouthChart(val){
 		if(this.props.fields.gpsLat === undefined || this.props.fields.gpsLat === null || this.props.fields.gpsLat.value >= 0){
 			return;
@@ -121,10 +140,15 @@ class MidpointMain extends Component{
 
 		let midpoints = null;
 		let aspects = null;
+		let coordMidpoints = null;
 		if(this.props.value && this.props.value.midpoints){
 			midpoints = this.props.value.midpoints.midpoints;
 			aspects = this.props.value.midpoints.aspects;
+			coordMidpoints = this.props.value.midpoints.coordMidpoints || null;
 		}
+		const coord = this.state.mpCoord || 'lon';
+		// 坐标选了赤经 / 赤纬且后端已按该坐标回数时才换表;在途 / 旧数据时仍显黄经表,不显示错坐标的数
+		const coordTables = coord !== 'lon' && coordMidpoints && coordMidpoints.coord === coord ? coordMidpoints : null;
 
 		let fields = this.props.fields;
 		let dtstr = chartObj ? chartObj.params.birth : null;
@@ -223,7 +247,7 @@ class MidpointMain extends Component{
 							}
 							{
 								showhsys && (
-									<Col span={24} >
+									<Col span={12} >
 										<div style={MP_FIELD_LABEL}>分宫制</div>
 										<Select style={{width:'100%'}}
 											onChange={this.changeHsys}
@@ -247,22 +271,32 @@ class MidpointMain extends Component{
 									</Col>	
 								)
 							}
+							<Col span={showhsys ? 12 : 24}>
+								<div style={MP_FIELD_LABEL}>中点坐标</div>
+								<Select style={{width:'100%'}} onChange={this.changeCoord} value={coord} size='small'>
+									{MP_COORD_OPTIONS.map((o)=>(<Option value={o.value} key={o.value}>{o.label}</Option>))}
+								</Select>
+							</Col>
 						</Row>
 						</XQSideSection>
 						<Tabs defaultActiveKey="1" tabPosition='top' className="horosa-midpoint-side-tabs">
 							<TabPane tab="中点" key="1">
-									<Midpoint height="100%"
-										value={midpoints} fields={fields}
-										planetDisplay={this.props.planetDisplay}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
+									{coordTables ? <CoordMidpoint value={coordTables} view="midpoints" planetDisplay={this.props.planetDisplay} showAstroMeaning={this.props.showAstroMeaning} /> : (
+										<Midpoint height="100%"
+											value={midpoints} fields={fields}
+											planetDisplay={this.props.planetDisplay}
+											showAstroMeaning={this.props.showAstroMeaning}
+										/>
+									)}
 								</TabPane>
 								<TabPane tab="相位" key="2">
-									<AspectToMidpoint 
-										value={aspects} height="100%"
-										planetDisplay={this.props.planetDisplay}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
+									{coordTables ? <CoordMidpoint value={coordTables} view="contacts" planetDisplay={this.props.planetDisplay} showAstroMeaning={this.props.showAstroMeaning} /> : (
+										<AspectToMidpoint 
+											value={aspects} height="100%"
+											planetDisplay={this.props.planetDisplay}
+											showAstroMeaning={this.props.showAstroMeaning}
+										/>
+									)}
 								</TabPane>
 						</Tabs>
 					</Col>

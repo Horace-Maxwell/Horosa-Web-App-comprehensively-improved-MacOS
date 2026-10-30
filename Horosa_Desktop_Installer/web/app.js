@@ -124,7 +124,7 @@
   let showFullLog = false;
   let retryActionKind = 'repair_runtime';
   let progressIsIndeterminate = false;
-  const APP_VERSION = '3.12.0';
+  const APP_VERSION = '3.13.0';
   let currentTone = 'launch';
 
   const invoke = window.HorosaShellBridge.invoke;
