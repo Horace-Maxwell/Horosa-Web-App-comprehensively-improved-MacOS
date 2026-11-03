@@ -1,16 +1,14 @@
-import { Component } from 'react';
-import { Spin, Select } from 'antd';
-import { XQButton as Button, XQTabs as Tabs } from '../xq-ui';
+import React, { Component } from 'react';
+import { Spin } from 'antd';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
-import { unwrapResult, fmtNum, chartParams, chartRequestKey, cardStyle, parkLoadFailure, clearLoadFailure, loadParked } from './AstroExtraCommon';
-import ProgMethodPanel, { MINOR_VARIANT_OPTIONS } from './AstroProgChart';
+import { unwrapResult, chartParams, chartRequestKey, parkLoadFailure, clearLoadFailure, loadParked } from './AstroExtraCommon';
+import ProgMethodPanel, { ProgPageSide } from './AstroProgChart';
+import { ProgPageShell } from './progPageLayout';
 import { buildVedicProgSnapshotText, today, chartZone, methodTab } from './astroProgSnapshot';
 import { DIRECTION_PAGE_SETTINGS } from '../../utils/directionPageSettings';
 import { natalSourceKey, pickKeyedDerived } from '../../utils/derivedChartSource';
 
-const TabPane = Tabs.TabPane;
-const { Option } = Select;
 
 // [Windows #80] builder 已抽到共享 astroProgSnapshot.js(恒星/回归两支同源);此处按原名再导出,
 // 既有 import 路径不变。
@@ -26,7 +24,7 @@ class AstroVedicProgressions extends Component{
 			minorVariant: DIRECTION_PAGE_SETTINGS.load().minorVariant,   // 上次亲手设的月长算法(三个推运页共用;没存过 = synodic)
 			loading: false,
 			result: null,
-			requestKey: '',
+			requestKey: '', progMethod: 'secondary',
 		};
 		this.load = this.load.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
@@ -104,43 +102,44 @@ class AstroVedicProgressions extends Component{
 
 	render(){
 		this.ensureLoaded();
-		const result = this.shownResult() || {};
-		const height = this.props.height || 700;
-		// 面板高不再用「工作区高−常数」估算(常数与真实工具条/页签高不等 → 多出的十几像素把外层面板撑出第二条滚动条);
-		// 内层 Tabs 走定高链(app.less .horosa-direction-page .ant-tabs-top …),面板 100% 跟随容器,任何缩放/字号/窗高零常数。
-		const panelH = '100%';
+		const shown = this.shownResult();
+		const result = shown || {};
+		const methods = result.methods || [];
+		const method = methods.find((m)=>m.method === this.state.progMethod) || methods[0] || null;
+		const height = this.props.height ? this.props.height - 10 : 700;
+		// 版式与主限法盘同一个:左边整列推运双盘,右栏标题 · 时间选择 · 设置 · 表(progPageLayout);改任何设置自动重算
+		const side = (
+			<ProgPageSide
+				title="恒星推运"
+				desc="恒星黄道下的二次 / 三次 / 小推运:本命与推运两圈都按恒星黄道重取(不混坐标);推运时刻的折算与回归推运相同。"
+				result={result}
+				method={method}
+				methodLabel={methodTab}
+				targetDate={this.state.targetDate}
+				targetTime={this.state.targetTime}
+				zone={chartZone(this.props.value)}
+				minorVariant={this.state.minorVariant}
+				onTime={(targetDate, targetTime)=>this.setState({ targetDate, targetTime })}
+				onMinor={(v)=>{ DIRECTION_PAGE_SETTINGS.save({ minorVariant: v }); this.setState({ minorVariant: v }); }}
+				onMethod={(v)=>this.setState({ progMethod: v })}
+			/>
+		);
 		return (
-			<Spin spinning={this.state.loading}>
-				<div style={{ height, display: 'flex', flexDirection: 'column' }}>
-					<div style={{ ...cardStyle, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', flex: '0 0 auto' }}>
-						<span style={{ fontWeight: 600 }}>恒星推运（Sidereal）</span>
-						<label>目标日期 <input type="date" value={this.state.targetDate} onChange={(e) => this.setState({ targetDate: e.target.value })} /></label>
-						<label>时间 <input type="time" step="1" value={this.state.targetTime} onChange={(e) => this.setState({ targetTime: e.target.value })} /></label>
-						<label>月长算法 <Select size="small" style={{ width: 150 }} value={this.state.minorVariant} onChange={(v)=>{ DIRECTION_PAGE_SETTINGS.save({ minorVariant: v }); this.setState({ minorVariant: v }); }}>
-							{MINOR_VARIANT_OPTIONS.map((o)=>(<Option key={o.value} value={o.value}>{o.label}</Option>))}
-						</Select></label>
-						<Button size="small" onClick={this.load}>计算推运</Button>
-						<span>年龄天数：{fmtNum(result.ageDays, 1)}</span>
-					</div>
-					<Tabs defaultActiveKey="secondary" tabPosition="top" style={{ flex: '1 1 auto', minHeight: 0 }}>
-						{(result.methods || []).map((method) => (
-							<TabPane tab={methodTab(method)} key={method.method}>
-								<ProgMethodPanel
-									value={this.props.value}
-									method={method}
-									targetDate={this.state.targetDate}
-									targetTime={this.state.targetTime}
-									mode="sidereal"
-									height={panelH}
-									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									showAstroMeaning={this.props.showAstroMeaning}
-								/>
-							</TabPane>
-						))}
-					</Tabs>
-				</div>
+			<Spin spinning={this.state.loading && !methods.length}>
+				<ProgPageShell height={height} updating={this.state.loading && methods.length > 0}>
+					<ProgMethodPanel
+						value={this.props.value}
+						method={method}
+						side={side}
+						targetDate={this.state.targetDate}
+						targetTime={this.state.targetTime}
+						mode="sidereal"
+						chartDisplay={this.props.chartDisplay}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						showAstroMeaning={this.props.showAstroMeaning}
+					/>
+				</ProgPageShell>
 			</Spin>
 		);
 	}

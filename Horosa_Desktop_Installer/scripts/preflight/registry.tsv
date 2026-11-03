@@ -213,3 +213,5 @@ u264	264	segments/shell.public.sh
 323	302	segments/release.sh
 324	303	segments/guard.sh
 326	304	segments/guard.sh
+330	305	segments/release.sh
+331	306	segments/ai.sh

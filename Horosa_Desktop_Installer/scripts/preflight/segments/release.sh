@@ -1150,3 +1150,27 @@ if [ -n "${S156_PKG_NAME}" ] && [ -s "${S156_PKG}" ]; then
 fi
 [ "${S156_BAD}" = "0" ] && ok "[${PF_NO}] 离线安装链真装门全在位(gz 默认/净化探测/渲染断言/e2e stamp 绑定成品)"
 }
+
+seg_330() {
+echo "[${PF_NO}] 全量 jest 重套件复用:判据自证 / 登记表合同 / 发版基线接线 / 差分闸分片计划在位"
+# 为什么(2026-10-30):全量 jest 墙钟曾被全谱齿轮差分闸单文件(在线约 68 分钟)定死,择日压测各族又占大半机时 →
+#   差分闸按「技法 × 齿轮」分片(mountSettingsDiffAll.<k>.test.js,计划与覆盖合同 mountSettingsDiffAllPlan*.js);
+#   发版基线的 jest_full 经 jest_heavy_reuse.js 跑:登记过的重套件按依赖闭包内容判复用,每族每次轮换真跑一片。
+#   这里看守:复用判据自证(23 向)/ 登记表合同(族都匹配到文件、全局输入都在、带片号的测试文件都已登记)/
+#   基线确实经复用器跑且留了全跑开关 / 差分闸分片计划合同测试在位。
+S330_BAD=0
+S330_JR="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/jest_heavy_reuse.js"
+S330_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+S330_BL="${REPO_ROOT}/Horosa_Desktop_Installer/scripts/run_release_baseline.sh"
+if [ -f "${S330_JR}" ]; then
+  S330_OUT="$(node "${S330_JR}" --self-test 2>&1)" || { printf '%s\n' "${S330_OUT}" | tail -6 | sed 's/^/      /' >&2; bad "[${PF_NO}] 🔴 重套件复用判据自证失败(见上)"; S330_BAD=1; }
+  S330_OUT="$(node "${S330_JR}" check --ui "${S330_UI}" 2>&1)" || { printf '%s\n' "${S330_OUT}" | tail -8 | sed 's/^/      /' >&2; bad "[${PF_NO}] 🔴 重套件登记表不合(见上)"; S330_BAD=1; }
+else
+  bad "[${PF_NO}] 🔴 缺 Horosa_Desktop_Installer/scripts/jest_heavy_reuse.js"; S330_BAD=1
+fi
+grep -qF 'scripts/jest_heavy_reuse.js" run --ui' "${S330_BL}" 2>/dev/null || { bad "[${PF_NO}] 🔴 发版基线 jest_full 没经重套件复用器跑(run_release_baseline.sh)"; S330_BAD=1; }
+grep -qF 'HOROSA_BASELINE_JEST_FULL' "${S330_BL}" 2>/dev/null || { bad "[${PF_NO}] 🔴 发版基线缺全跑开关说明 HOROSA_BASELINE_JEST_FULL"; S330_BAD=1; }
+[ -f "${S330_UI}/src/utils/__tests__/mountSettingsDiffAllPlan.test.js" ] && [ -f "${S330_UI}/src/utils/__tests__/mountSettingsDiffAllPlan.js" ] \
+  || { bad "[${PF_NO}] 🔴 差分闸分片计划或其覆盖合同测试缺位(mountSettingsDiffAllPlan.js / .test.js)"; S330_BAD=1; }
+[ "${S330_BAD}" = "0" ] && ok "[${PF_NO}] 重套件复用:判据自证 23 向 + 登记表合同 + 基线接线 + 差分闸分片计划合同全在位"
+}

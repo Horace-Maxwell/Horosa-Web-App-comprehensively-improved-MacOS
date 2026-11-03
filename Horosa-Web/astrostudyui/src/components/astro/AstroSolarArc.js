@@ -1,14 +1,15 @@
-import { Component } from 'react';
-import { Row, Col, Divider, Popover, } from 'antd';
+import React, { Component } from 'react';
+import { Row, Col, Popover, } from 'antd';
 import AstroDoubleChart from './AstroDoubleChart';
 import AstroDirectionForm from './AstroDirectionForm';
+import { pointName } from '../../utils/directedFigures';
+import { SideColumn, SidePanelHead, AspectTable, WheelSplit, FillCard } from './progPageLayout';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
-import { randomStr, convertToArray} from '../../utils/helper';
-import styles from '../../css/styles.less';
+import { convertToArray} from '../../utils/helper';
 import DateTime from '../comp/DateTime';
 import { saveModuleAISnapshotLazy, saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
 import { buildPredictiveSnapshotText, } from '../../utils/predictiveAiSnapshot';
@@ -16,7 +17,7 @@ import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../util
 import UpdatingBadge from '../common/UpdatingBadge';
 import { natalSourceKey, pickKeyedDerived } from '../../utils/derivedChartSource';
 import { silentTechniquePanelsEnabled } from '../../utils/perfFlags';
-import { natalClassicalParams, transitOrbDefault } from './AstroExtraCommon';
+import { natalClassicalParams, transitOrbDefault, followTransitOrb } from './AstroExtraCommon';
 import { pruneStaleClassicalParams } from '../../utils/classicalChartGlobals';
 import { DIRECTION_PAGE_SETTINGS } from '../../utils/directionPageSettings';
 
@@ -70,7 +71,6 @@ class AstroSolarArc extends Component{
 		this.submit = this.submit.bind(this);
 		this.fieldsChanged = this.fieldsChanged.bind(this);
 		this.requestDirection = this.requestDirection.bind(this);
-		this.genAspectDom = this.genAspectDom.bind(this);
 		this.genNatalParams = this.genNatalParams.bind(this);
 		this.requestData = this.requestData.bind(this);
 		this.renderPlanetLabel = this.renderPlanetLabel.bind(this);
@@ -247,81 +247,9 @@ class AstroSolarArc extends Component{
 		});
 	}
 
-	genAspectDom(){
-		if(this.shownDirChart() === undefined || this.shownDirChart() === null){
-			return null;
-		}
-
-		let aspects = this.shownDirChart().chart.aspects;
-		let divs = [];
-		for(let i=0; i<aspects.length; i++){
-			let obj = aspects[i];
-			if(obj.objects.length === 0){
-				continue;
-			}
-			let coldivs = [];
-			let natalObjs = obj.objects;
-			for(let j=0; j<natalObjs.length; j++){
-				let natalObj = natalObjs[j];
-				let asp = natalObj.aspect;
-				let dom = (
-					<div key={natalObj.natalId + j}>
-						<span style={{fontFamily: AstroConst.AstroFont}}>&emsp;{AstroText.AstroMsg['Asp' + asp]}&nbsp;</span>
-						<span>{this.renderPlanetLabel(this.props.value, natalObj.natalId)}&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>
-							误差{Math.round(natalObj.delta * 1000)/1000}
-						</span>
-					</div>
-				);
-				coldivs.push(dom);
-			}
-			let domtitle = (
-				<Col key={i} span={12}>
-					<div>
-						<span style={{fontFamily: AstroConst.NormalFont}}>行运&nbsp;</span>
-						<span>{this.renderPlanetLabel(this.shownDirChart(), obj.directId)}</span>
-					</div>
-					{coldivs}
-				</Col>
-			);
-			divs.push(domtitle);
-		}
-
-		let rows = [];
-		let cols = [];
-		for(let i=0; i<divs.length; i++){
-			if(i % 2 === 0){
-				if(i > 0){
-					let dom = (
-						<div key={`s1-${i}`}>
-							<Row>
-								{cols}
-							</Row>
-							<Divider dashed />
-						</div>
-					);	
-					rows.push(dom);		
-				}
-				cols = [];
-			}
-			cols.push(divs[i]);
-		}
-		rows.push((
-			<Row key={randomStr(8)}>
-				{cols}
-			</Row>
-		));
-
-		let dom = (
-			<div>
-				{rows}
-			</div>
-		);
-		return dom;
-	}
-
 	componentDidMount(){
 		this.unmounted = false;
+		this._detachTransitOrb = followTransitOrb(this);
 		this.requestData();
 		if(typeof window !== 'undefined'){
 			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
@@ -362,6 +290,7 @@ class AstroSolarArc extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(this._detachTransitOrb){ this._detachTransitOrb(); }
 		if(typeof window !== 'undefined'){
 			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		}
@@ -424,7 +353,6 @@ class AstroSolarArc extends Component{
 		};
 		let fieldsary = convertToArray(fields);
 
-		let aspdom = this.genAspectDom();
 
 		let height = this.props.height ? this.props.height : 760;
 		let style = {
@@ -436,36 +364,45 @@ class AstroSolarArc extends Component{
 
 		return (
 			<div>
-				<Row gutter={6}>
-					<Col span={17}>
-						<div style={{ position: 'relative' }}>
-							{this.state.updating && this.shownDirChart() ? <UpdatingBadge /> : null}
-							<AstroDoubleChart value={chartObj}
-								height={height}
-								planetDisplay={this.props.planetDisplay}
-								lotsDisplay={this.props.lotsDisplay}
-								chartDisplay={this.props.chartDisplay}
-								showAstroMeaning={this.props.showAstroMeaning}
-							/>
-						</div>
-					</Col>
-					<Col span={7}>
-						<div className={styles.scrollbar} style={style}>
-						<Row>
-							<Col span={24}>
-								<AstroDirectionForm {...fields}
-									fieldsAry={fieldsary}
-									hideMeanOrb   /* 弧类走 solararc.compute:-1 档与 1° 同结果,隐掉 */
-									onFieldsChange={this.fieldsChanged}
-									onSubmit={this.submit}
-								/>							
-							</Col>
-						</Row>
-						<Divider orientation="left">相位</Divider>
-						{aspdom}
-						</div>
-					</Col>
-				</Row>
+				{/* 盘大小与右栏宽度与星运其它带盘页同一套算法(progPageLayout.WheelSplit) */}
+				<WheelSplit style={{ height: height - 10 }} renderWheel={(wheelSize, wheelH)=>(
+					<div style={{ width: wheelSize, height: wheelH }}>
+							<div style={{ position: 'relative' }}>
+								{this.state.updating && this.shownDirChart() ? <UpdatingBadge /> : null}
+								<AstroDoubleChart value={chartObj}
+									height={wheelH}
+									planetDisplay={this.props.planetDisplay}
+									lotsDisplay={this.props.lotsDisplay}
+									chartDisplay={this.props.chartDisplay}
+									showAstroMeaning={this.props.showAstroMeaning}
+								/>
+							</div>
+					</div>
+				)} side={(
+					<React.Fragment>
+							{/* 右栏与星运其它带盘页同一个件:固定头(时间与设置,不随滚动)+ 下半整体滚动;顶部留安全距离 */}
+							<SideColumn style={{ height: '100%' }} head={(
+								<div>
+									<SidePanelHead title="太阳弧" desc="真太阳弧:推运日太阳行度作为弧,全盘各点在黄道上同推这段弧;外圈为向运位置。" />
+								<Row>
+									<Col span={24}>
+										<AstroDirectionForm {...fields}
+											settingsTitle="太阳弧设置"
+											fieldsAry={fieldsary}
+											hideMeanOrb   /* 弧类走 solararc.compute:-1 档与 1° 同结果,隐掉 */
+											onFieldsChange={this.fieldsChanged}
+											onSubmit={this.submit}
+										/>							
+									</Col>
+								</Row>
+								</div>
+							)}>
+							<FillCard grow title="相位">
+								<AspectTable chart={this.shownDirChart()} moverTitle="弧推星" renderPoint={(id, side)=>(<span style={{ whiteSpace: 'nowrap' }}>{this.renderPlanetLabel(side === 'dir' ? this.shownDirChart() : this.props.value, id)} {pointName(id)}</span>)} />
+							</FillCard>
+							</SideColumn>
+					</React.Fragment>
+				)} />
 			</div>
 		)
 	}

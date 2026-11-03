@@ -1,16 +1,14 @@
-import { Component } from 'react';
-import { Spin, Select } from 'antd';
-import { XQButton as Button, XQTabs as Tabs } from '../xq-ui';
+import React, { Component } from 'react';
+import { Spin } from 'antd';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
-import { unwrapResult, fmtNum, chartParams, chartRequestKey, cardStyle, parkLoadFailure, clearLoadFailure, loadParked } from './AstroExtraCommon';
-import ProgMethodPanel, { MINOR_VARIANT_OPTIONS } from './AstroProgChart';
+import { unwrapResult, chartParams, chartRequestKey, parkLoadFailure, clearLoadFailure, loadParked } from './AstroExtraCommon';
+import ProgMethodPanel, { ProgPageSide } from './AstroProgChart';
+import { ProgPageShell } from './progPageLayout';
 import { buildTropicalProgSnapshotText, today, chartZone, methodTab } from './astroProgSnapshot';
 import { DIRECTION_PAGE_SETTINGS } from '../../utils/directionPageSettings';
 import { natalSourceKey, pickKeyedDerived } from '../../utils/derivedChartSource';
 
-const TabPane = Tabs.TabPane;
-const { Option } = Select;
 
 // 推运（回归黄道）：二次/三次/小推运。每个子 tab → 左固定推运双盘 + 右可滚动行星位置/相位表（ProgMethodPanel）。
 // 小推运月长算法用顶栏「月长算法」选择器（minorVariant），缺省 synodic=标准朔望月。
@@ -23,7 +21,7 @@ class AstroProgressions extends Component{
 			minorVariant: DIRECTION_PAGE_SETTINGS.load().minorVariant,   // 上次亲手设的月长算法(三个推运页共用;没存过 = synodic)
 			loading: false,
 			result: null,
-			requestKey: '',
+			requestKey: '', progMethod: 'secondary',
 		};
 		this.load = this.load.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
@@ -96,42 +94,44 @@ class AstroProgressions extends Component{
 
 	render(){
 		this.ensureLoaded();
-		const result = this.shownResult() || {};
-		const height = this.props.height || 700;
-		// 面板高不再用「工作区高−常数」估算(常数与真实工具条/页签高不等 → 多出的十几像素把外层面板撑出第二条滚动条);
-		// 内层 Tabs 走定高链(app.less .horosa-direction-page .ant-tabs-top …),面板 100% 跟随容器,任何缩放/字号/窗高零常数。
-		const panelH = '100%';
+		const shown = this.shownResult();
+		const result = shown || {};
+		const methods = result.methods || [];
+		const method = methods.find((m)=>m.method === this.state.progMethod) || methods[0] || null;
+		const height = this.props.height ? this.props.height - 10 : 700;
+		// 版式与主限法盘同一个:左边整列推运双盘,右栏标题 · 时间选择 · 设置 · 表(progPageLayout);改任何设置自动重算
+		const side = (
+			<ProgPageSide
+				title="推运"
+				desc="回归黄道推运:二次推运一日行一年、三次推运一日行一月、小推运一月行一年;目标时刻按所选推运法折算成出生后的某一时刻,外圈即那一刻的天象,内圈本命。"
+				result={result}
+				method={method}
+				methodLabel={methodTab}
+				targetDate={this.state.targetDate}
+				targetTime={this.state.targetTime}
+				zone={chartZone(this.props.value)}
+				minorVariant={this.state.minorVariant}
+				onTime={(targetDate, targetTime)=>this.setState({ targetDate, targetTime })}
+				onMinor={(v)=>{ DIRECTION_PAGE_SETTINGS.save({ minorVariant: v }); this.setState({ minorVariant: v }); }}
+				onMethod={(v)=>this.setState({ progMethod: v })}
+			/>
+		);
 		return (
-			<Spin spinning={this.state.loading}>
-				<div style={{ height, display: 'flex', flexDirection: 'column' }}>
-					<div style={{ ...cardStyle, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', flex: '0 0 auto' }}>
-						<label>目标日期 <input type="date" value={this.state.targetDate} onChange={(e)=>this.setState({ targetDate: e.target.value })} /></label>
-						<label>时间 <input type="time" step="1" value={this.state.targetTime} onChange={(e)=>this.setState({ targetTime: e.target.value })} /></label>
-						<label>月长算法 <Select size="small" style={{ width: 150 }} value={this.state.minorVariant} onChange={(v)=>{ DIRECTION_PAGE_SETTINGS.save({ minorVariant: v }); this.setState({ minorVariant: v }); }}>
-							{MINOR_VARIANT_OPTIONS.map((o)=>(<Option key={o.value} value={o.value}>{o.label}</Option>))}
-						</Select></label>
-						<Button size="small" onClick={this.load}>计算推运</Button>
-						<span>年龄天数：{fmtNum(result.ageDays, 1)}</span>
-					</div>
-					<Tabs defaultActiveKey="secondary" tabPosition="top" style={{ flex: '1 1 auto', minHeight: 0 }}>
-						{(result.methods || []).map((method)=>(
-							<TabPane tab={methodTab(method)} key={method.method}>
-								<ProgMethodPanel
-									value={this.props.value}
-									method={method}
-									targetDate={this.state.targetDate}
-									targetTime={this.state.targetTime}
-									mode="tropical"
-									height={panelH}
-									chartDisplay={this.props.chartDisplay}
-									planetDisplay={this.props.planetDisplay}
-									lotsDisplay={this.props.lotsDisplay}
-									showAstroMeaning={this.props.showAstroMeaning}
-								/>
-							</TabPane>
-						))}
-					</Tabs>
-				</div>
+			<Spin spinning={this.state.loading && !methods.length}>
+				<ProgPageShell height={height} updating={this.state.loading && methods.length > 0}>
+					<ProgMethodPanel
+						value={this.props.value}
+						method={method}
+						side={side}
+						targetDate={this.state.targetDate}
+						targetTime={this.state.targetTime}
+						mode="tropical"
+						chartDisplay={this.props.chartDisplay}
+						planetDisplay={this.props.planetDisplay}
+						lotsDisplay={this.props.lotsDisplay}
+						showAstroMeaning={this.props.showAstroMeaning}
+					/>
+				</ProgPageShell>
 			</Spin>
 		);
 	}

@@ -791,6 +791,40 @@ Windows 版完成的定义不是“能打开”，而是：
 ### macOS 独有(Windows 无对应动作)
 - 安装 / 更新后原生库首次加载预检(`config/native_prewarm_priority.json`、`installer-scripts/postinstall.template`、壳子命令 `--horosa-native-prewarm`)、增量更新暂存槽硬链接搭 + 换完即预检(Windows 的差分更新按文件树下载、不走整棵克隆)、签名缓存自动种子与稳定部件对拍(`prepare_sign_seed.py` / `verify_stable_parts_headers.py`)。
 
+## v3.13.1 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.13.1` / `runtimeVersion` = `3.13.1-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 共享 Python(重打 Python 运行时)
+- 新模块 `astrostudy/directed_figures.py`(演进推运 / Bezza 推运图 / 周日小限 / 双黄道四个出口),`websrv/webastroextrasrv.py` 挂 `/astroextra/neroman` · `bezzafigure` · `jayprofection` · `michon` 四路由。
+- 日出 / 日没:`perchart_parts/timing.py` 求解停步阈值收紧(精度到 1 秒内),新参数 `sunriseMode`(缺省日心 · 不计折射 / `apparent` 日面上缘含折射)经 `helper.py` 与 `webchartsrv.py` 透传。
+- `thirteenthchart.py`:龙盘宫位口径 `house_mode`(`whole` 缺省 / `shift` 本命宫头随交点平移)。
+- `modern/chartcomp.py` 跨盘相位容许度常量 `CROSS_ASPECT_ORB = 1.0`;`astroextra_parts/relative.py` 合盘分数按它衰减、同一对星只计一次。
+- `flatlib-ctrad2/flatlib/tools/arabicparts.py`:爱欲点昼夜公式。
+- `xuanshi/textquery.py`:缺 OpenCC 时的简繁退路保留「干」。
+
+### 共享 Java(重建 jar)
+- `AstroExtraController` / `AstroHelper`:四个推运图类路由;白名单新增 `draconicHouses`、`sunriseMode` 与推运图类七键(`nerK` / `nerT0` / `nerKeepDec` / `maxAge` / `jayFrom` / `mzSwap` / `mzEqual`)。漏登记的键会被白名单静默丢弃,前端选了也不生效。
+- `sunriseMode` 同样进 `PredictiveController` / `ModernChartController` / `GermanyTechController` / `astrostudycn` `ChartController` 的透传。
+- `astrostudycn`:`ziweiliuchangqu.json` 流曲庚 / 辛 / 壬三干订正;`ziweige.json` 与 `ZiWeiPattern` 巨机格分三格(新判据 `yearGan` / `female`)。
+- AI 分析:新 `AISystemOneService` 与 `/aianalysis/systemone`(决策层转发,不落库、不写日志);`conf/log/excludelogtrans.json` 补这一路径。
+
+### 共享前端
+- 星运:推运图类四子页 `components/astro/AstroDirectedFigures.js` + 单源 `utils/directedFigures`;带盘页版式单源 `components/astro/progPageLayout.js`;紧凑时间块 `components/comp/CompactTimeField.js`(`DateTimeSelector` 按住拖动调单位;`DateTime.addMonth` 先落 1 号再夹回当月天数)。
+- 八字:即时重取改用「共享层 + 本页覆盖层」合成的字段(晚子时 / 时间算法);天德贵人干、支各查一次;天医口径选项。
+- 节气:`utils/preciseCalcBridge.js` 冬至日柱按交节当天取;`utils/localCalcCache.js` 节气两缓存命名空间升 v3。
+- 三式合一:奇门缓存键补盘类 / 相关人员 / 时间算法;太乙时间基准进重算签名与缓存键。
+- 燃烧之路单一判定 `inViaCombusta`(含起不含止)。
+- AI 分析:进阶页「决策层(实验)」卡 `chat/SystemOnePanel.js` 与 `utils/systemOne/`(缺省关,关着时零请求、零 IndexedDB 读);存储键登记表补 6 个键。
+- 繁体:`hantRules` 「里」补「验里」「神里」整词。
+
+### 真机验收
+- 星运:四个推运图类子页出盘出表;19 个带盘页切页签盘面大小不变;右栏时间块按住拖动年 / 月能连续调,10 月 31 日加一月到 11 月 30 日。
+- 八字:23:30 出生的盘切「晚子时」四档,四柱依次变化。
+- 星盘设置「日出 / 日没口径」切到含折射,星盘「信息」页日出提前约 5 分钟(中纬)。
+- 进阶页「决策层(实验)」缺省关;不打开时与上一版行为一致、无任何外发请求。
+
 ## v3.13.0 同步要点(Mac 已落地,Windows 按此对齐)
 
 ### 版本 lockstep

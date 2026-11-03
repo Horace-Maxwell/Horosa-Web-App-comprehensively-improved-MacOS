@@ -9,3 +9,4 @@
 #   若日后从旧克隆重建同名分支,须重新自证而非直接信任本表。
 feature/ziwei-depth	16d0ef39fd2b6a58b9f1afe5011d447d033f3adf	2026-06-15	紫微运限深度/占星DST/Balbillus/六壬七政 均已在 main 且随 v2.6.7 发布;main 更新更全(+784/-21)并已中性化来源注释,merge 反致降级+来源注释回泄
 feature/astro-progression-v250	378e9b4be569ca08925e9b905e0f07cce2345b1e	2026-06-15	占星DST时区+Balbillus校准,为 ziwei-depth 子集,同已在 main 且更新,merge 反致降级
+feature/system-one	0ce0924e4f8d6e32d80fa8130063b2b4beab266a	2026-11-02	决策层地基(另 3 条为早年压成发布提交前的历史):内容已在 main 且更新 —— 逐提交核对新增行均在 main(预检拆段后的搬迁与后续改写除外),对应文件与守卫齐全

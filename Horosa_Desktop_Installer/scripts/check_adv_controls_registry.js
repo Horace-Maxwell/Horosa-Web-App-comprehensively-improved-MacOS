@@ -19,14 +19,14 @@ const fs = require('fs');
 const path = require('path');
 const { readSourceSet } = require(path.join(__dirname, 'source_sets.js'));   // 拆成子模块的门面按「子模块 + 门面」全集读
 
-const REGISTRY_FLOOR = 130;   // 共享登记表的控件数下限:加控件同提交抬线,不许减(2026-09-11 +agent.openTaskCenter;2026-09-17 +ext.edit 编辑入口登记;2026-10-11 抬到 129:私人内容可读 / 界面类也要确认 / REST 子开关与两个复制钮;同日 130:终端命令垫片三钮)
+const REGISTRY_FLOOR = 146;   // 共享登记表的控件数下限:加控件同提交抬线,不许减(2026-09-11 +agent.openTaskCenter;2026-09-17 +ext.edit 编辑入口登记;2026-10-11 抬到 129:私人内容可读 / 界面类也要确认 / REST 子开关与两个复制钮;同日 130:终端命令垫片三钮;2026-11-02 并入决策层卡 +16 systemone.*)
 const PENDING_MAX = 0;        // 尚无 端到端判据的控件数上限:只减不增(C3 已落地:每个控件至少一条 端到端判据;新控件不带 用例 id = 红)
 const L5_NOMINAL_MAX = 20;    // 挂名 端到端链接(用例文本不含本条锚 / 存储键)对数上限:2026-09-14 实测 20,只减不增
 const JEST_NOMINAL_MAX = 32;  // 挂名 jest 链接(文件不含本条锚 / 消费符号 / 存储键)条数上限:2026-09-14 实测 32,只减不增
 const PANE_FILES = [
 	'chat/AdvancedPane.js', 'chat/AdvCard.js', 'chat/AdvSectionNav.js', 'chat/ChatContextPolicyPanel.js', 'chat/ChatModelRoutesPanel.js',
 	'chat/BestOfPanel.js', 'chat/PersonaMemoryPanel.js', 'chat/SkillPackPanel.js', 'AgentAbilityPanel.js', 'ExternalAgentPanel.js',
-	'ExternalServersPanel.js', 'WebSearchPanel.js', 'AutomationRulesPanel.js', 'ActionLedgerPanel.js',
+	'ExternalServersPanel.js', 'WebSearchPanel.js', 'AutomationRulesPanel.js', 'ActionLedgerPanel.js', 'chat/SystemOnePanel.js',
 ];
 const NO_CONSUMER_KINDS = ['collapse', 'tab', 'pill', 'pagination'];
 

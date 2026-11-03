@@ -2187,11 +2187,21 @@ seg_269() {
 #   八字起运行 / 巴比伦纪元 / 皇极心易后端键 / 印占三旗问事 / 大定所推之年 / 地占无头不读页面事盘)④jest 后端请求 shim(js-rsa 严格模式)在位;负锚:旧死形态回潮即红。
 echo "[${PF_NO}] AI 挂载「逐技法 × 挂载内容 × 挂载设置」自检网"
 S269_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"; S269_BAD=0
-for S269_T in mountSettingsDiffAll mountSectionOptionsContract mountAuditResiduals mountAuditIndiaPrashna mountAuditZhengchuanDading mountAuditBuFixes mountAuditCaseBaselines mountAuditWiring mountAuditGuolaoSu28 mountAuditGuolaoNodeMode mountAuditHeluoHuagong mountAuditZhengchuanGender mountAuditIndiaCalibre mountAuditJieqiStale mountAuditAstroLike mountAuditRelativeParties mountAuditLiurengHeadless mountAuditZeriSave mountAuditZiweiDayBoundary mountAuditLabels mountAuditJinkouSuzhan pdSphereStamp; do
+for S269_T in mountSettingsDiffAllPlan mountSectionOptionsContract mountAuditResiduals mountAuditIndiaPrashna mountAuditZhengchuanDading mountAuditBuFixes mountAuditCaseBaselines mountAuditWiring mountAuditGuolaoSu28 mountAuditGuolaoNodeMode mountAuditHeluoHuagong mountAuditZhengchuanGender mountAuditIndiaCalibre mountAuditJieqiStale mountAuditAstroLike mountAuditRelativeParties mountAuditLiurengHeadless mountAuditZeriSave mountAuditZiweiDayBoundary mountAuditLabels mountAuditJinkouSuzhan pdSphereStamp; do
   [ -f "${S269_UI}/src/utils/__tests__/${S269_T}.test.js" ] || { bad "[${PF_NO}]① 缺挂载自检测试 ${S269_T}.test.js"; S269_BAD=1; }
 done
-S269_DN="${S269_UI}/src/utils/__tests__/mountSettingsDiffAll.test.js"
+# 差分闸分片(2026-10-30):套件本体 mountSettingsDiffAllSuite.js(非 .test.js),分片文件 mountSettingsDiffAll.<k>.test.js 各跑一片;
+#   分片齐全 / 各调自己那片 / 不漏齿轮由 mountSettingsDiffAllPlan.test.js 核(上一行已要求它在);这里核本体在、本体与每个分片都没有被跳过 / 独占的用例。
+S269_DN="${S269_UI}/src/utils/__tests__/mountSettingsDiffAllSuite.js"
+[ -f "${S269_DN}" ] || { bad "[${PF_NO}]① 缺差分闸套件本体 mountSettingsDiffAllSuite.js"; S269_BAD=1; }
 pf_test_disabled "${S269_DN}" && { bad "[${PF_NO}]① 差分闸含被跳过 / 被独占的用例(闸门被关)"; S269_BAD=1; }
+S269_SH_N=0
+for S269_SH in "${S269_UI}"/src/utils/__tests__/mountSettingsDiffAll.[0-9]*.test.js; do
+  [ -f "${S269_SH}" ] || continue; S269_SH_N=$((S269_SH_N + 1))
+  pf_test_disabled "${S269_SH}" && { bad "[${PF_NO}]① 差分闸分片 $(basename "${S269_SH}") 含被跳过 / 被独占的用例"; S269_BAD=1; }
+done
+[ "${S269_SH_N}" -ge 2 ] || { bad "[${PF_NO}]① 差分闸分片文件不足 2 个(mountSettingsDiffAll.<k>.test.js)"; S269_BAD=1; }
+[ -f "${S269_UI}/src/utils/__tests__/mountSettingsDiffAll.test.js" ] && { bad "[${PF_NO}]① 旧的差分闸单文件还在(与分片重复跑全谱)"; S269_BAD=1; }
 S269_P_DE="const DEAD_EXEMPT = {"; S269_P_PR="pruneOptionsToNonDefault(key, { [field.name]: v }, baseline)"
 [ "$(grep -acF "${S269_P_DE}" "${S269_DN}")" = "1" ] && [ "$(grep -acF "${S269_P_PR}" "${S269_DN}")" = "1" ] && [ "$(grep -acF "HOROSA_DIFFNET_OFFLINE" "${S269_DN}")" -ge 1 ] || { bad "[${PF_NO}]① 差分闸三锚(豁免表/覆盖判据同源/离线不假绿)缺失"; S269_BAD=1; }
 [ "$(grep -acF "'^js-rsa$'" "${S269_UI}/jest.config.js")" = "1" ] && [ -f "${S269_UI}/test/jsRsaJestShim.js" ] || { bad "[${PF_NO}]④ jest js-rsa shim 未接(后端请求在 jest 内静默失败=在线判据全成假绿)"; S269_BAD=1; }
@@ -2217,4 +2227,52 @@ S269_P_QY='lines.push(`起运：${bazi.directInfo}`)'
 [ "$(grep -acF "安息纪元" "${S269_UI}/src/utils/babylonAiSnapshot.js")" = "1" ] || { bad "[${PF_NO}]③ 巴比伦纪元行缺失"; S269_BAD=1; }
 [ "$(grep -acF "wuxingOfMansion(me, s.qinWuxing)" "${S269_UI}/src/components/yanqin/yanqinSnapshot.js")" = "1" ] || { bad "[${PF_NO}]③ 演禽演法·占卜五行口径未随流派"; S269_BAD=1; }
 [ "${S269_BAD}" = "0" ] && ok "[${PF_NO}] AI 挂载逐技法自检机械网①–④:差分闸/段合同/残余修复判别向量/js-rsa shim 全在位"
+}
+
+seg_331() {
+# ── 决策层(System One)地基:内核 + 面板 + 登记 + 金标 + Java 零日志 + 交易日志排除 + 零直连 + 接缝零 await ────
+# 总开关缺省关 = 现状路径;凡接缝必须 `pointOn(…) ? await decide(…) : null`;Java 服务零 Logger;前端零直连(CSP 不动);
+#   金标只增(非影子 ≥ 20 条由 jest systemOneRegistry 锁,本闸锁资产在位与形状)。
+echo "[${PF_NO}] 决策层地基:内核 + 面板 + 登记 + 金标 + Java 零日志 + 交易日志排除 + 接缝零 await"
+S331_BAD=0
+S331_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S331_SO="${S331_UI}/utils/systemOne"
+for S331_F in prefs.js questions.js wire.js log.js calibrationStore.js client.js gate.js rerank.js rerankQuestions.js calibration.js registry.js golden/index.js points/chat.js points/agent.js points/memory.js points/materials.js points/bestof.js; do
+  [ -f "${S331_SO}/${S331_F}" ] || { bad "[${PF_NO}] 🔴 内核件缺失:utils/systemOne/${S331_F}"; S331_BAD=1; }
+done
+for S331_F in "${S331_UI}/integrations/systemOne.js" "${S331_UI}/components/aianalysis/chat/SystemOnePanel.js" "${S331_UI}/utils/__tests__/systemOneGate.test.js" "${S331_UI}/utils/__tests__/systemOneRegistry.test.js" "${S331_UI}/utils/__tests__/systemOnePanel.test.js" "${S331_UI}/utils/__tests__/systemOneWire.test.js" "${S331_UI}/utils/__tests__/systemOneCalibration.test.js" "${S331_UI}/utils/__tests__/systemOneRerank.test.js" \
+  "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AISystemOneService.java" "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AISystemOneServiceTest.java"; do
+  [ -f "${S331_F}" ] || { bad "[${PF_NO}] 🔴 资产缺失:${S331_F#${REPO_ROOT}/}"; S331_BAD=1; }
+done
+# ① 金标五份共享 JSON 在位,每份 { _doc, sets }
+for S331_G in chat agent memory materials bestof; do
+  S331_F="${S331_SO}/golden/${S331_G}.json"
+  [ -f "${S331_F}" ] || { bad "[${PF_NO}]① 🔴 金标缺失:golden/${S331_G}.json"; S331_BAD=1; continue; }
+  grep -q '"sets"' "${S331_F}" || { bad "[${PF_NO}]① 🔴 金标 ${S331_G}.json 不是 { _doc, sets } 形状"; S331_BAD=1; }
+done
+# ② Java 服务零日志 + 控制器路由 + 交易日志排除 + 禁跟随重定向
+S331_J="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AISystemOneService.java"
+[ "$(grep -acE 'Logger|log\.(info|debug|warn|error)|System\.out' "${S331_J}" 2>/dev/null)" = "0" ] || { bad "[${PF_NO}]② 🔴 AISystemOneService 出现日志调用(key / state 可能落日志)"; S331_BAD=1; }
+grep -qF '@RequestMapping("/systemone")' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/controller/AIAnalysisController.java" || { bad "[${PF_NO}]② 🔴 控制器缺 /systemone 路由"; S331_BAD=1; }
+grep -qF '"/aianalysis/systemone"' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/src/main/resources/conf/log/excludelogtrans.json" || { bad "[${PF_NO}]② 🔴 excludelogtrans.json 未排除 /aianalysis/systemone(交易日志一开就记 key)"; S331_BAD=1; }
+grep -qF 'followRedirects(HttpClient.Redirect.NEVER)' "${S331_J}" || { bad "[${PF_NO}]② 🔴 AISystemOneService 不再禁跟随重定向"; S331_BAD=1; }
+# ③ 前端零直连;总开关只认 '1'
+[ "$(grep -acE "fetch\(" "${S331_UI}/integrations/systemOne.js" "${S331_SO}/client.js" 2>/dev/null | awk -F: '{s+=$NF} END{print s+0}')" = "0" ] || { bad "[${PF_NO}]③ 🔴 决策层前端出现 fetch( 直连(必须经 Java /aianalysis/systemone)"; S331_BAD=1; }
+grep -qF "safeLocalStorageGet(SYSTEMONE_ENABLED_KEY) === '1'" "${S331_SO}/prefs.js" || { bad "[${PF_NO}]③ 🔴 总开关判据不再只认 '1'"; S331_BAD=1; }
+grep -qF "requestSystemOne(" "${S331_UI}/services/aianalysis.js" || { bad "[${PF_NO}]③ 🔴 services/aianalysis.js 缺 requestSystemOne"; S331_BAD=1; }
+# ④ 接缝零 await:内核以外任何 decide( 调用都必须是 `pointOn(…) ? await decide(` 形态;稳定层组装器不 import systemOne
+S331_OFF="$(grep -rn --include='*.js' -E '\bdecide\(' "${S331_UI}" 2>/dev/null | grep -v "/utils/systemOne/" | grep -v "__tests__" | grep -v "systemOne\b" | grep -vE 'pointOn\([^)]*\)\s*\?\s*await\s+decide\(' | grep -E 'systemOne|/decide\b' | head -3 || true)"
+[ -z "${S331_OFF}" ] || { bad "[${PF_NO}]④ 🔴 决策层接缝不是 pointOn(…) ? await decide(…) : null 形态:${S331_OFF}"; S331_BAD=1; }
+for S331_F in utils/aiAnalysisRag.js utils/aiChat/promptLayers.js utils/aiAnalysisContext.js; do
+  [ -f "${S331_UI}/${S331_F}" ] && grep -q "systemOne" "${S331_UI}/${S331_F}" && { bad "[${PF_NO}]④ 🔴 稳定层组装器 ${S331_F} import 了 systemOne"; S331_BAD=1; }
+done
+# ⑤ 登记与手册:六键在存储键注册表;进阶页第七卡在导轨常量与登记表;帮助手册有卡
+for S331_K in horosa.ai.systemone.enabled horosa.ai.systemone.points.v1 horosa.ai.systemone.thresholds.v1 horosa.ai.systemone.calibration.v1 horosa.ai.systemone.stats.v1 horosa.ai.systemone.disclosure.v1; do
+  grep -qF "'${S331_K}'" "${S331_UI}/utils/storageKeyRegistry.js" || { bad "[${PF_NO}]⑤ 🔴 存储键未登记:${S331_K}"; S331_BAD=1; }
+done
+grep -qF "systemone: 'adv-systemone'" "${S331_UI}/components/aianalysis/chat/AdvCard.js" || { bad "[${PF_NO}]⑤ 🔴 分区锚 adv-systemone 缺失"; S331_BAD=1; }
+grep -qF "label: '决策层(实验)'" "${S331_UI}/components/aianalysis/chat/AdvancedPane.js" || { bad "[${PF_NO}]⑤ 🔴 导轨常量缺决策层分区"; S331_BAD=1; }
+[ "$(grep -c '"card": "adv-systemone"' "${S331_UI}/components/aianalysis/chat/advancedControls.registry.json" 2>/dev/null)" -ge 16 ] || { bad "[${PF_NO}]⑤ 🔴 决策层控件登记少于 16"; S331_BAD=1; }
+grep -qF "决策层" "${S331_UI}/components/help/AIAnalysisHelpDoc.js" || { bad "[${PF_NO}]⑤ 🔴 帮助手册缺决策层卡"; S331_BAD=1; }
+[ "${S331_BAD}" = "0" ] && ok "[${PF_NO}] 决策层地基:内核 / 面板 / 登记 / 金标 / Java 零日志 / 交易日志排除 / 零直连 / 接缝零 await 全在位"
 }

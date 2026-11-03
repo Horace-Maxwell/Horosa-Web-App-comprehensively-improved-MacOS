@@ -153,6 +153,7 @@ const POINTER_EXEMPT = {
 	'components/germany/UranianCosmogram.js': '指针相对盘心的 dx/dy 只进 atan2 求角,比值量纲与缩放无关',
 	'components/germany/UranianDial.js': '同 UranianCosmogram',
 	'components/germany/UranianModulusDial.js': '同 UranianCosmogram',
+	'components/comp/DateTimeSelector.js': '按住拖动调时间单位:只取同一指针前后两次 clientX / clientY 之差计档(两端同域相减),换域只改每档手感、不影响落到哪个值',
 };
 
 function scanPointerReads(){

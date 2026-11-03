@@ -2303,12 +2303,12 @@ grep -q "def classic(self):" "${S287_W}/astropy/websrv/webwangjisrv.py" 2>/dev/n
 grep -q "def _micro_texts(" "${S287_W}/astropy/astrostudy/xuanshi/celestial.py" 2>/dev/null \
   && grep -q "(sm.total || 0) > MICRO_RENDER_LIMIT" "${S287_UI}/components/xuanshi/XuanShiMicro.js" 2>/dev/null || { bad "[${PF_NO}] 🔴 天象微年表截断接线不全"; S287_BAD=1; }
 grep -q "profGrain: record.profGrain," "$(pf_src_set "${S287_UI}/utils/aiAnalysisContext.js")" 2>/dev/null && grep -q "profStart: record.profStart," "$(pf_src_set "${S287_UI}/utils/aiAnalysisContext.js")" 2>/dev/null \
-  && grep -q "installFixedNow('2026-09-26T12:00:00+08:00');" "${S287_UI}/utils/__tests__/mountSettingsDiffAll.test.js" 2>/dev/null || { bad "[${PF_NO}] 🔴 小限摘要粒度 / 起点挂载接线或差分测试钉此刻缺失"; S287_BAD=1; }
+  && grep -q "installFixedNow('2026-09-26T12:00:00+08:00');" "${S287_UI}/utils/__tests__/mountSettingsDiffAllSuite.js" 2>/dev/null || { bad "[${PF_NO}] 🔴 小限摘要粒度 / 起点挂载接线或差分测试钉此刻缺失"; S287_BAD=1; }
 grep -q "horosa_response_order_v1" "${S287_TD}" 2>/dev/null && grep -q "new LinkedHashMap<String, Object>()" "${S287_TD}" 2>/dev/null \
   && [ "$(grep -c 'newResponseMap()' "${S287_TD}" 2>/dev/null)" -ge 6 ] || { bad "[${PF_NO}] 🔴 TransData 响应表未保序(线程本地 HashMap 扩容史决定顶层键序)"; S287_BAD=1; }
 grep -q 'data.get("slimClassics")' "${S287_W}/astropy/websrv/webwangjisrv.py" 2>/dev/null || { bad "[${PF_NO}] 🔴 皇极典籍按需:服务端缺 slimClassics 开关"; S287_BAD=1; }
 grep -q 'limit=_int(d, "limit")' "${S287_W}/astropy/websrv/webxuanshisrv.py" 2>/dev/null || { bad "[${PF_NO}] 🔴 微年表截断:服务端缺 limit 参数"; S287_BAD=1; }
-grep -q "HOROSA_DIFFNET_DEAD_DUMP_DIR" "${S287_UI}/utils/__tests__/mountSettingsDiffAll.test.js" 2>/dev/null || { bad "[${PF_NO}] 🔴 挂载差分测试缺判死落盘(HOROSA_DIFFNET_DEAD_DUMP_DIR)"; S287_BAD=1; }
+grep -q "HOROSA_DIFFNET_DEAD_DUMP_DIR" "${S287_UI}/utils/__tests__/mountSettingsDiffAllSuite.js" 2>/dev/null || { bad "[${PF_NO}] 🔴 挂载差分测试缺判死落盘(HOROSA_DIFFNET_DEAD_DUMP_DIR)"; S287_BAD=1; }
 [ "${S287_BAD}" = "0" ] && ok "[${PF_NO}] 响应保序 + 黄历懒算 + 皇极典籍按需 + 微年表截断 + 小限齿轮接线 + 差分测试钉此刻 + 回归测试在场"
 }
 

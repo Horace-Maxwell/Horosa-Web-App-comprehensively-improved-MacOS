@@ -326,7 +326,7 @@ class BaZiAppInfoPanel extends Component{
 						const gan = pgan(p);
 						const zhi = pzhi(p);
 						if(!gan && !zhi){ return null; }
-						const gods = filterShenShaByGroups(calcFlowShenSha(four, gan, zhi), this.props.shenshaGroups);
+						const gods = filterShenShaByGroups(calcFlowShenSha(four, gan, zhi, { tianyiSchool: this.props.tianyiSchool }), this.props.shenshaGroups);
 						return <p key={label}><span className="horosa-bazi-flow-key">{label}<b>{gan}{zhi}</b></span><span className="horosa-bazi-flow-gods">{gods.length ? gods.join('、') : '—'}</span></p>;
 					}) : <p className="horosa-bazi-flow-empty">在下方大运/流年/流月/流日栏点选，查看其神煞。</p>}
 				</div>

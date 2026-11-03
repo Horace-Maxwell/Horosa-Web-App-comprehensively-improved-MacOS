@@ -4,6 +4,7 @@
 # 用法: run_release_baseline.sh [--only cargo_fmt,cargo_test,pytest,mvn,jest_full]
 #   日志 build/release-baseline/<套件>.log;戳 build/release-baseline.json(每条套件各自落,HEAD 变了自动重开)。
 # 环境:HOROSA_BASELINE_JEST_WORKERS(缺省 8)· HOROSA_BASELINE_PYTHON(缺省内嵌 runtime/mac/python,无则 python3)
+#      · HOROSA_BASELINE_JEST_FULL=1(全量 jest 不复用重套件,全部真跑;缺省按依赖闭包复用,见 jest_heavy_reuse.js 头注)
 set -uo pipefail
 INSTALLER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "${INSTALLER_ROOT}/.." && pwd)"
@@ -101,8 +102,10 @@ if want mvn; then
   fi
 fi
 if want jest_full; then
-  L="${LOGDIR}/jest_full.log"
-  ( cd "${REPO_ROOT}/Horosa-Web/astrostudyui" && ./node_modules/.bin/umi-test --maxWorkers="${HOROSA_BASELINE_JEST_WORKERS:-8}" ) > "${L}" 2>&1; RC=$?
-  stamp jest_full "${RC}" "$(grep -a -E '^(Test Suites|Tests):' "${L}" | tr '\n' ' ')" "${L}"
+  # 全量 jest 经重套件复用器跑(jest_heavy_reuse.js):登记表里的重套件(择日压测 / 全谱差分闸分片)依赖闭包内容与上次通过时
+  #   逐字相同、且不超过有效期 → 复用上次的通过结果;每族每次仍轮换真跑一片。HOROSA_BASELINE_JEST_FULL=1 = 全部真跑。
+  L="${LOGDIR}/jest_full.log"; JSUM="${LOGDIR}/jest_heavy_reuse.summary"; rm -f "${JSUM}"
+  ( cd "${REPO_ROOT}/Horosa-Web/astrostudyui" && node "${INSTALLER_ROOT}/scripts/jest_heavy_reuse.js" run --ui "${REPO_ROOT}/Horosa-Web/astrostudyui" --state "${LOGDIR}/jest-heavy-reuse.json" --summary-out "${JSUM}" -- --maxWorkers="${HOROSA_BASELINE_JEST_WORKERS:-8}" ) > "${L}" 2>&1; RC=$?
+  stamp jest_full "${RC}" "$(grep -a -E '^(Test Suites|Tests):' "${L}" | tr '\n' ' ')$(cat "${JSUM}" 2>/dev/null)" "${L}"
 fi
 echo "== 基线戳:"; /usr/bin/python3 "${STAMP}" check --repo "${REPO_ROOT}"; exit $?

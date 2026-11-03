@@ -1,16 +1,17 @@
-import { Component } from 'react';
-import { Row, Col, Divider } from 'antd';
-import { XQSelect as Select, XQTabs as Tabs } from '../xq-ui';
+import React, { Component } from 'react';
+import { Row, Col} from 'antd';
+import { XQSelect as Select } from '../xq-ui';
 import AstroChart from './AstroChart';
 import AstroDoubleChart from './AstroDoubleChart';
 import AstroDirectionForm from './AstroDirectionForm';
+import { pointName } from '../../utils/directedFigures';
+import { SideColumn, SidePanelHead, AspectTable, WheelSplit, FillCard } from './progPageLayout';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import * as AstroHelper from './AstroHelper';
 import request from '../../utils/request';
 import * as Constants from '../../utils/constants';
-import { randomStr, convertToArray} from '../../utils/helper';
-import styles from '../../css/styles.less';
+import { convertToArray} from '../../utils/helper';
 import DateTime from '../comp/DateTime';
 import { returnPickerSeed } from '../../utils/returnPickerSeed';
 import { saveModuleAISnapshotLazy, saveModuleAISnapshot, } from '../../utils/moduleAiSnapshot';
@@ -19,11 +20,10 @@ import { appendPlanetHouseInfoById, splitPlanetHouseInfoText, } from '../../util
 import UpdatingBadge from '../common/UpdatingBadge';
 import { natalSourceKey, pickKeyedDerived } from '../../utils/derivedChartSource';
 import { silentTechniquePanelsEnabled } from '../../utils/perfFlags';
-import { natalClassicalParams, transitOrbDefault } from './AstroExtraCommon';
+import { natalClassicalParams, transitOrbDefault, followTransitOrb } from './AstroExtraCommon';
 import { pruneStaleClassicalParams } from '../../utils/classicalChartGlobals';
 import { DIRECTION_PAGE_SETTINGS } from '../../utils/directionPageSettings';
 
-const TabPane = Tabs.TabPane;
 const Option = Select.Option;
 
 class AstroGivenYear extends Component{
@@ -38,7 +38,6 @@ class AstroGivenYear extends Component{
 		this.requestDirection = this.requestDirection.bind(this);
 		this.genNatalParams = this.genNatalParams.bind(this);
 		this.requestData = this.requestData.bind(this);
-		this.genAspectDom = this.genAspectDom.bind(this);
 		this.changeDblChartType = this.changeDblChartType.bind(this);
 		this.renderPlanetLabel = this.renderPlanetLabel.bind(this);
 		this.handleSnapshotRefreshRequest = this.handleSnapshotRefreshRequest.bind(this);
@@ -277,79 +276,6 @@ class AstroGivenYear extends Component{
 		});
 	}
 
-	genAspectDom(){
-		if(this.shownDirChart() === undefined || this.shownDirChart() === null){
-			return null;
-		}
-
-		let aspects = this.shownDirChart().chart.aspects;
-		let divs = [];
-		for(let i=0; i<aspects.length; i++){
-			let obj = aspects[i];
-			if(obj.objects.length === 0){
-				continue;
-			}
-			let coldivs = [];
-			let natalObjs = obj.objects;
-			for(let j=0; j<natalObjs.length; j++){
-				let natalObj = natalObjs[j];
-				let asp = natalObj.aspect;
-				let dom = (
-					<div key={natalObj.natalId + j}>
-						<span style={{fontFamily: AstroConst.AstroFont}}>&emsp;{AstroText.AstroMsg['Asp' + asp]}&nbsp;</span>
-						<span>{this.renderPlanetLabel(this.props.value, natalObj.natalId)}&nbsp;</span>
-						<span style={{fontFamily: AstroConst.NormalFont}}>
-							误差{Math.round(natalObj.delta * 1000)/1000}
-						</span>
-					</div>
-				);
-				coldivs.push(dom);
-			}
-			let domtitle = (
-				<Col key={i} span={12}>
-					<div>
-						<span style={{fontFamily: AstroConst.NormalFont}}>行运&nbsp;</span>
-						<span>{this.renderPlanetLabel(this.shownDirChart(), obj.directId)}</span>
-					</div>
-					{coldivs}
-				</Col>
-			);
-			divs.push(domtitle);
-		}
-
-		let rows = [];
-		let cols = [];
-		for(let i=0; i<divs.length; i++){
-			if(i % 2 === 0){
-				if(i > 0){
-					let dom = (
-						<div key={`s1-${i}`}>
-							<Row>
-								{cols}
-							</Row>
-							<Divider dashed />
-						</div>
-					);	
-					rows.push(dom);		
-				}
-				cols = [];
-			}
-			cols.push(divs[i]);
-		}
-		rows.push((
-			<Row key={randomStr(8)}>
-				{cols}
-			</Row>
-		));
-
-		let dom = (
-			<div className="horosa-givenyear-aspect-list">
-				{rows}
-			</div>
-		);
-		return dom;
-	}
-
 	changeDblChartType(value){
 		DIRECTION_PAGE_SETTINGS.save({ givenYearInverse: value });
 		this.setState({
@@ -391,6 +317,7 @@ class AstroGivenYear extends Component{
 
 	componentDidMount(){
 		this.unmounted = false;
+		this._detachTransitOrb = followTransitOrb(this);
 		if(typeof window !== 'undefined'){
 			window.addEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		}
@@ -399,6 +326,7 @@ class AstroGivenYear extends Component{
 
 	componentWillUnmount(){
 		this.unmounted = true;
+		if(this._detachTransitOrb){ this._detachTransitOrb(); }
 		if(typeof window !== 'undefined'){
 			window.removeEventListener('horosa:refresh-module-snapshot', this.handleSnapshotRefreshRequest);
 		}
@@ -474,7 +402,6 @@ class AstroGivenYear extends Component{
 		};
 		let fieldsary = convertToArray(fields);
 
-		let aspdom = this.genAspectDom();
 
 		let height = this.props.height ? this.props.height : 760;
 		let style = {
@@ -483,77 +410,94 @@ class AstroGivenYear extends Component{
 			overflowX:'hidden',
 		};
 		let chartHeight = height - 50;
+		const chartView = this.state.chartView || 'doublechart';
 
 		return (
 			<div className="horosa-givenyear-page">
-				<Row className="horosa-givenyear-layout" gutter={6}>
-					<Col className="horosa-givenyear-chart-panel" span={17}>
-						{/* keep-stale 角标:重取期间旧盘留在盘面,右上角提示「更新中…」;首次加载(无旧盘)不显示 */}
-						<div style={{ position: 'relative' }}>
-						{this.state.updating && this.shownDirChart() ? <UpdatingBadge /> : null}
-						<Tabs
-							defaultActiveKey='doublechart' tabPosition='bottom'
-							style={{ height: height }}
-						>
-							<TabPane tab="天象盘" key="singlechart">
-									<AstroChart value={rChart} 
-										wheelArt={this.props.wheelArt}
-										chartDisplay={this.props.chartDisplay}
-										planetDisplay={this.props.planetDisplay}
-										lotsDisplay={this.props.lotsDisplay}
-										showAstroMeaning={this.props.showAstroMeaning}
-										height={chartHeight}
-									/>
-							</TabPane>
-							<TabPane tab="原命盘" key="nautalchart">
-									<AstroChart value={chartObj.natualChart} 
-										wheelArt={this.props.wheelArt}
-										chartDisplay={this.props.chartDisplay}
-										planetDisplay={this.props.planetDisplay}
-										lotsDisplay={this.props.lotsDisplay}
-										showAstroMeaning={this.props.showAstroMeaning}
-										height={chartHeight}
-									/>
-							</TabPane>
-							<TabPane tab="对比盘" key="doublechart">
-									<AstroDoubleChart value={chartObj} 
-										height={chartHeight}
-										planetDisplay={this.props.planetDisplay}
-										lotsDisplay={this.props.lotsDisplay}
-										chartDisplay={this.props.chartDisplay}
-										showAstroMeaning={this.props.showAstroMeaning}
-									/>
-							</TabPane>
-						</Tabs>
-						</div>
+				{/* 盘大小与右栏宽度与星运其它带盘页同一套算法(progPageLayout.WheelSplit) */}
+				<WheelSplit style={{ height: height - 10 }} renderWheel={(wheelSize, wheelH)=>(
+					<div style={{ width: wheelSize, height: wheelH }}>
+							{/* keep-stale 角标:重取期间旧盘留在盘面,右上角提示「更新中…」;首次加载(无旧盘)不显示 */}
+							<div style={{ position: 'relative' }}>
+							{this.state.updating && this.shownDirChart() ? <UpdatingBadge /> : null}
+							{/* 各盘由右栏「显示」切换,只画选中的那张,盘按满高(此前盘下一排页签把盘压矮) */}
+							{chartView === 'singlechart' ? (
+								<AstroChart value={rChart} 
+								wheelArt={this.props.wheelArt}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								height={wheelH}
+								/>
+							) : chartView === 'nautalchart' ? (
+								<AstroChart value={chartObj.natualChart} 
+								wheelArt={this.props.wheelArt}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								height={wheelH}
+								/>
+							) : chartView === 'doublechart' ? (
+								<AstroDoubleChart value={chartObj} 
+								height={wheelH}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								chartDisplay={this.props.chartDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+								/>
+							) : null}
+							</div>
 
-					</Col>
-					<Col className="horosa-givenyear-side-panel" span={7}>
-						<div className={`${styles.scrollbar} horosa-givenyear-side-scroll`} style={style}>
-							<Row>
-								<Col span={24}>
-									<AstroDirectionForm {...fields}
-										fieldsAry={fieldsary}
-										geo={true}
-										ignoreNodeRetrograde={true}
-										onFieldsChange={this.fieldsChanged}
-										onSubmit={this.submit}
-									/>
-								</Col>
-							</Row>
-							<Row className="horosa-givenyear-inverse-row">
-								<Col span={24}>
-									<Select className="horosa-givenyear-inverse-select" value={this.state.inverse} onChange={this.changeDblChartType} style={{width: "100%"}}>
-										<Option value={true}>天象盘在内盘</Option>
-										<Option value={false}>原命盘在内盘</Option>
-									</Select>
-								</Col>
-							</Row>
-							<Divider orientation="left" style={{marginTop: 10}}>相位</Divider>
-							{aspdom}
-						</div>
-					</Col>
-				</Row>
+					</div>
+				)} side={(
+					<React.Fragment>
+							{/* 右栏与星运其它带盘页同一个件:固定头(时间与设置,不随滚动)+ 下半整体滚动;顶部留安全距离 */}
+							<SideColumn style={{ height: '100%' }} className="horosa-givenyear-side-scroll" head={(
+								<div>
+									<SidePanelHead title="流年法" desc="所选时刻的天象盘与本命对照;地点可改为当时所在地。" />
+									<Row>
+										<Col span={24}>
+											<AstroDirectionForm {...fields}
+											settingsTitle="流年设置"
+											geoLabel="天象盘地点"
+												fieldsAry={fieldsary}
+												geo={true}
+												ignoreNodeRetrograde={true}
+												extraControls={(
+												<React.Fragment>
+												<Col span={12}>
+													<div className="horosa-balbillus-label">显示</div>
+													<Select value={chartView} onChange={(v)=>this.setState({ chartView: v })} style={{ width: '100%' }}>
+														<Option value="singlechart">天象盘</Option>
+														<Option value="nautalchart">原命盘</Option>
+														<Option value="doublechart">对比盘</Option>
+													</Select>
+												</Col>
+												<Col span={12} title={(this.state.chartView || 'doublechart') === 'doublechart' ? undefined : '只在「对比盘」视图里生效'}>
+														<div className="horosa-balbillus-label">内外盘</div>
+														{/* 内外圈只在对比盘(双圈)里画得出来;单盘视图下置灰,免得拨了没反应 */}
+														<Select className="horosa-givenyear-inverse-select" value={this.state.inverse} onChange={this.changeDblChartType} disabled={(this.state.chartView || 'doublechart') !== 'doublechart'} style={{width: "100%"}}>
+															<Option value={true}>天象盘在内盘</Option>
+															<Option value={false}>原命盘在内盘</Option>
+														</Select>
+													</Col>
+												</React.Fragment>
+											)}
+												onFieldsChange={this.fieldsChanged}
+												onSubmit={this.submit}
+											/>
+										</Col>
+									</Row>
+								</div>
+							)}>
+								<FillCard grow title="相位">
+									<AspectTable chart={this.shownDirChart()} moverTitle="流年星" renderPoint={(id, side)=>(<span style={{ whiteSpace: 'nowrap' }}>{this.renderPlanetLabel(side === 'dir' ? this.shownDirChart() : this.props.value, id)} {pointName(id)}</span>)} />
+								</FillCard>
+							</SideColumn>
+					</React.Fragment>
+				)} />
 			</div>
 		)
 	}

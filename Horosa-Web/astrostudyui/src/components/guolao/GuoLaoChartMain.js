@@ -54,7 +54,7 @@ import {
 	qizhengKinReadingBadge, hasUnverifiedMoiraPatternSource, isIncompleteMoiraRules, moiraStyleLevelMeta,
 	applyMoiraStyleLevel, joinNames, joinMoiraYearItems,
 } from './main/format';
-import { buildAspectRows, clonePlain, applyGuolaoNodeMode, hasGuolaoRiseSetFields } from './main/aspectsNodeMode';
+import { buildGuolaoAspectRows, clonePlain, applyGuolaoNodeMode, hasGuolaoRiseSetFields } from './main/aspectsNodeMode';
 import { GUOLAO_SU28_CACHE_REV, guolaoMem, pushCache, buildGuolaoKey, isChartObjMatchParams, isChartObjSameNatal, fetchGuolaoChartCached } from './main/chartCache';
 import { computeGuolaoSeedPatch, fieldsToParams, makeDefaultMoiraTransitTime, paramsWithMoiraTransit } from './main/params';
 import {
@@ -1436,7 +1436,8 @@ class GuoLaoChartMain extends Component{
 	}
 
 	renderQuickAspects(){
-		const rows = buildAspectRows(this.state.chartObj && this.state.chartObj.aspects);
+		// 与盘上的相位连线同一单源:七政相位、跟左栏相位药丸与容许度、隐藏的曜不列
+		const rows = buildGuolaoAspectRows(this.state.chartObj && this.state.chartObj.chart, this.state.guolaoDisplay);
 		return (
 			<div className="horosa-guolao-quick-dialog">
 				{this.renderMoiraSection('相位列表', rows.length ? (
@@ -1454,7 +1455,7 @@ class GuoLaoChartMain extends Component{
 							</div>
 						))}
 					</div>
-				) : this.renderMoiraEmpty('当前七政盘没有返回可列出的相位数据。'))}
+				) : this.renderMoiraEmpty('按当前勾选的相位与容许度,本盘没有成相位的星曜对。'))}
 			</div>
 		);
 	}

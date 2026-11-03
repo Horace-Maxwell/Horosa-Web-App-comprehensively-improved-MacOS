@@ -185,10 +185,14 @@ pf_need "${S260_UI}/components/comp/QuickTimeField.js" "export class TimeFieldTr
 pf_need "${S260_UI}/components/comp/QuickTimeField.js" "export class QuickTimeInput" "表单快捷输入件缺失"
 pf_need "${S260_UI}/components/comp/QuickTimeField.js" "onDoubleClick={this.startEdit}" "双击进入键入态的接线缺失"
 pf_none "${S260_UI}/components/comp/QuickTimeField.js" "maxLength" "输入框不得设 maxLength(粘贴带分隔符时间会先被截断)"
-for f in comp/SpaceTimePanel.js astro/AstroChartMain.js divination/DivinationChartShell.js horary/HoraryMain.js mundane/MundaneMain.js; do
+for f in astro/AstroChartMain.js divination/DivinationChartShell.js horary/HoraryMain.js mundane/MundaneMain.js; do
   pf_need "${S260_UI}/components/${f}" "<TimeFieldTrigger" "${f} 未走共享触发件"
   pf_none "${S260_UI}/components/${f}" "content={timeEditor}" "${f} 仍有手抄 Popover 时间块"
 done
+# 左栏「时间与地点」改走紧凑时间块(与星运各页右上角同一个件);紧凑时间块自身必须包共享触发件 —— 双击键入经它一条链不断
+pf_need "${S260_UI}/components/comp/SpaceTimePanel.js" "<CompactTimeField" "comp/SpaceTimePanel.js 未走紧凑时间块"
+pf_none "${S260_UI}/components/comp/SpaceTimePanel.js" "content={timeEditor}" "comp/SpaceTimePanel.js 仍有手抄 Popover 时间块"
+pf_need "${S260_UI}/components/comp/CompactTimeField.js" "<TimeFieldTrigger" "紧凑时间块未走共享触发件(左栏 / 星运各页的双击键入会断)"
 for f in user/ChartData.js user/CaseData.js comp/ChartFormData.js; do pf_need "${S260_UI}/components/${f}" "<QuickTimeInput" "${f} 缺快捷输入行"; done
 pf_need "${S260_UI}/components/user/CaseData.js" "起课时间：" "起课表单标签未改名"
 pf_none "${S260_UI}/components/user/CaseData.js" "起课事件：" "起课表单旧标签残留"

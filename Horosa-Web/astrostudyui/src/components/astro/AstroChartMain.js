@@ -514,11 +514,11 @@ class AstroChartMain extends Component{
 				{relCtx ? (
 				<div className="horosa-chart-mode-switch">
 					<button type="button" onClick={()=>this.navigateFeature('astrochart')}>单盘</button>
-					<button type="button" className="is-active">多盘</button>
+					<button type="button" className="is-active" aria-current="page">多盘</button>
 				</div>
 				) : (
 				<div className="horosa-chart-mode-switch">
-					<button type="button" className="is-active">单盘</button>
+					<button type="button" className="is-active" aria-current="page">单盘</button>
 					<button type="button" onClick={()=>this.navigateFeature('relativechart')}>多盘</button>
 				</div>
 				)}
