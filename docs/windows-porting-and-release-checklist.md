@@ -791,6 +791,18 @@ Windows 版完成的定义不是“能打开”，而是：
 ### macOS 独有(Windows 无对应动作)
 - 安装 / 更新后原生库首次加载预检(`config/native_prewarm_priority.json`、`installer-scripts/postinstall.template`、壳子命令 `--horosa-native-prewarm`)、增量更新暂存槽硬链接搭 + 换完即预检(Windows 的差分更新按文件树下载、不走整棵克隆)、签名缓存自动种子与稳定部件对拍(`prepare_sign_seed.py` / `verify_stable_parts_headers.py`)。
 
+## v3.13.2 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.13.2` / `runtimeVersion` = `3.13.2-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 共享前端 · 启动就绪门
+- `utils/backendBootGate.js`:早导航(URL 带 `early=1`)时,发往后端的请求要等后端根与 URL 的 `chartSrv` 根都应答才放行;已应答的根记账,只探未起的;兜底放行时限不变。直接发往排盘引擎的请求只等引擎。
+- Windows 壳若有提前进入界面的启动序,启动 URL 需带 `chartSrv`;没带时退回只等后端(行为与上一版相同)。
+
+### 真机验收
+- 软件内更新后的第一次启动:首页盘直接出,不再报「排盘错误 / 连不上引擎」。
+
 ## v3.13.1 同步要点(Mac 已落地,Windows 按此对齐)
 
 ### 版本 lockstep
