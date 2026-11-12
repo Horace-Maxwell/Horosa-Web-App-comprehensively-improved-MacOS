@@ -858,9 +858,10 @@ done
 grep -qF 'def cnTimeRounded(tm):' "${S302_PY}/astrostudy/jieqi/jieqiconst.py" 2>/dev/null \
   && [ "$(grep -cF 'jieqiconst.cnTimeRounded(newtm)' "${S302_PY}/astrostudy/jieqi/BirthJieQi.py" 2>/dev/null)" -ge 3 ] \
   && [ "$(grep -cF 'jieqiconst.cnTimeRounded(newtm)' "${S302_PY}/astrostudy/jieqi/YearJieQi.py" 2>/dev/null)" -ge 2 ] || { bad "[${PF_NO}] 🔴 节气时刻显示不再四舍五入到秒"; S302_BAD=1; }
-[ "$(grep -cF 'params.put("_v", "w5");' "${S302_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/AstroHelper.java" 2>/dev/null)" -ge 2 ] \
-  && grep -qF 'params.put("_v", "w6");' "${S302_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/AstroHelper.java" 2>/dev/null \
-  && [ "$(grep -cF 'params.put("_v", "w5");' "${S302_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/BaZiHelper.java" 2>/dev/null)" -ge 2 ] \
+# (出生盘卯时「按赤经」口径:出生节气 JieQiBirth 与 BaZiHelper 两处升 w6;年度节气表 JieQiYear 不涉卯时仍 w5)
+[ "$(grep -cF 'params.put("_v", "w5");' "${S302_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/AstroHelper.java" 2>/dev/null)" -ge 1 ] \
+  && [ "$(grep -cF 'params.put("_v", "w6");' "${S302_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/AstroHelper.java" 2>/dev/null)" -ge 2 ] \
+  && [ "$(grep -cF 'params.put("_v", "w6");' "${S302_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/BaZiHelper.java" 2>/dev/null)" -ge 2 ] \
   && [ "$(grep -cF 'w6", date, zone);' "${S302_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/AstroCacheHelper.java" 2>/dev/null)" -ge 2 ] || { bad "[${PF_NO}] 🔴 节气 / 农历请求缓存代次未升级(老缓存会返回晚 12 秒的交节)"; S302_BAD=1; }
 # ④ 农历按北京时间编算的农历表、以出生地日期查;月末换月东八区原逻辑、其他时区只比日期;朔时刻标北京时间
 [ "$(grep -cF 'getNongliMonths(year, NONGLI_TABLE_ZONE, ctx);' "${S302_NL}" 2>/dev/null)" = "1" ] \
@@ -977,7 +978,7 @@ fi
 seg_33() {
 # [33] 主限法方位+时间补全·strategy 分发完整性 + 前端选项扩 (含铺满/盘宫制/label 收口)
 #  - perchart.py: pdMethod 白名单与本仓核验集一致 + pdDirect 解析
-#  - 前端 primaryDirectionSync.js: PD_SYNC_REV = 'pd_method_sync_v26' + SUPPORTED_PD_METHODS(核验集)
+#  - 前端 primaryDirectionSync.js: PD_SYNC_REV = 'pd_method_sync_v28' + SUPPORTED_PD_METHODS(核验集)
 #  - 后端 helper.py / webchartsrv.py: PD_SYNC_REV 对齐 v10(否则新盘恒误判重算)
 #  - pd_engine.py: build_directions + solar_arc_for_years(真太阳弧动态钥匙逆函数)
 #  - 表格工具栏单行(无 advanced 第二行,不遮表格);TabPane 名「主限法」
@@ -988,8 +989,8 @@ PD33_BAD=0
 PERCHART="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/perchart.py")"
 PD_SYNC="${UISRC}/utils/primaryDirectionSync.js"
 if [ -f "${PD_SYNC}" ]; then
-  if ! grep -q "pd_method_sync_v26" "${PD_SYNC}"; then
-    bad "[33] primaryDirectionSync.js PD_SYNC_REV 未升到 'pd_method_sync_v26' —— 旧缓存不重算,新 方位法/世俗/顺逆/真太阳弧 不生效"
+  if ! grep -q "pd_method_sync_v28" "${PD_SYNC}"; then
+    bad "[33] primaryDirectionSync.js PD_SYNC_REV 未升到 'pd_method_sync_v28' —— 旧缓存不重算,新 方位法/世俗/顺逆/真太阳弧 不生效"
     PD33_BAD=1
   fi
   if ! grep -q "SUPPORTED_PD_METHODS" "${PD_SYNC}"; then
@@ -1003,7 +1004,7 @@ if [ -f "${PD_SYNC}" ]; then
 fi
 # v10:后端 PD_SYNC_REV 必须与前端一致(均 v10),否则每张新盘首查都误判需重算
 for f in "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/helper.py" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"; do
-  [ -f "$f" ] && { grep -q "pd_method_sync_v26" "$f" || { bad "[33] 后端 $(basename $f) PD_SYNC_REV 未对齐到 v11(与前端不一致→新盘恒误判重算)"; PD33_BAD=1; }; }
+  [ -f "$f" ] && { grep -q "pd_method_sync_v28" "$f" || { bad "[33] 后端 $(basename $f) PD_SYNC_REV 未对齐到 v28(与前端不一致→新盘恒误判重算)"; PD33_BAD=1; }; }
 done
 # perchart 白名单含上面同一组方位法 + pdDirect 解析存在(顺逆同选)
 if [ -f "${PERCHART}" ]; then
@@ -1037,11 +1038,11 @@ if [ -f "${PD_CTRL}" ]; then
   for p in pdDirect pdConverse pdAntiscia pdTerms; do
     grep -q "\"${p}\"" "${PD_CTRL}" || { bad "[33] PredictiveController.java getParams 未透传 '${p}' —— 前端选项到不了 Python(ParamHashCache 还会致顺逆同缓存,选了没用),须补 params.put + 重编 jar"; PD33_BAD=1; }
   done
-  # 单源化后控制器不再含字面量:判「引用 PdWire.REV」且「PdWire 定义 = v15」(旧判据只认字面量→误红)
+  # 单源化后控制器不再含字面量:判「引用 PdWire.REV」且「PdWire 定义 = 当前代次」(旧判据只认字面量→误红)
   if ! grep -q "PdWire.REV" "${PD_CTRL}"; then
     bad "[33] PredictiveController.java _wireRev 未引用 PdWire.REV(缓存盐单源破)"; PD33_BAD=1
-  elif ! grep -q "pd_method_sync_v26" "${REPO_ROOT}/Horosa-Web/astrostudysrv/basecomm/src/main/java/spacex/basecomm/constants/PdWire.java"; then
-    bad "[33] PdWire.REV 未升 v15 —— 旧 ParamHashCache 哈希不失效,新参可能读到旧缓存"; PD33_BAD=1
+  elif ! grep -q "pd_method_sync_v28" "${REPO_ROOT}/Horosa-Web/astrostudysrv/basecomm/src/main/java/spacex/basecomm/constants/PdWire.java"; then
+    bad "[33] PdWire.REV 未升 v28 —— 旧 ParamHashCache 哈希不失效,新参可能读到旧缓存"; PD33_BAD=1
   fi
 fi
 PD_CHART="${UISRC}/components/astro/AstroPrimaryDirectionChart.js"

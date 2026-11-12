@@ -737,7 +737,11 @@ grep -aq "case 'zeri':" "$(pf_src_set "${S186_UI}/src/utils/aiExport.js")" 2>/de
 grep -aq "this.scope = props.techniqueScope || 'qimen';" "${S186_UI}/src/components/dunjia/DunJiaMain.js" 2>/dev/null || { bad "[186] 🔴 DunJiaMain techniqueScope 默认锚缺失"; S186_BAD=1; }
 S186_HARD=$(grep -ac "saveModuleAISnapshot('qimen'" "${S186_UI}/src/components/dunjia/DunJiaMain.js" 2>/dev/null || true)
 [ "${S186_HARD}" = "0" ] || { bad "[186] 🔴 DunJiaMain 出现硬编码 qimen 快照槽(${S186_HARD} 处;scope 化被回潮=双实例竞写复发)"; S186_BAD=1; }
-grep -aq "horosa-zeri-host .horosa-dunjia-redesign" "$(pf_src_set "${S186_UI}/src/layouts/app.less")" 2>/dev/null || { bad "[186] 🔴 zeri 页 dunjia dock 行样式条缺失(底部 64px 空带回归)"; S186_BAD=1; }
+# 奇门择日与其余择日页签一样带本技法的快捷栏:内嵌 DunJiaMain 不关坞(showQuickDock={false}),样式也不许再把 dock 行去掉
+# (关坞不去行 = 底部 64px 空带;去行不关坞 = 坞压在盘上 —— 两种都是回归)
+grep -aq "showQuickDock={false}" "${S186_UI}/src/components/zeri/QimenZeriMain.js" 2>/dev/null && { bad "[186] 🔴 奇门择日关了本技法快捷栏(与其余择日页签不一;旧版底部 64px 空带)"; S186_BAD=1; }
+grep -aq "horosa-zeri-host .horosa-dunjia-redesign .horosa-dunjia-redesign-layout" "$(pf_src_set "${S186_UI}/src/layouts/app.less")" 2>/dev/null && { bad "[186] 🔴 择日页又把奇门 dock 行去掉了(快捷栏在时坞压盘)"; S186_BAD=1; }
+grep -aq "<DunJiaMain" "${S186_UI}/src/components/zeri/QimenZeriMain.js" 2>/dev/null || { bad "[186] 🔴 奇门择日不再内嵌 DunJiaMain(上两条判据失据)"; S186_BAD=1; }
 # 通用扫描外壳「同四柱直算」铁律字面哨兵:红字注释被删 = 有人可能引 memo 优化
 grep -q "不做「按四柱/时辰 memo 求值」" "${S186_UI}/src/divination/zeri/hourlyScanEngine.js" 2>/dev/null \
   || { bad "[186] 🔴 通用扫描外壳「同四柱直算」铁律注释被删(memo 优化回潮风险)"; S186_BAD=1; }

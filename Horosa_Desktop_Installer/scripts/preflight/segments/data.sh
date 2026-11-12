@@ -162,6 +162,7 @@ ALLOW = {
   'components/sanshi/SanShiUnitedMain.js': 'owner: null',
   'components/xuanshi/XuanShiPersons.js': 'var(--horosa',
   'components/fengshui/FengShuiMain.js': 'new FengShuiEngine(canvas',
+  'components/planetarium/PlanetariumBabylon.js': 'measureCtx = canvas.getContext(',   # 纯天文星空,不随界面主题;2D 画布只离屏量名牌字宽
 }
 # 拆成子模块的大文件按一个整体普查(登记表 astrostudyui/scripts/source-sets.json):子模块折回门面、门面按全集读,判据口径与拆分前同
 try: SETS = json.load(open(os.path.join(src, '..', 'scripts', 'source-sets.json'), encoding='utf-8'))['sets']

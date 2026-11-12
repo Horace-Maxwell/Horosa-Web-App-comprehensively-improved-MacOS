@@ -1099,7 +1099,7 @@ Horosa-Web/astrostudyui/src/utils/aiTools/tools/castRelative.js|import { getPair
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/searchElection.js|import { runScan, MAX_SPAN_DAYS_TOTAL } from '../../../divination/zeri/scanOrchestrator';
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/listTasks.js|export function taskDetailText(d){
 Horosa-Web/astrostudyui/src/utils/__tests__/aiToolsExternalRead.test.js|关 ⇒ 三件不进 MCP 目录、直呼其名 E_TOOL_DISABLED
-Horosa-Web/astrostudyui/src/utils/__tests__/mcpHelpSkillsPrompts.test.js|两层页签的惰性项全部展开
+Horosa-Web/astrostudyui/src/utils/__tests__/mcpHelpSkillsPrompts.test.js|手册(HelpBook)的惰性各章全部展开
 Horosa-Web/astrostudyui/src/utils/__tests__/aiToolsCatalog.contract.test.js|判别向量:顶层禁键 / 写类嵌套 cid / 读类嵌套其它禁键 一律判红
 S314_EOF
 }
@@ -1899,7 +1899,7 @@ done
 [ "$(grep -acF "ledgerLost" "${S262_UI}/src/components/aianalysis/AgentActionBar.js")" != "0" ] || { bad "[${PF_NO}] 账本丢失未在动作条可见(D17)"; S262_BAD=1; }
 [ "$(grep -acF "agent_notify_command" "${S262_UI}/src/utils/aiAnalysisDesktop.js")" != "0" ] || { bad "[${PF_NO}] 页面侧无 list_changed 发射器(D18)"; S262_BAD=1; }
 [ "$(grep -acF "data-approval-scope=\"session\"" "${S262_UI}/src/components/aianalysis/AgentActionBar.js")" != "0" ] || { bad "[${PF_NO}] 审批行缺「本会话不再问」(P1)"; S262_BAD=1; }
-[ "$(grep -acF "<TabPane tab=\"进阶\"" "${S262_UI}/src/components/help/AIAnalysisHelpDoc.js")" != "0" ] || { bad "[${PF_NO}] 操作手册缺「进阶」页签(P2)"; S262_BAD=1; }
+grep -qE "<TabPane tab=\"进阶\"|label: '进阶'" "${S262_UI}/src/components/help/AIAnalysisHelpDoc.js" || { bad "[${PF_NO}] 操作手册缺「进阶」一章(P2)"; S262_BAD=1; }
 for S262_T in aiToolsManifestOrigins.contract aiAgentPolicyParity agentActionBarLedgerLost aiAgentNotify aiAgentSessionAllow; do [ -f "${S262_UI}/src/utils/__tests__/${S262_T}.test.js" ] || { bad "[${PF_NO}] 缺 ${S262_T}.test.js"; S262_BAD=1; }; done
 [ "$(grep -acF "checkResolvedAddresses" "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/OutboundUrlGuard.java")" -ge 2 ] || { bad "[${PF_NO}] 出站守卫未按解析结果再判(D21)"; S262_BAD=1; }
 [ "${S262_BAD}" = "0" ] && ok "[${PF_NO}] 策略双路径同源网:死导出零新增 / 桥合同齐 / D12–D18 负锚 / P1 P2 在位 / 五测在位 / 出站解析后判"

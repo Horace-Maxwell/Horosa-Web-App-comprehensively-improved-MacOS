@@ -11,12 +11,12 @@
 
 Three workspaces — **Fate (命) · Divination (卜) · Tools (工具)** — **26 primary disciplines, 60+ sub-techniques and schools** (full catalog in [What's Inside](#3-whats-inside))
 
-[![Version](https://img.shields.io/badge/version-3.13.2-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.13.2)
+[![Version](https://img.shields.io/badge/version-3.14.0-2ea043?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.14.0)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-dc2626?style=flat-square)](LICENSE)
-[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.13.2)
-[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.13.2)
+[![macOS](https://img.shields.io/badge/macOS%2012+-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.14.0)
+[![Signed & Notarized](https://img.shields.io/badge/Developer%20ID-signed%20%26%20notarized-1f6feb?style=flat-square)](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/tag/v3.14.0)
 
-[Download the installer](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.13.2/Horosa-Installer-macos-arm64-offline.pkg) ·
+[Download the installer](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.14.0/Horosa-Installer-macos-arm64-offline.pkg) ·
 [Chinese portal](README.md) ·
 [中文详版](README_ZH.md) ·
 [All releases](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases)
@@ -48,7 +48,7 @@ The goal: **stop hopping between a dozen single-purpose web chart calculators, a
 
 This repository is the macOS delivery of that app: the application source, the shared runtime, the Tauri desktop shell, and the release pipeline that turns all of it into a single `.pkg`.
 
-- **Current version**: 3.13.2 (runtime `3.13.2-runtime1`)
+- **Current version**: 3.14.0 (runtime `3.14.0-runtime1`)
 - **Platform**: macOS 12+ on Apple Silicon (`arm64`) only
 - **License**: AGPL-3.0-only
 
@@ -245,7 +245,7 @@ The Yi and the Three Formulae are more than independent tabs: Sanshi United is a
 
 Regular users should go straight to the offline installer and open Horosa like any other macOS app.
 
-**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.13.2/Horosa-Installer-macos-arm64-offline.pkg)**
+**[⬇︎ Horosa-Installer-macos-arm64-offline.pkg](https://github.com/Horace-Maxwell/Horosa-Web-App-comprehensively-improved-MacOS/releases/download/v3.14.0/Horosa-Installer-macos-arm64-offline.pkg)**
 
 Best for:
 

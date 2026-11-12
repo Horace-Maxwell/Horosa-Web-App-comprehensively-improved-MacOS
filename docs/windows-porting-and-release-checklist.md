@@ -791,6 +791,58 @@ Windows 版完成的定义不是“能打开”，而是：
 ### macOS 独有(Windows 无对应动作)
 - 安装 / 更新后原生库首次加载预检(`config/native_prewarm_priority.json`、`installer-scripts/postinstall.template`、壳子命令 `--horosa-native-prewarm`)、增量更新暂存槽硬链接搭 + 换完即预检(Windows 的差分更新按文件树下载、不走整棵克隆)、签名缓存自动种子与稳定部件对拍(`prepare_sign_seed.py` / `verify_stable_parts_headers.py`)。
 
+## v3.14.0 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.14.0` / `runtimeVersion` = `3.14.0-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 共享 Python(重打 Python 运行时)
+- 新模块:`astrostudy/timelord_tables.py`(时主轮转十二法)、`chart_details.py` / `chart_details_more.py`(占星细节 30 表)、`generalized_hours.py`、`mundane_cycles.py` / `meteorology.py` / `lunar_cycles.py`(世俗周期表)、`transform_charts.py`、`zodiac_systems.py` / `zodiac_data.py`、`zhufang_arts.py`、`babylon_tables.py`、`acg/eclipse_path.py`、`india/extra_tables.py` / `india/transit_events.py` / `india/yoga_rule_table.py`。
+- `websrv/webastroextrasrv.py` 新路由:`/astroextra/timelords` · `chartdetails` · `mundanecycles` · `transformchart` · `zodiacsystems` · `zhufang` · `babylontables` · `ashtakoota` · `transitevents`。
+- 主限法天顶赤经取真值(`flatlib-ctrad2` primarydirections 与 `pd_engine`):主限缓存代次 `pd_method_sync_v28`,前端 / `helper.py` / `webchartsrv.py` / Java `PdWire` 四处同值。
+- 出生节气卯时「按赤经」改为太阳赤经比东点赤经:出生节气缓存代次 `w6`(年度节气表仍 `w5`)。
+- `perpredict.py`:太阳返照所选年份的种子回退两天(返照落在生日钟面之前时不再跳到下一年)。
+- 量化盘:`germany/declination.py` 赤纬接触不再列南北交这一对定义对点,虚星赤纬读对象自带的本日真赤纬;`germany/coord_midpoint.py` 赤经 / 赤纬中点读各点已算好的赤经赤纬(恒星黄道下不再拿恒星黄经现算)。
+- 黄 → 赤换算统一用本日真黄赤交角:`astroextra_parts/progressions.py`(产前朔望判地平上下)、`election_scan.py` / `election_scan_ext.py`(择日得时的天顶赤经 = ARMC)。新测试 `tests/test_true_obliquity_consumers.py`。
+- 排盘内核:`perchart_parts/planets.py` 站心月每张盘只施一次(搬过点的盘重算不再盖回本命站心月);`perchart_parts/houses.py` 南半球读法先施站心月再整盘翻转,盘上记 `halfTurned`,宫头赤经赤纬先转回真黄经再换算;`perchart_parts/lots.py` 整星座投射重跑幂等;`thirteenthchart.py` 派生盘地平上下取本命;`flatlib-ctrad2/flatlib/chart.py` 的 `isDiurnal` 与 `copy` 认 `halfTurned`。新测试 `tests/test_relocated_chart_topo_moon.py`、`tests/test_south_chart_half_turn.py`。
+- 南半球读法 × 主限法 / 界推运 / 分配法:`perpredict.py` 开南半球读法的盘改在真黄经的孪生盘上算(`_pdTrue`),只有界按星座标签取;`termdirection.py` / `pd_engine.py` / `distributions.py` 新增转角入参,`flatlib/chart.py` 的 `copy()` 带 `labelTurn`,`flatlib/predictives/primarydirections.py` 的界点减去它。`directed_figures.py` 同理。不开南半球读法的盘逐字不变(540 例金标照旧)。
+- 恒星黄道:`flatlib/ephem/swe.py` 新 `equatorialFlags`(取赤经赤纬时去掉恒星标志,一律本日真春分点;`perchart.py` / `india/india_chart_kernel.py` / `perchart_parts/planets.py` 同用);`flatlib/ephem/tools.py` 紫气黄经在恒星盘减岁差;新模块 `germany/chart_objects.py`(量化盘虚星 / 宫位按本盘黄道制取,`midpoint.py` / `declination.py` / `davison.py` / `websrv/webgermanysrv.py` 都走它)。
+- 搬过点的盘:`perchart_parts/planets.py` 的 `markRelocated()` 同时冻结希腊点变体(`freezeLotVariants`,`lots.py` 认);`modern/chartcomposite.py` 其余希腊点取两盘短弧中点,`modern/chartsynastry.py` 取对方盘的;`india/varga.py` 重算前先冻;`thirteenthchart.py` 倍率用地心月速;骰子盘四轴与被挪星的赤经赤纬按新黄经重算。
+- 比较盘跨盘接触容许度 = 1° × 整体倍率(`modern/chartcomp.py` 的 `cross_orb`;`astroextra_parts/relative.py` 衰减按实际上限归一)。缺省倍率 1 回包逐字不变。
+- 新测试:`tests/test_relocated_chart_lots.py` · `test_cross_chart_orb_scale.py` · `test_rare_char_registry.py`;`test_south_chart_half_turn.py` / `test_angle_node_coordinates.py` / `test_germany_coord_midpoint.py` / `test_directed_figures.py` 加例。
+- 同步后跑一次 `tests/` 全量(新模块各有金标:`tests/data/golden_*.json`)。
+
+### 共享 Java(重建 jar)
+- `AstroExtraController` / `AstroHelper`:上面九个路由的转发与参数透传;`AcgController` 透传日食路径 `eclipse` / `eclipseFilter`;`PredictiveController` 透传 `persianYear`;`BaZiHelper` 出生节气缓存键 `_v=w6`;`PdWire` 主限代次同前端。漏登记的键会被白名单静默丢弃,前端选了也不生效。
+- `ParamHashCacheHelper`:结果缓存键(redis 键与本地文件名)并入 `RuntimeWire.RUNTIME_VERSION`,换了运行时版本后上一版留在盘上的结果不再命中(只进键、不进参数);`AstroHelper` 量化盘缓存代次 `_v=g3`、比较盘两条链 `_v=r3` / `q3`、`/jdn/date` 进程内记忆(只对 1582 年以前的日期生效,纯函数);`AstroExtraController.getRelativeParams` 放行 `orbs` / `orbScale`(不放行 = 关系量化不认容许度倍率)。缓存目录放在运行时目录之外的平台尤其要带上这一条。
+
+### 共享前端
+- 新页:星运「时主轮转」、占星右栏「细节」、辅盘「变换盘」「黄道制」、命 · 其他「东亚」「诸方」、世俗盘「周期表」、印占补充表 / 穿界表 / Ashtakoota、巴比伦「天象实算」、占星地图日食与气候带层。新增存储键(设置类、进备份):`horosa.astro.details.v1`、`horosa.dongya.settings.v1`、`horosa.zhufang.settings.v1`、`horosa.transform.settings.v1`、`horosa.zodiacsystems.settings.v1`、`horosa.india.tables.settings.v1`、`horosa.mundane.cycles.v1`、`horosa.suzhan.settings.v1`、`horosa.guolao.settings.v1`。
+- 帮助:全部改为「一页一本书」(`components/help/HelpBook.js` + 各 `*HelpDoc.js` 导出 `HELP_BOOK`),帮助弹窗按当前页签 / 子页签停在对应章节;`PageHeader` 帮助弹窗宽度取版面可用宽度。
+- 经纬度查找:`GeoCoordModal` 出口统一交真坐标(WGS84);高德 GCJ-02 只在地图组件里用于打点。Windows 若有自己的选点组件,出口同样交 `gpsLat / gpsLng` 作 lat / lng。
+- AI 导出:导出分派补全(东亚 / 诸方 / 择日各宿主);矢量 PDF 缺字换字(`aiExportPdfVector.js` 的 `pdfSafeText`,字体文件不变;零宽记号直接去掉、四字节字符按一个字);两张紧挨的表各成一表(判据单源 `mdTableParse.isNextTableStart`:规整分隔行 + 列数相同)。
+- 印度择日:内嵌印占页带 `snapshotScope='indiazeri'` 只写本宿主槽(印占全文 + 择时三段);导出段表 `AI_EXPORT_PRESET_SECTIONS.indiazeri` = 印占段 + 三段,自定义过的存档按 v65 窗并入印占段(`AI_EXPORT_V65_SECTION_UNION.indiazeri`)。
+- 印占穿界表:`indiaExtraTables.setIndiaTransitSnapshot(entry, birthSig)` 按出生时空分槽(最多 6 张),穿界表组件带 `snapshotScope` 请本宿主槽重存;无头 / 导出补段只在所选三项、起始日、岁差都与页面那张相同才复用。
+- 导出 / 存案前补算:`moduleSnapshotRefresh.prepareModuleSnapshot` 与 `settleWithin`(上限 30 秒);派生盘导出读模块快照前先补算。重置盘出盘即存,「盘面细节」「古典格局」按两个请求体作口径签名,盘面细节设置(页面保存后 `notifyChartDetailSettingsChanged` 广播 `horosa:chart-detail-settings-changed`)/ 恒星轨档(`horosa:classical-globals-changed`)/ 空亡古典义变了就重取重存。
+- 变换盘 / 黄道制无头复算结果进重算缓存(键含辅盘页那一项设置),同键并发共用在途请求。
+- 新文件:`utils/rareChars.js`(生僻字回退:运行时现量字库画不画得出,画不出才换通行写法或拆字;系统自带大字库的平台多数字照原样画,不用改表)、`utils/displayPrecision.js`(小数读数最多三位)、`utils/sameContent.js`(回访同内容不重画)、`utils/pageChartOrb.js`(页面快照的容许度签名,`app.js` 的 `onStateChange` 接线;`moduleAiSnapshot` 写 `orbSig`、`aiAnalysisContext/snapshotMatch.js` 复用前比对)、`components/planetarium/babylon/playbackHotkey.js`(天文馆空格键改在 document 捕获阶段监听;壳若自己拦空格需放行)。
+- `stepPrefetchArm.js` 的 `NO_ARM_TABS` 补不随全局时间步进的页(进页不再预取前后六张盘);`CompactTimeField` / `PlusMinusTime` 新增 `showTime` 入参;横排页签溢出改渐隐(`components/xq-ui/styles.less`);`xq-icons` 新增升降 / 展开图标。
+- `utils/aiExport/contextResolve.js`:小六壬 / 星运推运 / 八字规则三页的页面导出各认各的技法;`aiExport/meaning.js` 六壬注释认表格行;`aiExport/presets.js` 新 `AI_EXPORT_MEANING_ONLY_TECHNIQUES`(十六个技法不再列「星曜后天信息」两项);`astro/progPageLayout.js` 星运带盘页右栏小窗口兜底(每卡下限 + 整列可滚);`xq-ui/styles.less` 搜索框与同排控件同高;`lrzhan/LiuRengMain.js` 没起过课回访不自起。
+- 夹具 `utils/__tests__/fixtures/indiaVariantMountContract.json` 随赤道坐标口径重生成,同步后直接用新夹具。
+- 帮助纯文本(给 AI 助手读的帮助资源):键值、步骤号、表格单元之间加分隔;星盘帮助弹窗收起动画结束才卸载正文。
+
+### 真机验收
+- 上面每个新页出盘、切换选项、AI 导出(复制 / TXT / Word / PDF)与 AI 挂载各走一遍;PDF 里度数符号正常显示。
+- 经纬度查找选一个城市,命盘经纬度与地图显示一致、与 AI 地名解析同城一致。
+- 印度择日:导出设置里印占各段与择时三段都在,取消一段只去掉那一段;印占页导出的穿界表不被择日页的盘顶掉。
+- 重置盘:改盘面细节设置后导出,「盘面细节」段按新设置。
+- 关系量化:容许度整体倍率调到 2.5,相位条数与分数随之变(与比较盘同一把尺)。
+- 小六壬页点「AI导出」:导出的是小六壬正文。星运带盘页在 1280×720 或放大档:右栏每张表至少露出表头加两三行。
+- 南纬盘开南半球读法:主限法表与不开时弧值相同(只界主随读法);恒星黄道下量化盘虚星与行星同一岁差。
+- 天文馆:点过左右栏、页签之后按空格仍能暂停 / 继续。
+- 新文件 `components/comp/IsoDateTimeField.js`:字符串口径的日期 / 时刻(择日工作台时间范围与用事人本命、天星择日病始日期、七政流时与择日起日、AI 定时任务)改走全站时间组件,源码不再有原生 `type="date"` / `datetime-local` 框(守卫 `isoDateTimeField.test.js`);七政 `onKinastroOptionChange` 可收一组键值(日期与时刻一次提交)。
+- 开关钮(XQToggle)开着时金淡底、金边、金字(`layouts/app/22-tail-fixes.less` 的 `#mainContent .ant-btn.xq-toggle-active:not([disabled])`):亮色下星盘页「相位线 / 四角 / 度数 / 界限」开与关一眼分得清;卜卦盘轮缘恒星名离舞台边留出余量(`AstroChartCircle.js`)。
+
 ## v3.13.2 同步要点(Mac 已落地,Windows 按此对齐)
 
 ### 版本 lockstep

@@ -2231,14 +2231,22 @@ S273PY2
   done
   # ①b dom-align 补丁 v2:翻转 / 夹紧半程的祖先裁剪循环(rect 域 offset + 布局域 client* 直加 → 放大档滚动祖先可视区被算矮 →
   #     下半部的触发器被判不可见 → 整段跳过翻转,下拉伸出窗口底边)。两份产物各恰 1 处、未补形态零残留、回归用例在位。
-  S273_PV='horosa:dom-align-zoom v3'
+  #     v4:量不到尺寸(入场动画首帧 transform: scale(0),rect 宽高 = 0)时回落到布局域读数,要 × 实测缩放换回 rect 域;
+  #     缺了这一半 = 缩放档 ≠ 1 时下拉先落在偏位、动画结束后再对齐才跳回(页头「设置」「AI导出」实报)。
+  S273_PV='horosa:dom-align-zoom v4'
+  S273_PW='cssBoxValue = Math.floor(parseFloat(cssBoxValue) * __horosaAlignScale(elem)) || 0;'
+  S273_PWO='cssBoxValue = Math.floor(parseFloat(cssBoxValue)) || 0;'
+  S273_PX='getPBMWidth(elem, BOX_MODELS.slice(extra), which) * __horosaAlignScale(elem);'
   S273_PD='documentHeight = win.innerHeight * __vs;'
   S273_PH='pos.top + el.clientHeight * __hzc);'
   S273_PO='pos.top + el.clientHeight);'
   for S273_D in dist-node dist-web; do
     S273_DF="${S273_UI}/node_modules/dom-align/${S273_D}/index.js"
     if [ -f "${S273_DF}" ]; then
-      [ "$(grep -acF "${S273_PV}" "${S273_DF}")" = "1" ] || { bad "[${PF_NO}]①b dom-align/${S273_D} 不是 v3 补丁(构建前跑 node scripts/patch-dom-align-zoom.js)"; S273_BAD=1; }
+      [ "$(grep -acF "${S273_PV}" "${S273_DF}")" = "1" ] || { bad "[${PF_NO}]①b dom-align/${S273_D} 不是 v4 补丁(构建前跑 node scripts/patch-dom-align-zoom.js)"; S273_BAD=1; }
+      [ "$(grep -acF "${S273_PW}" "${S273_DF}")" = "1" ] || { bad "[${PF_NO}]①b dom-align/${S273_D} 量不到尺寸的回落读数未换域(v4;缩放档下浮层入场首帧偏位后跳)"; S273_BAD=1; }
+      [ "$(grep -acF "${S273_PX}" "${S273_DF}")" = "1" ] || { bad "[${PF_NO}]①b dom-align/${S273_D} 回落读数的内边距 / 边框那一半未换域(v4 半修)"; S273_BAD=1; }
+      [ "$(grep -acF "${S273_PWO}" "${S273_DF}")" = "0" ] || { bad "[${PF_NO}]①b dom-align/${S273_D} 残留未补的回落读数(v4 半修)"; S273_BAD=1; }
       [ "$(grep -acF "${S273_PH}" "${S273_DF}")" = "1" ] || { bad "[${PF_NO}]①b dom-align/${S273_D} 祖先裁剪循环未换域"; S273_BAD=1; }
       [ "$(grep -acF "${S273_PO}" "${S273_DF}")" = "0" ] || { bad "[${PF_NO}]①b dom-align/${S273_D} 残留未补形态(半修)"; S273_BAD=1; }
       [ "$(grep -acF "${S273_PD}" "${S273_DF}")" = "1" ] || { bad "[${PF_NO}]①b dom-align/${S273_D} 「文档尺寸」读数未过视口系数(v3;rect 不反映缩放的引擎放大档下拉不翻转)"; S273_BAD=1; }
@@ -2246,6 +2254,10 @@ S273PY2
   done
   S273_P4='T3b 翻转半程'
   [ "$(grep -acF "${S273_P4}" "${S273_T}/popupAlignZoomGuard.test.js")" -ge 1 ] || { bad "[${PF_NO}]①b 回归用例缺失:${S273_P4}"; S273_BAD=1; }
+  S273_P4D='T3d 入场首帧量不到尺寸'
+  [ "$(grep -acF "${S273_P4D}" "${S273_T}/popupAlignZoomGuard.test.js")" -ge 1 ] || { bad "[${PF_NO}]①b 回归用例缺失:${S273_P4D}"; S273_BAD=1; }
+  S273_P4E='反例自证:去掉 v4 两处换域后'
+  [ "$(grep -acF "${S273_P4E}" "${S273_T}/popupAlignZoomGuard.test.js")" -ge 1 ] || { bad "[${PF_NO}]①b 回归用例缺失:${S273_P4E}(没有反例的尺 = 可能是空转)"; S273_BAD=1; }
   # ⑤ 静态守卫两族在位
   S273_P5='T5 物理域视口直读族'
   S273_P6='T6 底部快捷栏'

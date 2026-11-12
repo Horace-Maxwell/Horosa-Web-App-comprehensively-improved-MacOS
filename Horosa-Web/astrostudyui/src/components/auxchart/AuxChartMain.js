@@ -10,6 +10,8 @@ import LocAstroMain from '../loc/LocAstroMain';
 import OtherBuMain from '../otherbu/OtherBuMain';
 import AstroHarmonicLab from './AstroHarmonicLab';
 import AstroDraconicLab from './AstroDraconicLab';
+import AstroTransformLab from './AstroTransformLab';
+import AstroZodiacLab from './AstroZodiacLab';
 import AstroRelocationLab from './AstroRelocationLab';
 import HoraryMain from '../horary/HoraryMain';
 import ElectionMain from '../election/ElectionMain';
@@ -80,6 +82,12 @@ class AuxChartMain extends Component{
 					fun: null
 				},
 				babylon:{
+					fun: null
+				},
+				transformchart:{
+					fun: null
+				},
+				zodiacsystems:{
 					fun: null
 				},
 			},
@@ -366,6 +374,34 @@ class AuxChartMain extends Component{
 								showAstroMeaning={this.props.showAstroMeaning}
 								hook={this.state.hook.babylon}
 								dispatch={this.props.dispatch}
+							/>
+						</TabPane>
+
+						<TabPane tab="变换盘" key="transformchart">
+							<AstroTransformLab
+								value={this.props.chart}
+								fields={this.props.fields}   /* 同上:派生快照 meta 源 */
+								height={childHeight}
+								chartStyle={this.props.chartStyle}
+								wheelArt={this.props.wheelArt}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
+							/>
+						</TabPane>
+
+						<TabPane tab="黄道制" key="zodiacsystems">
+							<AstroZodiacLab
+								value={this.props.chart}
+								fields={this.props.fields}   /* 同上:派生快照 meta 源 */
+								height={childHeight}
+								chartStyle={this.props.chartStyle}
+								wheelArt={this.props.wheelArt}
+								chartDisplay={this.props.chartDisplay}
+								planetDisplay={this.props.planetDisplay}
+								lotsDisplay={this.props.lotsDisplay}
+								showAstroMeaning={this.props.showAstroMeaning}
 							/>
 						</TabPane>
 					</Tabs>

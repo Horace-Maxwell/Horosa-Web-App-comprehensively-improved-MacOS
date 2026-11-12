@@ -9,6 +9,7 @@ import { subscribeRemoteNongli, geoPatchFromRec } from '../../utils/divinationTi
 import XQIcon from '../xq-icons';
 import { XQButton as Button, XQTabs as Tabs, XQSideSection } from '../xq-ui';
 import { saveModuleAISnapshotLazy, saveModuleAISnapshot, clearModuleAISnapshot } from '../../utils/moduleAiSnapshot';
+import { rareSafeDeep } from '../../utils/rareChars';
 import { castSourceKey, castFailureKeeps } from '../../utils/derivedChartSource';
 import { postKentang } from '../../services/kentangPost';
 import { openKentangCaseDrawer, getKentangSavedCasePayload } from '../../utils/kentangCaseSave';
@@ -390,6 +391,17 @@ class TaiXuanMain extends Component{
 		this.setState({ rightPanelTab: key });
 	}
 
+	// 画面用的盘:经文里本机字体画不出的罕见字换成通行写法 / 拆字说明(见 utils/rareChars)。
+	// state.pan 保持后端原文 —— 存档、AI 快照、文本导出都用原字。
+	displayPan(){
+		const pan = this.state ? this.state.pan : null;
+		if(this._displayPanSrc !== pan){
+			this._displayPanSrc = pan;
+			this._displayPan = rareSafeDeep(pan);
+		}
+		return this._displayPan;
+	}
+
 	renderInputPanel(){
 		const fields = this.props.fields || {};
 		const datetm = buildDateTimeFromFields(fields);
@@ -425,7 +437,7 @@ class TaiXuanMain extends Component{
 	}
 
 	renderLineDiagram(){
-		const tx = this.state.pan && this.state.pan.taixuan ? this.state.pan.taixuan : {};
+		const tx = this.displayPan() && this.displayPan().taixuan ? this.displayPan().taixuan : {};
 		const places = tx.fourPlaces || [];
 		return (
 			<div className="horosa-taixuan-line-stack">
@@ -440,7 +452,7 @@ class TaiXuanMain extends Component{
 	}
 
 	renderCenter(){
-		const pan = this.state.pan;
+		const pan = this.displayPan();
 		if(!pan || !pan.taixuan){
 			return <div className="horosa-huangji-empty">暂无太玄数据</div>;
 		}
@@ -527,7 +539,7 @@ class TaiXuanMain extends Component{
 	}
 
 	renderAllLines(){
-		const lines = this.state.pan && this.state.pan.taixuan ? (this.state.pan.taixuan.allLines || []) : [];
+		const lines = this.displayPan() && this.displayPan().taixuan ? (this.displayPan().taixuan.allLines || []) : [];
 		if(!lines.length){
 			return <div className="horosa-huangji-empty">暂无全文</div>;
 		}
@@ -544,7 +556,7 @@ class TaiXuanMain extends Component{
 	}
 
 	renderClassics(){
-		const classics = this.state.pan && this.state.pan.classics ? this.state.pan.classics : null;
+		const classics = this.displayPan() && this.displayPan().classics ? this.displayPan().classics : null;
 		if(!classics || !classics.sections || !classics.sections.length){
 			return <div className="horosa-huangji-empty">暂无来源说明</div>;
 		}
@@ -570,7 +582,7 @@ class TaiXuanMain extends Component{
 	}
 
 	renderRightPanel(){
-		const pan = this.state.pan;
+		const pan = this.displayPan();
 		const activeKey = ['overview', 'head', 'lines', 'fulltext'].indexOf(this.state.rightPanelTab) >= 0 ? this.state.rightPanelTab : 'overview';
 		return (
 			<Tabs activeKey={activeKey} onChange={this.setRightPanelTab} defaultActiveKey="overview" tabPosition="top" className="horosa-huangji-tabs">

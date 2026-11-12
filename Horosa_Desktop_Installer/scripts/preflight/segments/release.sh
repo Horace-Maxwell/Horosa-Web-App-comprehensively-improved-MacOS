@@ -853,6 +853,8 @@ grep -qF 'TransLogRules.normalizeTransCodes(' "${S306_SRV}/boundless/src/main/ja
   && grep -qF 'shouldSkipTransLog(path)' "${S306_SRV}/boundless/src/main/java/boundless/spring/help/TransLogMongoHelper.java" 2>/dev/null || { bad "[${PF_NO}]⑤ 交易日志排除表仍精确串匹配"; S306_BAD=1; }
 grep -qF 'head = SecretRedactor.redactRecord(head, RemovedParams);' "${S306_SRV}/boundless/src/main/java/boundless/spring/help/interceptor/TransData.java" 2>/dev/null || { bad "[${PF_NO}]⑤ 交易日志请求头未经脱敏单源(名字不分大小写 / 下划线 / 连字符)"; S306_BAD=1; }
 grep -qF 'ParamHashPersistPolicy.apply(obj, ParamHashCacheHelper::persistable)' "${S306_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java" 2>/dev/null || { bad "[${PF_NO}]⑤ persistable 无回退开关"; S306_BAD=1; }
+grep -qF 'private static final String CacheEpoch = spacex.basecomm.constants.RuntimeWire.RUNTIME_VERSION;' "${S306_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java" 2>/dev/null \
+  && grep -qF 'return hash(params, CacheEpoch);' "${S306_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java" 2>/dev/null || { bad "[${PF_NO}]⑤ 结果缓存键未并入运行时版本(更新后会把上一版算出的结果继续发回来)"; S306_BAD=1; }
 grep -qF "url.searchParams.delete('firstLaunch');" "${S306_UI}/utils/backendBootGate.js" 2>/dev/null || { bad "[${PF_NO}]⑥ 首启一次性上下文未从地址栏摘除"; S306_BAD=1; }
 grep -qF '}, [currentTab, currentSubTab]);' "${S306_UI}/pages/index.js" 2>/dev/null || { bad "[${PF_NO}]⑥ 切页签不重落温启快照"; S306_BAD=1; }
 for S306_T in test_sign_payload_cached.py test_sign_runtime_payload_native_cache.py test_prepare_sign_seed.py; do
@@ -861,6 +863,7 @@ done
 /usr/bin/python3 "${S306_SC}/verify_stable_parts_headers.py" --self-test >/dev/null 2>&1 || { bad "[${PF_NO}]⑦ verify_stable_parts_headers 自证失败"; S306_BAD=1; }
 [ -f "${REPO_ROOT}/Horosa-Web/astropy/tests/test_xuanshi_db_immutable_readonly.py" ] || { bad "[${PF_NO}]⑦ 缺 sqlite immutable 只读测试"; S306_BAD=1; }
 [ -f "${S306_SRV}/boundless/src/test/java/boundless/spring/help/TransLogRulesTest.java" ] && [ -f "${S306_SRV}/astrostudy/src/test/java/spacex/astrostudy/helper/ParamHashPersistPolicyTest.java" ] || { bad "[${PF_NO}]⑦ 缺 JUnit(TransLogRulesTest / ParamHashPersistPolicyTest)"; S306_BAD=1; }
+grep -qF 'public void entryLeftByAnotherRuntimeVersionIsNotServed()' "${S306_SRV}/astrostudy/src/test/java/spacex/astrostudy/helper/ParamHashCacheGetTest.java" 2>/dev/null || { bad "[${PF_NO}]⑦ 缺 JUnit(别的运行时版本留下的缓存不得命中)"; S306_BAD=1; }
 grep -qF '上下文读完即从地址栏摘掉 firstLaunch / boot' "${S306_UI}/utils/__tests__/backendBootGate.test.js" 2>/dev/null && grep -qF '温启快照的页签 = 上次停留' "${S306_UI}/utils/__tests__/bootChartRestore.test.js" 2>/dev/null || { bad "[${PF_NO}]⑦ 缺 jest(一次性上下文 / 切页签快照)"; S306_BAD=1; }
 S306_TAG="$(git -C "${REPO_ROOT}" describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-runtime*' HEAD 2>/dev/null || true)"
 if [ -n "${S306_TAG}" ]; then
@@ -870,7 +873,7 @@ if [ -n "${S306_TAG}" ]; then
     warn "[${PF_NO}]⑧ 签名语义代次 ${S306_PREV_EPOCH:-无} → ${S306_CUR_EPOCH}(与 ${S306_TAG} 不同)且 dist/components 无上一版 py-runtime 部件可作种子:打包前放回上一版部件或显式设 HOROSA_SIGN_SEED_DIR,否则 py-runtime 整版重签重下"
   fi
 fi
-[ "${S306_BAD}" = "0" ] && ok "[${PF_NO}] 签名缓存加固 / 自动种子 / 稳定部件包内对拍 / sqlite 边车 / 交易日志不分大小写 / persistable 回退 / 温启页签与一次性上下文:代码 + 接线 + 测试全在位"
+[ "${S306_BAD}" = "0" ] && ok "[${PF_NO}] 签名缓存加固 / 自动种子 / 稳定部件包内对拍 / sqlite 边车 / 交易日志不分大小写 / persistable 回退 / 结果缓存键带运行时版本 / 温启页签与一次性上下文:代码 + 接线 + 测试全在位"
 }
 
 seg_308() {
