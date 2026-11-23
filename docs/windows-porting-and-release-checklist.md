@@ -791,6 +791,45 @@ Windows 版完成的定义不是“能打开”，而是：
 ### macOS 独有(Windows 无对应动作)
 - 安装 / 更新后原生库首次加载预检(`config/native_prewarm_priority.json`、`installer-scripts/postinstall.template`、壳子命令 `--horosa-native-prewarm`)、增量更新暂存槽硬链接搭 + 换完即预检(Windows 的差分更新按文件树下载、不走整棵克隆)、签名缓存自动种子与稳定部件对拍(`prepare_sign_seed.py` / `verify_stable_parts_headers.py`)。
 
+## v3.15.0 同步要点(Mac 已落地,Windows 按此对齐)
+
+### 版本 lockstep
+- 同 v3.11.0 的清单,版本 `3.15.0` / `runtimeVersion` = `3.15.0-runtime1`;`RuntimeWire.RUNTIME_VERSION` 同步(改后重建后端 jar)。
+
+### 共享 Python(重打 Python 运行时)
+- 新模块:`astrostudy/stable_order.py`(并列稳定排序 `tie_sorted` 与边界吸附 `snap_mod` / `snap_integer` / `floor_stable`,`TIE_EPS = 1e-9`)、`astrostudy/clock.py`(计算服务取「当前时间」的唯一入口,可被请求钉住)、`astrostudy/truerandom.py`(随机数只取系统随机源)、`astrostudy/heliacal_window.py`(高纬度偕日升没先排除再搜 + 进程缓存)。
+- 并列与边界:`chart_details_more.py`、`germany/midpoint.py`(正对两点取黄经小的那个中点)/ `coord_midpoint.py` / `houseframes.py`、`india/jyotish_parts/dashas.py`、`pd_engine.py` 的 `sort_pd_rows`(`perpredict.py` 全部排序走它)、`directed_figures.py`、`agepoint.py`、`thirteenthchart.py`。主限法 540 例金标只重排并列行(弧值逐字不变),随同步带新金标;主限缓存代次 `pd_method_sync_v29`,前端 / `helper.py` / `webchartsrv.py` / Java `PdWire` 四处同值。
+- `astroextra_parts/ephemeris.py`:行星「留」的时刻改按黄经极值求(25 点求导、整数儒略日扫描网格),时刻取到分钟。
+- `perchart_parts/aspects.py`:赤纬平行按「两两都在 1° 内」的极大集合成组(`parallelGroups`)。
+- `flatlib-ctrad2/flatlib/ephem/swe.py`:星历路径短路按线程认 —— 星历库的路径每个线程各一份,工作线程没设好时小行星星历找不到、行星悄悄退回近似星历。**多线程起服务的平台都要带这一条**。
+- 内置引擎:奇门值符天芮且时干在中五宫时天盘干伏吟、中宫寄宫新档;皇极经世会运世按农历年;五兆 / 神易数 / 太乙交节前年月柱按钟面时刻;七政四余极圈内起盘;地占各传本的随机源改走 `truerandom`。
+- 新测试:`test_stable_order.py` · `test_station_moment.py` · `test_clock.py` · `test_truerandom.py` · `test_heliacal_window.py` · `test_parallel_groups.py` · `test_swe_ephe_path_threads.py` · `test_qimen_tianpan_follows_stars.py` · `test_qizhengkin_polar_latitudes.py` · `test_wanji_lunar_crossover.py` 等。同步后跑一次 `tests/` 全量。
+
+### 共享 Java(重建 jar)
+- `ParamHashCacheHelper`:结果缓存键并入请求里钉住的「此刻」(`getKeyed`;没带时键与旧版逐字相同);`AstroHelper.withClientNow`;`PdWire` 主限代次 v29;`RuntimeWire` 3.15.0。
+
+### 共享前端
+- 并列稳定单源 `utils/stableOrder.js`(与 Python 同一套语义);`utils/uranianDial.js`、`components/germany/AstroMidpoint.js`、`utils/directedFigures.js` 走它。
+- 真随机:`utils/trueRandom.js`(只用 `crypto.getRandomValues`,取不到即报错)、`utils/entropyTape.js`;六爻 / 骰子 / 五兆 / 地占 / 荆诀 / 太玄 / 灵棋 / 小成图 / 塔罗全部改走它。壳的网页视图须提供 `crypto.getRandomValues`(Electron 缺省有)。
+- 键盘可达:`utils/pressable.js`(可点块统一写法)、`utils/useEscapeClose.js`(Esc 层栈)、焦点环样式;系统提示条宿主;`components/xq-ui/` 统一件扩充(复选框 / 单选 / 滑块 / 数字框 / 加载圈 / 空状态 / 三态件);尺度令牌(层级 / 字号 / 间距 / 圆角)。
+- 首屏拆包:AI 助手、帮助正文、Word 导出库改为按需加载;拆包请求上限 72。壳若按固定文件名引用产物里的 chunk,需按新产物核一遍。
+- 奇门 / 三式:`utils/jianChu.js`(十二建星,日值逢节重复)、奇门格子附注布局器、暗干第六法、寄干与天禽、翻宫 / 转宫推演、中宫寄宫与值使取法新档。奇门引擎按职责拆在 `components/dunjia/calc/`。
+- 大文件按职责拆进同名目录(三式合一 / 通摄法 / 紫微 / 节气 / 奇门 / 金口诀 / 六爻 / 地占 / 世俗盘 / 星运 / 七政圆盘 / 印占 / 风水理气 / AI 分析存储层 / 挂载设置 / 占星快照 / 占星常量等),登记表 `astrostudyui/scripts/source-sets.json`;读源码的检查按「门面 + 子模块」全集读。行为不变。
+- 外部智能体接口:工具目录 51 → 80,见 `docs/AI_AGENT_RUNTIME.md`;共享面没有新增存储键。
+- 工具调用时限:客户端没给时限时按这件工具自己声明的时长等(工具清单每件带 `_meta['io.horosa/timeoutMs']`,只在超过 120 秒时出现),上限 1800 秒;前端桥 `utils/aiAgent/withTimeout.js` / `mcpBridge.js`、无头 `headless/protocol.js` 同口径。壳侧转发工具调用的等待时长要按同一规则取(Mac 壳在 `mcp_server.rs` / `mcp_stdio.rs` / `rest_api.rs`)。
+- 塔罗:真随机记录一律取满 1344 字节;真随机种子下切牌那一张按无偏取法(固定种子的旧记录读法不变)。奇门:后端合并路径重建盘格后把盘面附注的键按宫抄回。
+- 无头:`headless/verify.js` / `verifyKernel.js`(命题验证)、`headless/batch.js`(`--now` / `--tz` / `--kind timepoint` / 取数账本);Windows 上经 WSL2 或 Docker 使用,见 `docs/HEADLESS.md`。
+
+### macOS 独有(Windows 无对应动作)
+- 壳打开网页视图的 `tabFocusesLinks`(Tab 走到原生按钮;Electron 缺省如此)。
+
+### 真机验收
+- 奇门:起一个值符天芮、时干在中五宫的时辰,天盘干与地盘干逐宫相同;「中宫寄宫」切到各档,九星、值符名、天盘干用同一颗星;十二建星外环开 / 关。
+- 六爻 / 塔罗 / 骰子:随机起一卦,种子显示「真随机 ……」,重开卦例结果相同;塔罗新装缺省「随机」。
+- 键盘:不碰鼠标,Tab 能走到「起盘」「确定」;弹层叠在弹窗上时 Esc 只关最上面一层。
+- 高纬度(北纬 70° 左右)本命盘起盘在一秒内。
+- 主限法缺省设置的盘:弧值与上一版相同,只有并列行先后可能不同。
+
 ## v3.14.0 同步要点(Mac 已落地,Windows 按此对齐)
 
 ### 版本 lockstep

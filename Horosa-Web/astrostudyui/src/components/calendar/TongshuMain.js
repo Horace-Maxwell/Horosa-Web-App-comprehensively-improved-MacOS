@@ -16,6 +16,7 @@ import { xuankongDay, xuankongForHour } from './tongshu/xuankong';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { civilMonthDays, civilJdnOfYmd } from '../../utils/civilCalendar';
 import { civilJdnOfDateStr } from '../../utils/dateStrSafe';
+import { pressable } from '../../utils/pressable';
 
 const MODULE = 'calendar-tongshu';
 
@@ -30,7 +31,7 @@ function DonggongMonth({ y, m, activeYmd, event, onPick }) {
 		const yv = yongshiVerdict(buildHuangliDay(y, m, d), event);
 		const ymd = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 		rows.push(
-			<div key={d} className={`horosa-tongshu-dayrow ${ymd === activeYmd ? 'is-active' : ''} ${yv.level === 'yi' ? 'is-yi-day' : (yv.level === 'ji' || yv.level === 'conflict' ? 'is-ji-day' : '')}`} onClick={()=> onPick(ymd)}>
+			<div key={d} className={`horosa-tongshu-dayrow ${ymd === activeYmd ? 'is-active' : ''} ${yv.level === 'yi' ? 'is-yi-day' : (yv.level === 'ji' || yv.level === 'conflict' ? 'is-ji-day' : '')}`} {...pressable(()=> onPick(ymd))}>
 				<span className='horosa-tongshu-dayrow-d'>{d}</span>
 				<span className='horosa-tongshu-dayrow-gz'>{r.dayGZ}</span>
 				<span className='horosa-tongshu-dayrow-jc'>{r.jianchu}</span>
@@ -106,7 +107,7 @@ function QimenPanes({ y, m, d, selHour, onSelHour }) {
 					{r.rows.map((row)=> (
 						<div key={row.hourZhi}
 							className={`horosa-tongshu-hour ${row.jx === '吉' ? 'is-good' : 'is-bad'} ${active && active.hourZhi === row.hourZhi ? 'is-active' : ''}`}
-							onClick={()=> onSelHour && onSelHour(row.hourZhi)}>
+							{...pressable(()=> onSelHour && onSelHour(row.hourZhi))}>
 							<span className='horosa-tongshu-hour-zhi'>{row.hourZhi}时</span>
 							<span className='horosa-tongshu-hour-range'>{row.range}</span>
 							<span className='horosa-tongshu-hour-sum'>叠{row.sum}</span>
@@ -174,7 +175,7 @@ function SanyuanPanes({ y, m, d, use = '建宅', onPick }) {
 					<div className='horosa-huangli-section-title'>{y} 年天帝加临日</div>
 					<div className='horosa-huangli-section-body'>
 						{points.length ? points.map((p, i)=> (
-							<div key={i} className='horosa-tongshu-point' onClick={()=> onPick && onPick(p.ymd)}>
+							<div key={i} className='horosa-tongshu-point' {...pressable(()=> onPick && onPick(p.ymd))}>
 								{p.ymd}　{p.name}　<span className='horosa-tongshu-note-line'>{p.info}</span>
 							</div>
 						)) : <span className='horosa-huangli-muted'>—</span>}
@@ -212,7 +213,7 @@ function WutuPanes({ y, m, d, onPick }) {
 				<div className='horosa-tongshu-wutu-best'>太阳日：{M.sunDays.map((x)=> x.dayGZ).join('、') || '—'}　太阴日：{M.moonDays.map((x)=> x.dayGZ).join('、') || '—'}</div>
 				<div className='horosa-tongshu-month'>
 					{M.rows.map((r)=> (
-						<div key={r.ymd} className={`horosa-tongshu-dayrow ${r.ymd === (active && active.ymd) ? 'is-active' : ''}`} onClick={()=> onPick(r.ymd)}>
+						<div key={r.ymd} className={`horosa-tongshu-dayrow ${r.ymd === (active && active.ymd) ? 'is-active' : ''}`} {...pressable(()=> onPick(r.ymd))}>
 							<span className='horosa-tongshu-dayrow-d'>{r.dayInMonth}</span>
 							<span className='horosa-tongshu-dayrow-gz'>{r.dayGZ}</span>
 							<span className={`horosa-tongshu-dayrow-jc ${starCls(r.jx)}`}>{r.star}</span>
@@ -274,7 +275,7 @@ function XuankongPanes({ y, m, d, mingYear, selHour, onSelHour }) {
 				<div className='horosa-tongshu-xuankong-best'>{D.bestHours.join('、') || '本日无上吉时'}</div>
 				<div className='horosa-tongshu-hours'>
 					{D.rows.map((row)=> (
-						<div key={row.hourZhi} className={`horosa-tongshu-hour ${xkTagCls(row.level.jx)} ${row.hourZhi === hz ? 'is-active' : ''}`} onClick={()=> onSelHour && onSelHour(row.hourZhi)}>
+						<div key={row.hourZhi} className={`horosa-tongshu-hour ${xkTagCls(row.level.jx)} ${row.hourZhi === hz ? 'is-active' : ''}`} {...pressable(()=> onSelHour && onSelHour(row.hourZhi))}>
 							<span className='horosa-tongshu-hour-zhi'>{row.hourZhi}时</span>
 							<span className='horosa-tongshu-hour-range'>{row.timeGZ}</span>
 							<span className='horosa-tongshu-hour-sum'>{row.timeGua}</span>

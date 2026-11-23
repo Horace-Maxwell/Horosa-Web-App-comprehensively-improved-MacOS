@@ -10,6 +10,7 @@ import { buildRiziSnapshotText } from './riziSnapshot';
 import { saveModuleAISnapshot } from '../../utils/moduleAiSnapshot';
 import { parseDateParts } from '../../utils/dateStrSafe';
 import { defaultAfter23NewDay, defaultLateZiHourUseNextDay } from '../../utils/dayBoundary';   // 当事人八字须随全局日界/晚子时
+import { pressable } from '../../utils/pressable';
 
 const MODULE = 'calendar-rizi';
 const ROLE_LABEL = { self: '本人', spouse: '配偶', family: '家人' };
@@ -155,14 +156,14 @@ class RiziMain extends Component {
 					<span className='horosa-rizi-ranking-actions'>
 						{this.state.computing ? <span className='horosa-rizi-computing'>计算中…</span> : null}
 						{total > 20 ? (
-							<span className='horosa-rizi-showall' onClick={this.toggleShowAll}>
+							<span className='horosa-rizi-showall' {...pressable(this.toggleShowAll)}>
 								{this.state.showAll ? '仅显示前 20' : `显示全部 ${total}`}
 							</span>
 						) : null}
 					</span>
 				</div>
 				{list.map((d, i)=> (
-					<div key={d.ymd} className={`horosa-rizi-rankrow ${d.ymd === this.state.selectedYmd ? 'is-active' : ''}`} onClick={()=> this.setState({ selectedYmd: d.ymd }, this.saveAISnapshot)}>
+					<div key={d.ymd} className={`horosa-rizi-rankrow ${d.ymd === this.state.selectedYmd ? 'is-active' : ''}`} {...pressable(()=> this.setState({ selectedYmd: d.ymd }, this.saveAISnapshot))}>
 						<span className={`horosa-rizi-rank-no ${i < 3 ? 'is-medal is-medal-' + (i + 1) : ''}`}>{i + 1}</span>
 						<span className='horosa-rizi-rank-date'>{d.ymd}</span>
 						<span className='horosa-rizi-rank-week'>周{d.week}</span>

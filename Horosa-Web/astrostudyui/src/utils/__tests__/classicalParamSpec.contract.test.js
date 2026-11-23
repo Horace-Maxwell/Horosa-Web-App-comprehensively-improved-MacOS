@@ -196,7 +196,7 @@ describe('横向复制点全等(第三闸/回显白名单/PD 收缩/卜卦构参
 	const path = require('path');
 	const UI = path.join(__dirname, '../..');
 	const REPO = path.join(UI, '../../..');
-	const read = (rel) => fs.readFileSync(path.join(REPO, rel), 'utf8');
+	const read = (rel) => require('./helpers/sourceSet').readSource(path.join(REPO, rel));   // 拆成子模块的门面按「门面 + 子模块」全集读,其余文件原样读
 	const NON_DEFAULT_KEYS = CLASSICAL_PARAM_SPEC.filter((s) => s.send === 'nonDefault').map((s) => s.backendKey || s.key);
 	const NEVER_KEYS = CLASSICAL_PARAM_SPEC.filter((s) => s.send === 'never').map((s) => s.key);
 
@@ -254,7 +254,7 @@ describe('横向复制点全等(第三闸/回显白名单/PD 收缩/卜卦构参
 });
 
 // ── 合同③b:挂载齿轮 options 集 ⊇ spec options 集(值域全等;label 不比) ──
-// P2-4(apparent)/P2-5(15°) 两缺档实锤:合同③只锁键/default/globalCurrent,options 集是盲区——
+// apparent / 15° 两缺档实锤:合同③只锁键/default/globalCurrent,options 集是盲区——
 // spec 加档、齿轮不加 → 全局改新档后齿轮回显异常且不能逐盘钉。负向:齿轮多出 spec 没有的值也红(野档)。
 describe('挂载齿轮 options 集与 spec 全等', () => {
 	it('每个 select/segmented 型 spec 键:齿轮 options 值集合 === spec options 值集合', () => {

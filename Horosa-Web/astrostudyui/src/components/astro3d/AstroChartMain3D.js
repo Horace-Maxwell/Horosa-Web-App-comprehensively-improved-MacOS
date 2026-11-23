@@ -17,7 +17,6 @@ import { getHousesOption } from '../comp/CompHelper'
 import {
 	XQButton,
 	XQPanel,
-	XQSectionTitle,
 	XQSelect,
 	XQTabs,
 	XQToolbar,

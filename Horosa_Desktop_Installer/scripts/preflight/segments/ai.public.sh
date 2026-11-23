@@ -29,7 +29,7 @@ grep -q 'canvasHasInk' "$(pf_src_set "${S107_UI}/src/utils/aiExport.js")" || { b
 grep -q 'skipFonts: true' "$(pf_src_set "${S107_UI}/src/utils/aiExport.js")" || { bad "[107] PDF skipFonts 缺失"; S107_BAD=1; }
 grep -q "output('blob')" "$(pf_src_set "${S107_UI}/src/utils/aiExport.js")" || { bad "[107] PDF blob 尺寸守卫缺失"; S107_BAD=1; }
 # BOM 单源
-grep -q 'withUtf8Bom' "${S107_UI}/src/utils/aiAnalysisExport.js" || { bad "[107] BOM 政策单源 withUtf8Bom 缺失"; S107_BAD=1; }
+grep -q 'export function withUtf8Bom' "${S107_UI}/src/utils/fileSave.js" || { bad "[107] BOM 政策单源 withUtf8Bom 缺失"; S107_BAD=1; }
 # 紫微运限方向(财=+8/官=+4,地支逆行宫序)
 grep -q 'const caibo = (idx + 8) % 12' "${S107_UI}/src/components/ziwei/ZiWeiHelper.js" || { bad "[107] getSanheIndices 财帛方向丢失(应为 命+8)"; S107_BAD=1; }
 grep -q 'const guanlu = (idx + 4) % 12' "${S107_UI}/src/components/ziwei/ZiWeiHelper.js" || { bad "[107] getSanheIndices 官禄方向丢失(应为 命+4)"; S107_BAD=1; }
@@ -75,11 +75,11 @@ seg_u240() {
 echo "[240] 自检收口锁(接口 key 静态加密钩)"
 S240_BAD=0
 S240_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
-S240_STORE="${S240_UI}/src/utils/aiAnalysisStore.js"
+S240_STORE="$(pf_src_set "${S240_UI}/src/utils/aiAnalysisStore.js")"
 S240_RS="$(pf_shell_rs_prod)"
 s240_code(){ sed -E 's#//.*$##' "$1"; }
 [ -f "${S240_UI}/src/utils/secureKeyStore.js" ] || { bad "[240] secureKeyStore.js 缺失"; S240_BAD=1; }
-[ "$(s240_code "${S240_STORE}" | grep -acF "from './secureKeyStore'")" != "0" ] || { bad "[240] aiAnalysisStore 未接 secureKeyStore(接口 key 明文落库)"; S240_BAD=1; }
+[ "$(s240_code "${S240_STORE}" | grep -acE "from '(\./|(\.\./)+)secureKeyStore'")" != "0" ] || { bad "[240] aiAnalysisStore 未接 secureKeyStore(接口 key 明文落库)"; S240_BAD=1; }
 [ "$(s240_code "${S240_STORE}" | grep -acF "encryptSecretText(")" != "0" ] || { bad "[240] aiAnalysisStore 写路径未加密 apiKey"; S240_BAD=1; }
 [ "$(s240_code "${S240_STORE}" | grep -acF "decryptProfileRecord(rec, storeName)")" -ge 3 ] || { bad "[240] aiAnalysisStore 读路径解密不足三处(list/batched/readByIndex)"; S240_BAD=1; }
 [ "$(s240_code "${S240_STORE}" | grep -acF "return decryptProfileRecord(record, storeName);")" != "0" ] || { bad "[240] getStoreRecord 未解密 provider 记录"; S240_BAD=1; }

@@ -1,6 +1,6 @@
 import { Component } from 'react';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
-import { Row, Col, Divider, Popover } from 'antd';
+import { Row, Col } from 'antd';
 import { XQTabs as Tabs } from '../xq-ui';
 import AstroDoubleChart from './AstroDoubleChart';
 import AspectInfo from '../relative/AspectInfo';
@@ -9,7 +9,7 @@ import AntisciaInfo from '../relative/AntisciaInfo';
 import * as AstroConst from '../../constants/AstroConst';
 import * as AstroText from '../../constants/AstroText';
 import { randomStr, } from '../../utils/helper';
-import styles from '../../css/styles.less';
+import '../../css/styles.less';
 
 const TabPane = Tabs.TabPane;
 

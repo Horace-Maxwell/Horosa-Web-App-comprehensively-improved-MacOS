@@ -235,7 +235,7 @@ pf_shell_rs_check(){
 }
 
 # ── 前端拆成子模块的大文件:源码全集 ──
-# AIAnalysisMain.js / aiExport.js / aiAnalysisContext.js / LiuRengMain.js / PlanetariumBabylon.js / IndiaChartMain.js / GuoLaoChartMain.js 原先各是一份大文件,
+# 登记表里的门面(AIAnalysisMain.js / aiExport.js / 三式合一 / 通摄法 …,清单以登记表为准,这里不逐个列免得漂移)原先各是一份大文件,
 #   现按职责拆成子目录下的子模块,原路径留作门面(对外导入路径不变);全站样式 layouts/app.less 按区段拆成 layouts/app/*.less,app.less 按原顺序 @import。
 #   登记表单源 = Horosa-Web/astrostudyui/scripts/source-sets.json(jest 的 helpers/sourceSet.js、各检查器读同一份):
 #   每个门面 → 子模块目录 + 子模块文件的先后次序。拼法:子模块按登记次序在前、门面在最后,首尾相接成一份(内容即拆分前那份文件的全部代码)。
@@ -245,10 +245,11 @@ pf_shell_rs_check(){
 PF_SRC_SETS_JSON="${REPO_ROOT}/Horosa-Web/astrostudyui/scripts/source-sets.json"
 # 一行一个门面:「门面路径(相对根)<TAB>子模块目录<TAB>空格分隔的子模块文件<TAB>根(src = astrostudyui/src,astropy = Horosa-Web/astropy)」(装载时读一次)
 PF_SRC_SETS="$(python3 -c '
-import json, sys
+import json, os, sys
 try:
     m = json.load(open(sys.argv[1], encoding="utf-8"))
-    groups = ((m["sets"], "src"), (m.get("pySets") or {}, "astropy"))
+    ui, py = dict(m["sets"]), dict(m.get("pySets") or {})
+    groups = ((ui, "src"), (py, "astropy"))
 except Exception:
     sys.exit(0)
 for sets, base in groups:

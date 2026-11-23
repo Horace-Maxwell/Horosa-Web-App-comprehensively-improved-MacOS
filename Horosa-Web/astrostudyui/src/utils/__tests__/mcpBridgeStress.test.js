@@ -68,12 +68,44 @@ describe('外部桥挂死工具(压测实抓 R1:桥串行队列无超时)', ()=>
 		expect(next.result.isError).toBe(false);
 		expect(next.result.structuredContent).toEqual({ fine: true });
 	});
-	it('缺省预算 120s、钳位 1s..600s、页面先于壳 3s 回话', ()=>{
+	it('缺省预算 120s、钳位 1s..30 分钟、页面先于壳 3s 回话', ()=>{
 		const { bridgeTimeoutMs } = require('../aiAgent/withTimeout');
 		expect(bridgeTimeoutMs(undefined)).toBe(117000);
 		expect(bridgeTimeoutMs({ timeoutMs: 5000 })).toBe(2000);
 		expect(bridgeTimeoutMs({ timeoutMs: 100 })).toBe(1000);
-		expect(bridgeTimeoutMs({ timeoutMs: 9e9 })).toBe(597000);
+		expect(bridgeTimeoutMs({ timeoutMs: 9e9 })).toBe(1797000);
 		expect(bridgeTimeoutMs({ timeoutMs: 'abc' })).toBe(117000);
+		expect(bridgeTimeoutMs({ timeoutMs: 0 })).toBe(117000);
+	});
+	it('🔴 客户端没给预算:按工具声明的 timeoutMs 等(声明得不比缺省长 / 没声明 = 120s);给了就按客户端的', ()=>{
+		const { bridgeTimeoutMs, bridgeFallbackMs } = require('../aiAgent/withTimeout');
+		// 与桌面壳投来的同值(壳按声明值等,页面减 3 s 先回话)
+		expect(bridgeTimeoutMs(undefined, bridgeFallbackMs(1800000))).toBe(1797000);
+		expect(bridgeTimeoutMs({}, bridgeFallbackMs(600000))).toBe(597000);
+		expect(bridgeTimeoutMs({}, bridgeFallbackMs(30000))).toBe(117000);
+		expect(bridgeTimeoutMs({}, bridgeFallbackMs(undefined))).toBe(117000);
+		expect(bridgeTimeoutMs({}, bridgeFallbackMs(9e9))).toBe(1797000);
+		expect(bridgeTimeoutMs({ timeoutMs: 10000 }, bridgeFallbackMs(1800000))).toBe(7000);
+		// 桥真的这么接(读源:缺省来自这件工具的声明)
+		const src = require('fs').readFileSync(require('path').join(__dirname, '../aiAgent/mcpBridge.js'), 'utf8');
+		expect(src).toMatch(/bridgeTimeoutMs\(params\._meta, bridgeFallbackMs\(/);
+	});
+	it('🔴 声明得比缺省长的工具:目录条目带 io.horosa/timeoutMs(桌面壳据此等);其余不带', ()=>{
+		const { buildToolManifest } = require('../aiTools/catalog');
+		const schema = { type: 'object', properties: {} };
+		const man = buildToolManifest([
+			{ name: 'long_one', description: 'x', inputSchema: schema, level: 'read', timeoutMs: 600000 },
+			{ name: 'short_one', description: 'x', inputSchema: schema, level: 'read', timeoutMs: 60000 },
+			{ name: 'plain', description: 'x', inputSchema: schema, level: 'read' },
+			{ name: 'asks', description: 'x', inputSchema: schema, level: 'read', category: 'interactive', timeoutMs: 300000 },
+		]);
+		expect(man[0]._meta).toEqual({ 'io.horosa/timeoutMs': 600000 });
+		expect(man[1]._meta).toBeUndefined();
+		expect(man[2]._meta).toBeUndefined();
+		expect(man[3]._meta).toEqual({ 'anthropic/requiresUserInteraction': true, 'io.horosa/timeoutMs': 300000 });
+		// 键名与壳同一个
+		const shell = require('fs').readFileSync(require('path').join(__dirname, '../../../../../Horosa_Desktop_Installer/src-tauri/src/mcp_server.rs'), 'utf8');
+		expect(shell).toMatch(/TOOL_TIMEOUT_META_KEY: &str = "io\.horosa\/timeoutMs"/);
+		expect(shell).toMatch(/MAX_TOOL_TIMEOUT: Duration = Duration::from_secs\(1800\)/);
 	});
 });

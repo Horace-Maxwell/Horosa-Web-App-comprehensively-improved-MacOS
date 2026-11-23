@@ -5,7 +5,7 @@
 seg_11() {
 echo "[11] 西占推运 + 宫制修复哨兵(v2.5.0)"
 PERCHART="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/perchart.py")"
-ASTROCONST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/constants/AstroConst.js"
+ASTROCONST="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/constants/AstroConst.js")"
 PERSIAN="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/astro/AstroPersianDirected.js"
 BALB="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/balbillus.js"
 # A. 宫制数量前后端同步(后端 hsys[] vs 前端 HOUSE_SYSTEM_OPTIONS):改一处必改另一处,否则 index 错位读错宫制
@@ -85,7 +85,7 @@ echo "[20] 紫微 运限/格局深度增强"
 ZW_HELPER_DIR="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/helper"
 ZW_MODEL_DIR="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex/astrostudycn/model"
 ZW_FAT_JAR="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudyboot/target/astrostudyboot.jar"
-ZW_MAIN="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/ziwei/ZiWeiMain.js"
+ZW_MAIN="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/ziwei/ZiWeiMain.js")"   # 拆成子模块的门面按全集读
 zw_src_ok=1
 for f in "${ZW_MODEL_DIR}/ZiWeiLuck.java" "${ZW_MODEL_DIR}/ZiWeiPattern.java" "${ZW_HELPER_DIR}/ziweige.json" "${ZW_HELPER_DIR}/ziweiliuchangqu.json"; do
   [ -f "$f" ] || { bad "[20] 缺文件 $(basename "$f")"; zw_src_ok=0; }
@@ -213,10 +213,11 @@ if [ -f "${PERPREDICT}" ]; then
     PD32_BAD=1
   fi
   # 前端 pdYears clamp 必须四处全 3000(任一回落 360 → 选 3000 在该路径被截断,LIVE 实测真踩过):
+  #   两个组件都是门面(方法拆在子文件里),一律按「子模块 + 门面」全集读(pf_src_set);只读门面会把搬进子文件的 clamp 判成丢了
   #   AstroPrimaryDirection.normalizePdYears(表格组件) / AstroDirectMain.normalizePdYears(主限tab容器·真fetch路径)
   #   / aiAnalysisContext.normalizePdYearsValue(AI挂载·buildFieldObject) / techniqueMountSettings pdYears max
-  PD_CLAMP_360=$(grep -rIl "Math.min(360, n)" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js" "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiAnalysisContext.js")" 2>/dev/null | wc -l | tr -d ' ')
-  PD_CLAMP_3000=$(grep -rl "Math.min(3000, n)" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js" 2>/dev/null | wc -l | tr -d ' ')
+  PD_CLAMP_360=$(grep -rIl "Math.min(360, n)" "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js")" "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js")" "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiAnalysisContext.js")" 2>/dev/null | wc -l | tr -d ' ')
+  PD_CLAMP_3000=$(grep -rl "Math.min(3000, n)" "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/direction/AstroDirectMain.js")" "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/astro/AstroPrimaryDirection.js")" 2>/dev/null | wc -l | tr -d ' ')
   if [ "${PD_CLAMP_360}" != "0" ] || [ "${PD_CLAMP_3000}" != "2" ]; then
     bad "[32] 前端 pdYears clamp 未全 3000(残留 Math.min(360,n)=${PD_CLAMP_360} 处 / 应为 0;3000 命中=${PD_CLAMP_3000} / 应为 2)—— LIVE 实测过:任一处回落会让 3000 年在该路径被截到 360"
     PD32_BAD=1
@@ -323,7 +324,7 @@ seg_37() {
 echo "[37] 起课时间挂载 13 技法 + builder opts 透传 + divTime 兜底"
 T37_BAD=0
 T37_AICTX="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiAnalysisContext.js")"
-T37_TMS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/techniqueMountSettings.js"
+T37_TMS="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/techniqueMountSettings.js")"
 T37_TMS_TEST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/techniqueMountSettings.test.js"
 T37_AICTX_TEST="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/__tests__/aiAnalysisContext.test.js"
 T37_TAIXUAN="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/taixuan/TaiXuanMain.js"
@@ -361,7 +362,7 @@ echo "[38] 合盘端点 + 子盘交互全链路 + 黄道 Select 定宽"
 R38_BAD=0
 R38_REL="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/astro/AstroRelative.js"
 R38_LESS="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/layouts/app.less")"
-R38_INDEX="${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js"
+R38_INDEX="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js")"   # 拆成子模块:按「门面 + 子模块」全集查
 if [ -f "${R38_REL}" ]; then
   grep -q "Constants.ServerRoot}/modern/relative" "${R38_REL}" || { bad "[38] AstroRelative 合盘端点必走 :9999 Java"; R38_BAD=1; }
   # 检查非注释行(忽略 // 开头的历史解释注释)
@@ -454,9 +455,9 @@ seg_196() {
 # 三道判据缺一即复发,故逐条钉死。
 echo "[196] 三式外圈随时间校正 + 遮罩 + 角宫排版"
 S196_BAD=0
-S196_SS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js"
+S196_SS="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/SanShiUnitedMain.js")"
 S196_FLAGS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/perfFlags.js"
-S196_DJ="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js"
+S196_DJ="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js")"
 S196_LESS="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/layouts/app.less")"
 S196_T="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/sanshi/__tests__/outerRingFollowsTime.test.js"
 # ① chartObj 校正不得被 awaitingChartSync 闸死(实时传导路径下它恒为 false)
@@ -486,15 +487,15 @@ echo "[${PF_NO}] 西占宫主口径单源(整宫制宫主表/分宫制宫神星�
 S240_BAD=0
 S240_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
 [ -f "${S240_UI}/src/utils/wholeSignRulers.js" ] || { bad "[${PF_NO}] wholeSignRulers.js 缺失(宫主派生单源)"; S240_BAD=1; }
-grep -aq "from './wholeSignRulers'" "${S240_UI}/src/utils/astroAiSnapshot.js" || { bad "[${PF_NO}] astroAiSnapshot.js 未引宫主单源"; S240_BAD=1; }
+grep -aqE "from '(\./|(\.\./)+)wholeSignRulers'" "$(pf_src_set "${S240_UI}/src/utils/astroAiSnapshot.js")" || { bad "[${PF_NO}] astroAiSnapshot.js 未引宫主单源"; S240_BAD=1; }
 grep -aq "utils/wholeSignRulers'" "${S240_UI}/src/components/astro/AstroDispositor.js" || { bad "[${PF_NO}] AstroDispositor.js 未引宫主单源"; S240_BAD=1; }
 grep -aq "utils/wholeSignRulers'" "${S240_UI}/src/components/astro/AstroInfo.js" || { bad "[${PF_NO}] AstroInfo.js 未引宫主单源(命主星)"; S240_BAD=1; }
-S240_LOCAL="$(grep -anF "SIGN_RULER = {" "${S240_UI}/src/components/astro/AstroDispositor.js" "${S240_UI}/src/components/astro/AstroInfo.js" "${S240_UI}/src/utils/astroAiSnapshot.js" 2>/dev/null | grep -vE ":[0-9]+:\s*//" || true)"
+S240_LOCAL="$(grep -anF "SIGN_RULER = {" "${S240_UI}/src/components/astro/AstroDispositor.js" "${S240_UI}/src/components/astro/AstroInfo.js" "$(pf_src_set "${S240_UI}/src/utils/astroAiSnapshot.js")" 2>/dev/null | grep -vE ":[0-9]+:\s*//" || true)"
 [ -z "${S240_LOCAL}" ] || { bad "[${PF_NO}] 宫主查表又长回第二份本地实现(须走 wholeSignRulers.rulerOfSign):"; echo "${S240_LOCAL}" | head -3 | sed 's/^/      /'; S240_BAD=1; }
-grep -aqF "'◆ 整宫制宫主表(wholeSignRulers)'" "${S240_UI}/src/utils/astroAiSnapshot.js" || { bad "[${PF_NO}] [主宰星链] 缺整宫制宫主表子块"; S240_BAD=1; }
-grep -aqF "buildSectionText('分宫制宫神星表'" "${S240_UI}/src/utils/astroAiSnapshot.js" || { bad "[${PF_NO}] 快照缺 [分宫制宫神星表] 独立段"; S240_BAD=1; }
-grep -aqF "'◆ 宫神星(houseRows)'" "${S240_UI}/src/utils/astroAiSnapshot.js" && { bad "[${PF_NO}] 旧「◆ 宫神星(houseRows)」子块回潮到 [主宰星链](分宫制表须独立成段并标宫制)"; S240_BAD=1; }
-grep -aqF "export const ASTRO_SNAPSHOT_FORMAT_VERSION" "${S240_UI}/src/utils/astroAiSnapshot.js" || { bad "[${PF_NO}] astroAiSnapshot.js 缺快照格式版本常量"; S240_BAD=1; }
+grep -aqF "'◆ 整宫制宫主表(wholeSignRulers)'" "$(pf_src_set "${S240_UI}/src/utils/astroAiSnapshot.js")" || { bad "[${PF_NO}] [主宰星链] 缺整宫制宫主表子块"; S240_BAD=1; }
+grep -aqF "buildSectionText('分宫制宫神星表'" "$(pf_src_set "${S240_UI}/src/utils/astroAiSnapshot.js")" || { bad "[${PF_NO}] 快照缺 [分宫制宫神星表] 独立段"; S240_BAD=1; }
+grep -aqF "'◆ 宫神星(houseRows)'" "$(pf_src_set "${S240_UI}/src/utils/astroAiSnapshot.js")" && { bad "[${PF_NO}] 旧「◆ 宫神星(houseRows)」子块回潮到 [主宰星链](分宫制表须独立成段并标宫制)"; S240_BAD=1; }
+grep -aqF "export const ASTRO_SNAPSHOT_FORMAT_VERSION" "$(pf_src_set "${S240_UI}/src/utils/astroAiSnapshot.js")" || { bad "[${PF_NO}] astroAiSnapshot.js 缺快照格式版本常量"; S240_BAD=1; }
 grep -aqF "ASTRO_SNAPSHOT_FORMAT_VERSION" "$(pf_src_set "${S240_UI}/src/utils/aiAnalysisContext.js")" || { bad "[${PF_NO}] aiAnalysisContext.js 缺旧格式快照守卫"; S240_BAD=1; }
 S240_PRESET="$(grep -acF "'主宰星链', '分宫制宫神星表'" "$(pf_src_set "${S240_UI}/src/utils/aiExport.js")" || true)"
 [ "${S240_PRESET:-0}" -ge 9 ] || { bad "[${PF_NO}] aiExport.js preset 含「主宰星链, 分宫制宫神星表」行数 ${S240_PRESET:-0} < 9(九个西占键必登记,否则该段被静默删)"; S240_BAD=1; }
@@ -523,7 +524,7 @@ grep -aq "export function foldAscii" "${S243_UI}/src/components/amap/cityMatch.j
 [ -f "${S243_UI}/src/utils/timeBasisLine.js" ] || { bad "[${PF_NO}] timeBasisLine.js 缺失"; S243_BAD=1; }
 [ "$(grep -ac 'buildTimeBasisLine(' "$(pf_src_set "${S243_UI}/src/components/guolao/GuoLaoChartMain.js")")" -ge 2 ] || { bad "[${PF_NO}] 七政两处 [起盘信息] 未自声明时间基准"; S243_BAD=1; }
 grep -aq "buildTimeBasisLine(" "${S243_UI}/src/components/cntradition/BaZi.js" || { bad "[${PF_NO}] 八字 [起盘信息] 未自声明时间基准"; S243_BAD=1; }
-grep -aq "withTimeBasis: true" "${S243_UI}/src/utils/astroAiSnapshot.js" || { bad "[${PF_NO}] 星盘 [起盘信息] 未自声明时间基准"; S243_BAD=1; }
+grep -aq "withTimeBasis: true" "$(pf_src_set "${S243_UI}/src/utils/astroAiSnapshot.js")" || { bad "[${PF_NO}] 星盘 [起盘信息] 未自声明时间基准"; S243_BAD=1; }
 grep -aq "时间基准" "${S243_UI}/src/utils/aiAgent/protocol.js" || { bad "[${PF_NO}] AGENT_SYSTEM_RULES 缺跨技法时间基准条款"; S243_BAD=1; }
 for t in timezone.cnRegion snapshotTimeBasis.contract; do [ -f "${S243_UI}/src/utils/__tests__/$t.test.js" ] || { bad "[${PF_NO}] 回归测试 $t.test.js 缺失"; S243_BAD=1; }; done
 [ "${S243_BAD}" = "0" ] && ok "[${PF_NO}] 产品口径锁(中国大陆统一时区归并/地名中文别名与重音折叠/跨技法时间基准自声明)"
@@ -590,7 +591,7 @@ grep -qF "'wheelArt'," "${S207_UI}/components/astro/AstroChart.js" \
 grep -qF "'wheelArt'," "${S207_UI}/utils/globalSetupStore.js" \
   && grep -qF 'mergeGlobalSetupWrite(patch);' "${S207_UI}/models/app.js" \
   || { bad "[207] 🔴 全局设置落盘字段表缺 wheelArt / app model 未经落盘单源写(跨会话保存静默失效)"; S207_BAD=1; }
-grep -qF 'export function normalizeWheelArt' "${S207_UI}/constants/AstroConst.js" \
+grep -qF 'export function normalizeWheelArt' "$(pf_src_set "${S207_UI}/constants/AstroConst.js")" \
   || { bad "[207] 🔴 wheelArt 归一函数缺失"; S207_BAD=1; }
 grep -qF 'renderWheelStyleGrid' "${S207_UI}/components/astro/AstroChartMain.js" \
   || { bad "[207] 🔴 星盘样式双下拉单源方法被拆(外环样式+盘面美术)"; S207_BAD=1; }
@@ -715,7 +716,7 @@ S300_CN="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudycn/src/main/java/spacex
 grep -q '<div className="horosa-field-label">南半球月令</div>' "${S300_UI}/components/cntradition/CnTraditionInput.js" 2>/dev/null \
   && grep -q "southMonth: (this.state.baziOpt && this.state.baziOpt.southMonth) || 'none'," "${S300_UI}/components/cntradition/BaZi.js" 2>/dev/null \
   && grep -q "(prev.southMonth || 'none') !== (opt.southMonth || 'none')" "${S300_UI}/components/cntradition/BaZi.js" 2>/dev/null || { bad "[${PF_NO}] 🔴 八字页缺「南半球月令」控件 / 请求参数 / 改后重排"; S300_BAD=1; }
-grep -q "{ name: 'southMonth', label: '南半球月令'" "${S300_UI}/utils/techniqueMountSettings.js" 2>/dev/null \
+grep -q "{ name: 'southMonth', label: '南半球月令'" "$(pf_src_set "${S300_UI}/utils/techniqueMountSettings.js")" 2>/dev/null \
   && grep -q "southMonth: baziOptFromRecord(record, 'southMonth', 'none')," "$(pf_src_set "${S300_UI}/utils/aiAnalysisContext.js")" 2>/dev/null || { bad "[${PF_NO}] 🔴 AI 挂载缺南半球月令 / 取盘参数未转发"; S300_BAD=1; }
 grep -q "function flipMonthPillar(hybrid, base){" "${S300_UI}/utils/baziLunarLocal.js" 2>/dev/null \
   && grep -q "export function isSouthLatitude(params){" "${S300_UI}/utils/baziLunarLocal.js" 2>/dev/null \
@@ -783,7 +784,7 @@ seg_124() {
 S124_BAD=0
 S124_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
 echo "[124] 推运盘星体白名单(漏传≠全空盘)"
-S124_CNT=$({ grep -c "planetDisplay={this.props.planetDisplay}" "${S124_UI}/src/components/direction/AstroDirectMain.js" 2>/dev/null || echo 0; } | tail -1)
+S124_CNT=$({ grep -c "planetDisplay={this.props.planetDisplay}" "$(pf_src_set "${S124_UI}/src/components/direction/AstroDirectMain.js")" 2>/dev/null || echo 0; } | tail -1)
 [ "${S124_CNT}" -ge 6 ] || { bad "[124] AstroDirectMain planetDisplay 透传少于 6 处(推运 TabPane 漏传回潮,现=${S124_CNT})"; S124_BAD=1; }
 grep -q "DEFAULT_OBJECTS" "${S124_UI}/src/components/astro/AstroDoubleChart.js" 2>/dev/null || { bad "[124] AstroDoubleChart 缺 planetDisplay 漏传回落(空盘回潮)"; S124_BAD=1; }
 grep -q "DEFAULT_OBJECTS" "${S124_UI}/src/components/astro/AstroChart.js" 2>/dev/null || { bad "[124] AstroChart 缺 planetDisplay 漏传回落(空盘回潮)"; S124_BAD=1; }
@@ -803,7 +804,7 @@ S179_JAVA="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex
 for F in components/shusuan/HeLuoMain.js components/shusuan/CanPingMain.js utils/aiAnalysisContext.js; do
     grep -aq "ganzhiYearBase(" "$(pf_src_set "${S179_UI}/${F}")" 2>/dev/null || { S179_BAD=1; bad "[${PF_NO}]① ${F} 未经 ganzhiYearBase(立春前出生者流年会整体错一年)"; }
 done
-grep -aq "gender={this.state.gender}" "${S179_UI}/components/kinastro/KinAstroMain.js" 2>/dev/null || { S179_BAD=1; bad "[${PF_NO}]② 宿主未下发 gender(左栏性别成死开关)"; }
+grep -aq "gender={this.state.gender}" "$(pf_src_set "${S179_UI}/components/kinastro/KinAstroMain.js")" 2>/dev/null || { S179_BAD=1; bad "[${PF_NO}]② 宿主未下发 gender(左栏性别成死开关)"; }
 for F in components/shusuan/CanPingMain.js components/shusuan/ZhengChuanMain.js components/shusuan/HeLuoMain.js; do
     grep -aq "this.props.gender !== undefined" "${S179_UI}/${F}" 2>/dev/null || { S179_BAD=1; bad "[${PF_NO}]② ${F} 未 props.gender 优先"; }
 done
@@ -978,7 +979,7 @@ fi
 seg_33() {
 # [33] 主限法方位+时间补全·strategy 分发完整性 + 前端选项扩 (含铺满/盘宫制/label 收口)
 #  - perchart.py: pdMethod 白名单与本仓核验集一致 + pdDirect 解析
-#  - 前端 primaryDirectionSync.js: PD_SYNC_REV = 'pd_method_sync_v28' + SUPPORTED_PD_METHODS(核验集)
+#  - 前端 primaryDirectionSync.js: PD_SYNC_REV = 'pd_method_sync_v29' + SUPPORTED_PD_METHODS(核验集)
 #  - 后端 helper.py / webchartsrv.py: PD_SYNC_REV 对齐 v10(否则新盘恒误判重算)
 #  - pd_engine.py: build_directions + solar_arc_for_years(真太阳弧动态钥匙逆函数)
 #  - 表格工具栏单行(无 advanced 第二行,不遮表格);TabPane 名「主限法」
@@ -989,8 +990,8 @@ PD33_BAD=0
 PERCHART="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/perchart.py")"
 PD_SYNC="${UISRC}/utils/primaryDirectionSync.js"
 if [ -f "${PD_SYNC}" ]; then
-  if ! grep -q "pd_method_sync_v28" "${PD_SYNC}"; then
-    bad "[33] primaryDirectionSync.js PD_SYNC_REV 未升到 'pd_method_sync_v28' —— 旧缓存不重算,新 方位法/世俗/顺逆/真太阳弧 不生效"
+  if ! grep -q "pd_method_sync_v29" "${PD_SYNC}"; then
+    bad "[33] primaryDirectionSync.js PD_SYNC_REV 未升到 'pd_method_sync_v29' —— 旧缓存不重算,新 方位法/世俗/顺逆/真太阳弧 不生效"
     PD33_BAD=1
   fi
   if ! grep -q "SUPPORTED_PD_METHODS" "${PD_SYNC}"; then
@@ -1004,7 +1005,7 @@ if [ -f "${PD_SYNC}" ]; then
 fi
 # v10:后端 PD_SYNC_REV 必须与前端一致(均 v10),否则每张新盘首查都误判需重算
 for f in "${REPO_ROOT}/Horosa-Web/astropy/astrostudy/helper.py" "${REPO_ROOT}/Horosa-Web/astropy/websrv/webchartsrv.py"; do
-  [ -f "$f" ] && { grep -q "pd_method_sync_v28" "$f" || { bad "[33] 后端 $(basename $f) PD_SYNC_REV 未对齐到 v28(与前端不一致→新盘恒误判重算)"; PD33_BAD=1; }; }
+  [ -f "$f" ] && { grep -q "pd_method_sync_v29" "$f" || { bad "[33] 后端 $(basename $f) PD_SYNC_REV 未对齐到 v29(与前端不一致→新盘恒误判重算)"; PD33_BAD=1; }; }
 done
 # perchart 白名单含上面同一组方位法 + pdDirect 解析存在(顺逆同选)
 if [ -f "${PERCHART}" ]; then
@@ -1022,11 +1023,11 @@ else
   bad "[33] 缺 pd_engine.py —— 主限法时间钥匙引擎(真太阳弧/太阳弧动态钥匙)不存在"; PD33_BAD=1
 fi
 # v10:主限法表格工具栏须为单行(无第二行,否则遮挡表格);tab 名为「主限法」
-PD_TABLE="${UISRC}/components/astro/AstroPrimaryDirection.js"
+PD_TABLE="$(pf_src_set "${UISRC}/components/astro/AstroPrimaryDirection.js")"   # 拆成子模块:按全集查
 if [ -f "${PD_TABLE}" ]; then
   grep -q "horosa-primary-direction-toolbar-advanced" "${PD_TABLE}" && { bad "[33] AstroPrimaryDirection.js 仍有第二行工具栏(advanced)—— 会遮挡表格,须并回单行"; PD33_BAD=1; }
 fi
-DIRECT_MAIN="${UISRC}/components/direction/AstroDirectMain.js"
+DIRECT_MAIN="$(pf_src_set "${UISRC}/components/direction/AstroDirectMain.js")"
 if [ -f "${DIRECT_MAIN}" ] && grep -q 'tab="主/界限法"' "${DIRECT_MAIN}"; then
   bad "[33] AstroDirectMain.js 主限法 TabPane 仍名「主/界限法」,应改为「主限法」"
   PD33_BAD=1
@@ -1041,8 +1042,8 @@ if [ -f "${PD_CTRL}" ]; then
   # 单源化后控制器不再含字面量:判「引用 PdWire.REV」且「PdWire 定义 = 当前代次」(旧判据只认字面量→误红)
   if ! grep -q "PdWire.REV" "${PD_CTRL}"; then
     bad "[33] PredictiveController.java _wireRev 未引用 PdWire.REV(缓存盐单源破)"; PD33_BAD=1
-  elif ! grep -q "pd_method_sync_v28" "${REPO_ROOT}/Horosa-Web/astrostudysrv/basecomm/src/main/java/spacex/basecomm/constants/PdWire.java"; then
-    bad "[33] PdWire.REV 未升 v28 —— 旧 ParamHashCache 哈希不失效,新参可能读到旧缓存"; PD33_BAD=1
+  elif ! grep -q "pd_method_sync_v29" "${REPO_ROOT}/Horosa-Web/astrostudysrv/basecomm/src/main/java/spacex/basecomm/constants/PdWire.java"; then
+    bad "[33] PdWire.REV 未升 v29 —— 旧 ParamHashCache 哈希不失效,新参可能读到旧缓存"; PD33_BAD=1
   fi
 fi
 PD_CHART="${UISRC}/components/astro/AstroPrimaryDirectionChart.js"
@@ -1106,4 +1107,46 @@ fi
 PD_DIAL_TEST="${REPO_ROOT}/Horosa-Web/astropy/tests/test_pd_dial_house_system.py"
 [ -f "${PD_DIAL_TEST}" ] || { bad "[33] 缺 tests/test_pd_dial_house_system.py —— 盘宫制随方法的自检守卫缺失"; PD33_BAD=1; }
 [ "${PD33_BAD}" = "0" ] && ok "[33] strategy 分发 + 前端白名单精确集 + 盘宫制随方法 + 共享 label 字典 + AI 上下文实选透传 均到位"
+}
+
+# 偕日升没「是否在出生前后七天内」:高纬度(星历库改用逐日严格升落算法、一次搜索以秒计)先排除再搜索,结果与直接搜索逐例相同。
+seg_335() {
+S335_BAD=0
+S335_PY="${REPO_ROOT}/Horosa-Web/astropy"
+S335_M="${S335_PY}/astrostudy/heliacal_window.py"
+S335_T="${S335_PY}/tests/test_heliacal_window.py"
+S335_P="${S335_PY}/astrostudy/perchart_parts/planets.py"
+for S335_F in "${S335_M}" "${S335_T}" "${S335_P}"; do
+  [ -s "${S335_F}" ] || { bad "[${PF_NO}] 🔴 缺 ${S335_F#${REPO_ROOT}/}"; S335_BAD=1; }
+done
+if [ "${S335_BAD}" = "0" ]; then
+  # ① 排盘只经这个模块判定(模块里带进程级缓存:附属接口重起同一张盘不再重搜);排盘文件里不再自己调星历库的偕日搜索
+  grep -qF 'return phasis_event(self.dateTime.jd, float(self.pos.lon), float(self.pos.lat), obj)' "${S335_P}" \
+    || { bad "[${PF_NO}] 🔴 排盘的偕日升没判定没有走 heliacal_window.phasis_event(高纬度会回到一次搜索几秒)"; S335_BAD=1; }
+  [ "$(grep -cF 'heliacal_ut(' "${S335_P}" || true)" = "0" ] \
+    || { bad "[${PF_NO}] 🔴 perchart_parts/planets.py 里又直接调了星历库的偕日搜索(绕开了先排除与缓存)"; S335_BAD=1; }
+  # ② 只在星历库变慢的纬度先排除;其余纬度路径与原来一样
+  grep -qF 'POLAR_LATITUDE = 63.0' "${S335_M}" \
+    || { bad "[${PF_NO}] 🔴 先排除的纬度分界不是 63°(星历库自己的快慢分界;改小 = 中纬度白白多算,改大 = 63° 以上回到慢路径)"; S335_BAD=1; }
+  # ③ 可见度函数会把星名字符串就地改成小写:只许给它私有的小写副本
+  grep -qF "name = obj.encode('ascii').decode('ascii').lower()" "${S335_M}" \
+    || { bad "[${PF_NO}] 🔴 传给可见度函数的星名不是私有的小写副本(共享星名常量会被就地改写,全进程按星名取值失灵)"; S335_BAD=1; }
+  [ "$(grep -cE 'vis_limit_mag\([^)]*\bobj\b' "${S335_M}" || true)" = "0" ] \
+    || { bad "[${PF_NO}] 🔴 把共享的星名常量直接传给了可见度函数"; S335_BAD=1; }
+  # ④ 拿不准一律照原样去搜
+  [ "$(grep -cF 'return True' "${S335_M}" || true)" -ge 4 ] \
+    || { bad "[${PF_NO}] 🔴 排除判定里「拿不准就照原样搜」的出口少了"; S335_BAD=1; }
+  # ⑤ 判据文件里的关键断言不得被摘
+  for S335_A in \
+    'def test_exclusion_never_drops_an_event' \
+    'def test_polar_cases_match_direct_search_and_skip_the_slow_searches' \
+    'def test_polar_events_inside_the_window_are_kept' \
+    'def test_shared_planet_name_constants_are_not_rewritten' \
+    'def test_events_are_judged_independently' \
+    'def test_anything_uncertain_falls_back_to_the_search'
+  do
+    grep -qF "${S335_A}" "${S335_T}" || { bad "[${PF_NO}] 🔴 判据文件缺关键断言:${S335_A}"; S335_BAD=1; }
+  done
+fi
+[ "${S335_BAD}" = "0" ] && ok "[${PF_NO}] 高纬度偕日升没判定:先排除再搜索 + 进程缓存、星名常量不被改写、判据在位"
 }

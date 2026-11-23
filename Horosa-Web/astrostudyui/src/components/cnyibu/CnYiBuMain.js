@@ -1,7 +1,7 @@
 import React, { Component, createRef, Suspense } from 'react';
 import { wrapperPropsEqual } from '../../utils/chartUpdateGuard';
-import { Spin } from 'antd';
-import { XQTabs as Tabs } from '../xq-ui';
+
+import { XQTabs as Tabs, XQSpin } from '../xq-ui';
 import { randomStr } from '../../utils/helper';
 // 十子技法组件级 lazy(照下方 guice 四件既有范式):进「卜·其他」只拉壳+当前子页,
 // 其余子页首次点击才拉(idle 预取与悬停预取照旧);ref 经 React.lazy 透传,dock 判空自动降级。
@@ -288,7 +288,7 @@ class CnYiBuMain extends Component{
 					style={{ height: '100%', minHeight: 0 }}
 				>
 					<TabPane tab="宿盘" key="suzhan">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<SuZhanMain 
 								ref={this.attachChildRef('suzhan')}
 								value={this.props.chart}
@@ -304,7 +304,7 @@ class CnYiBuMain extends Component{
 					</TabPane>
 
 					<TabPane tab="金口诀" key="jinkou">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<JinKouMain
 								ref={this.attachChildRef('jinkou')}
 								value={this.props.chart}
@@ -317,7 +317,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="统摄法" key="tongshefa">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<TongSheFaMain
 								ref={this.attachChildRef('tongshefa')}
 								value={this.props.chart}
@@ -329,7 +329,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="皇极经世" key="huangji">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<HuangJiMain
 								ref={this.attachChildRef('huangji')}
 								value={this.props.chart}
@@ -342,7 +342,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="五兆" key="wuzhao">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<WuZhaoMain
 								ref={this.attachChildRef('wuzhao')}
 								value={this.props.chart}
@@ -355,7 +355,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="太玄" key="taixuan">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<TaiXuanMain
 								ref={this.attachChildRef('taixuan')}
 								value={this.props.chart}
@@ -368,7 +368,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="皇极轨策" key="guice">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<GuiceMain
 								ref={this.attachChildRef('guice')}
 								value={this.props.chart}
@@ -382,7 +382,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="小六壬" key="xiaoliuren">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<XiaoLiuRenMain
 								ref={this.attachChildRef('xiaoliuren')}
 								value={this.props.chart}
@@ -396,7 +396,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="小成图" key="xiaochengtu">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<XiaoChengTuMain
 								ref={this.attachChildRef('xiaochengtu')}
 								value={this.props.chart}
@@ -410,7 +410,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="飞宫小奇门" key="feigong">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<FeiGongMain
 								ref={this.attachChildRef('feigong')}
 								value={this.props.chart}
@@ -424,7 +424,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="荆诀" key="jingjue">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<JingJueMain
 								ref={this.attachChildRef('jingjue')}
 								value={this.props.chart}
@@ -437,7 +437,7 @@ class CnYiBuMain extends Component{
 						</Suspense>
 					</TabPane>
 					<TabPane tab="神易数" key="shenyishu">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<ShenYiShuMain
 								ref={this.attachChildRef('shenyishu')}
 								value={this.props.chart}
@@ -451,7 +451,7 @@ class CnYiBuMain extends Component{
 					</TabPane>
 
 					<TabPane tab="地占" key="geomancy">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<GeomancyMain
 								ref={this.attachChildRef('geomancy')}
 								value={this.props.chart}
@@ -465,7 +465,7 @@ class CnYiBuMain extends Component{
 					</TabPane>
 
 					<TabPane tab="灵棋经" key="lingqi">
-						<Suspense fallback={<div className="horosa-guice-loading"><Spin size="small" /> 载入中</div>}>
+						<Suspense fallback={<div className="horosa-guice-loading"><XQSpin size="small" /> 载入中</div>}>
 							<LingQiMain
 								ref={this.attachChildRef('lingqi')}
 								value={this.props.chart}

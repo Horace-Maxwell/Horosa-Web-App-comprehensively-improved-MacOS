@@ -41,7 +41,7 @@ def test_fallback_matches_scipy_on_random_games(seed):
             assert r1.success and r2.success
             assert abs(r1.fun - r2.fun) < 1e-7
             assert np.all(A_ub @ r2.x - b_ub <= 1e-7)
-            assert abs(float(A_eq @ r2.x) - 1.0) < 1e-9
+            assert abs(float((A_eq @ r2.x)[0]) - 1.0) < 1e-9   # 取出那一个元素再转(新版 numpy 不再把一维单元素数组隐式当标量)
             assert np.all(r2.x[:-1] >= -1e-9)
 
 

@@ -7,6 +7,7 @@
 //                             其余路径只含它自己。
 //   readSourceSet(全路径)  —— 按上面的清单把内容首尾相接成一份文本(拼出来的是文本,要解析 AST 的检查按 sourceSetFiles 逐个文件解析);
 //                             样式门面(layouts/app.less)则把门面里的区段 @import 原位展开(= 拆分前的整份样式)。
+//   facadeOfFile(全路径)    —— 子模块 → 它所属的门面(不是子模块 = null)。
 // Python 计算引擎的门面(登记表 pySets,路径相对 Horosa-Web/astropy:perchart.py / india/jyotish_engine.py / astroextra.py)同样处理:
 //   路径尾部是 …/astropy/<门面> 时,全集 = [子模块…(登记次序), 门面](登记表取该仓 Horosa-Web/astrostudyui/scripts 下那份)。
 const fs = require('fs');
@@ -68,4 +69,19 @@ function readSourceSet(full){
 	return files.map((f)=>fs.readFileSync(f, 'utf8')).join('');
 }
 
-module.exports = { sourceSetFiles, readSourceSet };
+// facadeOfFile(全路径) —— 路径是某个登记门面的子模块:返回那个门面的全路径;否则 null(按名字认的检查把子模块折回门面用)
+function facadeOfFile(full){
+	const abs = path.resolve(`${full}`);
+	const norm = abs.split(path.sep).join('/');
+	const at = norm.lastIndexOf('/src/');
+	if(at < 0){ return null; }
+	const uiRoot = abs.slice(0, at);
+	const sets = manifestFor(uiRoot) || {};
+	for(const rel of Object.keys(sets)){
+		const set = sets[rel];
+		if(set.files.some((f)=>path.join(uiRoot, 'src', set.dir, f) === abs)){ return path.join(uiRoot, 'src', rel); }
+	}
+	return null;
+}
+
+module.exports = { sourceSetFiles, readSourceSet, facadeOfFile };

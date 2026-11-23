@@ -605,7 +605,8 @@ impl<'a, W: Write + Send> Shared<'a, W> {
     }
 }
 
-/// 单条请求的 HTTP 预算:tools/call 跟壳同口径(客户端 _meta.timeoutMs 钳 1 s..600 s,缺省 120 s)再加 10 s 余量;其余 30 s。
+/// 单条请求的 HTTP 预算:tools/call 跟壳同口径再加 10 s 余量 —— 客户端给了 _meta.timeoutMs 就按它(钳 1 s..30 分钟);
+/// 没给时壳按工具自己声明的预算等(代理这一跳不知道是哪一档),这里按硬顶等、由壳准时回话。其余方法 30 s。
 /// 此前代理整体写死 120 s:客户端给了更长的工具预算(如 180 s 的无头分析)也会在代理这一跳先断。
 pub fn request_timeout_for(parsed: &Value) -> Duration {
     let method = parsed.get("method").and_then(|m| m.as_str()).unwrap_or("");
@@ -613,7 +614,8 @@ pub fn request_timeout_for(parsed: &Value) -> Duration {
         return Duration::from_secs(30);
     }
     let params = parsed.get("params").cloned().unwrap_or(json!({}));
-    crate::mcp_server::tool_timeout_of(&params) + Duration::from_secs(10)
+    crate::mcp_server::explicit_tool_timeout(&params).unwrap_or(crate::mcp_server::MAX_TOOL_TIMEOUT)
+        + Duration::from_secs(10)
 }
 
 /// 一行进、一行(或多行:响应流里的进度通知 + 回包)出;回 (处理的行数, 出错数)。
@@ -1337,7 +1339,8 @@ mod tests {
         let call = |meta: Value| json!({ "method": "tools/call", "params": { "name": "x", "_meta": meta } });
         assert_eq!(
             request_timeout_for(&call(json!({}))),
-            Duration::from_secs(130)
+            Duration::from_secs(1810),
+            "没给预算:壳按工具声明的等,代理按硬顶等"
         );
         assert_eq!(
             request_timeout_for(&call(json!({ "timeoutMs": 180000 }))),
@@ -1346,7 +1349,7 @@ mod tests {
         );
         assert_eq!(
             request_timeout_for(&call(json!({ "timeoutMs": 99999999 }))),
-            Duration::from_secs(610)
+            Duration::from_secs(1810)
         );
         assert_eq!(
             request_timeout_for(&json!({ "method": "resources/read" })),

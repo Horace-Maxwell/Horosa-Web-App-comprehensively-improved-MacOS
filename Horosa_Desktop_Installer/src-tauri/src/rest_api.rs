@@ -5,8 +5,8 @@
 use crate::mcp_server::{
     header_value, json_response, plain_response, progress_frame, CallControl, McpCore,
     PageDispatcher, SseResponse, ERR_CANCELLED, ERR_INTERNAL, ERR_INVALID_PARAMS,
-    ERR_METHOD_NOT_FOUND, ERR_NOT_READY, ERR_RATE_LIMITED, ERR_RELOADED, ERR_TIMEOUT,
-    MAX_BODY_BYTES, SSE_RESPONSE_KEEPALIVE,
+    ERR_INVALID_REQUEST, ERR_METHOD_NOT_FOUND, ERR_NOT_READY, ERR_PARSE, ERR_RATE_LIMITED,
+    ERR_RELOADED, ERR_TIMEOUT, MAX_BODY_BYTES, SSE_RESPONSE_KEEPALIVE,
 };
 use serde_json::{json, Value};
 use std::io::Read;
@@ -154,6 +154,31 @@ pub fn parse_query(q: &str) -> serde_json::Map<String, Value> {
     out
 }
 
+/// JSON-RPC 数字码 → REST 字符串码(error.code 一律字符串,原数字码另放 error.rpcCode;与无头 rest.js 同一张表)
+pub const RPC_ERROR_NAMES: [(i64, &str); 10] = [
+    (ERR_PARSE, "BAD_JSON"),
+    (ERR_INVALID_REQUEST, "BAD_REQUEST"),
+    (ERR_METHOD_NOT_FOUND, "NOT_FOUND"),
+    (ERR_INVALID_PARAMS, "INVALID_PARAMS"),
+    (ERR_INTERNAL, "INTERNAL"),
+    (ERR_NOT_READY, "NOT_READY"),
+    (ERR_TIMEOUT, "TIMEOUT"),
+    (ERR_RELOADED, "RELOADED"),
+    (ERR_RATE_LIMITED, "RATE_LIMITED"),
+    (ERR_CANCELLED, "CANCELLED"),
+];
+pub fn rpc_error_name(code: i64) -> &'static str {
+    RPC_ERROR_NAMES
+        .iter()
+        .find(|(c, _)| *c == code)
+        .map(|(_, n)| *n)
+        .unwrap_or("UPSTREAM")
+}
+/// 保留查询键(不当工具参数):text=0 = 有结构化结果时不再附正文;stream=1 = 事件流
+pub const RESERVED_QUERY_KEYS: [&str; 2] = ["text", "stream"];
+/// 每次调用的超时预算请求头(毫秒;与 MCP _meta.timeoutMs 同义,预算口径钳 1 s..30 分钟;不带 = 按工具声明的预算,没声明的 120 s)
+pub const TIMEOUT_HEADER: &str = "X-Horosa-Timeout-Ms";
+
 /// JSON-RPC 错误码 → HTTP 状态
 pub fn rpc_error_status(code: i64) -> u16 {
     match code {
@@ -168,8 +193,15 @@ pub fn rpc_error_status(code: i64) -> u16 {
     }
 }
 
-/// 工具结果(页面回的 {content, structuredContent?, isError})→ REST 形态 { ok, data?, text, error? };工具层失败 = 422
+/// 工具结果(页面回的 {content, structuredContent?, isError})→ REST 形态 { ok, data?, text, error? }。
+/// 工具层失败 = 422;两类例外按 HTTP 惯例给码,客户端不必读中文说明就知道该等还是该缩小范围:
+/// 外部调用 / 写入超限(E_LIMIT 且可重试)= 429(带 Retry-After),工具超时(E_TOOL_TIMEOUT)= 504。
 pub fn tool_result_body(result: &Value) -> (u16, Value) {
+    tool_result_body_opts(result, false)
+}
+
+/// drop_text:成功且有 data 时不带 text(?text=0;失败总带正文,错误说明在里面)
+pub fn tool_result_body_opts(result: &Value, drop_text: bool) -> (u16, Value) {
     let is_error = result
         .get("isError")
         .and_then(|v| v.as_bool())
@@ -188,14 +220,35 @@ pub fn tool_result_body(result: &Value) -> (u16, Value) {
     if let Some(sc) = result.get("structuredContent").filter(|v| !v.is_null()) {
         body["data"] = sc.clone();
     }
+    let mut status: u16 = if is_error { 422 } else { 200 };
+    if !is_error && drop_text && body.get("data").is_some() {
+        if let Some(o) = body.as_object_mut() {
+            o.remove("text");
+        }
+    }
     if is_error {
         if let Ok(e) = serde_json::from_str::<Value>(&text) {
-            if e.get("code").and_then(|c| c.as_str()).is_some() {
+            if let Some(code) = e.get("code").and_then(|c| c.as_str()) {
+                let retryable = e
+                    .get("retryable")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
                 body["error"] = json!({
-                    "code": e.get("code").cloned().unwrap_or(Value::Null),
+                    "code": code,
                     "message": e.get("message").cloned().unwrap_or(Value::Null),
-                    "retryable": e.get("retryable").cloned().unwrap_or(json!(false)),
+                    "retryable": retryable,
                 });
+                if let Some(h) = e.get("hint").filter(|h| h.is_string()) {
+                    body["error"]["hint"] = h.clone();
+                }
+                if let Some(ms) = e.get("retryAfterMs").filter(|v| v.is_u64()) {
+                    body["error"]["retryAfterMs"] = ms.clone();
+                }
+                if code == "E_LIMIT" && retryable {
+                    status = 429;
+                } else if code == "E_TOOL_TIMEOUT" {
+                    status = 504;
+                }
             }
             // 失败的结构化数据(候选 / 可用项)只在正文 JSON 里(结构化结果只给成功)
             if body.get("data").is_none() {
@@ -205,7 +258,7 @@ pub fn tool_result_body(result: &Value) -> (u16, Value) {
             }
         }
     }
-    (if is_error { 422 } else { 200 }, body)
+    (status, body)
 }
 
 fn error_body(status: u16, code: &str, message: &str) -> (u16, Value) {
@@ -237,13 +290,36 @@ fn rpc(
             .get("message")
             .and_then(|m| m.as_str())
             .unwrap_or("error");
-        let mut body = json!({ "ok": false, "error": { "code": code, "message": msg } });
+        let mut body = json!({ "ok": false, "error": { "code": rpc_error_name(code), "message": msg, "rpcCode": code } });
         if let Some(d) = err.get("data") {
             body["error"]["data"] = d.clone();
         }
         return Err((rpc_error_status(code), body));
     }
     Ok(v.get("result").cloned().unwrap_or(Value::Null))
+}
+
+/// 资源 / 提示接口里「参数不对」即「没有这个东西」→ 404 NOT_FOUND(此前回 400)
+fn not_found_if_invalid(e: (u16, Value)) -> (u16, Value) {
+    let (s, mut b) = e;
+    if b["error"]["rpcCode"].as_i64() == Some(ERR_INVALID_PARAMS) {
+        b["error"]["code"] = json!("NOT_FOUND");
+        return (404, b);
+    }
+    (s, b)
+}
+
+/// 超时预算请求头 → _meta.timeoutMs(非数字 = 不带,走缺省)
+fn with_timeout_header(mut params: Value, header: Option<&str>) -> Value {
+    if let Some(ms) = header
+        .and_then(|h| h.trim().parse::<f64>().ok())
+        .filter(|v| v.is_finite())
+    {
+        if let Some(meta) = params.get_mut("_meta").and_then(|m| m.as_object_mut()) {
+            meta.insert("timeoutMs".into(), json!(ms.round() as i64));
+        }
+    }
+    params
 }
 
 fn with_client_meta(params: Value) -> Value {
@@ -264,19 +340,83 @@ fn with_client_meta_idem(mut params: Value, idempotency_key: Option<&str>) -> Va
     params
 }
 
+/// OpenAPI 的错误状态码与说明(与无头 rest.js ERROR_RESPONSES 同一张表)
+pub const ERROR_RESPONSES: [(&str, &str); 11] = [
+    ("400", "参数 / 请求体不合规(error.code:INVALID_PARAMS / BAD_JSON / BAD_REQUEST)"),
+    ("401", "令牌缺失或不对(Authorization: Bearer <令牌>)"),
+    ("404", "没有这个接口 / 资源 / 提示(error.code:NOT_FOUND)"),
+    ("405", "方法不对(看 Allow 响应头)"),
+    ("409", "请求被取消(error.code:CANCELLED)"),
+    ("413", "请求体过大(error.code:PAYLOAD_TOO_LARGE)"),
+    ("422", "工具执行失败(error.code 见错误码表,error.retryable / error.hint 说明能否重试、下一步做什么)"),
+    ("429", "超出调用 / 写入上限(看 Retry-After 响应头与 error.retryAfterMs)"),
+    ("500", "服务内部错误(error.code:INTERNAL)"),
+    ("503", "页面未就绪 / 服务重启中(error.code:NOT_READY / RELOADED;看 error.data.retryAfterMs)"),
+    ("504", "工具执行超时(error.code:TIMEOUT / E_TOOL_TIMEOUT;缩小范围或加大 X-Horosa-Timeout-Ms 后再试)"),
+];
+
+fn error_responses(skip: &[&str]) -> serde_json::Map<String, Value> {
+    let mut out = serde_json::Map::new();
+    for (code, desc) in ERROR_RESPONSES.iter() {
+        if skip.contains(code) {
+            continue;
+        }
+        out.insert(
+            (*code).to_string(),
+            json!({ "description": desc, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }),
+        );
+    }
+    out
+}
+
+fn with_responses(ok: Value, skip: &[&str]) -> Value {
+    let mut m = error_responses(skip);
+    m.insert("200".into(), ok);
+    Value::Object(m)
+}
+
+/// GET 简写的查询参数:取工具 inputSchema 的顶层属性(值一律按字符串传,服务端按参数结构转型)
+fn query_params_of(input: Option<&Value>) -> Vec<Value> {
+    let Some(props) = input
+        .and_then(|s| s.get("properties"))
+        .and_then(|p| p.as_object())
+    else {
+        return Vec::new();
+    };
+    let req: Vec<&str> = input
+        .and_then(|s| s.get("required"))
+        .and_then(|r| r.as_array())
+        .map(|a| a.iter().filter_map(|x| x.as_str()).collect())
+        .unwrap_or_default();
+    props
+        .iter()
+        .map(|(k, v)| {
+            let mut p = json!({ "name": k, "in": "query", "required": req.contains(&k.as_str()), "schema": v });
+            if let Some(d) = v.get("description").filter(|d| d.is_string()) {
+                p["description"] = d.clone();
+            }
+            p
+        })
+        .collect()
+}
+
 /// OpenAPI 3.1(由工具目录现生成;服务器地址用相对路径,端口随实例)
 pub fn openapi_doc(tools: &[Value], app_version: &str) -> Value {
     let mut paths = serde_json::Map::new();
     let result_schema = |output: Option<&Value>| -> Value {
-        let mut props = json!({ "ok": { "type": "boolean" }, "text": { "type": "string" }, "error": { "type": "object" } });
+        let mut props = json!({ "ok": { "type": "boolean" }, "text": { "type": "string" }, "error": { "$ref": "#/components/schemas/ErrorDetail" } });
         props["data"] = output.cloned().unwrap_or(json!({ "type": "object" }));
         json!({ "type": "object", "required": ["ok"], "properties": props })
     };
-    paths.insert("/tools".into(), json!({ "get": { "operationId": "listTools", "summary": "列出全部工具(与 MCP tools/list 同一份)", "responses": { "200": { "description": "工具清单" } } } }));
+    let text_param = json!({ "name": "text", "in": "query", "required": false, "schema": { "type": "string", "enum": ["0"] }, "description": "0 = 成功且有 data 时不再附 text(正文与 data 是同一份结果的两种写法)" });
+    let timeout_param = json!({ "name": TIMEOUT_HEADER, "in": "header", "required": false, "schema": { "type": "integer", "minimum": 1000, "maximum": 1800000 }, "description": "本次调用的超时预算(毫秒;缺省按工具声明,没声明的 120000)" });
+    paths.insert("/tools".into(), json!({ "get": { "operationId": "listTools", "summary": "列出全部工具(与 MCP tools/list 同一份)", "responses": with_responses(json!({ "description": "工具清单" }), &["400", "404", "409", "413", "422", "429", "504"]) } }));
+    let mut by_name: std::collections::HashMap<&str, &Value> = std::collections::HashMap::new();
     for t in tools {
         let Some(name) = t.get("name").and_then(|v| v.as_str()) else {
             continue;
         };
+        by_name.insert(name, t);
         let summary = t.get("title").and_then(|v| v.as_str()).unwrap_or(name);
         let desc = t.get("description").and_then(|v| v.as_str()).unwrap_or("");
         let input = t
@@ -284,37 +424,56 @@ pub fn openapi_doc(tools: &[Value], app_version: &str) -> Value {
             .cloned()
             .unwrap_or(json!({ "type": "object" }));
         let ok_schema = result_schema(t.get("outputSchema"));
+        let mut parameters = vec![
+            json!({ "name": "stream", "in": "query", "required": false, "schema": { "type": "string", "enum": ["1"] }, "description": "1 = 以 text/event-stream 回报进度(event: progress)与结果(event: result)" }),
+            text_param.clone(),
+            timeout_param.clone(),
+        ];
+        // 幂等键只对写入类有意义(读类重复调用本来就不改任何东西)
+        if t.get("level").and_then(|v| v.as_str()) == Some("additive") {
+            parameters.push(json!({ "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string", "maxLength": 200 }, "description": "写入类:同一个键重试回放第一次的结果、不重复写(同键换参数被拒;1..200 字,超长 = 400)" }));
+        }
         paths.insert(
             format!("/tools/{}", name),
             json!({ "post": {
                 "operationId": name, "summary": summary, "description": desc,
-                "parameters": [
-                    { "name": "stream", "in": "query", "required": false, "schema": { "type": "string", "enum": ["1"] }, "description": "1 = 以 text/event-stream 回报进度(event: progress)与结果(event: result)" },
-                    { "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string", "maxLength": 200 }, "description": "写入类:同一个键重试回放第一次的结果、不重复写(同键换参数被拒;1..200 字,超长 = 400)" }
-                ],
+                "parameters": parameters,
                 "requestBody": { "required": false, "content": { "application/json": { "schema": input } } },
-                "responses": {
-                    "200": { "description": "工具成功", "content": { "application/json": { "schema": ok_schema } } },
-                    "422": { "description": "工具失败(error.code 见错误码表)", "content": { "application/json": { "schema": result_schema(None) } } },
-                    "429": { "description": "超出调用上限" }, "503": { "description": "页面未就绪 / 服务重启中(看 error.data.retryAfterMs)" }
-                }
+                "responses": with_responses(json!({ "description": "工具成功", "content": { "application/json": { "schema": ok_schema } } }), &[])
             } }),
         );
     }
     for (alias, tool) in GET_ALIASES.iter() {
-        paths.insert(format!("/{}", alias), json!({ "get": { "operationId": format!("get_{}", alias), "summary": format!("{} 的 GET 别名(查询串 = 参数)", tool), "responses": { "200": { "description": "同 POST /tools/{tool}" } } } }));
+        let t = by_name.get(tool).copied();
+        let mut params = query_params_of(t.and_then(|t| t.get("inputSchema")));
+        params.push(text_param.clone());
+        params.push(timeout_param.clone());
+        paths.insert(format!("/{}", alias), json!({ "get": {
+            "operationId": format!("get_{}", alias), "summary": format!("{} 的 GET 别名(查询串 = 参数)", tool),
+            "parameters": params,
+            "responses": with_responses(json!({ "description": format!("同 POST /tools/{}", tool), "content": { "application/json": { "schema": result_schema(t.and_then(|t| t.get("outputSchema"))) } } }), &["413"])
+        } }));
     }
-    paths.insert("/resources".into(), json!({ "get": { "operationId": "listResources", "parameters": [{ "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } }], "responses": { "200": { "description": "资源清单(nextCursor 翻页)" } } } }));
-    paths.insert("/resources/templates".into(), json!({ "get": { "operationId": "listResourceTemplates", "responses": { "200": { "description": "资源模版" } } } }));
-    paths.insert("/resources/read".into(), json!({ "get": { "operationId": "readResource", "parameters": [{ "name": "uri", "in": "query", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "资源正文" } } } }));
-    paths.insert("/prompts".into(), json!({ "get": { "operationId": "listPrompts", "parameters": [{ "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } }], "responses": { "200": { "description": "提示清单" } } } }));
-    paths.insert("/prompts/{name}".into(), json!({ "post": { "operationId": "getPrompt", "parameters": [{ "name": "name", "in": "path", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": false, "content": { "application/json": { "schema": { "type": "object" } } } }, "responses": { "200": { "description": "提示消息" } } } }));
+    let list_skip = ["409", "413", "422", "429", "504"];
+    paths.insert("/resources".into(), json!({ "get": { "operationId": "listResources", "parameters": [{ "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } }], "responses": with_responses(json!({ "description": "资源清单(nextCursor 翻页)" }), &list_skip) } }));
+    paths.insert("/resources/templates".into(), json!({ "get": { "operationId": "listResourceTemplates", "responses": with_responses(json!({ "description": "资源模版" }), &list_skip) } }));
+    paths.insert("/resources/read".into(), json!({ "get": { "operationId": "readResource", "parameters": [{ "name": "uri", "in": "query", "required": true, "schema": { "type": "string" } }], "responses": with_responses(json!({ "description": "资源正文" }), &list_skip) } }));
+    paths.insert("/prompts".into(), json!({ "get": { "operationId": "listPrompts", "parameters": [{ "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } }], "responses": with_responses(json!({ "description": "提示清单" }), &list_skip) } }));
+    paths.insert("/prompts/{name}".into(), json!({ "post": { "operationId": "getPrompt", "parameters": [{ "name": "name", "in": "path", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": false, "content": { "application/json": { "schema": { "type": "object" } } } }, "responses": with_responses(json!({ "description": "提示消息" }), &["409", "422", "429", "504"]) } }));
     json!({
         "openapi": "3.1.0",
         "info": { "title": "星阙 Horosa 本机接口", "version": app_version, "description": "与本机 MCP 同一服务、同一令牌(Authorization: Bearer)、同一套工具;只接受本机回环地址。写入类工具受「外部客户端策略」管(审批 / 上限)。" },
         "servers": [{ "url": REST_PREFIX }],
         "security": [{ "bearer": [] }],
-        "components": { "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } } },
+        "components": {
+            "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } },
+            "schemas": {
+                "Error": { "type": "object", "required": ["ok", "error"], "properties": { "ok": { "type": "boolean", "const": false }, "text": { "type": "string" }, "data": { "type": "object" }, "error": { "$ref": "#/components/schemas/ErrorDetail" } } },
+                "ErrorDetail": { "type": "object", "required": ["code"], "properties": {
+                    "code": { "type": "string", "description": "工具错误码(E_*)或 REST 码(INVALID_PARAMS / NOT_FOUND / …)" }, "message": { "type": ["string", "null"] }, "retryable": { "type": "boolean" }, "hint": { "type": "string" }, "retryAfterMs": { "type": "integer" },
+                    "rpcCode": { "type": "integer", "description": "协议层原数字码(-326xx / -320xx),只在协议层错误时有" }, "data": { "type": "object" } } }
+            }
+        },
         "paths": Value::Object(paths),
     })
 }
@@ -327,9 +486,10 @@ fn respond(request: tiny_http::Request, status: u16, body: &Value) {
             r = r.with_header(h);
         }
     }
-    if status == 503 {
+    if status == 503 || status == 429 {
         let after = body
             .pointer("/error/data/retryAfterMs")
+            .or_else(|| body.pointer("/error/retryAfterMs"))
             .and_then(|v| v.as_u64())
             .map(|ms| ((ms + 999) / 1000).max(1))
             .unwrap_or(1);
@@ -452,30 +612,40 @@ pub fn handle(core: &McpCore, dispatcher: &dyn PageDispatcher, mut request: tiny
                     return respond(request, s, &b);
                 }
             };
-            let params =
-                with_client_meta_idem(json!({ "name": name, "arguments": args }), idem.as_deref());
+            let params = with_timeout_header(
+                with_client_meta_idem(json!({ "name": name, "arguments": args }), idem.as_deref()),
+                header_value(&request, TIMEOUT_HEADER),
+            );
+            let drop_text = query.get("text").and_then(|v| v.as_str()) == Some("0");
             let wants_stream = query.get("stream").and_then(|v| v.as_str()) == Some("1")
                 || header_value(&request, "Accept")
                     .map(|a| a.contains("text/event-stream"))
                     .unwrap_or(false);
             if wants_stream && *request.http_version() >= (1, 1) {
-                call_streaming(core, dispatcher, request, params);
+                call_streaming(core, dispatcher, request, params, drop_text);
                 return;
             }
             match rpc(core, dispatcher, "tools/call", params, &none) {
                 Ok(r) => {
-                    let (s, b) = tool_result_body(&r);
+                    let (s, b) = tool_result_body_opts(&r, drop_text);
                     respond(request, s, &b);
                 }
                 Err((s, b)) => respond(request, s, &b),
             }
         }
         RestRoute::Alias(tool) => {
-            let params =
-                with_client_meta(json!({ "name": tool, "arguments": Value::Object(query) }));
+            let drop_text = query.get("text").and_then(|v| v.as_str()) == Some("0");
+            let mut args = query.clone();
+            for k in RESERVED_QUERY_KEYS.iter() {
+                args.remove(*k);
+            }
+            let params = with_timeout_header(
+                with_client_meta(json!({ "name": tool, "arguments": Value::Object(args) })),
+                header_value(&request, TIMEOUT_HEADER),
+            );
             match rpc(core, dispatcher, "tools/call", params, &none) {
                 Ok(r) => {
-                    let (s, b) = tool_result_body(&r);
+                    let (s, b) = tool_result_body_opts(&r, drop_text);
                     respond(request, s, &b);
                 }
                 Err((s, b)) => respond(request, s, &b),
@@ -542,7 +712,10 @@ pub fn handle(core: &McpCore, dispatcher: &dyn PageDispatcher, mut request: tiny
                     200,
                     &json!({ "ok": true, "contents": r.get("contents").cloned().unwrap_or(json!([])) }),
                 ),
-                Err((s, b)) => respond(request, s, &b),
+                Err(e) => {
+                    let (s, b) = not_found_if_invalid(e);
+                    respond(request, s, &b)
+                }
             }
         }
         RestRoute::PromptGet(name) => {
@@ -564,7 +737,10 @@ pub fn handle(core: &McpCore, dispatcher: &dyn PageDispatcher, mut request: tiny
                     }
                     respond(request, 200, &b);
                 }
-                Err((s, b)) => respond(request, s, &b),
+                Err(e) => {
+                    let (s, b) = not_found_if_invalid(e);
+                    respond(request, s, &b)
+                }
             }
         }
         RestRoute::MethodNotAllowed(allow) => {
@@ -594,6 +770,7 @@ fn call_streaming(
     dispatcher: &dyn PageDispatcher,
     request: tiny_http::Request,
     params: Value,
+    drop_text: bool,
 ) {
     let sink = SseResponse::open(request);
     let token = json!("rest");
@@ -625,7 +802,7 @@ fn call_streaming(
     match rpc(core, dispatcher, "tools/call", params, &ctl) {
         Ok(r) => {
             if !ctl.is_cancelled() {
-                let (s, mut b) = tool_result_body(&r);
+                let (s, mut b) = tool_result_body_opts(&r, drop_text);
                 b["status"] = json!(s);
                 sink.event("result", &b);
             }
@@ -735,6 +912,17 @@ mod tests {
         let (s3, b3) = tool_result_body(&amb);
         assert_eq!(s3, 422);
         assert_eq!(b3["data"]["candidates"], json!([1, 2]));
+        // 超限(可重试)= 429 并带等待毫秒数与下一步;超时 = 504;运行时自己的本轮限额(不可重试)仍是 422
+        let lim = json!({ "content": [{ "type": "text", "text": "{\"ok\":false,\"code\":\"E_LIMIT\",\"retryable\":true,\"retryAfterMs\":4200,\"message\":\"超限\",\"hint\":\"等一会儿\"}" }], "isError": true });
+        let (s4, b4) = tool_result_body(&lim);
+        assert_eq!(s4, 429);
+        assert_eq!(b4["error"]["retryable"], json!(true));
+        assert_eq!(b4["error"]["retryAfterMs"], json!(4200));
+        assert_eq!(b4["error"]["hint"], json!("等一会儿"));
+        let lim2 = json!({ "content": [{ "type": "text", "text": "{\"ok\":false,\"code\":\"E_LIMIT\",\"retryable\":false,\"message\":\"本轮限额\"}" }], "isError": true });
+        assert_eq!(tool_result_body(&lim2).0, 422);
+        let tmo = json!({ "content": [{ "type": "text", "text": "{\"ok\":false,\"code\":\"E_TOOL_TIMEOUT\",\"retryable\":false,\"message\":\"超时\"}" }], "isError": true });
+        assert_eq!(tool_result_body(&tmo).0, 504);
         assert_eq!(rpc_error_status(ERR_RATE_LIMITED), 429);
         assert_eq!(rpc_error_status(ERR_NOT_READY), 503);
         assert_eq!(rpc_error_status(ERR_TIMEOUT), 504);
@@ -745,7 +933,7 @@ mod tests {
     fn openapi_lists_every_tool_with_its_schemas() {
         let tools = vec![
             json!({ "name": "list_records", "title": "检索档案", "description": "d", "inputSchema": { "type": "object", "properties": { "query": { "type": "string" } } }, "outputSchema": { "type": "object", "properties": { "items": { "type": "array" } } } }),
-            json!({ "name": "create_chart_record", "inputSchema": { "type": "object" } }),
+            json!({ "name": "create_chart_record", "level": "additive", "inputSchema": { "type": "object" } }),
         ];
         let doc = openapi_doc(&tools, "9.9.9");
         assert_eq!(doc["openapi"], json!("3.1.0"));
@@ -775,5 +963,58 @@ mod tests {
         assert_eq!(h["in"], json!("header"));
         assert_eq!(h["schema"]["maxLength"], json!(200));
         assert!(doc["paths"]["/records"]["get"].is_object());
+        // 幂等头只挂写入类;错误体结构 + 全部错误码;GET 简写参数由工具 schema 生成;超时头
+        let rp = doc["paths"]["/tools/list_records"]["post"]["parameters"]
+            .as_array()
+            .unwrap();
+        assert!(rp.iter().all(|x| x["name"] != "Idempotency-Key"));
+        assert!(rp.iter().any(|x| x["name"] == TIMEOUT_HEADER));
+        let codes: Vec<&String> = doc["paths"]["/tools/list_records"]["post"]["responses"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect();
+        for c in [
+            "200", "400", "401", "404", "405", "409", "413", "422", "429", "500", "503", "504",
+        ] {
+            assert!(codes.iter().any(|k| k.as_str() == c), "缺 {}", c);
+        }
+        assert_eq!(
+            doc["components"]["schemas"]["ErrorDetail"]["properties"]["code"]["type"],
+            json!("string")
+        );
+        let ap = doc["paths"]["/records"]["get"]["parameters"]
+            .as_array()
+            .unwrap();
+        assert!(ap
+            .iter()
+            .any(|x| x["name"] == "query" && x["in"] == "query"));
+    }
+
+    #[test]
+    fn rpc_error_names_and_text_drop() {
+        assert_eq!(rpc_error_name(ERR_INVALID_PARAMS), "INVALID_PARAMS");
+        assert_eq!(rpc_error_name(ERR_METHOD_NOT_FOUND), "NOT_FOUND");
+        assert_eq!(rpc_error_name(-1), "UPSTREAM");
+        let ok = json!({ "content": [{ "type": "text", "text": "正文" }], "structuredContent": { "a": 1 }, "isError": false });
+        assert!(tool_result_body_opts(&ok, true).1.get("text").is_none());
+        assert_eq!(tool_result_body_opts(&ok, false).1["text"], json!("正文"));
+        let no_data = json!({ "content": [{ "type": "text", "text": "正文" }], "isError": false });
+        assert_eq!(
+            tool_result_body_opts(&no_data, true).1["text"],
+            json!("正文")
+        );
+        let (s, b) = not_found_if_invalid((
+            400,
+            json!({ "ok": false, "error": { "code": "INVALID_PARAMS", "rpcCode": ERR_INVALID_PARAMS } }),
+        ));
+        assert_eq!((s, b["error"]["code"].clone()), (404, json!("NOT_FOUND")));
+        let p = with_timeout_header(json!({ "_meta": {} }), Some("30000"));
+        assert_eq!(p["_meta"]["timeoutMs"], json!(30000));
+        assert!(
+            with_timeout_header(json!({ "_meta": {} }), Some("abc"))["_meta"]
+                .get("timeoutMs")
+                .is_none()
+        );
     }
 }

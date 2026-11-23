@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 星阙本机计算服务(Python 排盘服务 + Java 后端)的极简起停:给批量验证(./horosa batch)和无图形界面的机器用。
-# 只用 bash / curl(没有就用 python3 探测)/ ps / kill,Linux(x86_64 / arm64)与 macOS 都能跑;不碰端口以外的任何进程。
+# 只用 bash / curl(没有就用 python3 探测)/ kill,进程命令行读 /proc(没有 /proc 的系统用 ps);Linux(x86_64 / arm64)与 macOS 都能跑;不碰端口以外的任何进程。
 #
 #   bash scripts/linux/backends.sh start [--pairs N] [--python-only]   起服务(已在跑的复用;--python-only 只起 Python,只算不需要 Java 的技法)
 #   bash scripts/linux/backends.sh stop [--pairs N]                    停本脚本起的服务(按 pid 文件,且命令行核对是星阙的服务)
@@ -75,8 +75,15 @@ py_up(){ http_up "http://127.0.0.1:${CHART_PORT}/"; }
 java_up(){ http_up "http://127.0.0.1:${SERVER_PORT}/"; }
 
 pid_of(){ local f="$1" p; [ -s "${f}" ] || return 1; p="$(head -n1 "${f}" 2>/dev/null || true)"; case "${p}" in ''|*[!0-9]*) return 1 ;; esac; printf '%s\n' "${p}"; }
+# 某个 pid 的命令行:先读 /proc(Linux 上必有 —— 精简镜像 / 最小化安装常常没装 ps,只靠 ps 会把活着的服务判成「启动后退出了」),
+# 读不到再用 ps(macOS 没有 /proc)。
+pid_cmdline(){
+  local p="$1"
+  if [ -r "/proc/${p}/cmdline" ]; then tr '\0' ' ' < "/proc/${p}/cmdline" 2>/dev/null || true; return 0; fi
+  ps -p "${p}" -o command= 2>/dev/null || true
+}
 # pid 还活着且命令行确实是这个服务(进程号被系统复用给别的程序时不认)
-pid_is(){ local p="$1" pat="$2" cmd; kill -0 "${p}" 2>/dev/null || return 1; cmd="$(ps -p "${p}" -o command= 2>/dev/null || true)"; grep -Eq -e "${pat}" <<< "${cmd}"; }
+pid_is(){ local p="$1" pat="$2" cmd; kill -0 "${p}" 2>/dev/null || return 1; cmd="$(pid_cmdline "${p}")"; grep -Eq -e "${pat}" <<< "${cmd}"; }
 # Java 按本套端口参数认(jar 文件名可由 HOROSA_JAR 任取,不能拿它认;端口参数还把多套之间区分开)
 java_pat(){ printf -- '--server\\.port=%s( |$)' "${SERVER_PORT}"; }
 
@@ -126,12 +133,16 @@ start_java(){
   jar="$(find_jar)" || { echo "找不到后端 jar:先 mvn -f Horosa-Web/astrostudysrv/pom.xml clean install -DskipTests,或设 HOROSA_JAR" >&2; return 1; }
   command -v "${JAVA_BIN}" >/dev/null 2>&1 || { echo "找不到 Java:${JAVA_BIN}(设 HOROSA_JAVA_BIN,要 JDK 17+)" >&2; return 1; }
   mkdir -p "${STATE_DIR}/mongo-fallback"
+  # 结果缓存目录每次起服务换新的:缓存键只认「参数 + 运行时版本」,同一个版本号下换了引擎代码(开发中的检出、重打的运行包)
+  # 旧结果会被原样端出来 —— 验证工具不能冒这个险。一次服务的生命周期内照常缓存(同一张盘被几十个技法反复要)。
+  local cache="${STATE_DIR}/paramhash.${SERVER_PORT}"
+  rm -rf "${cache:?}" && mkdir -p "${cache}"
   # 参数与桌面 / 本地网页版起后端同一组(不连 Mongo / Redis:连不上自动走本地文件缓存)
   p="$(spawn_bg "${JAVA_LOG}" env HOROSA_DESKTOP_MONGO_OPTIONAL=1 HOROSA_MONGO_FALLBACK_DIR="${STATE_DIR}/mongo-fallback" \
     HOROSA_ENABLE_STARTUP_CRON=0 HOROSA_ENABLE_STARTUP_TRANSGROUP_INIT=0 needtranslog=false SPRING_MAIN_LAZY_INITIALIZATION=true \
     "${JAVA_BIN}" ${HOROSA_JAVA_OPTS:--Xms128m -Xmx512m} -XX:+DisableExplicitGC -Djava.awt.headless=true -Duser.language=zh -Duser.country=CN \
     -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dparamhash.cache.redis.enable=false -Dcachehelper.needcache=false -Dhorosa.cache.lazyinit=true \
-    -Dspring.main.banner-mode=off -jar "${jar}" \
+    -Dparamhash.cache.local.dir="${cache}" -Dspring.main.banner-mode=off -jar "${jar}" \
     --server.port="${SERVER_PORT}" --server.address=127.0.0.1 --astrosrv="http://127.0.0.1:${CHART_PORT}" \
     --mongodb.ip=127.0.0.1 --redis.ip=127.0.0.1 --paramhash.cache.redis.enable=false)"
   printf '%s\n' "${p}" >"${JAVA_PID}"

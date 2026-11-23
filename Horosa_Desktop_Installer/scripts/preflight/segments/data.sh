@@ -114,8 +114,8 @@ S281_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
 for S281_F in "${S281_UI}/utils/newChartSeeds.js" "${S281_UI}/utils/__tests__/newChartSeeds.test.js"; do
   [ -f "${S281_F}" ] || { bad "[${PF_NO}] 🔴 资产缺失:${S281_F#${REPO_ROOT}/}"; S281_BAD=1; }
 done
-grep -qF "...newChartSeedExtraEntries()," "${S281_UI}/models/astro.js" || { bad "[${PF_NO}] 🔴 newEmptyFields 不再展开种子(schema 没有的种子键回不到新盘)"; S281_BAD=1; }
-S281_N="$(grep -c "value: newChartSeedValue('" "${S281_UI}/models/astro.js" 2>/dev/null || true)"
+grep -qF "...newChartSeedExtraEntries()," "$(pf_src_set "${S281_UI}/models/astro.js")" || { bad "[${PF_NO}] 🔴 newEmptyFields 不再展开种子(schema 没有的种子键回不到新盘)"; S281_BAD=1; }
+S281_N="$(grep -c "value: newChartSeedValue('" "$(pf_src_set "${S281_UI}/models/astro.js")" 2>/dev/null || true)"
 [ "${S281_N:-0}" -ge 16 ] || { bad "[${PF_NO}] 🔴 newEmptyFields 读种子的键少于 16(现 ${S281_N:-0}):有键退回写死初值"; S281_BAD=1; }
 grep -qF "fields = resetNewChartSeedKeysToInternalDefaults(fields);" "${S281_UI}/utils/recordFieldsRestore.js" || { bad "[${PF_NO}] 🔴 载入记录不再复位种子键(记录会被种子污染)"; S281_BAD=1; }
 grep -qF "isNewChartSeedKey(key) ? newChartSeedInternalDefault(key)" "${S281_UI}/utils/recordFieldsRestore.js" || { bad "[${PF_NO}] 🔴 捕获不再按内建默认判种子键(与种子同值的口径不落库 → 换机漂移)"; S281_BAD=1; }
@@ -312,7 +312,7 @@ if [ -f "${S278_GL}" ]; then
   done
 fi
 # 一身多技法的大组件:用户入口统一走 setUserOpt(落盘 + setState);入口若被改回裸 setState,整族设置静默失效
-S278_KA="${S278_UI}/components/kinastro/KinAstroMain.js"
+S278_KA="$(pf_src_set "${S278_UI}/components/kinastro/KinAstroMain.js")"
 if [ -f "${S278_KA}" ]; then
   S278_N="$(grep -c "this.setUserOpt(" "${S278_KA}" 2>/dev/null || true)"
   [ "${S278_N:-0}" -ge 100 ] || { bad "[${PF_NO}] 🔴 策天 / 数算族的用户入口只剩 ${S278_N:-0} 处走 setUserOpt(应 ≥100)"; S278_BAD=1; }
@@ -358,7 +358,7 @@ fi
 for S278_A in "horary/HoraryMain.js:save({ horaryOverrides: next })" "election/ElectionMain.js:save({ electionParams: next })" "geomancy/GeomancyMain.js:save({ granular: next })"; do
   S278_F="${S278_UI}/components/${S278_A%%:*}"
   if [ -f "${S278_F}" ]; then
-    S278_C="$(grep -cF "${S278_A#*:}" "${S278_F}" 2>/dev/null || true)"
+    S278_C="$(grep -cF "${S278_A#*:}" "$(pf_src_set "${S278_F}")" 2>/dev/null || true)"   # 拆成子模块的页面按全集查
     [ "${S278_C:-0}" -eq 0 ] || { bad "[${PF_NO}] 🔴 整张覆盖层落盘的写法回来了:${S278_A%%:*}"; S278_BAD=1; }
   fi
 done

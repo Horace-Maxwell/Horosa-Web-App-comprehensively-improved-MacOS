@@ -215,3 +215,8 @@ u264	264	segments/shell.public.sh
 326	304	segments/guard.sh
 330	305	segments/release.sh
 331	306	segments/ai.sh
+333	307	segments/guard.sh
+334	308	segments/bu.sh
+335	309	segments/ming.sh
+336	310	segments/bu.sh
+337	311	segments/shell.sh

@@ -89,7 +89,7 @@ if grep -q "getAIExportPresetKeys" "${AIEXPORT_JS}" 2>/dev/null && grep -q "getA
 # atlas：全量城市库存在
 if [ -f "${UISRC}/data/citiesFull.json" ]; then ok "[24] atlas 全量城市库 citiesFull.json 存在"; else bad "[24] 缺 citiesFull.json(跑 scripts/build-cities.js 生成)"; fi
 # 星运页每个 TabPane key 必须在 VALID_DIRECTION_SUB_TABS,否则点该 tab 会先被 normalize 重定向到主限法(点一次跳主限法、点两次才进)
-ASTRODIR_JS="${UISRC}/components/direction/AstroDirectMain.js"
+ASTRODIR_JS="$(pf_src_set "${UISRC}/components/direction/AstroDirectMain.js")"
 PDSYNC_JS="${UISRC}/utils/primaryDirectionSync.js"
 dir_tab_miss=""
 for k in $(grep -oE '<TabPane tab="[^"]*" key="[^"]*"' "${ASTRODIR_JS}" 2>/dev/null | grep -oE 'key="[^"]*"' | sed 's/key="//; s/"//'); do
@@ -264,16 +264,16 @@ seg_241() {
 echo "[${PF_NO}] AI 规模面锁(IDB 索引读/上下文缓存自裁/源列表缓存/批量选源/写放大)"
 S241_BAD=0
 S241_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
-grep -aq "\['conversationId', 'conversationId'\]" "${S241_UI}/src/utils/aiAnalysisStore.js" || { bad "[${PF_NO}] aiAnalysisStore 缺 messages.conversationId 索引声明"; S241_BAD=1; }
-grep -aq "export async function readByIndex" "${S241_UI}/src/utils/aiAnalysisStore.js" || { bad "[${PF_NO}] aiAnalysisStore 缺 readByIndex"; S241_BAD=1; }
-awk '/^export async function listConversationMessages/,/^}/' "${S241_UI}/src/utils/aiAnalysisStore.js" | pipe_has "listStoreRecords(AI_ANALYSIS_STORES.messages)" && { bad "[${PF_NO}] listConversationMessages 退回全表 getAll"; S241_BAD=1; }
-grep -aq "CONTEXT_CACHE_MAX_ENTRIES = 300" "${S241_UI}/src/utils/aiAnalysisStore.js" || { bad "[${PF_NO}] context_cache 条数上限常量缺失/被改"; S241_BAD=1; }
+grep -aq "\['conversationId', 'conversationId'\]" "$(pf_src_set "${S241_UI}/src/utils/aiAnalysisStore.js")" || { bad "[${PF_NO}] aiAnalysisStore 缺 messages.conversationId 索引声明"; S241_BAD=1; }
+grep -aq "export async function readByIndex" "$(pf_src_set "${S241_UI}/src/utils/aiAnalysisStore.js")" || { bad "[${PF_NO}] aiAnalysisStore 缺 readByIndex"; S241_BAD=1; }
+awk '/^export async function listConversationMessages/,/^}/' "$(pf_src_set "${S241_UI}/src/utils/aiAnalysisStore.js")" | pipe_has "listStoreRecords(AI_ANALYSIS_STORES.messages)" && { bad "[${PF_NO}] listConversationMessages 退回全表 getAll"; S241_BAD=1; }
+grep -aq "CONTEXT_CACHE_MAX_ENTRIES = 300" "$(pf_src_set "${S241_UI}/src/utils/aiAnalysisStore.js")" || { bad "[${PF_NO}] context_cache 条数上限常量缺失/被改"; S241_BAD=1; }
 grep -aq "schedulePruneContextCache()" "$(pf_src_set "${S241_UI}/src/utils/aiAnalysisContext.js")" || { bad "[${PF_NO}] getAnalysisSourceContext 写后未调度裁剪"; S241_BAD=1; }
 grep -aq "export function findAnalysisSourceById" "${S241_UI}/src/utils/aiAnalysisSources.js" || { bad "[${PF_NO}] aiAnalysisSources 缺 findAnalysisSourceById"; S241_BAD=1; }
 grep -aq "findAnalysisSourceById(" "${S241_UI}/src/utils/aiTools/tools/castTechnique.js" || { bad "[${PF_NO}] castTechnique 记录源未走直查"; S241_BAD=1; }
 grep -aq "listAnalysisSources().find" "${S241_UI}/src/utils/aiTools/tools/castTechnique.js" && { bad "[${PF_NO}] castTechnique 又为找一条解析全库"; S241_BAD=1; }
-grep -aq "getByCid" "${S241_UI}/src/utils/localRecordStore.js" || { bad "[${PF_NO}] localRecordStore 缺 getByCid"; S241_BAD=1; }
-grep -aq "__serializeListForTests" "${S241_UI}/src/utils/localRecordStore.js" || { bad "[${PF_NO}] localRecordStore 写放大优化(serializeList)缺失"; S241_BAD=1; }
+grep -aq "getByCid" "$(pf_src_set "${S241_UI}/src/utils/localRecordStore.js")" || { bad "[${PF_NO}] localRecordStore 缺 getByCid"; S241_BAD=1; }
+grep -aq "__serializeListForTests" "$(pf_src_set "${S241_UI}/src/utils/localRecordStore.js")" || { bad "[${PF_NO}] localRecordStore 写放大优化(serializeList)缺失"; S241_BAD=1; }
 for f in runtime.js mcpBridge.js; do grep -aq "deferSelect" "${S241_UI}/src/utils/aiAgent/$f" || { bad "[${PF_NO}] aiAgent/$f 缺批量选源合并(deferSelect)"; S241_BAD=1; }; done
 for f in createChartRecord.js createCaseRecord.js; do grep -aq "deferSelect" "${S241_UI}/src/utils/aiTools/tools/$f" || { bad "[${PF_NO}] aiTools/$f 缺 deferSelect 分支"; S241_BAD=1; }; done
 for t in aiAnalysisStoreIndexes contextCachePrune aiAnalysisSourcesCache localRecordStoreWriteAmp aiAgentBatchSelect; do [ -f "${S241_UI}/src/utils/__tests__/$t.test.js" ] || { bad "[${PF_NO}] 回归测试 $t.test.js 缺失"; S241_BAD=1; }; done
@@ -909,14 +909,14 @@ rm -rf "${s318_tmp}"
 }
 
 seg_319() {
-echo "[${PF_NO}] 无头模式(不开 App):工具层同源打包 / 浏览器路径零影响的落盘钩子 / 界面类不进无头目录 / 门与令牌 / AI 直接接入(.mcp.json · ./horosa)/ 批量验证与单例同一函数 / 合同与真栈自测"
+echo "[${PF_NO}] 无头模式(不开 App):工具层同源打包 / 浏览器路径零影响的落盘钩子 / 界面类不进无头目录 / 门与令牌 / AI 直接接入(.mcp.json · ./horosa)/ 批量验证与单例同一函数 / 钉住的时刻进缓存键 / 并列与边界不看浮点末位 / 命题验证的内核与两层复核 / 合同与真栈自测"
 S319_BAD=0
 # 判据 = 「仓内路径|必含字面量」(grep -F):拆掉任一处,要么无头工具层与桌面分叉(另写一套 = 两边漂移),要么浏览器 / 桌面被落盘钩子带偏,
 #   要么界面类工具在无头下挂着等不来的界面,要么本机服务不设门,要么 AI 拿到仓库接不上。
 s319_scan(){
   pf_scan_table "$1" <<'S319_EOF'
-Horosa-Web/astrostudyui/headless/entry.js|export { handleAgentToolRequest } from '../src/utils/aiAgent/mcpBridge';
-Horosa-Web/astrostudyui/headless/runtime.js|const HEADLESS_UNAVAILABLE_NAMES = ['read_current_page', 'load_record_into_workspace', 'ask_user', 'set_chat_mount'];
+Horosa-Web/astrostudyui/headless/entry.js|export { handleAgentToolRequest, watchAgentCatalog } from '../src/utils/aiAgent/mcpBridge';
+Horosa-Web/astrostudyui/headless/runtime.js|const HEADLESS_UNAVAILABLE_NAMES = ['read_current_page', 'load_record_into_workspace', 'ask_user', 'set_chat_mount', 'cast_random_case'];
 Horosa-Web/astrostudyui/headless/runtime.js|const unavailable = (t)=>!!t && (t.category === 'ui' || HEADLESS_UNAVAILABLE_NAMES.indexOf(t.name) >= 0);
 Horosa-Web/astrostudyui/headless/runtime.js|return lib.handleAgentToolRequest(req, undefined, extra && extra.ctx ? extra.ctx : undefined);
 Horosa-Web/astrostudyui/headless/runtime.js|globalThis.__HOROSA_HEADLESS_STORE__ = {
@@ -926,7 +926,7 @@ Horosa-Web/astrostudyui/headless/server.js|if(req.headers.host !== undefined && 
 Horosa-Web/astrostudyui/headless/server.js|server.listen(port, '127.0.0.1');
 Horosa-Web/astrostudyui/headless/protocol.js|const DENIED_NAME_WORDS = ['delete', 'remove', 'purge', 'clear', 'reset', 'overwrite', 'update', 'rename', 'import', 'export', 'restore', 'undo'];
 Horosa-Web/astrostudyui/headless/cli.js|method: 'notifications/cancelled', params: { requestId: id, reason: '用户在终端按了 Ctrl-C' }
-Horosa-Web/astrostudyui/headless/cli.js|if(!(await humanConfirm(opts, `确认${verb}提案 ${id}?`))){ return EXIT.USAGE; }
+Horosa-Web/astrostudyui/headless/cli.js|if(!(await humanConfirm(opts, `确认${verb}提案 ${id}?`))){ return EXIT.NEEDS_HUMAN; }
 Horosa-Web/astrostudyui/headless/cli.js|if(opts.yes && process.env[UNATTENDED_ENV] === '1'){ return true; }
 Horosa-Web/astrostudyui/headless/cli.js|fs.linkSync(tmp, file);
 Horosa-Web/astrostudyui/src/utils/__tests__/headlessApi.test.js|与桌面壳逐项对拍
@@ -953,7 +953,53 @@ Horosa-Web/astrostudyui/src/utils/aiAnalysisContext/recordFields.js|export funct
 Horosa-Web/astrostudyui/headless/test/batch.test.js|批量每例每技法的 data == 单例 tools/call cast_technique 的 structuredContent(逐值)
 Horosa-Web/astrostudyui/headless/test/batchParity.test.js|② 批量 == 名人库建档后按档案起盘
 scripts/linux/backends.sh|--astrosrv="http://127.0.0.1:${CHART_PORT}"
+scripts/linux/backends.sh|if [ -r "/proc/${p}/cmdline" ]; then tr '\0' ' ' < "/proc/${p}/cmdline" 2>/dev/null || true; return 0; fi
+Horosa-Web/flatlib-ctrad2/flatlib/ephem/swe.py|_EPHE_THREAD = threading.local()
+Horosa-Web/flatlib-ctrad2/flatlib/ephem/swe.py|or getattr(_EPHE_THREAD, 'path', None) != SEACTIVE_PATH):
+Horosa-Web/flatlib-ctrad2/flatlib/ephem/swe.py|os.environ['SE_EPHE_PATH'] = str(path)
+Horosa-Web/astropy/tests/test_swe_ephe_path_threads.py|def test_a_new_thread_sets_the_path_once_then_short_circuits(spy):
+Horosa-Web/vendor/kinastro/astro/qizheng/calculator.py|horosa_qizheng_polar_ascmc_v1
+Horosa-Web/astropy/tests/test_qizhengkin_polar_latitudes.py|def test_polar_births_produce_a_full_chart(label, data):
+Horosa-Web/astrostudyui/headless/batch.js|function installPinnedClock(ms){
+Horosa-Web/astrostudyui/headless/batch.js|const h = { 'X-Horosa-Now': `${Math.round(clock.ms)}` };
+Horosa-Web/astrostudyui/headless/test/batch.test.js|describe('⑨c 端到端:钉住的时刻写进汇总、随请求带给计算服务;不给 --now 一切照旧', ()=>{
+Horosa-Web/astropy/astrostudy/clock.py|def pinned_now(data=None):
+Horosa-Web/astropy/tests/test_clock.py|def test_result_code_does_not_read_the_system_clock_directly():
+Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/AstroHelper.java|params = withClientNow(params);
+Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/helper/AstroHelperClientNowTest.java|public void differentMomentsMakeDifferentBodies(){
 docs/HEADLESS.md|## 批量验证
+Horosa-Web/astrostudyui/headless/batch.js|const mono = ()=>Number(process.hrtime.bigint() / 1000000n);
+Horosa-Web/astrostudyui/headless/test/batch.test.js|系统时钟被往回拨(校时)时「此刻」不倒退:不会掉到上一分钟
+Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java|return getKeyed(scope, params, fun, expInSec, AstroHelper::withClientNow);
+Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/helper/ParamHashCacheGetTest.java|public void pinnedClientNowGoesIntoTheKeyButNotIntoTheComputeParams() throws Exception {
+Horosa-Web/astrostudyui/src/utils/techniqueSlotAliases.js|['primarydirect', 'direction'],
+Horosa-Web/astrostudyui/src/utils/__tests__/techniqueSlotAliasesParity.test.js|expect(getTechniqueSnapshotFromCache('primarydirchart', source)).toBe(null);
+Horosa-Web/astropy/astrostudy/stable_order.py|def tie_sorted(items, *keys):
+Horosa-Web/astrostudyui/src/utils/stableOrder.js|export function tieSort(list, ...keys){
+Horosa-Web/astropy/astrostudy/pd_engine.py|rows[:] = tie_sorted(rows, lambda r: abs(r[0]), lambda r: r[0], lambda r: r[1], lambda r: r[2])
+Horosa-Web/astropy/tests/test_stable_order.py|def test_primary_direction_rows_with_equal_arcs_have_a_fixed_order():
+Horosa-Web/astrostudyui/src/utils/__tests__/stableOrder.test.js|行星图 / 映点 / 中点 / 和点 / 差距 / 指针读数 / 中点树 / 太阳弧表逐字相同
+Horosa-Web/astrostudyui/headless/cli.js|const mod = argv[0] === 'batch' ? './batch' : argv[0] === 'verify' ? './verify' : './batchPack';
+Horosa-Web/astrostudyui/headless/verifyKernel.js|function fisherExact(a, b, c, d, alternative){
+Horosa-Web/astrostudyui/headless/verifyKernel.js|function countDefinitions(compiled, cases){
+Horosa-Web/astrostudyui/headless/verify.js|function compareCertificates(cert, again, opts){
+Horosa-Web/astrostudyui/headless/verify.js|if(!ck || typeof ck !== 'object' || typeof ck.now !== 'string' || !ck.now.trim()){
+Horosa-Web/astrostudyui/headless/batchPack.js|const HEADLESS_FILES = ['batch.js', 'verify.js', 'verifyKernel.js',
+Horosa-Web/astrostudyui/headless/test/verify.test.js|只有正文不同(换了处理器 / 数学库的末位取整):判定层一致
+Horosa-Web/astrostudyui/headless/test/verify.test.js|入口脚本用到的本目录文件都在随包清单里
+scripts/linux/Dockerfile|if [ "${1:-}" = "verify" ]; then tool=./horosa-verify; shift; fi
+docs/HEADLESS.md|## 命题验证
+Horosa-Web/astropy/astrostudy/astroextra_parts/ephemeris.py|def station_moment(body, lo, hi):
+Horosa-Web/astropy/astrostudy/astroextra_parts/ephemeris.py|hit_jd = round(found[0] * 1440.0) / 1440.0      # 取到分钟
+Horosa-Web/astropy/tests/test_station_moment.py|def test_the_same_event_reads_the_same_whatever_the_scan_start():
+Horosa-Web/astrostudyui/headless/batch.js|const source = timepoint ? { kind: 'timepoint', divTime: birth } : { kind: 'natal', birth };
+Horosa-Web/astrostudyui/headless/batch.js|globalThis.__HOROSA_REQUEST_TIMEOUT_SCALE__ = Math.max(1, init.timeoutMs / DEFAULT_TIMEOUT_MS);
+Horosa-Web/astrostudyui/src/utils/request.js|return Math.max(500, Math.floor(n * requestTimeoutScale()));
+Horosa-Web/astrostudyui/headless/test/batch.test.js|⑩ --kind timepoint:每一行是一个起课时间,起按时间起盘的技法
+scripts/linux/backends.sh|-Dparamhash.cache.local.dir="${cache}"
+Horosa-Web/astrostudyui/headless/batch.js|function createBackendLedger(){
+Horosa-Web/astrostudyui/headless/batch.js|if(ledger){ r = guardPartial(r, ledger.unrecovered()); }
+Horosa-Web/astrostudyui/headless/test/batch.test.js|⑪ 起盘途中有计算服务请求失败而工具仍回报成功:这一格不采用
 S319_EOF
 }
 S319_MISS="$(s319_scan "${REPO_ROOT}")"
@@ -993,6 +1039,8 @@ if command -v node >/dev/null 2>&1 && [ -d "${REPO_ROOT}/Horosa-Web/astrostudyui
   # 批量验证(约 30 秒;不要计算服务:假 Python 服务 + 关着的 Java 口):输入归一 / 一行一例 / 坏行 / 续跑与半行 / 补技法 / 本地技法批量 == 单例逐值 /
   #   单技法超时只落一格 / 只用 Python 时要 Java 的就地失败 / Ctrl-C 后续跑 / 入口等输出写完再退。要真计算服务的逐值对拍(batchParity)不在这里跑
   S319_B="$(node --test "${REPO_ROOT}/Horosa-Web/astrostudyui/headless/test/batch.test.js" 2>&1)" || { printf '%s\n' "${S319_B}" | grep -aE '✖|not ok' | head -4 | sed 's/^/    /'; bad "[${PF_NO}]③ 批量验证合同(node --test headless/test/batch.test.js)不过"; S319_BAD=1; }
+  # 命题验证(约 25 秒;同样不要计算服务):精确检验与朴素求和逐例相同 / 判据三值逻辑 / 三种命题与校正 / 两层复核 / 端到端出凭据、复核、认出改过的凭据 / 运行包文件齐全
+  S319_V="$(node --test "${REPO_ROOT}/Horosa-Web/astrostudyui/headless/test/verify.test.js" 2>&1)" || { printf '%s\n' "${S319_V}" | grep -aE '✖|not ok' | head -4 | sed 's/^/    /'; bad "[${PF_NO}]③ 命题验证合同(node --test)失败"; S319_BAD=1; }
   # 写入面三入口矩阵(真运行时子进程、临时数据目录、回环随机端口、后端根指向已关的随机口;约 2 分钟):写入工具 × MCP / REST / 终端命令,
   #   审批(只读 / 每次确认)/ 账本 / 撤销还原 / 幂等键回放与冲突 / 管理口提案采纳·拒绝·撤销采纳;行由工具目录生成,新写入工具没配样例即红
   S319_W="$(node --test "${REPO_ROOT}/Horosa-Web/astrostudyui/headless/test/writeMatrix.test.js" 2>&1)" || { printf '%s\n' "${S319_W}" | grep -aE '✖|not ok|^\s+\+ ' | head -8 | sed 's/^/    /'; bad "[${PF_NO}]③ 无头写入面三入口矩阵(node --test headless/test/writeMatrix.test.js)不过"; S319_BAD=1; }
@@ -1003,10 +1051,10 @@ fi
 }
 
 seg_320() {
-echo "[${PF_NO}] 名人库开放给 AI(检索 / 分类 / 详情 / 存成命盘)+ 奇门择日对外开放(口径 = 奇门页排盘设置;三式仍不开放)"
+echo "[${PF_NO}] 名人库开放给 AI(检索 / 分类 / 详情 / 存成命盘)+ 奇门 / 三式择日对外开放(奇门口径 = 奇门页排盘设置;三式口径 = 三式页出厂 + 工作台出厂,跨度上限 184 天)"
 S320_BAD=0
 # 判据 = 「仓内路径|必含字面量」(grep -F):拆掉任一处,名人库查询拼接用户输入(注入)、建档不查重 / 不可撤销、
-#   奇门择日口径与奇门页分叉,或三式被悄悄放开。
+#   奇门择日口径与奇门页分叉,或三式择日口径不再单源 / 跨度上限被放宽(一扫超时)。
 s320_scan(){
   pf_scan_table "$1" <<'S320_EOF'
 Horosa-Web/astrostudyui/src/utils/astrodata/celebrityDb.js|if(params && params.length){ stmt.bind(params); }
@@ -1019,9 +1067,11 @@ Horosa-Web/astrostudyui/src/utils/aiTools/tools/celebrities.js|undo: { kind: 'tr
 Horosa-Web/astrostudyui/src/utils/aiTools/index.js|searchCelebritiesTool, listCelebrityCategoriesTool, getCelebrityTool, createCelebrityChartTool,
 Horosa-Web/astrostudyui/src/utils/aiTools/errorCodes.js|E_CELEBRITY_NOT_FOUND: def(
 Horosa-Web/astrostudyui/src/utils/aiTools/errorCodes.js|E_CELEBRITY_DB_UNAVAILABLE: def(
-Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|export const ZERI_SCHOOLS = ['huangli', 'bazi', 'ziwei', 'liureng', 'taiyi', 'qimen', 'qizheng', 'india'];
+Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|export const ZERI_SCHOOLS = ['huangli', 'bazi', 'ziwei', 'liureng', 'taiyi', 'qimen', 'sanshi', 'qizheng', 'india'];
 Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|defaults: page.dunjiaZeriOptions
-Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|	sanshi: '三式择日每个样本同时排六壬 / 奇门 / 太乙三盘
+Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|defaults: ()=>host.sanshiZeriHeadlessScanOptions()
+Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|sanshi: 184,
+Horosa-Web/astrostudyui/src/components/zeri/SanshiZeriMain.js|export function sanshiZeriHeadlessScanOptions(
 Horosa-Web/astrostudyui/src/components/dunjia/DunJiaMain.js|return normalizeKenQimenOptions(DUNJIA_PAGE_SETTINGS.loadSaved());
 Horosa-Web/astrostudyui/headless/runtime.js|globalThis.__HOROSA_ASTRODATA_LOADER__ = async ()=>{
 Horosa-Web/astrostudyui/src/utils/__tests__/aiToolsCelebrities.test.js|存成命盘:出生资料原样 + 来源备注 + 分组;同名同生辰不重复;撤销 = 移入回收站
@@ -1030,7 +1080,7 @@ S320_EOF
 }
 S320_MISS="$(s320_scan "${REPO_ROOT}")"
 [ -z "${S320_MISS}" ] || { printf '%s\n' "${S320_MISS}" | head -6 | sed 's/^/    缺 /'; bad "[${PF_NO}]① 名人库 / 奇门择日开放接线被拆($(printf '%s\n' "${S320_MISS}" | wc -l | tr -d ' ') 处)"; S320_BAD=1; }
-# ② 判别力自证:去掉参数绑定 / 建档不查重 / 奇门口径换成空对象 / 放开三式 各自报出
+# ② 判别力自证:去掉参数绑定 / 建档不查重 / 奇门口径换成空对象 / 三式口径换成空对象 / 三式跨度放宽 各自报出
 s320_tmp="$(mktemp -d "${PF_TMP}/s320_tmp.XXXXXX")"
 for s320_f in $(s320_scan /nonexistent | sed 's/「.*$//' | sort -u); do
   mkdir -p "${s320_tmp}/$(dirname "${s320_f}")" && cp "$(pf_src_set "${REPO_ROOT}/${s320_f}")" "${s320_tmp}/${s320_f}" 2>/dev/null
@@ -1043,11 +1093,13 @@ sed -i '' 's/const dup = findCelebrityChart(/const dup = null \&\& (/' "${s320_t
 s320_scan "${s320_tmp}" | pipe_has -F 'celebrities.js「const dup' || s320_ok=0
 sed -i '' 's/defaults: page.dunjiaZeriOptions/defaults: ()=>({})/' "${s320_tmp}/Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js" 2>/dev/null
 s320_scan "${s320_tmp}" | pipe_has -F 'zeriSchools.js「defaults: page.dunjiaZeriOptions' || s320_ok=0
-sed -i '' "/^	sanshi: '三式择日每个样本/d" "${s320_tmp}/Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js" 2>/dev/null
-s320_scan "${s320_tmp}" | pipe_has -F "zeriSchools.js「	sanshi:" || s320_ok=0
+sed -i '' 's/defaults: ()=>host.sanshiZeriHeadlessScanOptions()/defaults: ()=>({})/' "${s320_tmp}/Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js" 2>/dev/null
+s320_scan "${s320_tmp}" | pipe_has -F 'zeriSchools.js「defaults: ()=>host.sanshiZeriHeadlessScanOptions()' || s320_ok=0
+sed -i '' 's/sanshi: 184,/sanshi: 1830,/' "${s320_tmp}/Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js" 2>/dev/null
+s320_scan "${s320_tmp}" | pipe_has -F 'zeriSchools.js「sanshi: 184,' || s320_ok=0
 rm -rf "${s320_tmp}"
-[ "${s320_ok}" = "1" ] || { bad "[${PF_NO}]② 判别力自证失败(原样不全过,或去掉参数绑定 / 建档查重 / 奇门口径 / 三式仍关 被改后没报出)"; S320_BAD=1; }
-[ "${S320_BAD}" = "0" ] && ok "[${PF_NO}] 名人库开放给 AI(参数化查询 / 建档查重可撤销 / 署名)+ 奇门择日口径 = 奇门页、三式仍关;判别力自证"
+[ "${s320_ok}" = "1" ] || { bad "[${PF_NO}]② 判别力自证失败(原样不全过,或去掉参数绑定 / 建档查重 / 奇门口径 / 三式口径 / 三式跨度 被改后没报出)"; S320_BAD=1; }
+[ "${S320_BAD}" = "0" ] && ok "[${PF_NO}] 名人库开放给 AI(参数化查询 / 建档查重可撤销 / 署名)+ 奇门择日口径 = 奇门页、三式择日口径单源与跨度上限;判别力自证"
 }
 
 seg_127() {
@@ -1092,11 +1144,11 @@ Horosa-Web/astrostudyui/src/utils/aiTools/prompts.js|export const PROMPT_SKILL_P
 Horosa-Web/astrostudyui/src/utils/aiTools/prompts.js|export const PROMPT_GUIDE_NAME = 'guide:horosa';
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/runAnalysis.js|if(!question && !args.skill){ return { ok: false, code: 'E_ARGS_INVALID', message: 'question 与 skill 至少给一个' }; }
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/runAnalysis.js|...(partnerSource ? { partnerSource } : {}),
-Horosa-Web/astrostudyui/src/utils/aiAgent/goalRunner.js|conversation, ...(partnerSource ? { partnerSource } : {}) });
+Horosa-Web/astrostudyui/src/utils/aiAgent/goalRunner.js|conversation, ...(partnerSource ? { partnerSource } : {}),
 Horosa-Web/astrostudyui/src/utils/aiExport.js|export async function buildCurrentPageExportForTool(){
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/readCurrentPage.js|try{ p = await mod.buildCurrentPageExportForTool(); }
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/castRelative.js|import { getPairSynastryText, getPairChineseTexts, clipContentToBudget } from '../../aiAnalysisContext';
-Horosa-Web/astrostudyui/src/utils/aiTools/tools/searchElection.js|import { runScan, MAX_SPAN_DAYS_TOTAL } from '../../../divination/zeri/scanOrchestrator';
+Horosa-Web/astrostudyui/src/utils/aiTools/tools/searchElection.js|out = await runScan({ base, tree, signal: ctx && ctx.signal,
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/listTasks.js|export function taskDetailText(d){
 Horosa-Web/astrostudyui/src/utils/__tests__/aiToolsExternalRead.test.js|关 ⇒ 三件不进 MCP 目录、直呼其名 E_TOOL_DISABLED
 Horosa-Web/astrostudyui/src/utils/__tests__/mcpHelpSkillsPrompts.test.js|手册(HelpBook)的惰性各章全部展开
@@ -1171,16 +1223,16 @@ Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|if(def.level === 'additiv
 Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|window.__horosaAgentToolCancel = (id)=>cancelAgentToolRequest(id);
 Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|invokeDesktopCommand('agent_tool_progress_command', { id, ...v })
 Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|r = await raceCancel(withTimeout(d.runTool(name, args, ctx)
-Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|const structured = hasData && r.ok && (declaredOutput || !text.truncated) ? r.data : undefined;
+Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|const structured = hasData && r.ok && (declaredOutput || !text.truncated) ? structuredWithEnvelope(r.data, env) : undefined;
 Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|if(method === 'completion/complete'){
 Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|return pagedResult('resources', { ...page, items: visible(page && page.items, (x)=>x.uri) });
 Horosa-Web/astrostudyui/src/utils/aiTools/catalog.js|...(d.outputSchema ? { outputSchema: JSON.parse(JSON.stringify(d.outputSchema)) } : {}),
 Horosa-Web/astrostudyui/src/utils/aiTools/registry.js|def.outputSchema.type !== 'object'
 Horosa-Web/astrostudyui/src/utils/aiTools/resources.js|export async function listResourcesPage(opts){
 Horosa-Web/astrostudyui/src/utils/aiTools/prompts.js|export async function listPromptsPage(opts){
-Horosa-Web/astrostudyui/src/utils/aiTools/completions.js|export async function completeArgument(ref, argument){
+Horosa-Web/astrostudyui/src/utils/aiTools/completions.js|export async function completeArgument(ref, argument, context){
 Horosa-Web/astrostudyui/src/utils/aiTools/errorCodes.js|E_CANCELLED: def(
-Horosa-Web/astrostudyui/src/utils/aiTools/tools/castTechnique.js|const runP = runCast(args, report);
+Horosa-Web/astrostudyui/src/utils/aiTools/tools/castTechnique.js|const runP = runCast(args, report, ctx && ctx.origin);
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/runAnalysis.js|...(onTrace ? { onTrace } : {}),
 Horosa-Web/astrostudyui/src/utils/__tests__/mcpBridgeSchedule.test.js|只读并发到上限 3、第 4 条排队
 Horosa-Web/astrostudyui/src/utils/__tests__/aiToolsOutputSchema.contract.test.js|真跑:建档(新建 / 已存在)
@@ -1228,9 +1280,9 @@ Horosa-Web/astrostudyui/src/components/aianalysis/chat/useChatAssist.js|setChatT
 Horosa-Web/astrostudyui/src/components/aianalysis/AIAnalysisMain.js|const SECONDARY_TAB_ITEMS = SECONDARY_TABS.map((t)=>({ key: t.key, label: t.label }));
 Horosa-Web/astrostudyui/src/components/aianalysis/AIAnalysisMain.js|innerTab, innerTabs: SECONDARY_TAB_ITEMS,
 Horosa-Web/astrostudyui/src/utils/__tests__/aiToolsExternalRecords.test.js|任一张写后被改过 → 一张都不还原
-Horosa-Web/astrostudyui/src/utils/aiTools/divinationCast.js|export const INPUT_CASTABLE = ['liuyao', 'xiaoliuren', 'lingqi', 'tongshefa', 'xiaochengtu', 'feigong'];
+Horosa-Web/astrostudyui/src/utils/aiTools/divinationCast.js|export const INPUT_CASTABLE = ['liuyao', 'xiaoliuren', 'lingqi', 'tongshefa', 'xiaochengtu', 'feigong',
 Horosa-Web/astrostudyui/src/utils/aiTools/divinationCast.js|if(typeof r.snapshot !== 'string' || !r.snapshot.trim()){ return { ok: false, code: 'E_CAST_FAILED', message: '成卦了但没产出快照正文,未建事盘' }; }
-Horosa-Web/astrostudyui/src/utils/aiTools/tools/castDivinationCase.js|const payload = { module: spec.module, version: spec.version, savedAt: new Date().toISOString(), fieldSnapshot: caseFieldSnapshot(fieldsLike), createdBy: 'ai-assistant', ...built.body, snapshot: built.snapshot };
+Horosa-Web/astrostudyui/src/utils/aiTools/tools/castDivinationCase.js|const payload = { module: spec.module, version: spec.version, savedAt: new Date().toISOString(), fieldSnapshot: caseFieldSnapshot(fieldsLike), createdBy: 'ai-assistant', ...built.body, snapshot: built.snapshot,
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/castDivinationCase.js|undo: { kind: 'trash-record', payload: { store: 'case', cid: saved.cid } },
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/createCaseRecord.js|export async function resolveCaseTimePlace(args, assumptions){
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/createCaseRecord.js|export function persistCaseRecord(toolName, values, args, ctx, assumptions){
@@ -1244,7 +1296,7 @@ Horosa-Web/astrostudyui/src/utils/aiTools/settingsFacets.js|if(!page || keys.som
 Horosa-Web/astrostudyui/src/utils/aiTools/settingsFacets.js|const moved = keys.filter((k)=>!storedSettingValueSame(facet, k, cur[k], written[k]));
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/setSettings.js|if(args.facet === 'page'){ await preparePageFacet(args.technique); }
 Horosa-Web/astrostudyui/src/utils/__tests__/aiToolsExternalPageSettings.test.js|载入表 ∪ 排除表 = 登记表
-Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|export const ZERI_SCHOOLS = ['huangli', 'bazi', 'ziwei', 'liureng', 'taiyi', 'qimen', 'qizheng', 'india'];
+Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|export const ZERI_SCHOOLS = ['huangli', 'bazi', 'ziwei', 'liureng', 'taiyi', 'qimen', 'sanshi', 'qizheng', 'india'];
 Horosa-Web/astrostudyui/src/utils/aiTools/zeriSchools.js|export const ZERI_AI_MAX_SPAN_DAYS = {
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/searchZeri.js|({ ui, compiled } = compileAgentTreeWith(sch.registry, sch.compile, args.conditions, 'list_zeri_conditions'));
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/searchElection.js|export function compileAgentTreeWith(registry, compileFn, tree, listHint){
@@ -1286,7 +1338,7 @@ s316_scan(){
 Horosa-Web/astrostudyui/src/utils/aiAgent/prefs.js|export const DEFAULT_EXTERNAL_POLICY = Object.freeze({ approval: 'auto', maxCallsPerMinute: 60, maxAdditivePerHour: 100, uiConfirm: false });
 Horosa-Web/astrostudyui/src/utils/aiAgent/prefs.js|uiConfirm: r.uiConfirm === true,
 Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|const needUiConfirm = def.category === 'ui' && policy.uiConfirm === true;
-Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|if((level === 'additive' && policy.approval === 'on-request') || needUiConfirm){
+Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js|if((level === 'additive' && policy.approval === 'on-request') || needUiConfirm || forceAsk){
 Horosa-Web/astrostudyui/src/components/aianalysis/ExternalAgentPanel.js|data-external-ui-confirm-switch="1"
 Horosa-Web/astrostudyui/src/utils/__tests__/aiToolsExternalProposals.test.js|开:界面类动作挂审批台
 Horosa-Web/astrostudyui/src/utils/aiAgent/proposals.js|export const PROPOSALS_PENDING_MAX = 50;
@@ -1294,7 +1346,7 @@ Horosa-Web/astrostudyui/src/utils/aiAgent/proposals.js|const conflictFields = Ob
 Horosa-Web/astrostudyui/src/utils/aiAgent/proposals.js|if(moved.length){ return { ok: false, code: 'E_UNDO_RECORD_CHANGED',
 Horosa-Web/astrostudyui/src/utils/aiTools/tools/proposeRecord.js|const r = addProposal({ kind: 'record-edit',
 Horosa-Web/astrostudyui/src/utils/aiTools/catalog.js|propose_record_edit: '只挂提案、不改档案;
-Horosa-Web/astrostudyui/src/utils/aiTools/index.js|proposeRecordEditTool, proposeRecordArchiveTool, listProposalsTool,
+Horosa-Web/astrostudyui/src/utils/aiTools/index.js|proposeRecordEditTool, proposeRecordArchiveTool, proposeRecordUnlinkTool, proposeRecordRestoreTool, listProposalsTool,
 Horosa-Web/astrostudyui/src/components/aianalysis/TaskCenterPanel.js|data-proposal-accept="1"
 Horosa-Web/astrostudyui/src/components/aianalysis/TaskCenterPanel.js|data-proposal-revert="1"
 Horosa-Web/astrostudyui/src/components/aianalysis/TaskCenterBell.js|+ pendingProposalCount();
@@ -1315,7 +1367,7 @@ s316_ok=1
 [ -z "$(s316_scan "${s316_tmp}")" ] || s316_ok=0
 sed -i '' 's/maxAdditivePerHour: 100, uiConfirm: false });/maxAdditivePerHour: 100, uiConfirm: true });/' "${s316_tmp}/Horosa-Web/astrostudyui/src/utils/aiAgent/prefs.js" 2>/dev/null
 s316_scan "${s316_tmp}" | pipe_has -F 'prefs.js「export const DEFAULT_EXTERNAL_POLICY' || s316_ok=0
-sed -i '' "s/ || needUiConfirm){/){/" "${s316_tmp}/Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js" 2>/dev/null
+sed -i '' "s/ || needUiConfirm || forceAsk){/ || forceAsk){/" "${s316_tmp}/Horosa-Web/astrostudyui/src/utils/aiAgent/mcpBridge.js" 2>/dev/null
 s316_scan "${s316_tmp}" | pipe_has -F "mcpBridge.js「if((level === 'additive'" || s316_ok=0
 printf '\nacceptProposal(\n' >> "${s316_tmp}/Horosa-Web/astrostudyui/src/utils/aiTools/tools/proposeRecord.js"
 s316_guard "${s316_tmp}" | pipe_has -F 'proposeRecord.js' || s316_ok=0
@@ -1436,7 +1488,7 @@ grep -aq "AGENT_TOOL_LEVELS = \['read', 'additive'\]" "${S238_T}/catalog.js" || 
 S238_NAMES="$(grep -ahoE "name: '[a-z_]+'" "${S238_T}"/tools/*.js | sed -E "s/name: '([a-z_]+)'/\1/" | sort -u)"
 S238_DENY="$(echo "${S238_NAMES}" | grep -ciE "delete|remove|purge|clear|reset|overwrite|update|rename|import|export|restore|backup|undo" || true)"
 [ "${S238_DENY}" = "0" ] || { bad "[${PF_NO}] 工具目录出现删改类工具名 ×${S238_DENY}"; S238_BAD=1; }
-S238_NTOOLS=51
+S238_NTOOLS=80
 [ "$(echo "${S238_NAMES}" | grep -c .)" = "${S238_NTOOLS}" ] || { bad "[${PF_NO}] 工具目录应恰 ${S238_NTOOLS} 件,现 $(echo "${S238_NAMES}" | grep -c .)"; S238_BAD=1; }
 S238_L_G="$(grep -an "const guard = guardAdditive(def.name, args, def.referenceKeys);" "${S238_T}/registry.js" | head -1 | cut -d: -f1)"
 S238_L_V="$(grep -an "const validated = validateArgs(def, args);" "${S238_T}/registry.js" | head -1 | cut -d: -f1)"
@@ -1478,7 +1530,8 @@ S246_DIRS="${S246_UI}/src/utils/aiChat ${S246_UI}/src/components/aianalysis/chat
 # A1a 策略设置卡:设置页插座恰 1;卡在位;打开不写键的判别向量在合同测试里
 [ "$(pf_code "${S246_MAIN}" | grep -acF "{chatAssist.settingsPanels}")" = "1" ] || { bad "[${PF_NO}] 设置页插座 chatAssist.settingsPanels 不是恰好一处"; S246_BAD=1; }
 # [进阶页] 两处插座整体迁到 renderAdvancedPane;设置页只剩接口配置与备份。三锚:渲染函数在位 / 页签在位 / 设置页体内不再渲染插座(排空计数形态,pipefail 下不吃 SIGPIPE)。
-[ "$(pf_code "${S246_MAIN}" | grep -acF "function renderAdvancedPane(")" = "1" ] || { bad "[${PF_NO}] 进阶页渲染函数 renderAdvancedPane 缺失"; S246_BAD=1; }
+# 内层函数拆进 main/sideViews.js 后门面留同名包装(function renderAdvancedPane(...args)),实现恰一处 = 带依赖参数的那个
+[ "$(pf_code "${S246_MAIN}" | grep -acF "function renderAdvancedPane({")" = "1" ] || { bad "[${PF_NO}] 进阶页渲染函数 renderAdvancedPane 缺失"; S246_BAD=1; }
 [ "$(pf_code "${S246_MAIN}" | grep -acF "key=\"advanced\"")" = "1" ] || { bad "[${PF_NO}] 进阶页签 key=advanced 缺失"; S246_BAD=1; }
 S246_SETTINGS_BODY="$(pf_code "${S246_MAIN}" | sed -n '/function renderSettingsPane(){/,/^\tfunction /p')"
 [ "$(printf '%s\n' "${S246_SETTINGS_BODY}" | grep -acF "chatAssist.settingsPanels")" = "0" ] || { bad "[${PF_NO}] 设置页仍渲染 settingsPanels 插座(应已迁到进阶页)"; S246_BAD=1; }
@@ -1611,7 +1664,7 @@ for t in aiAgentApprovalPolicy aiAgentElicitations aiToolsAskUser aiToolsListAct
 	[ -f "${S247_UI}/src/utils/__tests__/${t}.test.js" ] || { bad "[${PF_NO}] 合同测试 ${t}.test.js 缺失"; S247_BAD=1; }
 done
 # ⑧ 任务中心:IDB 升版四 store;任务/通知模块;布局接线;桌面通知命令(偏好门+脱敏+限流,标题正文只经清洗);键登记;合同在位
-S247_ST="${S247_UI}/src/utils/aiAnalysisStore.js"
+S247_ST="$(pf_src_set "${S247_UI}/src/utils/aiAnalysisStore.js")"
 S247_DBV=7
 [ "$(pf_code "${S247_ST}" | grep -acF "const DB_VERSION = ${S247_DBV};")" = "1" ] || { bad "[${PF_NO}] aiAnalysisStore DB_VERSION ≠ ${S247_DBV}(任务中心四 store 需升版同车)"; S247_BAD=1; }
 for st in agent_tasks agent_notices automation_rules integration_profiles; do [ "$(grep -acF "'${st}'" "${S247_ST}")" != "0" ] || { bad "[${PF_NO}] aiAnalysisStore 缺 store ${st}"; S247_BAD=1; }; done
@@ -1815,7 +1868,7 @@ pf_none "${S257_UI}/utils/aiAgent/uiTrail.js" "localStorage" "界面轨迹不得
 pf_need "${S257_UI}/utils/aiAgent/agentSpotlight.js" "if(typeof document === 'undefined' || !isAgentEnabled()){ return false; }" "高亮缺总开关门(缺省必须零 DOM 改动)"
 pf_once "${S257_C}/AgentActionBar.js" 'data-agent-ui-trail="1"' "动作条缺界面操作轨迹行"
 pf_need "${S257_UI}/utils/localRecordStore.js" "export function parseGroupTags(group){" "记录内核缺标签解析"
-pf_need "${S257_UI}/utils/localRecordStore.js" "function setTags(cid, tags){" "记录内核缺 setTags"
+pf_need "${S257_UI}/utils/localRecordStore.js" "function setTags(" "记录内核缺 setTags"
 pf_need "${S257_UI}/utils/localcharts.js" "export function setLocalChartTags(cid, tags){" "命盘库缺 setLocalChartTags"
 pf_need "${S257_UI}/utils/localcases.js" "export function setLocalCaseTags(cid, tags){" "事盘库缺 setLocalCaseTags"
 pf_need "${S257_UI}/utils/aiTools/labels.js" "navigate_to_technique: '切换技法页'," "标签单源缺五件"
@@ -1956,7 +2009,7 @@ done
 for S265_F in utils/aiAgent/goalRunner.js utils/aiTools/tools/scheduleTask.js components/aianalysis/ScheduledTaskModal.js; do
   [ "$(pf_code "${S265_UI}/src/${S265_F}" | grep -acF "snapshotModelSelection(")" != "0" ] || { bad "[${PF_NO}] ${S265_F} 创建任务未快照 modelSelection"; S265_BAD=1; }
 done
-S265_ST="${S265_UI}/src/utils/aiAnalysisStore.js"
+S265_ST="$(pf_src_set "${S265_UI}/src/utils/aiAnalysisStore.js")"
 for S265_OP in "'bulk'" "'clear'" "'deleteMany'"; do [ "$(pf_code "${S265_ST}" | grep -acF "${S265_OP}")" != "0" ] || { bad "[${PF_NO}] 库 ${S265_OP} 变更事件缺(bulkPut/clear/批删各派一次)"; S265_BAD=1; }; done
 for S265_T in aiAgentApprovals aiAnalysisStoreEvents agentTaskModelSnapshot; do [ -f "${S265_UI}/src/utils/__tests__/${S265_T}.test.js" ] || { bad "[${PF_NO}] 缺 ${S265_T}.test.js"; S265_BAD=1; }; done
 for S265_TG in "mcpBridge.test.js:执行预算 = 客户端预算 − 审批已耗" "mcpBridge.test.js:到点前点「跳过」⇒ E_USER_SKIPPED" "mcpBridge.test.js:目录外名字洪水" "mcpBridge.test.js:通知器同 tick 关-开" "aiAgentApprovalPolicy.test.js:读级「询问」在非对话来源自动放行" "aiAgentRuntime.test.js:「本会话不再问」只对对话来源" "aiAgentGoalRunner.test.js:后台任务审批文案按级别" "taskCenterPanel.test.js:账本丢失监听可拆除"; do
@@ -1986,7 +2039,7 @@ S265_HELP="${S265_UI}/src/components/help/AIAnalysisHelpDoc.js"
 [ "$(grep -acF 'export const UNDO_EXEMPT' "${S265_UI}/src/utils/aiTools/catalog.js")" = "1" ] && [ "$(grep -acF 'agentAbilityCopyText()' "${S265_UI}/src/components/aianalysis/AgentAbilityPanel.js")" != "0" ] && [ "$(grep -acF 'AGENT_ABILITY_COPY' "${S265_UI}/src/components/aianalysis/AgentAbilityPanel.js")" = "0" ] || { bad "[${PF_NO}]⑦ 能力卡文案未由目录生成 / 撤销豁免表缺"; S265_BAD=1; }
 [ "$(grep -acF '${MAX_CHAIN_DEPTH}' "${S265_UI}/src/components/aianalysis/AutomationRulesPanel.js")" = "1" ] && [ "$(grep -acF '${WEB_FETCH_MAX_CHARS} 字' "${S265_UI}/src/components/aianalysis/WebSearchPanel.js")" = "1" ] || { bad "[${PF_NO}]⑦ 规则链深 / 网页读取上限 文案未与常量同源"; S265_BAD=1; }
 [ "$(grep -acE '\*\*只读\*\*|\*\*你的检索词\*\*' "${S265_UI}/src/components/aianalysis/ExternalServersPanel.js" "${S265_UI}/src/components/aianalysis/WebSearchPanel.js" | awk -F: '{s+=$2} END{print s+0}')" = "0" ] || { bad "[${PF_NO}]⑦ 面板 JSX 文本 markdown 加粗回潮"; S265_BAD=1; }
-S265_NTOOLS=51
+S265_NTOOLS=80
 [ "$(grep -acE '六类 records|\*\*三个动作\*\*' "${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md")" = "0" ] && [ "$(grep -acF "共 **${S265_NTOOLS} 件**" "${REPO_ROOT}/docs/AI_AGENT_RUNTIME.md")" = "1" ] || { bad "[${PF_NO}]⑦ 手册旧口径回潮或总数句缺"; S265_BAD=1; }
 for S265_T in aiAgentRuntimeDoc.contract aiAdvancedHelpCards.contract aiPanelCopyNoMarkdown aiToolsUndoContract agentAbilityCopy.contract; do
   [ -f "${S265_UI}/src/utils/__tests__/${S265_T}.test.js" ] || { bad "[${PF_NO}]⑦ 缺 ${S265_T}.test.js"; S265_BAD=1; }
@@ -2056,7 +2109,7 @@ S267_WR="${S267_UI}/src/utils/aiWorkspaceRestore.js"
 S267_CTX="$(pf_src_set "${S267_UI}/src/utils/aiAnalysisContext.js")"; S267_RAG="${S267_UI}/src/utils/aiAnalysisRag.js"
 [ "$(pf_code --fullline "${S267_CTX}" | grep -acF 'wrapUntrustedData(')" -ge 1 ] && [ "$(grep -acF "export const UNTRUSTED_DATA_BEGIN" "${S267_RAG}")" = "1" ] && [ "$(grep -acF 'export function neutralizeActionFences' "${S267_RAG}")" = "1" ] || { bad "[${PF_NO}]④ 资料/检索正文未带数据围栏"; S267_BAD=1; }
 [ "$(grep -acF 'HOROSA_DATA_BEGIN' "${S267_UI}/src/utils/aiAgent/protocol.js")" != "0" ] || { bad "[${PF_NO}]④ 守则第 2 条未写哨兵语义"; S267_BAD=1; }
-[ "$(pf_code --fullline "${S267_CTX}" | grep -acF 'regenerateChartTechniqueSnapshot(record, key, { throwOnError: true })')" = "1" ] && [ "$(pf_code --fullline "${S267_CTX}" | grep -acF "(genError ? 'error' : 'missing')")" = "1" ] || { bad "[${PF_NO}]④ 默认路径重算失败仍静默成 missing"; S267_BAD=1; }
+[ "$(pf_code --fullline "${S267_CTX}" | grep -acF 'generatedText = canonicalSnapshotText(await regenerateChartTechniqueSnapshot(record, key, { throwOnError: true }))')" = "1" ] && [ "$(pf_code --fullline "${S267_CTX}" | grep -acF "(genError ? 'error' : 'missing')")" = "1" ] || { bad "[${PF_NO}]④ 默认路径重算失败仍静默成 missing"; S267_BAD=1; }
 [ "$(pf_code --fullline "${S267_RAG}" | grep -acF "readByIndex(AI_ANALYSIS_STORES.materialChunks, 'materialId'")" = "1" ] && [ "$(pf_code --fullline "${S267_RAG}" | grep -acF "readByIndex(AI_ANALYSIS_STORES.materialEmbeddings, 'materialId'")" = "1" ] || { bad "[${PF_NO}]④ RAG 切块/向量仍整店 getAll"; S267_BAD=1; }
 # ⑤ 资料抽取上限 / 流池饱和即拒 / Retry-After 两形态
 S267_MAT="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisMaterialService.java"
@@ -2071,7 +2124,7 @@ for S267_T in aiUntrustedDataFence aiAnalysisRagIndex aiAnalysisContextErrors ai
 done
 [ "$(grep -acF 'retryAfterHeaderParsesSecondsAndHttpDate' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIAnalysisProxyServiceTest.java")" != "0" ] && [ "$(grep -acF 'oversizedBase64IsRejectedFastWith580103' "${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/test/java/spacex/astrostudy/service/AIAnalysisMaterialServiceTest.java")" != "0" ] || { bad "[${PF_NO}]⑤ 缺 D58/D60 JUnit"; S267_BAD=1; }
 # ⑥ 健康态:store 记 + 主页横幅
-[ "$(grep -acF 'export function getAiStoreHealth()' "${S267_UI}/src/utils/aiAnalysisStore.js")" = "1" ] && [ "$(grep -acF 'data-ai-store-degraded=' "${S267_MAIN}")" = "1" ] || { bad "[${PF_NO}]⑥ 库健康态未接(store getAiStoreHealth / 主页 data-ai-store-degraded)"; S267_BAD=1; }
+[ "$(grep -acF 'export function getAiStoreHealth()' "$(pf_src_set "${S267_UI}/src/utils/aiAnalysisStore.js")")" = "1" ] && [ "$(grep -acF 'data-ai-store-degraded=' "${S267_MAIN}")" = "1" ] || { bad "[${PF_NO}]⑥ 库健康态未接(store getAiStoreHealth / 主页 data-ai-store-degraded)"; S267_BAD=1; }
 # ⑦ 正文后 error 帧:errorInfo 恒记 + partial;Java 四条中继转发流中错误帧
 [ "$(pf_code --fullline "${S267_MAIN}" | grep -acF 'const errorInfo = streamError ? classifyStreamError(streamError) : null;')" = "1" ] && [ "$(pf_code --fullline "${S267_MAIN}" | grep -acF 'partial: partialAfterError || undefined,')" = "1" ] || { bad "[${PF_NO}]⑦ 正文后 error 帧仍被吞(errorInfo 只在正文为空时才记)"; S267_BAD=1; }
 S267_PROXY="${REPO_ROOT}/Horosa-Web/astrostudysrv/astrostudy/src/main/java/spacex/astrostudy/service/AIAnalysisProxyService.java"
@@ -2205,7 +2258,7 @@ done
 S269_P_DE="const DEAD_EXEMPT = {"; S269_P_PR="pruneOptionsToNonDefault(key, { [field.name]: v }, baseline)"
 [ "$(grep -acF "${S269_P_DE}" "${S269_DN}")" = "1" ] && [ "$(grep -acF "${S269_P_PR}" "${S269_DN}")" = "1" ] && [ "$(grep -acF "HOROSA_DIFFNET_OFFLINE" "${S269_DN}")" -ge 1 ] || { bad "[${PF_NO}]① 差分闸三锚(豁免表/覆盖判据同源/离线不假绿)缺失"; S269_BAD=1; }
 [ "$(grep -acF "'^js-rsa$'" "${S269_UI}/jest.config.js")" = "1" ] && [ -f "${S269_UI}/test/jsRsaJestShim.js" ] || { bad "[${PF_NO}]④ jest js-rsa shim 未接(后端请求在 jest 内静默失败=在线判据全成假绿)"; S269_BAD=1; }
-S269_DJ="${S269_UI}/src/components/dunjia/DunJiaCalc.js"
+S269_DJ="$(pf_src_set "${S269_UI}/src/components/dunjia/DunJiaCalc.js")"
 [ "$(grep -acF "feiMenZhongCan: opts.feiMenZhongCan !== false," "${S269_DJ}")" = "0" ] && [ "$(grep -acF "opts.feiMenZhongCan === 0 || opts.feiMenZhongCan === '0'" "${S269_DJ}")" -ge 2 ] || { bad "[${PF_NO}]③ 奇门中门参与 0/'0' 判关回潮(挂载 select 0 被当参与)"; S269_BAD=1; }
 S269_P_CC="? { chartCategory: opts.chartCategory } : {}),"
 [ "$(grep -acF "${S269_P_CC}" "${S269_DJ}")" = "1" ] || { bad "[${PF_NO}]③ 奇门盘类未随 opts 进 pan.options"; S269_BAD=1; }
@@ -2216,8 +2269,8 @@ S269_P_TS="if(record && Array.isArray(record.taiSuiRelatives)){"
 [ "$(grep -acF "item: record.zcItem || '父母', sound: record.zcSound || '日'" "${S269_CTX}")" = "1" ] || { bad "[${PF_NO}]③ 正传心易缺省未落地(无声音=查询段整段不产)"; S269_BAD=1; }
 [ "$(grep -acF "deriveDadingYearPillars: dd.deriveDadingYearPillars," "${S269_CTX}")" = "1" ] && [ "$(grep -acF "export function deriveDadingYearPillars(" "${S269_UI}/src/utils/zhengchuanDadingLocal.js")" = "1" ] || { bad "[${PF_NO}]③ 大定所推之年派生未接无头"; S269_BAD=1; }
 S269_P_IT="indiaTripataki: { value: (record.indiaTripataki === 1"
-[ "$(grep -acF "${S269_P_IT}" "${S269_CTX}")" = "1" ] && [ "$(grep -acF "name: 'indiaPrashnaTime'" "${S269_UI}/src/utils/techniqueMountSettings.js")" = "1" ] || { bad "[${PF_NO}]③ 印占三旗/问事挂载链缺失"; S269_BAD=1; }
-S269_TMS="${S269_UI}/src/utils/techniqueMountSettings.js"
+[ "$(grep -acF "${S269_P_IT}" "${S269_CTX}")" = "1" ] && [ "$(grep -acF "name: 'indiaPrashnaTime'" "$(pf_src_set "${S269_UI}/src/utils/techniqueMountSettings.js")")" = "1" ] || { bad "[${PF_NO}]③ 印占三旗/问事挂载链缺失"; S269_BAD=1; }
+S269_TMS="$(pf_src_set "${S269_UI}/src/utils/techniqueMountSettings.js")"
 # 花括号内含逗号的字面锚必须先赋值再引用(bash 3.2 花括号展开陷阱)
 S269_P_OLD="{ value: 'strokes'"; S269_P_NEW="{ value: 'character'"   # 锚只咬值域(后端只认 character/direction);标签随页面文案
 [ "$(grep -acF "${S269_P_OLD}" "${S269_TMS}")" = "0" ] && [ "$(grep -acF "${S269_P_NEW}" "${S269_TMS}")" = "1" ] || { bad "[${PF_NO}]③ 皇极心易起卦法值域回潮(strokes/object 后端不识)"; S269_BAD=1; }

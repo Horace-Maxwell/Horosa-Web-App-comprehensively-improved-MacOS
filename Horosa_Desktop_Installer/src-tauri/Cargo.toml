@@ -1,6 +1,6 @@
 [package]
 name = "horosa-desktop-installer"
-version = "3.14.0"
+version = "3.15.0"
 description = "Horosa macOS desktop shell"
 authors = ["Horosa"]
 edition = "2021"
@@ -31,6 +31,10 @@ tiny_http = "0.12"
 urlencoding = "2"
 walkdir = "2.5"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+# 键盘可达:给系统网页视图的偏好 tabFocusesLinks 置位要发一条原生消息;objc2 0.6 已在 tauri 依赖树,零新增传递依赖
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
 
 # 本机 HTTP 服务库换成仓内源码副本(vendor/tiny_http,改动见其 PATCHES.md):请求体收尾不按客户端声明长度申请缓冲、
 # 连接读写超时、请求头总长上限、accept 遇暂时性错误退避续接、在服连接上限、停服后的请求回 503 并关连接。

@@ -39,7 +39,7 @@ AIEXPORT_JS="$(pf_src_set "${UISRC}/utils/aiExport.js")"
 echo "[26] 奇门法奇门叠加层(化解/用神/取象)"
 DUNJIA_FACALC="${UISRC}/components/dunjia/DunJiaFaCalc.js"
 DUNJIA_FADOC="${UISRC}/components/dunjia/DunJiaFaDoc.js"
-DUNJIA_CALC_JS="${UISRC}/components/dunjia/DunJiaCalc.js"
+DUNJIA_CALC_JS="$(pf_src_set "${UISRC}/components/dunjia/DunJiaCalc.js")"
 if [ -f "${DUNJIA_FACALC}" ] && [ -f "${DUNJIA_FADOC}" ]; then ok "[26] DunJiaFaCalc/DunJiaFaDoc 在"; else bad "[26] 法奇门叠加层文件缺失"; fi
 # 快照 8 段必须在(漏接=AI 导出/挂载/储存看不到化解·用神)
 if grep -q "\[六害总览\]" "${DUNJIA_CALC_JS}" 2>/dev/null && grep -q "\[化解方案\]" "${DUNJIA_CALC_JS}" 2>/dev/null && grep -q "\[用神分论\]" "${DUNJIA_CALC_JS}" 2>/dev/null; then ok "[26] buildDunJiaSnapshotText 含法奇门段(六害/化解/用神)"; else bad "[26] 快照漏法奇门段(AI 四同步看不到化解·用神)"; fi
@@ -52,13 +52,13 @@ if grep -q "神煞判语全覆盖" "${UISRC}/components/dunjia/__tests__/DunJiaF
 # 相关人员→生年干→八门化气大阵(命盘库选人,捕获各人生年干喂保护清单;未选则不显示该类)
 if grep -q "export function birthToYearGan" "${DUNJIA_CALC_JS}" 2>/dev/null && grep -q "CHART_CATEGORY_OPTIONS" "${DUNJIA_CALC_JS}" 2>/dev/null; then ok "[26] DunJiaCalc 含 birthToYearGan(生年干)+CHART_CATEGORY_OPTIONS(命盘/事盘)"; else bad "[26] 缺 birthToYearGan/CHART_CATEGORY_OPTIONS"; fi
 if grep -q "faRelatedPeople" "${DUNJIA_FACALC}" 2>/dev/null && ! grep -q "示本盘年干" "${DUNJIA_FACALC}" 2>/dev/null; then ok "[26] computeProtect 生年干来自相关人员(占位『示本盘年干』已移除)"; else bad "[26] computeProtect 仍用本盘年干占位/未读 faRelatedPeople"; fi
-if grep -q "onRelatedPeopleChange" "${UISRC}/components/dunjia/DunJiaMain.js" 2>/dev/null && grep -q "applyFaRelatedToPan" "${UISRC}/components/dunjia/DunJiaMain.js" 2>/dev/null; then ok "[26] 相关人员多选已接线(stamp pan.faRelatedPeople→AI 四同步单源)"; else bad "[26] 相关人员多选未接线/未 stamp pan"; fi
+if grep -q "onRelatedPeopleChange" "$(pf_src_set "${UISRC}/components/dunjia/DunJiaMain.js")" 2>/dev/null && grep -q "applyFaRelatedToPan" "$(pf_src_set "${UISRC}/components/dunjia/DunJiaMain.js")" 2>/dev/null; then ok "[26] 相关人员多选已接线(stamp pan.faRelatedPeople→AI 四同步单源)"; else bad "[26] 相关人员多选未接线/未 stamp pan"; fi
 # 命盘/事盘双库:命盘复用命盘库(localCharts)、跨技法自用,奇门设置存 payload.qimen;新增命盘表单须透传 payload(否则丢)
-if grep -q "saveAsMingChart" "${UISRC}/components/dunjia/DunJiaMain.js" 2>/dev/null && grep -q "qimen: qimenSettings" "${UISRC}/components/dunjia/DunJiaMain.js" 2>/dev/null; then ok "[26] 命盘存 payload.qimen(复用命盘库,跨技法可用)"; else bad "[26] 命盘保存未走 payload.qimen"; fi
+if grep -q "saveAsMingChart" "$(pf_src_set "${UISRC}/components/dunjia/DunJiaMain.js")" 2>/dev/null && grep -q "qimen: qimenSettings" "$(pf_src_set "${UISRC}/components/dunjia/DunJiaMain.js")" 2>/dev/null; then ok "[26] 命盘存 payload.qimen(复用命盘库,跨技法可用)"; else bad "[26] 命盘保存未走 payload.qimen"; fi
 if grep -q "this.props.fields.payload" "${UISRC}/components/user/ChartAddFormComp.js" 2>/dev/null; then ok "[26] ChartAddFormComp 新增命盘透传 payload(修『新增命盘丢 payload』漏洞)"; else bad "[26] ChartAddFormComp 未透传 payload(奇门命盘设置会丢)"; fi
 # 命盘信息完整(命盘管理完整显示):注入性别/经纬度+newCurrentChart honor;命盘保存恒弹新增抽屉(不静默原地更新)
-if grep -q "gender: this.state.options" "${UISRC}/components/dunjia/DunJiaMain.js" 2>/dev/null && grep -q "values.gender" "${UISRC}/models/user.js" 2>/dev/null; then ok "[26] 奇门命盘信息完整(注入性别/经纬度+newCurrentChart honor)"; else bad "[26] 奇门命盘信息不全(命盘管理缺性别等)"; fi
-if ! grep -q "已更新该命盘的奇门设置" "${UISRC}/components/dunjia/DunJiaMain.js" 2>/dev/null; then ok "[26] 命盘保存恒弹新增星盘抽屉(无 cid 静默原地更新)"; else bad "[26] 命盘保存仍有 cid 静默原地更新(应恒弹新增抽屉)"; fi
+if grep -q "gender: this.state.options" "$(pf_src_set "${UISRC}/components/dunjia/DunJiaMain.js")" 2>/dev/null && grep -q "values.gender" "${UISRC}/models/user.js" 2>/dev/null; then ok "[26] 奇门命盘信息完整(注入性别/经纬度+newCurrentChart honor)"; else bad "[26] 奇门命盘信息不全(命盘管理缺性别等)"; fi
+if ! grep -q "已更新该命盘的奇门设置" "$(pf_src_set "${UISRC}/components/dunjia/DunJiaMain.js")" 2>/dev/null; then ok "[26] 命盘保存恒弹新增星盘抽屉(无 cid 静默原地更新)"; else bad "[26] 命盘保存仍有 cid 静默原地更新(应恒弹新增抽屉)"; fi
 # AI 四同步挂载无遗漏:重算 pan 路径补 faRelatedPeople(regenerate)+computeProtect 全局兜底
 if grep -q "qs.faRelatedPeople" "$(pf_src_set "${UISRC}/utils/aiAnalysisContext.js")" 2>/dev/null; then ok "[26] AI 挂载 regenerateQimenSnapshot 补 faRelatedPeople(四同步无遗漏)"; else bad "[26] AI 挂载重算 pan 漏 faRelatedPeople(相关人员挂载缺失)"; fi
 if grep -q "__horosa_qimen_related_people" "${DUNJIA_FACALC}" 2>/dev/null; then ok "[26] computeProtect 全局兜底相关人员(覆盖未 stamp 的重算路径)"; else bad "[26] computeProtect 缺全局兜底(部分挂载路径漏相关人员)"; fi
@@ -82,13 +82,13 @@ if [ -f "${RGZ_TEST_JS}" ]; then ok "[26] resolveGeoZone 全半球自检在(回�
 REANCHOR_PAGES="components/lrzhan/LiuRengInput.js components/suzhan/SuZhanInput.js components/guazhan/GuaZhanInput.js components/lrzhan/LiuRengBirthInput.js components/taiyi/TaiYiMain.js components/dunjia/DunJiaMain.js components/sanshi/SanShiUnitedMain.js components/kinastro/KinAstroMain.js"
 reanchor_miss=""
 for pg in ${REANCHOR_PAGES}; do
-  grep -q "setZone(z)" "${UISRC}/${pg}" 2>/dev/null || reanchor_miss="${reanchor_miss} $(basename "$pg")"
+  grep -q "setZone(z)" "$(pf_src_set "${UISRC}/${pg}")" 2>/dev/null || reanchor_miss="${reanchor_miss} $(basename "$pg")"
 done
 [ -z "${reanchor_miss}" ] && ok "[26] 占卜各页 changeGeo 重锚 date/time(setZone(z)),改时区瞬时随之偏移、实时重算正确" || bad "[26] 以下页 changeGeo 未重锚 date/time(改时区真太阳时/四柱会错):${reanchor_miss}"
 # 策天 KinAstroMain(cetian)选地点已接线(原 showLocation 但无 onGeoChange→选点失效)
-if grep -q "onGeoChange={this.changeGeo}" "${UISRC}/components/kinastro/KinAstroMain.js" 2>/dev/null; then ok "[26] 策天 KinAstroMain 已接 onGeoChange+changeGeo(cetian 选点生效)"; else bad "[26] 策天 KinAstroMain 缺 onGeoChange(选地点失效)"; fi
+if grep -q "onGeoChange={this.changeGeo}" "$(pf_src_set "${UISRC}/components/kinastro/KinAstroMain.js")" 2>/dev/null; then ok "[26] 策天 KinAstroMain 已接 onGeoChange+changeGeo(cetian 选点生效)"; else bad "[26] 策天 KinAstroMain 缺 onGeoChange(选地点失效)"; fi
 # 奇门 changeGeo 延后 requestNongli 重排(避 hook 预取竞态以旧盘覆盖)
-if grep -q "_geoRecalcTimer" "${UISRC}/components/dunjia/DunJiaMain.js" 2>/dev/null; then ok "[26] 奇门 changeGeo 延后强制重排(避竞态、改地点实时重算)在"; else bad "[26] 奇门 changeGeo 缺延后重排(改地点不重算风险)"; fi
+if grep -q "_geoRecalcTimer" "$(pf_src_set "${UISRC}/components/dunjia/DunJiaMain.js")" 2>/dev/null; then ok "[26] 奇门 changeGeo 延后强制重排(避竞态、改地点实时重算)在"; else bad "[26] 奇门 changeGeo 缺延后重排(改地点不重算风险)"; fi
 # 六壬中间盘头部默认显真太阳时(非公历钟表时)
 if grep -q "formatTrueSolarTime" "${UISRC}/components/lrzhan/RengChart.js" 2>/dev/null; then ok "[26] 六壬头部显真太阳时(formatTrueSolarTime)在"; else bad "[26] 六壬头部缺真太阳时显示(应默认显真太阳时)"; fi
 }
@@ -201,7 +201,7 @@ pf_need "${S260_UI}/components/comp/QuickTimeField.js" "export class QuickTimeTe
 pf_need "${S260_UI}/components/planetarium/PlanetariumBabylon.js" "<QuickTimeText" "天文馆时间行未接 QuickTimeText"
 pf_none "${S260_UI}/components/planetarium/PlanetariumBabylon.js" "<div ref={this._timeDisplayRef}" "天文馆仍有手写时间行"
 pf_need "${S260_UI}/components/xq-ui/index.js" "export function QuickDigitsHost" "xq-ui 缺数字快输宿主"
-pf_need "${S260_UI}/components/xq-ui/index.js" "export function XQTimePicker" "xq-ui 缺 XQTimePicker"
+pf_need "${S260_UI}/components/xq-ui/index.js" "export const XQTimePicker = React.forwardRef(" "xq-ui 缺 XQTimePicker(转 ref 的统一件)"
 pf_need "${S260_UI}/utils/quickDateTimeDigits.js" "export function parseQuickDigitsForFormat(" "解析单源缺按 format 切位"
 S260_RAW="$(grep -rlE --include='*.js' "import[[:space:]]*\{[^}]*(DatePicker|TimePicker)[^}]*\}[[:space:]]*from[[:space:]]*'antd'" "${S260_UI}/components" 2>/dev/null | grep -v "xq-ui/index.js" | grep -v "__tests__" || true)"
 [ -z "${S260_RAW}" ] || { bad "[${PF_NO}] 组件层仍直接引 antd DatePicker/TimePicker(绕过数字快输宿主): ${S260_RAW}"; S260_BAD=1; }
@@ -234,6 +234,7 @@ seg_61() {
 S61_BAD=0
 echo "[61] 风水 十三派 引擎+流派UI+玄空进阶+深化(黄泉/拨砂/线法/九水位/门主灶/年神)+零回归"
 S61_FS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/fengshui"
+S61_LW="$(pf_src_set "${S61_FS}/LiqiWorkspace.js")"   # 理气工作区读「子模块 + 门面」全集
 for f in fengshuiData.js liqiCore.js xuankong.js sanhe.js zibai.js qiankun.js bazhai.js jinsuo.js LiqiWorkspace.js; do
   [ -f "${S61_FS}/${f}" ] || { bad "[61] 缺风水理气 ${f}"; S61_BAD=1; }
 done
@@ -277,8 +278,8 @@ for t in liqiCore.test.js xuankong.test.js schools.test.js xuankongAdvanced.test
   [ -f "${S61_FS}/__tests__/${t}" ] || { bad "[61] 缺风水测试 ${t}"; S61_BAD=1; }
 done
 # nav 可发现十三派(理气六派 + 新派关键词)
-grep -qE "key: 'fengshui'.*金锁玉关.*乾坤国宝" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js" 2>/dev/null || { bad "[61] nav 缺理气六派关键词"; S61_BAD=1; }
-grep -qE "key: 'fengshui'.*玄空大卦.*形势.*择日" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js" 2>/dev/null || { bad "[61] nav 缺新派关键词(大卦/形势/择日)"; S61_BAD=1; }
+grep -qE "key: 'fengshui'.*金锁玉关.*乾坤国宝" "$(pf_src_set "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js")")" 2>/dev/null || { bad "[61] nav 缺理气六派关键词"; S61_BAD=1; }
+grep -qE "key: 'fengshui'.*玄空大卦.*形势.*择日" "$(pf_src_set "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js")")" 2>/dev/null || { bad "[61] nav 缺新派关键词(大卦/形势/择日)"; S61_BAD=1; }
 # ── 补齐（十六项）：综合罗经13层三针 / 玄空门派度界分运 / 玄空六法 / 命理派 / 形体图库 / 落卦 / 应期 / 造命四纲 ──
 for f in xuankongLiufa.js mingli.js; do
   [ -f "${S61_FS}/${f}" ] || { bad "[61] 缺风水新派 ${f}"; S61_BAD=1; }
@@ -315,9 +316,9 @@ grep -qE "p\.yingqi = \{" "${S61_FS}/jinsuo.js" 2>/dev/null || { bad "[61] 金�
 grep -qE "s\.dingXue \? 1 : 0" "${S61_FS}/xingshi.js" 2>/dev/null || { bad "[61] 形势定穴九法未入穴分(2.9)"; S61_BAD=1; }
 # 三新派必须进 LIQI_SET，否则 onVm 守失效、画布快照覆盖本派快照（既有事故模式）
 grep -qE "'liufa', 'mingli', 'luopan'" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] 三新派未进 LIQI_SCHOOLS(画布快照会覆盖=AI导出取错盘)"; S61_BAD=1; }
-grep -qE "liufa: '玄空六法'" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] SCHOOL_CN 缺三新派(buildSnapshot 头部依赖)"; S61_BAD=1; }
+grep -qE "liufa: '玄空六法'" "${S61_LW}" 2>/dev/null || { bad "[61] SCHOOL_CN 缺三新派(buildSnapshot 头部依赖)"; S61_BAD=1; }
 # 中栏多件必须走竖排容器（本身是 row flex，漏套会挤成两栏）
-grep -qE "horosa-fengshui-chart-stack[^A-Za-z0-9_-]" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] 中栏多件缺竖排容器(主盘与副图会并排)"; S61_BAD=1; }
+grep -qE "horosa-fengshui-chart-stack[^A-Za-z0-9_-]" "${S61_LW}" 2>/dev/null || { bad "[61] 中栏多件缺竖排容器(主盘与副图会并排)"; S61_BAD=1; }
 grep -qE "\.horosa-fengshui-chart-stack[^A-Za-z0-9_-]" "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/layouts/app.less")" 2>/dev/null || { bad "[61] app.less 缺竖排容器样式"; S61_BAD=1; }
 # aiExport 三新段登记 + 键内 union 迁移（不升 MIGRATION_VERSION，避免破 v45「取消=真取消」）
 S61_AIX="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/utils/aiExport.js")"
@@ -331,7 +332,7 @@ done
 grep -qE "LuopanDial[^A-Za-z0-9_]" "${S61_FS}/__tests__/charts.test.js" 2>/dev/null || { bad "[61] charts.test 未覆盖盘面"; S61_BAD=1; }
 grep -qE "xuankongLiufa[^A-Za-z0-9_]" "${S61_FS}/__tests__/fengshuiStress.test.js" 2>/dev/null || { bad "[61] 压测未覆盖新派"; S61_BAD=1; }
 # nav 可发现
-grep -qE "key: 'fengshui'.*玄空六法.*罗经.*补龙" "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js" 2>/dev/null || { bad "[61] nav 缺关键词(六法/罗经/补龙)"; S61_BAD=1; }
+grep -qE "key: 'fengshui'.*玄空六法.*罗经.*补龙" "$(pf_src_set "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/pages/index.js")")" 2>/dev/null || { bad "[61] nav 缺关键词(六法/罗经/补龙)"; S61_BAD=1; }
 # 🔴 显示层零来源泄漏：帮助文档与理气工作区不得出现章节号/书名
 # ── （十七项）：大玄空(单盘挨星) + registry 新派机制 ──────────────────
 # registry：新派走注册表（旧十四派 legacy switch 不迁移）；契约六成员齐备才算落成。
@@ -350,10 +351,10 @@ done
 # 🔴 registry 派的 snapshotLines 绝不自带段头（自带＝双段头，导出段过滤器会切坏）
 #    只咬「字符串字面量里的段头」——注释里写明该纪律是允许的，故锚 push/return 后紧跟引号的形态。
 if grep -nE "(push|return)[[:space:]]*\([[:space:]]*[\`'\"]【风水·" "${S61_FS}/liqi/"*.js 2>/dev/null | pipe_has .; then bad "[61] registry 派 snapshotLines 自带段头(会产双段头切坏导出)"; S61_BAD=1; fi
-grep -qE "if \(impl\) \{ return L\.concat" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] buildSnapshot 未单点统一冠段头(registry 派快照无头)"; S61_BAD=1; }
+grep -qE "if \(impl\) \{ return L\.concat" "${S61_LW}" 2>/dev/null || { bad "[61] buildSnapshot 未单点统一冠段头(registry 派快照无头)"; S61_BAD=1; }
 # 五处齐动：白名单/流派表/导出段/union 迁移
 grep -qE "'luopan', 'daxuankong'" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] 大玄空未进 LIQI_SCHOOLS(画布快照会覆盖=AI导出取错盘)"; S61_BAD=1; }
-grep -qE "daxuankong: '大玄空'" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] SCHOOL_CN 缺大玄空(buildSnapshot 头部依赖)"; S61_BAD=1; }
+grep -qE "daxuankong: '大玄空'" "${S61_LW}" 2>/dev/null || { bad "[61] SCHOOL_CN 缺大玄空(buildSnapshot 头部依赖)"; S61_BAD=1; }
 grep -qE "'风水·综合罗经', '风水·大玄空'," "${S61_AIX}" 2>/dev/null || { bad "[61] aiExport 缺风水·大玄空导出段"; S61_BAD=1; }
 grep -qE "AI_EXPORT_V52_SECTION_UNION[^A-Za-z0-9_]" "${S61_AIX}" 2>/dev/null || { bad "[61] aiExport 缺 v52 union 迁移(老用户自定义会静默丢大玄空段)"; S61_BAD=1; }
 # 🔴 MIGRATION_VERSION 不得因新派上升（升了会令 v45+ 存档重走全 preset union、破「取消=真取消」）
@@ -391,7 +392,7 @@ grep -qE "与山龙相反" "${S61_FS}/fengshuiShuilongData.js" 2>/dev/null || { 
 grep -qE "水穴后高绝无踪" "${S61_FS}/fengshuiShuilongData.js" 2>/dev/null || { bad "[61] 水龙缺穴后高低口径"; S61_BAD=1; }
 grep -qE "maxDepthM: 2" "${S61_FS}/fengshuiShuilongData.js" 2>/dev/null || { bad "[61] 水龙缺葬深 2 米硬上限"; S61_BAD=1; }
 grep -qE "'luopan', 'daxuankong', 'shuilong'" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] 水龙未进 LIQI_SCHOOLS"; S61_BAD=1; }
-grep -qE "shuilong: '水龙平洋'" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] SCHOOL_CN 缺水龙"; S61_BAD=1; }
+grep -qE "shuilong: '水龙平洋'" "${S61_LW}" 2>/dev/null || { bad "[61] SCHOOL_CN 缺水龙"; S61_BAD=1; }
 grep -qE "'风水·大玄空', '风水·水龙平洋'," "${S61_AIX}" 2>/dev/null || { bad "[61] aiExport 缺风水·水龙平洋段"; S61_BAD=1; }
 grep -qE "AI_EXPORT_V53_SECTION_UNION[^A-Za-z0-9_]" "${S61_AIX}" 2>/dev/null || { bad "[61] aiExport 缺 v53 union 迁移"; S61_BAD=1; }
 [ -f "${S61_FS}/__tests__/shuilong.test.js" ] || { bad "[61] 缺水龙测试"; S61_BAD=1; }
@@ -503,7 +504,7 @@ grep -qE "name: '穿心煞（气煞）'" "${S61_FS}/fengshuiHuashaData.js" 2>/de
 # 新派五处齐动
 grep -qE "^\thuasha: huashaSchool,$" "${S61_FS}/liqi/registry.js" 2>/dev/null || { bad "[61] 化煞未进 registry"; S61_BAD=1; }
 grep -qE "'daxuankong', 'shuilong', 'huasha'" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] 化煞未进 LIQI_SCHOOLS"; S61_BAD=1; }
-grep -qE "huasha: '改造化煞'" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] SCHOOL_CN 缺化煞"; S61_BAD=1; }
+grep -qE "huasha: '改造化煞'" "${S61_LW}" 2>/dev/null || { bad "[61] SCHOOL_CN 缺化煞"; S61_BAD=1; }
 grep -qE "'风水·水龙平洋', '风水·改造化煞'," "${S61_AIX}" 2>/dev/null || { bad "[61] aiExport 缺风水·改造化煞段"; S61_BAD=1; }
 grep -qE "AI_EXPORT_V54_SECTION_UNION[^A-Za-z0-9_]" "${S61_AIX}" 2>/dev/null || { bad "[61] aiExport 缺 v54 union 迁移"; S61_BAD=1; }
 [ -f "${S61_FS}/__tests__/huasha.test.js" ] || { bad "[61] 缺化煞 golden"; S61_BAD=1; }
@@ -530,7 +531,7 @@ S61_ZDA="$(grep -oE "atoms: \[" "${S61_FS}/fengshuiZhaiduanData.js" 2>/dev/null 
 # 新派五处齐动
 grep -qE "^\tzhaiduan: zhaiduanSchool,$" "${S61_FS}/liqi/registry.js" 2>/dev/null || { bad "[61] 宅断未进 registry"; S61_BAD=1; }
 grep -qE "'daxuankong', 'shuilong', 'huasha', 'zhaiduan'" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] 宅断未进 LIQI_SCHOOLS"; S61_BAD=1; }
-grep -qE "zhaiduan: '阳宅判断'" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] SCHOOL_CN 缺宅断"; S61_BAD=1; }
+grep -qE "zhaiduan: '阳宅判断'" "${S61_LW}" 2>/dev/null || { bad "[61] SCHOOL_CN 缺宅断"; S61_BAD=1; }
 grep -qE "'风水·改造化煞', '风水·阳宅判断'," "${S61_AIX}" 2>/dev/null || { bad "[61] aiExport 缺风水·阳宅判断段"; S61_BAD=1; }
 grep -qE "AI_EXPORT_V55_SECTION_UNION[^A-Za-z0-9_]" "${S61_AIX}" 2>/dev/null || { bad "[61] aiExport 缺 v55 union 迁移"; S61_BAD=1; }
 [ -f "${S61_FS}/__tests__/zhaiduan.test.js" ] || { bad "[61] 缺宅断 golden"; S61_BAD=1; }
@@ -584,8 +585,8 @@ done
 # 🔴 三元盘（蒋盘）明载无人盘中针/天盘缝针廿四山、无七十二龙/一百二十龙/六十龙分金
 grep -qE "not: \['renpan', 'tianpan', 'chuanshan', 'toudi', 'fenjin'" "${S61_FS}/fengshuiLuopanData.js" 2>/dev/null || { bad "[61] 三元盘层集未排除三针余两针与三龙分金"; S61_BAD=1; }
 # 🔴 盘式过滤须真作用到中栏（只换标题＝假切档）
-grep -qE "layers=\{result\.effLayers\}" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] 罗盘中栏未吃盘式过滤后的层集(切盘式只换标题)"; S61_BAD=1; }
-grep -qE "effLayers: \(\(\)=>\{" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] 缺盘式层集过滤 effLayers"; S61_BAD=1; }
+grep -qE "layers=\{result\.effLayers\}" "${S61_LW}" 2>/dev/null || { bad "[61] 罗盘中栏未吃盘式过滤后的层集(切盘式只换标题)"; S61_BAD=1; }
+grep -qE "effLayers: \(\(\)=>\{" "${S61_LW}" 2>/dev/null || { bad "[61] 缺盘式层集过滤 effLayers"; S61_BAD=1; }
 # 🔴 磁偏角符号：本表西偏为正，WMM/IGRF 东偏为正须取负（弄反则整盘反向偏）
 grep -qE "source === 'wmm' \? -d : d" "${S61_FS}/fengshuiDeclinationData.js" 2>/dev/null || { bad "[61] 磁偏角换源未取负(WMM 东偏为正，符号相反)"; S61_BAD=1; }
 grep -qE "DECLINATION_EPOCH = '2013-06'" "${S61_FS}/fengshuiDeclinationData.js" 2>/dev/null || { bad "[61] 磁偏角未标数据时点"; S61_BAD=1; }
@@ -622,7 +623,7 @@ grep -qE "Array\.isArray\(stars\) \? stars : \[\]" "${S61_FS}/fengshuiDuanyuData
 grep -qE "ocrNum: '1122'" "${S61_FS}/fengshuiDuanyuData.js" 2>/dev/null || { bad "[61] 阳宅三十则未保留原印讹号(自证依据丢失)"; S61_BAD=1; }
 grep -qE "条数恰三十与篇名相符" "${S61_FS}/fengshuiDuanyuData.js" 2>/dev/null || { bad "[61] 阳宅三十则编号法缺自证说明"; S61_BAD=1; }
 # 接线：玄空右栏按盘检索、宅断右栏三十则
-grep -qE "duanyuByPan\(result\.palaces\)" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] 玄空右栏未按盘检索断语"; S61_BAD=1; }
+grep -qE "duanyuByPan\(result\.palaces\)" "${S61_LW}" 2>/dev/null || { bad "[61] 玄空右栏未按盘检索断语"; S61_BAD=1; }
 grep -qE "YANGZHAI_30\.map" "${S61_FS}/liqi/zhaiduanSchool.js" 2>/dev/null || { bad "[61] 宅断右栏未列阳宅三十则"; S61_BAD=1; }
 [ -f "${S61_FS}/__tests__/fengshuiDuanyu.test.js" ] || { bad "[61] 缺断语库 golden"; S61_BAD=1; }
 # ── 室内凶局 · 几何自动检测（户型图 → 建议，不代人下判）──────────────
@@ -635,11 +636,11 @@ grep -qE "skipped\.push\(\{ name, missing: what \}\)" "${S61_FS}/neijuGeometry.j
 # 🔴 方位绝不在检测侧自铺：必须走宿主传入的 gongAt（唯一真值源 = 画布 getSectorForPoint，含盘面旋转）
 grep -qE "typeof gongAt === 'function'" "${S61_FS}/neijuGeometry.js" 2>/dev/null || { bad "[61] 几何检测缺角未走 gongAt(自铺九宫必与画布错位)"; S61_BAD=1; }
 if grep -qE "\[\[4, ?9, ?2\]|\[\[6, ?1, ?8\]" "${S61_FS}/neijuGeometry.js" 2>/dev/null; then bad "[61] 🔴 几何检测里写死了九宫方位表(画布可任意旋转,必错宫)"; S61_BAD=1; fi
-grep -qE "buildNeijuGeoInput\(\)" "${S61_FS}/fengshuiEngine.js" 2>/dev/null || { bad "[61] 画布引擎缺 buildNeijuGeoInput 供给口"; S61_BAD=1; }
+grep -qE "buildNeijuGeoInput\(\)" "$(pf_src_set "${S61_FS}/fengshuiEngine.js")" 2>/dev/null || { bad "[61] 画布引擎缺 buildNeijuGeoInput 供给口"; S61_BAD=1; }
 # 🔴 中宫可达性：SECTORS 只有外八方，供给口不补中宫则「卫生间在中宫」是死判据（真机才看得出）
-grep -qE "inCenterPalace\(pt\)" "${S61_FS}/fengshuiEngine.js" 2>/dev/null || { bad "[61] 缺 inCenterPalace(中宫判据将永不命中)"; S61_BAD=1; }
-grep -qE "if \(this\.inCenterPalace\(pt\)\) \{ return 5; \}" "${S61_FS}/fengshuiEngine.js" 2>/dev/null || { bad "[61] geo 供给口未接中宫(卫生间在中宫成死开关)"; S61_BAD=1; }
-grep -qE "rotatePoint\(pt, center, -this\.rect\.rotation\)" "${S61_FS}/fengshuiEngine.js" 2>/dev/null || { bad "[61] 中宫未按房屋框本地坐标算(框一转即错)"; S61_BAD=1; }
+grep -qE "inCenterPalace\(pt\)" "$(pf_src_set "${S61_FS}/fengshuiEngine.js")" 2>/dev/null || { bad "[61] 缺 inCenterPalace(中宫判据将永不命中)"; S61_BAD=1; }
+grep -qE "if \(this\.inCenterPalace\(pt\)\) \{ return 5; \}" "$(pf_src_set "${S61_FS}/fengshuiEngine.js")" 2>/dev/null || { bad "[61] geo 供给口未接中宫(卫生间在中宫成死开关)"; S61_BAD=1; }
+grep -qE "rotatePoint\(pt, center, -this\.rect\.rotation\)" "$(pf_src_set "${S61_FS}/fengshuiEngine.js")" 2>/dev/null || { bad "[61] 中宫未按房屋框本地坐标算(框一转即错)"; S61_BAD=1; }
 # 🔴 机器建议绝不并入 neiXiong、绝不计入 neiBad（并入即「机器代人下判」）
 grep -qE "绝不并入 neiXiong、绝不计入 neiBad、绝不动总断" "${S61_FS}/zhaiduan.js" 2>/dev/null || { bad "[61] zhaiduan 未声明几何建议不入判词"; S61_BAD=1; }
 if grep -qE "nx\[[^]]*\] *= *\(?nx\[|Object\.keys\(d\.suggested\)\.forEach" "${S61_FS}/zhaiduan.js" 2>/dev/null; then bad "[61] 🔴 zhaiduan 把几何建议并进了人工勾选(机器代人下判)"; S61_BAD=1; fi
@@ -647,7 +648,7 @@ if grep -qE "nx\[[^]]*\] *= *\(?nx\[|Object\.keys\(d\.suggested\)\.forEach" "${S
 grep -qE "r\.geoScan \? card\(" "${S61_FS}/liqi/zhaiduanSchool.js" 2>/dev/null || { bad "[61] 宅断右栏未出几何检测卡"; S61_BAD=1; }
 grep -qE "horosa-fengshui-liqi-adopt" "${S61_FS}/liqi/zhaiduanSchool.js" 2>/dev/null || { bad "[61] 缺「采纳此条」控件"; S61_BAD=1; }
 grep -qE "^\.horosa-fengshui-liqi-adopt \{" "$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/layouts/app.less")" 2>/dev/null || { bad "[61] 采纳控件类名无 CSS 定义(裸文本)"; S61_BAD=1; }
-grep -qE "impl\.Panel result=\{result\} ui=\{\{ card, row \}\} p=\{regP\} patch=\{regPatch\}" "${S61_FS}/LiqiWorkspace.js" 2>/dev/null || { bad "[61] 右栏未拿到 p/patch(采纳按钮成死按钮)"; S61_BAD=1; }
+grep -qE "impl\.Panel result=\{result\} ui=\{\{ card, row \}\} p=\{regP\} patch=\{regPatch\}" "${S61_LW}" 2>/dev/null || { bad "[61] 右栏未拿到 p/patch(采纳按钮成死按钮)"; S61_BAD=1; }
 grep -qE "geo=\{this\.engine \? this\.engine\.buildNeijuGeoInput\(\) : null\}" "${S61_FS}/FengShuiMain.js" 2>/dev/null || { bad "[61] FengShuiMain 未把画布几何传给理气工作区"; S61_BAD=1; }
 # 🔴 AI 快照必须把「待核」与已确认分行并标未经人工确认，否则报告会当成已定之事
 grep -qE "未经人工确认，不可作已定之事" "${S61_FS}/liqi/zhaiduanSchool.js" 2>/dev/null || { bad "[61] AI 快照未标机器建议为待核(会被写成已定之事)"; S61_BAD=1; }
@@ -734,8 +735,8 @@ S186_L2=$(grep -an "topInfo.includes('天星择日')" "$(pf_src_set "${S186_UI}/
 S186_L3=$(grep -an "topInfo.includes('择日')" "$(pf_src_set "${S186_UI}/src/utils/aiExport.js")" 2>/dev/null | head -1 | cut -d: -f1)
 { [ -n "${S186_L1}" ] && [ -n "${S186_L2}" ] && [ -n "${S186_L3}" ] && [ "${S186_L1}" -lt "${S186_L2}" ] && [ "${S186_L2}" -lt "${S186_L3}" ]; } || { bad "[186] 🔴 aiExport 择日子串启发式次序被破(奇门择日=${S186_L1:-缺} 天星=${S186_L2:-缺} 裸择日=${S186_L3:-缺};乱序=zeri 页导出串盘)"; S186_BAD=1; }
 grep -aq "case 'zeri':" "$(pf_src_set "${S186_UI}/src/utils/aiExport.js")" 2>/dev/null || { bad "[186] 🔴 resolveContextByAstroState 缺 zeri 分流(store 兜底根治缺位)"; S186_BAD=1; }
-grep -aq "this.scope = props.techniqueScope || 'qimen';" "${S186_UI}/src/components/dunjia/DunJiaMain.js" 2>/dev/null || { bad "[186] 🔴 DunJiaMain techniqueScope 默认锚缺失"; S186_BAD=1; }
-S186_HARD=$(grep -ac "saveModuleAISnapshot('qimen'" "${S186_UI}/src/components/dunjia/DunJiaMain.js" 2>/dev/null || true)
+grep -aq "this.scope = props.techniqueScope || 'qimen';" "$(pf_src_set "${S186_UI}/src/components/dunjia/DunJiaMain.js")" 2>/dev/null || { bad "[186] 🔴 DunJiaMain techniqueScope 默认锚缺失"; S186_BAD=1; }
+S186_HARD=$(grep -ac "saveModuleAISnapshot('qimen'" "$(pf_src_set "${S186_UI}/src/components/dunjia/DunJiaMain.js")" 2>/dev/null || true)
 [ "${S186_HARD}" = "0" ] || { bad "[186] 🔴 DunJiaMain 出现硬编码 qimen 快照槽(${S186_HARD} 处;scope 化被回潮=双实例竞写复发)"; S186_BAD=1; }
 # 奇门择日与其余择日页签一样带本技法的快捷栏:内嵌 DunJiaMain 不关坞(showQuickDock={false}),样式也不许再把 dock 行去掉
 # (关坞不去行 = 底部 64px 空带;去行不关坞 = 坞压在盘上 —— 两种都是回归)
@@ -786,7 +787,7 @@ seg_211() {
 #   合法浮点(1.19e21),过了数值转换却卡在经度范围检查上,于是整体静默回落成「无真实盘」。
 # 判据两层:jest/pytest 立行为判据 + 此处钉住关键接线与判据文件不被摘掉。
 echo "[211] 天文地占实时重排 + 重排不换卦"
-S211_SRC="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/geomancy/GeomancyMain.js"
+S211_SRC="$(pf_src_set "${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/geomancy/GeomancyMain.js")"
 S211_T="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/geomancy/__tests__/geomancyLiveRecast.test.js"
 S211_PY="${REPO_ROOT}/Horosa-Web/astropy/websrv/webgeomancysrv.py"
 S211_PT="${REPO_ROOT}/Horosa-Web/astropy/tests/test_geomancy_kernel.py"
@@ -852,4 +853,106 @@ else
   bad "[211] 🔴 webgeomancysrv.py 缺失"; S211_BAD=1
 fi
 [ "${S211_BAD}" = "0" ] && ok "[211] 时地/设置改动即重排 + 八档起卦源原样回带 + 载档不被覆盖"
+}
+
+# 随机起卦一律真随机:随机数只取系统随机源;要原样重开的技法把取到的原始字节存成「真随机记录」,引擎直接读记录里的位。
+# 技法代码里不许再出现伪随机:Math.random、拿当前时刻当种子、标准库的模块级随机函数、不带种子的伪随机数发生器。
+seg_334() {
+S334_BAD=0
+S334_UI="${REPO_ROOT}/Horosa-Web/astrostudyui/src"
+S334_PY="${REPO_ROOT}/Horosa-Web/astropy"
+# ① 两侧公共入口与判据文件在位
+for S334_F in \
+  "${S334_UI}/utils/trueRandom.js" "${S334_UI}/utils/entropyTape.js" "${S334_UI}/utils/__tests__/trueRandom.test.js" \
+  "${S334_PY}/astrostudy/truerandom.py" "${S334_PY}/tests/test_truerandom.py"
+do
+  [ -s "${S334_F}" ] || { bad "[${PF_NO}] 🔴 缺 ${S334_F#${REPO_ROOT}/}"; S334_BAD=1; }
+done
+if [ "${S334_BAD}" = "0" ]; then
+  # ② 前端入口只认系统随机源、没有伪随机退路;公共取数助手经它取数
+  grep -qF 'getRandomValues' "${S334_UI}/utils/trueRandom.js" \
+    || { bad "[${PF_NO}] 🔴 trueRandom.js 不再取系统随机源(crypto.getRandomValues)"; S334_BAD=1; }
+  for S334_F in utils/trueRandom.js utils/entropyTape.js utils/aiTools/tools/castRandomCase.js; do
+    [ "$(grep -cE 'Math\.random[[:space:]]*\(' "${S334_UI}/${S334_F}" 2>/dev/null || true)" = "0" ] \
+      || { bad "[${PF_NO}] 🔴 ${S334_F} 里出现 Math.random():随机起卦不许有伪随机退路"; S334_BAD=1; }
+  done
+  grep -qF 'return randomInt(Math.pow(10, expn));' "${S334_UI}/utils/helper.js" \
+    || { bad "[${PF_NO}] 🔴 helper.randomNum 不再经 trueRandom 取数(六爻掷钱 / 蓍草都走它)"; S334_BAD=1; }
+  # ③ 技法目录(components 下除与起卦无关的三个目录外全部,加 divination/)不调用 Math.random、不拿当前时刻当种子
+  S334_HITS="$( { pf_prod_hits -E 'Math\.random[[:space:]]*\(' "${S334_UI}/components" js jsx | grep -vE '/components/(aianalysis|planetarium|jieqi)/' || true; \
+                  pf_prod_hits -E 'Math\.random[[:space:]]*\(' "${S334_UI}/divination" js jsx | grep -vF '/divination/zeri/schemeStore.js' || true; } | sort -u )"
+  [ -z "${S334_HITS}" ] \
+    || { bad "[${PF_NO}] 🔴 技法代码里出现 Math.random()(起卦 / 抽牌一律用 utils/trueRandom.js):$(printf '%s' "${S334_HITS}" | sed "s#${S334_UI}/##g" | tr '\n' ' ')"; S334_BAD=1; }
+  S334_HITS="$( { pf_prod_hits -iE 'seed[a-z]*[[:space:]]*[:=][^;]*(Date\.now\(\)|getTime\(\)|performance\.now\(\))' "${S334_UI}/components" js jsx || true; \
+                  pf_prod_hits -iE 'seed[a-z]*[[:space:]]*[:=][^;]*(Date\.now\(\)|getTime\(\)|performance\.now\(\))' "${S334_UI}/divination" js jsx || true; } | sort -u )"
+  [ -z "${S334_HITS}" ] \
+    || { bad "[${PF_NO}] 🔴 技法代码拿当前时刻当种子(按时间推出来的数不是随机):$(printf '%s' "${S334_HITS}" | sed "s#${S334_UI}/##g" | tr '\n' ' ')"; S334_BAD=1; }
+  # ④ Python 自己的引擎 / 服务:不新建不带种子的伪随机数发生器、不拿模块本身当随机源;模块级随机函数只许出现在两处
+  #    (truerandom.py 本身;荆诀服务的分三函数整段跑在按种子执行的块里,已随之换源)
+  S334_HITS="$( { pf_prod_hits -E '(^|[^A-Za-z0-9_.])random\.Random\([[:space:]]*\)|rng or random[[:space:]]*$' "${S334_PY}/astrostudy" py || true; \
+                  pf_prod_hits -E '(^|[^A-Za-z0-9_.])random\.Random\([[:space:]]*\)|rng or random[[:space:]]*$' "${S334_PY}/websrv" py || true; } | sort -u )"
+  [ -z "${S334_HITS}" ] \
+    || { bad "[${PF_NO}] 🔴 引擎代码新建了不带种子的伪随机数发生器 / 拿标准库模块当随机源:$(printf '%s' "${S334_HITS}" | sed "s#${S334_PY}/##g" | tr '\n' ' ')"; S334_BAD=1; }
+  S334_HITS="$( { pf_prod_hits -E '(^|[^A-Za-z0-9_.])random\.(random|randint|choice|choices|shuffle|sample|randrange|uniform|getrandbits|seed)\(' "${S334_PY}/astrostudy" py || true; \
+                  pf_prod_hits -E '(^|[^A-Za-z0-9_.])random\.(random|randint|choice|choices|shuffle|sample|randrange|uniform|getrandbits|seed)\(' "${S334_PY}/websrv" py || true; } \
+                | grep -vE '/astrostudy/truerandom\.py$|/websrv/webjingjuesrv\.py$' | sort -u || true )"
+  [ -z "${S334_HITS}" ] \
+    || { bad "[${PF_NO}] 🔴 引擎代码直接调标准库的模块级随机函数(进程里一串按公式推的数):$(printf '%s' "${S334_HITS}" | sed "s#${S334_PY}/##g" | tr '\n' ' ')"; S334_BAD=1; }
+  # ⑤ 两侧「真随机记录」的写法同一约定
+  grep -qF "export const ENTROPY_SEED_PREFIX = 'tr1-';" "${S334_UI}/utils/trueRandom.js" && grep -qF 'ENTROPY_SEED_PREFIX = "tr1-"' "${S334_PY}/astrostudy/truerandom.py" \
+    || { bad "[${PF_NO}] 🔴 前后端「真随机记录」的前缀不一致(前端存的记录后端认不出,会当成整数种子)"; S334_BAD=1; }
+  # ⑥ 塔罗页「种子来源」的出厂值是「随机」(「出生信息」是可复现的确定性起法,不能当默认);请求加密的传输钥也取系统随机源
+  grep -qF "seedMode: { def: 'random', oneOf: ['birth', 'random'] }" "${S334_UI}/components/tarot/main/settings.js" \
+    || { bad "[${PF_NO}] 🔴 塔罗页「种子来源」的出厂值不再是「随机」(不改设置直接抽牌就不是随机抽牌了)"; S334_BAD=1; }
+  grep -qF "seedMode: 'random', manualSeed: 0" "${S334_UI}/components/tarot/TarotMain.js" \
+    || { bad "[${PF_NO}] 🔴 塔罗页初始状态的种子来源不再是「随机」"; S334_BAD=1; }
+  [ "$(grep -cE 'Math\.random[[:space:]]*\(' "${S334_UI}/utils/rsahelper.js" 2>/dev/null || true)" = "0" ] && grep -qF 'randomInt(txt.length)' "${S334_UI}/utils/rsahelper.js" \
+    || { bad "[${PF_NO}] 🔴 请求加密的传输钥又用 Math.random 生成(应经 utils/trueRandom.js 取系统随机源)"; S334_BAD=1; }
+  # ⑦ 判据文件里的关键断言不得被摘
+  for S334_A in '没有系统随机源就报错,绝不退回 Math.random' '跨语言向量:同一条记录两边读法一致' '技法代码不调用 Math.random' '全部读自记录原文(不续接)' '塔罗:种子来源默认是随机' '请求加密的传输钥取自系统随机源'; do
+    grep -qF "${S334_A}" "${S334_UI}/utils/__tests__/trueRandom.test.js" || { bad "[${PF_NO}] 🔴 前端判据文件缺关键断言:${S334_A}"; S334_BAD=1; }
+  done
+  for S334_A in 'def test_cross_language_vector_and_extension' 'def test_no_pseudo_random_in_own_engine_code' 'def test_geomancy_integer_seed_golden_unchanged' 'def test_geomancy_fresh_casts_never_run_past_the_record' 'def test_fresh_casts_never_touch_the_hidden_global_generator'; do
+    grep -qF "${S334_A}" "${S334_PY}/tests/test_truerandom.py" || { bad "[${PF_NO}] 🔴 引擎判据文件缺关键断言:${S334_A}"; S334_BAD=1; }
+  done
+fi
+[ "${S334_BAD}" = "0" ] && ok "[${PF_NO}] 随机起卦真随机:只取系统随机源、技法与引擎代码里没有伪随机、塔罗默认随机、传输钥同源、前后端记录写法一致、判据在位"
+}
+
+# 转盘奇门:天盘干由九星带着本宫的地盘干走。时干就是中五宫的干、值符星本宫又是寄宫(值符天芮、寄坤)时星不动,天盘干必与地盘干相同(伏吟)。
+# 上游参考实现在这一种情形从圈上最后一个干排起(星 / 门 / 神伏吟而天盘干错转),内置引擎与本地引擎都已改正,这里防回潮。
+seg_336() {
+S336_BAD=0
+S336_JS="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/dunjia/calc/pan.js"
+S336_PY="${REPO_ROOT}/Horosa-Web/vendor/kinqimen/kinqimen.py"
+S336_TJ="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/dunjia/__tests__/qimenOverlayOracle.test.js"
+S336_TP="${REPO_ROOT}/Horosa-Web/astropy/tests/test_qimen_tianpan_follows_stars.py"
+for S336_F in "${S336_JS}" "${S336_PY}" "${S336_TJ}" "${S336_TP}"; do
+  [ -s "${S336_F}" ] || { bad "[${PF_NO}] 🔴 缺 ${S336_F#${REPO_ROOT}/}"; S336_BAD=1; }
+done
+if [ "${S336_BAD}" = "0" ]; then
+  # ① 两份引擎里那一支「从圈上最后一个干排起」都不得回来
+  [ "$(grep -cF 'earthOnRing[earthOnRing.length - 1]' "${S336_JS}" || true)" = "0" ] \
+    || { bad "[${PF_NO}] 🔴 本地引擎 panSky 又从圈上最后一个干排天盘(值符天芮、时干在中五时天盘干会与星盘错开)"; S336_BAD=1; }
+  [ "$(grep -cF 'config.new_list(a, list(reversed(a))[0])' "${S336_PY}" || true)" = "0" ] \
+    || { bad "[${PF_NO}] 🔴 内置引擎 pan_sky 又从圈上最后一个干排天盘"; S336_BAD=1; }
+  grep -qF 'horosa_qimen_tianpan_fuyin_v1' "${S336_PY}" \
+    || { bad "[${PF_NO}] 🔴 内置引擎 pan_sky 的伏吟改正标记丢了(更新上游库时被覆盖?)"; S336_BAD=1; }
+  # ② 值符是天禽时由「本宫是寄宫的那颗星」代它领盘:九星层与值符名都经 leadStarOf 取星(与天盘干同一颗),不得退回恒按坤宫之星
+  S336_CALC="${REPO_ROOT}/Horosa-Web/astrostudyui/src/components/dunjia/DunJiaCalc.js"
+  grep -qF 'export function leadStarOf(zfStar, ext, yy)' "${S336_JS}" && grep -qF 'const startingStar = leadStarOf(zfzs.值符星宫[0], ext, meta.yy);' "${S336_JS}" \
+    || { bad "[${PF_NO}] 🔴 本地引擎排九星不再经 leadStarOf 取领盘之星(中宫寄宫选别的档、值符天禽时星层会与天盘干错开)"; S336_BAD=1; }
+  [ "$(grep -cF "值符星宫[0].replace(/芮/g, '禽')" "${S336_JS}" || true)" = "0" ] \
+    || { bad "[${PF_NO}] 🔴 本地引擎排九星又恒按坤宫之星代天禽(不读中宫寄宫档)"; S336_BAD=1; }
+  [ -s "${S336_CALC}" ] && grep -qF "leadStarOf('禽', zfzsExt, paiPanMeta.yinYangDun)" "${S336_CALC}" \
+    || { bad "[${PF_NO}] 🔴 值符名不再跟领盘之星(值符天禽、寄宫选别的档时会仍显「天内」)"; S336_BAD=1; }
+  # ③ 判据文件里的关键断言不得被摘
+  for S336_A in '天盘干随星走:全年真盘' '星、门、天盘干都在本宫' '全年真盘独立对拍' '值符是天禽的时辰由寄宫之星代它领盘' '寄艮时由天任领盘'; do
+    grep -qF "${S336_A}" "${S336_TJ}" || { bad "[${PF_NO}] 🔴 前端判据文件缺关键断言:${S336_A}"; S336_BAD=1; }
+  done
+  for S336_A in 'def test_reported_hour_is_stationary_on_all_layers' 'def test_sky_stems_follow_the_stars_all_year'; do
+    grep -qF "${S336_A}" "${S336_TP}" || { bad "[${PF_NO}] 🔴 引擎判据文件缺关键断言:${S336_A}"; S336_BAD=1; }
+  done
+fi
+[ "${S336_BAD}" = "0" ] && ok "[${PF_NO}] 转盘天盘干随星走:伏吟情形两份引擎均已改正、值符天禽由寄宫之星领盘、判据在位"
 }

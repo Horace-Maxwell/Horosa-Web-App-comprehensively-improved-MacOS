@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 星阙无头命令行入口:./horosa <子命令>(./horosa help 看全部)。不需要桌面 App:
-#   ./horosa setup   首次部署(工具链 + 构建)
+#   ./horosa setup   首次部署(工具链 + 构建);加 --local-only 不装 / 不用 Homebrew,全部落仓库内 .runtime/mac/
 #   ./horosa start   起本机计算服务 + 无头接口服务(MCP / REST / 终端命令共用)
 #   ./horosa mcp     stdio MCP(给 Claude Code / Claude Desktop / Codex / Cursor 等直接拉起;仓库根的 .mcp.json 已登记)
 set -euo pipefail
@@ -9,7 +9,10 @@ CLI="${ROOT}/Horosa-Web/astrostudyui/headless/cli.js"
 
 # setup 不需要 Node(部署脚本自己装工具链)
 if [ "${1:-}" = "setup" ]; then
-  exec env HOROSA_SKIP_LAUNCH=1 bash "${ROOT}/scripts/mac/bootstrap_and_run.sh"
+  # --local-only:不装、不用 Homebrew(不做任何系统级安装),缺的运行时一律下载到仓库内 .runtime/mac/ —— 交给 AI 代理跑时推荐这个写法
+  local_only="${HOROSA_LOCAL_ONLY:-0}"
+  for a in "$@"; do [ "${a}" = "--local-only" ] && local_only=1; done
+  exec env HOROSA_SKIP_LAUNCH=1 HOROSA_LOCAL_ONLY="${local_only}" bash "${ROOT}/scripts/mac/bootstrap_and_run.sh"
 fi
 
 # Node 候选:显式指定 > 项目内 > PATH > 常见安装位置(图形界面客户端拉起时 PATH 往往只有 /usr/bin:/bin,
@@ -42,7 +45,7 @@ case "${1:-help}" in help|-h|--help|version|-V|--version|doctor) NEEDS_DEPS=0 ;;
 NODE_BIN="$(pick_node || true)"
 if [ -z "${NODE_BIN}" ]; then
   if [ "${NEEDS_DEPS}" = "0" ]; then
-    echo "星阙无头命令行(仅 macOS):首次使用先运行 ./horosa setup —— 装好 Node / JDK 17 / Python 3.11+ 并构建(约 5 GB,需联网);"
+    echo "星阙无头命令行(仅 macOS):首次使用先运行 ./horosa setup(AI 代理用 ./horosa setup --local-only:不装 Homebrew)—— 装好 Node / JDK 17 / Python 3.11+ 并构建(约 5 GB,需联网);"
     echo "装好后 ./horosa help 看全部子命令。若 Node 18+ 已装在别处,设 HOROSA_NODE=/绝对路径/node。"
     exit 0
   fi

@@ -532,6 +532,35 @@ pub(crate) fn apply_navigation_decision(decision: NavigationDecision) -> bool {
     }
 }
 
+/// 键盘可达:让 Tab 走到链接与按钮,不看系统「键盘导航」设置。
+///
+/// 系统网页视图缺省跟随系统设置:没开「键盘导航」时 Tab 只在文本框、下拉与带 tabindex 的元素上停,
+/// 原生按钮(起盘、确定这类主按钮)用键盘够不着。这里把它的偏好 `tabFocusesLinks` 打开。
+/// 偏好对象是活的:网页视图建好之后再改,对这扇视图立刻生效。
+#[cfg(target_os = "macos")]
+pub(crate) fn enable_tab_to_all_controls(window: &WebviewWindow) {
+    let _ = window.with_webview(|webview| unsafe {
+        use objc2::msg_send;
+        use objc2::runtime::AnyObject;
+        let view = webview.inner() as *mut AnyObject;
+        let Some(view) = view.as_ref() else {
+            return;
+        };
+        let config: *mut AnyObject = msg_send![view, configuration];
+        let Some(config) = config.as_ref() else {
+            return;
+        };
+        let prefs: *mut AnyObject = msg_send![config, preferences];
+        let Some(prefs) = prefs.as_ref() else {
+            return;
+        };
+        let _: () = msg_send![prefs, setTabFocusesLinks: true];
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn enable_tab_to_all_controls(_window: &WebviewWindow) {}
+
 pub(crate) fn build_main_window(
     app: &AppHandle,
     state: &SavedWindowState,
@@ -569,7 +598,9 @@ pub(crate) fn build_main_window(
     } else {
         builder = builder.center();
     }
-    builder.build().context("build main window")
+    let window = builder.build().context("build main window")?;
+    enable_tab_to_all_controls(&window);
+    Ok(window)
 }
 
 fn create_secondary_window(
@@ -604,6 +635,7 @@ fn create_secondary_window(
         builder = builder.center();
     }
     let window = builder.build().context("build secondary window")?;
+    enable_tab_to_all_controls(&window);
     match label {
         PREFERENCES_WINDOW_LABEL => apply_saved_window_state(&window, &states.preferences),
         DIAGNOSTICS_WINDOW_LABEL => apply_saved_window_state(&window, &states.diagnostics),

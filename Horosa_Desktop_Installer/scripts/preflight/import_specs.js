@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // 发布前自检的「导入了某名」判据(lib.sh 的 pf_imports 调它):按 AST 读 import,与同一条里还有哪些名字、先后、换行、注释无关。
 //   node import_specs.js <前端根 astrostudyui> <文件> <import 语句>
-//   import 语句照源码写(例:import { a, b } from './x';),逐个名字核「该文件(登记过的门面按全集逐文件)从同一来源导入了它(本地名相同)」。
+//   import 语句照源码写(例:import { a, b } from './x';),逐个名字核「该文件(登记过的门面按全集逐文件)从同一来源导入了它(本地名相同)」;
+//   相对来源按落到的模块比(语句按门面所在目录写,子模块里 '../x' 也算同一来源)。
 //   全有 → 退出 0;缺 → 每缺一个打印一行「来源 名字」并退出 1;语句本身读不出 → 退出 2。
 // 解析与测试同一份助手:astrostudyui/src/utils/__tests__/helpers/importSpecs.js(文件读不全 / 有语法错也尽量读完)。
 const fs = require('fs');
@@ -22,13 +23,17 @@ if(!want.length){
 	console.error(`读不出 import 语句:${stmt}`);
 	process.exit(2);
 }
+// 相对来源按落到的文件比(门面里写 './x',搬进子模块后写 '../x',指的是同一个模块);非相对来源按原文比
+const noExt = (p)=>p.replace(/\.jsx?$/, '');
+const keyOf = (fromFile, source)=>(/^\.\.?\//.test(source) ? noExt(path.resolve(path.dirname(fromFile), source)) : source);
+const wantFrom = path.resolve(file);
 let have = [];
 try{
 	sourceSetFiles(file).forEach((f)=>{
 		if(!fs.existsSync(f)){ return; }
-		try{ have = have.concat(importBindings(fs.readFileSync(f, 'utf8'), { tolerant: true })); }catch(e){ /* 读不出的一份当没有导入 */ }
+		try{ have = have.concat(importBindings(fs.readFileSync(f, 'utf8'), { tolerant: true }).map((b)=>({ ...b, key: keyOf(f, b.source) }))); }catch(e){ /* 读不出的一份当没有导入 */ }
 	});
 }catch(e){ have = []; }
-const missing = want.filter((w)=>!have.some((h)=>h.source === w.source && h.imported === w.imported && h.local === w.local));
+const missing = want.filter((w)=>!have.some((h)=>h.key === keyOf(wantFrom, w.source) && h.imported === w.imported && h.local === w.local));
 missing.forEach((m)=>console.log(`${m.source} ${m.imported === m.local ? m.imported : `${m.imported} as ${m.local}`}`));
 process.exit(missing.length ? 1 : 0);

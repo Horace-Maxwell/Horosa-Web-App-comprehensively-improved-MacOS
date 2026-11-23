@@ -48,6 +48,10 @@ fail() {
 }
 
 have_cmd() {
+  # HOROSA_LOCAL_ONLY=1(./horosa setup --local-only):当 brew 不存在 —— 不装 Homebrew、不经它装任何东西,缺的运行时走仓库内下载
+  if [ "$1" = "brew" ] && [ "${HOROSA_LOCAL_ONLY:-0}" = "1" ]; then
+    return 1
+  fi
   command -v "$1" >/dev/null 2>&1
 }
 
@@ -91,6 +95,10 @@ load_brew_env() {
 }
 
 ensure_homebrew() {
+  if [ "${HOROSA_LOCAL_ONLY:-0}" = "1" ]; then
+    say "local-only: 不装、不用 Homebrew;缺的运行时下载到仓库内 .runtime/mac/"
+    return 1
+  fi
   load_brew_env
   if have_cmd brew; then
     return 0

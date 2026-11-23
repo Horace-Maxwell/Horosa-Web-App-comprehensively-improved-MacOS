@@ -856,7 +856,7 @@ grep -qF 'ParamHashPersistPolicy.apply(obj, ParamHashCacheHelper::persistable)' 
 grep -qF 'private static final String CacheEpoch = spacex.basecomm.constants.RuntimeWire.RUNTIME_VERSION;' "${S306_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java" 2>/dev/null \
   && grep -qF 'return hash(params, CacheEpoch);' "${S306_SRV}/astrostudy/src/main/java/spacex/astrostudy/helper/ParamHashCacheHelper.java" 2>/dev/null || { bad "[${PF_NO}]⑤ 结果缓存键未并入运行时版本(更新后会把上一版算出的结果继续发回来)"; S306_BAD=1; }
 grep -qF "url.searchParams.delete('firstLaunch');" "${S306_UI}/utils/backendBootGate.js" 2>/dev/null || { bad "[${PF_NO}]⑥ 首启一次性上下文未从地址栏摘除"; S306_BAD=1; }
-grep -qF '}, [currentTab, currentSubTab]);' "${S306_UI}/pages/index.js" 2>/dev/null || { bad "[${PF_NO}]⑥ 切页签不重落温启快照"; S306_BAD=1; }
+grep -qF '}, [currentTab, currentSubTab]);' "$(pf_src_set "${S306_UI}/pages/index.js")" 2>/dev/null || { bad "[${PF_NO}]⑥ 切页签不重落温启快照"; S306_BAD=1; }
 for S306_T in test_sign_payload_cached.py test_sign_runtime_payload_native_cache.py test_prepare_sign_seed.py; do
   /usr/bin/python3 "${S306_SC}/${S306_T}" >/dev/null 2>&1 || { bad "[${PF_NO}]⑦ ${S306_T} 失败"; S306_BAD=1; }
 done

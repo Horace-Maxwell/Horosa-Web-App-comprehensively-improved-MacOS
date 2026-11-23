@@ -1,3 +1,27 @@
-# Linux(x86_64 / arm64)上 Python 计算引擎的依赖:与 macOS 同一份清单(下面这行引用它;内容跨平台,文件名沿用旧名)。
+# Linux(x86_64 / arm64)上跑批量验证 / 命题验证的 Python 依赖:与 mac-python.txt 同一份清单,去掉界面框架(streamlit / plotly,连同它们带进来的
+# pyarrow / altair / pydeck 等约 330 MB)—— 排盘计算不调用它们,桌面安装包里也不带(同一张排除表;内置第三方引擎顶层的 import streamlit
+# 由计算服务里的兼容桩兜住)。两份清单只差这几项,有测试看守:改 mac-python.txt 时这里同改。
 # 用法:python3 -m pip install -r scripts/requirements/linux-python.txt(Python 3.11+;个别包在没有预编译轮子的平台上要现编,需 gcc / g++)
--r mac-python.txt
+cherrypy>=18.10,<19
+jsonpickle>=3.0,<4
+pyswisseph>=2.10,<3
+joblib==1.5.3
+numpy==2.4.2
+scipy==1.17.1
+scikit-learn==1.8.0
+pendulum>=3.0,<4
+pandas>=2.2,<3
+svgwrite>=1.4,<2
+fpdf2>=2.7,<3
+pytz>=2022
+opencc-python-reimplemented>=0.1.7,<0.2
+zhconv>=1.4,<2
+sxtwl>=2.0.6,<3
+ephem>=4.2,<5
+cn2an>=0.5.23,<1
+cnlunar>=0.1.1,<0.2
+bidict>=0.22,<1
+kinliuren>=0.1.2.9,<0.2
+drawsvg>=2.3,<3
+kerykeion>=5.6,<6
+astropy>=7,<8

@@ -91,7 +91,7 @@ grep -q '"id":43' <<< "$pg_sse" || fail "响应流里缺最终回包: $pg_sse"
 ok "进度帧 + 回包同一响应流(分块收尾)"
 
 # ── 无头出口:run_analysis 只在 MCP 目录里出现(页面内模型永远看不到)──
-# 长分析可能超过页面缺省预算(117 s):客户端应带 _meta.timeoutMs(这里 300 s;壳钳 1..600 s)
+# 长分析的预算:客户端没带 _meta.timeoutMs 时按工具声明的走;这里显式带 300 s(壳钳 1..1800 s)
 if [ "$HEADLESS" = "1" ]; then
   grep -q '"run_analysis"' <<< "$list" || fail "--headless:tools/list 缺 run_analysis(先在「外部连接」里开「无头分析出口」)"
   ha=$(rpc '{"jsonrpc":"2.0","id":30,"method":"tools/call","params":{"name":"run_analysis","arguments":{"question":"一句话自我介绍(冒烟)"},"_meta":{"timeoutMs":300000}}}')

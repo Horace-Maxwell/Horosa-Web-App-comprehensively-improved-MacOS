@@ -49,6 +49,8 @@ static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Options {
     pub json: bool,
+    /// call 只打印 structuredContent 一行(无结构化时打正文字符串);出错进标准错误(与无头 ./horosa 同一口径)
+    pub data: bool,
     pub endpoint: Option<PathBuf>,
     pub timeout_secs: Option<u64>,
     /// None = 跟随终端(标准错误是终端才打进度)
@@ -87,13 +89,14 @@ pub enum Command {
 pub fn usage() -> String {
     let mut s = String::from(
         "星阙终端命令(与外部智能体客户端同一套工具、同一审批与上限;要先在星阙里打开本机服务)\n\n\
-用法: horosa <子命令> [参数] [--json] [--timeout 秒] [--progress | --no-progress] [--endpoint 端点文件]\n\n\
+用法: horosa <子命令> [参数] [--json | --data] [--timeout 秒] [--progress | --no-progress] [--endpoint 端点文件]\n\n\
 子命令:\n\
   status                      本机服务是否在跑(地址 / 版本 / 工具件数)\n\
   tools                       列出全部工具(只读 / 写入)\n\
   describe <工具>             某件工具的说明与参数结构\n\
   call <工具> [参数…]         调用任意工具;参数 = JSON 对象 / k=v(字符串)/ k:=JSON / -(从标准输入读 JSON)\n\
   call … --idempotency-key K  写入类:同一个键重试不重复写(同键换参被拒)\n\
+  call … --data               只打印结构化结果一行(给程序用;出错进标准错误、退出码 1)\n\
   resources [--cursor C]      列出资源(命盘 / 事盘 / 资料 / 任务 / 操作手册)\n\
   templates                   资源模版\n\
   read <资源地址>             读资源正文(如 horosa://chart/local-…)\n\
@@ -193,6 +196,7 @@ pub fn parse_args(args: &[String]) -> Result<(Options, Command), String> {
         };
         match a.as_str() {
             "--json" => opts.json = true,
+            "--data" => opts.data = true,
             "--progress" => opts.progress = Some(true),
             "--no-progress" | "--quiet" | "-q" => opts.progress = Some(false),
             "-h" | "--help" => help = true,
@@ -302,8 +306,8 @@ pub fn parse_args(args: &[String]) -> Result<(Options, Command), String> {
 
 fn parse_timeout(v: &str) -> Result<u64, String> {
     match v.trim().parse::<u64>() {
-        Ok(n) if (1..=600).contains(&n) => Ok(n),
-        _ => Err("--timeout 要 1..600 之间的秒数".to_string()),
+        Ok(n) if (1..=1800).contains(&n) => Ok(n),
+        _ => Err("--timeout 要 1..1800 之间的秒数".to_string()),
     }
 }
 
@@ -776,7 +780,7 @@ fn call_interruptible(
     io: &mut CliIo,
 ) -> Result<Value, CliError> {
     let id = next_id();
-    let show = opts.progress.unwrap_or(io.err_is_tty) && !opts.json;
+    let show = opts.progress.unwrap_or(io.err_is_tty) && !opts.json && !opts.data;
     let params = meta_params(params, opts, if show { Some(id.as_str()) } else { None });
     let http_timeout = opts.timeout_secs.map(|t| Duration::from_secs(t + 15));
     let (tx, rx) = mpsc::channel::<Msg>();
@@ -1009,7 +1013,17 @@ pub fn execute(argv: &[String], default_endpoint: Option<PathBuf>, io: &mut CliI
             ) {
                 Ok(r) => {
                     let (text, is_error) = fmt_tool_result(&r);
-                    if opts.json {
+                    if opts.data && !opts.json {
+                        if is_error {
+                            let _ = write!(io.err, "{}", text);
+                        } else {
+                            let line = match r.get("structuredContent") {
+                                Some(v) => v.to_string(),
+                                None => Value::String(text.trim().to_string()).to_string(),
+                            };
+                            let _ = writeln!(io.out, "{}", line);
+                        }
+                    } else if opts.json {
                         emit_json(io, &r);
                     } else if is_error {
                         let _ = write!(io.err, "{}", text);

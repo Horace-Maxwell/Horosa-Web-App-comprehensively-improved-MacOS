@@ -17,7 +17,7 @@ R41_PY="${REPO_ROOT}/Horosa-Web/astropy/astrostudy"
 # ③ 列表 key 用随机串(每次渲染重挂,丢焦点/白耗)。全仓存量待清(legacy 惯用法,百余处),
 #    本门禁先钉「已修文件零回归」;新文件请直接用稳定 key。
 for R41_F in components/calendar/NongLi.js components/calendar/NongLiMain.js components/ziwei/ZiWeiMain.js components/deeplearn/DLFeature.js components/germany/Midpoint.js components/dice/DiceMain.js; do
-  grep -an "key={randomStr(" "${R41_UI}/${R41_F}" >/dev/null 2>&1 && { bad "[41] ${R41_F} 的 randomStr key 回归"; R41_BAD=1; }
+  grep -an "key={randomStr(" "$(pf_src_set "${R41_UI}/${R41_F}")" >/dev/null 2>&1 && { bad "[41] ${R41_F} 的 randomStr key 回归"; R41_BAD=1; }
 done
 # ④ SVG 属性拼写:stroke-dashanray 会被静默忽略
 [ -n "$(pf_prod_hits -a "stroke-dashanray" "${R41_UI}" js)" ] && { bad "[41] stroke-dashanray 拼写再现(应为 stroke-dasharray)"; R41_BAD=1; }
@@ -225,4 +225,52 @@ if [ -d "${S210_DIR}" ]; then
   done
 fi
 [ "${S210_BAD}" = "0" ] && ok "[210] compileall 带 -s/-p + 可复现三件套完整 + 产物零构建机路径"
+}
+
+seg_333() {
+echo "[${PF_NO}] 前端可维护性棘轮(写法 + 静态检查):逐文件计数不超基线、基线已收紧到当前值"
+# 判据单源 Horosa-Web/astrostudyui/scripts/ui-ratchet.js(jest uiEngineeringRatchet 读同一份):
+#   !important / 写死层级 / 写死字号 / 写死颜色 / 原生基础控件 / 行内颜色 / 行内字号 / 键盘不可达的可点元素 / 超长文件行数,逐文件只许减少。
+#   jest 只拦上升;本段另要求基线恰等于当前值 —— 改好了却没收基线,下一次就能悄悄涨回旧值。
+S333_BAD=0
+S333_UI="${REPO_ROOT}/Horosa-Web/astrostudyui"
+if ! command -v node >/dev/null 2>&1; then
+  bad "[${PF_NO}] 找不到 node,棘轮无法执行 —— 判据失效即红"; S333_BAD=1
+elif [ ! -f "${S333_UI}/scripts/ui-ratchet.js" ]; then
+  bad "[${PF_NO}] 缺 scripts/ui-ratchet.js"; S333_BAD=1
+else
+  S333_OUT="$(cd "${S333_UI}" && node scripts/ui-ratchet.js --check-tight 2>&1)" || {
+    S333_BAD=1; bad "[${PF_NO}] 棘轮未过 —— $(printf '%s' "${S333_OUT}" | grep -a '↑\|↓\|✗' | head -4 | tr '\n' ' ')"
+  }
+  # 判别力自证:把基线里任一计数减一放进临时副本比,必须报上升(拿空基线当「全绿」是假绿)
+  S333_SELF="$(cd "${S333_UI}" && node -e '
+    const R = require("./scripts/ui-ratchet.js");
+    const base = R.loadBase(R.BASE_SHARED);
+    const k = R.METRICS.find((m)=>Object.keys(base.metrics[m] || {}).length);
+    if(!k){ console.log("EMPTY"); process.exit(0); }
+    const f = Object.keys(base.metrics[k])[0];
+    base.metrics[k][f] -= 1;
+    const cur = R.measureAll().shared;
+    console.log(R.compare(cur, base).increases.some((x)=>x.metric === k && x.file === f) ? "RED" : "GREEN");
+  ' 2>&1)"
+  [ "${S333_SELF}" = "RED" ] || { bad "[${PF_NO}] 棘轮判别力自证失败(基线减一后未报上升:${S333_SELF})"; S333_BAD=1; }
+  # 静态检查棘轮(scripts/lint-ratchet.js,规则 .eslintrc.js;与上面同一公共核 ratchet-core.js):没定义的名字 / 没用的引用 / Hook 两条 /
+  #   无障碍五条 / import 写在代码之后,逐文件只许减少。缺 eslint 工具链 = 判据失效即红(npm install)。
+  if [ ! -f "${S333_UI}/scripts/lint-ratchet.js" ] || [ ! -f "${S333_UI}/.eslintrc.js" ]; then
+    bad "[${PF_NO}] 缺 scripts/lint-ratchet.js 或 .eslintrc.js"; S333_BAD=1
+  else
+    S333_LOUT="$(cd "${S333_UI}" && node scripts/lint-ratchet.js --check-tight 2>&1)" || {
+      S333_BAD=1; bad "[${PF_NO}] 静态检查棘轮未过 —— $(printf '%s' "${S333_LOUT}" | grep -a '↑\|↓\|✗\|缺 eslint' | head -4 | tr '\n' ' ')"
+    }
+    # 判别力自证:同一个 ESLint 实例查「用了没 import 的函数」必须计 undef 1(规则被关 / 解析器配错 = 整项恒 0 的假绿)
+    S333_LSELF="$(cd "${S333_UI}" && node -e '
+      const path = require("path"); const L = require("./scripts/lint-ratchet.js");
+      L.makeEslint({ cache: false }).lintText("export function f(){ return helperNotImported(1); }\n", { filePath: path.join(L.SRC, "components", "__probe__", "P.js") })
+        .then(([r])=>console.log(r.messages.filter((m)=>L.RULE_METRIC[m.ruleId] === "undef").length === 1 ? "RED" : "GREEN"))
+        .catch((e)=>console.log("ERR " + (e && e.message)));
+    ' 2>&1)"
+    [ "${S333_LSELF}" = "RED" ] || { bad "[${PF_NO}] 静态检查棘轮判别力自证失败(未定义名字没被计数:${S333_LSELF})"; S333_BAD=1; }
+  fi
+fi
+[ "${S333_BAD}" = "0" ] && ok "[${PF_NO}] 可维护性棘轮(写法 + 静态检查):计数不超基线、基线已收紧、判别力自证通过"
 }

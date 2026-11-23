@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { pressable } from '../../utils/pressable';
 
 const CAT_ORDER = ['富贵', '文贵', '武贵', '破格'];
 const CAT_CLASS = { 富贵: 'fugui', 文贵: 'wengui', 武贵: 'wugui', 破格: 'poge' };
@@ -135,7 +136,7 @@ class ZWPatternPanel extends Component {
 							<div className={`horosa-ziwei-pattern-item cat-${cls} ${open ? 'is-open' : ''}`} key={p.name}>
 								<div
 									className="horosa-ziwei-pattern-head"
-									onClick={() => this.toggle(p.name)}
+									{...pressable(() => this.toggle(p.name), { role: false })}
 									role="button"
 								>
 									<span className="horosa-ziwei-pattern-name">{p.name}</span>

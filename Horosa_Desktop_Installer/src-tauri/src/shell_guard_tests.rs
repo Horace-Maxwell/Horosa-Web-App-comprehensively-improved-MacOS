@@ -454,6 +454,34 @@ fn navigation_gate_is_wired_on_main_and_secondary_windows() {
     assert!(gates.iter().any(|&g| g > sec_at));
 }
 
+/// 键盘可达:主窗口与次窗口(偏好设置 / 诊断)建好后都把网页视图的「Tab 走到链接与按钮」偏好打开 ——
+/// 系统没开「键盘导航」时,缺省 Tab 够不着原生按钮(起盘、确定这类主按钮)。
+#[test]
+fn tab_reaches_buttons_on_main_and_secondary_windows() {
+    let src = include_str!("ui_windows.rs");
+    let helper = src
+        .find("pub(crate) fn enable_tab_to_all_controls(window: &WebviewWindow) {")
+        .expect("缺 enable_tab_to_all_controls");
+    let body = &src[helper..helper + src[helper..].find("\n}\n").unwrap()];
+    assert!(body.contains("window.with_webview("));
+    assert!(body.contains("msg_send![prefs, setTabFocusesLinks: true]"));
+    let main_at = src.find("fn build_main_window(").unwrap();
+    let sec_at = src.find("fn create_secondary_window(").unwrap();
+    let calls: Vec<usize> = src
+        .match_indices("enable_tab_to_all_controls(&window);")
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(calls.len(), 2);
+    assert!(calls.iter().any(|&c| c > main_at && c < sec_at));
+    assert!(calls.iter().any(|&c| c > sec_at));
+    // 调用都在各自的 build() 之后(偏好要对已经建好的网页视图改)
+    for &c in &calls {
+        let before = &src[..c];
+        let built = before.rfind("builder.build()").unwrap();
+        assert!(built > before.rfind("WebviewWindowBuilder::new(").unwrap());
+    }
+}
+
 /// 每个建窗链(`WebviewWindowBuilder::new(` 到 `.build()`)上必须挂导航闸 —— 扫全部壳源,不只 ui_windows.rs
 fn window_builders_without_navigation_gate(name: &str, src: &str) -> Vec<String> {
     let code = strip_rust_comments(src);

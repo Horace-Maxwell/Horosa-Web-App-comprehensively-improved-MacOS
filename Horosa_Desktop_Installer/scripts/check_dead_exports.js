@@ -101,11 +101,15 @@ function analyze(files) {
   const exportsOf = new Map();
   const fnExportsOf = new Map();
   const internalUse = new Set();
-  const asts = new Map();
+  const parsedOk = [];   // 第一遍解析成功的文件(语法树不留:第二遍逐个重解析,内存只占一份)
+  const isTestFile = (file) => /(^|\/)__tests__\//.test(file) || /\.test\.jsx?$/.test(file) || /(^|\/)test\//.test(file);
   for (const [file, code] of files) {
+    // 单元测试不算消费(下面第二遍本就跳过),它的导出也不在受检面:不解析、不留语法树 ——
+    // 此前全仓 3000+ 文件的语法树全留在内存,峰值逼近 Node 缺省堆上限(4 GB)而爆
+    if (isTestFile(file) && !HARNESS_CONSUMERS.has(file)) continue;
     let ast;
     try { ast = parse(code, file); } catch (e) { continue; }
-    asts.set(file, ast);
+    parsedOk.push(file);
     const names = new Set();          // 全部具名导出(供消费判定)
     const fnNames = new Set();        // 其中的函数导出(受检面)
     for (const node of ast.program.body) {
@@ -140,10 +144,11 @@ function analyze(files) {
   }
   const consumed = new Set();
   const passThrough = [];             // [门面, 门面导出名, 子模块, 子模块导出名]
-  for (const [file, ast] of asts) {
-    const isTest = /(^|\/)__tests__\//.test(file) || /\.test\.jsx?$/.test(file) || /(^|\/)test\//.test(file);
+  for (const file of parsedOk) {
+    const isTest = isTestFile(file);
     // 评测装置(jest 驱动的 CLI 主体 + 磁带)是真消费方,不是单元测试:有的导出只被它们消费
     if (isTest && !HARNESS_CONSUMERS.has(file)) continue;
+    const ast = parse(files.get(file), file);
     const deps = new Set();            // 本文件引到的模块
     const direct = [];                 // [模块, 导出名] 直接说明符
     const ownSubs = SOURCE_SETS.get(file) || [];   // 门面引自己的子模块:只是转手
@@ -183,11 +188,16 @@ function analyze(files) {
   return { exportsOf, fnExportsOf, consumed };
 }
 
+// astrostudyui 下 src 之外的 node 入口也是真消费方:scripts/(evalCompare 等 CLI)与 headless/(无头模式的运行时 / 命令行 / 打包入口,
+// 经 entry.js 重导出工具层再由 runtime.js 调用,不在 src 的 import 图里)。只读顶层 .js,不进 headless/dist(打包产物)与 headless/test。
 function scriptsText() {
-  try {
-    const dir = path.join(uiRoot, 'scripts');
-    return fs.readdirSync(dir).filter((n) => /\.js$/.test(n)).map((n) => fs.readFileSync(path.join(dir, n), 'utf8')).join('\n');
-  } catch (e) { return ''; }
+  const read = (sub) => {
+    try {
+      const dir = path.join(uiRoot, sub);
+      return fs.readdirSync(dir).filter((n) => /\.js$/.test(n)).map((n) => fs.readFileSync(path.join(dir, n), 'utf8')).join('\n');
+    } catch (e) { return ''; }
+  };
+  return [read('scripts'), read('headless')].join('\n');
 }
 function deadExports(files, scanDirs, opts) {
   const { fnExportsOf, consumed } = analyze(files);
